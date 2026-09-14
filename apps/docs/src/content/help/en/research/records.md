@@ -40,3 +40,8 @@ again to create a separate snapshot and review the two records independently.
 
 - [Run, stop, and reset research](/docs/help/research/run-control)
 - [Hand research to Factor or Strategy](/docs/help/research/handoff)
+
+
+## Embedded analysis in chat
+
+For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.

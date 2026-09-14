@@ -797,10 +797,11 @@ export function sendAgent(
   message: string,
   code: string,
   language: 'typescript' | 'python' = 'typescript',
+  analysis?: { reportId?: string; dataReferences?: ResearchDataReferenceV1[] },
 ): Promise<{ turnId: string }> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/agent/turns`, {
     method: 'POST',
-    body: JSON.stringify({ message, code, language }),
+    body: JSON.stringify({ message, code, language, ...analysis }),
   });
 }
 
@@ -1123,10 +1124,11 @@ export function sendFactorAgent(
   factorId: string,
   message: string,
   code: string,
+  analysis?: { reportId?: string; dataReferences?: ResearchDataReferenceV1[] },
 ): Promise<{ turnId: string }> {
   return request(`/api/app/factors/${encodeURIComponent(factorId)}/agent/turns`, {
     method: 'POST',
-    body: JSON.stringify({ message, code }),
+    body: JSON.stringify({ message, code, ...analysis }),
   });
 }
 
@@ -1295,3 +1297,127 @@ import type {
   FactorQuestionTurnV1,
   FactorQuestionHistoryV1,
 } from '@jixie/shared';
+
+// Embedded analyses retain exact Python runs independently from model prose.
+import type {
+  ResearchDataReferenceV1,
+  ResearchEmbeddedAnalysisV1,
+  ResearchEmbeddedVersionV1,
+  ResearchEmbeddedRunV1,
+  ResearchEmbeddedRunSummaryV1,
+  ResearchEmbeddedHostV1,
+  ResearchEmbeddedDraftInputV1,
+  ResearchEmbeddedPageV1,
+} from '@jixie/shared';
+const embeddedApi = '/api/app/research/embedded-analyses';
+export function listEmbeddedAnalyses(
+  host: ResearchEmbeddedHostV1,
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<ResearchEmbeddedPageV1<ResearchEmbeddedAnalysisV1>> {
+  const query = new URLSearchParams({ hostType: host.type, hostId: host.id });
+  if (cursor) {
+    query.set('cursor', cursor);
+  }
+  return request(`${embeddedApi}?${query}`, { signal });
+}
+export function readEmbeddedRun(
+  analysisId: string,
+  runId: string,
+  signal?: AbortSignal,
+): Promise<ResearchEmbeddedRunV1> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs/${encodeURIComponent(runId)}`,
+    { signal },
+  );
+}
+export function listEmbeddedRuns(
+  analysisId: string,
+  cursor?: string,
+  signal?: AbortSignal,
+): Promise<ResearchEmbeddedPageV1<ResearchEmbeddedRunSummaryV1>> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+    { signal },
+  );
+}
+export function readEmbeddedVersion(
+  analysisId: string,
+  versionId: string,
+  signal?: AbortSignal,
+): Promise<ResearchEmbeddedVersionV1> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/versions/${encodeURIComponent(versionId)}`,
+    { signal },
+  );
+}
+export function updateEmbeddedDraft(
+  analysisId: string,
+  versionId: string,
+  input: ResearchEmbeddedDraftInputV1 & { expectedRevision: number },
+): Promise<ResearchEmbeddedVersionV1> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/versions/${encodeURIComponent(versionId)}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  );
+}
+export function deriveEmbeddedDraft(
+  analysisId: string,
+  parentVersionId: string,
+  draft: ResearchEmbeddedDraftInputV1,
+): Promise<ResearchEmbeddedVersionV1> {
+  return request(`${embeddedApi}/${encodeURIComponent(analysisId)}/versions`, {
+    method: 'POST',
+    body: JSON.stringify({ parentVersionId, draft }),
+  });
+}
+export function runEmbeddedDraft(
+  analysisId: string,
+  versionId: string,
+  input: { requestId: string; expectedRevision: number },
+): Promise<ResearchEmbeddedRunSummaryV1> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/versions/${encodeURIComponent(versionId)}/runs`,
+    { method: 'POST', body: JSON.stringify(input) },
+  );
+}
+export function stopEmbeddedRun(analysisId: string, runId: string): Promise<unknown> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs/${encodeURIComponent(runId)}/cancel`,
+    { method: 'POST' },
+  );
+}
+export function continueEmbeddedResearch(
+  analysisId: string,
+  runId: string,
+): Promise<{ documentId: string }> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs/${encodeURIComponent(runId)}/continue-research`,
+    { method: 'POST' },
+  );
+}
+export function changeEmbeddedInputMode(
+  documentId: string,
+  inputMode: 'retained' | 'current',
+  expectedRevision: number,
+): Promise<ResearchDocumentV1> {
+  return request(`${embeddedApi}/documents/${encodeURIComponent(documentId)}/input-mode`, {
+    method: 'PATCH',
+    body: JSON.stringify({ inputMode, expectedRevision }),
+  });
+}
+export function readEmbeddedInput(
+  analysisId: string,
+  runId: string,
+  inputId: string,
+): Promise<{ response: unknown; sha256: string | null; byteSize: number }> {
+  return request(
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs/${encodeURIComponent(runId)}/inputs/${encodeURIComponent(inputId)}`,
+  );
+}
+export function readEmbeddedAnalysis(
+  analysisId: string,
+  signal?: AbortSignal,
+): Promise<ResearchEmbeddedAnalysisV1> {
+  return request(`${embeddedApi}/${encodeURIComponent(analysisId)}`, { signal });
+}

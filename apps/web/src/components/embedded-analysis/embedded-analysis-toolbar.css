@@ -1,0 +1,14 @@
+@reference '../../styles/index.css';
+.jx-embeddedToolbar {
+  @apply flex flex-col gap-2;
+  padding: 8px 0;
+}
+.jx-embeddedToolbar-actions {
+  @apply flex flex-wrap items-center gap-2;
+}
+.jx-embeddedToolbar-note {
+  @apply break-all text-xs text-muted;
+}
+.jx-embeddedToolbar-historyItem {
+  @apply mb-2;
+}

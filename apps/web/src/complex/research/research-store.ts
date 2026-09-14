@@ -1,3 +1,4 @@
+import { changeEmbeddedInputMode } from '@src/api/client';
 import { action, makeObservable, observable, runInAction } from 'mobx';
 import {
   normalizeChatMessage,
@@ -94,6 +95,12 @@ interface ResearchDataCatalogQuery {
 }
 
 type ResearchDocumentMutation =
+  | {
+      kind: 'embedded-input-mode';
+      documentId: string;
+      inputMode: 'retained' | 'current';
+      expectedRevision: number;
+    }
   | { kind: 'create'; template: ResearchDocumentTemplateV1 }
   | { kind: 'add'; documentId: string; cellKind: ResearchCellKindV1; source?: string }
   | { kind: 'update'; cellId: string; source: string; expectedRevision: number }
@@ -220,6 +227,12 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       preserveResult: false,
       request: (mutation: ResearchDocumentMutation) => {
         switch (mutation.kind) {
+          case 'embedded-input-mode':
+            return changeEmbeddedInputMode(
+              mutation.documentId,
+              mutation.inputMode,
+              mutation.expectedRevision,
+            );
           case 'create':
             return createResearchDocument(mutation.template);
           case 'add':
@@ -621,6 +634,32 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public flushPendingChanges(): Promise<boolean> {
     return this.flushAllCellDrafts();
+  }
+
+  public async changeEmbeddedInputMode(inputMode: 'retained' | 'current') {
+    if (
+      !this.document?.embeddedSource ||
+      this.hasActiveRun ||
+      this.hasOpenCellChangeReview ||
+      this.documentMutationLoader.loading ||
+      !(await this.flushAllCellDrafts())
+    ) {
+      return;
+    }
+    const documentId = this.documentId;
+    try {
+      const document = await this.documentMutationLoader.run({
+        kind: 'embedded-input-mode',
+        documentId,
+        inputMode,
+        expectedRevision: this.document.contentRevision,
+      });
+      if (this.documentId === documentId) {
+        this.acceptDocument(document, false);
+      }
+    } catch {
+      /* The workspace displays the mutation error. */
+    }
   }
 
   public async addCell(kind: ResearchCellKindV1) {

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const loadReport = vi.hoisted(() => vi.fn());
+const replayInput = vi.hoisted(() => vi.fn());
+vi.mock('./input-replay.js', () => ({ replayResearchInput: replayInput }));
 vi.mock('../datasets/results/factor-report.js', () => ({
   loadResearchFactorReportResult: loadReport,
 }));
@@ -9,6 +11,7 @@ import { dispatchResearchRequest } from './dispatch.js';
 describe('Research SDK request dispatch boundary', () => {
   beforeEach(() => {
     loadReport.mockReset();
+    replayInput.mockReset().mockResolvedValue(undefined);
   });
 
   it('preserves document ownership context and response correlation', async () => {
@@ -47,6 +50,40 @@ describe('Research SDK request dispatch boundary', () => {
       id: 17,
       error: 'Report not found for this document owner',
     });
+  });
+
+  it('uses a retained response without querying current data', async () => {
+    replayInput.mockResolvedValue({ result: { report: { value: 12 } } });
+    const session = { send: vi.fn().mockResolvedValue(undefined) };
+    const frame = {
+      type: 'request',
+      id: 17,
+      method: 'research_factor_report',
+      arguments: { report_id: 'report' },
+    } as const;
+    await dispatchResearchRequest('document', session, frame);
+    expect(replayInput).toHaveBeenCalledWith('document', frame);
+    expect(loadReport).not.toHaveBeenCalled();
+    expect(session.send).toHaveBeenCalledExactlyOnceWith({
+      type: 'response',
+      id: 17,
+      result: { report: { value: 12 } },
+    });
+  });
+
+  it('does not fall through to current data when retained evidence fails validation', async () => {
+    replayInput.mockRejectedValue(new Error('Retained input checksum mismatch'));
+    const session = { send: vi.fn() };
+    await expect(
+      dispatchResearchRequest('document', session, {
+        type: 'request',
+        id: 17,
+        method: 'research_factor_report',
+        arguments: { report_id: 'report' },
+      }),
+    ).rejects.toThrow('Retained input checksum mismatch');
+    expect(loadReport).not.toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
   });
 
   it('rejects malformed arguments before the data-error response boundary', async () => {

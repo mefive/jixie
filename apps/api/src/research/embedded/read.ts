@@ -124,8 +124,13 @@ export async function getEmbeddedRun(
     embedded: { source: string; inputScope: string; limits: ResearchEmbeddedRunV1['limits'] };
     cells: Array<{ source: string }>;
   };
+  const continuation = await prisma.researchDocument.findUnique({
+    where: { embeddedRunKey: `${userId}:${runId}` },
+    select: { id: true },
+  });
   return {
     ...runSummaryView(row),
+    ...(continuation ? { researchDocumentId: continuation.id } : {}),
     source: snapshot.embedded.source,
     executedSource: snapshot.cells[0].source,
     inputScope: snapshot.embedded.inputScope,

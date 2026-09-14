@@ -94,6 +94,7 @@ export async function startResearchAgentTurn(
       id: true,
       updatedAt: true,
       contentRevision: true,
+      embeddedSource: true,
       cells: {
         orderBy: { position: 'asc' },
         select: {

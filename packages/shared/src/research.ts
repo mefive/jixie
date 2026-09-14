@@ -631,6 +631,7 @@ export interface ResearchCellChangeReviewV1 {
 }
 
 export interface ResearchCellChangeAttemptCellV1 {
+  inputSnapshot?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   executionId: string;
   cellId: string;
   position: number;
@@ -834,6 +835,7 @@ export interface ResearchDocumentSummaryV1 extends ResearchConversationMeta {
 export type ResearchDocumentListStateV1 = 'active' | 'archived';
 
 export interface ResearchDocumentV1 {
+  embeddedSource?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   version: 1;
   id: string;
   conversationId: string;
@@ -888,6 +890,7 @@ export interface ResearchExecutionDagNodeV1 {
 }
 
 export interface ResearchExecutionCellV1 {
+  inputSnapshot?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   version: 1;
   cellId: string;
   position: number;

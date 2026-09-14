@@ -1,3 +1,8 @@
+import {
+  embeddedModelResponse,
+  seedEmbeddedStrategies,
+  settleEmbeddedExecutions,
+} from './embedded-analysis-e2e-fixture.js';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -30,6 +35,10 @@ process.env.DEEPSEEK_AGENT_MODEL = 'factor-question-e2e';
 interface ModelMessage {
   role: string;
   content: string;
+}
+const embeddedJourney = process.env.JIXIE_EMBEDDED_E2E === '1';
+if (embeddedJourney) {
+  process.env.JIXIE_PYTHON_LOCAL = '1';
 }
 const modelRequests: Array<{ context: FactorQuestionContextV1; question: string }> = [];
 const failures: string[] = [];
@@ -80,6 +89,28 @@ async function stop() {
       }
       await delay(30);
     }
+    if (embeddedJourney) {
+      const { researchRuntimeManager } = await import('#research/execution/python-session.js');
+      const { cancelEmbeddedRun } = await import('#research/embedded/cancel.js');
+      const active = await database.researchExecution.findMany({
+        where: { status: { in: ['queued', 'running'] }, embeddedVersionId: { not: null } },
+        include: { embeddedVersion: { include: { analysis: true } } },
+      });
+      for (const run of active) {
+        await cancelEmbeddedRun(
+          run.embeddedVersion!.analysis.userId,
+          run.embeddedVersion!.analysisId,
+          run.id,
+        );
+      }
+      for (const document of await database.researchDocument.findMany({ select: { id: true } })) {
+        researchRuntimeManager.close(document.id);
+      }
+      await settleEmbeddedExecutions();
+      const { researchPythonLanguageService } =
+        await import('#research/language/pyright-service.js');
+      await researchPythonLanguageService.dispose();
+    }
     // Completed turns keep a replay TTL timer; test teardown must release that timer too.
     const { _resetForTest } = await import('#agent/turns/bus.js');
     _resetForTest();
@@ -125,6 +156,9 @@ try {
   const provider = new Hono();
   provider.post('/chat/completions', async (context) => {
     try {
+      if (embeddedJourney) {
+        return await embeddedModelResponse(context);
+      }
       const body = await context.req.json<{ messages: ModelMessage[]; stream: boolean }>();
       assert.equal(body.stream, true);
       const match = body.messages[0].content.match(
@@ -258,10 +292,15 @@ try {
     sessions[locale] = { id, reportIds };
   }
 
+  if (embeddedJourney) {
+    await seedEmbeddedStrategies();
+  }
   const { buildApp } = await import('../src/server.js');
   const app = buildApp();
   app.use('/assets/*', serveStatic({ root: webDist }));
-  app.get('/factors', (context) => context.html(indexHtml));
+  for (const route of ['/factors', '/lab', '/research']) {
+    app.get(route, (context) => context.html(indexHtml));
+  }
   app.use('/*', serveStatic({ root: webDist }));
   const application = await listen(app);
   applicationServer = application.server;

@@ -1,3 +1,5 @@
+import embeddedAnalysisZh from '@src/content/help/zh/research/embedded-analysis.md?raw';
+import embeddedAnalysisEn from '@src/content/help/en/research/embedded-analysis.md?raw';
 import financialDataZh from '@src/content/help/zh/research/financial-data.md?raw';
 import financialDataEn from '@src/content/help/en/research/financial-data.md?raw';
 import fcffValuationZh from '@src/content/help/zh/research/fcff-valuation.md?raw';
@@ -573,6 +575,19 @@ export const HELP_ARTICLES: HelpArticle[] = [
       zh: eventStudyZh,
       en: eventStudyEn,
     },
+  },
+  {
+    slug: 'research/embedded-analysis',
+    group: 'research',
+    title: {
+      zh: '在 Factor、Strategy 对话中检查数据',
+      en: 'Inspect data in Factor and Strategy conversations',
+    },
+    summary: {
+      zh: '查看可追溯的 Python、表格与图表，保留版本，并继续到 Research。',
+      en: 'Inspect Python, tables, charts and retained inputs; keep versions and continue in Research.',
+    },
+    content: { zh: embeddedAnalysisZh, en: embeddedAnalysisEn },
   },
   {
     slug: 'research/document-cells',

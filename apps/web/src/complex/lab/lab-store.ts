@@ -1,3 +1,9 @@
+import type { ResearchDataReferenceV1 } from '@jixie/shared';
+import {
+  embeddedUserMessage,
+  retainEmbeddedPart,
+  upsertAssistantMessage,
+} from '@src/components/embedded-analysis/chat-messages';
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import {
   normalizeChatMessage,
@@ -107,6 +113,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public deployments: StrategyDeployment[] = [];
   public deploymentError: string | null = null;
 
+  private chatSelection = 0;
   private jobId: string | null = null; // polling cursor for the current backtest
   private since = 0;
   private scanReportId: string | null = null;
@@ -248,7 +255,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.registCleaner(() => this.deploymentLoader.cleanup());
     this.registCleaner(() => this.deploymentActionLoader.cleanup());
     this.registCleaner(() => this.factorLoader.cleanup());
-    this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
+    this.registCleaner(() => {
+      this.chatSelection += 1;
+      this.turnStream.detach();
+    }); // drop the SSE subscription; the turn keeps running
     void this.savedLoader.run(); // prime My strategies (also feeds the hero's Recent-visits cards)
     // A fresh (never-run) strategy: empty run-baseline → dirty → Run-backtest enabled; but the pristine
     // skeleton IS the "persisted" state (nothing to lose) → not edited → no leave guard.
@@ -417,18 +427,26 @@ export class LabStore extends BaseStore<LabSetupParams> {
    * first prompt creates it, LLM-named from that request), START the turn (server persists both the
    * user message and the reply onto the strategy row), then subscribe to its SSE stream; the reply
    * lands via turnHandlers. Code is NOT persisted here (only a run commits config). */
-  public async sendAgent(message: string) {
+  public async sendAgent(
+    message: string,
+    includeReport = true,
+    dataReferences: ResearchDataReferenceV1[] = [],
+  ) {
     const text = message.trim();
     if (!text || this.sending) {
       return;
     }
+    const selection = this.chatSelection;
     runInAction(() => {
-      this.chatMessages = [...this.chatMessages, textMessage('user', text)];
+      this.chatMessages = [...this.chatMessages, embeddedUserMessage(text, dataReferences)];
       this.sending = true;
       this.nlText = '';
     });
     // First prompt → create the strategy so the conversation has a home (named from this request).
     await this.ensureStrategy(text);
+    if (selection !== this.chatSelection) {
+      return;
+    }
     if (!this.savedId) {
       runInAction(() => {
         this.chatMessages = [
@@ -440,9 +458,19 @@ export class LabStore extends BaseStore<LabSetupParams> {
       return;
     }
     try {
-      const { turnId } = await sendAgent(this.savedId, text, this.code, this.language);
+      const { turnId } = await sendAgent(this.savedId, text, this.code, this.language, {
+        dataReferences,
+        reportId:
+          includeReport && this.result ? this.activeBacktestReportId || undefined : undefined,
+      });
+      if (selection !== this.chatSelection) {
+        return;
+      }
       await this.turnStream.attach(turnId, this.turnHandlers()); // resolves after the terminal event
     } catch (e) {
+      if (selection !== this.chatSelection) {
+        return;
+      }
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
@@ -455,33 +483,48 @@ export class LabStore extends BaseStore<LabSetupParams> {
         ];
       });
     } finally {
-      runInAction(() => {
-        this.sending = false;
-      });
+      if (selection === this.chatSelection) {
+        runInAction(() => {
+          this.sending = false;
+        });
+      }
     }
   }
 
   /** Terminal-event handlers shared by sendAgent and the refresh reattach. */
   private turnHandlers(): AgentTurnHandlers {
+    const strategyId = this.savedId;
+    const selection = this.chatSelection;
     return {
+      onEmbeddedAnalysis: (part, turnId) => {
+        if (this.savedId !== strategyId || selection !== this.chatSelection) {
+          return;
+        }
+        runInAction(() => {
+          this.chatMessages = retainEmbeddedPart(this.chatMessages, part, turnId);
+        });
+      },
       onDone: (done) => {
+        if (this.savedId !== strategyId || selection !== this.chatSelection) {
+          return;
+        }
         runInAction(() => {
           // toolTrace rides along for display only (the server persisted the message without it).
-          this.chatMessages = [
-            ...this.chatMessages,
-            {
-              role: 'assistant',
-              parts: done.parts,
-              turnId: done.turnId,
-              toolTrace: done.toolTrace,
-            } as ChatMessage,
-          ];
+          this.chatMessages = upsertAssistantMessage(this.chatMessages, {
+            role: 'assistant',
+            parts: done.parts,
+            turnId: done.turnId,
+            toolTrace: done.toolTrace,
+          } as ChatMessage);
           if (done.changed) {
             this.code = done.code; // dirty → runnable; the shown result stays until the next run
           }
         });
       },
       onError: (message) => {
+        if (this.savedId !== strategyId || selection !== this.chatSelection) {
+          return;
+        }
         runInAction(() => {
           this.chatMessages = [
             ...this.chatMessages,
@@ -490,6 +533,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
         });
       },
       onCancelled: () => {
+        if (this.savedId !== strategyId || selection !== this.chatSelection) {
+          return;
+        }
         runInAction(() => {
           this.chatMessages = [
             ...this.chatMessages,
@@ -506,8 +552,17 @@ export class LabStore extends BaseStore<LabSetupParams> {
       return;
     }
     runInAction(() => (this.sending = true));
-    await this.turnStream.attachRunning(`strategy:${this.savedId}`, this.turnHandlers());
-    runInAction(() => (this.sending = false)); // resolved at the terminal event (or no live turn)
+    const selection = this.chatSelection;
+    const turnId = await this.turnStream.findRunning(`strategy:${this.savedId}`);
+    if (selection !== this.chatSelection) {
+      return;
+    }
+    if (turnId) {
+      await this.turnStream.attach(turnId, this.turnHandlers());
+    }
+    if (selection === this.chatSelection) {
+      runInAction(() => (this.sending = false));
+    } // resolved at the terminal event (or no live turn)
   }
 
   /** Create the strategy row if it doesn't exist yet (first Agent prompt, or a first run of a
@@ -519,7 +574,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
     }
     try {
       // No messages in the create payload — the turn runner appends the user message server-side.
+      const selection = this.chatSelection;
       const meta = await createStrategy(this.config, namePrompt);
+      if (selection !== this.chatSelection) {
+        return;
+      }
       runInAction(() => {
         this.savedId = meta.id;
         this.name = meta.name; // the server generates and de-dupes the name
@@ -534,6 +593,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
 
   /** Start fresh: a blank skeleton strategy. Empty baseline → dirty → Run-backtest enabled. */
   public newStrategy(language: StrategyLanguage = 'typescript') {
+    this.chatSelection += 1;
+    this.turnStream.detach();
+    runInAction(() => {
+      this.sending = false;
+    });
     runInAction(() => {
       this.name = '';
       this.language = language;
@@ -735,6 +799,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
   /** Reopen a saved strategy: load its config + last result, and re-attach to a running backtest if one
    * is still in flight for it (so a refresh continues streaming logs instead of losing the run). */
   public async openSaved(id: string, reportId?: string) {
+    const selection = ++this.chatSelection;
+    this.turnStream.detach();
+    runInAction(() => {
+      this.sending = false;
+    });
     this.deploymentActionLoader.reset();
     this.backtestHistoryLoader.abort();
     this.backtestHistoryLoader.reset();
@@ -745,6 +814,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
       s = await getStrategy(id);
     } catch {
       return; // strategy gone (deleted)
+    }
+    if (selection !== this.chatSelection) {
+      return;
     }
     this.applyConfig(s.config);
     runInAction(() => {

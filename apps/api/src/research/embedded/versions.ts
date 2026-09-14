@@ -1,5 +1,6 @@
 import type { Prisma, ResearchEmbeddedAnalysis } from '@prisma/client';
 import type {
+  ResearchEmbeddedContextV1,
   ResearchEmbeddedDraftInputV1,
   ResearchEmbeddedHostV1,
   ResearchEmbeddedParametersV1,
@@ -19,6 +20,7 @@ import { analysisView, versionView } from './views.js';
 export async function createEmbeddedAnalysis(
   userId: string,
   raw: ResearchEmbeddedDraftInputV1 & { host: ResearchEmbeddedHostV1; title: string },
+  capturedContext?: ResearchEmbeddedContextV1,
 ) {
   const input = embeddedCreateSchema.parse(raw);
   return prisma.$transaction(async (transaction) => {
@@ -31,7 +33,14 @@ export async function createEmbeddedAnalysis(
         title: input.title,
       },
     });
-    const version = await createVersion(transaction, analysis, input);
+    const version = await createVersion(
+      transaction,
+      analysis,
+      input,
+      undefined,
+      undefined,
+      capturedContext,
+    );
     return { analysis: analysisView(analysis), version: versionView(version) };
   });
 }
@@ -40,6 +49,7 @@ export async function deriveEmbeddedVersion(
   userId: string,
   analysisId: string,
   raw: { parentVersionId: string; draft?: ResearchEmbeddedDraftInputV1 },
+  capturedContext?: ResearchEmbeddedContextV1,
 ) {
   const input = embeddedDeriveSchema.parse(raw);
   return prisma.$transaction(async (transaction) => {
@@ -60,6 +70,7 @@ export async function deriveEmbeddedVersion(
       },
       parent.id,
       input.draft ? undefined : parent.contextSnapshot,
+      capturedContext,
     );
     return versionView(version);
   });
@@ -70,6 +81,7 @@ export async function updateEmbeddedVersion(
   analysisId: string,
   versionId: string,
   raw: ResearchEmbeddedDraftInputV1 & { expectedRevision: number },
+  capturedContext?: ResearchEmbeddedContextV1,
 ) {
   const input = embeddedUpdateSchema.parse(raw);
   return prisma.$transaction(async (transaction) => {
@@ -101,7 +113,7 @@ export async function updateEmbeddedVersion(
         source: input.source,
         parameters: input.parameters,
         inputScope: input.inputScope,
-        contextSnapshot: context as unknown as Prisma.InputJsonValue,
+        contextSnapshot: (capturedContext ?? context) as unknown as Prisma.InputJsonValue,
         revision: { increment: 1 },
       },
     });
@@ -146,6 +158,7 @@ async function createVersion(
   raw: ResearchEmbeddedDraftInputV1,
   parentVersionId?: string,
   inheritedContext?: Prisma.JsonValue,
+  capturedContext?: ResearchEmbeddedContextV1,
 ) {
   const input = embeddedDraftSchema.parse({
     source: raw.source,
@@ -197,7 +210,7 @@ async function createVersion(
       source: input.source,
       parameters: input.parameters,
       inputScope: input.inputScope,
-      contextSnapshot: context as Prisma.InputJsonValue,
+      contextSnapshot: (capturedContext ?? context) as unknown as Prisma.InputJsonValue,
     },
   });
 }

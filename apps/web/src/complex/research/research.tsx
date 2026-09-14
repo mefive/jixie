@@ -1,3 +1,4 @@
+import { EmbeddedResearchSource } from '@src/components/embedded-analysis/embedded-research-source';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import {
@@ -848,6 +849,19 @@ const ResearchWorkspace = complex.component(
             </Tooltip>
           </div>
         </header>
+        {document.embeddedSource && (
+          <EmbeddedResearchSource
+            key={document.id}
+            source={document.embeddedSource}
+            disabled={
+              store.hasActiveRun ||
+              store.hasOpenCellChangeReview ||
+              store.documentMutationLoader.loading ||
+              store.sending
+            }
+            onChangeMode={(mode) => void store.changeEmbeddedInputMode(mode)}
+          />
+        )}
         {(store.documentMutationLoader.error ||
           store.documentRunLoader.error ||
           store.affectedRunLoader.error ||

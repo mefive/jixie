@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
+import { z } from 'zod';
 import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
-import { m } from '#infra/http/locale.js';
+import { m, localeFromRequest } from '#infra/http/locale.js';
 import type { MessageKey } from '#i18n/index.js';
 import type { ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
 import { ResearchEmbeddedError } from './embedded/errors.js';
@@ -28,6 +29,8 @@ import {
 } from './embedded/read.js';
 import { submitEmbeddedRun } from './embedded/submit.js';
 import { cancelEmbeddedRun } from './embedded/cancel.js';
+import { continueEmbeddedResearch, changeEmbeddedInputMode } from './embedded/continuation.js';
+import { researchExecutionError } from './route-errors.js';
 
 export const researchEmbeddedRoute = new Hono();
 const messageKeys = {
@@ -43,9 +46,14 @@ const messageKeys = {
   cancelled: 'researchEmbeddedCancelled',
   interrupted: 'researchEmbeddedInterrupted',
   execution_failed: 'researchEmbeddedExecutionFailed',
+  incomplete_run: 'researchEmbeddedIncompleteRun',
 } as const satisfies Record<ResearchEmbeddedErrorCodeV1, MessageKey>;
 
 researchEmbeddedRoute.onError((error, c) => {
+  const executionError = researchExecutionError(c, error);
+  if (executionError) {
+    return executionError;
+  }
   if (!(error instanceof ResearchEmbeddedError)) {
     throw error;
   }
@@ -117,6 +125,29 @@ researchEmbeddedRoute.get('/:analysisId/runs', validateQuery(embeddedPageSchema)
 );
 researchEmbeddedRoute.get('/:analysisId/runs/:runId', async (c) =>
   c.json(await getEmbeddedRun(c.var.userId, c.req.param('analysisId'), c.req.param('runId'))),
+);
+researchEmbeddedRoute.post('/:analysisId/runs/:runId/continue-research', async (c) =>
+  c.json(
+    await continueEmbeddedResearch(
+      c.var.userId,
+      c.req.param('analysisId'),
+      c.req.param('runId'),
+      localeFromRequest(c),
+    ),
+  ),
+);
+researchEmbeddedRoute.patch(
+  '/documents/:documentId/input-mode',
+  validateJson(
+    z.strictObject({
+      inputMode: z.enum(['retained', 'current']),
+      expectedRevision: z.number().int().positive(),
+    }),
+  ),
+  async (c) =>
+    c.json(
+      await changeEmbeddedInputMode(c.var.userId, c.req.param('documentId'), c.req.valid('json')),
+    ),
 );
 researchEmbeddedRoute.post('/:analysisId/runs/:runId/cancel', async (c) =>
   c.json(await cancelEmbeddedRun(c.var.userId, c.req.param('analysisId'), c.req.param('runId'))),

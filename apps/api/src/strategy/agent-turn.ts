@@ -1,3 +1,9 @@
+import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
+import { captureEmbeddedContext } from '#research/embedded/context.js';
+import {
+  embeddedDataReferencesSchema,
+  embeddedUserParts,
+} from '#research/embedded/data-references.js';
 import { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { ulid } from 'ulid';
@@ -12,15 +18,18 @@ import { failStrategyOperation } from './operation-errors.js';
 export const strategyAgentInputSchema = z.object({
   id: z.string().min(1),
   message: z.string().trim().min(1).max(2000),
+  reportId: z.string().min(1).max(128).optional(),
+  dataReferences: embeddedDataReferencesSchema,
   code: z.string().min(1).max(50_000),
   language: z.enum(['typescript', 'python']).optional(),
 });
 
 export async function startStrategyAgentTurn(
   userId: string,
-  input: z.infer<typeof strategyAgentInputSchema>,
+  rawInput: z.input<typeof strategyAgentInputSchema>,
   locale: Locale,
 ) {
+  const input = strategyAgentInputSchema.parse(rawInput);
   const { id, message, code, language = 'typescript' } = input;
   const strategy = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
 
@@ -37,12 +46,23 @@ export async function startStrategyAgentTurn(
   const [idx, factors] = await Promise.all([syncedIndexContext(), publishedFactorContext(userId)]);
   const turnId = ulid();
 
+  const embeddedSource = await captureEmbeddedContext(
+    prisma,
+    userId,
+    { type: 'strategy', id },
+    input.reportId,
+  );
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: strategyProfile(idx, factors, language),
+    profile: withEmbeddedAnalysis(strategyProfile(idx, factors, language), {
+      userId,
+      source: embeddedSource,
+      dataReferences: input.dataReferences,
+    }),
     entity,
     message,
+    userParts: embeddedUserParts(message, input.dataReferences),
     currentCode: code,
     locale,
   });

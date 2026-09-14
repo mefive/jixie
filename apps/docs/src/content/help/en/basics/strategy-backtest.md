@@ -38,3 +38,8 @@ Excess return is strategy return minus benchmark return. Positive excess return 
 - [Run your first backtest](/help/getting-started/first-backtest)
 - [Dates, capital, and trading costs](/help/basics/backtest-settings)
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)
+
+
+## Embedded analysis in chat
+
+For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.

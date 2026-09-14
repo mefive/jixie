@@ -25,6 +25,7 @@ export interface FactorQuestionContextV1 {
 }
 
 export interface FactorQuestionInputV1 {
+  dataReferences?: import('./research-embedded.js').ResearchDataReferenceV1[];
   factorKey: string;
   message: string;
   reportId?: string;

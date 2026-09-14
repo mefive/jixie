@@ -151,6 +151,14 @@ const MESSAGES = {
     zh: '找不到该分析、版本、运行或来源',
     en: 'The analysis, version, run, or source was not found',
   },
+  researchEmbeddedIncompleteRun: {
+    zh: '只有成功且输入留存完整的运行才能继续到 Research。',
+    en: 'Continue to Research requires a successful run with complete retained inputs.',
+  },
+  researchEmbeddedContinuationNote: {
+    zh: '# {title}\n\n从嵌入式分析继续研究。原运行：{runId}。\n\n分析范围：{scope}\n\n默认使用原运行留存的输入；修改方法不会改写原结果。需要新的取数范围时，请显式切换为“重新获取数据”，再运行。原结果可从页面的来源入口查看。',
+    en: '# {title}\n\nContinue an embedded analysis. Original run: {runId}.\n\nScope: {scope}\n\nThis document initially uses the retained inputs. Editing the method leaves the original result unchanged. To query a new range, explicitly select current data before running. Open the source on this page to inspect the original result.',
+  },
   researchEmbeddedFrozen: {
     zh: '该版本已成功运行，请复制为新版本后修改',
     en: 'This version has succeeded; derive a new version to make changes',

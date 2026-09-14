@@ -16,7 +16,11 @@ import {
   type AgentTurnResult,
 } from '../core.js';
 import * as turnBus from './bus.js';
-import { finishPersistentTurn, startPersistentTurn } from './records.js';
+import {
+  finishPersistentTurn,
+  startPersistentTurn,
+  persistEmbeddedAnalysisPart,
+} from './records.js';
 import { AgentTraceRecorder } from './trace.js';
 import { readMessages, writeMessages } from '../conversations/entity-messages.js';
 
@@ -29,7 +33,7 @@ import { readMessages, writeMessages } from '../conversations/entity-messages.js
  * entity's messages BEFORE the LLM runs (a refresh mid-turn must show it), and the ASSISTANT
  * message is appended before the `done` event fires (a subscriber acting on `done` can rely on the
  * DB). Factor questions supply an already committed input before background execution starts.
- * Errors/cancels persist no assistant message: a user message without a reply is the honest record.
+ * Errors/cancels retain already submitted analysis cards without fabricating an assistant answer.
  */
 export interface TurnEntity {
   kind: 'strategy' | 'factor' | 'factor-question' | 'research';
@@ -114,6 +118,13 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     }
 
     const hooks: AgentTurnHooks = {
+      onEmbeddedAnalysis: async (part) => {
+        const parts = await persistEmbeddedAnalysisPart(turnId, part);
+        if (entity && persisted) {
+          await writeMessages(entity, [...persisted, { role: 'assistant', parts, turnId }]);
+        }
+        turnBus.publish(turnId, { type: 'embedded_analysis', part });
+      },
       signal,
       onDelta: (text) => {
         publishResearchPhase('generating_changes');
@@ -164,9 +175,6 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     // Persist the assistant message BEFORE `done` fires — a subscriber reacting to done (or a
     // refresh racing it) must find the conversation complete in the DB.
     const parts = turnParts(result);
-    if (entity && persisted) {
-      await writeMessages(entity, [...persisted, { role: 'assistant' as const, parts, turnId }]);
-    }
     let completedParts = parts;
     if (traceRecorder) {
       await traceRecorder.flush();
@@ -181,6 +189,9 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     const completedMessages = persisted
       ? [...persisted, { role: 'assistant' as const, parts: completedParts, turnId }]
       : [];
+    if (entity && persisted) {
+      await writeMessages(entity, completedMessages);
+    }
     turnBus.finish(turnId, {
       type: 'done',
       parts: completedParts,

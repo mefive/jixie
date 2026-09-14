@@ -4,6 +4,8 @@ import {
   type ChatMessage,
   type MessagePart,
   type FactorQuestionContextV1,
+  type EmbeddedAnalysisPart,
+  normalizeChatMessage,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
@@ -102,23 +104,31 @@ export async function finishPersistentTurn(args: {
     }
     let persistedParts: MessagePart[] | undefined;
     if (args.status === 'done' && args.parts) {
+      const existing = await transaction.agentMessage.findFirst({
+        where: { turnId: args.turnId, role: 'assistant' },
+      });
       const last = await transaction.agentMessage.findFirst({
         where: { conversationId: turn.conversationId },
         select: { sequence: true },
         orderBy: { sequence: 'desc' },
       });
-      const messageId = ulid();
-      await transaction.agentMessage.create({
-        data: {
+      const messageId = existing?.id ?? ulid();
+      persistedParts = mergeEmbeddedParts(
+        args.parts,
+        existing ? normalizeChatMessage(existing).parts : [],
+      );
+      await transaction.agentMessage.upsert({
+        where: { id: messageId },
+        update: { parts: persistedParts as unknown as Prisma.InputJsonValue },
+        create: {
           id: messageId,
           conversationId: turn.conversationId,
           role: 'assistant',
-          parts: args.parts as unknown as Prisma.InputJsonValue,
+          parts: persistedParts as unknown as Prisma.InputJsonValue,
           sequence: (last?.sequence ?? -1) + 1,
           turnId: args.turnId,
         },
       });
-      persistedParts = [...args.parts];
       const researchCellChangePartIndexes = persistedParts.flatMap((part, partIndex) =>
         part.type === 'research_cell_change' ? [partIndex] : [],
       );
@@ -174,6 +184,76 @@ export async function finishPersistentTurn(args: {
     });
     return persistedParts;
   });
+}
+
+/** Save the exact run before the tool waits for Python or the model generates its explanation. */
+export async function persistEmbeddedAnalysisPart(turnId: string, part: EmbeddedAnalysisPart) {
+  return prisma.$transaction(async (transaction) => {
+    const turn = await transaction.agentTurn.findUnique({
+      where: { id: turnId },
+      include: { conversation: true },
+    });
+    if (!turn || turn.status !== 'running') {
+      throw new Error('An active persisted conversation is required for embedded analysis');
+    }
+    const conversation = turn.conversation;
+    const hostType = conversation.surface === 'strategy' ? 'strategy' : 'factor';
+    const hostId =
+      conversation.strategyId ?? conversation.factorId ?? conversation.questionFactorKey;
+    const run = await transaction.researchExecution.findFirst({
+      where: {
+        id: part.reference.runId,
+        embeddedVersionId: part.reference.versionId,
+        embeddedVersion: {
+          analysisId: part.reference.analysisId,
+          analysis: {
+            userId: conversation.userId,
+            hostType,
+            hostId: hostId ?? '',
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (!run || !hostId) {
+      throw new Error('The embedded run does not belong to this conversation');
+    }
+    const existing = await transaction.agentMessage.findFirst({
+      where: { turnId, role: 'assistant' },
+    });
+    const parts = mergeEmbeddedParts(existing ? normalizeChatMessage(existing).parts : [], [part]);
+    const last = await transaction.agentMessage.findFirst({
+      where: { conversationId: conversation.id },
+      orderBy: { sequence: 'desc' },
+      select: { sequence: true },
+    });
+    const messageId = existing?.id ?? ulid();
+    await transaction.agentMessage.upsert({
+      where: { id: messageId },
+      update: { parts: parts as unknown as Prisma.InputJsonValue },
+      create: {
+        id: messageId,
+        conversationId: conversation.id,
+        role: 'assistant',
+        parts: parts as unknown as Prisma.InputJsonValue,
+        turnId,
+        sequence: (last?.sequence ?? -1) + 1,
+      },
+    });
+    return parts;
+  });
+}
+
+function mergeEmbeddedParts(parts: MessagePart[], saved: MessagePart[]): MessagePart[] {
+  const references = new Set(
+    parts.flatMap((part) => (part.type === 'embedded_analysis' ? [part.reference.runId] : [])),
+  );
+  return [
+    ...parts,
+    ...saved.filter(
+      (part) => part.type === 'embedded_analysis' && !references.has(part.reference.runId),
+    ),
+  ];
 }
 
 export async function markRunningAgentTurnsInterrupted(): Promise<number> {

@@ -1,3 +1,9 @@
+import type { ResearchDataReferenceV1 } from '@jixie/shared';
+import {
+  embeddedUserMessage,
+  retainEmbeddedPart,
+  upsertAssistantMessage,
+} from '@src/components/embedded-analysis/chat-messages';
 import type {
   FactorQuestionHistoryV1,
   FactorQuestionInputV1,
@@ -1081,14 +1087,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /** Run one Agent turn for an already persisted draft factor. */
-  public async sendAgent(message: string, includeReport = true) {
+  public async sendAgent(
+    message: string,
+    includeReport = true,
+    dataReferences: ResearchDataReferenceV1[] = [],
+  ) {
     const text = message.trim();
     if (!text || this.sending) {
       return;
     }
-    // A preset is selected → the Agent is Q&A-only (no code, no factor). Answer and stop.
+    // Read-only factor questions may analyze data but cannot rewrite the factor definition.
     if (this.qaMode) {
-      return this.runQa(text, includeReport);
+      return this.runQa(text, includeReport, dataReferences);
     }
     // Continue editing only when the current selection is an editable saved custom factor.
     const editingSaved = !!this.selectedKey && this.selected?.kind === 'custom';
@@ -1104,13 +1114,19 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     const selection = this.chatSelection;
     runInAction(() => {
       this.mode = 'custom';
-      this.chatMessages = [...this.chatMessages, textMessage('user', text)];
+      this.chatMessages = [...this.chatMessages, embeddedUserMessage(text, dataReferences)];
       this.sending = true;
       this.nlText = '';
     });
     try {
       const codeAtRequest = this.code;
-      const { turnId } = await sendFactorAgent(this.selectedKey, text, codeAtRequest);
+      const { turnId } = await sendFactorAgent(this.selectedKey, text, codeAtRequest, {
+        dataReferences,
+        reportId:
+          includeReport && this.reportLoader.result?.status === 'done'
+            ? this.selectedReportId || undefined
+            : undefined,
+      });
       if (selection !== this.chatSelection) {
         return;
       }
@@ -1141,21 +1157,26 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   private turnHandlers(codeAtRequest?: string): AgentTurnHandlers {
     const selection = this.chatSelection;
     return {
+      onEmbeddedAnalysis: (part, turnId) => {
+        if (selection !== this.chatSelection) {
+          return;
+        }
+        runInAction(() => {
+          this.chatMessages = retainEmbeddedPart(this.chatMessages, part, turnId);
+        });
+      },
       onDone: (done) => {
         if (selection !== this.chatSelection) {
           return;
         }
         runInAction(() => {
           // toolTrace rides along for display only (the server persisted the message without it).
-          this.chatMessages = [
-            ...this.chatMessages,
-            {
-              role: 'assistant',
-              parts: done.parts,
-              turnId: done.turnId,
-              toolTrace: done.toolTrace,
-            } as ChatMessage,
-          ];
+          this.chatMessages = upsertAssistantMessage(this.chatMessages, {
+            role: 'assistant',
+            parts: done.parts,
+            turnId: done.turnId,
+            toolTrace: done.toolTrace,
+          } as ChatMessage);
           if (done.changed) {
             if (codeAtRequest !== undefined && this.code !== codeAtRequest) {
               this.pendingAgentCode = done.code;
@@ -1302,6 +1323,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.questionStreamError = null;
     });
     await this.turnStream.attach(turnId, {
+      onEmbeddedAnalysis: (part, currentTurnId) => {
+        if (selection !== this.chatSelection) {
+          return;
+        }
+        runInAction(() => {
+          this.chatMessages = retainEmbeddedPart(this.chatMessages, part, currentTurnId);
+        });
+      },
       onDone: () => {},
       onCancelled: () => {},
       onError: (message) => {
@@ -1320,13 +1349,20 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  private async runQa(text: string, includeReport: boolean) {
+  private async runQa(
+    text: string,
+    includeReport: boolean,
+    dataReferences: ResearchDataReferenceV1[],
+  ) {
     if (!this.questionsLoader.loaded) {
       return;
     }
     const selection = this.chatSelection;
     const key = this.selectedKey;
-    const reportId = includeReport ? this.selectedReportId || undefined : undefined;
+    const reportId =
+      includeReport && this.reportLoader.result?.status === 'done'
+        ? this.selectedReportId || undefined
+        : undefined;
     runInAction(() => {
       this.sending = true;
       this.questionStreamError = null;
@@ -1336,6 +1372,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         factorKey: key,
         message: text,
         reportId,
+        dataReferences,
       });
       if (selection !== this.chatSelection) {
         return;

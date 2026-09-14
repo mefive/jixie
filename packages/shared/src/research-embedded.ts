@@ -31,6 +31,7 @@ export type ResearchEmbeddedErrorCodeV1 =
   | 'timeout'
   | 'cancelled'
   | 'interrupted'
+  | 'incomplete_run'
   | 'execution_failed';
 
 export interface ResearchEmbeddedDraftInputV1 {
@@ -82,6 +83,18 @@ export interface ResearchEmbeddedRunReferenceV1 {
   runId: string;
 }
 
+/** A catalog selection is a request, not data or a Python variable injected into the runtime. */
+export interface ResearchDataReferenceV1 {
+  label: string;
+  method: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface ResearchEmbeddedDocumentSourceV1 extends ResearchEmbeddedRunReferenceV1 {
+  title: string;
+  inputMode: 'retained' | 'current';
+}
+
 export interface ResearchEmbeddedRunSummaryV1 extends ResearchEmbeddedRunReferenceV1 {
   sequence: number;
   revision: number;
@@ -97,6 +110,7 @@ export interface ResearchEmbeddedRunSummaryV1 extends ResearchEmbeddedRunReferen
 }
 
 export interface ResearchEmbeddedRunV1 extends ResearchEmbeddedRunSummaryV1 {
+  researchDocumentId?: string;
   source: string;
   executedSource: string;
   parameters: ResearchEmbeddedParametersV1;

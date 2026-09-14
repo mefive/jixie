@@ -36,7 +36,20 @@ describe('finishPersistentTurn', () => {
       },
     };
     mocks.findConversation.mockResolvedValue({ id: 'conversation-1' });
-    mocks.transaction.mockImplementation(async (callback) => callback(transaction));
+    mocks.transaction.mockImplementation(async (callback) => {
+      const messageStore = transaction.agentMessage;
+      const findFirst = messageStore.findFirst;
+      return callback({
+        ...transaction,
+        agentMessage: {
+          ...messageStore,
+          findFirst: (args: { where: { role?: string } }) =>
+            args.where.role === 'assistant' ? Promise.resolve(null) : findFirst(),
+          upsert: (args: { create: Record<string, unknown> }) =>
+            messageStore.create({ data: args.create }),
+        },
+      });
+    });
     const userParts: MessagePart[] = [
       {
         type: 'research_cell_context',
@@ -120,7 +133,20 @@ describe('finishPersistentTurn', () => {
         }),
       },
     };
-    mocks.transaction.mockImplementation(async (callback) => callback(transaction));
+    mocks.transaction.mockImplementation(async (callback) => {
+      const messageStore = transaction.agentMessage;
+      const findFirst = messageStore.findFirst;
+      return callback({
+        ...transaction,
+        agentMessage: {
+          ...messageStore,
+          findFirst: (args: { where: { role?: string } }) =>
+            args.where.role === 'assistant' ? Promise.resolve(null) : findFirst(),
+          upsert: (args: { create: Record<string, unknown> }) =>
+            messageStore.create({ data: args.create }),
+        },
+      });
+    });
     const proposal = {
       version: 1 as const,
       id: 'proposal-1',
@@ -207,7 +233,20 @@ describe('finishPersistentTurn', () => {
         }),
       },
     };
-    mocks.transaction.mockImplementation(async (callback) => callback(transaction));
+    mocks.transaction.mockImplementation(async (callback) => {
+      const messageStore = transaction.agentMessage;
+      const findFirst = messageStore.findFirst;
+      return callback({
+        ...transaction,
+        agentMessage: {
+          ...messageStore,
+          findFirst: (args: { where: { role?: string } }) =>
+            args.where.role === 'assistant' ? Promise.resolve(null) : findFirst(),
+          upsert: (args: { create: Record<string, unknown> }) =>
+            messageStore.create({ data: args.create }),
+        },
+      });
+    });
     const clarification = {
       version: 1 as const,
       id: 'clarification-1',

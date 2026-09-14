@@ -94,6 +94,9 @@ export async function executeResearchCell(
         definitions: cell.definitions as Prisma.InputJsonValue,
         references: cell.references as Prisma.InputJsonValue,
         environmentFingerprint: 'pending',
+        ...(cell.document.embeddedSource
+          ? { inputSnapshot: cell.document.embeddedSource as Prisma.InputJsonValue }
+          : {}),
         startedAt,
         ...(cellChangeAttemptId ? { cellChangeAttemptId } : {}),
         ...(researchExecutionId ? { researchExecutionId } : {}),

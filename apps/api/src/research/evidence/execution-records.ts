@@ -14,6 +14,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
 
 export interface ResearchExecutionSourceCellSnapshot {
+  inputSnapshot?: Record<string, unknown>;
   id: string;
   position: number;
   kind: ResearchCellKindV1;
@@ -267,6 +268,13 @@ function researchExecutionCellView(
     kind: snapshot.kind,
     source: snapshot.source,
     ...(snapshot.config ? { config: snapshot.config } : {}),
+    ...(snapshot.inputSnapshot
+      ? {
+          inputSnapshot: snapshot.inputSnapshot as unknown as NonNullable<
+            ResearchExecutionCellV1['inputSnapshot']
+          >,
+        }
+      : {}),
     revision: snapshot.revision,
     definitions: snapshot.definitions,
     references: snapshot.references,

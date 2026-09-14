@@ -1,4 +1,4 @@
-import type { MessagePart } from './chat.js';
+import type { MessagePart, EmbeddedAnalysisPart } from './chat.js';
 import type { FactorQuestionContextV1 } from './factor-questions.js';
 
 /**
@@ -87,10 +87,12 @@ export type AgentStreamEvent =
       trace: ToolTraceItem[];
       reasoning?: string;
       phase?: AgentTurnPhase;
+      embeddedAnalyses?: EmbeddedAnalysisPart[];
     }
   | { type: 'delta'; text: string } // produce-phase text tokens (repair rounds don't stream)
   | { type: 'reasoning_delta'; text: string }
   | { type: 'phase'; phase: AgentTurnPhase }
+  | { type: 'embedded_analysis'; part: EmbeddedAnalysisPart }
   | { type: 'tool_start'; name: string; argsSummary: string }
   | { type: 'tool_done'; item: ToolTraceItem }
   | { type: 'repair'; round: number; error: string } // proposed code failed to compile; retrying

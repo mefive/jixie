@@ -19,6 +19,18 @@ vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: vi.fn() }));
 
 import { prisma } from '#infra/database/prisma.js';
 import { claimQueuedJob } from '#infra/jobs/records.js';
+import { embeddedAnalysisTools } from '#agent/tools/run-embedded-analysis.js';
+import {
+  startPersistentTurn,
+  finishPersistentTurn,
+  persistEmbeddedAnalysisPart,
+} from '#agent/turns/records.js';
+import { captureEmbeddedContext } from './context.js';
+import { continueEmbeddedResearch, changeEmbeddedInputMode } from './continuation.js';
+import { runResearchDocument } from '../execution/run-document.js';
+import { getResearchExecution } from '../evidence/execution-records.js';
+import { getResearchDocument } from '../documents/read.js';
+import { replayResearchInput } from '../sdk/input-replay.js';
 import { createEmbeddedAnalysis } from './versions.js';
 import { submitEmbeddedRun } from './submit.js';
 import { executeEmbeddedRun } from './execute.js';
@@ -145,7 +157,7 @@ describe('embedded analysis with the real Research Python runtime', () => {
       'import pandas as pd\nimport matplotlib.pyplot as plt\nreport = results.factor_report("report")\nsample = pd.Series(report["report"]["observations"], dtype=float)\nplt.plot(sample.dropna())\npd.DataFrame({"count": [sample.count()], "mean": [sample.mean()]})',
     );
     const completed = await execute(run);
-    expect(completed.status).toBe('success');
+    expect(completed.status, completed.error ?? undefined).toBe('success');
     expect(completed.inputs[0]).toMatchObject({
       method: 'research_factor_report',
       status: 'received',
@@ -162,7 +174,7 @@ describe('embedded analysis with the real Research Python runtime', () => {
       'import pandas as pd\nimport numpy as np\nleft = pd.Series([1.0, 2.0, np.nan], index=["2024-01-01", "2024-01-02", "2024-01-03"])\nright = pd.Series([2.0, 4.0, 8.0], index=["2024-01-02", "2024-01-03", "2024-01-04"])\npaired = pd.concat([left, right], axis=1, join="inner").dropna()\nassert len(paired) == 1\n{"paired_count": len(paired), "correlation": np.nan, "empty_count": int(left.iloc[:0].count())}',
     );
     const completed = await execute(run);
-    expect(completed.status).toBe('success');
+    expect(completed.status, completed.error ?? undefined).toBe('success');
     const text = completed.outputs.find((output) => output.type === 'text');
     expect(text?.type === 'text' ? JSON.parse(text.text) : null).toEqual({
       paired_count: 1,
@@ -191,5 +203,185 @@ describe('embedded analysis with the real Research Python runtime', () => {
       source: 'while True:\n    pass',
     });
     expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
+  }, 30_000);
+  it('continues with retained inputs, requires explicit current-data mode and preserves execution provenance', async () => {
+    await prisma.factorReport.create({
+      data: {
+        id: 'report',
+        userId: 'owner',
+        factor: 'fixture',
+        freq: 'month',
+        start: '20200101',
+        end: '20251231',
+        payload: '{"observations":[1,2,null,4]}',
+      },
+    });
+    const { run, analysis } = await create(
+      'import pandas as pd\nreport = results.factor_report("report")\nsample = pd.Series(report["report"]["observations"], dtype=float)\nfloat(sample.dropna().mean())',
+    );
+    const original = await execute(run);
+    expect(original.status, original.error ?? undefined).toBe('success');
+    const copy = await continueEmbeddedResearch('owner', analysis.id, run.runId, 'en');
+    expect(await continueEmbeddedResearch('owner', analysis.id, run.runId, 'en')).toEqual(copy);
+    await expect(
+      continueEmbeddedResearch('other', analysis.id, run.runId, 'en'),
+    ).rejects.toMatchObject({ code: 'not_found' });
+    await prisma.factorReport.update({
+      where: { id: 'report' },
+      data: { payload: '{"observations":[10,20,null,40]}' },
+    });
+    const retained = await runResearchDocument('owner', copy.documentId, true);
+    expect(retained?.execution?.status).toBe('success');
+    expect(retained?.document.cells.at(-1)?.outputs).toEqual(original.outputs);
+    expect(
+      (await getResearchExecution('owner', retained!.execution!.id))?.cells.at(-1)?.inputSnapshot,
+    ).toMatchObject({ runId: run.runId, inputMode: 'retained' });
+    const changed = await changeEmbeddedInputMode('owner', copy.documentId, {
+      inputMode: 'current',
+      expectedRevision: retained!.document.contentRevision,
+    });
+    expect(
+      changed?.cells
+        .filter((cell) => cell.kind === 'python')
+        .every((cell) => cell.status === 'stale'),
+    ).toBe(true);
+    const current = await runResearchDocument('owner', copy.documentId, true);
+    expect(current?.execution?.status).toBe('success');
+    expect(current?.document.cells.at(-1)?.outputs).not.toEqual(original.outputs);
+    expect(
+      (await getResearchExecution('owner', current!.execution!.id))?.cells.at(-1)?.inputSnapshot,
+    ).toMatchObject({ runId: run.runId, inputMode: 'current' });
+    expect(current?.execution?.sourceHash).not.toBe(retained?.execution?.sourceHash);
+    await changeEmbeddedInputMode('owner', copy.documentId, {
+      inputMode: 'retained',
+      expectedRevision: current!.document.contentRevision,
+    });
+    await prisma.factorReport.delete({ where: { id: 'report' } });
+    expect(
+      (await runResearchDocument('owner', copy.documentId, true))?.document.cells.at(-1)?.outputs,
+    ).toEqual(original.outputs);
+    expect(
+      await replayResearchInput(copy.documentId, {
+        type: 'request',
+        id: 1,
+        method: 'research_factor_report',
+        arguments: { report_id: 'different-report' },
+      }),
+    ).toMatchObject({ error: expect.stringContaining('no unambiguous retained response') });
+    const input = await prisma.researchExecutionInput.findFirstOrThrow({
+      where: { executionId: run.runId },
+    });
+    await prisma.researchExecutionInput.update({
+      where: { id: input.id },
+      data: { responseJson: '{}' },
+    });
+    await expect(
+      replayResearchInput(copy.documentId, {
+        type: 'request',
+        id: 1,
+        method: 'research_factor_report',
+        arguments: input.arguments,
+      }),
+    ).rejects.toThrow('checksum mismatch');
+    expect((await getResearchDocument('owner', copy.documentId))?.embeddedSource?.runId).toBe(
+      run.runId,
+    );
+  }, 60_000);
+
+  it('saves the tool run before the model answer and keeps it through cancellation', async () => {
+    await startPersistentTurn({
+      turnId: 'analysis-turn',
+      userId: 'owner',
+      entity: { kind: 'strategy', id: 'strategy' },
+      history: [],
+      message: 'Check this sample',
+      model: 'fixture',
+    });
+    const source = await captureEmbeddedContext(prisma, 'owner', base.host);
+    const tools = embeddedAnalysisTools({ userId: 'owner', source });
+    const tool = tools.find((item) => item.name === 'runEmbeddedAnalysis')!;
+    const result = await tool.run(
+      {
+        title: 'Sample check',
+        source: 'parameters["value"] * 2',
+        parameters: { value: 7 },
+        inputScope: 'Explicit test sample',
+      },
+      {
+        onEmbeddedAnalysis: async (part) => {
+          await persistEmbeddedAnalysisPart('analysis-turn', part);
+          const message = await prisma.agentMessage.findFirstOrThrow({
+            where: { turnId: 'analysis-turn', role: 'assistant' },
+          });
+          expect(message.parts).toEqual([part]);
+          await execute(
+            await getEmbeddedRun('owner', part.reference.analysisId, part.reference.runId),
+          );
+        },
+      },
+    );
+    const part = result.embeddedAnalysis!;
+    expect(JSON.parse(result.observation)).toMatchObject({
+      status: 'success',
+      outputs: [{ type: 'value', value: 14 }],
+    });
+    await finishPersistentTurn({
+      turnId: 'analysis-turn',
+      status: 'cancelled',
+      trace: { version: 1, steps: [], truncated: false },
+    });
+    expect(
+      (
+        await prisma.agentMessage.findMany({
+          where: { turnId: 'analysis-turn', role: 'assistant' },
+        })
+      ).map((message) => message.parts),
+    ).toEqual([[part]]);
+    await expect(persistEmbeddedAnalysisPart('analysis-turn', part)).rejects.toThrow(
+      'active persisted conversation',
+    );
+    const otherHostTools = embeddedAnalysisTools({
+      userId: 'owner',
+      source: { ...source, host: { type: 'strategy', id: 'different' } },
+    });
+    await expect(
+      otherHostTools
+        .find((item) => item.name === 'readEmbeddedAnalysis')!
+        .run({ analysisId: part.reference.analysisId, runId: part.reference.runId }),
+    ).rejects.toThrow('different Factor or Strategy');
+  }, 30_000);
+
+  it('refuses to continue a failed attempt and merges an early card with one final answer', async () => {
+    const { run, analysis } = await create('raise ValueError("bad sample")');
+    await execute(run);
+    await expect(
+      continueEmbeddedResearch('owner', analysis.id, run.runId, 'en'),
+    ).rejects.toMatchObject({ code: 'incomplete_run' });
+    await startPersistentTurn({
+      turnId: 'merge-turn',
+      userId: 'owner',
+      entity: { kind: 'strategy', id: 'strategy' },
+      history: [],
+      message: 'Check sample',
+      model: 'fixture',
+    });
+    const part = {
+      type: 'embedded_analysis' as const,
+      title: 'Failed sample',
+      reference: { analysisId: analysis.id, versionId: run.versionId, runId: run.runId },
+    };
+    await persistEmbeddedAnalysisPart('merge-turn', part);
+    await persistEmbeddedAnalysisPart('merge-turn', part);
+    await finishPersistentTurn({
+      turnId: 'merge-turn',
+      status: 'done',
+      parts: [{ type: 'text', text: 'The sample failed.' }],
+      trace: { version: 1, steps: [], truncated: false },
+    });
+    const messages = await prisma.agentMessage.findMany({
+      where: { turnId: 'merge-turn', role: 'assistant' },
+    });
+    expect(messages).toHaveLength(1);
+    expect(messages[0].parts).toEqual([{ type: 'text', text: 'The sample failed.' }, part]);
   }, 30_000);
 });

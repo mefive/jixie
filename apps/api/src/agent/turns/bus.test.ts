@@ -12,6 +12,24 @@ function collect(): { events: AgentStreamEvent[]; send: (ev: AgentStreamEvent) =
 afterEach(() => turnBus._resetForTest());
 
 describe('turnBus', () => {
+  it('replays an early analysis card once after a cancelled turn without fabricating an answer', () => {
+    const part = {
+      type: 'embedded_analysis' as const,
+      title: 'Sample',
+      reference: { analysisId: 'analysis', versionId: 'version', runId: 'run' },
+    };
+    turnBus.start('analysis-turn', 'owner', 'strategy:strategy');
+    turnBus.publish('analysis-turn', { type: 'embedded_analysis', part });
+    turnBus.publish('analysis-turn', { type: 'embedded_analysis', part });
+    turnBus.finish('analysis-turn', { type: 'cancelled' });
+    const late = collect();
+    turnBus.subscribe('analysis-turn', 'owner', late.send);
+    expect(late.events).toEqual([
+      { type: 'snapshot', text: '', trace: [], embeddedAnalyses: [part] },
+      { type: 'cancelled' },
+    ]);
+    expect(turnBus.subscribe('analysis-turn', 'other', vi.fn()).kind).toBe('forbidden');
+  });
   it('replays accumulated text + trace as the first snapshot frame for a late subscriber', () => {
     turnBus.start('t1', 'u1', 'strategy:s1');
     turnBus.publish('t1', { type: 'delta', text: '你好' });

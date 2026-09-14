@@ -90,6 +90,13 @@ function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
     title: document.conversation.title ?? '',
     runtimeVersion: 'research-py-v1',
     contentRevision: document.contentRevision,
+    ...(document.embeddedSource
+      ? {
+          embeddedSource: document.embeddedSource as unknown as NonNullable<
+            ResearchDocumentV1['embeddedSource']
+          >,
+        }
+      : {}),
     cells: document.cells.map(cellView),
     ...(activeCellChangeReview ? { activeCellChangeReview } : {}),
     cellChangeAttempts: [],

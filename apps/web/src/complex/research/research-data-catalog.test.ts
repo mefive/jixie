@@ -6,6 +6,8 @@ import {
   researchFactorReportSnippet,
   researchFactorWeatherSnippet,
   researchSeriesSnippet,
+  researchSeriesSelection,
+  researchFactorReportSelection,
   researchSeriesVariableName,
   researchStrategyScanReportSnippet,
 } from './research-data-catalog';
@@ -135,7 +137,7 @@ test('inserts the four governed financial dataset calls', () => {
       start: '20200101',
       end: '20240429',
     }),
-    `600519_sh_equity_financial_statements = data.equity_financial_statements(
+    `data_600519_sh_equity_financial_statements = data.equity_financial_statements(
     "600519.SH",
     as_of="20240429",
 )`,
@@ -152,7 +154,7 @@ test('inserts the four governed financial dataset calls', () => {
       start: '20200101',
       end: '20240429',
     }),
-    /000858_sz_equity_financial_metrics = data\.equity_financial_metrics\([\s\S]*as_of="20240429"/,
+    /data_000858_sz_equity_financial_metrics = data\.equity_financial_metrics\([\s\S]*as_of="20240429"/,
   );
   assert.match(
     researchDatasetSnippet({
@@ -284,7 +286,7 @@ test('inserts a governed identifier-based reference dataset call', () => {
       start: '20210101',
       end: '20260701',
     }),
-    /801120_si_industry_state = data\.industry_state\([\s\S]*"801120.SI"/,
+    /data_801120_si_industry_state = data\.industry_state\([\s\S]*"801120.SI"/,
   );
 });
 
@@ -344,4 +346,40 @@ test('inserts a batch field query with separate report and availability dates', 
   assert.match(source, /as_of="20260506"/);
   assert.match(source, /report_end="20241231"/);
   assert.match(source, /period="ttm"/);
+});
+
+test('keeps the chat attachment and inserted SDK request on the same explicit source', () => {
+  const selected = researchSeriesSelection({
+    instrument,
+    measure: 'market.adjusted_close',
+    start: '20200101',
+    end: '20251231',
+    frequency: 'monthly',
+    transform: 'simple_return',
+  });
+  assert.deepEqual(selected.reference.arguments, {
+    asset_type: 'index',
+    identifier: '000300.SH',
+    start: '20200101',
+    end: '20251231',
+    measure: 'market.adjusted_close',
+    frequency: 'monthly',
+    transform: 'simple_return',
+  });
+  assert.equal(selected.reference.method, 'research_series');
+  assert.equal(
+    selected.snippet,
+    researchSeriesSnippet({
+      instrument,
+      measure: 'market.adjusted_close',
+      start: '20200101',
+      end: '20251231',
+      frequency: 'monthly',
+      transform: 'simple_return',
+    }),
+  );
+  assert.deepEqual(
+    researchFactorReportSelection({ id: 'saved-report', factor: 'ep' }).reference.arguments,
+    { report_id: 'saved-report' },
+  );
 });

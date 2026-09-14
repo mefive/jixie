@@ -55,3 +55,8 @@
 - [第一次运行回测](/help/getting-started/first-backtest)
 - [回测区间、资金和交易成本](/help/basics/backtest-settings)
 - [为什么回测不等于未来收益](/help/basics/backtest-limitations)
+
+
+## 对话中的嵌入式分析
+
+对已有报告或选定数据做小范围计算，可以使用[嵌入式分析卡片](/docs/help/research/embedded-analysis)。它保留 Python、输入和结果，首次成功固定版本，并支持继续到 Research。Research 副本默认回放这次分析留存的输入；普通文档的历史记录规则不变。

@@ -33,6 +33,7 @@ interface ResearchAgentDocumentCell {
 }
 
 interface ResearchAgentDocument {
+  embeddedSource?: unknown;
   id: string;
   updatedAt: Date;
   contentRevision: number;
@@ -222,6 +223,13 @@ export function researchAgentDocumentContext(
     context: JSON.stringify({
       version: 2,
       documentId: document.id,
+      ...(document.embeddedSource
+        ? {
+            embeddedSource: document.embeddedSource,
+            embeddedInputPolicy:
+              'In retained mode, SDK calls must match the original retained requests. Only the user can switch the document to current data; do not work around missing retained inputs. Document cells remain editable.',
+          }
+        : {}),
       updatedAt: document.updatedAt.toISOString(),
       contentRevision: document.contentRevision,
       runtime: 'research-py-v1',

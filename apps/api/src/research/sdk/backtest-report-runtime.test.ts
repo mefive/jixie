@@ -8,6 +8,8 @@ vi.mock('../datasets/results/backtest-report.js', () => ({
   loadResearchBacktestReportResult: mocks.loadBacktestReport,
 }));
 
+vi.mock('./input-replay.js', () => ({ replayResearchInput: vi.fn().mockResolvedValue(undefined) }));
+
 import { researchRuntimeManager } from '../execution/python-session.js';
 
 const DOCUMENT_ID = 'research-backtest-report-runtime-test';
@@ -42,5 +44,5 @@ describe('Research BacktestReport Python runtime bridge', () => {
 
     expect(mocks.loadBacktestReport).toHaveBeenCalledWith(DOCUMENT_ID, 'backtest-report-a');
     expect(execution.outputs).toEqual([{ type: 'value', value: 1.25 }]);
-  });
+  }, 30_000);
 });

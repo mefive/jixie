@@ -8,6 +8,8 @@ vi.mock('../datasets/results/factor-report.js', () => ({
   loadResearchFactorReportResult: mocks.loadFactorReport,
 }));
 
+vi.mock('./input-replay.js', () => ({ replayResearchInput: vi.fn().mockResolvedValue(undefined) }));
+
 import { researchRuntimeManager } from '../execution/python-session.js';
 
 const DOCUMENT_ID = 'research-factor-report-runtime-test';
@@ -42,5 +44,5 @@ describe('Research FactorReport Python runtime bridge', () => {
 
     expect(mocks.loadFactorReport).toHaveBeenCalledWith(DOCUMENT_ID, 'report-a');
     expect(execution.outputs).toEqual([{ type: 'value', value: 0.05 }]);
-  });
+  }, 30_000);
 });

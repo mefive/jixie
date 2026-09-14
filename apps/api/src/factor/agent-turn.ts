@@ -1,3 +1,9 @@
+import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
+import { captureEmbeddedContext } from '#research/embedded/context.js';
+import {
+  embeddedDataReferencesSchema,
+  embeddedUserParts,
+} from '#research/embedded/data-references.js';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
@@ -12,14 +18,17 @@ import { failFactorOperation } from './operation-errors.js';
 export const factorAgentInputSchema = z.object({
   id: z.string().min(1),
   message: z.string().trim().min(1).max(2000),
+  reportId: z.string().min(1).max(128).optional(),
+  dataReferences: embeddedDataReferencesSchema,
   code: z.string().min(1).max(20_000),
 });
 
 export async function startFactorAgentTurn(
   userId: string,
-  input: z.infer<typeof factorAgentInputSchema>,
+  rawInput: z.input<typeof factorAgentInputSchema>,
   locale: Locale,
 ) {
+  const input = factorAgentInputSchema.parse(rawInput);
   const { id, message, code } = input;
   const factor = await prisma.factor.findFirst({
     where: { id, userId },
@@ -42,22 +51,32 @@ export async function startFactorAgentTurn(
 
   const turnId = ulid();
 
+  const embeddedSource = await captureEmbeddedContext(
+    prisma,
+    userId,
+    { type: 'factor', id },
+    input.reportId,
+  );
   enqueueAgentTurn({
     turnId,
     userId,
-    profile: factorProfile({
-      userId,
-      factorId: id,
-      currentCode: code,
-      locale,
-      language: factor.language === 'python' ? 'python' : 'typescript',
-      analysisKind:
-        factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
-          ? factor.analysisKind
-          : 'cross_sectional',
-    }),
+    profile: withEmbeddedAnalysis(
+      factorProfile({
+        userId,
+        factorId: id,
+        currentCode: code,
+        locale,
+        language: factor.language === 'python' ? 'python' : 'typescript',
+        analysisKind:
+          factor.analysisKind === 'time_series' || factor.analysisKind === 'panel'
+            ? factor.analysisKind
+            : 'cross_sectional',
+      }),
+      { userId, source: embeddedSource, dataReferences: input.dataReferences },
+    ),
     entity,
     message,
+    userParts: embeddedUserParts(message, input.dataReferences),
     currentCode: code,
     locale,
     afterTurn: async (result, messages) => {

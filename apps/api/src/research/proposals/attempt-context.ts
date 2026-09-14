@@ -23,6 +23,7 @@ export function researchAgentCellChangeAttemptContext(attempt: {
     output: unknown;
     error: string | null;
     environmentFingerprint: string;
+    inputSnapshot?: unknown;
     cell: { kind: string; position: number } | null;
   }>;
 }): string {
@@ -51,6 +52,7 @@ export function researchAgentCellChangeAttemptContext(attempt: {
           : { jsonPrefix: outputText, truncated: true },
       ...(execution.error ? { error: execution.error } : {}),
       environmentFingerprint: execution.environmentFingerprint,
+      ...(execution.inputSnapshot ? { inputSnapshot: execution.inputSnapshot } : {}),
     };
   });
   return JSON.stringify({

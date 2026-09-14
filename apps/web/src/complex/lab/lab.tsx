@@ -1,3 +1,5 @@
+import type { ResearchDataReferenceV1 } from '@jixie/shared';
+import { EmbeddedAnalysisToolbar } from '@src/components/embedded-analysis/embedded-analysis-toolbar';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import type {
@@ -498,6 +500,12 @@ const AgentPanel = complex.component(
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('lab');
+  const [includeReport, setIncludeReport] = useState(true);
+  const [references, setReferences] = useState<ResearchDataReferenceV1[]>([]);
+  useEffect(() => {
+    setReferences([]);
+    setIncludeReport(true);
+  }, [store.savedId]);
   return (
     <div className="jx-lab-chat">
       <div className="jx-lab-agentName">{store.name || t('agentUnsavedName')}</div>
@@ -508,11 +516,21 @@ const AgentChat = complex.component(() => {
         stream={store.turnStream}
       />
       <div className="jx-lab-chatInput">
+        <EmbeddedAnalysisToolbar
+          key={store.savedId ?? 'unsaved'}
+          host={store.savedId ? { type: 'strategy', id: store.savedId } : undefined}
+          reportId={store.result ? store.activeBacktestReportId : undefined}
+          includeReport={includeReport}
+          onIncludeReportChange={setIncludeReport}
+          references={references}
+          onReferencesChange={setReferences}
+          disabled={store.sending}
+        />
         <PromptBox
           className="jx-lab-chatBox"
           value={store.nlText}
           onChange={(v) => store.setField('nlText', v)}
-          onSubmit={() => void store.sendAgent(store.nlText)}
+          onSubmit={() => void store.sendAgent(store.nlText, includeReport, references)}
           placeholder={t('chatPlaceholder')}
           variant="borderless"
           autoSize={{ minRows: 3, maxRows: 10 }}

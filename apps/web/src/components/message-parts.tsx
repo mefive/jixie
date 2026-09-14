@@ -15,7 +15,7 @@ import {
   faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Button, Tooltip } from 'antd';
+import { Button, Tag, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Markdown } from './markdown';
 import { UniverseSpecCard } from './universe-spec-card';
@@ -24,6 +24,7 @@ import { UniverseSpecCard } from './universe-spec-card';
 import './chat-chart.css';
 import './message-parts.css';
 
+const EmbeddedAnalysisCard = lazy(() => import('./embedded-analysis/embedded-analysis-card'));
 const ChatChart = lazy(() => import('./chat-chart'));
 const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
 const ResearchClarificationCard = lazy(() => import('./research-clarification-card'));
@@ -75,6 +76,24 @@ export function MessageParts({
   return (
     <>
       {message.parts.map((part, partIndex) => {
+        if (part.type === 'embedded_analysis') {
+          return (
+            <Suspense key={part.reference.runId} fallback={null}>
+              <EmbeddedAnalysisCard part={part} />
+            </Suspense>
+          );
+        }
+        if (part.type === 'research_data_references') {
+          return (
+            <div key={partIndex}>
+              {part.references.map((reference, index) => (
+                <Tag key={index} title={JSON.stringify(reference.arguments)}>
+                  {reference.label}
+                </Tag>
+              ))}
+            </div>
+          );
+        }
         if (part.type === 'chart') {
           return (
             <Suspense key={partIndex} fallback={<div className="jx-chatChart--pending" />}>

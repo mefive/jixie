@@ -507,6 +507,15 @@ function ExecutionCell({
         </span>
         <Tag>{t(`workbench.execution.cellStatus.${cell.status}`)}</Tag>
       </header>
+      {cell.inputSnapshot && (
+        <Alert
+          type="info"
+          title={t(
+            `embedded:${cell.inputSnapshot.inputMode === 'retained' ? 'retainedMode' : 'currentMode'}`,
+          )}
+          description={t('embedded:sourceRun', { id: cell.inputSnapshot.runId })}
+        />
+      )}
       <div className="jx-researchExecution-cellSource">
         {cell.kind === 'markdown' ? (
           <Markdown text={cell.source} />

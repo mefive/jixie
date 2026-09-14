@@ -1,4 +1,9 @@
-import type { AgentStreamEvent, AgentTurnPhase, ToolTraceItem } from '@jixie/shared';
+import type {
+  AgentStreamEvent,
+  AgentTurnPhase,
+  ToolTraceItem,
+  EmbeddedAnalysisPart,
+} from '@jixie/shared';
 
 /**
  * In-memory pub/sub for in-flight agent turns — one entry per turnId (pattern borrowed from
@@ -24,6 +29,7 @@ interface TurnEntry {
   accText: string; // produce-phase text so far (snapshot replay)
   accReasoning: string;
   trace: ToolTraceItem[]; // completed tool calls so far (snapshot replay)
+  embeddedAnalyses: EmbeddedAnalysisPart[];
   phase?: AgentTurnPhase; // current semantic phase for refresh replay
   controller: AbortController;
   done: boolean;
@@ -54,6 +60,7 @@ export function start(
     accText: '',
     accReasoning: '',
     trace: [],
+    embeddedAnalyses: [],
     phase: undefined,
     controller,
     done: false,
@@ -69,21 +76,40 @@ export function publish(
   turnId: string,
   ev: Extract<
     AgentStreamEvent,
-    { type: 'delta' | 'reasoning_delta' | 'phase' | 'tool_start' | 'tool_done' | 'repair' }
+    {
+      type:
+        | 'delta'
+        | 'reasoning_delta'
+        | 'phase'
+        | 'tool_start'
+        | 'tool_done'
+        | 'repair'
+        | 'embedded_analysis';
+    }
   >,
 ): void {
   const turn = turns.get(turnId);
   if (!turn || turn.done) {
     return;
   }
-  if (ev.type === 'delta') {
-    turn.accText += ev.text;
-  } else if (ev.type === 'reasoning_delta') {
-    turn.accReasoning += ev.text;
-  } else if (ev.type === 'phase') {
-    turn.phase = ev.phase;
-  } else if (ev.type === 'tool_done') {
-    turn.trace.push(ev.item);
+  switch (ev.type) {
+    case 'delta':
+      turn.accText += ev.text;
+      break;
+    case 'reasoning_delta':
+      turn.accReasoning += ev.text;
+      break;
+    case 'phase':
+      turn.phase = ev.phase;
+      break;
+    case 'tool_done':
+      turn.trace.push(ev.item);
+      break;
+    case 'embedded_analysis':
+      if (!turn.embeddedAnalyses.some((part) => part.reference.runId === ev.part.reference.runId)) {
+        turn.embeddedAnalyses.push(ev.part);
+      }
+      break;
   }
   for (const send of turn.subscribers) {
     try {
@@ -155,6 +181,7 @@ export function subscribe(
     type: 'snapshot',
     text: turn.accText,
     trace: [...turn.trace],
+    ...(turn.embeddedAnalyses.length ? { embeddedAnalyses: [...turn.embeddedAnalyses] } : {}),
     ...(turn.accReasoning ? { reasoning: turn.accReasoning } : {}),
     ...(turn.phase ? { phase: turn.phase } : {}),
   });

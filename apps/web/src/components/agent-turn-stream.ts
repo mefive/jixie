@@ -1,5 +1,11 @@
 import { makeObservable, observable, runInAction } from 'mobx';
-import type { AgentStreamEvent, AgentTurnPhase, MessagePart, ToolTraceItem } from '@jixie/shared';
+import type {
+  EmbeddedAnalysisPart,
+  AgentStreamEvent,
+  AgentTurnPhase,
+  MessagePart,
+  ToolTraceItem,
+} from '@jixie/shared';
 import {
   cancelAgentTurn,
   findRunningAgentTurn,
@@ -17,6 +23,7 @@ export interface AgentTurnDone {
 }
 
 export interface AgentTurnHandlers {
+  onEmbeddedAnalysis?(part: EmbeddedAnalysisPart, turnId: string): void;
   onDone(done: AgentTurnDone): void;
   onError(message: string): void;
   onCancelled?(): void;
@@ -139,6 +146,9 @@ export class AgentTurnStream {
   private applyEvent(ev: AgentStreamEvent, handlers: AgentTurnHandlers): boolean {
     switch (ev.type) {
       case 'snapshot':
+        for (const part of ev.embeddedAnalyses ?? []) {
+          handlers.onEmbeddedAnalysis?.(part, this.turnId ?? '');
+        }
         runInAction(() => {
           this.text = ev.text;
           this.trace = ev.trace;
@@ -146,6 +156,9 @@ export class AgentTurnStream {
           this.phase = ev.phase ?? null;
           this.statusNote = ev.phase ? phaseNote(ev.phase) : '';
         });
+        return false;
+      case 'embedded_analysis':
+        handlers.onEmbeddedAnalysis?.(ev.part, this.turnId ?? '');
         return false;
       case 'delta':
         runInAction(() => {

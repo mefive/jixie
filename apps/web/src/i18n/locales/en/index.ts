@@ -1,3 +1,4 @@
+import { enEmbedded } from './embedded';
 import { enCommon } from './common';
 import { enLogin } from './login';
 import { enComponents } from './components';
@@ -12,6 +13,7 @@ import { enResearch } from './research';
 
 // English resource bundle, keyed by namespace. Must mirror the zh bundle's namespaces/keys.
 export const enResources = {
+  embedded: enEmbedded,
   common: enCommon,
   login: enLogin,
   components: enComponents,

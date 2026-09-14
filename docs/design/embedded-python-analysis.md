@@ -220,8 +220,8 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 | --- | --- | --- | --- |
 | 1 | `docs(research): define the embedded analysis workflow` | 固化目标、版本、输入、交接、工具退出和验收，修正过期现状 | 已提交 `74567ccd` |
 | 2 | `feat(research): add versioned embedded analysis execution` | 契约、迁移、归属、执行与输入、冻结、历史和 API；依赖 1 | 已提交 `c883dae3` |
-| 3 | `feat(factor): persist question conversations and report context` | 问答持久化、报告上下文和刷新恢复，为分析提供可靠归属 | 范围与代码审查已确认；全部验证通过，按预告信息提交 |
-| 4 | `feat(agent): integrate embedded analysis into factor and strategy` | profile/工具、卡片、修改/历史、Research 交接、双语帮助与端到端验证；依赖 2、3 | 未开始 |
+| 3 | `feat(factor): persist question conversations and report context` | 问答持久化、报告上下文和刷新恢复，为分析提供可靠归属 | 已提交 `d31f048f` |
+| 4 | `feat(agent): integrate embedded analysis into factor and strategy` | profile/工具、卡片、修改/历史、Research 交接、双语帮助与端到端验证；依赖 2、3 | 两次审查及最终验证通过，随本变更提交 |
 | 5 | `refactor(agent): retire legacy chat computation tools` | 覆盖核对、旧工具及生成链删除、图表兼容和切换回归；依赖 4 | 未开始 |
 
 ### Commit 1：规划文档
@@ -279,3 +279,45 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 - 主测试正常退出并确认临时 API/模型端口释放，关闭 Prisma 连接、清理隔离库；另行启动的 Vite preview 已关闭并核对 4179 端口释放。没有应用开发/生产数据库迁移。
 - 本提交不接入嵌入分析工具/卡片或 Research 交接，不退出旧工具；这两部分分别由 Commit 4、5 完成。当前问答来源快照不能冒充 Python 输入绑定。后续仍需真正执行 Python，验收输出、首次成功冻结、派生版本和 Research 交接。
 - 工作区 maintenance/data-audit.ts 与 data-audit.test.ts 属于无关改动，不纳入本提交。用户确认先完成本需求 Commit 3–5，再开始 DeepSeek V4.1 Flash 迁移；本提交未修改模型配置。
+
+
+### Commit 4：对话中的嵌入式分析与 Research 接续（2026-09-14）
+
+- 预告提交信息：`feat(agent): integrate embedded analysis into factor and strategy`。用户已确认实现范围及首轮代码审查；已运行下面记录的验证。验收发现的三处产品修正亦已获复审确认，最终验证通过，随本变更提交。
+- 当前交付：Factor 草稿、只读因子问答、Strategy 对话接入 `runEmbeddedAnalysis` / `readEmbeddedAnalysis`。页面 profile 不再选择旧临时计算/绘图工具；历史工具代码、统计文档生成链和兼容路由留待 Commit 5 删除/核对。正式因子报告与回测流程保持现有边界。
+- 页面默认引用所选已完成报告，可关闭或通过共用 Research 数据目录补充引用；引用以结构化消息保存，不等于已取数。共用选择规则，Research 插入 Python，Factor/Strategy 随问题引用。顺带修正目录生成的部分 Python 变量以数字开头的问题。
+- 新卡片和详情显示本次源码/参数/修订、表格/图表/数值、实际 SDK 输入、诊断/指纹、错误、环境与限制；失败可修改，首次成功固定版本，之后修改派生新版。详情选择其他记录不改写原聊天消息；对已改变的旧草稿重跑也按原运行另建版本。
+- Agent 工具绑定认证用户及本轮服务端宿主/报告快照，每轮最多四次提交。提交后先将精确 run/version 引用写入 assistant 消息，再等待 Python 和最终解释；完成时合并同一条消息。SSE 实时事件与快照回放均传输已保存引用，取消或错误不丢已提交卡片。历史列表提供额外找回入口。
+- Research 接续为一次成功运行创建一个幂等的可编辑副本。默认根据原 SDK 方法、参数和校验和回放留存响应；缺失、歧义或校验失败不会读取当前数据。用户显式切换为当前数据时，更新文档/Cell 修订、标记 stale、关闭解释器；执行快照及 Agent 尝试保留数据模式和原运行来源。原分析不随副本删除，原数据源删除后已留存输入仍可回放。
+- 内部迁移 `20260914110000_research_embedded_continuation` 仅增加 ResearchDocument 的来源/幂等键及 ResearchCellExecution 的输入来源字段，由 Prisma schema diff 生成。没有新增公开 SDK 方法、Python 包、SQL 白名单、部署包或跨包构建依赖。API/Web/shared 需要协调更新，迁移未应用到开发库。
+- 公开帮助新增中英 `research/embedded-analysis`，并从因子 Agent、回测介绍、数据目录和 Research 记录页链接。说明取数与引用的区别、30 秒/16 请求/32 MiB、冻结与修订、回放和当前数据、预览限制及正式验证边界。
+- 准备的验证：扩展真实 Python 集成测试验证继续研究、原报告变更/删除、输入回放与当前模式、指纹校验、私有归属、失败拒绝、提前保存及完成合并；升级测试覆盖旧证据保留；消息/引用和目录契约回归；中英真实 Web/API/SQLite/Python 用户流程 `apps/web/e2e/embedded-analysis.mjs`，包括因子报告→表图与差值→改参数新版→Research 回放→从目录引用另一报告比较→Strategy 已存回测分析。外部模型与报告样本受控，不代表真实模型质量或正式评估器验收。
+- 初次交审时未运行行为验证；审查后的实际结果见下文。用户的 maintenance/data-audit 两处修改保持独立。
+
+- 初次交审前静态检查（2026-09-14）：范围内 Prettier 与 ESLint（无警告）、shared/API/Web/Docs 类型检查、后端边界（684 文件，0 违规）、三项 SDK/runtime 生成契约检查、Prisma schema 校验、迁移 SQL 与 schema diff 完全一致、41 个公开帮助链接和 diff 空白检查通过。为避免审查前构建应用，Web 类型检查使用 shared 的临时声明输出；没有启动服务、运行测试、构建应用或应用数据库迁移。
+
+
+#### Commit 4 首轮验证与复审修正（2026-09-14）
+
+- 用户批准首轮代码审查后，Shared、API、Web、Docs、sandboxd 构建通过；Web/Docs 有大 chunk 警告，Web 另提示嵌入卡片同时静态/动态导入，因此该卡片没有被拆成独立 chunk。没有应用开发或生产数据库迁移。
+- 后端相关验证合计 22 文件 / 179 个不同用例通过，前端消息与数据目录共 2 文件 / 16 用例通过。覆盖隔离库升级、旧证据保留、Agent 持久化/恢复、Research 文档和 SDK、真实 Python 输入回放与切换等。重复执行不重复计数；真实 Python 使用项目 CPython 3.13 环境，全部固定依赖版本已核对。
+- 首轮测试设施修正：SDK 分派与两个报告 runtime 单测补齐留存输入边界的隔离；Python 断言输出实际错误。最初系统 Python 缺 pandas，后续显式使用项目解释器；报告 runtime 测试的 5 秒默认预算改为 30 秒，容纳固定环境冷启动。未修改生产执行预算或弱化断言。
+- E2E 夹具原先误用 Jupyter 的 display()，现按 jixie 的真实输出约定返回 DataFrame 并收集 Matplotlib 图像；值由实际表格结果读取。测试策略 ID 改为接口允许的字母数字；失败日志保留原始错误；清理补充 Python 语言服务 dispose。外部模型仍为受控替身，数据为合成已存报告，没有调用真实模型、同步行情或正式评估器。
+- 中英文各一条完整浏览器流程均通过：因子报告计算差值 0.108；修改参数派生新版得到 0.096、原聊天仍显示 0.108；继续 Research 并用原输入重现 0.096；引用另一报告比较得到 0.045；Strategy 已存回测分析得到 0.1。最后一次测试正常退出，并验证 API/模型监听端口释放；另核对没有遗留本轮 Python/浏览器测试服务进程。
+- 第一轮十张截图已逐张检查并用于发现下述问题；同名文件后来由最终验收覆盖，当前截图以末尾最终记录为准。
+- 截图发现并修正三处产品问题：聊天卡片的小表格不再使用 Research 正文的 720px 最小宽度；继续研究的服务端双语模板采用现有单花括号参数规则；详情取得新运行状态后同步历史列表，避免详情成功、下拉框仍显示运行中。Research 正文与详情表格保留原展示宽度，数据、计算与冻结语义未变。
+- 为三处修正补充 E2E 断言：结果列确实位于聊天卡片可视宽度内、历史选项显示最终成功状态、Research 标题与来源没有多余花括号。产品修改后暂停行为验证，等待复审；尚未重新构建或生成修正后的截图。
+- 首轮日志：/tmp/jixie-embedded-commit4-tests.log 保留初次失败；修复后的 Python/分派为 /tmp/jixie-embedded-commit4-python-final.log；额外路由/文档回归为 /tmp/jixie-embedded-commit4-regression.log；报告 runtime 为 /tmp/jixie-embedded-commit4-sdk-runtime-final.log；最终浏览器日志为 /tmp/jixie-embedded-commit4-e2e-reviewed.log。首轮已通过不等于最新修正已经完成复验。
+- 复审通过后计划：重跑受影响 Python/SDK 测试、Web 消息/目录测试、API/Web 构建及增强后的中英 E2E；核对小表格、最终状态与来源说明的新截图，清理资源，完成提交。提交信息仍为 feat(agent): integrate embedded analysis into factor and strategy。
+
+- 三处产品修正后的静态检查通过：79 个范围内源码/样式文件的 Prettier 和适用 ESLint、API/Web 类型检查、git diff --check。修正后没有运行测试或构建，等待第二次代码审查。
+
+
+#### Commit 4 最终验证与提交（2026-09-14）
+
+- 用户批准三处产品修正后，API/Web 构建通过；受影响的真实 Python、SDK 分派及两个报告桥接测试共 4 文件 / 17 用例通过；Web 消息及数据目录共 2 文件 / 16 用例通过。与前轮合计的 22 个后端文件 / 179 用例为同一组覆盖，重跑不重复计数。
+- 增强后的中英 E2E 全部通过：结果列位于聊天卡片可见宽度内；详情和历史下拉框同步显示成功；Research 新文档标题、运行来源及范围没有多余花括号。原分析、派生新版、另一报告比较、Research 回放和 Strategy 结果保持预期。复验只修正了一处测试选择器（不再依赖旧版 antd 内部 class），未再修改产品行为。
+- 本轮十张最终截图已逐张查看，文件为 apps/web/acceptance/embedded-analysis-{factor,version,research,reference,strategy}-{zh,en}.png；旧故障诊断图不是验收结果。浏览器测试正常退出，脚本核对 API/模型端口释放，额外进程核对确认无遗留本轮测试服务或 Python 进程。
+- 最终日志：/tmp/jixie-embedded-commit4-reapproved-tests.log、/tmp/jixie-embedded-commit4-reapproved-web-tests.log、/tmp/jixie-embedded-commit4-reapproved-api-build.log、/tmp/jixie-embedded-commit4-reapproved-web-build.log、/tmp/jixie-embedded-commit4-final-e2e.log。首次复验的选择器失败保留在 reapproved-e2e.log，不覆盖为成功记录。
+- 首次完整静态检查与复审后受影响的格式、ESLint、API/Web 类型及 diff 检查均通过。构建分包警告如前述。只使用隔离测试数据，未应用开发/生产库迁移、未调用真实模型，也不将受控模型流程视为模型分析质量评估。
+- 按已确认信息 feat(agent): integrate embedded analysis into factor and strategy 提交本轮全部 94 个范围内文件；maintenance/data-audit.ts 和 data-audit.test.ts 保持未纳入。下一提交负责旧工具/统计文档生成链删除、历史图表兼容及能力覆盖核对，完成后才启动 DeepSeek 迁移。

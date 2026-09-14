@@ -84,6 +84,13 @@ function researchCellChangeAttemptCellView(
         output && typeof output === 'object' && 'type' in output ? String(output.type) : '',
       )
       .filter(Boolean) as ResearchCellChangeAttemptCellV1['outputTypes'],
+    ...(execution.inputSnapshot
+      ? {
+          inputSnapshot: execution.inputSnapshot as unknown as NonNullable<
+            ResearchCellChangeAttemptCellV1['inputSnapshot']
+          >,
+        }
+      : {}),
     environmentFingerprint: execution.environmentFingerprint,
     ...(execution.error ? { error: execution.error } : {}),
   };

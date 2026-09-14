@@ -38,7 +38,17 @@ export async function captureEmbeddedContext(
         select: { name: true, code: true, language: true },
       });
       if (!factor) {
-        throw new ResearchEmbeddedError('not_found');
+        const composite = await transaction.factorComposite.findFirst({
+          where: { id: host.id, OR: [{ userId }, { visibility: 'public', status: 'published' }] },
+          select: { name: true, definition: true },
+        });
+        if (!composite) {
+          throw new ResearchEmbeddedError('not_found');
+        }
+        name = composite.name;
+        code = JSON.stringify(composite.definition);
+        language = 'json';
+        break;
       }
       ({ name, code, language } = factor);
       break;

@@ -72,3 +72,8 @@ Reports remain immutable regardless of the entry point.
 - [Pre-run research cards and variants](/docs/help/factors/research-card)
 - [Report history and outdated results](/docs/help/factors/report-history)
 - [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)
+
+
+## Embedded analysis in chat
+
+For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.

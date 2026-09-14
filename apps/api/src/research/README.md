@@ -146,5 +146,19 @@ Prisma 迁移历史及 bootstrap 中的 `prisma migrate deploy` 保留；本次�
 
 API 与 Python 沙箱需要协调发布；启动时协商显式参数能力，旧沙箱不会被允许静默忽略嵌入参数。旧 API 不请求新能力时仍收到原有启动响应。
 
-验证代码已准备，尚未执行：`embedded/lifecycle.integration.test.ts`、`embedded/python.integration.test.ts`、`embedded/migration.integration.test.ts`、Python 能力协商与 SDK 分派回归；
-人工审阅通过后运行隔离迁移、真实 Python、相关普通文档/队列回归及构建/生产 socket 分支验证。
+隔离迁移、真实 Python、能力协商、SDK 分派、普通文档/队列回归及构建/生产 socket 分支验证已完成；
+各提交的实际覆盖和环境限制见 [开发记录](../../../../docs/design/embedded-python-analysis.md)，不等同于生产容器部署验收。
+
+
+## 嵌入式分析接入与接续（Commit 4）
+
+Factor/Strategy 页面的 Agent 通过 `agent/profiles/embedded.ts` 绑定服务端上下文，调用 `runEmbeddedAnalysis` 并在
+最终回答前保存准确引用；三处对话复用 Web 分析卡片与数据目录。只读因子问答仍然私有，不修改预设定义。
+
+`embedded/continuation.ts` 提供 POST `/:analysisId/runs/:runId/continue-research`，生成默认回放输入的普通可编辑文档；
+PATCH `/documents/:documentId/input-mode` 切换回放/当前数据，要求文档修订号并使 Python 输出过期。
+`sdk/input-replay.ts` 在普通 SDK loader 前按方法、参数及 SHA-256 返回原响应；回放失败不降级查询当前数据。
+普通完整执行与 Agent 尝试保存输入模式和原运行引用。上述三项内部字段见新增迁移，不改变公开 SDK。
+
+实现和验证状态以 [开发记录](../../../../docs/design/embedded-python-analysis.md) Commit 4 为准；新增中英公开帮助
+`/docs/help/research/embedded-analysis`。旧计算工具及 `gen-stats-doc.ts` 尚未删除，属于 Commit 5 的收尾范围。

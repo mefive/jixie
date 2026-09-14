@@ -6,7 +6,13 @@ import { useTranslation } from 'react-i18next';
 
 const DEFAULT_PAGE_SIZE = 50;
 
-export function ResearchCellTable({ output }: { output: ResearchTableOutputV1 }) {
+export function ResearchCellTable({
+  output,
+  compact = false,
+}: {
+  output: ResearchTableOutputV1;
+  compact?: boolean;
+}) {
   const { t } = useTranslation('research');
   const shownRows = output.rows.length;
   const shownColumns = output.columns.length;
@@ -14,6 +20,7 @@ export function ResearchCellTable({ output }: { output: ResearchTableOutputV1 })
   const bounded =
     output.truncated || output.truncatedColumns || output.truncatedCells || output.truncatedBytes;
   const virtual = shownRows > DEFAULT_PAGE_SIZE;
+  const columnWidth = compact ? 80 : 140;
   const limitDescription = output.limits
     ? output.limits.bytes
       ? t('workbench.tableLimitsWithBytes', {
@@ -87,7 +94,7 @@ export function ResearchCellTable({ output }: { output: ResearchTableOutputV1 })
             : false
         }
         scroll={{
-          x: Math.max(720, shownColumns * 140),
+          x: Math.max(compact ? 240 : 720, shownColumns * columnWidth),
           ...(virtual ? { y: 320 } : {}),
         }}
         rowKey={(_row, index) => String(index)}
@@ -96,7 +103,7 @@ export function ResearchCellTable({ output }: { output: ResearchTableOutputV1 })
           title: column,
           dataIndex: column,
           key: column,
-          width: 140,
+          width: columnWidth,
           ellipsis: { showTitle: true },
           render: (value: unknown) => formatTableValue(value),
         }))}

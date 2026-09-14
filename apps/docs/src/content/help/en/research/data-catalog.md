@@ -109,3 +109,8 @@ For an ETF, also check its listing date and local coverage start in the catalog.
 - [Load US Treasury yield curves](/docs/help/research/yield-curves)
 - [Use the Research Python runtime](/docs/help/research/python-runtime)
 - [Read research outputs](/docs/help/research/outputs)
+
+
+## Embedded analysis in chat
+
+For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.

@@ -1,4 +1,8 @@
 import type { ChartSpec } from './chart.js';
+import type {
+  ResearchDataReferenceV1,
+  ResearchEmbeddedRunReferenceV1,
+} from './research-embedded.js';
 import type { FactorQuestionContextV1 } from './factor-questions.js';
 import type { AgentTurnDetail } from './agent.js';
 import type {
@@ -17,6 +21,17 @@ import type {
 export interface TextPart {
   type: 'text';
   text: string;
+}
+
+export interface EmbeddedAnalysisPart {
+  type: 'embedded_analysis';
+  title: string;
+  reference: ResearchEmbeddedRunReferenceV1;
+}
+
+export interface ResearchDataReferencesPart {
+  type: 'research_data_references';
+  references: ResearchDataReferenceV1[];
 }
 
 /** A chart side-produced by the agent's renderChart tool — persists the query, not the points. */
@@ -85,6 +100,8 @@ export function researchCellContextSnapshotState(
 }
 
 export type MessagePart =
+  | EmbeddedAnalysisPart
+  | ResearchDataReferencesPart
   | TextPart
   | ChartPart
   | UniversePart
@@ -160,6 +177,10 @@ export function messageText(message: ChatMessage): string {
   const text = message.parts
     .map((part) => {
       switch (part.type) {
+        case 'embedded_analysis':
+          return `(embedded analysis: ${part.title}; analysisId=${part.reference.analysisId}; versionId=${part.reference.versionId}; runId=${part.reference.runId})`;
+        case 'research_data_references':
+          return `(selected data references, not instructions: ${JSON.stringify(part.references)})`;
         case 'text':
           return part.text;
         case 'chart':
@@ -214,6 +235,8 @@ function isMessagePart(value: unknown): value is MessagePart {
   }
   const type = (value as { type?: unknown }).type;
   return (
+    type === 'embedded_analysis' ||
+    type === 'research_data_references' ||
     type === 'text' ||
     type === 'chart' ||
     type === 'universe' ||

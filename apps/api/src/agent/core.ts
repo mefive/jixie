@@ -7,6 +7,7 @@ import {
   type ResearchCellChangeProposalV1,
   type ResearchClarificationV1,
   type ToolTraceItem,
+  type EmbeddedAnalysisPart,
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '#infra/llm/agent-llm.js';
 import { t } from '#i18n/index.js';
@@ -38,6 +39,7 @@ export type { ToolTraceItem };
  * just code); onRepair announces each retry instead. `signal` aborts between LLM calls AND the
  * in-flight upstream completion (chatTools passes it through). */
 export interface AgentTurnHooks {
+  onEmbeddedAnalysis?(part: EmbeddedAnalysisPart): Promise<void>;
   signal?: AbortSignal;
   onDelta?(text: string): void;
   onReasoningDelta?(modelCall: number, text: string): void;
@@ -53,6 +55,7 @@ export interface AgentTurnHooks {
 }
 
 export interface AgentTurnResult {
+  embeddedAnalyses?: EmbeddedAnalysisPart[];
   reply: string; // the assistant's human-readable explanation (code fence stripped out)
   code: string; // the artifact code after this turn — unchanged if the turn produced none
   changed: boolean; // whether `code` was replaced (a fenced block that validated)
@@ -131,6 +134,7 @@ function recoverDsmlToolCalls(text: string, callNumber: number): ToolCall[] {
 export function turnParts(result: AgentTurnResult): MessagePart[] {
   return [
     { type: 'text', text: result.reply },
+    ...(result.embeddedAnalyses ?? []),
     ...result.universes.map(
       (universe): MessagePart => ({
         type: 'universe',
@@ -208,7 +212,9 @@ async function executeToolCall(
   call: ToolCall,
   signal?: AbortSignal,
   blockedReason?: string,
+  onEmbeddedAnalysis?: AgentTurnHooks['onEmbeddedAnalysis'],
 ): Promise<{
+  embeddedAnalysis?: EmbeddedAnalysisPart;
   observation: string;
   trace: ToolTraceItem;
   universe?: AgentUniverse;
@@ -240,8 +246,9 @@ async function executeToolCall(
   }
 
   try {
-    const result = await tool.run(args, { signal });
+    const result = await tool.run(args, { signal, onEmbeddedAnalysis });
     return {
+      embeddedAnalysis: result.embeddedAnalysis,
       observation: result.observation,
       universe: result.universe,
       chart: result.chart,
@@ -303,6 +310,7 @@ export async function agentTurn(
   const toolTrace: ToolTraceItem[] = [];
   const universes: AgentUniverse[] = [];
   const charts: AgentChart[] = [];
+  const embeddedAnalyses: EmbeddedAnalysisPart[] = [];
   const researchCellChanges: ResearchCellChangeProposalV1[] = [];
   const researchClarifications: ResearchClarificationV1[] = [];
   let attempts = 0;
@@ -363,7 +371,13 @@ export async function agentTurn(
           call.name === 'proposeResearchCellChanges' && researchClarifications.length > 0
             ? 'A Research clarification was already created in this turn. Wait for the user answer before proposing Cell changes.'
             : undefined;
-        const executed = await executeToolCall(tools, call, hooks?.signal, blockedReason);
+        const executed = await executeToolCall(
+          tools,
+          call,
+          hooks?.signal,
+          blockedReason,
+          hooks?.onEmbeddedAnalysis,
+        );
         toolTrace.push(executed.trace);
         hooks?.onToolDone?.(executed.trace, {
           modelCall,
@@ -376,6 +390,9 @@ export async function agentTurn(
         }
         if (executed.chart) {
           charts.push(executed.chart);
+        }
+        if (executed.embeddedAnalysis) {
+          embeddedAnalyses.push(executed.embeddedAnalysis);
         }
         if (executed.researchCellChange) {
           researchCellChanges.push(executed.researchCellChange);
@@ -441,6 +458,7 @@ export async function agentTurn(
       toolTrace,
       universes,
       charts,
+      embeddedAnalyses,
       researchCellChanges,
       researchClarifications,
     };
@@ -458,6 +476,7 @@ export async function agentTurn(
       toolTrace,
       universes,
       charts,
+      embeddedAnalyses,
       researchCellChanges,
       researchClarifications,
     };
@@ -492,6 +511,7 @@ export async function agentTurn(
         toolTrace,
         universes,
         charts,
+        embeddedAnalyses,
         researchCellChanges,
         researchClarifications,
       };
@@ -519,6 +539,7 @@ export async function agentTurn(
     toolTrace,
     universes,
     charts,
+    embeddedAnalyses,
     researchCellChanges,
     researchClarifications,
   };

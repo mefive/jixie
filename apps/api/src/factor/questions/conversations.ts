@@ -1,3 +1,9 @@
+import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
+import { captureEmbeddedContext } from '#research/embedded/context.js';
+import {
+  embeddedDataReferencesSchema,
+  embeddedUserParts,
+} from '#research/embedded/data-references.js';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
@@ -18,6 +24,7 @@ import { captureFactorQuestionContext } from './context.js';
 
 export const factorQuestionSchema = z.strictObject({
   factorKey: z.string().min(1).max(128),
+  dataReferences: embeddedDataReferencesSchema,
   message: z.string().trim().min(1).max(2000),
   reportId: z.string().min(1).max(128).optional(),
 });
@@ -91,7 +98,7 @@ export async function readFactorQuestions(
 
 export async function startFactorQuestion(
   userId: string,
-  raw: z.infer<typeof factorQuestionSchema>,
+  raw: z.input<typeof factorQuestionSchema>,
   locale: Locale,
 ): Promise<FactorQuestionTurnV1> {
   const input = factorQuestionSchema.parse(raw);
@@ -139,7 +146,7 @@ export async function startFactorQuestion(
       turnId,
       conversationId: conversation.id,
       model,
-      userParts: [{ type: 'text', text: input.message }],
+      userParts: embeddedUserParts(input.message, input.dataReferences),
       contextSnapshot: context,
     });
     const message = questionMessage(
@@ -148,13 +155,23 @@ export async function startFactorQuestion(
         select: messageSelection,
       }),
     );
-    return { conversationId: conversation.id, context, history, message };
+    const embeddedSource = await captureEmbeddedContext(
+      database,
+      userId,
+      { type: 'factor', id: input.factorKey },
+      input.reportId,
+    );
+    return { conversationId: conversation.id, context, embeddedSource, history, message };
   });
   enqueueAgentTurn({
     turnId,
     userId,
     entity: { kind: 'factor-question', id: prepared.conversationId },
-    profile: factorQaProfile(prepared.context),
+    profile: withEmbeddedAnalysis(factorQaProfile(prepared.context), {
+      userId,
+      source: prepared.embeddedSource,
+      dataReferences: input.dataReferences,
+    }),
     message: input.message,
     currentCode: '',
     locale,

@@ -1,0 +1,42 @@
+@reference '../../styles/index.css';
+
+.jx-embedded-card {
+  @apply flex flex-col gap-3 rounded-lg border border-line bg-white text-ink;
+  padding: 12px;
+  margin: 10px 0;
+  min-width: 0;
+}
+.jx-embedded-head,
+.jx-embedded-actions {
+  @apply flex flex-wrap items-center gap-2;
+}
+.jx-embedded-head strong {
+  @apply flex-1;
+}
+.jx-embedded-note {
+  @apply m-0 text-xs text-muted;
+}
+.jx-embedded-detail,
+.jx-embedded-editor {
+  @apply flex flex-col gap-4;
+}
+.jx-embedded-detail summary {
+  @apply cursor-pointer font-medium;
+}
+.jx-embedded-history {
+  min-width: 260px;
+}
+.jx-embedded-json {
+  @apply overflow-auto whitespace-pre-wrap rounded bg-bg p-3 text-xs text-ink;
+  max-height: 360px;
+  overflow-wrap: anywhere;
+}
+.jx-embedded-input {
+  @apply my-3 border-l-2 border-line pl-3;
+}
+.jx-embedded-editor {
+  @apply rounded border border-line p-3;
+}
+.jx-embedded-detail code {
+  @apply break-all text-xs;
+}

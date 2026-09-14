@@ -1,3 +1,4 @@
+import { ResearchEmbeddedError } from '#research/embedded/errors.js';
 import { Hono } from 'hono';
 import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
 import { localeFromRequest, m } from '#infra/http/locale.js';
@@ -26,6 +27,18 @@ factorAgentRoute.post(
         ),
       );
     } catch (error) {
+      if (error instanceof ResearchEmbeddedError) {
+        return apiError(
+          c,
+          error.code === 'not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
+          m(
+            c,
+            error.code === 'invalid_report'
+              ? 'researchEmbeddedInvalidReport'
+              : 'researchEmbeddedNotFound',
+          ),
+        );
+      }
       return factorOperationApiError(c, error);
     }
   },
@@ -46,6 +59,18 @@ factorAgentRoute.get(
         ),
       );
     } catch (error) {
+      if (error instanceof ResearchEmbeddedError) {
+        return apiError(
+          c,
+          error.code === 'not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
+          m(
+            c,
+            error.code === 'invalid_report'
+              ? 'researchEmbeddedInvalidReport'
+              : 'researchEmbeddedNotFound',
+          ),
+        );
+      }
       return factorOperationApiError(c, error);
     }
   },
@@ -68,6 +93,18 @@ factorAgentRoute.post(
         await startFactorQuestion(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
       );
     } catch (error) {
+      if (error instanceof ResearchEmbeddedError) {
+        return apiError(
+          c,
+          error.code === 'not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
+          m(
+            c,
+            error.code === 'invalid_report'
+              ? 'researchEmbeddedInvalidReport'
+              : 'researchEmbeddedNotFound',
+          ),
+        );
+      }
       return factorOperationApiError(c, error);
     }
   },

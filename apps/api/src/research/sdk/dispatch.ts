@@ -1,4 +1,5 @@
 import type { ResearchRequestFrame } from './protocol.js';
+import { replayResearchInput } from './input-replay.js';
 import {
   type ResearchSeriesRuntimeRequestV1,
   type ResearchYieldCurveRuntimeRequestV1,
@@ -189,7 +190,7 @@ type ParsedResearchRequest =
       arguments: ResearchFactorWeatherRuntimeRequestV1;
     });
 
-function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchRequest {
+export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchRequest {
   switch (frame.method) {
     case 'research_series':
       return {
@@ -696,7 +697,9 @@ export async function dispatchResearchRequest(
     });
     throw error;
   }
-  const response = await answerResearchRequest(documentId, request);
+  const response =
+    (await replayResearchInput(documentId, frame)) ??
+    (await answerResearchRequest(documentId, request));
   await observer?.captureResponse(frame, response);
   await session.send({ type: 'response', id: frame.id, ...response });
 }

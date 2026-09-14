@@ -1,3 +1,4 @@
+import { RESEARCH_SDK_CONTRACT_V1, type ResearchDataReferenceV1 } from '@jixie/shared';
 import type {
   ResearchDataCatalogBacktestReportV1,
   ResearchDataCatalogDatasetV1,
@@ -33,163 +34,212 @@ export interface ResearchSeriesSnippetOptions {
   transform: ResearchTransformV1;
 }
 
-/** Build the immutable backtest lookup inserted by the catalog. */
-export function researchBacktestReportSnippet(
-  report: Pick<ResearchDataCatalogBacktestReportV1, 'id' | 'strategyName'>,
-): string {
-  return `${researchBacktestReportVariableName(report.strategyName)} = results.backtest_report(${JSON.stringify(report.id)})`;
+export interface ResearchCatalogSelection {
+  snippet: string;
+  reference: ResearchDataReferenceV1;
 }
 
-export function researchStrategyScanReportSnippet(
-  report: Pick<ResearchDataCatalogStrategyScanReportV1, 'id' | 'strategyName'>,
-): string {
-  return `${researchBacktestReportVariableName(report.strategyName).replace(/_report$/, '_scan')} = results.strategy_scan_report(${JSON.stringify(report.id)})`;
-}
-
-function researchBacktestReportVariableName(strategyName: string): string {
-  let identifier = strategyName
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  if (/^[0-9]/.test(identifier)) {
-    identifier = `backtest_${identifier}`;
+/** The source and attachment derive from the same argument object and public SDK contract. */
+function catalogSelection(
+  method: string,
+  variable: string,
+  arguments_: Record<string, unknown>,
+): ResearchCatalogSelection {
+  const contract = RESEARCH_SDK_CONTRACT_V1.functions.find((item) => item.qualifiedName === method);
+  if (!contract) {
+    throw new Error(`Unknown Research SDK method: ${method}`);
   }
-  return `${identifier || 'backtest'}_report`;
+  const parameters = contract.parameters.filter(
+    (parameter) => arguments_[parameter.name] !== undefined,
+  );
+  const rendered = parameters.map(
+    (parameter) =>
+      `${parameter.keywordOnly ? `${parameter.name}=` : ''}${pythonLiteral(arguments_[parameter.name])}`,
+  );
+  const body = rendered.length === 1 ? rendered[0] : `\n    ${rendered.join(',\n    ')},\n`;
+  return {
+    snippet: `${variable} = ${method}(${body})`,
+    reference: { label: variable, method: `research_${contract.name}`, arguments: arguments_ },
+  };
 }
-
-/** Build the immutable report lookup inserted by the catalog. */
-export function researchFactorReportSnippet(
+function pythonLiteral(value: unknown): string {
+  if (value === null) {
+    return 'None';
+  }
+  if (value === true) {
+    return 'True';
+  }
+  if (value === false) {
+    return 'False';
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(pythonLiteral).join(',')}]`;
+  }
+  return JSON.stringify(value);
+}
+function identifier(value: string, prefix = 'data'): string {
+  const cleaned = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return /^[0-9]/.test(cleaned) ? `${prefix}_${cleaned}` : cleaned;
+}
+export function researchBacktestReportSelection(
+  report: Pick<ResearchDataCatalogBacktestReportV1, 'id' | 'strategyName'>,
+) {
+  return catalogSelection(
+    'results.backtest_report',
+    `${identifier(report.strategyName, 'backtest') || 'backtest'}_report`,
+    { report_id: report.id },
+  );
+}
+export function researchStrategyScanReportSelection(
+  report: Pick<ResearchDataCatalogStrategyScanReportV1, 'id' | 'strategyName'>,
+) {
+  return catalogSelection(
+    'results.strategy_scan_report',
+    `${identifier(report.strategyName, 'backtest') || 'backtest'}_scan`,
+    { report_id: report.id },
+  );
+}
+export function researchFactorReportSelection(
   report: Pick<ResearchDataCatalogFactorReportV1, 'id' | 'factor'>,
-): string {
-  return `${researchFactorReportVariableName(report.factor)} = results.factor_report(${JSON.stringify(report.id)})`;
+) {
+  return catalogSelection(
+    'results.factor_report',
+    `${identifier(report.factor) || 'factor'}_report`,
+    { report_id: report.id },
+  );
 }
-
-export function researchFactorWeatherSnippet(
+export function researchFactorWeatherSelection(
   weather: Pick<ResearchDataCatalogFactorWeatherV1, 'factorId' | 'factorName'>,
+) {
+  return catalogSelection(
+    'results.factor_weather',
+    `${identifier(weather.factorName) || 'factor'}_weather`,
+    { factor_id: weather.factorId },
+  );
+}
+export function researchSeriesVariableName(
+  instrument: Pick<ResearchDataCatalogInstrumentV1, 'assetType' | 'identifier'>,
 ): string {
-  const identifier = weather.factorName
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return `${identifier || 'factor'}_weather = results.factor_weather(${JSON.stringify(weather.factorId)})`;
+  return identifier(`${instrument.assetType}_${instrument.identifier}`);
 }
-
-function researchFactorReportVariableName(factor: string): string {
-  const identifier = factor
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return `${identifier || 'factor'}_report`;
+export function researchSeriesSelection(options: ResearchSeriesSnippetOptions) {
+  return catalogSelection('data.series', researchSeriesVariableName(options.instrument), {
+    asset_type: options.instrument.assetType,
+    identifier: options.instrument.identifier,
+    start: options.start,
+    end: options.end,
+    measure: options.measure,
+    frequency: options.frequency,
+    transform: options.transform,
+  });
 }
-
-/** Build an exact governed dataset call inserted by the catalog. */
-export function researchDatasetSnippet(options: ResearchDatasetSnippetOptions): string {
+export function researchDatasetSelection(
+  options: ResearchDatasetSnippetOptions,
+): ResearchCatalogSelection {
   const { dataset, start, end } = options;
-  const variable = researchDatasetVariableName(dataset, options.identifier);
+  const dates = { start, end };
+  const eligibility = { minimum_listed_days: 365, risk_warning: 'exclude' };
+  const stock = options.identifier ?? ('identifier' in dataset ? dataset.identifier : undefined);
+  let arguments_: Record<string, unknown>;
   switch (dataset.method) {
     case 'data.cross_section':
-      return `${variable} = data.cross_section(
-    ${JSON.stringify(dataset.universe)},
-    date=${JSON.stringify(end)},
-    minimum_listed_days=365,
-    risk_warning="exclude",
-)`;
+      arguments_ = { universe: dataset.universe, date: end, ...eligibility };
+      break;
     case 'data.panel':
-      return `${variable} = data.panel(
-    ${JSON.stringify(dataset.universe)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-    frequency="month_end",
-    minimum_listed_days=365,
-    risk_warning="exclude",
-)`;
+      arguments_ = { universe: dataset.universe, ...dates, frequency: 'month_end', ...eligibility };
+      break;
     case 'data.equity_financial_values':
-      return `${variable} = data.equity_financial_values(
-    ${JSON.stringify((options.identifier ?? dataset.identifier).split(/[,，\s]+/).filter(Boolean))},
-    as_of=${JSON.stringify(end)},
-    fields=${JSON.stringify(options.fields ?? ['income.revenue', 'balance_sheet.totalAssets'])},
-    report_start=${JSON.stringify(options.reportStart ?? start)},
-    report_end=${JSON.stringify(options.reportEnd ?? end)},
-    period=${JSON.stringify(options.period ?? 'annual')},
-)`;
+      arguments_ = {
+        identifiers: stock?.split(/[,，\s]+/).filter(Boolean),
+        as_of: end,
+        fields: options.fields ?? ['income.revenue', 'balance_sheet.totalAssets'],
+        report_start: options.reportStart ?? start,
+        report_end: options.reportEnd ?? end,
+        period: options.period ?? 'annual',
+      };
+      break;
     case 'data.equity_financial_statements':
-      return `${variable} = data.equity_financial_statements(
-    ${JSON.stringify(options.identifier ?? dataset.identifier)},
-    as_of=${JSON.stringify(end)},${options.fields?.length ? '\n    fields=' + JSON.stringify(options.fields) + ',' : ''}${options.reportStart ? '\n    report_start=' + JSON.stringify(options.reportStart) + ',' : ''}${options.reportEnd ? '\n    report_end=' + JSON.stringify(options.reportEnd) + ',' : ''}
-)`;
+      arguments_ = {
+        identifier: stock,
+        as_of: end,
+        ...(options.fields?.length ? { fields: options.fields } : {}),
+        ...(options.reportStart ? { report_start: options.reportStart } : {}),
+        ...(options.reportEnd ? { report_end: options.reportEnd } : {}),
+      };
+      break;
     case 'data.equity_financial_metrics':
-      return `${variable} = ${dataset.method}(
-    ${JSON.stringify(options.identifier ?? dataset.identifier)},
-    as_of=${JSON.stringify(end)},
-)`;
+      arguments_ = { identifier: stock, as_of: end };
+      break;
     case 'data.equity_financial_cross_section':
-      return `${variable} = data.equity_financial_cross_section(
-    ${JSON.stringify(dataset.universe)},
-    date=${JSON.stringify(end)},
-    metrics=${JSON.stringify(options.metrics ?? ['returnOnInvestedCapital'])},
-    minimum_listed_days=365,
-    risk_warning="exclude",
-)`;
+      arguments_ = {
+        universe: dataset.universe,
+        date: end,
+        metrics: options.metrics ?? ['returnOnInvestedCapital'],
+        ...eligibility,
+      };
+      break;
     case 'data.equity_financial_panel':
-      return `${variable} = data.equity_financial_panel(
-    ${JSON.stringify(dataset.universe)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-    frequency="month_end",
-    metrics=${JSON.stringify(options.metrics ?? ['returnOnInvestedCapital'])},
-    minimum_listed_days=365,
-    risk_warning="exclude",
-)`;
+      arguments_ = {
+        universe: dataset.universe,
+        ...dates,
+        frequency: 'month_end',
+        metrics: options.metrics ?? ['returnOnInvestedCapital'],
+        ...eligibility,
+      };
+      break;
     case 'data.yield_curve':
-      return `${variable} = data.yield_curve(
-    ${JSON.stringify(dataset.curve)},
-    tenor=${JSON.stringify(dataset.tenor)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-    frequency="daily",
-    transform="level",
-)`;
+      arguments_ = {
+        curve: dataset.curve,
+        tenor: dataset.tenor,
+        ...dates,
+        frequency: 'daily',
+        transform: 'level',
+      };
+      break;
     case 'data.macro':
-      return `${variable} = data.macro(
-    ${JSON.stringify(dataset.series)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-    frequency="daily",
-    transform="level",
-)`;
+      arguments_ = { series: dataset.series, ...dates, frequency: 'daily', transform: 'level' };
+      break;
     case 'data.fx':
-      return `${variable} = data.fx(
-    ${JSON.stringify(dataset.pair)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-    frequency="daily",
-    transform="level",
-)`;
+      arguments_ = { pair: dataset.pair, ...dates, frequency: 'daily', transform: 'level' };
+      break;
     case 'data.commodity_returns':
     case 'data.commodity_warehouse_receipts':
     case 'data.commodity_holdings':
-      return `${variable} = ${dataset.method}(
-    ${JSON.stringify(dataset.product)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-)`;
+      arguments_ = { product: dataset.product, ...dates };
+      break;
     case 'data.market_state':
-      return `${variable} = data.market_state(
-    ${JSON.stringify(dataset.scope)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-)`;
+      arguments_ = { scope: dataset.scope, ...dates };
+      break;
     case 'data.etf_shares':
     case 'data.index_valuation':
     case 'data.industry_state':
     case 'data.futures_settlement':
-      return `${variable} = ${dataset.method}(
-    ${JSON.stringify(dataset.identifier)},
-    start=${JSON.stringify(start)},
-    end=${JSON.stringify(end)},
-)`;
+      arguments_ = { identifier: dataset.identifier, ...dates };
+      break;
   }
+  const variable = researchDatasetVariableName(dataset, options.identifier);
+  return catalogSelection(dataset.method, variable || 'dataset', arguments_);
 }
+
+export const researchBacktestReportSnippet = (
+  report: Parameters<typeof researchBacktestReportSelection>[0],
+) => researchBacktestReportSelection(report).snippet;
+export const researchStrategyScanReportSnippet = (
+  report: Parameters<typeof researchStrategyScanReportSelection>[0],
+) => researchStrategyScanReportSelection(report).snippet;
+export const researchFactorReportSnippet = (
+  report: Parameters<typeof researchFactorReportSelection>[0],
+) => researchFactorReportSelection(report).snippet;
+export const researchFactorWeatherSnippet = (
+  weather: Parameters<typeof researchFactorWeatherSelection>[0],
+) => researchFactorWeatherSelection(weather).snippet;
+export const researchSeriesSnippet = (options: ResearchSeriesSnippetOptions) =>
+  researchSeriesSelection(options).snippet;
+export const researchDatasetSnippet = (options: ResearchDatasetSnippetOptions) =>
+  researchDatasetSelection(options).snippet;
 
 function researchDatasetVariableName(
   dataset: ResearchDataCatalogDatasetV1,
@@ -229,29 +279,5 @@ function researchDatasetVariableName(
     .toLocaleLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
-  return identifier || 'dataset';
-}
-
-/** Build the exact SDK call inserted by the catalog, without creating a second execution path. */
-export function researchSeriesSnippet(options: ResearchSeriesSnippetOptions): string {
-  const { instrument } = options;
-  return `${researchSeriesVariableName(instrument)} = data.series(
-    ${JSON.stringify(instrument.assetType)},
-    ${JSON.stringify(instrument.identifier)},
-    start=${JSON.stringify(options.start)},
-    end=${JSON.stringify(options.end)},
-    measure=${JSON.stringify(options.measure)},
-    frequency=${JSON.stringify(options.frequency)},
-    transform=${JSON.stringify(options.transform)},
-)`;
-}
-
-export function researchSeriesVariableName(
-  instrument: Pick<ResearchDataCatalogInstrumentV1, 'assetType' | 'identifier'>,
-): string {
-  const identifier = instrument.identifier
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-  return `${instrument.assetType}_${identifier || 'series'}`;
+  return /^[0-9]/.test(identifier) ? `data_${identifier}` : identifier || 'dataset';
 }

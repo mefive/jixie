@@ -1,3 +1,5 @@
+import type { ResearchDataReferenceV1 } from '@jixie/shared';
+import { EmbeddedAnalysisToolbar } from '@src/components/embedded-analysis/embedded-analysis-toolbar';
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
@@ -349,6 +351,13 @@ const AgentChat = complex.component(() => {
   const navigate = useNavigate();
   const qa = store.qaMode;
   const [includeReport, setIncludeReport] = useState(true);
+  const [references, setReferences] = useState<ResearchDataReferenceV1[]>([]);
+  useEffect(() => {
+    setReferences([]);
+    setIncludeReport(true);
+  }, [store.selectedKey]);
+  const reportId =
+    store.reportLoader.result?.status === 'done' ? store.selectedReportId : undefined;
   const f = store.selected;
   const name = f
     ? factorDisplayName(f)
@@ -419,7 +428,7 @@ const AgentChat = complex.component(() => {
       {qa && (
         <div className="jx-factorQuestion-toolbar">
           <span>{t('questions.privateHistory')}</span>
-          {store.selectedReportId && (
+          {reportId && (
             <Radio.Group
               value={includeReport}
               onChange={(event) => setIncludeReport(event.target.value)}
@@ -429,7 +438,7 @@ const AgentChat = complex.component(() => {
               ]}
             />
           )}
-          {includeReport && store.selectedReportId && (
+          {includeReport && reportId && (
             <span>{t('questions.report', { id: store.selectedReportId })}</span>
           )}
           {store.questionsLoader.loading && <span>{t('questions.loading')}</span>}
@@ -500,10 +509,20 @@ const AgentChat = complex.component(() => {
         stream={store.turnStream}
       />
       <div className="jx-factor-chatInput">
+        <EmbeddedAnalysisToolbar
+          key={store.selectedKey}
+          host={store.selectedKey ? { type: 'factor', id: store.selectedKey } : undefined}
+          reportId={reportId}
+          includeReport={includeReport}
+          onIncludeReportChange={qa ? undefined : setIncludeReport}
+          references={references}
+          onReferencesChange={setReferences}
+          disabled={store.sending}
+        />
         <PromptBox
           value={store.nlText}
           onChange={(v) => store.setNlText(v)}
-          onSubmit={() => void store.sendAgent(store.nlText, includeReport)}
+          onSubmit={() => void store.sendAgent(store.nlText, includeReport, references)}
           disabled={qa ? !store.questionsLoader.loaded || store.sending : !store.selectedKey}
           placeholder={t(
             qa

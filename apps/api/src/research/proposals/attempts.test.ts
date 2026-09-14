@@ -65,6 +65,7 @@ function attemptRow(args: {
         sourceKind: 'python',
         revision: 2,
         source: args.source,
+        inputSnapshot: null,
         status: args.status,
         output: args.output,
         error: null,

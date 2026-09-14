@@ -3,6 +3,7 @@ import type {
   ResearchCellChangeProposalV1,
   ResearchClarificationV1,
   UniverseSpecV1,
+  EmbeddedAnalysisPart,
 } from '@jixie/shared';
 import type { ToolSpec } from '#infra/llm/agent-llm.js';
 
@@ -20,6 +21,7 @@ export interface AgentChart {
 }
 
 export interface ToolRunResult {
+  embeddedAnalysis?: EmbeddedAnalysisPart;
   observation: string; // what the model sees (JSON string, row-capped)
   rows?: number; // row count for the toolTrace
   universe?: AgentUniverse; // set when this call should surface a re-runnable entity universe
@@ -30,6 +32,7 @@ export interface ToolRunResult {
 
 export interface AgentToolRunContext {
   signal?: AbortSignal;
+  onEmbeddedAnalysis?(part: EmbeddedAnalysisPart): Promise<void>;
 }
 
 /** A whitelisted Agent tool. `run` re-validates args with zod (the JSON schema shown to the

@@ -18,6 +18,7 @@ export interface ExecutableResearchCellRow {
   dependencyIssues: Prisma.JsonValue;
   lastExecutedRevision: number | null;
   document: {
+    embeddedSource?: Prisma.JsonValue | null;
     conversationId: string;
     conversation: { title: string | null; userId: string };
   };
@@ -31,6 +32,7 @@ export async function loadResearchExecutionSeed(userId: string, documentId: stri
       conversationId: true,
       runtimeVersion: true,
       contentRevision: true,
+      embeddedSource: true,
       conversation: { select: { title: true, userId: true } },
       cells: { orderBy: { position: 'asc' } },
     },
@@ -39,6 +41,7 @@ export async function loadResearchExecutionSeed(userId: string, documentId: stri
     return null;
   }
   const documentContext = {
+    embeddedSource: document.embeddedSource,
     conversationId: document.conversationId,
     conversation: document.conversation,
   };
@@ -67,6 +70,9 @@ export function researchExecutionSourceCellSnapshot(
     revision: cell.revision,
     definitions: jsonStringArray(cell.definitions),
     references: jsonStringArray(cell.references),
+    ...(cell.document.embeddedSource
+      ? { inputSnapshot: cell.document.embeddedSource as Record<string, unknown> }
+      : {}),
   };
 }
 
