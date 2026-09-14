@@ -69,6 +69,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
 import { Placeholder } from '@src/components/placeholder';
 import { MessageParts } from '@src/components/message-parts';
+import { FactorQuestionContext } from './factor-question-context';
 import { ToolTrace } from '@src/components/tool-trace';
 import { AgentPending } from '@src/components/agent-pending';
 import { AgentTrace } from '@src/components/agent-trace';
@@ -347,6 +348,7 @@ const AgentChat = complex.component(() => {
   const { t } = useTranslation('factor');
   const navigate = useNavigate();
   const qa = store.qaMode;
+  const [includeReport, setIncludeReport] = useState(true);
   const f = store.selected;
   const name = f
     ? factorDisplayName(f)
@@ -414,8 +416,63 @@ const AgentChat = complex.component(() => {
           </details>
         </section>
       )}
+      {qa && (
+        <div className="jx-factorQuestion-toolbar">
+          <span>{t('questions.privateHistory')}</span>
+          {store.selectedReportId && (
+            <Radio.Group
+              value={includeReport}
+              onChange={(event) => setIncludeReport(event.target.value)}
+              options={[
+                { label: t('questions.selectedReport'), value: true },
+                { label: t('questions.definitionOnly'), value: false },
+              ]}
+            />
+          )}
+          {includeReport && store.selectedReportId && (
+            <span>{t('questions.report', { id: store.selectedReportId })}</span>
+          )}
+          {store.questionsLoader.loading && <span>{t('questions.loading')}</span>}
+          {(store.questionsLoader.error || store.questionStreamError) && (
+            <>
+              <Alert
+                type="warning"
+                showIcon
+                message={store.questionsLoader.errorObject?.message ?? store.questionStreamError}
+              />
+              <Button
+                size="small"
+                loading={store.questionsLoader.loading}
+                onClick={() => void store.restoreQuestions()}
+              >
+                {t('questions.reconnect')}
+              </Button>
+            </>
+          )}
+          {store.questionSubmitLoader.error && (
+            <Alert
+              type="warning"
+              showIcon
+              message={store.questionSubmitLoader.errorObject?.message}
+            />
+          )}
+          {store.questionNextBefore !== null && (
+            <Button
+              size="small"
+              loading={store.earlierQuestionsLoader.loading}
+              onClick={() => void store.loadEarlierQuestions()}
+            >
+              {t('questions.loadEarlier')}
+            </Button>
+          )}
+          {store.earlierQuestionsLoader.error && (
+            <Alert type="warning" message={store.earlierQuestionsLoader.errorObject?.message} />
+          )}
+        </div>
+      )}
       <ChatLog
         messages={store.chatMessages}
+        selectedReportId={store.selectedReportId}
         sending={store.sending}
         emptyKey={
           qa
@@ -446,8 +503,8 @@ const AgentChat = complex.component(() => {
         <PromptBox
           value={store.nlText}
           onChange={(v) => store.setNlText(v)}
-          onSubmit={() => void store.sendAgent(store.nlText)}
-          disabled={!qa && !store.selectedKey}
+          onSubmit={() => void store.sendAgent(store.nlText, includeReport)}
+          disabled={qa ? !store.questionsLoader.loaded || store.sending : !store.selectedKey}
           placeholder={t(
             qa
               ? store.isMacroRegime
@@ -537,6 +594,7 @@ function ChatLog({
   sending,
   emptyKey,
   stream,
+  selectedReportId,
 }: {
   messages: ChatMessage[];
   sending: boolean;
@@ -552,15 +610,23 @@ function ChatLog({
     | 'panel.chatEmptyAuthor'
     | 'macroRegime.chatEmpty';
   stream: AgentTurnStream;
+  selectedReportId: string;
 }) {
   const { t } = useTranslation('factor');
   const ref = useRef<HTMLDivElement>(null);
+  const scrollState = useRef({ height: 0, lastId: '' });
   useEffect(() => {
     const el = ref.current;
     if (el) {
-      el.scrollTop = el.scrollHeight;
+      const lastId = messages.at(-1)?.id ?? String(messages.length);
+      if (scrollState.current.lastId === lastId && el.scrollHeight > scrollState.current.height) {
+        el.scrollTop += el.scrollHeight - scrollState.current.height;
+      } else {
+        el.scrollTop = el.scrollHeight;
+      }
+      scrollState.current = { height: el.scrollHeight, lastId };
     }
-  }, [messages.length, sending]);
+  }, [messages, sending]);
   return (
     <div ref={ref} className="jx-factor-chatLog">
       {messages.length === 0 && !sending && (
@@ -568,7 +634,7 @@ function ChatLog({
       )}
       {messages.map((message, index) => (
         <div
-          key={index}
+          key={message.id ?? index}
           className={classNames('jx-factor-bubble', `jx-factor-bubble--${message.role}`)}
         >
           {message.role === 'assistant' && message.turnId ? (
@@ -576,6 +642,7 @@ function ChatLog({
           ) : (
             traceOf(message) && <ToolTrace trace={traceOf(message)!} />
           )}
+          <FactorQuestionContext message={message} selectedReportId={selectedReportId} />
           <MessageParts message={message} />
         </div>
       ))}

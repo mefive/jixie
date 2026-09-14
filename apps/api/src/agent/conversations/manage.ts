@@ -10,6 +10,16 @@ export async function findOrCreateConversation(args: {
   history: ChatMessage[];
   message: string;
 }): Promise<{ id: string }> {
+  if (args.entity.kind === 'factor-question') {
+    const conversation = await prisma.agentConversation.findFirst({
+      where: { id: args.entity.id, userId: args.userId, surface: 'factor-question' },
+      select: { id: true },
+    });
+    if (!conversation) {
+      throw new Error('Factor question conversation not found.');
+    }
+    return conversation;
+  }
   if (args.entity.kind === 'research') {
     const conversation = await prisma.agentConversation.findFirst({
       where: {

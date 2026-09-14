@@ -1,0 +1,27 @@
+@reference '../../styles/index.css';
+
+.jx-factorQuestion-context {
+  @apply flex flex-col gap-2;
+  @apply mb-2;
+  @apply text-xs;
+}
+
+.jx-factorQuestion-context summary {
+  @apply cursor-pointer;
+  @apply break-all;
+}
+
+.jx-factorQuestion-context pre {
+  @apply overflow-auto;
+  @apply my-2 rounded p-2;
+  @apply bg-gray-50 text-gray-700;
+  max-height: 240px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.jx-factorQuestion-toolbar {
+  @apply flex flex-col gap-2;
+  @apply px-3 py-2;
+  @apply text-xs text-gray-500;
+}

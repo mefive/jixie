@@ -2,6 +2,32 @@ import type { zhFactor } from '../zh/factor';
 
 // English mirror of zhFactor (structurally identical — enforced by typeof).
 export const enFactor: typeof zhFactor = {
+  questions: {
+    connectionLost:
+      'The connection ended. The answer may still be running. Reconnect to check its result.',
+    context: 'Question source: {{factor}}',
+    report: 'Report {{id}}',
+    definitionOnly: 'Definition only',
+    savedAt: 'Captured: {{date}}',
+    differentReport:
+      'This question used a different report from the current selection. Its answer retains the original source.',
+    savedDefinition: 'Saved definition when the question was submitted',
+    summaryOnly:
+      'The Agent received the report summary and research settings, not the complete per-period data.',
+    reportHash: 'Report content SHA-256',
+    reportCode: 'Code used by the report',
+    privateHistory:
+      'Questions are private and recover after refresh. Each question retains its source at submission.',
+    selectedReport: 'Use selected report',
+    loading: 'Restoring questions…',
+    reconnect: 'Refresh history / reconnect',
+    loadEarlier: 'Load earlier questions',
+    status: {
+      error: 'This answer failed. Ask again; the original question and source remain saved.',
+      cancelled: 'This turn was cancelled. Its question and source remain saved.',
+      interrupted: 'This turn stopped after a service interruption. You can ask again.',
+    },
+  },
   agentLabel: 'Agent',
   libraryTab: 'Library',
   newFactor: 'New',

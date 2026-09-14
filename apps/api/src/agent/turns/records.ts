@@ -1,5 +1,10 @@
 import type { Prisma } from '@prisma/client';
-import { type AgentTurnTrace, type ChatMessage, type MessagePart } from '@jixie/shared';
+import {
+  type AgentTurnTrace,
+  type ChatMessage,
+  type MessagePart,
+  type FactorQuestionContextV1,
+} from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
 import { persistResearchCellChangePart } from '#research/proposals/change-records.js';
@@ -25,35 +30,56 @@ export async function startPersistentTurn(args: {
 }): Promise<PersistentTurn> {
   const conversation = await findOrCreateConversation(args);
 
-  const inputMessageId = ulid();
-  await prisma.$transaction(async (transaction) => {
-    const last = await transaction.agentMessage.findFirst({
-      where: { conversationId: conversation.id },
-      select: { sequence: true },
-      orderBy: { sequence: 'desc' },
-    });
-    await transaction.agentTurn.create({
-      data: {
-        id: args.turnId,
-        conversationId: conversation.id,
-        status: 'running',
-        model: args.model,
-        trace: EMPTY_TRACE as unknown as Prisma.InputJsonValue,
-      },
-    });
-    await transaction.agentMessage.create({
-      data: {
-        id: inputMessageId,
-        conversationId: conversation.id,
-        role: 'user',
-        parts: (args.userParts ?? [{ type: 'text', text: args.message }]) as Prisma.InputJsonValue,
-        sequence: (last?.sequence ?? -1) + 1,
-        turnId: args.turnId,
-      },
-    });
-  });
+  return prisma.$transaction((transaction) =>
+    createPersistentTurnInput(transaction, {
+      turnId: args.turnId,
+      conversationId: conversation.id,
+      model: args.model,
+      userParts: args.userParts ?? [{ type: 'text', text: args.message }],
+    }),
+  );
+}
 
-  return { conversationId: conversation.id, inputMessageId };
+/** Allows a domain to reserve its conversation and persist the input in one transaction. */
+export async function createPersistentTurnInput(
+  transaction: Prisma.TransactionClient,
+  args: {
+    turnId: string;
+    conversationId: string;
+    model: string;
+    userParts: MessagePart[];
+    contextSnapshot?: FactorQuestionContextV1;
+  },
+): Promise<PersistentTurn> {
+  const last = await transaction.agentMessage.findFirst({
+    where: { conversationId: args.conversationId },
+    select: { sequence: true },
+    orderBy: { sequence: 'desc' },
+  });
+  await transaction.agentTurn.create({
+    data: {
+      id: args.turnId,
+      conversationId: args.conversationId,
+      status: 'running',
+      model: args.model,
+      trace: EMPTY_TRACE as unknown as Prisma.InputJsonValue,
+      ...(args.contextSnapshot
+        ? { contextSnapshot: args.contextSnapshot as unknown as Prisma.InputJsonValue }
+        : {}),
+    },
+  });
+  const inputMessageId = ulid();
+  await transaction.agentMessage.create({
+    data: {
+      id: inputMessageId,
+      conversationId: args.conversationId,
+      role: 'user',
+      parts: args.userParts as unknown as Prisma.InputJsonValue,
+      sequence: (last?.sequence ?? -1) + 1,
+      turnId: args.turnId,
+    },
+  });
+  return { conversationId: args.conversationId, inputMessageId };
 }
 
 export async function finishPersistentTurn(args: {

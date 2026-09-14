@@ -11,12 +11,12 @@ export async function readMessages(
   userId: string,
   locale: Locale,
 ): Promise<unknown[]> {
-  if (entity.kind === 'research') {
+  if (entity.kind === 'research' || entity.kind === 'factor-question') {
     const conversation = await prisma.agentConversation.findFirst({
       where: {
         id: entity.id,
         userId,
-        surface: 'research',
+        surface: entity.kind,
         archivedAt: null,
         NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
       },
@@ -66,7 +66,7 @@ export async function readMessages(
 }
 
 export async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promise<void> {
-  if (entity.kind === 'research') {
+  if (entity.kind === 'research' || entity.kind === 'factor-question') {
     return;
   }
   const data = { messages: messages as unknown as Prisma.InputJsonValue };

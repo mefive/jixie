@@ -2,10 +2,8 @@ import { ulid } from 'ulid';
 import { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { factorProfile } from '#agent/profiles/factor.js';
-import { factorQaProfile } from '#agent/profiles/qa.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
 import * as turnBus from '#agent/turns/bus.js';
-import { chatMessagesSchema } from '#agent/conversations/schema.js';
 import { refreshFactorMetadata } from './definitions/metadata.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
@@ -65,34 +63,6 @@ export async function startFactorAgentTurn(
     afterTurn: async (result, messages) => {
       await refreshFactorMetadata({ factorId: id, userId, code: result.code, messages });
     },
-  });
-
-  return { turnId };
-}
-
-export const presetFactorQuestionSchema = z.object({
-  history: chatMessagesSchema.default([]),
-  message: z.string().trim().min(1).max(2000),
-  factorName: z.string().max(80).optional(),
-});
-
-export function startPresetFactorQuestion(
-  userId: string,
-  input: z.infer<typeof presetFactorQuestionSchema>,
-  locale: Locale,
-) {
-  const { history, message, factorName } = input;
-  const turnId = ulid();
-
-  enqueueAgentTurn({
-    turnId,
-    userId: userId,
-    profile: factorQaProfile(factorName),
-    entity: null,
-    history,
-    message,
-    currentCode: '',
-    locale: locale,
   });
 
   return { turnId };

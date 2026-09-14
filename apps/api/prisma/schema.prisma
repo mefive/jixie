@@ -1427,23 +1427,25 @@ model FactorComposite {
 
 /// A durable Agent conversation shared by strategy, factor, and research surfaces.
 model AgentConversation {
-  id         String    @id // ULID
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  surface    String // 'strategy' | 'factor' | 'research'
-  title      String?
-  strategyId String?
-  strategy   Strategy? @relation(fields: [strategyId], references: [id], onDelete: Cascade)
-  factorId   String?
-  factor     Factor?   @relation(fields: [factorId], references: [id], onDelete: Cascade)
-  archivedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                String    @id // ULID
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surface           String // 'strategy' | 'factor' | 'factor-question' | 'research'
+  questionFactorKey String? // Stable catalog identity; private questions do not cascade with a public definition.
+  title             String?
+  strategyId        String?
+  strategy          Strategy? @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  factorId          String?
+  factor            Factor?   @relation(fields: [factorId], references: [id], onDelete: Cascade)
+  archivedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   messages         AgentMessage[]
   turns            AgentTurn[]
   researchDocument ResearchDocument?
 
+  @@unique([userId, questionFactorKey])
   @@index([userId, updatedAt])
   @@index([userId, surface, updatedAt])
   @@index([strategyId])
@@ -1473,15 +1475,16 @@ model AgentMessage {
 /// One durable Agent execution. `trace` is the ordered, versioned record of model, tool, and
 /// validation steps; the in-memory turn bus remains responsible only for live token delivery.
 model AgentTurn {
-  id             String            @id // ULID; identical to the public turnId
-  conversationId String
-  conversation   AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  status         String // 'running' | 'done' | 'error' | 'cancelled' | 'interrupted'
-  model          String
-  trace          Json
-  error          String?
-  startedAt      DateTime          @default(now())
-  finishedAt     DateTime?
+  id              String            @id // ULID; identical to the public turnId
+  conversationId  String
+  conversation    AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  status          String // 'running' | 'done' | 'error' | 'cancelled' | 'interrupted'
+  model           String
+  trace           Json
+  contextSnapshot Json? // Immutable server-resolved context for a Factor question.
+  error           String?
+  startedAt       DateTime          @default(now())
+  finishedAt      DateTime?
 
   messages                    AgentMessage[]
   researchCellChangeProposals ResearchCellChangeProposal[]

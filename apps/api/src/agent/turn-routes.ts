@@ -10,7 +10,7 @@ import { getTurnDetail } from './turns/read.js';
 export const agentTurnRoute = new Hono();
 
 const activeTurnQuery = z.object({
-  entity: z.string().regex(/^(strategy|factor|screen|research):[A-Za-z0-9]+$/),
+  entity: z.string().regex(/^(strategy|factor|factor-question|screen|research):[A-Za-z0-9]+$/),
 });
 
 agentTurnRoute.get('/turns/active', validateQuery(activeTurnQuery), (c) => {

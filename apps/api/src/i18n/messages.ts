@@ -205,6 +205,18 @@ const MESSAGES = {
     zh: '该因子已有正在进行的回复,请等它结束或取消',
     en: 'This factor already has a reply in progress; wait for it to finish or cancel it',
   },
+  factorQuestionRefreshRequired: {
+    zh: '因子问答已升级，请刷新页面后重试。旧请求没有提供明确的因子身份。',
+    en: 'Factor questions have been updated. Refresh the page and retry; this older request does not identify the factor.',
+  },
+  factorQuestionReportUnavailable: {
+    zh: '所选报告不可用于本轮问答。请选择当前因子已完成且已揭示的报告，或取消报告选择后询问定义。',
+    en: 'This report cannot be used for the question. Select a completed, revealed report for this factor, or clear the report selection to ask about the definition.',
+  },
+  factorQuestionContextTooLarge: {
+    zh: '所选定义或报告摘要超过问答上下文限制，未提交问题。请在报告页查看完整内容。',
+    en: 'The definition or report summary exceeds the question context limit. The question was not submitted; inspect the full content in the report workbench.',
+  },
   conversationTurnInProgress: {
     zh: '该会话已有正在进行的回复,请等它结束或取消',
     en: 'This conversation already has a reply in progress; wait for it to finish or cancel it',

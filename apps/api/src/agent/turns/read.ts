@@ -16,5 +16,8 @@ export async function getTurnDetail(userId: string, turnId: string) {
     error: row.error ?? undefined,
     startedAt: row.startedAt.toISOString(),
     finishedAt: row.finishedAt?.toISOString(),
+    ...(row.contextSnapshot
+      ? { contextSnapshot: row.contextSnapshot as unknown as AgentTurnDetail['contextSnapshot'] }
+      : {}),
   } satisfies AgentTurnDetail;
 }

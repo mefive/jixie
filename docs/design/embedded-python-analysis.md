@@ -1,6 +1,6 @@
 # Factor / Strategy 嵌入式 Python 分析
 
-> 状态：2026-09-14 规划已提交（`74567ccd`）；Commit 2 后端已通过人工审查及行为验证。Agent / UI 尚未接入，旧工具尚未退出。
+> 状态：2026-09-14 规划已提交（`74567ccd`）；Commit 2 已提交（`c883dae3`）；Commit 3 问答持久化已通过人工审查与全部验证，按预告信息提交。嵌入分析 Agent / UI 尚未接入，旧工具尚未退出。
 > 本文是[响应式量化研究工作台](reactive-quant-research-workbench.md)的嵌入式分析扩展。
 > 现状以代码为准；下文的目标行为、接口和验收项不能当作已上线能力。
 
@@ -26,7 +26,7 @@
 | Research 分别保存当前 Cell、单次执行、干净全文执行和产物 | [schema.prisma](../../apps/api/prisma/schema.prisma)、[run-cell.ts](../../apps/api/src/research/execution/run-cell.ts)、[run-document.ts](../../apps/api/src/research/execution/run-document.ts) | 复用现有概念；单 Cell 尝试不自动等价于封存研究 |
 | 当前 Cell、执行与图片均绑定 ResearchDocument | [共享类型](../../packages/shared/src/research.ts)、[文档管理](../../apps/api/src/research/documents/document-operations.ts) | 需要明确嵌入模式、归属及生命周期，不能只禁用编辑器 |
 | FactorReport、BacktestReport 已能进入 Research | [因子报告读取](../../apps/api/src/research/datasets/results/factor-report.ts)、[回测报告读取](../../apps/api/src/research/datasets/results/backtest-report.ts)、[回测提交](../../apps/api/src/strategy/backtest/submit.ts) | 复用报告及其权限，不新建第二套正式报告 |
-| 预设及只读因子问答没有持久化实体 | [因子 Agent 入口](../../apps/api/src/factor/agent-turn.ts)、[turn runner](../../apps/api/src/agent/turns/run.ts)、[Factor store](../../apps/web/src/complex/factor/factor-store.ts) | 补齐会话、稳定因子身份和选中报告上下文，保证刷新恢复 |
+| 初始调研时只读因子问答没有持久化实体；Commit 3 新增私有持久化路径 | [问答入口](../../apps/api/src/factor/questions/conversations.ts)、[turn runner](../../apps/api/src/agent/turns/run.ts)、[Factor store](../../apps/web/src/complex/factor/factor-store.ts) | 用户与稳定因子身份关联会话，每轮固定报告上下文，刷新恢复；已通过审查与验证 |
 | STATS_DOC 服务于 analyzeData，stats.ts 另有业务调用方 | [生成脚本](../../apps/api/scripts/generators/gen-stats-doc.ts)、[统计库](../../apps/api/src/math/stats.ts)、[因子评估](../../apps/api/src/factor/analysis/cross-sectional.ts)、[模拟引擎](../../apps/api/src/engine/simulation/run.ts) | 删除工具及其文档生成链，保留业务统计库 |
 
 产品判断：保留工作台内的即时分析入口，复用 Research 的计算与输出，比继续维护两套分析体验更符合本次目标。
@@ -153,7 +153,7 @@ Agent 说明日期对齐、缺失值和样本筛选方法；平台不能自动�
 | `apps/docs` / 内部文档 | 双语操作说明、限制和 SDK 指引；同步职责、工具目录、验收及开发记录 |
 
 接口拟统一位于 `/api/app/research/embedded-analyses`，覆盖创建、读取、草稿修改、执行、派生版本、历史和继续研究。
-这些是目标接口，当前未实现。权限依据服务端用户与宿主，不相信模型提交的 userId 或报告归属。
+Commit 2 已实现执行与历史等 12 个接口，继续研究的交接入口属于 Commit 4。权限依据服务端用户与宿主，不相信模型提交的 userId 或报告归属。
 物理字段、路由方法与执行预算在对应提交 Gate 1 固定，不由历史设计自动推导。
 
 profile 审计覆盖策略、自定义因子、全部只读问答，以及 Research 生成 Factor / Strategy 草稿等非页面调用方。
@@ -219,8 +219,8 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 | 顺序 | 提交信息 | 范围与依赖 | 当前状态 |
 | --- | --- | --- | --- |
 | 1 | `docs(research): define the embedded analysis workflow` | 固化目标、版本、输入、交接、工具退出和验收，修正过期现状 | 已提交 `74567ccd` |
-| 2 | `feat(research): add versioned embedded analysis execution` | 契约、迁移、归属、执行与输入、冻结、历史和 API；依赖 1 | 人工审查、行为验证通过，随本次提交交付 |
-| 3 | `feat(factor): persist question conversations and report context` | 问答持久化、报告上下文和刷新恢复，为分析提供可靠归属 | 未开始 |
+| 2 | `feat(research): add versioned embedded analysis execution` | 契约、迁移、归属、执行与输入、冻结、历史和 API；依赖 1 | 已提交 `c883dae3` |
+| 3 | `feat(factor): persist question conversations and report context` | 问答持久化、报告上下文和刷新恢复，为分析提供可靠归属 | 范围与代码审查已确认；全部验证通过，按预告信息提交 |
 | 4 | `feat(agent): integrate embedded analysis into factor and strategy` | profile/工具、卡片、修改/历史、Research 交接、双语帮助与端到端验证；依赖 2、3 | 未开始 |
 | 5 | `refactor(agent): retire legacy chat computation tools` | 覆盖核对、旧工具及生成链删除、图表兼容和切换回归；依赖 4 | 未开始 |
 
@@ -258,3 +258,24 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 - 验证日志：`/tmp/jixie-embedded-integration.log`、`/tmp/jixie-embedded-regression.log`、`/tmp/jixie-embedded-regression-retry.log`、`/tmp/jixie-embedded-verification/compiled-smoke.log`；其中初次回归日志保留失败记录，修复后的三组结果见 retry。
 - 运行时兼容：API 与 Python 沙箱需协调发布。新增可选能力协商，旧 API 仍接收原有启动响应；新 API 连接旧沙箱时，普通 Research 仍可用，嵌入执行明确失败，不允许沙箱悄悄忽略参数。没有新增 Python 包、公开 SDK 数据方法或跨包构建依赖。
 - 当前不更新公开帮助：页面功能尚未交付。API 操作错误已提供中英双语，内部入口说明已同步。
+
+
+### Commit 3：只读因子问答历史与来源
+
+- 预告提交信息：`feat(factor): persist question conversations and report context`。用户已确认范围、产品代码审查及来源文字颜色修正；必要验证全部通过，按预告信息提交。
+- 交付：预设、组合、模板及已发布等只读因子的私有问答，按用户与稳定因子身份保留。每轮选“当前报告”或“仅因子定义”，展示固定来源，刷新恢复并重连后台回答，保留失败/取消/中断状态，支持更早消息分页。
+- 模型：AgentConversation 增加 questionFactorKey 和用户/因子唯一索引；AgentTurn 增加 contextSnapshot。来源无级联外键，私有问答不写 Factor.messages，不随因子发布/复制，不加入 SQL 白名单。迁移仅增加两列和索引，由 Prisma 生成；仅在隔离测试库验证，未应用开发或生产数据库。
+- 接口：POST `/api/app/factors/questions` 接受 factorKey/message/reportId，GET `/:factorId/questions` 返回消息、activeTurnId/nextBefore。问题最多 2,000 字符；单轮上下文最多 64 KiB，超限拒绝。历史每页默认 40、最多 100 条；模型接收最近 60 条及来源标签。旧 factorName/history 请求要求刷新，旧临时记录不能回补。
+- 保存范围：当次已保存的定义/代码、报告摘要、内容指纹与报告代码（如有），不是报告全部明细。只允许当前用户已完成且已揭示的报告；不把快照等同于新检验或完整市场数据复现。普通代码模板和组合沿用其定义来源。
+- 前端：来源详情默认折叠，用户展开后可核对提交时的摘要和代码；切换报告不改变旧问题的来源。来源说明继承气泡的文字颜色，代码预览维持自身前景/背景。界面、错误与公开帮助提供中英双语。
+- 静态检查通过（2026-09-14）：范围内格式与适用的 ESLint，shared/API/Web 类型检查，后端边界（最终 677 文件、0 违规）、三项 SDK/runtime 生成契约一致性、Prisma schema 校验、迁移 SQL 与 schema diff 一致性、文档链接、提交信息格式及 diff 空白检查。最终范围为 37 个文件。
+- 审查后行为验证通过：相关 Factor/Agent 测试共 9 文件 / 106 个不同用例，包含 13 个新增隔离库场景；覆盖提交前保存、报告切换、跨用户/私有数据、Holdout、取消/失败/中断、并发、分页及来源删除。独立升级测试覆盖旧会话/消息/轨迹保留。shared/API/Web 构建通过，Web 保留既有大 chunk 警告。
+- 用户指出原浏览器脚本没有围绕真实用户任务组织，随后重写验收：`apps/web/e2e/factor-questions.mjs` 验证“打开历史报告 → 提问理解 Rank IC → 刷新后返回 → 切换报告追问比较”。真实 Web、API、鉴权、Agent、SSE 与独立 SQLite 贯通，只替换外部模型端点；同时检查实际模型请求里的报告/历史、数据库中的两轮消息和调用次数。中英两条完整流程均通过。
+- 合成报告包含完整图表/指标；本地模型替身根据实际收到的摘要生成确定回复。主测试验证已有报告的问答链路，不验证因子报告计算或真实模型的分析质量，没有调用真实 LLM、行情或开发数据库。
+- `apps/web/e2e/factor-question-recovery.mjs` 单独保留前端状态回归，使用 HTTP/SSE 夹具。9 个独立场景均通过：回答中刷新、报告来源/仅定义、切换因子、供应商失败后重试、取消、断线重连、提交响应丢失、历史分页和创作响应迟到。用户输入均为正常研究问题，故障由测试设施注入。
+- 验证期间只修正测试设施：补齐无 User 级联的夹具清理；按实际页签操作；退出测试服务器时清理已完成回答的回放计时器；截图等待编辑器/图表就绪；提交响应丢失时等待维护遮罩恢复与页面自动刷新；86 条消息按每页 40 条实际加载两次。没有弱化产品契约或跳过失败。
+- 最终四张主流程截图 `apps/web/acceptance/factor-questions-report-{zh,en}.png` 与 `factor-questions-compare-{zh,en}.png` 已逐张查看，报告图表、回答与折叠来源显示正常。原 `factor-questions-{zh,en}.png` 仅是旧夹具截图，不作为当前验收证据。恢复脚本只输出失败诊断截图，不用于产品展示。
+- 最终浏览器日志：`/tmp/jixie-factor-questions-journey-final.log`、`/tmp/jixie-factor-question-recovery-final.log`。后端测试日志：`/tmp/jixie-factor-questions-verification.log` 保留初次夹具失败，修复后的问答测试见 `/tmp/jixie-factor-questions-retry.log`。最终前端构建日志为 `/tmp/jixie-factor-questions-web-build-final.log`。
+- 主测试正常退出并确认临时 API/模型端口释放，关闭 Prisma 连接、清理隔离库；另行启动的 Vite preview 已关闭并核对 4179 端口释放。没有应用开发/生产数据库迁移。
+- 本提交不接入嵌入分析工具/卡片或 Research 交接，不退出旧工具；这两部分分别由 Commit 4、5 完成。当前问答来源快照不能冒充 Python 输入绑定。后续仍需真正执行 Python，验收输出、首次成功冻结、派生版本和 Research 交接。
+- 工作区 maintenance/data-audit.ts 与 data-audit.test.ts 属于无关改动，不纳入本提交。用户确认先完成本需求 Commit 3–5，再开始 DeepSeek V4.1 Flash 迁移；本提交未修改模型配置。

@@ -264,7 +264,26 @@ describe('agentTurn(factorProfile)', () => {
 describe('agentTurn(factorQaProfile — no artifact)', () => {
   it('is a plain call: reply verbatim, code untouched, no code wrapper in the prompt', async () => {
     const llm = scriptedLlm([{ text: 'Rank IC 越高说明因子排序能力越强。\n```\n例子\n```' }]);
-    const result = await agentTurn(factorQaProfile('市盈率'), [], 'IC 怎么看?', '', llm);
+    const result = await agentTurn(
+      factorQaProfile({
+        version: 1,
+        capturedAt: '2026-09-14T00:00:00Z',
+        factor: {
+          key: 'ep',
+          name: '市盈率',
+          kind: 'factor',
+          analysisKind: 'cross_sectional',
+          language: 'typescript',
+          source: 'factor',
+          sourceHash: 'fixture',
+        },
+        report: null,
+      }),
+      [],
+      'IC 怎么看?',
+      '',
+      llm,
+    );
     expect(result.changed).toBe(false);
     expect(result.attempts).toBe(1);
     // The reply is verbatim — a Q&A answer may legitimately contain markdown fences.

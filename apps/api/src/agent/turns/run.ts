@@ -28,11 +28,11 @@ import { readMessages, writeMessages } from '../conversations/entity-messages.js
  * Persistence moves server-side for streamed turns: the USER message is appended to the host
  * entity's messages BEFORE the LLM runs (a refresh mid-turn must show it), and the ASSISTANT
  * message is appended before the `done` event fires (a subscriber acting on `done` can rely on the
- * DB). Ephemeral surfaces (preset-factor QA) pass entity=null + their own history — nothing persists.
+ * DB). Factor questions supply an already committed input before background execution starts.
  * Errors/cancels persist no assistant message: a user message without a reply is the honest record.
  */
 export interface TurnEntity {
-  kind: 'strategy' | 'factor' | 'research';
+  kind: 'strategy' | 'factor' | 'factor-question' | 'research';
   id: string;
 }
 
@@ -45,7 +45,8 @@ export interface EnqueueTurnArgs {
   userId: string;
   profile: AgentProfile;
   entity: TurnEntity | null;
-  history?: ChatMessage[]; // entity=null (QA) only; entity turns read history from the DB row
+  history?: ChatMessage[]; // Nonpersistent callers only; entity turns read history from storage.
+  persistedInput?: { history: ChatMessage[]; message: ChatMessage };
   message: string;
   userParts?: MessagePart[];
   currentCode: string;
@@ -71,7 +72,9 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
   const locale = args.locale ?? DEFAULT_LOCALE;
   const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
   let researchPhase: AgentTurnPhase | null = entity?.kind === 'research' ? 'reading_context' : null;
-  let traceRecorder: AgentTraceRecorder | null = null;
+  let traceRecorder: AgentTraceRecorder | null = args.persistedInput
+    ? new AgentTraceRecorder(turnId, model)
+    : null;
 
   const publishResearchPhase = (phase: AgentTurnPhase): void => {
     if (
@@ -89,7 +92,10 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     // History + user-message persistence (entity surfaces). The write happens before the LLM runs.
     let history: ChatMessage[] = args.history ?? [];
     let persisted: ChatMessage[] | null = null;
-    if (entity) {
+    if (args.persistedInput) {
+      history = args.persistedInput.history;
+      persisted = [...history, args.persistedInput.message];
+    } else if (entity) {
       const stored = await readMessages(entity, userId, locale);
       history = stored.map(normalizeChatMessage);
       const userParts = args.userParts ?? textMessage('user', message).parts;

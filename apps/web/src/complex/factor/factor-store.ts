@@ -1,3 +1,8 @@
+import type {
+  FactorQuestionHistoryV1,
+  FactorQuestionInputV1,
+  FactorQuestionTurnV1,
+} from '@jixie/shared';
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
 import {
   normalizeChatMessage,
@@ -52,6 +57,7 @@ import {
   copyFactor,
   sendFactorAgent,
   factorQa,
+  getFactorQuestions,
   refreshFactorMetadata,
   runFactorCorrelation,
   getFactorCorrelation,
@@ -238,7 +244,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
   public pendingAgentCode: string | null = null; // Agent result held back when the user edited mid-turn
-  public chatMessages: ChatMessage[] = []; // the Agent conversation for the current custom factor
+  public chatMessages: ChatMessage[] = [];
+  public questionsLoader = new LoaderModel<FactorQuestionHistoryV1>();
+  public earlierQuestionsLoader = new LoaderModel<FactorQuestionHistoryV1>();
+  public questionSubmitLoader = new LoaderModel<FactorQuestionTurnV1>();
+  public questionNextBefore: number | null = null;
+  public questionStreamError: string | null = null;
+  private chatSelection = 0;
   public turnStream = new AgentTurnStream(); // the in-flight turn's SSE mirror (pending bubble)
   public sending = false; // an Agent turn is in flight
   public nlText = ''; // the Agent chat draft
@@ -290,6 +302,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       persistedCode: observable.ref,
       pendingAgentCode: observable.ref,
       chatMessages: observable.ref,
+      questionNextBefore: observable.ref,
+      questionStreamError: observable.ref,
       sending: observable.ref,
       nlText: observable.ref,
       factorKey: observable.ref,
@@ -354,6 +368,22 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public setup(params: FactorSetupParams) {
     super.setup(params);
+    this.questionsLoader.setup({
+      request: (key: string, signal) => getFactorQuestions(key, undefined, signal),
+    });
+    this.earlierQuestionsLoader.setup({
+      request: (input: { key: string; before: number }, signal) =>
+        getFactorQuestions(input.key, input.before, signal),
+    });
+    this.questionSubmitLoader.setup({
+      request: (input: FactorQuestionInputV1, signal) => factorQa(input, signal),
+    });
+    this.registCleaner(() => {
+      this.chatSelection += 1;
+    });
+    this.registCleaner(() => this.questionsLoader.cleanup());
+    this.registCleaner(() => this.earlierQuestionsLoader.cleanup());
+    this.registCleaner(() => this.questionSubmitLoader.cleanup());
     this.catalogLoader.setup({ request: () => getFactorCatalog() });
     this.reportsLoader.setup({ request: () => getFactorReports(this.selectedKey) });
     this.saveLoader.setup({
@@ -809,8 +839,18 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   /** Pick a factor from the factor library. A preset → readonly code + Q&A agent. A custom factor → load its
    * code + conversation into the editor/chat. Either way, open its newest report by default. */
   public async selectFactor(key: string, preferredReportId?: string) {
+    const selection = ++this.chatSelection;
+    this.turnStream.detach();
+    this.questionsLoader.abort();
+    this.questionsLoader.reset();
+    this.earlierQuestionsLoader.abort();
+    this.earlierQuestionsLoader.reset();
+    this.questionSubmitLoader.reset();
     this.analysisPoller.stop(); // drop any in-flight job for the previous factor
     const catalog = this.catalogLoader.result ?? (await this.catalogLoader.run());
+    if (selection !== this.chatSelection) {
+      return;
+    }
     const meta = catalog.find((factor) => factor.key === key);
     const isCustom = meta?.kind === 'custom';
     const isComposite = meta?.kind === 'composite';
@@ -819,6 +859,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     const isMacroRegime = meta?.analysisKind === 'macro_regime';
     runInAction(() => {
       this.selectedKey = key;
+      this.chatMessages = [];
+      this.questionNextBefore = null;
+      this.questionStreamError = null;
+      this.sending = false;
       this.selectedReportId = preferredReportId ?? '';
       this.mode = isCustom
         ? 'custom'
@@ -864,9 +908,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       }
     });
     if (isComposite) {
+      void this.restoreQuestions();
       const reports = await this.reportsLoader.run();
       void this.researchSummaryLoader.run();
-      if (this.selectedKey !== key) {
+      if (selection !== this.chatSelection) {
         return;
       }
       const target = preferredReportId
@@ -883,8 +928,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     try {
       // Presets are code rows too (seeded, readonly) — the same endpoint serves both kinds.
       const factor = await getCustomFactor(key);
+      if (selection !== this.chatSelection) {
+        return;
+      }
       runInAction(() => {
-        if (this.selectedKey !== key) {
+        if (selection !== this.chatSelection) {
           return;
         }
         this.code = factor.code;
@@ -895,7 +943,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
             : 'cross_sectional';
         this.targetAssetClasses = factor.targetAssetClasses ?? meta?.targetAssetClasses;
         this.language = factor.language === 'python' ? 'python' : 'typescript';
-        this.chatMessages = isCustom ? (factor.messages ?? []).map(normalizeChatMessage) : [];
+        this.chatMessages =
+          isCustom && factor.status === 'draft'
+            ? (factor.messages ?? []).map(normalizeChatMessage)
+            : [];
         this.factorKey = factor.key;
         this.factorStatus = factor.status ?? (factor.builtin ? 'published' : 'draft');
         this.description = factor.description ?? '';
@@ -903,15 +954,21 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.sourceResearchExecution = isCustom ? (factor.sourceResearchExecution ?? null) : null;
       });
       loadedResearchHandoff = isCustom ? (factor.researchHandoff ?? null) : null;
-      if (isCustom) {
+      if (isCustom && !this.qaMode) {
         void this.reattachTurn(); // a live agent turn for this factor? re-subscribe (snapshot replays)
       }
     } catch {
       /* factor gone (deleted elsewhere) — leave blank */
     }
+    if (selection !== this.chatSelection) {
+      return;
+    }
+    if (this.qaMode) {
+      void this.restoreQuestions();
+    }
     const reports = await this.reportsLoader.run();
     void this.researchSummaryLoader.run();
-    if (this.selectedKey !== key) {
+    if (selection !== this.chatSelection) {
       return;
     }
     if (preferredReportId) {
@@ -1024,14 +1081,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /** Run one Agent turn for an already persisted draft factor. */
-  public async sendAgent(message: string) {
+  public async sendAgent(message: string, includeReport = true) {
     const text = message.trim();
     if (!text || this.sending) {
       return;
     }
     // A preset is selected → the Agent is Q&A-only (no code, no factor). Answer and stop.
     if (this.qaMode) {
-      return this.runQa(text);
+      return this.runQa(text, includeReport);
     }
     // Continue editing only when the current selection is an editable saved custom factor.
     const editingSaved = !!this.selectedKey && this.selected?.kind === 'custom';
@@ -1044,6 +1101,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       });
       return;
     }
+    const selection = this.chatSelection;
     runInAction(() => {
       this.mode = 'custom';
       this.chatMessages = [...this.chatMessages, textMessage('user', text)];
@@ -1053,8 +1111,14 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     try {
       const codeAtRequest = this.code;
       const { turnId } = await sendFactorAgent(this.selectedKey, text, codeAtRequest);
+      if (selection !== this.chatSelection) {
+        return;
+      }
       await this.turnStream.attach(turnId, this.turnHandlers(codeAtRequest)); // resolves after terminal event
     } catch (e) {
+      if (selection !== this.chatSelection) {
+        return;
+      }
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
@@ -1067,14 +1131,20 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         ];
       });
     } finally {
-      runInAction(() => (this.sending = false));
+      if (selection === this.chatSelection) {
+        runInAction(() => (this.sending = false));
+      }
     }
   }
 
-  /** Terminal-event handlers shared by sendAgent / runQa / the refresh reattach. */
+  /** Terminal-event handlers for authoring and its refresh reattach. */
   private turnHandlers(codeAtRequest?: string): AgentTurnHandlers {
+    const selection = this.chatSelection;
     return {
       onDone: (done) => {
+        if (selection !== this.chatSelection) {
+          return;
+        }
         runInAction(() => {
           // toolTrace rides along for display only (the server persisted the message without it).
           this.chatMessages = [
@@ -1099,6 +1169,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         void this.refreshIdentity();
       },
       onError: (message) => {
+        if (selection !== this.chatSelection) {
+          return;
+        }
         runInAction(() => {
           this.chatMessages = [
             ...this.chatMessages,
@@ -1107,6 +1180,9 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         });
       },
       onCancelled: () => {
+        if (selection !== this.chatSelection) {
+          return;
+        }
         runInAction(() => {
           this.chatMessages = [
             ...this.chatMessages,
@@ -1119,12 +1195,21 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** Refresh reattach: a saved custom factor with a live turn re-subscribes (snapshot replays). */
   private async reattachTurn() {
-    if (!this.selectedKey || this.mode !== 'custom') {
+    if (!this.selectedKey || this.mode !== 'custom' || this.qaMode) {
       return;
     }
+    const selection = this.chatSelection;
     runInAction(() => (this.sending = true));
-    await this.turnStream.attachRunning(`factor:${this.selectedKey}`, this.turnHandlers(this.code));
-    runInAction(() => (this.sending = false)); // resolved at the terminal event (or no live turn)
+    const turnId = await this.turnStream.findRunning(`factor:${this.selectedKey}`);
+    if (selection !== this.chatSelection) {
+      return;
+    }
+    if (turnId) {
+      await this.turnStream.attach(turnId, this.turnHandlers(this.code));
+    }
+    if (selection === this.chatSelection) {
+      runInAction(() => (this.sending = false));
+    } // resolved at the terminal event (or no live turn)
   }
 
   private scheduleDraftSave() {
@@ -1152,31 +1237,123 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Q&A about the selected preset — answer only, no code, no factor, no persistence (ephemeral chat,
-   * still streamed; no reattach since there is no host row to rediscover). */
-  private async runQa(text: string) {
+  /** Load durable input/terminal state, then reconnect to the exact live turn when requested. */
+  public async restoreQuestions(attach = true) {
+    const key = this.selectedKey;
+    const selection = this.chatSelection;
+    if (!key || !this.qaMode) {
+      return;
+    }
+    try {
+      const result = await this.questionsLoader.run(key);
+      if (selection !== this.chatSelection) {
+        return;
+      }
+      runInAction(() => {
+        this.chatMessages = result.messages.map(normalizeChatMessage);
+        this.questionNextBefore = result.nextBefore;
+        this.sending = !!result.activeTurnId;
+        if (!result.activeTurnId) {
+          this.questionStreamError = null;
+        }
+      });
+      if (attach && result.activeTurnId) {
+        await this.attachQuestionTurn(result.activeTurnId, selection);
+      }
+    } catch {
+      if (selection === this.chatSelection) {
+        runInAction(() => (this.sending = false));
+      }
+    }
+  }
+
+  public async loadEarlierQuestions() {
+    if (this.questionNextBefore === null || this.earlierQuestionsLoader.loading) {
+      return;
+    }
+    const selection = this.chatSelection;
+    try {
+      const result = await this.earlierQuestionsLoader.run({
+        key: this.selectedKey,
+        before: this.questionNextBefore,
+      });
+      if (selection !== this.chatSelection) {
+        return;
+      }
+      runInAction(() => {
+        const existing = new Set(this.chatMessages.map((message) => message.id));
+        this.chatMessages = [
+          ...result.messages.filter((message) => !existing.has(message.id)),
+          ...this.chatMessages,
+        ];
+        this.questionNextBefore = result.nextBefore;
+      });
+    } catch {
+      /* The loader exposes the retryable failure. */
+    }
+  }
+
+  private async attachQuestionTurn(turnId: string, selection: number) {
+    if (selection !== this.chatSelection) {
+      return;
+    }
     runInAction(() => {
-      this.chatMessages = [...this.chatMessages, textMessage('user', text)];
       this.sending = true;
-      this.nlText = '';
+      this.questionStreamError = null;
+    });
+    await this.turnStream.attach(turnId, {
+      onDone: () => {},
+      onCancelled: () => {},
+      onError: (message) => {
+        if (selection === this.chatSelection) {
+          runInAction(() => (this.questionStreamError = message));
+        }
+      },
+    });
+    if (selection === this.chatSelection) {
+      await this.restoreQuestions(false);
+      if (selection === this.chatSelection && this.questionsLoader.result?.activeTurnId) {
+        runInAction(() => {
+          this.questionStreamError ??= i18n.t('factor:questions.connectionLost');
+        });
+      }
+    }
+  }
+
+  private async runQa(text: string, includeReport: boolean) {
+    if (!this.questionsLoader.loaded) {
+      return;
+    }
+    const selection = this.chatSelection;
+    const key = this.selectedKey;
+    const reportId = includeReport ? this.selectedReportId || undefined : undefined;
+    runInAction(() => {
+      this.sending = true;
+      this.questionStreamError = null;
     });
     try {
-      const { turnId } = await factorQa(this.chatMessages.slice(0, -1), text, this.selected?.label);
-      await this.turnStream.attach(turnId, this.turnHandlers());
-    } catch (e) {
-      runInAction(() => {
-        this.chatMessages = [
-          ...this.chatMessages,
-          textMessage(
-            'assistant',
-            i18n.t('factor:errorPrefix', {
-              message: e instanceof Error ? e.message : i18n.t('factor:requestFailed'),
-            }),
-          ),
-        ];
+      const result = await this.questionSubmitLoader.run({
+        factorKey: key,
+        message: text,
+        reportId,
       });
+      if (selection !== this.chatSelection) {
+        return;
+      }
+      runInAction(() => {
+        this.chatMessages = [...this.chatMessages, normalizeChatMessage(result.message)];
+        this.nlText = '';
+      });
+      await this.attachQuestionTurn(result.turnId, selection);
+    } catch {
+      // The server may have accepted a request whose response was lost. Discover it before retrying.
+      if (selection === this.chatSelection) {
+        await this.restoreQuestions();
+      }
     } finally {
-      runInAction(() => (this.sending = false));
+      if (selection === this.chatSelection && !this.questionsLoader.result?.activeTurnId) {
+        runInAction(() => (this.sending = false));
+      }
     }
   }
 
@@ -1488,17 +1665,33 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public async publishSelectedReport(): Promise<PublishedFactor> {
+    const selection = this.chatSelection;
+    const reportId = this.selectedReportId;
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
       this.saveTimer = null;
     }
     await this.saveDraft();
-    const factor = await this.publishLoader.run(this.selectedReportId);
+    const factor = await this.publishLoader.run(reportId);
+    if (selection !== this.chatSelection) {
+      await this.catalogLoader.run();
+      return factor;
+    }
     runInAction(() => {
       this.factorStatus = factor.status;
       this.factorKey = factor.key;
     });
     await this.catalogLoader.run();
+    if (selection !== this.chatSelection) {
+      return factor;
+    }
+    this.chatSelection += 1;
+    this.turnStream.detach();
+    runInAction(() => {
+      this.chatMessages = [];
+      this.sending = false;
+    });
+    void this.restoreQuestions();
     return factor;
   }
 
@@ -1511,7 +1704,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   /** Reload mutable metadata after the server-side Agent/metadata hook has completed. */
   private async refreshIdentity() {
-    if (!this.selectedKey || this.mode !== 'custom') {
+    if (!this.selectedKey || this.mode !== 'custom' || this.qaMode) {
       return;
     }
     try {

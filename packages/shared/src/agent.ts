@@ -1,4 +1,5 @@
 import type { MessagePart } from './chat.js';
+import type { FactorQuestionContextV1 } from './factor-questions.js';
 
 /**
  * Agent turn streaming (SSE) — the wire protocol between the background turn runner and any number
@@ -69,6 +70,7 @@ export interface AgentTurnDetail {
   error?: string;
   startedAt: string;
   finishedAt?: string;
+  contextSnapshot?: FactorQuestionContextV1;
 }
 
 export type AgentTurnPhase =

@@ -1,6 +1,28 @@
 // Factor research page (IDE-style workbench: Agent chat + library | editor + log | analysis result).
 // zh is the source-of-truth shape; en/factor.ts mirrors it under `typeof zhFactor`.
 export const zhFactor = {
+  questions: {
+    connectionLost: '连接已断开，回答可能仍在后台运行。请重新连接查看结果。',
+    context: '本轮来源：{{factor}}',
+    report: '报告 {{id}}',
+    definitionOnly: '只问定义',
+    savedAt: '记录时间：{{date}}',
+    differentReport: '本轮使用的报告与当前页面选择不同，回答仍保留原来的来源。',
+    savedDefinition: '提问时已保存的定义',
+    summaryOnly: 'Agent 本轮收到的是报告摘要与研究设置，不包含完整逐期数据。',
+    reportHash: '报告内容 SHA-256',
+    reportCode: '报告运行时的代码',
+    privateHistory: '问答仅自己可见，刷新后可恢复。每轮保留提问时的来源。',
+    selectedReport: '使用所选报告',
+    loading: '正在恢复问答…',
+    reconnect: '刷新记录 / 重新连接',
+    loadEarlier: '加载更早的问答',
+    status: {
+      error: '本轮回答失败，可重新提问；原问题与来源已保留。',
+      cancelled: '本轮已取消，原问题与来源已保留。',
+      interrupted: '本轮因服务中断而停止，可重新提问。',
+    },
+  },
   agentLabel: 'Agent',
   libraryTab: '因子库',
   newFactor: '新建',

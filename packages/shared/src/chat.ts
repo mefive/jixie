@@ -1,4 +1,6 @@
 import type { ChartSpec } from './chart.js';
+import type { FactorQuestionContextV1 } from './factor-questions.js';
+import type { AgentTurnDetail } from './agent.js';
 import type {
   ResearchCellChangeProposalV1,
   ResearchCellV1,
@@ -97,6 +99,9 @@ export interface ChatMessage {
   turnId?: string;
   sequence?: number;
   createdAt?: string;
+  contextSnapshot?: FactorQuestionContextV1;
+  turnStatus?: AgentTurnDetail['status'];
+  turnError?: string;
 }
 
 /** Build a plain one-text-part message (the common case for user turns and error bubbles). */
@@ -114,9 +119,17 @@ export function normalizeChatMessage(raw: unknown): ChatMessage {
     turnId?: unknown;
     sequence?: unknown;
     createdAt?: unknown;
+    contextSnapshot?: FactorQuestionContextV1;
+    turnStatus?: ChatMessage['turnStatus'];
+    turnError?: string;
   };
   const role = message?.role === 'assistant' ? 'assistant' : 'user';
   const metadata = {
+    ...(message?.contextSnapshot?.version === 1
+      ? { contextSnapshot: message.contextSnapshot }
+      : {}),
+    ...(message?.turnStatus ? { turnStatus: message.turnStatus } : {}),
+    ...(typeof message?.turnError === 'string' ? { turnError: message.turnError } : {}),
     ...(typeof message?.id === 'string' ? { id: message.id } : {}),
     ...(typeof message?.turnId === 'string' ? { turnId: message.turnId } : {}),
     ...(typeof message?.sequence === 'number' ? { sequence: message.sequence } : {}),
@@ -140,7 +153,11 @@ export function normalizeChatMessage(raw: unknown): ChatMessage {
 /** Flatten a message to plain text for LLM context — cards/charts collapse to a short placeholder
  * so the model knows one was shown without re-shipping the spec. */
 export function messageText(message: ChatMessage): string {
-  return message.parts
+  const context = message.contextSnapshot;
+  const prefix = context
+    ? `[Question context: factor=${context.factor.key}; sourceHash=${context.factor.sourceHash}; report=${context.report?.id ?? 'none'}; reportHash=${context.report?.contentHash ?? 'none'}; capturedAt=${context.capturedAt}]\n`
+    : '';
+  const text = message.parts
     .map((part) => {
       switch (part.type) {
         case 'text':
@@ -188,6 +205,7 @@ export function messageText(message: ChatMessage): string {
     })
     .join('\n')
     .trim();
+  return prefix + text;
 }
 
 function isMessagePart(value: unknown): value is MessagePart {

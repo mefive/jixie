@@ -10,7 +10,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | 创建、编辑、删除、复制草稿 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)；输入定义在 [definitions/inputs.ts](definitions/inputs.ts) |
 | 发布、归档、公开范围 | [definition-routes.ts](definition-routes.ts)、[composite-routes.ts](composite-routes.ts) | [publication/factor.ts](publication/factor.ts)、[publication/panel-composite.ts](publication/panel-composite.ts)、[publication/visibility.ts](publication/visibility.ts) |
 | 创建、编辑、复制因子组合 | [composite-routes.ts](composite-routes.ts) | [composition/operations.ts](composition/operations.ts) |
-| Agent 编辑、预置因子问答 | [agent-routes.ts](agent-routes.ts) | [agent-turn.ts](agent-turn.ts) |
+| Agent 编辑、只读因子问答 | [agent-routes.ts](agent-routes.ts) | [agent-turn.ts](agent-turn.ts)、[questions/conversations.ts](questions/conversations.ts) |
 | 元数据刷新 | [definition-routes.ts](definition-routes.ts) | [definitions/metadata-operations.ts](definitions/metadata-operations.ts) |
 | 提交分析 | [analysis-routes.ts](analysis-routes.ts) | [analysis/submit.ts](analysis/submit.ts) → [analysis-job.ts](analysis-job.ts) |
 | 历史报告、研究窗口、统计与任务进度 | 同上 | [reports/read.ts](reports/read.ts)；投影与封存处理在 [reports/views.ts](reports/views.ts) |
@@ -43,7 +43,15 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 
 **Holdout 与发布：** `submitFactorHoldout` 检查探索资格 → 使用父报告的代码、参数与数据版本构造 holdout → 在事务中复查已有任务并创建报告及 Job → 事务提交后初始化日志、唤醒队列。完成的 holdout 在揭示前不暴露结果、指标和任务日志；`revealFactorHoldout` 要求报告属于当前用户且已完成。发布仍要求证据与当前因子的源码/运行时相符，后续编辑不能让旧报告自动证明新代码。
 
-**Agent 编辑：** 前端调用 Factor 的 `/:factorId/agent/turns` → `startFactorAgentTurn` 检查草稿归属、状态和运行中 turn → 创建 Factor profile 并交给通用 Agent 执行器 → 完成回调刷新因子元数据。`/questions` 保留独立的预置因子问答，以请求提供的 history 运行；不会新建一个 Factor 宿主。Agent 工具调用分析任务入口是另一条调用链，保持现有工具校验与任务创建逻辑。
+**Agent 编辑：** 前端调用 Factor 的 `/:factorId/agent/turns` → `startFactorAgentTurn` 检查草稿归属、状态和运行中 turn → 创建 Factor profile 并交给通用 Agent 执行器 → 完成回调刷新因子元数据。只读问答由 `questions/conversations.ts` 接受稳定 factorKey、message 和可选 reportId；不接受客户端 history。Agent 工具调用分析任务入口是另一条调用链，保持现有工具校验与任务创建逻辑。
+
+## 私有因子问答
+
+`POST /questions` 在一个事务内检查来源及报告归属，创建/复用用户与稳定因子标识对应的 AgentConversation，并保存本轮 AgentTurn、用户消息及 contextSnapshot，随后启动通用 runner。首次 HTTP 响应就包含已提交的消息与 turnId。身份支持预设、代码模板、自定义和组合；不根据显示名称归并。
+
+`GET /:factorId/questions` 返回该用户的历史、activeTurnId 和 nextBefore；默认最近 40 条，limit 最大 100，before 按 sequence 向前翻页。模型仅带最近 60 条历史及它们的来源标签，当前轮完整上下文单独进入 profile。上下文保存已授权定义、SHA-256、选中报告摘要/内容指纹及可用代码快照；UTF-8 超过 64 KiB 明确拒绝，不截断。问题上限 2,000 字符。
+
+`questionFactorKey` 不关联 Factor 外键，来源或报告删除不级联删除已保存的私有问答；来源不可再读时不允许继续提问。新增的私有内容绝不进入 SQL 白名单。失败/取消/中断只保留状态，不伪造成功回复。草稿 authoring 仍使用原 Factor conversation 和 messages 镜像；只读问答不写这些字段。旧请求只带 factorName/history 时明确要求刷新，API/Web 需要协调发布。
 
 ## Review 与验证定位
 

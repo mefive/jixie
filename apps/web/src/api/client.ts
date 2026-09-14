@@ -1130,16 +1130,29 @@ export function sendFactorAgent(
   });
 }
 
-// Factor Q&A: ask questions about a PRESET factor — answers only, never writes code. Ephemeral (no
-// host row): history rides in the request; the reply still streams via the same turnId protocol.
+// Question history is private to the current user and a stable Factor catalog identity.
 export function factorQa(
-  history: ChatMessage[],
-  message: string,
-  factorName?: string,
-): Promise<{ turnId: string }> {
+  input: FactorQuestionInputV1,
+  signal?: AbortSignal,
+): Promise<FactorQuestionTurnV1> {
   return request('/api/app/factors/questions', {
     method: 'POST',
-    body: JSON.stringify({ history, message, factorName }),
+    body: JSON.stringify(input),
+    signal,
+  });
+}
+
+export function getFactorQuestions(
+  factorKey: string,
+  before?: number,
+  signal?: AbortSignal,
+): Promise<FactorQuestionHistoryV1> {
+  const query = new URLSearchParams();
+  if (before !== undefined) {
+    query.set('before', String(before));
+  }
+  return request(`/api/app/factors/${encodeURIComponent(factorKey)}/questions?${query}`, {
+    signal,
   });
 }
 
@@ -1277,3 +1290,8 @@ export function refreshFactorWeatherPin(id: string): Promise<{ id: string; statu
 export function unpinFactorWeather(id: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/weather/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+import type {
+  FactorQuestionInputV1,
+  FactorQuestionTurnV1,
+  FactorQuestionHistoryV1,
+} from '@jixie/shared';

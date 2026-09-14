@@ -81,6 +81,18 @@ Then compare decile ordering, Rank IC, ICIR, turnover, net-of-cost results, and 
 
 Repeating the same settings adds reports but may not add research variants. See [Pre-run research cards and variants](/help/factors/research-card).
 
+## Ask about the selected report
+
+For presets, composites, and published or other read-only factors, the conversation is saved as your private history. Return to the same factor or refresh to restore it. Publishing the factor does not publish your questions, and this history is separate from draft authoring messages and other users' conversations.
+
+Before asking, choose **Use selected report** or **Definition only** when a report is open. Selected report uses the report on screen, including an older report whose settings differ from your current draft. It does not silently choose the latest result. Definition only is for formulas and methods, without measured-performance evidence.
+
+Expand **Question source** on a question to inspect the saved definition, code fingerprint, report ID and summary, report code when available, and capture time. Selecting another report keeps earlier questions tied to their original context and shows the difference. The saved definition can also differ from the code used by the report.
+
+The attached context contains a report summary, not all observations. The Agent should identify missing metrics or details. An explanation is not a new factor evaluation; use the workbench for complete IC, sorted returns, Holdout, or a new calculation. Unfinished, unauthorized, or sealed Holdout reports cannot be attached. Choose Definition only, or handle the report in the workbench first.
+
+Refreshing does not cancel the answer. If the connection ends, choose **Refresh history / reconnect**. Failed, cancelled, and interrupted attempts remain under the question; asking again creates a new record. Use **Load earlier questions** for longer histories. Only questions saved after this upgrade can be restored: earlier browser-only messages cannot be recovered. Refresh an old page if it reports that the question interface has changed.
+
 ## Things to know
 
 - Report history is a research record, not a trading recommendation.

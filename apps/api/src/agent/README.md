@@ -4,7 +4,7 @@ Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对�
 
 ## 从产品操作找入口
 
-- 发起对话：`research/agent-turn.ts`、`factor/agent-turn.ts`、`strategy/agent-turn.ts` → 各自的 profile → [turns/run.ts](turns/run.ts) 的 `enqueueAgentTurn`。预置因子问答可以使用不持久化的临时 turn。
+- 发起对话：`research/agent-turn.ts`、`factor/agent-turn.ts`、`strategy/agent-turn.ts` → 各自的 profile → [turns/run.ts](turns/run.ts) 的 `enqueueAgentTurn`。只读因子问答从 `factor/questions/conversations.ts` 发起，按用户与稳定因子身份保存。
 - 查看历史消息：[conversation-routes.ts](conversation-routes.ts) → [conversations/read.ts](conversations/read.ts)，按用户归属查询、按 sequence 翻页。
 - 订阅/恢复连接/取消：`turn-routes.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
 - 查看执行详情：`turn-routes.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
@@ -38,6 +38,8 @@ Strategy profile 只提供数据查询/分析工具和代码产物校验；生�
 3. 调用 core，发布增量与工具事件，trace recorder 串行写入 checkpoint。
 4. 成功时先写实体回复镜像、flush 轨迹，再在事务中保存 assistant 消息、Research 提案/澄清及 turn 终态。
 5. 上述持久化完成后发布 `done`，最后触发异步 `afterTurn`（例如因子元数据刷新）。失败或取消不保存 assistant 回复，记录对应终态并发布事件。
+
+只读 Factor 问答是上述起始顺序的明确例外：业务在同一个事务内完成来源检查、会话创建/复用、上下文快照和用户消息/turn 保存，再通过 `persistedInput` 交给 runner。其 entity 为 `factor-question:<conversationId>`，不写 Factor.messages；专用历史接口联接每轮上下文和终态，刷新恢复时以它为准。
 
 **这些步骤并非一个总事务。** 创建 conversation、开始 turn、实体镜像和完成 turn 保留原边界，不为目录整理扩大事务。Research 提案/澄清、所属消息与完成状态仍在同一个完成事务中。`bootstrap.ts` 调用 `markRunningAgentTurnsInterrupted` 恢复数据库中的运行记录；它不会重放模型调用或重建内存事件。
 
