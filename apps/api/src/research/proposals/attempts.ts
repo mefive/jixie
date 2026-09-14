@@ -39,7 +39,7 @@ export async function runResearchCellChangeProposalAttempt(
   proposalId: string,
 ): Promise<ResearchCellChangeRunResultV1 | null> {
   const proposal = await prisma.researchCellChangeProposal.findFirst({
-    where: { id: proposalId, document: { userId } },
+    where: { id: proposalId, document: { userId, embeddedVersion: null } },
     include: {
       document: {
         include: { cells: { orderBy: { position: 'asc' } } },

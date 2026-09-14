@@ -26,3 +26,9 @@ bootstrap 只注册定义、创建 executor，等待 Job/Agent/天气恢复，�
 当前仍是单 API 调度进程，没有租约或多实例恢复协调。没有完整 stop/drain、启动失败资源回收和退出信号协议，HTTP listener 也未通过 startServer 返回。afterCommit 没有持久化重试，崩溃前内存日志可能丢失。Worker 正常完成须等到退出；运行失败和异常退出通过 Promise 传递，数据库操作不在事件回调中执行。
 
 本 session 开工前预告 commit message，代码完成先通过 lint/typecheck 等静态检查，再交人工 review；review 通过后做测试及运行验证，全部通过后直接提交。相关测试：job-lifecycle.integration.test.ts、bootstrap.test.ts、infra/jobs/*.test.ts。事务测试使用全新临时 SQLite，结束断开连接并删除自身 fixture；计算、通知、记账初始化与 LLM 使用替身；Curator 领域测试同时覆盖候选准备失败不发布部分结果。当前版本人工 review、根级 typecheck、32 个 TS 文件 lint、完整 API 测试（191 文件/1020 项）、干净构建及源码/编译后启动 smoke 均通过。临时进程、端口和数据库连接已释放。
+
+
+嵌入式分析后端（2026-09-14，待审阅）注册 `research/embedded-analysis-job.ts`，通过 `Job.researchExecutionId`
+关联保存于提交时的运行快照。执行过程中留存输入和环境，完成事务保存输出并冻结首次成功版本；
+取消操作事务性结束 Job 与运行，晚到的完成回调仍被现有 running 检查拒绝。用户判断分析成功与否读取
+嵌入运行 status/errorCode；Job done 表示该执行流程完成，不代替分析结果状态。

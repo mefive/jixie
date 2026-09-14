@@ -24,7 +24,7 @@ export async function runResearchDocument(
   clean: boolean,
 ): Promise<ResearchDocumentRunResultV1 | null> {
   const owner = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!owner) {

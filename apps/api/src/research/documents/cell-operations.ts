@@ -21,7 +21,7 @@ export async function addResearchCell(
   source = '',
 ): Promise<ResearchDocumentV1 | null> {
   const document = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
       cells: { select: { position: true }, orderBy: { position: 'desc' }, take: 1 },
@@ -53,7 +53,7 @@ export async function updateResearchCell(
   patch: { source?: string; config?: Record<string, unknown>; expectedRevision: number },
 ): Promise<ResearchDocumentV1 | null> {
   const cell = await prisma.researchCell.findFirst({
-    where: { id: cellId, document: { userId } },
+    where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: {
       id: true,
       documentId: true,
@@ -171,7 +171,7 @@ export async function deleteResearchCell(
   cellId: string,
 ): Promise<ResearchDocumentV1 | null> {
   const cell = await prisma.researchCell.findFirst({
-    where: { id: cellId, document: { userId } },
+    where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: {
       id: true,
       documentId: true,

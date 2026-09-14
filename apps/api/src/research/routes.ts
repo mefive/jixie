@@ -7,8 +7,11 @@ import { researchAgentRoute } from './agent-routes.js';
 import { researchCuratorRoute } from './curator-routes.js';
 import { researchDataRoute } from './data-routes.js';
 import { researchLanguageRoute } from './language-routes.js';
+import { researchEmbeddedRoute } from './embedded-routes.js';
 
 export const researchRoute = new Hono();
+
+researchRoute.route('/embedded-analyses', researchEmbeddedRoute);
 
 researchRoute.route('/', researchDocumentRoute);
 researchRoute.route('/', researchExecutionRoute);

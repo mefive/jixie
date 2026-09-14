@@ -13,7 +13,13 @@ export async function readMessages(
 ): Promise<unknown[]> {
   if (entity.kind === 'research') {
     const conversation = await prisma.agentConversation.findFirst({
-      where: { id: entity.id, userId, surface: 'research', archivedAt: null },
+      where: {
+        id: entity.id,
+        userId,
+        surface: 'research',
+        archivedAt: null,
+        NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+      },
       select: {
         messages: {
           orderBy: { sequence: 'asc' },

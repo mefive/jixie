@@ -3,7 +3,13 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '../database/prisma.js';
 import { initializeJobLogs, readJobLogs } from './logs.js';
 
-export type JobKind = 'backtest' | 'factor' | 'strategy-scan' | 'signal' | 'research-curator';
+export type JobKind =
+  | 'backtest'
+  | 'factor'
+  | 'strategy-scan'
+  | 'signal'
+  | 'research-curator'
+  | 'research-embedded-analysis';
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'stale';
 

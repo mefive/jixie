@@ -972,6 +972,7 @@ model User {
   signalExecutions        SignalExecution[]
   accountSnapshots        StrategyAccountSnapshot[]
   agentConversations      AgentConversation[]
+  embeddedAnalyses        ResearchEmbeddedAnalysis[]
   researchDocuments       ResearchDocument[]
   researchCuratorRuns     ResearchCuratorRun[]
   researchCuratorFindings ResearchCuratorFinding[]
@@ -1067,7 +1068,7 @@ model FactorCorrelation {
 model Job {
   id                   String              @id // ULID
   userId               String
-  kind                 String // 'backtest' | 'factor' | 'strategy-scan' | 'signal' | 'research-curator'
+  kind                 String // 'backtest' | 'factor' | 'strategy-scan' | 'signal' | 'research-curator' | 'research-embedded-analysis'
   key                  String // dedupe/lookup key (see model doc)
   status               String // 'queued' | 'running' | 'done' | 'error' | 'stale'
   payload              Json? // Frozen runner input; required for queued jobs to survive an API restart
@@ -1081,6 +1082,8 @@ model Job {
   strategyScanReport   StrategyScanReport? @relation(fields: [strategyScanReportId], references: [id], onDelete: Cascade)
   signalRunId          String?
   signalRun            SignalRun?          @relation(fields: [signalRunId], references: [id], onDelete: Cascade)
+  researchExecutionId  String?             @unique
+  researchExecution    ResearchExecution?  @relation(fields: [researchExecutionId], references: [id], onDelete: Cascade)
   researchCuratorRunId String?             @unique
   researchCuratorRun   ResearchCuratorRun? @relation(fields: [researchCuratorRunId], references: [id], onDelete: Cascade)
   user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1500,6 +1503,7 @@ model ResearchDocument {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  embeddedVersion     ResearchEmbeddedAnalysisVersion?
   cells               ResearchCell[]
   executions          ResearchCellExecution[]
   researchExecutions  ResearchExecution[]
@@ -1551,7 +1555,7 @@ model ResearchCellExecution {
   sourceKind             String?
   revision               Int
   source                 String
-  status                 String // 'running' | 'success' | 'error' | 'cancelled'
+  status                 String // 'running' | 'success' | 'error' | 'cancelled'; embedded runs may also be 'queued'
   output                 Json?
   error                  String?
   definitions            Json
@@ -1575,6 +1579,7 @@ model ResearchCellExecution {
 
 /// One immutable clean execution of a frozen Research Document revision. Editable promotion
 /// metadata is kept outside the hashed source and DAG snapshots so curation never rewrites evidence.
+/// Embedded attempts reuse these records but their version relation excludes them from promotion.
 model ResearchExecution {
   id                     String           @id // ULID
   documentId             String
@@ -1583,7 +1588,7 @@ model ResearchExecution {
   title                  String
   contentRevision        Int
   runtimeVersion         String
-  status                 String           @default("running") // 'running' | 'success' | 'error' | 'cancelled'
+  status                 String           @default("running") // 'running' | 'success' | 'error' | 'cancelled'; embedded executions may also be 'queued'
   sourceHash             String
   sourceSnapshot         Json
   dagSnapshot            Json
@@ -1597,11 +1602,23 @@ model ResearchExecution {
   startedAt              DateTime         @default(now())
   finishedAt             DateTime?
 
+  embeddedVersionId   String?
+  embeddedVersion     ResearchEmbeddedAnalysisVersion? @relation(fields: [embeddedVersionId], references: [id], onDelete: Restrict)
+  requestId           String?
+  parametersSnapshot  Json?
+  contextSnapshot     Json?
+  environmentSnapshot Json?
+  errorCode           String?
+  inputs              ResearchExecutionInput[]
+  job                 Job?
+
   cellExecutions      ResearchCellExecution[]
   sourceFactorDraft   Factor?                 @relation("FactorSourceResearchExecution")
   sourceStrategyDraft Strategy?               @relation("StrategySourceResearchExecution")
 
+  @@unique([embeddedVersionId, requestId])
   @@unique([documentId, sequence])
+  @@index([embeddedVersionId, startedAt])
   @@index([documentId, startedAt])
   @@index([documentId, promotedAt])
 }
@@ -1786,4 +1803,69 @@ model TushareCapabilityProbe {
 
   @@index([apiName, probedAt])
   @@index([probedAt])
+}
+
+/// A private question anchored to a Factor or Strategy. Host identifiers are snapshots rather than
+/// cascading foreign keys: deleting or publishing a host must not delete or expose its evidence.
+model ResearchEmbeddedAnalysis {
+  id          String                            @id
+  userId      String
+  user        User                              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hostType    String
+  hostId      String
+  title       String
+  nextVersion Int                               @default(1)
+  activeRunId String?                           @unique
+  versions    ResearchEmbeddedAnalysisVersion[]
+  createdAt   DateTime                          @default(now())
+  updatedAt   DateTime                          @updatedAt
+
+  @@index([userId, hostType, hostId, updatedAt])
+}
+
+/// An editable single-cell draft until its first successful run commits. The internal document
+/// cannot be deleted while this version exists; ordinary document workflows exclude it entirely.
+model ResearchEmbeddedAnalysisVersion {
+  id              String                            @id
+  analysisId      String
+  analysis        ResearchEmbeddedAnalysis          @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  number          Int
+  parentVersionId String?
+  parentVersion   ResearchEmbeddedAnalysisVersion?  @relation("EmbeddedVersionParent", fields: [parentVersionId], references: [id], onDelete: SetNull)
+  derivedVersions ResearchEmbeddedAnalysisVersion[] @relation("EmbeddedVersionParent")
+  documentId      String                            @unique
+  document        ResearchDocument                  @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  source          String
+  parameters      Json
+  inputScope      String
+  contextSnapshot Json
+  revision        Int                               @default(1)
+  frozenAt        DateTime?
+  executions      ResearchExecution[]
+  createdAt       DateTime                          @default(now())
+  updatedAt       DateTime                          @updatedAt
+
+  @@unique([analysisId, number])
+}
+
+/// One SDK request and the exact bounded response offered to Python. Loading requests survive
+/// failures; responses are persisted before delivery and never overwritten after completion.
+model ResearchExecutionInput {
+  id           String            @id
+  executionId  String
+  execution    ResearchExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  sequence     Int
+  method       String
+  arguments    Json
+  status       String
+  responseJson String?
+  metadata     Json?
+  sha256       String?
+  byteSize     Int               @default(0)
+  rowCount     Int?
+  error        String?
+  requestedAt  DateTime          @default(now())
+  capturedAt   DateTime?
+
+  @@unique([executionId, sequence])
 }

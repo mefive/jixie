@@ -23,7 +23,7 @@ export async function runResearchCellChangeAttemptPlan(
   },
 ): Promise<ResearchDocumentRunResultV1 | null> {
   const document = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!document) {

@@ -31,6 +31,7 @@ const researchEnvironmentSchema = z.strictObject({
 const researchReadyFrameSchema = z.strictObject({
   type: z.literal('research_ready'),
   environment: researchEnvironmentSchema,
+  capabilities: z.array(z.literal('explicit_parameters')).max(1).optional(),
 });
 
 const researchAnalysisRequestSchema = z.strictObject({

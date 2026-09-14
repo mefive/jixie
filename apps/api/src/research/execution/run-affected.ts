@@ -14,7 +14,7 @@ export async function runAffectedResearchCells(
   cellId: string,
 ): Promise<ResearchDocumentRunResultV1 | null> {
   const cell = await prisma.researchCell.findFirst({
-    where: { id: cellId, document: { userId } },
+    where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: { id: true, documentId: true },
   });
   if (!cell) {

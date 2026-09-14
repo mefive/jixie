@@ -26,3 +26,4 @@ export * from './research-sdk-python-stub.js';
 export * from './research-language.js';
 export * from './research-python-runtime.js';
 export * from './sharing.js';
+export * from './research-embedded.js';

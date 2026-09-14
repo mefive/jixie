@@ -4,7 +4,8 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 
 | 要找的业务 | 入口 | 责任 |
 | --- | --- | --- |
-| HTTP 路由 | `routes.ts` 与八组 `*-routes.ts` | 根入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `route-errors.ts`，不直接读写 Prisma |
+| HTTP 路由 | `routes.ts` 与九组 `*-routes.ts` | 根入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `route-errors.ts`，不直接读写 Prisma |
+| 嵌入式分析后端（待审阅） | `embedded-routes.ts`、`embedded/`、`embedded-analysis-job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，暂未接入 Agent 与页面 |
 | 文档列表、创建、归档、恢复 | `documents/document-operations.ts`、`archive-idle-document.ts` | 模板初始化、归属检查；HTTP 归档先检查运行状态，再归档并关闭会话 |
 | 文档重命名、删除 | `documents/document-operations.ts` | 保留底层会话归属/归档规则和级联删除，删除后关闭会话；HTTP 统一使用 documents |
 | 读取文档 | `documents/read.ts` | 归属检查、Cell / 消息 / 审阅 / 尝试视图；保留旧会话首次读取时补建文档的行为 |
@@ -30,7 +31,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | Research Agent 启动 | `agent-turn.ts`、`agent-context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
 | 研究整理（Curator） | `curator/submit.ts`、`runs.ts`、`reference-search.ts`，根级 `curator-job.ts` | 提交与查询、证据整理/反馈；具名 Job 定义完成、失败与恢复 |
 
-Research 的 HTTP 入口和测试直接放在模块根目录，当前不单设 `http/`。根级 `routes.ts` 只组合八组具名路由；参数校验留在职责路由，共用执行/审阅错误映射放在 `route-errors.ts`，业务操作由各具名入口承担。
+Research 的 HTTP 入口和测试直接放在模块根目录，当前不单设 `http/`。根级 `routes.ts` 只组合九组具名路由；参数校验留在职责路由，共用执行/审阅错误映射放在 `route-errors.ts`，业务操作由各具名入口承担。
 
 ## 主要调用链
 
@@ -63,7 +64,7 @@ HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 - **编辑与执行并发**：单 Cell 回写使用 id/revision/source 条件。干净全文执行使用开始时的源代码快照；中途编辑不改变该快照，也不把旧结果覆盖到新修订。
 - **文档锁与取消**：单 Cell、全文、受影响分支、提案尝试共用 `run-state.ts`；取消标记控制后续 Cell 是否启动，关闭活动 Python 会话，并等待执行记录与锁收尾。
 - **失效与阻塞**：普通上游修改使已执行下游 stale；删除上游保留缺失定义来源并使依赖者 blocked。reset 不清除 blocked。
-- **提案与正式证据不同**：接受提案不会自动运行。attempt 的 Cell 快照归属该次尝试；只有干净全文运行创建 `ResearchExecution`，成功后才能固化并交接。
+- **提案与正式证据不同**：接受提案不会自动运行。attempt 的 Cell 快照归属该次尝试；普通文档的干净全文运行创建 `ResearchExecution`，成功后才能固化并交接。嵌入运行也复用该表，但专用归属关系将它排除在普通固化/交接入口之外。
 - **SDK 错误边界**：非法参数在数据查询之前抛出，由会话层处理；合法请求的数据查询失败通过带同一 request id 的 error response 返回。业务数据口径与公开 Contract 继续由既有实现定义。
 
 路由职责整理保留锁作用域、事务边界、业务算法与 SDK。单进程运行状态、归档关闭会话、reset 与执行的既有交互均保留，不增加分布式锁、队列重试或取消协议。
@@ -124,3 +125,26 @@ Prisma 迁移历史及 bootstrap 中的 `prisma migrate deploy` 保留；本次�
 - 编译 API 的 `language/python` 通过真实 Pyright pandas 补全和错误诊断，`universe-queries` 返回股票池实际结果，data-catalog 查询通过。九组 E2E 使用构建后的 Web；提案审阅使用 Vite 开发模式，以读取既有开发专用 Monaco 测试钩子。
 - 首轮发现并修正两处测试脚本问题：旧 GET 路径用例误传请求体、Curator 关闭按钮定位不唯一。修正文件格式、ESLint 与 API typecheck 通过，相关测试重跑通过；没有测试后产品代码修改。
 - 数据库使用开发数据的只读备份副本，真实 Python 查询仅访问副本；未调用真实 LLM 或供应商同步。API、Web preview、Vite 临时进程已关闭，3107/5187/5188 端口和数据库连接已释放，数据库副本已删除。验收截图已检查，保留于 `apps/web/acceptance/`。
+
+## 嵌入式分析后端（2026-09-14，实现待审阅）
+
+入口 `/api/app/research/embedded-analyses` 当前供后续 Agent 和 UI 接入。产品整体规划、剩余接入及旧工具退出见
+[嵌入式分析规划](../../../../docs/design/embedded-python-analysis.md)。本提交不删除旧统计工具，不添加公开帮助操作。
+
+- `embedded/versions.ts` 在同一事务中创建私有分析、版本和单 Cell 内部文档；更新草稿检查修订号、冻结及活动运行。`context.ts` 从服务端解析宿主及报告权限，不信任传入的 owner。宿主代码是当次捕获的已保存代码；修改/派生不会改写旧运行上下文。
+- `embedded/submit.ts` 提交时保存 `ResearchExecution` / `ResearchCellExecution` 快照及 Job。分析的 `activeRunId` 条件更新限制同时运行，版本与 requestId 唯一键保证同一请求可重取。排队也已有运行 ID，不依赖 Agent 最后回复落库。
+- `embedded/execute.ts` 每次关闭旧解释器并独立运行，复用现有 Python runtime 与 SDK。30 秒预算覆盖运行准备、取数及 Python；排队、最终数据库提交另计。超时/取消关闭解释器并丢弃迟到结果；已发出的数据库查询不保证立即终止。
+- `embedded/inputs.ts` 请求先留痕，响应在发送给 Python 前写库。每次最多 16 次请求，参数与响应累计 32 MiB，不静默截断；报告同样保留实际响应，来源删除不会使已保存的输入消失。读运行仅返回输入元数据，读取单条输入的专用接口按归属返回完整响应。
+- `embedded/finish.ts` 在 Job 完成事务中保存输出/图片并冻结成功版本。未完成输入、缺失环境或保存失败不能成为成功。失败、取消、服务恢复只更新尚未终结的记录。Job 的 done 表示执行流程完成；分析是否成功以运行的 status/errorCode 为准。
+- `embedded/cancel.ts` 同一事务写入取消终态、结束 Job 并释放分析，再中断本进程会话。queued Job 在启动后继续排队；running Job 通过注册定义恢复为 cancelled/interrupted，不自动重算。现有队列仍按全局与用户并发调度，不建立另一套优先级队列。
+- 普通文档列表、编辑/删除/归档/恢复、运行、提案、Agent 及正式固化/交接都排除内部嵌入文档。图片仍通过现有私有产物接口读取。分析对宿主保留标识与快照，宿主删除/公开不会级联删除/公开分析。
+- source 上限 20,000 字符、parameters JSON 上限 16 KiB；参数作为明确的 `parameters` 字典与源码一起传入运行时，运行详情同时返回源码与参数快照；不依赖旧会话变量。现有 SDK 单次取数、Python 连续执行、8 MiB 输出传输、2 MiB 内联持久化、4 MiB 单图限制继续适用。
+
+接口包括根路径 POST/GET；`/:analysisId` GET；`/:analysisId/versions` POST/GET；版本 GET/PATCH；
+`/:analysisId/versions/:versionId/runs` POST（返回 202、runId、jobId）；`/:analysisId/runs` GET；
+单次运行 GET、POST cancel；`/:analysisId/runs/:runId/inputs/:inputId` GET。列表使用有界分页。
+
+API 与 Python 沙箱需要协调发布；启动时协商显式参数能力，旧沙箱不会被允许静默忽略嵌入参数。旧 API 不请求新能力时仍收到原有启动响应。
+
+验证代码已准备，尚未执行：`embedded/lifecycle.integration.test.ts`、`embedded/python.integration.test.ts`、`embedded/migration.integration.test.ts`、Python 能力协商与 SDK 分派回归；
+人工审阅通过后运行隔离迁移、真实 Python、相关普通文档/队列回归及构建/生产 socket 分支验证。

@@ -25,7 +25,7 @@ export interface ExecutableResearchCellRow {
 
 export async function loadResearchExecutionSeed(userId: string, documentId: string) {
   const document = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
       conversationId: true,
@@ -75,7 +75,7 @@ export async function loadExecutableResearchCell(
   cellId: string,
 ): Promise<ExecutableResearchCellRow | null> {
   return prisma.researchCell.findFirst({
-    where: { id: cellId, document: { userId } },
+    where: { id: cellId, document: { userId, embeddedVersion: null } },
     include: { document: { include: { conversation: true } } },
   });
 }

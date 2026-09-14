@@ -1,6 +1,6 @@
 # Factor / Strategy 嵌入式 Python 分析
 
-> 状态：2026-09-14 用户确认整体方向与旧工具删除范围；当前仅编写规划文档，产品代码尚未实现。
+> 状态：2026-09-14 规划已提交（`74567ccd`）；Commit 2 后端已通过人工审查及行为验证。Agent / UI 尚未接入，旧工具尚未退出。
 > 本文是[响应式量化研究工作台](reactive-quant-research-workbench.md)的嵌入式分析扩展。
 > 现状以代码为准；下文的目标行为、接口和验收项不能当作已上线能力。
 
@@ -218,8 +218,8 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 
 | 顺序 | 提交信息 | 范围与依赖 | 当前状态 |
 | --- | --- | --- | --- |
-| 1 | `docs(research): define the embedded analysis workflow` | 固化目标、版本、输入、交接、工具退出和验收，修正过期现状 | 文档完成，静态核对及用户审阅通过 |
-| 2 | `feat(research): add versioned embedded analysis execution` | 契约、迁移、归属、执行与输入、冻结、历史和 API；依赖 1 | 未开始 |
+| 1 | `docs(research): define the embedded analysis workflow` | 固化目标、版本、输入、交接、工具退出和验收，修正过期现状 | 已提交 `74567ccd` |
+| 2 | `feat(research): add versioned embedded analysis execution` | 契约、迁移、归属、执行与输入、冻结、历史和 API；依赖 1 | 人工审查、行为验证通过，随本次提交交付 |
 | 3 | `feat(factor): persist question conversations and report context` | 问答持久化、报告上下文和刷新恢复，为分析提供可靠归属 | 未开始 |
 | 4 | `feat(agent): integrate embedded analysis into factor and strategy` | profile/工具、卡片、修改/历史、Research 交接、双语帮助与端到端验证；依赖 2、3 | 未开始 |
 | 5 | `refactor(agent): retire legacy chat computation tools` | 覆盖核对、旧工具及生成链删除、图表兼容和切换回归；依赖 4 | 未开始 |
@@ -236,3 +236,25 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 
 若 SDK 缺口需要新增数据域、正式报告语义改变、存量删除破坏证据，或需要新增 Python 包/运行时版本，
 在相关 Gate 1 说明并确认，不将范围扩大藏在实现中。实际测试结果和提交进度逐项更新，不提前勾选完成。
+
+
+### Commit 2：嵌入式分析执行后端
+
+- 预告提交信息：`feat(research): add versioned embedded analysis execution`。用户已确认本提交范围及代码审查；行为验证通过，按预告信息提交。
+- 交付：`/api/app/research/embedded-analyses` 下的 12 个接口，覆盖创建/列表、版本读取/修改/派生、提交运行、历史/详情、取消和单条完整输入读取。运行返回 202 及精确 runId/jobId；Agent 工具、消息卡和 Research 交接仍属于 Commit 4。
+- 模型：新增 `ResearchEmbeddedAnalysis`、`ResearchEmbeddedAnalysisVersion`、`ResearchExecutionInput`；每版关联一份内部单 Cell 文档，复用 `ResearchExecution`、`ResearchCellExecution`、产物与 Job。宿主标识/快照不通过级联删除绑定，普通 Research 路径排除嵌入文档。
+- 事务：提交时留存代码/参数/来源/限制快照并领取 activeRunId；同版 requestId 唯一。成功输出与首次冻结在 Job 完成事务内提交；失败、取消、恢复不会覆盖旧终态。旧聊天后续可固定引用 analysisId/versionId/runId。
+- 执行：每次独立 Python 会话，显式 parameters 字典与源码一起传入运行时并分别留存；不改写用户源码，因此保留 Python 行号与 future import 语义。SDK 请求与响应在送入 Python 前保存，统计结果不会因输入留存失败而被标为成功；摘要带条数、SDK 现有诊断/口径及可获得的实际范围。
+- 限制：源代码 20,000 字符，parameters JSON 16 KiB，每次 16 个 SDK 请求、参数与响应累计 32 MiB、执行预算 30 秒（排队与最终数据库提交另计）。限制随运行快照保存；沿用现有单次 SDK、连续 Python 执行和输出预算。摘要过大时明确标记预览省略，完整响应仍在预算内保存。
+- 来源：支持用户因子、公开已发布因子、数据库内预设及代码模板、用户策略；选中报告验证归属/宿主及 Holdout 状态。来源是当次已保存定义，不冒充尚未保存的编辑器代码；后续接入时需向用户显示这一口径。
+- 兼容：普通文档编辑/运行语义不变；其列表、编辑、删除、归档、提案、Agent、固化/正式交接不能操作嵌入版本。旧统计/图表工具保持现状，统计库和 SDK 公开方法没有变更。
+- 迁移：增量 SQL 由 Prisma schema diff 生成，增加三表，并按 SQLite 方式重建 Job / ResearchExecution 保留原字段；已在隔离临时库验证全量迁移及旧数据升级保留，未应用至开发或生产数据库。
+- 静态检查通过（2026-09-14）：50 个 TS 文件的格式/ESLint、API（直接解析 shared 源码）及 shared 的 noEmit 类型检查、后端边界（0 violations）、三项 SDK/runtime 生成契约一致性、Python AST 语法检查、Prisma schema 校验、迁移 SQL 与 schema diff 一致性及 `git diff --check`。未构建 shared 产物，避免审查前运行构建。
+- 2026-09-14 用户确认代码审查后完成行为验证：相关测试共 26 文件 / 204 用例通过（含嵌入执行、迁移、SDK、普通 Research、Curator、Job 和 bootstrap）；重复运行的同一用例不重复计数。真实 CPython 3.13 及全部固定包版本校验通过。
+- 验证期间只修正测试夹具：预创建临时 SQLite 文件；Curator 使用当前 Prisma schema 建测试库并补充内部文档排除用例；文档过滤及 Job 注册预期补齐。无产品代码修正。
+- Shared、API、sandboxd 构建通过。编译 API 在 production 环境、不启用 development 解析条件，经独立编译 sandboxd 的 Unix socket 连接真实本地 Python，完成 HTTP → Job → 执行 → 输入/图表/冻结持久化；同时验证重复请求、全新环境重跑、权限、取消、启动恢复和报告删除后的已用输入保留。
+- 运行验证的边界：sandboxd 使用 local 模式，因此不等于生产 Podman 容器隔离验收；没有请求真实行情、LLM 或执行前端 E2E。本提交没有 UI 改动。测试数据库均为隔离临时库，未应用开发/生产库迁移；临时进程、socket 和数据库已清理。
+- 提交前复核：最终 52 个 TS 文件格式/ESLint、API 类型及构建、后端边界与三项生成契约检查、`git diff --check` 均通过。
+- 验证日志：`/tmp/jixie-embedded-integration.log`、`/tmp/jixie-embedded-regression.log`、`/tmp/jixie-embedded-regression-retry.log`、`/tmp/jixie-embedded-verification/compiled-smoke.log`；其中初次回归日志保留失败记录，修复后的三组结果见 retry。
+- 运行时兼容：API 与 Python 沙箱需协调发布。新增可选能力协商，旧 API 仍接收原有启动响应；新 API 连接旧沙箱时，普通 Research 仍可用，嵌入执行明确失败，不允许沙箱悄悄忽略参数。没有新增 Python 包、公开 SDK 数据方法或跨包构建依赖。
+- 当前不更新公开帮助：页面功能尚未交付。API 操作错误已提供中英双语，内部入口说明已同步。

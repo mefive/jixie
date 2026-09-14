@@ -26,7 +26,7 @@ export async function listResearchCellChangeAttempts(
   documentId: string,
 ): Promise<ResearchCellChangeAttemptV1[]> {
   const attempts = await prisma.researchCellChangeAttempt.findMany({
-    where: { documentId, document: { userId } },
+    where: { documentId, document: { userId, embeddedVersion: null } },
     orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     take: 20,
     include: researchCellChangeAttemptInclude,

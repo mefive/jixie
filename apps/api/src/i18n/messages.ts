@@ -147,6 +147,54 @@ const MESSAGES = {
     zh: '该研究文档已有正在进行的运行，请先等待或停止当前运行',
     en: 'This research document already has an active run; wait for it or stop it first',
   },
+  researchEmbeddedNotFound: {
+    zh: '找不到该分析、版本、运行或来源',
+    en: 'The analysis, version, run, or source was not found',
+  },
+  researchEmbeddedFrozen: {
+    zh: '该版本已成功运行，请复制为新版本后修改',
+    en: 'This version has succeeded; derive a new version to make changes',
+  },
+  researchEmbeddedRevisionConflict: {
+    zh: '草稿已发生变化，请刷新后重试',
+    en: 'The draft has changed; refresh before retrying',
+  },
+  researchEmbeddedRunInProgress: {
+    zh: '该分析已有排队或运行中的任务，请等待或取消',
+    en: 'This analysis has a queued or running task; wait or cancel it',
+  },
+  researchEmbeddedRequestConflict: {
+    zh: '该请求编号已用于另一版草稿，请使用新的请求编号',
+    en: 'This request ID belongs to another draft revision; use a new request ID',
+  },
+  researchEmbeddedInvalidReport: {
+    zh: '所选报告不可用、尚未完成或尚未揭示',
+    en: 'The selected report is unavailable, incomplete, or still sealed',
+  },
+  researchEmbeddedInputLimit: {
+    zh: '输入数据超过留存上限，请缩小范围后重新分析',
+    en: 'Input data exceeds the retention limit; reduce the scope and try again',
+  },
+  researchEmbeddedRequestLimit: {
+    zh: '数据请求次数超过上限，请减少请求后重新分析',
+    en: 'The data request limit was exceeded; reduce requests and try again',
+  },
+  researchEmbeddedTimeout: {
+    zh: '分析执行超时，请缩小范围或简化计算后重试',
+    en: 'The analysis timed out; reduce the scope or simplify the calculation',
+  },
+  researchEmbeddedCancelled: {
+    zh: '本次分析已取消，运行记录已保留',
+    en: 'This analysis was cancelled; its run record is retained',
+  },
+  researchEmbeddedInterrupted: {
+    zh: '运行因服务中断而停止，记录已保留，可以重新运行',
+    en: 'The run stopped when the service was interrupted; its record is retained and you can rerun it',
+  },
+  researchEmbeddedExecutionFailed: {
+    zh: '分析失败，请查看错误详情并修改后重试',
+    en: 'The analysis failed; inspect the error details and revise before retrying',
+  },
 
   // —— Turn already running for an entity ——
   strategyTurnInProgress: {

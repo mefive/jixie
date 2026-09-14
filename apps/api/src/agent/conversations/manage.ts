@@ -16,6 +16,7 @@ export async function findOrCreateConversation(args: {
         id: args.entity.id,
         userId: args.userId,
         surface: 'research',
+        NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
         archivedAt: null,
       },
       select: { id: true },

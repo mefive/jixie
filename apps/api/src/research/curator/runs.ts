@@ -95,7 +95,11 @@ export async function extractResearchCuratorEvidence(
       where: {
         role: 'user',
         createdAt: { ...(after ?? {}), lte: cursorTo },
-        conversation: { userId, surface: 'research' },
+        conversation: {
+          userId,
+          surface: 'research',
+          NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+        },
       },
       select: { id: true, conversationId: true, parts: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
@@ -103,7 +107,11 @@ export async function extractResearchCuratorEvidence(
     database.agentTurn.findMany({
       where: {
         startedAt: { ...(after ?? {}), lte: cursorTo },
-        conversation: { userId, surface: 'research' },
+        conversation: {
+          userId,
+          surface: 'research',
+          NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+        },
       },
       select: { id: true, conversationId: true, trace: true, startedAt: true },
       orderBy: { startedAt: 'asc' },

@@ -378,10 +378,8 @@ function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchR
 
 async function answerResearchRequest(
   documentId: string,
-  session: Pick<PythonSession, 'send'>,
   frame: ParsedResearchRequest,
-): Promise<void> {
-  const id = frame.id;
+): Promise<ResearchResponse> {
   try {
     let result: Record<string, unknown>;
     switch (frame.method) {
@@ -636,17 +634,9 @@ async function answerResearchRequest(
         break;
       }
     }
-    await session.send({
-      type: 'response',
-      id,
-      result,
-    });
+    return { result };
   } catch (error) {
-    await session.send({
-      type: 'response',
-      id,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    return { error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -682,12 +672,31 @@ async function loadAndPrepareResearchSeries(input: {
   };
 }
 
-/** Parse before entering the response-error boundary, preserving invalid-frame session failure. */
+export type ResearchResponse = { result: Record<string, unknown> } | { error: string };
+
+export interface ResearchRequestObserver {
+  beforeRequest(frame: ResearchRequestFrame): Promise<void>;
+  captureResponse(frame: ResearchRequestFrame, response: ResearchResponse): Promise<void>;
+}
+
+/** Evidence persistence stays outside the Python-catchable dataset error boundary. */
 export async function dispatchResearchRequest(
   documentId: string,
   session: Pick<PythonSession, 'send'>,
   frame: ResearchRequestFrame,
+  observer?: ResearchRequestObserver,
 ): Promise<void> {
-  const request = parseResearchRequestFrame(frame);
-  await answerResearchRequest(documentId, session, request);
+  await observer?.beforeRequest(frame);
+  let request: ParsedResearchRequest;
+  try {
+    request = parseResearchRequestFrame(frame);
+  } catch (error) {
+    await observer?.captureResponse(frame, {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+  const response = await answerResearchRequest(documentId, request);
+  await observer?.captureResponse(frame, response);
+  await session.send({ type: 'response', id: frame.id, ...response });
 }

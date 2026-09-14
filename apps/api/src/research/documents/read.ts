@@ -29,7 +29,13 @@ export async function getResearchDocument(
   documentId: string,
 ): Promise<ResearchDocumentV1 | null> {
   const owner = await prisma.agentConversation.findFirst({
-    where: { id: documentId, userId, surface: 'research', archivedAt: null },
+    where: {
+      id: documentId,
+      userId,
+      surface: 'research',
+      archivedAt: null,
+      NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+    },
     select: { id: true, title: true, researchDocument: { select: { id: true } } },
   });
   if (!owner) {
@@ -61,7 +67,7 @@ async function loadDocumentRow(
   documentId: string,
 ): Promise<ResearchDocumentRow | null> {
   return prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     include: {
       conversation: {
         include: { messages: { orderBy: { sequence: 'asc' }, take: 100 } },

@@ -26,7 +26,8 @@ export class PythonSession {
     writable.once('error', (error) => this.end(error));
   }
 
-  static async connect(): Promise<PythonSession> {
+  static async connect(signal?: AbortSignal): Promise<PythonSession> {
+    signal?.throwIfAborted();
     if (process.env.JIXIE_PYTHON_LOCAL === '1') {
       if (process.env.NODE_ENV === 'production') {
         throw new Error('JIXIE_PYTHON_LOCAL is forbidden in production');
@@ -39,7 +40,14 @@ export class PythonSession {
       child.stderr.on('data', (chunk: string) => {
         stderr = `${stderr}${chunk}`.slice(-8_000);
       });
-      await waitForSpawn(child);
+      const abort = () => child.kill('SIGKILL');
+      signal?.addEventListener('abort', abort, { once: true });
+      try {
+        await waitForSpawn(child);
+        signal?.throwIfAborted();
+      } finally {
+        signal?.removeEventListener('abort', abort);
+      }
       const session = new PythonSession(child.stdout, child.stdin, () => child.kill('SIGKILL'));
       child.once('exit', (code, signal) => {
         const detail = stderr.trim() || `Python runner exited with ${signal ?? `code ${code}`}`;
@@ -49,11 +57,14 @@ export class PythonSession {
     }
 
     const socketPath = process.env.JIXIE_SANDBOX_SOCKET ?? '/var/lib/jixie/sandboxd.sock';
-    const socket = await connectSocket(socketPath);
+    const socket = await connectSocket(socketPath, signal);
     return new PythonSession(socket, socket, () => socket.destroy());
   }
 
   async send(frame: PythonFrame): Promise<void> {
+    if (this.endedError) {
+      throw this.endedError;
+    }
     const payload = Buffer.from(JSON.stringify(frame));
     if (payload.length > MAX_FRAME_BYTES) {
       throw new Error(`Python sandbox frame exceeds ${MAX_FRAME_BYTES} bytes`);
@@ -63,8 +74,27 @@ export class PythonSession {
     const packet = Buffer.concat([header, payload]);
     if (!this.writable.write(packet)) {
       await new Promise<void>((resolveDrain, rejectDrain) => {
-        this.writable.once('drain', resolveDrain);
-        this.writable.once('error', rejectDrain);
+        const cleanup = () => {
+          this.writable.removeListener('drain', drained);
+          this.writable.removeListener('error', failed);
+          this.writable.removeListener('close', closed);
+        };
+        const drained = () => {
+          cleanup();
+          resolveDrain();
+        };
+        const failed = (error: Error) => {
+          cleanup();
+          rejectDrain(error);
+        };
+        const closed = () =>
+          failed(this.endedError ?? new Error('Python sandbox closed while sending a frame'));
+        this.writable.once('drain', drained);
+        this.writable.once('error', failed);
+        this.writable.once('close', closed);
+        if (this.endedError || this.writable.destroyed) {
+          closed();
+        }
       });
     }
   }
@@ -168,11 +198,27 @@ export async function probePythonRuntime(): Promise<'local' | 'sandboxd'> {
   return 'sandboxd';
 }
 
-function connectSocket(path: string): Promise<Socket> {
+function connectSocket(path: string, signal?: AbortSignal): Promise<Socket> {
   return new Promise((resolveSocket, rejectSocket) => {
     const socket = connect(path);
-    socket.once('connect', () => resolveSocket(socket));
-    socket.once('error', rejectSocket);
+    const cleanup = () => signal?.removeEventListener('abort', abort);
+    const abort = () => {
+      socket.destroy();
+      cleanup();
+      rejectSocket(new Error('Python sandbox connection aborted'));
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+    socket.once('connect', () => {
+      cleanup();
+      resolveSocket(socket);
+    });
+    socket.once('error', (error) => {
+      cleanup();
+      rejectSocket(error);
+    });
+    if (signal?.aborted) {
+      abort();
+    }
   });
 }
 

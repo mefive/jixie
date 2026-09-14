@@ -1,4 +1,4 @@
-import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
+import type { ResearchCellOutputBlockV1, ResearchEmbeddedParametersV1 } from '@jixie/shared';
 import { PythonSession } from '#infra/runtime/python/session.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import {
@@ -7,7 +7,7 @@ import {
   researchResetFrameSchema,
   researchStartupFrameSchema,
 } from '../sdk/protocol.js';
-import { dispatchResearchRequest } from '../sdk/dispatch.js';
+import { dispatchResearchRequest, type ResearchRequestObserver } from '../sdk/dispatch.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 
 export function closeResearchDocumentRuntime(documentId: string): void {
@@ -17,6 +17,13 @@ export function closeResearchDocumentRuntime(documentId: string): void {
 const MAX_LIVE_RESEARCH_SESSIONS = 4;
 
 const MAX_RESEARCH_RUNTIME_OUTPUT_BYTES = 8 * 1024 * 1024;
+
+export interface ResearchExecutionOptions {
+  signal?: AbortSignal;
+  observer?: ResearchRequestObserver;
+  parameters?: ResearchEmbeddedParametersV1;
+  captureEnvironment?(environment: Record<string, unknown>): Promise<void>;
+}
 
 export interface ResearchPythonExecution {
   outputs: ResearchCellOutputBlockV1[];
@@ -28,6 +35,7 @@ export interface ResearchPythonExecution {
 interface ResearchRuntimeEntry {
   session: PythonSession;
   environment: Record<string, unknown>;
+  capabilities: string[];
   queue: Promise<void>;
   touchedAt: number;
   pendingOperations: number;
@@ -109,78 +117,114 @@ class ResearchRuntimeManager {
   async execute(
     documentId: string,
     cell: { id: string; source: string },
+    options: ResearchExecutionOptions = {},
   ): Promise<ResearchPythonExecution> {
-    return this.withEntry(documentId, async (entry) => {
-      entry.activeCellId = cell.id;
-      try {
-        await entry.session.send({
-          type: 'research_execute',
-          cell_id: cell.id,
-          source: cell.source,
-        });
-        const logOutputs: ResearchCellOutputBlockV1[] = [];
+    return this.withEntry(
+      documentId,
+      async (entry) => {
+        entry.activeCellId = cell.id;
+        try {
+          options.signal?.throwIfAborted();
+          if (
+            options.parameters !== undefined &&
+            !entry.capabilities.includes('explicit_parameters')
+          ) {
+            throw new Error(
+              'The Python sandbox must be updated before embedded analyses can use explicit parameters',
+            );
+          }
+          await options.captureEnvironment?.(entry.environment);
+          options.signal?.throwIfAborted();
+          await entry.session.send({
+            type: 'research_execute',
+            cell_id: cell.id,
+            source: cell.source,
+            ...(options.parameters ? { parameters: options.parameters } : {}),
+          });
+          const logOutputs: ResearchCellOutputBlockV1[] = [];
+          let logBytes = 0;
 
-        while (true) {
-          const frame = await entry.session.readValidated(
-            researchExecutionFrameSchema,
-            'executing a research cell',
-          );
-          if (frame.type === 'log') {
-            logOutputs.push({
-              type: 'text',
-              text: String(frame.text ?? ''),
-              level:
-                frame.level === 'error' ? 'error' : frame.level === 'warning' ? 'warning' : 'info',
-            });
-            continue;
-          }
-          if (frame.type === 'request') {
-            await dispatchResearchRequest(documentId, entry.session, frame);
-            continue;
-          }
-          if (frame.type === 'research_executed') {
-            const outputs: ResearchCellOutputBlockV1[] = [...logOutputs, ...frame.outputs];
-            const outputBytes = Buffer.byteLength(JSON.stringify(outputs), 'utf8');
-            if (outputBytes > MAX_RESEARCH_RUNTIME_OUTPUT_BYTES) {
-              const message =
-                `Research Cell outputs require ${outputBytes} bytes; the runtime transfer limit ` +
-                `is ${MAX_RESEARCH_RUNTIME_OUTPUT_BYTES} bytes. Reduce the displayed value, ` +
-                'table slice, chart rows, or figure size and rerun the Cell.';
+          while (true) {
+            const frame = await entry.session.readValidated(
+              researchExecutionFrameSchema,
+              'executing a research cell',
+            );
+            if (frame.type === 'log') {
+              logBytes += Buffer.byteLength(JSON.stringify(frame), 'utf8');
+              if (logBytes > MAX_RESEARCH_RUNTIME_OUTPUT_BYTES) {
+                if (this.entries.get(documentId) === entry) {
+                  this.close(documentId);
+                }
+                throw new ResearchPythonExecutionError(
+                  'Research log output exceeds the runtime transfer limit',
+                  [],
+                  [],
+                  [],
+                  researchPayloadHash(entry.environment),
+                );
+              }
+              logOutputs.push({
+                type: 'text',
+                text: String(frame.text ?? ''),
+                level:
+                  frame.level === 'error'
+                    ? 'error'
+                    : frame.level === 'warning'
+                      ? 'warning'
+                      : 'info',
+              });
+              continue;
+            }
+            if (frame.type === 'request') {
+              await dispatchResearchRequest(documentId, entry.session, frame, options.observer);
+              options.signal?.throwIfAborted();
+              continue;
+            }
+            if (frame.type === 'research_executed') {
+              const outputs: ResearchCellOutputBlockV1[] = [...logOutputs, ...frame.outputs];
+              const outputBytes = Buffer.byteLength(JSON.stringify(outputs), 'utf8');
+              if (outputBytes > MAX_RESEARCH_RUNTIME_OUTPUT_BYTES) {
+                const message =
+                  `Research Cell outputs require ${outputBytes} bytes; the runtime transfer limit ` +
+                  `is ${MAX_RESEARCH_RUNTIME_OUTPUT_BYTES} bytes. Reduce the displayed value, ` +
+                  'table slice, chart rows, or figure size and rerun the Cell.';
+                throw new ResearchPythonExecutionError(
+                  message,
+                  [{ type: 'text', text: message, level: 'warning' }],
+                  frame.definitions,
+                  frame.references,
+                  researchPayloadHash(entry.environment),
+                );
+              }
+              return {
+                outputs,
+                definitions: frame.definitions,
+                references: frame.references,
+                environmentFingerprint: researchPayloadHash(entry.environment),
+              };
+            }
+            if (frame.type === 'research_error') {
               throw new ResearchPythonExecutionError(
-                message,
-                [{ type: 'text', text: message, level: 'warning' }],
+                String(frame.message ?? 'Python research cell failed'),
+                logOutputs,
                 frame.definitions,
                 frame.references,
                 researchPayloadHash(entry.environment),
               );
             }
-            return {
-              outputs,
-              definitions: frame.definitions,
-              references: frame.references,
-              environmentFingerprint: researchPayloadHash(entry.environment),
-            };
+            throw runtimeFrameError(frame, 'executing a research cell');
           }
-          if (frame.type === 'research_error') {
-            throw new ResearchPythonExecutionError(
-              String(frame.message ?? 'Python research cell failed'),
-              logOutputs,
-              frame.definitions,
-              frame.references,
-              researchPayloadHash(entry.environment),
-            );
+        } catch (error) {
+          if (entry.interrupted) {
+            throw new ResearchPythonInterruptionError(researchPayloadHash(entry.environment));
           }
-          throw runtimeFrameError(frame, 'executing a research cell');
+          throw error;
+        } finally {
+          entry.activeCellId = undefined;
         }
-      } catch (error) {
-        if (entry.interrupted) {
-          throw new ResearchPythonInterruptionError(researchPayloadHash(entry.environment));
-        }
-        throw error;
-      } finally {
-        entry.activeCellId = undefined;
-      }
-    });
+      },
+      options.signal,
+    );
   }
 
   interrupt(documentId: string): string | null {
@@ -229,9 +273,16 @@ class ResearchRuntimeManager {
   private async withEntry<T>(
     documentId: string,
     operation: (entry: ResearchRuntimeEntry) => Promise<T>,
+    signal?: AbortSignal,
   ): Promise<T> {
-    const entry = await this.acquireEntry(documentId);
-    const result = entry.queue.then(() => operation(entry));
+    signal?.throwIfAborted();
+    const entry = await this.acquireEntry(documentId, signal);
+    const abort = () => entry.session.abort(new Error('Research execution aborted'));
+    signal?.addEventListener('abort', abort, { once: true });
+    const result = entry.queue.then(() => {
+      signal?.throwIfAborted();
+      return operation(entry);
+    });
     entry.queue = result.then(
       () => undefined,
       () => undefined,
@@ -243,18 +294,25 @@ class ResearchRuntimeManager {
         !(error instanceof ResearchPythonExecutionError) &&
         !(error instanceof ResearchPythonInterruptionError)
       ) {
-        this.close(documentId);
+        if (this.entries.get(documentId) === entry) {
+          this.close(documentId);
+        }
       }
       throw error;
     } finally {
+      signal?.removeEventListener('abort', abort);
       entry.pendingOperations -= 1;
       entry.touchedAt = Date.now();
     }
   }
 
-  private async acquireEntry(documentId: string): Promise<ResearchRuntimeEntry> {
+  private async acquireEntry(
+    documentId: string,
+    signal?: AbortSignal,
+  ): Promise<ResearchRuntimeEntry> {
     const acquisition = this.entryAcquisitionQueue.then(async () => {
-      const entry = await this.getOrCreate(documentId);
+      signal?.throwIfAborted();
+      const entry = await this.getOrCreate(documentId, signal);
       entry.pendingOperations += 1;
       return entry;
     });
@@ -265,7 +323,10 @@ class ResearchRuntimeManager {
     return acquisition;
   }
 
-  private async getOrCreate(documentId: string): Promise<ResearchRuntimeEntry> {
+  private async getOrCreate(
+    documentId: string,
+    signal?: AbortSignal,
+  ): Promise<ResearchRuntimeEntry> {
     const existing = this.entries.get(documentId);
     if (existing) {
       return existing;
@@ -283,13 +344,22 @@ class ResearchRuntimeManager {
       }
     }
 
-    const session = await PythonSession.connect();
+    const session = await PythonSession.connect(signal);
+    const abort = () => session.abort(new Error('Research startup aborted'));
+    signal?.addEventListener('abort', abort, { once: true });
     try {
-      await session.send({ type: 'research_start', runtime_version: 'research-py-v1' });
-      const environment = await waitForResearchReady(session);
+      signal?.throwIfAborted();
+      await session.send({
+        type: 'research_start',
+        runtime_version: 'research-py-v1',
+        request_capabilities: ['explicit_parameters'],
+      });
+      const ready = await waitForResearchReady(session);
+      signal?.throwIfAborted();
       const entry: ResearchRuntimeEntry = {
         session,
-        environment,
+        environment: { ...ready.environment, capabilities: ready.capabilities },
+        capabilities: ready.capabilities,
         queue: Promise.resolve(),
         touchedAt: Date.now(),
         pendingOperations: 0,
@@ -300,6 +370,8 @@ class ResearchRuntimeManager {
     } catch (error) {
       session.close();
       throw error;
+    } finally {
+      signal?.removeEventListener('abort', abort);
     }
   }
 }
@@ -326,7 +398,9 @@ export class ResearchPythonInterruptionError extends Error {
 
 export const researchRuntimeManager = new ResearchRuntimeManager();
 
-async function waitForResearchReady(session: PythonSession): Promise<Record<string, unknown>> {
+async function waitForResearchReady(
+  session: PythonSession,
+): Promise<{ environment: Record<string, unknown>; capabilities: string[] }> {
   while (true) {
     const frame = await session.readValidated(
       researchStartupFrameSchema,
@@ -336,7 +410,7 @@ async function waitForResearchReady(session: PythonSession): Promise<Record<stri
       continue;
     }
     if (frame.type === 'research_ready') {
-      return frame.environment;
+      return { environment: frame.environment, capabilities: frame.capabilities ?? [] };
     }
     throw runtimeFrameError(frame, 'starting the research runtime');
   }

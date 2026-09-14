@@ -46,6 +46,7 @@ export async function persistResearchCellChangePart(
       id: args.part.proposal.documentId,
       conversationId: args.conversationId,
       userId: args.userId,
+      embeddedVersion: null,
     },
     select: { id: true },
   });

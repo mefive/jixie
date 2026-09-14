@@ -1,6 +1,8 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { PrismaClient } from '@prisma/client';
 import prismaPackage from '@prisma/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,10 +29,11 @@ describe('research curator', () => {
 
   beforeEach(async () => {
     temporaryDirectory = await mkdtemp(join(tmpdir(), 'jixie-research-curator-'));
-    database = new RuntimePrismaClient({
-      datasourceUrl: `file:${join(temporaryDirectory, 'curator.db')}`,
-    });
-    await createFixtureSchema(database);
+    const databasePath = join(temporaryDirectory, 'curator.db');
+    await writeFile(databasePath, '');
+    const databaseUrl = `file:${databasePath}`;
+    database = new RuntimePrismaClient({ datasourceUrl: databaseUrl });
+    createFixtureSchema(databaseUrl);
     await seedUserConversation(database, 'user-a', 'a@example.com', 'conversation-a');
     await seedUserConversation(database, 'user-b', 'b@example.com', 'conversation-b');
     await database.agentMessage.createMany({
@@ -58,6 +61,53 @@ describe('research curator', () => {
   afterEach(async () => {
     await database.$disconnect();
     await rm(temporaryDirectory, { recursive: true, force: true });
+  });
+
+  it('excludes internal embedded conversations while retaining ordinary legacy conversations', async () => {
+    await database.agentConversation.create({
+      data: { id: 'embedded', userId: 'user-a', surface: 'research', title: 'Internal analysis' },
+    });
+    await database.researchDocument.create({
+      data: { id: 'embedded', userId: 'user-a', conversationId: 'embedded' },
+    });
+    await database.researchEmbeddedAnalysis.create({
+      data: {
+        id: 'analysis',
+        userId: 'user-a',
+        hostType: 'factor',
+        hostId: 'fixture',
+        title: 'Analysis',
+        versions: {
+          create: {
+            id: 'version',
+            number: 1,
+            documentId: 'embedded',
+            source: '42',
+            parameters: {},
+            inputScope: 'Fixture',
+            contextSnapshot: {},
+          },
+        },
+      },
+    });
+    await database.agentMessage.create({
+      data: {
+        id: 'embedded-message',
+        conversationId: 'embedded',
+        role: 'user',
+        sequence: 0,
+        parts: [{ type: 'text', text: 'market.adjusted_close regression method template' }],
+        createdAt: new Date('2026-08-14T01:00:00.000Z'),
+      },
+    });
+
+    const evidence = await extractResearchCuratorEvidence(
+      'user-a',
+      null,
+      new Date('2026-08-14T02:00:00.000Z'),
+      database,
+    );
+    expect(evidence.map((entry) => entry.conversationId)).toEqual(['conversation-a']);
   });
 
   it('extracts only the current user evidence and verifies model drafts deterministically', async () => {
@@ -421,6 +471,7 @@ async function prepareAndCompleteCuratorRun(
         error: null,
         logs: null,
         factorReportId: null,
+        researchExecutionId: null,
         backtestReportId: null,
         strategyScanReportId: null,
         signalRunId: null,
@@ -452,22 +503,17 @@ async function seedUserConversation(
   });
 }
 
-async function createFixtureSchema(database: PrismaClient) {
-  const statements = [
-    'PRAGMA foreign_keys=ON',
-    'CREATE TABLE "User" ("id" TEXT NOT NULL PRIMARY KEY, "email" TEXT NOT NULL, "name" TEXT, "status" TEXT NOT NULL DEFAULT \'active\', "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)',
-    'CREATE TABLE "AgentConversation" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "surface" TEXT NOT NULL, "title" TEXT, "strategyId" TEXT, "factorId" TEXT, "archivedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "AgentMessage" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "role" TEXT NOT NULL, "parts" JSONB NOT NULL, "sequence" INTEGER NOT NULL, "turnId" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "AgentTurn" ("id" TEXT NOT NULL PRIMARY KEY, "conversationId" TEXT NOT NULL, "status" TEXT NOT NULL, "model" TEXT NOT NULL, "trace" JSONB NOT NULL, "error" TEXT, "startedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "finishedAt" DATETIME, FOREIGN KEY ("conversationId") REFERENCES "AgentConversation"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "ResearchCuratorRun" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "status" TEXT NOT NULL DEFAULT \'queued\', "trigger" TEXT NOT NULL DEFAULT \'manual\', "cursorFrom" DATETIME, "cursorTo" DATETIME NOT NULL, "evidenceCount" INTEGER NOT NULL DEFAULT 0, "findingsCreated" INTEGER NOT NULL DEFAULT 0, "duplicatesSkipped" INTEGER NOT NULL DEFAULT 0, "error" TEXT, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "ResearchCuratorFinding" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "runId" TEXT NOT NULL, "category" TEXT NOT NULL, "title" TEXT NOT NULL, "summary" TEXT NOT NULL, "evidence" JSONB NOT NULL, "verification" JSONB NOT NULL, "confidence" REAL NOT NULL, "expectedValue" TEXT NOT NULL, "changeSurface" JSONB NOT NULL, "suggestedAction" TEXT NOT NULL, "fingerprint" TEXT NOT NULL, "disposition" TEXT NOT NULL DEFAULT \'pending\', "dispositionNote" TEXT, "disposedAt" DATETIME, "verificationAssessment" TEXT, "verificationAssessedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("runId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
-    'CREATE TABLE "TushareCapabilityProbe" ("id" TEXT NOT NULL PRIMARY KEY, "catalogVersion" INTEGER NOT NULL, "apiName" TEXT NOT NULL, "domain" TEXT NOT NULL, "probeDate" TEXT NOT NULL, "status" TEXT NOT NULL, "rowCount" INTEGER NOT NULL, "fields" JSONB NOT NULL, "historyField" TEXT, "historyStart" TEXT, "historyEnd" TEXT, "probeCoverage" TEXT, "errorCode" INTEGER, "errorMessage" TEXT, "probedAt" DATETIME NOT NULL)',
-    'CREATE TABLE "Job" ("id" TEXT NOT NULL PRIMARY KEY, "userId" TEXT NOT NULL, "kind" TEXT NOT NULL, "key" TEXT NOT NULL, "status" TEXT NOT NULL, "payload" JSONB, "error" TEXT, "logs" TEXT, "factorReportId" TEXT, "strategyScanReportId" TEXT, "signalRunId" TEXT, "researchCuratorRunId" TEXT, "queuedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "startedAt" DATETIME, "finishedAt" DATETIME, "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" DATETIME NOT NULL, FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE, FOREIGN KEY ("researchCuratorRunId") REFERENCES "ResearchCuratorRun"("id") ON DELETE CASCADE)',
-    'CREATE UNIQUE INDEX "User_email_key" ON "User"("email")',
-    'CREATE UNIQUE INDEX "ResearchCuratorFinding_userId_fingerprint_key" ON "ResearchCuratorFinding"("userId", "fingerprint")',
-    'CREATE UNIQUE INDEX "Job_researchCuratorRunId_key" ON "Job"("researchCuratorRunId")',
-  ];
-  for (const statement of statements) {
-    await database.$executeRawUnsafe(statement);
-  }
+function createFixtureSchema(databaseUrl: string) {
+  execFileSync(
+    process.execPath,
+    [
+      createRequire(import.meta.url).resolve('prisma/build/index.js'),
+      'db',
+      'push',
+      '--skip-generate',
+      '--schema',
+      resolve('prisma/schema.prisma'),
+    ],
+    { env: { ...process.env, DATABASE_URL: databaseUrl }, stdio: 'pipe' },
+  );
 }

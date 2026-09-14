@@ -12,6 +12,8 @@ export const jobRegistry: JobRegistry = {
   factor: async () => (await import('#factor/factor-job.js')).factorJob,
   'strategy-scan': async () => (await import('#strategy/scan-job.js')).strategyScanJob,
   signal: async () => (await import('#signals/signal-job.js')).signalJob,
+  'research-embedded-analysis': async () =>
+    (await import('#research/embedded-analysis-job.js')).researchEmbeddedAnalysisJob,
   'research-curator': async () => (await import('#research/curator-job.js')).researchCuratorJob,
 };
 

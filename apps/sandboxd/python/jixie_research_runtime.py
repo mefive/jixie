@@ -1501,7 +1501,14 @@ def run_research(
     modules = _optional_modules()
     namespace = _new_namespace(host, modules)
     definitions_by_cell: dict[str, set[str]] = {}
-    send_frame({"type": "research_ready", "environment": _environment(modules)})
+    ready = {"type": "research_ready", "environment": _environment(modules)}
+    if "request_capabilities" in start:
+        ready["capabilities"] = (
+            ["explicit_parameters"]
+            if "explicit_parameters" in start["request_capabilities"]
+            else []
+        )
+    send_frame(ready)
 
     while True:
         message = read_frame()
@@ -1554,6 +1561,16 @@ def run_research(
         for name in previous_definitions - set(analysis.definitions):
             namespace.pop(name, None)
         try:
+            if "parameters" in message:
+                parameters = message["parameters"]
+                if not isinstance(parameters, dict) or any(
+                    not isinstance(key, str)
+                    or not (value is None or isinstance(value, (str, int, float, bool)))
+                    or (isinstance(value, float) and not math.isfinite(value))
+                    for key, value in parameters.items()
+                ):
+                    raise ValueError("Research parameters must be a dictionary of JSON scalars")
+                namespace["parameters"] = dict(parameters)
             figures_before = _figure_numbers(modules.get("matplotlib"))
             value = run_user_code(lambda: _execute(source, namespace))
             sys.stdout.flush()

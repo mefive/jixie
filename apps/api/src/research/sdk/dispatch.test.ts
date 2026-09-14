@@ -64,4 +64,61 @@ describe('Research SDK request dispatch boundary', () => {
     expect(loadReport).not.toHaveBeenCalled();
     expect(session.send).not.toHaveBeenCalled();
   });
+
+  it('persists request and response evidence before sending data to Python', async () => {
+    const events: string[] = [];
+    loadReport.mockImplementation(async () => {
+      events.push('load');
+      return { report: { value: 42 } };
+    });
+    const session = {
+      send: vi.fn(async () => {
+        events.push('send');
+      }),
+    };
+    await dispatchResearchRequest(
+      'document',
+      session,
+      {
+        type: 'request',
+        id: 1,
+        method: 'research_factor_report',
+        arguments: { report_id: 'report' },
+      },
+      {
+        async beforeRequest() {
+          events.push('request');
+        },
+        async captureResponse(_frame, response) {
+          events.push('capture');
+          expect(response).toEqual({ result: { report: { value: 42 } } });
+        },
+      },
+    );
+    expect(events).toEqual(['request', 'load', 'capture', 'send']);
+  });
+
+  it('does not expose persistence or budget failures as catchable Python response errors', async () => {
+    loadReport.mockResolvedValue({ report: { value: 42 } });
+    const session = { send: vi.fn() };
+    await expect(
+      dispatchResearchRequest(
+        'document',
+        session,
+        {
+          type: 'request',
+          id: 1,
+          method: 'research_factor_report',
+          arguments: { report_id: 'report' },
+        },
+        {
+          beforeRequest: async () => {},
+          captureResponse: async () => {
+            throw new Error('Evidence storage failed');
+          },
+        },
+      ),
+    ).rejects.toThrow('Evidence storage failed');
+    expect(session.send).not.toHaveBeenCalled();
+  });
 });

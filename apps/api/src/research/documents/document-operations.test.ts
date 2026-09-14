@@ -37,7 +37,12 @@ describe('research document management', () => {
     await listResearchDocuments('user-a');
     expect(mocks.conversationFindMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: { userId: 'user-a', surface: 'research', archivedAt: null },
+        where: {
+          userId: 'user-a',
+          surface: 'research',
+          archivedAt: null,
+          NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+        },
         orderBy: { updatedAt: 'desc' },
       }),
     );
@@ -49,6 +54,7 @@ describe('research document management', () => {
           userId: 'user-a',
           surface: 'research',
           archivedAt: { not: null },
+          NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
         },
         orderBy: { archivedAt: 'desc' },
       }),
@@ -91,7 +97,12 @@ describe('research document management', () => {
     await expect(archiveResearchDocument('user-a', 'document-a')).resolves.toBe(true);
 
     expect(mocks.conversationFindFirst).toHaveBeenCalledWith({
-      where: { id: 'document-a', userId: 'user-a', surface: 'research' },
+      where: {
+        id: 'document-a',
+        userId: 'user-a',
+        surface: 'research',
+        NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+      },
       select: { id: true, archivedAt: true },
     });
     expect(mocks.conversationUpdate).toHaveBeenCalledWith({

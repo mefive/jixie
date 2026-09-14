@@ -10,7 +10,7 @@ export async function interruptResearchDocument(
   documentId: string,
 ): Promise<ResearchDocumentInterruptResultV1 | null> {
   const owner = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!owner) {
@@ -41,7 +41,7 @@ export async function resetResearchDocumentRuntime(
   documentId: string,
 ): Promise<ResearchDocumentV1 | null> {
   const owner = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!owner) {

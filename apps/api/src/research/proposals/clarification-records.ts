@@ -51,6 +51,7 @@ export async function persistResearchClarificationPart(
       id: args.part.clarification.documentId,
       conversationId: args.conversationId,
       userId: args.userId,
+      embeddedVersion: null,
     },
     select: { id: true },
   });
@@ -83,7 +84,7 @@ export async function resolveResearchClarificationAnswer(
 ): Promise<ResearchClarificationV1> {
   return prisma.$transaction(async (transaction) => {
     const clarification = await transaction.researchClarification.findFirst({
-      where: { id: clarificationId, document: { userId, conversationId } },
+      where: { id: clarificationId, document: { userId, conversationId, embeddedVersion: null } },
     });
     if (!clarification) {
       throw new ResearchClarificationAnswerError('not_found');

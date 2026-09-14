@@ -87,6 +87,21 @@ describe('Python session transport', () => {
     expect(await received).toEqual(expected);
   });
 
+  it('does not start a connection after its caller has already cancelled', async () => {
+    const controller = new AbortController();
+    controller.abort(new Error('Cancelled before connection'));
+    await expect(PythonSession.connect(controller.signal)).rejects.toThrow(
+      'Cancelled before connection',
+    );
+    expect(peers.size).toBe(0);
+  });
+
+  it('rejects sends after cancellation instead of waiting for a closed transport to drain', async () => {
+    await connect();
+    session!.abort(new Error('Cancelled'));
+    await expect(session!.send({ type: 'close' })).rejects.toThrow('Cancelled');
+  });
+
   it.each([
     ['invalid JSON', Buffer.from([0, 0, 0, 1, 123]), 'returned invalid JSON'],
     ['missing type', packet({ value: 1 }), 'must be an object with a string type'],

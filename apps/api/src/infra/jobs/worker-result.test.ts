@@ -17,6 +17,7 @@ const job: JobSnapshot = {
   strategyScanReportId: null,
   signalRunId: null,
   researchCuratorRunId: null,
+  researchExecutionId: null,
   queuedAt: new Date(0),
   startedAt: new Date(0),
   finishedAt: null,

@@ -137,7 +137,7 @@ export async function listResearchExecutions(
   documentId: string,
 ): Promise<ResearchExecutionSummaryV1[] | null> {
   const document = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!document) {
@@ -155,7 +155,7 @@ export async function getResearchExecution(
   executionId: string,
 ): Promise<ResearchExecutionV1 | null> {
   const execution = await prisma.researchExecution.findFirst({
-    where: { id: executionId, document: { userId } },
+    where: { id: executionId, document: { userId, embeddedVersion: null } },
     include: { cellExecutions: { orderBy: { startedAt: 'asc' } } },
   });
   return execution ? researchExecutionView(execution) : null;
@@ -167,7 +167,7 @@ export async function promoteResearchExecution(
   input: ResearchExecutionPromotionInputV1,
 ): Promise<ResearchExecutionSummaryV1 | null> {
   const execution = await prisma.researchExecution.findFirst({
-    where: { id: executionId, document: { userId } },
+    where: { id: executionId, document: { userId, embeddedVersion: null } },
   });
   if (!execution) {
     return null;

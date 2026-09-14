@@ -48,7 +48,13 @@ export async function startResearchAgentTurn(
   let conversationId = input.conversationId;
   if (conversationId) {
     const existing = await prisma.agentConversation.findFirst({
-      where: { id: conversationId, userId, surface: 'research', archivedAt: null },
+      where: {
+        id: conversationId,
+        userId,
+        surface: 'research',
+        archivedAt: null,
+        NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+      },
       select: { id: true },
     });
     if (!existing) {

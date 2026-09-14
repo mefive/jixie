@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   scan: vi.fn(),
   signal: vi.fn(),
   curator: vi.fn(),
+  embeddedAnalysis: vi.fn(),
 }));
 vi.mock('./server.js', () => ({ buildApp: mocks.buildApp }));
 vi.mock('@hono/node-server', () => ({ serve: mocks.serve }));
@@ -32,6 +33,9 @@ vi.mock('#factor/factor-job.js', () => ({ factorJob: mocks.factor }));
 vi.mock('#strategy/scan-job.js', () => ({ strategyScanJob: mocks.scan }));
 vi.mock('#signals/signal-job.js', () => ({ signalJob: mocks.signal }));
 vi.mock('#research/curator-job.js', () => ({ researchCuratorJob: mocks.curator }));
+vi.mock('#research/embedded-analysis-job.js', () => ({
+  researchEmbeddedAnalysisJob: mocks.embeddedAnalysis,
+}));
 
 import { startServer, jobRegistry } from './bootstrap.js';
 
@@ -118,6 +122,7 @@ describe('API bootstrap composition', () => {
       'factor',
       'strategy-scan',
       'signal',
+      'research-embedded-analysis',
       'research-curator',
     ]);
     const cases = [
@@ -125,6 +130,7 @@ describe('API bootstrap composition', () => {
       ['factor', mocks.factor],
       ['strategy-scan', mocks.scan],
       ['signal', mocks.signal],
+      ['research-embedded-analysis', mocks.embeddedAnalysis],
       ['research-curator', mocks.curator],
     ] as const;
     for (const [kind, definition] of cases) {

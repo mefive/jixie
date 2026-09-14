@@ -105,7 +105,7 @@ export async function prepareResearchCellChangeProposal(
   }
 
   const document = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId },
+    where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
       updatedAt: true,
@@ -283,7 +283,7 @@ async function applyResearchCellChangeProposalInternal(
   const transactionResult = await prisma.$transaction(
     async (transaction): Promise<ApplyTransactionResult | null> => {
       const proposal = await transaction.researchCellChangeProposal.findFirst({
-        where: { id: proposalId, document: { userId } },
+        where: { id: proposalId, document: { userId, embeddedVersion: null } },
         include: {
           document: {
             select: {
@@ -443,7 +443,7 @@ export async function rejectResearchCellChangeProposal(
 ): Promise<ResearchCellChangeResolutionResultV1 | null> {
   const transactionResult = await prisma.$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
-      where: { id: proposalId, document: { userId } },
+      where: { id: proposalId, document: { userId, embeddedVersion: null } },
     });
     if (!proposal) {
       return null;
@@ -475,7 +475,7 @@ export async function acceptResearchCellChangeReview(
 ): Promise<ResearchCellChangeReviewResolutionResultV1 | null> {
   const documentId = await prisma.$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
-      where: { id: proposalId, document: { userId } },
+      where: { id: proposalId, document: { userId, embeddedVersion: null } },
       include: { document: { select: { id: true, contentRevision: true } } },
     });
     if (!proposal) {
@@ -528,7 +528,7 @@ export async function revertResearchCellChangeReview(
 ): Promise<ResearchCellChangeReviewResolutionResultV1 | null> {
   const transactionResult = await prisma.$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
-      where: { id: proposalId, document: { userId } },
+      where: { id: proposalId, document: { userId, embeddedVersion: null } },
       include: {
         document: {
           select: {

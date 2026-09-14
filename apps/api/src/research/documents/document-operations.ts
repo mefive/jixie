@@ -20,6 +20,7 @@ export async function listResearchDocuments(
     where: {
       userId,
       surface: 'research',
+      NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
       archivedAt: state === 'archived' ? { not: null } : null,
     },
     include: {
@@ -54,7 +55,12 @@ export async function archiveResearchDocument(
   documentId: string,
 ): Promise<boolean> {
   const conversation = await prisma.agentConversation.findFirst({
-    where: { id: documentId, userId, surface: 'research' },
+    where: {
+      id: documentId,
+      userId,
+      surface: 'research',
+      NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+    },
     select: { id: true, archivedAt: true },
   });
   if (!conversation) {
@@ -75,7 +81,12 @@ export async function restoreResearchDocument(
   documentId: string,
 ): Promise<boolean> {
   const conversation = await prisma.agentConversation.findFirst({
-    where: { id: documentId, userId, surface: 'research' },
+    where: {
+      id: documentId,
+      userId,
+      surface: 'research',
+      NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+    },
     select: { id: true, archivedAt: true },
   });
   if (!conversation) {
@@ -120,6 +131,7 @@ export async function renameResearchDocument(userId: string, documentId: string,
       id: documentId,
       userId,
       surface: 'research',
+      NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
       archivedAt: null,
     },
     data: { title },
@@ -129,7 +141,12 @@ export async function renameResearchDocument(userId: string, documentId: string,
 
 export async function deleteResearchDocument(userId: string, documentId: string) {
   const deleted = await prisma.agentConversation.deleteMany({
-    where: { id: documentId, userId, surface: 'research' },
+    where: {
+      id: documentId,
+      userId,
+      surface: 'research',
+      NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
+    },
   });
   if (deleted.count === 1) {
     closeResearchDocumentRuntime(documentId);
