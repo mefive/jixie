@@ -1,5 +1,9 @@
 # 设计:计算图卡片(analyzeData → echarts)+ 图形态扩展
 
+> **后续决策（2026-09-14 已确认，待实现）**：新对话绘图将使用[嵌入式 Python 分析](embedded-python-analysis.md)的固定输出。
+> 旧 `renderChart` / `renderComputedChart` 退出工具注册，历史 ChartSpec 及其必要执行逻辑继续兼容。
+> 下文“存查询、重开重跑”仅描述旧卡片，不约束新分析；旧路由等设计细节不作为当前代码事实。
+
 > 2026-07-09 规划,对应原 `ROADMAP.md` **7.8**。承接 7.6(`renderChart` 纯 SQL 图)与
 > 7.7(`analyzeData` 沙盒计算、只出文字)的缺口:「算得出、画不出」。
 > **状态:Phase A + B 已实施(2026-07-25)**——工具形态拍板为方案 2(新工具

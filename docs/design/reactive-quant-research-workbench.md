@@ -3,6 +3,10 @@
 > 2026-08-17 产品决策，2026-08-19 收敛 Cell 边界。本文是当前“主线一”的唯一产品设计依据。Research 只
 > 保留 Markdown / Python 两类 Cell；数据目录、Universe、Python SDK、完整执行快照和 Curator 继续复用。
 
+> **2026-09-14 扩展规划，尚未实现**：Factor / Strategy 对话中的嵌入式分析见
+> [嵌入式 Python 分析](embedded-python-analysis.md)。该扩展细化本文的三者分工，复用 Research 执行与输出，
+> 成功版本固定、每次运行留存，并支持进入可编辑 Research；不改变普通文档的编辑规则或既有 M0–M5 完成记录。
+
 > **实施状态（2026-08-19）**：jixie-native 的首个垂直切片已经完成并通过真实浏览器验收。当前覆盖持久化
 > 研究文档、两类 Cell、独立 Python runtime、AST 依赖与 stale 传播、平台时序取数、表格、Matplotlib、
 > 结构化 ECharts、静态 Research SDK Contract、Monaco 参数与返回列补全、Pyright 跨 Cell 语言服务、可搜索数据目录、
@@ -61,6 +65,17 @@ Published Factor → Strategy → Backtest / SignalRun
 三者共享资产身份、Universe、交易日历、PIT、复权、币种、单位、数据截止日和指纹语义；不共享同一组
 无限制 API：Research 可以批量读取历史并返回 DataFrame，Factor 只能读取声明过且当时可得的输入，Strategy
 只能读取当前决策日及之前的数据并拥有持仓和订单能力。
+
+### 2.1 工作台中的嵌入式分析（已确认，待实现）
+
+用户在 Factor / Strategy 中检查数据或解释已有报告时，就地得到 Python 分析的表格、图表和说明；完整明细
+仍在执行设施与用户界面之间流转，模型只接收有界摘要。嵌入式是 Research 的使用模式，不增加第三种代码 Cell
+或另一套 Notebook。每次独立执行，首次成功固定版本，旧消息精确引用原运行；后续修改产生新版。
+
+用户主动选择“继续到 Research”时创建可编辑研究副本，带入确定版本、必要输入及来源，原记录保持不变。
+嵌入分析不自动进入普通文档列表，也不成为 Factor / Strategy 运行时对可变 Cell 的依赖。实际输入的有界留存
+服务于本扩展，不把旧 M3 的范围描述解释成已实现数据快照，也不顺带建设全平台行情版本库。
+实现范围、历史工具退出与验收统一见[扩展规划](embedded-python-analysis.md)。
 
 ## 3. 信息架构
 

@@ -237,11 +237,10 @@ M4 第 3 项已经完成：Factor 已增加 Python SDK、`py-v1` 受限运行时
 Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新的 Factor 以及 Research → Factor 草稿默认 Python。
 实现已按契约与持久化、横截面运行时、时序/Panel 下游闭环、编辑器与 E2E 四个切片落地。
 
-Research 对派生结果的二次分析进入 backlog：FactorReport 可作为用户权限内的不可变 `results` 数据集读取；
-Strategy 当前只有会被后续运行覆盖的 `lastResult`，精确历史复盘必须先引入不可变 `BacktestReport`，记录配置/
-代码/结果 hash、完成时间、净值和成交快照。两类结果均不和 Research 建关系表，完整持仓历史也必须由引擎真实
-产出后再开放。全局封存档案/搜索、底层数据副本、数据请求指纹和快照
-自动归因等待真实需求，不阻塞 M3 收工。
+Research 对派生结果的只读分析已经落地：`results.factor_report()` 与 `results.backtest_report()` 按报告 ID
+读取当前用户的已完成报告，未揭示 Holdout 保持保护。普通回测每次创建不可变 `BacktestReport`，保存配置、代码/
+结果 hash、完成时间及结果；`Strategy.lastResult` 仅作为最新结果缓存。Strategy Lab 已可从选中报告新建 Research
+文档。完整持仓历史仍须由引擎真实产出后再开放；全局档案、全平台数据副本及自动归因不属于本次已完成能力。
 
 2026-08-20 已用真实 PIT 股票 Panel 研究完成首版封板验收：同一文档覆盖 Markdown 假设、Python 数据与统计、
 静态/交互图、stale 依赖、Agent 查询 SDK 后修改 Cell、可编辑审核、重新运行、干净全文执行、不可变快照、显式
@@ -253,6 +252,17 @@ Strategy 当前只有会被后续运行覆盖的 `lastResult`，精确历史复�
 精确、可执行的 Binding 与代理差异；无精确口径时以持久化选择卡让用户二次确认，回答可跨刷新恢复并开启新 turn。
 待确认期间暂停自由输入和 Diff；后端在 Diff 前以 Python AST 和 Catalog 确定性核对 `data.series` 品种、measure
 及 SDK Contract 查询证据，同一 turn 的选择卡确定性优先于提案。浏览器验收已贯通待确认、选择、落库和刷新恢复。
+
+#### Factor / Strategy 嵌入式分析扩展（2026-09-14 已确认，待实现）
+
+在两个工作台的对话中复用 Research Python 计算和输出。分析首次成功后固定该版本，每次失败或重跑都保存
+执行记录；修改成功版本产生新版，旧消息继续引用当时结果。预设及只读因子问答补齐持久化和选中报告上下文。
+用户可以从确定版本继续进入可编辑 Research；普通 Research 文档、正式因子检验和策略回测保持现有职责。
+
+完整替代后删除 `analyzeDataTool` 和 `gen-stats-doc.ts` 及专用生成链，退出旧绘图工具注册；保留 `sqlQuery`、
+正式业务仍使用的 `stats.ts` 和历史聊天图表所需的执行兼容。新分析保存实际输入并设置限额，不扩展全平台数据版本库。
+方案、证据、五个提交及验收见[嵌入式 Python 分析](docs/design/embedded-python-analysis.md)。当前仅完成方向确认，
+本段不代表能力已实现，不改变 1.5 既有完成记录。
 
 ### 1.6 研究方法模板与统计能力扩展 💤
 
