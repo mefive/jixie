@@ -15,6 +15,8 @@ For example: “Plot the ten groups in this factor report and calculate the high
 
 When a material choice is unresolved—currency, adjustment, sample period or a proxy—the Agent should explain the alternatives and ask you to choose. Simple facts and small aggregates can still be queried and answered directly.
 
+Python reads through SDK methods in the data catalog, not arbitrary SQL query results. The Agent can still query simple facts outside the catalog. If a calculation needs a data interface that is not available, it should explain the gap rather than copy chat-visible rows and present them as complete retained inputs.
+
 ## Read the evidence
 
 Check the sample and processing method before relying on the value. Details include:
@@ -45,6 +47,10 @@ The default is **Use retained inputs**. Change the algorithm or add calculations
 Choose **Fetch current data** when you want new data. Changing modes makes existing Python outputs stale and clears interpreter state, so rerun the document. Full-run history records the input mode and original run ID. The original analysis stays fixed, even if you delete its Research copy.
 
 Retained inputs support recomputation; they do not guarantee bitwise identical results across runtime environments. Ordinary Research documents retain their editing, dependency and execution-history rules.
+
+## Charts in older conversations
+
+Older charts stored queries and calculation code without a full snapshot of the original points. Opening them reruns that specification against the current database, as stated on the card. The chart may therefore differ from the old answer. Missing data and execution failures remain visible; original results are not reconstructed or invented. New embedded analyses retain the outputs of each run.
 
 ## Move to formal validation
 

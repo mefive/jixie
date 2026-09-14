@@ -14,7 +14,7 @@ export interface AgentUniverse {
 }
 
 /** A chart card draft: the query that draws it, never the points.
- * Produced as a side effect of the renderChart tool. */
+ * Retained for historical chart-part compatibility. */
 export interface AgentChart {
   title: string;
   chart: ChartSpec;

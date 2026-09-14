@@ -51,6 +51,8 @@ export const enComponents: typeof zhComponents = {
 
   // Chat chart
   points: '{{count}} points',
+  historicalChartCurrentData:
+    'Historical chart: opening it reruns the saved query and code on current data, which may differ from the original answer.',
   chartQueryFailed: 'Chart query failed (conditions may be outdated): ',
 
   // Query card

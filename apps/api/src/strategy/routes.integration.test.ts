@@ -559,9 +559,9 @@ describe('Strategy HTTP business boundaries', () => {
         'dataCoverage',
         'runUniverse',
         'sqlQuery',
-        'renderChart',
-        'renderComputedChart',
-        'analyzeData',
+        'searchResearchCatalog',
+        'runEmbeddedAnalysis',
+        'readEmbeddedAnalysis',
       ]);
       expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toMatchObject({
         config,

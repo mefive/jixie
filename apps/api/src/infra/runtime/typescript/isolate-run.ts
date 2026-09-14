@@ -3,7 +3,7 @@ import ivm from 'isolated-vm';
 import { transform } from 'esbuild';
 
 /**
- * Hard sandbox for user/model-authored code (Phase A: factor compute + analyzeData; the strategy
+ * Hard sandbox for user/model-authored code (factor compute and historical chart transforms; the strategy
  * onBar ctx bridge is Phase B — see python-and-sandbox.md).
  *
  * The layering, spelled out once:

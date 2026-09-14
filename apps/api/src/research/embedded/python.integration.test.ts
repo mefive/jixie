@@ -4,6 +4,7 @@ import { rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
+import { std, quantile } from '#math/stats.js';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -109,6 +110,8 @@ describe('embedded analysis with the real Research Python runtime', () => {
     await prisma.researchEmbeddedAnalysisVersion.deleteMany();
     await prisma.researchEmbeddedAnalysis.deleteMany();
     await prisma.factorReport.deleteMany();
+    await prisma.indexDaily.deleteMany();
+    await prisma.finaIndicator.deleteMany();
     await prisma.user.deleteMany();
   });
   afterAll(async () => {
@@ -181,6 +184,83 @@ describe('embedded analysis with the real Research Python runtime', () => {
       correlation: null,
       empty_count: 0,
     });
+  }, 30_000);
+
+  it('replaces chat statistics with SDK data, standard Python estimators and a retained rolling chart', async () => {
+    const dates = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];
+    const returns = [-0.02, 0.01, 0.03, -0.01, 0.04];
+    for (const [tsCode, initial, changes] of [
+      ['000300.SH', 100, returns],
+      ['000852.SH', 200, returns.map((value) => 0.005 + 2 * value)],
+    ] as const) {
+      let close = initial;
+      await prisma.indexDaily.createMany({
+        data: dates.map((tradeDate, index) => {
+          if (index > 0) {
+            close *= 1 + changes[index - 1];
+          }
+          return { tsCode, tradeDate, close };
+        }),
+      });
+    }
+    await prisma.finaIndicator.createMany({
+      data: [
+        { tsCode: '600519.SH', endDate: '20221231', annDate: '20230330', roe: 20 },
+        { tsCode: '600519.SH', endDate: '20231231', annDate: '20240330', roe: 99 },
+      ],
+    });
+    const { run } = await create(`import numpy as np
+import pandas as pd
+from scipy import stats
+import statsmodels.api as sm
+left = data.series("index", "000300.SH", start="20240102", end="20240108", transform="simple_return")
+right = data.series("index", "000852.SH", start="20240102", end="20240108", transform="simple_return")
+paired = left.merge(right, on="date", how="inner", suffixes=("_left", "_right")).dropna()
+assert len(paired) == 5
+assert np.isnan(pd.Series(dtype=float).mean())
+with np.errstate(divide="ignore", invalid="ignore"):
+    assert np.isnan(np.corrcoef(np.ones(3), np.arange(3))[0, 1])
+fit = sm.OLS(paired["value_right"], sm.add_constant(paired["value_left"]), missing="raise").fit()
+rolling = paired[["date"]].copy()
+rolling["correlation"] = paired["value_left"].rolling(3, min_periods=3).corr(paired["value_right"])
+assert int(rolling["correlation"].count()) == 3
+assert np.allclose(rolling["correlation"].dropna(), 1.0)
+fundamentals = data.equity_fundamentals("600519.SH", start="20230101", end="20240108")
+assert len(fundamentals) == 1
+assert fundamentals["date"].dt.strftime("%Y%m%d").tolist() == ["20230330"]
+summary = pd.DataFrame({
+    "sample_count": [len(paired)],
+    "pearson": [stats.pearsonr(paired["value_left"], paired["value_right"]).statistic],
+    "spearman": [stats.spearmanr(paired["value_left"], paired["value_right"]).statistic],
+    "alpha": [fit.params["const"]],
+    "beta": [fit.params["value_left"]],
+    "annual_volatility": [paired["value_left"].std(ddof=1) * np.sqrt(252)],
+    "quantile_25": [paired["value_left"].quantile(0.25, interpolation="linear")],
+    "roe_pct": [fundamentals["roe_pct"].iloc[0]],
+})
+print(summary.to_json(orient="records", double_precision=15))
+charts.line(rolling, x="date", y="correlation", title="Three-observation return correlation")`);
+    const completed = await execute(run);
+    expect(completed.status, completed.error ?? undefined).toBe('success');
+    const summaryText = completed.outputs.find(
+      (output) => output.type === 'text' && output.text.includes('sample_count'),
+    );
+    expect(summaryText?.type).toBe('text');
+    const summary = JSON.parse(summaryText?.type === 'text' ? summaryText.text : '[]')[0];
+    expect(summary.sample_count).toBe(5);
+    expect(summary.pearson).toBeCloseTo(1, 12);
+    expect(summary.spearman).toBeCloseTo(1, 12);
+    expect(summary.alpha).toBeCloseTo(0.005, 12);
+    expect(summary.beta).toBeCloseTo(2, 12);
+    expect(summary.annual_volatility).toBeCloseTo(std(returns) * Math.sqrt(252), 12);
+    expect(summary.quantile_25).toBeCloseTo(quantile(returns, 0.25), 12);
+    expect(summary.roe_pct).toBe(20);
+    expect(completed.outputs.some((output) => output.type === 'chart')).toBe(true);
+    expect(completed.inputs.map((input) => [input.method, input.status])).toEqual([
+      ['research_series', 'received'],
+      ['research_series', 'received'],
+      ['research_equity_fundamentals', 'received'],
+    ]);
   }, 30_000);
 
   it('stops an active Python session on cancellation and retains the submitted source', async () => {

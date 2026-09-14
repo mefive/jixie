@@ -71,9 +71,9 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 ### C. 对话式数据分析基础 ✅
 
 - 统一 Agent、多轮持久化与流式续接；
-- 白名单只读 SQL、沙盒 `analyzeData`、SQL 图表和计算图卡片；
+- 白名单只读 SQL，以及 Factor / Strategy 内可留存输入的嵌入式 Python 分析；
 - Strategy Agent 生成和校验代码，由用户在工作台显式回测；Factor Agent 保留受约束的正式探索段因子分析；
-- 查询、代码和图表由确定性 spec 重跑，原始大数据不进入模型上下文。
+- 新分析保留实际输入和输出；历史 SQL/计算图卡片保持重查兼容并明确提示当前数据，原始大数据不进入模型上下文。
 
 依据：`docs/design/unified-agent.md`、`docs/design/agent-code-tool.md`、
 `docs/design/computed-chart.md`、`docs/design/agent-research-loop.md`。
@@ -253,16 +253,16 @@ Research 对派生结果的只读分析已经落地：`results.factor_report()` 
 待确认期间暂停自由输入和 Diff；后端在 Diff 前以 Python AST 和 Catalog 确定性核对 `data.series` 品种、measure
 及 SDK Contract 查询证据，同一 turn 的选择卡确定性优先于提案。浏览器验收已贯通待确认、选择、落库和刷新恢复。
 
-#### Factor / Strategy 嵌入式分析扩展（2026-09-14 已确认，待实现）
+#### Factor / Strategy 嵌入式分析扩展（2026-09-14，开发验收完成）
 
 在两个工作台的对话中复用 Research Python 计算和输出。分析首次成功后固定该版本，每次失败或重跑都保存
 执行记录；修改成功版本产生新版，旧消息继续引用当时结果。预设及只读因子问答补齐持久化和选中报告上下文。
 用户可以从确定版本继续进入可编辑 Research；普通 Research 文档、正式因子检验和策略回测保持现有职责。
 
-完整替代后删除 `analyzeDataTool` 和 `gen-stats-doc.ts` 及专用生成链，退出旧绘图工具注册；保留 `sqlQuery`、
+删除收尾已移除 `analyzeDataTool` 和 `gen-stats-doc.ts` 及专用生成链、旧绘图工具注册；保留 `sqlQuery`、
 正式业务仍使用的 `stats.ts` 和历史聊天图表所需的执行兼容。新分析保存实际输入并设置限额，不扩展全平台数据版本库。
-方案、证据、五个提交及验收见[嵌入式 Python 分析](docs/design/embedded-python-analysis.md)。当前仅完成方向确认，
-本段不代表能力已实现，不改变 1.5 既有完成记录。
+方案、证据、五个提交及验收见[嵌入式 Python 分析](docs/design/embedded-python-analysis.md)。删除收尾通过 API 201 项、
+Web 16 项回归、全项目构建和中英用户流程；能力覆盖与历史图表兼容已核对。上线仍需协调此前迁移与组件发布。
 
 ### 1.6 研究方法模板与统计能力扩展 💤
 

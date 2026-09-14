@@ -130,9 +130,6 @@ describe('agentTurn(strategyProfile)', () => {
         'dataCoverage',
         'runUniverse',
         'sqlQuery',
-        'renderChart',
-        'renderComputedChart',
-        'analyzeData',
       ]);
     },
   );
@@ -155,6 +152,23 @@ describe('agentTurn(strategyProfile)', () => {
     expect(result.code).toBe(STRATEGY);
     expect(result.changed).toBe(false);
   });
+
+  it.each(['analyzeData', 'renderChart', 'renderComputedChart'])(
+    'rejects a stale %s call without executing it or changing the artifact',
+    async (name) => {
+      const llm = scriptedLlm([
+        { toolCalls: [{ id: 'retired-analysis', name, args: '{}' }] },
+        { text: 'Continue this calculation in Research.' },
+      ]);
+      const result = await agentTurn(strategyProfile(), [], 'Inspect the data', STRATEGY, llm);
+      expect(llm.mock.calls[1][0].find((message) => message.role === 'tool')?.content).toContain(
+        `Unknown tool ${name}`,
+      );
+      expect(result.toolTrace).toEqual([expect.objectContaining({ name, ok: false })]);
+      expect(result.code).toBe(STRATEGY);
+      expect(result.changed).toBe(false);
+    },
+  );
 });
 
 describe('agentTurn(factorProfile)', () => {

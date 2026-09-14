@@ -8,7 +8,7 @@ const universePartSchema = z.strictObject({
   spec: universeSpecV1Schema,
 });
 
-/** Wire validation for parts-shaped agent conversations (shared by strategy / factor / screen routes).
+/** Wire validation for parts-shaped agent conversations (shared by strategy / factor routes).
  * The frontend normalizes legacy `{ role, content }` rows on read, so the API only accepts the new shape. */
 export const messagePartSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string().max(8000) }),

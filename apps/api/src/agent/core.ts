@@ -15,7 +15,7 @@ import type { AgentChart, AgentTool, AgentUniverse } from './tools/types.js';
 
 /**
  * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
- * surface (strategy lab / factor / screen / Q&A); what varies per surface lives in an AgentProfile:
+ * surface (strategy lab / factor / Research / Q&A); what varies per surface lives in an AgentProfile:
  * the system prompt, the whitelisted tool set, and — when the conversation produces code — the
  * artifact validator. A turn's lifecycle is fixed: tool rounds first (≤ MAX_TOOL_ROUNDS, observations
  * fed back), then the produce step, then compile-repair rounds with tools disabled. Tool messages
@@ -63,7 +63,7 @@ export interface AgentTurnResult {
   error?: string; // set when a proposed change wouldn't compile (code kept unchanged)
   toolTrace: ToolTraceItem[]; // every tool call this turn — display/debug only, never persisted
   universes: AgentUniverse[]; // entity universes side-produced by runUniverse tool calls this turn
-  charts: AgentChart[]; // chart cards side-produced by renderChart tool calls this turn
+  charts: AgentChart[]; // legacy chart-part compatibility
   researchCellChanges: ResearchCellChangeProposalV1[]; // pending, user-applied Cell changes
   researchClarifications: ResearchClarificationV1[]; // pending, user-answerable semantic choices
 }
@@ -182,7 +182,7 @@ You are in a multi-turn conversation with the user, iterating on the "current ${
 // Appended to a profile's system prompt when it carries tools.
 export const TOOLS_HINT = `
 # Tools
-You can call read-only data tools (look up instruments / check data coverage / resolve a point-in-time entity universe / read-only SQL for statistical aggregation, time-series and financial queries / draw charts / SQL + code for complex stats). When a question turns on facts in the database, **query first, then answer** — don't make things up; tool results reflect only the current state of the local database. Don't call tools when you don't need data. For stock selection prefer runUniverse (its result becomes a reusable Universe artifact for the user); use sqlQuery for needs outside registered Universe measures; for trend/comparison/distribution conclusions that are better seen, use renderChart to draw for the user directly; for stats SQL can't handle (correlation/regression/volatility) use analyzeData. Artifact profiles may additionally expose one narrowly scoped research runner; its description is the authoritative boundary for that side effect.`;
+Use the available read-only tools to look up instruments, check data coverage, resolve a point-in-time universe and query facts or small aggregates. When an answer depends on local data, query first; never invent values. Results reflect the current local database. Prefer runUniverse for stock selection and sqlQuery for facts outside registered Universe measures. For computation or charts, use runEmbeddedAnalysis only when it is present in this profile. If it is unavailable, use the supplied research evidence or direct the user to Research; do not pretend to execute code or calculate a long series from model-visible query rows. Additional research runners have their own authoritative descriptions and limits. Formal Factor validation and Strategy backtests retain their workbench boundaries.`;
 
 export const RESEARCH_TOOLS_HINT = `
 # Research execution discipline

@@ -3,16 +3,15 @@ import { z } from 'zod';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import { runReadOnlySql, jsonSafe } from './tools/sql/read-only-sql.js';
-import { CHART_ROW_CAP } from './tools/charts/render-chart.js';
-import { runComputeChartRows } from './tools/charts/render-computed-chart.js';
+import { CHART_ROW_CAP, runComputeChartRows } from './tools/charts/replay.js';
 import { computeChartSpecSchema } from './tools/charts/spec.js';
 
 export const agentChartRoute = new Hono();
 
 const sqlBody = z.object({ sql: z.string().min(8).max(4000) });
 
-// Read-only SQL over the market-table whitelist (same guard as the agent's sqlQuery/renderChart
-// tools). Consumed by chart cards, which persist the query and re-run it on render.
+// Historical chart cards persist queries, not points. Re-query current data through the same
+// market-table whitelist and read-only connection used by sqlQuery.
 agentChartRoute.post('/sql-queries', validateJson(sqlBody), async (c) => {
   const { sql } = c.req.valid('json');
   try {
@@ -24,9 +23,8 @@ agentChartRoute.post('/sql-queries', validateJson(sqlBody), async (c) => {
   }
 });
 
-// Re-run a compute-source chart card (computed-chart.md Phase A): the persisted queries + code run
-// through the same whitelist guard and analysis isolate as the renderComputedChart tool, and the
-// validated row table comes back for the frontend to draw. Data never touches the LLM.
+// Historical compute cards keep their original queries/code and sandbox contract. Re-run them
+// against current data; these results are not a snapshot of the original conversation.
 agentChartRoute.post('/chart-computations', validateJson(computeChartSpecSchema), async (c) => {
   try {
     const rows = await runComputeChartRows(c.req.valid('json'));

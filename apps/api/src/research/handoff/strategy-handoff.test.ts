@@ -108,6 +108,12 @@ describe('research Strategy handoff', () => {
     expect(validate).toHaveBeenCalledWith(validPythonCode);
     expect(classifier.mock.calls[0]?.[0]?.[1]?.content).toContain('每月选择前2只等权持有');
     expect(codegen.mock.calls[0][1].map((tool) => tool.name)).not.toContain('runQuickBacktest');
+    expect(codegen.mock.calls[0][1].map((tool) => tool.name)).toEqual([
+      'searchInstruments',
+      'dataCoverage',
+      'runUniverse',
+      'sqlQuery',
+    ]);
     expect(codegen.mock.calls[0][0][0].content).toContain('Do not run a backtest');
   });
 

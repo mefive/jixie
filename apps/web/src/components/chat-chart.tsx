@@ -13,8 +13,8 @@ interface ChatChartProps {
 }
 
 /**
- * A chart card inside an agent conversation. Like QueryCard it persists the QUERY (read-only SQL +
- * column mapping) and re-runs it on render, so a reopened conversation never shows stale points.
+ * A historical chart card. It persists SQL/code, not original points, and reads current data
+ * when reopened. Keep that distinction visible beside the chart, including failure states.
  * Every state (skeleton / error / chart) fills the same fixed-height body — the conversation column
  * must not reflow when data lands. Lazy-loaded (echarts chunk); default export for React.lazy.
  */
@@ -58,6 +58,7 @@ export default function ChatChart({ title, chart }: ChatChartProps) {
           <span className="jx-chatChart-meta">{t('points', { count: state.rows.length })}</span>
         )}
       </div>
+      <div className="jx-chatChart-sourceNote">{t('historicalChartCurrentData')}</div>
       {state.loading && <div className="jx-chatChart-skeleton" />}
       {state.error && (
         <div className="jx-chatChart-status">
@@ -65,7 +66,10 @@ export default function ChatChart({ title, chart }: ChatChartProps) {
           {state.error}
         </div>
       )}
-      {!state.loading && !state.error && (
+      {!state.loading && !state.error && state.rows.length === 0 && (
+        <div className="jx-chatChart-status">{t('noData')}</div>
+      )}
+      {!state.loading && !state.error && state.rows.length > 0 && (
         <EChart option={buildOption(chart, state.rows)} className="jx-chatChart-body" />
       )}
     </div>

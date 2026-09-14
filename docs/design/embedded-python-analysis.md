@@ -1,6 +1,6 @@
 # Factor / Strategy 嵌入式 Python 分析
 
-> 状态：2026-09-14 规划已提交（`74567ccd`）；Commit 2 已提交（`c883dae3`）；Commit 3 问答持久化已通过人工审查与全部验证，按预告信息提交。嵌入分析 Agent / UI 尚未接入，旧工具尚未退出。
+> 状态：2026-09-14 全部范围已通过人工审查与验证。前四笔已提交（`74567ccd`、`c883dae3`、`d31f048f`、`e98cc1ba`）；Commit 5 随本变更提交。Factor / Strategy 已接入嵌入分析和 Research 接续，旧工具及统计说明生成链已退出；部署仍需协调此前迁移与各组件。
 > 本文是[响应式量化研究工作台](reactive-quant-research-workbench.md)的嵌入式分析扩展。
 > 现状以代码为准；下文的目标行为、接口和验收项不能当作已上线能力。
 
@@ -16,18 +16,20 @@
 本次统一 Python 执行、数据接口和输出格式，同时保留三种工作方式。无须让每次分析都变成独立研究文档，
 也不在 Factor、Strategy 中再建设一套完整 Notebook 编辑器。
 
-## 2. 已确认事实、产品判断与证据缺口
+## 2. 初始调研事实、产品判断与证据缺口
+
+下表记录替代前的证据；删除收尾后的现状见第 8 节及 Commit 5。已删除文件使用原路径文字记录，不提供失效链接。
 
 | 已确认事实 | 当前代码证据 | 对规划的影响 |
 | --- | --- | --- |
 | Factor、Strategy、因子问答仍有统计和图表工具 | [defaultTools](../../apps/api/src/agent/tools/index.ts)、[Factor profile](../../apps/api/src/agent/profiles/factor.ts)、[Strategy profile](../../apps/api/src/agent/profiles/strategy.ts)、[问答 profile](../../apps/api/src/agent/profiles/qa.ts) | 不能因 Screen 移除直接删除其余场景的计算入口 |
-| analyzeData 提交 SQL 与 JS/TS，向模型返回有界结果 | [analyze-data.ts](../../apps/api/src/agent/tools/analyze-data.ts) | 保留数据直接进入沙箱、完整明细不进入模型的优点 |
-| 旧计算图表保存查询与代码，查看时可以重新计算 | [render-computed-chart.ts](../../apps/api/src/agent/tools/charts/render-computed-chart.ts)、[ChatChart](../../apps/web/src/components/chat-chart.tsx) | 旧卡片需要兼容，不能把重新查询的结果冒充历史快照 |
+| analyzeData 提交 SQL 与 JS/TS，向模型返回有界结果 | `agent/tools/analyze-data.ts`（本轮删除） | 保留数据直接进入沙箱、完整明细不进入模型的优点 |
+| 旧计算图表保存查询与代码，查看时可以重新计算 | [历史图表执行](../../apps/api/src/agent/tools/charts/replay.ts)、[ChatChart](../../apps/web/src/components/chat-chart.tsx) | 旧卡片需要兼容，不能把重新查询的结果冒充历史快照 |
 | Research 分别保存当前 Cell、单次执行、干净全文执行和产物 | [schema.prisma](../../apps/api/prisma/schema.prisma)、[run-cell.ts](../../apps/api/src/research/execution/run-cell.ts)、[run-document.ts](../../apps/api/src/research/execution/run-document.ts) | 复用现有概念；单 Cell 尝试不自动等价于封存研究 |
 | 当前 Cell、执行与图片均绑定 ResearchDocument | [共享类型](../../packages/shared/src/research.ts)、[文档管理](../../apps/api/src/research/documents/document-operations.ts) | 需要明确嵌入模式、归属及生命周期，不能只禁用编辑器 |
 | FactorReport、BacktestReport 已能进入 Research | [因子报告读取](../../apps/api/src/research/datasets/results/factor-report.ts)、[回测报告读取](../../apps/api/src/research/datasets/results/backtest-report.ts)、[回测提交](../../apps/api/src/strategy/backtest/submit.ts) | 复用报告及其权限，不新建第二套正式报告 |
 | 初始调研时只读因子问答没有持久化实体；Commit 3 新增私有持久化路径 | [问答入口](../../apps/api/src/factor/questions/conversations.ts)、[turn runner](../../apps/api/src/agent/turns/run.ts)、[Factor store](../../apps/web/src/complex/factor/factor-store.ts) | 用户与稳定因子身份关联会话，每轮固定报告上下文，刷新恢复；已通过审查与验证 |
-| STATS_DOC 服务于 analyzeData，stats.ts 另有业务调用方 | [生成脚本](../../apps/api/scripts/generators/gen-stats-doc.ts)、[统计库](../../apps/api/src/math/stats.ts)、[因子评估](../../apps/api/src/factor/analysis/cross-sectional.ts)、[模拟引擎](../../apps/api/src/engine/simulation/run.ts) | 删除工具及其文档生成链，保留业务统计库 |
+| STATS_DOC 服务于 analyzeData，stats.ts 另有业务调用方 | `scripts/generators/gen-stats-doc.ts`（本轮删除）、[统计库](../../apps/api/src/math/stats.ts)、[因子评估](../../apps/api/src/factor/analysis/cross-sectional.ts)、[模拟引擎](../../apps/api/src/engine/simulation/run.ts) | 删除工具及其文档生成链，保留业务统计库 |
 
 产品判断：保留工作台内的即时分析入口，复用 Research 的计算与输出，比继续维护两套分析体验更符合本次目标。
 冻结版本用于保护结论依据，不能代替对方法和数据的判断。
@@ -221,8 +223,8 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 | 1 | `docs(research): define the embedded analysis workflow` | 固化目标、版本、输入、交接、工具退出和验收，修正过期现状 | 已提交 `74567ccd` |
 | 2 | `feat(research): add versioned embedded analysis execution` | 契约、迁移、归属、执行与输入、冻结、历史和 API；依赖 1 | 已提交 `c883dae3` |
 | 3 | `feat(factor): persist question conversations and report context` | 问答持久化、报告上下文和刷新恢复，为分析提供可靠归属 | 已提交 `d31f048f` |
-| 4 | `feat(agent): integrate embedded analysis into factor and strategy` | profile/工具、卡片、修改/历史、Research 交接、双语帮助与端到端验证；依赖 2、3 | 两次审查及最终验证通过，随本变更提交 |
-| 5 | `refactor(agent): retire legacy chat computation tools` | 覆盖核对、旧工具及生成链删除、图表兼容和切换回归；依赖 4 | 未开始 |
+| 4 | `feat(agent): integrate embedded analysis into factor and strategy` | profile/工具、卡片、修改/历史、Research 交接、双语帮助与端到端验证；依赖 2、3 | 已提交 `e98cc1ba` |
+| 5 | `refactor(agent): retire legacy chat computation tools` | 覆盖核对、旧工具及生成链删除、图表兼容和切换回归；依赖 4 | 审查与验证通过，随本变更提交 |
 
 ### Commit 1：规划文档
 
@@ -321,3 +323,61 @@ API/Web 的新消息和接口需要协调发布；迁移保持旧记录可读，
 - 最终日志：/tmp/jixie-embedded-commit4-reapproved-tests.log、/tmp/jixie-embedded-commit4-reapproved-web-tests.log、/tmp/jixie-embedded-commit4-reapproved-api-build.log、/tmp/jixie-embedded-commit4-reapproved-web-build.log、/tmp/jixie-embedded-commit4-final-e2e.log。首次复验的选择器失败保留在 reapproved-e2e.log，不覆盖为成功记录。
 - 首次完整静态检查与复审后受影响的格式、ESLint、API/Web 类型及 diff 检查均通过。构建分包警告如前述。只使用隔离测试数据，未应用开发/生产库迁移、未调用真实模型，也不将受控模型流程视为模型分析质量评估。
 - 按已确认信息 feat(agent): integrate embedded analysis into factor and strategy 提交本轮全部 94 个范围内文件；maintenance/data-audit.ts 和 data-audit.test.ts 保持未纳入。下一提交负责旧工具/统计文档生成链删除、历史图表兼容及能力覆盖核对，完成后才启动 DeepSeek 迁移。
+
+
+### Commit 5：旧计算工具退出与历史兼容（2026-09-14）
+
+- 已批准范围、代码审查与预告提交信息：`refactor(agent): retire legacy chat computation tools`。前四笔已提交；本轮全部必要验证通过，实际结果见本节末尾。
+- 从共用工具集合实际删除 analyzeData / renderChart / renderComputedChart；删除其实现、gen-stats-doc.ts、STATS_DOC、生成辅助/漂移测试及 package script。`math/stats.ts` 保留 Factor 各评估器、Engine、审计和历史图表调用，数值约定不变。
+- 页面 Factor / Strategy / 只读问答均使用已有嵌入执行；基础 profile 和 Research → Strategy 草稿交接只保留查询工具。Research → Factor 通过独立草稿生成路径，不调用 defaultTools；Research 文档继续提案/Cell 工作流。旧模型工具名由现有工具白名单拒绝，不转换为另一种计算后猜测参数。
+- 历史 ChartSpec 的规格、SQL guard、Worker 与 JS isolate 保留；执行函数集中在 `agent/tools/charts/replay.ts`，不导出工具定义。每条计算查询原有 10,000 行请求预算、10 秒计算预算、500 输出行和 HTTP 形状保持。没有将旧 SQL LIMIT 实现重新认证为硬行数保证。
+- 历史卡片提供中英提示：打开时按原查询/代码读取当前数据，可能与原回答不同；空结果显示无数据，执行错误继续显示。旧消息、轨迹、ChartSpec 不迁移、不回填伪造的冻结输入。Screen 过期说明移除；活动查询的 screen 前缀仅保留旧客户端兼容，无当前页面入口。
+- 不新增数据库迁移、SDK 方法、Python 包或跨包构建依赖。已有嵌入功能需要 API/Web/shared 与此前迁移协调发布，不能只部署删除工具这一部分。DeepSeek 迁移仍排在本需求验证、提交完成之后。
+
+#### 计算任务与数据能力核对
+
+| 代表任务 | 当前替代路径与代码证据 | 本轮验证范围 |
+| --- | --- | --- |
+| 两资产收益 Pearson / Spearman 相关 | `data.series` → 明确按日期合并、缺失处理 → SciPy；SDK 分派 `research/sdk/dispatch.ts`、取数 `datasets/series.ts` | 真实隔离库双指数序列、收益单位、对齐后样本数、两种相关；每次 SDK 响应留存 |
+| 回归 alpha / beta | 同一对齐样本 → statsmodels OLS，显式常数项和 missing=raise | 已知 y=0.005+2x；固定运行时执行后核对系数 |
+| 波动率、分位数与滚动序列 | pandas std(ddof=1)、显式年度周期数、quantile(linear)、rolling(min_periods)，charts.line | 与保留的 TS 统计库在有效样本上对照；窗口预热缺失保留，不补零 |
+| 价格/估值、截面与面板 | `data.series`、`data.cross_section`、`data.panel`；`datasets/series.ts` / `equity.ts` / `universe.ts` | 复用已有 SDK/数据集测试；股票与 ETF 复权缺失诊断、历史 universe 语义不由本次改动重写 |
+| 财务指标与报表 | `data.equity_fundamentals`、`data.equity_financial_statements` / `values` / `metrics` / `cross_section` / `panel`；`datasets/supplemental.ts` / `financial.ts` / `financial-values.ts` | 真实 SDK → Python 财务指标调用按公告日排除未来报告；复用报表/季度/TTM 和可得日测试 |
+| 资金流、分红、ETF 份额、行业/市场状态、期货结算 | 对应 `equity_flows`、`equity_dividends`、`etf_shares`、`industry_state`、`market_state`、`futures_settlement`；`datasets/supplemental.ts` / `market-reference.ts` | 复用映射、单位、日期对齐及缺失测试 |
+| 宏观、利率、FX、商品 | `data.macro` / `yield_curve` / `fx` / `commodity_*`；现有可得日与语义目录映射 | SDK 合约一致性；本次不扩大市场、代理资产或可交易性 |
+| 解释已有因子/回测报告 | `results.factor_report` / `results.backtest_report`，现有报告 loader 和用户权限 | 已有真实 Python 报告/留存输入测试及中英用户流程继续回归 |
+
+**有意保留的边界与尚未覆盖的能力：** Research SDK 不等于 SQL 白名单的逐表、逐列镜像。
+例如 Daily 的原始 OHLC 投影、逐股 StkLimit 值、StockNameHistory 原始记录或任意 SQL JOIN 输出，不会自动成为 Python 数据源。
+它们仍可经 sqlQuery 做有界事实查询；若具体研究必须把这些明细直接送入 Python，需要另行定义准确的数据方法，不能靠模型抄写查询结果或静默替代为调整后收盘价。
+这次覆盖的是上表明确任务及现有 Research 数据域，不声称原任意 SQL+JS 逃生通道获得逐项等价迁移。
+提示词及中英帮助同步说明；正式报告/策略计算不受影响。本轮没有发现上表任务必须新增数据域的依赖。
+
+**方法判断和代码约束分开：** 代码可以强制 SDK 方法/参数、权限、预算、冻结和输入留存；日期对齐是否适合研究、样本是否充分、年化周期数是否合理仍需可读代码和用户判断。旧 stats 的空数组或常数返回约定不移植到 Python；空/常数统计保持未定义值并解释，不能冒充零。
+
+#### 交审时约定的验证范围
+
+- 工具集合及未知旧工具拒绝：基础 profile、全部页面类型、Research Strategy 交接、独立 Factor 草稿路径；正式 Factor 探索工具保留。
+- 历史图表：规格/行表测试、只读 SQL 守卫/JS 沙箱、真实 Web/API/SQLite 重新打开和刷新旧 SQL/计算图，当前无数据明确显示。旧计算图真实调用保留的 stats 库。
+- Python 替代：真实嵌入执行读取合成行情/财务，运行 SciPy/statsmodels/pandas、输出原生滚动图并检查输入留存；相关报告、金融数据和业务 stats 回归。
+- 用户主流程：中英因子报告分析 → 改参数新版 → Research 留存输入 → Strategy 分析，附加打开历史图表。外部模型与报告样本受控，真实 Python 与本地数据库；不宣称验证模型分析质量。
+- Shared/API/Web/Docs/sandboxd 必要构建及静态门禁；仅隔离临时数据库，所有进程、连接、端口在验证后清理。截图实际查看并在最终回复展示。
+
+
+#### Commit 5 交审前静态结果（2026-09-14）
+
+- 50 个范围内路径（含删除及重命名），排除 maintenance/data-audit 的两处独立改动。29 个现存源码/样式/JSON 文件格式化及适用 ESLint 通过。
+- 根级 `pnpm typecheck` 通过：shared/API/Web/Docs/sandboxd 均为 noEmit 检查，后端边界 679 文件 / 0 违规，Research runtime、Research SDK 与 Factor SDK 生成契约一致。
+- 103 个受影响 Markdown 相对文件链接、8 个中英帮助链接、新增 Python 示例 AST、预告 commit message 及 diff 空白检查通过。删除文件和 package script 确认不存在，生产源码无旧工具导出或统计生成链引用。
+- 代码、测试及文档均未提交。本轮未运行行为测试、构建、服务、迁移或真实模型；准备的测试不能记为通过。类型及门禁日志：`/tmp/jixie-embedded-commit5-static.log`。
+
+#### Commit 5 最终验证与提交（2026-09-14）
+
+- 用户确认产品代码及上述 SQL / Research SDK 能力边界后完成验证。API 常规回归 26 文件 / 190 用例、真实 Python 3 文件 / 11 用例全部通过，合计 29 文件 / 201 个不同用例；Web 消息与数据目录 2 文件 / 16 用例通过。
+- 新增真实 Python 统计用例通过：双指数收益按日期对齐，Pearson / Spearman、OLS 系数、波动率与分位数符合确定样本；滚动图保留预热缺失，空/常数统计保持未定义；财务 SDK 排除未来公告，并保留实际请求和响应。报告读取及留存输入回放回归通过。
+- 根级 `pnpm build` 通过：Shared、API、Web、Docs、sandboxd，以及后端边界和三项生成契约检查。现有大 chunk 与嵌入卡片静态/动态导入分包警告保留，不影响构建成功。
+- 中英文完整用户流程全部通过：因子已存报告得到 0.108；改参数生成新版 0.096，原消息保持 0.108；继续 Research 用留存输入重现 0.096；引用另一报告得到差值 0.045；Strategy 已存回测分析得到 0.1。旧 SQL / JS 图表能打开、刷新并显示当前数据提示，JS 图真实使用保留的 stats 库；当前无数据明确显示空状态。
+- 验证期间没有修改产品代码，只调整 E2E 截图的滚动位置并重新通过格式、ESLint 和中英全流程。14 张最终截图均已逐张查看：`apps/web/acceptance/embedded-analysis-{factor,version,research,reference,strategy,history,history-empty}-{zh,en}.png`。
+- 日志：`/tmp/jixie-embedded-commit5-{build,tests-run,web-tests,python,e2e-final}.log`。首次测试命令把 maxWorkers 误传给 pnpm，未启动测试；失败记录保留在 tests.log，改用 `pnpm run test` 后通过。首轮 E2E 成功日志另保留为 e2e.log。
+- 使用隔离 SQLite、真实本地 Python 和受控模型/合成报告；没有调用真实模型、同步供应商或应用开发/生产库迁移，不将 E2E 视为模型质量或生产容器部署验收。临时 API/模型端口已释放，进程核对无遗留测试服务、浏览器或 Python。
+- 按预告信息提交本轮 50 个范围内路径；maintenance/data-audit.ts 与 data-audit.test.ts 保持独立。嵌入分析、问答持久化、Research 接续和旧工具退出的开发验收已完成，接下来另行确认 DeepSeek 迁移范围。

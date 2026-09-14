@@ -10,6 +10,7 @@ import { getTurnDetail } from './turns/read.js';
 export const agentTurnRoute = new Hono();
 
 const activeTurnQuery = z.object({
+  // Accept the historical Screen prefix for old clients; no current page creates Screen turns.
   entity: z.string().regex(/^(strategy|factor|factor-question|screen|research):[A-Za-z0-9]+$/),
 });
 

@@ -34,7 +34,7 @@ export interface ResearchDataReferencesPart {
   references: ResearchDataReferenceV1[];
 }
 
-/** A chart side-produced by the agent's renderChart tool — persists the query, not the points. */
+/** A historical Agent chart — persists the query, not the points. */
 export interface ChartPart {
   type: 'chart';
   title: string;

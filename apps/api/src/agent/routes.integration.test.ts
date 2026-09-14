@@ -22,7 +22,8 @@ vi.mock('./tools/sql/read-only-sql.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./tools/sql/read-only-sql.js')>()),
   runReadOnlySql: resources.sql,
 }));
-vi.mock('./tools/charts/render-computed-chart.js', () => ({
+vi.mock('./tools/charts/replay.js', () => ({
+  CHART_ROW_CAP: 500,
   runComputeChartRows: resources.compute,
 }));
 

@@ -9,7 +9,7 @@ const DATA = {
   ],
 };
 
-describe('runAnalysisCode(analyzeData sandbox)', () => {
+describe('runAnalysisCode(historical chart sandbox)', () => {
   it('runs the module and injects data and stats', async () => {
     const result = await runAnalysisCode(
       `export default ({ data, stats }) => {

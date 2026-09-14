@@ -3,7 +3,7 @@
  * produced it — never the data points — so reopening a conversation re-runs it fresh and the chart
  * stays honest about the local DB's current state. Two sources (design: computed-chart.md):
  *   - 'sql' (default): a single read-only SELECT produces the rows directly;
- *   - 'compute': 1–4 SELECTs feed a sandboxed JS transform (same isolate + stats as analyzeData),
+ *   - 'compute': 1–4 SELECTs feed a sandboxed JS transform (the retained historical isolate + stats contract),
  *     whose returned row table is drawn.
  * The SQL is validated server-side against the market-table whitelist (agent/tools/read-only-sql).
  */

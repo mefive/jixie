@@ -5,7 +5,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | 要找的业务 | 入口 | 责任 |
 | --- | --- | --- |
 | HTTP 路由 | `routes.ts` 与九组 `*-routes.ts` | 根入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `route-errors.ts`，不直接读写 Prisma |
-| 嵌入式分析后端（待审阅） | `embedded-routes.ts`、`embedded/`、`embedded-analysis-job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，暂未接入 Agent 与页面 |
+| 嵌入式分析后端 | `embedded-routes.ts`、`embedded/`、`embedded-analysis-job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，已接入 Factor / Strategy Agent 与页面 |
 | 文档列表、创建、归档、恢复 | `documents/document-operations.ts`、`archive-idle-document.ts` | 模板初始化、归属检查；HTTP 归档先检查运行状态，再归档并关闭会话 |
 | 文档重命名、删除 | `documents/document-operations.ts` | 保留底层会话归属/归档规则和级联删除，删除后关闭会话；HTTP 统一使用 documents |
 | 读取文档 | `documents/read.ts` | 归属检查、Cell / 消息 / 审阅 / 尝试视图；保留旧会话首次读取时补建文档的行为 |
@@ -126,10 +126,10 @@ Prisma 迁移历史及 bootstrap 中的 `prisma migrate deploy` 保留；本次�
 - 首轮发现并修正两处测试脚本问题：旧 GET 路径用例误传请求体、Curator 关闭按钮定位不唯一。修正文件格式、ESLint 与 API typecheck 通过，相关测试重跑通过；没有测试后产品代码修改。
 - 数据库使用开发数据的只读备份副本，真实 Python 查询仅访问副本；未调用真实 LLM 或供应商同步。API、Web preview、Vite 临时进程已关闭，3107/5187/5188 端口和数据库连接已释放，数据库副本已删除。验收截图已检查，保留于 `apps/web/acceptance/`。
 
-## 嵌入式分析后端（2026-09-14，实现待审阅）
+## 嵌入式分析后端（2026-09-14，开发验收完成）
 
-入口 `/api/app/research/embedded-analyses` 当前供后续 Agent 和 UI 接入。产品整体规划、剩余接入及旧工具退出见
-[嵌入式分析规划](../../../../docs/design/embedded-python-analysis.md)。本提交不删除旧统计工具，不添加公开帮助操作。
+入口 `/api/app/research/embedded-analyses` 已由 Factor / Strategy Agent 和 UI 接入。产品整体规划、接续及旧工具退出见
+[嵌入式分析规划](../../../../docs/design/embedded-python-analysis.md)。中英公开帮助随页面接入交付。
 
 - `embedded/versions.ts` 在同一事务中创建私有分析、版本和单 Cell 内部文档；更新草稿检查修订号、冻结及活动运行。`context.ts` 从服务端解析宿主及报告权限，不信任传入的 owner。宿主代码是当次捕获的已保存代码；修改/派生不会改写旧运行上下文。
 - `embedded/submit.ts` 提交时保存 `ResearchExecution` / `ResearchCellExecution` 快照及 Job。分析的 `activeRunId` 条件更新限制同时运行，版本与 requestId 唯一键保证同一请求可重取。排队也已有运行 ID，不依赖 Agent 最后回复落库。
@@ -161,4 +161,6 @@ PATCH `/documents/:documentId/input-mode` 切换回放/当前数据，要求文�
 普通完整执行与 Agent 尝试保存输入模式和原运行引用。上述三项内部字段见新增迁移，不改变公开 SDK。
 
 实现和验证状态以 [开发记录](../../../../docs/design/embedded-python-analysis.md) Commit 4 为准；新增中英公开帮助
-`/docs/help/research/embedded-analysis`。旧计算工具及 `gen-stats-doc.ts` 尚未删除，属于 Commit 5 的收尾范围。
+`/docs/help/research/embedded-analysis`。新对话不再提供旧计算/绘图工具及统计说明生成链；
+历史图表经 `agent/tools/charts/replay.ts` 继续重查，正式业务的 `math/stats.ts` 保留。
+Commit 5 已通过审查、API 201 项及 Web 16 项回归、全项目构建和中英用户流程；完整覆盖和环境限制见设计文档。

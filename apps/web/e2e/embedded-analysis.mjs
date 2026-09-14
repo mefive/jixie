@@ -212,9 +212,51 @@ try {
         .evaluate((image) => image.decode());
       await page.locator('.jx-agentPending-status').waitFor({ state: 'hidden' });
       await page.screenshot({ path: `${screenshots}/embedded-analysis-strategy-${locale}.png` });
+      // Open an existing conversation, then refresh it: old charts still re-query safely.
+      const chartResponses = [];
+      const collectChartResponse = (response) => {
+        if (/\/api\/app\/agent\/(sql-queries|chart-computations)$/.test(response.url())) {
+          chartResponses.push(response.json());
+        }
+      };
+      page.on('response', collectChartResponse);
+      await page.goto(`${base}/lab?id=legacycharts${locale}`);
+      const legacy = page.locator('.jx-chatChart');
+      await legacy.first().locator('canvas').waitFor();
+      await legacy.nth(1).locator('canvas').waitFor();
+      await legacy
+        .nth(2)
+        .getByText(english ? 'No data' : '暂无数据', { exact: true })
+        .waitFor();
+      assert.equal(await legacy.count(), 3);
+      assert.equal(await legacy.locator('.jx-chatChart-sourceNote').count(), 3);
+      assert.ok((await legacy.first().innerText()).includes(english ? 'current data' : '当前数据'));
+      const replayRows = (await Promise.all(chartResponses)).map((response) => response.rows);
+      assert.ok(
+        replayRows.some((rows) => rows.length === 3 && rows.every((row) => row.close === 10)),
+      );
+      assert.ok(
+        replayRows.some((rows) => rows.length === 3 && rows.every((row) => row.value === 100)),
+      );
+      assert.ok(replayRows.some((rows) => rows.length === 0));
+      await page.reload();
+      await legacy.nth(1).locator('canvas').waitFor();
+      await legacy
+        .nth(2)
+        .getByText(english ? 'No data' : '暂无数据', { exact: true })
+        .waitFor();
+      assert.equal(await legacy.count(), 3);
+      await page.locator('.jx-lab-editor .monaco-editor').waitFor();
+      await legacy.first().scrollIntoViewIfNeeded();
+      await page.screenshot({ path: `${screenshots}/embedded-analysis-history-${locale}.png` });
+      await legacy.nth(2).scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: `${screenshots}/embedded-analysis-history-empty-${locale}.png`,
+      });
+      page.off('response', collectChartResponse);
       assert.deepEqual(errors, []);
       console.log(
-        `[embedded-analysis:${locale}] report → Python table/chart → revised version → retained Research → Strategy: passed`,
+        `[embedded-analysis:${locale}] report → Python table/chart → revised version → retained Research → Strategy → historical charts: passed`,
       );
     } catch (error) {
       await page

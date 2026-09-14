@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 /** Wire validation for ChartSpec (@jixie/shared chart.ts) — the query that draws a chart card.
- * Shared by the renderChart / renderComputedChart agent tools (args) and the chat-message schema
- * (persisted chart parts). */
+ * Retained for historical chart parts and their re-run endpoint; new analyses use Research outputs. */
 const chartKindSchema = z
   .enum(['line', 'bar', 'scatter', 'area', 'stackedBar', 'histogram', 'combo'])
   .describe(

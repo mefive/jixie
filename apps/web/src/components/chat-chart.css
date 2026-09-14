@@ -20,6 +20,12 @@
   @apply shrink-0 font-normal text-muted;
 }
 
+.jx-chatChart-sourceNote {
+  @apply border-b border-line;
+  @apply text-xs text-muted;
+  padding: 6px 10px;
+}
+
 /* Body / skeleton / error share one fixed height so load → data never reflows the chat column. */
 .jx-chatChart-body {
   height: 260px;

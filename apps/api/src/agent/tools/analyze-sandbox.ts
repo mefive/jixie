@@ -1,7 +1,7 @@
 import { loadIsolatedModule, toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 
 /**
- * Compile + run one analyzeData code module inside an isolated-vm isolate (hard sandbox: no Node
+ * Compile + run one historical computed-chart module inside an isolated-vm isolate (hard sandbox: no Node
  * APIs in-wall, own memory limit, per-run CPU timeout — a prototype escape lands in an empty
  * global). The module must `export default ({ data, stats }) => result`; stats (math/stats.ts) is
  * evaluated in-wall so its calls never cross; data goes in / result comes out as one JSON string

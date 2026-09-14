@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import type { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { DEFAULT_BACKTEST_COST, type ResearchEmbeddedContextV1 } from '@jixie/shared';
+import {
+  DEFAULT_BACKTEST_COST,
+  type ChatMessage,
+  type ResearchEmbeddedContextV1,
+} from '@jixie/shared';
 
 interface ModelMessage {
   role: string;
@@ -229,6 +233,67 @@ export async function seedEmbeddedStrategies() {
         status: 'done',
         config,
         payload,
+      },
+    });
+    // Persist representative pre-migration chart messages; a user reopens this saved conversation.
+    const english = locale === 'en';
+    const sql = "SELECT tradeDate, close FROM Daily WHERE tsCode='000001.SZ' ORDER BY tradeDate";
+    const messages: ChatMessage[] = [
+      {
+        role: 'user',
+        parts: [
+          {
+            type: 'text',
+            text: english ? 'Show price and rebased price.' : '看一下价格和归一化价格。',
+          },
+        ],
+      },
+      {
+        role: 'assistant',
+        parts: [
+          {
+            type: 'text',
+            text: english
+              ? 'Price and rebased series from the saved query.'
+              : '这是按所选查询绘制的价格与归一化序列。',
+          },
+          {
+            type: 'chart',
+            title: english ? 'Historical price' : '历史价格',
+            chart: { kind: 'line', sql, x: 'tradeDate', series: [{ column: 'close' }] },
+          },
+          {
+            type: 'chart',
+            title: english ? 'Historical rebased price' : '历史归一化价格',
+            chart: {
+              source: 'compute',
+              kind: 'line',
+              queries: [{ name: 'prices', sql }],
+              code: 'export default ({data, stats}) => data.prices.map(row => ({date: row.tradeDate, value: row.close / stats.mean(data.prices.map(item => item.close)) * 100}));',
+              x: 'date',
+              series: [{ column: 'value' }],
+            },
+          },
+          {
+            type: 'chart',
+            title: english ? 'Unavailable historical sample' : '当前已无数据的历史样本',
+            chart: {
+              kind: 'line',
+              sql: sql.replace('000001.SZ', '999999.SZ'),
+              x: 'tradeDate',
+              series: [{ column: 'close' }],
+            },
+          },
+        ],
+      },
+    ];
+    await prisma.strategy.create({
+      data: {
+        id: `legacycharts${locale}`,
+        userId: `question-reader-${locale}`,
+        name: english ? 'Saved chart conversation' : '已保存的图表对话',
+        config,
+        messages: JSON.parse(JSON.stringify(messages)),
       },
     });
   }

@@ -8,11 +8,12 @@ Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对�
 - 查看历史消息：[conversation-routes.ts](conversation-routes.ts) → [conversations/read.ts](conversations/read.ts)，按用户归属查询、按 sequence 翻页。
 - 订阅/恢复连接/取消：`turn-routes.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
 - 查看执行详情：`turn-routes.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
-- 重绘回复中的图表：`POST /sql-queries`、`POST /chart-computations` → SQL/图表工具，与 Agent 工具共用校验和执行能力。
+- 新对话计算/绘图：页面通过 `profiles/embedded.ts` 添加 `runEmbeddedAnalysis` / `readEmbeddedAnalysis`，绑定已验证用户、宿主和报告；执行与固定输出归 Research，卡片保存精确版本/运行引用。
+- 重绘历史回复中的图表：`POST /sql-queries`、`POST /chart-computations` → `tools/charts/replay.ts`，复用只读 SQL 和原 JS 沙箱；旧卡片显示重新取当前数据的提示，不冒充原始结果。
 
 根级 `routes.ts` 直接组合 conversation / turn / chart 三组路由，具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
 
-Strategy profile 只提供数据查询/分析工具和代码产物校验；生成代码后由用户在策略工作台显式发起回测。Research profile 保留语义查询与文档提案，统计计算在可见 Cell 中执行；完整交易规则通过封存研究生成 Strategy 草稿，不在对话背后回测。Factor profile 的探索分析工具保持独立边界。
+Strategy 基础 profile 提供查询和代码产物校验；页面单独添加嵌入式分析，Research 草稿交接不获得嵌入执行权限；生成代码后由用户在策略工作台显式发起回测。Research profile 保留语义查询与文档提案，统计计算在可见 Cell 中执行；完整交易规则通过封存研究生成 Strategy 草稿，不在对话背后回测。Factor profile 的探索分析工具保持独立边界。
 
 ## 目录职责
 
@@ -27,7 +28,7 @@ Strategy profile 只提供数据查询/分析工具和代码产物校验；生�
 | [conversations/manage.ts](conversations/manage.ts) | 查找/创建实体关联的对话，首次导入既有历史；Research 只复用有效对话 |
 | [conversations/entity-messages.ts](conversations/entity-messages.ts) | 读取实体历史及保留 Strategy/Factor 的 messages 镜像；已发布因子的镜像不可写 |
 | [conversations/schema.ts](conversations/schema.ts) | parts 消息入参校验；图表规格引用 charts/spec，保持公开消息契约 |
-| `tools/charts/` | SQL 图表、计算图表、规格与列校验；不负责 Research 的图表产物 |
+| `tools/charts/` | 历史 ChartSpec、重查执行和列校验；不再导出 Agent 绘图工具，不负责 Research 的图表产物 |
 | `tools/sql/` | SQL 白名单、查询限额/超时、只读 Worker 和 Node SQLite 类型声明 |
 | `tools/` 其余具名文件 | 已有数据查询、研究提案、因子分析等工具；工具注册仍由 `tools/index.ts` 组织 |
 
@@ -37,7 +38,7 @@ Strategy profile 只提供数据查询/分析工具和代码产物校验；生�
 2. 读取历史，查找或创建 conversation；事务中创建 running turn 和用户消息；随后更新 Strategy/Factor 的 messages 镜像。
 3. 调用 core，发布增量与工具事件，trace recorder 串行写入 checkpoint。
 4. 成功时先写实体回复镜像、flush 轨迹，再在事务中保存 assistant 消息、Research 提案/澄清及 turn 终态。
-5. 上述持久化完成后发布 `done`，最后触发异步 `afterTurn`（例如因子元数据刷新）。失败或取消不保存 assistant 回复，记录对应终态并发布事件。
+5. 上述持久化完成后发布 `done`，最后触发异步 `afterTurn`（例如因子元数据刷新）。嵌入分析提交后即保存 assistant 卡片引用，成功时合并最终回答；失败或取消保留已经保存的卡片并记录终态。
 
 只读 Factor 问答是上述起始顺序的明确例外：业务在同一个事务内完成来源检查、会话创建/复用、上下文快照和用户消息/turn 保存，再通过 `persistedInput` 交给 runner。其 entity 为 `factor-question:<conversationId>`，不写 Factor.messages；专用历史接口联接每轮上下文和终态，刷新恢复时以它为准。
 

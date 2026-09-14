@@ -1,6 +1,5 @@
-/** Pure statistical functions for backtesting and factor analysis. No side effects, independently
- * verifiable. Every EXPORTED function's JSDoc doubles as the agent analyzeData tool's manual —
- * stats-doc.ts is generated from this file (`pnpm --filter api gen:stats-doc`, drift fails a test). */
+/** Pure statistical functions for backtesting, factor analysis and historical chart replay.
+ * Business callers retain their existing numerical conventions; Research uses its Python libraries. */
 
 /** Arithmetic mean (0 for an empty array). */
 export function mean(xs: number[]): number {

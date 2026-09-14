@@ -21,7 +21,6 @@
     "probe:asset-allocation": "tsx --conditions=development --env-file=.env scripts/probes/probe-asset-allocation.ts",
     "probe:fundamentals": "tsx --conditions=development --env-file=.env scripts/probes/probe-fundamentals.ts",
     "probe:main-business": "tsx --conditions=development --env-file=.env scripts/probes/probe-main-business.ts",
-    "gen:stats-doc": "tsx --conditions=development scripts/generators/gen-stats-doc.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env scripts/maintenance/gen-invite.ts",
     "factor:report": "tsx --conditions=development --env-file=.env scripts/research/factor-report.ts",
     "smoke": "tsx --conditions=development --env-file=.env scripts/probes/smoke.ts",
