@@ -79,7 +79,7 @@ Research 文档中，helper 只负责确定性计算，不产生增长预测或�
 
 ## 主营业务来源实测
 
-命令：`pnpm --filter api probe:main-business`。退出码 2 表示完成探针但拒绝 PIT 接入，1 表示调用失败。
+历史命令：`pnpm --filter api probe:main-business`（2026-09-15 已移除完成使命的探针，代码可从 Git 历史恢复）。退出码 2 表示完成探针但拒绝 PIT 接入，1 表示调用失败。
 本轮原始响应保存在 [探针证据](./fixtures/valuation-fundamental-m5-main-business.json)，含 UTC 抓取时间、
 每次调用参数、原始返回行、SHA-256 指纹和诊断。修正统计规则后直接用同一份原始响应重新计算，没有为了得到
 某种结论另选数据。未写入生产市场数据表。

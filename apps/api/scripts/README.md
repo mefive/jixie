@@ -12,9 +12,9 @@
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 5 | 导入后的质量检查、研究核验 |
-| [probes/](probes/) | 外部接口权限、字段和历史可用性探测 | 4 | bootstrap、数据源研究 |
+| [probes/](probes/) | Tushare 连接与接口能力探测 | 2 | bootstrap、批量导入、手动诊断 |
 
-共 38 个入口，其中 28 个应用 CLI 位于模块内。`probes/fundamentals/` 的 3 个辅助模块、3 个单元测试及 1 个 JSON fixture 不计为入口。操作系统任务配置统一放在仓库根级 `deploy/`。
+共 36 个入口，其中 28 个应用 CLI 位于模块内。操作系统任务配置统一放在仓库根级 `deploy/`。
 
 ## 运行约定
 
@@ -74,12 +74,14 @@
 | --- | --- | --- | --- |
 | `smoke` | [smoke.ts](probes/smoke.ts) | 无 | Tushare 连接与权限检查，不写数据库 |
 | `probe:asset-allocation` | [probe-asset-allocation.ts](probes/probe-asset-allocation.ts) | `[--date date] [--json] [--persist] [--persist-if-stale] [--max-age-days days]` | 接口能力探测；`--persist` 或 `--persist-if-stale` 写能力观察记录，bootstrap 使用后者 |
-| `probe:fundamentals` | [probe-fundamentals.ts](probes/probe-fundamentals.ts) | `[--code code] [--start date] [--period date] [--json]`，更正公告参数见文件 | 财报接口权限、版本及巨潮更正证据；不写数据库 |
-| `probe:main-business` | [probe-main-business.ts](probes/probe-main-business.ts) | 无 | 固定样本的主营业务分部与历史时点可用性；不写数据库；正常完成探测仍以退出码 2 表示拒绝 PIT 接入 |
 
-`probes/fundamentals/` 的 `source-probe.ts`、`cninfo-announcement-probe.ts`、`main-business-probe.ts` 是上述入口的辅助实现，对应 `.test.ts` 测试保留在同目录。`fixtures/financial-source-versions.json` 是财报版本样本，也被 `src/market/fundamentals/source-contract.test.ts` 使用，不是线上市场数据。
+M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundamentals`、`probe:main-business` 及其辅助实现和专属测试已移除。研究结论及原始证据继续保留在历史报告，旧代码可从 Git 历史查阅。财报版本样本迁至 [业务测试 fixture](../src/market/fundamentals/fixtures/financial-source-versions.json)，继续支持来源契约测试；正式同步、PIT 规则和 SDK 未改变。
 
 ## 维护与管理
+
+### 财报来源探针清理验证（2026-09-15）
+
+提交信息：`chore(market): remove completed fundamental source probes`。删除范围与代码已通过人工审查。API 类型、后端边界（0 违规）、格式、ESLint、引用及 diff 检查通过；审查后来源契约测试 7 项全部通过，API 编译到独立临时目录通过。迁移的财报版本 fixture 与原文件逐字节一致。未调用外部数据源、运行数据库写入流程或启动常驻服务。
 
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |

@@ -19,8 +19,6 @@
     "audit:financial-selected": "tsx --conditions=development --env-file=.env scripts/audit/audit-selected-financials.ts",
     "audit:etf": "tsx --conditions=development --env-file=.env scripts/audit/audit-etf-registry.ts",
     "probe:asset-allocation": "tsx --conditions=development --env-file=.env scripts/probes/probe-asset-allocation.ts",
-    "probe:fundamentals": "tsx --conditions=development --env-file=.env scripts/probes/probe-fundamentals.ts",
-    "probe:main-business": "tsx --conditions=development --env-file=.env scripts/probes/probe-main-business.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
     "smoke": "tsx --conditions=development --env-file=.env scripts/probes/smoke.ts",
     "sync:stock-prices": "tsx --conditions=development --env-file=.env src/market/cli/sync-stock-prices.ts",
