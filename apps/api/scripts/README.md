@@ -13,9 +13,8 @@
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 5 | 导入后的质量检查、研究核验 |
 | [probes/](probes/) | 外部接口权限、字段和历史可用性探测 | 4 | bootstrap、数据源研究 |
-| [research/](research/) | 手动因子分析 | 1 | 研究者 |
 
-共 39 个入口，其中 28 个应用 CLI 位于模块内。`probes/fundamentals/` 的 3 个辅助模块、3 个单元测试及 1 个 JSON fixture 不计为入口。操作系统任务配置统一放在仓库根级 `deploy/`。
+共 38 个入口，其中 28 个应用 CLI 位于模块内。`probes/fundamentals/` 的 3 个辅助模块、3 个单元测试及 1 个 JSON fixture 不计为入口。操作系统任务配置统一放在仓库根级 `deploy/`。
 
 ## 运行约定
 
@@ -96,17 +95,17 @@ Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.servic
 
 部署本次路径调整时，需要通过 bootstrap 构建 API 并重新安装、加载 systemd 配置；仅拉取源码不会更新服务器上已安装的 unit。本次未修改可部署 workspace 或跨包构建依赖，现有 `deploy/component-impact.json` 已将 `deploy/` 和根级 `scripts/` 的变更归为全量部署，无需修改映射。
 
-## 研究
+## 已移除的研究脚本
 
-| 命令或入口 | 文件 | 参数 | 用途与副作用 |
-| --- | --- | --- | --- |
-| `factor:report` | [factor-report.ts](research/factor-report.ts) | `[start] [end] [month/week] [neutral]` | 初始化内置因子并批量分析，终端打印 IC、分组收益等；会写内置因子，不是纯只读工具 |
-
-`factor:report` 用于手动分析，不加入生产定时任务。
+`factor:report` 及 `research/factor-report.ts` 已移除：该 CLI 使用旧版 `version: 1` 配置批量分析内置因子，仅打印终端摘要，不保存正式报告，且没有产品或生产调度调用。正式因子分析请从因子页面提交并查看持久化报告；页面不提供该脚本的一键全量批处理。底层分析器和内置因子初始化继续保留，旧脚本可从 Git 历史查阅。
 
 固定三家公司、2026-09-07 标题的 `create-fcff-research-replays.ts` 已移除：它是已完成交付的一次性文档创建入口，没有 pnpm 或生产调用。研究模板、案例参数、用户文档和封存结果不受影响；原脚本可从 Git 历史查阅。
 
 根级工程与运维编排脚本见 [仓库脚本索引](../../../scripts/README.md)。
+
+### 批量因子 CLI 删除验证（2026-09-15）
+
+提交信息：`chore(factor): remove legacy batch report CLI`。删除范围与代码已通过人工审查；引用检查、API 类型检查、后端边界检查（0 违规）、package.json 格式检查和 diff 检查通过。审查后 API 编译到独立临时目录通过。未运行旧分析脚本、访问数据库或启动服务；正式分析器、初始化逻辑和报告流程没有改动。
 
 ## 历史整理记录（2026-09-09）
 

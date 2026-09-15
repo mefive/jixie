@@ -22,7 +22,6 @@
     "probe:fundamentals": "tsx --conditions=development --env-file=.env scripts/probes/probe-fundamentals.ts",
     "probe:main-business": "tsx --conditions=development --env-file=.env scripts/probes/probe-main-business.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
-    "factor:report": "tsx --conditions=development --env-file=.env scripts/research/factor-report.ts",
     "smoke": "tsx --conditions=development --env-file=.env scripts/probes/smoke.ts",
     "sync:stock-prices": "tsx --conditions=development --env-file=.env src/market/cli/sync-stock-prices.ts",
     "sync:stock-history": "tsx --conditions=development --env-file=.env src/market/cli/sync-stock-history.ts",
