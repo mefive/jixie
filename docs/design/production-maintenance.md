@@ -860,6 +860,24 @@ systemctl status jixie-backup.service
 
 ## 14. 完成定义
 
+### 2026-09 maintenance 恢复修订（代码审查及本地验证通过，生产待验收）
+
+计划提交：`fix(maintenance): make data recovery resumable and publication safe`。
+
+本次处理 SQL UNION 缺列、周修复批量上限耗尽重启次数、ETF registry 历史覆盖与重复同步、
+审计截止日超出已发布日，以及重试丢失历史变更范围的问题。恢复沿用现有锁、timer 和 checkpoint，
+不新建调度器或修改数据 schema；实现入口及限制见 `apps/api/src/maintenance/README.md`。
+
+人工代码审查已通过。2026-09-15 本地验证：维护与 ETF/仓单相关 16 个测试文件、68 项测试全部通过，
+其中包含真实迁移 SQLite 财报审计、64 日自愈、无进展失败、ETF 修订中断恢复以及候选不完整时拒绝覆盖；
+部署规划 8 项测试通过，API 构建通过。静态检查包含 TypeScript、ESLint、格式、后端依赖边界、
+bootstrap Shell 语法及 diff 检查。SQLite fixture 首次因未预建临时文件失败，修正测试初始化后整组复验通过。
+测试连接已关闭、临时数据库已由 fixture 清理；未运行生产 bootstrap 或改变生产状态。
+不能把本节视为生产已恢复或所有完成定义已满足的证明。
+
+已知限制：保守失效会重算已发布历史，首次 ETF 全历史补数仍可能耗时较长。财报异常是否进入实际
+选中版本、仓单源是否补齐，需核对具体生产证据；不将所有财报错误降为警告，也不豁免陈旧仓单。
+
 以下条件全部满足才算生产维护闭环完成：
 
 - `systemctl list-timers 'jixie-*'` 能看到 daily、weekly 和 backup；

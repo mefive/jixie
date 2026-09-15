@@ -46,6 +46,9 @@ export interface SelfHealSummary {
 export interface SelfHealOptions {
   maxRepairDates?: number;
   onLog?: (line: string) => void;
+  drain?: boolean;
+  beforeRepair?: (repair: MarketDateRepair) => Promise<void>;
+  onProgress?: (summary: SelfHealSummary) => Promise<void>;
 }
 
 /**
@@ -147,8 +150,11 @@ export async function selfHealMarketDates(
   const counts = await inspectMarketDates(dates);
   const fullPlan = buildMarketDateRepairPlan(counts);
   const maximum = options.maxRepairDates ?? fullPlan.length;
-  const plan = fullPlan.slice(0, maximum);
-  const deferredDates = fullPlan.slice(maximum).map((repair) => repair.tradeDate);
+  if (fullPlan.length > 0 && (!Number.isInteger(maximum) || maximum <= 0)) {
+    throw new Error('Self-heal batch size must be a positive integer');
+  }
+  const plan = options.drain ? fullPlan : fullPlan.slice(0, maximum);
+  const deferredDates = fullPlan.slice(plan.length).map((repair) => repair.tradeDate);
   const summary: SelfHealSummary = {
     inspectedDates: dates.length,
     plannedDates: fullPlan.length,
@@ -171,6 +177,7 @@ export async function selfHealMarketDates(
 
   for (const repair of plan) {
     const tradeDate = repair.tradeDate as TradeDate;
+    await options.beforeRepair?.(repair);
     onLog(`${tradeDate}: ${repair.reasons.join('; ')}`);
     if (repair.core) {
       await syncDailyCoreDate(client, tradeDate);
@@ -192,7 +199,20 @@ export async function selfHealMarketDates(
       summary.indexDates.push(tradeDate);
     }
     await validateRawMarketDate(tradeDate);
+    const remaining = buildMarketDateRepairPlan(await inspectMarketDates([tradeDate]));
+    if (remaining.length > 0) {
+      throw new Error(
+        `Self-heal made insufficient progress on ${tradeDate}: ${remaining[0].reasons.join('; ')}`,
+      );
+    }
     summary.repairedDates.push(tradeDate);
+    summary.earliestDerivedChange = [...summary.coreDates, ...summary.indexDates].sort()[0] ?? null;
+    if (
+      summary.repairedDates.length % maximum === 0 ||
+      summary.repairedDates.length === plan.length
+    ) {
+      await options.onProgress?.(summary);
+    }
   }
 
   summary.earliestDerivedChange = [...summary.coreDates, ...summary.indexDates].sort()[0] ?? null;

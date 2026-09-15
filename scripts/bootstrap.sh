@@ -885,33 +885,38 @@ retry_blocking_maintenance() {
   local maintenance_kind
   local maintenance_stage
 
-  for ((attempt = 1; attempt <= 4; attempt++)); do
+  for ((attempt = 0; attempt <= 4; attempt++)); do
     maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/maintenance/status")" ||
       die "无法读取 maintenance status"
     read -r maintenance_active maintenance_kind maintenance_stage < <(
       STATUS_JSON="$maintenance_status" node -e '
         const status = JSON.parse(process.env.STATUS_JSON);
         process.stdout.write(
-          `${status.active ? "1" : "0"} ${status.kind ?? "none"} ${status.stage ?? "none"}`,
+          `${status.active ? "1" : "0"} ${status.kind ?? "none"} ${status.stage ?? "none"}\n`,
         );
       '
     )
     if [[ "$maintenance_active" == "0" ]]; then
       return
     fi
-    [[ "$maintenance_stage" == "error" ]] ||
+    [[ "$attempt" -lt 4 ]] || die "maintenance Gate 自动恢复超过最大重试次数: $maintenance_status"
+    [[ "$maintenance_stage" == "error" || "$maintenance_stage" == "interrupted" ]] ||
       die "maintenance Gate 存在非错误活跃任务,拒绝并发恢复: $maintenance_status"
 
     case "$maintenance_kind" in
       daily)
         log "重试仍在阻塞 App 的 daily maintenance"
         sudo systemctl reset-failed jixie-maintenance.service
-        sudo systemctl restart jixie-maintenance.service
+        if ! sudo systemctl restart jixie-maintenance.service; then
+          warn "daily maintenance 本次恢复失败,重新读取 Gate 状态"
+        fi
         ;;
       weekly)
         log "重试仍在阻塞 App 的 weekly maintenance"
         sudo systemctl reset-failed jixie-maintenance-weekly.service
-        sudo systemctl restart jixie-maintenance-weekly.service
+        if ! sudo systemctl restart jixie-maintenance-weekly.service; then
+          warn "weekly maintenance 本次恢复失败,重新读取 Gate 状态"
+        fi
         ;;
       *)
         die "maintenance Gate 需要人工修复,不自动重试 $maintenance_kind: $maintenance_status"
@@ -1080,6 +1085,12 @@ else
   else
     log "商品 ETF 日线与复权历史覆盖完整,跳过回填"
   fi
+fi
+
+if [[ "$DEPLOY_API" == "1" ]]; then
+  log "检查全部 registry ETF 历史切片并断点补齐至已发布水位"
+  JIXIE_MAINTENANCE_LOCK_HELD=1 pnpm --filter api exec tsx --conditions=development \
+    --env-file=.env scripts/maintenance/recover-etf-history.ts
 fi
 
 MACRO_SYNC_END="$(

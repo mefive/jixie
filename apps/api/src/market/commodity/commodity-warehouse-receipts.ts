@@ -258,11 +258,9 @@ export async function syncCommodityWarehouseReceipts(
             tradeDate: { gte: range.start, lte: range.end },
           },
         });
-        if (existing > 0) {
-          onLog(
-            `Commodity warehouse receipt ${product.productCode} ${range.start}..${range.end}: upstream empty, preserving ${existing} rows`,
-          );
-        }
+        onLog(
+          `Commodity warehouse receipt ${product.productCode} ${range.start}..${range.end}: upstream empty, preserving ${existing} rows; publication status unknown`,
+        );
         continue;
       }
       const points = buildCommodityWarehouseReceiptDaily(
@@ -273,11 +271,14 @@ export async function syncCommodityWarehouseReceipts(
         range.end,
       );
       const retrievedAt = new Date();
+      const returnedDates = [...new Set(points.map((point) => point.tradeDate))];
       await database.$transaction([
         database.commodityWarehouseReceipt.deleteMany({
           where: {
             productCode: product.productCode,
-            tradeDate: { gte: range.start, lte: range.end },
+            // An incomplete provider response is not evidence that previously stored reports
+            // were withdrawn. Replace only the dates the provider actually returned.
+            tradeDate: { in: returnedDates },
           },
         }),
         database.commodityWarehouseReceipt.createMany({
@@ -298,7 +299,7 @@ export async function syncCommodityWarehouseReceipts(
       ]);
       total += points.length;
       onLog(
-        `Commodity warehouse receipt ${product.productCode} ${range.start}..${range.end}: ${points.length} daily aggregates`,
+        `Commodity warehouse receipt ${product.productCode} ${range.start}..${range.end}: ${rows.length} source rows, ${points.length} daily aggregates; latest source report ${returnedDates.sort().at(-1) ?? 'none'}; observed ${retrievedAt.toISOString()}`,
       );
     }
   }

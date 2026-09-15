@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { Prisma } from '#infra/database/prisma.js';
 import {
   analyzeCalendarCoverage,
+  auditFinancialStatementVersions,
   findSharpRowCountDrops,
   selectEvaluationDates,
   summarizeCrossMarketBenchmarkPit,
@@ -13,6 +15,30 @@ import {
 } from './data-audit.js';
 
 describe('data quality audit helpers', () => {
+  it('selects report-period end dates before auditing statement versions', async () => {
+    const queries: string[] = [];
+    const database = {
+      $queryRaw: vi.fn(async (strings: TemplateStringsArray) => {
+        queries.push(strings.join(''));
+        return queries.length === 1
+          ? [
+              {
+                total: 0,
+                invalidAnnouncementDate: 0,
+                invalidAvailableDate: 0,
+                invalidQuality: 0,
+                invalidReportScope: 0,
+              },
+            ]
+          : [{ indicatorPeriods: 0, incomeMatches: 0, balanceMatches: 0, cashFlowMatches: 0 }];
+      }),
+    } as unknown as Prisma;
+
+    await auditFinancialStatementVersions(database);
+
+    expect(queries[0]?.match(/SELECT endDate, announcementDate/g)).toHaveLength(3);
+  });
+
   it('separates leading, internal, and trailing calendar gaps', () => {
     const result = analyzeCalendarCoverage(
       ['20260102', '20260105', '20260106', '20260107', '20260108'],

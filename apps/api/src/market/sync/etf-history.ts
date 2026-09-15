@@ -76,7 +76,7 @@ export async function syncEtfDaily(
   codes: string[],
   start: TradeDate,
   end: TradeDate,
-  options: { refresh?: boolean } = {},
+  options: { refresh?: boolean; validateCoverage?: boolean } = {},
 ): Promise<{ daily: number; adj: number; skippedSlices: number }> {
   const uniqueCodes = [...new Set(codes)].sort();
   const known = await prisma.etfBasic.findMany({
@@ -96,6 +96,12 @@ export async function syncEtfDaily(
 
   for (const code of uniqueCodes) {
     for (const slice of slices) {
+      const expectedDates = options.validateCoverage
+        ? await prisma.tradeCal.findMany({
+            where: { exchange: 'SSE', isOpen: 1, calDate: { gte: slice.start, lte: slice.end } },
+            select: { calDate: true },
+          })
+        : [];
       if (!options.refresh) {
         const completed = await prisma.etfSyncSlice.findUnique({
           where: {
@@ -107,7 +113,28 @@ export async function syncEtfDaily(
           },
           select: { tsCode: true },
         });
-        if (completed) {
+        const storedAdjustmentCount =
+          completed && options.validateCoverage
+            ? await prisma.etfAdjFactor.count({
+                where: {
+                  tsCode: code,
+                  tradeDate: { in: expectedDates.map((date) => date.calDate) },
+                },
+              })
+            : null;
+        const storedDailyCount =
+          completed && options.validateCoverage
+            ? await prisma.etfDaily.count({
+                where: { tsCode: code, tradeDate: { gte: slice.start, lte: slice.end } },
+              })
+            : null;
+        if (
+          completed &&
+          (!options.validateCoverage ||
+            (expectedDates.length > 0 &&
+              storedAdjustmentCount === expectedDates.length &&
+              storedDailyCount! > 0))
+        ) {
           skippedSlices++;
           continue;
         }
@@ -125,6 +152,25 @@ export async function syncEtfDaily(
           end_date: slice.end,
         }),
       ]);
+      if (options.validateCoverage) {
+        if (expectedDates.length === 0) {
+          throw new Error(`ETF history calendar is empty for ${code} ${slice.start}..${slice.end}`);
+        }
+        const adjustmentDates = new Set(adjRows.map((row) => row.trade_date));
+        const missing = expectedDates.filter(
+          (date) => !adjustmentDates.has(date.calDate as TradeDate),
+        );
+        const invalid =
+          [...dailyRows, ...adjRows].some(
+            (row) =>
+              row.ts_code !== code || row.trade_date < slice.start || row.trade_date > slice.end,
+          ) || adjRows.some((row) => !Number.isFinite(row.adj_factor) || row.adj_factor <= 0);
+        if (invalid || dailyRows.length === 0 || missing.length > 0) {
+          throw new Error(
+            `ETF history candidate incomplete for ${code} ${slice.start}..${slice.end}: ${dailyRows.length} bars, ${missing.length} missing adjustment dates, invalid=${invalid}`,
+          );
+        }
+      }
       await prisma.$transaction([
         prisma.etfDaily.deleteMany({
           where: { tsCode: code, tradeDate: { gte: slice.start, lte: slice.end } },

@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
-import { runDataQualityAudit } from './data-audit.js';
+import { runDataQualityAudit, type AuditFinding } from './data-audit.js';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import { syncChinaMacroData } from '#market/macro/china-macro.js';
@@ -12,8 +12,7 @@ import {
 } from '#market/rates/china-treasury-curve.js';
 import { refreshAllFactorWeatherPins } from '#factor/weather/refresh.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '#market/registry/index-presets.js';
-import { refreshEtfRegistryRevisions } from '#market/sync/etf.js';
-import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
+import { recoverEtfRegistry } from './etf-recovery.js';
 import { syncEtfBasic } from '#market/sync/etf-history.js';
 import { syncFutureContracts } from '#market/sync/futures.js';
 import { syncIndexWeight, syncIndexBenchmarks, syncSwIndustry } from '#market/sync/indices.js';
@@ -33,6 +32,7 @@ import {
   advanceWeeklyWatermark,
   beginMaintenanceRun,
   completedMaintenanceItems,
+  completeMaintenanceItem,
   finishMaintenanceRun,
   getMaintenanceState,
   startMaintenanceHeartbeat,
@@ -64,6 +64,10 @@ export interface WeeklyMaintenanceSummary {
   etfRevisionDates: number;
   earliestEtfChange: string | null;
   dataRevision: number | null;
+  auditEnd: string | null;
+  auditFindings: AuditFinding[];
+  recoveryCompleted: number;
+  recoveryTotal: number;
 }
 
 interface WeeklyReferenceSyncSummary extends ReferenceSyncSummary {
@@ -117,6 +121,10 @@ export async function runWeeklyMaintenance(
     etfRevisionDates: 0,
     earliestEtfChange: null,
     dataRevision: null,
+    auditEnd: null,
+    auditFindings: [],
+    recoveryCompleted: 0,
+    recoveryTotal: 0,
   };
   if (run.skipped && !options.force) {
     onLog(`Weekly run ${targetKey} is already complete`);
@@ -130,6 +138,21 @@ export async function runWeeklyMaintenance(
     const standardClient = createClient();
     const weightStart = addMonths(today, -6);
     const state = await getMaintenanceState();
+    if (!state.dailyPublishedThrough) {
+      throw new Error('Weekly maintenance requires a validated daily publication baseline');
+    }
+    summary.auditEnd = state.dailyPublishedThrough;
+    summary.auditStart = await rollingAuditStart(summary.auditEnd);
+    // Write-ahead invalidation survives a crash after historical writes but before summary updates.
+    // Recompute the published range even when a retry observes no further source changes.
+    const earliestPublished = await prisma.daily.findFirst({
+      where: { tradeDate: { lte: state.dailyPublishedThrough } },
+      orderBy: { tradeDate: 'asc' },
+      select: { tradeDate: true },
+    });
+    if (earliestPublished) {
+      await completeMaintenanceItem(run.id, 'derived-invalidation', earliestPublished.tradeDate);
+    }
 
     await updateMaintenanceRun(run.id, 'stock_reference', summary);
     await syncStockBasic(standardClient);
@@ -260,13 +283,19 @@ export async function runWeeklyMaintenance(
         etfLookback,
       );
       await updateMaintenanceRun(run.id, 'etf_revisions', summary);
-      const etfRevisions = await refreshEtfRegistryRevisions(
+      await recoverEtfRegistry(
         standardClient,
-        etfRevisionDates as TradeDate[],
-        ETF_RESEARCH_CODES,
+        run.id,
+        state.dailyPublishedThrough,
+        etfRevisionDates,
+        async (completed, total) => {
+          summary.recoveryCompleted = completed;
+          summary.recoveryTotal = total;
+          await updateMaintenanceRun(run.id, 'etf_revisions', summary);
+        },
       );
-      summary.etfRevisionDates = etfRevisions.dates;
-      summary.earliestEtfChange = etfRevisions.earliestChangedDate;
+      summary.etfRevisionDates = etfRevisionDates.length;
+      summary.earliestEtfChange = '20150101';
     }
 
     await updateMaintenanceRun(run.id, 'canonicalizing_codes', summary);
@@ -284,6 +313,16 @@ export async function runWeeklyMaintenance(
       await updateMaintenanceRun(run.id, 'self_healing', summary);
       summary.selfHealing = await selfHealMarketDates(standardClient, repairDates, {
         maxRepairDates: positiveInteger(process.env.MAINTENANCE_MAX_AUTO_REPAIR_DATES, 20),
+        drain: true,
+        beforeRepair: async (repair) => {
+          if (repair.core || repair.indices) {
+            await completeMaintenanceItem(run.id, 'derived-invalidation', repair.tradeDate);
+          }
+        },
+        onProgress: async (progress) => {
+          summary.selfHealing = progress;
+          await updateMaintenanceRun(run.id, 'self_healing', summary);
+        },
         onLog,
       });
       summary.earliestMarketChange = minimumDate([
@@ -297,19 +336,23 @@ export async function runWeeklyMaintenance(
       }
     }
 
+    const invalidated = await completedMaintenanceItems(run.id, 'derived-invalidation');
+    summary.earliestMarketChange = minimumDate([summary.earliestMarketChange, ...invalidated]);
     await updateMaintenanceRun(run.id, 'auditing', summary);
     const audit = await runDataQualityAudit(prisma, {
-      startDate: auditStart,
-      endDate: today,
+      startDate: summary.auditStart,
+      endDate: summary.auditEnd,
       windowTradingDays: 60,
       evaluationPoints: 3,
     });
     summary.auditErrors = audit.findings.filter((finding) => finding.status === 'error').length;
     summary.auditWarnings = audit.findings.filter((finding) => finding.status === 'warn').length;
+    summary.auditFindings = audit.findings.filter((finding) => finding.status !== 'pass');
+    await updateMaintenanceRun(run.id, 'auditing', summary);
     if (summary.auditErrors > 0) {
       const names = audit.findings
         .filter((finding) => finding.status === 'error')
-        .map((finding) => finding.title)
+        .map((finding) => `${finding.title}: ${finding.summary}`)
         .join(', ');
       throw new Error(`Weekly data audit found ${summary.auditErrors} errors: ${names}`);
     }

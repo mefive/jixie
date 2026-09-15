@@ -1012,7 +1012,7 @@ async function auditFinancialPit(database: Prisma): Promise<AuditFinding> {
   };
 }
 
-async function auditFinancialStatementVersions(database: Prisma): Promise<AuditFinding> {
+export async function auditFinancialStatementVersions(database: Prisma): Promise<AuditFinding> {
   const [versionRows, reconciliationRows] = await Promise.all([
     database.$queryRaw<FinancialStatementVersionAuditRow[]>`
       SELECT
@@ -1022,13 +1022,13 @@ async function auditFinancialStatementVersions(database: Prisma): Promise<AuditF
         SUM(CASE WHEN availabilityQuality NOT IN ('exact', 'conservative', 'reconstructed') THEN 1 ELSE 0 END) AS invalidQuality,
         SUM(CASE WHEN reportType NOT IN ('1', '4', '5') OR compType <> '1' THEN 1 ELSE 0 END) AS invalidReportScope
       FROM (
-        SELECT announcementDate, availableDate, availabilityQuality, reportType, compType
+        SELECT endDate, announcementDate, availableDate, availabilityQuality, reportType, compType
         FROM FinancialIncomeStatement
         UNION ALL
-        SELECT announcementDate, availableDate, availabilityQuality, reportType, compType
+        SELECT endDate, announcementDate, availableDate, availabilityQuality, reportType, compType
         FROM FinancialBalanceSheet
         UNION ALL
-        SELECT announcementDate, availableDate, availabilityQuality, reportType, compType
+        SELECT endDate, announcementDate, availableDate, availabilityQuality, reportType, compType
         FROM FinancialCashFlowStatement
       )
     `,
@@ -1127,12 +1127,38 @@ export async function auditFinancialStatementAccounting(database: Prisma): Promi
       FROM periods
     `,
   ]);
-  return summarizeFinancialStatementAccounting(
+  const finding = summarizeFinancialStatementAccounting(
     balanceRows[0],
     cashRows[0],
     crossRows[0],
     coverageRows[0],
   );
+  if (toNumber(balanceRows[0]?.anomalies) > 0) {
+    const examples = await database.financialBalanceSheet.findMany({
+      where: { OR: [{ totalAssets: { lte: 0 } }, { totalShare: { lte: 0 } }] },
+      select: {
+        id: true,
+        tsCode: true,
+        endDate: true,
+        availableDate: true,
+        availabilityQuality: true,
+        totalAssets: true,
+        totalShare: true,
+      },
+      orderBy: [{ tsCode: 'asc' }, { endDate: 'asc' }, { availableDate: 'asc' }],
+      take: 8,
+    });
+    finding.details.push(
+      ...examples.map(
+        (row) =>
+          `Blocking source row ${row.id}: ${row.tsCode} period ${row.endDate}, available ${row.availableDate}, quality ${row.availabilityQuality}, assets ${row.totalAssets}, shares ${row.totalShare}.`,
+      ),
+    );
+    finding.details.push(
+      'Source anomalies remain blocking until selected-version impact and source evidence are reviewed. Identity mismatch counts alone do not determine error status.',
+    );
+  }
+  return finding;
 }
 
 export function summarizeFinancialStatementVersions(
