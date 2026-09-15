@@ -17,7 +17,7 @@
 | Signals | 按报告独立部署、每日运行、模拟/人工成交和账户对账 | [Signals](../apps/api/src/signals/README.md) |
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
 | Market | 数据通道、身份、同步、查询、状态、估值；包含 fundamentals/rates/macro/commodity 四个数据领域 | [Market](../apps/api/src/market/README.md) |
-| Maintenance | 整轮数据维护、质量门禁、发布水位、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
+| Application Maintenance | 整轮数据维护、质量门禁、发布水位、运行锁、审计与恢复 | [Application Maintenance](../apps/api/src/application-maintenance/README.md) |
 | Sharing | 公开库目录与公开详情，策略复制委托 Strategy | [Sharing](../apps/api/src/sharing/README.md) |
 | Auth | 登录、验证码、邀请码、Session 与 Cookie 适配 | [Auth](../apps/api/src/auth/README.md) |
 | Infra | 数据库、HTTP 辅助、任务执行器、Python/TS 运行设施、模型/邮件传输和日志 | [Jobs](../apps/api/src/infra/jobs/README.md)、[Runtime](../apps/api/src/infra/runtime/README.md) |
@@ -29,11 +29,11 @@
 
 [server.ts](../apps/api/src/server.ts) 的 `buildApp()` 构造路由与中间件，不监听端口、不启动队列。根级 `/`、`/api/health` 提供存活检查，`/api/auth` 为认证接口，`/api/maintenance` 为维护状态。
 
-`/api/app/*` 先经过维护门禁，再经过鉴权。两者分别从 `maintenance/middleware.ts` 与 `auth/middleware.ts` 导入，不经路由出口转导出。业务操作仍检查资源所有者、当前状态和事务条件；不能把“已登录”等同于“可以修改任意对象”。
+`/api/app/*` 先经过维护门禁，再经过鉴权。两者分别从 `application-maintenance/middleware.ts` 与 `auth/middleware.ts` 导入，不经路由出口转导出。业务操作仍检查资源所有者、当前状态和事务条件；不能把“已登录”等同于“可以修改任意对象”。
 
 | 挂载前缀 | 实际入口 |
 | --- | --- |
-| `/api/maintenance` | `maintenance/routes.ts` 导出 `maintenanceRoute` |
+| `/api/maintenance` | `application-maintenance/routes.ts` 导出 `maintenanceRoute` |
 | `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
 | `/api/app/research` | `research/routes.ts` 直接组合 document / execution / evidence / proposal / agent / curator / data / language 路由 |
 | `/api/app/factors` | `factor/routes.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
@@ -138,7 +138,11 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 | 找每日信号失败收尾 | `signals/signal-job.ts` 与 `infra/jobs/executor.ts` |
 | Python 请求财报经过哪里 | `research/sdk/dispatch.ts` → `datasets/financial*.ts` → `market/fundamentals/` |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
-| 改整体审计规则 | `maintenance/data-audit.ts`；模型历史要求由 `strategy/analysis/risk` 提供 |
+| 改整体审计规则 | `application-maintenance/data-audit.ts`；模型历史要求由 `strategy/analysis/risk` 提供 |
 | 找进程和资源入口 | [运行入口清单](backend-runtime-entries.md)，再看所属领域任务/runtime |
 
 开发时运行 `pnpm check:backend-boundaries`，根级 typecheck/build 已包含此门禁。规则、4 条具名纯依赖例外和验证方法见 [依赖边界说明](backend-boundaries.md)。新增业务能力仍放入负责其状态和规则的模块；不为复用一两个函数新建 common/application 或重新拉出平铺 services。
+
+## 应用命令入口
+
+Market、Application Maintenance、Signals、Auth 的命令放在各模块 `cli/`，用法汇总于 [API 命令索引](../apps/api/scripts/README.md)。Market 负责数据和证券代码合并，财报分期规则归 fundamentals；Application Maintenance 负责整轮发布和应用可用性协调。CLI 负责参数/输出/收尾，简单组合保留在入口中；较重的基线修复与财报历史导入由具名操作承接。独立备份工具仍在 API scripts 根目录，以 Node 直接执行。

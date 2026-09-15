@@ -152,7 +152,7 @@ systemd service 通过同一个入口取得锁：
 ```ini
 ExecStart=/usr/bin/flock -n -E 75 \
   /var/lib/jixie/maintenance.lock \
-  /usr/bin/node /opt/jixie/apps/api/dist/scripts/maintenance/run-maintenance.js daily
+  /usr/bin/node /opt/jixie/apps/api/dist/src/application-maintenance/cli/run-maintenance.js daily
 ```
 
 退出码 `75` 解释为 `already_running`。生产人工补跑优先使用 `systemctl start`；根目录的
@@ -886,7 +886,7 @@ SQLite fixture 连接已释放并清理临时库；未运行生产 bootstrap 或
 
 本次处理 SQL UNION 缺列、周修复批量上限耗尽重启次数、ETF registry 历史覆盖与重复同步、
 审计截止日超出已发布日，以及重试丢失历史变更范围的问题。恢复沿用现有锁、timer 和 checkpoint，
-不新建调度器或修改数据 schema；实现入口及限制见 `apps/api/src/maintenance/README.md`。
+不新建调度器或修改数据 schema；实现入口及限制见 `apps/api/src/application-maintenance/README.md`。
 
 人工代码审查已通过。2026-09-15 本地验证：维护与 ETF/仓单相关 16 个测试文件、68 项测试全部通过，
 其中包含真实迁移 SQLite 财报审计、64 日自愈、无进展失败、ETF 修订中断恢复以及候选不完整时拒绝覆盖；

@@ -29,7 +29,7 @@
     "maintenance": "./scripts/maintenance/with-maintenance-lock.sh pnpm --filter api maintenance",
     "import:data": "./scripts/maintenance/with-maintenance-lock.sh ./scripts/maintenance/import-market-data.sh",
     "smoke": "pnpm --filter api smoke",
-    "sync": "pnpm --filter api sync",
+    "sync:stock-prices": "pnpm --filter api sync:stock-prices",
     "peek": "pnpm --filter api peek",
     "signals:run": "pnpm --filter api signals:run",
     "loc": "node scripts/tools/loc.mjs",

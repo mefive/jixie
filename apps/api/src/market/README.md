@@ -43,8 +43,8 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 - HTTP 由 `server.ts` 从根级 `routes.ts` 导入并挂载 `marketRoute`。请求进入查询函数，查询函数返回数据或 `null`，路由再映射 HTTP 响应。查询不依赖 Hono、用户会话或 Agent。
 - `state/compute.ts` 和 `valuation/compute.ts` 不查询数据库。`weather.ts` 的缓存仍按原覆盖日期和频率/维度键失效；这次不改变同日数据修订的缓存策略。
 - `sync/market-indicators.ts` 原有 SQL 批计算及临时表事务保持；它与读取侧 `state/compute.ts` 分别处理落库指标和展示投影，不为目录重整重写 SQL 算法。
-- 同步中的候选校验和数据库替换属于 Market；运行锁、心跳、进度、质量发布水位和恢复属于 [Maintenance](../maintenance/README.md)。一个同步函数成功不等于整轮维护已发布。
-- Market 不导入 Strategy、Agent 或 Research 执行。策略风险模型的历史要求归 `strategy/analysis/risk`，由 `maintenance/risk-data-audit.ts` 与市场基础审计组合。
+- 同步中的候选校验和数据库替换属于 Market；运行锁、心跳、进度、质量发布水位和恢复属于 [Application Maintenance](../application-maintenance/README.md)。一个同步函数成功不等于整轮维护已发布。
+- Market 不导入 Strategy、Agent 或 Research 执行。策略风险模型的历史要求归 `strategy/analysis/risk`，由 `application-maintenance/risk-data-audit.ts` 与市场基础审计组合。
 
 财报版本、availableDate、币种转换、期货换月、覆盖阈值和数据单位均沿用原实现。此目录调整没有数据库表、迁移或 SDK 契约变更。
 
@@ -58,3 +58,12 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 `/indices/:indexCode/series` 保留原精简 `{ points: [{ date, close }] }` 响应、默认区间及空数组语义，与通用行情查询不合并。`/weather`、`/state` 的查询、缓存和数据口径不变。非法 instrument 类型改用中英消息目录，不改变 400 状态。
 
 静态检查与待执行验证见 [统一路由记录](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。人工代码审查后，相关 116 项测试、API/Web 构建和六组浏览器验收全部通过。临时服务、端口和数据库连接已释放，测试数据库已清理；完整结果见统一路由记录。
+
+## 命令入口与数据维护
+
+[cli/](cli/) 的 24 个命令负责参数、配置、输出、退出与进程收尾，允许保留简单同步组合；业务实现不导入 CLI。完整用法见 [API 命令索引](../../scripts/README.md)。
+
+- `sync:stock-prices` 同步股票日行情与复权，先准备股票名录和日历；它替代原 `sync` 命令。
+- [instruments/canonicalize-stock-codes.ts](instruments/canonicalize-stock-codes.ts) 负责历史代码冲突检查和市场数据合并，供本模块 CLI 与应用维护 weekly 使用；纯身份规则仍在 `instruments/stock-identity.ts`。
+- [fundamentals/reference-periods.ts](fundamentals/reference-periods.ts) 负责财报历史起点和季度分期，供 weekly 与财报历史导入复用。
+- 数据操作成功不等于整轮发布完成。[Application Maintenance](../application-maintenance/README.md) 负责协调等待、发布水位及下游信号；Market 不回调它。

@@ -381,25 +381,61 @@ test('permits module route exports while retaining the HTTP boundary for consume
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), ['http-direction']);
 });
 
-test('treats maintenance middleware as HTTP without widening the business boundary', (context) => {
+test('treats application maintenance middleware as HTTP without widening the business boundary', (context) => {
   const root = fixture(context, {
-    [src + 'server.ts']: "import './maintenance/middleware.js';",
-    [src + 'maintenance/middleware.ts']:
+    [src + 'server.ts']: "import './application-maintenance/middleware.js';",
+    [src + 'application-maintenance/middleware.ts']:
       "import type { MiddlewareHandler } from 'hono'; import './state.js';",
-    [src + 'maintenance/state.ts']: "import { prisma } from '../infra/database/prisma.js';",
+    [src + 'application-maintenance/state.ts']:
+      "import { prisma } from '../infra/database/prisma.js';",
     [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 
-  fs.writeFileSync(path.join(root, src + 'maintenance/state.ts'), "import './middleware.js';");
+  fs.writeFileSync(
+    path.join(root, src + 'application-maintenance/state.ts'),
+    "import './middleware.js';",
+  );
   fs.appendFileSync(
-    path.join(root, src + 'maintenance/middleware.ts'),
+    path.join(root, src + 'application-maintenance/middleware.ts'),
     "import { prisma } from '../infra/database/prisma.js';",
   );
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [
     'http-direction',
     'http-storage',
   ]);
+});
+
+test('keeps application maintenance outside direct and indirect Market dependencies', (context) => {
+  const root = fixture(context, {
+    [src + 'market/direct.ts']: "import '../application-maintenance/state.js';",
+    [src + 'market/indirect.ts']: "import '../infra/bridge.js';",
+    [src + 'infra/bridge.ts']: "export { state } from '../application-maintenance/state.js';",
+    [src + 'application-maintenance/state.ts']: 'export const state = {};',
+  });
+  const diagnostics = checkBackendBoundaries(root, emptyPolicy).diagnostics;
+  assert.ok(
+    diagnostics.some(
+      (issue) => issue.rule === 'market-direction' && issue.from === src + 'market/direct.ts',
+    ),
+  );
+  assert.ok(
+    diagnostics.some(
+      (issue) =>
+        issue.rule === 'market-transitive-direction' && issue.from === src + 'market/indirect.ts',
+    ),
+  );
+});
+
+test('rejects the retired maintenance module while allowing the renamed coordinator', (context) => {
+  const root = fixture(context, {
+    [src + 'application-maintenance/daily.ts']: "import '../market/sync.js';",
+    [src + 'market/sync.ts']: 'export const sync = () => {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+  fs.mkdirSync(path.join(root, src + 'maintenance'));
+  fs.writeFileSync(path.join(root, src + 'maintenance/old.ts'), 'export const value = 1;');
+  assert.ok(rules(checkBackendBoundaries(root, emptyPolicy)).includes('retired-path'));
 });
 
 test('permits shared workspace contracts when resolution points inside the repository', (context) => {

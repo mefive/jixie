@@ -17,3 +17,5 @@
 `routes.test.ts` 用全新临时 SQLite 和替代邮件传输验证注册、登录、重放、失败清理、事务回滚和 Cookie；`multi-user-permissions.test.ts` 保留跨用户业务权限回归。模块不依赖其他业务目录，HTTP 适配之外不导入 Hono。
 
 `server.ts` 从本模块根级 `routes.ts` 导入 `authRoute` 并挂载 `/api/auth`，从 `middleware.ts` 导入 `requireAuth` 保护 `/api/app/*`。登录路由调用登录/会话业务，再通过 `cookies.ts` 设置或清除 Cookie；鉴权中间件读取 Cookie，调用 `session.ts` 解析状态，并映射为 401 或当前用户上下文。资源归属校验仍由各业务模块负责。
+
+管理员入口 [cli/gen-invite.ts](cli/gen-invite.ts) 对应 `pnpm --filter api gen:invite [count] [note]`：校验参数、调用码生成函数、批量写入邀请码并逐行输出，负责 Prisma 收尾，不发送邮件。

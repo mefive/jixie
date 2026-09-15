@@ -1,19 +1,21 @@
-# API 脚本索引
+# API 命令与脚本索引
 
-这里维护开发者和运维使用的命令入口；业务实现位于 `../src/`。现有 pnpm 命令名保持不变，优先从仓库根目录使用 `pnpm --filter api <命令> [参数]`，不要依赖旧的平铺文件路径。
+应用命令与业务实现按模块相邻放置，本文件提供统一的命令索引。优先使用 `pnpm --filter api <命令> [参数]`；股票日行情入口现为 `sync:stock-prices`，原 `sync` 命令已移除。
 
 ## 按任务找目录
 
-| 目录 | 用途 | 入口数 | 主要调用方 |
+| 目录 / 文件 | 用途 | 入口数 | 主要调用方 |
 | --- | --- | --- | --- |
-| [sync/](sync/) | 导入和补齐行情、财报、宏观及派生数据 | 24 | `scripts/maintenance/import-market-data.sh`、bootstrap、手动补数 |
-| [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 5 | 导入后的质量检查、研究核验、开发者 |
-| [probes/](probes/) | 检查外部接口权限、字段和历史可用性 | 4 | bootstrap 的能力探测、数据源研究、连接诊断 |
-| [maintenance/](maintenance/) | 维护、备份、信号、代码修复与邀请码 | 5 | systemd、根级维护命令、管理员 |
-| [research/](research/) | 手动因子分析 | 1 | 研究者；不自动调度 |
-| [generators/](generators/) | 从源码生成开发文档 | 1 | 统计函数维护者 |
+| [Market CLI](../src/market/cli/) | 市场数据同步、派生计算和证券代码修复 | 24 | 批量导入、bootstrap、手动补数 |
+| [Application Maintenance CLI](../src/application-maintenance/cli/) | 整轮维护、基线修复及财报分批历史导入 | 2 | systemd、根级维护命令、批量导入 |
+| [Signals CLI](../src/signals/cli/) | 交易日信号周期 | 1 | 管理员 |
+| [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
+| [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
+| [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 5 | 导入后的质量检查、研究核验 |
+| [probes/](probes/) | 外部接口权限、字段和历史可用性探测 | 4 | bootstrap、数据源研究 |
+| [research/](research/) | 手动因子分析 | 1 | 研究者 |
 
-共 40 个入口。`probes/fundamentals/` 另外包含 3 个辅助模块、3 个单元测试及 1 个 JSON fixture，它们不是独立命令。操作系统任务配置统一放在仓库根级 `deploy/`。
+共 39 个入口，其中 28 个应用 CLI 位于模块内。`probes/fundamentals/` 的 3 个辅助模块、3 个单元测试及 1 个 JSON fixture 不计为入口。操作系统任务配置统一放在仓库根级 `deploy/`。
 
 ## 运行约定
 
@@ -28,30 +30,30 @@
 
 | 命令 | 文件 | 参数 | 内容 |
 | --- | --- | --- | --- |
-| `sync` | [sync.ts](sync/sync.ts) | `[start] [end]` | 股票基础信息、交易日历、日行情与复权 |
-| `sync:stock-history` | [sync-stock-history.ts](sync/sync-stock-history.ts) | `[start] [end]` | 完整股票名录、历史名称及代码变更资料 |
-| `sync:basic` | [sync-basic.ts](sync/sync-basic.ts) | `[start] [end]` | 股票每日估值指标；不是基础名录 |
-| `sync:fina` | [sync-fina.ts](sync/sync-fina.ts) | 无参数全量；单股修复见文件中的 `--repair-code` | 原始财报版本、财务指标、分红历史，分批子进程执行 |
-| `sync:limit` | [sync-limit.ts](sync/sync-limit.ts) | `[start] [end]` | 每日涨跌停价格 |
-| `sync:moneyflow` | [sync-moneyflow.ts](sync/sync-moneyflow.ts) | `[start] [end]` | 个股资金流 |
-| `sync:toplist` | [sync-toplist.ts](sync/sync-toplist.ts) | `[start] [end]` | 龙虎榜 |
-| `sync:sw-industry` | [sync-sw-industry.ts](sync/sync-sw-industry.ts) | 无 | 申万行业成员及历史归属 |
-| `sync:etf` | [sync-etf.ts](sync/sync-etf.ts) | `[start] [end] [selector] [refresh]` | ETF 元数据、行情、复权和份额；selector 为 `registry`、`major` 或逗号分隔代码 |
-| `sync:index` | [sync-index.ts](sync/sync-index.ts) | `[selector] [start] [end]` | 成分权重及行情；selector 为 `market-state` 或逗号分隔代码 |
-| `sync:index-daily` | [sync-index-daily.ts](sync/sync-index-daily.ts) | `[start] [end] [selector]` | 只补指数行情；selector 为 `major` 或逗号分隔代码 |
-| `sync:index-basic` | [sync-index-basic.ts](sync/sync-index-basic.ts) | `[start] [end] [selector]` | 指数每日估值；selector 为 `major` 或逗号分隔代码 |
-| `sync:market-reference` | [sync-market-reference.ts](sync/sync-market-reference.ts) | `[start] [end]` | 指数目录、看板指数和申万行业行情 |
-| `sync:market-state` | [sync-market-state.ts](sync/sync-market-state.ts) | `[start] [end]` | 本地预计算市场、指数与行业状态 |
-| `sync:futures` | [sync-futures.ts](sync/sync-futures.ts) | `[start] [end]` | 股指期货合约、行情、主力映射和结算参数 |
-| `sync:commodity-futures` | [sync-commodity-futures.ts](sync/sync-commodity-futures.ts) | `[start] [end]` | 商品期货实际合约及行情 |
-| `sync:commodity-continuous` | [sync-commodity-continuous-returns.ts](sync/sync-commodity-continuous-returns.ts) | `[start] [end]` | 主力映射及经审计的商品连续收益 |
-| `sync:commodity-holdings` | [sync-commodity-holdings.ts](sync/sync-commodity-holdings.ts) | `[start] [end]` | 商品期货会员持仓排名汇总 |
-| `sync:commodity-warehouse-receipts` | [sync-commodity-warehouse-receipts.ts](sync/sync-commodity-warehouse-receipts.ts) | `[start] [end]` | 商品交易所仓单 |
-| `sync:rates` | [sync-rates.ts](sync/sync-rates.ts) | `[start] [end]` | 中国国债收益率曲线 |
-| `sync:credit-curves` | [sync-credit-curves.ts](sync/sync-credit-curves.ts) | `[start] [end]` | 信用债收益率曲线 |
-| `sync:external-market` | [sync-external-market.ts](sync/sync-external-market.ts) | `[start] [end]` | 美国利率、汇率等外部市场数据 |
-| `sync:cross-market-benchmarks` | [sync-cross-market-benchmarks.ts](sync/sync-cross-market-benchmarks.ts) | `[start] [end]` | 跨市场基准序列 |
-| `sync:macro` | [sync-macro.ts](sync/sync-macro.ts) | `[startMonth] [endMonth]` | 中国宏观和美国 CPI |
+| `sync:stock-prices` | [sync-stock-prices.ts](../src/market/cli/sync-stock-prices.ts) | `[start] [end]` | 股票基础信息、交易日历、日行情与复权 |
+| `sync:stock-history` | [sync-stock-history.ts](../src/market/cli/sync-stock-history.ts) | `[start] [end]` | 完整股票名录、历史名称及代码变更资料 |
+| `sync:basic` | [sync-basic.ts](../src/market/cli/sync-basic.ts) | `[start] [end]` | 股票每日估值指标；不是基础名录 |
+| `sync:fina` | [sync-fina.ts](../src/application-maintenance/cli/sync-fina.ts) | 无参数全量；单股修复见文件中的 `--repair-code` | 原始财报版本、财务指标、分红历史，分批子进程执行 |
+| `sync:limit` | [sync-limit.ts](../src/market/cli/sync-limit.ts) | `[start] [end]` | 每日涨跌停价格 |
+| `sync:moneyflow` | [sync-moneyflow.ts](../src/market/cli/sync-moneyflow.ts) | `[start] [end]` | 个股资金流 |
+| `sync:toplist` | [sync-toplist.ts](../src/market/cli/sync-toplist.ts) | `[start] [end]` | 龙虎榜 |
+| `sync:sw-industry` | [sync-sw-industry.ts](../src/market/cli/sync-sw-industry.ts) | 无 | 申万行业成员及历史归属 |
+| `sync:etf` | [sync-etf.ts](../src/market/cli/sync-etf.ts) | `[start] [end] [selector] [refresh]` | ETF 元数据、行情、复权和份额；selector 为 `registry`、`major` 或逗号分隔代码 |
+| `sync:index` | [sync-index.ts](../src/market/cli/sync-index.ts) | `[selector] [start] [end]` | 成分权重及行情；selector 为 `market-state` 或逗号分隔代码 |
+| `sync:index-daily` | [sync-index-daily.ts](../src/market/cli/sync-index-daily.ts) | `[start] [end] [selector]` | 只补指数行情；selector 为 `major` 或逗号分隔代码 |
+| `sync:index-basic` | [sync-index-basic.ts](../src/market/cli/sync-index-basic.ts) | `[start] [end] [selector]` | 指数每日估值；selector 为 `major` 或逗号分隔代码 |
+| `sync:market-reference` | [sync-market-reference.ts](../src/market/cli/sync-market-reference.ts) | `[start] [end]` | 指数目录、看板指数和申万行业行情 |
+| `sync:market-state` | [sync-market-state.ts](../src/market/cli/sync-market-state.ts) | `[start] [end]` | 本地预计算市场、指数与行业状态 |
+| `sync:futures` | [sync-futures.ts](../src/market/cli/sync-futures.ts) | `[start] [end]` | 股指期货合约、行情、主力映射和结算参数 |
+| `sync:commodity-futures` | [sync-commodity-futures.ts](../src/market/cli/sync-commodity-futures.ts) | `[start] [end]` | 商品期货实际合约及行情 |
+| `sync:commodity-continuous` | [sync-commodity-continuous-returns.ts](../src/market/cli/sync-commodity-continuous-returns.ts) | `[start] [end]` | 主力映射及经审计的商品连续收益 |
+| `sync:commodity-holdings` | [sync-commodity-holdings.ts](../src/market/cli/sync-commodity-holdings.ts) | `[start] [end]` | 商品期货会员持仓排名汇总 |
+| `sync:commodity-warehouse-receipts` | [sync-commodity-warehouse-receipts.ts](../src/market/cli/sync-commodity-warehouse-receipts.ts) | `[start] [end]` | 商品交易所仓单 |
+| `sync:rates` | [sync-rates.ts](../src/market/cli/sync-rates.ts) | `[start] [end]` | 中国国债收益率曲线 |
+| `sync:credit-curves` | [sync-credit-curves.ts](../src/market/cli/sync-credit-curves.ts) | `[start] [end]` | 信用债收益率曲线 |
+| `sync:external-market` | [sync-external-market.ts](../src/market/cli/sync-external-market.ts) | `[start] [end]` | 美国利率、汇率等外部市场数据 |
+| `sync:cross-market-benchmarks` | [sync-cross-market-benchmarks.ts](../src/market/cli/sync-cross-market-benchmarks.ts) | `[start] [end]` | 跨市场基准序列 |
+| `sync:macro` | [sync-macro.ts](../src/market/cli/sync-macro.ts) | `[startMonth] [endMonth]` | 中国宏观和美国 CPI |
 
 ## 审计与查看
 
@@ -82,31 +84,31 @@
 
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
-| `maintenance` | [run-maintenance.ts](maintenance/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair start end`、`baseline [date]` | 写市场数据和维护状态；优先使用根级加锁入口 |
-| `signals:run` | [run-signals.ts](maintenance/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
-| `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](maintenance/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
-| `gen:invite` | [gen-invite.ts](maintenance/gen-invite.ts) | `[count] [note]` | 创建邀请码，写数据库，不发送邮件 |
-| `backup` | [backup-db.mjs](maintenance/backup-db.mjs) | 环境变量见下文 | SQLite 在线备份、校验和文件轮换 |
+| `maintenance` | [run-maintenance.ts](../src/application-maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair start end`、`baseline [date]` | 写市场数据和维护状态；优先使用根级加锁入口 |
+| `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
+| `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/market/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
+| `gen:invite` | [gen-invite.ts](../src/auth/cli/gen-invite.ts) | `[count] [note]` | 创建邀请码，写数据库，不发送邮件 |
+| `backup` | [backup-db.mjs](backup-db.mjs) | 环境变量见下文 | SQLite 在线备份、校验和文件轮换 |
 
 备份只依赖 Node 内置模块及 `sqlite3` CLI，无需 tsx 或编译。`JIXIE_DB_PATH` 默认指向 `apps/api/prisma/dev.db`，`JIXIE_BACKUP_DIR` 默认 `~/jixie-backups`，`JIXIE_BACKUP_KEEP` 默认 5。它创建备份文件并删除超出保留数量的旧备份，不修改源数据库业务记录。
 
-Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.service) / [jixie-backup.timer](../../../deploy/jixie-backup.timer)，由 bootstrap 安装。每日、每周维护服务调用编译入口 `apps/api/dist/scripts/maintenance/run-maintenance.js`。macOS 本地备份配置为 [com.jixie.backup.plist](../../../deploy/com.jixie.backup.plist)，手动安装方式见文件注释。本目录不再维护 systemd 兼容副本。
+Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.service) / [jixie-backup.timer](../../../deploy/jixie-backup.timer)，由 bootstrap 安装。每日、每周维护服务调用编译入口 `apps/api/dist/src/application-maintenance/cli/run-maintenance.js`。macOS 本地备份配置为 [com.jixie.backup.plist](../../../deploy/com.jixie.backup.plist)，手动安装方式见文件注释。本目录不再维护 systemd 兼容副本。
 
 部署本次路径调整时，需要通过 bootstrap 构建 API 并重新安装、加载 systemd 配置；仅拉取源码不会更新服务器上已安装的 unit。本次未修改可部署 workspace 或跨包构建依赖，现有 `deploy/component-impact.json` 已将 `deploy/` 和根级 `scripts/` 的变更归为全量部署，无需修改映射。
 
-## 研究与生成器
+## 研究
 
 | 命令或入口 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
 | `factor:report` | [factor-report.ts](research/factor-report.ts) | `[start] [end] [month/week] [neutral]` | 初始化内置因子并批量分析，终端打印 IC、分组收益等；会写内置因子，不是纯只读工具 |
 
-`factor:report` 用于手动分析，不加入生产定时任务。生成统计文档后应检查生成文件的 diff。
+`factor:report` 用于手动分析，不加入生产定时任务。
 
 固定三家公司、2026-09-07 标题的 `create-fcff-research-replays.ts` 已移除：它是已完成交付的一次性文档创建入口，没有 pnpm 或生产调用。研究模板、案例参数、用户文档和封存结果不受影响；原脚本可从 Git 历史查阅。
 
 根级工程与运维编排脚本见 [仓库脚本索引](../../../scripts/README.md)。
 
-## 本次整理记录（2026-09-09）
+## 历史整理记录（2026-09-09）
 
 提交信息：`chore(api): 按用途整理维护与研究脚本`。只调整文件归属、相对导入、文件资源路径、命令和 systemd 路径及文档；不改变 CLI 参数、默认值、数据语义或数据库 schema。
 

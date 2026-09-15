@@ -9,8 +9,8 @@ import { agentRoute } from '#agent/routes.js';
 import { signalsRoute } from '#signals/routes.js';
 import { sharingRoute } from '#sharing/routes.js';
 import { requireAuth } from '#auth/middleware.js';
-import { maintenanceGate } from '#maintenance/middleware.js';
-import { maintenanceRoute } from '#maintenance/routes.js';
+import { maintenanceGate } from '#application-maintenance/middleware.js';
+import { maintenanceRoute } from '#application-maintenance/routes.js';
 
 export function buildApp() {
   const app = new Hono();

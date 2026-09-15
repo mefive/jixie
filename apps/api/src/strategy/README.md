@@ -51,7 +51,7 @@ HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。�
 
 `analysis/risk` 消费 [market/state/market-risk-drivers.ts](../market/state/market-risk-drivers.ts) 与 [market/macro/risk-axes.ts](../market/macro/risk-axes.ts) 的带血缘数据。Market 基础质量检查拥有覆盖、缺失和历史可得性；Strategy 的 `data-readiness.ts` 拥有市场模型完整 252 条历史窗口、宏观 36 条完整观察与审计取数窗口。最低拟合样本数和完整审计窗口是不同要求，不能互换。
 
-[maintenance/risk-data-audit.ts](../maintenance/risk-data-audit.ts) 组合基础质量与模型就绪判断，[maintenance/data-audit.ts](../maintenance/data-audit.ts) 生成原整体审计报告。Market 不导入 Strategy。原状态、阈值、错误顺序及 CLI 输出保持。
+[application-maintenance/risk-data-audit.ts](../application-maintenance/risk-data-audit.ts) 组合基础质量与模型就绪判断，[application-maintenance/data-audit.ts](../application-maintenance/data-audit.ts) 生成原整体审计报告。Market 不导入 Strategy。原状态、阈值、错误顺序及 CLI 输出保持。
 
 风险后处理写入 `result.allocationAnalysis.risk`，对应策略工作台“回测结果 → 多资产配置归因 → 风险研究”。现有样本、日期、血缘与结果显示门槛保持，缺失不补零。风险后处理异常只记录原日志，不阻断主回测；交易循环中的持仓/成本累计仍归 Engine。
 

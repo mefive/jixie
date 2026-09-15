@@ -15,7 +15,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `factor/correlation-job.ts` | `factor/analysis/correlation-worker.boot.mjs` → `.ts` | `factor/analysis/correlation-worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
 | `signals/signal-job.ts` | `signals/runs/signal-worker.boot.mjs` → `.ts` | `signals/runs/signal-worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
-| `maintenance/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；接收 summary 且正常退出才完成 |
+| `application-maintenance/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；接收 summary 且正常退出才完成 |
 | `strategy/runtime/typescript/wall-bundle.ts` | 同目录 `wall-entry.ts` | 同目录 `wall-entry.js` | esbuild neutral bundle，实际 Engine 核心，不带宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 为调用方加载 isolate 模块；不是常驻独立服务 |
 | `strategy/runtime/typescript/walled-run.test-worker.mjs` | 测试辅助入口，使用 `engine/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
@@ -36,7 +36,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |
 | Curator 仓库检索 | `research/curator/reference-search.ts` 仍使用约定的 API 工作目录定位项目资料；不是外部任意文件读取服务 |
-| API CLI | 入口按 `apps/api/scripts/{sync,audit,probes,maintenance,research,generators}` 分组，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/maintenance/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/scripts/maintenance/run-maintenance.js` |
+| API CLI | 28 个应用入口位于 `apps/api/src/{market,application-maintenance,signals,auth}/cli/`；审计、探针和研究入口保留在 `apps/api/scripts/{audit,probes,research}`，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/src/application-maintenance/cli/run-maintenance.js` |
 
 ## Commit 12 本轮验证（2026-09-09）
 

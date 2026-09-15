@@ -110,7 +110,7 @@ for ((year = START_YEAR; year <= END_YEAR; year++)); do
   [[ "$slice_end" -gt "$END_DATE" ]] && slice_end="$END_DATE"
 
   run_stage "stock-bars-$year" "Import A-share bars and adjustment factors: $slice_start ~ $slice_end" \
-    pnpm --filter api sync "$slice_start" "$slice_end"
+    pnpm --filter api sync:stock-prices "$slice_start" "$slice_end"
   run_stage "daily-basic-$year" "Import daily valuation and turnover: $slice_start ~ $slice_end" \
     pnpm --filter api sync:basic "$slice_start" "$slice_end"
   run_stage "price-limits-$year" "Import daily price limits: $slice_start ~ $slice_end" \

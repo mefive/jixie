@@ -69,3 +69,7 @@ Commit 9 已通过人工 review 和全部验证：全量 API 199 个测试文件
 `runs/read.ts` 的 `getSignalRunJob` 按 userId 和 `kind: signal` 查询，非 signal Job 即使属于同一用户也返回 404。日志仍使用 since/nextSince。Run 与 Job 继续分离，失败重试保留 runId、更换 jobId；不修改部署冻结、队列、Worker、账户结算和成交事务。
 
 静态检查与待执行验证见 [统一路由记录](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。人工代码审查后，相关 116 项测试、API/Web 构建和六组浏览器验收全部通过。临时服务、端口和数据库连接已释放，测试数据库已清理；完整结果见统一路由记录。
+
+## 命令入口
+
+[cli/run-signals.ts](cli/run-signals.ts) 对应 `pnpm --filter api signals:run [date]`，解析日期并调用 `runDailySignalCycle`，按运行错误数设置退出码并释放 Prisma。整轮数据发布后的自动信号仍由 Application Maintenance 调用既有 scheduler 能力。

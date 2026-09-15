@@ -106,13 +106,15 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools/charts、tools/sql 归组具体工具和 Worker。Strategy Agent 负责依据 SDK 和上下文生成代码及必要校验，回测由用户在工作台显式发起；Research 通过封存研究生成 Strategy 草稿，不提供后台回测工具。根级 routes.ts 直接组合 conversation-routes、turn-routes、chart-routes，适配 `/api/app/agent` HTTP/SSE；消息归 conversations，执行详情/订阅/取消归 turns，图表数据归 sql-queries / chart-computations。入口和消息顺序见 `src/agent/README.md`。
 - `apps/api/src/sharing` — 根级 routes.ts 适配公开库 HTTP，catalog.ts 聚合列表与公开详情；策略复制调用 `strategy/definitions/copy-public.ts`，不直接修改他域生命周期。见 `src/sharing/README.md`。
 - `apps/api/src/engine` — simulation 为交易循环与账户，data 为必填 DataPort/EngineData，factors 为引擎内因子求值；adapters 为宿主 Prisma/Python 桥，testing 为 fixture。模拟核心不导入宿主适配器；Strategy 的墙内 bundle 使用真实核心，不用 Prisma stub。见 `src/engine/README.md`。
-- `apps/api/src/market` — providers/tushare 负责行情通道与配置，registry 是纯静态清单，instruments 负责证券身份，sync 负责行情同步，queries 负责序列查询，state/valuation 分开计算与读取；fundamentals/rates/macro/commodity 承接财报、利率、宏观和商品子领域，quality 负责基础审计。根级 routes.ts 直接组合 instrument-routes、valuation-routes、state-routes，适配 `/api/app/market` 的 instruments、index-valuations、indices 序列、weather 和 state。入口见 `src/market/README.md`。Market 不反向导入 Strategy、Research 执行或 Agent。
-- `apps/api/src/maintenance` — 调度、锁、发布水位、自愈、参考数据子进程与运维 HTTP；`routes.ts` 实现并导出状态路由，`middleware.ts` 单独导出维护门禁；risk-data-audit.ts 组合市场数据和策略模型要求，data-audit.ts 汇总审计。调用 Market 同步入口，流程见 `src/maintenance/README.md`。
-- `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 研究 / 导入脚本(`scripts/`,wired 成 `smoke` / `sync` / `peek` 等)
+- `apps/api/src/market` — providers/tushare 负责行情通道与配置，registry 是纯静态清单，instruments 负责证券身份及历史代码合并，sync 负责行情同步，queries 负责序列查询，state/valuation 分开计算与读取；fundamentals 包含财报历史起点与分期规则；fundamentals/rates/macro/commodity 承接财报、利率、宏观和商品子领域，quality 负责基础审计。根级 routes.ts 直接组合 instrument-routes、valuation-routes、state-routes，适配 `/api/app/market` 的 instruments、index-valuations、indices 序列、weather 和 state。入口见 `src/market/README.md`。Market 不反向导入 Strategy、Research 执行或 Agent。
+- `apps/api/src/application-maintenance` — 整轮更新顺序、在途任务等待、发布水位、运行恢复与应用可用性协调；定时触发和锁由 systemd/Shell 提供。参考数据子进程、发布前质量检查和整体审计保留现有流程；`routes.ts` 实现并导出状态路由，`middleware.ts` 单独导出维护门禁；risk-data-audit.ts 组合市场数据和策略模型要求，data-audit.ts 汇总审计。调用 Market 同步入口，流程见 `src/application-maintenance/README.md`。
+- `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 模块内应用命令(`src/*/cli/`)及审计/探针/研究脚本(`scripts/`)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`
 - `packages/shared` — 共享类型;依赖方向 `apps/* → packages/*`,反向禁止
 - `packages/shared` 编译到 `dist`(后端/前端依赖其类型),改完类型需 `pnpm --filter @jixie/shared build`(install 时 `prepare` 也会自动构建)
+
+应用 CLI 放在所属模块的 `cli/`，负责参数、配置、调用、输出、退出与进程资源收尾，允许简单同步组合和只为输出服务的查询；可复用业务不导入 CLI，不为每个命令新增转发 service。Market / Application Maintenance / Signals / Auth 的入口统一登记在 `apps/api/scripts/README.md`。独立备份工具 `apps/api/scripts/backup-db.mjs` 保留 Node 内置模块 + sqlite3 CLI 的零 npm 依赖契约，不要求应用构建。
 
 ## 架构阅读与边界门禁
 
