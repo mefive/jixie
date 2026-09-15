@@ -860,6 +860,18 @@ systemctl status jixie-backup.service
 
 ## 14. 完成定义
 
+### 原始财报非正值告警范围修订（2026-09-15，代码审查及本地验证通过）
+
+计划提交：`fix(maintenance): warn on nonpositive financial source values`。
+经用户确认，将原始资产负债表 `totalAssets <= 0 OR totalShare <= 0` 的汇总状态从 error 改为 warning，
+不再单独阻止 weekly 发布。摘要显示数量、明细保留源行 ID；不删除记录，不把零/负数改为 null，
+不根据退市状态豁免或推断财报无效。所选版本的会计诊断、指标无效值保护、PIT/结构审计及其他
+必需数据门禁保持不变。本项替代历史记录中的“非正资产/股数必须阻塞全站”决定。
+人工 review 后完成验证：维护及财务指标相关 15 个测试文件、80 项测试全部通过，包含零资产、
+负资产、零股数、负股数的 SQLite 回归断言、warning/pass 单元断言及财务指标无效值保护。
+API 构建、格式、Lint、TypeScript 和 diff 检查通过。临时 SQLite 连接已关闭、fixture 已清理。
+未部署或修改生产数据，生产恢复仍待验收。
+
 ### 2026-09-15 ETF 全历史查缺修订（代码审查及本地验证通过，生产待验收）
 
 计划提交：`fix(maintenance): reconcile ETF history before weekly audit`。

@@ -195,7 +195,7 @@ describe('data quality audit helpers', () => {
     ).toBe('pass');
   });
 
-  it('separates accounting mismatches, impossible values, and three-table coverage', () => {
+  it('reports non-positive source values as warnings while retaining clean and incomplete coverage statuses', () => {
     expect(
       summarizeFinancialStatementAccounting(
         { comparable: 100, mismatches: 0, anomalies: 0 },
@@ -212,7 +212,7 @@ describe('data quality audit helpers', () => {
         { comparable: 60, mismatches: 0, anomalies: 0 },
         { totalPeriods: 100, completePeriods: 95 },
       ).status,
-    ).toBe('error');
+    ).toBe('warn');
 
     expect(
       summarizeFinancialStatementAccounting(

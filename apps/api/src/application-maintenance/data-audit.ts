@@ -1151,11 +1151,11 @@ export async function auditFinancialStatementAccounting(database: Prisma): Promi
     finding.details.push(
       ...examples.map(
         (row) =>
-          `Blocking source row ${row.id}: ${row.tsCode} period ${row.endDate}, available ${row.availableDate}, quality ${row.availabilityQuality}, assets ${row.totalAssets}, shares ${row.totalShare}.`,
+          `Source review row ${row.id}: ${row.tsCode} period ${row.endDate}, available ${row.availableDate}, quality ${row.availabilityQuality}, assets ${row.totalAssets}, shares ${row.totalShare}.`,
       ),
     );
     finding.details.push(
-      'Source anomalies remain blocking until selected-version impact and source evidence are reviewed. Identity mismatch counts alone do not determine error status.',
+      'Non-positive source values require review but do not block application publication. Selected-version accounting diagnostics and invalid-metric protections remain in effect.',
     );
   }
   return finding;
@@ -1220,17 +1220,19 @@ export function summarizeFinancialStatementAccounting(
   const coverageRatio = totalPeriods > 0 ? completePeriods / totalPeriods : 0;
   const mismatchRatio = comparable > 0 ? mismatches / comparable : 0;
   const status: AuditStatus =
-    anomalies > 0
-      ? 'error'
-      : reviewFlags > 0 || totalPeriods === 0 || coverageRatio < 0.8 || mismatchRatio > 0.01
-        ? 'warn'
-        : 'pass';
+    anomalies > 0 ||
+    reviewFlags > 0 ||
+    totalPeriods === 0 ||
+    coverageRatio < 0.8 ||
+    mismatchRatio > 0.01
+      ? 'warn'
+      : 'pass';
 
   return {
     id: 'financial-statement-accounting',
     title: 'Financial statements: source-row accounting checks and table coverage',
     status,
-    summary: `${formatNumber(mismatches)} of ${formatNumber(comparable)} comparable identities mismatch; ${formatPercent(coverageRatio)} three-statement coverage`,
+    summary: `${formatNumber(anomalies)} non-positive asset/share records; ${formatNumber(mismatches)} of ${formatNumber(comparable)} comparable identities mismatch; ${formatPercent(coverageRatio)} three-statement coverage`,
     details: [
       `Balance identity: ${formatNumber(toNumber(balance?.mismatches))}/${formatNumber(toNumber(balance?.comparable))} mismatches.`,
       `Cash identity: ${formatNumber(toNumber(cash?.mismatches))}/${formatNumber(toNumber(cash?.comparable))} mismatches.`,

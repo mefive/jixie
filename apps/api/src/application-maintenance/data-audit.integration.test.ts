@@ -81,7 +81,19 @@ describe('financial audit against migrated SQLite', () => {
       data: { totalShare: 0 },
     });
     const result = await auditFinancialStatementAccounting(fixture);
-    expect(result.status).toBe('error');
-    expect(result.details.join('\n')).toContain('Blocking source row balance');
+    expect(result.status).toBe('warn');
+    expect(result.details.join('\n')).toContain('Source review row balance');
+    expect(result.summary).toContain('1 non-positive asset/share records');
+    for (const values of [
+      { totalAssets: 0, totalShare: 10 },
+      { totalAssets: -1, totalShare: 10 },
+      { totalAssets: 100, totalShare: -1 },
+    ]) {
+      await fixture.financialBalanceSheet.update({ where: { id: 'balance' }, data: values });
+      expect((await auditFinancialStatementAccounting(fixture)).status).toBe('warn');
+      expect(
+        await fixture.financialBalanceSheet.findUnique({ where: { id: 'balance' } }),
+      ).toMatchObject(values);
+    }
   });
 });
