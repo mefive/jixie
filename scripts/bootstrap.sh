@@ -1087,12 +1087,6 @@ else
   fi
 fi
 
-if [[ "$DEPLOY_API" == "1" ]]; then
-  log "检查全部 registry ETF 历史切片并断点补齐至已发布水位"
-  JIXIE_MAINTENANCE_LOCK_HELD=1 pnpm --filter api exec tsx --conditions=development \
-    --env-file=.env scripts/maintenance/recover-etf-history.ts
-fi
-
 MACRO_SYNC_END="$(
   sqlite3 "$DB_FILE" 'SELECT substr(max("tradeDate"), 1, 6) FROM "Daily";' 2>/dev/null || true
 )"

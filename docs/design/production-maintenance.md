@@ -860,6 +860,26 @@ systemctl status jixie-backup.service
 
 ## 14. 完成定义
 
+### 2026-09-15 ETF 全历史查缺修订（代码审查及本地验证通过，生产待验收）
+
+计划提交：`fix(maintenance): reconcile ETF history before weekly audit`。
+
+本次替代下面 `140eaa99` 中独立 bootstrap ETF 补数入口及 weekly 的按年粗覆盖判断。
+bootstrap 删除该调用和专用 CLI，不通过新增 package script 或绝对 env 路径保留重复流程。
+weekly 每次从约定起点到发布水位逐代码/日期比对三张 ETF 表，按年份分批读取，按缺失数据集请求，
+校验后在事务内只插入缺失键。已齐数据不因补缺重抓，252 日修订刷新独立保留。
+审计与补缺复用 expected-key 检查，除首尾范围外检查区间内部复权缺口，并明确报告日线/份额缺失。
+
+不新增 schema、timer 或数据源；沿用已有孤立无日线容忍与历史份额缺失语义，不伪造值、
+不豁免首尾审计错误。源无数据只记录本轮尝试，下一 weekly 仍复查。已有数据行提供补齐断点，
+旧的年度/修订 checkpoint 不会跳过本轮全历史检查。首次大量缺口仍会耗时，不能承诺部署后立即恢复。
+
+人工代码审查通过后于 2026-09-15 完成本次验证：维护与 ETF 相关 18 个测试文件、77 项测试通过，
+包含旧年份/区间内部/单日部分代码缺口、生命周期边界、完整历史不发补数请求、重试发现新缺口、
+补数不删除已有数据及上游缺少必需复权时拒绝写入。部署规划 8 项测试、API 构建通过。
+TypeScript、ESLint、格式、后端依赖边界、bootstrap Shell 语法及 diff 静态检查通过。
+SQLite fixture 连接已释放并清理临时库；未运行生产 bootstrap 或修改生产数据，生产恢复仍待验收。
+
 ### 2026-09 maintenance 恢复修订（代码审查及本地验证通过，生产待验收）
 
 计划提交：`fix(maintenance): make data recovery resumable and publication safe`。

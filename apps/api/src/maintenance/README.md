@@ -10,7 +10,7 @@ Maintenance 编排整轮数据维护：获取运行权、补齐数据、检查�
 | [weekly.ts](weekly.ts) | `runWeeklyMaintenance`：股票/指数/行业/ETF 参考数据、财报与分红等周维护；按运行项 checkpoint 恢复 |
 | [repair.ts](repair.ts) | `runRepairMaintenance`：明确区间的修复与重算 |
 | [self-heal.ts](self-heal.ts) | 检查已发布日期的缺口，制定修复项并调用 Market 同步，重新检查原始质量 |
-| [etf-recovery.ts](etf-recovery.ts) | 按 registry 上市/退市区间补历史，复用年度事务 checkpoint；周修订按运行/日期恢复 |
+| [etf-recovery.ts](etf-recovery.ts) | 每次按 registry 上市/退市区间全历史查缺，逐日补缺；周修订按运行/日期恢复 |
 | [state.ts](state.ts) | 维护运行/项目记录、心跳、状态、发布水位与 dataRevision；恢复中断运行 |
 | [quality.ts](quality.ts) | `validateRawMarketDate` 与 `validateDerivedMarketRange`：整轮发布前的原始/派生数据质量门禁 |
 | [data-audit.ts](data-audit.ts) | 汇总市场、各数据领域与风险输入审计 |
@@ -31,7 +31,9 @@ CLI 入口为 [scripts/maintenance/run-maintenance.ts](../../scripts/maintenance
 - weekly 的审计截止日为 `dailyPublishedThrough`，不是运行当天；weekly 不负责推进日发布水位。
 - weekly 自愈中 `MAINTENANCE_MAX_AUTO_REPAIR_DATES` 是进度汇报批大小，不再是整次运行上限。每个日期修复后重查，仍有缺口立即失败，避免无进展空转；daily 保留原有限额。
 - 历史变更前写入 `MaintenanceRunItem` 的 `derived-invalidation`。即使进程中断、重试时原始缺口已消失，也仍重算派生数据。当前采用保守的全已发布历史失效范围，因此派生重算可能较长，不承诺短时间恢复。
-- ETF 年度切片先校验候选再事务替换；既有 checkpoint 也复查覆盖。周修订日期完成后单独记录 checkpoint，重试只补剩余项；更换 registry 会改变 checkpoint 命名空间。
-- bootstrap 在 API 停止且持有维护锁时调用 `scripts/maintenance/recover-etf-history.ts`，补全 registry 历史至已有发布水位；没有基线时留给初次导入建立基线。该入口不推进水位、不豁免审计。
+- weekly 的 ETF 历史检查从 2015 年（或上市日）到发布水位，按年份分批读取、按代码/日期分别比对日线、复权、份额。只向有缺口的数据接口请求，事务中只插入仍缺的键，不删除或覆盖已有行；不再用年度完成标记证明覆盖。审计复用同一检查，也能发现区间内部缺口。
+- 孤立无日线和历史份额源缺失保留为空并记录在本轮 `no-daily` / `no-share` 检查项中；它们不是数据已齐的标记，也不证明停牌或交易所未发布。新 weekly 再次查询；同轮重试不重复请求已确认的源缺失。复权缺失、广泛日线缺失仍阻塞，审计的首尾覆盖错误不豁免。
+- 最近 252 日是独立的上游修订回查窗口，不是补缺边界；修订按日期 checkpoint。历史缺口在每次重试时重新扫描，已有修订 checkpoint 不能遮蔽新缺口。
+- bootstrap 不再调用独立 ETF 历史恢复脚本；由既有 weekly 流程承担补齐、审计和发布。初次导入与既有其他 bootstrap 数据检查不在这次变更中重写；恢复仍遵守维护锁和 Gate。
 - `WeeklyMaintenanceSummary` 保留审计边界、恢复进度和非 pass finding。财报非正资产/股数仍为阻塞，附源行 ID；仓单空响应只说明未取到数据，不能据此认定交易所未发布。部分月份响应仅替换实际返回日期，不删除其他已存日期。
 - 不新增 timer。确定性错误仍保留 Gate 并暴露原因；不得用清空维护状态、改水位或降级阈值绕过。

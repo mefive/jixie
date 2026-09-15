@@ -10,8 +10,111 @@ import {
   type FundDailyRow,
 } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/client.js';
+import type { EtfHistoryGap } from '../quality/etf-history-coverage.js';
 
 const FUND_ADJ_PAGE_SIZE = 2_000;
+
+/** Fill only missing keys. Empty historical observations remain explicit, never fabricated. */
+export async function fillEtfHistoryGap(
+  client: TushareClient,
+  gap: EtfHistoryGap,
+): Promise<{ missingDailyCodes: string[]; missingShareSizeCodes: string[] }> {
+  const tradeDate = gap.tradeDate as TradeDate;
+  const [dailyCandidate, adjustmentCandidate, shareCandidate, availableDate] = await Promise.all([
+    gap.daily.length ? fundDaily(client, { trade_date: tradeDate }) : [],
+    gap.adjustment.length ? fetchAllFundAdjForDate(client, tradeDate) : [],
+    gap.shareSize.length ? etfShareSize(client, { trade_date: tradeDate }) : [],
+    gap.shareSize.length ? nextSseTradingDate(tradeDate) : Promise.resolve(tradeDate),
+  ]);
+  const dailyRows = validateAndFilterRows(
+    dailyCandidate,
+    new Set(gap.daily),
+    tradeDate,
+    'fund_daily',
+  );
+  const adjustmentRows = validateAndFilterRows(
+    adjustmentCandidate,
+    new Set(gap.adjustment),
+    tradeDate,
+    'fund_adj',
+  );
+  const shareRows = validateAndFilterRows(
+    shareCandidate,
+    new Set(gap.shareSize),
+    tradeDate,
+    'etf_share_size',
+  );
+  assertCompleteCoverage(gap.adjustment, adjustmentRows, 'fund_adj', tradeDate);
+  const missingDailyCodes = missingCoverage(gap.daily, dailyRows);
+  const missingShareSizeCodes = missingCoverage(gap.shareSize, shareRows);
+  assertTolerableDailyGaps(gap.activeCodes, missingDailyCodes, tradeDate);
+  if (
+    dailyRows.some((row) => row.close == null || !Number.isFinite(row.close) || row.close <= 0) ||
+    adjustmentRows.some((row) => !Number.isFinite(row.adj_factor) || row.adj_factor <= 0)
+  ) {
+    throw new Error(`ETF history candidate has invalid price or adjustment on ${tradeDate}`);
+  }
+
+  // The maintenance lock serializes writers. Recheck missing keys inside the transaction so
+  // a retry cannot delete or overwrite existing observations with a partial source response.
+  await prisma.$transaction(async (database) => {
+    const existingDaily = new Set(
+      (
+        await database.etfDaily.findMany({
+          where: { tradeDate, tsCode: { in: gap.daily } },
+          select: { tsCode: true },
+        })
+      ).map((row) => row.tsCode),
+    );
+    const existingAdj = new Set(
+      (
+        await database.etfAdjFactor.findMany({
+          where: { tradeDate, tsCode: { in: gap.adjustment } },
+          select: { tsCode: true },
+        })
+      ).map((row) => row.tsCode),
+    );
+    const existingShare = new Set(
+      (
+        await database.etfShareSize.findMany({
+          where: { tradeDate, tsCode: { in: gap.shareSize } },
+          select: { tsCode: true },
+        })
+      ).map((row) => row.tsCode),
+    );
+    await database.etfDaily.createMany({
+      data: dailyRows
+        .filter((row) => !existingDaily.has(row.ts_code))
+        .map((row) => ({
+          tsCode: row.ts_code,
+          tradeDate,
+          open: row.open,
+          high: row.high,
+          low: row.low,
+          close: row.close,
+          preClose: row.pre_close,
+          pctChg: row.pct_chg,
+          vol: row.vol,
+          amount: row.amount,
+        })),
+    });
+    await database.etfAdjFactor.createMany({
+      data: adjustmentRows
+        .filter((row) => !existingAdj.has(row.ts_code))
+        .map((row) => ({
+          tsCode: row.ts_code,
+          tradeDate,
+          adjFactor: row.adj_factor,
+        })),
+    });
+    await database.etfShareSize.createMany({
+      data: shareRows
+        .filter((row) => !existingShare.has(row.ts_code))
+        .map((row) => shareSizeData(row, availableDate)),
+    });
+  });
+  return { missingDailyCodes, missingShareSizeCodes };
+}
 
 export interface EtfMarketDateSyncSummary {
   tradeDate: TradeDate;

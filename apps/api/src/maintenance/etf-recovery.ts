@@ -2,34 +2,15 @@ import { createHash } from 'node:crypto';
 import type { TradeDate } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
-import { syncEtfDaily } from '#market/sync/etf-history.js';
-import { syncEtfMarketDate } from '#market/sync/etf.js';
+import {
+  ETF_HISTORY_START,
+  inspectEtfHistoryCoverage,
+} from '#market/quality/etf-history-coverage.js';
+import { fillEtfHistoryGap, syncEtfMarketDate } from '#market/sync/etf.js';
 import type { TushareClient } from '#market/providers/tushare/client.js';
 import { completeMaintenanceItem, completedMaintenanceItems } from './state.js';
 
-export interface EtfHistoryRange {
-  tsCode: string;
-  startDate: string;
-  endDate: string;
-}
-
-/** Lifecycle bounds match the registry audit; historical share-size gaps remain explicit. */
-export function planEtfHistory(
-  products: Array<{ tsCode: string; listDate: string | null; delistDate: string | null }>,
-  through: string,
-): EtfHistoryRange[] {
-  return products.flatMap((product) => {
-    if (!product.listDate) {
-      throw new Error(`ETF history requires a listing date for ${product.tsCode}`);
-    }
-    const startDate = product.listDate > '20150101' ? product.listDate : '20150101';
-    const endDate =
-      product.delistDate && product.delistDate < through ? product.delistDate : through;
-    return startDate <= endDate ? [{ tsCode: product.tsCode, startDate, endDate }] : [];
-  });
-}
-
-/** Weekly revisions use run-scoped checkpoints on top of atomic historical slices. */
+/** Reinspect the entire history on every attempt; rows, not old markers, prove coverage. */
 export async function recoverEtfRegistry(
   client: TushareClient,
   runId: string,
@@ -41,30 +22,49 @@ export async function recoverEtfRegistry(
   const products = await prisma.etfBasic.findMany({
     where: { tsCode: { in: codes } },
     select: { tsCode: true, listDate: true, delistDate: true },
+    orderBy: { tsCode: 'asc' },
   });
-  if (products.length !== codes.length) {
+  if (products.length !== codes.length || products.some((product) => !product.listDate)) {
     throw new Error('ETF registry metadata is incomplete; refresh metadata before recovery');
   }
-  const ranges = planEtfHistory(products, through);
-  const stage = `etf-recovery-v1:${createHash('sha256').update(codes.join(',')).digest('hex')}`;
+  const calendar = await prisma.tradeCal.findMany({
+    where: { exchange: 'SSE', isOpen: 1, calDate: { gte: ETF_HISTORY_START, lte: through } },
+    select: { calDate: true },
+    orderBy: { calDate: 'asc' },
+  });
+  if (!calendar.length || calendar.at(-1)!.calDate !== through) {
+    throw new Error(`ETF history calendar does not reach publication waterline ${through}`);
+  }
+  const stage = `etf-recovery-v2:${createHash('sha256').update(JSON.stringify({ products, through })).digest('hex')}`;
   const completed = await completedMaintenanceItems(runId, stage);
   let progress = 0;
-  const total = ranges.length + revisionDates.length;
-  for (const range of ranges) {
-    const key = `history:${range.tsCode}:${range.startDate}:${range.endDate}`;
-    if (!completed.has(key)) {
-      // syncEtfDaily atomically checkpoints each validated code/year slice. A failed range
-      // resumes its completed years rather than restarting the entire product history.
-      await syncEtfDaily(
-        client,
-        [range.tsCode],
-        range.startDate as TradeDate,
-        range.endDate as TradeDate,
-        { validateCoverage: true },
+  const total = calendar.length + revisionDates.length;
+  // Bound memory and queries to one year, but inspect all dates and all three datasets.
+  for (const year of new Set(calendar.map((row) => row.calDate.slice(0, 4)))) {
+    const dates = calendar.filter((row) => row.calDate.startsWith(year)).map((row) => row.calDate);
+    const gaps = await inspectEtfHistoryCoverage(prisma, products, dates);
+    for (const gap of gaps) {
+      // Cache only explicitly observed source absences within this run. A new weekly retries
+      // these observations; no annual completion marker can conceal a newly deleted row.
+      gap.daily = gap.daily.filter((code) => !completed.has(`no-daily:${gap.tradeDate}:${code}`));
+      gap.shareSize = gap.shareSize.filter(
+        (code) => !completed.has(`no-share:${gap.tradeDate}:${code}`),
       );
-      await completeMaintenanceItem(runId, stage, key);
+      if (gap.daily.length || gap.adjustment.length || gap.shareSize.length) {
+        const result = await fillEtfHistoryGap(client, gap);
+        for (const code of result.missingDailyCodes) {
+          const key = `no-daily:${gap.tradeDate}:${code}`;
+          await completeMaintenanceItem(runId, stage, key);
+          completed.add(key);
+        }
+        for (const code of result.missingShareSizeCodes) {
+          const key = `no-share:${gap.tradeDate}:${code}`;
+          await completeMaintenanceItem(runId, stage, key);
+          completed.add(key);
+        }
+      }
+      await onProgress(++progress, total);
     }
-    await onProgress(++progress, total);
   }
   for (const date of revisionDates) {
     const key = `revision:${date}`;

@@ -26,14 +26,17 @@ vi.mock('#infra/database/prisma.js', () => {
     etfBasic: { findMany: mocks.etfBasicFindMany },
     tradeCal: { findFirst: mocks.tradeCalFindFirst },
     etfDaily: {
+      findMany: async () => [],
       deleteMany: mocks.dailyDeleteMany,
       createMany: mocks.dailyCreateMany,
     },
     etfAdjFactor: {
+      findMany: async () => [],
       deleteMany: mocks.adjustmentDeleteMany,
       createMany: mocks.adjustmentCreateMany,
     },
     etfShareSize: {
+      findMany: async () => [],
       deleteMany: mocks.shareSizeDeleteMany,
       createMany: mocks.shareSizeCreateMany,
     },
@@ -46,7 +49,7 @@ vi.mock('#infra/database/prisma.js', () => {
   };
 });
 
-const { fetchAllFundAdjForDate, syncEtfMarketDate } = await import('./etf.js');
+const { fetchAllFundAdjForDate, syncEtfMarketDate, fillEtfHistoryGap } = await import('./etf.js');
 const client = {} as TushareClient;
 
 describe('ETF market date synchronization', () => {
@@ -83,6 +86,55 @@ describe('ETF market date synchronization', () => {
       offset: 2_000,
       limit: 2_000,
     });
+  });
+
+  it('fills only the missing dataset and never deletes existing history', async () => {
+    mocks.fundAdj.mockResolvedValue([
+      { ts_code: '510300.SH', trade_date: '20260821', adj_factor: 2 },
+    ]);
+    await fillEtfHistoryGap(client, {
+      tradeDate: '20260821',
+      activeCodes: ['510300.SH'],
+      daily: [],
+      adjustment: ['510300.SH'],
+      shareSize: [],
+    });
+    expect(mocks.fundDaily).not.toHaveBeenCalled();
+    expect(mocks.etfShareSize).not.toHaveBeenCalled();
+    expect(mocks.dailyDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.adjustmentDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.shareSizeDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.adjustmentCreateMany).toHaveBeenCalledWith({
+      data: [{ tsCode: '510300.SH', tradeDate: '20260821', adjFactor: 2 }],
+    });
+  });
+
+  it('does not publish a candidate with missing mandatory adjustment data', async () => {
+    mocks.fundAdj.mockResolvedValue([]);
+    await expect(
+      fillEtfHistoryGap(client, {
+        tradeDate: '20260821',
+        activeCodes: ['510300.SH'],
+        daily: [],
+        adjustment: ['510300.SH'],
+        shareSize: [],
+      }),
+    ).rejects.toThrow('fund_adj missing');
+    expect(mocks.adjustmentCreateMany).not.toHaveBeenCalled();
+  });
+
+  it('reports unavailable historical shares without synthesizing or deleting observations', async () => {
+    mocks.etfShareSize.mockResolvedValue([]);
+    const result = await fillEtfHistoryGap(client, {
+      tradeDate: '20260821',
+      activeCodes: ['510300.SH'],
+      daily: [],
+      adjustment: [],
+      shareSize: ['510300.SH'],
+    });
+    expect(result.missingShareSizeCodes).toEqual(['510300.SH']);
+    expect(mocks.shareSizeDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.shareSizeCreateMany).toHaveBeenCalledWith({ data: [] });
   });
 
   it('publishes price, adjustment, and share size together with next-SSE availability', async () => {

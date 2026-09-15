@@ -1,5 +1,6 @@
 import type { Prisma } from '#infra/database/prisma.js';
 import { median } from '#math/stats.js';
+import { ETF_HISTORY_START, inspectEtfHistoryCoverage } from './etf-history-coverage.js';
 import {
   ETF_RESEARCH_CODES,
   ETF_RESEARCH_REGISTRY,
@@ -45,7 +46,7 @@ export async function auditEtfResearchRegistry(
   database: Prisma,
   options: { expectedHistoryStart?: string; coverageThrough?: string } = {},
 ): Promise<EtfRegistryAuditReport> {
-  const expectedHistoryStart = options.expectedHistoryStart ?? '20150101';
+  const expectedHistoryStart = options.expectedHistoryStart ?? ETF_HISTORY_START;
   const coverageThrough = options.coverageThrough ?? (await latestRegistryAuditDate(database));
   const codes = [...ETF_RESEARCH_CODES];
   const [
@@ -138,6 +139,33 @@ export async function auditEtfResearchRegistry(
 
   const errors: string[] = [];
   const warnings: string[] = [];
+  // Recovery and auditing share the same expected keys, including interior holes.
+  const validMetadata = metadata.filter((product) => product.listDate != null);
+  const missingByCode = new Map<string, { daily: number; adjustment: number; shareSize: number }>();
+  for (const year of new Set(historyDates.map((row) => row.calDate.slice(0, 4)))) {
+    const dates = historyDates
+      .filter((row) => row.calDate.startsWith(year))
+      .map((row) => row.calDate);
+    for (const gap of await inspectEtfHistoryCoverage(database, validMetadata, dates)) {
+      for (const dataset of ['daily', 'adjustment', 'shareSize'] as const) {
+        for (const code of gap[dataset]) {
+          const counts = missingByCode.get(code) ?? { daily: 0, adjustment: 0, shareSize: 0 };
+          counts[dataset]++;
+          missingByCode.set(code, counts);
+        }
+      }
+    }
+  }
+  for (const [code, missing] of missingByCode) {
+    if (missing.adjustment) {
+      errors.push(`${code}: ${missing.adjustment} expected adjustment dates are missing`);
+    }
+    if (missing.daily || missing.shareSize) {
+      warnings.push(
+        `${code}: ${missing.daily} daily and ${missing.shareSize} share-size observations are absent; source absence is not proof of suspension or non-publication`,
+      );
+    }
+  }
   const rows = codes.map((tsCode): EtfRegistryProductAudit => {
     const membership = etfResearchMembership(tsCode)!;
     const registry = ETF_RESEARCH_REGISTRY.find(
@@ -152,8 +180,17 @@ export async function auditEtfResearchRegistry(
       ? maximumDate(metadataRow.listDate, expectedHistoryStart)
       : null;
     const expectedStartDate = minimumSourceDate
-      ? (historyDates.find((date) => date.calDate >= minimumSourceDate)?.calDate ?? null)
+      ? (historyDates.find(
+          (date) =>
+            date.calDate >= minimumSourceDate &&
+            (!metadataRow?.delistDate || date.calDate <= metadataRow.delistDate),
+        )?.calDate ?? null)
       : null;
+    const expectedEndDate =
+      metadataRow?.delistDate && metadataRow.delistDate < coverageThrough
+        ? (historyDates.filter((date) => date.calDate <= metadataRow.delistDate!).at(-1)?.calDate ??
+          coverageThrough)
+        : coverageThrough;
     const benchmarkMatches = metadataRow?.indexCode === registry.benchmarkCode;
     const lifecycleMatches =
       metadataRow != null &&
@@ -189,7 +226,7 @@ export async function auditEtfResearchRegistry(
         daily?._min.tradeDate,
         daily?._max.tradeDate,
         expectedStartDate,
-        coverageThrough,
+        expectedEndDate,
         true,
       );
       validateCoverage(
@@ -200,7 +237,7 @@ export async function auditEtfResearchRegistry(
         adjustment?._min.tradeDate,
         adjustment?._max.tradeDate,
         expectedStartDate,
-        coverageThrough,
+        expectedEndDate,
         true,
       );
       validateCoverage(
@@ -211,7 +248,7 @@ export async function auditEtfResearchRegistry(
         shareSize?._min.tradeDate,
         shareSize?._max.tradeDate,
         expectedStartDate,
-        coverageThrough,
+        expectedEndDate,
         false,
       );
     }
