@@ -75,7 +75,6 @@
     "test:e2e:login-error": "node e2e/login-error.mjs",
     "test:e2e:maintenance-fallback": "node e2e/maintenance-fallback.mjs",
     "test:e2e:help-content": "node e2e/help-content.mjs",
-    "test:e2e:help-content-screen": "node e2e/help-content-screen.mjs",
     "test:e2e:help-content-backtest": "node e2e/help-content-backtest.mjs",
     "test:e2e:help-content-backtest-states": "node e2e/help-content-backtest-states.mjs",
     "test:e2e:help-content-parameter-scan": "node e2e/help-content-parameter-scan.mjs",
@@ -91,8 +90,7 @@
     "test:e2e:help-content-stage-l": "node e2e/help-content-stage-l.mjs",
     "test:e2e:help-content-stage-m": "node e2e/help-content-stage-m.mjs",
     "test:e2e:help-content-market-valuation": "node e2e/help-content-market-valuation.mjs",
-    "test:e2e:help-content-signals": "node e2e/help-content-signals.mjs",
-    "test:e2e:help-screen-live": "node e2e/help-screen-live.mjs"
+    "test:e2e:help-content-signals": "node e2e/help-content-signals.mjs"
   },
   "dependencies": {
     "@ant-design/x": "^2.8.0",

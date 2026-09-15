@@ -11,9 +11,8 @@ import { PythonFactorHost, withPythonFactorHost } from '#engine/adapters/python-
 /**
  * The walled lane's HOST side (sandbox Phase B2): bundle the engine (wall-entry.ts) once, evaluate
  * it inside an isolated-vm isolate, and serve its DataPort crossings with a host-side port
- * (prismaDataPort in production; a fixture port in the drift test). Lane rule (定死,
- * python-and-sandbox.md): code from the DB (user/AI authored) runs here; repo-checked-in code may
- * use the direct lane (runCodeBacktest) — the switch follows the CODE'S ORIGIN, not the caller.
+ * (prismaDataPort in production; a fixture port in the drift test). Database-authored strategy
+ * code runs here. Trusted repository tests may call the engine directly with a fixture DataPort.
  */
 
 const WALL_MEMORY_MB = 1024; // engine caches (bars for hundreds of stocks) live in-wall

@@ -147,3 +147,5 @@ node --env-file=.env --import tsx scripts/research/create-fcff-research-replays.
 截图：`apps/web/acceptance/research-fcff-delivery-market.png`、`research-fcff-evidence-classification.png`、`research-fcff-evidence-classificationReconciliation.png`以及独立估值E2E截图。截图已查看。临时API/Web/sandboxd已关闭，3001/5173无监听、开发socket已删除、数据库连接已释放；三份用户Research及封存结果保留。
 
 本轮提交包含研究源码、文档和报告；用户已暂存的原EPUB保持原状，不纳入本次提交。[先前口径评审记录](./valuation-fundamental-market-review-checkpoint.md)保留以解释此次调整为何发生。
+
+2026-09-15 清理补记：本次三份固定 29 Cell 文档的交付验收脚本 `research-fcff-delivery.mjs` 已移除，源码可从 Git 历史恢复。以上历史验收结论、用户研究文档及封存证据继续保留；通用 Research 与 FCFF 回归测试继续维护。

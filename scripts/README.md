@@ -39,3 +39,11 @@
 方案与代码均已通过人工审查。审查前静态检查通过：全仓 typecheck、后端边界（0 violations）、SDK / Python 运行时生成物一致性、ESLint、Prettier、Shell 语法及 diff 检查。
 
 审查后验证：4 个脚本测试文件共 36 项全部通过，包含新子目录的部署影响与开发进程组清理；shared 构建通过；部署计划 CLI 的 HEAD 对 HEAD 比较返回无部署，导入 CLI 的 `--help` 与 `pnpm loc` 正常执行。本地 Git hooks 已刷新为新路径。未运行生产部署、数据同步、数据库迁移或数据写入脚本，未启动常驻服务。
+
+## 无引用代码与退役资源清理（2026-09-15）
+
+提交信息：`chore(repo): remove unused code and retired assets`。已确认删除范围为 6 个无调用代码/样式及一次性交付验收文件、10 张未引用帮助截图，以及 Web package.json 中两个目标脚本已不存在的 Screen 测试命令。清理了 `walled-run.ts` 对已移除 `runCodeBacktest` 的注释引用；正式回测、资金流业务、历史图表重放、Worker、Python runtime、迁移和研究证据保留。
+
+删除的源码/样式入口为 `market/registry/moneyflow.ts`、`strategy/runtime/typescript/run.ts`（API），以及 `i18n/format.ts`、`complex/screen/condition-chips.css`、`components/query-card.css`（Web）；一次性脚本为 `apps/web/e2e/research-fcff-delivery.mjs`。旧截图来自 getting-started、screening、market-valuation 和 signals，当前帮助文章及截图脚本无引用。无 API、schema、数据迁移或跨包构建依赖变更；旧图片直链不再由新构建提供。
+
+范围与代码已通过人工审查。审查前检查全部通过：全仓类型与契约一致性、后端边界（683 个文件、0 违规）、改动文件格式及 ESLint、删除资源引用、API/Web/Docs 命令源文件路径和 diff 检查。审查后 API、Web、Docs 均构建至新建的独立临时目录并通过；Docs 产物确认不包含 10 张退役截图。Web/Docs 有大 chunk 提示，Web 另有 embedded-analysis-card 静态/动态导入混用提示，未阻止构建。未运行 E2E、已退役脚本或真实数据写入，未启动常驻服务。
