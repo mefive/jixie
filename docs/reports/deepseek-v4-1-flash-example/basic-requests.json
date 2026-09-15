@@ -1,0 +1,44 @@
+[
+  {
+    "number": 4,
+    "model": "deepseek-flash",
+    "thinking": {
+      "type": "disabled"
+    },
+    "startedAt": "2026-09-15T02:29:21.257Z",
+    "returnedModel": "deepseek-flash",
+    "finishReason": "stop",
+    "usage": {
+      "prompt_tokens": 41,
+      "completion_tokens": 12,
+      "total_tokens": 53,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 41
+    },
+    "finishedAt": "2026-09-15T02:29:22.578Z"
+  },
+  {
+    "number": 5,
+    "model": "deepseek-flash",
+    "thinking": {
+      "type": "disabled"
+    },
+    "startedAt": "2026-09-15T02:29:22.579Z",
+    "returnedModel": "deepseek-flash",
+    "finishReason": "stop",
+    "usage": {
+      "prompt_tokens": 16,
+      "completion_tokens": 4,
+      "total_tokens": 20,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      },
+      "prompt_cache_hit_tokens": 0,
+      "prompt_cache_miss_tokens": 16
+    },
+    "finishedAt": "2026-09-15T02:29:23.738Z"
+  }
+]

@@ -133,11 +133,33 @@ describe('Agent HTTP and durable turn boundaries', () => {
   afterEach(async () => {
     turnBus._resetForTest();
     await prisma.user.deleteMany();
+    vi.unstubAllEnvs();
   });
   afterAll(async () => {
     await prisma.$disconnect();
     await rm(fixture.directory, { recursive: true, force: true });
   });
+
+  it.each([
+    [undefined, undefined, 'deepseek-flash'],
+    ['custom-general', undefined, 'custom-general'],
+    ['custom-general', 'custom-agent', 'custom-agent'],
+  ])(
+    'records the selected model %s / %s in the turn and trace',
+    async (general, agent, expected) => {
+      vi.stubEnv('DEEPSEEK_MODEL', general);
+      vi.stubEnv('DEEPSEEK_AGENT_MODEL', agent);
+      await enqueue('model-attribution');
+
+      expect(
+        await prisma.agentTurn.findUniqueOrThrow({ where: { id: 'model-attribution' } }),
+      ).toMatchObject({
+        model: expected,
+        status: 'done',
+        trace: { steps: [{ type: 'model', model: expected, status: 'success' }] },
+      });
+    },
+  );
 
   it('preserves message ownership, pagination, parts and turn detail', async () => {
     const { conversationId } = await createTurn('turn');

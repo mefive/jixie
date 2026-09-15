@@ -8,6 +8,7 @@ import {
   type MessagePart,
 } from '@jixie/shared';
 import { chatTools } from '#infra/llm/deepseek.js';
+import { getDeepSeekAgentModel } from '#infra/llm/config.js';
 import {
   agentTurn,
   turnParts,
@@ -74,7 +75,7 @@ export function enqueueAgentTurn(args: EnqueueTurnArgs): void {
 async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void> {
   const { turnId, userId, entity, message, currentCode, profile } = args;
   const locale = args.locale ?? DEFAULT_LOCALE;
-  const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
+  const model = getDeepSeekAgentModel();
   let researchPhase: AgentTurnPhase | null = entity?.kind === 'research' ? 'reading_context' : null;
   let traceRecorder: AgentTraceRecorder | null = args.persistedInput
     ? new AgentTraceRecorder(turnId, model)

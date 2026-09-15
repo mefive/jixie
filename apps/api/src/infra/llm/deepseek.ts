@@ -1,8 +1,9 @@
 // DeepSeek client — the official openai SDK pointed at DeepSeek's OpenAI-compatible endpoint.
-// chatJson (forced JSON) backs NL→screen; chatText (free text) backs naming and other plain replies.
-// Config from .env: DEEPSEEK_API_KEY (required), DEEPSEEK_MODEL, DEEPSEEK_BASE_URL.
+// chatJson backs metadata, classification and curation; chatText backs naming and plain replies.
+// Model selection is shared with persisted attribution through config.ts.
 import OpenAI from 'openai';
 import type { AgentLlm, ToolAwareMessage } from './agent-llm.js';
+import { getDeepSeekAgentModel, getDeepSeekModel } from './config.js';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -12,7 +13,8 @@ export interface ChatMessage {
 export type LlmCall = (messages: ChatMessage[]) => Promise<string>;
 
 const DEFAULT_BASE = 'https://api.deepseek.com';
-const DEFAULT_MODEL = 'deepseek-chat';
+// V4.1 defaults to thinking when omitted, including requests without tools.
+const NON_THINKING_OPTIONS = { thinking: { type: 'disabled' as const }, temperature: 0 };
 
 let _client: OpenAI | null = null;
 
@@ -30,11 +32,11 @@ export function deepseek(): OpenAI {
 
 /** One chat completion forcing JSON output; returns raw message.content. */
 export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
-  const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
+  const model = getDeepSeekModel();
   const res = await deepseek().chat.completions.create({
     model,
     messages,
-    temperature: 0, // NL→structured needs determinism
+    ...NON_THINKING_OPTIONS,
     response_format: { type: 'json_object' },
   });
   const content = res.choices[0]?.message?.content;
@@ -46,8 +48,12 @@ export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string
 
 /** One chat completion returning free text (naming, etc.). Same LlmCall shape as chatJson. */
 export const chatText: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
-  const model = process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
-  const res = await deepseek().chat.completions.create({ model, messages, temperature: 0 });
+  const model = getDeepSeekModel();
+  const res = await deepseek().chat.completions.create({
+    model,
+    messages,
+    ...NON_THINKING_OPTIONS,
+  });
   const content = res.choices[0]?.message?.content;
   if (!content) {
     throw new Error('DeepSeek returned empty content');
@@ -86,7 +92,7 @@ function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMe
  * Always streams upstream: text tokens forward through opts.onDelta (when given) for the SSE path;
  * incremental tool_call fragments are accumulated by index and returned whole at the end. */
 export const chatTools: AgentLlm = async (messages, tools, opts) => {
-  const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? DEFAULT_MODEL;
+  const model = getDeepSeekAgentModel();
   const thinking = process.env.DEEPSEEK_AGENT_THINKING !== 'false';
   const reasoningEffort = process.env.DEEPSEEK_REASONING_EFFORT ?? 'high';
   const request = {
@@ -98,7 +104,7 @@ export const chatTools: AgentLlm = async (messages, tools, opts) => {
           reasoning_effort: reasoningEffort,
           thinking: { type: 'enabled' },
         }
-      : { temperature: 0 }),
+      : NON_THINKING_OPTIONS),
     ...(tools.length
       ? {
           tools: tools.map((tool) => ({

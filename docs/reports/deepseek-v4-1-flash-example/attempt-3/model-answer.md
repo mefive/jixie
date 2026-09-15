@@ -1,0 +1,1 @@
+已按目录契约确认 `data.series`（index / monthly / level）与 `charts` 可用，`indexDaily` 覆盖 2018-12-31 至 2025-12-31（月末粒度）；策略代码不动，只提交一个自包含的 Matplotlib 研究 Cell。

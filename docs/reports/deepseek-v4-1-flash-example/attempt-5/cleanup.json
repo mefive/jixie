@@ -1,0 +1,9 @@
+{
+  "isolatedDatabaseRemoved": true,
+  "pythonSessionsClosed": true,
+  "passed": false,
+  "failure": {
+    "name": "AssertionError",
+    "message": "assets/{\"asset\":\"000300.SH\",\"price_rows\":85,\"missing_months\":0,\"valid_returns\":84,\"annual_vol\":0.12711465759487914,\"q25\":-0.016066454136943187,\"q50\":0.007007459401921601,\"q75\":0.029423031161809887}/annual_vol: independent check failed"
+  }
+}

@@ -1,0 +1,496 @@
+[
+  {
+    "analysisId": "01M2HG7TVDXAGP2NPGC9KMF26V",
+    "versionId": "01M2HG7TVNC736G2BJBE47ETFF",
+    "runId": "01M2HG7TVSQ7GVJVF1W7G24QJ1",
+    "sequence": 1,
+    "revision": 1,
+    "jobId": "01M2HG7TVTCD1DRHMX5JQ5J7XG",
+    "status": "error",
+    "sourceHash": "684a55dece29bef8aba3fca6b3d029988c9b3387cf16fd56aa84c939590d7b8c",
+    "errorCode": "execution_failed",
+    "error": "Traceback (most recent call last):\n  File \"/Users/liucong/Projects/jixie/apps/sandboxd/python/jixie_research_runtime.py\", line 1575, in run_research\n    value = run_user_code(lambda: _execute(source, namespace))\n  File \"/Users/liucong/Projects/jixie/apps/sandboxd/python/jixie_runner.py\", line 762, in <lambda>\n    lambda callback: _run_user_code(callback, \"research cell\"),\n                     ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liucong/Projects/jixie/apps/sandboxd/python/jixie_runner.py\", line 36, in _run_user_code\n    return callback()\n  File \"/Users/liucong/Projects/jixie/apps/sandboxd/python/jixie_research_runtime.py\", line 1575, in <lambda>\n    value = run_user_code(lambda: _execute(source, namespace))\n                                  ~~~~~~~~^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liucong/Projects/jixie/apps/sandboxd/python/jixie_research_runtime.py\", line 1703, in _execute\n    exec(compile(statements, \"research_cell.py\", \"exec\"), namespace, namespace)\n    ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"research_cell.py\", line 113, in <module>\n  File \"research_cell.py\", line 96, in pair_block\n  File \"/Users/liucong/Projects/jixie/.venv/research-py-v1/lib/python3.13/site-packages/pandas/core/ops/common.py\", line 76, in new_method\n    return method(self, other)\n  File \"/Users/liucong/Projects/jixie/.venv/research-py-v1/lib/python3.13/site-packages/pandas/core/arraylike.py\", line 74, in __rand__\n    return self._logical_method(other, roperator.rand_)\n           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liucong/Projects/jixie/.venv/research-py-v1/lib/python3.13/site-packages/pandas/core/series.py\", line 6141, in _logical_method\n    res_values = ops.logical_op(lvalues, rvalues, op)\n  File \"/Users/liucong/Projects/jixie/.venv/research-py-v1/lib/python3.13/site-packages/pandas/core/ops/array_ops.py\", line 442, in logical_op\n    res_values = op(lvalues, rvalues)\n  File \"/Users/liucong/Projects/jixie/.venv/research-py-v1/lib/python3.13/site-packages/pandas/core/roperator.py\", line 54, in rand_\n    return operator.and_(right, left)\n           ~~~~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/Users/liucong/Projects/jixie/.venv/research-py-v1/lib/python3.13/site-packages/pandas/core/arrays/base.py\", line 2300, in __array_ufunc__\n    return arraylike.default_array_ufunc(self, ufunc, method, *inputs, **kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/liucong/Projects/jixie/.venv/research-py-v1/lib/python3.13/site-packages/pandas/core/arraylike.py\", line 492, in default_array_ufunc\n    return getattr(ufunc, method)(*new_inputs, **kwargs)\n           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^\nValueError: operands could not be broadcast together with shapes (84,) (85,) \n",
+    "queuedAt": "2026-09-15T03:02:18.235Z",
+    "startedAt": "2026-09-15T03:02:18.241Z",
+    "finishedAt": "2026-09-15T03:02:19.917Z",
+    "source": "import json\n\nimport numpy as np\nimport pandas as pd\nimport statsmodels.api as sm\nfrom scipy import stats\n\nimport matplotlib\nmatplotlib.use(\"Agg\")\nimport matplotlib.pyplot as plt\n\nSTART, END = \"20181201\", \"20251231\"\nCODES = [\"000300.SH\", \"000852.SH\", \"000905.SH\"]\nROLE = {\"000300.SH\": \"A\", \"000852.SH\": \"B\", \"000905.SH\": \"C\"}\nLABEL = {\"000300.SH\": \"A = 000300.SH\", \"000852.SH\": \"B = 000852.SH\", \"000905.SH\": \"C = 000905.SH\"}\nWIN = 12\n\ngrid = pd.period_range(\"2018-12\", \"2025-12\", freq=\"M\")          # 85 months\nanalysis = grid[grid >= pd.Period(\"2019-01\", freq=\"M\")]          # 84 months\nmask_pre = analysis[analysis <= pd.Period(\"2022-12\", freq=\"M\")]\nmask_post = analysis[analysis >= pd.Period(\"2023-01\", freq=\"M\")]\n\ndef finite_or_none(v):\n    if v is None:\n        return None\n    v = float(v)\n    return v if np.isfinite(v) else None\n\n# ---- load month-end levels (level transform, no filling) -------------------\nlevels, measure_used = {}, {}\nfor code in CODES:\n    got = None\n    for measure in (\"market.cny_close\", \"market.adjusted_close\"):\n        try:\n            df = data.series(\"index\", code, start=START, end=END, measure=measure,\n                             frequency=\"monthly\", transform=\"level\",\n                             partial_period=\"exclude\")\n        except Exception:\n            continue\n        if df is not None and len(df) > 0:\n            got = (df, measure)\n            break\n    if got is None:\n        raise RuntimeError(\"no monthly level series returned for %s\" % code)\n    df, measure = got\n    measure_used[code] = measure\n    idx = pd.to_datetime(df[\"date\"]).dt.to_period(\"M\")\n    ser = pd.Series(np.asarray(df[\"value\"], dtype=float), index=idx)\n    levels[code] = ser.reindex(grid)          # missing natural months -> NaN (kept)\n\nprint(\"measure used:\", measure_used)\nprint(\"grid months: %d (2018-12..2025-12), analysis months: %d (2019-01..2025-12)\"\n      % (len(grid), len(analysis)))\n\n# ---- monthly returns on the grid: only contiguous adjacent months ----------\nrets = {}\nfor code in CODES:\n    lv = levels[code]\n    prev = lv.shift(1)\n    ok = lv.notna() & prev.notna()\n    rets[code] = (lv / prev - 1.0).where(ok)\n\n# ---- per-asset cross-sample facts -----------------------------------------\nrows_assets, audit_assets = [], []\nfor code in CODES:\n    present = levels[code].notna()\n    r = rets[code].reindex(analysis).dropna()\n    n_price = int(present.sum())\n    n_missing = int(len(grid) - n_price)\n    n_ret = int(len(r))\n    vol = float(r.std(ddof=1) * np.sqrt(12)) if n_ret > 1 else float(\"nan\")\n    q25, q50, q75 = (np.quantile(r.to_numpy(float), [0.25, 0.50, 0.75]) if n_ret > 0\n                     else (np.nan, np.nan, np.nan))\n    gaps = [str(p) for p in grid[~present]]\n    rows_assets.append({\n        \"asset\": \"%s (%s)\" % (ROLE[code], code), \"measure\": measure_used[code],\n        \"price_rows\": n_price, \"missing_months\": n_missing, \"valid_returns\": n_ret,\n        \"annual_vol\": vol, \"q25\": float(q25), \"q50\": float(q50), \"q75\": float(q75),\n        \"missing_list\": \",\".join(gaps) if gaps else \"-\",\n    })\n    audit_assets.append({\n        \"asset\": code, \"price_rows\": n_price, \"missing_months\": n_missing,\n        \"valid_returns\": n_ret, \"annual_vol\": finite_or_none(vol),\n        \"q25\": finite_or_none(q25), \"q50\": finite_or_none(q50), \"q75\": finite_or_none(q75),\n    })\n\nasset_tbl = pd.DataFrame(rows_assets)\nprint(\"\\n[Asset sample facts] monthly returns are decimal fractions (0.01 = 1%)\")\nprint(asset_tbl.to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- paired complete-sample analysis (A-B and A-C) -------------------------\nPERIODS = [(\"all\", analysis), (\"pre2023\", mask_pre), (\"post2023\", mask_post)]\nPAIRS = [(\"000300.SH\", \"000852.SH\"), (\"000300.SH\", \"000905.SH\")]\n\ndef pair_block(xr, yr, mask):\n    m = mask & xr.notna() & yr.notna()\n    x = xr.reindex(mask).where(m, np.nan).dropna().to_numpy(float)\n    y = yr.reindex(mask).where(m, np.nan).dropna().to_numpy(float)\n    n = int(len(x))\n    if n < 3:\n        return {\"n\": n, \"pearson\": None, \"spearman\": None,\n                \"alpha_monthly\": None, \"beta\": None}\n    pear = float(stats.pearsonr(x, y)[0])\n    spear = float(stats.spearmanr(x, y)[0])\n    fit = sm.OLS(y, sm.add_constant(x)).fit()\n    return {\"n\": n, \"pearson\": pear, \"spearman\": spear,\n            \"alpha_monthly\": float(fit.params[0]), \"beta\": float(fit.params[1])}\n\nrows_pairs, audit_pairs = [], []\nfor xcode, ycode in PAIRS:\n    xr, yr = rets[xcode], rets[ycode]\n    for pname, mask in PERIODS:\n        b = pair_block(xr, yr, mask)\n        rows_pairs.append({\n            \"pair\": \"%s / %s\" % (xcode, ycode), \"y\": ROLE[ycode], \"period\": pname,\n            \"n\": b[\"n\"], \"pearson\": b[\"pearson\"], \"spearman\": b[\"spearman\"],\n            \"alpha_monthly\": b[\"alpha_monthly\"], \"beta\": b[\"beta\"],\n        })\n        audit_pairs.append({\n            \"pair\": \"%s/%s\" % (xcode, ycode), \"period\": pname, \"n\": b[\"n\"],\n            \"pearson\": finite_or_none(b[\"pearson\"]),\n            \"spearman\": finite_or_none(b[\"spearman\"]),\n            \"alpha_monthly\": finite_or_none(b[\"alpha_monthly\"]),\n            \"beta\": finite_or_none(b[\"beta\"]),\n        })\n\npair_tbl = pd.DataFrame(rows_pairs)\nprint(\"\\n[Paired complete-sample stats] y = B or C, x = A; alpha per month (decimal), no rounding applied\")\nprint(pair_tbl.to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- rolling 12-month correlation, gaps preserved --------------------------\ndef rolling_corr(x, y, win=WIN):\n    out = pd.Series(np.nan, index=grid, dtype=float)\n    for i in range(win, len(grid)):\n        wx, wy = x.iloc[i - win + 1:i + 1], y.iloc[i - win + 1:i + 1]\n        if wx.notna().all() and wy.notna().all():\n            out.iloc[i] = float(np.corrcoef(wx.to_numpy(float), wy.to_numpy(float))[0, 1])\n    return out\n\nrc = {\n    \"A-B\": rolling_corr(rets[\"000300.SH\"], rets[\"000852.SH\"]),\n    \"A-C\": rolling_corr(rets[\"000300.SH\"], rets[\"000905.SH\"]),\n}\nfor k, s in rc.items():\n    v = s.dropna()\n    print(\"\\n[Rolling 12-month corr %s] valid windows=%d, span=%s..%s, min=%.4f, max=%.4f\"\n          % (k, len(v), (v.index.min() if len(v) else \"-\"), (v.index.max() if len(v) else \"-\"),\n             (v.min() if len(v) else float(\"nan\")), (v.max() if len(v) else float(\"nan\"))))\n\n# ---- figures (Matplotlib, English labels; NaN breaks the line) -------------\nx_dates = grid.to_timestamp(how=\"end\")\nbase_month = grid[0]\nfor p in grid:\n    if all(levels[c].notna().loc[p] for c in CODES):\n        base_month = p\n        break\nsplit = pd.Timestamp(\"2023-01-31\")\n\nfig1, ax1 = plt.subplots(figsize=(11, 5.5))\nfor code in CODES:\n    norm = levels[code] / levels[code].loc[base_month] * 100.0\n    ax1.plot(x_dates, norm.to_numpy(float), lw=1.6, label=LABEL[code])\nax1.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax1.text(split, ax1.get_ylim()[1], \" 2023-01 split\", va=\"top\", ha=\"left\", fontsize=9, color=\"0.3\")\nax1.set_title(\"Month-end index level, rebased to 100 at %s (synthetic data, CNY)\" % base_month)\nax1.set_xlabel(\"Month end\"); ax1.set_ylabel(\"Rebased level (start = 100)\")\nax1.grid(alpha=0.3); ax1.legend(loc=\"upper left\")\nax1.text(0.01, 0.02, \"Gaps in a line = missing month-end observation (not filled)\",\n         transform=ax1.transAxes, fontsize=8, color=\"0.3\")\nfig1.tight_layout()\n\nfig2, ax2 = plt.subplots(figsize=(11, 5.0))\nfor k, s in rc.items():\n    ax2.plot(s.index.to_timestamp(how=\"end\"), s.to_numpy(float), lw=1.6, label=\"Rolling 12M corr %s\" % k)\nax2.axhline(0.0, color=\"0.6\", lw=0.9)\nax2.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax2.set_ylim(-1.05, 1.05)\nax2.set_title(\"Rolling correlation of monthly returns (window = 12 consecutive calendar months)\")\nax2.set_xlabel(\"Window end (month end)\"); ax2.set_ylabel(\"Pearson correlation\")\nax2.grid(alpha=0.3); ax2.legend(loc=\"lower left\")\nax2.text(0.01, 0.02, \"Defined only where all 12 paired monthly observations are complete; \"\n                     \"gaps = missing month or insufficient window\",\n         transform=ax2.transAxes, fontsize=8, color=\"0.3\")\nfig2.tight_layout()\n\nprint(\"\\n[Reading note] A 12-month window is 12 consecutive calendar months with 12 complete \"\n      \"paired returns; a cleaned 12-return subset spanning fewer months is never labelled as 12 months.\")\n\naudit = {\"assets\": audit_assets, \"pairs\": audit_pairs}\nprint(\"AUDIT_JSON=\" + json.dumps(audit, ensure_ascii=False))",
+    "executedSource": "import json\n\nimport numpy as np\nimport pandas as pd\nimport statsmodels.api as sm\nfrom scipy import stats\n\nimport matplotlib\nmatplotlib.use(\"Agg\")\nimport matplotlib.pyplot as plt\n\nSTART, END = \"20181201\", \"20251231\"\nCODES = [\"000300.SH\", \"000852.SH\", \"000905.SH\"]\nROLE = {\"000300.SH\": \"A\", \"000852.SH\": \"B\", \"000905.SH\": \"C\"}\nLABEL = {\"000300.SH\": \"A = 000300.SH\", \"000852.SH\": \"B = 000852.SH\", \"000905.SH\": \"C = 000905.SH\"}\nWIN = 12\n\ngrid = pd.period_range(\"2018-12\", \"2025-12\", freq=\"M\")          # 85 months\nanalysis = grid[grid >= pd.Period(\"2019-01\", freq=\"M\")]          # 84 months\nmask_pre = analysis[analysis <= pd.Period(\"2022-12\", freq=\"M\")]\nmask_post = analysis[analysis >= pd.Period(\"2023-01\", freq=\"M\")]\n\ndef finite_or_none(v):\n    if v is None:\n        return None\n    v = float(v)\n    return v if np.isfinite(v) else None\n\n# ---- load month-end levels (level transform, no filling) -------------------\nlevels, measure_used = {}, {}\nfor code in CODES:\n    got = None\n    for measure in (\"market.cny_close\", \"market.adjusted_close\"):\n        try:\n            df = data.series(\"index\", code, start=START, end=END, measure=measure,\n                             frequency=\"monthly\", transform=\"level\",\n                             partial_period=\"exclude\")\n        except Exception:\n            continue\n        if df is not None and len(df) > 0:\n            got = (df, measure)\n            break\n    if got is None:\n        raise RuntimeError(\"no monthly level series returned for %s\" % code)\n    df, measure = got\n    measure_used[code] = measure\n    idx = pd.to_datetime(df[\"date\"]).dt.to_period(\"M\")\n    ser = pd.Series(np.asarray(df[\"value\"], dtype=float), index=idx)\n    levels[code] = ser.reindex(grid)          # missing natural months -> NaN (kept)\n\nprint(\"measure used:\", measure_used)\nprint(\"grid months: %d (2018-12..2025-12), analysis months: %d (2019-01..2025-12)\"\n      % (len(grid), len(analysis)))\n\n# ---- monthly returns on the grid: only contiguous adjacent months ----------\nrets = {}\nfor code in CODES:\n    lv = levels[code]\n    prev = lv.shift(1)\n    ok = lv.notna() & prev.notna()\n    rets[code] = (lv / prev - 1.0).where(ok)\n\n# ---- per-asset cross-sample facts -----------------------------------------\nrows_assets, audit_assets = [], []\nfor code in CODES:\n    present = levels[code].notna()\n    r = rets[code].reindex(analysis).dropna()\n    n_price = int(present.sum())\n    n_missing = int(len(grid) - n_price)\n    n_ret = int(len(r))\n    vol = float(r.std(ddof=1) * np.sqrt(12)) if n_ret > 1 else float(\"nan\")\n    q25, q50, q75 = (np.quantile(r.to_numpy(float), [0.25, 0.50, 0.75]) if n_ret > 0\n                     else (np.nan, np.nan, np.nan))\n    gaps = [str(p) for p in grid[~present]]\n    rows_assets.append({\n        \"asset\": \"%s (%s)\" % (ROLE[code], code), \"measure\": measure_used[code],\n        \"price_rows\": n_price, \"missing_months\": n_missing, \"valid_returns\": n_ret,\n        \"annual_vol\": vol, \"q25\": float(q25), \"q50\": float(q50), \"q75\": float(q75),\n        \"missing_list\": \",\".join(gaps) if gaps else \"-\",\n    })\n    audit_assets.append({\n        \"asset\": code, \"price_rows\": n_price, \"missing_months\": n_missing,\n        \"valid_returns\": n_ret, \"annual_vol\": finite_or_none(vol),\n        \"q25\": finite_or_none(q25), \"q50\": finite_or_none(q50), \"q75\": finite_or_none(q75),\n    })\n\nasset_tbl = pd.DataFrame(rows_assets)\nprint(\"\\n[Asset sample facts] monthly returns are decimal fractions (0.01 = 1%)\")\nprint(asset_tbl.to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- paired complete-sample analysis (A-B and A-C) -------------------------\nPERIODS = [(\"all\", analysis), (\"pre2023\", mask_pre), (\"post2023\", mask_post)]\nPAIRS = [(\"000300.SH\", \"000852.SH\"), (\"000300.SH\", \"000905.SH\")]\n\ndef pair_block(xr, yr, mask):\n    m = mask & xr.notna() & yr.notna()\n    x = xr.reindex(mask).where(m, np.nan).dropna().to_numpy(float)\n    y = yr.reindex(mask).where(m, np.nan).dropna().to_numpy(float)\n    n = int(len(x))\n    if n < 3:\n        return {\"n\": n, \"pearson\": None, \"spearman\": None,\n                \"alpha_monthly\": None, \"beta\": None}\n    pear = float(stats.pearsonr(x, y)[0])\n    spear = float(stats.spearmanr(x, y)[0])\n    fit = sm.OLS(y, sm.add_constant(x)).fit()\n    return {\"n\": n, \"pearson\": pear, \"spearman\": spear,\n            \"alpha_monthly\": float(fit.params[0]), \"beta\": float(fit.params[1])}\n\nrows_pairs, audit_pairs = [], []\nfor xcode, ycode in PAIRS:\n    xr, yr = rets[xcode], rets[ycode]\n    for pname, mask in PERIODS:\n        b = pair_block(xr, yr, mask)\n        rows_pairs.append({\n            \"pair\": \"%s / %s\" % (xcode, ycode), \"y\": ROLE[ycode], \"period\": pname,\n            \"n\": b[\"n\"], \"pearson\": b[\"pearson\"], \"spearman\": b[\"spearman\"],\n            \"alpha_monthly\": b[\"alpha_monthly\"], \"beta\": b[\"beta\"],\n        })\n        audit_pairs.append({\n            \"pair\": \"%s/%s\" % (xcode, ycode), \"period\": pname, \"n\": b[\"n\"],\n            \"pearson\": finite_or_none(b[\"pearson\"]),\n            \"spearman\": finite_or_none(b[\"spearman\"]),\n            \"alpha_monthly\": finite_or_none(b[\"alpha_monthly\"]),\n            \"beta\": finite_or_none(b[\"beta\"]),\n        })\n\npair_tbl = pd.DataFrame(rows_pairs)\nprint(\"\\n[Paired complete-sample stats] y = B or C, x = A; alpha per month (decimal), no rounding applied\")\nprint(pair_tbl.to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- rolling 12-month correlation, gaps preserved --------------------------\ndef rolling_corr(x, y, win=WIN):\n    out = pd.Series(np.nan, index=grid, dtype=float)\n    for i in range(win, len(grid)):\n        wx, wy = x.iloc[i - win + 1:i + 1], y.iloc[i - win + 1:i + 1]\n        if wx.notna().all() and wy.notna().all():\n            out.iloc[i] = float(np.corrcoef(wx.to_numpy(float), wy.to_numpy(float))[0, 1])\n    return out\n\nrc = {\n    \"A-B\": rolling_corr(rets[\"000300.SH\"], rets[\"000852.SH\"]),\n    \"A-C\": rolling_corr(rets[\"000300.SH\"], rets[\"000905.SH\"]),\n}\nfor k, s in rc.items():\n    v = s.dropna()\n    print(\"\\n[Rolling 12-month corr %s] valid windows=%d, span=%s..%s, min=%.4f, max=%.4f\"\n          % (k, len(v), (v.index.min() if len(v) else \"-\"), (v.index.max() if len(v) else \"-\"),\n             (v.min() if len(v) else float(\"nan\")), (v.max() if len(v) else float(\"nan\"))))\n\n# ---- figures (Matplotlib, English labels; NaN breaks the line) -------------\nx_dates = grid.to_timestamp(how=\"end\")\nbase_month = grid[0]\nfor p in grid:\n    if all(levels[c].notna().loc[p] for c in CODES):\n        base_month = p\n        break\nsplit = pd.Timestamp(\"2023-01-31\")\n\nfig1, ax1 = plt.subplots(figsize=(11, 5.5))\nfor code in CODES:\n    norm = levels[code] / levels[code].loc[base_month] * 100.0\n    ax1.plot(x_dates, norm.to_numpy(float), lw=1.6, label=LABEL[code])\nax1.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax1.text(split, ax1.get_ylim()[1], \" 2023-01 split\", va=\"top\", ha=\"left\", fontsize=9, color=\"0.3\")\nax1.set_title(\"Month-end index level, rebased to 100 at %s (synthetic data, CNY)\" % base_month)\nax1.set_xlabel(\"Month end\"); ax1.set_ylabel(\"Rebased level (start = 100)\")\nax1.grid(alpha=0.3); ax1.legend(loc=\"upper left\")\nax1.text(0.01, 0.02, \"Gaps in a line = missing month-end observation (not filled)\",\n         transform=ax1.transAxes, fontsize=8, color=\"0.3\")\nfig1.tight_layout()\n\nfig2, ax2 = plt.subplots(figsize=(11, 5.0))\nfor k, s in rc.items():\n    ax2.plot(s.index.to_timestamp(how=\"end\"), s.to_numpy(float), lw=1.6, label=\"Rolling 12M corr %s\" % k)\nax2.axhline(0.0, color=\"0.6\", lw=0.9)\nax2.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax2.set_ylim(-1.05, 1.05)\nax2.set_title(\"Rolling correlation of monthly returns (window = 12 consecutive calendar months)\")\nax2.set_xlabel(\"Window end (month end)\"); ax2.set_ylabel(\"Pearson correlation\")\nax2.grid(alpha=0.3); ax2.legend(loc=\"lower left\")\nax2.text(0.01, 0.02, \"Defined only where all 12 paired monthly observations are complete; \"\n                     \"gaps = missing month or insufficient window\",\n         transform=ax2.transAxes, fontsize=8, color=\"0.3\")\nfig2.tight_layout()\n\nprint(\"\\n[Reading note] A 12-month window is 12 consecutive calendar months with 12 complete \"\n      \"paired returns; a cleaned 12-return subset spanning fewer months is never labelled as 12 months.\")\n\naudit = {\"assets\": audit_assets, \"pairs\": audit_pairs}\nprint(\"AUDIT_JSON=\" + json.dumps(audit, ensure_ascii=False))",
+    "inputScope": "Synthetic demo data in the isolated library: three CNY month-end index price-level series identified only by the codes A=000300.SH, B=000852.SH, C=000905.SH. Loaded through data.series(\"index\", code, start=\"20181201\", end=\"20251231\", frequency=\"monthly\", transform=\"level\", partial_period=\"exclude\"); measure market.cny_close (CNY index level) with a market.adjusted_close fallback, reported below. 2018-12 is a warm-up month for the first return; the analysis window is 2019-01..2025-12 (84 months) on a complete natural-month grid of 85 months. Missing months are kept as NaN: no forward fill, no zero fill, and no return is computed across a missing month. Annualized volatility is the sample standard deviation (ddof=1) of monthly returns times sqrt(12). Quantiles use numpy's linear interpolation. Paired analysis uses only months where both assets have a valid single-month return; OLS is y=B or C on x=A with an intercept (statsmodels), alpha monthly in decimal. Rolling correlation uses 12 consecutive calendar-month returns and is left undefined unless all 12 paired observations are complete. Index series are price indices in this library (no dividends, no tradability), the sample is short (84 months) and is explicitly synthetic/illustrative, so nothing here is a validated investment conclusion.",
+    "parameters": {},
+    "context": {
+      "host": {
+        "type": "strategy",
+        "id": "example-strategy"
+      },
+      "name": "合成数据 · 分散风险研究",
+      "code": "export default defineStrategy({ name: \"Synthetic diversification example\", watch: [], onBar(ctx) {} });",
+      "codeHash": "6c5dc54729955b046dd295454c93d1ca9f9beb9b39904d4dee0673c3d1c84cae",
+      "language": "typescript",
+      "capturedAt": "2026-09-15T03:01:32.302Z"
+    },
+    "environment": {
+      "runtime": "research-py-v1",
+      "python": "3.13.3",
+      "numpy": "2.3.2",
+      "pandas": "2.3.1",
+      "matplotlib": "3.10.5",
+      "scipy": "1.18.0",
+      "statsmodels": "0.14.6",
+      "scikit-learn": "1.9.0",
+      "capabilities": ["explicit_parameters"]
+    },
+    "environmentFingerprint": "1a42f69f13b593c75ea62ccb5be38389b3ed84fd14388549fc121c6739eacc48",
+    "outputs": [
+      {
+        "type": "text",
+        "text": "measure used: {'000300.SH': 'market.adjusted_close', '000852.SH': 'market.adjusted_close', '000905.SH': 'market.adjusted_close'}",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "grid months: 85 (2018-12..2025-12), analysis months: 84 (2019-01..2025-12)",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "[Asset sample facts] monthly returns are decimal fractions (0.01 = 1%)",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "        asset               measure  price_rows  missing_months  valid_returns  annual_vol       q25      q50      q75                    missing_list",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "A (000300.SH) market.adjusted_close          85               0             84    0.127115 -0.016066 0.007007 0.029423                               -",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "B (000852.SH) market.adjusted_close          82               3             78    0.087550 -0.009016 0.006154 0.021252         2019-09,2021-09,2023-10",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "C (000905.SH) market.adjusted_close          81               4             77    0.021563 -0.000758 0.002979 0.006285 2020-05,2022-10,2024-11,2024-12",
+        "level": "info"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "01M2HG7WENE28NJYRVERHSMGSG",
+        "sequence": 1,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000300.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.cny_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "error",
+        "sha256": "788f487fca918b1b3c5f8313f8d30a1330e76d362a5537e14c1839a1daac485a",
+        "byteSize": 93,
+        "rowCount": null,
+        "metadata": {},
+        "error": "market.cny_close requires a registered cross-market benchmark; received 000300.SH",
+        "requestedAt": "2026-09-15T03:02:19.863Z",
+        "capturedAt": "2026-09-15T03:02:19.865Z"
+      },
+      {
+        "id": "01M2HG7WETDTEVJ2CZHZRPSZVV",
+        "sequence": 2,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000300.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.adjusted_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "received",
+        "sha256": "822f0ad4fe77aeac8bb23d4869215bb3aa7aab24d703db0b2f9f877b1dcc0ba5",
+        "byteSize": 3921,
+        "rowCount": 85,
+        "metadata": {
+          "diagnostics": [],
+          "observedRange": {
+            "start": "20181231",
+            "end": "20251231"
+          }
+        },
+        "error": null,
+        "requestedAt": "2026-09-15T03:02:19.867Z",
+        "capturedAt": "2026-09-15T03:02:19.870Z"
+      },
+      {
+        "id": "01M2HG7WF4C8Q0QNQE7DHEW5AK",
+        "sequence": 3,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000852.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.cny_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "error",
+        "sha256": "490c4bc46dadbf8cc2af7eceea2dc2b088a4fd676c29f3b6567f208a40e81e74",
+        "byteSize": 93,
+        "rowCount": null,
+        "metadata": {},
+        "error": "market.cny_close requires a registered cross-market benchmark; received 000852.SH",
+        "requestedAt": "2026-09-15T03:02:19.877Z",
+        "capturedAt": "2026-09-15T03:02:19.879Z"
+      },
+      {
+        "id": "01M2HG7WF98Z18SQAHFQDTESK6",
+        "sequence": 4,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000852.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.adjusted_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "received",
+        "sha256": "17f7cdfa2e041c2372fd4e95bdfa7808222db8ef2b7817c067897b65545d9692",
+        "byteSize": 3784,
+        "rowCount": 82,
+        "metadata": {
+          "diagnostics": [],
+          "observedRange": {
+            "start": "20181231",
+            "end": "20251231"
+          }
+        },
+        "error": null,
+        "requestedAt": "2026-09-15T03:02:19.882Z",
+        "capturedAt": "2026-09-15T03:02:19.885Z"
+      },
+      {
+        "id": "01M2HG7WFG8V4AR7Q77NT3NN2V",
+        "sequence": 5,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000905.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.cny_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "error",
+        "sha256": "fe2aa4db580f6e9e832092d3d8157114a7a459122f6bf018e1c29aebeae6b70d",
+        "byteSize": 93,
+        "rowCount": null,
+        "metadata": {},
+        "error": "market.cny_close requires a registered cross-market benchmark; received 000905.SH",
+        "requestedAt": "2026-09-15T03:02:19.889Z",
+        "capturedAt": "2026-09-15T03:02:19.891Z"
+      },
+      {
+        "id": "01M2HG7WFPFRYJQ4RV9AFJA99A",
+        "sequence": 6,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000905.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.adjusted_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "received",
+        "sha256": "ce6ec12bb4605d50cad2863253cd89a2574fdfa9498c6ecbbe5fda84a8972021",
+        "byteSize": 3743,
+        "rowCount": 81,
+        "metadata": {
+          "diagnostics": [],
+          "observedRange": {
+            "start": "20181231",
+            "end": "20251231"
+          }
+        },
+        "error": null,
+        "requestedAt": "2026-09-15T03:02:19.897Z",
+        "capturedAt": "2026-09-15T03:02:19.900Z"
+      }
+    ],
+    "limits": {
+      "sourceCharacters": 20000,
+      "parametersBytes": 16384,
+      "sdkRequests": 16,
+      "inputBytes": 33554432,
+      "executionMilliseconds": 30000
+    }
+  },
+  {
+    "analysisId": "01M2HG7TVDXAGP2NPGC9KMF26V",
+    "versionId": "01M2HG7TVNC736G2BJBE47ETFF",
+    "runId": "01M2HG8RDYTVKTX7VPM8WBGMGC",
+    "sequence": 2,
+    "revision": 2,
+    "jobId": "01M2HG8RDZSZ6N7HMAQY8178BT",
+    "status": "success",
+    "sourceHash": "ef95e93a0f1028eba205066f16bebeab7b8d1dabc5d8eee5d3e2c1313b62a511",
+    "errorCode": null,
+    "error": null,
+    "queuedAt": "2026-09-15T03:02:48.511Z",
+    "startedAt": "2026-09-15T03:02:48.517Z",
+    "finishedAt": "2026-09-15T03:02:49.899Z",
+    "source": "import json\n\nimport numpy as np\nimport pandas as pd\nimport statsmodels.api as sm\nfrom scipy import stats\n\nimport matplotlib\nmatplotlib.use(\"Agg\")\nimport matplotlib.pyplot as plt\n\nSTART, END = \"20181201\", \"20251231\"\nMEASURE = \"market.adjusted_close\"          # platform index level (price index -> level)\nCODES = [\"000300.SH\", \"000852.SH\", \"000905.SH\"]\nROLE = {\"000300.SH\": \"A\", \"000852.SH\": \"B\", \"000905.SH\": \"C\"}\nLABEL = {\"000300.SH\": \"A = 000300.SH\", \"000852.SH\": \"B = 000852.SH\", \"000905.SH\": \"C = 000905.SH\"}\nWIN = 12\n\ngrid = pd.period_range(\"2018-12\", \"2025-12\", freq=\"M\")           # 85 months\nanalysis = grid[grid >= pd.Period(\"2019-01\", freq=\"M\")]           # 84 months\npre_idx = analysis[analysis <= pd.Period(\"2022-12\", freq=\"M\")]\npost_idx = analysis[analysis >= pd.Period(\"2023-01\", freq=\"M\")]\n\ndef finite_or_none(v):\n    if v is None:\n        return None\n    v = float(v)\n    return v if np.isfinite(v) else None\n\ndef _stat(res):\n    try:\n        return float(res.statistic)\n    except AttributeError:\n        return float(res[0])\n\n# ---- month-end levels (no filling of any kind) -----------------------------\nlevels = {}\nfor code in CODES:\n    df = data.series(\"index\", code, start=START, end=END, measure=MEASURE,\n                     frequency=\"monthly\", transform=\"level\", partial_period=\"exclude\")\n    if df is None or len(df) == 0:\n        raise RuntimeError(\"no monthly level series for %s\" % code)\n    idx = pd.to_datetime(df[\"date\"]).dt.to_period(\"M\")\n    levels[code] = pd.Series(np.asarray(df[\"value\"], dtype=float), index=idx).reindex(grid)\n\nprint(\"measure=%s | grid=%d months (2018-12..2025-12) | analysis=%d months (2019-01..2025-12)\"\n      % (MEASURE, len(grid), len(analysis)))\n\n# ---- monthly returns: only adjacent, both-present months -------------------\nrets = {}\nfor code in CODES:\n    lv = levels[code]\n    rets[code] = (lv / lv.shift(1) - 1.0).where(lv.notna() & lv.shift(1).notna())\n\nrows_assets, audit_assets = [], []\nfor code in CODES:\n    present = levels[code].notna()\n    r = rets[code].reindex(analysis).dropna()\n    n_price = int(present.sum()); n_missing = int(len(grid) - n_price); n_ret = int(len(r))\n    vol = float(r.std(ddof=1) * np.sqrt(12)) if n_ret > 1 else float(\"nan\")\n    q = np.quantile(r.to_numpy(float), [0.25, 0.50, 0.75]) if n_ret > 0 else (np.nan, np.nan, np.nan)\n    gaps = [str(p) for p in grid[~present]]\n    rows_assets.append({\"asset\": \"%s (%s)\" % (ROLE[code], code), \"measure\": MEASURE,\n                        \"price_rows\": n_price, \"missing_months\": n_missing, \"valid_returns\": n_ret,\n                        \"annual_vol\": vol, \"q25\": float(q[0]), \"q50\": float(q[1]), \"q75\": float(q[2]),\n                        \"missing_list\": \",\".join(gaps) if gaps else \"-\"})\n    audit_assets.append({\"asset\": code, \"price_rows\": n_price, \"missing_months\": n_missing,\n                         \"valid_returns\": n_ret, \"annual_vol\": finite_or_none(vol),\n                         \"q25\": finite_or_none(q[0]), \"q50\": finite_or_none(q[1]),\n                         \"q75\": finite_or_none(q[2])})\n\nprint(\"\\n[Asset sample facts] monthly returns are decimal fractions (0.01 = 1%); no rounding applied\")\nprint(pd.DataFrame(rows_assets).to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- paired complete-sample analysis ---------------------------------------\ndef pair_block(xr, yr, months):\n    xs, ys = xr.reindex(months), yr.reindex(months)\n    ok = xs.notna() & ys.notna()\n    x = xs[ok].to_numpy(float)\n    y = ys[ok].to_numpy(float)\n    n = int(len(x))\n    if n < 3:\n        return {\"n\": n, \"pearson\": None, \"spearman\": None, \"alpha_monthly\": None, \"beta\": None}\n    fit = sm.OLS(y, sm.add_constant(x)).fit()\n    return {\"n\": n, \"pearson\": _stat(stats.pearsonr(x, y)), \"spearman\": _stat(stats.spearmanr(x, y)),\n            \"alpha_monthly\": float(fit.params[0]), \"beta\": float(fit.params[1])}\n\nPERIODS = [(\"all\", analysis), (\"pre2023\", pre_idx), (\"post2023\", post_idx)]\nrows_pairs, audit_pairs = [], []\nfor xcode, ycode in [(\"000300.SH\", \"000852.SH\"), (\"000300.SH\", \"000905.SH\")]:\n    for pname, months in PERIODS:\n        b = pair_block(rets[xcode], rets[ycode], months)\n        rows_pairs.append({\"pair\": \"%s / %s\" % (xcode, ycode), \"y\": ROLE[ycode], \"period\": pname,\n                           \"n\": b[\"n\"], \"pearson\": b[\"pearson\"], \"spearman\": b[\"spearman\"],\n                           \"alpha_monthly\": b[\"alpha_monthly\"], \"beta\": b[\"beta\"]})\n        audit_pairs.append({\"pair\": \"%s/%s\" % (xcode, ycode), \"period\": pname, \"n\": b[\"n\"],\n                            \"pearson\": finite_or_none(b[\"pearson\"]),\n                            \"spearman\": finite_or_none(b[\"spearman\"]),\n                            \"alpha_monthly\": finite_or_none(b[\"alpha_monthly\"]),\n                            \"beta\": finite_or_none(b[\"beta\"])})\n\nprint(\"\\n[Paired complete-sample stats] y = B or C, x = A; alpha is per month (decimal); no rounding applied\")\nprint(pd.DataFrame(rows_pairs).to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- rolling 12-month correlation, gaps preserved --------------------------\ndef rolling_corr(x, y, win=WIN):\n    out = pd.Series(np.nan, index=grid, dtype=float)\n    for i in range(win, len(grid)):\n        wx, wy = x.iloc[i - win + 1:i + 1], y.iloc[i - win + 1:i + 1]\n        if wx.notna().all() and wy.notna().all():\n            out.iloc[i] = float(np.corrcoef(wx.to_numpy(float), wy.to_numpy(float))[0, 1])\n    return out\n\nrc = {\"A-B\": rolling_corr(rets[\"000300.SH\"], rets[\"000852.SH\"]),\n      \"A-C\": rolling_corr(rets[\"000300.SH\"], rets[\"000905.SH\"])}\nfor k, s in rc.items():\n    v = s.dropna()\n    print(\"[Rolling 12M corr %s] valid windows=%d span=%s..%s min=%.6f max=%.6f mean=%.6f\"\n          % (k, len(v), v.index.min() if len(v) else \"-\", v.index.max() if len(v) else \"-\",\n             v.min() if len(v) else float(\"nan\"), v.max() if len(v) else float(\"nan\"),\n             v.mean() if len(v) else float(\"nan\")))\n\n# ---- figures: Matplotlib, English labels, NaN breaks the line --------------\nx_dates = grid.to_timestamp(how=\"end\")\nbase_month = next(p for p in grid if all(levels[c].notna().loc[p] for c in CODES))\nsplit = pd.Timestamp(\"2023-01-31\")\n\nfig1, ax1 = plt.subplots(figsize=(11, 5.5))\nfor code in CODES:\n    norm = levels[code] / levels[code].loc[base_month] * 100.0\n    ax1.plot(x_dates, norm.to_numpy(float), lw=1.6, label=LABEL[code])\nax1.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax1.set_title(\"Month-end index level rebased to 100 at %s (synthetic demo data, CNY)\" % base_month)\nax1.set_xlabel(\"Month end\"); ax1.set_ylabel(\"Rebased level (start = 100)\")\nax1.grid(alpha=0.3); ax1.legend(loc=\"upper left\")\nax1.text(0.01, 0.02, \"Line gaps = missing month-end observation (never filled); dashed line = 2023-01 split\",\n         transform=ax1.transAxes, fontsize=8, color=\"0.3\")\nfig1.tight_layout()\n\nfig2, ax2 = plt.subplots(figsize=(11, 5.0))\nfor k, s in rc.items():\n    ax2.plot(s.index.to_timestamp(how=\"end\"), s.to_numpy(float), lw=1.6,\n             label=\"Rolling 12M corr %s\" % k)\nax2.axhline(0.0, color=\"0.6\", lw=0.9)\nax2.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax2.set_ylim(-1.05, 1.05)\nax2.set_title(\"Rolling correlation of monthly returns (window = 12 consecutive calendar months)\")\nax2.set_xlabel(\"Window end (month end)\"); ax2.set_ylabel(\"Pearson correlation\")\nax2.grid(alpha=0.3); ax2.legend(loc=\"lower left\")\nax2.text(0.01, 0.02, \"Defined only when all 12 paired monthly observations are complete; \"\n                     \"gaps = missing month or insufficient window\",\n         transform=ax2.transAxes, fontsize=8, color=\"0.3\")\nfig2.tight_layout()\n\nprint(\"\\n[Reading note] A 12M window means 12 consecutive calendar months with 12 complete paired \"\n      \"returns; a cleaned 12-return subset covering fewer months is never called 12 months.\")\n\nprint(\"AUDIT_JSON=\" + json.dumps({\"assets\": audit_assets, \"pairs\": audit_pairs}, ensure_ascii=False))",
+    "executedSource": "import json\n\nimport numpy as np\nimport pandas as pd\nimport statsmodels.api as sm\nfrom scipy import stats\n\nimport matplotlib\nmatplotlib.use(\"Agg\")\nimport matplotlib.pyplot as plt\n\nSTART, END = \"20181201\", \"20251231\"\nMEASURE = \"market.adjusted_close\"          # platform index level (price index -> level)\nCODES = [\"000300.SH\", \"000852.SH\", \"000905.SH\"]\nROLE = {\"000300.SH\": \"A\", \"000852.SH\": \"B\", \"000905.SH\": \"C\"}\nLABEL = {\"000300.SH\": \"A = 000300.SH\", \"000852.SH\": \"B = 000852.SH\", \"000905.SH\": \"C = 000905.SH\"}\nWIN = 12\n\ngrid = pd.period_range(\"2018-12\", \"2025-12\", freq=\"M\")           # 85 months\nanalysis = grid[grid >= pd.Period(\"2019-01\", freq=\"M\")]           # 84 months\npre_idx = analysis[analysis <= pd.Period(\"2022-12\", freq=\"M\")]\npost_idx = analysis[analysis >= pd.Period(\"2023-01\", freq=\"M\")]\n\ndef finite_or_none(v):\n    if v is None:\n        return None\n    v = float(v)\n    return v if np.isfinite(v) else None\n\ndef _stat(res):\n    try:\n        return float(res.statistic)\n    except AttributeError:\n        return float(res[0])\n\n# ---- month-end levels (no filling of any kind) -----------------------------\nlevels = {}\nfor code in CODES:\n    df = data.series(\"index\", code, start=START, end=END, measure=MEASURE,\n                     frequency=\"monthly\", transform=\"level\", partial_period=\"exclude\")\n    if df is None or len(df) == 0:\n        raise RuntimeError(\"no monthly level series for %s\" % code)\n    idx = pd.to_datetime(df[\"date\"]).dt.to_period(\"M\")\n    levels[code] = pd.Series(np.asarray(df[\"value\"], dtype=float), index=idx).reindex(grid)\n\nprint(\"measure=%s | grid=%d months (2018-12..2025-12) | analysis=%d months (2019-01..2025-12)\"\n      % (MEASURE, len(grid), len(analysis)))\n\n# ---- monthly returns: only adjacent, both-present months -------------------\nrets = {}\nfor code in CODES:\n    lv = levels[code]\n    rets[code] = (lv / lv.shift(1) - 1.0).where(lv.notna() & lv.shift(1).notna())\n\nrows_assets, audit_assets = [], []\nfor code in CODES:\n    present = levels[code].notna()\n    r = rets[code].reindex(analysis).dropna()\n    n_price = int(present.sum()); n_missing = int(len(grid) - n_price); n_ret = int(len(r))\n    vol = float(r.std(ddof=1) * np.sqrt(12)) if n_ret > 1 else float(\"nan\")\n    q = np.quantile(r.to_numpy(float), [0.25, 0.50, 0.75]) if n_ret > 0 else (np.nan, np.nan, np.nan)\n    gaps = [str(p) for p in grid[~present]]\n    rows_assets.append({\"asset\": \"%s (%s)\" % (ROLE[code], code), \"measure\": MEASURE,\n                        \"price_rows\": n_price, \"missing_months\": n_missing, \"valid_returns\": n_ret,\n                        \"annual_vol\": vol, \"q25\": float(q[0]), \"q50\": float(q[1]), \"q75\": float(q[2]),\n                        \"missing_list\": \",\".join(gaps) if gaps else \"-\"})\n    audit_assets.append({\"asset\": code, \"price_rows\": n_price, \"missing_months\": n_missing,\n                         \"valid_returns\": n_ret, \"annual_vol\": finite_or_none(vol),\n                         \"q25\": finite_or_none(q[0]), \"q50\": finite_or_none(q[1]),\n                         \"q75\": finite_or_none(q[2])})\n\nprint(\"\\n[Asset sample facts] monthly returns are decimal fractions (0.01 = 1%); no rounding applied\")\nprint(pd.DataFrame(rows_assets).to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- paired complete-sample analysis ---------------------------------------\ndef pair_block(xr, yr, months):\n    xs, ys = xr.reindex(months), yr.reindex(months)\n    ok = xs.notna() & ys.notna()\n    x = xs[ok].to_numpy(float)\n    y = ys[ok].to_numpy(float)\n    n = int(len(x))\n    if n < 3:\n        return {\"n\": n, \"pearson\": None, \"spearman\": None, \"alpha_monthly\": None, \"beta\": None}\n    fit = sm.OLS(y, sm.add_constant(x)).fit()\n    return {\"n\": n, \"pearson\": _stat(stats.pearsonr(x, y)), \"spearman\": _stat(stats.spearmanr(x, y)),\n            \"alpha_monthly\": float(fit.params[0]), \"beta\": float(fit.params[1])}\n\nPERIODS = [(\"all\", analysis), (\"pre2023\", pre_idx), (\"post2023\", post_idx)]\nrows_pairs, audit_pairs = [], []\nfor xcode, ycode in [(\"000300.SH\", \"000852.SH\"), (\"000300.SH\", \"000905.SH\")]:\n    for pname, months in PERIODS:\n        b = pair_block(rets[xcode], rets[ycode], months)\n        rows_pairs.append({\"pair\": \"%s / %s\" % (xcode, ycode), \"y\": ROLE[ycode], \"period\": pname,\n                           \"n\": b[\"n\"], \"pearson\": b[\"pearson\"], \"spearman\": b[\"spearman\"],\n                           \"alpha_monthly\": b[\"alpha_monthly\"], \"beta\": b[\"beta\"]})\n        audit_pairs.append({\"pair\": \"%s/%s\" % (xcode, ycode), \"period\": pname, \"n\": b[\"n\"],\n                            \"pearson\": finite_or_none(b[\"pearson\"]),\n                            \"spearman\": finite_or_none(b[\"spearman\"]),\n                            \"alpha_monthly\": finite_or_none(b[\"alpha_monthly\"]),\n                            \"beta\": finite_or_none(b[\"beta\"])})\n\nprint(\"\\n[Paired complete-sample stats] y = B or C, x = A; alpha is per month (decimal); no rounding applied\")\nprint(pd.DataFrame(rows_pairs).to_string(index=False, float_format=lambda v: \"%.6f\" % v))\n\n# ---- rolling 12-month correlation, gaps preserved --------------------------\ndef rolling_corr(x, y, win=WIN):\n    out = pd.Series(np.nan, index=grid, dtype=float)\n    for i in range(win, len(grid)):\n        wx, wy = x.iloc[i - win + 1:i + 1], y.iloc[i - win + 1:i + 1]\n        if wx.notna().all() and wy.notna().all():\n            out.iloc[i] = float(np.corrcoef(wx.to_numpy(float), wy.to_numpy(float))[0, 1])\n    return out\n\nrc = {\"A-B\": rolling_corr(rets[\"000300.SH\"], rets[\"000852.SH\"]),\n      \"A-C\": rolling_corr(rets[\"000300.SH\"], rets[\"000905.SH\"])}\nfor k, s in rc.items():\n    v = s.dropna()\n    print(\"[Rolling 12M corr %s] valid windows=%d span=%s..%s min=%.6f max=%.6f mean=%.6f\"\n          % (k, len(v), v.index.min() if len(v) else \"-\", v.index.max() if len(v) else \"-\",\n             v.min() if len(v) else float(\"nan\"), v.max() if len(v) else float(\"nan\"),\n             v.mean() if len(v) else float(\"nan\")))\n\n# ---- figures: Matplotlib, English labels, NaN breaks the line --------------\nx_dates = grid.to_timestamp(how=\"end\")\nbase_month = next(p for p in grid if all(levels[c].notna().loc[p] for c in CODES))\nsplit = pd.Timestamp(\"2023-01-31\")\n\nfig1, ax1 = plt.subplots(figsize=(11, 5.5))\nfor code in CODES:\n    norm = levels[code] / levels[code].loc[base_month] * 100.0\n    ax1.plot(x_dates, norm.to_numpy(float), lw=1.6, label=LABEL[code])\nax1.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax1.set_title(\"Month-end index level rebased to 100 at %s (synthetic demo data, CNY)\" % base_month)\nax1.set_xlabel(\"Month end\"); ax1.set_ylabel(\"Rebased level (start = 100)\")\nax1.grid(alpha=0.3); ax1.legend(loc=\"upper left\")\nax1.text(0.01, 0.02, \"Line gaps = missing month-end observation (never filled); dashed line = 2023-01 split\",\n         transform=ax1.transAxes, fontsize=8, color=\"0.3\")\nfig1.tight_layout()\n\nfig2, ax2 = plt.subplots(figsize=(11, 5.0))\nfor k, s in rc.items():\n    ax2.plot(s.index.to_timestamp(how=\"end\"), s.to_numpy(float), lw=1.6,\n             label=\"Rolling 12M corr %s\" % k)\nax2.axhline(0.0, color=\"0.6\", lw=0.9)\nax2.axvline(split, color=\"0.35\", ls=\"--\", lw=1.0)\nax2.set_ylim(-1.05, 1.05)\nax2.set_title(\"Rolling correlation of monthly returns (window = 12 consecutive calendar months)\")\nax2.set_xlabel(\"Window end (month end)\"); ax2.set_ylabel(\"Pearson correlation\")\nax2.grid(alpha=0.3); ax2.legend(loc=\"lower left\")\nax2.text(0.01, 0.02, \"Defined only when all 12 paired monthly observations are complete; \"\n                     \"gaps = missing month or insufficient window\",\n         transform=ax2.transAxes, fontsize=8, color=\"0.3\")\nfig2.tight_layout()\n\nprint(\"\\n[Reading note] A 12M window means 12 consecutive calendar months with 12 complete paired \"\n      \"returns; a cleaned 12-return subset covering fewer months is never called 12 months.\")\n\nprint(\"AUDIT_JSON=\" + json.dumps({\"assets\": audit_assets, \"pairs\": audit_pairs}, ensure_ascii=False))",
+    "inputScope": "Synthetic demo data in the isolated library: three CNY month-end index price-level series identified only as A=000300.SH, B=000852.SH, C=000905.SH. Loaded with data.series(\"index\", code, start=\"20181201\", end=\"20251231\", measure=\"market.adjusted_close\", frequency=\"monthly\", transform=\"level\", partial_period=\"exclude\"); for a price index this measure returns the index level itself. The CNY-benchmark-relative measure market.cny_close is not applicable to these codes (it is restricted to registered cross-market benchmarks), so it is not used. 2018-12 is the warm-up month for the first return; the analysis window is 2019-01..2025-12 (84 months) on a complete natural-month grid of 85 months. Missing months stay NaN: no forward fill, no zero fill, and no return is computed across a missing month. Annualized volatility = sample standard deviation (ddof=1) of monthly returns x sqrt(12). Quantiles use numpy linear interpolation. Pair analysis uses only months where both assets have a valid single-month return; OLS is y=B or C on x=A with intercept (statsmodels), alpha in decimal per month. Rolling correlation uses 12 consecutive calendar-month returns and stays undefined unless all 12 paired observations are complete. These are price indices (no dividends, not tradable), the window is short, and the data are explicitly synthetic, so nothing here is a validated investment conclusion. The prior run (revision 1) failed on a shape mismatch in the paired mask; only the mask construction changed.",
+    "parameters": {},
+    "context": {
+      "host": {
+        "type": "strategy",
+        "id": "example-strategy"
+      },
+      "name": "合成数据 · 分散风险研究",
+      "code": "export default defineStrategy({ name: \"Synthetic diversification example\", watch: [], onBar(ctx) {} });",
+      "codeHash": "6c5dc54729955b046dd295454c93d1ca9f9beb9b39904d4dee0673c3d1c84cae",
+      "language": "typescript",
+      "capturedAt": "2026-09-15T03:01:32.302Z"
+    },
+    "environment": {
+      "runtime": "research-py-v1",
+      "python": "3.13.3",
+      "numpy": "2.3.2",
+      "pandas": "2.3.1",
+      "matplotlib": "3.10.5",
+      "scipy": "1.18.0",
+      "statsmodels": "0.14.6",
+      "scikit-learn": "1.9.0",
+      "capabilities": ["explicit_parameters"]
+    },
+    "environmentFingerprint": "1a42f69f13b593c75ea62ccb5be38389b3ed84fd14388549fc121c6739eacc48",
+    "outputs": [
+      {
+        "type": "text",
+        "text": "measure=market.adjusted_close | grid=85 months (2018-12..2025-12) | analysis=84 months (2019-01..2025-12)",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "[Asset sample facts] monthly returns are decimal fractions (0.01 = 1%); no rounding applied",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "        asset               measure  price_rows  missing_months  valid_returns  annual_vol       q25      q50      q75                    missing_list",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "A (000300.SH) market.adjusted_close          85               0             84    0.127115 -0.016066 0.007007 0.029423                               -",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "B (000852.SH) market.adjusted_close          82               3             78    0.087550 -0.009016 0.006154 0.021252         2019-09,2021-09,2023-10",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "C (000905.SH) market.adjusted_close          81               4             77    0.021563 -0.000758 0.002979 0.006285 2020-05,2022-10,2024-11,2024-12",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "[Paired complete-sample stats] y = B or C, x = A; alpha is per month (decimal); no rounding applied",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "                 pair y   period  n   pearson  spearman  alpha_monthly      beta",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "000300.SH / 000852.SH B      all 78 -0.150366  0.217820       0.006715 -0.102688",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "000300.SH / 000852.SH B  pre2023 44  0.945114  0.942213       0.003279  0.810068",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "000300.SH / 000852.SH B post2023 34 -0.955164 -0.878992       0.002767 -0.553684",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "000300.SH / 000905.SH C      all 77  0.452600  0.090226       0.001985  0.075886",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "000300.SH / 000905.SH C  pre2023 44 -0.094605 -0.070754       0.003646 -0.015425",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "000300.SH / 000905.SH C post2023 33  0.702591  0.281083       0.000581  0.116389",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "[Rolling 12M corr A-B] valid windows=37 span=2020-10..2025-12 min=-0.954288 max=0.949997 mean=0.059094",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "[Rolling 12M corr A-C] valid windows=33 span=2019-12..2024-10 min=-0.777912 max=0.826847 mean=0.106386",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "[Reading note] A 12M window means 12 consecutive calendar months with 12 complete paired returns; a cleaned 12-return subset covering fewer months is never called 12 months.",
+        "level": "info"
+      },
+      {
+        "type": "text",
+        "text": "AUDIT_JSON={\"assets\": [{\"asset\": \"000300.SH\", \"price_rows\": 85, \"missing_months\": 0, \"valid_returns\": 84, \"annual_vol\": 0.1271146575948792, \"q25\": -0.016066454136943104, \"q50\": 0.00700745940192149, \"q75\": 0.029423031161809998}, {\"asset\": \"000852.SH\", \"price_rows\": 82, \"missing_months\": 3, \"valid_returns\": 78, \"annual_vol\": 0.08754958717214381, \"q25\": -0.009016478652716486, \"q50\": 0.006153629342418254, \"q75\": 0.02125179183149689}, {\"asset\": \"000905.SH\", \"price_rows\": 81, \"missing_months\": 4, \"valid_returns\": 77, \"annual_vol\": 0.02156312600065056, \"q25\": -0.0007581673151414448, \"q50\": 0.002978606445067422, \"q75\": 0.006284566836059824}], \"pairs\": [{\"pair\": \"000300.SH/000852.SH\", \"period\": \"all\", \"n\": 78, \"pearson\": -0.15036558176276107, \"spearman\": 0.21782015452901526, \"alpha_monthly\": 0.006714943461071253, \"beta\": -0.10268758026943935}, {\"pair\": \"000300.SH/000852.SH\", \"period\": \"pre2023\", \"n\": 44, \"pearson\": 0.9451137588381506, \"spearman\": 0.9422128259337562, \"alpha_monthly\": 0.0032787805746712093, \"beta\": 0.8100679198719868}, {\"pair\": \"000300.SH/000852.SH\", \"period\": \"post2023\", \"n\": 34, \"pearson\": -0.955164345731738, \"spearman\": -0.8789915966386553, \"alpha_monthly\": 0.0027668465146418048, \"beta\": -0.5536842774986651}, {\"pair\": \"000300.SH/000905.SH\", \"period\": \"all\", \"n\": 77, \"pearson\": 0.452599671062363, \"spearman\": 0.09022556390977442, \"alpha_monthly\": 0.001984745028387859, \"beta\": 0.07588589982198865}, {\"pair\": \"000300.SH/000905.SH\", \"period\": \"pre2023\", \"n\": 44, \"pearson\": -0.09460492471707573, \"spearman\": -0.07075405214940098, \"alpha_monthly\": 0.0036463583861476544, \"beta\": -0.015424718658353868}, {\"pair\": \"000300.SH/000905.SH\", \"period\": \"post2023\", \"n\": 33, \"pearson\": 0.7025905391390982, \"spearman\": 0.2810828877005348, \"alpha_monthly\": 0.0005808236289832432, \"beta\": 0.11638909256501678}]}",
+        "level": "info"
+      },
+      {
+        "type": "image",
+        "mimeType": "image/png",
+        "artifactId": "01M2HG8SS94W31RZYA6A3SJFV7",
+        "byteSize": 138209,
+        "sha256": "17df58fc3860aedeb838c7cb39fcdb66a4e98f8f4ffaf40d3a79f30d60d73588",
+        "width": 1568,
+        "height": 774,
+        "alt": "Python figure"
+      },
+      {
+        "type": "image",
+        "mimeType": "image/png",
+        "artifactId": "01M2HG8SS93SEDAT0VNYEC6W4J",
+        "byteSize": 77506,
+        "sha256": "f49fa203ddb58728ca8b1d1fbb9f4c45df90d261bbbc9919eeb7967738d79202",
+        "width": 1568,
+        "height": 702,
+        "alt": "Python figure"
+      }
+    ],
+    "inputs": [
+      {
+        "id": "01M2HG8SJQQYTN2B6FH0QTK9E5",
+        "sequence": 1,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000300.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.adjusted_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "received",
+        "sha256": "822f0ad4fe77aeac8bb23d4869215bb3aa7aab24d703db0b2f9f877b1dcc0ba5",
+        "byteSize": 3921,
+        "rowCount": 85,
+        "metadata": {
+          "diagnostics": [],
+          "observedRange": {
+            "start": "20181231",
+            "end": "20251231"
+          }
+        },
+        "error": null,
+        "requestedAt": "2026-09-15T03:02:49.688Z",
+        "capturedAt": "2026-09-15T03:02:49.689Z"
+      },
+      {
+        "id": "01M2HG8SJWSST4E8QGNPZB79YW",
+        "sequence": 2,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000852.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.adjusted_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "received",
+        "sha256": "17f7cdfa2e041c2372fd4e95bdfa7808222db8ef2b7817c067897b65545d9692",
+        "byteSize": 3784,
+        "rowCount": 82,
+        "metadata": {
+          "diagnostics": [],
+          "observedRange": {
+            "start": "20181231",
+            "end": "20251231"
+          }
+        },
+        "error": null,
+        "requestedAt": "2026-09-15T03:02:49.693Z",
+        "capturedAt": "2026-09-15T03:02:49.694Z"
+      },
+      {
+        "id": "01M2HG8SK06ZM9Y6RATWZJKSG8",
+        "sequence": 3,
+        "method": "research_series",
+        "arguments": {
+          "asset_type": "index",
+          "identifier": "000905.SH",
+          "start": "20181201",
+          "end": "20251231",
+          "measure": "market.adjusted_close",
+          "frequency": "monthly",
+          "transform": "level",
+          "partial_period": "exclude"
+        },
+        "status": "received",
+        "sha256": "ce6ec12bb4605d50cad2863253cd89a2574fdfa9498c6ecbbe5fda84a8972021",
+        "byteSize": 3743,
+        "rowCount": 81,
+        "metadata": {
+          "diagnostics": [],
+          "observedRange": {
+            "start": "20181231",
+            "end": "20251231"
+          }
+        },
+        "error": null,
+        "requestedAt": "2026-09-15T03:02:49.697Z",
+        "capturedAt": "2026-09-15T03:02:49.698Z"
+      }
+    ],
+    "limits": {
+      "sourceCharacters": 20000,
+      "parametersBytes": 16384,
+      "sdkRequests": 16,
+      "inputBytes": 33554432,
+      "executionMilliseconds": 30000
+    }
+  }
+]

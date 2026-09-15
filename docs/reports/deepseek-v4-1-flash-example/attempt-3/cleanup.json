@@ -1,0 +1,9 @@
+{
+  "isolatedDatabaseRemoved": true,
+  "pythonSessionsClosed": true,
+  "passed": false,
+  "failure": {
+    "name": "AssertionError",
+    "message": "Analysis must leave Strategy code unchanged.\n\ntrue !== false\n"
+  }
+}

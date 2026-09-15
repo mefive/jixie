@@ -1,0 +1,9 @@
+{
+  "isolatedDatabaseRemoved": true,
+  "pythonSessionsClosed": true,
+  "passed": false,
+  "failure": {
+    "name": "AssertionError",
+    "message": "Expected values to be strictly equal:\n\n2 !== 1\n"
+  }
+}

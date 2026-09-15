@@ -1,0 +1,134 @@
+{
+  "reply": "已执行：`runEmbeddedAnalysis` 的合成数据研究成功（analysisId `01M2HF732C9R45E1W4BAJYG5Y0`，第 2 版，已冻结；首次尝试因 `market.cny_close` 只对已注册跨市场基准开放、且运行时不提供 `display` 而失败，改口径后重跑）。策略代码保持原样、未运行回测。\n\n## 实际读到的数据与对齐\n- `data.series('index', …, 'monthly', transform='level')`：A=000300.SH 85 行、B=000852.SH 82 行、C=000905.SH 81 行，范围 2018-12-31…2025-12-31。\n- 自然月网格 2018-12…2025-12 共 85 个月；2018-12 仅作首月收益预热，分析区间 2019-01…2025-12。\n- 缺失月：B 缺 2019-09、2021-09、2023-10（3 个）；C 缺 2020-05、2022-10、2024-11、2024-12（4 个，最后两个连续）。缺失一律保留为 NaN：不前向填充、不补零，缺口处及其后一个月都不计月收益（不把跨缺口变化当成单月收益）。\n\n## 各资产（月收益，2019-01–2025-12）\n\n| 资产 | 价格行 | 缺失月 | 有效月收益 | 年化波动(样本std×√12) | q25 | q50 | q75 |\n|---|---|---|---|---|---|---|---|\n| A 000300.SH | 85 | 0 | 84 | 0.127115 | −0.016066 | 0.007007 | 0.029423 |\n| B 000852.SH | 82 | 3 | 78 | 0.087550 | −0.009016 | 0.006154 | 0.021252 |\n| C 000905.SH | 81 | 4 | 77 | 0.021563 | −0.000758 | 0.002979 | 0.006285 |\n\n## 成对分析（y=B 或 C，x=A，含截距 OLS，只用成对完整观测）\n\n| 配对 | 区间 | n | Pearson | Spearman | 月 alpha | beta |\n|---|---|---|---|---|---|---|\n| A/B | all | 78 | −0.150366 | 0.217820 | 0.006715 | −0.102688 |\n| A/B | pre2023 | 44 | 0.945114 | 0.942213 | 0.003279 | 0.810068 |\n| A/B | post2023 | 34 | −0.955164 | −0.878992 | 0.002767 | −0.553684 |\n| A/C | all | 77 | 0.452600 | 0.090226 | 0.001985 | 0.075886 |\n| A/C | pre2023 | 44 | −0.094605 | −0.070754 | 0.003646 | −0.015425 |\n| A/C | post2023 | 33 | 0.702591 | 0.281083 | 0.000581 | 0.116389 |\n\n滚动 12 个月相关（要求窗口内 12 个成对观测齐备，否则断开）：A/B 有效窗口 37 个，2020-10…2025-12，区间 [−0.9543, 0.9500]；A/C 有效窗口 33 个，2019-12…2024-10，区间 [−0.7779, 0.8268]（C 在 2024-11、2024-12 缺失，故 2024-11 之后窗口全部不足，曲线在此后断开，最后有效点是 2024-10）。\n\n两张图已生成：起点归一为 100 的价格曲线（缺失处线条断开）；滚动相关系数图（窗口不足处断开）。图内标签为英文，另用两张原生图表把同一份数据渲染在卡片里；Matplotlib 在 Agg 下只产出静态图，本运行时无 CJK 字体。\n\n## 结论（针对这份合成数据）\n1. **全样本统计确实掩盖了阶段变化，而且掩盖得很彻底。** A/B 全样本 Pearson 只有 −0.150、beta −0.103，看着像“几乎不相关”；但切成 2023 年前后，相关系数从 +0.945 直接翻到 −0.955，beta 从 +0.81 变为 −0.55。符号相反的两段被平均成一个“接近零”，这是典型的聚合假象。\n2. **B 在这份数据里不是稳定的分散器，而是“换号”的对冲。** “稳定分散”要求相关性低且符号一致；这里的相关性是低且方向翻转，属于状态依赖（regime-dependent），不能在样本外假定它继续有效。滚动相关曲线从约 +0.95 一路降到约 −0.95，说明切换是渐进过程而非单月跳变。\n3. **C 与 A 的关系完全不同：它是“前段无序、后段同向增强”。** A/C 全样本 +0.453，主要由 2023 年起贡献（+0.703，beta +0.116）；2023 年前几乎是 0（−0.095，beta −0.015）。也就是说 C 与 A 的正相关是后期才出现的，全样本值既不是前段的写照也不等于后段的真实水平。同时 C 的波动率极低（2.16% 年化，q25–q75 只有 −0.08%…0.63%），Spearman 明显低于 Pearson（0.090 vs 0.453；0.281 vs 0.703），说明 Pearson 被少数极端月放大，C 的“同向”更多是量级上的少数点驱动，而非普遍单调同步。\n4. 若这条关系要在策略里用，A/B 的 −0.95 段适合做对冲腿，但必须带状态识别（否则在 +0.95 段会变成同向双倍暴露）——本 Cell 只做了描述，没有做状态检验，也没有给出任何交易信号或收益结论。\n\n## 样本与口径限制\n- 有效月收益 77–84 个属于小样本；pre2023 只有 44 个观测、post2023 只有 34/33 个，子区间相关性噪声很大，且 12 个月滚动窗口高度重叠、相邻点不独立。\n- 2023 年这个切点是**人工指定**的单一断点，没有做 Chow 检验、Fisher z 差异检验或内生断点搜索，“阶段差异显著”在此仅是从数值看出的现象，不是统计结论。\n- 这些是价格水平（价格指数点位），不含分红与任何融资/持有成本，不能当作可交易收益。\n- 相关不等于因果，也不反映回撤共动幅度；本 Cell 未评估组合风险或权重。\n- 重要提醒：这三个代码在本库中只是**合成月末价格代号**，上述“符号翻转”“极低波动”很可能是合成构造的产物，不能外推到任何现实资产。\n- 原始精度审计（未提前舍入）：\n`AUDIT_JSON={\"assets\": [{\"asset\": \"000300.SH\", \"price_rows\": 85, \"missing_months\": 0, \"valid_returns\": 84, \"annual_vol\": 0.1271146575948792, \"q25\": -0.016066454136943104, \"q50\": 0.00700745940192149, \"q75\": 0.029423031161809998}, {\"asset\": \"000852.SH\", \"price_rows\": 82, \"missing_months\": 3, \"valid_returns\": 78, \"annual_vol\": 0.08754958717214381, \"q25\": -0.009016478652716486, \"q50\": 0.006153629342418254, \"q75\": 0.02125179183149689}, {\"asset\": \"000905.SH\", \"price_rows\": 81, \"missing_months\": 4, \"valid_returns\": 77, \"annual_vol\": 0.02156312600065056, \"q25\": -0.0007581673151414448, \"q50\": 0.002978606445067422, \"q75\": 0.006284566836059824}], \"pairs\": [{\"pair\": \"000300.SH/000852.SH\", \"period\": \"all\", \"n\": 78, \"pearson\": -0.15036558176276107, \"spearman\": 0.21782015452901526, \"alpha_monthly\": 0.006714943461071253, \"beta\": -0.10268758026943935}, {\"pair\": \"000300.SH/000852.SH\", \"period\": \"pre2023\", \"n\": 44, \"pearson\": 0.9451137588381506, \"spearman\": 0.9422128259337562, \"alpha_monthly\": 0.0032787805746712093, \"beta\": 0.8100679198719868}, {\"pair\": \"000300.SH/000852.SH\", \"period\": \"post2023\", \"n\": 34, \"pearson\": -0.955164345731738, \"spearman\": -0.8789915966386553, \"alpha_monthly\": 0.0027668465146418048, \"beta\": -0.5536842774986651}, {\"pair\": \"000300.SH/000905.SH\", \"period\": \"all\", \"n\": 77, \"pearson\": 0.452599671062363, \"spearman\": 0.09022556390977442, \"alpha_monthly\": 0.001984745028387859, \"beta\": 0.07588589982198865}, {\"pair\": \"000300.SH/000905.SH\", \"period\": \"pre2023\", \"n\": 44, \"pearson\": -0.09460492471707573, \"spearman\": -0.07075405214940098, \"alpha_monthly\": 0.0036463583861476544, \"beta\": -0.015424718658353868}, {\"pair\": \"000300.SH/000905.SH\", \"period\": \"post2023\", \"n\": 33, \"pearson\": 0.7025905391390982, \"spearman\": 0.2810828877005348, \"alpha_monthly\": 0.0005808236289832432, \"beta\": 0.11638909256501678}]}`\n\n如需继续，建议从这个成功运行进入 Research 做开放式探索：加正式断点检验（Chow / Fisher z / 未知断点搜索）、把滚动窗口改成不重叠的季度或年度分块、并检查 Spearman 与 Pearson 的背离来源（极值月）。策略代码仍未改动；若要把它变成可回测策略，需要在 Strategy 工作台里单独指定标的与再平衡规则后运行回测。",
+  "code": "export default defineStrategy({ name: \"Synthetic diversification example\", watch: [], onBar(ctx) {} });",
+  "changed": false,
+  "attempts": 9,
+  "toolTrace": [
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"runtime.python\"}",
+      "ok": true,
+      "rows": 1,
+      "ms": 7
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"data.series\"}",
+      "ok": true,
+      "rows": 1,
+      "ms": 39
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"charts.line\"}",
+      "ok": true,
+      "rows": 1,
+      "ms": 4
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"charts.table\"}",
+      "ok": true,
+      "rows": 0,
+      "ms": 3
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"display\"}",
+      "ok": true,
+      "rows": 0,
+      "ms": 9
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"charts.bar\"}",
+      "ok": true,
+      "rows": 1,
+      "ms": 5
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"charts.line rolling correlation figure\"}",
+      "ok": true,
+      "rows": 1,
+      "ms": 4
+    },
+    {
+      "name": "sqlQuery",
+      "argsSummary": "{\"sql\": \"SELECT tsCode, COUNT(*) AS n, MIN(tradeDate) AS mn, MAX(tradeDate) AS mx, SUM(CASE WHEN tradeDate BETWEEN '20181201' AND '20251231' THEN 1 ELSE 0 END) AS n_window FROM IndexDaily WHERE tsCode",
+      "ok": true,
+      "rows": 3,
+      "ms": 45
+    },
+    {
+      "name": "sqlQuery",
+      "argsSummary": "{\"sql\": \"WITH months(m) AS (SELECT DISTINCT substr(tradeDate,1,6) FROM IndexDaily WHERE tsCode='000300.SH' AND tradeDate BETWEEN '20181201' AND '20251231'), b AS (SELECT DISTINCT substr(tradeDate,1,6)",
+      "ok": false,
+      "ms": 2
+    },
+    {
+      "name": "sqlQuery",
+      "argsSummary": "{\"sql\": \"SELECT tsCode, GROUP_CONCAT(substr(tradeDate,1,6), ',') AS months FROM IndexDaily WHERE tsCode IN ('000300.SH','000852.SH','000905.SH') AND tradeDate BETWEEN '20181201' AND '20251231' GROUP B",
+      "ok": true,
+      "rows": 3,
+      "ms": 1
+    },
+    {
+      "name": "runEmbeddedAnalysis",
+      "argsSummary": "{\"title\": \"合成数据 · 月末价格分散风险研究（A/B/C）\", \"inputScope\": \"本地隔离库的三组合成月末价格代号 A=000300.SH、B=000852.SH、C=000905.SH（CNY，index 月末价格 level）。来源：data.series(asset_type='index', measure='market.cny_close', frequency",
+      "ok": true,
+      "ms": 2058
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"charts.figure\"}",
+      "ok": true,
+      "rows": 0,
+      "ms": 6
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"outputs.show\"}",
+      "ok": true,
+      "rows": 0,
+      "ms": 7
+    },
+    {
+      "name": "searchResearchCatalog",
+      "argsSummary": "{\"conceptIds\": [], \"conceptRequests\": [], \"text\": \"charts.scatter\"}",
+      "ok": true,
+      "rows": 1,
+      "ms": 6
+    },
+    {
+      "name": "runEmbeddedAnalysis",
+      "argsSummary": "{\"parent\": {\"analysisId\": \"01M2HF732C9R45E1W4BAJYG5Y0\", \"versionId\": \"01M2HF732N3W3BA5P0S3DMHY2M\", \"expectedRevision\": 1}, \"inputScope\": \"本地隔离库的三组合成月末价格代号 A=000300.SH、B=000852.SH、C=000905.SH（CNY 指数月末价",
+      "ok": true,
+      "ms": 1786
+    }
+  ],
+  "universes": [],
+  "charts": [],
+  "embeddedAnalyses": [
+    {
+      "type": "embedded_analysis",
+      "title": "合成数据 · 月末价格分散风险研究（A/B/C）",
+      "reference": {
+        "analysisId": "01M2HF732C9R45E1W4BAJYG5Y0",
+        "versionId": "01M2HF732N3W3BA5P0S3DMHY2M",
+        "runId": "01M2HF732VQ01SDT5RKWYFB1V5"
+      }
+    },
+    {
+      "type": "embedded_analysis",
+      "title": "合成数据 · 月末价格分散风险研究（A/B/C，修订）",
+      "reference": {
+        "analysisId": "01M2HF732C9R45E1W4BAJYG5Y0",
+        "versionId": "01M2HF732N3W3BA5P0S3DMHY2M",
+        "runId": "01M2HF7SS1XP80WK9XS6X2X1SM"
+      }
+    }
+  ],
+  "researchCellChanges": [],
+  "researchClarifications": []
+}

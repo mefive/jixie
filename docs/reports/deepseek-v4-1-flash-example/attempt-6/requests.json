@@ -1,0 +1,152 @@
+[
+  {
+    "number": 1,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T03:01:32.307Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 15452,
+      "completion_tokens": 327,
+      "total_tokens": 15779,
+      "prompt_tokens_details": {
+        "cached_tokens": 6784
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 31
+      },
+      "prompt_cache_hit_tokens": 6784,
+      "prompt_cache_miss_tokens": 8668
+    },
+    "finishReason": "tool_calls",
+    "finishedAt": "2026-09-15T03:01:35.065Z"
+  },
+  {
+    "number": 2,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T03:01:35.101Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 42577,
+      "completion_tokens": 2248,
+      "total_tokens": 44825,
+      "prompt_tokens_details": {
+        "cached_tokens": 15744
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 2015
+      },
+      "prompt_cache_hit_tokens": 15744,
+      "prompt_cache_miss_tokens": 26833
+    },
+    "finishReason": "tool_calls",
+    "finishedAt": "2026-09-15T03:01:47.130Z"
+  },
+  {
+    "number": 3,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T03:01:47.159Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 44993,
+      "completion_tokens": 7541,
+      "total_tokens": 52534,
+      "prompt_tokens_details": {
+        "cached_tokens": 44800
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 4373
+      },
+      "prompt_cache_hit_tokens": 44800,
+      "prompt_cache_miss_tokens": 193
+    },
+    "finishReason": "tool_calls",
+    "finishedAt": "2026-09-15T03:02:18.213Z"
+  },
+  {
+    "number": 4,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T03:02:19.928Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 58488,
+      "completion_tokens": 5082,
+      "total_tokens": 63570,
+      "prompt_tokens_details": {
+        "cached_tokens": 52480
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 2008
+      },
+      "prompt_cache_hit_tokens": 52480,
+      "prompt_cache_miss_tokens": 6008
+    },
+    "finishReason": "tool_calls",
+    "finishedAt": "2026-09-15T03:02:39.060Z"
+  },
+  {
+    "number": 5,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T03:02:39.064Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 63634,
+      "completion_tokens": 3105,
+      "total_tokens": 66739,
+      "prompt_tokens_details": {
+        "cached_tokens": 63488
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 68
+      },
+      "prompt_cache_hit_tokens": 63488,
+      "prompt_cache_miss_tokens": 146
+    },
+    "finishReason": "tool_calls",
+    "finishedAt": "2026-09-15T03:02:48.503Z"
+  },
+  {
+    "number": 6,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T03:02:49.912Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 72395,
+      "completion_tokens": 3027,
+      "total_tokens": 75422,
+      "prompt_tokens_details": {
+        "cached_tokens": 66688
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 1432
+      },
+      "prompt_cache_hit_tokens": 66688,
+      "prompt_cache_miss_tokens": 5707
+    },
+    "finishReason": "stop",
+    "finishedAt": "2026-09-15T03:03:04.532Z"
+  }
+]

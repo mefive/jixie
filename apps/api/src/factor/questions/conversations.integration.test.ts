@@ -191,11 +191,41 @@ describe('private durable Factor questions', () => {
     await prisma.factorComposite.deleteMany();
     await prisma.factor.deleteMany();
     await prisma.user.deleteMany();
+    vi.unstubAllEnvs();
   });
   afterAll(async () => {
     await prisma.$disconnect();
     await rm(fixture.directory, { recursive: true, force: true });
   });
+
+  it.each([
+    [undefined, undefined, 'deepseek-flash'],
+    ['custom-general', undefined, 'custom-general'],
+    ['custom-general', 'custom-agent', 'custom-agent'],
+  ])(
+    'records the selected model %s / %s before and after answering',
+    async (general, agent, expected) => {
+      vi.stubEnv('DEEPSEEK_MODEL', general);
+      vi.stubEnv('DEEPSEEK_AGENT_MODEL', agent);
+      const release = pauseAnswer();
+      const submitted = await submit();
+      expect(
+        await prisma.agentTurn.findUniqueOrThrow({ where: { id: submitted.turnId } }),
+      ).toMatchObject({
+        model: expected,
+        status: 'running',
+      });
+      await release();
+      await finished(submitted.turnId);
+      expect(
+        await prisma.agentTurn.findUniqueOrThrow({ where: { id: submitted.turnId } }),
+      ).toMatchObject({
+        model: expected,
+        status: 'done',
+        trace: { steps: [{ type: 'model', model: expected, status: 'success' }] },
+      });
+    },
+  );
 
   it('persists input and context before replying to HTTP and restores the live turn', async () => {
     const release = pauseAnswer();

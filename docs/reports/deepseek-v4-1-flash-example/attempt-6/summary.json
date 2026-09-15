@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "model": "deepseek-flash",
+  "modelCalls": 6,
+  "executionAttempts": 2,
+  "numericChecks": 51,
+  "frozen": true,
+  "retainedInputs": 3,
+  "unchangedStrategy": true,
+  "images": ["run-2-figure-1.png", "run-2-figure-2.png"]
+}

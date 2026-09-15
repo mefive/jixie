@@ -3,6 +3,7 @@ import type { Locale, ResearchFactorDraftResultV1, ResearchFactorHandoffV1 } fro
 import { ulid } from 'ulid';
 import { BUILTIN_KEYS } from '#factor/definitions/builtin-factors.js';
 import { prisma } from '#infra/database/prisma.js';
+import { getDeepSeekAgentModel, getDeepSeekModel } from '#infra/llm/config.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 import { generateResearchFactorDraft } from './factor-handoff.js';
 
@@ -54,8 +55,8 @@ export async function createResearchFactorDraft(
     suggestedReport: generated.suggestedReport,
     generatedAt: generatedAt.toISOString(),
     models: {
-      classifier: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
-      codegen: process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+      classifier: getDeepSeekModel(),
+      codegen: getDeepSeekAgentModel(),
     },
   };
 

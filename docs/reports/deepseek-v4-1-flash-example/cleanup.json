@@ -1,0 +1,9 @@
+{
+  "isolatedDatabaseRemoved": true,
+  "pythonSessionsClosed": true,
+  "passed": false,
+  "failure": {
+    "name": "AssertionError",
+    "message": "Live output was truncated."
+  }
+}

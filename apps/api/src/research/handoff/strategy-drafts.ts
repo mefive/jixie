@@ -11,6 +11,7 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
+import { getDeepSeekAgentModel, getDeepSeekModel } from '#infra/llm/config.js';
 import { uniqueStrategyName } from '#strategy/definitions/naming.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 import { generateResearchStrategyDraft } from './strategy-handoff.js';
@@ -54,8 +55,8 @@ export async function createResearchStrategyDraft(
     unresolvedItems: generated.unresolvedItems,
     generatedAt: generatedAt.toISOString(),
     models: {
-      classifier: process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
-      codegen: process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat',
+      classifier: getDeepSeekModel(),
+      codegen: getDeepSeekAgentModel(),
     },
   };
 

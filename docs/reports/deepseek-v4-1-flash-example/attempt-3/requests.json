@@ -1,0 +1,102 @@
+[
+  {
+    "number": 1,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T02:40:42.719Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 15405,
+      "completion_tokens": 632,
+      "total_tokens": 16037,
+      "prompt_tokens_details": {
+        "cached_tokens": 6784
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 356
+      },
+      "prompt_cache_hit_tokens": 6784,
+      "prompt_cache_miss_tokens": 8621
+    },
+    "finishReason": "tool_calls",
+    "finishedAt": "2026-09-15T02:40:46.509Z"
+  },
+  {
+    "number": 2,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T02:40:46.563Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 42461,
+      "completion_tokens": 450,
+      "total_tokens": 42911,
+      "prompt_tokens_details": {
+        "cached_tokens": 16000
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 345
+      },
+      "prompt_cache_hit_tokens": 16000,
+      "prompt_cache_miss_tokens": 26461
+    },
+    "finishReason": "tool_calls",
+    "finishedAt": "2026-09-15T02:40:50.169Z"
+  },
+  {
+    "number": 3,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T02:40:50.188Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 50680,
+      "completion_tokens": 10493,
+      "total_tokens": 61173,
+      "prompt_tokens_details": {
+        "cached_tokens": 42880
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 8049
+      },
+      "prompt_cache_hit_tokens": 42880,
+      "prompt_cache_miss_tokens": 7800
+    },
+    "finishReason": "stop",
+    "finishedAt": "2026-09-15T02:41:31.744Z"
+  },
+  {
+    "number": 4,
+    "model": "deepseek-flash",
+    "thinking": "enabled",
+    "maximumOutputTokens": 65536,
+    "timeoutMs": 300000,
+    "stream": true,
+    "startedAt": "2026-09-15T02:41:31.793Z",
+    "returnedModel": "deepseek-flash",
+    "usage": {
+      "prompt_tokens": 44614,
+      "completion_tokens": 223,
+      "total_tokens": 44837,
+      "prompt_tokens_details": {
+        "cached_tokens": 6784
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 197
+      },
+      "prompt_cache_hit_tokens": 6784,
+      "prompt_cache_miss_tokens": 37830
+    },
+    "finishReason": "stop",
+    "finishedAt": "2026-09-15T02:41:34.256Z"
+  }
+]

@@ -37,6 +37,30 @@ jixie 在 Linux VPS（Ubuntu / CentOS）上的部署。唯一入口是幂等的 
 | web | `apps/web/dist`，挂载 `/`，只包含登录和工作台 |
 | docs | `apps/docs/dist/docs`，独立构建，挂载 `/docs/help/*` 和 `/docs/sdk` |
 
+### DeepSeek 模型配置
+
+默认调用 DeepSeek V4.1 Flash，API 名称为 `deepseek-flash`，使用已有 Chat Completions 接口。
+来源与迁移验收见 [DeepSeek V4.1 Flash 迁移记录](design/deepseek-v4-1-flash.md)。
+
+| 配置 | 默认及用途 |
+| --- | --- |
+| `DEEPSEEK_MODEL` | `deepseek-flash`；元数据、命名、Research 分类与整理 |
+| `DEEPSEEK_AGENT_MODEL` | 未配置时使用 `DEEPSEEK_MODEL`，再回退 `deepseek-flash`；Factor / Strategy / Research Agent 和代码生成 |
+| `DEEPSEEK_AGENT_THINKING` | 默认开启；设置 `false` 会明确向 API 发送 `thinking.type=disabled` |
+| `DEEPSEEK_REASONING_EFFORT` | 默认 `high`；思考模式可设置 `low` / `high` / `max`，关闭时不发送该参数 |
+| `DEEPSEEK_BASE_URL` | `https://api.deepseek.com`；可继续覆盖兼容端点 |
+
+JSON 提取和命名明确关闭思考，不受 Agent 开关影响。Agent 保留现有流式回答和工具调用方式。
+模型来源记录使用同一配置选择规则；历史记录不会被改写为新模型。
+
+升级前检查服务器 `apps/api/.env.production`（本地为 `.env`）里**已显式配置的模型名**。
+已有 `DEEPSEEK_MODEL=deepseek-chat` 或单独的 `DEEPSEEK_AGENT_MODEL` 会继续覆盖新默认值；要使用新版，
+将相关值改为 `deepseek-flash` 或删除覆盖项。仓库示例更新不会修改实际配置文件；bootstrap 保留已有模型项。
+恢复某个模型只能通过显式配置供应商当前可用的 ID，代码不自动回退到可能已失效的旧模型。
+模型、端点或思考参数修改后重启 API 才生效，密钥不写进提交或日志。
+
+本次代码迁移不需要数据库 schema、前端交互或 Python runtime 变更；本轮未执行部署。
+
 ## 3. bootstrap 管理的资源
 
 `bootstrap.sh` 自动检查并收敛系统依赖、代码版本、生产 env、Prisma Client 与 schema、前后端构建、

@@ -1,0 +1,65 @@
+[
+  {
+    "label": "首次",
+    "path": "requests.json",
+    "requests": 3,
+    "input": 119756,
+    "output": 5456,
+    "cachedInput": 59008,
+    "durationSeconds": 26.976
+  },
+  {
+    "label": "基础调用",
+    "path": "basic-requests.json",
+    "requests": 2,
+    "input": 57,
+    "output": 16,
+    "cachedInput": 0,
+    "durationSeconds": 2.481
+  },
+  {
+    "label": "第二次",
+    "path": "attempt-2/requests.json",
+    "requests": 9,
+    "input": 523699,
+    "output": 23690,
+    "cachedInput": 405376,
+    "durationSeconds": 107.357
+  },
+  {
+    "label": "第三次",
+    "path": "attempt-3/requests.json",
+    "requests": 4,
+    "input": 153160,
+    "output": 11798,
+    "cachedInput": 72448,
+    "durationSeconds": 51.537
+  },
+  {
+    "label": "第四次",
+    "path": "attempt-4/requests.json",
+    "requests": 9,
+    "input": 586374,
+    "output": 20618,
+    "cachedInput": 424960,
+    "durationSeconds": 98.02
+  },
+  {
+    "label": "第五次",
+    "path": "attempt-5/requests.json",
+    "requests": 5,
+    "input": 296611,
+    "output": 21758,
+    "cachedInput": 229120,
+    "durationSeconds": 96.053
+  },
+  {
+    "label": "第六次（修正工具说明后）",
+    "path": "attempt-6/requests.json",
+    "requests": 6,
+    "input": 297539,
+    "output": 21330,
+    "cachedInput": 249984,
+    "durationSeconds": 92.225
+  }
+]

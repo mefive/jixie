@@ -15,6 +15,7 @@ import type {
   Locale,
 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import { getDeepSeekAgentModel } from '#infra/llm/config.js';
 import { t } from '#i18n/index.js';
 import { createPersistentTurnInput } from '#agent/turns/records.js';
 import { enqueueAgentTurn } from '#agent/turns/run.js';
@@ -103,7 +104,7 @@ export async function startFactorQuestion(
 ): Promise<FactorQuestionTurnV1> {
   const input = factorQuestionSchema.parse(raw);
   const turnId = ulid();
-  const model = process.env.DEEPSEEK_AGENT_MODEL ?? process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
+  const model = getDeepSeekAgentModel();
   const prepared = await prisma.$transaction(async (database) => {
     const context = await captureFactorQuestionContext(
       database,

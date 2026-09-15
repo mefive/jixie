@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { textMessage, type ResearchExecutionV1 } from '@jixie/shared';
 
 const mocks = vi.hoisted(() => ({
@@ -59,47 +59,61 @@ describe('research Strategy drafts', () => {
     mocks.generateResearchStrategyDraft.mockResolvedValue(generated);
   });
 
-  it('creates one private Python py-v1 Strategy with durable source metadata', async () => {
-    mocks.strategyFindFirst.mockResolvedValue(null);
-    mocks.strategyCreate.mockImplementation(
-      async ({ data }: { data: Record<string, unknown> }) => ({
-        id: data.id,
-        name: data.name,
-        config: data.config,
-        researchHandoff: data.researchHandoff,
-      }),
-    );
+  afterEach(() => vi.unstubAllEnvs());
 
-    const result = await createResearchStrategyDraft('user-1', execution.id, 'en');
+  it.each([
+    [undefined, undefined, 'deepseek-flash', 'deepseek-flash'],
+    ['custom-general', undefined, 'custom-general', 'custom-general'],
+    ['custom-general', 'custom-agent', 'custom-general', 'custom-agent'],
+  ])(
+    'creates a private Python Strategy with model attribution %s / %s',
+    async (general, agent, classifier, codegen) => {
+      vi.stubEnv('DEEPSEEK_MODEL', general);
+      vi.stubEnv('DEEPSEEK_AGENT_MODEL', agent);
+      mocks.strategyFindFirst.mockResolvedValue(null);
+      mocks.strategyCreate.mockImplementation(
+        async ({ data }: { data: Record<string, unknown> }) => ({
+          id: data.id,
+          name: data.name,
+          config: data.config,
+          researchHandoff: data.researchHandoff,
+        }),
+      );
 
-    expect(result).toMatchObject({
-      version: 1,
-      strategyName: 'ETF rotation',
-      language: 'python',
-      reused: false,
-      handoff: {
-        sourceExecutionId: execution.id,
-        sourceHash: execution.sourceHash,
+      const result = await createResearchStrategyDraft('user-1', execution.id, 'en');
+
+      expect(result).toMatchObject({
+        version: 1,
+        strategyName: 'ETF rotation',
         language: 'python',
-      },
-    });
-    expect(mocks.strategyCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          userId: 'user-1',
-          sourceResearchExecutionId: execution.id,
-          config: expect.objectContaining({
-            language: 'python',
-            runtimeVersion: 'py-v1',
-            code: generated.code,
+        reused: false,
+        handoff: {
+          sourceExecutionId: execution.id,
+          sourceHash: execution.sourceHash,
+          language: 'python',
+          models: { classifier, codegen },
+        },
+      });
+      expect(mocks.strategyCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'user-1',
+            sourceResearchExecutionId: execution.id,
+            config: expect.objectContaining({
+              language: 'python',
+              runtimeVersion: 'py-v1',
+              code: generated.code,
+            }),
           }),
         }),
-      }),
-    );
-    expect(mocks.strategyCreate.mock.calls[0]?.[0]?.data).not.toHaveProperty('visibility');
-  });
+      );
+      expect(mocks.strategyCreate.mock.calls[0]?.[0]?.data).not.toHaveProperty('visibility');
+    },
+  );
 
   it('reuses the existing draft without calling either LLM stage', async () => {
+    vi.stubEnv('DEEPSEEK_MODEL', 'deepseek-flash');
+    vi.stubEnv('DEEPSEEK_AGENT_MODEL', 'deepseek-flash');
     mocks.strategyFindFirst.mockResolvedValue({
       id: 'strategy-1',
       name: 'ETF rotation',
@@ -108,12 +122,17 @@ describe('research Strategy drafts', () => {
         version: 1,
         language: 'python',
         sourceExecutionId: execution.id,
+        models: { classifier: 'historical-classifier', codegen: 'historical-codegen' },
       },
     });
 
     const result = await createResearchStrategyDraft('user-1', execution.id, 'zh');
 
     expect(result?.reused).toBe(true);
+    expect(result?.handoff.models).toEqual({
+      classifier: 'historical-classifier',
+      codegen: 'historical-codegen',
+    });
     expect(mocks.getResearchExecution).not.toHaveBeenCalled();
     expect(mocks.generateResearchStrategyDraft).not.toHaveBeenCalled();
     expect(mocks.strategyCreate).not.toHaveBeenCalled();

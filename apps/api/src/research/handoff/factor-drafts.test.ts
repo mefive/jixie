@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { textMessage, type ResearchExecutionV1 } from '@jixie/shared';
 
 const mocks = vi.hoisted(() => ({
@@ -72,44 +72,60 @@ describe('research Factor drafts', () => {
     mocks.generateResearchFactorDraft.mockResolvedValue(generated);
   });
 
-  it('creates one Python py-v1 Factor with durable source metadata', async () => {
-    mocks.factorCreate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
-      id: data.id,
-      key: data.key,
-      name: data.name,
-      analysisKind: data.analysisKind,
-      language: data.language,
-      researchHandoff: data.researchHandoff,
-    }));
+  afterEach(() => vi.unstubAllEnvs());
 
-    const result = await createResearchFactorDraft('user-1', execution.id, 'en');
-
-    expect(result).toMatchObject({
-      version: 1,
-      factorName: generated.factorName,
-      language: 'python',
-      reused: false,
-      handoff: {
-        sourceExecutionId: execution.id,
-        sourceHash: execution.sourceHash,
-        language: 'python',
-        suggestedReport: generated.suggestedReport,
-      },
-    });
-    expect(mocks.factorCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          userId: 'user-1',
-          sourceResearchExecutionId: execution.id,
-          language: 'python',
-          runtimeVersion: 'py-v1',
-          code: generated.code,
+  it.each([
+    [undefined, undefined, 'deepseek-flash', 'deepseek-flash'],
+    ['custom-general', undefined, 'custom-general', 'custom-general'],
+    ['custom-general', 'custom-agent', 'custom-general', 'custom-agent'],
+  ])(
+    'creates a Python Factor with model attribution %s / %s',
+    async (general, agent, classifier, codegen) => {
+      vi.stubEnv('DEEPSEEK_MODEL', general);
+      vi.stubEnv('DEEPSEEK_AGENT_MODEL', agent);
+      mocks.factorCreate.mockImplementation(
+        async ({ data }: { data: Record<string, unknown> }) => ({
+          id: data.id,
+          key: data.key,
+          name: data.name,
+          analysisKind: data.analysisKind,
+          language: data.language,
+          researchHandoff: data.researchHandoff,
         }),
-      }),
-    );
-  });
+      );
+
+      const result = await createResearchFactorDraft('user-1', execution.id, 'en');
+
+      expect(result).toMatchObject({
+        version: 1,
+        factorName: generated.factorName,
+        language: 'python',
+        reused: false,
+        handoff: {
+          sourceExecutionId: execution.id,
+          sourceHash: execution.sourceHash,
+          language: 'python',
+          suggestedReport: generated.suggestedReport,
+          models: { classifier, codegen },
+        },
+      });
+      expect(mocks.factorCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'user-1',
+            sourceResearchExecutionId: execution.id,
+            language: 'python',
+            runtimeVersion: 'py-v1',
+            code: generated.code,
+          }),
+        }),
+      );
+    },
+  );
 
   it('reuses an existing draft without calling either LLM stage', async () => {
+    vi.stubEnv('DEEPSEEK_MODEL', 'deepseek-flash');
+    vi.stubEnv('DEEPSEEK_AGENT_MODEL', 'deepseek-flash');
     mocks.factorFindFirst.mockResolvedValue({
       id: 'factor-1',
       key: 'earnings_yield',
@@ -120,6 +136,7 @@ describe('research Factor drafts', () => {
         version: 1,
         language: 'python',
         sourceExecutionId: execution.id,
+        models: { classifier: 'historical-classifier', codegen: 'historical-codegen' },
       },
     });
 
@@ -127,6 +144,10 @@ describe('research Factor drafts', () => {
 
     expect(result?.reused).toBe(true);
     expect(result?.language).toBe('python');
+    expect(result?.handoff.models).toEqual({
+      classifier: 'historical-classifier',
+      codegen: 'historical-codegen',
+    });
     expect(mocks.getResearchExecution).not.toHaveBeenCalled();
     expect(mocks.generateResearchFactorDraft).not.toHaveBeenCalled();
     expect(mocks.factorCreate).not.toHaveBeenCalled();
