@@ -27,7 +27,7 @@ vi.mock('#infra/database/prisma.js', async () => {
 vi.mock('#strategy/runtime/typescript/walled-run.js', () => ({
   inspectWalledStrategyMetadata: resources.metadata,
 }));
-vi.mock('#strategy/execution/prepare-factors.js', () => ({
+vi.mock('#strategy/factor-inputs/prepare.js', () => ({
   prepareStrategyFactors: resources.factors,
 }));
 vi.mock('#market/rates/signal-readiness.js', () => ({

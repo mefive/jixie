@@ -11,7 +11,7 @@ import type {
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import { executeStrategyScan, scanCellOverrides } from './scan.js';
-import { prepareCustomFactors } from '../execution/prepare-factors.js';
+import { prepareCustomFactors } from '../factor-inputs/prepare.js';
 import type { BacktestResult } from '#engine/types.js';
 
 const port = parentPort;

@@ -9,7 +9,7 @@ import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { prisma } from '#infra/database/prisma.js';
 import { commitStrategyConfig } from '../definitions/config.js';
-import { extractFactorKeys } from '../execution/prepare-factors.js';
+import { extractFactorKeys } from '../factor-inputs/prepare.js';
 import { t } from '#i18n/index.js';
 import { failStrategyOperation } from '../errors.js';
 

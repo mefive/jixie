@@ -3,7 +3,7 @@
 ## 状态与目标
 
 - 基线：`fd0ab69f`（`refactor(api): organize business module entry points`）。该轮入口整理已完成，见[记录](core-business-entry-points.md)。其中的验证结果只证明上一轮，不作为本计划的验收结果。
-- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`，Factor 已交付 `6947b4e6`；用户追加批准拆分 Factor Job kind，在 Strategy 之前插入一个独立提交，目前实现与静态检查已完成，等待人工代码 review。
+- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`，Factor 已交付 `6947b4e6`，追加的 Factor Job kind 已交付 `a3c768fe`。用户确认插入重构后继续 Strategy；本轮以 `a3c768fe` 为实现基线，Strategy 已通过人工代码 review、相关测试、干净构建和三套真实运行验收，随本提交交付；下一项为 Research。
 - 工作流：review-gated-development；每个实现 commit 先确认范围和准确提交信息，再实现、静态检查、人工代码 review、行为验证、提交。不推送。
 - 目标：根据业务问题能够找到实现，目录和文件名称能够说明职责，减少无意义层级；不要求五个核心模块具有相同结构。
 - 交付对象：后端维护者与后续开发任务。没有新增用户页面、HTTP 接口或 CLI 命令。
@@ -588,7 +588,7 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 - [x] 本计划确认，四个实现提交的范围与准确提交信息获准；按工作流逐个完成代码 review 与验证。
 - [x] Factor 正式评估/报告/holdout、相关性、天气各有明确状态和产物归属；原 analysis/reports 目录移除且无转发。
 - [x] 共享 execution 只执行计算、不写业务生命周期；数据/序列可供相关性复用，来源快照/指纹不依赖任务。Worker 复用关系、旧协议、哈希和封存语义保持。
-- [ ] Strategy 回测编排/Worker 归回 backtests，扫描保持独立流程，因子输入准备真实共享；risk 不再有空 analysis 外层。
+- [x] Strategy 回测编排/Worker 归回 backtests，扫描保持独立流程，因子输入准备真实共享；risk 不再有空 analysis 外层。
 - [ ] Research 文档运行与共用 Python 会话分开，embedded/proposals/curator/evidence 的不同生命周期及权限边界保持。
 - [ ] Market 同步/读取/质量按数据归属完成迁移；无旧 sync/quality 转发，日历与基础可得性归 Market，Signals 的利率准入归 Signals。
 - [ ] Signals 主体业务目录保持，手动/每日汇入同一运行；记账与通知事务边界保持。其他模块未被强套模板。
@@ -603,12 +603,12 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 | --- | --- | --- | --- | --- | --- |
 | 计划文档 | 2026-09-16 用户确认「定版开工」 | 本地链接、74 项现有源码路径、5 条提交标题、表格列数、代码围栏、过时方案文字及空白检查通过 | 方案已批准 | 文档不适用 | `b3afcbe2` |
 | Factor | Gate 1 已批准，完整实现已完成 | 全仓 typecheck、ESLint 零警告、Prettier、路径/链接/实现对照与 diff 检查通过；测试数据修正后 API typecheck 通过 | 2026-09-16 用户确认通过 | 48 文件 / 283 用例最终通过；干净构建及三套真实 Worker / 17 组结果对照通过 | `6947b4e6` |
-| Factor Job kind | 2026-09-16 用户确认追加范围与准确提交信息 | 修订后全仓 typecheck、20 个 TS/MJS 文件 ESLint/Prettier、Shell 语法、153 项本地链接和 diff 检查通过；测试断言修正后静态检查通过 | 2026-09-16 用户确认修订代码通过 | API 12 文件 / 160 用例最终通过；部署 13 项、干净构建及编译迁移入口验证通过 | 随本提交 |
-| Strategy | 方案已批准，待 Factor Job 追加提交完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
-| Research | 方案已批准，待 Strategy 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
+| Factor Job kind | 2026-09-16 用户确认追加范围与准确提交信息 | 修订后全仓 typecheck、20 个 TS/MJS 文件 ESLint/Prettier、Shell 语法、153 项本地链接和 diff 检查通过；测试断言修正后静态检查通过 | 2026-09-16 用户确认修订代码通过 | API 12 文件 / 160 用例最终通过；部署 13 项、干净构建及编译迁移入口验证通过 | `a3c768fe` |
+| Strategy | 2026-09-16 用户确认继续；完整迁移已实现 | 全仓 typecheck、36 个 TS/MJS 文件 ESLint/Prettier、静态代码对照、资源路径、本地链接与 diff 检查通过 | 2026-09-16 用户确认通过 | 31 文件 / 232 用例、干净构建、三套真实运行及 10 组结果精确对照通过 | 随本提交 |
+| Research | 方案已批准；Strategy 已完成，待本项 Gate 1 开工确认 | 未执行 | 未开始 | 未执行 | 未提交 |
 | Market / Signals 边界 | 方案已批准，待 Research 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 
-用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成并提交 `6947b4e6`；Factor Job kind 追加修改也已通过人工 review 和验证，随本提交完成。Strategy 尚未开始实现，不推送。
+用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成并提交 `6947b4e6`；Factor Job kind 追加修改也已通过人工 review 和验证并提交 `a3c768fe`。Strategy 已通过人工 review 与验收，随本提交交付；Research 尚未开始实现。不推送。
 
 ### Factor 实现补充
 
@@ -713,3 +713,62 @@ review 后执行：Factor 相关测试、Bootstrap、Agent 分析工具、Strate
 [任务注册](../../apps/api/src/bootstrap.ts)、[任务归属](../../apps/api/src/factor/jobs/read.ts)、
 [迁移事务与 CLI 测试](../../apps/api/scripts/migrations/split-factor-job-kinds.integration.test.ts)、
 [部署失败收尾测试](../../scripts/deploy/bootstrap.test.mjs)。
+
+
+### Strategy Gate 2 交接（2026-09-16）
+
+准确提交信息：`refactor(strategy): align backtest and factor input ownership`。
+
+插入提交 `a3c768fe` 已核对：它拆分 Factor Job kind 并增加部署数据转换，与 Strategy 的目录方案兼容。
+本次保留其任务注册、迁移、查询及测试契约；Bootstrap 只更新 backtest 的导入路径，Strategy 路由集成测试
+只更新 submit 的导入路径，新增的 `factor-analysis` 隔离断言保持。
+
+交付与审查入口：
+
+- [backtests/job.ts](../../apps/api/src/strategy/backtests/job.ts)、[run.ts](../../apps/api/src/strategy/backtests/run.ts)、[worker.ts](../../apps/api/src/strategy/backtests/worker.ts)：回测提交、报告、完整执行编排及原 Engine Worker 聚合；源码 Job 选择同目录 boot，编译 Job 选择同目录 worker.js。消息、日志、风险失败处理和 Prisma/Python 收尾保持。
+- [factor-inputs/prepare.ts](../../apps/api/src/strategy/factor-inputs/prepare.ts)：原因子准备及其测试整体迁移。正式回测/扫描使用 research，Signals 部署/运行使用 deployment / signal，权限、归档、冻结血缘规则不变；定义与 Sharing 的依赖提取消费者已同步。
+- [risk/backtest-risk-analysis.ts](../../apps/api/src/strategy/risk/backtest-risk-analysis.ts)、[risk/data-readiness.ts](../../apps/api/src/strategy/risk/data-readiness.ts)：risk 全部实现和测试提升一层；算法、样本阈值、输出与 Maintenance 审计调用保持。
+- 扫描仍由原父 Worker fork cell 并直接调用 `runWalledBacktest`；Signals 仍调用 `runWalledSignalCapture`。均未增加对 `backtests/run.ts` 的依赖。
+- 删除旧 backtest、execution、analysis 目录及 Engine 回测 Worker 路径，没有转发。根 CLAUDE、Strategy/Engine/Market/Jobs README、架构地图与运行入口清单已同步；历史设计保留当时路径。
+
+静态检查结果：
+
+- `pnpm typecheck` 通过，包括全部 workspace、Research runtime/SDK 和 Factor SDK 生成契约。后端边界扫描 698 个文件，0 违规、0 已有跨域循环组，未修改门禁例外。
+- 36 个改动 TS/MJS 文件通过 ESLint（零警告）和 Prettier；Bootstrap 保持包内别名后重新通过相关 lint/格式与完整 typecheck。
+- 以 `a3c768fe` 对照 36 个文件的 AST/token：仅允许已核对的 24 处模块/Worker 路径变化和注释变化，其余代码及测试断言一致；20 个旧路径均已移除。
+- 静态核对回测、扫描、Signals 的 12 处 Worker/boot URL 及源码目标；结合 API tsconfig 核对编译目录布局。此项未启动进程，不能替代实际 Worker 验收。
+- 当前文档本地链接、运行代码/脚本旧路径搜索和 `git diff --check` 通过。没有 schema、公开 API、SDK、Job kind/payload、部署依赖或数值语义变化。
+
+review 后执行的行为验收：
+
+1. Strategy 全模块测试、Bootstrap、Engine 因子语义、Maintenance 市场/宏观风险审计、Signals 路由与因子血缘/摘要、Research 回测报告与扫描消费、跨业务 Job 生命周期。沿用既有断言，不新增只检查文件移动的测试。
+2. 全新临时目录 API 构建；源码与默认 Node 条件的干净产物分别由真实 backtests/job 启动迁移后的 Worker，覆盖 TS/Python 成功、失败和资源释放，以相同固定输入核对重构前后结果及风险后处理。
+3. 扫描父线程执行至少一个隔离 cell；Signals 真实 IPC 验证准备后的冻结因子依赖及输入摘要。写入均使用隔离数据库，外部供应商、命名模型、邮件使用本地替身；结束关闭所有临时进程和连接。
+
+以上为 Gate 2 交接时的状态：当时产品代码未提交，未运行单元/集成/E2E、构建、Worker probe 或数据库流程。之后的 review 与验收见下文。
+静态对照记录：`/tmp/jixie-strategy-static-audit.json`；全仓类型检查日志：`/tmp/jixie-strategy-typecheck.log`。
+
+
+### Strategy review 后验证与提交（2026-09-16）
+
+用户确认代码 review 通过，授权验收及通过后自动提交。准确提交信息保持：
+`refactor(strategy): align backtest and factor input ownership`。
+
+- 相关回归 31 个文件、232 个用例全部通过，无跳过项。范围包括 Strategy 全模块、Bootstrap、Engine 因子语义、Maintenance 市场/宏观风险审计、Signals 路由与因子血缘/摘要、Research 回测报告与扫描消费，以及跨业务 Job 生命周期。
+- API 构建输出到全新的 `/tmp/jixie-strategy-verify-awfs_0zy/clean/apps/api/dist`，保留原 API package.json 和依赖解析布局；实际默认 Node 条件从新产物启动，没有使用已有 dist。
+- `a3c768fe` 导出的原代码、当前源码和干净编译产物分别使用独立 SQLite 库。固定数据包含 533 个工作日、3 只 ETF / 1,599 条行情、价格与全收益指数基准、3,724 条收益率曲线、532 条汇率和 2,128 条商品连续收益；全部本地生成。
+- 三套均通过真实 backtest Job 完成 TS/Python 回测，分别产生 262 个净值点、35 笔成交、252 条市场风险观察及非空情景分析。两种语言分别使用 TS/Python Panel 因子，保留发布报告的资产分类与依赖血缘；报告、策略缓存、Job 完成和结果哈希均验证。
+- TS/Python 策略各主动抛出一次错误，报告和 Job 均进入 error 且无成功 payload；暂时移除汇率数据时，风险后处理记录原错误，主回测成功且净值/成交与正常运行相同；running Job 的恢复将报告标记 stale。
+- 三套扫描 Job 均由父线程启动两个独立 cell，输出实际成交指标，不创建逐 cell BacktestReport。Signals 由真实 Job 定义启动 IPC：归档后继续接受冻结依赖，生成含有效观察值的输入摘要和三个模型持仓；修改血缘后拒绝计算。Signals 此项只执行计算与完成事务，记账/通知顺序由既有回归覆盖，没有调用通知外部服务。
+- 同时验证 Research 从拥有的成功报告创建复核文档、跨用户拒绝，以及 Maintenance 市场风险审计通过。注册表加载保留最新 Factor 两类 Job kind。
+- 当前源码和干净产物的 10 组结果均与 `a3c768fe` 精确相等：两种语言的因子依赖、完整回测结果及原始结果哈希、风险失败回退、扫描指标、Signals 输出与摘要、Maintenance 审计。每套实际执行 5 个回测线程、1 个扫描父线程及 2 个 cell 子进程、2 个 Signals IPC 子进程；三套均正常完成或返回预期业务错误并退出。
+- 验收脚本准备期间修正了三处 fixture/harness 问题：补齐必需的 `H00300.CSI` 全收益基准；直接比较计算阶段写入的 resultHash，避免对数据库读取后键序已改变的 JSON 重算；将扫描最大权益权重从 0.5 改为 0.45，使总权重不超过 1。没有修改产品代码、阈值或既有测试断言。
+- 源码/基线 Python 使用真实本机 runner；生产条件编译产物通过临时 Unix socket 桥连接同一个真实 runner。此桥接不等于生产 sandboxd / Docker 隔离验收。命名使用本地 fetch 替身，无真实行情、邮件或付费模型请求；本轮不涉及 Web，没有浏览器 E2E。
+- 验证结束确认无遗留验收进程、Python runner 或 socket，四个测试库均取得排他锁后删除。36 个受审源码文件的静态对照再次通过，验证过程中未变更产品代码。
+
+验收归档：`/tmp/jixie-strategy-verify-awfs_0zy`。`logs/tests.log`、`logs/build.log`、
+`logs/baseline.log`、`logs/source.log`、`logs/compiled.log` 记录测试、构建与真实运行；
+`summary.json` 记录 10 组精确对照，三份 `*-execution.json` 记录进程入口计数，`cleanup.json` 记录资源清理。
+早期 fixture/harness 失败日志单独保留，没有计入最终通过结果。保留 fixture、验收脚本、结果 JSON、基线源码和干净构建。
+
+按已批准标题自动提交，不推送。实际 hash 由交付消息记录，下一提交更新本文时补入表格。

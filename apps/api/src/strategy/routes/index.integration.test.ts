@@ -50,7 +50,7 @@ vi.mock('../runtime/typescript/walled-run.js', async (importOriginal) => ({
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { strategyRoute } from './index.js';
-import { submitStrategyBacktest } from '../backtest/submit.js';
+import { submitStrategyBacktest } from '../backtests/submit.js';
 import { submitStrategyScan } from '../scans/submit.js';
 import { publishedFactorContext } from '../agent/context.js';
 import type { AgentProfile } from '#agent/core.js';

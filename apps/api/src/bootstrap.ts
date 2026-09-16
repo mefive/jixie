@@ -8,7 +8,7 @@ import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
 
 export const jobRegistry: JobRegistry = {
-  backtest: async () => (await import('#strategy/backtest/job.js')).backtestJob,
+  backtest: async () => (await import('#strategy/backtests/job.js')).backtestJob,
   'factor-analysis': async () => (await import('#factor/evaluations/job.js')).factorAnalysisJob,
   'factor-correlation': async () =>
     (await import('#factor/correlations/job.js')).factorCorrelationJob,

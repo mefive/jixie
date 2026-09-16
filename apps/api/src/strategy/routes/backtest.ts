@@ -6,13 +6,13 @@ import {
   backtestJobQuerySchema,
 } from '../schema.js';
 import { localeFromRequest } from '#infra/http/locale.js';
-import { submitStrategyBacktest } from '../backtest/submit.js';
+import { submitStrategyBacktest } from '../backtests/submit.js';
 import {
   findActiveStrategyBacktestJob,
   listStrategyBacktestReports,
   readStrategyBacktestReport,
   readStrategyBacktestJob,
-} from '../backtest/reports.js';
+} from '../backtests/reports.js';
 import { strategyOperationApiError } from './errors.js';
 
 export const strategyBacktestRoute = new Hono();

@@ -117,13 +117,13 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 ### 2. 提交策略回测并保存报告
 
-1. `strategy/backtest/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后才初始化日志并唤醒队列。
-2. 队列原子领取 Job，执行器加载 `strategy/backtest/job.ts`，解析持久化输入并启动 `engine/backtest-worker`。
-3. Worker 调用 `strategy/execution/run-configured.ts`，准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
-4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/analysis/risk`，结果位于回测的多资产配置风险面板。
+1. `strategy/backtests/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后才初始化日志并唤醒队列。
+2. 队列原子领取 Job，执行器加载 `strategy/backtests/job.ts`，解析持久化输入并启动 `strategy/backtests/worker`。
+3. Worker 调用 `strategy/backtests/run.ts`，通过 `strategy/factor-inputs/prepare.ts` 准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
+4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/risk`，结果位于回测的多资产配置风险面板。
 5. Worker 返回结果并退出；API 主线程的执行器创建 Prisma 事务，把同一个 transaction 交给业务 `complete`，保存报告/相关缓存与 Job 终态。计算与外部调用不占用这个完成事务。
 
-参数扫描使用独立的 `scans/job.ts` 和扫描 Worker，再为各参数 cell fork 子进程，比较冻结范围内的结果。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
+参数扫描使用独立的 `scans/job.ts` 和扫描 Worker，再为各参数 cell fork 子进程，比较冻结范围内的结果。扫描共享因子准备，但 cell 直接调用 `runWalledBacktest`，不经过正式回测编排及风险后处理；Signals 同样只共享因子准备和底层 runtime。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
 
 ### 3. 维护发布数据并生成每日信号
 
@@ -158,11 +158,11 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 | --- | --- |
 | 改 Cell 失效规则 | `research/dependencies/invalidation.ts`、`run-plan.ts` |
 | 改因子发布准入 | `factor/publication/`、`factor/evaluations/` |
-| 找回测报告冻结时点 | `strategy/backtest/submit.ts` 与 `backtest/job.ts` |
+| 找回测报告冻结时点 | `strategy/backtests/submit.ts` 与 `backtests/job.ts` |
 | 找每日信号失败收尾 | `signals/runs/job.ts` 与 `infra/jobs/executor.ts` |
 | Python 请求财报经过哪里 | `research/sdk/dispatch.ts` → `datasets/financial*.ts` → `market/fundamentals/` |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
-| 改整体审计规则 | `application-maintenance/data-audit.ts`；模型历史要求由 `strategy/analysis/risk` 提供 |
+| 改整体审计规则 | `application-maintenance/data-audit.ts`；模型历史要求由 `strategy/risk` 提供 |
 | 找进程和资源入口 | [运行入口清单](backend-runtime-entries.md)，再看所属领域任务/runtime |
 
 开发时运行 `pnpm check:backend-boundaries`，根级 typecheck/build 已包含此门禁。规则、4 条具名纯依赖例外和验证方法见 [依赖边界说明](backend-boundaries.md)。新增业务能力仍放入负责其状态和规则的模块；不为复用一两个函数新建 common/application 或重新拉出平铺 services。

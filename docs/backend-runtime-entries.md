@@ -8,7 +8,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 
 | 发起方 | 源码入口 | 编译入口 | 执行与收尾 |
 | --- | --- | --- | --- |
-| `strategy/backtest/job.ts` | `engine/backtest-worker.boot.mjs` → `backtest-worker.ts` | `engine/backtest-worker.js` | 回测线程；回传结果，主线程按 Job 契约完成事务 |
+| `strategy/backtests/job.ts` | `strategy/backtests/worker.boot.mjs` → `worker.ts` | `strategy/backtests/worker.js` | 回测线程；回传结果，主线程按 Job 契约完成事务 |
 | `strategy/scans/job.ts` | `strategy/scans/strategy-scan-worker.boot.mjs` → `.ts` | `strategy/scans/strategy-scan-worker.js` | 参数扫描线程；汇总 cell 结果 |
 | 扫描 Worker | `strategy/scans/strategy-scan-cell-worker.boot.mjs` → `.ts` | `strategy/scans/strategy-scan-cell-worker.js` | fork 各 cell；独立执行并退出，扫描父线程判定退出结果 |
 | `factor/evaluations/job.ts`、`factor/weather/refresh.ts` | `factor/execution/worker.boot.mjs` → `.ts` | `factor/execution/worker.js` | 因子分析与天气刷新线程；任务/天气调用方分别拥有最终持久化 |

@@ -7,7 +7,7 @@ import type {
   SignalItem,
 } from '@jixie/shared';
 import { codeConfigSchema } from '#strategy/schema.js';
-import { prepareStrategyFactors } from '#strategy/execution/prepare-factors.js';
+import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
 import { runWalledSignalCapture } from '#strategy/runtime/typescript/walled-run.js';
 import { prismaDataPort } from '#engine/adapters/prisma-port.js';
 import { prisma } from '#infra/database/prisma.js';

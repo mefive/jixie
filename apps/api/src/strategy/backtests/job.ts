@@ -11,8 +11,8 @@ import { strategyRunKey } from '../definitions/config.js';
 import { refreshStrategyName } from '../definitions/naming.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../../engine/backtest-worker.boot.mjs', import.meta.url)
-  : new URL('../../engine/backtest-worker.js', import.meta.url);
+  ? new URL('./worker.boot.mjs', import.meta.url)
+  : new URL('./worker.js', import.meta.url);
 
 const backtestJobPayloadSchema = z.object({
   task: z.literal('backtest'),

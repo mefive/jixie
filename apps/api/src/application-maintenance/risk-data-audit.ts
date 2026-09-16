@@ -15,7 +15,7 @@ import {
   marketRiskDataReadiness,
   macroRiskDataReadiness,
   selectMacroRiskAuditStart,
-} from '#strategy/analysis/risk/data-readiness.js';
+} from '#strategy/risk/data-readiness.js';
 
 export async function auditMarketRiskDrivers(
   options: { startDate: string; endDate: string },

@@ -781,7 +781,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 
 describe('extractFactorKeys (host-side source scan)', () => {
   it('finds published factor keys in ctx.factor reads, deduped', async () => {
-    const { extractFactorKeys } = await import('#strategy/execution/prepare-factors.js');
+    const { extractFactorKeys } = await import('#strategy/factor-inputs/prepare.js');
     const source = `
       export default defineStrategy({
         factors: ['earnings_yield', 'mf_net_main'],

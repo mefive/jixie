@@ -5,7 +5,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { commitStrategyConfig } from './config.js';
 import { proposeStrategyName, uniqueStrategyName } from './naming.js';
 import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
-import { extractFactorKeys } from '../execution/prepare-factors.js';
+import { extractFactorKeys } from '../factor-inputs/prepare.js';
 import type { createStrategySchema, updateStrategySchema } from '../schema.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';

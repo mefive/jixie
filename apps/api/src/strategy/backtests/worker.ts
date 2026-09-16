@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { BacktestConfig, Locale, LogLine, LogLevel } from '@jixie/shared';
-import { runConfiguredBacktest } from '#strategy/execution/run-configured.js';
+import { runConfiguredBacktest } from './run.js';
 import { prisma } from '#infra/database/prisma.js';
 
 /**
@@ -10,8 +10,8 @@ import { prisma } from '#infra/database/prisma.js';
  * { type:'log', line } messages while running, then a final { type:'done', payload } or
  * { type:'error', message }, and disconnects its DB connection before exiting.
  *
- * Loadable in both dev (tsx runs this .ts directly) and prod (compiled to dist/.../backtest-worker.js);
- * the route resolves the matching extension. DATABASE_URL/token env is inherited from the parent.
+ * Loadable in both dev (tsx runs this .ts directly) and prod (compiled to dist/src/strategy/backtests/worker.js);
+ * the backtest Job resolves the matching extension. DATABASE_URL/token env is inherited from the parent.
  */
 const port = parentPort;
 if (!port) {

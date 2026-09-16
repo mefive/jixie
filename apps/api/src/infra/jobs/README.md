@@ -17,7 +17,7 @@ parse/execute/complete 各阶段的异常统一进入失败事务。失败收尾
 
 recoverInterruptedJobs 在单一事务内调用所有注册定义的 recover，并将本批 running Job 标记 stale。各业务按数据库中自身的关联 ID 批量恢复；kind/payload 损坏不影响关联识别。queued 保持排队，不自动重试 running，不补造结果。完成与失败检查 Job 仍为 running，领域失败不覆盖已提交结果。
 
-业务入口：strategy/backtest/job.ts、strategy/scans/job.ts、factor/evaluations/job.ts、factor/correlations/job.ts、signals/runs/job.ts、research/curator/job.ts。没有仅为 complete/recover 建立的目录。回测是完整生命周期阅读示例。
+业务入口：strategy/backtests/job.ts、strategy/scans/job.ts、factor/evaluations/job.ts、factor/correlations/job.ts、signals/runs/job.ts、research/curator/job.ts。没有仅为 complete/recover 建立的目录。回测是完整生命周期阅读示例。
 
 所有任务的最终业务结果与 Job 共用完成事务。相关性 Worker 只计算并返回 payload，缓存 upsert 在 complete 内；Job 提交失败时新增缓存回滚、旧缓存保持不变。Curator 在事务外准备候选 findings，complete 在事务内重新按 owner/fingerprint 去重（含批内重复），批量保存 findings，再更新统计和 run 终态。任何最终写入失败都回滚本次结果；不再保留本轮部分 findings。Curator 初始 running 状态更新仍在准备阶段，计算、LLM 与文件检索都在完成事务外。
 

@@ -17,19 +17,19 @@ Engine 提供交易模拟能力：推进交易日、读取当时可得的数据�
 | 确定性测试数据源 | [testing/fixture-port.ts](testing/fixture-port.ts) |
 | 引擎输入、策略接口与结果类型 | [types.ts](types.ts) |
 
-`backtest-worker.ts` 是回测计算线程入口，调用 Strategy 的配置执行编排；它属于宿主入口，不属于纯模拟核心。`signal-worker.*` 已归入 [signals/runs](../signals/runs/signal-worker.ts)，由 Signals 任务启动。Agent 快速回测工具及其专用 Worker 已于 2026-09-10 退役，策略对话生成代码后由用户在工作台显式回测。
+回测线程入口位于 [strategy/backtests/worker.ts](../strategy/backtests/worker.ts)，调用同目录 `run.ts` 编排正式回测，由 `backtests/job.ts` 启动。`signal-worker.*` 已归入 [signals/runs](../signals/runs/signal-worker.ts)，由 Signals 任务启动。Agent 快速回测工具及其专用 Worker 已于 2026-09-10 退役，策略对话生成代码后由用户在工作台显式回测。
 
 ## DataPort 与沙盒如何协作
 
 `EngineConfig.dataPort` 是必填项。模拟核心只通过 `EngineDataPort` 读取外部数据，不再导入 Prisma 或选择默认数据库；调用方负责选定端口。数据端口的方法和金融口径没有改变。
 
-- 正式策略执行由 [strategy/execution/run-configured.ts](../strategy/execution/run-configured.ts) 选择语言和宿主 Prisma 端口；Python 因子需要时在宿主端口外接计算桥。
+- 正式策略执行由 [strategy/backtests/run.ts](../strategy/backtests/run.ts) 选择语言和宿主 Prisma 端口；Python 因子需要时在宿主端口外接计算桥。
 - 仓库策略的直接执行入口和回测脚本显式传入 Prisma 端口；测试显式传入 fixture 端口。
 - 用户/Agent 编写的 TS 策略由 [strategy/runtime/typescript/walled-run.ts](../strategy/runtime/typescript/walled-run.ts) 创建 isolate。墙内 [wall-entry.ts](../strategy/runtime/typescript/wall-entry.ts) 使用代理 DataPort，通过宿主提供的调用边界请求数据，然后在墙内运行同一个模拟核心。
 
 [wall-bundle.ts](../strategy/runtime/typescript/wall-bundle.ts) 使用 esbuild 的 neutral 平台打包真实 SDK 和 Engine，宿主按进程缓存结果。原来用于替换 `prisma-port` 的插件已经移除：核心自身没有该依赖，打包不再需要制造替身。`metafile` 用于检查实际依赖，生产仍只取 bundle 文本；不会把宿主适配器、数据库或 Node 内建模块带进 isolate。
 
-纯核心包含 `simulation`、`data`、`factors` 及其纯辅助依赖；`adapters` 和 Worker 可以使用 Node/数据库。不能因为顶层目录都叫 Engine，就把宿主入口也加入墙内 bundle。
+纯核心包含 `simulation`、`data`、`factors` 及其纯辅助依赖；Engine 的 `adapters` 和业务模块中的 Worker 可以使用 Node/数据库。墙内 bundle 不包含这些宿主能力。
 
 ## Review 与验证定位
 

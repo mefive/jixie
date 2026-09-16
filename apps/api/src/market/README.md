@@ -44,7 +44,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 - `state/compute.ts` 和 `valuation/compute.ts` 不查询数据库。`weather.ts` 的缓存仍按原覆盖日期和频率/维度键失效；这次不改变同日数据修订的缓存策略。
 - `sync/market-indicators.ts` 原有 SQL 批计算及临时表事务保持；它与读取侧 `state/compute.ts` 分别处理落库指标和展示投影，不为目录重整重写 SQL 算法。
 - 同步中的候选校验和数据库替换属于 Market；运行锁、心跳、进度、质量发布水位和恢复属于 [Application Maintenance](../application-maintenance/README.md)。一个同步函数成功不等于整轮维护已发布。
-- Market 不导入 Strategy、Agent 或 Research 执行。策略风险模型的历史要求归 `strategy/analysis/risk`，由 `application-maintenance/risk-data-audit.ts` 与市场基础审计组合。
+- Market 不导入 Strategy、Agent 或 Research 执行。策略风险模型的历史要求归 `strategy/risk`，由 `application-maintenance/risk-data-audit.ts` 与市场基础审计组合。
 
 财报版本、availableDate、币种转换、期货换月、覆盖阈值和数据单位均沿用原实现。此目录调整没有数据库表、迁移或 SDK 契约变更。
 

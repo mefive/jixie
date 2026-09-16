@@ -4,7 +4,7 @@ import type { BacktestConfig, Locale, StrategyDeployment } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { codeConfigSchema } from '#strategy/schema.js';
 import { inspectWalledStrategyMetadata } from '#strategy/runtime/typescript/walled-run.js';
-import { prepareStrategyFactors } from '#strategy/execution/prepare-factors.js';
+import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
 import { prisma } from '#infra/database/prisma.js';
 import { assertFactorDependencies, factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 import { deploymentWire } from './read.js';
