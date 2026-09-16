@@ -6,7 +6,7 @@ import {
   scanJobQuerySchema,
   strategyScanParametersSchema,
   submitStrategyScanSchema,
-} from './scans/inputs.js';
+} from './schema.js';
 import { inspectStrategyScanParameters } from './scans/parameters.js';
 import { submitStrategyScan } from './scans/submit.js';
 import {

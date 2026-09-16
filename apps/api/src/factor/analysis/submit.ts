@@ -1,12 +1,8 @@
-import { z } from 'zod';
-import type { FactorReportSummary, FactorResearchSpecV1 } from '@jixie/shared';
+import { submitFactorAnalysisSchema } from '../schema.js';
+import type { z } from 'zod';
+import type { FactorReportSummary, FactorResearchSpecV1, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import {
-  factorAnalysisSpecSchema,
-  factorResearchIntentV1Schema,
-  factorResearchSpecV1Schema,
-  normalizeFactorResearchSpec,
-} from '../reports/spec.js';
+import { normalizeFactorResearchSpec } from '../reports/spec.js';
 import { startFactorAnalysis, type FactorAnalysisSource } from '../analysis-job.js';
 import {
   resolveTimeSeriesTemplateSource,
@@ -22,15 +18,7 @@ import {
   resolveCustomTimeSeriesFactorSource,
 } from './sources.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
-
-export const submitFactorAnalysisSchema = z.object({
-  factor: z.string().min(1),
-  spec: z.union([factorAnalysisSpecSchema, factorResearchSpecV1Schema]),
-  parentReportId: z.string().min(1).nullable().optional(),
-  researchIntent: factorResearchIntentV1Schema,
-});
 
 export async function submitFactorAnalysis(
   userId: string,

@@ -1,12 +1,11 @@
-import { factorRuntimeVersion } from '@jixie/shared';
+import { factorRuntimeVersion, type Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { builtinCatalog } from './builtin-factors.js';
-import { factorCompositeDefinitionSchema } from '../reports/spec.js';
+import { factorCompositeDefinitionSchema } from '../schema.js';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';
 import { panelTemplateCatalog } from './templates/panel.js';
 import { macroRegimeTemplateCatalog } from './templates/macro-regime.js';
 import { strategyKey, factorLanguage } from './views.js';
-import type { Locale } from '@jixie/shared';
 
 export async function listFactorCatalog(userId: string, locale: Locale) {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.

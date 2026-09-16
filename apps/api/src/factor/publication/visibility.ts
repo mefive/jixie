@@ -1,10 +1,9 @@
-import { z } from 'zod';
+import { factorVisibilitySchema } from '../schema.js';
+import type { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
-
-export const factorVisibilitySchema = z.object({ visibility: z.enum(['private', 'public']) });
 
 export async function setFactorVisibility(
   userId: string,

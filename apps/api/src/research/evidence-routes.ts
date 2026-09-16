@@ -1,6 +1,6 @@
+import { promoteExecutionSchema } from './schema.js';
 import { readResearchArtifact } from './evidence/read-artifact.js';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { localeFromRequest, m } from '#infra/http/locale.js';
 import {
@@ -21,12 +21,6 @@ import {
 import { ResearchStrategyHandoffRejectedError } from './handoff/strategy-handoff.js';
 
 export const researchEvidenceRoute = new Hono();
-
-const promoteExecutionBody = z.strictObject({
-  displayName: z.string().trim().min(1).max(160),
-  tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
-  userNote: z.string().trim().max(2_000).optional(),
-});
 
 researchEvidenceRoute.get('/artifacts/:artifactId', async (c) => {
   const artifact = await readResearchArtifact(c.var.userId, c.req.param('artifactId'));
@@ -62,7 +56,7 @@ researchEvidenceRoute.get('/executions/:executionId', async (c) => {
 
 researchEvidenceRoute.post(
   '/executions/:executionId/promote',
-  validateJson(promoteExecutionBody),
+  validateJson(promoteExecutionSchema),
   async (c) => {
     try {
       const execution = await promoteResearchExecution(

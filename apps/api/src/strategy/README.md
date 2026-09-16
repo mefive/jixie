@@ -29,11 +29,12 @@ HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。�
 
 | 目录 | 拥有什么 |
 | --- | --- |
-| `definitions` | 策略输入、保存/读取、命名与公开范围；runKey 只包括影响回测的配置，改显示名不会清空结果 |
+| `schema.ts` | API 入参与共用策略配置校验，包含创建、修改、回测、扫描和 Agent；配置同时支持 TS/Python |
+| `definitions` | 策略保存/读取、命名与公开范围；runKey 只包括影响回测的配置，改显示名不会清空结果 |
 | `backtest` | 创建冻结配置、报告和 Job，查询报告与进度 |
 | `scans` | 参数检查、扫描规格/网格/指标、冻结提交与报告；父 Worker 和 cell 子进程入口同处此目录 |
 | `execution` | `run-configured` 按 TS/Python 分派执行并附加风险；`prepare-factors` 检查因子权限、发布状态、语言与依赖血缘 |
-| `runtime/typescript` | SDK、编译、提示词、参数检查、isolate 宿主与墙内入口；配置 schema 沿用既有位置与双语言兼容行为 |
+| `runtime/typescript` | SDK、编译、提示词、参数检查、isolate 宿主与墙内入口 |
 | `runtime/python` | Python 策略协议与宿主桥接，实际交易模拟仍由 TS Engine 执行 |
 | `analysis/risk` | 回测后的市场暴露、宏观敏感度、Alpha/Risk 重合与压力情景；`data-readiness` 拥有这些模型的历史长度要求 |
 

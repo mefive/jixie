@@ -1,11 +1,9 @@
+import { factorQuestionSchema, factorQuestionHistorySchema } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
-import {
-  embeddedDataReferencesSchema,
-  embeddedUserParts,
-} from '#research/embedded/data-references.js';
+import { embeddedUserParts } from '#research/embedded/data-references.js';
 import { ulid } from 'ulid';
-import { z } from 'zod';
+import type { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import type {
   ChatMessage,
@@ -22,17 +20,6 @@ import { enqueueAgentTurn } from '#agent/turns/run.js';
 import { factorQaProfile } from '#agent/profiles/qa.js';
 import { failFactorOperation } from '../operation-errors.js';
 import { captureFactorQuestionContext } from './context.js';
-
-export const factorQuestionSchema = z.strictObject({
-  factorKey: z.string().min(1).max(128),
-  dataReferences: embeddedDataReferencesSchema,
-  message: z.string().trim().min(1).max(2000),
-  reportId: z.string().min(1).max(128).optional(),
-});
-export const factorQuestionHistorySchema = z.object({
-  before: z.coerce.number().int().nonnegative().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(40),
-});
 
 const messageSelection = {
   id: true,

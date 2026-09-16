@@ -2,11 +2,15 @@ import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m, localeFromRequest } from '#infra/http/locale.js';
 import { factorOperationApiError, factorPublicationApiError } from './route-errors.js';
-import { FactorPublicationError, publishFactorBodySchema } from './publication/factor.js';
-import { archivePanelComposite, publishPanelComposite } from './publication/panel-composite.js';
-import { factorVisibilitySchema, setCompositeVisibility } from './publication/visibility.js';
+import { FactorPublicationError } from './publication/factor.js';
 import {
+  publishFactorBodySchema,
+  factorVisibilitySchema,
   factorCompositeInputSchema,
+} from './schema.js';
+import { archivePanelComposite, publishPanelComposite } from './publication/panel-composite.js';
+import { setCompositeVisibility } from './publication/visibility.js';
+import {
   readFactorComposite,
   createFactorComposite,
   updateFactorComposite,

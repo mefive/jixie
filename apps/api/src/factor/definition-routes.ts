@@ -2,26 +2,24 @@ import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m, localeFromRequest } from '#infra/http/locale.js';
 import { factorOperationApiError, factorPublicationApiError } from './route-errors.js';
+import { archiveFactor, FactorPublicationError, publishFactor } from './publication/factor.js';
 import {
-  archiveFactor,
-  FactorPublicationError,
-  publishFactor,
   publishFactorBodySchema,
-} from './publication/factor.js';
-import { factorVisibilitySchema, setFactorVisibility } from './publication/visibility.js';
+  factorVisibilitySchema,
+  createFactorDraftSchema,
+  updateFactorDraftSchema,
+  factorMetadataBodySchema,
+} from './schema.js';
+import { setFactorVisibility } from './publication/visibility.js';
 import { listFactorCatalog } from './definitions/catalog.js';
 import { listCustomFactors, readFactorDefinition } from './definitions/read.js';
-import { createFactorDraftSchema, updateFactorDraftSchema } from './definitions/inputs.js';
 import {
   createFactorDraft,
   updateFactorDraft,
   deleteFactorDraft,
   copyFactorDraft,
 } from './definitions/drafts.js';
-import {
-  factorMetadataInputSchema,
-  refreshOwnedFactorMetadata,
-} from './definitions/metadata-operations.js';
+import { refreshOwnedFactorMetadata } from './definitions/metadata-operations.js';
 
 export const factorDefinitionRoute = new Hono();
 
@@ -141,7 +139,7 @@ factorDefinitionRoute.post('/:factorId/copy', async (c) => {
 
 factorDefinitionRoute.post(
   '/:factorId/metadata/refresh',
-  validateJson(factorMetadataInputSchema.omit({ id: true })),
+  validateJson(factorMetadataBodySchema),
   async (c) => {
     try {
       return c.json(

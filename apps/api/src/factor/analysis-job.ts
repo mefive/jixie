@@ -1,14 +1,14 @@
 import { Worker } from 'node:worker_threads';
-import type {
-  FactorLanguage,
-  FactorAnalysisSpec,
-  FactorReport,
-  FactorResearchIntentV1,
-  FactorResearchSpecV1,
-  Locale,
-  RunFactorAnalysisResponse,
+import {
+  type FactorLanguage,
+  type FactorAnalysisSpec,
+  type FactorReport,
+  type FactorResearchIntentV1,
+  type FactorResearchSpecV1,
+  type Locale,
+  type RunFactorAnalysisResponse,
+  factorRuntimeVersion,
 } from '@jixie/shared';
-import { factorRuntimeVersion } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
@@ -21,13 +21,15 @@ import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/messages.js';
 import {
   canonicalJson,
-  factorCompositeDefinitionV1Schema,
-  factorPanelCompositeDefinitionV2Schema,
   factorTestKey,
   factorVariantKey,
   normalizeFactorResearchSpec,
   sha256,
 } from './reports/spec.js';
+import {
+  factorCompositeDefinitionV1Schema,
+  factorPanelCompositeDefinitionV2Schema,
+} from './schema.js';
 import type { FactorAnalysisRuntimeSource } from './composition/composite.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')

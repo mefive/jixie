@@ -4,14 +4,14 @@ import type {
   StrategyScanReport,
   StrategyScanReportSummary,
   StrategyScanSpec,
+  Locale,
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import type { z } from 'zod';
 import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import type { scanStrategyIdentitySchema, scanJobQuerySchema } from './inputs.js';
+import type { scanStrategyIdentitySchema, scanJobQuerySchema } from '../schema.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 
 export async function listStrategyScanReports(

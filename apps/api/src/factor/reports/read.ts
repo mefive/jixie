@@ -1,18 +1,17 @@
-import { z } from 'zod';
+import {
+  factorReportListQuerySchema,
+  factorResearchSummaryQuerySchema,
+  type factorJobLogsQuerySchema,
+} from '../schema.js';
+import type { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
-import { readOwnedFactorJob, type factorJobLogsQuerySchema } from '../analysis/job-queries.js';
+import { readOwnedFactorJob } from '../analysis/job-queries.js';
 import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './research-policy.js';
 import { holdoutEligibility } from './holdout-policy.js';
 import { reportSummary, reportResearchSpec, parseResearchPayload } from './views.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
-
-export const factorReportListQuerySchema = z.object({
-  factor: z.string().min(1),
-  limit: z.coerce.number().int().min(1).max(100).default(50),
-  cursor: z.string().min(1).optional(),
-});
 
 export async function listFactorReports(
   userId: string,
@@ -103,8 +102,6 @@ export async function readFactorAnalysisJob(
 
   return job;
 }
-
-export const factorResearchSummaryQuerySchema = z.object({ factor: z.string().min(1).optional() });
 
 export async function readFactorResearchWindow(locale: Locale) {
   const policy = await getHoldoutPolicy();

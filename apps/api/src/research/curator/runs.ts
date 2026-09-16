@@ -55,16 +55,6 @@ const curatorResponseSchema = z.strictObject({
   findings: z.array(curatorDraftSchema).max(20),
 });
 
-export const curatorFindingUpdateSchema = z
-  .strictObject({
-    disposition: z.enum(['accepted', 'rejected', 'deferred', 'duplicate']).optional(),
-    note: z.string().trim().max(500).optional(),
-    verificationAssessment: z.enum(['correct', 'incorrect']).optional(),
-  })
-  .refine((input) => input.disposition || input.verificationAssessment, {
-    message: 'disposition or verificationAssessment is required',
-  });
-
 const SIGNAL_PATTERNS: Array<[string, RegExp]> = [
   ['supplier', /\b(?:tushare|wind|choice|api|接口|供应商)\b/i],
   ['data_gap', /(?:没有数据|缺少数据|查不到|字段|落库|本地库|数据源|宏观|利率|汇率|库存|持仓)/i],

@@ -1,18 +1,18 @@
-import { Hono } from 'hono';
-import { z } from 'zod';
-import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
-import { m, localeFromRequest } from '#infra/http/locale.js';
-import type { MessageKey } from '#i18n/index.js';
-import type { ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
-import { ResearchEmbeddedError } from './embedded/errors.js';
 import {
+  embeddedInputModeSchema,
   embeddedCreateSchema,
   embeddedUpdateSchema,
   embeddedDeriveSchema,
   embeddedRunSchema,
   embeddedPageSchema,
   embeddedListSchema,
-} from './embedded/contracts.js';
+} from './schema.js';
+import { Hono } from 'hono';
+import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
+import { m, localeFromRequest } from '#infra/http/locale.js';
+import type { MessageKey } from '#i18n/index.js';
+import type { ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
+import { ResearchEmbeddedError } from './embedded/errors.js';
 import {
   createEmbeddedAnalysis,
   deriveEmbeddedVersion,
@@ -138,12 +138,7 @@ researchEmbeddedRoute.post('/:analysisId/runs/:runId/continue-research', async (
 );
 researchEmbeddedRoute.patch(
   '/documents/:documentId/input-mode',
-  validateJson(
-    z.strictObject({
-      inputMode: z.enum(['retained', 'current']),
-      expectedRevision: z.number().int().positive(),
-    }),
-  ),
+  validateJson(embeddedInputModeSchema),
   async (c) =>
     c.json(
       await changeEmbeddedInputMode(c.var.userId, c.req.param('documentId'), c.req.valid('json')),

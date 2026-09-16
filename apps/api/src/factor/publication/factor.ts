@@ -4,9 +4,8 @@ import {
   type FactorLanguage,
   type PublishedFactor,
 } from '@jixie/shared';
-import { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
-import { factorResearchSpecV1Schema } from '../reports/spec.js';
+import { factorResearchSpecV1Schema } from '../schema.js';
 import {
   compilePanelFactor,
   compileTimeSeriesFactor,
@@ -17,10 +16,6 @@ import {
   compilePythonPanelFactor,
   compilePythonTimeSeriesFactor,
 } from '../runtime/python/asset-factor.js';
-
-export const publishFactorBodySchema = z.object({
-  approvedReportId: z.string().trim().min(1).max(80),
-});
 
 export type FactorPublicationErrorReason =
   | 'not_found'

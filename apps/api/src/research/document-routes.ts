@@ -1,6 +1,12 @@
+import {
+  documentListQuerySchema,
+  createDocumentSchema,
+  createCellSchema,
+  updateCellSchema,
+  renameDocumentSchema,
+} from './schema.js';
 import { archiveIdleResearchDocument } from './documents/archive-idle-document.js';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import {
@@ -23,42 +29,11 @@ import { ResearchCellRevisionConflictError } from './documents/revision-errors.j
 
 export const researchDocumentRoute = new Hono();
 
-const documentListQuery = z.strictObject({
-  state: z.enum(['active', 'archived']).default('active'),
-});
-
-const createDocumentBody = z.union([
-  z.strictObject({
-    template: z.enum(['blank', 'index_relationship', 'equity_fcff_valuation']).default('blank'),
-  }),
-  z.strictObject({
-    source: z.strictObject({
-      type: z.literal('backtest-report'),
-      reportId: z.string().trim().min(1),
-    }),
-  }),
-]);
-
-const createCellBody = z.strictObject({
-  kind: z.enum(['markdown', 'python']),
-  source: z.string().max(100_000).default(''),
-});
-
-const updateCellBody = z
-  .strictObject({
-    source: z.string().max(100_000).optional(),
-    config: z.record(z.string(), z.unknown()).optional(),
-    expectedRevision: z.number().int().positive(),
-  })
-  .refine((value) => value.source !== undefined || value.config !== undefined);
-
-const renameBody = z.strictObject({ title: z.string().trim().min(1).max(120) });
-
-researchDocumentRoute.get('/documents', validateQuery(documentListQuery), async (c) =>
+researchDocumentRoute.get('/documents', validateQuery(documentListQuerySchema), async (c) =>
   c.json(await listResearchDocuments(c.var.userId, c.req.valid('query').state)),
 );
 
-researchDocumentRoute.post('/documents', validateJson(createDocumentBody), async (c) => {
+researchDocumentRoute.post('/documents', validateJson(createDocumentSchema), async (c) => {
   const input = c.req.valid('json');
   if ('source' in input) {
     const document = await createResearchDocumentFromBacktestReport(
@@ -98,7 +73,7 @@ researchDocumentRoute.post('/documents/:documentId/restore', async (c) => {
 
 researchDocumentRoute.post(
   '/documents/:documentId/cells',
-  validateJson(createCellBody),
+  validateJson(createCellSchema),
   async (c) => {
     try {
       const { kind, source } = c.req.valid('json');
@@ -113,7 +88,7 @@ researchDocumentRoute.post(
   },
 );
 
-researchDocumentRoute.patch('/cells/:cellId', validateJson(updateCellBody), async (c) => {
+researchDocumentRoute.patch('/cells/:cellId', validateJson(updateCellSchema), async (c) => {
   try {
     const document = await updateResearchCell(
       c.var.userId,
@@ -144,16 +119,20 @@ researchDocumentRoute.delete('/cells/:cellId', async (c) => {
   }
 });
 
-researchDocumentRoute.patch('/documents/:documentId', validateJson(renameBody), async (c) => {
-  const updated = await renameResearchDocument(
-    c.var.userId,
-    c.req.param('documentId'),
-    c.req.valid('json').title,
-  );
-  return updated
-    ? c.json({ ok: true as const })
-    : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
-});
+researchDocumentRoute.patch(
+  '/documents/:documentId',
+  validateJson(renameDocumentSchema),
+  async (c) => {
+    const updated = await renameResearchDocument(
+      c.var.userId,
+      c.req.param('documentId'),
+      c.req.valid('json').title,
+    );
+    return updated
+      ? c.json({ ok: true as const })
+      : apiError(c, 'NOT_FOUND', m(c, 'conversationNotFound'));
+  },
+);
 
 researchDocumentRoute.delete('/documents/:documentId', async (c) => {
   const deleted = await deleteResearchDocument(c.var.userId, c.req.param('documentId'));

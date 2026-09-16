@@ -7,7 +7,7 @@ import type {
   ResearchDataReferenceV1,
   ResearchEmbeddedRunV1,
 } from '@jixie/shared';
-import { embeddedDraftSchema } from '#research/embedded/contracts.js';
+import { embeddedDraftSchema } from '#research/schema.js';
 import {
   createEmbeddedAnalysis,
   deriveEmbeddedVersion,

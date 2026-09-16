@@ -14,7 +14,7 @@ import {
   embeddedDraftSchema,
   embeddedUpdateSchema,
   embeddedDeriveSchema,
-} from './contracts.js';
+} from '../schema.js';
 import { analysisView, versionView } from './views.js';
 
 export async function createEmbeddedAnalysis(

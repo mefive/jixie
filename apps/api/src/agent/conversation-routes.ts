@@ -1,19 +1,14 @@
+import { conversationMessagesQuerySchema } from './schema.js';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { apiError, validateQuery } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import { listConversationMessages } from './conversations/read.js';
 
 export const agentConversationRoute = new Hono();
 
-const messagesQuery = z.object({
-  before: z.coerce.number().int().nonnegative().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(40),
-});
-
 agentConversationRoute.get(
   '/conversations/:conversationId/messages',
-  validateQuery(messagesQuery),
+  validateQuery(conversationMessagesQuerySchema),
   async (c) => {
     const result = await listConversationMessages(
       c.var.userId,

@@ -2,8 +2,8 @@ import { submitResearchCuratorRun } from './curator/submit.js';
 import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
+import { curatorFindingUpdateSchema } from './schema.js';
 import {
-  curatorFindingUpdateSchema,
   getLatestResearchCuratorRun,
   getResearchCuratorRun,
   updateResearchCuratorFindingFeedback,

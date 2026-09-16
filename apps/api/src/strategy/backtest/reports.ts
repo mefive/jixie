@@ -4,13 +4,13 @@ import type {
   BacktestReportDetail,
   BacktestReportSummary,
   BacktestSummary,
+  Locale,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { getJob, ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import type { backtestStrategyIdentitySchema, backtestJobQuerySchema } from './inputs.js';
+import type { backtestStrategyIdentitySchema, backtestJobQuerySchema } from '../schema.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 
 export async function findActiveStrategyBacktestJob(

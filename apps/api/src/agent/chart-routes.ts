@@ -1,5 +1,5 @@
+import { sqlQueryBodySchema } from './schema.js';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import { runReadOnlySql, jsonSafe } from './tools/sql/read-only-sql.js';
@@ -8,11 +8,9 @@ import { computeChartSpecSchema } from './tools/charts/spec.js';
 
 export const agentChartRoute = new Hono();
 
-const sqlBody = z.object({ sql: z.string().min(8).max(4000) });
-
 // Historical chart cards persist queries, not points. Re-query current data through the same
 // market-table whitelist and read-only connection used by sqlQuery.
-agentChartRoute.post('/sql-queries', validateJson(sqlBody), async (c) => {
+agentChartRoute.post('/sql-queries', validateJson(sqlQueryBodySchema), async (c) => {
   const { sql } = c.req.valid('json');
   try {
     const rows = await runReadOnlySql(sql, CHART_ROW_CAP);

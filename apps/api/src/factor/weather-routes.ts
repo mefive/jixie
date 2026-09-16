@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { validateJson } from '#infra/http/errors.js';
+import { createFactorWeatherPinSchema } from './schema.js';
 import {
-  createFactorWeatherPinSchema,
   listFactorWeatherPins,
   createFactorWeatherPin,
   requestFactorWeatherRefresh,

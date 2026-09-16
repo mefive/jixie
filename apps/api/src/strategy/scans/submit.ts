@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { BacktestConfig, StrategyScanSpec, StrategyParamValue } from '@jixie/shared';
+import type { BacktestConfig, StrategyScanSpec, StrategyParamValue, Locale } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import type { z } from 'zod';
@@ -9,9 +9,8 @@ import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { prisma } from '#infra/database/prisma.js';
 import { normalizeScanSpec } from './scan.js';
-import type { scanStrategyIdentitySchema, submitStrategyScanSchema } from './inputs.js';
+import type { scanStrategyIdentitySchema, submitStrategyScanSchema } from '../schema.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 
 export async function submitStrategyScan(

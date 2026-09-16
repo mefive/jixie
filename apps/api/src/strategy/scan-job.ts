@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { t } from '#i18n/messages.js';
 import { defineJob } from '#infra/jobs/definition.js';
 import { runJobWorker, type JobWorkerMessage } from '#infra/jobs/worker-result.js';
-import { codeConfigSchema } from './runtime/typescript/schema.js';
+import { codeConfigSchema } from './schema.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('./scans/strategy-scan-worker.boot.mjs', import.meta.url)

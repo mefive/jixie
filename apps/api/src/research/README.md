@@ -16,7 +16,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | 执行一个 Cell / 全文 / 受影响分支 | `execution/run-cell.ts`、`run-document.ts`、`run-affected.ts` | 执行编排、结果保存、冻结完整执行 |
 | 中断、重置、互斥 | `execution/control.ts`、`run-state.ts` | 一份进程内文档运行状态；中断等待执行收尾后返回 |
 | Python 会话 | `execution/python-session.ts` | 获取/复用/回收会话、串行通信、分析、执行、reset、interrupt |
-| Python 发来的数据请求 | `sdk/validation.ts`、`dispatch.ts` | 校验请求、调用数据/结果查询、发送对应 response；只需要 session 的 send 能力 |
+| Python 发来的数据请求 | `sdk/request.ts`、`validation.ts`、`dispatch.ts` | request/validation 纯参数解析，dispatch 调用数据/结果查询并发送 response；只需要 session 的 send 能力 |
 | 执行证据与产物 | `evidence/execution-records.ts`、`artifacts.ts`、`read-artifact.ts`、`fingerprints.ts` | 冻结快照、执行读取/固化、图片产物、内容哈希 |
 | Agent 提案、审阅与撤销 | `proposals/cell-changes.ts` | 准备修改、应用、接受/拒绝/撤销；同步提案记录和原消息 |
 | 接受提案后的尝试运行 | `proposals/attempts.ts` | 校验可运行状态、记录 attempt，再调用 `execution/run-attempt.ts` |
@@ -31,7 +31,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | Research Agent 启动 | `agent-turn.ts`、`agent-context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
 | 研究整理（Curator） | `curator/submit.ts`、`runs.ts`、`reference-search.ts`，根级 `curator-job.ts` | 提交与查询、证据整理/反馈；具名 Job 定义完成、失败与恢复 |
 
-Research 的 HTTP 入口和测试直接放在模块根目录，当前不单设 `http/`。根级 `routes.ts` 只组合九组具名路由；参数校验留在职责路由，共用执行/审阅错误映射放在 `route-errors.ts`，业务操作由各具名入口承担。
+Research 的 HTTP 入口和测试直接放在模块根目录，当前不单设 `http/`。根级 `routes.ts` 只组合九组具名路由；API 入参、股票池与嵌入式分析配置 schema 集中在 `schema.ts`，路由引用并执行校验。SDK 协议与字段校验仍在 `sdk/`；共用执行/审阅错误映射放在 `route-errors.ts`，业务操作由各具名入口承担。
 
 ## 主要调用链
 

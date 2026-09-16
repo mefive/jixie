@@ -1,5 +1,5 @@
+import { cellChangeReviewSchema } from './schema.js';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import {
@@ -14,14 +14,9 @@ import {
   ResearchCellChangeAttemptUnavailableError,
   runResearchCellChangeProposalAttempt,
 } from './proposals/attempts.js';
-
 import { researchCellChangeReviewError, researchExecutionError } from './route-errors.js';
 
 export const researchProposalRoute = new Hono();
-
-const cellChangeReviewBody = z.strictObject({
-  expectedContentRevision: z.number().int().positive(),
-});
 
 researchProposalRoute.post('/cell-change-proposals/:proposalId/apply', async (c) => {
   try {
@@ -56,7 +51,7 @@ researchProposalRoute.post('/cell-change-proposals/:proposalId/review', async (c
 
 researchProposalRoute.post(
   '/cell-change-proposals/:proposalId/review/accept',
-  validateJson(cellChangeReviewBody),
+  validateJson(cellChangeReviewSchema),
   async (c) => {
     try {
       const result = await acceptResearchCellChangeReview(
@@ -78,7 +73,7 @@ researchProposalRoute.post(
 
 researchProposalRoute.post(
   '/cell-change-proposals/:proposalId/review/revert',
-  validateJson(cellChangeReviewBody),
+  validateJson(cellChangeReviewSchema),
   async (c) => {
     try {
       const result = await revertResearchCellChangeReview(

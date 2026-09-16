@@ -47,6 +47,24 @@
 
 Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，前端先调用所属模块的 Agent 入口；业务完成归属和忙碌检查，配置 profile、工具与上下文，再交给通用 Agent。前端之后用 `/api/app/agent` 订阅 SSE、查询 turn、读取历史或取消。Agent 工具按需调用业务操作，业务状态仍由对应模块管理。通用 Agent 还提供只读 SQL、图表工具接口；它不是所有产品操作必须经过的总调度器。
 
+## 输入 schema 的位置
+
+Strategy、Factor、Research、Signals、Agent、Market、Auth 的 API body/query/param 与共用业务配置校验，
+统一定义在 `apps/api/src/<业务>/schema.ts`，按职责分组，供路由、业务入口、任务和工具直接引用。
+路由负责调用校验并映射错误；schema 文件只定义纯校验规则、必要常量和派生类型，不引入数据库、
+HTTP 对象、LLM 调用或业务执行代码，也不作为业务实现的汇总出口。
+
+- `strategy/schema.ts` 定义双语言的 `codeConfigSchema`，创建、回测、扫描和 Signals 共同消费。
+- `factor/schema.ts` 包含研究/组合配置；`reports/spec.ts` 保留配置规范化、默认配置与指纹计算。
+- `research/schema.ts` 包含股票池、嵌入式分析、文档/Cell、Agent 等入参；
+  `datasets/spec.ts` 保留股票池语义检查，`sdk/request.ts` 与 `sdk/validation.ts` 提供纯 SDK 参数解析，
+  `sdk/dispatch.ts` 负责数据查询。API schema 可以复用 SDK 校验，不能通过 dispatch 引入执行依赖。
+- Python/Worker 通信协议留在对应 `protocol.ts`，任务内部 payload 留在 `*-job.ts`；
+  Agent 工具参数、图表规格、LLM 输出与 SDK 专用校验留在所属实现。
+
+新增或修改业务 API 入参时，先查所属业务的 `schema.ts`；不在路由中重复定义规则，不新增仅转导出的兼容文件。
+本次整理的 review 与验证状态见 [开发记录](design/api-input-schemas.md)。
+
 ## 启动、装配和运行资源
 
 ```mermaid

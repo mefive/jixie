@@ -6,7 +6,7 @@ import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { ownedAnalysis } from './versions.js';
-import { embeddedRunSchema } from './contracts.js';
+import { embeddedRunSchema } from '../schema.js';
 import { ResearchEmbeddedError } from './errors.js';
 import { runSummaryView } from './views.js';
 

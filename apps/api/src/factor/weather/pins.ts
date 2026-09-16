@@ -1,6 +1,7 @@
+import { createFactorWeatherPinSchema } from '../schema.js';
 import { ulid } from 'ulid';
-import { z } from 'zod';
-import type { FactorWeatherDirection, FactorWeatherPinStatus } from '@jixie/shared';
+import type { z } from 'zod';
+import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { factorAnalysisSourceHash } from '../analysis-job.js';
@@ -11,17 +12,11 @@ import {
   toFactorWeatherPoint,
 } from './refresh.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
 
 const builtinDirections = new Map(
   BUILTIN_FACTORS.map((factor) => [factor.key, factor.expectedDirection]),
 );
-
-export const createFactorWeatherPinSchema = z.object({
-  factorId: z.string().min(1),
-  direction: z.enum(['positive', 'negative']).optional(),
-});
 
 export async function listFactorWeatherPins(userId: string, locale: Locale) {
   const pins = await prisma.factorWeatherPin.findMany({

@@ -7,7 +7,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | 要理解或修改的行为 | HTTP 入口 | 业务入口 |
 | --- | --- | --- |
 | 因子目录、自定义因子详情 | [definition-routes.ts](definition-routes.ts) | [definitions/catalog.ts](definitions/catalog.ts)、[definitions/read.ts](definitions/read.ts) |
-| 创建、编辑、删除、复制草稿 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)；输入定义在 [definitions/inputs.ts](definitions/inputs.ts) |
+| 创建、编辑、删除、复制草稿 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)；输入定义在 [schema.ts](schema.ts) |
 | 发布、归档、公开范围 | [definition-routes.ts](definition-routes.ts)、[composite-routes.ts](composite-routes.ts) | [publication/factor.ts](publication/factor.ts)、[publication/panel-composite.ts](publication/panel-composite.ts)、[publication/visibility.ts](publication/visibility.ts) |
 | 创建、编辑、复制因子组合 | [composite-routes.ts](composite-routes.ts) | [composition/operations.ts](composition/operations.ts) |
 | Agent 编辑、只读因子问答 | [agent-routes.ts](agent-routes.ts) | [agent-turn.ts](agent-turn.ts)、[questions/conversations.ts](questions/conversations.ts) |
@@ -18,7 +18,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | 相关性缓存、提交与进度查询 | [correlation-routes.ts](correlation-routes.ts) | [analysis/correlation-operations.ts](analysis/correlation-operations.ts) → [correlation-job.ts](correlation-job.ts) |
 | 因子天气固定、刷新与取消固定 | [weather-routes.ts](weather-routes.ts) | [weather/pins.ts](weather/pins.ts) → [weather/refresh.ts](weather/refresh.ts) |
 
-根级 [routes.ts](routes.ts) 直接组合六组业务路由并具名导出 `factorRoute`，统一挂载 `/api/app/factors`。自定义定义位于集合根与 `/:factorId`，目录位于 `/catalog`，组合位于 `/composites`，天气位于 `/weather`；修改定义与可见性使用 PATCH。HTTP 只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。参数 schema 随业务入口归属，HTTP 复用业务字段规则；所属对象 ID 由路径传入。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
+根级 [routes.ts](routes.ts) 直接组合六组业务路由并具名导出 `factorRoute`，统一挂载 `/api/app/factors`。自定义定义位于集合根与 `/:factorId`，目录位于 `/catalog`，组合位于 `/composites`，天气位于 `/weather`；修改定义与可见性使用 PATCH。HTTP 只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。API 入参与共用研究、组合配置 schema 集中在 [schema.ts](schema.ts)，HTTP 与业务入口共同引用；所属对象 ID 由路径传入。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
 `operation-errors.ts` 表达操作拒绝的类别、信息及原因详情，`route-errors.ts` 转成现有 HTTP 错误，并复用单因子/组合的发布异常映射。发布模块保留已有 `FactorPublicationError` 及错误语义。
 

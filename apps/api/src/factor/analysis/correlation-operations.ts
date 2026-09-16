@@ -1,17 +1,17 @@
-import { z } from 'zod';
-import type { FactorCorrelation } from '@jixie/shared';
+import {
+  factorCorrelationQuerySchema,
+  submitFactorCorrelationSchema,
+  type factorJobLogsQuerySchema,
+} from '../schema.js';
+import type { z } from 'zod';
+import type { FactorCorrelation, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_KEYS } from '../definitions/builtin-factors.js';
 import { createJob, ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
-import {
-  matchesFactorJobTask,
-  readOwnedFactorJob,
-  type factorJobLogsQuerySchema,
-} from './job-queries.js';
+import { matchesFactorJobTask, readOwnedFactorJob } from './job-queries.js';
 
 const sortedKeys = (keys: string[]) => [...keys].sort();
 
@@ -20,27 +20,6 @@ const correlationId = (userId: string, keys: string[], freq: string, start: stri
 
 const correlationJobKey = (keys: string[], freq: string, start: string, end: string) =>
   `corr|${sortedKeys(keys).join(',')}|${freq}|${start}|${end}`;
-
-export const factorCorrelationQuerySchema = z.object({
-  keys: z
-    .string()
-    .min(1)
-    .transform((value) => value.split(',')),
-  freq: z.enum(['month', 'week']).default('month'),
-  start: z
-    .string()
-    .regex(/^\d{8}$/)
-    .default('20150101'),
-  end: z
-    .string()
-    .regex(/^\d{8}$/)
-    .default('20261231'),
-});
-
-export const submitFactorCorrelationSchema = factorCorrelationQuerySchema.extend({
-  keys: z.array(z.string()).min(1),
-  refresh: z.boolean().default(false),
-});
 
 async function resolveCorrelationKeys(
   userId: string,

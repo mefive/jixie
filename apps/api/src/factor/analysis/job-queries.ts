@@ -1,9 +1,6 @@
 import type { Prisma } from '@prisma/client';
-import { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { getJob } from '#infra/jobs/records.js';
-
-export const factorJobLogsQuerySchema = z.object({ since: z.string().regex(/^\d+$/).optional() });
 
 type FactorJobTask = 'analysis' | 'correlation';
 

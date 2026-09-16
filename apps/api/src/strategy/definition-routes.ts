@@ -2,9 +2,9 @@ import { Hono } from 'hono';
 import { validateJson } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
 import { listStrategies, readStrategy } from './definitions/read.js';
-import { createStrategySchema, updateStrategySchema } from './definitions/inputs.js';
+import { createStrategySchema, updateStrategySchema, strategyVisibilitySchema } from './schema.js';
 import { createStrategy, updateStrategy, deleteStrategy } from './definitions/drafts.js';
-import { strategyVisibilitySchema, setStrategyVisibility } from './definitions/visibility.js';
+import { setStrategyVisibility } from './definitions/visibility.js';
 import { strategyOperationApiError } from './route-errors.js';
 
 export const strategyDefinitionRoute = new Hono();

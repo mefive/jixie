@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
-import type { strategyScanParametersSchema } from './inputs.js';
+import type { strategyScanParametersSchema } from '../schema.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';

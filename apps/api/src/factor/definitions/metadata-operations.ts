@@ -1,15 +1,10 @@
-import { z } from 'zod';
-import type { ChatMessage } from '@jixie/shared';
+import { factorMetadataInputSchema } from '../schema.js';
+import type { z } from 'zod';
+import type { ChatMessage, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { refreshFactorMetadata } from './metadata.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from '../operation-errors.js';
-
-export const factorMetadataInputSchema = z.object({
-  id: z.string().min(1),
-  code: z.string().min(1).max(20_000),
-});
 
 export async function refreshOwnedFactorMetadata(
   userId: string,

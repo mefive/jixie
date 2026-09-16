@@ -2,17 +2,20 @@ import { Hono } from 'hono';
 import { validateJson, validateQuery } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
 import { factorOperationApiError } from './route-errors.js';
-import { factorJobLogsQuerySchema } from './analysis/job-queries.js';
 import {
+  factorJobLogsQuerySchema,
   factorReportListQuerySchema,
+  factorResearchSummaryQuerySchema,
+  submitFactorAnalysisSchema,
+} from './schema.js';
+import {
   listFactorReports,
   readFactorReport,
   readFactorAnalysisJob,
-  factorResearchSummaryQuerySchema,
   readFactorResearchWindow,
   readFactorResearchSummary,
 } from './reports/read.js';
-import { submitFactorAnalysisSchema, submitFactorAnalysis } from './analysis/submit.js';
+import { submitFactorAnalysis } from './analysis/submit.js';
 import { submitFactorHoldout, revealFactorHoldout } from './reports/holdout.js';
 
 export const factorAnalysisRoute = new Hono();

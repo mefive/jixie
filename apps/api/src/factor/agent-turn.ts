@@ -1,11 +1,9 @@
+import { factorAgentInputSchema } from './schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
-import {
-  embeddedDataReferencesSchema,
-  embeddedUserParts,
-} from '#research/embedded/data-references.js';
+import { embeddedUserParts } from '#research/embedded/data-references.js';
 import { ulid } from 'ulid';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { factorProfile } from '#agent/profiles/factor.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
@@ -14,14 +12,6 @@ import { refreshFactorMetadata } from './definitions/metadata.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failFactorOperation } from './operation-errors.js';
-
-export const factorAgentInputSchema = z.object({
-  id: z.string().min(1),
-  message: z.string().trim().min(1).max(2000),
-  reportId: z.string().min(1).max(128).optional(),
-  dataReferences: embeddedDataReferencesSchema,
-  code: z.string().min(1).max(20_000),
-});
 
 export async function startFactorAgentTurn(
   userId: string,

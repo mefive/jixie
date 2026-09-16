@@ -4,7 +4,8 @@ import { factorAnalysisSourceSnapshot } from '../analysis-job.js';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { FactorPublicationError } from './factor.js';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
-import { factorPanelCompositeDefinitionV2Schema, sha256 } from '../reports/spec.js';
+import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
+import { sha256 } from '../reports/spec.js';
 
 export async function publishPanelComposite(
   userId: string,

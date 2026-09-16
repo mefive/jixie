@@ -1,10 +1,8 @@
+import { strategyAgentInputSchema } from './schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
-import {
-  embeddedDataReferencesSchema,
-  embeddedUserParts,
-} from '#research/embedded/data-references.js';
-import { z } from 'zod';
+import { embeddedUserParts } from '#research/embedded/data-references.js';
+import type { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { ulid } from 'ulid';
 import { strategyProfile } from '#agent/profiles/strategy.js';
@@ -14,15 +12,6 @@ import { syncedIndexContext, publishedFactorContext } from './agent-context.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from './operation-errors.js';
-
-export const strategyAgentInputSchema = z.object({
-  id: z.string().min(1),
-  message: z.string().trim().min(1).max(2000),
-  reportId: z.string().min(1).max(128).optional(),
-  dataReferences: embeddedDataReferencesSchema,
-  code: z.string().min(1).max(50_000),
-  language: z.enum(['typescript', 'python']).optional(),
-});
 
 export async function startStrategyAgentTurn(
   userId: string,

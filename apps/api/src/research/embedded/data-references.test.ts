@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { embeddedDataReferencesSchema, embeddedUserParts } from './data-references.js';
+import { embeddedDataReferencesSchema } from '../schema.js';
+import { embeddedUserParts } from './data-references.js';
 
 describe('chat data references use the Research request contract', () => {
   it('accepts an exact report reference without treating it as already loaded data', () => {

@@ -1,6 +1,6 @@
+import { runDocumentSchema } from './schema.js';
 import { researchExecutionError } from './route-errors.js';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import { analyzeResearchDocument } from './dependencies/analyze.js';
@@ -12,8 +12,6 @@ import { runResearchCell } from './execution/run-cell.js';
 import { runResearchDocument } from './execution/run-document.js';
 
 export const researchExecutionRoute = new Hono();
-
-const runDocumentBody = z.strictObject({ clean: z.boolean().default(true) });
 
 researchExecutionRoute.post('/cells/:cellId/run', async (c) => {
   try {
@@ -60,7 +58,7 @@ researchExecutionRoute.post('/documents/:documentId/dependency-analysis', async 
 
 researchExecutionRoute.post(
   '/documents/:documentId/run',
-  validateJson(runDocumentBody),
+  validateJson(runDocumentSchema),
   async (c) => {
     try {
       const result = await runResearchDocument(

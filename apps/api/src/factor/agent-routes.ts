@@ -3,46 +3,41 @@ import { Hono } from 'hono';
 import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
 import { localeFromRequest, m } from '#infra/http/locale.js';
 import { factorOperationApiError } from './route-errors.js';
-import { factorAgentInputSchema, startFactorAgentTurn } from './agent-turn.js';
-
 import {
+  factorAgentBodySchema,
   factorQuestionSchema,
   factorQuestionHistorySchema,
-  startFactorQuestion,
-  readFactorQuestions,
-} from './questions/conversations.js';
+} from './schema.js';
+import { startFactorAgentTurn } from './agent-turn.js';
+import { startFactorQuestion, readFactorQuestions } from './questions/conversations.js';
 
 export const factorAgentRoute = new Hono();
 
-factorAgentRoute.post(
-  '/:factorId/agent/turns',
-  validateJson(factorAgentInputSchema.omit({ id: true })),
-  async (c) => {
-    try {
-      return c.json(
-        await startFactorAgentTurn(
-          c.var.userId,
-          { ...c.req.valid('json'), id: c.req.param('factorId') },
-          localeFromRequest(c),
+factorAgentRoute.post('/:factorId/agent/turns', validateJson(factorAgentBodySchema), async (c) => {
+  try {
+    return c.json(
+      await startFactorAgentTurn(
+        c.var.userId,
+        { ...c.req.valid('json'), id: c.req.param('factorId') },
+        localeFromRequest(c),
+      ),
+    );
+  } catch (error) {
+    if (error instanceof ResearchEmbeddedError) {
+      return apiError(
+        c,
+        error.code === 'not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
+        m(
+          c,
+          error.code === 'invalid_report'
+            ? 'researchEmbeddedInvalidReport'
+            : 'researchEmbeddedNotFound',
         ),
       );
-    } catch (error) {
-      if (error instanceof ResearchEmbeddedError) {
-        return apiError(
-          c,
-          error.code === 'not_found' ? 'NOT_FOUND' : 'VALIDATION_FAILED',
-          m(
-            c,
-            error.code === 'invalid_report'
-              ? 'researchEmbeddedInvalidReport'
-              : 'researchEmbeddedNotFound',
-          ),
-        );
-      }
-      return factorOperationApiError(c, error);
     }
-  },
-);
+    return factorOperationApiError(c, error);
+  }
+});
 
 factorAgentRoute.get(
   '/:factorId/questions',

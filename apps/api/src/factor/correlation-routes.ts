@@ -2,10 +2,12 @@ import { Hono } from 'hono';
 import { validateJson, validateQuery } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
 import { factorOperationApiError } from './route-errors.js';
-import { factorJobLogsQuerySchema } from './analysis/job-queries.js';
 import {
+  factorJobLogsQuerySchema,
   factorCorrelationQuerySchema,
   submitFactorCorrelationSchema,
+} from './schema.js';
+import {
   readFactorCorrelation,
   findActiveFactorCorrelationJob,
   submitFactorCorrelation,

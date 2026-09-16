@@ -1,18 +1,16 @@
 import { createHash } from 'node:crypto';
 import type { z } from 'zod';
 import { ulid } from 'ulid';
-import type { BacktestConfig } from '@jixie/shared';
+import type { BacktestConfig, Locale } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import type { codeConfigSchema } from '../runtime/typescript/schema.js';
+import type { codeConfigSchema, backtestStrategyIdentitySchema } from '../schema.js';
 import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { prisma } from '#infra/database/prisma.js';
 import { commitStrategyConfig } from '../definitions/config.js';
 import { extractFactorKeys } from '../execution/prepare-factors.js';
-import type { backtestStrategyIdentitySchema } from './inputs.js';
 import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../operation-errors.js';
 
 export async function submitStrategyBacktest(

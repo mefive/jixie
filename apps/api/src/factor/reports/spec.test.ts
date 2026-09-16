@@ -7,13 +7,13 @@ import {
   createDefaultFactorAnalysisSpecV5,
   createDefaultFactorAnalysisSpecV6,
   factorTestKey,
-  factorPanelCompositeDefinitionV2Schema,
   factorVariantKey,
   normalizeFactorAnalysisSpec,
   normalizeFactorResearchSpec,
   crossSectionalProtocol,
   sha256,
 } from './spec.js';
+import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
 
 describe('factor report spec', () => {
   it('defaults new reports to PIT historical-risk exclusions in V3', () => {

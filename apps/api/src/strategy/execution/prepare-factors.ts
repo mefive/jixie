@@ -14,7 +14,8 @@ import {
 import { normalizeAnalysisKind } from '#factor/publication/factor.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/analysis-job.js';
 import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
-import { factorResearchSpecV1Schema, sha256 } from '#factor/reports/spec.js';
+import { factorResearchSpecV1Schema } from '#factor/schema.js';
+import { sha256 } from '#factor/reports/spec.js';
 import { compilePythonCrossSectionalFactor } from '#factor/runtime/python/cross-sectional.js';
 import {
   compilePythonPanelFactor,

@@ -9,7 +9,7 @@ import {
 import { z } from 'zod';
 import { startFactorAnalysis, readFactorAnalysisResult } from '#factor/analysis-job.js';
 import { getHoldoutPolicy } from '#factor/reports/research-policy.js';
-import { factorResearchIntentV1Schema } from '#factor/reports/spec.js';
+import { factorResearchIntentV1Schema } from '#factor/schema.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
