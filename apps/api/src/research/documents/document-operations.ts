@@ -1,54 +1,10 @@
-import type {
-  ResearchDocumentListStateV1,
-  ResearchDocumentSummaryV1,
-  ResearchDocumentTemplateV1,
-  ResearchDocumentV1,
-} from '@jixie/shared';
+import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
 import { ulid } from 'ulid';
 import { templateDefinition } from '../templates/document-templates.js';
 import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';
-import type { Prisma } from '@prisma/client';
-
-export async function listResearchDocuments(
-  userId: string,
-  state: ResearchDocumentListStateV1 = 'active',
-): Promise<ResearchDocumentSummaryV1[]> {
-  const conversations = await prisma.agentConversation.findMany({
-    where: {
-      userId,
-      surface: 'research',
-      NOT: { researchDocument: { embeddedVersion: { isNot: null } } },
-      archivedAt: state === 'archived' ? { not: null } : null,
-    },
-    include: {
-      researchDocument: {
-        select: { cells: { select: { status: true } } },
-      },
-      messages: {
-        orderBy: { sequence: 'desc' },
-        take: 1,
-        select: { parts: true },
-      },
-    },
-    orderBy: state === 'archived' ? { archivedAt: 'desc' } : { updatedAt: 'desc' },
-  });
-  return conversations.map((conversation) => ({
-    id: conversation.id,
-    title: conversation.title ?? '',
-    preview: messagePreview(conversation.messages[0]?.parts),
-    cellCount: conversation.researchDocument?.cells.length ?? 0,
-    staleCount:
-      conversation.researchDocument?.cells.filter((cell) => cell.status === 'stale').length ?? 0,
-    blockedCount:
-      conversation.researchDocument?.cells.filter((cell) => cell.status === 'blocked').length ?? 0,
-    archivedAt: conversation.archivedAt?.toISOString() ?? null,
-    createdAt: conversation.createdAt.toISOString(),
-    updatedAt: conversation.updatedAt.toISOString(),
-  }));
-}
 
 export async function archiveResearchDocument(
   userId: string,
@@ -152,24 +108,4 @@ export async function deleteResearchDocument(userId: string, documentId: string)
     closeResearchDocumentRuntime(documentId);
   }
   return deleted.count === 1;
-}
-
-function messagePreview(parts: Prisma.JsonValue | undefined): string {
-  if (!Array.isArray(parts)) {
-    return '';
-  }
-  for (const part of parts) {
-    if (typeof part === 'object' && part !== null && !Array.isArray(part)) {
-      if (part.type === 'text' && typeof part.text === 'string') {
-        return part.text.slice(0, 80);
-      }
-      if (
-        (part.type === 'research' || part.type === 'universe') &&
-        typeof part.title === 'string'
-      ) {
-        return part.title.slice(0, 80);
-      }
-    }
-  }
-  return '';
 }

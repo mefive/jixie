@@ -493,10 +493,16 @@ describe('Research HTTP business boundaries', () => {
     expect(await prisma.backtestReport.count()).toBe(3);
   });
 
-  it('materializes a legacy conversation through document reads and preserves archive restoration', async () => {
+  it('materializes a legacy conversation only on detail reads and preserves archive restoration', async () => {
     await prisma.agentConversation.create({
       data: { id: 'legacy', userId: 'owner', surface: 'research', title: 'Legacy research' },
     });
+    expect(await (await request('/documents', undefined, 'owner', 'GET')).json()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'legacy', title: 'Legacy research', cellCount: 0 }),
+      ]),
+    );
+    expect(await prisma.researchDocument.findUnique({ where: { id: 'legacy' } })).toBeNull();
     expect((await request('/documents/legacy', undefined, 'other', 'GET')).status).toBe(404);
     expect(await prisma.researchDocument.count()).toBe(1);
     expect((await request('/documents/legacy', undefined, 'owner', 'GET')).status).toBe(200);
@@ -504,6 +510,7 @@ describe('Research HTTP business boundaries', () => {
       conversationId: 'legacy',
       userId: 'owner',
     });
+    expect(await prisma.researchDocument.count()).toBe(2);
     expect((await request('/documents/legacy/archive')).status).toBe(200);
     expect(
       await (await request('/documents?state=archived', undefined, 'owner', 'GET')).json(),

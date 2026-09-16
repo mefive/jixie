@@ -6,9 +6,9 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | --- | --- | --- |
 | HTTP 路由 | `routes/index.ts` 与 `routes/` 下九组实现 | 总入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `routes/errors.ts`，不直接读写 Prisma |
 | 嵌入式分析后端 | `routes/embedded.ts`、`embedded/`、`embedded/job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，已接入 Factor / Strategy Agent 与页面 |
-| 文档列表、创建、归档、恢复 | `documents/document-operations.ts`、`archive-idle-document.ts` | 模板初始化、归属检查；HTTP 归档先检查运行状态，再归档并关闭会话 |
+| 文档创建、归档、恢复 | `documents/document-operations.ts`、`archive-idle-document.ts` | 模板初始化、归属检查；HTTP 归档先检查运行状态，再归档并关闭会话 |
 | 文档重命名、删除 | `documents/document-operations.ts` | 保留底层会话归属/归档规则和级联删除，删除后关闭会话；HTTP 统一使用 documents |
-| 读取文档 | `documents/read.ts` | 归属检查、Cell / 消息 / 审阅 / 尝试视图；保留旧会话首次读取时补建文档的行为 |
+| 文档列表与详情 | `documents/read.ts` | 列表按归档状态查询并映射消息摘要和 Cell 计数，不补建文档；详情负责归属检查、Cell / 消息 / 审阅 / 尝试视图，保留旧会话首次读取时补建文档的行为 |
 | 添加、编辑、删除 Cell | `documents/cell-operations.ts` | 修订号冲突、排序、编辑事务、调用依赖失效规则 |
 | 分析变量依赖 | `dependencies/analyze.ts` | 通过 Python AST 分析源代码、持久化 definitions/references、协调阻塞状态 |
 | 下游失效与删除阻塞 | `dependencies/invalidation.ts` | stale、deleted-upstream issues 及解除阻塞；不运行 Cell |
