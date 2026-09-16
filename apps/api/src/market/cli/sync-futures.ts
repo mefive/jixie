@@ -6,8 +6,8 @@ import {
   syncFutureDaily,
   syncFutureMappings,
   syncFutureSettlements,
-} from '../sync/futures.js';
-import { syncTradeCal } from '../sync/calendar.js';
+} from '../futures/sync.js';
+import { syncTradeCal } from '../calendar/sync.js';
 
 /**
  * Sync CFFEX stock-index futures metadata, daily bars, main-contract mappings, and settlement params.

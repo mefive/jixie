@@ -3,7 +3,11 @@ import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { TushareClient } from '../providers/tushare/client.js';
 import { prisma } from '#infra/database/prisma.js';
-import { seedStockCodeChanges, syncStockBasic, syncStockNameHistory } from '../sync/stocks.js';
+import {
+  seedStockCodeChanges,
+  syncStockBasic,
+  syncStockNameHistory,
+} from '../stocks/basic-sync.js';
 
 /**
  * Refresh the complete stock master and point-in-time historical names.

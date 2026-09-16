@@ -2,7 +2,7 @@ import { loadTushareConfig } from '../providers/tushare/config.js';
 import { TushareClient } from '../providers/tushare/client.js';
 import { prisma } from '#infra/database/prisma.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
-import { syncIndexWeight, syncIndexDaily } from '../sync/indices.js';
+import { syncIndexWeight, syncIndexDaily } from '../indices/sync.js';
 
 function parseCodes(value: string): string[] {
   if (value === 'market-state') {

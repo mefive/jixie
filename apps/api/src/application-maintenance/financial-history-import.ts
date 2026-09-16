@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import { stockCodesWithDailyData } from '#market/queries/stock-codes.js';
+import { stockCodesWithDailyData } from '#market/stocks/read.js';
 import {
   financialHistoryStart,
   quarterlyReportPeriods,

@@ -4,7 +4,7 @@ import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
 } from '../rates/china-treasury-curve.js';
-import { syncTradeCal } from '../sync/calendar.js';
+import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/client.js';
 
 function currentDate(): string {

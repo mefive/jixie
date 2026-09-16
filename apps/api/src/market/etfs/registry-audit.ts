@@ -1,6 +1,6 @@
 import type { Prisma } from '#infra/database/prisma.js';
 import { median } from '#math/stats.js';
-import { ETF_HISTORY_START, inspectEtfHistoryCoverage } from './etf-history-coverage.js';
+import { ETF_HISTORY_START, inspectEtfHistoryCoverage } from './history-coverage.js';
 import {
   ETF_RESEARCH_CODES,
   ETF_RESEARCH_REGISTRY,

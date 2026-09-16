@@ -5,7 +5,7 @@ import {
   inspectMarketRiskDrivers,
   summarizeMarketRiskDriverQuality as marketDriverQuality,
   type MarketRiskDriverQualitySummary,
-} from '#market/quality/market-risk-drivers.js';
+} from '#market/state/market-risk-driver-quality.js';
 import {
   inspectMacroRiskAxes,
   summarizeMacroRiskAxisQuality as macroAxisQuality,

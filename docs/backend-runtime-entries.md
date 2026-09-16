@@ -58,6 +58,8 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | Curator 仓库检索 | `research/curator/reference-search.ts` 仍使用约定的 API 工作目录定位项目资料；不是外部任意文件读取服务 |
 | API CLI | 28 个应用入口位于 `apps/api/src/{market,application-maintenance,signals,auth}/cli/`；审计、探针和研究入口保留在 `apps/api/scripts/{audit,probes,research}`，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/src/application-maintenance/cli/run-maintenance.js` |
 
+Market 的领域目录调整不改变 CLI 名称、参数、源码/编译入口或 Worker 协议。CLI 和 Maintenance 分别调用 stocks、etfs、indices、futures、calendar、cross-market、state 等业务入口；Signals 每日需求编排仍在 Signals。涉及迁移的 CLI 须以隔离数据库和本地 provider 替身验证调用、输出及退出；不以导入成功代替执行。
+
 ## Commit 12 本轮验证（2026-09-09）
 
 本轮人工 review 与整体验收已通过。以下区分 C12 初次验证和报告部署业务提交后的复跑，详见 [开发计划 §7.12](design/backend-architecture-refactor.md)。

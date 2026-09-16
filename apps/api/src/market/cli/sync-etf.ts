@@ -1,10 +1,10 @@
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { prisma } from '#infra/database/prisma.js';
-import { syncEtfShareSizeRange } from '../sync/etf.js';
+import { syncEtfShareSizeRange } from '../etfs/sync.js';
 import { MAJOR_ETF_CODES } from '../registry/etf-presets.js';
 import { ETF_RESEARCH_CODES } from '../registry/etf-research-registry.js';
-import { syncEtfBasic, syncEtfDaily } from '../sync/etf-history.js';
-import { syncTradeCal } from '../sync/calendar.js';
+import { syncEtfBasic, syncEtfDaily } from '../etfs/history-sync.js';
+import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/client.js';
 
 function parseCodes(selector: string): string[] {

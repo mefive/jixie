@@ -64,7 +64,9 @@ apps/api/                          # Hono + Prisma 后端
   src/i18n/                        # 纯消息目录和翻译函数
   src/date.ts                      # 日期辅助
   src/market/providers/tushare/     # Tushare client + 接口封装
-  src/market/sync/                  # 同步落库
+  src/market/stocks/                # 股票同步与读取；ETF、指数、期货各归所属领域
+  src/market/calendar/              # 交易日历、SSE 已完成日
+  src/market/cross-market/           # 跨市场基准与外部驱动
   scripts/                         # smoke / sync / peek
 packages/shared/                   # 共享类型(TsCode、TradeDate)
 ```

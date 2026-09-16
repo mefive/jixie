@@ -18,7 +18,7 @@ const dependencies = vi.hoisted(() => ({
 }));
 
 vi.mock('./daily.js', () => ({ assertProductionLock: dependencies.assertProductionLock }));
-vi.mock('#signals/runs/readiness.js', () => ({
+vi.mock('#market/calendar/sse-close.js', () => ({
   latestCompletedTradeDate: dependencies.latestCompletedTradeDate,
 }));
 vi.mock('./self-heal.js', () => ({
@@ -28,7 +28,7 @@ vi.mock('./self-heal.js', () => ({
 vi.mock('./quality.js', () => ({
   validateDerivedMarketRange: dependencies.validateDerivedMarketRange,
 }));
-vi.mock('#market/sync/market-indicators.js', () => ({
+vi.mock('#market/state/sync.js', () => ({
   syncMarketIndicators: dependencies.syncMarketIndicators,
 }));
 vi.mock('#market/providers/tushare/config.js', () => ({

@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import { syncMarketIndicators } from '../sync/market-indicators.js';
+import { syncMarketIndicators } from '../state/sync.js';
 
 function currentDate(): string {
   return new Date().toISOString().slice(0, 10).replaceAll('-', '');

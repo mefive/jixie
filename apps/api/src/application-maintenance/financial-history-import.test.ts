@@ -24,7 +24,7 @@ vi.mock('#infra/database/prisma.js', () => ({
     $disconnect: dependencies.disconnect,
   },
 }));
-vi.mock('#market/queries/stock-codes.js', () => ({
+vi.mock('#market/stocks/read.js', () => ({
   stockCodesWithDailyData: dependencies.stockCodesWithDailyData,
 }));
 vi.mock('./reference-worker-process.js', async (importOriginal) => ({

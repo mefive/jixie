@@ -27,7 +27,7 @@ vi.mock('#infra/database/prisma.js', () => ({
     $transaction: mocks.transaction,
   },
 }));
-import { syncEtfDaily } from './etf-history.js';
+import { syncEtfDaily } from './history-sync.js';
 
 const recover = () =>
   syncEtfDaily(

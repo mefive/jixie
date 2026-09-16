@@ -3,7 +3,7 @@ import { prisma, type Prisma } from '#infra/database/prisma.js';
 import {
   loadMarketRiskDriverHistory,
   type MarketRiskDriverHistoryV1,
-} from '../state/market-risk-drivers.js';
+} from './market-risk-drivers.js';
 
 export interface MarketRiskDriverQualityFactor {
   factor: MarketRiskFactorKeyV1;

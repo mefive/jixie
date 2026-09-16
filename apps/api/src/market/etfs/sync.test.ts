@@ -49,7 +49,7 @@ vi.mock('#infra/database/prisma.js', () => {
   };
 });
 
-const { fetchAllFundAdjForDate, syncEtfMarketDate, fillEtfHistoryGap } = await import('./etf.js');
+const { fetchAllFundAdjForDate, syncEtfMarketDate, fillEtfHistoryGap } = await import('./sync.js');
 const client = {} as TushareClient;
 
 describe('ETF market date synchronization', () => {

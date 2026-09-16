@@ -7,47 +7,53 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 | 要做什么 | 入口 | 职责 |
 | --- | --- | --- |
 | 查 HTTP 地址和参数 | [routes/index.ts](routes/index.ts) | `/api/app/market` 的 7 个 GET；解析请求、选择查询、映射无数据错误 |
-| 改 Tushare 通道或配置 | [providers/tushare/](providers/tushare/) | `client.ts` 的队列/限流/重试，`api.ts` 的协议，`config.ts` 的环境配置，能力探测与记录 |
-| 找 ETF、指数、基准清单 | [registry/](registry/) | 纯静态数据和校验；导入清单不连接数据库。跨市场基准写库在 `sync/cross-market-benchmarks.ts` |
-| 解析证券代码和名字 | [instruments/](instruments/) | `stock-identity.ts` 的历史代码与名称规则，`instrument-resolver.ts` 的身份校验，`names.ts` 的批量名称查询 |
-| 同步股票、日历、ETF、指数或期货 | [sync/](sync/) | 按下表选择具体同步入口；各函数继续负责自己的校验、事务和断点语义 |
-| 查询价格和跨市场换汇序列 | [queries/](queries/) | `instrument-series.ts` 的统一对象序列；指数收盘 HTTP 使用独立精简查询；`cross-market-benchmarks.ts` 的 CNY 基准换算；`stock-codes.ts` 的已有行情证券清单 |
-| 读市场状态或天气 | [state/](state/) | `compute.ts` 纯计算；`read.ts` 查询并组装状态；`weather.ts` 查询、估值来源合并及进程内缓存；`market-risk-drivers.ts` 提供风险输入序列 |
-| 读指数估值 | [valuation/](valuation/) | `compute.ts` 计算序列与分位；`read.ts` 读取覆盖目录、官方估值和收盘序列 |
-| 查财报来源、版本或指标 | [fundamentals/](fundamentals/) | `source-contract.ts` 来源协议，`sync.ts` 财报同步，`reference-sync.ts` 财务指标/分红同步，`normalize.ts` 标准化，`resolver.ts` 版本选择，`metrics.ts` 指标，accounting-quality/valuation-sample-audit 质量审计 |
-| 查利率与外部驱动数据 | [rates/](rates/) | 国债、中债信用曲线、外部市场驱动和对应就绪检查 |
+| 改 Tushare 通道或配置 | [providers/tushare/](providers/tushare/) | 队列/限流/重试、协议、环境配置与能力探测 |
+| 找 ETF、指数、基准清单 | [registry/](registry/) | 纯静态数据和校验；跨市场基准注册落库归 `cross-market/benchmark-sync.ts` |
+| 解析证券代码和名字 | [instruments/](instruments/) | 历史身份、名称规则、身份校验与批量名称查询 |
+| 查股票名录、行情与资金流 | [stocks/](stocks/) | 基础信息、日行情/复权/基础指标/涨跌停、资金流/龙虎榜及已有行情证券读取 |
+| 查 ETF 每日与历史数据质量 | [etfs/](etfs/) | 按日发布、按证券回填、历史覆盖检查和注册表审计 |
+| 查指数数据 | [indices/](indices/) | 指数/行业同步；`read.ts` 保留 HTTP 所用精简收盘序列 |
+| 查期货共享同步 | [futures/sync.ts](futures/sync.ts) | 股指与商品共用合约、行情、主力映射和结算写入 |
+| 查日历与已完成交易日 | [calendar/](calendar/) | 同步、开市日期读取、上海 16:00 截止及 SSE 已完成日；Signals 和 Maintenance 直接消费 |
+| 查跨市场基准与外部驱动 | [cross-market/](cross-market/) | 基准注册/同步、人民币换算、美债与外汇联合同步及 PIT 可得日映射 |
+| 查询跨资产价格序列 | [queries/instrument-series.ts](queries/instrument-series.ts) | 股票、ETF、指数与期货的统一对象序列 |
+| 查市场状态或天气 | [state/](state/) | 指标同步落库、纯计算、状态/天气读取与缓存、市场风险输入序列及基础质量审计 |
+| 读指数估值 | [valuation/](valuation/) | 纯计算、覆盖目录、官方估值与收盘序列读取 |
+| 查财报来源、版本或指标 | [fundamentals/](fundamentals/) | 来源契约、财报/指标/分红同步、标准化、版本选择、指标与质量审计 |
+| 查国债/信用曲线与利率可得性 | [rates/](rates/) | 国债、中债信用曲线；`government-yield-availability.ts` 只返回逐期限可得日期 |
 | 查宏观发布与历史可得性 | [macro/](macro/) | 中国宏观、美国 CPI、as-of 选择、regime 分数、风险轴及质量 |
-| 查商品期货数据 | [commodity/](commodity/) | 合约、连续收益、持仓、仓单、carry 及其同步/维护/质量函数 |
-| 查基础数据质量 | [quality/](quality/) | ETF 注册表和市场风险输入审计；模型约束与整体报告组合见 Maintenance |
+| 查商品专属能力 | [commodity/](commodity/) | 连续收益、持仓、仓单、carry 及其同步/维护/质量函数；共用期货写入调用 futures |
 
 ## 同步入口
 
 | 文件 | 同步内容 | 主要调用方 |
 | --- | --- | --- |
-| `sync/stocks.ts` | 股票基本信息、历史代码和名称 | 股票历史 CLI、周维护、代码规范化 |
-| `sync/calendar.ts` | 交易日历及开市日期读取 | 同步函数、各数据 CLI、Maintenance |
-| `sync/stock-daily.ts` | 股票价格/复权/基础指标/涨跌停，含 `syncDailyCoreDate` 四表发布门禁 | 日维护、自愈、Signals 同步、行情 CLI |
-| `sync/stock-flows.ts` | 龙虎榜和资金流 | 日维护、各自 CLI |
-| `sync/etf-history.ts` | ETF 基本信息、按证券回填历史行情/复权 | Signals、ETF CLI |
-| `sync/etf.ts` | 按交易日同步 ETF 行情/复权/规模，覆盖校验及修订刷新 | 周维护、修复和 ETF CLI |
-| `sync/indices.ts` | 指数权重、元数据、行情/估值，申万行业成员与指数行情 | 日/周维护、Signals、指数/行业 CLI |
-| `sync/futures.ts` | 股指/商品合约与日行情、主力映射、结算 | 日维护、Signals、期货 CLI |
-| `sync/market-indicators.ts` | 市场/指数/行业派生指标的批量计算落库 | 日维护、修复、市场状态 CLI |
-| `sync/cross-market-benchmarks.ts` | CN/HK/US 固定基准的注册落库、来源解析与分段同步 | 日维护、跨市场基准 CLI |
+| `stocks/basic-sync.ts` | 股票基本信息、历史代码和名称 | 股票历史 CLI、周维护、代码规范化 |
+| `calendar/sync.ts` | 交易日历范围替换；`calendar/read.ts` 单独读取开市日期 | 同步函数、各数据 CLI、Maintenance |
+| `stocks/daily-sync.ts` | 股票价格/复权/基础指标/涨跌停，含 `syncDailyCoreDate` 四表发布门禁 | 日维护、自愈、Signals 同步、行情 CLI |
+| `stocks/flows-sync.ts` | 龙虎榜和资金流 | 日维护、各自 CLI |
+| `etfs/history-sync.ts` | ETF 基本信息、按证券回填历史行情/复权 | Signals、ETF CLI |
+| `etfs/sync.ts` | 按交易日同步 ETF 行情/复权/规模，覆盖校验及修订刷新 | 周维护、修复和 ETF CLI |
+| `indices/sync.ts` | 指数权重、元数据、行情/估值，申万行业成员与指数行情 | 日/周维护、Signals、指数/行业 CLI |
+| `futures/sync.ts` | 股指/商品合约与日行情、主力映射、结算 | 日维护、Signals、期货 CLI |
+| `state/sync.ts` | 市场/指数/行业派生指标的批量计算落库 | 日维护、修复、市场状态 CLI |
+| `cross-market/benchmark-sync.ts` | CN/HK/US 固定基准的注册落库、来源解析与分段同步 | 日维护、跨市场基准 CLI |
+| `cross-market/external-drivers.ts` | 美债与外汇联合获取、SSE 可得日映射及结果汇总 | 日维护、外部市场 CLI |
 | `fundamentals/reference-sync.ts` | 财务指标、VIP 分期指标、分红及增量差异协调 | Maintenance 参考数据子进程 |
 
-原 `store/sync.ts` 已按现有函数组拆开，不提供兼容转发总入口。ETF 的历史回填与按日市场级发布本来具有不同的覆盖/断点规则，分别保留，不合并成通用同步框架。四个子领域内原有组织整体保留；同步函数可以留在其业务所在领域。
+同步、读取和基础质量围绕数据领域聚合；旧 `sync/`、`quality/` 目录已移除，没有兼容转发。ETF 历史回填与按日发布保留各自覆盖/断点规则；股指与商品期货共享写入不复制，美债与外汇联合同步不拆成新事务。
 
-## 读取与发布的边界
+## 数据事实与消费者政策
 
-- HTTP 由 `server.ts` 从`routes/index.ts` 导入并挂载 `marketRoute`。请求进入查询函数，查询函数返回数据或 `null`，路由再映射 HTTP 响应。查询不依赖 Hono、用户会话或 Agent。
-- `state/compute.ts` 和 `valuation/compute.ts` 不查询数据库。`weather.ts` 的缓存仍按原覆盖日期和频率/维度键失效；这次不改变同日数据修订的缓存策略。
-- `sync/market-indicators.ts` 原有 SQL 批计算及临时表事务保持；它与读取侧 `state/compute.ts` 分别处理落库指标和展示投影，不为目录重整重写 SQL 算法。
-- 同步中的候选校验和数据库替换属于 Market；运行锁、心跳、进度、质量发布水位和恢复属于 [Application Maintenance](../application-maintenance/README.md)。一个同步函数成功不等于整轮维护已发布。
-- Market 不导入 Strategy、Agent 或 Research 执行。策略风险模型的历史要求归 `strategy/risk`，由 `application-maintenance/risk-data-audit.ts` 与市场基础审计组合。
+- HTTP 从 `routes/index.ts` 导出 `marketRoute`。查询返回数据或 `null`，路由映射 HTTP 响应；查询不依赖 Hono、用户会话或 Agent。
+- `state/compute.ts` 和 `valuation/compute.ts` 不查询数据库。`state/sync.ts` 保留 SQL 批计算及临时表事务；天气缓存继续按原覆盖日期和频率/维度键失效。
+- `calendar/sse-close.ts` 负责既有上海 16:00 截止判断和 SSE 最近已完成交易日；它不是通用跨市场收盘规则。Signals 的 `runs/readiness.ts` 继续决定信号日必须开市、必须已知下一交易日，并检查基础数据齐备。
+- `rates/government-yield-availability.ts` 的 `loadGovernmentYieldAvailability(requiredTerms, tradeDate)` 逐期限读取 `availableDate <= tradeDate` 的最新国债曲线，保留缺失为空的事实。Factor 输入解析、14 天新鲜度和无利率依赖直接通过的规则归 [Signals](../signals/factor-inputs/rates.ts)。
+- ETF 基础质量归 `etfs/history-coverage.ts` / `registry-audit.ts`；市场风险驱动基础质量归 `state/market-risk-driver-quality.ts`。Strategy 决定模型历史要求，Maintenance 组合整体审计及发布门禁。
+- 同步中的候选校验和数据库替换属于 Market；运行锁、心跳、进度、发布水位和恢复属于 [Application Maintenance](../application-maintenance/README.md)。一个同步函数成功不等于整轮维护已发布。
+- Market 不反向调用 Signals、Strategy、Agent、Research 或 Application Maintenance；共享能力根据实际数据职责保留，不设统一 execution/report 层。
 
-财报版本、availableDate、币种转换、期货换月、覆盖阈值和数据单位均沿用原实现。此目录调整没有数据库表、迁移或 SDK 契约变更。
-
+财报版本、availableDate、币种转换、期货换月、覆盖阈值和数据单位均沿用原实现。此目录调整没有数据库表、迁移、HTTP 或 SDK 契约变更。
 
 ## HTTP 路由整理（2026-09-11）
 
@@ -70,4 +76,4 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 
 ## 目录约定
 
-根级保留 `README.md` 与 `schema.ts`；整体 HTTP 测试位于 `routes/index.test.ts`，领域测试仍跟随实现。行情、同步、估值等现有业务目录保持各自职责。
+根级保留 `README.md` 与 `schema.ts`；整体 HTTP 测试位于 `routes/index.test.ts`，领域测试仍跟随实现。同步/读取/质量按数据领域归属，日历、身份、供应商与跨资产查询保留共享职责。

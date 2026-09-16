@@ -11,10 +11,10 @@ const state = vi.hoisted(() => ({
   journal: [] as string[],
   noProgress: false,
 }));
-vi.mock('#market/sync/stock-daily.js', () => ({ syncDailyCoreDate: vi.fn() }));
-vi.mock('#market/sync/stock-flows.js', () => ({ syncMoneyflow: vi.fn(), syncTopList: vi.fn() }));
+vi.mock('#market/stocks/daily-sync.js', () => ({ syncDailyCoreDate: vi.fn() }));
+vi.mock('#market/stocks/flows-sync.js', () => ({ syncMoneyflow: vi.fn(), syncTopList: vi.fn() }));
 vi.mock('./quality.js', () => ({ validateRawMarketDate: vi.fn() }));
-vi.mock('#market/sync/indices.js', () => ({
+vi.mock('#market/indices/sync.js', () => ({
   syncIndexDaily: async (_client: unknown, _code: string, date: string) => {
     expect(state.journal).toContain(date);
     state.writes.push(date);

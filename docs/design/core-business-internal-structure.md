@@ -3,7 +3,7 @@
 ## 状态与目标
 
 - 基线：`fd0ab69f`（`refactor(api): organize business module entry points`）。该轮入口整理已完成，见[记录](core-business-entry-points.md)。其中的验证结果只证明上一轮，不作为本计划的验收结果。
-- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`，Factor 已交付 `6947b4e6`，追加的 Factor Job kind 已交付 `a3c768fe`。Strategy 已通过人工代码 review、相关测试、干净构建和三套真实运行验收，交付 `d0a86f02`。Research 以 `d0a86f02` 为基线，已通过人工代码 review、相关测试、干净构建及源码/编译产物的真实 Python 验收，随本提交交付；下一项为 Market / Signals 边界。
+- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`，Factor 已交付 `6947b4e6`，追加的 Factor Job kind 已交付 `a3c768fe`。Strategy 已通过人工代码 review、相关测试、干净构建和三套真实运行验收，交付 `d0a86f02`。Research 已完成验收并交付 `b2d9e8fd`。最后一项 Market / Signals 已通过人工代码 review、225 文件 / 1,351 用例完整 API 回归、干净构建及两套 CLI/运行验收，按本提交交付。六项计划提交全部完成，不推送；最终 hash 见交付消息及 Git 记录。
 - 工作流：review-gated-development；每个实现 commit 先确认范围和准确提交信息，再实现、静态检查、人工代码 review、行为验证、提交。不推送。
 - 目标：根据业务问题能够找到实现，目录和文件名称能够说明职责，减少无意义层级；不要求五个核心模块具有相同结构。
 - 交付对象：后端维护者与后续开发任务。没有新增用户页面、HTTP 接口或 CLI 命令。
@@ -585,17 +585,17 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 
 ### 4.3 最终完成标准
 
-- [x] 本计划确认，四个实现提交的范围与准确提交信息获准；按工作流逐个完成代码 review 与验证。
+- [x] 本计划确认，五个实现提交（含追加的 Factor Job kind）的范围与准确提交信息获准；按工作流逐个完成代码 review 与验证。
 - [x] Factor 正式评估/报告/holdout、相关性、天气各有明确状态和产物归属；原 analysis/reports 目录移除且无转发。
 - [x] 共享 execution 只执行计算、不写业务生命周期；数据/序列可供相关性复用，来源快照/指纹不依赖任务。Worker 复用关系、旧协议、哈希和封存语义保持。
 - [x] Strategy 回测编排/Worker 归回 backtests，扫描保持独立流程，因子输入准备真实共享；risk 不再有空 analysis 外层。
 - [x] Research 文档运行与共用 Python 会话分开，embedded/proposals/curator/evidence 的不同生命周期及权限边界保持。
-- [ ] Market 同步/读取/质量按数据归属完成迁移；无旧 sync/quality 转发，日历与基础可得性归 Market，Signals 的利率准入归 Signals。
-- [ ] Signals 主体业务目录保持，手动/每日汇入同一运行；记账与通知事务边界保持。其他模块未被强套模板。
-- [ ] 所有改动经过对应人工 review，静态检查、相关行为验证与最终 API 回归通过；实际覆盖与环境限制有记录。
-- [ ] 源码及干净产物的相关 Worker/CLI 验证完成，进程与临时资源已收尾。
-- [ ] 当前 CLAUDE、README、架构/运行入口与源码一致；没有公开契约、数据或算法语义漂移。
-- [ ] 按约定信息提交，记录实际 hash；工作区仅保留用户原有变更或干净，不推送。
+- [x] Market 同步/读取/质量按数据归属完成迁移；无旧 sync/quality 转发，日历与基础可得性归 Market，Signals 的利率准入归 Signals。
+- [x] Signals 主体业务目录保持，手动/每日汇入同一运行；记账与通知事务边界保持。其他模块未被强套模板。
+- [x] 所有改动经过对应人工 review，静态检查、相关行为验证与最终 API 回归通过；实际覆盖与环境限制有记录。
+- [x] 源码及干净产物的相关 Worker/CLI 验证完成，进程与临时资源已收尾。
+- [x] 当前 CLAUDE、README、架构/运行入口与源码一致；没有公开契约、数据或算法语义漂移。
+- [x] 按约定信息提交，记录实际 hash；工作区仅保留用户原有变更或干净，不推送。
 
 ## 5. 执行记录
 
@@ -605,10 +605,10 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 | Factor | Gate 1 已批准，完整实现已完成 | 全仓 typecheck、ESLint 零警告、Prettier、路径/链接/实现对照与 diff 检查通过；测试数据修正后 API typecheck 通过 | 2026-09-16 用户确认通过 | 48 文件 / 283 用例最终通过；干净构建及三套真实 Worker / 17 组结果对照通过 | `6947b4e6` |
 | Factor Job kind | 2026-09-16 用户确认追加范围与准确提交信息 | 修订后全仓 typecheck、20 个 TS/MJS 文件 ESLint/Prettier、Shell 语法、153 项本地链接和 diff 检查通过；测试断言修正后静态检查通过 | 2026-09-16 用户确认修订代码通过 | API 12 文件 / 160 用例最终通过；部署 13 项、干净构建及编译迁移入口验证通过 | `a3c768fe` |
 | Strategy | 2026-09-16 用户确认继续；完整迁移已实现 | 全仓 typecheck、36 个 TS/MJS 文件 ESLint/Prettier、静态代码对照、资源路径、本地链接与 diff 检查通过 | 2026-09-16 用户确认通过 | 31 文件 / 232 用例、干净构建、三套真实运行及 10 组结果精确对照通过 | `d0a86f02` |
-| Research | 2026-09-16 用户确认本项 Gate 1；完整迁移已实现 | 全仓 typecheck、34 个 TS/MJS 文件 ESLint/Prettier、静态代码/引用对照、本地链接与 diff 检查通过 | 2026-09-16 用户确认通过 | 29 文件 / 185 用例最终通过；边界 28 项、干净构建、两套真实 Python 运行及 5 组结果对照通过 | 随本提交 |
-| Market / Signals 边界 | 方案已批准，待 Research 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
+| Research | 2026-09-16 用户确认本项 Gate 1；完整迁移已实现 | 全仓 typecheck、34 个 TS/MJS 文件 ESLint/Prettier、静态代码/引用对照、本地链接与 diff 检查通过 | 2026-09-16 用户确认通过 | 29 文件 / 185 用例最终通过；边界 28 项、干净构建、两套真实 Python 运行及 5 组结果对照通过 | `b2d9e8fd` |
+| Market / Signals 边界 | 2026-09-16 用户确认本项 Gate 1；完整迁移及边界提取已实现 | 全仓 typecheck、81 文件 lint/格式、静态对照通过；测试初始化修正后相关静态检查通过 | 2026-09-16 用户确认通过 | 完整 API 225 文件 / 1,351 用例；干净构建、两套 22 CLI 与 6 组运行对照通过，无跳过 | 本提交，hash 见交付消息 |
 
-用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成并提交 `6947b4e6`；Factor Job kind 追加修改也已通过人工 review 和验证并提交 `a3c768fe`。Strategy 已通过人工 review 与验收并提交 `d0a86f02`；Research 已通过人工代码 review 和验收，随本提交交付；Market / Signals 边界尚未开始实现。不推送。
+用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成并提交 `6947b4e6`；Factor Job kind 追加修改也已通过人工 review 和验证并提交 `a3c768fe`。Strategy 已通过人工 review 与验收并提交 `d0a86f02`；Research 已通过人工代码 review 和验收并提交 `b2d9e8fd`；Market / Signals 边界已完成 review 及全部验收，按本提交交付；六项计划提交全部完成。不推送。
 
 ### Factor 实现补充
 
@@ -829,3 +829,70 @@ review 后执行的行为验收：
 两份 `*-execution.json` 和 `cleanup.json` 记录资源退出。环境失败日志与验收脚本保留，未计入通过结果。
 
 按已批准标题自动提交，不推送。实际 hash 由交付消息记录，下一提交更新本文时补入表格。
+
+
+### Market / Signals Gate 2 交接（2026-09-16）
+
+准确提交信息：`refactor(market): align data domains and consumer boundaries`。
+
+以 `b2d9e8fd` 为基线，完成 §2.3 的全部迁移及 §2.5 的两项跨模块职责调整，共迁移 25 个实现/测试文件。
+本轮交付内部业务入口与目录归属，没有新增用户页面、HTTP 接口或 CLI 命令。
+
+交付与审查入口：
+
+- [Market 阅读地图](../../apps/api/src/market/README.md)：股票、ETF、指数、期货同步与读取归对应数据领域；ETF 质量归 etfs，市场风险驱动基础质量归 state。美债/外汇联合同步及基准同步/换算归 cross-market；保留联合获取顺序、PIT 与事务，未拆分共享期货实现。删除旧 sync/quality 目录，无兼容转发。
+- [calendar/read.ts](../../apps/api/src/market/calendar/read.ts)、[calendar/sse-close.ts](../../apps/api/src/market/calendar/sse-close.ts)：日历读取与同步分开；共用日期函数从 Signals 迁入 Market，Maintenance 和 Signals 直接调用。保留上海时区、SSE 范围与 16:00 门槛；这个门槛是原应用规则，不代表重新定义交易所收盘时间。
+- [rates/government-yield-availability.ts](../../apps/api/src/market/rates/government-yield-availability.ts)：新增内部数据入口 `loadGovernmentYieldAvailability(requiredTerms, tradeDate)`，只查询各期限截至指定日期的可得日期，保留原来源/曲线/类型筛选、逐期限查询、排序及缺失过滤。没有 FactorDependency 或 14 天准入规则。
+- [signals/factor-inputs/rates.ts](../../apps/api/src/signals/factor-inputs/rates.ts)：收回冻结依赖的期限解析、14 天新鲜度政策及无利率依赖直接通过的规则；查询委托 Market。[runs/readiness.ts](../../apps/api/src/signals/runs/readiness.ts) 保留 SignalRun 所需的状态与下一交易日判断。
+- Maintenance、Signals 每日需求编排、Strategy 风险要求、Research 序列读取、CLI、审计脚本和测试替身已同步引用。Research 数据契约的两处实现证据链接也已更新；函数参数、命令参数/输出契约、Worker 路径、运行/记账/通知顺序不变。
+- 根 CLAUDE/README、Market/Signals/Maintenance README、架构地图与运行入口清单已同步。没有 schema、公开 API/SDK、部署组件或跨包构建依赖变化，没有增加边界例外。
+
+静态检查结果：
+
+- 全仓 `pnpm typecheck` 通过，包含所有 workspace 和三个生成契约检查。后端扫描 703 个文件，0 边界违规、0 跨域循环组，保留原 4 项例外。
+- 81 个改动 TS 文件通过 ESLint（零警告）与 Prettier；最后两处元数据链接修正后，相关 lint/格式和完整 typecheck 再次通过。
+- 全量记录并核对 101 处路径替换；其中 72 个文件通过 AST/token 对照，仅有路径替换、日历读取导入拆分及格式变化。另对提取涉及的 13 项声明、完整利率查询和委托调用单独比对，业务函数及原纯准入测试断言保持。
+- 25 个旧文件路径均移除；静态解析 420 处源码/测试模块引用均可解析。运行代码与脚本无旧目录引用；边界检查器中的 `market/sync/example.ts` 是虚拟 fixture，不是实际运行入口。
+- 八份当前文档的本地链接和 `git diff --check` 通过。该静态对照没有导入应用模块、启动进程或写数据库，不能替代行为验收。
+
+已准备但未运行的新增回归共 16 项：
+
+- [calendar/calendar.integration.test.ts](../../apps/api/src/market/calendar/calendar.integration.test.ts)：8 项，覆盖上海 16:00 前后、周末/跨日、SSE 范围、Signals 下一交易日要求，以及隔离库中的同步幂等和失败回滚。
+- [rates/government-yield-availability.integration.test.ts](../../apps/api/src/market/rates/government-yield-availability.integration.test.ts)：2 项，覆盖逐期限 as-of、缺失、未来与无关曲线排除，保留陈旧观察作为数据事实。
+- [signals/factor-inputs/rates.test.ts](../../apps/api/src/signals/factor-inputs/rates.test.ts)：保留原 2 项，新增 6 项，覆盖 14/15 天、当天/未来、无利率依赖、缺失期限与查询失败传播。
+
+review 后执行的行为验收：
+
+1. Market、Signals、Maintenance 相关回归和本轮新增边界用例；最终组合代码运行完整 API 测试。审计实际环境开关，账户集成使用隔离库显式启用 `ACCOUNTING_INTEGRATION=1`，不把跳过项计入通过。
+2. 验证既有股票四表发布、ETF 按日/历史与质量、跨市场/PIT、换汇、风险驱动、状态/路由和财报相关消费者。隔离数据库覆盖日历与期货同步、幂等及失败回滚；Signals 运行/记账/通知顺序与报告部署沿用现有回归。
+3. API 在全新临时目录构建；源码与默认 Node 条件的干净产物分别验证 Market 业务、Maintenance 和 Signals 每日入口。受影响 CLI 使用隔离库与本地 provider 替身实际验证调用、输出和退出，保留原命令契约；不以成功 import 代替 CLI 流程验收。
+4. 不运行真实日维护，不请求外部行情、邮件或付费模型。记录实际验证结果，关闭临时进程和数据库连接；全部必需验收通过后按已批准标题自动提交，不推送。
+
+以上为 Gate 2 交接时的状态：当时未提交，等待人工代码 review；未运行测试、构建或数据库流程。后续实际验收见下文。
+静态对照记录：`/tmp/jixie-market-static-audit.json`；全仓类型检查日志：`/tmp/jixie-market-typecheck.log`。
+
+
+### Market / Signals review 后验证与最终交付（2026-09-16）
+
+用户确认代码 review 通过，授权验收及通过后自动提交。准确提交信息保持：
+`refactor(market): align data domains and consumer boundaries`。
+
+- 完整 API 回归最终 **225 个文件、1,351 个用例全部通过，零失败、零跳过**。覆盖五个核心业务、Maintenance、Agent、共享 Job 生命周期及 CLI 契约；本轮新增 16 项边界用例全部执行，账户数据库流程以 `ACCOUNTING_INTEGRATION=1` 显式开启。
+- 首轮为 221 文件通过、4 文件失败：两份新增集成测试在建库阶段失败，导致 10 项未执行；真实 Python 的 4 项因选择到系统解释器而缺少 pandas/numpy；Agent 的 2 项因隔离库没有旧测试使用的 `600519.SH` 而进入代码修复流程。仅为两份新增测试补充建库前创建空文件，保留原断言；完整复跑指定项目 `.venv/research-py-v1/bin/python3` 并在全新隔离库种入该证券。没有修改 Agent/Python 测试或产品代码、放宽断言、增大超时或跳过用例。
+- 启动完整测试前还修正了验收脚本的新建 SQLite 初始化和 pnpm 参数传递问题；这些失败发生在测试启动前。所有失败日志均保留，未计入通过结果。
+- API 构建到全新的临时 `clean/apps/api/dist`，保留原 package.json 与依赖解析布局。源码使用 development 条件；干净产物使用默认 Node 条件，实际运行不依赖已有 dist。
+- **22 个受影响 CLI 在两种模式各成功运行一次**，覆盖股票/资金流/龙虎榜、指数与市场状态、ETF、股指及商品期货、商品连续收益/持仓、跨市场基准/美债/外汇、利率/信用曲线和宏观。各命令调用真实编排与数据库写入，供应商客户端方法替换为本地 fixture；全局网络入口拒绝真实外部请求。每个命令核对输出、调用记录、成功退出与非空目标数据，另各注入一次供应商失败，确认退出 1 且旧期货合约保持。
+- 两套 22 个 CLI 的成功输出与供应商调用记录逐项完全一致；36 张非空业务表共 286 条记录一致，仅排除 `createdAt`、`updatedAt`、`completedAt`、`retrievedAt` 写入时间。保留对照快照，不移除业务身份或数值字段。
+- 两套业务运行的 6 组结果完全一致：Maintenance 日/周/修复与 Signals 每日入口可加载；迁移后的股票/指数读取可查询；SSE 日历及 Signals 下一交易日一致；真实利率查询与 14/15 天准入保持；期货合约/行情重复同步幂等，重复主键注入后原删除/写入事务完整回滚，商品合约不受股指同步影响。
+- Signals 每日数据准备使用真实活跃部署和冻结利率输入，实际调用利率同步与 ETF 按日发布；验证原 21 天回看跨年分段、次一 SSE 日可得性。暂停部署后不再请求利率，调度读取为零活跃部署。运行/记账/通知顺序和报告部署由上述完整回归中的现有断言验证；未运行真实日维护或对外通知。
+- CLI/运行 harness 准备时修正了缺失的 provider 字段/接口名、统计表名、商品审计所需的至少两日范围、指数返回对象形状、完整 ETF 注册元数据及利率跨年调用次数；这些仅涉及临时 fixture/验收脚本，失败记录保留，没有改业务实现或门槛。
+- 两份测试初始化修正后的 ESLint、Prettier 和 API typecheck 通过；最终 AST/token 对照与 diff 检查通过。81 个受审源码文件的哈希核对显示，仅上述两份测试改变，全部产品代码保持 review 时内容。
+- 验证进程均已退出，未启动监听服务；本任务 12 个临时数据库（含失败尝试）均取得独占锁后删除。没有外部行情、邮件、付费模型、真实部署或浏览器 E2E。
+
+验收归档：`/var/folders/2_/ntv3g9xx1xxf_wrfxwtx35f40000gn/T/jixie-market-verify-yebfgxil`。
+`logs/tests-final.log` 与 `tests-final.json` 保存完整通过结果，`logs/build.log` 保存干净构建；
+`cli-results.json`、各命令日志/trace、`cli-data-comparison.json` 及 `cli-data-snapshot.json` 保存 CLI 和数据对照；
+`source-runtime.json`、`compiled-runtime.json` 保存运行结果，`cleanup.json` 保存进程及临时库清理证据。
+初次失败日志和所有 fixture/验收脚本保留；完整 API 测试采用项目 test 脚本相同的 Node/Vitest 入口，限制为两个 worker，未修改仓库测试配置。
+
+本轮五个业务模块的结构整理全部完成。按已批准标题提交，不推送；最终提交 hash 和工作区状态见交付消息。

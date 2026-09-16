@@ -26,6 +26,8 @@ CLI 是调用方式，本模块负责影响全应用的数据更新顺序、发�
 | [daily-schedule.ts](daily-schedule.ts)、[财报分期规则](../market/fundamentals/reference-periods.ts) | 开市日调度判断和参考数据的分期/断点规则 |
 | [证券代码合并](../market/instruments/canonicalize-stock-codes.ts) | 数据中历史股票代码的规范化维护 |
 
+最近已完成交易日直接读取 [Market calendar](../market/calendar/sse-close.ts)，保留上海 16:00 截止和 SSE 范围；不再经 Signals 取得共用日历能力。ETF 基础审计归 Market etfs，风险驱动基础质量归 Market state，本模块仍组合模型要求和整轮发布条件。
+
 日维护的普通发布链路是：原始同步 → `validateRawMarketDate` → 派生指标重算 → `validateDerivedMarketRange` → `advanceDailyWatermark` 或 `bumpDataRevision`。数据替换事务由各同步函数控制；发布水位由 Application Maintenance 控制，不把整轮网络同步包进一个数据库事务。初始化、无缺口信号重试及历史修复保留各自分支。
 
 CLI 入口为 [cli/run-maintenance.ts](cli/run-maintenance.ts)；根级 `pnpm maintenance` 经 [with-maintenance-lock.sh](../../../../scripts/maintenance/with-maintenance-lock.sh) 执行。单项数据同步 CLI 直接调用 Market 的具体文件；维护进程启动与中断恢复仍由现有启动/部署入口负责，本轮不改变锁、时间、水位和进程协议。

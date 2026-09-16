@@ -432,7 +432,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/market/sync/etf.ts',
+        url: 'apps/api/src/market/etfs/sync.ts',
         finding:
           'Local synchronization publishes price, adjustment, and share-size slices atomically and gates share-size observations to the next SSE session.',
       },
@@ -480,7 +480,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/market/rates/external-market-drivers.ts',
+        url: 'apps/api/src/market/cross-market/external-drivers.ts',
         finding:
           'Local normalization stores explicit curve type, tenor, source date, and available date.',
       },

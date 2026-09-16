@@ -1,7 +1,7 @@
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
-import { syncMarketIndicators } from '#market/sync/market-indicators.js';
-import { latestCompletedTradeDate } from '#signals/runs/readiness.js';
+import { syncMarketIndicators } from '#market/state/sync.js';
+import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
 import { assertProductionLock } from './daily.js';
 import { validateDerivedMarketRange } from './quality.js';
 import {

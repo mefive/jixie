@@ -5,7 +5,7 @@ import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import { syncChinaMacroData } from '#market/macro/china-macro.js';
 import { BlsPublicDataClient, syncUsHeadlineCpiData } from '#market/macro/us-headline-cpi.js';
-import { syncMarketIndicators } from '#market/sync/market-indicators.js';
+import { syncMarketIndicators } from '#market/state/sync.js';
 import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
@@ -13,11 +13,11 @@ import {
 import { refreshAllFactorWeatherPins } from '#factor/weather/refresh.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '#market/registry/index-presets.js';
 import { recoverEtfRegistry } from './etf-recovery.js';
-import { syncEtfBasic } from '#market/sync/etf-history.js';
-import { syncFutureContracts } from '#market/sync/futures.js';
-import { syncIndexWeight, syncIndexBenchmarks, syncSwIndustry } from '#market/sync/indices.js';
-import { syncStockBasic, syncStockNameHistory } from '#market/sync/stocks.js';
-import { stockCodesWithDailyData } from '#market/queries/stock-codes.js';
+import { syncEtfBasic } from '#market/etfs/history-sync.js';
+import { syncFutureContracts } from '#market/futures/sync.js';
+import { syncIndexWeight, syncIndexBenchmarks, syncSwIndustry } from '#market/indices/sync.js';
+import { syncStockBasic, syncStockNameHistory } from '#market/stocks/basic-sync.js';
+import { stockCodesWithDailyData } from '#market/stocks/read.js';
 import type { ReferenceSyncSummary } from '#market/fundamentals/reference-sync.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
 import { canonicalizeStockCodes } from '#market/instruments/canonicalize-stock-codes.js';

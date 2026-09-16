@@ -6,7 +6,7 @@ import {
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import { runDataQualityAudit } from './data-audit.js';
 import { prisma } from '#infra/database/prisma.js';
-import { syncTradeCal } from '#market/sync/calendar.js';
+import { syncTradeCal } from '#market/calendar/sync.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
 import { assertProductionLock, runDailyMaintenance } from './daily.js';
 import {

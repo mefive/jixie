@@ -1,6 +1,6 @@
 import { settleStrategyAccounts } from '../accounting/settlement.js';
 import { enqueueSignalRun } from './enqueue.js';
-import { latestCompletedTradeDate } from './readiness.js';
+import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
 
 /** Resolve a manual signal date and settle accounts before enqueueing the requested deployment. */
 export async function submitSignalRun(

@@ -1,9 +1,9 @@
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { TushareClient } from '../providers/tushare/client.js';
 import { prisma } from '#infra/database/prisma.js';
-import { syncStockBasic } from '../sync/stocks.js';
-import { syncTradeCal } from '../sync/calendar.js';
-import { syncDaily } from '../sync/stock-daily.js';
+import { syncStockBasic } from '../stocks/basic-sync.js';
+import { syncTradeCal } from '../calendar/sync.js';
+import { syncDaily } from '../stocks/daily-sync.js';
 
 /**
  * Sync stock daily prices and adjustment factors into the local SQLite store (Prisma).

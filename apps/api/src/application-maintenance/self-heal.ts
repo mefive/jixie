@@ -6,9 +6,9 @@ import {
   DAILY_MAINTAINED_INDEX_CODES,
   MARKET_WEATHER_INDEX_CODES,
 } from '#market/registry/index-presets.js';
-import { syncDailyCoreDate } from '#market/sync/stock-daily.js';
-import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '#market/sync/indices.js';
-import { syncMoneyflow, syncTopList } from '#market/sync/stock-flows.js';
+import { syncDailyCoreDate } from '#market/stocks/daily-sync.js';
+import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '#market/indices/sync.js';
+import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
 import type { TushareClient } from '#market/providers/tushare/client.js';
 import { validateRawMarketDate } from './quality.js';
 

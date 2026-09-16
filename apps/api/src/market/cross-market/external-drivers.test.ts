@@ -4,7 +4,7 @@ import {
   parseExternalFxRows,
   parseExternalYieldCurveRows,
   parseUsdCnhRows,
-} from './external-market-drivers.js';
+} from './external-drivers.js';
 
 describe('external market driver normalization', () => {
   it('normalizes all disclosed US curve tenors without interpolating missing points', () => {

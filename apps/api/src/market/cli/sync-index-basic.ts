@@ -1,7 +1,7 @@
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { prisma } from '#infra/database/prisma.js';
 import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../registry/index-presets.js';
-import { syncIndexDailyBasic } from '../sync/indices.js';
+import { syncIndexDailyBasic } from '../indices/sync.js';
 import { TushareClient } from '../providers/tushare/client.js';
 
 function currentDate(): string {

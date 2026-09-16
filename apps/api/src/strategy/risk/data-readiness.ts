@@ -1,4 +1,4 @@
-import type { MarketRiskDriverQualitySummary } from '#market/quality/market-risk-drivers.js';
+import type { MarketRiskDriverQualitySummary } from '#market/state/market-risk-driver-quality.js';
 import type { MacroRiskAxisQualitySummary } from '#market/macro/risk-axis-quality.js';
 import { MARKET_RISK_LOOKBACK_OBSERVATIONS } from './market-risk-model.js';
 import { MACRO_RISK_MINIMUM_OBSERVATIONS } from './macro-risk-model.js';

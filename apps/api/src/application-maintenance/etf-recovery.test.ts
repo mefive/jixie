@@ -21,11 +21,11 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 vi.mock('#market/registry/etf-research-registry.js', () => ({ ETF_RESEARCH_CODES: ['510300.SH'] }));
-vi.mock('#market/quality/etf-history-coverage.js', () => ({
+vi.mock('#market/etfs/history-coverage.js', () => ({
   ETF_HISTORY_START: '20150101',
   inspectEtfHistoryCoverage: mocks.inspect,
 }));
-vi.mock('#market/sync/etf.js', () => ({
+vi.mock('#market/etfs/sync.js', () => ({
   syncEtfMarketDate: mocks.revision,
   fillEtfHistoryGap: mocks.history,
 }));

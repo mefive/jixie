@@ -7,13 +7,13 @@ import { auditCommodityHoldingPositions } from '#market/commodity/commodity-hold
 import { auditCommodityContinuousReturns } from '#market/commodity/commodity-continuous-return-quality.js';
 import { auditMacroRiskAxes, auditMarketRiskDrivers } from './risk-data-audit.js';
 import { CROSS_MARKET_BENCHMARKS } from '#market/registry/cross-market-benchmarks.js';
-import { auditEtfResearchRegistry } from '#market/quality/etf-registry-audit.js';
+import { auditEtfResearchRegistry } from '#market/etfs/registry-audit.js';
 import { CHINABOND_PUBLIC_CURVES } from '#market/rates/chinabond-credit-curves.js';
 import {
   EXTERNAL_FX_CODES,
   US_NOMINAL_CURVE_CODE,
   US_REAL_CURVE_CODE,
-} from '#market/rates/external-market-drivers.js';
+} from '#market/cross-market/external-drivers.js';
 
 export type AuditStatus = 'pass' | 'warn' | 'error';
 

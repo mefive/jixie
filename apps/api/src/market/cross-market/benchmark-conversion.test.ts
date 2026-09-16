@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CROSS_MARKET_BENCHMARKS } from '../registry/cross-market-benchmarks.js';
-import { parseCrossMarketBenchmarkRows } from '../sync/cross-market-benchmarks.js';
-import { deriveBenchmarkCnyCloses, deriveHkdCnhMidCloses } from './cross-market-benchmarks.js';
+import { parseCrossMarketBenchmarkRows } from './benchmark-sync.js';
+import { deriveBenchmarkCnyCloses, deriveHkdCnhMidCloses } from './benchmark-conversion.js';
 
 const hsi = CROSS_MARKET_BENCHMARKS.find((benchmark) => benchmark.market === 'HK')!;
 

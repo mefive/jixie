@@ -16,8 +16,8 @@ import { prisma } from '#infra/database/prisma.js';
 import {
   syncCrossMarketBenchmarks,
   type CrossMarketBenchmarkSyncSummary,
-} from '#market/sync/cross-market-benchmarks.js';
-import { syncMarketIndicators } from '#market/sync/market-indicators.js';
+} from '#market/cross-market/benchmark-sync.js';
+import { syncMarketIndicators } from '#market/state/sync.js';
 import {
   ChinaBondPublicCurveClient,
   syncChinaBondCreditCurves,
@@ -29,19 +29,19 @@ import {
 import {
   syncExternalMarketDrivers,
   type ExternalMarketSyncSummary,
-} from '#market/rates/external-market-drivers.js';
+} from '#market/cross-market/external-drivers.js';
 import { generateDailySignals } from '#signals/daily/scheduler.js';
-import { latestCompletedTradeDate } from '#signals/runs/readiness.js';
+import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
 import { syncSignalMarketData } from '#signals/daily/sync.js';
 import {
   MAJOR_INDEX_DAILY_BASIC_CODES,
   DAILY_MAINTAINED_INDEX_CODES,
 } from '#market/registry/index-presets.js';
-import { syncDailyCoreDate } from '#market/sync/stock-daily.js';
-import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '#market/sync/futures.js';
-import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '#market/sync/indices.js';
-import { syncMoneyflow, syncTopList } from '#market/sync/stock-flows.js';
-import { syncTradeCal } from '#market/sync/calendar.js';
+import { syncDailyCoreDate } from '#market/stocks/daily-sync.js';
+import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '#market/futures/sync.js';
+import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '#market/indices/sync.js';
+import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
+import { syncTradeCal } from '#market/calendar/sync.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
 import { shouldSkipScheduledClosedDay } from './daily-schedule.js';
 import { validateDerivedMarketRange, validateRawMarketDate } from './quality.js';

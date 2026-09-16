@@ -5,7 +5,7 @@ import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { dividend, finaIndicator, finaIndicatorVip } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/client.js';
-import { stockCodesWithDailyData } from '../queries/stock-codes.js';
+import { stockCodesWithDailyData } from '../stocks/read.js';
 
 /**
  * Sync financial indicators per stock. One call returns a stock's full period history (with

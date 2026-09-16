@@ -2,8 +2,8 @@ import { loadTushareConfig } from '../providers/tushare/config.js';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import { CROSS_MARKET_BENCHMARKS } from '../registry/cross-market-benchmarks.js';
-import { syncCrossMarketBenchmarks } from '../sync/cross-market-benchmarks.js';
-import { syncTradeCal } from '../sync/calendar.js';
+import { syncCrossMarketBenchmarks } from '../cross-market/benchmark-sync.js';
+import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/client.js';
 
 async function main(): Promise<void> {

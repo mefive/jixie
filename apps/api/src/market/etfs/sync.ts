@@ -10,7 +10,7 @@ import {
   type FundDailyRow,
 } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/client.js';
-import type { EtfHistoryGap } from '../quality/etf-history-coverage.js';
+import type { EtfHistoryGap } from './history-coverage.js';
 
 const FUND_ADJ_PAGE_SIZE = 2_000;
 

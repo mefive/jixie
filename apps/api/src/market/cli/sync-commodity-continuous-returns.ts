@@ -3,7 +3,7 @@ import { auditCommodityContinuousReturns } from '../commodity/commodity-continuo
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import { syncTradeCal } from '../sync/calendar.js';
+import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/client.js';
 
 /**

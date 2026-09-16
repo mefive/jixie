@@ -1,18 +1,11 @@
 import type { FactorDependency } from '@jixie/shared';
 import { factorV2YieldTerm, isFactorV2FieldKey } from '#factor/definitions/fields.js';
-import { prisma } from '#infra/database/prisma.js';
 import {
-  CHINA_TREASURY_CURVE_CODE,
-  CHINA_TREASURY_CURVE_SOURCE,
-  CHINA_TREASURY_CURVE_TYPE,
-} from './china-treasury-curve.js';
+  loadGovernmentYieldAvailability,
+  type GovernmentYieldAvailability,
+} from '#market/rates/government-yield-availability.js';
 
 export const GOVERNMENT_YIELD_MAX_STALENESS_DAYS = 14;
-
-export interface GovernmentYieldAvailability {
-  termYears: number;
-  availableDate: string;
-}
 
 /** Resolve the exact curve maturities frozen into active Definition V2 dependencies. */
 export function governmentYieldTermsFromDependencies(dependencies: FactorDependency[]): number[] {
@@ -65,26 +58,8 @@ export async function governmentYieldCurveReady(
   if (terms.length === 0) {
     return true;
   }
-  const observations = await Promise.all(
-    terms.map((termYears) =>
-      prisma.yieldCurvePoint.findFirst({
-        where: {
-          source: CHINA_TREASURY_CURVE_SOURCE,
-          curveCode: CHINA_TREASURY_CURVE_CODE,
-          curveType: CHINA_TREASURY_CURVE_TYPE,
-          termYears,
-          availableDate: { lte: tradeDate },
-        },
-        orderBy: { availableDate: 'desc' },
-        select: { termYears: true, availableDate: true },
-      }),
-    ),
-  );
-  return governmentYieldCurveCoverageReady(
-    terms,
-    tradeDate,
-    observations.filter((row): row is GovernmentYieldAvailability => row != null),
-  );
+  const observations = await loadGovernmentYieldAvailability(terms, tradeDate);
+  return governmentYieldCurveCoverageReady(terms, tradeDate, observations);
 }
 
 function calendarDaysBetween(start: string, end: string): number {

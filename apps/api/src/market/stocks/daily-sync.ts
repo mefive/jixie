@@ -13,7 +13,8 @@ import {
   type StkLimitRow,
 } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/client.js';
-import { getOpenDates, syncTradeCal } from './calendar.js';
+import { getOpenDates } from '../calendar/read.js';
+import { syncTradeCal } from '../calendar/sync.js';
 
 export interface DailyCoreSyncSummary {
   tradeDate: string;

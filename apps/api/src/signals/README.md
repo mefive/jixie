@@ -22,16 +22,18 @@ HTTP 总入口为 [routes/index.ts](routes/index.ts)，具名导出 `signalsRout
 | --- | --- |
 | `deployments` | 部署创建/暂停、按报告的部署列表读取与响应映射；后续草稿编辑不会修改已有部署 |
 | `runs/enqueue.ts` | 运行与 Job 的持久化、同一部署/日期的复用和失败重试；供 HTTP 与每日调度共用 |
-| `runs/readiness.ts` | 上海收盘时点、交易日/下一交易日、基础数据就绪检查；Maintenance/CLI 复用 `latestCompletedTradeDate` |
+| `runs/readiness.ts` | 信号交易日/下一交易日及基础数据就绪检查；上海时点与最近已完成日直接调用 `market/calendar/sse-close.ts` |
 | `runs/signal-worker.*` | IPC 子进程入口，读取冻结部署与因子血缘，调用 Strategy/Engine 捕获信号，返回结果后关闭数据库与 IPC |
 | `accounting/initialize.ts` | 信号完成后创建成交行及模拟/实际两个账户基线 |
 | `accounting/settlement.ts` | 读取已完成运行、逐日重放账户、事务内保存模拟成交与快照；人工成交修改时可完整重建实际账户 |
 | `accounting/replay.ts` | 纯计算：先卖后买、可卖持仓、涨跌停/停牌、费用滑点、资金限制与收盘估值；不导入数据库 |
 | `accounting/quotes.ts` | 对账用股票/ETF 行情、涨跌停价格及下一交易日读取 |
 | `accounting/executions.ts`、`read.ts` | 人工成交状态变更、账户概览和成交响应映射 |
-| `factor-inputs` | `lineage.ts` 解析并核对冻结依赖；`summary.ts` 汇总实际读取的因子输入、覆盖与决策标的值 |
+| `factor-inputs` | `lineage.ts` 核对冻结依赖，`summary.ts` 汇总输入；`rates.ts` 解析所需期限并执行 14 天新鲜度准入，Market 只提供可得日期 |
 | `runs/job.ts` | 具名任务契约，集中声明 parse/execute/complete/fail/recover/afterCommit |
 | `daily/scheduler.ts`、`daily/sync.ts`、`runs/notifier.ts` | 每日调度、所需市场数据同步、完成/失败通知；保留具体名称与原执行顺序 |
+
+日历事实由 [Market calendar](../market/calendar/sse-close.ts) 提供，Maintenance 也直接消费；Signals 不再拥有共用日期判断。利率准入位于 [factor-inputs/rates.ts](factor-inputs/rates.ts)，仍在没有利率依赖时直接通过，保留逐期限 as-of、缺失与 14 天边界。
 
 ## 两条执行链
 

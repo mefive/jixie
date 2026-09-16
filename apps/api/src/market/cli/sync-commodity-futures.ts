@@ -4,7 +4,7 @@ import {
   COMMODITY_FUTURE_PRODUCT_CODES,
   COMMODITY_FUTURE_SPECS,
 } from '../commodity/commodity-futures.js';
-import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '../sync/futures.js';
+import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '../futures/sync.js';
 import { TushareClient } from '../providers/tushare/client.js';
 
 /**

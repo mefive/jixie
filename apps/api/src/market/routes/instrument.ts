@@ -8,7 +8,7 @@ import { apiError, validateQuery } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import { loadInstrumentNames } from '../instruments/names.js';
 import { instrumentSeries } from '../queries/instrument-series.js';
-import { loadIndexSeries } from '../queries/index-series.js';
+import { loadIndexSeries } from '../indices/read.js';
 
 export const marketInstrumentRoute = new Hono();
 

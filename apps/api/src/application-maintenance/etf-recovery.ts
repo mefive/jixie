@@ -2,11 +2,8 @@ import { createHash } from 'node:crypto';
 import type { TradeDate } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
-import {
-  ETF_HISTORY_START,
-  inspectEtfHistoryCoverage,
-} from '#market/quality/etf-history-coverage.js';
-import { fillEtfHistoryGap, syncEtfMarketDate } from '#market/sync/etf.js';
+import { ETF_HISTORY_START, inspectEtfHistoryCoverage } from '#market/etfs/history-coverage.js';
+import { fillEtfHistoryGap, syncEtfMarketDate } from '#market/etfs/sync.js';
 import type { TushareClient } from '#market/providers/tushare/client.js';
 import { completeMaintenanceItem, completedMaintenanceItems } from './state.js';
 

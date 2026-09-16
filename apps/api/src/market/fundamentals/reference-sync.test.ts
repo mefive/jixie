@@ -49,7 +49,7 @@ vi.mock('#infra/database/prisma.js', () => {
   };
 });
 
-import { stockCodesWithDailyData } from '../queries/stock-codes.js';
+import { stockCodesWithDailyData } from '../stocks/read.js';
 import { syncDividend, syncFinaIndicator, syncFinaIndicatorVip } from './reference-sync.js';
 const client = {} as TushareClient;
 

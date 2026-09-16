@@ -15,7 +15,7 @@ import {
   US_NOMINAL_CURVE_CODE,
   US_REAL_CURVE_CODE,
   USD_CNH_CODE,
-} from '../rates/external-market-drivers.js';
+} from '../cross-market/external-drivers.js';
 
 export const MACRO_RISK_STANDARDIZATION_MONTHS = 60;
 export const MACRO_RISK_MINIMUM_MONTHS = 24;

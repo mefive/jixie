@@ -4,7 +4,8 @@ import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { moneyflow, topList } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/client.js';
-import { getOpenDates, syncTradeCal } from './calendar.js';
+import { getOpenDates } from '../calendar/read.js';
+import { syncTradeCal } from '../calendar/sync.js';
 
 /**
  * Sync the Dragon-Tiger List per trading day into TopList (resumable). A stock can be on multiple

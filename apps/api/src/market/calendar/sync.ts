@@ -26,17 +26,3 @@ export async function syncTradeCal(
   log(`trade_cal ${exchange} 落库 ${rows.length} 天（${start} ~ ${end}）`);
   return rows.length;
 }
-
-/** Open trading days within the range (ascending). */
-export async function getOpenDates(
-  start: TradeDate,
-  end: TradeDate,
-  exchange = 'SSE',
-): Promise<TradeDate[]> {
-  const rows = await prisma.tradeCal.findMany({
-    where: { exchange, isOpen: 1, calDate: { gte: start, lte: end } },
-    orderBy: { calDate: 'asc' },
-    select: { calDate: true },
-  });
-  return rows.map((r) => r.calDate);
-}

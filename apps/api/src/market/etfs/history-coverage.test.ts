@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Prisma } from '#infra/database/prisma.js';
-import { inspectEtfHistoryCoverage } from './etf-history-coverage.js';
+import { inspectEtfHistoryCoverage } from './history-coverage.js';
 
 describe('ETF expected-key coverage', () => {
   it('detects interior and per-code holes despite matching endpoints and nonempty dates', async () => {

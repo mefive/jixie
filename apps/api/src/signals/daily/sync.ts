@@ -6,11 +6,11 @@ import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
 } from '#market/rates/china-treasury-curve.js';
-import { governmentYieldTermsFromDependencies } from '#market/rates/signal-readiness.js';
-import { syncDaily, syncDailyBasic, syncStkLimit } from '#market/sync/stock-daily.js';
-import { syncMoneyflow, syncTopList } from '#market/sync/stock-flows.js';
-import { syncTradeCal } from '#market/sync/calendar.js';
-import { syncEtfMarketDate } from '#market/sync/etf.js';
+import { governmentYieldTermsFromDependencies } from '../factor-inputs/rates.js';
+import { syncDaily, syncDailyBasic, syncStkLimit } from '#market/stocks/daily-sync.js';
+import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
+import { syncTradeCal } from '#market/calendar/sync.js';
+import { syncEtfMarketDate } from '#market/etfs/sync.js';
 import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
 import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';

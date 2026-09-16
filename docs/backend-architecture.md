@@ -16,7 +16,7 @@
 | Engine | 交易日循环、行情读取端口、成交/持仓和因子求值；供回测和信号计算使用 | [Engine](../apps/api/src/engine/README.md) |
 | Signals | 按报告独立部署、每日运行、模拟/人工成交和账户对账 | [Signals](../apps/api/src/signals/README.md) |
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
-| Market | 数据通道、身份、同步、查询、状态、估值；包含 fundamentals/rates/macro/commodity 四个数据领域 | [Market](../apps/api/src/market/README.md) |
+| Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、跨资产查询与跨市场流程 | [Market](../apps/api/src/market/README.md) |
 | Application Maintenance | 整轮数据维护、质量门禁、发布水位、运行锁、审计与恢复 | [Application Maintenance](../apps/api/src/application-maintenance/README.md) |
 | Sharing | 公开库目录与公开详情，策略复制委托 Strategy | [Sharing](../apps/api/src/sharing/README.md) |
 | Auth | 登录、验证码、邀请码、Session 与 Cookie 适配 | [Auth](../apps/api/src/auth/README.md) |
@@ -127,11 +127,13 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 ### 3. 维护发布数据并生成每日信号
 
-1. Maintenance CLI 通过已有锁进入 daily/weekly/repair；刷新日历、确定数据截止日，按各分支处理补齐、修复或重试。
+1. Maintenance CLI 通过已有锁进入 daily/weekly/repair；调用 Market calendar 刷新日历并按上海 16:00 / SSE 规则确定截止日，按各分支处理补齐、修复或重试。
 2. Market 的具体同步函数获取候选数据，按原覆盖规则校验并写库。股票四表、ETF 三表等保留各自的替换事务。
 3. 原始质量通过后重算派生指标，再检查派生质量；Maintenance 才推进发布水位或 dataRevision。单项同步成功不等于整轮维护已发布。
 4. Signals 读取冻结部署、已发布截止日和因子血缘，创建 SignalRun + Job；其子进程调用 Strategy/Engine 生成下一交易日指令。
 5. `runs/job.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化 afterCommit 重试。
+
+Market 的同步/读取/基础质量归入所属数据领域，具体入口见模块 README。Signals 的利率依赖解析和 14 天新鲜度政策归 `signals/factor-inputs/rates.ts`；Market 的 `rates/government-yield-availability.ts` 只返回所需期限在交易日已可得的最新日期。日历事实由 `market/calendar` 供 Maintenance 与 Signals 共用，信号下一交易日要求仍归 Signals。
 
 ## 状态与事务归属
 

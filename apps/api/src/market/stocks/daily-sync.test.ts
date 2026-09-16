@@ -24,7 +24,7 @@ vi.mock('../providers/tushare/api.js', () => ({
   stkLimit: mocks.stkLimit,
 }));
 vi.mock('#infra/database/prisma.js', () => ({ prisma: mocks.database }));
-import { syncDailyCoreDate } from './stock-daily.js';
+import { syncDailyCoreDate } from './daily-sync.js';
 
 const client = {} as TushareClient;
 const tradeDate = '20260901';
