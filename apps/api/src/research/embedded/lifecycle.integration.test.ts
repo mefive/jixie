@@ -37,7 +37,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { createJobExecutor } from '#infra/jobs/executor.js';
 import { claimQueuedJob } from '#infra/jobs/records.js';
 import type { JobRegistry } from '#infra/jobs/definition.js';
-import { researchRoute } from '../routes.js';
+import { researchRoute } from '../routes/index.js';
 import { researchEmbeddedAnalysisJob } from '../embedded-analysis-job.js';
 import {
   researchRuntimeManager,

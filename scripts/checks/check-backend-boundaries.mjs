@@ -40,12 +40,11 @@ function isHttp(file) {
   const local = sourcePath(file);
   return (
     local != null &&
-    (/(?:^|\/)(?:[\w-]+-)?routes\.ts$/.test(local) ||
+    (/^[\w-]+\/routes(?:\.ts$|\/)/.test(local) ||
       local === 'auth/cookies.ts' ||
       local === 'auth/middleware.ts' ||
       local.startsWith('infra/http/') ||
       local === 'application-maintenance/middleware.ts' ||
-      /^(?:factor|strategy|research)\/route-errors\.ts$/.test(local) ||
       startupFiles.has(local))
   );
 }

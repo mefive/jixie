@@ -74,9 +74,9 @@ test('keeps HTTP in adapters while permitting direct Prisma in business operatio
 
 test('keeps Research route error mapping in HTTP adapters', (context) => {
   const root = fixture(context, {
-    [src + 'research/execution-routes.ts']: "import './route-errors.js';",
-    [src + 'research/route-errors.ts']:
-      "import type { Context } from 'hono'; import '../infra/http/errors.js';",
+    [src + 'research/routes/execution.ts']: "import './errors.js';",
+    [src + 'research/routes/errors.ts']:
+      "import type { Context } from 'hono'; import '../../infra/http/errors.js';",
     [src + 'research/execution/control.ts']: 'export const control = () => {};',
     [src + 'infra/http/errors.ts']: 'export const apiError = () => {};',
     [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
@@ -85,15 +85,63 @@ test('keeps Research route error mapping in HTTP adapters', (context) => {
 
   fs.writeFileSync(
     path.join(root, src + 'research/execution/control.ts'),
-    "import '../route-errors.js';",
+    "import '../routes/errors.js';",
   );
   fs.appendFileSync(
-    path.join(root, src + 'research/route-errors.ts'),
-    "import '../infra/database/prisma.js';",
+    path.join(root, src + 'research/routes/errors.ts'),
+    "import '../../infra/database/prisma.js';",
   );
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [
     'http-direction',
     'http-storage',
+  ]);
+});
+
+test('treats module routes directories as HTTP without widening sibling business directories', (context) => {
+  const root = fixture(context, {
+    [src + 'strategy/routes/index.ts']:
+      "export { strategyDefinitionRoute } from './definition.js';",
+    [src + 'strategy/routes/definition.ts']:
+      "import { Hono } from 'hono'; import { save } from '../definitions/save.js'; export const strategyDefinitionRoute = new Hono(); save();",
+    [src + 'strategy/routes/errors.ts']: "import type { Context } from 'hono';",
+    [src + 'strategy/definitions/save.ts']:
+      "import { prisma } from '../../infra/database/prisma.js'; export const save = () => prisma;",
+    [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+
+  fs.appendFileSync(
+    path.join(root, src + 'strategy/routes/definition.ts'),
+    "import { prisma } from '../../infra/database/prisma.js';",
+  );
+  fs.appendFileSync(
+    path.join(root, src + 'strategy/routes/errors.ts'),
+    "import { PrismaClient } from '@prisma/client';",
+  );
+  fs.appendFileSync(
+    path.join(root, src + 'strategy/definitions/save.ts'),
+    "import type { Context } from 'hono'; import '../routes/definition.js'; void import('../routes/errors.js');",
+  );
+  const result = checkBackendBoundaries(root, emptyPolicy);
+  assert.deepEqual(rules(result).sort(), [
+    'http-direction',
+    'http-direction',
+    'http-ownership',
+    'http-storage',
+    'http-storage',
+  ]);
+});
+
+test('does not treat similarly named or nested business folders as module HTTP directories', (context) => {
+  const root = fixture(context, {
+    [src + 'strategy/routes-extra/action.ts']: "import { Hono } from 'hono';",
+    [src + 'strategy/definitions/routes/action.ts']: "import { Hono } from 'hono';",
+    [src + 'routes/strategy.ts']: 'export const value = 1;',
+  });
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [
+    'http-ownership',
+    'http-ownership',
+    'retired-path',
   ]);
 });
 
@@ -366,17 +414,17 @@ test('rejects a new application-wide barrel without prohibiting named business e
 
 test('permits module route exports while retaining the HTTP boundary for consumers', (context) => {
   const root = fixture(context, {
-    [src + 'server.ts']: "import { strategyDefinitionRoute } from './strategy/routes.js';",
-    [src + 'strategy/routes.ts']:
-      "export { strategyDefinitionRoute } from './definition-routes.js';",
-    [src + 'strategy/definition-routes.ts']:
+    [src + 'server.ts']: "import { strategyDefinitionRoute } from './strategy/routes/index.js';",
+    [src + 'strategy/routes/index.ts']:
+      "export { strategyDefinitionRoute } from './definition.js';",
+    [src + 'strategy/routes/definition.ts']:
       "import { Hono } from 'hono'; export const strategyDefinitionRoute = new Hono();",
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 
   fs.writeFileSync(
     path.join(root, src + 'strategy/operation.ts'),
-    "import { strategyDefinitionRoute } from './routes.js';",
+    "import { strategyDefinitionRoute } from './routes/index.js';",
   );
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), ['http-direction']);
 });

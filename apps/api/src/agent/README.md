@@ -5,13 +5,13 @@ Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对�
 ## 从产品操作找入口
 
 - 发起对话：`research/agent-turn.ts`、`factor/agent-turn.ts`、`strategy/agent-turn.ts` → 各自的 profile → [turns/run.ts](turns/run.ts) 的 `enqueueAgentTurn`。只读因子问答从 `factor/questions/conversations.ts` 发起，按用户与稳定因子身份保存。
-- 查看历史消息：[conversation-routes.ts](conversation-routes.ts) → [conversations/read.ts](conversations/read.ts)，按用户归属查询、按 sequence 翻页。
-- 订阅/恢复连接/取消：`turn-routes.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
-- 查看执行详情：`turn-routes.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
+- 查看历史消息：[routes/conversation.ts](routes/conversation.ts) → [conversations/read.ts](conversations/read.ts)，按用户归属查询、按 sequence 翻页。
+- 订阅/恢复连接/取消：`routes/turn.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
+- 查看执行详情：`routes/turn.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
 - 新对话计算/绘图：页面通过 `profiles/embedded.ts` 添加 `runEmbeddedAnalysis` / `readEmbeddedAnalysis`，绑定已验证用户、宿主和报告；执行与固定输出归 Research，卡片保存精确版本/运行引用。
 - 重绘历史回复中的图表：`POST /sql-queries`、`POST /chart-computations` → `tools/charts/replay.ts`，复用只读 SQL 和原 JS 沙箱；旧卡片显示重新取当前数据的提示，不冒充原始结果。
 
-根级 `routes.ts` 直接组合 conversation / turn / chart 三组路由，具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
+`routes/index.ts` 直接组合 conversation / turn / chart 三组路由，具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
 
 Strategy 基础 profile 提供查询和代码产物校验；页面单独添加嵌入式分析，Research 草稿交接不获得嵌入执行权限；生成代码后由用户在策略工作台显式发起回测。Research profile 保留语义查询与文档提案，统计计算在可见 Cell 中执行；完整交易规则通过封存研究生成 Strategy 草稿，不在对话背后回测。Factor profile 的探索分析工具保持独立边界。
 
@@ -59,7 +59,7 @@ SQL 调用方超时门槛为 10 秒；正在执行原生 SQLite 查询时，Work
 
 ## HTTP 路由整理（2026-09-11）
 
-七个接口分别归 `conversation-routes.ts`、`turn-routes.ts`、`chart-routes.ts`。详情使用 `GET /turns/:turnId`，活动查询使用 `GET /turns/active?entity=`，先注册保留路径再注册通用 ID。活动查询仍返回 `{ turnId }`，无活动时 turnId 为 null；SSE 路径、快照/重连/取消、错误帧与非 GET 兜底保持原语义。
+七个接口分别归 `routes/conversation.ts`、`routes/turn.ts`、`routes/chart.ts`。详情使用 `GET /turns/:turnId`，活动查询使用 `GET /turns/active?entity=`，先注册保留路径再注册通用 ID。活动查询仍返回 `{ turnId }`，无活动时 turnId 为 null；SSE 路径、快照/重连/取消、错误帧与非 GET 兜底保持原语义。
 
 删除未使用的 `GET /conversations` 和 `listConversations`；保留会话存储、归属检查和消息分页。SQL/图表使用 `/sql-queries` 和 `/chart-computations`，继续直接返回 `{ rows }`，不增加 Job 或查询持久化。白名单、限额、Worker、JSON BigInt 转换和错误映射保留。
 

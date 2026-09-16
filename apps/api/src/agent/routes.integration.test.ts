@@ -28,7 +28,7 @@ vi.mock('./tools/charts/replay.js', () => ({
 }));
 
 import { prisma } from '#infra/database/prisma.js';
-import { agentRoute } from './routes.js';
+import { agentRoute } from './routes/index.js';
 import * as turnBus from './turns/bus.js';
 import { enqueueAgentTurn } from './turns/run.js';
 import {

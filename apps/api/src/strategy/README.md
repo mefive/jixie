@@ -6,24 +6,24 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 
 | 要理解或修改的行为 | HTTP 入口 | 业务入口 |
 | --- | --- | --- |
-| 策略列表、详情 | [definition-routes.ts](definition-routes.ts) | [definitions/read.ts](definitions/read.ts) |
+| 策略列表、详情 | [routes/definition.ts](routes/definition.ts) | [definitions/read.ts](definitions/read.ts) |
 | 创建、编辑、删除策略 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)，配置保存与结果缓存失效在 [definitions/config.ts](definitions/config.ts) |
 | 公开范围 | 同上 | [definitions/visibility.ts](definitions/visibility.ts)；引用自定义因子的策略保持私有 |
 | 自动命名 | 创建策略时内部调用，无独立 HTTP 入口 | [definitions/naming.ts](definitions/naming.ts) 负责名称生成、冲突处理和异步刷新竞争检查 |
-| Agent 编辑与解释 | [agent-routes.ts](agent-routes.ts) | [agent-turn.ts](agent-turn.ts)，可用指数和因子上下文在 [agent-context.ts](agent-context.ts) |
-| 提交回测 | [backtest-routes.ts](backtest-routes.ts) | [backtest/submit.ts](backtest/submit.ts) → [backtest-job.ts](backtest-job.ts) |
+| Agent 编辑与解释 | [routes/agent.ts](routes/agent.ts) | [agent-turn.ts](agent-turn.ts)，可用指数和因子上下文在 [agent-context.ts](agent-context.ts) |
+| 提交回测 | [routes/backtest.ts](routes/backtest.ts) | [backtest/submit.ts](backtest/submit.ts) → [backtest-job.ts](backtest-job.ts) |
 | 历史回测报告、任务进度 | 同上 | [backtest/reports.ts](backtest/reports.ts)，读取冻结报告而非当前策略缓存 |
-| 检查参数、提交扫描 | [scan-routes.ts](scan-routes.ts) | [scans/parameters.ts](scans/parameters.ts)、[scans/submit.ts](scans/submit.ts) → [scan-job.ts](scan-job.ts) |
+| 检查参数、提交扫描 | [routes/scan.ts](routes/scan.ts) | [scans/parameters.ts](scans/parameters.ts)、[scans/submit.ts](scans/submit.ts) → [scan-job.ts](scan-job.ts) |
 | 扫描报告、任务进度 | 同上 | [scans/reports.ts](scans/reports.ts) |
 | 回测报告中的风险研究 | 随完整回测报告返回 | [analysis/risk/backtest-risk-analysis.ts](analysis/risk/backtest-risk-analysis.ts)，没有独立风险 API |
 
-根级 [routes.ts](routes.ts) 直接组合定义、Agent、回测与扫描路由并具名导出 `strategyRoute`，统一挂载 `/api/app/strategies`。不再经过 `resource-routes.ts`；Agent 路由位于 `agent-routes.ts`，不再使用页面概念 `workbench` 命名。
+[routes/index.ts](routes/index.ts) 直接组合定义、Agent、回测与扫描路由并具名导出 `strategyRoute`，统一挂载 `/api/app/strategies`。不再经过 `resource-routes.ts`；Agent 路由位于 `routes/agent.ts`，不再使用页面概念 `workbench` 命名。
 
 提交回测/扫描使用 `POST /:strategyId/backtests`、`POST /:strategyId/scans`，均返回 `{ jobId, reportId }`。报告列表位于 `/:strategyId/backtest-reports`、`/:strategyId/scan-reports`，详情使用 `/backtest-reports/:reportId`、`/scan-reports/:reportId`。回测列表仍只返回成功且有结果的报告；扫描列表仍返回各状态报告、最多 50 条。
 
 活动任务查询使用 `/:strategyId/backtest-jobs/active`、`/:strategyId/scan-jobs/active`，`active` 包含 queued/running，统一返回 `{ jobId, reportId } | null`。任务日志使用 `/backtest-jobs/:jobId`、`/scan-jobs/:jobId`，保留增量游标 `since` 并检查用户归属和任务类型。Web 分别保存扫描 jobId 与 reportId，用前者轮询、后者读取结果；刷新页面后通过活动任务查询恢复。
 
-HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `route-errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
+HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `routes/errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
 ## 目录职责
 

@@ -6,21 +6,21 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 
 | 要理解或修改的行为 | HTTP 入口 | 业务入口 |
 | --- | --- | --- |
-| 因子目录、自定义因子详情 | [definition-routes.ts](definition-routes.ts) | [definitions/catalog.ts](definitions/catalog.ts)、[definitions/read.ts](definitions/read.ts) |
+| 因子目录、自定义因子详情 | [routes/definition.ts](routes/definition.ts) | [definitions/catalog.ts](definitions/catalog.ts)、[definitions/read.ts](definitions/read.ts) |
 | 创建、编辑、删除、复制草稿 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)；输入定义在 [schema.ts](schema.ts) |
-| 发布、归档、公开范围 | [definition-routes.ts](definition-routes.ts)、[composite-routes.ts](composite-routes.ts) | [publication/factor.ts](publication/factor.ts)、[publication/panel-composite.ts](publication/panel-composite.ts)、[publication/visibility.ts](publication/visibility.ts) |
-| 创建、编辑、复制因子组合 | [composite-routes.ts](composite-routes.ts) | [composition/operations.ts](composition/operations.ts) |
-| Agent 编辑、只读因子问答 | [agent-routes.ts](agent-routes.ts) | [agent-turn.ts](agent-turn.ts)、[questions/conversations.ts](questions/conversations.ts) |
-| 元数据刷新 | [definition-routes.ts](definition-routes.ts) | [definitions/metadata-operations.ts](definitions/metadata-operations.ts) |
-| 提交分析 | [analysis-routes.ts](analysis-routes.ts) | [analysis/submit.ts](analysis/submit.ts) → [analysis-job.ts](analysis-job.ts) |
+| 发布、归档、公开范围 | [routes/definition.ts](routes/definition.ts)、[routes/composite.ts](routes/composite.ts) | [publication/factor.ts](publication/factor.ts)、[publication/panel-composite.ts](publication/panel-composite.ts)、[publication/visibility.ts](publication/visibility.ts) |
+| 创建、编辑、复制因子组合 | [routes/composite.ts](routes/composite.ts) | [composition/operations.ts](composition/operations.ts) |
+| Agent 编辑、只读因子问答 | [routes/agent.ts](routes/agent.ts) | [agent-turn.ts](agent-turn.ts)、[questions/conversations.ts](questions/conversations.ts) |
+| 元数据刷新 | [routes/definition.ts](routes/definition.ts) | [definitions/metadata-operations.ts](definitions/metadata-operations.ts) |
+| 提交分析 | [routes/analysis.ts](routes/analysis.ts) | [analysis/submit.ts](analysis/submit.ts) → [analysis-job.ts](analysis-job.ts) |
 | 历史报告、研究窗口、统计与任务进度 | 同上 | [reports/read.ts](reports/read.ts)；投影与封存处理在 [reports/views.ts](reports/views.ts) |
 | 申请、揭示 holdout | 同上 | [reports/holdout.ts](reports/holdout.ts)；资格检查在 [reports/holdout-policy.ts](reports/holdout-policy.ts) |
-| 相关性缓存、提交与进度查询 | [correlation-routes.ts](correlation-routes.ts) | [analysis/correlation-operations.ts](analysis/correlation-operations.ts) → [correlation-job.ts](correlation-job.ts) |
-| 因子天气固定、刷新与取消固定 | [weather-routes.ts](weather-routes.ts) | [weather/pins.ts](weather/pins.ts) → [weather/refresh.ts](weather/refresh.ts) |
+| 相关性缓存、提交与进度查询 | [routes/correlation.ts](routes/correlation.ts) | [analysis/correlation-operations.ts](analysis/correlation-operations.ts) → [correlation-job.ts](correlation-job.ts) |
+| 因子天气固定、刷新与取消固定 | [routes/weather.ts](routes/weather.ts) | [weather/pins.ts](weather/pins.ts) → [weather/refresh.ts](weather/refresh.ts) |
 
-根级 [routes.ts](routes.ts) 直接组合六组业务路由并具名导出 `factorRoute`，统一挂载 `/api/app/factors`。自定义定义位于集合根与 `/:factorId`，目录位于 `/catalog`，组合位于 `/composites`，天气位于 `/weather`；修改定义与可见性使用 PATCH。HTTP 只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。API 入参与共用研究、组合配置 schema 集中在 [schema.ts](schema.ts)，HTTP 与业务入口共同引用；所属对象 ID 由路径传入。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
+[routes/index.ts](routes/index.ts) 直接组合六组业务路由并具名导出 `factorRoute`，统一挂载 `/api/app/factors`。自定义定义位于集合根与 `/:factorId`，目录位于 `/catalog`，组合位于 `/composites`，天气位于 `/weather`；修改定义与可见性使用 PATCH。HTTP 只处理输入校验、身份与 locale 传入、响应和错误映射；业务入口不接收 Hono Context。API 入参与共用研究、组合配置 schema 集中在 [schema.ts](schema.ts)，HTTP 与业务入口共同引用；所属对象 ID 由路径传入。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
-`operation-errors.ts` 表达操作拒绝的类别、信息及原因详情，`route-errors.ts` 转成现有 HTTP 错误，并复用单因子/组合的发布异常映射。发布模块保留已有 `FactorPublicationError` 及错误语义。
+`operation-errors.ts` 表达操作拒绝的类别、信息及原因详情，`routes/errors.ts` 转成现有 HTTP 错误，并复用单因子/组合的发布异常映射。发布模块保留已有 `FactorPublicationError` 及错误语义。
 
 ## 目录职责
 
@@ -39,7 +39,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 
 ## 三条主要调用链
 
-**普通分析：** `analysis-routes.ts` → `submitFactorAnalysis` 检查方法/假设、来源、数据截止日及父报告归属 → `startFactorAnalysis` 冻结输入并创建报告与 Job → 队列调用 `factor-job.ts` → `analysis-job.ts` 启动 Worker → evaluator 加载 observations 并使用 runtime 计算 → 主线程在 Worker 正常结束后提交结果与 Job 终态。HTTP 返回任务标识，前端随后读取进度和报告。
+**普通分析：** `routes/analysis.ts` → `submitFactorAnalysis` 检查方法/假设、来源、数据截止日及父报告归属 → `startFactorAnalysis` 冻结输入并创建报告与 Job → 队列调用 `factor-job.ts` → `analysis-job.ts` 启动 Worker → evaluator 加载 observations 并使用 runtime 计算 → 主线程在 Worker 正常结束后提交结果与 Job 终态。HTTP 返回任务标识，前端随后读取进度和报告。
 
 **Holdout 与发布：** `submitFactorHoldout` 检查探索资格 → 使用父报告的代码、参数与数据版本构造 holdout → 在事务中复查已有任务并创建报告及 Job → 事务提交后初始化日志、唤醒队列。完成的 holdout 在揭示前不暴露结果、指标和任务日志；`revealFactorHoldout` 要求报告属于当前用户且已完成。发布仍要求证据与当前因子的源码/运行时相符，后续编辑不能让旧报告自动证明新代码。
 

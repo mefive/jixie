@@ -20,10 +20,10 @@ vi.mock('#infra/database/prisma.js', async () => {
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: fixture.llm }));
 
 import { prisma } from '#infra/database/prisma.js';
-import { agentRoute } from '#agent/routes.js';
+import { agentRoute } from '#agent/routes/index.js';
 import * as turnBus from '#agent/turns/bus.js';
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
-import { factorRoute } from '../routes.js';
+import { factorRoute } from '../routes/index.js';
 import { startFactorQuestion } from './conversations.js';
 
 const app = new Hono();

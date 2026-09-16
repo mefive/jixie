@@ -55,7 +55,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { submitResearchCuratorRun } from './curator/submit.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './execution/run-state.js';
-import { researchRoute } from './routes.js';
+import { researchRoute } from './routes/index.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {

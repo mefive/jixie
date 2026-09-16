@@ -8,13 +8,13 @@
 - GET 读取、POST 创建资源或触发操作、PATCH 局部修改、DELETE 删除。发布、归档、复制、holdout 和 reveal 保留明确动作，避免伪装成普通字段更新。
 - 对象归属 ID 放在路径。回测/扫描不再通过 `?strategyId=` 选择所属策略，策略/因子 Agent 和因子元数据刷新不再要求 body 的 `id`。HTTP 层以路径 ID 构造业务输入，额外 body/query ID 不能覆盖它。
 - 查询条件、分页与增量日志仍在 query；分析参数、代码、消息等仍在 body。除 Strategy 活动任务与扫描寻址、Factor 相关性提交和任务查询的下述调整外，响应结构、业务状态、鉴权和持久化语义保持。
-- 模块根级 `routes.ts` 是唯一对外路由入口，具名导出模块总路由。Strategy 在 `routes.ts` 直接组合 definition、agent、backtest、scan 四组处理器；Factor 在 `routes.ts` 直接组合 definition、composite、agent、analysis、correlation、weather 六组处理器。处理器按业务职责分文件实现。实现文件直接导入子路由，避免反向引用入口。
-- 中间件从 `middleware.ts` 导入：`requireAuth` 与 `maintenanceGate` 不由 `routes.ts` 导出。
+- 多组路由模块的 `routes/index.ts` 是唯一对外路由入口，具名导出模块总路由。Strategy 在 `routes/index.ts` 直接组合 definition、agent、backtest、scan 四组处理器；Factor 在 `routes/index.ts` 直接组合 definition、composite、agent、analysis、correlation、weather 六组处理器。多组处理器按业务职责放在模块的 `routes/` 中，文件名省略 `-routes` 后缀；共用 HTTP 错误映射放在 `routes/errors.ts`。实现文件直接导入子路由，避免反向引用入口；单文件模块可继续使用根级 `routes.ts`。
+- 中间件从 `middleware.ts` 导入：`requireAuth` 与 `maintenanceGate` 不由路由总入口导出。
 - 集合保留路径先注册，通用 `/:strategyId`、`/:factorId` 后注册。
 
 ```ts
-import { strategyRoute } from '#strategy/routes.js';
-import { factorRoute } from '#factor/routes.js';
+import { strategyRoute } from '#strategy/routes/index.js';
+import { factorRoute } from '#factor/routes/index.js';
 
 app.route('/api/app/strategies', strategyRoute);
 app.route('/api/app/factors', factorRoute);
@@ -129,7 +129,7 @@ Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource ro
 
 ## Factor 路由职责整理（2026-09-10）
 
-用户已确认方案，计划提交 `refactor(factor): clarify resource routes and route ownership`。Factor 路由按定义、组合、Agent、分析、相关性、天气六组组织；元数据刷新归定义，发布异常映射由 `route-errors.ts` 共用。
+用户已确认方案，计划提交 `refactor(factor): clarify resource routes and route ownership`。Factor 路由按定义、组合、Agent、分析、相关性、天气六组组织；元数据刷新归定义，发布异常映射由 `routes/errors.ts` 共用。
 
 普通分析（含 holdout）与相关性分别从 `/analysis-jobs/:jobId` 和 `/correlation-jobs/:jobId` 查询。两类持久化任务仍使用 `kind: factor`，查询层按报告关联与 `payload.task` 区分，并兼容缺少 task 的历史分析任务；封存的 holdout 日志不能从相关性路径读取。
 
@@ -140,46 +140,46 @@ Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource ro
 
 ## Research 路由职责整理（2026-09-11）
 
-用户已确认方案，计划提交 `refactor(research): clarify resource routes and route ownership`。根级 `research/routes.ts` 直接组合八组具名路由，最终 36 个接口。下表路径均相对于 `/api/app/research`。
+用户已确认方案，计划提交 `refactor(research): clarify resource routes and route ownership`。`research/routes/index.ts` 直接组合八组具名路由，最终 36 个接口。下表路径均相对于 `/api/app/research`。
 
 | 文件 | 方法 | 路径 |
 | --- | --- | --- |
-| `document-routes.ts` | GET | `/documents` |
-| `document-routes.ts` | POST | `/documents` |
-| `document-routes.ts` | GET | `/documents/:documentId` |
-| `document-routes.ts` | POST | `/documents/:documentId/archive` |
-| `document-routes.ts` | POST | `/documents/:documentId/restore` |
-| `document-routes.ts` | POST | `/documents/:documentId/cells` |
-| `document-routes.ts` | PATCH | `/cells/:cellId` |
-| `document-routes.ts` | DELETE | `/cells/:cellId` |
-| `document-routes.ts` | PATCH | `/documents/:documentId` |
-| `document-routes.ts` | DELETE | `/documents/:documentId` |
-| `execution-routes.ts` | POST | `/cells/:cellId/run` |
-| `execution-routes.ts` | POST | `/cells/:cellId/run-affected` |
-| `execution-routes.ts` | POST | `/documents/:documentId/dependency-analysis` |
-| `execution-routes.ts` | POST | `/documents/:documentId/run` |
-| `execution-routes.ts` | POST | `/documents/:documentId/runtime/interrupt` |
-| `execution-routes.ts` | POST | `/documents/:documentId/runtime/reset` |
-| `evidence-routes.ts` | GET | `/artifacts/:artifactId` |
-| `evidence-routes.ts` | GET | `/documents/:documentId/executions` |
-| `evidence-routes.ts` | GET | `/executions/:executionId` |
-| `evidence-routes.ts` | POST | `/executions/:executionId/promote` |
-| `evidence-routes.ts` | POST | `/executions/:executionId/factor-draft` |
-| `evidence-routes.ts` | POST | `/executions/:executionId/strategy-draft` |
-| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/apply` |
-| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/review` |
-| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/review/accept` |
-| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/review/revert` |
-| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/reject` |
-| `proposal-routes.ts` | POST | `/cell-change-proposals/:proposalId/attempts` |
-| `agent-routes.ts` | POST | `/agent/turns` |
-| `curator-routes.ts` | POST | `/curator/runs` |
-| `curator-routes.ts` | GET | `/curator/runs/latest` |
-| `curator-routes.ts` | GET | `/curator/runs/:runId` |
-| `curator-routes.ts` | PATCH | `/curator/findings/:findingId` |
-| `data-routes.ts` | GET | `/data-catalog` |
-| `data-routes.ts` | POST | `/universe-queries` |
-| `language-routes.ts` | POST | `/language/python` |
+| `routes/document.ts` | GET | `/documents` |
+| `routes/document.ts` | POST | `/documents` |
+| `routes/document.ts` | GET | `/documents/:documentId` |
+| `routes/document.ts` | POST | `/documents/:documentId/archive` |
+| `routes/document.ts` | POST | `/documents/:documentId/restore` |
+| `routes/document.ts` | POST | `/documents/:documentId/cells` |
+| `routes/document.ts` | PATCH | `/cells/:cellId` |
+| `routes/document.ts` | DELETE | `/cells/:cellId` |
+| `routes/document.ts` | PATCH | `/documents/:documentId` |
+| `routes/document.ts` | DELETE | `/documents/:documentId` |
+| `routes/execution.ts` | POST | `/cells/:cellId/run` |
+| `routes/execution.ts` | POST | `/cells/:cellId/run-affected` |
+| `routes/execution.ts` | POST | `/documents/:documentId/dependency-analysis` |
+| `routes/execution.ts` | POST | `/documents/:documentId/run` |
+| `routes/execution.ts` | POST | `/documents/:documentId/runtime/interrupt` |
+| `routes/execution.ts` | POST | `/documents/:documentId/runtime/reset` |
+| `routes/evidence.ts` | GET | `/artifacts/:artifactId` |
+| `routes/evidence.ts` | GET | `/documents/:documentId/executions` |
+| `routes/evidence.ts` | GET | `/executions/:executionId` |
+| `routes/evidence.ts` | POST | `/executions/:executionId/promote` |
+| `routes/evidence.ts` | POST | `/executions/:executionId/factor-draft` |
+| `routes/evidence.ts` | POST | `/executions/:executionId/strategy-draft` |
+| `routes/proposal.ts` | POST | `/cell-change-proposals/:proposalId/apply` |
+| `routes/proposal.ts` | POST | `/cell-change-proposals/:proposalId/review` |
+| `routes/proposal.ts` | POST | `/cell-change-proposals/:proposalId/review/accept` |
+| `routes/proposal.ts` | POST | `/cell-change-proposals/:proposalId/review/revert` |
+| `routes/proposal.ts` | POST | `/cell-change-proposals/:proposalId/reject` |
+| `routes/proposal.ts` | POST | `/cell-change-proposals/:proposalId/attempts` |
+| `routes/agent.ts` | POST | `/agent/turns` |
+| `routes/curator.ts` | POST | `/curator/runs` |
+| `routes/curator.ts` | GET | `/curator/runs/latest` |
+| `routes/curator.ts` | GET | `/curator/runs/:runId` |
+| `routes/curator.ts` | PATCH | `/curator/findings/:findingId` |
+| `routes/data.ts` | GET | `/data-catalog` |
+| `routes/data.ts` | POST | `/universe-queries` |
+| `routes/language.ts` | POST | `/language/python` |
 
 创建入口统一为 `POST /documents`，body 使用互斥的 `{ template }` 或 `{ source: { type: 'backtest-report', reportId } }`；模板枚举与 blank 默认值不变。PATCH document 仍接收 `{ title }`；review/accept、review/revert 保留 `{ expectedContentRevision }`；全文运行保留 `{ clean }`。Agent 使用 `/agent/turns`，保留原 body 和 `{ conversationId, turnId }` 返回。
 
@@ -206,36 +206,36 @@ Research 的 Cell/全文/尝试请求等待执行结果；完整 execution 是�
 
 ## 剩余模块路由整理（2026-09-11）
 
-方案已获确认，计划提交 `refactor(api): clarify remaining resource routes and ownership`。Signals / Agent / Market 根级 routes.ts 直接组合职责路由；Sharing 仅明确 strategyId 参数名；Auth / Maintenance 及健康检查保持现状。剩余六模块最终 33 个接口，含一个开发专用登录接口，另有两个根级服务接口。
+方案已获确认，计划提交 `refactor(api): clarify remaining resource routes and ownership`。Signals / Agent / Market 的 routes/index.ts 直接组合职责路由；Sharing 仅明确 strategyId 参数名；Auth / Maintenance 及健康检查保持现状。剩余六模块最终 33 个接口，含一个开发专用登录接口，另有两个根级服务接口。
 
 以下是全部终局路径，已整理的 Strategy / Factor / Research 见前文。
 
 | 模块 | 文件 | 方法 | 完整路径 |
 | --- | --- | --- | --- |
-| signals | `deployment-routes.ts` | GET | `/api/app/signals/deployments/latest-runs` |
-| signals | `deployment-routes.ts` | GET | `/api/app/signals/deployments` |
-| signals | `deployment-routes.ts` | POST | `/api/app/signals/deployments` |
-| signals | `deployment-routes.ts` | POST | `/api/app/signals/deployments/:deploymentId/pause` |
-| signals | `execution-routes.ts` | GET | `/api/app/signals/deployments/:deploymentId/execution-overview` |
-| signals | `execution-routes.ts` | PATCH | `/api/app/signals/executions/:executionId` |
-| signals | `run-routes.ts` | GET | `/api/app/signals/deployments/:deploymentId/runs` |
-| signals | `run-routes.ts` | GET | `/api/app/signals/runs/:runId` |
-| signals | `run-routes.ts` | POST | `/api/app/signals/deployments/:deploymentId/runs` |
-| signals | `run-routes.ts` | GET | `/api/app/signals/run-jobs/:jobId` |
-| agent | `chart-routes.ts` | POST | `/api/app/agent/sql-queries` |
-| agent | `chart-routes.ts` | POST | `/api/app/agent/chart-computations` |
-| agent | `conversation-routes.ts` | GET | `/api/app/agent/conversations/:conversationId/messages` |
-| agent | `turn-routes.ts` | GET | `/api/app/agent/turns/active` |
-| agent | `turn-routes.ts` | GET | `/api/app/agent/turns/:turnId` |
-| agent | `turn-routes.ts` | GET | `/api/app/agent/turns/:turnId/stream` |
-| agent | `turn-routes.ts` | POST | `/api/app/agent/turns/:turnId/cancel` |
-| market | `instrument-routes.ts` | GET | `/api/app/market/instruments/names` |
-| market | `instrument-routes.ts` | GET | `/api/app/market/instruments/:assetType/:instrumentId/series` |
-| market | `instrument-routes.ts` | GET | `/api/app/market/indices/:indexCode/series` |
-| market | `state-routes.ts` | GET | `/api/app/market/weather` |
-| market | `state-routes.ts` | GET | `/api/app/market/state` |
-| market | `valuation-routes.ts` | GET | `/api/app/market/index-valuations` |
-| market | `valuation-routes.ts` | GET | `/api/app/market/index-valuations/:indexCode` |
+| signals | `routes/deployment.ts` | GET | `/api/app/signals/deployments/latest-runs` |
+| signals | `routes/deployment.ts` | GET | `/api/app/signals/deployments` |
+| signals | `routes/deployment.ts` | POST | `/api/app/signals/deployments` |
+| signals | `routes/deployment.ts` | POST | `/api/app/signals/deployments/:deploymentId/pause` |
+| signals | `routes/execution.ts` | GET | `/api/app/signals/deployments/:deploymentId/execution-overview` |
+| signals | `routes/execution.ts` | PATCH | `/api/app/signals/executions/:executionId` |
+| signals | `routes/run.ts` | GET | `/api/app/signals/deployments/:deploymentId/runs` |
+| signals | `routes/run.ts` | GET | `/api/app/signals/runs/:runId` |
+| signals | `routes/run.ts` | POST | `/api/app/signals/deployments/:deploymentId/runs` |
+| signals | `routes/run.ts` | GET | `/api/app/signals/run-jobs/:jobId` |
+| agent | `routes/chart.ts` | POST | `/api/app/agent/sql-queries` |
+| agent | `routes/chart.ts` | POST | `/api/app/agent/chart-computations` |
+| agent | `routes/conversation.ts` | GET | `/api/app/agent/conversations/:conversationId/messages` |
+| agent | `routes/turn.ts` | GET | `/api/app/agent/turns/active` |
+| agent | `routes/turn.ts` | GET | `/api/app/agent/turns/:turnId` |
+| agent | `routes/turn.ts` | GET | `/api/app/agent/turns/:turnId/stream` |
+| agent | `routes/turn.ts` | POST | `/api/app/agent/turns/:turnId/cancel` |
+| market | `routes/instrument.ts` | GET | `/api/app/market/instruments/names` |
+| market | `routes/instrument.ts` | GET | `/api/app/market/instruments/:assetType/:instrumentId/series` |
+| market | `routes/instrument.ts` | GET | `/api/app/market/indices/:indexCode/series` |
+| market | `routes/state.ts` | GET | `/api/app/market/weather` |
+| market | `routes/state.ts` | GET | `/api/app/market/state` |
+| market | `routes/valuation.ts` | GET | `/api/app/market/index-valuations` |
+| market | `routes/valuation.ts` | GET | `/api/app/market/index-valuations/:indexCode` |
 | sharing | `routes.ts` | GET | `/api/app/library` |
 | sharing | `routes.ts` | GET | `/api/app/library/strategies/:strategyId` |
 | sharing | `routes.ts` | POST | `/api/app/library/strategies/:strategyId/copy` |

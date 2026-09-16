@@ -4,7 +4,7 @@ Signals 将成功回测报告冻结为独立部署，按收盘数据生成下一
 
 ## 从产品操作找入口
 
-HTTP 总入口为 [routes.ts](routes.ts)，具名导出 `signalsRoute`，由 `server.ts` 挂到 `/api/app/signals`。部署创建接受 reportId，部署列表按 strategyId 筛选；latest-runs 返回用户全部部署及各自最新运行，包括暂停部署和暂无运行的部署。根级路由只适配参数、状态和响应，业务操作自己检查归属并控制数据库写入。
+HTTP 总入口为 [routes/index.ts](routes/index.ts)，具名导出 `signalsRoute`，由 `server.ts` 挂到 `/api/app/signals`。部署创建接受 reportId，部署列表按 strategyId 筛选；latest-runs 返回用户全部部署及各自最新运行，包括暂停部署和暂无运行的部署。`routes/index.ts` 组合 `routes/` 中的实现；具体路由只适配参数、状态和响应，业务操作自己检查归属并控制数据库写入。
 
 | 操作 | HTTP 路径 | 业务入口 |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ Commit 9 已通过人工 review 和全部验证：全量 API 199 个测试文件
 
 ## HTTP 路由整理（2026-09-11）
 
-`routes.ts` 直接组合 `deployment-routes.ts`、`run-routes.ts`、`execution-routes.ts`，保留 10 个接口。latest-runs 对应原 today 的实际语义，不增加日期过滤；`listDeploymentLatestRuns` 同步替代前后端旧函数名。Run 列表/提交的 deploymentId 来自路径，额外 body/query ID 不能覆盖它，body 保留可选 tradeDate，GET 保留 limit。
+`routes/index.ts` 直接组合 `routes/deployment.ts`、`routes/run.ts`、`routes/execution.ts`，保留 10 个接口。latest-runs 对应原 today 的实际语义，不增加日期过滤；`listDeploymentLatestRuns` 同步替代前后端旧函数名。Run 列表/提交的 deploymentId 来自路径，额外 body/query ID 不能覆盖它，body 保留可选 tradeDate，GET 保留 limit。
 
 `runs/read.ts` 的 `getSignalRunJob` 按 userId 和 `kind: signal` 查询，非 signal Job 即使属于同一用户也返回 404。日志仍使用 since/nextSince。Run 与 Job 继续分离，失败重试保留 runId、更换 jobId；不修改部署冻结、队列、Worker、账户结算和成交事务。
 

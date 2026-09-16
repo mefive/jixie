@@ -4,8 +4,8 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 
 | 要找的业务 | 入口 | 责任 |
 | --- | --- | --- |
-| HTTP 路由 | `routes.ts` 与九组 `*-routes.ts` | 根入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `route-errors.ts`，不直接读写 Prisma |
-| 嵌入式分析后端 | `embedded-routes.ts`、`embedded/`、`embedded-analysis-job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，已接入 Factor / Strategy Agent 与页面 |
+| HTTP 路由 | `routes/index.ts` 与 `routes/` 下九组实现 | 总入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `routes/errors.ts`，不直接读写 Prisma |
+| 嵌入式分析后端 | `routes/embedded.ts`、`embedded/`、`embedded-analysis-job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，已接入 Factor / Strategy Agent 与页面 |
 | 文档列表、创建、归档、恢复 | `documents/document-operations.ts`、`archive-idle-document.ts` | 模板初始化、归属检查；HTTP 归档先检查运行状态，再归档并关闭会话 |
 | 文档重命名、删除 | `documents/document-operations.ts` | 保留底层会话归属/归档规则和级联删除，删除后关闭会话；HTTP 统一使用 documents |
 | 读取文档 | `documents/read.ts` | 归属检查、Cell / 消息 / 审阅 / 尝试视图；保留旧会话首次读取时补建文档的行为 |
@@ -31,7 +31,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | Research Agent 启动 | `agent-turn.ts`、`agent-context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
 | 研究整理（Curator） | `curator/submit.ts`、`runs.ts`、`reference-search.ts`，根级 `curator-job.ts` | 提交与查询、证据整理/反馈；具名 Job 定义完成、失败与恢复 |
 
-Research 的 HTTP 入口和测试直接放在模块根目录，当前不单设 `http/`。根级 `routes.ts` 只组合九组具名路由；API 入参、股票池与嵌入式分析配置 schema 集中在 `schema.ts`，路由引用并执行校验。SDK 协议与字段校验仍在 `sdk/`；共用执行/审阅错误映射放在 `route-errors.ts`，业务操作由各具名入口承担。
+Research 的总路由入口、具体 HTTP 实现及专属测试放在 `routes/`，模块整体接口测试留在根目录。`routes/index.ts` 只组合九组具名路由；API 入参、股票池与嵌入式分析配置 schema 集中在 `schema.ts`，路由引用并执行校验。SDK 协议与字段校验仍在 `sdk/`；共用执行/审阅错误映射放在 `routes/errors.ts`，业务操作由各具名入口承担。
 
 ## 主要调用链
 
@@ -101,19 +101,19 @@ Prisma 迁移历史及 bootstrap 中的 `prisma migrate deploy` 保留；本次�
 
 计划提交：`refactor(research): clarify resource routes and route ownership`。已按确认方案实现八组职责路由、36 个接口，完整列表见 [API 路由约定](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)。
 
-- 文档管理与 Cell 编辑归 `document-routes.ts`；移除旧 conversations HTTP 入口和 `documents/conversation-operations.ts`，重命名/删除业务并入 document-operations。保留列表的 active/archived 查询、历史会话首次读取补建文档、删除级联及关闭会话行为。
+- 文档管理与 Cell 编辑归 `routes/document.ts`；移除旧 conversations HTTP 入口和 `documents/conversation-operations.ts`，重命名/删除业务并入 document-operations。保留列表的 active/archived 查询、历史会话首次读取补建文档、删除级联及关闭会话行为。
 - `POST /documents` 接受互斥的 `{ template }` 或 `{ source: { type: 'backtest-report', reportId } }`。空对象仍创建 blank 模板；混合来源/模板及未知字段拒绝。导入继续要求用户拥有已完成且有结果的回测报告。
-- `execution-routes.ts` 负责 Cell/全文运行、dependency-analysis 和 runtime/interrupt、runtime/reset；请求等待运行结果，不引入新的 Job 协议。只有干净全文执行创建不可变 ResearchExecution，单 Cell、局部运行和提案尝试不等价于完整证据。
-- `evidence-routes.ts` 负责完整执行列表/详情/固化、因子/策略草稿交接和产物读取；保留草稿复用、归属检查以及图片 ETag/304 与安全响应头顺序。
-- `proposal-routes.ts` 统一 review、review/accept、review/revert 和 attempts 命名。接受提案不自动执行；尝试保留 affected/clean_document 两种内部范围。执行冲突、审阅冲突和修订号错误继续返回原状态码与 details。
-- `agent-routes.ts` 的 `/agent/turns` 保留可选 conversationId、新会话创建、Cell 上下文、尝试解释和澄清回答；SSE/取消/消息读取仍归共享 Agent。
-- `curator-routes.ts` 保留全部四个现有接口和行为；`data-routes.ts` 保留 data-catalog，并将股票池直接查询改为 universe-queries；`language-routes.ts` 使用 language/python，保留 action 分派、未保存源码校验和用户/文档会话隔离。
+- `routes/execution.ts` 负责 Cell/全文运行、dependency-analysis 和 runtime/interrupt、runtime/reset；请求等待运行结果，不引入新的 Job 协议。只有干净全文执行创建不可变 ResearchExecution，单 Cell、局部运行和提案尝试不等价于完整证据。
+- `routes/evidence.ts` 负责完整执行列表/详情/固化、因子/策略草稿交接和产物读取；保留草稿复用、归属检查以及图片 ETag/304 与安全响应头顺序。
+- `routes/proposal.ts` 统一 review、review/accept、review/revert 和 attempts 命名。接受提案不自动执行；尝试保留 affected/clean_document 两种内部范围。执行冲突、审阅冲突和修订号错误继续返回原状态码与 details。
+- `routes/agent.ts` 的 `/agent/turns` 保留可选 conversationId、新会话创建、Cell 上下文、尝试解释和澄清回答；SSE/取消/消息读取仍归共享 Agent。
+- `routes/curator.ts` 保留全部四个现有接口和行为；`routes/data.ts` 保留 data-catalog，并将股票池直接查询改为 universe-queries；`routes/language.ts` 使用 language/python，保留 action 分派、未保存源码校验和用户/文档会话隔离。
 
 同步 Web client/store、仓内 E2E 请求及架构约定。旧路径不保留兼容别名，API/Web 必须同步部署。无 Prisma schema、数据迁移、SDK、分析算法或 Curator 产品能力调整；用户页面操作未变，帮助内容与双语 UI 文案无需调整。
 
 审查前静态检查已通过：改动文件格式与 ESLint、全仓 `pnpm typecheck`、生成契约一致性、后端边界检查（648 个文件、0 违规），以及 `git diff --check`。静态核对确认 36 组方法/路径无重复；Curator、证据交接、Agent、数据和语言服务 handler 除已批准路径外与原实现一致。
 
-边界检查器仅将 `research/route-errors.ts` 精确登记为 HTTP 适配文件，与 Factor/Strategy 同规则；仍禁止业务反向导入 HTTP、禁止 HTTP 直接访问数据库，并补充相应检查器测试。
+边界检查器将业务模块 `routes/index.ts` 和 `routes/` 目录识别为 HTTP 适配，包含 `research/routes/errors.ts`，与 Factor/Strategy 同规则；仍禁止业务反向导入 HTTP、禁止 HTTP 直接访问数据库，并补充相应检查器测试。
 
 审查后执行 `pnpm test:backend-boundaries`，以及 Research 路由集成、documents、execution/lifecycle、dependencies、proposals、evidence、handoff、language、curator 与 universe 相关测试，API/Web 构建；浏览器覆盖文档管理、执行/冻结、下游运行、中断、提案审阅/尝试、Agent Cell 上下文、图片、语言服务、Curator 和回测报告交接。涉及 LLM 的交互采用受控 fixture；实际 Python/数据库流程使用隔离环境，不调用真实 LLM 或执行供应商同步。
 

@@ -6,7 +6,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 
 | 要做什么 | 入口 | 职责 |
 | --- | --- | --- |
-| 查 HTTP 地址和参数 | [routes.ts](routes.ts) | `/api/app/market` 的 7 个 GET；解析请求、选择查询、映射无数据错误 |
+| 查 HTTP 地址和参数 | [routes/index.ts](routes/index.ts) | `/api/app/market` 的 7 个 GET；解析请求、选择查询、映射无数据错误 |
 | 改 Tushare 通道或配置 | [providers/tushare/](providers/tushare/) | `client.ts` 的队列/限流/重试，`api.ts` 的协议，`config.ts` 的环境配置，能力探测与记录 |
 | 找 ETF、指数、基准清单 | [registry/](registry/) | 纯静态数据和校验；导入清单不连接数据库。跨市场基准写库在 `sync/cross-market-benchmarks.ts` |
 | 解析证券代码和名字 | [instruments/](instruments/) | `stock-identity.ts` 的历史代码与名称规则，`instrument-resolver.ts` 的身份校验，`names.ts` 的批量名称查询 |
@@ -40,7 +40,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 
 ## 读取与发布的边界
 
-- HTTP 由 `server.ts` 从根级 `routes.ts` 导入并挂载 `marketRoute`。请求进入查询函数，查询函数返回数据或 `null`，路由再映射 HTTP 响应。查询不依赖 Hono、用户会话或 Agent。
+- HTTP 由 `server.ts` 从`routes/index.ts` 导入并挂载 `marketRoute`。请求进入查询函数，查询函数返回数据或 `null`，路由再映射 HTTP 响应。查询不依赖 Hono、用户会话或 Agent。
 - `state/compute.ts` 和 `valuation/compute.ts` 不查询数据库。`weather.ts` 的缓存仍按原覆盖日期和频率/维度键失效；这次不改变同日数据修订的缓存策略。
 - `sync/market-indicators.ts` 原有 SQL 批计算及临时表事务保持；它与读取侧 `state/compute.ts` 分别处理落库指标和展示投影，不为目录重整重写 SQL 算法。
 - 同步中的候选校验和数据库替换属于 Market；运行锁、心跳、进度、质量发布水位和恢复属于 [Application Maintenance](../application-maintenance/README.md)。一个同步函数成功不等于整轮维护已发布。
@@ -51,7 +51,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 
 ## HTTP 路由整理（2026-09-11）
 
-`routes.ts` 直接组合 `instrument-routes.ts`、`valuation-routes.ts`、`state-routes.ts`。名称与统一行情入口使用 `/instruments/names`、`/instruments/:assetType/:instrumentId/series`；前端使用 fetchInstrumentNames / fetchInstrumentSeries。估值目录与详情统一在 `/index-valuations`、`/index-valuations/:indexCode`。
+`routes/index.ts` 直接组合 `routes/instrument.ts`、`routes/valuation.ts`、`routes/state.ts`。名称与统一行情入口使用 `/instruments/names`、`/instruments/:assetType/:instrumentId/series`；前端使用 fetchInstrumentNames / fetchInstrumentSeries。估值目录与详情统一在 `/index-valuations`、`/index-valuations/:indexCode`。
 
 删除闲置 `/futures/:code/series`、其专用 `queries/future-series.ts` 和前端未使用的 fetchFutureSeries。统一 instrument 查询继续支持直接合约和按日映射的连续合约。删除旧 `/industry-weather` HTTP，`state/weather.ts` 的 loadIndustryWeatherSeries 保留，统一 `/weather?dimension=industry` 继续复用它。
 

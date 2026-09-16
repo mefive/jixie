@@ -48,7 +48,7 @@ import { t } from '#i18n/index.js';
 import { copyFactorComposite } from './composition/operations.js';
 import { submitFactorHoldout } from './reports/holdout.js';
 import { sha256 } from './reports/spec.js';
-import { factorRoute } from './routes.js';
+import { factorRoute } from './routes/index.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {
