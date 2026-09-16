@@ -86,7 +86,7 @@ try {
     },
   );
   ({ prisma: database } = await load('infra/database/prisma.js'));
-  ({ researchRuntimeManager: runtime } = await load('research/execution/python-session.js'));
+  ({ researchRuntimeManager: runtime } = await load('research/runtime/python-session.js'));
   await runtime.analyze('example-runtime-preflight', [{ id: 'preflight', source: 'value = 1' }]);
   runtime.close('example-runtime-preflight');
   const { chatTools, chatJson, chatText, deepseek } = await load('infra/llm/deepseek.js');

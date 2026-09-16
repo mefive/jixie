@@ -6,10 +6,7 @@ import {
   type ResearchEmbeddedErrorCodeV1,
 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import {
-  researchRuntimeManager,
-  ResearchPythonExecutionError,
-} from '../execution/python-session.js';
+import { researchRuntimeManager, ResearchPythonExecutionError } from '../runtime/python-session.js';
 import {
   materializeResearchOutputArtifacts,
   type MaterializedResearchOutputs,

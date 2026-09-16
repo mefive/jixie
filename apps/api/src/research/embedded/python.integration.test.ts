@@ -28,7 +28,7 @@ import {
 } from '#agent/turns/records.js';
 import { captureEmbeddedContext } from './context.js';
 import { continueEmbeddedResearch, changeEmbeddedInputMode } from './continuation.js';
-import { runResearchDocument } from '../execution/run-document.js';
+import { runResearchDocument } from '../document-runs/run-document.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 import { getResearchDocument } from '../documents/read.js';
 import { replayResearchInput } from '../sdk/input-replay.js';
@@ -38,7 +38,7 @@ import { executeEmbeddedRun } from './execute.js';
 import { completeEmbeddedRun } from './finish.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { getEmbeddedRun, getEmbeddedVersion } from './read.js';
-import { researchRuntimeManager } from '../execution/python-session.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 
 let previousLocal: string | undefined;
 const base = {

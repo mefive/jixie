@@ -13,13 +13,13 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | 分析变量依赖 | `dependencies/analyze.ts` | 通过 Python AST 分析源代码、持久化 definitions/references、协调阻塞状态 |
 | 下游失效与删除阻塞 | `dependencies/invalidation.ts` | stale、deleted-upstream issues 及解除阻塞；不运行 Cell |
 | 哪些 Cell 应运行、先后顺序 | `dependencies/run-plan.ts` | 纯依赖图计算、重复定义与环检测，输出运行计划 |
-| 执行一个 Cell / 全文 / 受影响分支 | `execution/run-cell.ts`、`run-document.ts`、`run-affected.ts` | 执行编排、结果保存、冻结完整执行 |
-| 中断、重置、互斥 | `execution/control.ts`、`run-state.ts` | 一份进程内文档运行状态；中断等待执行收尾后返回 |
-| Python 会话 | `execution/python-session.ts` | 获取/复用/回收会话、串行通信、分析、执行、reset、interrupt |
+| 执行一个 Cell / 全文 / 受影响分支 | `document-runs/run-cell.ts`、`run-document.ts`、`run-affected.ts` | 执行编排、结果保存、冻结完整执行 |
+| 中断、重置、互斥 | `document-runs/control.ts`、`run-state.ts` | 一份进程内文档运行状态；中断等待执行收尾后返回 |
+| 共用 Python 会话 | `runtime/python-session.ts` | 普通文档、嵌入分析与依赖分析共用一个会话管理器；获取/复用/回收、串行通信、分析、执行、reset、interrupt |
 | Python 发来的数据请求 | `sdk/request.ts`、`validation.ts`、`dispatch.ts` | request/validation 纯参数解析，dispatch 调用数据/结果查询并发送 response；只需要 session 的 send 能力 |
 | 执行证据与产物 | `evidence/execution-records.ts`、`artifacts.ts`、`read-artifact.ts`、`fingerprints.ts` | 冻结快照、执行读取/固化、图片产物、内容哈希 |
 | Agent 提案、审阅与撤销 | `proposals/cell-changes.ts` | 准备修改、应用、接受/拒绝/撤销；同步提案记录和原消息 |
-| 接受提案后的尝试运行 | `proposals/attempts.ts` | 校验可运行状态、记录 attempt，再调用 `execution/run-attempt.ts` |
+| 接受提案后的尝试运行 | `proposals/attempts.ts` | 校验可运行状态、记录 attempt，再调用 `document-runs/run-attempt.ts` |
 | 提案、尝试、澄清记录 | `proposals/change-records.ts`、`attempt-records.ts`、`clarification-records.ts` | 各自的持久化、查询与消息视图同步 |
 | 数据与公开列映射 | `datasets/equity.ts`、`financial.ts`、`financial-values.ts`、`commodity.ts`、`market-reference.ts`、`supplemental.ts` | Research SDK 需要的数据切片、字段与口径；底层来源/同步仍归市场业务 |
 | 序列、截面与股票池 | `datasets/series.ts`、`universe.ts`、`spec.ts`、`cross-market-data-contracts.ts` | 序列与股票池查询、参数及跨市场约束 |
@@ -38,15 +38,19 @@ Research 的总路由入口、具体 HTTP 实现及专属测试放在 `routes/`�
 ```text
 HTTP / Agent 工具
   → documents/cell-operations → dependencies/analyze + invalidation
-  → execution/run-cell | run-document | run-affected
-      → run-state（取得与释放同一文档锁）
-      → python-session → sdk/dispatch → sdk/validation + datasets（含 results）
+  → document-runs/run-cell | run-document | run-affected
+      → document-runs/run-state（取得与释放同一文档锁）
+      → runtime/python-session → sdk/dispatch → sdk/validation + datasets（含 results）
       → evidence（完整执行、产物与哈希）
 
 proposals/cell-changes（应用 → 人工接受）
   → proposals/attempts（用户明确要求运行）
-      → execution/run-attempt → run-cell
+      → document-runs/run-attempt → run-cell
       → proposals/attempt-records（尝试结果读取）
+
+嵌入分析 Job → embedded/execute（独立超时与取消）
+  → 同一 runtime/python-session → sdk/dispatch + evidence
+  → embedded/finish（完成事务与首次成功冻结）
 
 HTTP /agent/turns → agent/turn.ts → agent/context.ts + proposals（澄清/尝试上下文）
   → agent/profiles + agent/tools → agent/turns/run（共享对话执行与事件）
@@ -57,7 +61,9 @@ HTTP /language/python → language/pyright-service → document + stubs
 HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 ```
 
-`documents/read.ts` 不导入运行编排或提案应用操作，只使用提案记录的查询/视图。执行入口通过 `proposals/review-state.ts` 的窄查询检查是否有未完成审阅，不导入 `cell-changes.ts` 或 `attempts.ts`。文档归档和依赖分析会使用 `execution/python-session.ts` 的会话能力；这是资源调用，不是反向调用 `run-*` 执行流程。依赖算法和证据记录不拥有 Python 会话。
+`documents/read.ts` 不导入运行编排或提案应用操作，只使用提案记录的查询/视图。执行入口通过 `proposals/review-state.ts` 的窄查询检查是否有未完成审阅，不导入 `cell-changes.ts` 或 `attempts.ts`。文档归档和依赖分析会使用 `runtime/python-session.ts` 的会话能力；这是资源调用，不是反向调用 `run-*` 执行流程。依赖算法和证据记录不拥有 Python 会话。
+
+`document-runs/` 负责文档锁、修订检查、执行顺序、结果写回与中断；`runtime/` 负责共享会话、能力协商和 Python 通信。嵌入分析复用同一 `researchRuntimeManager`，以内部文档 ID 作为会话键，保留自己的取消、超时和冻结流程。普通文档运行仍直接等待结果，未改成 Job；旧 `execution/` 目录已移除，没有兼容转发。
 
 ## Review 时优先检查
 

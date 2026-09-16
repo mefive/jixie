@@ -9,7 +9,7 @@ import {
 } from '../documents/execution-source.js';
 import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
 import { createResearchExecution, finishResearchExecution } from '../evidence/execution-records.js';
-import { researchRuntimeManager } from './python-session.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 import {
   type ResearchCellExecutionOutcome,
   executeResearchCell,

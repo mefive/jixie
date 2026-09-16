@@ -4,7 +4,7 @@ import { dependencyConflicts } from './run-plan.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import type { Prisma } from '@prisma/client';
 import { reconcileResearchCellDependencyIssues } from './invalidation.js';
-import { researchRuntimeManager } from '../execution/python-session.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 
 export async function analyzeResearchDocument(
   userId: string,

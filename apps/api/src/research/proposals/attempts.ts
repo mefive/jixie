@@ -16,9 +16,9 @@ import { getResearchDocument } from '../documents/read.js';
 import {
   isResearchDocumentRunActive,
   ResearchDocumentRunInProgressError,
-} from '../execution/run-state.js';
+} from '../document-runs/run-state.js';
 import { ResearchDocumentContentRevisionConflictError } from '../documents/revision-errors.js';
-import { runResearchCellChangeAttemptPlan } from '../execution/run-attempt.js';
+import { runResearchCellChangeAttemptPlan } from '../document-runs/run-attempt.js';
 
 export type ResearchCellChangeAttemptUnavailableReason =
   | 'proposal_not_applied'

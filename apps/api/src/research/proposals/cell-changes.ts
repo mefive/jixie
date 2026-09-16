@@ -15,12 +15,12 @@ import {
   syncResearchCellChangeProposalRecords,
 } from './change-records.js';
 import { getResearchDocument } from '../documents/read.js';
-import { isResearchDocumentRunActive } from '../execution/run-state.js';
+import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
 import {
   reconcileResearchCellChanges,
   type ResearchCellChangeDependencySeed,
 } from '../dependencies/invalidation.js';
-import { researchRuntimeManager } from '../execution/python-session.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import { validateResearchSeriesProposal } from './series-validation.js';
 

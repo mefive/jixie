@@ -5,7 +5,7 @@ import type {
   ResearchDocumentV1,
 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { closeResearchDocumentRuntime } from '../execution/python-session.js';
+import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
 import { ulid } from 'ulid';
 import { templateDefinition } from '../templates/document-templates.js';
 import { cellCreate } from './cell-seed.js';

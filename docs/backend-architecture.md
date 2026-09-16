@@ -94,7 +94,7 @@ Bootstrap 是显式装配函数：把业务 Job 的 loader 注册表传给通用
 | API listener | `bootstrap.startServer` 调用 Hono `serve` | 目前只返回 app，没有统一 listener close/stop-drain API；不宣称 API 已有完整优雅退出协议 |
 | Job 队列和并发名额 | `infra/jobs/queue.ts`，启动时注入执行器；默认全局 2、每用户 1，可由环境覆盖 | 执行结束释放名额；queued 保存在 DB，running 在重启时恢复；无多实例租约或统一 drain |
 | Worker / IPC 子进程 | 各业务任务、工具或维护入口按需创建 | 主线程接收结果并处理退出；具体入口和取消语义见 [运行入口清单](backend-runtime-entries.md) |
-| Research Python 会话 | `research/execution/python-session.ts` 按文档复用；公共 session 负责传输 | 中断、reset、归档和执行收尾按业务规则关闭；进程内文档锁不是分布式锁 |
+| Research Python 会话 | `research/runtime/python-session.ts` 由普通文档、嵌入分析和依赖分析共用，按文档 ID 复用；公共 session 负责传输 | 中断、reset、归档和执行收尾按业务规则关闭；普通文档锁归 `document-runs/run-state.ts`，嵌入分析保留独立取消/超时流程 |
 | Factor / Strategy isolate 和 Python 连接 | 各领域 runtime 创建，Infra 提供底层能力 | 调用方在完成/失败时释放；长计算超时策略在各自业务，不由公共传输统一决定 |
 | Prisma | `infra/database/prisma.ts` 的进程内单例；子进程有独立实例 | CLI/子进程在收尾断开；API 整体关闭仍依赖进程退出和上级进程管理 |
 | Agent bus / trace / 日志 | `agent/turns` 与 `infra/jobs/logs.ts` | DB 保存持久记录，内存事件与日志缓存各有清理规则；重启不重放历史增量事件 |
@@ -109,7 +109,7 @@ Bootstrap 是显式装配函数：把业务 Job 的 loader 注册表传给通用
 
 1. `research/routes/document.ts` 调用 `documents/cell-operations.ts`；校验归属、源代码修订和编辑状态，保存 Cell。
 2. `dependencies/analyze.ts` / `invalidation.ts` 更新变量关系和下游 stale/blocked；接受 Agent 修改也进入这套业务规则。
-3. 用户请求执行后，`execution/run-cell.ts`、`run-document.ts` 或 `run-affected.ts` 取得文档运行锁，选择执行计划和 Python 会话。
+3. 用户请求执行后，`document-runs/run-cell.ts`、`run-document.ts` 或 `run-affected.ts` 取得文档运行锁，选择执行计划，通过 `runtime/python-session.ts` 获取 Python 会话。嵌入分析共用此会话管理器，保留独立的运行和冻结流程。
 4. Python 通过 `sdk/validation.ts` / `dispatch.ts` 请求平台数据，`datasets` 做公开字段/PIT 映射，再查询 Market 或用户报告数据。
 5. 执行结果写回 Cell；干净全文执行由 `evidence` 保存 ResearchExecution、快照、产物和哈希，作为后续固化与交接证据。
 

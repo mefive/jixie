@@ -3,7 +3,7 @@
 ## 状态与目标
 
 - 基线：`fd0ab69f`（`refactor(api): organize business module entry points`）。该轮入口整理已完成，见[记录](core-business-entry-points.md)。其中的验证结果只证明上一轮，不作为本计划的验收结果。
-- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`，Factor 已交付 `6947b4e6`，追加的 Factor Job kind 已交付 `a3c768fe`。用户确认插入重构后继续 Strategy；本轮以 `a3c768fe` 为实现基线，Strategy 已通过人工代码 review、相关测试、干净构建和三套真实运行验收，随本提交交付；下一项为 Research。
+- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`，Factor 已交付 `6947b4e6`，追加的 Factor Job kind 已交付 `a3c768fe`。Strategy 已通过人工代码 review、相关测试、干净构建和三套真实运行验收，交付 `d0a86f02`。Research 以 `d0a86f02` 为基线，已通过人工代码 review、相关测试、干净构建及源码/编译产物的真实 Python 验收，随本提交交付；下一项为 Market / Signals 边界。
 - 工作流：review-gated-development；每个实现 commit 先确认范围和准确提交信息，再实现、静态检查、人工代码 review、行为验证、提交。不推送。
 - 目标：根据业务问题能够找到实现，目录和文件名称能够说明职责，减少无意义层级；不要求五个核心模块具有相同结构。
 - 交付对象：后端维护者与后续开发任务。没有新增用户页面、HTTP 接口或 CLI 命令。
@@ -589,7 +589,7 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 - [x] Factor 正式评估/报告/holdout、相关性、天气各有明确状态和产物归属；原 analysis/reports 目录移除且无转发。
 - [x] 共享 execution 只执行计算、不写业务生命周期；数据/序列可供相关性复用，来源快照/指纹不依赖任务。Worker 复用关系、旧协议、哈希和封存语义保持。
 - [x] Strategy 回测编排/Worker 归回 backtests，扫描保持独立流程，因子输入准备真实共享；risk 不再有空 analysis 外层。
-- [ ] Research 文档运行与共用 Python 会话分开，embedded/proposals/curator/evidence 的不同生命周期及权限边界保持。
+- [x] Research 文档运行与共用 Python 会话分开，embedded/proposals/curator/evidence 的不同生命周期及权限边界保持。
 - [ ] Market 同步/读取/质量按数据归属完成迁移；无旧 sync/quality 转发，日历与基础可得性归 Market，Signals 的利率准入归 Signals。
 - [ ] Signals 主体业务目录保持，手动/每日汇入同一运行；记账与通知事务边界保持。其他模块未被强套模板。
 - [ ] 所有改动经过对应人工 review，静态检查、相关行为验证与最终 API 回归通过；实际覆盖与环境限制有记录。
@@ -604,11 +604,11 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 | 计划文档 | 2026-09-16 用户确认「定版开工」 | 本地链接、74 项现有源码路径、5 条提交标题、表格列数、代码围栏、过时方案文字及空白检查通过 | 方案已批准 | 文档不适用 | `b3afcbe2` |
 | Factor | Gate 1 已批准，完整实现已完成 | 全仓 typecheck、ESLint 零警告、Prettier、路径/链接/实现对照与 diff 检查通过；测试数据修正后 API typecheck 通过 | 2026-09-16 用户确认通过 | 48 文件 / 283 用例最终通过；干净构建及三套真实 Worker / 17 组结果对照通过 | `6947b4e6` |
 | Factor Job kind | 2026-09-16 用户确认追加范围与准确提交信息 | 修订后全仓 typecheck、20 个 TS/MJS 文件 ESLint/Prettier、Shell 语法、153 项本地链接和 diff 检查通过；测试断言修正后静态检查通过 | 2026-09-16 用户确认修订代码通过 | API 12 文件 / 160 用例最终通过；部署 13 项、干净构建及编译迁移入口验证通过 | `a3c768fe` |
-| Strategy | 2026-09-16 用户确认继续；完整迁移已实现 | 全仓 typecheck、36 个 TS/MJS 文件 ESLint/Prettier、静态代码对照、资源路径、本地链接与 diff 检查通过 | 2026-09-16 用户确认通过 | 31 文件 / 232 用例、干净构建、三套真实运行及 10 组结果精确对照通过 | 随本提交 |
-| Research | 方案已批准；Strategy 已完成，待本项 Gate 1 开工确认 | 未执行 | 未开始 | 未执行 | 未提交 |
+| Strategy | 2026-09-16 用户确认继续；完整迁移已实现 | 全仓 typecheck、36 个 TS/MJS 文件 ESLint/Prettier、静态代码对照、资源路径、本地链接与 diff 检查通过 | 2026-09-16 用户确认通过 | 31 文件 / 232 用例、干净构建、三套真实运行及 10 组结果精确对照通过 | `d0a86f02` |
+| Research | 2026-09-16 用户确认本项 Gate 1；完整迁移已实现 | 全仓 typecheck、34 个 TS/MJS 文件 ESLint/Prettier、静态代码/引用对照、本地链接与 diff 检查通过 | 2026-09-16 用户确认通过 | 29 文件 / 185 用例最终通过；边界 28 项、干净构建、两套真实 Python 运行及 5 组结果对照通过 | 随本提交 |
 | Market / Signals 边界 | 方案已批准，待 Research 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 
-用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成并提交 `6947b4e6`；Factor Job kind 追加修改也已通过人工 review 和验证并提交 `a3c768fe`。Strategy 已通过人工 review 与验收，随本提交交付；Research 尚未开始实现。不推送。
+用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成并提交 `6947b4e6`；Factor Job kind 追加修改也已通过人工 review 和验证并提交 `a3c768fe`。Strategy 已通过人工 review 与验收并提交 `d0a86f02`；Research 已通过人工代码 review 和验收，随本提交交付；Market / Signals 边界尚未开始实现。不推送。
 
 ### Factor 实现补充
 
@@ -770,5 +770,62 @@ review 后执行的行为验收：
 `logs/baseline.log`、`logs/source.log`、`logs/compiled.log` 记录测试、构建与真实运行；
 `summary.json` 记录 10 组精确对照，三份 `*-execution.json` 记录进程入口计数，`cleanup.json` 记录资源清理。
 早期 fixture/harness 失败日志单独保留，没有计入最终通过结果。保留 fixture、验收脚本、结果 JSON、基线源码和干净构建。
+
+按已批准标题自动提交，不推送。实际 hash 由交付消息记录，下一提交更新本文时补入表格。
+
+
+### Research Gate 2 交接（2026-09-16）
+
+准确提交信息：`refactor(research): separate document runs from Python runtime`。
+
+以 `d0a86f02` 为基线，将原 execution 的 13 个文件按批准方案整体迁移；没有改写业务函数或测试断言。
+
+交付与审查入口：
+
+- [document-runs/run-cell.ts](../../apps/api/src/research/document-runs/run-cell.ts)、[run-document.ts](../../apps/api/src/research/document-runs/run-document.ts)、[run-state.ts](../../apps/api/src/research/document-runs/run-state.ts)、[control.ts](../../apps/api/src/research/document-runs/control.ts)：文档运行、提案尝试、共同锁及控制聚合；结果保存、修订冲突、中断等待和锁释放保持。
+- [runtime/python-session.ts](../../apps/api/src/research/runtime/python-session.ts)：Python 会话及两份相邻测试移入 runtime。会话管理器和文档锁实现与基线逐字一致，保留唯一实例、文档 ID 会话键、4 个会话上限、8 MiB 输出限制、能力协商、SDK 分派与原收尾顺序。
+- [embedded/execute.ts](../../apps/api/src/research/embedded/execute.ts)、[dependencies/analyze.ts](../../apps/api/src/research/dependencies/analyze.ts)、[proposals/cell-changes.ts](../../apps/api/src/research/proposals/cell-changes.ts)：仍使用同一会话管理器；嵌入分析保留独立超时/取消、完成事务与首次成功冻结。接续、删除和归档关闭会话的原调用点保持。
+- [routes/execution.ts](../../apps/api/src/research/routes/execution.ts) 只改业务导入；HTTP、SDK、数据表和公开行为不变。删除旧 execution 目录，无兼容转发、第二份锁或 Research Worker，普通文档不改成 Job。
+- 测试替身、包级动态导入和边界测试 fixture 已同步；当前 CLAUDE、Research README、架构地图和运行入口清单已更新，历史验证记录保留当时路径。未修改边界检查实现/例外、部署组件或构建依赖。
+
+静态检查结果：
+
+- 全仓 `pnpm typecheck` 通过，包含全部 workspace 和三个生成契约检查；后端边界扫描 698 个文件，0 违规、0 已有跨域循环组。
+- 34 个改动 TS/MJS 文件通过 ESLint（零警告）和 Prettier。路径长度导致的三处 import 格式已修正后复查。
+- 34 个文件与基线进行 AST/token 对照，仅允许 38 处已核对的路径字面量替换和格式变化，其他代码及断言一致；13 个旧路径全部移除。
+- 静态解析确认 25 处会话模块引用（含动态加载辅助）和 13 处文档锁引用均指向各自唯一实现；manager 和 lock 各只有一处实例声明。此检查只解析源码，未导入或执行业务模块。
+- 动态加载辅助的新路径与 API tsconfig 的 `dist/src` 布局一致；共享 Python 传输、runner 的 API cwd 解析、socket 配置和资源路径没有变化。此项不能替代编译产物或真实 Python 验收。
+- 五份文档的本地链接、运行代码/脚本的旧目录引用搜索和 `git diff --check` 通过。
+
+review 后执行的行为验收：
+
+1. Research 文档运行、控制与依赖计划、提案尝试、文档管理、证据/冻结/交接和路由集成；embedded 生命周期、输入留存/回放、取消与真实 Python 集成；runtime 会话复用/容量/输出限制/能力协商和 SDK 报告分派，以及使用该会话的 FCFF 模板测试。边界检查器测试验证更新后的 fixture 仍约束 HTTP 依赖方向。
+2. API 在全新临时目录构建。源码与默认 Node 条件的干净产物分别使用真实 Python 完成普通文档与嵌入分析的执行、SDK 交互、冻结和资源释放；核对二者共用 manager、使用不同内部文档 ID，文档中断和嵌入取消各自收尾。
+3. 写入仅用隔离数据库；本地 runner 和编译产物的 Unix socket 通道分别记录，不能把本地桥接当作生产 Docker 隔离验收。结束关闭进程、socket 与数据库连接；不调用外部行情、邮件或付费模型。
+
+`apps/api/tests/deepseek-complex-example.mjs` 只更新其编译模块路径；本轮不执行该付费模型脚本。
+以上为 Gate 2 交接时的状态：当时未提交，未运行单元/集成/E2E、构建、Python probe 或数据库流程。之后的 review 与验收见下文。
+静态对照记录：`/tmp/jixie-research-static-audit.json`；全仓类型检查日志：`/tmp/jixie-research-typecheck.log`。
+
+
+### Research review 后验证与提交（2026-09-16）
+
+用户确认代码 review 通过，授权验收及通过后自动提交。准确提交信息保持：
+`refactor(research): separate document runs from Python runtime`。
+
+- 相关回归共 29 个文件、185 个用例最终通过，无跳过项；覆盖 Gate 2 所列文档、提案、依赖、证据/交接、路由、嵌入分析、会话、SDK 与 FCFF 模板。边界检查器 28 项测试通过。
+- 首轮沙箱执行中，28 个文件通过；会话测试的 10 项触及原有 5 秒超时，并在超时收尾时出现一次未处理拒绝。其他真实 Python 用例显示启动耗时约 7–8 秒。仅在不受该沙箱限制的本地环境复跑整个会话文件，16 项全部通过，无未处理错误；普通用例约 0.36 秒，原断言、超时和产品代码均未改变。最初 pnpm 参数传递错误在启动测试前修正，失败日志保留。
+- API 构建输出到全新的 `/tmp/jixie-research-verify-u7kc96z6/clean/apps/api/dist`；保持 API package.json 和依赖解析布局，编译验证以默认 Node 条件运行，不使用旧 dist。
+- 源码与干净产物各使用独立 SQLite 库和真实 Python runner，完成普通文档的 SDK 数据读取、全文执行、会话复用、证据固化及编辑后不可变、reset 和归档关闭。跨用户执行被拒绝，文档锁在运行后释放。
+- 两套均通过真实嵌入分析 Job 完成 SDK 调用与输入留存、首次成功冻结、重新执行的新环境与会话关闭；普通证据入口无法读取嵌入执行，冻结版本拒绝编辑。观测同一 manager 的实际 execute 调用，确认普通文档与嵌入分析使用不同内部文档 ID。
+- 从嵌入结果接续为普通文档后，修改底层报告仍按 retained 模式得到原结果 14；明确切换 current 模式后得到 77，删除文档关闭会话。普通文档无限循环中断后 execution 为 cancelled、锁和会话释放；嵌入无限循环取消后保留源代码、不冻结版本、释放活动运行占位与会话。
+- 上述 5 组输出与状态在源码和编译产物间精确相等。每套观测到 13 次 execute 调用、7 个真实 Python 进程，结束后会话、进程与 socket 数均为零。三个临时库（含 socket 权限失败时创建的空业务库）均取得排他锁后删除。
+- 编译产物通过本地 Unix socket 桥连接真实 runner。首轮 sandbox 禁止监听 socket，返回 EPERM；在允许本地 socket 的环境复跑后通过，未修改代码。此桥接验证生产连接分支，不等于生产 sandboxd / Docker 隔离验收。
+- 没有外部行情、邮件或付费模型调用，未执行 live DeepSeek 脚本；本轮没有 Web 变更或浏览器 E2E。验证后 34 个受审源码文件的哈希保持，静态对照与 diff 检查再次通过，未修改产品代码或测试。
+
+验收归档：`/tmp/jixie-research-verify-u7kc96z6`。`logs/tests.log` 保存首轮测试，
+`logs/runtime-tests-local.log` 保存会话复跑，`logs/boundaries-tests.log` 与 `logs/build.log` 保存其余门禁；
+`logs/source.log`、`logs/compiled.log` 记录实际流程，`summary.json` 记录结果对照，
+两份 `*-execution.json` 和 `cleanup.json` 记录资源退出。环境失败日志与验收脚本保留，未计入通过结果。
 
 按已批准标题自动提交，不推送。实际 hash 由交付消息记录，下一提交更新本文时补入表格。

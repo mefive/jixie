@@ -19,7 +19,7 @@ import {
   ResearchPythonExecutionError,
   ResearchPythonInterruptionError,
   researchRuntimeManager,
-} from './python-session.js';
+} from '../runtime/python-session.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 
 export type ResearchCellExecutionOutcome = 'success' | 'error' | 'interrupted';

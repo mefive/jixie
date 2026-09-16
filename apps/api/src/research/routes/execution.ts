@@ -4,12 +4,15 @@ import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import { analyzeResearchDocument } from '../dependencies/analyze.js';
-import { interruptResearchDocument, resetResearchDocumentRuntime } from '../execution/control.js';
+import {
+  interruptResearchDocument,
+  resetResearchDocumentRuntime,
+} from '../document-runs/control.js';
 import { ResearchAffectedRunError } from '../dependencies/run-plan.js';
 import { ResearchCellChangeReviewOpenError } from '../proposals/review-state.js';
-import { runAffectedResearchCells } from '../execution/run-affected.js';
-import { runResearchCell } from '../execution/run-cell.js';
-import { runResearchDocument } from '../execution/run-document.js';
+import { runAffectedResearchCells } from '../document-runs/run-affected.js';
+import { runResearchCell } from '../document-runs/run-cell.js';
+import { runResearchDocument } from '../document-runs/run-document.js';
 
 export const researchExecutionRoute = new Hono();
 

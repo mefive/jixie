@@ -48,6 +48,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | 资源/路径 | 解析规则与归属 |
 | --- | --- |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
+| `research/runtime/python-session.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |
 | `research/language/pyright-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |

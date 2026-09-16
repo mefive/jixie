@@ -90,7 +90,7 @@ async function stop() {
       await delay(30);
     }
     if (embeddedJourney) {
-      const { researchRuntimeManager } = await import('#research/execution/python-session.js');
+      const { researchRuntimeManager } = await import('#research/runtime/python-session.js');
       const { cancelEmbeddedRun } = await import('#research/embedded/cancel.js');
       const active = await database.researchExecution.findMany({
         where: { status: { in: ['queued', 'running'] }, embeddedVersionId: { not: null } },

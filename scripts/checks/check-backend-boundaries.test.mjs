@@ -77,14 +77,14 @@ test('keeps Research route error mapping in HTTP adapters', (context) => {
     [src + 'research/routes/execution.ts']: "import './errors.js';",
     [src + 'research/routes/errors.ts']:
       "import type { Context } from 'hono'; import '../../infra/http/errors.js';",
-    [src + 'research/execution/control.ts']: 'export const control = () => {};',
+    [src + 'research/document-runs/control.ts']: 'export const control = () => {};',
     [src + 'infra/http/errors.ts']: 'export const apiError = () => {};',
     [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 
   fs.writeFileSync(
-    path.join(root, src + 'research/execution/control.ts'),
+    path.join(root, src + 'research/document-runs/control.ts'),
     "import '../routes/errors.js';",
   );
   fs.appendFileSync(

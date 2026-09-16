@@ -20,8 +20,8 @@ const runtime = vi.hoisted(() => ({
   reset: vi.fn(),
   interrupt: vi.fn(),
 }));
-vi.mock('./python-session.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./python-session.js')>()),
+vi.mock('../runtime/python-session.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/python-session.js')>()),
   researchRuntimeManager: runtime,
 }));
 
@@ -50,7 +50,10 @@ import { runResearchCell } from './run-cell.js';
 import { runResearchDocument } from './run-document.js';
 import { runAffectedResearchCells } from './run-affected.js';
 import { isResearchDocumentRunActive, ResearchDocumentRunInProgressError } from './run-state.js';
-import { ResearchPythonInterruptionError, type ResearchPythonExecution } from './python-session.js';
+import {
+  ResearchPythonInterruptionError,
+  type ResearchPythonExecution,
+} from '../runtime/python-session.js';
 
 const ownerId = 'owner';
 const documentId = 'document';

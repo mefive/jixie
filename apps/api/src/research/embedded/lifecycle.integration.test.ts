@@ -42,7 +42,7 @@ import { researchEmbeddedAnalysisJob } from './job.js';
 import {
   researchRuntimeManager,
   type ResearchExecutionOptions,
-} from '../execution/python-session.js';
+} from '../runtime/python-session.js';
 import { dispatchResearchRequest } from '../sdk/dispatch.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { embeddedInputRecorder } from './inputs.js';

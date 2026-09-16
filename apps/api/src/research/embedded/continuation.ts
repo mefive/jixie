@@ -5,8 +5,8 @@ import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { getResearchDocument } from '../documents/read.js';
 import { cellCreate } from '../documents/cell-seed.js';
-import { closeResearchDocumentRuntime } from '../execution/python-session.js';
-import { startResearchDocumentRun, finishResearchDocumentRun } from '../execution/run-state.js';
+import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
+import { startResearchDocumentRun, finishResearchDocumentRun } from '../document-runs/run-state.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 import { ResearchEmbeddedError } from './errors.js';
 

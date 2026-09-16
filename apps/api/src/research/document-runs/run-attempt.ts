@@ -3,7 +3,7 @@ import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { startResearchDocumentRun, finishResearchDocumentRun } from './run-state.js';
 import { assertResearchCellIdsRunnable } from '../dependencies/runnable.js';
-import { researchRuntimeManager } from './python-session.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 import { executeAffectedResearchCellPlan } from './execute-plan.js';
 import { ResearchDocumentContentRevisionConflictError } from '../documents/revision-errors.js';
 import { executeResearchCellById } from './run-cell.js';

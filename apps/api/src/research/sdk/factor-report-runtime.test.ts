@@ -10,7 +10,7 @@ vi.mock('../datasets/results/factor-report.js', () => ({
 
 vi.mock('./input-replay.js', () => ({ replayResearchInput: vi.fn().mockResolvedValue(undefined) }));
 
-import { researchRuntimeManager } from '../execution/python-session.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 
 const DOCUMENT_ID = 'research-factor-report-runtime-test';
 let previousLocal: string | undefined;

@@ -4,7 +4,7 @@ import * as turnBus from '#agent/turns/bus.js';
 import {
   isResearchDocumentRunActive,
   ResearchDocumentRunInProgressError,
-} from '../execution/run-state.js';
+} from '../document-runs/run-state.js';
 import { archiveResearchDocument } from './document-operations.js';
 
 export async function archiveIdleResearchDocument(userId: string, documentId: string) {

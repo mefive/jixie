@@ -2,7 +2,7 @@ import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jix
 import { prisma } from '#infra/database/prisma.js';
 import { getResearchDocumentRun } from './run-state.js';
 import { getResearchDocument } from '../documents/read.js';
-import { researchRuntimeManager } from './python-session.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 
 export async function interruptResearchDocument(

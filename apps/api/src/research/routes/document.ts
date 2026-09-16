@@ -23,7 +23,7 @@ import {
 } from '../documents/document-operations.js';
 import { createResearchDocumentFromBacktestReport } from '../documents/from-backtest-report.js';
 import { getResearchDocument } from '../documents/read.js';
-import { ResearchDocumentRunInProgressError } from '../execution/run-state.js';
+import { ResearchDocumentRunInProgressError } from '../document-runs/run-state.js';
 import { ResearchCellChangeReviewOpenError } from '../proposals/review-state.js';
 import { ResearchCellRevisionConflictError } from '../documents/revision-errors.js';
 

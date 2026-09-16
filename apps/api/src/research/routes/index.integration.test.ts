@@ -36,8 +36,8 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('../execution/python-session.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../execution/python-session.js')>();
+vi.mock('../runtime/python-session.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../runtime/python-session.js')>();
   vi.spyOn(original.researchRuntimeManager, 'analyze').mockImplementation(resources.analyze);
   vi.spyOn(original.researchRuntimeManager, 'reset').mockImplementation(resources.reset);
   return { ...original, closeResearchDocumentRuntime: resources.close };
@@ -54,7 +54,7 @@ vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { submitResearchCuratorRun } from '../curator/submit.js';
-import { finishResearchDocumentRun, startResearchDocumentRun } from '../execution/run-state.js';
+import { finishResearchDocumentRun, startResearchDocumentRun } from '../document-runs/run-state.js';
 import { researchRoute } from './index.js';
 
 const app = new Hono();
