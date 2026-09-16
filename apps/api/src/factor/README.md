@@ -35,17 +35,17 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | `correlations` | 相关性提交、计算、Worker 与缓存完成事务；不创建正式报告 |
 | `execution` | 正式评估与天气复用的计算入口和 Worker；配置规范化、横截面/时间序列/Panel/宏观评估器 |
 | `sources` | 纯来源快照及指纹；`resolve.ts` 负责需要数据库的来源解析 |
-| `jobs` | 对既有 factor Job 的分派、归属与任务匹配查询；生命周期委托各业务 |
+| `jobs` | 按独立 kind 查询任务归属；生命周期由各业务拥有 |
 | `publication` | 发布、归档、可见性；核对证据报告、源码哈希与当前状态 |
 | `composition` | 组合定义的读写/复制、横截面组合算法、Panel 组合来源解析 |
 | `runtime` | 公共代码提示词、定义验证；`typescript` 为编译和 isolate 内 SDK，`python` 为协议、校验和执行适配 |
 | `weather` | 固定快照的用户操作、刷新状态与月度计算 |
 
-`evaluations/job.ts`、`correlations/job.ts` 定义任务生命周期，`jobs/dispatch.ts` 按现有 payload 的 task 分派。它们由应用根级 bootstrap 注册到通用 Job 执行器；任务完成/失败/重启恢复沿用同一契约，不散落到目录约定的 complete/recover 文件。
+`evaluations/job.ts`、`correlations/job.ts` 定义任务生命周期，由 bootstrap 分别注册为 `factor-analysis`、`factor-correlation`，执行器直接按 kind 选择定义。新 payload 不再保存 task；任务完成/失败/重启恢复沿用同一契约。部署入口 `scripts/bootstrap.sh` 在停服和 schema 迁移后调用独立的 `apps/api/scripts/migrations/split-factor-job-kinds.ts`，分批转换旧 `kind: factor` 记录；冻结 payload、报告和日志保持，旧 task 仅用于转换分类。业务启动不执行数据迁移。
 
 ## 三条主要调用链
 
-**普通分析：** `routes/analysis.ts` → `submitFactorAnalysis` 检查方法/假设、来源、数据截止日及父报告归属 → `startFactorAnalysis` 冻结输入并创建报告与 Job → 队列调用 `jobs/dispatch.ts` → `evaluations/job.ts` 启动 `execution/worker.ts` → `execution/run.ts` 选择 evaluator、加载 observations 并使用 runtime 计算 → 主线程在 Worker 正常结束后提交结果与 Job 终态。HTTP 返回任务标识，前端随后读取进度和报告。
+**普通分析：** `routes/analysis.ts` → `submitFactorAnalysis` 检查方法/假设、来源、数据截止日及父报告归属 → `startFactorAnalysis` 冻结输入并创建报告与 Job → 队列按 `factor-analysis` 调用 `evaluations/job.ts` 启动 `execution/worker.ts` → `execution/run.ts` 选择 evaluator、加载 observations 并使用 runtime 计算 → 主线程在 Worker 正常结束后提交结果与 Job 终态。HTTP 返回任务标识，前端随后读取进度和报告。
 
 **Holdout 与发布：** `submitFactorHoldout` 检查探索资格 → 使用父报告的代码、参数与数据版本构造 holdout → 在事务中复查已有任务并创建报告及 Job → 事务提交后初始化日志、唤醒队列。完成的 holdout 在揭示前不暴露结果、指标和任务日志；`revealFactorHoldout` 要求报告属于当前用户且已完成。发布仍要求证据与当前因子的源码/运行时相符，后续编辑不能让旧报告自动证明新代码。
 
@@ -83,7 +83,7 @@ Commit 7 已通过人工 review、静态检查、全量 API 测试（196 个文�
 
 分析提交使用 `POST /analyses`，来源由 body 的 `factor` 指定，支持预置、模板、自定义及组合。报告列表与详情使用 `/analysis-reports`、`/analysis-reports/:reportId`；holdout 申请和揭示仍是报告下的 `/holdout`、`/reveal` 动作。分页、封存、冻结代码、资格与重复申请规则保持。
 
-普通分析任务使用 `/analysis-jobs/:jobId`，相关性任务使用 `/correlation-jobs/:jobId`，都保留 `since` 增量日志。[jobs/read.ts](jobs/read.ts) 检查 userId、kind 和任务类型：相关性要求 `payload.task = correlation` 且无分析报告关联；分析要求用户拥有对应报告，并允许历史 payload 缺少 task。关联 holdout 的分析任务继续由 `evaluations/read.ts` 在揭示前隐藏日志，不能通过相关性入口绕过。
+普通分析任务使用 `/analysis-jobs/:jobId`，相关性任务使用 `/correlation-jobs/:jobId`，都保留 `since` 增量日志。[jobs/read.ts](jobs/read.ts) 按 userId 和独立 kind 查询：相关性要求 `factor-correlation` 且无分析报告关联；分析要求 `factor-analysis` 且用户拥有对应报告。历史记录经部署转换后走同一查询，不再检查 payload.task。关联 holdout 的分析任务继续由 `evaluations/read.ts` 在揭示前隐藏日志，不能通过相关性入口绕过。
 
 相关性结果仍是按用户/因子集合/频率/区间寻址的缓存，没有独立 reportId。`GET /correlations` 与 `GET /correlation-jobs/active` 使用 query 的 `keys`（逗号分隔）、`freq`、`start`、`end`；活动查询包含 queued/running，返回 `{ jobId } | null`。`POST /correlations` 使用 JSON body，`keys` 为字符串数组、`refresh` 为布尔值（默认 false），其余默认值为 month / 20150101 / 20261231。保留规范化、权限、缓存优先、强制刷新与活动任务复用行为，返回 `{ jobId }` 或 `{ done: true, report }`。
 

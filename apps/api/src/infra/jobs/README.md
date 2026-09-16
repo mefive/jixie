@@ -1,6 +1,6 @@
 # 后台任务设施
 
-任务定义在各业务职责目录的 `job.ts` 或具名任务文件中，不是 Job 数据行的子类。`defineJob()` 要求实现 parse、execute、complete、fail、recover，可选 afterCommit。新增任务需要实现完整契约并在 bootstrap 的 jobRegistry 注册；既有 factor kind 由 factor/jobs/dispatch.ts 分派 analysis/correlation，不更改持久化 payload。
+任务定义在各业务职责目录的 `job.ts` 或具名任务文件中，不是 Job 数据行的子类。`defineJob()` 要求实现 parse、execute、complete、fail、recover，可选 afterCommit。新增任务需要实现完整契约并在 bootstrap 的 jobRegistry 注册；Factor 的 `factor-analysis` 和 `factor-correlation` 分别直接注册到 evaluations/job.ts 与 correlations/job.ts，新 payload 不保存 task。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -21,7 +21,7 @@ recoverInterruptedJobs 在单一事务内调用所有注册定义的 recover，�
 
 所有任务的最终业务结果与 Job 共用完成事务。相关性 Worker 只计算并返回 payload，缓存 upsert 在 complete 内；Job 提交失败时新增缓存回滚、旧缓存保持不变。Curator 在事务外准备候选 findings，complete 在事务内重新按 owner/fingerprint 去重（含批内重复），批量保存 findings，再更新统计和 run 终态。任何最终写入失败都回滚本次结果；不再保留本轮部分 findings。Curator 初始 running 状态更新仍在准备阶段，计算、LLM 与文件检索都在完成事务外。
 
-bootstrap 只注册定义、创建 executor，等待 Job/Agent/天气恢复，再启动队列与 HTTP。定义在调用 loader 时加载，执行不会由模块导入触发；CLI、buildApp 和未启动队列上的 wake 不会自行开始消费。
+API bootstrap 注册定义、创建 executor，等待 Job/Agent/天气恢复，再启动队列与 HTTP。旧 Factor Job kind 的升级由部署 `scripts/bootstrap.sh` 在停服窗口调用独立数据迁移脚本完成，不进入运行时恢复流程。定义在调用 loader 时加载，执行不会由模块导入触发；CLI、buildApp 和未启动队列上的 wake 不会自行开始消费。
 
 当前仍是单 API 调度进程，没有租约或多实例恢复协调。没有完整 stop/drain、启动失败资源回收和退出信号协议，HTTP listener 也未通过 startServer 返回。afterCommit 没有持久化重试，崩溃前内存日志可能丢失。Worker 正常完成须等到退出；运行失败和异常退出通过 Promise 传递，数据库操作不在事件回调中执行。
 

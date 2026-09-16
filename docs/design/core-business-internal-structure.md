@@ -3,7 +3,7 @@
 ## 状态与目标
 
 - 基线：`fd0ab69f`（`refactor(api): organize business module entry points`）。该轮入口整理已完成，见[记录](core-business-entry-points.md)。其中的验证结果只证明上一轮，不作为本计划的验收结果。
-- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`；Factor 已通过人工代码 review 与行为验证，随本提交交付；下一项为 Strategy。
+- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`，Factor 已交付 `6947b4e6`；用户追加批准拆分 Factor Job kind，在 Strategy 之前插入一个独立提交，目前实现与静态检查已完成，等待人工代码 review。
 - 工作流：review-gated-development；每个实现 commit 先确认范围和准确提交信息，再实现、静态检查、人工代码 review、行为验证、提交。不推送。
 - 目标：根据业务问题能够找到实现，目录和文件名称能够说明职责，减少无意义层级；不要求五个核心模块具有相同结构。
 - 交付对象：后端维护者与后续开发任务。没有新增用户页面、HTTP 接口或 CLI 命令。
@@ -130,7 +130,6 @@ factor/
 │   ├── resolve.ts
 │   └── fingerprint.ts
 ├── jobs/
-│   ├── dispatch.ts
 │   └── read.ts
 ├── observations/
 ├── runtime/
@@ -149,9 +148,9 @@ factor/
 | `execution/` | 可复用的评估计算编排与 Worker；根据 spec 选择数据、运行时和评估器，返回现有结果结构。 | 不创建或更新 FactorReport、FactorCorrelation、天气状态或 Job，不判断 holdout 资格和发布准入。允许经 loader 读取市场数据，不宣称整个 execution 都是纯函数。 |
 | `observations/`、`runtime/` | 分别保留观察数据准备与 TS/Python 因子语言执行能力；execution 组合它们。 | 不负责正式报告生命周期。现有类型依赖可保留直接 type import，不引入通用执行框架。 |
 | `sources/` | 跨流程复用的来源解析、冻结快照和内容指纹。`resolve.ts` 可查定义及权限；`snapshot.ts`、`fingerprint.ts` 是纯入口。 | 纯入口不通过 resolve/barrel 引入数据库，不依赖 evaluations、correlations 或 jobs。 |
-| `jobs/` | 适配现有持久化 `kind: factor`：按 `payload.task` 分派；复用所有者/任务类别查询。 | 不新建队列/执行器，不集中业务 Job 生命周期；正式评估和相关性各自的 `job.ts` 仍归业务目录。 |
+| `jobs/` | 按独立 kind 和报告关系查询归属；数据转换归部署脚本。 | 不新建队列/执行器，不集中业务 Job 生命周期；正式评估和相关性各自的 `job.ts` 仍归业务目录。 |
 
-`jobs/` 是现有存储协议要求的窄适配，不是一项新业务。`sources/` 与 `execution/spec.ts` 的纯叶子模块让发布、模板、Strategy 和 Research 消费契约时不必导入任务执行。
+`jobs/` 只保留两类任务的归属查询，不参与运行分派或数据迁移；API bootstrap 直接注册两类任务。`sources/` 与 `execution/spec.ts` 的纯叶子模块让发布、模板、Strategy 和 Research 消费契约时不必导入任务执行。
 
 #### 关键调用链
 
@@ -160,7 +159,7 @@ factor/
 routes / Agent 工具
   → evaluations/submit 或既有内部 start 入口
   → evaluations/start（冻结；Report + Job；提交后唤醒）
-  → jobs/dispatch
+  → 通用执行器按 factor-analysis 选择任务
   → evaluations/job
   → execution/worker → execution/run → observations + runtime + 评估器
   → evaluations/job.complete（与 Job 终态在原事务内保存 Report）
@@ -176,7 +175,7 @@ weather/refresh（固定方法与区间）
   → weather/refresh（保存天气点与 pin 状态）
 
 相关性：
-correlations/operations → Job → jobs/dispatch → correlations/job
+correlations/operations → Job(kind: factor-correlation) → correlations/job
   → correlations/worker → correlations/compute
   → execution/cross-sectional 的 data 与 series
   → correlations/job.complete（保存缓存）
@@ -202,7 +201,7 @@ Worker 只处理 workerData、日志/结果/error 消息、结果序列化与自
 | `analysis/factor-worker.boot.mjs` | `execution/worker.boot.mjs` | 更新源码加载路径。 |
 | `analysis/correlation*.ts`、`correlation-worker.boot.mjs` | `correlations/compute.ts`、`operations.ts`、`job.ts`、`worker.ts`、`worker.boot.mjs` | 一一迁移，去掉目录已表达的前缀；完整业务与特有计算保留在一起。 |
 | `analysis/source-snapshot.ts`、`sources.ts` | `sources/snapshot.ts`、`resolve.ts` | 纯快照/类型与需要数据库的来源解析保持分离。 |
-| `analysis/job-dispatch.ts`、`job-queries.ts` | `jobs/dispatch.ts`、`read.ts` | 保留 payload 分派、旧任务兼容和类别/所有权校验。 |
+| `analysis/job-dispatch.ts`、`job-queries.ts` | `jobs/read.ts`；独立部署数据迁移脚本 | Factor 首个提交曾保留 dispatcher；追加提交移除它，改为独立 kind 直接注册、部署转换旧记录并校验类别/所有权。 |
 | `analysis/evaluation-scope.ts` 及三个非横截面 evaluator | `execution/` 下同名文件 | 整体迁移，不为每种方法创建任务和报告生命周期。 |
 | `analysis/cross-sectional.ts` 及横截面 evaluator/inference | `execution/cross-sectional/` | 按下表拆分/移动，相关性直接消费 data/series，不导入完整 evaluate。 |
 
@@ -527,15 +526,16 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 
 ## 3. 预计 commit 数量与交付范围
 
-预计 **5 个 commit：1 个计划文档 + 4 个实现提交**。Factor、Strategy、Research 各自完成完整业务边界调整，Market 与 Signals 的相互归属修正在同一提交完成；不为 Signals 主体目录制造无实质改动的提交，也不额外安排收尾修复提交。
+预计 **6 个 commit：1 个计划文档 + 5 个实现提交**。用户追加批准在 Factor 与 Strategy 之间拆分 Factor Job kind。Factor、Strategy、Research 各自完成完整业务边界调整，Market 与 Signals 的相互归属修正在同一提交完成；不为 Signals 主体目录制造无实质改动的提交，其余实现边界保持。
 
 | 顺序 | 准确提交信息 | 完整交付范围 |
 | --- | --- | --- |
-| 1 | `docs(architecture): plan core business internal structure cleanup` | 本计划文档；确认问题、目标目录、提交边界和验收。本文目前尚未提交。 |
+| 1 | `docs(architecture): plan core business internal structure cleanup` | 本计划文档；确认问题、目标目录、提交边界和验收。已提交 `b3afcbe2`。 |
 | 2 | `refactor(factor): organize evaluation workflows and execution` | 正式评估/报告/holdout 归位、相关性独立、天气共享 execution、来源/指纹与旧 Job 协议适配、横截面职责拆分；所有消费者、测试/mock/Worker 路径和当前文档同步。 |
-| 3 | `refactor(strategy): align backtest and factor input ownership` | 回测编排及 Engine 中的回测 Worker 归 backtests、共享 factor-inputs、risk 提升、所有调用方/测试/运行路径和当前文档。 |
-| 4 | `refactor(research): separate document runs from Python runtime` | document-runs 与共用 runtime 归位，普通文档/embedded/dependencies/proposals 等引用与单例保持；测试、当前文档与运行入口同步。 |
-| 5 | `refactor(market): align data domains and consumer boundaries` | Market 迁移表全部完成，含领域质量归位、与 Signals 之间的日历/利率职责提取、维护与 CLI 引用、测试和当前文档；完成最终组合验收并更新本文。 |
+| 3 | `refactor(factor): split analysis and correlation job kinds` | 两类任务直接注册与创建/查询、部署时分批转换旧记录、移除 dispatcher 和新 payload.task；同步测试与文档。 |
+| 4 | `refactor(strategy): align backtest and factor input ownership` | 回测编排及 Engine 中的回测 Worker 归 backtests、共享 factor-inputs、risk 提升、所有调用方/测试/运行路径和当前文档。 |
+| 5 | `refactor(research): separate document runs from Python runtime` | document-runs 与共用 runtime 归位，普通文档/embedded/dependencies/proposals 等引用与单例保持；测试、当前文档与运行入口同步。 |
+| 6 | `refactor(market): align data domains and consumer boundaries` | Market 迁移表全部完成，含领域质量归位、与 Signals 之间的日历/利率职责提取、维护与 CLI 引用、测试和当前文档；完成最终组合验收并更新本文。 |
 
 每个实现提交独立满足静态检查、review 和相关行为验证，不把已知必需的引用修复或验证留到下一提交。本文随对应实现记录实际 review、命令、结果、限制和 commit hash；计划里的检查项不预填“通过”。
 
@@ -543,7 +543,7 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 
 - 产品代码涉及五个核心模块；Signals 主体布局保持，只调整两项与 Market 的既有职责。Engine 只迁出回测宿主 Worker 及 boot 文件，不调整模拟核心/适配器结构；其他模块、`apps/api/scripts`、`apps/api/tests`、Bootstrap 限于直接依赖路径、测试替身与必要调用适配。
 - 当前文档同步包括根 `CLAUDE.md`、受影响模块 README、`docs/backend-architecture.md`、`docs/backend-runtime-entries.md`，以及确实引用受影响入口的命令文档；历史设计记录保留当时路径，不全仓替换历史。
-- 不改变数据库模型、迁移、公开 SDK、HTTP 地址/响应、Job kind/payload、权限、报告/缓存标识、CLI 命令和参数。
+- 不改变数据库模型、公开 SDK、HTTP 地址/响应、权限、报告/缓存标识、CLI 命令和参数。用户追加批准的 Factor Job 提交是唯一存储协议例外：拆分 kind、新 payload 移除 task，旧记录由部署转换保留；没有表结构 migration。其余提交不改变 Job kind/payload。
 - 不改变数值算法、默认值、样本/PIT/费用口径、事务边界、Worker 协议、同步并发/顺序、恢复和资源收尾。
 - 不引入 service/repository 框架、公共 `utils` 容器、总 barrel 或旧路径转发。
 - 不增改可部署 workspace/package 或跨 package 构建依赖，因此不需要修改 `deploy/component-impact.json` 及部署规划测试；若实际方案触及这些条件，必须重新确认范围并同步修改两者。
@@ -602,12 +602,13 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 | 提交 | 范围批准 | 静态检查 | 人工代码 review | 行为验证 | Git 提交 |
 | --- | --- | --- | --- | --- | --- |
 | 计划文档 | 2026-09-16 用户确认「定版开工」 | 本地链接、74 项现有源码路径、5 条提交标题、表格列数、代码围栏、过时方案文字及空白检查通过 | 方案已批准 | 文档不适用 | `b3afcbe2` |
-| Factor | Gate 1 已批准，完整实现已完成 | 全仓 typecheck、ESLint 零警告、Prettier、路径/链接/实现对照与 diff 检查通过；测试数据修正后 API typecheck 通过 | 2026-09-16 用户确认通过 | 48 文件 / 283 用例最终通过；干净构建及三套真实 Worker / 17 组结果对照通过 | 随本提交；标题见下文 |
-| Strategy | 方案已批准，待 Factor 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
+| Factor | Gate 1 已批准，完整实现已完成 | 全仓 typecheck、ESLint 零警告、Prettier、路径/链接/实现对照与 diff 检查通过；测试数据修正后 API typecheck 通过 | 2026-09-16 用户确认通过 | 48 文件 / 283 用例最终通过；干净构建及三套真实 Worker / 17 组结果对照通过 | `6947b4e6` |
+| Factor Job kind | 2026-09-16 用户确认追加范围与准确提交信息 | 修订后全仓 typecheck、20 个 TS/MJS 文件 ESLint/Prettier、Shell 语法、153 项本地链接和 diff 检查通过；测试断言修正后静态检查通过 | 2026-09-16 用户确认修订代码通过 | API 12 文件 / 160 用例最终通过；部署 13 项、干净构建及编译迁移入口验证通过 | 随本提交 |
+| Strategy | 方案已批准，待 Factor Job 追加提交完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 | Research | 方案已批准，待 Strategy 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 | Market / Signals 边界 | 方案已批准，待 Research 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 
-用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成，按约定信息提交，不推送；Strategy 尚未开始实现。
+用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成并提交 `6947b4e6`；Factor Job kind 追加修改也已通过人工 review 和验证，随本提交完成。Strategy 尚未开始实现，不推送。
 
 ### Factor 实现补充
 
@@ -664,3 +665,51 @@ review 后执行：Factor 相关测试、Bootstrap、Agent 分析工具、Strate
 `logs/baseline.log`、`logs/source.log`、`logs/compiled.log`、`summary.json` 和 `cleanup.json` 分别记录构建、
 三套运行、精确对照及资源清理。初次建库需先创建 SQLite 文件、编译桥监听需临时本机 socket 权限，
 均为测试环境处理，没有改变产品代码。最终 commit hash 由交付消息记录，并在下一提交更新本文时补入表格。
+
+
+### Factor Job kind 追加提交（2026-09-16，review 与验证完成）
+
+准确提交信息：`refactor(factor): split analysis and correlation job kinds`。
+
+用户批准独立提交范围和标题后实施。初版静态检查通过；review 指出旧记录的数据转换应由部署入口负责，
+因此移除业务目录迁移模块与 API bootstrap 调用，迁移改由 `scripts/bootstrap.sh` 在停服窗口执行。
+
+- 两类 Job 在 API bootstrap 直接注册为 `factor-analysis`、`factor-correlation`，移除 `jobs/dispatch.ts`。
+  正式分析及 holdout 创建前者，相关性创建后者；新 payload 不保存 task，HTTP 契约、计算及业务完成事务保持。
+- `jobs/read.ts` 按 kind、用户与报告关系查询；相关性不允许关联正式报告，holdout 日志仍由 evaluations 封存。
+- 独立脚本 `apps/api/scripts/migrations/split-factor-job-kinds.ts` 仅依赖 Prisma 和 Node；
+  部署编排在停止 API、生成 Client、构建 API、完成 schema migration 后调用它的编译产物。
+  它使用最多 200 条一批的 Prisma 事务，保留冻结 payload、日志、状态、关联与结果，updatedAt 正常更新；
+  成功和失败都释放连接，失败返回非零。部署退出清理识别未完成的数据迁移，不自动重启 API。
+- 批次失败可重跑部署继续；普通 API 启动不执行转换，开发机保留旧 Job 时须手动执行同一脚本。
+  回退旧代码需先恢复旧 kind 及对应 task，见[部署数据迁移](../../apps/api/scripts/README.md#部署数据迁移)。
+- Prisma 仅更新 kind 注释，没有表结构 migration；不修改算法、SDK、公开帮助或中英文 UI。
+  没有 workspace / 跨包构建依赖调整，既有组件映射已覆盖 API 脚本；bootstrap 变更触发全量部署。
+- 修订后静态检查通过：全仓 `pnpm typecheck`（含三个生成契约检查；698 个后端文件，0 边界违规、0 跨域循环组）；20 个 TS/MJS 文件 ESLint 零警告与 Prettier；`bash -n scripts/bootstrap.sh`、153 项本地文档链接、旧迁移路径引用与 `git diff --check`。
+- 人工 review 后验证范围：迁移事务及 CLI 成功/失败、部署阶段顺序与失败后保持停服、部署影响分类；
+  Bootstrap、Factor 路由/提交、跨业务生命周期、Strategy/Signals 任务隔离、Research 嵌入分析注册表。
+  隔离 SQLite 覆盖各状态、历史 payload、分页、失败回滚/重试、排队执行、中断恢复、缓存与 holdout 封存。
+  随后执行 API 干净构建和编译迁移入口验证，确认子进程与连接退出；不执行真实部署或开发库转换。
+
+用户确认修订代码 review 通过后执行验证，实际结果如下：
+
+- API 相关回归共 12 个文件、160 个用例最终通过，覆盖上述注册、提交、读取、权限、迁移与生命周期。
+  首轮 159 项通过，1 项因 SQLite 触发器错误被 Prisma 包装为 `P2003`，无法匹配原始错误文案而失败。
+  仅将该测试改为断言实际错误码，保留失败批次完全回滚、前批次已提交和重试完成的检查；迁移测试 3 项复跑全部通过。
+  测试修正后的 ESLint、Prettier 和 API typecheck 通过，没有修改已审查产品代码。
+- `node --test scripts/deploy/bootstrap.test.mjs scripts/deploy/plan-deployment.test.mjs` 共 13 项通过。
+  通过 Bash 替身验证实际部署片段的执行顺序、迁移失败后不重启 API、其他失败仍保留原清理行为；没有执行真实部署。
+- API 在全新临时目录构建通过。默认 Node 条件下，以部署使用的 `node --env-file=.env dist/scripts/migrations/split-factor-job-kinds.js`
+  运行干净产物；临时 API 目录保留原 package.json 与依赖解析布局。
+- 编译入口使用隔离 SQLite 验证 205 条旧 Job 的五种状态，以及 3 条现有新 kind / 非 Factor 记录。
+  人为使第二批失败：前 200 条提交，后 5 条完全回滚，进程返回 1；解除错误后重跑返回 0 并全部迁移。
+  payload、日志、状态、关联、报告和缓存保持不变；再次执行返回 0，全部 Job（含 updatedAt）精确不变。
+- 三次迁移子进程均退出，Prisma 连接关闭；隔离库取得排他锁后删除。没有运行服务、浏览器 E2E、真实部署或开发库转换。
+  验证归档为 `/tmp/jixie-factor-job-verify.RtxPwM`，保留干净构建、编译入口验证脚本、`compiled-verification.json` 和 `cleanup.json`。
+
+按已批准的准确提交信息提交，不推送；实际 hash 由交付消息记录，在下一提交更新本文时补入表格。
+
+审查入口：[部署编排](../../scripts/bootstrap.sh)、[独立迁移](../../apps/api/scripts/migrations/split-factor-job-kinds.ts)、
+[任务注册](../../apps/api/src/bootstrap.ts)、[任务归属](../../apps/api/src/factor/jobs/read.ts)、
+[迁移事务与 CLI 测试](../../apps/api/scripts/migrations/split-factor-job-kinds.integration.test.ts)、
+[部署失败收尾测试](../../scripts/deploy/bootstrap.test.mjs)。

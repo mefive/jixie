@@ -868,6 +868,7 @@ grep -qE '^DEEPSEEK_API_KEY=""?$' "$ENV_PROD" 2>/dev/null && warn "DEEPSEEK_API_
 
 DEPLOYMENT_RUN_ID=""
 API_WAS_ACTIVE=0
+API_DATA_MIGRATION_INCOMPLETE=0
 
 finish_deployment_gate() {
   local outcome="$1"
@@ -939,7 +940,9 @@ cleanup_deployment_gate() {
   if [[ -n "$DEPLOYMENT_RUN_ID" ]]; then
     finish_deployment_gate error || true
   fi
-  if [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" ]] &&
+  if [[ "$API_DATA_MIGRATION_INCOMPLETE" == "1" ]]; then
+    warn "数据迁移未完成,保持 API 停止;修复后重新运行 bootstrap"
+  elif [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" ]] &&
     ! systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
     warn "部署失败,恢复部署前运行的 $JIXIE_SERVICE"
     sudo systemctl start "$JIXIE_SERVICE" ||
@@ -995,6 +998,11 @@ if [[ "$DEPLOY_API" == "1" ]]; then
 
   log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
   pnpm --filter api exec prisma migrate deploy
+
+  log "迁移 Factor Job kind"
+  API_DATA_MIGRATION_INCOMPLETE=1
+  pnpm --filter api exec node --env-file=.env dist/scripts/migrations/split-factor-job-kinds.js
+  API_DATA_MIGRATION_INCOMPLETE=0
 fi
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then

@@ -5,7 +5,8 @@ import { initializeJobLogs, readJobLogs } from './logs.js';
 
 export type JobKind =
   | 'backtest'
-  | 'factor'
+  | 'factor-analysis'
+  | 'factor-correlation'
   | 'strategy-scan'
   | 'signal'
   | 'research-curator'

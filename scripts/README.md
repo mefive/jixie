@@ -10,7 +10,7 @@
 | [generators/](generators/) | 从 shared 契约生成 Research / Factor Python 类型声明与运行时依赖清单 | `pnpm gen:research-sdk`、`pnpm gen:factor-sdk`、`pnpm gen:research-runtime`；对应 `check:*` 检查一致性 |
 | [checks/](checks/) | 后端依赖边界检查及规则、提交信息检查、各自测试 | `pnpm check:backend-boundaries`、`pnpm test:backend-boundaries`、`pnpm check:commit-message`、`pnpm test:commit-message` |
 | [bootstrap.sh](bootstrap.sh) | 安装、构建、迁移、部署和服务配置 | `./scripts/bootstrap.sh` |
-| [deploy/](deploy/) | 部署影响分类及测试、部署维护门禁、维护 timer 激活 | 由 bootstrap 调用；测试：`node --test scripts/deploy/plan-deployment.test.mjs` |
+| [deploy/](deploy/) | 部署影响分类及测试、部署维护门禁、维护 timer 激活 | 由 bootstrap 调用；测试：`node --test scripts/deploy/*.test.mjs` |
 | [maintenance/](maintenance/) | 生产维护锁、按步骤与年份执行可续跑的批量导入 | `pnpm maintenance ...`、`pnpm import:data ...` |
 | [tools/](tools/) | Git hook 的 pnpm 环境校验、代码量统计 | hook 自动调用 `run-pnpm.sh`；`pnpm loc` |
 
@@ -20,6 +20,7 @@
 - 根级 `pnpm maintenance` 加锁后调用 API 维护 CLI。维护锁在生产环境启用，本地开发直接执行目标命令。
 - `.pyi` 是静态类型声明，Python 执行不依赖它。API 使用 shared 中相同的生成函数为 Pyright 生成临时声明，前端获得补全和诊断结果；requirements 清单用于 Docker 和本地 Python 环境。
 - 部署门禁直接使用 SQLite，以便迁移期间不依赖可能不兼容的 Prisma Client。它仍属于部署职责。
+- Factor Job kind 升级由 bootstrap 在 API 停止、Prisma generate/build/schema migration 后调用独立数据迁移脚本；业务代码不导入它。失败时保留停服状态，修复后重跑部署。入口与本地操作见 [API 脚本索引](../apps/api/scripts/README.md#部署数据迁移)。
 - 测试和辅助模块与对应脚本放在同一目录；不把它们当成独立业务命令。
 
 ## 清理与新增规则

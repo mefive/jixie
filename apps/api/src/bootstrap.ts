@@ -9,7 +9,9 @@ import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
 
 export const jobRegistry: JobRegistry = {
   backtest: async () => (await import('#strategy/backtest/job.js')).backtestJob,
-  factor: async () => (await import('#factor/jobs/dispatch.js')).factorJob,
+  'factor-analysis': async () => (await import('#factor/evaluations/job.js')).factorAnalysisJob,
+  'factor-correlation': async () =>
+    (await import('#factor/correlations/job.js')).factorCorrelationJob,
   'strategy-scan': async () => (await import('#strategy/scans/job.js')).strategyScanJob,
   signal: async () => (await import('#signals/runs/job.js')).signalJob,
   'research-embedded-analysis': async () =>

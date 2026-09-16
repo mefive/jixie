@@ -181,6 +181,8 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 
 正式评估的提交、冻结、报告、holdout 与生命周期归 `factor/evaluations/`；相关性任务及缓存归
 `factor/correlations/`；天气固定版本与观察点归 `factor/weather/`。三者分别拥有既有事务和状态。
+正式评估和相关性分别使用 `factor-analysis` / `factor-correlation` Job kind，bootstrap 直接注册所属任务定义；
+部署脚本在停服窗口转换旧 kind，业务启动不做数据升级；`factor/jobs/read.ts` 通过独立 kind 与报告关系校验所有权。
 `factor/execution/run.ts` 只按研究配置计算，接收冻结来源及日志/结果回调，不接收 reportId 或 Job。
 正式评估与天气共同使用 `execution/worker.ts`，由宿主分别持久化。Worker 的结果回调保留先回传、
 再释放运行时的既有时序；`reportId`（包括 `weather:*`）只属于消息封套。

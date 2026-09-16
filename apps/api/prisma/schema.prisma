@@ -1068,7 +1068,7 @@ model FactorCorrelation {
 model Job {
   id                   String              @id // ULID
   userId               String
-  kind                 String // 'backtest' | 'factor' | 'strategy-scan' | 'signal' | 'research-curator' | 'research-embedded-analysis'
+  kind                 String // 'backtest' | 'factor-analysis' | 'factor-correlation' | 'strategy-scan' | 'signal' | 'research-curator' | 'research-embedded-analysis'
   key                  String // dedupe/lookup key (see model doc)
   status               String // 'queued' | 'running' | 'done' | 'error' | 'stale'
   payload              Json? // Frozen runner input; required for queued jobs to survive an API restart

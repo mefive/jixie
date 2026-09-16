@@ -83,6 +83,13 @@ bootstrap 会执行 `loginctl enable-linger`，使用户管理器和 sandboxd �
 停止 API，静态产物在 staging 构建成功后原子切换。首次运行、部署记录缺失或记录无法验证时也会全量
 执行。影响规则的机器可读真相源是 `deploy/component-impact.json`。
 
+Factor Job kind 的数据升级由 bootstrap 在 `prisma migrate deploy` 之后、API 启动之前执行
+`apps/api/dist/scripts/migrations/split-factor-job-kinds.js`。该脚本由本次 API 构建生成，加载 API `.env`，
+分批将旧 `factor` 转成 `factor-analysis` / `factor-correlation`，保留原 payload、状态、关联和日志。
+失败会停止部署，退出清理也不会自动拉起 API；修复后重新执行 bootstrap 可继续转换。
+普通 API 重启不执行此迁移。回退旧代码需先恢复旧 kind 与对应 payload.task；详见
+[迁移入口与本地升级](../apps/api/scripts/README.md#部署数据迁移)。
+
 代码更新不会重复同步常规行情，行情增量仍由 maintenance timer 负责。`bootstrap.sh` 会单独检查官方
 指数分类、34个市场气象指数、历史成分权重、派生指标和申万一级行业行情的历史覆盖；已有行情库升级后
 缺少这组参考数据时，会按 `IndustryIndicator` 的可用区间自动执行参考数据、历史权重回填和市场状态

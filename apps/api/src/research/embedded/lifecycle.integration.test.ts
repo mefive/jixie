@@ -59,8 +59,11 @@ const registry: JobRegistry = {
   backtest: async () => {
     throw new Error('Unexpected backtest definition');
   },
-  factor: async () => {
-    throw new Error('Unexpected factor definition');
+  'factor-analysis': async () => {
+    throw new Error('Unexpected factor analysis definition');
+  },
+  'factor-correlation': async () => {
+    throw new Error('Unexpected factor correlation definition');
   },
   'strategy-scan': async () => {
     throw new Error('Unexpected scan definition');

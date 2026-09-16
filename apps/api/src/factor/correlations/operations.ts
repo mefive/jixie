@@ -11,7 +11,7 @@ import { createJob, ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { t } from '#i18n/index.js';
 import { failFactorOperation } from '../errors.js';
-import { matchesFactorJobTask, readOwnedFactorJob } from '../jobs/read.js';
+import { readOwnedFactorJob } from '../jobs/read.js';
 
 const sortedKeys = (keys: string[]) => [...keys].sort();
 
@@ -125,10 +125,9 @@ export async function submitFactorCorrelation(
 
   const jobId = await createJob(
     userId,
-    'factor',
+    'factor-correlation',
     correlationJobKey(resolved.keys, freq, start, end),
     {
-      task: 'correlation',
       id,
       userId,
       keys: resolved.keys,
@@ -150,7 +149,12 @@ export async function readFactorCorrelationJob(
   input: z.infer<typeof factorJobLogsQuerySchema>,
   locale: Locale,
 ) {
-  const job = await readOwnedFactorJob(userId, jobId, 'correlation', Number(input.since ?? '0'));
+  const job = await readOwnedFactorJob(
+    userId,
+    jobId,
+    'factor-correlation',
+    Number(input.since ?? '0'),
+  );
 
   if (!job) {
     return failFactorOperation('missing', t(locale, 'factorJobNotFound'));
@@ -161,10 +165,16 @@ export async function readFactorCorrelationJob(
 
 async function findActiveCorrelationJobId(userId: string, key: string) {
   const job = await prisma.job.findFirst({
-    where: { userId, kind: 'factor', key, status: { in: ACTIVE_JOB_STATUSES } },
+    where: {
+      userId,
+      kind: 'factor-correlation',
+      key,
+      factorReportId: null,
+      status: { in: ACTIVE_JOB_STATUSES },
+    },
     orderBy: { createdAt: 'desc' },
-    select: { id: true, payload: true, factorReportId: true },
+    select: { id: true },
   });
 
-  return job && matchesFactorJobTask(job, 'correlation') ? job.id : null;
+  return job?.id ?? null;
 }

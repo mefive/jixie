@@ -20,7 +20,7 @@ import {
   factorAnalysisSourceSnapshot,
 } from '../sources/snapshot.js';
 import { factorTestKey, factorVariantKey } from './identity.js';
-import type { FactorJobPayload } from './job.js';
+import type { FactorAnalysisJobPayload } from './job.js';
 
 export async function startFactorAnalysis(options: {
   userId: string;
@@ -101,11 +101,10 @@ export async function startFactorAnalysis(options: {
           create: {
             id: jobId,
             userId: options.userId,
-            kind: 'factor',
+            kind: 'factor-analysis',
             key: variantKey,
             status: 'queued',
-            payload: factorJobPayload({
-              task: 'analysis',
+            payload: factorAnalysisJobPayload({
               reportId,
               factor: options.factor,
               source: options.source,
@@ -143,8 +142,8 @@ export async function startFactorAnalysis(options: {
   return response;
 }
 
-function factorJobPayload(input: FactorJobPayload): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify({ ...input, task: 'analysis' })) as Prisma.InputJsonValue;
+function factorAnalysisJobPayload(input: FactorAnalysisJobPayload): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(input)) as Prisma.InputJsonValue;
 }
 
 function reportCompatibilityColumns(researchSpec: FactorResearchSpecV1): {

@@ -14,8 +14,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../execution/worker.boot.mjs', import.meta.url)
   : new URL('../execution/worker.js', import.meta.url);
 
-export interface FactorJobPayload {
-  task: 'analysis';
+export interface FactorAnalysisJobPayload {
   reportId: string;
   factor: string;
   source: FactorAnalysisSource;
@@ -25,13 +24,9 @@ export interface FactorJobPayload {
 }
 
 export const factorAnalysisJob = defineJob({
-  parse(raw, job): FactorJobPayload {
+  parse(raw, job): FactorAnalysisJobPayload {
     const payload = z.record(z.string(), z.unknown()).parse(raw);
-    if (payload.task !== 'analysis') {
-      throw new Error('Factor analysis job payload has an invalid task');
-    }
-    const input: FactorJobPayload = {
-      task: 'analysis',
+    const input: FactorAnalysisJobPayload = {
       source: factorAnalysisRuntimeSourceSchema.parse(payload.source),
       spec: normalizeFactorResearchSpec(payload.spec),
       locale: z.enum(['zh', 'en']).parse(payload.locale),

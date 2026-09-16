@@ -10,7 +10,6 @@ const workerUrl = import.meta.url.endsWith('.ts')
   : new URL('./worker.js', import.meta.url);
 
 const payloadSchema = z.object({
-  task: z.literal('correlation'),
   id: z.string().min(1),
   userId: z.string().min(1),
   keys: z.array(z.string().min(1)).min(2).max(8),
@@ -28,6 +27,9 @@ export const factorCorrelationJob = defineJob({
     };
     if (input.userId !== job.userId) {
       throw new Error('Factor correlation payload does not match its persisted owner');
+    }
+    if (job.factorReportId !== null) {
+      throw new Error('Factor correlation job must not reference an analysis report');
     }
     return input;
   },

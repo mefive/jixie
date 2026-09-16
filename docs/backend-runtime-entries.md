@@ -24,6 +24,25 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 
 2026-09-10 已移除 Agent 快速回测工具及其 Worker，当前运行入口以上表为准；下方 Commit 12 验证保留当时的历史事实。决策与退役验证见 [Agent 研究闭环](design/agent-research-loop.md)。
 
+## Factor Job kind 转换
+
+`scripts/bootstrap.sh` 在停止 API、构建 API、执行 `prisma migrate deploy` 后，调用编译产物
+`apps/api/dist/scripts/migrations/split-factor-job-kinds.js`，成功后才继续部署并启动 API。
+源码为 `apps/api/scripts/migrations/split-factor-job-kinds.ts`；它只依赖 Prisma，不导入业务启动模块。
+旧 `kind: factor` 中 `payload.task = correlation` 转成 `factor-correlation`，其余按原 dispatcher
+默认分支转成 `factor-analysis`；实际执行仍校验输入和持久化关联。每批最多 200 条，在同一个 Prisma
+事务内读取和更新 kind；保留原 payload、状态、关联、日志及结果，`updatedAt` 随更新推进。
+批次失败则回滚该批、脚本返回非零状态，部署中止且清理流程不自动重启 API；之前完成的批次可保留，
+修复后重跑部署继续，全部转换后重复调用不写库。脚本在成功与失败时都断开自己的数据库连接。
+
+开发机已有旧 Job 时，先停止 API，再从仓库根执行
+`pnpm --filter api exec tsx --env-file=.env scripts/migrations/split-factor-job-kinds.ts`，然后启动新版本。
+普通 API 启动不会代替这一步。
+
+此变更不改表结构，没有 Prisma schema migration。沿用单 API 调度进程约束，部署时旧进程必须先停止。
+回退旧代码前需停服并备份数据库，按新 kind 恢复对应 `payload.task` 和旧 `kind: factor`，
+因为新提交的任务不再写 task，不能只回退 kind 或二进制。
+
 ## Python、语言服务与资源目录
 
 | 资源/路径 | 解析规则与归属 |

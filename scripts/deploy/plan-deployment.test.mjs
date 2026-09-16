@@ -37,6 +37,16 @@ test('unions independently changed applications', () => {
   );
 });
 
+test('API data migrations select the API deployment path', () => {
+  const result = classifyChangedPaths(
+    ['apps/api/scripts/migrations/split-factor-job-kinds.ts'],
+    manifest,
+  );
+  assert.equal(result.api, true);
+  assert.equal(result.fullDeploy, false);
+  assert.deepEqual(result.reasons, ['api']);
+});
+
 test('shared package selects every application', () => {
   const result = classifyChangedPaths(['packages/shared/src/index.ts'], manifest);
   assert.equal(result.api, true);

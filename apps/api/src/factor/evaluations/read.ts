@@ -84,7 +84,12 @@ export async function readFactorAnalysisJob(
   input: z.infer<typeof factorJobLogsQuerySchema>,
   locale: Locale,
 ) {
-  const job = await readOwnedFactorJob(userId, jobId, 'analysis', Number(input.since ?? '0'));
+  const job = await readOwnedFactorJob(
+    userId,
+    jobId,
+    'factor-analysis',
+    Number(input.since ?? '0'),
+  );
 
   if (!job) {
     return failFactorOperation('missing', t(locale, 'factorJobNotFound'));

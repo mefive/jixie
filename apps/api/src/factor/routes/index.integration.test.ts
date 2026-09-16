@@ -49,6 +49,7 @@ import { copyFactorComposite } from '../composition/operations.js';
 import { submitFactorHoldout } from '../evaluations/holdout.js';
 import { sha256 } from '../sources/fingerprint.js';
 import { factorRoute } from './index.js';
+import { migrateLegacyFactorJobs } from '../../../scripts/migrations/split-factor-job-kinds.js';
 
 const app = new Hono();
 app.use('*', async (context, next) => {
@@ -323,6 +324,7 @@ describe('Factor HTTP business boundaries', () => {
         logs: JSON.stringify(logs),
       },
     });
+    await migrateLegacyFactorJobs(prisma);
     const list = await (
       await request('/factors/analysis-reports?factor=draft', undefined, 'owner', 'GET')
     ).json();
@@ -388,9 +390,10 @@ describe('Factor HTTP business boundaries', () => {
       parentReportId: parent.id,
       dataRevision: parent.dataRevision,
       testKey: parent.testKey,
-      job: { id: result.jobId, status: 'queued' },
+      job: { id: result.jobId, kind: 'factor-analysis', status: 'queued' },
     });
     expect(report.job?.payload).toMatchObject({ source: { code: frozenCode }, locale: 'en' });
+    expect(report.job?.payload).not.toHaveProperty('task');
     expect(await (await request('/factors/analysis-reports/report/holdout')).json()).toMatchObject({
       reportId: result.reportId,
       jobId: result.jobId,
@@ -403,7 +406,13 @@ describe('Factor HTTP business boundaries', () => {
   it('rolls back holdout report creation when its job cannot be inserted', async () => {
     await seedReport();
     await prisma.job.create({
-      data: { id: 'existing-job', userId: 'owner', kind: 'factor', key: 'fixture', status: 'done' },
+      data: {
+        id: 'existing-job',
+        userId: 'owner',
+        kind: 'factor-analysis',
+        key: 'fixture',
+        status: 'done',
+      },
     });
     resources.id.mockReturnValueOnce('new-report').mockReturnValueOnce('existing-job');
     await expect(submitFactorHoldout('owner', 'report', 'en')).rejects.toMatchObject({
@@ -442,7 +451,7 @@ describe('Factor HTTP business boundaries', () => {
   );
 
   it.each([null, {}, { task: 'analysis' }])(
-    'reads owned analysis jobs with current and historical payloads: %j',
+    'reads migrated owned analysis jobs with historical payloads: %j',
     async (payload) => {
       await seedReport();
       const logs = [{ source: 'system', level: 'info', text: 'Analysis complete' }];
@@ -458,6 +467,7 @@ describe('Factor HTTP business boundaries', () => {
           ...(payload === null ? {} : { payload }),
         },
       });
+      await migrateLegacyFactorJobs(prisma);
       const response = await request(
         '/factors/analysis-jobs/analysis-job',
         undefined,
@@ -478,7 +488,7 @@ describe('Factor HTTP business boundaries', () => {
       data: {
         id: 'job',
         userId: 'other',
-        kind: 'factor',
+        kind: 'factor-analysis',
         key: 'fixture',
         status: 'done',
         factorReportId: 'report',
@@ -490,7 +500,7 @@ describe('Factor HTTP business boundaries', () => {
     );
     await prisma.job.update({
       where: { id: 'job' },
-      data: { userId: 'owner', payload: { task: 'correlation' } },
+      data: { userId: 'owner', kind: 'factor-correlation' },
     });
     for (const resource of ['analysis-jobs', 'correlation-jobs']) {
       expect((await request(`/factors/${resource}/job`, undefined, 'owner', 'GET')).status).toBe(
@@ -518,16 +528,18 @@ describe('Factor HTTP business boundaries', () => {
       const { jobId } = await response.json();
       expect(await prisma.job.findUniqueOrThrow({ where: { id: jobId } })).toMatchObject({
         userId: 'owner',
-        kind: 'factor',
+        kind: 'factor-correlation',
         key: 'corr|bp,ep|month|20150101|20261231',
         payload: {
-          task: 'correlation',
           keys: ['ep', 'bp'],
           freq: 'month',
           start: '20150101',
           end: '20261231',
         },
       });
+      expect(
+        (await prisma.job.findUniqueOrThrow({ where: { id: jobId } })).payload,
+      ).not.toHaveProperty('task');
       expect(resources.wake).toHaveBeenCalledOnce();
       expect(resources.logs).toHaveBeenCalledWith(jobId);
     });
@@ -572,6 +584,38 @@ describe('Factor HTTP business boundaries', () => {
       ).toEqual(reference);
       expect(await prisma.job.count()).toBe(1);
       expect(resources.wake).toHaveBeenCalledOnce();
+    });
+
+    it('reuses a migrated active correlation job and rejects report-linked candidates', async () => {
+      const reference = await submit();
+      const job = await prisma.job.findUniqueOrThrow({ where: { id: reference.jobId } });
+      await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          kind: 'factor',
+          payload: { ...(job.payload as Prisma.InputJsonObject), task: 'correlation' },
+        },
+      });
+      await migrateLegacyFactorJobs(prisma);
+      expect(await submit()).toEqual(reference);
+      expect(await prisma.job.count()).toBe(1);
+      expect(
+        await (
+          await request(`/factors/correlation-jobs/active?${query}`, undefined, 'owner', 'GET')
+        ).json(),
+      ).toEqual(reference);
+
+      await seedReport('holdout');
+      await prisma.job.update({ where: { id: job.id }, data: { factorReportId: 'report' } });
+      expect(
+        (await request(`/factors/correlation-jobs/${job.id}`, undefined, 'owner', 'GET')).status,
+      ).toBe(404);
+      expect(
+        await (
+          await request(`/factors/correlation-jobs/active?${query}`, undefined, 'owner', 'GET')
+        ).json(),
+      ).toBeNull();
+      expect((await submit()).jobId).not.toBe(job.id);
     });
 
     it.each(['queued', 'running', 'done', 'error', 'stale'])(
@@ -638,7 +682,7 @@ describe('Factor HTTP business boundaries', () => {
       ).toBe(404);
       await prisma.job.update({
         where: { id: jobId },
-        data: { status: 'queued', payload: { task: 'analysis' } },
+        data: { status: 'queued', kind: 'factor-analysis' },
       });
       expect((await request(path, undefined, 'owner', 'GET')).status).toBe(404);
       expect(

@@ -10,11 +10,12 @@
 | [Application Maintenance CLI](../src/application-maintenance/cli/) | 整轮维护、基线修复及财报分批历史导入 | 2 | systemd、根级维护命令、批量导入 |
 | [Signals CLI](../src/signals/cli/) | 交易日信号周期 | 1 | 管理员 |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
+| [migrations/](migrations/) | 版本升级的数据转换，不由 API 启动调用 | 1 | bootstrap、开发机升级 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 5 | 导入后的质量检查、研究核验 |
 | [probes/](probes/) | Tushare 连接与接口能力探测 | 2 | bootstrap、批量导入、手动诊断 |
 
-共 36 个入口，其中 28 个应用 CLI 位于模块内。操作系统任务配置统一放在仓库根级 `deploy/`。
+共 37 个入口，其中 28 个应用 CLI 位于模块内。操作系统任务配置统一放在仓库根级 `deploy/`。
 
 ## 运行约定
 
@@ -22,6 +23,22 @@
 - 下表 `start` / `end` / `date` 使用 `YYYYMMDD`，宏观月份使用 `YYYYMM`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
 - 日常维护优先从仓库根目录运行 `pnpm maintenance ...`，它通过 `scripts/maintenance/with-maintenance-lock.sh` 获得维护锁；批量导入使用根级 `pnpm import:data`。
 - 同步会写市场数据；维护和研究命令可能写任务、信号或用户研究数据。只读审计不等于完全无文件输出，具体见下表。
+
+## 部署数据迁移
+
+[split-factor-job-kinds.ts](migrations/split-factor-job-kinds.ts) 把旧 `kind: factor` 转为
+`factor-analysis` / `factor-correlation`。部署时 `scripts/bootstrap.sh` 先停止 API、构建并完成
+Prisma schema migration，再执行 `pnpm --filter api exec node --env-file=.env dist/scripts/migrations/split-factor-job-kinds.js`。
+失败返回非零状态并保持 API 停止；脚本会断开自己的连接，重跑可继续未完成批次。
+
+开发机如需保留旧 Job，停止 API 后，从仓库根执行：
+
+```sh
+pnpm --filter api exec tsx --env-file=.env scripts/migrations/split-factor-job-kinds.ts
+```
+
+此命令写 Job kind，不重算报告或重写冻结 payload。它不在普通 `pnpm dev` / API 启动中自动运行。
+源码和集成测试相邻；升级覆盖和回退要求见[运行入口](../../../docs/backend-runtime-entries.md#factor-job-kind-转换)。
 
 ## 数据同步
 
@@ -89,7 +106,8 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 | `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
 | `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/market/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
 | `gen:invite` | [gen-invite.ts](../src/auth/cli/gen-invite.ts) | `[count] [note]` | 创建邀请码，写数据库，不发送邮件 |
-| `backup` | [backup-db.mjs](backup-db.mjs) | 环境变量见下文 | SQLite 在线备份、校验和文件轮换 |
+| `backup` | [migrations/](migrations/) | 版本升级的数据转换，不由 API 启动调用 | 1 | bootstrap、开发机升级 |
+| [backup-db.mjs](backup-db.mjs) | 环境变量见下文 | SQLite 在线备份、校验和文件轮换 |
 
 备份只依赖 Node 内置模块及 `sqlite3` CLI，无需 tsx 或编译。`JIXIE_DB_PATH` 默认指向 `apps/api/prisma/dev.db`，`JIXIE_BACKUP_DIR` 默认 `~/jixie-backups`，`JIXIE_BACKUP_KEEP` 默认 5。它创建备份文件并删除超出保留数量的旧备份，不修改源数据库业务记录。
 

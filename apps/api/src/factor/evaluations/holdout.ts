@@ -159,12 +159,11 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
           create: {
             id: jobId,
             userId,
-            kind: 'factor',
+            kind: 'factor-analysis',
             key: variantKey,
             status: 'queued',
             payload: JSON.parse(
               JSON.stringify({
-                task: 'analysis',
                 reportId,
                 factor: parent.factor,
                 source,

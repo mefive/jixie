@@ -497,7 +497,10 @@ describe('Strategy HTTP business boundaries', () => {
         (await request(`/strategies/${otherDomain}-jobs/${jobId}`, undefined, 'owner', 'GET'))
           .status,
       ).toBe(404);
-      await prisma.job.update({ where: { id: jobId }, data: { kind: 'factor', status: 'queued' } });
+      await prisma.job.update({
+        where: { id: jobId },
+        data: { kind: 'factor-analysis', status: 'queued' },
+      });
       expect((await request(jobPath, undefined, 'owner', 'GET')).status).toBe(404);
       expect(
         await (

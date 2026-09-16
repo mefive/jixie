@@ -39,12 +39,19 @@ vi.mock('#signals/accounting/initialize.js', () => ({
 
 import { prisma } from '#infra/database/prisma.js';
 import type { PreparedResearchCuratorRun } from '#research/curator/runs.js';
+import { migrateLegacyFactorJobs } from '../scripts/migrations/split-factor-job-kinds.js';
 import { jobRegistry } from '../src/bootstrap.js';
 import { createJobExecutor } from '#infra/jobs/executor.js';
 import { appendLog, initializeJobLogs, getLiveJobLogs } from '#infra/jobs/logs.js';
 import { claimQueuedJob, getJob } from '#infra/jobs/records.js';
 
-const kinds = ['backtest', 'factor', 'strategy-scan', 'signal', 'research-curator'] as const;
+const kinds = [
+  'backtest',
+  'factor-analysis',
+  'strategy-scan',
+  'signal',
+  'research-curator',
+] as const;
 type Kind = (typeof kinds)[number];
 const summary: BacktestSummary = {
   name: 'Fixture',
@@ -68,7 +75,7 @@ async function entityStatus(kind: Kind): Promise<string> {
   switch (kind) {
     case 'backtest':
       return (await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids[kind] } })).status;
-    case 'factor':
+    case 'factor-analysis':
       return (await prisma.factorReport.findUniqueOrThrow({ where: { id: ids[kind] } })).status;
     case 'strategy-scan':
       return (await prisma.strategyScanReport.findUniqueOrThrow({ where: { id: ids[kind] } }))
@@ -100,10 +107,9 @@ function payload(kind: Kind): Prisma.InputJsonValue {
         locale: 'en',
         config,
       };
-    case 'factor':
+    case 'factor-analysis':
       return {
-        task: 'analysis',
-        reportId: ids.factor,
+        reportId: ids['factor-analysis'],
         factor: 'fixture',
         locale: 'en',
         failedMessage: 'report failure',
@@ -197,7 +203,7 @@ describe('durable job and business lifecycle transactions', () => {
       switch (context.job.kind) {
         case 'backtest':
           return summary;
-        case 'factor':
+        case 'factor-analysis':
           return '{"score":1}';
         case 'strategy-scan':
           return { cells: [] };
@@ -253,7 +259,7 @@ describe('durable job and business lifecycle transactions', () => {
     });
     await prisma.factorReport.create({
       data: {
-        id: ids.factor,
+        id: ids['factor-analysis'],
         userId: 'owner',
         factor: 'fixture',
         freq: 'month',
@@ -295,7 +301,7 @@ describe('durable job and business lifecycle transactions', () => {
     });
     const links = {
       backtest: 'backtestReportId',
-      factor: 'factorReportId',
+      'factor-analysis': 'factorReportId',
       'strategy-scan': 'strategyScanReportId',
       signal: 'signalRunId',
       'research-curator': 'researchCuratorRunId',
@@ -327,7 +333,7 @@ describe('durable job and business lifecycle transactions', () => {
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
-  it.each(['backtest', 'factor', 'strategy-scan', 'signal'] as const)(
+  it.each(['backtest', 'factor-analysis', 'strategy-scan', 'signal'] as const)(
     'commits %s result and logs with its Job',
     async (kind) => {
       await complete(kind, 'done');
@@ -351,7 +357,7 @@ describe('durable job and business lifecycle transactions', () => {
     },
   );
 
-  it.each(['backtest', 'factor', 'strategy-scan', 'signal'] as const)(
+  it.each(['backtest', 'factor-analysis', 'strategy-scan', 'signal'] as const)(
     'rolls back %s business writes when both completion and failure commits fail',
     async (kind) => {
       await prisma.$executeRawUnsafe(
@@ -369,7 +375,7 @@ describe('durable job and business lifecycle transactions', () => {
     },
   );
 
-  it.each(['backtest', 'factor', 'strategy-scan', 'signal'] as const)(
+  it.each(['backtest', 'factor-analysis', 'strategy-scan', 'signal'] as const)(
     'records %s execution failure without writing a success payload',
     async (kind) => {
       await complete(kind, 'error');
@@ -377,7 +383,7 @@ describe('durable job and business lifecycle transactions', () => {
       expect((await prisma.job.findUniqueOrThrow({ where: { id: ids[kind] } })).error).toBe(
         'job failure',
       );
-      if (kind === 'factor') {
+      if (kind === 'factor-analysis') {
         expect(
           (await prisma.factorReport.findUniqueOrThrow({ where: { id: ids[kind] } })).error,
         ).toBe('report failure');
@@ -392,6 +398,105 @@ describe('durable job and business lifecycle transactions', () => {
       }
     },
   );
+
+  it.each([false, true])(
+    'executes migrated queued tasks with an analysis discriminator: %s',
+    async (hasTask) => {
+      const analysisPayload = payload('factor-analysis') as Prisma.InputJsonObject;
+      await prisma.job.update({
+        where: { id: ids['factor-analysis'] },
+        data: {
+          kind: 'factor',
+          status: 'queued',
+          payload: hasTask ? { ...analysisPayload, task: 'analysis' } : analysisPayload,
+        },
+      });
+      await prisma.job.create({
+        data: {
+          id: 'legacy-correlation',
+          userId: 'owner',
+          kind: 'factor',
+          key: 'correlation',
+          status: 'queued',
+          payload: {
+            task: 'correlation',
+            id: 'cache',
+            userId: 'owner',
+            keys: ['ep', 'bp'],
+            freq: 'month',
+            start: '20200101',
+            end: '20231229',
+            locale: 'en',
+          },
+        },
+      });
+
+      await migrateLegacyFactorJobs(prisma);
+      await executor.recoverInterruptedJobs();
+      expect(await claimQueuedJob(ids['factor-analysis'])).toBe(true);
+      await executor.execute(ids['factor-analysis']);
+      expect(await entityStatus('factor-analysis')).toBe('done');
+      expect(await claimQueuedJob('legacy-correlation')).toBe(true);
+      execution.worker.mockResolvedValueOnce('{"correlation":0.5}');
+      await executor.execute('legacy-correlation');
+      expect(await prisma.factorCorrelation.findUnique({ where: { id: 'cache' } })).toMatchObject({
+        payload: '{"correlation":0.5}',
+      });
+      expect(await prisma.job.findUnique({ where: { id: 'legacy-correlation' } })).toMatchObject({
+        kind: 'factor-correlation',
+        status: 'done',
+      });
+    },
+  );
+
+  it('recovers migrated running tasks without overwriting a successful correlation cache', async () => {
+    await prisma.job.update({ where: { id: ids['factor-analysis'] }, data: { kind: 'factor' } });
+    const cache = await prisma.factorCorrelation.create({
+      data: { id: 'cache', userId: 'owner', payload: 'previous', computedAt: new Date() },
+    });
+    await prisma.job.create({
+      data: {
+        id: 'legacy-correlation',
+        userId: 'owner',
+        kind: 'factor',
+        key: 'fixture',
+        status: 'running',
+        payload: { task: 'correlation' },
+      },
+    });
+
+    await migrateLegacyFactorJobs(prisma);
+    await executor.recoverInterruptedJobs();
+    expect(await entityStatus('factor-analysis')).toBe('stale');
+    expect(await prisma.job.findUnique({ where: { id: 'legacy-correlation' } })).toMatchObject({
+      kind: 'factor-correlation',
+      status: 'stale',
+    });
+    expect(await prisma.factorCorrelation.findUnique({ where: { id: 'cache' } })).toEqual(cache);
+    expect(execution.worker).not.toHaveBeenCalled();
+  });
+
+  it('rejects a correlation job linked to an analysis report before executing a worker', async () => {
+    await prisma.job.update({
+      where: { id: ids['factor-analysis'] },
+      data: {
+        kind: 'factor-correlation',
+        payload: {
+          id: 'cache',
+          userId: 'owner',
+          keys: ['ep', 'bp'],
+          freq: 'month',
+          start: '20200101',
+          end: '20231229',
+          locale: 'en',
+        },
+      },
+    });
+    await executor.execute(ids['factor-analysis']);
+    expect(execution.worker).not.toHaveBeenCalled();
+    expect(await entityStatus('factor-analysis')).toBe('error');
+    expect(await prisma.factorCorrelation.count()).toBe(0);
+  });
 
   it('rolls back a successful result before recording completion failure', async () => {
     await prisma.$executeRawUnsafe(
@@ -419,7 +524,7 @@ describe('durable job and business lifecycle transactions', () => {
     expect(await executor.recoverInterruptedJobs()).toBe(4);
     expect(await entityStatus('backtest')).toBe('done');
     expect(await entityStatus('signal')).toBe('running');
-    for (const kind of ['factor', 'strategy-scan', 'research-curator'] as const) {
+    for (const kind of ['factor-analysis', 'strategy-scan', 'research-curator'] as const) {
       expect(await entityStatus(kind)).toBe('stale');
     }
     expect((await prisma.job.findUniqueOrThrow({ where: { id: ids.signal } })).status).toBe(
@@ -448,7 +553,7 @@ describe('durable job and business lifecycle transactions', () => {
         kind: 'unknown',
         key: 'fixture',
         status: 'running',
-        factorReportId: ids.factor,
+        factorReportId: ids['factor-analysis'],
         backtestReportId: ids.backtest,
         strategyScanReportId: ids['strategy-scan'],
         signalRunId: ids.signal,
@@ -573,11 +678,10 @@ describe('durable job and business lifecycle transactions', () => {
         data: {
           id: 'correlation-job',
           userId: 'owner',
-          kind: 'factor',
+          kind: 'factor-correlation',
           key: 'correlation',
           status: 'running',
           payload: {
-            task: 'correlation',
             id: 'correlation-cache',
             userId: 'owner',
             keys: ['a', 'b'],
@@ -623,7 +727,7 @@ describe('durable job and business lifecycle transactions', () => {
       expect(await prisma.job.findUnique({ where: { id: 'correlation-job' } })).toMatchObject({
         status: scenario === 'success' ? 'done' : 'error',
       });
-      expect(await entityStatus('factor')).toBe('running');
+      expect(await entityStatus('factor-analysis')).toBe('running');
     },
   );
 
@@ -665,10 +769,10 @@ describe('durable job and business lifecycle transactions', () => {
   });
 
   it('persists logs and reads them after eviction while enforcing ownership', async () => {
-    const id = ids.factor;
+    const id = ids['factor-analysis'];
     expect(await getJob('other-owner', id)).toBeNull();
     vi.useFakeTimers({ toFake: ['setTimeout'] });
-    await complete('factor', 'done');
+    await complete('factor-analysis', 'done');
     await vi.advanceTimersByTimeAsync(5 * 60_000);
     expect(getLiveJobLogs(id)).toBeUndefined();
     expect((await getJob('owner', id))?.logs).toHaveLength(1);
@@ -678,8 +782,11 @@ describe('durable job and business lifecycle transactions', () => {
   });
 
   it('claims a queued job at most once', async () => {
-    await prisma.job.update({ where: { id: ids.factor }, data: { status: 'queued' } });
-    const claims = await Promise.all([claimQueuedJob(ids.factor), claimQueuedJob(ids.factor)]);
+    await prisma.job.update({ where: { id: ids['factor-analysis'] }, data: { status: 'queued' } });
+    const claims = await Promise.all([
+      claimQueuedJob(ids['factor-analysis']),
+      claimQueuedJob(ids['factor-analysis']),
+    ]);
     expect(claims.filter(Boolean)).toHaveLength(1);
   });
 });

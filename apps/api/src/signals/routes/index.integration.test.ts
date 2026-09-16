@@ -654,7 +654,13 @@ describe('Signals HTTP and persistence boundaries', () => {
           status: 'done',
           logs: JSON.stringify(logs),
         },
-        ...['backtest', 'factor', 'strategy-scan', 'research-curator'].map((kind) => ({
+        ...[
+          'backtest',
+          'factor-analysis',
+          'factor-correlation',
+          'strategy-scan',
+          'research-curator',
+        ].map((kind) => ({
           id: `foreign-kind-${kind}`,
           userId: 'owner',
           kind,
@@ -667,7 +673,13 @@ describe('Signals HTTP and persistence boundaries', () => {
       await (await request('/run-jobs/signal-job?since=1', undefined, 'owner', 'GET')).json(),
     ).toMatchObject({ status: 'done', logs: [logs[1]], nextSince: 2 });
     expect((await request('/run-jobs/signal-job', undefined, 'other', 'GET')).status).toBe(404);
-    for (const kind of ['backtest', 'factor', 'strategy-scan', 'research-curator']) {
+    for (const kind of [
+      'backtest',
+      'factor-analysis',
+      'factor-correlation',
+      'strategy-scan',
+      'research-curator',
+    ]) {
       expect(
         (await request(`/run-jobs/foreign-kind-${kind}`, undefined, 'owner', 'GET')).status,
       ).toBe(404);

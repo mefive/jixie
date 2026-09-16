@@ -11,7 +11,8 @@ const mocks = vi.hoisted(() => ({
   weatherRecovery: vi.fn(),
   seed: vi.fn(),
   backtest: vi.fn(),
-  factor: vi.fn(),
+  factorAnalysis: vi.fn(),
+  factorCorrelation: vi.fn(),
   scan: vi.fn(),
   signal: vi.fn(),
   curator: vi.fn(),
@@ -29,7 +30,8 @@ vi.mock('#factor/weather/refresh.js', () => ({
 }));
 vi.mock('#factor/definitions/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
 vi.mock('#strategy/backtest/job.js', () => ({ backtestJob: mocks.backtest }));
-vi.mock('#factor/jobs/dispatch.js', () => ({ factorJob: mocks.factor }));
+vi.mock('#factor/evaluations/job.js', () => ({ factorAnalysisJob: mocks.factorAnalysis }));
+vi.mock('#factor/correlations/job.js', () => ({ factorCorrelationJob: mocks.factorCorrelation }));
 vi.mock('#strategy/scans/job.js', () => ({ strategyScanJob: mocks.scan }));
 vi.mock('#signals/runs/job.js', () => ({ signalJob: mocks.signal }));
 vi.mock('#research/curator/job.js', () => ({ researchCuratorJob: mocks.curator }));
@@ -119,7 +121,8 @@ describe('API bootstrap composition', () => {
     });
     expect(Object.keys(jobRegistry)).toEqual([
       'backtest',
-      'factor',
+      'factor-analysis',
+      'factor-correlation',
       'strategy-scan',
       'signal',
       'research-embedded-analysis',
@@ -127,7 +130,8 @@ describe('API bootstrap composition', () => {
     ]);
     const cases = [
       ['backtest', mocks.backtest],
-      ['factor', mocks.factor],
+      ['factor-analysis', mocks.factorAnalysis],
+      ['factor-correlation', mocks.factorCorrelation],
       ['strategy-scan', mocks.scan],
       ['signal', mocks.signal],
       ['research-embedded-analysis', mocks.embeddedAnalysis],
