@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS } from '../definitions/builtin-factors.js';
 import { factorCompositeDefinitionV1Schema } from '../schema.js';
-import { type FactorAnalysisSource } from '../analysis-job.js';
+import { type FactorAnalysisSource } from './source-snapshot.js';
 import {
   COMMODITY_CARRY_FIELD,
   COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD,

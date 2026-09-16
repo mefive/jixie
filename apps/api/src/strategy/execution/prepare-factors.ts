@@ -12,7 +12,7 @@ import {
   compileTimeSeriesFactor,
 } from '#factor/runtime/typescript/compile-asset-factor.js';
 import { normalizeAnalysisKind } from '#factor/publication/factor.js';
-import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/analysis-job.js';
+import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/analysis/source-snapshot.js';
 import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
 import { factorResearchSpecV1Schema } from '#factor/schema.js';
 import { sha256 } from '#factor/reports/spec.js';

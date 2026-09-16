@@ -30,8 +30,8 @@ HTTP 总入口为 [routes/index.ts](routes/index.ts)，具名导出 `signalsRout
 | `accounting/quotes.ts` | 对账用股票/ETF 行情、涨跌停价格及下一交易日读取 |
 | `accounting/executions.ts`、`read.ts` | 人工成交状态变更、账户概览和成交响应映射 |
 | `factor-inputs` | `lineage.ts` 解析并核对冻结依赖；`summary.ts` 汇总实际读取的因子输入、覆盖与决策标的值 |
-| 根级 `signal-job.ts` | 具名任务契约，集中声明 parse/execute/complete/fail/recover/afterCommit |
-| 根级 `scheduler.ts`、`sync.ts`、`notifier.ts` | 每日调度、所需市场数据同步、完成/失败通知；保留具体名称与原执行顺序 |
+| `runs/job.ts` | 具名任务契约，集中声明 parse/execute/complete/fail/recover/afterCommit |
+| `daily/scheduler.ts`、`daily/sync.ts`、`runs/notifier.ts` | 每日调度、所需市场数据同步、完成/失败通知；保留具体名称与原执行顺序 |
 
 ## 两条执行链
 
@@ -39,7 +39,7 @@ HTTP 总入口为 [routes/index.ts](routes/index.ts)，具名导出 `signalsRout
 
 **每日运行：** Maintenance 的已发布数据流程 → `generateDailySignals`，或 CLI → `runDailySignalCycle` 先同步数据 → 结算账户 → 逐个 active 部署调用 `enqueueSignalRun` 并等待 completion。不会为每个部署重复同步市场数据。
 
-共同计算链为 `signal-job.ts` → fork `runs/signal-worker` → 校验部署和运行的因子快照 → Strategy 准备因子并执行墙内信号捕获 → Engine 推进历史交易日 → 返回信号、模型持仓与因子输入 → 主线程执行任务完成事务。
+共同计算链为 `runs/job.ts` → fork `runs/signal-worker` → 校验部署和运行的因子快照 → Strategy 准备因子并执行墙内信号捕获 → Engine 推进历史交易日 → 返回信号、模型持仓与因子输入 → 主线程执行任务完成事务。
 
 源码通过 `.boot.mjs` 注册 tsx 后加载 `.ts`；生产直接启动编译 `.js`。两者使用同一个任务契约和算法，不能只更新静态 import 而遗漏 Worker URL。
 
@@ -53,9 +53,9 @@ HTTP 总入口为 [routes/index.ts](routes/index.ts)，具名导出 `signalsRout
 
 ## 验证与阅读顺序
 
-先读部署冻结和 `runs/enqueue.ts` 的复用/重试事务，再读 `signal-job.ts` 与 `accounting/settlement.ts`；只关心费用和账户算法时直接读 `accounting/replay.ts`。
+先读部署冻结和 `runs/enqueue.ts` 的复用/重试事务，再读 `runs/job.ts` 与 `accounting/settlement.ts`；只关心费用和账户算法时直接读 `accounting/replay.ts`。
 
-原账户重放/数据库流、因子血缘/输入、通知和 Job 生命周期测试保留，路径随职责更新。新增 [routes.integration.test.ts](routes.integration.test.ts) 的隔离 SQLite + Hono 场景覆盖部署限制/版本冻结/事务回滚、日期与数据拒绝、运行幂等/重试、Job 写入失败回滚、读写归属，以及账户初始化/结算幂等与人工成交重置。参数元数据、因子准备和队列等待使用替身，不调用真实行情、邮件或 LLM。
+原账户重放/数据库流、因子血缘/输入、通知和 Job 生命周期测试保留，路径随职责更新。新增 [routes/index.integration.test.ts](routes/index.integration.test.ts) 的隔离 SQLite + Hono 场景覆盖部署限制/版本冻结/事务回滚、日期与数据拒绝、运行幂等/重试、Job 写入失败回滚、读写归属，以及账户初始化/结算幂等与人工成交重置。参数元数据、因子准备和队列等待使用替身，不调用真实行情、邮件或 LLM。
 
 Commit 9 已通过人工 review 和全部验证：全量 API 199 个测试文件、1073 项用例通过，API 编译通过；源码与编译后的真实 IPC 链路覆盖部署冻结、因子血缘、信号输入、完成后的会计初始化、结算/人工成交、失败重试及重启恢复。两种入口的信号、模型账户和对账结果一致，临时进程与数据库连接已释放。完整记录见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#79-commit-9-实现记录2026-09-09)。
 
@@ -72,4 +72,4 @@ Commit 9 已通过人工 review 和全部验证：全量 API 199 个测试文件
 
 ## 命令入口
 
-[cli/run-signals.ts](cli/run-signals.ts) 对应 `pnpm --filter api signals:run [date]`，解析日期并调用 `runDailySignalCycle`，按运行错误数设置退出码并释放 Prisma。整轮数据发布后的自动信号仍由 Application Maintenance 调用既有 scheduler 能力。
+[cli/run-signals.ts](cli/run-signals.ts) 对应 `pnpm --filter api signals:run [date]`，解析日期并调用 `runDailySignalCycle`，按运行错误数设置退出码并释放 Prisma。整轮数据发布后的自动信号仍由 Application Maintenance 调用 `daily/scheduler.ts` 的每日运行能力。

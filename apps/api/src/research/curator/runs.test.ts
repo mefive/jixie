@@ -17,7 +17,7 @@ import {
 
 import * as curator from './runs.js';
 import * as referenceSearch from './reference-search.js';
-import { researchCuratorJob } from '../curator-job.js';
+import { researchCuratorJob } from './job.js';
 import type { JobSnapshot } from '#infra/jobs/definition.js';
 
 const originalPrepare = curator.prepareResearchCuratorRun;

@@ -1,5 +1,5 @@
 import { researchAgentInputSchema } from '../schema.js';
-import { startResearchAgentTurn, ResearchAgentTurnError } from '../agent-turn.js';
+import { startResearchAgentTurn, ResearchAgentTurnError } from '../agent/turn.js';
 import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { localeFromRequest, m } from '#infra/http/locale.js';

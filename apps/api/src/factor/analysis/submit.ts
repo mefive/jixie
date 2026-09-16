@@ -3,7 +3,8 @@ import type { z } from 'zod';
 import type { FactorReportSummary, FactorResearchSpecV1, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { normalizeFactorResearchSpec } from '../reports/spec.js';
-import { startFactorAnalysis, type FactorAnalysisSource } from '../analysis-job.js';
+import { startFactorAnalysis } from './job.js';
+import { type FactorAnalysisSource } from './source-snapshot.js';
 import {
   resolveTimeSeriesTemplateSource,
   unsupportedTimeSeriesTemplateAssets,
@@ -18,7 +19,7 @@ import {
   resolveCustomTimeSeriesFactorSource,
 } from './sources.js';
 import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 export async function submitFactorAnalysis(
   userId: string,

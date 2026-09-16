@@ -22,12 +22,9 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
-import {
-  factorAnalysisSourceHash,
-  readFactorAnalysisResult,
-  startFactorAnalysis,
-} from './analysis-job.js';
-import { factorVariantKey, sha256 } from './reports/spec.js';
+import { readFactorAnalysisResult, startFactorAnalysis } from './job.js';
+import { factorAnalysisSourceHash } from './source-snapshot.js';
+import { factorVariantKey, sha256 } from '../reports/spec.js';
 
 const spec: FactorAnalysisSpecV3 = {
   version: 3,

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { defineJob } from '#infra/jobs/definition.js';
-import { executeEmbeddedRun } from './embedded/execute.js';
-import { completeEmbeddedRun, failEmbeddedRun } from './embedded/finish.js';
+import { executeEmbeddedRun } from './execute.js';
+import { completeEmbeddedRun, failEmbeddedRun } from './finish.js';
 
 const payloadSchema = z.strictObject({ runId: z.string().min(1) });
 export const researchEmbeddedAnalysisJob = defineJob({

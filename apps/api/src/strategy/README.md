@@ -10,10 +10,10 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 | 创建、编辑、删除策略 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)，配置保存与结果缓存失效在 [definitions/config.ts](definitions/config.ts) |
 | 公开范围 | 同上 | [definitions/visibility.ts](definitions/visibility.ts)；引用自定义因子的策略保持私有 |
 | 自动命名 | 创建策略时内部调用，无独立 HTTP 入口 | [definitions/naming.ts](definitions/naming.ts) 负责名称生成、冲突处理和异步刷新竞争检查 |
-| Agent 编辑与解释 | [routes/agent.ts](routes/agent.ts) | [agent-turn.ts](agent-turn.ts)，可用指数和因子上下文在 [agent-context.ts](agent-context.ts) |
-| 提交回测 | [routes/backtest.ts](routes/backtest.ts) | [backtest/submit.ts](backtest/submit.ts) → [backtest-job.ts](backtest-job.ts) |
+| Agent 编辑与解释 | [routes/agent.ts](routes/agent.ts) | [agent/turn.ts](agent/turn.ts)，可用指数和因子上下文在 [agent/context.ts](agent/context.ts) |
+| 提交回测 | [routes/backtest.ts](routes/backtest.ts) | [backtest/submit.ts](backtest/submit.ts) → [backtest/job.ts](backtest/job.ts) |
 | 历史回测报告、任务进度 | 同上 | [backtest/reports.ts](backtest/reports.ts)，读取冻结报告而非当前策略缓存 |
-| 检查参数、提交扫描 | [routes/scan.ts](routes/scan.ts) | [scans/parameters.ts](scans/parameters.ts)、[scans/submit.ts](scans/submit.ts) → [scan-job.ts](scan-job.ts) |
+| 检查参数、提交扫描 | [routes/scan.ts](routes/scan.ts) | [scans/parameters.ts](scans/parameters.ts)、[scans/submit.ts](scans/submit.ts) → [scans/job.ts](scans/job.ts) |
 | 扫描报告、任务进度 | 同上 | [scans/reports.ts](scans/reports.ts) |
 | 回测报告中的风险研究 | 随完整回测报告返回 | [analysis/risk/backtest-risk-analysis.ts](analysis/risk/backtest-risk-analysis.ts)，没有独立风险 API |
 
@@ -23,13 +23,14 @@ Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回�
 
 活动任务查询使用 `/:strategyId/backtest-jobs/active`、`/:strategyId/scan-jobs/active`，`active` 包含 queued/running，统一返回 `{ jobId, reportId } | null`。任务日志使用 `/backtest-jobs/:jobId`、`/scan-jobs/:jobId`，保留增量游标 `since` 并检查用户归属和任务类型。Web 分别保存扫描 jobId 与 reportId，用前者轮询、后者读取结果；刷新页面后通过活动任务查询恢复。
 
-HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`operation-errors.ts` 与 `routes/errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
+HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`errors.ts` 与 `routes/errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
 ## 目录职责
 
 | 目录 | 拥有什么 |
 | --- | --- |
 | `schema.ts` | API 入参与共用策略配置校验，包含创建、修改、回测、扫描和 Agent；配置同时支持 TS/Python |
+| `agent` | 本业务对话启动、指数与因子上下文 |
 | `definitions` | 策略保存/读取、命名与公开范围；runKey 只包括影响回测的配置，改显示名不会清空结果 |
 | `backtest` | 创建冻结配置、报告和 Job，查询报告与进度 |
 | `scans` | 参数检查、扫描规格/网格/指标、冻结提交与报告；父 Worker 和 cell 子进程入口同处此目录 |
@@ -38,13 +39,13 @@ HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。�
 | `runtime/python` | Python 策略协议与宿主桥接，实际交易模拟仍由 TS Engine 执行 |
 | `analysis/risk` | 回测后的市场暴露、宏观敏感度、Alpha/Risk 重合与压力情景；`data-readiness` 拥有这些模型的历史长度要求 |
 
-`backtest-job.ts`、`scan-job.ts` 保留根级具名任务定义，集中声明 parse/execute/complete/fail/recover。bootstrap 注册定义，通用执行器负责领取、事务和重启恢复；Worker 计算结果由主线程通过任务契约提交。
+`backtest/job.ts`、`scans/job.ts` 在所属业务目录保留具名任务定义，集中声明 parse/execute/complete/fail/recover。bootstrap 注册定义，通用执行器负责领取、事务和重启恢复；Worker 计算结果由主线程通过任务契约提交。
 
 ## 三条主要调用链
 
-**回测：** `submitStrategyBacktest` 校验日期 → 事务内检查所有者和正在运行的任务、保存配置、创建冻结 BacktestReport 与 Job → 事务提交后初始化日志并唤醒队列 → `backtest-job.ts` 启动 `engine/backtest-worker` → `execution/run-configured.ts` 准备因子并选择语言 → Engine 模拟 → 附加风险分析 → 主线程提交报告、策略缓存与 Job 终态。配置重名时保留原名称，报告和任务使用实际提交的名称。未知数据库错误继续抛出；不会在报告或 Job 创建失败后唤醒队列。
+**回测：** `submitStrategyBacktest` 校验日期 → 事务内检查所有者和正在运行的任务、保存配置、创建冻结 BacktestReport 与 Job → 事务提交后初始化日志并唤醒队列 → `backtest/job.ts` 启动 `engine/backtest-worker` → `execution/run-configured.ts` 准备因子并选择语言 → Engine 模拟 → 附加风险分析 → 主线程提交报告、策略缓存与 Job 终态。配置重名时保留原名称，报告和任务使用实际提交的名称。未知数据库错误继续抛出；不会在报告或 Job 创建失败后唤醒队列。
 
-**参数扫描：** `submitStrategyScan` 检查语言/日期、隔离检查参数、规范化规格并解析样本内外交易日范围 → 冻结配置、参数、范围与数据截止日 → 事务内检查归属/重复任务并创建报告与 Job → `scan-job.ts` 启动 `scans/strategy-scan-worker` 线程 → 每个 cell fork 独立进程运行 → 汇总后由主线程提交。扫描不覆盖当前策略草稿。Python 扫描仍不支持；没有改变子进程退出判断和资源释放方式。
+**参数扫描：** `submitStrategyScan` 检查语言/日期、隔离检查参数、规范化规格并解析样本内外交易日范围 → 冻结配置、参数、范围与数据截止日 → 事务内检查归属/重复任务并创建报告与 Job → `scans/job.ts` 启动 `scans/strategy-scan-worker` 线程 → 每个 cell fork 独立进程运行 → 汇总后由主线程提交。扫描不覆盖当前策略草稿。Python 扫描仍不支持；没有改变子进程退出判断和资源释放方式。
 
 **Agent：** 前端先调用 Strategy 的 `/:strategyId/agent/turns` → `startStrategyAgentTurn` 检查策略归属及运行中的 turn，构造指数/因子及当前代码上下文 → 通用 Agent 执行器执行 Strategy profile → 只读工具查询数据，生成代码经既有编译/受限运行时和标的检查后返回。前端随后使用通用 Agent 事件/取消接口。Agent 不提供配置保存或回测工具；用户核对代码和参数后通过工作台 `POST /:strategyId/backtests` 发起完整回测。Research 交接复用 Python Strategy profile 生成草稿，同样不自动回测。
 
@@ -60,7 +61,7 @@ HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。�
 
 优先检查回测提交事务、扫描冻结参数和交易日范围、`definitions/config.ts` 的缓存失效、`execution/run-configured.ts` 的语言/资源生命周期，以及风险质量与模型门槛的拆分。引擎沙盒边界见 [Engine 阅读地图](../engine/README.md)。
 
-新增 [routes.integration.test.ts](routes.integration.test.ts) 的 10 项 SQLite + Hono 场景覆盖归属、命名、缓存、忙碌保护、冻结报告、回测/扫描事务回滚、因子依赖私有策略、Agent 启动。LLM、队列调度、Agent 执行与参数检查使用测试替身；实际计算由既有引擎、runtime 和扫描测试覆盖。
+新增 [routes/index.integration.test.ts](routes/index.integration.test.ts) 的 10 项 SQLite + Hono 场景覆盖归属、命名、缓存、忙碌保护、冻结报告、回测/扫描事务回滚、因子依赖私有策略、Agent 启动。LLM、队列调度、Agent 执行与参数检查使用测试替身；实际计算由既有引擎、runtime 和扫描测试覆盖。
 
 新增 [runtime/typescript/wall-bundle.test.ts](runtime/typescript/wall-bundle.test.ts) 使用生产 bundle 配置检查真实 Engine 无宿主适配器及外部导入；Maintenance 审计测试新增 3 项场景覆盖基础质量/模型门槛分离、252/36 边界和错误顺序。现有测试随对应模块迁移。
 

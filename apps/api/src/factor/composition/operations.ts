@@ -7,7 +7,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { nextCopyKey } from '../definitions/copy-key.js';
 import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 async function validateCompositeComponents(userId: string, definition: FactorCompositeDefinition) {
   const factorIds = definition.components.map((component) => component.factor);

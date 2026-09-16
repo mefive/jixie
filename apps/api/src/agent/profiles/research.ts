@@ -5,7 +5,7 @@ import {
 } from '@jixie/shared';
 import { researchPlaybookIndex } from '#research/catalog/playbooks.js';
 import { compactResearchConceptManifest } from '#research/catalog/concepts.js';
-import { compactResearchAgentHistory } from '#research/agent-context.js';
+import { compactResearchAgentHistory } from '#research/agent/context.js';
 import { loadResearchPlaybookTool } from '../tools/load-research-playbook.js';
 import { runUniverseTool } from '../tools/run-universe.js';
 import { searchResearchCatalogTool } from '../tools/search-research-catalog.js';

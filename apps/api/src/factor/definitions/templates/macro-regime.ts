@@ -1,5 +1,5 @@
 import type { FactorMeta, Locale } from '@jixie/shared';
-import type { FactorAnalysisSource } from '../../analysis-job.js';
+import type { FactorAnalysisSource } from '../../analysis/source-snapshot.js';
 
 export const CHINA_GROWTH_INFLATION_REGIME_KEY = 'china_growth_inflation_regime_v1';
 

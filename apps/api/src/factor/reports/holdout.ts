@@ -8,7 +8,7 @@ import { parseResearchIntent } from './research-policy.js';
 import {
   parseAssetFactorAnalysisSourceSnapshot,
   parseFactorAnalysisSourceSnapshot,
-} from '../analysis-job.js';
+} from '../analysis/source-snapshot.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
 import { holdoutEligibility } from './holdout-policy.js';
 import {
@@ -21,7 +21,7 @@ import {
 import { factorCodeDataRequirements } from '../analysis/sources.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 export async function submitFactorHoldout(userId: string, parentReportId: string, locale: Locale) {
   const parent = await prisma.factorReport.findFirst({

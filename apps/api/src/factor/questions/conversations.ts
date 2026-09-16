@@ -18,7 +18,7 @@ import { t } from '#i18n/index.js';
 import { createPersistentTurnInput } from '#agent/turns/records.js';
 import { enqueueAgentTurn } from '#agent/turns/run.js';
 import { factorQaProfile } from '#agent/profiles/qa.js';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 import { captureFactorQuestionContext } from './context.js';
 
 const messageSelection = {

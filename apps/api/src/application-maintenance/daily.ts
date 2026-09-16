@@ -30,9 +30,9 @@ import {
   syncExternalMarketDrivers,
   type ExternalMarketSyncSummary,
 } from '#market/rates/external-market-drivers.js';
-import { generateDailySignals } from '#signals/scheduler.js';
+import { generateDailySignals } from '#signals/daily/scheduler.js';
 import { latestCompletedTradeDate } from '#signals/runs/readiness.js';
-import { syncSignalMarketData } from '#signals/sync.js';
+import { syncSignalMarketData } from '#signals/daily/sync.js';
 import {
   MAJOR_INDEX_DAILY_BASIC_CODES,
   DAILY_MAINTAINED_INDEX_CODES,

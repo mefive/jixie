@@ -38,7 +38,7 @@ import { createJobExecutor } from '#infra/jobs/executor.js';
 import { claimQueuedJob } from '#infra/jobs/records.js';
 import type { JobRegistry } from '#infra/jobs/definition.js';
 import { researchRoute } from '../routes/index.js';
-import { researchEmbeddedAnalysisJob } from '../embedded-analysis-job.js';
+import { researchEmbeddedAnalysisJob } from './job.js';
 import {
   researchRuntimeManager,
   type ResearchExecutionOptions,

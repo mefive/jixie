@@ -9,7 +9,7 @@ import { extractFactorKeys } from '../execution/prepare-factors.js';
 import type { createStrategySchema, updateStrategySchema } from '../schema.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../operation-errors.js';
+import { failStrategyOperation } from '../errors.js';
 
 export async function createStrategy(
   userId: string,

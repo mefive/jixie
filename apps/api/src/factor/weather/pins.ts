@@ -4,7 +4,7 @@ import type { z } from 'zod';
 import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
-import { factorAnalysisSourceHash } from '../analysis-job.js';
+import { factorAnalysisSourceHash } from '../analysis/source-snapshot.js';
 import {
   FACTOR_WEATHER_METHODOLOGY_HASH,
   factorWeatherMethodology,
@@ -12,7 +12,7 @@ import {
   toFactorWeatherPoint,
 } from './refresh.js';
 import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 const builtinDirections = new Map(
   BUILTIN_FACTORS.map((factor) => [factor.key, factor.expectedDirection]),

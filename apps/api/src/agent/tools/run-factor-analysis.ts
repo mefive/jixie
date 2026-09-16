@@ -6,7 +6,7 @@ import type {
   RunFactorAnalysisResponse,
 } from '@jixie/shared';
 import { z } from 'zod';
-import { startFactorAnalysis, readFactorAnalysisResult } from '#factor/analysis-job.js';
+import { startFactorAnalysis, readFactorAnalysisResult } from '#factor/analysis/job.js';
 import { getHoldoutPolicy } from '#factor/reports/research-policy.js';
 import { createDefaultFactorAnalysisSpecV6 } from '#factor/reports/spec.js';
 import { factorResearchIntentV1Schema } from '#factor/schema.js';

@@ -1,5 +1,5 @@
 import type { RegisteredJobDefinition } from '#infra/jobs/definition.js';
-import { factorAnalysisJob } from './analysis-job.js';
+import { factorAnalysisJob } from './job.js';
 import { factorCorrelationJob } from './correlation-job.js';
 
 // Keep the persisted kind/task format. Factor owns this legacy task discriminator.

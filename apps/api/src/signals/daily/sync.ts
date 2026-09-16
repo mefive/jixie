@@ -13,7 +13,7 @@ import { syncTradeCal } from '#market/sync/calendar.js';
 import { syncEtfMarketDate } from '#market/sync/etf.js';
 import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
-import { factorDependenciesFromJson } from './factor-inputs/lineage.js';
+import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 
 /** Synchronize the datasets needed by active stock/ETF deployments for one signal close. */
 export async function syncSignalMarketData(

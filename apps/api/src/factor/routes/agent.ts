@@ -8,7 +8,7 @@ import {
   factorQuestionSchema,
   factorQuestionHistorySchema,
 } from '../schema.js';
-import { startFactorAgentTurn } from '../agent-turn.js';
+import { startFactorAgentTurn } from '../agent/turn.js';
 import { startFactorQuestion, readFactorQuestions } from '../questions/conversations.js';
 
 export const factorAgentRoute = new Hono();

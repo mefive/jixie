@@ -10,10 +10,10 @@ import {
   createResearchCatalogTurnEvidence,
   createSearchResearchCatalogTool,
 } from '#agent/tools/search-research-catalog.js';
-import { researchAgentDocumentContext } from './agent-context.js';
-import { resolveResearchClarificationAnswer } from './proposals/clarification-records.js';
-import { researchClarificationAnswerMessage } from './proposals/clarification-message.js';
-import { researchAgentCellChangeAttemptContext } from './proposals/attempt-context.js';
+import { researchAgentDocumentContext } from './context.js';
+import { resolveResearchClarificationAnswer } from '../proposals/clarification-records.js';
+import { researchClarificationAnswerMessage } from '../proposals/clarification-message.js';
+import { researchAgentCellChangeAttemptContext } from '../proposals/attempt-context.js';
 
 export interface ResearchAgentTurnInput {
   conversationId?: string;

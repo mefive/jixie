@@ -1,6 +1,6 @@
 # 后台任务设施
 
-任务定义在各业务的 `*-job.ts`，不是 Job 数据行的子类。`defineJob()` 要求实现 parse、execute、complete、fail、recover，可选 afterCommit。新增任务需要实现完整契约并在 bootstrap 的 jobRegistry 注册；既有 factor kind 由 factor/factor-job.ts 分派 analysis/correlation，不更改持久化 payload。
+任务定义在各业务职责目录的 `job.ts` 或具名任务文件中，不是 Job 数据行的子类。`defineJob()` 要求实现 parse、execute、complete、fail、recover，可选 afterCommit。新增任务需要实现完整契约并在 bootstrap 的 jobRegistry 注册；既有 factor kind 由 factor/analysis/job-dispatch.ts 分派 analysis/correlation，不更改持久化 payload。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -17,7 +17,7 @@ parse/execute/complete 各阶段的异常统一进入失败事务。失败收尾
 
 recoverInterruptedJobs 在单一事务内调用所有注册定义的 recover，并将本批 running Job 标记 stale。各业务按数据库中自身的关联 ID 批量恢复；kind/payload 损坏不影响关联识别。queued 保持排队，不自动重试 running，不补造结果。完成与失败检查 Job 仍为 running，领域失败不覆盖已提交结果。
 
-业务入口：strategy/backtest-job.ts、strategy/scan-job.ts、factor/analysis-job.ts、factor/correlation-job.ts、signals/signal-job.ts、research/curator-job.ts。没有仅为 complete/recover 建立的目录。回测是完整生命周期阅读示例。
+业务入口：strategy/backtest/job.ts、strategy/scans/job.ts、factor/analysis/job.ts、factor/analysis/correlation-job.ts、signals/runs/job.ts、research/curator/job.ts。没有仅为 complete/recover 建立的目录。回测是完整生命周期阅读示例。
 
 所有任务的最终业务结果与 Job 共用完成事务。相关性 Worker 只计算并返回 payload，缓存 upsert 在 complete 内；Job 提交失败时新增缓存回滚、旧缓存保持不变。Curator 在事务外准备候选 findings，complete 在事务内重新按 owner/fingerprint 去重（含批内重复），批量保存 findings，再更新统计和 run 终态。任何最终写入失败都回滚本次结果；不再保留本轮部分 findings。Curator 初始 running 状态更新仍在准备阶段，计算、LLM 与文件检索都在完成事务外。
 
@@ -28,7 +28,7 @@ bootstrap 只注册定义、创建 executor，等待 Job/Agent/天气恢复，�
 本 session 开工前预告 commit message，代码完成先通过 lint/typecheck 等静态检查，再交人工 review；review 通过后做测试及运行验证，全部通过后直接提交。相关测试：job-lifecycle.integration.test.ts、bootstrap.test.ts、infra/jobs/*.test.ts。事务测试使用全新临时 SQLite，结束断开连接并删除自身 fixture；计算、通知、记账初始化与 LLM 使用替身；Curator 领域测试同时覆盖候选准备失败不发布部分结果。当前版本人工 review、根级 typecheck、32 个 TS 文件 lint、完整 API 测试（191 文件/1020 项）、干净构建及源码/编译后启动 smoke 均通过。临时进程、端口和数据库连接已释放。
 
 
-嵌入式分析后端（2026-09-14，待审阅）注册 `research/embedded-analysis-job.ts`，通过 `Job.researchExecutionId`
+嵌入式分析后端（2026-09-14，待审阅）注册 `research/embedded/job.ts`，通过 `Job.researchExecutionId`
 关联保存于提交时的运行快照。执行过程中留存输入和环境，完成事务保存输出并冻结首次成功版本；
 取消操作事务性结束 Job 与运行，晚到的完成回调仍被现有 running 检查拒绝。用户判断分析成功与否读取
 嵌入运行 status/errorCode；Job done 表示该执行流程完成，不代替分析结果状态。

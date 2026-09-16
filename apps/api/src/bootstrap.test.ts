@@ -28,12 +28,12 @@ vi.mock('#factor/weather/refresh.js', () => ({
   resetInterruptedFactorWeatherRefreshes: mocks.weatherRecovery,
 }));
 vi.mock('#factor/definitions/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
-vi.mock('#strategy/backtest-job.js', () => ({ backtestJob: mocks.backtest }));
-vi.mock('#factor/factor-job.js', () => ({ factorJob: mocks.factor }));
-vi.mock('#strategy/scan-job.js', () => ({ strategyScanJob: mocks.scan }));
-vi.mock('#signals/signal-job.js', () => ({ signalJob: mocks.signal }));
-vi.mock('#research/curator-job.js', () => ({ researchCuratorJob: mocks.curator }));
-vi.mock('#research/embedded-analysis-job.js', () => ({
+vi.mock('#strategy/backtest/job.js', () => ({ backtestJob: mocks.backtest }));
+vi.mock('#factor/analysis/job-dispatch.js', () => ({ factorJob: mocks.factor }));
+vi.mock('#strategy/scans/job.js', () => ({ strategyScanJob: mocks.scan }));
+vi.mock('#signals/runs/job.js', () => ({ signalJob: mocks.signal }));
+vi.mock('#research/curator/job.js', () => ({ researchCuratorJob: mocks.curator }));
+vi.mock('#research/embedded/job.js', () => ({
   researchEmbeddedAnalysisJob: mocks.embeddedAnalysis,
 }));
 

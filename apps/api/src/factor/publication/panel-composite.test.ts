@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
-import { factorAnalysisSourceSnapshot } from '../analysis-job.js';
+import { factorAnalysisSourceSnapshot } from '../analysis/source-snapshot.js';
 import { sha256 } from '../reports/spec.js';
 
 const mocks = vi.hoisted(() => ({

@@ -5,7 +5,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | 要找的业务 | 入口 | 责任 |
 | --- | --- | --- |
 | HTTP 路由 | `routes/index.ts` 与 `routes/` 下九组实现 | 总入口直接组合并导出 `researchRoute`，挂在 `/api/app/research`；职责路由处理参数校验和 JSON / 图片响应，共用错误映射归 `routes/errors.ts`，不直接读写 Prisma |
-| 嵌入式分析后端 | `routes/embedded.ts`、`embedded/`、`embedded-analysis-job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，已接入 Factor / Strategy Agent 与页面 |
+| 嵌入式分析后端 | `routes/embedded.ts`、`embedded/`、`embedded/job.ts` | 版本、提交、输入留存、运行历史、首次成功冻结；复用 Python / SDK / 产物，已接入 Factor / Strategy Agent 与页面 |
 | 文档列表、创建、归档、恢复 | `documents/document-operations.ts`、`archive-idle-document.ts` | 模板初始化、归属检查；HTTP 归档先检查运行状态，再归档并关闭会话 |
 | 文档重命名、删除 | `documents/document-operations.ts` | 保留底层会话归属/归档规则和级联删除，删除后关闭会话；HTTP 统一使用 documents |
 | 读取文档 | `documents/read.ts` | 归属检查、Cell / 消息 / 审阅 / 尝试视图；保留旧会话首次读取时补建文档的行为 |
@@ -28,10 +28,10 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | Python 编辑器语言服务 | `language/pyright-service.ts`、`document.ts`、`stubs.ts` | Pyright 进程、文档映射，消费公开 Contract 生成类型信息 |
 | 文档模板与 FCFF 案例 | `templates/document-templates.ts`、`templates/fcff/` | 模板选择、透明 Cell 源代码、分类证据与回放案例 |
 | 冻结研究 → Factor / Strategy | `handoff/factor-drafts.ts`、`strategy-drafts.ts`、`factor-handoff.ts`、`strategy-handoff.ts`、`context.ts` | 草稿生成、准入校验与来源关联 |
-| Research Agent 启动 | `agent-turn.ts`、`agent-context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
-| 研究整理（Curator） | `curator/submit.ts`、`runs.ts`、`reference-search.ts`，根级 `curator-job.ts` | 提交与查询、证据整理/反馈；具名 Job 定义完成、失败与恢复 |
+| Research Agent 启动 | `agent/turn.ts`、`agent/context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
+| 研究整理（Curator） | `curator/submit.ts`、`runs.ts`、`reference-search.ts`，`curator/job.ts` | 提交与查询、证据整理/反馈；具名 Job 定义完成、失败与恢复 |
 
-Research 的总路由入口、具体 HTTP 实现及专属测试放在 `routes/`，模块整体接口测试留在根目录。`routes/index.ts` 只组合九组具名路由；API 入参、股票池与嵌入式分析配置 schema 集中在 `schema.ts`，路由引用并执行校验。SDK 协议与字段校验仍在 `sdk/`；共用执行/审阅错误映射放在 `routes/errors.ts`，业务操作由各具名入口承担。
+Research 的总路由入口、具体 HTTP 实现及专属测试放在 `routes/`，模块整体接口测试位于 `routes/index.integration.test.ts`。`routes/index.ts` 只组合九组具名路由；API 入参、股票池与嵌入式分析配置 schema 集中在 `schema.ts`，路由引用并执行校验。SDK 协议与字段校验仍在 `sdk/`；共用执行/审阅错误映射放在 `routes/errors.ts`，业务操作由各具名入口承担。
 
 ## 主要调用链
 
@@ -48,7 +48,7 @@ proposals/cell-changes（应用 → 人工接受）
       → execution/run-attempt → run-cell
       → proposals/attempt-records（尝试结果读取）
 
-HTTP /agent/turns → agent-turn → agent-context + proposals（澄清/尝试上下文）
+HTTP /agent/turns → agent/turn.ts → agent/context.ts + proposals（澄清/尝试上下文）
   → agent/profiles + agent/tools → agent/turns/run（共享对话执行与事件）
 HTTP /curator/runs → curator/submit → 创建 CuratorRun + Job 的同一事务
   → 日志初始化、唤醒队列 → curator-job → curator/runs
@@ -82,7 +82,7 @@ HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
 - HTTP 归档先检查归属，再检查 Cell / Agent 运行状态；底层 `archiveResearchDocument` 仍可被原调用方使用。旧会话删除保留原规则，不新增运行中保护。
 - 图片读取先校验归属，HTTP 随后处理 ETag / 304 和安全响应头；不能在归属检查前复用缓存。
 
-新增 `routes.integration.test.ts` 的 10 个隔离 SQLite 场景，覆盖上述权限、Agent 上下文/澄清/尝试、事务回滚与 HTTP 响应边界。只替换 Agent 执行、队列唤醒和 Python 关闭等外部资源；路由、业务入口及 Prisma 读写使用真实实现。
+新增 `routes/index.integration.test.ts` 的 10 个隔离 SQLite 场景，覆盖上述权限、Agent 上下文/澄清/尝试、事务回滚与 HTTP 响应边界。只替换 Agent 执行、队列唤醒和 Python 关闭等外部资源；路由、业务入口及 Prisma 读写使用真实实现。
 
 人工 review 后验证通过：全量 API 195 个文件、1042 项测试全部通过，包含上述 10 个新增场景；API 干净编译通过。源码与编译产物均通过真实 Python SDK 查询、文档执行/冻结、下游重跑、reset、取消及 Pyright 补全验证。编译产物覆盖生产 Unix socket 连接分支，对端使用本地真实 runner。
 
@@ -164,3 +164,7 @@ PATCH `/documents/:documentId/input-mode` 切换回放/当前数据，要求文�
 `/docs/help/research/embedded-analysis`。新对话不再提供旧计算/绘图工具及统计说明生成链；
 历史图表经 `agent/tools/charts/replay.ts` 继续重查，正式业务的 `math/stats.ts` 保留。
 Commit 5 已通过审查、API 201 项及 Web 16 项回归、全项目构建和中英用户流程；完整覆盖和环境限制见设计文档。
+
+## 入口归属
+
+本业务对话启动与上下文位于 `agent/turn.ts`、`agent/context.ts`，测试与实现同目录。Curator 与嵌入式分析任务分别位于 `curator/job.ts`、`embedded/job.ts`；模块整体 HTTP 测试位于 `routes/index.integration.test.ts`。

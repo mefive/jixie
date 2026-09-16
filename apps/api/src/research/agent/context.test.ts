@@ -1,6 +1,6 @@
 import { messageText, textMessage, type ChatMessage } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { compactResearchAgentHistory, researchAgentDocumentContext } from './agent-context.js';
+import { compactResearchAgentHistory, researchAgentDocumentContext } from './context.js';
 
 describe('compactResearchAgentHistory', () => {
   it('keeps the original goal, confirmed catalog choices, and the recent conversation', () => {

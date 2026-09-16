@@ -11,7 +11,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { commitStrategyConfig } from '../definitions/config.js';
 import { extractFactorKeys } from '../execution/prepare-factors.js';
 import { t } from '#i18n/index.js';
-import { failStrategyOperation } from '../operation-errors.js';
+import { failStrategyOperation } from '../errors.js';
 
 export async function submitStrategyBacktest(
   userId: string,

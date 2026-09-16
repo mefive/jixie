@@ -42,17 +42,17 @@ vi.mock('#infra/llm/deepseek.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#infra/llm/deepseek.js')>()),
   chatText: resources.name,
 }));
-vi.mock('./runtime/typescript/walled-run.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./runtime/typescript/walled-run.js')>()),
+vi.mock('../runtime/typescript/walled-run.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/typescript/walled-run.js')>()),
   inspectWalledStrategyParameters: resources.parameters,
 }));
 
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
-import { strategyRoute } from './routes/index.js';
-import { submitStrategyBacktest } from './backtest/submit.js';
-import { submitStrategyScan } from './scans/submit.js';
-import { publishedFactorContext } from './agent-context.js';
+import { strategyRoute } from './index.js';
+import { submitStrategyBacktest } from '../backtest/submit.js';
+import { submitStrategyScan } from '../scans/submit.js';
+import { publishedFactorContext } from '../agent/context.js';
 import type { AgentProfile } from '#agent/core.js';
 
 const app = new Hono();

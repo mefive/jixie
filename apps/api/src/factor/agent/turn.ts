@@ -1,4 +1,4 @@
-import { factorAgentInputSchema } from './schema.js';
+import { factorAgentInputSchema } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
@@ -8,10 +8,10 @@ import { prisma } from '#infra/database/prisma.js';
 import { factorProfile } from '#agent/profiles/factor.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
 import * as turnBus from '#agent/turns/bus.js';
-import { refreshFactorMetadata } from './definitions/metadata.js';
+import { refreshFactorMetadata } from '../definitions/metadata.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failFactorOperation } from './operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 export async function startFactorAgentTurn(
   userId: string,

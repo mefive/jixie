@@ -1,6 +1,6 @@
 import type { Context } from 'hono';
 import { apiError } from '#infra/http/errors.js';
-import { StrategyOperationError } from '../operation-errors.js';
+import { StrategyOperationError } from '../errors.js';
 
 export function strategyOperationApiError(context: Context, error: unknown) {
   if (!(error instanceof StrategyOperationError)) {

@@ -10,7 +10,7 @@ import { BUILTIN_KEYS } from '../definitions/builtin-factors.js';
 import { createJob, ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 import { matchesFactorJobTask, readOwnedFactorJob } from './job-queries.js';
 
 const sortedKeys = (keys: string[]) => [...keys].sort();

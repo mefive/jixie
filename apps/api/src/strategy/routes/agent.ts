@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { localeFromRequest, m } from '#infra/http/locale.js';
 import { strategyAgentBodySchema } from '../schema.js';
-import { startStrategyAgentTurn } from '../agent-turn.js';
+import { startStrategyAgentTurn } from '../agent/turn.js';
 import { strategyOperationApiError } from './errors.js';
 
 export const strategyAgentRoute = new Hono();

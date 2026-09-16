@@ -6,7 +6,7 @@ import { macroRegimeTemplateResource } from './templates/macro-regime.js';
 import { strategyKey, customFactorTargetAssetClasses } from './views.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 export async function listCustomFactors(userId: string) {
   const rows = await prisma.factor.findMany({

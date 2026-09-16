@@ -49,7 +49,7 @@ Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，�
 
 多组路由统一放在业务模块的 `routes/` 中，由 `routes/index.ts` 组合并对外导出，外部显式导入 `routes/index.js`。实现文件名省略 `-routes` 后缀。模块内 HTTP 错误映射放在
 `routes/errors.ts`，业务错误类型保留原归属；`schema.ts` 位于模块根目录，供 HTTP 与业务共同引用。
-专属路由测试随实现放在 `routes/`，模块整体接口测试留在根目录。Auth、Sharing、Application Maintenance
+五个核心业务模块的整体接口测试与专属路由测试均放在 `routes/`；其他模块保持现有测试布局。Auth、Sharing、Application Maintenance
 只有单文件路由，直接使用根级 `routes.ts`。HTTP 路径、注册顺序及业务行为保持原契约，整理与验证记录见
 [路由目录整理](design/api-route-directories.md)。
 
@@ -118,12 +118,12 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 ### 2. 提交策略回测并保存报告
 
 1. `strategy/backtest/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后才初始化日志并唤醒队列。
-2. 队列原子领取 Job，执行器加载 `strategy/backtest-job.ts`，解析持久化输入并启动 `engine/backtest-worker`。
+2. 队列原子领取 Job，执行器加载 `strategy/backtest/job.ts`，解析持久化输入并启动 `engine/backtest-worker`。
 3. Worker 调用 `strategy/execution/run-configured.ts`，准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
 4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/analysis/risk`，结果位于回测的多资产配置风险面板。
 5. Worker 返回结果并退出；API 主线程的执行器创建 Prisma 事务，把同一个 transaction 交给业务 `complete`，保存报告/相关缓存与 Job 终态。计算与外部调用不占用这个完成事务。
 
-参数扫描使用独立的 `scan-job.ts` 和扫描 Worker，再为各参数 cell fork 子进程，比较冻结范围内的结果。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
+参数扫描使用独立的 `scans/job.ts` 和扫描 Worker，再为各参数 cell fork 子进程，比较冻结范围内的结果。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
 
 ### 3. 维护发布数据并生成每日信号
 
@@ -131,7 +131,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 2. Market 的具体同步函数获取候选数据，按原覆盖规则校验并写库。股票四表、ETF 三表等保留各自的替换事务。
 3. 原始质量通过后重算派生指标，再检查派生质量；Maintenance 才推进发布水位或 dataRevision。单项同步成功不等于整轮维护已发布。
 4. Signals 读取冻结部署、已发布截止日和因子血缘，创建 SignalRun + Job；其子进程调用 Strategy/Engine 生成下一交易日指令。
-5. `signal-job.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化 afterCommit 重试。
+5. `runs/job.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化 afterCommit 重试。
 
 ## 状态与事务归属
 
@@ -146,7 +146,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 | StrategyDeployment / SignalRun / 账户记录 | Signals 从成功 BacktestReport 创建独立部署，拥有运行、人工成交和重放；不同报告可同时运行，后续草稿编辑不改已有部署 |
 | MaintenanceRun / MaintenanceState | Maintenance 拥有运行、checkpoint、水位、版本和失败门禁 |
 
-`defineJob()` 是组合式契约，要求 parse / execute / complete / fail / recover，可选 afterCommit。各 `*-job.ts` 使用同一签名；业务不继承一个持有数据库和线程的大 Job 基类。
+`defineJob()` 是组合式契约，要求 parse / execute / complete / fail / recover，可选 afterCommit。各业务目录内的任务定义使用同一签名；业务不继承一个持有数据库和线程的大 Job 基类。
 
 事务由 Prisma 在同一个 SQLite 连接上管理 BEGIN/COMMIT/ROLLBACK。`complete(transaction, ...)` 的 transaction 由执行器的 `$transaction` 回调提供；业务必须继续使用它，才能让业务结果和 Job 一起提交或回滚。重启恢复在单一事务内按关联 ID 恢复业务记录并标记 running Job stale；queued 不自动丢弃，也不会把中断计算伪装成完成。
 
@@ -158,8 +158,8 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 | --- | --- |
 | 改 Cell 失效规则 | `research/dependencies/invalidation.ts`、`run-plan.ts` |
 | 改因子发布准入 | `factor/publication/`、`factor/reports/` |
-| 找回测报告冻结时点 | `strategy/backtest/submit.ts` 与 `backtest-job.ts` |
-| 找每日信号失败收尾 | `signals/signal-job.ts` 与 `infra/jobs/executor.ts` |
+| 找回测报告冻结时点 | `strategy/backtest/submit.ts` 与 `backtest/job.ts` |
+| 找每日信号失败收尾 | `signals/runs/job.ts` 与 `infra/jobs/executor.ts` |
 | Python 请求财报经过哪里 | `research/sdk/dispatch.ts` → `datasets/financial*.ts` → `market/fundamentals/` |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
 | 改整体审计规则 | `application-maintenance/data-audit.ts`；模型历史要求由 `strategy/analysis/risk` 提供 |
@@ -170,3 +170,9 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 ## 应用命令入口
 
 Market、Application Maintenance、Signals、Auth 的命令放在各模块 `cli/`，用法汇总于 [API 命令索引](../apps/api/scripts/README.md)。Market 负责数据和证券代码合并，财报分期规则归 fundamentals；Application Maintenance 负责整轮发布和应用可用性协调。CLI 负责参数/输出/收尾，简单组合保留在入口中；较重的基线修复与财报历史导入由具名操作承接。独立备份工具仍在 API scripts 根目录，以 Node 直接执行。
+
+## 核心业务模块的目录规则
+
+Factor、Strategy、Research、Market、Signals 根级保留说明、输入校验和可选的共用业务异常。Agent 启动与上下文归各模块 `agent/`，任务定义归所属业务目录；整体路由测试归 `routes/`。Signals 单次运行及通知归 `runs/`，每日数据准备与批量运行归 `daily/`。Factor 的纯来源类型、解析、快照与哈希归 `analysis/source-snapshot.ts`，业务消费者直接引用，不经 Job 实现转导出。其他领域目录按实际业务保留；本规则不要求其他功能模块套用相同结构。
+
+迁移与验证记录见 [核心业务入口整理](design/core-business-entry-points.md)。

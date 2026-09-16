@@ -4,7 +4,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { extractFactorKeys } from '../execution/prepare-factors.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../operation-errors.js';
+import { failStrategyOperation } from '../errors.js';
 
 export async function setStrategyVisibility(
   userId: string,

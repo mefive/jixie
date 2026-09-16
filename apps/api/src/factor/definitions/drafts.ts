@@ -9,7 +9,7 @@ import { factorLanguage } from './views.js';
 import type { createFactorDraftSchema, updateFactorDraftSchema } from '../schema.js';
 import { nextCopyKey } from './copy-key.js';
 import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 export async function createFactorDraft(
   userId: string,

@@ -6,13 +6,13 @@ import { runJobWorker, type JobWorkerMessage } from '#infra/jobs/worker-result.j
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { t } from '#i18n/messages.js';
-import { codeConfigSchema } from './schema.js';
-import { strategyRunKey } from './definitions/config.js';
-import { refreshStrategyName } from './definitions/naming.js';
+import { codeConfigSchema } from '../schema.js';
+import { strategyRunKey } from '../definitions/config.js';
+import { refreshStrategyName } from '../definitions/naming.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../engine/backtest-worker.boot.mjs', import.meta.url)
-  : new URL('../engine/backtest-worker.js', import.meta.url);
+  ? new URL('../../engine/backtest-worker.boot.mjs', import.meta.url)
+  : new URL('../../engine/backtest-worker.js', import.meta.url);
 
 const backtestJobPayloadSchema = z.object({
   task: z.literal('backtest'),

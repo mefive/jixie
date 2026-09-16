@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import { runDailySignalCycle } from '../scheduler.js';
+import { runDailySignalCycle } from '../daily/scheduler.js';
 
 async function main(): Promise<void> {
   const tradeDate = process.argv[2];

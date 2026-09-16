@@ -4,7 +4,7 @@ Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对�
 
 ## 从产品操作找入口
 
-- 发起对话：`research/agent-turn.ts`、`factor/agent-turn.ts`、`strategy/agent-turn.ts` → 各自的 profile → [turns/run.ts](turns/run.ts) 的 `enqueueAgentTurn`。只读因子问答从 `factor/questions/conversations.ts` 发起，按用户与稳定因子身份保存。
+- 发起对话：`research/agent/turn.ts`、`factor/agent/turn.ts`、`strategy/agent/turn.ts` → 各自的 profile → [turns/run.ts](turns/run.ts) 的 `enqueueAgentTurn`。只读因子问答从 `factor/questions/conversations.ts` 发起，按用户与稳定因子身份保存。
 - 查看历史消息：[routes/conversation.ts](routes/conversation.ts) → [conversations/read.ts](conversations/read.ts)，按用户归属查询、按 sequence 翻页。
 - 订阅/恢复连接/取消：`routes/turn.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
 - 查看执行详情：`routes/turn.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。

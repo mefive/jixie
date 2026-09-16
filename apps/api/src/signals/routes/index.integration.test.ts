@@ -41,11 +41,11 @@ vi.mock('#infra/jobs/queue.js', () => ({
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { deleteStrategy } from '#strategy/definitions/drafts.js';
-import { signalsRoute } from './routes/index.js';
-import { deployBacktestReport } from './deployments/manage.js';
-import { enqueueSignalRun } from './runs/enqueue.js';
-import { initializeSignalAccounting } from './accounting/initialize.js';
-import { settleStrategyAccounts } from './accounting/settlement.js';
+import { signalsRoute } from './index.js';
+import { deployBacktestReport } from '../deployments/manage.js';
+import { enqueueSignalRun } from '../runs/enqueue.js';
+import { initializeSignalAccounting } from '../accounting/initialize.js';
+import { settleStrategyAccounts } from '../accounting/settlement.js';
 
 const config = {
   name: 'Signal fixture',

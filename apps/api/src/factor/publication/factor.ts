@@ -11,7 +11,7 @@ import {
   compileTimeSeriesFactor,
 } from '../runtime/typescript/compile-asset-factor.js';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
-import { factorAnalysisSourceHash } from '../analysis-job.js';
+import { factorAnalysisSourceHash } from '../analysis/source-snapshot.js';
 import {
   compilePythonPanelFactor,
   compilePythonTimeSeriesFactor,

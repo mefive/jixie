@@ -1,6 +1,6 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import type { FactorResearchSpecV1, Locale, LogLine, LogLevel } from '@jixie/shared';
-import type { FactorAnalysisSource } from '../analysis-job.js';
+import type { FactorAnalysisSource } from './source-snapshot.js';
 import { prisma } from '#infra/database/prisma.js';
 import { factorEvaluatorFor } from './cross-sectional-evaluator.js';
 import { normalizeFactorResearchSpec } from '../reports/spec.js';

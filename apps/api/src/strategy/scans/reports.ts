@@ -12,7 +12,7 @@ import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { scanStrategyIdentitySchema, scanJobQuerySchema } from '../schema.js';
 import { t } from '#i18n/index.js';
-import { failStrategyOperation } from '../operation-errors.js';
+import { failStrategyOperation } from '../errors.js';
 
 export async function listStrategyScanReports(
   userId: string,

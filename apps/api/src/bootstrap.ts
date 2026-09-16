@@ -8,13 +8,13 @@ import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
 
 export const jobRegistry: JobRegistry = {
-  backtest: async () => (await import('#strategy/backtest-job.js')).backtestJob,
-  factor: async () => (await import('#factor/factor-job.js')).factorJob,
-  'strategy-scan': async () => (await import('#strategy/scan-job.js')).strategyScanJob,
-  signal: async () => (await import('#signals/signal-job.js')).signalJob,
+  backtest: async () => (await import('#strategy/backtest/job.js')).backtestJob,
+  factor: async () => (await import('#factor/analysis/job-dispatch.js')).factorJob,
+  'strategy-scan': async () => (await import('#strategy/scans/job.js')).strategyScanJob,
+  signal: async () => (await import('#signals/runs/job.js')).signalJob,
   'research-embedded-analysis': async () =>
-    (await import('#research/embedded-analysis-job.js')).researchEmbeddedAnalysisJob,
-  'research-curator': async () => (await import('#research/curator-job.js')).researchCuratorJob,
+    (await import('#research/embedded/job.js')).researchEmbeddedAnalysisJob,
+  'research-curator': async () => (await import('#research/curator/job.js')).researchCuratorJob,
 };
 
 export async function startServer(port: number) {

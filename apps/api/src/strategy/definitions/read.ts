@@ -2,7 +2,7 @@ import type { BacktestSummary, StrategyCard } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../operation-errors.js';
+import { failStrategyOperation } from '../errors.js';
 
 export async function listStrategies(userId: string) {
   const rows = await prisma.strategy.findMany({

@@ -67,3 +67,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 - [instruments/canonicalize-stock-codes.ts](instruments/canonicalize-stock-codes.ts) 负责历史代码冲突检查和市场数据合并，供本模块 CLI 与应用维护 weekly 使用；纯身份规则仍在 `instruments/stock-identity.ts`。
 - [fundamentals/reference-periods.ts](fundamentals/reference-periods.ts) 负责财报历史起点和季度分期，供 weekly 与财报历史导入复用。
 - 数据操作成功不等于整轮发布完成。[Application Maintenance](../application-maintenance/README.md) 负责协调等待、发布水位及下游信号；Market 不回调它。
+
+## 目录约定
+
+根级保留 `README.md` 与 `schema.ts`；整体 HTTP 测试位于 `routes/index.test.ts`，领域测试仍跟随实现。行情、同步、估值等现有业务目录保持各自职责。

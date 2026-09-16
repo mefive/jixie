@@ -11,7 +11,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { normalizeScanSpec } from './scan.js';
 import type { scanStrategyIdentitySchema, submitStrategyScanSchema } from '../schema.js';
 import { t } from '#i18n/index.js';
-import { failStrategyOperation } from '../operation-errors.js';
+import { failStrategyOperation } from '../errors.js';
 
 export async function submitStrategyScan(
   userId: string,

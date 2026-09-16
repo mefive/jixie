@@ -7,7 +7,7 @@ import { macroRegimeTemplateResource } from '../definitions/templates/macro-regi
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { sha256 } from '../reports/spec.js';
 import { reportSummary } from '../reports/views.js';
-import { failFactorOperation } from '../operation-errors.js';
+import { failFactorOperation } from '../errors.js';
 
 /** Capture only the selected, authorized source. Never resolve a display name or latest report. */
 export async function captureFactorQuestionContext(

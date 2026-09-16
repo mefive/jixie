@@ -32,7 +32,7 @@ vi.mock('#strategy/definitions/naming.js', () => ({
   refreshStrategyName: execution.rename,
 }));
 vi.mock('#research/curator/runs.js', () => ({ prepareResearchCuratorRun: execution.curator }));
-vi.mock('#signals/notifier.js', () => ({ notifySignalRun: execution.notify }));
+vi.mock('#signals/runs/notifier.js', () => ({ notifySignalRun: execution.notify }));
 vi.mock('#signals/accounting/initialize.js', () => ({
   initializeSignalAccounting: execution.accounting,
 }));

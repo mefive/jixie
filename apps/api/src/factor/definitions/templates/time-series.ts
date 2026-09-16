@@ -1,6 +1,6 @@
 import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
 import { MAJOR_ETF_CODES } from '#market/registry/etf-presets.js';
-import type { FactorAnalysisSource } from '../../analysis-job.js';
+import type { FactorAnalysisSource } from '../../analysis/source-snapshot.js';
 
 export interface TimeSeriesTemplate {
   key: string;
