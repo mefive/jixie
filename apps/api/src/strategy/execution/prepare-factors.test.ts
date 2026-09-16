@@ -14,8 +14,8 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
+import { canonicalJson, sha256 } from '#factor/sources/fingerprint.js';
 import { extractFactorKeys, prepareStrategyFactors } from './prepare-factors.js';
-import { canonicalJson, sha256 } from '#factor/reports/spec.js';
 
 const SOURCE = `export default defineFactor({ compute: (bar) => bar.pb });`;
 

@@ -7,7 +7,7 @@ import {
   type FactorBatchItem,
 } from '../runtime/typescript/compile-factor.js';
 import { daysBetween } from '#date';
-import { sha256 } from '../reports/spec.js';
+import { sha256 } from '../sources/fingerprint.js';
 
 /**
  * Step 1b acceptance: every preset compiles, and the seeded CODE reproduces the legacy hardcoded

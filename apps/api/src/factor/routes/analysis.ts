@@ -14,9 +14,9 @@ import {
   readFactorAnalysisJob,
   readFactorResearchWindow,
   readFactorResearchSummary,
-} from '../reports/read.js';
-import { submitFactorAnalysis } from '../analysis/submit.js';
-import { submitFactorHoldout, revealFactorHoldout } from '../reports/holdout.js';
+} from '../evaluations/read.js';
+import { submitFactorAnalysis } from '../evaluations/submit.js';
+import { submitFactorHoldout, revealFactorHoldout } from '../evaluations/holdout.js';
 
 export const factorAnalysisRoute = new Hono();
 

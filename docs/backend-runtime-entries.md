@@ -11,8 +11,8 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `strategy/backtest/job.ts` | `engine/backtest-worker.boot.mjs` → `backtest-worker.ts` | `engine/backtest-worker.js` | 回测线程；回传结果，主线程按 Job 契约完成事务 |
 | `strategy/scans/job.ts` | `strategy/scans/strategy-scan-worker.boot.mjs` → `.ts` | `strategy/scans/strategy-scan-worker.js` | 参数扫描线程；汇总 cell 结果 |
 | 扫描 Worker | `strategy/scans/strategy-scan-cell-worker.boot.mjs` → `.ts` | `strategy/scans/strategy-scan-cell-worker.js` | fork 各 cell；独立执行并退出，扫描父线程判定退出结果 |
-| `factor/analysis/job.ts`、`factor/weather/refresh.ts` | `factor/analysis/factor-worker.boot.mjs` → `.ts` | `factor/analysis/factor-worker.js` | 因子分析与天气刷新线程；任务/天气调用方分别拥有最终持久化 |
-| `factor/analysis/correlation-job.ts` | `factor/analysis/correlation-worker.boot.mjs` → `.ts` | `factor/analysis/correlation-worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
+| `factor/evaluations/job.ts`、`factor/weather/refresh.ts` | `factor/execution/worker.boot.mjs` → `.ts` | `factor/execution/worker.js` | 因子分析与天气刷新线程；任务/天气调用方分别拥有最终持久化 |
+| `factor/correlations/job.ts` | `factor/correlations/worker.boot.mjs` → `.ts` | `factor/correlations/worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
 | `signals/runs/job.ts` | `signals/runs/signal-worker.boot.mjs` → `.ts` | `signals/runs/signal-worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `application-maintenance/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；接收 summary 且正常退出才完成 |

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { sha256 } from '../reports/spec.js';
-import { factorAnalysisSourceHash } from '../analysis/source-snapshot.js';
+import { sha256 } from '../sources/fingerprint.js';
+import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 
 const mocks = vi.hoisted(() => ({
   factorFindFirst: vi.fn(),

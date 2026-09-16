@@ -5,8 +5,8 @@ import { timeSeriesTemplateResource } from '../definitions/templates/time-series
 import { panelTemplateResource } from '../definitions/templates/panel.js';
 import { macroRegimeTemplateResource } from '../definitions/templates/macro-regime.js';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
-import { sha256 } from '../reports/spec.js';
-import { reportSummary } from '../reports/views.js';
+import { sha256 } from '../sources/fingerprint.js';
+import { reportSummary } from '../evaluations/report-views.js';
 import { failFactorOperation } from '../errors.js';
 
 /** Capture only the selected, authorized source. Never resolve a display name or latest report. */

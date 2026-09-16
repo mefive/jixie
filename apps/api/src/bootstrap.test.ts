@@ -29,7 +29,7 @@ vi.mock('#factor/weather/refresh.js', () => ({
 }));
 vi.mock('#factor/definitions/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
 vi.mock('#strategy/backtest/job.js', () => ({ backtestJob: mocks.backtest }));
-vi.mock('#factor/analysis/job-dispatch.js', () => ({ factorJob: mocks.factor }));
+vi.mock('#factor/jobs/dispatch.js', () => ({ factorJob: mocks.factor }));
 vi.mock('#strategy/scans/job.js', () => ({ strategyScanJob: mocks.scan }));
 vi.mock('#signals/runs/job.js', () => ({ signalJob: mocks.signal }));
 vi.mock('#research/curator/job.js', () => ({ researchCuratorJob: mocks.curator }));

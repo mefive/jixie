@@ -46,8 +46,8 @@ vi.mock('../weather/refresh.js', async (importOriginal) => ({
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { copyFactorComposite } from '../composition/operations.js';
-import { submitFactorHoldout } from '../reports/holdout.js';
-import { sha256 } from '../reports/spec.js';
+import { submitFactorHoldout } from '../evaluations/holdout.js';
+import { sha256 } from '../sources/fingerprint.js';
 import { factorRoute } from './index.js';
 
 const app = new Hono();

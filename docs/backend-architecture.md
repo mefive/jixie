@@ -61,7 +61,7 @@ Strategy、Factor、Research、Signals、Agent、Market、Auth 的 API body/quer
 HTTP 对象、LLM 调用或业务执行代码，也不作为业务实现的汇总出口。
 
 - `strategy/schema.ts` 定义双语言的 `codeConfigSchema`，创建、回测、扫描和 Signals 共同消费。
-- `factor/schema.ts` 包含研究/组合配置；`reports/spec.ts` 保留配置规范化、默认配置与指纹计算。
+- `factor/schema.ts` 包含研究/组合配置；`execution/spec.ts` 保留配置规范化和默认配置，`evaluations/identity.ts` 计算正式评估身份，`sources/fingerprint.ts` 提供纯指纹。
 - `research/schema.ts` 包含股票池、嵌入式分析、文档/Cell、Agent 等入参；
   `datasets/spec.ts` 保留股票池语义检查，`sdk/request.ts` 与 `sdk/validation.ts` 提供纯 SDK 参数解析，
   `sdk/dispatch.ts` 负责数据查询。API schema 可以复用 SDK 校验，不能通过 dispatch 引入执行依赖。
@@ -157,7 +157,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 | 修改需求 | 先看 |
 | --- | --- |
 | 改 Cell 失效规则 | `research/dependencies/invalidation.ts`、`run-plan.ts` |
-| 改因子发布准入 | `factor/publication/`、`factor/reports/` |
+| 改因子发布准入 | `factor/publication/`、`factor/evaluations/` |
 | 找回测报告冻结时点 | `strategy/backtest/submit.ts` 与 `backtest/job.ts` |
 | 找每日信号失败收尾 | `signals/runs/job.ts` 与 `infra/jobs/executor.ts` |
 | Python 请求财报经过哪里 | `research/sdk/dispatch.ts` → `datasets/financial*.ts` → `market/fundamentals/` |
@@ -173,6 +173,17 @@ Market、Application Maintenance、Signals、Auth 的命令放在各模块 `cli/
 
 ## 核心业务模块的目录规则
 
-Factor、Strategy、Research、Market、Signals 根级保留说明、输入校验和可选的共用业务异常。Agent 启动与上下文归各模块 `agent/`，任务定义归所属业务目录；整体路由测试归 `routes/`。Signals 单次运行及通知归 `runs/`，每日数据准备与批量运行归 `daily/`。Factor 的纯来源类型、解析、快照与哈希归 `analysis/source-snapshot.ts`，业务消费者直接引用，不经 Job 实现转导出。其他领域目录按实际业务保留；本规则不要求其他功能模块套用相同结构。
+Factor、Strategy、Research、Market、Signals 根级保留说明、输入校验和可选的共用业务异常。Agent 启动与上下文归各模块 `agent/`，任务定义归所属业务目录；整体路由测试归 `routes/`。Signals 单次运行及通知归 `runs/`，每日数据准备与批量运行归 `daily/`。Factor 的纯来源类型、解析、快照及语言哈希归 `sources/snapshot.ts`，通用指纹归 `sources/fingerprint.ts`，业务消费者直接引用，不经 Job 实现转导出。其他领域目录按实际业务保留；本规则不要求其他功能模块套用相同结构。
 
 迁移与验证记录见 [核心业务入口整理](design/core-business-entry-points.md)。
+
+## Factor 内部职责
+
+正式评估的提交、冻结、报告、holdout 与生命周期归 `factor/evaluations/`；相关性任务及缓存归
+`factor/correlations/`；天气固定版本与观察点归 `factor/weather/`。三者分别拥有既有事务和状态。
+`factor/execution/run.ts` 只按研究配置计算，接收冻结来源及日志/结果回调，不接收 reportId 或 Job。
+正式评估与天气共同使用 `execution/worker.ts`，由宿主分别持久化。Worker 的结果回调保留先回传、
+再释放运行时的既有时序；`reportId`（包括 `weather:*`）只属于消息封套。
+横截面的数据准备、因子序列、方法政策、统计评估与推断分开；相关性仅复用数据及序列能力。
+`sources/snapshot.ts` 与 `sources/fingerprint.ts` 保持纯依赖，数据库来源解析归 `sources/resolve.ts`。
+本轮计划和 review 状态见 [内部结构整理](design/core-business-internal-structure.md)。

@@ -1,11 +1,12 @@
 import { Worker } from 'node:worker_threads';
 import type { FactorReport, FactorWeatherPoint } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { createDefaultFactorAnalysisSpecV3, canonicalJson, sha256 } from '../reports/spec.js';
+import { createDefaultFactorAnalysisSpecV3 } from '../execution/spec.js';
+import { canonicalJson, sha256 } from '../sources/fingerprint.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../analysis/factor-worker.boot.mjs', import.meta.url)
-  : new URL('../analysis/factor-worker.js', import.meta.url);
+  ? new URL('../execution/worker.boot.mjs', import.meta.url)
+  : new URL('../execution/worker.js', import.meta.url);
 
 const HISTORY_START = '20150101';
 const standardSpecTemplate = createDefaultFactorAnalysisSpecV3({

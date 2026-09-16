@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import type { FactorAnalysisSource } from '../analysis/source-snapshot.js';
+import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import { resolvePanelTemplateSource } from '../definitions/templates/panel.js';
 import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
 

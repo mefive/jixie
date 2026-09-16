@@ -3,7 +3,7 @@ import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
 import { factorV2YieldTerm, type FactorV2FieldKey } from '../definitions/fields.js';
-import type { TimeSeriesEvaluationObservation } from '../analysis/time-series-evaluator.js';
+import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
 import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,

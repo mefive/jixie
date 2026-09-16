@@ -10,7 +10,7 @@ import { addDays, daysBetween } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
 import { COMMODITY_CARRY_FIELD } from '../definitions/fields.js';
-import type { TimeSeriesEvaluationObservation } from '../analysis/time-series-evaluator.js';
+import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
 
 interface CommodityCarryTimeSeriesMapping {

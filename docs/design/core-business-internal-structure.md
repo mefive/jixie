@@ -3,7 +3,7 @@
 ## 状态与目标
 
 - 基线：`fd0ab69f`（`refactor(api): organize business module entry points`）。该轮入口整理已完成，见[记录](core-business-entry-points.md)。其中的验证结果只证明上一轮，不作为本计划的验收结果。
-- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。先提交计划，再完成 Factor 实现并交人工代码 review。
+- 当前阶段：2026-09-16 用户确认「定版开工」；方案、提交拆分及准确提交信息已批准。计划已提交 `b3afcbe2`；Factor 已通过人工代码 review 与行为验证，随本提交交付；下一项为 Strategy。
 - 工作流：review-gated-development；每个实现 commit 先确认范围和准确提交信息，再实现、静态检查、人工代码 review、行为验证、提交。不推送。
 - 目标：根据业务问题能够找到实现，目录和文件名称能够说明职责，减少无意义层级；不要求五个核心模块具有相同结构。
 - 交付对象：后端维护者与后续开发任务。没有新增用户页面、HTTP 接口或 CLI 命令。
@@ -586,8 +586,8 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 ### 4.3 最终完成标准
 
 - [x] 本计划确认，四个实现提交的范围与准确提交信息获准；按工作流逐个完成代码 review 与验证。
-- [ ] Factor 正式评估/报告/holdout、相关性、天气各有明确状态和产物归属；原 analysis/reports 目录移除且无转发。
-- [ ] 共享 execution 只执行计算、不写业务生命周期；数据/序列可供相关性复用，来源快照/指纹不依赖任务。Worker 复用关系、旧协议、哈希和封存语义保持。
+- [x] Factor 正式评估/报告/holdout、相关性、天气各有明确状态和产物归属；原 analysis/reports 目录移除且无转发。
+- [x] 共享 execution 只执行计算、不写业务生命周期；数据/序列可供相关性复用，来源快照/指纹不依赖任务。Worker 复用关系、旧协议、哈希和封存语义保持。
 - [ ] Strategy 回测编排/Worker 归回 backtests，扫描保持独立流程，因子输入准备真实共享；risk 不再有空 analysis 外层。
 - [ ] Research 文档运行与共用 Python 会话分开，embedded/proposals/curator/evidence 的不同生命周期及权限边界保持。
 - [ ] Market 同步/读取/质量按数据归属完成迁移；无旧 sync/quality 转发，日历与基础可得性归 Market，Signals 的利率准入归 Signals。
@@ -601,10 +601,66 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 
 | 提交 | 范围批准 | 静态检查 | 人工代码 review | 行为验证 | Git 提交 |
 | --- | --- | --- | --- | --- | --- |
-| 计划文档 | 2026-09-16 用户确认「定版开工」 | 本地链接、74 项现有源码路径、5 条提交标题、表格列数、代码围栏、过时方案文字及空白检查通过 | 方案已批准 | 文档不适用 | 随本文提交 |
-| Factor | Gate 1 已批准，开始实现 | 未执行 | 未开始 | 未执行 | 未提交 |
+| 计划文档 | 2026-09-16 用户确认「定版开工」 | 本地链接、74 项现有源码路径、5 条提交标题、表格列数、代码围栏、过时方案文字及空白检查通过 | 方案已批准 | 文档不适用 | `b3afcbe2` |
+| Factor | Gate 1 已批准，完整实现已完成 | 全仓 typecheck、ESLint 零警告、Prettier、路径/链接/实现对照与 diff 检查通过；测试数据修正后 API typecheck 通过 | 2026-09-16 用户确认通过 | 48 文件 / 283 用例最终通过；干净构建及三套真实 Worker / 17 组结果对照通过 | 随本提交；标题见下文 |
 | Strategy | 方案已批准，待 Factor 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 | Research | 方案已批准，待 Strategy 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 | Market / Signals 边界 | 方案已批准，待 Research 完成后开工 | 未执行 | 未开始 | 未执行 | 未提交 |
 
-用户已明确批准定版并开工。当前执行 Factor 提交；实现及静态检查完成后交人工代码 review，通过后才运行行为验证与构建，验证通过后按约定信息提交，不推送。
+用户已明确批准定版并开工。Factor 的人工代码 review 和验证均已完成，按约定信息提交，不推送；Strategy 尚未开始实现。
+
+### Factor 实现补充
+
+共享 `runFactorEvaluation` 接受原横截面配置或统一研究配置，返回评估器原有结果。为保持旧 Worker
+在时间序列/Panel 分支中「结果序列化与发送 → 运行时 dispose」的顺序，增加可选的同步 `onResult`
+回调；Worker 在回调里发送原协议的 done 消息。计算入口不接收 reportId、不依赖端口或业务持久化。
+这也保留了序列化/发送异常仍会进入原 finally 释放运行时的行为。
+
+### Factor Gate 2 交接（2026-09-16）
+
+准确提交信息：`refactor(factor): organize evaluation workflows and execution`。
+
+交付：原 `analysis/`、`reports/` 已移除，没有旧路径转发；正式评估与报告归 `evaluations/`，
+相关性归 `correlations/`，共享计算归 `execution/`，来源归 `sources/`，既有 Job 适配归 `jobs/`。
+天气持久化保持原位置与事务。消费者、测试替身、Bootstrap 及当前 CLAUDE/README/架构/运行入口已同步。
+
+审查入口：
+
+- [正式评估启动](../../apps/api/src/factor/evaluations/start.ts)、[Job 生命周期](../../apps/api/src/factor/evaluations/job.ts)、[报告与封存读取](../../apps/api/src/factor/evaluations/read.ts)：原函数体和事务保持；holdout 仍单独拥有申请事务。
+- [共享计算](../../apps/api/src/factor/execution/run.ts)、[Worker](../../apps/api/src/factor/execution/worker.ts)：结果回调、异常与释放时序是本次需要重点 review 的边界。
+- [横截面评估](../../apps/api/src/factor/execution/cross-sectional/evaluate.ts)、[数据](../../apps/api/src/factor/execution/cross-sectional/data.ts)、[序列](../../apps/api/src/factor/execution/cross-sectional/series.ts)：按职责提取，函数体、常量和默认参数保持。
+- [共享入口测试](../../apps/api/src/factor/execution/run.test.ts)：补充双语言、数据分派、Panel 组合、天气旧配置、原始结果形状及失败/释放顺序；尚未运行。
+
+静态证据：
+
+- `pnpm typecheck` 通过，含全部 workspace、三个生成契约检查；后端边界扫描 697 个文件，0 违规、0 已有跨域循环组，例外配置未变。
+- 改动的 80 个 TS/MJS 源码及测试通过 ESLint（零警告）和 Prettier；`git diff --check` 通过。
+- 静态 AST/token 对照确认 84 组原声明/实现未改变；Worker 计算分支与原代码一致，差别限于将 done 发送委托给结果回调后返回。
+- 原 spec/policy/job 测试拆分后，28 个既有用例及断言保留；Worker/资源 URL 静态解析通过。实际进程尚未启动。
+- 当前文档本地链接检查通过；运行源码/脚本没有 Factor analysis/reports 旧路径。历史设计记录保留原路径。
+
+review 后执行：Factor 相关测试、Bootstrap、Agent 分析工具、Strategy 因子准备和 Research 报告消费回归；
+以 `fd0ab69f` 保留的原代码和固定行情作数值/序列/哈希对照；隔离库验证生命周期、holdout 封存及天气不同持久化目标；
+按 4.2 完成 API 干净构建及源码/编译 Worker 的实际成功、失败与资源收尾验证。
+
+以上为 Gate 2 交接时的状态：当时产品代码未提交，未运行单元/集成测试、构建、Worker probe 或数据库流程。其后的 review 与行为验收见下文。
+
+### Factor review 后验证与提交（2026-09-16）
+
+用户确认代码 review 通过，授权行为验收及通过后提交。准确提交信息保持：
+`refactor(factor): organize evaluation workflows and execution`。
+
+- 相关回归范围为 `src/factor`、Bootstrap、两个 Agent 因子分析工具、Strategy 因子准备，以及 Research 的 FactorReport / scan-and-weather 消费：48 个文件、283 个用例最终通过，没有把跳过项计为通过。
+- 首轮 47 个文件 / 279 个用例通过，4 个失败均来自新 `execution/run.test.ts` 的数据不足：Panel 只有 1 期、宏观没有完整观察期。仅补充测试数据到原评估器要求的 3 / 12 期并更新相应数量断言，保留真实评估器、原阈值和失败断言；该文件 15 项复跑全部通过。未修改已审查产品代码，测试文件 ESLint、Prettier 及 API typecheck 通过。
+- `pnpm --filter api build --outDir <全新临时目录>/clean/apps/api/dist` 通过。干净产物目录保留原生 API package imports，默认 Node 条件加载 `dist/src`；未使用已有 API dist。
+- 固定行情包括 783 个工作日、160 只测试股票、125,219 条股票行情、3,132 条 ETF 行情，含行业、历史财务与一个价格缺口。全部为本地生成数据。将 `fd0ab69f` 导出的原实现、当前源码及干净编译产物分别运行在独立 SQLite 库。
+- 三套各执行 TS/Python V3/V6 横截面、时间序列、Panel 及失败 Worker，另执行混合语言横截面组合。核对真实窗口序列及覆盖审计（1,919 条观察）、语言相关快照/variant/test 哈希、24 期相关性、缓存内容、两种语言各 35 个月天气观察。当前源码与干净编译产物的 17 组完整结果均与原实现精确相等；没有用空结果代替数值证据。
+- 三套均通过真实 Job 执行器验证正式报告成功、相同运行复用、创建回滚、失败和中断恢复；holdout 冻结/重复申请、真实计算、结果与日志封存、越权揭示拒绝及授权揭示；相关性成功缓存与失败保留；天气完整刷新、6 个月增量、旧观察点不变、重复跳过和失败状态。天气调用前后 FactorReport / Job 数量不变。
+- 每套直接启动 11 个 Worker；另由真实 Job 与天气业务入口启动 10 个 Worker，均完成或回传预期失败并退出。源码/基线 Python 使用本机 runner；编译产物使用生产 socket 路径连接受控 Unix socket 桥及真实本机 Python runner。桥接不等于生产 sandboxd / Docker 隔离验收，本次没有改动这些能力。
+- 没有调用真实行情供应商、邮件或付费模型，没有启动浏览器或新增 E2E。验证结束后确认无遗留验证/Python 进程、关闭并移除 socket，四个 SQLite 库均可取得排他锁后已删除；保留日志、fixture、结果 JSON 和干净构建。
+
+验证归档：`/var/folders/2_/ntv3g9xx1xxf_wrfxwtx35f40000gn/T/jixie-factor-verify-3yqwm2gy`。
+`logs/tests.log` 保留首轮结果，`logs/run-tests.log` 为测试数据修正后的复跑；`logs/build.log`、
+`logs/baseline.log`、`logs/source.log`、`logs/compiled.log`、`summary.json` 和 `cleanup.json` 分别记录构建、
+三套运行、精确对照及资源清理。初次建库需先创建 SQLite 文件、编译桥监听需临时本机 socket 权限，
+均为测试环境处理，没有改变产品代码。最终 commit hash 由交付消息记录，并在下一提交更新本文时补入表格。

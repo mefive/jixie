@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
-import { factorAnalysisSourceSnapshot } from '../analysis/source-snapshot.js';
-import { sha256 } from '../reports/spec.js';
+import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
+import { sha256 } from '../sources/fingerprint.js';
 
 const mocks = vi.hoisted(() => ({
   compositeFindFirst: vi.fn(),

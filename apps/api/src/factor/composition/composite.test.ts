@@ -1,8 +1,8 @@
 import type { FactorCompositeDefinitionV1, FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { combineFactorSeries, combinePanelFactorObservations } from './composite.js';
-import type { Series } from '../analysis/cross-sectional.js';
-import type { PanelEvaluationObservation } from '../analysis/panel-evaluator.js';
+import type { Series } from '../execution/cross-sectional/series.js';
+import type { PanelEvaluationObservation } from '../execution/panel-evaluator.js';
 
 function series(rows: Array<[string, number]>): Series {
   return new Map([['20240131', rows.map(([tsCode, value]) => ({ tsCode, value }))]]);

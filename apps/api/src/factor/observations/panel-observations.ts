@@ -2,7 +2,7 @@ import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import type { CompiledPanelFactor } from '../runtime/typescript/compile-asset-factor.js';
-import type { PanelEvaluationObservation } from '../analysis/panel-evaluator.js';
+import type { PanelEvaluationObservation } from '../execution/panel-evaluator.js';
 
 export interface PanelEtfDailyRow {
   assetId: string;

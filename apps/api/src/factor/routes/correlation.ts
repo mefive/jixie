@@ -12,7 +12,7 @@ import {
   findActiveFactorCorrelationJob,
   submitFactorCorrelation,
   readFactorCorrelationJob,
-} from '../analysis/correlation-operations.js';
+} from '../correlations/operations.js';
 
 export const factorCorrelationRoute = new Hono();
 

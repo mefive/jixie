@@ -4,7 +4,7 @@ import type { z } from 'zod';
 import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
-import { factorAnalysisSourceHash } from '../analysis/source-snapshot.js';
+import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 import {
   FACTOR_WEATHER_METHODOLOGY_HASH,
   factorWeatherMethodology,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compileFactor } from './compile-factor.js';
-import { factorSourceReferencesHistoryField } from '../../analysis/cross-sectional.js';
+import { factorSourceReferencesHistoryField } from '../../execution/cross-sectional/series.js';
 
 describe('factor source history dependencies', () => {
   it('recognizes single, double, and template-quoted history fields', () => {

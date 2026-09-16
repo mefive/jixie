@@ -1,5 +1,5 @@
 import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
-import type { FactorAnalysisSource } from '../../analysis/source-snapshot.js';
+import type { FactorAnalysisSource } from '../../sources/snapshot.js';
 
 export interface PanelTemplate {
   key: string;
