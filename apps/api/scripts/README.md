@@ -28,13 +28,15 @@
 
 [split-factor-job-kinds.ts](migrations/split-factor-job-kinds.ts) 把旧 `kind: factor` 转为
 `factor-analysis` / `factor-correlation`。部署时 `scripts/bootstrap.sh` 先停止 API、构建并完成
-Prisma schema migration，再执行 `pnpm --filter api exec node --env-file=.env dist/scripts/migrations/split-factor-job-kinds.js`。
+Prisma schema migration，再执行 `pnpm --filter api run db:migrate:factor-job-kinds`。
+环境加载参数放在 API package script 内，Node 从 API 工作目录读取 `.env`，不由根目录的 `pnpm exec` 解析。
 失败返回非零状态并保持 API 停止；脚本会断开自己的连接，重跑可继续未完成批次。
 
 开发机如需保留旧 Job，停止 API 后，从仓库根执行：
 
 ```sh
-pnpm --filter api exec tsx --env-file=.env scripts/migrations/split-factor-job-kinds.ts
+pnpm --filter api build
+pnpm --filter api run db:migrate:factor-job-kinds
 ```
 
 此命令写 Job kind，不重算报告或重写冻结 payload。它不在普通 `pnpm dev` / API 启动中自动运行。

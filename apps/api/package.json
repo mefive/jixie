@@ -10,6 +10,7 @@
     "test": "node --conditions=development node_modules/vitest/vitest.mjs run",
     "test:watch": "node --conditions=development node_modules/vitest/vitest.mjs",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:factor-job-kinds": "node --env-file=.env dist/scripts/migrations/split-factor-job-kinds.js",
     "db:studio": "prisma studio",
     "backup": "node scripts/backup-db.mjs",
     "maintenance": "tsx --conditions=development --env-file=.env src/application-maintenance/cli/run-maintenance.ts",

@@ -1001,7 +1001,7 @@ if [[ "$DEPLOY_API" == "1" ]]; then
 
   log "迁移 Factor Job kind"
   API_DATA_MIGRATION_INCOMPLETE=1
-  pnpm --filter api exec node --env-file=.env dist/scripts/migrations/split-factor-job-kinds.js
+  pnpm --filter api run db:migrate:factor-job-kinds
   API_DATA_MIGRATION_INCOMPLETE=0
 fi
 
