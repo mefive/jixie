@@ -30,12 +30,12 @@
 
 | 任务 | systemd timer | 默认时间 | 内容 | 是否进入维护模式 | 手动入口 |
 |---|---|---:|---|---|---|
-| 每日维护 | `jixie-maintenance.timer` | 工作日 `22:30` | 补齐缺失日、回查近期已发布日、完整性门禁、市场状态、最新信号 | 有工作时 | `systemctl start jixie-maintenance.service` |
+| 每日维护 | `jixie-maintenance.timer` | 工作日 `23:00` | 补齐缺失日、回查近期已发布日、完整性门禁、市场状态、最新信号 | 有工作时 | `systemctl start jixie-maintenance.service` |
 | 每周维护 | `jixie-maintenance-weekly.timer` | 周日 `04:30` | 慢频资料、最近一年已发布日自愈、代码身份收敛、深度审计和历史重算 | 是 | `systemctl start jixie-maintenance-weekly.service` |
 | 数据库备份 | `jixie-backup.timer` | 每天 `03:00` | SQLite 在线备份、校验、轮转 | 否 | `systemctl start jixie-backup.service` |
 | 历史修复 | 无 | 人工决定 | 指定日期或区间重新同步、审计并重算市场状态 | 是 | 受锁保护的 maintenance CLI |
 
-每日 22:30 只启动一次统一流水线。数据不完整时本次失败且不发布残缺快照，保留上一个成功数据截止日；
+每日 23:00 只启动一次统一流水线。数据不完整时本次失败且不发布残缺快照，保留上一个成功数据截止日；
 上游稍后补齐时可手动重跑同一幂等入口。
 
 systemd 的工作日表达式不知道 SSE 节假日。已有发布水位时，coordinator 会先刷新交易日历：若日历
@@ -108,7 +108,7 @@ systemd 同时运行，重复消耗 Tushare 配额并争抢 SQLite 写锁。
 
 ```ini
 [Timer]
-OnCalendar=Mon..Fri *-*-* 22:30:00 Asia/Shanghai
+OnCalendar=Mon..Fri *-*-* 23:00:00 Asia/Shanghai
 Persistent=true
 Unit=jixie-maintenance.service
 ```
@@ -126,7 +126,7 @@ Unit=jixie-maintenance-weekly.service
 统一服务器时区或使用该版本支持的 `Timezone=` 配置，并在验收中核对下一次触发时间。
 
 `Persistent=true` 只保证 timer 恢复时，如果停用期间至少错过过一次触发，就立即启动一次 service；
-它不会把错过的每个 22:30 逐次重放。因此 daily CLI 未显式给日期时必须：
+它不会把错过的每个 23:00 逐次重放。因此 daily CLI 未显式给日期时必须：
 
 1. 找到上海时间最近已收盘的 SSE 交易日；
 2. 从连续发布水位之后枚举全部缺失开市日；
@@ -380,7 +380,7 @@ pnpm maintenance [daily] [YYYYMMDD] [--force]
 6. 活跃部署和产品约定范围内的 `EtfDaily + EtfAdjFactor`；
 7. 产品启用期货后需要的当日合约行情、主力映射和结算参数。
 
-22:30 接口若只返回部分数据，对应日期失败，不进入该日期的发布事务，也不破坏上一次完整快照。更早
+23:00 接口若只返回部分数据，对应日期失败，不进入该日期的发布事务，也不破坏上一次完整快照。更早
 日期构成的连续完整前缀仍可进入 Stage 5、发布 market-state 并推进水位；下次手动或定时运行只从失败
 日期继续。
 
@@ -703,7 +703,7 @@ market-state 和严格审计，但不通过独立 CLI 写水位。bootstrap 启�
 
 ### 10.1 需要防止的并发
 
-- daily 被手动触发时，22:30 timer 同时到达；
+- daily 被手动触发时，23:00 timer 同时到达；
 - daily 与 weekly 重叠；
 - systemd 与人工 CLI 重叠；
 - 旧的进程内 scheduler 与 systemd 重叠；
@@ -818,7 +818,7 @@ systemctl status jixie-backup.service
 ### 13.1 自动测试
 
 - 非交易日成功空跑；
-- 22:30 候选数据部分返回时不覆盖旧数据；
+- 23:00 候选数据部分返回时不覆盖旧数据；
 - 上游补齐后手动重跑成功；
 - timer 停止四个交易日后只激活一次 service，但能按顺序补齐四天；
 - catch-up 中途崩溃后从首个未完成交易日恢复；

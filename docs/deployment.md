@@ -161,7 +161,7 @@ sudo systemctl start jixie-maintenance.service
 journalctl -u jixie-maintenance.service -n 200 --no-pager
 ```
 
-`jixie-maintenance.timer` 在工作日上海时间 22:30 尝试一次流水线。systemd 不识别交易所节假日，
+`jixie-maintenance.timer` 在工作日上海时间 23:00 尝试一次流水线。systemd 不识别交易所节假日，
 因此休市工作日仍会唤醒 service；已有发布水位时，coordinator 刷新 SSE 交易日历后若没有历史缺口，
 会在进入正常 daily 维护流程前成功退出，若有缺口则照常补齐。停机数日后由 coordinator 从连续水位
 补齐所有缺失交易日，并在每次运行中回查水位前最近 5 个交易日。周任务回查

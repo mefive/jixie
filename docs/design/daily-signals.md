@@ -145,7 +145,7 @@ interface SignalItem {
 
 ## 数据同步与调度
 
-生产不再使用 API 进程内调度。systemd 的 `jixie-maintenance.timer` 在工作日上海时区 22:30 调用统一的
+生产不再使用 API 进程内调度。systemd 的 `jixie-maintenance.timer` 在工作日上海时区 23:00 调用统一的
 `maintenance daily` 入口；API 重启和横向扩容不会创建第二个定时来源。
 休市工作日也会被 systemd 唤醒；已有发布水位、交易日历明确当天休市且没有待补交易日时，coordinator
 在创建正常 daily `MaintenanceRun` 和维护 Gate 之前成功空跑。有历史缺口时仍执行 catch-up；直接运行
