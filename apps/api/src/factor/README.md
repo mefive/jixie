@@ -8,6 +8,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | --- | --- | --- |
 | 因子目录、自定义因子详情 | [routes/definition.ts](routes/definition.ts) | [definitions/catalog.ts](definitions/catalog.ts)、[definitions/read.ts](definitions/read.ts) |
 | 创建、编辑、删除、复制草稿 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)；输入定义在 [schema.ts](schema.ts) |
+| 从冻结研究交接草稿 | Research `routes/evidence.ts` | [definitions/from-research.ts](definitions/from-research.ts)；Research handoff 负责证据准入与生成 |
 | 发布、归档、公开范围 | [routes/definition.ts](routes/definition.ts)、[routes/composite.ts](routes/composite.ts) | [publication/factor.ts](publication/factor.ts)、[publication/panel-composite.ts](publication/panel-composite.ts)、[publication/visibility.ts](publication/visibility.ts) |
 | 创建、编辑、复制因子组合 | [routes/composite.ts](routes/composite.ts) | [composition/operations.ts](composition/operations.ts) |
 | Agent 编辑、只读因子问答 | [routes/agent.ts](routes/agent.ts) | [agent/turn.ts](agent/turn.ts)、[questions/conversations.ts](questions/conversations.ts) |
@@ -29,6 +30,8 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 [definitions/views.ts](definitions/views.ts) 只保存 strategy key、语言与分析类型的纯映射；定义详情通过 [runtime/inspect-definition.ts](runtime/inspect-definition.ts) 读取目标资产：TS 时间序列/Panel 编译后在 finally 释放，Python 仍只解析 `target_asset_classes` 字面量。元数据生成、HTTP 刷新和 Agent 刷新集中在 metadata；HTTP 的缺失/非草稿错误、Agent 低层入口的直接返回及两次检查时机保持。
 
 ## 目录职责
+
+[definitions/from-research.ts](definitions/from-research.ts) 的 `findResearchFactorDraft` 按用户与源执行复用目标；`createFactorDraftFromResearch` 接收已生成的代码、消息及来源元数据，负责 key 分配、创建、P2002 重试和交接结果映射。保留 Factor/Composite/内置 key 冲突检查、32 字符与 `_2` 后缀、最多 100 次尝试；遇到源执行并发胜者返回 reused，其他数据库错误原样抛出。普通草稿创建和复制 key 规则仍保留各自契约。
 
 | 目录 | 拥有什么 |
 | --- | --- |

@@ -114,6 +114,8 @@ describe('research Factor drafts', () => {
           data: expect.objectContaining({
             userId: 'user-1',
             sourceResearchExecutionId: execution.id,
+            messages: generated.messages,
+            researchHandoff: result?.handoff,
             language: 'python',
             runtimeVersion: 'py-v1',
             code: generated.code,
@@ -153,12 +155,34 @@ describe('research Factor drafts', () => {
     expect(mocks.factorCreate).not.toHaveBeenCalled();
   });
 
-  it('rejects an execution that has not been sealed', async () => {
-    mocks.getResearchExecution.mockResolvedValue({ ...execution, promotedAt: undefined });
+  it.each([
+    { ...execution, promotedAt: undefined },
+    { ...execution, status: 'error' },
+  ])('rejects an execution that is not successful and sealed', async (unavailable) => {
+    mocks.getResearchExecution.mockResolvedValue(unavailable);
 
     await expect(createResearchFactorDraft('user-1', execution.id, 'zh')).rejects.toThrow(
       ResearchFactorDraftUnavailableError,
     );
     expect(mocks.generateResearchFactorDraft).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the source execution is unavailable to the owner', async () => {
+    mocks.factorFindFirst.mockResolvedValue(null);
+    mocks.getResearchExecution.mockResolvedValue(null);
+    expect(await createResearchFactorDraft('user-1', execution.id, 'en')).toBeNull();
+    expect(mocks.getResearchExecution).toHaveBeenCalledWith('user-1', execution.id);
+    expect(mocks.generateResearchFactorDraft).not.toHaveBeenCalled();
+    expect(mocks.factorCreate).not.toHaveBeenCalled();
+  });
+
+  it('propagates generation failure before allocating or writing a target', async () => {
+    mocks.factorFindFirst.mockResolvedValue(null);
+    const error = new Error('generation failed');
+    mocks.generateResearchFactorDraft.mockRejectedValueOnce(error);
+    await expect(createResearchFactorDraft('user-1', execution.id, 'en')).rejects.toBe(error);
+    expect(mocks.factorFindFirst).toHaveBeenCalledTimes(1);
+    expect(mocks.factorCreate).not.toHaveBeenCalled();
+    expect(mocks.compositeFindFirst).not.toHaveBeenCalled();
   });
 });

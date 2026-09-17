@@ -49,6 +49,8 @@ HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。�
 
 **Agent：** 前端先调用 Strategy 的 `/:strategyId/agent/turns` → `startStrategyAgentTurn` 检查策略归属及运行中的 turn，构造指数/因子及当前代码上下文 → 通用 Agent 执行器执行 Strategy profile → 只读工具查询数据，生成代码经既有编译/受限运行时和标的检查后返回。前端随后使用通用 Agent 事件/取消接口。Agent 不提供配置保存或回测工具；用户核对代码和参数后通过工作台 `POST /:strategyId/backtests` 发起完整回测。Research 交接复用 Python Strategy profile 生成草稿，同样不自动回测。
 
+Research 交接通过 [definitions/from-research.ts](definitions/from-research.ts) 的 `findResearchStrategyDraft` / `createStrategyDraftFromResearch` 查询复用、分配名称、保存草稿并映射交接结果。Research 保留证据准入、生成和来源元数据；Strategy 保留默认 Python/py-v1 配置、私有状态、messages、原 `uniqueStrategyName` 策略及最多 50 次写入重试。P2002 命中源执行并发胜者则复用，否则重新分配名称；其他错误原样抛出。此入口不执行回测，也不替代普通创建或公开复制入口。
+
 ## 共享因子输入与运行边界
 
 [factor-inputs/references.ts](factor-inputs/references.ts) 的 `extractFactorKeys` 只提取源码中的字面量因子键、过滤引擎内置键并去重，不查询数据库或编译代码。定义编辑、公开范围、回测提交和 Sharing 直接消费此入口；调用中的键仍先于声明中的键返回，同组按出现顺序去重。

@@ -27,7 +27,7 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | 数据检索与语义目录 | `catalog/data-catalog.ts`、`capabilities.ts`、`concepts.ts`、`concept-bindings.ts`、`concept-binding-resolver.ts`、`source-decisions.ts`、`playbooks.ts` | 查找数据、概念与来源，提供研究方法说明 |
 | Python 编辑器语言服务 | `language/pyright-service.ts`、`document.ts`、`stubs.ts` | Pyright 进程、文档映射，消费公开 Contract 生成类型信息 |
 | 文档模板与 FCFF 案例 | `templates/document-templates.ts`、`templates/fcff/` | 模板选择、透明 Cell 源代码、分类证据与回放案例 |
-| 冻结研究 → Factor / Strategy | `handoff/factor-drafts.ts`、`strategy-drafts.ts`、`factor-handoff.ts`、`strategy-handoff.ts`、`context.ts` | 草稿生成、准入校验与来源关联 |
+| 冻结研究 → Factor / Strategy | `handoff/factor-drafts.ts`、`strategy-drafts.ts`、`factor-handoff.ts`、`strategy-handoff.ts`、`context.ts` | 证据准入、草稿生成与来源元数据；目标复用/创建委托所属模块的 `definitions/from-research.ts` |
 | Research Agent 启动 | `agent/turn.ts`、`agent/context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
 | 研究整理（Curator）的提交与执行 | `curator/submit.ts`、`prepare.ts`、`reference-search.ts`、`job.ts` | submit 原子创建 Run/Job；prepare 在完成事务外提取证据、调用 LLM 和核验候选；job 负责事务内查重/发布、失败与恢复 |
 | Curator 查询与人工反馈 | `curator/read.ts`、`feedback.ts`、`views.ts` | read 查询 Run/结果和质量统计，feedback 写人工处置/核验评价；两者共用纯记录映射，不依赖候选生成或 LLM |
@@ -62,8 +62,12 @@ HTTP Curator 查询 / submit 返回值 → curator/read → curator/views
 HTTP Curator 人工反馈 → curator/feedback → curator/views
 HTTP 数据检索 / Agent catalog 工具 → catalog → datasets / 市场业务
 HTTP /language/python → language/pyright-service → document + stubs
-HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy
+HTTP 草稿交接 → handoff → Factor / Strategy definitions/from-research（先查询已有草稿）
+  → evidence（成功且已固化）→ 原生成器 → handoff 元数据
+  → Factor / Strategy definitions/from-research（命名、保存、冲突重试和结果映射）
 ```
+
+交接先按用户与源执行查询目标草稿，命中即复用，不再次读取证据或调用模型。Research 保留准入错误和生成流程；Factor/Strategy 接收明确的生成数据，不接收生成器回调。目标创建沿用各自默认值和唯一冲突规则，不用新事务包住模型生成，也不自动启动分析或回测。
 
 `documents/read.ts` 不导入运行编排或提案应用操作，只使用提案记录的查询/视图。执行入口通过 `proposals/review-state.ts` 的窄查询检查是否有未完成审阅，不导入 `cell-changes.ts` 或 `attempts.ts`。文档归档和依赖分析会使用 `runtime/python-session.ts` 的会话能力；这是资源调用，不是反向调用 `run-*` 执行流程。依赖算法和证据记录不拥有 Python 会话。
 

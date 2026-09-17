@@ -154,6 +154,8 @@ Market 的同步/读取/基础质量归入所属数据领域，具体入口见�
 
 并非所有对象共享一个事务：会话创建、模型调用、消息镜像、afterCommit、邮件通知都各有边界。具体事务说明优先看所属模块，不把“用了 Prisma”理解成“整个调用链天然原子”。
 
+Research 的冻结研究交接先调用 Factor/Strategy `definitions/from-research.ts` 的 `findResearch*Draft`；命中目标即返回，不再次调用生成器。未命中时，Research 校验证据、生成代码并构造 handoff 元数据，再调用目标模块的 `create*DraftFromResearch`。key/name 分配、默认配置、目标写入、唯一冲突重试和结果映射归目标模块；输入为明确的数据字段，没有生成器回调或反向依赖 Research。Factor 的 100 次 key 尝试与 Strategy 的 50 次写入重试分别保留，模型调用不进入新的总事务。
+
 ## 修改定位与守护规则
 
 | 修改需求 | 先看 |

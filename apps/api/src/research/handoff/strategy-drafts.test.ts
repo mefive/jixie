@@ -99,6 +99,8 @@ describe('research Strategy drafts', () => {
           data: expect.objectContaining({
             userId: 'user-1',
             sourceResearchExecutionId: execution.id,
+            messages: generated.messages,
+            researchHandoff: result?.handoff,
             config: expect.objectContaining({
               language: 'python',
               runtimeVersion: 'py-v1',
@@ -138,13 +140,35 @@ describe('research Strategy drafts', () => {
     expect(mocks.strategyCreate).not.toHaveBeenCalled();
   });
 
-  it('rejects an execution that has not been sealed', async () => {
+  it.each([
+    { ...execution, promotedAt: undefined },
+    { ...execution, status: 'error' },
+  ])('rejects an execution that is not successful and sealed', async (unavailable) => {
     mocks.strategyFindFirst.mockResolvedValue(null);
-    mocks.getResearchExecution.mockResolvedValue({ ...execution, promotedAt: undefined });
+    mocks.getResearchExecution.mockResolvedValue(unavailable);
 
     await expect(createResearchStrategyDraft('user-1', execution.id, 'zh')).rejects.toThrow(
       ResearchStrategyDraftUnavailableError,
     );
     expect(mocks.generateResearchStrategyDraft).not.toHaveBeenCalled();
+  });
+
+  it('returns null when the source execution is unavailable to the owner', async () => {
+    mocks.strategyFindFirst.mockResolvedValue(null);
+    mocks.getResearchExecution.mockResolvedValue(null);
+    expect(await createResearchStrategyDraft('user-1', execution.id, 'en')).toBeNull();
+    expect(mocks.getResearchExecution).toHaveBeenCalledWith('user-1', execution.id);
+    expect(mocks.generateResearchStrategyDraft).not.toHaveBeenCalled();
+    expect(mocks.strategyCreate).not.toHaveBeenCalled();
+  });
+
+  it('propagates generation failure before allocating or writing a target', async () => {
+    mocks.strategyFindFirst.mockResolvedValue(null);
+    const error = new Error('generation failed');
+    mocks.generateResearchStrategyDraft.mockRejectedValueOnce(error);
+    await expect(createResearchStrategyDraft('user-1', execution.id, 'en')).rejects.toBe(error);
+    expect(mocks.strategyFindFirst).toHaveBeenCalledTimes(1);
+    expect(mocks.strategyCreate).not.toHaveBeenCalled();
+    expect(mocks.strategyFindUnique).not.toHaveBeenCalled();
   });
 });

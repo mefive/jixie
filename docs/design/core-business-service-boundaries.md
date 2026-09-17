@@ -3,7 +3,7 @@
 ## 状态与范围
 
 - 基线：`6e6aa446`（`refactor(market): align data domains and consumer boundaries`）。开始审查时工作区干净。
-- 当前阶段：2026-09-17，C1 已提交 `62f17b47`，C2 已提交 `84dc9d5e`，C3 已提交 `c7eed1ac`；**C4 已通过人工 review、行为验证与干净构建，随本提交交付**。C5 已准备单次开工计划，等待范围批准；C5–C6 尚未实施；不推送。
+- 当前阶段：2026-09-17，C1 已提交 `62f17b47`，C2 已提交 `84dc9d5e`，C3 已提交 `c7eed1ac`，C4 已提交 `78b53c18`；**C5 已通过人工 review、行为验证与干净构建，随本提交交付**。C6 已准备单次开工计划，等待范围批准；尚未实施；不推送。
 - 已完整阅读根 `CLAUDE.md`、review-gated-development 工作流，并阅读五个模块 README、[架构地图](../backend-architecture.md)、[边界规则](../backend-boundaries.md)、[运行入口](../backend-runtime-entries.md)及[上一轮整理计划](core-business-internal-structure.md)。本轮不涉及 Web/Docs 前端实现。
 - 交付对象是后端维护者；不新增用户能力、HTTP/SDK 方法、表或迁移，不改变权限、数据语义、事务、执行顺序及资源释放。
 - 已确认 **6 个实现 commit**，准确标题见 §4。本文随 Commit 1 提交，不额外安排计划文档 commit。每个 commit 的说明、测试和开发记录一起交付。
@@ -70,7 +70,7 @@
 
 ### E5：Research 交接直接拥有目标草稿的命名、重试和写入
 
-证据：
+基线证据（C5 当前归属见 §3 和 §7）：
 
 - [handoff/factor-drafts.ts](../../apps/api/src/research/handoff/factor-drafts.ts) 的 `createResearchFactorDraft` 查询 Factor 复用关系、分配 key、避开 Factor/Composite/内置键冲突、捕获 P2002、直接 `prisma.factor.create`。
 - [handoff/strategy-drafts.ts](../../apps/api/src/research/handoff/strategy-drafts.ts) 的 `createResearchStrategyDraft` 查询 Strategy 复用关系、分配名称、组装默认回测配置、捕获 P2002、直接 `prisma.strategy.create`。
@@ -234,10 +234,12 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 | C3 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；15 文件、188 项回归、干净构建及源码/编译入口通过；已提交 `c7eed1ac` |
 | C4 单次开工计划 | 2026-09-17 用户批准 |
 | C4 产品实现 / 静态检查 | references 纯入口、四个业务消费者、扫描直接准备及测试/文档同步；静态检查通过 |
-| C4 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；10 文件、99 项回归、干净构建及源码/编译入口通过，随本提交交付 |
-| C5 单次开工计划 | 已准备，等待范围批准；尚未实施 |
-| C5–C6 | 尚未实施 |
-| 当前工作区变化 | C4 实现、回归测试、Strategy/Sharing README 与本文；不推送 |
+| C4 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；10 文件、99 项回归、干净构建及源码/编译入口通过；已提交 `78b53c18` |
+| C5 单次开工计划 | 2026-09-17 用户批准 |
+| C5 产品实现 / 静态检查 | 两个 from-research 目标入口、Research 编排、边界测试及文档同步；静态检查通过 |
+| C5 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；9 文件、151 项回归、干净构建及源码/编译交接入口通过，随本提交交付 |
+| C6 单次开工计划 | 已准备，等待范围批准；尚未实施 |
+| 当前工作区变化 | C5 实现、回归测试、Factor/Strategy/Research README、架构地图与本文；不推送 |
 
 每个获准提交完成后在此记录人工 review、静态检查、实际测试/运行条件、限制与 commit hash；历史测试结果不能填入本轮结果。
 
@@ -317,11 +319,11 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - deployment 拒绝 archived；research/signal 保留 published/archived 规则。实际 Signals 使用归档后的冻结依赖生成非空输入摘要，并拒绝 codeHash 漂移；两种入口的回测、扫描、依赖和 Signals 四组结果完全一致。
 - review 后 11 个 TS 文件的内容哈希均未变化，未修正仓内测试或弱化断言。10 个被追踪进程全部退出，Prisma 已断开，三个 fixture 数据库无打开句柄；本次不启动 HTTP/socket 服务，不调用真实模型、行情供应商或邮件服务。临时数据库、构建和探针在交付前清理。
 
-### C5：Research 交接持久化归属（单次开工计划，待批准）
+### C5：Research 交接持久化归属（2026-09-17，验证通过）
 
 准确标题：`refactor(research): delegate handoff persistence to owning modules`。
 
-交付面向后端维护者，不新增用户能力。当前 `research/handoff/factor-drafts.ts::createResearchFactorDraft` 和 `strategy-drafts.ts::createResearchStrategyDraft` 在完成证据准入和生成后，还直接负责目标表查询、key/name 分配、默认配置、创建、唯一冲突重试与结果映射。唯一产品消费者是 Research evidence 路由。此次把目标身份和持久化规则归还 Factor/Strategy，Research 继续拥有证据准入及生成编排。
+交付面向后端维护者，不新增用户能力。开工时 `research/handoff/factor-drafts.ts::createResearchFactorDraft` 和 `strategy-drafts.ts::createResearchStrategyDraft` 在完成证据准入和生成后，还直接负责目标表查询、key/name 分配、默认配置、创建、唯一冲突重试与结果映射。唯一产品消费者是 Research evidence 路由。此次把目标身份和持久化规则归还 Factor/Strategy，Research 继续拥有证据准入及生成编排。
 
 - 新增 `factor/definitions/from-research.ts`，导出 `findResearchFactorDraft(userId, executionId)` 与 `createFactorDraftFromResearch(userId, input)`。前者查找并映射已有目标，后者拥有 key 分配、Factor/Composite/内置 key 冲突检查、创建与重试。input 在 Factor 定义，包含 sourceExecutionId、factorKeyBase、factorName、analysisKind、Python language/code、messages、handoff 和 locale 等明确数据；不接受 Prisma CreateInput、任意字段或生成器回调。
 - 新增 `strategy/definitions/from-research.ts`，导出 `findResearchStrategyDraft(userId, executionId)` 与 `createStrategyDraftFromResearch(userId, input)`。输入为 sourceExecutionId、strategyName、code、messages、handoff；目标入口复用原 `uniqueStrategyName`，拥有默认 Python/py-v1 回测配置、创建与冲突重试。两个目标文件仅依赖本域、shared 和 infra，不导入 Research/Agent 生成实现。
@@ -330,4 +332,32 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 交付包含两个目标入口及其测试、Research handoff 消费者和测试、三个模块 README、架构地图及本文。review 前执行 ESLint/格式、全仓 typecheck/生成契约/后端边界、跨域写入与调用链核对、`git diff --check`。
 - review 后执行 Factor/Strategy handoff drafts 与 generation、目标定义和 Research routes 回归，补齐 key/name 冲突、P2002 源执行胜者复用、非源冲突继续尝试及非 P2002 原样失败覆盖；API 干净构建。在独立 SQLite 从源码/编译的原 Research 交接入口写入两类草稿并通过原查询入口读取，检查来源、messages、默认配置、私有状态、复用不生成及生成失败无目标残留。生成器使用受控替身，不调用真实 LLM；保持原重试与事务范围。
 
-当前仅完成 C5 只读核对和计划，尚未修改 C5 产品代码。若实现需要改变归属校验、准入、重试上限、公开响应、数据默认值或事务范围，先讨论，不混入本提交。
+单次开工计划已于 2026-09-17 获用户批准。若实现需要改变归属校验、准入、重试上限、公开响应、数据默认值或事务范围，先讨论，不混入本提交。
+
+实施与检查记录：
+
+- 两个目标 `definitions/from-research.ts` 各自拥有显式输入类型、find/create 入口及私有结果映射。Factor 的 key 候选规则、两类目标查询与内置键排除、语言描述、100 次尝试整体迁入；描述读取 handoff.summary，仍是 Research 原 generated.summary 的同一值。Strategy 的默认配置、原 uniqueStrategyName 调用及 50 次写入重试整体迁入；不合并两域分配策略。
+- 初次复用与 P2002 后的并发胜者查询共用目标域 find 入口，保持原 userId/sourceResearchExecutionId 条件、select 投影和 reused 映射；未命中胜者继续原循环，非 P2002 原样抛出。没有新增事务、调用生成器的反向依赖或 Prisma 任意字段接口。
+- Research 保留原 create 入口、准入错误及证据/生成/handoff 编排，只把目标查询和写入交给所属模块。HTTP 路由、生成器、公开 shared 契约、Prisma schema、普通草稿/复制、运行入口和部署清单未修改。
+- 新增两域 from-research 测试，覆盖 key/name 冲突、内置/Composite 排除、32 字符及后缀、messages/来源/默认配置、P2002 胜者复用与无胜者继续尝试、非 P2002 原样失败、原重试上限及旧结果映射。Research 原模型归属/复用测试保留，并补充成功与固化准入、源执行不可用、生成失败时无分配/写入，以及消息/来源完整传递断言。
+- 三模块 README 与架构地图同步实际调用关系。静态检查通过：8 个改动/新增 TS 文件的 ESLint、Prettier，全仓 `pnpm typecheck`（含三项生成契约检查），后端边界扫描 716 文件 / 2,722 runtime edges / 637 type edges，0 违规、0 跨域循环组；`git diff --check` 通过。
+- AST 静态对比确认两条 Research 证据/生成/元数据代码块保持一致；两个原始复用查询的范围/投影、分配与默认值、重试错误及结果映射保持，仅改为显式输入字段和目标域共用查询。Research 两个交接文件已无 Prisma 引用，目标入口无 Research/Agent 实现导入；调用方核对仍为原 evidence 路由 → handoff → 目标入口。
+- 2026-09-17 用户确认代码 review 后，9 个文件 / 151 项测试通过：两域 from-research、Research 两组 drafts / generation，以及 Research/Factor/Strategy HTTP 集成；包括原 Python Factor 编译校验与修复循环。API 在全新临时 outDir 完整编译通过，编译入口使用原 package imports 和依赖链接。
+- 在独立 SQLite 上应用现有迁移，源码与干净编译均从原 Research create 入口实际写入两类草稿，并通过 `readFactorDefinition` / `readStrategy` 读取。验证来源、messages、语言、描述、默认配置、private/draft 状态和无报告副作用；跨用户读取及交接拒绝，缺失/未固化/失败执行不进入生成。
+- 两种入口均验证既有草稿复用不再读取源执行或调用生成器，生成异常原样抛出且没有目标残留。受控生成器屏障使两请求同时完成生成，随后由真实 Prisma/SQLite 触发每域一次 P2002：只创建一个目标，另一个请求返回相同胜者及 reused=true。分别保留内置/Factor/Composite key 排除与 Strategy 名称后缀；没有新增总事务、Job 或报告。源码/编译的规范化结果一致。
+- 首轮临时 fixture 漏填 FactorComposite.definition，按现有 schema 修正后重建隔离库，两种入口完整重跑通过；没有修改产品代码或仓内测试、没有弱化断言。review 后 8 个 TS 文件内容哈希均保持。
+- 两个验收进程均退出，Prisma 断开，两份 fixture 数据库无打开句柄；本次未启动 HTTP/socket 服务，也未调用真实模型、行情供应商或邮件。临时数据库、干净构建和探针在交付前清理。
+
+### C6：Market 共享数据身份归属（单次开工计划，待批准）
+
+准确标题：`refactor(market): separate shared data identities from synchronization`。
+
+交付面向后端维护者，不新增用户能力。只读核对确认：`benchmark-conversion` 的纯换算及 Research/Engine/Factor/Market/Maintenance 的查询或审计，仅为读取数据身份常量而导入同步实现。此提交把共享身份放入现有 registry 边界，保留同步流程及其日期/解析规则。
+
+- 新增 `market/registry/yield-curves.ts`，迁入中国国债 source/code/name/type/terms 和美国 nominal/real source/code/name/type 共 12 个原具名常量；新增 `market/registry/fx.ts`，迁入 USD_CNH_CODE、USD_HKD_CODE、FXCM_EXCHANGE、EXTERNAL_FX_CODES。保留名称、字符串值、期限值、数组顺序与 readonly tuple 类型，不建立兼容转导出。
+- `rates/china-treasury-curve.ts` 与 `cross-market/external-drivers.ts` 直接消费 registry。八个非同步生产消费者同步改用窄入口：Market benchmark-conversion、government-yield-availability、market-risk-drivers、macro/risk-axes，Research datasets/series，Engine adapters/prisma-port，Factor observations/etf-trend-observations，Maintenance data-audit；同步引用常量的测试。
+- 原同步函数、客户端、私有期限字段映射、解析器、assignCurveAvailableDates / assignExternalAvailableDates 和 CLI 均留原位。保留供应商请求参数、下一 SSE 交易日可得规则、空响应保留、年度范围替换、分别写入顺序及事务；不合并美债/FX 总事务，不改变 Signals 利率准入或风险模型政策。
+- 同步 Market README 和本文；不改公开 HTTP/SDK、Prisma schema、包/build 依赖、部署清单或 Maintenance 协调范围。review 前执行改动文件格式/ESLint、全仓 typecheck/生成契约/后端边界、常量与非 import 实现静态对比、全部引用核对和 diff 检查，确认 registry 无数据库/同步依赖、纯换算不再通过同步入口取身份。
+- review 后执行 treasury、external-drivers、benchmark-conversion、market-risk-drivers、macro risk-axes，以及 Research series、Factor ETF observations、Engine adapter、Signals rates 相关回归；隔离 SQLite + 本地供应商替身验证数据代码、可得日、空响应保留与范围替换。源码/编译实际运行 `sync-rates`、`sync-external-market` CLI，核对调用、输出与退出；最后执行完整 API 测试、干净 API 构建及受影响 Factor/Strategy/Signals 运行入口验收，清理临时资源。
+
+当前只完成 C6 只读核对和计划，未修改产品代码。若需改变供应商协议、PIT 口径、事务、空响应策略或公开契约，先讨论，不混入身份归属整理。
