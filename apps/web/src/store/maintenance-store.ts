@@ -1,5 +1,5 @@
 import { action, makeObservable, observable, runInAction } from 'mobx';
-import { fetchMaintenanceStatus, type MaintenanceStatus } from '@src/api/client';
+import { fetchMaintenanceStatus, type MaintenanceStatus } from '@src/api/maintenance';
 import { LoaderModel, PollingModel } from '@src/lib';
 
 class MaintenanceStore {

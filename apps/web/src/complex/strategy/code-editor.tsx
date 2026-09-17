@@ -6,7 +6,7 @@ import * as monaco from 'monaco-editor';
 import type { DtsFactorOption, Locale, StrategyLanguage } from '@jixie/shared';
 import i18n from '@src/i18n';
 import { localeStore } from '@src/i18n/locale-store';
-import { getFactorCatalog } from '@src/api/client';
+import { getFactorCatalog } from '@src/api/factor';
 import { sdkDts } from './sdk-dts';
 import { SDK_ENTRIES, LINKABLE_TYPES } from '@jixie/shared';
 

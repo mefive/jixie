@@ -1,12 +1,7 @@
 import { action, computed, makeObservable, observable, runInAction } from 'mobx';
 import { BaseStore, LoaderModel } from '@src/lib';
-import {
-  ApiError,
-  devLogin,
-  requestEmailLogin,
-  verifyEmailLogin,
-  type AuthUser,
-} from '@src/api/client';
+import { ApiError } from '@src/api/client';
+import { devLogin, requestEmailLogin, verifyEmailLogin, type AuthUser } from '@src/api/auth';
 import { authStore } from '@src/store';
 import i18n from '@src/i18n';
 

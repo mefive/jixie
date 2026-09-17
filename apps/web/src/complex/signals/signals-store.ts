@@ -16,7 +16,7 @@ import {
   pauseStrategyDeployment,
   submitSignalRun,
   updateSignalExecution,
-} from '@src/api/client';
+} from '@src/api/signals';
 import i18n from '@src/i18n';
 
 export class SignalsStore extends BaseStore {

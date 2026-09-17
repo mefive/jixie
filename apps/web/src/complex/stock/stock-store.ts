@@ -1,7 +1,7 @@
 import { makeObservable, observable, runInAction } from 'mobx';
 import type { ResearchAssetTypeV1, StockSeries } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
-import { fetchInstrumentSeries } from '@src/api/client';
+import { fetchInstrumentSeries } from '@src/api/market';
 
 type StockSetupParams = { assetType?: string; id?: string };
 

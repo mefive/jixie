@@ -6,7 +6,7 @@ import {
   pinFactorWeather,
   refreshFactorWeatherPin,
   unpinFactorWeather,
-} from '@src/api/client';
+} from '@src/api/factor';
 
 type FactorWeatherMutation =
   | { kind: 'pin'; factorId: string; direction?: FactorWeatherDirection }

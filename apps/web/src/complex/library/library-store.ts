@@ -1,13 +1,8 @@
 import type { AssetVisibility, SharingFactor, SharingCatalog } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
-import {
-  copyFactor,
-  copyFactorComposite,
-  copyPublicStrategy,
-  fetchSharingCatalog,
-  setFactorVisibility,
-  setStrategyVisibility,
-} from '@src/api/client';
+import { copyFactor, copyFactorComposite, setFactorVisibility } from '@src/api/factor';
+import { copyPublicStrategy, fetchSharingCatalog } from '@src/api/sharing';
+import { setStrategyVisibility } from '@src/api/strategy';
 
 export class LibraryStore extends BaseStore<Record<string, never>> {
   public loader = new LoaderModel<SharingCatalog>();

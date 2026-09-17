@@ -2,7 +2,7 @@ import './research-outputs.css';
 import { lazy, Suspense } from 'react';
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
 import { useTranslation } from 'react-i18next';
-import { researchArtifactUrl } from '@src/api/client';
+import { researchArtifactUrl } from '@src/api/research';
 import { ResearchCellTable } from './research-cell-table';
 
 const ResearchCellChart = lazy(() => import('./research-cell-chart'));

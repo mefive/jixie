@@ -1,7 +1,7 @@
 import { action, makeObservable, observable } from 'mobx';
 import type { IndexValuationCatalog, IndexValuationSeries } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
-import { fetchIndexValuationCatalog, fetchIndexValuationSeries } from '@src/api/client';
+import { fetchIndexValuationCatalog, fetchIndexValuationSeries } from '@src/api/market';
 
 type ValuationSetupParams = { code?: string };
 

@@ -1,6 +1,8 @@
 import type { CreateStrategyRequest } from '@jixie/shared/api/strategy';
 import type { FactorReportListRequestQuery } from '@jixie/shared/api/factor';
-import type { updateResearchCell, updateFactor, updateStrategy } from './client';
+import type { updateResearchCell } from './research';
+import type { updateFactor } from './factor';
+import type { updateStrategy } from './strategy';
 
 type AssertRejected<Value extends false> = Value;
 

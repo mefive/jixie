@@ -19,7 +19,7 @@ import {
   continueEmbeddedResearch,
   stopEmbeddedRun,
   readEmbeddedInput,
-} from '@src/api/client';
+} from '@src/api/research-embedded';
 
 interface Detail {
   run: ResearchEmbeddedRunV1;

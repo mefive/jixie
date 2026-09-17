@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { ChartSpec, SqlRows } from '@jixie/shared';
 import { faChartLine } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { agentComputeChart, agentSql } from '@src/api/client';
+import { agentComputeChart, agentSql } from '@src/api/agent';
 import { EChart, type ECOption } from './echart';
 import './chat-chart.css';
 

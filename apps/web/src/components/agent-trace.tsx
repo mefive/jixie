@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { CodeHighlighter, Think, ThoughtChain } from '@ant-design/x';
 import type { AgentTraceStep, AgentTurnDetail, AgentTurnTrace } from '@jixie/shared';
-import { getAgentTurn } from '@src/api/client';
+import { getAgentTurn } from '@src/api/agent';
 import { Markdown } from './markdown';
 import './agent-trace.css';
 

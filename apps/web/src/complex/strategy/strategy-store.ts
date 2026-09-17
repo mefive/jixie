@@ -35,30 +35,34 @@ import i18n from '@src/i18n';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import {
   createStrategy,
-  deployBacktestReport,
   deleteStrategy,
   findActiveBacktestJob,
   findActiveStrategyScanJob,
-  getFactorComposite,
   getBacktestReport,
   getStrategy,
-  listStrategyDeployments,
   getStrategyScanReport,
-  fetchIndexSeries,
   inspectStrategyParameters,
-  getCustomFactor,
-  getFactorCatalog,
-  getFactorReport,
   listStrategyScanReports,
   listBacktestReports,
   listStrategies,
   pollBacktest,
   pollStrategyScan,
-  pauseStrategyDeployment,
   sendAgent,
   submitBacktest,
   submitStrategyScan,
-} from '@src/api/client';
+} from '@src/api/strategy';
+import {
+  deployBacktestReport,
+  listStrategyDeployments,
+  pauseStrategyDeployment,
+} from '@src/api/signals';
+import {
+  getFactorComposite,
+  getCustomFactor,
+  getFactorCatalog,
+  getFactorReport,
+} from '@src/api/factor';
+import { fetchIndexSeries } from '@src/api/market';
 import { DEFAULT_CODE, DEFAULT_PYTHON_CODE } from './default-strategy';
 import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';

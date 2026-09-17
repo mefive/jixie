@@ -57,7 +57,7 @@ import { ToolTrace } from '@src/components/tool-trace';
 import { AgentPending } from '@src/components/agent-pending';
 import { AgentTrace } from '@src/components/agent-trace';
 import type { AgentTurnStream } from '@src/components/agent-turn-stream';
-import type { AgentToolTraceItem } from '@src/api/client';
+import type { AgentToolTraceItem } from '@src/api/agent';
 import { complex } from './complex';
 import { MonthlyReturns } from './monthly-returns';
 import { ParameterScanButton, ParameterScanPanel } from './parameter-scan';

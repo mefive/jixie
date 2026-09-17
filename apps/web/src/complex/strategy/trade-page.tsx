@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BacktestSummary } from '@jixie/shared';
-import { getStrategy } from '@src/api/client';
+import { getStrategy } from '@src/api/strategy';
 import './trade-page.css';
 
 const TradeDetail = lazy(() => import('./trade-detail'));

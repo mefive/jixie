@@ -80,7 +80,7 @@ import {
   archiveFactor,
   publishFactorComposite,
   archiveFactorComposite,
-} from '@src/api/client';
+} from '@src/api/factor';
 import { panelAssetsFor } from './panel-universe';
 import {
   allowedTimeSeriesAssetsFor,

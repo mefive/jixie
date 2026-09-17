@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Select } from 'antd';
 import type { TradeRecord } from '@jixie/shared';
-import { fetchInstrumentNames } from '@src/api/client';
+import { fetchInstrumentNames } from '@src/api/market';
 import './trade-detail.css';
 
 type AssetType = NonNullable<TradeRecord['assetType']>;

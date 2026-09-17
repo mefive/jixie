@@ -11,7 +11,7 @@ import {
 import * as monaco from 'monaco-editor';
 import { useLayoutEffect, useRef } from 'react';
 import { localeStore } from '@src/i18n/locale-store';
-import { searchResearchDataCatalog } from '@src/api/client';
+import { searchResearchDataCatalog } from '@src/api/research';
 import {
   researchSdkActiveCall,
   researchSdkCompletionContext,

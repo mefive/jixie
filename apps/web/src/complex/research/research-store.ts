@@ -1,4 +1,4 @@
-import { changeEmbeddedInputMode } from '@src/api/client';
+import { changeEmbeddedInputMode } from '@src/api/research-embedded';
 import { action, makeObservable, observable, runInAction } from 'mobx';
 import {
   normalizeChatMessage,
@@ -35,8 +35,8 @@ import {
   type ResearchStrategyDraftResultV1,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
+import { ApiError } from '@src/api/client';
 import {
-  ApiError,
   answerResearchClarification,
   acceptResearchCellChangeReview,
   addResearchCell,
@@ -71,7 +71,7 @@ import {
   startResearchCurator,
   updateResearchCell,
   updateResearchCuratorFinding,
-} from '@src/api/client';
+} from '@src/api/research';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import i18n from '@src/i18n';
 import {

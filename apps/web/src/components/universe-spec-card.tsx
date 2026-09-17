@@ -7,7 +7,7 @@ import type {
   UniversePart,
 } from '@jixie/shared';
 import { useTranslation } from 'react-i18next';
-import { runResearchUniverse } from '@src/api/client';
+import { runResearchUniverse } from '@src/api/research';
 import './universe-spec-card.css';
 
 interface UniverseSpecCardProps {

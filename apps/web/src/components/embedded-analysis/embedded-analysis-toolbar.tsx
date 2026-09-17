@@ -14,7 +14,8 @@ import type {
 } from '@jixie/shared';
 import { makeObservable, observable, runInAction } from 'mobx';
 import { BaseModel, LoaderModel, reactUtils } from '@src/lib';
-import { searchResearchDataCatalog, listEmbeddedAnalyses, listEmbeddedRuns } from '@src/api/client';
+import { searchResearchDataCatalog } from '@src/api/research';
+import { listEmbeddedAnalyses, listEmbeddedRuns } from '@src/api/research-embedded';
 import { ResearchDataCatalogPicker } from '../research-data-catalog-picker';
 import { EmbeddedAnalysisInspector } from './embedded-analysis-card';
 import './embedded-analysis-toolbar.css';

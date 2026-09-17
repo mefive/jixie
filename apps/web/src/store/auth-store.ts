@@ -1,6 +1,6 @@
 import { computed, makeObservable } from 'mobx';
 import { LoaderModel } from '@src/lib';
-import { fetchMe, logout as apiLogout, type AuthUser } from '@src/api/client';
+import { fetchMe, logout as apiLogout, type AuthUser } from '@src/api/auth';
 
 // Global auth-state singleton (not a complex). Single source of truth = loader.result.user; user/authenticated are both derived.
 // Stores no token, never touches localStorage —— relies entirely on the httpOnly session cookie.

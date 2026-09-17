@@ -10,7 +10,7 @@ import type {
 } from '@jixie/shared';
 import type { Monaco } from '@monaco-editor/react';
 import type * as MonacoTypes from 'monaco-editor';
-import { requestResearchLanguage } from '@src/api/client';
+import { requestResearchLanguage } from '@src/api/research';
 
 interface ResearchPythonModelContext {
   documentId: string;

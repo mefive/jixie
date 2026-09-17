@@ -6,12 +6,7 @@ import type {
   MessagePart,
   ToolTraceItem,
 } from '@jixie/shared';
-import {
-  cancelAgentTurn,
-  findRunningAgentTurn,
-  readSSE,
-  subscribeAgentTurn,
-} from '@src/api/client';
+import { cancelAgentTurn, findRunningAgentTurn, readSSE, subscribeAgentTurn } from '@src/api/agent';
 import i18n from '@src/i18n';
 
 export interface AgentTurnDone {

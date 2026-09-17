@@ -2,7 +2,7 @@ import { Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { faDatabase } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import type { AgentToolTraceItem } from '@src/api/client';
+import type { AgentToolTraceItem } from '@src/api/agent';
 import './tool-trace.css';
 
 /** A muted "queried the DB N times" line under a fresh agent reply — display only, never persisted

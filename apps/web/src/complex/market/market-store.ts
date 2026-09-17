@@ -4,7 +4,7 @@ import type {
   MarketWeatherFrequency,
   MarketWeatherSeries,
 } from '@jixie/shared';
-import { fetchMarketWeather } from '@src/api/client';
+import { fetchMarketWeather } from '@src/api/market';
 import { BaseStore, LoaderModel } from '@src/lib';
 
 interface MarketWeatherRequest {
