@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
 import { prisma } from '#infra/database/prisma.js';
-import { getStrategyExecutionOverview } from './read.js';
-import { initializeSignalAccounting } from './initialize.js';
-import { settleStrategyAccounts } from './settlement.js';
+import { describe, expect, it } from 'vitest';
 import { updateActualExecution } from './executions.js';
+import { initializeSignalAccounting } from './initialize.js';
+import { getStrategyExecutionOverview } from './read.js';
+import { settleStrategyAccounts } from './settlement.js';
 
 const integration = describe.runIf(process.env.ACCOUNTING_INTEGRATION === '1');
 
@@ -119,7 +119,7 @@ integration('strategy execution accounting database flow', () => {
       price: 10.08,
       fee: 6,
     });
-    expect(update).toEqual({ kind: 'ready', runId });
+    expect(update).toEqual({ runId });
 
     const overview = await getStrategyExecutionOverview(userId, deploymentId);
     expect(overview?.simulation).toHaveLength(2);

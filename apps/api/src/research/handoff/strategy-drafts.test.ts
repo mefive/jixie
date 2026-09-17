@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { textMessage, type ResearchExecutionV1 } from '@jixie/shared';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ResearchError } from '../errors.js';
 
 const mocks = vi.hoisted(() => ({
   strategyFindFirst: vi.fn(),
@@ -27,10 +28,7 @@ vi.mock('./strategy-handoff.js', () => ({
   generateResearchStrategyDraft: mocks.generateResearchStrategyDraft,
 }));
 
-import {
-  createResearchStrategyDraft,
-  ResearchStrategyDraftUnavailableError,
-} from './strategy-drafts.js';
+import { createResearchStrategyDraft } from './strategy-drafts.js';
 
 const execution = {
   id: 'execution-1',
@@ -147,16 +145,19 @@ describe('research Strategy drafts', () => {
     mocks.strategyFindFirst.mockResolvedValue(null);
     mocks.getResearchExecution.mockResolvedValue(unavailable);
 
-    await expect(createResearchStrategyDraft('user-1', execution.id, 'zh')).rejects.toThrow(
-      ResearchStrategyDraftUnavailableError,
-    );
+    await expect(createResearchStrategyDraft('user-1', execution.id, 'zh')).rejects.toMatchObject({
+      name: 'ResearchError',
+      reason: 'strategy_draft_unavailable',
+    });
     expect(mocks.generateResearchStrategyDraft).not.toHaveBeenCalled();
   });
 
-  it('returns null when the source execution is unavailable to the owner', async () => {
+  it('rejects when the source execution is unavailable to the owner', async () => {
     mocks.strategyFindFirst.mockResolvedValue(null);
-    mocks.getResearchExecution.mockResolvedValue(null);
-    expect(await createResearchStrategyDraft('user-1', execution.id, 'en')).toBeNull();
+    mocks.getResearchExecution.mockRejectedValue(new ResearchError('execution_not_found'));
+    await expect(createResearchStrategyDraft('user-1', execution.id, 'en')).rejects.toMatchObject({
+      reason: 'execution_not_found',
+    });
     expect(mocks.getResearchExecution).toHaveBeenCalledWith('user-1', execution.id);
     expect(mocks.generateResearchStrategyDraft).not.toHaveBeenCalled();
     expect(mocks.strategyCreate).not.toHaveBeenCalled();

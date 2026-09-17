@@ -1,17 +1,15 @@
+import { prisma } from '#infra/database/prisma.js';
+import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
 import type {
   BacktestConfig,
   StrategyScanPayload,
   StrategyScanReport,
   StrategyScanReportSummary,
   StrategyScanSpec,
-  Locale,
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
-import { prisma } from '#infra/database/prisma.js';
+import { StrategyError } from '../errors.js';
 import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '../schema.js';
-import { t } from '#i18n/index.js';
-import { failStrategyOperation } from '../errors.js';
 
 export async function listStrategyScanReports(userId: string, query: StrategyScanIdentityQuery) {
   const rows = await prisma.strategyScanReport.findMany({
@@ -42,7 +40,6 @@ export async function readStrategyScanJob(
   userId: string,
   jobId: string,
   query: StrategyScanJobQuery,
-  locale: Locale,
 ) {
   const ownedJob = await prisma.job.findFirst({
     where: { id: jobId, userId, kind: 'strategy-scan' },
@@ -50,26 +47,26 @@ export async function readStrategyScanJob(
   });
 
   if (!ownedJob) {
-    return failStrategyOperation('missing', t(locale, 'strategyScanJobNotFound'));
+    throw new StrategyError('strategy_scan_job_not_found');
   }
 
   const job = await getJob(userId, ownedJob.id, Number(query.since ?? '0'));
 
   if (!job) {
-    return failStrategyOperation('missing', t(locale, 'strategyScanJobNotFound'));
+    throw new StrategyError('strategy_scan_job_not_found');
   }
 
   return job;
 }
 
-export async function readStrategyScanReport(userId: string, reportId: string, locale: Locale) {
+export async function readStrategyScanReport(userId: string, reportId: string) {
   const row = await prisma.strategyScanReport.findFirst({
     where: { id: reportId, userId: userId },
     include: { job: { select: { id: true } } },
   });
 
   if (!row?.job) {
-    return failStrategyOperation('missing', t(locale, 'strategyScanNotFound'));
+    throw new StrategyError('strategy_scan_not_found');
   }
 
   return scanReportDetail(row);

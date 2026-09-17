@@ -1,11 +1,12 @@
-import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { rm } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { Hono } from 'hono';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { handleApiError } from '#infra/http/errors.js';
 import type { AgentLlm, AgentLlmReply } from '#infra/llm/agent-llm.js';
 import type { FactorQuestionHistoryV1, FactorQuestionTurnV1 } from '@jixie/shared';
+import { Hono } from 'hono';
+import { execFileSync } from 'node:child_process';
+import { rm } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '', llm: vi.fn<AgentLlm>() }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -19,14 +20,14 @@ vi.mock('#infra/database/prisma.js', async () => {
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: fixture.llm }));
 
-import { prisma } from '#infra/database/prisma.js';
 import { agentRoute } from '#agent/routes/index.js';
 import * as turnBus from '#agent/turns/bus.js';
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
+import { prisma } from '#infra/database/prisma.js';
 import { factorRoute } from '../routes/index.js';
 import { startFactorQuestion } from './conversations.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-user') ?? 'owner');
   await next();

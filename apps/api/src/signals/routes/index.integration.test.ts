@@ -1,9 +1,10 @@
+import { handleApiError } from '#infra/http/errors.js';
+import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { Hono } from 'hono';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '', sequence: 0 }));
@@ -38,14 +39,14 @@ vi.mock('#infra/jobs/queue.js', () => ({
   waitForJobCompletion: resources.completion,
 }));
 
-import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
 import { deleteStrategy } from '#strategy/definitions/drafts.js';
-import { signalsRoute } from './index.js';
-import { deployBacktestReport } from '../deployments/manage.js';
-import { enqueueSignalRun } from '../runs/enqueue.js';
 import { initializeSignalAccounting } from '../accounting/initialize.js';
 import { settleStrategyAccounts } from '../accounting/settlement.js';
+import { deployBacktestReport } from '../deployments/manage.js';
+import { enqueueSignalRun } from '../runs/enqueue.js';
+import { signalsRoute } from './index.js';
 
 const config = {
   name: 'Signal fixture',
@@ -66,7 +67,7 @@ const dependencies = [
     inputs: ['daily'],
   },
 ];
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
@@ -85,10 +86,7 @@ function request(path: string, body?: unknown, userId = 'owner', method = 'POST'
 }
 async function deploy(reportId = 'report') {
   const result = await deployBacktestReport('owner', reportId, 'en');
-  if (result.kind !== 'ready') {
-    throw new Error(`Unexpected deployment result: ${result.kind}`);
-  }
-  return result.deployment;
+  return result;
 }
 async function createReport(id: string, reportConfig = config) {
   return prisma.backtestReport.create({
@@ -105,10 +103,7 @@ async function createReport(id: string, reportConfig = config) {
 }
 async function enqueue(deploymentId: string) {
   const result = await enqueueSignalRun('owner', deploymentId, '20240103');
-  if (result.kind !== 'ready') {
-    throw new Error(`Unexpected enqueue result: ${result.kind}`);
-  }
-  return result.run;
+  return result;
 }
 
 describe('Signals HTTP and persistence boundaries', () => {
@@ -208,11 +203,11 @@ describe('Signals HTTP and persistence boundaries', () => {
         config,
       },
     });
-    expect((await request('/deployments', { reportId: 'empty-report' })).status).toBe(400);
+    expect((await request('/deployments', { reportId: 'empty-report' })).status).toBe(409);
     for (const status of ['running', 'error', 'stale']) {
       await prisma.backtestReport.update({ where: { id: 'report' }, data: { status } });
       const response = await request('/deployments', { reportId: 'report' });
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
         error: { message: t('en', 'deploymentReportNotReady') },
       });
@@ -254,7 +249,7 @@ describe('Signals HTTP and persistence boundaries', () => {
     expect(second.id).not.toBe(first.id);
     expect(second.config).toEqual(first.config);
     expect(await prisma.strategyDeployment.count({ where: { status: 'active' } })).toBe(2);
-    expect(resources.factors).toHaveBeenLastCalledWith(config.code, 'owner', 'en', 'deployment');
+    expect(resources.factors).toHaveBeenLastCalledWith(config.code, 'owner', 'deployment');
     const listed = await (
       await request('/deployments?strategyId=strategy', undefined, 'owner', 'GET')
     ).json();
@@ -281,7 +276,9 @@ describe('Signals HTTP and persistence boundaries', () => {
     expect(
       await (await request('/deployments/latest-runs', undefined, 'owner', 'GET')).json(),
     ).toHaveLength(3);
-    expect(await enqueueSignalRun('owner', first.id, '20240103')).toEqual({ kind: 'paused' });
+    await expect(enqueueSignalRun('owner', first.id, '20240103')).rejects.toMatchObject({
+      reason: 'paused',
+    });
   });
 
   it('deduplicates concurrent deployment requests for one report with a database constraint', async () => {
@@ -313,12 +310,12 @@ describe('Signals HTTP and persistence boundaries', () => {
       modules: [],
       factors: [{ ...dependencies[0], codeHash: 'changed' }],
     });
-    expect(await deployBacktestReport('owner', 'report', 'en')).toEqual({
-      kind: 'dependencies_changed',
+    await expect(deployBacktestReport('owner', 'report', 'en')).rejects.toMatchObject({
+      reason: 'dependencies_changed',
     });
     await prisma.backtestReport.update({ where: { id: 'report' }, data: { payload: {} } });
-    expect(await deployBacktestReport('owner', 'report', 'en')).toEqual({
-      kind: 'dependencies_changed',
+    await expect(deployBacktestReport('owner', 'report', 'en')).rejects.toMatchObject({
+      reason: 'dependencies_changed',
     });
     expect(await prisma.strategyDeployment.count()).toBe(0);
     resources.factors.mockResolvedValue({ modules: [], factors: [] });
@@ -331,11 +328,12 @@ describe('Signals HTTP and persistence boundaries', () => {
       where: { id: deployment.id },
       data: { backtestReportId: null, activeReportId: null },
     });
-    await expect(deleteStrategy('owner', 'strategy', 'en')).rejects.toMatchObject({
-      category: 'invalid',
+    await expect(deleteStrategy('owner', 'strategy')).rejects.toMatchObject({
+      category: 'conflict',
+      reason: 'strategy_has_deployments',
       message: t('en', 'strategyHasDeployments'),
     });
-    await expect(deleteStrategy('other', 'strategy', 'en')).rejects.toMatchObject({
+    await expect(deleteStrategy('other', 'strategy')).rejects.toMatchObject({
       category: 'missing',
     });
     const fresh = await deploy();
@@ -446,29 +444,31 @@ describe('Signals HTTP and persistence boundaries', () => {
       await request(`/deployments/${deployment.id}/pause`);
       return true;
     });
-    expect(await enqueueSignalRun('owner', deployment.id, '20240103')).toEqual({ kind: 'paused' });
+    await expect(enqueueSignalRun('owner', deployment.id, '20240103')).rejects.toMatchObject({
+      reason: 'paused',
+    });
     expect(await prisma.signalRun.count()).toBe(0);
     expect(resources.wake).not.toHaveBeenCalled();
   });
 
   it('rejects unavailable calendars and data before creating a run or waking the queue', async () => {
     const deployment = await deploy();
-    expect(await enqueueSignalRun('other', deployment.id, '20240103')).toEqual({
-      kind: 'not_found',
+    await expect(enqueueSignalRun('other', deployment.id, '20240103')).rejects.toMatchObject({
+      reason: 'deployment_not_found',
     });
-    expect(await enqueueSignalRun('owner', deployment.id, '20240101')).toEqual({
-      kind: 'invalid_date',
+    await expect(enqueueSignalRun('owner', deployment.id, '20240101')).rejects.toMatchObject({
+      reason: 'invalid_date',
     });
-    expect(await enqueueSignalRun('owner', deployment.id, '20240105')).toEqual({
-      kind: 'next_date_missing',
+    await expect(enqueueSignalRun('owner', deployment.id, '20240105')).rejects.toMatchObject({
+      reason: 'next_date_missing',
     });
     resources.yieldReady.mockResolvedValueOnce(false);
-    expect(await enqueueSignalRun('owner', deployment.id, '20240103')).toEqual({
-      kind: 'data_not_ready',
+    await expect(enqueueSignalRun('owner', deployment.id, '20240103')).rejects.toMatchObject({
+      reason: 'data_not_ready',
     });
     await prisma.dailyBasic.deleteMany({ where: { tradeDate: '20240103' } });
     const response = await request(`/deployments/${deployment.id}/runs`, { tradeDate: '20240103' });
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
       error: { message: t('en', 'signalDataNotReady', { date: '20240103' }) },
     });
@@ -743,7 +743,7 @@ describe('Signals HTTP and persistence boundaries', () => {
     });
     const filled = { status: 'filled', shares: 100, price: 10.08, fee: 6 };
     expect((await request(`/executions/${execution.id}`, filled, 'owner', 'PATCH')).status).toBe(
-      400,
+      409,
     );
     await settleStrategyAccounts('20240104', () => {});
     await settleStrategyAccounts('20240104', () => {});

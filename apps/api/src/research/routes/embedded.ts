@@ -1,70 +1,36 @@
-import {
-  embeddedInputModeSchema,
-  embeddedCreateSchema,
-  embeddedUpdateSchema,
-  embeddedDeriveSchema,
-  embeddedRunSchema,
-  embeddedPageSchema,
-  embeddedListSchema,
-} from '../schema.js';
+import { validateJson, validateQuery } from '#infra/http/errors.js';
+import { localeFromRequest } from '#infra/http/locale.js';
 import { Hono } from 'hono';
-import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
-import { m, localeFromRequest } from '#infra/http/locale.js';
-import type { MessageKey } from '#i18n/index.js';
-import type { ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
-import { ResearchEmbeddedError } from '../embedded/errors.js';
+import {
+  embeddedCreateSchema,
+  embeddedDeriveSchema,
+  embeddedInputModeSchema,
+  embeddedListSchema,
+  embeddedPageSchema,
+  embeddedRunSchema,
+  embeddedUpdateSchema,
+} from '../schema.js';
+
+import { cancelEmbeddedRun } from '../embedded/cancel.js';
+import { changeEmbeddedInputMode, continueEmbeddedResearch } from '../embedded/continuation.js';
+import {
+  getEmbeddedAnalysis,
+  getEmbeddedInput,
+  getEmbeddedRun,
+  getEmbeddedVersion,
+  listEmbeddedAnalyses,
+  listEmbeddedRuns,
+  listEmbeddedVersions,
+} from '../embedded/read.js';
+import { submitEmbeddedRun } from '../embedded/submit.js';
 import {
   createEmbeddedAnalysis,
   deriveEmbeddedVersion,
   updateEmbeddedVersion,
 } from '../embedded/versions.js';
-import {
-  getEmbeddedAnalysis,
-  getEmbeddedVersion,
-  listEmbeddedAnalyses,
-  listEmbeddedVersions,
-  listEmbeddedRuns,
-  getEmbeddedRun,
-  getEmbeddedInput,
-} from '../embedded/read.js';
-import { submitEmbeddedRun } from '../embedded/submit.js';
-import { cancelEmbeddedRun } from '../embedded/cancel.js';
-import { continueEmbeddedResearch, changeEmbeddedInputMode } from '../embedded/continuation.js';
-import { researchExecutionError } from './errors.js';
 
 export const researchEmbeddedRoute = new Hono();
-const messageKeys = {
-  not_found: 'researchEmbeddedNotFound',
-  frozen: 'researchEmbeddedFrozen',
-  revision_conflict: 'researchEmbeddedRevisionConflict',
-  run_in_progress: 'researchEmbeddedRunInProgress',
-  request_conflict: 'researchEmbeddedRequestConflict',
-  invalid_report: 'researchEmbeddedInvalidReport',
-  input_limit: 'researchEmbeddedInputLimit',
-  request_limit: 'researchEmbeddedRequestLimit',
-  timeout: 'researchEmbeddedTimeout',
-  cancelled: 'researchEmbeddedCancelled',
-  interrupted: 'researchEmbeddedInterrupted',
-  execution_failed: 'researchEmbeddedExecutionFailed',
-  incomplete_run: 'researchEmbeddedIncompleteRun',
-} as const satisfies Record<ResearchEmbeddedErrorCodeV1, MessageKey>;
 
-researchEmbeddedRoute.onError((error, c) => {
-  const executionError = researchExecutionError(c, error);
-  if (executionError) {
-    return executionError;
-  }
-  if (!(error instanceof ResearchEmbeddedError)) {
-    throw error;
-  }
-  const status =
-    error.code === 'not_found'
-      ? 'NOT_FOUND'
-      : error.code === 'invalid_report'
-        ? 'VALIDATION_FAILED'
-        : 'CONFLICT';
-  return apiError(c, status, m(c, messageKeys[error.code]), { reason: error.code });
-});
 researchEmbeddedRoute.use('*', async (c, next) => {
   c.header('Cache-Control', 'private, no-store');
   await next();

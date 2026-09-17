@@ -1,9 +1,11 @@
-import type { FactorQuestionHistoryQuery, FactorQuestionInput } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
+import { factorQaProfile } from '#agent/profiles/qa.js';
+import { createPersistentTurnInput } from '#agent/turns/records.js';
+import { enqueueAgentTurn } from '#agent/turns/run.js';
+import { prisma } from '#infra/database/prisma.js';
+import { getDeepSeekAgentModel } from '#infra/llm/config.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
-import { ulid } from 'ulid';
-import type { Prisma } from '@prisma/client';
 import type {
   ChatMessage,
   FactorQuestionContextV1,
@@ -11,13 +13,10 @@ import type {
   FactorQuestionTurnV1,
   Locale,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
-import { getDeepSeekAgentModel } from '#infra/llm/config.js';
-import { t } from '#i18n/index.js';
-import { createPersistentTurnInput } from '#agent/turns/records.js';
-import { enqueueAgentTurn } from '#agent/turns/run.js';
-import { factorQaProfile } from '#agent/profiles/qa.js';
-import { failFactorOperation } from '../errors.js';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { FactorError } from '../errors.js';
+import type { FactorQuestionHistoryQuery, FactorQuestionInput } from '../schema.js';
 import { captureFactorQuestionContext } from './context.js';
 
 const messageSelection = {
@@ -116,7 +115,7 @@ export async function startFactorQuestion(
         select: { id: true },
       })
     ) {
-      return failFactorOperation('conflict', t(locale, 'factorTurnInProgress'));
+      throw new FactorError('factor_turn_in_progress');
     }
     const history = (
       await database.agentMessage.findMany({

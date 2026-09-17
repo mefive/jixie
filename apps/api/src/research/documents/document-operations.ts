@@ -1,7 +1,8 @@
-import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
+import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
+import { ResearchError } from '../errors.js';
+import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
 import { templateDefinition } from '../templates/document-templates.js';
 import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';
@@ -20,7 +21,7 @@ export async function archiveResearchDocument(
     select: { id: true, archivedAt: true },
   });
   if (!conversation) {
-    return false;
+    throw new ResearchError('document_not_found');
   }
   if (!conversation.archivedAt) {
     await prisma.agentConversation.update({
@@ -46,7 +47,7 @@ export async function restoreResearchDocument(
     select: { id: true, archivedAt: true },
   });
   if (!conversation) {
-    return false;
+    throw new ResearchError('document_not_found');
   }
   if (conversation.archivedAt) {
     await prisma.agentConversation.update({
@@ -92,7 +93,10 @@ export async function renameResearchDocument(userId: string, documentId: string,
     },
     data: { title },
   });
-  return updated.count === 1;
+  if (updated.count !== 1) {
+    throw new ResearchError('document_not_found');
+  }
+  return true;
 }
 
 export async function deleteResearchDocument(userId: string, documentId: string) {
@@ -107,5 +111,8 @@ export async function deleteResearchDocument(userId: string, documentId: string)
   if (deleted.count === 1) {
     closeResearchDocumentRuntime(documentId);
   }
-  return deleted.count === 1;
+  if (deleted.count !== 1) {
+    throw new ResearchError('document_not_found');
+  }
+  return true;
 }

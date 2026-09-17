@@ -1,6 +1,5 @@
 import type { MiddlewareHandler } from 'hono';
-import { m } from '#infra/http/locale.js';
-import { apiError } from '#infra/http/errors.js';
+import { MaintenanceError } from './errors.js';
 import { getMaintenanceStatus } from './state.js';
 
 export const maintenanceGate: MiddlewareHandler = async (context, next) => {
@@ -11,5 +10,5 @@ export const maintenanceGate: MiddlewareHandler = async (context, next) => {
   }
 
   context.header('Retry-After', String(status.retryAfterSeconds));
-  return apiError(context, 'MAINTENANCE', m(context, 'maintenanceInProgress'), status);
+  throw new MaintenanceError('in_progress', { details: status });
 };

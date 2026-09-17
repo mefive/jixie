@@ -1,5 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { textMessage, type ResearchExecutionV1 } from '@jixie/shared';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ResearchError } from '../errors.js';
 
 const mocks = vi.hoisted(() => ({
   factorFindFirst: vi.fn(),
@@ -27,7 +28,7 @@ vi.mock('./factor-handoff.js', () => ({
   generateResearchFactorDraft: mocks.generateResearchFactorDraft,
 }));
 
-import { createResearchFactorDraft, ResearchFactorDraftUnavailableError } from './factor-drafts.js';
+import { createResearchFactorDraft } from './factor-drafts.js';
 
 const execution = {
   id: 'execution-1',
@@ -161,16 +162,19 @@ describe('research Factor drafts', () => {
   ])('rejects an execution that is not successful and sealed', async (unavailable) => {
     mocks.getResearchExecution.mockResolvedValue(unavailable);
 
-    await expect(createResearchFactorDraft('user-1', execution.id, 'zh')).rejects.toThrow(
-      ResearchFactorDraftUnavailableError,
-    );
+    await expect(createResearchFactorDraft('user-1', execution.id, 'zh')).rejects.toMatchObject({
+      name: 'ResearchError',
+      reason: 'factor_draft_unavailable',
+    });
     expect(mocks.generateResearchFactorDraft).not.toHaveBeenCalled();
   });
 
-  it('returns null when the source execution is unavailable to the owner', async () => {
+  it('rejects when the source execution is unavailable to the owner', async () => {
     mocks.factorFindFirst.mockResolvedValue(null);
-    mocks.getResearchExecution.mockResolvedValue(null);
-    expect(await createResearchFactorDraft('user-1', execution.id, 'en')).toBeNull();
+    mocks.getResearchExecution.mockRejectedValue(new ResearchError('execution_not_found'));
+    await expect(createResearchFactorDraft('user-1', execution.id, 'en')).rejects.toMatchObject({
+      reason: 'execution_not_found',
+    });
     expect(mocks.getResearchExecution).toHaveBeenCalledWith('user-1', execution.id);
     expect(mocks.generateResearchFactorDraft).not.toHaveBeenCalled();
     expect(mocks.factorCreate).not.toHaveBeenCalled();

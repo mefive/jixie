@@ -1,9 +1,10 @@
-import { activeTurnQuerySchema } from '../schema.js';
-import { Hono } from 'hono';
-import { apiError, validateQuery } from '#infra/http/errors.js';
+import { validateQuery } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
-import { streamSSE } from 'hono/streaming';
 import type { AgentStreamEvent } from '@jixie/shared';
+import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
+import { AgentError } from '../errors.js';
+import { activeTurnQuerySchema } from '../schema.js';
 import * as turnBus from '../turns/bus.js';
 import { getTurnDetail } from '../turns/read.js';
 
@@ -16,7 +17,7 @@ agentTurnRoute.get('/turns/active', validateQuery(activeTurnQuerySchema), (c) =>
 
 agentTurnRoute.get('/turns/:turnId', async (c) => {
   const result = await getTurnDetail(c.var.userId, c.req.param('turnId'));
-  return result ? c.json(result) : apiError(c, 'NOT_FOUND', m(c, 'turnNotFound'));
+  return c.json(result);
 });
 
 agentTurnRoute.get('/turns/:turnId/stream', (c) => {
@@ -62,6 +63,6 @@ agentTurnRoute.post('/turns/:turnId/cancel', (c) => {
 });
 
 // Guard against accidental non-GET on the stream path (avoids a confusing 404 from Hono).
-agentTurnRoute.all('/turns/:turnId/stream', (c) =>
-  apiError(c, 'VALIDATION_FAILED', m(c, 'onlyGetSubscribe')),
-);
+agentTurnRoute.all('/turns/:turnId/stream', () => {
+  throw new AgentError('only_get_subscribe');
+});

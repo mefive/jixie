@@ -1,18 +1,19 @@
-import type { UpdateResearchCellInput } from '../schema.js';
-import type { ResearchCellKindV1, ResearchDocumentV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { cellCreate } from './cell-seed.js';
+import type { ResearchCellKindV1, ResearchDocumentV1 } from '@jixie/shared';
 import { analyzeAndPersist, analyzeResearchCellSources } from '../dependencies/analyze.js';
+import { ResearchError } from '../errors.js';
+import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
+import type { UpdateResearchCellInput } from '../schema.js';
+import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';
-import { ResearchCellRevisionConflictError } from './revision-errors.js';
-import { jsonStringArray, researchCellDependencyIssues } from '../dependencies/cell-values.js';
+
 import type { Prisma } from '@prisma/client';
+import { jsonStringArray, researchCellDependencyIssues } from '../dependencies/cell-values.js';
 import {
+  appendDeletedResearchCellDependencyIssues,
+  deletedDependencyDefinitionsByCellId,
   markDownstreamStale,
   reconcileResearchCellDependencyIssues,
-  deletedDependencyDefinitionsByCellId,
-  appendDeletedResearchCellDependencyIssues,
 } from '../dependencies/invalidation.js';
 
 export async function addResearchCell(
@@ -20,7 +21,7 @@ export async function addResearchCell(
   documentId: string,
   kind: ResearchCellKindV1,
   source = '',
-): Promise<ResearchDocumentV1 | null> {
+): Promise<ResearchDocumentV1> {
   const document = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: {
@@ -29,7 +30,7 @@ export async function addResearchCell(
     },
   });
   if (!document) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(documentId);
   await prisma.$transaction([
@@ -52,7 +53,7 @@ export async function updateResearchCell(
   userId: string,
   cellId: string,
   patch: UpdateResearchCellInput,
-): Promise<ResearchDocumentV1 | null> {
+): Promise<ResearchDocumentV1> {
   const cell = await prisma.researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: {
@@ -67,13 +68,18 @@ export async function updateResearchCell(
     },
   });
   if (!cell) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   if (cell.revision !== patch.expectedRevision) {
-    throw new ResearchCellRevisionConflictError({
-      id: cell.id,
-      source: cell.source,
-      revision: cell.revision,
+    throw new ResearchError('cell_revision_conflict', {
+      details: {
+        reason: 'cell_revision_changed',
+        currentCell: {
+          id: cell.id,
+          source: cell.source,
+          revision: cell.revision,
+        },
+      },
     });
   }
   const sourceChanged = patch.source !== undefined && patch.source !== cell.source;
@@ -134,13 +140,20 @@ export async function updateResearchCell(
         select: { id: true, source: true, revision: true },
       });
       if (!current) {
-        throw new ResearchCellRevisionConflictError({
-          id: cell.id,
-          source: cell.source,
-          revision: cell.revision,
+        throw new ResearchError('cell_revision_conflict', {
+          details: {
+            reason: 'cell_revision_changed',
+            currentCell: {
+              id: cell.id,
+              source: cell.source,
+              revision: cell.revision,
+            },
+          },
         });
       }
-      throw new ResearchCellRevisionConflictError(current);
+      throw new ResearchError('cell_revision_conflict', {
+        details: { reason: 'cell_revision_changed', currentCell: current },
+      });
     }
     if (sourceChanged) {
       const analysis = analyses.find((candidate) => candidate.cellId === cell.id);
@@ -170,7 +183,7 @@ export async function updateResearchCell(
 export async function deleteResearchCell(
   userId: string,
   cellId: string,
-): Promise<ResearchDocumentV1 | null> {
+): Promise<ResearchDocumentV1> {
   const cell = await prisma.researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: {
@@ -182,7 +195,7 @@ export async function deleteResearchCell(
     },
   });
   if (!cell) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(cell.documentId);
   const beforeAnalyses = await analyzeAndPersist(cell.documentId);

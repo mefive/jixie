@@ -1,5 +1,6 @@
 import { Worker } from 'node:worker_threads';
 import { z } from 'zod';
+import { AgentError } from '../../errors.js';
 import type { AgentTool } from '../types.js';
 
 /**
@@ -130,20 +131,23 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
   const trimmed = sql.trim().replace(/;\s*$/, '');
 
   if (trimmed.includes(';')) {
-    throw new Error('Only a single statement is allowed (no semicolons)');
+    throw new AgentError('sql_single_statement');
   }
   if (!/^\s*(select|with)\b/i.test(trimmed)) {
-    throw new Error('Only SELECT queries are allowed (a WITH-prefixed CTE is fine)');
+    throw new AgentError('sql_select_required');
   }
   if (FORBIDDEN_KEYWORDS.test(trimmed)) {
-    throw new Error(
-      `Query contains a forbidden keyword (read-only): ${trimmed.match(FORBIDDEN_KEYWORDS)?.[0]}`,
-    );
+    throw new AgentError('sql_forbidden_keyword', {
+      params: { keyword: trimmed.match(FORBIDDEN_KEYWORDS)?.[0] ?? '' },
+    });
   }
   if (FORBIDDEN_NAMES.test(trimmed)) {
-    throw new Error(
-      `Access to ${trimmed.match(FORBIDDEN_NAMES)?.[0]} is not allowed (only market/financial data tables are exposed: ${Object.keys(SQL_TABLE_DOCS).join(', ')})`,
-    );
+    throw new AgentError('sql_forbidden_table', {
+      params: {
+        table: trimmed.match(FORBIDDEN_NAMES)?.[0] ?? '',
+        tables: Object.keys(SQL_TABLE_DOCS).join(', '),
+      },
+    });
   }
 
   // Every FROM/JOIN target must be whitelisted; parenthesized subqueries are fine (their own
@@ -156,9 +160,9 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
   );
   for (const match of trimmed.matchAll(/\b(?:from|join)\s+[`"[]?([a-z_][a-z0-9_]*)[`"\]]?/gi)) {
     if (!ALLOWED_TABLES.has(match[1].toLowerCase()) && !definedNames.has(match[1].toLowerCase())) {
-      throw new Error(
-        `Table ${match[1]} is not in the whitelist. Queryable: ${Object.keys(SQL_TABLE_DOCS).join(', ')}`,
-      );
+      throw new AgentError('sql_table_not_allowed', {
+        params: { table: match[1], tables: Object.keys(SQL_TABLE_DOCS).join(', ') },
+      });
     }
   }
 
@@ -171,7 +175,7 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
     return `${trimmed} LIMIT ${rowCap}`;
   }
   if (declaredLimits.some((limit) => limit > declaredCap)) {
-    throw new Error(`LIMIT max is ${declaredCap}; reduce it or aggregate first`);
+    throw new AgentError('sql_limit_exceeded', { params: { limit: declaredCap } });
   }
   return trimmed;
 }
@@ -233,7 +237,11 @@ function ensureWorker(): Worker {
       if (msg.ok) {
         entry.resolve(msg.rows ?? []);
       } else {
-        entry.reject(new Error(msg.error ?? 'SQL execution failed'));
+        entry.reject(
+          new AgentError('sql_execution_invalid', {
+            params: { diagnostic: msg.error ?? 'SQL execution failed' },
+          }),
+        );
       }
     },
   );
@@ -262,11 +270,7 @@ export async function runReadOnlySql(
   return new Promise<Record<string, unknown>[]>((resolve, reject) => {
     const timer = setTimeout(() => {
       pending.delete(id);
-      reject(
-        new Error(
-          `Query exceeded the ${QUERY_TIMEOUT_MS / 1000}s timeout; add conditions to narrow the range (filter large tables by tradeDate/tsCode)`,
-        ),
-      );
+      reject(new AgentError('sql_timeout', { params: { seconds: QUERY_TIMEOUT_MS / 1000 } }));
       // The sync sqlite API can't be interrupted — kill the thread; the next query respawns it.
       if (sqlWorker === worker) {
         sqlWorker = null;

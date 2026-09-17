@@ -1,11 +1,13 @@
-import type { Context } from 'hono';
-import type { ContentfulStatusCode } from 'hono/utils/http-status';
-import { zValidator } from '@hono/zod-validator';
-import type { ZodSchema } from 'zod';
-import { localeFromRequest } from './locale.js';
 import { t } from '#i18n/index.js';
+import { zValidator } from '@hono/zod-validator';
+import type { Context } from 'hono';
+import { HTTPException } from 'hono/http-exception';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import type { ZodSchema } from 'zod';
+import { BusinessError, errorMessage, type BusinessErrorCategory } from '../errors.js';
+import { localeFromRequest } from './locale.js';
 
-// Unified error shape for auth-related routes: { error: { code, message, details? } }
+// Unified error shape for all HTTP routes: { error: { code, message, details? } }
 // - code:    machine-readable, the frontend dispatches on it (toast / highlight field / redirect)
 // - message: human-readable, can be shown directly
 // - details: optional extra info (zod issues, field names, etc.)
@@ -16,7 +18,8 @@ export type ErrorCode =
   | 'UNAUTHORIZED' // not logged in / session expired / cookie missing
   | 'FORBIDDEN' // logged in but not permitted (account disabled)
   | 'MAINTENANCE' // market data is being updated or awaiting a safe retry
-  | 'SERVICE_UNAVAILABLE'; // upstream dependency temporarily unavailable (email service, etc.)
+  | 'SERVICE_UNAVAILABLE' // upstream dependency temporarily unavailable (email service, etc.)
+  | 'INTERNAL_ERROR';
 
 export interface ApiErrorBody {
   error: {
@@ -34,7 +37,35 @@ const STATUS_FOR: Record<ErrorCode, ContentfulStatusCode> = {
   FORBIDDEN: 403,
   MAINTENANCE: 503,
   SERVICE_UNAVAILABLE: 503,
+  INTERNAL_ERROR: 500,
 };
+
+const CODE_FOR_CATEGORY = {
+  invalid: 'VALIDATION_FAILED',
+  missing: 'NOT_FOUND',
+  conflict: 'CONFLICT',
+  unauthorized: 'UNAUTHORIZED',
+  forbidden: 'FORBIDDEN',
+  unavailable: 'SERVICE_UNAVAILABLE',
+  maintenance: 'MAINTENANCE',
+} as const satisfies Record<BusinessErrorCategory, ErrorCode>;
+
+export function handleApiError(error: Error, context: Context) {
+  if (error instanceof HTTPException && error.status === 400) {
+    return apiError(context, 'VALIDATION_FAILED', t(localeFromRequest(context), 'invalidInput'));
+  }
+  if (error instanceof BusinessError) {
+    return apiError(
+      context,
+      CODE_FOR_CATEGORY[error.category],
+      errorMessage(error, localeFromRequest(context)),
+      error.details,
+    );
+  }
+
+  console.error('[api] Unhandled request error', error);
+  return apiError(context, 'INTERNAL_ERROR', t(localeFromRequest(context), 'internalError'));
+}
 
 export function apiError(c: Context, code: ErrorCode, message: string, details?: unknown) {
   const body: ApiErrorBody = {

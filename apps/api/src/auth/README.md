@@ -1,5 +1,7 @@
 # 认证
 
+业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
+
 本模块拥有用户登录、邀请码消费、验证码 challenge 与 Session 生命周期，供登录 HTTP 和需要检查会话的入口使用。
 
 - `email-login.ts`：请求验证码与验证登录；包含发送失败清理、重放保护和用户/邀请码事务。
@@ -7,7 +9,7 @@
 - `development-login.ts`：开发登录操作，仅由非生产路由注册后暴露。
 - `invite-code.ts`：邀请码生成、规范化和格式校验。
 - `verification-email.ts`：登录邮件模板；实际发送由 `infra/email/email.ts` 提供。
-- `errors.ts`：认证操作的失败结果，不包含 HTTP 状态或框架类型。
+- `errors.ts`：认证操作直接抛出的 `AuthError` 定义，使用统一 `BusinessError`，不包含 HTTP 状态或框架类型。
 - `routes.ts`：保持 `/api/auth/*` 的 URL、参数校验与响应。
 - `cookies.ts`：Session Cookie 读写与安全属性。
 - `middleware.ts`：鉴权中间件和 Hono 用户上下文声明。

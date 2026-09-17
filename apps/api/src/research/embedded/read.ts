@@ -1,4 +1,4 @@
-import type { ResearchEmbeddedListQuery, ResearchEmbeddedPageQuery } from '../schema.js';
+import { prisma } from '#infra/database/prisma.js';
 import type {
   ResearchCellOutputBlockV1,
   ResearchEmbeddedContextV1,
@@ -7,10 +7,10 @@ import type {
   ResearchEmbeddedParametersV1,
   ResearchEmbeddedRunV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
-import { analysisView, versionView, runSummaryView } from './views.js';
+import { ResearchError } from '../errors.js';
+import type { ResearchEmbeddedListQuery, ResearchEmbeddedPageQuery } from '../schema.js';
 import { ownedAnalysis } from './versions.js';
-import { ResearchEmbeddedError } from './errors.js';
+import { analysisView, runSummaryView, versionView } from './views.js';
 
 function page<T extends { id: string }, View>(
   rows: T[],
@@ -54,7 +54,7 @@ export async function listEmbeddedVersions(
       })
     : null;
   if (input.cursor && !cursor) {
-    throw new ResearchEmbeddedError('not_found');
+    throw new ResearchError('embedded_not_found');
   }
   const rows = await prisma.researchEmbeddedAnalysisVersion.findMany({
     where: { analysisId, ...(cursor ? { number: { lt: cursor.number } } : {}) },
@@ -69,7 +69,7 @@ export async function getEmbeddedVersion(userId: string, analysisId: string, ver
     where: { id: versionId, analysisId, analysis: { userId } },
   });
   if (!row) {
-    throw new ResearchEmbeddedError('not_found');
+    throw new ResearchError('embedded_not_found');
   }
   return versionView(row);
 }
@@ -123,7 +123,7 @@ export async function getEmbeddedRun(
     },
   });
   if (!row) {
-    throw new ResearchEmbeddedError('not_found');
+    throw new ResearchError('embedded_not_found');
   }
   const snapshot = row.sourceSnapshot as unknown as {
     embedded: { source: string; inputScope: string; limits: ResearchEmbeddedRunV1['limits'] };
@@ -177,7 +177,7 @@ export async function getEmbeddedInput(
     select: { responseJson: true, sha256: true, byteSize: true },
   });
   if (!input) {
-    throw new ResearchEmbeddedError('not_found');
+    throw new ResearchError('embedded_not_found');
   }
   return {
     response: input.responseJson ? (JSON.parse(input.responseJson) as unknown) : null,

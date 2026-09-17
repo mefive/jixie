@@ -1,27 +1,28 @@
-import type { Prisma } from '@prisma/client';
+import { prisma } from '#infra/database/prisma.js';
 import type {
   ResearchCellChangeConflictV1,
   ResearchCellChangeOperationV1,
   ResearchCellChangeProposalV1,
-  ResearchCellChangeReviewResolutionResultV1,
   ResearchCellChangeResolutionResultV1,
+  ResearchCellChangeReviewResolutionResultV1,
   ResearchCellKindV1,
 } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import {
+  reconcileResearchCellChanges,
+  type ResearchCellChangeDependencySeed,
+} from '../dependencies/invalidation.js';
+import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
+import { getResearchDocument } from '../documents/read.js';
+import { ResearchError } from '../errors.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
+import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import {
   researchCellChangeProposalView,
   resolveResearchCellChangeProposalRecord,
   syncResearchCellChangeProposalRecords,
 } from './change-records.js';
-import { getResearchDocument } from '../documents/read.js';
-import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
-import {
-  reconcileResearchCellChanges,
-  type ResearchCellChangeDependencySeed,
-} from '../dependencies/invalidation.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
-import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import { validateResearchSeriesProposal } from './series-validation.js';
 
 const MAX_PROPOSAL_OPERATIONS = 8;
@@ -69,20 +70,6 @@ interface ApplyTransactionResult {
   outcome: ResearchCellChangeResolutionResultV1['outcome'];
   proposal: ResearchCellChangeProposalV1;
   seeds: ResearchCellChangeDependencySeed[];
-}
-
-export type ResearchCellChangeReviewUnavailableReason =
-  | 'delete_requires_explicit_application'
-  | 'review_not_open'
-  | 'review_already_open'
-  | 'document_running'
-  | 'document_changed';
-
-export class ResearchCellChangeReviewUnavailableError extends Error {
-  public constructor(readonly reason: ResearchCellChangeReviewUnavailableReason) {
-    super(reason);
-    this.name = 'ResearchCellChangeReviewUnavailableError';
-  }
 }
 
 /** Build a read-only, revision-bound proposal from one Agent tool call. */
@@ -264,14 +251,14 @@ export async function prepareResearchCellChangeProposal(
 export function applyResearchCellChangeProposal(
   userId: string,
   proposalId: string,
-): Promise<ResearchCellChangeResolutionResultV1 | null> {
+): Promise<ResearchCellChangeResolutionResultV1> {
   return applyResearchCellChangeProposalInternal(userId, proposalId, false);
 }
 
 export function applyResearchCellChangeProposalForReview(
   userId: string,
   proposalId: string,
-): Promise<ResearchCellChangeResolutionResultV1 | null> {
+): Promise<ResearchCellChangeResolutionResultV1> {
   return applyResearchCellChangeProposalInternal(userId, proposalId, true);
 }
 
@@ -279,9 +266,9 @@ async function applyResearchCellChangeProposalInternal(
   userId: string,
   proposalId: string,
   openReview: boolean,
-): Promise<ResearchCellChangeResolutionResultV1 | null> {
+): Promise<ResearchCellChangeResolutionResultV1> {
   const transactionResult = await prisma.$transaction(
-    async (transaction): Promise<ApplyTransactionResult | null> => {
+    async (transaction): Promise<ApplyTransactionResult> => {
       const proposal = await transaction.researchCellChangeProposal.findFirst({
         where: { id: proposalId, document: { userId, embeddedVersion: null } },
         include: {
@@ -307,7 +294,7 @@ async function applyResearchCellChangeProposalInternal(
         },
       });
       if (!proposal) {
-        return null;
+        throw new ResearchError('proposal_not_found');
       }
       if (proposal.status !== 'pending') {
         return {
@@ -324,11 +311,11 @@ async function applyResearchCellChangeProposalInternal(
           select: { id: true },
         });
         if (activeReview) {
-          throw new ResearchCellChangeReviewUnavailableError('review_already_open');
+          throw new ResearchError('review_already_open');
         }
       }
       if (openReview && operations.some((operation) => operation.kind === 'delete')) {
-        throw new ResearchCellChangeReviewUnavailableError('delete_requires_explicit_application');
+        throw new ResearchError('review_delete_requires_explicit_application');
       }
       const conflict = proposalConflict(
         proposal.document.contentRevision,
@@ -416,9 +403,7 @@ async function applyResearchCellChangeProposalInternal(
       return { outcome: 'applied', proposal: applied, seeds: result.seeds };
     },
   );
-  if (!transactionResult) {
-    return null;
-  }
+
   if (transactionResult.outcome === 'applied') {
     await reconcileResearchCellChanges(
       transactionResult.proposal.documentId,
@@ -426,9 +411,7 @@ async function applyResearchCellChangeProposalInternal(
     );
   }
   const document = await getResearchDocument(userId, transactionResult.proposal.documentId);
-  if (!document) {
-    return null;
-  }
+
   return {
     version: 1,
     outcome: transactionResult.outcome,
@@ -440,13 +423,13 @@ async function applyResearchCellChangeProposalInternal(
 export async function rejectResearchCellChangeProposal(
   userId: string,
   proposalId: string,
-): Promise<ResearchCellChangeResolutionResultV1 | null> {
+): Promise<ResearchCellChangeResolutionResultV1> {
   const transactionResult = await prisma.$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
     });
     if (!proposal) {
-      return null;
+      throw new ResearchError('proposal_not_found');
     }
     if (proposal.status === 'applied' || proposal.status === 'rejected') {
       return {
@@ -461,34 +444,35 @@ export async function rejectResearchCellChangeProposal(
     });
     return { outcome: 'rejected' as const, proposal: rejected };
   });
-  if (!transactionResult) {
-    return null;
-  }
+
   const document = await getResearchDocument(userId, transactionResult.proposal.documentId);
-  return document ? { version: 1, ...transactionResult, document } : null;
+  if (!document) {
+    throw new ResearchError('proposal_not_found');
+  }
+  return { version: 1, ...transactionResult, document };
 }
 
 export async function acceptResearchCellChangeReview(
   userId: string,
   proposalId: string,
   expectedContentRevision: number,
-): Promise<ResearchCellChangeReviewResolutionResultV1 | null> {
+): Promise<ResearchCellChangeReviewResolutionResultV1> {
   const documentId = await prisma.$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
       include: { document: { select: { id: true, contentRevision: true } } },
     });
     if (!proposal) {
-      return null;
+      throw new ResearchError('proposal_not_found');
     }
     if (!proposal.reviewSessionId || proposal.reviewStatus !== 'open') {
-      throw new ResearchCellChangeReviewUnavailableError('review_not_open');
+      throw new ResearchError('review_not_open');
     }
     if (isResearchDocumentRunActive(proposal.documentId)) {
-      throw new ResearchCellChangeReviewUnavailableError('document_running');
+      throw new ResearchError('review_document_running');
     }
     if (proposal.document.contentRevision !== expectedContentRevision) {
-      throw new ResearchCellChangeReviewUnavailableError('document_changed');
+      throw new ResearchError('review_document_changed');
     }
 
     const reviewProposals = await transaction.researchCellChangeProposal.findMany({
@@ -515,17 +499,20 @@ export async function acceptResearchCellChangeReview(
     return proposal.document.id;
   });
   if (!documentId) {
-    return null;
+    throw new ResearchError('proposal_not_found');
   }
   const document = await getResearchDocument(userId, documentId);
-  return document ? { version: 1, outcome: 'accepted', document } : null;
+  if (!document) {
+    throw new ResearchError('proposal_not_found');
+  }
+  return { version: 1, outcome: 'accepted', document };
 }
 
 export async function revertResearchCellChangeReview(
   userId: string,
   proposalId: string,
   expectedContentRevision: number,
-): Promise<ResearchCellChangeReviewResolutionResultV1 | null> {
+): Promise<ResearchCellChangeReviewResolutionResultV1> {
   const transactionResult = await prisma.$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
@@ -551,16 +538,16 @@ export async function revertResearchCellChangeReview(
       },
     });
     if (!proposal) {
-      return null;
+      throw new ResearchError('proposal_not_found');
     }
     if (!proposal.reviewSessionId || proposal.reviewStatus !== 'open') {
-      throw new ResearchCellChangeReviewUnavailableError('review_not_open');
+      throw new ResearchError('review_not_open');
     }
     if (isResearchDocumentRunActive(proposal.documentId)) {
-      throw new ResearchCellChangeReviewUnavailableError('document_running');
+      throw new ResearchError('review_document_running');
     }
     if (proposal.document.contentRevision !== expectedContentRevision) {
-      throw new ResearchCellChangeReviewUnavailableError('document_changed');
+      throw new ResearchError('review_document_changed');
     }
 
     const reviewProposals = await transaction.researchCellChangeProposal.findMany({
@@ -576,7 +563,7 @@ export async function revertResearchCellChangeReview(
       const operations = reviewProposal.operations as unknown as ResearchCellChangeOperationV1[];
       for (const operation of operations) {
         if (operation.kind === 'delete') {
-          throw new ResearchCellChangeReviewUnavailableError('review_not_open');
+          throw new ResearchError('review_not_open');
         }
         if (!firstOperationByCellId.has(operation.cellId)) {
           firstOperationByCellId.set(operation.cellId, operation);
@@ -591,7 +578,7 @@ export async function revertResearchCellChangeReview(
     for (const operation of firstOperationByCellId.values()) {
       const current = currentByCellId.get(operation.cellId);
       if (!current) {
-        throw new ResearchCellChangeReviewUnavailableError('document_changed');
+        throw new ResearchError('review_document_changed');
       }
       if (operation.kind === 'create') {
         reverseOperations.push({
@@ -661,12 +648,13 @@ export async function revertResearchCellChangeReview(
     );
     return { documentId: proposal.document.id, seeds: result.seeds };
   });
-  if (!transactionResult) {
-    return null;
-  }
+
   await reconcileResearchCellChanges(transactionResult.documentId, transactionResult.seeds);
   const document = await getResearchDocument(userId, transactionResult.documentId);
-  return document ? { version: 1, outcome: 'reverted', document } : null;
+  if (!document) {
+    throw new ResearchError('proposal_not_found');
+  }
+  return { version: 1, outcome: 'reverted', document };
 }
 
 async function applyOperations(

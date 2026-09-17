@@ -1,24 +1,25 @@
-import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { startResearchDocumentRun, finishResearchDocumentRun } from './run-state.js';
+import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
 import { affectedResearchCellRunPlan } from '../dependencies/run-plan.js';
 import { assertResearchCellIdsRunnable } from '../dependencies/runnable.js';
-import { researchDocumentRunResult } from './run-result.js';
+import { ResearchError } from '../errors.js';
+import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 import { executeAffectedResearchCellPlan } from './execute-plan.js';
 import { executeResearchCellById } from './run-cell.js';
+import { researchDocumentRunResult } from './run-result.js';
+import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
 export async function runAffectedResearchCells(
   userId: string,
   cellId: string,
-): Promise<ResearchDocumentRunResultV1 | null> {
+): Promise<ResearchDocumentRunResultV1> {
   const cell = await prisma.researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: { id: true, documentId: true },
   });
   if (!cell) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(cell.documentId);
   const control = startResearchDocumentRun(cell.documentId);

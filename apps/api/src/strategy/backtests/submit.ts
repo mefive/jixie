@@ -1,16 +1,15 @@
-import { createHash } from 'node:crypto';
-import { ulid } from 'ulid';
-import type { BacktestConfig, Locale } from '@jixie/shared';
-import { Prisma } from '@prisma/client';
-import type { StrategyCodeConfigInput, StrategyBacktestIdentityQuery } from '../schema.js';
-import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import { prisma } from '#infra/database/prisma.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { prisma } from '#infra/database/prisma.js';
+import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import type { BacktestConfig, Locale } from '@jixie/shared';
+import { Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
+import { ulid } from 'ulid';
 import { commitStrategyConfig } from '../definitions/config.js';
+import { StrategyError } from '../errors.js';
 import { extractFactorKeys } from '../factor-inputs/references.js';
-import { t } from '#i18n/index.js';
-import { failStrategyOperation } from '../errors.js';
+import type { StrategyBacktestIdentityQuery, StrategyCodeConfigInput } from '../schema.js';
 
 export async function submitStrategyBacktest(
   userId: string,
@@ -22,7 +21,7 @@ export async function submitStrategyBacktest(
   const { strategyId } = query;
 
   if (config.start >= config.end) {
-    return failStrategyOperation('invalid', t(locale, 'startAfterEnd'), { field: 'start' });
+    throw new StrategyError('start_after_end', { details: { field: 'start' } });
   }
 
   const start = await prisma.$transaction(async (transaction) => {
@@ -93,11 +92,11 @@ export async function submitStrategyBacktest(
   });
 
   if (start.kind === 'not_found') {
-    return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    throw new StrategyError('strategy_not_found');
   }
 
   if (start.kind === 'running') {
-    return failStrategyOperation('invalid', t(locale, 'strategyBacktestInProgress'));
+    throw new StrategyError('strategy_backtest_in_progress');
   }
 
   const jobId = start.jobId;

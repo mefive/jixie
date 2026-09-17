@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
+import { FactorError } from '../errors.js';
 import { BUILTIN_KEYS } from './builtin-factors.js';
-import { FactorPublicationError } from '../errors.js';
 
 export async function nextCopyKey(
   database: Pick<Prisma.TransactionClient, 'factor' | 'factorComposite'>,
@@ -21,5 +21,5 @@ export async function nextCopyKey(
       return { key, version };
     }
   }
-  throw new FactorPublicationError('not_draft');
+  throw new FactorError('publication_not_draft');
 }

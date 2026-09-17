@@ -1,14 +1,14 @@
-import {
-  instrumentNamesQuerySchema,
-  instrumentSeriesQuerySchema,
-  instrumentAssetTypeSchema,
-} from '../schema.js';
+import { validateQuery } from '#infra/http/errors.js';
 import { Hono } from 'hono';
-import { apiError, validateQuery } from '#infra/http/errors.js';
-import { m } from '#infra/http/locale.js';
+import { MarketError } from '../errors.js';
+import { loadIndexSeries } from '../indices/read.js';
 import { loadInstrumentNames } from '../instruments/names.js';
 import { instrumentSeries } from '../queries/instrument-series.js';
-import { loadIndexSeries } from '../indices/read.js';
+import {
+  instrumentAssetTypeSchema,
+  instrumentNamesQuerySchema,
+  instrumentSeriesQuerySchema,
+} from '../schema.js';
 
 export const marketInstrumentRoute = new Hono();
 
@@ -28,16 +28,16 @@ marketInstrumentRoute.get(
   async (c) => {
     const assetType = instrumentAssetTypeSchema.safeParse(c.req.param('assetType'));
     if (!assetType.success) {
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'unsupportedInstrumentType'));
+      throw new MarketError('unsupported_instrument_type');
     }
     const instrumentId = c.req.param('instrumentId');
     const { start, end } = c.req.valid('query');
     if (start && end && start >= end) {
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'startAfterEnd'));
+      throw new MarketError('start_after_end');
     }
     const series = await instrumentSeries(assetType.data, instrumentId, start, end);
     if (series.points.length === 0) {
-      return apiError(c, 'NOT_FOUND', m(c, 'noDataInRange'));
+      throw new MarketError('no_data');
     }
     return c.json(series);
   },

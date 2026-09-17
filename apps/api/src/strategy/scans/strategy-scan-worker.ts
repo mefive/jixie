@@ -1,18 +1,19 @@
-import { fork } from 'node:child_process';
-import { parentPort, workerData } from 'node:worker_threads';
+import type { BacktestResult } from '#engine/types.js';
+import { t } from '#i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { errorMessage } from '#infra/errors.js';
 import type {
   BacktestConfig,
   Locale,
   LogLine,
-  StrategyScanPayload,
   StrategyParamValue,
+  StrategyScanPayload,
   StrategyScanSpec,
 } from '@jixie/shared';
-import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
-import { executeStrategyScan, scanCellOverrides } from './scan.js';
+import { fork } from 'node:child_process';
+import { parentPort, workerData } from 'node:worker_threads';
 import { prepareStrategyFactors, type PreparedStrategyFactors } from '../factor-inputs/prepare.js';
-import type { BacktestResult } from '#engine/types.js';
+import { executeStrategyScan, scanCellOverrides } from './scan.js';
 
 const port = parentPort;
 if (!port) {
@@ -41,7 +42,7 @@ const cellWorkerUrl = import.meta.url.endsWith('.ts')
   : new URL('./strategy-scan-cell-worker.js', import.meta.url);
 
 try {
-  const { modules: customFactors } = await prepareStrategyFactors(config.code, userId, locale);
+  const { modules: customFactors } = await prepareStrategyFactors(config.code, userId);
   const payload: StrategyScanPayload = await executeStrategyScan({
     spec,
     parameters,
@@ -75,7 +76,7 @@ try {
 } catch (error) {
   port.postMessage({
     type: 'error',
-    message: error instanceof Error ? error.message : String(error),
+    message: errorMessage(error, locale),
   });
 } finally {
   await prisma.$disconnect();

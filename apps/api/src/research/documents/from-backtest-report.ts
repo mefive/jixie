@@ -1,20 +1,21 @@
-import { ulid } from 'ulid';
-import { Prisma } from '@prisma/client';
-import type { ResearchDocumentV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import type { ResearchDocumentV1 } from '@jixie/shared';
+import { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { ResearchError } from '../errors.js';
 import { getResearchDocument } from './read.js';
 
 /** Create a Research document that starts from one owned immutable BacktestReport. */
 export async function createResearchDocumentFromBacktestReport(
   userId: string,
   reportId: string,
-): Promise<ResearchDocumentV1 | null> {
+): Promise<ResearchDocumentV1> {
   const report = await prisma.backtestReport.findFirst({
     where: { id: reportId, userId, status: 'done', payload: { not: Prisma.DbNull } },
     select: { id: true, strategyName: true },
   });
   if (!report) {
-    return null;
+    throw new ResearchError('backtest_report_not_found');
   }
 
   const documentId = ulid();

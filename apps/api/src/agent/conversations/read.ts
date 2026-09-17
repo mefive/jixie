@@ -1,6 +1,7 @@
-import type { ConversationMessagesQuery } from '../schema.js';
-import type { ChatMessage } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import type { ChatMessage } from '@jixie/shared';
+import { AgentError } from '../errors.js';
+import type { ConversationMessagesQuery } from '../schema.js';
 
 export async function listConversationMessages(
   userId: string,
@@ -12,7 +13,7 @@ export async function listConversationMessages(
     select: { id: true },
   });
   if (!owner) {
-    return null;
+    throw new AgentError('turn_not_found');
   }
   const { before, limit } = query;
   const rows = await prisma.agentMessage.findMany({

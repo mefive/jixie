@@ -1,19 +1,21 @@
-import { Hono } from 'hono';
-import { logger } from 'hono/logger';
-import { authRoute } from '#auth/routes.js';
-import { strategyRoute } from '#strategy/routes/index.js';
-import { marketRoute } from '#market/routes/index.js';
-import { factorRoute } from '#factor/routes/index.js';
-import { researchRoute } from '#research/routes/index.js';
 import { agentRoute } from '#agent/routes/index.js';
-import { signalsRoute } from '#signals/routes/index.js';
-import { sharingRoute } from '#sharing/routes.js';
-import { requireAuth } from '#auth/middleware.js';
 import { maintenanceGate } from '#application-maintenance/middleware.js';
 import { maintenanceRoute } from '#application-maintenance/routes.js';
+import { requireAuth } from '#auth/middleware.js';
+import { authRoute } from '#auth/routes.js';
+import { factorRoute } from '#factor/routes/index.js';
+import { handleApiError } from '#infra/http/errors.js';
+import { marketRoute } from '#market/routes/index.js';
+import { researchRoute } from '#research/routes/index.js';
+import { sharingRoute } from '#sharing/routes.js';
+import { signalsRoute } from '#signals/routes/index.js';
+import { strategyRoute } from '#strategy/routes/index.js';
+import { Hono } from 'hono';
+import { logger } from 'hono/logger';
 
 export function buildApp() {
   const app = new Hono();
+  app.onError(handleApiError);
   app.use('*', logger());
 
   app.get('/', (c) => c.text('jixie api ok'));

@@ -1,13 +1,12 @@
-import type { Prisma } from '@prisma/client';
 import type { FactorQuestionContextV1, Locale } from '@jixie/shared';
-import { t } from '#i18n/index.js';
-import { timeSeriesTemplateResource } from '../definitions/templates/time-series.js';
-import { panelTemplateResource } from '../definitions/templates/panel.js';
-import { macroRegimeTemplateResource } from '../definitions/templates/macro-regime.js';
+import type { Prisma } from '@prisma/client';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
-import { sha256 } from '../sources/fingerprint.js';
+import { macroRegimeTemplateResource } from '../definitions/templates/macro-regime.js';
+import { panelTemplateResource } from '../definitions/templates/panel.js';
+import { timeSeriesTemplateResource } from '../definitions/templates/time-series.js';
+import { FactorError } from '../errors.js';
 import { reportSummary } from '../evaluations/report-views.js';
-import { failFactorOperation } from '../errors.js';
+import { sha256 } from '../sources/fingerprint.js';
 
 /** Capture only the selected, authorized source. Never resolve a display name or latest report. */
 export async function captureFactorQuestionContext(
@@ -59,7 +58,7 @@ export async function captureFactorQuestionContext(
         select: { name: true, definition: true },
       });
       if (!composite) {
-        return failFactorOperation('missing', t(locale, 'factorNotFound'));
+        throw new FactorError('factor_not_found');
       }
       const source = JSON.stringify(composite.definition);
       factor = {
@@ -88,7 +87,7 @@ export async function captureFactorQuestionContext(
       !row.payload ||
       (row.phase === 'holdout' && !row.revealedAt)
     ) {
-      return failFactorOperation('invalid', t(locale, 'factorQuestionReportUnavailable'));
+      throw new FactorError('factor_question_report_unavailable');
     }
     report = {
       id: row.id,
@@ -107,7 +106,7 @@ export async function captureFactorQuestionContext(
   };
   // The summary and source are preserved intact; oversized context is rejected, not silently cut.
   if (Buffer.byteLength(JSON.stringify(context), 'utf8') > 64 * 1024) {
-    return failFactorOperation('invalid', t(locale, 'factorQuestionContextTooLarge'));
+    throw new FactorError('factor_question_context_too_large');
   }
   return context;
 }

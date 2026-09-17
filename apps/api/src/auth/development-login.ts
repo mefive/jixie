@@ -1,7 +1,7 @@
-import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
+import { ulid } from 'ulid';
+import { AuthError } from './errors.js';
 import { createSession } from './session.js';
-import { authFailure } from './errors.js';
 
 // Only the non-production HTTP route exposes this development operation.
 export async function developmentLogin(email: string) {
@@ -10,7 +10,7 @@ export async function developmentLogin(email: string) {
     user = await prisma.user.create({ data: { id: ulid(), email } });
   }
   if (user.status !== 'active') {
-    return authFailure('FORBIDDEN', 'account disabled');
+    throw new AuthError('account_disabled');
   }
 
   const session = await createSession(user.id);

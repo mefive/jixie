@@ -1,9 +1,10 @@
 import { prisma } from '#infra/database/prisma.js';
 import { scheduleJobLogEviction } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
+import { ResearchError } from '../errors.js';
 import { abortEmbeddedRuntime } from './execute.js';
 import { failEmbeddedRun } from './finish.js';
-import { ResearchEmbeddedError } from './errors.js';
+
 import { runSummaryView } from './views.js';
 
 export async function cancelEmbeddedRun(userId: string, analysisId: string, runId: string) {
@@ -13,7 +14,7 @@ export async function cancelEmbeddedRun(userId: string, analysisId: string, runI
       include: { job: true, embeddedVersion: true },
     });
     if (!run?.job) {
-      throw new ResearchEmbeddedError('not_found');
+      throw new ResearchError('embedded_not_found');
     }
     if (run.status !== 'queued' && run.status !== 'running') {
       return { run: runSummaryView(run), cancelled: false };

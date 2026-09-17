@@ -1,5 +1,7 @@
 # Strategy 后端阅读地图
 
+业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
+
 Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以及完整回测的风险分析。[Engine](../engine/README.md) 负责交易模拟，Factor 拥有因子定义和发布，Signals 拥有报告部署；这些流程通过具体函数协作。
 
 ## 按业务问题进入

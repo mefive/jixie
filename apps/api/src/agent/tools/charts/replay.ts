@@ -1,3 +1,5 @@
+import { UserCodeError } from '#infra/errors.js';
+import { AgentError } from '../../errors.js';
 import { runAnalysisCode } from '../analyze-sandbox.js';
 import { runReadOnlySql } from '../sql/read-only-sql.js';
 
@@ -19,9 +21,9 @@ export function assertChartColumns(
     (column) => !availableColumns.includes(column),
   );
   if (missing.length) {
-    throw new Error(
-      `The result set has no such columns: ${missing.join(', ')} (actual columns: ${availableColumns.join(', ')})`,
-    );
+    throw new AgentError('chart_columns_missing', {
+      params: { missing: missing.join(', '), available: availableColumns.join(', ') },
+    });
   }
 }
 
@@ -37,25 +39,21 @@ export function normalizeComputeChartRows(
       ? ((result as { rows: unknown[] }).rows as unknown[])
       : null;
   if (!rows) {
-    throw new Error(
-      'The code must return an ARRAY of flat row objects (or { rows: [...] }) to draw',
-    );
+    throw new AgentError('chart_rows_invalid');
   }
   if (!rows.length) {
-    throw new Error(
-      'The code returned no rows, so no chart can be drawn; check the queries or the transform',
-    );
+    throw new AgentError('chart_rows_empty');
   }
   if (rows.length > CHART_ROW_CAP) {
-    throw new Error(
-      `The code returned ${rows.length} rows (cap ${CHART_ROW_CAP}); aggregate or sample down in the code (e.g. monthly points instead of daily)`,
-    );
+    throw new AgentError('chart_row_limit', {
+      params: { rows: rows.length, limit: CHART_ROW_CAP },
+    });
   }
 
   const normalized: Record<string, string | number | null>[] = [];
   for (const row of rows) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) {
-      throw new Error('Every returned row must be a flat object of scalars');
+      throw new AgentError('chart_rows_flat');
     }
     const flat: Record<string, string | number | null> = {};
     for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
@@ -66,9 +64,7 @@ export function normalizeComputeChartRows(
       } else if (typeof value === 'bigint') {
         flat[key] = Number(value);
       } else {
-        throw new Error(
-          `Row field '${key}' is not a scalar; rows must hold numbers/strings/null only`,
-        );
+        throw new AgentError('chart_field_scalar', { params: { field: key } });
       }
     }
     normalized.push(flat);
@@ -87,7 +83,7 @@ export async function runComputeChartRows(spec: {
 }): Promise<Record<string, string | number | null>[]> {
   const names = new Set(spec.queries.map((query) => query.name));
   if (names.size !== spec.queries.length) {
-    throw new Error('query names must be unique');
+    throw new AgentError('chart_query_names_unique');
   }
 
   const data: Record<string, Record<string, unknown>[]> = {};
@@ -95,6 +91,17 @@ export async function runComputeChartRows(spec: {
     data[query.name] = await runReadOnlySql(query.sql, COMPUTE_QUERY_ROW_CAP);
   }
 
-  const result = await runAnalysisCode(spec.code, data, { timeoutMs: EXECUTION_TIMEOUT_MS });
+  let result: unknown;
+  try {
+    result = await runAnalysisCode(spec.code, data, { timeoutMs: EXECUTION_TIMEOUT_MS });
+  } catch (error) {
+    if (!(error instanceof UserCodeError)) {
+      throw error;
+    }
+    throw new AgentError('chart_code_invalid', {
+      params: { diagnostic: error.message },
+      cause: error,
+    });
+  }
   return normalizeComputeChartRows(result, spec);
 }

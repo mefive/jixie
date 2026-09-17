@@ -1,33 +1,21 @@
-import type { ResearchAgentTurnInput } from '../schema.js';
-import { ulid } from 'ulid';
-import type { Locale, MessagePart } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
 import { researchProfile } from '#agent/profiles/research.js';
-import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
-import * as turnBus from '#agent/turns/bus.js';
 import { createProposeResearchCellChangesTool } from '#agent/tools/propose-research-cell-changes.js';
 import { createRequestResearchClarificationTool } from '#agent/tools/request-research-clarification.js';
 import {
   createResearchCatalogTurnEvidence,
   createSearchResearchCatalogTool,
 } from '#agent/tools/search-research-catalog.js';
-import { researchAgentDocumentContext } from './context.js';
-import { resolveResearchClarificationAnswer } from '../proposals/clarification-records.js';
-import { researchClarificationAnswerMessage } from '../proposals/clarification-message.js';
+import * as turnBus from '#agent/turns/bus.js';
+import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
+import { prisma } from '#infra/database/prisma.js';
+import type { Locale, MessagePart } from '@jixie/shared';
+import { ulid } from 'ulid';
+import { ResearchError } from '../errors.js';
 import { researchAgentCellChangeAttemptContext } from '../proposals/attempt-context.js';
-
-export class ResearchAgentTurnError extends Error {
-  constructor(
-    readonly reason:
-      | 'conversation_not_found'
-      | 'conversation_running'
-      | 'clarification_pending'
-      | 'attempt_not_found',
-  ) {
-    super(`Research Agent turn unavailable: ${reason}`);
-    this.name = 'ResearchAgentTurnError';
-  }
-}
+import { researchClarificationAnswerMessage } from '../proposals/clarification-message.js';
+import { resolveResearchClarificationAnswer } from '../proposals/clarification-records.js';
+import type { ResearchAgentTurnInput } from '../schema.js';
+import { researchAgentDocumentContext } from './context.js';
 
 export async function startResearchAgentTurn(
   userId: string,
@@ -48,7 +36,7 @@ export async function startResearchAgentTurn(
       select: { id: true },
     });
     if (!existing) {
-      throw new ResearchAgentTurnError('conversation_not_found');
+      throw new ResearchError('agent_conversation_not_found');
     }
   } else {
     conversationId = ulid();
@@ -64,7 +52,7 @@ export async function startResearchAgentTurn(
 
   const entity = { kind: 'research' as const, id: conversationId };
   if (turnBus.findRunning(entityKey(entity), userId)) {
-    throw new ResearchAgentTurnError('conversation_running');
+    throw new ResearchError('agent_conversation_running');
   }
 
   let message = input.message ?? '';
@@ -109,7 +97,7 @@ export async function startResearchAgentTurn(
     },
   });
   if (!clarificationAnswer && document?.clarifications.length) {
-    throw new ResearchAgentTurnError('clarification_pending');
+    throw new ResearchError('agent_clarification_pending');
   }
 
   const attempt = attemptId
@@ -128,7 +116,7 @@ export async function startResearchAgentTurn(
       })
     : null;
   if (attemptId && !attempt) {
-    throw new ResearchAgentTurnError('attempt_not_found');
+    throw new ResearchError('agent_attempt_not_found');
   }
 
   const turnId = ulid();

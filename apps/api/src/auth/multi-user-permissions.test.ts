@@ -1,3 +1,4 @@
+import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -43,7 +44,7 @@ import { factorRoute } from '#factor/routes/index.js';
 import { sharingRoute } from '#sharing/routes.js';
 import { strategyRoute } from '#strategy/routes/index.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (c, next) => {
   c.set('userId', 'user-b');
   c.set('user', { id: 'user-b', email: 'reader@example.com', name: 'Reader' });

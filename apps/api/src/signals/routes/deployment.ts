@@ -1,10 +1,10 @@
-import { createDeploymentBodySchema, deploymentListQuerySchema } from '../schema.js';
+import { validateJson, validateQuery } from '#infra/http/errors.js';
+import { localeFromRequest } from '#infra/http/locale.js';
 import { Hono } from 'hono';
-import { apiError, validateJson, validateQuery } from '#infra/http/errors.js';
-import { localeFromRequest, m } from '#infra/http/locale.js';
-import { listStrategyDeployments } from '../deployments/read.js';
 import { deployBacktestReport, pauseDeployment } from '../deployments/manage.js';
+import { listStrategyDeployments } from '../deployments/read.js';
 import { listDeploymentLatestRuns } from '../runs/read.js';
+import { createDeploymentBodySchema, deploymentListQuerySchema } from '../schema.js';
 
 export const signalDeploymentRoute = new Hono();
 
@@ -18,36 +18,12 @@ signalDeploymentRoute.get('/deployments', validateQuery(deploymentListQuerySchem
 });
 
 signalDeploymentRoute.post('/deployments', validateJson(createDeploymentBodySchema), async (c) => {
-  const result = await deployBacktestReport(
-    c.var.userId,
-    c.req.valid('json').reportId,
-    localeFromRequest(c),
-  ).catch((error) => ({ kind: 'invalid' as const, error }));
-  switch (result.kind) {
-    case 'ready':
-      return c.json(result.deployment);
-    case 'not_found':
-      return apiError(c, 'NOT_FOUND', m(c, 'backtestReportNotFound'));
-    case 'report_not_ready':
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'deploymentReportNotReady'));
-    case 'dependencies_changed':
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'deploymentReportDependenciesChanged'));
-    case 'language_unsupported':
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyPythonSignalsUnsupported'));
-    case 'futures_unsupported':
-      return apiError(c, 'VALIDATION_FAILED', m(c, 'strategyFutureSignalsUnsupported'));
-    case 'invalid':
-      return apiError(
-        c,
-        'VALIDATION_FAILED',
-        result.error instanceof Error ? result.error.message : m(c, 'invalidInput'),
-      );
-  }
+  return c.json(
+    await deployBacktestReport(c.var.userId, c.req.valid('json').reportId, localeFromRequest(c)),
+  );
 });
 
 signalDeploymentRoute.post('/deployments/:deploymentId/pause', async (c) => {
   const deployment = await pauseDeployment(c.var.userId, c.req.param('deploymentId'));
-  return deployment
-    ? c.json(deployment)
-    : apiError(c, 'NOT_FOUND', m(c, 'strategyDeploymentNotFound'));
+  return c.json(deployment);
 });

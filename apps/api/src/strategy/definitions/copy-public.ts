@@ -1,7 +1,8 @@
-import { ulid } from 'ulid';
+import { prisma } from '#infra/database/prisma.js';
 import type { BacktestConfig } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '#infra/database/prisma.js';
+import { ulid } from 'ulid';
+import { StrategyError } from '../errors.js';
 import { uniqueStrategyName } from './naming.js';
 
 export async function copyPublicStrategy(userId: string, strategyId: string) {
@@ -10,7 +11,7 @@ export async function copyPublicStrategy(userId: string, strategyId: string) {
     select: { name: true, config: true },
   });
   if (!source) {
-    return null;
+    throw new StrategyError('strategy_not_found');
   }
   const name = await uniqueStrategyName(prisma, userId, source.name);
   const config = { ...(source.config as unknown as BacktestConfig), name };

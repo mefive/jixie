@@ -1,36 +1,31 @@
+import { getDeepSeekAgentModel, getDeepSeekModel } from '#infra/llm/config.js';
+import {
+  createStrategyDraftFromResearch,
+  findResearchStrategyDraft,
+} from '#strategy/definitions/from-research.js';
 import type {
   Locale,
   ResearchStrategyDraftResultV1,
   ResearchStrategyHandoffV1,
 } from '@jixie/shared';
-import {
-  findResearchStrategyDraft,
-  createStrategyDraftFromResearch,
-} from '#strategy/definitions/from-research.js';
-import { getDeepSeekAgentModel, getDeepSeekModel } from '#infra/llm/config.js';
+import { ResearchError } from '../errors.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 import { generateResearchStrategyDraft } from './strategy-handoff.js';
-
-export class ResearchStrategyDraftUnavailableError extends Error {}
 
 export async function createResearchStrategyDraft(
   userId: string,
   executionId: string,
   locale: Locale,
-): Promise<ResearchStrategyDraftResultV1 | null> {
+): Promise<ResearchStrategyDraftResultV1> {
   const existing = await findResearchStrategyDraft(userId, executionId);
   if (existing) {
     return existing;
   }
 
   const execution = await getResearchExecution(userId, executionId);
-  if (!execution) {
-    return null;
-  }
+
   if (execution.status !== 'success' || !execution.promotedAt) {
-    throw new ResearchStrategyDraftUnavailableError(
-      'Only a sealed, successful Research Execution can create a Strategy draft.',
-    );
+    throw new ResearchError('strategy_draft_unavailable');
   }
 
   const generated = await generateResearchStrategyDraft(execution, locale);

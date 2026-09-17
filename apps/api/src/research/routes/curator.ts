@@ -1,10 +1,9 @@
-import { submitResearchCuratorRun } from '../curator/submit.js';
+import { validateJson } from '#infra/http/errors.js';
 import { Hono } from 'hono';
-import { apiError, validateJson } from '#infra/http/errors.js';
-import { m } from '#infra/http/locale.js';
-import { curatorFindingUpdateSchema } from '../schema.js';
-import { getLatestResearchCuratorRun, getResearchCuratorRun } from '../curator/read.js';
 import { updateResearchCuratorFindingFeedback } from '../curator/feedback.js';
+import { getLatestResearchCuratorRun, getResearchCuratorRun } from '../curator/read.js';
+import { submitResearchCuratorRun } from '../curator/submit.js';
+import { curatorFindingUpdateSchema } from '../schema.js';
 
 export const researchCuratorRoute = new Hono();
 
@@ -18,7 +17,7 @@ researchCuratorRoute.get('/curator/runs/latest', async (c) =>
 
 researchCuratorRoute.get('/curator/runs/:runId', async (c) => {
   const run = await getResearchCuratorRun(c.var.userId, c.req.param('runId'));
-  return run ? c.json(run) : apiError(c, 'NOT_FOUND', m(c, 'researchCuratorRunNotFound'));
+  return c.json(run);
 });
 
 researchCuratorRoute.patch(
@@ -31,8 +30,6 @@ researchCuratorRoute.patch(
       c.req.param('findingId'),
       input,
     );
-    return finding
-      ? c.json(finding)
-      : apiError(c, 'NOT_FOUND', m(c, 'researchCuratorFindingNotFound'));
+    return c.json(finding);
   },
 );

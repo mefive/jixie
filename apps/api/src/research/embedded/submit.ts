@@ -1,13 +1,14 @@
-import type { Prisma } from '@prisma/client';
-import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
-import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
+import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
-import { ownedAnalysis } from './versions.js';
 import type { ResearchEmbeddedRunInput } from '../schema.js';
-import { ResearchEmbeddedError } from './errors.js';
+import { ownedAnalysis } from './versions.js';
+
 import { runSummaryView } from './views.js';
 
 export async function submitEmbeddedRun(
@@ -23,7 +24,7 @@ export async function submitEmbeddedRun(
       include: { document: { include: { cells: true } } },
     });
     if (!version) {
-      throw new ResearchEmbeddedError('not_found');
+      throw new ResearchError('embedded_not_found');
     }
     const existing = await transaction.researchExecution.findUnique({
       where: {
@@ -33,12 +34,12 @@ export async function submitEmbeddedRun(
     });
     if (existing) {
       if (existing.contentRevision !== input.expectedRevision) {
-        throw new ResearchEmbeddedError('request_conflict');
+        throw new ResearchError('embedded_request_conflict');
       }
       return { run: runSummaryView(existing), created: false };
     }
     if (version.revision !== input.expectedRevision) {
-      throw new ResearchEmbeddedError('revision_conflict');
+      throw new ResearchError('embedded_revision_conflict');
     }
     const runId = ulid();
     const claim = await transaction.researchEmbeddedAnalysis.updateMany({
@@ -46,7 +47,7 @@ export async function submitEmbeddedRun(
       data: { activeRunId: runId },
     });
     if (claim.count !== 1) {
-      throw new ResearchEmbeddedError('run_in_progress');
+      throw new ResearchError('embedded_run_in_progress');
     }
     const cell = version.document.cells[0];
     if (!cell || version.document.cells.length !== 1 || cell.kind !== 'python') {

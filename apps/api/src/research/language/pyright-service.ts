@@ -1,10 +1,3 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import {
   renderFactorPythonSdkStub,
   renderResearchSdkPythonStub,
@@ -19,6 +12,14 @@ import {
   type ResearchLanguageSignatureHelpV1,
   type ResearchLanguageTextEditV1,
 } from '@jixie/shared';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { JsonRpcResponseError, ResearchError } from '../errors.js';
 import {
   buildResearchLanguageDocument,
   researchCellPositionToVirtual,
@@ -113,7 +114,7 @@ export class ResearchPythonLanguageService {
       ? researchCellPositionToVirtual(opened.document, request.cellId, request.position)
       : null;
     if (!position) {
-      throw new Error('The requested Research Cell position is outside the virtual document.');
+      throw new ResearchError('language_position_invalid');
     }
 
     switch (request.action) {
@@ -133,7 +134,7 @@ export class ResearchPythonLanguageService {
         return this.prepareRename(opened, position);
       case 'rename':
         if (!request.newName) {
-          throw new Error('A new symbol name is required for rename.');
+          throw new ResearchError('language_rename_invalid');
         }
         return this.rename(opened, position, request.newName);
     }
@@ -499,7 +500,7 @@ export class ResearchPythonLanguageService {
 
   private requiredConnection(): JsonRpcStdioConnection {
     if (!this.connection) {
-      throw new Error('Pyright language server is not initialized.');
+      throw new ResearchError('language_unavailable');
     }
     return this.connection;
   }
@@ -531,21 +532,31 @@ class JsonRpcStdioConnection {
         console.error(`[jixie] Pyright: ${detail}`);
       }
     });
-    child.on('error', (error) => this.close(error));
+    child.on('error', (error) =>
+      this.close(new ResearchError('language_unavailable', { cause: error })),
+    );
     child.on('exit', (code, signal) =>
-      this.close(new Error(`Pyright exited (${code ?? signal ?? 'unknown'}).`)),
+      this.close(
+        new ResearchError('language_unavailable', {
+          cause: new Error(`Pyright exited (${code ?? signal ?? 'unknown'}).`),
+        }),
+      ),
     );
   }
 
   public request(method: string, params: unknown): Promise<unknown> {
     if (this.closed) {
-      return Promise.reject(new Error('Pyright language server is closed.'));
+      return Promise.reject(new ResearchError('language_unavailable'));
     }
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`Pyright request timed out: ${method}`));
+        reject(
+          new ResearchError('language_unavailable', {
+            cause: new Error(`Pyright request timed out: ${method}`),
+          }),
+        );
       }, LANGUAGE_REQUEST_TIMEOUT_MS);
       this.pending.set(id, { resolve, reject, timeout });
       this.send({ jsonrpc: '2.0', id, method, params });
@@ -651,16 +662,6 @@ class JsonRpcStdioConnection {
     }
     this.pending.clear();
     this.onClose();
-  }
-}
-
-class JsonRpcResponseError extends Error {
-  public constructor(
-    public readonly code: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'JsonRpcResponseError';
   }
 }
 

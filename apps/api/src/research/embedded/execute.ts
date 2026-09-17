@@ -1,23 +1,24 @@
-import type { Prisma } from '@prisma/client';
+import { prisma } from '#infra/database/prisma.js';
 import {
-  type ResearchEmbeddedLimitsV1,
-  type ResearchEmbeddedParametersV1,
   type ResearchCellOutputBlockV1,
   type ResearchEmbeddedErrorCodeV1,
+  type ResearchEmbeddedLimitsV1,
+  type ResearchEmbeddedParametersV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
-import { researchRuntimeManager, ResearchPythonExecutionError } from '../runtime/python-session.js';
+import type { Prisma } from '@prisma/client';
+import { ResearchError, ResearchPythonExecutionError } from '../errors.js';
 import {
   materializeResearchOutputArtifacts,
   type MaterializedResearchOutputs,
 } from '../evidence/artifacts.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
-import { ResearchEmbeddedError } from './errors.js';
-import { embeddedInputRecorder, assertActiveRun } from './inputs.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
+
+import { assertActiveRun, embeddedInputRecorder } from './inputs.js';
 
 const activeControllers = new Map<string, AbortController>();
 export function abortEmbeddedRuntime(runId: string) {
-  activeControllers.get(runId)?.abort(new ResearchEmbeddedError('cancelled'));
+  activeControllers.get(runId)?.abort(new ResearchError('embedded_cancelled'));
 }
 
 export interface EmbeddedExecutionResult {
@@ -56,7 +57,7 @@ export async function executeEmbeddedRun(
         include: { cellExecutions: true },
       });
       if (!row || row.cellExecutions.length !== 1) {
-        throw new ResearchEmbeddedError('cancelled');
+        throw new ResearchError('embedded_cancelled');
       }
       await transaction.researchExecution.update({
         where: { id: runId, status: 'queued' },
@@ -75,7 +76,7 @@ export async function executeEmbeddedRun(
     } = run.sourceSnapshot as unknown as { embedded: { limits: ResearchEmbeddedLimitsV1 } };
     researchRuntimeManager.close(documentId);
     timeout = setTimeout(
-      () => controller.abort(new ResearchEmbeddedError('timeout')),
+      () => controller.abort(new ResearchError('embedded_timeout')),
       limits.executionMilliseconds,
     );
     timeout.unref();
@@ -90,7 +91,7 @@ export async function executeEmbeddedRun(
         .findUnique({ where: { id: runId }, select: { status: true } })
         .then((current) => {
           if (!signal.aborted && current?.status !== 'running') {
-            controller.abort(new ResearchEmbeddedError('cancelled'));
+            controller.abort(new ResearchError('embedded_cancelled'));
           }
         })
         .catch((error: unknown) => controller.abort(error))
@@ -141,7 +142,10 @@ export async function executeEmbeddedRun(
       ({ outputs, definitions, references, environmentFingerprint } = executed);
     } catch (caught) {
       const cause: unknown = signal.aborted ? signal.reason : caught;
-      errorCode = cause instanceof ResearchEmbeddedError ? cause.code : 'execution_failed';
+      errorCode =
+        cause instanceof ResearchError && cause.embeddedCode !== undefined
+          ? cause.embeddedCode
+          : 'execution_failed';
       error = (cause instanceof Error ? cause.message : String(cause)).slice(0, 8_000);
       if (caught instanceof ResearchPythonExecutionError) {
         ({ outputs, definitions, references, environmentFingerprint } = caught);
@@ -176,7 +180,7 @@ export async function executeEmbeddedRun(
     if (abortListener) {
       signal.removeEventListener('abort', abortListener);
     }
-    controller.abort(new ResearchEmbeddedError('cancelled'));
+    controller.abort(new ResearchError('embedded_cancelled'));
     if (documentId) {
       researchRuntimeManager.close(documentId);
     }

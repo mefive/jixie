@@ -1,21 +1,22 @@
-import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { dependencyConflicts } from './run-plan.js';
-import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { reconcileResearchCellDependencyIssues } from './invalidation.js';
+import { ResearchError } from '../errors.js';
 import { researchRuntimeManager } from '../runtime/python-session.js';
+import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import { reconcileResearchCellDependencyIssues } from './invalidation.js';
+import { dependencyConflicts } from './run-plan.js';
 
 export async function analyzeResearchDocument(
   userId: string,
   documentId: string,
-): Promise<ResearchDocumentAnalysisV1 | null> {
+): Promise<ResearchDocumentAnalysisV1> {
   const owner = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!owner) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   const cells = await analyzeAndPersist(documentId);
   return { version: 1, cells, conflicts: dependencyConflicts(cells) };

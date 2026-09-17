@@ -1,6 +1,7 @@
-import type { PrismaClient } from '@prisma/client';
-import type { ResearchCuratorQualityMetricsV1, ResearchCuratorRunV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import type { ResearchCuratorQualityMetricsV1, ResearchCuratorRunV1 } from '@jixie/shared';
+import type { PrismaClient } from '@prisma/client';
+import { ResearchError } from '../errors.js';
 import { curatorRunRecord } from './views.js';
 
 const MINIMUM_REVIEWED_FINDINGS = 20;
@@ -22,12 +23,15 @@ export async function getResearchCuratorRun(
   userId: string,
   runId: string,
   database: PrismaClient = prisma,
-): Promise<ResearchCuratorRunV1 | null> {
+): Promise<ResearchCuratorRunV1> {
   const run = await database.researchCuratorRun.findFirst({
     where: { id: runId, userId },
     include: { job: { select: { id: true } }, findings: { orderBy: { createdAt: 'asc' } } },
   });
-  return run ? curatorRunRecord(run, await researchCuratorQuality(userId, database)) : null;
+  if (!run) {
+    throw new ResearchError('curator_run_not_found');
+  }
+  return curatorRunRecord(run, await researchCuratorQuality(userId, database));
 }
 
 export async function researchCuratorQuality(

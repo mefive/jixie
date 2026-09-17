@@ -1,12 +1,13 @@
-import type { ActualExecutionUpdate } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import type { ActualExecutionUpdate } from '@jixie/shared';
+import { SignalsError } from '../errors.js';
 import { rebuildDeploymentAccount } from './settlement.js';
 
 export async function updateActualExecution(
   userId: string,
   executionId: string,
   input: ActualExecutionUpdate,
-): Promise<{ kind: 'ready'; runId: string } | { kind: 'not_found' } | { kind: 'not_executable' }> {
+): Promise<{ runId: string }> {
   const execution = await prisma.signalExecution.findFirst({
     where: { id: executionId, userId },
     include: {
@@ -16,16 +17,16 @@ export async function updateActualExecution(
     },
   });
   if (!execution) {
-    return { kind: 'not_found' };
+    throw new SignalsError('execution_not_found');
   }
   if (execution.signalRun.status !== 'done') {
-    return { kind: 'not_executable' };
+    throw new SignalsError('execution_unavailable');
   }
   if (input.status !== 'pending' && execution.simulatedStatus === 'pending') {
-    return { kind: 'not_executable' };
+    throw new SignalsError('execution_unavailable');
   }
   if (input.status === 'filled' && input.shares > execution.requestedShares) {
-    return { kind: 'not_executable' };
+    throw new SignalsError('execution_shares_invalid');
   }
 
   const now = new Date();
@@ -77,5 +78,5 @@ export async function updateActualExecution(
       true,
     );
   }
-  return { kind: 'ready', runId: execution.signalRunId };
+  return { runId: execution.signalRunId };
 }

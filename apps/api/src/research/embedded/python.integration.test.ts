@@ -1,10 +1,10 @@
+import { quantile, std } from '#math/stats.js';
+import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
 import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
 import { rm } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
-import { std, quantile } from '#math/stats.js';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -18,27 +18,27 @@ vi.mock('#infra/database/prisma.js', async () => {
 });
 vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: vi.fn() }));
 
-import { prisma } from '#infra/database/prisma.js';
-import { claimQueuedJob } from '#infra/jobs/records.js';
 import { embeddedAnalysisTools } from '#agent/tools/run-embedded-analysis.js';
 import {
-  startPersistentTurn,
   finishPersistentTurn,
   persistEmbeddedAnalysisPart,
+  startPersistentTurn,
 } from '#agent/turns/records.js';
-import { captureEmbeddedContext } from './context.js';
-import { continueEmbeddedResearch, changeEmbeddedInputMode } from './continuation.js';
+import { prisma } from '#infra/database/prisma.js';
+import { claimQueuedJob } from '#infra/jobs/records.js';
 import { runResearchDocument } from '../document-runs/run-document.js';
-import { getResearchExecution } from '../evidence/execution-records.js';
 import { getResearchDocument } from '../documents/read.js';
+import { getResearchExecution } from '../evidence/execution-records.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
 import { replayResearchInput } from '../sdk/input-replay.js';
-import { createEmbeddedAnalysis } from './versions.js';
-import { submitEmbeddedRun } from './submit.js';
+import { cancelEmbeddedRun } from './cancel.js';
+import { captureEmbeddedContext } from './context.js';
+import { changeEmbeddedInputMode, continueEmbeddedResearch } from './continuation.js';
 import { executeEmbeddedRun } from './execute.js';
 import { completeEmbeddedRun } from './finish.js';
-import { cancelEmbeddedRun } from './cancel.js';
 import { getEmbeddedRun, getEmbeddedVersion } from './read.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { submitEmbeddedRun } from './submit.js';
+import { createEmbeddedAnalysis } from './versions.js';
 
 let previousLocal: string | undefined;
 const base = {
@@ -305,7 +305,7 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
     expect(await continueEmbeddedResearch('owner', analysis.id, run.runId, 'en')).toEqual(copy);
     await expect(
       continueEmbeddedResearch('other', analysis.id, run.runId, 'en'),
-    ).rejects.toMatchObject({ code: 'not_found' });
+    ).rejects.toMatchObject({ reason: 'embedded_not_found' });
     await prisma.factorReport.update({
       where: { id: 'report' },
       data: { payload: '{"observations":[10,20,null,40]}' },
@@ -436,7 +436,7 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
     await execute(run);
     await expect(
       continueEmbeddedResearch('owner', analysis.id, run.runId, 'en'),
-    ).rejects.toMatchObject({ code: 'incomplete_run' });
+    ).rejects.toMatchObject({ reason: 'embedded_incomplete_run', embeddedCode: 'incomplete_run' });
     await startPersistentTurn({
       turnId: 'merge-turn',
       userId: 'owner',

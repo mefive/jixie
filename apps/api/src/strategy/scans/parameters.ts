@@ -1,17 +1,13 @@
+import { UserCodeError } from '#infra/errors.js';
+import { StrategyError } from '../errors.js';
 import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
 import type { StrategyScanParametersInput } from '../schema.js';
-import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../errors.js';
 
-export async function inspectStrategyScanParameters(
-  input: StrategyScanParametersInput,
-  locale: Locale,
-) {
+export async function inspectStrategyScanParameters(input: StrategyScanParametersInput) {
   const body = input;
 
   if (body.language === 'python') {
-    return failStrategyOperation('invalid', t(locale, 'strategyPythonScanUnsupported'));
+    throw new StrategyError('strategy_python_scan_unsupported');
   }
 
   try {
@@ -19,8 +15,14 @@ export async function inspectStrategyScanParameters(
 
     return { parameters };
   } catch (error) {
-    return failStrategyOperation('invalid', t(locale, 'strategyScanCodeInvalid'), {
-      reason: error instanceof Error ? error.message : String(error),
+    if (!(error instanceof UserCodeError)) {
+      throw error;
+    }
+    throw new StrategyError('strategy_scan_code_invalid', {
+      cause: error,
+      details: {
+        reason: error.message,
+      },
     });
   }
 }

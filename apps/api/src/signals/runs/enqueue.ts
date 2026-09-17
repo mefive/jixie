@@ -1,10 +1,11 @@
-import { ulid } from 'ulid';
-import type { Prisma } from '@prisma/client';
 import { prisma } from '#infra/database/prisma.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { waitForJobCompletion, wakeJobQueue } from '#infra/jobs/queue.js';
-import { governmentYieldCurveReady } from '../factor-inputs/rates.js';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { SignalsError } from '../errors.js';
 import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
+import { governmentYieldCurveReady } from '../factor-inputs/rates.js';
 import { signalCalendar, signalDataReady } from './readiness.js';
 
 export interface EnqueuedSignalRun {
@@ -18,35 +19,28 @@ export async function enqueueSignalRun(
   userId: string,
   deploymentId: string,
   tradeDate: string,
-): Promise<
-  | { kind: 'ready'; run: EnqueuedSignalRun }
-  | { kind: 'not_found' }
-  | { kind: 'paused' }
-  | { kind: 'invalid_date' }
-  | { kind: 'next_date_missing' }
-  | { kind: 'data_not_ready' }
-> {
+): Promise<EnqueuedSignalRun> {
   const deployment = await prisma.strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
     select: { id: true, status: true, locale: true, factorDependencies: true },
   });
   if (!deployment) {
-    return { kind: 'not_found' };
+    throw new SignalsError('deployment_not_found');
   }
   if (deployment.status !== 'active') {
-    return { kind: 'paused' };
+    throw new SignalsError('paused');
   }
 
   const calendar = await signalCalendar(tradeDate);
   if (calendar.kind !== 'ready') {
-    return calendar;
+    throw new SignalsError(calendar.kind);
   }
   if (!(await signalDataReady(tradeDate))) {
-    return { kind: 'data_not_ready' };
+    throw new SignalsError('data_not_ready', { params: { date: tradeDate } });
   }
   const factorDependencies = factorDependenciesFromJson(deployment.factorDependencies) ?? [];
   if (!(await governmentYieldCurveReady(factorDependencies, tradeDate))) {
-    return { kind: 'data_not_ready' };
+    throw new SignalsError('data_not_ready', { params: { date: tradeDate } });
   }
 
   const start = await prisma.$transaction(async (transaction) => {
@@ -56,7 +50,7 @@ export async function enqueueSignalRun(
       select: { status: true },
     });
     if (!currentDeployment || currentDeployment.status !== 'active') {
-      return { kind: 'paused' as const };
+      throw new SignalsError('paused');
     }
     const existing = await transaction.signalRun.findUnique({
       where: { deploymentId_tradeDate: { deploymentId, tradeDate } },
@@ -134,10 +128,6 @@ export async function enqueueSignalRun(
     return { kind: 'start' as const, runId, jobId };
   });
 
-  if (start.kind === 'paused') {
-    return start;
-  }
-
   if (start.kind === 'existing') {
     const completion = start.jobId
       ? waitForJobCompletion(start.jobId).then((status) =>
@@ -145,13 +135,10 @@ export async function enqueueSignalRun(
         )
       : Promise.resolve(start.status);
     return {
-      kind: 'ready',
-      run: {
-        runId: start.runId,
-        jobId: start.jobId,
-        started: false,
-        completion,
-      },
+      runId: start.runId,
+      jobId: start.jobId,
+      started: false,
+      completion,
     };
   }
 
@@ -161,13 +148,10 @@ export async function enqueueSignalRun(
     status === 'done' ? ('done' as const) : ('error' as const),
   );
   return {
-    kind: 'ready',
-    run: {
-      runId: start.runId,
-      jobId: start.jobId,
-      started: true,
-      completion,
-    },
+    runId: start.runId,
+    jobId: start.jobId,
+    started: true,
+    completion,
   };
 }
 

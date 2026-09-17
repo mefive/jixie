@@ -1,3 +1,4 @@
+import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -14,10 +15,10 @@ vi.mock('#factor/questions/conversations.js', () => ({
   readFactorQuestions: vi.fn(),
 }));
 
-import { strategyAgentRoute } from '#strategy/routes/agent.js';
 import { factorAgentRoute } from '#factor/routes/agent.js';
+import { strategyAgentRoute } from '#strategy/routes/agent.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', 'owner');
   await next();

@@ -2,19 +2,8 @@ import {
   type ResearchDependencyConflictV1,
   researchDownstreamDependencyCellIds,
 } from '@jixie/shared';
+import { ResearchError } from '../errors.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
-
-export type ResearchAffectedRunErrorReason = 'duplicate_definitions' | 'cyclic_dependency';
-
-export class ResearchAffectedRunError extends Error {
-  public constructor(
-    readonly reason: ResearchAffectedRunErrorReason,
-    readonly details: ResearchDependencyConflictV1[] | string[],
-  ) {
-    super(reason);
-    this.name = 'ResearchAffectedRunError';
-  }
-}
 
 export interface ResearchAffectedRunPlan {
   cellIds: string[];
@@ -98,7 +87,9 @@ export function affectedResearchCellRunPlan(
     ),
   );
   if (conflicts.length > 0) {
-    throw new ResearchAffectedRunError('duplicate_definitions', conflicts);
+    throw new ResearchError('affected_duplicate_definitions', {
+      details: { reason: 'duplicate_definitions', conflicts: conflicts },
+    });
   }
 
   const affectedDependenciesByCellId = new Map<string, string[]>();
@@ -135,7 +126,9 @@ export function affectedResearchCellRunPlan(
     const cyclicCellIds = [...affectedCellIds]
       .filter((affectedCellId) => !orderedCellIds.includes(affectedCellId))
       .sort((left, right) => orderByCellId.get(left)! - orderByCellId.get(right)!);
-    throw new ResearchAffectedRunError('cyclic_dependency', cyclicCellIds);
+    throw new ResearchError('affected_cyclic_dependency', {
+      details: { reason: 'cyclic_dependency', cellIds: cyclicCellIds },
+    });
   }
 
   return { cellIds: orderedCellIds, dependenciesByCellId: affectedDependenciesByCellId };

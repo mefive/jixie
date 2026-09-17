@@ -1,26 +1,26 @@
-import type { FactorDependency, Locale } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
-import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
-import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
-import {
-  compilePanelFactor,
-  compileTimeSeriesFactor,
-} from '#factor/runtime/typescript/compile-asset-factor.js';
-import { normalizeAnalysisKind } from '#factor/definitions/views.js';
-import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot.js';
-import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
-import { factorResearchSpecV1Schema } from '#factor/schema.js';
-import { sha256 } from '#factor/sources/fingerprint.js';
-import { compilePythonCrossSectionalFactor } from '#factor/runtime/python/cross-sectional.js';
-import {
-  compilePythonPanelFactor,
-  compilePythonTimeSeriesFactor,
-} from '#factor/runtime/python/asset-factor.js';
-import { t } from '#i18n/messages.js';
 import {
   extractCustomFactorHistoryFields,
   type CustomFactorModule,
 } from '#engine/factors/custom-factor.js';
+import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
+import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
+import { normalizeAnalysisKind } from '#factor/definitions/views.js';
+import {
+  compilePythonPanelFactor,
+  compilePythonTimeSeriesFactor,
+} from '#factor/runtime/python/asset-factor.js';
+import { compilePythonCrossSectionalFactor } from '#factor/runtime/python/cross-sectional.js';
+import {
+  compilePanelFactor,
+  compileTimeSeriesFactor,
+} from '#factor/runtime/typescript/compile-asset-factor.js';
+import { factorResearchSpecV1Schema } from '#factor/schema.js';
+import { sha256 } from '#factor/sources/fingerprint.js';
+import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot.js';
+import { prisma } from '#infra/database/prisma.js';
+import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
+import type { FactorDependency } from '@jixie/shared';
+import { StrategyError } from '../errors.js';
 import { extractFactorKeys } from './references.js';
 
 export type FactorUsage = 'research' | 'deployment' | 'signal';
@@ -33,7 +33,6 @@ export interface PreparedStrategyFactors {
 export async function prepareStrategyFactors(
   source: string,
   userId: string,
-  locale: Locale,
   usage: FactorUsage = 'research',
 ): Promise<PreparedStrategyFactors> {
   const keys = extractFactorKeys(source);
@@ -102,7 +101,7 @@ export async function prepareStrategyFactors(
   });
   const missing = keys.filter((key) => !byKey.has(key));
   if (missing.length > 0) {
-    throw new Error(t(locale, 'customFactorMissing', { keys: missing.join(', ') }));
+    throw new StrategyError('custom_factor_missing', { params: { keys: missing.join(', ') } });
   }
 
   const ordered = keys.map((key) => byKey.get(key)!);
@@ -127,11 +126,9 @@ export async function prepareStrategyFactors(
     ),
   ];
   if (researchOnlyInputs.length > 0) {
-    throw new Error(
-      t(locale, 'factorResearchOnlyInputsUnavailable', {
-        fields: researchOnlyInputs.join(', '),
-      }),
-    );
+    throw new StrategyError('research_only_inputs_unavailable', {
+      params: { fields: researchOnlyInputs.join(', ') },
+    });
   }
 
   return {

@@ -1,14 +1,11 @@
-import type { FactorVisibilityInput } from '../schema.js';
 import { prisma } from '#infra/database/prisma.js';
-import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
-import { failFactorOperation } from '../errors.js';
+import { FactorError } from '../errors.js';
+import type { FactorVisibilityInput } from '../schema.js';
 
 export async function setFactorVisibility(
   userId: string,
   factorId: string,
   input: FactorVisibilityInput,
-  locale: Locale,
 ) {
   const visibility = input.visibility;
   const factor = await prisma.factor.findFirst({
@@ -17,11 +14,11 @@ export async function setFactorVisibility(
   });
 
   if (!factor) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   if (visibility === 'public' && factor.status !== 'published') {
-    return failFactorOperation('invalid', t(locale, 'assetMustBePublishedBeforeSharing'));
+    throw new FactorError('asset_must_be_published_before_sharing');
   }
 
   return await prisma.factor.update({
@@ -35,7 +32,6 @@ export async function setCompositeVisibility(
   userId: string,
   compositeId: string,
   input: FactorVisibilityInput,
-  locale: Locale,
 ) {
   const visibility = input.visibility;
   const composite = await prisma.factorComposite.findFirst({
@@ -44,11 +40,11 @@ export async function setCompositeVisibility(
   });
 
   if (!composite) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   if (visibility === 'public' && composite.status !== 'published') {
-    return failFactorOperation('invalid', t(locale, 'assetMustBePublishedBeforeSharing'));
+    throw new FactorError('asset_must_be_published_before_sharing');
   }
 
   return await prisma.factorComposite.update({

@@ -1,11 +1,12 @@
+import type { BacktestResult } from '#engine/types.js';
+import { UserCodeError } from '#infra/errors.js';
 import type {
   BacktestMetricSummary,
+  StrategyParamValue,
   StrategyScanCell,
   StrategyScanPayload,
   StrategyScanSpec,
-  StrategyParamValue,
 } from '@jixie/shared';
-import type { BacktestResult } from '#engine/types.js';
 
 export const MAX_SCAN_COMBINATIONS = 25;
 export const CAPACITY_DIMENSION_KEY = 'initialCash';
@@ -18,36 +19,40 @@ export function normalizeScanSpec(
     return normalizeCapacitySpec(spec);
   }
   if (spec.dimensions.length < 1 || spec.dimensions.length > 2) {
-    throw new Error('parameter scan requires one or two dimensions');
+    throw new UserCodeError('parameter scan requires one or two dimensions');
   }
   const seenKeys = new Set<string>();
   const dimensions = spec.dimensions.map((dimension) => {
     const key = dimension.key.trim();
     if (!key || !(key in declaredParams)) {
-      throw new Error(`unknown strategy parameter: ${key || '(empty)'}`);
+      throw new UserCodeError(`unknown strategy parameter: ${key || '(empty)'}`);
     }
     if (seenKeys.has(key)) {
-      throw new Error(`duplicate strategy parameter: ${key}`);
+      throw new UserCodeError(`duplicate strategy parameter: ${key}`);
     }
     seenKeys.add(key);
 
     const values: StrategyParamValue[] = [];
     for (const value of dimension.values) {
       if (typeof value !== typeof declaredParams[key]) {
-        throw new Error(`strategy parameter ${key} scan values must match its declared type`);
+        throw new UserCodeError(
+          `strategy parameter ${key} scan values must match its declared type`,
+        );
       }
       if (
         (typeof value === 'number' && !Number.isFinite(value)) ||
         (typeof value === 'string' && (!value.trim() || value.length > 100))
       ) {
-        throw new Error(`strategy parameter ${key} must use finite numbers or non-empty strings`);
+        throw new UserCodeError(
+          `strategy parameter ${key} must use finite numbers or non-empty strings`,
+        );
       }
       if (!values.includes(value)) {
         values.push(value);
       }
     }
     if (values.length < 2) {
-      throw new Error(`strategy parameter ${key} requires at least two distinct values`);
+      throw new UserCodeError(`strategy parameter ${key} requires at least two distinct values`);
     }
     return { key, values };
   });
@@ -57,7 +62,7 @@ export function normalizeScanSpec(
     1,
   );
   if (combinationCount > MAX_SCAN_COMBINATIONS) {
-    throw new Error(`parameter scan is limited to ${MAX_SCAN_COMBINATIONS} combinations`);
+    throw new UserCodeError(`parameter scan is limited to ${MAX_SCAN_COMBINATIONS} combinations`);
   }
   if (spec.view === 'sizing') {
     if (
@@ -66,7 +71,9 @@ export function normalizeScanSpec(
       dimensions[0].values.length > 5 ||
       spec.splitDate
     ) {
-      throw new Error('sizing comparison requires one dimension, 2-5 values, and no sample split');
+      throw new UserCodeError(
+        'sizing comparison requires one dimension, 2-5 values, and no sample split',
+      );
     }
   }
 
@@ -138,7 +145,7 @@ export function scanCellOverrides(
   }
   const initialCash = combination[CAPACITY_DIMENSION_KEY];
   if (typeof initialCash !== 'number') {
-    throw new Error('capacity scan requires a numeric initialCash value');
+    throw new UserCodeError('capacity scan requires a numeric initialCash value');
   }
   return { initialCash, paramOverrides: {} };
 }
@@ -231,11 +238,11 @@ function rebaseNav(
 
 function normalizeCapacitySpec(spec: StrategyScanSpec): StrategyScanSpec {
   if (spec.dimensions.length !== 1 || spec.splitDate) {
-    throw new Error('capacity scan requires one dimension and no sample split');
+    throw new UserCodeError('capacity scan requires one dimension and no sample split');
   }
   const dimension = spec.dimensions[0];
   if (dimension.key.trim() !== CAPACITY_DIMENSION_KEY) {
-    throw new Error(`capacity scan dimension must be ${CAPACITY_DIMENSION_KEY}`);
+    throw new UserCodeError(`capacity scan dimension must be ${CAPACITY_DIMENSION_KEY}`);
   }
   const values = [...new Set(dimension.values)];
   if (
@@ -249,7 +256,9 @@ function normalizeCapacitySpec(spec: StrategyScanSpec): StrategyScanSpec {
         value > 10_000_000_000,
     )
   ) {
-    throw new Error('capacity scan requires 3-7 capital values between 10,000 and 10 billion');
+    throw new UserCodeError(
+      'capacity scan requires 3-7 capital values between 10,000 and 10 billion',
+    );
   }
   return {
     dimensions: [

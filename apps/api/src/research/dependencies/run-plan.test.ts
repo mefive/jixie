@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  affectedResearchCellRunPlan,
-  downstreamResearchCellIds,
-  ResearchAffectedRunError,
-} from './run-plan.js';
+import { ResearchError } from '../errors.js';
+import { affectedResearchCellRunPlan, downstreamResearchCellIds } from './run-plan.js';
 
 describe('reactive research dependencies', () => {
   it('marks transitive dependents without invalidating independent Markdown cells', () => {
@@ -77,8 +74,8 @@ describe('reactive research dependencies', () => {
         { cellId: 'summary', definitions: [], references: ['monthly'] },
       ]),
     ).toThrowError(
-      expect.objectContaining<Partial<ResearchAffectedRunError>>({
-        reason: 'duplicate_definitions',
+      expect.objectContaining<Partial<ResearchError>>({
+        reason: 'affected_duplicate_definitions',
       }),
     );
   });
@@ -90,7 +87,7 @@ describe('reactive research dependencies', () => {
         { cellId: 'right', definitions: ['rightValue'], references: ['leftValue'] },
       ]),
     ).toThrowError(
-      expect.objectContaining<Partial<ResearchAffectedRunError>>({ reason: 'cyclic_dependency' }),
+      expect.objectContaining<Partial<ResearchError>>({ reason: 'affected_cyclic_dependency' }),
     );
   });
 });

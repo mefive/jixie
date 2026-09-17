@@ -47,17 +47,30 @@
 
 Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，前端先调用所属模块的 Agent 入口；业务完成归属和忙碌检查，配置 profile、工具与上下文，再交给通用 Agent。前端之后用 `/api/app/agent` 订阅 SSE、查询 turn、读取历史或取消。Agent 工具按需调用业务操作，业务状态仍由对应模块管理。通用 Agent 还提供只读 SQL、图表工具接口；它不是所有产品操作必须经过的总调度器。
 
-多组路由统一放在业务模块的 `routes/` 中，由 `routes/index.ts` 组合并对外导出，外部显式导入 `routes/index.js`。实现文件名省略 `-routes` 后缀。模块内 HTTP 错误映射放在
-`routes/errors.ts`，业务错误类型保留原归属；`schema.ts` 位于模块根目录，供 HTTP 与业务共同引用。
+多组路由统一放在业务模块的 `routes/` 中，由 `routes/index.ts` 组合并对外导出，外部显式导入 `routes/index.js`。实现文件名省略 `-routes` 后缀。业务错误统一放在模块根级 `errors.ts`，公共 HTTP 映射由
+`infra/http/errors.ts` 提供，在 `server.ts` 注册 `onError`；`schema.ts` 位于模块根目录，供 HTTP 与业务共同引用。
 五个核心业务模块的整体接口测试与专属路由测试均放在 `routes/`；其他模块保持现有测试布局。Auth、Sharing、Application Maintenance
 只有单文件路由，直接使用根级 `routes.ts`。HTTP 路径、注册顺序及业务行为保持原契约，整理与验证记录见
 [路由目录整理](design/api-route-directories.md)。
+
+## 错误的归属和调用方式
+
+九个业务模块（Strategy、Factor、Research、Signals、Market、Agent、Auth、Sharing、Application Maintenance）
+统一在根级 `errors.ts` 定义错误。业务调用点直接抛出模块错误，例如
+`throw new StrategyError('strategy_not_found')`；成功直接返回数据，不以 `null`、`false` 或 `{ error }`
+表达操作失败。合法的可选查询、幂等取消结果和任务状态保留数据语义。
+
+`infra/errors.ts` 的 `BusinessError` 保存 reason、category、messageKey、params、details 和 cause，
+不包含 HTTP 状态。HTTP 边界统一选择语言和状态，未知异常记录服务端诊断后返回安全的 500；
+CLI、Job、Worker 等输出边界通过 `errorMessage` 使用自己的语言。取消、Python 输出、上游重试需要的技术
+异常也归所属模块 `errors.ts`，保持原语义。Engine 算法内部的不变量失败继续使用原生 Error，
+不创建没有业务拒绝定义的空文件。状态映射、兼容边界及验证记录见 [统一错误约定](design/api-errors.md)。
 
 ## 输入 schema 的位置
 
 Strategy、Factor、Research、Signals、Agent、Market、Auth 的 API body/query/param 与共用业务配置校验，
 统一定义在 `apps/api/src/<业务>/schema.ts`，按职责分组，供路由、业务入口、任务和工具直接引用。
-路由负责调用校验并映射错误；schema 文件只定义纯校验规则、必要常量和派生类型，不引入数据库、
+路由负责调用入参校验；错误由公共 HTTP 边界统一映射；schema 文件只定义纯校验规则、必要常量和派生类型，不引入数据库、
 HTTP 对象、LLM 调用或业务执行代码，也不作为业务实现的汇总出口。
 
 - `strategy/schema.ts` 定义双语言的 `codeConfigSchema`，创建、回测、扫描和 Signals 共同消费。

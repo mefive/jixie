@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
-import { apiError } from '#infra/http/errors.js';
-import { resolveSession } from './session.js';
 import { getSessionId } from './cookies.js';
+import { AuthError } from './errors.js';
+import { resolveSession } from './session.js';
 
 // Let every route handler access the current user via c.var.userId / c.var.user.
 // Globally extend Hono's ContextVariableMap via module augmentation — the recommended Hono 4 way.
@@ -17,11 +17,11 @@ export const requireAuth: MiddlewareHandler = async (context, next) => {
   const resolution = await resolveSession(getSessionId(context));
   switch (resolution.kind) {
     case 'missing':
-      return apiError(context, 'UNAUTHORIZED', 'login required');
+      throw new AuthError('login_required');
     case 'expired':
-      return apiError(context, 'UNAUTHORIZED', 'session expired');
+      throw new AuthError('session_expired');
     case 'disabled':
-      return apiError(context, 'UNAUTHORIZED', 'account disabled');
+      throw new AuthError('session_disabled');
     case 'ready':
       context.set('userId', resolution.user.id);
       context.set('user', resolution.user);

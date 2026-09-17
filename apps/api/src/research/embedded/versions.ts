@@ -1,13 +1,14 @@
-import type { Prisma, ResearchEmbeddedAnalysis } from '@prisma/client';
+import { prisma } from '#infra/database/prisma.js';
 import type {
   ResearchEmbeddedContextV1,
   ResearchEmbeddedDraftInputV1,
   ResearchEmbeddedHostV1,
 } from '@jixie/shared';
+import type { Prisma, ResearchEmbeddedAnalysis } from '@prisma/client';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { ResearchError } from '../errors.js';
 import { captureEmbeddedContext } from './context.js';
-import { ResearchEmbeddedError } from './errors.js';
+
 import {
   embeddedDraftSchema,
   type ResearchEmbeddedCreateInput,
@@ -55,7 +56,7 @@ export async function deriveEmbeddedVersion(
       where: { id: input.parentVersionId, analysisId },
     });
     if (!parent) {
-      throw new ResearchEmbeddedError('not_found');
+      throw new ResearchError('embedded_not_found');
     }
     const version = await createVersion(
       transaction,
@@ -87,16 +88,16 @@ export async function updateEmbeddedVersion(
       where: { id: versionId, analysisId },
     });
     if (!version) {
-      throw new ResearchEmbeddedError('not_found');
+      throw new ResearchError('embedded_not_found');
     }
     if (version.frozenAt) {
-      throw new ResearchEmbeddedError('frozen');
+      throw new ResearchError('embedded_frozen');
     }
     if (analysis.activeRunId) {
-      throw new ResearchEmbeddedError('run_in_progress');
+      throw new ResearchError('embedded_run_in_progress');
     }
     if (version.revision !== input.expectedRevision) {
-      throw new ResearchEmbeddedError('revision_conflict');
+      throw new ResearchError('embedded_revision_conflict');
     }
     const context = await captureEmbeddedContext(
       transaction,
@@ -144,7 +145,7 @@ export async function ownedAnalysis(
     where: { id: analysisId, userId },
   });
   if (!analysis) {
-    throw new ResearchEmbeddedError('not_found');
+    throw new ResearchError('embedded_not_found');
   }
   return analysis;
 }

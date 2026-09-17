@@ -1,3 +1,9 @@
+import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
+import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
+import { startFactorAnalysis } from '#factor/evaluations/start.js';
+import { factorResearchIntentV1Schema } from '#factor/schema.js';
+import { t } from '#i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
 import {
   timeSeriesAggregateMetrics,
   type FactorHoldoutPolicyV1,
@@ -7,12 +13,6 @@ import {
   type RunFactorAnalysisResponse,
 } from '@jixie/shared';
 import { z } from 'zod';
-import { startFactorAnalysis } from '#factor/evaluations/start.js';
-import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
-import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
-import { factorResearchIntentV1Schema } from '#factor/schema.js';
-import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const REPORT_WAIT_TIMEOUT_MS = 15 * 60_000;
@@ -183,9 +183,7 @@ async function waitForTimeSeriesFactorAnalysis(
       throw error;
     }
     const result = (await readFactorAnalysisResult(userId, reportId)) as TimeSeriesAnalysisResult;
-    if (!result) {
-      throw new Error('Factor report disappeared while the analysis was running.');
-    }
+
     if (result.status !== 'running' || Date.now() >= deadline) {
       return result;
     }

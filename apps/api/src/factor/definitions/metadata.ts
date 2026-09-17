@@ -1,9 +1,8 @@
-import { z } from 'zod';
-import { messageText, type ChatMessage, type Locale } from '@jixie/shared';
-import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
 import { prisma } from '#infra/database/prisma.js';
-import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../errors.js';
+import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
+import { messageText, type ChatMessage } from '@jixie/shared';
+import { z } from 'zod';
+import { FactorError } from '../errors.js';
 import type { FactorMetadataInput } from '../schema.js';
 
 const metadataSchema = z.object({
@@ -34,32 +33,36 @@ export async function generateFactorMetadata(
     .slice(-8)
     .map((message) => `${message.role}: ${messageText(message).slice(0, 600)}`)
     .join('\n');
-  const raw = await llm([
-    {
-      role: 'system',
-      content: `You maintain metadata for a ${input.analysisKind === 'time_series' ? 'multi-asset ETF time-series signal' : input.analysisKind === 'panel' ? 'cross-asset ETF panel ranking factor' : 'cross-sectional A-share research factor'}. Return one JSON object with exactly these fields:
+  try {
+    const raw = await llm([
+      {
+        role: 'system',
+        content: `You maintain metadata for a ${input.analysisKind === 'time_series' ? 'multi-asset ETF time-series signal' : input.analysisKind === 'panel' ? 'cross-asset ETF panel ranking factor' : 'cross-sectional A-share research factor'}. Return one JSON object with exactly these fields:
 - nameZh: a concise Chinese factor name, at most 12 Chinese characters when practical.
 - descriptionZh: one concise Chinese sentence explaining the signal, direction, and important window or data dependency.
 - descriptionEn: the equivalent concise English sentence.
 Keep the current name and descriptions when they remain accurate; update them when the code or conversation changes. Never include IDs, uniqueness suffixes, markdown, or commentary.`,
-    },
-    {
-      role: 'user',
-      content: JSON.stringify({
-        currentName: input.currentName ?? '',
-        currentDescriptionZh: input.currentDescriptionZh ?? '',
-        currentDescriptionEn: input.currentDescriptionEn ?? '',
-        recentConversation: context,
-        code: input.code,
-      }),
-    },
-  ]);
-  const parsed = metadataSchema.parse(JSON.parse(raw));
-  return {
-    nameZh: parsed.nameZh,
-    descriptionZh: parsed.descriptionZh,
-    descriptionEn: parsed.descriptionEn,
-  };
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          currentName: input.currentName ?? '',
+          currentDescriptionZh: input.currentDescriptionZh ?? '',
+          currentDescriptionEn: input.currentDescriptionEn ?? '',
+          recentConversation: context,
+          code: input.code,
+        }),
+      },
+    ]);
+    const parsed = metadataSchema.parse(JSON.parse(raw));
+    return {
+      nameZh: parsed.nameZh,
+      descriptionZh: parsed.descriptionZh,
+      descriptionEn: parsed.descriptionEn,
+    };
+  } catch (error) {
+    throw new FactorError('name_failed', { cause: error });
+  }
 }
 
 /** Refresh mutable display metadata for a draft factor. */
@@ -104,11 +107,7 @@ export async function refreshFactorMetadata(input: {
   });
 }
 
-export async function refreshOwnedFactorMetadata(
-  userId: string,
-  input: FactorMetadataInput,
-  locale: Locale,
-) {
+export async function refreshOwnedFactorMetadata(userId: string, input: FactorMetadataInput) {
   const { id, code } = input;
   const factor = await prisma.factor.findFirst({
     where: { id, userId: userId },
@@ -116,26 +115,19 @@ export async function refreshOwnedFactorMetadata(
   });
 
   if (!factor) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   if (factor.status !== 'draft') {
-    return failFactorOperation('invalid', t(locale, 'publishedFactorReadonly'));
+    throw new FactorError('published_factor_readonly');
   }
 
-  try {
-    await refreshFactorMetadata({
-      factorId: id,
-      userId: userId,
-      code,
-      messages: Array.isArray(factor.messages) ? (factor.messages as unknown as ChatMessage[]) : [],
-    });
-  } catch (error) {
-    return failFactorOperation(
-      'unavailable',
-      error instanceof Error ? error.message : t(locale, 'nameFailed'),
-    );
-  }
+  await refreshFactorMetadata({
+    factorId: id,
+    userId: userId,
+    code,
+    messages: Array.isArray(factor.messages) ? (factor.messages as unknown as ChatMessage[]) : [],
+  });
 
   return { ok: true };
 }

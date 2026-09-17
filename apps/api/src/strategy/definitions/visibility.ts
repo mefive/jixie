@@ -1,15 +1,12 @@
-import { codeConfigSchema, type StrategyVisibilityInput } from '../schema.js';
 import { prisma } from '#infra/database/prisma.js';
+import { StrategyError } from '../errors.js';
 import { extractFactorKeys } from '../factor-inputs/references.js';
-import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../errors.js';
+import { codeConfigSchema, type StrategyVisibilityInput } from '../schema.js';
 
 export async function setStrategyVisibility(
   userId: string,
   strategyId: string,
   input: StrategyVisibilityInput,
-  locale: Locale,
 ) {
   const strategy = await prisma.strategy.findFirst({
     where: { id: strategyId, userId: userId },
@@ -17,7 +14,7 @@ export async function setStrategyVisibility(
   });
 
   if (!strategy) {
-    return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    throw new StrategyError('strategy_not_found');
   }
 
   const visibility = input.visibility;
@@ -26,7 +23,7 @@ export async function setStrategyVisibility(
     const config = codeConfigSchema.parse(strategy.config);
 
     if (extractFactorKeys(config.code).length > 0) {
-      return failStrategyOperation('invalid', t(locale, 'publicStrategyMustBeSelfContained'));
+      throw new StrategyError('public_strategy_must_be_self_contained');
     }
   }
 

@@ -1,4 +1,5 @@
 import { warn } from '#infra/logging.js';
+import { TushareError } from '../../errors.js';
 
 export type TushareValue = string | number | null;
 export type TushareRow = Record<string, TushareValue>;
@@ -25,16 +26,6 @@ export interface TushareClientOptions {
 
 /** Thrown when a Tushare API returns code!=0 (bad params / insufficient permission / insufficient
  * credits, etc.); retrying is usually pointless. */
-export class TushareError extends Error {
-  constructor(
-    readonly apiName: string,
-    readonly code: number,
-    readonly apiMsg: string,
-  ) {
-    super(`[tushare:${apiName}] code=${code}: ${apiMsg}`);
-    this.name = 'TushareError';
-  }
-}
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 

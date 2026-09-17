@@ -1,5 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { marketRoute } from './index.js';
 
 const database = vi.hoisted(() => ({
   stockBasic: { findMany: vi.fn() },
@@ -11,9 +13,8 @@ const database = vi.hoisted(() => ({
   indexDailyBasic: { groupBy: vi.fn(), findMany: vi.fn() },
 }));
 vi.mock('#infra/database/prisma.js', () => ({ prisma: database }));
-import { marketRoute } from './index.js';
 
-const app = new Hono().route('/api/app/market', marketRoute);
+const app = new Hono().onError(handleApiError).route('/api/app/market', marketRoute);
 const request = (url: string) => app.request(`/api/app/market${url}`);
 
 beforeEach(() => {

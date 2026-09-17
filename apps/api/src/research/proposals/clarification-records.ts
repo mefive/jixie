@@ -1,4 +1,4 @@
-import { Prisma, type ResearchClarification as ResearchClarificationRow } from '@prisma/client';
+import { prisma } from '#infra/database/prisma.js';
 import type {
   MessagePart,
   ResearchClarificationAnswerV1,
@@ -8,7 +8,8 @@ import type {
   ResearchClarificationStatusV1,
   ResearchClarificationV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { Prisma, type ResearchClarification as ResearchClarificationRow } from '@prisma/client';
+import { ResearchError } from '../errors.js';
 
 interface PersistResearchClarificationPartArgs {
   conversationId: string;
@@ -17,13 +18,6 @@ interface PersistResearchClarificationPartArgs {
   userId: string;
   partIndex: number;
   part: ResearchClarificationPart;
-}
-
-export class ResearchClarificationAnswerError extends Error {
-  public constructor(readonly reason: 'not_found' | 'already_resolved' | 'invalid_answer') {
-    super(reason);
-    this.name = 'ResearchClarificationAnswerError';
-  }
 }
 
 /** Materialize a server-authored clarification only after its assistant message is committed. */
@@ -87,10 +81,10 @@ export async function resolveResearchClarificationAnswer(
       where: { id: clarificationId, document: { userId, conversationId, embeddedVersion: null } },
     });
     if (!clarification) {
-      throw new ResearchClarificationAnswerError('not_found');
+      throw new ResearchError('clarification_not_found');
     }
     if (clarification.status !== 'pending') {
-      throw new ResearchClarificationAnswerError('already_resolved');
+      throw new ResearchError('clarification_already_resolved');
     }
 
     const questions = clarification.questions as unknown as ResearchClarificationQuestionV1[];
@@ -173,13 +167,13 @@ function validateSelections(
     selections.length !== questions.length ||
     new Set(selections.map((selection) => selection.questionId)).size !== selections.length
   ) {
-    throw new ResearchClarificationAnswerError('invalid_answer');
+    throw new ResearchError('clarification_invalid_answer');
   }
 
   for (const question of questions) {
     const selection = selections.find((candidate) => candidate.questionId === question.id);
     if (!selection) {
-      throw new ResearchClarificationAnswerError('invalid_answer');
+      throw new ResearchError('clarification_invalid_answer');
     }
     const selectedOptionIds = [...new Set(selection.selectedOptionIds)];
     if (
@@ -190,11 +184,11 @@ function validateSelections(
       (question.selectionMode === 'single' && selectedOptionIds.length > 1) ||
       selectedOptionIds.length > question.options.length
     ) {
-      throw new ResearchClarificationAnswerError('invalid_answer');
+      throw new ResearchError('clarification_invalid_answer');
     }
     const customText = selection.customText?.trim() ?? '';
     if ((!question.allowCustom && customText) || (selectedOptionIds.length === 0 && !customText)) {
-      throw new ResearchClarificationAnswerError('invalid_answer');
+      throw new ResearchError('clarification_invalid_answer');
     }
   }
 }

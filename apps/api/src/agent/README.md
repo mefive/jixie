@@ -1,5 +1,7 @@
 # Agent 后端阅读地图
 
+业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
+
 Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对话、流式事件和持久化记录。业务模块负责检查当前实体能否开始对话、准备上下文和选择 profile；Agent 使用 profile 提供的工具与校验器执行，不自行决定业务准入规则。
 
 ## 从产品操作找入口

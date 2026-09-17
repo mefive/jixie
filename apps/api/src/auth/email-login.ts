@@ -1,13 +1,12 @@
-import { createHash, randomInt } from 'node:crypto';
-import { ulid } from 'ulid';
-import type { Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { isEmailConfigured, sendEmail } from '#infra/email/email.js';
-import { t } from '#i18n/index.js';
+import type { Locale } from '@jixie/shared';
+import { createHash, randomInt } from 'node:crypto';
+import { ulid } from 'ulid';
+import { AuthError } from './errors.js';
 import { isValidInviteCodeFormat } from './invite-code.js';
-import { buildVerificationEmail } from './verification-email.js';
 import { createSession, type CreatedSession, type SessionUser } from './session.js';
-import { authFailure, type AuthFailure } from './errors.js';
+import { buildVerificationEmail } from './verification-email.js';
 
 const VERIFICATION_CODE_TTL_MS = 10 * 60_000;
 const RESEND_THROTTLE_MS = 60_000;
@@ -17,35 +16,43 @@ const MAX_VERIFY_ATTEMPTS = 5;
 export async function requestEmailLogin(
   { email, inviteCode }: { email: string; inviteCode?: string },
   locale: Locale,
-): Promise<{ challengeId: string; expiresIn: number } | AuthFailure> {
+): Promise<{ challengeId: string; expiresIn: number }> {
   const existingUser = await prisma.user.findUnique({ where: { email } });
 
   if (existingUser) {
     // login case
     if (inviteCode) {
-      return authFailure('VALIDATION_FAILED', t(locale, 'emailAlreadyRegistered'), {
-        field: 'inviteCode',
+      throw new AuthError('email_already_registered', {
+        details: {
+          field: 'inviteCode',
+        },
       });
     }
     if (existingUser.status !== 'active') {
-      return authFailure('FORBIDDEN', t(locale, 'accountDisabled'));
+      throw new AuthError('account_disabled');
     }
   } else {
     // registration case
     if (!inviteCode) {
-      return authFailure('VALIDATION_FAILED', t(locale, 'inviteCodeRequired'), {
-        field: 'inviteCode',
+      throw new AuthError('invite_code_required', {
+        details: {
+          field: 'inviteCode',
+        },
       });
     }
     if (!isValidInviteCodeFormat(inviteCode)) {
-      return authFailure('VALIDATION_FAILED', t(locale, 'inviteCodeInvalidFormat'), {
-        field: 'inviteCode',
+      throw new AuthError('invite_code_invalid_format', {
+        details: {
+          field: 'inviteCode',
+        },
       });
     }
     const code = await prisma.inviteCode.findUnique({ where: { code: inviteCode } });
     if (!code || code.status !== 'unused') {
-      return authFailure('VALIDATION_FAILED', t(locale, 'inviteCodeInvalidOrUsed'), {
-        field: 'inviteCode',
+      throw new AuthError('invite_code_invalid_or_used', {
+        details: {
+          field: 'inviteCode',
+        },
       });
     }
   }
@@ -61,7 +68,7 @@ export async function requestEmailLogin(
     select: { id: true },
   });
   if (recent) {
-    return authFailure('VALIDATION_FAILED', t(locale, 'codeAlreadySent'));
+    throw new AuthError('code_already_sent');
   }
 
   // Generate a 6-digit numeric code. randomInt is cryptographically secure; 100000~999999 = 900k
@@ -96,29 +103,32 @@ export async function requestEmailLogin(
     } catch (error) {
       await prisma.emailLoginChallenge.delete({ where: { id: challengeId } }).catch(() => {});
       console.error('[auth] sendEmail failed', error);
-      return authFailure('SERVICE_UNAVAILABLE', t(locale, 'emailSendFailed'));
+      throw new AuthError('email_send_failed', { cause: error });
     }
   }
 
   return { challengeId, expiresIn: VERIFICATION_CODE_TTL_MS / 1000 };
 }
 
-export async function verifyEmailLogin(
-  { challengeId, code }: { challengeId: string; code: string },
-  locale: Locale,
-): Promise<{ user: SessionUser; session: CreatedSession } | AuthFailure> {
+export async function verifyEmailLogin({
+  challengeId,
+  code,
+}: {
+  challengeId: string;
+  code: string;
+}): Promise<{ user: SessionUser; session: CreatedSession }> {
   const challenge = await prisma.emailLoginChallenge.findUnique({ where: { id: challengeId } });
   if (!challenge) {
-    return authFailure('VALIDATION_FAILED', t(locale, 'codeInvalidated'));
+    throw new AuthError('code_invalidated');
   }
   if (challenge.consumedAt) {
-    return authFailure('VALIDATION_FAILED', t(locale, 'codeAlreadyUsed'));
+    throw new AuthError('code_already_used');
   }
   if (challenge.expiresAt < new Date()) {
-    return authFailure('VALIDATION_FAILED', t(locale, 'codeExpired'));
+    throw new AuthError('code_expired');
   }
   if (challenge.attempts >= MAX_VERIFY_ATTEMPTS) {
-    return authFailure('VALIDATION_FAILED', t(locale, 'tooManyAttempts'));
+    throw new AuthError('too_many_attempts');
   }
 
   const expected = createHash('sha256').update(code).digest('hex');
@@ -127,7 +137,7 @@ export async function verifyEmailLogin(
       where: { id: challengeId },
       data: { attempts: { increment: 1 } },
     });
-    return authFailure('VALIDATION_FAILED', t(locale, 'codeWrong'));
+    throw new AuthError('code_wrong');
   }
 
   // Passed verification: mark consumed. Even if creating the user later fails, this challenge must
@@ -143,12 +153,12 @@ export async function verifyEmailLogin(
     // Registration path: re-validate the invite code (it may have been consumed by someone else
     // between request and verify)
     if (!challenge.inviteCode) {
-      return authFailure('VALIDATION_FAILED', t(locale, 'registerNeedsInvite'));
+      throw new AuthError('register_needs_invite');
     }
     const inviteCode = challenge.inviteCode;
     const codeRow = await prisma.inviteCode.findUnique({ where: { code: inviteCode } });
     if (!codeRow || codeRow.status !== 'unused') {
-      return authFailure('VALIDATION_FAILED', t(locale, 'inviteCodeExpired'));
+      throw new AuthError('invite_code_expired');
     }
 
     // Transaction: create user + mark invite used. Roll back if either fails.
@@ -163,7 +173,7 @@ export async function verifyEmailLogin(
       return createdUser;
     });
   } else if (user.status !== 'active') {
-    return authFailure('FORBIDDEN', t(locale, 'accountDisabled'));
+    throw new AuthError('account_disabled');
   }
 
   const session = await createSession(user.id);

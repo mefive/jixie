@@ -1,12 +1,13 @@
-import type { AgentTurnDetail } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import type { AgentTurnDetail } from '@jixie/shared';
+import { AgentError } from '../errors.js';
 
 export async function getTurnDetail(userId: string, turnId: string) {
   const row = await prisma.agentTurn.findFirst({
     where: { id: turnId, conversation: { userId: userId } },
   });
   if (!row) {
-    return null;
+    throw new AgentError('turn_not_found');
   }
   return {
     id: row.id,

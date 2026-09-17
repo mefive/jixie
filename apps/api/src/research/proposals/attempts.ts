@@ -1,3 +1,4 @@
+import { prisma } from '#infra/database/prisma.js';
 import type {
   ResearchCellChangeAttemptScopeV1,
   ResearchCellChangeAttemptStatusV1,
@@ -5,39 +6,22 @@ import type {
   ResearchCellChangeRunResultV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { analyzeResearchDocument } from '../dependencies/analyze.js';
 import {
   affectedResearchCellRunPlan,
-  ResearchAffectedRunError,
   type ResearchAffectedRunPlan,
 } from '../dependencies/run-plan.js';
-import { analyzeResearchDocument } from '../dependencies/analyze.js';
+import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
 import { getResearchDocument } from '../documents/read.js';
-import {
-  isResearchDocumentRunActive,
-  ResearchDocumentRunInProgressError,
-} from '../document-runs/run-state.js';
-import { ResearchDocumentContentRevisionConflictError } from '../documents/revision-errors.js';
+import { ResearchError } from '../errors.js';
+
 import { runResearchCellChangeAttemptPlan } from '../document-runs/run-attempt.js';
-
-export type ResearchCellChangeAttemptUnavailableReason =
-  | 'proposal_not_applied'
-  | 'proposal_revision_unavailable'
-  | 'document_changed'
-  | 'no_executable_cells';
-
-export class ResearchCellChangeAttemptUnavailableError extends Error {
-  public constructor(readonly reason: ResearchCellChangeAttemptUnavailableReason) {
-    super(reason);
-    this.name = 'ResearchCellChangeAttemptUnavailableError';
-  }
-}
 
 /** Run an applied Agent proposal only after a separate user action, retaining failures as attempts. */
 export async function runResearchCellChangeProposalAttempt(
   userId: string,
   proposalId: string,
-): Promise<ResearchCellChangeRunResultV1 | null> {
+): Promise<ResearchCellChangeRunResultV1> {
   const proposal = await prisma.researchCellChangeProposal.findFirst({
     where: { id: proposalId, document: { userId, embeddedVersion: null } },
     include: {
@@ -47,25 +31,25 @@ export async function runResearchCellChangeProposalAttempt(
     },
   });
   if (!proposal) {
-    return null;
+    throw new ResearchError('proposal_not_found');
   }
   if (proposal.status !== 'applied') {
-    throw new ResearchCellChangeAttemptUnavailableError('proposal_not_applied');
+    throw new ResearchError('attempt_proposal_not_applied');
   }
   if (
     proposal.reviewSessionId &&
     (proposal.reviewStatus !== 'accepted' || !proposal.reviewIsLatest)
   ) {
-    throw new ResearchCellChangeAttemptUnavailableError('proposal_not_applied');
+    throw new ResearchError('attempt_proposal_not_applied');
   }
   if (proposal.appliedDocumentContentRevision == null) {
-    throw new ResearchCellChangeAttemptUnavailableError('proposal_revision_unavailable');
+    throw new ResearchError('attempt_proposal_revision_unavailable');
   }
   if (proposal.document.contentRevision !== proposal.appliedDocumentContentRevision) {
-    throw new ResearchCellChangeAttemptUnavailableError('document_changed');
+    throw new ResearchError('attempt_document_changed');
   }
   if (isResearchDocumentRunActive(proposal.documentId)) {
-    throw new ResearchDocumentRunInProgressError();
+    throw new ResearchError('document_run_in_progress');
   }
 
   const reviewProposals = proposal.reviewSessionId
@@ -87,7 +71,7 @@ export async function runResearchCellChangeProposalAttempt(
       : (proposal.operations as unknown as ResearchCellChangeOperationV1[]);
   const rootCellIds = executableRootCellIds(operations);
   if (rootCellIds.length === 0) {
-    throw new ResearchCellChangeAttemptUnavailableError('no_executable_cells');
+    throw new ResearchError('attempt_no_executable_cells');
   }
   const scope: ResearchCellChangeAttemptScopeV1 = operations.some(
     (operation) => operation.kind === 'delete' && operation.cellKind === 'python',
@@ -120,14 +104,12 @@ export async function runResearchCellChangeProposalAttempt(
       where: { id: attemptId },
       data: { plannedCellIds: plan.cellIds },
     });
-    const result = await runResearchCellChangeAttemptPlan(userId, proposal.documentId, plan, {
+    await runResearchCellChangeAttemptPlan(userId, proposal.documentId, plan, {
       clean: scope === 'clean_document',
       attemptId,
       expectedContentRevision: proposal.document.contentRevision,
     });
-    if (!result) {
-      return null;
-    }
+
     await finishCellChangeAttempt(attemptId, plan.cellIds.length);
   } catch (error) {
     const message = attemptErrorMessage(error);
@@ -139,20 +121,26 @@ export async function runResearchCellChangeProposalAttempt(
         finishedAt: new Date(),
       },
     });
-    if (error instanceof ResearchDocumentRunInProgressError) {
+    if (error instanceof ResearchError && error.reason === 'document_run_in_progress') {
       throw error;
     }
     if (
-      !(error instanceof ResearchAffectedRunError) &&
-      !(error instanceof ResearchDocumentContentRevisionConflictError)
+      !(
+        error instanceof ResearchError &&
+        ['affected_duplicate_definitions', 'affected_cyclic_dependency'].includes(error.reason)
+      ) &&
+      !(error instanceof ResearchError && error.reason === 'document_revision_conflict')
     ) {
       throw error;
     }
   }
 
   const document = await getResearchDocument(userId, proposal.documentId);
-  const attempt = document?.cellChangeAttempts.find((candidate) => candidate.id === attemptId);
-  return document && attempt ? { version: 1, attempt, document } : null;
+  const attempt = document.cellChangeAttempts.find((candidate) => candidate.id === attemptId);
+  if (!attempt) {
+    throw new ResearchError('proposal_not_found');
+  }
+  return { version: 1, attempt, document };
 }
 
 function executableRootCellIds(operations: ResearchCellChangeOperationV1[]): string[] {
@@ -222,7 +210,7 @@ async function finishCellChangeAttempt(attemptId: string, plannedCellCount: numb
 }
 
 function attemptErrorMessage(error: unknown): string {
-  if (error instanceof ResearchDocumentContentRevisionConflictError) {
+  if (error instanceof ResearchError && error.reason === 'document_revision_conflict') {
     return 'document_changed_during_run';
   }
   return error instanceof Error ? error.message : String(error);

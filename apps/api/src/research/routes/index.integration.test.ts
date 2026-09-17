@@ -1,10 +1,11 @@
+import { handleApiError } from '#infra/http/errors.js';
+import type { ResearchClarificationV1 } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { Hono } from 'hono';
-import type { Prisma } from '@prisma/client';
-import type { ResearchClarificationV1 } from '@jixie/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '', sequence: 0 }));
@@ -51,13 +52,13 @@ vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
   initializeJobLogs: resources.logs,
 }));
 
-import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
 import { submitResearchCuratorRun } from '../curator/submit.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from '../document-runs/run-state.js';
 import { researchRoute } from './index.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
@@ -255,9 +256,9 @@ describe('Research HTTP business boundaries', () => {
     });
     resources.running.mockReturnValue({ turnId: 'running' });
     const busy = await request('/agent/turns', agentInput);
-    expect(busy.status).toBe(400);
+    expect(busy.status).toBe(409);
     expect(await busy.json()).toEqual({
-      error: { code: 'VALIDATION_FAILED', message: t('en', 'conversationTurnInProgress') },
+      error: { code: 'CONFLICT', message: t('en', 'conversationTurnInProgress') },
     });
     expect(resources.enqueue).toHaveBeenCalledOnce();
   });
@@ -266,7 +267,7 @@ describe('Research HTTP business boundaries', () => {
     await seedClarification();
     const pending = await request('/agent/turns', agentInput);
     expect(await pending.json()).toEqual({
-      error: { code: 'VALIDATION_FAILED', message: t('en', 'researchClarificationPending') },
+      error: { code: 'CONFLICT', message: t('en', 'researchClarificationPending') },
     });
     const answer = {
       conversationId: 'document',
@@ -306,7 +307,7 @@ describe('Research HTTP business boundaries', () => {
     const repeated = await request('/agent/turns', answer);
     expect(await repeated.json()).toEqual({
       error: {
-        code: 'VALIDATION_FAILED',
+        code: 'CONFLICT',
         message: t('en', 'researchClarificationAlreadyResolved'),
       },
     });
@@ -365,13 +366,13 @@ describe('Research HTTP business boundaries', () => {
     const control = startResearchDocumentRun('document');
     try {
       expect((await request('/documents/document/archive', undefined, 'other')).status).toBe(404);
-      expect((await request('/documents/document/archive')).status).toBe(400);
+      expect((await request('/documents/document/archive')).status).toBe(409);
       expect(resources.close).not.toHaveBeenCalled();
     } finally {
       finishResearchDocumentRun(control);
     }
     resources.running.mockReturnValue({ turnId: 'running' });
-    expect((await request('/documents/document/archive')).status).toBe(400);
+    expect((await request('/documents/document/archive')).status).toBe(409);
     resources.running.mockReset();
     expect((await request('/documents/document/archive')).status).toBe(200);
     expect(resources.close).toHaveBeenCalledExactlyOnceWith('document');
@@ -607,7 +608,7 @@ describe('Research HTTP business boundaries', () => {
       const response = await request(`/cell-change-proposals/proposal/${action}`, {
         expectedContentRevision: 1,
       });
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
         error: { details: { reason: 'review_not_open' } },
       });
@@ -619,7 +620,7 @@ describe('Research HTTP business boundaries', () => {
       (await request('/cell-change-proposals/proposal/attempts', undefined, 'other')).status,
     ).toBe(404);
     const attempt = await request('/cell-change-proposals/proposal/attempts');
-    expect(attempt.status).toBe(400);
+    expect(attempt.status).toBe(409);
     expect(await attempt.json()).toMatchObject({
       error: { details: { reason: 'proposal_not_applied' } },
     });

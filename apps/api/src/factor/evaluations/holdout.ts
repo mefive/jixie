@@ -1,23 +1,22 @@
-import { reportCompatibilityColumns, reportResearchSpec } from './report-spec.js';
-import { ulid } from 'ulid';
-import type { FactorResearchSpecV1, RunFactorAnalysisResponse } from '@jixie/shared';
+import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { factorVariantKey } from './identity.js';
+import type { FactorResearchSpecV1, Locale, RunFactorAnalysisResponse } from '@jixie/shared';
+import { ulid } from 'ulid';
+import { FactorError } from '../errors.js';
 import { normalizeFactorAnalysisSpec } from '../execution/spec.js';
-import { parseResearchIntent } from './research-policy.js';
+import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
+import { factorCodeDataRequirements } from '../sources/resolve.js';
 import {
   parseAssetFactorAnalysisSourceSnapshot,
   parseFactorAnalysisSourceSnapshot,
 } from '../sources/snapshot.js';
-import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
 import { holdoutEligibility } from './holdout-policy.js';
-import { reportSummary, parseReportPayload, parseResearchPayload } from './report-views.js';
-import { factorCodeDataRequirements } from '../sources/resolve.js';
-import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
-import { failFactorOperation } from '../errors.js';
+import { factorVariantKey } from './identity.js';
+import { reportCompatibilityColumns, reportResearchSpec } from './report-spec.js';
+import { parseReportPayload, parseResearchPayload, reportSummary } from './report-views.js';
+import { parseResearchIntent } from './research-policy.js';
 
 export async function submitFactorHoldout(userId: string, parentReportId: string, locale: Locale) {
   const parent = await prisma.factorReport.findFirst({
@@ -25,7 +24,7 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
   });
 
   if (!parent) {
-    return failFactorOperation('missing', t(locale, 'windowNotComputed'));
+    throw new FactorError('evaluation_not_found');
   }
 
   const eligibility = await holdoutEligibility(parent);
@@ -45,8 +44,10 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
         } satisfies RunFactorAnalysisResponse;
       }
     }
-    return failFactorOperation('invalid', t(locale, 'windowNotComputed'), {
-      reason: eligibility.reason,
+    throw new FactorError('holdout_unavailable', {
+      details: {
+        reason: eligibility.reason,
+      },
     });
   }
 
@@ -79,17 +80,16 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
       factorCodeDataRequirements(parent.factorCodeSnapshot ?? ''),
     );
     if (!dataCutoff) {
-      return failFactorOperation('invalid', t(locale, 'windowNotComputed'));
+      throw new FactorError('holdout_unavailable');
     }
     researchSpec = {
       ...candidate,
       dataPolicy: { ...candidate.dataPolicy, dataCutoff },
     };
   } else {
-    return failFactorOperation(
-      'invalid',
-      t(locale, 'factorAnalysisKindUnsupported', { kind: parentResearchSpec.analysisKind }),
-    );
+    throw new FactorError('factor_analysis_kind_unsupported', {
+      params: { kind: parentResearchSpec.analysisKind },
+    });
   }
 
   // Holdout repeats the explored snapshot, even if the editable definition has changed.
@@ -184,13 +184,16 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
   return response;
 }
 
-export async function revealFactorHoldout(userId: string, reportId: string, locale: Locale) {
+export async function revealFactorHoldout(userId: string, reportId: string) {
   const report = await prisma.factorReport.findFirst({
-    where: { id: reportId, userId, phase: 'holdout', status: 'done' },
+    where: { id: reportId, userId },
   });
 
   if (!report) {
-    return failFactorOperation('invalid', t(locale, 'windowNotComputed'));
+    throw new FactorError('evaluation_not_found');
+  }
+  if (report.phase !== 'holdout' || report.status !== 'done') {
+    throw new FactorError('holdout_unavailable');
   }
 
   if (!report.revealedAt) {

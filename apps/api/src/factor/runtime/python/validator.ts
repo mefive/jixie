@@ -1,9 +1,10 @@
+import { UserCodeError } from '#infra/errors.js';
+import { renderFactorPythonSdkStub } from '@jixie/shared';
 import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { renderFactorPythonSdkStub } from '@jixie/shared';
 import type { EditableFactorAnalysisKind } from '../validate-definition.js';
 
 const FACTOR_FACTORY_PATTERN =
@@ -28,20 +29,26 @@ export async function validatePythonFactorDefinition(
   analysisKind: EditableFactorAnalysisKind,
 ): Promise<void> {
   if (!FACTOR_IMPORT_PATTERN.test(source)) {
-    throw new Error('Python Factor code must import `Factor` with `from jixie import Factor`.');
+    throw new UserCodeError(
+      'Python Factor code must import `Factor` with `from jixie import Factor`.',
+    );
   }
   const factory = source.match(FACTOR_FACTORY_PATTERN)?.[1];
   if (!factory) {
-    throw new Error('Python Factor code must assign `factor = Factor.<analysis_kind>(...)`.');
+    throw new UserCodeError(
+      'Python Factor code must assign `factor = Factor.<analysis_kind>(...)`.',
+    );
   }
   if (factory !== analysisKind) {
-    throw new Error(`Python Factor factory ${factory} does not match ${analysisKind}.`);
+    throw new UserCodeError(`Python Factor factory ${factory} does not match ${analysisKind}.`);
   }
   if (analysisKind === 'time_series' || analysisKind === 'panel') {
     pythonFactorTargetAssetClasses(source);
   }
   if (!FACTOR_COMPUTE_PATTERN.test(source)) {
-    throw new Error('Python Factor code must decorate one function with `@factor.compute`.');
+    throw new UserCodeError(
+      'Python Factor code must decorate one function with `@factor.compute`.',
+    );
   }
 
   const workspacePath = await mkdtemp(join(tmpdir(), 'jixie-factor-pyright-'));
@@ -80,7 +87,7 @@ export async function validatePythonFactorDefinition(
           return `${line}:${character} ${diagnostic.message ?? 'Invalid Python Factor code'}`;
         })
         .join('\n');
-      throw new Error(message);
+      throw new UserCodeError(message);
     }
   } finally {
     await rm(workspacePath, { recursive: true, force: true });
@@ -91,7 +98,7 @@ export async function validatePythonFactorDefinition(
 export function pythonFactorTargetAssetClasses(source: string): PythonAssetClass[] {
   const declaration = source.match(TARGET_ASSET_CLASSES_PATTERN)?.[1];
   if (declaration === undefined) {
-    throw new Error('Python asset Factor requires a literal target_asset_classes list.');
+    throw new UserCodeError('Python asset Factor requires a literal target_asset_classes list.');
   }
   const quotedClassPattern = /(['"])(equity|fixed_income|commodity)\1/g;
   const values = [...declaration.matchAll(quotedClassPattern)].map(
@@ -99,7 +106,7 @@ export function pythonFactorTargetAssetClasses(source: string): PythonAssetClass
   );
   const remainder = declaration.replace(quotedClassPattern, '').replace(/[\s,]/g, '');
   if (values.length === 0 || remainder || new Set(values).size !== values.length) {
-    throw new Error(
+    throw new UserCodeError(
       'Python target_asset_classes must be a non-empty literal list of unique supported classes.',
     );
   }

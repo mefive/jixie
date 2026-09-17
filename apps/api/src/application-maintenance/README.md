@@ -1,5 +1,7 @@
 # Application Maintenance 后端阅读入口
 
+业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
+
 Application Maintenance 编排整轮数据维护：获取运行权、补齐数据、检查质量、发布水位、记录进度并恢复中断。具体数据获取与计算调用 [Market](../market/README.md)；按日信号交给 Signals。
 
 CLI 是调用方式，本模块负责影响全应用的数据更新顺序、发布条件及可用性。HTTP 门禁读取维护运行状态，部署也以 `kind=deploy` 使用同一记录；定时触发由 systemd 提供。

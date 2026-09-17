@@ -1,8 +1,10 @@
-import type { CreateFactorWeatherPinInput } from '../schema.js';
-import { ulid } from 'ulid';
-import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@jixie/shared';
+import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
+import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@jixie/shared';
+import { ulid } from 'ulid';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
+import { FactorError } from '../errors.js';
+import type { CreateFactorWeatherPinInput } from '../schema.js';
 import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 import {
   FACTOR_WEATHER_METHODOLOGY_HASH,
@@ -10,8 +12,6 @@ import {
   refreshFactorWeatherPin,
   toFactorWeatherPoint,
 } from './refresh.js';
-import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../errors.js';
 
 const builtinDirections = new Map(
   BUILTIN_FACTORS.map((factor) => [factor.key, factor.expectedDirection]),
@@ -50,11 +50,7 @@ export async function listFactorWeatherPins(userId: string, locale: Locale) {
   };
 }
 
-export async function createFactorWeatherPin(
-  userId: string,
-  input: CreateFactorWeatherPinInput,
-  locale: Locale,
-) {
+export async function createFactorWeatherPin(userId: string, input: CreateFactorWeatherPinInput) {
   const { factorId, direction: requestedDirection } = input;
   const factor = await prisma.factor.findFirst({
     where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] } },
@@ -71,19 +67,19 @@ export async function createFactorWeatherPin(
   });
 
   if (!factor) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   const builtin = factor.userId === BUILTIN_USER_ID;
 
   if (!builtin && factor.status !== 'published') {
-    return failFactorOperation('invalid', t(locale, 'factorWeatherRequiresFinalized'));
+    throw new FactorError('factor_weather_requires_finalized');
   }
 
   const direction = builtinDirections.get(factor.id) ?? requestedDirection;
 
   if (!direction) {
-    return failFactorOperation('invalid', t(locale, 'factorWeatherDirectionRequired'));
+    throw new FactorError('factor_weather_direction_required');
   }
 
   const existing = await prisma.factorWeatherPin.findUnique({
@@ -118,14 +114,14 @@ export async function createFactorWeatherPin(
   return { id: pin.id, status: pin.status };
 }
 
-export async function requestFactorWeatherRefresh(userId: string, pinId: string, locale: Locale) {
+export async function requestFactorWeatherRefresh(userId: string, pinId: string) {
   const pin = await prisma.factorWeatherPin.findFirst({
     where: { id: pinId, userId },
     select: { id: true },
   });
 
   if (!pin) {
-    return failFactorOperation('missing', t(locale, 'factorWeatherPinNotFound'));
+    throw new FactorError('factor_weather_pin_not_found');
   }
 
   void refreshFactorWeatherPin(pin.id).catch((error) =>
@@ -135,18 +131,18 @@ export async function requestFactorWeatherRefresh(userId: string, pinId: string,
   return { id: pin.id, status: 'running' as const };
 }
 
-export async function deleteFactorWeatherPin(userId: string, pinId: string, locale: Locale) {
+export async function deleteFactorWeatherPin(userId: string, pinId: string) {
   const pin = await prisma.factorWeatherPin.findFirst({
     where: { id: pinId, userId },
     select: { id: true, status: true },
   });
 
   if (!pin) {
-    return failFactorOperation('missing', t(locale, 'factorWeatherPinNotFound'));
+    throw new FactorError('factor_weather_pin_not_found');
   }
 
   if (pin.status === 'pending' || pin.status === 'running') {
-    return failFactorOperation('conflict', t(locale, 'factorWeatherRunningCannotUnpin'));
+    throw new FactorError('factor_weather_running_cannot_unpin');
   }
 
   await prisma.factorWeatherPin.delete({ where: { id: pin.id } });

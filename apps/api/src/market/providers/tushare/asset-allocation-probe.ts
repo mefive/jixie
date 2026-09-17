@@ -1,10 +1,11 @@
+import { TushareError } from '../../errors.js';
 import {
   TUSHARE_CAPABILITIES,
   TUSHARE_CAPABILITY_CATALOG_VERSION,
   type TushareCapabilityDomain,
   type TushareCapabilityProbeCoverage,
 } from './capability-catalog.js';
-import { TushareError, type TushareRow } from './client.js';
+import { type TushareRow } from './client.js';
 
 export type AssetAllocationProbeStatus =
   | 'ok'

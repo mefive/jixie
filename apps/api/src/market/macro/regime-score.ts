@@ -1,5 +1,6 @@
-import type { FactorMacroRegimeStateKeyV1 } from '@jixie/shared';
 import type { Prisma } from '#infra/database/prisma.js';
+import type { FactorMacroRegimeStateKeyV1 } from '@jixie/shared';
+import { MacroRegimeInsufficientHistoryError } from '../errors.js';
 import {
   loadMacroVintagesThrough,
   selectMacroObservationsAsOf,
@@ -78,13 +79,6 @@ interface SeriesScore {
   threeMonthChange: number | null;
   levelScore: number | null;
   momentumScore: number | null;
-}
-
-export class MacroRegimeInsufficientHistoryError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'MacroRegimeInsufficientHistoryError';
-  }
 }
 
 /** Loads a macro vintage window once and evaluates the same PIT rule at every decision date. */

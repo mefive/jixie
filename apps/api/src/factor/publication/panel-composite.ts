@@ -1,11 +1,11 @@
-import type { PublishedFactor } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
-import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
-import { FactorPublicationError } from '../errors.js';
+import type { PublishedFactor } from '@jixie/shared';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
+import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
+import { FactorError } from '../errors.js';
 import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
 import { sha256 } from '../sources/fingerprint.js';
+import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
 
 export async function publishPanelComposite(
   userId: string,
@@ -16,14 +16,14 @@ export async function publishPanelComposite(
     where: { id: compositeId, userId },
   });
   if (!composite) {
-    throw new FactorPublicationError('not_found');
+    throw new FactorError('publication_not_found');
   }
   if (composite.status !== 'draft') {
-    throw new FactorPublicationError('not_draft');
+    throw new FactorError('publication_not_draft');
   }
   const definition = factorPanelCompositeDefinitionV2Schema.safeParse(composite.definition);
   if (!definition.success || !composite.key || composite.key !== definition.data.key) {
-    throw new FactorPublicationError('report_invalid');
+    throw new FactorError('publication_report_invalid');
   }
 
   const report = await prisma.factorReport.findFirst({
@@ -43,7 +43,7 @@ export async function publishPanelComposite(
     report.analysisKind !== 'panel' ||
     (report.phase === 'holdout' && !report.revealedAt)
   ) {
-    throw new FactorPublicationError('report_invalid');
+    throw new FactorError('publication_report_invalid');
   }
 
   await assertPublishedComponents(
@@ -52,12 +52,12 @@ export async function publishPanelComposite(
   );
   const source = await resolvePanelFactorSource(userId, compositeId);
   if (!source || source.kind !== 'panel_composite') {
-    throw new FactorPublicationError('report_invalid');
+    throw new FactorError('publication_report_invalid');
   }
   const currentSnapshot = factorAnalysisSourceSnapshot(source);
   const currentHash = sha256(currentSnapshot);
   if (report.factorCodeSnapshot !== currentSnapshot || report.factorCodeHash !== currentHash) {
-    throw new FactorPublicationError('report_outdated');
+    throw new FactorError('publication_report_outdated');
   }
 
   const publishedAt = new Date();
@@ -72,7 +72,7 @@ export async function publishPanelComposite(
     },
   });
   if (updated.count !== 1) {
-    throw new FactorPublicationError('not_draft');
+    throw new FactorError('publication_not_draft');
   }
 
   return {
@@ -93,18 +93,18 @@ export async function publishPanelComposite(
 export async function archivePanelComposite(
   userId: string,
   compositeId: string,
-): Promise<PublishedFactor | null> {
+): Promise<PublishedFactor> {
   const archivedAt = new Date();
   const updated = await prisma.factorComposite.updateMany({
     where: { id: compositeId, userId, status: 'published' },
     data: { status: 'archived', visibility: 'private', archivedAt },
   });
   if (updated.count === 0) {
-    return null;
+    throw new FactorError('factor_not_found');
   }
   const composite = await prisma.factorComposite.findUniqueOrThrow({ where: { id: compositeId } });
   if (!composite.key || !composite.codeHash || !composite.publishedAt) {
-    throw new FactorPublicationError('not_draft');
+    throw new FactorError('publication_not_draft');
   }
   return {
     id: composite.id,
@@ -133,6 +133,6 @@ async function assertPublishedComponents(userId: string, factorIds: string[]): P
   });
   const publishedIds = new Set(rows.map((row) => row.id));
   if (factorIds.some((factorId) => !publishedIds.has(factorId))) {
-    throw new FactorPublicationError('report_invalid');
+    throw new FactorError('publication_report_invalid');
   }
 }

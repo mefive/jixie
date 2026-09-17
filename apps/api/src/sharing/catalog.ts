@@ -1,6 +1,7 @@
-import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { extractFactorKeys } from '#strategy/factor-inputs/references.js';
+import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
+import { SharingError } from './errors.js';
 
 export async function listSharingCatalog(
   userId: string,
@@ -183,7 +184,10 @@ export async function getPublicStrategy(strategyId: string) {
       user: { select: { name: true, email: true } },
     },
   });
-  return strategy ? { ...strategy, author: authorLabel(strategy.user) } : null;
+  if (!strategy) {
+    throw new SharingError('strategy_not_found');
+  }
+  return { ...strategy, author: authorLabel(strategy.user) };
 }
 
 function authorLabel(user: { name: string | null; email: string }): string {

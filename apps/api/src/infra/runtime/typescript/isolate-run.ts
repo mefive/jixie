@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs';
-import ivm from 'isolated-vm';
+import { UserCodeError } from '../../errors.js';
 import { transform } from 'esbuild';
+import ivm from 'isolated-vm';
+import { readFileSync } from 'node:fs';
 
 /**
  * Hard sandbox for user/model-authored code (factor compute and historical chart transforms; the strategy
@@ -40,7 +41,10 @@ export async function toCommonJs(source: string, noun = 'code'): Promise<string>
     const { code } = await transform(source, { loader: 'ts', format: 'cjs', target: 'es2022' });
     return code;
   } catch (e) {
-    throw new Error(`${noun} compilation failed: ${e instanceof Error ? e.message : String(e)}`);
+    if (e instanceof Error && 'errors' in e && Array.isArray(e.errors) && e.errors.length > 0) {
+      throw new UserCodeError(`${noun} compilation failed: ${e.message}`, { cause: e });
+    }
+    throw e;
   }
 }
 
@@ -84,12 +88,22 @@ export async function loadIsolatedModule(opts: {
   const isolate = new ivm.Isolate({ memoryLimit: opts.memoryMb ?? DEFAULT_MEMORY_MB });
   const context = await isolate.createContext();
 
-  const evalInWall = async (js: string, phase: string, timeoutMs = 5_000): Promise<void> => {
+  const evalInWall = async (
+    js: string,
+    phase: string,
+    userCode = false,
+    timeoutMs = 5_000,
+  ): Promise<void> => {
     try {
       await context.eval(js, { timeout: timeoutMs });
     } catch (e) {
       isolate.dispose();
-      throw new Error(`${noun} ${phase}: ${e instanceof Error ? e.message : String(e)}`);
+      if (userCode) {
+        throw new UserCodeError(`${noun} ${phase}: ${e instanceof Error ? e.message : String(e)}`, {
+          cause: e,
+        });
+      }
+      throw e;
     }
   };
 
@@ -111,29 +125,34 @@ export async function loadIsolatedModule(opts: {
        function (id) { throw new Error('cannot import external module (' + id + ')'); },
      );`,
     'execution error',
+    true,
   );
-  await evalInWall(opts.setup, 'entry registration failed');
+  await evalInWall(opts.setup, 'entry registration failed', true);
 
   return {
     async callJson(entry, jsonArgs, callOpts) {
       const argRefs = jsonArgs.map((json) => new ivm.ExternalCopy(json));
+      const script = `__entries[${JSON.stringify(entry)}](${jsonArgs.map((_arg, i) => `__arg${i}`).join(', ')})`;
+      for (let i = 0; i < argRefs.length; i++) {
+        await context.global.set(`__arg${i}`, argRefs[i].copyInto({ release: true }));
+      }
+      let result: unknown;
       try {
-        const script = `__entries[${JSON.stringify(entry)}](${jsonArgs.map((_arg, i) => `__arg${i}`).join(', ')})`;
-        for (let i = 0; i < argRefs.length; i++) {
-          await context.global.set(`__arg${i}`, argRefs[i].copyInto({ release: true }));
-        }
-        const result = await context.eval(script, {
+        result = await context.eval(script, {
           timeout: callOpts?.timeoutMs ?? 10_000,
-          promise: true, // tolerate async user code
+          promise: true,
           copy: true,
         });
-        if (typeof result !== 'string') {
-          throw new Error('entry must return a JSON string');
-        }
-        return result;
-      } catch (e) {
-        throw new Error(`${noun} execution error: ${e instanceof Error ? e.message : String(e)}`);
+      } catch (cause) {
+        throw new UserCodeError(
+          `${noun} execution error: ${cause instanceof Error ? cause.message : String(cause)}`,
+          { cause },
+        );
       }
+      if (typeof result !== 'string') {
+        throw new Error('entry must return a JSON string');
+      }
+      return result;
     },
     drainLogs() {
       try {

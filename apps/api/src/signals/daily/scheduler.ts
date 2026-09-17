@@ -1,7 +1,8 @@
 import { prisma } from '#infra/database/prisma.js';
+import { settleStrategyAccounts } from '../accounting/settlement.js';
+import { SignalsError } from '../errors.js';
 import { enqueueSignalRun } from '../runs/enqueue.js';
 import { syncSignalMarketData } from './sync.js';
-import { settleStrategyAccounts } from '../accounting/settlement.js';
 
 /** Run one complete daily cycle: synchronize data once, then compute active deployments serially. */
 export async function runDailySignalCycle(
@@ -35,13 +36,18 @@ export async function generateDailySignals(
   let errors = 0;
   for (const deployment of deployments) {
     onLog(`Generating ${deployment.strategyName} (${deployment.id})`);
-    const result = await enqueueSignalRun(deployment.userId, deployment.id, tradeDate);
-    if (result.kind !== 'ready') {
+    let run;
+    try {
+      run = await enqueueSignalRun(deployment.userId, deployment.id, tradeDate);
+    } catch (error) {
+      if (!(error instanceof SignalsError)) {
+        throw error;
+      }
       errors++;
-      onLog(`Skipped ${deployment.strategyName}: ${result.kind}`);
+      onLog(`Skipped ${deployment.strategyName}: ${error.reason}`);
       continue;
     }
-    const status = await result.run.completion;
+    const status = await run.completion;
     if (status === 'done') {
       done++;
     } else if (status === 'error') {

@@ -1,9 +1,10 @@
+import type { Prisma } from '@prisma/client';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import type { Prisma } from '@prisma/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ResearchPythonInterruptionError } from '../errors.js';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -32,9 +33,9 @@ import {
   updateResearchCell,
 } from '../documents/cell-operations.js';
 import { getResearchDocument } from '../documents/read.js';
-import { ResearchCellRevisionConflictError } from '../documents/revision-errors.js';
-import { ResearchCellDependencyBlockedError } from '../dependencies/runnable.js';
+
 import { getResearchExecution, promoteResearchExecution } from '../evidence/execution-records.js';
+import { runResearchCellChangeProposalAttempt } from '../proposals/attempts.js';
 import {
   acceptResearchCellChangeReview,
   applyResearchCellChangeProposalForReview,
@@ -42,18 +43,14 @@ import {
   revertResearchCellChangeReview,
 } from '../proposals/cell-changes.js';
 import { persistResearchCellChangePart } from '../proposals/change-records.js';
-import { runResearchCellChangeProposalAttempt } from '../proposals/attempts.js';
-import { ResearchCellChangeReviewOpenError } from '../proposals/review-state.js';
+
+import { type ResearchPythonExecution } from '../runtime/python-session.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
 import { interruptResearchDocument, resetResearchDocumentRuntime } from './control.js';
+import { runAffectedResearchCells } from './run-affected.js';
 import { runResearchCell } from './run-cell.js';
 import { runResearchDocument } from './run-document.js';
-import { runAffectedResearchCells } from './run-affected.js';
-import { isResearchDocumentRunActive, ResearchDocumentRunInProgressError } from './run-state.js';
-import {
-  ResearchPythonInterruptionError,
-  type ResearchPythonExecution,
-} from '../runtime/python-session.js';
+import { isResearchDocumentRunActive } from './run-state.js';
 
 const ownerId = 'owner';
 const documentId = 'document';
@@ -199,20 +196,38 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
   });
 
   it('keeps ownership checks across document, cell, run and evidence entry points', async () => {
-    expect(await getResearchDocument('other', documentId)).toBeNull();
-    expect(await addResearchCell('other', documentId, 'markdown')).toBeNull();
-    expect(
-      await updateResearchCell('other', 'input', { source: 'value = 2', expectedRevision: 1 }),
-    ).toBeNull();
-    expect(await deleteResearchCell('other', 'input')).toBeNull();
-    expect(await runResearchCell('other', 'input')).toBeNull();
-    expect(await runResearchDocument('other', documentId, true)).toBeNull();
-    expect(await runAffectedResearchCells('other', 'input')).toBeNull();
-    expect(await interruptResearchDocument('other', documentId)).toBeNull();
-    expect(await resetResearchDocumentRuntime('other', documentId)).toBeNull();
+    await expect(getResearchDocument('other', documentId)).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
+    await expect(addResearchCell('other', documentId, 'markdown')).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
+    await expect(
+      updateResearchCell('other', 'input', { source: 'value = 2', expectedRevision: 1 }),
+    ).rejects.toMatchObject({ reason: 'document_not_found' });
+    await expect(deleteResearchCell('other', 'input')).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
+    await expect(runResearchCell('other', 'input')).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
+    await expect(runResearchDocument('other', documentId, true)).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
+    await expect(runAffectedResearchCells('other', 'input')).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
+    await expect(interruptResearchDocument('other', documentId)).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
+    await expect(resetResearchDocumentRuntime('other', documentId)).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
     expect(runtime.execute).not.toHaveBeenCalled();
     const result = await runResearchDocument(ownerId, documentId, true);
-    expect(await getResearchExecution('other', result!.execution!.id)).toBeNull();
+    await expect(getResearchExecution('other', result!.execution!.id)).rejects.toMatchObject({
+      reason: 'execution_not_found',
+    });
   });
 
   it('invalidates only executed dependents and rejects an obsolete revision', async () => {
@@ -228,7 +243,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     ]);
     await expect(
       updateResearchCell(ownerId, 'input', { source: 'value = 1', expectedRevision: 1 }),
-    ).rejects.toBeInstanceOf(ResearchCellRevisionConflictError);
+    ).rejects.toMatchObject({ name: 'ResearchError', reason: 'cell_revision_conflict' });
     const affected = await runAffectedResearchCells(ownerId, 'input');
     expect(affected?.executedCellIds).toEqual(['input', 'dependent']);
     expect(affected?.document.cells.every((cell) => cell.status === 'success')).toBe(true);
@@ -241,9 +256,10 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
       status: 'blocked',
       dependencyIssues: [{ sourceCellId: 'input', missingDefinitions: ['value'] }],
     });
-    await expect(runResearchCell(ownerId, 'dependent')).rejects.toBeInstanceOf(
-      ResearchCellDependencyBlockedError,
-    );
+    await expect(runResearchCell(ownerId, 'dependent')).rejects.toMatchObject({
+      name: 'ResearchError',
+      reason: 'dependency_blocked',
+    });
     const result = await runAffectedResearchCells(ownerId, 'independent');
     expect(result?.executedCellIds).toEqual(['independent']);
     await resetResearchDocumentRuntime(ownerId, documentId);
@@ -304,9 +320,10 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     try {
       await started.promise;
       expect(isResearchDocumentRunActive(documentId)).toBe(true);
-      await expect(runResearchCell(ownerId, 'independent')).rejects.toBeInstanceOf(
-        ResearchDocumentRunInProgressError,
-      );
+      await expect(runResearchCell(ownerId, 'independent')).rejects.toMatchObject({
+        name: 'ResearchError',
+        reason: 'document_run_in_progress',
+      });
       const interrupted = await interruptResearchDocument(ownerId, documentId);
       const result = await running;
       expect(interrupted?.interrupted).toBe(true);
@@ -340,16 +357,21 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     const applied = await applyResearchCellChangeProposalForReview(ownerId, proposalId);
     expect(applied?.outcome).toBe('applied');
     expect(runtime.execute).not.toHaveBeenCalled();
-    await expect(runResearchCell(ownerId, 'input')).rejects.toBeInstanceOf(
-      ResearchCellChangeReviewOpenError,
-    );
-    await expect(addResearchCell(ownerId, documentId, 'markdown')).rejects.toBeInstanceOf(
-      ResearchCellChangeReviewOpenError,
-    );
-    await expect(resetResearchDocumentRuntime(ownerId, documentId)).rejects.toBeInstanceOf(
-      ResearchCellChangeReviewOpenError,
-    );
-    expect(await runResearchCellChangeProposalAttempt('other', proposalId)).toBeNull();
+    await expect(runResearchCell(ownerId, 'input')).rejects.toMatchObject({
+      name: 'ResearchError',
+      reason: 'cell_change_review_open',
+    });
+    await expect(addResearchCell(ownerId, documentId, 'markdown')).rejects.toMatchObject({
+      name: 'ResearchError',
+      reason: 'cell_change_review_open',
+    });
+    await expect(resetResearchDocumentRuntime(ownerId, documentId)).rejects.toMatchObject({
+      name: 'ResearchError',
+      reason: 'cell_change_review_open',
+    });
+    await expect(runResearchCellChangeProposalAttempt('other', proposalId)).rejects.toMatchObject({
+      reason: 'proposal_not_found',
+    });
     await acceptResearchCellChangeReview(ownerId, proposalId, applied!.document.contentRevision);
     const result = await runResearchCellChangeProposalAttempt(ownerId, proposalId);
     expect(result?.attempt).toMatchObject({

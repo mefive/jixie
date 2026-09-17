@@ -1,14 +1,14 @@
-import { ulid } from 'ulid';
-import type { Prisma } from '@prisma/client';
+import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import { commitStrategyConfig } from './config.js';
-import { proposeStrategyName, uniqueStrategyName } from './naming.js';
 import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import type { Locale } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { StrategyError } from '../errors.js';
 import { extractFactorKeys } from '../factor-inputs/references.js';
 import type { CreateStrategyInput, UpdateStrategyInput } from '../schema.js';
-import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../errors.js';
+import { commitStrategyConfig } from './config.js';
+import { proposeStrategyName, uniqueStrategyName } from './naming.js';
 
 export async function createStrategy(userId: string, input: CreateStrategyInput, locale: Locale) {
   const { messages, prompt, ...candidate } = input;
@@ -46,12 +46,7 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
   return row;
 }
 
-export async function updateStrategy(
-  userId: string,
-  id: string,
-  input: UpdateStrategyInput,
-  locale: Locale,
-) {
+export async function updateStrategy(userId: string, id: string, input: UpdateStrategyInput) {
   const { config, messages } = input;
 
   if (config) {
@@ -78,18 +73,19 @@ export async function updateStrategy(
     });
 
     if (result.kind === 'running') {
-      return failStrategyOperation('invalid', t(locale, 'strategyBacktestInProgress'));
+      throw new StrategyError('strategy_backtest_in_progress');
     }
 
-    return result.kind === 'updated'
-      ? result.row
-      : failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    if (result.kind === 'updated') {
+      return result.row;
+    }
+    throw new StrategyError('strategy_not_found');
   }
 
   const row = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
 
   if (!row) {
-    return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    throw new StrategyError('strategy_not_found');
   }
 
   const updated = await prisma.strategy.update({
@@ -101,7 +97,7 @@ export async function updateStrategy(
   return updated;
 }
 
-export async function deleteStrategy(userId: string, strategyId: string, locale: Locale) {
+export async function deleteStrategy(userId: string, strategyId: string) {
   const r = await prisma.strategy.deleteMany({
     where: { id: strategyId, userId, deployments: { none: {} } },
   });
@@ -112,9 +108,9 @@ export async function deleteStrategy(userId: string, strategyId: string, locale:
       select: { id: true },
     });
     if (retained) {
-      return failStrategyOperation('invalid', t(locale, 'strategyHasDeployments'));
+      throw new StrategyError('strategy_has_deployments');
     }
-    return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    throw new StrategyError('strategy_not_found');
   }
 
   return { ok: true };

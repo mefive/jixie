@@ -1,3 +1,4 @@
+import { ResearchError } from '../errors.js';
 export interface ResearchDocumentRunControl {
   documentId: string;
   interrupted: boolean;
@@ -7,20 +8,13 @@ export interface ResearchDocumentRunControl {
 
 const activeResearchDocumentRuns = new Map<string, ResearchDocumentRunControl>();
 
-export class ResearchDocumentRunInProgressError extends Error {
-  public constructor() {
-    super('Research document already has an active run');
-    this.name = 'ResearchDocumentRunInProgressError';
-  }
-}
-
 export function isResearchDocumentRunActive(documentId: string): boolean {
   return activeResearchDocumentRuns.has(documentId);
 }
 
 export function startResearchDocumentRun(documentId: string): ResearchDocumentRunControl {
   if (activeResearchDocumentRuns.has(documentId)) {
-    throw new ResearchDocumentRunInProgressError();
+    throw new ResearchError('document_run_in_progress');
   }
 
   let settle = () => {};

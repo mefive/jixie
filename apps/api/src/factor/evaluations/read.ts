@@ -1,16 +1,15 @@
-import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import type { FactorReport, Locale } from '@jixie/shared';
-import { failFactorOperation } from '../errors.js';
+import type { FactorReport } from '@jixie/shared';
+import { FactorError } from '../errors.js';
 import { readOwnedFactorJob } from '../jobs/read.js';
 import type {
-  FactorReportListQuery,
   FactorJobLogsQuery,
+  FactorReportListQuery,
   FactorResearchSummaryQuery,
 } from '../schema.js';
 import { holdoutEligibility } from './holdout-policy.js';
-import { parseResearchPayload, reportSummary } from './report-views.js';
 import { reportResearchSpec } from './report-spec.js';
+import { parseResearchPayload, reportSummary } from './report-views.js';
 import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './research-policy.js';
 
 export async function listFactorReports(userId: string, input: FactorReportListQuery) {
@@ -44,14 +43,14 @@ export async function listFactorReports(userId: string, input: FactorReportListQ
   return { items, nextCursor: hasMore ? items.at(-1)?.id : undefined };
 }
 
-export async function readFactorReport(userId: string, reportId: string, locale: Locale) {
+export async function readFactorReport(userId: string, reportId: string) {
   const row = await prisma.factorReport.findFirst({
     where: { id: reportId, userId },
     include: { job: { select: { id: true } } },
   });
 
   if (!row) {
-    return failFactorOperation('missing', t(locale, 'windowNotComputed'));
+    throw new FactorError('evaluation_not_found');
   }
 
   const summary = reportSummary(row);
@@ -79,7 +78,6 @@ export async function readFactorAnalysisJob(
   userId: string,
   jobId: string,
   input: FactorJobLogsQuery,
-  locale: Locale,
 ) {
   const job = await readOwnedFactorJob(
     userId,
@@ -89,7 +87,7 @@ export async function readFactorAnalysisJob(
   );
 
   if (!job) {
-    return failFactorOperation('missing', t(locale, 'factorJobNotFound'));
+    throw new FactorError('factor_job_not_found');
   }
 
   if (job.factorReportId) {
@@ -105,11 +103,11 @@ export async function readFactorAnalysisJob(
   return job;
 }
 
-export async function readFactorResearchWindow(locale: Locale) {
+export async function readFactorResearchWindow() {
   const policy = await getHoldoutPolicy();
 
   if (!policy) {
-    return failFactorOperation('missing', t(locale, 'windowNotComputed'));
+    throw new FactorError('evaluation_not_found');
   }
 
   return policy;

@@ -1,12 +1,13 @@
-import ivm from 'isolated-vm';
-import { transform } from 'esbuild';
-import { buildWallBundle } from './wall-bundle.js';
-import type { Locale, StrategyParamValue, StrategySignalMetadata } from '@jixie/shared';
+import { PythonFactorHost, withPythonFactorHost } from '#engine/adapters/python-factor-host.js';
 import type { EngineDataPort } from '#engine/data/data-port.js';
 import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
 import type { BacktestResult, CostModel, SignalBacktestOutput } from '#engine/types.js';
+import { UserCodeError } from '#infra/errors.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import { PythonFactorHost, withPythonFactorHost } from '#engine/adapters/python-factor-host.js';
+import type { Locale, StrategyParamValue, StrategySignalMetadata } from '@jixie/shared';
+import { transform } from 'esbuild';
+import ivm from 'isolated-vm';
+import { buildWallBundle } from './wall-bundle.js';
 
 /**
  * The walled lane's HOST side (sandbox Phase B2): bundle the engine (wall-entry.ts) once, evaluate
@@ -51,7 +52,15 @@ async function compileUserSource(code: string): Promise<string> {
       })
     ).code;
   } catch (error) {
-    throw new Error(
+    if (
+      !(error instanceof Error) ||
+      !('errors' in error) ||
+      !Array.isArray(error.errors) ||
+      error.errors.length === 0
+    ) {
+      throw error;
+    }
+    throw new UserCodeError(
       `strategy code compilation failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
@@ -74,10 +83,14 @@ export async function inspectWalledStrategyParameters(
     await context.global.set('__hostLog', new ivm.Reference(() => {}));
     await context.eval(await wallBundle(), { timeout: 60_000 });
     await context.global.set('__userJs', new ivm.ExternalCopy(userJs).copyInto({ release: true }));
-    const resultJson = await context.eval('__inspectStrategyParameters(__userJs)', {
-      timeout: 5_000,
-      copy: true,
-    });
+    const resultJson = await context
+      .eval('__inspectStrategyParameters(__userJs)', {
+        timeout: 5_000,
+        copy: true,
+      })
+      .catch((cause: unknown) => {
+        throw new UserCodeError(cause instanceof Error ? cause.message : String(cause), { cause });
+      });
     if (typeof resultJson !== 'string') {
       throw new Error('strategy parameter inspection returned a non-string result');
     }

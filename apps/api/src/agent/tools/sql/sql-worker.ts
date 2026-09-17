@@ -1,5 +1,5 @@
-import { parentPort, workerData } from 'node:worker_threads';
 import { DatabaseSync } from 'node:sqlite';
+import { parentPort, workerData } from 'node:worker_threads';
 
 /**
  * Read-only SQL executor thread. Two hard guarantees the main thread can't give:
@@ -20,6 +20,11 @@ parentPort!.on('message', (request: SqlRequest) => {
     const rows = db.prepare(request.sql).all();
     parentPort!.postMessage({ id: request.id, ok: true, rows });
   } catch (e) {
+    // Only SQLite query errors are safe to report as invalid user SQL. Infrastructure failures
+    // escape through the worker error channel without changing the existing response protocol.
+    if (!(e instanceof Error) || !('errcode' in e) || e.errcode !== 1) {
+      throw e;
+    }
     parentPort!.postMessage({
       id: request.id,
       ok: false,

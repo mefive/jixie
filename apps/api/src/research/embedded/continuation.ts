@@ -1,15 +1,15 @@
-import type { ResearchEmbeddedInputModeInput } from '../schema.js';
-import type { Prisma } from '@prisma/client';
-import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
-import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
-import { getResearchDocument } from '../documents/read.js';
+import { prisma } from '#infra/database/prisma.js';
+import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { finishResearchDocumentRun, startResearchDocumentRun } from '../document-runs/run-state.js';
 import { cellCreate } from '../documents/cell-seed.js';
-import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
-import { startResearchDocumentRun, finishResearchDocumentRun } from '../document-runs/run-state.js';
+import { getResearchDocument } from '../documents/read.js';
+import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { ResearchEmbeddedError } from './errors.js';
+import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
+import type { ResearchEmbeddedInputModeInput } from '../schema.js';
 
 /** One editable copy per retained run. Repeated clicks return the same document. */
 export async function continueEmbeddedResearch(
@@ -24,10 +24,10 @@ export async function continueEmbeddedResearch(
       include: { embeddedVersion: { include: { analysis: true } }, inputs: true },
     });
     if (!run?.embeddedVersion) {
-      throw new ResearchEmbeddedError('not_found');
+      throw new ResearchError('embedded_not_found');
     }
     if (run.status !== 'success' || run.inputs.some((input) => !input.responseJson)) {
-      throw new ResearchEmbeddedError('incomplete_run');
+      throw new ResearchError('embedded_incomplete_run');
     }
     const embeddedRunKey = `${userId}:${runId}`;
     const existing = await transaction.researchDocument.findUnique({ where: { embeddedRunKey } });
@@ -106,7 +106,7 @@ export async function changeEmbeddedInputMode(
     select: { id: true },
   });
   if (!owned) {
-    throw new ResearchEmbeddedError('not_found');
+    throw new ResearchError('embedded_not_found');
   }
   const control = startResearchDocumentRun(documentId);
   try {
@@ -121,10 +121,10 @@ export async function changeEmbeddedInputMode(
         },
       });
       if (!document?.embeddedSource) {
-        throw new ResearchEmbeddedError('not_found');
+        throw new ResearchError('embedded_not_found');
       }
       if (document.contentRevision !== input.expectedRevision) {
-        throw new ResearchEmbeddedError('revision_conflict');
+        throw new ResearchError('embedded_revision_conflict');
       }
       const source = document.embeddedSource as unknown as ResearchEmbeddedDocumentSourceV1;
       if (source.inputMode === input.inputMode) {

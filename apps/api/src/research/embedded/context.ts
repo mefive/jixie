@@ -1,10 +1,11 @@
-import type { Prisma } from '@prisma/client';
 import type { ResearchEmbeddedContextV1, ResearchEmbeddedHostV1 } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
-import { ResearchEmbeddedError } from './errors.js';
-import { timeSeriesTemplateResource } from '#factor/definitions/templates/time-series.js';
-import { panelTemplateResource } from '#factor/definitions/templates/panel.js';
+
 import { macroRegimeTemplateResource } from '#factor/definitions/templates/macro-regime.js';
+import { panelTemplateResource } from '#factor/definitions/templates/panel.js';
+import { timeSeriesTemplateResource } from '#factor/definitions/templates/time-series.js';
 
 /** Resolve identity on the server; snapshots remain readable if the host later disappears. */
 export async function captureEmbeddedContext(
@@ -43,7 +44,7 @@ export async function captureEmbeddedContext(
           select: { name: true, definition: true },
         });
         if (!composite) {
-          throw new ResearchEmbeddedError('not_found');
+          throw new ResearchError('embedded_not_found');
         }
         name = composite.name;
         code = JSON.stringify(composite.definition);
@@ -59,7 +60,7 @@ export async function captureEmbeddedContext(
         select: { name: true, config: true },
       });
       if (!strategy) {
-        throw new ResearchEmbeddedError('not_found');
+        throw new ResearchError('embedded_not_found');
       }
       const config = strategy.config as Record<string, Prisma.JsonValue>;
       name = strategy.name;
@@ -82,7 +83,7 @@ export async function captureEmbeddedContext(
         select: { id: true, payload: true },
       });
       if (!row?.payload) {
-        throw new ResearchEmbeddedError('invalid_report');
+        throw new ResearchError('embedded_invalid_report');
       }
       report = { type: 'factor', id: row.id, contentHash: researchPayloadHash(row.payload) };
     } else {
@@ -91,7 +92,7 @@ export async function captureEmbeddedContext(
         select: { id: true, payload: true },
       });
       if (!row?.payload) {
-        throw new ResearchEmbeddedError('invalid_report');
+        throw new ResearchError('embedded_invalid_report');
       }
       report = { type: 'backtest', id: row.id, contentHash: researchPayloadHash(row.payload) };
     }

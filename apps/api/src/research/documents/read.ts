@@ -1,19 +1,20 @@
-import type { Prisma } from '@prisma/client';
+import { prisma } from '#infra/database/prisma.js';
 import type {
-  ResearchDocumentV1,
-  ResearchDocumentListStateV1,
-  ResearchDocumentSummaryV1,
   ChatMessage,
-  ResearchCellV1,
   ResearchCellKindV1,
   ResearchCellOutputBlockV1,
+  ResearchCellV1,
+  ResearchDocumentListStateV1,
+  ResearchDocumentSummaryV1,
+  ResearchDocumentV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
-import { legacyDefinition } from '../templates/document-templates.js';
-import { cellCreate } from './cell-seed.js';
+import type { Prisma } from '@prisma/client';
+import { jsonStringArray, researchCellDependencyIssues } from '../dependencies/cell-values.js';
+import { ResearchError } from '../errors.js';
 import { listResearchCellChangeAttempts } from '../proposals/attempt-records.js';
 import { researchCellChangeReviewView } from '../proposals/change-records.js';
-import { jsonStringArray, researchCellDependencyIssues } from '../dependencies/cell-values.js';
+import { legacyDefinition } from '../templates/document-templates.js';
+import { cellCreate } from './cell-seed.js';
 
 type ResearchDocumentRow = Prisma.ResearchDocumentGetPayload<{
   include: {
@@ -67,7 +68,7 @@ export async function listResearchDocuments(
 export async function getResearchDocument(
   userId: string,
   documentId: string,
-): Promise<ResearchDocumentV1 | null> {
+): Promise<ResearchDocumentV1> {
   const owner = await prisma.agentConversation.findFirst({
     where: {
       id: documentId,
@@ -79,7 +80,7 @@ export async function getResearchDocument(
     select: { id: true, title: true, researchDocument: { select: { id: true } } },
   });
   if (!owner) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   if (!owner.researchDocument) {
     const definition = legacyDefinition(owner.title ?? '');
@@ -94,7 +95,7 @@ export async function getResearchDocument(
   }
   const document = await loadDocumentRow(userId, documentId);
   if (!document) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   return {
     ...documentView(document),

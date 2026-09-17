@@ -1,10 +1,8 @@
-import { prisma } from '#infra/database/prisma.js';
-import { entityKey } from '#agent/turns/run.js';
 import * as turnBus from '#agent/turns/bus.js';
-import {
-  isResearchDocumentRunActive,
-  ResearchDocumentRunInProgressError,
-} from '../document-runs/run-state.js';
+import { entityKey } from '#agent/turns/run.js';
+import { prisma } from '#infra/database/prisma.js';
+import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
+import { ResearchError } from '../errors.js';
 import { archiveResearchDocument } from './document-operations.js';
 
 export async function archiveIdleResearchDocument(userId: string, documentId: string) {
@@ -13,14 +11,14 @@ export async function archiveIdleResearchDocument(userId: string, documentId: st
     select: { id: true },
   });
   if (!owner) {
-    return false;
+    throw new ResearchError('document_not_found');
   }
 
   if (
     isResearchDocumentRunActive(documentId) ||
     turnBus.findRunning(entityKey({ kind: 'research', id: documentId }), userId)
   ) {
-    throw new ResearchDocumentRunInProgressError();
+    throw new ResearchError('document_run_in_progress');
   }
 
   return archiveResearchDocument(userId, documentId);

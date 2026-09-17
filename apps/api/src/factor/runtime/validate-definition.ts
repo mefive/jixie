@@ -1,8 +1,9 @@
+import { UserCodeError } from '#infra/errors.js';
 import type { FactorAnalysisKind, FactorLanguage } from '@jixie/shared';
-import { compileFactor } from './typescript/compile-factor.js';
-import { compilePanelFactor, compileTimeSeriesFactor } from './typescript/compile-asset-factor.js';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
 import { validatePythonFactorDefinition } from './python/validator.js';
+import { compilePanelFactor, compileTimeSeriesFactor } from './typescript/compile-asset-factor.js';
+import { compileFactor } from './typescript/compile-factor.js';
 
 export type EditableFactorAnalysisKind = Extract<
   FactorAnalysisKind,
@@ -22,7 +23,7 @@ export async function validateFactorDefinition(
     const compiled = await compileTimeSeriesFactor(code);
     try {
       if (compiled.inputs.some(isResearchOnlyFactorV2Field)) {
-        throw new Error('This input is currently available only as a controlled template.');
+        throw new UserCodeError('This input is currently available only as a controlled template.');
       }
     } finally {
       compiled.dispose();
@@ -33,7 +34,7 @@ export async function validateFactorDefinition(
     const compiled = await compilePanelFactor(code);
     try {
       if (compiled.inputs.some(isResearchOnlyFactorV2Field)) {
-        throw new Error('This input is currently available only as a controlled template.');
+        throw new UserCodeError('This input is currently available only as a controlled template.');
       }
     } finally {
       compiled.dispose();

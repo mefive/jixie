@@ -1,10 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { AgentLlm } from '#infra/llm/agent-llm.js';
 import type { ResearchExecutionV1 } from '@jixie/shared';
-import {
-  generateResearchStrategyDraft,
-  ResearchStrategyHandoffRejectedError,
-} from './strategy-handoff.js';
+import { describe, expect, it, vi } from 'vitest';
+import { generateResearchStrategyDraft } from './strategy-handoff.js';
 
 const execution: ResearchExecutionV1 = {
   version: 1,
@@ -128,7 +125,7 @@ describe('research Strategy handoff', () => {
           }),
         codegen,
       }),
-    ).rejects.toThrow(ResearchStrategyHandoffRejectedError);
+    ).rejects.toMatchObject({ name: 'ResearchError', reason: 'strategy_handoff_rejected' });
     expect(codegen).not.toHaveBeenCalled();
   });
 

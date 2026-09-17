@@ -1,12 +1,11 @@
-import { factorPanelCompositeDefinitionV2Schema, type FactorCompositeInput } from '../schema.js';
-import { ulid } from 'ulid';
-import type { Prisma } from '@prisma/client';
-import type { FactorCompositeDefinition, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import type { FactorCompositeDefinition } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
 import { BUILTIN_KEYS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { nextCopyKey } from '../definitions/copy-key.js';
-import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../errors.js';
+import { FactorError } from '../errors.js';
+import { factorPanelCompositeDefinitionV2Schema, type FactorCompositeInput } from '../schema.js';
 
 async function validateCompositeComponents(userId: string, definition: FactorCompositeDefinition) {
   const factorIds = definition.components.map((component) => component.factor);
@@ -61,7 +60,7 @@ function compositeResource(row: {
   };
 }
 
-export async function readFactorComposite(userId: string, compositeId: string, locale: Locale) {
+export async function readFactorComposite(userId: string, compositeId: string) {
   const row = await prisma.factorComposite.findFirst({
     where: {
       id: compositeId,
@@ -69,19 +68,18 @@ export async function readFactorComposite(userId: string, compositeId: string, l
     },
   });
 
-  return row ? compositeResource(row) : failFactorOperation('missing', t(locale, 'factorNotFound'));
+  if (row) {
+    return compositeResource(row);
+  }
+  throw new FactorError('factor_not_found');
 }
 
-export async function createFactorComposite(
-  userId: string,
-  input: FactorCompositeInput,
-  locale: Locale,
-) {
+export async function createFactorComposite(userId: string, input: FactorCompositeInput) {
   const definition = input.definition;
   const invalid = await validateCompositeComponents(userId, definition);
 
   if (invalid) {
-    return failFactorOperation('invalid', t(locale, 'unknownFactor', { factor: invalid }));
+    throw new FactorError('unknown_factor', { params: { factor: invalid } });
   }
 
   if (definition.version === 2) {
@@ -96,7 +94,7 @@ export async function createFactorComposite(
         select: { id: true },
       }));
     if (unavailable) {
-      return failFactorOperation('invalid', t(locale, 'factorKeyUnavailable'));
+      throw new FactorError('factor_key_unavailable');
     }
   }
 
@@ -119,7 +117,7 @@ export async function createFactorComposite(
         }
       ).code === 'P2002'
     ) {
-      return failFactorOperation('invalid', t(locale, 'factorKeyUnavailable'));
+      throw new FactorError('factor_key_unavailable');
     }
     throw error;
   }
@@ -129,13 +127,12 @@ export async function updateFactorComposite(
   userId: string,
   compositeId: string,
   input: FactorCompositeInput,
-  locale: Locale,
 ) {
   const definition = input.definition;
   const invalid = await validateCompositeComponents(userId, definition);
 
   if (invalid) {
-    return failFactorOperation('invalid', t(locale, 'unknownFactor', { factor: invalid }));
+    throw new FactorError('unknown_factor', { params: { factor: invalid } });
   }
 
   const existing = await prisma.factorComposite.findFirst({
@@ -144,15 +141,15 @@ export async function updateFactorComposite(
   });
 
   if (!existing) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   if (existing.status !== 'draft') {
-    return failFactorOperation('invalid', t(locale, 'publishedFactorReadonly'));
+    throw new FactorError('published_factor_readonly');
   }
 
   if (definition.version === 2 && existing.key !== definition.key) {
-    return failFactorOperation('invalid', t(locale, 'factorKeyUnavailable'));
+    throw new FactorError('factor_key_unavailable');
   }
 
   const updated = await prisma.factorComposite.updateMany({
@@ -164,7 +161,7 @@ export async function updateFactorComposite(
   });
 
   if (updated.count === 0) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   const row = await prisma.factorComposite.findUniqueOrThrow({
@@ -174,19 +171,19 @@ export async function updateFactorComposite(
   return compositeResource(row);
 }
 
-export async function deleteFactorComposite(userId: string, compositeId: string, locale: Locale) {
+export async function deleteFactorComposite(userId: string, compositeId: string) {
   const deleted = await prisma.factorComposite.deleteMany({
     where: { id: compositeId, userId, status: 'draft' },
   });
 
   if (deleted.count === 0) {
-    return failFactorOperation('invalid', t(locale, 'publishedFactorReadonly'));
+    throw new FactorError('published_factor_readonly');
   }
 
   return { ok: true };
 }
 
-export async function copyFactorComposite(userId: string, compositeId: string, locale: Locale) {
+export async function copyFactorComposite(userId: string, compositeId: string) {
   const source = await prisma.factorComposite.findFirst({
     where: {
       id: compositeId,
@@ -195,16 +192,13 @@ export async function copyFactorComposite(userId: string, compositeId: string, l
   });
 
   if (!source) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   const definition = factorPanelCompositeDefinitionV2Schema.safeParse(source.definition);
 
   if (!definition.success || !source.key) {
-    return failFactorOperation(
-      'invalid',
-      t(locale, 'factorAnalysisKindUnsupported', { kind: 'composite' }),
-    );
+    throw new FactorError('factor_analysis_kind_unsupported', { params: { kind: 'composite' } });
   }
 
   if (source.userId !== userId) {
@@ -217,7 +211,7 @@ export async function copyFactorComposite(userId: string, compositeId: string, l
       },
     });
     if (components.length !== factorIds.length) {
-      return failFactorOperation('invalid', t(locale, 'factorPublishReportInvalid'));
+      throw new FactorError('factor_publish_report_invalid');
     }
     const byId = new Map(components.map((component) => [component.id, component]));
     // A foreign public composite becomes an owned draft with independent component copies.

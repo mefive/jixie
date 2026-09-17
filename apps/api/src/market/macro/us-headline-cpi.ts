@@ -1,5 +1,6 @@
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
+import { HttpStatusError } from '../errors.js';
 import { macroVintageKind, type PreparedMacroObservation } from './china-macro.js';
 
 export const US_HEADLINE_CPI_SERIES_KEY = 'us_cpi_u_all_items_nsa';
@@ -310,15 +311,6 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
   }
 }
 
-class HttpStatusError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 const OECD_REQUIRED_DIMENSIONS = {
   REF_AREA: 'USA',
   FREQ: 'M',
@@ -344,9 +336,7 @@ export function parseOecdUsCpiCsv(value: string, minimumRecentPeriod: string): B
   }
   const csvRows = parseCsvRows(value);
   const headers = csvRows[0];
-  if (!headers) {
-    throw new Error('OECD CPI SDMX response was empty');
-  }
+
   const headerIndexes = new Map(headers.map((header, index) => [header, index]));
   const requiredHeaders = [...Object.keys(OECD_REQUIRED_DIMENSIONS), 'TIME_PERIOD', 'OBS_VALUE'];
   for (const header of requiredHeaders) {

@@ -1,10 +1,11 @@
+import { handleApiError } from '#infra/http/errors.js';
+import type { FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { Hono } from 'hono';
-import type { Prisma } from '@prisma/client';
-import type { FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '', sequence: 0 }));
@@ -43,15 +44,15 @@ vi.mock('../weather/refresh.js', async (importOriginal) => ({
   refreshFactorWeatherPin: resources.refresh,
 }));
 
-import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { migrateLegacyFactorJobs } from '../../../scripts/migrations/split-factor-job-kinds.js';
 import { copyFactorComposite } from '../composition/operations.js';
 import { submitFactorHoldout } from '../evaluations/holdout.js';
 import { sha256 } from '../sources/fingerprint.js';
 import { factorRoute } from './index.js';
-import { migrateLegacyFactorJobs } from '../../../scripts/migrations/split-factor-job-kinds.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
@@ -214,17 +215,17 @@ describe('Factor HTTP business boundaries', () => {
     await seedReport();
     await seedPin();
     const pinned = await request('/factors/draft', { code: 'changed code' }, 'owner', 'PATCH');
-    expect(pinned.status).toBe(400);
+    expect(pinned.status).toBe(409);
     expect(await pinned.json()).toEqual({
-      error: { code: 'VALIDATION_FAILED', message: t('en', 'pinnedFactorReadonlyEdit') },
+      error: { code: 'CONFLICT', message: t('en', 'pinnedFactorReadonlyEdit') },
     });
     expect((await request('/factors/draft', undefined, 'other', 'DELETE')).status).toBe(404);
     await prisma.factorWeatherPin.deleteMany();
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
     expect((await request('/factors/draft', { name: 'Changed' }, 'owner', 'PATCH')).status).toBe(
-      400,
+      409,
     );
-    expect((await request('/factors/draft', undefined, 'owner', 'DELETE')).status).toBe(400);
+    expect((await request('/factors/draft', undefined, 'owner', 'DELETE')).status).toBe(409);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'draft' } });
     expect((await request('/factors/draft', undefined, 'owner', 'DELETE')).status).toBe(200);
     expect(await prisma.factorReport.findUnique({ where: { id: 'report' } })).not.toBeNull();
@@ -303,7 +304,7 @@ describe('Factor HTTP business boundaries', () => {
       .mockReturnValueOnce('new-a')
       .mockReturnValueOnce('new-b')
       .mockReturnValueOnce('composite');
-    await expect(copyFactorComposite('owner', 'composite', 'en')).rejects.toMatchObject({
+    await expect(copyFactorComposite('owner', 'composite')).rejects.toMatchObject({
       code: 'P2002',
     });
     expect(await prisma.factor.count({ where: { userId: 'owner' } })).toBe(1);
@@ -416,7 +417,7 @@ describe('Factor HTTP business boundaries', () => {
     );
     expect(
       (await request('/factors/analysis-reports/report/reveal', undefined, 'other')).status,
-    ).toBe(400);
+    ).toBe(404);
     const revealed = await (await request('/factors/analysis-reports/report/reveal')).json();
     expect(revealed).toMatchObject({
       sealed: false,
@@ -704,16 +705,19 @@ describe('Factor HTTP business boundaries', () => {
             await request(`/factors/correlation-jobs/active?${query}`, undefined, 'other', 'GET')
           ).json(),
         ).toBeNull();
-        expect(
-          await (
-            await request(
-              '/factors/correlation-jobs/active?keys=foreign,ep',
-              undefined,
-              'owner',
-              'GET',
-            )
-          ).json(),
-        ).toBeNull();
+        const invalid = await request(
+          '/factors/correlation-jobs/active?keys=foreign,ep',
+          undefined,
+          'owner',
+          'GET',
+        );
+        expect(invalid.status).toBe(400);
+        expect(await invalid.json()).toEqual({
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: t('en', 'unknownFactor', { factor: 'foreign' }),
+          },
+        });
       },
     );
 
@@ -813,10 +817,10 @@ describe('Factor HTTP business boundaries', () => {
     );
     expect((await request('/factors/draft/agent/turns', input, 'other')).status).toBe(404);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
-    expect((await request('/factors/draft/agent/turns', input)).status).toBe(400);
+    expect((await request('/factors/draft/agent/turns', input)).status).toBe(409);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'draft' } });
     resources.running.mockReturnValue('active-turn');
-    expect((await request('/factors/draft/agent/turns', input)).status).toBe(400);
+    expect((await request('/factors/draft/agent/turns', input)).status).toBe(409);
     expect(resources.enqueue).not.toHaveBeenCalled();
     resources.running.mockReturnValue(null);
     expect((await request('/factors/draft/agent/turns', input)).status).toBe(200);
@@ -834,7 +838,7 @@ describe('Factor HTTP business boundaries', () => {
   it('keeps weather ownership, frozen snapshots, detached refresh and busy errors', async () => {
     expect(
       (await request('/factors/weather/pins', { factorId: 'draft', direction: 'positive' })).status,
-    ).toBe(400);
+    ).toBe(409);
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
     expect(
       (

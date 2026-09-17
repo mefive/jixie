@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FactorPanelCompositeDefinitionV2 } from '@jixie/shared';
-import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sha256 } from '../sources/fingerprint.js';
+import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
 
 const mocks = vi.hoisted(() => ({
   compositeFindFirst: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock('../composition/panel-source.js', () => ({
   resolvePanelFactorSource: mocks.resolveSource,
 }));
 
-import { FactorPublicationError } from '../errors.js';
+import { FactorError } from '../errors.js';
 import { publishPanelComposite } from './panel-composite.js';
 
 const DEFINITION: FactorPanelCompositeDefinitionV2 = {
@@ -125,7 +125,7 @@ describe('immutable panel composite publication', () => {
     });
 
     await expect(publishPanelComposite('user-1', 'composite-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_outdated'),
+      new FactorError('publication_report_outdated'),
     );
   });
 
@@ -133,7 +133,7 @@ describe('immutable panel composite publication', () => {
     mocks.factorFindMany.mockResolvedValue([{ id: 'momentum-1' }]);
 
     await expect(publishPanelComposite('user-1', 'composite-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_invalid'),
+      new FactorError('publication_report_invalid'),
     );
   });
 
@@ -148,7 +148,7 @@ describe('immutable panel composite publication', () => {
     });
 
     await expect(publishPanelComposite('user-1', 'composite-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_invalid'),
+      new FactorError('publication_report_invalid'),
     );
   });
 });

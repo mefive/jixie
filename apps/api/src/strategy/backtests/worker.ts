@@ -1,7 +1,8 @@
-import { parentPort, workerData } from 'node:worker_threads';
-import type { BacktestConfig, Locale, LogLine, LogLevel } from '@jixie/shared';
-import { runConfiguredBacktest } from './run.js';
 import { prisma } from '#infra/database/prisma.js';
+import { errorMessage } from '#infra/errors.js';
+import type { BacktestConfig, Locale, LogLevel, LogLine } from '@jixie/shared';
+import { parentPort, workerData } from 'node:worker_threads';
+import { runConfiguredBacktest } from './run.js';
 
 /**
  * Backtest worker thread. A backtest is CPU-heavy (loads whole-market panels + ranks them), so it
@@ -35,7 +36,7 @@ try {
   port.postMessage({ type: 'done', payload: result });
 } catch (e) {
   console.error('[backtest-worker] run failed', e);
-  port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
+  port.postMessage({ type: 'error', message: errorMessage(e, locale) });
 } finally {
   await prisma.$disconnect();
 }

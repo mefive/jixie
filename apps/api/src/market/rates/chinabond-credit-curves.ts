@@ -1,5 +1,6 @@
-import { strFromU8, unzipSync } from 'fflate';
 import { prisma } from '#infra/database/prisma.js';
+import { strFromU8, unzipSync } from 'fflate';
+import { ChinaBondHttpStatusError } from '../errors.js';
 import { assignCurveAvailableDates } from './china-treasury-curve.js';
 
 export const CHINABOND_PUBLIC_CURVE_SOURCE = 'chinabond_pbc_public';
@@ -125,15 +126,6 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
   }
 }
 
-class ChinaBondHttpStatusError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 /** Parse the source workbook and preserve only actual published term points. */
 export function parseChinaBondCurveWorkbook(
   workbook: Uint8Array,
@@ -151,9 +143,7 @@ export function parseChinaBondCurveWorkbook(
     throw new Error('ChinaBond public curve source returned an invalid XLSX archive');
   }
   const sheetBytes = files['xl/worksheets/sheet1.xml'];
-  if (!sheetBytes) {
-    throw new Error('ChinaBond public curve workbook omitted sheet1.xml');
-  }
+
   const sharedStrings = parseSharedStrings(files['xl/sharedStrings.xml']);
   const rows = parseSheetRows(strFromU8(sheetBytes), sharedStrings);
   const header = rows[0];

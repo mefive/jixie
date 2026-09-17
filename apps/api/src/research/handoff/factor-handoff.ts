@@ -1,4 +1,8 @@
-import { z } from 'zod';
+import { agentTurn, buildAgentMode, type AgentProfile } from '#agent/core.js';
+import { buildFactorCodegenPrompt } from '#factor/runtime/codegen-prompt.js';
+import { validateFactorDefinition } from '#factor/runtime/validate-definition.js';
+import type { AgentLlm } from '#infra/llm/agent-llm.js';
+import { chatJson, chatTools, type LlmCall } from '#infra/llm/deepseek.js';
 import {
   textMessage,
   type ChatMessage,
@@ -7,11 +11,8 @@ import {
   type ResearchFactorDraftAnalysisKindV1,
   type ResearchFactorReportSuggestionV1,
 } from '@jixie/shared';
-import { agentTurn, buildAgentMode, type AgentProfile } from '#agent/core.js';
-import { buildFactorCodegenPrompt } from '#factor/runtime/codegen-prompt.js';
-import { validateFactorDefinition } from '#factor/runtime/validate-definition.js';
-import { chatJson, chatTools, type LlmCall } from '#infra/llm/deepseek.js';
-import type { AgentLlm } from '#infra/llm/agent-llm.js';
+import { z } from 'zod';
+import { ResearchError } from '../errors.js';
 import { researchHandoffContext } from './context.js';
 
 const reportSuggestionSchema = z.strictObject({
@@ -65,8 +66,6 @@ export interface GeneratedResearchFactorDraft {
   messages: ChatMessage[];
 }
 
-export class ResearchFactorHandoffRejectedError extends Error {}
-
 export async function generateResearchFactorDraft(
   execution: ResearchExecutionV1,
   locale: Locale,
@@ -79,7 +78,9 @@ export async function generateResearchFactorDraft(
     dependencies.classifier ?? chatJson,
   );
   if (classification.decision === 'not_convertible') {
-    throw new ResearchFactorHandoffRejectedError(classification.reason);
+    throw new ResearchError('factor_handoff_rejected', {
+      params: { reason: classification.reason },
+    });
   }
 
   const profile = researchFactorDraftProfile(classification.analysisKind);
@@ -93,9 +94,14 @@ export async function generateResearchFactorDraft(
     { maxRepairs: 2, locale },
   );
   if (!result.changed) {
-    throw new ResearchFactorHandoffRejectedError(
-      result.error || result.reply || 'The research could not be expressed as a supported Factor.',
-    );
+    throw new ResearchError('factor_handoff_rejected', {
+      params: {
+        reason:
+          result.error ||
+          result.reply ||
+          'The research could not be expressed as a supported Factor.',
+      },
+    });
   }
 
   const handoffRequest =
@@ -154,11 +160,14 @@ Use ${locale === 'en' ? 'English' : 'Chinese'} for factorName, summary, unresolv
     }
     return classification;
   } catch {
-    throw new ResearchFactorHandoffRejectedError(
-      locale === 'en'
-        ? 'The research could not be classified into a supported Factor draft. Refine the signal definition and try again.'
-        : '无法将这份研究识别为受支持的 Factor 草稿。请明确时点信号定义后重试。',
-    );
+    throw new ResearchError('factor_handoff_rejected', {
+      params: {
+        reason:
+          locale === 'en'
+            ? 'The research could not be classified into a supported Factor draft. Refine the signal definition and try again.'
+            : '无法将这份研究识别为受支持的 Factor 草稿。请明确时点信号定义后重试。',
+      },
+    });
   }
 }
 

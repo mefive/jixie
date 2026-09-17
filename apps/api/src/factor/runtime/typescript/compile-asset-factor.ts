@@ -1,9 +1,10 @@
+import { UserCodeError } from '#infra/errors.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
 import {
   loadIsolatedModule,
   toCommonJs,
   type IsolatedModule,
 } from '#infra/runtime/typescript/isolate-run.js';
-import type { UserLogSink } from '#infra/runtime/console.js';
 import {
   FACTOR_V2_FIELDS,
   isFactorV2FieldKey,
@@ -184,13 +185,13 @@ async function compileAssetFactor<TAnalysisKind extends AssetFactorAnalysisKind>
 
 function validateMeta(meta: AssetFactorDefinitionMeta<AssetFactorAnalysisKind>): void {
   if (!meta.name?.trim()) {
-    throw new Error('Factor V2 requires a name.');
+    throw new UserCodeError('Factor V2 requires a name.');
   }
   if (!Array.isArray(meta.inputs) || meta.inputs.some((input) => !isFactorV2FieldKey(input))) {
-    throw new Error('Factor V2 references an unknown input field.');
+    throw new UserCodeError('Factor V2 references an unknown input field.');
   }
   if (new Set(meta.inputs).size !== meta.inputs.length) {
-    throw new Error('Factor V2 input fields must be unique.');
+    throw new UserCodeError('Factor V2 input fields must be unique.');
   }
   const allowedAssetClasses = new Set(['equity', 'fixed_income', 'commodity']);
   if (
@@ -198,7 +199,7 @@ function validateMeta(meta: AssetFactorDefinitionMeta<AssetFactorAnalysisKind>):
     meta.targetAssetClasses.length === 0 ||
     meta.targetAssetClasses.some((assetClass) => !allowedAssetClasses.has(assetClass))
   ) {
-    throw new Error('Factor V2 target asset classes are invalid.');
+    throw new UserCodeError('Factor V2 target asset classes are invalid.');
   }
   if (
     meta.inputs.some((input) =>
@@ -207,6 +208,8 @@ function validateMeta(meta: AssetFactorDefinitionMeta<AssetFactorAnalysisKind>):
       ),
     )
   ) {
-    throw new Error('Factor V2 target asset classes are incompatible with its declared inputs.');
+    throw new UserCodeError(
+      'Factor V2 target asset classes are incompatible with its declared inputs.',
+    );
   }
 }

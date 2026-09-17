@@ -1,11 +1,14 @@
+import { t } from '#i18n/index.js';
+import { handleApiError } from '#infra/http/errors.js';
+import type { AgentLlm } from '#infra/llm/agent-llm.js';
+import type { AgentStreamEvent, AgentTurnTrace } from '@jixie/shared';
+import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { Hono } from 'hono';
-import type { AgentStreamEvent, AgentTurnTrace } from '@jixie/shared';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AgentLlm } from '#infra/llm/agent-llm.js';
+import { AgentError } from './errors.js';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
 const resources = vi.hoisted(() => ({ llm: vi.fn<AgentLlm>(), sql: vi.fn(), compute: vi.fn() }));
@@ -30,15 +33,15 @@ vi.mock('./tools/charts/replay.js', () => ({
 import { prisma } from '#infra/database/prisma.js';
 import { agentRoute } from './routes/index.js';
 import * as turnBus from './turns/bus.js';
-import { enqueueAgentTurn } from './turns/run.js';
 import {
   finishPersistentTurn,
   markRunningAgentTurnsInterrupted,
   startPersistentTurn,
 } from './turns/records.js';
+import { enqueueAgentTurn } from './turns/run.js';
 
 const trace: AgentTurnTrace = { version: 1, steps: [], truncated: false };
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
@@ -395,6 +398,22 @@ describe('Agent HTTP and durable turn boundaries', () => {
     });
   });
 
+  it('returns 500 without exposing SQL or chart infrastructure failures', async () => {
+    const failure = new Error('private database file or worker startup failure');
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      resources.sql.mockRejectedValue(failure);
+      const response = await request('/sql-queries', 'owner', { sql: 'SELECT * FROM Daily' });
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({
+        error: { code: 'INTERNAL_ERROR', message: t('en', 'internalError') },
+      });
+      expect(log).toHaveBeenCalledWith('[api] Unhandled request error', failure);
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it('keeps SQL and computed-chart wire conversion and error mapping', async () => {
     resources.sql.mockResolvedValue([{ count: 2n }]);
     expect(
@@ -403,7 +422,9 @@ describe('Agent HTTP and durable turn boundaries', () => {
       ).json(),
     ).toEqual({ rows: [{ count: 2 }] });
     expect(resources.sql).toHaveBeenCalledWith('SELECT count(*) AS count FROM Daily', 500);
-    resources.sql.mockRejectedValue(new Error('Fixture SQL rejection'));
+    resources.sql.mockRejectedValue(
+      new AgentError('sql_forbidden_table', { params: { table: 'User', tables: 'Daily' } }),
+    );
     expect((await request('/sql-queries', 'owner', { sql: 'SELECT * FROM User' })).status).toBe(
       400,
     );
@@ -420,7 +441,7 @@ describe('Agent HTTP and durable turn boundaries', () => {
       rows: [{ date: '20240102', close: 10 }],
     });
     expect(resources.compute).toHaveBeenCalledWith(spec);
-    resources.compute.mockRejectedValue(new Error('Fixture chart rejection'));
+    resources.compute.mockRejectedValue(new AgentError('chart_rows_invalid'));
     expect((await request('/chart-computations', 'owner', spec)).status).toBe(400);
   });
 });

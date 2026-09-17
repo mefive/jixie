@@ -1,8 +1,6 @@
-import type { BacktestSummary, StrategyCard } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { t } from '#i18n/index.js';
-import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../errors.js';
+import type { BacktestSummary, StrategyCard } from '@jixie/shared';
+import { StrategyError } from '../errors.js';
 
 export async function listStrategies(userId: string) {
   const rows = await prisma.strategy.findMany({
@@ -44,7 +42,7 @@ function strategyCardSnapshot(lastResult: unknown): StrategyCard['snapshot'] {
   return { totalReturn: r.totalReturn, sharpe: r.sharpe, trades: r.trades, spark };
 }
 
-export async function readStrategy(userId: string, strategyId: string, locale: Locale) {
+export async function readStrategy(userId: string, strategyId: string) {
   const row = await prisma.strategy.findFirst({
     where: { id: strategyId, userId: userId },
     include: {
@@ -62,7 +60,7 @@ export async function readStrategy(userId: string, strategyId: string, locale: L
   });
 
   if (!row) {
-    return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    throw new StrategyError('strategy_not_found');
   }
 
   return {

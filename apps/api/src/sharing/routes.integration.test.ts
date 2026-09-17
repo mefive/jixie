@@ -1,9 +1,13 @@
+import { prisma } from '#infra/database/prisma.js';
+import { handleApiError } from '#infra/http/errors.js';
+import { copyPublicStrategy } from '#strategy/definitions/copy-public.js';
+import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { Hono } from 'hono';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sharingRoute } from './routes.js';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -14,9 +18,6 @@ vi.mock('#infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-import { prisma } from '#infra/database/prisma.js';
-import { sharingRoute } from './routes.js';
-import { copyPublicStrategy } from '#strategy/definitions/copy-public.js';
 
 const config = {
   name: 'Public fixture',
@@ -25,7 +26,7 @@ const config = {
   initialCash: 100_000,
   code: 'export default defineStrategy({onBar() {}});',
 };
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   const userId = context.req.header('x-fixture-user') ?? 'owner';
   context.set('userId', userId);
@@ -193,7 +194,9 @@ describe('Sharing catalog boundaries', () => {
     for (const id of ['private', 'missing']) {
       expect((await request(`/strategies/${id}`)).status).toBe(404);
       expect((await request(`/strategies/${id}/copy`, 'POST')).status).toBe(404);
-      expect(await copyPublicStrategy('owner', id)).toBeNull();
+      await expect(copyPublicStrategy('owner', id)).rejects.toMatchObject({
+        reason: 'strategy_not_found',
+      });
     }
   });
 

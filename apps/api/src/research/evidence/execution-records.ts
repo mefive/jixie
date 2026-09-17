@@ -1,4 +1,4 @@
-import type { Prisma, ResearchCellExecution, ResearchExecution } from '@prisma/client';
+import { prisma } from '#infra/database/prisma.js';
 import type {
   ResearchCellKindV1,
   ResearchCellOutputBlockV1,
@@ -9,8 +9,9 @@ import type {
   ResearchExecutionSummaryV1,
   ResearchExecutionV1,
 } from '@jixie/shared';
+import type { Prisma, ResearchCellExecution, ResearchExecution } from '@prisma/client';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from './fingerprints.js';
 
 export interface ResearchExecutionSourceCellSnapshot {
@@ -38,13 +39,6 @@ interface ResearchExecutionDagSnapshot {
 type ResearchExecutionWithCells = Prisma.ResearchExecutionGetPayload<{
   include: { cellExecutions: true };
 }>;
-
-export class ResearchExecutionPromotionUnavailableError extends Error {
-  public constructor() {
-    super('Only a successful Research Execution can be promoted');
-    this.name = 'ResearchExecutionPromotionUnavailableError';
-  }
-}
 
 export async function createResearchExecution(args: {
   documentId: string;
@@ -136,13 +130,13 @@ export async function finishResearchExecution(args: {
 export async function listResearchExecutions(
   userId: string,
   documentId: string,
-): Promise<ResearchExecutionSummaryV1[] | null> {
+): Promise<ResearchExecutionSummaryV1[]> {
   const document = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!document) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   const executions = await prisma.researchExecution.findMany({
     where: { documentId },
@@ -154,27 +148,30 @@ export async function listResearchExecutions(
 export async function getResearchExecution(
   userId: string,
   executionId: string,
-): Promise<ResearchExecutionV1 | null> {
+): Promise<ResearchExecutionV1> {
   const execution = await prisma.researchExecution.findFirst({
     where: { id: executionId, document: { userId, embeddedVersion: null } },
     include: { cellExecutions: { orderBy: { startedAt: 'asc' } } },
   });
-  return execution ? researchExecutionView(execution) : null;
+  if (!execution) {
+    throw new ResearchError('execution_not_found');
+  }
+  return researchExecutionView(execution);
 }
 
 export async function promoteResearchExecution(
   userId: string,
   executionId: string,
   input: ResearchExecutionPromotionInputV1,
-): Promise<ResearchExecutionSummaryV1 | null> {
+): Promise<ResearchExecutionSummaryV1> {
   const execution = await prisma.researchExecution.findFirst({
     where: { id: executionId, document: { userId, embeddedVersion: null } },
   });
   if (!execution) {
-    return null;
+    throw new ResearchError('execution_not_found');
   }
   if (execution.status !== 'success') {
-    throw new ResearchExecutionPromotionUnavailableError();
+    throw new ResearchError('execution_promotion_unavailable');
   }
   const updated = await prisma.researchExecution.update({
     where: { id: execution.id },

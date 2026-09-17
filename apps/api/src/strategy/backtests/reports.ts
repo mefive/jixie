@@ -1,16 +1,14 @@
+import { prisma } from '#infra/database/prisma.js';
+import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
 import type {
   BacktestConfig,
   BacktestReportDetail,
   BacktestReportSummary,
   BacktestSummary,
-  Locale,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { getJob, ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
-import { prisma } from '#infra/database/prisma.js';
+import { StrategyError } from '../errors.js';
 import type { StrategyBacktestIdentityQuery, StrategyBacktestJobQuery } from '../schema.js';
-import { t } from '#i18n/index.js';
-import { failStrategyOperation } from '../errors.js';
 
 export async function findActiveStrategyBacktestJob(
   userId: string,
@@ -57,7 +55,7 @@ export async function listStrategyBacktestReports(
   return reports.map(backtestReportSummary);
 }
 
-export async function readStrategyBacktestReport(userId: string, reportId: string, locale: Locale) {
+export async function readStrategyBacktestReport(userId: string, reportId: string) {
   const report = await prisma.backtestReport.findFirst({
     where: {
       id: reportId,
@@ -79,7 +77,7 @@ export async function readStrategyBacktestReport(userId: string, reportId: strin
   });
 
   if (!report) {
-    return failStrategyOperation('missing', t(locale, 'backtestReportNotFound'));
+    throw new StrategyError('backtest_report_not_found');
   }
 
   const summary = backtestReportSummary(report);
@@ -98,7 +96,6 @@ export async function readStrategyBacktestJob(
   userId: string,
   jobId: string,
   query: StrategyBacktestJobQuery,
-  locale: Locale,
 ) {
   const ownedJob = await prisma.job.findFirst({
     where: { id: jobId, userId, kind: 'backtest' },
@@ -106,13 +103,13 @@ export async function readStrategyBacktestJob(
   });
 
   if (!ownedJob) {
-    return failStrategyOperation('missing', t(locale, 'backtestJobNotFound'));
+    throw new StrategyError('backtest_job_not_found');
   }
 
   const job = await getJob(userId, ownedJob.id, Number(query.since ?? '0'));
 
   if (!job) {
-    return failStrategyOperation('missing', t(locale, 'backtestJobNotFound'));
+    throw new StrategyError('backtest_job_not_found');
   }
 
   return job;

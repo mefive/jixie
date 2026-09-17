@@ -1,16 +1,15 @@
-import type { FactorAgentInput } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
+import { factorProfile } from '#agent/profiles/factor.js';
+import * as turnBus from '#agent/turns/bus.js';
+import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
+import { prisma } from '#infra/database/prisma.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
-import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
-import { factorProfile } from '#agent/profiles/factor.js';
-import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
-import * as turnBus from '#agent/turns/bus.js';
-import { refreshFactorMetadata } from '../definitions/metadata.js';
-import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failFactorOperation } from '../errors.js';
+import { ulid } from 'ulid';
+import { refreshFactorMetadata } from '../definitions/metadata.js';
+import { FactorError } from '../errors.js';
+import type { FactorAgentInput } from '../schema.js';
 
 export async function startFactorAgentTurn(
   userId: string,
@@ -24,17 +23,17 @@ export async function startFactorAgentTurn(
   });
 
   if (!factor) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   if (factor.status !== 'draft') {
-    return failFactorOperation('invalid', t(locale, 'publishedFactorReadonly'));
+    throw new FactorError('published_factor_readonly');
   }
 
   const entity = { kind: 'factor' as const, id };
 
   if (turnBus.findRunning(entityKey(entity), userId)) {
-    return failFactorOperation('invalid', t(locale, 'factorTurnInProgress'));
+    throw new FactorError('factor_turn_in_progress');
   }
 
   const turnId = ulid();

@@ -1,36 +1,34 @@
-import type { ResearchDocumentV1, ResearchCellOutputBlockV1 } from '@jixie/shared';
+import { prisma } from '#infra/database/prisma.js';
+import type { ResearchCellOutputBlockV1, ResearchDocumentV1 } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
 import {
   loadExecutableResearchCell,
   type ExecutableResearchCellRow,
 } from '../documents/execution-source.js';
-import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
-import {
-  startResearchDocumentRun,
-  finishResearchDocumentRun,
-  type ResearchDocumentRunControl,
-} from './run-state.js';
 import { getResearchDocument } from '../documents/read.js';
-import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
-import type { Prisma } from '@prisma/client';
-import { materializeResearchOutputArtifacts } from '../evidence/artifacts.js';
 import {
+  ResearchError,
   ResearchPythonExecutionError,
   ResearchPythonInterruptionError,
-  researchRuntimeManager,
-} from '../runtime/python-session.js';
+} from '../errors.js';
+import { materializeResearchOutputArtifacts } from '../evidence/artifacts.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
+import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
+import {
+  finishResearchDocumentRun,
+  startResearchDocumentRun,
+  type ResearchDocumentRunControl,
+} from './run-state.js';
 
 export type ResearchCellExecutionOutcome = 'success' | 'error' | 'interrupted';
 
-export async function runResearchCell(
-  userId: string,
-  cellId: string,
-): Promise<ResearchDocumentV1 | null> {
+export async function runResearchCell(userId: string, cellId: string): Promise<ResearchDocumentV1> {
   const cell = await loadExecutableResearchCell(userId, cellId);
   if (!cell) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(cell.documentId);
   assertResearchCellsRunnable([cell]);

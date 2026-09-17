@@ -1,11 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-
-export class ResearchCellChangeReviewOpenError extends Error {
-  public constructor() {
-    super('Research document has an open Agent change review');
-    this.name = 'ResearchCellChangeReviewOpenError';
-  }
-}
+import { ResearchError } from '../errors.js';
 
 export async function assertNoOpenCellChangeReview(documentId: string): Promise<void> {
   const review = await prisma.researchCellChangeProposal.findFirst({
@@ -13,6 +7,6 @@ export async function assertNoOpenCellChangeReview(documentId: string): Promise<
     select: { id: true },
   });
   if (review) {
-    throw new ResearchCellChangeReviewOpenError();
+    throw new ResearchError('cell_change_review_open');
   }
 }

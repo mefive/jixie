@@ -1,32 +1,27 @@
-import type { Locale, ResearchFactorDraftResultV1, ResearchFactorHandoffV1 } from '@jixie/shared';
 import {
-  findResearchFactorDraft,
   createFactorDraftFromResearch,
+  findResearchFactorDraft,
 } from '#factor/definitions/from-research.js';
 import { getDeepSeekAgentModel, getDeepSeekModel } from '#infra/llm/config.js';
+import type { Locale, ResearchFactorDraftResultV1, ResearchFactorHandoffV1 } from '@jixie/shared';
+import { ResearchError } from '../errors.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 import { generateResearchFactorDraft } from './factor-handoff.js';
-
-export class ResearchFactorDraftUnavailableError extends Error {}
 
 export async function createResearchFactorDraft(
   userId: string,
   executionId: string,
   locale: Locale,
-): Promise<ResearchFactorDraftResultV1 | null> {
+): Promise<ResearchFactorDraftResultV1> {
   const existing = await findResearchFactorDraft(userId, executionId);
   if (existing) {
     return existing;
   }
 
   const execution = await getResearchExecution(userId, executionId);
-  if (!execution) {
-    return null;
-  }
+
   if (execution.status !== 'success' || !execution.promotedAt) {
-    throw new ResearchFactorDraftUnavailableError(
-      'Only a sealed, successful Research Execution can create a Factor draft.',
-    );
+    throw new ResearchError('factor_draft_unavailable');
   }
 
   const generated = await generateResearchFactorDraft(execution, locale);

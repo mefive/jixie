@@ -1,9 +1,11 @@
-import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { t } from '#i18n/index.js';
+import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { rm } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { join, resolve } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({
@@ -29,10 +31,10 @@ vi.mock('#infra/email/email.js', () => ({
 }));
 
 import { prisma } from '#infra/database/prisma.js';
-import { authRoute } from './routes.js';
 import { requireAuth } from './middleware.js';
+import { authRoute } from './routes.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.route('/api/auth', authRoute);
 app.get('/protected', requireAuth, (context) => context.json({ user: context.var.user }));
 const INVITE_CODE = '0123456789AB';
@@ -164,7 +166,7 @@ describe('authentication HTTP contract with an isolated database', () => {
     const missing = await app.request('/protected');
     expect(missing.status).toBe(401);
     expect(await missing.json()).toEqual({
-      error: { code: 'UNAUTHORIZED', message: 'login required' },
+      error: { code: 'UNAUTHORIZED', message: t('zh', 'loginRequired') },
     });
     const user = await seedUser();
     await prisma.session.create({
@@ -173,7 +175,7 @@ describe('authentication HTTP contract with an isolated database', () => {
     const expired = await app.request('/protected', { headers: { cookie: 'sid=expired' } });
     expect(expired.status).toBe(401);
     expect(await expired.json()).toEqual({
-      error: { code: 'UNAUTHORIZED', message: 'session expired' },
+      error: { code: 'UNAUTHORIZED', message: t('zh', 'sessionExpired') },
     });
     await prisma.user.update({ where: { id: user.id }, data: { status: 'disabled' } });
     await prisma.session.create({
@@ -182,7 +184,7 @@ describe('authentication HTTP contract with an isolated database', () => {
     const disabled = await app.request('/protected', { headers: { cookie: 'sid=disabled' } });
     expect(disabled.status).toBe(401);
     expect(await disabled.json()).toEqual({
-      error: { code: 'UNAUTHORIZED', message: 'account disabled' },
+      error: { code: 'UNAUTHORIZED', message: t('zh', 'accountDisabled') },
     });
     expect(
       await (await app.request('/api/auth/me', { headers: { cookie: 'sid=disabled' } })).json(),
@@ -327,7 +329,7 @@ describe('authentication HTTP contract with an isolated database', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.resetModules();
     const { authRoute: productionAuth } = await import('./routes.js');
-    const productionApp = new Hono().route('/api/auth', productionAuth);
+    const productionApp = new Hono().onError(handleApiError).route('/api/auth', productionAuth);
     const response = await productionApp.request('/api/auth/dev/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

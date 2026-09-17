@@ -18,8 +18,8 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
+import { FactorError } from '../errors.js';
 import { publishFactor } from './factor.js';
-import { FactorPublicationError } from '../errors.js';
 
 const CODE = `export default defineFactor({ compute: (bar) => bar.pb });`;
 const COMMODITY_CARRY_CODE = `export default defineFactorV2({
@@ -125,7 +125,7 @@ describe('immutable Factor publication', () => {
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_outdated'),
+      new FactorError('publication_report_outdated'),
     );
   });
 
@@ -140,7 +140,7 @@ describe('immutable Factor publication', () => {
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('not_draft'),
+      new FactorError('publication_not_draft'),
     );
   });
 
@@ -155,7 +155,7 @@ describe('immutable Factor publication', () => {
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_invalid'),
+      new FactorError('publication_report_invalid'),
     );
   });
 
@@ -178,7 +178,7 @@ describe('immutable Factor publication', () => {
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_invalid'),
+      new FactorError('publication_report_invalid'),
     );
     expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
@@ -202,7 +202,7 @@ describe('immutable Factor publication', () => {
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_invalid'),
+      new FactorError('publication_report_invalid'),
     );
     expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
@@ -226,7 +226,7 @@ describe('immutable Factor publication', () => {
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_invalid'),
+      new FactorError('publication_report_invalid'),
     );
     expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
@@ -266,7 +266,7 @@ describe('immutable Factor publication', () => {
     });
 
     await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorPublicationError('report_invalid'),
+      new FactorError('publication_report_invalid'),
     );
     expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });

@@ -1,9 +1,11 @@
+import { UserCodeError } from '#infra/errors.js';
+import { handleApiError } from '#infra/http/errors.js';
+import { textMessage } from '@jixie/shared';
+import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { textMessage } from '@jixie/shared';
-import { Hono } from 'hono';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '', sequence: 0 }));
@@ -47,15 +49,15 @@ vi.mock('../runtime/typescript/walled-run.js', async (importOriginal) => ({
   inspectWalledStrategyParameters: resources.parameters,
 }));
 
-import { prisma } from '#infra/database/prisma.js';
+import type { AgentProfile } from '#agent/core.js';
 import { t } from '#i18n/index.js';
-import { strategyRoute } from './index.js';
+import { prisma } from '#infra/database/prisma.js';
+import { publishedFactorContext } from '../agent/context.js';
 import { submitStrategyBacktest } from '../backtests/submit.js';
 import { submitStrategyScan } from '../scans/submit.js';
-import { publishedFactorContext } from '../agent/context.js';
-import type { AgentProfile } from '#agent/core.js';
+import { strategyRoute } from './index.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-fixture-user') ?? 'owner');
   await next();
@@ -209,14 +211,14 @@ describe('Strategy HTTP business boundaries', () => {
       'owner',
       'PATCH',
     );
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
       error: { message: t('en', 'strategyBacktestInProgress') },
     });
     expect((await request('/strategies/strategy', { messages: [] }, 'owner', 'PATCH')).status).toBe(
       200,
     );
-    expect((await request('/strategies/strategy/backtests', config)).status).toBe(400);
+    expect((await request('/strategies/strategy/backtests', config)).status).toBe(409);
     expect((await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).config).toEqual(
       config,
     );
@@ -322,7 +324,7 @@ describe('Strategy HTTP business boundaries', () => {
     expect((await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).config).toEqual(
       config,
     );
-    expect((await request('/strategies/strategy/scans', input)).status).toBe(400);
+    expect((await request('/strategies/strategy/scans', input)).status).toBe(409);
     expect(
       (await request(`/strategies/scan-reports/${reportId}`, undefined, 'other', 'GET')).status,
     ).toBe(404);
@@ -351,6 +353,28 @@ describe('Strategy HTTP business boundaries', () => {
     expect(await prisma.strategyScanReport.count()).toBe(0);
     expect(resources.wake).not.toHaveBeenCalled();
     expect(resources.logs).not.toHaveBeenCalled();
+  });
+
+  it('distinguishes scan code diagnostics from infrastructure failures', async () => {
+    resources.parameters.mockRejectedValueOnce(new UserCodeError('Unexpected token'));
+    const invalid = await request('/strategies/scan-parameters/inspect', { code: 'broken code' });
+    expect(invalid.status).toBe(400);
+    expect(await invalid.json()).toMatchObject({
+      error: { code: 'VALIDATION_FAILED', details: { reason: 'Unexpected token' } },
+    });
+    const failure = new Error('Private bootstrap path');
+    resources.parameters.mockRejectedValueOnce(failure);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const response = await request('/strategies/scan-parameters/inspect', { code: config.code });
+      expect(response.status).toBe(500);
+      expect(await response.json()).toEqual({
+        error: { code: 'INTERNAL_ERROR', message: t('en', 'internalError') },
+      });
+      expect(log).toHaveBeenCalledWith('[api] Unhandled request error', failure);
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it('makes factor-dependent drafts private and rejects republishing them', async () => {
@@ -580,7 +604,7 @@ describe('Strategy HTTP business boundaries', () => {
     const input = { code: config.code, message: 'Explain this strategy' };
     expect((await request('/strategies/strategy/agent/turns', input, 'other')).status).toBe(404);
     resources.running.mockReturnValue('active-turn');
-    expect((await request('/strategies/strategy/agent/turns', input)).status).toBe(400);
+    expect((await request('/strategies/strategy/agent/turns', input)).status).toBe(409);
     expect(resources.enqueue).not.toHaveBeenCalled();
     await prisma.factor.createMany({
       data: [

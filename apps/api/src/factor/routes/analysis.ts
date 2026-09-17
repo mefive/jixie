@@ -1,22 +1,22 @@
-import { Hono } from 'hono';
 import { validateJson, validateQuery } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
-import { factorOperationApiError } from './errors.js';
+import { Hono } from 'hono';
+
+import { revealFactorHoldout, submitFactorHoldout } from '../evaluations/holdout.js';
+import {
+  listFactorReports,
+  readFactorAnalysisJob,
+  readFactorReport,
+  readFactorResearchSummary,
+  readFactorResearchWindow,
+} from '../evaluations/read.js';
+import { submitFactorAnalysis } from '../evaluations/submit.js';
 import {
   factorJobLogsQuerySchema,
   factorReportListQuerySchema,
   factorResearchSummaryQuerySchema,
   submitFactorAnalysisSchema,
 } from '../schema.js';
-import {
-  listFactorReports,
-  readFactorReport,
-  readFactorAnalysisJob,
-  readFactorResearchWindow,
-  readFactorResearchSummary,
-} from '../evaluations/read.js';
-import { submitFactorAnalysis } from '../evaluations/submit.js';
-import { submitFactorHoldout, revealFactorHoldout } from '../evaluations/holdout.js';
 
 export const factorAnalysisRoute = new Hono();
 
@@ -24,89 +24,48 @@ factorAnalysisRoute.get(
   '/analysis-reports',
   validateQuery(factorReportListQuerySchema),
   async (c) => {
-    try {
-      return c.json(await listFactorReports(c.var.userId, c.req.valid('query')));
-    } catch (error) {
-      return factorOperationApiError(c, error);
-    }
+    return c.json(await listFactorReports(c.var.userId, c.req.valid('query')));
   },
 );
 
 factorAnalysisRoute.get('/analysis-reports/:reportId', async (c) => {
-  try {
-    return c.json(
-      await readFactorReport(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
+  return c.json(await readFactorReport(c.var.userId, c.req.param('reportId')));
 });
 
 factorAnalysisRoute.get(
   '/analysis-jobs/:jobId',
   validateQuery(factorJobLogsQuerySchema),
   async (c) => {
-    try {
-      return c.json(
-        await readFactorAnalysisJob(
-          c.var.userId,
-          c.req.param('jobId'),
-          c.req.valid('query'),
-          localeFromRequest(c),
-        ),
-      );
-    } catch (error) {
-      return factorOperationApiError(c, error);
-    }
+    return c.json(
+      await readFactorAnalysisJob(c.var.userId, c.req.param('jobId'), c.req.valid('query')),
+    );
   },
 );
 
 factorAnalysisRoute.get('/research/window', async (c) => {
-  try {
-    return c.json(await readFactorResearchWindow(localeFromRequest(c)));
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
+  return c.json(await readFactorResearchWindow());
 });
 
 factorAnalysisRoute.get(
   '/research/summary',
   validateQuery(factorResearchSummaryQuerySchema),
   async (c) => {
-    try {
-      return c.json(await readFactorResearchSummary(c.var.userId, c.req.valid('query')));
-    } catch (error) {
-      return factorOperationApiError(c, error);
-    }
+    return c.json(await readFactorResearchSummary(c.var.userId, c.req.valid('query')));
   },
 );
 
 factorAnalysisRoute.post('/analyses', validateJson(submitFactorAnalysisSchema), async (c) => {
-  try {
-    return c.json(
-      await submitFactorAnalysis(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
+  return c.json(
+    await submitFactorAnalysis(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
+  );
 });
 
 factorAnalysisRoute.post('/analysis-reports/:reportId/holdout', async (c) => {
-  try {
-    return c.json(
-      await submitFactorHoldout(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
+  return c.json(
+    await submitFactorHoldout(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
+  );
 });
 
 factorAnalysisRoute.post('/analysis-reports/:reportId/reveal', async (c) => {
-  try {
-    return c.json(
-      await revealFactorHoldout(c.var.userId, c.req.param('reportId'), localeFromRequest(c)),
-    );
-  } catch (error) {
-    return factorOperationApiError(c, error);
-  }
+  return c.json(await revealFactorHoldout(c.var.userId, c.req.param('reportId')));
 });

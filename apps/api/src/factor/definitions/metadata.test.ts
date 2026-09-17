@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LlmCall } from '#infra/llm/deepseek.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), update: vi.fn(), chatJson: vi.fn() }));
 vi.mock('#infra/database/prisma.js', () => ({
@@ -47,7 +47,7 @@ describe('factor metadata', () => {
     { row: null, category: 'missing', message: t('en', 'factorNotFound') },
     {
       row: { status: 'published' },
-      category: 'invalid',
+      category: 'conflict',
       message: t('en', 'publishedFactorReadonly'),
     },
   ])(
@@ -55,9 +55,9 @@ describe('factor metadata', () => {
     async ({ row, category, message }) => {
       mocks.findFirst.mockResolvedValue(row);
       await expect(
-        refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'source' }, 'en'),
+        refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'source' }),
       ).rejects.toMatchObject({
-        name: 'FactorOperationError',
+        name: 'FactorError',
         category,
         message,
       });
@@ -97,7 +97,7 @@ describe('factor metadata', () => {
     );
 
     await expect(
-      refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'new source' }, 'en'),
+      refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'new source' }),
     ).resolves.toEqual({ ok: true });
     expect(mocks.findFirst).toHaveBeenCalledTimes(2);
     expect(mocks.findFirst.mock.calls[1][0].where).toEqual({ id: 'factor', userId: 'owner' });
@@ -126,7 +126,7 @@ describe('factor metadata', () => {
         .mockResolvedValueOnce(row);
 
       await expect(
-        refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'source' }, 'en'),
+        refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'source' }),
       ).resolves.toEqual({ ok: true });
       expect(mocks.findFirst).toHaveBeenCalledTimes(2);
       expect(mocks.chatJson).not.toHaveBeenCalled();
@@ -134,21 +134,22 @@ describe('factor metadata', () => {
     },
   );
 
-  it('maps a provider failure for HTTP and preserves the original failure for the Agent', async () => {
+  it('classifies a provider failure consistently and retains its cause', async () => {
     mocks.findFirst.mockResolvedValue({ status: 'draft', messages: null });
     const failure = new Error('Provider unavailable');
     mocks.chatJson.mockRejectedValue(failure);
 
     await expect(
-      refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'source' }, 'en'),
+      refreshOwnedFactorMetadata('owner', { id: 'factor', code: 'source' }),
     ).rejects.toMatchObject({
-      name: 'FactorOperationError',
+      name: 'FactorError',
       category: 'unavailable',
-      message: failure.message,
+      reason: 'name_failed',
+      cause: failure,
     });
     await expect(
       refreshFactorMetadata({ factorId: 'factor', userId: 'owner', code: 'source', messages: [] }),
-    ).rejects.toBe(failure);
+    ).rejects.toMatchObject({ reason: 'name_failed', cause: failure });
     expect(mocks.update).not.toHaveBeenCalled();
   });
 });

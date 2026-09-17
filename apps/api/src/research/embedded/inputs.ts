@@ -1,11 +1,11 @@
+import { prisma } from '#infra/database/prisma.js';
+import { RESEARCH_EMBEDDED_LIMITS, type ResearchEmbeddedLimitsV1 } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
-import type { Prisma } from '@prisma/client';
-import { RESEARCH_EMBEDDED_LIMITS, type ResearchEmbeddedLimitsV1 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { ResearchError } from '../errors.js';
 import type { ResearchRequestObserver, ResearchResponse } from '../sdk/dispatch.js';
 import type { ResearchRequestFrame } from '../sdk/protocol.js';
-import { ResearchEmbeddedError } from './errors.js';
 
 /** Persist before delivery, so a Python try/except cannot turn missing evidence into success. */
 export function embeddedInputRecorder(
@@ -21,11 +21,11 @@ export function embeddedInputRecorder(
       signal.throwIfAborted();
       sequence += 1;
       if (sequence > limits.sdkRequests) {
-        throw new ResearchEmbeddedError('request_limit');
+        throw new ResearchError('embedded_request_limit');
       }
       const argumentBytes = Buffer.byteLength(JSON.stringify(frame.arguments), 'utf8');
       if (inputBytes + argumentBytes > limits.inputBytes) {
-        throw new ResearchEmbeddedError('input_limit');
+        throw new ResearchError('embedded_input_limit');
       }
       const id = ulid();
       await prisma.$transaction(async (transaction) => {
@@ -52,7 +52,7 @@ export function embeddedInputRecorder(
       const responseJson = JSON.stringify(response);
       const byteSize = Buffer.byteLength(responseJson, 'utf8');
       if (inputBytes + byteSize > limits.inputBytes) {
-        throw new ResearchEmbeddedError('input_limit');
+        throw new ResearchError('embedded_input_limit');
       }
       const sha256 = createHash('sha256').update(responseJson).digest('hex');
       const rowCount =
@@ -93,7 +93,7 @@ export async function assertActiveRun(
     select: { id: true },
   });
   if (!active) {
-    throw new ResearchEmbeddedError('cancelled');
+    throw new ResearchError('embedded_cancelled');
   }
   signal.throwIfAborted();
 }

@@ -1,5 +1,6 @@
 import type { UniverseSpecV1 } from '@jixie/shared';
 import { researchUniverseMeasureById } from '../catalog/capabilities.js';
+import { ResearchError } from '../errors.js';
 
 export function validateUniverseSpec(spec: UniverseSpecV1): void {
   const referenced = [
@@ -11,16 +12,20 @@ export function validateUniverseSpec(spec: UniverseSpecV1): void {
     (measure) => !researchUniverseMeasureById.has(measure),
   );
   if (unknown.length > 0) {
-    throw new Error(`Invalid universe spec: unknown measure ${unknown.join(', ')}`);
+    throw new ResearchError('universe_unknown_measure', {
+      params: { measures: unknown.join(', ') },
+    });
   }
   const duplicateSelect = spec.select.find(
     (item, index) =>
       spec.select.findIndex((candidate) => candidate.measure === item.measure) !== index,
   );
   if (duplicateSelect) {
-    throw new Error(`Invalid universe spec: duplicate selected measure ${duplicateSelect.measure}`);
+    throw new ResearchError('universe_duplicate_measure', {
+      params: { measure: duplicateSelect.measure },
+    });
   }
   if (spec.predicates.some((predicate) => typeof predicate.value !== 'number')) {
-    throw new Error('Invalid universe spec: V1 universe measures require numeric predicate values');
+    throw new ResearchError('universe_numeric_predicate');
   }
 }

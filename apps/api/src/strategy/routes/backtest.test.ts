@@ -1,3 +1,4 @@
+import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -40,7 +41,7 @@ vi.mock('#infra/jobs/queue.js', () => ({
 
 import { strategyRoute } from './index.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', 'user-a');
   context.set('user', { id: 'user-a', email: 'owner@example.com', name: 'Owner' });

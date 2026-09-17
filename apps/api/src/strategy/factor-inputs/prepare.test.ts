@@ -44,7 +44,6 @@ describe('published factor preparation', () => {
     const prepared = await prepareStrategyFactors(
       `ctx.factor('book_to_market', '000001.SZ')`,
       'user-1',
-      'zh',
     );
 
     expect(mocks.factorFindMany).toHaveBeenCalledWith(
@@ -91,7 +90,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     const prepared = await prepareStrategyFactors(
       `strategy = Strategy(factors=["python_value"])`,
       'user-1',
-      'en',
     );
 
     expect(prepared.modules[0]).toMatchObject({
@@ -131,7 +129,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     const prepared = await prepareStrategyFactors(
       `ctx.factor('etf_trend_20', '510300.SH')`,
       'user-1',
-      'en',
     );
     expect(prepared.modules[0]).toMatchObject({
       key: 'etf_trend_20',
@@ -161,8 +158,8 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     ]);
 
     await expect(
-      prepareStrategyFactors(`ctx.factor('warehouse_pressure_20_v1', '518880.SH')`, 'user-1', 'zh'),
-    ).rejects.toThrow('研究专用字段');
+      prepareStrategyFactors(`ctx.factor('warehouse_pressure_20_v1', '518880.SH')`, 'user-1'),
+    ).rejects.toMatchObject({ reason: 'research_only_inputs_unavailable' });
   });
 
   it('carries a published panel factor into the same asset-series strategy runtime', async () => {
@@ -211,7 +208,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     const prepared = await prepareStrategyFactors(
       `ctx.factor('cross_asset_momentum_120', '510300.SH')`,
       'user-1',
-      'en',
     );
     expect(prepared.modules[0]).toMatchObject({
       key: 'cross_asset_momentum_120',
@@ -323,7 +319,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     const prepared = await prepareStrategyFactors(
       `ctx.factor('momentum_reversal_panel', '510300.SH')`,
       'user-1',
-      'en',
     );
 
     expect(prepared.modules[0]).toMatchObject({
@@ -374,12 +369,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       }),
     ]);
     await expect(
-      prepareStrategyFactors(
-        `ctx.factor('etf_trend_20', '510300.SH')`,
-        'user-1',
-        'en',
-        'deployment',
-      ),
+      prepareStrategyFactors(`ctx.factor('etf_trend_20', '510300.SH')`, 'user-1', 'deployment'),
     ).resolves.toMatchObject({
       factors: [{ key: 'etf_trend_20', inputs: ['etf.adjustedClose'] }],
     });
@@ -387,7 +377,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 
   it('allows an archived dependency for an existing signal run', async () => {
     await expect(
-      prepareStrategyFactors(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1', 'en', 'signal'),
+      prepareStrategyFactors(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1', 'signal'),
     ).resolves.toMatchObject({ factors: [{ key: 'book_to_market' }] });
     expect(mocks.factorFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -399,7 +389,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
   it('fails closed for missing or unpublished factors', async () => {
     mocks.factorFindMany.mockResolvedValue([]);
     await expect(
-      prepareStrategyFactors(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1', 'en'),
+      prepareStrategyFactors(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1'),
     ).rejects.toThrow('book_to_market');
   });
 });

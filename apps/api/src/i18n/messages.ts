@@ -5,6 +5,113 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  correlationKeyCount: {
+    zh: '相关性分析需要 2 到 8 个不同因子',
+    en: 'Correlation analysis requires 2 to 8 distinct factors.',
+  },
+  researchCuratorDispositionInvalid: {
+    zh: '请选择一个明确的处置结果。',
+    en: 'Choose a resolved disposition.',
+  },
+  researchLanguagePositionInvalid: {
+    zh: '请求的位置超出文档范围',
+    en: 'The requested Research Cell position is outside the virtual document.',
+  },
+  researchLanguageRenameInvalid: {
+    zh: '重命名必须提供新的符号名称',
+    en: 'A new symbol name is required for rename.',
+  },
+
+  sqlSingleStatement: {
+    zh: '只允许一条 SQL 语句（不允许分号）',
+    en: 'Only a single statement is allowed (no semicolons)',
+  },
+  sqlSelectRequired: {
+    zh: '只允许 SELECT 查询（支持 WITH 公共表表达式）',
+    en: 'Only SELECT queries are allowed (a WITH-prefixed CTE is fine)',
+  },
+  sqlForbiddenKeyword: {
+    zh: '只读查询包含禁止使用的关键字：{keyword}',
+    en: 'Query contains a forbidden keyword (read-only): {keyword}',
+  },
+  sqlForbiddenTable: {
+    zh: '不允许访问 {table}，可查询的市场数据表：{tables}',
+    en: 'Access to {table} is not allowed (only market/financial data tables are exposed: {tables})',
+  },
+  sqlTableNotAllowed: {
+    zh: '表 {table} 不在白名单中。可查询：{tables}',
+    en: 'Table {table} is not in the whitelist. Queryable: {tables}',
+  },
+  sqlLimitExceeded: {
+    zh: 'LIMIT 最大为 {limit}，请缩小查询范围或先聚合',
+    en: 'LIMIT max is {limit}; reduce it or aggregate first',
+  },
+  chartColumnsMissing: {
+    zh: '结果缺少列：{missing}（实际列：{available}）',
+    en: 'The result set has no such columns: {missing} (actual columns: {available})',
+  },
+  chartRowsInvalid: {
+    zh: '绘图代码必须返回扁平行对象数组或 { rows: [...] }',
+    en: 'The code must return an ARRAY of flat row objects (or { rows: [...] }) to draw',
+  },
+  chartRowsEmpty: {
+    zh: '代码未返回数据，无法绘图；请检查查询或转换',
+    en: 'The code returned no rows, so no chart can be drawn; check the queries or the transform',
+  },
+  chartRowLimit: {
+    zh: '代码返回 {rows} 行，超过 {limit} 行上限；请聚合或采样',
+    en: 'The code returned {rows} rows (cap {limit}); aggregate or sample down in the code (e.g. monthly points instead of daily)',
+  },
+  chartRowsFlat: {
+    zh: '每行必须是值为标量的扁平对象',
+    en: 'Every returned row must be a flat object of scalars',
+  },
+  chartFieldScalar: {
+    zh: '字段 {field} 必须是数字、字符串或 null',
+    en: "Row field '{field}' is not a scalar; rows must hold numbers/strings/null only",
+  },
+  chartQueryNamesUnique: {
+    zh: '查询名称不能重复',
+    en: 'query names must be unique',
+  },
+  universeUnknownMeasure: {
+    zh: '股票池包含未知指标：{measures}',
+    en: 'Invalid universe spec: unknown measure {measures}',
+  },
+  universeDuplicateMeasure: {
+    zh: '股票池重复选择指标：{measure}',
+    en: 'Invalid universe spec: duplicate selected measure {measure}',
+  },
+  universeNumericPredicate: {
+    zh: '股票池 V1 的指标条件必须使用数值',
+    en: 'Invalid universe spec: V1 universe measures require numeric predicate values',
+  },
+  sqlExecutionInvalid: {
+    zh: 'SQL 无法执行：{diagnostic}',
+    en: 'SQL execution failed: {diagnostic}',
+  },
+  sqlTimeout: {
+    zh: '查询超过 {seconds} 秒，请按日期或证券代码缩小范围',
+    en: 'Query exceeded the {seconds}s timeout; add conditions to narrow the range (filter large tables by tradeDate/tsCode)',
+  },
+  chartCodeInvalid: {
+    zh: '图表代码执行失败：{diagnostic}',
+    en: '{diagnostic}',
+  },
+  codeDiagnostics: {
+    zh: '代码校验失败：{diagnostic}',
+    en: '{diagnostic}',
+  },
+  loginRequired: { zh: '请先登录', en: 'Login required' },
+  sessionExpired: { zh: '登录已过期，请重新登录', en: 'Session expired. Please sign in again.' },
+  researchHandoffRejected: {
+    zh: '无法生成草稿：{reason}',
+    en: 'Cannot generate a draft: {reason}',
+  },
+  internalError: {
+    zh: '服务内部错误，请稍后重试',
+    en: 'An internal error occurred. Please try again later.',
+  },
   unsupportedInstrumentType: { zh: '不支持的证券类型', en: 'Unsupported instrument type.' },
   invalidInput: { zh: '入参不合法', en: 'Invalid input' },
   maintenanceInProgress: {

@@ -68,7 +68,7 @@ describe('BacktestReport to Research document handoff', () => {
 
     await expect(
       createResearchDocumentFromBacktestReport('user-a', 'report-b'),
-    ).resolves.toBeNull();
+    ).rejects.toMatchObject({ reason: 'backtest_report_not_found' });
     expect(mocks.transaction).not.toHaveBeenCalled();
   });
 });

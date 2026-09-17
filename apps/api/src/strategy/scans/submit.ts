@@ -1,16 +1,16 @@
-import { createHash } from 'node:crypto';
-import type { BacktestConfig, StrategyScanSpec, StrategyParamValue, Locale } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
-import { ulid } from 'ulid';
-import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
-import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import { prisma } from '#infra/database/prisma.js';
+import { UserCodeError } from '#infra/errors.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { prisma } from '#infra/database/prisma.js';
+import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import type { BacktestConfig, Locale, StrategyParamValue, StrategyScanSpec } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { createHash } from 'node:crypto';
+import { ulid } from 'ulid';
+import { StrategyError } from '../errors.js';
+import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
+import type { StrategyScanIdentityQuery, SubmitStrategyScanInput } from '../schema.js';
 import { normalizeScanSpec } from './scan.js';
-import type { SubmitStrategyScanInput, StrategyScanIdentityQuery } from '../schema.js';
-import { t } from '#i18n/index.js';
-import { failStrategyOperation } from '../errors.js';
 
 export async function submitStrategyScan(
   userId: string,
@@ -23,11 +23,11 @@ export async function submitStrategyScan(
   const config = body.config as BacktestConfig;
 
   if ((config.language ?? 'typescript') === 'python') {
-    return failStrategyOperation('invalid', t(locale, 'strategyPythonScanUnsupported'));
+    throw new StrategyError('strategy_python_scan_unsupported');
   }
 
   if (config.start >= config.end) {
-    return failStrategyOperation('invalid', t(locale, 'startAfterEnd'), { field: 'start' });
+    throw new StrategyError('start_after_end', { details: { field: 'start' } });
   }
 
   let parameters: Record<string, StrategyParamValue>;
@@ -38,19 +38,25 @@ export async function submitStrategyScan(
 
     spec = normalizeScanSpec(body.spec as StrategyScanSpec, parameters);
   } catch (error) {
-    return failStrategyOperation('invalid', t(locale, 'strategyScanInvalid'), {
-      reason: error instanceof Error ? error.message : String(error),
+    if (!(error instanceof UserCodeError)) {
+      throw error;
+    }
+    throw new StrategyError('strategy_scan_invalid', {
+      cause: error,
+      details: {
+        reason: error.message,
+      },
     });
   }
 
   if (spec.view !== 'capacity' && Object.keys(parameters).length === 0) {
-    return failStrategyOperation('invalid', t(locale, 'strategyScanNoParameters'));
+    throw new StrategyError('strategy_scan_no_parameters');
   }
 
   const ranges = await resolveRanges(config, spec);
 
   if (!ranges) {
-    return failStrategyOperation('invalid', t(locale, 'strategyScanSplitInvalid'));
+    throw new StrategyError('strategy_scan_split_invalid');
   }
 
   const reportId = ulid();
@@ -123,11 +129,11 @@ export async function submitStrategyScan(
   });
 
   if (created.kind === 'not_found') {
-    return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    throw new StrategyError('strategy_not_found');
   }
 
   if (created.kind === 'running') {
-    return failStrategyOperation('invalid', t(locale, 'strategyScanInProgress'));
+    throw new StrategyError('strategy_scan_in_progress');
   }
 
   initializeJobLogs(jobId);

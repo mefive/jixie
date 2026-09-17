@@ -58,7 +58,9 @@ describe('research document management', () => {
 
     await expect(restoreResearchDocument('user-a', 'document-a')).resolves.toBe(true);
     await expect(restoreResearchDocument('user-a', 'document-a')).resolves.toBe(true);
-    await expect(restoreResearchDocument('user-b', 'document-a')).resolves.toBe(false);
+    await expect(restoreResearchDocument('user-b', 'document-a')).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
 
     expect(mocks.conversationUpdate).toHaveBeenCalledTimes(1);
     expect(mocks.conversationUpdate).toHaveBeenCalledWith({

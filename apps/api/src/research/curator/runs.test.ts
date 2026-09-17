@@ -1,23 +1,23 @@
-import { execFileSync } from 'node:child_process';
-import { createRequire } from 'node:module';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { tushareCapabilityProbesAreFresh } from '#market/providers/tushare/capability-probe-store.js';
 import type { PrismaClient } from '@prisma/client';
 import prismaPackage from '@prisma/client';
+import { execFileSync } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { tushareCapabilityProbesAreFresh } from '#market/providers/tushare/capability-probe-store.js';
-import { extractResearchCuratorEvidence } from './prepare.js';
-import { getResearchCuratorRun, researchCuratorQuality } from './read.js';
 import {
   setResearchCuratorFindingDisposition,
   updateResearchCuratorFindingFeedback,
 } from './feedback.js';
+import { extractResearchCuratorEvidence } from './prepare.js';
+import { getResearchCuratorRun, researchCuratorQuality } from './read.js';
 
+import type { JobSnapshot } from '#infra/jobs/definition.js';
+import { researchCuratorJob } from './job.js';
 import * as curator from './prepare.js';
 import * as referenceSearch from './reference-search.js';
-import { researchCuratorJob } from './job.js';
-import type { JobSnapshot } from '#infra/jobs/definition.js';
 
 const originalPrepare = curator.prepareResearchCuratorRun;
 const { PrismaClient: RuntimePrismaClient } = prismaPackage;
@@ -185,7 +185,7 @@ describe('research curator', () => {
     const finding = await database.researchCuratorFinding.findFirstOrThrow();
     await expect(
       setResearchCuratorFindingDisposition('user-b', finding.id, 'accepted', undefined, database),
-    ).resolves.toBeNull();
+    ).rejects.toMatchObject({ reason: 'curator_finding_not_found' });
     await expect(
       setResearchCuratorFindingDisposition(
         'user-a',

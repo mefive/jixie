@@ -1,24 +1,24 @@
-import type { SubmitFactorAnalysisInput } from '../schema.js';
-import type { FactorReportSummary, FactorResearchSpecV1, Locale } from '@jixie/shared';
+import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import { normalizeFactorResearchSpec } from '../execution/spec.js';
-import { startFactorAnalysis } from './start.js';
-import { type FactorAnalysisSource } from '../sources/snapshot.js';
+import type { FactorReportSummary, FactorResearchSpecV1, Locale } from '@jixie/shared';
+import { resolvePanelFactorSource } from '../composition/panel-source.js';
+import { resolveMacroRegimeTemplateSource } from '../definitions/templates/macro-regime.js';
 import {
   resolveTimeSeriesTemplateSource,
   unsupportedTimeSeriesTemplateAssets,
 } from '../definitions/templates/time-series.js';
-import { resolvePanelFactorSource } from '../composition/panel-source.js';
-import { resolveMacroRegimeTemplateSource } from '../definitions/templates/macro-regime.js';
-import { resolveMacroRegimeDataCutoff } from '../observations/macro-regime-data-cutoff.js';
+import { FactorError } from '../errors.js';
+import { normalizeFactorResearchSpec } from '../execution/spec.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
+import { resolveMacroRegimeDataCutoff } from '../observations/macro-regime-data-cutoff.js';
+import type { SubmitFactorAnalysisInput } from '../schema.js';
 import {
   factorAnalysisSourceDataRequirements,
-  resolveFactorSource,
   resolveCustomTimeSeriesFactorSource,
+  resolveFactorSource,
 } from '../sources/resolve.js';
-import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../errors.js';
+import { type FactorAnalysisSource } from '../sources/snapshot.js';
+import { startFactorAnalysis } from './start.js';
 
 export async function submitFactorAnalysis(
   userId: string,
@@ -29,7 +29,7 @@ export async function submitFactorAnalysis(
   let researchSpec = normalizeFactorResearchSpec(input.spec);
 
   if (!criterionMatchesAnalysisKind(researchSpec, researchIntent)) {
-    return failFactorOperation('invalid', t(locale, 'factorCriterionUnsupported'));
+    throw new FactorError('factor_criterion_unsupported');
   }
 
   let source: FactorAnalysisSource | null = null;
@@ -38,15 +38,15 @@ export async function submitFactorAnalysis(
     let protocol = researchSpec.protocol;
     source = await resolveFactorSource(userId, factor);
     if (!source) {
-      return failFactorOperation('missing', t(locale, 'unknownFactor', { factor }));
+      throw new FactorError('factor_unavailable', { params: { factor } });
     }
     if (source.kind === 'composite') {
       if (protocol.version !== 4 && protocol.version !== 6) {
-        return failFactorOperation('invalid', t(locale, 'windowNotComputed'));
+        throw new FactorError('source_protocol_invalid');
       }
       protocol = { ...protocol, composite: source.definition };
     } else if (protocol.version === 4 || (protocol.version === 6 && protocol.composite)) {
-      return failFactorOperation('invalid', t(locale, 'windowNotComputed'));
+      throw new FactorError('source_protocol_invalid');
     }
     researchSpec = { ...researchSpec, protocol };
   } else if (researchSpec.analysisKind === 'time_series') {
@@ -54,14 +54,13 @@ export async function submitFactorAnalysis(
       resolveTimeSeriesTemplateSource(factor) ??
       (await resolveCustomTimeSeriesFactorSource(userId, factor));
     if (!source) {
-      return failFactorOperation('missing', t(locale, 'unknownFactor', { factor }));
+      throw new FactorError('factor_unavailable', { params: { factor } });
     }
     const unsupportedAssets = unsupportedTimeSeriesTemplateAssets(factor, researchSpec.assets);
     if (unsupportedAssets.length > 0) {
-      return failFactorOperation(
-        'invalid',
-        t(locale, 'factorResearchAssetsUnsupported', { assets: unsupportedAssets.join(', ') }),
-      );
+      throw new FactorError('factor_research_assets_unsupported', {
+        params: { assets: unsupportedAssets.join(', ') },
+      });
     }
     const cutoffSpec = {
       ...researchSpec,
@@ -75,7 +74,7 @@ export async function submitFactorAnalysis(
       factorAnalysisSourceDataRequirements(source),
     );
     if (!dataCutoff) {
-      return failFactorOperation('invalid', t(locale, 'windowNotComputed'));
+      throw new FactorError('data_not_ready');
     }
     researchSpec = {
       ...researchSpec,
@@ -84,7 +83,7 @@ export async function submitFactorAnalysis(
   } else if (researchSpec.analysisKind === 'panel') {
     source = await resolvePanelFactorSource(userId, factor);
     if (!source) {
-      return failFactorOperation('missing', t(locale, 'unknownFactor', { factor }));
+      throw new FactorError('factor_unavailable', { params: { factor } });
     }
     const cutoffSpec = {
       ...researchSpec,
@@ -98,7 +97,7 @@ export async function submitFactorAnalysis(
       factorAnalysisSourceDataRequirements(source),
     );
     if (!dataCutoff) {
-      return failFactorOperation('invalid', t(locale, 'windowNotComputed'));
+      throw new FactorError('data_not_ready');
     }
     researchSpec = {
       ...researchSpec,
@@ -107,11 +106,11 @@ export async function submitFactorAnalysis(
   } else if (researchSpec.analysisKind === 'macro_regime') {
     source = resolveMacroRegimeTemplateSource(factor);
     if (!source) {
-      return failFactorOperation('missing', t(locale, 'unknownFactor', { factor }));
+      throw new FactorError('factor_unavailable', { params: { factor } });
     }
     const dataCutoff = await resolveMacroRegimeDataCutoff(researchSpec);
     if (!dataCutoff) {
-      return failFactorOperation('invalid', t(locale, 'windowNotComputed'));
+      throw new FactorError('data_not_ready');
     }
     researchSpec = {
       ...researchSpec,
@@ -120,14 +119,14 @@ export async function submitFactorAnalysis(
   }
 
   if (!source) {
-    return failFactorOperation('missing', t(locale, 'unknownFactor', { factor }));
+    throw new FactorError('factor_unavailable', { params: { factor } });
   }
 
   const researchWindow =
     researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : researchSpec;
 
   if (researchWindow.start >= researchWindow.end) {
-    return failFactorOperation('invalid', t(locale, 'startAfterEnd'));
+    throw new FactorError('start_after_end');
   }
 
   if (parentReportId) {
@@ -136,7 +135,7 @@ export async function submitFactorAnalysis(
       select: { id: true },
     });
     if (!parent) {
-      return failFactorOperation('missing', t(locale, 'windowNotComputed'));
+      throw new FactorError('evaluation_not_found');
     }
   }
 

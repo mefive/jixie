@@ -1,20 +1,21 @@
-import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { getResearchDocumentRun } from './run-state.js';
+import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jixie/shared';
 import { getResearchDocument } from '../documents/read.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
+import { researchRuntimeManager } from '../runtime/python-session.js';
+import { getResearchDocumentRun } from './run-state.js';
 
 export async function interruptResearchDocument(
   userId: string,
   documentId: string,
-): Promise<ResearchDocumentInterruptResultV1 | null> {
+): Promise<ResearchDocumentInterruptResultV1> {
   const owner = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!owner) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
 
   const control = getResearchDocumentRun(documentId);
@@ -39,13 +40,13 @@ export async function interruptResearchDocument(
 export async function resetResearchDocumentRuntime(
   userId: string,
   documentId: string,
-): Promise<ResearchDocumentV1 | null> {
+): Promise<ResearchDocumentV1> {
   const owner = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!owner) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(documentId);
   await researchRuntimeManager.reset(documentId);

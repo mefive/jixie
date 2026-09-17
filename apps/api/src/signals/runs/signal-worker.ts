@@ -1,17 +1,18 @@
+import { prismaDataPort } from '#engine/adapters/prisma-port.js';
+import { t } from '#i18n/messages.js';
+import { prisma } from '#infra/database/prisma.js';
+import { errorMessage } from '#infra/errors.js';
+import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
+import { runWalledSignalCapture } from '#strategy/runtime/typescript/walled-run.js';
+import { codeConfigSchema } from '#strategy/schema.js';
 import type {
   BacktestConfig,
   Locale,
-  LogLine,
   LogLevel,
+  LogLine,
   ModelPositionSnapshot,
   SignalItem,
 } from '@jixie/shared';
-import { codeConfigSchema } from '#strategy/schema.js';
-import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
-import { runWalledSignalCapture } from '#strategy/runtime/typescript/walled-run.js';
-import { prismaDataPort } from '#engine/adapters/prisma-port.js';
-import { prisma } from '#infra/database/prisma.js';
-import { t } from '#i18n/messages.js';
 import { assertFactorDependencies, factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 import { summarizeFactorInputs } from '../factor-inputs/summary.js';
 
@@ -24,6 +25,8 @@ const emit = (entry: LogLine) => process.send?.({ type: 'log', entry });
 const systemLog = (text: string) => emit({ source: 'system', level: 'info', text });
 const userLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
+let locale: Locale = 'zh';
+
 try {
   const run = await prisma.signalRun.findUnique({
     where: { id: runId },
@@ -33,7 +36,7 @@ try {
     throw new Error('Signal run not found');
   }
 
-  const locale: Locale = run.deployment.locale === 'en' ? 'en' : 'zh';
+  locale = run.deployment.locale === 'en' ? 'en' : 'zh';
   const config = codeConfigSchema.parse(run.deployment.config) as BacktestConfig;
   if (config.start >= run.tradeDate) {
     throw new Error('Deployment start date must be earlier than the signal date');
@@ -42,7 +45,7 @@ try {
 
   // Existing deployments retain their frozen dependency after a Factor is archived. The lineage
   // assertion below still rejects code or identity drift before the signal is calculated.
-  const prepared = await prepareStrategyFactors(config.code, run.userId, locale, 'signal');
+  const prepared = await prepareStrategyFactors(config.code, run.userId, 'signal');
   const deploymentDependencies = factorDependenciesFromJson(run.deployment.factorDependencies);
   const runDependencies = factorDependenciesFromJson(run.factorDependencies);
   assertFactorDependencies(deploymentDependencies, prepared.factors);
@@ -106,7 +109,7 @@ try {
 } catch (error) {
   process.send({
     type: 'error',
-    message: error instanceof Error ? error.message : String(error),
+    message: errorMessage(error, locale),
   });
 } finally {
   await prisma.$disconnect();

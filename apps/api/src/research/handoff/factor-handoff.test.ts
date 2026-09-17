@@ -1,10 +1,7 @@
-import { describe, expect, it, vi } from 'vitest';
 import type { AgentLlm } from '#infra/llm/agent-llm.js';
 import type { ResearchExecutionV1 } from '@jixie/shared';
-import {
-  generateResearchFactorDraft,
-  ResearchFactorHandoffRejectedError,
-} from './factor-handoff.js';
+import { describe, expect, it, vi } from 'vitest';
+import { generateResearchFactorDraft } from './factor-handoff.js';
 
 const execution: ResearchExecutionV1 = {
   version: 1,
@@ -145,7 +142,7 @@ describe('research Factor handoff', () => {
           }),
         codegen,
       }),
-    ).rejects.toThrow(ResearchFactorHandoffRejectedError);
+    ).rejects.toMatchObject({ name: 'ResearchError', reason: 'factor_handoff_rejected' });
     expect(codegen).not.toHaveBeenCalled();
   });
 

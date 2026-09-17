@@ -1,14 +1,15 @@
-import type { ResearchCellOutputBlockV1, ResearchEmbeddedParametersV1 } from '@jixie/shared';
 import { PythonSession } from '#infra/runtime/python/session.js';
+import type { ResearchCellOutputBlockV1, ResearchEmbeddedParametersV1 } from '@jixie/shared';
+import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
+import { researchPayloadHash } from '../evidence/fingerprints.js';
 import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import { dispatchResearchRequest, type ResearchRequestObserver } from '../sdk/dispatch.js';
 import {
   researchAnalysisFrameSchema,
   researchExecutionFrameSchema,
   researchResetFrameSchema,
   researchStartupFrameSchema,
 } from '../sdk/protocol.js';
-import { dispatchResearchRequest, type ResearchRequestObserver } from '../sdk/dispatch.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
 
 export function closeResearchDocumentRuntime(documentId: string): void {
   researchRuntimeManager.close(documentId);
@@ -373,26 +374,6 @@ class ResearchRuntimeManager {
     } finally {
       signal?.removeEventListener('abort', abort);
     }
-  }
-}
-
-export class ResearchPythonExecutionError extends Error {
-  public constructor(
-    message: string,
-    public readonly outputs: ResearchCellOutputBlockV1[],
-    public readonly definitions: string[],
-    public readonly references: string[],
-    public readonly environmentFingerprint: string,
-  ) {
-    super(message);
-    this.name = 'ResearchPythonExecutionError';
-  }
-}
-
-export class ResearchPythonInterruptionError extends Error {
-  public constructor(public readonly environmentFingerprint: string) {
-    super('Research cell execution was interrupted');
-    this.name = 'ResearchPythonInterruptionError';
   }
 }
 

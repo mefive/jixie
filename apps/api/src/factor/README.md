@@ -1,5 +1,7 @@
 # Factor 后端阅读地图
 
+业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
+
 Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观察。Research 可交接草稿或读取结果，Strategy 消费可用因子，通用 Agent 执行对话；因子的所有权、状态和准入由本模块决定。
 
 ## 按业务问题进入

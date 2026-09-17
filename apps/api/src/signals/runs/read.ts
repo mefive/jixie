@@ -1,3 +1,5 @@
+import { prisma } from '#infra/database/prisma.js';
+import { getJob } from '#infra/jobs/records.js';
 import type {
   FactorInputSummary,
   ModelPositionSnapshot,
@@ -5,10 +7,9 @@ import type {
   SignalRun,
   StrategyDeployment,
 } from '@jixie/shared';
-import { getJob } from '#infra/jobs/records.js';
-import { prisma } from '#infra/database/prisma.js';
 import { executionWire } from '../accounting/read.js';
 import { deploymentWire } from '../deployments/read.js';
+import { SignalsError } from '../errors.js';
 import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
 
 export async function listDeploymentLatestRuns(
@@ -38,13 +39,13 @@ export async function listSignalRuns(
   userId: string,
   deploymentId: string,
   limit: number,
-): Promise<SignalRun[] | null> {
+): Promise<SignalRun[]> {
   const deployment = await prisma.strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
     select: { id: true, strategyName: true },
   });
   if (!deployment) {
-    return null;
+    throw new SignalsError('deployment_not_found');
   }
   const rows = await prisma.signalRun.findMany({
     where: { deploymentId, userId },
@@ -58,7 +59,7 @@ export async function listSignalRuns(
   return rows.map((row) => signalRunWire(row, deployment.strategyName));
 }
 
-export async function getSignalRun(userId: string, runId: string): Promise<SignalRun | null> {
+export async function getSignalRun(userId: string, runId: string): Promise<SignalRun> {
   const row = await prisma.signalRun.findFirst({
     where: { id: runId, userId },
     include: {
@@ -67,7 +68,10 @@ export async function getSignalRun(userId: string, runId: string): Promise<Signa
       executions: { orderBy: { signalIndex: 'asc' } },
     },
   });
-  return row ? signalRunWire(row, row.deployment.strategyName) : null;
+  if (!row) {
+    throw new SignalsError('run_not_found');
+  }
+  return signalRunWire(row, row.deployment.strategyName);
 }
 
 export async function getSignalRunJob(userId: string, jobId: string, since = 0) {
@@ -75,7 +79,14 @@ export async function getSignalRunJob(userId: string, jobId: string, since = 0) 
     where: { id: jobId, userId, kind: 'signal' },
     select: { id: true },
   });
-  return job ? getJob(userId, job.id, since) : null;
+  if (!job) {
+    throw new SignalsError('job_not_found');
+  }
+  const result = await getJob(userId, job.id, since);
+  if (!result) {
+    throw new SignalsError('job_not_found');
+  }
+  return result;
 }
 
 function signalRunWire(

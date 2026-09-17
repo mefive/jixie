@@ -1,20 +1,16 @@
-import { ulid } from 'ulid';
-import type { Prisma } from '@prisma/client';
-import { factorRuntimeVersion, type Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { BUILTIN_KEYS, BUILTIN_USER_ID } from './builtin-factors.js';
+import { UserCodeError } from '#infra/errors.js';
+import { factorRuntimeVersion } from '@jixie/shared';
+import type { Prisma } from '@prisma/client';
+import { ulid } from 'ulid';
+import { FactorError } from '../errors.js';
 import { validateFactorDefinition } from '../runtime/validate-definition.js';
-import { factorLanguage } from './views.js';
 import type { CreateFactorDraftInput, UpdateFactorDraftInput } from '../schema.js';
+import { BUILTIN_KEYS, BUILTIN_USER_ID } from './builtin-factors.js';
 import { nextCopyKey } from './copy-key.js';
-import { t } from '#i18n/index.js';
-import { failFactorOperation } from '../errors.js';
+import { factorLanguage } from './views.js';
 
-export async function createFactorDraft(
-  userId: string,
-  input: CreateFactorDraftInput,
-  locale: Locale,
-) {
+export async function createFactorDraft(userId: string, input: CreateFactorDraftInput) {
   const { key, name, code, analysisKind, language, messages } = input;
 
   if (
@@ -24,16 +20,16 @@ export async function createFactorDraft(
       select: { id: true },
     }))
   ) {
-    return failFactorOperation('invalid', t(locale, 'factorKeyUnavailable'));
+    throw new FactorError('factor_key_unavailable');
   }
 
   try {
     await validateFactorDefinition(code, analysisKind, language);
   } catch (e) {
-    return failFactorOperation(
-      'invalid',
-      e instanceof Error ? e.message : t(locale, 'factorCodeInvalid'),
-    );
+    if (!(e instanceof UserCodeError)) {
+      throw e;
+    }
+    throw new FactorError('code_invalid', { params: { diagnostic: e.message }, cause: e });
   }
 
   const id = ulid();
@@ -69,22 +65,17 @@ export async function createFactorDraft(
         }
       ).code === 'P2002'
     ) {
-      return failFactorOperation('invalid', t(locale, 'factorKeyUnavailable'));
+      throw new FactorError('factor_key_unavailable');
     }
     throw error;
   }
 }
 
-export async function updateFactorDraft(
-  userId: string,
-  id: string,
-  input: UpdateFactorDraftInput,
-  locale: Locale,
-) {
+export async function updateFactorDraft(userId: string, id: string, input: UpdateFactorDraftInput) {
   const { code, name, messages } = input;
 
   if (BUILTIN_KEYS.has(id)) {
-    return failFactorOperation('invalid', t(locale, 'presetFactorReadonlyEdit'));
+    throw new FactorError('preset_factor_readonly_edit');
   }
 
   const existing = await prisma.factor.findFirst({
@@ -99,17 +90,17 @@ export async function updateFactorDraft(
   });
 
   if (!existing) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   if (existing.status !== 'draft') {
-    return failFactorOperation('invalid', t(locale, 'publishedFactorReadonly'));
+    throw new FactorError('published_factor_readonly');
   }
 
   if (code !== undefined && code !== existing.code) {
     const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
     if (pinned > 0) {
-      return failFactorOperation('invalid', t(locale, 'pinnedFactorReadonlyEdit'));
+      throw new FactorError('pinned_factor_readonly_edit');
     }
   }
 
@@ -123,10 +114,13 @@ export async function updateFactorDraft(
         factorLanguage(existing.language),
       );
     } catch (error) {
-      return failFactorOperation(
-        'invalid',
-        error instanceof Error ? error.message : t(locale, 'factorCodeInvalid'),
-      );
+      if (!(error instanceof UserCodeError)) {
+        throw error;
+      }
+      throw new FactorError('code_invalid', {
+        params: { diagnostic: error.message },
+        cause: error,
+      });
     }
   }
 
@@ -153,25 +147,25 @@ export async function updateFactorDraft(
   return row;
 }
 
-export async function deleteFactorDraft(userId: string, id: string, locale: Locale) {
+export async function deleteFactorDraft(userId: string, id: string) {
   if (BUILTIN_KEYS.has(id)) {
-    return failFactorOperation('invalid', t(locale, 'presetFactorReadonlyDelete'));
+    throw new FactorError('preset_factor_readonly_delete');
   }
 
   const factor = await prisma.factor.findFirst({ where: { id, userId }, select: { status: true } });
 
   if (!factor) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   if (factor.status !== 'draft') {
-    return failFactorOperation('invalid', t(locale, 'publishedFactorCannotDelete'));
+    throw new FactorError('published_factor_cannot_delete');
   }
 
   const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
 
   if (pinned > 0) {
-    return failFactorOperation('invalid', t(locale, 'pinnedFactorReadonlyDelete'));
+    throw new FactorError('pinned_factor_readonly_delete');
   }
 
   await prisma.factor.deleteMany({ where: { id, userId } });
@@ -179,7 +173,7 @@ export async function deleteFactorDraft(userId: string, id: string, locale: Loca
   return { ok: true };
 }
 
-export async function copyFactorDraft(userId: string, factorId: string, locale: Locale) {
+export async function copyFactorDraft(userId: string, factorId: string) {
   const source = await prisma.factor.findFirst({
     where: {
       id: factorId,
@@ -203,7 +197,7 @@ export async function copyFactorDraft(userId: string, factorId: string, locale: 
   });
 
   if (!source) {
-    return failFactorOperation('missing', t(locale, 'factorNotFound'));
+    throw new FactorError('factor_not_found');
   }
 
   const { key, version } = await nextCopyKey(prisma, userId, source.key);

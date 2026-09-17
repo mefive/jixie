@@ -1,5 +1,7 @@
 # Research 后端阅读地图
 
+业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
+
 Research 提供带 Markdown / Python Cell 的研究文档、可回看的执行证据和 Agent 辅助编辑，也承载 Factor / Strategy 宿主内的嵌入分析。市场同步归 Market，交接后的草稿写入归目标模块，通用对话循环归 Agent。
 
 ## 按业务问题进入
@@ -32,7 +34,7 @@ embedded Job 独立管理版本、取消、预算和输入留存，复用 runtim
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 导出 `researchRoute`，组合 document / execution / evidence / proposal / agent / curator / data / language / embedded 九组，挂载 `/api/app/research`。[schema.ts](schema.ts) 是 API 输入校验，[routes/errors.ts](routes/errors.ts) 映射共用执行／审阅错误；具体业务函数和直接调用方见各子文档。路由迁移范围见 [设计记录](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)，嵌入入口见其能力说明。
+[routes/index.ts](routes/index.ts) 导出 `researchRoute`，组合 document / execution / evidence / proposal / agent / curator / data / language / embedded 九组，挂载 `/api/app/research`。[schema.ts](schema.ts) 是 API 输入校验，[errors.ts](errors.ts) 定义执行／审阅业务错误和运行时技术异常，公共 HTTP 边界负责映射；具体业务函数和直接调用方见各子文档。路由迁移范围见 [设计记录](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)，嵌入入口见其能力说明。
 
 普通文档与嵌入内部文档共用部分存储和 runtime，但授权及生命周期分开；普通固化／交接不能读内部嵌入文档。修订号防止旧结果覆盖新内容，冻结快照不随编辑改变。单进程运行锁、数据库事务、Python 通信队列是不同机制，不能互相替代。
 

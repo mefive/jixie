@@ -1,7 +1,8 @@
-import type { ResearchCuratorFindingUpdateInput } from '../schema.js';
-import type { PrismaClient } from '@prisma/client';
-import type { ResearchCuratorDispositionV1, ResearchCuratorFindingV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import type { ResearchCuratorDispositionV1, ResearchCuratorFindingV1 } from '@jixie/shared';
+import type { PrismaClient } from '@prisma/client';
+import { ResearchError } from '../errors.js';
+import type { ResearchCuratorFindingUpdateInput } from '../schema.js';
 import { curatorFindingRecord } from './views.js';
 
 export async function setResearchCuratorFindingDisposition(
@@ -10,13 +11,16 @@ export async function setResearchCuratorFindingDisposition(
   disposition: ResearchCuratorDispositionV1,
   note: string | undefined,
   database: PrismaClient = prisma,
-): Promise<ResearchCuratorFindingV1 | null> {
+): Promise<ResearchCuratorFindingV1> {
   const existing = await database.researchCuratorFinding.findFirst({
     where: { id: findingId, userId },
     select: { id: true },
   });
-  if (!existing || disposition === 'pending') {
-    return null;
+  if (!existing) {
+    throw new ResearchError('curator_finding_not_found');
+  }
+  if (disposition === 'pending') {
+    throw new ResearchError('curator_disposition_invalid');
   }
   const finding = await database.researchCuratorFinding.update({
     where: { id: findingId },
@@ -34,13 +38,13 @@ export async function updateResearchCuratorFindingFeedback(
   findingId: string,
   input: ResearchCuratorFindingUpdateInput,
   database: PrismaClient = prisma,
-): Promise<ResearchCuratorFindingV1 | null> {
+): Promise<ResearchCuratorFindingV1> {
   const existing = await database.researchCuratorFinding.findFirst({
     where: { id: findingId, userId },
     select: { id: true },
   });
   if (!existing) {
-    return null;
+    throw new ResearchError('curator_finding_not_found');
   }
   const now = new Date();
   const finding = await database.researchCuratorFinding.update({

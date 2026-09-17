@@ -1,14 +1,15 @@
-import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { startResearchDocumentRun, finishResearchDocumentRun } from './run-state.js';
+import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
+import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
 import {
   loadResearchExecutionSeed,
   researchExecutionSourceCellSnapshot,
 } from '../documents/execution-source.js';
-import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
+import { getResearchDocument } from '../documents/read.js';
+import { ResearchError } from '../errors.js';
 import { createResearchExecution, finishResearchExecution } from '../evidence/execution-records.js';
+import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 import { researchRuntimeManager } from '../runtime/python-session.js';
 import {
   type ResearchCellExecutionOutcome,
@@ -16,19 +17,19 @@ import {
   executeResearchCellById,
 } from './run-cell.js';
 import { researchDocumentRunResult } from './run-result.js';
-import { getResearchDocument } from '../documents/read.js';
+import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
 export async function runResearchDocument(
   userId: string,
   documentId: string,
   clean: boolean,
-): Promise<ResearchDocumentRunResultV1 | null> {
+): Promise<ResearchDocumentRunResultV1> {
   const owner = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!owner) {
-    return null;
+    throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(documentId);
   const control = startResearchDocumentRun(documentId);
@@ -38,7 +39,7 @@ export async function runResearchDocument(
       await analyzeAndPersist(documentId);
       const frozen = await loadResearchExecutionSeed(userId, documentId);
       if (!frozen) {
-        return null;
+        throw new ResearchError('document_not_found');
       }
       assertResearchCellsRunnable(frozen.cells);
       const researchExecution = await createResearchExecution({
@@ -92,9 +93,7 @@ export async function runResearchDocument(
     }
 
     const document = await getResearchDocument(userId, documentId);
-    if (!document) {
-      return null;
-    }
+
     assertResearchCellsRunnable(document.cells);
     const executedCellIds: string[] = [];
     for (const cell of document.cells) {
@@ -103,7 +102,7 @@ export async function runResearchDocument(
       }
       const outcome = await executeResearchCellById(userId, cell.id, control);
       if (!outcome) {
-        return null;
+        throw new ResearchError('document_not_found');
       }
       if (outcome !== 'interrupted') {
         executedCellIds.push(cell.id);

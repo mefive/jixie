@@ -1,16 +1,15 @@
-import type { StrategyAgentInput } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
+import { strategyProfile } from '#agent/profiles/strategy.js';
+import * as turnBus from '#agent/turns/bus.js';
+import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
+import { prisma } from '#infra/database/prisma.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
-import { prisma } from '#infra/database/prisma.js';
-import { ulid } from 'ulid';
-import { strategyProfile } from '#agent/profiles/strategy.js';
-import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
-import * as turnBus from '#agent/turns/bus.js';
-import { syncedIndexContext, publishedFactorContext } from './context.js';
-import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { failStrategyOperation } from '../errors.js';
+import { ulid } from 'ulid';
+import { StrategyError } from '../errors.js';
+import type { StrategyAgentInput } from '../schema.js';
+import { publishedFactorContext, syncedIndexContext } from './context.js';
 
 export async function startStrategyAgentTurn(
   userId: string,
@@ -21,13 +20,13 @@ export async function startStrategyAgentTurn(
   const strategy = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
 
   if (!strategy) {
-    return failStrategyOperation('missing', t(locale, 'strategyNotFound'));
+    throw new StrategyError('strategy_not_found');
   }
 
   const entity = { kind: 'strategy' as const, id };
 
   if (turnBus.findRunning(entityKey(entity), userId)) {
-    return failStrategyOperation('invalid', t(locale, 'strategyTurnInProgress'));
+    throw new StrategyError('strategy_turn_in_progress');
   }
 
   const [idx, factors] = await Promise.all([syncedIndexContext(), publishedFactorContext(userId)]);

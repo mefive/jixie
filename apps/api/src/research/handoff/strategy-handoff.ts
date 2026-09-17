@@ -1,14 +1,15 @@
-import { z } from 'zod';
+import { agentTurn, type AgentProfile } from '#agent/core.js';
+import { strategyProfile } from '#agent/profiles/strategy.js';
+import type { AgentLlm } from '#infra/llm/agent-llm.js';
+import { chatJson, chatTools, type LlmCall } from '#infra/llm/deepseek.js';
 import {
   textMessage,
   type ChatMessage,
   type Locale,
   type ResearchExecutionV1,
 } from '@jixie/shared';
-import { agentTurn, type AgentProfile } from '#agent/core.js';
-import { strategyProfile } from '#agent/profiles/strategy.js';
-import { chatJson, chatTools, type LlmCall } from '#infra/llm/deepseek.js';
-import type { AgentLlm } from '#infra/llm/agent-llm.js';
+import { z } from 'zod';
+import { ResearchError } from '../errors.js';
 import { researchHandoffContext } from './context.js';
 
 const classificationSchema = z.discriminatedUnion('decision', [
@@ -38,8 +39,6 @@ export interface GeneratedResearchStrategyDraft {
   messages: ChatMessage[];
 }
 
-export class ResearchStrategyHandoffRejectedError extends Error {}
-
 export async function generateResearchStrategyDraft(
   execution: ResearchExecutionV1,
   locale: Locale,
@@ -56,7 +55,9 @@ export async function generateResearchStrategyDraft(
     dependencies.classifier ?? chatJson,
   );
   if (classification.decision !== 'direct_strategy') {
-    throw new ResearchStrategyHandoffRejectedError(classification.reason);
+    throw new ResearchError('strategy_handoff_rejected', {
+      params: { reason: classification.reason },
+    });
   }
 
   const result = await agentTurn(
@@ -68,9 +69,14 @@ export async function generateResearchStrategyDraft(
     { maxRepairs: 2, locale },
   );
   if (!result.changed) {
-    throw new ResearchStrategyHandoffRejectedError(
-      result.error || result.reply || 'The research could not be expressed as a Python strategy.',
-    );
+    throw new ResearchError('strategy_handoff_rejected', {
+      params: {
+        reason:
+          result.error ||
+          result.reply ||
+          'The research could not be expressed as a Python strategy.',
+      },
+    });
   }
 
   const handoffRequest =
@@ -122,11 +128,14 @@ Use ${locale === 'en' ? 'English' : 'Chinese'} for strategyName, summary, unreso
   try {
     return classificationSchema.parse(JSON.parse(raw));
   } catch {
-    throw new ResearchStrategyHandoffRejectedError(
-      locale === 'en'
-        ? 'The research could not be classified into a supported Python Strategy draft. Clarify the trading and portfolio rules, then try again.'
-        : '无法将这份研究识别为受支持的 Python Strategy 草稿。请明确交易与组合规则后重试。',
-    );
+    throw new ResearchError('strategy_handoff_rejected', {
+      params: {
+        reason:
+          locale === 'en'
+            ? 'The research could not be classified into a supported Python Strategy draft. Clarify the trading and portfolio rules, then try again.'
+            : '无法将这份研究识别为受支持的 Python Strategy 草稿。请明确交易与组合规则后重试。',
+      },
+    });
   }
 }
 

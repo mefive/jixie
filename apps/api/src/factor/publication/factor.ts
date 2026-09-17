@@ -1,18 +1,18 @@
-import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { factorResearchSpecV1Schema } from '../schema.js';
-import {
-  compilePanelFactor,
-  compileTimeSeriesFactor,
-} from '../runtime/typescript/compile-asset-factor.js';
+import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
-import { factorAnalysisSourceHash } from '../sources/snapshot.js';
+import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
+import { FactorError } from '../errors.js';
 import {
   compilePythonPanelFactor,
   compilePythonTimeSeriesFactor,
 } from '../runtime/python/asset-factor.js';
-import { FactorPublicationError } from '../errors.js';
-import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
+import {
+  compilePanelFactor,
+  compileTimeSeriesFactor,
+} from '../runtime/typescript/compile-asset-factor.js';
+import { factorResearchSpecV1Schema } from '../schema.js';
+import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 
 export async function publishFactor(
   userId: string,
@@ -33,10 +33,10 @@ export async function publishFactor(
     },
   });
   if (!factor) {
-    throw new FactorPublicationError('not_found');
+    throw new FactorError('publication_not_found');
   }
   if (factor.status !== 'draft') {
-    throw new FactorPublicationError('not_draft');
+    throw new FactorError('publication_not_draft');
   }
 
   const report = await prisma.factorReport.findFirst({
@@ -62,10 +62,10 @@ export async function publishFactor(
     factorLanguage(report.language) !== factorLanguage(factor.language) ||
     report.runtimeVersion !== factor.runtimeVersion
   ) {
-    throw new FactorPublicationError('report_invalid');
+    throw new FactorError('publication_report_invalid');
   }
   if (factor.analysisKind === 'macro_regime' && !macroReportIsPointInTime(report)) {
-    throw new FactorPublicationError('report_invalid');
+    throw new FactorError('publication_report_invalid');
   }
   if (
     (factor.analysisKind === 'time_series' || factor.analysisKind === 'panel') &&
@@ -75,13 +75,13 @@ export async function publishFactor(
       factorLanguage(factor.language),
     ))
   ) {
-    throw new FactorPublicationError('report_invalid');
+    throw new FactorError('publication_report_invalid');
   }
 
   const language = factorLanguage(factor.language);
   const currentHash = factorAnalysisSourceHash(factor.code, language);
   if (report.factorCodeSnapshot !== factor.code || report.factorCodeHash !== currentHash) {
-    throw new FactorPublicationError('report_outdated');
+    throw new FactorError('publication_report_outdated');
   }
 
   const publishedAt = new Date();
@@ -96,7 +96,7 @@ export async function publishFactor(
     },
   });
   if (updated.count !== 1) {
-    throw new FactorPublicationError('not_draft');
+    throw new FactorError('publication_not_draft');
   }
 
   return {
@@ -163,17 +163,14 @@ function macroReportIsPointInTime(report: {
   }
 }
 
-export async function archiveFactor(
-  userId: string,
-  factorId: string,
-): Promise<PublishedFactor | null> {
+export async function archiveFactor(userId: string, factorId: string): Promise<PublishedFactor> {
   const archivedAt = new Date();
   const updated = await prisma.factor.updateMany({
     where: { id: factorId, userId, status: 'published' },
     data: { status: 'archived', visibility: 'private', archivedAt },
   });
   if (updated.count === 0) {
-    return null;
+    throw new FactorError('factor_not_found');
   }
   const factor = await prisma.factor.findUniqueOrThrow({ where: { id: factorId } });
   return publishedFactorResource(factor);
@@ -192,7 +189,7 @@ function publishedFactorResource(row: {
   archivedAt: Date | null;
 }): PublishedFactor {
   if (!row.codeHash || !row.publishedAt) {
-    throw new FactorPublicationError('not_draft');
+    throw new FactorError('publication_not_draft');
   }
   return {
     id: row.id,

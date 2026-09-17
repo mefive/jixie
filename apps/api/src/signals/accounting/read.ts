@@ -1,21 +1,22 @@
+import { prisma } from '#infra/database/prisma.js';
 import type {
   SignalExecution,
   StrategyAccountPoint,
   StrategyExecutionOverview,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { SignalsError } from '../errors.js';
 import type { AccountKind } from './replay.js';
 
 export async function getStrategyExecutionOverview(
   userId: string,
   deploymentId: string,
-): Promise<StrategyExecutionOverview | null> {
+): Promise<StrategyExecutionOverview> {
   const deployment = await prisma.strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
     select: { id: true },
   });
   if (!deployment) {
-    return null;
+    throw new SignalsError('deployment_not_found');
   }
 
   const [runs, snapshots, executions] = await Promise.all([

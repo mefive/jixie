@@ -1,12 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
+import { ResearchError } from '../errors.js';
 import { researchCellDependencyIssues } from './cell-values.js';
-
-export class ResearchCellDependencyBlockedError extends Error {
-  public constructor(readonly cellIds: string[]) {
-    super('Research Cells have unresolved deleted dependencies');
-    this.name = 'ResearchCellDependencyBlockedError';
-  }
-}
 
 export async function assertResearchCellIdsRunnable(
   documentId: string,
@@ -26,6 +20,6 @@ export function assertResearchCellsRunnable(
     .filter((cell) => researchCellDependencyIssues(cell.dependencyIssues).length > 0)
     .map((cell) => cell.id);
   if (blockedCellIds.length > 0) {
-    throw new ResearchCellDependencyBlockedError(blockedCellIds);
+    throw new ResearchError('dependency_blocked', { details: { cellIds: blockedCellIds } });
   }
 }

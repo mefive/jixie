@@ -1,13 +1,14 @@
+import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ getMaintenanceStatus: vi.fn(), protectedHandler: vi.fn() }));
 vi.mock('./state.js', () => ({ getMaintenanceStatus: mocks.getMaintenanceStatus }));
 
-import { maintenanceRoute } from './routes.js';
 import { maintenanceGate } from './middleware.js';
+import { maintenanceRoute } from './routes.js';
 
-const app = new Hono();
+const app = new Hono().onError(handleApiError);
 app.route('/api/maintenance', maintenanceRoute);
 app.use('/api/app/*', maintenanceGate);
 app.get('/api/app/resource', (context) => {

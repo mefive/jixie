@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import { TushareError } from '../../errors.js';
 import {
   ASSET_ALLOCATION_PROBES,
   probeAssetAllocationData,
   type AssetAllocationProbeDefinition,
 } from './asset-allocation-probe.js';
-import { TushareError } from './client.js';
 
 const definitions: AssetAllocationProbeDefinition[] = [
   { domain: 'rates', apiName: 'available', params: (date) => ({ date }) },
