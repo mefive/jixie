@@ -10,7 +10,7 @@ The top navigation contains these entries:
 | --- | --- |
 | Market | View industry, size, board, and style weather; the product root opens here after sign-in |
 | Factor Weather | Monitor monthly return, IC, coverage, and turnover for pinned factors |
-| Backtest Lab | Write or generate a strategy, set backtest parameters, run it, and inspect the result |
+| Strategy | Write or generate a strategy, set backtest parameters, run it, and inspect the result |
 | Research | Use platform data, charts, and the Agent in Markdown/Python documents, then retain immutable snapshots |
 | Factors | Review grouped factor performance, returns, and saved research reports |
 | Valuation | Review index valuation levels and their historical positions |
@@ -47,7 +47,7 @@ The signed-in email address appears in the upper-right corner. To sign out:
 2. Select “Log out” to the right of the email address.
 3. You will return to the sign-in page.
 
-> If you have unsaved strategy changes in Backtest Lab, save them before leaving the page.
+> If you have unsaved strategy changes in Strategy, save them before leaving the page.
 
 ## Use the Help Center
 

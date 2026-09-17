@@ -267,7 +267,7 @@ export const enHelp: typeof zhHelp = {
     research: 'Natural-language research',
     publicLibrary: 'Public Library',
     stockDetail: 'Object detail',
-    backtesting: 'Backtest workspace',
+    backtesting: 'Strategy workbench',
     factorResearch: 'Factor research',
     factorWeather: 'Factor weather',
     marketValuation: 'Market and valuation',

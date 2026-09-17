@@ -1,10 +1,10 @@
-# Understand the Backtest workspace
+# Understand the Strategy workbench
 
-The Backtest workspace is where you write a strategy, choose a historical period, run the backtest, and inspect its result. Learn the page areas before changing a strategy.
+The Strategy workbench is where you write a strategy, choose a historical period, run the backtest, and inspect its result. Learn the page areas before changing a strategy.
 
 ## Open the workspace
 
-1. Sign in and select **Backtest** in the top navigation.
+1. Sign in and select **Strategy** in the top navigation.
 2. Select **New** to create a strategy.
 3. Describe the rules in the input, or choose to write the code directly.
 4. Reopen a saved strategy from **History**.
@@ -20,7 +20,7 @@ The numbered areas are:
 3. **Results**: edit run settings, start a backtest, and inspect metrics, charts, and trades.
 4. **Logs**: system progress and any `console` output produced by the strategy.
 
-![Strategy, code, results, and logs in the Backtest workspace](/docs/images/help/zh/backtesting/workspace-01.png)
+![Strategy, code, results, and logs in the Strategy workbench](/docs/images/help/zh/backtesting/workspace-01.png)
 
 Drag the dividers to resize the areas. On a narrow screen, collapse an area you do not currently need.
 

@@ -6,13 +6,13 @@ A stock represents part ownership of a company. An ETF is an exchange-traded bas
 
 Stocks have tradable codes, prices, and volume, and may have company metrics such as PE, dividend yield, and market capitalization.
 
-Screener primarily filters stocks when you use company metrics. Backtest Lab can buy and sell stocks.
+Screener primarily filters stocks when you use company metrics. Strategy can buy and sell stocks.
 
 Common misunderstanding: a low share price does not mean a stock has a low valuation.
 
 ## ETFs
 
-An ETF usually tracks a basket of stocks, bonds, commodities, or an index. It can be queried in Screener and traded in Backtest Lab.
+An ETF usually tracks a basket of stocks, bonds, commodities, or an index. It can be queried in Screener and traded in Strategy.
 
 Stock valuation fields do not always apply to ETFs. An ETF provides diversification across its holdings, but still has market, liquidity, and tracking risk.
 

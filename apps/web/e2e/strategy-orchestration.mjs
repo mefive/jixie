@@ -60,8 +60,8 @@ try {
   }
   strategyId = seed.body.id;
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: '运行回测' }).waitFor({ timeout: 15_000 });
 
   const writeRequests = [];
@@ -101,7 +101,7 @@ try {
     fail(`concurrent backtest was not rejected: ${JSON.stringify(duplicate)}`);
   }
 
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 120_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 120_000 });
   const saved = await page.evaluate(
     async (id) => await (await fetch(`/api/app/strategies/${id}`)).json(),
     strategyId,
@@ -127,13 +127,13 @@ try {
   if (resumedJob.status() !== 200 || (await resumedJob.json()).status !== 'done') {
     fail('refresh did not reconnect to the backtest job by jobId');
   }
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 30_000 });
 
   if (writeRequests.includes('/api/app/strategies/name-suggestions')) {
-    fail(`Lab called the deprecated naming route: ${JSON.stringify(writeRequests)}`);
+    fail(`Strategy called the deprecated naming route: ${JSON.stringify(writeRequests)}`);
   }
   if (writeRequests.includes(`/api/app/strategies/${strategyId}`)) {
-    fail(`Lab issued a pre-run strategy update: ${JSON.stringify(writeRequests)}`);
+    fail(`Strategy issued a pre-run strategy update: ${JSON.stringify(writeRequests)}`);
   }
   if (pageErrors.length > 0) {
     fail(`page errors: ${JSON.stringify(pageErrors)}`);

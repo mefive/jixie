@@ -65,9 +65,9 @@ The summary only highlights states found in the current cards. It is not a buy o
 
 ## Common questions
 
-### Why does the product no longer open Backtest Lab by default?
+### Why does the product no longer open Strategy by default?
 
-Market is now the product home page. Backtest Lab remains available in the top navigation.
+Market is now the product home page. Strategy remains available in the top navigation.
 
 ### Why does a card have no valuation?
 

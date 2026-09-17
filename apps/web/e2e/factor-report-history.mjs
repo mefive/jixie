@@ -323,7 +323,7 @@ try {
   if (!new URL(guardPage.url()).searchParams.has('factor')) {
     throw new Error('canceling the discard guard still replaced the current factor');
   }
-  await guardPage.locator('a[href="/lab"]').click();
+  await guardPage.locator('a[href="/strategy"]').click();
   await guardPage.locator('.ant-modal-confirm').waitFor();
   await guardPage.locator('.ant-modal-confirm-btns button').first().click();
   if (new URL(guardPage.url()).pathname !== '/factors') {

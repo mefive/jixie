@@ -1,5 +1,5 @@
-// Backtest workbench (/lab): the code-first IDE, trade detail, strategy cards. zh is the source-of-truth shape.
-export const zhLab = {
+// Strategy workbench (/strategy): the code-first IDE, trade detail, strategy cards. zh is the source-of-truth shape.
+export const zhStrategy = {
   // New-strategy hero + prompt block
   factorStarterPrompt:
     '请使用已发布因子“{{name}}”（唯一 key：{{key}}）设计一套策略。先说明选股范围、调仓周期、组合构建和风险控制，再生成可回测代码；在 factors 和 ctx.factor 中都直接使用该 key。',

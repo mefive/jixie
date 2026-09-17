@@ -17,14 +17,14 @@ let strategyId = '';
 try {
   await login();
   await cleanupDedicatedAccount();
-  await page.goto(`${BASE}/lab?new=1`, { waitUntil: 'domcontentloaded' });
-  const heroInput = page.locator('.jx-lab-heroInput');
+  await page.goto(`${BASE}/strategy?new=1`, { waitUntil: 'domcontentloaded' });
+  const heroInput = page.locator('.jx-strategy-heroInput');
   await heroInput.waitFor({ timeout: 20_000 });
   await heroInput.fill(INITIAL_PROMPT);
   await annotatedScreenshot(page, `${OUTPUT}strategy-description-01.png`, [
     { locator: page.getByRole('heading', { name: '新建策略' }), number: 1 },
-    { locator: page.locator('.jx-lab-heroBox'), number: 2 },
-    { locator: page.locator('.jx-lab-examples'), number: 3 },
+    { locator: page.locator('.jx-strategy-heroBox'), number: 2 },
+    { locator: page.locator('.jx-strategy-examples'), number: 3 },
     { locator: page.getByText('或直接写代码', { exact: false }), number: 4 },
   ]);
 
@@ -40,35 +40,35 @@ try {
   await waitForEditorText('510300');
   await assertNoAgentError();
   await annotatedScreenshot(page, `${OUTPUT}strategy-generated-01.png`, [
-    { locator: page.locator('.jx-lab-agentName'), number: 1 },
-    { locator: page.locator('.jx-lab-chatLog'), number: 2 },
-    { locator: page.locator('.jx-lab-code'), number: 3 },
+    { locator: page.locator('.jx-strategy-agentName'), number: 1 },
+    { locator: page.locator('.jx-strategy-chatLog'), number: 2 },
+    { locator: page.locator('.jx-strategy-code'), number: 3 },
     { locator: page.getByRole('button', { name: '运行回测' }), number: 4 },
   ]);
 
   const completedBefore = await completedAssistantTurns().count();
-  const chatInput = page.locator('.jx-lab-chatInput textarea');
+  const chatInput = page.locator('.jx-strategy-chatInput textarea');
   await chatInput.fill(REVISION_PROMPT);
   await chatInput.press('Enter');
   await waitForCompletedAssistantTurn(completedBefore + 1);
   await waitForEditorText('200');
   await assertNoAgentError();
   await annotatedScreenshot(page, `${OUTPUT}strategy-revised-01.png`, [
-    { locator: page.locator('.jx-lab-chatLog'), number: 1 },
+    { locator: page.locator('.jx-strategy-chatLog'), number: 1 },
     { locator: completedAssistantTurns().last(), number: 2 },
-    { locator: page.locator('.jx-lab-code'), number: 3 },
+    { locator: page.locator('.jx-strategy-code'), number: 3 },
     { locator: page.getByRole('button', { name: '运行回测' }), number: 4 },
   ]);
 
   await page.getByRole('button', { name: '运行回测' }).click();
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 120_000 });
-  const tradesTab = page.locator('.jx-lab-resultTabs').getByRole('tab', { name: /交易明细/ });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 120_000 });
+  const tradesTab = page.locator('.jx-strategy-resultTabs').getByRole('tab', { name: /交易明细/ });
   await tradesTab.waitFor({ timeout: 15_000 });
   await annotatedScreenshot(page, `${OUTPUT}strategy-revised-result-01.png`, [
-    { locator: page.locator('.jx-lab-runSummary'), number: 1 },
-    { locator: page.locator('.jx-lab-metrics'), number: 2 },
+    { locator: page.locator('.jx-strategy-runSummary'), number: 1 },
+    { locator: page.locator('.jx-strategy-metrics'), number: 2 },
     { locator: tradesTab, number: 3 },
-    { locator: page.locator('.jx-lab-dock'), number: 4 },
+    { locator: page.locator('.jx-strategy-dock'), number: 4 },
   ]);
   log('real strategy generation, revision, and backtest completed');
 } finally {
@@ -92,29 +92,31 @@ async function login() {
   }
   await page.evaluate(() => {
     localStorage.setItem('jx-locale', 'zh');
-    localStorage.removeItem('jx-lab-recents');
+    localStorage.removeItem('jx-strategy-recents');
   });
 }
 
 function completedAssistantTurns() {
-  return page.locator('.jx-lab-bubble--assistant:not(.jx-lab-bubble--thinking)');
+  return page.locator('.jx-strategy-bubble--assistant:not(.jx-strategy-bubble--thinking)');
 }
 
 async function waitForCompletedAssistantTurn(count) {
   await page.waitForFunction(
     (expected) =>
-      document.querySelectorAll('.jx-lab-bubble--assistant:not(.jx-lab-bubble--thinking)').length >=
-        expected && !document.querySelector('.jx-lab-bubble--thinking'),
+      document.querySelectorAll('.jx-strategy-bubble--assistant:not(.jx-strategy-bubble--thinking)')
+        .length >= expected && !document.querySelector('.jx-strategy-bubble--thinking'),
     count,
     { timeout: 180_000 },
   );
 }
 
 async function waitForEditorText(text) {
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.waitForFunction(
     (expected) =>
-      (document.querySelector('.jx-lab-code .monaco-editor')?.textContent ?? '').includes(expected),
+      (document.querySelector('.jx-strategy-code .monaco-editor')?.textContent ?? '').includes(
+        expected,
+      ),
     text,
     { timeout: 30_000 },
   );

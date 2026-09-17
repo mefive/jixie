@@ -50,7 +50,7 @@ async function login() {
   }
   await page.evaluate(() => {
     localStorage.setItem('jx-locale', 'zh');
-    localStorage.removeItem('jx-lab-recents');
+    localStorage.removeItem('jx-strategy-recents');
   });
 }
 
@@ -236,27 +236,27 @@ async function captureStrategyUsageFlow(factorKey) {
   });
   strategyId = strategy.id;
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.waitForFunction(
     (key) =>
-      (document.querySelector('.jx-lab-code .monaco-editor')?.textContent ?? '').includes(key),
+      (document.querySelector('.jx-strategy-code .monaco-editor')?.textContent ?? '').includes(key),
     factorKey,
     { timeout: 20_000 },
   );
-  const factorLines = page.locator('.jx-lab-code .view-line', { hasText: factorKey });
+  const factorLines = page.locator('.jx-strategy-code .view-line', { hasText: factorKey });
   if ((await factorLines.count()) < 2) {
     throw new Error('strategy code does not show both factor declaration and factor read');
   }
   await annotatedScreenshot(page, `${OUTPUT}factor-strategy-reference-01.png`, [
-    { locator: page.locator('.jx-lab-agentName'), number: 1 },
+    { locator: page.locator('.jx-strategy-agentName'), number: 1 },
     { locator: factorLines.nth(0), number: 2 },
     { locator: factorLines.nth(1), number: 3 },
     { locator: page.getByRole('button', { name: '运行回测' }), number: 4 },
   ]);
 
   const factorLiteral = page
-    .locator('.jx-lab-code .view-line span')
+    .locator('.jx-strategy-code .view-line span')
     .filter({ hasText: factorKey })
     .first();
   await factorLiteral.hover();
@@ -269,16 +269,16 @@ async function captureStrategyUsageFlow(factorKey) {
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: '运行回测' }).click();
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 120_000 });
-  const tradesTab = page.locator('.jx-lab-resultTabs').getByRole('tab', { name: /交易明细/ });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 120_000 });
+  const tradesTab = page.locator('.jx-strategy-resultTabs').getByRole('tab', { name: /交易明细/ });
   await tradesTab.waitFor({ timeout: 20_000 });
-  await page.locator('.jx-lab-result canvas').first().waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-result canvas').first().waitFor({ timeout: 30_000 });
   await page.waitForTimeout(500);
   await annotatedScreenshot(page, `${OUTPUT}factor-strategy-result-01.png`, [
-    { locator: page.locator('.jx-lab-runSummary'), number: 1 },
-    { locator: page.locator('.jx-lab-metrics'), number: 2 },
+    { locator: page.locator('.jx-strategy-runSummary'), number: 1 },
+    { locator: page.locator('.jx-strategy-metrics'), number: 2 },
     { locator: tradesTab, number: 3 },
-    { locator: page.locator('.jx-lab-result canvas').first(), number: 4 },
+    { locator: page.locator('.jx-strategy-result canvas').first(), number: 4 },
   ]);
 }
 

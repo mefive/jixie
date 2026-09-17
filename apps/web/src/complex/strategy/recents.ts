@@ -1,15 +1,29 @@
 // Recently-opened strategies, most-recent-first, as an ordered list of strategy ids in localStorage.
-// The lab hero renders these as cards (cross-referenced against the saved-strategy list for name +
-// snapshot), and entering /lab with no ?id auto-opens the top one. Only ids are stored — the card data
+// The strategy hero renders these as cards (cross-referenced against the saved-strategy list for name +
+// snapshot), and entering /strategy with no ?id auto-opens the top one. Only ids are stored — the card data
 // comes from the server list, so a deleted strategy simply drops out.
 
-const KEY = 'jx-lab-recents';
+const KEY = 'jx-strategy-recents';
+const LEGACY_KEY = 'jx-lab-recents';
 const CAP = 12; // keep a few more than we show (6), so deletes/misses still leave enough
 
 export function readRecents(): string[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-    return Array.isArray(raw) ? raw.filter((id): id is string => typeof id === 'string') : [];
+    const current = localStorage.getItem(KEY);
+    const legacy = current === null ? localStorage.getItem(LEGACY_KEY) : null;
+    const raw = JSON.parse(current ?? legacy ?? '[]');
+    const recents = Array.isArray(raw)
+      ? raw.filter((id): id is string => typeof id === 'string')
+      : [];
+    if (legacy !== null) {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(recents));
+        localStorage.removeItem(LEGACY_KEY);
+      } catch {
+        // Keep legacy visits readable when storage writes are unavailable.
+      }
+    }
+    return recents;
   } catch {
     return [];
   }

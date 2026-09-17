@@ -93,15 +93,15 @@ async function createAndBacktestStrategy() {
 }
 
 async function captureDeploymentFlow() {
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 120_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 120_000 });
   await page.waitForTimeout(400);
   await annotatedScreenshot(page, `${OUTPUT}signal-deploy-ready-01.png`, [
-    { locator: page.locator('.jx-lab-agentName'), number: 1 },
-    { locator: page.locator('.jx-lab-runSummary'), number: 2 },
+    { locator: page.locator('.jx-strategy-agentName'), number: 1 },
+    { locator: page.locator('.jx-strategy-runSummary'), number: 2 },
     { locator: page.getByRole('button', { name: '部署上线' }), number: 3 },
-    { locator: page.locator('.jx-lab-metrics'), number: 4 },
+    { locator: page.locator('.jx-strategy-metrics'), number: 4 },
   ]);
 
   const deployment = page.waitForResponse(
@@ -116,25 +116,25 @@ async function captureDeploymentFlow() {
   const pauseButton = page.getByRole('button', { name: '暂停上线' });
   await pauseButton.waitFor();
   await annotatedScreenshot(page, `${OUTPUT}signal-deploy-active-01.png`, [
-    { locator: page.locator('.jx-lab-runSummary'), number: 1 },
+    { locator: page.locator('.jx-strategy-runSummary'), number: 1 },
     { locator: pauseButton, number: 2 },
-    { locator: page.locator('.jx-lab-metrics'), number: 3 },
+    { locator: page.locator('.jx-strategy-metrics'), number: 3 },
   ]);
 
-  const editor = page.locator('.jx-lab-code .monaco-editor');
+  const editor = page.locator('.jx-strategy-code .monaco-editor');
   await editor.click();
   await page.keyboard.press('Meta+End');
   await page.keyboard.insertText('\n// 尚未运行的修改');
   const unchangedDeployment = page.getByRole('button', { name: '暂停上线' });
   await unchangedDeployment.waitFor();
   await annotatedScreenshot(page, `${OUTPUT}signal-deploy-draft-01.png`, [
-    { locator: page.locator('.jx-lab-code'), number: 1 },
+    { locator: page.locator('.jx-strategy-code'), number: 1 },
     { locator: page.getByRole('button', { name: '运行回测' }), number: 2 },
     { locator: unchangedDeployment, number: 3 },
   ]);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: '暂停上线' }).waitFor({ timeout: 20_000 });
 }
 
@@ -315,8 +315,8 @@ async function submitSignal() {
 }
 
 async function capturePauseFlow() {
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   const pause = page.getByRole('button', { name: '暂停上线' });
   await pause.waitFor({ timeout: 20_000 });
   const response = page.waitForResponse(
@@ -329,9 +329,9 @@ async function capturePauseFlow() {
   const deploy = page.getByRole('button', { name: '部署上线' });
   await deploy.waitFor();
   await annotatedScreenshot(page, `${OUTPUT}signal-pause-01.png`, [
-    { locator: page.locator('.jx-lab-runSummary'), number: 1 },
+    { locator: page.locator('.jx-strategy-runSummary'), number: 1 },
     { locator: deploy, number: 2 },
-    { locator: page.locator('.jx-lab-metrics'), number: 3 },
+    { locator: page.locator('.jx-strategy-metrics'), number: 3 },
   ]);
 }
 

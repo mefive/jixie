@@ -112,10 +112,10 @@ try {
     throw new Error(`backtest did not freeze curve inputs: ${JSON.stringify(saved.body)}`);
   }
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
   await page.getByTestId('strategy-factor-dependencies').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
   const deployButton = page.getByRole('button', { name: '部署上线' });
   await deployButton.waitFor({ timeout: 30_000 });
   await deployButton.hover();

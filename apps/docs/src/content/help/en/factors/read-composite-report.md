@@ -58,7 +58,7 @@ An exploratory composite does not automatically start or reveal a holdout. Consi
 
 The Agent cannot start or reveal a holdout, or deploy the composite as a strategy.
 
-A Panel report also requires class-level evidence and each ETF's listing coverage. Its Top/Bottom diagnostic portfolio is not the executed long-only ETF strategy in Strategy Lab.
+A Panel report also requires class-level evidence and each ETF's listing coverage. Its Top/Bottom diagnostic portfolio is not the executed long-only ETF strategy in Strategy.
 
 ## Misuses to avoid
 

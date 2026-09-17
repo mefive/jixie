@@ -1,6 +1,6 @@
 # Inspect data in Factor and Strategy conversations
 
-In Factor Research or the backtest workbench, ask the Agent for a bounded calculation on existing data. An embedded analysis card keeps the table, chart or value in the conversation. Open **Code, sources and history** to inspect its Python, parameters, actual inputs and errors.
+In Factor Research or the strategy workbench, ask the Agent for a bounded calculation on existing data. An embedded analysis card keeps the table, chart or value in the conversation. Open **Code, sources and history** to inspect its Python, parameters, actual inputs and errors.
 
 For example: “Plot the ten groups in this factor report and calculate the highest group minus the lowest.” For repeated method changes or a document combining tables and conclusions, continue from the card into Research.
 
@@ -56,7 +56,7 @@ Older charts stored queries and calculation code without a full snapshot of the 
 
 An analysis card explains a calculation on existing samples. It does not create a new factor evaluation, launch a backtest, reveal a holdout, publish a factor or operate an account.
 
-Use the factor workbench and research card to validate a candidate. Existing Agent-driven factor exploration reports retain their research-card and holdout rules. Explicitly run the strategy in the backtest workbench to validate trading rules. Research's existing promotion and handoff workflow can also create Factor or Strategy drafts.
+Use the factor workbench and research card to validate a candidate. Existing Agent-driven factor exploration reports retain their research-card and holdout rules. Explicitly run the strategy in the strategy workbench to validate trading rules. Research's existing promotion and handoff workflow can also create Factor or Strategy drafts.
 
 - [Use the research data catalog](/docs/help/research/data-catalog)
 - [Research documents and run records](/docs/help/research/records)

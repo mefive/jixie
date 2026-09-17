@@ -30,15 +30,15 @@ After publication, the Factor name, key, code, research type, and approved repor
 
 Use Copy to create an independent draft when the definition must change. The suggested `_v2` or `_v3` key is new; publication status, approved reports, and strategy references are not inherited.
 
-## Continue to Strategy Lab
+## Continue to Strategy
 
-1. Click Use in Strategy Lab.
-2. Wait for the backtest workspace.
+1. Click Use in strategy.
+2. Wait for the strategy workbench.
 3. Verify the prefilled key, research assets, and rebalance rule.
 4. Run the backtest.
 5. Check Factors used by this backtest for the frozen Factor ID and code hash.
 
-![Published status, Strategy Lab action, and frozen lineage](/docs/images/help/zh/factors/publish-factor-02.png)
+![Published status, Strategy action, and frozen lineage](/docs/images/help/zh/factors/publish-factor-02.png)
 
 The research long-short diagnostic is not the strategy return. A strategy also includes actual holdings, cash, fills, costs, and rebalance rules.
 

@@ -11,7 +11,7 @@ type Strategy = Awaited<ReturnType<typeof getStrategy>>;
 /** Standalone execution-detail page (`/trades?id=<strategyId>`). Loads the strategy's last backtest
  * result and renders the same portfolio-level summary, filters, and fill ledger. */
 export default function TradePage() {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [sp] = useSearchParams();
   const id = sp.get('id') ?? '';
   const [strategy, setStrategy] = useState<Strategy | null>(null);

@@ -119,7 +119,7 @@ try {
     throw new Error(`dev login failed: ${loginStatus}`);
   }
 
-  await page.goto(`${BASE}/lab`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy`, { waitUntil: 'domcontentloaded' });
   const helpEntry = page.getByRole('link', { name: '使用帮助' });
   await helpEntry.waitFor();
   if ((await helpEntry.getAttribute('href')) !== '/docs/help') {

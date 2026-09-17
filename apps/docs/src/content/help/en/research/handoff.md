@@ -1,6 +1,6 @@
 # Hand research to Factor or Strategy
 
-The Research workbench supports open exploration. FactorReport and the Backtest workspace provide constrained formal validation. Handoff is available from a successful immutable full run, not directly from the current draft or a single-Cell output.
+The Research workbench supports open exploration. FactorReport and the Strategy workbench provide constrained formal validation. Handoff is available from a successful immutable full run, not directly from the current draft or a single-Cell output.
 
 Keep statistical exploration in visible Markdown and Python Cells. The Research Agent does not run trading backtests behind the conversation. Generate a Strategy draft once the study defines explicit, supported trading rules; descriptive analysis does not need to become a strategy.
 
@@ -35,7 +35,7 @@ Conversion can be rejected when a study describes only a relationship and no sig
 When the snapshot also defines instruments or universe, signal direction, rebalance or entry/exit rules, and position sizing:
 
 1. Select **Generate Python Strategy draft**.
-2. Review the source notice and `py-v1` code in the Backtest workspace.
+2. Review the source notice and `py-v1` code in the Strategy workbench.
 3. Verify dates, initial capital, costs, instruments, and position rules.
 4. Explicitly select **Run backtest**, then inspect results and logs.
 

@@ -99,26 +99,26 @@ async function captureReconnectAndDirtyGuard() {
     .getByText(/回测计算中|正在启动回测进程/)
     .first()
     .waitFor({ timeout: 15_000 });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await annotatedScreenshot(page, `${OUTPUT}reconnect-01.png`, [
-    { locator: page.locator('.jx-lab-agentName'), number: 1 },
-    { locator: page.locator('.jx-lab-result'), number: 2 },
-    { locator: page.locator('.jx-lab-dock'), number: 3 },
+    { locator: page.locator('.jx-strategy-agentName'), number: 1 },
+    { locator: page.locator('.jx-strategy-result'), number: 2 },
+    { locator: page.locator('.jx-strategy-dock'), number: 3 },
   ]);
 
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 180_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 180_000 });
   const editRunParameters = page.getByRole('button', { name: '编辑启动参数' });
   await editRunParameters.click();
-  const capital = page.locator('.jx-lab-runPanel').getByRole('spinbutton', { name: /资金/ });
+  const capital = page.locator('.jx-strategy-runPanel').getByRole('spinbutton', { name: /资金/ });
   await capital.fill('210');
   await editRunParameters.click();
-  await page.locator('.jx-lab-runPanel').waitFor({ state: 'hidden' });
+  await page.locator('.jx-strategy-runPanel').waitFor({ state: 'hidden' });
   await page.getByRole('button', { name: '新建' }).click();
   const dialog = page.getByRole('dialog', { name: '有改动尚未运行' });
   await dialog.waitFor();
   await page.waitForTimeout(400);
   await annotatedScreenshot(page, `${OUTPUT}edit-rerun-01.png`, [
-    { locator: page.locator('.jx-lab-runSummary'), number: 1 },
+    { locator: page.locator('.jx-strategy-runSummary'), number: 1 },
     { locator: runButton, number: 2 },
     { locator: dialog, number: 3 },
   ]);
@@ -146,12 +146,12 @@ async function captureFailure() {
   if (submitted.status() !== 200) {
     throw new Error(`failure backtest submission failed: ${submitted.status()}`);
   }
-  const error = page.locator('.jx-lab-placeholder--error');
+  const error = page.locator('.jx-strategy-placeholder--error');
   await error.waitFor({ timeout: 60_000 });
   await annotatedScreenshot(page, `${OUTPUT}failure-01.png`, [
-    { locator: page.locator('.jx-lab-code'), number: 1 },
+    { locator: page.locator('.jx-strategy-code'), number: 1 },
     { locator: error, number: 2 },
-    { locator: page.locator('.jx-lab-dock'), number: 3 },
+    { locator: page.locator('.jx-strategy-dock'), number: 3 },
   ]);
 }
 
@@ -177,8 +177,8 @@ async function seedStrategy({ name, code, start, end, initialCash }) {
 }
 
 async function openStrategy(strategyId) {
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: '运行回测' }).waitFor({ timeout: 15_000 });
 }
 

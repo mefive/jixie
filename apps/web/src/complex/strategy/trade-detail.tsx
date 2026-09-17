@@ -13,7 +13,7 @@ type Side = TradeRecord['side'];
  * table filters. Instrument price charts belong to a single-fill drill-down rather than this view.
  */
 export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [instrument, setInstrument] = useState<string>();
   const [side, setSide] = useState<Side>();
   const [assetType, setAssetType] = useState<AssetType>();

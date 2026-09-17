@@ -106,12 +106,12 @@ try {
     throw new Error(`custom time-series publication missing: ${JSON.stringify(published)}`);
   }
 
-  await page.getByTestId('factor-use-in-lab').click();
-  await page.waitForURL(/\/lab\?new=1&factorKey=e2e_etf_trend/, { timeout: 30_000 });
-  const prompt = page.locator('.jx-lab-heroInput');
+  await page.getByTestId('factor-use-in-strategy').click();
+  await page.waitForURL(/\/strategy\?new=1&factorKey=e2e_etf_trend/, { timeout: 30_000 });
+  const prompt = page.locator('.jx-strategy-heroInput');
   await prompt.waitFor({ timeout: 30_000 });
   await page.waitForFunction(
-    (key) => document.querySelector('.jx-lab-heroInput')?.value.includes(key),
+    (key) => document.querySelector('.jx-strategy-heroInput')?.value.includes(key),
     'e2e_etf_trend',
     { timeout: 30_000 },
   );
@@ -193,10 +193,10 @@ try {
   ) {
     throw new Error(`custom time-series lineage failed: ${JSON.stringify(completed)}`);
   }
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
   await page.getByTestId('strategy-factor-dependencies').waitFor({ timeout: 30_000 });
   await page.getByText('e2e_etf_trend', { exact: false }).waitFor();
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({
     path: `${SHOTS}10c-custom-time-series-strategy.png`,
     fullPage: true,

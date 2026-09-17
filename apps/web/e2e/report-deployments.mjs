@@ -74,10 +74,10 @@ try {
   assert.notEqual(reports[0], reports[1]);
   const deployments = [];
   for (const reportId of reports) {
-    await page.goto(`${base}/lab?id=${strategy.id}&report=${reportId}`, {
+    await page.goto(`${base}/strategy?id=${strategy.id}&report=${reportId}`, {
       waitUntil: 'domcontentloaded',
     });
-    await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+    await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
     await page.waitForFunction((id) => {
       const button = document.querySelector('button[aria-label="部署上线"]');
       return button && !button.disabled && button.dataset.reportId === id;
@@ -94,7 +94,7 @@ try {
   assert.ok(repeated.every((deployment) => deployment.id === deployments[0].id));
 
   // Both a local draft and a saved draft must leave the selected report deployment unchanged.
-  await page.locator('.jx-lab-code .monaco-editor').click();
+  await page.locator('.jx-strategy-code .monaco-editor').click();
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.insertText('\n// Unrun draft edit');
   await page.getByRole('button', { name: '暂停上线', exact: true }).waitFor();

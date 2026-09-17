@@ -65,8 +65,8 @@ try {
   }
   strategyId = seeded.body.id;
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   const runAction = page.getByRole('button', { name: '运行回测' });
   const scanAction = page.getByRole('button', { name: '参数扫描' }).first();
   const deployAction = page.getByRole('button', { name: '部署上线' });

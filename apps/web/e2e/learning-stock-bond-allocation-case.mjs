@@ -243,7 +243,7 @@ try {
     throw new Error(`invalid published stock-bond Panel: ${JSON.stringify(publishedFactor)}`);
   }
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByTestId('factor-use-in-lab').waitFor({ timeout: 30_000 });
+  await page.getByTestId('factor-use-in-strategy').waitFor({ timeout: 30_000 });
   await page.locator('.jx-factor-result').screenshot({
     path: `${OUTPUT}stock-bond-panel-factor-result.png`,
   });
@@ -284,13 +284,16 @@ try {
   }
   assertAllocationAnalysis(allocation, factorId, publishedFactor.codeHash);
 
-  await captureLabResult(baselineId, `${OUTPUT}stock-bond-baseline-result.png`);
-  await captureLabResult(staticAllocationId, `${OUTPUT}stock-bond-static-allocation-result.png`);
-  await captureLabResult(
+  await captureStrategyResult(baselineId, `${OUTPUT}stock-bond-baseline-result.png`);
+  await captureStrategyResult(
+    staticAllocationId,
+    `${OUTPUT}stock-bond-static-allocation-result.png`,
+  );
+  await captureStrategyResult(
     zeroCostAllocationId,
     `${OUTPUT}stock-bond-zero-cost-allocation-result.png`,
   );
-  await captureLabResult(allocationId, `${OUTPUT}stock-bond-allocation-result.png`);
+  await captureStrategyResult(allocationId, `${OUTPUT}stock-bond-allocation-result.png`);
 
   const allocationPanel = page.getByTestId('allocation-analysis');
   await allocationPanel.getByText('已与组合净值对账', { exact: true }).waitFor({
@@ -511,11 +514,11 @@ async function waitForReport(page, reportId) {
   throw new Error(`Panel report ${reportId} timed out`);
 }
 
-async function captureLabResult(strategyId, path) {
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-result').screenshot({ path });
+async function captureStrategyResult(strategyId, path) {
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-result').screenshot({ path });
 }
 
 async function waitForJob(page, path, timeout) {

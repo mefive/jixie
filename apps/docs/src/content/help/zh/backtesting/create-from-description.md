@@ -21,7 +21,7 @@
 
 ## 输入并发送描述
 
-1. 打开“回测工作台”。
+1. 打开“策略”。
 2. 点击“新建”。
 3. 在输入框中写完整规则。下图中的 **2** 是输入位置。
 4. 按回车键发送，或点击输入框右侧的发送按钮。
@@ -87,6 +87,6 @@
 ## 相关内容
 
 - [继续修改策略并重新运行](/help/backtesting/revise-with-chat)
-- [认识回测工作台](/help/backtesting/workspace)
+- [认识策略工作台](/help/backtesting/workspace)
 - [设置回测参数](/help/backtesting/run-settings)
 

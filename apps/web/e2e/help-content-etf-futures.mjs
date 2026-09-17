@@ -40,17 +40,17 @@ async function login() {
   }
   await page.evaluate(() => {
     localStorage.setItem('jx-locale', 'zh');
-    localStorage.removeItem('jx-lab-recents');
+    localStorage.removeItem('jx-strategy-recents');
   });
 }
 
 async function captureEtfEntry() {
-  await page.goto(`${BASE}/lab?new=1`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy?new=1`, { waitUntil: 'domcontentloaded' });
   const example = page.getByRole('button', { name: '主要ETF轮动' });
   await example.waitFor({ timeout: 20_000 });
   await annotatedScreenshot(page, `${OUTPUT}etf-entry-01.png`, [
     { locator: page.getByRole('heading', { name: '新建策略' }), number: 1 },
-    { locator: page.locator('.jx-lab-heroBox'), number: 2 },
+    { locator: page.locator('.jx-strategy-heroBox'), number: 2 },
     { locator: example, number: 3 },
     { locator: page.getByText('或直接写代码', { exact: false }), number: 4 },
   ]);
@@ -83,21 +83,23 @@ async function captureEtfTrades() {
     initialCash: 100_000,
   });
   await openAndRun(strategyId);
-  const tradesTab = page.locator('.jx-lab-resultTabs').getByRole('tab', { name: /交易明细/ });
+  const tradesTab = page.locator('.jx-strategy-resultTabs').getByRole('tab', { name: /交易明细/ });
   await tradesTab.click();
-  const rows = page.locator('.jx-lab-tradesTab .jx-td-row');
+  const rows = page.locator('.jx-strategy-tradesTab .jx-td-row');
   await rows.first().waitFor({ timeout: 15_000 });
   if ((await rows.count()) !== 2) {
     throw new Error(`expected two ETF fills, got ${await rows.count()}`);
   }
-  if ((await page.locator('.jx-lab-tradesTab .jx-td-instType', { hasText: 'ETF' }).count()) !== 2) {
+  if (
+    (await page.locator('.jx-strategy-tradesTab .jx-td-instType', { hasText: 'ETF' }).count()) !== 2
+  ) {
     throw new Error('ETF trade badges are missing');
   }
   await annotatedScreenshot(page, `${OUTPUT}etf-trades-01.png`, [
     { locator: tradesTab, number: 1 },
-    { locator: page.locator('.jx-lab-tradesTab .jx-td-metrics'), number: 2 },
-    { locator: page.locator('.jx-lab-tradesTab .jx-td-filters'), number: 3 },
-    { locator: page.locator('.jx-lab-tradesTab .jx-td-list'), number: 4 },
+    { locator: page.locator('.jx-strategy-tradesTab .jx-td-metrics'), number: 2 },
+    { locator: page.locator('.jx-strategy-tradesTab .jx-td-filters'), number: 3 },
+    { locator: page.locator('.jx-strategy-tradesTab .jx-td-list'), number: 4 },
   ]);
 }
 
@@ -128,20 +130,20 @@ async function captureFuturesTrades() {
     initialCash: 5_000_000,
   });
   await openAndRun(strategyId);
-  const tradesTab = page.locator('.jx-lab-resultTabs').getByRole('tab', { name: /交易明细/ });
+  const tradesTab = page.locator('.jx-strategy-resultTabs').getByRole('tab', { name: /交易明细/ });
   await tradesTab.click();
-  const rows = page.locator('.jx-lab-tradesTab .jx-td-row');
+  const rows = page.locator('.jx-strategy-tradesTab .jx-td-row');
   await rows.first().waitFor({ timeout: 15_000 });
-  const futuresBadges = page.locator('.jx-lab-tradesTab .jx-td-instType', {
+  const futuresBadges = page.locator('.jx-strategy-tradesTab .jx-td-instType', {
     hasText: '期货',
   });
   if ((await futuresBadges.count()) < 2) {
     throw new Error(`expected futures entry and exit fills, got ${await futuresBadges.count()}`);
   }
   await annotatedScreenshot(page, `${OUTPUT}futures-trades-01.png`, [
-    { locator: page.locator('.jx-lab-code'), number: 1 },
-    { locator: page.locator('.jx-lab-tradesTab .jx-td-metrics'), number: 2 },
-    { locator: page.locator('.jx-lab-tradesTab .jx-td-head'), number: 3 },
+    { locator: page.locator('.jx-strategy-code'), number: 1 },
+    { locator: page.locator('.jx-strategy-tradesTab .jx-td-metrics'), number: 2 },
+    { locator: page.locator('.jx-strategy-tradesTab .jx-td-head'), number: 3 },
     { locator: rows, number: 4 },
   ]);
 }
@@ -172,11 +174,11 @@ async function captureMixedStrategy() {
     initialCash: 10_000_000,
   });
   await openAndRun(strategyId);
-  const metric = (label) => page.locator('.jx-lab-metric', { hasText: label });
+  const metric = (label) => page.locator('.jx-strategy-metric', { hasText: label });
   for (const label of ['股票账户权益', '期货账户权益', '期货保证金', '净敞口']) {
     await metric(label).waitFor();
   }
-  await page.locator('.jx-lab-result canvas').first().waitFor({ timeout: 15_000 });
+  await page.locator('.jx-strategy-result canvas').first().waitFor({ timeout: 15_000 });
   await annotatedScreenshot(page, `${OUTPUT}mixed-results-01.png`, [
     { locator: metric('股票账户权益'), number: 1 },
     { locator: metric('期货账户权益'), number: 2 },
@@ -184,9 +186,9 @@ async function captureMixedStrategy() {
     { locator: metric('净敞口'), number: 4 },
   ]);
 
-  const tradesTab = page.locator('.jx-lab-resultTabs').getByRole('tab', { name: /交易明细/ });
+  const tradesTab = page.locator('.jx-strategy-resultTabs').getByRole('tab', { name: /交易明细/ });
   await tradesTab.click();
-  const rows = page.locator('.jx-lab-tradesTab .jx-td-row');
+  const rows = page.locator('.jx-strategy-tradesTab .jx-td-row');
   await rows.first().waitFor({ timeout: 15_000 });
   const stockRow = rows.filter({
     has: page.locator('.jx-td-instType', { hasText: '股票' }),
@@ -197,8 +199,8 @@ async function captureMixedStrategy() {
   await stockRow.first().waitFor();
   await futuresRows.first().waitFor();
   await annotatedScreenshot(page, `${OUTPUT}mixed-trades-01.png`, [
-    { locator: page.locator('.jx-lab-tradesTab .jx-td-metrics'), number: 1 },
-    { locator: page.locator('.jx-lab-tradesTab .jx-td-filters'), number: 2 },
+    { locator: page.locator('.jx-strategy-tradesTab .jx-td-metrics'), number: 1 },
+    { locator: page.locator('.jx-strategy-tradesTab .jx-td-filters'), number: 2 },
     { locator: stockRow, number: 3 },
     { locator: futuresRows, number: 4 },
   ]);
@@ -226,10 +228,10 @@ async function seedStrategy({ name, code, start, end, initialCash }) {
 }
 
 async function openAndRun(strategyId) {
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByRole('button', { name: '运行回测' }).click();
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 120_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 120_000 });
 }
 
 async function cleanup() {

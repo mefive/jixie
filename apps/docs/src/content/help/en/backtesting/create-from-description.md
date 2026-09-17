@@ -21,7 +21,7 @@ Avoid descriptions such as “make a good strategy” or “help me earn money.�
 
 ## Enter and send the description
 
-1. Open the Backtest workspace.
+1. Open the Strategy workbench.
 2. Select **New**.
 3. Write the complete rule in the input marked **2** below.
 4. Press Enter or select the send button.
@@ -87,6 +87,6 @@ Do not run default code as a substitute when the intended rule was not generated
 ## Related articles
 
 - [Revise a strategy and run it again](/help/backtesting/revise-with-chat)
-- [Understand the Backtest workspace](/help/backtesting/workspace)
+- [Understand the Strategy workbench](/help/backtesting/workspace)
 - [Set backtest parameters](/help/backtesting/run-settings)
 

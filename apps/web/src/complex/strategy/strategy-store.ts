@@ -64,13 +64,13 @@ import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 import { PANEL_ASSET_IDS } from '../factor/panel-universe';
 
-type LabSetupParams = { id?: string; report?: string; isNew?: boolean; factorKey?: string };
+type StrategySetupParams = { id?: string; report?: string; isNew?: boolean; factorKey?: string };
 type DeploymentAction =
   | { type: 'deploy'; reportId: string }
   | { type: 'pause'; deploymentId: string };
 
 /**
- * Backtest workbench store — code-first. Persistence model (per the agent workflow):
+ * Strategy workbench store — code-first. Persistence model (per the agent workflow):
  *  - a strategy row is CREATED up front on the first Agent prompt (LLM-named from the request), so the
  *    conversation has something to attach to;
  *  - `messages` save in real time (every Agent turn, by id);
@@ -80,7 +80,7 @@ type DeploymentAction =
  * `dirty` = the run-relevant config changed since the last run → gates the Run-backtest button + the "result
  * is stale" behavior. The result is replaced only by a run, never cleared by editing code.
  */
-export class LabStore extends BaseStore<LabSetupParams> {
+export class StrategyStore extends BaseStore<StrategySetupParams> {
   public name = ''; // LLM-derived name; regenerated from the code on each run (the strategy name, not the code's own)
   public start = DEFAULT_BACKTEST_START;
   public end = DEFAULT_BACKTEST_END;
@@ -174,7 +174,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
     });
   }
 
-  public setup(params: LabSetupParams) {
+  public setup(params: StrategySetupParams) {
     super.setup(params);
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.scanPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollScanOnce() });
@@ -266,11 +266,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
     this.persistedConfig = this.configKey();
     if (params.isNew && params.factorKey) {
       void this.prefillFactor(params.factorKey).catch((error): void => {
-        console.error('Failed to prefill factor in Strategy Lab', error);
+        console.error('Failed to prefill factor in Strategy workbench', error);
       });
     }
     // Resolve the initial view: `?new=1` forces the blank hero; else an explicit ?id; else the
-    // most-recently-opened strategy (so re-entering /lab lands on your last work, not the blank hero);
+    // most-recently-opened strategy (so re-entering /strategy lands on your last work, not the blank hero);
     // else the blank starter. When we WILL open one, set `initializing` synchronously so the first paint
     // is a neutral loader — not the hero / empty workbench flashing before openSaved resolves.
     const initialId = params.isNew ? '' : params.id || readRecents()[0];
@@ -292,10 +292,10 @@ export class LabStore extends BaseStore<LabSetupParams> {
       const isPanel = loaded.factor.analysisKind === 'panel';
       this.nlText = i18n.t(
         isPanel
-          ? 'lab:factorPanelStarterPrompt'
+          ? 'strategy:factorPanelStarterPrompt'
           : isTimeSeries
-            ? 'lab:factorTimeSeriesStarterPrompt'
-            : 'lab:factorStarterPrompt',
+            ? 'strategy:factorTimeSeriesStarterPrompt'
+            : 'strategy:factorStarterPrompt',
         {
           name: loaded.factor.label,
           key: loaded.factor.strategyKey,
@@ -369,9 +369,9 @@ export class LabStore extends BaseStore<LabSetupParams> {
     };
   }
 
-  public setField<K extends keyof LabStore>(key: K, value: LabStore[K]) {
+  public setField<K extends keyof StrategyStore>(key: K, value: StrategyStore[K]) {
     runInAction(() => {
-      (this as LabStore)[key] = value;
+      (this as StrategyStore)[key] = value;
     });
   }
 
@@ -388,7 +388,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public async runScan(spec: StrategyScanSpec) {
     await this.ensureStrategy();
     if (!this.savedId) {
-      runInAction(() => (this.scanError = i18n.t('lab:storeSaveFailedNoBacktest')));
+      runInAction(() => (this.scanError = i18n.t('strategy:storeSaveFailedNoBacktest')));
       return;
     }
 
@@ -403,7 +403,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
       void this.scanHistoryLoader.run(this.savedId);
     } catch (error) {
       runInAction(() => {
-        this.scanError = error instanceof Error ? error.message : i18n.t('lab:scanSubmitFailed');
+        this.scanError =
+          error instanceof Error ? error.message : i18n.t('strategy:scanSubmitFailed');
       });
     }
   }
@@ -414,11 +415,11 @@ export class LabStore extends BaseStore<LabSetupParams> {
       runInAction(() => {
         this.scanReport = report;
         this.scanError =
-          report.error ?? (report.status === 'stale' ? i18n.t('lab:scanInterrupted') : null);
+          report.error ?? (report.status === 'stale' ? i18n.t('strategy:scanInterrupted') : null);
       });
     } catch (error) {
       runInAction(() => {
-        this.scanError = error instanceof Error ? error.message : i18n.t('lab:scanLoadFailed');
+        this.scanError = error instanceof Error ? error.message : i18n.t('strategy:scanLoadFailed');
       });
     }
   }
@@ -451,7 +452,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       runInAction(() => {
         this.chatMessages = [
           ...this.chatMessages,
-          textMessage('assistant', i18n.t('lab:storeChatStartFailed')),
+          textMessage('assistant', i18n.t('strategy:storeChatStartFailed')),
         ];
         this.sending = false;
       });
@@ -476,8 +477,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
           ...this.chatMessages,
           textMessage(
             'assistant',
-            i18n.t('lab:storeError', {
-              message: e instanceof Error ? e.message : i18n.t('lab:storeRequestFailed'),
+            i18n.t('strategy:storeError', {
+              message: e instanceof Error ? e.message : i18n.t('strategy:storeRequestFailed'),
             }),
           ),
         ];
@@ -528,7 +529,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
         runInAction(() => {
           this.chatMessages = [
             ...this.chatMessages,
-            textMessage('assistant', i18n.t('lab:storeError', { message })),
+            textMessage('assistant', i18n.t('strategy:storeError', { message })),
           ];
         });
       },
@@ -539,7 +540,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
         runInAction(() => {
           this.chatMessages = [
             ...this.chatMessages,
-            textMessage('assistant', i18n.t('lab:storeTurnStopped')),
+            textMessage('assistant', i18n.t('strategy:storeTurnStopped')),
           ];
         });
       },
@@ -663,7 +664,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       }
       runInAction(() => {
         this.deploymentError =
-          error instanceof Error ? error.message : i18n.t('lab:deploymentFailed');
+          error instanceof Error ? error.message : i18n.t('strategy:deploymentFailed');
       });
     }
   }
@@ -693,7 +694,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       }
       runInAction(() => {
         this.deploymentError =
-          error instanceof Error ? error.message : i18n.t('lab:deploymentPauseFailed');
+          error instanceof Error ? error.message : i18n.t('strategy:deploymentPauseFailed');
       });
     }
   }
@@ -703,7 +704,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
   public async run() {
     await this.ensureStrategy(); // create the row if this is a hand-written strategy that never talked to the agent
     if (!this.savedId) {
-      runInAction(() => (this.error = i18n.t('lab:storeSaveFailedNoBacktest')));
+      runInAction(() => (this.error = i18n.t('strategy:storeSaveFailedNoBacktest')));
       return;
     }
     let jobId: string;
@@ -712,7 +713,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
       ({ jobId, reportId } = await submitBacktest(this.config, this.savedId));
     } catch (e) {
       runInAction(
-        () => (this.error = e instanceof Error ? e.message : i18n.t('lab:storeSubmitFailed')),
+        () => (this.error = e instanceof Error ? e.message : i18n.t('strategy:storeSubmitFailed')),
       );
       return;
     }
@@ -941,8 +942,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
         runInAction(() => {
           this.scanError =
             job.status === 'stale'
-              ? i18n.t('lab:scanInterrupted')
-              : job.error || i18n.t('lab:scanFailed');
+              ? i18n.t('strategy:scanInterrupted')
+              : job.error || i18n.t('strategy:scanFailed');
         });
         void this.loadScanReport(this.scanReportId!);
         return false;
@@ -964,7 +965,7 @@ export class LabStore extends BaseStore<LabSetupParams> {
         this.since = job.nextSince;
       }
       if (job.status === 'done') {
-        // The immutable report is complete; Strategy.lastResult mirrors it for the existing Lab UI.
+        // The immutable report is complete; Strategy.lastResult mirrors it for the existing Strategy UI.
         let result: BacktestSummary | null = null;
         let name = this.name;
         if (this.savedId) {
@@ -992,8 +993,8 @@ export class LabStore extends BaseStore<LabSetupParams> {
         runInAction(() => {
           this.error =
             job.status === 'stale'
-              ? i18n.t('lab:storeBacktestInterrupted')
-              : job.error || i18n.t('lab:storeBacktestFailed');
+              ? i18n.t('strategy:storeBacktestInterrupted')
+              : job.error || i18n.t('strategy:storeBacktestFailed');
         });
         return false;
       }

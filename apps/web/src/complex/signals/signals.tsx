@@ -211,7 +211,7 @@ function SignalHeader({ entry }: { entry: SignalTodayEntry }) {
         <p className="jx-signals-version">
           {entry.deployment.backtestReportId ? (
             <Link
-              to={`/lab?id=${encodeURIComponent(entry.deployment.strategyId)}&report=${encodeURIComponent(entry.deployment.backtestReportId)}`}
+              to={`/strategy?id=${encodeURIComponent(entry.deployment.strategyId)}&report=${encodeURIComponent(entry.deployment.backtestReportId)}`}
             >
               {t('reportSource', { id: entry.deployment.backtestReportId })}
             </Link>

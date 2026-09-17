@@ -1,17 +1,17 @@
 # Write a strategy in Python
 
-The backtest workspace supports TypeScript and Python. Both languages use the same engine for market data, fills, costs, T+1, and price-limit rules, so changing language does not change trading rules.
+The strategy workbench supports TypeScript and Python. Both languages use the same engine for market data, fills, costs, T+1, and price-limit rules, so changing language does not change trading rules.
 
 ## Switch the strategy language
 
-1. Open Backtest and create a strategy or open an unrun draft.
+1. Open Strategy and create a strategy or open an unrun draft.
 2. Choose Python in the language control above the editor.
 3. Confirm the switch. The page replaces the current code with the Python template.
 4. Check that the editor shows `py-v1` and “Stock / ETF backtest preview.”
 
 Switching replaces unsaved code. Copy important code elsewhere or run and save the current version first.
 
-![Python editor and run action in the backtest workspace](/docs/images/help/zh/backtesting/python-strategy-01.png)
+![Python editor and run action in the strategy workbench](/docs/images/help/zh/backtesting/python-strategy-01.png)
 
 ## A runnable example
 

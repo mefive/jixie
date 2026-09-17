@@ -225,7 +225,7 @@ const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDeta
                 navigate(
                   run.context.host.type === 'factor'
                     ? `/factors?factor=${encodeURIComponent(run.context.host.id)}&report=${encodeURIComponent(run.context.report!.id)}`
-                    : `/lab?id=${encodeURIComponent(run.context.host.id)}&report=${encodeURIComponent(run.context.report!.id)}`,
+                    : `/strategy?id=${encodeURIComponent(run.context.host.id)}&report=${encodeURIComponent(run.context.report!.id)}`,
                 )
               }
             >

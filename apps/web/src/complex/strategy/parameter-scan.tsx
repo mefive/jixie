@@ -29,7 +29,7 @@ type ScanView = 'parameters' | 'sizing' | 'capacity';
 
 export const ParameterScanButton = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [open, setOpen] = useState(false);
   const [firstKey, setFirstKey] = useState('');
   const [secondKey, setSecondKey] = useState('');
@@ -249,7 +249,7 @@ export const ParameterScanButton = complex.component(() => {
 
 export const ParameterScanPanel = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [metric, setMetric] = useState<ScanMetric>('annReturn');
   const report = store.scanReport;
   const history = store.scanHistoryLoader.result ?? [];
@@ -332,7 +332,7 @@ interface ScanDimensionProps {
 }
 
 function SizingTable({ report }: { report: StrategyScanReport }) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const dimension = report.spec.dimensions[0];
   const rows = report.payload!.cells.map((cell, index) => ({
     key: index,
@@ -367,7 +367,7 @@ function SizingTable({ report }: { report: StrategyScanReport }) {
 }
 
 function CapacitySummary({ report }: { report: StrategyScanReport }) {
-  const { t, i18n } = useTranslation('lab');
+  const { t, i18n } = useTranslation('strategy');
   const dimension = report.spec.dimensions[0];
   const cells = [...report.payload!.cells].sort(
     (first, second) => Number(first.params[dimension.key]) - Number(second.params[dimension.key]),
@@ -433,7 +433,7 @@ function CapacitySummary({ report }: { report: StrategyScanReport }) {
 }
 
 function ScanDimension(props: ScanDimensionProps) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   return (
     <div className="jx-parameterScan-dimension">
       <div className="jx-parameterScan-label">{props.label}</div>
@@ -454,7 +454,7 @@ function ScanDimension(props: ScanDimensionProps) {
 }
 
 function ScanTable({ report, metric }: { report: StrategyScanReport; metric: ScanMetric }) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const dimensions = report.spec.dimensions;
   const split = !!report.spec.splitDate;
   const columns = [

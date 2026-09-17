@@ -9,7 +9,7 @@ import { complex } from './complex';
 import './sdk-doc.css';
 
 /**
- * Standalone SDK reference (route `/docs/sdk`, opened from the lab Docs button + the documentation
+ * Standalone SDK reference (route `/docs/sdk`, opened from the strategy Docs button + the documentation
  * links / Cmd+I action in the editor). Apple-Developer-docs information architecture — sticky sidebar
  * nav with scroll-spy, eyebrow→title→abstract per symbol, and declaration blocks whose type names link
  * to their documentation. Language follows the global localeStore. SDK_ENTRIES is also the source for

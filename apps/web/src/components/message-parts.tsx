@@ -53,7 +53,7 @@ interface MessagePartsProps {
 }
 
 /** One chat message's typed parts (text / query card / chart card) — the single renderer shared by
- * the lab, factor and screen conversation bubbles, so a new part type is added in one place. */
+ * the strategy, factor and screen conversation bubbles, so a new part type is added in one place. */
 export function MessageParts({
   message,
   onApplyResearchCellChange,

@@ -12,13 +12,13 @@ A completed run with zero instructions can be valid. Running, Failed, and Interr
 
 ## Pause a deployment
 
-Select the intended instance in **Daily signals** and choose **Pause deployment**. Alternatively, follow its source report to the Lab and choose **Pause** for that report.
+Select the intended instance in **Daily signals** and choose **Pause deployment**. Alternatively, follow its source report to the Strategy and choose **Pause** for that report.
 
 Pausing blocks new signals for this deployment and does not affect other instances. Queued jobs may finish, existing accounts continue to settle, and historical fills can still be recorded. A pause does not cancel broker orders or reverse actual fills. **Generate now** is disabled for paused deployments.
 
 ## Deploy again
 
-Select a successful report in the Lab and choose **Deploy**. Deploying a previously paused report creates a new deployment and account baseline; earlier signals and accounts remain available. Deploying a new report also leaves other active instances running.
+Select a successful report in the Strategy and choose **Deploy**. Deploying a previously paused report creates a new deployment and account baseline; earlier signals and accounts remain available. Deploying a new report also leaves other active instances running.
 
 Legacy instances without a linked report can be paused directly in **Daily signals**. Select a successful report to create a new report-bound deployment.
 

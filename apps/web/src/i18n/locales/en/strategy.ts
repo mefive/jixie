@@ -1,7 +1,7 @@
-import type { zhLab } from '../zh/lab';
+import type { zhStrategy } from '../zh/strategy';
 
-// English mirror of zhLab (structurally identical — enforced by typeof).
-export const enLab: typeof zhLab = {
+// English mirror of zhStrategy (structurally identical — enforced by typeof).
+export const enStrategy: typeof zhStrategy = {
   // New-strategy hero + prompt block
   factorStarterPrompt:
     'Design a strategy using the published factor “{{name}}” (immutable key: {{key}}). Explain the universe, rebalance schedule, portfolio construction, and risk controls before generating backtestable code; use this key directly in both factors and ctx.factor.',

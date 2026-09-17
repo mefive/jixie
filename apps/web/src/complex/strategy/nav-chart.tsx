@@ -18,7 +18,7 @@ type ChartView = 'equity' | 'drawdown';
 
 // Lazy-loaded so echarts lands in its own chunk (see apps/web/CLAUDE.md §3).
 export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmarksLoading }: Props) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [view, setView] = useState<ChartView>('equity');
   const [selectedBenchmarks, setSelectedBenchmarks] = useState<BenchmarkCode[]>(['H00300.CSI']);
   const benchmarkFilterActive = selectedBenchmarks.length > 0;
@@ -34,10 +34,10 @@ export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmark
   );
 
   return (
-    <section className="jx-lab-performance">
-      <div className="jx-lab-performanceHead">
+    <section className="jx-strategy-performance">
+      <div className="jx-strategy-performanceHead">
         {comparisonNav ? (
-          <span className="jx-lab-performanceMeta">
+          <span className="jx-strategy-performanceMeta">
             {t('backtestHistory.normalizedComparison')}
           </span>
         ) : (
@@ -56,10 +56,10 @@ export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmark
             placement="bottomRight"
             trigger="click"
             content={
-              <div className="jx-lab-benchmarkPopup">
-                <div className="jx-lab-benchmarkPopupTitle">{t('benchmarkCompare')}</div>
+              <div className="jx-strategy-benchmarkPopup">
+                <div className="jx-strategy-benchmarkPopupTitle">{t('benchmarkCompare')}</div>
                 <Checkbox.Group
-                  className="jx-lab-benchmarkOptions"
+                  className="jx-strategy-benchmarkOptions"
                   value={selectedBenchmarks}
                   onChange={(codes) => setSelectedBenchmarks(codes as BenchmarkCode[])}
                   options={BENCHMARKS.map(({ code, nameKey }) => ({
@@ -67,12 +67,12 @@ export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmark
                     label: t(nameKey),
                   }))}
                 />
-                <div className="jx-lab-benchmarkPopupHint">{t('benchmarkRebasedHint')}</div>
+                <div className="jx-strategy-benchmarkPopupHint">{t('benchmarkRebasedHint')}</div>
               </div>
             }
           >
             <Button
-              className="jx-lab-benchmarkFilter"
+              className="jx-strategy-benchmarkFilter"
               type={benchmarkFilterActive ? 'primary' : 'text'}
               size="small"
               loading={benchmarksLoading}
@@ -82,7 +82,7 @@ export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmark
             />
           </Popover>
         ) : !comparisonNav && drawdown.trough ? (
-          <span className="jx-lab-performanceMeta">
+          <span className="jx-strategy-performanceMeta">
             {t('drawdownPeriod', {
               peak: formatDate(drawdown.peak?.date),
               trough: formatDate(drawdown.trough.date),
@@ -93,7 +93,7 @@ export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmark
           </span>
         ) : null}
       </div>
-      <EChart option={option} className="jx-lab-chart" />
+      <EChart option={option} className="jx-strategy-chart" />
     </section>
   );
 }

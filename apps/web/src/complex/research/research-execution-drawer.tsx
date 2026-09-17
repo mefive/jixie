@@ -134,7 +134,7 @@ export const ResearchExecutionDrawer = complex.component(
               : 'workbench.execution.strategyDraftCreated',
           ),
         );
-        navigate(`/lab?id=${encodeURIComponent(result.strategyId)}`);
+        navigate(`/strategy?id=${encodeURIComponent(result.strategyId)}`);
       } catch (error) {
         message.error(
           error instanceof Error ? error.message : t('workbench.execution.strategyDraftFailed'),

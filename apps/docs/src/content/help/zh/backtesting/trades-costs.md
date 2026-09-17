@@ -10,7 +10,7 @@
 
 下图中的 **1** 是成交摘要，**2** 是筛选条件，**3** 是成交列表。
 
-![回测工作台中的交易明细标签、摘要、筛选和页面打开按钮](/docs/images/help/zh/backtesting/trades-01.png)
+![策略工作台中的交易明细标签、摘要、筛选和页面打开按钮](/docs/images/help/zh/backtesting/trades-01.png)
 
 ## 使用完整交易明细页
 

@@ -23,9 +23,9 @@ try {
     throw new Error(`dev login failed: ${loginStatus}`);
   }
 
-  await page.goto(`${BASE}/lab`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/strategy`, { waitUntil: 'networkidle' });
   await page.getByRole('button', { name: '主要ETF轮动' }).waitFor({ timeout: 10_000 });
-  await page.screenshot({ path: `${SHOTS}etf-1-lab-entry.png` });
+  await page.screenshot({ path: `${SHOTS}etf-1-strategy-entry.png` });
 
   await page.goto(`${BASE}/research`, { waitUntil: 'networkidle' });
   await page.getByRole('heading', { name: '你想研究什么？' }).waitFor({ timeout: 10_000 });
@@ -65,27 +65,27 @@ export default defineStrategy({
     return strategy.id;
   });
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 20_000 });
   await page.getByRole('button', { name: '运行回测' }).click();
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 60_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 60_000 });
   await page
-    .locator('.jx-lab-resultTabs')
+    .locator('.jx-strategy-resultTabs')
     .getByRole('tab', { name: /交易明细/ })
     .click();
-  await page.locator('.jx-lab-tradesTab .jx-td-row').first().waitFor({ timeout: 10_000 });
+  await page.locator('.jx-strategy-tradesTab .jx-td-row').first().waitFor({ timeout: 10_000 });
 
   const badgeCount = await page
-    .locator('.jx-lab-tradesTab .jx-td-instType', { hasText: 'ETF' })
+    .locator('.jx-strategy-tradesTab .jx-td-instType', { hasText: 'ETF' })
     .count();
   if (badgeCount !== 2) {
     throw new Error(`expected two ETF badges, got ${badgeCount}`);
   }
   const instrumentName = page
-    .locator('.jx-lab-tradesTab .jx-td-instName', { hasText: '沪深300ETF' })
+    .locator('.jx-strategy-tradesTab .jx-td-instName', { hasText: '沪深300ETF' })
     .first();
   await instrumentName.waitFor({ timeout: 10_000 });
-  const tradeRows = await page.locator('.jx-lab-tradesTab .jx-td-row').count();
+  const tradeRows = await page.locator('.jx-strategy-tradesTab .jx-td-row').count();
   if (tradeRows !== 2) {
     throw new Error(`expected two ETF fills, got ${tradeRows}`);
   }

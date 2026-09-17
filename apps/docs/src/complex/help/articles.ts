@@ -806,8 +806,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'backtesting/workspace',
     group: 'backtesting',
     title: {
-      zh: '认识回测工作台',
-      en: 'Understand the Backtest workspace',
+      zh: '认识策略工作台',
+      en: 'Understand the Strategy workbench',
     },
     summary: {
       zh: '认识策略、代码、结果和日志区域，并正确打开、新建和切换策略。',
@@ -1480,8 +1480,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Publish a Factor and use it in a strategy',
     },
     summary: {
-      zh: '选择批准报告，锁定 Factor，进入策略 Lab，并保留不可变血缘。',
-      en: 'Approve a report, lock the Factor, continue to Strategy Lab, and preserve lineage.',
+      zh: '选择批准报告，锁定 Factor，进入策略工作台，并保留不可变血缘。',
+      en: 'Approve a report, lock the Factor, continue to Strategy, and preserve lineage.',
     },
     content: {
       zh: publishFactorZh,

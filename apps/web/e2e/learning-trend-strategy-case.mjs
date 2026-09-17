@@ -119,17 +119,17 @@ try {
     assertMetricSummary(`${lookback}-day out-of-sample`, cell.outOfSample);
   }
 
-  await page.goto(`${BASE}/lab?id=${baselineId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-result').screenshot({
+  await page.goto(`${BASE}/strategy?id=${baselineId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-result').screenshot({
     path: `${OUTPUT}csi300-trend-baseline-result.png`,
   });
 
-  await page.goto(`${BASE}/lab?id=${trendId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-result').screenshot({
+  await page.goto(`${BASE}/strategy?id=${trendId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-result').screenshot({
     path: `${OUTPUT}csi300-trend-primary-result.png`,
   });
   await page.getByRole('tab', { name: '参数扫描' }).click();

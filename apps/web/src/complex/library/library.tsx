@@ -63,7 +63,7 @@ export const Library = complex.component(() => {
                   onClick={() =>
                     void run(async () => {
                       const copied = await store.copyStrategy(asset.id);
-                      navigate(`/lab?id=${encodeURIComponent(copied.id)}`);
+                      navigate(`/strategy?id=${encodeURIComponent(copied.id)}`);
                     }, t('copied'))
                   }
                 >

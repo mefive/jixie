@@ -11,7 +11,7 @@ Confirm that:
 - The custom factor has completed an analysis successfully.
 - The Factor is published and its page shows the immutable key.
 - You know what high and low factor values mean.
-- An editable strategy is available in the Backtest workspace.
+- An editable strategy is available in the Strategy workbench.
 
 This article uses:
 

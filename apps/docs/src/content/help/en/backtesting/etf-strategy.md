@@ -4,7 +4,7 @@ ETFs can be bought and sold in a backtest in much the same way as stocks. For a 
 
 ## Start from the example
 
-1. Sign in and open the Backtest workspace.
+1. Sign in and open the Strategy workbench.
 2. Select **New**.
 3. Select **Major ETF rotation**, marked **3** below.
 4. Wait for the strategy name and code to appear.

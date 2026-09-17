@@ -68,7 +68,7 @@ Adding a component can therefore reduce the sample. Always inspect component cov
 ## Important limits
 
 - A stock cross-sectional composite remains research-only and is not a Factor key for strategy code.
-- A Panel composite can be published and opened in Strategy Lab after holdout when every component is published. Its definition becomes immutable after publication.
+- A Panel composite can be published and opened in Strategy after holdout when every component is published. Its definition becomes immutable after publication.
 - It still requires a research card, exploratory analysis, holdout discipline, and cost checks.
 - More components do not guarantee a better result.
 - Low correlation does not prove complementarity, and equal weighting is not portfolio optimization.

@@ -84,25 +84,25 @@ async function seedStrategy() {
 }
 
 async function openStrategy() {
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByText(STRATEGY_NAME, { exact: true }).waitFor({ timeout: 15_000 });
   await page.getByRole('button', { name: '运行回测' }).waitFor({ timeout: 15_000 });
 }
 
 async function captureWorkspace() {
   await annotatedScreenshot(page, `${OUTPUT}workspace-01.png`, [
-    { locator: page.locator('.jx-lab-agentTabs'), number: 1 },
-    { locator: page.locator('.jx-lab-code'), number: 2 },
-    { locator: page.locator('.jx-lab-resultTabs'), number: 3 },
-    { locator: page.locator('.jx-lab-dock'), number: 4 },
+    { locator: page.locator('.jx-strategy-agentTabs'), number: 1 },
+    { locator: page.locator('.jx-strategy-code'), number: 2 },
+    { locator: page.locator('.jx-strategy-resultTabs'), number: 3 },
+    { locator: page.locator('.jx-strategy-dock'), number: 4 },
   ]);
 }
 
 async function captureRunSettings() {
   await page.getByRole('button', { name: '编辑启动参数' }).click();
-  const panel = page.locator('.jx-lab-runPanel');
-  const fields = panel.locator('.jx-lab-runPanelField');
+  const panel = page.locator('.jx-strategy-runPanel');
+  const fields = panel.locator('.jx-strategy-runPanelField');
   await panel.waitFor();
   await annotatedScreenshot(page, `${OUTPUT}run-settings-01.png`, [
     { locator: fields.nth(0), number: 1 },
@@ -135,31 +135,31 @@ async function runAndCapture() {
   await page.waitForTimeout(250);
   await annotatedScreenshot(page, `${OUTPUT}run-logs-01.png`, [
     { locator: runButton, number: 1 },
-    { locator: page.locator('.jx-lab-result'), number: 2 },
-    { locator: page.locator('.jx-lab-dock'), number: 3 },
+    { locator: page.locator('.jx-strategy-result'), number: 2 },
+    { locator: page.locator('.jx-strategy-dock'), number: 3 },
   ]);
 
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 120_000 });
-  await page.locator('.jx-lab-performance canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 120_000 });
+  await page.locator('.jx-strategy-performance canvas').waitFor({ timeout: 30_000 });
   await page.waitForTimeout(800);
   const tradesTab = page.getByRole('tab', { name: /交易明细/ });
   await tradesTab.waitFor();
 
   await annotatedScreenshot(page, `${OUTPUT}results-overview-01.png`, [
-    { locator: page.locator('.jx-lab-metrics'), number: 1 },
-    { locator: page.locator('.jx-lab-performance'), number: 2 },
+    { locator: page.locator('.jx-strategy-metrics'), number: 1 },
+    { locator: page.locator('.jx-strategy-performance'), number: 2 },
     { locator: tradesTab, number: 3 },
-    { locator: page.locator('.jx-lab-dock'), number: 4 },
+    { locator: page.locator('.jx-strategy-dock'), number: 4 },
   ]);
 
   await page.getByText('回撤', { exact: true }).click();
   await page.waitForTimeout(500);
-  await page.locator('.jx-lab-result').evaluate((element) => {
+  await page.locator('.jx-strategy-result').evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
   await page.waitForTimeout(300);
   await annotatedScreenshot(page, `${OUTPUT}equity-drawdown-01.png`, [
-    { locator: page.locator('.jx-lab-performance'), number: 1 },
+    { locator: page.locator('.jx-strategy-performance'), number: 1 },
     { locator: page.locator('.jx-mret'), number: 2 },
   ]);
 

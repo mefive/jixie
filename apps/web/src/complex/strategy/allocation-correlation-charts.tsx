@@ -112,9 +112,9 @@ export default function AllocationCorrelationCharts({ data, pair, labels }: Prop
   };
 
   return (
-    <div className="jx-lab-correlationCharts">
-      <EChart option={heatmap} className="jx-lab-correlationHeatmap" />
-      <EChart option={rolling} className="jx-lab-correlationRolling" />
+    <div className="jx-strategy-correlationCharts">
+      <EChart option={heatmap} className="jx-strategy-correlationHeatmap" />
+      <EChart option={rolling} className="jx-strategy-correlationRolling" />
     </div>
   );
 }

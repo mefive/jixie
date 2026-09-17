@@ -109,12 +109,12 @@ async function captureFirstTasks({ resultStrategyId }) {
     }
 
     await page.evaluate(() => {
-      localStorage.removeItem('jx-lab-recents');
+      localStorage.removeItem('jx-strategy-recents');
       localStorage.setItem('jx-locale', 'zh');
     });
 
     if (resultStrategyId) {
-      await page.goto(`${BASE}/lab?id=${encodeURIComponent(resultStrategyId)}`, {
+      await page.goto(`${BASE}/strategy?id=${encodeURIComponent(resultStrategyId)}`, {
         waitUntil: 'domcontentloaded',
       });
       await captureBacktestResults(page);
@@ -123,19 +123,19 @@ async function captureFirstTasks({ resultStrategyId }) {
 
     await cleanupUserData(page);
 
-    await page.goto(`${BASE}/lab?new=1`, { waitUntil: 'domcontentloaded' });
-    const strategyPrompt = page.locator('.jx-lab-heroInput');
+    await page.goto(`${BASE}/strategy?new=1`, { waitUntil: 'domcontentloaded' });
+    const strategyPrompt = page.locator('.jx-strategy-heroInput');
     await strategyPrompt.waitFor({ timeout: 20_000 });
     await strategyPrompt.fill('每月第一个交易日买入100股贵州茅台');
     await annotatedScreenshot(page, `${OUTPUT}first-backtest-01-prompt.png`, [
       { locator: strategyPrompt, number: 1 },
-      { locator: page.locator('.jx-lab-heroSend'), number: 2 },
-      { locator: page.locator('.jx-lab-examples'), number: 3 },
+      { locator: page.locator('.jx-strategy-heroSend'), number: 2 },
+      { locator: page.locator('.jx-strategy-examples'), number: 3 },
     ]);
 
     await strategyPrompt.press('Enter');
-    await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
-    const thinking = page.locator('.jx-lab-bubble--thinking');
+    await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
+    const thinking = page.locator('.jx-strategy-bubble--thinking');
     await thinking.waitFor({ timeout: 30_000 });
     await thinking.waitFor({ state: 'detached', timeout: 180_000 });
     await page.waitForFunction(
@@ -150,7 +150,7 @@ async function captureFirstTasks({ resultStrategyId }) {
     const runButton = page.getByRole('button', { name: '运行回测' });
     await page.waitForFunction(
       () => {
-        const button = document.querySelector('.jx-lab-runBtn');
+        const button = document.querySelector('.jx-strategy-runBtn');
         return button && !button.hasAttribute('disabled');
       },
       undefined,
@@ -158,14 +158,14 @@ async function captureFirstTasks({ resultStrategyId }) {
     );
 
     await page.getByRole('button', { name: '编辑启动参数' }).click();
-    const panel = page.locator('.jx-lab-runPanel:visible');
+    const panel = page.locator('.jx-strategy-runPanel:visible');
     await panel.waitFor();
     const dateInputs = panel.locator('.ant-picker input');
     await setDate(dateInputs.nth(0), '2024-01-01', page);
     await setDate(dateInputs.nth(1), '2024-03-31', page);
-    const cashField = panel.locator('.jx-lab-runPanelField', { hasText: '资金' });
+    const cashField = panel.locator('.jx-strategy-runPanelField', { hasText: '资金' });
     await cashField.locator('input').fill('100');
-    await panel.locator('.jx-lab-runPanelTitle').click();
+    await panel.locator('.jx-strategy-runPanelTitle').click();
     await page.waitForFunction(
       () =>
         Array.from(document.querySelectorAll('.ant-picker-dropdown')).every(
@@ -175,10 +175,10 @@ async function captureFirstTasks({ resultStrategyId }) {
       { timeout: 5_000 },
     );
     await annotatedScreenshot(page, `${OUTPUT}first-backtest-02-settings.png`, [
-      { locator: panel.locator('.jx-lab-runPanelField', { hasText: '起始' }), number: 1 },
-      { locator: panel.locator('.jx-lab-runPanelField', { hasText: '结束' }), number: 2 },
+      { locator: panel.locator('.jx-strategy-runPanelField', { hasText: '起始' }), number: 1 },
+      { locator: panel.locator('.jx-strategy-runPanelField', { hasText: '结束' }), number: 2 },
       { locator: cashField, number: 3 },
-      { locator: panel.locator('.jx-lab-runPanelField', { hasText: '基础滑点' }), number: 4 },
+      { locator: panel.locator('.jx-strategy-runPanelField', { hasText: '基础滑点' }), number: 4 },
       { locator: runButton, number: 5 },
     ]);
 
@@ -191,14 +191,14 @@ async function captureFirstTasks({ resultStrategyId }) {
 }
 
 async function captureBacktestResults(page) {
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 180_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 180_000 });
   await page.waitForFunction(
     () => {
-      const metrics = Array.from(document.querySelectorAll('.jx-lab-metric'));
+      const metrics = Array.from(document.querySelectorAll('.jx-strategy-metric'));
       const trades = metrics.find((metric) =>
-        metric.querySelector('.jx-lab-metricLabel')?.textContent?.includes('成交笔数'),
+        metric.querySelector('.jx-strategy-metricLabel')?.textContent?.includes('成交笔数'),
       );
-      const value = trades?.querySelector('.jx-lab-metricValue')?.textContent ?? '0';
+      const value = trades?.querySelector('.jx-strategy-metricValue')?.textContent ?? '0';
       return Number(value.replace(/,/g, '')) > 0;
     },
     undefined,
@@ -206,18 +206,18 @@ async function captureBacktestResults(page) {
   );
   await page.waitForTimeout(1_000);
   await annotatedScreenshot(page, `${OUTPUT}first-backtest-03-metrics.png`, [
-    { locator: page.locator('.jx-lab-metrics'), number: 1 },
+    { locator: page.locator('.jx-strategy-metrics'), number: 1 },
     { locator: page.getByRole('tab', { name: /交易明细/ }), number: 2, optional: true },
-    { locator: page.locator('.jx-lab-dock'), number: 3 },
+    { locator: page.locator('.jx-strategy-dock'), number: 3 },
   ]);
 
-  const chart = page.locator('.jx-lab-result canvas').first();
+  const chart = page.locator('.jx-strategy-result canvas').first();
   await chart.waitFor({ timeout: 20_000 });
   await chart.scrollIntoViewIfNeeded();
   await page.waitForTimeout(700);
   await annotatedScreenshot(page, `${OUTPUT}first-backtest-04-chart.png`, [
     { locator: chart, number: 1 },
-    { locator: page.locator('.jx-lab-resultTabsInner .ant-tabs-nav'), number: 2 },
+    { locator: page.locator('.jx-strategy-resultTabsInner .ant-tabs-nav'), number: 2 },
   ]);
 }
 

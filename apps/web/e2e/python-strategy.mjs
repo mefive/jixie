@@ -68,8 +68,8 @@ try {
   }
   strategyId = seed.body.id;
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.getByText('py-v1', { exact: false }).waitFor({ timeout: 15_000 });
 
   const backtestResponsePromise = page.waitForResponse(
@@ -87,7 +87,7 @@ try {
 
   const completion = await Promise.race([
     page
-      .locator('.jx-lab-metricValue')
+      .locator('.jx-strategy-metricValue')
       .first()
       .waitFor({ timeout: 120_000 })
       .then(() => 'success'),

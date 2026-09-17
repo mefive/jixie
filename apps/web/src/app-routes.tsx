@@ -12,7 +12,7 @@ import {
 } from 'react-router-dom';
 import { observer } from 'mobx-react';
 import loginEntry from '@src/complex/login';
-import labEntry from '@src/complex/lab';
+import strategyEntry from '@src/complex/strategy';
 import stockEntry from '@src/complex/stock';
 import factorEntry from '@src/complex/factor';
 import marketEntry from '@src/complex/market';
@@ -26,7 +26,7 @@ import { authStore } from '@src/store';
 import './app-layout.css';
 
 // Standalone trade-detail page (opened from the backtest result modal's "open in page" button).
-const TradePage = lazy(() => import('@src/complex/lab/trade-page'));
+const TradePage = lazy(() => import('@src/complex/strategy/trade-page'));
 
 export function AppRoutes() {
   return <RouterProvider router={router} />;
@@ -64,12 +64,12 @@ function ResearchRoute() {
   return <ComplexRoute entry={researchEntry} setupParams={setupParams} />;
 }
 
-// Backtest workbench: `/lab` = last strategy (or blank if none); `/lab?id=<sid>` = that saved strategy;
-// `/lab?new=1` = force the blank new-strategy hero. The id rides as a query param (a plain parameter, not a REST
+// Strategy workbench: `/strategy` = last strategy (or blank if none); `/strategy?id=<sid>` = that saved strategy;
+// `/strategy?new=1` = force the blank new-strategy hero. The id rides as a query param (a plain parameter, not a REST
 // path). NO `key` here — switching strategies must NOT remount (a remount tears down Monaco/Splitters =
 // a full-page flash). The initial id/new is captured once for setup; later URL changes are synced into
-// the store in-place by the Lab component (openSaved / newStrategy), so navigation is seamless.
-function LabRoute() {
+// the store in-place by the Strategy component (openSaved / newStrategy), so navigation is seamless.
+function StrategyRoute() {
   const [searchParams] = useSearchParams();
   const setupParams = useRef({
     id: searchParams.get('id') || undefined,
@@ -77,7 +77,7 @@ function LabRoute() {
     factorKey: searchParams.get('factorKey') || undefined,
     report: searchParams.get('report') || undefined,
   }).current;
-  return <ComplexRoute entry={labEntry} setupParams={setupParams} />;
+  return <ComplexRoute entry={strategyEntry} setupParams={setupParams} />;
 }
 
 // Wire a complex's store lifecycle into react-router: createInstance on mount,
@@ -163,6 +163,7 @@ const RequireAuth = observer(({ children }: { children: ReactNode }) => {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
+      <Route path="/lab" element={<LegacyLabRedirect />} />
       <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
       {/* Market is the product homepage; each workbench keeps its own stable route. */}
       <Route path="/" element={<Navigate to="/market" replace />} />
@@ -175,7 +176,7 @@ const router = createBrowserRouter(
           path="/factor-weather"
           element={<ComplexRoute key="factor-weather" entry={factorWeatherEntry} />}
         />
-        <Route path="/lab" element={<LabRoute />} />
+        <Route path="/strategy" element={<StrategyRoute />} />
         <Route path="/research" element={<ResearchRoute />} />
         <Route path="/factors" element={<FactorRoute />} />
         <Route
@@ -200,6 +201,16 @@ function ExternalRedirect({ to }: { to: string }): null {
   }, [to]);
 
   return null;
+}
+
+function LegacyLabRedirect() {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={{ pathname: '/strategy', search: location.search, hash: location.hash }}
+      replace
+    />
+  );
 }
 
 function LegacyHelpRedirect() {

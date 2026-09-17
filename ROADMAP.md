@@ -85,7 +85,7 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 
 - A 股、指数、ETF、股指期货、境内利率曲线、商品期货、宏观与部分外部风险驱动数据；
 - 历史证券身份、风险警示/退市、PIT 财务、数据审计与幂等同步；
-- 市场/因子气象、选股、因子、Lab、信号和公共研究资产库；
+- 市场/因子气象、选股、因子、Strategy、信号和公共研究资产库；
 - 中英双语产品与公开帮助；
 - 持久任务公平队列、生产 bootstrap、增量维护和备份编排。
 
@@ -231,7 +231,7 @@ M4 第 1 项已经完成：成功封存的 `ResearchExecution` 可经 LLM 语义
 
 M4 第 2 项已经完成：成功封存的 ResearchExecution 可经 LLM 语义门生成唯一、可审查的 Strategy 草稿，默认
 使用 Python `py-v1`；草稿必须通过编译与受限运行时校验，保留来源快照、revision/hash、摘要、待验证项和精确
-回链，但不会自动运行回测，用户仍须在 Strategy Lab 中确认参数并显式回测。
+回链，但不会自动运行回测，用户仍须在 Strategy 中确认参数并显式回测。
 
 M4 第 3 项已经完成：Factor 已增加 Python SDK、`py-v1` 受限运行时、FactorReport / 发布 / Strategy 消费链路和
 Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新的 Factor 以及 Research → Factor 草稿默认 Python。
@@ -239,7 +239,7 @@ Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新的 Factor �
 
 Research 对派生结果的只读分析已经落地：`results.factor_report()` 与 `results.backtest_report()` 按报告 ID
 读取当前用户的已完成报告，未揭示 Holdout 保持保护。普通回测每次创建不可变 `BacktestReport`，保存配置、代码/
-结果 hash、完成时间及结果；`Strategy.lastResult` 仅作为最新结果缓存。Strategy Lab 已可从选中报告新建 Research
+结果 hash、完成时间及结果；`Strategy.lastResult` 仅作为最新结果缓存。Strategy 已可从选中报告新建 Research
 文档。完整持仓历史仍须由引擎真实产出后再开放；全局档案、全平台数据副本及自动归因不属于本次已完成能力。
 
 2026-08-20 已用真实 PIT 股票 Panel 研究完成首版封板验收：同一文档覆盖 Markdown 假设、Python 数据与统计、

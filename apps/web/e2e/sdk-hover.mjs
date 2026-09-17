@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-// SDK hover quality (ROADMAP 4.3-C): hovering a ctx.* member in the lab editor must show the
+// SDK hover quality (ROADMAP 4.3-C): hovering a ctx.* member in the strategy editor must show the
 // TypeScript QuickInfo (signature + localized JSDoc from the ambient SDK dts) MERGED with the 📖
 // doc link — not a bare link tooltip (the old link provider used to replace the rich hover).
 // Uses the dev-only window.__monaco hook for deterministic cursor placement.
@@ -27,7 +27,7 @@ try {
     throw new Error(`dev login failed: ${loginStatus}`);
   }
 
-  await page.goto(`${BASE}/lab`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy`, { waitUntil: 'domcontentloaded' });
   await page.getByText('或直接写代码').click();
   await page.locator('.monaco-editor').first().waitFor({ timeout: 30000 });
   await page.waitForTimeout(4500);

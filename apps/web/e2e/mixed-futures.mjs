@@ -56,16 +56,18 @@ try {
     return strategy.id;
   });
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 20_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 20_000 });
   await page.getByRole('button', { name: '运行回测' }).click();
-  await page.locator('.jx-lab-metric', { hasText: '股票账户权益' }).waitFor({ timeout: 120_000 });
-  await page.locator('.jx-lab-result canvas').first().waitFor({ timeout: 10_000 });
+  await page
+    .locator('.jx-strategy-metric', { hasText: '股票账户权益' })
+    .waitFor({ timeout: 120_000 });
+  await page.locator('.jx-strategy-result canvas').first().waitFor({ timeout: 10_000 });
   await page.waitForTimeout(600);
 
   const requiredMetrics = ['股票账户权益', '期货账户权益', '期货保证金', '净敞口'];
   for (const label of requiredMetrics) {
-    const count = await page.locator('.jx-lab-metric', { hasText: label }).count();
+    const count = await page.locator('.jx-strategy-metric', { hasText: label }).count();
     if (count !== 1) {
       throw new Error(`expected one ${label} metric, got ${count}`);
     }

@@ -63,7 +63,7 @@ import { MonthlyReturns } from './monthly-returns';
 import { ParameterScanButton, ParameterScanPanel } from './parameter-scan';
 import { StrategyCardView } from './strategy-card';
 import { readRecents } from './recents';
-import './lab.css';
+import './strategy.css';
 
 interface BacktestHistoryPickerProps {
   comparing: boolean;
@@ -98,15 +98,15 @@ const TradeDetail = lazy(() => import('./trade-detail'));
 const AllocationCorrelationCharts = lazy(() => import('./allocation-correlation-charts'));
 
 /**
- * Backtest workbench — code-first, IDE-style. A first-time visit (no recents) opens a focused prompt
+ * Strategy workbench — code-first, IDE-style. A first-time visit (no recents) opens a focused prompt
  * hero; otherwise New pops a prompt modal over the workbench. The workbench is a 3-column Splitter: an
  * Agent panel (a chat that iterates on the strategy code, plus a History tab) | the code editor over a
  * collapsible log dock | a right column with the run summary/actions over Results-overview /
  * Trade-detail tabs. All regions are drag-resizable.
  */
-export const Lab = complex.component(() => {
+export const Strategy = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [heroDismissed, setHeroDismissed] = useState(false); // "write code directly" escape from the new-strategy hero
   const [newModalOpen, setNewModalOpen] = useState(false); // New → prompt modal (not the full hero)
   const [panelDefaults] = useState(() => splitterDefaults(380)); // percentage sizes = no first-frame jitter
@@ -171,7 +171,7 @@ export const Lab = complex.component(() => {
       }
       return;
     }
-    // bare /lab (e.g. the backtest-workbench nav): re-open the most recent, else go blank.
+    // bare /strategy (e.g. the backtest-workbench nav): re-open the most recent, else go blank.
     const recent = readRecents()[0] ?? '';
     if (recent && recent !== savedId) {
       void store.openSaved(recent);
@@ -185,7 +185,7 @@ export const Lab = complex.component(() => {
   // code/params only commit on a run — New or switching away would drop them).
   const openNewModal = () => tryLeave(() => setNewModalOpen(true));
   // Open a saved strategy (from History) — same unrun-edit guard.
-  const onOpenStrategy = (id: string) => tryLeave(() => navigate(`/lab?id=${id}`));
+  const onOpenStrategy = (id: string) => tryLeave(() => navigate(`/strategy?id=${id}`));
   // From the modal: start a new strategy with a first Agent message, or a blank one to hand-write. Both
   // reset to a fresh strategy and clear the URL (?new=1 keeps the URL sync from auto-opening a recent).
   const startNew = (text: string, language: StrategyLanguage) => {
@@ -193,13 +193,13 @@ export const Lab = complex.component(() => {
     setNewModalOpen(false);
     store.newStrategy(language);
     void store.sendAgent(text);
-    navigate('/lab?new=1', { replace: true });
+    navigate('/strategy?new=1', { replace: true });
   };
   const startBlank = (language: StrategyLanguage) => {
     setHeroDismissed(true);
     setNewModalOpen(false);
     store.newStrategy(language);
-    navigate('/lab?new=1', { replace: true });
+    navigate('/strategy?new=1', { replace: true });
   };
 
   // The full-page new-strategy view (hero) shows only on a genuine first visit with nothing recent to auto-open;
@@ -213,7 +213,7 @@ export const Lab = complex.component(() => {
   // the strategy fetch. A full-page spinner here reads as a flash (spinner → shell → editor pops),
   // and it also serialized the two waits.
   return (
-    <div className="jx-lab">
+    <div className="jx-strategy">
       {showHero ? (
         <StrategyHero
           onSubmit={(text, language) => {
@@ -228,14 +228,14 @@ export const Lab = complex.component(() => {
         />
       ) : (
         // IDE layout: Agent | (editor over log dock) | right column of Results / Trade-detail tabs — all drag-resizable.
-        <Splitter className="jx-lab-body">
+        <Splitter className="jx-strategy-body">
           <Splitter.Panel defaultSize={panelDefaults.left} min={300} max={620} collapsible>
             <AgentPanel onNew={openNewModal} onOpenStrategy={onOpenStrategy} />
           </Splitter.Panel>
           <Splitter.Panel defaultSize={panelDefaults.rest} min="22%">
             <Splitter orientation="vertical">
               <Splitter.Panel min="20%">
-                <section className="jx-lab-editor">
+                <section className="jx-strategy-editor">
                   <StrategyCode />
                 </section>
               </Splitter.Panel>
@@ -274,7 +274,7 @@ export const Lab = complex.component(() => {
       </Modal>
     </div>
   );
-}, 'Lab');
+}, 'Strategy');
 
 // —— Subcomponents ——
 
@@ -290,7 +290,7 @@ const StrategyHero = complex.component(
     onSkip: (language: StrategyLanguage) => void;
   }) => {
     const store = complex.useStore();
-    const { t } = useTranslation('lab');
+    const { t } = useTranslation('strategy');
     const navigate = useNavigate();
     // Snapshot the recent-id order on mount; the card data (name/snapshot) comes from the saved list.
     const [recentIds, setRecentIds] = useState(() => readRecents());
@@ -301,10 +301,10 @@ const StrategyHero = complex.component(
       .slice(0, 6);
 
     return (
-      <main className="jx-lab-hero">
-        <div className="jx-lab-heroInner">
-          <h1 className="jx-lab-heroTitle">{t('heroTitle')}</h1>
-          <p className="jx-lab-heroHint">{t('heroHint')}</p>
+      <main className="jx-strategy-hero">
+        <div className="jx-strategy-heroInner">
+          <h1 className="jx-strategy-heroTitle">{t('heroTitle')}</h1>
+          <p className="jx-strategy-heroHint">{t('heroHint')}</p>
 
           <NewStrategyPrompt
             onSubmit={onSubmit}
@@ -314,14 +314,14 @@ const StrategyHero = complex.component(
           />
 
           {recentCards.length > 0 && (
-            <div className="jx-lab-recents">
-              <span className="jx-lab-recentsLabel">{t('recentVisits')}</span>
-              <div className="jx-lab-recentsGrid">
+            <div className="jx-strategy-recents">
+              <span className="jx-strategy-recentsLabel">{t('recentVisits')}</span>
+              <div className="jx-strategy-recentsGrid">
                 {recentCards.map((card) => (
                   <StrategyCardView
                     key={card.id}
                     card={card}
-                    onOpen={(id) => navigate(`/lab?id=${id}`)}
+                    onOpen={(id) => navigate(`/strategy?id=${id}`)}
                     onDelete={(id) => {
                       store.removeSaved(id);
                       setRecentIds((ids) => ids.filter((existing) => existing !== id));
@@ -352,7 +352,7 @@ const NewStrategyPrompt = complex.component(
     initialText?: string;
     autoFocus?: boolean;
   }) => {
-    const { t } = useTranslation('lab');
+    const { t } = useTranslation('strategy');
     const [text, setText] = useState(initialText ?? '');
     const [language, setLanguage] = useState<StrategyLanguage>('typescript');
     useEffect(() => {
@@ -370,7 +370,7 @@ const NewStrategyPrompt = complex.component(
     };
     return (
       <>
-        <div className="jx-lab-newLanguage">
+        <div className="jx-strategy-newLanguage">
           <span>{t('strategyLanguage')}</span>
           <Segmented
             size="small"
@@ -382,9 +382,9 @@ const NewStrategyPrompt = complex.component(
             onChange={(value) => setLanguage(value as StrategyLanguage)}
           />
         </div>
-        <div className="jx-lab-heroBox">
+        <div className="jx-strategy-heroBox">
           <PromptBox
-            className="jx-lab-heroInput"
+            className="jx-strategy-heroInput"
             value={text}
             onChange={setText}
             onSubmit={submit}
@@ -395,15 +395,15 @@ const NewStrategyPrompt = complex.component(
           <Button
             type="primary"
             shape="circle"
-            className="jx-lab-heroSend"
+            className="jx-strategy-heroSend"
             icon={<FontAwesomeIcon icon={faPaperPlane} />}
             disabled={!text.trim()}
             onClick={submit}
           />
         </div>
 
-        <div className="jx-lab-examples">
-          <span className="jx-lab-examplesLabel">{t('examplesLabel')}</span>
+        <div className="jx-strategy-examples">
+          <span className="jx-strategy-examplesLabel">{t('examplesLabel')}</span>
           {EXAMPLE_PROMPTS.map((ex) => (
             <Button
               key={ex.labelKey}
@@ -415,8 +415,8 @@ const NewStrategyPrompt = complex.component(
           ))}
         </div>
 
-        <div className="jx-lab-heroLinks">
-          <button type="button" className="jx-lab-heroSkip" onClick={() => onSkip(language)}>
+        <div className="jx-strategy-heroLinks">
+          <button type="button" className="jx-strategy-heroSkip" onClick={() => onSkip(language)}>
             {t('writeCodeDirectly')}
           </button>
         </div>
@@ -438,7 +438,7 @@ function NewStrategyModal({
   onBlank: (language: StrategyLanguage) => void;
   onCancel: () => void;
 }) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   return (
     <Modal
       open={open}
@@ -448,8 +448,8 @@ function NewStrategyModal({
       width={620}
       destroyOnHidden
     >
-      <div className="jx-lab-newModal">
-        <p className="jx-lab-heroHint">{t('newModalHint')}</p>
+      <div className="jx-strategy-newModal">
+        <p className="jx-strategy-heroHint">{t('newModalHint')}</p>
         <NewStrategyPrompt onSubmit={onSubmit} onSkip={onBlank} autoFocus />
       </div>
     </Modal>
@@ -460,12 +460,12 @@ function NewStrategyModal({
 // History tab to switch strategies. The agent edits the code in the middle editor; the user can still hand-edit.
 const AgentPanel = complex.component(
   ({ onNew, onOpenStrategy }: { onNew: () => void; onOpenStrategy: (id: string) => void }) => {
-    const { t } = useTranslation('lab');
+    const { t } = useTranslation('strategy');
     const [tab, setTab] = useState('agent');
     return (
-      <div className="jx-lab-agent">
+      <div className="jx-strategy-agent">
         <Tabs
-          className="jx-lab-agentTabs"
+          className="jx-strategy-agentTabs"
           size="small"
           activeKey={tab}
           onChange={setTab}
@@ -499,7 +499,7 @@ const AgentPanel = complex.component(
 // (date/capital + Run-backtest) lives atop the results column, next to the output it produces.
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [includeReport, setIncludeReport] = useState(true);
   const [references, setReferences] = useState<ResearchDataReferenceV1[]>([]);
   useEffect(() => {
@@ -507,15 +507,15 @@ const AgentChat = complex.component(() => {
     setIncludeReport(true);
   }, [store.savedId]);
   return (
-    <div className="jx-lab-chat">
-      <div className="jx-lab-agentName">{store.name || t('agentUnsavedName')}</div>
+    <div className="jx-strategy-chat">
+      <div className="jx-strategy-agentName">{store.name || t('agentUnsavedName')}</div>
       <ChatLog
         messages={store.chatMessages}
         sending={store.sending}
         quiet={store.initializing}
         stream={store.turnStream}
       />
-      <div className="jx-lab-chatInput">
+      <div className="jx-strategy-chatInput">
         <EmbeddedAnalysisToolbar
           key={store.savedId ?? 'unsaved'}
           host={store.savedId ? { type: 'strategy', id: store.savedId } : undefined}
@@ -527,7 +527,7 @@ const AgentChat = complex.component(() => {
           disabled={store.sending}
         />
         <PromptBox
-          className="jx-lab-chatBox"
+          className="jx-strategy-chatBox"
           value={store.nlText}
           onChange={(v) => store.setField('nlText', v)}
           onSubmit={() => void store.sendAgent(store.nlText, includeReport, references)}
@@ -544,10 +544,10 @@ const AgentChat = complex.component(() => {
 // opens the less-frequent start/end/capital controls without making the result header look like a form.
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   return (
-    <div className="jx-lab-runConfig">
-      <span className="jx-lab-runSummary">
+    <div className="jx-strategy-runConfig">
+      <span className="jx-strategy-runSummary">
         {t('runSummary', {
           start: formatYmd(store.start),
           end: formatYmd(store.end),
@@ -560,7 +560,7 @@ const RunConfig = complex.component(() => {
         <LoaderButton
           type="text"
           size="small"
-          className="jx-lab-runBtn"
+          className="jx-strategy-runBtn"
           icon={<FontAwesomeIcon icon={faPlay} />}
           loading={store.running}
           disabled={!store.dirty}
@@ -603,7 +603,7 @@ const RunConfig = complex.component(() => {
         </Tooltip>
       )}
       {store.deploymentError && (
-        <span className="jx-lab-deploymentError" title={store.deploymentError}>
+        <span className="jx-strategy-deploymentError" title={store.deploymentError}>
           <FontAwesomeIcon icon={faTriangleExclamation} />
           {store.deploymentError}
         </span>
@@ -612,24 +612,24 @@ const RunConfig = complex.component(() => {
         placement="bottomRight"
         trigger="click"
         content={
-          <div className="jx-lab-runPanel">
-            <div className="jx-lab-runPanelTitle">{t('runParameters')}</div>
-            <label className="jx-lab-runPanelField">
-              <span className="jx-lab-runLabel">{t('runStart')}</span>
+          <div className="jx-strategy-runPanel">
+            <div className="jx-strategy-runPanelTitle">{t('runParameters')}</div>
+            <label className="jx-strategy-runPanelField">
+              <span className="jx-strategy-runLabel">{t('runStart')}</span>
               <DatePicker
                 size="small"
-                className="jx-lab-runPanelControl"
+                className="jx-strategy-runPanelControl"
                 value={ymd(store.start)}
                 format="YYYY-MM-DD"
                 allowClear={false}
                 onChange={(date) => store.setField('start', date ? date.format('YYYYMMDD') : '')}
               />
             </label>
-            <label className="jx-lab-runPanelField">
-              <span className="jx-lab-runLabel">{t('runSlippageBps')}</span>
+            <label className="jx-strategy-runPanelField">
+              <span className="jx-strategy-runLabel">{t('runSlippageBps')}</span>
               <InputNumber
                 size="small"
-                className="jx-lab-runPanelControl"
+                className="jx-strategy-runPanelControl"
                 value={store.cost.slippageBps}
                 min={0}
                 max={10_000}
@@ -638,11 +638,11 @@ const RunConfig = complex.component(() => {
                 onChange={(value) => store.setCostField('slippageBps', value ?? 0)}
               />
             </label>
-            <label className="jx-lab-runPanelField">
-              <span className="jx-lab-runLabel">{t('runImpactCoef')}</span>
+            <label className="jx-strategy-runPanelField">
+              <span className="jx-strategy-runLabel">{t('runImpactCoef')}</span>
               <InputNumber
                 size="small"
-                className="jx-lab-runPanelControl"
+                className="jx-strategy-runPanelControl"
                 value={store.cost.impactCoef}
                 min={0}
                 max={10}
@@ -650,22 +650,22 @@ const RunConfig = complex.component(() => {
                 onChange={(value) => store.setCostField('impactCoef', value ?? 0)}
               />
             </label>
-            <label className="jx-lab-runPanelField">
-              <span className="jx-lab-runLabel">{t('runEnd')}</span>
+            <label className="jx-strategy-runPanelField">
+              <span className="jx-strategy-runLabel">{t('runEnd')}</span>
               <DatePicker
                 size="small"
-                className="jx-lab-runPanelControl"
+                className="jx-strategy-runPanelControl"
                 value={ymd(store.end)}
                 format="YYYY-MM-DD"
                 allowClear={false}
                 onChange={(date) => store.setField('end', date ? date.format('YYYYMMDD') : '')}
               />
             </label>
-            <label className="jx-lab-runPanelField">
-              <span className="jx-lab-runLabel">{t('runCapital')}</span>
+            <label className="jx-strategy-runPanelField">
+              <span className="jx-strategy-runLabel">{t('runCapital')}</span>
               <InputNumber
                 size="small"
-                className="jx-lab-runPanelControl"
+                className="jx-strategy-runPanelControl"
                 addonAfter={t('unitWan')}
                 value={store.initialCash / 10000}
                 min={1}
@@ -682,7 +682,7 @@ const RunConfig = complex.component(() => {
           <Button
             type="text"
             size="small"
-            className="jx-lab-runEditBtn"
+            className="jx-strategy-runEditBtn"
             icon={<FontAwesomeIcon icon={faPen} />}
             aria-label={t('runEditParameters')}
           />
@@ -706,7 +706,7 @@ function ChatLog({
   quiet?: boolean;
   stream: AgentTurnStream;
 }) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -715,12 +715,15 @@ function ChatLog({
     }
   }, [messages.length, sending]);
   return (
-    <div ref={ref} className="jx-lab-chatLog">
+    <div ref={ref} className="jx-strategy-chatLog">
       {messages.length === 0 && !sending && !quiet && (
-        <div className="jx-lab-chatEmpty">{t('chatEmpty')}</div>
+        <div className="jx-strategy-chatEmpty">{t('chatEmpty')}</div>
       )}
       {messages.map((message, index) => (
-        <div key={index} className={classNames('jx-lab-bubble', `jx-lab-bubble--${message.role}`)}>
+        <div
+          key={index}
+          className={classNames('jx-strategy-bubble', `jx-strategy-bubble--${message.role}`)}
+        >
           {message.role === 'assistant' && message.turnId ? (
             <AgentTrace turnId={message.turnId} />
           ) : (
@@ -730,7 +733,7 @@ function ChatLog({
         </div>
       ))}
       {sending && (
-        <div className="jx-lab-bubble jx-lab-bubble--assistant jx-lab-bubble--thinking">
+        <div className="jx-strategy-bubble jx-strategy-bubble--assistant jx-strategy-bubble--thinking">
           <AgentPending stream={stream} />
         </div>
       )}
@@ -741,20 +744,20 @@ function ChatLog({
 // History tab: this user's strategies as vertical cards — open loads the strategy + its conversation.
 const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => void }) => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const cards = store.savedLoader.result ?? [];
   if (store.savedLoader.loading && cards.length === 0) {
     return (
-      <div className="jx-lab-placeholder">
+      <div className="jx-strategy-placeholder">
         <FontAwesomeIcon icon={faSpinner} spin />
       </div>
     );
   }
   if (cards.length === 0) {
-    return <div className="jx-lab-placeholder">{t('historyEmpty')}</div>;
+    return <div className="jx-strategy-placeholder">{t('historyEmpty')}</div>;
   }
   return (
-    <div className="jx-lab-history">
+    <div className="jx-strategy-history">
       {cards.map((card) => (
         <StrategyCardView
           key={card.id}
@@ -826,10 +829,10 @@ function PromptBox({
 // The strategy code editor — Monaco with SDK autocomplete/types, lazy-loaded into its own chunk.
 const StrategyCode = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   return (
-    <div className="jx-lab-codeShell">
-      <div className="jx-lab-codeToolbar">
+    <div className="jx-strategy-codeShell">
+      <div className="jx-strategy-codeToolbar">
         <Segmented
           size="small"
           value={store.language}
@@ -848,12 +851,12 @@ const StrategyCode = complex.component(() => {
           }}
         />
         {store.language === 'python' && (
-          <span className="jx-lab-runtimeBadge">py-v1 · {t('pythonRuntimeHint')}</span>
+          <span className="jx-strategy-runtimeBadge">py-v1 · {t('pythonRuntimeHint')}</span>
         )}
       </div>
       <StrategyResearchHandoff />
-      <div className="jx-lab-code">
-        <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingEditor')}</div>}>
+      <div className="jx-strategy-code">
+        <Suspense fallback={<div className="jx-strategy-placeholder">{t('loadingEditor')}</div>}>
           <CodeEditor
             value={store.code}
             language={store.language}
@@ -867,23 +870,23 @@ const StrategyCode = complex.component(() => {
 
 const StrategyResearchHandoff = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const navigate = useNavigate();
   if (!store.researchHandoff) {
     return null;
   }
 
   return (
-    <section className="jx-lab-researchHandoff" data-testid="strategy-research-handoff">
-      <div className="jx-lab-researchHandoffHead">
+    <section className="jx-strategy-researchHandoff" data-testid="strategy-research-handoff">
+      <div className="jx-strategy-researchHandoffHead">
         <FontAwesomeIcon icon={faFlask} />
-        <div className="jx-lab-researchHandoffSource">
+        <div className="jx-strategy-researchHandoffSource">
           <span>{t('researchHandoff.title')}</span>
           <strong>
             {store.sourceResearchExecution?.displayName ?? store.researchHandoff.sourceDisplayName}
           </strong>
         </div>
-        <span className="jx-lab-researchHandoffLanguage">Python · py-v1</span>
+        <span className="jx-strategy-researchHandoffLanguage">Python · py-v1</span>
         {store.sourceResearchExecution && (
           <Tooltip title={t('researchHandoff.openSource')}>
             <Button
@@ -900,7 +903,7 @@ const StrategyResearchHandoff = complex.component(() => {
           </Tooltip>
         )}
         {!store.sourceResearchExecution && (
-          <span className="jx-lab-researchHandoffUnavailable">
+          <span className="jx-strategy-researchHandoffUnavailable">
             {t('researchHandoff.sourceUnavailable')}
           </span>
         )}
@@ -927,11 +930,11 @@ const StrategyResearchHandoff = complex.component(() => {
 // stream in the dock.
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
 
   if (store.running) {
     return (
-      <div className="jx-lab-placeholder">
+      <div className="jx-strategy-placeholder">
         <FontAwesomeIcon icon={faSpinner} spin />
         {t('runningCalc')}
       </div>
@@ -939,7 +942,7 @@ const ResultPanel = complex.component(() => {
   }
   if (store.error) {
     return (
-      <div className="jx-lab-placeholder jx-lab-placeholder--error">
+      <div className="jx-strategy-placeholder jx-strategy-placeholder--error">
         {t('runFailed', { error: store.error })}
       </div>
     );
@@ -949,13 +952,13 @@ const ResultPanel = complex.component(() => {
     // While the initial strategy (and its saved result) is still loading, stay blank — the
     // "write your strategy" hint would flash-swap into the loaded result a few frames later.
     if (store.initializing) {
-      return <div className="jx-lab-placeholder" />;
+      return <div className="jx-strategy-placeholder" />;
     }
-    return <div className="jx-lab-placeholder">{t('resultEmpty')}</div>;
+    return <div className="jx-strategy-placeholder">{t('resultEmpty')}</div>;
   }
   if (store.backtestComparisonLoader.loading) {
     return (
-      <div className="jx-lab-placeholder">
+      <div className="jx-strategy-placeholder">
         <FontAwesomeIcon icon={faSpinner} spin />
         {t('backtestHistory.comparisonLoading')}
       </div>
@@ -1038,7 +1041,7 @@ const ResultPanel = complex.component(() => {
     <>
       {hasPanelFactor ? (
         <Alert
-          className="jx-lab-panelExecutionNotice"
+          className="jx-strategy-panelExecutionNotice"
           data-testid="panel-strategy-execution-notice"
           type="success"
           showIcon
@@ -1047,19 +1050,19 @@ const ResultPanel = complex.component(() => {
         />
       ) : null}
       {r.factorDependencies?.length ? (
-        <div className="jx-lab-factorDependencies" data-testid="strategy-factor-dependencies">
-          <div className="jx-lab-factorDependenciesHead">
+        <div className="jx-strategy-factorDependencies" data-testid="strategy-factor-dependencies">
+          <div className="jx-strategy-factorDependenciesHead">
             <strong>{t('factorDependenciesTitle')}</strong>
             <span>{t('factorDependenciesFrozen')}</span>
           </div>
-          <div className="jx-lab-factorDependencyList">
+          <div className="jx-strategy-factorDependencyList">
             {r.factorDependencies.map((factor) => (
               <a
                 key={factor.factorId}
                 href={`/factors?factor=${encodeURIComponent(factor.factorId)}${factor.approvedReportId ? `&report=${encodeURIComponent(factor.approvedReportId)}` : ''}`}
                 target="_blank"
                 rel="noreferrer"
-                className="jx-lab-factorDependency"
+                className="jx-strategy-factorDependency"
               >
                 <span>
                   <b>{factor.key}</b>
@@ -1073,12 +1076,12 @@ const ResultPanel = complex.component(() => {
           </div>
         </div>
       ) : null}
-      <div className="jx-lab-metrics">
+      <div className="jx-strategy-metrics">
         {metrics.map((m) => (
-          <div className="jx-lab-metric" key={m.label}>
-            <div className="jx-lab-metricLabel">{m.label}</div>
+          <div className="jx-strategy-metric" key={m.label}>
+            <div className="jx-strategy-metricLabel">{m.label}</div>
             <div
-              className={classNames('jx-lab-metricValue', {
+              className={classNames('jx-strategy-metricValue', {
                 'text-up': m.tone === 'up',
                 'text-down': m.tone === 'down',
               })}
@@ -1089,7 +1092,7 @@ const ResultPanel = complex.component(() => {
         ))}
       </div>
       {r.allocationAnalysis ? <AllocationAnalysisPanel analysis={r.allocationAnalysis} /> : null}
-      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
+      <Suspense fallback={<div className="jx-strategy-placeholder">{t('loadingChart')}</div>}>
         <NavChart
           nav={r.nav}
           up={up}
@@ -1103,7 +1106,7 @@ const ResultPanel = complex.component(() => {
 }, 'ResultPanel');
 
 const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanelProps) => {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const signed = (value: number, digits = 2) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
   const percentagePointDifference = (value: number) =>
     t('backtestHistory.percentagePointDifference', { value: signed(value * 100) });
@@ -1141,27 +1144,27 @@ const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanel
 
   return (
     <>
-      <section className="jx-lab-comparison" data-testid="backtest-report-comparison">
-        <div className="jx-lab-comparisonHead">
+      <section className="jx-strategy-comparison" data-testid="backtest-report-comparison">
+        <div className="jx-strategy-comparisonHead">
           <strong>{t('backtestHistory.comparisonTitle')}</strong>
           <span>{t('backtestHistory.comparisonDifference')}</span>
         </div>
-        <div className="jx-lab-comparisonMetrics">
+        <div className="jx-strategy-comparisonMetrics">
           {metrics.map((metric) => (
-            <div className="jx-lab-comparisonMetric" key={metric.label}>
-              <span className="jx-lab-comparisonMetricLabel">{metric.label}</span>
-              <div className="jx-lab-comparisonMetricValue">
+            <div className="jx-strategy-comparisonMetric" key={metric.label}>
+              <span className="jx-strategy-comparisonMetricLabel">{metric.label}</span>
+              <div className="jx-strategy-comparisonMetricValue">
                 <span>{t('backtestHistory.reportA')}</span>
                 <b>{metric.primary}</b>
               </div>
-              <div className="jx-lab-comparisonMetricValue">
+              <div className="jx-strategy-comparisonMetricValue">
                 <span>{t('backtestHistory.reportB')}</span>
                 <b>{metric.secondary}</b>
               </div>
               <div
-                className={classNames('jx-lab-comparisonMetricDifference', {
-                  'jx-lab-comparisonMetricDifference--up': metric.tone === 'up',
-                  'jx-lab-comparisonMetricDifference--down': metric.tone === 'down',
+                className={classNames('jx-strategy-comparisonMetricDifference', {
+                  'jx-strategy-comparisonMetricDifference--up': metric.tone === 'up',
+                  'jx-strategy-comparisonMetricDifference--down': metric.tone === 'down',
                 })}
               >
                 {metric.difference}
@@ -1170,7 +1173,7 @@ const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanel
           ))}
         </div>
       </section>
-      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
+      <Suspense fallback={<div className="jx-strategy-placeholder">{t('loadingChart')}</div>}>
         <NavChart
           nav={primary.nav}
           up={primary.totalReturn >= 0}
@@ -1184,20 +1187,20 @@ const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanel
 };
 
 const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis }) => {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const money = (value: number) => Math.round(value).toLocaleString();
   const risk = (value: number | null) => (value == null ? '—' : pct(value));
 
   return (
-    <section className="jx-lab-allocation" data-testid="allocation-analysis">
-      <div className="jx-lab-allocationHead">
+    <section className="jx-strategy-allocation" data-testid="allocation-analysis">
+      <div className="jx-strategy-allocationHead">
         <div>
           <strong>{t('allocation.title')}</strong>
           <span>{t('allocation.methodology')}</span>
         </div>
         <span
-          className={classNames('jx-lab-allocationReconciliation', {
-            'jx-lab-allocationReconciliation--failed': !analysis.reconciliation.reconciled,
+          className={classNames('jx-strategy-allocationReconciliation', {
+            'jx-strategy-allocationReconciliation--failed': !analysis.reconciliation.reconciled,
           })}
         >
           {analysis.reconciliation.reconciled
@@ -1205,7 +1208,7 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
             : t('allocation.notReconciled')}
         </span>
       </div>
-      <div className="jx-lab-allocationSummary">
+      <div className="jx-strategy-allocationSummary">
         <div>
           <span>{t('allocation.portfolioPnl')}</span>
           <b>{money(analysis.reconciliation.portfolioPnl)}</b>
@@ -1396,7 +1399,7 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
 };
 
 const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const market = data.market;
   const macro = data.macro;
   const overlap = data.alphaRiskOverlap ?? [];
@@ -1404,7 +1407,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
   const factorLabel = (factor: MarketRiskFactorKeyV1) => t(`allocation.risk.factors.${factor}`);
 
   return (
-    <div className="jx-lab-risk" data-testid="allocation-risk-research">
+    <div className="jx-strategy-risk" data-testid="allocation-risk-research">
       <Alert
         type="info"
         showIcon
@@ -1420,8 +1423,8 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                   key: 'market',
                   label: t('allocation.risk.marketTab'),
                   children: (
-                    <div className="jx-lab-riskSection">
-                      <div className="jx-lab-riskSummary">
+                    <div className="jx-strategy-riskSection">
+                      <div className="jx-strategy-riskSummary">
                         <RiskSummaryMetric
                           label={t('allocation.risk.asOfDate')}
                           value={formatYmd(market.asOfDate)}
@@ -1476,7 +1479,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                           },
                         ]}
                       />
-                      <div className="jx-lab-riskMeta">
+                      <div className="jx-strategy-riskMeta">
                         {t('allocation.risk.marketMeta', {
                           halfLife: market.covarianceHalfLife,
                           minimum: market.minimumObservations,
@@ -1493,7 +1496,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                   key: 'macro',
                   label: t('allocation.risk.macroTab'),
                   children: (
-                    <div className="jx-lab-riskSection">
+                    <div className="jx-strategy-riskSection">
                       {!macro.pointInTimeEligible ? (
                         <Alert
                           type="warning"
@@ -1504,7 +1507,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                           })}
                         />
                       ) : null}
-                      <div className="jx-lab-riskSummary">
+                      <div className="jx-strategy-riskSummary">
                         <RiskSummaryMetric
                           label={t('allocation.risk.asOfDate')}
                           value={formatYmd(macro.asOfDate)}
@@ -1552,7 +1555,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                           },
                         ]}
                       />
-                      <div className="jx-lab-riskMeta">
+                      <div className="jx-strategy-riskMeta">
                         {t('allocation.risk.macroMeta', {
                           minimum: macro.minimumObservations,
                         })}
@@ -1568,7 +1571,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                   key: 'overlap',
                   label: t('allocation.risk.overlapTab'),
                   children: (
-                    <div className="jx-lab-riskSection">
+                    <div className="jx-strategy-riskSection">
                       <Alert
                         type="info"
                         showIcon
@@ -1606,7 +1609,9 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                             title: t('allocation.risk.classification'),
                             dataIndex: 'classification',
                             render: (value: string) => (
-                              <span className={`jx-lab-riskOverlap jx-lab-riskOverlap--${value}`}>
+                              <span
+                                className={`jx-strategy-riskOverlap jx-strategy-riskOverlap--${value}`}
+                              >
                                 {t(`allocation.risk.classifications.${value}`)}
                               </span>
                             ),
@@ -1629,7 +1634,7 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                   key: 'scenarios',
                   label: t('allocation.risk.scenarioTab'),
                   children: (
-                    <div className="jx-lab-riskSection">
+                    <div className="jx-strategy-riskSection">
                       <Alert
                         type="warning"
                         showIcon
@@ -1716,7 +1721,7 @@ const RiskSummaryMetric = ({ label, value }: { label: string; value: string }) =
 );
 
 const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysis }) => {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const assetClasses = [
     ...new Set(data.states.flatMap((state) => state.assetClasses.map((row) => row.assetClass))),
   ];
@@ -1726,7 +1731,7 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
   const latest = data.latest;
 
   return (
-    <div className="jx-lab-rateRegime" data-testid="allocation-rate-regime">
+    <div className="jx-strategy-rateRegime" data-testid="allocation-rate-regime">
       <Alert
         type="info"
         showIcon
@@ -1745,7 +1750,7 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
         })}
       />
       {latest ? (
-        <div className="jx-lab-rateRegimeSummary">
+        <div className="jx-strategy-rateRegimeSummary">
           <div>
             <span>{t('allocation.tenYearYield')}</span>
             <b>{latest.tenYearYieldPct.toFixed(2)}%</b>
@@ -1764,7 +1769,7 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
           </div>
         </div>
       ) : null}
-      <div className="jx-lab-rateRegimeControls">
+      <div className="jx-strategy-rateRegimeControls">
         <span>
           {t('allocation.rateRegimeCoverage', {
             classified: data.classifiedDays,
@@ -1773,7 +1778,7 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
           })}
         </span>
         <Select
-          className="jx-lab-rateRegimeAssetClass"
+          className="jx-strategy-rateRegimeAssetClass"
           size="small"
           aria-label={t('allocation.rateRegimeAssetClass')}
           value={assetClass}
@@ -1784,12 +1789,12 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
           onChange={setAssetClass}
         />
       </div>
-      <div className="jx-lab-rateRegimeStates">
+      <div className="jx-strategy-rateRegimeStates">
         {data.states.map((state) => {
           const metrics = state.assetClasses.find((row) => row.assetClass === assetClass);
           return (
-            <div className="jx-lab-rateRegimeState" key={state.key}>
-              <div className="jx-lab-rateRegimeStateHead">
+            <div className="jx-strategy-rateRegimeState" key={state.key}>
+              <div className="jx-strategy-rateRegimeStateHead">
                 <strong>{t(`allocation.rateRegimeStates.${state.key}`)}</strong>
                 <span>
                   {t('allocation.rateRegimeStateMeta', {
@@ -1799,7 +1804,7 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
                   })}
                 </span>
               </div>
-              <div className="jx-lab-rateRegimeMetrics">
+              <div className="jx-strategy-rateRegimeMetrics">
                 <div>
                   <span>{t('allocation.rateRegimeAnnualReturn')}</span>
                   <b
@@ -1833,7 +1838,7 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
 };
 
 const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnalysis }) => {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [windowDays, setWindowDays] = useState<60 | 120>(data.windows[0]?.window ?? 60);
   const selectedWindow =
     data.windows.find((candidate) => candidate.window === windowDays) ?? data.windows[0];
@@ -1847,7 +1852,7 @@ const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnaly
     preferredPair ? correlationPairKey(preferredPair.left, preferredPair.right) : '',
   );
   if (!selectedWindow || !preferredPair) {
-    return <div className="jx-lab-placeholder">{t('allocation.correlationEmpty')}</div>;
+    return <div className="jx-strategy-placeholder">{t('allocation.correlationEmpty')}</div>;
   }
   const pair =
     selectedWindow.series.find(
@@ -1871,8 +1876,8 @@ const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnaly
     .sort((left, right) => right.value - left.value)[0];
 
   return (
-    <div className="jx-lab-correlation" data-testid="allocation-correlation">
-      <div className="jx-lab-correlationControls">
+    <div className="jx-strategy-correlation" data-testid="allocation-correlation">
+      <div className="jx-strategy-correlationControls">
         <Segmented
           size="small"
           value={selectedWindow.window}
@@ -1883,7 +1888,7 @@ const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnaly
           onChange={(value) => setWindowDays(Number(value) as 60 | 120)}
         />
         <Select
-          className="jx-lab-correlationPair"
+          className="jx-strategy-correlationPair"
           size="small"
           value={correlationPairKey(pair.left, pair.right)}
           options={selectedWindow.series.map((series) => ({
@@ -1893,7 +1898,7 @@ const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnaly
           onChange={setPairKey}
         />
       </div>
-      <div className="jx-lab-correlationMeta">
+      <div className="jx-strategy-correlationMeta">
         {t('allocation.correlationMeta', {
           date: formatYmd(selectedWindow.asOfDate),
           observations: selectedWindow.minimumObservations,
@@ -1912,7 +1917,7 @@ const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnaly
           description={`${labels[strongest.series.left]} × ${labels[strongest.series.right]}`}
         />
       ) : null}
-      <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingChart')}</div>}>
+      <Suspense fallback={<div className="jx-strategy-placeholder">{t('loadingChart')}</div>}>
         <AllocationCorrelationCharts data={selectedWindow} pair={pair} labels={labels} />
       </Suspense>
     </div>
@@ -1942,15 +1947,15 @@ function formatOptionalPercent(value: number | null): string {
 // The bottom dock — a collapsible IDE-style panel with streamed system + user console output.
 const LogDock = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const emptyText = store.queuePosition
     ? t('queuePosition', { position: store.queuePosition })
     : store.running
       ? t('logStarting')
       : t('logEmpty');
   return (
-    <div className="jx-lab-dock">
-      <div className="jx-lab-dockHead">
+    <div className="jx-strategy-dock">
+      <div className="jx-strategy-dockHead">
         {store.running && <FontAwesomeIcon icon={faSpinner} spin />}
         {t('logTab')}
       </div>
@@ -1963,7 +1968,7 @@ const LogDock = complex.component(() => {
 // execution detail as tabs. Trade-detail appears only once a run has trades.
 const ResultTabs = complex.component(() => {
   const store = complex.useStore();
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const [active, setActive] = useState('overview');
   const [comparing, setComparing] = useState(false);
   const [comparisonReportId, setComparisonReportId] = useState<string | null>(null);
@@ -2005,7 +2010,7 @@ const ResultTabs = complex.component(() => {
       key: 'overview',
       label: t('tabOverview'),
       children: (
-        <div className="jx-lab-result">
+        <div className="jx-strategy-result">
           <ResultPanel />
         </div>
       ),
@@ -2016,8 +2021,8 @@ const ResultTabs = complex.component(() => {
       key: 'trades',
       label: t('tabTradeDetail', { count: result.trades.toLocaleString() }),
       children: (
-        <div className="jx-lab-tradesTab">
-          <Suspense fallback={<div className="jx-lab-placeholder">{t('loadingTrades')}</div>}>
+        <div className="jx-strategy-tradesTab">
+          <Suspense fallback={<div className="jx-strategy-placeholder">{t('loadingTrades')}</div>}>
             <TradeDetail tradeLog={result.tradeLog ?? []} />
           </Suspense>
         </div>
@@ -2039,7 +2044,7 @@ const ResultTabs = complex.component(() => {
       : active;
 
   return (
-    <div className="jx-lab-resultTabs">
+    <div className="jx-strategy-resultTabs">
       <RunConfig />
       {store.savedId ? (
         <BacktestHistoryPicker
@@ -2051,7 +2056,7 @@ const ResultTabs = complex.component(() => {
         />
       ) : null}
       <Tabs
-        className="jx-lab-resultTabsInner"
+        className="jx-strategy-resultTabsInner"
         size="small"
         activeKey={activeKey}
         onChange={setActive}
@@ -2082,7 +2087,7 @@ const BacktestHistoryPicker = complex.component(
     onSelectComparison,
   }: BacktestHistoryPickerProps) => {
     const store = complex.useStore();
-    const { t } = useTranslation('lab');
+    const { t } = useTranslation('strategy');
     const reports = store.backtestHistoryLoader.result ?? [];
     const activeReportId = reports.some((report) => report.id === store.activeBacktestReportId)
       ? store.activeBacktestReportId
@@ -2093,16 +2098,16 @@ const BacktestHistoryPicker = complex.component(
     }));
 
     return (
-      <div className="jx-lab-reportPicker">
-        <div className="jx-lab-reportRow">
+      <div className="jx-strategy-reportPicker">
+        <div className="jx-strategy-reportRow">
           {comparing ? (
-            <span className="jx-lab-reportBadge">{t('backtestHistory.reportA')}</span>
+            <span className="jx-strategy-reportBadge">{t('backtestHistory.reportA')}</span>
           ) : (
             <FontAwesomeIcon icon={faClockRotateLeft} />
           )}
           <Select
             size="small"
-            className="jx-lab-reportSelect"
+            className="jx-strategy-reportSelect"
             data-testid="backtest-report-history"
             aria-label={t('backtestHistory.label')}
             value={activeReportId}
@@ -2144,19 +2149,19 @@ const BacktestHistoryPicker = complex.component(
           </Tooltip>
         </div>
         {comparing ? (
-          <div className="jx-lab-reportRow">
-            <span className="jx-lab-reportBadge jx-lab-reportBadge--secondary">
+          <div className="jx-strategy-reportRow">
+            <span className="jx-strategy-reportBadge jx-strategy-reportBadge--secondary">
               {t('backtestHistory.reportB')}
             </span>
             <Select
               size="small"
-              className="jx-lab-reportSelect"
+              className="jx-strategy-reportSelect"
               data-testid="backtest-report-comparison-select"
               aria-label={t('backtestHistory.chooseComparison')}
               value={comparisonReportId ?? undefined}
               loading={store.backtestComparisonLoader.loading}
               disabled={store.running}
-              classNames={{ popup: { root: 'jx-lab-comparisonReportPopup' } }}
+              classNames={{ popup: { root: 'jx-strategy-comparisonReportPopup' } }}
               placeholder={t('backtestHistory.chooseComparison')}
               options={options.filter((option) => option.value !== activeReportId)}
               onChange={onSelectComparison}

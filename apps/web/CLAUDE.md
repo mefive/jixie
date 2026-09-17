@@ -82,7 +82,7 @@ className={
 - `ConfigProvider` 在 `main.tsx` 顶层，主题 token 调**墨黑**（`colorPrimary/colorLink: #111827`、
   `colorLinkHover: #374151`、`borderRadius: 8`，借自 marginalia），**别露默认 antd 蓝**。
 - 自写视觉（布局、卡片、图表）走 §3 的具名 class + `@apply`；**antd 组件的样式由 antd 自己管**，
-  不去深改其内部 class。需让 antd 控件撑满容器时给个 `width:100%` 的 class（如 `jx-lab-control`）。
+  不去深改其内部 class。需让 antd 控件撑满容器时给个 `width:100%` 的 class（如 `jx-strategy-control`）。
 - antd 没有的（数据图表用 ECharts；锚在移动元素上的弹层用 `@floating-ui/react`，非 antd Popover）才手写。
 
 ## 9. 多语言（i18n，中英双语）

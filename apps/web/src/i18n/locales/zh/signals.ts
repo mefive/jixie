@@ -2,7 +2,7 @@ export const zhSignals = {
   title: '今日信号',
   subtitle: '收盘后生成、次日开盘执行；空信号也是系统的一次明确决策。',
   refresh: '刷新',
-  noDeployments: '还没有上线策略。先在回测工作台完成回测，再点“部署上线”。',
+  noDeployments: '还没有上线策略。先在策略工作台完成回测，再点“部署上线”。',
   neverRun: '尚未生成',
   active: '运行中',
   paused: '已暂停',

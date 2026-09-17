@@ -4,7 +4,7 @@ import type { zhCommon } from '../zh/common';
 export const enCommon: typeof zhCommon = {
   appName: 'Jixie',
   nav: {
-    backtest: 'Backtest Lab',
+    strategy: 'Strategy',
     research: 'Research',
     factor: 'Factors',
     market: 'Market',

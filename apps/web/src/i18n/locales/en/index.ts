@@ -2,7 +2,7 @@ import { enEmbedded } from './embedded';
 import { enCommon } from './common';
 import { enLogin } from './login';
 import { enComponents } from './components';
-import { enLab } from './lab';
+import { enStrategy } from './strategy';
 import { enFactor } from './factor';
 import { enFactorWeather } from './factor-weather';
 import { enStock } from './stock';
@@ -17,7 +17,7 @@ export const enResources = {
   common: enCommon,
   login: enLogin,
   components: enComponents,
-  lab: enLab,
+  strategy: enStrategy,
   factor: enFactor,
   factorWeather: enFactorWeather,
   stock: enStock,

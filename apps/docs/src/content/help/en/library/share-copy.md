@@ -8,7 +8,7 @@ The **Public Library** lists strategies and published Factors that users deliber
 2. Under **Public assets**, browse **Public strategies** and **Public Factors**.
 3. Verify the name, asset type, and author. A Factor also shows its key.
 4. Select **Copy to my workspace**.
-5. A strategy opens in the Backtest workspace and a Factor opens in Factor Research. The copy is private by default.
+5. A strategy opens in the Strategy workbench and a Factor opens in Factor Research. The copy is private by default.
 6. Before editing, inspect the code, parameters, research scope, and any existing report. Public origin does not remove the need for validation.
 
 Copying creates a new owner and independent ID. Later changes or privacy settings on the source do not rewrite an existing copy, and your edits do not change the source.
@@ -48,5 +48,5 @@ No. The copy became an independent private asset owned by that user when it was 
 ## Related articles
 
 - [Publish a Factor and use it in a strategy](/docs/help/factors/publish-factor)
-- [Understand the Backtest workspace](/docs/help/backtesting/workspace)
+- [Understand the Strategy workbench](/docs/help/backtesting/workspace)
 

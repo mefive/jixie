@@ -54,7 +54,7 @@ into formal evidence.
 
 When the research also defines instruments or a point-in-time universe, signal direction, rebalance or entry/exit conditions,
 and a sizing rule, the same snapshot can create a Python Strategy draft. The draft defaults to `py-v1` and never runs a backtest
-automatically. Review its code, range, capital, and costs in Strategy Lab before running it. Research that contains only a
+automatically. Review its code, range, capital, and costs in Strategy before running it. Research that contains only a
 predictive relationship is routed to Factor first.
 
 ## Study an equity universe

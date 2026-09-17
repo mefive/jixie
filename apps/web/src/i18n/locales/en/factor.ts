@@ -562,7 +562,7 @@ export const enFactor: typeof zhFactor = {
       'It will no longer be offered to new strategies; historical backtests remain traceable.',
     archived: 'Factor archived',
     archiveFailed: 'Archive failed',
-    useInLab: 'Use in strategy',
+    useInStrategy: 'Use in strategy',
     reportRef: 'Report {{id}}',
     codeRef: 'Code {{hash}}',
     outdated:

@@ -10,7 +10,7 @@ This example tests buying 100 shares of Kweichow Moutai on the first trading day
 
 ## Describe the strategy
 
-1. Select Backtest Lab.
+1. Select Strategy.
 2. Select New or open a new backtest.
 3. Choose TypeScript or Python under Strategy language. Keep TypeScript for this walkthrough, or choose
    Python to have the Agent and editor use py-v1.
@@ -18,7 +18,7 @@ This example tests buying 100 shares of Kweichow Moutai on the first trading day
 5. Press Enter or use the send button marked **2**.
 6. Example descriptions appear in **3**.
 
-![Strategy description, send button, and examples in Backtest Lab](/docs/images/help/zh/getting-started/first-backtest-01-prompt.png)
+![Strategy description, send button, and examples in Strategy](/docs/images/help/zh/getting-started/first-backtest-01-prompt.png)
 
 Wait for the explanation on the left and strategy code in the center. Verify that the stock, quantity, and frequency match your description before running it.
 

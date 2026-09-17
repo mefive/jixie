@@ -161,10 +161,10 @@ try {
           `turnover-history backtest completed without trades: ${JSON.stringify(saved)}`,
         );
       }
-      await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-      await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
-      await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 30_000 });
-      await page.locator('.jx-lab-result canvas').first().waitFor({ timeout: 30_000 });
+      await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+      await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
+      await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 30_000 });
+      await page.locator('.jx-strategy-result canvas').first().waitFor({ timeout: 30_000 });
       await page.waitForTimeout(500);
       await page.screenshot({ path: `${SHOTS}8-factor-strategy-turnover-history.png` });
       console.log(

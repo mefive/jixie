@@ -18,7 +18,7 @@ E2E 从具体用户任务出发，验证用户通过界面完成任务及其结�
 3. 跑 e2e:
    ```bash
    pnpm --filter web test:e2e
-   pnpm --filter web test:e2e:strategy-indicators # 五指标策略真实回测 + Lab 验收截图
+   pnpm --filter web test:e2e:strategy-indicators # 五指标策略真实回测 + Strategy 验收截图
    pnpm --filter web test:e2e:factor-panel-composite # 含 Phase 5 多资产风险研究真实回测
    pnpm --filter docs test:e2e
    ```
@@ -63,3 +63,10 @@ E2E_BASE=http://localhost:5173 node apps/web/e2e/factor-question-recovery.mjs
 上述两类浏览器检查不能彼此替代；报告归属、Holdout、并发、迁移等后端边界仍由
 `apps/api/src/factor/questions/*.integration.test.ts` 验证。后续嵌入式分析接入还需单独验收
 “选择来源 → 生成 Python → 实际执行 → 查看输出/代码/版本 → 继续到 Research”的用户任务，不能用本轮问答测试代替。
+
+策略命名兼容回归（本地 Web 服务即可，API 使用隔离 fixture，不写数据库）：
+
+```sh
+node apps/web/e2e/strategy-navigation.mjs
+node --import tsx --test apps/web/src/complex/strategy/recents.test.ts
+```

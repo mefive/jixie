@@ -31,7 +31,7 @@ If contemporaneous and lagged-state results point in different directions, the c
 
 ## Current limits
 
-The current model does not expose publication or Use in Strategy Lab. State labels are not orders or fixed stock/bond/gold weights. Mapping states to positions requires a separate strategy, rebalance rule, risk constraints, and backtest. Latest-value results cannot bypass the future-revision warning.
+The current model does not expose publication or Use in strategy. State labels are not orders or fixed stock/bond/gold weights. Mapping states to positions requires a separate strategy, rebalance rule, risk constraints, and backtest. Latest-value results cannot bypass the future-revision warning.
 
 ## Related articles
 

@@ -48,7 +48,7 @@ Asset coverage lists each ETF's observations and first and last valid month-end.
 4. Keep the fixed equal-weight rule through exploration and holdout.
 5. Before publishing, confirm every component is itself published.
 
-A published Panel composite can enter Strategy Lab. Its allocation attribution is separate from the research long-short result.
+A published Panel composite can enter Strategy. Its allocation attribution is separate from the research long-short result.
 
 ## Related articles
 

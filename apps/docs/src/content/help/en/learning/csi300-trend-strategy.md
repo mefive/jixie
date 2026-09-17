@@ -54,7 +54,7 @@ You should be able to:
 
 ## Prerequisites
 
-- If Backtest Lab is new to you, first [run your first backtest](/help/getting-started/first-backtest).
+- If Strategy is new to you, first [run your first backtest](/help/getting-started/first-backtest).
 - Read [Strategies and backtests](/help/basics/strategy-backtest) and [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 - If ETFs and indices are unfamiliar, read [Stocks, ETFs, and indices](/help/basics/stocks-etfs-indices).
 - Parameter scans do not currently support Python strategies, so select TypeScript for this exercise.
@@ -100,8 +100,8 @@ results, calling the winner an ex ante choice would be false—the sample has al
 | Baseline | Tradable buy-and-hold in the same ETF | Comparing only with a non-tradable price index |
 | Costs | ETF commission, slippage, and impact; no stock stamp duty or transfer fee | Setting slippage to zero and calling the result implementable |
 
-The CSI 300 benchmark shown in Backtest Lab is still useful, but it has index semantics. The primary baseline should use the same ETF,
-which includes fund expenses, tracking differences, board-lot execution, and trading costs. Cash follows the Lab's cash convention; do
+The CSI 300 benchmark shown in Strategy is still useful, but it has index semantics. The primary baseline should use the same ETF,
+which includes fund expenses, tracking differences, board-lot execution, and trading costs. Cash follows the Strategy's cash convention; do
 not reinterpret it as a money-market-fund return.
 
 ## Step 3: Build a tradable buy-and-hold baseline first
@@ -177,7 +177,7 @@ Review the baseline and 120-day trend results in this order:
 2. Confirm that trend has both entries and exits and a plausible trade count.
 3. Verify that the first entry occurs at the next open after the average is available and the signal appears.
 4. Check whether higher return comes with deeper drawdown, turnover, or cost.
-5. Ask whether a difference from the Lab's index benchmark reflects ETF-versus-index semantics rather than the rule alone.
+5. Ask whether a difference from the Strategy's index benchmark reflects ETF-versus-index semantics rather than the rule alone.
 6. Check whether outperformance is concentrated in a few regimes and whether long cash periods create opportunity cost.
 
 Use a fixed table rather than copying only attractive metrics:

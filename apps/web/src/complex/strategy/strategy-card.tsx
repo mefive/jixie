@@ -22,7 +22,7 @@ export function StrategyCardView({
   onOpen: (id: string) => void;
   onDelete?: (id: string, name: string) => void;
 }) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   const { modal } = App.useApp();
   const askDelete = (e: React.MouseEvent) => {
     e.stopPropagation();

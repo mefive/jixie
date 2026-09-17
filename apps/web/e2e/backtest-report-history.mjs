@@ -42,7 +42,7 @@ try {
   userId = (await database.user.findUniqueOrThrow({ where: { email: ownerEmail } })).id;
   await seedReports(userId);
 
-  await page.goto(`${BASE}/lab?id=${encodeURIComponent(strategyId)}`, {
+  await page.goto(`${BASE}/strategy?id=${encodeURIComponent(strategyId)}`, {
     waitUntil: 'domcontentloaded',
   });
   const history = page.getByTestId('backtest-report-history');
@@ -60,7 +60,7 @@ try {
   const comparisonSelect = page.getByTestId('backtest-report-comparison-select');
   await comparisonSelect.click();
   await page
-    .locator('.jx-lab-comparisonReportPopup:visible')
+    .locator('.jx-strategy-comparisonReportPopup:visible')
     .locator('.ant-select-item-option')
     .filter({ hasText: '最新 · 2026-09-01 18:05 · 26.00%' })
     .click();
@@ -68,7 +68,7 @@ try {
   const comparison = page.getByTestId('backtest-report-comparison');
   await comparison.waitFor({ timeout: 15_000 });
   await comparison.getByText('+18.00 个百分点', { exact: true }).waitFor();
-  await page.locator('.jx-lab-resultTabs').screenshot({
+  await page.locator('.jx-strategy-resultTabs').screenshot({
     path: `${SHOTS}backtest-report-comparison.png`,
   });
 

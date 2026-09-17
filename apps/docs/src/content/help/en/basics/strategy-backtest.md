@@ -13,7 +13,7 @@ A complete strategy should state:
 
 “Buy 100 shares of Kweichow Moutai on the first trading day of each month” identifies the instrument, timing, and quantity, but has no sell rule. It is useful for learning the workflow, not a complete investment plan.
 
-Strategies are created in Backtest Lab using a description or code.
+Strategies are created in Strategy using a description or code.
 
 ## What a backtest does
 

@@ -272,13 +272,15 @@ try {
   await page.getByTestId('panel-report').waitFor();
   await page.screenshot({ path: `${SHOTS}factor-panel-holdout-revealed.png`, fullPage: true });
 
-  await page.getByTestId('factor-use-in-lab').click();
-  await page.waitForURL(/\/lab\?new=1&factorKey=cross_asset_momentum_120/, { timeout: 30_000 });
-  const prompt = page.locator('.jx-lab-heroInput');
+  await page.getByTestId('factor-use-in-strategy').click();
+  await page.waitForURL(/\/strategy\?new=1&factorKey=cross_asset_momentum_120/, {
+    timeout: 30_000,
+  });
+  const prompt = page.locator('.jx-strategy-heroInput');
   await prompt.waitFor({ timeout: 30_000 });
   await page.waitForFunction(
     (assets) => {
-      const value = document.querySelector('.jx-lab-heroInput')?.value ?? '';
+      const value = document.querySelector('.jx-strategy-heroInput')?.value ?? '';
       return (
         value.includes('cross_asset_momentum_120') && assets.every((asset) => value.includes(asset))
       );
@@ -367,13 +369,13 @@ try {
     throw new Error(`panel strategy execution or lineage failed: ${JSON.stringify(completed)}`);
   }
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
   await page.getByTestId('panel-strategy-execution-notice').waitFor({ timeout: 30_000 });
   await page.getByText('策略回测 · ETF 多头真实执行', { exact: true }).waitFor();
   const dependencyPanel = page.getByTestId('strategy-factor-dependencies');
   await dependencyPanel.getByText(factorKey, { exact: false }).waitFor();
   await dependencyPanel.getByText('跨资产面板', { exact: false }).waitFor();
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({ path: `${SHOTS}factor-panel-strategy.png`, fullPage: true });
 
   if (browserErrors.length > 0) {

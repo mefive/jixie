@@ -10,7 +10,7 @@ export default function ParameterScanChart({
   report: StrategyScanReport;
   metric: ScanMetric;
 }) {
-  const { t, i18n } = useTranslation('lab');
+  const { t, i18n } = useTranslation('strategy');
   const [first, second] = report.spec.dimensions;
   const cells = report.payload?.cells ?? [];
   const sample = report.spec.splitDate ? 'outOfSample' : 'full';

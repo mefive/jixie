@@ -4,7 +4,7 @@ import './monthly-returns.css';
 
 /** Monthly return table — year × month heatmap (A-share red up / green down), with a compounded full-year column. */
 export function MonthlyReturns({ monthly }: { monthly: { month: string; ret: number }[] }) {
-  const { t } = useTranslation('lab');
+  const { t } = useTranslation('strategy');
   if (!monthly?.length) {
     return null;
   }

@@ -3504,10 +3504,10 @@ const FactorPublicationCard = complex.component(() => {
               {store.factorStatus === 'published' && (
                 <Button
                   size="small"
-                  href={`/lab?new=1&factorKey=${encodeURIComponent(store.factorKey)}`}
-                  data-testid="factor-use-in-lab"
+                  href={`/strategy?new=1&factorKey=${encodeURIComponent(store.factorKey)}`}
+                  data-testid="factor-use-in-strategy"
                 >
-                  {t('publication.useInLab')}
+                  {t('publication.useInStrategy')}
                 </Button>
               )}
               <Button

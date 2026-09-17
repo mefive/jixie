@@ -16,8 +16,8 @@ try {
   await login();
   await cleanup();
   strategyId = await seedStrategy();
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
 
   await page.getByRole('button', { name: '参数扫描' }).first().click();
   const dialog = page.getByRole('dialog', { name: '扫描实验' });

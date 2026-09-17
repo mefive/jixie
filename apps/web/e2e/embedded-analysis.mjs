@@ -199,10 +199,10 @@ try {
       assert.equal(await page.getByTestId('embedded-analysis-card').count(), 2);
       await page.screenshot({ path: `${screenshots}/embedded-analysis-reference-${locale}.png` });
       await page.goto(
-        `${base}/lab?id=embeddedstrategy${locale}&report=embedded-backtest-${locale}`,
+        `${base}/strategy?id=embeddedstrategy${locale}&report=embedded-backtest-${locale}`,
       );
-      await page.locator('.jx-lab-chatBox').fill(copy.strategy);
-      await page.locator('.jx-lab-chatBox').press('Enter');
+      await page.locator('.jx-strategy-chatBox').fill(copy.strategy);
+      await page.locator('.jx-strategy-chatBox').press('Enter');
       await card.getByTestId('research-table-output').getByText('0.1', { exact: true }).waitFor();
       await assertValueInsideCard(card, '0.1');
       await card.getByTestId('research-image-output').locator('img').waitFor();
@@ -220,7 +220,7 @@ try {
         }
       };
       page.on('response', collectChartResponse);
-      await page.goto(`${base}/lab?id=legacycharts${locale}`);
+      await page.goto(`${base}/strategy?id=legacycharts${locale}`);
       const legacy = page.locator('.jx-chatChart');
       await legacy.first().locator('canvas').waitFor();
       await legacy.nth(1).locator('canvas').waitFor();
@@ -246,7 +246,7 @@ try {
         .getByText(english ? 'No data' : '暂无数据', { exact: true })
         .waitFor();
       assert.equal(await legacy.count(), 3);
-      await page.locator('.jx-lab-editor .monaco-editor').waitFor();
+      await page.locator('.jx-strategy-editor .monaco-editor').waitFor();
       await legacy.first().scrollIntoViewIfNeeded();
       await page.screenshot({ path: `${screenshots}/embedded-analysis-history-${locale}.png` });
       await legacy.nth(2).scrollIntoViewIfNeeded();

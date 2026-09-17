@@ -30,7 +30,7 @@ Before the first signal run:
 4. Read the run log.
 5. Wait for the signal date, execution date, and result.
 
-Generation uses the frozen deployment and does not read an unrun editor draft in the Backtest workspace.
+Generation uses the frozen deployment and does not read an unrun editor draft in the Strategy workbench.
 
 A normal log shows:
 

@@ -2,7 +2,7 @@
 export const zhCommon = {
   appName: '机械交易系',
   nav: {
-    backtest: '回测工作台',
+    strategy: '策略',
     research: '研究',
     factor: '因子研究',
     market: '市场',

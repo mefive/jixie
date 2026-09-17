@@ -5,7 +5,8 @@ export const enSignals: typeof zhSignals = {
   subtitle:
     'Generated after the close for the next open. An empty signal is still an explicit decision.',
   refresh: 'Refresh',
-  noDeployments: 'No deployed strategies yet. Complete a backtest in the Lab, then choose Deploy.',
+  noDeployments:
+    'No deployed strategies yet. Complete a backtest in the Strategy, then choose Deploy.',
   neverRun: 'Never generated',
   active: 'Active',
   paused: 'Paused',

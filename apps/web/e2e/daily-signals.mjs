@@ -106,9 +106,9 @@ try {
     fail(`backtest failed: ${JSON.stringify({ backtest, submitted: seed.config, saved })}`);
   }
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-metricValue').first().waitFor({ timeout: 120_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-metricValue').first().waitFor({ timeout: 120_000 });
 
   const deployResponse = page.waitForResponse(
     (response) =>

@@ -207,10 +207,10 @@ try {
     fullPage: true,
   });
 
-  await publicationCard.getByTestId('factor-use-in-lab').click();
-  await page.waitForURL(/\/lab\?new=1&factorKey=momentum_low_vol_panel/, { timeout: 30_000 });
+  await publicationCard.getByTestId('factor-use-in-strategy').click();
+  await page.waitForURL(/\/strategy\?new=1&factorKey=momentum_low_vol_panel/, { timeout: 30_000 });
   await page.waitForFunction(
-    (key) => document.querySelector('.jx-lab-heroInput')?.value.includes(key),
+    (key) => document.querySelector('.jx-strategy-heroInput')?.value.includes(key),
     'momentum_low_vol_panel',
     { timeout: 30_000 },
   );
@@ -393,7 +393,7 @@ try {
     throw new Error(`panel composite strategy lineage failed: ${JSON.stringify(completed)}`);
   }
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
   const dependencyPanel = page.getByTestId('strategy-factor-dependencies');
   await dependencyPanel.getByText('momentum_low_vol_panel', { exact: false }).waitFor({
     timeout: 30_000,
@@ -460,7 +460,7 @@ try {
     })
     .waitFor();
   await page.locator('.jx-topnav-user .ant-segmented-item-label', { hasText: '中' }).click();
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
   await page.screenshot({
     path: `${SHOTS}factor-panel-composite-strategy.png`,
     fullPage: true,

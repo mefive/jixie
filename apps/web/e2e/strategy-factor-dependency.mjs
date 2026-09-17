@@ -192,8 +192,8 @@ try {
   }
   deploymentId = deployment.body.id;
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-lab-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   const dependencyPanel = page.getByTestId('strategy-factor-dependencies');
   await dependencyPanel.waitFor({ timeout: 30_000 });
   await dependencyPanel.getByText(factor.body.key, { exact: false }).waitFor();
@@ -204,7 +204,7 @@ try {
   }
   await page.screenshot({ path: `${SHOTS}8a-strategy-factor-dependency.png`, fullPage: true });
 
-  const editor = page.locator('.jx-lab-code .monaco-editor');
+  const editor = page.locator('.jx-strategy-code .monaco-editor');
   await editor.click();
   await page.keyboard.press('Control+End');
   await page.keyboard.press('Enter');

@@ -252,7 +252,7 @@ export const zhHelp = {
     research: '自然语言研究',
     publicLibrary: '公共资产库',
     stockDetail: '对象详情',
-    backtesting: '回测工作台',
+    backtesting: '策略工作台',
     factorResearch: '因子研究',
     factorWeather: '因子气象',
     marketValuation: '市场与估值',

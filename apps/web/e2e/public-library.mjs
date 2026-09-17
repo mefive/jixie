@@ -76,7 +76,7 @@ try {
   await page.screenshot({ path: `${SHOTS}public-library.png`, fullPage: true });
 
   await card.getByRole('button', { name: '复制到我的空间' }).click();
-  await page.waitForURL(/\/lab\?id=/, { timeout: 30_000 });
+  await page.waitForURL(/\/strategy\?id=/, { timeout: 30_000 });
   copiedId = new URL(page.url()).searchParams.get('id') ?? '';
   const copied = copiedId ? await api(`/api/app/strategies/${copiedId}`) : null;
   if (!copiedId || !copied?.ok || copied.body?.visibility !== 'private') {

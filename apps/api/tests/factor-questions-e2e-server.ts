@@ -298,7 +298,7 @@ try {
   const { buildApp } = await import('../src/server.js');
   const app = buildApp();
   app.use('/assets/*', serveStatic({ root: webDist }));
-  for (const route of ['/factors', '/lab', '/research']) {
+  for (const route of ['/factors', '/strategy', '/lab', '/research']) {
     app.get(route, (context) => context.html(indexHtml));
   }
   app.use('/*', serveStatic({ root: webDist }));

@@ -17,7 +17,7 @@
 5. 冲击系数。
 6. “运行回测”按钮。
 
-![回测工作台中的日期、资金、基础滑点、冲击系数和运行按钮](/docs/images/help/zh/backtesting/run-settings-01.png)
+![策略工作台中的日期、资金、基础滑点、冲击系数和运行按钮](/docs/images/help/zh/backtesting/run-settings-01.png)
 
 ## 起始和结束日期
 

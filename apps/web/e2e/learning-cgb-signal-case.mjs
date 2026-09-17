@@ -170,10 +170,10 @@ try {
     throw new Error(`invalid backtest or Factor lineage: ${JSON.stringify(savedStrategy)}`);
   }
 
-  await page.goto(`${BASE}/lab?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
   await page.getByTestId('strategy-factor-dependencies').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-chart canvas').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-lab-result').screenshot({
+  await page.locator('.jx-strategy-chart canvas').waitFor({ timeout: 30_000 });
+  await page.locator('.jx-strategy-result').screenshot({
     path: `${OUTPUT}cgb-signal-backtest-result.png`,
   });
 

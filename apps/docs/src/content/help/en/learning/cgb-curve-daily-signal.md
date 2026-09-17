@@ -120,7 +120,7 @@ Falsification: the formal holdout misses the criterion, signs reverse, hit rates
 The `1.96` line is preregistered for this exercise; it is not a universal certification threshold. Do not lower it to `1.95` after
 observing `1.951`.
 
-## Step three: read explore evidence before opening the Lab
+## Step three: read explore evidence before opening the Strategy
 
 Audit the report in this order:
 

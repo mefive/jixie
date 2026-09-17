@@ -10,14 +10,14 @@ current market, then complete one Markdown/Python study and one backtest.
 | --- | --- |
 | Market | View industry, size, board, and style weather by week, month, quarter, or year and replay its history |
 | Research | Use Markdown, Python, platform data, and the Agent for free-form studies, charts, immutable snapshots, and downstream handoff |
-| Backtest Lab | Build in plain language, TypeScript, or Python and inspect returns, trades, allocation attribution, and portfolio risk |
+| Strategy | Build in plain language, TypeScript, or Python and inspect returns, trades, allocation attribution, and portfolio risk |
 | Factors | Research stock cross-sections, ETF time series, cross-asset Panels, and macro regimes, then publish eligible Factors |
 | Factor Weather | Monitor recent return, IC, coverage, and turnover for published Factors under one monthly method |
 | Valuation | Review index PE, PB, turnover, and historical percentiles |
 | Signals | Review orders, Factor inputs, and run history for deployed strategies |
 | Public Library | Share your strategy or published Factor and copy an independent version of another public asset |
 
-The pages can be used together. For example, use Research to inspect an equity universe, then use Backtest Lab to test a trading rule.
+The pages can be used together. For example, use Research to inspect an equity universe, then use Strategy to test a trading rule.
 
 ## Recommended first steps
 

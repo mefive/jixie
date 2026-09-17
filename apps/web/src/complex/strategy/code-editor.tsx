@@ -161,7 +161,7 @@ function installSdk(m: Monaco) {
             endColumn: e.column,
           },
           url: factorUrl(reference.option),
-          tooltip: i18n.t('lab:factorLinkTooltip', { name: reference.option.label }),
+          tooltip: i18n.t('strategy:factorLinkTooltip', { name: reference.option.label }),
         });
       }
       return { links };
@@ -188,7 +188,7 @@ function installSdk(m: Monaco) {
           contents.push({ value: escapeMarkdown(reference.option.description) });
         }
         contents.push({
-          value: `[${i18n.t('lab:factorImplementationLink')}](${factorUrl(reference.option)})`,
+          value: `[${i18n.t('strategy:factorImplementationLink')}](${factorUrl(reference.option)})`,
         });
         return {
           range: new m.Range(s.lineNumber, s.column, e.lineNumber, e.column),
@@ -209,7 +209,7 @@ function installSdk(m: Monaco) {
         ),
         contents: [
           {
-            value: `[📖 ${i18n.t('lab:sdkDocTooltip', { name: word.word })}](${location.origin}/docs/sdk#${word.word})`,
+            value: `[📖 ${i18n.t('strategy:sdkDocTooltip', { name: word.word })}](${location.origin}/docs/sdk#${word.word})`,
           },
         ],
       };
@@ -235,7 +235,7 @@ function installSdk(m: Monaco) {
           kind: m.languages.CompletionItemKind.Value,
           detail: option.description,
           documentation: {
-            value: `**${escapeMarkdown(option.label)}**${option.description ? `\n\n${escapeMarkdown(option.description)}` : ''}\n\n[${i18n.t('lab:factorImplementationLink')}](${factorUrl(option)})`,
+            value: `**${escapeMarkdown(option.label)}**${option.description ? `\n\n${escapeMarkdown(option.description)}` : ''}\n\n[${i18n.t('strategy:factorImplementationLink')}](${factorUrl(option)})`,
           },
           filterText: `${option.key} ${option.label}`,
           insertText: option.key,
@@ -285,7 +285,7 @@ function CodeEditor({
         // alternative to Cmd+clicking the symbol (the link provider points to /docs/sdk#name).
         editor.addAction({
           id: 'jixie.openSdkDoc',
-          label: i18n.t('lab:sdkDocMenuLabel'),
+          label: i18n.t('strategy:sdkDocMenuLabel'),
           contextMenuGroupId: 'navigation',
           contextMenuOrder: 1.5,
           keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],

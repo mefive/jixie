@@ -525,7 +525,7 @@ export const zhFactor = {
     archiveContent: '归档后不再提供给新策略选择，历史回测仍可追溯。',
     archived: '因子已归档',
     archiveFailed: '归档失败',
-    useInLab: '用于策略',
+    useInStrategy: '用于策略',
     reportRef: '报告 {{id}}',
     codeRef: '代码 {{hash}}',
     outdated: '当前代码或研究参数与这份报告不一致，请重新运行研究后再发布。',
