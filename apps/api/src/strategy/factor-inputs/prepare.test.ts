@@ -15,7 +15,7 @@ vi.mock('#infra/database/prisma.js', () => ({
 }));
 
 import { canonicalJson, sha256 } from '#factor/sources/fingerprint.js';
-import { extractFactorKeys, prepareStrategyFactors } from './prepare.js';
+import { prepareStrategyFactors } from './prepare.js';
 
 const SOURCE = `export default defineFactor({ compute: (bar) => bar.pb });`;
 
@@ -65,20 +65,6 @@ describe('published factor preparation', () => {
         codeHash: 'abc123',
         approvedReportId: 'report-1',
       },
-    ]);
-  });
-
-  it('finds raw keys in both the declaration and direct calls', () => {
-    expect(
-      extractFactorKeys(`
-        export default defineStrategy({
-          factors: ['book_to_market', 'mf_net_main'],
-          onBar(ctx) { return ctx.factor('quality_score', '000001.SZ'); },
-        });
-      `),
-    ).toEqual(['quality_score', 'book_to_market']);
-    expect(extractFactorKeys(`strategy = Strategy(factors=["python_value"])`)).toEqual([
-      'python_value',
     ]);
   });
 

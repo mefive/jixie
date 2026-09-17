@@ -13,6 +13,8 @@ Sharing 服务于公开库页面：聚合公开策略、已发布因子/组合�
 
 公开因子须为 published；公开组合还须有 key。当前用户的私有策略如果依赖自定义因子，仍按既有规则从 mine 列表过滤。作者显示保留名称优先、邮箱掩码回退。复制只带配置，不复制源策略的对话、报告、部署或任务；查询命名与创建的原事务边界不变。
 
+上述策略引用过滤直接使用 [Strategy references.ts](../strategy/factor-inputs/references.ts) 的纯 `extractFactorKeys`，不通过运行准备入口取得规则。Sharing 保留自己的目录筛选与投影，不执行因子准备或改变发布政策。
+
 新增 [routes.integration.test.ts](routes.integration.test.ts) 的 3 个独立 SQLite + Hono 场景，覆盖公开/私有与发布筛选、既有详情响应、拒绝复制非公开资源，以及同名复制后的所有权、private 默认值、空消息/结果与源记录不变。既有多用户权限测试继续从新路由入口运行。
 
 Commit 10 已通过人工 review；本模块 3 项及全量 API 201 个文件/1083 项测试通过，Shared/API 构建与 Web 类型检查通过。根列表测试使用既有挂载路径 `/library`，不带尾斜杠。见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#710-commit-10-实现记录2026-09-09)。

@@ -11,7 +11,7 @@ import type {
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import { executeStrategyScan, scanCellOverrides } from './scan.js';
-import { prepareCustomFactors } from '../factor-inputs/prepare.js';
+import { prepareStrategyFactors, type PreparedStrategyFactors } from '../factor-inputs/prepare.js';
 import type { BacktestResult } from '#engine/types.js';
 
 const port = parentPort;
@@ -41,7 +41,7 @@ const cellWorkerUrl = import.meta.url.endsWith('.ts')
   : new URL('./strategy-scan-cell-worker.js', import.meta.url);
 
 try {
-  const customFactors = await prepareCustomFactors(config.code, userId, locale);
+  const { modules: customFactors } = await prepareStrategyFactors(config.code, userId, locale);
   const payload: StrategyScanPayload = await executeStrategyScan({
     spec,
     parameters,
@@ -83,7 +83,7 @@ try {
 
 function runScanCell(data: {
   config: BacktestConfig;
-  customFactors: Awaited<ReturnType<typeof prepareCustomFactors>>;
+  customFactors: PreparedStrategyFactors['modules'];
   paramOverrides: Record<string, StrategyParamValue>;
   locale: Locale;
 }): Promise<BacktestResult> {

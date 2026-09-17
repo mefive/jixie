@@ -1,9 +1,4 @@
-import {
-  ENGINE_FACTORS,
-  FACTOR_KEY_PATTERN,
-  type FactorDependency,
-  type Locale,
-} from '@jixie/shared';
+import type { FactorDependency, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
@@ -26,22 +21,7 @@ import {
   extractCustomFactorHistoryFields,
   type CustomFactorModule,
 } from '#engine/factors/custom-factor.js';
-
-const ENGINE_FACTOR_KEYS = new Set<string>(ENGINE_FACTORS.map((factor) => factor.key));
-
-/** Extract literal factor keys from declarations and ctx.factor() calls without evaluating user code. */
-export function extractFactorKeys(source: string): string[] {
-  const callKeys = [...source.matchAll(/\bctx\s*\.\s*factor\s*\(\s*['"]([^'"]+)['"]/g)].map(
-    (match) => match[1],
-  );
-  const declarationKeys = [...source.matchAll(/\bfactors\s*[:=]\s*\[([\s\S]*?)\]/g)].flatMap(
-    (declaration) => [...declaration[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]),
-  );
-  const keys = [...callKeys, ...declarationKeys];
-  return [
-    ...new Set(keys.filter((key) => FACTOR_KEY_PATTERN.test(key) && !ENGINE_FACTOR_KEYS.has(key))),
-  ];
-}
+import { extractFactorKeys } from './references.js';
 
 export type FactorUsage = 'research' | 'deployment' | 'signal';
 
@@ -179,14 +159,6 @@ export async function prepareStrategyFactors(
       };
     }),
   };
-}
-
-export async function prepareCustomFactors(
-  source: string,
-  userId: string,
-  locale: Locale,
-): Promise<CustomFactorModule[]> {
-  return (await prepareStrategyFactors(source, userId, locale)).modules;
 }
 
 async function prepareFactorModule(

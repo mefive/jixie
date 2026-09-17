@@ -3,7 +3,7 @@
 ## 状态与范围
 
 - 基线：`6e6aa446`（`refactor(market): align data domains and consumer boundaries`）。开始审查时工作区干净。
-- 当前阶段：2026-09-17，五个模块的整体边界审查与计划已获批准。C1 已提交 `62f17b47`，C2 已提交 `84dc9d5e`；**C3 Factor 支撑能力职责整理已通过人工 review、行为验证与干净构建，随本提交交付**。C4 已准备单次开工计划，等待范围批准；C4–C6 均未实施；不推送。
+- 当前阶段：2026-09-17，C1 已提交 `62f17b47`，C2 已提交 `84dc9d5e`，C3 已提交 `c7eed1ac`；**C4 已通过人工 review、行为验证与干净构建，随本提交交付**。C5 已准备单次开工计划，等待范围批准；C5–C6 尚未实施；不推送。
 - 已完整阅读根 `CLAUDE.md`、review-gated-development 工作流，并阅读五个模块 README、[架构地图](../backend-architecture.md)、[边界规则](../backend-boundaries.md)、[运行入口](../backend-runtime-entries.md)及[上一轮整理计划](core-business-internal-structure.md)。本轮不涉及 Web/Docs 前端实现。
 - 交付对象是后端维护者；不新增用户能力、HTTP/SDK 方法、表或迁移，不改变权限、数据语义、事务、执行顺序及资源释放。
 - 已确认 **6 个实现 commit**，准确标题见 §4。本文随 Commit 1 提交，不额外安排计划文档 commit。每个 commit 的说明、测试和开发记录一起交付。
@@ -62,7 +62,7 @@
 
 ### E4：Strategy 的纯引用扫描与运行准备耦合，另有单消费者转发
 
-证据：[factor-inputs/prepare.ts](../../apps/api/src/strategy/factor-inputs/prepare.ts) 的 `extractFactorKeys` 只做正则匹配、过滤引擎内置键、去重；消费者包括 `definitions/drafts.ts`、`visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts`。同文件还导入数据库、TS/Python 编译、Engine 因子类型和发布相关实现。
+基线证据：原 [factor-inputs/prepare.ts](../../apps/api/src/strategy/factor-inputs/prepare.ts) 的 `extractFactorKeys` 只做正则匹配、过滤引擎内置键、去重；消费者包括 `definitions/drafts.ts`、`visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts`。同文件还导入数据库、TS/Python 编译、Engine 因子类型和发布相关实现。C4 当前归属见 §3 和 §7。
 
 将纯引用识别放到 `factor-inputs/references.ts`。`prepareStrategyFactors` 继续查询已发布来源、解析 Panel 快照/研究范围、编译模块、检查输入限制并返回 `{ modules, factors }`。它被回测、扫描和 Signals 使用，是真实共享能力，不应删掉或按消费者复制三份。
 
@@ -231,10 +231,13 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 | C2 产品实现 / 静态检查 | prepare/read/feedback/views、调用方和测试已归位；静态检查通过 |
 | C2 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；4 文件、90 项回归及源码/编译入口通过；已提交 `84dc9d5e` |
 | C3 产品实现 / 静态检查 | seed、inspect-definition、纯映射/共用错误、report-spec 归位，metadata 合并；静态检查通过 |
-| C3 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；15 文件、188 项回归、干净构建及源码/编译入口通过，随本提交交付 |
-| C4 单次开工计划 | 已准备，等待范围批准；尚未实施 |
+| C3 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；15 文件、188 项回归、干净构建及源码/编译入口通过；已提交 `c7eed1ac` |
+| C4 单次开工计划 | 2026-09-17 用户批准 |
+| C4 产品实现 / 静态检查 | references 纯入口、四个业务消费者、扫描直接准备及测试/文档同步；静态检查通过 |
+| C4 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；10 文件、99 项回归、干净构建及源码/编译入口通过，随本提交交付 |
+| C5 单次开工计划 | 已准备，等待范围批准；尚未实施 |
 | C5–C6 | 尚未实施 |
-| 当前工作区变化 | C3 实现、回归测试、Factor README 与本文；不推送 |
+| 当前工作区变化 | C4 实现、回归测试、Strategy/Sharing README 与本文；不推送 |
 
 每个获准提交完成后在此记录人工 review、静态检查、实际测试/运行条件、限制与 commit hash；历史测试结果不能填入本轮结果。
 
@@ -286,7 +289,7 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 两种入口实际调用 bootstrap：先恢复 running Job/报告，再后台启动种子与 HTTP。临时阻塞种子首个查询时，HTTP health 已返回 200 且预置行数仍为 0；解除阻塞后各完成 31 个预置定义写入。沙箱初次拒绝本机端口监听，使用已授权的验收权限重试后两种入口均通过。
 - 验证期间没有修改产品代码、仓内测试或断言，仅修正临时 harness。实际 Worker 正常退出，临时 HTTP 服务关闭、Prisma 断开；核对两种入口的端口均已关闭、本次数据库无打开句柄、harness 进程及测试 fixture 均无新增残留，随后删除本次临时数据库、干净构建与探针目录。未调用真实模型、行情供应商或邮件服务。
 
-### C4：Strategy 因子引用与运行准备（单次开工计划，待批准）
+### C4：Strategy 因子引用与运行准备（2026-09-17，验证通过）
 
 准确标题：`refactor(strategy): isolate factor references from runtime preparation`。
 
@@ -298,4 +301,33 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 同步 Strategy/Sharing README 和本文。review 前执行改动文件 ESLint/格式、全仓 typecheck/生成契约/后端边界、旧引用核对及 `git diff --check`；静态确认 references 不依赖数据库或编译实现。
 - review 后执行纯引用提取、prepare、definitions/config、Strategy HTTP/回测路由、Sharing 权限、scans 和 Signals 因子血缘相关回归，API 干净构建；在隔离数据库以源码及编译入口实际运行扫描父 Worker/cell 子进程，检查准备次数、结果和退出，并回归回测/Signals 的共享准备场景。
 
-当前只完成上述只读核对和计划，未修改 C4 产品代码。若实现需要改变提取规则、发布准入、事务或执行/释放语义，先讨论范围，不混入本提交。
+单次开工计划已于 2026-09-17 获用户批准。若实现需要改变提取规则、发布准入、事务或执行/释放语义，先讨论范围，不混入本提交。
+
+实施与检查记录：
+
+- `ENGINE_FACTOR_KEYS` 与 `extractFactorKeys` 整体迁入 references；prepare 使用新入口，原正则、过滤、去重及返回顺序保持。四个业务消费者与回测路由 mock、Engine 现有引用提取测试均改为直接引用 references，没有兼容转导出。
+- 删除 `prepareCustomFactors`；扫描父 Worker 在原调用点解构 `prepareStrategyFactors(...).modules`，仍传入相同 source/userId/locale、使用默认 research 场景，并在每次扫描开始前准备一次。cell 参数只调整类型引用；fork、消息、退出判断和 finally 断开 Prisma 的代码保持。
+- 原 prepare 测试中的 TS/Python 提取用例迁入 `references.test.ts`，不再需要数据库替身；补充跨调用/声明的排序去重，以及内置键、非法标识符、动态表达式和空源码过滤断言。运行准备、Panel 快照与使用场景测试保留在 prepare.test；既有 HTTP 私有化、Sharing 目录过滤和扫描用例继续作为行为回归。
+- Strategy/Sharing 阅读说明同步新入口；未修改公开契约、数据模型、引擎计算、权限或部署清单。
+- 静态检查通过：11 个改动/新增 TS 文件的 ESLint、Prettier，全仓 `pnpm typecheck`（含三项生成契约检查），后端边界扫描 712 文件 / 2,714 runtime edges / 635 type edges，0 违规、0 跨域循环组；`git diff --check` 通过。
+- 静态 AST 对比确认：迁移的提取函数和内置键集合与 C3 完全一致；prepare 剩余 7 个声明、4 个业务消费者的非 import 代码完全一致；扫描只内联 modules 选择并调整类型引用。references 仅导入 shared 静态定义；源码、测试和脚本中无 `prepareCustomFactors` 残留，也无从 prepare 导入引用提取的旧调用。
+- 2026-09-17 用户确认代码 review 后，10 个文件 / 99 项测试通过：references、prepare、definitions/config、Strategy HTTP/回测路由、scans、Sharing HTTP、Signals HTTP/lineage 和 Engine 既有因子语义；包含 Python 准备、Panel 冻结范围/组合与使用场景差异。API 在全新临时 outDir 完整编译通过，编译入口使用原 package imports 和依赖链接，没有复用旧 dist。
+- 独立 SQLite 使用现有迁移和合成行情构造 fixture；首次 Prisma migrate 因目标文件未预建报 schema engine 错误，创建空 SQLite 文件后重试通过，未改迁移或产品代码。源码使用 development 条件，编译入口使用生产解析，均实际完成回测 Worker、扫描父 Worker 与两个 cell 子进程、Signals IPC 成功与血缘漂移拒绝。
+- 临时探针包装真实 `prepareStrategyFactors` 并追踪真实 fork：两种入口的扫描都只准备一次，使用默认 research 场景，准备完成后才启动第一个 cell；每个 cell 返回结果并以 0 退出，随后才启动下一 cell / 汇总。两格均有非空交易，扫描不创建普通回测报告；回测使用冻结 Panel 范围，报告含 252 个风险观察点。
+- deployment 拒绝 archived；research/signal 保留 published/archived 规则。实际 Signals 使用归档后的冻结依赖生成非空输入摘要，并拒绝 codeHash 漂移；两种入口的回测、扫描、依赖和 Signals 四组结果完全一致。
+- review 后 11 个 TS 文件的内容哈希均未变化，未修正仓内测试或弱化断言。10 个被追踪进程全部退出，Prisma 已断开，三个 fixture 数据库无打开句柄；本次不启动 HTTP/socket 服务，不调用真实模型、行情供应商或邮件服务。临时数据库、构建和探针在交付前清理。
+
+### C5：Research 交接持久化归属（单次开工计划，待批准）
+
+准确标题：`refactor(research): delegate handoff persistence to owning modules`。
+
+交付面向后端维护者，不新增用户能力。当前 `research/handoff/factor-drafts.ts::createResearchFactorDraft` 和 `strategy-drafts.ts::createResearchStrategyDraft` 在完成证据准入和生成后，还直接负责目标表查询、key/name 分配、默认配置、创建、唯一冲突重试与结果映射。唯一产品消费者是 Research evidence 路由。此次把目标身份和持久化规则归还 Factor/Strategy，Research 继续拥有证据准入及生成编排。
+
+- 新增 `factor/definitions/from-research.ts`，导出 `findResearchFactorDraft(userId, executionId)` 与 `createFactorDraftFromResearch(userId, input)`。前者查找并映射已有目标，后者拥有 key 分配、Factor/Composite/内置 key 冲突检查、创建与重试。input 在 Factor 定义，包含 sourceExecutionId、factorKeyBase、factorName、analysisKind、Python language/code、messages、handoff 和 locale 等明确数据；不接受 Prisma CreateInput、任意字段或生成器回调。
+- 新增 `strategy/definitions/from-research.ts`，导出 `findResearchStrategyDraft(userId, executionId)` 与 `createStrategyDraftFromResearch(userId, input)`。输入为 sourceExecutionId、strategyName、code、messages、handoff；目标入口复用原 `uniqueStrategyName`，拥有默认 Python/py-v1 回测配置、创建与冲突重试。两个目标文件仅依赖本域、shared 和 infra，不导入 Research/Agent 生成实现。
+- Research 原两个 create 入口、错误类型和路由契约保留，按原顺序执行目标复用查询 → 源执行成功/固化检查 → 原生成器 → handoff 元数据 → 目标创建。先命中已有草稿时不读取源执行或再次调用生成器；不把 LLM 放入新事务。
+- 保留 Factor 最多 100 次尝试、32 字符与 `_2` 后缀规则，以及 Strategy 外层 50 次写入重试和现有命名策略；P2002 后先查询源执行并发胜者，未命中则继续尝试，其他错误原样抛出。保留 reused 标记、messages、来源、语言/描述、私有草稿默认值及无回测副作用；不合并普通创建/复制入口的业务差异。
+- 交付包含两个目标入口及其测试、Research handoff 消费者和测试、三个模块 README、架构地图及本文。review 前执行 ESLint/格式、全仓 typecheck/生成契约/后端边界、跨域写入与调用链核对、`git diff --check`。
+- review 后执行 Factor/Strategy handoff drafts 与 generation、目标定义和 Research routes 回归，补齐 key/name 冲突、P2002 源执行胜者复用、非源冲突继续尝试及非 P2002 原样失败覆盖；API 干净构建。在独立 SQLite 从源码/编译的原 Research 交接入口写入两类草稿并通过原查询入口读取，检查来源、messages、默认配置、私有状态、复用不生成及生成失败无目标残留。生成器使用受控替身，不调用真实 LLM；保持原重试与事务范围。
+
+当前仅完成 C5 只读核对和计划，尚未修改 C5 产品代码。若实现需要改变归属校验、准入、重试上限、公开响应、数据默认值或事务范围，先讨论，不混入本提交。

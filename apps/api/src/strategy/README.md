@@ -34,7 +34,7 @@ HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。�
 | `definitions` | 策略保存/读取、命名与公开范围；runKey 只包括影响回测的配置，改显示名不会清空结果 |
 | `backtests` | 创建冻结配置、报告和 Job，查询报告与进度；`run.ts` 编排语言执行及风险后处理，`worker.ts` / `worker.boot.mjs` 承接回测线程 |
 | `scans` | 参数检查、扫描规格/网格/指标、冻结提交与报告；父 Worker 和 cell 子进程入口同处此目录 |
-| `factor-inputs` | `prepare.ts` 为正式回测、扫描和 Signals 检查因子权限、发布状态、使用场景、语言与依赖血缘 |
+| `factor-inputs` | `references.ts` 纯提取源码引用；`prepare.ts` 为正式回测、扫描和 Signals 检查因子权限、发布状态、使用场景、语言与依赖血缘 |
 | `runtime/typescript` | SDK、编译、提示词、参数检查、isolate 宿主与墙内入口 |
 | `runtime/python` | Python 策略协议与宿主桥接，实际交易模拟仍由 TS Engine 执行 |
 | `risk` | 回测后的市场暴露、宏观敏感度、Alpha/Risk 重合与压力情景；`data-readiness` 拥有这些模型的历史长度要求 |
@@ -51,7 +51,9 @@ HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。�
 
 ## 共享因子输入与运行边界
 
-[factor-inputs/prepare.ts](factor-inputs/prepare.ts) 导出 `extractFactorKeys`、`prepareStrategyFactors` 和 `prepareCustomFactors`。定义编辑、公开范围和 Sharing 使用依赖提取；正式回测和扫描按 research 使用场景准备，Signals 部署和单次运行分别按 deployment / signal 使用场景校验。因子定义、发布与来源仍由 Factor 拥有，权限、归档处理和冻结血缘规则保持。
+[factor-inputs/references.ts](factor-inputs/references.ts) 的 `extractFactorKeys` 只提取源码中的字面量因子键、过滤引擎内置键并去重，不查询数据库或编译代码。定义编辑、公开范围、回测提交和 Sharing 直接消费此入口；调用中的键仍先于声明中的键返回，同组按出现顺序去重。
+
+[factor-inputs/prepare.ts](factor-inputs/prepare.ts) 的 `prepareStrategyFactors` 使用同一引用提取，再查询并准备运行所需的 `{ modules, factors }`。正式回测和扫描按 research 使用场景准备，Signals 部署和单次运行分别按 deployment / signal 使用场景校验。扫描父 Worker 直接取 modules，在所有 cell 开始前准备一次；没有额外转发入口。因子定义、发布与来源仍由 Factor 拥有，权限、归档处理和冻结血缘规则保持。
 
 正式回测由 [backtests/run.ts](backtests/run.ts) 分派 TS/Python 并附加风险；扫描 cell 直接调用 `runWalledBacktest`，Signals Worker 直接调用 `runWalledSignalCapture`。三者复用因子准备、语言 runtime 和 Engine，不共享完整回测生命周期。Worker 入口及源码/编译解析见 [运行入口清单](../../../../docs/backend-runtime-entries.md)。
 

@@ -26,7 +26,7 @@ vi.mock('#infra/database/prisma.js', () => ({
 vi.mock('../definitions/config.js', () => ({
   commitStrategyConfig: mocks.commitStrategyConfig,
 }));
-vi.mock('../factor-inputs/prepare.js', () => ({
+vi.mock('../factor-inputs/references.js', () => ({
   extractFactorKeys: mocks.extractFactorKeys,
 }));
 vi.mock('#infra/jobs/records.js', () => ({
