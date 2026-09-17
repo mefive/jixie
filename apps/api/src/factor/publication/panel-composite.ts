@@ -2,7 +2,7 @@ import type { PublishedFactor } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
-import { FactorPublicationError } from './factor.js';
+import { FactorPublicationError } from '../errors.js';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
 import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
 import { sha256 } from '../sources/fingerprint.js';

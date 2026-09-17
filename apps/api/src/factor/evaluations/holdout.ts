@@ -1,3 +1,4 @@
+import { reportCompatibilityColumns, reportResearchSpec } from './report-spec.js';
 import { ulid } from 'ulid';
 import type { FactorResearchSpecV1, RunFactorAnalysisResponse } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
@@ -12,13 +13,7 @@ import {
 } from '../sources/snapshot.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
 import { holdoutEligibility } from './holdout-policy.js';
-import {
-  reportSummary,
-  reportResearchSpec,
-  parseReportPayload,
-  parseResearchPayload,
-  reportCompatibilityColumns,
-} from './report-views.js';
+import { reportSummary, parseReportPayload, parseResearchPayload } from './report-views.js';
 import { factorCodeDataRequirements } from '../sources/resolve.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';

@@ -3,7 +3,7 @@
 ## 状态与范围
 
 - 基线：`6e6aa446`（`refactor(market): align data domains and consumer boundaries`）。开始审查时工作区干净。
-- 当前阶段：2026-09-17，五个模块的整体边界审查与计划已获批准。C1 已提交 `62f17b47`；**C2 Curator 职责拆分已通过人工 review、行为验证及干净构建，随本提交交付**。C3–C6 尚未实施；不推送。
+- 当前阶段：2026-09-17，五个模块的整体边界审查与计划已获批准。C1 已提交 `62f17b47`，C2 已提交 `84dc9d5e`；**C3 Factor 支撑能力职责整理已通过人工 review、行为验证与干净构建，随本提交交付**。C4 已准备单次开工计划，等待范围批准；C4–C6 均未实施；不推送。
 - 已完整阅读根 `CLAUDE.md`、review-gated-development 工作流，并阅读五个模块 README、[架构地图](../backend-architecture.md)、[边界规则](../backend-boundaries.md)、[运行入口](../backend-runtime-entries.md)及[上一轮整理计划](core-business-internal-structure.md)。本轮不涉及 Web/Docs 前端实现。
 - 交付对象是后端维护者；不新增用户能力、HTTP/SDK 方法、表或迁移，不改变权限、数据语义、事务、执行顺序及资源释放。
 - 已确认 **6 个实现 commit**，准确标题见 §4。本文随 Commit 1 提交，不额外安排计划文档 commit。每个 commit 的说明、测试和开发记录一起交付。
@@ -49,7 +49,7 @@
 
 ### E3：Factor 的共用定义信息牵连编译、种子与发布操作
 
-证据：
+基线证据（C3 已按下述目标调整归属，当前入口见 §3 和 §7）：
 
 1. [definitions/views.ts](../../apps/api/src/factor/definitions/views.ts) 同时提供纯 `strategyKey` / `factorLanguage` 和会编译、释放运行时的 `customFactorTargetAssetClasses`。`definitions/catalog.ts`、`drafts.ts` 只需要前者；实际编译检查由 `definitions/read.ts` 消费。把编译能力移到 runtime，保留纯映射入口。
 2. [definitions/builtin-factors.ts](../../apps/api/src/factor/definitions/builtin-factors.ts) 同时导出 `BUILTIN_*` / `builtinCatalog` 和 `seedBuiltinFactors`。目录、来源解析、天气、复制 key、相关性及 Strategy 只读取注册定义，bootstrap 才执行种子写入。`#infra/database/prisma.ts` 在模块初始化时创建 Prisma 并发出 PRAGMA，因此这里不只是文件看起来大。
@@ -58,7 +58,7 @@
 
 收益是定义查询/消费者只依赖所需的纯事实，发布状态仍由 publication 管理；普通分析与 holdout 共享同一份报告参数映射。并不合并它们的提交事务。
 
-另外，[metadata-operations.ts](../../apps/api/src/factor/definitions/metadata-operations.ts) 仅包含 `refreshOwnedFactorMetadata`，负责 HTTP 所需归属/草稿检查和错误转换，再调用 `metadata.ts`。将其并回 `metadata.ts`，保留原函数和 Agent 回调所用的 `refreshFactorMetadata`，可减少理解同一元数据刷新能力时的跳转。两次检查的时机与不同失败语义保留，不趁合并改变规则。
+另外，原 `metadata-operations.ts` 仅包含 `refreshOwnedFactorMetadata`，负责 HTTP 所需归属/草稿检查和错误转换，再调用 `metadata.ts`。将其并回 [metadata.ts](../../apps/api/src/factor/definitions/metadata.ts)，保留原函数和 Agent 回调所用的 `refreshFactorMetadata`，可减少理解同一元数据刷新能力时的跳转。两次检查的时机与不同失败语义保留，不趁合并改变规则。
 
 ### E4：Strategy 的纯引用扫描与运行准备耦合，另有单消费者转发
 
@@ -161,7 +161,7 @@ C3 的范围是 Factor 向内部和直接消费者提供的支撑能力边界；
 | --- | --- | --- |
 | C1 | 文档操作与 routes 集成测试：active/archived 排序、preview 的 text/research/universe 分支和 80 字截断、Cell 计数、owner/embedded 排除；既有 legacy 首读补建/归档恢复场景 | 隔离 SQLite 验证列表不补建、详情才补建；创建/归档/删除的关闭会话和级联行为保持。不新增真实 Python 运行，因为执行代码未动。 |
 | C2 | `curator/runs.test.ts` 随职责调整、`reference-search.test.ts`、Research routes、`tests/job-lifecycle.integration.test.ts` 的相关场景：owner/cursor/embedded 排除、候选核验、反馈及质量统计 | 受控 LLM + 临时 SQLite 跑 submit → execute → complete/fail/recover；Run+Job 创建一起回滚，完成时查重与 findings/计数一起提交。源码及干净编译入口验证一次受控 Curator Job，并从 API cwd 验证仓库检索。 |
-| C3 | builtin 公式对照、metadata、Factor routes、publication、start/read/holdout、Strategy 因子准备；对共享 spec 映射覆盖四类 analysisKind 和旧 spec 回退 | 临时 SQLite 验证种子新增/重复执行/源码变更及历史报告保留；普通分析与 holdout 的旧列/冻结快照/哈希一致，创建失败不唤醒队列。真实 TS/Python 定义检查覆盖成功/异常释放；源码/干净编译 bootstrap 保留后台种子启动时机，Factor Job 完成/失败/恢复沿用现有 harness。 |
+| C3 | builtin 公式对照、metadata、Factor routes、publication、start/read/holdout、Strategy 因子准备；对共享 spec 映射覆盖四类 analysisKind 和旧 spec 回退 | 临时 SQLite 验证种子新增/重复执行/源码变更及历史报告保留；普通分析与 holdout 的旧列/冻结快照/哈希一致，创建失败不唤醒队列。真实 TS 定义检查覆盖成功/异常释放；Python 目标资产读取只解析字面量，沿用 validator 回归，不因此启动 Python 沙箱。源码/干净编译 bootstrap 保留后台种子启动时机，Factor Job 完成/失败/恢复沿用现有 harness。 |
 | C4 | references 提取既有 TS/Python 声明、ctx.factor、过滤/顺序用例；prepare、definitions/config、Strategy routes、Sharing 权限及 scans 回归 | 源码与干净编译的扫描父 Worker + cell 子进程实际运行，确认只准备一次、每 cell 正常退出后汇总；回测和 Signals 的共享准备回归覆盖 published/archived、Panel 冻结范围和血缘。|
 | C5 | handoff 的 Factor/Strategy drafts 与 generation 测试、目标定义/Research routes。增加缺失的 key/name 冲突、源执行并发胜者复用、P2002 非源冲突继续尝试和非 P2002 原样失败覆盖 | 真实临时 SQLite 写入两个目标草稿并通过原查询入口读取：来源、messages、默认配置、私有草稿状态一致；复用不调用生成器。生成失败不留目标记录；重试不包入新的总事务。源码/编译调用原 Research 交接入口，LLM 使用受控替身。 |
 | C6 | treasury、external-drivers、benchmark-conversion、market-risk-drivers、macro risk-axes；Research series、Factor ETF observations、Engine adapter、Signals rates 的相关测试 | 本地供应商替身 + 隔离 SQLite 验证两种同步原有代码值/次日 SSE 可得日/空响应保留/范围替换。同步入口与 CLI 不搬迁；对受影响 CLI 用源码/编译入口验证导入、调用、输出、退出。最后执行完整 API 测试、干净 API 构建及受影响 Factor/Strategy/Signals 运行入口回归。 |
@@ -173,6 +173,8 @@ C3 的范围是 Factor 向内部和直接消费者提供的支撑能力边界；
 本轮不改变前端、公开帮助、SDK 文档或双语文案；不计划浏览器 E2E。若实施发现必须改变用户契约、事务、资源协议或运行 URL，则先修订计划并讨论，不能只补一个测试后带过。
 
 review 通过后视为授权执行约定验证并按上表标题提交，不再增加 commit 确认。测试/fixture/harness 问题在批准范围内自主修正，不跳过用例、不弱化断言；产品代码再变则重新静态检查和人工 review，之后才恢复验证。不推送。
+
+整体计划批准不替代各 commit 的单次开工批准。每个提交完成后，先交付下一个 commit 的范围、准确标题、交付接口、技术路径和验收安排，停在 Gate 1；获准后才实施。
 
 ## 5. 应保留的差异与不采用的拆分
 
@@ -222,14 +224,17 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 | 项目 | 状态 |
 | --- | --- |
 | 五模块整体审查与静态基线 | 完成 |
-| 计划讨论 / Gate 1 批准 | 2026-09-16 用户确认 |
+| 整体计划讨论 / 批准 | 2026-09-16 用户确认；不代替各 commit 的单次开工批准 |
 | C1 产品实现 | 列表与摘要迁至 read；路由、查询测试、README 已同步；补充列表不补建旧会话的集成断言 |
 | C1 静态检查 / 人工 review | 静态检查通过；2026-09-16 用户确认代码 review |
 | C1 行为验证 / 提交 | 4 个测试文件、67 项通过；API 构建通过；已提交 `62f17b47` |
 | C2 产品实现 / 静态检查 | prepare/read/feedback/views、调用方和测试已归位；静态检查通过 |
-| C2 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；4 文件、90 项回归及源码/编译入口通过，随本提交交付 |
-| C3–C6 | 尚未实施 |
-| 当前工作区变化 | C2 实现、测试、README 与本文；不推送 |
+| C2 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；4 文件、90 项回归及源码/编译入口通过；已提交 `84dc9d5e` |
+| C3 产品实现 / 静态检查 | seed、inspect-definition、纯映射/共用错误、report-spec 归位，metadata 合并；静态检查通过 |
+| C3 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；15 文件、188 项回归、干净构建及源码/编译入口通过，随本提交交付 |
+| C4 单次开工计划 | 已准备，等待范围批准；尚未实施 |
+| C5–C6 | 尚未实施 |
+| 当前工作区变化 | C3 实现、回归测试、Factor README 与本文；不推送 |
 
 每个获准提交完成后在此记录人工 review、静态检查、实际测试/运行条件、限制与 commit hash；历史测试结果不能填入本轮结果。
 
@@ -260,4 +265,37 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 使用全新输出目录完成 API `tsc` 构建，保留 API package imports 和依赖解析；确认无旧 `curator/runs.js` 残留。源码启用 development 条件，编译入口不启用；均从 API cwd 实际调用 submit → claim → executor → Curator Job，并验证完成后的反馈/读取、失败/恢复及默认仓库检索。每种入口接收两次受控 LLM 响应，无真实网络请求。
 - 运行入口 harness 首次缺少空 SQLite 文件，Prisma 在迁移前报 schema engine error；按现有 fixture 方式先创建文件后两种入口均通过，不改变产品实现或弱化断言。
 - 测试和 harness 正常退出、断开 Prisma；核对临时数据库无打开句柄，各类测试 fixture 目录无新增残留，随后删除本次临时数据库、干净构建和 harness 目录。未启动 HTTP/Python 服务，未调用真实模型、行情或邮件。
-- 按已确认标题提交，不推送；本段均为 C2 实测结果，不沿用 C1 的 67 项结果。
+- 已按确认标题提交 `84dc9d5e`，未推送；本段均为 C2 实测结果，不沿用 C1 的 67 项结果。
+
+### C3：Factor 定义与评估支撑能力（2026-09-17，验收通过）
+
+提交标题：`refactor(factor): clarify definition and evaluation support boundaries`。
+
+- `seedBuiltinFactors` 原样迁到 `definitions/seed.ts`；bootstrap 及其测试导入新入口，后台启动时机不变。builtin-factors 只保留静态定义、模板键和目录映射，没有 Prisma 导入或兼容转导出。
+- `customFactorTargetAssetClasses` 原样迁到 `runtime/inspect-definition.ts`；definitions/read 直接消费。保留 TS 编译后的 finally 释放、Python 字面量解析和其他 analysisKind 返回 equity 的既有路径。
+- `normalizeAnalysisKind` 归 definitions/views；发布复用已有 `factorLanguage`；发布错误类及 reason 归 factor/errors，发布、复制与路由统一引用同一类。Strategy 只为分析类型映射导入 views，不再为此导入发布实现。catalog 的既有分析类型投影以及 cross-sectional/series 接受空值的私有语言辅助不改。
+- `report-spec.ts` 保存一份兼容列映射和原 spec 解码；普通分析、holdout、资格检查及报告读取按需消费。旧 spec 缺失/非法时的回退保持，包括旧 freq 非 week 时仍回退为 month；没有合并普通提交与 holdout 的事务或改动封存映射。
+- `refreshOwnedFactorMetadata` 并入 metadata，删除 metadata-operations；三个原函数的实现保持。HTTP 首次 owner/draft 检查、低层第二次检查、消息回退与错误转换均保留，Agent 不新增 HTTP 拒绝条件。
+- 新增种子临时 SQLite 回归，覆盖三类预置的新增/幂等、源码等字段修复和历史报告不变；补充 metadata 入口差异、二次检查与提供方失败用例。普通提交补齐四类分析的兼容列断言及 daily/weekly/monthly，HTTP 读报告补充三种旧 spec 回退情形。
+- 静态检查通过：变更 TS 文件 ESLint、Prettier、全仓 `pnpm typecheck`（含三个生成契约检查）；后端边界为 710 个文件、2,711 条运行时边、634 条类型边、0 违规、0 跨域循环组。旧实现 import/mock 引用均已迁移，`git diff --check` 通过。
+- AST token 对照确认 10 个迁移/合并声明保持一致；28 个保留声明仅发布调用的语言辅助标识符按计划替换，其他 token 不变；两份兼容列映射在参数同名后函数体完全一致。静态追踪 builtin-factors、views、errors、report-spec 的已解析项目依赖，无数据库、LLM、执行器或发布实现依赖、无静态环。report-spec 经既有 schema 引用纯 Python 协议校验定义，不将其误算成运行 Python。
+- 本次实施前遗漏了 C3 单次开工确认；用户指出流程问题后接受当前实现进入 review，并于 2026-09-17 确认代码 review。后续提交严格遵守独立 Gate 1，不将整体计划批准视为后续实施授权。
+- 人工 review 后，bootstrap、builtin 公式、seed、metadata、Factor HTTP、两组 publication、start/read/research-policy/spec、TS 资产编译、Python validator、Strategy factor preparation 与 Job lifecycle 共 15 文件、188 项测试通过。包括临时 SQLite 种子/历史报告、普通提交/holdout 冻结与回滚、HTTP 错误类映射和旧 spec 回退；Strategy 准备测试使用真实本地 Python runner，validator 使用 Pyright，相关进程正常结束。
+- 全新输出目录完成 API `tsc` 构建，保留 API package imports 与依赖解析，确认不存在旧 metadata-operations 编译文件。用固定行情隔离数据库分别验证源码 development 条件及不带该条件的干净编译入口，实际经 `startFactorAnalysis` → claim → executor → Factor Worker 完成普通分析和 holdout。重复申请、冻结代码/哈希/参数列、创建失败回滚、封存/揭示/日志保护、执行失败和中断恢复均通过。
+- 两种入口分别执行 time_series/Panel 的真实 TS 定义检查成功与校验失败，观测到每次创建的 4 个真实 isolate 全部 disposed；Python 目标资产读取使用含禁止执行语句的源码，仍只解析字面量，缺失声明保持拒绝。资源探针起初尝试修改原生只读对象失败，改用临时导入钩子记录真实 isolate；不替换其计算实现。
+- 两种入口实际调用 bootstrap：先恢复 running Job/报告，再后台启动种子与 HTTP。临时阻塞种子首个查询时，HTTP health 已返回 200 且预置行数仍为 0；解除阻塞后各完成 31 个预置定义写入。沙箱初次拒绝本机端口监听，使用已授权的验收权限重试后两种入口均通过。
+- 验证期间没有修改产品代码、仓内测试或断言，仅修正临时 harness。实际 Worker 正常退出，临时 HTTP 服务关闭、Prisma 断开；核对两种入口的端口均已关闭、本次数据库无打开句柄、harness 进程及测试 fixture 均无新增残留，随后删除本次临时数据库、干净构建与探针目录。未调用真实模型、行情供应商或邮件服务。
+
+### C4：Strategy 因子引用与运行准备（单次开工计划，待批准）
+
+准确标题：`refactor(strategy): isolate factor references from runtime preparation`。
+
+交付为后端内部接口整理，不增加用户可见能力。当前 `extractFactorKeys` 只做源码正则提取、内置键过滤及去重，但四个外部消费者为此导入含数据库/编译器的 prepare；扫描父 Worker 的 `prepareCustomFactors` 则只有一个生产消费者且只转发 `.modules`。
+
+- 新增 `strategy/factor-inputs/references.ts`，迁入 `extractFactorKeys` 与 `ENGINE_FACTOR_KEYS`，仅依赖 shared 静态事实。`definitions/drafts.ts`、`definitions/visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts` 和 prepare 直接引用；同步所有测试/mock，不保留兼容转导出。
+- `prepare.ts` 保留 `prepareStrategyFactors`、使用场景类型及完整查询/编译/Panel 快照准备。删除 `prepareCustomFactors`；扫描父 Worker 直接调用 `prepareStrategyFactors` 并取 modules，cell 参数类型引用 `PreparedStrategyFactors['modules']`。每次扫描只准备一次、各 cell 的串行进程和正常退出后汇总保持。
+- 不改变源码识别正则、返回顺序、去重、内置过滤或公开范围政策；deployment 只允许 published，research/signal 允许 published/archived，Panel 冻结范围及血缘规则保持。回测、Signals 继续消费原准备入口；不改 Engine、HTTP/SDK、数据表、事务、Job payload、Worker URL 或资源释放。
+- 同步 Strategy/Sharing README 和本文。review 前执行改动文件 ESLint/格式、全仓 typecheck/生成契约/后端边界、旧引用核对及 `git diff --check`；静态确认 references 不依赖数据库或编译实现。
+- review 后执行纯引用提取、prepare、definitions/config、Strategy HTTP/回测路由、Sharing 权限、scans 和 Signals 因子血缘相关回归，API 干净构建；在隔离数据库以源码及编译入口实际运行扫描父 Worker/cell 子进程，检查准备次数、结果和退出，并回归回测/Signals 的共享准备场景。
+
+当前只完成上述只读核对和计划，未修改 C4 产品代码。若实现需要改变提取规则、发布准入、事务或执行/释放语义，先讨论范围，不混入本提交。

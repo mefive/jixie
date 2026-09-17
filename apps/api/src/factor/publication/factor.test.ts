@@ -18,7 +18,8 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
-import { FactorPublicationError, publishFactor } from './factor.js';
+import { publishFactor } from './factor.js';
+import { FactorPublicationError } from '../errors.js';
 
 const CODE = `export default defineFactor({ compute: (bar) => bar.pb });`;
 const COMMODITY_CARRY_CODE = `export default defineFactorV2({

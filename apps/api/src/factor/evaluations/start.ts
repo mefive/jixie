@@ -21,6 +21,7 @@ import {
 } from '../sources/snapshot.js';
 import { factorTestKey, factorVariantKey } from './identity.js';
 import type { FactorAnalysisJobPayload } from './job.js';
+import { reportCompatibilityColumns } from './report-spec.js';
 
 export async function startFactorAnalysis(options: {
   userId: string;
@@ -144,27 +145,4 @@ export async function startFactorAnalysis(options: {
 
 function factorAnalysisJobPayload(input: FactorAnalysisJobPayload): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(input)) as Prisma.InputJsonValue;
-}
-
-function reportCompatibilityColumns(researchSpec: FactorResearchSpecV1): {
-  freq: string;
-  neutral: string;
-  start: string;
-  end: string;
-} {
-  if (researchSpec.analysisKind === 'cross_sectional') {
-    return {
-      freq: researchSpec.protocol.freq,
-      neutral: researchSpec.protocol.neutral,
-      start: researchSpec.protocol.start,
-      end: researchSpec.protocol.end,
-    };
-  }
-  const frequency = { daily: 'day', weekly: 'week', monthly: 'month' } as const;
-  return {
-    freq: frequency[researchSpec.observationFrequency],
-    neutral: 'none',
-    start: researchSpec.start,
-    end: researchSpec.end,
-  };
 }

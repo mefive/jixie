@@ -26,7 +26,7 @@ vi.mock('../composition/panel-source.js', () => ({
   resolvePanelFactorSource: mocks.resolveSource,
 }));
 
-import { FactorPublicationError } from './factor.js';
+import { FactorPublicationError } from '../errors.js';
 import { publishPanelComposite } from './panel-composite.js';
 
 const DEFINITION: FactorPanelCompositeDefinitionV2 = {

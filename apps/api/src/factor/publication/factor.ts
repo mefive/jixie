@@ -1,9 +1,4 @@
-import {
-  factorRuntimeVersion,
-  type FactorAnalysisKind,
-  type FactorLanguage,
-  type PublishedFactor,
-} from '@jixie/shared';
+import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { factorResearchSpecV1Schema } from '../schema.js';
 import {
@@ -16,19 +11,8 @@ import {
   compilePythonPanelFactor,
   compilePythonTimeSeriesFactor,
 } from '../runtime/python/asset-factor.js';
-
-export type FactorPublicationErrorReason =
-  | 'not_found'
-  | 'not_draft'
-  | 'report_invalid'
-  | 'report_outdated';
-
-export class FactorPublicationError extends Error {
-  constructor(readonly reason: FactorPublicationErrorReason) {
-    super(reason);
-    this.name = 'FactorPublicationError';
-  }
-}
+import { FactorPublicationError } from '../errors.js';
+import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
 
 export async function publishFactor(
   userId: string,
@@ -75,7 +59,7 @@ export async function publishFactor(
     !report.factorCodeHash ||
     (report.phase === 'holdout' && !report.revealedAt) ||
     normalizeAnalysisKind(report.analysisKind) !== normalizeAnalysisKind(factor.analysisKind) ||
-    normalizeFactorLanguage(report.language) !== normalizeFactorLanguage(factor.language) ||
+    factorLanguage(report.language) !== factorLanguage(factor.language) ||
     report.runtimeVersion !== factor.runtimeVersion
   ) {
     throw new FactorPublicationError('report_invalid');
@@ -88,13 +72,13 @@ export async function publishFactor(
     (await assetFactorCodeUsesResearchOnlyInput(
       factor.code,
       factor.analysisKind,
-      normalizeFactorLanguage(factor.language),
+      factorLanguage(factor.language),
     ))
   ) {
     throw new FactorPublicationError('report_invalid');
   }
 
-  const language = normalizeFactorLanguage(factor.language);
+  const language = factorLanguage(factor.language);
   const currentHash = factorAnalysisSourceHash(factor.code, language);
   if (report.factorCodeSnapshot !== factor.code || report.factorCodeHash !== currentHash) {
     throw new FactorPublicationError('report_outdated');
@@ -195,21 +179,6 @@ export async function archiveFactor(
   return publishedFactorResource(factor);
 }
 
-export function normalizeAnalysisKind(value: string): FactorAnalysisKind {
-  switch (value) {
-    case 'time_series':
-    case 'panel':
-    case 'macro_regime':
-      return value;
-    default:
-      return 'cross_sectional';
-  }
-}
-
-export function normalizeFactorLanguage(value: string): FactorLanguage {
-  return value === 'python' ? 'python' : 'typescript';
-}
-
 function publishedFactorResource(row: {
   id: string;
   key: string;
@@ -230,8 +199,8 @@ function publishedFactorResource(row: {
     key: row.key,
     name: row.name,
     analysisKind: normalizeAnalysisKind(row.analysisKind),
-    language: normalizeFactorLanguage(row.language),
-    runtimeVersion: factorRuntimeVersion(normalizeFactorLanguage(row.language)),
+    language: factorLanguage(row.language),
+    runtimeVersion: factorRuntimeVersion(factorLanguage(row.language)),
     status: row.status === 'archived' ? 'archived' : 'published',
     codeHash: row.codeHash,
     approvedReportId: row.approvedReportId,

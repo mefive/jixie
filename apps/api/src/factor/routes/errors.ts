@@ -1,8 +1,7 @@
 import type { Context } from 'hono';
 import { m } from '#infra/http/locale.js';
-import type { FactorPublicationError } from '../publication/factor.js';
 import { apiError } from '#infra/http/errors.js';
-import { FactorOperationError } from '../errors.js';
+import { FactorOperationError, type FactorPublicationError } from '../errors.js';
 
 export function factorOperationApiError(context: Context, error: unknown) {
   if (!(error instanceof FactorOperationError)) {

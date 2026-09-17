@@ -28,7 +28,7 @@ vi.mock('#agent/turns/records.js', () => ({
 vi.mock('#factor/weather/refresh.js', () => ({
   resetInterruptedFactorWeatherRefreshes: mocks.weatherRecovery,
 }));
-vi.mock('#factor/definitions/builtin-factors.js', () => ({ seedBuiltinFactors: mocks.seed }));
+vi.mock('#factor/definitions/seed.js', () => ({ seedBuiltinFactors: mocks.seed }));
 vi.mock('#strategy/backtests/job.js', () => ({ backtestJob: mocks.backtest }));
 vi.mock('#factor/evaluations/job.js', () => ({ factorAnalysisJob: mocks.factorAnalysis }));
 vi.mock('#factor/correlations/job.js', () => ({ factorCorrelationJob: mocks.factorCorrelation }));

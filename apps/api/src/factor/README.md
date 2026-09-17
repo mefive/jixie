@@ -11,7 +11,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 | 发布、归档、公开范围 | [routes/definition.ts](routes/definition.ts)、[routes/composite.ts](routes/composite.ts) | [publication/factor.ts](publication/factor.ts)、[publication/panel-composite.ts](publication/panel-composite.ts)、[publication/visibility.ts](publication/visibility.ts) |
 | 创建、编辑、复制因子组合 | [routes/composite.ts](routes/composite.ts) | [composition/operations.ts](composition/operations.ts) |
 | Agent 编辑、只读因子问答 | [routes/agent.ts](routes/agent.ts) | [agent/turn.ts](agent/turn.ts)、[questions/conversations.ts](questions/conversations.ts) |
-| 元数据刷新 | [routes/definition.ts](routes/definition.ts) | [definitions/metadata-operations.ts](definitions/metadata-operations.ts) |
+| 元数据刷新 | [routes/definition.ts](routes/definition.ts) | [definitions/metadata.ts](definitions/metadata.ts)；HTTP 使用 `refreshOwnedFactorMetadata`，Agent 完成回调使用 `refreshFactorMetadata` |
 | 提交分析 | [routes/analysis.ts](routes/analysis.ts) | [evaluations/submit.ts](evaluations/submit.ts) → [evaluations/start.ts](evaluations/start.ts) |
 | 历史报告、研究窗口、统计与任务进度 | 同上 | [evaluations/read.ts](evaluations/read.ts)；投影与封存处理在 [evaluations/report-views.ts](evaluations/report-views.ts) |
 | 申请、揭示 holdout | 同上 | [evaluations/holdout.ts](evaluations/holdout.ts)；资格检查在 [evaluations/holdout-policy.ts](evaluations/holdout-policy.ts) |
@@ -22,7 +22,11 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 
 `sources/snapshot.ts` 保存纯来源类型、解析、快照及语言相关哈希；通用规范 JSON/SHA-256 归 `sources/fingerprint.ts`。发布、天气、模板及 holdout 直接引用这些纯能力，数据库来源解析归 `sources/resolve.ts`。
 
-`errors.ts` 表达操作拒绝的类别、信息及原因详情，`routes/errors.ts` 转成现有 HTTP 错误，并复用单因子/组合的发布异常映射。发布模块保留已有 `FactorPublicationError` 及错误语义。
+`errors.ts` 表达操作拒绝的类别、信息及原因详情，并拥有单因子发布、Panel 发布与复制 key 分配共用的 `FactorPublicationError`；`routes/errors.ts` 转成现有 HTTP 错误。发布错误的类型和原因保持。
+
+静态预置定义和目录在 [definitions/builtin-factors.ts](definitions/builtin-factors.ts)，写库由 [definitions/seed.ts](definitions/seed.ts) 的 `seedBuiltinFactors` 负责，bootstrap 仍后台启动种子写入。种子只更新当前定义，历史报告保留冻结源码。
+
+[definitions/views.ts](definitions/views.ts) 只保存 strategy key、语言与分析类型的纯映射；定义详情通过 [runtime/inspect-definition.ts](runtime/inspect-definition.ts) 读取目标资产：TS 时间序列/Panel 编译后在 finally 释放，Python 仍只解析 `target_asset_classes` 字面量。元数据生成、HTTP 刷新和 Agent 刷新集中在 metadata；HTTP 的缺失/非草稿错误、Agent 低层入口的直接返回及两次检查时机保持。
 
 ## 目录职责
 
@@ -54,6 +58,7 @@ Factor 负责因子从定义、分析到发布与持续观察的完整业务。R
 ## 计算与持久化的边界
 
 - `evaluations/start.ts` 冻结来源并创建正式报告与 Job；`evaluations/job.ts` 拥有完成、失败和恢复，`evaluations/read.ts` 拥有报告及 holdout 日志封存。holdout 继续使用自己的事务，不合并进普通提交。
+- [evaluations/report-spec.ts](evaluations/report-spec.ts) 统一普通分析/holdout 的参数存储列映射，以及报告查询/资格检查的 spec 解码和旧列回退；`report-views.ts` 保留结果投影和封存处理。
 - `execution/run.ts` 不接收 reportId、不写报告/Job/天气状态。输入包含 factor、冻结来源、配置、locale、日志及可选结果回调，直接返回各评估器原有结果。Python/TS 运行时求因子值，评估器形成统计结果。
 - `execution/cross-sectional/` 中，`data.ts` 准备日历/报价/PIT 财务及行业数据，`series.ts` 求因子值及覆盖审计，`policy.ts` 定义既有方法政策，`evaluate.ts` 负责中性化/IC/分层等统计，`inference.ts` 负责稳健推断，`evaluator.ts` 适配研究配置。
 - `correlations/compute.ts` 只复用横截面 `data.ts` 和 `series.ts`，结果由相关性 Job 写入缓存。天气复用共享 Worker，`weather:*` 仅为消息标识，仍只更新 pin 与观察点。

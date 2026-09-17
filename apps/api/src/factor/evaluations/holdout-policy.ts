@@ -3,7 +3,7 @@ import type { FactorHoldoutEligibility } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { enoughHoldoutPeriods, getHoldoutPolicy, parseResearchIntent } from './research-policy.js';
 import { resolveEtfCommonLatest } from '../observations/asset-factor-data-cutoff.js';
-import { reportResearchSpec } from './report-views.js';
+import { reportResearchSpec } from './report-spec.js';
 
 export async function holdoutEligibility(row: FactorReportRow): Promise<FactorHoldoutEligibility> {
   if (row.phase !== 'explore') {

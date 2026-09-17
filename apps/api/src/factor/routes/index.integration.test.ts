@@ -310,6 +310,72 @@ describe('Factor HTTP business boundaries', () => {
     expect(await prisma.factorComposite.count({ where: { userId: 'owner' } })).toBe(0);
   });
 
+  it.each([
+    {
+      specJson: null,
+      freq: 'week',
+      neutral: 'size_industry',
+      expectedFreq: 'week',
+      expectedNeutral: 'size_industry',
+    },
+    {
+      specJson: '{',
+      freq: 'day',
+      neutral: 'unknown',
+      expectedFreq: 'month',
+      expectedNeutral: 'none',
+    },
+    {
+      specJson: '{"version":99}',
+      freq: 'month',
+      neutral: 'size',
+      expectedFreq: 'month',
+      expectedNeutral: 'size',
+    },
+  ])(
+    'reads legacy parameter columns when specJson is $specJson',
+    async ({ specJson, freq, neutral, expectedFreq, expectedNeutral }) => {
+      await seedReport('legacy');
+      await prisma.factorReport.update({
+        where: { id: 'report' },
+        data: { specJson, freq, neutral },
+      });
+      const protocol = {
+        version: 1,
+        freq: expectedFreq,
+        neutral: expectedNeutral,
+        start: '20200101',
+        end: '20231229',
+      };
+      const researchSpec = { version: 1, analysisKind: 'cross_sectional', protocol };
+
+      const detailResponse = await request(
+        '/factors/analysis-reports/report',
+        undefined,
+        'owner',
+        'GET',
+      );
+      expect(detailResponse.status).toBe(200);
+      expect(await detailResponse.json()).toMatchObject({
+        spec: protocol,
+        researchSpec,
+        payload: { label: 'Frozen', icMean: 0.125 },
+        factorCodeSnapshot: frozenCode,
+        factorCodeHash: sha256(frozenCode),
+      });
+      const listResponse = await request(
+        '/factors/analysis-reports?factor=draft',
+        undefined,
+        'owner',
+        'GET',
+      );
+      expect(listResponse.status).toBe(200);
+      expect((await listResponse.json()).items).toMatchObject([
+        { id: 'report', spec: protocol, researchSpec },
+      ]);
+    },
+  );
+
   it('keeps holdout metrics, payload and job logs sealed until owner reveal', async () => {
     await seedReport('holdout');
     const logs = [{ at: '2025-06-30T00:00:00Z', message: 'Secret metric: 0.125' }];

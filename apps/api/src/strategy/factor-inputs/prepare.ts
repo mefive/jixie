@@ -11,7 +11,7 @@ import {
   compilePanelFactor,
   compileTimeSeriesFactor,
 } from '#factor/runtime/typescript/compile-asset-factor.js';
-import { normalizeAnalysisKind } from '#factor/publication/factor.js';
+import { normalizeAnalysisKind } from '#factor/definitions/views.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot.js';
 import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
 import { factorResearchSpecV1Schema } from '#factor/schema.js';

@@ -19,3 +19,16 @@ export function failFactorOperation(
 ): never {
   throw new FactorOperationError(category, message, details);
 }
+
+export type FactorPublicationErrorReason =
+  | 'not_found'
+  | 'not_draft'
+  | 'report_invalid'
+  | 'report_outdated';
+
+export class FactorPublicationError extends Error {
+  constructor(readonly reason: FactorPublicationErrorReason) {
+    super(reason);
+    this.name = 'FactorPublicationError';
+  }
+}

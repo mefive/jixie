@@ -2,7 +2,8 @@ import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m, localeFromRequest } from '#infra/http/locale.js';
 import { factorOperationApiError, factorPublicationApiError } from './errors.js';
-import { archiveFactor, FactorPublicationError, publishFactor } from '../publication/factor.js';
+import { archiveFactor, publishFactor } from '../publication/factor.js';
+import { FactorPublicationError } from '../errors.js';
 import {
   publishFactorBodySchema,
   factorVisibilitySchema,
@@ -19,7 +20,7 @@ import {
   deleteFactorDraft,
   copyFactorDraft,
 } from '../definitions/drafts.js';
-import { refreshOwnedFactorMetadata } from '../definitions/metadata-operations.js';
+import { refreshOwnedFactorMetadata } from '../definitions/metadata.js';
 
 export const factorDefinitionRoute = new Hono();
 

@@ -10,7 +10,8 @@ import {
   type factorJobLogsQuerySchema,
 } from '../schema.js';
 import { holdoutEligibility } from './holdout-policy.js';
-import { parseResearchPayload, reportResearchSpec, reportSummary } from './report-views.js';
+import { parseResearchPayload, reportSummary } from './report-views.js';
+import { reportResearchSpec } from './report-spec.js';
 import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './research-policy.js';
 
 export async function listFactorReports(
