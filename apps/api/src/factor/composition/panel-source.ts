@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import { resolvePanelTemplateSource } from '../definitions/templates/panel.js';
-import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
+import { factorPanelCompositeDefinitionV2Schema } from '@jixie/shared/api/factor';
 
 export async function resolvePanelFactorSource(
   userId: string,

@@ -14,7 +14,7 @@ import { ResearchError } from '../errors.js';
 import { researchAgentCellChangeAttemptContext } from '../proposals/attempt-context.js';
 import { researchClarificationAnswerMessage } from '../proposals/clarification-message.js';
 import { resolveResearchClarificationAnswer } from '../proposals/clarification-records.js';
-import type { ResearchAgentTurnInput } from '../schema.js';
+import type { ResearchAgentTurnInput } from '@jixie/shared/api/research';
 import { researchAgentDocumentContext } from './context.js';
 
 export async function startResearchAgentTurn(

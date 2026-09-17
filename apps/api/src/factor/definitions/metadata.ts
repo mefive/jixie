@@ -3,7 +3,7 @@ import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
 import { messageText, type ChatMessage } from '@jixie/shared';
 import { z } from 'zod';
 import { FactorError } from '../errors.js';
-import type { FactorMetadataInput } from '../schema.js';
+import type { FactorMetadataInput } from '@jixie/shared/api/factor';
 
 const metadataSchema = z.object({
   nameZh: z.string().trim().min(1).max(40),

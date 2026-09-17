@@ -31,7 +31,7 @@ Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 具名导出 `factorRoute`，组合 definition / composite / agent / analysis / correlation / weather 六组路由，挂载 `/api/app/factors`。路由处理参数、用户／locale 和 HTTP 映射；[schema.ts](schema.ts) 定义输入校验，[errors.ts](errors.ts) 定义共用业务拒绝，具名函数及主要调用方见子能力说明。完整 HTTP 路径见 [路由设计](../../../../docs/design/api-route-naming.md)。
+[routes/index.ts](routes/index.ts) 具名导出 `factorRoute`，组合 definition / composite / agent / analysis / correlation / weather 六组路由，挂载 `/api/app/factors`。路由处理参数、用户／locale 和 HTTP 映射；[共享请求契约](../../../../packages/shared/src/api/factor.ts) 定义输入结构与通用校验，[schema.ts](schema.ts) 组合 Agent / 问答的后端 SDK 引用校验，[errors.ts](errors.ts) 定义共用业务拒绝，具名函数及主要调用方见子能力说明。完整 HTTP 路径见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
 定义、冻结报告、后台 Job、相关性缓存和天气 pin 是不同对象。访问控制在相应业务入口完成；低层计算／来源函数不能替代授权。公开读取不能泄露作者私有消息或研究来源；holdout 的报告与日志封存由 evaluations 统一处理。
 

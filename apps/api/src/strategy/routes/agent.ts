@@ -2,7 +2,8 @@ import { validateJson, validateParam } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
 import { Hono } from 'hono';
 import { startStrategyAgentTurn } from '../agent/turn.js';
-import { strategyAgentBodySchema, strategyAgentParamsSchema } from '../schema.js';
+import { strategyAgentBodySchema } from '../schema.js';
+import { strategyAgentParamsSchema } from '@jixie/shared/api/strategy';
 
 export const strategyAgentRoute = new Hono();
 

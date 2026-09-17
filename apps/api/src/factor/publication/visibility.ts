@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { FactorError } from '../errors.js';
-import type { FactorVisibilityInput } from '../schema.js';
+import type { FactorVisibilityInput } from '@jixie/shared/api/factor';
 
 export async function setFactorVisibility(
   userId: string,

@@ -24,7 +24,7 @@ Job 启动 IPC Worker，按 signal 场景准备因子并比较冻结血缘，调
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 导出 `signalsRoute`，组合 deployment / run / execution，挂载 `/api/app/signals`；[schema.ts](schema.ts) 定义输入。latest-runs 包含本人所有部署的最新结果、暂停及暂无运行项，不加今天过滤。Run 与 Job 分离，日志按 jobId 查询；完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。
+[routes/index.ts](routes/index.ts) 导出 `signalsRoute`，组合 deployment / run / execution，挂载 `/api/app/signals`；[共享请求契约](../../../../packages/shared/src/api/signals.ts) 定义 HTTP 输入，[schema.ts](schema.ts) 组合信号提交的内部业务类型。latest-runs 包含本人所有部署的最新结果、暂停及暂无运行项，不加今天过滤。Run 与 Job 分离，日志按 jobId 查询；完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。
 
 同部署同日失败重试保留 runId、创建新 Job；冻结血缘不随重新准备被覆盖。暂停保留运行／账户，重新部署产生新实例。资源所有者检查、状态转换与事务分别归对应能力；结果提交、账户初始化和通知不组成总事务，人工成交写入与实际账户重放也分开。
 

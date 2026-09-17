@@ -3,7 +3,7 @@ import type { ResearchCellKindV1, ResearchDocumentV1 } from '@jixie/shared';
 import { analyzeAndPersist, analyzeResearchCellSources } from '../dependencies/analyze.js';
 import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import type { UpdateResearchCellInput } from '../schema.js';
+import type { UpdateResearchCellInput } from '@jixie/shared/api/research';
 import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';
 

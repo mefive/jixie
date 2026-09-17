@@ -12,7 +12,7 @@ import {
   backtestJobQuerySchema,
   backtestStrategyIdentitySchema,
   codeConfigSchema,
-} from '../schema.js';
+} from '@jixie/shared/api/strategy';
 
 export const strategyBacktestRoute = new Hono();
 

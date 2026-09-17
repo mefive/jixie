@@ -9,7 +9,7 @@ import {
   embeddedPageSchema,
   embeddedRunSchema,
   embeddedUpdateSchema,
-} from '../schema.js';
+} from '@jixie/shared/api/research';
 
 import { cancelEmbeddedRun } from '../embedded/cancel.js';
 import { changeEmbeddedInputMode, continueEmbeddedResearch } from '../embedded/continuation.js';

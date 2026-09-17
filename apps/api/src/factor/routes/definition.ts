@@ -19,7 +19,7 @@ import {
   factorVisibilitySchema,
   publishFactorBodySchema,
   updateFactorDraftSchema,
-} from '../schema.js';
+} from '@jixie/shared/api/factor';
 
 export const factorDefinitionRoute = new Hono();
 

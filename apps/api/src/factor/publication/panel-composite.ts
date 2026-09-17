@@ -3,7 +3,7 @@ import type { PublishedFactor } from '@jixie/shared';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { FactorError } from '../errors.js';
-import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
+import { factorPanelCompositeDefinitionV2Schema } from '@jixie/shared/api/factor';
 import { sha256 } from '../sources/fingerprint.js';
 import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
 

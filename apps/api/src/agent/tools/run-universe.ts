@@ -1,7 +1,7 @@
 import type { UniverseSpecV1 } from '@jixie/shared';
 import { z } from 'zod';
 import { executeUniverseSpec } from '#research/datasets/universe.js';
-import { universeSpecV1Schema } from '#research/schema.js';
+import { universeSpecV1Schema } from '@jixie/shared/api/research';
 import type { AgentTool } from './types.js';
 
 const argsSchema = z.strictObject({ spec: universeSpecV1Schema });

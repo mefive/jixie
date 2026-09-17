@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+import type { embeddedDraftSchema } from './api/research.js';
 import type { ResearchCellOutputBlockV1 } from './research.js';
 
 export interface ResearchEmbeddedLimitsV1 {
@@ -34,13 +36,7 @@ export type ResearchEmbeddedErrorCodeV1 =
   | 'incomplete_run'
   | 'execution_failed';
 
-export interface ResearchEmbeddedDraftInputV1 {
-  source: string;
-  /** Explicit initial `parameters` dictionary, independently snapshotted for each run. */
-  parameters: ResearchEmbeddedParametersV1;
-  inputScope: string;
-  reportId?: string;
-}
+export type ResearchEmbeddedDraftInputV1 = z.input<typeof embeddedDraftSchema>;
 
 export interface ResearchEmbeddedContextV1 {
   host: ResearchEmbeddedHostV1;

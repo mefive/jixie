@@ -8,7 +8,7 @@ import type {
 import { prisma } from '#infra/database/prisma.js';
 import { researchUniverseMeasures } from '../catalog/capabilities.js';
 import { executeUniverseSpec } from './universe.js';
-import { universeSpecV1Schema } from '../schema.js';
+import { universeSpecV1Schema } from '@jixie/shared/api/research';
 
 const MAX_CROSS_SECTION_ROWS = 6_000;
 const MAX_PANEL_PERIODS = 120;

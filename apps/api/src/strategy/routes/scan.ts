@@ -14,7 +14,7 @@ import {
   scanStrategyIdentitySchema,
   strategyScanParametersSchema,
   submitStrategyScanSchema,
-} from '../schema.js';
+} from '@jixie/shared/api/strategy';
 
 export const strategyScanRoute = new Hono();
 

@@ -4,7 +4,7 @@ import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@ji
 import { ulid } from 'ulid';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { FactorError } from '../errors.js';
-import type { CreateFactorWeatherPinInput } from '../schema.js';
+import type { CreateFactorWeatherPinInput } from '@jixie/shared/api/factor';
 import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 import {
   FACTOR_WEATHER_METHODOLOGY_HASH,

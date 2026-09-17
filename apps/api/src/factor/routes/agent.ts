@@ -6,12 +6,8 @@ import { Hono } from 'hono';
 
 import { startFactorAgentTurn } from '../agent/turn.js';
 import { readFactorQuestions, startFactorQuestion } from '../questions/conversations.js';
-import {
-  factorAgentBodySchema,
-  factorAgentParamsSchema,
-  factorQuestionHistorySchema,
-  factorQuestionSchema,
-} from '../schema.js';
+import { factorAgentBodySchema, factorQuestionSchema } from '../schema.js';
+import { factorAgentParamsSchema, factorQuestionHistorySchema } from '@jixie/shared/api/factor';
 
 export const factorAgentRoute = new Hono();
 

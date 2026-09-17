@@ -47,13 +47,18 @@ test('API data migrations select the API deployment path', () => {
   assert.deepEqual(result.reasons, ['api']);
 });
 
-test('shared package selects every application', () => {
-  const result = classifyChangedPaths(['packages/shared/src/index.ts'], manifest);
-  assert.equal(result.api, true);
-  assert.equal(result.web, true);
-  assert.equal(result.docs, true);
-  assert.equal(result.sandboxd, true);
-  assert.equal(result.fullDeploy, true);
+test('shared package and request-contract subpaths select every application', () => {
+  for (const changedPath of [
+    'packages/shared/src/index.ts',
+    'packages/shared/src/api/strategy.ts',
+  ]) {
+    const result = classifyChangedPaths([changedPath], manifest);
+    assert.equal(result.api, true);
+    assert.equal(result.web, true);
+    assert.equal(result.docs, true);
+    assert.equal(result.sandboxd, true);
+    assert.equal(result.fullDeploy, true);
+  }
 });
 
 test('deployment infrastructure selects every application', () => {

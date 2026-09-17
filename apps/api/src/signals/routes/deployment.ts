@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { deployBacktestReport, pauseDeployment } from '../deployments/manage.js';
 import { listStrategyDeployments } from '../deployments/read.js';
 import { listDeploymentLatestRuns } from '../runs/read.js';
-import { createDeploymentBodySchema, deploymentListQuerySchema } from '../schema.js';
+import { createDeploymentBodySchema, deploymentListQuerySchema } from '@jixie/shared/api/signals';
 
 export const signalDeploymentRoute = new Hono();
 

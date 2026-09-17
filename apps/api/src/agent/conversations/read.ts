@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { ChatMessage } from '@jixie/shared';
 import { AgentError } from '../errors.js';
-import type { ConversationMessagesQuery } from '../schema.js';
+import type { ConversationMessagesQuery } from '@jixie/shared/api/agent';
 
 export async function listConversationMessages(
   userId: string,

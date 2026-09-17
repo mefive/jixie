@@ -82,3 +82,6 @@ export const computeChartSpecSchema = z.object({
 });
 
 export const chartSpecSchema = z.union([computeChartSpecSchema, sqlChartSpecSchema]);
+
+// HTTP input types describe values before defaults and transformations.
+export type ComputeChartRequest = z.input<typeof computeChartSpecSchema>;

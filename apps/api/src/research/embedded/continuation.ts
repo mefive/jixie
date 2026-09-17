@@ -9,7 +9,7 @@ import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
-import type { ResearchEmbeddedInputModeInput } from '../schema.js';
+import type { ResearchEmbeddedInputModeInput } from '@jixie/shared/api/research';
 
 /** One editable copy per retained run. Repeated clicks return the same document. */
 export async function continueEmbeddedResearch(

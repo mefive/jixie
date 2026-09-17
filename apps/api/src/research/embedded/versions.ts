@@ -14,7 +14,7 @@ import {
   type ResearchEmbeddedCreateInput,
   type ResearchEmbeddedDeriveInput,
   type ResearchEmbeddedUpdateInput,
-} from '../schema.js';
+} from '@jixie/shared/api/research';
 import { analysisView, versionView } from './views.js';
 
 export async function createEmbeddedAnalysis(

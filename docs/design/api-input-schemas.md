@@ -1,5 +1,7 @@
 # 业务输入 schema 集中整理
 
+> 后续共享 HTTP 请求契约已完成实现、人工 review 与验证，当前放置规则见 [共享请求契约](api-request-contracts.md)。本文保留前序提交的实施与验收记录。
+
 ## 范围与约定
 
 - 提交信息：`refactor(api): centralize business input schemas`。

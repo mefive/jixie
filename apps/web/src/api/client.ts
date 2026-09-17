@@ -3,6 +3,83 @@
 // Sessions rely on an httpOnly cookie (same-origin via vite proxy), fetch sends the cookie by default, the frontend stores no token.
 // Every request carries Accept-Language so the API localizes its user-facing messages and the agent replies in the user's language.
 
+import type {
+  EmailLoginRequest,
+  VerifyEmailLoginRequest,
+  DevelopmentLoginRequest,
+} from '@jixie/shared/api/auth';
+import type { AgentSqlRequest, ActiveAgentTurnRequestQuery } from '@jixie/shared/api/agent';
+import type { ComputeChartRequest } from '@jixie/shared/api/chart';
+import type {
+  StrategyCodeConfigRequest,
+  CreateStrategyRequest,
+  UpdateStrategyRequest,
+  StrategyVisibilityRequest,
+  StrategyBacktestRequestParams,
+  StrategyBacktestJobRequestQuery,
+  StrategyScanRequestParams,
+  StrategyScanJobRequestQuery,
+  InspectStrategyParametersRequest,
+  SubmitStrategyScanRequest,
+  StrategyAgentRequest,
+  StrategyAgentRequestParams,
+} from '@jixie/shared/api/strategy';
+import type {
+  CreateFactorDraftRequest,
+  UpdateFactorDraftRequest,
+  FactorMetadataRequest,
+  PublishFactorRequest,
+  FactorVisibilityRequest,
+  FactorCompositeRequest,
+  SubmitFactorAnalysisRequest,
+  FactorCorrelationRequestQuery,
+  SubmitFactorCorrelationRequest,
+  FactorJobRequestQuery,
+  FactorReportListRequestQuery,
+  FactorResearchSummaryRequestQuery,
+  CreateFactorWeatherPinRequest,
+  FactorAgentRequest,
+  FactorAgentRequestParams,
+  FactorQuestionRequest,
+  FactorQuestionHistoryRequestQuery,
+} from '@jixie/shared/api/factor';
+import type {
+  ResearchUniverseRequest,
+  UpdateResearchEmbeddedRequest,
+  DeriveResearchEmbeddedRequest,
+  RunResearchEmbeddedRequest,
+  ResearchEmbeddedPageRequestQuery,
+  ResearchEmbeddedListRequestQuery,
+  ResearchCuratorFindingRequest,
+  ResearchDocumentListRequestQuery,
+  CreateResearchDocumentRequest,
+  CreateResearchCellRequest,
+  UpdateResearchCellRequest,
+  RenameResearchDocumentRequest,
+  RunResearchDocumentRequest,
+  PromoteResearchExecutionRequest,
+  ResearchCellChangeReviewRequest,
+  ResearchAgentRequest,
+  ResearchDataCatalogRequestQuery,
+  ResearchLanguageRequest,
+  ResearchEmbeddedInputModeRequest,
+} from '@jixie/shared/api/research';
+import type {
+  DeploymentListRequestQuery,
+  ActualExecutionRequest,
+  SignalRunListRequestQuery,
+  SignalRunJobRequestQuery,
+  CreateDeploymentRequest,
+  SubmitSignalRunRequest,
+} from '@jixie/shared/api/signals';
+import type {
+  InstrumentSeriesRequestQuery,
+  InstrumentAssetTypeRequestParam,
+  MarketStateRequestQuery,
+  MarketWeatherRequestQuery,
+  InstrumentNamesRequestQuery,
+} from '@jixie/shared/api/market';
+
 import { localeStore } from '@src/i18n/locale-store';
 import i18n from '@src/i18n';
 
@@ -45,6 +122,17 @@ export class ApiError extends Error {
       this.field = (details as { field?: string }).field;
     }
   }
+}
+
+/** Serialize an already typed HTTP query without applying server defaults or coercion. */
+function serializeQuery(query: Record<string, string | undefined>): string {
+  const parameters = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      parameters.set(key, value);
+    }
+  }
+  return parameters.toString();
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -134,24 +222,26 @@ export function fetchMe(): Promise<{ user: AuthUser | null }> {
 export function devLogin(email: string): Promise<{ user: AuthUser }> {
   return request('/api/auth/dev/login', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email } satisfies DevelopmentLoginRequest),
   });
 }
 
 // Send code. A new email must include inviteCode; an existing email doesn't. A new email without a code returns VALIDATION_FAILED + field=inviteCode
-export function requestEmailLogin(input: {
-  email: string;
-  inviteCode?: string;
-}): Promise<{ challengeId: string; expiresIn: number }> {
-  return request('/api/auth/email/request', { method: 'POST', body: JSON.stringify(input) });
+export function requestEmailLogin(
+  input: EmailLoginRequest,
+): Promise<{ challengeId: string; expiresIn: number }> {
+  return request('/api/auth/email/request', {
+    method: 'POST',
+    body: JSON.stringify(input satisfies EmailLoginRequest),
+  });
 }
 
 // Verify code to log in / register. On success it writes the session cookie
-export function verifyEmailLogin(input: {
-  challengeId: string;
-  code: string;
-}): Promise<{ user: AuthUser }> {
-  return request('/api/auth/email/verify', { method: 'POST', body: JSON.stringify(input) });
+export function verifyEmailLogin(input: VerifyEmailLoginRequest): Promise<{ user: AuthUser }> {
+  return request('/api/auth/email/verify', {
+    method: 'POST',
+    body: JSON.stringify(input satisfies VerifyEmailLoginRequest),
+  });
 }
 
 export function logout(): Promise<{ ok: true }> {
@@ -195,7 +285,6 @@ import type {
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
-  ResearchExecutionPromotionInputV1,
   ResearchExecutionSummaryV1,
   ResearchExecutionV1,
   ResearchFactorDraftResultV1,
@@ -204,12 +293,9 @@ import type {
   ResearchDataCatalogResultV1,
   ResearchDataCatalogScopeV1,
   ResearchAssetTypeV1,
-  ResearchLanguageRequestV1,
   ResearchLanguageResultV1,
-  ResearchCuratorDispositionV1,
   ResearchCuratorFindingV1,
   ResearchCuratorRunV1,
-  ResearchCuratorVerificationAssessmentV1,
 } from '@jixie/shared';
 
 // Back-compat alias — the trace item type now lives in shared (agent-stream protocol).
@@ -257,7 +343,8 @@ function notifyMaintenance(error: { code?: string; details?: unknown } | null | 
 
 // The live turn for an entity ('strategy:<id>' | 'factor:<id>' | 'research:<id>') — refresh reattach.
 export function findRunningAgentTurn(entityKey: string): Promise<{ turnId: string | null }> {
-  return request(`/api/app/agent/turns/active?entity=${encodeURIComponent(entityKey)}`);
+  const query = serializeQuery({ entity: entityKey } satisfies ActiveAgentTurnRequestQuery);
+  return request(`/api/app/agent/turns/active?${query}`);
 }
 
 // Abort the upstream LLM (idempotent; already-finished turns are a no-op).
@@ -280,7 +367,8 @@ export function getAgentConversationMessages(
 export function listResearchDocuments(
   state: ResearchDocumentListStateV1 = 'active',
 ): Promise<ResearchDocumentSummaryV1[]> {
-  return request(`/api/app/research/documents?state=${encodeURIComponent(state)}`);
+  const query = serializeQuery({ state } satisfies ResearchDocumentListRequestQuery);
+  return request(`/api/app/research/documents?${query}`);
 }
 
 export function createResearchDocument(
@@ -288,7 +376,7 @@ export function createResearchDocument(
 ): Promise<ResearchDocumentV1> {
   return request('/api/app/research/documents', {
     method: 'POST',
-    body: JSON.stringify({ template }),
+    body: JSON.stringify({ template } satisfies CreateResearchDocumentRequest),
   });
 }
 
@@ -297,7 +385,9 @@ export function createResearchDocumentFromBacktestReport(
 ): Promise<ResearchDocumentV1> {
   return request('/api/app/research/documents', {
     method: 'POST',
-    body: JSON.stringify({ source: { type: 'backtest-report', reportId } }),
+    body: JSON.stringify({
+      source: { type: 'backtest-report', reportId },
+    } satisfies CreateResearchDocumentRequest),
   });
 }
 
@@ -328,17 +418,17 @@ export function addResearchCell(
 ): Promise<ResearchDocumentV1> {
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/cells`, {
     method: 'POST',
-    body: JSON.stringify({ kind, source }),
+    body: JSON.stringify({ kind, source } satisfies CreateResearchCellRequest),
   });
 }
 
 export function updateResearchCell(
   cellId: string,
-  patch: { source?: string; config?: Record<string, unknown>; expectedRevision: number },
+  patch: UpdateResearchCellRequest,
 ): Promise<ResearchDocumentV1> {
   return request(`/api/app/research/cells/${encodeURIComponent(cellId)}`, {
     method: 'PATCH',
-    body: JSON.stringify(patch),
+    body: JSON.stringify(patch satisfies UpdateResearchCellRequest),
   });
 }
 
@@ -371,7 +461,7 @@ export function runResearchDocument(
 ): Promise<ResearchDocumentRunResultV1> {
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/run`, {
     method: 'POST',
-    body: JSON.stringify({ clean }),
+    body: JSON.stringify({ clean } satisfies RunResearchDocumentRequest),
   });
 }
 
@@ -385,11 +475,11 @@ export function getResearchExecution(executionId: string): Promise<ResearchExecu
 
 export function promoteResearchExecution(
   executionId: string,
-  input: ResearchExecutionPromotionInputV1,
+  input: PromoteResearchExecutionRequest,
 ): Promise<ResearchExecutionSummaryV1> {
   return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/promote`, {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify(input satisfies PromoteResearchExecutionRequest),
   });
 }
 
@@ -450,7 +540,10 @@ export function acceptResearchCellChangeReview(
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
   return request(
     `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/review/accept`,
-    { method: 'POST', body: JSON.stringify({ expectedContentRevision }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({ expectedContentRevision } satisfies ResearchCellChangeReviewRequest),
+    },
   );
 }
 
@@ -460,7 +553,10 @@ export function revertResearchCellChangeReview(
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
   return request(
     `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/review/revert`,
-    { method: 'POST', body: JSON.stringify({ expectedContentRevision }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({ expectedContentRevision } satisfies ResearchCellChangeReviewRequest),
+    },
   );
 }
 
@@ -483,12 +579,12 @@ export function runResearchCellChangeProposal(
 }
 
 export function requestResearchLanguage(
-  input: ResearchLanguageRequestV1,
+  input: ResearchLanguageRequest,
   signal?: AbortSignal,
 ): Promise<ResearchLanguageResultV1> {
   return request('/api/app/research/language/python', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify(input satisfies ResearchLanguageRequest),
     signal,
   });
 }
@@ -499,12 +595,12 @@ export function searchResearchDataCatalog(
   signal?: AbortSignal,
   scope: ResearchDataCatalogScopeV1 = 'instruments',
 ): Promise<ResearchDataCatalogResultV1> {
-  const parameters = new URLSearchParams({ q: query });
-  parameters.set('scope', scope);
-  if (assetType) {
-    parameters.set('assetType', assetType);
-  }
-  return request(`/api/app/research/data-catalog?${parameters.toString()}`, { signal });
+  const parameters = serializeQuery({
+    q: query,
+    scope,
+    ...(assetType ? { assetType } : {}),
+  } satisfies ResearchDataCatalogRequestQuery);
+  return request(`/api/app/research/data-catalog?${parameters}`, { signal });
 }
 
 export function sendResearchAgent(
@@ -520,7 +616,7 @@ export function sendResearchAgent(
       ...(conversationId ? { conversationId } : {}),
       ...(attemptId ? { attemptId } : {}),
       ...(contextCellIds.length > 0 ? { contextCellIds } : {}),
-    }),
+    } satisfies ResearchAgentRequest),
   });
 }
 
@@ -534,14 +630,14 @@ export function answerResearchClarification(
     body: JSON.stringify({
       conversationId,
       clarificationAnswer: { clarificationId, selections },
-    }),
+    } satisfies ResearchAgentRequest),
   });
 }
 
 export function renameResearchDocument(documentId: string, title: string): Promise<{ ok: true }> {
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title } satisfies RenameResearchDocumentRequest),
   });
 }
 
@@ -565,28 +661,27 @@ export function getResearchCuratorRun(runId: string): Promise<ResearchCuratorRun
 
 export function updateResearchCuratorFinding(
   findingId: string,
-  input: {
-    disposition?: Exclude<ResearchCuratorDispositionV1, 'pending'>;
-    note?: string;
-    verificationAssessment?: ResearchCuratorVerificationAssessmentV1;
-  },
+  input: ResearchCuratorFindingRequest,
 ): Promise<ResearchCuratorFindingV1> {
   return request(`/api/app/research/curator/findings/${encodeURIComponent(findingId)}`, {
     method: 'PATCH',
-    body: JSON.stringify(input),
+    body: JSON.stringify(input satisfies ResearchCuratorFindingRequest),
   });
 }
 
 // Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.
 export function agentSql(sql: string): Promise<SqlRows> {
-  return request('/api/app/agent/sql-queries', { method: 'POST', body: JSON.stringify({ sql }) });
+  return request('/api/app/agent/sql-queries', {
+    method: 'POST',
+    body: JSON.stringify({ sql } satisfies AgentSqlRequest),
+  });
 }
 
 // Re-run a compute-source chart card (persisted queries + sandboxed transform → row table).
 export function agentComputeChart(spec: ComputeChartSpec): Promise<SqlRows> {
   return request('/api/app/agent/chart-computations', {
     method: 'POST',
-    body: JSON.stringify(spec),
+    body: JSON.stringify(spec satisfies ComputeChartRequest),
   });
 }
 
@@ -647,27 +742,30 @@ export interface BacktestJob {
 // Commit a saved strategy's runnable config and start its immutable report atomically.
 export function submitBacktest(
   config: BacktestConfig,
-  strategyId: string,
+  strategyId: StrategyBacktestRequestParams['strategyId'],
 ): Promise<{ jobId: string; reportId: string }> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtests`, {
     method: 'POST',
-    body: JSON.stringify(config),
+    body: JSON.stringify(config satisfies StrategyCodeConfigRequest),
   });
 }
 
 // Poll a backtest job — `since` = how many log lines the client already has (incremental tail).
 export function pollBacktest(jobId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/strategies/backtest-jobs/${encodeURIComponent(jobId)}?since=${since}`);
+  const query = serializeQuery({ since: String(since) } satisfies StrategyBacktestJobRequestQuery);
+  return request(`/api/app/strategies/backtest-jobs/${encodeURIComponent(jobId)}?${query}`);
 }
 
 // Find a queued or running backtest and its report to reconnect after a refresh.
 export function findActiveBacktestJob(
-  strategyId: string,
+  strategyId: StrategyBacktestRequestParams['strategyId'],
 ): Promise<{ jobId: string; reportId: string } | null> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtest-jobs/active`);
 }
 
-export function listBacktestReports(strategyId: string): Promise<BacktestReportSummary[]> {
+export function listBacktestReports(
+  strategyId: StrategyBacktestRequestParams['strategyId'],
+): Promise<BacktestReportSummary[]> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtest-reports`);
 }
 
@@ -680,27 +778,29 @@ export function inspectStrategyParameters(
 ): Promise<{ parameters: Record<string, StrategyParamValue> }> {
   return request('/api/app/strategies/scan-parameters/inspect', {
     method: 'POST',
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code } satisfies InspectStrategyParametersRequest),
   });
 }
 
 export function submitStrategyScan(
-  strategyId: string,
+  strategyId: StrategyScanRequestParams['strategyId'],
   config: BacktestConfig,
   spec: StrategyScanSpec,
 ): Promise<{ reportId: string; jobId: string }> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scans`, {
     method: 'POST',
-    body: JSON.stringify({ config, spec }),
+    body: JSON.stringify({ config, spec } satisfies SubmitStrategyScanRequest),
   });
 }
 
-export function listStrategyScanReports(strategyId: string): Promise<StrategyScanReportSummary[]> {
+export function listStrategyScanReports(
+  strategyId: StrategyScanRequestParams['strategyId'],
+): Promise<StrategyScanReportSummary[]> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scan-reports`);
 }
 
 export function findActiveStrategyScanJob(
-  strategyId: string,
+  strategyId: StrategyScanRequestParams['strategyId'],
 ): Promise<{ jobId: string; reportId: string } | null> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/scan-jobs/active`);
 }
@@ -710,7 +810,8 @@ export function getStrategyScanReport(reportId: string): Promise<StrategyScanRep
 }
 
 export function pollStrategyScan(jobId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/strategies/scan-jobs/${encodeURIComponent(jobId)}?since=${since}`);
+  const query = serializeQuery({ since: String(since) } satisfies StrategyScanJobRequestQuery);
+  return request(`/api/app/strategies/scan-jobs/${encodeURIComponent(jobId)}?${query}`);
 }
 
 // —— Daily signals ——
@@ -718,7 +819,7 @@ export function pollStrategyScan(jobId: string, since = 0): Promise<BacktestJob>
 export function deployBacktestReport(reportId: string): Promise<StrategyDeployment> {
   return request('/api/app/signals/deployments', {
     method: 'POST',
-    body: JSON.stringify({ reportId }),
+    body: JSON.stringify({ reportId } satisfies CreateDeploymentRequest),
   });
 }
 
@@ -727,7 +828,8 @@ export function pauseStrategyDeployment(deploymentId: string): Promise<StrategyD
 }
 
 export function listStrategyDeployments(strategyId: string): Promise<StrategyDeployment[]> {
-  return request(`/api/app/signals/deployments?strategyId=${encodeURIComponent(strategyId)}`);
+  const query = serializeQuery({ strategyId } satisfies DeploymentListRequestQuery);
+  return request(`/api/app/signals/deployments?${query}`);
 }
 
 export function listDeploymentLatestRuns(): Promise<SignalTodayEntry[]> {
@@ -735,9 +837,8 @@ export function listDeploymentLatestRuns(): Promise<SignalTodayEntry[]> {
 }
 
 export function listSignalRuns(deploymentId: string, limit = 30): Promise<SignalRun[]> {
-  return request(
-    `/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/runs?limit=${limit}`,
-  );
+  const query = serializeQuery({ limit: String(limit) } satisfies SignalRunListRequestQuery);
+  return request(`/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/runs?${query}`);
 }
 
 export function getSignalRun(runId: string): Promise<SignalRun> {
@@ -750,12 +851,13 @@ export function submitSignalRun(
 ): Promise<{ runId: string; jobId: string | null; started: boolean }> {
   return request(`/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/runs`, {
     method: 'POST',
-    body: JSON.stringify(tradeDate ? { tradeDate } : {}),
+    body: JSON.stringify((tradeDate ? { tradeDate } : {}) satisfies SubmitSignalRunRequest),
   });
 }
 
 export function pollSignalJob(jobId: string, since = 0): Promise<BacktestJob> {
-  return request(`/api/app/signals/run-jobs/${jobId}?since=${since}`);
+  const query = serializeQuery({ since: String(since) } satisfies SignalRunJobRequestQuery);
+  return request(`/api/app/signals/run-jobs/${jobId}?${query}`);
 }
 
 export function getStrategyExecutionOverview(
@@ -770,7 +872,7 @@ export function updateSignalExecution(
 ): Promise<SignalRun> {
   return request(`/api/app/signals/executions/${executionId}`, {
     method: 'PATCH',
-    body: JSON.stringify(input),
+    body: JSON.stringify(input satisfies ActualExecutionRequest),
   });
 }
 
@@ -793,15 +895,15 @@ import type {
 // Agent: START one turn (the model iterates on the current code; history lives on the strategy row).
 // Returns a turnId immediately — subscribe via subscribeAgentTurn to stream the reply.
 export function sendAgent(
-  strategyId: string,
+  strategyId: StrategyAgentRequestParams['strategyId'],
   message: string,
   code: string,
   language: 'typescript' | 'python' = 'typescript',
-  analysis?: { reportId?: string; dataReferences?: ResearchDataReferenceV1[] },
+  analysis?: Pick<StrategyAgentRequest, 'reportId' | 'dataReferences'>,
 ): Promise<{ turnId: string }> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/agent/turns`, {
     method: 'POST',
-    body: JSON.stringify({ message, code, language, ...analysis }),
+    body: JSON.stringify({ message, code, language, ...analysis } satisfies StrategyAgentRequest),
   });
 }
 
@@ -820,16 +922,19 @@ export function getStrategy(id: string): Promise<SavedStrategy> {
 export function createStrategy(config: BacktestConfig, prompt?: string): Promise<SavedMeta> {
   const { name: _clientName, ...runnableConfig } = config;
   const body = { ...runnableConfig, ...(prompt ? { prompt } : {}) };
-  return request('/api/app/strategies', { method: 'POST', body: JSON.stringify(body) });
+  return request('/api/app/strategies', {
+    method: 'POST',
+    body: JSON.stringify(body satisfies CreateStrategyRequest),
+  });
 }
 
 // Update an existing strategy by id. `{ messages }` alone = real-time chat save (config untouched);
 // `{ config }` = a run's config/name update (drops the stale lastResult when code/range/capital moved).
-export function updateStrategy(
-  id: string,
-  patch: { config?: BacktestConfig; messages?: ChatMessage[] },
-): Promise<SavedMeta> {
-  return request(`/api/app/strategies/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+export function updateStrategy(id: string, patch: UpdateStrategyRequest): Promise<SavedMeta> {
+  return request(`/api/app/strategies/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch satisfies UpdateStrategyRequest),
+  });
 }
 
 export function deleteStrategy(id: string): Promise<{ ok: true }> {
@@ -846,7 +951,7 @@ export function setStrategyVisibility(
 ): Promise<{ id: string; visibility: AssetVisibility }> {
   return request(`/api/app/strategies/${encodeURIComponent(id)}/visibility`, {
     method: 'PATCH',
-    body: JSON.stringify({ visibility }),
+    body: JSON.stringify({ visibility } satisfies StrategyVisibilityRequest),
   });
 }
 
@@ -859,25 +964,22 @@ export function copyPublicStrategy(id: string): Promise<{ id: string; name: stri
 export function runResearchUniverse(spec: UniverseSpecV1): Promise<ResearchUniverseRunResultV1> {
   return request('/api/app/research/universe-queries', {
     method: 'POST',
-    body: JSON.stringify(spec),
+    body: JSON.stringify(spec satisfies ResearchUniverseRequest),
   });
 }
 
 // A verified object's chartable daily series.
 export function fetchInstrumentSeries(
-  assetType: ResearchAssetTypeV1,
+  assetType: InstrumentAssetTypeRequestParam,
   id: string,
   start?: string,
   end?: string,
 ): Promise<StockSeries> {
-  const query = new URLSearchParams();
-  if (start) {
-    query.set('start', start);
-  }
-  if (end) {
-    query.set('end', end);
-  }
-  const suffix = query.size > 0 ? `?${query.toString()}` : '';
+  const query = serializeQuery({
+    ...(start ? { start } : {}),
+    ...(end ? { end } : {}),
+  } satisfies InstrumentSeriesRequestQuery);
+  const suffix = query ? `?${query}` : '';
 
   return request(
     `/api/app/market/instruments/${assetType}/${encodeURIComponent(id)}/series${suffix}`,
@@ -886,7 +988,8 @@ export function fetchInstrumentSeries(
 
 // tsCode → name (bulk) — e.g. instrument labels in execution detail.
 export function fetchInstrumentNames(codes: string[]): Promise<Record<string, string>> {
-  return request(`/api/app/market/instruments/names?codes=${encodeURIComponent(codes.join(','))}`);
+  const query = serializeQuery({ codes: codes.join(',') } satisfies InstrumentNamesRequestQuery);
+  return request(`/api/app/market/instruments/names?${query}`);
 }
 
 // Index daily close (e.g. 000300.SH) over a range — benchmark curves in backtest results.
@@ -895,7 +998,8 @@ export function fetchIndexSeries(
   start: string,
   end: string,
 ): Promise<{ points: { date: string; close: number }[] }> {
-  return request(`/api/app/market/indices/${code}/series?start=${start}&end=${end}`);
+  const query = serializeQuery({ start, end } satisfies InstrumentSeriesRequestQuery);
+  return request(`/api/app/market/indices/${code}/series?${query}`);
 }
 
 export function fetchIndexValuationCatalog(signal?: AbortSignal): Promise<IndexValuationCatalog> {
@@ -913,7 +1017,8 @@ export function fetchMarketState(
   scope: MarketStateScope,
   signal?: AbortSignal,
 ): Promise<MarketStateSnapshot> {
-  return request(`/api/app/market/state?scope=${encodeURIComponent(scope)}`, { signal });
+  const query = serializeQuery({ scope } satisfies MarketStateRequestQuery);
+  return request(`/api/app/market/state?${query}`, { signal });
 }
 
 export function fetchMarketWeather(
@@ -921,10 +1026,8 @@ export function fetchMarketWeather(
   frequency: MarketWeatherFrequency,
   signal?: AbortSignal,
 ): Promise<MarketWeatherSeries> {
-  return request(
-    `/api/app/market/weather?dimension=${encodeURIComponent(dimension)}&frequency=${encodeURIComponent(frequency)}`,
-    { signal },
-  );
+  const query = serializeQuery({ dimension, frequency } satisfies MarketWeatherRequestQuery);
+  return request(`/api/app/market/weather?${query}`, { signal });
 }
 
 import type {
@@ -958,7 +1061,7 @@ export function getFactorCatalog(): Promise<FactorMeta[]> {
 export function publishFactor(id: string, approvedReportId: string): Promise<PublishedFactor> {
   return request(`/api/app/factors/${encodeURIComponent(id)}/publish`, {
     method: 'POST',
-    body: JSON.stringify({ approvedReportId }),
+    body: JSON.stringify({ approvedReportId } satisfies PublishFactorRequest),
   });
 }
 
@@ -974,7 +1077,7 @@ export function publishFactorComposite(
 ): Promise<PublishedFactor> {
   return request(`/api/app/factors/composites/${encodeURIComponent(id)}/publish`, {
     method: 'POST',
-    body: JSON.stringify({ approvedReportId }),
+    body: JSON.stringify({ approvedReportId } satisfies PublishFactorRequest),
   });
 }
 
@@ -989,7 +1092,7 @@ export function createFactorComposite(
 ): Promise<FactorCompositeResource> {
   return request('/api/app/factors/composites', {
     method: 'POST',
-    body: JSON.stringify({ definition }),
+    body: JSON.stringify({ definition } satisfies FactorCompositeRequest),
   });
 }
 
@@ -1003,7 +1106,7 @@ export function updateFactorComposite(
 ): Promise<FactorCompositeResource> {
   return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, {
     method: 'PATCH',
-    body: JSON.stringify({ definition }),
+    body: JSON.stringify({ definition } satisfies FactorCompositeRequest),
   });
 }
 
@@ -1026,7 +1129,7 @@ export function setFactorVisibility(
     kind === 'composite' ? `composites/${encodeURIComponent(id)}` : encodeURIComponent(id);
   return request(`/api/app/factors/${path}/visibility`, {
     method: 'PATCH',
-    body: JSON.stringify({ visibility }),
+    body: JSON.stringify({ visibility } satisfies FactorVisibilityRequest),
   });
 }
 
@@ -1090,7 +1193,7 @@ export function createFactor(
     FactorAnalysisKind,
     'cross_sectional' | 'time_series' | 'panel'
   > = 'cross_sectional',
-  messages?: ChatMessage[],
+  messages?: CreateFactorDraftRequest['messages'],
   language: FactorLanguage = 'typescript',
 ): Promise<{
   id: string;
@@ -1103,16 +1206,22 @@ export function createFactor(
   const body = messages
     ? { key, name, code, analysisKind, language, messages }
     : { key, name, code, analysisKind, language };
-  return request('/api/app/factors', { method: 'POST', body: JSON.stringify(body) });
+  return request('/api/app/factors', {
+    method: 'POST',
+    body: JSON.stringify(body satisfies CreateFactorDraftRequest),
+  });
 }
 
 // Update a factor by id. `{ messages }` = real-time chat save; `{ code, name }` = an analysis run's
 // commit. Historical reports retain their frozen source snapshots when the code moves.
 export function updateFactor(
   id: string,
-  patch: { code?: string; name?: string; messages?: ChatMessage[] },
+  patch: UpdateFactorDraftRequest,
 ): Promise<{ id: string; name: string }> {
-  return request(`/api/app/factors/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+  return request(`/api/app/factors/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch satisfies UpdateFactorDraftRequest),
+  });
 }
 
 export function deleteCustomFactor(id: string): Promise<{ ok: true }> {
@@ -1121,25 +1230,25 @@ export function deleteCustomFactor(id: string): Promise<{ ok: true }> {
 
 // Factor Agent: START one turn (iterates on the defineFactor code; history lives on the factor row).
 export function sendFactorAgent(
-  factorId: string,
+  factorId: FactorAgentRequestParams['factorId'],
   message: string,
   code: string,
-  analysis?: { reportId?: string; dataReferences?: ResearchDataReferenceV1[] },
+  analysis?: Pick<FactorAgentRequest, 'reportId' | 'dataReferences'>,
 ): Promise<{ turnId: string }> {
   return request(`/api/app/factors/${encodeURIComponent(factorId)}/agent/turns`, {
     method: 'POST',
-    body: JSON.stringify({ message, code, ...analysis }),
+    body: JSON.stringify({ message, code, ...analysis } satisfies FactorAgentRequest),
   });
 }
 
 // Question history is private to the current user and a stable Factor catalog identity.
 export function factorQa(
-  input: FactorQuestionInputV1,
+  input: FactorQuestionRequest,
   signal?: AbortSignal,
 ): Promise<FactorQuestionTurnV1> {
   return request('/api/app/factors/questions', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify(input satisfies FactorQuestionRequest),
     signal,
   });
 }
@@ -1149,10 +1258,9 @@ export function getFactorQuestions(
   before?: number,
   signal?: AbortSignal,
 ): Promise<FactorQuestionHistoryV1> {
-  const query = new URLSearchParams();
-  if (before !== undefined) {
-    query.set('before', String(before));
-  }
+  const query = serializeQuery({
+    ...(before !== undefined ? { before: String(before) } : {}),
+  } satisfies FactorQuestionHistoryRequestQuery);
   return request(`/api/app/factors/${encodeURIComponent(factorKey)}/questions?${query}`, {
     signal,
   });
@@ -1161,7 +1269,7 @@ export function getFactorQuestions(
 export function refreshFactorMetadata(id: string, code: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/${encodeURIComponent(id)}/metadata/refresh`, {
     method: 'POST',
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code } satisfies FactorMetadataRequest),
   });
 }
 
@@ -1171,10 +1279,11 @@ export function getFactorReports(
   limit = 50,
   cursor?: string,
 ): Promise<FactorReportListResponse> {
-  const query = new URLSearchParams({ factor, limit: String(limit) });
-  if (cursor) {
-    query.set('cursor', cursor);
-  }
+  const query = serializeQuery({
+    factor,
+    limit: String(limit),
+    ...(cursor ? { cursor } : {}),
+  } satisfies FactorReportListRequestQuery);
   return request(`/api/app/factors/analysis-reports?${query}`);
 }
 
@@ -1191,7 +1300,12 @@ export function runFactorAnalysis(
 ): Promise<RunFactorAnalysisResponse> {
   return request('/api/app/factors/analyses', {
     method: 'POST',
-    body: JSON.stringify({ factor, spec, parentReportId: parentReportId ?? null, researchIntent }),
+    body: JSON.stringify({
+      factor,
+      spec,
+      parentReportId: parentReportId ?? null,
+      researchIntent,
+    } satisfies SubmitFactorAnalysisRequest),
   });
 }
 
@@ -1200,7 +1314,10 @@ export function getFactorResearchWindow(): Promise<FactorHoldoutPolicyV1> {
 }
 
 export function getFactorResearchSummary(factor?: string): Promise<FactorResearchSummary> {
-  const query = factor ? `?factor=${encodeURIComponent(factor)}` : '';
+  const parameters = serializeQuery({
+    ...(factor ? { factor } : {}),
+  } satisfies FactorResearchSummaryRequestQuery);
+  const query = parameters ? `?${parameters}` : '';
   return request(`/api/app/factors/research/summary${query}`);
 }
 
@@ -1225,7 +1342,8 @@ export interface FactorJob {
   error?: string | null;
 }
 export function pollFactorAnalysisJob(jobId: string, since = 0): Promise<FactorJob> {
-  return request(`/api/app/factors/analysis-jobs/${encodeURIComponent(jobId)}?since=${since}`);
+  const query = serializeQuery({ since: String(since) } satisfies FactorJobRequestQuery);
+  return request(`/api/app/factors/analysis-jobs/${encodeURIComponent(jobId)}?${query}`);
 }
 
 // —— Correlation matrix (3.4): 2–8 factors × a fixed size column ——
@@ -1236,8 +1354,13 @@ export function getFactorCorrelation(
   start: string,
   end: string,
 ): Promise<FactorCorrelation> {
-  const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
-  return request(`/api/app/factors/correlations?${q}`);
+  const query = serializeQuery({
+    keys: keys.join(','),
+    freq,
+    start,
+    end,
+  } satisfies FactorCorrelationRequestQuery);
+  return request(`/api/app/factors/correlations?${query}`);
 }
 
 export function runFactorCorrelation(
@@ -1249,7 +1372,13 @@ export function runFactorCorrelation(
 ): Promise<{ done: true; report: FactorCorrelation } | { jobId: string }> {
   return request('/api/app/factors/correlations', {
     method: 'POST',
-    body: JSON.stringify({ keys, freq, start, end, refresh }),
+    body: JSON.stringify({
+      keys,
+      freq,
+      start,
+      end,
+      refresh,
+    } satisfies SubmitFactorCorrelationRequest),
   });
 }
 
@@ -1259,12 +1388,18 @@ export function findActiveFactorCorrelationJob(
   start: string,
   end: string,
 ): Promise<{ jobId: string } | null> {
-  const q = new URLSearchParams({ keys: keys.join(','), freq, start, end });
-  return request(`/api/app/factors/correlation-jobs/active?${q}`);
+  const query = serializeQuery({
+    keys: keys.join(','),
+    freq,
+    start,
+    end,
+  } satisfies FactorCorrelationRequestQuery);
+  return request(`/api/app/factors/correlation-jobs/active?${query}`);
 }
 
 export function pollFactorCorrelationJob(jobId: string, since = 0): Promise<FactorJob> {
-  return request(`/api/app/factors/correlation-jobs/${encodeURIComponent(jobId)}?since=${since}`);
+  const query = serializeQuery({ since: String(since) } satisfies FactorJobRequestQuery);
+  return request(`/api/app/factors/correlation-jobs/${encodeURIComponent(jobId)}?${query}`);
 }
 
 // —— Factor weather: immutable pinned factors with offline monthly observations ——
@@ -1279,7 +1414,7 @@ export function pinFactorWeather(
 ): Promise<{ id: string; status: string }> {
   return request('/api/app/factors/weather/pins', {
     method: 'POST',
-    body: JSON.stringify({ factorId, direction }),
+    body: JSON.stringify({ factorId, direction } satisfies CreateFactorWeatherPinRequest),
   });
 }
 
@@ -1292,21 +1427,15 @@ export function refreshFactorWeatherPin(id: string): Promise<{ id: string; statu
 export function unpinFactorWeather(id: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/weather/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
-import type {
-  FactorQuestionInputV1,
-  FactorQuestionTurnV1,
-  FactorQuestionHistoryV1,
-} from '@jixie/shared';
+import type { FactorQuestionTurnV1, FactorQuestionHistoryV1 } from '@jixie/shared';
 
 // Embedded analyses retain exact Python runs independently from model prose.
 import type {
-  ResearchDataReferenceV1,
   ResearchEmbeddedAnalysisV1,
   ResearchEmbeddedVersionV1,
   ResearchEmbeddedRunV1,
   ResearchEmbeddedRunSummaryV1,
   ResearchEmbeddedHostV1,
-  ResearchEmbeddedDraftInputV1,
   ResearchEmbeddedPageV1,
 } from '@jixie/shared';
 const embeddedApi = '/api/app/research/embedded-analyses';
@@ -1315,10 +1444,11 @@ export function listEmbeddedAnalyses(
   cursor?: string,
   signal?: AbortSignal,
 ): Promise<ResearchEmbeddedPageV1<ResearchEmbeddedAnalysisV1>> {
-  const query = new URLSearchParams({ hostType: host.type, hostId: host.id });
-  if (cursor) {
-    query.set('cursor', cursor);
-  }
+  const query = serializeQuery({
+    hostType: host.type,
+    hostId: host.id,
+    ...(cursor ? { cursor } : {}),
+  } satisfies ResearchEmbeddedListRequestQuery);
   return request(`${embeddedApi}?${query}`, { signal });
 }
 export function readEmbeddedRun(
@@ -1336,8 +1466,11 @@ export function listEmbeddedRuns(
   cursor?: string,
   signal?: AbortSignal,
 ): Promise<ResearchEmbeddedPageV1<ResearchEmbeddedRunSummaryV1>> {
+  const query = serializeQuery({
+    ...(cursor ? { cursor } : {}),
+  } satisfies ResearchEmbeddedPageRequestQuery);
   return request(
-    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs${query ? `?${query}` : ''}`,
     { signal },
   );
 }
@@ -1354,31 +1487,31 @@ export function readEmbeddedVersion(
 export function updateEmbeddedDraft(
   analysisId: string,
   versionId: string,
-  input: ResearchEmbeddedDraftInputV1 & { expectedRevision: number },
+  input: UpdateResearchEmbeddedRequest,
 ): Promise<ResearchEmbeddedVersionV1> {
   return request(
     `${embeddedApi}/${encodeURIComponent(analysisId)}/versions/${encodeURIComponent(versionId)}`,
-    { method: 'PATCH', body: JSON.stringify(input) },
+    { method: 'PATCH', body: JSON.stringify(input satisfies UpdateResearchEmbeddedRequest) },
   );
 }
 export function deriveEmbeddedDraft(
   analysisId: string,
   parentVersionId: string,
-  draft: ResearchEmbeddedDraftInputV1,
+  draft: DeriveResearchEmbeddedRequest['draft'],
 ): Promise<ResearchEmbeddedVersionV1> {
   return request(`${embeddedApi}/${encodeURIComponent(analysisId)}/versions`, {
     method: 'POST',
-    body: JSON.stringify({ parentVersionId, draft }),
+    body: JSON.stringify({ parentVersionId, draft } satisfies DeriveResearchEmbeddedRequest),
   });
 }
 export function runEmbeddedDraft(
   analysisId: string,
   versionId: string,
-  input: { requestId: string; expectedRevision: number },
+  input: RunResearchEmbeddedRequest,
 ): Promise<ResearchEmbeddedRunSummaryV1> {
   return request(
     `${embeddedApi}/${encodeURIComponent(analysisId)}/versions/${encodeURIComponent(versionId)}/runs`,
-    { method: 'POST', body: JSON.stringify(input) },
+    { method: 'POST', body: JSON.stringify(input satisfies RunResearchEmbeddedRequest) },
   );
 }
 export function stopEmbeddedRun(analysisId: string, runId: string): Promise<unknown> {
@@ -1403,7 +1536,10 @@ export function changeEmbeddedInputMode(
 ): Promise<ResearchDocumentV1> {
   return request(`${embeddedApi}/documents/${encodeURIComponent(documentId)}/input-mode`, {
     method: 'PATCH',
-    body: JSON.stringify({ inputMode, expectedRevision }),
+    body: JSON.stringify({
+      inputMode,
+      expectedRevision,
+    } satisfies ResearchEmbeddedInputModeRequest),
   });
 }
 export function readEmbeddedInput(

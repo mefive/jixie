@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+import type { factorQuestionSchema } from './api/factor.js';
 import type { ChatMessage } from './chat.js';
 import type { FactorReportSummary } from './factor.js';
 
@@ -24,12 +26,7 @@ export interface FactorQuestionContextV1 {
   } | null;
 }
 
-export interface FactorQuestionInputV1 {
-  dataReferences?: import('./research-embedded.js').ResearchDataReferenceV1[];
-  factorKey: string;
-  message: string;
-  reportId?: string;
-}
+export type FactorQuestionInputV1 = z.input<typeof factorQuestionSchema>;
 
 export interface FactorQuestionTurnV1 {
   conversationId: string;

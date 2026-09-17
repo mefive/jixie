@@ -14,7 +14,7 @@ import {
   factorCompositeInputSchema,
   factorVisibilitySchema,
   publishFactorBodySchema,
-} from '../schema.js';
+} from '@jixie/shared/api/factor';
 
 export const factorCompositeRoute = new Hono();
 

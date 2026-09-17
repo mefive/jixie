@@ -16,7 +16,8 @@ import type {
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { FactorError } from '../errors.js';
-import type { FactorQuestionHistoryQuery, FactorQuestionInput } from '../schema.js';
+import type { FactorQuestionInput } from '../schema.js';
+import type { FactorQuestionHistoryQuery } from '@jixie/shared/api/factor';
 import { captureFactorQuestionContext } from './context.js';
 
 const messageSelection = {

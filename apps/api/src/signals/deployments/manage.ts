@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
 import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
 import { inspectWalledStrategyMetadata } from '#strategy/runtime/typescript/walled-run.js';
-import { codeConfigSchema } from '#strategy/schema.js';
+import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type { BacktestConfig, Locale, StrategyDeployment } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';

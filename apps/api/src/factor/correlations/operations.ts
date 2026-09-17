@@ -9,7 +9,7 @@ import type {
   FactorCorrelationQuery,
   FactorJobLogsQuery,
   SubmitFactorCorrelationInput,
-} from '../schema.js';
+} from '@jixie/shared/api/factor';
 
 const sortedKeys = (keys: string[]) => [...keys].sort();
 

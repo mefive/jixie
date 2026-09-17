@@ -9,7 +9,10 @@ import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
 import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
-import type { StrategyScanIdentityQuery, SubmitStrategyScanInput } from '../schema.js';
+import type {
+  StrategyScanIdentityQuery,
+  SubmitStrategyScanInput,
+} from '@jixie/shared/api/strategy';
 import { normalizeScanSpec } from './scan.js';
 
 export async function submitStrategyScan(

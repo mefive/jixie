@@ -4,7 +4,11 @@ import { Hono } from 'hono';
 import { createStrategy, deleteStrategy, updateStrategy } from '../definitions/drafts.js';
 import { listStrategies, readStrategy } from '../definitions/read.js';
 import { setStrategyVisibility } from '../definitions/visibility.js';
-import { createStrategySchema, strategyVisibilitySchema, updateStrategySchema } from '../schema.js';
+import {
+  createStrategySchema,
+  strategyVisibilitySchema,
+  updateStrategySchema,
+} from '@jixie/shared/api/strategy';
 
 export const strategyDefinitionRoute = new Hono();
 

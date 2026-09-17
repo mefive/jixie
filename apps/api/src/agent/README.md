@@ -29,7 +29,7 @@ Strategy 基础 profile 提供查询和代码产物校验；页面单独添加�
 | [turns/trace.ts](turns/trace.ts) | 按序积累模型/工具/校验轨迹，串行保存 checkpoint，提供 flush |
 | [conversations/manage.ts](conversations/manage.ts) | 查找/创建实体关联的对话，首次导入既有历史；Research 只复用有效对话 |
 | [conversations/entity-messages.ts](conversations/entity-messages.ts) | 读取实体历史及保留 Strategy/Factor 的 messages 镜像；已发布因子的镜像不可写 |
-| [schema.ts](schema.ts) | 对话、任务、SQL 查询及 parts 消息入参校验；图表规格引用 tools/charts/spec，保持公开消息契约 |
+| [共享请求契约](../../../../packages/shared/src/api/agent.ts) | 对话、任务、SQL 查询及 parts 消息入参校验；图表规格来自 shared/api/chart |
 | `tools/charts/` | 历史 ChartSpec、重查执行和列校验；不再导出 Agent 绘图工具，不负责 Research 的图表产物 |
 | `tools/sql/` | SQL 白名单、查询限额/超时、只读 Worker 和 Node SQLite 类型声明 |
 | `tools/` 其余具名文件 | 已有数据查询、研究提案、因子分析等工具；工具注册仍由 `tools/index.ts` 组织 |

@@ -1,3 +1,4 @@
+import type { SubmitFactorAnalysisRequest } from './api/factor.js';
 import type { FactorResearchReportPayloadV1, FactorResearchSpecV1 } from './factor-research.js';
 import type { FactorStatus } from './factor-dependency.js';
 
@@ -556,12 +557,7 @@ export interface FactorReportListResponse {
   nextCursor?: string;
 }
 
-export interface RunFactorAnalysisRequest {
-  factor: string;
-  spec: FactorAnalysisSpec | FactorResearchSpecV1;
-  parentReportId?: string | null;
-  researchIntent: FactorResearchIntentV1;
-}
+export type RunFactorAnalysisRequest = SubmitFactorAnalysisRequest;
 
 export interface FactorResearchCounts {
   exploreRunCount: number;

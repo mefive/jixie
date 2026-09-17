@@ -2,7 +2,7 @@ import { prisma } from '#infra/database/prisma.js';
 import type { ResearchCuratorDispositionV1, ResearchCuratorFindingV1 } from '@jixie/shared';
 import type { PrismaClient } from '@prisma/client';
 import { ResearchError } from '../errors.js';
-import type { ResearchCuratorFindingUpdateInput } from '../schema.js';
+import type { ResearchCuratorFindingUpdateInput } from '@jixie/shared/api/research';
 import { curatorFindingRecord } from './views.js';
 
 export async function setResearchCuratorFindingDisposition(

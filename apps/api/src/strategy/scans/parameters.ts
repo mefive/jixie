@@ -1,7 +1,7 @@
 import { UserCodeError } from '#infra/errors.js';
 import { StrategyError } from '../errors.js';
 import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
-import type { StrategyScanParametersInput } from '../schema.js';
+import type { StrategyScanParametersInput } from '@jixie/shared/api/strategy';
 
 export async function inspectStrategyScanParameters(input: StrategyScanParametersInput) {
   const body = input;

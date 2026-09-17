@@ -20,7 +20,7 @@ import {
   documentListQuerySchema,
   renameDocumentSchema,
   updateCellSchema,
-} from '../schema.js';
+} from '@jixie/shared/api/research';
 
 export const researchDocumentRoute = new Hono();
 

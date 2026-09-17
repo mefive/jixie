@@ -6,7 +6,7 @@ import { runJobWorker, type JobWorkerMessage } from '#infra/jobs/worker-result.j
 import { createHash } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { t } from '#i18n/messages.js';
-import { codeConfigSchema } from '../schema.js';
+import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import { strategyRunKey } from '../definitions/config.js';
 import { refreshStrategyName } from '../definitions/naming.js';
 

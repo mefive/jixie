@@ -1,3 +1,4 @@
+import type { PublishFactorRequest as PublishFactorRequestBody } from './api/factor.js';
 import type { FactorAnalysisKind, FactorLanguage, FactorRuntimeVersion } from './factor.js';
 
 export type FactorStatus = 'draft' | 'published' | 'archived';
@@ -21,9 +22,7 @@ export interface FactorDependency {
   inputs?: string[];
 }
 
-export interface PublishFactorRequest {
-  approvedReportId: string;
-}
+export type PublishFactorRequest = PublishFactorRequestBody;
 
 export interface PublishedFactor {
   id: string;

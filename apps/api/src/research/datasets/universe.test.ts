@@ -1,7 +1,7 @@
 import type { ResearchUniverseRowV1, UniverseSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { applyUniverseSpec, executeUniverseSpec } from './universe.js';
-import { universeSpecV1Schema } from '../schema.js';
+import { universeSpecV1Schema } from '@jixie/shared/api/research';
 
 const baseSpec: UniverseSpecV1 = {
   version: 1,

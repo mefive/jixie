@@ -6,7 +6,7 @@ import {
   signalRunJobQuerySchema,
   signalRunListQuerySchema,
   submitSignalRunBodySchema,
-} from '../schema.js';
+} from '@jixie/shared/api/signals';
 
 export const signalRunRoute = new Hono();
 

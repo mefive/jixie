@@ -8,7 +8,10 @@ import type {
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { StrategyError } from '../errors.js';
-import type { StrategyBacktestIdentityQuery, StrategyBacktestJobQuery } from '../schema.js';
+import type {
+  StrategyBacktestIdentityQuery,
+  StrategyBacktestJobQuery,
+} from '@jixie/shared/api/strategy';
 
 export async function findActiveStrategyBacktestJob(
   userId: string,

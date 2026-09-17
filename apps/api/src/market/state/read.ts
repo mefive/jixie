@@ -1,6 +1,7 @@
 import type { MarketStateScope, MarketStateScopeOption } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { MARKET_STATE_INDEX_CODES, MARKET_STYLE_INDEX_CODES } from '../registry/index-presets.js';
+import { MARKET_STYLE_INDEX_CODES } from '../registry/index-presets.js';
+import { MARKET_STATE_INDEX_CODES } from '@jixie/shared';
 import {
   buildIndexTrailingReturns,
   buildMarketStateSnapshot,

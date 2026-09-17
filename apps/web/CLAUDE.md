@@ -72,6 +72,7 @@ className={
 ## 7. 后端对接
 
 - api 在 **localhost:3001**，vite proxy `/api` → 3001（同源，httpOnly session cookie 自动带）。
+- 请求 body/query/已有 params 契约从 `@jixie/shared/api/<业务>` 使用 `import type` 引入；对象入参复用共享请求类型，标量便捷封装在 JSON／query 序列化前用 `satisfies` 检查组装对象。请求类型表示校验前输入，不在前端补齐后端默认值，也不导入运行时 schema。
 - 后端错误形态 `{ error: { code, message, details? } }`，前端 `@src/api/client` 的 `ApiError` 统一解析。
 
 ## 8. 组件库：antd 6（对齐 fangtu）

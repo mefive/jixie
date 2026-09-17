@@ -13,7 +13,7 @@
     "dev:docs": "pnpm --filter docs dev",
     "test:dev-shutdown": "node --test scripts/dev/process-group.test.mjs",
     "build": "pnpm check:backend-boundaries && pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r build",
-    "typecheck": "pnpm check:backend-boundaries && pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && pnpm -r typecheck",
+    "typecheck": "pnpm check:backend-boundaries && pnpm check:research-runtime && pnpm check:research-sdk && pnpm check:factor-sdk && node scripts/checks/typecheck-workspaces.mjs",
     "gen:research-runtime": "node --import tsx scripts/generators/gen-research-python-runtime.ts",
     "check:research-runtime": "node --import tsx scripts/generators/gen-research-python-runtime.ts --check",
     "setup:research-python": "node scripts/dev/setup-research-python.mjs",

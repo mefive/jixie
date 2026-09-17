@@ -1,8 +1,8 @@
 import { validateJson } from '#infra/http/errors.js';
 import { Hono } from 'hono';
-import { sqlQueryBodySchema } from '../schema.js';
+import { sqlQueryBodySchema } from '@jixie/shared/api/agent';
 import { CHART_ROW_CAP, runComputeChartRows } from '../tools/charts/replay.js';
-import { computeChartSpecSchema } from '../tools/charts/spec.js';
+import { computeChartSpecSchema } from '@jixie/shared/api/chart';
 import { jsonSafe, runReadOnlySql } from '../tools/sql/read-only-sql.js';
 
 export const agentChartRoute = new Hono();

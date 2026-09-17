@@ -14,7 +14,7 @@ import {
   compilePanelFactor,
   compileTimeSeriesFactor,
 } from '#factor/runtime/typescript/compile-asset-factor.js';
-import { factorResearchSpecV1Schema } from '#factor/schema.js';
+import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 import { sha256 } from '#factor/sources/fingerprint.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot.js';
 import { prisma } from '#infra/database/prisma.js';

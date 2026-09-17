@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { factorPanelCompositeDefinitionV2Schema } from '../schema.js';
+import { factorPanelCompositeDefinitionV2Schema } from '@jixie/shared/api/factor';
 import {
   createDefaultFactorAnalysisSpecV2,
   createDefaultFactorAnalysisSpecV3,

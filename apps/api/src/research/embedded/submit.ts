@@ -6,7 +6,7 @@ import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
-import type { ResearchEmbeddedRunInput } from '../schema.js';
+import type { ResearchEmbeddedRunInput } from '@jixie/shared/api/research';
 import { ownedAnalysis } from './versions.js';
 
 import { runSummaryView } from './views.js';

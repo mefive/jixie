@@ -1,6 +1,6 @@
 import { validateJson } from '#infra/http/errors.js';
 import { Hono } from 'hono';
-import { createFactorWeatherPinSchema } from '../schema.js';
+import { createFactorWeatherPinSchema } from '@jixie/shared/api/factor';
 import {
   createFactorWeatherPin,
   deleteFactorWeatherPin,

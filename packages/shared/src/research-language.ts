@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+import type { pythonLanguageRequestSchema } from './api/research.js';
 /** Zero-based source position used by the Research Python language service. */
 export interface ResearchLanguagePositionV1 {
   line: number;
@@ -24,15 +26,7 @@ export type ResearchLanguageActionV1 =
   | 'rename'
   | 'diagnostics';
 
-export interface ResearchLanguageRequestV1 {
-  version: 1;
-  documentId: string;
-  cells: ResearchLanguageCellV1[];
-  cellId: string;
-  action: ResearchLanguageActionV1;
-  position?: ResearchLanguagePositionV1;
-  newName?: string;
-}
+export type ResearchLanguageRequestV1 = z.input<typeof pythonLanguageRequestSchema>;
 
 export interface ResearchLanguageTextEditV1 {
   cellId: string;

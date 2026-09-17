@@ -33,7 +33,7 @@ HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投�
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 导出 `marketRoute`，组合 instrument / valuation / state，挂载 `/api/app/market`；[schema.ts](schema.ts) 校验查询输入。HTTP 映射数据／null／空序列，业务查询不依赖 Hono 或用户会话。完整路径及精简指数响应区别见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11) 和相应能力文档。
+[routes/index.ts](routes/index.ts) 导出 `marketRoute`，组合 instrument / valuation / state，挂载 `/api/app/market`；[共享请求契约](../../../../packages/shared/src/api/market.ts) 校验查询输入。HTTP 映射数据／null／空序列，业务查询不依赖 Hono 或用户会话。完整路径及精简指数响应区别见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11) 和相应能力文档。
 
 [cli](cli/) 负责参数、配置、输出、退出与 Prisma 收尾，命令用法统一维护在 [API 命令索引](../../scripts/README.md)。providers 只是组织目录，fundamentals/fixtures 由其父能力说明；不为纯目录层新增入口或导出。
 

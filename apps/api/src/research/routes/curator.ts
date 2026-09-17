@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { updateResearchCuratorFindingFeedback } from '../curator/feedback.js';
 import { getLatestResearchCuratorRun, getResearchCuratorRun } from '../curator/read.js';
 import { submitResearchCuratorRun } from '../curator/submit.js';
-import { curatorFindingUpdateSchema } from '../schema.js';
+import { curatorFindingUpdateSchema } from '@jixie/shared/api/research';
 
 export const researchCuratorRoute = new Hono();
 

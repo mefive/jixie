@@ -10,7 +10,7 @@ import { startFactorAnalysis } from '#factor/evaluations/start.js';
 import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
 import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
 import { createDefaultFactorAnalysisSpecV6 } from '#factor/execution/spec.js';
-import { factorResearchIntentV1Schema } from '#factor/schema.js';
+import { factorResearchIntentV1Schema } from '@jixie/shared/api/factor';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';

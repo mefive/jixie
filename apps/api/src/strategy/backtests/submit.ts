@@ -9,7 +9,10 @@ import { ulid } from 'ulid';
 import { commitStrategyConfig } from '../definitions/config.js';
 import { StrategyError } from '../errors.js';
 import { extractFactorKeys } from '../factor-inputs/references.js';
-import type { StrategyBacktestIdentityQuery, StrategyCodeConfigInput } from '../schema.js';
+import type {
+  StrategyBacktestIdentityQuery,
+  StrategyCodeConfigInput,
+} from '@jixie/shared/api/strategy';
 
 export async function submitStrategyBacktest(
   userId: string,

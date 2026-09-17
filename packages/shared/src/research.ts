@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+import type { promoteExecutionSchema } from './api/research.js';
 import type { TradeDate } from './types.js';
 import type { ChartKind, ChartSeriesSpec } from './chart.js';
 import type {
@@ -935,11 +937,7 @@ export interface ResearchExecutionV1 extends ResearchExecutionSummaryV1 {
   dag: ResearchExecutionDagNodeV1[];
 }
 
-export interface ResearchExecutionPromotionInputV1 {
-  displayName: string;
-  tags: string[];
-  userNote?: string;
-}
+export type ResearchExecutionPromotionInputV1 = z.output<typeof promoteExecutionSchema>;
 
 export type ResearchFactorDraftAnalysisKindV1 = Extract<
   FactorAnalysisKind,

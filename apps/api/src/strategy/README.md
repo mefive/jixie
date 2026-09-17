@@ -27,7 +27,7 @@ Agent 构造策略、指数和因子上下文后交给通用执行器；用户�
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 导出 `strategyRoute`，组合 definition / agent / backtest / scan，挂载 `/api/app/strategies`；[schema.ts](schema.ts) 定义策略配置及 API 输入。完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#策略)，具体函数、输入输出与调用方见子能力说明。
+[routes/index.ts](routes/index.ts) 导出 `strategyRoute`，组合 definition / agent / backtest / scan，挂载 `/api/app/strategies`；[共享请求契约](../../../../packages/shared/src/api/strategy.ts) 定义策略配置与 HTTP 输入；[schema.ts](schema.ts) 组合 Agent 的后端 SDK 引用校验。完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#策略)，具体函数、输入输出与调用方见子能力说明。
 
 Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日志。消费者用 jobId 轮询、reportId 读取结果；lastResult 只作当前缓存。自定义因子引用约束可见性，运行依赖按 research/deployment/signal 区分场景。低层 runtime 不负责数据库归属检查。
 

@@ -8,7 +8,10 @@ import type {
   ResearchEmbeddedRunV1,
 } from '@jixie/shared';
 import { ResearchError } from '../errors.js';
-import type { ResearchEmbeddedListQuery, ResearchEmbeddedPageQuery } from '../schema.js';
+import type {
+  ResearchEmbeddedListQuery,
+  ResearchEmbeddedPageQuery,
+} from '@jixie/shared/api/research';
 import { ownedAnalysis } from './versions.js';
 import { analysisView, runSummaryView, versionView } from './views.js';
 

@@ -5,7 +5,10 @@ import { ulid } from 'ulid';
 import { BUILTIN_KEYS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { nextCopyKey } from '../definitions/copy-key.js';
 import { FactorError } from '../errors.js';
-import { factorPanelCompositeDefinitionV2Schema, type FactorCompositeInput } from '../schema.js';
+import {
+  factorPanelCompositeDefinitionV2Schema,
+  type FactorCompositeInput,
+} from '@jixie/shared/api/factor';
 
 async function validateCompositeComponents(userId: string, definition: FactorCompositeDefinition) {
   const factorIds = definition.components.map((component) => component.factor);

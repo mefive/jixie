@@ -1,7 +1,7 @@
 import { factorRuntimeVersion, type Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { builtinCatalog } from './builtin-factors.js';
-import { factorCompositeDefinitionSchema } from '../schema.js';
+import { factorCompositeDefinitionSchema } from '@jixie/shared/api/factor';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';
 import { panelTemplateCatalog } from './templates/panel.js';
 import { macroRegimeTemplateCatalog } from './templates/macro-regime.js';

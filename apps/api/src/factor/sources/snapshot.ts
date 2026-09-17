@@ -4,7 +4,7 @@ import { canonicalJson, sha256 } from './fingerprint.js';
 import {
   factorCompositeDefinitionV1Schema,
   factorPanelCompositeDefinitionV2Schema,
-} from '../schema.js';
+} from '@jixie/shared/api/factor';
 import type { FactorAnalysisRuntimeSource } from '../composition/composite.js';
 
 export type FactorAnalysisSource =

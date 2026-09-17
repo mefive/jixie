@@ -6,7 +6,7 @@ import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
 import { extractFactorKeys } from '../factor-inputs/references.js';
-import type { CreateStrategyInput, UpdateStrategyInput } from '../schema.js';
+import type { CreateStrategyInput, UpdateStrategyInput } from '@jixie/shared/api/strategy';
 import { commitStrategyConfig } from './config.js';
 import { proposeStrategyName, uniqueStrategyName } from './naming.js';
 

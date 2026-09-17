@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { updateActualExecution } from '../accounting/executions.js';
 import { getStrategyExecutionOverview } from '../accounting/read.js';
 import { getSignalRun } from '../runs/read.js';
-import { actualExecutionSchema } from '../schema.js';
+import { actualExecutionSchema } from '@jixie/shared/api/signals';
 
 export const signalExecutionRoute = new Hono();
 

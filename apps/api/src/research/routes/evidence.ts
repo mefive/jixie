@@ -8,7 +8,7 @@ import {
 } from '../evidence/execution-records.js';
 import { readResearchArtifact } from '../evidence/read-artifact.js';
 import { createResearchFactorDraft } from '../handoff/factor-drafts.js';
-import { promoteExecutionSchema } from '../schema.js';
+import { promoteExecutionSchema } from '@jixie/shared/api/research';
 
 import { createResearchStrategyDraft } from '../handoff/strategy-drafts.js';
 

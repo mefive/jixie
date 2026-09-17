@@ -48,7 +48,7 @@
 Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，前端先调用所属模块的 Agent 入口；业务完成归属和忙碌检查，配置 profile、工具与上下文，再交给通用 Agent。前端之后用 `/api/app/agent` 订阅 SSE、查询 turn、读取历史或取消。Agent 工具按需调用业务操作，业务状态仍由对应模块管理。通用 Agent 还提供只读 SQL、图表工具接口；它不是所有产品操作必须经过的总调度器。
 
 多组路由统一放在业务模块的 `routes/` 中，由 `routes/index.ts` 组合并对外导出，外部显式导入 `routes/index.js`。实现文件名省略 `-routes` 后缀。业务错误统一放在模块根级 `errors.ts`，公共 HTTP 映射由
-`infra/http/errors.ts` 提供，在 `server.ts` 注册 `onError`；`schema.ts` 位于模块根目录，供 HTTP 与业务共同引用。
+`infra/http/errors.ts` 提供，在 `server.ts` 注册 `onError`；公共请求 schema 位于 shared/api；模块根级 `schema.ts` 仅承载后端专属组合和内部输入。
 五个核心业务模块的整体接口测试与专属路由测试均放在 `routes/`；其他模块保持现有测试布局。Auth、Sharing、Application Maintenance
 只有单文件路由，直接使用根级 `routes.ts`。HTTP 路径、注册顺序及业务行为保持原契约，整理与验证记录见
 [路由目录整理](design/api-route-directories.md)。
@@ -68,36 +68,28 @@ CLI、Job、Worker 等输出边界通过 `errorMessage` 使用自己的语言。
 
 ## 输入 schema 的位置
 
-Strategy、Factor、Research、Signals、Agent、Market、Auth 的 API body/query/param 与共用业务配置校验，
-统一定义在 `apps/api/src/<业务>/schema.ts`，按职责分组，供路由、业务入口、任务和工具直接引用。
-路由负责调用入参校验；错误由公共 HTTP 边界统一映射；schema 文件只定义纯校验规则、必要常量和派生类型，不引入数据库、
-HTTP 对象、LLM 调用或业务执行代码，也不作为业务实现的汇总出口。
+公共 HTTP body/query/已有 param 的唯一结构来源位于 `packages/shared/src/api/`，按 Auth、Strategy、Factor、Research、
+Signals、Agent、Market 拆分；历史图表与消息嵌套规格在同目录的 `chart.ts` / `agent.ts`。API 路由和其他校验边界通过
+`@jixie/shared/api/<业务>` 直接导入 schema；前端 `api/client.ts` 只导入请求类型，在序列化前约束完整 body/query。
+shared 不导入 API、数据库、Node 专属能力或 SDK 执行器，根级运行时 barrel 不导出这些 schema。
 
-- `strategy/schema.ts` 定义双语言的 `codeConfigSchema`，创建、回测、扫描和 Signals 共同消费。
-- `factor/schema.ts` 包含研究/组合配置；`execution/spec.ts` 保留配置规范化和默认配置，`evaluations/identity.ts` 计算正式评估身份，`sources/fingerprint.ts` 提供纯指纹。
-- `research/schema.ts` 包含股票池、嵌入式分析、文档/Cell、Agent 等入参；
-  `datasets/spec.ts` 保留股票池语义检查，`sdk/request.ts` 与 `sdk/validation.ts` 提供纯 SDK 参数解析，
-  `sdk/dispatch.ts` 负责数据查询。API schema 可以复用 SDK 校验，不能通过 dispatch 引入执行依赖。
-- Python/Worker 通信协议留在对应 `protocol.ts`，任务内部 payload 留在 `*-job.ts`；
-  Agent 工具参数、图表规格、LLM 输出与 SDK 专用校验留在所属实现。
+- `z.input` 推导 `*Request` / `*RequestQuery` / `*RequestParams`，描述原始 HTTP 请求；query 中数字为字符串。
+- `z.output` 推导具名业务入参；HTTP、Agent 工具和 SDK 适配负责解析外部参数，业务接收默认值与转换后的结果。
+- 例如 Factor 创建请求可省略 language，业务入参已有 language；相关性 query 的 keys 是逗号分隔字符串，业务接收数组。
+- 后端专属组合留在业务根级 `schema.ts`：Auth 的邀请码规范化；Research 的 SDK 方法与参数校验；Strategy / Factor
+  将该校验组合进 Agent / 问答请求；Signals 将解析后 body 与路径 deploymentId 组合成内部业务类型。
+- 后端直接消费共享 schema，删除只剩转导出意义的文件；具名类型随实际 schema 归属，不另建集中式 `types.ts`。
 
-新增或修改业务 API 入参时，先查所属业务的 `schema.ts`；不在路由中重复定义规则，不新增仅转导出的兼容文件。
-本次整理的 review 与验证状态见 [开发记录](design/api-input-schemas.md)。
+归属、权限、冻结、修订、互斥等业务规则保持原位。数据库 JSON、Job/Worker 消息、SDK 参数和 LLM 输出仍是独立读取边界，
+不能因为 HTTP 已校验而删除它们的解析。Factor 的历史配置规范化与 Research 继承 parent draft 的数据库解码保持原有职责。
+公开 Python SDK Contract、Monaco / Pyright 生成规则也不由 HTTP schema 反向推导。
 
-导出的业务函数使用具名对象参数类型。若参数对应现有 schema，类型紧邻该 schema 声明并由它推导，
-消费方用 `import type` 引用；需要运行时校验的消费方同时保留 schema 的值导入。HTTP、Agent 工具和 SDK
-适配负责解析外部参数，业务操作接收 `z.output`（与 `z.infer` 等价），保留权限、状态和业务语义检查。
-例如 `StrategyAgentInput.dataReferences` 已由路由补齐为数组，`FactorCorrelationQuery.keys` 已转换为数组。
-确有解析前参数消费者时才使用 `z.input`，未知数据解码器可接收 `unknown`；`Input` 表示业务参数，
-不承诺它一定是解析前的类型。仅在两种类型都有显式消费者时分别命名。
+`pnpm typecheck` 先执行依赖边界和已有 SDK 生成一致性检查，再使用 shared 自身严格配置生成内存声明，按各应用原有配置
+进行 noEmit 检查；不依赖陈旧 dist，不运行应用或构建。前端保留 `strictNullChecks: false`，运行时校验仍由 API 执行。
+实际构建时仍先构建 shared。
 
-不要因目录属于业务层就删除运行时校验：数据库 JSON、Job/Worker 消息、SDK 参数和 LLM 输出各自构成
-读取边界。Factor execution 的历史配置规范化仍承担解码、兼容和默认值职责；Research 股票池 executor
-接收共享规格，由 `datasets/spec.ts` 检查业务语义；嵌入式分析继承数据库中的 parent draft 时仍需解析。
-
-已有 shared 契约、具有独立语义的业务类型和拆成标量的参数继续保留；局部推导、协议、Job 与工具类型仍归
-所属实现。不要为了统一外观重复 shared 类型、创建集中式 `types.ts`，或为只有路由校验消费者的 schema
-额外导出类型。具名类型整理的范围与验证记录见 [业务输入类型](design/api-input-types.md)。
+当前实施与验收见 [共享请求契约](design/api-request-contracts.md)；前序整理记录见
+[输入 schema 集中整理](design/api-input-schemas.md) 和 [业务输入类型与校验边界](design/api-input-types.md)。
 
 ## 启动、装配和运行资源
 

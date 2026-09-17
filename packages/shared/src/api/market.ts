@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MARKET_STATE_INDEX_CODES } from './registry/index-presets.js';
+import { MARKET_STATE_INDEX_CODES } from '../market-state.js';
 
 // Instruments.
 export const instrumentAssetTypeSchema = z.enum(['stock', 'etf', 'index', 'future']);
@@ -33,3 +33,10 @@ export const marketWeatherQuerySchema = z.object({
 
 // Submission and lookup.
 export const instrumentNamesQuerySchema = z.object({ codes: z.string().min(1) });
+
+// HTTP input types describe values before defaults and transformations.
+export type InstrumentSeriesRequestQuery = z.input<typeof instrumentSeriesQuerySchema>;
+export type InstrumentAssetTypeRequestParam = z.input<typeof instrumentAssetTypeSchema>;
+export type MarketStateRequestQuery = z.input<typeof marketStateQuerySchema>;
+export type MarketWeatherRequestQuery = z.input<typeof marketWeatherQuerySchema>;
+export type InstrumentNamesRequestQuery = z.input<typeof instrumentNamesQuerySchema>;

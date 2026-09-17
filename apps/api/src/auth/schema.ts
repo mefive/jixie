@@ -1,29 +1,8 @@
-import { z } from 'zod';
+import { emailLoginRequestSchema as emailLoginWireSchema } from '@jixie/shared/api/auth';
 import { normalizeInviteCode } from './invite-code.js';
 
-// Email login.
-const emailField = z
-  .string()
-  .trim()
-  .email()
-  .transform((s) => s.toLowerCase());
-
-export const emailLoginRequestSchema = z.object({
-  email: emailField,
-  inviteCode: z
-    .string()
-    .trim()
-    .min(1)
-    .optional()
-    .transform((v) => (v ? normalizeInviteCode(v) : undefined)),
+export const emailLoginRequestSchema = emailLoginWireSchema.extend({
+  inviteCode: emailLoginWireSchema.shape.inviteCode.transform((value) =>
+    value ? normalizeInviteCode(value) : undefined,
+  ),
 });
-
-export const emailLoginVerifySchema = z.object({
-  challengeId: z.string().min(1),
-  code: z
-    .string()
-    .trim()
-    .regex(/^\d{6}$/, 'code must be 6 digits'),
-});
-
-export const developmentLoginSchema = z.object({ email: emailField });

@@ -8,7 +8,7 @@ import {
   instrumentAssetTypeSchema,
   instrumentNamesQuerySchema,
   instrumentSeriesQuerySchema,
-} from '../schema.js';
+} from '@jixie/shared/api/market';
 
 export const marketInstrumentRoute = new Hono();
 

@@ -12,7 +12,7 @@ import {
   factorCorrelationQuerySchema,
   factorJobLogsQuerySchema,
   submitFactorCorrelationSchema,
-} from '../schema.js';
+} from '@jixie/shared/api/factor';
 
 export const factorCorrelationRoute = new Hono();
 

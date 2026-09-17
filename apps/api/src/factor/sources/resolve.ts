@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS } from '../definitions/builtin-factors.js';
-import { factorCompositeDefinitionV1Schema } from '../schema.js';
+import { factorCompositeDefinitionV1Schema } from '@jixie/shared/api/factor';
 import { type FactorAnalysisSource } from './snapshot.js';
 import {
   COMMODITY_CARRY_FIELD,

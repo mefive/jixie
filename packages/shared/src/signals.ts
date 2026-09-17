@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+import type { actualExecutionSchema } from './api/signals.js';
 import type { BacktestConfig } from './backtest.js';
 import type { FactorDependency, FactorInputSummary } from './factor-dependency.js';
 import type { Locale } from './i18n.js';
@@ -89,17 +91,7 @@ export interface StrategyExecutionOverview {
   };
 }
 
-export type ActualExecutionUpdate =
-  | { status: 'pending' }
-  | {
-      status: 'filled';
-      shares: number;
-      price: number;
-      fee?: number;
-      reason?: string;
-      note?: string;
-    }
-  | { status: 'skipped'; reason: string; note?: string };
+export type ActualExecutionUpdate = z.input<typeof actualExecutionSchema>;
 
 export type StrategyDeploymentStatus = 'active' | 'paused';
 

@@ -8,7 +8,7 @@ import {
   rejectResearchCellChangeProposal,
   revertResearchCellChangeReview,
 } from '../proposals/cell-changes.js';
-import { cellChangeReviewSchema } from '../schema.js';
+import { cellChangeReviewSchema } from '@jixie/shared/api/research';
 
 export const researchProposalRoute = new Hono();
 

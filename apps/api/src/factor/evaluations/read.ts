@@ -6,7 +6,7 @@ import type {
   FactorJobLogsQuery,
   FactorReportListQuery,
   FactorResearchSummaryQuery,
-} from '../schema.js';
+} from '@jixie/shared/api/factor';
 import { holdoutEligibility } from './holdout-policy.js';
 import { reportResearchSpec } from './report-spec.js';
 import { parseResearchPayload, reportSummary } from './report-views.js';

@@ -13,7 +13,7 @@ import {
   embeddedDeriveSchema,
   embeddedUpdateSchema,
   embeddedRunSchema,
-} from '#research/schema.js';
+} from '@jixie/shared/api/research';
 import {
   createEmbeddedAnalysis,
   deriveEmbeddedVersion,

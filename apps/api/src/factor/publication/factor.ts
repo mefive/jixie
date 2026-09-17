@@ -11,7 +11,7 @@ import {
   compilePanelFactor,
   compileTimeSeriesFactor,
 } from '../runtime/typescript/compile-asset-factor.js';
-import { factorResearchSpecV1Schema } from '../schema.js';
+import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 
 export async function publishFactor(

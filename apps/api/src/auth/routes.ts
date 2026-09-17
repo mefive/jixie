@@ -4,11 +4,8 @@ import { Hono } from 'hono';
 import { clearSessionCookie, getSessionId, setSessionCookie } from './cookies.js';
 import { developmentLogin } from './development-login.js';
 import { requestEmailLogin, verifyEmailLogin } from './email-login.js';
-import {
-  developmentLoginSchema,
-  emailLoginRequestSchema,
-  emailLoginVerifySchema,
-} from './schema.js';
+import { emailLoginRequestSchema } from './schema.js';
+import { developmentLoginSchema, emailLoginVerifySchema } from '@jixie/shared/api/auth';
 import { destroySession, getSessionUser } from './session.js';
 
 export const authRoute = new Hono();

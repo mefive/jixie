@@ -9,7 +9,7 @@ import type {
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { StrategyError } from '../errors.js';
-import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '../schema.js';
+import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '@jixie/shared/api/strategy';
 
 export async function listStrategyScanReports(userId: string, query: StrategyScanIdentityQuery) {
   const rows = await prisma.strategyScanReport.findMany({

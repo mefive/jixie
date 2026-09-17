@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { chartSpecSchema } from './tools/charts/spec.js';
-import { universeSpecV1Schema } from '#research/schema.js';
+import { chartSpecSchema } from './chart.js';
+import { universeSpecV1Schema } from './research.js';
 
 // Conversation messages.
 const universePartSchema = z.strictObject({
@@ -33,8 +33,8 @@ export const sqlQueryBodySchema = z.object({ sql: z.string().min(8).max(4000) })
 
 // Conversations.
 export const conversationMessagesQuerySchema = z.object({
-  before: z.coerce.number().int().nonnegative().optional(),
-  limit: z.coerce.number().int().min(1).max(100).default(40),
+  before: z.coerce.number<string>().int().nonnegative().optional(),
+  limit: z.coerce.number<string>().int().min(1).max(100).default(40),
 });
 
 export type ConversationMessagesQuery = z.output<typeof conversationMessagesQuerySchema>;
@@ -44,3 +44,9 @@ export const activeTurnQuerySchema = z.object({
   // Accept the historical Screen prefix for old clients; no current page creates Screen turns.
   entity: z.string().regex(/^(strategy|factor|factor-question|screen|research):[A-Za-z0-9]+$/),
 });
+
+// HTTP input types describe values before defaults and transformations.
+export type AgentSqlRequest = z.input<typeof sqlQueryBodySchema>;
+export type AgentConversationRequestQuery = z.input<typeof conversationMessagesQuerySchema>;
+export type ActiveAgentTurnRequestQuery = z.input<typeof activeTurnQuerySchema>;
+export type ChatMessagesRequest = z.input<typeof chatMessagesSchema>;

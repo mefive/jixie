@@ -1,7 +1,7 @@
 import { validateQuery } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { MarketError } from '../errors.js';
-import { marketStateQuerySchema, marketWeatherQuerySchema } from '../schema.js';
+import { marketStateQuerySchema, marketWeatherQuerySchema } from '@jixie/shared/api/market';
 import { loadMarketState } from '../state/read.js';
 import { loadMarketWeather } from '../state/weather.js';
 

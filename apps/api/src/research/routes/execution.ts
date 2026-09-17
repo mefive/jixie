@@ -1,4 +1,4 @@
-import { runDocumentSchema } from '../schema.js';
+import { runDocumentSchema } from '@jixie/shared/api/research';
 
 import { validateJson } from '#infra/http/errors.js';
 import { Hono } from 'hono';

@@ -8,7 +8,7 @@ import type {
   FactorCompositeDefinitionV1,
   FactorResearchSpecV1,
 } from '@jixie/shared';
-import { factorAnalysisSpecSchema, factorResearchSpecV1Schema } from '../schema.js';
+import { factorAnalysisSpecSchema, factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 
 export const DEFAULT_FACTOR_ANALYSIS_SPEC_V2: Omit<
   FactorAnalysisSpecV2,

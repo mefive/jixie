@@ -4,7 +4,7 @@ import type { AgentStreamEvent } from '@jixie/shared';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { AgentError } from '../errors.js';
-import { activeTurnQuerySchema } from '../schema.js';
+import { activeTurnQuerySchema } from '@jixie/shared/api/agent';
 import * as turnBus from '../turns/bus.js';
 import { getTurnDetail } from '../turns/read.js';
 

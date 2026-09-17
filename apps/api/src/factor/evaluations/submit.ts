@@ -11,7 +11,7 @@ import { FactorError } from '../errors.js';
 import { normalizeFactorResearchSpec } from '../execution/spec.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
 import { resolveMacroRegimeDataCutoff } from '../observations/macro-regime-data-cutoff.js';
-import type { SubmitFactorAnalysisInput } from '../schema.js';
+import type { SubmitFactorAnalysisInput } from '@jixie/shared/api/factor';
 import {
   factorAnalysisSourceDataRequirements,
   resolveCustomTimeSeriesFactorSource,

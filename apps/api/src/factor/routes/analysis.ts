@@ -16,7 +16,7 @@ import {
   factorReportListQuerySchema,
   factorResearchSummaryQuerySchema,
   submitFactorAnalysisSchema,
-} from '../schema.js';
+} from '@jixie/shared/api/factor';
 
 export const factorAnalysisRoute = new Hono();
 
