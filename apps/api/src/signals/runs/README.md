@@ -1,0 +1,21 @@
+# 信号运行与后台任务
+
+这里拥有 SignalRun、signal Job 和冻结策略的单日捕获。用户入口是提交服务，批处理使用入队服务，执行器消费 Job 定义。
+
+| 文件 / 入口 | 调用方与职责 |
+| --- | --- |
+| [submit.ts](submit.ts) `submitSignalRun` | run 路由传用户、deploymentId 和可选 tradeDate；缺日期时取最新已完成交易日，先全局结算再入队 |
+| [enqueue.ts](enqueue.ts) `enqueueSignalRun` | submit 和 daily/scheduler；检查本人活动部署、交易日、基础数据及冻结因子的利率覆盖，返回 ready 或业务拒绝结果 |
+| [job.ts](job.ts) `signalJob` | 执行器校验 Job/Run 关联、启动 Worker，完成／失败／恢复时写 done/error/stale |
+| [read.ts](read.ts) `listDeploymentLatestRuns`、`listSignalRuns`、`getSignalRun`、`getSignalRunJob` | 本人列表、详情和 Job 日志；最新列表包含暂停部署及尚无运行的部署，不限制为今天 |
+| [readiness.ts](readiness.ts) `signalCalendar`、`signalDataReady` | 入队的交易日／基础数据门槛，不同步数据 |
+
+入队在事务中重查 active 状态。同部署同日 done 或 running 的运行直接复用；error/stale 复用 runId，清理结果与通知状态并创建新 Job，保留冻结依赖。新 Run 从部署冻结依赖。Run 与 queued Job 同事务，日志初始化和唤醒在提交后。
+
+[signal-worker.ts](signal-worker.ts) 只能经 IPC 运行：加载 Run 和部署，检查日期范围，按 signal 场景准备因子，同时比较部署与 Run 的依赖快照，再调用 `runWalledSignalCapture`。捕获截至 tradeDate 的模型结果和下一开盘意图，补证券名称与因子摘要，通过 IPC 返回；finally 断开 Prisma 和 IPC。Worker 不写账户快照。入口路径见 [运行清单](../../../../../docs/backend-runtime-entries.md)。
+
+Job complete 在执行器事务里写运行结果；afterCommit 再调用 [账户初始化](../accounting/README.md) 和 [notifier.ts](notifier.ts) 的 `notifySignalRun`。初始化失败会阻止本次后续通知；这些步骤不与结果保存组成总事务，也没有 outbox 保证。通知结果由 notifier 写回 Run。
+
+人工提交当前先全局结算、后在 enqueue 检查部署归属；不要把它写成用户部署范围内的结算。该边界已有 [设计记录](../../../../../docs/design/core-business-service-boundaries.md#6-单独记录不混入本次重构)。改权限和重试看 [路由集成测试](../routes/index.integration.test.ts)，改生命周期看 [Job 集成测试](../../../tests/job-lifecycle.integration.test.ts)，改通知看 [notifier.test.ts](notifier.test.ts)。
+
+[返回 Signals 总览](../README.md)

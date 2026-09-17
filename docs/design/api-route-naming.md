@@ -124,23 +124,55 @@ Auth、Maintenance、Agent、Market、Research、Signals、Library 的 HTTP 路�
 
 初次资源前缀迁移的验证范围：代码 review 前只运行格式、lint、类型与后端边界静态检查。Review 后执行策略/因子路由集成测试、回测路由与多用户权限测试、API/Web 构建，以及回测报告历史和因子天气 E2E。重点覆盖集合路径与动态 ID 匹配、PATCH 约定、路径 ID 不被 body/query 覆盖、报告归属及封存保护、前端请求与轮询迁移。
 
-Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource routes and route ownership`，开发记录见 [Strategy README](../../apps/api/src/strategy/README.md)。本次已通过人工代码审查、静态检查、37 项策略路由/多用户权限测试、API/Web 构建，以及策略操作、回测报告历史、参数扫描三组 E2E，覆盖 jobId/reportId 分离、任务类型隔离、活动任务空值及刷新恢复。Factor 路由不在本次调整范围。
+### Strategy 路由职责整理验收（2026-09-10）
+
+以下记录迁移当时的范围与结果；Factor 路由不属于该次提交。
+
+提交：`refactor(strategy): clarify resource routes and route ownership`。
+
+完成范围：五个路由文件、显式报告列表与活动任务路径、扫描按 jobId 轮询、任务类型隔离、删除独立命名接口，并同步 Web client、Lab、现有 E2E 调用和架构约定。无 Prisma schema、数据迁移、引擎或 SDK 变更；不保留旧 URL 别名，API/Web 需同步更新。
+
+新增路由集成覆盖：两类任务的 queued/running/终态活动查询、空值契约、跨用户和跨任务类型拒绝、reportId 不可用于任务查询、since 增量日志、报告列表状态语义、旧路径移除及创建时命名失败回退。
+
+人工代码审查已通过。静态检查全部通过：变更代码的 Prettier、ESLint，根级 `pnpm typecheck`（包括全部 workspace 类型、Research/Factor SDK 与运行时生成物一致性、后端边界检查：637 files，0 violations），以及 `git diff --check`。
+
+行为验证结果：
+
+- 策略路由集成测试 28 项、回测路由测试 3 项、多用户权限测试 6 项，共 37 项全部通过。
+- API `tsc` 与 Web 生产构建均通过；Web 构建保留大 chunk 提示，无构建错误。
+- 策略操作 E2E：创建、回测提交、重复提交拒绝、结果保存与刷新恢复通过。
+- 回测历史 E2E：历史报告选择、结果对比、Research 交接保留指定 reportId 通过。
+- 参数扫描 E2E：4 个参数组合、3 个仓位方案、3 个资金规模，以及扫描刷新恢复全部通过。
+
+E2E 使用编译后的 API 与 Web 预览服务及独立 SQLite 副本。两类刷新恢复通过一次受控的活动任务响应复现“活动查询后计算恰好完成”，随后读取真实任务及报告；真实活动查询的状态与权限由 SQLite 集成测试覆盖。截图 `backtest-report-comparison.png`、`research-backtest-report-handoff.png`、`strategy-scan-reconnect.png`、`strategy-parameter-scan.png` 保存在 `apps/web/acceptance/`，已逐张检查。
+
+临时 API/Web 服务已关闭，3107/5187 监听和数据库连接已释放，隔离数据库副本已删除。原开发数据库未修改。
 
 
 ## Factor 路由职责整理（2026-09-10）
 
 用户已确认方案，计划提交 `refactor(factor): clarify resource routes and route ownership`。Factor 路由按定义、组合、Agent、分析、相关性、天气六组组织；元数据刷新归定义，发布异常映射由 `routes/errors.ts` 共用。
 
-普通分析（含 holdout）与相关性分别从 `/analysis-jobs/:jobId` 和 `/correlation-jobs/:jobId` 查询。两类持久化任务仍使用 `kind: factor`，查询层按报告关联与 `payload.task` 区分，并兼容缺少 task 的历史分析任务；封存的 holdout 日志不能从相关性路径读取。
+普通分析（含 holdout）与相关性分别从 `/analysis-jobs/:jobId` 和 `/correlation-jobs/:jobId` 查询。**迁移当时**两类持久化任务使用 `kind: factor`，查询层按报告关联与 `payload.task` 区分，并兼容缺少 task 的历史分析任务。该存储方式后来已由独立 kind 替代，当前查询与部署转换见 [Factor jobs](../../apps/api/src/factor/jobs/README.md)；封存的 holdout 日志仍不能从相关性路径读取。
 
 相关性结果沿用缓存，不新增报告资源或 reportId。POST 返回 `{ jobId }` 或缓存命中 `{ done: true, report }`。旧 query-only POST 调用必须迁移到 JSON body；原来通过 analysis-jobs 轮询相关性的调用必须迁移到 correlation-jobs。旧 `/reports` 和 `/correlations/running` 不保留别名；API/Web 与仓内调用同步迁移。
 
-人工代码审查、静态检查、81 项测试、API/Web 构建和四组 Factor E2E 均已通过。验证范围与实际结果记录在 [Factor README](../../apps/api/src/factor/README.md)。
+### 当时的实施与验收
+
+提交：`refactor(factor): clarify resource routes and route ownership`。
+
+完成范围：七个路由文件、37 个 HTTP 接口、显式 analysis-reports 路径、相关性专用任务查询与 JSON 提交、任务隔离和历史任务兼容；同步 Web client、Factor store、仓内 E2E 调用及架构约定。没有 Prisma schema、数据迁移、SDK、分析算法或发布准入变更；天气恢复刷新机制保持。旧路径不提供别名，API/Web 需同步更新。用户页面操作和指标未改变，公开帮助、SDK 参考与双语 UI 文案不需要更新。
+
+人工代码审查已通过。静态检查通过：格式、改动文件 ESLint、全仓 `pnpm typecheck`（包含生成契约一致性与后端边界检查，640 个文件、0 违规）及 `git diff --check`。
+
+审查后验证通过：8 个测试文件、81 项测试（含 32 项路由集成测试，以及 publication、composition、reports、weather refresh、analysis-job），API/Web 构建，以及 factor-report-history、factor-composite、factor-weather 和新增 factor-correlation 四组 E2E。Web 构建仅有既有大 chunk 提示。
+
+相关性 E2E 验证真实 JSON 提交、任务轮询、缓存命中，并用一次受控活动查询响应模拟任务完成后的重连；天气 E2E 沿用既有 HTTP fixtures，业务权限与刷新由路由集成测试覆盖。验证期间只修正相关性测试的标签切换、因子键搜索和多层 canvas 定位，未修改已审查的产品代码。验收截图已检查；独立数据库快照、临时 API/Web 服务及连接已清理。
 
 
 ## Research 路由职责整理（2026-09-11）
 
-用户已确认方案，计划提交 `refactor(research): clarify resource routes and route ownership`。`research/routes/index.ts` 直接组合八组具名路由，最终 36 个接口。下表路径均相对于 `/api/app/research`。
+用户已确认方案，计划提交 `refactor(research): clarify resource routes and route ownership`。当时 `research/routes/index.ts` 组合八组具名路由、36 个接口。下表记录该次整理范围，路径均相对于 `/api/app/research`；后续新增嵌入分析及接续入口见 [Research embedded](../../apps/api/src/research/embedded/README.md) 和 [其设计记录](embedded-python-analysis.md)。
 
 | 文件 | 方法 | 路径 |
 | --- | --- | --- |
@@ -201,7 +233,24 @@ Strategy 路由职责整理的提交为 `refactor(strategy): clarify resource ro
 
 Research 的 Cell/全文/尝试请求等待执行结果；完整 execution 是冻结证据，单 Cell 或局部执行不强行统一为这种资源。股票池查询直接返回结果，语言服务仍按 action 分派。Curator 保留独立 Run 和后台 Job，四个接口不变。所有重命名接口同步 Web 与仓内调用，旧路径不留别名；不改变数据库、SDK、锁/事务边界、执行协议或 Curator 用途。
 
-已通过人工代码审查、格式/ESLint、全仓 typecheck/契约一致性、147 项 Research 测试、24 项边界检查器测试、API/Web 构建和十组 E2E；另通过真实 Pyright 与股票池查询验证。验证范围和实际结果记录在 [Research README](../../apps/api/src/research/README.md)。
+### 当时的实施与验收
+
+同步 Web client/store、仓内 E2E 请求及架构约定。旧路径不保留兼容别名，API/Web 必须同步部署。无 Prisma schema、数据迁移、SDK、分析算法或 Curator 产品能力调整；用户页面操作未变，帮助内容与双语 UI 文案无需调整。
+
+审查前静态检查已通过：改动文件格式与 ESLint、全仓 `pnpm typecheck`、生成契约一致性、后端边界检查（648 个文件、0 违规），以及 `git diff --check`。静态核对确认 36 组方法/路径无重复；Curator、证据交接、Agent、数据和语言服务 handler 除已批准路径外与原实现一致。
+
+边界检查器将业务模块 `routes/index.ts` 和 `routes/` 目录识别为 HTTP 适配，包含 `research/routes/errors.ts`，与 Factor/Strategy 同规则；仍禁止业务反向导入 HTTP、禁止 HTTP 直接访问数据库，并补充相应检查器测试。
+
+审查后执行 `pnpm test:backend-boundaries`，以及 Research 路由集成、documents、execution/lifecycle、dependencies、proposals、evidence、handoff、language、curator 与 universe 相关测试，API/Web 构建；浏览器覆盖文档管理、执行/冻结、下游运行、中断、提案审阅/尝试、Agent Cell 上下文、图片、语言服务、Curator 和回测报告交接。涉及 LLM 的交互采用受控 fixture；实际 Python/数据库流程使用隔离环境，不调用真实 LLM 或执行供应商同步。
+
+人工代码审查后验证全部通过：
+
+- Research 22 个测试文件、147 项测试通过，其中路由集成 43 项；覆盖文档来源/归属、历史补建、归档/删除级联、运行锁、提案审阅、语言请求和旧路径 404。边界检查器 24 项测试通过。
+- API/Web 构建通过；Web 仅有既有的大 chunk 提示。
+- 十组 E2E 通过：document-management、execution、affected-run、interrupt、cell-change-proposal、cell-change-review、agent-cell-context、matplotlib、curator、backtest-report-history。覆盖执行快照不可变与固化、取消、提案尝试对比、开放审阅阻止运行、连续修改/接受/撤销、Agent Cell 上下文、图片权限、中英 Curator 与报告来源创建。
+- 编译 API 的 `language/python` 通过真实 Pyright pandas 补全和错误诊断，`universe-queries` 返回股票池实际结果，data-catalog 查询通过。九组 E2E 使用构建后的 Web；提案审阅使用 Vite 开发模式，以读取既有开发专用 Monaco 测试钩子。
+- 首轮发现并修正两处测试脚本问题：旧 GET 路径用例误传请求体、Curator 关闭按钮定位不唯一。修正文件格式、ESLint 与 API typecheck 通过，相关测试重跑通过；没有测试后产品代码修改。
+- 数据库使用开发数据的只读备份副本，真实 Python 查询仅访问副本；未调用真实 LLM 或供应商同步。API、Web preview、Vite 临时进程已关闭，3107/5187/5188 端口和数据库连接已释放，数据库副本已删除。验收截图已检查，保留于 `apps/web/acceptance/`。
 
 
 ## 剩余模块路由整理（2026-09-11）

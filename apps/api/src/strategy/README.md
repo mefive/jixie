@@ -1,108 +1,34 @@
 # Strategy 后端阅读地图
 
-Strategy 拥有策略定义、对话启动、回测与参数扫描，以及回测报告的风险分析。Engine 提供交易模拟；Factor 拥有因子定义与发布规则，Strategy 按这些规则准备执行依赖；通用 Agent 执行器处理对话和工具循环。三者的业务入口通过明确的函数调用协作。
+Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以及完整回测的风险分析。[Engine](../engine/README.md) 负责交易模拟，Factor 拥有因子定义和发布，Signals 拥有报告部署；这些流程通过具体函数协作。
 
-## 从产品操作找入口
+## 按业务问题进入
 
-| 要理解或修改的行为 | HTTP 入口 | 业务入口 |
-| --- | --- | --- |
-| 策略列表、详情 | [routes/definition.ts](routes/definition.ts) | [definitions/read.ts](definitions/read.ts) |
-| 创建、编辑、删除策略 | 同上 | [definitions/drafts.ts](definitions/drafts.ts)，配置保存与结果缓存失效在 [definitions/config.ts](definitions/config.ts) |
-| 公开范围 | 同上 | [definitions/visibility.ts](definitions/visibility.ts)；引用自定义因子的策略保持私有 |
-| 自动命名 | 创建策略时内部调用，无独立 HTTP 入口 | [definitions/naming.ts](definitions/naming.ts) 负责名称生成、冲突处理和异步刷新竞争检查 |
-| Agent 编辑与解释 | [routes/agent.ts](routes/agent.ts) | [agent/turn.ts](agent/turn.ts)，可用指数和因子上下文在 [agent/context.ts](agent/context.ts) |
-| 提交回测 | [routes/backtest.ts](routes/backtest.ts) | [backtests/submit.ts](backtests/submit.ts) → [backtests/job.ts](backtests/job.ts) |
-| 历史回测报告、任务进度 | 同上 | [backtests/reports.ts](backtests/reports.ts)，读取冻结报告而非当前策略缓存 |
-| 检查参数、提交扫描 | [routes/scan.ts](routes/scan.ts) | [scans/parameters.ts](scans/parameters.ts)、[scans/submit.ts](scans/submit.ts) → [scans/job.ts](scans/job.ts) |
-| 扫描报告、任务进度 | 同上 | [scans/reports.ts](scans/reports.ts) |
-| 回测报告中的风险研究 | 随完整回测报告返回 | [risk/backtest-risk-analysis.ts](risk/backtest-risk-analysis.ts)，没有独立风险 API |
-
-[routes/index.ts](routes/index.ts) 直接组合定义、Agent、回测与扫描路由并具名导出 `strategyRoute`，统一挂载 `/api/app/strategies`。不再经过 `resource-routes.ts`；Agent 路由位于 `routes/agent.ts`，不再使用页面概念 `workbench` 命名。
-
-提交回测/扫描使用 `POST /:strategyId/backtests`、`POST /:strategyId/scans`，均返回 `{ jobId, reportId }`。报告列表位于 `/:strategyId/backtest-reports`、`/:strategyId/scan-reports`，详情使用 `/backtest-reports/:reportId`、`/scan-reports/:reportId`。回测列表仍只返回成功且有结果的报告；扫描列表仍返回各状态报告、最多 50 条。
-
-活动任务查询使用 `/:strategyId/backtest-jobs/active`、`/:strategyId/scan-jobs/active`，`active` 包含 queued/running，统一返回 `{ jobId, reportId } | null`。任务日志使用 `/backtest-jobs/:jobId`、`/scan-jobs/:jobId`，保留增量游标 `since` 并检查用户归属和任务类型。Web 分别保存扫描 jobId 与 reportId，用前者轮询、后者读取结果；刷新页面后通过活动任务查询恢复。
-
-HTTP 负责校验、传入 userId/locale、返回响应和映射业务异常。业务入口检查归属、忙碌状态并控制事务，接收普通参数，不接收 Hono Context。`errors.ts` 与 `routes/errors.ts` 分别表达业务拒绝和 HTTP 错误。完整契约见 [路由设计](../../../../docs/design/api-route-naming.md)。
-
-## 目录职责
-
-| 目录 | 拥有什么 |
+| 要找什么 | 子能力与责任 |
 | --- | --- |
-| `schema.ts` | API 入参与共用策略配置校验，包含创建、修改、回测、扫描和 Agent；配置同时支持 TS/Python |
-| `agent` | 本业务对话启动、指数与因子上下文 |
-| `definitions` | 策略保存/读取、命名与公开范围；runKey 只包括影响回测的配置，改显示名不会清空结果 |
-| `backtests` | 创建冻结配置、报告和 Job，查询报告与进度；`run.ts` 编排语言执行及风险后处理，`worker.ts` / `worker.boot.mjs` 承接回测线程 |
-| `scans` | 参数检查、扫描规格/网格/指标、冻结提交与报告；父 Worker 和 cell 子进程入口同处此目录 |
-| `factor-inputs` | `references.ts` 纯提取源码引用；`prepare.ts` 为正式回测、扫描和 Signals 检查因子权限、发布状态、使用场景、语言与依赖血缘 |
-| `runtime/typescript` | SDK、编译、提示词、参数检查、isolate 宿主与墙内入口 |
-| `runtime/python` | Python 策略协议与宿主桥接，实际交易模拟仍由 TS Engine 执行 |
-| `risk` | 回测后的市场暴露、宏观敏感度、Alpha/Risk 重合与压力情景；`data-readiness` 拥有这些模型的历史长度要求 |
+| 策略草稿、命名、公开范围、Research 交接 | [definitions](definitions/README.md)：配置保存、缓存失效和目标持久化 |
+| 提交回测、读历史报告、找任务 | [backtests](backtests/README.md)：正式回测冻结、Job 和双语言完整编排 |
+| 参数／仓位／资金规模比较 | [scans](scans/README.md)：扫描规格、独立报告、父 Worker 与 cell 子进程 |
+| 提取因子键或准备可运行因子 | [factor-inputs](factor-inputs/README.md)：纯 references 与有权限／语言／血缘检查的 prepare |
+| 回测风险解释与数据门槛 | [risk](risk/README.md)：暴露、宏观、Alpha/Risk、压力情景及模型就绪 |
+| 编辑和解释策略 | [agent](agent/README.md)：业务上下文与共享 Agent 启动 |
+| TS 策略如何运行 | [runtime/typescript](runtime/typescript/README.md)：墙内 Engine、参数检查、SDK 与 isolate 收尾 |
+| Python 策略如何协作 | [runtime/python](runtime/python/README.md)：会话协议与命令桥接，交易模拟仍由 TS Engine 执行 |
 
-`backtests/job.ts`、`scans/job.ts` 在所属业务目录保留具名任务定义，集中声明 parse/execute/complete/fail/recover。bootstrap 注册定义，通用执行器负责领取、事务和重启恢复；Worker 计算结果由主线程通过任务契约提交。
+## 主要协作流程
 
-## 三条主要调用链
+回测提交检查用户与配置，在事务中保存配置、冻结 BacktestReport 并创建 Job；提交后唤醒队列。Worker 准备因子、选择语言 runtime、调用 Engine 并附加风险；结果由 Job 完成事务保存到报告和策略缓存。
 
-**回测：** `submitStrategyBacktest` 校验日期 → 事务内检查所有者和正在运行的任务、保存配置、创建冻结 BacktestReport 与 Job → 事务提交后初始化日志并唤醒队列 → `backtests/job.ts` 启动同目录 `worker.ts` → `backtests/run.ts` 准备因子并选择语言 → Engine 模拟 → 附加风险分析 → 主线程提交报告、策略缓存与 Job 终态。配置重名时保留原名称，报告和任务使用实际提交的名称。未知数据库错误继续抛出；不会在报告或 Job 创建失败后唤醒队列。
+扫描单独冻结配置／参数／日期范围，不覆盖草稿。父 Worker 准备一次因子，每个 cell 直接运行 TS 墙内回测；不经过正式回测风险后处理。Signals 也直接使用因子准备和信号捕获 runtime，三者不共享完整回测生命周期。
 
-**参数扫描：** `submitStrategyScan` 检查语言/日期、隔离检查参数、规范化规格并解析样本内外交易日范围 → 冻结配置、参数、范围与数据截止日 → 事务内检查归属/重复任务并创建报告与 Job → `scans/job.ts` 启动 `scans/strategy-scan-worker` 线程 → 父线程通过 `factor-inputs/prepare.ts` 准备因子，每个 cell fork 独立进程调用 `runWalledBacktest` → 汇总后由主线程提交。扫描不调用 `backtests/run.ts`，不附加正式回测的风险后处理，也不创建逐 cell BacktestReport。扫描不覆盖当前策略草稿。Python 扫描仍不支持；没有改变子进程退出判断和资源释放方式。
+Agent 构造策略、指数和因子上下文后交给通用执行器；用户通过回测入口发起完整计算。Research [handoff](../research/handoff/README.md) 生成草稿，definitions 保存并处理冲突，也不自动回测。
 
-**Agent：** 前端先调用 Strategy 的 `/:strategyId/agent/turns` → `startStrategyAgentTurn` 检查策略归属及运行中的 turn，构造指数/因子及当前代码上下文 → 通用 Agent 执行器执行 Strategy profile → 只读工具查询数据，生成代码经既有编译/受限运行时和标的检查后返回。前端随后使用通用 Agent 事件/取消接口。Agent 不提供配置保存或回测工具；用户核对代码和参数后通过工作台 `POST /:strategyId/backtests` 发起完整回测。Research 交接复用 Python Strategy profile 生成草稿，同样不自动回测。
+## 模块入口与共同约束
 
-Research 交接通过 [definitions/from-research.ts](definitions/from-research.ts) 的 `findResearchStrategyDraft` / `createStrategyDraftFromResearch` 查询复用、分配名称、保存草稿并映射交接结果。Research 保留证据准入、生成和来源元数据；Strategy 保留默认 Python/py-v1 配置、私有状态、messages、原 `uniqueStrategyName` 策略及最多 50 次写入重试。P2002 命中源执行并发胜者则复用，否则重新分配名称；其他错误原样抛出。此入口不执行回测，也不替代普通创建或公开复制入口。
+[routes/index.ts](routes/index.ts) 导出 `strategyRoute`，组合 definition / agent / backtest / scan，挂载 `/api/app/strategies`；[schema.ts](schema.ts) 定义策略配置及 API 输入。完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#策略)，具体函数、输入输出与调用方见子能力说明。
 
-## 共享因子输入与运行边界
+Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日志。消费者用 jobId 轮询、reportId 读取结果；lastResult 只作当前缓存。自定义因子引用约束可见性，运行依赖按 research/deployment/signal 区分场景。低层 runtime 不负责数据库归属检查。
 
-[factor-inputs/references.ts](factor-inputs/references.ts) 的 `extractFactorKeys` 只提取源码中的字面量因子键、过滤引擎内置键并去重，不查询数据库或编译代码。定义编辑、公开范围、回测提交和 Sharing 直接消费此入口；调用中的键仍先于声明中的键返回，同组按出现顺序去重。
+风险数据事实归 Market，模型历史要求归 Strategy；后处理异常按现有规则记录而不阻断主回测。进程／资源路径见 [运行清单](../../../../docs/backend-runtime-entries.md)，整体权限与事务用例在 [routes/index.integration.test.ts](routes/index.integration.test.ts)，算法和运行时测试就近链接。
 
-[factor-inputs/prepare.ts](factor-inputs/prepare.ts) 的 `prepareStrategyFactors` 使用同一引用提取，再查询并准备运行所需的 `{ modules, factors }`。正式回测和扫描按 research 使用场景准备，Signals 部署和单次运行分别按 deployment / signal 使用场景校验。扫描父 Worker 直接取 modules，在所有 cell 开始前准备一次；没有额外转发入口。因子定义、发布与来源仍由 Factor 拥有，权限、归档处理和冻结血缘规则保持。
-
-正式回测由 [backtests/run.ts](backtests/run.ts) 分派 TS/Python 并附加风险；扫描 cell 直接调用 `runWalledBacktest`，Signals Worker 直接调用 `runWalledSignalCapture`。三者复用因子准备、语言 runtime 和 Engine，不共享完整回测生命周期。Worker 入口及源码/编译解析见 [运行入口清单](../../../../docs/backend-runtime-entries.md)。
-
-## 风险数据和计算边界
-
-`risk` 消费 [market/state/market-risk-drivers.ts](../market/state/market-risk-drivers.ts) 与 [market/macro/risk-axes.ts](../market/macro/risk-axes.ts) 的带血缘数据。Market 基础质量检查拥有覆盖、缺失和历史可得性；Strategy 的 `data-readiness.ts` 拥有市场模型完整 252 条历史窗口、宏观 36 条完整观察与审计取数窗口。最低拟合样本数和完整审计窗口是不同要求，不能互换。
-
-[application-maintenance/risk-data-audit.ts](../application-maintenance/risk-data-audit.ts) 组合基础质量与模型就绪判断，[application-maintenance/data-audit.ts](../application-maintenance/data-audit.ts) 生成原整体审计报告。Market 不导入 Strategy。原状态、阈值、错误顺序及 CLI 输出保持。
-
-风险后处理写入 `result.allocationAnalysis.risk`，对应策略工作台“回测结果 → 多资产配置归因 → 风险研究”。现有样本、日期、血缘与结果显示门槛保持，缺失不补零。风险后处理异常只记录原日志，不阻断主回测；交易循环中的持仓/成本累计仍归 Engine。
-
-## Review 与验证定位
-
-优先检查回测提交事务、扫描冻结参数和交易日范围、`definitions/config.ts` 的缓存失效、`backtests/run.ts` 的语言/资源生命周期，以及风险质量与模型门槛的拆分。引擎沙盒边界见 [Engine 阅读地图](../engine/README.md)。
-
-新增 [routes/index.integration.test.ts](routes/index.integration.test.ts) 的 10 项 SQLite + Hono 场景覆盖归属、命名、缓存、忙碌保护、冻结报告、回测/扫描事务回滚、因子依赖私有策略、Agent 启动。LLM、队列调度、Agent 执行与参数检查使用测试替身；实际计算由既有引擎、runtime 和扫描测试覆盖。
-
-新增 [runtime/typescript/wall-bundle.test.ts](runtime/typescript/wall-bundle.test.ts) 使用生产 bundle 配置检查真实 Engine 无宿主适配器及外部导入；Maintenance 审计测试新增 3 项场景覆盖基础质量/模型门槛分离、252/36 边界和错误顺序。现有测试随对应模块迁移。
-
-Commit 8 已通过人工 review、全量 API 198 文件/1065 项测试与 API 编译。真实源码和编译 Worker 均覆盖 TS/Python 回测、扫描 cell 子进程及 Job 成功/失败/重启恢复；净值、成交、扫描指标和结果哈希在两种运行方式下一致。完整记录及验证限制见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#78-commit-8-实现记录2026-09-09完成)。
-
-## 旧策略演示清理（2026-09-09）
-
-移除仅供开发者手动运行的 `backtest`、`code:backtest`、`turtle`、`zeng:timing`、`zeng:backtest` 命令及对应脚本，同时删除专用的 `examples/strategies.ts`、`examples/zeng.ts`。原横截面选股信号、EP 代码对照、海龟和曾庆辉策略实验不再作为 API app 的维护入口。历史架构设计与基线中的示例目录记录保留为当时状态。
-
-正式策略 HTTP API、回测引擎、SDK 示例、自动化测试与数据库中的用户策略不变。本次不涉及 schema 或数据迁移。
-
-验证记录：API typecheck、后端架构边界检查（0 violations）、package.json Prettier 检查及 `git diff --check` 均通过；代码与运维脚本中未发现已删除入口的残留引用。人工代码审查通过后，`src/engine/simulation/rules.test.ts` 的 15 项测试全部通过。本次仅删除无正式调用方的演示文件，未改动生产打包入口或配置，经审查调整验证范围，不运行 bundle 测试。
-
-## 路由职责整理（2026-09-10，完成）
-
-提交：`refactor(strategy): clarify resource routes and route ownership`。
-
-完成范围：五个路由文件、显式报告列表与活动任务路径、扫描按 jobId 轮询、任务类型隔离、删除独立命名接口，并同步 Web client、Lab、现有 E2E 调用和架构约定。无 Prisma schema、数据迁移、引擎或 SDK 变更；不保留旧 URL 别名，API/Web 需同步更新。
-
-新增路由集成覆盖：两类任务的 queued/running/终态活动查询、空值契约、跨用户和跨任务类型拒绝、reportId 不可用于任务查询、since 增量日志、报告列表状态语义、旧路径移除及创建时命名失败回退。
-
-人工代码审查已通过。静态检查全部通过：变更代码的 Prettier、ESLint，根级 `pnpm typecheck`（包括全部 workspace 类型、Research/Factor SDK 与运行时生成物一致性、后端边界检查：637 files，0 violations），以及 `git diff --check`。
-
-行为验证结果：
-
-- 策略路由集成测试 28 项、回测路由测试 3 项、多用户权限测试 6 项，共 37 项全部通过。
-- API `tsc` 与 Web 生产构建均通过；Web 构建保留大 chunk 提示，无构建错误。
-- 策略操作 E2E：创建、回测提交、重复提交拒绝、结果保存与刷新恢复通过。
-- 回测历史 E2E：历史报告选择、结果对比、Research 交接保留指定 reportId 通过。
-- 参数扫描 E2E：4 个参数组合、3 个仓位方案、3 个资金规模，以及扫描刷新恢复全部通过。
-
-E2E 使用编译后的 API 与 Web 预览服务及独立 SQLite 副本。两类刷新恢复通过一次受控的活动任务响应复现“活动查询后计算恰好完成”，随后读取真实任务及报告；真实活动查询的状态与权限由 SQLite 集成测试覆盖。截图 `backtest-report-comparison.png`、`research-backtest-report-handoff.png`、`strategy-scan-reconnect.png`、`strategy-parameter-scan.png` 保存在 `apps/web/acceptance/`，已逐张检查。
-
-临时 API/Web 服务已关闭，3107/5187 监听和数据库连接已释放，隔离数据库副本已删除。原开发数据库未修改。
+架构规则见 [后端边界](../../../../docs/backend-boundaries.md)；历史实现／验收见 [Commit 8](../../../../docs/design/backend-architecture-refactor.md#78-commit-8-实现记录2026-09-09完成)、[服务边界设计](../../../../docs/design/core-business-service-boundaries.md) 和 [路由迁移验收](../../../../docs/design/api-route-naming.md#strategy-路由职责整理验收2026-09-10)。已退役的开发演示记录见 [历史清理](../../../../docs/design/backend-architecture-refactor.md#旧策略演示清理2026-09-09)。

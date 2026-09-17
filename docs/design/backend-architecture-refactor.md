@@ -1267,3 +1267,23 @@ Review 修正：`maintenanceGate` 属于中间件，从 `maintenance/middleware.
 - 已检查本次 5 张截图：`backtest-report-comparison.png`、`research-backtest-report-handoff.png`、`factor-weather-desktop.png`、`factor-weather-picker.png`、`factor-weather-mobile.png`，均位于 `apps/web/acceptance/`。
 
 - 临时 API/Web 已停止，3307/5307 无监听，API 明确完成 Prisma disconnect，临时数据库目录无打开句柄；两个 E2E 均关闭浏览器上下文与连接。
+
+## 后续退役记录
+
+以下为从业务 README 迁入的历史记录，不描述当前待办或本次文档任务的验证结果。
+
+### 旧策略演示清理（2026-09-09）
+
+移除仅供开发者手动运行的 `backtest`、`code:backtest`、`turtle`、`zeng:timing`、`zeng:backtest` 命令及对应脚本，同时删除专用的 `examples/strategies.ts`、`examples/zeng.ts`。原横截面选股信号、EP 代码对照、海龟和曾庆辉策略实验不再作为 API app 的维护入口。历史架构设计与基线中的示例目录记录保留为当时状态。
+
+正式策略 HTTP API、回测引擎、SDK 示例、自动化测试与数据库中的用户策略不变。本次不涉及 schema 或数据迁移。
+
+验证记录：API typecheck、后端架构边界检查（0 violations）、package.json Prettier 检查及 `git diff --check` 均通过；代码与运维脚本中未发现已删除入口的残留引用。人工代码审查通过后，`src/engine/simulation/rules.test.ts` 的 15 项测试全部通过。本次仅删除无正式调用方的演示文件，未改动生产打包入口或配置，经审查调整验证范围，不运行 bundle 测试。
+
+### 一次性数据迁移退役（2026-09-09）
+
+维护者确认唯一生产系统已重新执行 bootstrap，并不再需要旧聊天、因子报告或研究计数的历史补全。移除 `migrate:agent-conversations`、`migrate:factor-report-history`、`migrate:factor-research`、`migrate:factor-identity`、`migrate:screen-to-research`、`migrate:remove-research-validation-protocols` 六个命令及脚本、Screen 迁移的专用实现和测试，以及 bootstrap 的四处调用和对应日志、注释。
+
+Prisma 迁移历史及 bootstrap 中的 `prisma migrate deploy` 保留；本次不修改 schema、存量数据或运行期兼容读取逻辑。迁移前的旧备份不再支持直接通过当前 bootstrap 升级，若需恢复，须从 Git 历史取回对应迁移工具并按旧升级流程处理。
+
+验证记录：API typecheck、后端架构边界检查（0 violations）、`bash -n scripts/bootstrap.sh`、package.json Prettier 检查及 `git diff --check` 全部通过；代码、配置和运维脚本中无已退役迁移的残留引用。人工代码审查已通过；按批准范围，本次未运行行为测试、bootstrap 或数据库迁移。提交信息为 `chore(api): 移除已退役的一次性数据迁移`。

@@ -6,7 +6,7 @@
 
 ## 第一次看项目，从哪里开始
 
-先看 [server.ts](../apps/api/src/server.ts) 找产品接口，再进入对应模块 README 找业务入口。需要理解异步工作时，看 [bootstrap.ts](../apps/api/src/bootstrap.ts) 和 [Job 契约](../apps/api/src/infra/jobs/definition.ts)。只有要修改模拟算法或跨进程协议时，才需要继续进入 Engine、runtime 或 sandboxd。
+先看 [server.ts](../apps/api/src/server.ts) 找产品接口，再进入对应模块 README，按业务问题选择子能力 README，最后跟随具名入口、直接调用方和测试链接阅读实现。模块总览维护协作关系，子能力维护当前契约，设计文档维护背景与验收历史。需要理解异步工作时，看 [bootstrap.ts](../apps/api/src/bootstrap.ts) 和 [Job 契约](../apps/api/src/infra/jobs/definition.ts)。只有要修改模拟算法或跨进程协议时，才需要继续进入 Engine、runtime 或 sandboxd。
 
 | 模块 | 拥有什么、服务什么产品操作 | 阅读入口 |
 | --- | --- | --- |
@@ -35,7 +35,7 @@
 | --- | --- |
 | `/api/maintenance` | `application-maintenance/routes.ts` 导出 `maintenanceRoute` |
 | `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
-| `/api/app/research` | `research/routes/index.ts` 直接组合 document / execution / evidence / proposal / agent / curator / data / language 路由 |
+| `/api/app/research` | `research/routes/index.ts` 直接组合 document / execution / evidence / proposal / agent / curator / data / language / embedded 路由 |
 | `/api/app/factors` | `factor/routes/index.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
 | `/api/app/strategies` | `strategy/routes/index.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
 | `/api/app/signals` | `signals/routes/index.ts` 直接组合 deployment / run / execution 路由 |
@@ -154,17 +154,17 @@ Market 的同步/读取/基础质量归入所属数据领域，具体入口见�
 
 并非所有对象共享一个事务：会话创建、模型调用、消息镜像、afterCommit、邮件通知都各有边界。具体事务说明优先看所属模块，不把“用了 Prisma”理解成“整个调用链天然原子”。
 
-Research 的冻结研究交接先调用 Factor/Strategy `definitions/from-research.ts` 的 `findResearch*Draft`；命中目标即返回，不再次调用生成器。未命中时，Research 校验证据、生成代码并构造 handoff 元数据，再调用目标模块的 `create*DraftFromResearch`。key/name 分配、默认配置、目标写入、唯一冲突重试和结果映射归目标模块；输入为明确的数据字段，没有生成器回调或反向依赖 Research。Factor 的 100 次 key 尝试与 Strategy 的 50 次写入重试分别保留，模型调用不进入新的总事务。
+Research 的冻结研究交接负责证据准入与生成，Factor/Strategy 负责目标复用、命名和写入；模型调用不进入目标保存事务。具体顺序、重试差异和调用入口维护在 [Research handoff](../apps/api/src/research/handoff/README.md)，再由它链接到目标 definitions。
 
 ## 修改定位与守护规则
 
 | 修改需求 | 先看 |
 | --- | --- |
-| 改 Cell 失效规则 | `research/dependencies/invalidation.ts`、`run-plan.ts` |
-| 改因子发布准入 | `factor/publication/`、`factor/evaluations/` |
-| 找回测报告冻结时点 | `strategy/backtests/submit.ts` 与 `backtests/job.ts` |
-| 找每日信号失败收尾 | `signals/runs/job.ts` 与 `infra/jobs/executor.ts` |
-| Python 请求财报经过哪里 | `research/sdk/dispatch.ts` → `datasets/financial*.ts` → `market/fundamentals/` |
+| 改 Cell 失效规则 | [Research dependencies](../apps/api/src/research/dependencies/README.md) |
+| 改因子发布准入 | [Factor publication](../apps/api/src/factor/publication/README.md)、[evaluations](../apps/api/src/factor/evaluations/README.md) |
+| 找回测报告冻结时点 | [Strategy backtests](../apps/api/src/strategy/backtests/README.md) |
+| 找每日信号失败收尾 | [Signals runs](../apps/api/src/signals/runs/README.md)、[账户重放](../apps/api/src/signals/accounting/README.md) |
+| Python 请求财报经过哪里 | [Research SDK](../apps/api/src/research/sdk/README.md) → [datasets](../apps/api/src/research/datasets/README.md) → [Market fundamentals](../apps/api/src/market/fundamentals/README.md) |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
 | 改整体审计规则 | `application-maintenance/data-audit.ts`；模型历史要求由 `strategy/risk` 提供 |
 | 找进程和资源入口 | [运行入口清单](backend-runtime-entries.md)，再看所属领域任务/runtime |
@@ -183,13 +183,4 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 
 ## Factor 内部职责
 
-正式评估的提交、冻结、报告、holdout 与生命周期归 `factor/evaluations/`；相关性任务及缓存归
-`factor/correlations/`；天气固定版本与观察点归 `factor/weather/`。三者分别拥有既有事务和状态。
-正式评估和相关性分别使用 `factor-analysis` / `factor-correlation` Job kind，bootstrap 直接注册所属任务定义；
-部署脚本在停服窗口转换旧 kind，业务启动不做数据升级；`factor/jobs/read.ts` 通过独立 kind 与报告关系校验所有权。
-`factor/execution/run.ts` 只按研究配置计算，接收冻结来源及日志/结果回调，不接收 reportId 或 Job。
-正式评估与天气共同使用 `execution/worker.ts`，由宿主分别持久化。Worker 的结果回调保留先回传、
-再释放运行时的既有时序；`reportId`（包括 `weather:*`）只属于消息封套。
-横截面的数据准备、因子序列、方法政策、统计评估与推断分开；相关性仅复用数据及序列能力。
-`sources/snapshot.ts` 与 `sources/fingerprint.ts` 保持纯依赖，数据库来源解析归 `sources/resolve.ts`。
-本轮计划和 review 状态见 [内部结构整理](design/core-business-internal-structure.md)。
+正式报告与 Job、相关性缓存、天气 pin 分属三个生命周期，共享计算不拥有这些对象。入口及协作流程维护在 [Factor 总览](../apps/api/src/factor/README.md)，具体契约见 [evaluations](../apps/api/src/factor/evaluations/README.md)、[correlations](../apps/api/src/factor/correlations/README.md)、[weather](../apps/api/src/factor/weather/README.md) 和 [execution](../apps/api/src/factor/execution/README.md)。旧 Job kind 的部署转换与查询规则见 [jobs](../apps/api/src/factor/jobs/README.md)，背景和历史验证见 [内部结构整理](design/core-business-internal-structure.md)。

@@ -1,77 +1,31 @@
 # Signals 后端阅读地图
 
-Signals 将成功回测报告冻结为独立部署，按收盘数据生成下一交易日的指令，再记录模拟成交、人工成交和账户差异。它服务于策略部署、今日信号和执行对账；当前不接券商自动下单，仍保留既有 TS 与股票/ETF 支持限制。
+Signals 从成功回测报告创建独立部署，按收盘数据产生下一交易日指令，再记录模拟／人工成交和账户差异。当前支持范围由部署入口的 TS、股票／ETF 准入控制，不连接券商自动下单。
 
-## 从产品操作找入口
+## 按业务问题进入
 
-HTTP 总入口为 [routes/index.ts](routes/index.ts)，具名导出 `signalsRoute`，由 `server.ts` 挂到 `/api/app/signals`。部署创建接受 reportId，部署列表按 strategyId 筛选；latest-runs 返回用户全部部署及各自最新运行，包括暂停部署和暂无运行的部署。`routes/index.ts` 组合 `routes/` 中的实现；具体路由只适配参数、状态和响应，业务操作自己检查归属并控制数据库写入。
-
-| 操作 | HTTP 路径 | 业务入口 |
-| --- | --- | --- |
-| 启用策略部署 | `POST /deployments` | [deployments/manage.ts](deployments/manage.ts) 的 `deployBacktestReport`，检查回测证据、语言、资产和因子发布约束，冻结配置与血缘 |
-| 查看部署列表、暂停 | `GET /deployments?strategyId=`、`POST /deployments/:deploymentId/pause` | [deployments/read.ts](deployments/read.ts)、[deployments/manage.ts](deployments/manage.ts) |
-| 最新运行、运行历史与详情 | `GET /deployments/latest-runs`、`GET /deployments/:deploymentId/runs`、`GET /runs/:runId` | [runs/read.ts](runs/read.ts)，始终按用户归属查询，并带最新 Job、因子输入和成交记录 |
-| 手动生成信号 | `POST /deployments/:deploymentId/runs` | [runs/submit.ts](runs/submit.ts) 的 `submitSignalRun`，确定收盘日并先结算，再调用入队操作 |
-| 查询 Job 进度 | `GET /run-jobs/:jobId` | `runs/read.ts` 的 `getSignalRunJob`，先校验用户归属和 signal 类型，再读取通用 Job 状态与日志 |
-| 录入、跳过或重置人工成交 | `PATCH /executions/:executionId` | [accounting/executions.ts](accounting/executions.ts) 的 `updateActualExecution`，更新后重建实际账户曲线 |
-| 比较模型、模拟和实际账户 | `GET /deployments/:deploymentId/execution-overview` | [accounting/read.ts](accounting/read.ts) 的 `getStrategyExecutionOverview` |
-
-## 目录职责
-
-| 目录/文件 | 负责什么 |
+| 要找什么 | 子能力与责任 |
 | --- | --- |
-| `deployments` | 部署创建/暂停、按报告的部署列表读取与响应映射；后续草稿编辑不会修改已有部署 |
-| `runs/enqueue.ts` | 运行与 Job 的持久化、同一部署/日期的复用和失败重试；供 HTTP 与每日调度共用 |
-| `runs/readiness.ts` | 信号交易日/下一交易日及基础数据就绪检查；上海时点与最近已完成日直接调用 `market/calendar/sse-close.ts` |
-| `runs/signal-worker.*` | IPC 子进程入口，读取冻结部署与因子血缘，调用 Strategy/Engine 捕获信号，返回结果后关闭数据库与 IPC |
-| `accounting/initialize.ts` | 信号完成后创建成交行及模拟/实际两个账户基线 |
-| `accounting/settlement.ts` | 读取已完成运行、逐日重放账户、事务内保存模拟成交与快照；人工成交修改时可完整重建实际账户 |
-| `accounting/replay.ts` | 纯计算：先卖后买、可卖持仓、涨跌停/停牌、费用滑点、资金限制与收盘估值；不导入数据库 |
-| `accounting/quotes.ts` | 对账用股票/ETF 行情、涨跌停价格及下一交易日读取 |
-| `accounting/executions.ts`、`read.ts` | 人工成交状态变更、账户概览和成交响应映射 |
-| `factor-inputs` | `lineage.ts` 核对冻结依赖，`summary.ts` 汇总输入；`rates.ts` 解析所需期限并执行 14 天新鲜度准入，Market 只提供可得日期 |
-| `runs/job.ts` | 具名任务契约，集中声明 parse/execute/complete/fail/recover/afterCommit |
-| `daily/scheduler.ts`、`daily/sync.ts`、`runs/notifier.ts` | 每日调度、所需市场数据同步、完成/失败通知；保留具体名称与原执行顺序 |
+| 从报告部署、暂停、查询部署 | [deployments](deployments/README.md)：冻结配置／因子依赖，同报告活动去重 |
+| 手工生成、历史／最新运行、进度与通知 | [runs](runs/README.md)：日期准入、幂等重试、Run + Job、IPC Worker 和完成后动作 |
+| 模拟结算、人工成交和账户对比 | [accounting](accounting/README.md)：基线、逐日事务、成交写入与纯重放 |
+| 冻结因子是否变化、需要哪些利率 | [factor-inputs](factor-inputs/README.md)：依赖比较、摘要及新鲜度政策 |
+| 每日数据准备与批量运行 | [daily](daily/README.md)：按部署需求同步，再串行入队和等待 |
 
-日历事实由 [Market calendar](../market/calendar/sse-close.ts) 提供，Maintenance 也直接消费；Signals 不再拥有共用日期判断。利率准入位于 [factor-inputs/rates.ts](factor-inputs/rates.ts)，仍在没有利率依赖时直接通过，保留逐期限 as-of、缺失与 14 天边界。
+## 主要协作流程
 
-## 两条执行链
+部署从本人完成回测报告冻结配置，使用 [Strategy factor-inputs](../strategy/factor-inputs/README.md) 检查 deployment 场景。后续策略草稿变化不影响部署，不同报告可同时 active。
 
-**手动运行：** HTTP → `submitSignalRun` → 解析用户指定或最近已收盘日期 → `settleStrategyAccounts` → `enqueueSignalRun` → 检查部署归属/状态、交易日、基础数据和所需利率曲线 → 事务中创建/复用 SignalRun 与 Job → 初始化日志并唤醒通用队列。
+手动运行由 submit 选择日期、先结算账户再入队；Maintenance 数据发布后调用每日生成，CLI 则先同步所需数据。二者共用 enqueue，在事务内创建／复用 Run 和 Job，提交后唤醒队列。
 
-**每日运行：** Maintenance 的已发布数据流程 → `generateDailySignals`，或 CLI → `runDailySignalCycle` 先同步数据 → 结算账户 → 逐个 active 部署调用 `enqueueSignalRun` 并等待 completion。不会为每个部署重复同步市场数据。
+Job 启动 IPC Worker，按 signal 场景准备因子并比较冻结血缘，调用 Strategy 墙内信号捕获和 Engine，返回指令、模型账户及输入摘要。主线程提交结果后初始化记账，再通知；后续结算和人工回填分别更新 simulation/actual 账户。
 
-共同计算链为 `runs/job.ts` → fork `runs/signal-worker` → 校验部署和运行的因子快照 → Strategy 准备因子并执行墙内信号捕获 → Engine 推进历史交易日 → 返回信号、模型持仓与因子输入 → 主线程执行任务完成事务。
+## 模块入口与共同约束
 
-源码通过 `.boot.mjs` 注册 tsx 后加载 `.ts`；生产直接启动编译 `.js`。两者使用同一个任务契约和算法，不能只更新静态 import 而遗漏 Worker URL。
+[routes/index.ts](routes/index.ts) 导出 `signalsRoute`，组合 deployment / run / execution，挂载 `/api/app/signals`；[schema.ts](schema.ts) 定义输入。latest-runs 包含本人所有部署的最新结果、暂停及暂无运行项，不加今天过滤。Run 与 Job 分离，日志按 jobId 查询；完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。
 
-## 需要保持的状态和事务边界
+同部署同日失败重试保留 runId、创建新 Job；冻结血缘不随重新准备被覆盖。暂停保留运行／账户，重新部署产生新实例。资源所有者检查、状态转换与事务分别归对应能力；结果提交、账户初始化和通知不组成总事务，人工成交写入与实际账户重放也分开。
 
-- **报告部署**：从成功报告冻结配置与 Factor 血缘；不同报告可同时 active。同报告由 activeReportId 唯一索引去重，暂停只清空该记录的占位键并改状态。再次部署创建新实例，已有信号与账户继续保留；旧部署不推断报告关联。
-- **入队与重试**：同一部署/日期的 running 或 done 运行直接复用；error/stale 重试复用 runId、创建新 Job、清空旧计算/通知结果，保留运行自己的冻结因子依赖。运行创建/重置与 Job 创建在同一事务内，成功后才唤醒队列。
-- **完成与恢复**：主线程在通用执行器事务中提交 SignalRun 与 Job 终态；启动恢复由 `signalJob.recover` 将中断运行置为 stale。Worker 只返回计算结果。
-- **完成后动作**：`afterCommit` 先初始化会计，再发送通知；这两项仍在结果事务之外，失败不会撤销已完成的 SignalRun/Job。本次目录重整没有扩大事务，也没有改变原有失败收尾行为。
-- **人工成交**：保留只能对已完成且已模拟结算的指令录入成交、不超过原指令股数、pending/filled/skipped 转换及重新计算实际账户的规则。逐日模拟成交与账户快照仍一起提交。
+Market 提供行情、日历与可得日期，Signals 决定业务准入和所需同步；不能把 Market 数据事实写成 Signals 政策。[cli/run-signals.ts](cli/run-signals.ts) 仅是每日能力的命令适配，用法见 [命令索引](../../scripts/README.md)。IPC 与源码／编译路径见 [运行清单](../../../../docs/backend-runtime-entries.md)。
 
-## 验证与阅读顺序
-
-先读部署冻结和 `runs/enqueue.ts` 的复用/重试事务，再读 `runs/job.ts` 与 `accounting/settlement.ts`；只关心费用和账户算法时直接读 `accounting/replay.ts`。
-
-原账户重放/数据库流、因子血缘/输入、通知和 Job 生命周期测试保留，路径随职责更新。新增 [routes/index.integration.test.ts](routes/index.integration.test.ts) 的隔离 SQLite + Hono 场景覆盖部署限制/版本冻结/事务回滚、日期与数据拒绝、运行幂等/重试、Job 写入失败回滚、读写归属，以及账户初始化/结算幂等与人工成交重置。参数元数据、因子准备和队列等待使用替身，不调用真实行情、邮件或 LLM。
-
-Commit 9 已通过人工 review 和全部验证：全量 API 199 个测试文件、1073 项用例通过，API 编译通过；源码与编译后的真实 IPC 链路覆盖部署冻结、因子血缘、信号输入、完成后的会计初始化、结算/人工成交、失败重试及重启恢复。两种入口的信号、模型账户和对账结果一致，临时进程与数据库连接已释放。完整记录见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#79-commit-9-实现记录2026-09-09)。
-
-报告部署业务修订、迁移与验证计划见 [每日信号设计](../../../../docs/design/daily-signals.md)。上述 Commit 9 结果是历史记录，不代表本轮业务改动已经验证。
-
-
-## HTTP 路由整理（2026-09-11）
-
-`routes/index.ts` 直接组合 `routes/deployment.ts`、`routes/run.ts`、`routes/execution.ts`，保留 10 个接口。latest-runs 对应原 today 的实际语义，不增加日期过滤；`listDeploymentLatestRuns` 同步替代前后端旧函数名。Run 列表/提交的 deploymentId 来自路径，额外 body/query ID 不能覆盖它，body 保留可选 tradeDate，GET 保留 limit。
-
-`runs/read.ts` 的 `getSignalRunJob` 按 userId 和 `kind: signal` 查询，非 signal Job 即使属于同一用户也返回 404。日志仍使用 since/nextSince。Run 与 Job 继续分离，失败重试保留 runId、更换 jobId；不修改部署冻结、队列、Worker、账户结算和成交事务。
-
-静态检查与待执行验证见 [统一路由记录](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11)。人工代码审查后，相关 116 项测试、API/Web 构建和六组浏览器验收全部通过。临时服务、端口和数据库连接已释放，测试数据库已清理；完整结果见统一路由记录。
-
-## 命令入口
-
-[cli/run-signals.ts](cli/run-signals.ts) 对应 `pnpm --filter api signals:run [date]`，解析日期并调用 `runDailySignalCycle`，按运行错误数设置退出码并释放 Prisma。整轮数据发布后的自动信号仍由 Application Maintenance 调用 `daily/scheduler.ts` 的每日运行能力。
+整体权限／事务场景看 [routes/index.integration.test.ts](routes/index.integration.test.ts)，算法与记账测试见子文档。设计及历史验收见 [每日信号设计](../../../../docs/design/daily-signals.md)、[Commit 9](../../../../docs/design/backend-architecture-refactor.md#79-commit-9-实现记录2026-09-09)、[服务边界及已记录限制](../../../../docs/design/core-business-service-boundaries.md)。依赖约束见 [后端边界](../../../../docs/backend-boundaries.md)。
