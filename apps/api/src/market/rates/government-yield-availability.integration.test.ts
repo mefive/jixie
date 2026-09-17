@@ -22,7 +22,7 @@ import {
   CHINA_TREASURY_CURVE_NAME,
   CHINA_TREASURY_CURVE_SOURCE,
   CHINA_TREASURY_CURVE_TYPE,
-} from './china-treasury-curve.js';
+} from '../registry/yield-curves.js';
 
 beforeAll(() => {
   execFileSync(

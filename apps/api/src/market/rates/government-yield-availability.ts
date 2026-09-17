@@ -3,7 +3,7 @@ import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,
   CHINA_TREASURY_CURVE_TYPE,
-} from './china-treasury-curve.js';
+} from '../registry/yield-curves.js';
 
 export interface GovernmentYieldAvailability {
   termYears: number;

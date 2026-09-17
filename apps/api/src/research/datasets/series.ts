@@ -14,7 +14,7 @@ import {
   deriveBenchmarkCnyCloses,
   deriveHkdCnhMidCloses,
 } from '#market/cross-market/benchmark-conversion.js';
-import { EXTERNAL_FX_CODES } from '#market/cross-market/external-drivers.js';
+import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
 
 export interface ResearchSeriesPoint {
   date: string;

@@ -1,5 +1,5 @@
 import { addDays } from '#date';
-import { USD_CNH_CODE, USD_HKD_CODE } from './external-drivers.js';
+import { USD_CNH_CODE, USD_HKD_CODE } from '../registry/fx.js';
 import {
   type CrossMarketBenchmarkDefinition,
   CNY_BASE_CURRENCY,

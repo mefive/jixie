@@ -1,18 +1,15 @@
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import type { TushareRow } from '../providers/tushare/client.js';
-
-export const US_NOMINAL_CURVE_SOURCE = 'tushare_us_treasury';
-export const US_NOMINAL_CURVE_CODE = 'us_treasury_nominal';
-export const US_NOMINAL_CURVE_NAME = '美国国债名义收益率曲线';
-export const US_REAL_CURVE_SOURCE = 'tushare_us_treasury';
-export const US_REAL_CURVE_CODE = 'us_treasury_real';
-export const US_REAL_CURVE_NAME = '美国国债实际收益率曲线';
-export const US_TREASURY_CURVE_TYPE = 'par';
-export const USD_CNH_CODE = 'USDCNH.FXCM';
-export const USD_HKD_CODE = 'USDHKD.FXCM';
-export const FXCM_EXCHANGE = 'FXCM';
-export const EXTERNAL_FX_CODES = [USD_CNH_CODE, USD_HKD_CODE] as const;
+import {
+  US_NOMINAL_CURVE_SOURCE,
+  US_NOMINAL_CURVE_CODE,
+  US_NOMINAL_CURVE_NAME,
+  US_REAL_CURVE_CODE,
+  US_REAL_CURVE_NAME,
+  US_TREASURY_CURVE_TYPE,
+} from '../registry/yield-curves.js';
+import { USD_CNH_CODE, FXCM_EXCHANGE, EXTERNAL_FX_CODES } from '../registry/fx.js';
 
 const NOMINAL_TERMS = [
   { field: 'm1', termYears: 1 / 12 },

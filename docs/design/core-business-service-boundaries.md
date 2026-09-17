@@ -3,7 +3,7 @@
 ## 状态与范围
 
 - 基线：`6e6aa446`（`refactor(market): align data domains and consumer boundaries`）。开始审查时工作区干净。
-- 当前阶段：2026-09-17，C1 已提交 `62f17b47`，C2 已提交 `84dc9d5e`，C3 已提交 `c7eed1ac`，C4 已提交 `78b53c18`；**C5 已通过人工 review、行为验证与干净构建，随本提交交付**。C6 已准备单次开工计划，等待范围批准；尚未实施；不推送。
+- 当前阶段：2026-09-17，C1 已提交 `62f17b47`，C2 已提交 `84dc9d5e`，C3 已提交 `c7eed1ac`，C4 已提交 `78b53c18`，C5 已提交 `78a21f0c`；**C6 已通过人工 review、完整 API 回归、干净构建及源码/编译入口验收，随本提交交付**。六个约定实现范围全部完成，不推送；§6 的契约/行为问题仍单独保留。
 - 已完整阅读根 `CLAUDE.md`、review-gated-development 工作流，并阅读五个模块 README、[架构地图](../backend-architecture.md)、[边界规则](../backend-boundaries.md)、[运行入口](../backend-runtime-entries.md)及[上一轮整理计划](core-business-internal-structure.md)。本轮不涉及 Web/Docs 前端实现。
 - 交付对象是后端维护者；不新增用户能力、HTTP/SDK 方法、表或迁移，不改变权限、数据语义、事务、执行顺序及资源释放。
 - 已确认 **6 个实现 commit**，准确标题见 §4。本文随 Commit 1 提交，不额外安排计划文档 commit。每个 commit 的说明、测试和开发记录一起交付。
@@ -82,13 +82,13 @@
 
 ### E6：Market 的共享数据身份依赖同步实现
 
-证据：
+基线证据（C6 实施前）：
 
 - 纯 [deriveBenchmarkCnyCloses / deriveHkdCnhMidCloses](../../apps/api/src/market/cross-market/benchmark-conversion.ts) 从 `cross-market/external-drivers.ts` 取 `USD_CNH_CODE` / `USD_HKD_CODE`，后者导入 Prisma 并实现完整同步。
 - `research/datasets/series.ts` 只需 `EXTERNAL_FX_CODES`；`market/macro/risk-axes.ts`、`state/market-risk-drivers.ts` 和 Maintenance 审计只需外部曲线/汇率标识，却也导入该同步文件。
 - `engine/adapters/prisma-port.ts`、`factor/observations/etf-trend-observations.ts`、`rates/government-yield-availability.ts` 只需中国国债 source/code/type，却导入含 HTTP client、解析、数据库替换的 `rates/china-treasury-curve.ts`。
 
-将共享曲线和汇率静态定义移到 Market 现有的 `registry/` 边界。消费方和同步方共同读取定义；同步函数、客户端、解析与 availableDate 分派保留原位。这能让纯汇率换算脱离数据库初始化，避免查询方通过同步实现取得身份事实。没有性能提速的实测结论，不以此声称优化了查询速度。
+C6 已将共享曲线和汇率静态定义移到 Market 现有的 [registry/yield-curves.ts](../../apps/api/src/market/registry/yield-curves.ts) 与 [registry/fx.ts](../../apps/api/src/market/registry/fx.ts)。消费方和同步方共同读取定义；同步函数、客户端、解析与 availableDate 分派保留原位。这能让纯汇率换算脱离数据库初始化，避免查询方通过同步实现取得身份事实。没有性能提速的实测结论，不以此声称优化了查询速度。
 
 ## 3. 改前 / 改后与内部接口
 
@@ -237,9 +237,11 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 | C4 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；10 文件、99 项回归、干净构建及源码/编译入口通过；已提交 `78b53c18` |
 | C5 单次开工计划 | 2026-09-17 用户批准 |
 | C5 产品实现 / 静态检查 | 两个 from-research 目标入口、Research 编排、边界测试及文档同步；静态检查通过 |
-| C5 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；9 文件、151 项回归、干净构建及源码/编译交接入口通过，随本提交交付 |
-| C6 单次开工计划 | 已准备，等待范围批准；尚未实施 |
-| 当前工作区变化 | C5 实现、回归测试、Factor/Strategy/Research README、架构地图与本文；不推送 |
+| C5 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；9 文件、151 项回归、干净构建及源码/编译交接入口通过；已提交 `78a21f0c` |
+| C6 单次开工计划 | 2026-09-17 用户批准 |
+| C6 产品实现 / 静态检查 | 曲线/外汇 registry、同步与非同步消费者、测试引用及文档同步；静态检查通过 |
+| C6 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；完整 API 230 文件 / 1,393 项、干净构建及源码/编译运行验收通过，随本提交交付 |
+| 本轮范围 | 六个约定提交范围全部完成；C6 包含 13 个 TS 文件、Market README 与本文；不推送 |
 
 每个获准提交完成后在此记录人工 review、静态检查、实际测试/运行条件、限制与 commit hash；历史测试结果不能填入本轮结果。
 
@@ -348,7 +350,7 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 首轮临时 fixture 漏填 FactorComposite.definition，按现有 schema 修正后重建隔离库，两种入口完整重跑通过；没有修改产品代码或仓内测试、没有弱化断言。review 后 8 个 TS 文件内容哈希均保持。
 - 两个验收进程均退出，Prisma 断开，两份 fixture 数据库无打开句柄；本次未启动 HTTP/socket 服务，也未调用真实模型、行情供应商或邮件。临时数据库、干净构建和探针在交付前清理。
 
-### C6：Market 共享数据身份归属（单次开工计划，待批准）
+### C6：Market 共享数据身份归属（2026-09-17，验收通过）
 
 准确标题：`refactor(market): separate shared data identities from synchronization`。
 
@@ -360,4 +362,23 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 同步 Market README 和本文；不改公开 HTTP/SDK、Prisma schema、包/build 依赖、部署清单或 Maintenance 协调范围。review 前执行改动文件格式/ESLint、全仓 typecheck/生成契约/后端边界、常量与非 import 实现静态对比、全部引用核对和 diff 检查，确认 registry 无数据库/同步依赖、纯换算不再通过同步入口取身份。
 - review 后执行 treasury、external-drivers、benchmark-conversion、market-risk-drivers、macro risk-axes，以及 Research series、Factor ETF observations、Engine adapter、Signals rates 相关回归；隔离 SQLite + 本地供应商替身验证数据代码、可得日、空响应保留与范围替换。源码/编译实际运行 `sync-rates`、`sync-external-market` CLI，核对调用、输出与退出；最后执行完整 API 测试、干净 API 构建及受影响 Factor/Strategy/Signals 运行入口验收，清理临时资源。
 
-当前只完成 C6 只读核对和计划，未修改产品代码。若需改变供应商协议、PIT 口径、事务、空响应策略或公开契约，先讨论，不混入身份归属整理。
+单次开工计划已于 2026-09-17 获用户批准。若需改变供应商协议、PIT 口径、事务、空响应策略或公开契约，先讨论，不混入身份归属整理。
+
+实施与静态检查记录：
+
+- 两个 registry 文件原样接收 16 个具名常量，均无 import、数据库初始化或同步依赖；原同步入口按需直接导入，没有兼容转导出。八个非同步生产消费者及 government-yield-availability 集成测试改为直接引用 registry；原断言和测试场景保留。
+- AST 对比确认 16 个常量声明与 `78a21f0c` 原定义完全一致，包括字符串、期限、数组顺序及 `as const`。11 个既有 TS 文件去除 import 和已迁移常量后，全部顶层语句保持一致；因此解析、请求参数、查询条件、写入顺序、事务及资源释放实现均未改动。
+- 遍历 API tsconfig 内源码核对 39 个常量具名导入，全部指向所属 registry。旧同步入口剩余引用均用于客户端、同步、解析或可得日函数，Research 数据契约中的来源文件地址仍指向原同步实现。`benchmark-conversion` 静态运行依赖闭包只有本文件、date、registry/fx 和 registry/cross-market-benchmarks，不再触及 Prisma 或同步实现。
+- 13 个改动/新增 TS 文件的 ESLint、Prettier 通过；全仓 `pnpm typecheck` 通过，包括三项生成契约检查。后端边界扫描为 718 文件 / 2,727 runtime edges / 637 type edges，0 违规、0 跨域循环组。Market README 已同步共享身份归属，`git diff --check` 通过。
+- 未改公开 HTTP/SDK、schema、Job/Worker/CLI 入口、包/build 依赖或部署清单。上述实现与静态结果交人工 review 后，2026-09-17 用户确认通过，随后才执行下述行为验收。
+
+人工 review 后的验收记录：
+
+- API `tsc` 在全新临时 outDir 编译通过，保留 API 原 package imports 和 node_modules 解析。完整 API 测试最终为 **230 个文件、1,393 项全部通过，无跳过**；显式启用 `ACCOUNTING_INTEGRATION=1`，使用已应用现有迁移的独立 SQLite。treasury、external-drivers、benchmark-conversion、market-risk-drivers、macro risk-axes、Research datasets、Factor ETF observations、Signals rates 及既有跨域回归均包含在本次完整执行中。
+- 初次完整测试暴露环境/fixture 问题：系统 Python 缺少 pandas/numpy、受限沙箱不能监听 Unix socket；切换项目 `.venv/research-py-v1/bin/python3` 并允许本地 socket 后解决。全新库还缺少 Agent 既有用例要求的 `600519.SH` 身份，补齐临时 StockBasic fixture；一次四个 Python 会话并发启动触发 5 秒用例超时，最后以 4 个测试进程、原超时和原断言完整重跑通过。没有修改仓内测试、产品实现或跳过失败用例。
+- 源码使用 development 条件，编译使用原生 Node 默认条件，实际执行 `sync-rates` / `sync-external-market` CLI 共 20 次；供应商 HTTP 边界替身接收 110 次请求，逐项核对端点、参数、字段、曲线期限和 FX 代码顺序，不访问真实供应商。每次独立进程正常结束或返回预期错误码，成功输出与写库结果匹配。
+- 两种入口均验证中国曲线 source/code/name/type、美国名义/实际曲线身份及两种 FX 代码/交易所保持；2023/2024 年范围分别请求，周末后的下一 SSE 交易日映射正确。空响应保留既有数据，年度非空响应只替换自己的范围，外部错误保留曲线/FX 数据；最终源码/编译数据库业务字段完全一致。
+- 在隔离 SQLite 用临时触发器模拟插入失败：国债范围的 delete+create 一起回滚；美债 nominal 已提交后 real 写入失败时，real 范围回滚且 FX 未执行。验证保留既有分别提交顺序，没有引入联合总事务；触发器均在该场景后删除。20 次执行包含 8 次预期失败，均核对非零退出和保留/回滚状态。
+- 受影响运行链在两种入口均实际执行：Factor Job → Worker 查询真实 CGB fixture、完成 262 个 time-series 观察值；缺少所需期限时 Job/Report 按原规则失败。Strategy Job → Worker 产生 262 个净值点、34 笔交易和 252 个市场风险观察值；扫描父 Worker 与两个 cell 子进程完成，Signals IPC 返回两个有效因子输入及三个模型持仓，Maintenance 风险审计通过。
+- Signals 利率准入另核对齐备、缺期限、超过 14 天和无利率依赖四种情况。临时策略 fixture 明确验证前 5 个交易日的 6 日窗口预热为空，之后每天必须有利率与 Panel 因子值；探针开发时对预热及最小窗口的错误假设已按现有实现修正，没有改变产品或降低正式断言。自动命名请求由探针拦截并走原有失败回退，本轮不验收命名质量。源码/编译规范化后的 Factor、回测、扫描、Signals 和审计输出完全一致。
+- review 后 13 个 TS 文件内容哈希保持一致。所有临时验收进程退出，Prisma 断开；交付前核对数据库无打开句柄并清理本次数据库、干净构建、日志及探针目录。没有启动应用 HTTP 服务、调用真实 LLM/行情源或发送邮件。

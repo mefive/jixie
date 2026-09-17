@@ -9,11 +9,8 @@ import { auditMacroRiskAxes, auditMarketRiskDrivers } from './risk-data-audit.js
 import { CROSS_MARKET_BENCHMARKS } from '#market/registry/cross-market-benchmarks.js';
 import { auditEtfResearchRegistry } from '#market/etfs/registry-audit.js';
 import { CHINABOND_PUBLIC_CURVES } from '#market/rates/chinabond-credit-curves.js';
-import {
-  EXTERNAL_FX_CODES,
-  US_NOMINAL_CURVE_CODE,
-  US_REAL_CURVE_CODE,
-} from '#market/cross-market/external-drivers.js';
+import { US_NOMINAL_CURVE_CODE, US_REAL_CURVE_CODE } from '#market/registry/yield-curves.js';
+import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
 
 export type AuditStatus = 'pass' | 'warn' | 'error';
 

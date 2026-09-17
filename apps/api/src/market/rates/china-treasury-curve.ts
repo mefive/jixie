@@ -1,10 +1,11 @@
 import { prisma } from '#infra/database/prisma.js';
-
-export const CHINA_TREASURY_CURVE_SOURCE = 'mof_chinabond';
-export const CHINA_TREASURY_CURVE_CODE = 'mof_cgb_ytm';
-export const CHINA_TREASURY_CURVE_NAME = '财政部-中国国债收益率曲线';
-export const CHINA_TREASURY_CURVE_TYPE = 'ytm';
-export const CHINA_TREASURY_TERMS = [0.25, 0.5, 1, 2, 3, 5, 7, 10, 30] as const;
+import {
+  CHINA_TREASURY_CURVE_SOURCE,
+  CHINA_TREASURY_CURVE_CODE,
+  CHINA_TREASURY_CURVE_NAME,
+  CHINA_TREASURY_CURVE_TYPE,
+  CHINA_TREASURY_TERMS,
+} from '../registry/yield-curves.js';
 
 const SOURCE_ENDPOINT = 'https://yield.chinabond.com.cn/cbweb-czb-web/czb/czbQueryYz';
 const CHINA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {

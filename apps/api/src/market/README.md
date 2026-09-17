@@ -8,7 +8,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 | --- | --- | --- |
 | 查 HTTP 地址和参数 | [routes/index.ts](routes/index.ts) | `/api/app/market` 的 7 个 GET；解析请求、选择查询、映射无数据错误 |
 | 改 Tushare 通道或配置 | [providers/tushare/](providers/tushare/) | 队列/限流/重试、协议、环境配置与能力探测 |
-| 找 ETF、指数、基准清单 | [registry/](registry/) | 纯静态数据和校验；跨市场基准注册落库归 `cross-market/benchmark-sync.ts` |
+| 找 ETF、指数、基准清单及曲线/外汇身份 | [registry/](registry/) | 纯静态数据和校验；跨市场基准注册落库归 `cross-market/benchmark-sync.ts` |
 | 解析证券代码和名字 | [instruments/](instruments/) | 历史身份、名称规则、身份校验与批量名称查询 |
 | 查股票名录、行情与资金流 | [stocks/](stocks/) | 基础信息、日行情/复权/基础指标/涨跌停、资金流/龙虎榜及已有行情证券读取 |
 | 查 ETF 每日与历史数据质量 | [etfs/](etfs/) | 按日发布、按证券回填、历史覆盖检查和注册表审计 |
@@ -46,6 +46,7 @@ Market 负责行情和领域数据的获取、身份、同步、查询与市场�
 ## 数据事实与消费者政策
 
 - HTTP 从 `routes/index.ts` 导出 `marketRoute`。查询返回数据或 `null`，路由映射 HTTP 响应；查询不依赖 Hono、用户会话或 Agent。
+- [registry/yield-curves.ts](registry/yield-curves.ts) 定义中国国债及美债名义/实际曲线的共享身份和中国国债期限；[registry/fx.ts](registry/fx.ts) 定义外汇代码、交易所和同步清单。同步、查询、审计和基准换算直接引用这些静态定义；供应商字段映射、响应解析、可得日计算和写库仍归各自同步实现。
 - `state/compute.ts` 和 `valuation/compute.ts` 不查询数据库。`state/sync.ts` 保留 SQL 批计算及临时表事务；天气缓存继续按原覆盖日期和频率/维度键失效。
 - `calendar/sse-close.ts` 负责既有上海 16:00 截止判断和 SSE 最近已完成交易日；它不是通用跨市场收盘规则。Signals 的 `runs/readiness.ts` 继续决定信号日必须开市、必须已知下一交易日，并检查基础数据齐备。
 - `rates/government-yield-availability.ts` 的 `loadGovernmentYieldAvailability(requiredTerms, tradeDate)` 逐期限读取 `availableDate <= tradeDate` 的最新国债曲线，保留缺失为空的事实。Factor 输入解析、14 天新鲜度和无利率依赖直接通过的规则归 [Signals](../signals/factor-inputs/rates.ts)。

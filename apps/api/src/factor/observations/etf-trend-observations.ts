@@ -8,7 +8,7 @@ import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,
   CHINA_TREASURY_CURVE_TYPE,
-} from '#market/rates/china-treasury-curve.js';
+} from '#market/registry/yield-curves.js';
 
 export interface EtfTrendDailyRow {
   assetId: string;
