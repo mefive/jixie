@@ -4,7 +4,7 @@ import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import { failFactorOperation } from '../errors.js';
-import type { factorMetadataInputSchema } from '../schema.js';
+import type { FactorMetadataInput } from '../schema.js';
 
 const metadataSchema = z.object({
   nameZh: z.string().trim().min(1).max(40),
@@ -106,7 +106,7 @@ export async function refreshFactorMetadata(input: {
 
 export async function refreshOwnedFactorMetadata(
   userId: string,
-  input: z.infer<typeof factorMetadataInputSchema>,
+  input: FactorMetadataInput,
   locale: Locale,
 ) {
   const { id, code } = input;

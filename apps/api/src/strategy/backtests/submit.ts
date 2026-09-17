@@ -1,9 +1,8 @@
 import { createHash } from 'node:crypto';
-import type { z } from 'zod';
 import { ulid } from 'ulid';
 import type { BacktestConfig, Locale } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import type { codeConfigSchema, backtestStrategyIdentitySchema } from '../schema.js';
+import type { StrategyCodeConfigInput, StrategyBacktestIdentityQuery } from '../schema.js';
 import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
@@ -15,8 +14,8 @@ import { failStrategyOperation } from '../errors.js';
 
 export async function submitStrategyBacktest(
   userId: string,
-  input: z.infer<typeof codeConfigSchema>,
-  query: z.infer<typeof backtestStrategyIdentitySchema>,
+  input: StrategyCodeConfigInput,
+  query: StrategyBacktestIdentityQuery,
   locale: Locale,
 ) {
   const config = input as BacktestConfig;

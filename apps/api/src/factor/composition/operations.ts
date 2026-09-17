@@ -1,6 +1,5 @@
-import { factorCompositeInputSchema, factorPanelCompositeDefinitionV2Schema } from '../schema.js';
+import { factorPanelCompositeDefinitionV2Schema, type FactorCompositeInput } from '../schema.js';
 import { ulid } from 'ulid';
-import type { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import type { FactorCompositeDefinition, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
@@ -75,7 +74,7 @@ export async function readFactorComposite(userId: string, compositeId: string, l
 
 export async function createFactorComposite(
   userId: string,
-  input: z.infer<typeof factorCompositeInputSchema>,
+  input: FactorCompositeInput,
   locale: Locale,
 ) {
   const definition = input.definition;
@@ -129,7 +128,7 @@ export async function createFactorComposite(
 export async function updateFactorComposite(
   userId: string,
   compositeId: string,
-  input: z.infer<typeof factorCompositeInputSchema>,
+  input: FactorCompositeInput,
   locale: Locale,
 ) {
   const definition = input.definition;

@@ -340,17 +340,23 @@ export const createFactorDraftSchema = z.object({
   messages: chatMessagesSchema.optional(),
 });
 
+export type CreateFactorDraftInput = z.output<typeof createFactorDraftSchema>;
+
 export const updateFactorDraftSchema = z.object({
   code: z.string().min(1).optional(),
   name: z.string().min(1).max(40).optional(),
   messages: chatMessagesSchema.optional(),
 });
 
+export type UpdateFactorDraftInput = z.output<typeof updateFactorDraftSchema>;
+
 // Metadata.
 export const factorMetadataInputSchema = z.object({
   id: z.string().min(1),
   code: z.string().min(1).max(20_000),
 });
+
+export type FactorMetadataInput = z.output<typeof factorMetadataInputSchema>;
 
 export const factorMetadataBodySchema = factorMetadataInputSchema.omit({ id: true });
 
@@ -362,8 +368,12 @@ export const publishFactorBodySchema = z.object({
 // Visibility.
 export const factorVisibilitySchema = z.object({ visibility: z.enum(['private', 'public']) });
 
+export type FactorVisibilityInput = z.output<typeof factorVisibilitySchema>;
+
 // Composites.
 export const factorCompositeInputSchema = z.object({ definition: factorCompositeDefinitionSchema });
+
+export type FactorCompositeInput = z.output<typeof factorCompositeInputSchema>;
 
 // Analysis.
 export const submitFactorAnalysisSchema = z.object({
@@ -372,6 +382,8 @@ export const submitFactorAnalysisSchema = z.object({
   parentReportId: z.string().min(1).nullable().optional(),
   researchIntent: factorResearchIntentV1Schema,
 });
+
+export type SubmitFactorAnalysisInput = z.output<typeof submitFactorAnalysisSchema>;
 
 // Correlation.
 export const factorCorrelationQuerySchema = z.object({
@@ -390,13 +402,19 @@ export const factorCorrelationQuerySchema = z.object({
     .default('20261231'),
 });
 
+export type FactorCorrelationQuery = z.output<typeof factorCorrelationQuerySchema>;
+
 export const submitFactorCorrelationSchema = factorCorrelationQuerySchema.extend({
   keys: z.array(z.string()).min(1),
   refresh: z.boolean().default(false),
 });
 
+export type SubmitFactorCorrelationInput = z.output<typeof submitFactorCorrelationSchema>;
+
 // Jobs.
 export const factorJobLogsQuerySchema = z.object({ since: z.string().regex(/^\d+$/).optional() });
+
+export type FactorJobLogsQuery = z.output<typeof factorJobLogsQuerySchema>;
 
 // Reports.
 export const factorReportListQuerySchema = z.object({
@@ -405,13 +423,19 @@ export const factorReportListQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
 });
 
+export type FactorReportListQuery = z.output<typeof factorReportListQuerySchema>;
+
 export const factorResearchSummaryQuerySchema = z.object({ factor: z.string().min(1).optional() });
+
+export type FactorResearchSummaryQuery = z.output<typeof factorResearchSummaryQuerySchema>;
 
 // Weather.
 export const createFactorWeatherPinSchema = z.object({
   factorId: z.string().min(1),
   direction: z.enum(['positive', 'negative']).optional(),
 });
+
+export type CreateFactorWeatherPinInput = z.output<typeof createFactorWeatherPinSchema>;
 
 // Agent.
 export const factorAgentInputSchema = z.object({
@@ -422,7 +446,11 @@ export const factorAgentInputSchema = z.object({
   code: z.string().min(1).max(20_000),
 });
 
+export type FactorAgentInput = z.output<typeof factorAgentInputSchema>;
+
 export const factorAgentBodySchema = factorAgentInputSchema.omit({ id: true });
+
+export const factorAgentParamsSchema = z.object({ factorId: factorAgentInputSchema.shape.id });
 
 // Questions.
 export const factorQuestionSchema = z.strictObject({
@@ -432,7 +460,11 @@ export const factorQuestionSchema = z.strictObject({
   reportId: z.string().min(1).max(128).optional(),
 });
 
+export type FactorQuestionInput = z.output<typeof factorQuestionSchema>;
+
 export const factorQuestionHistorySchema = z.object({
   before: z.coerce.number().int().nonnegative().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(40),
 });
+
+export type FactorQuestionHistoryQuery = z.output<typeof factorQuestionHistorySchema>;

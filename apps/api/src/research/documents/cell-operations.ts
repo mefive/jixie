@@ -1,3 +1,4 @@
+import type { UpdateResearchCellInput } from '../schema.js';
 import type { ResearchCellKindV1, ResearchDocumentV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
@@ -50,7 +51,7 @@ export async function addResearchCell(
 export async function updateResearchCell(
   userId: string,
   cellId: string,
-  patch: { source?: string; config?: Record<string, unknown>; expectedRevision: number },
+  patch: UpdateResearchCellInput,
 ): Promise<ResearchDocumentV1 | null> {
   const cell = await prisma.researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },

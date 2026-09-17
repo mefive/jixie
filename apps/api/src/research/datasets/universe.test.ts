@@ -1,6 +1,7 @@
 import type { ResearchUniverseRowV1, UniverseSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { applyUniverseSpec } from './universe.js';
+import { applyUniverseSpec, executeUniverseSpec } from './universe.js';
+import { universeSpecV1Schema } from '../schema.js';
 
 const baseSpec: UniverseSpecV1 = {
   version: 1,
@@ -13,6 +14,18 @@ const baseSpec: UniverseSpecV1 = {
   select: [{ measure: 'equity.pe_ttm', measureVersion: 1 }],
   limit: 2,
 };
+
+describe('validated universe business rules', () => {
+  it.each([
+    { ...baseSpec, select: [{ measure: 'unknown.measure', measureVersion: 1 }] },
+    { ...baseSpec, select: [...baseSpec.select, ...baseSpec.select] },
+    { ...baseSpec, predicates: [{ ...baseSpec.predicates[0], value: '20' }] },
+  ])('rejects invalid semantics even after structural parsing', async (input) => {
+    const spec = universeSpecV1Schema.parse(input);
+
+    await expect(executeUniverseSpec(spec)).rejects.toThrow('Invalid universe spec:');
+  });
+});
 
 describe('applyUniverseSpec', () => {
   it('excludes missing predicates, sorts deterministically, and reports pre-limit total', () => {

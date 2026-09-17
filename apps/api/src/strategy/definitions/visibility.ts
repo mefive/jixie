@@ -1,5 +1,4 @@
-import { strategyVisibilitySchema, codeConfigSchema } from '../schema.js';
-import type { z } from 'zod';
+import { codeConfigSchema, type StrategyVisibilityInput } from '../schema.js';
 import { prisma } from '#infra/database/prisma.js';
 import { extractFactorKeys } from '../factor-inputs/references.js';
 import { t } from '#i18n/index.js';
@@ -9,7 +8,7 @@ import { failStrategyOperation } from '../errors.js';
 export async function setStrategyVisibility(
   userId: string,
   strategyId: string,
-  input: z.infer<typeof strategyVisibilitySchema>,
+  input: StrategyVisibilityInput,
   locale: Locale,
 ) {
   const strategy = await prisma.strategy.findFirst({

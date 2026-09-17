@@ -6,7 +6,7 @@ import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { ownedAnalysis } from './versions.js';
-import { embeddedRunSchema } from '../schema.js';
+import type { ResearchEmbeddedRunInput } from '../schema.js';
 import { ResearchEmbeddedError } from './errors.js';
 import { runSummaryView } from './views.js';
 
@@ -14,9 +14,8 @@ export async function submitEmbeddedRun(
   userId: string,
   analysisId: string,
   versionId: string,
-  raw: { requestId: string; expectedRevision: number },
+  input: ResearchEmbeddedRunInput,
 ) {
-  const input = embeddedRunSchema.parse(raw);
   const result = await prisma.$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const version = await transaction.researchEmbeddedAnalysisVersion.findFirst({

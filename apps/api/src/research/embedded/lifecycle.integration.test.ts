@@ -188,6 +188,57 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
+  it('validates and normalizes external creation input before creating records', async () => {
+    for (const invalid of [
+      { ...input, source: '' },
+      { ...input, source: 'x'.repeat(RESEARCH_EMBEDDED_LIMITS.sourceCharacters + 1) },
+      { ...input, parameters: { nested: {} } },
+      { ...input, unexpected: true },
+    ]) {
+      const response = await request('/embedded-analyses', 'POST', invalid);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
+    }
+    expect(await prisma.researchEmbeddedAnalysis.count()).toBe(0);
+    expect(await prisma.researchDocument.count()).toBe(0);
+
+    const response = await request('/embedded-analyses', 'POST', {
+      ...input,
+      title: '  Inspect sample  ',
+      inputScope: '  Three observations  ',
+    });
+    expect(response.status).toBe(201);
+    expect(await prisma.researchEmbeddedAnalysis.findFirstOrThrow()).toMatchObject({
+      title: input.title,
+    });
+    expect(await prisma.researchEmbeddedAnalysisVersion.findFirstOrThrow()).toMatchObject({
+      inputScope: input.inputScope,
+    });
+  });
+
+  it('validates inherited database drafts before allocating another version', async () => {
+    const created = await createEmbeddedAnalysis('owner', input);
+    await prisma.researchEmbeddedAnalysisVersion.update({
+      where: { id: created.version.id },
+      data: { parameters: { invalid: { nested: true } } },
+    });
+    const documentsBefore = await prisma.researchDocument.count();
+
+    await expect(
+      deriveEmbeddedVersion('owner', created.analysis.id, {
+        parentVersionId: created.version.id,
+      }),
+    ).rejects.toThrow();
+
+    expect(await prisma.researchEmbeddedAnalysisVersion.count()).toBe(1);
+    expect(await prisma.researchDocument.count()).toBe(documentsBefore);
+    expect(
+      await prisma.researchEmbeddedAnalysis.findUniqueOrThrow({
+        where: { id: created.analysis.id },
+      }),
+    ).toMatchObject({ nextVersion: 2 });
+  });
+
   it('snapshots before execution, deduplicates submission and blocks edits while queued', async () => {
     const { analysis, version, run } = await fixtureRun();
     expect(await getEmbeddedRun('owner', analysis.id, run.runId)).toMatchObject({

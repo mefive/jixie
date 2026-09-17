@@ -1,5 +1,4 @@
-import { factorVisibilitySchema } from '../schema.js';
-import type { z } from 'zod';
+import type { FactorVisibilityInput } from '../schema.js';
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
@@ -8,7 +7,7 @@ import { failFactorOperation } from '../errors.js';
 export async function setFactorVisibility(
   userId: string,
   factorId: string,
-  input: z.infer<typeof factorVisibilitySchema>,
+  input: FactorVisibilityInput,
   locale: Locale,
 ) {
   const visibility = input.visibility;
@@ -35,7 +34,7 @@ export async function setFactorVisibility(
 export async function setCompositeVisibility(
   userId: string,
   compositeId: string,
-  input: z.infer<typeof factorVisibilitySchema>,
+  input: FactorVisibilityInput,
   locale: Locale,
 ) {
   const visibility = input.visibility;

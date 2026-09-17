@@ -1,23 +1,19 @@
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { FactorReport, Locale } from '@jixie/shared';
-import type { z } from 'zod';
 import { failFactorOperation } from '../errors.js';
 import { readOwnedFactorJob } from '../jobs/read.js';
-import {
-  factorReportListQuerySchema,
-  factorResearchSummaryQuerySchema,
-  type factorJobLogsQuerySchema,
+import type {
+  FactorReportListQuery,
+  FactorJobLogsQuery,
+  FactorResearchSummaryQuery,
 } from '../schema.js';
 import { holdoutEligibility } from './holdout-policy.js';
 import { parseResearchPayload, reportSummary } from './report-views.js';
 import { reportResearchSpec } from './report-spec.js';
 import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './research-policy.js';
 
-export async function listFactorReports(
-  userId: string,
-  input: z.infer<typeof factorReportListQuerySchema>,
-) {
+export async function listFactorReports(userId: string, input: FactorReportListQuery) {
   const { factor, limit, cursor } = input;
   const cursorReport = cursor
     ? await prisma.factorReport.findFirst({
@@ -82,7 +78,7 @@ export async function readFactorReport(userId: string, reportId: string, locale:
 export async function readFactorAnalysisJob(
   userId: string,
   jobId: string,
-  input: z.infer<typeof factorJobLogsQuerySchema>,
+  input: FactorJobLogsQuery,
   locale: Locale,
 ) {
   const job = await readOwnedFactorJob(
@@ -119,10 +115,7 @@ export async function readFactorResearchWindow(locale: Locale) {
   return policy;
 }
 
-export async function readFactorResearchSummary(
-  userId: string,
-  input: z.infer<typeof factorResearchSummaryQuerySchema>,
-) {
+export async function readFactorResearchSummary(userId: string, input: FactorResearchSummaryQuery) {
   const { factor } = input;
   const rows = await prisma.factorReport.findMany({
     where: { userId },

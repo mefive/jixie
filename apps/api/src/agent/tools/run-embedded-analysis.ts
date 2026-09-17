@@ -7,7 +7,13 @@ import type {
   ResearchDataReferenceV1,
   ResearchEmbeddedRunV1,
 } from '@jixie/shared';
-import { embeddedDraftSchema } from '#research/schema.js';
+import {
+  embeddedDraftSchema,
+  embeddedCreateSchema,
+  embeddedDeriveSchema,
+  embeddedUpdateSchema,
+  embeddedRunSchema,
+} from '#research/schema.js';
 import {
   createEmbeddedAnalysis,
   deriveEmbeddedVersion,
@@ -93,34 +99,39 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
             ? await deriveEmbeddedVersion(
                 context.userId,
                 analysisId,
-                { parentVersionId: previous.id, draft },
+                embeddedDeriveSchema.parse({ parentVersionId: previous.id, draft }),
                 context.source,
               )
             : await updateEmbeddedVersion(
                 context.userId,
                 analysisId,
                 previous.id,
-                { ...draft, expectedRevision: previous.revision },
+                embeddedUpdateSchema.parse({ ...draft, expectedRevision: previous.revision }),
                 context.source,
               );
         } else {
           const created = await createEmbeddedAnalysis(
             context.userId,
-            {
+            embeddedCreateSchema.parse({
               ...draft,
               title: input.title,
               host: context.source.host,
-            },
+            }),
             context.source,
           );
           analysisId = created.analysis.id;
           version = created.version;
         }
         execution.signal?.throwIfAborted();
-        const submitted = await submitEmbeddedRun(context.userId, analysisId, version.id, {
-          requestId: ulid(),
-          expectedRevision: version.revision,
-        });
+        const submitted = await submitEmbeddedRun(
+          context.userId,
+          analysisId,
+          version.id,
+          embeddedRunSchema.parse({
+            requestId: ulid(),
+            expectedRevision: version.revision,
+          }),
+        );
         const part: EmbeddedAnalysisPart = {
           type: 'embedded_analysis',
           title: input.title,

@@ -3,26 +3,24 @@ import type {
   ResearchEmbeddedContextV1,
   ResearchEmbeddedDraftInputV1,
   ResearchEmbeddedHostV1,
-  ResearchEmbeddedParametersV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
 import { captureEmbeddedContext } from './context.js';
 import { ResearchEmbeddedError } from './errors.js';
 import {
-  embeddedCreateSchema,
   embeddedDraftSchema,
-  embeddedUpdateSchema,
-  embeddedDeriveSchema,
+  type ResearchEmbeddedCreateInput,
+  type ResearchEmbeddedDeriveInput,
+  type ResearchEmbeddedUpdateInput,
 } from '../schema.js';
 import { analysisView, versionView } from './views.js';
 
 export async function createEmbeddedAnalysis(
   userId: string,
-  raw: ResearchEmbeddedDraftInputV1 & { host: ResearchEmbeddedHostV1; title: string },
+  input: ResearchEmbeddedCreateInput,
   capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  const input = embeddedCreateSchema.parse(raw);
   return prisma.$transaction(async (transaction) => {
     const analysis = await transaction.researchEmbeddedAnalysis.create({
       data: {
@@ -48,10 +46,9 @@ export async function createEmbeddedAnalysis(
 export async function deriveEmbeddedVersion(
   userId: string,
   analysisId: string,
-  raw: { parentVersionId: string; draft?: ResearchEmbeddedDraftInputV1 },
+  input: ResearchEmbeddedDeriveInput,
   capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  const input = embeddedDeriveSchema.parse(raw);
   return prisma.$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const parent = await transaction.researchEmbeddedAnalysisVersion.findFirst({
@@ -63,11 +60,12 @@ export async function deriveEmbeddedVersion(
     const version = await createVersion(
       transaction,
       analysis,
-      input.draft ?? {
-        source: parent.source,
-        parameters: parent.parameters as ResearchEmbeddedParametersV1,
-        inputScope: parent.inputScope,
-      },
+      input.draft ??
+        embeddedDraftSchema.parse({
+          source: parent.source,
+          parameters: parent.parameters,
+          inputScope: parent.inputScope,
+        }),
       parent.id,
       input.draft ? undefined : parent.contextSnapshot,
       capturedContext,
@@ -80,10 +78,9 @@ export async function updateEmbeddedVersion(
   userId: string,
   analysisId: string,
   versionId: string,
-  raw: ResearchEmbeddedDraftInputV1 & { expectedRevision: number },
+  input: ResearchEmbeddedUpdateInput,
   capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  const input = embeddedUpdateSchema.parse(raw);
   return prisma.$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const version = await transaction.researchEmbeddedAnalysisVersion.findFirst({
@@ -155,17 +152,11 @@ export async function ownedAnalysis(
 async function createVersion(
   transaction: Prisma.TransactionClient,
   analysis: ResearchEmbeddedAnalysis,
-  raw: ResearchEmbeddedDraftInputV1,
+  input: ResearchEmbeddedDraftInputV1,
   parentVersionId?: string,
   inheritedContext?: Prisma.JsonValue,
   capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  const input = embeddedDraftSchema.parse({
-    source: raw.source,
-    parameters: raw.parameters,
-    inputScope: raw.inputScope,
-    reportId: raw.reportId,
-  });
   const context =
     inheritedContext ??
     (await captureEmbeddedContext(

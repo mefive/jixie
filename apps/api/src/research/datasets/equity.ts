@@ -8,6 +8,7 @@ import type {
 import { prisma } from '#infra/database/prisma.js';
 import { researchUniverseMeasures } from '../catalog/capabilities.js';
 import { executeUniverseSpec } from './universe.js';
+import { universeSpecV1Schema } from '../schema.js';
 
 const MAX_CROSS_SECTION_ROWS = 6_000;
 const MAX_PANEL_PERIODS = 120;
@@ -167,7 +168,9 @@ async function executeDatasetPeriod(
       measureVersion: 1 as const,
     })),
   };
-  const result = await executeUniverseSpec(spec, database, { defaultLimit: null });
+  const result = await executeUniverseSpec(universeSpecV1Schema.parse(spec), database, {
+    defaultLimit: null,
+  });
   return {
     requestedDate: date,
     result,

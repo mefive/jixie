@@ -370,7 +370,11 @@ describe('private durable Factor questions', () => {
     const release = pauseAnswer();
     const results = await Promise.allSettled(
       [1, 2].map(() =>
-        startFactorQuestion('owner', { factorKey: 'factor', message: 'Concurrent' }, 'en'),
+        startFactorQuestion(
+          'owner',
+          { factorKey: 'factor', message: 'Concurrent', dataReferences: [] },
+          'en',
+        ),
       ),
     );
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1);

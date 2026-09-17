@@ -1,3 +1,4 @@
+import type { ResearchEmbeddedInputModeInput } from '../schema.js';
 import type { Prisma } from '@prisma/client';
 import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
@@ -98,7 +99,7 @@ export async function continueEmbeddedResearch(
 export async function changeEmbeddedInputMode(
   userId: string,
   documentId: string,
-  input: { inputMode: 'retained' | 'current'; expectedRevision: number },
+  input: ResearchEmbeddedInputModeInput,
 ) {
   const owned = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null, conversation: { archivedAt: null } },

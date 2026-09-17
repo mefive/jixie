@@ -1,19 +1,18 @@
 import { ulid } from 'ulid';
-import type { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { factorRuntimeVersion, type Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_KEYS, BUILTIN_USER_ID } from './builtin-factors.js';
 import { validateFactorDefinition } from '../runtime/validate-definition.js';
 import { factorLanguage } from './views.js';
-import type { createFactorDraftSchema, updateFactorDraftSchema } from '../schema.js';
+import type { CreateFactorDraftInput, UpdateFactorDraftInput } from '../schema.js';
 import { nextCopyKey } from './copy-key.js';
 import { t } from '#i18n/index.js';
 import { failFactorOperation } from '../errors.js';
 
 export async function createFactorDraft(
   userId: string,
-  input: z.infer<typeof createFactorDraftSchema>,
+  input: CreateFactorDraftInput,
   locale: Locale,
 ) {
   const { key, name, code, analysisKind, language, messages } = input;
@@ -79,7 +78,7 @@ export async function createFactorDraft(
 export async function updateFactorDraft(
   userId: string,
   id: string,
-  input: z.infer<typeof updateFactorDraftSchema>,
+  input: UpdateFactorDraftInput,
   locale: Locale,
 ) {
   const { code, name, messages } = input;

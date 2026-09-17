@@ -29,6 +29,8 @@ export const codeConfigSchema = z.object({
   code: z.string().min(1).max(50_000),
 });
 
+export type StrategyCodeConfigInput = z.output<typeof codeConfigSchema>;
+
 // Definitions.
 export const createStrategySchema = codeConfigSchema.extend({
   name: z.string().min(1).max(100).optional(),
@@ -36,28 +38,44 @@ export const createStrategySchema = codeConfigSchema.extend({
   messages: chatMessagesSchema.optional(),
 });
 
+export type CreateStrategyInput = z.output<typeof createStrategySchema>;
+
 export const updateStrategySchema = z.object({
   config: codeConfigSchema.optional(),
   messages: chatMessagesSchema.optional(),
 });
 
+export type UpdateStrategyInput = z.output<typeof updateStrategySchema>;
+
 // Visibility.
 export const strategyVisibilitySchema = z.object({ visibility: z.enum(['private', 'public']) });
+
+export type StrategyVisibilityInput = z.output<typeof strategyVisibilitySchema>;
 
 // Backtests.
 export const backtestStrategyIdentitySchema = z.object({ strategyId: z.string().min(1) });
 
+export type StrategyBacktestIdentityQuery = z.output<typeof backtestStrategyIdentitySchema>;
+
 export const backtestJobQuerySchema = z.object({ since: z.string().regex(/^\d+$/).optional() });
+
+export type StrategyBacktestJobQuery = z.output<typeof backtestJobQuerySchema>;
 
 // Parameter scans.
 export const scanStrategyIdentitySchema = z.object({ strategyId: z.string().min(1) });
 
+export type StrategyScanIdentityQuery = z.output<typeof scanStrategyIdentitySchema>;
+
 export const scanJobQuerySchema = z.object({ since: z.string().regex(/^\d+$/).optional() });
+
+export type StrategyScanJobQuery = z.output<typeof scanJobQuerySchema>;
 
 export const strategyScanParametersSchema = z.object({
   code: z.string().min(1).max(50_000),
   language: z.enum(['typescript', 'python']).optional(),
 });
+
+export type StrategyScanParametersInput = z.output<typeof strategyScanParametersSchema>;
 
 const scanSpecSchema = z.object({
   dimensions: z
@@ -84,6 +102,8 @@ export const submitStrategyScanSchema = z.object({
   spec: scanSpecSchema,
 });
 
+export type SubmitStrategyScanInput = z.output<typeof submitStrategyScanSchema>;
+
 // Agent.
 export const strategyAgentInputSchema = z.object({
   id: z.string().min(1),
@@ -94,4 +114,10 @@ export const strategyAgentInputSchema = z.object({
   language: z.enum(['typescript', 'python']).optional(),
 });
 
+export type StrategyAgentInput = z.output<typeof strategyAgentInputSchema>;
+
 export const strategyAgentBodySchema = strategyAgentInputSchema.omit({ id: true });
+
+export const strategyAgentParamsSchema = z.object({
+  strategyId: strategyAgentInputSchema.shape.id,
+});

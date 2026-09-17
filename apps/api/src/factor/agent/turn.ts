@@ -1,9 +1,8 @@
-import { factorAgentInputSchema } from '../schema.js';
+import type { FactorAgentInput } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
 import { ulid } from 'ulid';
-import type { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { factorProfile } from '#agent/profiles/factor.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
@@ -15,10 +14,9 @@ import { failFactorOperation } from '../errors.js';
 
 export async function startFactorAgentTurn(
   userId: string,
-  rawInput: z.input<typeof factorAgentInputSchema>,
+  input: FactorAgentInput,
   locale: Locale,
 ) {
-  const input = factorAgentInputSchema.parse(rawInput);
   const { id, message, code } = input;
   const factor = await prisma.factor.findFirst({
     where: { id, userId },

@@ -1,4 +1,3 @@
-import type { z } from 'zod';
 import type {
   BacktestConfig,
   BacktestReportDetail,
@@ -9,13 +8,13 @@ import type {
 import { Prisma } from '@prisma/client';
 import { getJob, ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import type { backtestStrategyIdentitySchema, backtestJobQuerySchema } from '../schema.js';
+import type { StrategyBacktestIdentityQuery, StrategyBacktestJobQuery } from '../schema.js';
 import { t } from '#i18n/index.js';
 import { failStrategyOperation } from '../errors.js';
 
 export async function findActiveStrategyBacktestJob(
   userId: string,
-  query: z.infer<typeof backtestStrategyIdentitySchema>,
+  query: StrategyBacktestIdentityQuery,
 ) {
   const job = await prisma.job.findFirst({
     where: {
@@ -34,7 +33,7 @@ export async function findActiveStrategyBacktestJob(
 
 export async function listStrategyBacktestReports(
   userId: string,
-  query: z.infer<typeof backtestStrategyIdentitySchema>,
+  query: StrategyBacktestIdentityQuery,
 ) {
   const reports = await prisma.backtestReport.findMany({
     where: {
@@ -98,7 +97,7 @@ export async function readStrategyBacktestReport(userId: string, reportId: strin
 export async function readStrategyBacktestJob(
   userId: string,
   jobId: string,
-  query: z.infer<typeof backtestJobQuerySchema>,
+  query: StrategyBacktestJobQuery,
   locale: Locale,
 ) {
   const ownedJob = await prisma.job.findFirst({

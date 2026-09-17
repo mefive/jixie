@@ -1,12 +1,10 @@
+import type { SubmitSignalRunInput } from '../schema.js';
 import { settleStrategyAccounts } from '../accounting/settlement.js';
 import { enqueueSignalRun } from './enqueue.js';
 import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
 
 /** Resolve a manual signal date and settle accounts before enqueueing the requested deployment. */
-export async function submitSignalRun(
-  userId: string,
-  input: { deploymentId: string; tradeDate?: string },
-) {
+export async function submitSignalRun(userId: string, input: SubmitSignalRunInput) {
   const tradeDate = input.tradeDate ?? (await latestCompletedTradeDate());
   if (!tradeDate) {
     return { kind: 'invalid_date' as const };

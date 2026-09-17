@@ -40,3 +40,7 @@ export const submitSignalRunBodySchema = z.object({
     .regex(/^\d{8}$/)
     .optional(),
 });
+
+export type SubmitSignalRunInput = z.output<typeof submitSignalRunBodySchema> & {
+  deploymentId: string;
+};

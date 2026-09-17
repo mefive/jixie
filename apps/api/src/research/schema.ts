@@ -85,29 +85,41 @@ export const embeddedCreateSchema = embeddedDraftSchema.extend({
   title: z.string().trim().min(1).max(120),
 });
 
+export type ResearchEmbeddedCreateInput = z.output<typeof embeddedCreateSchema>;
+
 export const embeddedUpdateSchema = embeddedDraftSchema.extend({
   expectedRevision: z.number().int().positive(),
 });
+
+export type ResearchEmbeddedUpdateInput = z.output<typeof embeddedUpdateSchema>;
 
 export const embeddedDeriveSchema = z.strictObject({
   parentVersionId: z.string().min(1).max(128),
   draft: embeddedDraftSchema.optional(),
 });
 
+export type ResearchEmbeddedDeriveInput = z.output<typeof embeddedDeriveSchema>;
+
 export const embeddedRunSchema = z.strictObject({
   requestId: z.string().min(1).max(128),
   expectedRevision: z.number().int().positive(),
 });
+
+export type ResearchEmbeddedRunInput = z.output<typeof embeddedRunSchema>;
 
 export const embeddedPageSchema = z.strictObject({
   cursor: z.string().max(128).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });
 
+export type ResearchEmbeddedPageQuery = z.output<typeof embeddedPageSchema>;
+
 export const embeddedListSchema = embeddedPageSchema.extend({
   hostType: z.enum(['factor', 'strategy']),
   hostId: z.string().min(1).max(128),
 });
+
+export type ResearchEmbeddedListQuery = z.output<typeof embeddedListSchema>;
 
 // Embedded data references.
 export const embeddedDataReferencesSchema = z
@@ -155,6 +167,8 @@ export const curatorFindingUpdateSchema = z
     message: 'disposition or verificationAssessment is required',
   });
 
+export type ResearchCuratorFindingUpdateInput = z.output<typeof curatorFindingUpdateSchema>;
+
 // Documents and cells.
 export const documentListQuerySchema = z.strictObject({
   state: z.enum(['active', 'archived']).default('active'),
@@ -184,6 +198,8 @@ export const updateCellSchema = z
     expectedRevision: z.number().int().positive(),
   })
   .refine((value) => value.source !== undefined || value.config !== undefined);
+
+export type UpdateResearchCellInput = z.output<typeof updateCellSchema>;
 
 export const renameDocumentSchema = z.strictObject({ title: z.string().trim().min(1).max(120) });
 
@@ -252,6 +268,8 @@ export const researchAgentInputSchema = z
       });
     }
   });
+
+export type ResearchAgentTurnInput = z.output<typeof researchAgentInputSchema>;
 
 // Data catalog.
 export const dataCatalogQuerySchema = z.strictObject({
@@ -327,3 +345,5 @@ export const embeddedInputModeSchema = z.strictObject({
   inputMode: z.enum(['retained', 'current']),
   expectedRevision: z.number().int().positive(),
 });
+
+export type ResearchEmbeddedInputModeInput = z.output<typeof embeddedInputModeSchema>;

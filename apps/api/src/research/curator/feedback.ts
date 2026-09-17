@@ -1,9 +1,6 @@
+import type { ResearchCuratorFindingUpdateInput } from '../schema.js';
 import type { PrismaClient } from '@prisma/client';
-import type {
-  ResearchCuratorDispositionV1,
-  ResearchCuratorFindingV1,
-  ResearchCuratorVerificationAssessmentV1,
-} from '@jixie/shared';
+import type { ResearchCuratorDispositionV1, ResearchCuratorFindingV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { curatorFindingRecord } from './views.js';
 
@@ -35,11 +32,7 @@ export async function setResearchCuratorFindingDisposition(
 export async function updateResearchCuratorFindingFeedback(
   userId: string,
   findingId: string,
-  input: {
-    disposition?: Exclude<ResearchCuratorDispositionV1, 'pending'>;
-    note?: string;
-    verificationAssessment?: ResearchCuratorVerificationAssessmentV1;
-  },
+  input: ResearchCuratorFindingUpdateInput,
   database: PrismaClient = prisma,
 ): Promise<ResearchCuratorFindingV1 | null> {
   const existing = await database.researchCuratorFinding.findFirst({

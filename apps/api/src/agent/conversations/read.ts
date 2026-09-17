@@ -1,10 +1,11 @@
+import type { ConversationMessagesQuery } from '../schema.js';
 import type { ChatMessage } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 
 export async function listConversationMessages(
   userId: string,
   conversationId: string,
-  query: { before?: number; limit: number },
+  query: ConversationMessagesQuery,
 ) {
   const owner = await prisma.agentConversation.findFirst({
     where: { id: conversationId, userId: userId },

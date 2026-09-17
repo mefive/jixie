@@ -1,4 +1,3 @@
-import type { z } from 'zod';
 import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '#infra/database/prisma.js';
@@ -6,16 +5,12 @@ import { commitStrategyConfig } from './config.js';
 import { proposeStrategyName, uniqueStrategyName } from './naming.js';
 import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
 import { extractFactorKeys } from '../factor-inputs/references.js';
-import type { createStrategySchema, updateStrategySchema } from '../schema.js';
+import type { CreateStrategyInput, UpdateStrategyInput } from '../schema.js';
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 import { failStrategyOperation } from '../errors.js';
 
-export async function createStrategy(
-  userId: string,
-  input: z.infer<typeof createStrategySchema>,
-  locale: Locale,
-) {
+export async function createStrategy(userId: string, input: CreateStrategyInput, locale: Locale) {
   const { messages, prompt, ...candidate } = input;
   let proposedName = candidate.name;
 
@@ -54,7 +49,7 @@ export async function createStrategy(
 export async function updateStrategy(
   userId: string,
   id: string,
-  input: z.infer<typeof updateStrategySchema>,
+  input: UpdateStrategyInput,
   locale: Locale,
 ) {
   const { config, messages } = input;

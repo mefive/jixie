@@ -1,3 +1,4 @@
+import type { ResearchEmbeddedListQuery, ResearchEmbeddedPageQuery } from '../schema.js';
 import type {
   ResearchCellOutputBlockV1,
   ResearchEmbeddedContextV1,
@@ -11,7 +12,6 @@ import { analysisView, versionView, runSummaryView } from './views.js';
 import { ownedAnalysis } from './versions.js';
 import { ResearchEmbeddedError } from './errors.js';
 
-type Page = { cursor?: string; limit: number };
 function page<T extends { id: string }, View>(
   rows: T[],
   limit: number,
@@ -23,10 +23,7 @@ function page<T extends { id: string }, View>(
   };
 }
 
-export async function listEmbeddedAnalyses(
-  userId: string,
-  input: Page & { hostType: 'factor' | 'strategy'; hostId: string },
-) {
+export async function listEmbeddedAnalyses(userId: string, input: ResearchEmbeddedListQuery) {
   const rows = await prisma.researchEmbeddedAnalysis.findMany({
     where: {
       userId,
@@ -44,7 +41,11 @@ export async function getEmbeddedAnalysis(userId: string, analysisId: string) {
   return analysisView(await ownedAnalysis(prisma, userId, analysisId));
 }
 
-export async function listEmbeddedVersions(userId: string, analysisId: string, input: Page) {
+export async function listEmbeddedVersions(
+  userId: string,
+  analysisId: string,
+  input: ResearchEmbeddedPageQuery,
+) {
   await ownedAnalysis(prisma, userId, analysisId);
   const cursor = input.cursor
     ? await prisma.researchEmbeddedAnalysisVersion.findFirst({
@@ -73,7 +74,11 @@ export async function getEmbeddedVersion(userId: string, analysisId: string, ver
   return versionView(row);
 }
 
-export async function listEmbeddedRuns(userId: string, analysisId: string, input: Page) {
+export async function listEmbeddedRuns(
+  userId: string,
+  analysisId: string,
+  input: ResearchEmbeddedPageQuery,
+) {
   await ownedAnalysis(prisma, userId, analysisId);
   const rows = await prisma.researchExecution.findMany({
     where: {

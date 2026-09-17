@@ -37,6 +37,8 @@ export const conversationMessagesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(40),
 });
 
+export type ConversationMessagesQuery = z.output<typeof conversationMessagesQuerySchema>;
+
 // Turns.
 export const activeTurnQuerySchema = z.object({
   // Accept the historical Screen prefix for old clients; no current page creates Screen turns.

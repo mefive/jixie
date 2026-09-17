@@ -1,8 +1,7 @@
-import { strategyAgentInputSchema } from '../schema.js';
+import type { StrategyAgentInput } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
-import type { z } from 'zod';
 import { prisma } from '#infra/database/prisma.js';
 import { ulid } from 'ulid';
 import { strategyProfile } from '#agent/profiles/strategy.js';
@@ -15,10 +14,9 @@ import { failStrategyOperation } from '../errors.js';
 
 export async function startStrategyAgentTurn(
   userId: string,
-  rawInput: z.input<typeof strategyAgentInputSchema>,
+  input: StrategyAgentInput,
   locale: Locale,
 ) {
-  const input = strategyAgentInputSchema.parse(rawInput);
   const { id, message, code, language = 'typescript' } = input;
   const strategy = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
 

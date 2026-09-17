@@ -8,7 +8,7 @@ import type {
 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { researchUniverseMeasureById } from '../catalog/capabilities.js';
-import { parseUniverseSpec } from './spec.js';
+import { validateUniverseSpec } from './spec.js';
 
 type UniverseValueRow = ResearchUniverseRowV1 & { values: Record<string, number | null> };
 
@@ -20,11 +20,11 @@ export interface ExecuteUniverseSpecOptions {
 
 /** Execute one validated point-in-time equity universe without accepting SQL from the caller. */
 export async function executeUniverseSpec(
-  input: unknown,
+  spec: UniverseSpecV1,
   database: PrismaClient = prisma,
   options: ExecuteUniverseSpecOptions = {},
 ): Promise<ResearchUniverseRunResultV1> {
-  const spec = parseUniverseSpec(input);
+  validateUniverseSpec(spec);
   if (spec.asOf.kind === 'periodic') {
     throw new Error('Universe snapshot execution requires fixed or latest_available asOf');
   }

@@ -1,6 +1,5 @@
-import { createFactorWeatherPinSchema } from '../schema.js';
+import type { CreateFactorWeatherPinInput } from '../schema.js';
 import { ulid } from 'ulid';
-import type { z } from 'zod';
 import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
@@ -53,7 +52,7 @@ export async function listFactorWeatherPins(userId: string, locale: Locale) {
 
 export async function createFactorWeatherPin(
   userId: string,
-  input: z.infer<typeof createFactorWeatherPinSchema>,
+  input: CreateFactorWeatherPinInput,
   locale: Locale,
 ) {
   const { factorId, direction: requestedDirection } = input;

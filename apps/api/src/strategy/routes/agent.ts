@@ -1,8 +1,8 @@
 import { ResearchEmbeddedError } from '#research/embedded/errors.js';
 import { Hono } from 'hono';
-import { apiError, validateJson } from '#infra/http/errors.js';
+import { apiError, validateJson, validateParam } from '#infra/http/errors.js';
 import { localeFromRequest, m } from '#infra/http/locale.js';
-import { strategyAgentBodySchema } from '../schema.js';
+import { strategyAgentBodySchema, strategyAgentParamsSchema } from '../schema.js';
 import { startStrategyAgentTurn } from '../agent/turn.js';
 import { strategyOperationApiError } from './errors.js';
 
@@ -11,12 +11,13 @@ export const strategyAgentRoute = new Hono();
 strategyAgentRoute.post(
   '/:strategyId/agent/turns',
   validateJson(strategyAgentBodySchema),
+  validateParam(strategyAgentParamsSchema),
   async (c) => {
     try {
       return c.json(
         await startStrategyAgentTurn(
           c.var.userId,
-          { ...c.req.valid('json'), id: c.req.param('strategyId') },
+          { ...c.req.valid('json'), id: c.req.valid('param').strategyId },
           localeFromRequest(c),
         ),
       );

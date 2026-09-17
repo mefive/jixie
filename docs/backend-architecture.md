@@ -71,6 +71,21 @@ HTTP 对象、LLM 调用或业务执行代码，也不作为业务实现的汇�
 新增或修改业务 API 入参时，先查所属业务的 `schema.ts`；不在路由中重复定义规则，不新增仅转导出的兼容文件。
 本次整理的 review 与验证状态见 [开发记录](design/api-input-schemas.md)。
 
+导出的业务函数使用具名对象参数类型。若参数对应现有 schema，类型紧邻该 schema 声明并由它推导，
+消费方用 `import type` 引用；需要运行时校验的消费方同时保留 schema 的值导入。HTTP、Agent 工具和 SDK
+适配负责解析外部参数，业务操作接收 `z.output`（与 `z.infer` 等价），保留权限、状态和业务语义检查。
+例如 `StrategyAgentInput.dataReferences` 已由路由补齐为数组，`FactorCorrelationQuery.keys` 已转换为数组。
+确有解析前参数消费者时才使用 `z.input`，未知数据解码器可接收 `unknown`；`Input` 表示业务参数，
+不承诺它一定是解析前的类型。仅在两种类型都有显式消费者时分别命名。
+
+不要因目录属于业务层就删除运行时校验：数据库 JSON、Job/Worker 消息、SDK 参数和 LLM 输出各自构成
+读取边界。Factor execution 的历史配置规范化仍承担解码、兼容和默认值职责；Research 股票池 executor
+接收共享规格，由 `datasets/spec.ts` 检查业务语义；嵌入式分析继承数据库中的 parent draft 时仍需解析。
+
+已有 shared 契约、具有独立语义的业务类型和拆成标量的参数继续保留；局部推导、协议、Job 与工具类型仍归
+所属实现。不要为了统一外观重复 shared 类型、创建集中式 `types.ts`，或为只有路由校验消费者的 schema
+额外导出类型。具名类型整理的范围与验证记录见 [业务输入类型](design/api-input-types.md)。
+
 ## 启动、装配和运行资源
 
 ```mermaid

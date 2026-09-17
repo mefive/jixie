@@ -1,9 +1,8 @@
-import { factorQuestionSchema, factorQuestionHistorySchema } from '../schema.js';
+import type { FactorQuestionHistoryQuery, FactorQuestionInput } from '../schema.js';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
 import { ulid } from 'ulid';
-import type { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import type {
   ChatMessage,
@@ -53,7 +52,7 @@ function questionMessage(row: MessageRow): ChatMessage {
 export async function readFactorQuestions(
   userId: string,
   factorKey: string,
-  query: z.infer<typeof factorQuestionHistorySchema>,
+  query: FactorQuestionHistoryQuery,
   locale: Locale,
 ): Promise<FactorQuestionHistoryV1> {
   return prisma.$transaction(async (database) => {
@@ -86,10 +85,9 @@ export async function readFactorQuestions(
 
 export async function startFactorQuestion(
   userId: string,
-  raw: z.input<typeof factorQuestionSchema>,
+  input: FactorQuestionInput,
   locale: Locale,
 ): Promise<FactorQuestionTurnV1> {
-  const input = factorQuestionSchema.parse(raw);
   const turnId = ulid();
   const model = getDeepSeekAgentModel();
   const prepared = await prisma.$transaction(async (database) => {

@@ -14,6 +14,8 @@ Factor / Strategy Agent 在宿主页面发起独立 Python 分析；此能力拥
 
 ## 运行、冻结和留存
 
+HTTP 路由与 Agent 工具在调用创建、派生、更新和提交入口前解析完整参数，业务函数接收 schema 的输出类型，负责归属、修订、冻结与运行互斥检查。工具从模型字段与宿主上下文组合参数后仍须校验；派生时若继承 parent 的数据库 JSON，则在该读取分支解析 draft，避免损坏存储进入新版本。
+
 version + requestId 唯一，同一请求可重取；重取比较该次运行冻结的 contentRevision 与 expectedRevision，新提交才核对当前版本 revision。activeRunId 条件更新限制分析同时运行，排队即有 runId。提交后才写日志和唤醒队列。
 
 [execute.ts](execute.ts) 的 `executeEmbeddedRun` 每次关闭旧解释器，独立 30 秒预算覆盖运行准备、取数和 Python，排队及最终提交另计。超时／取消关闭会话并丢弃迟到结果；已发出的数据库查询不保证立即终止。source 限 20,000 字符，parameters JSON 限 16 KiB；参数显式传入，不依赖旧会话变量。

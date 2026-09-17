@@ -7,17 +7,13 @@ import type {
   Locale,
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import type { z } from 'zod';
 import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import type { scanStrategyIdentitySchema, scanJobQuerySchema } from '../schema.js';
+import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '../schema.js';
 import { t } from '#i18n/index.js';
 import { failStrategyOperation } from '../errors.js';
 
-export async function listStrategyScanReports(
-  userId: string,
-  query: z.infer<typeof scanStrategyIdentitySchema>,
-) {
+export async function listStrategyScanReports(userId: string, query: StrategyScanIdentityQuery) {
   const rows = await prisma.strategyScanReport.findMany({
     where: { userId: userId, strategyId: query.strategyId },
     orderBy: { createdAt: 'desc' },
@@ -27,10 +23,7 @@ export async function listStrategyScanReports(
   return rows.map(scanReportSummary);
 }
 
-export async function findActiveStrategyScanJob(
-  userId: string,
-  query: z.infer<typeof scanStrategyIdentitySchema>,
-) {
+export async function findActiveStrategyScanJob(userId: string, query: StrategyScanIdentityQuery) {
   const row = await prisma.strategyScanReport.findFirst({
     where: {
       userId: userId,
@@ -48,7 +41,7 @@ export async function findActiveStrategyScanJob(
 export async function readStrategyScanJob(
   userId: string,
   jobId: string,
-  query: z.infer<typeof scanJobQuerySchema>,
+  query: StrategyScanJobQuery,
   locale: Locale,
 ) {
   const ownedJob = await prisma.job.findFirst({

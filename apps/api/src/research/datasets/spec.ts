@@ -1,9 +1,7 @@
-import { universeSpecV1Schema } from '../schema.js';
 import type { UniverseSpecV1 } from '@jixie/shared';
 import { researchUniverseMeasureById } from '../catalog/capabilities.js';
 
-export function parseUniverseSpec(input: unknown): UniverseSpecV1 {
-  const spec = universeSpecV1Schema.parse(input);
+export function validateUniverseSpec(spec: UniverseSpecV1): void {
   const referenced = [
     ...spec.predicates.map((predicate) => predicate.measure),
     ...spec.select.map((measure) => measure.measure),
@@ -25,5 +23,4 @@ export function parseUniverseSpec(input: unknown): UniverseSpecV1 {
   if (spec.predicates.some((predicate) => typeof predicate.value !== 'number')) {
     throw new Error('Invalid universe spec: V1 universe measures require numeric predicate values');
   }
-  return spec;
 }

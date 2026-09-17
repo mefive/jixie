@@ -1,9 +1,8 @@
-import {
-  factorCorrelationQuerySchema,
-  submitFactorCorrelationSchema,
-  type factorJobLogsQuerySchema,
+import type {
+  FactorCorrelationQuery,
+  SubmitFactorCorrelationInput,
+  FactorJobLogsQuery,
 } from '../schema.js';
-import type { z } from 'zod';
 import type { FactorCorrelation, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { BUILTIN_KEYS } from '../definitions/builtin-factors.js';
@@ -49,7 +48,7 @@ async function resolveCorrelationKeys(
 
 export async function readFactorCorrelation(
   userId: string,
-  input: z.infer<typeof factorCorrelationQuerySchema>,
+  input: FactorCorrelationQuery,
   locale: Locale,
 ) {
   const { keys, freq, start, end } = input;
@@ -72,7 +71,7 @@ export async function readFactorCorrelation(
 
 export async function findActiveFactorCorrelationJob(
   userId: string,
-  input: z.infer<typeof factorCorrelationQuerySchema>,
+  input: FactorCorrelationQuery,
 ) {
   const { keys, freq, start, end } = input;
   const resolved = await resolveCorrelationKeys(userId, keys);
@@ -91,7 +90,7 @@ export async function findActiveFactorCorrelationJob(
 
 export async function submitFactorCorrelation(
   userId: string,
-  input: z.infer<typeof submitFactorCorrelationSchema>,
+  input: SubmitFactorCorrelationInput,
   locale: Locale,
 ) {
   const { keys, freq, start, end, refresh } = input;
@@ -146,7 +145,7 @@ export async function submitFactorCorrelation(
 export async function readFactorCorrelationJob(
   userId: string,
   jobId: string,
-  input: z.infer<typeof factorJobLogsQuerySchema>,
+  input: FactorJobLogsQuery,
   locale: Locale,
 ) {
   const job = await readOwnedFactorJob(

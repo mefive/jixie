@@ -1,5 +1,4 @@
-import { submitFactorAnalysisSchema } from '../schema.js';
-import type { z } from 'zod';
+import type { SubmitFactorAnalysisInput } from '../schema.js';
 import type { FactorReportSummary, FactorResearchSpecV1, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { normalizeFactorResearchSpec } from '../execution/spec.js';
@@ -23,7 +22,7 @@ import { failFactorOperation } from '../errors.js';
 
 export async function submitFactorAnalysis(
   userId: string,
-  input: z.infer<typeof submitFactorAnalysisSchema>,
+  input: SubmitFactorAnalysisInput,
   locale: Locale,
 ) {
   const { factor, parentReportId, researchIntent } = input;

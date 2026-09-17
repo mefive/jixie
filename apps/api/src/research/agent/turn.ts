@@ -1,5 +1,6 @@
+import type { ResearchAgentTurnInput } from '../schema.js';
 import { ulid } from 'ulid';
-import type { Locale, MessagePart, ResearchClarificationSelectionV1 } from '@jixie/shared';
+import type { Locale, MessagePart } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { researchProfile } from '#agent/profiles/research.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
@@ -14,17 +15,6 @@ import { researchAgentDocumentContext } from './context.js';
 import { resolveResearchClarificationAnswer } from '../proposals/clarification-records.js';
 import { researchClarificationAnswerMessage } from '../proposals/clarification-message.js';
 import { researchAgentCellChangeAttemptContext } from '../proposals/attempt-context.js';
-
-export interface ResearchAgentTurnInput {
-  conversationId?: string;
-  message?: string;
-  contextCellIds: string[];
-  attemptId?: string;
-  clarificationAnswer?: {
-    clarificationId: string;
-    selections: ResearchClarificationSelectionV1[];
-  };
-}
 
 export class ResearchAgentTurnError extends Error {
   constructor(
