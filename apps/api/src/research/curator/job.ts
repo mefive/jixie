@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineJob } from '#infra/jobs/definition.js';
-import { prepareResearchCuratorRun } from './runs.js';
+import { prepareResearchCuratorRun } from './prepare.js';
 
 const payloadSchema = z.strictObject({ runId: z.string().min(1) });
 

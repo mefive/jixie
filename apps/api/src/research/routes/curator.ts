@@ -3,11 +3,8 @@ import { Hono } from 'hono';
 import { apiError, validateJson } from '#infra/http/errors.js';
 import { m } from '#infra/http/locale.js';
 import { curatorFindingUpdateSchema } from '../schema.js';
-import {
-  getLatestResearchCuratorRun,
-  getResearchCuratorRun,
-  updateResearchCuratorFindingFeedback,
-} from '../curator/runs.js';
+import { getLatestResearchCuratorRun, getResearchCuratorRun } from '../curator/read.js';
+import { updateResearchCuratorFindingFeedback } from '../curator/feedback.js';
 
 export const researchCuratorRoute = new Hono();
 

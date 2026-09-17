@@ -31,14 +31,14 @@ vi.mock('#strategy/definitions/config.js', () => ({
 vi.mock('#strategy/definitions/naming.js', () => ({
   refreshStrategyName: execution.rename,
 }));
-vi.mock('#research/curator/runs.js', () => ({ prepareResearchCuratorRun: execution.curator }));
+vi.mock('#research/curator/prepare.js', () => ({ prepareResearchCuratorRun: execution.curator }));
 vi.mock('#signals/runs/notifier.js', () => ({ notifySignalRun: execution.notify }));
 vi.mock('#signals/accounting/initialize.js', () => ({
   initializeSignalAccounting: execution.accounting,
 }));
 
 import { prisma } from '#infra/database/prisma.js';
-import type { PreparedResearchCuratorRun } from '#research/curator/runs.js';
+import type { PreparedResearchCuratorRun } from '#research/curator/prepare.js';
 import { migrateLegacyFactorJobs } from '../scripts/migrations/split-factor-job-kinds.js';
 import { jobRegistry } from '../src/bootstrap.js';
 import { createJobExecutor } from '#infra/jobs/executor.js';

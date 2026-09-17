@@ -2,7 +2,7 @@ import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
 import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { getResearchCuratorRun } from './runs.js';
+import { getResearchCuratorRun } from './read.js';
 
 export async function submitResearchCuratorRun(userId: string) {
   const active = await prisma.researchCuratorRun.findFirst({

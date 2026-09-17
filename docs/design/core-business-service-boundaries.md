@@ -3,7 +3,7 @@
 ## 状态与范围
 
 - 基线：`6e6aa446`（`refactor(market): align data domains and consumer boundaries`）。开始审查时工作区干净。
-- 当前阶段：2026-09-16，五个模块的整体边界审查与计划已获批准，**C1 文档查询归属已通过人工 review、行为验证及构建，随本提交交付**。C2–C6 尚未实施；不推送。
+- 当前阶段：2026-09-17，五个模块的整体边界审查与计划已获批准。C1 已提交 `62f17b47`；**C2 Curator 职责拆分已通过人工 review、行为验证及干净构建，随本提交交付**。C3–C6 尚未实施；不推送。
 - 已完整阅读根 `CLAUDE.md`、review-gated-development 工作流，并阅读五个模块 README、[架构地图](../backend-architecture.md)、[边界规则](../backend-boundaries.md)、[运行入口](../backend-runtime-entries.md)及[上一轮整理计划](core-business-internal-structure.md)。本轮不涉及 Web/Docs 前端实现。
 - 交付对象是后端维护者；不新增用户能力、HTTP/SDK 方法、表或迁移，不改变权限、数据语义、事务、执行顺序及资源释放。
 - 已确认 **6 个实现 commit**，准确标题见 §4。本文随 Commit 1 提交，不额外安排计划文档 commit。每个 commit 的说明、测试和开发记录一起交付。
@@ -30,7 +30,7 @@
 
 ### E1：Research 列表放在文档操作文件中
 
-证据：[document-operations.ts](../../apps/api/src/research/documents/document-operations.ts) 的 `listResearchDocuments` 只查询会话、Cell 状态和末条消息，再用 `messagePreview` 形成摘要。唯一生产调用方是 `routes/document.ts` 的文档列表。它不创建文档、不关闭会话，也不执行归档。
+基线证据：原 `documents/document-operations.ts` 的 `listResearchDocuments` 只查询会话、Cell 状态和末条消息，再用 `messagePreview` 形成摘要。唯一生产调用方是 `routes/document.ts` 的文档列表。它不创建文档、不关闭会话，也不执行归档。C1 已将实现迁入 [read.ts](../../apps/api/src/research/documents/read.ts)。
 
 将这两个函数放入现有 `documents/read.ts`，列表与详情的查询条件/映射有同一阅读入口；`document-operations.ts` 保留创建、归档、恢复、重命名、删除。这里无需新增一层 query service。
 
@@ -38,7 +38,7 @@
 
 ### E2：Curator 的执行、查询和人工反馈混居
 
-证据：[curator/runs.ts](../../apps/api/src/research/curator/runs.ts) 中：
+基线证据：原 `curator/runs.ts`（C2 拆为 [prepare.ts](../../apps/api/src/research/curator/prepare.ts)、[read.ts](../../apps/api/src/research/curator/read.ts)、[feedback.ts](../../apps/api/src/research/curator/feedback.ts) 与 [views.ts](../../apps/api/src/research/curator/views.ts)）中：
 
 - `prepareResearchCuratorRun` 被 `curator/job.ts` 调用，标记运行、提取证据、调用 LLM、检索仓库、核对能力/供应商探测并生成候选。`extractResearchCuratorEvidence`、`summarizeEvidence*`、`verifyDraft` 属于这条链。
 - `getLatestResearchCuratorRun` / `getResearchCuratorRun` 被 HTTP 和 `curator/submit.ts` 调用，只读取结果并附加 `researchCuratorQuality`。
@@ -92,7 +92,7 @@
 
 ## 3. 改前 / 改后与内部接口
 
-以下路径均相对 `apps/api/src`；“新增”是拟议目标，尚未创建。没有兼容转发文件或总 barrel，测试/脚本中的直接引用一起更新。
+以下路径均相对 `apps/api/src`；改前归属以审查基线为准，新增目标的实施状态见 §7。没有兼容转发文件或总 barrel，测试/脚本中的直接引用一起更新。
 
 | 当前归属 | 计划归属 | 函数与调用关系 |
 | --- | --- | --- |
@@ -225,9 +225,11 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 | 计划讨论 / Gate 1 批准 | 2026-09-16 用户确认 |
 | C1 产品实现 | 列表与摘要迁至 read；路由、查询测试、README 已同步；补充列表不补建旧会话的集成断言 |
 | C1 静态检查 / 人工 review | 静态检查通过；2026-09-16 用户确认代码 review |
-| C1 行为验证 / 提交 | 4 个测试文件、67 项通过；API 构建通过，随本提交交付 |
-| C2–C6 | 尚未实施 |
-| 本次交付 | C1 实现、测试、README 与本文；不推送 |
+| C1 行为验证 / 提交 | 4 个测试文件、67 项通过；API 构建通过；已提交 `62f17b47` |
+| C2 产品实现 / 静态检查 | prepare/read/feedback/views、调用方和测试已归位；静态检查通过 |
+| C2 人工 review / 行为验证 / 提交 | 2026-09-17 用户确认代码 review；4 文件、90 项回归及源码/编译入口通过，随本提交交付 |
+| C3–C6 | 尚未实施 |
+| 当前工作区变化 | C2 实现、测试、README 与本文；不推送 |
 
 每个获准提交完成后在此记录人工 review、静态检查、实际测试/运行条件、限制与 commit hash；历史测试结果不能填入本轮结果。
 
@@ -242,4 +244,20 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 补充静态核对：以 AST 提取原 operations/read 两文件的 11 个函数并对比基线，函数源码全部一致；只是文件位置和导入改变。未改公开 API、schema、SDK、事务、Python 会话或资源路径。
 - 人工 review 通过后执行：documents 的 read/operations 单元测试与 Research routes 集成测试，3 文件、50 项通过；embedded lifecycle 实际运行完整文件，17 项全部通过（包含约定的 owner-scoped APIs 场景）。共 4 文件、67 项通过，`pnpm --filter api build` 通过。
 - 使用现有临时 SQLite 与受控运行时替身，未调用真实 LLM/供应商或启动 HTTP/Python 服务。测试进程与构建正常退出，数据库连接由 afterAll 断开；核对两类临时目录均无新增残留。
-- 验证后未修改产品代码或测试；按已确认标题提交，不推送。
+- 验证后未修改产品代码或测试；已按确认标题提交 `62f17b47`，未推送。
+
+### C2：Curator 执行、查询与人工反馈（2026-09-17，验收通过）
+
+提交标题：`refactor(research): separate curator preparation and feedback`。
+
+- `curator/runs.ts` 拆为四个具名入口并删除原文件：prepare 保留证据提取、LLM 摘要与候选核验的完整流程；read 保留两种 Run 查询与质量统计；feedback 保留人工处置/核验评价；views 只做纯记录映射，全部 import 为类型导入。
+- job → prepare，submit/GET → read，PATCH → feedback；read/feedback → views，不再导入 LLM 或检索实现。Job 的 parse/execute/complete/fail/recover 与提交事务本身不变，候选生成仍位于完成事务之外，完成事务仍查重并发布 findings、更新 Run/Job。
+- 保留 `runs.test.ts` 作为跨 Curator 流程集成测试，直接导入新职责入口；生命周期测试替身改为拦截 prepare。没有为四个实现文件机械新增四份测试。
+- Research HTTP 集成测试增加查询/反馈连通场景，覆盖空 latest、owner 隔离、旧 verification 字段回退、独立处置/核验评价及质量统计；仓库检索测试增加 finally 清理临时目录，原断言保留。
+- 静态检查通过：变更 TS 文件 Prettier、ESLint、全仓 `pnpm typecheck`（含三个生成契约检查）；后端边界为 707 个文件、2,688 条运行时边、634 条类型边、0 违规、0 跨域循环组。旧实现 import 与 mock 引用均已移除，`git diff --check` 通过。
+- AST 核对原 runs 文件的全部 27 个函数/类型/常量声明，除两个映射函数新增具名 export 外，源码保持一致；无公共 API、schema、LLM 提示、核验规则或执行顺序变化。
+- 人工 review 后运行 Curator runs/reference-search、Research routes、Job 生命周期回归：4 文件、90 项全部通过（8 + 1 + 44 + 37），覆盖创建/完成事务回滚、批内及并发查重、失败与恢复。未修改产品代码或仓内测试。
+- 使用全新输出目录完成 API `tsc` 构建，保留 API package imports 和依赖解析；确认无旧 `curator/runs.js` 残留。源码启用 development 条件，编译入口不启用；均从 API cwd 实际调用 submit → claim → executor → Curator Job，并验证完成后的反馈/读取、失败/恢复及默认仓库检索。每种入口接收两次受控 LLM 响应，无真实网络请求。
+- 运行入口 harness 首次缺少空 SQLite 文件，Prisma 在迁移前报 schema engine error；按现有 fixture 方式先创建文件后两种入口均通过，不改变产品实现或弱化断言。
+- 测试和 harness 正常退出、断开 Prisma；核对临时数据库无打开句柄，各类测试 fixture 目录无新增残留，随后删除本次临时数据库、干净构建和 harness 目录。未启动 HTTP/Python 服务，未调用真实模型、行情或邮件。
+- 按已确认标题提交，不推送；本段均为 C2 实测结果，不沿用 C1 的 67 项结果。

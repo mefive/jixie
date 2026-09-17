@@ -29,7 +29,8 @@ Research 是带 Markdown / Python Cell 的研究文档。HTTP 路由和 Agent �
 | 文档模板与 FCFF 案例 | `templates/document-templates.ts`、`templates/fcff/` | 模板选择、透明 Cell 源代码、分类证据与回放案例 |
 | 冻结研究 → Factor / Strategy | `handoff/factor-drafts.ts`、`strategy-drafts.ts`、`factor-handoff.ts`、`strategy-handoff.ts`、`context.ts` | 草稿生成、准入校验与来源关联 |
 | Research Agent 启动 | `agent/turn.ts`、`agent/context.ts` | 检查会话/澄清/尝试状态，构造上下文和工具，再交给共享 Agent 执行器 |
-| 研究整理（Curator） | `curator/submit.ts`、`runs.ts`、`reference-search.ts`，`curator/job.ts` | 提交与查询、证据整理/反馈；具名 Job 定义完成、失败与恢复 |
+| 研究整理（Curator）的提交与执行 | `curator/submit.ts`、`prepare.ts`、`reference-search.ts`、`job.ts` | submit 原子创建 Run/Job；prepare 在完成事务外提取证据、调用 LLM 和核验候选；job 负责事务内查重/发布、失败与恢复 |
+| Curator 查询与人工反馈 | `curator/read.ts`、`feedback.ts`、`views.ts` | read 查询 Run/结果和质量统计，feedback 写人工处置/核验评价；两者共用纯记录映射，不依赖候选生成或 LLM |
 
 Research 的总路由入口、具体 HTTP 实现及专属测试放在 `routes/`，模块整体接口测试位于 `routes/index.integration.test.ts`。`routes/index.ts` 只组合九组具名路由；API 入参、股票池与嵌入式分析配置 schema 集中在 `schema.ts`，路由引用并执行校验。SDK 协议与字段校验仍在 `sdk/`；共用执行/审阅错误映射放在 `routes/errors.ts`，业务操作由各具名入口承担。
 
@@ -55,7 +56,10 @@ proposals/cell-changes（应用 → 人工接受）
 HTTP /agent/turns → agent/turn.ts → agent/context.ts + proposals（澄清/尝试上下文）
   → agent/profiles + agent/tools → agent/turns/run（共享对话执行与事件）
 HTTP /curator/runs → curator/submit → 创建 CuratorRun + Job 的同一事务
-  → 日志初始化、唤醒队列 → curator-job → curator/runs
+  → 日志初始化、唤醒队列 → curator/job → curator/prepare（仅生成候选）
+      → job.complete（同一完成事务内查重、发布 findings、更新 Run/Job）
+HTTP Curator 查询 / submit 返回值 → curator/read → curator/views
+HTTP Curator 人工反馈 → curator/feedback → curator/views
 HTTP 数据检索 / Agent catalog 工具 → catalog → datasets / 市场业务
 HTTP /language/python → language/pyright-service → document + stubs
 HTTP 草稿交接 → handoff → 已冻结 evidence + Factor / Strategy

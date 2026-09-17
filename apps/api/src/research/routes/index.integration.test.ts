@@ -743,6 +743,88 @@ describe('Research HTTP business boundaries', () => {
     expect(resources.wake).toHaveBeenCalledOnce();
   });
 
+  it('scopes Curator reads and feedback by owner and shares the persisted finding view', async () => {
+    expect(
+      await (await request('/curator/runs/latest', undefined, 'owner', 'GET')).json(),
+    ).toBeNull();
+    await prisma.researchCuratorRun.create({
+      data: {
+        id: 'curator-run',
+        userId: 'owner',
+        cursorTo: new Date('2026-09-01T00:00:00Z'),
+        status: 'done',
+        evidenceCount: 1,
+        findingsCreated: 1,
+        findings: {
+          create: {
+            id: 'curator-finding',
+            userId: 'owner',
+            category: 'documentation_gap',
+            title: 'Explain adjusted close',
+            summary: 'Clarify the research input.',
+            evidence: [],
+            verification: {},
+            confidence: 0.8,
+            expectedValue: 'Reduce repeated questions.',
+            changeSurface: ['help'],
+            suggestedAction: 'Review a concept article.',
+            fingerprint: 'fixture-finding',
+          },
+        },
+      },
+    });
+    expect(
+      await (await request('/curator/runs/latest', undefined, 'other', 'GET')).json(),
+    ).toBeNull();
+    expect((await request('/curator/runs/curator-run', undefined, 'other', 'GET')).status).toBe(
+      404,
+    );
+    expect(
+      await (await request('/curator/runs/latest', undefined, 'owner', 'GET')).json(),
+    ).toMatchObject({
+      id: 'curator-run',
+      status: 'done',
+      findings: [
+        {
+          id: 'curator-finding',
+          disposition: 'pending',
+          verification: { status: 'unverified', matches: [], notes: [], evidence: [] },
+        },
+      ],
+    });
+
+    const feedbackPath = '/curator/findings/curator-finding';
+    const assessment = { verificationAssessment: 'correct' };
+    expect((await request(feedbackPath, assessment, 'other', 'PATCH')).status).toBe(404);
+    const assessed = await request(feedbackPath, assessment, 'owner', 'PATCH');
+    expect(assessed.status).toBe(200);
+    expect(await assessed.json()).toMatchObject({
+      disposition: 'pending',
+      verificationAssessment: 'correct',
+    });
+    const accepted = await request(
+      feedbackPath,
+      { disposition: 'accepted', note: 'Plan this.' },
+      'owner',
+      'PATCH',
+    );
+    expect(accepted.status).toBe(200);
+    const finding = await accepted.json();
+    expect(finding).toMatchObject({
+      disposition: 'accepted',
+      dispositionNote: 'Plan this.',
+      verificationAssessment: 'correct',
+    });
+    const result = await request('/curator/runs/curator-run', undefined, 'owner', 'GET');
+    expect(result.status).toBe(200);
+    expect(await result.json()).toMatchObject({
+      findings: [finding],
+      quality: { reviewed: 1, accepted: 1, verificationAssessments: 1, verificationErrors: 0 },
+    });
+    expect(await prisma.job.count()).toBe(0);
+    expect(resources.wake).not.toHaveBeenCalled();
+  });
+
   it('rolls back the Curator run when its job cannot be inserted and does not wake the queue', async () => {
     await prisma.job.create({
       data: {

@@ -1,14 +1,10 @@
-import { Prisma, type PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import type {
   AgentTurnTrace,
   MessagePart,
-  ResearchCuratorDispositionV1,
   ResearchCuratorEvidenceV1,
   ResearchCuratorFindingCategoryV1,
   ResearchCuratorFindingV1,
-  ResearchCuratorQualityMetricsV1,
-  ResearchCuratorRunV1,
-  ResearchCuratorVerificationAssessmentV1,
   ResearchCuratorVerificationEvidenceV1,
   ResearchCuratorVerificationMatchV1,
   ResearchCuratorVerificationNoteV1,
@@ -64,14 +60,6 @@ const SIGNAL_PATTERNS: Array<[string, RegExp]> = [
 ];
 
 const CURATOR_EVIDENCE_CHUNK_SIZE = 80;
-const MINIMUM_REVIEWED_FINDINGS = 20;
-const MINIMUM_VERIFICATION_ASSESSMENTS = 20;
-
-type CuratorRunWithRelations = Prisma.ResearchCuratorRunGetPayload<{
-  include: { job: { select: { id: true } }; findings: true };
-}>;
-
-type CuratorFindingRecord = Prisma.ResearchCuratorFindingGetPayload<object>;
 
 export async function extractResearchCuratorEvidence(
   userId: string,
@@ -218,147 +206,6 @@ export async function prepareResearchCuratorRun(
     });
   }
   return { runId: run.id, userId: run.userId, evidenceCount: evidence.length, findings };
-}
-
-export async function getLatestResearchCuratorRun(
-  userId: string,
-  database: PrismaClient = prisma,
-): Promise<ResearchCuratorRunV1 | null> {
-  const run = await database.researchCuratorRun.findFirst({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    include: { job: { select: { id: true } }, findings: { orderBy: { createdAt: 'asc' } } },
-  });
-  return run ? curatorRunRecord(run, await researchCuratorQuality(userId, database)) : null;
-}
-
-export async function getResearchCuratorRun(
-  userId: string,
-  runId: string,
-  database: PrismaClient = prisma,
-): Promise<ResearchCuratorRunV1 | null> {
-  const run = await database.researchCuratorRun.findFirst({
-    where: { id: runId, userId },
-    include: { job: { select: { id: true } }, findings: { orderBy: { createdAt: 'asc' } } },
-  });
-  return run ? curatorRunRecord(run, await researchCuratorQuality(userId, database)) : null;
-}
-
-export async function setResearchCuratorFindingDisposition(
-  userId: string,
-  findingId: string,
-  disposition: ResearchCuratorDispositionV1,
-  note: string | undefined,
-  database: PrismaClient = prisma,
-): Promise<ResearchCuratorFindingV1 | null> {
-  const existing = await database.researchCuratorFinding.findFirst({
-    where: { id: findingId, userId },
-    select: { id: true },
-  });
-  if (!existing || disposition === 'pending') {
-    return null;
-  }
-  const finding = await database.researchCuratorFinding.update({
-    where: { id: findingId },
-    data: {
-      disposition,
-      dispositionNote: note || null,
-      disposedAt: new Date(),
-    },
-  });
-  return curatorFindingRecord(finding);
-}
-
-export async function updateResearchCuratorFindingFeedback(
-  userId: string,
-  findingId: string,
-  input: {
-    disposition?: Exclude<ResearchCuratorDispositionV1, 'pending'>;
-    note?: string;
-    verificationAssessment?: ResearchCuratorVerificationAssessmentV1;
-  },
-  database: PrismaClient = prisma,
-): Promise<ResearchCuratorFindingV1 | null> {
-  const existing = await database.researchCuratorFinding.findFirst({
-    where: { id: findingId, userId },
-    select: { id: true },
-  });
-  if (!existing) {
-    return null;
-  }
-  const now = new Date();
-  const finding = await database.researchCuratorFinding.update({
-    where: { id: findingId },
-    data: {
-      ...(input.disposition
-        ? {
-            disposition: input.disposition,
-            dispositionNote: input.note || null,
-            disposedAt: now,
-          }
-        : {}),
-      ...(input.verificationAssessment
-        ? {
-            verificationAssessment: input.verificationAssessment,
-            verificationAssessedAt: now,
-          }
-        : {}),
-    },
-  });
-  return curatorFindingRecord(finding);
-}
-
-export async function researchCuratorQuality(
-  userId: string,
-  database: PrismaClient = prisma,
-): Promise<ResearchCuratorQualityMetricsV1> {
-  const [findings, runTotals] = await Promise.all([
-    database.researchCuratorFinding.findMany({
-      where: { userId },
-      select: { disposition: true, verificationAssessment: true },
-    }),
-    database.researchCuratorRun.aggregate({
-      where: { userId },
-      _sum: { duplicatesSkipped: true },
-    }),
-  ]);
-  const countDisposition = (value: string) =>
-    findings.filter((finding) => finding.disposition === value).length;
-  const accepted = countDisposition('accepted');
-  const rejected = countDisposition('rejected');
-  const duplicates = countDisposition('duplicate');
-  const reviewed = accepted + rejected;
-  const duplicatesSkipped = runTotals._sum.duplicatesSkipped ?? 0;
-  const verificationAssessments = findings.filter(
-    (finding) => finding.verificationAssessment !== null,
-  ).length;
-  const verificationErrors = findings.filter(
-    (finding) => finding.verificationAssessment === 'incorrect',
-  ).length;
-  return {
-    totalFindings: findings.length,
-    pending: countDisposition('pending'),
-    deferred: countDisposition('deferred'),
-    reviewed,
-    accepted,
-    rejected,
-    duplicates,
-    duplicatesSkipped,
-    acceptanceRate: reviewed > 0 ? accepted / reviewed : null,
-    duplicateRate:
-      findings.length + duplicatesSkipped > 0
-        ? (duplicates + duplicatesSkipped) / (findings.length + duplicatesSkipped)
-        : null,
-    verificationAssessments,
-    verificationErrors,
-    verificationErrorRate:
-      verificationAssessments > 0 ? verificationErrors / verificationAssessments : null,
-    evaluationReady:
-      reviewed >= MINIMUM_REVIEWED_FINDINGS &&
-      verificationAssessments >= MINIMUM_VERIFICATION_ASSESSMENTS,
-    minimumReviewedFindings: MINIMUM_REVIEWED_FINDINGS,
-    minimumVerificationAssessments: MINIMUM_VERIFICATION_ASSESSMENTS,
-  };
 }
 
 async function summarizeEvidence(evidence: ResearchCuratorEvidenceV1[], llm: LlmCall) {
@@ -557,67 +404,6 @@ function verifyDraft(
     matches: unique,
     notes: [...notes],
     evidence: verificationEvidence,
-  };
-}
-
-function curatorRunRecord(
-  run: CuratorRunWithRelations,
-  quality: ResearchCuratorQualityMetricsV1,
-): ResearchCuratorRunV1 {
-  return {
-    version: 1,
-    id: run.id,
-    ...(run.job?.id ? { jobId: run.job.id } : {}),
-    status: run.status as ResearchCuratorRunV1['status'],
-    trigger: run.trigger as ResearchCuratorRunV1['trigger'],
-    ...(run.cursorFrom ? { cursorFrom: run.cursorFrom.toISOString() } : {}),
-    cursorTo: run.cursorTo.toISOString(),
-    evidenceCount: run.evidenceCount,
-    findingsCreated: run.findingsCreated,
-    duplicatesSkipped: run.duplicatesSkipped,
-    quality,
-    ...(run.error ? { error: run.error } : {}),
-    findings: run.findings.map(curatorFindingRecord),
-    createdAt: run.createdAt.toISOString(),
-  };
-}
-
-function curatorFindingRecord(finding: CuratorFindingRecord): ResearchCuratorFindingV1 {
-  const persistedVerification = finding.verification as unknown as Partial<
-    ResearchCuratorFindingV1['verification']
-  >;
-  return {
-    version: 1,
-    id: finding.id,
-    runId: finding.runId,
-    category: finding.category as ResearchCuratorFindingV1['category'],
-    title: finding.title,
-    summary: finding.summary,
-    evidence: finding.evidence as unknown as ResearchCuratorFindingV1['evidence'],
-    verification: {
-      status: persistedVerification.status ?? 'unverified',
-      matches: Array.isArray(persistedVerification.matches) ? persistedVerification.matches : [],
-      notes: Array.isArray(persistedVerification.notes) ? persistedVerification.notes : [],
-      evidence: Array.isArray(persistedVerification.evidence) ? persistedVerification.evidence : [],
-    },
-    confidence: finding.confidence,
-    expectedValue: finding.expectedValue,
-    changeSurface: finding.changeSurface as unknown as ResearchCuratorFindingV1['changeSurface'],
-    suggestedAction: finding.suggestedAction,
-    fingerprint: finding.fingerprint,
-    disposition: finding.disposition as ResearchCuratorFindingV1['disposition'],
-    ...(finding.dispositionNote ? { dispositionNote: finding.dispositionNote } : {}),
-    ...(finding.disposedAt ? { disposedAt: finding.disposedAt.toISOString() } : {}),
-    ...(finding.verificationAssessment
-      ? {
-          verificationAssessment:
-            finding.verificationAssessment as ResearchCuratorVerificationAssessmentV1,
-        }
-      : {}),
-    ...(finding.verificationAssessedAt
-      ? { verificationAssessedAt: finding.verificationAssessedAt.toISOString() }
-      : {}),
-    createdAt: finding.createdAt.toISOString(),
   };
 }
 
