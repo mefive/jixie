@@ -16,9 +16,9 @@
     "signals:run": "tsx --conditions=development --env-file=.env src/signals/cli/run-signals.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
     "canonicalize:stock-codes": "tsx --conditions=development --env-file=.env src/market/cli/canonicalize-stock-codes.ts",
-    "sync": "node --conditions=development --import tsx scripts/sync.ts",
-    "data:audit": "node --conditions=development --import tsx scripts/audit.ts",
-    "probe": "node --conditions=development --import tsx scripts/probe.ts"
+    "sync": "node --conditions=development --import tsx scripts/sync/index.ts",
+    "data:audit": "node --conditions=development --import tsx scripts/audit/index.ts",
+    "probe": "node --conditions=development --import tsx scripts/probes/index.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",

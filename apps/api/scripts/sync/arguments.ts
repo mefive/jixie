@@ -1,5 +1,5 @@
-import { parseCommandArguments, validateDateRange, type CommandRequest } from './command-entry.js';
-import { syncCommands, type SyncCommand } from './sync-commands.js';
+import { parseCommandArguments, validateDateRange, type CommandRequest } from '../command-entry.js';
+import { syncCommands, type SyncCommand } from './commands.js';
 
 export type SyncRequest = CommandRequest<SyncCommand>;
 

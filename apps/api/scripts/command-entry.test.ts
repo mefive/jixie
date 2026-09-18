@@ -3,11 +3,9 @@ import { createRequire } from 'node:module';
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
-import { syncCommands } from './sync-commands.js';
 
 const executeFile = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -18,14 +16,14 @@ async function createFixture(directory: string, compiled: boolean): Promise<stri
   await mkdir(join(outputDirectory, 'scripts'), { recursive: true });
   await writeFile(join(directory, 'package.json'), '{"type":"module"}');
   for (const name of [
-    'sync',
-    'sync-arguments',
-    'sync-commands',
+    'sync/index',
+    'sync/arguments',
+    'sync/commands',
     'command-entry',
-    'audit',
-    'audit-commands',
-    'probe',
-    'probe-commands',
+    'audit/index',
+    'audit/commands',
+    'probes/index',
+    'probes/commands',
   ]) {
     const source = await readFile(new URL(`./${name}.ts`, import.meta.url), 'utf8');
     const output = compiled
@@ -33,28 +31,30 @@ async function createFixture(directory: string, compiled: boolean): Promise<stri
           compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
         }).outputText
       : source;
-    await writeFile(join(outputDirectory, 'scripts', `${name}.${compiled ? 'js' : 'ts'}`), output);
+    const outputPath = join(outputDirectory, 'scripts', `${name}.${compiled ? 'js' : 'ts'}`);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, output);
   }
   return outputDirectory;
 }
 
 const commandCases = [
   {
-    entry: 'sync',
+    entry: 'sync/index',
     family: 'sync',
     task: 'stock-prices',
     target: 'src/market/cli/sync-stock-prices',
     args: ['20250101', '20251231'],
   },
   {
-    entry: 'audit',
+    entry: 'audit/index',
     family: 'data:audit',
     task: 'valuation-samples',
     target: 'scripts/audit/audit-valuation-samples',
     args: ['20250101', 'output with spaces.json'],
   },
   {
-    entry: 'probe',
+    entry: 'probes/index',
     family: 'probe',
     task: 'asset-allocation',
     target: 'scripts/probes/probe-asset-allocation',
@@ -145,17 +145,4 @@ process.exitCode = 7;
     },
     15_000,
   );
-
-  it('keeps deployed and imported sync tasks registered', async () => {
-    for (const path of ['scripts/bootstrap.sh', 'scripts/maintenance/import-market-data.sh']) {
-      const source = await readFile(
-        fileURLToPath(new URL(`../../../${path}`, import.meta.url)),
-        'utf8',
-      );
-      expect(source).not.toMatch(/pnpm --filter api sync:/);
-      for (const match of source.matchAll(/pnpm --filter api sync ([a-z-]+)/g)) {
-        expect(syncCommands.some((command) => command.name === match[1])).toBe(true);
-      }
-    }
-  });
 });

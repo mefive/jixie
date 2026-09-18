@@ -1,5 +1,5 @@
-import { probeCommands, parseProbeArguments } from './probe-commands.js';
-import { runCommandEntry } from './command-entry.js';
+import { probeCommands, parseProbeArguments } from './commands.js';
+import { runCommandEntry } from '../command-entry.js';
 
 async function main(): Promise<void> {
   await runCommandEntry({

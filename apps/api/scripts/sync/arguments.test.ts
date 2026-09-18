@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseSyncArguments } from './sync-arguments.js';
-import { syncCommands } from './sync-commands.js';
+import { parseSyncArguments } from './arguments.js';
+import { syncCommands } from './commands.js';
 
 describe('sync task selection', () => {
   it.each([[], ['--help'], ['-h'], ['--list'], ['--', '--list']])(

@@ -1,6 +1,6 @@
-import { runCommandEntry } from './command-entry.js';
-import { parseSyncArguments } from './sync-arguments.js';
-import { syncCommands } from './sync-commands.js';
+import { runCommandEntry } from '../command-entry.js';
+import { parseSyncArguments } from './arguments.js';
+import { syncCommands } from './commands.js';
 
 async function main(): Promise<void> {
   await runCommandEntry({

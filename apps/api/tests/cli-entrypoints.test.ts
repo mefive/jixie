@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
-import { syncCommands } from '../scripts/sync-commands.js';
+import { syncCommands } from '../scripts/sync/commands.js';
 
 const executeFile = promisify(execFile);
 const apiDirectory = fileURLToPath(new URL('../', import.meta.url));
@@ -20,7 +20,15 @@ describe('application CLI entry contracts', () => {
     const scripts = await packageScripts(apiDirectory);
     const rootScripts = await packageScripts(repositoryDirectory);
     expect(rootScripts.sync).toBe('pnpm --filter api sync');
-    expect(scripts.sync).toBe('node --conditions=development --import tsx scripts/sync.ts');
+    expect(rootScripts['data:audit']).toBe('pnpm --filter api data:audit');
+    expect(rootScripts.probe).toBe('pnpm --filter api probe');
+    expect(scripts['data:audit']).toBe(
+      'node --conditions=development --import tsx scripts/audit/index.ts',
+    );
+    expect(scripts.probe).toBe(
+      'node --conditions=development --import tsx scripts/probes/index.ts',
+    );
+    expect(scripts.sync).toBe('node --conditions=development --import tsx scripts/sync/index.ts');
     expect(Object.keys(scripts).some((name) => name.startsWith('sync:'))).toBe(false);
     expect(rootScripts).not.toHaveProperty('peek');
     expect(scripts).not.toHaveProperty('peek');
@@ -44,9 +52,45 @@ describe('application CLI entry contracts', () => {
     );
     expect(importer).toContain('pnpm --filter api sync stock-prices "$slice_start" "$slice_end"');
     expect(importer).toContain('stock-bars-$year');
+    expect(Object.values(scripts).some((command) => /scripts\/maintenance\//.test(command))).toBe(
+      false,
+    );
+  });
+
+  it('keeps deployed and imported sync tasks registered', async () => {
+    for (const path of ['scripts/bootstrap.sh', 'scripts/maintenance/import-market-data.sh']) {
+      const source = await readFile(
+        fileURLToPath(new URL(`../../../${path}`, import.meta.url)),
+        'utf8',
+      );
+      expect(source).not.toMatch(/pnpm --filter api sync:/);
+      for (const match of source.matchAll(/pnpm --filter api sync ([a-z-]+)/g)) {
+        expect(syncCommands.some((command) => command.name === match[1])).toBe(true);
+      }
+    }
+  });
+
+  it('keeps importer and deployment diagnostics on the unified entry points', async () => {
+    const importer = await readFile(
+      new URL('../../../scripts/maintenance/import-market-data.sh', import.meta.url),
+      'utf8',
+    );
+    const bootstrap = await readFile(
+      new URL('../../../scripts/bootstrap.sh', import.meta.url),
+      'utf8',
+    );
+    expect(importer).toContain('pnpm data:audit data "$START_DATE" "$END_DATE" --strict');
+    expect(importer).toContain('pnpm --filter api probe tushare');
+    expect(bootstrap).toContain('pnpm --filter api probe asset-allocation');
+    expect(bootstrap).toContain('--persist-if-stale');
+    const scripts = JSON.parse(
+      await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+    ).scripts;
     expect(
-      Object.values(scripts).some((command) => /scripts\/(sync|maintenance)\//.test(command)),
+      Object.keys(scripts).some((name) => name.startsWith('audit:') || name.startsWith('probe:')),
     ).toBe(false);
+    expect(scripts.smoke).toBeUndefined();
+    expect(scripts.audit).toBeUndefined();
   });
 
   it('uses the same maintenance entry in development and both production services', async () => {

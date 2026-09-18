@@ -2,7 +2,7 @@ import {
   parseCommandArguments,
   validateDateRange,
   type CommandDefinition,
-} from './command-entry.js';
+} from '../command-entry.js';
 
 export const probeCommands: CommandDefinition[] = [
   {

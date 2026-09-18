@@ -27,8 +27,8 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 ## API 命令分派
 
 `pnpm sync <任务>`、`pnpm data:audit <任务>`、`pnpm probe <任务>` 分别转发到 API 的
-`scripts/sync.ts`、`scripts/audit.ts`、`scripts/probe.ts`（源码带 `development` 条件及 tsx）。
-编译入口为 `apps/api/dist/scripts/{sync,audit,probe}.js`，例如从 API 目录执行 `node dist/scripts/sync.js <任务>`。
+`scripts/sync/index.ts`、`scripts/audit/index.ts`、`scripts/probes/index.ts`（源码带 `development` 条件及 tsx）。
+编译入口为 `apps/api/dist/scripts/{sync,audit,probes}/index.js`，例如从 API 目录执行 `node dist/scripts/sync/index.js <任务>`。
 显式任务清单的 `.js` 路径相对 API 源码/编译根解析；源码由 tsx 映射到 `.ts`，编译形式定位 `dist` 下的目标。
 公共 `scripts/command-entry.ts` 中的非字面量动态导入由清单覆盖测试与源码/编译隔离分派测试验证。
 参数校验后才切换至 `apps/api`、加载其 `.env`、设置原 CLI 的 `process.argv` 并导入选中入口；

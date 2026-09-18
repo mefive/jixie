@@ -14,7 +14,7 @@
 | [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 4 | 导入后的质量检查、研究核验 |
 | [probes/](probes/) | Tushare 连接与接口能力探测 | 2 | bootstrap、批量导入、手动诊断 |
 
-共有 35 个业务/工具入口，其中 28 个应用 CLI 位于模块内；24 个同步 CLI 由 [sync.ts](sync.ts) 统一分派。4 个审计任务使用 [audit.ts](audit.ts)，2 个外部探针使用 [probe.ts](probe.ts)，各自的 `*-commands.ts` 是任务清单，共用 [command-entry.ts](command-entry.ts) 处理帮助与执行环境。操作系统任务配置统一放在仓库根级 `deploy/`。
+共有 35 个业务/工具入口，其中 28 个应用 CLI 位于模块内；24 个同步 CLI 由 [sync/index.ts](sync/index.ts) 统一分派。4 个审计任务使用 [audit/index.ts](audit/index.ts)，2 个外部探针使用 [probes/index.ts](probes/index.ts)，各目录的 `commands.ts` 是任务清单，共用 [command-entry.ts](command-entry.ts) 处理帮助与执行环境。操作系统任务配置统一放在仓库根级 `deploy/`。
 
 ## 运行约定
 
@@ -122,3 +122,17 @@ Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.servic
 静态检查：API typecheck、后端架构边界（0 violations）、受影响代码 ESLint、Prettier、bootstrap Shell 语法、备份脚本 Node 语法、macOS plist 语法及 diff 检查通过；41 个入口的 package 命令或直接路径和本索引链接均已核对。旧文件路径仅在历史架构基线文档中保留。人工代码审查已通过。
 
 审查后验证：探针、财报 fixture 与统计文档共 5 个测试文件、20 项测试全部通过；API 编译到新的临时目录，40 个 TS CLI 产物、财报 fixture 及每日/每周维护服务对应编译路径核对通过。统计文档生成器在保持相同相对目录结构的临时副本中执行，生成内容与仓库一致。首次 tsx CLI 被沙箱的本地管道权限限制阻止，改用 `node --import tsx` 后通过，未修改产品代码。未运行 bundle 测试、生产维护、备份定时服务或 FCFF 文档创建，未启动常驻测试服务或连接生产数据库。
+
+### 命令族目录整理（2026-09-18）
+
+计划提交：`refactor(api): group script entry points by command family`。
+
+sync、audit、probe 的分派入口与任务清单分别集中到 `sync/`、`audit/`、`probes/`；
+统一使用各目录的 `index.ts` 作为入口，pnpm 命令、参数和默认值保持不变。
+公共 `command-entry.ts` 及执行边界测试留在本目录，环境与业务路径仍相对此公共文件解析。
+audit/probe 参数和注册覆盖测试分别归入各目录的 `commands.test.ts`；
+部署与批量导入引用断言集中到 `../tests/cli-entrypoints.test.ts`。
+业务同步实现、独立备份入口和历史验收记录保持原有归属。
+
+静态检查：API `tsc --noEmit`、改动代码 ESLint、Prettier 与 diff 检查通过。
+人工代码审查已通过。审查后 5 个测试文件、91 项测试全部通过，覆盖参数校验、注册完整性、CLI 契约以及源码/编译形式的隔离分派、环境加载和退出码透传。API 编译通过；三个 pnpm 帮助入口及三个实际编译帮助入口均通过。测试已清理临时目录和隔离数据库连接，没有启动常驻服务或执行真实数据同步。

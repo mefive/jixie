@@ -1,5 +1,5 @@
-import { auditCommands, parseAuditArguments } from './audit-commands.js';
-import { runCommandEntry } from './command-entry.js';
+import { auditCommands, parseAuditArguments } from './commands.js';
+import { runCommandEntry } from '../command-entry.js';
 
 async function main(): Promise<void> {
   await runCommandEntry({
