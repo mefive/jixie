@@ -7,7 +7,7 @@
 | --- | --- |
 | `client.ts` | JSON 请求、查询序列化、`ApiError`、维护和服务不可用事件 |
 | `auth.ts` | 当前用户、开发登录、邮箱登录和退出 |
-| `maintenance.ts` | 维护状态类型和状态查询 |
+| `maintenance.ts` | 维护状态及最近成功部署版本的类型和查询 |
 | `agent.ts` | 通用 turn/会话查询、取消、SSE 订阅与解析、历史 SQL/计算图表 |
 | `strategy.ts` | 策略定义、可见性、回测报告与任务、参数扫描、策略 Agent |
 | `signals.ts` | 部署、信号运行、任务查询和实际执行记录 |

@@ -44,6 +44,10 @@
   @apply text-sm text-muted;
 }
 
+.jx-topnav-version {
+  @apply shrink-0;
+}
+
 @media (max-width: 720px) {
   .jx-topnav {
     padding: 0 10px;
@@ -64,6 +68,11 @@
 
   .jx-topnav-user {
     @apply gap-1;
+  }
+
+  .jx-topnav-versionLabel {
+    @apply block truncate;
+    max-width: 112px;
   }
 }
 

@@ -21,7 +21,8 @@ CLI 是调用方式，本模块负责影响全应用的数据更新顺序、发�
 | [quality.ts](quality.ts) | `validateRawMarketDate` 与 `validateDerivedMarketRange`：整轮发布前的原始/派生数据质量门禁 |
 | [data-audit.ts](data-audit.ts) | 汇总市场、各数据领域与风险输入审计 |
 | [risk-data-audit.ts](risk-data-audit.ts) | 组合 Market 数据质量与 Strategy 模型历史要求，避免 Market 反向依赖 Strategy |
-| [routes.ts](routes.ts) | 实现状态查询路由，具名导出 `maintenanceRoute` 供 server 挂载 |
+| [routes.ts](routes.ts) | 实现状态及成功部署版本查询路由，具名导出 `maintenanceRoute` 供 server 挂载 |
+| [deployment-version.ts](deployment-version.ts) | 每次读取 bootstrap 成功记录；公开接口 `/api/maintenance/version` 只返回合法完整 SHA 或 `null` |
 | [middleware.ts](middleware.ts) | 单独导出 `maintenanceGate`，供 server 通过 `app.use` 注册；维护期间设置 Retry-After 并返回维护错误 |
 | [reference-worker-process.ts](reference-worker-process.ts) | 将参考数据分批交给真实子进程，接收 summary 并检查退出结果；根据源码/编译入口选 `.ts`/`.js` |
 | [reference-worker.ts](reference-worker.ts) | 配置 Tushare 客户端，调用 Market 的财报/指标/分红同步，每项完成写 checkpoint；CLI 主入口最终释放 Prisma |

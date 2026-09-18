@@ -14,6 +14,13 @@ export const zhCommon = {
     menu: '页面导航',
   },
   logout: '退出',
+  deploymentVersion: {
+    label: '版本 {{revision}}',
+    details: '最近一次成功部署：{{revision}}',
+    missing: '尚无部署记录',
+    unavailable: '版本暂不可用',
+    loading: '版本加载中',
+  },
   language: {
     zh: '中',
     en: 'EN',

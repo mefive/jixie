@@ -16,6 +16,13 @@ export const enCommon: typeof zhCommon = {
     menu: 'Page navigation',
   },
   logout: 'Log out',
+  deploymentVersion: {
+    label: 'Version {{revision}}',
+    details: 'Last successful deployment: {{revision}}',
+    missing: 'No deployment recorded',
+    unavailable: 'Version unavailable',
+    loading: 'Loading version',
+  },
   language: {
     zh: '中',
     en: 'EN',

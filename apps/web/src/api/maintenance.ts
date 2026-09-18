@@ -19,3 +19,11 @@ export interface MaintenanceStatus {
 export function fetchMaintenanceStatus(): Promise<MaintenanceStatus> {
   return request('/api/maintenance/status');
 }
+
+export interface DeploymentVersion {
+  revision: string | null;
+}
+
+export function fetchDeploymentVersion(signal: AbortSignal): Promise<DeploymentVersion> {
+  return request('/api/maintenance/version', { cache: 'no-store', signal });
+}

@@ -83,6 +83,30 @@ bootstrap 会执行 `loginctl enable-linger`，使用户管理器和 sandboxd �
 停止 API，静态产物在 staging 构建成功后原子切换。首次运行、部署记录缺失或记录无法验证时也会全量
 执行。影响规则的机器可读真相源是 `deploy/component-impact.json`。
 
+### 前端显示的部署版本
+
+工作台顶部导航显示 `deployed-revision` 的前 8 位；悬浮、聚焦或点击可查看完整 commit SHA。
+它代表最近一次 bootstrap 成功结束时记录的系统部署，不代表每个组件或当前浏览器页面都由这个
+commit 构建。仅更新 API 或 Web 均会推进该记录；同一 commit 重跑不会产生新版本号。
+
+bootstrap 将记录文件的绝对路径写入 API 环境变量 `JIXIE_DEPLOYED_REVISION_FILE`，支持自定义
+`JIXIE_DATA_DIR`。公开只读接口 `GET /api/maintenance/version` 返回 `{ revision: string | null }`，
+每次请求重新读取文件并设置 `Cache-Control: no-store`，因此纯 Web 部署无需重启 API。
+前端打开或刷新时异步读取，不等待版本请求才渲染页面，也不定时轮询。
+文件未配置、不存在、无法读取或不是完整 Git SHA 时返回 `null`，界面显示“尚无部署记录”；
+请求失败显示“版本暂不可用”。本地开发未配置记录文件时也显示“尚无部署记录”。
+
+`JIXIE_APP_REVISION` 仍是部署目标 commit，不能用作成功记录的回退值。
+该展示沿用 bootstrap 现有成功记录规则，不提供健康状态、组件版本一致性或数据库回滚保证。
+
+开发记录：全 workspace 类型检查、受影响代码 ESLint、格式检查、后端边界检查、Shell 语法和 diff
+检查通过。人工审查后，后端 4 项回归测试及 shared/API/Web 构建通过；移动端文案宽度修正经再次审查
+后重新构建 Web 并完成验收。构建保留现有 chunk 大小与混合导入警告。生产 Web 产物配合模拟 API
+响应验证中英文、390/320px、完整 SHA 提示、刷新版本、无记录与 HTTP 500 状态，无浏览器运行错误；
+320px 英文无记录状态实际打开导航菜单成功。移动端长文案省略显示，完整内容保留在提示中。
+验收截图位于 `apps/web/acceptance/deployment-version-*.png`（本地忽略目录）；临时浏览器及预览服务
+已关闭，4179 端口已释放。本轮未运行生产 bootstrap、访问生产数据库或执行线上部署。
+
 Factor Job kind 的数据升级由 bootstrap 在 `prisma migrate deploy` 之后、API 启动之前执行
 `apps/api/dist/scripts/migrations/split-factor-job-kinds.js`。该脚本由本次 API 构建生成，加载 API `.env`，
 分批将旧 `factor` 转成 `factor-analysis` / `factor-correlation`，保留原 payload、状态、关联和日志。
