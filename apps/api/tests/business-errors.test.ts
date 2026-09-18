@@ -1,5 +1,5 @@
 import { AgentError } from '#agent/errors.js';
-import { MaintenanceError } from '#application-maintenance/errors.js';
+import { MaintenanceError } from '#maintenance/errors.js';
 import { AuthError } from '#auth/errors.js';
 import { FactorError } from '#factor/errors.js';
 import { t } from '#i18n/index.js';

@@ -6,7 +6,7 @@ import ts from 'typescript';
 const sourcePrefix = 'apps/api/src/';
 const retiredDirectories = new Set([
   'application',
-  'maintenance',
+  'application-maintenance',
   'common',
   'utils',
   'lib',
@@ -44,7 +44,7 @@ function isHttp(file) {
       local === 'auth/cookies.ts' ||
       local === 'auth/middleware.ts' ||
       local.startsWith('infra/http/') ||
-      local === 'application-maintenance/middleware.ts' ||
+      local === 'maintenance/middleware.ts' ||
       startupFiles.has(local))
   );
 }
@@ -402,7 +402,7 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
     if (
       local?.startsWith('market/') &&
       target &&
-      /^(?:strategy|agent|research|signals|application-maintenance)\//.test(target)
+      /^(?:strategy|agent|research|signals|maintenance)\//.test(target)
     ) {
       report(
         'market-direction',
@@ -453,7 +453,7 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
           target &&
           (generic
             ? !target.startsWith('infra/') && !isPure(edge.to)
-            : /^(?:strategy|agent|research|signals|application-maintenance)\//.test(target));
+            : /^(?:strategy|agent|research|signals|maintenance)\//.test(target));
         const trail = [...current.trail, edge.to];
         if (forbidden && trail.length > 2) {
           diagnostics.push({

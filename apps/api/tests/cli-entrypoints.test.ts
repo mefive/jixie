@@ -37,7 +37,7 @@ describe('application CLI entry contracts', () => {
       ...syncCommands.map((command) => command.entry.replace(/\.js$/, '.ts')),
     ];
 
-    for (const module of ['market', 'application-maintenance', 'signals', 'auth']) {
+    for (const module of ['market', 'maintenance', 'signals', 'auth']) {
       for (const entry of await readdir(join(apiDirectory, 'src', module, 'cli'))) {
         if (!entry.endsWith('.ts')) {
           continue;
@@ -96,7 +96,7 @@ describe('application CLI entry contracts', () => {
   it('uses the same maintenance entry in development and both production services', async () => {
     const scripts = await packageScripts(apiDirectory);
     expect(scripts.maintenance).toBe(
-      'tsx --conditions=development --env-file=.env src/application-maintenance/cli/run-maintenance.ts',
+      'tsx --conditions=development --env-file=.env src/maintenance/cli/run-maintenance.ts',
     );
     for (const [file, command] of [
       ['jixie-maintenance.service', 'daily'],
@@ -104,7 +104,7 @@ describe('application CLI entry contracts', () => {
     ]) {
       const service = await readFile(join(repositoryDirectory, 'deploy', file), 'utf8');
       expect(service).toContain(
-        ` /opt/jixie/apps/api/dist/src/application-maintenance/cli/run-maintenance.js ${command}`,
+        ` /opt/jixie/apps/api/dist/src/maintenance/cli/run-maintenance.js ${command}`,
       );
       expect(service).toContain('/usr/bin/flock -n -E 75 /var/lib/jixie/maintenance.lock');
     }
@@ -120,12 +120,12 @@ describe('application CLI entry contracts', () => {
 
   it.each([
     [
-      'src/application-maintenance/cli/run-maintenance.ts',
+      'src/maintenance/cli/run-maintenance.ts',
       ['baseline', 'invalid'],
       'Baseline date must use YYYYMMDD',
     ],
     [
-      'src/application-maintenance/cli/sync-fina.ts',
+      'src/maintenance/cli/sync-fina.ts',
       ['--repair-code', 'invalid'],
       '--repair-code must be an A-share ts_code',
     ],

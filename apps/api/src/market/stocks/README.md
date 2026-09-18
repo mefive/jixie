@@ -12,6 +12,6 @@
 
 其他范围入口保留各自跳过、刷新和写入行为；不能将 core 的保证推广到 `syncDaily` 等调用组合。历史代码和名称约束先看 [instruments](../instruments/README.md)，财报和分红归 [fundamentals](../fundamentals/README.md)，跨资产展示查询归 [queries](../queries/README.md)。
 
-改每日门禁看 [daily-sync.test.ts](daily-sync.test.ts)；改供应商字段看 [stock-reference-api.test.ts](../providers/tushare/stock-reference-api.test.ts)、[reference-data-api.test.ts](../providers/tushare/reference-data-api.test.ts)；发布编排与整体修复见 [Maintenance](../../application-maintenance/README.md)。
+改每日门禁看 [daily-sync.test.ts](daily-sync.test.ts)；改供应商字段看 [stock-reference-api.test.ts](../providers/tushare/stock-reference-api.test.ts)、[reference-data-api.test.ts](../providers/tushare/reference-data-api.test.ts)；发布编排与整体修复见 [Maintenance](../../maintenance/README.md)。
 
 [返回 Market 总览](../README.md)

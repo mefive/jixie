@@ -7,7 +7,7 @@
 | 目录 / 文件 | 用途 | 入口数 | 主要调用方 |
 | --- | --- | --- | --- |
 | [Market CLI](../src/market/cli/) | 市场数据同步、派生计算和证券代码修复 | 24 | 批量导入、bootstrap、手动补数 |
-| [Application Maintenance CLI](../src/application-maintenance/cli/) | 整轮维护、基线修复及财报分批历史导入 | 2 | systemd、根级维护命令、批量导入 |
+| [Maintenance CLI](../src/maintenance/cli/) | 整轮维护、基线修复及财报分批历史导入 | 2 | systemd、根级维护命令、批量导入 |
 | [Signals CLI](../src/signals/cli/) | 交易日信号周期 | 1 | 管理员 |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
@@ -39,7 +39,7 @@
 | `sync stock-prices` | [sync-stock-prices.ts](../src/market/cli/sync-stock-prices.ts) | `[start] [end]` | 股票基础信息、交易日历、日行情与复权 |
 | `sync stock-history` | [sync-stock-history.ts](../src/market/cli/sync-stock-history.ts) | `[start] [end]` | 完整股票名录、历史名称及代码变更资料 |
 | `sync basic` | [sync-basic.ts](../src/market/cli/sync-basic.ts) | `[start] [end]` | 股票每日估值指标；不是基础名录 |
-| `sync fina` | [sync-fina.ts](../src/application-maintenance/cli/sync-fina.ts) | 无参数全量；单股修复见文件中的 `--repair-code` | 原始财报版本、财务指标、分红历史，分批子进程执行 |
+| `sync fina` | [sync-fina.ts](../src/maintenance/cli/sync-fina.ts) | 无参数全量；单股修复见文件中的 `--repair-code` | 原始财报版本、财务指标、分红历史，分批子进程执行 |
 | `sync limit` | [sync-limit.ts](../src/market/cli/sync-limit.ts) | `[start] [end]` | 每日涨跌停价格 |
 | `sync moneyflow` | [sync-moneyflow.ts](../src/market/cli/sync-moneyflow.ts) | `[start] [end]` | 个股资金流 |
 | `sync toplist` | [sync-toplist.ts](../src/market/cli/sync-toplist.ts) | `[start] [end]` | 龙虎榜 |
@@ -89,7 +89,7 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
-| `maintenance` | [run-maintenance.ts](../src/application-maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair start end`、`baseline [date]` | 写市场数据和维护状态；优先使用根级加锁入口 |
+| `maintenance` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair start end`、`baseline [date]` | 写市场数据和维护状态；优先使用根级加锁入口 |
 | `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
 | `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/market/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
 | `gen:invite` | [gen-invite.ts](../src/auth/cli/gen-invite.ts) | `[count] [note]` | 创建邀请码，写数据库，不发送邮件 |
@@ -97,7 +97,7 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 
 备份只依赖 Node 内置模块及 `sqlite3` CLI，无需 tsx 或编译。`JIXIE_DB_PATH` 默认指向 `apps/api/prisma/dev.db`，`JIXIE_BACKUP_DIR` 默认 `~/jixie-backups`，`JIXIE_BACKUP_KEEP` 默认 5。它创建备份文件并删除超出保留数量的旧备份，不修改源数据库业务记录。
 
-Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.service) / [jixie-backup.timer](../../../deploy/jixie-backup.timer)，由 bootstrap 安装。每日、每周维护服务调用编译入口 `apps/api/dist/src/application-maintenance/cli/run-maintenance.js`。macOS 本地备份配置为 [com.jixie.backup.plist](../../../deploy/com.jixie.backup.plist)，手动安装方式见文件注释。本目录不再维护 systemd 兼容副本。
+Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.service) / [jixie-backup.timer](../../../deploy/jixie-backup.timer)，由 bootstrap 安装。每日、每周维护服务调用编译入口 `apps/api/dist/src/maintenance/cli/run-maintenance.js`。macOS 本地备份配置为 [com.jixie.backup.plist](../../../deploy/com.jixie.backup.plist)，手动安装方式见文件注释。本目录不再维护 systemd 兼容副本。
 
 部署本次路径调整时，需要通过 bootstrap 构建 API 并重新安装、加载 systemd 配置；仅拉取源码不会更新服务器上已安装的 unit。本次未修改可部署 workspace 或跨包构建依赖，现有 `deploy/component-impact.json` 已将 `deploy/` 和根级 `scripts/` 的变更归为全量部署，无需修改映射。
 

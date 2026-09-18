@@ -1,6 +1,6 @@
 import { agentRoute } from '#agent/routes/index.js';
-import { maintenanceGate } from '#application-maintenance/middleware.js';
-import { maintenanceRoute } from '#application-maintenance/routes.js';
+import { maintenanceGate } from '#maintenance/middleware.js';
+import { maintenanceRoute } from '#maintenance/routes.js';
 import { requireAuth } from '#auth/middleware.js';
 import { authRoute } from '#auth/routes.js';
 import { factorRoute } from '#factor/routes/index.js';

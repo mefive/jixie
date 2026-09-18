@@ -2,7 +2,7 @@
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
 
-Market 拥有行情与领域数据的身份、获取、同步、查询和基础质量。Research 数据集、Factor 观察值、Strategy/Engine 数据加载及 Signals 就绪检查消费这些能力；整轮维护发布归 [Application Maintenance](../application-maintenance/README.md)。
+Market 拥有行情与领域数据的身份、获取、同步、查询和基础质量。Research 数据集、Factor 观察值、Strategy/Engine 数据加载及 Signals 就绪检查消费这些能力；整轮维护发布归 [Maintenance](../maintenance/README.md)。
 
 ## 按业务问题进入
 

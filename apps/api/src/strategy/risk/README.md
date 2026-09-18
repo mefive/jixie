@@ -15,6 +15,6 @@
 
 正式回测捕获风险后处理异常并记录日志，主回测仍可成功；扫描及 Signals 不调用这一完整后处理。组合持仓、成本和交易循环累计仍归 Engine。
 
-修改分析先读各同名测试：[backtest-risk-analysis.test.ts](backtest-risk-analysis.test.ts)、[market-risk-model.test.ts](market-risk-model.test.ts)、[macro-risk-model.test.ts](macro-risk-model.test.ts)、[alpha-risk-overlap.test.ts](alpha-risk-overlap.test.ts)、[risk-scenarios.test.ts](risk-scenarios.test.ts)。模型／数据边界看 [risk-research-contract.test.ts](risk-research-contract.test.ts) 和 [Maintenance 风险审计实现](../../application-maintenance/risk-data-audit.ts)。
+修改分析先读各同名测试：[backtest-risk-analysis.test.ts](backtest-risk-analysis.test.ts)、[market-risk-model.test.ts](market-risk-model.test.ts)、[macro-risk-model.test.ts](macro-risk-model.test.ts)、[alpha-risk-overlap.test.ts](alpha-risk-overlap.test.ts)、[risk-scenarios.test.ts](risk-scenarios.test.ts)。模型／数据边界看 [risk-research-contract.test.ts](risk-research-contract.test.ts) 和 [Maintenance 风险审计实现](../../maintenance/risk-data-audit.ts)。
 
 [返回 Strategy 总览](../README.md)

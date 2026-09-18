@@ -971,7 +971,7 @@ Worker 验证使用确定性市场 fixture 和独立 SQLite，真实执行 SQL/�
 - `state/compute.ts` 保留状态、行业/指数天气等纯计算，`state/read.ts` 查询并组装市场状态，`state/weather.ts` 管理天气读取与缓存；指数估值同样分 `valuation/compute.ts` / `read.ts`。派生指标原 SQL 批处理归 `sync/market-indicators.ts`，没有为复用展示计算而重写 SQL。
 - Maintenance 保留调度、锁、质量门禁、水位、自愈、心跳、参考数据子进程和 HTTP；所有导入改为具体 Market 入口。同步更新 Signals、Research、Factor、Agent、Engine、Strategy 和 CLI 调用方、动态导入/测试 mock、财报 JSON fixture 路径、研究数据来源链接与当前文档。原目录/转发入口不保留。
 
-阅读地图：[Market](../../apps/api/src/market/README.md)、[Maintenance](../../apps/api/src/application-maintenance/README.md)。下次找同步函数应从业务数据类型进入；维护入口与单项数据同步分别在 Maintenance 和 Market，不必先找通用 store。
+阅读地图：[Market](../../apps/api/src/market/README.md)、[Maintenance](../../apps/api/src/maintenance/README.md)。下次找同步函数应从业务数据类型进入；维护入口与单项数据同步分别在 Maintenance 和 Market，不必先找通用 store。
 
 #### 重点 review
 

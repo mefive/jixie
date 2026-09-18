@@ -7,6 +7,20 @@
 > 提交 footer：`BREAKING CHANGE: rename sync to sync:stock-prices in the root and API packages.`
 > 用户已批准 review 后验证通过即提交；本记录与实现同批提交，不 push。
 
+## 2026-09-18 命名简化补充
+
+原计划及下方验收记录保留历史名称；当前模块使用 `apps/api/src/maintenance/` 和 `#maintenance/*`。
+`maintenance` 已能表达整轮维护协调，无需 `application` 前缀。职责划分、业务行为、命令、HTTP URL、数据库模型和进程协议保持。
+
+- 提交信息：`refactor(api): rename application-maintenance to maintenance`。
+- 范围已批准：模块整体改名，同步包内别名、调用方、systemd 入口、边界检查及测试、当前架构与使用文档。
+- 静态检查：`pnpm typecheck` 通过（含静态边界扫描，0 违规，生成契约一致及全部 workspace 类型检查）；受影响代码 ESLint、Prettier 与 `git diff --check` 通过。36 个模块文件整体迁移，除 README 外内容逐字节一致。
+- 人工代码审查：用户已确认；约定的行为验证全部通过，随本次提交归档。
+- 行为验证：18 个 API 测试文件、99 项测试通过（完整 Maintenance 模块、包内别名、CLI 入口、业务错误）；28 项边界检查器自测通过，项目扫描 0 违规。
+- 构建：shared 与 API 构建通过；生产条件下主进程及真实 Worker 均成功加载 `#maintenance/daily-schedule.js`，编译后的两个 CLI 与参考数据 Worker 入口存在。
+- 验证使用临时 SQLite 和本地数据源替身；临时目录已清理，子进程和 Worker 均已退出，未启动持久服务，未部署或推送。
+- 验证范围：类型检查、静态依赖扫描、lint/格式与 diff 检查；审查后运行维护模块、别名、CLI、业务错误及边界检查器测试，构建 API 并验证编译后的别名加载。
+
 ## 1. 目标、依据与取舍
 
 目标是让维护者从业务模块同时找到可调用能力和命令入口，明确数据写入、维护发布、进程启动各自的责任。

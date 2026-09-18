@@ -7,7 +7,7 @@
 - 六个模块的总入口移至 `routes/index.ts`，保留组合、具名导出和既有注册顺序；外部显式导入 `routes/index.js`，不保留根级转发文件。
 - Strategy、Factor、Research 的 HTTP 错误映射移至 `routes/errors.ts`；业务错误类型保留原位置。
 - Strategy 回测专属测试移至 `routes/backtest.test.ts`；模块整体路由测试保持根级。
-- Auth、Sharing、Application Maintenance 的单文件路由保持根级。API 入参与共用业务配置仍在根级 `schema.ts`。
+- Auth、Sharing、Maintenance 的单文件路由保持根级。API 入参与共用业务配置仍在根级 `schema.ts`。
 - 边界检查器识别业务根级 `routes.ts` 及同级 `routes/` 目录，继续禁止业务反向依赖 HTTP、HTTP 直接导入 Prisma；相邻或更深业务目录不会因此放行 Hono，应用级 `src/routes/` 仍属于已退役目录。
 - 同步根级项目约定、架构/路径文档和六个模块阅读地图。无 HTTP 路径、字段、响应、鉴权、数据语义、SDK、数据库迁移或用户界面变更。
 

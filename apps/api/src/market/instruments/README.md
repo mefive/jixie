@@ -8,6 +8,6 @@
 
 [canonicalize-stock-codes.ts](canonicalize-stock-codes.ts) 的 `canonicalizeStockCodes` 供 CLI 和 Maintenance weekly 使用：先 seed 代码变更，再逐个代码关系开事务合并行情、参考数据和历史身份，删除旧代码行，返回迁移数及最早受影响日期。相同日期冲突按各表规则判断；复权、股息等既有例外有明确比较逻辑，不能以统一覆盖替代。它不是只读 resolver，也不是整轮维护发布事务。
 
-改规则看 [stock-identity.test.ts](stock-identity.test.ts)；改规范化先读该实现的逐表 merge 规则及 [维护模块](../../application-maintenance/README.md) 中的直接消费者。行情名称／类型响应看 [Market 路由测试](../routes/index.test.ts)。
+改规则看 [stock-identity.test.ts](stock-identity.test.ts)；改规范化先读该实现的逐表 merge 规则及 [维护模块](../../maintenance/README.md) 中的直接消费者。行情名称／类型响应看 [Market 路由测试](../routes/index.test.ts)。
 
 [返回 Market 总览](../README.md)

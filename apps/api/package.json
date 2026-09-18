@@ -12,7 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "backup": "node scripts/backup-db.mjs",
-    "maintenance": "tsx --conditions=development --env-file=.env src/application-maintenance/cli/run-maintenance.ts",
+    "maintenance": "tsx --conditions=development --env-file=.env src/maintenance/cli/run-maintenance.ts",
     "signals:run": "tsx --conditions=development --env-file=.env src/signals/cli/run-signals.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
     "canonicalize:stock-codes": "tsx --conditions=development --env-file=.env src/market/cli/canonicalize-stock-codes.ts",
@@ -67,9 +67,9 @@
       "development": "./src/infra/*",
       "default": "./dist/src/infra/*"
     },
-    "#application-maintenance/*": {
-      "development": "./src/application-maintenance/*",
-      "default": "./dist/src/application-maintenance/*"
+    "#maintenance/*": {
+      "development": "./src/maintenance/*",
+      "default": "./dist/src/maintenance/*"
     },
     "#market/*": {
       "development": "./src/market/*",

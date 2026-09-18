@@ -1,8 +1,8 @@
-# Application Maintenance 后端阅读入口
+# Maintenance 后端阅读入口
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
 
-Application Maintenance 编排整轮数据维护：获取运行权、补齐数据、检查质量、发布水位、记录进度并恢复中断。具体数据获取与计算调用 [Market](../market/README.md)；按日信号交给 Signals。
+Maintenance 编排整轮数据维护：获取运行权、补齐数据、检查质量、发布水位、记录进度并恢复中断。具体数据获取与计算调用 [Market](../market/README.md)；按日信号交给 Signals。
 
 CLI 是调用方式，本模块负责影响全应用的数据更新顺序、发布条件及可用性。HTTP 门禁读取维护运行状态，部署也以 `kind=deploy` 使用同一记录；定时触发由 systemd 提供。
 
@@ -31,7 +31,7 @@ CLI 是调用方式，本模块负责影响全应用的数据更新顺序、发�
 
 最近已完成交易日直接读取 [Market calendar](../market/calendar/sse-close.ts)，保留上海 16:00 截止和 SSE 范围；不再经 Signals 取得共用日历能力。ETF 基础审计归 Market etfs，风险驱动基础质量归 Market state，本模块仍组合模型要求和整轮发布条件。
 
-日维护的普通发布链路是：原始同步 → `validateRawMarketDate` → 派生指标重算 → `validateDerivedMarketRange` → `advanceDailyWatermark` 或 `bumpDataRevision`。数据替换事务由各同步函数控制；发布水位由 Application Maintenance 控制，不把整轮网络同步包进一个数据库事务。初始化、无缺口信号重试及历史修复保留各自分支。
+日维护的普通发布链路是：原始同步 → `validateRawMarketDate` → 派生指标重算 → `validateDerivedMarketRange` → `advanceDailyWatermark` 或 `bumpDataRevision`。数据替换事务由各同步函数控制；发布水位由 Maintenance 控制，不把整轮网络同步包进一个数据库事务。初始化、无缺口信号重试及历史修复保留各自分支。
 
 CLI 入口为 [cli/run-maintenance.ts](cli/run-maintenance.ts)；根级 `pnpm maintenance` 经 [with-maintenance-lock.sh](../../../../scripts/maintenance/with-maintenance-lock.sh) 执行。单项数据同步 CLI 直接调用 Market 的具体文件；维护进程启动与中断恢复仍由现有启动/部署入口负责，本轮不改变锁、时间、水位和进程协议。
 
@@ -41,7 +41,7 @@ CLI 入口为 [cli/run-maintenance.ts](cli/run-maintenance.ts)；根级 `pnpm ma
 - [cli/sync-fina.ts](cli/sync-fina.ts) 对应 `pnpm --filter api sync fina`；全量分支调用历史导入，单股分支继续调用 Market 财报修复。全量导入传空运行 ID，weekly 使用运行 checkpoint，两者不合并。
 - 证券代码合并及其 [CLI](../market/cli/canonicalize-stock-codes.ts)、财报分期规则归 Market；weekly 调用结果来决定重算和发布。
 - `reference-worker.ts` 同时调用财报同步并记录可选运行 checkpoint；`data-audit.ts` 包含汇总和具体数据检查，`quality.ts` / `self-heal.ts` 也含领域检查与发布策略。当前保留这些混合实现，具体领域规则应归 Market，跨模块就绪条件和整轮发布决策归本模块；目录迁移不代表需要全面拆解。
-- 模块别名为 `#application-maintenance/*`。命令名、HTTP URL、维护状态模型和锁路径继续使用已有契约。
+- 模块别名为 `#maintenance/*`。命令名、HTTP URL、维护状态模型和锁路径继续使用已有契约。
 
 ## 恢复与发布安全
 

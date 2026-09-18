@@ -6,7 +6,7 @@
 
 ## 阅读与调用约定
 
-Strategy、Factor、Research、Signals、Market、Agent、Auth、Sharing、Application Maintenance
+Strategy、Factor、Research、Signals、Market、Agent、Auth、Sharing、Maintenance
 均在模块根目录 `errors.ts` 定义错误。业务代码直接使用：
 
 ```ts

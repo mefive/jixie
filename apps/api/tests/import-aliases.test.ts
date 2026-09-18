@@ -13,7 +13,7 @@ describe('native API imports', () => {
       import('tsx/esm/api').then(async ({ register }) => {
         register();
         const date = await import('#date');
-        const maintenance = await import('#application-maintenance/daily-schedule.js');
+        const maintenance = await import('#maintenance/daily-schedule.js');
         parentPort.postMessage({ date: Object.keys(date).sort(), maintenance: Object.keys(maintenance).sort() });
       });
     `;
@@ -28,7 +28,7 @@ describe('native API imports', () => {
         `
           import { Worker } from 'node:worker_threads';
           import * as date from '#date';
-          import * as maintenance from '#application-maintenance/daily-schedule.js';
+          import * as maintenance from '#maintenance/daily-schedule.js';
           const worker = new Worker(${JSON.stringify(workerCode)}, {
             eval: true,
             execArgv: ['--conditions=development'],
@@ -56,7 +56,7 @@ describe('native API imports', () => {
         `console.log(JSON.stringify([
           import.meta.resolve('#date'),
           import.meta.resolve('#infra/jobs/records.js'),
-          import.meta.resolve('#application-maintenance/daily-schedule.js'),
+          import.meta.resolve('#maintenance/daily-schedule.js'),
         ]));`,
       ],
       { cwd: apiDirectory, env: { ...process.env, NODE_OPTIONS: '' }, timeout: 15_000 },
@@ -64,7 +64,7 @@ describe('native API imports', () => {
     expect(JSON.parse(stdout)).toEqual([
       new URL('../dist/src/date.js', import.meta.url).href,
       new URL('../dist/src/infra/jobs/records.js', import.meta.url).href,
-      new URL('../dist/src/application-maintenance/daily-schedule.js', import.meta.url).href,
+      new URL('../dist/src/maintenance/daily-schedule.js', import.meta.url).href,
     ]);
   });
 
@@ -76,7 +76,7 @@ describe('native API imports', () => {
           ...(mode === 'development' ? ['--conditions=development'] : []),
           '--input-type=module',
           '-e',
-          "import.meta.resolve('#maintenance/state.js')",
+          "import.meta.resolve('#application-maintenance/state.js')",
         ],
         { cwd: apiDirectory, env: { ...process.env, NODE_OPTIONS: '' }, timeout: 15_000 },
       ),

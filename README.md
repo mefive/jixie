@@ -73,7 +73,7 @@ packages/shared/                   # 共享类型(TsCode、TradeDate)
 
 后端当前结构与调用链见 [架构阅读地图](docs/backend-architecture.md)，运行资源见 [入口清单](docs/backend-runtime-entries.md)，开发门禁见 [依赖边界](docs/backend-boundaries.md)。分轮进度与验收结果见 [开发计划](docs/design/backend-architecture-refactor.md)。
 
-后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。行情、领域数据与同步见 [Market](apps/api/src/market/README.md)，维护编排与发布水位见 [Application Maintenance](apps/api/src/application-maintenance/README.md)。
+后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。行情、领域数据与同步见 [Market](apps/api/src/market/README.md)，维护编排与发布水位见 [Maintenance](apps/api/src/maintenance/README.md)。
 
 ## 快速开始
 
