@@ -62,17 +62,17 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - 公开方法、参数、枚举或返回列变化时，唯一真相源是
   `packages/shared/src/research-sdk-contract.ts`；同时修改 Python runtime 实现和 API 映射，不得另写一份 Monaco
   schema。`apps/sandboxd/python/jixie_research_sdk.pyi` 是生成物，禁止手工编辑。
-- 修改公开契约后运行 `pnpm gen:research-sdk`，再运行 `pnpm check:research-sdk`、`pnpm typecheck` 和相关测试。
+- 修改公开契约后运行 `pnpm setup:sandbox`，再运行 `pnpm setup:sandbox --check`、`pnpm typecheck` 和相关测试。
   根级 `build` / `typecheck` 已把生成物一致性作为门禁；Git hook 只能提供本地快速反馈，不能作为正确性保证。
-- `gen:research-sdk` 只从公开 Contract 生成派生产物，不读取 Prisma。Prisma → SDK 的业务映射需要人工决策；
+- `setup:sandbox` 的 SDK 生成步骤只从公开 Contract 派生产物，不读取 Prisma；默认模式另按需准备本地 Python 环境。Prisma → SDK 的业务映射需要人工决策；
   Contract → `.pyi`、Monaco 补全和 API 校验必须自动同步并由契约测试约束。
 
 ## Factor Python SDK Contract 工作流
 
 - Factor Python 的公开类型和字段以 `packages/shared/src/factor-python-sdk.ts` 为唯一真相源；Prisma 的 Factor
   存储列只负责语言、运行时和代码血缘，禁止反向推导 Python SDK。
-- 修改 Factor Python 公开字段、上下文方法、输入枚举或构造参数后，运行 `pnpm gen:factor-sdk` 生成
-  `apps/sandboxd/python/jixie_factor_sdk.pyi`，再运行 `pnpm check:factor-sdk`、`pnpm typecheck` 和相关运行时/
+- 修改 Factor Python 公开字段、上下文方法、输入枚举或构造参数后，运行 `pnpm setup:sandbox` 生成
+  `apps/sandboxd/python/jixie_factor_sdk.pyi`，再运行 `pnpm setup:sandbox --check`、`pnpm typecheck` 和相关运行时/
   Pyright 测试。根级 `build` / `typecheck` 已把生成物一致性作为门禁。
 - Monaco/Pyright 直接复用同一 Contract 渲染的 stub，不另维护前端 Python schema；TypeScript Factor 的 ambient
   类型继续独立兼容，不能用旧 TS 字段名污染 Python 的 snake_case 契约。
@@ -81,10 +81,10 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 
 - `packages/shared/src/research-python-runtime.ts` 是 `research-py-v1` 可用 Python 版本、第三方包、导入名和 Agent
   使用政策的唯一事实源。不得只在 Dockerfile、开发机或 Agent prompt 中单独增删包。
-- 修改运行时包或版本后运行 `pnpm gen:research-runtime`，提交生成的
-  `apps/sandboxd/python/requirements-research-runtime.txt`，再运行 `pnpm check:research-runtime`、`pnpm typecheck`
+- 修改运行时包或版本后运行 `pnpm setup:sandbox`，提交生成的
+  `apps/sandboxd/python/requirements-research-runtime.txt`，再运行 `pnpm setup:sandbox --check`、`pnpm typecheck`
   和相关 runtime / Agent / Pyright 测试。
-- 本地首次运行或 Contract 变化后执行 `pnpm setup:research-python`。`pnpm dev` 会在启动 Web、API 和 sandboxd
+- 本地首次运行或 Contract 变化后执行 `pnpm setup:sandbox`。`pnpm dev` 会在启动 Web、API 和 sandboxd
   前校验 CPython 3.13 及所有固定包的精确版本；校验失败不得静默退化到系统 Python。
 - Agent 生成 Python 前必须查询 `searchResearchCatalog("runtime.python")`。prompt、Catalog、提案导入白名单、
   Docker requirements 和本地运行时必须复用同一 Contract；清单外能力应明确报缺口，不得猜测安装状态或手写替代。

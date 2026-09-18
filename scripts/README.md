@@ -7,13 +7,26 @@
 | 目录 / 入口 | 内容 | 常用入口 |
 | --- | --- | --- |
 | [e2e/](e2e/) | 浏览器检查与帮助图片生成的显式任务清单、选择及顺序执行 | `pnpm e2e --list`、`pnpm docs:images --list` |
-| [dev/](dev/) | 多服务启动、进程组清理、Python 环境安装及清理测试 | `pnpm dev`、`pnpm setup:research-python`、`pnpm test:dev-shutdown` |
-| [generators/](generators/) | 从 shared 契约生成 Research / Factor Python 类型声明与运行时依赖清单 | `pnpm gen:research-sdk`、`pnpm gen:factor-sdk`、`pnpm gen:research-runtime`；对应 `check:*` 检查一致性 |
+| [dev/](dev/) | 多服务启动、进程组清理及清理测试 | `pnpm dev`、`pnpm test:dev-shutdown` |
+| [sandbox/](sandbox/) | 按需生成 SDK 声明、运行时依赖清单并准备本地执行环境 | `pnpm setup:sandbox`；`pnpm setup:sandbox --check` 只检查生成物 |
 | [checks/](checks/) | 后端依赖边界检查及规则、提交信息检查、各自测试 | `pnpm check:backend-boundaries`、`pnpm test:backend-boundaries`、`pnpm check:commit-message`、`pnpm test:commit-message` |
 | [bootstrap.sh](bootstrap.sh) | 安装、构建、迁移、部署和服务配置 | `./scripts/bootstrap.sh` |
 | [deploy/](deploy/) | 部署影响分类及测试、部署维护门禁、维护 timer 激活 | 由 bootstrap 调用；测试：`node --test scripts/deploy/*.test.mjs` |
 | [maintenance/](maintenance/) | 生产维护锁、按步骤与年份执行可续跑的批量导入 | `pnpm maintenance ...`、`pnpm import:data ...` |
 | [tools/](tools/) | Git hook 的 pnpm 环境校验、代码量统计 | hook 自动调用 `run-pnpm.sh`；`pnpm loc` |
+
+## 沙盒准备
+
+`pnpm setup:sandbox` 统一准备用户脚本需要的 SDK 声明、依赖清单和本地执行环境，不启动 sandboxd。
+三个生成文件逐项比较内容，仅写入变化的文件；本地 `.venv/research-py-v1` 的解释器、包版本和导入均符合
+shared 契约时跳过安装，否则按固定 requirements 安装并复核。SDK 单独变化不会触发已健康环境的重装。
+首次创建需已有 CPython 3.13，可用 `JIXIE_PYTHON_BOOTSTRAP_EXECUTABLE` 指定解释器。已有环境的解释器
+损坏或不兼容时保留目录并报错，需移走旧目录后重试；不会自动删除环境。仍只管理工作区的默认环境，
+`JIXIE_PYTHON_EXECUTABLE` 指定的外部环境由使用者自行维护。
+
+`pnpm setup:sandbox --check` 只比较三份生成物，报告所有过期/缺失文件；不写文件、不要求 Python、
+不安装依赖。根级 build/typecheck 共用此门禁，`pnpm dev` 保留实际运行环境校验。
+TypeScript SDK 仍通过 shared 契约和现有 TS 构建使用，本命令不新增另一套 TS 构建过程。
 
 ## 调用边界
 

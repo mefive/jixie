@@ -189,8 +189,8 @@ Research SDK Contract（唯一公开真相源）
 具体同步机制：
 
 - 开发者只修改 `packages/shared/src/research-sdk-contract.ts` 中的公开参数、枚举和返回列；
-- `pnpm gen:research-sdk` 从该契约生成 `apps/sandboxd/python/jixie_research_sdk.pyi`，不手工维护生成物；
-- `pnpm check:research-sdk` 以只读方式比较生成结果，根级 `build` 与 `typecheck` 均先执行该检查；
+- `pnpm setup:sandbox` 从该契约生成 `apps/sandboxd/python/jixie_research_sdk.pyi`，不手工维护生成物；
+- `pnpm setup:sandbox --check` 以只读方式比较生成结果，根级 `build` 与 `typecheck` 均先执行该检查；
 - API 数据桥直接从同一契约构造请求枚举与返回列校验，额外测试 Python runtime 的真实参数名与契约一致；
 - Prisma migration 如果只是内部重构，不改变公开 SDK，就不更新 Contract；如果服务映射或公开返回发生变化，
   类型检查、契约测试或生成物检查必须失败，迫使开发者显式决定是否升级 Contract。
@@ -674,7 +674,7 @@ Panel 完成数据整理、统计计算与静态/交互图，Agent 查询 SDK �
 真实研究曾暴露本地 Python 能运行 pandas、却缺少 SciPy / statsmodels 的环境漂移。`research-py-v1` 因此把
 CPython 3.13、NumPy、pandas、SciPy、statsmodels、Matplotlib 和 scikit-learn 固化为一个机器可读 Contract：
 
-- Contract 生成生产镜像的精确 requirements；本地通过 `pnpm setup:research-python` 建立同版本虚拟环境，
+- Contract 生成生产镜像的精确 requirements；本地通过 `pnpm setup:sandbox` 建立同版本虚拟环境，
   `pnpm dev` 在启动前校验解释器和每个发行包的精确版本，缺失时直接失败并给出修复命令；
 - Agent 在提出任何 Python Cell 前必须精确查询 `runtime.python`，Catalog 返回每个包的版本、用途、导入名和
   使用政策；SciPy 用于分布、检验和数值算法，statsmodels 用于回归、HAC、时间序列与诊断，Matplotlib 只用于

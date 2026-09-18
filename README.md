@@ -82,6 +82,7 @@ pnpm install
 # 配置 apps/api/.env：DATABASE_URL 已默认，填 TUSHARE_TOKEN
 pnpm --filter api db:migrate
 pnpm import:data                 # 首次完整导入，可续传
+pnpm setup:sandbox               # 按需准备沙盒 SDK 声明、依赖清单与本地 Python 环境
 pnpm dev                         # 同时启动 sandboxd、API 和 Web
 ```
 

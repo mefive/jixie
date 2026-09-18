@@ -63,7 +63,7 @@ test('deployment infrastructure selects every application', () => {
     'scripts/bootstrap.sh',
     'scripts/deploy/deployment-gate.mjs',
     'scripts/maintenance/import-market-data.sh',
-    'scripts/generators/gen-research-sdk.ts',
+    'scripts/sandbox/setup.ts',
     'scripts/e2e/run.mjs',
     'scripts/e2e/commands.mjs',
   ]) {

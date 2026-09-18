@@ -97,7 +97,7 @@ export const RESEARCH_PYTHON_RUNTIME_CAPABILITIES_V1 = {
 export function renderResearchPythonRuntimeRequirements(): string {
   return [
     '# Generated from packages/shared/src/research-python-runtime.ts.',
-    '# Run pnpm gen:research-runtime after changing the capability contract.',
+    '# Run pnpm setup:sandbox after changing the capability contract.',
     ...RESEARCH_PYTHON_RUNTIME_PACKAGES_V1.map(
       ({ distribution, version }) => `${distribution}==${version}`,
     ),

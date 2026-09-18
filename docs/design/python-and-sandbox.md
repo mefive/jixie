@@ -81,7 +81,7 @@ runner 的标准输入并等待 500ms；容器仍存在时，再执行 `kill` �
 `research-py-v1` Contract 生成并精确锁定版本的 NumPy、pandas、
 SciPy、statsmodels、Matplotlib 和 scikit-learn，不挂载代码库、数据库、宿主目录或密钥。Docker requirements、
 Agent 能力目录、提案导入白名单与本地运行时均从同一 Contract 派生。开发者先运行
-`pnpm setup:research-python` 建立工作区虚拟环境；`pnpm dev` 在启动服务前验证 CPython 3.13 和每个包的精确
+`pnpm setup:sandbox` 建立工作区虚拟环境；`pnpm dev` 在启动服务前验证 CPython 3.13 和每个包的精确
 版本，不再静默使用能力残缺的系统 Python。本地测试仍可显式使用 `JIXIE_PYTHON_LOCAL=1`，但 production 会拒绝
 该逃生口。
 

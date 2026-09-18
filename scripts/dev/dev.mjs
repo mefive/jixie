@@ -173,7 +173,7 @@ async function verifyResearchPythonRuntime() {
     child.once('error', () => {
       rejectReady(
         new Error(
-          `research-py-v1 is not installed at ${pythonExecutable}. Run pnpm setup:research-python.`,
+          `research-py-v1 is not installed at ${pythonExecutable}. Run pnpm setup:sandbox.`,
         ),
       );
     });
@@ -185,7 +185,7 @@ async function verifyResearchPythonRuntime() {
       }
       rejectReady(
         new Error(
-          `research-py-v1 package verification failed at ${pythonExecutable}: ${stderr.trim() || `exit code ${code ?? 1}`}. Run pnpm setup:research-python.`,
+          `research-py-v1 package verification failed at ${pythonExecutable}: ${stderr.trim() || `exit code ${code ?? 1}`}. Run pnpm setup:sandbox.`,
         ),
       );
     });
