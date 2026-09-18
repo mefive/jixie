@@ -9,7 +9,7 @@
 | [e2e/](e2e/) | 浏览器检查与帮助图片生成的显式任务清单、选择及顺序执行 | `pnpm e2e --list`、`pnpm docs:images --list` |
 | [dev/](dev/) | 多服务启动、进程组清理及清理测试 | `pnpm dev`、`pnpm test:dev-shutdown` |
 | [sandbox/](sandbox/) | 按需生成 SDK 声明、运行时依赖清单并准备本地执行环境 | `pnpm setup:sandbox`；`pnpm setup:sandbox --check` 只检查生成物 |
-| [checks/](checks/) | 后端依赖边界检查及规则、提交信息检查、各自测试 | `pnpm check:backend-boundaries`、`pnpm check:commit-message`、`pnpm test:checks` |
+| [checks/](checks/) | 后端依赖边界检查及规则、提交信息检查、各自测试 | `pnpm check:backend-boundaries`、`pnpm check:commit-message <message-file>` |
 | [bootstrap.sh](bootstrap.sh) | 安装、构建、迁移、部署和服务配置 | `./scripts/bootstrap.sh` |
 | [deploy/](deploy/) | 部署影响分类及测试、部署维护门禁、维护 timer 激活 | 由 bootstrap 调用；测试：`node --test scripts/deploy/*.test.mjs` |
 | [maintenance/](maintenance/) | 生产维护锁、按步骤与年份执行可续跑的批量导入 | `pnpm maintenance ...`、`pnpm import:data ...` |
@@ -30,7 +30,7 @@ TypeScript SDK 仍通过 shared 契约和现有 TS 构建使用，本命令不�
 
 ## 调用边界
 
-- `pnpm test:checks` 通过文件匹配统一运行 `scripts/checks/*.test.mjs`；新增检查器测试不再逐个注册 package script。
+- 两个 `check:*` 命令各自先运行检查器自测，通过后执行实际检查；无需独立测试命令。根级 build/typecheck 和 commit-msg hook 直接调用底层检查脚本，保持其现有静态门禁职责。
 
 - 根级 `pnpm import:data` 获取维护锁，再由导入脚本编排 API 的 `sync <任务>`、修复和审计命令；具体数据处理仍归 API。
 - 根级 `pnpm data:audit <任务>` 统一数据审计，`pnpm probe <任务>` 统一 Tushare 连通性与能力探测；帮助不执行任务。
@@ -72,3 +72,13 @@ TypeScript SDK 仍通过 shared 契约和现有 TS 构建使用，本命令不�
 原 `test:backend-boundaries`、`test:commit-message` 合并为 `pnpm test:checks`，通过
 `scripts/checks/*.test.mjs` 自动选取测试文件；两个检查器及其测试实现、build/typecheck 和 Git hook 保持不变。
 统一入口实测 31 项全部通过，package 格式与 diff 检查通过。历史设计中的旧测试命令统一对应此新入口。
+
+
+## 检查命令内置自测（2026-09-18）
+
+提交信息：`refactor(repo): run checker self-tests with checks`。
+用户澄清期望是检查命令自身先自测，再执行实际检查；因此移除上一轮新增的 `test:checks`。
+`check:backend-boundaries` 先跑 28 项自测再扫描项目；`check:commit-message <message-file>` 先跑
+3 项自测再检查文件，沿用 `&&` 首败停止。没有新增执行脚本或修改检查规则。
+根级 build/typecheck 改为直接调用底层扫描，保留仅静态检查的职责；commit-msg hook 不变。
+验证：后端命令 28 项自测通过，扫描 734 个文件、0 违规；提交信息命令 3 项自测通过，带空格文件路径的合法/非法信息分别返回 0/1。package 格式和 diff 检查通过。

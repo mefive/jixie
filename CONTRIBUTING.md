@@ -53,8 +53,9 @@ and `revert` for reversions.
 
 `pnpm install` installs the existing Git hooks through `prepare`. The `commit-msg`
 hook runs the dependency-free checker in `scripts/checks/check-commit-message.mjs`.
-Run it explicitly with `pnpm check:commit-message <message-file>`; run its tests
-with `pnpm test:checks`. The checker enforces structure, length, and
+Run it explicitly with `pnpm check:commit-message <message-file>`; this runs the
+checker self-tests first and validates the file only if they pass. The Git hook
+continues to validate the message directly. The checker enforces structure, length, and
 obvious untranslated Chinese prose. It cannot judge English grammar or whether
 a summary accurately describes a diff; reviewers must check those properties.
 Local hooks can be bypassed and are not a server-side enforcement mechanism.

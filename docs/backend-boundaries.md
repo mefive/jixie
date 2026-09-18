@@ -1,6 +1,6 @@
 # 后端依赖边界门禁
 
-入口是 [check-backend-boundaries.mjs](../scripts/checks/check-backend-boundaries.mjs)，命令为 `pnpm check:backend-boundaries`。根级 `pnpm typecheck` 和 `pnpm build` 先执行该静态门禁，再执行已有 SDK 检查；typecheck 使用最新 shared 内存声明检查各 workspace，build 则执行各 workspace 构建。检查失败退出码为 1，不启动应用、不连接数据库。
+入口是 [check-backend-boundaries.mjs](../scripts/checks/check-backend-boundaries.mjs)，命令为 `pnpm check:backend-boundaries`，先运行检查器自测，再检查项目；自测失败即停止。根级 `pnpm typecheck` 和 `pnpm build` 直接调用底层脚本执行静态门禁（不运行自测），再执行 `pnpm setup:sandbox --check`；typecheck 使用最新 shared 内存声明检查各 workspace，build 则执行各 workspace 构建。检查失败退出码为 1，不启动应用、不连接数据库。
 
 ## 检查什么
 
@@ -41,4 +41,4 @@ API 跨顶层模块使用 `package.json#imports` 的 `#infra/*` 等原生别名�
 
 Worker URL、fork 路径、esbuild entry、Python/Prisma/Pyright 的资源目录另见 [运行入口清单](backend-runtime-entries.md)。这些不能用“类型检查已通过”代替实际启动。根级命令不自动运行行为测试，保持本项目先静态检查、人工 review 后验证的工作流。
 
-修改门禁后，人工 review 通过再执行 `pnpm test:checks`。正式用例使用临时目录构造合法/非法依赖，覆盖别名解析、类型与动态边、HTTP/Infra/Market/Engine 规则、例外变脏/过时、新增循环、测试边界和语法错误。用例不依赖本仓库恰好有多少行代码或多少文件。
+修改门禁后，人工 review 通过再执行 `pnpm check:backend-boundaries`，一次完成自测与项目扫描。正式用例使用临时目录构造合法/非法依赖，覆盖别名解析、类型与动态边、HTTP/Infra/Market/Engine 规则、例外变脏/过时、新增循环、测试边界和语法错误。用例不依赖本仓库恰好有多少行代码或多少文件。
