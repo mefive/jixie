@@ -1,5 +1,5 @@
 import { prismaDataPort } from '#engine/adapters/prisma-port.js';
-import { PythonFactorHost, withPythonFactorHost } from '#engine/adapters/python-factor-host.js';
+import { FactorHost } from '#engine/adapters/factor-host.js';
 import { runStrategy } from '#engine/simulation/run.js';
 import type { BacktestResult } from '#engine/types.js';
 import { t } from '#i18n/messages.js';
@@ -43,7 +43,7 @@ export async function runConfiguredBacktest(
 
   const prepared = await prepareStrategyFactors(config.code, userId);
   const runtime = await createPythonStrategyRuntime(config.code, onUserLog, paramOverrides, locale);
-  const factorHost = new PythonFactorHost(onUserLog);
+  const factorHost = new FactorHost(prepared.modules, onUserLog);
   try {
     const result = await runStrategy({
       start: config.start,
@@ -52,7 +52,8 @@ export async function runConfiguredBacktest(
       cost: config.cost,
       locale,
       strategy: runtime.strategy,
-      dataPort: withPythonFactorHost(prismaDataPort, factorHost),
+      dataPort: prismaDataPort,
+      factorExecution: factorHost,
       customFactors: prepared.modules,
       onLog: onSystemLog,
     });

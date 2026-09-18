@@ -11,9 +11,10 @@ Engine 提供交易模拟能力：推进交易日、读取当时可得的数据�
 | 逐日持仓/成本/再平衡归因累计 | [simulation/allocation-analysis.ts](simulation/allocation-analysis.ts) |
 | 所需数据接口 | [data/data-port.ts](data/data-port.ts) |
 | 缓存、截面、复权、历史状态等数据语义 | [data/engine-data.ts](data/engine-data.ts) |
-| 引擎内自定义因子求值 | [factors/custom-factor.ts](factors/custom-factor.ts) |
+| 自定义因子输入准备、当日缓存与数值合成 | [factors/custom-factor.ts](factors/custom-factor.ts) |
 | 宿主数据库读取 | [adapters/prisma-port.ts](adapters/prisma-port.ts) |
-| 宿主 Python 因子计算桥 | [adapters/python-factor-host.ts](adapters/python-factor-host.ts) |
+| 宿主 TS/Python 因子沙箱管理 | [adapters/factor-host.ts](adapters/factor-host.ts) |
+| 独立于存储的数据批次计算契约 | [factors/execution-port.ts](factors/execution-port.ts) |
 | 确定性测试数据源 | [testing/fixture-port.ts](testing/fixture-port.ts) |
 | 引擎输入、策略接口与结果类型 | [types.ts](types.ts) |
 
@@ -23,11 +24,16 @@ Engine 提供交易模拟能力：推进交易日、读取当时可得的数据�
 
 `EngineConfig.dataPort` 是必填项。模拟核心只通过 `EngineDataPort` 读取外部数据，不再导入 Prisma 或选择默认数据库；调用方负责选定端口。数据端口的方法和金融口径没有改变。
 
-- 正式策略执行由 [strategy/backtests/run.ts](../strategy/backtests/run.ts) 选择语言和宿主 Prisma 端口；Python 因子需要时在宿主端口外接计算桥。
+- 正式策略执行由 [strategy/backtests/run.ts](../strategy/backtests/run.ts) 选择语言和宿主 Prisma 端口；TS/Python 因子均由宿主 FactorHost 执行，调用方通过 `EngineConfig.factorExecution` 显式传入并负责关闭。
 - 仓库策略的直接执行入口和回测脚本显式传入 Prisma 端口；测试显式传入 fixture 端口。
 - 用户/Agent 编写的 TS 策略由 [strategy/runtime/typescript/walled-run.ts](../strategy/runtime/typescript/walled-run.ts) 创建 isolate。墙内 [wall-entry.ts](../strategy/runtime/typescript/wall-entry.ts) 使用代理 DataPort，通过宿主提供的调用边界请求数据，然后在墙内运行同一个模拟核心。
 
 [wall-bundle.ts](../strategy/runtime/typescript/wall-bundle.ts) 使用 esbuild 的 neutral 平台打包真实 SDK 和 Engine，宿主按进程缓存结果。原来用于替换 `prisma-port` 的插件已经移除：核心自身没有该依赖，打包不再需要制造替身。`metafile` 用于检查实际依赖，生产仍只取 bundle 文本；不会把宿主适配器、数据库或 Node 内建模块带进 isolate。
+
+自定义因子源码不再由 Engine 直接求值。TS 因子复用 `compileFactor` / `compileTimeSeriesFactor` /
+`compilePanelFactor` 的 isolate，Python 因子复用对应 Python runtime，执行位置不依赖策略语言。
+墙内 Engine 通过专用因子桥调用宿主 FactorHost，DataPort 只负责读取市场数据。每日回调前、截面加载和
+`ensureBars` 后批量准备值；当日首次读取固定结果，未读取的提前计算结果可在输入加载后刷新。
 
 纯核心包含 `simulation`、`data`、`factors` 及其纯辅助依赖；Engine 的 `adapters` 和业务模块中的 Worker 可以使用 Node/数据库。墙内 bundle 不包含这些宿主能力。
 

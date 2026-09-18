@@ -2,6 +2,7 @@ import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
 import { applyStrategyParamOverrides, defineStrategy } from './sdk.js';
 import { makeSandboxConsole, noopSandboxConsole } from '#infra/runtime/console.js';
 import type { SandboxConsole } from '#infra/runtime/console.js';
+import type { FactorExecutionPort } from '#engine/factors/execution-port.js';
 import type { EngineDataPort } from '#engine/data/data-port.js';
 import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
 import type { Strategy } from '#engine/types.js';
@@ -12,11 +13,12 @@ import type { Locale, StrategyParamValue } from '@jixie/shared';
  * stats + i18n messages — all pure ECMAScript; the host data port is injected) and evaluated inside an
  * isolated-vm isolate by walled-run.ts. Everything here executes with NO Node world around it.
  *
- * The wall's two doorways, both host-provided References:
+ * Host-provided References expose storage, factor execution and logging:
  *   - __hostFetch: the DataPort bridge. Each engine data load becomes ONE crossing —
  *     Reference.apply proxies the host's async Prisma promise back into the isolate. Crossings ≈ DB
  *     queries, already minimized by
  *     EngineData's caching, so no per-ctx-call chatter.
+ *   - __hostFactorDescribe / __hostFactorCompute: registered factor sandboxes, not source evaluation.
  *   - __hostLog: fire-and-forget log lines (system progress + the strategy's console.*).
  * The user strategy module (host-compiled TS→CJS) is evaluated in here too — same JS world as the
  * engine, which is exactly the direct lane's semantics, just inside the wall.
@@ -35,6 +37,27 @@ interface HostFn {
 }
 declare const __hostFetch: HostFn;
 declare const __hostLog: HostFn;
+declare const __hostFactorDescribe: HostFn;
+declare const __hostFactorCompute: HostFn;
+
+const factorExecution: FactorExecutionPort = {
+  async describe() {
+    return JSON.parse(
+      (await __hostFactorDescribe.apply(undefined, [], {
+        arguments: { copy: true },
+        result: { promise: true, copy: true },
+      })) as string,
+    );
+  },
+  async compute(request) {
+    return JSON.parse(
+      (await __hostFactorCompute.apply(undefined, [JSON.stringify(request)], {
+        arguments: { copy: true },
+        result: { promise: true, copy: true },
+      })) as string,
+    );
+  },
+};
 
 const bridgePort: EngineDataPort = new Proxy({} as EngineDataPort, {
   get(_target, method: string) {
@@ -55,7 +78,7 @@ interface WalledConfig {
   initialCash: number;
   cost?: Record<string, number>;
   locale?: Locale;
-  customFactors?: CustomFactorModule[]; // host-prepared factor modules, evaluated in-wall by run.ts
+  customFactors?: CustomFactorModule[]; // host-prepared frozen dependencies; source executes only through the factor host
   paramOverrides?: Record<string, StrategyParamValue>;
   captureUserLogs: boolean;
   captureSignals: boolean;
@@ -121,6 +144,7 @@ function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy 
     locale: cfg.locale,
     strategy,
     dataPort: bridgePort,
+    factorExecution,
     customFactors: cfg.customFactors,
     onLog: (line: string) => __hostLog.applyIgnored(undefined, ['system', 'info', line]),
   };

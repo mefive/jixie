@@ -17,6 +17,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
 | `strategy/runtime/typescript/wall-bundle.ts` | 同目录 `wall-entry.ts` | 同目录 `wall-entry.js` | esbuild neutral bundle，实际 Engine 核心，不带宿主 Prisma/Node 导入；进程内缓存 bundle |
+| `engine/adapters/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；普通 Python 回测与 TS 墙内回测在 finally 关闭，初始化失败也清理已建立实例 |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 为调用方加载 isolate 模块；不是常驻独立服务 |
 | `strategy/runtime/typescript/walled-run.test-worker.mjs` | 测试辅助入口，使用 `engine/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
 

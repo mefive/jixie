@@ -1,5 +1,3 @@
-import type { FactorBar } from '@jixie/shared';
-
 /**
  * The engine's ONLY doorway to storage (sandbox Phase B1, docs/design/python-and-sandbox.md).
  * Deliberately dumb: every method fetches plain JSON-able rows — no domain logic, no PIT gating,
@@ -177,24 +175,6 @@ export interface BarsRowsOptions {
   includeTurnoverRateF?: boolean;
 }
 
-export interface PythonFactorComputeRequest {
-  factorKey: string;
-  code: string;
-  analysisKind: 'cross_sectional' | 'time_series' | 'panel';
-  crossSectionalItems?: Array<{
-    bar: FactorBar;
-    closes?: number[];
-    dates?: string[];
-    amounts?: (number | null)[];
-    turnoverRatesF?: (number | null)[];
-    roes?: (number | null)[];
-    grossProfitMargins?: (number | null)[];
-    marketCloses?: (number | null)[];
-  }>;
-  fields?: Record<string, number[]>;
-  indexes?: number[];
-}
-
 export interface EngineDataPort {
   /** Open trading days (SSE) within [start, end], ascending. */
   openDates(start: string, end: string): Promise<string[]>;
@@ -231,6 +211,4 @@ export interface EngineDataPort {
   ): Promise<BarsRows>;
   /** Stock-index futures metadata, actual-contract bars, main mappings, and margin params. */
   futuresRange(start: string, end: string): Promise<FutureMarketRows>;
-  /** Host-only py-v1 execution doorway. Plain storage ports omit it; runtime wrappers provide it. */
-  pythonFactorCompute?(request: PythonFactorComputeRequest): Promise<(number | null)[]>;
 }

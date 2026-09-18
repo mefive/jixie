@@ -11,6 +11,7 @@
 import type { AllocationAnalysis, FactorDependency, Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data/data-port.js';
 import type { CustomFactorModule } from './factors/custom-factor.js';
+import type { FactorExecutionPort } from './factors/execution-port.js';
 
 /** A held position. Only frozenShares remain unavailable until frozenUntil (T+1). */
 export interface Position {
@@ -280,9 +281,10 @@ export interface EngineConfig {
   /** Required storage doorway: the host supplies Prisma, tests a fixture, and the wall a bridge. */
   dataPort: EngineDataPort;
   /** Published defineFactor modules referenced through immutable Factor.key values —
-   * host-prepared (ownership-checked, TS→CJS); evaluated in the engine's own world (see
-   * custom-factor.ts). A declared custom key with no module here fails the run explicitly. */
+   * host-prepared (ownership-checked, TS→CJS); executed only through factorExecution. A declared custom key with no module here fails the run explicitly. */
   customFactors?: CustomFactorModule[];
+  /** Required when customFactors are present. The host owns and closes the sandbox runtimes. */
+  factorExecution?: FactorExecutionPort;
 }
 
 export interface BacktestResult {

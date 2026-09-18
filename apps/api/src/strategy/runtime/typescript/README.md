@@ -11,7 +11,7 @@
 | [compile.ts](compile.ts) `compileStrategy`；[sdk.ts](sdk.ts) `defineStrategy`、`enrich` | 既有编译及编写契约，供生成校验／测试等消费者；正式数据库回测入口使用 walled-run |
 | [codegen-prompt.ts](codegen-prompt.ts) `buildCodegenPrompt` | TS Strategy profile 的生成提示词 |
 
-宿主先把用户源码转 CommonJS，再创建 isolate，挂载取数／日志桥并加载 bundle。运行 finally 关闭 PythonFactorHost、释放 isolate；Python 因子可通过宿主桥参与 TS 策略，但不能把用户 TS 移到宿主直接执行。因子权限由 [factor-inputs](../../factor-inputs/README.md) 在此前检查。
+宿主先把用户源码转 CommonJS，再创建 isolate，挂载取数／因子执行／日志桥并加载 bundle。运行 finally 关闭 FactorHost、释放 isolate；TS/Python 因子均通过宿主桥在各自独立沙箱执行，但不能把用户 TS 移到宿主直接执行。因子权限由 [factor-inputs](../../factor-inputs/README.md) 在此前检查。
 
 改运行边界看 [walled-run.test.ts](walled-run.test.ts)、[wall-bundle.test.ts](wall-bundle.test.ts)；改 SDK／参数看 [sdk.test.ts](sdk.test.ts)、[params.test.ts](params.test.ts)、[sdk-reference.test.ts](sdk-reference.test.ts)；编译看 [compile.test.ts](compile.test.ts)。[walled-run.test-worker.mjs](walled-run.test-worker.mjs) 仅供测试，不能被生产导入。运行路径见 [清单](../../../../../../docs/backend-runtime-entries.md)。
 

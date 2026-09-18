@@ -3,7 +3,7 @@ import * as st from '#math/stats.js';
 import { t } from '#i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '#market/registry/index-presets.js';
 import { EngineData, type CrossSection } from '../data/engine-data.js';
-import { CustomFactorRuntime, evaluateCustomFactorModule } from '../factors/custom-factor.js';
+import { CustomFactorRuntime } from '../factors/custom-factor.js';
 import { Portfolio } from './portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
 import {
@@ -166,7 +166,7 @@ async function runStockStrategyCore(
   if (allocationClasses.size > 0) {
     await engineData.loadBars([...allocationClasses.keys()]);
   }
-  const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
+  const customFactors = await buildCustomFactorRuntime(cfg, engineData, locale, log);
   const portfolio = new Portfolio(cfg.initialCash, cost);
   const allocationTracker =
     allocationClasses.size > 0
@@ -295,7 +295,11 @@ async function runStockStrategyCore(
             factorObservations.set(key, byCode);
           }
         : undefined;
-    await customFactors?.prepare(date, cfg.strategy.watch ?? []);
+    await customFactors?.prepare(date, [
+      ...(cfg.strategy.watch ?? []),
+      ...portfolio.positions.keys(),
+      ...engineData.loadedBarCodes(),
+    ]);
     await cfg.strategy.onBar(
       buildContext(date, engineData, portfolio, collected, customFactors, observeFactor),
     );
@@ -364,7 +368,7 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
   if (needsFundamentalHistory(cfg)) {
     await engineData.preloadFina();
   }
-  const customFactors = buildCustomFactorRuntime(cfg, engineData, locale, log);
+  const customFactors = await buildCustomFactorRuntime(cfg, engineData, locale, log);
   const allocation = accountAllocation(cfg);
   const stockPortfolio = new Portfolio(cfg.initialCash * allocation.stock, cost);
   const futurePortfolio = new FuturesPortfolio(cfg.initialCash * allocation.futures, cost);
@@ -459,7 +463,11 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
       conditionalCommands: [] as ConditionalCommand[],
       futureIntents: null as Map<string, FutureIntent> | null,
     };
-    await customFactors?.prepare(date, cfg.strategy.watch ?? []);
+    await customFactors?.prepare(date, [
+      ...(cfg.strategy.watch ?? []),
+      ...stockPortfolio.positions.keys(),
+      ...engineData.loadedBarCodes(),
+    ]);
     await cfg.strategy.onBar(
       buildMultiAssetContext(
         date,
@@ -569,12 +577,12 @@ function fmtDate(d: string): string {
  * custom key the strategy DECLARES must have a module (the host couldn't find a deleted/foreign
  * factor row — fail loudly, not silent nulls). Inline ctx.factor() reads of undeclared
  * keys simply see null, consistent with undeclared moneyflow columns. */
-function buildCustomFactorRuntime(
+async function buildCustomFactorRuntime(
   cfg: EngineConfig,
   engineData: EngineData,
   locale: Locale,
   log: (line: string) => void,
-): CustomFactorRuntime | null {
+): Promise<CustomFactorRuntime | null> {
   const declaredCustomKeys = (cfg.strategy.factors ?? []).filter(isComputedFactorKey);
   const modules = cfg.customFactors ?? [];
   if (declaredCustomKeys.length === 0 && modules.length === 0) {
@@ -587,15 +595,29 @@ function buildCustomFactorRuntime(
     throw new Error(t(locale, 'customFactorMissing', { keys: missing.join(', ') }));
   }
 
-  const factors = new Map(modules.map((mod) => [mod.key, evaluateCustomFactorModule(mod)]));
+  if (!cfg.factorExecution) {
+    throw new Error(t(locale, 'customFactorExecutionUnavailable'));
+  }
+  const definitions = await cfg.factorExecution.describe();
+  const factors = new Map(definitions.map((definition) => [definition.id, definition]));
+  if (factors.size !== modules.length || modules.some((module) => !factors.has(module.key))) {
+    throw new Error('Factor runtime dependencies do not match the engine configuration');
+  }
   const warnedKeys = new Set<string>();
-  return new CustomFactorRuntime(factors, engineData, cfg.strategy.watch ?? [], (key, message) => {
-    // First compute error per factor reaches the run log; later ones are dropped (same failure repeats per stock×day).
-    if (!warnedKeys.has(key)) {
-      warnedKeys.add(key);
-      log(`[factor-error] ${key}: ${message}`);
-    }
-  });
+  return new CustomFactorRuntime(
+    factors,
+    engineData,
+    cfg.factorExecution,
+    cfg.strategy.watch ?? [],
+    (key, message) => {
+      // First compute error per factor reaches the run log; later ones are dropped (same failure repeats per stock×day).
+      if (!warnedKeys.has(key)) {
+        warnedKeys.add(key);
+        log(`[factor-error] ${key}: ${message}`);
+      }
+    },
+    locale,
+  );
 }
 
 function buildContext(
@@ -655,8 +677,9 @@ function buildContext(
     resampledBars(code, period, n) {
       return engineData.resampledBars(code, date, period, n);
     },
-    ensureBars(codes) {
-      return engineData.loadBars(codes);
+    async ensureBars(codes) {
+      await engineData.loadBars(codes);
+      await customFactors?.prepare(date, codes, cross?.byCode ?? null);
     },
     listDays(code) {
       return engineData.listDays(code, date);
@@ -675,7 +698,7 @@ function buildContext(
     },
     factor(name, code) {
       const value = customFactors?.has(name)
-        ? customFactors.value(name, date, code, cross?.byCode.get(code) ?? null)
+        ? customFactors.value(name, date, code)
         : engineData.factor(name, date, code);
       onFactorRead?.(name, code, value);
       return value;
@@ -890,8 +913,9 @@ function buildMultiAssetContext(
     resampledBars(code, period, n) {
       return engineData.resampledBars(code, date, period, n);
     },
-    ensureBars(codes) {
-      return engineData.loadBars(codes);
+    async ensureBars(codes) {
+      await engineData.loadBars(codes);
+      await customFactors?.prepare(date, codes, cross?.byCode ?? null);
     },
     listDays(code) {
       return engineData.listDays(code, date);
@@ -910,7 +934,7 @@ function buildMultiAssetContext(
     },
     factor(name, code) {
       if (customFactors?.has(name)) {
-        return customFactors.value(name, date, code, cross?.byCode.get(code) ?? null);
+        return customFactors.value(name, date, code);
       }
       return engineData.factor(name, date, code);
     },

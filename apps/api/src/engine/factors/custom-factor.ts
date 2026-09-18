@@ -1,18 +1,15 @@
-import type { FactorBar, MultiAssetClass } from '@jixie/shared';
-import type { CustomFactor, FactorCtx } from '#factor/runtime/typescript/sdk.js';
+import { DEFAULT_LOCALE, type FactorBar, type MultiAssetClass, type Locale } from '@jixie/shared';
+import { t } from '#i18n/messages.js';
+import type {
+  FactorDefinition,
+  FactorExecutionPort,
+  FactorComputeRequest,
+} from './execution-port.js';
 import { factorV2YieldTerm, type FactorV2FieldKey } from '#factor/definitions/fields.js';
 import type { EngineData } from '../data/engine-data.js';
 import type { BarRow } from '../types.js';
 
-/**
- * Custom (defineFactor) factors inside the BACKTEST ENGINE (factor-to-strategy.md Step 2): a strategy
- * declares a published factor key and reads today's value via ctx.factor — computed on the fly,
- * nothing stored. The host prepares each referenced factor's code (ownership-checked, TS→CJS
- * transformed) and passes it in EngineConfig.customFactors; THIS file evaluates and serves it in
- * whatever world the engine runs in — inside the isolate on the walled lane (DB-origin code stays
- * behind the wall by construction), plainly on the direct lane. Pure ECMAScript: it is part of the
- * wall bundle.
- */
+/** Frozen, ownership-checked dependencies. User source is loaded only by a host factor runtime. */
 export interface CustomFactorModule {
   key: string; // immutable Factor.key
   language?: 'typescript' | 'python';
@@ -49,51 +46,7 @@ export interface AssetFactorRuntimeMeta {
   inputs: TimeSeriesFactorInput[];
 }
 
-interface AssetFactorDefinition {
-  version: 2;
-  analysisKind: 'time_series' | 'panel';
-  outputScope: 'asset';
-  frequency: 'daily';
-  inputs: TimeSeriesFactorInput[];
-  window: number;
-  compute(ctx: AssetFactorContext): number | null;
-}
-
-interface AssetFactorContext {
-  value(field: TimeSeriesFactorInput): number | null;
-  lag(field: TimeSeriesFactorInput, periods: number): number | null;
-}
-
-export type EvaluatedCustomFactor =
-  | { kind: 'cross_sectional'; factor: CustomFactor }
-  | {
-      kind: 'python_cross_sectional';
-      code: string;
-      window?: number;
-      historyFields: CustomFactorHistoryField[];
-    }
-  | {
-      kind: 'asset_series';
-      factor: AssetFactorDefinition;
-      meta: AssetFactorRuntimeMeta;
-    }
-  | {
-      kind: 'python_asset_series';
-      analysisKind: 'time_series' | 'panel';
-      code: string;
-      meta: AssetFactorRuntimeMeta;
-    }
-  | {
-      kind: 'panel_composite';
-      standardization: 'rank' | 'zscore';
-      assetUniverse: Array<{ assetId: string; assetClass: MultiAssetClass }>;
-      components: Array<{
-        direction: 'positive' | 'negative';
-        evaluated: Extract<EvaluatedCustomFactor, { kind: 'asset_series' | 'python_asset_series' }>;
-      }>;
-    };
-
-/** Identify expensive auxiliary histories before factor code enters the engine wall. */
+/** Identify auxiliary histories needed when preparing point-in-time sandbox inputs. */
 export function extractCustomFactorHistoryFields(source: string): CustomFactorHistoryField[] {
   const fields: CustomFactorHistoryField[] = [];
   if (/['"]turnoverRateF['"]/.test(source)) {
@@ -111,142 +64,24 @@ export function extractCustomFactorHistoryFields(source: string): CustomFactorHi
   return fields;
 }
 
-/** Evaluate one factor module — mirrors wall-entry's strategy evaluation (same ambient style). */
-export function evaluateCustomFactorModule(mod: CustomFactorModule): EvaluatedCustomFactor {
-  if (mod.panelComposite) {
-    if (mod.analysisKind !== 'panel' || mod.panelComposite.components.length < 2) {
-      throw new Error(`factor ${mod.key} has an invalid panel composite contract`);
-    }
-    const components = mod.panelComposite.components.map((component) => {
-      const evaluated = evaluateCustomFactorModule(component.module);
-      if (
-        (evaluated.kind !== 'asset_series' && evaluated.kind !== 'python_asset_series') ||
-        (evaluated.kind === 'asset_series'
-          ? evaluated.factor.analysisKind !== 'panel'
-          : evaluated.analysisKind !== 'panel')
-      ) {
-        throw new Error(`factor ${mod.key} panel composite components must be panel factors`);
-      }
-      return { direction: component.direction, evaluated };
-    });
-    return {
-      kind: 'panel_composite',
-      standardization: mod.panelComposite.standardization,
-      assetUniverse: mod.panelComposite.assetUniverse.map((asset) => ({ ...asset })),
-      components,
-    };
-  }
-  if (mod.language === 'python') {
-    if (mod.runtimeVersion !== 'py-v1' || !mod.code) {
-      throw new Error(`factor ${mod.key} has an invalid Python execution contract`);
-    }
-    if (mod.analysisKind === 'time_series' || mod.analysisKind === 'panel') {
-      if (!mod.assetSeries) {
-        throw new Error(`factor ${mod.key} is missing its Python asset-series contract`);
-      }
-      return {
-        kind: 'python_asset_series',
-        analysisKind: mod.analysisKind,
-        code: mod.code,
-        meta: mod.assetSeries,
-      };
-    }
-    return {
-      kind: 'python_cross_sectional',
-      code: mod.code,
-      window: mod.crossSectional?.window,
-      historyFields: [...(mod.historyFields ?? [])],
-    };
-  }
-  if (!mod.js) {
-    throw new Error(`factor ${mod.key} is missing executable code`);
-  }
-  const moduleShim: { exports: Record<string, unknown> } = { exports: {} };
-  try {
-    const run = new Function(
-      'module',
-      'exports',
-      'defineFactor',
-      'defineFactorV2',
-      'require',
-      mod.js,
-    );
-    run(
-      moduleShim,
-      moduleShim.exports,
-      (factor: CustomFactor) => factor,
-      (factor: AssetFactorDefinition) => factor,
-      (id: string) => {
-        throw new Error(`factor code cannot import external modules (${id})`);
-      },
-    );
-  } catch (e) {
-    throw new Error(
-      `factor ${mod.key} evaluation error: ${e instanceof Error ? e.message : String(e)}`,
-    );
-  }
-
-  const factor = (moduleShim.exports.default ?? moduleShim.exports) as Partial<
-    CustomFactor & AssetFactorDefinition
-  >;
-  if (!factor || typeof factor.compute !== 'function') {
-    throw new Error(`factor ${mod.key} must export a factor definition with compute`);
-  }
-  if (mod.analysisKind === 'time_series' || mod.analysisKind === 'panel') {
-    const meta = mod.assetSeries;
-    if (
-      !meta ||
-      factor.version !== 2 ||
-      factor.analysisKind !== mod.analysisKind ||
-      factor.outputScope !== 'asset' ||
-      factor.frequency !== 'daily' ||
-      factor.window !== meta.window ||
-      !sameStringArray(factor.inputs, meta.inputs)
-    ) {
-      throw new Error(`factor ${mod.key} does not match its compiled asset-series contract`);
-    }
-    return {
-      kind: 'asset_series',
-      factor: factor as AssetFactorDefinition,
-      meta,
-    };
-  }
-  return { kind: 'cross_sectional', factor: factor as CustomFactor };
-}
-
-function sameStringArray(left: unknown, right: string[]): boolean {
-  return (
-    Array.isArray(left) &&
-    left.length === right.length &&
-    left.every((value, index) => value === right[index])
-  );
-}
-
-const NO_HISTORY_CTX: FactorCtx = {
-  history() {
-    throw new Error(
-      'declare `window` in defineFactor to use ctx.history (trading days needed, incl. today)',
-    );
-  },
-} as FactorCtx;
-
-/** Per-run memo cap — bounds memory on windowed factors over long ranges; oldest entries evicted. */
-const MEMO_CAP = 100_000;
-
 /**
- * Serves published-factor reads: per-(factor, date, code) compute with a bounded per-run memo
+ * Serves published-factor reads using a decision-day cache keyed by factor and instrument
  * (a monthly rebalance re-reads the same values while ranking — memoizing keeps that O(1)).
  * Windowed factors read the strategy-side bars cache — same "K-line must be loaded" contract as
  * ctx.sma (ensureBars first); without bars the window is short and compute sees [] from history().
  */
 export class CustomFactorRuntime {
-  private memo = new Map<string, number | null>();
+  private date: string | null = null;
+  private memo = new Map<string, { input: string; value: number | null; read: boolean }>();
+  private pending: Promise<void> = Promise.resolve();
 
   constructor(
-    private factors: Map<string, EvaluatedCustomFactor>,
+    private factors: Map<string, FactorDefinition>,
     private engineData: EngineData,
+    private execution: FactorExecutionPort,
     private assetUniverse: string[],
     private onComputeError: (key: string, message: string) => void,
+    private locale: Locale = DEFAULT_LOCALE,
   ) {
     for (const [key, factor] of factors) {
       if (
@@ -267,168 +102,114 @@ export class CustomFactorRuntime {
     return this.factors.has(key);
   }
 
-  /** Resolve py-v1 values before user code enters its synchronous onBar section. */
-  async prepare(
+  /** Prepare only currently accessible instruments; serialize overlapping SDK data loads. */
+  prepare(
     date: string,
     codes: string[],
     crossByCode: Map<string, BarRow> | null = null,
   ): Promise<void> {
-    if (codes.length === 0) {
-      return;
-    }
-    await Promise.all(
-      [...this.factors].map(([key, factor]) =>
-        this.prepareEvaluated(factor, key, date, codes, crossByCode),
-      ),
-    );
+    const pending = this.pending.then(async () => {
+      if (this.date !== date) {
+        this.date = date;
+        this.memo.clear();
+      }
+      for (const [key, factor] of this.factors) {
+        await this.prepareFactor(factor, key, date, [...new Set(codes)], crossByCode);
+      }
+    });
+    this.pending = pending;
+    return pending;
   }
 
-  value(key: string, date: string, code: string, crossBar: BarRow | null): number | null {
-    const memoKey = `${key}|${date}|${code}`;
-    const hit = this.memo.get(memoKey);
-    if (hit !== undefined || this.memo.has(memoKey)) {
-      return hit ?? null;
+  value(key: string, date: string, code: string): number | null {
+    const entry = this.memo.get(this.memoKey(key, code));
+    if (date !== this.date || !entry) {
+      throw new Error(t(this.locale, 'customFactorNotPrepared', { key, date, code }));
     }
-
-    const value = this.compute(this.factors.get(key)!, key, date, code, crossBar);
-    if (this.memo.size >= MEMO_CAP) {
-      this.memo.delete(this.memo.keys().next().value!);
-    }
-    this.memo.set(memoKey, value);
-    return value;
+    entry.read = true;
+    return entry.value;
   }
 
-  private compute(
-    evaluated: EvaluatedCustomFactor,
-    key: string,
-    date: string,
-    code: string,
-    crossBar: BarRow | null,
-  ): number | null {
-    if (evaluated.kind === 'panel_composite') {
-      return this.computePanelComposite(evaluated, key, date, code);
-    }
-    if (evaluated.kind === 'python_cross_sectional' || evaluated.kind === 'python_asset_series') {
-      return this.memo.get(`${key}|${date}|${code}`) ?? null;
-    }
-    if (evaluated.kind === 'asset_series') {
-      return this.computeAssetSeries(evaluated, key, date, code);
-    }
-    const factor = evaluated.factor;
-    let ctx = NO_HISTORY_CTX;
-    if (factor.window != null) {
-      const bars = this.engineData.bars(code, date, factor.window);
-      const closes = bars.map((bar) => bar.adjClose);
-      const dates = bars.map((bar) => bar.date);
-      const amounts = bars.map((bar) => bar.amount);
-      const turnoverRatesF = bars.map((bar) => bar.turnoverRateF);
-      const engineData = this.engineData;
-      // Point-in-time ROE per bar date (as-of announcement), materialized lazily on first read —
-      // fina is preloaded by run.ts when the factor declares the 'roe' history field.
-      let roes: (number | null)[] | null = null;
-      let grossProfitMargins: (number | null)[] | null = null;
-      let marketCloses: (number | null)[] | null = null;
-      ctx = {
-        history(
-          n: number,
-          field?: 'date' | 'amount' | 'turnoverRateF' | 'roe' | 'grossprofitMargin' | 'marketClose',
-        ) {
-          // Auxiliary histories are loaded only when requested by host metadata and stay aligned
-          // with the OHLC bars.
-          const source =
-            field === 'date'
-              ? dates
-              : field === 'amount'
-                ? amounts
-                : field === 'turnoverRateF'
-                  ? turnoverRatesF
-                  : field === 'roe'
-                    ? (roes ??= bars.map((bar) => engineData.roeHistoryAt(code, bar.date)))
-                    : field === 'grossprofitMargin'
-                      ? (grossProfitMargins ??= bars.map((bar) =>
-                          engineData.grossProfitMarginHistoryAt(code, bar.date),
-                        ))
-                      : field === 'marketClose'
-                        ? (marketCloses ??= bars.map((bar) =>
-                            engineData.indexCloseOn('000985.CSI', bar.date),
-                          ))
-                        : closes;
-          if (n <= 0 || source.length < n) {
-            return [];
-          }
-          return source.slice(source.length - n);
-        },
-      } as FactorCtx;
-    }
-
-    try {
-      const value = factor.compute(this.assembleFactorBar(date, code, crossBar), ctx);
-      return value == null || !Number.isFinite(value) ? null : value;
-    } catch (e) {
-      this.onComputeError(key, e instanceof Error ? e.message : String(e));
-      return null;
-    }
+  private memoKey(key: string, code: string): string {
+    return JSON.stringify([key, code]);
   }
 
-  private async prepareEvaluated(
-    evaluated: EvaluatedCustomFactor,
+  private needsCompute(key: string, code: string, input: string): boolean {
+    const previous = this.memo.get(this.memoKey(key, code));
+    // Preserve first-read semantics. Unread speculative values may be refreshed after data loads.
+    return !previous || (!previous.read && previous.input !== input);
+  }
+
+  private async prepareFactor(
+    factor: FactorDefinition,
     key: string,
     date: string,
     codes: string[],
     crossByCode: Map<string, BarRow> | null,
   ): Promise<void> {
-    if (evaluated.kind === 'panel_composite') {
-      await Promise.all(
-        evaluated.components.map((component, index) =>
-          this.prepareEvaluated(
-            component.evaluated,
-            `${key}:component:${index}`,
-            date,
-            this.assetUniverse,
-            null,
-          ),
-        ),
-      );
+    if (factor.kind === 'panel_composite') {
+      for (const component of factor.components) {
+        await this.prepareFactor(
+          component.definition,
+          component.definition.id,
+          date,
+          this.assetUniverse,
+          null,
+        );
+      }
+      this.preparePanelComposite(factor, key);
       return;
     }
-    if (evaluated.kind === 'python_cross_sectional') {
-      const pending = codes.filter((code) => !this.memo.has(`${key}|${date}|${code}`));
+    if (factor.kind === 'cross_sectional') {
+      const pending = codes
+        .map((code) => {
+          const item = this.crossSectionalItem(factor, date, code, crossByCode?.get(code) ?? null);
+          // Market data is immutable within a decision date; only its availability changes.
+          const input = `${crossByCode?.has(code) ?? false}:${item.closes?.length ?? 0}`;
+          return { code, item, input };
+        })
+        .filter(({ code, input }) => this.needsCompute(key, code, input));
       if (pending.length === 0) {
         return;
       }
-      const items = pending.map((code) =>
-        this.pythonCrossSectionalItem(evaluated, date, code, crossByCode?.get(code) ?? null),
-      );
-      const values = await this.engineData.pythonFactorCompute({
-        factorKey: key,
-        code: evaluated.code,
-        analysisKind: 'cross_sectional',
-        crossSectionalItems: items,
+      const values = await this.execution.compute({
+        factorId: factor.id,
+        kind: 'cross_sectional',
+        items: pending.map(({ item }) => item),
       });
-      pending.forEach((code, index) =>
-        this.memo.set(`${key}|${date}|${code}`, values[index] ?? null),
-      );
+      this.checkResult(values, pending.length);
+      pending.forEach(({ code, input }, index) => {
+        this.memo.set(this.memoKey(key, code), { input, value: values[index], read: false });
+      });
       return;
     }
-    if (evaluated.kind === 'python_asset_series') {
-      for (const code of codes) {
-        const memoKey = `${key}|${date}|${code}`;
-        if (this.memo.has(memoKey)) {
-          continue;
-        }
-        const request = this.pythonAssetRequest(evaluated, key, date, code);
-        if (!request) {
-          this.memo.set(memoKey, null);
-          continue;
-        }
-        const values = await this.engineData.pythonFactorCompute(request);
-        this.memo.set(memoKey, values[0] ?? null);
+    for (const code of codes) {
+      const request = this.assetRequest(factor, key, date, code);
+      const input = request ? 'ready' : 'missing';
+      if (!this.needsCompute(key, code, input)) {
+        continue;
       }
+      let value: number | null = null;
+      if (request) {
+        const values = await this.execution.compute(request);
+        this.checkResult(values, 1);
+        value = values[0];
+      }
+      this.memo.set(this.memoKey(key, code), { input, value, read: false });
     }
   }
 
-  private pythonCrossSectionalItem(
-    factor: Extract<EvaluatedCustomFactor, { kind: 'python_cross_sectional' }>,
+  private checkResult(values: (number | null)[], expected: number): void {
+    if (
+      values.length !== expected ||
+      values.some((value) => value !== null && !Number.isFinite(value))
+    ) {
+      throw new Error('Factor runtime returned invalid values');
+    }
+  }
+
+  private crossSectionalItem(
+    factor: Extract<FactorDefinition, { kind: 'cross_sectional' }>,
     date: string,
     code: string,
     crossBar: BarRow | null,
@@ -455,14 +236,19 @@ export class CustomFactorRuntime {
     };
   }
 
-  private pythonAssetRequest(
-    factor: Extract<EvaluatedCustomFactor, { kind: 'python_asset_series' }>,
+  private assetRequest(
+    factor: Extract<FactorDefinition, { kind: 'asset_series' }>,
     key: string,
     date: string,
     code: string,
-  ) {
+  ): Extract<FactorComputeRequest, { kind: 'asset_series' }> | null {
     if (this.engineData.assetType(code) !== 'etf') {
-      this.onComputeError(key, `asset-scoped Python Factor requires an ETF code, received ${code}`);
+      this.onComputeError(
+        key,
+        factor.meta.inputs.includes('etf.adjustedClose')
+          ? `input etf.adjustedClose requires an ETF code, received ${code}`
+          : `asset-scoped Factor V2 requires an ETF code, received ${code}`,
+      );
       return null;
     }
     const bars = this.engineData.bars(code, date, factor.meta.window);
@@ -481,106 +267,45 @@ export class CustomFactorRuntime {
       );
     }
     return {
-      factorKey: key,
-      code: factor.code,
-      analysisKind: factor.analysisKind,
+      factorId: factor.id,
+      kind: 'asset_series',
       fields,
       indexes: [bars.length - 1],
     };
   }
 
-  private computePanelComposite(
-    evaluated: Extract<EvaluatedCustomFactor, { kind: 'panel_composite' }>,
+  private preparePanelComposite(
+    factor: Extract<FactorDefinition, { kind: 'panel_composite' }>,
     key: string,
-    date: string,
-    requestedCode: string,
-  ): number | null {
-    const componentValues = evaluated.components.map((component, componentIndex) => ({
+  ): void {
+    const componentValues = factor.components.map((component) => ({
       component,
-      values: this.assetUniverse.map((assetId) =>
-        this.compute(
-          component.evaluated,
-          `${key}:component:${componentIndex}`,
-          date,
-          assetId,
-          null,
-        ),
+      values: this.assetUniverse.map(
+        (assetId) => this.memo.get(this.memoKey(component.definition.id, assetId))!.value,
       ),
     }));
+    const input = JSON.stringify(componentValues.map(({ values }) => values));
     const eligibleIndexes = this.assetUniverse
       .map((_, index) => index)
       .filter((index) => componentValues.every((component) => component.values[index] != null));
-    if (eligibleIndexes.length === 0) {
-      return null;
-    }
     const standardized = componentValues.map((component) => {
       const raw = eligibleIndexes.map((index) => component.values[index]!);
-      return evaluated.standardization === 'rank' ? centeredRanks(raw) : standardScores(raw);
+      return factor.standardization === 'rank' ? centeredRanks(raw) : standardScores(raw);
     });
-    for (let position = 0; position < eligibleIndexes.length; position++) {
-      const assetId = this.assetUniverse[eligibleIndexes[position]];
-      const score = componentValues.reduce((sum, component, componentIndex) => {
-        const direction = component.component.direction === 'positive' ? 1 : -1;
-        return sum + standardized[componentIndex][position] * direction;
-      }, 0);
-      this.memo.set(`${key}|${date}|${assetId}`, score / componentValues.length);
-    }
-    return this.memo.get(`${key}|${date}|${requestedCode}`) ?? null;
-  }
-
-  /** Execute Factor V2 against adjusted bars ending on the decision date. The host compiler has
-   * already validated the frozen Factor dependency and attached its contract; this second check and runtime
-   * live inside the engine wall so neither direct nor walled backtests trust report statistics as a
-   * trading signal. */
-  private computeAssetSeries(
-    evaluated: Extract<EvaluatedCustomFactor, { kind: 'asset_series' }>,
-    key: string,
-    date: string,
-    code: string,
-  ): number | null {
-    if (this.engineData.assetType(code) !== 'etf') {
-      const message = evaluated.meta.inputs.includes('etf.adjustedClose')
-        ? `input etf.adjustedClose requires an ETF code, received ${code}`
-        : `asset-scoped Factor V2 requires an ETF code, received ${code}`;
-      this.onComputeError(key, message);
-      return null;
-    }
-    const bars = this.engineData.bars(code, date, evaluated.meta.window);
-    if (bars.length < evaluated.meta.window) {
-      return null;
-    }
-    const declaredInputs = new Set(evaluated.meta.inputs);
-    const currentIndex = bars.length - 1;
-    const read = (field: TimeSeriesFactorInput, periods: number): number | null => {
-      if (!declaredInputs.has(field)) {
-        throw new Error(`Factor code accessed undeclared input ${field}`);
+    for (let index = 0; index < this.assetUniverse.length; index++) {
+      const assetId = this.assetUniverse[index];
+      if (!this.needsCompute(key, assetId, input)) {
+        continue;
       }
-      if (!Number.isInteger(periods) || periods < 0) {
-        throw new Error('ctx.lag periods must be a non-negative integer');
-      }
-      const bar = bars[currentIndex - periods];
-      if (!bar) {
-        return null;
-      }
-      const yieldTerm = factorV2YieldTerm(field);
+      const position = eligibleIndexes.indexOf(index);
       const value =
-        field === 'etf.adjustedClose'
-          ? bar.adjClose
-          : yieldTerm === null
-            ? null
-            : this.engineData.governmentYieldAsOf(yieldTerm, bar.date);
-      return value != null && Number.isFinite(value) ? value : null;
-    };
-
-    try {
-      const value = evaluated.factor.compute({
-        value: (field) => read(field, 0),
-        lag: (field, periods) => read(field, periods),
-      });
-      return value == null || !Number.isFinite(value) ? null : value;
-    } catch (e) {
-      this.onComputeError(key, e instanceof Error ? e.message : String(e));
-      return null;
+        position < 0
+          ? null
+          : componentValues.reduce((sum, { component }, componentIndex) => {
+              const direction = component.direction === 'positive' ? 1 : -1;
+              return sum + standardized[componentIndex][position] * direction;
+            }, 0) / componentValues.length;
+      this.memo.set(this.memoKey(key, assetId), { input, value, read: false });
     }
   }
 

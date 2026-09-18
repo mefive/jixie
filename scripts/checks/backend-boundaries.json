@@ -10,13 +10,6 @@
     {
       "rule": "engine-core",
       "from": "apps/api/src/engine/factors/custom-factor.ts",
-      "to": "apps/api/src/factor/runtime/typescript/sdk.ts",
-      "kind": "type",
-      "reason": "纯类型依赖 Factor 编写契约，编译后擦除；不导入 Factor 执行器。"
-    },
-    {
-      "rule": "engine-core",
-      "from": "apps/api/src/engine/factors/custom-factor.ts",
       "to": "apps/api/src/factor/definitions/fields.ts",
       "kind": "runtime",
       "reason": "复用 Factor V2 字段常量和期限解析纯函数；不经过定义读写与发布流程。"

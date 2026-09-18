@@ -1,5 +1,68 @@
 # Python 策略运行时与沙箱（决策文档）
 
+## 2026-09-18：统一策略与因子执行边界（进行中）
+
+本轮按 review-gated-development 执行三个提交；每个提交先确认范围，实现后只做静态检查，
+人工 review 通过再跑行为验证，全部通过后提交。此节取代下文历史的“TS 因子跟随 Engine 执行”决定；
+Engine 移回宿主是第三提交，不能把目标架构当作已经完成。
+
+| 提交 | 信息 | 状态 |
+| --- | --- | --- |
+| 1 | `fix(sandbox): isolate custom factors across strategy languages` | 人工 review 通过，静态检查、测试、构建及 Worker 验证通过；随本次提交交付 |
+| 2 | `refactor(strategy): extract a shared sandbox bridge` | 待第一提交完成后的范围确认 |
+| 3 | `refactor(strategy): run both language runtimes through the host engine` | 待前置提交完成后的范围确认 |
+
+### 第一提交：因子执行独立于策略语言
+
+原问题：TS 策略的 TS 因子跟随 Engine 在 isolate 中运行；Python 策略的 TS 因子却跟随
+Engine 在 Node Worker 中以 `new Function` 直接运行。模块通过编译检查不能替代实际计算隔离。
+
+当前实现：
+
+- `engine/factors/execution-port.ts` 定义独立的 `FactorExecutionPort`（描述与批量计算），不再将计算
+  塞入 `EngineDataPort.pythonFactorCompute`。Engine 不加载或直接调用用户因子函数。
+- `engine/adapters/factor-host.ts` 的 `FactorHost` 在一次运行内持有冻结依赖，复用 Factor 模块已有的
+  TS isolate / Python runtime。沙箱请求只有因子标识、类型与数据，没有源码；宿主检查输入形状、
+  已登记依赖、结果长度和数值。同一实例串行计算，初始化失败和运行结束释放运行时。
+- TS 策略仍用墙内 Engine，但因子经独立宿主桥到各自的沙箱；Python 策略的宿主 Engine 使用
+  同一 FactorHost。Panel 组件各自隔离，Engine 按原公式组合返回数值。
+- `prepareStrategyFactors` 的现有权限、冻结和字面量依赖提取保持不变，包括 `factors` 声明和
+  `ctx.factor(...)` 字面量调用；不新增扫描策略控制流来推测运行路径。
+
+批量准备与缓存契约：
+
+1. 每日回调前准备 watch、实际持仓及已加载历史的标的；截面加载和 `ensureBars` 返回前准备新增输入。
+2. 横截面按缺失输入批量调用，资产序列通过现有 `computeSeries` 调用；不预计算全回测未来日期。
+3. 缓存只保留当前决策日。已读取值保持当日首次读取语义；尚未读取的提前计算值在截面/历史可用性
+   变化后重新计算，避免把缺少输入时的 null 锁死。缺少准备的同步读取明确失败，不能伪装为数据缺失。
+4. 模块实例在回测内复用、回测之间隔离。批量准备会改变未读取因子的调用次数与时机；有副作用、
+   依赖调用顺序的用户因子不承诺与原惰性路径逐次等价。指标输入、PIT 和数学公式保持不变。
+5. 存储 schema、HTTP API、公开 Factor SDK 不变。合法结果中的 null 与协议/生命周期错误严格区分。
+
+审查后的验证计划：现有 factor-semantics、Factor TS/Python runtime、墙内回测及 bundle 边界测试；
+新增四种策略/因子语言组合、宿主隔离、输入拒绝、冻结依赖、初始化清理、缓存刷新、动态持仓和混合
+Panel 组件测试；API/shared 构建与相关 Worker 启动验证。所有 Python 本地验证不代表生产容器隔离验收。
+
+### 第一提交静态检查记录（2026-09-18）
+
+- `pnpm typecheck` 通过：Shared、API、Docs、sandboxd、Web 均通过；生成物一致性检查通过。
+- 后端静态扫描：770 个文件，2885 条运行时边、682 条类型边，0 违规；已移除不再需要的 Factor SDK 类型边例外。
+- 本次新增/修改 TS 文件 ESLint、Prettier（包含 Engine data 目录）和 `git diff --check` 通过。
+- 人工 review 通过后，Engine、Factor runtime、Strategy runtime / factor-inputs 共 31 个测试文件、178 项测试通过；边界检查器 28 项自测通过。
+- Shared、API 构建通过；新增真实回测 Worker、扫描 cell、Signals 子进程验证，源码与编译产物各 8 项通过，覆盖四种策略/因子语言组合及因子观察值。测试等待进程退出，断开 Prisma 并删除独立临时数据库。
+- Worker 测试夹具首次缺少空 SQLite 文件，随后缺少基准行情；仅修正测试夹具后重跑全部通过，未修改已 review 的产品代码。
+- Python 使用本地 research-py-v1 环境验证；未进行生产容器隔离验收或性能基准测试，性能对比留在第三提交。
+- 未修改 Prisma schema、公开 SDK、workspace 或跨包构建依赖，无数据库迁移或部署范围规则变更。
+
+### 后续两提交
+
+第二提交统一 Strategy 的元数据、快照、批量查询、指令校验与重放，由 Python 先接入。
+第三提交将 TS 策略接入同一业务 bridge，迁移普通回测、扫描、Signals、参数/元数据检查及 Agent
+校验，移除旧 Engine bundle。TS 保留 isolate 传输和必要的 SDK bundle；Python 保留 sandboxd 传输。
+届时比较固定 fixture 的逐日净值/成交/信号以及耗时、内存和通信次数，不预先宣称性能无损。
+
+---
+
 > 2026-09-09 目录重整更新（Commit 8，验证通过）：配置执行入口归 `strategy/execution/run-configured.ts`，TS 的宿主/墙内入口归 `strategy/runtime/typescript/`；模拟核心显式接收 `engine/data/data-port.ts` 的必填端口，Prisma 适配器归 `engine/adapters/`，移除了打包时的 Prisma 替身。下文保留早期决策记录；现行职责见 [Engine 阅读地图](../../apps/api/src/engine/README.md)。
 
 > **2026-08-05 决策更新：下文 2026-07-07 的“不支持 Python 策略”结论已被新需求取代。**

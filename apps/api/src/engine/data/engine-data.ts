@@ -8,11 +8,7 @@ import {
 import { addDays, daysBetween, isoWeekKey } from '#date';
 import { t } from '#i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { StockNameLookup } from '#market/instruments/stock-identity.js';
-import type {
-  EngineDataPort,
-  FutureDailyDataRow,
-  PythonFactorComputeRequest,
-} from './data-port.js';
+import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
 import type { BarRow, FutureBar, IndexValuationField, OhlcBar, ResamplePeriod } from '../types.js';
 
 /** Whole-market cross-section for one trading day. */
@@ -466,11 +462,9 @@ export class EngineData {
     }
   }
 
-  pythonFactorCompute(request: PythonFactorComputeRequest): Promise<(number | null)[]> {
-    if (!this.port.pythonFactorCompute) {
-      throw new Error('Python Factor execution is unavailable on this engine lane');
-    }
-    return this.port.pythonFactorCompute(request);
+  /** Instruments whose histories are already available to synchronous strategy reads. */
+  loadedBarCodes(): string[] {
+    return [...this.barsCache.keys()];
   }
 
   nextDay(date: string): string {

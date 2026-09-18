@@ -1,4 +1,4 @@
-import { PythonFactorHost, withPythonFactorHost } from '#engine/adapters/python-factor-host.js';
+import { FactorHost } from '#engine/adapters/factor-host.js';
 import type { EngineDataPort } from '#engine/data/data-port.js';
 import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
 import type { BacktestResult, CostModel, SignalBacktestOutput } from '#engine/types.js';
@@ -36,7 +36,7 @@ export interface WalledBacktestConfig {
   initialCash: number;
   cost?: Partial<CostModel>;
   locale?: Locale;
-  /** Referenced custom factors, host-prepared (ownership-checked + TS→CJS) — evaluated in-wall. */
+  /** Referenced custom factors, host-prepared (ownership-checked + TS→CJS), executed in separate factor sandboxes. */
   customFactors?: CustomFactorModule[];
   /** Type-matched overrides merged into the strategy's declared params inside the isolate. */
   paramOverrides?: Record<string, StrategyParamValue>;
@@ -162,8 +162,7 @@ async function runWalled(
   const userJs = await compileUserSource(cfg.code);
 
   const isolate = new ivm.Isolate({ memoryLimit: WALL_MEMORY_MB });
-  const pythonFactorHost = new PythonFactorHost(onUserLog);
-  const hostedPort = withPythonFactorHost(port, pythonFactorHost);
+  const factorHost = new FactorHost(cfg.customFactors ?? [], onUserLog);
   try {
     const context = await isolate.createContext();
 
@@ -172,15 +171,23 @@ async function runWalled(
       '__hostFetch',
       new ivm.Reference(async (method: string, argsJson: string) => {
         const portMethod = (
-          hostedPort as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>
+          port as unknown as Record<string, (...a: unknown[]) => Promise<unknown>>
         )[method];
         if (typeof portMethod !== 'function') {
           throw new Error(`unknown DataPort method: ${method}`);
         }
-        return JSON.stringify(
-          await portMethod.apply(hostedPort, JSON.parse(argsJson) as unknown[]),
-        );
+        return JSON.stringify(await portMethod.apply(port, JSON.parse(argsJson) as unknown[]));
       }),
+    );
+    await context.global.set(
+      '__hostFactorDescribe',
+      new ivm.Reference(async () => JSON.stringify(await factorHost.describe())),
+    );
+    await context.global.set(
+      '__hostFactorCompute',
+      new ivm.Reference(async (requestJson: string) =>
+        JSON.stringify(await factorHost.compute(JSON.parse(requestJson))),
+      ),
     );
     // Doorway 2: fire-and-forget log lines (system progress / the strategy's console.*).
     await context.global.set(
@@ -221,7 +228,7 @@ async function runWalled(
     }
     return JSON.parse(resultJson) as BacktestResult | SignalBacktestOutput;
   } finally {
-    pythonFactorHost.close();
+    factorHost.close();
     isolate.dispose();
   }
 }

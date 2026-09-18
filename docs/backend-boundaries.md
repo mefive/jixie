@@ -25,7 +25,6 @@
 | 源 → 目标（省略 `apps/api/src/`） | 理由 |
 | --- | --- |
 | `engine/data/engine-data.ts` → `market/instruments/stock-identity.ts` | 历史证券身份的纯规则，不查询市场数据库 |
-| `engine/factors/custom-factor.ts` → `factor/runtime/typescript/sdk.ts` | 仅使用 Factor 编写契约类型 |
 | `engine/factors/custom-factor.ts` → `factor/definitions/fields.ts` | 复用字段常量与纯函数 |
 | `engine/simulation/run.ts` → `market/registry/index-presets.ts` | 复用纯静态基准代码 |
 

@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest';
-import { runStrategy, runStrategyWithSignals } from '../simulation/run.js';
+import { afterEach, describe, expect, it } from 'vitest';
+import {
+  runStrategy as runEngine,
+  runStrategyWithSignals as runEngineWithSignals,
+} from '../simulation/run.js';
 import { runWalledBacktest } from '#strategy/runtime/typescript/walled-run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
-import type { Strategy } from '../types.js';
-import { PythonFactorHost, withPythonFactorHost } from '../adapters/python-factor-host.js';
+import type { Strategy, EngineConfig } from '../types.js';
+import { FactorHost } from '../adapters/factor-host.js';
 
 /**
  * ctx.factor() time semantics (factor-to-strategy.md Step 2): a `flow` factor (moneyflow) is an
@@ -88,6 +91,9 @@ describe('flow factor semantics (mf_net_*)', () => {
 });
 
 describe('custom (defineFactor) factors inside the engine', () => {
+  afterEach(() => {
+    delete process.env.JIXIE_PYTHON_LOCAL;
+  });
   function specWithValuation(): FixtureSpec {
     const base = spec();
     base.stocks[0].basic = Object.fromEntries(D.map((date) => [date, { peTtm: 10 }]));
@@ -299,26 +305,21 @@ def compute(ctx: AssetFactorContext) -> float | None:
       assetSeries: { window: 3, inputs: ['etf.adjustedClose' as const] },
     };
     const seen: Record<string, number | null> = {};
-    const host = new PythonFactorHost();
-    try {
-      await runStrategy({
-        start: D[0],
-        end: D[4],
-        initialCash: 100_000,
-        strategy: {
-          name: 'direct Python Factor',
-          watch: [etfCode],
-          factors: [factorKey],
-          onBar: (ctx) => {
-            seen[ctx.date] = ctx.factor(factorKey, etfCode);
-          },
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy: {
+        name: 'direct Python Factor',
+        watch: [etfCode],
+        factors: [factorKey],
+        onBar: (ctx) => {
+          seen[ctx.date] = ctx.factor(factorKey, etfCode);
         },
-        dataPort: withPythonFactorHost(fixturePort(pythonSpec), host),
-        customFactors: [module],
-      });
-    } finally {
-      host.close();
-    }
+      },
+      dataPort: fixturePort(pythonSpec),
+      customFactors: [module],
+    });
     expect(seen[D[1]]).toBeNull();
     expect(seen[D[4]]).toBeCloseTo(14 / 12 - 1);
 
@@ -367,26 +368,21 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       crossSectional: {},
     };
     const seen: Record<string, number | null> = {};
-    const host = new PythonFactorHost();
-    try {
-      await runStrategy({
-        start: D[0],
-        end: D[4],
-        initialCash: 100_000,
-        strategy: {
-          name: 'Python cross-section',
-          factors: ['python_value'],
-          async onBar(ctx) {
-            await ctx.loadCrossSection();
-            seen[ctx.date] = ctx.factor('python_value', 'A');
-          },
+    await runStrategy({
+      start: D[0],
+      end: D[4],
+      initialCash: 100_000,
+      strategy: {
+        name: 'Python cross-section',
+        factors: ['python_value'],
+        async onBar(ctx) {
+          await ctx.loadCrossSection();
+          seen[ctx.date] = ctx.factor('python_value', 'A');
         },
-        dataPort: withPythonFactorHost(fixturePort(specWithValuation()), host),
-        customFactors: [module],
-      });
-    } finally {
-      host.close();
-    }
+      },
+      dataPort: fixturePort(specWithValuation()),
+      customFactors: [module],
+    });
     expect(seen[D[0]]).toBe(20);
     expect(seen[D[4]]).toBe(20);
     delete process.env.JIXIE_PYTHON_LOCAL;
@@ -747,7 +743,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(logged).toContain(`${D[4]}=12`);
   });
 
-  it('walled lane: the same custom factor computes in-wall (values logged through the wall match)', async () => {
+  it('walled lane: the same custom factor computes through a separate sandbox (values logged through the wall match)', async () => {
     const js = await toCommonJs(
       `export default defineFactor({ name: 'double pe', compute: (bar) => (bar.peTtm == null ? null : bar.peTtm * 2) });`,
       'factor code',
@@ -967,3 +963,21 @@ describe('point-in-time fundamental history for custom factors', () => {
     expect(logged).toContain(`${D[4]}=${8 * 1_000_000 + (10 + 16 + 16) * 1000 + (30 + 36 + 36)}`);
   });
 });
+
+async function runStrategy(config: EngineConfig) {
+  const host = new FactorHost(config.customFactors ?? []);
+  try {
+    return await runEngine({ ...config, factorExecution: host });
+  } finally {
+    host.close();
+  }
+}
+
+async function runStrategyWithSignals(config: EngineConfig) {
+  const host = new FactorHost(config.customFactors ?? []);
+  try {
+    return await runEngineWithSignals({ ...config, factorExecution: host });
+  } finally {
+    host.close();
+  }
+}

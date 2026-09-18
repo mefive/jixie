@@ -691,6 +691,14 @@ const MESSAGES = {
     zh: '未知因子 {key}(可用:{available},或已发布的因子 key)',
     en: 'Unknown factor {key} (available: {available}, or a published factor key)',
   },
+  customFactorExecutionUnavailable: {
+    zh: '当前执行环境未配置因子沙箱。',
+    en: 'Custom Factor execution is unavailable on this engine lane',
+  },
+  customFactorNotPrepared: {
+    zh: '因子 {key} 在 {date} 的标的 {code} 尚未准备，请先加载截面或历史 K 线。',
+    en: 'Factor {key} for {code} on {date} is not prepared; load its cross-section or bars first',
+  },
   customFactorMissing: {
     zh: '自定义因子不存在或已删除:{keys}(只能引用自己的因子)',
     en: 'Custom factor missing or deleted: {keys} (only your own factors can be referenced)',
