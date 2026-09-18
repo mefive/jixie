@@ -11,7 +11,7 @@ import {
 
 /**
  * Refresh the complete stock master and point-in-time historical names.
- * Usage: pnpm --filter api sync:stock-history [announcementStart] [announcementEnd]
+ * Usage: pnpm --filter api sync stock-history [announcementStart] [announcementEnd]
  */
 async function main(): Promise<void> {
   const config = loadTushareConfig();
@@ -36,7 +36,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (error: unknown) => {
-  console.error('sync:stock-history failed:', error instanceof Error ? error.message : error);
+  console.error('sync stock-history failed:', error instanceof Error ? error.message : error);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

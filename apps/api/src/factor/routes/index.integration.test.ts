@@ -46,7 +46,6 @@ vi.mock('../weather/refresh.js', async (importOriginal) => ({
 
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import { migrateLegacyFactorJobs } from '../../../scripts/migrations/split-factor-job-kinds.js';
 import { copyFactorComposite } from '../composition/operations.js';
 import { submitFactorHoldout } from '../evaluations/holdout.js';
 import { sha256 } from '../sources/fingerprint.js';
@@ -384,14 +383,13 @@ describe('Factor HTTP business boundaries', () => {
       data: {
         id: 'job',
         userId: 'owner',
-        kind: 'factor',
+        kind: 'factor-analysis',
         key: 'fixture',
         status: 'done',
         factorReportId: 'report',
         logs: JSON.stringify(logs),
       },
     });
-    await migrateLegacyFactorJobs(prisma);
     const list = await (
       await request('/factors/analysis-reports?factor=draft', undefined, 'owner', 'GET')
     ).json();
@@ -518,7 +516,7 @@ describe('Factor HTTP business boundaries', () => {
   );
 
   it.each([null, {}, { task: 'analysis' }])(
-    'reads migrated owned analysis jobs with historical payloads: %j',
+    'reads owned analysis jobs with historical payloads: %j',
     async (payload) => {
       await seedReport();
       const logs = [{ source: 'system', level: 'info', text: 'Analysis complete' }];
@@ -526,7 +524,7 @@ describe('Factor HTTP business boundaries', () => {
         data: {
           id: 'analysis-job',
           userId: 'owner',
-          kind: 'factor',
+          kind: 'factor-analysis',
           key: 'analysis',
           status: 'done',
           factorReportId: 'report',
@@ -534,7 +532,6 @@ describe('Factor HTTP business boundaries', () => {
           ...(payload === null ? {} : { payload }),
         },
       });
-      await migrateLegacyFactorJobs(prisma);
       const response = await request(
         '/factors/analysis-jobs/analysis-job',
         undefined,
@@ -653,17 +650,16 @@ describe('Factor HTTP business boundaries', () => {
       expect(resources.wake).toHaveBeenCalledOnce();
     });
 
-    it('reuses a migrated active correlation job and rejects report-linked candidates', async () => {
+    it('reuses an active correlation job with a historical payload and rejects report-linked candidates', async () => {
       const reference = await submit();
       const job = await prisma.job.findUniqueOrThrow({ where: { id: reference.jobId } });
       await prisma.job.update({
         where: { id: job.id },
         data: {
-          kind: 'factor',
+          kind: 'factor-correlation',
           payload: { ...(job.payload as Prisma.InputJsonObject), task: 'correlation' },
         },
       });
-      await migrateLegacyFactorJobs(prisma);
       expect(await submit()).toEqual(reference);
       expect(await prisma.job.count()).toBe(1);
       expect(

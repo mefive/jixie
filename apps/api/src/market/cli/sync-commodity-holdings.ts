@@ -8,7 +8,7 @@ import { TushareClient } from '../providers/tushare/client.js';
 
 /**
  * Sync research-only ranked-member aggregates for representative AU/CU/M contracts.
- * Usage: pnpm --filter api sync:commodity-holdings [start] [end]
+ * Usage: pnpm --filter api sync commodity-holdings [start] [end]
  */
 async function main(): Promise<void> {
   const currentDate = new Date().toISOString().slice(0, 10).replaceAll('-', '');
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
 main()
   .catch((error: unknown) => {
     console.error(
-      'sync:commodity-holdings failed:',
+      'sync commodity-holdings failed:',
       error instanceof Error ? error.message : String(error),
     );
     process.exitCode = 1;

@@ -38,7 +38,7 @@ CLI 入口为 [cli/run-maintenance.ts](cli/run-maintenance.ts)；根级 `pnpm ma
 ## 命令与领域归属
 
 - [cli/run-maintenance.ts](cli/run-maintenance.ts) 对应 `pnpm maintenance` 的 daily/weekly/repair/baseline 子命令；参数、输出和 Prisma 收尾归 CLI。
-- [cli/sync-fina.ts](cli/sync-fina.ts) 对应 `pnpm --filter api sync:fina`；全量分支调用历史导入，单股分支继续调用 Market 财报修复。全量导入传空运行 ID，weekly 使用运行 checkpoint，两者不合并。
+- [cli/sync-fina.ts](cli/sync-fina.ts) 对应 `pnpm --filter api sync fina`；全量分支调用历史导入，单股分支继续调用 Market 财报修复。全量导入传空运行 ID，weekly 使用运行 checkpoint，两者不合并。
 - 证券代码合并及其 [CLI](../market/cli/canonicalize-stock-codes.ts)、财报分期规则归 Market；weekly 调用结果来决定重算和发布。
 - `reference-worker.ts` 同时调用财报同步并记录可选运行 checkpoint；`data-audit.ts` 包含汇总和具体数据检查，`quality.ts` / `self-heal.ts` 也含领域检查与发布策略。当前保留这些混合实现，具体领域规则应归 Market，跨模块就绪条件和整轮发布决策归本模块；目录迁移不代表需要全面拆解。
 - 模块别名为 `#application-maintenance/*`。命令名、HTTP URL、维护状态模型和锁路径继续使用已有契约。

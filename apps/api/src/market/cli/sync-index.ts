@@ -17,7 +17,7 @@ function parseCodes(value: string): string[] {
 
 /**
  * Sync index constituents (index_weight) + daily close (index_daily) into the local store.
- * Usage: pnpm --filter api sync:index [market-state|CODE,CODE] [start] [end]
+ * Usage: pnpm --filter api sync index [market-state|CODE,CODE] [start] [end]
  *   default: 000852.SH (CSI 1000) 2015-2024
  */
 async function main(): Promise<void> {
@@ -77,7 +77,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:index failed: ', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync index failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

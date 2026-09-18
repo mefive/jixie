@@ -50,7 +50,7 @@ function parseArgs(args: string[]): CliOptions {
   );
   if (unknownFlags.length > 0 || dates.length > 2) {
     throw new Error(
-      'Usage: pnpm audit:data [start] [end] [--window=60] [--points=5] [--json] [--strict]',
+      'Usage: pnpm data:audit data [start] [end] [--window=60] [--points=5] [--json] [--strict]',
     );
   }
   return options;

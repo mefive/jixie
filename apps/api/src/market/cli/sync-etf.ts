@@ -22,7 +22,7 @@ function parseCodes(selector: string): string[] {
 
 /**
  * Sync ETF metadata plus selected daily bars/adjustment factors.
- * Usage: pnpm --filter api sync:etf [start] [end] [registry|major|CODE,CODE] [refresh]
+ * Usage: pnpm --filter api sync etf [start] [end] [registry|major|CODE,CODE] [refresh]
  */
 async function main(): Promise<void> {
   const config = loadTushareConfig();
@@ -73,7 +73,7 @@ function addCalendarDays(date: string, days: number): string {
 }
 
 main().catch(async (error: unknown) => {
-  console.error('\n❌ sync:etf failed: ', error instanceof Error ? error.message : error);
+  console.error('\n❌ sync etf failed: ', error instanceof Error ? error.message : error);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

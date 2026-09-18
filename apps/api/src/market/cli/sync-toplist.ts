@@ -5,7 +5,7 @@ import { syncTopList } from '../stocks/flows-sync.js';
 
 /**
  * Sync Dragon-Tiger List (LHB) net buy per day into TopList — read exact-date via ctx.lhbNet(code).
- * Resumable. Usage: pnpm sync:toplist [start] [end]   e.g. pnpm sync:toplist 20200101 20241231
+ * Resumable. Usage: pnpm sync toplist [start] [end]   e.g. pnpm sync toplist 20200101 20241231
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:toplist failed: ', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync toplist failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

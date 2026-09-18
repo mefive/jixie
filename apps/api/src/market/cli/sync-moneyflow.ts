@@ -7,7 +7,7 @@ import { syncMoneyflow } from '../stocks/flows-sync.js';
  * Sync per-stock daily moneyflow into the Moneyflow table (netMain = main-force net / netTotal = total
  * net, in 10k CNY) — the attention/capital-flow signal, read via a strategy's `factors: ['mf_net_main']`
  * + `ctx.factor(...)`. Resumable.
- * Usage: pnpm sync:moneyflow [start] [end]   e.g. pnpm sync:moneyflow 20200101 20241231
+ * Usage: pnpm sync moneyflow [start] [end]   e.g. pnpm sync moneyflow 20200101 20241231
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
@@ -33,7 +33,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:moneyflow failed: ', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync moneyflow failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

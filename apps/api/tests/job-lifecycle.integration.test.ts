@@ -39,7 +39,6 @@ vi.mock('#signals/accounting/initialize.js', () => ({
 
 import { prisma } from '#infra/database/prisma.js';
 import type { PreparedResearchCuratorRun } from '#research/curator/prepare.js';
-import { migrateLegacyFactorJobs } from '../scripts/migrations/split-factor-job-kinds.js';
 import { jobRegistry } from '../src/bootstrap.js';
 import { createJobExecutor } from '#infra/jobs/executor.js';
 import { appendLog, initializeJobLogs, getLiveJobLogs } from '#infra/jobs/logs.js';
@@ -400,13 +399,13 @@ describe('durable job and business lifecycle transactions', () => {
   );
 
   it.each([false, true])(
-    'executes migrated queued tasks with an analysis discriminator: %s',
+    'executes current queued kinds with a historical analysis discriminator: %s',
     async (hasTask) => {
       const analysisPayload = payload('factor-analysis') as Prisma.InputJsonObject;
       await prisma.job.update({
         where: { id: ids['factor-analysis'] },
         data: {
-          kind: 'factor',
+          kind: 'factor-analysis',
           status: 'queued',
           payload: hasTask ? { ...analysisPayload, task: 'analysis' } : analysisPayload,
         },
@@ -415,7 +414,7 @@ describe('durable job and business lifecycle transactions', () => {
         data: {
           id: 'legacy-correlation',
           userId: 'owner',
-          kind: 'factor',
+          kind: 'factor-correlation',
           key: 'correlation',
           status: 'queued',
           payload: {
@@ -431,7 +430,6 @@ describe('durable job and business lifecycle transactions', () => {
         },
       });
 
-      await migrateLegacyFactorJobs(prisma);
       await executor.recoverInterruptedJobs();
       expect(await claimQueuedJob(ids['factor-analysis'])).toBe(true);
       await executor.execute(ids['factor-analysis']);
@@ -449,8 +447,11 @@ describe('durable job and business lifecycle transactions', () => {
     },
   );
 
-  it('recovers migrated running tasks without overwriting a successful correlation cache', async () => {
-    await prisma.job.update({ where: { id: ids['factor-analysis'] }, data: { kind: 'factor' } });
+  it('recovers current running kinds with historical payloads without overwriting a successful correlation cache', async () => {
+    await prisma.job.update({
+      where: { id: ids['factor-analysis'] },
+      data: { kind: 'factor-analysis' },
+    });
     const cache = await prisma.factorCorrelation.create({
       data: { id: 'cache', userId: 'owner', payload: 'previous', computedAt: new Date() },
     });
@@ -458,14 +459,13 @@ describe('durable job and business lifecycle transactions', () => {
       data: {
         id: 'legacy-correlation',
         userId: 'owner',
-        kind: 'factor',
+        kind: 'factor-correlation',
         key: 'fixture',
         status: 'running',
         payload: { task: 'correlation' },
       },
     });
 
-    await migrateLegacyFactorJobs(prisma);
     await executor.recoverInterruptedJobs();
     expect(await entityStatus('factor-analysis')).toBe('stale');
     expect(await prisma.job.findUnique({ where: { id: 'legacy-correlation' } })).toMatchObject({

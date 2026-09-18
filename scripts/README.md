@@ -2,10 +2,11 @@
 
 本目录负责仓库开发环境、跨包生成、工程检查和部署编排。API 的数据同步、审计、探针、维护及研究命令见 [API 脚本索引](../apps/api/scripts/README.md)；业务实现放在 `apps/api/src/`，操作系统服务配置放在 `deploy/`。
 
-优先在仓库根目录使用 `pnpm` 命令；股票价格同步使用 `pnpm sync:stock-prices [start] [end]`；原 `sync` 命令已移除，其余命令名保持。只有 `bootstrap.sh` 保留根级位置，它是文档约定的部署入口，并支持单文件上传到新服务器后初始化仓库。
+优先在仓库根目录使用 `pnpm` 命令；股票价格同步使用 `pnpm sync stock-prices [start] [end]`；`pnpm sync --list` 查看同步任务。只有 `bootstrap.sh` 保留根级位置，它是文档约定的部署入口，并支持单文件上传到新服务器后初始化仓库。
 
 | 目录 / 入口 | 内容 | 常用入口 |
 | --- | --- | --- |
+| [e2e/](e2e/) | 浏览器检查与帮助图片生成的显式任务清单、选择及顺序执行 | `pnpm e2e --list`、`pnpm docs:images --list` |
 | [dev/](dev/) | 多服务启动、进程组清理、Python 环境安装及清理测试 | `pnpm dev`、`pnpm setup:research-python`、`pnpm test:dev-shutdown` |
 | [generators/](generators/) | 从 shared 契约生成 Research / Factor Python 类型声明与运行时依赖清单 | `pnpm gen:research-sdk`、`pnpm gen:factor-sdk`、`pnpm gen:research-runtime`；对应 `check:*` 检查一致性 |
 | [checks/](checks/) | 后端依赖边界检查及规则、提交信息检查、各自测试 | `pnpm check:backend-boundaries`、`pnpm test:backend-boundaries`、`pnpm check:commit-message`、`pnpm test:commit-message` |
@@ -16,11 +17,12 @@
 
 ## 调用边界
 
-- 根级 `pnpm import:data` 获取维护锁，再由导入脚本编排 API 的 `sync:*`、修复和审计命令；具体数据处理仍归 API。
+- 根级 `pnpm import:data` 获取维护锁，再由导入脚本编排 API 的 `sync <任务>`、修复和审计命令；具体数据处理仍归 API。
+- 根级 `pnpm data:audit <任务>` 统一数据审计，`pnpm probe <任务>` 统一 Tushare 连通性与能力探测；帮助不执行任务。
 - 根级 `pnpm maintenance` 加锁后调用 API 维护 CLI。维护锁在生产环境启用，本地开发直接执行目标命令。
 - `.pyi` 是静态类型声明，Python 执行不依赖它。API 使用 shared 中相同的生成函数为 Pyright 生成临时声明，前端获得补全和诊断结果；requirements 清单用于 Docker 和本地 Python 环境。
 - 部署门禁直接使用 SQLite，以便迁移期间不依赖可能不兼容的 Prisma Client。它仍属于部署职责。
-- Factor Job kind 升级由 bootstrap 在 API 停止、Prisma generate/build/schema migration 后调用独立数据迁移脚本；业务代码不导入它。失败时保留停服状态，修复后重跑部署。入口与本地操作见 [API 脚本索引](../apps/api/scripts/README.md#部署数据迁移)。
+- Factor Job kind 的一次性转换已完成，bootstrap 不再调用。恢复转换前的旧库时按 [旧库恢复说明](../docs/backend-runtime-entries.md#factor-job-kind-旧库恢复) 先升级数据；Prisma 历史迁移继续保留。
 - 测试和辅助模块与对应脚本放在同一目录；不把它们当成独立业务命令。
 
 ## 清理与新增规则

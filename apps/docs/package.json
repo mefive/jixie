@@ -8,8 +8,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "test:e2e": "node e2e/help.mjs"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@ant-design/x-markdown": "^2.8.0",

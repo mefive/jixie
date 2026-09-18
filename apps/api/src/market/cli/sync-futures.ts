@@ -11,8 +11,8 @@ import { syncTradeCal } from '../calendar/sync.js';
 
 /**
  * Sync CFFEX stock-index futures metadata, daily bars, main-contract mappings, and settlement params.
- * Usage: pnpm --filter api sync:futures [start] [end]
- * Example: pnpm --filter api sync:futures 20240101 20241231
+ * Usage: pnpm --filter api sync futures [start] [end]
+ * Example: pnpm --filter api sync futures 20240101 20241231
  */
 async function main(): Promise<void> {
   const config = loadTushareConfig();
@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (error: unknown) => {
-  console.error('\n❌ sync:futures failed: ', error instanceof Error ? error.message : error);
+  console.error('\n❌ sync futures failed: ', error instanceof Error ? error.message : error);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

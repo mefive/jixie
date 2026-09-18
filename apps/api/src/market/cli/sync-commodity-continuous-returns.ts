@@ -8,7 +8,7 @@ import { TushareClient } from '../providers/tushare/client.js';
 
 /**
  * Sync Tushare main mappings and rebuild the audited research-only commodity return ledger.
- * Usage: pnpm --filter api sync:commodity-continuous [start] [end]
+ * Usage: pnpm --filter api sync commodity-continuous [start] [end]
  */
 async function main(): Promise<void> {
   const currentDate = new Date().toISOString().slice(0, 10).replaceAll('-', '');
@@ -36,7 +36,7 @@ async function main(): Promise<void> {
 main()
   .catch((error: unknown) => {
     console.error(
-      'sync:commodity-continuous failed:',
+      'sync commodity-continuous failed:',
       error instanceof Error ? error.message : String(error),
     );
     process.exitCode = 1;

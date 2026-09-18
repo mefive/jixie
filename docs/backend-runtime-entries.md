@@ -24,24 +24,40 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 
 2026-09-10 已移除 Agent 快速回测工具及其 Worker，当前运行入口以上表为准；下方 Commit 12 验证保留当时的历史事实。决策与退役验证见 [Agent 研究闭环](design/agent-research-loop.md)。
 
-## Factor Job kind 转换
+## API 命令分派
 
-`scripts/bootstrap.sh` 在停止 API、构建 API、执行 `prisma migrate deploy` 后，调用编译产物
-`apps/api/dist/scripts/migrations/split-factor-job-kinds.js`，成功后才继续部署并启动 API。
-源码为 `apps/api/scripts/migrations/split-factor-job-kinds.ts`；它只依赖 Prisma，不导入业务启动模块。
-旧 `kind: factor` 中 `payload.task = correlation` 转成 `factor-correlation`，其余按原 dispatcher
-默认分支转成 `factor-analysis`；实际执行仍校验输入和持久化关联。每批最多 200 条，在同一个 Prisma
-事务内读取和更新 kind；保留原 payload、状态、关联、日志及结果，`updatedAt` 随更新推进。
-批次失败则回滚该批、脚本返回非零状态，部署中止且清理流程不自动重启 API；之前完成的批次可保留，
-修复后重跑部署继续，全部转换后重复调用不写库。脚本在成功与失败时都断开自己的数据库连接。
+`pnpm sync <任务>`、`pnpm data:audit <任务>`、`pnpm probe <任务>` 分别转发到 API 的
+`scripts/sync.ts`、`scripts/audit.ts`、`scripts/probe.ts`（源码带 `development` 条件及 tsx）。
+编译入口为 `apps/api/dist/scripts/{sync,audit,probe}.js`，例如从 API 目录执行 `node dist/scripts/sync.js <任务>`。
+显式任务清单的 `.js` 路径相对 API 源码/编译根解析；源码由 tsx 映射到 `.ts`，编译形式定位 `dist` 下的目标。
+公共 `scripts/command-entry.ts` 中的非字面量动态导入由清单覆盖测试与源码/编译隔离分派测试验证。
+参数校验后才切换至 `apps/api`、加载其 `.env`、设置原 CLI 的 `process.argv` 并导入选中入口；
+不会预加载全部业务模块，帮助和非法参数不加载业务配置。各原 CLI 保留自己的异步任务及资源收尾，财报子进程沿用既有执行器。
+`maintenance` / `import:data` 继续负责锁和整轮任务编排；新入口不替代它们。
 
-开发机已有旧 Job 时，先停止 API，再从仓库根执行
-`pnpm --filter api exec tsx --env-file=.env scripts/migrations/split-factor-job-kinds.ts`，然后启动新版本。
-普通 API 启动不会代替这一步。
+## Factor Job kind 旧库恢复
 
-此变更不改表结构，没有 Prisma schema migration。沿用单 API 调度进程约束，部署时旧进程必须先停止。
-回退旧代码前需停服并备份数据库，按新 kind 恢复对应 `payload.task` 和旧 `kind: factor`，
-因为新提交的任务不再写 task，不能只回退 kind 或二进制。
+2026-09-18 用户确认生产后端已完成部署与旧 Job 转换。本次退役 `db:migrate:factor-job-kinds`、
+其转换脚本和专属迁移测试，以及 bootstrap 中的调用和专属失败标记；新安装数据库、当前已升级数据库不再执行该步骤。
+当前业务直接创建 `factor-analysis` / `factor-correlation`。历史 payload 中的 `task` 字段仍可读取、执行和恢复，
+相关业务回归继续保留。此清理不删除或修改 `apps/api/prisma/migrations/` 中的 schema 迁移历史。
+
+若恢复转换前的旧备份，或使用尚未转换的开发库：
+
+1. 停止 API 并备份数据库，先在隔离副本完成恢复核验；按当前版本准备 Prisma Client 和 schema migrations。
+2. 从已验证的历史提交提取一次性脚本到 API 的临时脚本位置：
+   ```sh
+   git show a3c768fe:apps/api/scripts/migrations/split-factor-job-kinds.ts > apps/api/scripts/restore-factor-job-kinds.ts
+   ```
+3. 配置 API `.env` 指向待恢复数据库，然后执行：
+   ```sh
+   pnpm --filter api exec node --import tsx --env-file=.env scripts/restore-factor-job-kinds.ts
+   ```
+4. 确认 `Job` 中 `kind = 'factor'` 的行数为 0，再启动当前 API，并移除临时提取的脚本。
+
+历史脚本按 `payload.task === 'correlation'` 选择新 kind，其余转为 `factor-analysis`；保留 payload、状态、关联和日志。
+转换失败时保持停服，排查后可重跑。当前 bootstrap 不再替旧库自动完成此转换。旧代码回退也不能只回退二进制，
+需要匹配其数据库 kind 和 payload 约定。
 
 ## Python、语言服务与资源目录
 
@@ -56,7 +72,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |
 | Curator 仓库检索 | `research/curator/reference-search.ts` 仍使用约定的 API 工作目录定位项目资料；不是外部任意文件读取服务 |
-| API CLI | 28 个应用入口位于 `apps/api/src/{market,application-maintenance,signals,auth}/cli/`；审计、探针和研究入口保留在 `apps/api/scripts/{audit,probes,research}`，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/src/application-maintenance/cli/run-maintenance.js` |
+| API CLI | 28 个应用入口位于 `apps/api/src/{market,application-maintenance,signals,auth}/cli/`；审计和探针入口保留在 `apps/api/scripts/{audit,probes}`，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/src/application-maintenance/cli/run-maintenance.js` |
 
 Market 的领域目录调整不改变 CLI 名称、参数、源码/编译入口或 Worker 协议。CLI 和 Maintenance 分别调用 stocks、etfs、indices、futures、calendar、cross-market、state 等业务入口；Signals 每日需求编排仍在 Signals。涉及迁移的 CLI 须以隔离数据库和本地 provider 替身验证调用、输出及退出；不以导入成功代替执行。
 

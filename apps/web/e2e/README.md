@@ -15,13 +15,46 @@ E2E 从具体用户任务出发，验证用户通过界面完成任务及其结�
    pnpm --filter web dev --port 5173 --strictPort  # :5173
    ```
 2. 首次装浏览器:`pnpm --filter web exec playwright install chromium`
-3. 跑 e2e:
+3. 从仓库根目录选择并运行任务（也可用 `pnpm -w e2e ...`）：
    ```bash
-   pnpm --filter web test:e2e
-   pnpm --filter web test:e2e:strategy-indicators # 五指标策略真实回测 + Strategy 验收截图
-   pnpm --filter web test:e2e:factor-panel-composite # 含 Phase 5 多资产风险研究真实回测
-   pnpm --filter docs test:e2e
+   pnpm e2e --list
+   pnpm e2e research-executions
+   pnpm e2e strategy-indicators
+   pnpm e2e factor-panel-composite
+   pnpm e2e docs-help
+   pnpm e2e --group research --list # 只查看该组，不执行
+   pnpm e2e --group learning       # 按原 learning-cases 顺序执行
    ```
+
+统一入口和显式清单位于 `scripts/e2e/`；不按文件名自动发现任务，fixture/辅助代码不作为独立用例执行。
+`pnpm e2e`、`--list` 和 `<任务> --help` 仅显示帮助，不启动浏览器。执行单项或显式分组时顺序运行，首个失败即停，
+保留退出码并汇总通过/未运行数量；中断会转发到子进程组并清理残留浏览器/服务。
+旧的 Web/Docs `test:e2e*` package scripts 已移除，原默认 `test:e2e` 对应 `pnpm e2e research-executions`；
+原 `test:e2e:learning-cases` 对应 `pnpm e2e --group learning`。其余原命令去掉 `test:e2e:` 前缀即为任务名。
+
+### 运行条件与分组
+
+- `research`、`factor`、`strategy`、`market`、`signals`、`learning`、`platform`：按用例启动 Web/API/sandboxd/Docs，并准备相应市场数据。部分任务会写测试数据、执行真实回测或调用模型；运行器不自动启动整套开发环境，也不修改已有环境开关。
+- `docs`：`docs-help` 通过 Web 的 `/docs` 代理验证导航及登录；`research-financial-help` 直接访问 `E2E_DOCS_BASE`（默认 5174）。
+- `isolated`：`factor-questions`、`embedded-analysis` 自行启动隔离 API/模型夹具，需要先构建 shared 和 Web；嵌入式分析还需要 Research Python runtime。
+- `browser`：只需 Web 服务，使用 HTTP/SSE 夹具；这是前端回归检查，不替代完整业务链路验收。
+- `report-deployments` 必须使用可丢弃的 API 数据库并设置 `E2E_ISOLATED_DB=1`，会保留报告/部署历史。
+
+### 帮助图片生成
+
+帮助图片生成从 E2E 命令族中分离；原脚本和已有图片保留，执行会覆盖对应文档图片。
+
+```bash
+pnpm docs:images --list
+pnpm docs:images backtest          # 操作真实页面并生成标注图
+pnpm docs:images stage-l           # 给已有验收图加标注
+pnpm docs:images --group annotate --list
+```
+
+`capture` 组需要浏览器及对应服务/数据，部分脚本会运行真实计算或模型调用；`annotate` 组的 `latest`、`stage-l`、`stage-m`
+读取 `apps/web/acceptance/` 已有图片，沿用脚本的 ImageMagick 要求（`/opt/homebrew/bin/magick`），不执行产品验收。
+原 `help-content` 对应 `getting-started`，其他名称去掉 `test:e2e:help-content-` 前缀。
+新增用例或图片任务只修改 `scripts/e2e/commands.mjs`，在 `notes` 中说明特殊运行条件；保留相应 app 工作目录及 Node 参数。
 
 工作台截图落在 **`apps/web/acceptance/`**，文档截图落在
 **`apps/docs/acceptance/`**（均 gitignored，验收专用）。工作台开发服务器会把 `/docs/*` 代理到
@@ -45,7 +78,7 @@ Web、应用路由、会话鉴权、报告映射、Agent、SSE 和持久化。�
 ```bash
 pnpm --filter @jixie/shared build
 pnpm --filter web build
-node apps/web/e2e/factor-questions.mjs
+pnpm e2e factor-questions
 ```
 
 截图输出 `factor-questions-report-{zh,en}.png` 与 `factor-questions-compare-{zh,en}.png`，日志为
@@ -57,7 +90,7 @@ node apps/web/e2e/factor-questions.mjs
 失败时输出诊断截图，不再用边界场景截图充当主流程验收。启动 Web 后运行：
 
 ```bash
-E2E_BASE=http://localhost:5173 node apps/web/e2e/factor-question-recovery.mjs
+E2E_BASE=http://localhost:5173 pnpm e2e factor-question-recovery
 ```
 
 上述两类浏览器检查不能彼此替代；报告归属、Holdout、并发、迁移等后端边界仍由
@@ -67,6 +100,6 @@ E2E_BASE=http://localhost:5173 node apps/web/e2e/factor-question-recovery.mjs
 策略命名兼容回归（本地 Web 服务即可，API 使用隔离 fixture，不写数据库）：
 
 ```sh
-node apps/web/e2e/strategy-navigation.mjs
+pnpm e2e strategy-navigation
 node --import tsx --test apps/web/src/complex/strategy/recents.test.ts
 ```

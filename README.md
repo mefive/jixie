@@ -67,7 +67,7 @@ apps/api/                          # Hono + Prisma 后端
   src/market/stocks/                # 股票同步与读取；ETF、指数、期货各归所属领域
   src/market/calendar/              # 交易日历、SSE 已完成日
   src/market/cross-market/           # 跨市场基准与外部驱动
-  scripts/                         # smoke / sync / peek
+  scripts/                         # probes / audits / sync dispatcher
 packages/shared/                   # 共享类型(TsCode、TradeDate)
 ```
 
@@ -90,5 +90,21 @@ pnpm dev                         # 同时启动 sandboxd、API 和 Web
 Research、Factor 或 Strategy 时使用完整的 `pnpm dev`。
 
 日常数据补齐统一运行 `pnpm maintenance`；它会按连续发布水位自动判断缺失交易日。底层
-`sync:*`、审计和研究脚本只用于开发与排障，不是生产部署步骤。生产机器无论首次安装还是升级都只运行
+`pnpm sync <任务>` 提供定向补数；审计命令用于检查数据。部署会按需调用同步入口，但生产机器首次安装和升级的统一操作入口仍是
 `./scripts/bootstrap.sh`，详见 [`docs/deployment.md`](./docs/deployment.md)。
+
+开发任务统一入口：
+
+```sh
+pnpm e2e --list                       # 浏览器验收与回归检查清单
+pnpm e2e research-autosave            # 单项执行
+pnpm e2e --group research --list      # 只查看分组；移除 --list 才执行
+pnpm docs:images --list               # 帮助图片采集及标注
+pnpm sync --list                      # 数据同步任务清单
+pnpm sync etf --help                  # 单项参数说明，不连接数据库
+pnpm data:audit --list                # 数据质量与覆盖审计
+pnpm probe --list                     # 外部数据源连通性及能力探测
+```
+
+上述入口无参数均只显示帮助。详细运行条件见 [浏览器检查说明](apps/web/e2e/README.md) 和
+[API 命令索引](apps/api/scripts/README.md)。

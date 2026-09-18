@@ -2,7 +2,7 @@ import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
 import { stockBasic, tradeCal } from '#market/providers/tushare/api.js';
 
-/** Connectivity self-test: verify TUSHARE_TOKEN is valid and the HTTP channel works. Run: `pnpm smoke`. */
+/** Connectivity self-test: verify TUSHARE_TOKEN is valid and the HTTP channel works. Run: `pnpm probe tushare`. */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
   console.log('✓ TUSHARE_TOKEN loaded, API =', cfg.baseUrl);

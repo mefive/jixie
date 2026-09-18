@@ -97,9 +97,9 @@ printf '    Mode:  %s\n' "$([[ "$DRY_RUN" == "1" ]] && printf dry-run || printf 
 
 run_stage migrations "Apply production database migrations" \
   pnpm --filter api exec prisma migrate deploy
-run_stage tushare-smoke "Verify Tushare connectivity" pnpm --filter api smoke
+run_stage tushare-smoke "Verify Tushare connectivity" pnpm --filter api probe tushare
 run_stage stock-history "Import complete stock metadata and historical names" \
-  pnpm --filter api sync:stock-history 19900101 "$END_DATE"
+  pnpm --filter api sync stock-history 19900101 "$END_DATE"
 
 START_YEAR=$((10#${START_DATE:0:4}))
 END_YEAR=$((10#${END_DATE:0:4}))
@@ -110,43 +110,43 @@ for ((year = START_YEAR; year <= END_YEAR; year++)); do
   [[ "$slice_end" -gt "$END_DATE" ]] && slice_end="$END_DATE"
 
   run_stage "stock-bars-$year" "Import A-share bars and adjustment factors: $slice_start ~ $slice_end" \
-    pnpm --filter api sync:stock-prices "$slice_start" "$slice_end"
+    pnpm --filter api sync stock-prices "$slice_start" "$slice_end"
   run_stage "daily-basic-$year" "Import daily valuation and turnover: $slice_start ~ $slice_end" \
-    pnpm --filter api sync:basic "$slice_start" "$slice_end"
+    pnpm --filter api sync basic "$slice_start" "$slice_end"
   run_stage "price-limits-$year" "Import daily price limits: $slice_start ~ $slice_end" \
-    pnpm --filter api sync:limit "$slice_start" "$slice_end"
+    pnpm --filter api sync limit "$slice_start" "$slice_end"
   run_stage "moneyflow-$year" "Import daily money flow: $slice_start ~ $slice_end" \
-    pnpm --filter api sync:moneyflow "$slice_start" "$slice_end"
+    pnpm --filter api sync moneyflow "$slice_start" "$slice_end"
   run_stage "top-list-$year" "Import Dragon-Tiger List data: $slice_start ~ $slice_end" \
-    pnpm --filter api sync:toplist "$slice_start" "$slice_end"
+    pnpm --filter api sync toplist "$slice_start" "$slice_end"
 done
 
 run_stage financials "Import complete financial indicators and dividend history" \
-  pnpm --filter api sync:fina
+  pnpm --filter api sync fina
 run_stage sw-industry "Import point-in-time Shenwan industry membership" \
-  pnpm --filter api sync:sw-industry
+  pnpm --filter api sync sw-industry
 run_stage etf "Import metadata and daily history for the major ETF preset" \
-  pnpm --filter api sync:etf "$START_DATE" "$END_DATE" major
+  pnpm --filter api sync etf "$START_DATE" "$END_DATE" major
 run_stage index-daily "Import complete daily history for the major index preset" \
-  pnpm --filter api sync:index-daily 19900101 "$END_DATE" major
+  pnpm --filter api sync index-daily 19900101 "$END_DATE" major
 run_stage index-basic "Import available valuation history for the major index preset" \
-  pnpm --filter api sync:index-basic 20040101 "$END_DATE" major
+  pnpm --filter api sync index-basic 20040101 "$END_DATE" major
 run_stage index-membership "Import point-in-time constituents for market-state indices" \
-  pnpm --filter api sync:index market-state "$START_DATE" "$END_DATE"
+  pnpm --filter api sync index market-state "$START_DATE" "$END_DATE"
 run_stage market-reference "Import official index classifications, style indices, and SW industry bars" \
-  pnpm --filter api sync:market-reference "$START_DATE" "$END_DATE"
+  pnpm --filter api sync market-reference "$START_DATE" "$END_DATE"
 run_stage china-treasury-curve "Import Ministry of Finance China government-bond yield curve" \
-  pnpm --filter api sync:rates 20060301 "$END_DATE"
+  pnpm --filter api sync rates 20060301 "$END_DATE"
 run_stage futures "Import stock-index futures contracts, bars, mappings, and settlements" \
-  pnpm --filter api sync:futures "$START_DATE" "$END_DATE"
+  pnpm --filter api sync futures "$START_DATE" "$END_DATE"
 run_stage canonicalize-stock-codes "Canonicalize superseded stock codes" \
   pnpm --filter api canonicalize:stock-codes
 run_stage baseline-self-heal "Repair deterministic gaps near the initial publication baseline" \
   pnpm maintenance baseline "$END_DATE"
 run_stage market-state "Precompute whole-market, index, and industry state" \
-  pnpm --filter api sync:market-state "$START_DATE" "$END_DATE"
+  pnpm --filter api sync market-state "$START_DATE" "$END_DATE"
 run_stage audit "Run the read-only full data-quality audit" \
-  pnpm audit:data "$START_DATE" "$END_DATE" --strict
+  pnpm data:audit data "$START_DATE" "$END_DATE" --strict
 log "Full market-data import completed"
 printf '    Range: %s ~ %s\n' "$START_DATE" "$END_DATE"
 printf '    Resume markers: %s\n' "$STATE_DIR"

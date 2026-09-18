@@ -107,12 +107,10 @@ bootstrap 将记录文件的绝对路径写入 API 环境变量 `JIXIE_DEPLOYED_
 验收截图位于 `apps/web/acceptance/deployment-version-*.png`（本地忽略目录）；临时浏览器及预览服务
 已关闭，4179 端口已释放。本轮未运行生产 bootstrap、访问生产数据库或执行线上部署。
 
-Factor Job kind 的数据升级由 bootstrap 在 `prisma migrate deploy` 之后、API 启动之前执行
-`apps/api/dist/scripts/migrations/split-factor-job-kinds.js`。该脚本由本次 API 构建生成，加载 API `.env`，
-分批将旧 `factor` 转成 `factor-analysis` / `factor-correlation`，保留原 payload、状态、关联和日志。
-失败会停止部署，退出清理也不会自动拉起 API；修复后重新执行 bootstrap 可继续转换。
-普通 API 重启不执行此迁移。回退旧代码需先恢复旧 kind 与对应 payload.task；详见
-[迁移入口与本地升级](../apps/api/scripts/README.md#部署数据迁移)。
+Factor Job kind 的一次性转换已在生产完成，bootstrap 不再执行 `db:migrate:factor-job-kinds`。
+新安装和当前数据库直接使用 `factor-analysis` / `factor-correlation`；Prisma schema migrations 保留并照常执行。
+恢复转换前的旧备份或升级尚未转换的开发库，必须在启动 API 前从 Git 历史执行一次性转换，见
+[旧库恢复说明](backend-runtime-entries.md#factor-job-kind-旧库恢复)。
 
 代码更新不会重复同步常规行情，行情增量仍由 maintenance timer 负责。`bootstrap.sh` 会单独检查官方
 指数分类、34个市场气象指数、历史成分权重、派生指标和申万一级行业行情的历史覆盖；已有行情库升级后

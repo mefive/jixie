@@ -5,7 +5,7 @@ import { syncDailyBasic } from '../stocks/daily-sync.js';
 
 /**
  * Sync daily valuation metrics (daily_basic) into the local store.
- * Usage: pnpm --filter api sync:basic [start] [end]   e.g. pnpm --filter api sync:basic 20240101 20241231
+ * Usage: pnpm --filter api sync basic [start] [end]   e.g. pnpm --filter api sync basic 20240101 20241231
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
@@ -28,7 +28,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:basic failed: ', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync basic failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

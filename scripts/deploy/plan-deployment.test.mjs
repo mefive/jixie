@@ -37,11 +37,8 @@ test('unions independently changed applications', () => {
   );
 });
 
-test('API data migrations select the API deployment path', () => {
-  const result = classifyChangedPaths(
-    ['apps/api/scripts/migrations/split-factor-job-kinds.ts'],
-    manifest,
-  );
+test('API command dispatch selects the API deployment path', () => {
+  const result = classifyChangedPaths(['apps/api/scripts/command-entry.ts'], manifest);
   assert.equal(result.api, true);
   assert.equal(result.fullDeploy, false);
   assert.deepEqual(result.reasons, ['api']);
@@ -67,6 +64,8 @@ test('deployment infrastructure selects every application', () => {
     'scripts/deploy/deployment-gate.mjs',
     'scripts/maintenance/import-market-data.sh',
     'scripts/generators/gen-research-sdk.ts',
+    'scripts/e2e/run.mjs',
+    'scripts/e2e/commands.mjs',
   ]) {
     const result = classifyChangedPaths([changedPath], manifest);
     assert.equal(result.fullDeploy, true);

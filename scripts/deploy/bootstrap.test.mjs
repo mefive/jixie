@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 const bootstrap = await readFile(new URL('../bootstrap.sh', import.meta.url), 'utf8');
 const cleanup = bootstrap.slice(
@@ -30,7 +28,6 @@ set -euo pipefail
 DEPLOY_API="$1"
 FAILURE="$2"
 API_WAS_ACTIVE=1
-API_DATA_MIGRATION_INCOMPLETE=0
 ACTIVE_LIVE_DIR=''
 ACTIVE_PREVIOUS_DIR=''
 STAGING_DIR=''
@@ -44,7 +41,7 @@ systemctl() { return 1; }
 sudo() { printf 'sudo %s\\n' "$*"; }
 pnpm() {
   printf 'pnpm %s\\n' "$*"
-  if [[ "$FAILURE" == 'data' && "$*" == *'db:migrate:factor-job-kinds'* ]]; then
+  if [[ "$FAILURE" == 'build' && "$*" == *'--filter api build'* ]]; then
     return 17
   fi
   if [[ "$FAILURE" == 'schema' && "$*" == *'prisma migrate deploy'* ]]; then
@@ -64,89 +61,41 @@ printf 'deployment continued\\n'
   );
 }
 
-test('runs data conversion after schema migration and continues on success', () => {
+test('generates, builds and migrates the schema before continuing', () => {
   const result = runMigrationStage('1', 'none');
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(result.stdout.trim().split('\n'), [
     'pnpm --filter api exec prisma generate',
     'pnpm --filter api build',
     'pnpm --filter api exec prisma migrate deploy',
-    'pnpm --filter api run db:migrate:factor-job-kinds',
     'deployment continued',
   ]);
 });
 
-test('a failed data migration stops deployment and does not restart the API in cleanup', () => {
-  const result = runMigrationStage('1', 'data');
+test('a failed API build stops before schema migration and restores the prior API', () => {
+  const result = runMigrationStage('1', 'build');
   assert.equal(result.status, 17, result.stderr);
-  assert.doesNotMatch(result.stdout, /deployment continued|sudo systemctl start/);
-  assert.match(result.stderr, /数据迁移未完成/);
+  assert.doesNotMatch(result.stdout, /prisma migrate deploy|deployment continued/);
+  assert.match(result.stdout, /sudo systemctl start fixture-api/);
 });
 
-test('preserves the existing cleanup behavior for failures before data conversion', () => {
+test('preserves the existing cleanup behavior on schema migration failure', () => {
   const result = runMigrationStage('1', 'schema');
   assert.equal(result.status, 18, result.stderr);
   assert.doesNotMatch(result.stdout, /db:migrate:factor-job-kinds|deployment continued/);
   assert.match(result.stdout, /sudo systemctl start fixture-api/);
 });
 
-test('does not run API data migrations for an unrelated deployment', () => {
+test('does not run API build or schema migrations for an unrelated deployment', () => {
   const result = runMigrationStage('0', 'none');
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, 'deployment continued\n');
 });
 
-test('the real package command loads API-local env from a workspace root and propagates failure', async () => {
+test('retired factor conversion is absent from deployment and package commands', async () => {
   const apiPackage = JSON.parse(
     await readFile(new URL('../../apps/api/package.json', import.meta.url), 'utf8'),
   );
-  const directory = await mkdtemp(join(tmpdir(), 'jixie-migration-entry-'));
-  try {
-    const apiDirectory = join(directory, 'apps/api');
-    await mkdir(join(apiDirectory, 'dist/scripts/migrations'), { recursive: true });
-    await writeFile(join(directory, 'package.json'), JSON.stringify({ private: true }));
-    await writeFile(join(directory, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n');
-    await writeFile(
-      join(apiDirectory, 'package.json'),
-      JSON.stringify({
-        name: 'api',
-        type: 'module',
-        scripts: {
-          'db:migrate:factor-job-kinds': apiPackage.scripts['db:migrate:factor-job-kinds'],
-        },
-      }),
-    );
-    // Only API has an env file. The stub verifies process launch without touching any database.
-    await writeFile(join(apiDirectory, '.env'), 'JIXIE_MIGRATION_ENTRY_FIXTURE=loaded\n');
-    await writeFile(
-      join(apiDirectory, 'dist/scripts/migrations/split-factor-job-kinds.js'),
-      `
-import assert from 'node:assert/strict';
-assert.equal(process.env.JIXIE_MIGRATION_ENTRY_FIXTURE, 'loaded');
-assert.ok(process.cwd().endsWith('/apps/api'));
-console.log('migration entry fixture loaded');
-process.exitCode = Number(process.env.JIXIE_MIGRATION_ENTRY_FAILURE || 0);
-`,
-    );
-    const environment = { ...process.env };
-    delete environment.JIXIE_MIGRATION_ENTRY_FIXTURE;
-    delete environment.JIXIE_MIGRATION_ENTRY_FAILURE;
-    const run = (failure) =>
-      spawnSync('pnpm', ['--filter', 'api', 'run', 'db:migrate:factor-job-kinds'], {
-        cwd: directory,
-        encoding: 'utf8',
-        timeout: 30_000,
-        env: { ...environment, JIXIE_MIGRATION_ENTRY_FAILURE: String(failure) },
-      });
-    const success = run(0);
-    assert.equal(success.error, undefined);
-    assert.equal(success.status, 0, success.stderr || success.stdout);
-    assert.match(success.stdout, /migration entry fixture loaded/);
-    const failure = run(17);
-    assert.equal(failure.error, undefined);
-    assert.notEqual(failure.status, 0);
-    assert.match(failure.stdout, /migration entry fixture loaded/);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  assert.equal(apiPackage.scripts['db:migrate:factor-job-kinds'], undefined);
+  assert.doesNotMatch(bootstrap, /db:migrate:factor-job-kinds|API_DATA_MIGRATION_INCOMPLETE/);
 });

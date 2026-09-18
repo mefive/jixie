@@ -7,7 +7,7 @@ import { syncDaily } from '../stocks/daily-sync.js';
 
 /**
  * Sync stock daily prices and adjustment factors into the local SQLite store (Prisma).
- * Usage: pnpm sync:stock-prices [start] [end]   e.g. pnpm sync:stock-prices 20240101 20240131
+ * Usage: pnpm sync stock-prices [start] [end]   e.g. pnpm sync stock-prices 20240101 20240131
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:stock-prices failed: ', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync stock-prices failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

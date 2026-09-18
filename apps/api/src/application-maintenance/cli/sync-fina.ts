@@ -97,7 +97,7 @@ function argumentValue(args: string[], name: string): string | undefined {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:fina failed: ', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync fina failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

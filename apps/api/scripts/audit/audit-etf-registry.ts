@@ -11,7 +11,7 @@ async function main(): Promise<void> {
     args.some((argument) => argument.startsWith('--') && !['--json', '--strict'].includes(argument))
   ) {
     throw new Error(
-      'Usage: pnpm audit:etf [expected-history-start] [coverage-through] [--json] [--strict]',
+      'Usage: pnpm data:audit etf [expected-history-start] [coverage-through] [--json] [--strict]',
     );
   }
   const report = await auditEtfResearchRegistry(prisma, {

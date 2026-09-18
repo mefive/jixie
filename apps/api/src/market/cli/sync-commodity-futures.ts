@@ -9,7 +9,7 @@ import { TushareClient } from '../providers/tushare/client.js';
 
 /**
  * Sync research-only AU/CU/SC/M actual contracts and raw settlements.
- * Usage: pnpm --filter api sync:commodity-futures [start] [end]
+ * Usage: pnpm --filter api sync commodity-futures [start] [end]
  */
 async function main(): Promise<void> {
   const config = loadTushareConfig();
@@ -54,7 +54,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (error: unknown) => {
-  console.error('sync:commodity-futures failed:', error instanceof Error ? error.message : error);
+  console.error('sync commodity-futures failed:', error instanceof Error ? error.message : error);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

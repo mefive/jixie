@@ -7,7 +7,7 @@ function currentDate(): string {
 
 /**
  * Precompute daily whole-market, point-in-time index, and Shenwan level-1 state.
- * Usage: pnpm --filter api sync:market-state [start] [end]
+ * Usage: pnpm --filter api sync market-state [start] [end]
  */
 async function main(): Promise<void> {
   const [start = '20150101', end = currentDate()] = process.argv.slice(2);

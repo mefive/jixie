@@ -21,7 +21,7 @@ function parseCodes(value: string): string[] {
 
 /**
  * Sync index close series without fetching constituent weights.
- * Usage: pnpm --filter api sync:index-daily [start] [end] [major|CODE,CODE]
+ * Usage: pnpm --filter api sync index-daily [start] [end] [major|CODE,CODE]
  */
 async function main(): Promise<void> {
   const config = loadTushareConfig();

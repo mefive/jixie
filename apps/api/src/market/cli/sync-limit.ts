@@ -7,7 +7,7 @@ import { syncStkLimit } from '../stocks/daily-sync.js';
  * Sync daily price limits (limit-up / limit-down prices) into the local store — what the engine reads
  * to block fills at the limit (no buy at limit-up, no sell at limit-down). Resumable: skips trading
  * days already loaded.
- * Usage: pnpm sync:limit [start] [end]   e.g. pnpm sync:limit 20150101 20241231
+ * Usage: pnpm sync limit [start] [end]   e.g. pnpm sync limit 20150101 20241231
  */
 async function main(): Promise<void> {
   const cfg = loadTushareConfig();
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
 }
 
 main().catch(async (e: unknown) => {
-  console.error('\n❌ sync:limit failed: ', e instanceof Error ? e.message : e);
+  console.error('\n❌ sync limit failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;
 });

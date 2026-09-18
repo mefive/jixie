@@ -869,7 +869,6 @@ grep -qE '^DEEPSEEK_API_KEY=""?$' "$ENV_PROD" 2>/dev/null && warn "DEEPSEEK_API_
 
 DEPLOYMENT_RUN_ID=""
 API_WAS_ACTIVE=0
-API_DATA_MIGRATION_INCOMPLETE=0
 
 finish_deployment_gate() {
   local outcome="$1"
@@ -941,9 +940,7 @@ cleanup_deployment_gate() {
   if [[ -n "$DEPLOYMENT_RUN_ID" ]]; then
     finish_deployment_gate error || true
   fi
-  if [[ "$API_DATA_MIGRATION_INCOMPLETE" == "1" ]]; then
-    warn "数据迁移未完成,保持 API 停止;修复后重新运行 bootstrap"
-  elif [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" ]] &&
+  if [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" ]] &&
     ! systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
     warn "部署失败,恢复部署前运行的 $JIXIE_SERVICE"
     sudo systemctl start "$JIXIE_SERVICE" ||
@@ -999,11 +996,6 @@ if [[ "$DEPLOY_API" == "1" ]]; then
 
   log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
   pnpm --filter api exec prisma migrate deploy
-
-  log "迁移 Factor Job kind"
-  API_DATA_MIGRATION_INCOMPLETE=1
-  pnpm --filter api run db:migrate:factor-job-kinds
-  API_DATA_MIGRATION_INCOMPLETE=0
 fi
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then
@@ -1056,7 +1048,7 @@ else
   )
   if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 || "$WEATHER_HISTORICAL_CODES" -ne 34 ]]; then
     log "补全官方指数分类、市场气象指数和申万一级行业历史行情: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
-    pnpm --filter api sync:market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+    pnpm --filter api sync market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
 
     read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
       market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
@@ -1069,11 +1061,11 @@ else
 
   if [[ "$WEATHER_WEIGHT_CODES" -ne 34 ]]; then
     log "补全34个市场气象指数的历史成分权重: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
-    pnpm --filter api sync:index market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+    pnpm --filter api sync index market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
   fi
   if [[ "$WEATHER_WEIGHT_CODES" -ne 34 || "$WEATHER_INDICATOR_CODES" -ne 34 ]]; then
     log "按时点成分重算市场气象广度、活跃度和估值"
-    pnpm --filter api sync:market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+    pnpm --filter api sync market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
 
     read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
       market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
@@ -1087,7 +1079,7 @@ else
   COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
   if [[ "$COMMODITY_ETF_COMPLETE" -ne 3 ]]; then
     log "补全豆粕、有色金属和能源化工 ETF 历史行情: 20191201 ~ $MARKET_REFERENCE_END"
-    pnpm --filter api sync:etf 20191201 "$MARKET_REFERENCE_END" \
+    pnpm --filter api sync etf 20191201 "$MARKET_REFERENCE_END" \
       159985.SZ,159980.SZ,159981.SZ refresh
     COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
     [[ "$COMMODITY_ETF_COMPLETE" -eq 3 ]] || die "商品 ETF 日线或复权历史回填后仍不完整"
@@ -1103,7 +1095,7 @@ MACRO_SYNC_END="$(
 MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
 if [[ "$MACRO_SERIES_COMPLETE" -ne 14 ]]; then
   log "补全中美通胀、增长、货币、信用和 Shibor 宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
-  pnpm --filter api sync:macro 200501 "$MACRO_SYNC_END"
+  pnpm --filter api sync macro 200501 "$MACRO_SYNC_END"
   MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
   [[ "$MACRO_SERIES_COMPLETE" -eq 14 ]] || die "宏观系列回填后仍不完整"
 else
@@ -1119,7 +1111,7 @@ CROSS_MARKET_PROXY_COMPLETE="$(
 )"
 if [[ "$CROSS_MARKET_PROXY_COMPLETE" -ne 3 ]]; then
   log "补全沪深300、恒生和标普500可交易 ETF 代理: 20120501 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:etf 20120501 "$EXTERNAL_MARKET_SYNC_END" \
+  pnpm --filter api sync etf 20120501 "$EXTERNAL_MARKET_SYNC_END" \
     510300.SH,159920.SZ,513500.SH refresh
   CROSS_MARKET_PROXY_COMPLETE="$(
     cross_market_proxy_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
@@ -1134,7 +1126,7 @@ EXTERNAL_MARKET_COMPLETE="$(
 )"
 if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 4 ]]; then
   log "补全美国名义/实际国债曲线和 USD/CNH、USD/HKD: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:external-market 20050101 "$EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync external-market 20050101 "$EXTERNAL_MARKET_SYNC_END"
   EXTERNAL_MARKET_COMPLETE="$(
     external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1148,7 +1140,7 @@ CHINA_TREASURY_CURVE_COMPLETE="$(
 )"
 if [[ "$CHINA_TREASURY_CURVE_COMPLETE" -ne 1 ]]; then
   log "补全财政部中国国债收益率曲线: 20060301 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:rates 20060301 "$EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync rates 20060301 "$EXTERNAL_MARKET_SYNC_END"
   CHINA_TREASURY_CURVE_COMPLETE="$(
     china_treasury_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1162,7 +1154,7 @@ CROSS_MARKET_BENCHMARK_COMPLETE="$(
 )"
 if [[ "$CROSS_MARKET_BENCHMARK_COMPLETE" -ne 3 ]]; then
   log "补全沪深300、恒生和标普500价格指数基准: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:cross-market-benchmarks 20050101 "$EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync cross-market-benchmarks 20050101 "$EXTERNAL_MARKET_SYNC_END"
   CROSS_MARKET_BENCHMARK_COMPLETE="$(
     cross_market_benchmark_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1176,7 +1168,7 @@ CREDIT_CURVE_COMPLETE="$(
 )"
 if [[ "$CREDIT_CURVE_COMPLETE" -ne 3 ]]; then
   log "补全中债国债、商业银行 AAA 和中短票 AAA 收益率曲线: 20060101 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:credit-curves 20060101 "$EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync credit-curves 20060101 "$EXTERNAL_MARKET_SYNC_END"
   CREDIT_CURVE_COMPLETE="$(
     credit_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1190,7 +1182,7 @@ COMMODITY_FUTURE_COMPLETE="$(
 )"
 if [[ "$COMMODITY_FUTURE_COMPLETE" -ne 4 ]]; then
   log "补全 AU/CU/SC/M 实际月合约与日线: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:commodity-futures 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync commodity-futures 20150105 "$EXTERNAL_MARKET_SYNC_END"
   COMMODITY_FUTURE_COMPLETE="$(
     commodity_future_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1204,7 +1196,7 @@ COMMODITY_HOLDING_COMPLETE="$(
 )"
 if [[ "$COMMODITY_HOLDING_COMPLETE" -ne 3 ]]; then
   log "补全 AU/CU/M 主导实际合约的会员持仓排名: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:commodity-holdings 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync commodity-holdings 20150105 "$EXTERNAL_MARKET_SYNC_END"
   COMMODITY_HOLDING_COMPLETE="$(
     commodity_holding_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1218,7 +1210,7 @@ COMMODITY_CONTINUOUS_COMPLETE="$(
 )"
 if [[ "$COMMODITY_CONTINUOUS_COMPLETE" -ne 4 ]]; then
   log "补全 AU/CU/SC/M 主力映射、连续收益与换月台账: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync:commodity-continuous 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  pnpm --filter api sync commodity-continuous 20150105 "$EXTERNAL_MARKET_SYNC_END"
   COMMODITY_CONTINUOUS_COMPLETE="$(
     commodity_continuous_return_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1236,7 +1228,7 @@ WAREHOUSE_RECEIPT_COMPLETE="$(
 )"
 if [[ "$WAREHOUSE_RECEIPT_COMPLETE" -ne 4 ]]; then
   log "补全 AU/CU/SC/M 商品仓单研究底座: 20150101 ~ $WAREHOUSE_RECEIPT_SYNC_END"
-  pnpm --filter api sync:commodity-warehouse-receipts 20150101 "$WAREHOUSE_RECEIPT_SYNC_END"
+  pnpm --filter api sync commodity-warehouse-receipts 20150101 "$WAREHOUSE_RECEIPT_SYNC_END"
   WAREHOUSE_RECEIPT_COMPLETE="$(
     commodity_warehouse_receipt_coverage "$DB_FILE" "$WAREHOUSE_RECEIPT_SYNC_END"
   )"
@@ -1246,7 +1238,7 @@ else
 fi
 
 log "复核版本化 Tushare 能力目录（7 天内已有完整观测则跳过）"
-pnpm --filter api probe:asset-allocation -- \
+pnpm --filter api probe asset-allocation \
   --date "$EXTERNAL_MARKET_SYNC_END" \
   --persist-if-stale \
   --max-age-days 7 || warn "Tushare 能力目录探测失败,不阻塞本次部署"

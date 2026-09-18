@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
+import { syncCommands } from '../scripts/sync-commands.js';
 
 const executeFile = promisify(execFile);
 const apiDirectory = fileURLToPath(new URL('../', import.meta.url));
@@ -18,12 +19,15 @@ describe('application CLI entry contracts', () => {
   it('registers every module CLI and preserves the stock price wrapper arguments', async () => {
     const scripts = await packageScripts(apiDirectory);
     const rootScripts = await packageScripts(repositoryDirectory);
-    expect(rootScripts['sync:stock-prices']).toBe('pnpm --filter api sync:stock-prices');
-    expect(scripts['sync:stock-prices']).toBe(
-      'tsx --conditions=development --env-file=.env src/market/cli/sync-stock-prices.ts',
-    );
-    expect(rootScripts).not.toHaveProperty('sync');
-    expect(scripts).not.toHaveProperty('sync');
+    expect(rootScripts.sync).toBe('pnpm --filter api sync');
+    expect(scripts.sync).toBe('node --conditions=development --import tsx scripts/sync.ts');
+    expect(Object.keys(scripts).some((name) => name.startsWith('sync:'))).toBe(false);
+    expect(rootScripts).not.toHaveProperty('peek');
+    expect(scripts).not.toHaveProperty('peek');
+    const registeredEntries = [
+      ...Object.values(scripts).map((command) => command.split(' ').at(-1)),
+      ...syncCommands.map((command) => command.entry.replace(/\.js$/, '.ts')),
+    ];
 
     for (const module of ['market', 'application-maintenance', 'signals', 'auth']) {
       for (const entry of await readdir(join(apiDirectory, 'src', module, 'cli'))) {
@@ -31,16 +35,14 @@ describe('application CLI entry contracts', () => {
           continue;
         }
         const target = `src/${module}/cli/${entry}`;
-        expect(
-          Object.values(scripts).filter((command) => command.endsWith(` ${target}`)),
-        ).toHaveLength(1);
+        expect(registeredEntries.filter((entry) => entry === target)).toHaveLength(1);
       }
     }
     const importer = await readFile(
       join(repositoryDirectory, 'scripts/maintenance/import-market-data.sh'),
       'utf8',
     );
-    expect(importer).toContain('pnpm --filter api sync:stock-prices "$slice_start" "$slice_end"');
+    expect(importer).toContain('pnpm --filter api sync stock-prices "$slice_start" "$slice_end"');
     expect(importer).toContain('stock-bars-$year');
     expect(
       Object.values(scripts).some((command) => /scripts\/(sync|maintenance)\//.test(command)),
