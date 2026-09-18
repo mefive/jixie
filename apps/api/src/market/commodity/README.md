@@ -19,3 +19,7 @@
 改每类数据先读同名测试，尤其 [commodity-continuous-returns.test.ts](commodity-continuous-returns.test.ts)、[commodity-holding-positions.test.ts](commodity-holding-positions.test.ts)、[commodity-warehouse-receipts.test.ts](commodity-warehouse-receipts.test.ts) 及各 quality 测试；Research 列投影见 [datasets](../../research/datasets/README.md)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[audit.ts](audit.ts) 将已有仓单、持仓、连续收益质量检查组成领域 finding。[holding-sync.ts](holding-sync.ts) 按合约 → 行情 → 持仓顺序补齐前置数据；Maintenance 只选择范围并记录阶段。

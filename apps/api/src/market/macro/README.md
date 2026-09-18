@@ -11,3 +11,7 @@
 改版本选择看 [as-of.test.ts](as-of.test.ts)，同步看 [china-macro.test.ts](china-macro.test.ts)、[us-headline-cpi.test.ts](us-headline-cpi.test.ts)，状态／风险计算看 [regime-score.test.ts](regime-score.test.ts)、[risk-axes.test.ts](risk-axes.test.ts)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[audit.ts](audit.ts) 检查宏观发布时间证据、历史版本口径和可得日期；不把抓取到的最新值回填成历史已知事实。

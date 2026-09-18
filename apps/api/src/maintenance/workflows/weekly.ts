@@ -1,0 +1,445 @@
+import { addDays } from '#date';
+import { refreshAllFactorWeatherPins } from '#factor/weather/refresh.js';
+import { prisma } from '#infra/database/prisma.js';
+import { getRecentOpenDates } from '#market/calendar/read.js';
+import { syncEtfBasic } from '#market/etfs/history-sync.js';
+import { recoverEtfRegistry } from '#market/etfs/recovery.js';
+import {
+  financialHistoryStart,
+  quarterlyReportPeriods,
+} from '#market/fundamentals/reference-periods.js';
+import type { ReferenceSyncSummary } from '#market/fundamentals/reference-sync.js';
+import {
+  addReferenceSyncSummary,
+  chunkReferenceCodes,
+  emptyReferenceSyncSummary,
+  runReferenceWorkerProcess,
+} from '#market/fundamentals/reference-worker-process.js';
+import type { ReferenceWorkerStage } from '#market/fundamentals/reference-worker-protocol.js';
+import { syncFutureContracts } from '#market/futures/sync.js';
+import {
+  syncIndexMembershipHistory,
+  syncIndustryMembershipHistory,
+} from '#market/indices/membership-sync.js';
+import { syncIndexBenchmarks } from '#market/indices/sync.js';
+import { canonicalizeStockCodes } from '#market/instruments/canonicalize-stock-codes.js';
+import { syncChinaMacroData } from '#market/macro/china-macro.js';
+import { BlsPublicDataClient, syncUsHeadlineCpiData } from '#market/macro/us-headline-cpi.js';
+import { TushareClient } from '#market/providers/tushare/client.js';
+import { loadTushareConfig } from '#market/providers/tushare/config.js';
+import type { AuditFinding } from '#market/quality/report.js';
+import {
+  MinistryOfFinanceCurveClient,
+  syncChinaTreasuryYieldCurve,
+} from '#market/rates/china-treasury-curve.js';
+import { validateDerivedMarketRange } from '#market/state/quality.js';
+import { syncMarketIndicators } from '#market/state/sync.js';
+import { syncStockBasic, syncStockNameHistory } from '#market/stocks/basic-sync.js';
+import { stockCodesWithDailyData } from '#market/stocks/read.js';
+import type { TradeDate } from '@jixie/shared';
+import { runDataQualityAudit } from '../publication/audit.js';
+import { advanceWeeklyWatermark, getMaintenanceState } from '../publication/watermark.js';
+import { assertProductionLock, waitForRunningWork } from '../runs/coordination.js';
+import {
+  beginMaintenanceRun,
+  completedMaintenanceItems,
+  completeMaintenanceItem,
+  finishMaintenanceRun,
+  startMaintenanceHeartbeat,
+  updateMaintenanceRun,
+  type MaintenanceTrigger,
+} from '../runs/state.js';
+import { selfHealMarketDates, type SelfHealSummary } from './self-heal.js';
+
+export interface WeeklyMaintenanceSummary {
+  date: string;
+  auditStart: string;
+  auditErrors: number;
+  auditWarnings: number;
+  canonicalizedRows: number;
+  earliestMarketChange: string | null;
+  selfHealing: SelfHealSummary | null;
+  financialStatements: WeeklyReferenceSyncSummary | null;
+  financials: WeeklyReferenceSyncSummary | null;
+  dividends: WeeklyReferenceSyncSummary | null;
+  chinaTreasuryCurve: number | null;
+  factorWeatherPoints: number;
+  etfRevisionDates: number;
+  earliestEtfChange: string | null;
+  dataRevision: number | null;
+  auditEnd: string | null;
+  auditFindings: AuditFinding[];
+  recoveryCompleted: number;
+  recoveryTotal: number;
+}
+
+interface WeeklyReferenceSyncSummary extends ReferenceSyncSummary {
+  planned: number;
+  resumed: number;
+}
+
+// Cross-market holidays remove some SSE sessions from the complete risk-driver sample. Keep a
+// small calendar buffer while still requiring the quality gate's 252 complete observations.
+const WEEKLY_AUDIT_TRADING_DAYS = 270;
+
+export async function runWeeklyMaintenance(
+  options: {
+    force?: boolean;
+    trigger?: MaintenanceTrigger;
+    onLog?: (line: string) => void;
+  } = {},
+): Promise<WeeklyMaintenanceSummary> {
+  assertProductionLock();
+  const onLog = options.onLog ?? ((line: string) => console.log(`[maintenance:weekly] ${line}`));
+  const today = shanghaiToday();
+  const trigger = options.trigger ?? (process.env.INVOCATION_ID ? 'timer' : 'manual');
+  const latestWeekly = await prisma.maintenanceRun.findFirst({
+    where: { kind: 'weekly' },
+    orderBy: { startedAt: 'desc' },
+    select: { status: true, targetKey: true },
+  });
+  const targetKey = selectWeeklyTargetKey(today, latestWeekly);
+  const run = await beginMaintenanceRun({
+    kind: 'weekly',
+    targetKey,
+    startDate: today,
+    endDate: today,
+    trigger,
+    force: options.force,
+  });
+  const auditStart = await rollingAuditStart(today);
+  const summary: WeeklyMaintenanceSummary = {
+    date: today,
+    auditStart,
+    auditErrors: 0,
+    auditWarnings: 0,
+    canonicalizedRows: 0,
+    earliestMarketChange: null,
+    selfHealing: null,
+    financialStatements: null,
+    financials: null,
+    dividends: null,
+    chinaTreasuryCurve: null,
+    factorWeatherPoints: 0,
+    etfRevisionDates: 0,
+    earliestEtfChange: null,
+    dataRevision: null,
+    auditEnd: null,
+    auditFindings: [],
+    recoveryCompleted: 0,
+    recoveryTotal: 0,
+  };
+  if (run.skipped && !options.force) {
+    onLog(`Weekly run ${targetKey} is already complete`);
+    return summary;
+  }
+  const stopHeartbeat = startMaintenanceHeartbeat(run.id);
+
+  try {
+    await updateMaintenanceRun(run.id, 'waiting_for_jobs', summary);
+    await waitForRunningWork(onLog);
+    const standardClient = createClient();
+    const weightStart = addMonths(today, -6);
+    const state = await getMaintenanceState();
+    if (!state.dailyPublishedThrough) {
+      throw new Error('Weekly maintenance requires a validated daily publication baseline');
+    }
+    summary.auditEnd = state.dailyPublishedThrough;
+    summary.auditStart = await rollingAuditStart(summary.auditEnd);
+    // Write-ahead invalidation survives a crash after historical writes but before summary updates.
+    // Recompute the published range even when a retry observes no further source changes.
+    const earliestPublished = await prisma.daily.findFirst({
+      where: { tradeDate: { lte: state.dailyPublishedThrough } },
+      orderBy: { tradeDate: 'asc' },
+      select: { tradeDate: true },
+    });
+    if (earliestPublished) {
+      await completeMaintenanceItem(run.id, 'derived-invalidation', earliestPublished.tradeDate);
+    }
+
+    await updateMaintenanceRun(run.id, 'stock_reference', summary);
+    await syncStockBasic(standardClient);
+    await syncStockNameHistory(standardClient, '19900101' as TradeDate, today as TradeDate);
+
+    const allCodes = await stockCodesWithDailyData();
+    const earliestMarketRow = await prisma.daily.findFirst({
+      orderBy: { tradeDate: 'asc' },
+      select: { tradeDate: true },
+    });
+    if (!earliestMarketRow) {
+      throw new Error('Daily is empty; complete the full market-data import first');
+    }
+    const financialPeriods = quarterlyReportPeriods(
+      financialHistoryStart(earliestMarketRow.tradeDate),
+      today,
+    );
+    onLog(
+      `Full reference reconciliation: ${financialPeriods.length} statement and indicator periods via VIP, ${allCodes.length} dividend stocks`,
+    );
+
+    await updateMaintenanceRun(run.id, 'financial_statements', summary);
+    summary.financialStatements = await runReferenceStage(
+      run.id,
+      'financial_statements',
+      financialPeriods,
+      positiveInteger(process.env.MAINTENANCE_WEEKLY_FINANCIAL_STATEMENT_PERIODS_PER_PROCESS, 1),
+      onLog,
+    );
+    await checkpointSqliteWal();
+
+    await updateMaintenanceRun(run.id, 'financials', summary);
+    summary.financials = await runReferenceStage(
+      run.id,
+      'financials',
+      financialPeriods,
+      positiveInteger(process.env.MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS, 1),
+      onLog,
+    );
+    await checkpointSqliteWal();
+
+    await updateMaintenanceRun(run.id, 'dividends', summary);
+    summary.dividends = await runReferenceStage(
+      run.id,
+      'dividends',
+      allCodes,
+      positiveInteger(process.env.MAINTENANCE_WEEKLY_DIVIDEND_CODES_PER_PROCESS, 200),
+      onLog,
+    );
+    await checkpointSqliteWal();
+
+    await updateMaintenanceRun(run.id, 'index_membership', summary);
+    const indexChangedAt = await syncIndexMembershipHistory(standardClient, weightStart, today);
+    await updateMaintenanceRun(run.id, 'industry_membership', summary);
+    const industryChangedAt = await syncIndustryMembershipHistory(standardClient);
+
+    await updateMaintenanceRun(run.id, 'metadata', summary);
+    await syncIndexBenchmarks(standardClient);
+    await syncEtfBasic(standardClient);
+    await syncFutureContracts(standardClient);
+    await syncChinaMacroData(
+      standardClient,
+      addMonths(today, -6).slice(0, 6),
+      today.slice(0, 6),
+      onLog,
+    );
+    await syncUsHeadlineCpiData(
+      new BlsPublicDataClient(),
+      addMonths(today, -18).slice(0, 6),
+      today.slice(0, 6),
+      onLog,
+    );
+    await updateMaintenanceRun(run.id, 'china_treasury_curve', summary);
+    summary.chinaTreasuryCurve = await syncChinaTreasuryYieldCurve(
+      new MinistryOfFinanceCurveClient(),
+      addDays(today, -400),
+      today,
+      onLog,
+    );
+
+    if (state.dailyPublishedThrough) {
+      const etfLookback = positiveInteger(
+        process.env.MAINTENANCE_WEEKLY_ETF_REVISION_LOOKBACK_DAYS,
+        252,
+      );
+      const etfRevisionDates = await getRecentOpenDates(state.dailyPublishedThrough, etfLookback);
+      await updateMaintenanceRun(run.id, 'etf_revisions', summary);
+      await recoverEtfRegistry(standardClient, state.dailyPublishedThrough, etfRevisionDates, {
+        loadCompleted: (scope) => completedMaintenanceItems(run.id, scope),
+        onItemComplete: (scope, item) => completeMaintenanceItem(run.id, scope, item),
+        onProgress: async (completed, total) => {
+          summary.recoveryCompleted = completed;
+          summary.recoveryTotal = total;
+          await updateMaintenanceRun(run.id, 'etf_revisions', summary);
+        },
+      });
+      summary.etfRevisionDates = etfRevisionDates.length;
+      summary.earliestEtfChange = '20150101';
+    }
+
+    await updateMaintenanceRun(run.id, 'canonicalizing_codes', summary);
+    const canonicalization = await canonicalizeStockCodes();
+    summary.canonicalizedRows = canonicalization.migrated;
+    summary.earliestMarketChange = minimumDate([
+      indexChangedAt,
+      industryChangedAt,
+      canonicalization.earliestMarketDate,
+    ]);
+
+    if (state.dailyPublishedThrough) {
+      const lookback = positiveInteger(process.env.MAINTENANCE_WEEKLY_REPAIR_LOOKBACK_DAYS, 252);
+      const repairDates = await getRecentOpenDates(state.dailyPublishedThrough, lookback);
+      await updateMaintenanceRun(run.id, 'self_healing', summary);
+      summary.selfHealing = await selfHealMarketDates(standardClient, repairDates, {
+        maxRepairDates: positiveInteger(process.env.MAINTENANCE_MAX_AUTO_REPAIR_DATES, 20),
+        drain: true,
+        beforeRepair: async (repair) => {
+          if (repair.core || repair.indices) {
+            await completeMaintenanceItem(run.id, 'derived-invalidation', repair.tradeDate);
+          }
+        },
+        onProgress: async (progress) => {
+          summary.selfHealing = progress;
+          await updateMaintenanceRun(run.id, 'self_healing', summary);
+        },
+        onLog,
+      });
+      summary.earliestMarketChange = minimumDate([
+        summary.earliestMarketChange,
+        summary.selfHealing.earliestDerivedChange,
+      ]);
+      if (summary.selfHealing.deferredDates.length > 0) {
+        throw new Error(
+          `Weekly self-heal repaired ${summary.selfHealing.repairedDates.length} dates and deferred ${summary.selfHealing.deferredDates.length}; retry maintenance`,
+        );
+      }
+    }
+
+    const invalidated = await completedMaintenanceItems(run.id, 'derived-invalidation');
+    summary.earliestMarketChange = minimumDate([summary.earliestMarketChange, ...invalidated]);
+    await updateMaintenanceRun(run.id, 'auditing', summary);
+    const audit = await runDataQualityAudit(prisma, {
+      startDate: summary.auditStart,
+      endDate: summary.auditEnd,
+      windowTradingDays: 60,
+      evaluationPoints: 3,
+    });
+    summary.auditErrors = audit.findings.filter((finding) => finding.status === 'error').length;
+    summary.auditWarnings = audit.findings.filter((finding) => finding.status === 'warn').length;
+    summary.auditFindings = audit.findings.filter((finding) => finding.status !== 'pass');
+    await updateMaintenanceRun(run.id, 'auditing', summary);
+    if (summary.auditErrors > 0) {
+      const names = audit.findings
+        .filter((finding) => finding.status === 'error')
+        .map((finding) => `${finding.title}: ${finding.summary}`)
+        .join(', ');
+      throw new Error(`Weekly data audit found ${summary.auditErrors} errors: ${names}`);
+    }
+
+    if (
+      summary.earliestMarketChange &&
+      state.dailyPublishedThrough &&
+      summary.earliestMarketChange <= state.dailyPublishedThrough
+    ) {
+      await updateMaintenanceRun(run.id, 'market_state', summary);
+      await syncMarketIndicators(summary.earliestMarketChange, state.dailyPublishedThrough);
+      await validateDerivedMarketRange(state.dailyPublishedThrough, state.dailyPublishedThrough, [
+        state.dailyPublishedThrough,
+      ]);
+    }
+
+    await updateMaintenanceRun(run.id, 'factor_weather', summary);
+    const factorWeather = await refreshAllFactorWeatherPins({ onLog });
+    summary.factorWeatherPoints = factorWeather.reduce(
+      (total, result) => total + result.pointsWritten,
+      0,
+    );
+
+    summary.dataRevision = await advanceWeeklyWatermark(today);
+    await finishMaintenanceRun(run.id, 'done', { summary });
+    onLog(
+      `Weekly maintenance complete; audit ${summary.auditErrors} errors / ${summary.auditWarnings} warnings`,
+    );
+    return summary;
+  } catch (error) {
+    const failure = error instanceof Error ? error : new Error(String(error));
+    await finishMaintenanceRun(run.id, 'error', { summary, error: failure.message }).catch(
+      () => {},
+    );
+    throw failure;
+  } finally {
+    await stopHeartbeat();
+  }
+}
+
+function createClient(minimumInterval = 0): TushareClient {
+  const config = loadTushareConfig();
+  return new TushareClient({
+    token: config.token,
+    baseUrl: config.baseUrl,
+    minIntervalMs: Math.max(config.minIntervalMs, minimumInterval),
+  });
+}
+
+async function runReferenceStage(
+  runId: string,
+  stage: ReferenceWorkerStage,
+  plannedItems: string[],
+  chunkSize: number,
+  onLog: (line: string) => void,
+): Promise<WeeklyReferenceSyncSummary> {
+  const completed = await completedMaintenanceItems(runId, stage);
+  const remaining = plannedItems.filter((item) => !completed.has(item));
+  const chunks = chunkReferenceCodes(remaining, chunkSize);
+  let result = emptyReferenceSyncSummary();
+
+  for (const [index, items] of chunks.entries()) {
+    onLog(
+      `${stage} worker batch ${index + 1}/${chunks.length}: ${items.length} items (process-isolated)`,
+    );
+    const current = await runReferenceWorkerProcess(stage, items, {
+      onItemComplete: (item) => completeMaintenanceItem(runId, stage, item),
+    });
+    result = addReferenceSyncSummary(result, current);
+    await checkpointSqliteWal();
+  }
+
+  return {
+    ...result,
+    planned: plannedItems.length,
+    resumed: plannedItems.length - remaining.length,
+  };
+}
+
+async function checkpointSqliteWal(): Promise<void> {
+  await prisma.$queryRawUnsafe('PRAGMA wal_checkpoint(PASSIVE);');
+}
+
+async function rollingAuditStart(endDate: string): Promise<string> {
+  const dates = await getRecentOpenDates(endDate, WEEKLY_AUDIT_TRADING_DAYS);
+  return dates[0] ?? endDate;
+}
+
+function minimumDate(dates: Array<string | null>): string | null {
+  return dates.filter((date): date is string => date != null).sort()[0] ?? null;
+}
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function shanghaiToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(new Date())
+    .replaceAll('-', '');
+}
+
+function addMonths(date: string, months: number): string {
+  const parsed = new Date(
+    Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1 + months, 1),
+  );
+  return parsed.toISOString().slice(0, 10).replaceAll('-', '');
+}
+
+function isoWeekKey(date: string): string {
+  const parsed = new Date(
+    Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8))),
+  );
+  const day = parsed.getUTCDay() || 7;
+  parsed.setUTCDate(parsed.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(parsed.getUTCFullYear(), 0, 1));
+  const week = Math.ceil(((parsed.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  return `${parsed.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+export function selectWeeklyTargetKey(
+  today: string,
+  latestWeekly: { status: string; targetKey: string } | null,
+): string {
+  return latestWeekly?.status === 'error' ? latestWeekly.targetKey : isoWeekKey(today);
+}

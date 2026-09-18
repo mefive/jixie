@@ -13,3 +13,7 @@
 改映射／空响应／解析看 [external-drivers.test.ts](external-drivers.test.ts)；改币种换算看 [benchmark-conversion.test.ts](benchmark-conversion.test.ts)，消费者的数据口径还需看 [Research 跨市场契约](../../research/datasets/cross-market-data-contracts.test.ts)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[audit.ts](audit.ts) 拥有海外驱动及跨市场基准的可得日期、取值、证券／曲线覆盖检查；既有本地收盘与跨市场严格后移口径保持。

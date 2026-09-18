@@ -17,6 +17,7 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 | 指数、行业成员、精简收盘响应 | [indices](indices/README.md)：指数原始数据与专用读取 |
 | 股指与商品共用期货数据 | [futures](futures/README.md)：实际合约、行情、映射与结算 |
 | 境外基准、币种换算、美债和 FX | [cross-market](cross-market/README.md)：共享身份之上的来源解析、可得日和写入 |
+| 质量结果契约与交易日覆盖摘要 | [quality](quality/README.md)：跨数据域共用的 finding 与统计，不含维护发布策略 |
 | 跨资产图表行情 | [queries](queries/README.md)：股票／ETF／指数／期货统一对象序列 |
 | 市场状态、天气、风险驱动基础数据 | [state](state/README.md)：派生同步、纯计算、读取／缓存和质量 |
 | 指数官方估值与历史展示 | [valuation](valuation/README.md)：覆盖目录、数据读取与纯计算 |

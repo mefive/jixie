@@ -125,7 +125,7 @@ describe('application CLI entry contracts', () => {
       'Baseline date must use YYYYMMDD',
     ],
     [
-      'src/maintenance/cli/sync-fina.ts',
+      'src/market/cli/sync-fina.ts',
       ['--repair-code', 'invalid'],
       '--repair-code must be an A-share ts_code',
     ],

@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono';
 import { MaintenanceError } from './errors.js';
-import { getMaintenanceStatus } from './state.js';
+import { getMaintenanceStatus } from './runs/state.js';
 
 export const maintenanceGate: MiddlewareHandler = async (context, next) => {
   const status = await getMaintenanceStatus();

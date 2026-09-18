@@ -11,3 +11,7 @@
 改规则看 [stock-identity.test.ts](stock-identity.test.ts)；改规范化先读该实现的逐表 merge 规则及 [维护模块](../../maintenance/README.md) 中的直接消费者。行情名称／类型响应看 [Market 路由测试](../routes/index.test.ts)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[audit.ts](audit.ts) 拥有证券主表完整性和行情代码关联检查，返回 Market 质量 finding；整体审计由 Maintenance 组合。

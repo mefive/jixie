@@ -9,3 +9,7 @@
 改时间边界、范围替换和无日历行为看 [calendar.integration.test.ts](calendar.integration.test.ts)；更改下游 availableDate 还需检查 [rates](../rates/README.md) 和 [cross-market](../cross-market/README.md) 的映射测试。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[read.ts](read.ts) 提供区间交易日、某日是否开市、最近 N 个交易日和下一交易日判断。查询不解释发布状态；Maintenance 负责选择水位与窗口，继续保持 SSE 日历口径。

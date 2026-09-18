@@ -9,3 +9,7 @@
 改官方估值适配看 [index-daily-basic-api.test.ts](../providers/tushare/index-daily-basic-api.test.ts)，索引清单看 [index-presets.test.ts](../registry/index-presets.test.ts)，精简响应看 [routes/index.test.ts](../routes/index.test.ts)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[daily-quality.ts](daily-quality.ts) 检查指数、行业和权重时点完整性，最大权重年龄由调用方传入。[repair.ts](repair.ts) 拥有指数缺口判定和补齐；[membership-sync.ts](membership-sync.ts) 同步成员并返回最早历史变更日；[audit.ts](audit.ts) 检查行业日线覆盖。Maintenance 决定是否重算与发布。

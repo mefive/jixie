@@ -5,7 +5,7 @@
 | 文件 / 入口 | 调用方及输入输出 |
 | --- | --- |
 | [source-contract.ts](source-contract.ts) `normalizeFinancialStatementSourceRow`、`resolveFinancialAvailability`、`appendFinancialStatementSourceRows` | 同步和测试消费的纯规则；规范来源、证据可得性、合并内存版本数组，不写数据库 |
-| [sync.ts](sync.ts) `syncFinancialStatementsVip`、`syncFinancialStatementsByStock` | Maintenance 参考数据子进程；分报告期或有界公告日期窗口拉三表，显式请求报告类型，追加新版本并回调完成进度 |
+| [sync.ts](sync.ts) `syncFinancialStatementsVip`、`syncFinancialStatementsByStock` | Market 财报子进程（维护／导入共用）；分报告期或有界公告日期窗口拉三表，显式请求报告类型，追加新版本并回调完成进度 |
 | 同文件 `storeFinancialCorrectionEvidence` | 维护来源证据；写更正公告并只给无歧义匹配版本附精确证据，不能把模糊更正日期当确切公告 |
 | [resolver.ts](resolver.ts) `resolveFinancialState`、`resolveFinancialStates`、`selectLatestStatementVersions` | Research／审计；前两者按 asOfDate 查库和规范代码，后者选择版本，保留报告类型、来源和可得性 |
 | [normalize.ts](normalize.ts) `normalizeIncomeFlows`、`normalizeCashFlows` | 累计流量转单季／TTM，缺少必要期数保留缺失而非补零 |
@@ -20,3 +20,9 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 改来源与版本先读 [source-contract.test.ts](source-contract.test.ts)、[sync.test.ts](sync.test.ts)、[resolver.test.ts](resolver.test.ts)；公式看 [normalize.test.ts](normalize.test.ts)、[metrics.test.ts](metrics.test.ts)，参考同步看 [reference-sync.test.ts](reference-sync.test.ts)。`fixtures/financial-source-versions.json` 是这些规则的测试样本，由本能力覆盖，不是生产 seed 或独立能力。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[financial-history-import.ts](financial-history-import.ts) 选择历史报告期和分红股票，分批调用 [reference-worker-process.ts](reference-worker-process.ts)。[reference-worker.ts](reference-worker.ts) 只处理市场数据；[协议](reference-worker-protocol.ts) 逐项报告完成，父进程等待调用方持久化后确认，Worker 才继续。Maintenance 在回调中保存 checkpoint，普通 [sync fina](../cli/sync-fina.ts) 不写维护记录。失败不得把未确认项当作完成；进程关闭后才结束批次。
+
+[audit.ts](audit.ts) 拥有财报可得时间、会计勾稽与指标覆盖检查，测试包括 [真实临时 SQLite](audit.integration.test.ts) 和 [真实 Worker IPC](reference-worker.integration.test.ts)。

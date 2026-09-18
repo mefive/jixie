@@ -16,3 +16,7 @@
 改指标计算看 [compute.test.ts](compute.test.ts)，改风险输入看 [market-risk-drivers.test.ts](market-risk-drivers.test.ts)；HTTP 和缓存调用看 [routes/index.test.ts](../routes/index.test.ts)，模型审计还需对照 [Strategy 数据就绪](../../strategy/risk/data-readiness.ts)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[quality.ts](quality.ts) 校验派生日期、指标比例范围及基于历史权重的行数要求。Maintenance 提供检查范围并决定是否发布；基础风险驱动质量继续由本域实现，Strategy 决定模型历史要求。

@@ -40,7 +40,7 @@ export const syncCommands: SyncCommand[] = [
   },
   {
     name: 'fina',
-    entry: 'src/maintenance/cli/sync-fina.js',
+    entry: 'src/market/cli/sync-fina.js',
     kind: 'financial',
     usage: '[--repair-code CODE --start YYYYMMDD [--end YYYYMMDD]]',
     description:

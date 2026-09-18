@@ -1,9 +1,10 @@
-import { repairBaseline } from '../baseline-repair.js';
 import { prisma } from '#infra/database/prisma.js';
-import { assertProductionLock, runDailyMaintenance } from '../daily.js';
-import { runRepairMaintenance } from '../repair.js';
-import { recoverInterruptedMaintenanceRuns } from '../state.js';
-import { runWeeklyMaintenance } from '../weekly.js';
+import { assertProductionLock } from '../runs/coordination.js';
+import { recoverInterruptedMaintenanceRuns } from '../runs/state.js';
+import { repairBaseline } from '../workflows/baseline-repair.js';
+import { runDailyMaintenance } from '../workflows/daily.js';
+import { runRepairMaintenance } from '../workflows/repair.js';
+import { runWeeklyMaintenance } from '../workflows/weekly.js';
 
 type MaintenanceCommand = 'daily' | 'weekly' | 'repair' | 'baseline';
 

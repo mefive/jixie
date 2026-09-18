@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ getMaintenanceStatus: vi.fn(), protectedHandler: vi.fn() }));
-vi.mock('./state.js', () => ({ getMaintenanceStatus: mocks.getMaintenanceStatus }));
+vi.mock('./runs/state.js', () => ({ getMaintenanceStatus: mocks.getMaintenanceStatus }));
 
 import { maintenanceGate } from './middleware.js';
 import { maintenanceRoute } from './routes.js';

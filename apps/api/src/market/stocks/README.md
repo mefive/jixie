@@ -15,3 +15,7 @@
 改每日门禁看 [daily-sync.test.ts](daily-sync.test.ts)；改供应商字段看 [stock-reference-api.test.ts](../providers/tushare/stock-reference-api.test.ts)、[reference-data-api.test.ts](../providers/tushare/reference-data-api.test.ts)；发布编排与整体修复见 [Maintenance](../../maintenance/README.md)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[daily-quality.ts](daily-quality.ts) 检查股票日线关联覆盖及旧代码残留；[repair.ts](repair.ts) 查缺、制定修复建议并执行股票／资金流补齐。[audit.ts](audit.ts) 检查日历覆盖、空值、复权跳变、龙虎榜、历史可投资性及样本窗口；阈值与 PIT 语义保持。Maintenance 选择修复日期，执行前写失效记录，决定派生重算和发布。

@@ -433,13 +433,16 @@ test('treats maintenance middleware as HTTP without widening the business bounda
   const root = fixture(context, {
     [src + 'server.ts']: "import './maintenance/middleware.js';",
     [src + 'maintenance/middleware.ts']:
-      "import type { MiddlewareHandler } from 'hono'; import './state.js';",
-    [src + 'maintenance/state.ts']: "import { prisma } from '../infra/database/prisma.js';",
+      "import type { MiddlewareHandler } from 'hono'; import './runs/state.js';",
+    [src + 'maintenance/runs/state.ts']: "import { prisma } from '../../infra/database/prisma.js';",
     [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 
-  fs.writeFileSync(path.join(root, src + 'maintenance/state.ts'), "import './middleware.js';");
+  fs.writeFileSync(
+    path.join(root, src + 'maintenance/runs/state.ts'),
+    "import '../middleware.js';",
+  );
   fs.appendFileSync(
     path.join(root, src + 'maintenance/middleware.ts'),
     "import { prisma } from '../infra/database/prisma.js';",
@@ -452,10 +455,10 @@ test('treats maintenance middleware as HTTP without widening the business bounda
 
 test('keeps maintenance outside direct and indirect Market dependencies', (context) => {
   const root = fixture(context, {
-    [src + 'market/direct.ts']: "import '../maintenance/state.js';",
+    [src + 'market/direct.ts']: "import '../maintenance/runs/state.js';",
     [src + 'market/indirect.ts']: "import '../infra/bridge.js';",
-    [src + 'infra/bridge.ts']: "export { state } from '../maintenance/state.js';",
-    [src + 'maintenance/state.ts']: 'export const state = {};',
+    [src + 'infra/bridge.ts']: "export { state } from '../maintenance/runs/state.js';",
+    [src + 'maintenance/runs/state.ts']: 'export const state = {};',
   });
   const diagnostics = checkBackendBoundaries(root, emptyPolicy).diagnostics;
   assert.ok(
@@ -473,7 +476,7 @@ test('keeps maintenance outside direct and indirect Market dependencies', (conte
 
 test('rejects the retired application-maintenance module while allowing maintenance', (context) => {
   const root = fixture(context, {
-    [src + 'maintenance/daily.ts']: "import '../market/sync.js';",
+    [src + 'maintenance/workflows/daily.ts']: "import '../../market/sync.js';",
     [src + 'market/sync.ts']: 'export const sync = () => {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);

@@ -11,6 +11,6 @@
 
 `coreAlreadyPublished`、`extensionsAlreadyPublished` 是上游已完成同步时的跳过标记，`refresh` 传给扩展数据同步。日期、PIT 可得性和各数据集事务仍按 [Market](../../market/README.md) 的契约；调度不把整个同步串联变成原子发布。
 
-[CLI](../cli/run-signals.ts) 负责参数、退出码和 Prisma 收尾，用法以 [脚本入口说明](../../../scripts/README.md) 为准。改编排先对照 [Maintenance daily](../../maintenance/daily.ts) 的直接调用及 [runs](../runs/README.md)、[accounting](../accounting/README.md) 的集成测试；基础数据门槛与依赖期限分别看 runs/readiness 和 [rates.test.ts](../factor-inputs/rates.test.ts)。
+[CLI](../cli/run-signals.ts) 负责参数、退出码和 Prisma 收尾，用法以 [脚本入口说明](../../../scripts/README.md) 为准。改编排先对照 [Maintenance daily](../../maintenance/workflows/daily.ts) 的直接调用及 [runs](../runs/README.md)、[accounting](../accounting/README.md) 的集成测试；基础数据门槛与依赖期限分别看 runs/readiness 和 [rates.test.ts](../factor-inputs/rates.test.ts)。
 
 [返回 Signals 总览](../README.md)

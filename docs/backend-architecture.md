@@ -186,14 +186,14 @@ Research 的冻结研究交接负责证据准入与生成，Factor/Strategy 负�
 | 找每日信号失败收尾 | [Signals runs](../apps/api/src/signals/runs/README.md)、[账户重放](../apps/api/src/signals/accounting/README.md) |
 | Python 请求财报经过哪里 | [Research SDK](../apps/api/src/research/sdk/README.md) → [datasets](../apps/api/src/research/datasets/README.md) → [Market fundamentals](../apps/api/src/market/fundamentals/README.md) |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
-| 改整体审计规则 | `maintenance/data-audit.ts`；模型历史要求由 `strategy/risk` 提供 |
+| 改整体审计规则 | `maintenance/publication/audit.ts`；模型历史要求由 `strategy/risk` 提供 |
 | 找进程和资源入口 | [运行入口清单](backend-runtime-entries.md)，再看所属领域任务/runtime |
 
 开发时运行 `pnpm check:backend-boundaries`，根级 typecheck/build 已包含此门禁。规则、4 条具名纯依赖例外和验证方法见 [依赖边界说明](backend-boundaries.md)。新增业务能力仍放入负责其状态和规则的模块；不为复用一两个函数新建 common/application 或重新拉出平铺 services。
 
 ## 应用命令入口
 
-Market、Maintenance、Signals、Auth 的命令放在各模块 `cli/`，用法汇总于 [API 命令索引](../apps/api/scripts/README.md)。Market 负责数据和证券代码合并，财报分期规则归 fundamentals；Maintenance 负责整轮发布和应用可用性协调。CLI 负责参数/输出/收尾，简单组合保留在入口中；较重的基线修复与财报历史导入由具名操作承接。独立备份工具仍在 API scripts 根目录，以 Node 直接执行。
+Market、Maintenance、Signals、Auth 的命令放在各模块 `cli/`，用法汇总于 [API 命令索引](../apps/api/scripts/README.md)。Market 负责数据和证券代码合并，财报分期、历史导入、分批子进程和质量检查归 fundamentals；Maintenance 负责整轮发布和应用可用性协调。CLI 负责参数/输出/收尾，简单组合保留在入口中；基线修复由 Maintenance 编排，财报历史导入由 Market fundamentals 的具名操作承接。独立备份工具仍在 API scripts 根目录，以 Node 直接执行。
 
 ## 核心业务模块的目录规则
 
@@ -204,3 +204,10 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 ## Factor 内部职责
 
 正式报告与 Job、相关性缓存、天气 pin 分属三个生命周期，共享计算不拥有这些对象。入口及协作流程维护在 [Factor 总览](../apps/api/src/factor/README.md)，具体契约见 [evaluations](../apps/api/src/factor/evaluations/README.md)、[correlations](../apps/api/src/factor/correlations/README.md)、[weather](../apps/api/src/factor/weather/README.md) 和 [execution](../apps/api/src/factor/execution/README.md)。旧 Job kind 的部署转换与查询规则见 [jobs](../apps/api/src/factor/jobs/README.md)，背景和历史验证见 [内部结构整理](design/core-business-internal-structure.md)。
+
+## Maintenance 与 Market 数据业务边界
+
+数据的同步、修复、质量阈值和 PIT 检查由 Market 对应子域实现；Maintenance 组合各业务能力，拥有运行恢复、更新顺序、发布门禁和水位。
+`maintenance/publication/audit.ts` 汇总报告，具体审计位于 stocks、instruments、indices、fundamentals、macro、cross-market、rates、etfs、commodity；共享结果契约和覆盖摘要在 market/quality，不依赖 Maintenance。
+财报 Worker 通过逐项完成消息和父进程确认隔离数据执行与维护 checkpoint；ETF recovery 使用调用方恢复回调。`maintenance/runs/coordination.ts` 提供锁检查与任务安静窗口，其他流程不再从 daily 导入公共协调能力。
+详见 [Maintenance 阅读入口](../apps/api/src/maintenance/README.md) 和 [变更记录](design/maintenance-business-boundaries.md)。

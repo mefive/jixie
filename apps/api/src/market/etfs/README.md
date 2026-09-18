@@ -16,3 +16,7 @@ ETF 研究身份由 [registry](../registry/README.md) 维护；本能力负责�
 份额范围回填在未 refresh 时遇到已有行即跳过该日期；它的断点判断并非完整覆盖证明。修改时应分别看 [sync.test.ts](sync.test.ts)、[history-sync.test.ts](history-sync.test.ts)、[history-coverage.test.ts](history-coverage.test.ts)，而非合并两条流程。Research 公开列映射见 [datasets](../../research/datasets/README.md)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[recovery.ts](recovery.ts) 负责按上市／退市范围重查全历史并补齐，再处理近期修订；调用方通过 loadCompleted / onItemComplete / onProgress 提供恢复上下文。模块不接收 Maintenance runId，不读写维护表；同轮来源缺失缓存、scope 指纹与 key 保持。每次重试仍查实际数据，完成标记不能遮蔽新缺口。[audit.ts](audit.ts) 将已有 registry 审计转成领域 finding。

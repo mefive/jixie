@@ -6,42 +6,42 @@ Maintenance 编排整轮数据维护：获取运行权、补齐数据、检查�
 
 CLI 是调用方式，本模块负责影响全应用的数据更新顺序、发布条件及可用性。HTTP 门禁读取维护运行状态，部署也以 `kind=deploy` 使用同一记录；定时触发由 systemd 提供。
 
+## 目录组织
+
+- `cli/`：命令行适配。
+- `workflows/`：日／周维护、区间与基线修复、自愈编排和调度策略。
+- `runs/`：运行记录、checkpoint、心跳、恢复、锁和在途任务等待。
+- `publication/`：发布水位、质量门禁、整体／跨业务审计和成功部署版本。
+- 根级 `routes.ts` / `middleware.ts`：HTTP 适配；`errors.ts`：业务错误。
+
+测试跟随实现；不保留旧根级转发文件。Market 的具体数据规则不因 Maintenance 的目录分组而迁回。
+
 ## 从入口阅读
 
-| 文件 | 职责与调用 |
+| 入口 | 职责 |
 | --- | --- |
-| [daily.ts](daily.ts) | `runDailyMaintenance`：刷新日历、确定已完成交易日、补齐缺口/自愈、同步原始数据、校验、计算派生指标、发布水位和后续信号；无缺口时保留原有信号重试分支 |
-| [weekly.ts](weekly.ts) | `runWeeklyMaintenance`：股票/指数/行业/ETF 参考数据、财报与分红等周维护；按运行项 checkpoint 恢复 |
-| [baseline-repair.ts](baseline-repair.ts) | `repairBaseline`：修复截止日前的基线数据并按影响重算，不创建维护运行或发布水位；与 daily 的基线发布不同 |
-| [financial-history-import.ts](financial-history-import.ts) | `importFinancialReferenceHistory`：选择历史报告期和未导入分红证券，顺序分批调用 Worker；不写全局运行 checkpoint |
-| [repair.ts](repair.ts) | `runRepairMaintenance`：明确区间的修复与重算 |
-| [self-heal.ts](self-heal.ts) | 检查已发布日期的缺口，制定修复项并调用 Market 同步，重新检查原始质量 |
-| [etf-recovery.ts](etf-recovery.ts) | 每次按 registry 上市/退市区间全历史查缺，逐日补缺；周修订按运行/日期恢复 |
-| [state.ts](state.ts) | 维护运行/项目记录、心跳、状态、发布水位与 dataRevision；恢复中断运行 |
-| [quality.ts](quality.ts) | `validateRawMarketDate` 与 `validateDerivedMarketRange`：整轮发布前的原始/派生数据质量门禁 |
-| [data-audit.ts](data-audit.ts) | 汇总市场、各数据领域与风险输入审计 |
-| [risk-data-audit.ts](risk-data-audit.ts) | 组合 Market 数据质量与 Strategy 模型历史要求，避免 Market 反向依赖 Strategy |
-| [routes.ts](routes.ts) | 实现状态及成功部署版本查询路由，具名导出 `maintenanceRoute` 供 server 挂载 |
-| [deployment-version.ts](deployment-version.ts) | 每次读取 bootstrap 成功记录；公开接口 `/api/maintenance/version` 只返回合法完整 SHA 或 `null` |
-| [middleware.ts](middleware.ts) | 单独导出 `maintenanceGate`，供 server 通过 `app.use` 注册；维护期间设置 Retry-After 并返回维护错误 |
-| [reference-worker-process.ts](reference-worker-process.ts) | 将参考数据分批交给真实子进程，接收 summary 并检查退出结果；根据源码/编译入口选 `.ts`/`.js` |
-| [reference-worker.ts](reference-worker.ts) | 配置 Tushare 客户端，调用 Market 的财报/指标/分红同步，每项完成写 checkpoint；CLI 主入口最终释放 Prisma |
-| [daily-schedule.ts](daily-schedule.ts)、[财报分期规则](../market/fundamentals/reference-periods.ts) | 开市日调度判断和参考数据的分期/断点规则 |
-| [证券代码合并](../market/instruments/canonicalize-stock-codes.ts) | 数据中历史股票代码的规范化维护 |
+| [cli/run-maintenance.ts](cli/run-maintenance.ts) | daily / weekly / repair / baseline 参数、输出、进程退出与 Prisma 收尾 |
+| [daily.ts](workflows/daily.ts)、[daily-schedule.ts](workflows/daily-schedule.ts) | 日维护、初始化发布、无缺口信号重试和节假日调度策略 |
+| [weekly.ts](workflows/weekly.ts) | 周维护顺序、修复前 derived-invalidation、恢复回调、派生重算和发布 |
+| [repair.ts](workflows/repair.ts)、[baseline-repair.ts](workflows/baseline-repair.ts) | 历史区间与基线修复编排；基线修复不创建运行或推进水位 |
+| [coordination.ts](runs/coordination.ts) | 生产锁校验、等待 Job / Agent / Factor Weather 安静窗口；所有维护流程直接调用 |
+| [state.ts](runs/state.ts) | 运行记录、心跳、checkpoint 与恢复 |
+| [watermark.ts](publication/watermark.ts) | 发布水位与 dataRevision；状态门禁读取这些发布事实 |
+| [self-heal.ts](workflows/self-heal.ts) | 组合股票与指数修复计划，控制批次，先记录失效再调用业务修复，复查进度 |
+| [gate.ts](publication/gate.ts) | 发布时选择权重最大年龄，组合 Market 的股票与指数质量检查 |
+| [audit.ts](publication/audit.ts)、[risk-audit.ts](publication/risk-audit.ts) | 选择审计范围、汇总各域报告，组合 Market 数据事实与 Strategy 模型要求 |
+| [routes.ts](routes.ts)、[middleware.ts](middleware.ts)、[deployment-version.ts](publication/deployment-version.ts) | HTTP 状态、维护门禁和成功部署版本 |
 
-最近已完成交易日直接读取 [Market calendar](../market/calendar/sse-close.ts)，保留上海 16:00 截止和 SSE 范围；不再经 Signals 取得共用日历能力。ETF 基础审计归 Market etfs，风险驱动基础质量归 Market state，本模块仍组合模型要求和整轮发布条件。
+## 数据能力与恢复边界
 
-日维护的普通发布链路是：原始同步 → `validateRawMarketDate` → 派生指标重算 → `validateDerivedMarketRange` → `advanceDailyWatermark` 或 `bumpDataRevision`。数据替换事务由各同步函数控制；发布水位由 Maintenance 控制，不把整轮网络同步包进一个数据库事务。初始化、无缺口信号重试及历史修复保留各自分支。
+- 财报历史导入、分批父进程和 Worker 位于 [Market fundamentals](../market/fundamentals/README.md)，`sync fina` 位于 [Market CLI](../market/cli/sync-fina.ts)。Worker 只同步数据并报告逐项完成，不接收维护 runId，也不写 MaintenanceCheckpoint。周维护通过 `onItemComplete` 保存 checkpoint，父进程写入成功后才确认；子进程收到确认才处理下一项。普通导入使用同一协议但不记录维护 checkpoint。
+- ETF 全历史查缺、缺失来源观察和修订位于 [Market etfs/recovery](../market/etfs/recovery.ts)。Maintenance 为调用提供当前运行的已完成项读取、完成记录和进度回调；scope 指纹和旧 key 格式保持。
+- 股票缺口检查与修复在 [stocks/repair](../market/stocks/repair.ts)，指数部分在 [indices/repair](../market/indices/repair.ts)。自愈编排不自行查询或解释市场表。具体检查阈值保持，日维护修复上限和周维护 drain 策略仍由调用方决定。
+- 原始质量归 stocks / indices，派生指标质量归 [state/quality](../market/state/quality.ts)；业务检查失败向上传播，Maintenance 不推进水位。整体审计中的数据规则位于各 Market 子域 `audit.ts`；共享 finding 与覆盖摘要归 [Market quality](../market/quality/README.md)，不反向依赖维护模块。
+- 交易日查询统一调用 [Market calendar](../market/calendar/read.ts)，已发布截止日由 Maintenance 选择。指数／行业成员同步及变更起点由 [indices/membership-sync](../market/indices/membership-sync.ts) 返回；商品持仓的合约和行情前置同步归 [commodity/holding-sync](../market/commodity/holding-sync.ts)。
 
-CLI 入口为 [cli/run-maintenance.ts](cli/run-maintenance.ts)；根级 `pnpm maintenance` 经 [with-maintenance-lock.sh](../../../../scripts/maintenance/with-maintenance-lock.sh) 执行。单项数据同步 CLI 直接调用 Market 的具体文件；维护进程启动与中断恢复仍由现有启动/部署入口负责，本轮不改变锁、时间、水位和进程协议。
-
-## 命令与领域归属
-
-- [cli/run-maintenance.ts](cli/run-maintenance.ts) 对应 `pnpm maintenance` 的 daily/weekly/repair/baseline 子命令；参数、输出和 Prisma 收尾归 CLI。
-- [cli/sync-fina.ts](cli/sync-fina.ts) 对应 `pnpm --filter api sync fina`；全量分支调用历史导入，单股分支继续调用 Market 财报修复。全量导入传空运行 ID，weekly 使用运行 checkpoint，两者不合并。
-- 证券代码合并及其 [CLI](../market/cli/canonicalize-stock-codes.ts)、财报分期规则归 Market；weekly 调用结果来决定重算和发布。
-- `reference-worker.ts` 同时调用财报同步并记录可选运行 checkpoint；`data-audit.ts` 包含汇总和具体数据检查，`quality.ts` / `self-heal.ts` 也含领域检查与发布策略。当前保留这些混合实现，具体领域规则应归 Market，跨模块就绪条件和整轮发布决策归本模块；目录迁移不代表需要全面拆解。
-- 模块别名为 `#maintenance/*`。命令名、HTTP URL、维护状态模型和锁路径继续使用已有契约。
+日维护发布顺序仍是原始同步 → 原始质量检查 → 派生重算 → 派生质量检查 → 水位／dataRevision → 后续信号；数据事务由 Market 所属业务控制。
+CLI、HTTP URL、环境变量、systemd 和锁路径不变；不新建调度器、公共包或数据库模型。重构记录见 [业务归属整理](../../../../docs/design/maintenance-business-boundaries.md)。
 
 ## 恢复与发布安全
 

@@ -11,3 +11,7 @@
 改来源、期限或日期映射看 [china-treasury-curve.test.ts](china-treasury-curve.test.ts)、[chinabond-credit-curves.test.ts](chinabond-credit-curves.test.ts)；只读可得性看 [government-yield-availability.integration.test.ts](government-yield-availability.integration.test.ts)。
 
 [返回 Market 总览](../README.md)
+
+## 维护调用的数据能力
+
+[audit.ts](audit.ts) 检查信用曲线的逐序列覆盖、可得日期、数值与审计截止日覆盖；调用方提供审计范围。
