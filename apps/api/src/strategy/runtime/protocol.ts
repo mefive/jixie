@@ -8,7 +8,7 @@ import {
   runtimeLogFrameSchema,
   runtimeErrorFrameSchema,
   MAX_IDENTIFIER_CHARACTERS,
-} from '#infra/runtime/python/protocol.js';
+} from '#infra/runtime/protocol.js';
 
 const strategyParameterStringSchema = z
   .string()
@@ -115,6 +115,8 @@ export const strategyExecutionFrameSchema = z.union([
   strategyDoneFrameSchema,
   runtimeErrorFrameSchema,
 ]);
+
+export type StrategyMetadata = z.infer<typeof strategyMetadataSchema>;
 
 export type StrategyCommand = z.infer<typeof strategyCommandSchema>;
 

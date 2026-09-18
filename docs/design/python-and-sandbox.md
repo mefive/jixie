@@ -8,8 +8,8 @@ Engine 移回宿主是第三提交，不能把目标架构当作已经完成。
 
 | 提交 | 信息 | 状态 |
 | --- | --- | --- |
-| 1 | `fix(sandbox): isolate custom factors across strategy languages` | 人工 review 通过，静态检查、测试、构建及 Worker 验证通过；随本次提交交付 |
-| 2 | `refactor(strategy): extract a shared sandbox bridge` | 待第一提交完成后的范围确认 |
+| 1 | `fix(sandbox): isolate custom factors across strategy languages` | 已提交 `a7671356`；人工 review、静态检查、测试、构建及 Worker 验证通过 |
+| 2 | `refactor(strategy): extract a shared sandbox bridge` | 人工 review、静态检查、测试、构建及 Worker 验证通过；随本次提交交付 |
 | 3 | `refactor(strategy): run both language runtimes through the host engine` | 待前置提交完成后的范围确认 |
 
 ### 第一提交：因子执行独立于策略语言
@@ -54,7 +54,29 @@ Panel 组件测试；API/shared 构建与相关 Worker 启动验证。所有 Pyt
 - Python 使用本地 research-py-v1 环境验证；未进行生产容器隔离验收或性能基准测试，性能对比留在第三提交。
 - 未修改 Prisma schema、公开 SDK、workspace 或跨包构建依赖，无数据库迁移或部署范围规则变更。
 
-### 后续两提交
+### 第二提交：共享 Strategy bridge（2026-09-18，验证通过）
+
+- `strategy/runtime/bridge.ts` 的 `createStrategyBridge(transport, options)` 返回 Engine 使用的
+  `Strategy`；接管元数据、限流日志、每日快照、截面/历史批量请求、命令校验后的顺序重放。
+- `StrategyTransport` 只要求发送帧与按 schema 读取校验帧；协议拒绝时适配器必须终止会话。
+  PythonSession 已满足该契约；Python runtime 保留 connect、start（含参数覆盖）、失败清理和 close。
+- `strategy/runtime/protocol.ts` 是两种语言后续共用的业务协议；保留既有 snake_case 字段、输入限制、
+  请求错误响应、整批命令先校验后重放，以及 Python 原有诊断文案。本次不更改 runner 通信格式。
+- 通用字段与日志/错误 schema 提到 `infra/runtime/protocol.ts`；Factor、Research 只更新导入路径，
+  Python 帧包络与分帧大小限制仍在 `infra/runtime/python/protocol.ts`。
+- TS 尚未接入共享 bridge；Engine 迁移仍属于第三提交。无数据库、HTTP、公开 SDK 或构建依赖变更。
+- 人工 review 后完成 Strategy runtime、因子隔离、Factor/Research 协议、PythonSession 与源码 Worker
+  回归：17 个文件、97 项测试通过；其中 7 项共享 bridge 测试和 5 项 Python 适配器生命周期测试。
+- 编译产物的真实回测 Worker、扫描 cell、Signals 子进程 8 项测试通过；Shared/API 构建、边界检查器
+  28 项自测通过。Worker 测试等待进程退出并清理独立临时数据库；PythonSession 测试关闭连接和 socket。
+- PythonSession 首次因执行环境禁止 Unix socket 监听而出现 11 项 EPERM 失败；获准后原样重跑全部通过，
+  未修改产品或测试代码。Python 使用本地运行时验证，结果不代表生产容器隔离验收。
+
+第二提交静态检查：`pnpm typecheck` 全部通过，生成物一致性通过；后端扫描 774 个文件、
+2893 条运行时边、688 条类型边，0 违规。变更 TS 的 ESLint、Prettier 与 `git diff --check` 通过。
+源码文本对比确认快照、查询、命令重放和日志映射仅更改名称及传输接口类型。无未完成的必需验证。
+
+### 后续提交
 
 第二提交统一 Strategy 的元数据、快照、批量查询、指令校验与重放，由 Python 先接入。
 第三提交将 TS 策略接入同一业务 bridge，迁移普通回测、扫描、Signals、参数/元数据检查及 Agent

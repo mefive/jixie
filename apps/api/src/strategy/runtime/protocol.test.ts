@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { strategyStartupFrameSchema, strategyExecutionFrameSchema } from './protocol.js';
 
-describe('strategy Python protocol', () => {
+describe('strategy sandbox protocol', () => {
   it('accepts bounded strategy metadata from the runner', () => {
     expect(
       strategyStartupFrameSchema.parse({

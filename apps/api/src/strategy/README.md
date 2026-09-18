@@ -15,6 +15,7 @@ Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以�
 | 回测风险解释与数据门槛 | [risk](risk/README.md)：暴露、宏观、Alpha/Risk、压力情景及模型就绪 |
 | 编辑和解释策略 | [agent](agent/README.md)：业务上下文与共享 Agent 启动 |
 | TS 策略如何运行 | [runtime/typescript](runtime/typescript/README.md)：墙内 Engine、参数检查、SDK 与 isolate 收尾 |
+| 策略共享沙箱协议 | [runtime/bridge.ts](runtime/bridge.ts) 与 [runtime/protocol.ts](runtime/protocol.ts)：元数据、快照、批量查询和指令重放；目前由 Python 接入 |
 | Python 策略如何协作 | [runtime/python](runtime/python/README.md)：会话协议与命令桥接，交易模拟仍由 TS Engine 执行 |
 
 ## 主要协作流程
