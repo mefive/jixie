@@ -366,8 +366,8 @@ API package scripts 中的命令名和参数保持；下表逐文件登记 `apps
 | --- | --- | --- | --- |
 | apps/api/scripts/audit-data.ts | audit:data | data-quality, lib | 保留；随相关模块同步引用 |
 | apps/api/scripts/audit-etf-registry.ts | audit:etf | data-quality, lib | 保留；随相关模块同步引用 |
-| apps/api/scripts/audit-selected-financials.ts | audit:financial-selected | fundamentals, lib, market | 保留；随相关模块同步引用 |
-| apps/api/scripts/audit-valuation-samples.ts | audit:valuation-samples | fundamentals, lib, market | 保留；随相关模块同步引用 |
+| apps/api/scripts/audit-selected-financials.ts | audit:financial-selected | fundamentals, lib, market | 历史基线；专项 CLI 已于 2026-09-18 移除 |
+| apps/api/scripts/audit-valuation-samples.ts | audit:valuation-samples | fundamentals, lib, market | 历史基线；专项 CLI 已于 2026-09-18 移除 |
 | apps/api/scripts/backtest.ts | backtest | engine, lib | 保留；随相关模块同步引用 |
 | apps/api/scripts/backup-db.mjs | backup | 无直接 src import | 保留；随相关模块同步引用 |
 | apps/api/scripts/canonicalize-stock-codes.ts | canonicalize:stock-codes | lib, maintenance | 保留；随相关模块同步引用 |

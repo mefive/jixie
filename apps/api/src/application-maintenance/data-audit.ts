@@ -1236,7 +1236,7 @@ export function summarizeFinancialStatementAccounting(
       `Cross-statement net income: ${formatNumber(toNumber(crossStatement?.mismatches))}/${formatNumber(toNumber(crossStatement?.comparable))} mismatches.`,
       `${formatNumber(anomalies)} non-positive asset/share records; ${formatNumber(reviewFlags)} sign/subtotal review flags (not confirmed source errors).`,
       `${formatNumber(completePeriods)}/${formatNumber(totalPeriods)} non-reconstructed company-periods have all three statements.`,
-      'These are raw source rows and join pairs, including duplicate or superseded versions, not SDK-selected company-periods. Use audit:financial-selected with an explicit as-of date for selected-version impact.',
+      'These are raw source rows and join pairs, including duplicate or superseded versions, not SDK-selected company-periods.',
       'Derived metrics still return explicit missing or invalid reasons when required quarters or fields are unavailable.',
     ],
   };

@@ -49,9 +49,9 @@ const commandCases = [
   {
     entry: 'audit/index',
     family: 'data:audit',
-    task: 'valuation-samples',
-    target: 'scripts/audit/audit-valuation-samples',
-    args: ['20250101', 'output with spaces.json'],
+    task: 'data',
+    target: 'scripts/audit/audit-data',
+    args: ['20250101', '20251231', '--strict', '--json'],
   },
   {
     entry: 'probes/index',

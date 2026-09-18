@@ -63,6 +63,8 @@
 
 ## 审查后验证记录
 
+以下为历史验收过程；其中的 `deepseek-complex-example.mjs` 一次性脚本已于 2026-09-18 移除，报告和证据保留，旧脚本可从 Git 历史查阅。
+
 - 用户确认代码审查后，API 16 个文件 / 160 项测试全部通过，覆盖供应商协议、Agent/Profile/turn、因子问答、Research 双交接、Curator、元数据和 Strategy 路由。API 构建通过；日志为 `/tmp/jixie-deepseek-tests.log`、`/tmp/jixie-deepseek-build.log`。
 - 用户要求增加展示新模型能力的复杂例子。新增手动验收脚本 `apps/api/tests/deepseek-complex-example.mjs`：真实策略 Agent 与嵌入工具、合成指数月价、隔离 SQLite、真实 Python、独立 TypeScript 数值核对；不发送私人研究、不写开发数据库。
 - 首轮 3 次真实 Agent 请求中，前两次正常返回工具调用，第 3 次触及 4,096 输出 token 上限（全部为 reasoning），没有生成 Python 或计算结果。不能把这个尝试记为复杂任务成功，也不能由测试上限推断生产调用必然失败。产物及 token 用量保存在 `docs/reports/deepseek-v4-1-flash-example/`；日志 `/tmp/jixie-deepseek-live-example.log`。临时库已清理。

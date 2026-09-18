@@ -11,10 +11,10 @@
 | [Signals CLI](../src/signals/cli/) | 交易日信号周期 | 1 | 管理员 |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
-| [audit/](audit/) | 检查现有数据、查看覆盖与样本 | 4 | 导入后的质量检查、研究核验 |
+| [audit/](audit/) | 检查现有数据、查看覆盖 | 2 | 导入后的质量检查、研究核验 |
 | [probes/](probes/) | Tushare 连接与接口能力探测 | 2 | bootstrap、批量导入、手动诊断 |
 
-共有 35 个业务/工具入口，其中 28 个应用 CLI 位于模块内；24 个同步 CLI 由 [sync/index.ts](sync/index.ts) 统一分派。4 个审计任务使用 [audit/index.ts](audit/index.ts)，2 个外部探针使用 [probes/index.ts](probes/index.ts)，各目录的 `commands.ts` 是任务清单，共用 [command-entry.ts](command-entry.ts) 处理帮助与执行环境。操作系统任务配置统一放在仓库根级 `deploy/`。
+共有 33 个业务/工具入口，其中 28 个应用 CLI 位于模块内；24 个同步 CLI 由 [sync/index.ts](sync/index.ts) 统一分派。2 个审计任务使用 [audit/index.ts](audit/index.ts)，2 个外部探针使用 [probes/index.ts](probes/index.ts)，各目录的 `commands.ts` 是任务清单，共用 [command-entry.ts](command-entry.ts) 处理帮助与执行环境。操作系统任务配置统一放在仓库根级 `deploy/`。
 
 ## 运行约定
 
@@ -69,8 +69,6 @@
 | --- | --- | --- | --- |
 | `data:audit data` | [audit-data.ts](audit/audit-data.ts) | `[start] [end] [--window=60] [--points=5] [--json] [--strict]` | 整体质量与覆盖检查，终端输出 |
 | `data:audit etf` | [audit-etf-registry.ts](audit/audit-etf-registry.ts) | `[expected-history-start] [coverage-through] [--json] [--strict]` | ETF 研究清单和历史覆盖，终端输出 |
-| `data:audit financial-selected` | [audit-selected-financials.ts](audit/audit-selected-financials.ts) | `date [tsCode ...]` | SDK 实际选中的财报版本及会计关系，终端输出 |
-| `data:audit valuation-samples` | [audit-valuation-samples.ts](audit/audit-valuation-samples.ts) | `date output.json` | 估值样本、来源与历史切片；写指定 JSON 文件 |
 
 ## 接口探针
 
@@ -105,6 +103,8 @@ Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.servic
 
 ## 已移除的研究脚本
 
+2026-09-18：已移除 `tests/deepseek-complex-example.mjs`、`audit/audit-selected-financials.ts` 和 `audit/audit-valuation-samples.ts`，以及 `data:audit financial-selected` / `data:audit valuation-samples` 命令。它们用于已完成的模型演示和财报、估值专项验收；历史报告与证据保留，脚本可从 Git 历史查阅。正式业务计算和数据库结构不变。
+
 `factor:report` 及 `research/factor-report.ts` 已移除：该 CLI 使用旧版 `version: 1` 配置批量分析内置因子，仅打印终端摘要，不保存正式报告，且没有产品或生产调度调用。正式因子分析请从因子页面提交并查看持久化报告；页面不提供该脚本的一键全量批处理。底层分析器和内置因子初始化继续保留，旧脚本可从 Git 历史查阅。
 
 固定三家公司、2026-09-07 标题的 `create-fcff-research-replays.ts` 已移除：它是已完成交付的一次性文档创建入口，没有 pnpm 或生产调用。研究模板、案例参数、用户文档和封存结果不受影响；原脚本可从 Git 历史查阅。
@@ -136,3 +136,13 @@ audit/probe 参数和注册覆盖测试分别归入各目录的 `commands.test.t
 
 静态检查：API `tsc --noEmit`、改动代码 ESLint、Prettier 与 diff 检查通过。
 人工代码审查已通过。审查后 5 个测试文件、91 项测试全部通过，覆盖参数校验、注册完整性、CLI 契约以及源码/编译形式的隔离分派、环境加载和退出码透传。API 编译通过；三个 pnpm 帮助入口及三个实际编译帮助入口均通过。测试已清理临时目录和隔离数据库连接，没有启动常驻服务或执行真实数据同步。
+
+### 专项验收脚本清理（2026-09-18）
+
+计划提交：`chore(api): remove completed acceptance and audit scripts`。
+
+删除已完成交付的 DeepSeek 演示、财报版本和估值样本审计脚本，移除两项审计命令注册、校验与帮助，更新 CLI 测试和旧入口提示。历史报告及证据保留并标明入口退役。
+
+Gate 2 静态检查：API `tsc --noEmit`、改动 TypeScript 的 ESLint / Prettier、后端边界静态扫描（0 违规）、引用与 diff 检查通过。人工代码审查已通过。
+
+审查后验证：审计参数、CLI 执行边界与应用入口契约共 3 个测试文件、34 项测试全部通过，API 构建通过。测试进程均已退出；未执行真实数据同步、付费模型调用或启动常驻服务。

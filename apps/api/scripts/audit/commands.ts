@@ -18,19 +18,6 @@ export const auditCommands: CommandDefinition[] = [
     usage: '[expected-history-start] [coverage-through] [--json] [--strict]',
     description: 'Read-only ETF registry and history coverage audit.',
   },
-  {
-    name: 'financial-selected',
-    entry: 'scripts/audit/audit-selected-financials.js',
-    usage: 'date [tsCode ...]',
-    description:
-      'Read-only audit of financial versions selected by the SDK and accounting relationships.',
-  },
-  {
-    name: 'valuation-samples',
-    entry: 'scripts/audit/audit-valuation-samples.js',
-    usage: 'date output.json',
-    description: 'Read-only source and historical-slice audit; writes the specified JSON file.',
-  },
 ];
 
 export function parseAuditArguments(input: string[]) {
@@ -76,19 +63,6 @@ function validateAuditParameters(command: CommandDefinition, args: string[]): vo
       validateDateRange(dates);
       break;
     }
-    case 'financial-selected':
-      // The audit itself reports excluded identifiers; keep that diagnostic behavior.
-      if (!args.length || args.slice(1).some((code) => !code || code.startsWith('-'))) {
-        throw new Error(usage);
-      }
-      validateDateRange(args.slice(0, 1));
-      break;
-    case 'valuation-samples':
-      if (args.length !== 2 || !args[1] || args[1].startsWith('-')) {
-        throw new Error(usage);
-      }
-      validateDateRange(args.slice(0, 1));
-      break;
     default:
       throw new Error(`Missing audit argument validator: ${command.name}`);
   }

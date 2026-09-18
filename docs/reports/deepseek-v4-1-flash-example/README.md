@@ -15,7 +15,7 @@
 - [完整测试问题](question.txt)
 - [合成原始价格](synthetic-prices.json)
 - [独立 TypeScript 参考结果](independent-reference.json)
-- [可重复运行的验收脚本](../../../apps/api/tests/deepseek-complex-example.mjs)
+- 一次性验收脚本已于 2026-09-18 移除，可从 Git 历史查阅。
 
 ## 所有尝试
 
@@ -52,10 +52,6 @@
 
 还发现产品工具说明错误地要求使用 `display`，运行时却没有这个函数。已修正 [工具说明](../../../apps/api/src/agent/tools/run-embedded-analysis.ts)，明确 print、最后一个表达式以及未关闭 Matplotlib 图像的自动捕获。该产品提示变化经补充代码审查通过，重新构建后完成第六次真实验证，没有再调用 display()。提示修正不代表模型的方法错误已被通用解决；本次正确数值由独立检查确认。
 
-构建 API 后，可以从仓库根目录运行同题；使用新的输出目录，已有失败证据不会覆盖：
-
-```sh
-node apps/api/tests/deepseek-complex-example.mjs --live --skip-basic --output=/tmp/jixie-deepseek-next-example
-```
+本次演示已完成，验收脚本及运行入口已退役；本页保留当时的结果与审查记录。
 
 真实模型输出具有随机性；退出码非零表示验收未完成，应检查失败原因，不应不断重跑直到挑出一次好结果。全部临时数据库和 Python 会话已清理；没有修改开发数据库、策略、真实环境配置或部署服务。

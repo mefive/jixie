@@ -803,7 +803,7 @@ review 后执行的行为验收：
 2. API 在全新临时目录构建。源码与默认 Node 条件的干净产物分别使用真实 Python 完成普通文档与嵌入分析的执行、SDK 交互、冻结和资源释放；核对二者共用 manager、使用不同内部文档 ID，文档中断和嵌入取消各自收尾。
 3. 写入仅用隔离数据库；本地 runner 和编译产物的 Unix socket 通道分别记录，不能把本地桥接当作生产 Docker 隔离验收。结束关闭进程、socket 与数据库连接；不调用外部行情、邮件或付费模型。
 
-`apps/api/tests/deepseek-complex-example.mjs` 只更新其编译模块路径；本轮不执行该付费模型脚本。
+当时对 `apps/api/tests/deepseek-complex-example.mjs` 只更新其编译模块路径，未执行该付费模型脚本；该一次性脚本随后于 2026-09-18 移除。
 以上为 Gate 2 交接时的状态：当时未提交，未运行单元/集成/E2E、构建、Python probe 或数据库流程。之后的 review 与验收见下文。
 静态对照记录：`/tmp/jixie-research-static-audit.json`；全仓类型检查日志：`/tmp/jixie-research-typecheck.log`。
 

@@ -7,7 +7,7 @@ async function main(): Promise<void> {
     commands: auditCommands,
     request: parseAuditArguments(process.argv.slice(2)),
     notes:
-      'Dates use YYYYMMDD. These tasks do not write database records; valuation-samples writes its output file. pnpm audit remains the package vulnerability checker.',
+      'Dates use YYYYMMDD. These tasks do not write database records. pnpm audit remains the package vulnerability checker.',
   });
 }
 

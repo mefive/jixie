@@ -16,9 +16,6 @@ describe('audit task selection', () => {
     ['data'],
     ['data', '--strict', '20240101', '20241231', '--window=60', '--points=5', '--json'],
     ['etf', '20200101', '20251231', '--strict'],
-    ['financial-selected', '20250901', '600519.SH', '000001.SZ'],
-    ['financial-selected', '20250901', 'excluded-identifier'],
-    ['valuation-samples', '20250901', './output with spaces.json'],
   ])('preserves audit argument order: %s', (...args) => {
     expect(parseAuditArguments(args)).toMatchObject({ action: 'run', args: args.slice(1) });
   });
@@ -35,10 +32,6 @@ describe('audit task selection', () => {
     ['data', '20250101', '20251231', 'extra'],
     ['etf', '--window=60'],
     ['etf', '20250230'],
-    ['financial-selected'],
-    ['financial-selected', '20250101', '--typo'],
-    ['valuation-samples', '20250101'],
-    ['valuation-samples', '20250101', 'output.json', 'extra'],
   ])('rejects invalid audit arguments: %s', (...args) => {
     expect(() => parseAuditArguments(args)).toThrow();
   });
