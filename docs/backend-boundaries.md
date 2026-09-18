@@ -41,4 +41,4 @@ API 跨顶层模块使用 `package.json#imports` 的 `#infra/*` 等原生别名�
 
 Worker URL、fork 路径、esbuild entry、Python/Prisma/Pyright 的资源目录另见 [运行入口清单](backend-runtime-entries.md)。这些不能用“类型检查已通过”代替实际启动。根级命令不自动运行行为测试，保持本项目先静态检查、人工 review 后验证的工作流。
 
-修改门禁后，人工 review 通过再执行 `pnpm test:backend-boundaries`。正式用例使用临时目录构造合法/非法依赖，覆盖别名解析、类型与动态边、HTTP/Infra/Market/Engine 规则、例外变脏/过时、新增循环、测试边界和语法错误。用例不依赖本仓库恰好有多少行代码或多少文件。
+修改门禁后，人工 review 通过再执行 `pnpm test:checks`。正式用例使用临时目录构造合法/非法依赖，覆盖别名解析、类型与动态边、HTTP/Infra/Market/Engine 规则、例外变脏/过时、新增循环、测试边界和语法错误。用例不依赖本仓库恰好有多少行代码或多少文件。

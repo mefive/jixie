@@ -122,7 +122,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 
 当前后端地图见 `docs/backend-architecture.md`，模块依赖规则见 `docs/backend-boundaries.md`。`pnpm check:backend-boundaries` 使用 TypeScript AST 与 API tsconfig 解析 import/re-export/字面量动态 import，区分类型边和运行时边；根级 typecheck/build 已包含此静态门禁。具体纯依赖例外在 `scripts/checks/backend-boundaries.json`，不按目录整体放行。
 
-修改检查器后，在人工 review 通过的行为验证阶段执行 `pnpm test:backend-boundaries`。静态扫描不执行应用模块；Worker、Python、Prisma 和 Pyright 资源路径须按 `docs/backend-runtime-entries.md` 做实际验证。
+修改检查器后，在人工 review 通过的行为验证阶段执行 `pnpm test:checks`。静态扫描不执行应用模块；Worker、Python、Prisma 和 Pyright 资源路径须按 `docs/backend-runtime-entries.md` 做实际验证。
 
 ## 代码约定
 

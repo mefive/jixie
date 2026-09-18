@@ -9,7 +9,7 @@
 | [e2e/](e2e/) | 浏览器检查与帮助图片生成的显式任务清单、选择及顺序执行 | `pnpm e2e --list`、`pnpm docs:images --list` |
 | [dev/](dev/) | 多服务启动、进程组清理及清理测试 | `pnpm dev`、`pnpm test:dev-shutdown` |
 | [sandbox/](sandbox/) | 按需生成 SDK 声明、运行时依赖清单并准备本地执行环境 | `pnpm setup:sandbox`；`pnpm setup:sandbox --check` 只检查生成物 |
-| [checks/](checks/) | 后端依赖边界检查及规则、提交信息检查、各自测试 | `pnpm check:backend-boundaries`、`pnpm test:backend-boundaries`、`pnpm check:commit-message`、`pnpm test:commit-message` |
+| [checks/](checks/) | 后端依赖边界检查及规则、提交信息检查、各自测试 | `pnpm check:backend-boundaries`、`pnpm check:commit-message`、`pnpm test:checks` |
 | [bootstrap.sh](bootstrap.sh) | 安装、构建、迁移、部署和服务配置 | `./scripts/bootstrap.sh` |
 | [deploy/](deploy/) | 部署影响分类及测试、部署维护门禁、维护 timer 激活 | 由 bootstrap 调用；测试：`node --test scripts/deploy/*.test.mjs` |
 | [maintenance/](maintenance/) | 生产维护锁、按步骤与年份执行可续跑的批量导入 | `pnpm maintenance ...`、`pnpm import:data ...` |
@@ -29,6 +29,8 @@ shared 契约时跳过安装，否则按固定 requirements 安装并复核。SD
 TypeScript SDK 仍通过 shared 契约和现有 TS 构建使用，本命令不新增另一套 TS 构建过程。
 
 ## 调用边界
+
+- `pnpm test:checks` 通过文件匹配统一运行 `scripts/checks/*.test.mjs`；新增检查器测试不再逐个注册 package script。
 
 - 根级 `pnpm import:data` 获取维护锁，再由导入脚本编排 API 的 `sync <任务>`、修复和审计命令；具体数据处理仍归 API。
 - 根级 `pnpm data:audit <任务>` 统一数据审计，`pnpm probe <任务>` 统一 Tushare 连通性与能力探测；帮助不执行任务。
@@ -63,3 +65,10 @@ TypeScript SDK 仍通过 shared 契约和现有 TS 构建使用，本命令不�
 删除的源码/样式入口为 `market/registry/moneyflow.ts`、`strategy/runtime/typescript/run.ts`（API），以及 `i18n/format.ts`、`complex/screen/condition-chips.css`、`components/query-card.css`（Web）；一次性脚本为 `apps/web/e2e/research-fcff-delivery.mjs`。旧截图来自 getting-started、screening、market-valuation 和 signals，当前帮助文章及截图脚本无引用。无 API、schema、数据迁移或跨包构建依赖变更；旧图片直链不再由新构建提供。
 
 范围与代码已通过人工审查。审查前检查全部通过：全仓类型与契约一致性、后端边界（683 个文件、0 违规）、改动文件格式及 ESLint、删除资源引用、API/Web/Docs 命令源文件路径和 diff 检查。审查后 API、Web、Docs 均构建至新建的独立临时目录并通过；Docs 产物确认不包含 10 张退役截图。Web/Docs 有大 chunk 提示，Web 另有 embedded-analysis-card 静态/动态导入混用提示，未阻止构建。未运行 E2E、已退役脚本或真实数据写入，未启动常驻服务。
+
+## 检查器测试入口合并（2026-09-18）
+
+提交信息：`refactor(repo): consolidate checker test commands`。
+原 `test:backend-boundaries`、`test:commit-message` 合并为 `pnpm test:checks`，通过
+`scripts/checks/*.test.mjs` 自动选取测试文件；两个检查器及其测试实现、build/typecheck 和 Git hook 保持不变。
+统一入口实测 31 项全部通过，package 格式与 diff 检查通过。历史设计中的旧测试命令统一对应此新入口。
