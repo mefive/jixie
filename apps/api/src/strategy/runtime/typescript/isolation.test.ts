@@ -101,6 +101,29 @@ describe('TypeScript strategy isolation and compatibility', () => {
     expect(metrics.synchronousCalls).toBe(0);
   });
 
+  it('keeps cached windows intact across repeated mixed ensureBars requests', async () => {
+    const spec: FixtureSpec = {
+      dates,
+      stocks: ['AAA', 'BBB'].map((code) => ({ ...fixture.stocks[0], code })),
+    };
+    const { metrics } = await execute(
+      `export default defineStrategy({ async onBar(ctx) {
+      await ctx.ensureBars(['AAA']);
+      await ctx.ensureBars(['AAA', 'BBB', 'AAA']);
+      await ctx.ensureBars(['AAA', 'BBB']);
+      const expected = ctx.date === '${dates[0]}' ? 1 : 2;
+      for (const code of ['AAA', 'BBB']) {
+        const bars = ctx.bars(code, 100);
+        if (bars.length !== expected || new Set(bars.map(bar => bar.date)).size !== expected) throw new Error('duplicate history');
+        bars[0].adjClose = -1;
+        if (ctx.sma(code, 1) !== 10 || ctx.price(code) !== 10) throw new Error('cache mutated');
+      }
+    } });`,
+      spec,
+    );
+    expect(metrics.synchronousCalls).toBe(0);
+  });
+
   it('keeps history inside the run range and does not duplicate a suspended-day mark', async () => {
     const spec: FixtureSpec = {
       dates: ['20240101', '20240102', '20240103', '20240104'],

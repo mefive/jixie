@@ -20,7 +20,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `engine/adapters/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；TS/Python 共享 runtime/run 在 finally 关闭，初始化失败也清理已建立实例 |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 为调用方加载 isolate 模块；不是常驻独立服务 |
 | `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `engine/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
-| `strategy/runtime/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `f276bfbd` 的旧墙内源码到独立临时模块，与新 runtime 分进程比较 | 不作为生产入口 | 仅测试；非字面量 import 指向本次生成的旧版本模块，finally 删除临时目录 |
+| `strategy/runtime/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `f276bfbd` 的旧墙内源码及 `04f62a16` 的修订前 runtime/bridge 到独立临时模块，与当前 runtime 分进程比较 | 不作为生产入口 | 仅测试；非字面量 import 指向本次生成的旧版本模块，finally 删除临时目录 |
 
 7 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
 

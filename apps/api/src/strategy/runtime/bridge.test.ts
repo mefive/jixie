@@ -23,9 +23,10 @@ const history: OhlcBar = {
   turnoverRateF: 2,
 };
 
-function transport(frames: unknown[]) {
+function transport(frames: unknown[], historyUpdates = false) {
   const sent: Array<{ type: string; [key: string]: unknown }> = [];
   const session: StrategyTransport = {
+    historyUpdates,
     async send(frame) {
       sent.push(frame);
     },
@@ -282,5 +283,108 @@ describe('shared strategy bridge', () => {
     const { session } = transport([{ type: 'ready', metadata: { ...metadata, accounts: null } }]);
     const strategy = await createStrategyBridge(session, { diagnostics });
     expect(strategy.accounts).toBeUndefined();
+  });
+});
+
+describe('incremental TypeScript history delivery', () => {
+  const ensure = (id: number, codes: string[]) => ({
+    type: 'request',
+    id,
+    method: 'context_data',
+    arguments: { operation: 'ensure_bars', codes },
+  });
+  const startup = { type: 'ready', metadata: { ...metadata, watch: [] } };
+
+  it('sends each visible row once across mixed requests, repeated calls, gaps and suspended dates', async () => {
+    const frames: unknown[] = [startup];
+    const { session, sent } = transport(frames, true);
+    const strategy = await createStrategyBridge(session, { diagnostics });
+    const { context, spies } = contextFixture();
+    const rows = ['20240102', '20240103', '20240105'].map((date) => ({ ...history, date }));
+    const loaded = new Set<string>();
+    context.positions = () => [];
+    context.bars = (code, count) =>
+      loaded.has(code) ? rows.filter((row) => row.date <= context.date).slice(-count) : [];
+    context.ensureBars = vi.fn(async (codes: string[]) => {
+      codes.forEach((code) => loaded.add(code));
+    });
+
+    frames.push(ensure(1, ['AAA']), ensure(2, ['AAA', 'BBB']), ensure(3, ['AAA']), done);
+    await strategy.onBar(context);
+    expect(sent.filter((frame) => frame.type === 'response')).toEqual([
+      {
+        type: 'response',
+        id: 1,
+        result: { history_updates: { AAA: { reset: true, bars: [rows[0]] } } },
+      },
+      {
+        type: 'response',
+        id: 2,
+        result: { history_updates: { BBB: { reset: true, bars: [rows[0]] } } },
+      },
+      { type: 'response', id: 3, result: { history_updates: {} } },
+    ]);
+
+    // Skip a callback on Jan 3: the Jan 4 snapshot must catch up without a synthetic suspended bar.
+    for (const date of ['20240104', '20240105']) {
+      spies.date = date;
+      frames.push(ensure(4, ['AAA', 'BBB']), done);
+      await strategy.onBar(context);
+      expect(sent.at(-1)).toEqual({ type: 'response', id: 4, result: { history_updates: {} } });
+    }
+    const snapshots = sent.filter((frame) => frame.type === 'bar');
+    expect(snapshots[1]).toMatchObject({
+      snapshot: {
+        history_updates: {
+          AAA: { reset: false, bars: [rows[1]] },
+          BBB: { reset: false, bars: [rows[1]] },
+        },
+      },
+    });
+    expect(snapshots[2]).toMatchObject({
+      snapshot: {
+        history_updates: {
+          AAA: { reset: false, bars: [rows[2]] },
+          BBB: { reset: false, bars: [rows[2]] },
+        },
+      },
+    });
+    // Every request still reaches Engine, including its factor-preparation hook.
+    expect(context.ensureBars).toHaveBeenCalledTimes(5);
+  });
+
+  it('does not mark failed loads as synchronized and initializes empty histories only once', async () => {
+    const { session, sent } = transport(
+      [
+        startup,
+        ensure(1, ['NEW']),
+        ensure(2, ['NEW']),
+        ensure(3, ['EMPTY']),
+        ensure(4, ['EMPTY']),
+        done,
+      ],
+      true,
+    );
+    const strategy = await createStrategyBridge(session, { diagnostics });
+    const { context, spies } = contextFixture();
+    context.positions = () => [];
+    context.bars = (code) => (code === 'EMPTY' ? [] : [history]);
+    spies.ensureBars.mockRejectedValueOnce(new Error('load failed'));
+    await strategy.onBar(context);
+    expect(sent.slice(1)).toEqual([
+      { type: 'response', id: 1, error: 'load failed' },
+      {
+        type: 'response',
+        id: 2,
+        result: { history_updates: { NEW: { reset: true, bars: [history] } } },
+      },
+      {
+        type: 'response',
+        id: 3,
+        result: { history_updates: { EMPTY: { reset: true, bars: [] } } },
+      },
+      { type: 'response', id: 4, result: { history_updates: {} } },
+    ]);
+    expect(spies.ensureBars).toHaveBeenCalledTimes(4);
   });
 });

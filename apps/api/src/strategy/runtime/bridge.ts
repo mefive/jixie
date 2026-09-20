@@ -194,7 +194,7 @@ async function answerRequest(
             await context.ensureBars(frame.arguments.codes);
             if (historyDates) {
               const requested = new Map<string, string | null>(
-                frame.arguments.codes.map((code) => [code, null]),
+                frame.arguments.codes.map((code) => [code, historyDates.get(code) ?? null]),
               );
               result = { history_updates: historyUpdates(context, requested) };
               for (const code of requested.keys()) {
@@ -325,6 +325,9 @@ function historyUpdates(
   const timestamp = (date: string) =>
     Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)));
   for (const [code, previous] of dates) {
+    if (previous === context.date) {
+      continue;
+    }
     // Daily series contain at most one row per calendar day; this also covers skipped callbacks.
     const count =
       previous == null

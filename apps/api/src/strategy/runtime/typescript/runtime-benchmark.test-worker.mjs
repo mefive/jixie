@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { join } from 'node:path';
+import { join, relative as relativePath } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { transform } from 'esbuild';
 import { register } from 'tsx/esm/api';
@@ -13,15 +13,20 @@ const { runStrategy } = await import('#engine/simulation/run.js');
 const { createTypeScriptStrategyRuntime } = await import('./runtime.ts');
 const apiDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 const variant = process.argv[2];
-if (!['baseline', 'shared'].includes(variant)) {
-  throw new Error('Select baseline or shared');
+if (!['baseline', 'before', 'shared'].includes(variant)) {
+  throw new Error('Select baseline, before or shared');
 }
+const scenario = process.argv[3] ?? 'watch';
+if (!['watch', 'dynamic'].includes(scenario)) {
+  throw new Error('Select watch or dynamic');
+}
+const dynamic = scenario === 'dynamic';
 
-const dates = Array.from({ length: 120 }, (_, index) => {
+const dates = Array.from({ length: dynamic ? 252 : 120 }, (_, index) => {
   const date = new Date(Date.UTC(2024, 0, 1 + index));
   return date.toISOString().slice(0, 10).replaceAll('-', '');
 });
-const codes = Array.from({ length: 100 }, (_, index) => `ASSET${index}`);
+const codes = Array.from({ length: dynamic ? 300 : 100 }, (_, index) => `ASSET${index}`);
 const spec = {
   dates,
   stocks: codes.map((code, asset) => ({
@@ -36,11 +41,15 @@ const spec = {
     })),
   })),
 };
-const code = `export default defineStrategy({
-  name: 'runtime-benchmark', watch: ${JSON.stringify(codes)},
+const code = `let cursor = 0;
+const all = ${JSON.stringify(codes)};
+export default defineStrategy({
+  name: 'runtime-benchmark', watch: ${dynamic ? '[]' : JSON.stringify(codes)},
   async onBar(ctx) {
     await ctx.universe();
-    const ranked = ${JSON.stringify(codes)}.map(code => ({ code, score: ctx.sma(code, 5) }));
+    const selected = ${dynamic ? 'Array.from({ length: 50 }, (_, index) => all[(cursor + index) % all.length])' : 'all'};
+    ${dynamic ? 'cursor += 20; await ctx.ensureBars(selected);' : ''}
+    const ranked = selected.map(code => ({ code, score: ctx.sma(code, ${dynamic ? 20 : 5}) }));
     ranked.sort((left, right) => (right.score ?? 0) - (left.score ?? 0));
     ctx.equalWeight(ranked.slice(0, 10).map(row => row.code));
   }
@@ -102,8 +111,38 @@ try {
     baseline = await import(pathToFileURL(path).href);
   }
 
+  let createRuntime = createTypeScriptStrategyRuntime;
+  if (variant === 'before') {
+    directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
+    const bridgePath = join(directory, 'bridge.mjs');
+    const runtimePath = join(directory, 'runtime.mjs');
+    // Pin the runtime and bridge to Commit 3. Other runtime/Engine dependencies are unchanged.
+    for (const [relative, output] of [
+      ['../bridge.ts', bridgePath],
+      ['./runtime.ts', runtimePath],
+    ]) {
+      const original = new URL(relative, import.meta.url);
+      const repositoryPath = relativePath(apiDirectory, fileURLToPath(original));
+      const source = execFileSync('git', ['show', `04f62a16:apps/api/${repositoryPath}`], {
+        cwd: apiDirectory,
+        encoding: 'utf8',
+      }).replace(/from '([.][^']+)'/g, (_match, specifier) => {
+        const target =
+          specifier === '../bridge.js'
+            ? pathToFileURL(bridgePath)
+            : new URL(specifier.replace(/\.js$/, '.ts'), original);
+        return `from ${JSON.stringify(target.href)}`;
+      });
+      await writeFile(
+        output,
+        (await transform(source, { loader: 'ts', format: 'esm', target: 'es2022' })).code,
+      );
+    }
+    createRuntime = (await import(pathToFileURL(runtimePath).href)).createTypeScriptStrategyRuntime;
+  }
+
   const samples = [];
-  for (let repetition = 0; repetition < 13; repetition++) {
+  for (let repetition = 0; repetition < (dynamic ? 8 : 13); repetition++) {
     const port = fixturePort(spec);
     const started = performance.now();
     let result;
@@ -119,7 +158,7 @@ try {
       metrics = { dataCalls };
       phases = timings;
     } else {
-      const runtime = await createTypeScriptStrategyRuntime(code);
+      const runtime = await createRuntime(code);
       const executionStarted = performance.now();
       let cleanupStarted;
       try {
@@ -152,7 +191,12 @@ try {
     });
   }
   console.log(
-    JSON.stringify({ variant, samples, maximumResidentKilobytes: process.resourceUsage().maxRSS }),
+    JSON.stringify({
+      variant,
+      scenario,
+      samples,
+      maximumResidentKilobytes: process.resourceUsage().maxRSS,
+    }),
   );
 } finally {
   if (directory) {
