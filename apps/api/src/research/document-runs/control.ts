@@ -3,7 +3,7 @@ import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jix
 import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { researchRuntimeManager } from '../runtime/python/session.js';
 import { getResearchDocumentRun } from './run-state.js';
 
 export async function interruptResearchDocument(

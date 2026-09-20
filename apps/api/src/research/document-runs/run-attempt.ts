@@ -3,7 +3,7 @@ import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import type { ResearchAffectedRunPlan } from '../dependencies/run-plan.js';
 import { assertResearchCellIdsRunnable } from '../dependencies/runnable.js';
 import { ResearchError } from '../errors.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { researchRuntimeManager } from '../runtime/python/session.js';
 import { executeAffectedResearchCellPlan } from './execute-plan.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 

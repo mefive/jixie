@@ -73,7 +73,7 @@ pnpm --filter web exec node e2e/research-financial-help.mjs
 
 ## 审阅文件与截图
 
-- [公开 SDK 契约](../../packages/shared/src/research-sdk-contract.ts)
+- [公开 SDK 契约](../../packages/shared/src/sdk/research/contract.ts)
 - [字段值查询与计算](../../apps/api/src/research/datasets/financial-values.ts)
 - [旧财报接口筛选](../../apps/api/src/research/datasets/financial.ts)
 - [查询配置界面](../../apps/web/src/complex/research/research-data-catalog-drawer.tsx)

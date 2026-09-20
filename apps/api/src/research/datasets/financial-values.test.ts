@@ -8,7 +8,7 @@ import {
   parseResearchFinancialValuesRuntimeRequest,
   parseResearchFinancialValuesRuntimeRows,
   parseResearchFinancialStatementsRuntimeRequest,
-} from '../sdk/validation.js';
+} from '../runtime/host/validation.js';
 
 const request = {
   identifiers: ['000858.SZ', '600519.SH'],

@@ -4,13 +4,13 @@ const mocks = vi.hoisted(() => ({
   loadFactorReport: vi.fn(),
 }));
 
-vi.mock('../datasets/results/factor-report.js', () => ({
+vi.mock('../../datasets/results/factor-report.js', () => ({
   loadResearchFactorReportResult: mocks.loadFactorReport,
 }));
 
 vi.mock('./input-replay.js', () => ({ replayResearchInput: vi.fn().mockResolvedValue(undefined) }));
 
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { researchRuntimeManager } from '../python/session.js';
 
 const DOCUMENT_ID = 'research-factor-report-runtime-test';
 let previousLocal: string | undefined;

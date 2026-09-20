@@ -114,7 +114,7 @@ Bootstrap 是显式装配函数：把业务 Job 的 loader 注册表传给通用
 | API listener | `bootstrap.startServer` 调用 Hono `serve` | 目前只返回 app，没有统一 listener close/stop-drain API；不宣称 API 已有完整优雅退出协议 |
 | Job 队列和并发名额 | `infra/jobs/queue.ts`，启动时注入执行器；默认全局 2、每用户 1，可由环境覆盖 | 执行结束释放名额；queued 保存在 DB，running 在重启时恢复；无多实例租约或统一 drain |
 | Worker / IPC 子进程 | 各业务任务、工具或维护入口按需创建 | 主线程接收结果并处理退出；具体入口和取消语义见 [运行入口清单](backend-runtime-entries.md) |
-| Research Python 会话 | `research/runtime/python-session.ts` 由普通文档、嵌入分析和依赖分析共用，按文档 ID 复用；公共 session 负责传输 | 中断、reset、归档和执行收尾按业务规则关闭；普通文档锁归 `document-runs/run-state.ts`，嵌入分析保留独立取消/超时流程 |
+| Research Python 会话 | `research/runtime/python/session.ts` 由普通文档、嵌入分析和依赖分析共用，按文档 ID 复用；公共 session 负责传输 | 中断、reset、归档和执行收尾按业务规则关闭；普通文档锁归 `document-runs/run-state.ts`，嵌入分析保留独立取消/超时流程 |
 | Factor / Strategy isolate 和 Python 连接 | 各领域 runtime 创建，Infra 提供底层能力 | 调用方在完成/失败时释放；长计算超时策略在各自业务，不由公共传输统一决定 |
 | Prisma | `infra/database/prisma.ts` 的进程内单例；子进程有独立实例 | CLI/子进程在收尾断开；API 整体关闭仍依赖进程退出和上级进程管理 |
 | Agent bus / trace / 日志 | `agent/turns` 与 `infra/jobs/logs.ts` | DB 保存持久记录，内存事件与日志缓存各有清理规则；重启不重放历史增量事件 |
@@ -129,8 +129,8 @@ Bootstrap 是显式装配函数：把业务 Job 的 loader 注册表传给通用
 
 1. `research/routes/document.ts` 调用 `documents/cell-operations.ts`；校验归属、源代码修订和编辑状态，保存 Cell。
 2. `dependencies/analyze.ts` / `invalidation.ts` 更新变量关系和下游 stale/blocked；接受 Agent 修改也进入这套业务规则。
-3. 用户请求执行后，`document-runs/run-cell.ts`、`run-document.ts` 或 `run-affected.ts` 取得文档运行锁，选择执行计划，通过 `runtime/python-session.ts` 获取 Python 会话。嵌入分析共用此会话管理器，保留独立的运行和冻结流程。
-4. Python 通过 `sdk/validation.ts` / `dispatch.ts` 请求平台数据，`datasets` 做公开字段/PIT 映射，再查询 Market 或用户报告数据。
+3. 用户请求执行后，`document-runs/run-cell.ts`、`run-document.ts` 或 `run-affected.ts` 取得文档运行锁，选择执行计划，通过 `runtime/python/session.ts` 获取 Python 会话。嵌入分析共用此会话管理器，保留独立的运行和冻结流程。
+4. Python 通过 `runtime/host/validation.ts` / `dispatch.ts` 请求平台数据，`datasets` 做公开字段/PIT 映射，再查询 Market 或用户报告数据。
 5. 执行结果写回 Cell；干净全文执行由 `evidence` 保存 ResearchExecution、快照、产物和哈希，作为后续固化与交接证据。
 
 Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job。“业务模块直接连接 Python”和“Job Worker 使用 Python”是已有的两条执行路径。接受提案不自动执行，修改源代码也不会改写已冻结证据。
@@ -184,7 +184,7 @@ Research 的冻结研究交接负责证据准入与生成，Factor/Strategy 负�
 | 改因子发布准入 | [Factor publication](../apps/api/src/factor/publication/README.md)、[evaluations](../apps/api/src/factor/evaluations/README.md) |
 | 找回测报告冻结时点 | [Strategy backtests](../apps/api/src/strategy/backtests/README.md) |
 | 找每日信号失败收尾 | [Signals runs](../apps/api/src/signals/runs/README.md)、[账户重放](../apps/api/src/signals/accounting/README.md) |
-| Python 请求财报经过哪里 | [Research SDK](../apps/api/src/research/sdk/README.md) → [datasets](../apps/api/src/research/datasets/README.md) → [Market fundamentals](../apps/api/src/market/fundamentals/README.md) |
+| Python 请求财报经过哪里 | [Research 宿主分派](../apps/api/src/research/runtime/host/README.md) → [datasets](../apps/api/src/research/datasets/README.md) → [Market fundamentals](../apps/api/src/market/fundamentals/README.md) |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
 | 改整体审计规则 | `maintenance/publication/audit.ts`；模型历史要求由 `strategy/risk` 提供 |
 | 找进程和资源入口 | [运行入口清单](backend-runtime-entries.md)，再看所属领域任务/runtime |
@@ -226,3 +226,15 @@ Factor 遵循相同归属：作者接口归 `factor/sdk`，Python 业务协议�
 TS 的工厂与 `history/value/lag` 实现归 SDK，runtime 负责打包、isolate 注入、数据传入与批量调用。`shared/sdk/factor/reference.ts` 统一 TS 编辑器声明与
 生成编译契约；Python 契约归同目录 `python.ts`。SDK 的移动不改变评估、发布或字段准入。
 三个业务的整体范围与逐项验收状态见 [统一 SDK 计划](design/business-sdk-organization.md)。
+
+
+## Research SDK 与 Cell 执行
+
+Research 作者 API 的真实实现归 `research/sdk/python`：data/results 通过窄宿主接口读取数据，
+valuation 保留原数值算法，charts 生成公开图表结果。shared 的公开契约、Python signature/stub、Agent catalog
+集中在 `packages/shared/src/sdk/research`，保留根级导出和生成 `.pyi` 路径。
+
+`research/runtime/host` 负责帧/参数校验、请求分派和输入回放适配；数据授权和 PIT 映射仍由 datasets 处理。
+`research/runtime/python/session.ts` 在 API 宿主管理连接，Python runner 组合 SDK 并管理 Cell namespace、
+AST 分析、环境捕获和输出序列化。sandboxd 通用入口只分派，镜像按显式清单包含三业务的 Python 实现。
+SDK 不反向导入 runtime，Engine 不参与 Research Cell 执行。完整职责和验收见 [统一 SDK 计划](design/business-sdk-organization.md)。

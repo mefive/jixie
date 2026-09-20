@@ -10,7 +10,7 @@ import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
 import { createResearchExecution, finishResearchExecution } from '../evidence/execution-records.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { researchRuntimeManager } from '../runtime/python/session.js';
 import {
   type ResearchCellExecutionOutcome,
   executeResearchCell,

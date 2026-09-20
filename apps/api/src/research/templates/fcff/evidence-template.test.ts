@@ -2,7 +2,7 @@ import { EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE } from './classification-temp
 import { equityFcffClassificationSource } from './classification-evidence.js';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { researchRuntimeManager } from '../../runtime/python-session.js';
+import { researchRuntimeManager } from '../../runtime/python/session.js';
 import {
   EQUITY_FCFF_DURATION_SOURCE,
   EQUITY_FCFF_TERMINAL_SOURCE,

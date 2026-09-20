@@ -2,7 +2,7 @@ import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
-import { closeResearchDocumentRuntime } from '../runtime/python-session.js';
+import { closeResearchDocumentRuntime } from '../runtime/python/session.js';
 import { templateDefinition } from '../templates/document-templates.js';
 import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';

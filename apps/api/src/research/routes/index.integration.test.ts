@@ -37,8 +37,8 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('../runtime/python-session.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../runtime/python-session.js')>();
+vi.mock('../runtime/python/session.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../runtime/python/session.js')>();
   vi.spyOn(original.researchRuntimeManager, 'analyze').mockImplementation(resources.analyze);
   vi.spyOn(original.researchRuntimeManager, 'reset').mockImplementation(resources.reset);
   return { ...original, closeResearchDocumentRuntime: resources.close };

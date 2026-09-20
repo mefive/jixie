@@ -8,7 +8,18 @@
       "apps/api/src/strategy/sdk/python.py",
       "apps/api/src/strategy/runtime/python/runner.py",
       "apps/api/src/factor/sdk/python.py",
-      "apps/api/src/factor/runtime/python/runner.py"
+      "apps/api/src/factor/runtime/python/runner.py",
+      "apps/api/src/research/runtime/python/analysis.py",
+      "apps/api/src/research/runtime/python/bridge.py",
+      "apps/api/src/research/runtime/python/environment.py",
+      "apps/api/src/research/runtime/python/outputs.py",
+      "apps/api/src/research/runtime/python/runner.py",
+      "apps/api/src/research/sdk/python/charts.py",
+      "apps/api/src/research/sdk/python/data.py",
+      "apps/api/src/research/sdk/python/host.py",
+      "apps/api/src/research/sdk/python/results.py",
+      "apps/api/src/research/sdk/python/scalars.py",
+      "apps/api/src/research/sdk/python/valuation.py"
     ]
   },
   "allComponents": ["api", "web", "docs", "sandboxd"],

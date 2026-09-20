@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { renderResearchSdkPythonStub } from '../../packages/shared/src/research-sdk-python-stub.js';
+import { renderResearchSdkPythonStub } from '../../packages/shared/src/sdk/research/python-stub.js';
 import { renderFactorPythonSdkStub } from '../../packages/shared/src/sdk/factor/python.js';
 import { renderResearchPythonRuntimeRequirements } from '../../packages/shared/src/research-python-runtime.js';
 import { renderStrategySdkContract } from '../../packages/shared/src/sdk/strategy/reference.js';

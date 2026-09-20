@@ -1,6 +1,6 @@
 # Research 数据切片与公开列映射
 
-这里将已有市场数据转换成 Research SDK 的字段、时间序列和截面，不负责供应商同步。主要消费者为 [SDK dispatch](../sdk/README.md)，HTTP 的股票池查询和目录也使用其中的读取能力。
+这里将已有市场数据转换成 Research SDK 的字段、时间序列和截面，不负责供应商同步。主要消费者为 [宿主 dispatch](../runtime/host/README.md)，HTTP 的股票池查询和目录也使用其中的读取能力。
 
 | 文件 / 关键入口 | 业务口径 |
 | --- | --- |

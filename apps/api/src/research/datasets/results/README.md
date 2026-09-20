@@ -10,6 +10,6 @@
 
 普通会话需要 research surface 且未归档；嵌入分析用其内部文档身份访问同一授权逻辑。成功取得的嵌入输入由 [embedded](../../embedded/README.md) 留存；后续 retained 重放读原响应，不再次运行这些 loader。
 
-改报告兼容和私有边界看 [factor-report.test.ts](factor-report.test.ts)、[backtest-report.test.ts](backtest-report.test.ts)、[scan-and-weather.test.ts](scan-and-weather.test.ts)，同时检查 [SDK 运行映射](../../sdk/README.md)。回到 [datasets 总体说明](../README.md)。
+改报告兼容和私有边界看 [factor-report.test.ts](factor-report.test.ts)、[backtest-report.test.ts](backtest-report.test.ts)、[scan-and-weather.test.ts](scan-and-weather.test.ts)，同时检查 [SDK 运行映射](../../runtime/host/README.md)。回到 [datasets 总体说明](../README.md)。
 
 [返回 Research 总览](../../README.md)

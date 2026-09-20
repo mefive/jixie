@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const loadReport = vi.hoisted(() => vi.fn());
 const replayInput = vi.hoisted(() => vi.fn());
 vi.mock('./input-replay.js', () => ({ replayResearchInput: replayInput }));
-vi.mock('../datasets/results/factor-report.js', () => ({
+vi.mock('../../datasets/results/factor-report.js', () => ({
   loadResearchFactorReportResult: loadReport,
 }));
 import { dispatchResearchRequest } from './dispatch.js';

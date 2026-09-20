@@ -468,7 +468,7 @@ registry 调整使已部署策略突然失去行情。
 
 - Catalog 查询实际 `EtfDaily` / `EtfAdjFactor` 覆盖；
 - 没有数据的 ETF 标为 `source_available_but_local_data_missing`，不能标 `ready`；
-- 份额规模若开放给 Python，先在 `packages/shared/src/research-sdk-contract.ts` 增加显式契约和固定列，禁止
+- 份额规模若开放给 Python，先在 `packages/shared/src/sdk/research/contract.ts` 增加显式契约和固定列，禁止
   暴露 Prisma schema；
 - 新公开契约按 Research SDK 生成链更新 `.pyi`、Monaco、Pyright、runtime 校验和 Agent Catalog；
 - 份额规模的 `availableDate` 和 latest-value backfill 警告进入返回元数据。

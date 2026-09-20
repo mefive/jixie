@@ -16,8 +16,8 @@ import {
 import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
 import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
-import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import { researchRuntimeManager } from '../runtime/python/session.js';
+import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
 import {
   researchCellChangeProposalView,
   resolveResearchCellChangeProposalRecord,

@@ -21,8 +21,8 @@ const runtime = vi.hoisted(() => ({
   reset: vi.fn(),
   interrupt: vi.fn(),
 }));
-vi.mock('../runtime/python-session.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../runtime/python-session.js')>()),
+vi.mock('../runtime/python/session.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/python/session.js')>()),
   researchRuntimeManager: runtime,
 }));
 
@@ -44,8 +44,8 @@ import {
 } from '../proposals/cell-changes.js';
 import { persistResearchCellChangePart } from '../proposals/change-records.js';
 
-import { type ResearchPythonExecution } from '../runtime/python-session.js';
-import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import { type ResearchPythonExecution } from '../runtime/python/session.js';
+import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
 import { interruptResearchDocument, resetResearchDocumentRuntime } from './control.js';
 import { runAffectedResearchCells } from './run-affected.js';
 import { runResearchCell } from './run-cell.js';

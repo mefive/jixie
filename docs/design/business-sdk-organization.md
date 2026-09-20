@@ -1,7 +1,7 @@
 # 业务 SDK 与运行时统一组织计划
 
-状态：整体计划及三个提交的范围已获用户确认。提交 1 已完成（`11abd9df`）；提交 2 已通过修订版人工审查、
-静态检查与行为验收，随本记录提交。提交 3 尚未实施。范围确认不替代产品代码审查与行为验收。
+状态：整体计划及三个提交的范围已获用户确认。提交 1 已完成（`11abd9df`）；提交 2 已完成（`46e4c585`）。
+提交 3 已通过人工代码审查、静态检查与行为验收，随本记录提交。三个业务的整理与真实镜像验收均已完成。
 
 ## 目标与判断
 
@@ -17,8 +17,8 @@
 | 业务 | 现状 | 本轮需解决的问题 |
 | --- | --- | --- |
 | Strategy | 已将 TS/Python SDK 放入 `apps/api/src/strategy/sdk`；Python runner 放入业务 runtime；TS 契约移入 shared/sdk/strategy | 已完成静态检查、人工审查和验证，提交 `11abd9df` |
-| Factor | TS/Python SDK 已归 `factor/sdk`；Python runner 归业务 runtime；TS 编辑器与编译类型共用 shared/sdk/factor 声明来源 | 修订版人工审查、静态检查、运行回归、构建及编辑器/分析 E2E 已通过 |
-| Research | `research/sdk` 实际主要承担宿主协议、校验、分派和输入回放；Python 用户 API、AST 分析、Cell 执行及输出处理混在 sandboxd 文件 | SDK 目录恢复用户接口含义；业务 Python 归属 Research；会话与执行协议归 runtime |
+| Factor | TS/Python SDK 已归 `factor/sdk`；Python runner 归业务 runtime；TS 编辑器与编译类型共用 shared/sdk/factor 声明来源 | 已完成修订版审查及全部本轮验收，提交 `46e4c585` |
+| Research | 作者 API 归 sdk/python；宿主适配归 runtime/host；Cell 执行与会话归 runtime/python；shared 契约归 sdk/research | 已通过人工审查、静态检查、运行回归、构建、E2E 及真实三业务镜像验收 |
 
 Strategy 的已有设计与静态结果见 [strategy-sdk-boundaries.md](strategy-sdk-boundaries.md)。
 该文档中“Factor / Research 保持原样”仅是第一个提交的边界，不是本整体计划的最终状态。
@@ -204,6 +204,60 @@ TS 类实现原有共享类型，runtime 直接实例化；不保留内部 `crea
 图表/表格/估值输出、嵌入式执行和语言服务回归；相关构建和 Research 文档/嵌入分析 E2E。
 执行真实 Python 镜像构建及三种业务的启动/代表性请求验收，确认镜像只包含显式列出的运行源文件，
 并对三种业务的部署路径分类做最终检查。容器环境不可用时须记录阻塞，不以本地源目录运行替代镜像验收。
+
+### 提交 3 实施与静态验收（2026-09-20）
+
+- `research/sdk/python` 已提供实际 `data/results/valuation/charts` 实现，含 `ResearchHost` 窄请求接口与
+  共享标量转换。宿主通信依赖注入；保留 pandas 对象注入与既有 NumPy/SciPy 数值实现。
+  SDK 不导入 runtime，图表结果对象归 SDK，转为输出帧归 runtime。
+- Python runtime 拆为 runner、analysis、bridge、environment、outputs 五个模块；TS 会话迁为
+  `runtime/python/session.ts`。宿主协议、请求解析、校验、分派、输入回放及相关测试迁为 `runtime/host`。
+  datasets、权限、证据、文档/嵌入生命周期的业务归属未改变。
+- shared 的 contract、python-signature、python-stub、agent-catalog 迁到 `sdk/research`，根级导出名称保留；
+  生成脚本已更新，语言服务/文档/Agent 继续使用原公开导出。生成的 `.pyi` 路径和内容无变化。
+- 原 sandboxd Research 业务文件已移除，公共 runner 改为导入业务 runner；11 个 Research Python 输入
+  逐项加入 Dockerfile、`.dockerignore` 和部署影响清单。静态核对全部 16 个 Python COPY 输入、父目录、
+  相对 Python 导入与业务部署归类覆盖；TS session/host 只影响 API。
+- 57 个迁移前 Python 类、函数与常量逐项 AST 对照一致，仅规范化两处 `_HostBridge` → `ResearchHost`
+  的类型标注；没有遗漏、复制或改写算法。11 个新 Python 文件均通过 AST 语法和全局引用检查。
+  18 个移动的 TS 实现/测试/共享契约，除模块路径字符串外与原文一致。
+- `pnpm typecheck` 全部通过（shared/API/Web/Docs/sandboxd），含生成物一致性与后端边界扫描：
+  787 个文件、2950 条运行时边、697 条类型边、0 违规；保留 3 条已有例外，没有新增循环或目录豁免。
+  所有改动 TS/MJS 的 ESLint、Prettier 与 diff/路径静态检查通过。
+- 新增独立 SDK 注入测试，验证 data/results/charts 的实际使用不加载 runtime；新增从 Docker COPY 清单
+  组装隔离目录的 Research 请求/AST/图表/参数/reset 回归。部署测试改为逐项覆盖 Dockerfile 中的业务
+  Python 输入，并检查 Research 的 TS 宿主变更不触发 sandboxd。现有会话、FCFF、嵌入/语言服务测试保留。
+- 上述测试代码尚未运行；构建、Research/嵌入分析 E2E、真实 Docker 镜像构建及三业务容器请求验收均待
+  人工代码审查通过后执行。静态清单与本地打包测试不替代真实镜像验收；本提交目前未提交到 Git。
+
+### 提交 3 审查后验证（2026-09-20）
+
+- 用户确认后运行 Research 全目录及 Strategy Python/Factor 打包相关测试，共 59 个文件、312 项。
+  首轮 308 项通过，4 项因默认系统 Python 缺少 pandas/NumPy 失败；切换项目固定 Python 环境，
+  配置可写 matplotlib 缓存、降低并发并给予第三方启动足够时间后，相关 runtime/SDK/嵌入及 Agent
+  12 文件 68 项全部通过，覆盖上述失败用例与额外 14 项 Agent 回归。FCFF 数值/反解/证据模板、
+  Pyright、请求校验/分派、权限/留痕/回放、AST/reset/取消及输出限制均已有通过结果。
+- 新打包测试在完整第三方环境下收到初始化日志；修正测试按现有协议识别 log 帧，再断言业务帧序列，
+  独立重跑通过。没有更改产品代码或放宽业务结果断言。
+- `pnpm build` 全仓通过；Web/Docs 有既有 chunk 体积与静态/动态导入提示。生成/setup、部署/bootstrap、
+  后端边界检查器、前端 Research SDK/目录相关测试共 82 项通过；sandboxd 生命周期 8 项通过。
+  sandboxd 初次在受限环境下因 Unix socket EPERM 失败，授予本地监听权限后重跑通过。
+- 普通 Research E2E 使用编译后的 API/Web、独立临时 SQLite 与合成指数数据：`research-executions`、
+  `research-charts`、`research-table`、`research-matplotlib`、`research-interrupt` 五项全部通过，验证
+  完整执行/冻结/封存/删除后证据、四类原生图表、表格截断/分页、私有图片授权和中断后 stale 保留。
+- `embedded-analysis` 的中文、英文真实 Web/API/Python 流程全部通过：报告输入→表格/图片→参数新版→
+  retained Research 接续→跨报告引用→Strategy 报告与历史图表。只替换外部模型、使用合成报告，未调用生产数据。
+  已检查九张代表性截图，覆盖图表/表格、快照、中英嵌入卡片、版本/接续、matplotlib 与取消；产物位于
+  `apps/web/acceptance/research-*.png`、`embedded-analysis-*.png`，按既有忽略规则不纳入源码提交。
+- 启动已有 Colima，以仓库根目录真实构建 `apps/sandboxd/Dockerfile.python`，镜像 ID `755734ee5514`。
+  镜像 `/opt/jixie` 仅含 Dockerfile 显式列出的 16 个 Python 文件，无 TS、旧业务 runtime 或挂载源码。
+  UID 为 65532，Python 3.13.15；六个固定第三方包版本与生成 requirements 一致。
+- 直接使用该镜像的默认 runner，通过已有打包测试发送真实长度前缀帧：Strategy on_bar、Factor
+  横截面/时间序列/面板、Research data/AST/chart/参数/reset 共 5 项全部通过。
+  容器采用禁网、只读根目录、非 root、cap-drop、no-new-privileges 与生产 CPU/内存/PID 限制；
+  没有挂载本地实现。至此完成前两个提交延后的真实镜像验收。
+- 临时 API/Web 已关闭，3307/5277 端口和数据库句柄已释放，临时数据库已删除；嵌入 E2E 自行清理。
+  容器全部退出并删除，临时镜像已删除；Colima 恢复停止，Docker context 恢复 default。无推送。
 
 ## 每个提交的审查流程
 

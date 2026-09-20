@@ -4,8 +4,8 @@ import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
-import type { ResearchRequestObserver, ResearchResponse } from '../sdk/dispatch.js';
-import type { ResearchRequestFrame } from '../sdk/protocol.js';
+import type { ResearchRequestObserver, ResearchResponse } from '../runtime/host/dispatch.js';
+import type { ResearchRequestFrame } from '../runtime/host/protocol.js';
 
 /** Persist before delivery, so a Python try/except cannot turn missing evidence into success. */
 export function embeddedInputRecorder(

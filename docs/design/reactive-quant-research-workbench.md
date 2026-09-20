@@ -188,7 +188,7 @@ Research SDK Contract（唯一公开真相源）
 
 具体同步机制：
 
-- 开发者只修改 `packages/shared/src/research-sdk-contract.ts` 中的公开参数、枚举和返回列；
+- 开发者只修改 `packages/shared/src/sdk/research/contract.ts` 中的公开参数、枚举和返回列；
 - `pnpm setup:sandbox` 从该契约生成 `apps/sandboxd/python/jixie_research_sdk.pyi`，不手工维护生成物；
 - `pnpm setup:sandbox --check` 以只读方式比较生成结果，根级 `build` 与 `typecheck` 均先执行该检查；
 - API 数据桥直接从同一契约构造请求枚举与返回列校验，额外测试 Python runtime 的真实参数名与契约一致；

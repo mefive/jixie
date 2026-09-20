@@ -21,44 +21,44 @@ import {
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorWeatherRuntimeRows,
 } from './validation.js';
-import { loadResearchFinancialValues } from '../datasets/financial-values.js';
+import { loadResearchFinancialValues } from '../../datasets/financial-values.js';
 import type { PythonSession } from '#infra/runtime/python/session.js';
 import {
   researchSeriesLoadStart,
   loadResearchSeries,
   prepareResearchSeries,
-} from '../datasets/series.js';
-import { researchYieldCurveSourceForSdkCall } from '../catalog/concept-bindings.js';
+} from '../../datasets/series.js';
+import { researchYieldCurveSourceForSdkCall } from '../../catalog/concept-bindings.js';
 import {
   loadResearchCommodityReturns,
   loadResearchCommodityWarehouseReceipts,
   loadResearchCommodityHoldings,
-} from '../datasets/commodity.js';
+} from '../../datasets/commodity.js';
 import {
   loadResearchMarketState,
   loadResearchEquityFundamentals,
   loadResearchEquityFlows,
   loadResearchEquityDividends,
-} from '../datasets/supplemental.js';
+} from '../../datasets/supplemental.js';
 import {
   loadResearchEtfShares,
   loadResearchIndexValuation,
   loadResearchIndustryState,
   loadResearchFuturesSettlement,
-} from '../datasets/market-reference.js';
+} from '../../datasets/market-reference.js';
 import {
   loadResearchFinancialStatements,
   loadResearchFinancialMetrics,
   loadResearchFinancialCrossSection,
   loadResearchFinancialPanel,
-} from '../datasets/financial.js';
-import { loadResearchCrossSection, loadResearchPanel } from '../datasets/equity.js';
-import { loadResearchFactorReportResult } from '../datasets/results/factor-report.js';
-import { loadResearchBacktestReportResult } from '../datasets/results/backtest-report.js';
+} from '../../datasets/financial.js';
+import { loadResearchCrossSection, loadResearchPanel } from '../../datasets/equity.js';
+import { loadResearchFactorReportResult } from '../../datasets/results/factor-report.js';
+import { loadResearchBacktestReportResult } from '../../datasets/results/backtest-report.js';
 import {
   loadResearchStrategyScanReportResult,
   loadResearchFactorWeatherResult,
-} from '../datasets/results/scan-and-weather.js';
+} from '../../datasets/results/scan-and-weather.js';
 import type { ResearchSeriesInputSpecV1 } from '@jixie/shared';
 
 async function answerResearchRequest(

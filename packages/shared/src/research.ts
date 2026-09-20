@@ -17,7 +17,7 @@ import type {
   ResearchCommodityProductCodeV1,
   ResearchYieldCurveCodeV1,
   ResearchYieldTenorV1,
-} from './research-sdk-contract.js';
+} from './sdk/research/contract.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
 export type ResearchDataCatalogScopeV1 =

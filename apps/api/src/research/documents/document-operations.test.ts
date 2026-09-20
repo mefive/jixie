@@ -15,7 +15,7 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
-vi.mock('../runtime/python-session.js', () => ({
+vi.mock('../runtime/python/session.js', () => ({
   closeResearchDocumentRuntime: mocks.runtimeClose,
 }));
 

@@ -4,13 +4,13 @@ const mocks = vi.hoisted(() => ({
   loadBacktestReport: vi.fn(),
 }));
 
-vi.mock('../datasets/results/backtest-report.js', () => ({
+vi.mock('../../datasets/results/backtest-report.js', () => ({
   loadResearchBacktestReportResult: mocks.loadBacktestReport,
 }));
 
 vi.mock('./input-replay.js', () => ({ replayResearchInput: vi.fn().mockResolvedValue(undefined) }));
 
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { researchRuntimeManager } from '../python/session.js';
 
 const DOCUMENT_ID = 'research-backtest-report-runtime-test';
 let previousLocal: string | undefined;

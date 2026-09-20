@@ -9,9 +9,20 @@ RUN pip install --no-cache-dir --requirement /tmp/requirements-research-runtime.
 COPY apps/sandboxd/python/jixie_runner.py /opt/jixie/apps/sandboxd/python/jixie_runner.py
 COPY apps/api/src/strategy/sdk/python.py /opt/jixie/apps/api/src/strategy/sdk/python.py
 COPY apps/api/src/strategy/runtime/python/runner.py /opt/jixie/apps/api/src/strategy/runtime/python/runner.py
-COPY apps/sandboxd/python/jixie_research_runtime.py /opt/jixie/apps/sandboxd/python/jixie_research_runtime.py
 COPY apps/api/src/factor/sdk/python.py /opt/jixie/apps/api/src/factor/sdk/python.py
 COPY apps/api/src/factor/runtime/python/runner.py /opt/jixie/apps/api/src/factor/runtime/python/runner.py
+
+COPY apps/api/src/research/runtime/python/analysis.py /opt/jixie/apps/api/src/research/runtime/python/analysis.py
+COPY apps/api/src/research/runtime/python/bridge.py /opt/jixie/apps/api/src/research/runtime/python/bridge.py
+COPY apps/api/src/research/runtime/python/environment.py /opt/jixie/apps/api/src/research/runtime/python/environment.py
+COPY apps/api/src/research/runtime/python/outputs.py /opt/jixie/apps/api/src/research/runtime/python/outputs.py
+COPY apps/api/src/research/runtime/python/runner.py /opt/jixie/apps/api/src/research/runtime/python/runner.py
+COPY apps/api/src/research/sdk/python/charts.py /opt/jixie/apps/api/src/research/sdk/python/charts.py
+COPY apps/api/src/research/sdk/python/data.py /opt/jixie/apps/api/src/research/sdk/python/data.py
+COPY apps/api/src/research/sdk/python/host.py /opt/jixie/apps/api/src/research/sdk/python/host.py
+COPY apps/api/src/research/sdk/python/results.py /opt/jixie/apps/api/src/research/sdk/python/results.py
+COPY apps/api/src/research/sdk/python/scalars.py /opt/jixie/apps/api/src/research/sdk/python/scalars.py
+COPY apps/api/src/research/sdk/python/valuation.py /opt/jixie/apps/api/src/research/sdk/python/valuation.py
 
 USER 65532:65532
 ENTRYPOINT ["python3", "-I", "-u", "/opt/jixie/apps/sandboxd/python/jixie_runner.py"]

@@ -77,13 +77,25 @@ test('deployment infrastructure selects every application', () => {
   }
 });
 
-test('business Python sources select both API and the sandbox image', () => {
-  for (const changedPath of [
+test('every packaged business Python source selects both API and the sandbox image', async () => {
+  const dockerfile = await readFile(
+    resolve(scriptDirectory, '../../apps/sandboxd/Dockerfile.python'),
+    'utf8',
+  );
+  const businessSources = [...dockerfile.matchAll(/^COPY (apps\/api\/\S+\.py) /gm)].map(
+    (match) => match[1],
+  );
+  for (const requiredEntry of [
     'apps/api/src/strategy/sdk/python.py',
     'apps/api/src/strategy/runtime/python/runner.py',
     'apps/api/src/factor/sdk/python.py',
     'apps/api/src/factor/runtime/python/runner.py',
+    'apps/api/src/research/sdk/python/data.py',
+    'apps/api/src/research/runtime/python/runner.py',
   ]) {
+    assert.ok(businessSources.includes(requiredEntry), `missing Docker input: ${requiredEntry}`);
+  }
+  for (const changedPath of businessSources) {
     assert.deepEqual(classifyChangedPaths([changedPath], manifest), {
       api: true,
       web: false,
@@ -96,9 +108,14 @@ test('business Python sources select both API and the sandbox image', () => {
   }
 });
 
-test('business TypeScript SDK changes still select only API', () => {
-  for (const business of ['strategy', 'factor']) {
-    const result = classifyChangedPaths([`apps/api/src/${business}/sdk/typescript.ts`], manifest);
+test('business TypeScript SDK and host runtime changes still select only API', () => {
+  for (const changedPath of [
+    'apps/api/src/strategy/sdk/typescript.ts',
+    'apps/api/src/factor/sdk/typescript.ts',
+    'apps/api/src/research/runtime/python/session.ts',
+    'apps/api/src/research/runtime/host/dispatch.ts',
+  ]) {
+    const result = classifyChangedPaths([changedPath], manifest);
     assert.equal(result.api, true);
     assert.equal(result.sandboxd, false);
     assert.equal(result.fullDeploy, false);

@@ -3,7 +3,7 @@ import {
   researchDownstreamDependencyCellIds,
 } from '@jixie/shared';
 import { ResearchError } from '../errors.js';
-import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
 
 export interface ResearchAffectedRunPlan {
   cellIds: string[];

@@ -16,7 +16,7 @@ import {
 import { materializeResearchOutputArtifacts } from '../evidence/artifacts.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { researchRuntimeManager } from '../runtime/python/session.js';
 import {
   finishResearchDocumentRun,
   startResearchDocumentRun,

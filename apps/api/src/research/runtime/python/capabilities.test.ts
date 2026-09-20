@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/runtime/python/session.js';
-import { researchRuntimeManager } from './python-session.js';
+import { researchRuntimeManager } from './session.js';
 
 const documentId = 'capability-test';
 function sessionFixture(capabilities?: string[]) {

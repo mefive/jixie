@@ -12,7 +12,7 @@ import {
   type MaterializedResearchOutputs,
 } from '../evidence/artifacts.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
-import { researchRuntimeManager } from '../runtime/python-session.js';
+import { researchRuntimeManager } from '../runtime/python/session.js';
 
 import { assertActiveRun, embeddedInputRecorder } from './inputs.js';
 

@@ -29,8 +29,8 @@ import {
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
 } from '@jixie/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
-import { researchRuntimeManager } from './python-session.js';
+import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../../errors.js';
+import { researchRuntimeManager } from './session.js';
 
 const DOCUMENT_ID = 'research-runtime-test';
 let previousLocal: string | undefined;

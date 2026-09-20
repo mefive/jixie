@@ -2,7 +2,7 @@ import type {
   ResearchSdkFunctionContractV1,
   ResearchSdkParameterContractV1,
   ResearchSdkReturnContractV1,
-} from './research-sdk-contract.js';
+} from './contract.js';
 
 export function renderResearchSdkPythonSignature(contract: ResearchSdkFunctionContractV1): string {
   const parameters: string[] = [];

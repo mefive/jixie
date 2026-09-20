@@ -67,7 +67,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | --- | --- |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
 | `strategy/runtime/bridge.ts` | 共享业务 bridge；由 TS/Python runtime 创建，传输适配器负责启动和关闭。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
-| `research/runtime/python-session.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
+| `research/runtime/python/session.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |
 | `research/language/pyright-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |
@@ -76,6 +76,8 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | Python Factor SDK/runtime | `apps/api/src/factor/sdk/python.py` / `apps/api/src/factor/runtime/python/runner.py`；与 Strategy 使用相同业务目录导入和镜像显式打包方式，同时影响 API/sandboxd；三种分析类型的打包回归见 `factor/runtime/python/packaging.test.ts` |
 | TS Factor SDK bundle | `factor/runtime/typescript/sdk-bundle.ts` 从 `../../sdk/typescript.ts`（开发）或 `.js`（编译后）打包工厂与 Context 实现；宿主缓存源码，每个 isolate 独立执行；验收须分别检查源码及 dist 两种路径 |
 | Factor 公开契约 | `packages/shared/src/sdk/factor/reference.ts` → `contract.ts`，TS 编辑器和 API 共用签名来源；`python.ts` 生成原路径 Factor `.pyi`，Pyright/Agent 的既有 shared 导出保持兼容 |
+| Research Python SDK / runner | `apps/api/src/research/sdk/python/` 的 data/results/valuation/charts 与 `runtime/python/` 的 runner/analysis/bridge/environment/outputs 通过通用 runner 加载；Docker 逐项 COPY 所有 Python 输入，同目录 TS 文件不进入镜像；源码变更同时影响 API/sandboxd |
+| Research 宿主协议 | `research/runtime/host/` 拥有参数/帧校验、分派与输入回放；`runtime/python/session.ts` 调用它，SDK Python 不反向导入宿主 |
 | 公开 Python stub | `apps/sandboxd/python/jixie_research_sdk.pyi`、`jixie_factor_sdk.pyi` 由 shared Contract 生成；路径移动不得手工改生成结果 |
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |

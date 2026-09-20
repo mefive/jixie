@@ -43,8 +43,8 @@ import { researchRoute } from '../routes/index.js';
 import {
   researchRuntimeManager,
   type ResearchExecutionOptions,
-} from '../runtime/python-session.js';
-import { dispatchResearchRequest } from '../sdk/dispatch.js';
+} from '../runtime/python/session.js';
+import { dispatchResearchRequest } from '../runtime/host/dispatch.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { embeddedInputRecorder } from './inputs.js';
 import { researchEmbeddedAnalysisJob } from './job.js';

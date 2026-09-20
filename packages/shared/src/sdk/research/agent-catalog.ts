@@ -2,8 +2,8 @@ import {
   RESEARCH_SDK_CONTRACT_V1,
   type ResearchSdkContractV1,
   type ResearchSdkFunctionContractV1,
-} from './research-sdk-contract.js';
-import { renderResearchSdkPythonSignature } from './research-sdk-python-signature.js';
+} from './contract.js';
+import { renderResearchSdkPythonSignature } from './python-signature.js';
 
 export interface ResearchSdkAgentMethodV1 extends ResearchSdkFunctionContractV1 {
   kind: 'sdk_method';

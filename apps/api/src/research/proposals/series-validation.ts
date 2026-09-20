@@ -10,7 +10,7 @@ import {
 } from '@jixie/shared';
 import { researchYieldCurveSourceForSdkCall } from '../catalog/concept-bindings.js';
 import { searchResearchDataCatalog } from '../catalog/data-catalog.js';
-import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
+import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
 
 type ResearchDataCatalogSearch = (input: {
   query: string;

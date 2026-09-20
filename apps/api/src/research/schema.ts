@@ -2,8 +2,8 @@ import {
   createEmbeddedDataReferencesSchema,
   embeddedDataReferenceSchema,
 } from '@jixie/shared/api/research';
-import { researchExecutionFrameSchema } from './sdk/protocol.js';
-import { parseResearchRequestFrame } from './sdk/request.js';
+import { researchExecutionFrameSchema } from './runtime/host/protocol.js';
+import { parseResearchRequestFrame } from './runtime/host/request.js';
 
 export const embeddedDataReferencesSchema = createEmbeddedDataReferencesSchema(
   embeddedDataReferenceSchema.superRefine((reference, context) => {

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
+import { researchPayloadHash } from '../../evidence/fingerprints.js';
 import type { ResearchRequestFrame } from './protocol.js';
 import type { ResearchResponse } from './dispatch.js';
 

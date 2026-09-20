@@ -2,11 +2,11 @@ import {
   RESEARCH_SDK_CONTRACT_V1,
   type ResearchSdkContractV1,
   type ResearchSdkFunctionContractV1,
-} from './research-sdk-contract.js';
+} from './contract.js';
 import {
   renderResearchSdkPythonParameter,
   researchSdkPythonReturnType,
-} from './research-sdk-python-signature.js';
+} from './python-signature.js';
 
 /** Render the Python typing surface used by both the sandbox artifact and Pyright workspace. */
 export function renderResearchSdkPythonStub(

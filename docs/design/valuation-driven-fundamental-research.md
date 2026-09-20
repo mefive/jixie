@@ -372,7 +372,7 @@ V1 可在模板中展示历史与同业倍数，但不因“低于历史百分�
 
 ### 10.1 Research SDK
 
-公开方法名称在实现前由 `packages/shared/src/research-sdk-contract.ts` 冻结。能力至少包括：
+公开方法名称在实现前由 `packages/shared/src/sdk/research/contract.ts` 冻结。能力至少包括：
 
 - 按单股和公告可得日读取版本化三张表；
 - 读取确定性的标准化指标及其输入版本、公式版本和失败原因；
@@ -570,7 +570,7 @@ M6是否启动或获得正面收益，均不决定M0–M5及数据查询能力�
 - `apps/api/src/market/fundamentals/` 财务版本、覆盖和勾稽审计；
 - `apps/api/src/research/` 财务 resolver、loader、Runtime 与 Catalog；
 - `apps/api/src/agent/tools/sql/read-only-sql.ts`；
-- `packages/shared/src/research-sdk-contract.ts` 及生成的 Python stub；
+- `packages/shared/src/sdk/research/contract.ts` 及生成的 Python stub；
 - 后续 M6 才涉及 `packages/shared/src/factor-python-sdk.ts`、Factor loader 和报告；
 - `apps/docs` 的中英文 Research/估值帮助与学习案例。
 

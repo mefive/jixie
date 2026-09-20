@@ -60,12 +60,19 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   映射变化时，生成 Prisma migration、更新 loader / 映射和测试即可，不改 SDK Contract；若是市场数据表变化，
   仍必须同步上面的 `SQL_TABLE_DOCS`。
 - 公开方法、参数、枚举或返回列变化时，唯一真相源是
-  `packages/shared/src/research-sdk-contract.ts`；同时修改 Python runtime 实现和 API 映射，不得另写一份 Monaco
+  `packages/shared/src/sdk/research/contract.ts`；同时修改 Python runtime 实现和 API 映射，不得另写一份 Monaco
   schema。`apps/sandboxd/python/jixie_research_sdk.pyi` 是生成物，禁止手工编辑。
 - 修改公开契约后运行 `pnpm setup:sandbox`，再运行 `pnpm setup:sandbox --check`、`pnpm typecheck` 和相关测试。
   根级 `build` / `typecheck` 已把生成物一致性作为门禁；Git hook 只能提供本地快速反馈，不能作为正确性保证。
 - `setup:sandbox` 的 SDK 生成步骤只从公开 Contract 派生产物，不读取 Prisma；默认模式另按需准备本地 Python 环境。Prisma → SDK 的业务映射需要人工决策；
   Contract → `.pyi`、Monaco 补全和 API 校验必须自动同步并由契约测试约束。
+
+- Research 作者对象 `data/results/valuation/charts` 的实现归 `research/sdk/python`；Cell namespace、
+  AST 分析、环境与输出序列化归 `research/runtime/python`，同目录 `session.ts` 只在 API 宿主执行。
+  请求校验、分派和输入回放适配归 `research/runtime/host`，数据查询与业务授权仍归 datasets。
+  SDK 只依赖注入的宿主请求能力，不导入 runtime；sandboxd 只负责公共启动、通信和限制。
+- Research Python 辅助模块须逐项列入 Dockerfile、`.dockerignore` 和部署影响清单，同时影响 API/sandboxd；
+  TS 宿主文件不进入 Python 镜像。shared 根导出及生成 `.pyi` 路径保持稳定。
 
 ## Strategy SDK Contract 工作流
 
@@ -119,9 +126,9 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 
 - `apps/api/src/auth` — 登录与会话业务；根级 `routes.ts` 负责登录 HTTP，`cookies.ts` 负责 Cookie，`middleware.ts` 负责鉴权中间件与 Hono 用户上下文；`session.ts` 保留会话业务。
 - `apps/api/src/infra` — 数据库、HTTP 辅助、LLM 与邮件传输；`math` 为共用数值计算，`date.ts` 为日期辅助，`i18n` 保留纯翻译。
-- `apps/api/src/infra/runtime` — 公共 Python 通信、TS isolate 与沙盒日志；业务协议归 Strategy/Factor 的 runtime 和 Research 的 sdk，公共运行设施不导入业务模块。
+- `apps/api/src/infra/runtime` — 公共 Python 通信、TS isolate 与沙盒日志；业务协议归 Strategy/Factor/Research 各自的 runtime，公共运行设施不导入业务模块。
 - `apps/api/src/infra/jobs` — 通用任务记录、日志、队列、任务契约与执行器；业务目录内的 `job.ts` / 具名任务文件集中声明 parse/execute/complete/fail/recover，执行器控制事务及恢复。根级 `bootstrap.ts` 注册任务、创建执行器并按顺序启动 API；`server.ts` 的 `buildApp()` 只构建 HTTP 应用。
-- `apps/api/src/research` — 文档/Cell 编辑归 documents，依赖与失效归 dependencies，文档运行/控制归 document-runs，共用 Python 会话归 runtime，嵌入式分析的版本/运行/冻结归 embedded，快照与产物归 evidence，Agent 修改/审阅/尝试归 proposals；研究数据归 datasets，语义检索归 catalog，SDK 校验/分派归 sdk，语言服务归 language，模板归 templates，因子/策略交接归 handoff，整理归 curator。`routes/index.ts` 直接组合并导出 `researchRoute`，挂载到 `/api/app/research`；文档/Cell、执行控制、证据/交接、提案、Agent、Curator、数据查询、Python 语言服务分别由 `routes/document.ts`、`routes/execution.ts`、`routes/evidence.ts`、`routes/proposal.ts`、`routes/agent.ts`、`routes/curator.ts`、`routes/data.ts`、`routes/language.ts` 适配请求，`agent/turn.ts` 编排 Research 对话启动；入口与调用链见 `src/research/README.md`。
+- `apps/api/src/research` — 文档/Cell 编辑归 documents，依赖与失效归 dependencies，文档运行/控制归 document-runs，共用 Python 会话归 runtime，嵌入式分析的版本/运行/冻结归 embedded，快照与产物归 evidence，Agent 修改/审阅/尝试归 proposals；研究数据归 datasets，语义检索归 catalog，Python 作者 API 归 sdk/python，宿主校验/分派与输入回放归 runtime/host，语言服务归 language，模板归 templates，因子/策略交接归 handoff，整理归 curator。`routes/index.ts` 直接组合并导出 `researchRoute`，挂载到 `/api/app/research`；文档/Cell、执行控制、证据/交接、提案、Agent、Curator、数据查询、Python 语言服务分别由 `routes/document.ts`、`routes/execution.ts`、`routes/evidence.ts`、`routes/proposal.ts`、`routes/agent.ts`、`routes/curator.ts`、`routes/data.ts`、`routes/language.ts` 适配请求，`agent/turn.ts` 编排 Research 对话启动；入口与调用链见 `src/research/README.md`。
 - `apps/api/src/factor` — 定义与草稿归 definitions，观察数据与截止日归 observations，正式评估/报告/holdout 归 evaluations，相关性任务与缓存归 correlations，共享计算及 Worker 归 execution，来源解析/快照/指纹归 sources，Factor Job 归属查询归 jobs，发布/归档归 publication，组合归 composition，作者 SDK 实现归 sdk，语言适配归 runtime，天气固定/刷新归 weather；`routes/index.ts` 直接组合并导出 `factorRoute`，统一挂载到 `/api/app/factors`；定义、组合、Agent、分析、相关性、天气分别由 `routes/definition.ts`、`routes/composite.ts`、`routes/agent.ts`、`routes/analysis.ts`、`routes/correlation.ts`、`routes/weather.ts` 适配请求；报告位于 `/analysis-reports`，普通分析和相关性任务分别使用 `/analysis-jobs` 与 `/correlation-jobs`，`evaluations/job.ts`、`correlations/job.ts` 保留具名任务生命周期，在 bootstrap 分别注册为 `factor-analysis` / `factor-correlation`，旧 kind 的一次性生产转换已完成，旧库恢复见 `docs/backend-runtime-entries.md`，bootstrap 不再重复转换。入口与调用链见 `src/factor/README.md`。
 - `apps/api/src/strategy` — 定义/命名/配置归 definitions，回测提交、报告、语言编排及 Worker 归 backtests，参数扫描及父 Worker/cell 子进程归 scans，共享因子准备归 factor-inputs，策略 SDK 辅助实现归 sdk，TS/Python 适配归 runtime，报告风险分析与模型就绪要求归 risk。`routes/index.ts` 直接组合并导出 `strategyRoute`，统一挂载到 `/api/app/strategies`；`routes/agent.ts` 处理 Agent，`routes/definition.ts` 处理列表、增删改和公开范围，`routes/backtest.ts` / `routes/scan.ts` 分别处理提交、报告与任务查询；自动命名仅保留内部能力；`backtests/job.ts`、`scans/job.ts` 保留具名任务入口；调用链见 `src/strategy/README.md`。
 - `apps/api/src/signals` — 部署冻结/暂停归 deployments，运行入队/查询/就绪检查与 IPC Worker 归 runs，成交录入/初始化/结算/纯重放归 accounting，因子依赖血缘、输入摘要与利率准入归 factor-inputs，共用日期判断调用 Market calendar；routes/index.ts 直接组合 routes/deployment.ts、routes/run.ts、routes/execution.ts，统一挂载 `/api/app/signals`；最新运行归 `/deployments/latest-runs`，运行提交/列表归 `/deployments/:deploymentId/runs`，任务归 `/run-jobs/:jobId`。`runs/job.ts` 保留任务生命周期，`runs/notifier.ts` 负责运行通知，`daily/scheduler.ts` 与 `daily/sync.ts` 负责每日运行与数据准备。入口与事务边界见 `src/signals/README.md`。

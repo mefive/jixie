@@ -44,7 +44,7 @@ import {
   parseResearchStrategyScanReportRuntimeRequest,
   parseResearchFactorWeatherRuntimeRequest,
 } from './validation.js';
-import { type ResearchFinancialValuesRequestV1 } from '../datasets/financial-values.js';
+import { type ResearchFinancialValuesRequestV1 } from '../../datasets/financial-values.js';
 
 export type ParsedResearchRequest =
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {

@@ -1,4 +1,4 @@
-import type { ResearchFinancialValuesRequestV1 } from '../datasets/financial-values.js';
+import type { ResearchFinancialValuesRequestV1 } from '../../datasets/financial-values.js';
 import { z } from 'zod';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,

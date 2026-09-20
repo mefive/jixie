@@ -1,15 +1,15 @@
 import { PythonSession } from '#infra/runtime/python/session.js';
 import type { ResearchCellOutputBlockV1, ResearchEmbeddedParametersV1 } from '@jixie/shared';
-import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
-import type { ResearchPythonAnalysis } from '../sdk/analysis-types.js';
-import { dispatchResearchRequest, type ResearchRequestObserver } from '../sdk/dispatch.js';
+import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../../errors.js';
+import { researchPayloadHash } from '../../evidence/fingerprints.js';
+import type { ResearchPythonAnalysis } from '../host/analysis-types.js';
+import { dispatchResearchRequest, type ResearchRequestObserver } from '../host/dispatch.js';
 import {
   researchAnalysisFrameSchema,
   researchExecutionFrameSchema,
   researchResetFrameSchema,
   researchStartupFrameSchema,
-} from '../sdk/protocol.js';
+} from '../host/protocol.js';
 
 export function closeResearchDocumentRuntime(documentId: string): void {
   researchRuntimeManager.close(documentId);

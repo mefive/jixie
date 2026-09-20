@@ -118,7 +118,7 @@ def main() -> None:
     api_source = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api/src"))
     sys.path.insert(0, api_source)
     if start.get("type") == "research_start":
-        from jixie_research_runtime import run_research
+        from research.runtime.python.runner import run_research
 
         run_research(
             start,

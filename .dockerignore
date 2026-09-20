@@ -7,7 +7,6 @@
 !apps/sandboxd/python/
 !apps/sandboxd/python/requirements-research-runtime.txt
 !apps/sandboxd/python/jixie_runner.py
-!apps/sandboxd/python/jixie_research_runtime.py
 !apps/api/
 !apps/api/src/
 !apps/api/src/strategy/
@@ -22,3 +21,19 @@
 !apps/api/src/factor/runtime/
 !apps/api/src/factor/runtime/python/
 !apps/api/src/factor/runtime/python/runner.py
+!apps/api/src/research/
+!apps/api/src/research/sdk/
+!apps/api/src/research/sdk/python/
+!apps/api/src/research/runtime/
+!apps/api/src/research/runtime/python/
+!apps/api/src/research/runtime/python/analysis.py
+!apps/api/src/research/runtime/python/bridge.py
+!apps/api/src/research/runtime/python/environment.py
+!apps/api/src/research/runtime/python/outputs.py
+!apps/api/src/research/runtime/python/runner.py
+!apps/api/src/research/sdk/python/charts.py
+!apps/api/src/research/sdk/python/data.py
+!apps/api/src/research/sdk/python/host.py
+!apps/api/src/research/sdk/python/results.py
+!apps/api/src/research/sdk/python/scalars.py
+!apps/api/src/research/sdk/python/valuation.py

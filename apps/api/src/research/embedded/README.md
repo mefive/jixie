@@ -24,7 +24,7 @@ version + requestId 唯一，同一请求可重取；重取比较该次运行冻
 
 [finish.ts](finish.ts) 的 `completeEmbeddedRun` 在执行器完成事务里保存输出／图片，并在首次成功时冻结版本；缺失环境、未完成输入或保存失败不能成为成功。Job done 表示流程结束，业务成功以运行 status/errorCode 为准。失败／取消只终结尚未终结记录；启动恢复将 running 标为 cancelled/interrupted，不自动重算，queued 继续排队。
 
-普通列表、编辑、执行、提案、Agent、固化和交接排除内部文档；私有图片仍走 evidence 的归属查询。宿主删除／公开不级联删除／公开分析。接续只接受本人成功且输入已完整保存的运行；同用户／runId 重复接续返回同一文档，并恢复已归档会话。文档默认 retained，SDK 按原输入重放，失败不回退当前数据，见 [sdk](../sdk/README.md)。切换输入模式取得文档运行锁、拒绝开放审阅，在事务中更新模式及 Python 修订／stale，变更后关闭旧会话；选择当前模式不产生修改。
+普通列表、编辑、执行、提案、Agent、固化和交接排除内部文档；私有图片仍走 evidence 的归属查询。宿主删除／公开不级联删除／公开分析。接续只接受本人成功且输入已完整保存的运行；同用户／runId 重复接续返回同一文档，并恢复已归档会话。文档默认 retained，SDK 按原输入重放，失败不回退当前数据，见 [runtime/host](../runtime/host/README.md)。切换输入模式取得文档运行锁、拒绝开放审阅，在事务中更新模式及 Python 修订／stale，变更后关闭旧会话；选择当前模式不产生修改。
 
 改版本／幂等／取消看 [lifecycle.integration.test.ts](lifecycle.integration.test.ts)，改沙箱参数／留存看 [python.integration.test.ts](python.integration.test.ts) 和 [data-references.test.ts](data-references.test.ts)；存量关系看 [migration.integration.test.ts](migration.integration.test.ts)。设计取舍和历史验收集中在 [嵌入式分析设计](../../../../../docs/design/embedded-python-analysis.md)。
 
