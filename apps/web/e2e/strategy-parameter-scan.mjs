@@ -13,6 +13,51 @@ let strategyId = null;
 
 page.on('pageerror', (error) => pageErrors.push(error.message));
 
+// Fast fixtures can finish between polls, so wait for the durable result instead of a transient spinner.
+async function submitAndWaitForScan() {
+  const submitted = page
+    .waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === `/api/app/strategies/${strategyId}/scans`,
+      { timeout: 15_000 },
+    )
+    .then(async (response) => {
+      const reference = await response.json();
+      if (!response.ok() || !reference.reportId) {
+        throw new Error(`scan submission failed: ${JSON.stringify(reference)}`);
+      }
+      return reference;
+    });
+  const completed = page.waitForResponse(
+    async (response) => {
+      if (
+        response.request().method() !== 'GET' ||
+        !/\/api\/app\/strategies\/scan-reports\/[^/]+$/.test(new URL(response.url()).pathname)
+      ) {
+        return false;
+      }
+      const reference = await submitted;
+      if (
+        new URL(response.url()).pathname !==
+        `/api/app/strategies/scan-reports/${reference.reportId}`
+      ) {
+        return false;
+      }
+      const report = await response.json();
+      return ['done', 'error', 'stale'].includes(report.status);
+    },
+    { timeout: 120_000 },
+  );
+  await page.getByRole('button', { name: '开始扫描' }).click();
+  await submitted;
+  const report = await (await completed).json();
+  if (report.status !== 'done') {
+    throw new Error(`scan failed: ${JSON.stringify(report)}`);
+  }
+  await page.getByRole('tab', { name: '参数扫描' }).click();
+}
+
 try {
   await page.goto(BASE, { waitUntil: 'networkidle' });
   const loginStatus = await page.evaluate(async () => {
@@ -108,13 +153,14 @@ try {
     page.locator('.jx-parameterScan-chart canvas').first().waitFor({ timeout: 120_000 }),
     page.locator('.jx-parameterScan-error').waitFor({ timeout: 120_000 }),
   ]);
-  const scanError = await page
-    .locator('.jx-parameterScan-error')
-    .textContent()
-    .catch(() => null);
+  const scanError = (await page.locator('.jx-parameterScan-error').isVisible())
+    ? await page.locator('.jx-parameterScan-error').textContent()
+    : null;
   if (scanError) {
     throw new Error(`parameter scan failed: ${scanError}`);
   }
+  await page.getByRole('tab', { name: '参数扫描' }).click();
+  await page.locator('.jx-parameterScan-table .ant-table-row[data-row-key]').first().waitFor();
   const rowCount = await page
     .locator('.jx-parameterScan-table .ant-table-row[data-row-key]')
     .count();
@@ -156,12 +202,11 @@ try {
 
   await page.getByRole('button', { name: '参数扫描' }).first().click();
   await page.getByRole('dialog', { name: '扫描实验' }).waitFor();
+  await page.locator('.jx-parameterScan-dimension .ant-input').first().waitFor();
   await page.getByText('仓位方案对比', { exact: true }).click();
   await page.locator('.jx-parameterScan-dimension .ant-input').first().waitFor();
   await page.locator('.jx-parameterScan-dimension .ant-input').first().fill('equal, fixed, atr');
-  await page.getByRole('button', { name: '开始扫描' }).click();
-  await page.locator('.jx-parameterScan-progress').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-parameterScan-progress').waitFor({ state: 'detached', timeout: 120_000 });
+  await submitAndWaitForScan();
   await page.locator('.jx-parameterScan-chart canvas').first().waitFor({ timeout: 30_000 });
   const sizingRows = await page
     .locator('.jx-parameterScan-table .ant-table-row[data-row-key]')
@@ -183,11 +228,10 @@ try {
 
   await page.getByRole('button', { name: '参数扫描' }).first().click();
   await page.getByRole('dialog', { name: '扫描实验' }).waitFor();
+  await page.locator('.jx-parameterScan-dimension .ant-input').first().waitFor();
   await page.getByText('容量测算', { exact: true }).click();
   await page.locator('.jx-parameterScan-dimension .ant-input').fill('50, 500, 5000');
-  await page.getByRole('button', { name: '开始扫描' }).click();
-  await page.locator('.jx-parameterScan-progress').waitFor({ timeout: 30_000 });
-  await page.locator('.jx-parameterScan-progress').waitFor({ state: 'detached', timeout: 120_000 });
+  await submitAndWaitForScan();
   await page.locator('.jx-parameterScan-chart canvas').first().waitFor({ timeout: 30_000 });
   const capacityRows = await page
     .locator('.jx-parameterScan-table .ant-table-row[data-row-key]')

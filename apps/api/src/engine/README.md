@@ -26,19 +26,23 @@ Engine 提供交易模拟能力：推进交易日、读取当时可得的数据�
 
 - 正式策略执行由 [strategy/backtests/run.ts](../strategy/backtests/run.ts) 选择语言和宿主 Prisma 端口；TS/Python 因子均由宿主 FactorHost 执行，调用方通过 `EngineConfig.factorExecution` 显式传入并负责关闭。
 - 仓库策略的直接执行入口和回测脚本显式传入 Prisma 端口；测试显式传入 fixture 端口。
-- 用户/Agent 编写的 TS 策略由 [strategy/runtime/typescript/walled-run.ts](../strategy/runtime/typescript/walled-run.ts) 创建 isolate。墙内 [wall-entry.ts](../strategy/runtime/typescript/wall-entry.ts) 使用代理 DataPort，通过宿主提供的调用边界请求数据，然后在墙内运行同一个模拟核心。
+- TS/Python 用户策略均经 [共享运行编排](../strategy/runtime/run.ts) 使用宿主 Engine。TS runtime 创建
+  isolate，仅在其中加载 [SDK bundle](../strategy/runtime/typescript/sandbox-bundle.ts) 与用户源码；Python
+  runtime 连接 sandboxd。二者复用 [业务 bridge](../strategy/runtime/bridge.ts)，沙箱不能访问 DataPort。
 
-[wall-bundle.ts](../strategy/runtime/typescript/wall-bundle.ts) 使用 esbuild 的 neutral 平台打包真实 SDK 和 Engine，宿主按进程缓存结果。原来用于替换 `prisma-port` 的插件已经移除：核心自身没有该依赖，打包不再需要制造替身。`metafile` 用于检查实际依赖，生产仍只取 bundle 文本；不会把宿主适配器、数据库或 Node 内建模块带进 isolate。
+SDK bundle 不包含 Engine、宿主适配器、数据库或 Node 内建模块；`metafile` 用于约束实际依赖。
 
 自定义因子源码不再由 Engine 直接求值。TS 因子复用 `compileFactor` / `compileTimeSeriesFactor` /
 `compilePanelFactor` 的 isolate，Python 因子复用对应 Python runtime，执行位置不依赖策略语言。
-墙内 Engine 通过专用因子桥调用宿主 FactorHost，DataPort 只负责读取市场数据。每日回调前、截面加载和
+宿主 Engine 通过 FactorExecutionPort 调用 FactorHost，DataPort 只负责读取市场数据。每日回调前、截面加载和
 `ensureBars` 后批量准备值；当日首次读取固定结果，未读取的提前计算结果可在输入加载后刷新。
 
-纯核心包含 `simulation`、`data`、`factors` 及其纯辅助依赖；Engine 的 `adapters` 和业务模块中的 Worker 可以使用 Node/数据库。墙内 bundle 不包含这些宿主能力。
+纯核心包含 `simulation`、`data`、`factors` 及其纯辅助依赖；Engine 的 `adapters` 和业务模块中的 Worker 可以使用 Node/数据库。SDK bundle 不包含这些宿主能力。
 
 ## Review 与验证定位
 
-本轮交易循环、账户规则、复权、手续费、历史状态、因子求值和归因算法不变。主要检查所有 `runStrategy` / 信号捕获调用者是否提供正确端口，以及 TS 源码与编译 JS 的 Worker、cell 子进程、wall entry 路径是否对应。
+本轮交易循环、账户规则、复权、手续费、历史状态、因子求值和归因算法不变。主要检查所有 `runStrategy` / 信号捕获调用者是否提供正确端口，以及 TS 源码与编译 JS 的 Worker、cell 子进程、sandbox entry 路径是否对应。
 
-`simulation`、`data`、`factors` 下既有 `.test.ts` 保持原断言；[walled-run.test.ts](../strategy/runtime/typescript/walled-run.test.ts) 比较 direct/walled 的真实结果，新增 [wall-bundle.test.ts](../strategy/runtime/typescript/wall-bundle.test.ts) 检查无宿主依赖的 bundle。上述用例已随全量 API 198 文件/1065 项测试通过，API 编译通过；真实源码/编译 Worker 均执行实际 wall bundle，净值、成交和扫描指标一致。Python 编译入口使用本地 socket 对接真实 runner，未覆盖生产容器隔离；详情见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#78-commit-8-实现记录2026-09-09完成)。
+`simulation`、`data`、`factors` 下既有测试保持原断言；[runtime.test.ts](../strategy/runtime/typescript/runtime.test.ts)
+比较可信原生 fixture 与沙箱回调的净值、成交和信号，[sandbox-bundle.test.ts](../strategy/runtime/typescript/sandbox-bundle.test.ts)
+检查 bundle 不含 Engine 或宿主能力。本次迁移验证状态见 [执行边界设计](../../../../docs/design/python-and-sandbox.md)。

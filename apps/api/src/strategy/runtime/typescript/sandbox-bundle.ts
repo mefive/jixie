@@ -1,10 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
-/** Bundle the pure engine for an isolate without replacing forbidden host imports. */
-export async function buildWallBundle() {
+/** Bundle only the strategy SDK and transport entry; the engine remains on the host. */
+export async function buildStrategySandboxBundle() {
   const entry = new URL(
-    import.meta.url.endsWith('.ts') ? './wall-entry.ts' : './wall-entry.js',
+    import.meta.url.endsWith('.ts') ? './sandbox-entry.ts' : './sandbox-entry.js',
     import.meta.url,
   );
   return build({

@@ -44,9 +44,9 @@ vi.mock('#infra/llm/deepseek.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#infra/llm/deepseek.js')>()),
   chatText: resources.name,
 }));
-vi.mock('../runtime/typescript/walled-run.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../runtime/typescript/walled-run.js')>()),
-  inspectWalledStrategyParameters: resources.parameters,
+vi.mock('../runtime/typescript/runtime.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/typescript/runtime.js')>()),
+  inspectStrategyParameters: resources.parameters,
 }));
 
 import type { AgentProfile } from '#agent/core.js';

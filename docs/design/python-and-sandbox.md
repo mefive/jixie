@@ -1,16 +1,16 @@
 # Python 策略运行时与沙箱（决策文档）
 
-## 2026-09-18：统一策略与因子执行边界（进行中）
+## 2026-09-18：统一策略与因子执行边界（验证完成）
 
 本轮按 review-gated-development 执行三个提交；每个提交先确认范围，实现后只做静态检查，
 人工 review 通过再跑行为验证，全部通过后提交。此节取代下文历史的“TS 因子跟随 Engine 执行”决定；
-Engine 移回宿主是第三提交，不能把目标架构当作已经完成。
+三个提交均已完成实现与验证；第三提交将 Engine 移回宿主，并通过批量历史与增量传输消除初版的主要性能回退。
 
 | 提交 | 信息 | 状态 |
 | --- | --- | --- |
 | 1 | `fix(sandbox): isolate custom factors across strategy languages` | 已提交 `a7671356`；人工 review、静态检查、测试、构建及 Worker 验证通过 |
-| 2 | `refactor(strategy): extract a shared sandbox bridge` | 人工 review、静态检查、测试、构建及 Worker 验证通过；随本次提交交付 |
-| 3 | `refactor(strategy): run both language runtimes through the host engine` | 待前置提交完成后的范围确认 |
+| 2 | `refactor(strategy): extract a shared sandbox bridge` | 已提交 `f276bfbd`；人工 review、静态检查、测试、构建及 Worker 验证通过 |
+| 3 | `refactor(strategy): run both language runtimes through the host engine` | 人工复审、静态检查、回归、构建、源码/编译 Worker、基准及五项 E2E 通过 |
 
 ### 第一提交：因子执行独立于策略语言
 
@@ -76,12 +76,75 @@ Panel 组件测试；API/shared 构建与相关 Worker 启动验证。所有 Pyt
 2893 条运行时边、688 条类型边，0 违规。变更 TS 的 ESLint、Prettier 与 `git diff --check` 通过。
 源码文本对比确认快照、查询、命令重放和日志映射仅更改名称及传输接口类型。无未完成的必需验证。
 
-### 后续提交
+### 第三提交：宿主 Engine 与双语言沙箱（2026-09-20，验证通过）
 
-第二提交统一 Strategy 的元数据、快照、批量查询、指令校验与重放，由 Python 先接入。
-第三提交将 TS 策略接入同一业务 bridge，迁移普通回测、扫描、Signals、参数/元数据检查及 Agent
-校验，移除旧 Engine bundle。TS 保留 isolate 传输和必要的 SDK bundle；Python 保留 sandboxd 传输。
-届时比较固定 fixture 的逐日净值/成交/信号以及耗时、内存和通信次数，不预先宣称性能无损。
+- `strategy/runtime/run.ts` 统一两种策略语言的回测和信号捕获，复用宿主 Engine 与 FactorHost，
+  finally 关闭两个运行时。正式回测、扫描 cell 和 Signals 已迁入；后处理和业务准入不变。
+- `typescript/runtime.ts` 只编译 TS 为 CJS，在 isolate 加载 `sandbox-entry.ts` + SDK bundle；
+  元数据检查、参数检查及 Agent 编译校验也在 isolate 完成，不再在宿主求值用户源码。
+  原 `walled-run.ts`、`wall-entry.ts`、`wall-bundle.ts` 删除；可信 fixture 编译器移入 testing，
+  由已有后端边界规则禁止生产导入。
+- TS/Python 共用 `bridge.ts`、`protocol.ts` 和 `commands.ts`。TS 的同步 API 需要保留调用处
+  `try/catch`、条件单取价时点，以及自定义因子的实际首次读取/Signals 观察值；因此 TS 使用
+  schema 限定的 `context-access.ts` 同步通道，Python 仍在 done 后批量重放。这里统一业务规则，
+  不将两种语言传输强制改成相同的同步机制。
+- TS 截面整批传输；watch/持仓历史首次批量传输当前日期可见数据，后续按日期增量更新。
+  `ensureBars` 返回所请求标的的完整可见历史并注册后续更新；本地窗口返回副本，指标在 isolate
+  中计算。其他同步查询按回调缓存，截面/历史加载后清除查询缓存。Python 传输保持原状。
+  不在生成截面时提前读取因子。同步通道不暴露存储端口或任意宿主方法，且仅在当前 onBar 绑定。
+  保存 context 后在回调外继续调用不受支持。共享协议的字段/数量上限也应用于 TS。
+- 每次运行独立 isolate，模块状态跨 bar 保留；初始化/协议失败和关闭释放 isolate。帧大小与
+  队列总字节上限均为 64 MiB，队列最多 10,000 帧；声明求值 5 秒，策略回调沿用一小时预算。
+  没有数据库、HTTP、公开 SDK、workspace 或跨包构建依赖变更。
+- 新增隔离与兼容性测试，保留原生 fixture 对照的净值、成交、条件单、期货、指标与信号断言；
+  bundle 测试改为断言不含 Engine。源码/编译的四种策略与因子语言组合 Worker 测试继续使用。
+- 性能测试 `runtime-benchmark.test.ts` 需显式设置 `JIXIE_TEST_RUNTIME_BENCHMARK=1`。分别启动
+  独立进程运行 `f276bfbd` 中原墙内 Engine 和新宿主 Engine，固定 100 标的、120 日期，
+  每组一次冷启动、两次预热、十次正式采样，保留各自进程内 bundle 缓存，
+  比较 NAV/成交哈希，记录冷/热耗时、进程最大 RSS 和各自跨边界调用计数；不预先宣称性能无损。
+- Review 后运行相关运行时、Engine、因子、API 入口回归，Shared/API 构建、源码/编译 Worker 验证，
+  以及 `strategy`、`strategy-python`、`strategy-scan`、`strategy-factor-dependency`、`signals` 浏览器 E2E。
+  E2E 使用隔离测试数据与现有脚本，关闭测试服务并交付截图。五项 E2E 均已通过，验收截图位于 `apps/web/acceptance/`。
+
+第三提交静态检查：`pnpm typecheck` 全部通过，生成物一致性通过；后端扫描 780 个文件、
+2919 条运行时边、690 条类型边，0 违规。10 处非字面量导入已有运行入口清单记录。
+变更 TS/MJS 的 ESLint、Prettier 及 `git diff --check` 通过。运行时旧入口只在固定版本性能
+基线中保留引用；所有生产调用方已迁移。性能修订后的 typecheck、边界扫描和相关 ESLint/Prettier 再次通过。
+
+首轮行为验证（历史传输修订前）：
+
+- 运行时、Engine、因子与源码 Worker 合计 179 项通过、1 项失败、1 项跳过。失败为新测试误把
+  缺少指数成分数据当成成功路径；随后改为断言拒绝，并在修订版回归中通过。Shared/API 构建通过。
+- 独立进程基准六次 NAV/成交哈希一致。旧实现三次耗时 155.5 / 134.1 / 221.5 ms，
+  新实现 478.9 / 331.2 / 322.2 ms；每轮新实现同步跨界 12,120 次，传输 9,348,431 字节。
+  最大 RSS 分别为 194,688 / 189,072 KiB。此小夹具显示约两倍耗时，不能宣称性能无损。
+- 根据该结果，将逐标的指标窗口跨界改为上述首次历史批量传输与日期增量更新。新增本地窗口
+  零同步调用、动态 ensureBars 后续更新及停牌日不重复追加三个用例。
+  初版新增测试误以为 Engine 支持回测开始前日线；复审后验证发现该测试预期错误，已仅修正测试，
+  明确保持 Engine 的 `[start, end]` 数据范围，未改变行情加载语义。
+- 产品代码发生修订，按工作流返回 Gate 2；用户已确认复审后继续验证。
+
+修订后的验证结果：
+
+- Runtime、Engine、Factor 输入、Strategy/Signals API 与源码 Worker 共 231 项通过；基准为显式开关，另行运行。
+  编译 Worker 8 项通过，边界检查器自测 28 项通过，Shared/API 构建通过。
+- 基准 26 次净值/成交哈希一致。正式采样总耗时中位数旧版 103.08 ms、新版 105.56 ms（+2.4%）；
+  执行阶段中位数 96.01 / 100.01 ms（+4.2%）。冷启动总耗时 149.83 / 176.24 ms。
+  新版每轮同步调用 120 次（修订前 12,120 次），发送/接收帧 240 / 241，传输 9,815,209 字节。
+- 基准是固定夹具的架构对照，并非两个完整版本快照：旧入口固定 `f276bfbd`，Engine/SDK 使用
+  当前未改变行为的实现；旧 bundle 构建换为 stdin，原 bundlePromise 缓存保留。计时排除进程
+  启动与 fixture 创建；执行阶段旧版包含用户声明和结果跨界，新版声明计入初始化，所以阶段数据
+  仅用于定位，不能称为严格等价的纯 Engine 时间。总耗时包括初始化、执行和释放；单进程顺序
+  采样且单一策略，不外推真实数据库或大规模任务性能。最大 RSS 是整进程峰值。
+- 浏览器 E2E 五项通过：`strategy`、`strategy-python`、`strategy-scan`、`strategy-factor-dependency`、
+  `signals`。真实 API、SQLite、Worker 与 Web 使用临时隔离环境和合成行情；命名模型用本地夹具，
+  无外部模型调用。TS 回测 3 笔成交，Python 1 笔；扫描完成 4 个参数组合、3 种仓位方案、3 个资金规模；
+  因子真实分析/发布后策略成交 23 笔，依赖冻结/链接/补全通过；信号生成、次日结算、条件单、执行回填通过。
+- E2E 首轮仅修正测试/环境：旧并发断言改为现行 409/CONFLICT，测试策略用短延迟确保任务重叠；
+  参数扫描等待初始化并按本次 reportId 匹配完成响应，避免依赖瞬时进度条或读到旧报告；
+  Python 截图等待图表加载。本地 Python API 工作目录改为 apps/api。没有为这些失败修改产品代码。
+- 已查看 Python 回测、因子依赖、扫描与信号截图，主流程结果可见。截图为合成数据验收，不代表投资表现；
+  本地 Python 验证不替代生产容器隔离验收。测试服务已关闭，43191/43192/43193 无监听，临时数据库已删除。
 
 ---
 

@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
-import { inspectWalledStrategyMetadata } from '#strategy/runtime/typescript/walled-run.js';
+import { inspectStrategyMetadata } from '#strategy/runtime/typescript/runtime.js';
 import { prisma } from '#infra/database/prisma.js';
 import {
   MinistryOfFinanceCurveClient,
@@ -39,7 +39,7 @@ export async function syncSignalMarketData(
     deployments.map(async (deployment) => {
       const strategyConfig = deployment.config as { code?: unknown };
       return typeof strategyConfig.code === 'string'
-        ? inspectWalledStrategyMetadata(strategyConfig.code)
+        ? inspectStrategyMetadata(strategyConfig.code)
         : { watch: [], futures: [], factors: [] };
     }),
   );

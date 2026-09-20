@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
-import { inspectWalledStrategyMetadata } from '#strategy/runtime/typescript/walled-run.js';
+import { inspectStrategyMetadata } from '#strategy/runtime/typescript/runtime.js';
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type { BacktestConfig, Locale, StrategyDeployment } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -41,7 +41,7 @@ export async function deployBacktestReport(
   if ((config.language ?? 'typescript') === 'python') {
     throw new SignalsError('language_unsupported');
   }
-  const metadata = await inspectWalledStrategyMetadata(config.code);
+  const metadata = await inspectStrategyMetadata(config.code);
   if (metadata.futures.length > 0) {
     throw new SignalsError('futures_unsupported');
   }

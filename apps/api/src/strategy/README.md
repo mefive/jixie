@@ -14,15 +14,15 @@ Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以�
 | 提取因子键或准备可运行因子 | [factor-inputs](factor-inputs/README.md)：纯 references 与有权限／语言／血缘检查的 prepare |
 | 回测风险解释与数据门槛 | [risk](risk/README.md)：暴露、宏观、Alpha/Risk、压力情景及模型就绪 |
 | 编辑和解释策略 | [agent](agent/README.md)：业务上下文与共享 Agent 启动 |
-| TS 策略如何运行 | [runtime/typescript](runtime/typescript/README.md)：墙内 Engine、参数检查、SDK 与 isolate 收尾 |
-| 策略共享沙箱协议 | [runtime/bridge.ts](runtime/bridge.ts) 与 [runtime/protocol.ts](runtime/protocol.ts)：元数据、快照、批量查询和指令重放；目前由 Python 接入 |
+| TS 策略如何运行 | [runtime/typescript](runtime/typescript/README.md)：宿主 Engine、参数检查、SDK 与 isolate 收尾 |
+| 策略共享沙箱协议 | [runtime/bridge.ts](runtime/bridge.ts) 与 [runtime/protocol.ts](runtime/protocol.ts)：元数据、快照、批量查询和指令重放；TS/Python 共用 |
 | Python 策略如何协作 | [runtime/python](runtime/python/README.md)：会话协议与命令桥接，交易模拟仍由 TS Engine 执行 |
 
 ## 主要协作流程
 
 回测提交检查用户与配置，在事务中保存配置、冻结 BacktestReport 并创建 Job；提交后唤醒队列。Worker 准备因子、选择语言 runtime、调用 Engine 并附加风险；结果由 Job 完成事务保存到报告和策略缓存。
 
-扫描单独冻结配置／参数／日期范围，不覆盖草稿。父 Worker 准备一次因子，每个 cell 直接运行 TS 墙内回测；不经过正式回测风险后处理。Signals 也直接使用因子准备和信号捕获 runtime，三者不共享完整回测生命周期。
+扫描单独冻结配置／参数／日期范围，不覆盖草稿。父 Worker 准备一次因子，每个 cell 通过共享 runtime 在宿主运行 Engine；不经过正式回测风险后处理。Signals 也直接使用因子准备和信号捕获 runtime，三者不共享完整回测生命周期。
 
 Agent 构造策略、指数和因子上下文后交给通用执行器；用户通过回测入口发起完整计算。Research [handoff](../research/handoff/README.md) 生成草稿，definitions 保存并处理冲突，也不自动回测。
 

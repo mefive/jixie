@@ -3,7 +3,7 @@ import {
   runStrategy as runEngine,
   runStrategyWithSignals as runEngineWithSignals,
 } from '../simulation/run.js';
-import { runWalledBacktest } from '#strategy/runtime/typescript/walled-run.js';
+import { runSandboxedBacktest } from '#strategy/runtime/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 import type { Strategy, EngineConfig } from '../types.js';
@@ -241,7 +241,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
     );
 
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled ETF time-series factor',
@@ -324,7 +324,7 @@ def compute(ctx: AssetFactorContext) -> float | None:
     expect(seen[D[4]]).toBeCloseTo(14 / 12 - 1);
 
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled Python Factor',
@@ -471,7 +471,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(seen[D[1]]).toEqual({ ETF_A: -0.5, ETF_B: 0, ETF_C: 0.5 });
 
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled panel composite',
@@ -571,7 +571,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(seen[D[4]]).toBe(0);
 
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled official yield curve',
@@ -720,7 +720,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(seen[D[4]]).toBe(12);
 
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled turnover history',
@@ -758,7 +758,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         },
       });`;
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: strategyCode,
         start: D[0],
@@ -851,7 +851,7 @@ describe('market benchmark history for custom factors', () => {
     expect(seen[D[4]]).toBe(2);
 
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled market history',
@@ -939,7 +939,7 @@ describe('point-in-time fundamental history for custom factors', () => {
     expect(seen[D[4]]).toBe(8 * 1_000_000 + (10 + 16 + 16) * 1000 + (30 + 36 + 36));
 
     const logged: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       {
         code: `export default defineStrategy({
           name: 'walled roe history',

@@ -25,8 +25,8 @@ vi.mock('#infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-vi.mock('#strategy/runtime/typescript/walled-run.js', () => ({
-  inspectWalledStrategyMetadata: resources.metadata,
+vi.mock('#strategy/runtime/typescript/runtime.js', () => ({
+  inspectStrategyMetadata: resources.metadata,
 }));
 vi.mock('#strategy/factor-inputs/prepare.js', () => ({
   prepareStrategyFactors: resources.factors,

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 
 /**
  * Hard sandbox for user/model-authored code (factor compute and historical chart transforms; the strategy
- * onBar ctx bridge is Phase B — see python-and-sandbox.md).
+ * onBar bridge belongs to strategy/runtime — see python-and-sandbox.md).
  *
  * The layering, spelled out once:
  *   - DB access belongs to OUR code (prisma in workers, the readonly SQL worker) — never injected;
@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
  *   - data crosses the wall as JSON strings, results come back the same way. Crossings are
  *     batched (per call / per stock / per date) because each one pays a serialization toll;
  *   - the isolate enforces its own memory limit and per-run CPU timeout natively.
- * new Function remains only in compileStrategy (Phase B) — everything else moved off it.
+ * User module evaluation occurs only inside isolates; trusted fixture compilers are test-only.
  */
 
 const DEFAULT_MEMORY_MB = 256;

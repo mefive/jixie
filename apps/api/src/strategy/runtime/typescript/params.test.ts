@@ -1,7 +1,7 @@
 import { DEFAULT_LOCALE } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { inspectWalledStrategyParameters } from './walled-run.js';
-import { compileStrategy } from './compile.js';
+import { inspectStrategyParameters } from './runtime.js';
+import { compileStrategy } from './testing/compile.js';
 
 const CODE = `export default defineStrategy({
   params: { lookback: 20, topFraction: 0.1, sizing: 'equal' },
@@ -31,7 +31,7 @@ describe('strategy params', () => {
   });
 
   it('inspects defaults inside the hard sandbox', async () => {
-    await expect(inspectWalledStrategyParameters(CODE)).resolves.toEqual({
+    await expect(inspectStrategyParameters(CODE)).resolves.toEqual({
       lookback: 20,
       sizing: 'equal',
       topFraction: 0.1,

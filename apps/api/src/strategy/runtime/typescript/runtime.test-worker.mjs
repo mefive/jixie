@@ -3,11 +3,11 @@ import { register } from 'tsx/esm/api';
 
 register();
 
-const { runWalledBacktest } = await import('./walled-run.ts');
+const { runSandboxedBacktest } = await import('../run.ts');
 const { fixturePort } = await import('#engine/testing/fixture-port.js');
 
 try {
-  const result = await runWalledBacktest(
+  const result = await runSandboxedBacktest(
     {
       code: workerData.code,
       start: workerData.spec.dates[0],

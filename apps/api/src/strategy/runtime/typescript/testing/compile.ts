@@ -7,20 +7,9 @@ import {
   type SandboxConsole,
   type UserLogSink,
 } from '#infra/runtime/console.js';
-import { applyStrategyParamOverrides, defineStrategy } from './sdk.js';
+import { applyStrategyParamOverrides, defineStrategy } from '../sdk.js';
 
-/**
- * Compile user-authored TypeScript into an engine Strategy. This single function IS the execution
- * boundary of the code-first model: in (a TS source string), out (a `{ name, onBar, ... }` the engine
- * runs). Authoring is import-free — `defineStrategy` and the ctx types are an injected ambient (a .d.ts
- * gives Monaco the same surface), so a strategy is just `export default defineStrategy({ ... })`.
- *
- * Since 2026-07 the PRODUCT path runs strategies on the walled lane instead (strategy/runtime/typescript/walled-run.ts:
- * the engine is bundled into an isolated-vm isolate and the module evaluates in-wall). This host
- * `new Function` evaluation remains for two trusted uses only: compile VALIDATION (agent/routes
- * compile-check, evaluated and discarded) and the DIRECT lane (repo-checked-in strategies in
- * research scripts/tests — the lane rule follows the code's origin, see python-and-sandbox.md).
- */
+/** Trusted repository fixtures only. Never evaluate user or model source on the host. */
 export async function compileStrategy(
   source: string,
   onUserLog?: UserLogSink,

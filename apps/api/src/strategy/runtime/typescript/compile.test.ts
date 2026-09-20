@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileStrategy } from './compile.js';
+import { compileStrategy } from './testing/compile.js';
 import { ETF_ROTATION_EXAMPLE } from './codegen-prompt.js';
 import type { BarContext } from '#engine/types.js';
 

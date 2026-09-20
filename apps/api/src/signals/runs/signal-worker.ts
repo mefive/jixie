@@ -3,7 +3,7 @@ import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
 import { errorMessage } from '#infra/errors.js';
 import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
-import { runWalledSignalCapture } from '#strategy/runtime/typescript/walled-run.js';
+import { runSandboxedSignalCapture } from '#strategy/runtime/run.js';
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type {
   BacktestConfig,
@@ -50,7 +50,7 @@ try {
   const runDependencies = factorDependenciesFromJson(run.factorDependencies);
   assertFactorDependencies(deploymentDependencies, prepared.factors);
   assertFactorDependencies(runDependencies, prepared.factors);
-  const output = await runWalledSignalCapture(
+  const output = await runSandboxedSignalCapture(
     {
       ...config,
       end: run.tradeDate,

@@ -43,6 +43,19 @@ const strategyRequestFrameSchema = z.union([
   z.strictObject({
     type: z.literal('request'),
     id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    method: z.literal('context_data'),
+    arguments: z.discriminatedUnion('operation', [
+      z.strictObject({
+        operation: z.literal('cross_section'),
+        index_code: identifierSchema.nullable(),
+      }),
+      z.strictObject({ operation: z.literal('ensure_bars'), codes: uniqueIdentifierListSchema }),
+      z.strictObject({ operation: z.literal('index_members'), index_code: identifierSchema }),
+    ]),
+  }),
+  z.strictObject({
+    type: z.literal('request'),
+    id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     method: z.literal('cross_section'),
     arguments: z.strictObject({
       index_code: identifierSchema.nullable(),
@@ -58,7 +71,18 @@ const strategyRequestFrameSchema = z.union([
   }),
 ]);
 
-const strategyCommandSchema = z.discriminatedUnion('operation', [
+export const strategyCommandSchema = z.discriminatedUnion('operation', [
+  commandSchema('order_future', { code: identifierSchema, contracts: finiteNumberSchema }),
+  commandSchema('set_future_target_contracts', {
+    code: identifierSchema,
+    contracts: finiteNumberSchema,
+  }),
+  commandSchema('set_future_target_notional', {
+    code: identifierSchema,
+    notional: finiteNumberSchema,
+  }),
+  commandSchema('hedge_future', { code: identifierSchema, beta: finiteNumberSchema }),
+  commandSchema('exit_future', { code: identifierSchema }),
   commandSchema('order_target_percent', {
     code: identifierSchema,
     weight: finiteNumberSchema,

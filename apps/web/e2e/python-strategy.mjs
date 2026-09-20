@@ -128,6 +128,8 @@ try {
     '../acceptance/python-history-e2e.png',
   );
   await mkdir(dirname(screenshotPath), { recursive: true });
+  await page.locator('.jx-strategy-chart canvas').first().waitFor({ timeout: 30_000 });
+  await page.mouse.move(0, 0);
   await page.screenshot({ path: screenshotPath, fullPage: false });
   console.log(
     `[python-strategy] PASS id=${strategyId} trades=${saved.lastResult.trades} screenshot=${screenshotPath}`,

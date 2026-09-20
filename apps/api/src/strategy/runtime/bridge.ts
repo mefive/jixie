@@ -1,17 +1,21 @@
 import type { z } from 'zod';
+import { replayCommands } from './commands.js';
+import { accessStrategyContext } from './context-access.js';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { BarContext, BarRow, OhlcBar, Strategy } from '#engine/types.js';
 import { makeSandboxConsole, type UserLogSink } from '#infra/runtime/console.js';
 import {
   strategyExecutionFrameSchema,
   strategyStartupFrameSchema,
-  type StrategyCommand,
   type StrategyRequestFrame,
   type StrategyMetadata,
 } from './protocol.js';
 
 /** Transport adapters validate frames and abort their session on protocol violations. */
 export interface StrategyTransport {
+  readonly historyUpdates?: boolean;
+  /** Bind only during onBar; synchronous languages preserve call-site errors and first reads. */
+  setContextAccess?(handler: ((input: unknown) => unknown) | undefined): void;
   send(frame: { type: string; [key: string]: unknown }): Promise<void>;
   readValidated<Frame>(schema: z.ZodType<Frame>, operation: string): Promise<Frame>;
 }
@@ -38,6 +42,9 @@ export async function createStrategyBridge(
     ? (level, text) => sandboxConsole[level === 'warn' ? 'warn' : level](text)
     : undefined;
   const metadata = await waitForReady(session, diagnostics, logSink);
+  const historyDates = session.historyUpdates
+    ? new Map<string, string | null>(metadata.watch.map((code) => [code, null]))
+    : undefined;
   return {
     name: metadata.name,
     params: metadata.params,
@@ -45,8 +52,22 @@ export async function createStrategyBridge(
     watch: metadata.watch,
     futures: metadata.futures,
     accounts: metadata.accounts ?? undefined,
-    onBar: (context) =>
-      runStrategyBar(session, context, metadata.factors, metadata.watch, diagnostics, logSink),
+    async onBar(context) {
+      session.setContextAccess?.((input) => accessStrategyContext(context, input));
+      try {
+        await runStrategyBar(
+          session,
+          context,
+          metadata.factors,
+          metadata.watch,
+          diagnostics,
+          logSink,
+          historyDates,
+        );
+      } finally {
+        session.setContextAccess?.(undefined);
+      }
+    },
   };
 }
 
@@ -84,8 +105,9 @@ async function runStrategyBar(
   watch: string[],
   diagnostics: StrategyBridgeDiagnostics,
   onUserLog?: UserLogSink,
+  historyDates?: Map<string, string | null>,
 ): Promise<void> {
-  await session.send({ type: 'bar', snapshot: contextSnapshot(context, watch) });
+  await session.send({ type: 'bar', snapshot: contextSnapshot(context, watch, historyDates) });
   while (true) {
     const frame = await session.readValidated(
       strategyExecutionFrameSchema,
@@ -95,7 +117,7 @@ async function runStrategyBar(
       continue;
     }
     if (frame.type === 'request') {
-      await answerRequest(session, frame, context, factors);
+      await answerRequest(session, frame, context, factors, historyDates);
       continue;
     }
     if (frame.type === 'done') {
@@ -111,9 +133,21 @@ async function runStrategyBar(
   }
 }
 
-function contextSnapshot(context: BarContext, watch: string[]): Record<string, unknown> {
+function contextSnapshot(
+  context: BarContext,
+  watch: string[],
+  historyDates?: Map<string, string | null>,
+): Record<string, unknown> {
   const updateCodes = new Set([...watch, ...context.positions().map((position) => position.code)]);
+  if (historyDates) {
+    for (const code of updateCodes) {
+      if (!historyDates.has(code)) {
+        historyDates.set(code, null);
+      }
+    }
+  }
   return {
+    ...(historyDates ? { history_updates: historyUpdates(context, historyDates) } : {}),
     date: context.date,
     cash: context.cash,
     value: context.value,
@@ -143,11 +177,39 @@ async function answerRequest(
   frame: StrategyRequestFrame,
   context: BarContext,
   factors: string[],
+  historyDates?: Map<string, string | null>,
 ): Promise<void> {
   const id = frame.id;
   try {
     let result: unknown;
     switch (frame.method) {
+      case 'context_data': {
+        switch (frame.arguments.operation) {
+          case 'cross_section': {
+            const codes = await context.loadCrossSection(frame.arguments.index_code ?? undefined);
+            result = { codes, rows: codes.map((code) => [code, context.bar(code)]) };
+            break;
+          }
+          case 'ensure_bars':
+            await context.ensureBars(frame.arguments.codes);
+            if (historyDates) {
+              const requested = new Map<string, string | null>(
+                frame.arguments.codes.map((code) => [code, null]),
+              );
+              result = { history_updates: historyUpdates(context, requested) };
+              for (const code of requested.keys()) {
+                historyDates.set(code, context.date);
+              }
+            } else {
+              result = null;
+            }
+            break;
+          case 'index_members':
+            result = await context.indexMembers(frame.arguments.index_code);
+            break;
+        }
+        break;
+      }
       case 'cross_section': {
         const indexCode = frame.arguments.index_code;
         const codes = await context.loadCrossSection(indexCode ?? undefined);
@@ -240,43 +302,6 @@ function snapshotOhlc(row: OhlcBar): Record<string, unknown> {
   };
 }
 
-function replayCommands(context: BarContext, commands: StrategyCommand[]): void {
-  for (const command of commands) {
-    switch (command.operation) {
-      case 'order_target_percent':
-        context.orderTargetPercent(command.arguments.code, command.arguments.weight);
-        break;
-      case 'set_holdings':
-        context.setHoldings(command.arguments.weights);
-        break;
-      case 'order':
-        context.order(command.arguments.code, command.arguments.shares);
-        break;
-      case 'order_lots':
-        context.orderLots(command.arguments.code, command.arguments.lots);
-        break;
-      case 'exit':
-        context.exit(command.arguments.code);
-        break;
-      case 'stop_loss':
-        context.stopLoss(command.arguments.code, command.arguments.price);
-        break;
-      case 'trailing_stop':
-        context.trailingStop(command.arguments.code, command.arguments.percentage);
-        break;
-      case 'limit_buy':
-        context.limitBuy(command.arguments.code, command.arguments.price, command.arguments.shares);
-        break;
-      case 'take_profit':
-        context.takeProfit(command.arguments.code, command.arguments.percentage);
-        break;
-      case 'cancel_conditional':
-        context.cancelConditional(command.arguments.code, command.arguments.kind ?? undefined);
-        break;
-    }
-  }
-}
-
 function forwardLog(
   frame: { type: string; level?: unknown; text?: unknown },
   onUserLog?: UserLogSink,
@@ -289,4 +314,27 @@ function forwardLog(
     String(frame.text ?? ''),
   );
   return true;
+}
+
+/** Transfer history once, then only rows since the last callback, including gaps and suspensions. */
+function historyUpdates(
+  context: BarContext,
+  dates: Map<string, string | null>,
+): Record<string, { reset: boolean; bars: OhlcBar[] }> {
+  const updates: Record<string, { reset: boolean; bars: OhlcBar[] }> = {};
+  const timestamp = (date: string) =>
+    Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)));
+  for (const [code, previous] of dates) {
+    // Daily series contain at most one row per calendar day; this also covers skipped callbacks.
+    const count =
+      previous == null
+        ? Number.MAX_SAFE_INTEGER
+        : Math.max(1, Math.ceil((timestamp(context.date) - timestamp(previous)) / 86_400_000) + 1);
+    const bars = context.bars(code, count).filter((bar) => previous == null || bar.date > previous);
+    if (previous == null || bars.length) {
+      updates[code] = { reset: previous == null, bars };
+    }
+    dates.set(code, context.date);
+  }
+  return updates;
 }

@@ -2,7 +2,7 @@ import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
 import { prismaDataPort } from '#engine/adapters/prisma-port.js';
-import { runWalledBacktest } from '../runtime/typescript/walled-run.js';
+import { runSandboxedBacktest } from '../runtime/run.js';
 
 interface CellRequest {
   config: BacktestConfig;
@@ -14,7 +14,7 @@ interface CellRequest {
 process.once('message', async (data: CellRequest) => {
   try {
     const { config, customFactors, paramOverrides, locale } = data;
-    const result = await runWalledBacktest(
+    const result = await runSandboxedBacktest(
       {
         ...config,
         customFactors,

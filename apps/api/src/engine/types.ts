@@ -278,7 +278,7 @@ export interface EngineConfig {
   /** Locale for the engine's user-facing progress logs / warnings; defaults to DEFAULT_LOCALE at the
    * use site (scripts and tests omit it). */
   locale?: Locale;
-  /** Required storage doorway: the host supplies Prisma, tests a fixture, and the wall a bridge. */
+  /** Required storage doorway: the host supplies Prisma and tests supply a fixture. */
   dataPort: EngineDataPort;
   /** Published defineFactor modules referenced through immutable Factor.key values —
    * host-prepared (ownership-checked, TS→CJS); executed only through factorExecution. A declared custom key with no module here fails the run explicitly. */

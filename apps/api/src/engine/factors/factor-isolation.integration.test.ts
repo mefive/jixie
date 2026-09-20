@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FactorLanguage } from '@jixie/shared';
 import { createPythonStrategyRuntime } from '#strategy/runtime/python/runtime.js';
-import { runWalledBacktest } from '#strategy/runtime/typescript/walled-run.js';
+import { runSandboxedBacktest } from '#strategy/runtime/run.js';
 import { FactorHost } from '../adapters/factor-host.js';
 import { runStrategy } from '../simulation/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
@@ -95,7 +95,7 @@ describe('strategy and factor sandbox combinations', () => {
       };
       let result;
       if (strategyLanguage === 'typescript') {
-        result = await runWalledBacktest(
+        result = await runSandboxedBacktest(
           {
             ...config,
             code: `

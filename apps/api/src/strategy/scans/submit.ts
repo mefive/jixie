@@ -8,7 +8,7 @@ import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
-import { inspectWalledStrategyParameters } from '../runtime/typescript/walled-run.js';
+import { inspectStrategyParameters } from '../runtime/typescript/runtime.js';
 import type {
   StrategyScanIdentityQuery,
   SubmitStrategyScanInput,
@@ -37,7 +37,7 @@ export async function submitStrategyScan(
   let spec: StrategyScanSpec;
 
   try {
-    parameters = await inspectWalledStrategyParameters(config.code);
+    parameters = await inspectStrategyParameters(config.code);
 
     spec = normalizeScanSpec(body.spec as StrategyScanSpec, parameters);
   } catch (error) {

@@ -20,7 +20,7 @@ Signals 从成功回测报告创建独立部署，按收盘数据产生下一交
 
 手动运行由 submit 选择日期、先结算账户再入队；Maintenance 数据发布后调用每日生成，CLI 则先同步所需数据。二者共用 enqueue，在事务内创建／复用 Run 和 Job，提交后唤醒队列。
 
-Job 启动 IPC Worker，按 signal 场景准备因子并比较冻结血缘，调用 Strategy 墙内信号捕获和 Engine，返回指令、模型账户及输入摘要。主线程提交结果后初始化记账，再通知；后续结算和人工回填分别更新 simulation/actual 账户。
+Job 启动 IPC Worker，按 signal 场景准备因子并比较冻结血缘，调用 Strategy 共享 runtime 的宿主 Engine 信号捕获，返回指令、模型账户及输入摘要。主线程提交结果后初始化记账，再通知；后续结算和人工回填分别更新 simulation/actual 账户。
 
 ## 模块入口与共同约束
 

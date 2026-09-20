@@ -4,7 +4,7 @@
 
 ## 线程、进程与 bundle
 
-API 的原生包内别名由 `apps/api/package.json#imports` 定义：`development` 条件指向 `src`，默认指向 `dist/src`。API 开发和 CLI 的 pnpm 脚本显式传入 `--conditions=development`；手动源码执行也须传入该参数。Vitest 为模块解析及测试子进程设置相同条件，真实 Worker/fork 继承启动条件。esbuild wall bundle 根据当前入口为 `.ts` 或 `.js` 选择源码或编译映射。生产 Node 不启用 `development`，且部署保留 API package.json；不能把 dist 脱离该包配置单独搬运。Worker URL 和非模块资源路径仍按本表解析。
+API 的原生包内别名由 `apps/api/package.json#imports` 定义：`development` 条件指向 `src`，默认指向 `dist/src`。API 开发和 CLI 的 pnpm 脚本显式传入 `--conditions=development`；手动源码执行也须传入该参数。Vitest 为模块解析及测试子进程设置相同条件，真实 Worker/fork 继承启动条件。esbuild SDK bundle 根据当前入口为 `.ts` 或 `.js` 选择源码或编译映射。生产 Node 不启用 `development`，且部署保留 API package.json；不能把 dist 脱离该包配置单独搬运。Worker URL 和非模块资源路径仍按本表解析。
 
 | 发起方 | 源码入口 | 编译入口 | 执行与收尾 |
 | --- | --- | --- | --- |
@@ -16,10 +16,11 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `signals/runs/job.ts` | `signals/runs/signal-worker.boot.mjs` → `.ts` | `signals/runs/signal-worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
-| `strategy/runtime/typescript/wall-bundle.ts` | 同目录 `wall-entry.ts` | 同目录 `wall-entry.js` | esbuild neutral bundle，实际 Engine 核心，不带宿主 Prisma/Node 导入；进程内缓存 bundle |
-| `engine/adapters/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；普通 Python 回测与 TS 墙内回测在 finally 关闭，初始化失败也清理已建立实例 |
+| `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `sandbox-entry.ts` | 同目录 `sandbox-entry.js` | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
+| `engine/adapters/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；TS/Python 共享 runtime/run 在 finally 关闭，初始化失败也清理已建立实例 |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 为调用方加载 isolate 模块；不是常驻独立服务 |
-| `strategy/runtime/typescript/walled-run.test-worker.mjs` | 测试辅助入口，使用 `engine/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
+| `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `engine/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
+| `strategy/runtime/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `f276bfbd` 的旧墙内源码到独立临时模块，与新 runtime 分进程比较 | 不作为生产入口 | 仅测试；非字面量 import 指向本次生成的旧版本模块，finally 删除临时目录 |
 
 7 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
 
@@ -65,7 +66,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | 资源/路径 | 解析规则与归属 |
 | --- | --- |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
-| `strategy/runtime/bridge.ts` | 共享业务 bridge；由 Python runtime 创建，传输适配器负责启动和关闭。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
+| `strategy/runtime/bridge.ts` | 共享业务 bridge；由 TS/Python runtime 创建，传输适配器负责启动和关闭。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
 | `research/runtime/python-session.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |

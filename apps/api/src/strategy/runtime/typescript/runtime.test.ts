@@ -1,17 +1,11 @@
 import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
 import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
-import { runWalledBacktest, runWalledSignalCapture } from './walled-run.js';
-import { compileStrategy } from './compile.js';
+import { runSandboxedBacktest, runSandboxedSignalCapture } from '../run.js';
+import { compileStrategy } from './testing/compile.js';
 import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
 
-/**
- * Dual-lane drift guard (定死护栏, python-and-sandbox.md Phase B): the SAME strategy code over the
- * SAME fixture world must produce identical results on the direct lane (host new Function + fixture
- * port) and the walled lane (engine bundled into an isolated-vm isolate, data served across the
- * bridge). If the bundle, the serialization, or the async Reference bridge breaks, this goes red —
- * nobody has to notice by eyeballing a backtest.
- */
+/** Native repository fixtures and isolated user callbacks must agree on NAV, fills and signals. */
 
 const D = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];
 
@@ -133,7 +127,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     });
 
     const walledUserLogs: string[] = [];
-    const walled = await runWalledBacktest(
+    const walled = await runSandboxedBacktest(
       {
         code: STRATEGY_CODE,
         start: D[0],
@@ -166,7 +160,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       });
     `;
     const logs: string[] = [];
-    await runWalledBacktest(
+    await runSandboxedBacktest(
       { code: probe, start: D[0], end: D[D.length - 1], initialCash: 100_000 },
       fixturePort(SPEC),
       undefined,
@@ -193,7 +187,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledSignalCapture(
+    const walled = await runSandboxedSignalCapture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -232,7 +226,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledSignalCapture(
+    const walled = await runSandboxedSignalCapture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -270,7 +264,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledBacktest(
+    const walled = await runSandboxedBacktest(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -318,7 +312,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledBacktest(
+    const walled = await runSandboxedBacktest(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -348,7 +342,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledBacktest(
+    const walled = await runSandboxedBacktest(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -379,7 +373,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledBacktest(
+    const walled = await runSandboxedBacktest(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -397,7 +391,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       strategy: await compileStrategy(PARAMETERIZED_CODE),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledBacktest(
+    const walled = await runSandboxedBacktest(
       { code: PARAMETERIZED_CODE, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -421,7 +415,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       ),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runWalledBacktest(
+    const walled = await runSandboxedBacktest(
       {
         code: CATEGORICAL_PARAMETER_CODE,
         start: D[0],
@@ -443,7 +437,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       nav?: { date: string; value: number }[];
       error?: string;
     }>((resolve, reject) => {
-      const worker = new Worker(new URL('./walled-run.test-worker.mjs', import.meta.url), {
+      const worker = new Worker(new URL('./runtime.test-worker.mjs', import.meta.url), {
         workerData: { code: PARAMETERIZED_CODE, spec: SPEC },
       });
       worker.once('message', resolve);

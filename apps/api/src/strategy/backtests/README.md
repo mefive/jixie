@@ -14,7 +14,7 @@
 
 submit 先校验日期，再在事务内检查所有者、活动任务、保存配置并创建冻结报告 + queued Job；提交成功后才初始化日志和唤醒队列。配置保存采用实际名称，创建任一记录失败不能唤醒队列。
 
-Job 校验 payload 的用户与报告关联，启动 [worker.ts](worker.ts)。Worker → run → [因子准备](../factor-inputs/README.md) → 对应语言 runtime / Engine → [risk](../risk/README.md)。TS 使用墙内模拟；Python 仍使用 TS Engine，并在 finally 关闭因子宿主和 Python runtime。风险后处理失败只记日志，不阻断主回测。
+Job 校验 payload 的用户与报告关联，启动 [worker.ts](worker.ts)。Worker → run → [因子准备](../factor-inputs/README.md) → 对应语言 runtime / Engine → [risk](../risk/README.md)。TS/Python 均调用共享 runtime/run，在宿主执行同一 Engine，并在 finally 关闭因子宿主和语言 runtime。风险后处理失败只记日志，不阻断主回测。
 
 线程结果到达且正常退出后，Job execute 尽力刷新策略名，再产生结果哈希；complete 使用执行器提供的 transaction 保存报告、Strategy.lastResult 和 Job 终态。失败报告为 error，启动恢复中断报告为 stale。lastResult 是缓存，不能代替不可混淆的 reportId 读取。
 

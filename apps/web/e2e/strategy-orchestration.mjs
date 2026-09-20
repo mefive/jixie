@@ -34,6 +34,8 @@ try {
       "  name: 'orchestration e2e',",
       "  watch: ['600519.SH'],",
       '  onBar(ctx) {',
+      // Keep the first job active long enough to exercise the real duplicate-submission guard.
+      '    if (!last) { const until = Date.now() + 2000; while (Date.now() < until) {} }',
       "    const period = ctx.period('monthly');",
       '    if (period !== last) {',
       '      last = period;',
@@ -97,7 +99,7 @@ try {
     });
     return { status: response.status, body: await response.json() };
   }, strategyId);
-  if (duplicate.status !== 400 || duplicate.body?.error?.code !== 'VALIDATION_FAILED') {
+  if (duplicate.status !== 409 || duplicate.body?.error?.code !== 'CONFLICT') {
     fail(`concurrent backtest was not rejected: ${JSON.stringify(duplicate)}`);
   }
 
