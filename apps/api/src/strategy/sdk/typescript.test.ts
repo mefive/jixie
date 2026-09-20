@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { Universe, enrich, periodKey } from './sdk.js';
-import type { BarContext, BarRow } from '#engine/types.js';
+import { Universe, enrich, periodKey } from './typescript.js';
+import type { EngineContext, BarRow } from '#engine/types.js';
 
-// A bag of fake today-rows keyed by code, plus listDays, behind a minimal BarContext for Universe.
+// A bag of fake today-rows keyed by code, plus listDays, behind a minimal EngineContext for Universe.
 function ctxOf(
   rows: Record<string, Partial<BarRow>>,
   listDays: Record<string, number> = {},
@@ -25,7 +25,7 @@ function ctxOf(
     },
     indexMembers: async (idx: string) => members[idx] ?? [],
     setHoldings: (w: Record<string, number>) => (setHoldingsArg.value = w),
-  } as unknown as BarContext;
+  } as unknown as EngineContext;
   return { ctx, setHoldingsArg };
 }
 

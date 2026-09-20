@@ -2,7 +2,7 @@ import type { z } from 'zod';
 import { replayCommands } from './commands.js';
 import { accessStrategyContext } from './context-access.js';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
-import type { BarContext, BarRow, OhlcBar, Strategy } from '#engine/types.js';
+import type { EngineContext, BarRow, OhlcBar, EngineStrategy } from '#engine/types.js';
 import { makeSandboxConsole, type UserLogSink } from '#infra/runtime/console.js';
 import {
   strategyExecutionFrameSchema,
@@ -35,7 +35,7 @@ export interface StrategyBridgeOptions {
 export async function createStrategyBridge(
   session: StrategyTransport,
   options: StrategyBridgeOptions,
-): Promise<Strategy> {
+): Promise<EngineStrategy> {
   const { diagnostics, onUserLog, locale = DEFAULT_LOCALE } = options;
   const sandboxConsole = onUserLog ? makeSandboxConsole(onUserLog, 2_000, locale) : undefined;
   const logSink: UserLogSink | undefined = sandboxConsole
@@ -100,7 +100,7 @@ async function waitForReady(
 
 async function runStrategyBar(
   session: StrategyTransport,
-  context: BarContext,
+  context: EngineContext,
   factors: string[],
   watch: string[],
   diagnostics: StrategyBridgeDiagnostics,
@@ -134,7 +134,7 @@ async function runStrategyBar(
 }
 
 function contextSnapshot(
-  context: BarContext,
+  context: EngineContext,
   watch: string[],
   historyDates?: Map<string, string | null>,
 ): Record<string, unknown> {
@@ -175,7 +175,7 @@ function contextSnapshot(
 async function answerRequest(
   session: StrategyTransport,
   frame: StrategyRequestFrame,
-  context: BarContext,
+  context: EngineContext,
   factors: string[],
   historyDates?: Map<string, string | null>,
 ): Promise<void> {
@@ -248,7 +248,7 @@ async function answerRequest(
 
 function snapshotBarRow(
   row: BarRow,
-  context: BarContext,
+  context: EngineContext,
   factors: string[],
 ): Record<string, unknown> {
   return {
@@ -318,7 +318,7 @@ function forwardLog(
 
 /** Transfer history once, then only rows since the last callback, including gaps and suspensions. */
 function historyUpdates(
-  context: BarContext,
+  context: EngineContext,
   dates: Map<string, string | null>,
 ): Record<string, { reset: boolean; bars: OhlcBar[] }> {
   const updates: Record<string, { reset: boolean; bars: OhlcBar[] }> = {};

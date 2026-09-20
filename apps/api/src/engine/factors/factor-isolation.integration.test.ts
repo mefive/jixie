@@ -6,7 +6,7 @@ import { FactorHost } from '../adapters/factor-host.js';
 import { runStrategy } from '../simulation/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import type { CustomFactorModule } from './custom-factor.js';
-import type { EngineConfig, Strategy } from '../types.js';
+import type { EngineConfig, EngineStrategy } from '../types.js';
 
 const dates = ['20240102', '20240103', '20240104'];
 const spec: FixtureSpec = {
@@ -49,7 +49,11 @@ def compute(bar, ctx):
 `,
 };
 
-async function runWithFactors(strategy: Strategy, modules: CustomFactorModule[], fixture = spec) {
+async function runWithFactors(
+  strategy: EngineStrategy,
+  modules: CustomFactorModule[],
+  fixture = spec,
+) {
   const host = new FactorHost(modules);
   try {
     return await runStrategy({

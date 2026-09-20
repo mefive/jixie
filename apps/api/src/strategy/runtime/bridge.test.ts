@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import { describe, expect, it, vi } from 'vitest';
-import type { BarContext, OhlcBar } from '#engine/types.js';
+import type { EngineContext, OhlcBar } from '#engine/types.js';
 import { createStrategyBridge, type StrategyTransport } from './bridge.js';
 
 const metadata = {
@@ -92,7 +92,7 @@ function contextFixture() {
     cancelConditional: vi.fn(),
   };
   // Only the bridge's context surface is provided; missing calls must fail the test.
-  return { context: context as unknown as BarContext, spies: context };
+  return { context: context as unknown as EngineContext, spies: context };
 }
 
 const ready = { type: 'ready', metadata };

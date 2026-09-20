@@ -12,6 +12,10 @@
     "./api/*": {
       "types": "./dist/api/*.d.ts",
       "default": "./dist/api/*.js"
+    },
+    "./sdk/*": {
+      "types": "./dist/sdk/*.d.ts",
+      "default": "./dist/sdk/*.js"
     }
   },
   "files": [

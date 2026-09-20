@@ -1,25 +1,47 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import { CTX_PROP_NAMES, SDK_ENTRIES, TIMEFRAME_METHODS, type SdkEntryName } from '@jixie/shared';
-import type { StrategyCtx, TimeframeSeries, Universe } from './sdk.js';
-import type { BarRow } from '#engine/types.js';
+import type {
+  DefineStrategy,
+  StrategyCtx,
+  TimeframeSeries,
+  Universe,
+} from '@jixie/shared/sdk/strategy/contract';
+import type { BarRow, EngineContext } from '#engine/types.js';
+import { defineStrategy, Universe as UniverseImplementation } from './typescript.js';
 
 /**
- * Drift guard between the SDK registry (@jixie/shared sdk-reference.ts — the single source that
- * generates the Monaco dts, the doc page, and the codegen prompt's surface lists) and the runtime
- * types here. Both directions are checked AT COMPILE TIME (tsc --noEmit / vitest --typecheck):
- *   - ghost entries: every registry name must be a real member of the runtime type;
- *   - missing entries: every runtime member must be registered (or explicitly listed as internal).
- * Add a method to StrategyCtx without registering it and typecheck fails — that's the point.
+ * Drift guard between the SDK registry (@jixie/shared sdk/strategy/reference.ts — the single source that
+ * generates Monaco declarations, implementation types, docs and Agent reference) and its adapters.
+ * Implementation helpers consume generated signatures directly; these compile-time assertions
+ * also check primitive compatibility and that no internal simulation member becomes public.
  */
 
-// Members deliberately NOT in the registry: the readonly props are emitted separately (CTX_PROP_NAMES),
-// and loadCrossSection is the engine primitive behind universe() — the dts hides it from user code.
-type CtxUndocumented = (typeof CTX_PROP_NAMES)[number] | 'loadCrossSection' | 'resampledBars';
+// Readonly properties are emitted separately from callable registry entries.
+type CtxUndocumented = (typeof CTX_PROP_NAMES)[number];
 
 // Universe.length is emitted as a hardcoded readonly prop in the dts, not a registry entry.
 type UniverseUndocumented = 'length';
 
 describe('sdk-reference registry ↔ runtime SDK types stay in sync', () => {
+  it('implements the public factory and selection signatures', () => {
+    expectTypeOf<typeof defineStrategy>().toExtend<DefineStrategy>();
+    expectTypeOf<UniverseImplementation>().toExtend<Universe>();
+  });
+  it('keeps simulation primitives out of the public authoring context', () => {
+    expectTypeOf<
+      Extract<keyof StrategyCtx, 'loadCrossSection' | 'resampledBars'>
+    >().toEqualTypeOf<never>();
+  });
+
+  it('checks complete public primitive signatures against the engine adapter', () => {
+    type PublicPrimitives = Pick<StrategyCtx, Extract<keyof StrategyCtx, keyof EngineContext>>;
+    expectTypeOf<EngineContext>().toExtend<PublicPrimitives>();
+    expectTypeOf<Parameters<StrategyCtx['orderTargetPercent']>>().toEqualTypeOf<
+      [code: string, weight: number]
+    >();
+    expectTypeOf<ReturnType<StrategyCtx['history']>>().toEqualTypeOf<number[]>();
+  });
+
   it('StrategyCtx: no ghost entries, no unregistered members', () => {
     expectTypeOf<SdkEntryName<'StrategyCtx'>>().toExtend<keyof StrategyCtx>();
     expectTypeOf<

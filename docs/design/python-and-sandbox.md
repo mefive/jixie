@@ -298,7 +298,7 @@ Linux VM。`sandboxd` 提供仅非 production 可启用的 `docker` backend；�
 ```bash
 colima start
 docker build -t jixie-python-runtime:py-v1 \
-  -f apps/sandboxd/Dockerfile.python apps/sandboxd
+  -f apps/sandboxd/Dockerfile.python .
 pnpm --filter sandboxd build
 
 JIXIE_SANDBOX_SOCKET=/tmp/jixie-sandboxd.sock \

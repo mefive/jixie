@@ -9,7 +9,7 @@ import {
 import { UserCodeError } from '#infra/errors.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
-import type { Strategy } from '#engine/types.js';
+import type { EngineStrategy } from '#engine/types.js';
 import { createStrategyBridge, type StrategyTransport } from '../bridge.js';
 import { buildStrategySandboxBundle } from './sandbox-bundle.js';
 
@@ -234,7 +234,7 @@ class TypeScriptTransport implements StrategyTransport {
 }
 
 export interface TypeScriptStrategyRuntime {
-  strategy: Strategy;
+  strategy: EngineStrategy;
   metrics: StrategyTransportMetrics;
   close(): Promise<void>;
 }

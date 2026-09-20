@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { BarContext } from '#engine/types.js';
+import type { EngineContext } from '#engine/types.js';
 import { identifierSchema, finiteNumberSchema } from '#infra/runtime/protocol.js';
 import { strategyCommandSchema } from './protocol.js';
 import { replayCommands } from './commands.js';
@@ -35,7 +35,7 @@ const accessSchema = z.union([
 ]);
 
 /** Only synchronous engine primitives are exposed, never storage or arbitrary property access. */
-export function accessStrategyContext(context: BarContext, input: unknown): unknown {
+export function accessStrategyContext(context: EngineContext, input: unknown): unknown {
   const access = accessSchema.parse(input);
   if (access.type === 'command') {
     replayCommands(context, [access.command]);

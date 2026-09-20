@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { runStrategy } from './run.js';
-import type { BarContext, Strategy } from '../types.js';
+import type { EngineContext, EngineStrategy } from '../types.js';
 
 const DATES = ['20240102', '20240103', '20240104', '20240105'];
 
@@ -53,7 +53,7 @@ function futureSpec(mappingByDate: Record<string, string>): FixtureSpec {
   };
 }
 
-function strategy(actions: Record<string, (context: BarContext) => void>): Strategy {
+function strategy(actions: Record<string, (context: EngineContext) => void>): EngineStrategy {
   return {
     name: 'future-scripted',
     futures: ['IF.CFX'],
@@ -63,7 +63,7 @@ function strategy(actions: Record<string, (context: BarContext) => void>): Strat
   };
 }
 
-function run(spec: FixtureSpec, scriptedStrategy: Strategy, initialCash = 100_000) {
+function run(spec: FixtureSpec, scriptedStrategy: EngineStrategy, initialCash = 100_000) {
   return runStrategy({
     start: DATES[0],
     end: DATES.at(-1)!,

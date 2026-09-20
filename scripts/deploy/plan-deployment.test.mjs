@@ -60,6 +60,7 @@ test('shared package and request-contract subpaths select every application', ()
 
 test('deployment infrastructure selects every application', () => {
   for (const changedPath of [
+    '.dockerignore',
     'scripts/bootstrap.sh',
     'scripts/deploy/deployment-gate.mjs',
     'scripts/maintenance/import-market-data.sh',
@@ -74,6 +75,30 @@ test('deployment infrastructure selects every application', () => {
       [true, true, true, true],
     );
   }
+});
+
+test('Strategy Python sources select both API and the sandbox image', () => {
+  for (const changedPath of [
+    'apps/api/src/strategy/sdk/python.py',
+    'apps/api/src/strategy/runtime/python/runner.py',
+  ]) {
+    assert.deepEqual(classifyChangedPaths([changedPath], manifest), {
+      api: true,
+      web: false,
+      docs: false,
+      sandboxd: true,
+      fullDeploy: false,
+      installDependencies: false,
+      reasons: ['api', 'sandboxd'],
+    });
+  }
+});
+
+test('Strategy TypeScript SDK changes still select only API', () => {
+  const result = classifyChangedPaths(['apps/api/src/strategy/sdk/typescript.ts'], manifest);
+  assert.equal(result.api, true);
+  assert.equal(result.sandboxd, false);
+  assert.equal(result.fullDeploy, false);
 });
 
 test('documentation changes do not rebuild runtime applications', () => {

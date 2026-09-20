@@ -2,6 +2,10 @@
 
 Engine 提供交易模拟能力：推进交易日、读取当时可得的数据、执行策略、模拟成交并累计绩效。策略保存、任务提交、语言选择和报告风险分析由 Strategy 负责。
 
+Engine 接收 `EngineStrategy` 决策回调与显式端口，按模拟日期提供 `EngineContext`。这两个内部接口
+不是用户编写策略的公开类型；公开 `StrategyCtx` 由 shared SDK 契约生成，Strategy SDK/runtime 负责适配。
+选股、权重构造、指标便捷接口归 Strategy SDK；数据可见时间、因子准备、成交和账户变化归 Engine。
+
 ## 从职责找文件
 
 | 职责 | 入口 |

@@ -211,3 +211,13 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 `maintenance/publication/audit.ts` 汇总报告，具体审计位于 stocks、instruments、indices、fundamentals、macro、cross-market、rates、etfs、commodity；共享结果契约和覆盖摘要在 market/quality，不依赖 Maintenance。
 财报 Worker 通过逐项完成消息和父进程确认隔离数据执行与维护 checkpoint；ETF recovery 使用调用方恢复回调。`maintenance/runs/coordination.ts` 提供锁检查与任务安静窗口，其他流程不再从 daily 导入公共协调能力。
 详见 [Maintenance 阅读入口](../apps/api/src/maintenance/README.md) 和 [变更记录](design/maintenance-business-boundaries.md)。
+
+## Strategy SDK 与 Engine 契约
+
+Strategy 的公开 TS 签名、文档、Agent 参考归 `packages/shared/src/sdk/strategy/reference.ts`，
+由原有声明生成器同时服务 Monaco 和编译契约 `contract.ts`。Strategy SDK 辅助实现归
+`apps/api/src/strategy/sdk`，不再与 isolate 设施同放；Python SDK 与语言协议分别归
+`strategy/sdk/python.py`、`strategy/runtime/python/runner.py`。
+Engine 保留内部 `EngineStrategy` / `EngineContext`，负责模拟时钟、PIT 数据、因子准备与交易账户。
+公开上下文不继承 Engine 类型；runtime 把用户回调装配为引擎决策回调，SDK 对公开签名做编译期适配检查。
+实现、兼容性与本次验收见 [Strategy SDK 边界记录](design/strategy-sdk-boundaries.md)。

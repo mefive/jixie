@@ -1,0 +1,19 @@
+# The Python runtime image uses the repository root as its build context.
+# Include only its Dockerfile, pinned requirements and executable Python modules.
+**
+!apps/
+!apps/sandboxd/
+!apps/sandboxd/Dockerfile.python
+!apps/sandboxd/python/
+!apps/sandboxd/python/requirements-research-runtime.txt
+!apps/sandboxd/python/jixie_runner.py
+!apps/sandboxd/python/jixie_research_runtime.py
+!apps/sandboxd/python/jixie_factor_runtime.py
+!apps/api/
+!apps/api/src/
+!apps/api/src/strategy/
+!apps/api/src/strategy/sdk/
+!apps/api/src/strategy/sdk/python.py
+!apps/api/src/strategy/runtime/
+!apps/api/src/strategy/runtime/python/
+!apps/api/src/strategy/runtime/python/runner.py

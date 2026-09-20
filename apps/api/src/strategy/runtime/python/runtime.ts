@@ -1,11 +1,11 @@
 import { DEFAULT_LOCALE, type Locale, type StrategyParamValue } from '@jixie/shared';
-import type { Strategy } from '#engine/types.js';
+import type { EngineStrategy } from '#engine/types.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import { PythonSession } from '#infra/runtime/python/session.js';
 import { createStrategyBridge } from '../bridge.js';
 
 export interface PythonStrategyRuntime {
-  strategy: Strategy;
+  strategy: EngineStrategy;
   close(): Promise<void>;
 }
 

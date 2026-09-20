@@ -71,6 +71,8 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |
 | `research/language/pyright-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |
+| Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/runner.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
+| Strategy TS 公开类型 | `packages/shared/src/sdk/strategy/reference.ts` → 同目录 `contract.ts`；`setup:sandbox` 生成/校验，API 使用 `@jixie/shared/sdk/strategy/contract` 的类型入口；Monaco 继续动态调用同一声明生成器 |
 | 公开 Python stub | `apps/sandboxd/python/jixie_research_sdk.pyi`、`jixie_factor_sdk.pyi` 由 shared Contract 生成；路径移动不得手工改生成结果 |
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |

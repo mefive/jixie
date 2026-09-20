@@ -3,10 +3,9 @@
 // the strategy reads data + places orders via ctx; the engine executes fills (next-day open),
 // maintains cash/positions (T+1), applies costs, and records a daily equity curve.
 //
-// Design principle (three layers): the engine knows only raw market data. It exposes general
-// market primitives (bar / history / universe / orders) and has NO built-in notion of "factor".
-// Factors are a strategy-side concern: valuation signals read bar() (daily_basic) directly; price-window
-// signals (mom/rev/vol) compute on the fly from the bar series; moneyflow opts into a preloaded column.
+// Internal simulation contracts, not the public Strategy SDK. The host adapts language runtimes
+// to EngineStrategy; the engine owns the decision clock, point-in-time reads, factor preparation,
+// order execution and simulated account state. Public authoring types live in shared/sdk/strategy.
 
 import type { AllocationAnalysis, FactorDependency, Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data/data-port.js';
@@ -146,7 +145,8 @@ export interface IndexHandle {
   percentile(field: IndexValuationField, lookback?: number): number | null;
 }
 
-export interface BarContext {
+/** Host capabilities for one simulation date. Adapted by Strategy runtime before user access. */
+export interface EngineContext {
   readonly date: string;
   readonly cash: number;
   readonly value: number; // total equity = cash + positions market value
@@ -159,7 +159,7 @@ export interface BarContext {
 
   positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
 
-  // —— Market primitives (general; the engine has no concept of "factor") ——
+  // Point-in-time market and factor reads.
   /** Load today's tradable cross-section (codes with a daily bar + adj factor + valuation) and return its
    * codes. Optionally restrict to an index's point-in-time constituents — the restriction is pushed into
    * the DB read (only those rows are loaded), the data gate behind the SDK's `universe(indexCode?)`. Async;
@@ -242,12 +242,13 @@ export interface BarContext {
 
 export type ConditionalOrderKind = 'stop_loss' | 'trailing_stop' | 'limit_buy' | 'take_profit';
 
-export interface StrategyAccounts {
+export interface EngineAccounts {
   stock: { cashWeight: number };
   futures: { cashWeight: number };
 }
 
-export interface Strategy {
+/** A prepared decision callback. Contains no source, language runtime, user or saved-record identity. */
+export interface EngineStrategy {
   name: string;
   /** User-declared finite numeric parameters. Scan overrides replace these values before a run. */
   params?: Record<string, number | string>;
@@ -261,15 +262,15 @@ export interface Strategy {
   futures?: string[];
   /** Explicitly split initial capital into isolated stock/futures sleeves. Omit to preserve legacy
    * stock-only or futures-only behavior. Cash is not transferred automatically between sleeves. */
-  accounts?: StrategyAccounts;
-  onBar(ctx: BarContext): void | Promise<void>;
+  accounts?: EngineAccounts;
+  onBar(ctx: EngineContext): void | Promise<void>;
 }
 
 export interface EngineConfig {
   start: string; // YYYYMMDD
   end: string;
   initialCash: number;
-  strategy: Strategy;
+  strategy: EngineStrategy;
   cost?: Partial<CostModel>;
   /** Optional progress sink — the engine emits human-readable lines (start / rebalance / yearly
    * heartbeat / done) as the run advances. The worker forwards these to the job for log polling;

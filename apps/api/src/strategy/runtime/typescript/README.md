@@ -9,7 +9,7 @@
 | 同文件 `inspectStrategyParameters` / `inspectStrategyMetadata` | 扫描、Signals 和 Agent 校验；仅在 isolate 执行声明，finally 释放资源 |
 | [../run.ts](../run.ts) `runSandboxedBacktest` / `runSandboxedSignalCapture` | 正式回测、扫描 cell、Signals；共用宿主 Engine，finally 关闭语言 runtime 和 FactorHost |
 | [sandbox-bundle.ts](sandbox-bundle.ts) / [sandbox-entry.ts](sandbox-entry.ts) | 仅打包 SDK、指标、日志和协议适配；源码/编译入口分别解析 `.ts` / `.js`，进程内缓存 bundle |
-| [sdk.ts](sdk.ts) | 保留公开 `defineStrategy`、`enrich` 和同步指标 API |
+| [../../sdk/typescript.ts](../../sdk/typescript.ts) | `defineStrategy`、`enrich`、选股/仓位/指标辅助；公开类型来自 shared SDK 契约 |
 | [testing/compile.ts](testing/compile.ts) | 仅编译仓库可信 fixture，用于原生行为对照；生产代码禁止导入 |
 
 异步数据访问以声明式 request/response 通过共享 bridge 分派。截面整批复制为原生字段；watch/
@@ -30,6 +30,6 @@ TS 同步命令和读取走经过 schema 限定的 `context-access.ts`；同步�
 
 验收看 [runtime.test.ts](runtime.test.ts)、[isolation.test.ts](isolation.test.ts)、
 [sandbox-bundle.test.ts](sandbox-bundle.test.ts) 和包级 `factor-worker.integration.test.ts`。
-参数/SDK 用例仍在本目录；完整验证状态见 [设计记录](../../../../../../docs/design/python-and-sandbox.md)。
+参数用例在本目录，SDK 与契约用例归 `strategy/sdk`；完整验证状态见 [设计记录](../../../../../../docs/design/python-and-sandbox.md)。
 
 [返回 Strategy 总览](../../README.md)

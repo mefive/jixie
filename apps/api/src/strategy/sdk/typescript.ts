@@ -1,11 +1,19 @@
 import type {
-  BarContext,
+  EngineContext,
   BarRow,
   OhlcBar,
   ResamplePeriod,
-  Strategy,
-  StrategyAccounts,
+  EngineStrategy,
 } from '#engine/types.js';
+import type {
+  CodeStrategy,
+  Schedule,
+  StrategyCtx,
+  StrategyParams,
+  StrategyParamValue,
+  TimeframeSeries,
+  Universe as UniverseContract,
+} from '@jixie/shared/sdk/strategy/contract';
 import { isoWeekKey } from '#date';
 import {
   adx as calculateAdx,
@@ -29,102 +37,13 @@ import {
  * IR stages (schedule / select / sizing) are now one-line *library* calls on `ctx`, not a parallel
  * representation. So the boilerplate stays gone, but there's a single source of truth — the code.
  *
- * `enrich` layers these helpers onto the engine's core BarContext, so the engine stays lean (raw market
- * primitives + order intents) and the sugar lives here. Authoring is import-free: `defineStrategy` and
+ * `enrich` adapts EngineContext to the independently generated public StrategyCtx, using type-checked primitives and helpers. Authoring is import-free: `defineStrategy` and
  * the StrategyCtx type are injected ambients (a .d.ts gives Monaco the same surface).
  */
 
-export type Schedule = 'daily' | 'weekly' | 'monthly';
-export type StrategyParamValue = number | string;
-export type StrategyParams = Record<string, StrategyParamValue>;
-export type WidenStrategyParams<Params extends StrategyParams> = {
-  [Key in keyof Params]: Params[Key] extends number ? number : string;
-};
-
-/** What user code sees each bar: the engine primitives (BarContext) + the SDK helpers below. */
-export interface StrategyCtx<Params extends StrategyParams = StrategyParams> extends BarContext {
-  /** Frozen run parameters. Parameter scans override declared defaults without rewriting source. */
-  readonly params: Readonly<WidenStrategyParams<Params>>;
-  /** Period key for today on a schedule — compare to your own `let last` to fire once per period:
-   * `if (ctx.period('monthly') === last) return; last = ctx.period('monthly');` */
-  period(schedule: Schedule): string;
-  /** Today's tradable universe as a chainable selection (loads the cross-section; bar() valid after).
-   * Pass an index code (e.g. '000300.SH' CSI 300) to restrict to its point-in-time constituents — the
-   * restriction is pushed into the data load (only those rows are read), not filtered in memory after. */
-  universe(indexCode?: string): Promise<Universe>;
-  /** Equal-weight the given codes (a target-book rebalance at next open). */
-  equalWeight(codes: string[]): void;
-  /** ATR risk sizing in engine-adjusted shares: a one-ATR adverse move risks about value × riskPct.
-   * The eventual buy fill is still rounded to real 100-share lots by the engine. */
-  atrUnits(code: string, riskPct: number, atrPeriod?: number): number;
-  /** Inverse-volatility weights over loaded daily closes; codes without enough valid history are
-   * omitted and the remaining weights sum to 1. */
-  volTargetWeights(codes: string[], lookback?: number): Map<string, number>;
-  /** Completed ISO-week bars and indicators for a loaded instrument. The current partial week is
-   * excluded; on its final market trading day it becomes visible after that day's close. */
-  weekly(code: string): TimeframeSeries;
-  /** Completed natural-month bars and indicators for a loaded instrument. The current partial month
-   * is excluded; on its final market trading day it becomes visible after that day's close. */
-  monthly(code: string): TimeframeSeries;
-
-  // —— Built-in technical indicators (each requires the stock's K-line already loaded: watch preload or ensureBars; return null when data is insufficient) ——
-  /** n-day simple moving average (SMA) = arithmetic mean of the last n closes. The basis of trend/MA strategies. */
-  sma(code: string, n: number): number | null;
-  /** n-day exponential moving average (EMA): also a moving average, but weights recent prices more, tracking price faster than SMA. */
-  ema(code: string, n: number): number | null;
-  /** n-day ATR (Average True Range): measures how much this stock has moved per day recently, often used to set stop distance / position size. Needs n+1 bars. */
-  atr(code: string, n: number): number | null;
-  /** Highest value of a field over the last n bars (Donchian upper channel) — a price breakout above it is often an entry signal. */
-  highest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  /** Lowest value of a field over the last n bars (Donchian lower channel) — a price breakdown below it is often an exit signal. */
-  lowest(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  /** n-day average turnover (thousand yuan) — measures liquidity (whether you can get in and out), often used as a slippage/liquidity gate in stock selection. */
-  avgAmount(code: string, n: number): number | null;
-  /** n-day average volume (lots) — likewise measures activity / liquidity. */
-  avgVol(code: string, n: number): number | null;
-  /** Wilder ADX trend strength plus positive/negative directional indicators. */
-  adx(code: string, period?: number): AdxResult | null;
-  /** Bollinger Bands over adjusted closes using population standard deviation. */
-  bollingerBands(
-    code: string,
-    period?: number,
-    standardDeviations?: number,
-  ): BollingerBandsResult | null;
-  /** Wilder Relative Strength Index in [0, 100]; a flat window is neutral at 50. */
-  rsi(code: string, period?: number): number | null;
-  /** Moving Average Convergence Divergence; histogram is line minus signal without doubling. */
-  macd(
-    code: string,
-    fastPeriod?: number,
-    slowPeriod?: number,
-    signalPeriod?: number,
-  ): MacdResult | null;
-  /** KDJ stochastic oscillator; K and D are seeded at 50. */
-  kdj(code: string, period?: number, kSmoothing?: number, dSmoothing?: number): KdjResult | null;
-}
-
-/** A completed higher-timeframe OHLC series. All windows are oldest → newest and require the
- * instrument's daily bars to be preloaded through watch or ensureBars(). */
-export interface TimeframeSeries {
-  bars(n: number): OhlcBar[];
-  history(field: 'open' | 'high' | 'low' | 'close', n: number): number[];
-  sma(n: number): number | null;
-  ema(n: number): number | null;
-  atr(n: number): number | null;
-  highest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  lowest(field: 'open' | 'high' | 'low' | 'close', n: number): number | null;
-  avgAmount(n: number): number | null;
-  avgVol(n: number): number | null;
-  adx(period?: number): AdxResult | null;
-  bollingerBands(period?: number, standardDeviations?: number): BollingerBandsResult | null;
-  rsi(period?: number): number | null;
-  macd(fastPeriod?: number, slowPeriod?: number, signalPeriod?: number): MacdResult | null;
-  kdj(period?: number, kSmoothing?: number, dSmoothing?: number): KdjResult | null;
-}
-
 class ResampledSeries implements TimeframeSeries {
   constructor(
-    private readonly ctx: BarContext,
+    private readonly ctx: EngineContext,
     private readonly code: string,
     private readonly period: ResamplePeriod,
   ) {}
@@ -191,29 +110,14 @@ class ResampledSeries implements TimeframeSeries {
   }
 }
 
-export interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
-  name?: string;
-  /** Finite numeric or non-empty categorical defaults exposed to scans. */
-  params?: Params;
-  /** Precomputed factor columns to preload (price-window signals like mom/rev/vol). */
-  factors?: string[];
-  /** Instruments to preload bar series for up front (per-instrument systems read bars()/price()). */
-  watch?: string[];
-  /** Logical continuous or actual stock-index futures codes. */
-  futures?: string[];
-  /** Initial capital split for a mixed stock/futures strategy. */
-  accounts?: StrategyAccounts;
-  onBar(ctx: StrategyCtx<Params>): void | Promise<void>;
-}
-
 /** Today's universe as a chainable view over codes — filter, rank, take a slice. Each step returns a new
  * Universe (immutable); the terminal `top`/`codes` returns plain string[]. The candidate pool the engine
  * recomputes each bar (cf. industry "universe selection"): `(await ctx.universe('000300.SH'))
  * .minListDays(365).rankBy(b => 1/b.peTtm!).top(0.1)`. The index restriction (if any) was pushed into the
  * data load; `where`/`rankBy`/etc. refine the loaded panel in memory. */
-export class Universe {
+export class Universe implements UniverseContract {
   constructor(
-    private readonly ctx: BarContext,
+    private readonly ctx: EngineContext,
     private readonly list: string[],
   ) {}
 
@@ -299,115 +203,116 @@ export class Universe {
  * code loader injects THIS as the `defineStrategy` ambient. */
 export function defineStrategy<const Params extends StrategyParams = Record<string, never>>(
   s: CodeStrategy<Params>,
-): Strategy {
-  const strategy: Strategy = {
+): EngineStrategy {
+  const strategy: EngineStrategy = {
     name: s.name ?? '未命名策略',
     params: normalizeStrategyParams(s.params),
     factors: s.factors,
     watch: s.watch,
     futures: s.futures,
     accounts: s.accounts,
-    onBar: (core: BarContext) => s.onBar(enrich(core, strategy.params as Params)),
+    onBar: (core: EngineContext) => s.onBar(enrich(core, strategy.params as Params)),
   };
   return strategy;
 }
 
 /** Layer the SDK helpers onto the engine's per-bar core ctx. */
 export function enrich<Params extends StrategyParams = StrategyParams>(
-  ctx: BarContext,
+  ctx: EngineContext,
   params = {} as Params,
 ): StrategyCtx<Params> {
-  const enriched = ctx as StrategyCtx<Params>;
-  Object.defineProperty(enriched, 'params', {
+  const helpers: Omit<StrategyCtx<Params>, keyof EngineContext | 'params'> = {
+    period: (schedule) => periodKey(ctx.date, schedule),
+    universe: async (indexCode?: string) =>
+      new Universe(ctx, await ctx.loadCrossSection(indexCode)),
+    equalWeight: (codes) => {
+      const weight = codes.length ? 1 / codes.length : 0;
+      const targets: Record<string, number> = {};
+      for (const code of codes) {
+        targets[code] = weight;
+      }
+      ctx.setHoldings(targets);
+    },
+    atrUnits: (code, riskPct, atrPeriod = 20) => {
+      const window = Math.floor(atrPeriod);
+      if (!(riskPct > 0) || window <= 0) {
+        return 0;
+      }
+      const atr = atrBars(ctx.bars(code, window + 1), window);
+      return atr == null || atr <= 0 ? 0 : Math.floor((ctx.value * riskPct) / atr);
+    },
+    volTargetWeights: (codes, lookback = 20) => {
+      const window = Math.floor(lookback);
+      if (window < 2) {
+        return new Map();
+      }
+      const inverseVol = new Map<string, number>();
+      for (const code of codes) {
+        const closes = ctx.history(code, 'close', window + 1);
+        if (closes.length < window + 1) {
+          continue;
+        }
+        const returns = closes
+          .slice(1)
+          .map((close, index) => close / closes[index] - 1)
+          .filter(Number.isFinite);
+        if (returns.length !== window) {
+          continue;
+        }
+        const volatility = sampleDeviation(returns);
+        if (volatility > 0) {
+          inverseVol.set(code, 1 / volatility);
+        }
+      }
+      const total = [...inverseVol.values()].reduce((sum, value) => sum + value, 0);
+      return new Map([...inverseVol].map(([code, value]) => [code, value / total]));
+    },
+    weekly: (code) => new ResampledSeries(ctx, code, 'weekly'),
+    monthly: (code) => new ResampledSeries(ctx, code, 'monthly'),
+    sma: (code, n) => {
+      return smaValues(ctx.history(code, 'close', n), n);
+    },
+    ema: (code, n) => {
+      return emaValues(ctx.history(code, 'close', n * 4), n);
+    },
+    highest: (code, field, n) => {
+      return extremeValues(ctx.history(code, field, n), n, Math.max);
+    },
+    lowest: (code, field, n) => {
+      return extremeValues(ctx.history(code, field, n), n, Math.min);
+    },
+    atr: (code, n) => {
+      return atrBars(ctx.bars(code, n + 1), n);
+    },
+    avgAmount: (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.amount),
+    avgVol: (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.vol),
+    adx: (code, period = 14) => calculateAdx(ctx.bars(code, adxLookback(period)), period),
+    bollingerBands: (code, period = 20, standardDeviations = 2) =>
+      calculateBollingerBands(ctx.history(code, 'close', period), period, standardDeviations),
+    rsi: (code, period = 14) =>
+      calculateRsi(ctx.history(code, 'close', rsiLookback(period)), period),
+    macd: (code, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) =>
+      calculateMacd(
+        ctx.history(code, 'close', macdLookback(fastPeriod, slowPeriod, signalPeriod)),
+        fastPeriod,
+        slowPeriod,
+        signalPeriod,
+      ),
+    kdj: (code, period = 9, kSmoothing = 3, dSmoothing = 3) =>
+      latestKdj(ctx.bars(code, kdjLookback(period)), period, kSmoothing, dSmoothing),
+  };
+  const enriched = Object.assign(ctx, helpers);
+  // defineProperty preserves the existing immutable parameter property on repeated enrichment.
+  // Only this added property needs an assertion; every context/helper signature is checked on return.
+  return Object.defineProperty(enriched, 'params', {
     configurable: true,
     enumerable: true,
     value: Object.freeze({ ...params }),
-  });
-  enriched.period = (schedule) => periodKey(ctx.date, schedule);
-  // The index restriction is pushed into the data load (loadCrossSection only reads those rows), not
-  // filtered in memory here — so CSI 300 reads ~300 rows, not the full ~5370. See engine/data crossSection.
-  enriched.universe = async (indexCode?: string) =>
-    new Universe(ctx, await ctx.loadCrossSection(indexCode));
-  enriched.equalWeight = (codes) => {
-    const weight = codes.length ? 1 / codes.length : 0;
-    const targets: Record<string, number> = {};
-    for (const code of codes) {
-      targets[code] = weight;
-    }
-    ctx.setHoldings(targets);
-  };
-  enriched.atrUnits = (code, riskPct, atrPeriod = 20) => {
-    const window = Math.floor(atrPeriod);
-    if (!(riskPct > 0) || window <= 0) {
-      return 0;
-    }
-    const atr = atrBars(ctx.bars(code, window + 1), window);
-    return atr == null || atr <= 0 ? 0 : Math.floor((ctx.value * riskPct) / atr);
-  };
-  enriched.volTargetWeights = (codes, lookback = 20) => {
-    const window = Math.floor(lookback);
-    if (window < 2) {
-      return new Map();
-    }
-    const inverseVol = new Map<string, number>();
-    for (const code of codes) {
-      const closes = ctx.history(code, 'close', window + 1);
-      if (closes.length < window + 1) {
-        continue;
-      }
-      const returns = closes
-        .slice(1)
-        .map((close, index) => close / closes[index] - 1)
-        .filter(Number.isFinite);
-      if (returns.length !== window) {
-        continue;
-      }
-      const volatility = sampleDeviation(returns);
-      if (volatility > 0) {
-        inverseVol.set(code, 1 / volatility);
-      }
-    }
-    const total = [...inverseVol.values()].reduce((sum, value) => sum + value, 0);
-    return new Map([...inverseVol].map(([code, value]) => [code, value / total]));
-  };
-  enriched.weekly = (code) => new ResampledSeries(ctx, code, 'weekly');
-  enriched.monthly = (code) => new ResampledSeries(ctx, code, 'monthly');
-  enriched.sma = (code, n) => {
-    return smaValues(ctx.history(code, 'close', n), n);
-  };
-  enriched.ema = (code, n) => {
-    return emaValues(ctx.history(code, 'close', n * 4), n);
-  };
-  enriched.highest = (code, field, n) => {
-    return extremeValues(ctx.history(code, field, n), n, Math.max);
-  };
-  enriched.lowest = (code, field, n) => {
-    return extremeValues(ctx.history(code, field, n), n, Math.min);
-  };
-  enriched.atr = (code, n) => {
-    return atrBars(ctx.bars(code, n + 1), n);
-  };
-  enriched.avgAmount = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.amount);
-  enriched.avgVol = (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.vol);
-  enriched.adx = (code, period = 14) => calculateAdx(ctx.bars(code, adxLookback(period)), period);
-  enriched.bollingerBands = (code, period = 20, standardDeviations = 2) =>
-    calculateBollingerBands(ctx.history(code, 'close', period), period, standardDeviations);
-  enriched.rsi = (code, period = 14) =>
-    calculateRsi(ctx.history(code, 'close', rsiLookback(period)), period);
-  enriched.macd = (code, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) =>
-    calculateMacd(
-      ctx.history(code, 'close', macdLookback(fastPeriod, slowPeriod, signalPeriod)),
-      fastPeriod,
-      slowPeriod,
-      signalPeriod,
-    );
-  enriched.kdj = (code, period = 9, kSmoothing = 3, dSmoothing = 3) =>
-    latestKdj(ctx.bars(code, kdjLookback(period)), period, kSmoothing, dSmoothing);
-  return enriched;
+  }) as typeof enriched & Pick<StrategyCtx<Params>, 'params'>;
 }
 
 export function applyStrategyParamOverrides(
-  strategy: Strategy,
+  strategy: EngineStrategy,
   overrides?: Record<string, StrategyParamValue>,
 ): void {
   if (!overrides) {

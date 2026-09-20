@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileStrategy } from './testing/compile.js';
 import { ETF_ROTATION_EXAMPLE } from './codegen-prompt.js';
-import type { BarContext } from '#engine/types.js';
+import type { EngineContext } from '#engine/types.js';
 
 // A canonical hand-written strategy: MA20 breakout on one name. Import-free — `defineStrategy` is injected.
 const MA_CROSS = `
@@ -30,7 +30,7 @@ function mockCtx(o: { px: number; window: number[]; held: number }) {
     shares: () => o.held,
     order: (code: string, shares: number) => orders.push({ code, shares }),
     exit: (code: string) => exits.push(code),
-  } as unknown as BarContext;
+  } as unknown as EngineContext;
   return { ctx, orders, exits };
 }
 

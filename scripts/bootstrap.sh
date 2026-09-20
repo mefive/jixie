@@ -1014,7 +1014,7 @@ if [[ "$DEPLOY_SANDBOXD" == "1" ]]; then
   podman_as_deploy_user build \
     --tag jixie-python-runtime:py-v1 \
     --file "$JIXIE_DIR/apps/sandboxd/Dockerfile.python" \
-    "$JIXIE_DIR/apps/sandboxd"
+    "$JIXIE_DIR"
 fi
 
 IMPORT_REQUIRED_MARKER="$JIXIE_DATA_DIR/full-import.required"

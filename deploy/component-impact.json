@@ -3,7 +3,11 @@
     "api": ["apps/api/"],
     "web": ["apps/web/"],
     "docs": ["apps/docs/"],
-    "sandboxd": ["apps/sandboxd/"]
+    "sandboxd": [
+      "apps/sandboxd/",
+      "apps/api/src/strategy/sdk/python.py",
+      "apps/api/src/strategy/runtime/python/runner.py"
+    ]
   },
   "allComponents": ["api", "web", "docs", "sandboxd"],
   "sharedPrefixes": ["packages/shared/"],
@@ -12,7 +16,8 @@
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
-    "tsconfig.base.json"
+    "tsconfig.base.json",
+    ".dockerignore"
   ],
   "noRuntimePrefixes": [".github/", "docs/"],
   "noRuntimeFiles": [

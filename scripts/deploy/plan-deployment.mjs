@@ -30,12 +30,14 @@ export function classifyChangedPaths(changedPaths, manifest) {
       continue;
     }
 
-    const component = Object.entries(manifest.components).find(([, prefixes]) =>
+    const components = Object.entries(manifest.components).filter(([, prefixes]) =>
       prefixes.some((prefix) => changedPath.startsWith(prefix)),
-    )?.[0];
-    if (component) {
-      selectedComponents.add(component);
-      reasons.add(component);
+    );
+    if (components.length > 0) {
+      for (const [component] of components) {
+        selectedComponents.add(component);
+        reasons.add(component);
+      }
       continue;
     }
 

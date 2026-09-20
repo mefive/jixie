@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { runStrategy } from './run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
-import { DEFAULT_COST, type BarContext, type BacktestResult, type Strategy } from '../types.js';
+import {
+  DEFAULT_COST,
+  type EngineContext,
+  type BacktestResult,
+  type EngineStrategy,
+} from '../types.js';
 
 /**
  * A-share rule acceptance on a synthetic world (Phase B1): each rule that A-share backtests must
@@ -12,7 +17,10 @@ import { DEFAULT_COST, type BarContext, type BacktestResult, type Strategy } fro
 const D = ['20240101', '20240102', '20240103', '20240104', '20240105'];
 
 /** A scripted per-instrument strategy: run the given action on each date it appears. */
-function scripted(actions: Record<string, (ctx: BarContext) => void>, watch = ['A']): Strategy {
+function scripted(
+  actions: Record<string, (ctx: EngineContext) => void>,
+  watch = ['A'],
+): EngineStrategy {
   return {
     name: 'scripted',
     watch,
@@ -22,7 +30,7 @@ function scripted(actions: Record<string, (ctx: BarContext) => void>, watch = ['
   };
 }
 
-function run(spec: FixtureSpec, strategy: Strategy, cash = 100_000): Promise<BacktestResult> {
+function run(spec: FixtureSpec, strategy: EngineStrategy, cash = 100_000): Promise<BacktestResult> {
   return runStrategy({
     start: D[0],
     end: D[D.length - 1],
@@ -311,7 +319,7 @@ describe('回测数据与统计口径', () => {
       },
       scripted(
         Object.fromEntries(
-          D.map((date) => [date, (ctx: BarContext) => observed.set(date, ctx.industry('A'))]),
+          D.map((date) => [date, (ctx: EngineContext) => observed.set(date, ctx.industry('A'))]),
         ),
       ),
     );

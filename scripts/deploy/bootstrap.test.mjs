@@ -99,3 +99,9 @@ test('retired factor conversion is absent from deployment and package commands',
   assert.equal(apiPackage.scripts['db:migrate:factor-job-kinds'], undefined);
   assert.doesNotMatch(bootstrap, /db:migrate:factor-job-kinds|API_DATA_MIGRATION_INCOMPLETE/);
 });
+
+test('builds the Python image from the repository root to include business sources', () => {
+  assert.ok(
+    bootstrap.includes('--file "$JIXIE_DIR/apps/sandboxd/Dockerfile.python" \\\n    "$JIXIE_DIR"'),
+  );
+});

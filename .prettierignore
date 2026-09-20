@@ -12,3 +12,6 @@ apps/api/prisma/migrations
 
 # hand-authored docs — keep their deliberate layout out of prettier's hands
 *.md
+
+# Contract renderer owns the exact generated text.
+packages/shared/src/sdk/strategy/contract.ts

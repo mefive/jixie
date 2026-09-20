@@ -1,11 +1,11 @@
-import type { BarContext, BarRow, IndexHandle, OhlcBar, Strategy } from '#engine/types.js';
+import type { EngineContext, BarRow, IndexHandle, OhlcBar, EngineStrategy } from '#engine/types.js';
 import type { Locale, StrategyParamValue } from '@jixie/shared';
 import {
   makeSandboxConsole,
   noopSandboxConsole,
   type SandboxConsole,
 } from '#infra/runtime/console.js';
-import { defineStrategy, applyStrategyParamOverrides } from './sdk.js';
+import { defineStrategy, applyStrategyParamOverrides } from '../../sdk/typescript.js';
 
 interface HostFunction {
   applySync(receiver: undefined, args: string[]): string;
@@ -13,7 +13,7 @@ interface HostFunction {
 declare const __hostEmit: HostFunction;
 declare const __hostAccess: HostFunction;
 
-let strategy: Strategy;
+let strategy: EngineStrategy;
 let sequence = 0;
 const reads = new Map<string, string>();
 const histories = new Map<string, OhlcBar[]>();
@@ -77,7 +77,7 @@ function request(args: Record<string, unknown>): Promise<unknown> {
   });
 }
 
-function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy {
+function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): EngineStrategy {
   const module: { exports: Record<string, unknown> } = { exports: {} };
   try {
     const evaluate = new Function(
@@ -98,12 +98,12 @@ function loadStrategy(userJs: string, sandboxConsole: SandboxConsole): Strategy 
       `strategy code execution error: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
-  const result = (module.exports.default ?? module.exports) as Partial<Strategy>;
+  const result = (module.exports.default ?? module.exports) as Partial<EngineStrategy>;
   if (!result || typeof result.onBar !== 'function') {
     throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
   }
   result.name ||= 'Untitled strategy';
-  return result as Strategy;
+  return result as EngineStrategy;
 }
 
 interface Startup {
@@ -161,7 +161,7 @@ interface Startup {
   updateHistories(snapshot.history_updates ?? {});
   // Cross-sections are immutable copies; the latest load replaces the visible panel, as in Engine.
   let rows = new Map<string, BarRow | null>();
-  const core: BarContext = {
+  const core: EngineContext = {
     date: snapshot.date,
     cash: snapshot.cash,
     value: snapshot.value,
@@ -201,9 +201,9 @@ interface Startup {
     },
     bar: (code) => rows.get(code) ?? null,
     bars: (code, n) =>
-      cachedBars(code, n) ?? (query('bars', [code, n]) as ReturnType<BarContext['bars']>),
+      cachedBars(code, n) ?? (query('bars', [code, n]) as ReturnType<EngineContext['bars']>),
     resampledBars: (code, period, n) =>
-      query('resampledBars', [code, period, n]) as ReturnType<BarContext['resampledBars']>,
+      query('resampledBars', [code, period, n]) as ReturnType<EngineContext['resampledBars']>,
     listDays: (code) => query('listDays', [code]) as number | null,
     industry: (code) => query('industry', [code]) as string | null,
     lhbNet: (code) => query('lhbNet', [code]) as number | null,
@@ -225,10 +225,10 @@ interface Startup {
     },
     factor: (name, code) => query('factor', [name, code]) as number | null,
     shares: (code) => query('shares', [code]) as number,
-    future: (code) => query('future', [code]) as ReturnType<BarContext['future']>,
+    future: (code) => query('future', [code]) as ReturnType<EngineContext['future']>,
     futureHistory: (code, field, n) => query('futureHistory', [code, field, n]) as number[],
     futurePosition: (code) =>
-      query('futurePosition', [code]) as ReturnType<BarContext['futurePosition']>,
+      query('futurePosition', [code]) as ReturnType<EngineContext['futurePosition']>,
     index(indexCode) {
       const values = query('indexValues', [indexCode]) as Pick<
         IndexHandle,

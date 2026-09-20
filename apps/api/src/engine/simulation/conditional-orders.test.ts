@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureBar, type FixtureSpec } from '../testing/fixture-port.js';
 import { runStrategy, runStrategyWithSignals } from './run.js';
-import type { BarContext, Strategy } from '../types.js';
+import type { EngineContext, EngineStrategy } from '../types.js';
 
 const DATES = ['20240101', '20240102', '20240103', '20240104', '20240105'];
 
@@ -21,7 +21,7 @@ function stock(overrides: Partial<Record<string, Partial<FixtureBar>>> = {}) {
   };
 }
 
-function scripted(actions: Record<string, (ctx: BarContext) => void>): Strategy {
+function scripted(actions: Record<string, (ctx: EngineContext) => void>): EngineStrategy {
   return {
     name: 'conditional fixture',
     watch: ['A'],
@@ -32,7 +32,7 @@ function scripted(actions: Record<string, (ctx: BarContext) => void>): Strategy 
 }
 
 async function run(
-  actions: Record<string, (ctx: BarContext) => void>,
+  actions: Record<string, (ctx: EngineContext) => void>,
   overrides: Partial<Record<string, Partial<FixtureBar>>> = {},
 ) {
   const spec: FixtureSpec = { dates: DATES, stocks: [stock(overrides)] };

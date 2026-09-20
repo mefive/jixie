@@ -12,7 +12,7 @@ export * from './factor-research.js';
 export * from './factor-dependency.js';
 export * from './factor-weather.js';
 export * from './agent.js';
-export * from './sdk-reference.js';
+export * from './sdk/strategy/reference.js';
 export * from './engine-factors.js';
 export * from './index-valuation.js';
 export * from './market-state.js';

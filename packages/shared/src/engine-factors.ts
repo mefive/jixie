@@ -1,6 +1,6 @@
 /**
  * Registry of the factor columns the BACKTEST ENGINE can serve through ctx.factor() — the single
- * source (like sdk-reference.ts) for: the engine's time semantics, the Monaco dts FactorKey union,
+ * source (like sdk/strategy/reference.ts) for: the engine's time semantics, the Monaco dts FactorKey union,
  * and the codegen prompt's factor list. Distinct from the factor-RESEARCH catalog (builtin-factors):
  * research factors are analyzed on month-end cross-sections; these are read live inside a strategy.
  *

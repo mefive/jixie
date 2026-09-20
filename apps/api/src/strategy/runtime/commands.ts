@@ -1,7 +1,7 @@
-import type { BarContext } from '#engine/types.js';
+import type { EngineContext } from '#engine/types.js';
 import type { StrategyCommand } from './protocol.js';
 
-export function replayCommands(context: BarContext, commands: StrategyCommand[]): void {
+export function replayCommands(context: EngineContext, commands: StrategyCommand[]): void {
   for (const command of commands) {
     switch (command.operation) {
       case 'order_future':

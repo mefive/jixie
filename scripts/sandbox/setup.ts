@@ -1,9 +1,10 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { renderResearchSdkPythonStub } from '../../packages/shared/src/research-sdk-python-stub.js';
 import { renderFactorPythonSdkStub } from '../../packages/shared/src/factor-python-sdk.js';
 import { renderResearchPythonRuntimeRequirements } from '../../packages/shared/src/research-python-runtime.js';
+import { renderStrategySdkContract } from '../../packages/shared/src/sdk/strategy/reference.js';
 import { ensurePythonEnvironment } from './python-environment.js';
 
 export const projectDirectory = fileURLToPath(new URL('../../', import.meta.url));
@@ -12,6 +13,10 @@ export function sandboxArtifacts() {
   return [
     { path: 'apps/sandboxd/python/jixie_research_sdk.pyi', content: renderResearchSdkPythonStub() },
     { path: 'apps/sandboxd/python/jixie_factor_sdk.pyi', content: renderFactorPythonSdkStub() },
+    {
+      path: 'packages/shared/src/sdk/strategy/contract.ts',
+      content: renderStrategySdkContract(),
+    },
     {
       path: 'apps/sandboxd/python/requirements-research-runtime.txt',
       content: renderResearchPythonRuntimeRequirements(),
@@ -50,6 +55,7 @@ export async function synchronizeArtifacts(directory: string, check: boolean): P
     }
     stale.push(artifact.path);
     if (!check) {
+      await mkdir(dirname(path), { recursive: true });
       await writeFile(path, artifact.content);
     }
   }

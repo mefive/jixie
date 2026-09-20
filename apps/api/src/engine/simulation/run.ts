@@ -14,7 +14,7 @@ import {
 import {
   DEFAULT_COST,
   type BacktestResult,
-  type BarContext,
+  type EngineContext,
   type ConditionalOrderKind,
   type CostModel,
   type EngineConfig,
@@ -627,7 +627,7 @@ function buildContext(
   collected: CollectedStockOrders,
   customFactors: CustomFactorRuntime | null,
   onFactorRead?: (key: string, code: string, value: number | null) => void,
-): BarContext {
+): EngineContext {
   let cross: CrossSection | null = null; // today's cross-section, loaded on first loadCrossSection() call
   return {
     date,
@@ -863,7 +863,7 @@ function buildMultiAssetContext(
   },
   customFactors: CustomFactorRuntime | null,
   stockOrdersEnabled: boolean,
-): BarContext {
+): EngineContext {
   let cross: CrossSection | null = null;
   return {
     date,

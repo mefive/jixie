@@ -6,7 +6,7 @@ import {
 import { runSandboxedBacktest } from '#strategy/runtime/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
-import type { Strategy, EngineConfig } from '../types.js';
+import type { EngineStrategy, EngineConfig } from '../types.js';
 import { FactorHost } from '../adapters/factor-host.js';
 
 /**
@@ -32,7 +32,7 @@ function spec(): FixtureSpec {
 }
 
 /** Record ctx.factor('mf_net_main') for stock A on every bar. */
-function recordingStrategy(seen: Record<string, number | null>): Strategy {
+function recordingStrategy(seen: Record<string, number | null>): EngineStrategy {
   return {
     name: 'record mf',
     factors: ['mf_net_main'],
@@ -60,7 +60,7 @@ describe('flow factor semantics (mf_net_*)', () => {
   });
 
   it('rejects an unknown factor key at load instead of serving silent nulls', async () => {
-    const bogus: Strategy = { name: 'bogus', factors: ['mf_net_mian'], onBar() {} };
+    const bogus: EngineStrategy = { name: 'bogus', factors: ['mf_net_mian'], onBar() {} };
     await expect(
       runStrategy({
         start: D[0],
@@ -73,7 +73,7 @@ describe('flow factor semantics (mf_net_*)', () => {
   });
 
   it('a declared custom key without a prepared module fails loudly (deleted/foreign factor)', async () => {
-    const custom: Strategy = {
+    const custom: EngineStrategy = {
       name: 'custom ref',
       factors: ['missing_factor'],
       onBar() {},
@@ -106,7 +106,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       'factor code',
     );
     const seen: Record<string, number | null> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read custom',
       factors: ['f1'],
       async onBar(ctx) {
@@ -133,7 +133,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       'published factor code',
     );
     const seen: Record<string, number | null> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read published factor',
       factors: [factorKey],
       async onBar(ctx) {
@@ -207,7 +207,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
     const seen: Record<string, number | null> = {};
     const invalidSeen: Record<string, number | null> = {};
     const directLogs: string[] = [];
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read ETF time-series factor',
       watch: [etfCode, 'A'],
       factors: [factorKey],
@@ -447,7 +447,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       },
     };
     const seen: Record<string, Record<string, number | null>> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'rank panel composite',
       watch: assetCodes,
       factors: [factorKey],
@@ -608,7 +608,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       'factor code',
     );
     const seen: Record<string, number | null> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read windowed',
       factors: ['w1'],
       async onBar(ctx) {
@@ -653,7 +653,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       'factor code',
     );
     const seen: Record<string, number | null> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read amount history',
       factors: ['amount'],
       async onBar(ctx) {
@@ -697,7 +697,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     });`;
     const js = await toCommonJs(factorCode, 'factor code');
     const seen: Record<string, number | null> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read free-float turnover history',
       factors: ['turnover'],
       async onBar(ctx) {
@@ -829,7 +829,7 @@ describe('market benchmark history for custom factors', () => {
     });`;
     const js = await toCommonJs(factorCode, 'factor code');
     const seen: Record<string, number | null> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read market history',
       factors: ['market_move'],
       async onBar(ctx) {
@@ -914,7 +914,7 @@ describe('point-in-time fundamental history for custom factors', () => {
     });`;
     const js = await toCommonJs(factorCode, 'factor code');
     const seen: Record<string, number | null> = {};
-    const strategy: Strategy = {
+    const strategy: EngineStrategy = {
       name: 'read roe history',
       factors: ['roestep'],
       async onBar(ctx) {

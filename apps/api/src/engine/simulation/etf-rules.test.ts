@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { runStrategy } from './run.js';
-import type { BarContext, Strategy } from '../types.js';
+import type { EngineContext, EngineStrategy } from '../types.js';
 
 const DATES = ['20240102', '20240103', '20240104', '20240105'];
 const ETF_CODE = '510300.SH';
@@ -14,11 +14,11 @@ function instrument(assetType: 'stock' | 'etf'): FixtureSpec['stocks'][number] {
   };
 }
 
-function roundTripStrategy(): Strategy {
+function roundTripStrategy(): EngineStrategy {
   return {
     name: 'ETF round trip',
     watch: [ETF_CODE],
-    async onBar(ctx: BarContext) {
+    async onBar(ctx: EngineContext) {
       if (ctx.date === DATES[0]) {
         ctx.order(ETF_CODE, 100);
       }

@@ -57,7 +57,7 @@ test('check reports every missing artifact without writes or environment prepara
 
 test('updates only changed files, keeps mtimes on repeated setup and skips Python in check mode', async (context) => {
   const directory = await fixture(context);
-  assert.equal((await synchronizeArtifacts(directory, false)).length, 3);
+  assert.equal((await synchronizeArtifacts(directory, false)).length, sandboxArtifacts().length);
   const artifacts = sandboxArtifacts();
   const before = await Promise.all(
     artifacts.map((artifact) => stat(join(directory, artifact.path))),

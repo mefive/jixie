@@ -1,13 +1,13 @@
 import { transform } from 'esbuild';
 import { DEFAULT_LOCALE, type Locale, type StrategyParamValue } from '@jixie/shared';
-import type { Strategy } from '#engine/types.js';
+import type { EngineStrategy } from '#engine/types.js';
 import {
   makeSandboxConsole,
   noopSandboxConsole,
   type SandboxConsole,
   type UserLogSink,
 } from '#infra/runtime/console.js';
-import { applyStrategyParamOverrides, defineStrategy } from '../sdk.js';
+import { applyStrategyParamOverrides, defineStrategy } from '../../../sdk/typescript.js';
 
 /** Trusted repository fixtures only. Never evaluate user or model source on the host. */
 export async function compileStrategy(
@@ -15,7 +15,7 @@ export async function compileStrategy(
   onUserLog?: UserLogSink,
   locale: Locale = DEFAULT_LOCALE,
   paramOverrides?: Record<string, StrategyParamValue>,
-): Promise<Strategy> {
+): Promise<EngineStrategy> {
   let js: string;
   try {
     // TS → CJS JS: strip types, emit module.exports so we can capture `export default`.
@@ -43,15 +43,15 @@ export async function compileStrategy(
     throw new Error(`strategy code execution error: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  const strategy = (mod.exports.default ?? mod.exports) as Partial<Strategy>;
+  const strategy = (mod.exports.default ?? mod.exports) as Partial<EngineStrategy>;
   if (!strategy || typeof strategy.onBar !== 'function') {
     throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
   }
   if (!strategy.name) {
     strategy.name = 'Untitled strategy';
   }
-  applyStrategyParamOverrides(strategy as Strategy, paramOverrides);
-  return strategy as Strategy;
+  applyStrategyParamOverrides(strategy as EngineStrategy, paramOverrides);
+  return strategy as EngineStrategy;
 }
 
 function blockedRequire(id: string): never {
