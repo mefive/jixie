@@ -1,6 +1,6 @@
 # Python 因子适配与静态验证
 
-本目录实现 py-v1 的宿主协议和验证。公开字段真相源为 [factor-python-sdk.ts](../../../../../../packages/shared/src/factor-python-sdk.ts)，底层连接由 Infra PythonSession 提供；不从 Prisma 推导 Python API。
+本目录实现 py-v1 的宿主协议和验证，以及沙箱侧业务运行器。公开字段真相源为 [python.ts](../../../../../../packages/shared/src/sdk/factor/python.ts)，底层连接由 Infra PythonSession 提供；不从 Prisma 推导 Python API。
 
 | 文件 / 入口 | 用途与调用方 |
 | --- | --- |
@@ -9,6 +9,10 @@
 | [cross-sectional.ts](cross-sectional.ts) `compilePythonCrossSectionalFactor` | 横截面序列、Strategy 准备、Engine Python 因子宿主；源码 → 批量计算对象 |
 | [asset-factor.ts](asset-factor.ts) `compilePythonTimeSeriesFactor`、`compilePythonPanelFactor` | 共享评估、发布、Strategy 准备及 Engine 宿主；源码 → 资产序列计算对象 |
 | [protocol.ts](protocol.ts) | startup／execution 帧校验；拒绝错类型或畸形响应 |
+| [runner.py](runner.py) `run_factor` | 在沙箱进程内加载用户源码、注入 `jixie`、验证元数据并批量执行；公开类来自 [Python SDK](../../sdk/python.py)，由 sandboxd 公共启动器分派 |
+
+SDK 与 runner 按业务目录结构进入 Python 镜像。移动它们须同时更新 Dockerfile、`.dockerignore`、部署影响清单和测试；
+[packaging.test.ts](packaging.test.ts) 用 Dockerfile 的实际 COPY 输入在隔离目录覆盖三种分析类型的启动与求值，不依赖仓库外的 Python 模块。
 
 编译入口连接会话、发送 factor_start 并等待元数据；computeBatch / computeSeries 发送对应请求，将宿主字段显式映射为 Python 字段。返回值数量必须匹配请求，异常长度会 abort；初始化异常关闭连接，成功对象的 dispose 由调用方负责。计算日志按协议转发，不把因子错误伪造为成功报告。
 

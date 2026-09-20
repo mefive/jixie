@@ -1,3 +1,4 @@
+import type { FactorBar as FactorSdkBar } from './sdk/factor/contract.js';
 import type { SubmitFactorAnalysisRequest } from './api/factor.js';
 import type { FactorResearchReportPayloadV1, FactorResearchSpecV1 } from './factor-research.js';
 import type { FactorStatus } from './factor-dependency.js';
@@ -50,31 +51,8 @@ export type FactorKind =
   | 'custom'
   | 'composite';
 
-/** Cross-sectional single-stock data a factor's `compute` receives — same-day (point-in-time)
- * valuation / size / liquidity (from daily_basic) + same-day moneyflow (from moneyflow, flow
- * semantics: null when the day has no data, never forward-filled). The price history window comes via
- * compute's second argument `ctx.history` (available only when `window` is declared). */
-export interface FactorBar {
-  code: string;
-  pe: number | null; // price-to-earnings
-  peTtm: number | null; // price-to-earnings TTM
-  pb: number | null; // price-to-book
-  ps: number | null; // price-to-sales
-  psTtm: number | null; // price-to-sales TTM
-  dvRatio: number | null; // dividend yield %
-  dvTtm: number | null; // dividend yield TTM %
-  totalMv: number | null; // total market cap (10k yuan)
-  circMv: number | null; // circulating market cap (10k yuan)
-  turnoverRate: number | null; // turnover rate %
-  netMain: number | null; // main-force net amount (10k yuan, exact for the day, null if missing)
-  netTotal: number | null; // total net amount (10k yuan, exact for the day, null if missing)
-  // —— Fundamentals, point-in-time (as-of): the latest report whose announcement date (annDate) is on or
-  // before the rebalance day, so there's no look-ahead. Null until a report has been published. ——
-  roe: number | null; // return on equity %, most-recent reported (annDate ≤ today)
-  roa: number | null; // return on assets %
-  grossprofitMargin: number | null; // gross profit margin %
-  debtToAssets: number | null; // debt-to-assets ratio %
-}
+/** Mutable host data assembled for the public, readonly Factor authoring bar. */
+export type FactorBar = { -readonly [Field in keyof FactorSdkBar]: FactorSdkBar[Field] };
 
 /** Catalog entry — one row in the factor list (no analysis, just identity). */
 export interface FactorMeta {

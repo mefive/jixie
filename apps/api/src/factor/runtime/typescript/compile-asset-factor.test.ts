@@ -18,8 +18,53 @@ const source = `export default defineFactorV2({
 });`;
 
 describe('compileTimeSeriesFactor', () => {
-  it('compiles declared daily asset factors and evaluates aligned history inside the isolate', async () => {
-    const factor = await compileTimeSeriesFactor(source);
+  it.each([-1, 0.5])(
+    'rejects lag %s inside the SDK and preserves the error boundary',
+    async (periods) => {
+      const logs: string[] = [];
+      const factor = await compileTimeSeriesFactor(
+        source.replace(
+          "ctx.lag('etf.adjustedClose', 20)",
+          `ctx.lag('etf.adjustedClose', ${periods})`,
+        ),
+        (_level, line) => logs.push(line),
+      );
+      try {
+        expect(await factor.computeSeries({ 'etf.adjustedClose': [100] }, [0, 0])).toEqual([
+          null,
+          null,
+        ]);
+        expect(logs).toEqual(['[factor-error] ctx.lag periods must be a non-negative integer']);
+      } finally {
+        factor.dispose();
+      }
+    },
+  );
+
+  it('returns null for missing, non-finite and out-of-range values without compute errors', async () => {
+    const logs: string[] = [];
+    const factor = await compileTimeSeriesFactor(source, (_level, line) => logs.push(line));
+    try {
+      expect(await factor.computeSeries({}, [20])).toEqual([null]);
+      const prices = Array.from({ length: 23 }, () => 100);
+      prices[21] = NaN;
+      prices[22] = Infinity;
+      expect(
+        await factor.computeSeries({ 'etf.adjustedClose': prices }, [19, 20, 21, 22, 23]),
+      ).toEqual([null, 0, null, null, null]);
+      expect(logs).toEqual([]);
+    } finally {
+      factor.dispose();
+    }
+  });
+
+  it('evaluates aligned history and supports detached context methods inside the isolate', async () => {
+    const factor = await compileTimeSeriesFactor(
+      source
+        .replace('compute(ctx) {', 'compute(ctx) { const { value, lag } = ctx;')
+        .replace('ctx.value(', 'value(')
+        .replace('ctx.lag(', 'lag('),
+    );
     try {
       expect(factor).toMatchObject({
         version: 2,

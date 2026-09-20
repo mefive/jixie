@@ -17,6 +17,7 @@ Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观
 | 因子间相关性如何缓存 | [correlations](correlations/README.md)：独立任务与缓存，不创建正式报告 |
 | 来源、快照和哈希在哪里定义 | [sources](sources/README.md)：纯来源与指纹、需要查库的来源解析 |
 | 如何查询任务归属 | [jobs](jobs/README.md)：独立 kind 与报告关系，不拥有业务生命周期 |
+| 作者接口、上下文与声明从哪里来 | [sdk](sdk/README.md)：TS/Python SDK；公开契约与声明生成归 shared/sdk/factor |
 | 定义检查和双语言执行 | [runtime](runtime/README.md)：共享验证／提示词；[TypeScript](runtime/typescript/README.md)、[Python](runtime/python/README.md)：各自编译、协议与资源 |
 | 固定因子版本、持续观察 | [weather](weather/README.md)：pin、月度结果与独立刷新状态 |
 | 编辑对话和私有只读问答 | [agent](agent/README.md)：草稿 authoring；[questions](questions/README.md)：稳定因子身份、私有历史与上下文 |

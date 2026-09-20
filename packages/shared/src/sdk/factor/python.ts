@@ -1,4 +1,4 @@
-import type { FactorAnalysisKind } from './factor.js';
+import type { FactorAnalysisKind } from '../../factor.js';
 
 export const FACTOR_PYTHON_RUNTIME_VERSION = 'py-v1' as const;
 

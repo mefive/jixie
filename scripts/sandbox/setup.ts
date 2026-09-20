@@ -2,9 +2,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { renderResearchSdkPythonStub } from '../../packages/shared/src/research-sdk-python-stub.js';
-import { renderFactorPythonSdkStub } from '../../packages/shared/src/factor-python-sdk.js';
+import { renderFactorPythonSdkStub } from '../../packages/shared/src/sdk/factor/python.js';
 import { renderResearchPythonRuntimeRequirements } from '../../packages/shared/src/research-python-runtime.js';
 import { renderStrategySdkContract } from '../../packages/shared/src/sdk/strategy/reference.js';
+import { renderFactorSdkContract } from '../../packages/shared/src/sdk/factor/reference.js';
 import { ensurePythonEnvironment } from './python-environment.js';
 
 export const projectDirectory = fileURLToPath(new URL('../../', import.meta.url));
@@ -13,6 +14,7 @@ export function sandboxArtifacts() {
   return [
     { path: 'apps/sandboxd/python/jixie_research_sdk.pyi', content: renderResearchSdkPythonStub() },
     { path: 'apps/sandboxd/python/jixie_factor_sdk.pyi', content: renderFactorPythonSdkStub() },
+    { path: 'packages/shared/src/sdk/factor/contract.ts', content: renderFactorSdkContract() },
     {
       path: 'packages/shared/src/sdk/strategy/contract.ts',
       content: renderStrategySdkContract(),

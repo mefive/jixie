@@ -77,10 +77,12 @@ test('deployment infrastructure selects every application', () => {
   }
 });
 
-test('Strategy Python sources select both API and the sandbox image', () => {
+test('business Python sources select both API and the sandbox image', () => {
   for (const changedPath of [
     'apps/api/src/strategy/sdk/python.py',
     'apps/api/src/strategy/runtime/python/runner.py',
+    'apps/api/src/factor/sdk/python.py',
+    'apps/api/src/factor/runtime/python/runner.py',
   ]) {
     assert.deepEqual(classifyChangedPaths([changedPath], manifest), {
       api: true,
@@ -94,11 +96,13 @@ test('Strategy Python sources select both API and the sandbox image', () => {
   }
 });
 
-test('Strategy TypeScript SDK changes still select only API', () => {
-  const result = classifyChangedPaths(['apps/api/src/strategy/sdk/typescript.ts'], manifest);
-  assert.equal(result.api, true);
-  assert.equal(result.sandboxd, false);
-  assert.equal(result.fullDeploy, false);
+test('business TypeScript SDK changes still select only API', () => {
+  for (const business of ['strategy', 'factor']) {
+    const result = classifyChangedPaths([`apps/api/src/${business}/sdk/typescript.ts`], manifest);
+    assert.equal(result.api, true);
+    assert.equal(result.sandboxd, false);
+    assert.equal(result.fullDeploy, false);
+  }
 });
 
 test('documentation changes do not rebuild runtime applications', () => {

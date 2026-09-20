@@ -1,4 +1,6 @@
 import { UserCodeError } from '#infra/errors.js';
+import { factorSdkSource } from './sdk-bundle.js';
+import type { AssetFactorV2 } from '@jixie/shared/sdk/factor/contract';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import {
   loadIsolatedModule,
@@ -13,15 +15,13 @@ import {
 
 type AssetFactorAnalysisKind = 'time_series' | 'panel';
 
-interface AssetFactorDefinitionMeta<TAnalysisKind extends AssetFactorAnalysisKind> {
-  version: 2;
-  name: string;
+interface AssetFactorDefinitionMeta<TAnalysisKind extends AssetFactorAnalysisKind> extends Omit<
+  AssetFactorV2,
+  'analysisKind' | 'inputs' | 'compute'
+> {
   analysisKind: TAnalysisKind;
-  outputScope: 'asset';
-  frequency: 'daily';
+  // Runtime also serves existing research-only commodity inputs outside the TS editor surface.
   inputs: FactorV2FieldKey[];
-  targetAssetClasses: Array<'equity' | 'fixed_income' | 'commodity'>;
-  window: number;
 }
 
 export type TimeSeriesFactorDefinitionMeta = AssetFactorDefinitionMeta<'time_series'>;
@@ -65,17 +65,6 @@ const ASSET_FACTOR_SETUP = `
     throw new Error('Factor V2 window must be an integer between 2 and 505');
   }
   const declaredInputs = new Set(factor.inputs);
-  const access = (fields, index, field, lag) => {
-    if (!declaredInputs.has(field)) {
-      throw new Error('Factor code accessed undeclared input ' + field);
-    }
-    if (!Number.isInteger(lag) || lag < 0) {
-      throw new Error('ctx.lag periods must be a non-negative integer');
-    }
-    const values = fields[field];
-    const value = values && values[index - lag];
-    return Number.isFinite(value) ? value : null;
-  };
   __entries.meta = () => JSON.stringify({
     version: factor.version,
     name: factor.name,
@@ -91,10 +80,7 @@ const ASSET_FACTOR_SETUP = `
     const indexes = JSON.parse(indexesJson);
     const values = indexes.map((index) => {
       try {
-        const ctx = {
-          value(field) { return access(fields, index, field, 0); },
-          lag(field, periods) { return access(fields, index, field, periods); },
-        };
+        const ctx = new __factorSdk.AssetFactorContext(fields, index, declaredInputs);
         const value = factor.compute(ctx);
         return value == null || !Number.isFinite(value) ? null : value;
       } catch (error) {
@@ -130,7 +116,7 @@ async function compileAssetFactor<TAnalysisKind extends AssetFactorAnalysisKind>
   const module: IsolatedModule = await loadIsolatedModule({
     userJs,
     noun: 'Factor V2 code',
-    injectGlobals: `globalThis.defineFactorV2 = (factor) => factor; globalThis.__expectedAnalysisKind = ${JSON.stringify(analysisKind)};`,
+    injectGlobals: `${await factorSdkSource()}\nglobalThis.defineFactorV2 = __factorSdk.defineFactorV2; globalThis.__expectedAnalysisKind = ${JSON.stringify(analysisKind)};`,
     setup: ASSET_FACTOR_SETUP,
   });
 

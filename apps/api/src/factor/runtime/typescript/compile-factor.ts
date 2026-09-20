@@ -1,4 +1,7 @@
 import type { FactorBar } from '@jixie/shared';
+import type { CustomFactor } from '@jixie/shared/sdk/factor/contract';
+import type { FactorHistory } from '../../sdk/typescript.js';
+import { factorSdkSource } from './sdk-bundle.js';
 import {
   loadIsolatedModule,
   toCommonJs,
@@ -8,27 +11,17 @@ import type { UserLogSink } from '#infra/runtime/console.js';
 
 /**
  * Compile a factor (defineFactor TS source) into an isolated-vm-backed handle — the hard sandbox
- * boundary for factor code (2026-07-07 Phase A; strategy onBar is still new Function, Phase B done separately).
+ * boundary for factor code. SDK functions and user callbacks both execute inside the isolate.
  * Execution is BATCHED: one wall-crossing computes a whole array of items (per rebalance date on
  * the fast path, per stock on the windowed path) — 650k per-stock wall crossings would be crushed by
  * serialization overhead; batching cuts the crossing count down to the order of days/stocks. Each item carries its bar and, for windowed factors, the hfq close/
  * date window ENDING at the evaluation day; ctx.history slices tails of that window in-wall.
  */
-export interface FactorBatchItem {
+export interface FactorBatchItem extends FactorHistory {
   bar: FactorBar;
-  closes?: number[]; // tail window ending at the evaluation day (windowed factors only)
-  dates?: string[]; // aligned trade dates for the window
-  amounts?: (number | null)[]; // aligned daily turnover amounts (thousand yuan)
-  turnoverRatesF?: (number | null)[]; // aligned free-float turnover rates for the window
-  roes?: (number | null)[]; // aligned point-in-time ROE values (as-of announcement date)
-  grossProfitMargins?: (number | null)[]; // aligned point-in-time gross margins
-  marketCloses?: (number | null)[]; // aligned exact-date CSI All Share closes
 }
 
-export interface CompiledFactor {
-  name: string;
-  window?: number;
-  minCoverage?: number;
+export interface CompiledFactor extends Omit<CustomFactor, 'compute'> {
   /** One wall-crossing: per-item factor value (null = dropped: returned null / NaN / threw). */
   computeBatch(items: FactorBatchItem[]): Promise<(number | null)[]>;
   dispose(): void;
@@ -43,11 +36,6 @@ const FACTOR_SETUP = `
   if (!factor.name) {
     factor.name = '未命名因子';
   }
-  const NO_HISTORY_CTX = {
-    history() {
-      throw new Error('要用 ctx.history 需在 defineFactor 里声明 window(所需交易日数,含当天)');
-    },
-  };
   __entries.meta = () => JSON.stringify({
     name: factor.name,
     window: factor.window ?? null,
@@ -57,29 +45,7 @@ const FACTOR_SETUP = `
     const items = JSON.parse(itemsJson);
     const values = items.map((item) => {
       try {
-        const ctx = item.closes
-          ? {
-              history(n, field) {
-                const src = field === 'date'
-                  ? item.dates
-                  : field === 'amount'
-                    ? item.amounts
-                  : field === 'turnoverRateF'
-                    ? item.turnoverRatesF
-                  : field === 'roe'
-                    ? item.roes
-                    : field === 'grossprofitMargin'
-                      ? item.grossProfitMargins
-                      : field === 'marketClose'
-                        ? item.marketCloses
-                        : item.closes;
-                if (n <= 0 || src.length < n) {
-                  return [];
-                }
-                return src.slice(src.length - n);
-              },
-            }
-          : NO_HISTORY_CTX;
+        const ctx = new __factorSdk.CrossSectionalFactorContext(item);
         const value = factor.compute(item.bar, ctx);
         return value == null || !Number.isFinite(value) ? null : value;
       } catch (e) {
@@ -100,7 +66,7 @@ export async function compileFactor(
   const module: IsolatedModule = await loadIsolatedModule({
     userJs,
     noun: 'factor code',
-    injectGlobals: 'globalThis.defineFactor = (factor) => factor;',
+    injectGlobals: `${await factorSdkSource()}\nglobalThis.defineFactor = __factorSdk.defineFactor;`,
     setup: FACTOR_SETUP,
   });
   let reportedComputeError = false;

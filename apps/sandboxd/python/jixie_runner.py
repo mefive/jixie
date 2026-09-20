@@ -114,6 +114,9 @@ def main() -> None:
     sys.stderr = _LogStream("error")
     start = _read_frame()
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    # Deployment preserves the business-source layout, so local and container imports agree.
+    api_source = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api/src"))
+    sys.path.insert(0, api_source)
     if start.get("type") == "research_start":
         from jixie_research_runtime import run_research
 
@@ -125,13 +128,10 @@ def main() -> None:
         )
         return
     if start.get("type") == "factor_start":
-        from jixie_factor_runtime import run_factor
+        from factor.runtime.python.runner import run_factor
 
         run_factor(start, _read_frame, _send_frame, _run_user_code)
         return
-    # Deployment preserves the business-source layout, so local and container imports agree.
-    api_source = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api/src"))
-    sys.path.insert(0, api_source)
     from strategy.runtime.python.runner import run_strategy
 
     run_strategy(start, _read_frame, _send_frame, _run_user_code)

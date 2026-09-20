@@ -73,6 +73,9 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `research/language/pyright-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |
 | Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/runner.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
 | Strategy TS 公开类型 | `packages/shared/src/sdk/strategy/reference.ts` → 同目录 `contract.ts`；`setup:sandbox` 生成/校验，API 使用 `@jixie/shared/sdk/strategy/contract` 的类型入口；Monaco 继续动态调用同一声明生成器 |
+| Python Factor SDK/runtime | `apps/api/src/factor/sdk/python.py` / `apps/api/src/factor/runtime/python/runner.py`；与 Strategy 使用相同业务目录导入和镜像显式打包方式，同时影响 API/sandboxd；三种分析类型的打包回归见 `factor/runtime/python/packaging.test.ts` |
+| TS Factor SDK bundle | `factor/runtime/typescript/sdk-bundle.ts` 从 `../../sdk/typescript.ts`（开发）或 `.js`（编译后）打包工厂与 Context 实现；宿主缓存源码，每个 isolate 独立执行；验收须分别检查源码及 dist 两种路径 |
+| Factor 公开契约 | `packages/shared/src/sdk/factor/reference.ts` → `contract.ts`，TS 编辑器和 API 共用签名来源；`python.ts` 生成原路径 Factor `.pyi`，Pyright/Agent 的既有 shared 导出保持兼容 |
 | 公开 Python stub | `apps/sandboxd/python/jixie_research_sdk.pyi`、`jixie_factor_sdk.pyi` 由 shared Contract 生成；路径移动不得手工改生成结果 |
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |

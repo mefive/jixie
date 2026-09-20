@@ -6,7 +6,9 @@
     "sandboxd": [
       "apps/sandboxd/",
       "apps/api/src/strategy/sdk/python.py",
-      "apps/api/src/strategy/runtime/python/runner.py"
+      "apps/api/src/strategy/runtime/python/runner.py",
+      "apps/api/src/factor/sdk/python.py",
+      "apps/api/src/factor/runtime/python/runner.py"
     ]
   },
   "allComponents": ["api", "web", "docs", "sandboxd"],

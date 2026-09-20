@@ -39,6 +39,8 @@ E2E 从具体用户任务出发，验证用户通过界面完成任务及其结�
 - `isolated`：`factor-questions`、`embedded-analysis` 自行启动隔离 API/模型夹具，需要先构建 shared 和 Web；嵌入式分析还需要 Research Python runtime。
 - `browser`：只需 Web 服务，使用 HTTP/SSE 夹具；这是前端回归检查，不替代完整业务链路验收。
 - `report-deployments` 必须使用可丢弃的 API 数据库并设置 `E2E_ISOLATED_DB=1`，会保留报告/部署历史。
+- `factor-sdk` 需要 Vite 开发服务和 API，验证三类 TS 因子的双语声明/提示与编辑器自动保存；创建的测试草稿在结束时删除。
+  `factor-python` 验证 Python 默认创建、补全与真实分析报告，需要足够的历史股票数据；建议使用可丢弃数据库。
 
 ### 帮助图片生成
 

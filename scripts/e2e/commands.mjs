@@ -191,6 +191,13 @@ export const e2eCommands = [
     group: 'factor',
   },
   {
+    name: 'factor-sdk',
+    file: 'apps/web/e2e/factor-sdk.mjs',
+    group: 'factor',
+    notes:
+      'Development Web/API; verifies TS Factor SDK hovers, types and autosave in both locales.',
+  },
+  {
     name: 'historical-investability',
     file: 'apps/web/e2e/historical-investability.mjs',
     group: 'market',

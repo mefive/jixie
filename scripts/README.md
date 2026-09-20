@@ -18,24 +18,26 @@
 ## 沙盒准备
 
 `pnpm setup:sandbox` 统一准备用户脚本需要的 SDK 声明、依赖清单和本地执行环境，不启动 sandboxd。
-四个生成文件逐项比较内容，仅写入变化的文件；本地 `.venv/research-py-v1` 的解释器、包版本和导入均符合
+五个生成文件逐项比较内容，仅写入变化的文件；本地 `.venv/research-py-v1` 的解释器、包版本和导入均符合
 shared 契约时跳过安装，否则按固定 requirements 安装并复核。SDK 单独变化不会触发已健康环境的重装。
 首次创建需已有 CPython 3.13，可用 `JIXIE_PYTHON_BOOTSTRAP_EXECUTABLE` 指定解释器。已有环境的解释器
 损坏或不兼容时保留目录并报错，需移走旧目录后重试；不会自动删除环境。仍只管理工作区的默认环境，
 `JIXIE_PYTHON_EXECUTABLE` 指定的外部环境由使用者自行维护。
 
-`pnpm setup:sandbox --check` 只比较四份生成物，报告所有过期/缺失文件；不写文件、不要求 Python、
+`pnpm setup:sandbox --check` 只比较五份生成物，报告所有过期/缺失文件；不写文件、不要求 Python、
 不安装依赖。根级 build/typecheck 共用此门禁，`pnpm dev` 保留实际运行环境校验。
 Strategy TS 复用 `packages/shared/src/sdk/strategy/reference.ts` 的声明生成器，额外输出同目录
-`contract.ts` 供实现做类型检查；编辑器仍动态生成带用户因子 key 的声明。另三份生成物为 Research / Factor
+`contract.ts` 供实现做类型检查；编辑器仍动态生成带用户因子 key 的声明。Factor TS 同样由
+`sdk/factor/reference.ts` 生成同目录 `contract.ts`，前端直接消费共享声明渲染器。另三份生成物为 Research / Factor
 Python `.pyi` 和 Research Python requirements。此步骤不编译 JavaScript，也不从 Engine / Prisma 推导 SDK。
 
 ## Python 镜像构建输入
 
 镜像以仓库根目录为上下文（`-f apps/sandboxd/Dockerfile.python .`），根 `.dockerignore` 只允许
 显式的 Python 文件、requirements 和 Dockerfile；不把 API 的数据库、配置或 node_modules 打入上下文。
-Strategy 的 Python SDK/runtime 源码归 `apps/api/src/strategy`，镜像保留对应相对目录供 `-I` runner 导入。
-`deploy/component-impact.json` 把这两个文件登记为 API/sandboxd 的共同输入，部署分类取所有匹配组件。
+Strategy / Factor 的 Python SDK/runtime 源码分别归 `apps/api/src/strategy`、`apps/api/src/factor`，
+镜像保留对应相对目录供 `-I` runner 导入。`deploy/component-impact.json` 把两个业务的 SDK 与 runner
+登记为 API/sandboxd 的共同输入，部署分类取所有匹配组件。
 新增或移动业务 Python 镜像输入时，同步 Dockerfile、ignore 清单、部署清单和相应测试。
 
 ## 调用边界

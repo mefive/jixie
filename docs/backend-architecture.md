@@ -221,3 +221,8 @@ Strategy 的公开 TS 签名、文档、Agent 参考归 `packages/shared/src/sdk
 Engine 保留内部 `EngineStrategy` / `EngineContext`，负责模拟时钟、PIT 数据、因子准备与交易账户。
 公开上下文不继承 Engine 类型；runtime 把用户回调装配为引擎决策回调，SDK 对公开签名做编译期适配检查。
 实现、兼容性与本次验收见 [Strategy SDK 边界记录](design/strategy-sdk-boundaries.md)。
+
+Factor 遵循相同归属：作者接口归 `factor/sdk`，Python 业务协议与加载归 `factor/runtime/python/runner.py`；
+TS 的工厂与 `history/value/lag` 实现归 SDK，runtime 负责打包、isolate 注入、数据传入与批量调用。`shared/sdk/factor/reference.ts` 统一 TS 编辑器声明与
+生成编译契约；Python 契约归同目录 `python.ts`。SDK 的移动不改变评估、发布或字段准入。
+三个业务的整体范围与逐项验收状态见 [统一 SDK 计划](design/business-sdk-organization.md)。

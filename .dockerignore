@@ -8,7 +8,6 @@
 !apps/sandboxd/python/requirements-research-runtime.txt
 !apps/sandboxd/python/jixie_runner.py
 !apps/sandboxd/python/jixie_research_runtime.py
-!apps/sandboxd/python/jixie_factor_runtime.py
 !apps/api/
 !apps/api/src/
 !apps/api/src/strategy/
@@ -17,3 +16,9 @@
 !apps/api/src/strategy/runtime/
 !apps/api/src/strategy/runtime/python/
 !apps/api/src/strategy/runtime/python/runner.py
+!apps/api/src/factor/
+!apps/api/src/factor/sdk/
+!apps/api/src/factor/sdk/python.py
+!apps/api/src/factor/runtime/
+!apps/api/src/factor/runtime/python/
+!apps/api/src/factor/runtime/python/runner.py

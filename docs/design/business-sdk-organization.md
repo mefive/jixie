@@ -1,7 +1,7 @@
 # 业务 SDK 与运行时统一组织计划
 
-状态：整体计划及三个提交的范围已获用户确认。提交 1 已获产品代码审查批准并通过约定验证，随本提交交付；
-提交 2、3 尚未实施。范围确认不替代各提交的产品代码审查与行为验收。
+状态：整体计划及三个提交的范围已获用户确认。提交 1 已完成（`11abd9df`）；提交 2 已通过修订版人工审查、
+静态检查与行为验收，随本记录提交。提交 3 尚未实施。范围确认不替代产品代码审查与行为验收。
 
 ## 目标与判断
 
@@ -16,8 +16,8 @@
 
 | 业务 | 现状 | 本轮需解决的问题 |
 | --- | --- | --- |
-| Strategy | 已将 TS/Python SDK 放入 `apps/api/src/strategy/sdk`；Python runner 放入业务 runtime；TS 契约移入 shared/sdk/strategy | 已完成静态检查、修订版人工审查及本提交行为验证，随本提交交付 |
-| Factor | TS SDK 位于 `factor/runtime/typescript/sdk.ts`；Python 公开类与执行循环混在 `apps/sandboxd/python/jixie_factor_runtime.py` | 分离 SDK 与 runtime；TS 编辑器声明仍在 `factor-editor.tsx` 手写，需要明确唯一来源 |
+| Strategy | 已将 TS/Python SDK 放入 `apps/api/src/strategy/sdk`；Python runner 放入业务 runtime；TS 契约移入 shared/sdk/strategy | 已完成静态检查、人工审查和验证，提交 `11abd9df` |
+| Factor | TS/Python SDK 已归 `factor/sdk`；Python runner 归业务 runtime；TS 编辑器与编译类型共用 shared/sdk/factor 声明来源 | 修订版人工审查、静态检查、运行回归、构建及编辑器/分析 E2E 已通过 |
 | Research | `research/sdk` 实际主要承担宿主协议、校验、分派和输入回放；Python 用户 API、AST 分析、Cell 执行及输出处理混在 sandboxd 文件 | SDK 目录恢复用户接口含义；业务 Python 归属 Research；会话与执行协议归 runtime |
 
 Strategy 的已有设计与静态结果见 [strategy-sdk-boundaries.md](strategy-sdk-boundaries.md)。
@@ -110,7 +110,7 @@ Research Python 实现较大，使用语言子目录；Strategy / Factor 的较�
 1. 将 TS SDK 从 `runtime/typescript/sdk.ts` 移到 `sdk/typescript.ts`，更新 Engine、内置模板、编译器和测试消费者。
    将公开类型与编辑器声明来源收拢到 `shared/sdk/factor`，覆盖既有横截面及 V2 时间序列/面板公开入口。
    前端编辑器改为消费 shared 声明渲染，保留现有双语说明；API 公开签名以共享类型检查，不另手写同名副本。
-   isolate 内的工厂注入仍由 runtime 负责，其签名/行为由契约与编译回归约束。
+   工厂及 `history/value/lag` 实现归 SDK；runtime 打包 SDK 后注入 isolate、传入准备好的数据，签名/行为由契约与编译回归约束。
 2. 从 `jixie_factor_runtime.py` 拆出 Factor 工厂、公开 Context、FactorBar 及相关 SDK 实现到 `factor/sdk/python.py`；
    源码加载、`jixie` 注入、消息循环及返回校验归 `factor/runtime/python/runner.py`。
 3. Python 契约迁到 shared 对应目录，更新生成器和全部引用，生成的 `.pyi` 内容应保持一致。
@@ -122,10 +122,60 @@ Research Python 实现较大，使用语言子目录；Strategy / Factor 的较�
 不改变窗口、字段口径、PIT、缺值、因子方向、结果长度校验、分析准入或错误传播。
 不通过移动所有 Factor 存储/报告类型来制造 SDK 契约；仅收拢实际脚本公开表面。
 
+经 SDK 对照后的修订：TS 与 Python 均以 `CrossSectionalFactorContext`、`AssetFactorContext` 组织内部实现，
+TS 类实现原有共享类型，runtime 直接实例化；不保留内部 `create*Context` 转发函数，不增加公开构造入口。
+公开工厂、TS 类型名、字段名及各语言既有参数行为保持原样，不引入新旧 API 并存。
+已知 `history` 非正窗口/未知字段处理与五个/七个资产字段差异保留并记录在 SDK README；本次不做公开 SDK 改版。
+
 审查前：全仓 typecheck/生成物一致性、边界静态扫描、相关 lint/format、Python AST 与路径/diff 检查。
 审查后：TS 两类编译器、Python validator/Pyright、横截面及资产因子协议与执行回归、Strategy 因子输入/Engine 隔离回归；
 验证 shared 声明与编辑器一致、原用户示例仍可用；部署计划和从镜像 COPY 清单组装的隔离 Python 打包测试；
 相关构建与 Factor 编辑器/执行 E2E。现有测试覆盖不足时只补充本次边界和迁移风险所需用例。
+
+### 提交 2 实施与静态验收（2026-09-20）
+
+- TS 编辑器原有完整声明模板与双语说明迁至 `shared/sdk/factor/reference.ts`，没有扩展签名。
+  现有生成脚本新增 Factor `contract.ts`（共五份生成物）；工厂编写辅助和 runtime 元数据引用生成契约。
+  `factor.ts` 中宿主用的可写 FactorBar 映射自公开 readonly Bar，保持既有根级导出与宿主组装方式。
+- 根据人工审查反馈，TS 的两个工厂与 `history/value/lag` 实现完整迁入 `factor/sdk/typescript.ts`。
+  `runtime/typescript/sdk-bundle.ts` 只打包该 SDK 并缓存源码；编译器在每个 isolate 内初始化 SDK，
+  使用实际工厂与 Context 构造函数，不保留同名字符串实现。数据准备、元数据校验、批量调用、日志及资源释放仍归 runtime。
+  开发读取 `.ts`、生产读取编译后的 `.js`；审查后须验证两种路径与 bundle 不含宿主依赖。
+- TS Context 已修订为与 Python 同名的两个类；运行器直接实例化。方法绑定保留已有解构调用方式，
+  历史数组和声明字段集合使用私有字段，生成契约测试同时检查类实现与原公开方法签名一致。
+- Python 公开类及辅助类归 `factor/sdk/python.py`，源码加载、元数据/结果校验及批量循环归
+  `factor/runtime/python/runner.py`。按 AST 比较迁移前后所有类/函数完全一致；变动仅为导入及源码归属。
+- Python 契约迁为 `shared/sdk/factor/python.ts`，除相对类型 import 外源码一致，生成的原路径 `.pyi` 无 diff。
+  TS 编辑器的声明模板与双语说明也已与迁移前原文逐项比较一致。
+- sandboxd 分派、Dockerfile、`.dockerignore` 及部署影响清单同步；Factor 的两个 Python 文件同时触发 API/sandboxd。
+  COPY 源文件及逐层父目录均已静态核对存在且允许进入构建上下文，尚未执行容器构建。
+- `pnpm typecheck` 全部通过（shared/API/Web/Docs/sandboxd）；包含生成物一致性和后端静态边界扫描：
+  修订后为 785 个文件、2942 条运行时边、697 条类型边、0 违规，沿用 3 条已登记例外，无新增循环例外。
+- 所有改动 TS/TSX/MJS（含新增生成契约）的 ESLint、手工源码 Prettier、Python AST 语法检查和 diff 检查通过。
+- 新增测试代码覆盖双语 TS 作者代码/错误诊断、公开与宿主类型兼容，以及从 Dockerfile 实际 COPY 输入组装的
+  Python 横截面/时间序列/面板协议执行；扩展部署分类回归。补充 TS bundle 依赖边界、所有 history 字段/窗口/
+  缺值与返回副本、无历史时的单点错误处理，以及 V2 lag 参数/缺值/范围访问回归。审查前未运行，审查后结果见下。
+- 未改 HTTP、数据库 schema、公开调用方式、数值算法或业务准入。TS 编辑器五个 V2 字段与 Python 七个字段的
+  既有范围差异明确保留；宿主的受控研究字段 registry 仍归 definitions，不把本次结构整理当作 TS 能力扩充。
+
+### 提交 2 审查后验证（2026-09-20）
+
+- 用户确认修订版后执行验证，产品代码未再修改。SDK/编译器、Python validator/Pyright、协议、三类 Python
+  打包运行、横截面历史、资产观测、Strategy 因子准备及 Engine 隔离回归共 19 个测试文件、115 项通过。
+  其中包含源码 Worker 的 TS/Python 策略与因子四种组合，以及 Factor 分析/相关性/Signals 执行入口。
+- `pnpm build` 全仓通过，仅有 Web/Docs 既有大 chunk 提示。编译产物模式另跑 Worker 测试 8 项通过；
+  直接加载 dist 的 SDK bundle 与三类 TS 编译器，确认只包含 `dist/src/factor/sdk/typescript.js`，
+  `history/value/lag`（含解构调用）输出符合预期。
+- setup/部署计划/bootstrap 测试 31 项通过；新增 `factor-sdk` E2E 命令后，E2E 运行器/清单测试 8 项通过。
+- `python-factor.mjs` 完成真实页面创建、Pyright `pe_ttm` 补全与 Python 分析报告，保留语言/运行时/源码快照。
+  使用临时 SQLite 和合成市场数据；报告完成并呈现图表，不涉及生产数据或投资有效性结论。
+- 新增 `factor-sdk.mjs` 验证横截面、时间序列和面板三类 TS 编辑器：中英切换后签名/原有说明正常、
+  Monaco 无语义错误、编辑器修改经自动保存和服务端定义校验持久化。V2 既有英文注释保持原文。
+  首次运行发现测试导航方式不能切换第二个工作区，修正测试脚本后全部通过；没有借此修改产品代码。
+- 八张截图已逐张视觉检查：`apps/web/acceptance/13a-python-factor-sdk.png`、`13b-python-factor-report.png`，
+  以及 `factor-sdk-{cross_sectional,time_series,panel}-{zh,en}.png`。截图按仓库既有规则忽略，不纳入源码提交。
+- 临时 API/Web 已关闭，3307/5277 端口释放；SQLite 无打开句柄，临时数据库目录已清理。
+  无推送。真实 Docker 镜像构建与三业务容器验收仍按整体计划归提交 3，本轮 Python 打包测试不替代该验收。
 
 ## 提交 3：统一 Research SDK 与 Cell 运行时归属
 
