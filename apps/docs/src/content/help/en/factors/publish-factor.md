@@ -34,9 +34,10 @@ Use Copy to create an independent draft when the definition must change. The sug
 
 1. Click Use in strategy.
 2. Wait for the strategy workbench.
-3. Verify the prefilled key, research assets, and rebalance rule.
-4. Run the backtest.
-5. Check Factors used by this backtest for the frozen Factor ID and code hash.
+3. Check the prefilled request in the prompt input, including the Factor key, research assets, and rebalance rule. Strategy code has not yet been generated.
+4. Add your trading rules and send the request to the Agent, or write the code yourself. Check the resulting code, dates, capital, and costs.
+5. Explicitly select Run backtest.
+6. Check Factors used by this backtest for the frozen Factor ID and code hash.
 
 ![Published status, Strategy action, and frozen lineage](/docs/images/help/zh/factors/publish-factor-02.png)
 

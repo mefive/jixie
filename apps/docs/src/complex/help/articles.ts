@@ -736,8 +736,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Research documents and run history',
     },
     summary: {
-      zh: '区分可编辑文档、探索运行、不可变完整快照和封存版本。',
-      en: 'Distinguish editable documents, exploratory runs, immutable complete snapshots, and promoted versions.',
+      zh: '搜索、归档和恢复研究，区分当前文档、完整运行和封存版本。',
+      en: 'Search, archive, and restore studies; distinguish documents, full runs, and promoted versions.',
     },
     content: {
       zh: researchRecordsZh,
@@ -810,8 +810,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Understand the Strategy workbench',
     },
     summary: {
-      zh: '认识策略、代码、结果和日志区域，并正确打开、新建和切换策略。',
-      en: 'Learn the strategy, code, results, and logs areas, and open or create a strategy.',
+      zh: '认识工作台，区分策略草稿、历史报告、对话分析和报告部署。',
+      en: 'Learn the workbench and distinguish drafts, historical reports, chat analysis, and deployment.',
     },
     content: {
       zh: workspaceZh,

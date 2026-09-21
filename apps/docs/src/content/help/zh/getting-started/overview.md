@@ -18,6 +18,15 @@
 
 页面之间可以配合使用。例如，先在“研究”中确认股票范围，再在“策略”中检验一套买卖规则。
 
+## 按问题选择工作流
+
+- **自由研究或公司财报分析**：在“研究”中选择数据、确认口径，审查并运行 Markdown/Python Cell。可以直接[分析财报](/docs/help/research/financial-data)，也可以使用可选的 [FCFF 模板](/docs/help/research/fcff-valuation)。
+- **理解已有结果**：在 Factor 或 Strategy 对话中引用所选报告，使用[嵌入式分析](/docs/help/research/embedded-analysis)检查数据；需要继续扩展时进入 Research。
+- **验证信号或交易规则**：通过[研究交接](/docs/help/research/handoff)创建草稿，再分别运行 Factor 报告或策略回测。探索输出不会自动成为正式验证。
+- **观察每日指令**：选择一份符合要求的成功回测报告[部署上线](/docs/help/signals/deploy-strategy)，在“今日信号”核对具体部署。保存策略或修改草稿都不会自动更新部署。
+
+产品目前以学习、研究和历史验证为主。跨市场数据研究不代表所有市场都支持交易回测；今日信号也不连接券商或自动下单。
+
 ## 建议的第一次使用顺序
 
 1. 按照[登录](/help/getting-started/login)完成登录。

@@ -22,7 +22,7 @@ This example tests buying 100 shares of Kweichow Moutai on the first trading day
 
 Wait for the explanation on the left and strategy code in the center. Verify that the stock, quantity, and frequency match your description before running it.
 
-py-v1 currently supports stock and ETF backtests. Futures, custom TypeScript factors, parameter scans,
+py-v1 currently supports stock and ETF backtests. Futures, parameter scans,
 and daily-signal deployments are not yet available. T+1, price limits, suspensions, board lots,
 adjustments, and costs are still enforced by the same backtest engine.
 

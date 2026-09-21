@@ -66,15 +66,13 @@ Agent 启动分析时会创建一份真实的不可变因子报告，保存：
 
 无论从哪里启动，历史报告都不会被后续代码覆盖。
 
+## 对话中的嵌入式分析
+
+对已有报告或选定数据做小范围计算，可以使用[嵌入式分析卡片](/docs/help/research/embedded-analysis)。它保留 Python、输入和结果，首次成功固定版本，并支持继续到 Research。Research 副本默认回放这次分析留存的输入；普通文档的历史记录规则不变。
+
 ## 相关内容
 
 - [新建和编辑自定义因子](/docs/help/factors/create-custom-factor)
 - [运行前研究卡和探索变体](/docs/help/factors/research-card)
 - [报告历史和结果已过期](/docs/help/factors/report-history)
 - [正式保留段和样本外结果](/docs/help/factors/holdout-results)
-
-
-
-## 对话中的嵌入式分析
-
-对已有报告或选定数据做小范围计算，可以使用[嵌入式分析卡片](/docs/help/research/embedded-analysis)。它保留 Python、输入和结果，首次成功固定版本，并支持继续到 Research。Research 副本默认回放这次分析留存的输入；普通文档的历史记录规则不变。

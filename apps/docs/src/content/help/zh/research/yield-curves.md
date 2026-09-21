@@ -75,6 +75,10 @@ nominal_10y_change = data.yield_curve(
 
 `difference` 需要前一条观察才能计算变化。第一条结果没有上一期时会为空，这是预期行为。
 
+## 中国收益率曲线也从同一目录进入
+
+`data.yield_curve()` 还支持目录中有本地覆盖的财政部国债、中债国债、中债 AAA 银行债和中债 AAA 短融中票曲线。先选择具体曲线与期限，核对可得日、单位和覆盖范围，再插入代码；不要把不同来源的同一期限当作完全相同的指标。Shibor 使用 `data.macro()`，不是这里的国债曲线。完整曲线标识见 [Research SDK](/docs/sdk?runtime=research#data.yield_curve)。
+
 ## 相关内容
 
 - [使用研究数据目录](/docs/help/research/data-catalog)

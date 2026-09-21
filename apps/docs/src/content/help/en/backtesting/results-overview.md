@@ -15,7 +15,7 @@ The numbered areas are:
 
 ## Recommended reading order
 
-1. Confirm the strategy name, dates, and capital.
+1. Confirm the strategy and selected entry in Backtest report history, then check that report's period and capital. The top run settings belong to the current draft and may differ from the historical report.
 2. Check the number of trades to verify that the rules actually triggered.
 3. Read total and annualized return.
 4. Read maximum drawdown and Sharpe.
@@ -53,7 +53,15 @@ A strong value in one metric does not make a strategy reliable. Always consider 
 - **Fees** include commissions, stamp duty, and other explicit costs used by the calculation.
 - **Slippage loss** is caused by the simulated difference between calculation and execution prices.
 
-Low costs may mean few trades or unrealistically low assumptions. Check the run parameters before drawing a conclusion.
+Low costs may mean few trades or unrealistically low assumptions. Check the cost configuration saved with the selected report before drawing a conclusion. The top run settings may have changed and should not be used to explain an old report.
+
+## Open historical reports and continue research
+
+Select a run in **Backtest report history** above the results. Metrics, curves, and workbench trade details follow that report. The editor and run settings remain the current draft; selecting a report does not roll them back.
+
+Select **Review in Research** to create a document reading the selected report in a new tab. Alternatively, enable **Use selected report** in the left conversation and ask the Agent to explain or calculate from saved results. Inspect actual inputs and code in the [embedded analysis card](/docs/help/research/embedded-analysis). Neither action reruns the strategy.
+
+To test a changed version, edit the current draft and explicitly run it. Selecting an old report does not restore old code.
 
 ## Compare two reports temporarily
 

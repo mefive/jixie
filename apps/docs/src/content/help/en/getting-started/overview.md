@@ -19,6 +19,15 @@ current market, then complete one Markdown/Python study and one backtest.
 
 The pages can be used together. For example, use Research to inspect an equity universe, then use Strategy to test a trading rule.
 
+## Choose a workflow for your question
+
+- **Open research or company financial analysis:** select data and confirm definitions in Research, then review and run Markdown/Python Cells. [Analyze financial data](/docs/help/research/financial-data) directly or use the optional [FCFF template](/docs/help/research/fcff-valuation).
+- **Understand existing results:** reference a selected Factor or Strategy report in chat and use [embedded analysis](/docs/help/research/embedded-analysis) to inspect data. Continue in Research when the calculation needs to grow.
+- **Validate a signal or trading rule:** [hand off a research version](/docs/help/research/handoff) to a draft, then run a Factor report or strategy backtest. Exploratory output does not become formal validation automatically.
+- **Observe daily instructions:** [deploy an eligible successful backtest report](/docs/help/signals/deploy-strategy) and inspect that deployment in Signals. Saving a strategy or editing a draft does not update a deployment.
+
+The current focus is learning, research, and historical validation. Cross-market research data does not imply trading backtests for every market. Signals do not connect to a broker or place orders automatically.
+
 ## Recommended first steps
 
 1. [Sign in](/help/getting-started/login).

@@ -29,6 +29,8 @@ If **Unsaved changes** appears when you select New or another strategy:
 
 Discarding removes code or parameter changes that have not been run. It does not alter the previously completed result.
 
+Selecting a historical report changes the displayed result, not the editor or run settings. To return to old rules, inspect that report's saved configuration and deliberately update the current draft. Selecting an old report does not undo edits.
+
 ## Compare results before and after a change
 
 Record at least:

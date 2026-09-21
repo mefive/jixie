@@ -4,6 +4,19 @@ A factor is a numeric value calculated for every eligible stock on each comparis
 
 It studies historical patterns across groups of stocks. It does not predict that one stock must rise or fall on the next day.
 
+## Distinguish the research methods
+
+This page uses a stock cross-section to explain the basics. Other methods are also available; their results are not all ten groups of stocks:
+
+| Method | Main question | Guide |
+| --- | --- | --- |
+| Stock cross-section | Do higher-scoring stocks at the same date have higher subsequent returns? | [First analysis](/docs/help/factors/first-preset-analysis) |
+| ETF time series | Is an asset's own historical signal related to its future return? | [Time-series research](/docs/help/factors/time-series-research) |
+| Cross-asset Panel | Do comparable scores across assets contain ranking information at common dates? | [Panel research](/docs/help/factors/panel-research) |
+| Macro regimes | How do asset outcomes differ across growth and inflation states? | [Macro regimes](/docs/help/factors/macro-regime) |
+
+New custom Factors default to Python; existing TypeScript definitions remain compatible. Asking about a report or running an embedded calculation does not create a new formal report. See [Report history](/docs/help/factors/report-history).
+
 ## Understand a factor through earnings yield
 
 **Earnings yield (1/PE_TTM)** is approximately the inverse of the price-to-earnings ratio:
@@ -56,7 +69,7 @@ Complete one preset analysis before learning custom factor code.
 
 ## How Factor Weather differs
 
-Factor Research defines and tests a Factor under user-selected dates, frequency, sample treatment, and costs, then saves an immutable report. Factor Weather accepts published single Factors and continuously adds complete months under one fixed monthly method to monitor favorable and unfavorable phases.
+Factor Research defines and tests a Factor under user-selected dates, frequency, sample treatment, and costs, then saves an immutable report. Factor Weather accepts preset single Factors and published custom single Factors and continuously adds complete months under one fixed monthly method to monitor favorable and unfavorable phases.
 
 Complete the definition, research card, and holdout work in Factor Research before pinning a factor. Recent weather cannot replace formal research or turn months you have already seen into out-of-sample data.
 

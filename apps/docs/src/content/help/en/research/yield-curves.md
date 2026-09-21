@@ -75,6 +75,10 @@ The real curve does not currently cover every short tenor. Use a supported edito
 
 `difference` requires a previous observation. The first returned observation has no earlier value and may therefore be missing.
 
+## Chinese yield curves use the same catalog
+
+`data.yield_curve()` also supports locally covered Ministry of Finance government, ChinaBond government, ChinaBond AAA bank, and ChinaBond AAA commercial-paper/note curves. Choose the curve and tenor, verify availability, units, and coverage, then insert the call. The same tenor from different sources is not necessarily the same measure. Shibor uses `data.macro()`, not this government-yield entry. See [Research SDK](/docs/sdk?runtime=research#data.yield_curve) for curve identifiers.
+
 ## Related articles
 
 - [Use the research data catalog](/docs/help/research/data-catalog)

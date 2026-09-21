@@ -6,14 +6,14 @@
 
 1. 打开一份研究文档。
 2. 点击右上角的数据图标，打开“数据目录”。
-3. “市场数据”用于搜索单个标的；“数据集”直接列出可运行的股票池截面、月末 Panel 和收益率期限。
+3. 选择“市场数据”“数据集”“Factor 报告”或“回测报告”：分别查对象序列、专用数据集和自己可读取的已完成报告。
 4. 输入对象名称、代码或关键词，例如“沪深300”“000300.SH”“10Y”。
 5. 选择需要的数据项，核对本地覆盖、日期和返回列。
 6. 点击插入代码，把调用写入当前 Python Cell。
 
 插入后仍要检查对象、起止日期和变量名是否符合研究问题。
 
-## 五类核心数据读取方式
+## 常用数据读取方式
 
 ### 单个对象的时间序列
 
@@ -70,10 +70,35 @@ M2 的全部标准化指标。截面和 Panel 一次最多选择 8 个指标，�
 `input_versions_json`。`ratio=1` 表示 100%。缺季度、缺科目和无效分母不会被补成零；银行和非银金融在工业企业
 指标中保留为 `not_applicable`。原始财报查询与模型适用性分开；金融企业来源尚未接入，没有已接入报表时返回空表。批量自选科目接口会明确返回来源未接入的原因。
 
-### 美国国债收益率曲线
+### 中美收益率曲线
 
-使用 `data.yield_curve()` 读取平台审核过的美国国债名义或实际收益率期限序列。曲线、期限和变换有独立白名单，不使用 `data.series()` 猜测收益率表或字段。具体参数、百分点单位和中美市场时区边界见[读取美国国债收益率曲线](/docs/help/research/yield-curves)。
+使用 `data.yield_curve()` 读取美国国债名义／实际收益率，以及目录支持的财政部国债、中债国债和 AAA 信用曲线期限序列。曲线、期限和变换有独立白名单，不使用 `data.series()` 猜测收益率表或字段。具体参数、百分点单位和中美市场时区边界见[读取美国国债收益率曲线](/docs/help/research/yield-curves)。
 “数据集”只列出本地真实存在的曲线与期限组合。
+
+## 更多专用数据集
+
+在“数据集”中搜索名称并核对本地覆盖。它们使用独立调用，不能都替换成 `data.series()`：
+
+| 数据 | Research SDK 方法 | 需要核对的口径 |
+| --- | --- | --- |
+| 宏观与短端利率 | `data.macro()` | 指标单位、可得日与修订限制；Shibor 与债券收益率曲线不是同一对象 |
+| 外汇 | `data.fx()` | 货币对方向、人民币研究可得日；汇率收益不等于资产收益 |
+| 商品连续收益、仓单、会员持仓 | `data.commodity_returns()`、`data.commodity_warehouse_receipts()`、`data.commodity_holdings()` | 品种覆盖、连续收益与换月分解；会员持仓不是全市场持仓 |
+| 市场与行业状态 | `data.market_state()`、`data.industry_state()` | 范围、历史成分和描述性指标，不是预测信号 |
+| 单股供应商指标、资金流与分红 | `data.equity_fundamentals()`、`data.equity_flows()`、`data.equity_dividends()` | 供应商口径与版本化财报不同；分红入口按除息日读取已实施现金分红 |
+| ETF 份额与指数估值 | `data.etf_shares()`、`data.index_valuation()` | 份额或估值日期、单位、来源与本地覆盖 |
+| 期货结算参考 | `data.futures_settlement()` | 实际交割合约的结算价、费用和保证金参数，不接受连续合约代码 |
+
+完整签名、参数枚举和返回列见 [Research SDK 参考](/docs/sdk?runtime=research)。数据可查询不表示相应市场已经支持交易回测或每日部署。
+
+## 读取已有报告和观测
+
+- 在“Factor 报告”中选择自己已完成且可见的报告，插入 `results.factor_report()`；未揭示 Holdout 不会因此解封。
+- 在“回测报告”中选择报告，插入 `results.backtest_report()`，读取其冻结配置、净值、交易和因子血缘；不会重跑策略。
+- 参数扫描结果使用 `results.strategy_scan_report()`，按稳定报告 ID 读取逐参数组合指标。
+- 已钉住因子的气象使用 `results.factor_weather()`，只读已经保存的月度观测，不触发刷新。
+
+报告 ID、策略 ID 和 Factor key 不是同一种标识，不能互相代替。在 Factor／Strategy 对话中，“引用数据”复用此目录，但保存的是本轮来源选择；实际取数须在[嵌入式分析运行](/docs/help/research/embedded-analysis)中核对。
 
 ## 时点和修订边界
 
@@ -100,14 +125,13 @@ M2 的全部标准化指标。截面和 Panel 一次最多选择 8 个指标，�
 检查对象代码、日期范围、数据频率和该字段首次可用时间。截面查询还要检查该日期是不是可用交易日。
 ETF 还要检查产品上市日和目录中的本地覆盖起点；不要把同一指数的另一只 ETF 自动替换进来。
 
+## 对话中的嵌入式分析
+
+对已有报告或选定数据做小范围计算，可以使用[嵌入式分析卡片](/docs/help/research/embedded-analysis)。它保留 Python、输入和结果，首次成功固定版本，并支持继续到 Research。Research 副本默认回放这次分析留存的输入；普通文档的历史记录规则不变。
+
 ## 相关内容
 
 - [阅读和重跑 Universe 结果](/docs/help/research/universe)
 - [读取美国国债收益率曲线](/docs/help/research/yield-curves)
 - [使用 Python 研究运行环境](/docs/help/research/python-runtime)
 - [查看研究输出](/docs/help/research/outputs)
-
-
-## 对话中的嵌入式分析
-
-对已有报告或选定数据做小范围计算，可以使用[嵌入式分析卡片](/docs/help/research/embedded-analysis)。它保留 Python、输入和结果，首次成功固定版本，并支持继续到 Research。Research 副本默认回放这次分析留存的输入；普通文档的历史记录规则不变。

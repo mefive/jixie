@@ -4,6 +4,10 @@ A time-series relationship study compares two variables ordered through time. Ex
 10-year government yield move with CSI 300 monthly returns, or whether the gold-equity correlation changes over time. It
 describes a relationship in the historical sample; it does not by itself establish causality or a predictive signal.
 
+## Use this method in the current product
+
+State the question and method in [Research](/research), load inputs through the [data catalog](/docs/help/research/data-catalog), and explicitly implement alignment, statistics, and charts in Python Cells. You can also use [embedded analysis](/docs/help/research/embedded-analysis) in a Factor or Strategy conversation. The methods below are choices to review, not a promise that the platform automatically runs every test or creates fixed report tabs. Check the code, inputs, and outputs of the actual run.
+
 ## Check the variables and timing first
 
 Before reading the statistics, verify five items:
@@ -11,8 +15,8 @@ Before reading the statistics, verify five items:
 1. **Variables:** Are they levels, returns, differences, or year-over-year changes? What are their units?
 2. **Frequency:** Daily and monthly observations cannot be mixed directly. Monthly observations align by calendar month, even
    when two markets have different last trading days.
-3. **Partial periods:** An unfinished current month is excluded by default. Include it only for an explicit month-to-date study.
-4. **Lag:** `predictorLag = 0` is contemporaneous. A positive lag places the predictor before the outcome.
+3. **Partial periods:** Explicitly exclude unfinished months for a complete-month study and check SDK parameters. Include a partial month only for an explicit month-to-date study.
+4. **Lag:** No shift describes a contemporaneous relationship. For prediction, explicitly place the predictor before the outcome in code and check the resulting dates.
 5. **Sample:** An inner join keeps only periods observed for both variables. Check the count, first and last dates, and missingness.
 
 ## What Pearson and Spearman measure
@@ -46,8 +50,8 @@ $$
   not evidence of investment value.
 - R² is the share of in-sample variation explained by the line. A high R² may simply reflect common exposure to a market factor.
 
-Financial time series often have heteroskedasticity and serial dependence. The workbench uses Newey–West/HAC standard errors for
-slope uncertainty. HAC changes the standard error, t-statistic, and interval, not the OLS slope. It does not fix omitted variables,
+Financial time series often have heteroskedasticity and serial dependence. You can use Newey–West/HAC standard errors in Python for
+slope uncertainty, with an explicit lag choice. HAC changes the standard error, t-statistic, and interval, not the OLS slope. It does not fix omitted variables,
 common trends, structural breaks, or an incorrect time direction.
 
 ## Why inspect rolling estimates
@@ -58,8 +62,8 @@ noisier; long windows are smoother but can hide structural change.
 
 ## Python teaching example
 
-This illustrates the same calculation. The production result remains defined by the versioned protocol, data semantics, and
-parameters shown in the workbench.
+This assumes two prepared Series named `predictor` and `outcome` and a prespecified `hac_lag`. Load data and handle frequency
+and lags in upstream Cells. The actual code, inputs, and parameters determine the result.
 
 ```python
 import pandas as pd

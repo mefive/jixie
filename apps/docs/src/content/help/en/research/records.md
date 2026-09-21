@@ -1,6 +1,6 @@
 # Research documents and run history
 
-The **Research documents** sidebar stores the current editable Markdown/Python cells, dependency state, and the Research Agent
+Documents in the **Current** sidebar list store the current editable Markdown/Python cells, dependency state, and the Research Agent
 conversation attached to the same document. Reopening a document restores saved source and output; edited code that has not
 been rerun remains stale instead of being presented as current evidence.
 
@@ -11,6 +11,19 @@ been rerun remains stale instead of being presented as current evidence.
 - Agent changes have durable review records; refresh does not lose pending, accepted, reverted, or conflicted state.
 - Deleting a document removes its cells, conversation, and run history. It does not delete market data or independently created
   Factors and Strategies.
+
+## Search, archive, and restore
+
+1. Select **Current** or **Archived** on the left.
+2. Enter keywords in **Search titles or recent content**. Search matches titles and content previews in that list, not the full text of every historical output.
+3. For a study you do not currently need, open its item menu and select **Archive**. Source, outputs, conversations, and run history are retained.
+4. To continue, switch to **Archived**, select **Restore** in the item menu, then open it from **Current**.
+
+Wait for an active Agent turn or document run to finish before archiving. Archiving organizes the document list; **Promote as research version** marks a successful immutable run. They serve different purposes.
+
+## Permanently delete
+
+Only archived items offer **Permanently delete**. Review the confirmation first: the study's Cells, outputs, Agent history, and full-run history are removed and cannot be recovered. Independently created Factors and Strategies remain, but their original research source may no longer open. Use Archive when you only want to organize the list.
 
 ## Complete runs and promoted versions
 
@@ -36,12 +49,11 @@ A complete run proves that this source produced these outputs in that environmen
 or investable. The snapshot does not copy the underlying market database. If data is revised later, run the document cleanly
 again to create a separate snapshot and review the two records independently.
 
+## Embedded analysis in chat
+
+For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.
+
 ## Related articles
 
 - [Run, stop, and reset research](/docs/help/research/run-control)
 - [Hand research to Factor or Strategy](/docs/help/research/handoff)
-
-
-## Embedded analysis in chat
-
-For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.

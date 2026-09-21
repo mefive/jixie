@@ -81,14 +81,15 @@ A Python Strategy generated from a promoted research version shows **From resear
 the distilled summary and unresolved items or return to the exact read-only research snapshot. Provenance does not mean the
 strategy has been backtested, validated out of sample, or made deployable.
 
+Python strategies can reference eligible published custom Factors by key, whether the Factor source is TypeScript or Python. Declare the dependency with `Strategy(factors=["factor_key"])`, then read it with `ctx.factor("factor_key", code)` and handle `None`. Ownership, publication, frozen lineage, and data requirements still apply. Strategy language and Factor language are separate; their SDK source is not interchangeable.
+
 Python mode does not currently expose:
 
 - index futures or mixed stock/futures strategies;
-- custom TypeScript Factors;
 - parameter scans;
 - deployment and Today signals.
 
-Hidden actions are product limits, not permission errors. Switch to TypeScript and rewrite against the TypeScript SDK when those capabilities are required.
+These capabilities retain their own product restrictions. For parameter scans or index-futures backtests, switch to TypeScript and rewrite against its SDK. Deployment additionally requires an eligible successful report.
 
 ## Related articles
 

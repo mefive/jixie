@@ -17,6 +17,14 @@ yourself or ask the Research Agent to select data, generate code, and explain re
 Document-level autosave protects cell source and shows unsaved, saving, or saved state. Editing upstream source marks dependent
 outputs stale; expensive calculations do not rerun silently in the background.
 
+## Choose data and a starting point
+
+Open **Data catalog** to select an instrument, dates, frequency, and fields and insert an SDK call without memorizing method names. For company research, start with [Analyze financial data](/docs/help/research/financial-data). FCFF is an optional landing-page template, not a required step for all financial analysis.
+
+If you already completed an [embedded analysis](/docs/help/research/embedded-analysis) in a Factor or Strategy conversation, select **Continue in Research** from its successful card. That copy defaults to the retained inputs; explicitly decide whether to fetch current data before changing the request scope.
+
+Manage studies in the **Current** and **Archived** lists, with search over titles or recent content. See [Research documents and run history](/docs/help/research/records) for archive, restore, and permanent deletion.
+
 ## Read an existing FactorReport
 
 Copy a report ID from Factor report history or a report link, then load its immutable result read-only in a Python cell:

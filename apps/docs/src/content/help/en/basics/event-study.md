@@ -1,6 +1,12 @@
 # How to read an event study
 
-An event study aligns many public events to an “event day” and examines whether entity returns around the event differ from a market benchmark. The current protocol supports records with `divProc = 预案` in the local dividend dataset and an explicitly specified stock set.
+An event study aligns many public events to an “event day” and examines whether entity returns around the event differ from a market benchmark. In the current product, write sample rules, calculations, and charts in Research Markdown/Python Cells. Dividend proposal announcements below are a methodological example, not a dedicated event-study action currently available in the interface.
+
+## Confirm event-data availability first
+
+Check the event definition and date in the [data catalog](/docs/help/research/data-catalog). Currently, `data.equity_dividends()` reads **implemented cash dividends for one stock, filtered by ex-dividend date**. It does not supply a dividend-proposal announcement sample. Replacing announcement dates with ex-dividend dates changes the research question.
+
+If the question requires proposal announcements and the public SDK lacks those inputs, record the gap instead of presenting a completed test. `charts.event_path()` plots existing results; it does not fetch events, filter samples, or calculate significance. See [Embedded analysis](/docs/help/research/embedded-analysis) for how old chat charts are re-queried.
 
 ## Event day and window
 
@@ -30,22 +36,24 @@ $$
 
 The event-time path shows the average abnormal return at each relative trading day and CAAR through that day. Accumulation before day 0 may indicate anticipation, leakage, a common trend, or event-date error.
 
-## How the sample is formed
+## How to construct the example sample
 
 1. Keep proposal announcements inside the research period.
 2. For duplicate proposal records for one stock and reporting period, keep the earliest announcement.
 3. Exclude an event if either entity or benchmark is missing any return in its window.
 4. When two windows overlap for one stock, keep the earlier event so the same return interval is not counted twice.
 
-The sample-selection tab reports requested entities, in-period events, complete windows, overlap exclusions, and final observations so the selection process can be audited.
+Explicitly output requested entities, in-period events, complete windows, overlap exclusions, and final observations to audit selection. A fixed sample-selection tab is not generated automatically.
 
 ## Intervals, magnitude, and robustness
 
-The workbench treats each event CAR as one event-level observation and clusters the mean-CAR standard error, t-statistic, and 95% interval by event trading date, allowing same-day announcements to share market shocks. Standardized mean CAR describes effect magnitude. A 5% winsorized mean CAR checks whether a few extreme events drive the direction.
+The example method treats each event CAR as one event-level observation and can cluster the mean-CAR standard error, t-statistic, and 95% interval by event trading date, allowing same-day announcements to share market shocks. Standardized mean CAR describes effect magnitude. A 5% winsorized mean CAR checks whether a few extreme events drive the direction.
 
 This interval still does not automatically address industry concentration or serial dependence across events for the same stock.
 
 ## Python teaching example
+
+This shows only the statistics after input preparation. It assumes `stock_returns`, `benchmark_returns`, and `event_trade_dates` follow the same event order, complete-window and overlap checks have passed, and enough clusters exist. It does not supply the missing proposal-announcement data entry point.
 
 ```python
 import numpy as np

@@ -81,14 +81,15 @@ Python 报错会标出 `strategy.py` 的行号。先定位第一条错误，不�
 从已封存研究版本生成的 Python Strategy 会在代码编辑器上方显示“来自研究版本”。这里可以查看提炼摘要、
 仍待验证事项，并精确回到当时的只读研究快照。该标记只说明代码来源，不表示策略已经回测、通过样本外验证或可部署。
 
+Python 策略也可以按 key 引用自己有权使用的已发布自定义 Factor，因子源码可以是 TypeScript 或 Python。先在 `Strategy(factors=["factor_key"])` 声明依赖，再用 `ctx.factor("factor_key", code)` 读取数值并处理 `None`；Factor 的发布、冻结血缘和数据要求仍然适用。策略语言不等于因子语言，两种 SDK 的代码也不能直接混用。
+
 以下入口在 Python 模式下暂不开放：
 
 - 股指期货及股票／期货混合策略；
-- 自定义 TypeScript Factor；
 - 参数扫描；
 - 部署上线和今日信号。
 
-页面隐藏这些入口不是权限问题。需要使用上述功能时，切换回 TypeScript，并按 TypeScript SDK 重写策略。
+这些能力仍受各自产品入口限制。需要参数扫描或股指期货回测时，切换回 TypeScript 并按其 SDK 重写策略；部署还须选择符合准入要求的成功报告。
 
 ## 相关内容
 

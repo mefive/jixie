@@ -9,7 +9,7 @@ A research document contains Markdown Cells and Python Cells. Use Markdown for t
    For an industrial-company FCFF study, you can instead open the **FCFF company valuation template**
    from the landing page.
 3. When a document is open, select **New research** on the left to return to the question input.
-4. Switch existing documents under **Research documents**.
+4. Switch documents in the **Current** list on the left, or search titles and recent content. Restore an archived document from **Archived** before opening it.
 5. Use the edit icon beside the title to rename it.
 
 The markers below identify the question input, **Start research**, and existing research documents. Sending the question creates the document and starts processing; there is no template-selection step.
@@ -37,6 +37,8 @@ The Cell header shows **Unsaved**, **Saving**, or **Saved**. Source changes are 
 - Saved: the current source is persisted.
 
 Wait for Saved before leaving. If the same document changed elsewhere, review the conflict instead of repeatedly refreshing and overwriting one version.
+
+If **Save failed** appears, keep the page open and select **Retry save**. For **Save conflict**, copy any local source you need to retain before refreshing and reconciling with the server version.
 
 ## Understand dependencies and stale output
 

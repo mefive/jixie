@@ -14,7 +14,7 @@ The top navigation contains these entries:
 | Research | Use platform data, charts, and the Agent in Markdown/Python documents, then retain immutable snapshots |
 | Factors | Review grouped factor performance, returns, and saved research reports |
 | Valuation | Review index valuation levels and their historical positions |
-| Signals | Review signals produced by saved strategies for the latest trading day |
+| Signals | Review signals, run history, and accounts for independent deployments of frozen reports |
 | Public Library | Browse user-shared strategies and published Factors, or copy them into private assets you own |
 | Help | Read product instructions and introductory quantitative-trading material |
 
@@ -27,7 +27,7 @@ For example, to study an equity universe:
 
 [Open Research](/research)
 
-Selecting the product logo or opening the product root returns to **Market**.
+Opening the product root takes you to **Market**. Within the workbench, select **Market** to return there. On narrow screens, use the page navigation menu to switch areas.
 
 ## Change the display language
 
@@ -51,7 +51,7 @@ The signed-in email address appears in the upper-right corner. To sign out:
 
 ## Use the Help Center
 
-Select “Help” in the top navigation whenever you need this manual.
+Select **Help** in the top navigation to open this manual in a new tab while keeping the workbench open. Help and SDK references can be read without signing in.
 
 - Use the left navigation to move between articles.
 - Use the navigation on the right to jump to a section in the current article.
@@ -59,6 +59,10 @@ Select “Help” in the top navigation whenever you need this manual.
 - Use the previous and next links at the bottom to read in order.
 
 Select **Back to workspace** in the upper-right corner to leave the Help Center. The product logo in the upper-left also returns to the product root.
+
+## Check the current version
+
+The account area shows the short revision of the latest successful deployment. Hover or select it to see the full revision; include it and the page URL when reporting a mismatch with Help. This revision is not a market-data date. Check the data date shown on the relevant page separately.
 
 ## System maintenance
 

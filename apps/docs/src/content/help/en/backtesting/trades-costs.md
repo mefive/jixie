@@ -12,6 +12,8 @@ In the image, **1** is the fill summary, **2** contains filters, and **3** is th
 
 ![Trades tab, fill summary, filters, and Open in page](/docs/images/help/zh/backtesting/trades-01.png)
 
+Workbench trade details follow the selected historical report. **Open in page** is available only for the latest report, keeping the standalone trade page tied to the latest result.
+
 ## Use the full Trades page
 
 The full page is better for reviewing a table with many columns:

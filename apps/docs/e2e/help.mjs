@@ -391,8 +391,8 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 98) {
-    throw new Error(`expected 98 help articles, got ${articleHrefs.length}`);
+  if (articleHrefs.length !== 100) {
+    throw new Error(`expected 100 help articles, got ${articleHrefs.length}`);
   }
   for (const href of articleHrefs) {
     if (new URL(page.url()).pathname !== href) {
@@ -917,10 +917,16 @@ try {
     path: `${SHOTS}15b-help-market-weather.png`,
   });
 
-  await page.getByRole('link', { name: '部署回测策略', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '部署回测策略' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 3) {
-    throw new Error('strategy deployment article does not render all three screenshots');
+  await page.getByRole('link', { name: '部署回测报告', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '部署回测报告' }).waitFor();
+  if (
+    (await page.getByRole('heading', { level: 2, name: '选择报告并部署' }).count()) !== 1 ||
+    (await page.getByRole('heading', { level: 2, name: '报告、草稿与部署的关系' }).count()) !== 1 ||
+    !(await page.locator('.jx-help-markdown').textContent()).includes(
+      '同一报告最多有一个运行中的部署',
+    )
+  ) {
+    throw new Error('deployment guide is missing report selection or independent deployment rules');
   }
 
   await page.getByRole('link', { name: '生成今日信号', exact: true }).first().click();
@@ -955,8 +961,14 @@ try {
 
   await page.getByRole('link', { name: '查看历史并暂停上线', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '查看历史并暂停上线' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('signal history article does not render both screenshots');
+  if (
+    (await page.getByRole('heading', { level: 2, name: '暂停部署' }).count()) !== 1 ||
+    (await page.getByRole('heading', { level: 2, name: '再次部署' }).count()) !== 1 ||
+    !(await page.locator('.jx-help-markdown').textContent()).includes(
+      '同一报告再次部署会创建新部署和账户',
+    )
+  ) {
+    throw new Error('signal history guide is missing pause or independent redeployment rules');
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);

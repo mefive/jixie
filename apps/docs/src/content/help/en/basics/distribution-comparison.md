@@ -2,6 +2,10 @@
 
 A two-group distribution comparison asks whether one measure systematically differs between group A and group B. An example is whether CSI 300 and CSI 500 constituents have different price-to-book ratios on the same snapshot. It describes a difference in the observed sample; it does not establish causality or predict future returns.
 
+## Use this method in the current product
+
+State the question and method in [Research](/research), load inputs through the [data catalog](/docs/help/research/data-catalog), and explicitly implement alignment, statistics, and charts in Python Cells. You can also use [embedded analysis](/docs/help/research/embedded-analysis) in a Factor or Strategy conversation. The methods below are choices to review, not a promise that the platform automatically runs every test or creates fixed report tabs. Check the code, inputs, and outputs of the actual run.
+
 ## Check comparability first
 
 Before reading a test statistic, verify:
@@ -34,13 +38,15 @@ A 95% interval expresses estimation uncertainty under the sampling and model ass
 - **Cohen's d** expresses the mean difference in pooled-standard-deviation units, helping distinguish negligible, small, moderate, and large differences.
 - **Cliff's delta** is the probability advantage that a random A value exceeds a random B value minus the reverse probability; it ranges from −1 to 1.
 
-With a large sample, a tiny difference can produce a small p-value. The workbench therefore does not base its conclusion on significance alone; it also checks magnitude and direction.
+With a large sample, a tiny difference can produce a small p-value. Do not base a conclusion on significance alone; explicitly calculate and inspect magnitude and direction as well.
 
 ## Extreme-value sensitivity
 
-Valuation ratios often have long tails. The workbench caps each group's lower and upper tails at selected quantiles, then recomputes the winsorized mean difference. If the raw and winsorized differences change sign, the conclusion is sensitive to extreme values and should not be stated strongly.
+Valuation ratios often have long tails. In code, cap each group's lower and upper tails at prespecified quantiles, then recompute the winsorized mean difference. If the raw and winsorized differences change sign, the conclusion is sensitive to extreme values and should not be stated strongly.
 
 ## Python teaching example
+
+This example assumes `group_a` and `group_b` already use the same snapshot and definitions, with missing and nonfinite values handled. Load and construct the sample in earlier Cells; this is not a complete standalone document.
 
 ```python
 import numpy as np

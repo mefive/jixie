@@ -1,7 +1,164 @@
 # 用户使用手册功能与截图清单
 
-> 阶段 A 工作记录。首次清点日期：2026-07-28；阶段 J 更新日期：2026-08-04。
+> 当前校准日期：2026-09-21；下方保留阶段 A–M 历史记录。当前状态以本节为准。
 > 总体计划见 `docs/design/user-guide.md`。
+
+## 2026-09-21 当前能力校准
+
+基线 `aa838133`。中英文各 100 篇，覆盖 11 个目录组；100 个 slug 均已登记。正文已通过人工 review、静态检查、Docs 构建与现有帮助站 E2E。下表主要记录源码和内容核对，不表示各项业务计算已实跑；线上部署核对和产品图片重拍未执行。
+
+### 核对依据与处理
+
+| 范围（每种语言篇数） | 当前事实来源 | 本轮处理 |
+| --- | --- | --- |
+| 开始使用（5） | `apps/web/src/app-routes.tsx`、`apps/web/src/components/top-nav.tsx`、`apps/web/src/i18n/locales/{zh,en}/common.ts` | 校准工作流、帮助打开方式、版本信息及 Python 支持范围；登录流程保留 |
+| 基础（10） | `apps/api/src/agent/profiles/research.ts`、`packages/shared/src/sdk/research/contract.ts`、`packages/shared/src/research-python-runtime.ts` | 四篇统计文章改为显式 Python 方法；其他概念与交易口径保留 |
+| Research（15） | `apps/web/src/complex/research/`、`apps/web/src/components/research-data-catalog-picker.tsx`、`apps/api/src/research/documents/`、Research SDK Contract | 补搜索归档、保存状态、专用数据与报告读取；现有财报、FCFF、Cell/提案与嵌入分析规则保留 |
+| Strategy（19） | `apps/web/src/complex/strategy/`、`apps/api/src/strategy/factor-inputs/prepare.ts`、`apps/api/src/strategy/runtime/run.ts`、`apps/api/src/engine/factors/factor-isolation.integration.test.ts` | 补草稿/报告/部署区别及复核路径，纠正 Python 自定义因子限制；测试文件仅阅读，未执行 |
+| Factor（26） | `apps/web/src/complex/factor/`、`apps/web/src/components/embedded-analysis/`、`apps/api/src/factor/` | 总览覆盖研究类型，连接已有报告问答与嵌入分析，修正用于策略步骤；正式报告与 Holdout 方法保留 |
+| 市场估值（5）与因子气象（2） | `apps/web/src/complex/{market,valuation,factor-weather}/`、`apps/api/src/market/registry/`、`apps/api/src/factor/weather/` | 正文保留；图片中的旧导航进入复核清单 |
+| 今日信号（7） | `apps/web/src/complex/signals/`、`apps/api/src/signals/deployments/` | 现有按报告独立部署说明保留；图片需要复核来源报告/部署编号 |
+| 对象详情（3） | `apps/web/src/complex/stock/stock.tsx`、`apps/web/src/complex/stock/stock-chart.tsx` | 补资产类型、真实 OHLC 与价格线、复权和字段缺失限制 |
+| 公共资产库（1） | `apps/web/src/complex/library/`、`apps/api/src/sharing/` | 公开与独立私有副本说明保留 |
+| 学习路径（7） | 对应正文、当前 Factor/Strategy/Research 入口与报告读取契约 | 保留原始案例数值、日期、报告血缘、失败与正面裁决；不为截图刷新历史证据 |
+
+表中源码路径相对于仓库根目录；Research SDK Contract 指 `packages/shared/src/sdk/research/contract.ts`。
+
+### 截图欠账（第 2 项处理）
+
+全站正文目前引用 152 个独立图片文件。静态存在性检查不能证明控件和文案仍准确；第 2 项需逐组目检，保留仍准确的局部图，重拍会误导操作的图。当前不宣称这 152 张均已核验。
+
+| 优先级 | 图片或场景 | 需要核对／更新 |
+| --- | --- | --- |
+| 高 | `backtesting/workspace-01.png`、`getting-started/first-backtest-*.png` | 旧“回测工作台／选股看图”导航；当前语言、报告选择和分析入口 |
+| 高 | `backtesting/strategy-*.png`、`edit-rerun-01.png`、`results-overview-01.png`、`trades-*.png` | 草稿与历史报告、对比、Research 复核、独立交易页限制；步骤编号与正文一致 |
+| 高 | `research/new-research-01.png`、`document-cells-02.png`、`records-01.png` | 当前／已归档列表、搜索、恢复与永久删除、保存状态；补缺失操作的图 |
+| 高 | 数据目录与嵌入式分析 | 市场数据／数据集／Factor 报告／回测报告四入口；引用、实际输入、版本历史、继续到 Research |
+| 高 | `signals/signal-*.png` | 报告来源、部署编号、多部署与暂停状态；不能把同名策略当作唯一实例 |
+| 中 | `factors/factor-workspace-01.png`、`publish-factor-*.png` 与问答场景 | 当前研究类型、报告来源、用于策略预填提示词 |
+| 中 | 市场、估值、因子气象、对象详情、公共资产库 | 旧导航是否需要裁切或重拍；完整页面与局部图分开处理 |
+| 保留证据 | 七条学习路径的历史结果截图 | 不改写原始数值；必要时标明历史示例或补当前入口图 |
+
+中英文正文目前共用一批中文产品截图；第 2 项逐项决定采用对应语言截图或明确的图注，不能把中文控件图片称为英文页面验收。原始截图、标注产物和验收截图须区分，遮盖账号信息，不用占位结果冒充真实业务结果。
+
+### 全部文章登记
+
+下表状态表示本提交的正文处理，不表示每条业务流程已实跑。中文和英文按同一 slug 成对核对；图片处理及运行验收由后两项与本项 review 后验证补齐。
+
+| Slug | 中文标题 | 第 1 项状态 |
+| --- | --- | --- |
+| `backtesting/allocation-attribution` | 查看多资产配置归因 | 保留现有正文 |
+| `backtesting/create-from-description` | 用策略描述创建回测 | 保留现有正文 |
+| `backtesting/edit-rerun` | 修改策略和重新运行 | 正文已校准，review 通过 |
+| `backtesting/equity-drawdown` | 查看净值、回撤和月度收益 | 保留现有正文 |
+| `backtesting/etf-strategy` | 运行 ETF 策略 | 保留现有正文 |
+| `backtesting/index-futures` | 运行股指期货策略 | 保留现有正文 |
+| `backtesting/mixed-stock-futures` | 运行股票与期货混合策略 | 保留现有正文 |
+| `backtesting/multi-timeframe` | 使用周线和月线条件 | 保留现有正文 |
+| `backtesting/parameter-scan` | 比较多组策略参数 | 保留现有正文 |
+| `backtesting/portfolio-risk` | 阅读组合风险诊断 | 保留现有正文 |
+| `backtesting/python-strategy` | 使用 Python 编写策略 | 正文已校准，review 通过 |
+| `backtesting/reconnect-failure` | 恢复运行任务和处理失败 | 保留现有正文 |
+| `backtesting/results-overview` | 查看回测结果 | 正文已校准，review 通过 |
+| `backtesting/revise-with-chat` | 继续修改策略并重新运行 | 保留现有正文 |
+| `backtesting/run-and-logs` | 运行回测和查看日志 | 保留现有正文 |
+| `backtesting/run-settings` | 设置回测参数 | 保留现有正文 |
+| `backtesting/technical-indicators` | 在策略中使用技术指标 | 保留现有正文 |
+| `backtesting/trades-costs` | 查看交易明细和成本 | 正文已校准，review 通过 |
+| `backtesting/workspace` | 认识策略工作台 | 正文已校准，review 通过 |
+| `basics/backtest-limitations` | 为什么回测不等于未来收益 | 保留现有正文 |
+| `basics/backtest-settings` | 回测区间、资金和交易成本 | 保留现有正文 |
+| `basics/cross-market-returns` | 怎样比较中港美市场收益 | 保留现有正文 |
+| `basics/distribution-comparison` | 怎样阅读两组分布比较 | 正文已校准，review 通过 |
+| `basics/event-study` | 怎样阅读事件研究 | 正文已校准，review 通过 |
+| `basics/multivariate-time-series-relationships` | 怎样阅读多变量时间序列研究 | 正文已校准，review 通过 |
+| `basics/performance-risk` | 收益和风险指标 | 保留现有正文 |
+| `basics/stocks-etfs-indices` | 股票、ETF 和指数 | 保留现有正文 |
+| `basics/strategy-backtest` | 策略和回测 | 保留现有正文 |
+| `basics/time-series-relationships` | 怎样阅读时间序列关系研究 | 正文已校准，review 通过 |
+| `factor-weather/getting-started` | 开始使用因子气象 | 保留现有正文 |
+| `factor-weather/read-cards` | 阅读因子气象卡片 | 保留现有正文 |
+| `factors/agent-explore-analysis` | 让因子 Agent 运行探索分析 | 正文已校准，review 通过 |
+| `factors/analysis-settings` | 设置分析范围和样本处理 | 保留现有正文 |
+| `factors/copy-preset-factor` | 复制预设因子 | 保留现有正文 |
+| `factors/correlation-matrix` | 因子相关性矩阵 | 保留现有正文 |
+| `factors/create-composite` | 新建和编辑多因子合成 | 保留现有正文 |
+| `factors/create-custom-factor` | 新建和编辑自定义因子 | 保留现有正文 |
+| `factors/decile-returns` | 分组收益和前瞻收益 | 保留现有正文 |
+| `factors/evaluation-scope` | 设置 Factor 研究范围 | 保留现有正文 |
+| `factors/factor-in-strategy` | 在策略中使用自定义因子 | 保留现有正文 |
+| `factors/first-preset-analysis` | 第一次运行预设因子分析 | 保留现有正文 |
+| `factors/holdout-results` | 正式保留段和样本外结果 | 保留现有正文 |
+| `factors/macro-regime` | 阅读宏观状态研究 | 保留现有正文 |
+| `factors/neutralization` | 市值和行业中性化 | 保留现有正文 |
+| `factors/panel-research` | 运行跨资产 Panel 研究 | 保留现有正文 |
+| `factors/publish-factor` | 发布 Factor 并用于策略 | 正文已校准，review 通过 |
+| `factors/python-factor` | 使用 Python 编写 Factor | 保留现有正文 |
+| `factors/rank-ic-icir` | Rank IC、ICIR 和 IC 衰减 | 保留现有正文 |
+| `factors/read-composite-report` | 查看多因子合成报告 | 保留现有正文 |
+| `factors/report-history` | 报告历史和结果已过期 | 正文已校准，review 通过 |
+| `factors/research-card` | 运行前研究卡和探索变体 | 保留现有正文 |
+| `factors/results-overview` | 查看第一份因子分析结果 | 保留现有正文 |
+| `factors/robust-inference` | 阅读稳健截面推断 | 保留现有正文 |
+| `factors/strategy-key` | 设置 Factor key | 保留现有正文 |
+| `factors/time-series-research` | 运行 ETF 时间序列研究 | 保留现有正文 |
+| `factors/turnover-costs` | 换手、交易成本和费后收益 | 保留现有正文 |
+| `factors/what-factor-research` | 因子研究能回答什么 | 正文已校准，review 通过 |
+| `getting-started/first-backtest` | 第一次运行回测 | 正文已校准，review 通过 |
+| `getting-started/first-research` | 第一次完成量化研究 | 正文已校准，review 通过 |
+| `getting-started/login` | 登录 | 保留现有正文 |
+| `getting-started/navigation` | 页面导航 | 正文已校准，review 通过 |
+| `getting-started/overview` | 产品可以做什么 | 正文已校准，review 通过 |
+| `learning/cgb-curve-daily-signal` | 国债曲线到每日信号：证据、回测与部署 | 保留现有正文 |
+| `learning/commodity-carry-holdout` | 商品 Carry：期限结构、代理误差与样本外 | 保留现有正文 |
+| `learning/csi300-trend-strategy` | 沪深 300 趋势策略：参数、成本与样本外 | 保留现有正文 |
+| `learning/csi300-value-factor` | 沪深 300 价值因子：排序、IC、分层与样本外 | 保留现有正文 |
+| `learning/sales-yield-positive` | 销售收益率：从正面 Holdout 到因子准入 | 保留现有正文 |
+| `learning/stock-bond-allocation-risk` | 股债配置与风险归因：贡献、相关性与压力情景 | 保留现有正文 |
+| `learning/trusted-cross-market-research` | 可信跨市场研究：收益、汇率与相关性 | 保留现有正文 |
+| `library/share-copy` | 分享和复制公共资产 | 保留现有正文 |
+| `market-valuation/index-valuation` | 查看指数估值 | 保留现有正文 |
+| `market-valuation/market-metrics` | 理解市场气象卡片 | 保留现有正文 |
+| `market-valuation/market-overview` | 查看市场气象图 | 保留现有正文 |
+| `market-valuation/percentiles` | 正确理解历史百分位 | 保留现有正文 |
+| `market-valuation/weather-playback` | 回放历史并查看卡片详情 | 保留现有正文 |
+| `research/agent-collaboration` | 与 Research Agent 协作 | 保留现有正文 |
+| `research/clarifications` | 回答研究口径确认 | 保留现有正文 |
+| `research/curator` | 使用研究整理 | 保留现有正文 |
+| `research/data-catalog` | 使用研究数据目录 | 正文已校准，review 通过 |
+| `research/document-cells` | 建立研究文档和 Cell | 正文已校准，review 通过 |
+| `research/embedded-analysis` | 在 Factor、Strategy 对话中检查数据 | 保留现有正文 |
+| `research/fcff-valuation` | 用 FCFF 模板研究公司估值 | 保留现有正文 |
+| `research/financial-data` | 自主分析财报数据 | 保留现有正文 |
+| `research/handoff` | 将研究交给 Factor 或 Strategy | 保留现有正文 |
+| `research/outputs` | 查看研究输出 | 保留现有正文 |
+| `research/python-runtime` | 使用 Python 研究运行环境 | 保留现有正文 |
+| `research/records` | 研究文档与运行记录 | 正文已校准，review 通过 |
+| `research/run-control` | 运行、停止和重置研究 | 保留现有正文 |
+| `research/universe` | 阅读和重跑 Universe 结果 | 保留现有正文 |
+| `research/yield-curves` | 读取美国国债收益率曲线 | 正文已校准，review 通过 |
+| `signals/conditional-orders` | 使用和记录条件单 | 保留现有正文 |
+| `signals/deploy-strategy` | 部署回测报告 | 保留现有正文 |
+| `signals/factor-inputs` | 核对今日信号使用的 Factor | 保留现有正文 |
+| `signals/generate-signals` | 生成今日信号 | 保留现有正文 |
+| `signals/history-pause` | 查看历史并暂停上线 | 保留现有正文 |
+| `signals/read-signals` | 查看信号指令 | 保留现有正文 |
+| `signals/record-execution` | 记录实际成交并比较执行偏差 | 保留现有正文 |
+| `stock-detail/adjustments-scale` | 切换复权和价格坐标 | 保留现有正文 |
+| `stock-detail/pe-volume-data` | 查看 PE、成交量和数据日期 | 保留现有正文 |
+| `stock-detail/read-chart` | 查看对象详情和 K 线 | 正文已校准，review 通过 |
+
+### 验证记录
+
+- 目录与引用静态清点：100 对文章均有目录登记，823 处内部文章链接、152 个独立图片文件无缺失；48 段 Python 示例通过 AST 语法解析，未执行示例。
+- `pnpm --filter docs lint`、`pnpm --filter docs typecheck`、3 个变更 TypeScript 文件的 Prettier 检查及 `git diff --check` 均通过。
+- shared 与 Docs 构建、`pnpm e2e docs-help` 均通过；现有大 chunk 提示保留。E2E 校准过时的 98 篇、部署标题与已移除截图断言，继续逐篇检查图片和文章链接。
+- E2E 验证公开访问、帮助/SDK 同页导航、工作台新标签页入口、100 篇正文及引用、关键页面双语切换、公式/代码和 390px 窄屏。已目检本次桌面与英文窄屏截图（`apps/docs/acceptance/8a-help-desktop.png`、`8b-help-mobile.png`）。
+- 使用临时隔离 SQLite 库，未加载开发环境配置或改动日常数据；API/Web/Docs 和浏览器已退出，3001/5173/5174 端口及数据库连接均已释放。产品截图与更完整的双语覆盖仍由后续提交完成。
+
+---
+
+以下 §1–7 保留为历史记录，包含已经退役的页面、脚本和旧验收结果，不作为当前功能说明。
 
 ## 1. 使用方式
 

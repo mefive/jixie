@@ -44,6 +44,23 @@ If the rules differ from your description, request the required change before ru
 
 After changing code or run settings, run the backtest again. The previous result does not represent changes that have not been run.
 
+## Distinguish the draft, report, and deployment
+
+The editor and top run settings belong to the current strategy draft. The results belong to the run selected in **Backtest report history**. Selecting a historical report updates the result and benchmark curves; **it does not restore that report's code or settings into the editor**. The draft dates at the top may therefore differ from the selected report's dates.
+
+- To calculate the current draft, check its code and settings and select **Run backtest**.
+- To inspect an old result, select it in **Backtest report history**. Select **Compare** and a second report to compare results.
+- To study a report further, select **Review in Research** to create a document reading that report in a new tab.
+- To deploy, select an eligible successful report and choose **Deploy**. A deployment fixes that report; later draft changes do not alter it or automatically pause other deployments.
+
+See [Read backtest results](/docs/help/backtesting/results-overview) and [Deploy a backtest report](/docs/help/signals/deploy-strategy).
+
+## Check data in the conversation
+
+The Agent can write and explain a strategy. You still start a complete backtest explicitly with **Run backtest**. After opening a completed report, select **Use selected report**, or use **Reference data** for additional sources, then ask your question.
+
+Calculations appear as embedded analysis cards. Open **Code, sources and history** to inspect actual inputs and Python, or recover runs from **Analysis history** and **Continue in Research**. These calculations read existing data; they do not execute the strategy again. See [Embedded analysis](/docs/help/research/embedded-analysis).
+
 ## Common problems
 
 ### The new-strategy page is not visible
@@ -56,7 +73,7 @@ The code or settings have changed but have not been used in a completed backtest
 
 ### The code is unfamiliar
 
-Start by checking the name, security code, direction, quantity, and frequency. You do not need to understand every line for the first run. See the [Strategy SDK](/docs) when you are ready to edit code directly.
+Start by checking the name, security code, direction, quantity, and frequency. You do not need to understand every line for the first run. See the [Strategy SDK](/docs/sdk) when you are ready to edit code directly.
 
 ## Related articles
 

@@ -20,6 +20,8 @@ The marks identify:
 3. **Price scale**: linear or logarithmic.
 4. **Chart**: candlesticks and PE above, volume below, and the time-range slider at the bottom.
 
+This page uses a stock example. Object detail can also display other supported assets: adjustment controls appear only for stocks and ETFs, and a series without true OHLC observations uses a price line. Missing PE or volume is not zero simply because those fields appear in the stock example.
+
 ## Read candlesticks
 
 Each candlestick represents one trading day and includes open, close, high, and low prices.
