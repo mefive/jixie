@@ -16,6 +16,10 @@ Select the intended instance in **Daily signals** and choose **Pause deployment*
 
 Pausing blocks new signals for this deployment and does not affect other instances. Queued jobs may finish, existing accounts continue to settle, and historical fills can still be recorded. A pause does not cancel broker orders or reverse actual fills. **Generate now** is disabled for paused deployments.
 
+**1** retains multiple deployments, **2** identifies the selected paused instance, and **3** has Generate now disabled. Pausing preserves this instance and does not pause the others.
+
+![Current paused deployment](/docs/images/help/en/signals/paused-current.png)
+
 ## Deploy again
 
 Select a successful report in the Strategy and choose **Deploy**. Deploying a previously paused report creates a new deployment and account baseline; earlier signals and accounts remain available. Deploying a new report also leaves other active instances running.

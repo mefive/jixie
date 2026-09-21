@@ -1,5 +1,7 @@
 # Replay history and inspect card details
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The Market Weather page loads the history for the current dimension and period at once. Moving the timeline only selects an existing snapshot; it does not rerun a market-wide calculation.
 
 ## Use the timeline
@@ -12,7 +14,7 @@ The numbered controls are:
 4. Draggable historical timeline.
 5. Earliest, selected, and latest periods.
 
-![Market Weather replay controls](/docs/images/help/zh/market-valuation/market-weather-playback-01.png)
+![Historical Chinese UI example: Market Weather replay controls](/docs/images/help/zh/market-valuation/market-weather-playback-01.png)
 
 1. Select a dimension and a weekly, monthly, quarterly, or yearly period.
 2. Select **Previous** one period at a time, or drag the slider to a date.
@@ -44,7 +46,7 @@ These observations describe a historical path. They do not establish a tradable 
 5. Inspect up to 24 recent periods in the color strip and record list.
 6. Close the panel to return to the card wall.
 
-![Market Weather metrics and history in card details](/docs/images/help/zh/market-valuation/market-weather-detail-01.png)
+![Historical Chinese UI example: Market Weather metrics and history in card details](/docs/images/help/zh/market-valuation/market-weather-detail-01.png)
 
 **Official valuation** comes from an official daily industry or index series. **Constituent valuation** is a proxy aggregated from constituents and weights available at that time. Do not treat these sources as identical series.
 

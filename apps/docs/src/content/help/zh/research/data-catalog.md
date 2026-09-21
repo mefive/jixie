@@ -1,5 +1,7 @@
 # 使用研究数据目录
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 “数据目录”用于查找当前研究运行时真正支持的对象、字段和调用方式。不要凭印象猜字段名；先从目录确认，再把生成的代码插入 Python Cell。
 
 ## 打开并搜索
@@ -12,6 +14,16 @@
 6. 点击插入代码，把调用写入当前 Python Cell。
 
 插入后仍要检查对象、起止日期和变量名是否符合研究问题。
+
+目录中的 **1** 切换来源，**2** 是当前目录区域。列表取决于搜索词、账号权限与本地可用数据；“数据集”图为空，不代表可以读取不存在的数据。
+
+![市场数据目录](/docs/images/help/zh/research/catalog-market.png)
+
+![数据集目录及空状态](/docs/images/help/zh/research/catalog-datasets.png)
+
+![已有 Factor 报告](/docs/images/help/zh/research/catalog-factor-reports.png)
+
+![已有回测报告](/docs/images/help/zh/research/catalog-backtests.png)
 
 ## 常用数据读取方式
 
@@ -112,7 +124,7 @@ M2 的全部标准化指标。截面和 Panel 一次最多选择 8 个指标，�
 
 输入 `data.`、变量名后的句点或函数参数时，编辑器会显示当前可用的方法、参数和返回列。红色波浪线通常表示方法名、参数或列名与当前 SDK 不一致。先查看提示和数据目录，不要随意删除校验。
 
-![Research SDK 的字段补全](/docs/images/help/zh/research/data-catalog-01.png)
+![历史中文界面示例：Research SDK 的字段补全](/docs/images/help/zh/research/data-catalog-01.png)
 
 ## 常见问题
 

@@ -1,5 +1,7 @@
 # 阅读稳健截面推断
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 股票横截面 Factor 报告除 Rank IC、分组收益和费后多空外，还提供 Newey–West 均值推断和固定控制集的 Fama–MacBeth 回归。它们回答“这段历史中的平均关系有多不确定”和“控制常见风格后是否仍有增量关系”，不是收益保证。
 
 ## Newey–West 均值推断
@@ -25,7 +27,7 @@ $$
 3. 查看期数和滞后，不要只看 t 值。
 4. 在等权／市值权切换下分别看费前和费后多空；切换只显示已有结果，不会重跑。
 
-![Rank IC 与多空收益的 Newey–West 推断](/docs/images/help/zh/factors/robust-inference-01.png)
+![历史中文界面示例：Rank IC 与多空收益的 Newey–West 推断](/docs/images/help/zh/factors/robust-inference-01.png)
 
 ## Fama–MacBeth 固定控制回归
 
@@ -47,7 +49,7 @@ $f_{i,t}$ 是候选因子，$z_{i,t}$ 是固定的规模、价值、动量和质
 
 控制缺失只影响辅助回归的完整样本，不会改写主报告的 IC、分组或多空结果。系统不会为了让候选显著而删除控制项。
 
-![Fama–MacBeth 固定控制推断](/docs/images/help/zh/factors/robust-inference-02.png)
+![历史中文界面示例：Fama–MacBeth 固定控制推断](/docs/images/help/zh/factors/robust-inference-02.png)
 
 ## 怎样组合判断
 

@@ -1,5 +1,7 @@
 # Turnover, trading costs, and net returns
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Decile returns and Rank IC describe a historical ranking relationship. If group membership changes frequently, commission, stamp duty, and slippage accumulate, so turnover and net results also matter.
 
 ## Highest-group turnover
@@ -46,7 +48,7 @@ The numbered areas are:
 3. Sell-side stamp duty.
 4. Slippage.
 
-![Commission, stamp duty, and slippage settings](/docs/images/help/zh/factors/factor-cost-settings-01.png)
+![Historical Chinese UI example: Commission, stamp duty, and slippage settings](/docs/images/help/zh/factors/factor-cost-settings-01.png)
 
 Commission and slippage apply on both buy and sell sides. Stamp duty applies only on the sell side.
 
@@ -122,7 +124,7 @@ The numbered areas are:
 3. Portfolio and cost definition.
 4. Net annualized return, Sharpe, and maximum drawdown.
 
-![Gross and net long-short NAV and net metrics](/docs/images/help/zh/factors/factor-cost-results-01.png)
+![Historical Chinese UI example: Gross and net long-short NAV and net metrics](/docs/images/help/zh/factors/factor-cost-results-01.png)
 
 1. Compare the distance between gross and net curves.
 2. Check whether the distance keeps widening.

@@ -1,5 +1,7 @@
 # Trustworthy cross-market research: returns, FX, and correlation
 
+> Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
+
 > Learning path · About 60–90 minutes · You should be able to run a Python Cell, but no prior time-series statistics is required.
 
 This exercise asks one limited question: **How strongly were the monthly CNY returns of the CSI 300, Hang Seng, and S&P 500
@@ -13,7 +15,7 @@ test checked the immutable execution, output types, and key values. The common s
 through 2025-12-31. The maximum reconstruction error for local return × FX return = CNY return was zero for both the Hang Seng and
 S&P 500 series.
 
-![Common sample and FX-identity audit from the fixed run](/docs/images/help/zh/learning/cross-market-sample-audit.png)
+![Historical Chinese UI example: Common sample and FX-identity audit from the fixed run](/docs/images/help/zh/learning/cross-market-sample-audit.png)
 
 The 12-month block bootstrap used 5,000 resamples and the fixed seed `20260825` exactly as shown later:
 
@@ -23,9 +25,9 @@ The 12-month block bootstrap used 5,000 resamples and the fixed seed `20260825` 
 | CSI 300 / S&P 500 | 0.2429 | [-0.0339, 0.4812] | [-0.2778, 0.6247] |
 | Hang Seng / S&P 500 | 0.2311 | [-0.0967, 0.5413] | [-0.3288, 0.7419] |
 
-![Full-sample correlations, bootstrap intervals, and rolling ranges](/docs/images/help/zh/learning/cross-market-case-result.png)
+![Historical Chinese UI example: Full-sample correlations, bootstrap intervals, and rolling ranges](/docs/images/help/zh/learning/cross-market-case-result.png)
 
-![The actual 36-month rolling-correlation output](/docs/images/help/zh/learning/cross-market-rolling-correlation.png)
+![Historical Chinese UI example: The actual 36-month rolling-correlation output](/docs/images/help/zh/learning/cross-market-rolling-correlation.png)
 
 The run supports “CSI 300 and Hang Seng CNY monthly returns were meaningfully below perfectly correlated, but still highly
 correlated, in this sample.” Both relationships involving the S&P 500 have bootstrap intervals that include zero, and their rolling

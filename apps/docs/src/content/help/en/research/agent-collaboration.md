@@ -1,5 +1,7 @@
 # Collaborate with Research Agent
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Research Agent can read the current document and Cell state, refine a research question, look up the Research SDK, propose Cell changes, and explain real outputs after execution. You review both its prose and code. A completed proposal does not run automatically.
 
 ## Make a precise request
@@ -28,7 +30,7 @@ A proposed edit appears as a change card and an inline diff in its target Cell:
 - created, modified, and deleted Cells are listed separately;
 - line counts help locate changes but do not measure their quality.
 
-![Inline review of Research Agent Cell changes](/docs/images/help/zh/research/agent-collaboration-01.png)
+![Historical Chinese UI example: Inline review of Research Agent Cell changes](/docs/images/help/zh/research/agent-collaboration-01.png)
 
 Check data fields, dates, formulas, dependencies, missing values, and conclusion wording. For a small correction, edit the green current version directly instead of asking for the same proposal again.
 
@@ -46,7 +48,7 @@ Select **Run Cells affected by proposal** to execute the changed branch explicit
 
 After execution, select **Ask Agent to explain this run**. An explanation should cite real output, errors, or warnings. If the proposal has not run, expected results cannot be presented as computed facts.
 
-![An accepted and executed Agent change](/docs/images/help/zh/research/agent-collaboration-02.png)
+![Historical Chinese UI example: An accepted and executed Agent change](/docs/images/help/zh/research/agent-collaboration-02.png)
 
 ## What to delegate
 

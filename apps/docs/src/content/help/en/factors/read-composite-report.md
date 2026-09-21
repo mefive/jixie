@@ -1,5 +1,7 @@
 # Read a factor-composite report
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A composite uses the pipeline for its selected research method. Verify frozen components and the common cross-section before reading stock deciles or Panel rankings, turnover, and net results.
 
 ## Open the report
@@ -17,7 +19,7 @@ The numbered areas show:
 3. Frozen methodology, component count, standardization, and common universe.
 4. Rank IC, return, drawdown, and turnover metrics.
 
-![A completed factor-composite analysis report](/docs/images/help/zh/factors/factor-composite-report-01.png)
+![Historical Chinese UI example: A completed factor-composite analysis report](/docs/images/help/zh/factors/factor-composite-report-01.png)
 
 ## Verify the methodology first
 

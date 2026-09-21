@@ -4,7 +4,7 @@ Stock detail displays price, PE, and volume together. They have different meanin
 
 ## Read PE
 
-![Candlesticks, PE, volume, and time range](/docs/images/help/zh/stock-detail/chart-overview-01.png)
+![Candlesticks, PE, volume, and time range](/docs/images/help/en/stock-detail/chart-overview-01.png)
 
 The blue line in the upper chart is PE:
 

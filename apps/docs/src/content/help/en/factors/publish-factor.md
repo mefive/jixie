@@ -1,5 +1,7 @@
 # Publish a Factor and use it in a strategy
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Publication locks a researched Factor into an immutable definition that strategies can reference. It is not merely saving a draft, and it does not prove future performance.
 
 ## Check before publishing
@@ -22,7 +24,7 @@ The numbered areas are:
 2. Report reference and code hash.
 3. Publish action.
 
-![Publication and strategy reference in a Factor report](/docs/images/help/zh/factors/publish-factor-01.png)
+![Historical Chinese UI example: Publication and strategy reference in a Factor report](/docs/images/help/zh/factors/publish-factor-01.png)
 
 ## What becomes immutable
 
@@ -39,7 +41,13 @@ Use Copy to create an independent draft when the definition must change. The sug
 5. Explicitly select Run backtest.
 6. Check Factors used by this backtest for the frozen Factor ID and code hash.
 
-![Published status, Strategy action, and frozen lineage](/docs/images/help/zh/factors/publish-factor-02.png)
+The locked `ep` preset illustrates the entry points: **1** shows publication and report information; **2** is Use in strategy.
+
+![Publication and strategy entry points](/docs/images/help/en/factors/publication-current.png)
+
+In Strategy, **1** is still a prefilled request and **2** sends it. No strategy code or new backtest result has been generated yet.
+
+![Prefilled request after Use in strategy](/docs/images/help/en/factors/strategy-prefill-current.png)
 
 The research long-short diagnostic is not the strategy return. A strategy also includes actual holdings, cash, fills, costs, and rebalance rules.
 

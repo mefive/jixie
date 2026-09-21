@@ -1,5 +1,7 @@
 # Run a mixed stock and futures strategy
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A mixed strategy holds stocks and index futures at the same time. A common use is holding a stock portfolio while using short index futures to reduce broad market exposure. Hedging changes sources of risk; it does not guarantee against loss.
 
 ## Understand the two accounts
@@ -33,7 +35,7 @@ The numbered areas show:
 3. Futures margin.
 4. Net exposure.
 
-![Account equity, futures margin, and net exposure in a mixed backtest](/docs/images/help/zh/backtesting/mixed-results-01.png)
+![Historical Chinese UI example: Account equity, futures margin, and net exposure in a mixed backtest](/docs/images/help/zh/backtesting/mixed-results-01.png)
 
 The metrics mean:
 
@@ -53,7 +55,7 @@ The numbered areas show:
 3. A stock fill.
 4. Futures fills and actual monthly contracts.
 
-![Stock and index futures records in mixed-strategy trades](/docs/images/help/zh/backtesting/mixed-trades-01.png)
+![Historical Chinese UI example: Stock and index futures records in mixed-strategy trades](/docs/images/help/zh/backtesting/mixed-trades-01.png)
 
 Check:
 

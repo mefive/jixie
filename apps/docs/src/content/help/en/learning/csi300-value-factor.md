@@ -1,5 +1,7 @@
 # CSI 300 value factor: ranking, IC, portfolios, and holdout
 
+> Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
+
 > Learning path · About 75–105 minutes · Run one preset Factor analysis first. This exercise uses an existing preset and its reports,
 > so no code is required.
 
@@ -26,11 +28,11 @@ global ranking, 1% winsorization, nonzero costs, and `mean Rank IC > 0.02`.
 | Size + industry diagnostic | 0.0448 | [0.0180, 0.0717] | 1.160 | 60.7% | 5.01% | 29.4% |
 | Formal holdout | 0.0734 | [-0.0801, 0.2269] | 0.699 | 52.9% | -19.07% | 17.7% |
 
-![Actual primary earnings-yield report for point-in-time CSI 300 constituents](/docs/images/help/zh/learning/csi300-value-factor-explore-result.png)
+![Historical Chinese UI example: Actual primary earnings-yield report for point-in-time CSI 300 constituents](/docs/images/help/zh/learning/csi300-value-factor-explore-result.png)
 
-![Actual size-plus-industry-neutralized diagnostic](/docs/images/help/zh/learning/csi300-value-factor-neutralized-result.png)
+![Historical Chinese UI example: Actual size-plus-industry-neutralized diagnostic](/docs/images/help/zh/learning/csi300-value-factor-neutralized-result.png)
 
-![Actual first reveal of the formal holdout](/docs/images/help/zh/learning/csi300-value-factor-holdout-result.png)
+![Historical Chinese UI example: Actual first reveal of the formal holdout](/docs/images/help/zh/learning/csi300-value-factor-holdout-result.png)
 
 Holdout exceeded the precommitted Rank IC threshold, but its 95% interval includes zero, only 52.9% of months were positive, and net
 long-short annualized return was -19.07%. Passing one threshold is not success; the fixed adjudication is **insufficient evidence**.

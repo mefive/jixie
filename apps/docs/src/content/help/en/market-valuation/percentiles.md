@@ -1,5 +1,7 @@
 # Interpret historical percentiles correctly
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A historical percentile answers, “Where is the current value within its own history?” It does not answer whether the market will rise or fall next.
 
 ## How the page calculates it
@@ -28,7 +30,7 @@ Market Weather cards contain both scores and historical positions. Do not treat 
 - Heat combines trend, breadth, and activity components; it is not a historical event probability.
 - Breadth describes current constituent participation; it is not the percentage of stocks that will rise next.
 
-![Activity and valuation position on Market Weather cards](/docs/images/help/zh/market-valuation/market-weather-overview-01.png)
+![Activity and valuation position on Market Weather cards](/docs/images/help/en/market-valuation/market-weather-overview-01.png)
 
 Interpret only the same card, source, and metric together. Activity 90 for an index means its current turnover is high within its own history. It does not mean a 90% probability of continuation or reversal.
 
@@ -43,7 +45,7 @@ The Valuation page displays:
 
 Area 2 below shows both, while area 4 changes the chart window:
 
-![Ten-year and all-history valuation percentiles](/docs/images/help/zh/market-valuation/valuation-history-01.png)
+![Historical Chinese UI example: Ten-year and all-history valuation percentiles](/docs/images/help/zh/market-valuation/valuation-history-01.png)
 
 Changing the chart to five years does not change the card's ten-year percentile. The chart window controls the visible curve; the card uses its labeled fixed period.
 

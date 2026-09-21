@@ -1,5 +1,7 @@
 # Share and copy public assets
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The **Public Library** lists strategies and published Factors that users deliberately make public. Public visibility lets another user inspect a card and copy an independent private version; it does not create collaborative editing.
 
 ## Browse and copy
@@ -13,7 +15,11 @@ The **Public Library** lists strategies and published Factors that users deliber
 
 Copying creates a new owner and independent ID. Later changes or privacy settings on the source do not rewrite an existing copy, and your edits do not change the source.
 
-![Public assets and the copy action in Public Library](/docs/images/help/zh/library/share-copy-01.png)
+![Historical Chinese UI example: Public assets and the copy action in Public Library](/docs/images/help/zh/library/share-copy-01.png)
+
+Current public library: **1** introduces the page and **2** lists public strategies and Factors. This capture has an empty catalog; Copy appears only when a public asset is available.
+
+![Current interface and controls](/docs/images/help/en/library/library-current.png)
 
 ## Share your asset
 

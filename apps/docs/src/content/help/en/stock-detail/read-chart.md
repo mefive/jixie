@@ -11,7 +11,7 @@ Stock detail places price candlesticks, PE, and volume in one chart. Use it to i
 
 ## Page areas
 
-![Stock name, adjustment, scale, and market chart](/docs/images/help/zh/stock-detail/chart-overview-01.png)
+![Stock name, adjustment, scale, and market chart](/docs/images/help/en/stock-detail/chart-overview-01.png)
 
 The marks identify:
 

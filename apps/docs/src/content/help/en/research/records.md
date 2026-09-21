@@ -1,5 +1,7 @@
 # Research documents and run history
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Documents in the **Current** sidebar list store the current editable Markdown/Python cells, dependency state, and the Research Agent
 conversation attached to the same document. Reopening a document restores saved source and output; edited code that has not
 been rerun remains stale instead of being presented as current evidence.
@@ -21,9 +23,17 @@ been rerun remains stale instead of being presented as current evidence.
 
 Wait for an active Agent turn or document run to finish before archiving. Archiving organizes the document list; **Promote as research version** marks a successful immutable run. They serve different purposes.
 
+**1** searches titles or recent content in the current list; **2** opens the document menu.
+
+![Current interface and controls](/docs/images/help/en/research/document-list-current.png)
+
 ## Permanently delete
 
 Only archived items offer **Permanently delete**. Review the confirmation first: the study's Cells, outputs, Agent history, and full-run history are removed and cannot be recovered. Independently created Factors and Strategies remain, but their original research source may no longer open. Use Archive when you only want to organize the list.
+
+**1** switches to Archived; **2** offers Restore and Permanently delete. The capture only opens the menu; nothing is deleted.
+
+![Current interface and controls](/docs/images/help/en/research/document-list-archived.png)
 
 ## Complete runs and promoted versions
 
@@ -43,7 +53,7 @@ Use this sequence:
 4. When a successful run should become a downstream baseline, select **Promote as research version**.
 5. Enter a version name, tags, and notes, then confirm.
 
-![Full run history and promotion entry](/docs/images/help/zh/research/records-01.png)
+![Historical Chinese UI example: Full run history and promotion entry](/docs/images/help/zh/research/records-01.png)
 
 A complete run proves that this source produced these outputs in that environment; it does not prove that the method is correct
 or investable. The snapshot does not copy the underlying market database. If data is revised later, run the document cleanly

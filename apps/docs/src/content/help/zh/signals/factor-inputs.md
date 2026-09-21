@@ -1,5 +1,7 @@
 # 核对今日信号使用的 Factor
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 使用已发布 Factor 的策略生成今日信号后，页面会显示“本次决策的 Factor 输入”。这里记录信号日当天策略实际读取的值，用于解释订单来源。
 
 ## 打开 Factor 输入
@@ -16,7 +18,7 @@
 3. 当日有效值均值。
 4. 策略决策标的实际读取的值。
 
-![今日信号实际读取的 Factor 输入](/docs/images/help/zh/signals/factor-inputs-01.png)
+![历史中文界面示例：今日信号实际读取的 Factor 输入](/docs/images/help/zh/signals/factor-inputs-01.png)
 
 ## 各列含义
 

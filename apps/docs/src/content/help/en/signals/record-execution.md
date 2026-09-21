@@ -1,5 +1,7 @@
 # Record actual fills and compare execution
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After signals are generated, the system maintains model, simulated, and actual account layers. Simulation settles from market data; the actual account uses only fills recorded by the user. Recording a fill never sends an order to a broker.
 
 ## Three account layers
@@ -14,7 +16,7 @@ The numbered areas show:
 2. Model, simulated, and actual equity curves.
 3. Instruction, simulated fill, and actual execution state.
 
-![Model, simulated, and actual account comparison](/docs/images/help/zh/signals/signal-execution-overview-01.png)
+![Historical Chinese UI example: Model, simulated, and actual account comparison](/docs/images/help/zh/signals/signal-execution-overview-01.png)
 
 Simulation is not the brokerage account. It cannot know that the user forgot an order, changed quantity, or received another price.
 
@@ -37,7 +39,7 @@ The numbered areas show:
 3. Actual shares; price and fee follow immediately below.
 4. Save action.
 
-![Actual execution entry dialog](/docs/images/help/zh/signals/signal-execution-record-01.png)
+![Historical Chinese UI example: Actual execution entry dialog](/docs/images/help/zh/signals/signal-execution-record-01.png)
 
 If fee is blank, the system estimates it with the model schedule. Enter the real broker fee when known.
 
@@ -53,7 +55,7 @@ For **Not executed**, record a reason such as a price limit, suspension, forgott
 
 Saving replays the actual account chronologically from its initial baseline. Editing an old record can change later actual equity and holdings.
 
-![Execution rate and actual account after recording a fill](/docs/images/help/zh/signals/signal-execution-complete-01.png)
+![Historical Chinese UI example: Execution rate and actual account after recording a fill](/docs/images/help/zh/signals/signal-execution-complete-01.png)
 
 ## Execution rate
 

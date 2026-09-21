@@ -1,5 +1,7 @@
 # Read macro-regime research
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The macro-regime model turns manufacturing PMI, CPI year-on-year, and PPI year-on-year into continuous growth and inflation axes, then labels four states. It compares future ETF returns across states but does not set portfolio weights.
 
 ## Configure the study
@@ -12,7 +14,7 @@ The macro-regime model turns manufacturing PMI, CPI year-on-year, and PPI year-o
 
 Each axis combines level and three-month change, standardized with only visible history over a 60-month rolling window. Positive and negative axes form strong-growth/high-inflation, strong-growth/low-inflation, weak-growth/high-inflation, and weak-growth/low-inflation states.
 
-![Assets, horizon, and revision policy for macro research](/docs/images/help/zh/factors/macro-regime-01.png)
+![Historical Chinese UI example: Assets, horizon, and revision policy for macro research](/docs/images/help/zh/factors/macro-regime-01.png)
 
 ## Revision policies
 
@@ -25,7 +27,7 @@ Delaying today's final value by a publication date does not recreate a historica
 
 The header shows valid months, asset observations, state transitions, skipped months, cutoff, and PIT status. Each state shows months, episodes, average and maximum duration, mean future return, Newey–West mean t-statistic, positive-return rate, and the result using the previous month's state.
 
-![Four macro states, conditional returns, and revision warning](/docs/images/help/zh/factors/macro-regime-02.png)
+![Historical Chinese UI example: Four macro states, conditional returns, and revision warning](/docs/images/help/zh/factors/macro-regime-02.png)
 
 If contemporaneous and lagged-state results point in different directions, the conclusion is timing-sensitive. Do not retain only the better column.
 

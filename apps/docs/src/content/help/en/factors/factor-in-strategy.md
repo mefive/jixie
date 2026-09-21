@@ -1,5 +1,7 @@
 # Use a custom factor in a strategy
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After a custom factor has completed an analysis and is published with an approved report, a backtest can read its values, rank stocks, and select holdings.
 
 A stock cross-sectional composite remains a research object and cannot be referenced as one Factor key. A published Panel composite can enter a multi-asset strategy through its own immutable key; the publication action prefills its universe and code.
@@ -70,7 +72,7 @@ The numbered areas are:
 3. `ctx.factor` in the selection logic.
 4. **Run backtest**.
 
-![Reference a custom factor in the declaration and selection logic](/docs/images/help/zh/factors/factor-strategy-reference-01.png)
+![Historical Chinese UI example: Reference a custom factor in the declaration and selection logic](/docs/images/help/zh/factors/factor-strategy-reference-01.png)
 
 The raw key must match in both places. When you type `ctx.factor(`, the editor suggests available published Factors and inserts their raw keys.
 
@@ -83,7 +85,7 @@ The numbered areas are:
 1. Factor key in the code.
 2. Factor details and implementation link.
 
-![Inspect factor details and the implementation link in the strategy editor](/docs/images/help/zh/factors/factor-strategy-hover-01.png)
+![Historical Chinese UI example: Inspect factor details and the implementation link in the strategy editor](/docs/images/help/zh/factors/factor-strategy-hover-01.png)
 
 Use this information before running to confirm that:
 
@@ -105,7 +107,7 @@ The numbered areas are:
 3. Trades tab and trade count.
 4. Strategy and benchmark curves.
 
-![A completed backtest that uses the custom factor](/docs/images/help/zh/factors/factor-strategy-result-01.png)
+![Historical Chinese UI example: A completed backtest that uses the custom factor](/docs/images/help/zh/factors/factor-strategy-result-01.png)
 
 Trades show that the strategy read the factor and selected stocks. They do not establish that the factor is suitable for live trading. Also check:
 

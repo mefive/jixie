@@ -1,5 +1,7 @@
 # 销售收益率：从正面 Holdout 到因子准入
 
+> 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
+
 > 学习路径 · 预计 75～105 分钟 · 建议先完成一次预设因子分析。
 
 这项练习回答一个此前学习路径没有回答的问题：**能否找到一个在冻结定义、去冗余和首次正式 Holdout 中都保持
@@ -78,7 +80,7 @@ export default defineFactor({
 探索报告有 60 个有效月。中性化 Rank IC 为 0.03775，年化 ICIR 为 1.6504，42 个自然月的 IC 为正。
 等权 D10−D1 费前年化 10.00%，计入冻结成本后为 8.58%；Top 组平均单边换手为 16.10%。
 
-![销售收益率原始探索报告](/docs/images/help/zh/learning/sales-yield-explore-result.png)
+![历史中文界面示例：销售收益率原始探索报告](/docs/images/help/zh/learning/sales-yield-explore-result.png)
 
 | 探索检查 | 结果 | 怎样解释 |
 | --- | ---: | --- |
@@ -117,7 +119,7 @@ abd0b11b68739b08a71e9348012aff14764fe688310575b9f93e3ce0cf81acca
 当前教程的自动验收只读取这两份原始不可变报告，并核对后来预置菜单 `sales_yield` 的代码仍为相同哈希。再次打开
 或截图不是新的样本外检验，不能把同一保留段重复计为第二次成功。
 
-![销售收益率原始正式 Holdout 报告](/docs/images/help/zh/learning/sales-yield-holdout-result.png)
+![历史中文界面示例：销售收益率原始正式 Holdout 报告](/docs/images/help/zh/learning/sales-yield-holdout-result.png)
 
 | Holdout 指标 | 结果 | 裁决 |
 | --- | ---: | --- |

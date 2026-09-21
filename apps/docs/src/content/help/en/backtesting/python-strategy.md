@@ -1,5 +1,7 @@
 # Write a strategy in Python
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The strategy workbench supports TypeScript and Python. Both languages use the same engine for market data, fills, costs, T+1, and price-limit rules, so changing language does not change trading rules.
 
 ## Switch the strategy language
@@ -11,7 +13,7 @@ The strategy workbench supports TypeScript and Python. Both languages use the sa
 
 Switching replaces unsaved code. Copy important code elsewhere or run and save the current version first.
 
-![Python editor and run action in the strategy workbench](/docs/images/help/zh/backtesting/python-strategy-01.png)
+![Historical Chinese UI example: Python editor and run action in the strategy workbench](/docs/images/help/zh/backtesting/python-strategy-01.png)
 
 ## A runnable example
 
@@ -69,7 +71,7 @@ Every value is calculated on demand from adjusted bars available through the cur
 3. Inspect Python output and error line numbers in the log.
 4. When metrics appear, verify trades, the ledger, and the equity curve.
 
-![Metrics and logs after a Python backtest](/docs/images/help/zh/backtesting/python-strategy-02.png)
+![Historical Chinese UI example: Metrics and logs after a Python backtest](/docs/images/help/zh/backtesting/python-strategy-02.png)
 
 Python errors retain the `strategy.py` line number. Start with the first error rather than only the final exception name.
 

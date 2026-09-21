@@ -1,5 +1,7 @@
 # Report history and outdated results
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Each factor analysis creates a separate report. Report history keeps the factor code, analysis settings, status, and result used at that time, so you can reopen and compare them later.
 
 It is not a temporary cache of the latest result. Running the same settings again after the previous report finishes creates another record instead of replacing the old one.
@@ -25,7 +27,7 @@ The numbered areas below are:
 1. A completed formal holdout whose result is still sealed.
 2. The explore report that produced it.
 
-![Explore and sealed holdout reports in report history](/docs/images/help/zh/factors/factor-holdout-history-01.png)
+![Historical Chinese UI example: Explore and sealed holdout reports in report history](/docs/images/help/zh/factors/factor-holdout-history-01.png)
 
 The date range, neutralization setting, and Rank IC in the list help identify a report. Open it and verify the full methodology before comparing results.
 
@@ -53,7 +55,7 @@ The numbered areas below are:
 2. **Run again** will create a report from the new draft.
 3. The warning says that the visible result still comes from the old settings.
 
-![An existing report marked outdated after settings change](/docs/images/help/zh/factors/factor-report-outdated-01.png)
+![Historical Chinese UI example: An existing report marked outdated after settings change](/docs/images/help/zh/factors/factor-report-outdated-01.png)
 
 “Outdated” does not mean the historical report is invalid or deleted. It means:
 
@@ -92,6 +94,10 @@ Expand **Question source** on a question to inspect the saved definition, code f
 The default question context contains a report summary, not all observations. Use **Reference data** and [embedded analysis](/docs/help/research/embedded-analysis) to read saved reports or calculate further, then inspect the inputs actually fetched in the card. The Agent should identify missing metrics or details. Neither an explanation nor an embedded calculation is a new factor evaluation. Use the Factor workbench to reevaluate a definition, create a FactorReport, or handle formal Holdout. Unfinished, unauthorized, or sealed Holdout reports cannot be attached. Choose Definition only, or handle the report in the workbench first.
 
 Refreshing does not cancel the answer. If the connection ends, choose **Refresh history / reconnect**. Failed, cancelled, and interrupted attempts remain under the question; asking again creates a new record. Use **Load earlier questions** for longer histories. Only questions saved after this upgrade can be restored: earlier browser-only messages cannot be recovered. Refresh an old page if it reports that the question interface has changed.
+
+**1** selects report questions or definition-only questions, **2** references data or opens analysis history, and **3** identifies publication and report information.
+
+![Current interface and controls](/docs/images/help/en/factors/report-question.png)
 
 ## Things to know
 

@@ -1335,12 +1335,12 @@ Research SDK 和固定统计运行环境。本阶段只记录用户能看到、�
 
 ### 11.15 2026-09-21：当前能力校准（三提交，进行中）
 
-用户已批准以下三提交规划，并已通过第 1 项范围及代码 review。基线 `aa838133`；本轮按 review-gated-development 执行。
+用户已批准以下三提交规划，并已通过第 1、2 项范围及代码 review。基线 `aa838133`；本轮按 review-gated-development 执行。
 
 | 顺序 | 准确提交信息 | 交付与当前状态 |
 | --- | --- | --- |
 | 1 | `docs(help): align bilingual guides with current workflows` | 中英文正文、入口摘要及功能清单校准；人工 review、静态检查、构建和现有 E2E 已通过 |
-| 2 | `docs(help): refresh outdated product screenshots` | 依据图片欠账清单重拍当前页面、更新标注和图注；尚未开始 |
+| 2 | `docs(help): refresh outdated product screenshots` | 完成 28 个场景的双语制图、历史图分类与图注；人工 review、静态检查、构建和现有 E2E 已通过 |
 | 3 | `test(docs): verify refreshed help navigation and coverage` | 完善现有文档验收，核对双语对应、链接、图片与关键路径；尚未开始 |
 
 第 1 项交付：
@@ -1361,3 +1361,25 @@ Research SDK 和固定统计运行环境。本阶段只记录用户能看到、�
 验证中修复了现有 E2E 的过时断言：文章数量 98 → 100；部署旧标题改为“部署回测报告”；已移除的部署/历史截图数量要求改为当前报告选择、独立部署及暂停/再次部署规则检查，保留全站图片加载检查。此为测试修复，未改变已审查正文或业务代码。
 
 验收截图位于 `apps/docs/acceptance/8a-help-desktop.png`、`8b-help-mobile.png` 等（不入库）。浏览器已退出，临时 API/Web/Docs 已关闭，3001/5173/5174 端口及临时库连接已释放。依照已批准提交信息提交，不自动 push。
+
+
+第 2 项交付（已通过 review 与验证）：
+
+- 28 个场景共 56 张真实中英文界面图，覆盖当前操作入口及报告、研究文档、来源引用与独立部署状态。
+- 152 张原引用图片逐项归档到 `docs/design/user-guide-images.json`；更新引用与编号，移除 4 张被替代的旧图。105 张历史结果／状态示例明确标注，其中 84 张仅裁掉旧导航文字；29 张学习证据逐字节保留。
+- 新增 `pnpm docs:images refresh` 和复拍说明，保存脱敏原图与编号产物；每场景使用独立页面，避免未发送草稿的导航保护影响制图。
+- 使用专用临时数据库副本，不写正常开发库，不调用外部模型或重算报告；图中未运行模板、未生成信号和空数据集／公共库都有明确图注。
+- 旧 Research 素材存在 JSON 读取兼容问题，本轮不扩展为数据修复或产品改动。嵌入式分析仅拍摄当前引用入口，不以空记录冒充成功历史。
+
+本项准确提交信息保持 `docs(help): refresh outdated product screenshots`。人工 review 已通过，Docs 构建及现有帮助站 E2E 已通过，按既有授权直接提交，不 push。
+
+
+第 2 项交审前静态结果：Docs lint／typecheck、制图脚本 ESLint／语法检查、修改脚本与清单的 Prettier、`git diff --check` 均通过。静态核对 100 对文章、865 处内部文章链接、193 张引用图片；双语图片顺序一致，全部有处置记录，无缺图，29 张学习证据与原 SHA-256 一致。56 张当前制图产物已逐组目检，重点入口另看全尺寸；这不是 Docs 渲染或业务回归的通过记录。
+
+临时浏览器已退出，专用 API/Web 已关闭，3001/5173 端口和临时数据库句柄均已释放；一次性数据库副本与私有账号配置已清理。
+
+第 2 项 review 后验证：`pnpm --filter @jixie/shared build`、`pnpm --filter docs build` 和 `E2E_BASE=http://127.0.0.1:5173 pnpm e2e docs-help` 通过；构建只有现有大 chunk 提示。E2E 使用独立空 SQLite 库、真实 API/Web 与构建后的 Docs 预览，验证公开访问、帮助/SDK 同页导航、产品帮助新开页、100 篇中文正文的图片和链接、关键页面语言切换、图片预览、公式/代码及 390px 窄屏。桌面与英文窄屏截图已目检；不代表业务计算回归。
+
+首次运行发现因子报告历史页的旧测试仍要求两张图；已改为核对历史、过期提示和当前报告问答三张图的具体路径。测试脚本 ESLint、Prettier、语法与差异检查通过，随后完整 E2E 重跑通过。此修复只更新测试，未改变已审查正文或业务代码。
+
+本次验收截图位于 `apps/docs/acceptance/9b-help-first-backtest-markdown.png`、`8b-help-mobile.png` 等（不入库）。浏览器已退出，临时 API/Web/Docs 已关闭，3001/5173/5174 端口与临时库连接已释放，临时数据库已删除。第 3 项验收增强尚未开始，仍需范围确认。

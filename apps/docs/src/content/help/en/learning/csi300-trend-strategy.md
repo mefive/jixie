@@ -1,5 +1,7 @@
 # CSI 300 trend strategy: parameters, costs, and out-of-sample evidence
 
+> Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
+
 > Learning path · About 90–120 minutes · You should be able to run one backtest. This exercise uses TypeScript because parameter
 > scans currently support TypeScript strategies only.
 
@@ -23,9 +25,9 @@ cost change, scan cell, and persisted report rather than merely waiting for a pa
 | 120-day trend, 2 bp | 0.96% | -38.04% | 0.139 | 4.57× | 103 |
 | 120-day trend, 10 bp | 0.22% | -40.23% | 0.081 | 4.57× | 103 |
 
-![Actual backtest result for the tradable ETF baseline](/docs/images/help/zh/learning/csi300-trend-baseline-result.png)
+![Historical Chinese UI example: Actual backtest result for the tradable ETF baseline](/docs/images/help/zh/learning/csi300-trend-baseline-result.png)
 
-![Actual backtest result for the primary 120-day trend rule](/docs/images/help/zh/learning/csi300-trend-primary-result.png)
+![Historical Chinese UI example: Actual backtest result for the primary 120-day trend rule](/docs/images/help/zh/learning/csi300-trend-primary-result.png)
 
 The annualized-return scan produced:
 
@@ -35,7 +37,7 @@ The annualized-return scan produced:
 | 60 | -0.87% | 0.85% | -23.24% | 0.130 | 75 |
 | 120 | 3.94% | 1.01% | -19.69% | 0.147 | 39 |
 
-![Actual in-sample and out-of-sample scan for 20, 60, and 120 days](/docs/images/help/zh/learning/csi300-trend-scan-result.png)
+![Historical Chinese UI example: Actual in-sample and out-of-sample scan for 20, 60, and 120 days](/docs/images/help/zh/learning/csi300-trend-scan-result.png)
 
 The precommitted rule reduced full-sample drawdown, but its annualized return was far below the same-ETF baseline. Raising slippage to
 10 bp reduced annualized return from 0.96% to 0.22%. The 20-day rule turned negative out of sample, while 60 and 120 days retained only

@@ -1,5 +1,7 @@
 # Read your first factor analysis result
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After the run completes, verify the sample and methodology before reading the group chart and metrics. Do not start with a single return number.
 
 ## Verify the methodology first
@@ -9,7 +11,7 @@ The numbered areas are:
 1. Effective periods, years, equal- or market-cap weighting, and factor direction.
 2. Research methodology and reproducibility.
 
-![Sample range and methodology in a factor report](/docs/images/help/zh/factors/factor-methodology-01.png)
+![Historical Chinese UI example: Sample range and methodology in a factor report](/docs/images/help/zh/factors/factor-methodology-01.png)
 
 Check the following in order:
 
@@ -30,7 +32,7 @@ The numbered areas are:
 2. The chart definition.
 3. Main statistics.
 
-![Decile returns and main metrics in a factor report](/docs/images/help/zh/factors/factor-overview-01.png)
+![Historical Chinese UI example: Decile returns and main metrics in a factor report](/docs/images/help/zh/factors/factor-overview-01.png)
 
 On the horizontal axis:
 

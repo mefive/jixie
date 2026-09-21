@@ -1,5 +1,7 @@
 # Compare several strategy parameters
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A parameter scan runs the same strategy code with several parameter values and compares the results. Numeric values test whether a result depends on one unusually favorable setting; string values can represent sizing schemes.
 
 ## Before starting
@@ -25,7 +27,7 @@ The numbered areas show:
 3. The in-sample/out-of-sample option.
 4. The **Start scan** button.
 
-![Two parameters, sample split option, and Start scan button](/docs/images/help/zh/backtesting/parameter-scan-settings-01.png)
+![Historical Chinese UI example: Two parameters, sample split option, and Start scan button](/docs/images/help/zh/backtesting/parameter-scan-settings-01.png)
 
 For example, values `2, 3` in the first dimension and `100, 200` in the second produce `2 × 2 = 4` combinations.
 
@@ -44,7 +46,7 @@ The numbered areas show:
 3. The parameter combination chart.
 4. The table containing each combination.
 
-![Metric selection, combination chart, and table for four scan results](/docs/images/help/zh/backtesting/parameter-scan-results-01.png)
+![Historical Chinese UI example: Metric selection, combination chart, and table for four scan results](/docs/images/help/zh/backtesting/parameter-scan-results-01.png)
 
 Review the result in this order:
 
@@ -92,11 +94,11 @@ The result overlays NAV rebased to 1 and compares annual return, maximum drawdow
 
 The next image marks the sizing-comparison mode, scheme input, and start action:
 
-![Enter sizing schemes for comparison](/docs/images/help/zh/backtesting/sizing-scan-settings-01.png)
+![Historical Chinese UI example: Enter sizing schemes for comparison](/docs/images/help/zh/backtesting/sizing-scan-settings-01.png)
 
 The result marks report history, rebased NAV comparison, and per-scheme metrics:
 
-![Sizing-scheme NAV and metric comparison](/docs/images/help/zh/backtesting/sizing-scan-results-01.png)
+![Historical Chinese UI example: Sizing-scheme NAV and metric comparison](/docs/images/help/zh/backtesting/sizing-scan-results-01.png)
 
 ## Estimate strategy capacity
 
@@ -112,11 +114,11 @@ Every level uses the same strategy code, date range, and cost model while changi
 
 The next image shows where to enter three capital levels:
 
-![Enter capital levels for a capacity estimate](/docs/images/help/zh/backtesting/capacity-scan-settings-01.png)
+![Historical Chinese UI example: Enter capital levels for a capacity estimate](/docs/images/help/zh/backtesting/capacity-scan-settings-01.png)
 
 The result marks report history, return and slippage curves, three threshold notes, and level details:
 
-![Capacity return decay and slippage drag](/docs/images/help/zh/backtesting/capacity-scan-results-01.png)
+![Historical Chinese UI example: Capacity return decay and slippage drag](/docs/images/help/zh/backtesting/capacity-scan-results-01.png)
 
 ## Related articles
 

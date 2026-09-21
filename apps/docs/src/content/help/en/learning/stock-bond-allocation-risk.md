@@ -1,5 +1,7 @@
 # Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios
 
+> Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
+
 > Learning path · About 120–150 minutes · Complete one Panel Factor analysis and one multi-asset backtest first.
 
 This exercise asks a question that an equity curve can hide: **where did the return and risk of a stock-bond rotation actually come
@@ -36,7 +38,7 @@ The explore report contained 83 valid months and 976 observations. Mean Rank IC 
 54.22% of Rank IC observations were positive. Yet equal-weight long-short annualized return was -7.44%, cost-adjusted long-short
 annualized return was **-8.25%**, and average one-way turnover was 36.35%.
 
-![Actual Panel report whose asset domain contains only equities and fixed income](/docs/images/help/zh/learning/stock-bond-panel-factor-result.png)
+![Historical Chinese UI example: Actual Panel report whose asset domain contains only equities and fixed income](/docs/images/help/zh/learning/stock-bond-panel-factor-result.png)
 
 Rank IC barely exceeded the preregistered directional floor of `> 0`; that does not establish economic value. Long-short performance
 was negative and costs made it worse. The Factor was published temporarily to freeze its code, report, and asset taxonomy and exercise
@@ -51,13 +53,13 @@ the attribution workflow—not because it qualified as a production Factor.
 | Zero-cost stock-bond momentum | 12.41% | 1.43% | -12.00% | 0.242 | 1.89× | 147 | CNY 0 | CNY 0 |
 | Monthly stock-bond momentum | 3.10% | 0.37% | -13.27% | 0.088 | 1.89× | 155 | CNY 8,032.40 | CNY 76,609.55 |
 
-![Actual CSI 300 ETF buy-and-hold baseline](/docs/images/help/zh/learning/stock-bond-baseline-result.png)
+![Historical Chinese UI example: Actual CSI 300 ETF buy-and-hold baseline](/docs/images/help/zh/learning/stock-bond-baseline-result.png)
 
-![Actual static stock-bond diagnostic control](/docs/images/help/zh/learning/stock-bond-static-allocation-result.png)
+![Historical Chinese UI example: Actual static stock-bond diagnostic control](/docs/images/help/zh/learning/stock-bond-static-allocation-result.png)
 
-![Actual zero-cost stock-bond momentum control](/docs/images/help/zh/learning/stock-bond-zero-cost-allocation-result.png)
+![Historical Chinese UI example: Actual zero-cost stock-bond momentum control](/docs/images/help/zh/learning/stock-bond-zero-cost-allocation-result.png)
 
-![Actual costed stock-bond momentum result](/docs/images/help/zh/learning/stock-bond-allocation-result.png)
+![Historical Chinese UI example: Actual costed stock-bond momentum result](/docs/images/help/zh/learning/stock-bond-allocation-result.png)
 
 The four controls separate three diagnostic explanations:
 
@@ -85,7 +87,7 @@ Portfolio P&L of CNY 30,998 reconciled exactly to attributed P&L, with a near-ze
 | China equity | 24.50% | -6.62% | 93.11% | -CNY 66,202 |
 | Overseas equity | 0.00% | 0.00% | 0.00% | CNY 0 |
 
-![Actual reconciliation of return and risk contributions](/docs/images/help/zh/learning/stock-bond-attribution-result.png)
+![Historical Chinese UI example: Actual reconciliation of return and risk contributions](/docs/images/help/zh/learning/stock-bond-attribution-result.png)
 
 Average weight is not risk contribution. China equity averaged only 24.50% of NAV but contributed 93.11% of portfolio risk; fixed
 income had the larger average weight and only 6.89% of risk. A “60/40” label or average allocation cannot tell this story by itself.
@@ -93,24 +95,24 @@ income had the larger average weight and only 6.89% of risk. A “60/40” label
 The latest 60-day China-equity/fixed-income correlation was **0.1520** on 2026-07-30. The page also retains 60- and 120-day windows
 and month-end rolling paths; one low-correlation observation is not a permanent relationship.
 
-![Actual rolling stock-bond asset-class correlation](/docs/images/help/zh/learning/stock-bond-correlation-result.png)
+![Historical Chinese UI example: Actual rolling stock-bond asset-class correlation](/docs/images/help/zh/learning/stock-bond-correlation-result.png)
 
 The latest rate regime was “rates falling / curve steep.” Across the 879 historical trading days classified into that state, the
 fixed-income asset-class annualized mean was 6.26% and China equity was 1.42%. This is a conditional historical review, not a forecast.
 
-![Actual conditional asset-class performance by rate regime](/docs/images/help/zh/learning/stock-bond-rate-regime-result.png)
+![Historical Chinese UI example: Actual conditional asset-class performance by rate regime](/docs/images/help/zh/learning/stock-bond-rate-regime-result.png)
 
 The market-risk diagnosis used 252 of 252 daily observations, estimated 9.93% annualized portfolio volatility, and reported 91.66%
 explained variance. China equity accounted for 99.14% of variance-contribution share. The standard risk model still displays gold and
 commodity drivers even though this case held no gold, traded no commodity ETF, and excluded them from Panel research. Those rows are
 regression explanatory variables—not holdings or research-universe members.
 
-![Actual portfolio market-risk diagnosis](/docs/images/help/zh/learning/stock-bond-market-risk-result.png)
+![Historical Chinese UI example: Actual portfolio market-risk diagnosis](/docs/images/help/zh/learning/stock-bond-market-risk-result.png)
 
 Under the current linear exposures, a 10% A-share decline estimated -4.48%, a 50bp CGB-yield rise estimated -1.24%, and cross-asset
 risk-off estimated -3.18%. The 2022 global-inflation replay estimated -11.60%, the worst of the three historical scenarios.
 
-![Actual stress-scenario estimates under current exposures](/docs/images/help/zh/learning/stock-bond-scenarios-result.png)
+![Historical Chinese UI example: Actual stress-scenario estimates under current exposures](/docs/images/help/zh/learning/stock-bond-scenarios-result.png)
 
 ## What you will be able to do
 

@@ -1,5 +1,7 @@
 # 运行跨资产 Panel 研究
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 Panel 横截面研究在每个共同月末比较多只 ETF 的信号排名，再观察之后收益排名。它用于检查跨资产选择关系，不是已经执行的资产配置策略。
 
 ## 运行 Panel 因子
@@ -12,7 +14,7 @@ Panel 横截面研究在每个共同月末比较多只 ETF 的信号排名，再
 
 资产池覆盖境内权益、海外权益、不同久期国债、黄金和商品 ETF。各 ETF 只从上市且历史窗口充足后进入观察，系统不会为晚上市资产回填虚假历史。
 
-![Panel 研究的固定资产池和参数](/docs/images/help/zh/factors/panel-research-01.png)
+![历史中文界面示例：Panel 研究的固定资产池和参数](/docs/images/help/zh/factors/panel-research-01.png)
 
 ## 阅读 Panel 排序证据
 
@@ -38,7 +40,7 @@ $$
 
 这些诊断不改写 Factor 原始分数，也不改变正式 Holdout 的主判据。
 
-![Panel 报告中的排序、类别分解和上市覆盖](/docs/images/help/zh/factors/panel-research-02.png)
+![历史中文界面示例：Panel 报告中的排序、类别分解和上市覆盖](/docs/images/help/zh/factors/panel-research-02.png)
 
 ## 查看资产覆盖
 

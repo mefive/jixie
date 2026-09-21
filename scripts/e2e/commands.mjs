@@ -375,6 +375,13 @@ export const e2eCommands = [
 
 export const imageCommands = [
   {
+    name: 'refresh',
+    file: 'apps/web/e2e/help-content-refresh.mjs',
+    group: 'capture',
+    notes:
+      'Disposable local API; HELP_CAPTURE_DISPOSABLE=1 and HELP_CAPTURE_CONFIG required. See help-content-refresh.md.',
+  },
+  {
     name: 'getting-started',
     file: 'apps/web/e2e/help-content.mjs',
     group: 'capture',

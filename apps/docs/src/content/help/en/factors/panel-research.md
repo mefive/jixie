@@ -1,5 +1,7 @@
 # Run cross-asset Panel research
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Panel research ranks several ETFs at each common month-end and compares those ranks with subsequent return ranks. It tests cross-asset selection evidence; it is not an executed allocation strategy.
 
 ## Run a Panel Factor
@@ -12,7 +14,7 @@ Panel research ranks several ETFs at each common month-end and compares those ra
 
 The universe covers domestic and overseas equity, several government-bond durations, gold, and commodity ETFs. Each ETF enters only after listing and after sufficient history exists.
 
-![Fixed Panel universe and settings](/docs/images/help/zh/factors/panel-research-01.png)
+![Historical Chinese UI example: Fixed Panel universe and settings](/docs/images/help/zh/factors/panel-research-01.png)
 
 ## Read Panel ranking evidence
 
@@ -32,7 +34,7 @@ The report shows mean Rank IC, annualized ICIR, positive-IC rate, equal-weight b
 
 Within-class Rank IC compares ETFs inside an asset class. Between-class evidence first compresses each class into an equal-weight representative, then ranks classes. This prevents a class with more ETFs from receiving more votes.
 
-![Panel ranking, class decomposition, and listing coverage](/docs/images/help/zh/factors/panel-research-02.png)
+![Historical Chinese UI example: Panel ranking, class decomposition, and listing coverage](/docs/images/help/zh/factors/panel-research-02.png)
 
 These are diagnostics. They do not rewrite the Factor score or replace the pre-registered holdout criterion.
 

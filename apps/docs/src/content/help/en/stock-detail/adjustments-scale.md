@@ -1,10 +1,12 @@
 # Switch adjustment and price scale
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Dividends, bonus shares, rights issues, and splits can create jumps in historical prices. Adjustment improves comparability across those events. It changes the displayed series, not the prices at which trades actually occurred.
 
 ## Switch adjustment
 
-![Stock detail using after-adjustment and a logarithmic scale](/docs/images/help/zh/stock-detail/adjustments-01.png)
+![Historical Chinese UI example: Stock detail using after-adjustment and a logarithmic scale](/docs/images/help/zh/stock-detail/adjustments-01.png)
 
 Adjustment is marked **1**.
 

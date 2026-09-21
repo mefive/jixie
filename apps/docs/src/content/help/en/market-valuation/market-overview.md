@@ -1,5 +1,7 @@
 # View the Market Weather map
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After sign-in, the product opens **Market** by default. The page places industries and official size, board, and style indices in fixed cards, so you can use one timeline to see how different parts of the market changed. It describes completed periods and does not predict the next return.
 
 ## Open the Market page
@@ -18,7 +20,7 @@ The numbered areas are:
 
 The historical replay timeline appears below the card wall. See [Replay history and inspect card details](/docs/help/market-valuation/weather-playback) for its controls.
 
-![Main areas of the Market Weather page](/docs/images/help/zh/market-valuation/market-weather-overview-01.png)
+![Main areas of the Market Weather page](/docs/images/help/en/market-valuation/market-weather-overview-01.png)
 
 The snapshot is the actual data date used for the period. It is not a forecast date and may not be today. Market holidays, unfinished maintenance, or a later index launch date can make the available start date differ by card.
 
@@ -37,7 +39,7 @@ To change the dimension:
 2. Wait for the groups and card titles to update.
 3. Confirm that the period did not change before comparing dimensions.
 
-![Change the Market Weather dimension](/docs/images/help/zh/market-valuation/market-weather-dimensions-01.png)
+![Historical Chinese UI example: Change the Market Weather dimension](/docs/images/help/zh/market-valuation/market-weather-dimensions-01.png)
 
 These are official index and industry classifications, not concept groups inferred from names. Coverage may change as additional official data becomes available; use the list shown on the page.
 

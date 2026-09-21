@@ -1,5 +1,7 @@
 # 使用 Python 研究运行环境
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 研究文档中的 Python Cell 运行在固定的 `research-py-v1` 环境中。固定环境让同一份源码在不同时间运行时使用一致的主要依赖，而不是临时安装一套未知版本的软件。
 
 ## 当前可以使用的包
@@ -37,7 +39,7 @@ print({"n": len(clean), "t": t_stat, "p": p_value})
 model.summary()
 ```
 
-![固定运行环境中的 SciPy 和 statsmodels 输出](/docs/images/help/zh/research/python-runtime-01.png)
+![历史中文界面示例：固定运行环境中的 SciPy 和 statsmodels 输出](/docs/images/help/zh/research/python-runtime-01.png)
 
 ## 选择图表方式
 

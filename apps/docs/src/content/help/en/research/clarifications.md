@@ -1,5 +1,7 @@
 # Answer a research-definition clarification
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 When an instrument, currency, tenor, or data form in the question does not exactly match available platform data, Research Agent shows a **Needs confirmation** card instead of silently substituting similar data. The Agent continues changing Cells only after you make an explicit choice.
 
 ## Why a clarification is required
@@ -17,7 +19,7 @@ The card states the original issue, the executable choices, and how each choice 
 5. When available, use **Or enter your specific choice…** to provide a more precise requirement.
 6. Select **Confirm choices** in the lower-right corner of the card.
 
-![A pending research-definition clarification](/docs/images/help/zh/research/clarifications-01.png)
+![Historical Chinese UI example: A pending research-definition clarification](/docs/images/help/zh/research/clarifications-01.png)
 
 ## What happens after confirmation
 
@@ -26,7 +28,7 @@ The card states the original issue, the executable choices, and how each choice 
 - The confirmed card remains visible after a refresh or after reopening the document.
 - Confirmation fixes this study's definition. It does not make a proxy equivalent to the original object and does not run a Cell.
 
-![A persisted confirmed research definition](/docs/images/help/zh/research/clarifications-02.png)
+![Historical Chinese UI example: A persisted confirmed research definition](/docs/images/help/zh/research/clarifications-02.png)
 
 ## Why ordinary input pauses
 

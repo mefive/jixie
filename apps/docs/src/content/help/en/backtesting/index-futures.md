@@ -1,5 +1,7 @@
 # Run an index futures strategy
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Index futures use margin, and one contract usually represents a notional amount much larger than the margin posted. A contract can be long or short, and a small index move can produce a large account change. If you are new to futures, use historical tests to understand contracts, margin, and rolls; do not treat a backtest as live-trading advice.
 
 ## What to specify when creating the strategy
@@ -34,7 +36,7 @@ Open Trades after completion. The numbered areas show:
 3. Contract quantity, price, amount, fee, and slippage columns.
 4. Futures fill records.
 
-![Index futures strategy, fill summary, and actual monthly contracts](/docs/images/help/zh/backtesting/futures-trades-01.png)
+![Historical Chinese UI example: Index futures strategy, fill summary, and actual monthly contracts](/docs/images/help/zh/backtesting/futures-trades-01.png)
 
 In the records:
 

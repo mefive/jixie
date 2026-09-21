@@ -1,5 +1,7 @@
 # 设置 Factor 研究范围
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 股票横截面 Factor 可以选择正式研究范围、排序范围和诊断切片。三者回答的问题不同，不能把某个切片中较好的结果当成整份报告的结论。
 
 ## 打开范围设置
@@ -15,7 +17,7 @@
 2. 排序范围。
 3. 诊断切片。
 
-![股票横截面 Factor 的研究范围和诊断设置](/docs/images/help/zh/factors/evaluation-scope-01.png)
+![历史中文界面示例：股票横截面 Factor 的研究范围和诊断设置](/docs/images/help/zh/factors/evaluation-scope-01.png)
 
 ## 研究范围
 
@@ -36,7 +38,7 @@
 
 行业、市值分层和流动性分层用于拆开主结果，查看关系是否集中在少数区域。诊断区会显示每个切片的样本、覆盖和 Rank IC 等信息。
 
-![Factor 报告中的正式范围和诊断切片](/docs/images/help/zh/factors/evaluation-scope-02.png)
+![历史中文界面示例：Factor 报告中的正式范围和诊断切片](/docs/images/help/zh/factors/evaluation-scope-02.png)
 
 诊断切片不改变主报告指标，也不会单独产生发布资格。若只在某个行业有效，应先写出新的适用范围和判据，再按该范围重新研究，而不是直接发布原报告。
 

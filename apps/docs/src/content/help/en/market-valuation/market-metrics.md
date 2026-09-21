@@ -4,7 +4,7 @@ Each card displays period return, heat, activity, breadth, and valuation positio
 
 ## Main information on a card
 
-![Return and state metrics on Market Weather cards](/docs/images/help/zh/market-valuation/market-weather-overview-01.png)
+![Return and state metrics on Market Weather cards](/docs/images/help/en/market-valuation/market-weather-overview-01.png)
 
 - **Period return**: price change for the selected week, month, quarter, or year, using the corresponding official industry or index series.
 - **Relative return**: a style or strategy index's return minus its labeled parent index over the same period. It is hidden when no reliable parent is available.

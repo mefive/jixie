@@ -1,5 +1,7 @@
 # Sales yield: from a positive holdout to Factor admission
 
+> Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
+
 > Learning path · 75–105 minutes · Run one preset Factor analysis first.
 
 This exercise answers a question the earlier learning paths did not: **can one equity Factor retain the same direction through a
@@ -83,7 +85,7 @@ The exploration report contains 60 valid months. Neutralized Rank IC was 0.03775
 positive IC. Equal-weight D10−D1 annualized return was 10.00% gross and 8.58% after frozen costs. Average one-way top-bucket
 turnover was 16.10%.
 
-![Original sales-yield exploration report](/docs/images/help/zh/learning/sales-yield-explore-result.png)
+![Historical Chinese UI example: Original sales-yield exploration report](/docs/images/help/zh/learning/sales-yield-explore-result.png)
 
 | Exploration check | Result | Interpretation |
 | --- | ---: | --- |
@@ -124,7 +126,7 @@ The automated acceptance for this tutorial only reads the two original immutable
 preset still has the same code hash. Reopening or capturing those reports is not a new out-of-sample test and must not be counted as a
 second success.
 
-![Original formal sales-yield holdout report](/docs/images/help/zh/learning/sales-yield-holdout-result.png)
+![Historical Chinese UI example: Original formal sales-yield holdout report](/docs/images/help/zh/learning/sales-yield-holdout-result.png)
 
 | Holdout metric | Result | Verdict |
 | --- | ---: | --- |

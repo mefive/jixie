@@ -1,5 +1,7 @@
 # 查看第一份因子分析结果
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 分析完成后，先核对样本和研究口径，再看分组图和指标。不要从某个收益数字直接得出交易结论。
 
 ## 先核对研究口径
@@ -9,7 +11,7 @@
 1. 有效样本期数、分析年份、等权或市值加权切换，以及因子方向。
 2. “研究口径与可复现性”。
 
-![因子报告的样本范围和研究口径](/docs/images/help/zh/factors/factor-methodology-01.png)
+![历史中文界面示例：因子报告的样本范围和研究口径](/docs/images/help/zh/factors/factor-methodology-01.png)
 
 按以下顺序检查：
 
@@ -30,7 +32,7 @@
 2. 图表口径说明。
 3. 主要统计指标。
 
-![因子报告中的十组收益和主要指标](/docs/images/help/zh/factors/factor-overview-01.png)
+![历史中文界面示例：因子报告中的十组收益和主要指标](/docs/images/help/zh/factors/factor-overview-01.png)
 
 图表横轴从 D1 到 D10：
 

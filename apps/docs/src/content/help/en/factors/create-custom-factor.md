@@ -1,5 +1,7 @@
 # Create and edit a custom factor
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A custom Factor converts each stock's data on each comparison date into a number. New drafts default to Python `py-v1`. You can describe the calculation to the Agent on the left or edit code directly. Existing TypeScript Factors remain compatible and are not rewritten automatically.
 
 ## Before you start
@@ -39,7 +41,7 @@ The numbered areas are:
 4. Factor code editor.
 5. **Run analysis**.
 
-![The new Python custom-Factor page](/docs/images/help/zh/factors/python-factor-01.png)
+![Historical Chinese UI example: The new Python custom-Factor page](/docs/images/help/zh/factors/python-factor-01.png)
 
 For an Agent request, describe the actual rule. For example:
 
@@ -75,7 +77,7 @@ The numbered areas are:
 3. Current code.
 4. Run an analysis with the current code.
 
-![Python Factor field completion and run entry](/docs/images/help/zh/factors/python-factor-01.png)
+![Historical Chinese UI example: Python Factor field completion and run entry](/docs/images/help/zh/factors/python-factor-01.png)
 
 Do not return `0` merely to give every stock a value. Zero is a real number and participates in ranking. `None` means that no usable value exists for that period.
 
@@ -106,7 +108,7 @@ The numbered areas are:
 3. Methodology and reproducibility details.
 4. Run log.
 
-![A completed analysis for the custom factor](/docs/images/help/zh/factors/factor-custom-analysis-01.png)
+![Historical Chinese UI example: A completed analysis for the custom factor](/docs/images/help/zh/factors/factor-custom-analysis-01.png)
 
 The historical-data notice in the screenshot belongs to this report. If historical states such as negative net assets or long suspensions cannot be handled reliably, read the report's explicit warning instead of assuming that current status was filled back into the past.
 

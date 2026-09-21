@@ -1,5 +1,7 @@
 # Read research outputs
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The final expression or an explicit display call in a Python Cell appears below that Cell. An output can be text, a number, a table, a native interactive chart, or a static Matplotlib figure. Before interpreting it, verify that it comes from current source rather than a stale result.
 
 ## Text and numbers
@@ -12,7 +14,7 @@ A pandas DataFrame renders as a paginated table. The page limits the number of r
 
 The top notice below identifies the source rows, preview rows, and truncated cells. Pagination and page size controls appear at the bottom.
 
-![Research table pagination and truncation notices](/docs/images/help/zh/research/outputs-01.png)
+![Historical Chinese UI example: Research table pagination and truncation notices](/docs/images/help/zh/research/outputs-01.png)
 
 Preview truncation changes only the display; it does not mean the calculation produced only those rows. Before citing a large table, summarize, filter, or sample it in code and record that choice in Markdown.
 
@@ -30,7 +32,7 @@ charts.histogram(
 )
 ```
 
-![Native interactive charts in a research document](/docs/images/help/zh/research/outputs-02.png)
+![Historical Chinese UI example: Native interactive charts in a research document](/docs/images/help/zh/research/outputs-02.png)
 
 A chart only presents the supplied data. Binning, axis range, missing values, and sample dates affect its interpretation; state them in adjacent Markdown.
 

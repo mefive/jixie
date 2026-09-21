@@ -1,5 +1,7 @@
 # Hand research to Factor or Strategy
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The Research workbench supports open exploration. FactorReport and the Strategy workbench provide constrained formal validation. Handoff is available from a successful immutable full run, not directly from the current draft or a single-Cell output.
 
 Keep statistical exploration in visible Markdown and Python Cells. The Research Agent does not run trading backtests behind the conversation. Generate a Strategy draft once the study defines explicit, supported trading rules; descriptive analysis does not need to become a strategy.
@@ -14,7 +16,7 @@ Keep statistical exploration in visible Markdown and Python Cells. The Research 
 
 Promotion names an existing successful snapshot; it does not calculate again. The read-only snapshot preserves source, outputs, dependencies, and environment summary, and indicates whether the editable draft has since changed.
 
-![A promoted research version in a read-only snapshot](/docs/images/help/zh/research/handoff-01.png)
+![Historical Chinese UI example: A promoted research version in a read-only snapshot](/docs/images/help/zh/research/handoff-01.png)
 
 ## Generate a Factor draft
 

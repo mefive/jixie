@@ -1,5 +1,7 @@
 # 因子相关性矩阵
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 因子相关性矩阵用于检查多个因子是否在同一时期给股票排出了相似顺序。它适合回答：
 
 - 两个因子是不是在重复表达相近信息？
@@ -51,7 +53,7 @@ $$
 2. 计算口径、区间和固定市值列说明。
 3. “计算”按钮。
 
-![选择多个因子并核对相关性计算区间](/docs/images/help/zh/factors/factor-correlation-settings-01.png)
+![历史中文界面示例：选择多个因子并核对相关性计算区间](/docs/images/help/zh/factors/factor-correlation-settings-01.png)
 
 页面会自动加入“市值(ln)”一列，用于检查因子排名是否与对数总市值接近。它不是用户额外选择的第四个研究因子。
 
@@ -63,7 +65,7 @@ $$
 2. 因子两两相关性热力图。
 3. 有效期数、颜色和对角线说明。
 
-![盈利收益率账面市值比股息率和市值的相关性矩阵](/docs/images/help/zh/factors/factor-correlation-result-01.png)
+![历史中文界面示例：盈利收益率账面市值比股息率和市值的相关性矩阵](/docs/images/help/zh/factors/factor-correlation-result-01.png)
 
 每个格子同时对应一行和一列：
 

@@ -1,5 +1,7 @@
 # Inspect trades and costs
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Trade records show what the strategy actually filled. A valid chart does not guarantee that every fill matched the intended rules, so inspect dates, directions, quantities, and costs after a run.
 
 ## Open trades from the result
@@ -10,7 +12,7 @@ Trade records show what the strategy actually filled. A valid chart does not gua
 
 In the image, **1** is the fill summary, **2** contains filters, and **3** is the fill list.
 
-![Trades tab, fill summary, filters, and Open in page](/docs/images/help/zh/backtesting/trades-01.png)
+![Historical Chinese UI example: Trades tab, fill summary, filters, and Open in page](/docs/images/help/zh/backtesting/trades-01.png)
 
 Workbench trade details follow the selected historical report. **Open in page** is available only for the latest report, keeping the standalone trade page tied to the latest result.
 
@@ -23,7 +25,7 @@ The full page is better for reviewing a table with many columns:
 3. Filter by instrument, direction, or asset type.
 4. The ledger contains the fields for each fill.
 
-![Strategy, fill summary, filters, and ledger on the full Trades page](/docs/images/help/zh/backtesting/trades-page-01.png)
+![Historical Chinese UI example: Strategy, fill summary, filters, and ledger on the full Trades page](/docs/images/help/zh/backtesting/trades-page-01.png)
 
 ## Column meanings
 

@@ -1,5 +1,7 @@
 # Rank IC、ICIR 和 IC 衰减
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 Rank IC 检查因子排名与之后收益排名之间的关系。它不要求因子值和收益按固定比例变化，因此比直接比较数值更适合横截面因子研究。
 
 ## Rank IC 的公式
@@ -135,7 +137,7 @@ $$
 3. IC 大于 0 的月份占比。
 4. 最高因子组的月换手。
 
-![因子报告中的Rank IC均值ICIR正向占比和换手](/docs/images/help/zh/factors/factor-rank-ic-01.png)
+![历史中文界面示例：因子报告中的Rank IC均值ICIR正向占比和换手](/docs/images/help/zh/factors/factor-rank-ic-01.png)
 
 第一次阅读时：
 
@@ -166,7 +168,7 @@ $$
 2. 不同前瞻交易日的 Rank IC 均值。
 3. 页面根据峰值位置给出的持有周期提示。
 
-![因子报告中的不同前瞻期限Rank IC](/docs/images/help/zh/factors/factor-ic-decay-01.png)
+![历史中文界面示例：因子报告中的不同前瞻期限Rank IC](/docs/images/help/zh/factors/factor-ic-decay-01.png)
 
 - 短端较高、之后下降，表示因子关系主要出现在较短期限。
 - 越往后越高，表示历史关系形成较慢。

@@ -1,5 +1,7 @@
 # Inspect backtest results
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Do not read return in isolation. First confirm that the period and trades are valid, then inspect return, risk, costs, and the account-value path together.
 
 ## Results area
@@ -11,7 +13,7 @@ The numbered areas are:
 3. Trades, with the fill count in parentheses.
 4. Logs for the completed run.
 
-![Backtest metrics, chart, trades, and logs](/docs/images/help/zh/backtesting/results-overview-01.png)
+![Historical Chinese UI example: Backtest metrics, chart, trades, and logs](/docs/images/help/zh/backtesting/results-overview-01.png)
 
 ## Recommended reading order
 

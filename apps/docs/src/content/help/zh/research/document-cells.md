@@ -27,6 +27,8 @@
 
 ![包含 Markdown 和 Python Cell 的研究文档](/docs/images/help/zh/research/document-cells-02.png)
 
+图中 **1** 是 Markdown，**2** 是 Python，**3** 是文档工具栏。“已保存”表示源码已保存；模板尚未运行，没有计算结果。
+
 ## 看懂保存状态
 
 Cell 标题栏会显示“待保存”“保存中…”或“已保存”。源码编辑后会自动保存，不需要寻找单独的保存按钮。

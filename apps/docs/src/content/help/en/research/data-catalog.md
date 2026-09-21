@@ -1,5 +1,7 @@
 # Use the research data catalog
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The **Data catalog** shows the instruments, measures, and calls supported by the current research runtime. Do not guess field names from memory. Confirm them in the catalog, then insert the generated code into a Python Cell.
 
 Use [selected financial fields](/docs/help/research/financial-data) for batch queries with annual, quarterly, TTM, or reported values.
@@ -14,6 +16,16 @@ Use [selected financial fields](/docs/help/research/financial-data) for batch qu
 6. Insert the call into the current Python Cell.
 
 After insertion, verify that the instrument, dates, and variable name match your research question.
+
+**1** switches source categories and **2** is the catalog panel. Lists depend on the search query, access, and locally available data. The empty Datasets capture does not imply that missing data can be loaded.
+
+![Market data catalog](/docs/images/help/en/research/catalog-market.png)
+
+![Datasets and empty state](/docs/images/help/en/research/catalog-datasets.png)
+
+![Existing Factor reports](/docs/images/help/en/research/catalog-factor-reports.png)
+
+![Existing backtest reports](/docs/images/help/en/research/catalog-backtests.png)
 
 ## Common data-access patterns
 
@@ -115,7 +127,7 @@ Report IDs, strategy IDs, and Factor keys are different identifiers. In Factor/S
 
 Type `data.`, a dot after a variable, or function arguments to see current methods, parameters, and returned columns. A red underline normally means a method, argument, or column does not match the current SDK. Check assistance and the catalog before suppressing it.
 
-![Research SDK column completion](/docs/images/help/zh/research/data-catalog-01.png)
+![Historical Chinese UI example: Research SDK column completion](/docs/images/help/zh/research/data-catalog-01.png)
 
 ## Common questions
 

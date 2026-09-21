@@ -17,7 +17,7 @@ The numbered controls are:
 5. Impact coefficient.
 6. **Run backtest**.
 
-![Dates, capital, base slippage, impact coefficient, and Run backtest](/docs/images/help/zh/backtesting/run-settings-01.png)
+![Dates, capital, base slippage, impact coefficient, and Run backtest](/docs/images/help/en/backtesting/run-settings-01.png)
 
 ## Start and end dates
 

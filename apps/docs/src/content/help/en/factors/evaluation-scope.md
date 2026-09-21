@@ -1,5 +1,7 @@
 # Set the Factor evaluation scope
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A stock cross-sectional Factor has a formal universe, a ranking scope, and diagnostic slices. They answer different questions. A strong diagnostic slice is not automatically the conclusion of the full report.
 
 ## Open scope settings
@@ -15,7 +17,7 @@ The numbered areas are:
 2. Ranking scope.
 3. Diagnostic slices.
 
-![Evaluation universe, ranking scope, and diagnostics](/docs/images/help/zh/factors/evaluation-scope-01.png)
+![Historical Chinese UI example: Evaluation universe, ranking scope, and diagnostics](/docs/images/help/zh/factors/evaluation-scope-01.png)
 
 ## Evaluation universe
 
@@ -36,7 +38,7 @@ Within-industry ranking checks whether a Factor is merely favoring certain indus
 
 Industry, size, and liquidity slices decompose the main result. They show sample size, coverage, Rank IC, and related evidence for each segment.
 
-![Formal scope and diagnostic slices in a Factor report](/docs/images/help/zh/factors/evaluation-scope-02.png)
+![Historical Chinese UI example: Formal scope and diagnostic slices in a Factor report](/docs/images/help/zh/factors/evaluation-scope-02.png)
 
 Slices do not change the main metrics or grant separate publication eligibility. If evidence only exists in one industry, pre-register that narrower scope and run it as a new study.
 

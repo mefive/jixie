@@ -14,7 +14,7 @@ Sign in with a verification code sent by email. You do not set a password. An em
 2. Enter a complete address, such as `reader@example.com`, in **1**.
 3. Select the Continue button marked **2**.
 
-![Email field and Continue button on the sign-in page](/docs/images/help/zh/getting-started/login-01-email.png)
+![Chinese UI: Email field and Continue button on the sign-in page](/docs/images/help/zh/getting-started/login-01-email.png)
 
 An existing account proceeds to verification. A new address proceeds to the invitation-code step.
 
@@ -24,7 +24,7 @@ An existing account proceeds to verification. A new address proceeds to the invi
 2. Select the button marked **2** to send a verification code.
 3. If the email address is wrong, use the link marked **3** to change it.
 
-![Invitation-code field, send button, and change-email link](/docs/images/help/zh/getting-started/login-02-invite.png)
+![Chinese UI: Invitation-code field, send button, and change-email link](/docs/images/help/zh/getting-started/login-02-invite.png)
 
 If the invitation code is invalid or expired, the page displays an error and does not send a verification code.
 
@@ -35,7 +35,7 @@ If the invitation code is invalid or expired, the page displays an error and doe
 3. Select the sign-in button marked **2**.
 4. To enter the email again, use the link marked **3**.
 
-![Verification-code field, sign-in button, and restart link](/docs/images/help/zh/getting-started/login-03-code.png)
+![Chinese UI: Verification-code field, sign-in button, and restart link](/docs/images/help/zh/getting-started/login-03-code.png)
 
 After a successful sign-in, your email and the Log out action appear in the upper-right corner.
 

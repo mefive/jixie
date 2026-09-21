@@ -53,7 +53,7 @@ The numbered areas are:
 4. Analysis dates, the run action, and results.
 5. Run logs.
 
-![Factor library, preset, analysis result, and logs](/docs/images/help/zh/factors/factor-workspace-01.png)
+![Factor library, preset, analysis result, and logs](/docs/images/help/en/factors/factor-workspace-01.png)
 
 ## What factor research cannot establish
 

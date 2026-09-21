@@ -1,5 +1,7 @@
 # Run your first backtest
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 This example tests buying 100 shares of Kweichow Moutai on the first trading day of each month. You will set dates and capital, run the backtest, and inspect returns, risk, and trades.
 
 ## Before you start
@@ -12,13 +14,15 @@ This example tests buying 100 shares of Kweichow Moutai on the first trading day
 
 1. Select Strategy.
 2. Select New or open a new backtest.
-3. Choose TypeScript or Python under Strategy language. Keep TypeScript for this walkthrough, or choose
+3. Choose TypeScript or Python under Strategy language. New strategies default to Python. Select TypeScript for this walkthrough, or choose
    Python to have the Agent and editor use py-v1.
-4. Enter `每月第一个交易日买入100股贵州茅台` in **1**.
+4. Enter `Buy 100 shares of Kweichow Moutai on the first trading day of each month` in **1**.
 5. Press Enter or use the send button marked **2**.
 6. Example descriptions appear in **3**.
 
-![Strategy description, send button, and examples in Strategy](/docs/images/help/zh/getting-started/first-backtest-01-prompt.png)
+![Strategy description, send button, and examples in Strategy](/docs/images/help/en/getting-started/first-backtest-01-prompt.png)
+
+This capture shows the first-visit page with no recent strategies. With an existing strategy, select New to open the same input controls in a dialog.
 
 Wait for the explanation on the left and strategy code in the center. Verify that the stock, quantity, and frequency match your description before running it.
 
@@ -33,9 +37,11 @@ adjustments, and costs are still enforced by the same backtest engine.
 3. Set the end date in **2**.
 4. Enter `100` in the capital field marked **3**. The unit is ten thousand yuan, so this means CNY 1 million.
 5. Keep the default base slippage for this first run. It is marked **4**.
-6. Select Run backtest, marked **5**.
+6. Select Run backtest, marked **6**; **5** is the impact coefficient.
 
-![Dates, capital, base slippage, and Run backtest button](/docs/images/help/zh/getting-started/first-backtest-02-settings.png)
+![Dates, capital, base slippage, and Run backtest button](/docs/images/help/en/backtesting/run-settings-01.png)
+
+This is the parameter panel of a saved strategy, shown to locate controls. Enter this tutorial’s settings before running. The return and trade figures below preserve the original historical example and belong to a different run.
 
 The range must contain trading days, and capital must be sufficient for the requested purchase.
 
@@ -45,7 +51,7 @@ The range must contain trading days, and capital must be sufficient for the requ
 2. Select the Trades tab marked **2** to verify the actual fill.
 3. If the run fails, inspect the log area marked **3**.
 
-![Backtest metrics, Trades tab, and log area](/docs/images/help/zh/getting-started/first-backtest-03-metrics.png)
+![Historical Chinese UI example: Backtest metrics, Trades tab, and log area](/docs/images/help/zh/getting-started/first-backtest-03-metrics.png)
 
 The captured example has a 1.05% total return and one trade. These values only describe the fixed historical period.
 
@@ -54,7 +60,7 @@ The captured example has a 1.05% total return and one trade. These values only d
 1. The chart marked **1** compares strategy equity with the CSI 300 benchmark.
 2. Use the tabs marked **2** to switch between equity and drawdown.
 
-![Strategy equity, CSI 300 benchmark, and result tabs](/docs/images/help/zh/getting-started/first-backtest-04-chart.png)
+![Historical Chinese UI example: Strategy equity, CSI 300 benchmark, and result tabs](/docs/images/help/zh/getting-started/first-backtest-04-chart.png)
 
 An upward ending equity curve does not mean the strategy made money at every point. Review drawdown and trades as well.
 

@@ -1,5 +1,7 @@
 # 沪深 300 价值因子：排序、IC、分层与样本外
 
+> 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
+
 > 学习路径 · 预计 75～105 分钟 · 建议先完成一次预设因子分析；本练习只使用现有预设和报告，不需要写代码。
 
 这项练习检验一个有限的横截面问题：**在沪深 300 的历史时点成分中，盈利收益率较高的股票，下一月收益排名是否
@@ -24,11 +26,11 @@
 | 市值+行业诊断 | 0.0448 | [0.0180, 0.0717] | 1.160 | 60.7% | 5.01% | 29.4% |
 | 正式 Holdout | 0.0734 | [-0.0801, 0.2269] | 0.699 | 52.9% | -19.07% | 17.7% |
 
-![沪深 300 盈利收益率探索主报告的真实结果](/docs/images/help/zh/learning/csi300-value-factor-explore-result.png)
+![历史中文界面示例：沪深 300 盈利收益率探索主报告的真实结果](/docs/images/help/zh/learning/csi300-value-factor-explore-result.png)
 
-![市值加行业中性化诊断的真实结果](/docs/images/help/zh/learning/csi300-value-factor-neutralized-result.png)
+![历史中文界面示例：市值加行业中性化诊断的真实结果](/docs/images/help/zh/learning/csi300-value-factor-neutralized-result.png)
 
-![首次揭示的正式 Holdout 真实结果](/docs/images/help/zh/learning/csi300-value-factor-holdout-result.png)
+![历史中文界面示例：首次揭示的正式 Holdout 真实结果](/docs/images/help/zh/learning/csi300-value-factor-holdout-result.png)
 
 Holdout 的 Rank IC 达到预设门槛，但 95% 区间跨 0、正向月份只有 52.9%，费后多空年化为 -19.07%。这不是
 “通过一个门槛就成功”；固定裁决是**证据不足**。报告还明确标记：历史负净资产和长期停牌状态不能可靠回填，

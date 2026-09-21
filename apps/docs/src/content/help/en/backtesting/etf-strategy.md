@@ -1,5 +1,7 @@
 # Run an ETF strategy
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 ETFs can be bought and sold in a backtest in much the same way as stocks. For a first ETF strategy, start with the **Major ETF rotation** example, then verify its instruments, rebalance frequency, and ranking rule.
 
 ## Start from the example
@@ -19,7 +21,7 @@ The numbered areas show:
 3. The **Major ETF rotation** example.
 4. The direct-code entry for users familiar with the Strategy SDK.
 
-![Major ETF rotation on the new strategy page](/docs/images/help/zh/backtesting/etf-entry-01.png)
+![Historical Chinese UI example: Major ETF rotation on the new strategy page](/docs/images/help/zh/backtesting/etf-entry-01.png)
 
 The example uses major ETFs that are currently synchronized. Always verify the instrument codes in the resulting strategy instead of relying on its name.
 
@@ -51,7 +53,7 @@ The numbered areas show:
 3. Instrument, direction, and asset filters.
 4. ETF buy and sell records.
 
-![ETF fill summary, filters, and buy and sell records](/docs/images/help/zh/backtesting/etf-trades-01.png)
+![Historical Chinese UI example: ETF fill summary, filters, and buy and sell records](/docs/images/help/zh/backtesting/etf-trades-01.png)
 
 The example has one buy and one sell. Review fees, slippage, and final return together; prices alone do not describe the complete result.
 

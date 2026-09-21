@@ -1,5 +1,7 @@
 # Run a backtest and inspect logs
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After checking the settings, select **Run backtest** once. Do not repeatedly submit the same strategy; use the page status and logs to follow its progress.
 
 ## Start the run
@@ -20,7 +22,7 @@ The numbered areas show a submitted job:
 2. The results area says that the backtest is running.
 3. Logs begin showing startup and processing progress.
 
-![Running state, results notice, and live logs](/docs/images/help/zh/backtesting/run-logs-01.png)
+![Historical Chinese UI example: Running state, results notice, and live logs](/docs/images/help/zh/backtesting/run-logs-01.png)
 
 Runtime depends on the date range, number of instruments, strategy calculations, and data volume. A results area without metrics does not by itself mean the run failed.
 

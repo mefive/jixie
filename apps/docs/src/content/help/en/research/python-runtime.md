@@ -1,5 +1,7 @@
 # Use the Research Python runtime
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Python Cells run in the fixed `research-py-v1` environment. A fixed environment keeps major dependencies consistent across reruns instead of installing an unknown set of package versions for each study.
 
 ## Available packages
@@ -37,7 +39,7 @@ print({"n": len(clean), "t": t_stat, "p": p_value})
 model.summary()
 ```
 
-![SciPy and statsmodels output in the fixed runtime](/docs/images/help/zh/research/python-runtime-01.png)
+![Historical Chinese UI example: SciPy and statsmodels output in the fixed runtime](/docs/images/help/zh/research/python-runtime-01.png)
 
 ## Choose a chart surface
 

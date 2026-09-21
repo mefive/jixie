@@ -1,5 +1,7 @@
 # Read signal instructions
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A strategy may have several independent deployments. Check the source report and deployment ID. Paused instances remain visible for history, with Generate now disabled.
 
 After generation completes, verify the dates and model equity before reading the instruction, simulated fill, and actual execution. The simulation settles after execution-day close data is published; the user records the actual result.
@@ -15,7 +17,7 @@ The screenshot contains one real buy instruction:
 5. Instruction table.
 6. Reference-price note.
 
-![A buy instruction on the Today page](/docs/images/help/zh/signals/signal-result-01.png)
+![Historical Chinese UI example: A buy instruction on the Today page](/docs/images/help/zh/signals/signal-result-01.png)
 
 ## Verify the four summary fields
 
@@ -99,7 +101,7 @@ The lower section retains status and instruction count by signal date:
 2. Current run summary.
 3. History ordered by signal date.
 
-![Today signal run history](/docs/images/help/zh/signals/signal-history-01.png)
+![Historical Chinese UI example: Today signal run history](/docs/images/help/zh/signals/signal-history-01.png)
 
 Select any history row to reopen its execution table. “1 / 1 recorded” means every instruction has a recorded decision, not that all instructions filled.
 

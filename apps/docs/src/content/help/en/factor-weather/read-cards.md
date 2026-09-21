@@ -1,5 +1,7 @@
 # Read Factor Weather cards
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A Factor Weather card shows monthly after-cost long-short returns under the fixed method, together with trailing three-month and twelve-month returns, rolling IC, coverage, and turnover. Confirm the selected month before reading the other numbers.
 
 ## Select a historical month
@@ -11,7 +13,7 @@ The month strip runs from left to right. Red means the result matched the expect
 3. When many months are present, drag the strip horizontally.
 4. Hover over a month to see the month, direction-aligned net return, and raw IC.
 
-![Select a historical month and inspect card metrics](/docs/images/help/zh/factor-weather/factor-weather-history-01.png)
+![Historical Chinese UI example: Select a historical month and inspect card metrics](/docs/images/help/zh/factor-weather/factor-weather-history-01.png)
 
 Direction alignment changes only the display sign. A higher-values-first factor retains the raw direction; a lower-values-first factor reverses it. Raw Rank IC remains visible separately.
 

@@ -1,5 +1,7 @@
 # 在策略中使用技术指标
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 回测 SDK 可以按当前交易日以前的后复权 K 线现场计算 ADX／DMI、Bollinger Bands、RSI、MACD 和 KDJ。它们是对历史价格和成交行为的变换，不是未来收益信号；使用前要写清周期、阈值和交易规则。
 
 ## 五类指标返回什么
@@ -53,7 +55,7 @@ Python 使用 `positive_di`、`negative_di` 和 `bollinger_bands`；TypeScript �
 
 这只是可复现规则示例，不代表最佳阈值。阈值过多、在同一历史区间反复调整，会增加过拟合风险。
 
-![包含技术指标策略的真实回测结果](/docs/images/help/zh/backtesting/technical-indicators-01.png)
+![历史中文界面示例：包含技术指标策略的真实回测结果](/docs/images/help/zh/backtesting/technical-indicators-01.png)
 
 ## 周线和月线
 

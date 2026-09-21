@@ -1,5 +1,7 @@
 # Read portfolio risk diagnostics
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Risk research explains which market drivers the completed multi-asset backtest was sensitive to, how macro conditions moved with returns, and whether Alpha may overlap known risk. It does not alter trades and is not a return forecast.
 
 ## Market risk
@@ -12,7 +14,7 @@ $$
 
 \(\beta_k\) is contemporaneous sensitivity to driver \(k\). Return factors display beta; rate and spread factors display estimated impact per 10bp. These are statistical exposures, not bond duration or proof of causality.
 
-![Portfolio market exposures and variance contributions](/docs/images/help/zh/backtesting/portfolio-risk-01.png)
+![Historical Chinese UI example: Portfolio market exposures and variance contributions](/docs/images/help/zh/backtesting/portfolio-risk-01.png)
 
 ## Macro sensitivity
 
@@ -34,7 +36,7 @@ $$
 
 Scenarios include an A-share drawdown, government-yield moves, wider credit spreads, RMB depreciation, higher US real yields, a commodity drawdown, and cross-asset risk-off.
 
-![Macro warning, Alpha overlap, and stress scenarios](/docs/images/help/zh/backtesting/portfolio-risk-02.png)
+![Historical Chinese UI example: Macro warning, Alpha overlap, and stress scenarios](/docs/images/help/zh/backtesting/portfolio-risk-02.png)
 
 The estimate excludes changing exposures, liquidity shocks, nonlinear pricing, and actual execution paths. Historical replay means applying similar historical driver changes to today's exposures, not replaying the old portfolio return.
 

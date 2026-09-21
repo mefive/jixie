@@ -20,7 +20,7 @@ The numbered areas are:
 3. **Results**: edit run settings, start a backtest, and inspect metrics, charts, and trades.
 4. **Logs**: system progress and any `console` output produced by the strategy.
 
-![Strategy, code, results, and logs in the Strategy workbench](/docs/images/help/zh/backtesting/workspace-01.png)
+![Strategy, code, results, and logs in the Strategy workbench](/docs/images/help/en/backtesting/workspace-01.png)
 
 Drag the dividers to resize the areas. On a narrow screen, collapse an area you do not currently need.
 
@@ -74,6 +74,10 @@ The code or settings have changed but have not been used in a completed backtest
 ### The code is unfamiliar
 
 Start by checking the name, security code, direction, quantity, and frequency. You do not need to understand every line for the first run. See the [Strategy SDK](/docs/sdk) when you are ready to edit code directly.
+
+**1** is the current draft configuration, **2** selects a report, **3** compares reports, and **4** opens Research review. This strategy has only one report, so Compare is disabled.
+
+![Current interface and controls](/docs/images/help/en/backtesting/report-controls.png)
 
 ## Related articles
 

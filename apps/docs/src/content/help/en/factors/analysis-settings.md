@@ -1,5 +1,7 @@
 # Set the analysis range and sample treatment
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 You can keep the defaults for your first run. When comparing reports, record and verify every setting instead of comparing only the final return.
 
 ## Open analysis settings
@@ -17,7 +19,7 @@ The numbered areas are:
 5. Universe, coverage, and risk-status settings.
 6. Outlier treatment.
 
-![Frequency, range, neutralization, and sample settings](/docs/images/help/zh/factors/factor-settings-01.png)
+![Historical Chinese UI example: Frequency, range, neutralization, and sample settings](/docs/images/help/zh/factors/factor-settings-01.png)
 
 ## Frequency
 

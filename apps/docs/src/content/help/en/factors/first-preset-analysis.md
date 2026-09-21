@@ -1,5 +1,7 @@
 # Run your first preset factor analysis
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 This article runs **Earnings yield (1/PE_TTM)** with the default settings and an exploratory research card. The purpose is to learn the workflow, not to make a trading decision from one result.
 
 ## Open the preset
@@ -10,7 +12,7 @@ This article runs **Earnings yield (1/PE_TTM)** with the default settings and an
 4. Confirm that the row is selected.
 5. Wait for the read-only preset notice in the middle and the dates and **Run analysis** action on the right.
 
-![Select the earnings-yield preset](/docs/images/help/zh/factors/factor-workspace-01.png)
+![Select the earnings-yield preset](/docs/images/help/en/factors/factor-workspace-01.png)
 
 The middle code shows how the preset is calculated. You do not need to edit it for the first run. Use **Copy as custom** later if you need a modified version.
 
@@ -24,7 +26,7 @@ If the factor has previous reports, the latest one appears on the right. A facto
 4. Read the notice that an exploratory result cannot later be presented as a pre-registered hypothesis.
 5. Select **Freeze research card and run**.
 
-![Select exploratory mode in the pre-run research card](/docs/images/help/zh/factors/factor-research-card-01.png)
+![Historical Chinese UI example: Select exploratory mode in the pre-run research card](/docs/images/help/zh/factors/factor-research-card-01.png)
 
 Exploratory mode is appropriate for your first look at a factor. Hypothesis mode asks you to write the hypothesis, expected direction, and criterion before seeing the result.
 
@@ -36,7 +38,7 @@ After submission, the page displays **Running** and a computing message. The num
 2. Computation status.
 3. Run logs.
 
-![A factor analysis in progress](/docs/images/help/zh/factors/factor-running-01.png)
+![Historical Chinese UI example: A factor analysis in progress](/docs/images/help/zh/factors/factor-running-01.png)
 
 While it is running:
 

@@ -1,5 +1,7 @@
 # Revise a strategy and run it again
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After generating a strategy, use the conversation on the left to request a change. Verify the code after every change, then run the backtest again. A reply confirms that the request was handled; it does not create a new backtest result.
 
 ## Request a precise change
@@ -32,7 +34,7 @@ The numbered areas show:
 3. Updated code, where purchase quantity changed from 100 to 200.
 4. The **Run backtest** button that must be selected again.
 
-![Purchase quantity changed from 100 to 200 through a follow-up request](/docs/images/help/zh/backtesting/strategy-revised-01.png)
+![Historical Chinese UI example: Purchase quantity changed from 100 to 200 through a follow-up request](/docs/images/help/zh/backtesting/strategy-revised-01.png)
 
 If the reply reports a change but the code still has the old value, do not run. State the exact value again and identify what remains wrong.
 
@@ -56,7 +58,7 @@ The image shows the completed real backtest for the 200-share version:
 3. Trades and the fill count.
 4. Logs for this run.
 
-![Metrics, fill count, and logs after changing quantity and running again](/docs/images/help/zh/backtesting/strategy-revised-result-01.png)
+![Historical Chinese UI example: Metrics, fill count, and logs after changing quantity and running again](/docs/images/help/zh/backtesting/strategy-revised-result-01.png)
 
 Review:
 

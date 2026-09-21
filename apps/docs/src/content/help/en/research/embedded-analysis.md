@@ -17,6 +17,10 @@ When a material choice is unresolved—currency, adjustment, sample period or a 
 
 Python reads through SDK methods in the data catalog, not arbitrary SQL query results. The Agent can still query simple facts outside the catalog. If a calculation needs a data interface that is not available, it should explain the gap rather than copy chat-visible rows and present them as complete retained inputs.
 
+Current source selection: **1** is the chat toolbar and **2** shows the four source categories. This image shows requested sources, not a successful calculation or retained actual inputs.
+
+![Current interface and controls](/docs/images/help/en/research/embedded-reference.png)
+
 ## Read the evidence
 
 Check the sample and processing method before relying on the value. Details include:

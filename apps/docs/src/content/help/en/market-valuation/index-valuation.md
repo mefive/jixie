@@ -1,5 +1,7 @@
 # View index valuation
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The Valuation page shows trailing price-to-earnings, price-to-book, static price-to-earnings, and turnover for an index, then compares each current value with that index's own history.
 
 ## Open the Valuation page
@@ -17,7 +19,7 @@ The numbered areas are:
 4. Valuation metric and index close.
 5. Percentile method.
 
-![Main areas of the index Valuation page](/docs/images/help/zh/market-valuation/valuation-overview-01.png)
+![Main areas of the index Valuation page](/docs/images/help/en/market-valuation/valuation-overview-01.png)
 
 The valuation update date can differ slightly from the Market page. Use the date shown on the Valuation page.
 
@@ -32,7 +34,7 @@ The numbered areas are:
 1. Current index.
 2. Available index names and codes.
 
-![Change the valuation index](/docs/images/help/zh/market-valuation/valuation-index-01.png)
+![Change the valuation index](/docs/images/help/en/market-valuation/valuation-index-01.png)
 
 Indices differ in industry, size, and earnings composition. Similar P/E values do not make two indices equivalent. Compare each one with its own history and understand its constituents.
 
@@ -82,7 +84,7 @@ The screenshot uses the CSI 500, P/B, and all history:
 5. Valuation line, index-close line, and zoom control.
 6. Percentile method.
 
-![Change the valuation metric and show all history](/docs/images/help/zh/market-valuation/valuation-history-01.png)
+![Historical Chinese UI example: Change the valuation metric and show all history](/docs/images/help/zh/market-valuation/valuation-history-01.png)
 
 The two lines use different vertical axes. Do not treat an intersection as a buy or sell point, and do not read index points as valuation multiples.
 

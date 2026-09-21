@@ -1,5 +1,7 @@
 # 可信跨市场研究：收益、汇率与相关性
 
+> 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
+
 > 学习路径 · 预计 60～90 分钟 · 需要会运行 Python Cell，但不要求事先掌握时间序列统计。
 
 这项练习研究一个有限问题：**2015～2025 年间，沪深 300、恒生指数和标普 500 的人民币月收益相关性有多高，
@@ -11,7 +13,7 @@
 验收检查了不可变执行记录、输出类型和关键数值。共同样本为 2015-01-31 至 2025-12-31 的 132 个完整月份；
 恒生和标普 500 的本币收益、汇率收益与人民币收益恒等式最大误差均为 0。
 
-![固定案例的共同样本和汇率恒等式检查](/docs/images/help/zh/learning/cross-market-sample-audit.png)
+![历史中文界面示例：固定案例的共同样本和汇率恒等式检查](/docs/images/help/zh/learning/cross-market-sample-audit.png)
 
 实际结果如下。区块 bootstrap 使用下文固定的 12 个月区块、5,000 次重抽样和随机种子 `20260825`：
 
@@ -21,9 +23,9 @@
 | 沪深 300／标普 500 | 0.2429 | [-0.0339, 0.4812] | [-0.2778, 0.6247] |
 | 恒生／标普 500 | 0.2311 | [-0.0967, 0.5413] | [-0.3288, 0.7419] |
 
-![固定案例的全样本相关、bootstrap 区间和滚动范围](/docs/images/help/zh/learning/cross-market-case-result.png)
+![历史中文界面示例：固定案例的全样本相关、bootstrap 区间和滚动范围](/docs/images/help/zh/learning/cross-market-case-result.png)
 
-![固定案例的 36 个月滚动相关](/docs/images/help/zh/learning/cross-market-rolling-correlation.png)
+![历史中文界面示例：固定案例的 36 个月滚动相关](/docs/images/help/zh/learning/cross-market-rolling-correlation.png)
 
 这次运行支持“沪深 300 与恒生在这段历史中的人民币月收益相关显著低于 1，但仍然较高”。两组涉及标普 500 的
 bootstrap 区间都跨 0，滚动相关也曾为负，所以不能把一个较低的全样本数字写成稳定不变的分散化关系。截图是

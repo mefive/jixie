@@ -1,5 +1,7 @@
 # 发布 Factor 并用于策略
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 发布把一份已经完成研究的 Factor 锁定为策略可以引用的版本。发布不是“保存草稿”，也不表示 Factor 已经证明未来有效。
 
 ## 发布前检查
@@ -28,7 +30,7 @@
 2. 报告编号与代码 hash。
 3. “发布”按钮。
 
-![Factor 报告中的发布与策略引用区域](/docs/images/help/zh/factors/publish-factor-01.png)
+![历史中文界面示例：Factor 报告中的发布与策略引用区域](/docs/images/help/zh/factors/publish-factor-01.png)
 
 ## 发布后会锁定什么
 
@@ -47,7 +49,13 @@
 5. 显式点击“运行回测”。
 6. 在结果中的“本次回测使用的因子”核对 Factor ID 和代码 hash 已冻结。
 
-![已发布 Factor 的状态、策略入口和冻结血缘](/docs/images/help/zh/factors/publish-factor-02.png)
+以下以预置 `ep` 演示已锁定定义的入口：**1** 是发布与报告信息，**2** 是“用于策略”。
+
+![发布与策略引用入口](/docs/images/help/zh/factors/publication-current.png)
+
+进入策略后，**1** 仍是预填的需求，**2** 是发送按钮；此时还没有策略代码或新回测结果。
+
+![用于策略后的预填需求](/docs/images/help/zh/factors/strategy-prefill-current.png)
 
 研究报告中的多空诊断收益不等于策略回测收益。策略结果还包含实际持仓、现金、成交约束、费用和调仓规则。
 

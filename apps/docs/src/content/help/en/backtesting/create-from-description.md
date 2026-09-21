@@ -1,5 +1,7 @@
 # Create a backtest from a strategy description
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Start a new strategy by writing its trading rules in one or more sentences. The page converts the description into strategy code. The generated code, not the wording in the reply, is what the backtest runs, so always verify it first.
 
 ## What to include
@@ -34,7 +36,9 @@ The numbered areas show:
 3. Provided examples.
 4. The direct-code entry.
 
-![Entering instrument, schedule, quantity, and holding rules for a new strategy](/docs/images/help/zh/backtesting/strategy-description-01.png)
+![Entering instrument, schedule, quantity, and holding rules for a new strategy](/docs/images/help/en/backtesting/strategy-description-01.png)
+
+This capture shows the first-visit page with no recent strategies. With an existing strategy, select New to open the same input controls in a dialog.
 
 Examples demonstrate description structure. Verify the generated code even when starting from an example.
 
@@ -47,7 +51,7 @@ The numbered areas show:
 3. The code used by the backtest.
 4. The **Run backtest** button.
 
-![Strategy name, conversation, and code generated from a CSI 300 ETF description](/docs/images/help/zh/backtesting/strategy-generated-01.png)
+![Historical Chinese UI example: Strategy name, conversation, and code generated from a CSI 300 ETF description](/docs/images/help/zh/backtesting/strategy-generated-01.png)
 
 Before running, check:
 

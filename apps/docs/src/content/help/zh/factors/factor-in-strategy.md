@@ -1,5 +1,7 @@
 # 在策略中使用自定义因子
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 自定义因子完成分析并选择批准报告发布后，可以在回测策略中读取因子值、给股票排序并选择持仓。
 
 股票横截面多因子合成仍是研究对象，不能直接作为一个 Factor key 引用。已发布的 Panel 合成可以通过自己的唯一 key 进入多资产策略；页面会从发布区预填对应资产池和代码。
@@ -70,7 +72,7 @@ export default defineStrategy({
 3. 选股逻辑中的 `ctx.factor`。
 4. “运行回测”按钮。
 
-![在策略声明和选股逻辑中引用自定义因子](/docs/images/help/zh/factors/factor-strategy-reference-01.png)
+![历史中文界面示例：在策略声明和选股逻辑中引用自定义因子](/docs/images/help/zh/factors/factor-strategy-reference-01.png)
 
 key 必须在两处完全一致。编辑器输入 `ctx.factor(` 时会建议当前可用的已发布 Factor，并插入原始 key。
 
@@ -83,7 +85,7 @@ key 必须在两处完全一致。编辑器输入 `ctx.factor(` 时会建议当�
 1. 代码中的因子标识。
 2. 因子说明和查看实现的链接。
 
-![在策略编辑器中查看因子说明和实现入口](/docs/images/help/zh/factors/factor-strategy-hover-01.png)
+![历史中文界面示例：在策略编辑器中查看因子说明和实现入口](/docs/images/help/zh/factors/factor-strategy-hover-01.png)
 
 运行前使用这个提示确认：
 
@@ -105,7 +107,7 @@ key 必须在两处完全一致。编辑器输入 `ctx.factor(` 时会建议当�
 3. 交易明细及成交笔数。
 4. 策略净值和基准曲线。
 
-![使用自定义因子的真实回测结果](/docs/images/help/zh/factors/factor-strategy-result-01.png)
+![历史中文界面示例：使用自定义因子的真实回测结果](/docs/images/help/zh/factors/factor-strategy-result-01.png)
 
 出现成交说明策略已经读取因子并完成选股，不说明这个因子适合实盘。还需要检查：
 

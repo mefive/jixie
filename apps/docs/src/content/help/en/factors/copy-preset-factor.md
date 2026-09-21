@@ -1,5 +1,7 @@
 # Copy a preset factor
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Preset factor code is read-only. To change its calculation, first copy it to a custom factor and edit the copy.
 
 ## Before you start
@@ -26,7 +28,7 @@ The numbered areas are:
 4. **Copy as custom**.
 5. Preset calculation code.
 
-![Select and copy a read-only preset factor](/docs/images/help/zh/factors/factor-custom-copy-01.png)
+![Historical Chinese UI example: Select and copy a read-only preset factor](/docs/images/help/zh/factors/factor-custom-copy-01.png)
 
 ## Confirm the copy
 
@@ -37,7 +39,7 @@ The new copy opens automatically. The numbered areas are:
 3. The suggested Factor key, which cannot change after the copy is created.
 4. Editable factor code.
 
-![A custom factor immediately after copying a preset](/docs/images/help/zh/factors/factor-custom-copy-02.png)
+![Historical Chinese UI example: A custom factor immediately after copying a preset](/docs/images/help/zh/factors/factor-custom-copy-02.png)
 
 At this point:
 

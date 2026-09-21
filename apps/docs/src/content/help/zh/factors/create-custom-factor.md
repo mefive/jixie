@@ -1,5 +1,7 @@
 # 新建和编辑自定义因子
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 自定义因子把每只股票在每个比较日期的数据转换成一个数值。新建草稿默认使用 Python `py-v1`；可以向左侧的 Agent 描述计算方法，也可以直接在中间编辑代码。已有 TypeScript Factor 继续兼容，不会被自动改写。
 
 ## 开始前
@@ -37,7 +39,7 @@ $$
 4. 因子代码编辑器。
 5. “运行分析”按钮。
 
-![Python 自定义因子的新建页面](/docs/images/help/zh/factors/python-factor-01.png)
+![历史中文界面示例：Python 自定义因子的新建页面](/docs/images/help/zh/factors/python-factor-01.png)
 
 使用 Agent 时，应描述实际计算规则。例如：
 
@@ -73,7 +75,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 3. 当前代码。
 4. 使用当前代码运行分析。
 
-![Python Factor 的字段补全和运行入口](/docs/images/help/zh/factors/python-factor-01.png)
+![历史中文界面示例：Python Factor 的字段补全和运行入口](/docs/images/help/zh/factors/python-factor-01.png)
 
 不要为了让所有股票都有数值而把不能计算的情况写成 `0`。零是一个真实数值，会参与排序；`None` 才表示本期没有可用值。
 
@@ -104,7 +106,7 @@ Factor 在新建确认时就已持久化，草稿编辑会自动保存。提交�
 3. 研究口径与可复现性。
 4. 运行日志。
 
-![自定义因子的真实分析结果](/docs/images/help/zh/factors/factor-custom-analysis-01.png)
+![历史中文界面示例：自定义因子的真实分析结果](/docs/images/help/zh/factors/factor-custom-analysis-01.png)
 
 图中的历史数据提示是本次报告的一部分。出现负净资产、长期停牌等历史状态不能可靠执行的提示时，应阅读报告标记，不要把这些股票当作已按当前状态准确回填。
 

@@ -1,5 +1,7 @@
 # 市值和行业中性化
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 中性化用于检查：因子结果是否只是重复了市值或行业差异。它会先从因子值中去除与市值、行业能够解释的部分，再使用剩余部分重新排序、分组和计算 Rank IC。
 
 ## 为什么需要中性化
@@ -80,7 +82,7 @@ $$
 1. 已选择“市值+行业”的中性化设置。
 2. 使用新口径重新运行。
 
-![因子分析中选择市值加行业中性化并重新运行](/docs/images/help/zh/factors/factor-neutralization-setting-01.png)
+![历史中文界面示例：因子分析中选择市值加行业中性化并重新运行](/docs/images/help/zh/factors/factor-neutralization-setting-01.png)
 
 修改中性化后，旧报告仍然显示旧结果。必须重新运行，顶部摘要出现“市值”或“市值+行业”后，新报告才反映修改。
 
@@ -92,7 +94,7 @@ $$
 2. 新报告的样本和方向。
 3. 使用中性化残差重新分组后的 D1 至 D10。
 
-![市值加行业中性化后的盈利收益率报告](/docs/images/help/zh/factors/factor-neutralization-result-01.png)
+![历史中文界面示例：市值加行业中性化后的盈利收益率报告](/docs/images/help/zh/factors/factor-neutralization-result-01.png)
 
 中性化会改变因子值和股票排序，因此 Rank IC、分组收益、换手和多空收益都可能改变。
 
@@ -103,7 +105,7 @@ $$
 1. 市值+行业中性化报告。
 2. 无中性化报告。
 
-![报告历史中的无中性化和市值加行业报告](/docs/images/help/zh/factors/factor-neutralization-history-01.png)
+![历史中文界面示例：报告历史中的无中性化和市值加行业报告](/docs/images/help/zh/factors/factor-neutralization-history-01.png)
 
 比较时保持以下项目相同：
 

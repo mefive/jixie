@@ -1,5 +1,7 @@
 # 使用 Python 编写策略
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 策略工作台可以使用 TypeScript 或 Python。两种语言最终都由同一套回测规则处理行情、成交、费用、A 股 T+1 和涨跌停，因此语言不同不应改变交易规则。
 
 ## 切换策略语言
@@ -11,7 +13,7 @@
 
 切换语言会替换未保存的代码。已有重要代码时，先复制到其他位置，或先运行并保存当前版本。
 
-![策略工作台中的 Python 编辑器和运行入口](/docs/images/help/zh/backtesting/python-strategy-01.png)
+![历史中文界面示例：策略工作台中的 Python 编辑器和运行入口](/docs/images/help/zh/backtesting/python-strategy-01.png)
 
 ## 一个可以运行的例子
 
@@ -70,7 +72,7 @@ Python 日线 SDK 提供 `sma`、`ema`、`atr`、`highest`、`lowest`、`avg_amo
 3. 在日志中检查 Python 输出或错误行号。
 4. 等待主要指标出现，再核对成交笔数、交易明细和净值。
 
-![Python 策略完成回测后的指标和日志](/docs/images/help/zh/backtesting/python-strategy-02.png)
+![历史中文界面示例：Python 策略完成回测后的指标和日志](/docs/images/help/zh/backtesting/python-strategy-02.png)
 
 Python 报错会标出 `strategy.py` 的行号。先定位第一条错误，不要只看最后一行异常名称。
 

@@ -1,5 +1,7 @@
 # Pre-run research cards and variants
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A research card asks you to record what an analysis is intended to test before seeing its result. It cannot make a conclusion correct, but it separates a prior expectation from an explanation invented after looking at the data.
 
 The card opens whenever you select **Run analysis** or **Run again**.
@@ -23,7 +25,7 @@ The example below uses earnings yield. The numbered areas are:
 4. Select the expected direction, primary metric, comparison operator, and threshold.
 5. Freeze the card and run.
 
-![A hypothesis research card for earnings yield](/docs/images/help/zh/factors/factor-research-hypothesis-01.png)
+![Historical Chinese UI example: A hypothesis research card for earnings yield](/docs/images/help/zh/factors/factor-research-hypothesis-01.png)
 
 ### Hypothesis
 
@@ -75,7 +77,7 @@ After a report finishes, the research bar appears below the settings bar. The nu
 3. **Validate holdout** for an eligible explore report.
 4. The current report's sample range.
 
-![Research variant count and the holdout action](/docs/images/help/zh/factors/factor-research-summary-01.png)
+![Historical Chinese UI example: Research variant count and the holdout action](/docs/images/help/zh/factors/factor-research-summary-01.png)
 
 ### Reports and variants are different
 

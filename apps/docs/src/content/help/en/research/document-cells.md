@@ -14,7 +14,7 @@ A research document contains Markdown Cells and Python Cells. Use Markdown for t
 
 The markers below identify the question input, **Start research**, and existing research documents. Sending the question creates the document and starts processing; there is no template-selection step.
 
-![Create a research document from a question](/docs/images/help/zh/research/new-research-01.png)
+![Create a research document from a question](/docs/images/help/en/research/new-research-01.png)
 
 ## Add and edit Cells
 
@@ -26,7 +26,9 @@ The markers below identify the question input, **Start research**, and existing 
 
 A useful order is to write the Markdown first, then its Python. For example, state that you will compare monthly CSI 300 and CSI 500 returns from 2020 through 2025 before loading and analyzing those series.
 
-![A research document with Markdown and Python Cells](/docs/images/help/zh/research/document-cells-02.png)
+![A research document with Markdown and Python Cells](/docs/images/help/en/research/document-cells-02.png)
+
+**1** is Markdown, **2** is Python, and **3** is the document toolbar. Saved refers to source persistence. This template has not run and contains no calculation result. The template content remains Chinese when the UI language is English.
 
 ## Read the save state
 

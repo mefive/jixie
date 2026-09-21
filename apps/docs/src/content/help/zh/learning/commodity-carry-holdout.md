@@ -1,5 +1,7 @@
 # 商品 Carry：期限结构、代理误差与样本外
 
+> 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
+
 这条路径研究一个常见但容易被说得过于简单的命题：**期货处于 backwardation 时，商品未来收益是否更高？**
 你会使用 AU 黄金、CU 铜、SC 原油和 M 豆粕的真实月合约期限结构，分别运行共同月末的 Panel 排序和逐商品
 时间序列检验，然后在任何新结果出现前同时密封两份正式 Holdout。
@@ -103,7 +105,7 @@ Panel 使用 2015-01-01 至 2025-01-27、月频共同月末、未来 20 个交�
 三只有效资产。59 个月、294 条观测得到平均 Rank IC 0.0186、ICIR 0.129、正值率 49.15%、成本后多空年化
 5.10% 和平均单边换手 46.61%。这是弱而冲突的探索证据，不足以把 Carry 写成普适排序规则。
 
-![商品 Carry Panel 探索段真实报告](/docs/images/help/zh/learning/commodity-carry-panel-explore-result.png)
+![历史中文界面示例：商品 Carry Panel 探索段真实报告](/docs/images/help/zh/learning/commodity-carry-panel-explore-result.png)
 
 时间序列使用同一区间的日频观测和未来 20 个交易日收益。目标窗口高度重叠，因此自动 Newey–West lag 至少为
 19；不能把 6,069 条观测当作相互独立的 6,069 次实验。
@@ -118,7 +120,7 @@ Panel 使用 2015-01-01 至 2025-01-27、月频共同月末、未来 20 个交�
 四项 t 的中位数是 1.524；能源化工方向相反，黄金的正 t 又伴随低于 50% 的方向命中率。单一显著项和三正一负
 都不能证明一个统一的商品 Carry 规律。
 
-![商品 Carry 时间序列探索段真实报告](/docs/images/help/zh/learning/commodity-carry-time-series-explore-result.png)
+![历史中文界面示例：商品 Carry 时间序列探索段真实报告](/docs/images/help/zh/learning/commodity-carry-time-series-explore-result.png)
 
 ## 第五步：先同时密封，再揭示
 
@@ -137,7 +139,7 @@ Panel 使用 2015-01-01 至 2025-01-27、月频共同月末、未来 20 个交�
 Panel Holdout 共 17 个有效月、68 条观测。平均 Rank IC 从 0.0186 变成 -0.0471，ICIR 从 0.129 变成
 -0.219，正值率只有 47.06%，没有达到事前的正向标准。
 
-![商品 Carry Panel 正式 Holdout 真实报告](/docs/images/help/zh/learning/commodity-carry-panel-holdout-result.png)
+![历史中文界面示例：商品 Carry Panel 正式 Holdout 真实报告](/docs/images/help/zh/learning/commodity-carry-panel-holdout-result.png)
 
 | Panel 指标 | 探索段 | Holdout | 怎样解释 |
 | --- | ---: | ---: | --- |
@@ -150,7 +152,7 @@ Panel Holdout 共 17 个有效月、68 条观测。平均 Rank IC 从 0.0186 变
 时间序列 Holdout 每只资产有 343 条观测。四项 t 为 1.143、1.571、-1.048 和 -0.103，中位数只有 0.520，
 远低于 1.96；黄金与有色保持弱正，能源仍为负，豆粕由正转为接近零的负值。
 
-![商品 Carry 时间序列正式 Holdout 真实报告](/docs/images/help/zh/learning/commodity-carry-time-series-holdout-result.png)
+![历史中文界面示例：商品 Carry 时间序列正式 Holdout 真实报告](/docs/images/help/zh/learning/commodity-carry-time-series-holdout-result.png)
 
 | 代理 ETF | 探索相关性 / t | Holdout 相关性 / t | Holdout 方向命中率 |
 | --- | ---: | ---: | ---: |

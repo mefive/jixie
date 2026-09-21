@@ -1,5 +1,7 @@
 # 比较多组策略参数
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 参数扫描用于把同一段策略代码中的参数换成多组取值，分别运行回测并比较结果。数值参数适合检查结果是否只在某一个特殊数值上较好；字符串参数可用于对比仓位方案。
 
 ## 开始前
@@ -25,7 +27,7 @@
 3. 样本内、样本外切分开关。
 4. “开始扫描”按钮。
 
-![参数稳健性扫描中的两组参数、样本切分和开始按钮](/docs/images/help/zh/backtesting/parameter-scan-settings-01.png)
+![历史中文界面示例：参数稳健性扫描中的两组参数、样本切分和开始按钮](/docs/images/help/zh/backtesting/parameter-scan-settings-01.png)
 
 例如，第一维填写 `2, 3`，第二维填写 `100, 200`，会运行 `2 × 2 = 4` 组组合。
 
@@ -44,7 +46,7 @@
 3. 参数组合图。
 4. 每组参数的明细表。
 
-![四组参数扫描结果的指标选择、组合图和明细表](/docs/images/help/zh/backtesting/parameter-scan-results-01.png)
+![历史中文界面示例：四组参数扫描结果的指标选择、组合图和明细表](/docs/images/help/zh/backtesting/parameter-scan-results-01.png)
 
 查看结果时：
 
@@ -92,11 +94,11 @@ params: { sizing: 'atr', riskPct: 0.01, fixedLots: 10 }
 
 下图中的标记分别是仓位方案模式、方案名称输入和开始按钮：
 
-![填写仓位方案对比](/docs/images/help/zh/backtesting/sizing-scan-settings-01.png)
+![历史中文界面示例：填写仓位方案对比](/docs/images/help/zh/backtesting/sizing-scan-settings-01.png)
 
 结果页中的标记分别是历史报告、归一净值对比和逐方案指标：
 
-![仓位方案净值和指标对比](/docs/images/help/zh/backtesting/sizing-scan-results-01.png)
+![历史中文界面示例：仓位方案净值和指标对比](/docs/images/help/zh/backtesting/sizing-scan-results-01.png)
 
 ## 测算策略容量
 
@@ -112,11 +114,11 @@ params: { sizing: 'atr', riskPct: 0.01, fixedLots: 10 }
 
 下图展示三个资金档位的填写位置：
 
-![填写策略容量资金档位](/docs/images/help/zh/backtesting/capacity-scan-settings-01.png)
+![历史中文界面示例：填写策略容量资金档位](/docs/images/help/zh/backtesting/capacity-scan-settings-01.png)
 
 容量结果中的标记分别是历史报告、收益与滑点曲线、三个阈值提示和逐档明细：
 
-![策略容量收益衰减和滑点损耗](/docs/images/help/zh/backtesting/capacity-scan-results-01.png)
+![历史中文界面示例：策略容量收益衰减和滑点损耗](/docs/images/help/zh/backtesting/capacity-scan-results-01.png)
 
 ## 相关内容
 

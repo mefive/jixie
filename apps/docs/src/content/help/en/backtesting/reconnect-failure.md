@@ -1,5 +1,7 @@
 # Reconnect to a run and handle failures
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 You can refresh while a backtest is running. When the same strategy opens again, the page checks for its running job and resumes displaying status and logs.
 
 ## Reconnect after a refresh
@@ -17,7 +19,7 @@ The numbered areas show the page after a refresh:
 2. The restored running status.
 3. The log area continuing to show progress.
 
-![A running backtest reconnected after the page was refreshed](/docs/images/help/zh/backtesting/reconnect-01.png)
+![Historical Chinese UI example: A running backtest reconnected after the page was refreshed](/docs/images/help/zh/backtesting/reconnect-01.png)
 
 It is normal to see only a startup message briefly. Confirm completion from the final metrics, charts, and completion log.
 
@@ -40,7 +42,7 @@ The results area displays an error for a failed job. The numbered areas show:
 2. The failure message.
 3. The log area.
 
-![A backtest failure caused by strategy code that cannot compile](/docs/images/help/zh/backtesting/failure-01.png)
+![Historical Chinese UI example: A backtest failure caused by strategy code that cannot compile](/docs/images/help/zh/backtesting/failure-01.png)
 
 To handle a failure:
 

@@ -1,5 +1,7 @@
 # 复制预设因子
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 预设因子的代码只能查看，不能直接修改。需要调整计算方法时，先把它复制成自定义因子，再编辑副本。
 
 ## 开始前
@@ -26,7 +28,7 @@
 4. “复制为自定义”按钮。
 5. 预设因子的计算代码。
 
-![选择并复制只读的预设因子](/docs/images/help/zh/factors/factor-custom-copy-01.png)
+![历史中文界面示例：选择并复制只读的预设因子](/docs/images/help/zh/factors/factor-custom-copy-01.png)
 
 ## 确认复制结果
 
@@ -37,7 +39,7 @@
 3. 复制时自动建议、创建后不可修改的 Factor key。
 4. 可以编辑的因子代码。
 
-![复制完成后的自定义因子副本](/docs/images/help/zh/factors/factor-custom-copy-02.png)
+![历史中文界面示例：复制完成后的自定义因子副本](/docs/images/help/zh/factors/factor-custom-copy-02.png)
 
 此时需要知道：
 

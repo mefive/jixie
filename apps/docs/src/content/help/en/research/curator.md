@@ -1,5 +1,7 @@
 # Use Research curation
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 **Research curation** performs read-only analysis of existing research conversations and failure records. It identifies recurring research protocols, data requests, documentation improvements, and tool-improvement candidates. It does not edit code, synchronize vendor data, change a roadmap, or publish a feature.
 
 ## Start curation
@@ -9,7 +11,7 @@
 3. Select **Start curation** in the drawer.
 4. Wait for the summary of source evidence, candidates, and repeated items.
 
-![Research curation candidate summary](/docs/images/help/zh/research/curator-01.png)
+![Historical Chinese UI example: Research curation candidate summary](/docs/images/help/zh/research/curator-01.png)
 
 ## Read a candidate
 

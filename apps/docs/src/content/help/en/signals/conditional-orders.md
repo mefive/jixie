@@ -1,5 +1,7 @@
 # Use and record conditional orders
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A strategy can create stop-loss, trailing-stop, limit-buy, and take-profit conditions. Daily signals lists active conditions under **Pending conditional orders**. The user must recreate them in the broker client for broker-side monitoring; the system never connects to the broker or places them automatically.
 
 ## Four condition types
@@ -21,7 +23,7 @@ The numbered areas show:
 2. Conditional-order guidance.
 3. Type, side, shares, trigger, and trailing percentage.
 
-![A pending trailing stop in Daily signals](/docs/images/help/zh/signals/signal-conditional-01.png)
+![Historical Chinese UI example: A pending trailing stop in Daily signals](/docs/images/help/zh/signals/signal-conditional-01.png)
 
 Trigger prices are unadjusted so they can be compared with broker quotes. Available order types, validity, and trigger rules depend on the broker.
 

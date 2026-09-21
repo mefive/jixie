@@ -1,5 +1,7 @@
 # Get started with Factor Weather
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Factor Research tests whether a definition has historical evidence under an explicit sample and method. Factor Weather continuously monitors whether an accepted factor has recently been in a favorable, unfavorable, weakening, or recovering phase. They are separate pages, and Factor Weather does not change an existing research report.
 
 ## Open the page
@@ -16,7 +18,7 @@ The numbered areas are:
 3. Monthly factor cards.
 4. Action for adding a card.
 
-![Factor Weather page and pinned factors](/docs/images/help/zh/factor-weather/factor-weather-overview-01.png)
+![Historical Chinese UI example: Factor Weather page and pinned factors](/docs/images/help/zh/factor-weather/factor-weather-overview-01.png)
 
 The fixed method makes cards comparable. You cannot change the decile count, neutralization, or costs on this page after seeing the results and keep only the most attractive version.
 
@@ -29,7 +31,9 @@ The fixed method makes cards comparable. You cannot change the decile count, neu
 5. Check the direction, then select **Pin and backfill**.
 6. Wait for the monthly history to finish.
 
-![Choose a published Factor and expected direction](/docs/images/help/zh/factor-weather/factor-weather-pin-01.png)
+**1** is the current picker. Select a Factor, then review the direction. No backfill has been submitted in this capture.
+
+![Current Pin factor dialog](/docs/images/help/en/factor-weather/pin-current.png)
 
 Direction only aligns color and return so that a result matching the expectation is positive. The system retains raw Rank IC and raw group returns and does not change factor code.
 

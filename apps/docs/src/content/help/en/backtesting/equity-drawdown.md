@@ -1,5 +1,7 @@
 # Read equity, drawdown, and monthly returns
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Charts show how a result developed. The same final return can come from a steady path or from a deep loss followed by a recovery.
 
 ## Switch between equity and drawdown
@@ -11,7 +13,7 @@ Charts show how a result developed. The same final return can come from a steady
 
 In the image, **1** is the drawdown chart and **2** is the monthly-return table.
 
-![Drawdown chart and monthly returns in a backtest result](/docs/images/help/zh/backtesting/equity-drawdown-01.png)
+![Historical Chinese UI example: Drawdown chart and monthly returns in a backtest result](/docs/images/help/zh/backtesting/equity-drawdown-01.png)
 
 ## Read the equity chart
 

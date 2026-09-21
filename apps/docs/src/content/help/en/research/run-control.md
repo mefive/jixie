@@ -1,5 +1,7 @@
 # Run, stop, and reset research
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The workbench does not execute expensive computation after every edit. Choose one Cell, an affected branch, or the full document according to the scope of the change.
 
 ## Run the current Cell
@@ -15,7 +17,7 @@ If a dependency is missing or stale, run the upstream work first or use an affec
 
 Select the branch icon, **Run current Cell and affected downstream**. The system executes the current Cell and stale dependants in dependency order, without running independent Cells outside that branch.
 
-![Run a Cell and its affected downstream branch](/docs/images/help/zh/research/run-control-01.png)
+![Historical Chinese UI example: Run a Cell and its affected downstream branch](/docs/images/help/zh/research/run-control-01.png)
 
 Use this after changing one data-loading or calculation step. Review which Cells will be included before running.
 
@@ -30,11 +32,15 @@ Select **Clean full run** at the top to:
 
 Use a clean full run before comparison, promotion, or Factor/Strategy handoff. Success in the current interactive state alone does not prove the document runs from zero.
 
+Controls on a current, unrun template: **1** runs the Cell and affected downstream Cells, **2** runs the full document cleanly, and **3** opens full-run history.
+
+![Current run controls](/docs/images/help/en/research/run-controls-current.png)
+
 ## Stop the current run
 
 During a long calculation, the run icon becomes a stop control. Select **Stop current run** to interrupt it.
 
-![Stop a long-running calculation](/docs/images/help/zh/research/run-control-02.png)
+![Historical Chinese UI example: Stop a long-running calculation](/docs/images/help/zh/research/run-control-02.png)
 
 Downstream Cells that did not finish receive no new output. Old output may remain visible and stale; correct the source and run again.
 

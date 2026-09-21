@@ -1,5 +1,7 @@
 # Formal holdout and out-of-sample results
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A formal holdout is a recent period reserved in advance and excluded from inspection and adjustment. The page labels these records `Holdout`.
 
 It asks:
@@ -46,7 +48,7 @@ The numbered areas below are:
 3. The frozen code fingerprint and pre-registered criterion.
 4. Confirm the run.
 
-![Confirming the frozen code and criterion for a formal holdout](/docs/images/help/zh/factors/factor-holdout-confirm-01.png)
+![Historical Chinese UI example: Confirming the frozen code and criterion for a formal holdout](/docs/images/help/zh/factors/factor-holdout-confirm-01.png)
 
 The holdout uses the explore report's saved code and non-date settings. If the editor changed later, validation still uses the old report's code snapshot.
 
@@ -60,11 +62,11 @@ The numbered areas below are:
 2. Computation is complete while the result remains sealed.
 3. **Reveal result**.
 
-![A completed formal holdout with its result still sealed](/docs/images/help/zh/factors/factor-holdout-sealed-01.png)
+![Historical Chinese UI example: A completed formal holdout with its result still sealed](/docs/images/help/zh/factors/factor-holdout-sealed-01.png)
 
 Explore and holdout reports remain separate records in history:
 
-![Explore and sealed holdout reports in report history](/docs/images/help/zh/factors/factor-holdout-history-01.png)
+![Historical Chinese UI example: Explore and sealed holdout reports in report history](/docs/images/help/zh/factors/factor-holdout-history-01.png)
 
 Sealing prevents you from seeing a number first and then deciding whether to call it a formal validation.
 
@@ -82,7 +84,7 @@ The numbered areas below are:
 2. The notice that this period will no longer be unobserved.
 3. Final confirmation.
 
-![Irreversible confirmation before revealing a holdout](/docs/images/help/zh/factors/factor-reveal-confirm-01.png)
+![Historical Chinese UI example: Irreversible confirmation before revealing a holdout](/docs/images/help/zh/factors/factor-reveal-confirm-01.png)
 
 The first reveal time is written permanently. You can reopen the report later, but you cannot describe the same period as never observed again.
 
@@ -96,7 +98,7 @@ The numbered areas below are:
 2. Holdout sample range and direction.
 3. Holdout D1–D10 group results.
 
-![A revealed formal holdout and primary-criterion result](/docs/images/help/zh/factors/factor-holdout-revealed-01.png)
+![Historical Chinese UI example: A revealed formal holdout and primary-criterion result](/docs/images/help/zh/factors/factor-holdout-revealed-01.png)
 
 The page judges only the selected primary criterion. If the card recorded `Mean Rank IC > 0`, the message uses that rule alone.
 

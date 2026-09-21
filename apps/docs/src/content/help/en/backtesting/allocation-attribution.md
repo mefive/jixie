@@ -1,5 +1,7 @@
 # Read multi-asset allocation attribution
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After a multi-asset ETF strategy using a published Panel Factor completes, Result overview shows Multi-asset allocation attribution. It explains portfolio P&L from actual holdings, price changes, fills, and costs, rather than inferring it from the research long-short series.
 
 ## Open attribution
@@ -9,7 +11,7 @@ After a multi-asset ETF strategy using a published Panel Factor completes, Resul
 3. Find Multi-asset allocation attribution.
 4. Confirm Reconciled with portfolio NAV before switching tabs.
 
-![Asset-class and asset-level allocation attribution](/docs/images/help/zh/backtesting/allocation-attribution-01.png)
+![Historical Chinese UI example: Asset-class and asset-level allocation attribution](/docs/images/help/zh/backtesting/allocation-attribution-01.png)
 
 ## Asset class and asset
 
@@ -41,7 +43,7 @@ Insufficient paired returns or zero variance produces a missing value, not zero.
 
 Rate regime uses official government curves available by the decision date. The 10-year yield versus 60 curve observations ago determines rising or falling rates. The 10Y−2Y spread versus its 252-observation median determines steep or flat.
 
-![Rolling correlation and rate-regime attribution](/docs/images/help/zh/backtesting/allocation-attribution-02.png)
+![Historical Chinese UI example: Rolling correlation and rate-regime attribution](/docs/images/help/zh/backtesting/allocation-attribution-02.png)
 
 Conditional returns, volatility, positive days, and worst episode drawdown are retrospective. The state does not affect this run's weights and is not published as a Factor.
 

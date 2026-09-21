@@ -1,5 +1,7 @@
 # Generate today's signals
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A strategy may have several independent deployments. Check the source report and deployment ID. Paused instances remain visible for history, with Generate now disabled.
 
 After deployment, the Today page can use the latest completed trading-day close to generate instructions for the next trading day.
@@ -13,12 +15,10 @@ After deployment, the Today page can use the latest completed trading-day close 
 
 Before the first signal run:
 
-1. Deployed strategy list.
-2. Strategy, deployment date, and code version.
-3. **Generate now**.
-4. No-run state.
+1. Independent deployments with their source reports and deployment IDs.
+2. Generate and pause actions for the selected deployment. No signal run has occurred in this capture; initial account values are not realized performance.
 
-![A deployed strategy before its first signal run](/docs/images/help/zh/signals/signal-empty-01.png)
+![Multiple deployments before any signal run](/docs/images/help/en/signals/deployments-current.png)
 
 **Never generated** does not mean deployment failed. It means the deployment has no signal-run record yet.
 
@@ -57,7 +57,7 @@ When the run completes without a required position change, the page displays **N
 4. Reference-price note.
 5. History with zero instructions.
 
-![A successful run with no action today](/docs/images/help/zh/signals/signal-no-action-01.png)
+![Historical Chinese UI example: A successful run with no action today](/docs/images/help/zh/signals/signal-no-action-01.png)
 
 No action is a complete result, not a blank page or error. The frozen strategy and that day's data require no change to target holdings.
 

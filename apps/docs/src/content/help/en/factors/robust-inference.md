@@ -1,5 +1,7 @@
 # Read robust cross-sectional inference
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 In addition to Rank IC, bucket returns, and net long-short returns, a stock cross-sectional Factor report provides Newey–West mean inference and a fixed-control Fama–MacBeth regression. They estimate uncertainty in the historical average relationship and incremental association after common styles; they do not guarantee returns.
 
 ## Newey–West mean inference
@@ -25,7 +27,7 @@ Read it in this order:
 3. Check the number of periods and lag, not only the t statistic.
 4. Review gross and net long-short inference under both equal- and value-weighting. The toggle displays existing results and does not rerun the study.
 
-![Newey–West inference for Rank IC and long-short returns](/docs/images/help/zh/factors/robust-inference-01.png)
+![Historical Chinese UI example: Newey–West inference for Rank IC and long-short returns](/docs/images/help/zh/factors/robust-inference-01.png)
 
 ## Fixed-control Fama–MacBeth regression
 
@@ -47,7 +49,7 @@ Focus on:
 
 Missing controls affect only the complete-case auxiliary regression. They do not rewrite the main IC, buckets, or long-short result. Controls are not removed merely to make the candidate significant.
 
-![Fixed-control Fama–MacBeth inference](/docs/images/help/zh/factors/robust-inference-02.png)
+![Historical Chinese UI example: Fixed-control Fama–MacBeth inference](/docs/images/help/zh/factors/robust-inference-02.png)
 
 ## Combine the evidence
 

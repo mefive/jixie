@@ -1,5 +1,7 @@
 # 股债配置与风险归因：贡献、相关性与压力情景
 
+> 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
+
 > 学习路径 · 预计 120～150 分钟 · 建议先完成一次 Panel 因子分析和一次多资产回测。
 
 这项练习回答一个容易被净值曲线掩盖的问题：**股债轮动的收益和风险分别来自哪里，它降低回撤以后，是否真的比
@@ -33,7 +35,7 @@
 探索报告有 83 个有效月、976 条有效观测。平均 Rank IC 为 **0.0181**，年化 ICIR 为 0.13，Rank IC 正值率为
 54.22%。但等权多空年化为 -7.44%，成本后多空年化为 **-8.25%**，平均单边换手为 36.35%。
 
-![只包含股票与固收资产域的 Panel Factor 真实报告](/docs/images/help/zh/learning/stock-bond-panel-factor-result.png)
+![历史中文界面示例：只包含股票与固收资产域的 Panel Factor 真实报告](/docs/images/help/zh/learning/stock-bond-panel-factor-result.png)
 
 平均 Rank IC 略高于事前 `> 0` 的最低方向标准，不等于经济价值合格。多空收益为负，而且成本使结果进一步恶化。
 本练习临时发布它，是为了冻结代码、报告和资产分类并验收归因链路；不是因为它已成为生产 Factor。
@@ -47,13 +49,13 @@
 | 股债动量零成本对照 | 12.41% | 1.43% | -12.00% | 0.242 | 1.89× | 147 | 0 元 | 0 元 |
 | 股债动量月度轮动 | 3.10% | 0.37% | -13.27% | 0.088 | 1.89× | 155 | 8,032.40 元 | 76,609.55 元 |
 
-![沪深 300 ETF 买入持有基线的真实结果](/docs/images/help/zh/learning/stock-bond-baseline-result.png)
+![历史中文界面示例：沪深 300 ETF 买入持有基线的真实结果](/docs/images/help/zh/learning/stock-bond-baseline-result.png)
 
-![静态股债诊断对照的真实结果](/docs/images/help/zh/learning/stock-bond-static-allocation-result.png)
+![历史中文界面示例：静态股债诊断对照的真实结果](/docs/images/help/zh/learning/stock-bond-static-allocation-result.png)
 
-![股债动量零成本对照的真实结果](/docs/images/help/zh/learning/stock-bond-zero-cost-allocation-result.png)
+![历史中文界面示例：股债动量零成本对照的真实结果](/docs/images/help/zh/learning/stock-bond-zero-cost-allocation-result.png)
 
-![股债动量轮动的真实费后结果](/docs/images/help/zh/learning/stock-bond-allocation-result.png)
+![历史中文界面示例：股债动量轮动的真实费后结果](/docs/images/help/zh/learning/stock-bond-allocation-result.png)
 
 这四组对照把三类解释线索分开了：
 
@@ -78,7 +80,7 @@
 | 中国权益 | 24.50% | -6.62% | 93.11% | -66,202 元 |
 | 海外权益 | 0.00% | 0.00% | 0.00% | 0 元 |
 
-![真实组合收益与风险贡献对账](/docs/images/help/zh/learning/stock-bond-attribution-result.png)
+![历史中文界面示例：真实组合收益与风险贡献对账](/docs/images/help/zh/learning/stock-bond-attribution-result.png)
 
 平均权重不是风险贡献。中国权益平均权重只有 24.50%，却贡献了 93.11% 的组合风险；固定收益平均权重更高，风险
 贡献只有 6.89%。这正是不能只看“60/40”或平均仓位标签的原因。
@@ -86,23 +88,23 @@
 截至 2026-07-30，中国权益与固定收益的最新 60 日相关性为 **0.1520**。相关性页面同时保留 60 日与 120 日
 窗口和月末滚动路径，不能把一个低相关时点外推成永久关系。
 
-![股债资产类别相关性的真实滚动结果](/docs/images/help/zh/learning/stock-bond-correlation-result.png)
+![历史中文界面示例：股债资产类别相关性的真实滚动结果](/docs/images/help/zh/learning/stock-bond-correlation-result.png)
 
 最新利率环境为“利率下行／曲线陡峭”。在历史上被分到该状态的 879 个交易日里，固定收益资产类别年化均值为
 6.26%，中国权益为 1.42%。这是条件复盘，不是下一期收益预测。
 
-![股债资产类别在不同利率环境中的真实条件表现](/docs/images/help/zh/learning/stock-bond-rate-regime-result.png)
+![历史中文界面示例：股债资产类别在不同利率环境中的真实条件表现](/docs/images/help/zh/learning/stock-bond-rate-regime-result.png)
 
 市场风险诊断使用 252／252 个日度观察，估计组合年化波动 9.93%，市场因子解释度 91.66%；中国权益解释了
 99.14% 的方差贡献占比。标准风险模型仍会显示黄金和商品驱动，即使本案例没有持有黄金、没有商品 ETF，也没有
 把它们放入 Panel 研究池。这里的“黄金／商品”是回归解释变量，不是仓位或交易标的。
 
-![组合市场风险暴露的真实诊断](/docs/images/help/zh/learning/stock-bond-market-risk-result.png)
+![历史中文界面示例：组合市场风险暴露的真实诊断](/docs/images/help/zh/learning/stock-bond-market-risk-result.png)
 
 在线性压力估计中，A 股下跌 10% 对当前暴露的估计影响为 -4.48%，国债收益率上行 50bp 为 -1.24%，跨资产
 Risk-off 为 -3.18%；历史复现中，2022 全球通胀冲击为 -11.60%，是三段历史情景中最差的一段。
 
-![当前暴露下的真实压力情景结果](/docs/images/help/zh/learning/stock-bond-scenarios-result.png)
+![历史中文界面示例：当前暴露下的真实压力情景结果](/docs/images/help/zh/learning/stock-bond-scenarios-result.png)
 
 ## 学完以后
 

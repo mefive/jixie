@@ -1,5 +1,7 @@
 # Rank IC, ICIR, and IC decay
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Rank IC measures the relationship between the factor ranking and subsequent return ranking. It does not require a fixed proportional relationship between raw factor values and returns.
 
 ## Rank IC formula
@@ -135,7 +137,7 @@ The numbered areas are:
 3. Share of months with IC above zero.
 4. Monthly turnover of the highest factor group.
 
-![Mean Rank IC, ICIR, positive rate, and turnover](/docs/images/help/zh/factors/factor-rank-ic-01.png)
+![Historical Chinese UI example: Mean Rank IC, ICIR, positive rate, and turnover](/docs/images/help/zh/factors/factor-rank-ic-01.png)
 
 1. Read the sign of mean Rank IC to establish direction.
 2. Read its absolute value to judge historical ranking strength.
@@ -164,7 +166,7 @@ The numbered areas are:
 2. Mean Rank IC at each forward horizon.
 3. The page's holding-period interpretation based on the peak.
 
-![Rank IC at several forward horizons](/docs/images/help/zh/factors/factor-ic-decay-01.png)
+![Historical Chinese UI example: Rank IC at several forward horizons](/docs/images/help/zh/factors/factor-ic-decay-01.png)
 
 - A high short horizon followed by a decline indicates a faster relationship.
 - A value that rises at longer horizons indicates a slower historical relationship.

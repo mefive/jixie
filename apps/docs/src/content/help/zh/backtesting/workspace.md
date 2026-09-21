@@ -55,6 +55,10 @@
 
 详见[查看回测结果](/docs/help/backtesting/results-overview)和[部署回测报告](/docs/help/signals/deploy-strategy)。
 
+**1** 是当前草稿参数，**2** 是报告选择，**3** 是对比，**4** 是 Research 复核。图中只有一份报告，因此“对比”不可用。
+
+![当前界面与操作入口](/docs/images/help/zh/backtesting/report-controls.png)
+
 ## 在对话中复核数据
 
 Agent 可以编写和解释策略；完整回测仍需你显式点击“运行回测”。打开完成报告后，可以勾选“引用所选报告”，或用“引用数据”指定额外来源，再提问。

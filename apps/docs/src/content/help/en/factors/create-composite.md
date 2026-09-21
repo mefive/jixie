@@ -1,5 +1,7 @@
 # Create and edit a factor composite
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 A factor composite combines two to five existing factors into one research object. It asks whether several distinct signals behave more consistently together; it does not create a directly tradable strategy.
 
 ## Before you start
@@ -32,7 +34,7 @@ The numbered areas show:
 4. The common-universe and frozen-history notice.
 5. The action that runs an analysis with this definition.
 
-![Quality and value factor-composite definition](/docs/images/help/zh/factors/factor-composite-definition-01.png)
+![Historical Chinese UI example: Quality and value factor-composite definition](/docs/images/help/zh/factors/factor-composite-definition-01.png)
 
 ## Positive and negative directions
 

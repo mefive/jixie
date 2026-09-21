@@ -1,5 +1,7 @@
 # 查看多资产配置归因
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 使用已发布 Panel Factor 运行多资产 ETF 策略后，结果概览会显示“多资产配置归因”。它按真实持仓、价格变化、成交和成本解释组合盈亏，不从研究报告的多空收益推算。
 
 ## 打开归因区域
@@ -9,7 +11,7 @@
 3. 在结果概览找到“多资产配置归因”。
 4. 先确认“已与组合净值对账”，再切换各页签。
 
-![多资产配置归因的资产类别和具体资产结果](/docs/images/help/zh/backtesting/allocation-attribution-01.png)
+![历史中文界面示例：多资产配置归因的资产类别和具体资产结果](/docs/images/help/zh/backtesting/allocation-attribution-01.png)
 
 ## 资产类别和具体资产
 
@@ -46,7 +48,7 @@ $$
 
 页面显示四种环境下各资产类别的条件年化均值、波动、正收益日和最差阶段回撤。
 
-![配置归因中的滚动相关性和利率环境](/docs/images/help/zh/backtesting/allocation-attribution-02.png)
+![历史中文界面示例：配置归因中的滚动相关性和利率环境](/docs/images/help/zh/backtesting/allocation-attribution-02.png)
 
 利率环境只用于复盘已有结果，不参与这次策略权重，也不发布为 Factor。
 

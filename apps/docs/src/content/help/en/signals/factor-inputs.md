@@ -1,5 +1,7 @@
 # Verify the Factors used by a signal
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 After a strategy using published Factors generates Today signals, the page shows Factor inputs for this decision. It records the values actually read on the signal date and helps explain the source of orders.
 
 ## Open Factor inputs
@@ -11,7 +13,7 @@ After a strategy using published Factors generates Today signals, the page shows
 
 The numbered areas are the published Factor key, valid and observed assets, mean valid value, and values read for decision assets.
 
-![Factor inputs actually read by Today signals](/docs/images/help/zh/signals/factor-inputs-01.png)
+![Historical Chinese UI example: Factor inputs actually read by Today signals](/docs/images/help/zh/signals/factor-inputs-01.png)
 
 ## Columns
 

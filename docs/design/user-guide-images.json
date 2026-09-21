@@ -1,0 +1,1730 @@
+{
+  "capturedAt": "2026-09-21",
+  "baseline": "337eea15",
+  "images": [
+    {
+      "path": "zh/research/python-runtime-01.png",
+      "articles": ["en/research/python-runtime.md", "zh/research/python-runtime.md"],
+      "originalSha256": "2ee22af55bb384490bbc58e5837404a2e2600b5fdbadc597b4650b75f141df12",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "2ee22af55bb384490bbc58e5837404a2e2600b5fdbadc597b4650b75f141df12"
+    },
+    {
+      "path": "zh/research/yield-curves-01.png",
+      "articles": ["en/research/yield-curves.md", "zh/research/yield-curves.md"],
+      "originalSha256": "8e9c2d4dd2fa04ebd8e79ce86654a75d399909a1059643f7c7cd9bf0fa994177",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "8e9c2d4dd2fa04ebd8e79ce86654a75d399909a1059643f7c7cd9bf0fa994177"
+    },
+    {
+      "path": "zh/research/yield-curves-02.png",
+      "articles": ["en/research/yield-curves.md", "zh/research/yield-curves.md"],
+      "originalSha256": "67a4c73ffa98de560da7eb3e2c4616333b770ca8674f6a9c0ad0938b2854540f",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "67a4c73ffa98de560da7eb3e2c4616333b770ca8674f6a9c0ad0938b2854540f"
+    },
+    {
+      "path": "zh/research/agent-collaboration-01.png",
+      "articles": ["en/research/agent-collaboration.md", "zh/research/agent-collaboration.md"],
+      "originalSha256": "39cc09a8b3c0de6ef7037ebb63caf9b424ada635c7a5fbd46f2dc0df79bea7fe",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1600, 960],
+      "sha256": "38651a17bf20d59e5c77b5e2c2b5883f2c7a59960acdc89012ebdfb1637270f1"
+    },
+    {
+      "path": "zh/research/agent-collaboration-02.png",
+      "articles": ["en/research/agent-collaboration.md", "zh/research/agent-collaboration.md"],
+      "originalSha256": "7e6f36939ece70f8ec14d5ecfae917a82d795d88265f222dd66e1cb1cfe0493d",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1280, 680],
+      "sha256": "fd791d125e6e56281bd8ff12454e56d06264f27f5a50e44e4b4bf85bbd116c52"
+    },
+    {
+      "path": "zh/research/outputs-01.png",
+      "articles": ["en/research/outputs.md", "zh/research/outputs.md"],
+      "originalSha256": "c13f0e86503ae915fb09301dc7fcfea1b9d83388fb6c8d4d07a9bc7094a1bc84",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "c13f0e86503ae915fb09301dc7fcfea1b9d83388fb6c8d4d07a9bc7094a1bc84"
+    },
+    {
+      "path": "zh/research/outputs-02.png",
+      "articles": ["en/research/outputs.md", "zh/research/outputs.md"],
+      "originalSha256": "c8097e3876b587ce3da52cc89c61ebd1b76e5cb71c5a52261ffddc9d0f91f38c",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1600, 1660],
+      "sha256": "6a3eb29f8ba539253d0a901d4e12f0568252798d7ba1b6c58809f32f36cca325"
+    },
+    {
+      "path": "zh/research/curator-01.png",
+      "articles": ["en/research/curator.md", "zh/research/curator.md"],
+      "originalSha256": "ea20d98d9220caf474ca3ea7b2afa7b35648e2da3e336013e08a619abdf47287",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "ea20d98d9220caf474ca3ea7b2afa7b35648e2da3e336013e08a619abdf47287"
+    },
+    {
+      "path": "zh/research/new-research-01.png",
+      "articles": ["zh/research/document-cells.md"],
+      "originalSha256": "cadaa0e51b235c3401a35ea34f3202058f31718b6ef77f1758dae13f73c3357d",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "db207f20906eeb248a6d046061b3a8eadd2d0c7b064e3ab437671f369c3bba7f"
+    },
+    {
+      "path": "zh/research/document-cells-02.png",
+      "articles": ["zh/research/document-cells.md"],
+      "originalSha256": "633cb9b54735b15d12734bb990e00078c56521df25e94a716594e0a948d5b1a0",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "7b68ae3417ee51c897a17d68d3c062e23650c45d94d2bdc3631060514c84899c"
+    },
+    {
+      "path": "zh/research/data-catalog-01.png",
+      "articles": ["en/research/data-catalog.md", "zh/research/data-catalog.md"],
+      "originalSha256": "e4552a28905bf7892be21574a0c429b9bf389a5f6234ce8fb783b728fa6ba3b7",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1280, 680],
+      "sha256": "d596a2c810768d1073bf30ba66014b83a5d3b366de29c54ac6c22c3878f8f269"
+    },
+    {
+      "path": "zh/research/handoff-01.png",
+      "articles": ["en/research/handoff.md", "zh/research/handoff.md"],
+      "originalSha256": "ff899126df47a303dae8d52f03415970136bafe34207b9ec58a0a53afa0d63a1",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "sha256": "ff899126df47a303dae8d52f03415970136bafe34207b9ec58a0a53afa0d63a1"
+    },
+    {
+      "path": "zh/research/run-control-01.png",
+      "articles": ["en/research/run-control.md", "zh/research/run-control.md"],
+      "originalSha256": "af513db82d1b2115ef4848f11e7e2052faf94c829d1c55d3c1f82ca9039f98d5",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1600, 890],
+      "sha256": "ab8c52dab7bab1ca81361a4be3994d9370c32e24eed58ee99c52582d670a5011"
+    },
+    {
+      "path": "zh/research/run-control-02.png",
+      "articles": ["en/research/run-control.md", "zh/research/run-control.md"],
+      "originalSha256": "cbdc5716f33544e096dc8418d60251b62e63614a7dd7e7227ab40023847541ca",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1600, 760],
+      "sha256": "e44f084e3629868de1522d9b6004338bc4e8695840a361cead72f01e68b2418a"
+    },
+    {
+      "path": "zh/research/clarifications-01.png",
+      "articles": ["en/research/clarifications.md", "zh/research/clarifications.md"],
+      "originalSha256": "3b379839c923095c5d608b60927efbc25909c4bc7d03d64ef367605d4f30fc91",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1600, 960],
+      "sha256": "c2aee649878052838273e3aa774c484957eca7f09ea9fdc2d759596863c1982d"
+    },
+    {
+      "path": "zh/research/clarifications-02.png",
+      "articles": ["en/research/clarifications.md", "zh/research/clarifications.md"],
+      "originalSha256": "60ef9d35024b2391b7f13695b19fcb7ac219b95a8ddc14fb9eb218bf83d56dc9",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1600, 960],
+      "sha256": "4308b9679b7369c55f17957abf4bd3a414b9acabe2bd7f60ecfa8f7690740f95"
+    },
+    {
+      "path": "zh/research/records-01.png",
+      "articles": ["en/research/records.md", "zh/research/records.md"],
+      "originalSha256": "9383acfa3c967b4d674e957f2b90a03d03e7fa829a7582a117c79fa4c65070cd",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "sha256": "9383acfa3c967b4d674e957f2b90a03d03e7fa829a7582a117c79fa4c65070cd"
+    },
+    {
+      "path": "zh/backtesting/parameter-scan-settings-01.png",
+      "articles": ["en/backtesting/parameter-scan.md", "zh/backtesting/parameter-scan.md"],
+      "originalSha256": "488cfcf9f8b6dd622d18621631101b9243388d9aef2ce6b6733d76e27d628115",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "d0af1eb69b71e71357518f9e25cd8a289886fed87d6336d35c021e1f96b0a666"
+    },
+    {
+      "path": "zh/backtesting/parameter-scan-results-01.png",
+      "articles": ["en/backtesting/parameter-scan.md", "zh/backtesting/parameter-scan.md"],
+      "originalSha256": "c6c34e0a501c604a13db5c217965c3ae7b52ddedf6455d7bb567823397728597",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "7f9f60348e651b1ef7cdaebd07013e3a278b10157abfc9a12658358aeba54820"
+    },
+    {
+      "path": "zh/backtesting/sizing-scan-settings-01.png",
+      "articles": ["en/backtesting/parameter-scan.md", "zh/backtesting/parameter-scan.md"],
+      "originalSha256": "067f94038ff49457639c75cca3c6ed957b21364350a4e06dbb8076a1951f5cf8",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "c366a55469a4412f3c84d895a47846a426a36ec4d46814d4767386e7c368fdb3"
+    },
+    {
+      "path": "zh/backtesting/sizing-scan-results-01.png",
+      "articles": ["en/backtesting/parameter-scan.md", "zh/backtesting/parameter-scan.md"],
+      "originalSha256": "4c5e27149c2e1035d6d5bdc96422d257ce8e7aaa0508656debd08a2870972153",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "ba73935a68773b4b0335ca143cd865d07586e481d798904e7f02087aa1c809c7"
+    },
+    {
+      "path": "zh/backtesting/capacity-scan-settings-01.png",
+      "articles": ["en/backtesting/parameter-scan.md", "zh/backtesting/parameter-scan.md"],
+      "originalSha256": "28c3f28571a51307052ad3e04213a4f5839803c94e2daefa2567d91f5c2c2955",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "73e8cca3f7f3721f7a30564bf13a849f5de4870fd6365e25ad701407e02491c5"
+    },
+    {
+      "path": "zh/backtesting/capacity-scan-results-01.png",
+      "articles": ["en/backtesting/parameter-scan.md", "zh/backtesting/parameter-scan.md"],
+      "originalSha256": "7ba96694ff7becd3bd4da840873ce44c1767ac4a701e07b1117f56a64140c10a",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "6f46bfa3d53ecc289f69c4351a4bc2cb558f313c34a07da30fe94cf26f717592"
+    },
+    {
+      "path": "zh/backtesting/strategy-description-01.png",
+      "articles": ["zh/backtesting/create-from-description.md"],
+      "originalSha256": "56a9a5742ff8c5274fbae5e9d38cced3d8370f2660a6b7b2373f5d3ea3e6df53",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "4e94693ba4d5c1defda85192ec61972ce8e3b83d02facd9883fa5006f8e8d89e"
+    },
+    {
+      "path": "zh/backtesting/strategy-generated-01.png",
+      "articles": [
+        "en/backtesting/create-from-description.md",
+        "zh/backtesting/create-from-description.md"
+      ],
+      "originalSha256": "f10568b4e8032b07aca0d36c639606c0e2d34e782c7f67f8a5a8ed93ed36edcb",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "3dd70971af010da9aa05ea02e48f583ed73fa95821bde55e64d01c2a17274a60"
+    },
+    {
+      "path": "zh/backtesting/strategy-revised-01.png",
+      "articles": ["en/backtesting/revise-with-chat.md", "zh/backtesting/revise-with-chat.md"],
+      "originalSha256": "5dd53cd61acda1e2e02de5b604bf0286b7eec37d64c3324d19ea57ae1889552c",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "af059ff062b1008ece8bbf015ae63f73825aed02bf0d9c871b3825980dee08f4"
+    },
+    {
+      "path": "zh/backtesting/strategy-revised-result-01.png",
+      "articles": ["en/backtesting/revise-with-chat.md", "zh/backtesting/revise-with-chat.md"],
+      "originalSha256": "5f2dac3d8ad3c19a9919c649dd8d9afad6dcaf6efb3330a1c1e2a9b2f6dd2694",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "dcb975de7a28d8939b15ddf0d30501b4c0fe9fb65b7c3f166dc596d35086da48"
+    },
+    {
+      "path": "zh/backtesting/etf-entry-01.png",
+      "articles": ["en/backtesting/etf-strategy.md", "zh/backtesting/etf-strategy.md"],
+      "originalSha256": "351853b89de890e7be5be412db6da6d61f0f4d416c499c3d32b7663cd09a4eae",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "2d8891a8ad93ab14629c51b0b7febac1aa87dbd49e8eceec8340704289199106"
+    },
+    {
+      "path": "zh/backtesting/etf-trades-01.png",
+      "articles": ["en/backtesting/etf-strategy.md", "zh/backtesting/etf-strategy.md"],
+      "originalSha256": "f7107d9548a36d92a0c30447840cd99916ef1a7fc2df9565024a37953983a984",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "9d8f574bcb7166fb302ae465e15e4af4fbf8aaaedac038c513ce37cee2cdda7d"
+    },
+    {
+      "path": "zh/backtesting/workspace-01.png",
+      "articles": ["zh/backtesting/workspace.md"],
+      "originalSha256": "ab7e9d880e570159e9708e73afd10c6e4189a69985fc9d10457bebc63f7268af",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "b284dca5f60633bfeeead15ca5df2ee877a780994eeb1bb4e89d75ee4ba702c6"
+    },
+    {
+      "path": "zh/backtesting/mixed-results-01.png",
+      "articles": [
+        "en/backtesting/mixed-stock-futures.md",
+        "zh/backtesting/mixed-stock-futures.md"
+      ],
+      "originalSha256": "6bc938a66b6e5e36579d60ca6a550de06c62e655751298b32933808dd3f2e43c",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "401dca6e090e2512ed5bc10ced5bb8e1c1ddffbb83f8ffc1c2f11d4a5490b920"
+    },
+    {
+      "path": "zh/backtesting/mixed-trades-01.png",
+      "articles": [
+        "en/backtesting/mixed-stock-futures.md",
+        "zh/backtesting/mixed-stock-futures.md"
+      ],
+      "originalSha256": "8403b938ac6e2da2f407fb871307fa1502d0e9f3a8e5e6a642635ebb7efab09e",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "81db268dc60b14bda93fac5d153d4e3bf91e8e2a11606bed941e4d6ece77f7d7"
+    },
+    {
+      "path": "zh/backtesting/results-overview-01.png",
+      "articles": ["en/backtesting/results-overview.md", "zh/backtesting/results-overview.md"],
+      "originalSha256": "c55025b790a9c2c9f81b481735d7d1fc13eadb9f2ac58742fa0822ce46ac61dd",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "b6063a2278be34c3fa57a832d32b15a93a47fb71a89863a13c94df102f1ae020"
+    },
+    {
+      "path": "zh/backtesting/futures-trades-01.png",
+      "articles": ["en/backtesting/index-futures.md", "zh/backtesting/index-futures.md"],
+      "originalSha256": "51168326dbfbe9561d7e53cda70c566316e9c86b92ad86bb1f5b168ee4e282db",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "c88159d29834d58de8805795539125dec3ac192cfd207200bb394719c2750654"
+    },
+    {
+      "path": "zh/backtesting/trades-01.png",
+      "articles": ["en/backtesting/trades-costs.md", "zh/backtesting/trades-costs.md"],
+      "originalSha256": "6802d6abe498a5de222ab9bcdcd45c750735d6f2005d89d7e3f557018f247877",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "6ab5dd9b0e3a6228a3e3e615d59be07504d40a868f42a527d15e4d0bad035af4"
+    },
+    {
+      "path": "zh/backtesting/trades-page-01.png",
+      "articles": ["en/backtesting/trades-costs.md", "zh/backtesting/trades-costs.md"],
+      "originalSha256": "1ca9043c4e09c1975400d131db51ee69c6a59a93b5ab4c1f200c1e20cd924446",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "e6c66f5ee06a3bb6a3d2c1ddc7119d795e3062a6de21ac4bf2acd02e6fb3d54a"
+    },
+    {
+      "path": "zh/backtesting/run-settings-01.png",
+      "articles": ["zh/backtesting/run-settings.md", "zh/getting-started/first-backtest.md"],
+      "originalSha256": "848567d81789840fa71ff790785ee911c93c6acf26e0dc454e9db033ea840c40",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "03359beb392e0782347af858e53aa65d11e7f2f4afac3f1fa334b2e58a5075bd"
+    },
+    {
+      "path": "zh/backtesting/run-logs-01.png",
+      "articles": ["en/backtesting/run-and-logs.md", "zh/backtesting/run-and-logs.md"],
+      "originalSha256": "0bade47e68c4a186342e83b0b47728efe2dfa402c7d7b88b40ada976efde7828",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "7debad5be743970150b94f7c2869b3677ac6d36e11e3fe475a7f63afa76a37a5"
+    },
+    {
+      "path": "zh/backtesting/python-strategy-01.png",
+      "articles": ["en/backtesting/python-strategy.md", "zh/backtesting/python-strategy.md"],
+      "originalSha256": "023f8facd17aa0a450b4cb8e37320f765f898ef0d4de0b93a1d3299ea00db980",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "eafc9c33983c8b8a6e236a323d7b77bc73c53b7497f2d99077bb8562b1d27aec"
+    },
+    {
+      "path": "zh/backtesting/python-strategy-02.png",
+      "articles": ["en/backtesting/python-strategy.md", "zh/backtesting/python-strategy.md"],
+      "originalSha256": "e77dee5c41a2773da804872eed234fb9be6c89019e3fd87b88fdd1e502520919",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "be1d20f5ab34607b661470a3951760ab45c8f75c6f6dd6470f9fafe824b3d8fb"
+    },
+    {
+      "path": "zh/backtesting/technical-indicators-01.png",
+      "articles": [
+        "en/backtesting/technical-indicators.md",
+        "zh/backtesting/technical-indicators.md"
+      ],
+      "originalSha256": "932496e903c1c1f01d7f9dff12626914336afbd2f5a5f4ac094bbffbc963aef8",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "b64a9821ed93a0333440a2ef4016221e70f61d4200f8b365496ed56675c33eac"
+    },
+    {
+      "path": "zh/backtesting/reconnect-01.png",
+      "articles": ["en/backtesting/reconnect-failure.md", "zh/backtesting/reconnect-failure.md"],
+      "originalSha256": "8b6fa8195199314b030c3495823d2b4817ae32e29e7d4e316136b3f2f7a05e68",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "99f1a6b77620a66d6c09d8b9248e1d3f5de5a5bb63c794eabeb25570434cf01e"
+    },
+    {
+      "path": "zh/backtesting/failure-01.png",
+      "articles": ["en/backtesting/reconnect-failure.md", "zh/backtesting/reconnect-failure.md"],
+      "originalSha256": "5b7055a8839cb650e9e808a37e5482a11168a939122ec97ff2049a2ddc34cc50",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "1f00dc8871c7e3d49eac6c5b6839ce977d15cdb94a60492eb058c4a037849683"
+    },
+    {
+      "path": "zh/backtesting/equity-drawdown-01.png",
+      "articles": ["en/backtesting/equity-drawdown.md", "zh/backtesting/equity-drawdown.md"],
+      "originalSha256": "9ed0d8a8c71e34097b6cc6862c3d4996fac81a3515bbd928a4a0f8812a489e51",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "fe21ae638b1f88d4cf469a34fffa393e2979ccfa5a3ed7fd09153db90c34f474"
+    },
+    {
+      "path": "zh/backtesting/allocation-attribution-01.png",
+      "articles": [
+        "en/backtesting/allocation-attribution.md",
+        "zh/backtesting/allocation-attribution.md"
+      ],
+      "originalSha256": "4eee993f12bd047b71f9c28567afa4be58e046efd354c99795ed116afdcb43a8",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "4eee993f12bd047b71f9c28567afa4be58e046efd354c99795ed116afdcb43a8"
+    },
+    {
+      "path": "zh/backtesting/allocation-attribution-02.png",
+      "articles": [
+        "en/backtesting/allocation-attribution.md",
+        "zh/backtesting/allocation-attribution.md"
+      ],
+      "originalSha256": "0895b25197960a484f4797e31015b2954743cca5820633ce3a93d0a025518bcb",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "0895b25197960a484f4797e31015b2954743cca5820633ce3a93d0a025518bcb"
+    },
+    {
+      "path": "zh/backtesting/portfolio-risk-01.png",
+      "articles": ["en/backtesting/portfolio-risk.md", "zh/backtesting/portfolio-risk.md"],
+      "originalSha256": "7e1387977c149d89bcdcabcc8a734bac00532d89e92316d67034fc8c7cffa95f",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "7e1387977c149d89bcdcabcc8a734bac00532d89e92316d67034fc8c7cffa95f"
+    },
+    {
+      "path": "zh/backtesting/portfolio-risk-02.png",
+      "articles": ["en/backtesting/portfolio-risk.md", "zh/backtesting/portfolio-risk.md"],
+      "originalSha256": "8a927ccc4e4d76b378245307e8d8b57a69976b23e63b1cbbd5371d381690c0c7",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "8a927ccc4e4d76b378245307e8d8b57a69976b23e63b1cbbd5371d381690c0c7"
+    },
+    {
+      "path": "zh/backtesting/edit-rerun-01.png",
+      "articles": ["en/backtesting/edit-rerun.md", "zh/backtesting/edit-rerun.md"],
+      "originalSha256": "15f3af35613abe980998f07013a05ca7403e0b5aca2afc365d52ed8664d3526e",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "1f19e5ffc7e2755372042cbcb0e2148ad9482f0868dc50a8fbde10cc9473c3d3"
+    },
+    {
+      "path": "zh/factor-weather/factor-weather-history-01.png",
+      "articles": ["en/factor-weather/read-cards.md", "zh/factor-weather/read-cards.md"],
+      "originalSha256": "4eee9e45a8175ad50839dde8fc07025d758dac03408f7f39fd61a81bf8301285",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "dad3f87f6ce3ce676c10ea59a9d0c2bc58a731dadad53cd1b1468a0da3a4fd0b"
+    },
+    {
+      "path": "zh/factor-weather/factor-weather-overview-01.png",
+      "articles": ["en/factor-weather/getting-started.md", "zh/factor-weather/getting-started.md"],
+      "originalSha256": "9e4298625bca98b0c093885d616045acefb63959afdbba283825051248c753b7",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "4d2e0b6629060458f2b8b7d32f71ad57d0e4b541e4e6a8a4956cdccd3a1bd9bc"
+    },
+    {
+      "path": "zh/factor-weather/factor-weather-pin-01.png",
+      "articles": [],
+      "originalSha256": "f996b5fcf54c8197742eba0f3a62dc3bf4f645629a501c2a0f730020decfe68a",
+      "disposition": "retired",
+      "reason": "Replaced by a current, bilingual entry-point figure."
+    },
+    {
+      "path": "zh/learning/csi300-trend-baseline-result.png",
+      "articles": ["en/learning/csi300-trend-strategy.md", "zh/learning/csi300-trend-strategy.md"],
+      "originalSha256": "fd10dcea3e183d872ecb0858ab3ec51b6d0431087d63773702af330af3690396",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "fd10dcea3e183d872ecb0858ab3ec51b6d0431087d63773702af330af3690396"
+    },
+    {
+      "path": "zh/learning/csi300-trend-primary-result.png",
+      "articles": ["en/learning/csi300-trend-strategy.md", "zh/learning/csi300-trend-strategy.md"],
+      "originalSha256": "9ea43c1e4189ba9687b3e9d70df70a79d7a5f4111431ad588db124d96148f16e",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "9ea43c1e4189ba9687b3e9d70df70a79d7a5f4111431ad588db124d96148f16e"
+    },
+    {
+      "path": "zh/learning/csi300-trend-scan-result.png",
+      "articles": ["en/learning/csi300-trend-strategy.md", "zh/learning/csi300-trend-strategy.md"],
+      "originalSha256": "728ea4225bf425283a9f4ca332571bf02a71e4ea5b88cfe482aa7483c6c9599d",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "728ea4225bf425283a9f4ca332571bf02a71e4ea5b88cfe482aa7483c6c9599d"
+    },
+    {
+      "path": "zh/learning/stock-bond-panel-factor-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "cb93a07ee4f6cfce94bfdbe57df08f18ec7746816c1df0633f8777fc791c7693",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "cb93a07ee4f6cfce94bfdbe57df08f18ec7746816c1df0633f8777fc791c7693"
+    },
+    {
+      "path": "zh/learning/stock-bond-baseline-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "c9ca39d0c16ab35ae00562cde1877f39b266d83aeccfa162c6b56071b197838c",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "c9ca39d0c16ab35ae00562cde1877f39b266d83aeccfa162c6b56071b197838c"
+    },
+    {
+      "path": "zh/learning/stock-bond-static-allocation-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "ac2d7b34c8d64546e26ebf38c5fa702af335024ae00a8aaa715dddffc394dcb0",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "ac2d7b34c8d64546e26ebf38c5fa702af335024ae00a8aaa715dddffc394dcb0"
+    },
+    {
+      "path": "zh/learning/stock-bond-zero-cost-allocation-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "a4d5953cbe03cdc1e9b4b588bdf43694aec93e974d183e99f83122081875a424",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "a4d5953cbe03cdc1e9b4b588bdf43694aec93e974d183e99f83122081875a424"
+    },
+    {
+      "path": "zh/learning/stock-bond-allocation-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "af6dd2f38eb17b5c7174e45813ef2103db4359d248b5cd768bbb9b52e40de17b",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "af6dd2f38eb17b5c7174e45813ef2103db4359d248b5cd768bbb9b52e40de17b"
+    },
+    {
+      "path": "zh/learning/stock-bond-attribution-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "ba60cbc34ec70f7fcf9085188a1834a8353304f9b159f201fbdd426b8a611101",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "ba60cbc34ec70f7fcf9085188a1834a8353304f9b159f201fbdd426b8a611101"
+    },
+    {
+      "path": "zh/learning/stock-bond-correlation-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "a1339024fcc406e6157b86167f9fcefb2068797890b60bc09a992be3a826a6d2",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "a1339024fcc406e6157b86167f9fcefb2068797890b60bc09a992be3a826a6d2"
+    },
+    {
+      "path": "zh/learning/stock-bond-rate-regime-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "c68fe6050baed0fc82b068c17d0c1456b18eb76e16ed21d18525be8f39ddae10",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "c68fe6050baed0fc82b068c17d0c1456b18eb76e16ed21d18525be8f39ddae10"
+    },
+    {
+      "path": "zh/learning/stock-bond-market-risk-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "5820b056d334f5dc5599b9591f91cf86be507e7def6265b29d4eeba729b32501",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "5820b056d334f5dc5599b9591f91cf86be507e7def6265b29d4eeba729b32501"
+    },
+    {
+      "path": "zh/learning/stock-bond-scenarios-result.png",
+      "articles": [
+        "en/learning/stock-bond-allocation-risk.md",
+        "zh/learning/stock-bond-allocation-risk.md"
+      ],
+      "originalSha256": "125bc84f4479cb179eed90206e1768837a8a06e483d06fdb4c3c4f523f4e0726",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "125bc84f4479cb179eed90206e1768837a8a06e483d06fdb4c3c4f523f4e0726"
+    },
+    {
+      "path": "zh/learning/cross-market-sample-audit.png",
+      "articles": [
+        "en/learning/trusted-cross-market-research.md",
+        "zh/learning/trusted-cross-market-research.md"
+      ],
+      "originalSha256": "a5ece236d1d63a95c0df04c1a757f5a52b0102425f1004d622641826fdee39e5",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "a5ece236d1d63a95c0df04c1a757f5a52b0102425f1004d622641826fdee39e5"
+    },
+    {
+      "path": "zh/learning/cross-market-case-result.png",
+      "articles": [
+        "en/learning/trusted-cross-market-research.md",
+        "zh/learning/trusted-cross-market-research.md"
+      ],
+      "originalSha256": "3db77ae5c36157dd61fac40c61ff37c5142b2f61dbeb9112ba06a3f9c72950df",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "3db77ae5c36157dd61fac40c61ff37c5142b2f61dbeb9112ba06a3f9c72950df"
+    },
+    {
+      "path": "zh/learning/cross-market-rolling-correlation.png",
+      "articles": [
+        "en/learning/trusted-cross-market-research.md",
+        "zh/learning/trusted-cross-market-research.md"
+      ],
+      "originalSha256": "0d3b86e91390dd5cb9e4bc58aa1a8964d5f36a0eaa51572124a750803f4ed2dc",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "0d3b86e91390dd5cb9e4bc58aa1a8964d5f36a0eaa51572124a750803f4ed2dc"
+    },
+    {
+      "path": "zh/learning/sales-yield-explore-result.png",
+      "articles": ["en/learning/sales-yield-positive.md", "zh/learning/sales-yield-positive.md"],
+      "originalSha256": "60b25cf49cf86c85d3af3b9fdacf4ae7e77f96d2dfd7aee10ddd75bca608d01c",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "60b25cf49cf86c85d3af3b9fdacf4ae7e77f96d2dfd7aee10ddd75bca608d01c"
+    },
+    {
+      "path": "zh/learning/sales-yield-holdout-result.png",
+      "articles": ["en/learning/sales-yield-positive.md", "zh/learning/sales-yield-positive.md"],
+      "originalSha256": "cf2afaed4f7bc81032ead4ca7863c5b1c5ac67f0eaa4170f812de7cfb7fc2aeb",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "cf2afaed4f7bc81032ead4ca7863c5b1c5ac67f0eaa4170f812de7cfb7fc2aeb"
+    },
+    {
+      "path": "zh/learning/commodity-carry-panel-explore-result.png",
+      "articles": [
+        "en/learning/commodity-carry-holdout.md",
+        "zh/learning/commodity-carry-holdout.md"
+      ],
+      "originalSha256": "bc19b301f3192455966c96c9da3642b48dd6246ac69df93b942f8251d0037d1e",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "bc19b301f3192455966c96c9da3642b48dd6246ac69df93b942f8251d0037d1e"
+    },
+    {
+      "path": "zh/learning/commodity-carry-time-series-explore-result.png",
+      "articles": [
+        "en/learning/commodity-carry-holdout.md",
+        "zh/learning/commodity-carry-holdout.md"
+      ],
+      "originalSha256": "6ff6b45928381f8095739b795f9d8619b7d8675107c5a556a18b543f06a4d243",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "6ff6b45928381f8095739b795f9d8619b7d8675107c5a556a18b543f06a4d243"
+    },
+    {
+      "path": "zh/learning/commodity-carry-panel-holdout-result.png",
+      "articles": [
+        "en/learning/commodity-carry-holdout.md",
+        "zh/learning/commodity-carry-holdout.md"
+      ],
+      "originalSha256": "1774338e01daafa40e7fb0ee3a4b81eca233a939e84c6e84aac6f84d9c16ecef",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "1774338e01daafa40e7fb0ee3a4b81eca233a939e84c6e84aac6f84d9c16ecef"
+    },
+    {
+      "path": "zh/learning/commodity-carry-time-series-holdout-result.png",
+      "articles": [
+        "en/learning/commodity-carry-holdout.md",
+        "zh/learning/commodity-carry-holdout.md"
+      ],
+      "originalSha256": "fb7f252929afb0b0f941d547a90695a5d3ca365d98280c1becfa3cf20d2afc04",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "fb7f252929afb0b0f941d547a90695a5d3ca365d98280c1becfa3cf20d2afc04"
+    },
+    {
+      "path": "zh/learning/csi300-value-factor-explore-result.png",
+      "articles": ["en/learning/csi300-value-factor.md", "zh/learning/csi300-value-factor.md"],
+      "originalSha256": "dac6061cc89e8a7d8f66aa65e7a6a8bb5b0a93272f9f11f11573429395ddb30f",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "dac6061cc89e8a7d8f66aa65e7a6a8bb5b0a93272f9f11f11573429395ddb30f"
+    },
+    {
+      "path": "zh/learning/csi300-value-factor-neutralized-result.png",
+      "articles": ["en/learning/csi300-value-factor.md", "zh/learning/csi300-value-factor.md"],
+      "originalSha256": "5c3f3dacfae2aaf617b847f83f5bc832aa6dc48b123137086bb0e2217d41a15b",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "5c3f3dacfae2aaf617b847f83f5bc832aa6dc48b123137086bb0e2217d41a15b"
+    },
+    {
+      "path": "zh/learning/csi300-value-factor-holdout-result.png",
+      "articles": ["en/learning/csi300-value-factor.md", "zh/learning/csi300-value-factor.md"],
+      "originalSha256": "f945d14a830cc627e4d04c54dccb5318612d0402068f1c0d3802f0e458d6b97f",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "f945d14a830cc627e4d04c54dccb5318612d0402068f1c0d3802f0e458d6b97f"
+    },
+    {
+      "path": "zh/learning/cgb-signal-factor-explore-result.png",
+      "articles": [
+        "en/learning/cgb-curve-daily-signal.md",
+        "zh/learning/cgb-curve-daily-signal.md"
+      ],
+      "originalSha256": "8ef7d46b5298c58c1347e7f88ac09d558ec849ae222f6217b4b95336d2c3ebea",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "8ef7d46b5298c58c1347e7f88ac09d558ec849ae222f6217b4b95336d2c3ebea"
+    },
+    {
+      "path": "zh/learning/cgb-signal-factor-holdout-result.png",
+      "articles": [
+        "en/learning/cgb-curve-daily-signal.md",
+        "zh/learning/cgb-curve-daily-signal.md"
+      ],
+      "originalSha256": "b0625042ae77b0cc4b657f886586de8d9e868f931b1d04f267f3bcca263c7edb",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "b0625042ae77b0cc4b657f886586de8d9e868f931b1d04f267f3bcca263c7edb"
+    },
+    {
+      "path": "zh/learning/cgb-signal-backtest-result.png",
+      "articles": [
+        "en/learning/cgb-curve-daily-signal.md",
+        "zh/learning/cgb-curve-daily-signal.md"
+      ],
+      "originalSha256": "befcf78de0b0df8e4d3a4b3ef17686b794c4e75705ed017daec6715b2ef0626e",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "befcf78de0b0df8e4d3a4b3ef17686b794c4e75705ed017daec6715b2ef0626e"
+    },
+    {
+      "path": "zh/learning/cgb-signal-daily-result.png",
+      "articles": [
+        "en/learning/cgb-curve-daily-signal.md",
+        "zh/learning/cgb-curve-daily-signal.md"
+      ],
+      "originalSha256": "4126b2139e7e0d13e67eacd2e6d05281b60d891b2235c16eb15a06d30c348987",
+      "disposition": "historical-evidence",
+      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "sha256": "4126b2139e7e0d13e67eacd2e6d05281b60d891b2235c16eb15a06d30c348987"
+    },
+    {
+      "path": "zh/signals/signal-empty-01.png",
+      "articles": [],
+      "originalSha256": "928626f85d4061436d75d61706dd1448e659381f8fa7ecef2e773411f25a3b0a",
+      "disposition": "retired",
+      "reason": "Replaced by a current, bilingual entry-point figure."
+    },
+    {
+      "path": "zh/signals/signal-no-action-01.png",
+      "articles": ["en/signals/generate-signals.md", "zh/signals/generate-signals.md"],
+      "originalSha256": "39c7c162ffa0c4d1d4b04c6fc3e4b98d6a29ea50a1fa27a2a10338cab61f6ebe",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 920],
+      "sha256": "f670932a3603ed13c46efc987c53db2d1dd7a03ef5bfc1d7240324132adae972"
+    },
+    {
+      "path": "zh/signals/signal-result-01.png",
+      "articles": ["en/signals/read-signals.md", "zh/signals/read-signals.md"],
+      "originalSha256": "323eb179aaa194eb3f7df82c8d7f6b33156404c945afa0d9be0c443326982b3b",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 920],
+      "sha256": "f233ea5a97f431a5593c0f8cd5fb5d3c19f21303a31b7f9eaae2b3e5bef958a3"
+    },
+    {
+      "path": "zh/signals/signal-history-01.png",
+      "articles": ["en/signals/read-signals.md", "zh/signals/read-signals.md"],
+      "originalSha256": "62619e54f57144d9d494f68f2ef14524d96e3390f76714646cea2c61b24e37f1",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 920],
+      "sha256": "47a741996611e0b9d9f841823a14bce90a27f800a2c465773baaaa6e88a45a1d"
+    },
+    {
+      "path": "zh/signals/factor-inputs-01.png",
+      "articles": ["en/signals/factor-inputs.md", "zh/signals/factor-inputs.md"],
+      "originalSha256": "df4aacbb5f9fc2be87b2da7f5148750f6cea00968101dab5aa77cf7dbce36d4f",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "df4aacbb5f9fc2be87b2da7f5148750f6cea00968101dab5aa77cf7dbce36d4f"
+    },
+    {
+      "path": "zh/signals/signal-conditional-01.png",
+      "articles": ["en/signals/conditional-orders.md", "zh/signals/conditional-orders.md"],
+      "originalSha256": "566e7225fb8bfa1d05f842329f0b4f0a748fd03433a8981960bd0a76dd33dac5",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 920],
+      "sha256": "edcfab732e3fe982b79a1cef491a3175c1c541bb4366ac5267f698e520b1d4ea"
+    },
+    {
+      "path": "zh/signals/signal-execution-overview-01.png",
+      "articles": ["en/signals/record-execution.md", "zh/signals/record-execution.md"],
+      "originalSha256": "70c08cd448fece7db76a7f97d0b1a9092cc8f866d08bbb07fae3d820ed225b74",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "sha256": "70c08cd448fece7db76a7f97d0b1a9092cc8f866d08bbb07fae3d820ed225b74"
+    },
+    {
+      "path": "zh/signals/signal-execution-record-01.png",
+      "articles": ["en/signals/record-execution.md", "zh/signals/record-execution.md"],
+      "originalSha256": "34965969e5e89ae7d0a9615511b3f813f6c3ca20072da3203e4c00f6d2167b8c",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 920],
+      "sha256": "efe0e55b6e79c3b25f93de290e10bfe71cbe41518e8eccc39db8d5006edc40e2"
+    },
+    {
+      "path": "zh/signals/signal-execution-complete-01.png",
+      "articles": ["en/signals/record-execution.md", "zh/signals/record-execution.md"],
+      "originalSha256": "e2b892490de01ee8778a0f6ffdeae06074a553b4c4809aa1575d2b9397707348",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "sha256": "e2b892490de01ee8778a0f6ffdeae06074a553b4c4809aa1575d2b9397707348"
+    },
+    {
+      "path": "zh/factors/factor-workspace-01.png",
+      "articles": ["zh/factors/first-preset-analysis.md", "zh/factors/what-factor-research.md"],
+      "originalSha256": "ac1bde2ac9a1ec36feb2626bc33193cddbabe85f984bcf6be9b8b255a4b616a6",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "4c7d9ddba7bb414714c0db8a58f20978cb0dcf7cc5988120526061179f418d09"
+    },
+    {
+      "path": "zh/factors/factor-research-card-01.png",
+      "articles": ["en/factors/first-preset-analysis.md", "zh/factors/first-preset-analysis.md"],
+      "originalSha256": "eaf6abe4d76585357e397b6e90c79ddc13cccdd6b9710a22e8df80171313af8d",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "ca07d1cb8a9c5e732a981885945a94987a161bdd0517d88218fcf145910fed6b"
+    },
+    {
+      "path": "zh/factors/factor-running-01.png",
+      "articles": ["en/factors/first-preset-analysis.md", "zh/factors/first-preset-analysis.md"],
+      "originalSha256": "67b78c3a3a4b1bfea8d29b2b104d44ae14e908f87af87e2bb978fc3fa56313d1",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "af31dc2d7a6f5716e959af2c77a39e371d63cfdbe454b15b55494156e1eaefcb"
+    },
+    {
+      "path": "zh/factors/factor-holdout-confirm-01.png",
+      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "originalSha256": "67ec2373d759f9a16b585f99d2fd7ae1d105159580a38f56942ed2f4e246eb7b",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "6de4254b0ab1b59dfe120d66351468b800deb115f046d77b61db35a84a107708"
+    },
+    {
+      "path": "zh/factors/factor-holdout-sealed-01.png",
+      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "originalSha256": "89f6e9916542209135a9c8b81b679a65ccf8524b81d2776b1a3f73f965168af9",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "77cf4d50918a63d1bc582dea273b671ec314f7e26b4ed1631cdb277d39491d77"
+    },
+    {
+      "path": "zh/factors/factor-holdout-history-01.png",
+      "articles": [
+        "en/factors/holdout-results.md",
+        "en/factors/report-history.md",
+        "zh/factors/holdout-results.md",
+        "zh/factors/report-history.md"
+      ],
+      "originalSha256": "88854c27fcdaa82d5f63118746c8aa70bec090b104a742b230cb7465513b3ea7",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "43bd804075e5a4da6c0ce5dcedc74f75274e9965bc45d4e55af5c3df34be08cf"
+    },
+    {
+      "path": "zh/factors/factor-reveal-confirm-01.png",
+      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "originalSha256": "db0e4e0e80d2f627a7df58ea98a37de5e11760118d63ea2533e8d9b1f3ad02f1",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "5f6cf43cb9bda3b55509454a79b878c25477f98c46a4b8540b632c27b4f17598"
+    },
+    {
+      "path": "zh/factors/factor-holdout-revealed-01.png",
+      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "originalSha256": "3d716a4d565cdfcbc35c902dfa7ce33c62978f1f610b39a584180932ae2a1d90",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "2a055c752ca9c8f9bff0b2879f64861ee5e290fd3101552ea9461bc11812c3a4"
+    },
+    {
+      "path": "zh/factors/python-factor-01.png",
+      "articles": [
+        "en/factors/create-custom-factor.md",
+        "en/factors/python-factor.md",
+        "zh/factors/create-custom-factor.md",
+        "zh/factors/python-factor.md"
+      ],
+      "originalSha256": "5da1bda3de3c18afd7be3cb7b45616dfd692b6364d070f45f4b885a4deec3285",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1600, 960],
+      "sha256": "da267e292d2f1a82d8b01c44eb478969b4a720f63c0f6ddcf11fe178a6a2a90e"
+    },
+    {
+      "path": "zh/factors/time-series-research-01.png",
+      "articles": ["en/factors/time-series-research.md", "zh/factors/time-series-research.md"],
+      "originalSha256": "126d220e0427d6ae24cf5e43e554838ae99daffdc1fa25901729f7d77239eb24",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1280, 680],
+      "sha256": "aecab3a8a78f11a92be92e1d204d59468fef0f0006d3205afef7a7f5e743cfaf"
+    },
+    {
+      "path": "zh/factors/time-series-research-02.png",
+      "articles": ["en/factors/time-series-research.md", "zh/factors/time-series-research.md"],
+      "originalSha256": "6ad1065d1fa1253032f10cbb01418f0a65f1e09a1dc57ecef5e2291e7cbf1c43",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1280, 680],
+      "sha256": "d3e3b62a6aa9e038da54b1105dacc473c1f97d55e2fe02bacb47f79adca3f6ef"
+    },
+    {
+      "path": "zh/factors/factor-research-hypothesis-01.png",
+      "articles": ["en/factors/research-card.md", "zh/factors/research-card.md"],
+      "originalSha256": "e9149533a8d34a8329f77590c21ce064fc86e96c199466ebef90e857c06cfbf0",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "eaf74941c34d093d7d289e77e87d762010cda9e3de4aa4c7f7d389d9f9244036"
+    },
+    {
+      "path": "zh/factors/factor-research-summary-01.png",
+      "articles": ["en/factors/research-card.md", "zh/factors/research-card.md"],
+      "originalSha256": "85747c0751dd2d6fb2e6d31f5e0620dec803dadf9ee1526a0b45e4323a1b1632",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "7e420059ab87197ddfdd045d3768461b99c86c0ea1066e91fcff773ad9857b8b"
+    },
+    {
+      "path": "zh/factors/publish-factor-01.png",
+      "articles": ["en/factors/publish-factor.md", "zh/factors/publish-factor.md"],
+      "originalSha256": "a40f4acc7d61a6578fd0cdc1ee58cdaa9df2ad1e22ef2b28af25a4ef8c843302",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "21e11c56afb625cd515e747abdcb3a9d329a60576a9a8e2c7eac808413c557a0"
+    },
+    {
+      "path": "zh/factors/publish-factor-02.png",
+      "articles": [],
+      "originalSha256": "086605a1236a76c38456f8f997336baf901fa8eed0c5bec74efbce6eb3451e12",
+      "disposition": "retired",
+      "reason": "Replaced by a current, bilingual entry-point figure."
+    },
+    {
+      "path": "zh/factors/factor-custom-analysis-01.png",
+      "articles": ["en/factors/create-custom-factor.md", "zh/factors/create-custom-factor.md"],
+      "originalSha256": "2f88704b4d6d0e19985656fbeec038cc7df62633258d9225f608da5e05d4e324",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "16495a43e41ac1d397d1291e8b3fa3b9e0eef207c5c195d2baba45530498babf"
+    },
+    {
+      "path": "zh/factors/evaluation-scope-01.png",
+      "articles": ["en/factors/evaluation-scope.md", "zh/factors/evaluation-scope.md"],
+      "originalSha256": "4f471bf60e8cea842c1e33f9a690c26969327b7e35f98d379e5acc5f32abffa4",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "0871bda6e06b33cea6d5bbb8bc7f6caf57c5edbc0b008ed77b63a434e7fde943"
+    },
+    {
+      "path": "zh/factors/evaluation-scope-02.png",
+      "articles": ["en/factors/evaluation-scope.md", "zh/factors/evaluation-scope.md"],
+      "originalSha256": "cc6ec184efa1194bb8db93dcf0e84d04d95eaa646ee1fe563b5dd034655a0f40",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "3c2f837eb43f599dfe4d14c7acb76f2dfe9a3936a032cbfa231f79fac8b489db"
+    },
+    {
+      "path": "zh/factors/factor-cost-settings-01.png",
+      "articles": ["en/factors/turnover-costs.md", "zh/factors/turnover-costs.md"],
+      "originalSha256": "9abca568f2172c62c4245f4a753cdef8f376dd61037dc54cc6e44db023d3e616",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "8889218545d401d5886eb5475c46a8023399519f082151b4eb20789700930b10"
+    },
+    {
+      "path": "zh/factors/factor-cost-results-01.png",
+      "articles": ["en/factors/turnover-costs.md", "zh/factors/turnover-costs.md"],
+      "originalSha256": "0ff4a97da97cef3952ac6b9381fe767dd1e37fd962f1c77c57b9f693b24533ea",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "9c11c9fdbafa6bb181b6b36e19500023ad25ff3769965f5be52a1ffb43d1fa02"
+    },
+    {
+      "path": "zh/factors/factor-custom-copy-01.png",
+      "articles": ["en/factors/copy-preset-factor.md", "zh/factors/copy-preset-factor.md"],
+      "originalSha256": "5a0ccd0d774861c0179dcb23656285510183ee6693f65f9187a9cdda0a99f63f",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "060d7ea21c6236994f3e02e6740651d83c8c3293402e7a8c9f09dca3613ac0c5"
+    },
+    {
+      "path": "zh/factors/factor-custom-copy-02.png",
+      "articles": ["en/factors/copy-preset-factor.md", "zh/factors/copy-preset-factor.md"],
+      "originalSha256": "7fdc549563eb3291fe0b9988a9bf9ade0f3e0cd41a57b893660812953289fa7f",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "9b61e8ad8157ec3dc46e5060866962f020c141cc9feb842397e66b7ef5b76b73"
+    },
+    {
+      "path": "zh/factors/factor-settings-01.png",
+      "articles": ["en/factors/analysis-settings.md", "zh/factors/analysis-settings.md"],
+      "originalSha256": "a2d401ccc7bc86c3f15809838e9436a5863d2fb885cf72f6dd9c05713ebbd77a",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "192bdb38ae95c25343b31b14359f93c8ce930e61f7049714c6cc159abaeb34fb"
+    },
+    {
+      "path": "zh/factors/factor-methodology-01.png",
+      "articles": ["en/factors/results-overview.md", "zh/factors/results-overview.md"],
+      "originalSha256": "ecfa0894647dcfd6b010e894ee0051a9b51851b2d28f2b3740a0793edc5f934a",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "289969ce3cc70f87cf7e3dfc1d4ff9f5d779e88b9b43281a9c0c36ea4faba7bd"
+    },
+    {
+      "path": "zh/factors/factor-overview-01.png",
+      "articles": ["en/factors/results-overview.md", "zh/factors/results-overview.md"],
+      "originalSha256": "24105fa7b2da052a179180c2656613f0a80fe3aa8709392a32fac16a0684263f",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "sha256": "24105fa7b2da052a179180c2656613f0a80fe3aa8709392a32fac16a0684263f"
+    },
+    {
+      "path": "zh/factors/factor-neutralization-setting-01.png",
+      "articles": ["en/factors/neutralization.md", "zh/factors/neutralization.md"],
+      "originalSha256": "8f152a44ccf70757d751248b0a859bc6db513fbef2ea97754e3e88ccb8c08ffb",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "43ea148f639cb5a3da9d9a7b229df1a9a004a0faecb88396cd16bcc156c05fd5"
+    },
+    {
+      "path": "zh/factors/factor-neutralization-result-01.png",
+      "articles": ["en/factors/neutralization.md", "zh/factors/neutralization.md"],
+      "originalSha256": "7d064d1bc137438acbf2c20a77864c8253eadfcdf96e3bfee0ed78b693f90115",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "7dcff7d598553b5e3f552099b83c7d6771ee3cb283aba7772bbbc0d61ab4457e"
+    },
+    {
+      "path": "zh/factors/factor-neutralization-history-01.png",
+      "articles": ["en/factors/neutralization.md", "zh/factors/neutralization.md"],
+      "originalSha256": "4ef51ee342bcb9343b6d429ecaf18a69d60022bd8fd4f60fee16f62b32104dfb",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "1322cc3fa96ad0afcc1e7798250f976779ef4bfcb76c6a3f0423f81736fd8c74"
+    },
+    {
+      "path": "zh/factors/robust-inference-01.png",
+      "articles": ["en/factors/robust-inference.md", "zh/factors/robust-inference.md"],
+      "originalSha256": "482d8f2c7c1c261b0fdcccf7050ee12a541d2272d7722e9cd860bfaeec1b0b55",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "482d8f2c7c1c261b0fdcccf7050ee12a541d2272d7722e9cd860bfaeec1b0b55"
+    },
+    {
+      "path": "zh/factors/robust-inference-02.png",
+      "articles": ["en/factors/robust-inference.md", "zh/factors/robust-inference.md"],
+      "originalSha256": "b06a4c0adc624567ca5f8e49d89e40ef97406028ca15d35d37aa9d4faafaa32e",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "b06a4c0adc624567ca5f8e49d89e40ef97406028ca15d35d37aa9d4faafaa32e"
+    },
+    {
+      "path": "zh/factors/factor-composite-report-01.png",
+      "articles": ["en/factors/read-composite-report.md", "zh/factors/read-composite-report.md"],
+      "originalSha256": "098dbbf2116cf14e5a400f84953ecfbbf829266a3e233b636bcdb5166102bc64",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 920],
+      "sha256": "ac81a2de54afc80cebddd3abf44fa5869ca0e0b8c7da64b2973d5a788831716d"
+    },
+    {
+      "path": "zh/factors/panel-research-01.png",
+      "articles": ["en/factors/panel-research.md", "zh/factors/panel-research.md"],
+      "originalSha256": "fb5c88c3d285d5b1e3fd27060ea857a7d192ad507f7f05dd399bb982ac581dcc",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "b66f0f5218028614cef00454942f57e2e8502539d94a49e4fbc4a247e20158f0"
+    },
+    {
+      "path": "zh/factors/panel-research-02.png",
+      "articles": ["en/factors/panel-research.md", "zh/factors/panel-research.md"],
+      "originalSha256": "0575575fc27337084600c65242cdebcfe22c29e6e7b145bd2025fe019ff1abfc",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "0575575fc27337084600c65242cdebcfe22c29e6e7b145bd2025fe019ff1abfc"
+    },
+    {
+      "path": "zh/factors/macro-regime-01.png",
+      "articles": ["en/factors/macro-regime.md", "zh/factors/macro-regime.md"],
+      "originalSha256": "1ba6369ac057f8d4dca48b8abf226d40fbce60021e665dd8e15f0751c3e617fc",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1280, 680],
+      "sha256": "32ccf3865711f05cfa9178116a6d360904baadd440e18659cd4e9ec6e5943559"
+    },
+    {
+      "path": "zh/factors/macro-regime-02.png",
+      "articles": ["en/factors/macro-regime.md", "zh/factors/macro-regime.md"],
+      "originalSha256": "286a3999ba70e9e80e7a72898d9402ab0f347287d95e01f197c312c54c979cd0",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "sha256": "286a3999ba70e9e80e7a72898d9402ab0f347287d95e01f197c312c54c979cd0"
+    },
+    {
+      "path": "zh/factors/factor-correlation-settings-01.png",
+      "articles": ["en/factors/correlation-matrix.md", "zh/factors/correlation-matrix.md"],
+      "originalSha256": "f05698240b9e6c5582d3c7ab05eaa3fcf88a9e20ba7a8b1336b7ea30382db326",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "6890b73e13d9e7e340cecae4fa54b7e9543ff65e52e3a07851efed1469e3325f"
+    },
+    {
+      "path": "zh/factors/factor-correlation-result-01.png",
+      "articles": ["en/factors/correlation-matrix.md", "zh/factors/correlation-matrix.md"],
+      "originalSha256": "fa3659bd5aa2c3b29382cc583d18673c5e2ea46c4d9791181ac444fd35757837",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "a62f0c668b5f4cd6705179c2dfbf7f2c63c80069d4902dea458c153bb4dc48de"
+    },
+    {
+      "path": "zh/factors/factor-composite-definition-01.png",
+      "articles": ["en/factors/create-composite.md", "zh/factors/create-composite.md"],
+      "originalSha256": "a9c7f90222a43b41ba5b535d4b1417786cc95af6154b5b9ada3eb2c71cf4f4f3",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 920],
+      "sha256": "d8037ab4baf9b5c3096d00e9cf719d603878d15de3d89b023163f2ff24d12fe4"
+    },
+    {
+      "path": "zh/factors/factor-report-outdated-01.png",
+      "articles": ["en/factors/report-history.md", "zh/factors/report-history.md"],
+      "originalSha256": "4353b36be7b119f644a12ec3b732bcb7a946cd15d934fd76bd1baa46c5beb81a",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "27d54a638d123ae5614cf432cf940f2cefba8ec93e9e0210de871422e1fff81f"
+    },
+    {
+      "path": "zh/factors/factor-rank-ic-01.png",
+      "articles": ["en/factors/rank-ic-icir.md", "zh/factors/rank-ic-icir.md"],
+      "originalSha256": "a18c82131b445a8008b191671822d11051d49720722f54a44cc2940e1488a96e",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "15e0330b8b8501619e10940034fbcb5593703883104dd82a24bc806a26ef247c"
+    },
+    {
+      "path": "zh/factors/factor-ic-decay-01.png",
+      "articles": ["en/factors/rank-ic-icir.md", "zh/factors/rank-ic-icir.md"],
+      "originalSha256": "3700dc09ebfefe2d358ee7afede7316fda6b7848b686854b12f90693c65f4da4",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "9165a12084254d158aa5744484b58c389986b2d9913424c2b8cddaed1cf18860"
+    },
+    {
+      "path": "zh/factors/factor-deciles-01.png",
+      "articles": ["en/factors/decile-returns.md", "zh/factors/decile-returns.md"],
+      "originalSha256": "058b8a9873385fc93ab347516227c0e77413ef279bc6db48d9fc2d8361ed6c2d",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "28c3d3a034b1e2f34f16aa30f3d28dff04ef40c6a4edd819f28923845d309e61"
+    },
+    {
+      "path": "zh/factors/factor-strategy-reference-01.png",
+      "articles": ["en/factors/factor-in-strategy.md", "zh/factors/factor-in-strategy.md"],
+      "originalSha256": "095524f34845371ed1c48afe06bedb419b3834ff0fb63bf4885a3f0c271315c2",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "dc2c8a40fb75010bf1a8356e8684aa409ee0201196e30adfee711539ffbba6d2"
+    },
+    {
+      "path": "zh/factors/factor-strategy-hover-01.png",
+      "articles": ["en/factors/factor-in-strategy.md", "zh/factors/factor-in-strategy.md"],
+      "originalSha256": "8cb948c5446659e64ac8aced01e8a5580a214d3652f4cc011a7373bd47fde5c5",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "sha256": "8cb948c5446659e64ac8aced01e8a5580a214d3652f4cc011a7373bd47fde5c5"
+    },
+    {
+      "path": "zh/factors/factor-strategy-result-01.png",
+      "articles": ["en/factors/factor-in-strategy.md", "zh/factors/factor-in-strategy.md"],
+      "originalSha256": "ecc48ecf6077ed8d18497e1521ccfdf2abb7a317831b3e1e1bc1801d9550dcf9",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "9d2bfe327946867a30f36da9cb6de61133aa181fca1a444b1116c433b69540a1"
+    },
+    {
+      "path": "zh/library/share-copy-01.png",
+      "articles": ["en/library/share-copy.md", "zh/library/share-copy.md"],
+      "originalSha256": "89bb800edc2f9405f06b9aecdabde9df57b790ea36ed242d319794e7bf17b22c",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1280, 760],
+      "sha256": "bd1353453c6ba31150e78674f6c595df10248aaf730e0b955c5d5959561714e0"
+    },
+    {
+      "path": "zh/stock-detail/chart-overview-01.png",
+      "articles": ["zh/stock-detail/pe-volume-data.md", "zh/stock-detail/read-chart.md"],
+      "originalSha256": "f484d83c20cbf64a9e78216ba0d81c2fa7cb1e5a66e46a2e1309a312fca53079",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "50ae76d083e1509bfa97da6a3649089a05e1cd2346bd2c46b08387bd20153883"
+    },
+    {
+      "path": "zh/stock-detail/adjustments-01.png",
+      "articles": ["en/stock-detail/adjustments-scale.md", "zh/stock-detail/adjustments-scale.md"],
+      "originalSha256": "569a0bfee7059a1deb37a212797bc53d932a3c41ea41223f99f49b02a6e15074",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "4e35938dd9a0a52af0526c5e9a78f514039a9d6518ab915c49c4cf7976ee9f5e"
+    },
+    {
+      "path": "zh/getting-started/login-01-email.png",
+      "articles": ["en/getting-started/login.md", "zh/getting-started/login.md"],
+      "originalSha256": "8e8ffff4800daea067f747719fd7b038313cda53c97305baea6307225d8f50e7",
+      "disposition": "retained-interface",
+      "reason": "Email/invitation/code controls still match the current login; English article explicitly identifies Chinese UI.",
+      "sha256": "8e8ffff4800daea067f747719fd7b038313cda53c97305baea6307225d8f50e7"
+    },
+    {
+      "path": "zh/getting-started/login-02-invite.png",
+      "articles": ["en/getting-started/login.md", "zh/getting-started/login.md"],
+      "originalSha256": "f57ea63322af3addb864c56f00c82cdc5677cef62d8080ea3a57c977d1622335",
+      "disposition": "retained-interface",
+      "reason": "Email/invitation/code controls still match the current login; English article explicitly identifies Chinese UI.",
+      "sha256": "f57ea63322af3addb864c56f00c82cdc5677cef62d8080ea3a57c977d1622335"
+    },
+    {
+      "path": "zh/getting-started/login-03-code.png",
+      "articles": ["en/getting-started/login.md", "zh/getting-started/login.md"],
+      "originalSha256": "189098ac9cacf326e486af8c447382b8ff8ef417686665a30e6c1e91fe0cc340",
+      "disposition": "retained-interface",
+      "reason": "Email/invitation/code controls still match the current login; English article explicitly identifies Chinese UI.",
+      "sha256": "189098ac9cacf326e486af8c447382b8ff8ef417686665a30e6c1e91fe0cc340"
+    },
+    {
+      "path": "zh/getting-started/first-backtest-01-prompt.png",
+      "articles": ["zh/getting-started/first-backtest.md"],
+      "originalSha256": "c98de2b43ab14a0b331f77bd89f5cc7eebbf15036a1ec9e0baf51a2e413da15b",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "993fdcf22723739b40114a540ecccaa30a1529e3075db4e6be482ffb86a7394b"
+    },
+    {
+      "path": "zh/getting-started/first-backtest-02-settings.png",
+      "articles": [],
+      "originalSha256": "54d188407c6825357d5c8b1fe5dba721b696bc3dc076aa698b83e1a8066d0305",
+      "disposition": "retired",
+      "reason": "Replaced by a current, bilingual entry-point figure."
+    },
+    {
+      "path": "zh/getting-started/first-backtest-03-metrics.png",
+      "articles": ["en/getting-started/first-backtest.md", "zh/getting-started/first-backtest.md"],
+      "originalSha256": "161fcb46326d1afb7f95c34d3b7d730a9b026ba7c66a065c1152eaad4d4516e2",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "e0a81e6e8f39b581e2cd3878125f64b74c6c42d9796000425c868026f5c5353c"
+    },
+    {
+      "path": "zh/getting-started/first-backtest-04-chart.png",
+      "articles": ["en/getting-started/first-backtest.md", "zh/getting-started/first-backtest.md"],
+      "originalSha256": "04486fd17e3825cd7906d8a1936ac151eed127971cc17b6691184d5fcecfc777",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 860],
+      "sha256": "24f92d91ab8d4328b17b188eb7fbbc6e5eb24dafbb6e4846cb60eccd64075f03"
+    },
+    {
+      "path": "zh/market-valuation/market-weather-playback-01.png",
+      "articles": [
+        "en/market-valuation/weather-playback.md",
+        "zh/market-valuation/weather-playback.md"
+      ],
+      "originalSha256": "c3491d4f4fbad08f55903f09784a4f6b7b96211c33db6510d5f8bd7f06c15dd7",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "b1eeebde71925310a3ee2cd9553ef98251595a724ea1ad4a343b9c15c7f476e9"
+    },
+    {
+      "path": "zh/market-valuation/market-weather-detail-01.png",
+      "articles": [
+        "en/market-valuation/weather-playback.md",
+        "zh/market-valuation/weather-playback.md"
+      ],
+      "originalSha256": "dd44d2b6f3b7fe0c3c17be03efc62949cba9c69bb169b563ab06996c76ba5a61",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "sha256": "dd44d2b6f3b7fe0c3c17be03efc62949cba9c69bb169b563ab06996c76ba5a61"
+    },
+    {
+      "path": "zh/market-valuation/market-weather-overview-01.png",
+      "articles": [
+        "zh/market-valuation/market-metrics.md",
+        "zh/market-valuation/market-overview.md",
+        "zh/market-valuation/percentiles.md"
+      ],
+      "originalSha256": "0084848034d417f62a5c7dba97d4cbf99909ef4948899e70b230e6f6a2f0b44f",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "abdc9319ba031dfcef6c236e02b67f622684d2c5295e43a073e30a0779fb308c"
+    },
+    {
+      "path": "zh/market-valuation/market-weather-dimensions-01.png",
+      "articles": [
+        "en/market-valuation/market-overview.md",
+        "zh/market-valuation/market-overview.md"
+      ],
+      "originalSha256": "0ad0e9b5342e0e9b9ada6f2ca6833912aa4ff3658dd3e1e71e9de0e4c9a4b2ae",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "0aa363097f7454777f085c268eccaae29defb1c24cda7f59edf2662de5d17fae"
+    },
+    {
+      "path": "zh/market-valuation/valuation-overview-01.png",
+      "articles": ["zh/market-valuation/index-valuation.md"],
+      "originalSha256": "1d4b8b2c7b49577283bf0dd5ec6abeb8bb7416b04442e6622d8dd1414299d0bd",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "ad5fe827729c9410c89fef355299aeda4e3de768ebeab6693cc1c0d7c4cf44b1"
+    },
+    {
+      "path": "zh/market-valuation/valuation-index-01.png",
+      "articles": ["zh/market-valuation/index-valuation.md"],
+      "originalSha256": "224f561c6a00874a6395f06ed290f098f2af52cda8682db8de098b7abbdeee99",
+      "disposition": "recaptured",
+      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
+      "sha256": "8e2bde557ebe3125cbec72585a3a3b5517b829c362578729a3614c3376750734"
+    },
+    {
+      "path": "zh/market-valuation/valuation-history-01.png",
+      "articles": [
+        "en/market-valuation/index-valuation.md",
+        "en/market-valuation/percentiles.md",
+        "zh/market-valuation/index-valuation.md",
+        "zh/market-valuation/percentiles.md"
+      ],
+      "originalSha256": "dc5231ce5f99ed122558ae66e20441f7aaa5ad18e455358b3c45422ae1369dc8",
+      "disposition": "historical-illustration",
+      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "crop": [0, 40, 1440, 960],
+      "sha256": "d2040d9bb287921b980f997dd3e6a83a760d1b680d971868521db9a07bef6ea3"
+    },
+    {
+      "path": "zh/backtesting/report-controls.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/backtesting/workspace.md"],
+      "sha256": "caf24e12c5b26a0dc3f2250d6a42c65353b1a23d0d737bcd4c514ef68480aab4"
+    },
+    {
+      "path": "en/backtesting/report-controls.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/backtesting/workspace.md"],
+      "sha256": "f1e889abf1c90977a1e40b12a9433474df0cbbb3140f8810ffc1ad79c0f50ee4"
+    },
+    {
+      "path": "en/backtesting/run-settings-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/backtesting/run-settings.md", "en/getting-started/first-backtest.md"],
+      "sha256": "34178e273c9b6f12a88e2b82544c9026d26e81df5967b0797d58878acbdc7a14"
+    },
+    {
+      "path": "en/backtesting/strategy-description-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/backtesting/create-from-description.md"],
+      "sha256": "d51f8d6ca97a748588b5ec9093d5f2a38176525cd150871ad92a8e14851812cc"
+    },
+    {
+      "path": "en/backtesting/workspace-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/backtesting/workspace.md"],
+      "sha256": "187257a68a896fc290e430c9aefc45d2fa90f0dadc658ce53c3f605d423b2dc0"
+    },
+    {
+      "path": "zh/factor-weather/pin-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/factor-weather/getting-started.md"],
+      "sha256": "24072fde66f3f9499de13eac54ec5b01a3efd055f432b8e012e703aa900d0211"
+    },
+    {
+      "path": "en/factor-weather/pin-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/factor-weather/getting-started.md"],
+      "sha256": "702a983ccb3f5d5cc5231cb5085a509f6d3391c59639b5162106830e959f5e71"
+    },
+    {
+      "path": "zh/factors/create-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/factors/python-factor.md"],
+      "sha256": "2c03bf97ad9a5432ab506f552706520216214120c8b8d9e5172dbb5640da343a"
+    },
+    {
+      "path": "en/factors/create-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/factors/python-factor.md"],
+      "sha256": "c8389d6cb2f1e5614cbac693d6904765bbe53601d01dc3b8ff6bf879298aa193"
+    },
+    {
+      "path": "en/factors/factor-workspace-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/factors/first-preset-analysis.md", "en/factors/what-factor-research.md"],
+      "sha256": "6f4f0589033e4911aef2bf244cbf7fdf04ae52a9793f29c53c5e74975067788e"
+    },
+    {
+      "path": "zh/factors/publication-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/factors/publish-factor.md"],
+      "sha256": "4b66aad3a1210bba023ec79cf0d13d7f233102dd943b9ff319f8596439b172b5"
+    },
+    {
+      "path": "en/factors/publication-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/factors/publish-factor.md"],
+      "sha256": "4be660c5d676d38e648f94852270dce379608402a917d93b205a70ff913baae7"
+    },
+    {
+      "path": "zh/factors/report-question.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/factors/report-history.md"],
+      "sha256": "40b124688aa0121eaa5dcf14cb74e34fe484825af9fc9af65e49a072d44f2d22"
+    },
+    {
+      "path": "en/factors/report-question.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/factors/report-history.md"],
+      "sha256": "fbc479b5c8995e36608ac779f42972aae12c0e994d12b140800b52e2ac697931"
+    },
+    {
+      "path": "zh/factors/strategy-prefill-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/factors/publish-factor.md"],
+      "sha256": "cb9453bb786ea6c91344bc50012c15a2f10243450a38b34ad6ddde41b1c8cdd3"
+    },
+    {
+      "path": "en/factors/strategy-prefill-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/factors/publish-factor.md"],
+      "sha256": "2b7bed7964827f3c548543821a3acd96bd4aac8b17f72110454567d3fd7848c1"
+    },
+    {
+      "path": "en/getting-started/first-backtest-01-prompt.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/getting-started/first-backtest.md"],
+      "sha256": "6c53a17c1701e7cbe0766948bbeec66f3595dcf42745424b8573a54b44a899bf"
+    },
+    {
+      "path": "zh/library/library-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/library/share-copy.md"],
+      "sha256": "615a21ca38e7f4f9e0003b5eeb1bb7414b14100f5fa64f8a6a86c7d289a73806"
+    },
+    {
+      "path": "en/library/library-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/library/share-copy.md"],
+      "sha256": "5397382bbd628c8f2b7873bceedb959e68f031b528c129aafcbd8063919d1b84"
+    },
+    {
+      "path": "en/market-valuation/market-weather-overview-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": [
+        "en/market-valuation/market-metrics.md",
+        "en/market-valuation/market-overview.md",
+        "en/market-valuation/percentiles.md"
+      ],
+      "sha256": "180ee2c42e8d0b83f07381636eff681b859e55325671dc1a9723d7060d8c0c22"
+    },
+    {
+      "path": "en/market-valuation/valuation-index-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/market-valuation/index-valuation.md"],
+      "sha256": "1540d5fbffba4bdb249da845a8ba0ee327458d54a0652baaab8cc7d7d90587af"
+    },
+    {
+      "path": "en/market-valuation/valuation-overview-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/market-valuation/index-valuation.md"],
+      "sha256": "940bf18770328f7ca655b48e7eb25ac3dcc6c03f5c3df5720d640aee0c402efc"
+    },
+    {
+      "path": "zh/research/catalog-backtests.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/data-catalog.md"],
+      "sha256": "8cfdb6d80e71bedeab13f09aee578c30f7b1c40c31c4ae201736d32d7ead4a6d"
+    },
+    {
+      "path": "en/research/catalog-backtests.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/data-catalog.md"],
+      "sha256": "7a018256b438874cb01eadfc22b3ec046b0333b5441acea605ae55f3e51d0007"
+    },
+    {
+      "path": "zh/research/catalog-datasets.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/data-catalog.md"],
+      "sha256": "0bd7693bb2209f1305827e40dae1eb7ded1b8d00dbe917e249615605b97894b7"
+    },
+    {
+      "path": "en/research/catalog-datasets.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/data-catalog.md"],
+      "sha256": "ee81167b4d1e8da9b3663ff2300b2dfcdfcd91901b5da59e78356ba1ac193f03"
+    },
+    {
+      "path": "zh/research/catalog-factor-reports.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/data-catalog.md"],
+      "sha256": "f581ac3c45ffe57dd9cdc133c3cb4e4c19d16e864ebac9e485f1512e10b560ef"
+    },
+    {
+      "path": "en/research/catalog-factor-reports.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/data-catalog.md"],
+      "sha256": "070c3d0b258aa2756d5c4d3c7d01b512affc37e188d6964ad5b9212c2c032079"
+    },
+    {
+      "path": "zh/research/catalog-market.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/data-catalog.md"],
+      "sha256": "dc7ac28bd54cb36cc410b7833be15ac63a558a3969148e229a31cb0822930ef0"
+    },
+    {
+      "path": "en/research/catalog-market.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/data-catalog.md"],
+      "sha256": "6a98602f0339feef1110eb7a75832a96eca17ba2f1943b3a260fdd8eaeb479e3"
+    },
+    {
+      "path": "en/research/document-cells-02.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/document-cells.md"],
+      "sha256": "70c3c997e6ba26e1661e5a93c335c657c333fefe1f720b26aa55eaf870fae6fd"
+    },
+    {
+      "path": "zh/research/document-list-archived.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/records.md"],
+      "sha256": "07173ac9d82c618344ec404dcdeec98fbd9f778b5b80b74310cf7d7e184d230f"
+    },
+    {
+      "path": "en/research/document-list-archived.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/records.md"],
+      "sha256": "8a6d9e3ad5f34b51ea36b90bcbf21b77179306bb436e1f83e54279e263b0bf83"
+    },
+    {
+      "path": "zh/research/document-list-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/records.md"],
+      "sha256": "35ba77f6e5f6a58f405c0bd5459836c1eb5cb9858d038e3de7fd3f50844e8168"
+    },
+    {
+      "path": "en/research/document-list-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/records.md"],
+      "sha256": "3c41b6a5db2d6bc498f9fbf1254c0279b549f6c7ba6d2a13d8b8338fb14b3ec8"
+    },
+    {
+      "path": "zh/research/embedded-reference.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/embedded-analysis.md"],
+      "sha256": "2033bd44895b24316db50fca049e7313d8fad47caf56c795a3708ec2aa0885f4"
+    },
+    {
+      "path": "en/research/embedded-reference.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/embedded-analysis.md"],
+      "sha256": "53039556b24bce8c67cfd01c7e6c172edf393ce7573e80367d91ae8bc1c053ff"
+    },
+    {
+      "path": "en/research/new-research-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/document-cells.md"],
+      "sha256": "c301879f0a4a0b06d6bfa91008f03eb729a09dd6b6e4cd6863a1da81e278126b"
+    },
+    {
+      "path": "zh/research/run-controls-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/research/run-control.md"],
+      "sha256": "2139886b7af5deefa022be2d8681f924a6b8d53641c8fc017270d24cc16efe25"
+    },
+    {
+      "path": "en/research/run-controls-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/research/run-control.md"],
+      "sha256": "793351fbc7c82fb2a3a7784b7a56a2109705198737956be4d402513d2b8efc7d"
+    },
+    {
+      "path": "zh/signals/deployments-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/signals/deploy-strategy.md", "zh/signals/generate-signals.md"],
+      "sha256": "fc10b366aaa491bcb0864e53b6a7d7f1c46e8b157a9f3ec273324abbaa67731e"
+    },
+    {
+      "path": "en/signals/deployments-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/signals/deploy-strategy.md", "en/signals/generate-signals.md"],
+      "sha256": "28876ec314008fece24aaf20476a16a3c6c51ebcc188273a76fb1792005be10d"
+    },
+    {
+      "path": "zh/signals/paused-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["zh/signals/history-pause.md"],
+      "sha256": "3285ff780805008827129ec574b75e8f3133d8b34c5e700cd82fffa73f2b8c6e"
+    },
+    {
+      "path": "en/signals/paused-current.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/signals/history-pause.md"],
+      "sha256": "a31933422a06cd3917cbdbf0713e321b8e2f0a5c70109237cd9d75a8e1fc291e"
+    },
+    {
+      "path": "en/stock-detail/chart-overview-01.png",
+      "disposition": "recaptured",
+      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "articles": ["en/stock-detail/pe-volume-data.md", "en/stock-detail/read-chart.md"],
+      "sha256": "4e63cface56cea1ea5798dab550975df8239d629d9ea5560c017545fc4c9036a"
+    }
+  ]
+}

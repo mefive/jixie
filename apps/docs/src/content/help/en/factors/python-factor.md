@@ -1,5 +1,7 @@
 # Write a Factor in Python
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 New custom Factors default to Python `py-v1`. The Python Factor SDK supports stock cross-sections, single-asset time series, and cross-asset Panels. The selected research kind determines the entry point, available fields, and report method.
 
 ## Create a Python Factor
@@ -13,7 +15,11 @@ New custom Factors default to Python `py-v1`. The Python Factor SDK supports sto
 
 The editor provides Python types and Factor field completion. Completion confirms availability, not suitability for your study.
 
-![Python Factor editor and field completion](/docs/images/help/zh/factors/python-factor-01.png)
+![Historical Chinese UI example: Python Factor editor and field completion](/docs/images/help/zh/factors/python-factor-01.png)
+
+**1** is the current New menu. Choose a research type, then enter a name and key. This does not run a report.
+
+![Current interface and controls](/docs/images/help/en/factors/create-current.png)
 
 ## Cross-sectional form
 

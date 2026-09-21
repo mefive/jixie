@@ -757,8 +757,16 @@ try {
 
   await page.getByRole('link', { name: '报告历史和结果已过期', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '报告历史和结果已过期' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('factor report-history article does not render both screenshots');
+  const reportHistoryImages = await page
+    .locator('.jx-help-figure img')
+    .evaluateAll((images) => images.map((image) => new URL(image.src).pathname));
+  const expectedReportHistoryImages = [
+    '/docs/images/help/zh/factors/factor-holdout-history-01.png',
+    '/docs/images/help/zh/factors/factor-report-outdated-01.png',
+    '/docs/images/help/zh/factors/report-question.png',
+  ];
+  if (JSON.stringify(reportHistoryImages) !== JSON.stringify(expectedReportHistoryImages)) {
+    throw new Error('factor report-history article must render history, outdated, and Q&A images');
   }
 
   await page.getByRole('link', { name: '运行前研究卡和探索变体', exact: true }).first().click();

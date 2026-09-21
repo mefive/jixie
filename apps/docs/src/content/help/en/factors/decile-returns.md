@@ -1,5 +1,7 @@
 # Decile and forward returns
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Decile returns test whether subsequent stock returns form a reasonably consistent order as factor values move from low to high. The page divides eligible stocks into D1 through D10 in every period.
 
 ## Forward return
@@ -90,7 +92,7 @@ The numbered areas are:
 2. Next-period annualized returns for D1 through D10.
 3. Axis and direction definition.
 
-![Equal or market-cap weighting and decile returns](/docs/images/help/zh/factors/factor-deciles-01.png)
+![Historical Chinese UI example: Equal or market-cap weighting and decile returns](/docs/images/help/zh/factors/factor-deciles-01.png)
 
 1. Open a completed factor report.
 2. Select **Equal weight**.

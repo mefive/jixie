@@ -1,5 +1,7 @@
 # 运行前研究卡和探索变体
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 研究卡要求在看到结果之前，先写下这次分析想验证什么。它不能保证结论正确，但可以区分“事先提出的判断”和“看完结果后才形成的解释”。
 
 每次点击“运行分析”或“重新运行”时，页面都会先打开研究卡。
@@ -23,7 +25,7 @@
 4. 选择预期方向、主要指标、比较符和阈值。
 5. 冻结研究卡并运行。
 
-![填写盈利收益率假设验证研究卡](/docs/images/help/zh/factors/factor-research-hypothesis-01.png)
+![历史中文界面示例：填写盈利收益率假设验证研究卡](/docs/images/help/zh/factors/factor-research-hypothesis-01.png)
 
 ### 假设
 
@@ -75,7 +77,7 @@
 3. 合格探索报告的“验证保留段”入口。
 4. 当前报告的样本范围。
 
-![探索变体数量和验证保留段入口](/docs/images/help/zh/factors/factor-research-summary-01.png)
+![历史中文界面示例：探索变体数量和验证保留段入口](/docs/images/help/zh/factors/factor-research-summary-01.png)
 
 ### 报告数和探索变体数不同
 

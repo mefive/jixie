@@ -1,5 +1,7 @@
 # 国债曲线到每日信号：证据、回测与部署
 
+> 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
+
 > 学习路径 · 预计 90～120 分钟 · 建议先完成一次 ETF 时间序列因子分析和一次回测。
 
 这项练习串起完整的运行链路：**用当时可得的中国国债收益率曲线生成 Factor，检验它对国债 ETF 未来收益的
@@ -42,9 +44,9 @@
 1,029 条观测，t 中位数反转为 **-1.918**，三只 ETF 的方向命中率都低于 50%。因此研究门槛没有通过，
 而且样本外方向与假设冲突。
 
-![国债收益率下降因子的探索期真实结果](/docs/images/help/zh/learning/cgb-signal-factor-explore-result.png)
+![历史中文界面示例：国债收益率下降因子的探索期真实结果](/docs/images/help/zh/learning/cgb-signal-factor-explore-result.png)
 
-![国债收益率下降因子的正式 Holdout 真实结果](/docs/images/help/zh/learning/cgb-signal-factor-holdout-result.png)
+![历史中文界面示例：国债收益率下降因子的正式 Holdout 真实结果](/docs/images/help/zh/learning/cgb-signal-factor-holdout-result.png)
 
 ### 回测与每日信号的真实结果
 
@@ -52,13 +54,13 @@
 -3.36%、最大回撤 -7.67%、Sharpe -0.16、换手 7.68 倍、183 笔成交；费用 31,139.73 元，滑点损耗
 110,790.23 元。
 
-![国债曲线 Factor 策略的真实费后回测结果](/docs/images/help/zh/learning/cgb-signal-backtest-result.png)
+![历史中文界面示例：国债曲线 Factor 策略的真实费后回测结果](/docs/images/help/zh/learning/cgb-signal-backtest-result.png)
 
 在 2026-07-30，系统冻结的数据截止也是 2026-07-30，`511010.SH` 的决策分数为 1.1900。规则因此生成
 5,400 份的“买入”计划，参考价 140.85 元，计划在下一交易日 2026-07-31 执行。它仍是模拟指令；“待结算”
 和“待回填”明确表示没有真实成交记录。
 
-![国债曲线策略在指定交易日生成的 Factor 输入和指令](/docs/images/help/zh/learning/cgb-signal-daily-result.png)
+![历史中文界面示例：国债曲线策略在指定交易日生成的 Factor 输入和指令](/docs/images/help/zh/learning/cgb-signal-daily-result.png)
 
 固定裁决是：**系统链路通过，研究与策略证据不通过，不应作为生产候选继续启用。** 这条路径保留失败，是为了
 展示部署能力不能替代研究门槛。

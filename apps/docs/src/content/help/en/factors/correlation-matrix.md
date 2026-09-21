@@ -1,5 +1,7 @@
 # Factor correlation matrix
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The factor correlation matrix checks whether several factors gave stocks similar rankings during the same periods. It helps answer:
 
 - Are two factors repeating similar information?
@@ -51,7 +53,7 @@ The numbered areas below are:
 2. Calculation method, date range, and fixed size-column note.
 3. **Calculate**.
 
-![Selecting factors and verifying the correlation date range](/docs/images/help/zh/factors/factor-correlation-settings-01.png)
+![Historical Chinese UI example: Selecting factors and verifying the correlation date range](/docs/images/help/zh/factors/factor-correlation-settings-01.png)
 
 The page automatically adds a **Size (ln)** column to check whether factor rankings resemble log total-market-cap rankings. It is not a fourth research factor selected by the user.
 
@@ -63,7 +65,7 @@ The numbered areas below are:
 2. Pairwise factor-correlation heatmap.
 3. Valid periods, color direction, and diagonal explanation.
 
-![Correlation matrix for earnings yield book-to-market dividend yield and size](/docs/images/help/zh/factors/factor-correlation-result-01.png)
+![Historical Chinese UI example: Correlation matrix for earnings yield book-to-market dividend yield and size](/docs/images/help/zh/factors/factor-correlation-result-01.png)
 
 Each cell combines one row and one column:
 

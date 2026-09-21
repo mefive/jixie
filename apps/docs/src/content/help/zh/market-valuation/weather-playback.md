@@ -1,5 +1,7 @@
 # 回放历史并查看卡片详情
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 市场气象页会一次加载当前维度和周期的历史快照。拖动时间轴只切换已经保存的页面数据，不会重新运行全市场计算。
 
 ## 使用时间轴
@@ -12,7 +14,7 @@
 4. 可拖动的历史时间轴。
 5. 最早、当前和最新周期。
 
-![市场气象的历史回放控制](/docs/images/help/zh/market-valuation/market-weather-playback-01.png)
+![历史中文界面示例：市场气象的历史回放控制](/docs/images/help/zh/market-valuation/market-weather-playback-01.png)
 
 操作步骤：
 
@@ -46,7 +48,7 @@
 5. 查看最近最多 24 个当前周期的颜色条和最近记录。
 6. 点击“关闭”返回卡片墙。
 
-![市场气象卡片的指标和历史详情](/docs/images/help/zh/market-valuation/market-weather-detail-01.png)
+![历史中文界面示例：市场气象卡片的指标和历史详情](/docs/images/help/zh/market-valuation/market-weather-detail-01.png)
 
 详情中的“官方估值”来自指数或行业官方日估值；“成分估值”是按当时成分和权重聚合的代理值。两种来源不能当成完全相同的序列比较。
 

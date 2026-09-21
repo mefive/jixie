@@ -1,5 +1,7 @@
 # Use technical indicators in a strategy
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 The backtest SDK calculates ADX/DMI, Bollinger Bands, RSI, MACD, and KDJ from adjusted bars available through the current trading date. They transform historical price and trading behavior; they are not forecasts. Prespecify periods, thresholds, and trading rules.
 
 ## What the five indicators return
@@ -53,7 +55,7 @@ Python uses `positive_di`, `negative_di`, and `bollinger_bands`; TypeScript uses
 
 This is a reproducible example, not an optimal threshold set. Repeatedly tuning many thresholds on the same history increases overfitting risk.
 
-![A completed backtest using technical indicators](/docs/images/help/zh/backtesting/technical-indicators-01.png)
+![Historical Chinese UI example: A completed backtest using technical indicators](/docs/images/help/zh/backtesting/technical-indicators-01.png)
 
 ## Weekly and monthly periods
 

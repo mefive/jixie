@@ -1,5 +1,7 @@
 # 与 Research Agent 协作
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 Research Agent 可以阅读当前文档和 Cell 状态，帮助补充研究问题、查找 Research SDK、修改 Cell，并在真实运行后解释输出。它的文字和代码都需要用户审查；提案不会因为生成完成就自动运行。
 
 ## 提出明确要求
@@ -28,7 +30,7 @@ Agent 提出修改后，右侧会出现变更卡片，目标 Cell 显示内联�
 - 新建、修改和删除 Cell 分别列出；
 - 增加和删除的行数只用于定位，不代表修改质量。
 
-![Research Agent 的 Cell 内联差异审核](/docs/images/help/zh/research/agent-collaboration-01.png)
+![历史中文界面示例：Research Agent 的 Cell 内联差异审核](/docs/images/help/zh/research/agent-collaboration-01.png)
 
 逐项检查数据字段、日期、公式、变量依赖、缺失值和结论措辞。需要小改时，可直接编辑绿色的新版本，不必要求 Agent 再生成一次相同内容。
 
@@ -46,7 +48,7 @@ Agent 提出修改后，右侧会出现变更卡片，目标 Cell 显示内联�
 
 运行完成后，可以点击“让 Agent 解释本次运行”。解释应引用真实输出、错误或警告。如果提案没有运行，Agent 不能把预计结果写成已经计算的事实。
 
-![已接受并运行的 Agent 变更](/docs/images/help/zh/research/agent-collaboration-02.png)
+![历史中文界面示例：已接受并运行的 Agent 变更](/docs/images/help/zh/research/agent-collaboration-02.png)
 
 ## 适合和不适合交给 Agent 的工作
 

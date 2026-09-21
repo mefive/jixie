@@ -1,5 +1,7 @@
 # Edit a strategy and run it again
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Changing code, dates, capital, or costs does not recalculate the result automatically. Run the backtest again before using the result to assess the change.
 
 ## Run after editing
@@ -20,7 +22,7 @@ The numbered areas show:
 2. The **Run backtest** button.
 3. The confirmation shown when changes have not been run.
 
-![Confirmation shown when leaving a strategy with changes that have not been run](/docs/images/help/zh/backtesting/edit-rerun-01.png)
+![Historical Chinese UI example: Confirmation shown when leaving a strategy with changes that have not been run](/docs/images/help/zh/backtesting/edit-rerun-01.png)
 
 If **Unsaved changes** appears when you select New or another strategy:
 

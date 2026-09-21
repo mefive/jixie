@@ -1,5 +1,7 @@
 # 使用 Python 编写 Factor
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 新建自定义 Factor 时，代码编辑器默认使用 Python `py-v1`。同一套 Python Factor SDK 支持股票截面、单资产时间序列和跨资产 Panel；研究类型决定代码入口、可选字段和报告方法。
 
 ## 新建 Python Factor
@@ -13,7 +15,11 @@
 
 编辑器会提供 Python 类型和 Factor 字段补全。补全只说明字段可用，不说明它适合当前研究。
 
-![Python Factor 编辑器与字段补全](/docs/images/help/zh/factors/python-factor-01.png)
+![历史中文界面示例：Python Factor 编辑器与字段补全](/docs/images/help/zh/factors/python-factor-01.png)
+
+**1** 是当前新建菜单。选择研究类型后填写名称与 key；这一步不会运行报告。
+
+![当前界面与操作入口](/docs/images/help/zh/factors/create-current.png)
 
 ## 股票横截面写法
 

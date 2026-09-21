@@ -1,5 +1,7 @@
 # Load US Treasury yield curves
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Research Python can load governed US Treasury nominal- and real-yield tenor series. A `data.yield_curve()` call must state the curve, tenor, and dates. Do not substitute one tenor for another or interchange nominal and real yields.
 
 ## Choose a curve and tenor
@@ -32,7 +34,7 @@ real_10y
 
 `value` is measured in percent. For example, `1.75` means 1.75%, not 0.0175.
 
-![Yield-curve data and returned columns](/docs/images/help/zh/research/yield-curves-01.png)
+![Historical Chinese UI example: Yield-curve data and returned columns](/docs/images/help/zh/research/yield-curves-01.png)
 
 ## Load percentage-point changes
 
@@ -63,7 +65,7 @@ US yields are US-close observations. When comparing them with A-shares, CNY ETFs
 
 Check sample dates, missing values, and observation count before correlation, regression, or hypothesis tests. The screenshot shows a real yield study in the fixed runtime. A significant sample result remains an association, not a causal conclusion or trading signal.
 
-![Statistical output from a yield study](/docs/images/help/zh/research/yield-curves-02.png)
+![Historical Chinese UI example: Statistical output from a yield study](/docs/images/help/zh/research/yield-curves-02.png)
 
 ## Common questions
 

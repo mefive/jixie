@@ -1,5 +1,7 @@
 # 记录实际成交并比较执行偏差
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 信号生成后，系统会分别保留模型、模拟和实际三层账户。模拟账户按市场数据自动结算；实际账户只使用用户回填的成交。回填用于记录执行差异，不会向券商发送订单。
 
 ## 三层账户
@@ -14,7 +16,7 @@
 2. 模型、模拟和实际权益曲线。
 3. 当日指令、模拟成交和实际执行状态。
 
-![模型、模拟和实际账户对照](/docs/images/help/zh/signals/signal-execution-overview-01.png)
+![历史中文界面示例：模型、模拟和实际账户对照](/docs/images/help/zh/signals/signal-execution-overview-01.png)
 
 模拟账户不等于真实账户。它使用市场数据和成本模型，无法知道用户是否忘记下单、主动改变数量或在券商端得到不同价格。
 
@@ -37,7 +39,7 @@
 3. 实际股数输入框；下面依次是成交价和费用。
 4. 保存按钮。
 
-![实际成交回填窗口](/docs/images/help/zh/signals/signal-execution-record-01.png)
+![历史中文界面示例：实际成交回填窗口](/docs/images/help/zh/signals/signal-execution-record-01.png)
 
 费用留空时，系统按模型费率估算。已经知道券商实际收取金额时，应填写实际费用。
 
@@ -53,7 +55,7 @@
 
 保存后，系统会从最初基线按时间顺序重新计算实际账户。修改历史回填会影响后续实际权益和持仓，这是正常现象。
 
-![回填完成后的执行率和实际账户](/docs/images/help/zh/signals/signal-execution-complete-01.png)
+![历史中文界面示例：回填完成后的执行率和实际账户](/docs/images/help/zh/signals/signal-execution-complete-01.png)
 
 ## 执行率
 

@@ -1,5 +1,7 @@
 # 读取美国国债收益率曲线
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 Research Python 可以读取平台审核过的美国国债名义收益率和实际收益率期限序列。使用 `data.yield_curve()` 时必须明确曲线、期限和日期；不要把不同期限或名义／实际收益率互相替换。
 
 ## 选择曲线和期限
@@ -32,7 +34,7 @@ real_10y
 
 `value` 的单位是百分比。例如 `1.75` 表示 1.75%，不是 0.0175。
 
-![收益率曲线数据和返回列](/docs/images/help/zh/research/yield-curves-01.png)
+![历史中文界面示例：收益率曲线数据和返回列](/docs/images/help/zh/research/yield-curves-01.png)
 
 ## 读取百分点变化
 
@@ -63,7 +65,7 @@ nominal_10y_change = data.yield_curve(
 
 先检查样本起止日、缺失值和观察数，再运行相关、回归或检验。下图展示固定运行环境中的真实收益率研究输出；一次显著结果仍然只是样本内关联，不是因果结论或交易信号。
 
-![收益率研究的统计输出](/docs/images/help/zh/research/yield-curves-02.png)
+![历史中文界面示例：收益率研究的统计输出](/docs/images/help/zh/research/yield-curves-02.png)
 
 ## 常见问题
 

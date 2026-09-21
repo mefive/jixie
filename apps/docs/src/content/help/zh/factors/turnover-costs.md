@@ -1,5 +1,7 @@
 # 换手、交易成本和费后收益
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 分组收益和 Rank IC 只说明历史排序关系。股票频繁更换时，佣金、印花税和滑点会不断累积，因此还要查看换手和费后结果。
 
 ## 最高档换手怎样计算
@@ -46,7 +48,7 @@ $$
 3. 卖出印花税。
 4. 滑点。
 
-![因子分析中的佣金印花税和滑点设置](/docs/images/help/zh/factors/factor-cost-settings-01.png)
+![历史中文界面示例：因子分析中的佣金印花税和滑点设置](/docs/images/help/zh/factors/factor-cost-settings-01.png)
 
 佣金和滑点在买入、卖出两边都计算；印花税只在卖出一边计算。
 
@@ -122,7 +124,7 @@ $$
 3. 页面使用的组合和成本说明。
 4. 费后年化、Sharpe 和最大回撤。
 
-![因子报告中的费前费后多空净值和费后指标](/docs/images/help/zh/factors/factor-cost-results-01.png)
+![历史中文界面示例：因子报告中的费前费后多空净值和费后指标](/docs/images/help/zh/factors/factor-cost-results-01.png)
 
 建议按以下顺序查看：
 

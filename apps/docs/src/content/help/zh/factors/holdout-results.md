@@ -1,5 +1,7 @@
 # 正式保留段和样本外结果
 
+> 标为“历史中文界面示例”的图保留当时的结果或状态，数值未重新计算。当前操作请以本文步骤和当前界面图为准。
+
 正式保留段是预先不参与查看和调整的一段较新数据。页面历史记录中使用 `Holdout` 标签，本文统一称为“正式保留段”。
 
 它用于回答：
@@ -46,7 +48,7 @@
 3. 冻结代码摘要和预设主要标准。
 4. 确认运行。
 
-![确认使用冻结代码和预设标准验证正式保留段](/docs/images/help/zh/factors/factor-holdout-confirm-01.png)
+![历史中文界面示例：确认使用冻结代码和预设标准验证正式保留段](/docs/images/help/zh/factors/factor-holdout-confirm-01.png)
 
 正式保留段使用探索报告当时保存的代码和非日期参数。即使编辑器中的代码后来改变，验证的仍然是旧报告的代码快照。
 
@@ -60,11 +62,11 @@
 2. 结果已经计算完成但仍封存。
 3. “揭示结果”按钮。
 
-![正式保留段计算完成后结果仍保持封存](/docs/images/help/zh/factors/factor-holdout-sealed-01.png)
+![历史中文界面示例：正式保留段计算完成后结果仍保持封存](/docs/images/help/zh/factors/factor-holdout-sealed-01.png)
 
 在报告历史中，探索报告和正式保留段是两条不同记录：
 
-![报告历史中的探索报告和未揭示保留段报告](/docs/images/help/zh/factors/factor-holdout-history-01.png)
+![历史中文界面示例：报告历史中的探索报告和未揭示保留段报告](/docs/images/help/zh/factors/factor-holdout-history-01.png)
 
 封存不是为了制造神秘感，而是避免计算过程中先看到数字、再决定是否把它称为正式验证。
 
@@ -82,7 +84,7 @@
 2. 揭示后该段数据不再属于未观察样本的说明。
 3. 最终确认按钮。
 
-![揭示正式保留段结果前的不可逆确认](/docs/images/help/zh/factors/factor-reveal-confirm-01.png)
+![历史中文界面示例：揭示正式保留段结果前的不可逆确认](/docs/images/help/zh/factors/factor-reveal-confirm-01.png)
 
 首次揭示时间会写入报告，不能清除。以后仍可反复打开这份报告，但不能再把同一段数据说成“从未看过”。
 
@@ -96,7 +98,7 @@
 2. 正式保留段的样本范围和方向。
 3. 正式保留段的 D1 至 D10 分组结果。
 
-![揭示后的正式保留段结果和预设标准判定](/docs/images/help/zh/factors/factor-holdout-revealed-01.png)
+![历史中文界面示例：揭示后的正式保留段结果和预设标准判定](/docs/images/help/zh/factors/factor-holdout-revealed-01.png)
 
 页面只判断预先选择的那一个主要标准是否达到。例如研究卡写的是 `Rank IC 均值 > 0`，页面就只按这条规则显示“达到”或“未达到”。
 

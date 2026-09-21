@@ -11,6 +11,10 @@ Deployment turns a successful backtest report into an independent operating inst
 
 Deployment supports successful TypeScript stock/ETF reports with results. Python and futures are not supported. Referenced Factors must meet publication requirements and match the report’s lineage. Missing or changed evidence requires a new backtest report.
 
+**1** distinguishes instances by source report and deployment ID; **2** generates or pauses only the selected deployment.
+
+![Current interface and controls](/docs/images/help/en/signals/deployments-current.png)
+
 ## Reports, drafts, and deployments
 
 - Editing a draft does not change its reports or deployments and does not label a deployed report as outdated.

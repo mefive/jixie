@@ -1,5 +1,7 @@
 # 沪深 300 趋势策略：参数、成本与样本外
 
+> 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
+
 > 学习路径 · 预计 90～120 分钟 · 需要会运行一次回测；本练习使用 TypeScript，因为参数扫描当前只支持
 > TypeScript 策略。
 
@@ -21,9 +23,9 @@
 | 120 日趋势，2 bp | 0.96% | -38.04% | 0.139 | 4.57× | 103 |
 | 120 日趋势，10 bp | 0.22% | -40.23% | 0.081 | 4.57× | 103 |
 
-![同一 ETF 买入持有基线的真实回测结果](/docs/images/help/zh/learning/csi300-trend-baseline-result.png)
+![历史中文界面示例：同一 ETF 买入持有基线的真实回测结果](/docs/images/help/zh/learning/csi300-trend-baseline-result.png)
 
-![120 日趋势主规则的真实回测结果](/docs/images/help/zh/learning/csi300-trend-primary-result.png)
+![历史中文界面示例：120 日趋势主规则的真实回测结果](/docs/images/help/zh/learning/csi300-trend-primary-result.png)
 
 参数扫描的年化收益为：
 
@@ -33,7 +35,7 @@
 | 60 | -0.87% | 0.85% | -23.24% | 0.130 | 75 |
 | 120 | 3.94% | 1.01% | -19.69% | 0.147 | 39 |
 
-![20、60、120 日的真实样本内外扫描结果](/docs/images/help/zh/learning/csi300-trend-scan-result.png)
+![历史中文界面示例：20、60、120 日的真实样本内外扫描结果](/docs/images/help/zh/learning/csi300-trend-scan-result.png)
 
 固定主参数确实降低了全样本回撤，但年化收益明显低于同一 ETF 买入持有；10 bp 压力又把年化收益从 0.96%
 降到 0.22%。20 日规则样本外转负，60 日与 120 日只有很薄的正收益。因而这次案例的裁决是**证据不足**，不是

@@ -1,5 +1,7 @@
 # Size and industry neutralization
 
+> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+
 Neutralization tests whether a factor result merely repeats size or industry differences. It removes the part of the factor value explained by those variables, then ranks the remaining component and recalculates deciles and Rank IC.
 
 ## Why neutralize
@@ -80,7 +82,7 @@ The numbered areas are:
 1. Size + industry selected.
 2. Run again with the new definition.
 
-![Select size and industry neutralization and run again](/docs/images/help/zh/factors/factor-neutralization-setting-01.png)
+![Historical Chinese UI example: Select size and industry neutralization and run again](/docs/images/help/zh/factors/factor-neutralization-setting-01.png)
 
 The old report continues to display its old result after changing the draft. Run again and verify **Size** or **Size + industry** in the summary before treating the new report as neutralized.
 
@@ -92,7 +94,7 @@ The numbered areas are:
 2. Sample and direction for the new report.
 3. D1 through D10 formed from neutralized residuals.
 
-![Earnings-yield report after size and industry neutralization](/docs/images/help/zh/factors/factor-neutralization-result-01.png)
+![Historical Chinese UI example: Earnings-yield report after size and industry neutralization](/docs/images/help/zh/factors/factor-neutralization-result-01.png)
 
 Neutralization changes factor values and stock rankings. Rank IC, decile returns, turnover, and long-short returns can all change.
 
@@ -103,7 +105,7 @@ Open **Report history** and compare the **None** and **Size + industry** reports
 1. Size + industry report.
 2. Non-neutralized report.
 
-![Non-neutralized and size-industry-neutralized reports in history](/docs/images/help/zh/factors/factor-neutralization-history-01.png)
+![Historical Chinese UI example: Non-neutralized and size-industry-neutralized reports in history](/docs/images/help/zh/factors/factor-neutralization-history-01.png)
 
 Keep the following identical:
 

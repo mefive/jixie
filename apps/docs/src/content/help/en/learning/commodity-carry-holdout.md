@@ -1,5 +1,7 @@
 # Commodity carry: term structure, proxy error, and holdout evidence
 
+> Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
+
 This path studies a familiar claim that is often stated too casually: **do commodities earn higher future returns when their
 futures curves are in backwardation?** You will use actual delivery contracts for AU gold, CU copper, SC crude oil, and M soybean
 meal, run both a common-month-end Panel ranking and per-commodity time-series tests, and seal both formal holdouts before seeing
@@ -110,7 +112,7 @@ cost per side, and at least three eligible assets. Across 59 months and 294 obse
 0.129, positive-IC frequency 49.15%, net long-short annualized return 5.10%, and average one-way turnover 46.61%. This is weak and
 conflicting exploratory evidence, not a universal carry rule.
 
-![Actual commodity-carry Panel exploration report](/docs/images/help/zh/learning/commodity-carry-panel-explore-result.png)
+![Historical Chinese UI example: Actual commodity-carry Panel exploration report](/docs/images/help/zh/learning/commodity-carry-panel-explore-result.png)
 
 The time-series test uses daily observations over the same historical period and a 20-trading-day forward return. Those targets
 overlap heavily, so the automatic Newey–West lag is at least 19. The 6,069 observations are not 6,069 independent experiments.
@@ -125,7 +127,7 @@ overlap heavily, so the automatic Newey–West lag is at least 19. The 6,069 obs
 The median t-statistic is 1.524. Energy and chemicals has the opposite sign, while gold's positive t-statistic accompanies a hit
 rate below 50%. Neither one nominally strong estimate nor a three-positive/one-negative count proves a universal commodity effect.
 
-![Actual commodity-carry time-series exploration report](/docs/images/help/zh/learning/commodity-carry-time-series-explore-result.png)
+![Historical Chinese UI example: Actual commodity-carry time-series exploration report](/docs/images/help/zh/learning/commodity-carry-time-series-explore-result.png)
 
 ## Step 5: seal both reports before revealing either
 
@@ -145,7 +147,7 @@ assets and dates, so the final verdict must remain more conservative than a coun
 The Panel holdout contains 17 eligible months and 68 observations. Mean Rank IC changed from 0.0186 to -0.0471, ICIR from 0.129
 to -0.219, and positive-IC frequency was only 47.06%. The preregistered positive-direction criterion failed.
 
-![Actual commodity-carry Panel holdout report](/docs/images/help/zh/learning/commodity-carry-panel-holdout-result.png)
+![Historical Chinese UI example: Actual commodity-carry Panel holdout report](/docs/images/help/zh/learning/commodity-carry-panel-holdout-result.png)
 
 | Panel metric | Explore | Holdout | Interpretation |
 | --- | ---: | ---: | --- |
@@ -159,7 +161,7 @@ Each time-series holdout has 343 observations. The four t-statistics are 1.143, 
 0.520, far below 1.96. Gold and non-ferrous remain weakly positive, energy remains negative, and soybean meal changes from positive
 to slightly negative.
 
-![Actual commodity-carry time-series holdout report](/docs/images/help/zh/learning/commodity-carry-time-series-holdout-result.png)
+![Historical Chinese UI example: Actual commodity-carry time-series holdout report](/docs/images/help/zh/learning/commodity-carry-time-series-holdout-result.png)
 
 | Proxy ETF | Explore correlation / t | Holdout correlation / t | Holdout direction hit rate |
 | --- | ---: | ---: | ---: |
