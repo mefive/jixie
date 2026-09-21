@@ -49,10 +49,32 @@ vi.mock('#infra/database/prisma.js', () => {
   };
 });
 
-const { fetchAllFundAdjForDate, syncEtfMarketDate, fillEtfHistoryGap } = await import('./sync.js');
+const {
+  fetchAllFundAdjForDate,
+  syncEtfMarketDate,
+  fillEtfHistoryGap,
+  prepareEtfMarketDate,
+  publishPreparedEtfMarketDate,
+} = await import('./sync.js');
 const client = {} as TushareClient;
 
 describe('ETF market date synchronization', () => {
+  it('prepares without writes and publishes the same candidate without refetching', async () => {
+    mocks.fundDaily.mockResolvedValue([{ ts_code: '510300.SH', trade_date: '20260821', close: 4 }]);
+    mocks.fundAdj.mockResolvedValue([
+      { ts_code: '510300.SH', trade_date: '20260821', adj_factor: 1 },
+    ]);
+    mocks.etfShareSize.mockResolvedValue([
+      { ts_code: '510300.SH', trade_date: '20260821', total_share: 10 },
+    ]);
+    const candidate = await prepareEtfMarketDate(client, '20260821', ['510300.SH']);
+    expect(mocks.dailyDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.shareSizeCreateMany).not.toHaveBeenCalled();
+    mocks.etfShareSize.mockResolvedValue([]);
+    await publishPreparedEtfMarketDate(candidate);
+    expect(mocks.etfShareSize).toHaveBeenCalledTimes(1);
+    expect(mocks.shareSizeCreateMany).toHaveBeenCalledTimes(1);
+  });
   beforeEach(() => {
     for (const mock of Object.values(mocks)) {
       mock.mockReset();

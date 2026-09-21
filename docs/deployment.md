@@ -191,9 +191,10 @@ journalctl -u jixie-maintenance.service -n 200 --no-pager
 按需重算 market-state。财务通过 VIP 按全部报告期核对，分红按全部股票核对，并用持久化 checkpoint
 支持 OOM 或重启后续传；财务默认每 1 个报告期、分红默认每 200 只股票启动独立子进程，批次结束即释放
 Node/Prisma 原生内存。不要再安装旧 cron，也不要在 API 内启动第二个 scheduler。
-daily / weekly service 失败后由 systemd 在 30 分钟后自动重试，6 小时内最多 3 次启动尝试；持续失败仍保留
-maintenance Gate 和日志，避免无界消耗上游额度。下次 bootstrap 会立即重试仍在阻塞 App 的失败
-daily / weekly，而不是等到下一次日历档期。
+daily 失败后由 systemd 每 30 分钟退避重试，不再因三次启动耗尽而停止跨夜恢复；bootstrap 同步更新旧的
+`jixie-maintenance.service.d/retry.conf`。weekly 仍保留六小时最多三次的原策略。
+daily 优先恢复原目标，不因日期变化扩展任务；新目标在上海 23:00 前最多取上一已开市日期。
+ETF 候选在行情写入前检查；纯来源等待可继续使用旧水位，已写入或旧版本遗留错误仍保留 Gate。
 weekly 还会在市场派生数据完成后增量计算所有已钉住因子的月度气象点。首次钉住会由 API worker 回填
 历史，部署本身不需要额外执行 factor sync；相关表由 Prisma migration 自动创建。
 完整顺序、锁、维护 Gate 和手动修复见
@@ -227,8 +228,10 @@ cd /opt/jixie
 
 脚本检查已有资源并跳过不需要的安装，拉取最新代码、按上次成功部署版本判断受影响组件、按需迁移和
 构建，同时收敛 systemd/nginx、确认行情水位和 timer，再执行健康检查。健康检查后若 App 仍被失败的
-daily / weekly maintenance 阻塞，bootstrap 会读取正式 status API 并通过对应 systemd service 幂等重试；
-repair 失败或仍在运行的任务不会被自动接管，脚本会停止并保留 Gate 供人工排障。若 bootstrap 自身在 pull 中
+daily / weekly maintenance 阻塞，bootstrap 只报告状态并失败退出，不启动或扩展数据任务；
+需要恢复时在仓库根目录运行 `pnpm maintenance daily --resume-only`，无待恢复任务则不做同步。
+首次初始化用 `daily --initialize-only` 验证已导入基线，不继续 catch-up。纯 ETF 来源等待不阻塞部署，
+由既有定时／退避机制重试。若 bootstrap 自身在 pull 中
 被更新，它会自动重新执行新版本脚本，用户无需再次运行。
 
 ## 7. 排障

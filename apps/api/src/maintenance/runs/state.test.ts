@@ -75,6 +75,33 @@ describe('maintenance status gate', () => {
     });
   });
 
+  it('exposes a source-only wait without blocking the previously published data', async () => {
+    findFirst.mockResolvedValue(null);
+    findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'waiting-1',
+        kind: 'daily',
+        startDate: '20260921',
+        endDate: '20260921',
+        stage: 'waiting_source',
+        status: 'waiting',
+        error: 'ETF source pending',
+        startedAt: new Date(),
+        heartbeatAt: new Date(),
+      });
+    findState.mockResolvedValue({ dailyPublishedThrough: '20260918', dataRevision: 1 });
+    expect(await getMaintenanceStatus()).toMatchObject({
+      active: false,
+      stage: 'waiting_source',
+      lastSuccessfulDailyDate: '20260918',
+      error: 'ETF source pending',
+    });
+  });
+
   it('uses a deployment run as the same App maintenance gate', async () => {
     findFirst
       .mockResolvedValueOnce({

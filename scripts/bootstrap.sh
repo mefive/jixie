@@ -879,53 +879,21 @@ finish_deployment_gate() {
   DEPLOYMENT_RUN_ID=""
 }
 
-retry_blocking_maintenance() {
-  local attempt
+check_blocking_maintenance() {
   local maintenance_status
   local maintenance_active
-  local maintenance_kind
-  local maintenance_stage
-
-  for ((attempt = 0; attempt <= 4; attempt++)); do
-    maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/maintenance/status")" ||
-      die "无法读取 maintenance status"
-    read -r maintenance_active maintenance_kind maintenance_stage < <(
-      STATUS_JSON="$maintenance_status" node -e '
-        const status = JSON.parse(process.env.STATUS_JSON);
-        process.stdout.write(
-          `${status.active ? "1" : "0"} ${status.kind ?? "none"} ${status.stage ?? "none"}\n`,
-        );
-      '
-    )
-    if [[ "$maintenance_active" == "0" ]]; then
-      return
-    fi
-    [[ "$attempt" -lt 4 ]] || die "maintenance Gate 自动恢复超过最大重试次数: $maintenance_status"
-    [[ "$maintenance_stage" == "error" || "$maintenance_stage" == "interrupted" ]] ||
-      die "maintenance Gate 存在非错误活跃任务,拒绝并发恢复: $maintenance_status"
-
-    case "$maintenance_kind" in
-      daily)
-        log "重试仍在阻塞 App 的 daily maintenance"
-        sudo systemctl reset-failed jixie-maintenance.service
-        if ! sudo systemctl restart jixie-maintenance.service; then
-          warn "daily maintenance 本次恢复失败,重新读取 Gate 状态"
-        fi
-        ;;
-      weekly)
-        log "重试仍在阻塞 App 的 weekly maintenance"
-        sudo systemctl reset-failed jixie-maintenance-weekly.service
-        if ! sudo systemctl restart jixie-maintenance-weekly.service; then
-          warn "weekly maintenance 本次恢复失败,重新读取 Gate 状态"
-        fi
-        ;;
-      *)
-        die "maintenance Gate 需要人工修复,不自动重试 $maintenance_kind: $maintenance_status"
-        ;;
-    esac
-  done
-
-  die "maintenance Gate 自动恢复超过最大重试次数"
+  maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/maintenance/status")" ||
+    die "无法读取 maintenance status"
+  maintenance_active="$(
+    STATUS_JSON="$maintenance_status" node -e '
+      const status = JSON.parse(process.env.STATUS_JSON);
+      process.stdout.write(status.active ? "1" : "0");
+    '
+  )"
+  if [[ "$maintenance_active" == "0" ]]; then
+    return
+  fi
+  die "既有维护仍阻塞 App;部署不启动或扩展数据任务。请按原目标恢复维护: $maintenance_status"
 }
 
 cleanup_deployment_gate() {
@@ -1309,6 +1277,9 @@ for unit in \
       -e "s#^Group=jixie#Group=$JIXIE_DEPLOY_USER#" \
       "$JIXIE_DIR/deploy/$unit" | sudo tee "/etc/systemd/system/$unit" >/dev/null
 done
+sudo install -d /etc/systemd/system/jixie-maintenance.service.d
+sudo install -m 644 "$JIXIE_DIR/deploy/jixie-maintenance-retry.conf" \
+  /etc/systemd/system/jixie-maintenance.service.d/retry.conf
 sudo systemctl daemon-reload
 sudo systemctl enable --now jixie-backup.timer
 CURRENT_WATERMARK="$(
@@ -1376,7 +1347,7 @@ HEALTH="$(curl -fsS "localhost:$JIXIE_PORT/api/health" 2>/dev/null || true)"
 echo "  /api/health: ${HEALTH:-<无响应>}"
 [[ "$HEALTH" == *'"ok":true'* ]] || warn "健康检查未过,查日志: journalctl -u $JIXIE_SERVICE -e"
 
-retry_blocking_maintenance
+check_blocking_maintenance
 
 ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
 WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"

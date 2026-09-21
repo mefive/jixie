@@ -8,6 +8,8 @@ import {
 } from '#market/calendar/read.js';
 import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
 import { syncTradeCal } from '#market/calendar/sync.js';
+import { MarketSourcePendingError } from '#market/errors.js';
+import type { PreparedEtfMarketDate } from '#market/etfs/sync.js';
 import {
   syncCommodityContinuousReturns,
   type CommodityContinuousReturnSyncSummary,
@@ -46,7 +48,7 @@ import { syncMarketIndicators } from '#market/state/sync.js';
 import { syncDailyCoreDate } from '#market/stocks/daily-sync.js';
 import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
 import { generateDailySignals } from '#signals/daily/scheduler.js';
-import { syncSignalMarketData } from '#signals/daily/sync.js';
+import { prepareSignalEtfMarketDate, syncSignalMarketData } from '#signals/daily/sync.js';
 import type { TradeDate } from '@jixie/shared';
 import { validateRawMarketDate } from '../publication/gate.js';
 import {
@@ -58,12 +60,14 @@ import {
 import { assertProductionLock, waitForRunningWork } from '../runs/coordination.js';
 import {
   beginMaintenanceRun,
+  getPendingDailyRun,
+  recordDailySourceWait,
   finishMaintenanceRun,
   startMaintenanceHeartbeat,
   updateMaintenanceRun,
   type MaintenanceTrigger,
 } from '../runs/state.js';
-import { shouldSkipScheduledClosedDay } from './daily-schedule.js';
+import { scheduledDailyUpperBound, shouldSkipScheduledClosedDay } from './daily-schedule.js';
 import { selfHealMarketDates, type SelfHealSummary } from './self-heal.js';
 
 export interface DailyMaintenanceOptions {
@@ -72,9 +76,12 @@ export interface DailyMaintenanceOptions {
   trigger?: MaintenanceTrigger;
   onLog?: (line: string) => void;
   maintainWarehouseReceipts?: boolean;
+  resumeOnly?: boolean;
+  initializeOnly?: boolean;
 }
 
 export interface DailyMaintenanceSummary {
+  retryForNewTarget?: boolean;
   cutoff: string;
   startDate: string | null;
   readyThrough: string | null;
@@ -94,21 +101,43 @@ export interface DailyMaintenanceSummary {
 
 export async function runDailyMaintenance(
   options: DailyMaintenanceOptions = {},
-): Promise<DailyMaintenanceSummary> {
+): Promise<DailyMaintenanceSummary | null> {
   assertProductionLock();
   const onLog = options.onLog ?? ((line: string) => console.log(`[maintenance:daily] ${line}`));
   const trigger = options.trigger ?? (process.env.INVOCATION_ID ? 'timer' : 'manual');
   const client = createClient();
   const today = shanghaiToday();
   let state = await getMaintenanceState();
+  if (options.initializeOnly && state.dailyPublishedThrough) {
+    onLog(`Publication baseline already exists: ${state.dailyPublishedThrough}`);
+    return null;
+  }
+  const pending =
+    !options.targetDate && !options.initializeOnly
+      ? await getPendingDailyRun(state.dailyPublishedThrough)
+      : null;
+  if (options.resumeOnly && !pending) {
+    onLog('No pending daily run to resume');
+    return null;
+  }
   const calendarStart =
-    options.targetDate ?? state.dailyPublishedThrough ?? previousCalendarDate(today);
+    options.targetDate ??
+    pending?.startDate ??
+    state.dailyPublishedThrough ??
+    previousCalendarDate(today);
   const calendarEnd = options.targetDate
     ? addCalendarDays(options.targetDate, 14)
     : addCalendarDays(today, 14);
   await syncTradeCal(client, calendarStart as TradeDate, calendarEnd as TradeDate);
   const latestAvailableCutoff = await latestCompletedTradeDate();
-  const cutoff = options.targetDate ?? latestAvailableCutoff;
+  const scheduledDate = options.targetDate
+    ? null
+    : await prisma.tradeCal.findFirst({
+        where: { exchange: 'SSE', isOpen: 1, calDate: { lte: scheduledDailyUpperBound() } },
+        orderBy: { calDate: 'desc' },
+        select: { calDate: true },
+      });
+  const cutoff = options.targetDate ?? pending?.endDate ?? scheduledDate?.calDate;
   if (!cutoff) {
     throw new Error('No completed SSE trading date is available');
   }
@@ -119,12 +148,21 @@ export async function runDailyMaintenance(
   if (!options.targetDate && !state.dailyPublishedThrough) {
     state = await initializePublishedBaseline(client, cutoff, trigger, onLog);
   }
+  if (options.initializeOnly) {
+    return null;
+  }
+  if (!options.targetDate && state.dailyPublishedThrough && cutoff < state.dailyPublishedThrough) {
+    onLog(
+      `Published watermark ${state.dailyPublishedThrough} already exceeds scheduled cutoff ${cutoff}`,
+    );
+    return null;
+  }
 
   const dates = options.targetDate
     ? await getExplicitOpenDate(cutoff)
     : await getOpenDatesAfter(state.dailyPublishedThrough!, cutoff);
 
-  if (!options.targetDate && trigger === 'timer') {
+  if (!options.targetDate && !pending && trigger === 'timer') {
     const todayCalendar = await prisma.tradeCal.findUnique({
       where: { exchange_calDate: { exchange: 'SSE', calDate: today } },
       select: { isOpen: true },
@@ -196,10 +234,32 @@ export async function runDailyMaintenance(
   }
 
   const startDate = dates[0];
+  // All ETF candidates are retained until publication. A later source regression cannot turn a
+  // successful preflight into an incomplete fetch after published history has been modified.
+  const preparedEtfs = new Map<string, PreparedEtfMarketDate>();
+  try {
+    for (const tradeDate of dates) {
+      preparedEtfs.set(tradeDate, await prepareSignalEtfMarketDate(client, tradeDate as TradeDate));
+    }
+  } catch (error) {
+    if (
+      error instanceof MarketSourcePendingError &&
+      state.dailyPublishedThrough &&
+      !options.targetDate
+    ) {
+      await recordDailySourceWait({
+        startDate: pending?.startDate ?? startDate,
+        endDate: cutoff,
+        trigger,
+        error: error.message,
+      });
+    }
+    throw error;
+  }
   const run = await beginMaintenanceRun({
     kind: 'daily',
     targetKey: cutoff,
-    startDate,
+    startDate: pending?.startDate ?? startDate,
     endDate: cutoff,
     trigger,
     force: options.force,
@@ -218,6 +278,7 @@ export async function runDailyMaintenance(
   }
 
   const summary: DailyMaintenanceSummary = {
+    retryForNewTarget: Boolean(pending && scheduledDate && cutoff < scheduledDate.calDate),
     cutoff,
     startDate,
     readyThrough: null,
@@ -331,6 +392,7 @@ export async function runDailyMaintenance(
           coreAlreadyPublished: true,
           extensionsAlreadyPublished: true,
           refresh: true,
+          preparedEtf: preparedEtfs.get(tradeDate),
         });
 
         await updateMaintenanceRun(run.id, 'validating_raw', {

@@ -1,5 +1,26 @@
 import type { MaintenanceTrigger } from '../runs/state.js';
 
+/** A delayed/persistent timer before 23:00 must not start the current trading day's batch. */
+export function scheduledDailyUpperBound(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const date = `${values.year}${values.month}${values.day}`;
+  if (Number(values.hour) >= 23) {
+    return date;
+  }
+  return new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day) - 1))
+    .toISOString()
+    .slice(0, 10)
+    .replaceAll('-', '');
+}
+
 export interface ScheduledClosedDayInput {
   trigger: MaintenanceTrigger;
   targetDate?: string;

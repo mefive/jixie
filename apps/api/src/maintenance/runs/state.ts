@@ -29,6 +29,57 @@ export interface MaintenanceRunHandle {
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
+/** A retry owns its original range even after the wall clock advances. */
+export async function getPendingDailyRun(publishedThrough: string | null) {
+  return prisma.maintenanceRun.findFirst({
+    where: {
+      kind: 'daily',
+      status: { in: ['error', 'waiting'] },
+      NOT: { targetKey: { startsWith: 'baseline:' } },
+      endDate: publishedThrough ? { gt: publishedThrough } : { not: null },
+    },
+    orderBy: { startedAt: 'asc' },
+  });
+}
+
+/** Only preflight-only attempts can be non-blocking. Never downgrade a legacy/dirty error. */
+export async function recordDailySourceWait(input: {
+  startDate: string;
+  endDate: string;
+  trigger: MaintenanceTrigger;
+  error: string;
+}): Promise<void> {
+  await prisma.$transaction(async (transaction) => {
+    const existing = await transaction.maintenanceRun.findUnique({
+      where: { kind_targetKey: { kind: 'daily', targetKey: input.endDate } },
+    });
+    if (existing && existing.status !== 'waiting') {
+      return;
+    }
+    const now = new Date();
+    const data = {
+      status: 'waiting',
+      stage: 'waiting_source',
+      error: input.error,
+      heartbeatAt: now,
+      finishedAt: now,
+      trigger: input.trigger,
+      startDate: input.startDate,
+      endDate: input.endDate,
+    };
+    if (existing) {
+      await transaction.maintenanceRun.update({
+        where: { id: existing.id },
+        data: { ...data, attempts: { increment: 1 } },
+      });
+    } else {
+      await transaction.maintenanceRun.create({
+        data: { ...data, id: ulid(), kind: 'daily', targetKey: input.endDate },
+      });
+    }
+  });
+}
+
 export async function beginMaintenanceRun(input: {
   kind: MaintenanceKind;
   targetKey: string;
@@ -149,25 +200,30 @@ export async function completeMaintenanceItem(
 }
 
 export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
-  const [running, latestDailyError, latestWeekly, latestRepairError, state] = await Promise.all([
-    prisma.maintenanceRun.findFirst({
-      where: { status: 'running' },
-      orderBy: { startedAt: 'desc' },
-    }),
-    prisma.maintenanceRun.findFirst({
-      where: { kind: 'daily', status: 'error' },
-      orderBy: { startedAt: 'desc' },
-    }),
-    prisma.maintenanceRun.findFirst({
-      where: { kind: 'weekly' },
-      orderBy: { startedAt: 'desc' },
-    }),
-    prisma.maintenanceRun.findFirst({
-      where: { kind: 'repair', status: 'error' },
-      orderBy: { startedAt: 'desc' },
-    }),
-    getMaintenanceState(),
-  ]);
+  const [running, latestDailyError, latestWeekly, latestRepairError, state, waiting] =
+    await Promise.all([
+      prisma.maintenanceRun.findFirst({
+        where: { status: 'running' },
+        orderBy: { startedAt: 'desc' },
+      }),
+      prisma.maintenanceRun.findFirst({
+        where: { kind: 'daily', status: 'error' },
+        orderBy: { startedAt: 'desc' },
+      }),
+      prisma.maintenanceRun.findFirst({
+        where: { kind: 'weekly' },
+        orderBy: { startedAt: 'desc' },
+      }),
+      prisma.maintenanceRun.findFirst({
+        where: { kind: 'repair', status: 'error' },
+        orderBy: { startedAt: 'desc' },
+      }),
+      getMaintenanceState(),
+      prisma.maintenanceRun.findFirst({
+        where: { kind: 'daily', status: 'waiting' },
+        orderBy: { startedAt: 'asc' },
+      }),
+    ]);
   const blockingDailyError =
     !running &&
     latestDailyError?.endDate != null &&
@@ -179,21 +235,28 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
     .filter((run) => run != null)
     .sort((left, right) => right.startedAt.getTime() - left.startedAt.getTime())[0];
   const activeRun = running ?? blockingError;
-  const summary = asSummary(activeRun?.summary);
+  const visibleRun =
+    activeRun ??
+    (state.dailyPublishedThrough &&
+    waiting?.endDate &&
+    waiting.endDate > state.dailyPublishedThrough
+      ? waiting
+      : null);
+  const summary = asSummary(visibleRun?.summary);
 
   return {
     active: activeRun != null,
-    runId: activeRun?.id ?? null,
-    kind: (activeRun?.kind as MaintenanceKind | undefined) ?? null,
-    startDate: activeRun?.startDate ?? null,
-    endDate: activeRun?.endDate ?? null,
+    runId: visibleRun?.id ?? null,
+    kind: (visibleRun?.kind as MaintenanceKind | undefined) ?? null,
+    startDate: visibleRun?.startDate ?? null,
+    endDate: visibleRun?.endDate ?? null,
     completedDates: numberField(summary, 'completedDates'),
     totalDates: numberField(summary, 'totalDates'),
     lastSuccessfulDailyDate: state.dailyPublishedThrough,
-    stage: activeRun?.stage ?? null,
-    startedAt: activeRun?.startedAt.toISOString() ?? null,
-    heartbeatAt: activeRun?.heartbeatAt.toISOString() ?? null,
-    error: activeRun?.error ?? null,
+    stage: visibleRun?.stage ?? null,
+    startedAt: visibleRun?.startedAt.toISOString() ?? null,
+    heartbeatAt: visibleRun?.heartbeatAt.toISOString() ?? null,
+    error: visibleRun?.error ?? null,
     retryAfterSeconds: 5,
   };
 }

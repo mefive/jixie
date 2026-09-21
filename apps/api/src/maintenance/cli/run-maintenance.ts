@@ -55,19 +55,35 @@ async function recoverInterruptedRuns(
 
 async function runDaily(args: string[]): Promise<void> {
   const force = args.includes('--force');
+  const resumeOnly = args.includes('--resume-only');
+  const initializeOnly = args.includes('--initialize-only');
   const dates = args.filter((argument) => !argument.startsWith('--'));
   if (
     dates.length > 1 ||
-    args.some((argument) => argument.startsWith('--') && argument !== '--force')
+    args.some(
+      (argument) =>
+        argument.startsWith('--') &&
+        !['--force', '--resume-only', '--initialize-only'].includes(argument),
+    ) ||
+    ((resumeOnly || initializeOnly) && (dates.length > 0 || force)) ||
+    (resumeOnly && initializeOnly)
   ) {
-    throw new Error('Usage: pnpm maintenance [daily] [YYYYMMDD] [--force]');
+    throw new Error(
+      'Usage: pnpm maintenance daily [YYYYMMDD] [--force] | daily --resume-only | daily --initialize-only',
+    );
   }
   const targetDate = dates[0];
   assertDate(targetDate, 'Target date');
 
   await recoverInterruptedRuns('daily');
-  const summary = await runDailyMaintenance({ targetDate, force });
+  const summary = await runDailyMaintenance({ targetDate, force, resumeOnly, initializeOnly });
   console.log('[maintenance:daily] complete', summary);
+  if (summary?.retryForNewTarget && !resumeOnly && process.env.INVOCATION_ID) {
+    console.log(
+      '[maintenance:daily] Original target completed; schedule a separate catch-up attempt',
+    );
+    process.exitCode = 75;
+  }
 }
 
 async function runWeekly(args: string[]): Promise<void> {

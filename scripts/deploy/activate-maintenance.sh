@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the daily coordinator once to establish or advance the publication watermark, then enable the
+# Validate an imported baseline without advancing to a new daily batch, then enable the
 # production maintenance timers.
 set -Eeuo pipefail
 
@@ -43,8 +43,8 @@ watermark="$(
     true
 )"
 if [[ -z "$watermark" ]]; then
-  log "Run the daily coordinator to establish the publication watermark"
-  sudo systemctl start jixie-maintenance.service
+  log "Validate the imported publication baseline without starting a new daily batch"
+  "$PROJECT_DIR/scripts/maintenance/with-maintenance-lock.sh" pnpm --filter api maintenance daily --initialize-only
   watermark="$(
     sqlite3 "$DATABASE_FILE" \
       "SELECT dailyPublishedThrough FROM MaintenanceState WHERE key = 'global';" 2>/dev/null ||

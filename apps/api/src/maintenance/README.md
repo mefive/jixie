@@ -45,6 +45,12 @@ CLI、HTTP URL、环境变量、systemd 和锁路径不变；不新建调度器�
 
 ## 恢复与发布安全
 
+- 部署只检查维护状态，不启动 daily/weekly。首次部署通过 `daily --initialize-only` 验证已导入基线后退出，不继续补到今天；`daily --resume-only` 只恢复已有任务，无待恢复任务则退出。
+- 默认 daily 优先恢复最早未完成目标，不扩展其 endDate；无旧目标时以上海 23:00 为新日任务边界，再按 SSE 日历选交易日，不直接用自然日减一作为交易日。
+- 在自愈、历史窗口刷新及行情写入之前，为整个待补区间检查 registry 与部署引用 ETF 的候选覆盖。候选驻留本轮内存并用于发布，避免预检成功后重新请求得到缺失响应。只有新任务或原 `waiting` 任务可记录 `waiting/waiting_source`；旧 error 不降级。状态 API 可返回 `active=false` 与 waiting 元数据，旧水位继续可用。
+- 预检不是所有来源的完整快照隔离。进入行情写入之后的失败、weekly/repair 失败仍保守封站；历史遗留错误不因升级而自动解锁。待补区间较长时预检请求和内存占用随区间增长。
+- daily 以 30 分钟间隔持续重试（包括锁冲突及技术错误），无启动次数上限；重复确定性错误仍须人工排障，日志不被吞掉。weekly 重试策略不变。
+
 - weekly 的审计截止日为 `dailyPublishedThrough`，不是运行当天；weekly 不负责推进日发布水位。
 - weekly 自愈中 `MAINTENANCE_MAX_AUTO_REPAIR_DATES` 是进度汇报批大小，不再是整次运行上限。每个日期修复后重查，仍有缺口立即失败，避免无进展空转；daily 保留原有限额。
 - 历史变更前写入 `MaintenanceCheckpoint` 的 `derived-invalidation`。即使进程中断、重试时原始缺口已消失，也仍重算派生数据。当前采用保守的全已发布历史失效范围，因此派生重算可能较长，不承诺短时间恢复。

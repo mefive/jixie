@@ -911,7 +911,7 @@ model MaintenanceRun {
   startDate   String?
   endDate     String?
   trigger     String // 'timer' | 'manual'
-  status      String // 'running' | 'done' | 'error'
+  status      String // 'running' | 'done' | 'error' | 'waiting' (read-only daily source preflight)
   stage       String
   attempts    Int       @default(1)
   summary     Json?

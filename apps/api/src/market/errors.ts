@@ -62,3 +62,11 @@ export class ChinaBondHttpStatusError extends Error {
     super(message);
   }
 }
+
+/** A valid response is incomplete; it does not prove permanent source absence. */
+export class MarketSourcePendingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MarketSourcePendingError';
+  }
+}

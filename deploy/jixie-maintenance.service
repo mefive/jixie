@@ -2,8 +2,7 @@
 Description=jixie daily market-data maintenance
 After=network-online.target jixie-api.service
 Wants=network-online.target
-StartLimitIntervalSec=6h
-StartLimitBurst=3
+StartLimitIntervalSec=0
 
 [Service]
 Type=oneshot

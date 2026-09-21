@@ -1,5 +1,19 @@
 # 生产维护与调度设计
 
+## 2026-09-21 部署与日发布解耦（代码审查及本地验证通过，生产待验收）
+
+计划提交：`fix(maintenance): decouple deployment from daily publication`。
+本节替代下文历史设计中 bootstrap 自动重跑失败 daily/weekly、恢复时重新选当天、以及 daily 三次启动上限的描述。
+
+- bootstrap 仅检查 Gate。已存在的不安全失败保持阻塞并明确报告，不能把“部署成功”等同于数据已恢复；首次 activation 使用受锁的 `daily --initialize-only`，验证已导入基线后退出。
+- 普通 daily 优先恢复最早未完成的原 endDate；`daily --resume-only` 无旧任务时为空操作。新任务以上海 23:00 为边界，通过 SSE 日历选择最近可尝试日期。成功恢复旧目标后若仍有已到调度时间的新目标，systemd 以退出码 75 安排独立的下一次尝试，不把新日期塞入旧运行。
+- 行情写入前检查整个待补区间的 ETF 日线、复权、份额候选（含 registry 和部署引用）。候选驻留内存并用于后续事务，不二次请求。ETF 覆盖未齐时先不发布任何前缀；其他来源及派生质量检查仍在原流程执行，不宣称拥有跨所有数据源的快照隔离。
+- 新增现有字符串状态值 `waiting` / stage `waiting_source`，只用于未经行情写入的来源等待，不涉及数据库结构迁移。`active=false` 时仍可在 status API 查看等待目标与缺失原因。旧 error、已发生行情写入的错误、weekly/repair 错误不降级。
+- daily 保留 `Restart=on-failure` / `RestartSec=30m`，取消启动次数上限；bootstrap 覆盖既有托管 `retry.conf`，避免旧 drop-in 把上限加回来。技术／确定性失败也会按此间隔重试，需人工关注日志；weekly 维持原策略，不新增 timer。
+- 范围与风险：不直接清理生产 Gate、不改水位、不伪造来源、不修改其他 agent 的 Research 文件。长区间预检的请求量和内存随日期数增长。生产既有 9 月 21 日失败已进行过写入，升级后仍须正常恢复，不能承诺安装即可解锁。
+
+静态检查已通过：API TypeScript、受影响文件 ESLint/Prettier、Shell 语法、diff 及后端依赖边界（0 违规）。用户确认代码审查后，Maintenance / ETF / Signals daily 共 20 个测试文件、90 项测试通过；bootstrap 与部署规划共 19 项通过；后端边界检查器 28 项自测通过，扫描 0 违规。shared 和 API 构建通过。验证未启动生产同步或测试服务，未修改生产数据；仅提交本次改动，不推送、不部署，生产行为仍待验收。
+
 > 状态：代码已实现，待生产验收。本文同时记录已落地行为和生产启用步骤。仓库中的 service、timer、
 > CLI、状态表和前端 Gate 已可用。bootstrap 会在目标机器自动完成导入、首次 daily 基线建立和 timer
 > 激活；仍需按第 13 节观察验收后，才能认为生产定时维护稳定运行。

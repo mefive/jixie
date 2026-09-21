@@ -4,6 +4,26 @@ import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 const bootstrap = await readFile(new URL('../bootstrap.sh', import.meta.url), 'utf8');
+
+test('deployment checks the gate but never starts or restarts a daily/weekly service', () => {
+  assert.doesNotMatch(bootstrap, /systemctl (?:start|restart|reset-failed) jixie-maintenance/);
+  assert.doesNotMatch(bootstrap, /retry_blocking_maintenance/);
+  assert.match(bootstrap, /check_blocking_maintenance/);
+});
+
+test('activation validates only the imported baseline and upgrades the legacy retry drop-in', async () => {
+  const activation = await readFile(new URL('./activate-maintenance.sh', import.meta.url), 'utf8');
+  assert.match(activation, /maintenance daily --initialize-only/);
+  assert.doesNotMatch(activation, /systemctl start jixie-maintenance.service/);
+  assert.match(bootstrap, /jixie-maintenance-retry.conf/);
+  assert.match(bootstrap, /jixie-maintenance.service.d\/retry.conf/);
+  const retry = await readFile(
+    new URL('../../deploy/jixie-maintenance-retry.conf', import.meta.url),
+    'utf8',
+  );
+  assert.match(retry, /StartLimitIntervalSec=0/);
+  assert.match(retry, /RestartSec=30m/);
+});
 const cleanup = bootstrap.slice(
   bootstrap.indexOf('cleanup_deployment_gate() {'),
   bootstrap.indexOf('trap cleanup_deployment_gate EXIT'),

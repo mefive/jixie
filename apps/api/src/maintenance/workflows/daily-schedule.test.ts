@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { shouldSkipScheduledClosedDay } from './daily-schedule.js';
+import { scheduledDailyUpperBound, shouldSkipScheduledClosedDay } from './daily-schedule.js';
 
 describe('daily maintenance schedule', () => {
+  it('does not target today before the 23:00 Shanghai release attempt', () => {
+    expect(scheduledDailyUpperBound(new Date('2026-09-21T08:37:00Z'))).toBe('20260920');
+    expect(scheduledDailyUpperBound(new Date('2026-09-21T14:59:59Z'))).toBe('20260920');
+    expect(scheduledDailyUpperBound(new Date('2026-09-21T15:00:00Z'))).toBe('20260921');
+    expect(scheduledDailyUpperBound(new Date('2026-09-21T16:30:00Z'))).toBe('20260921');
+  });
   it('skips a scheduled run when today is explicitly closed and no catch-up is pending', () => {
     expect(
       shouldSkipScheduledClosedDay({

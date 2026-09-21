@@ -10,10 +10,39 @@ import { governmentYieldTermsFromDependencies } from '../factor-inputs/rates.js'
 import { syncDaily, syncDailyBasic, syncStkLimit } from '#market/stocks/daily-sync.js';
 import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
 import { syncTradeCal } from '#market/calendar/sync.js';
-import { syncEtfMarketDate } from '#market/etfs/sync.js';
+import {
+  prepareEtfMarketDate,
+  publishPreparedEtfMarketDate,
+  syncEtfMarketDate,
+  type PreparedEtfMarketDate,
+} from '#market/etfs/sync.js';
 import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
 import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
+
+/** Include deployment references in the same read-only readiness check as the registry. */
+export async function prepareSignalEtfMarketDate(
+  client: TushareClient,
+  tradeDate: TradeDate,
+): Promise<PreparedEtfMarketDate> {
+  const deployments = await prisma.strategyDeployment.findMany({
+    where: { status: 'active' },
+    select: { config: true },
+  });
+  const definitions = await Promise.all(
+    deployments.map(async (deployment) => {
+      const code = (deployment.config as { code?: unknown }).code;
+      return typeof code === 'string' ? inspectStrategyMetadata(code) : { watch: [] };
+    }),
+  );
+  const watchedEtfs = await prisma.etfBasic.findMany({
+    where: { tsCode: { in: [...new Set(definitions.flatMap((definition) => definition.watch))] } },
+    select: { tsCode: true },
+  });
+  return prepareEtfMarketDate(client, tradeDate, [
+    ...new Set([...ETF_RESEARCH_CODES, ...watchedEtfs.map((etf) => etf.tsCode)]),
+  ]);
+}
 
 /** Synchronize the datasets needed by active stock/ETF deployments for one signal close. */
 export async function syncSignalMarketData(
@@ -23,6 +52,7 @@ export async function syncSignalMarketData(
     coreAlreadyPublished?: boolean;
     extensionsAlreadyPublished?: boolean;
     refresh?: boolean;
+    preparedEtf?: PreparedEtfMarketDate;
   } = {},
 ): Promise<void> {
   const config = loadTushareConfig();
@@ -101,7 +131,18 @@ export async function syncSignalMarketData(
   onLog(
     `Syncing ${ETF_RESEARCH_CODES.length} registry ETF products plus ${watchedEtfs.length} deployment reference(s)`,
   );
-  await syncEtfMarketDate(client, tradeDate as TradeDate, etfCodes);
+  if (options.preparedEtf) {
+    if (options.preparedEtf.tradeDate !== tradeDate) {
+      throw new Error('Prepared ETF candidate does not match the signal date');
+    }
+    // A deployment can be edited during preflight. Never publish an unchecked new universe.
+    if (etfCodes.some((code) => !options.preparedEtf!.sourceCodes.includes(code))) {
+      throw new Error('ETF deployment references changed after source preflight');
+    }
+    await publishPreparedEtfMarketDate(options.preparedEtf);
+  } else {
+    await syncEtfMarketDate(client, tradeDate as TradeDate, etfCodes);
+  }
   onLog(`Signal data sync complete for ${tradeDate}`);
 }
 

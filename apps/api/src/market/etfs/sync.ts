@@ -1,4 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
+import { MarketSourcePendingError } from '../errors.js';
 import { prisma } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import {
@@ -186,12 +187,12 @@ export async function fetchAllFundAdjForDate(
   }
 }
 
-/** Atomically replace daily price, adjustment, and share-size slices for selected ETF products. */
-export async function syncEtfMarketDate(
+/** Read and validate source candidates without changing any published market data. */
+export async function prepareEtfMarketDate(
   client: TushareClient,
   tradeDate: TradeDate,
   requestedCodes: readonly string[],
-): Promise<EtfMarketDateSyncSummary> {
+) {
   const activeCodes = await activeEtfCodesOnDate(requestedCodes, tradeDate);
   if (activeCodes.length === 0) {
     throw new Error(`No requested ETF is active on ${tradeDate}`);
@@ -223,6 +224,36 @@ export async function syncEtfMarketDate(
   const missingDailyCodes = missingCoverage(activeCodes, dailyRows);
   assertTolerableDailyGaps(activeCodes, missingDailyCodes, tradeDate);
 
+  return {
+    tradeDate,
+    availableDate,
+    activeCodes,
+    dailyRows,
+    adjustmentRows,
+    shareSizeRows,
+    missingDailyCodes,
+    requestedCodes: new Set(requestedCodes).size,
+    sourceCodes: [...requestedCodes],
+  };
+}
+
+export type PreparedEtfMarketDate = Awaited<ReturnType<typeof prepareEtfMarketDate>>;
+
+/** Atomically replace only validated source candidates. */
+export async function publishPreparedEtfMarketDate(
+  candidate: PreparedEtfMarketDate,
+): Promise<EtfMarketDateSyncSummary> {
+  const {
+    tradeDate,
+    availableDate,
+    activeCodes,
+    dailyRows,
+    adjustmentRows,
+    shareSizeRows,
+    missingDailyCodes,
+    requestedCodes,
+  } = candidate;
+
   await publishEtfMarketDate(
     tradeDate,
     availableDate,
@@ -234,7 +265,7 @@ export async function syncEtfMarketDate(
   const summary = {
     tradeDate,
     availableDate,
-    requestedCodes: new Set(requestedCodes).size,
+    requestedCodes,
     activeCodes: activeCodes.length,
     daily: dailyRows.length,
     adjustment: adjustmentRows.length,
@@ -245,6 +276,17 @@ export async function syncEtfMarketDate(
     `ETF market ${tradeDate}: ${summary.daily} daily, ${summary.adjustment} adjustment, ${summary.shareSize} share-size rows, ${summary.missingDailyCodes.length} no-bar products; available ${availableDate}`,
   );
   return summary;
+}
+
+/** Atomically replace daily price, adjustment, and share-size slices for selected ETF products. */
+export async function syncEtfMarketDate(
+  client: TushareClient,
+  tradeDate: TradeDate,
+  requestedCodes: readonly string[],
+): Promise<EtfMarketDateSyncSummary> {
+  return publishPreparedEtfMarketDate(
+    await prepareEtfMarketDate(client, tradeDate, requestedCodes),
+  );
 }
 
 /** Atomically replace only the share-size slice, used by bounded historical backfills. */
@@ -501,7 +543,9 @@ function assertCompleteCoverage<Row extends { ts_code: string }>(
 ): void {
   const missingCodes = missingCoverage(activeCodes, rows);
   if (missingCodes.length > 0) {
-    throw new Error(`${source} missing ETF code(s) on ${tradeDate}: ${missingCodes.join(', ')}`);
+    throw new MarketSourcePendingError(
+      `${source} missing ETF code(s) on ${tradeDate}: ${missingCodes.join(', ')}`,
+    );
   }
 }
 
@@ -515,7 +559,7 @@ function assertTolerableDailyGaps(
   // gap is treated as a truncated/failed provider response and blocks publication.
   const maximumNoBarProducts = Math.max(2, Math.ceil(activeCodes.length * 0.05));
   if (missingDailyCodes.length > maximumNoBarProducts) {
-    throw new Error(
+    throw new MarketSourcePendingError(
       `fund_daily missing ${missingDailyCodes.length}/${activeCodes.length} ETF code(s) on ${tradeDate}: ${missingDailyCodes.join(', ')}`,
     );
   }
