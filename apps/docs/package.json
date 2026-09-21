@@ -8,6 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "check:help": "node e2e/help-content.mjs",
+    "test:help-content": "node --test e2e/help-content.test.mjs",
     "lint": "eslint ."
   },
   "dependencies": {

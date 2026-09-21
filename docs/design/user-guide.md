@@ -1333,15 +1333,15 @@ Research SDK 和固定统计运行环境。本阶段只记录用户能看到、�
 以后新增研究数据集、口径确认类型或 Python 运行包时，以本节的 91 篇正文和 6 张阶段 M 功能标注图为
 增量维护基线。
 
-### 11.15 2026-09-21：当前能力校准（三提交，进行中）
+### 11.15 2026-09-21：当前能力校准（三提交，已完成）
 
-用户已批准以下三提交规划，并已通过第 1、2 项范围及代码 review。基线 `aa838133`；本轮按 review-gated-development 执行。
+用户已批准以下三提交规划，并已通过第 1、2 项范围及代码 review；第 3 项测试范围已获批准。基线 `aa838133`；本轮按 review-gated-development 执行。
 
 | 顺序 | 准确提交信息 | 交付与当前状态 |
 | --- | --- | --- |
 | 1 | `docs(help): align bilingual guides with current workflows` | 中英文正文、入口摘要及功能清单校准；人工 review、静态检查、构建和现有 E2E 已通过 |
 | 2 | `docs(help): refresh outdated product screenshots` | 完成 28 个场景的双语制图、历史图分类与图注；人工 review、静态检查、构建和现有 E2E 已通过 |
-| 3 | `test(docs): verify refreshed help navigation and coverage` | 完善现有文档验收，核对双语对应、链接、图片与关键路径；尚未开始 |
+| 3 | `test(docs): verify refreshed help navigation and coverage` | 完整遍历中英文各 100 篇，自动核对链接、图片清单与关键路径；静态检查、自测、构建及 E2E 通过 |
 
 第 1 项交付：
 
@@ -1382,4 +1382,17 @@ Research SDK 和固定统计运行环境。本阶段只记录用户能看到、�
 
 首次运行发现因子报告历史页的旧测试仍要求两张图；已改为核对历史、过期提示和当前报告问答三张图的具体路径。测试脚本 ESLint、Prettier、语法与差异检查通过，随后完整 E2E 重跑通过。此修复只更新测试，未改变已审查正文或业务代码。
 
-本次验收截图位于 `apps/docs/acceptance/9b-help-first-backtest-markdown.png`、`8b-help-mobile.png` 等（不入库）。浏览器已退出，临时 API/Web/Docs 已关闭，3001/5173/5174 端口与临时库连接已释放，临时数据库已删除。第 3 项验收增强尚未开始，仍需范围确认。
+本次验收截图位于 `apps/docs/acceptance/9b-help-first-backtest-markdown.png`、`8b-help-mobile.png` 等（不入库）。浏览器已退出，临时 API/Web/Docs 已关闭，3001/5173/5174 端口与临时库连接已释放，临时数据库已删除。第 3 项验收增强随后按批准范围完成，见下方结果。
+
+
+第 3 项交付：
+
+- 准确提交信息：`test(docs): verify refreshed help navigation and coverage`。第 1、2 项提交分别为 `337eea15` 和 `b86b0670`；本项只修改验收代码、命令与维护记录，没有业务、API、数据库或 SDK 变更。
+- 新增 `pnpm --filter docs check:help`：只读解析文章注册表，检查全部双语文件／导入、内部链接、图片顺序、语言与历史图注；核对图片清单的引用、SHA-256、退役状态和 29 张学习证据的原始校验值，不自动改写清单。
+- 新增 `pnpm --filter docs test:help-content`：10 项自测覆盖有效语料及缺译文、无效链接、错语言／缺图、缺少历史图注、清单引用过期、图片校验值漂移、学习证据变化和退役图片残留。破坏性样例均使用独立临时副本，原始文件未修改。
+- `pnpm e2e docs-help` 在启动浏览器前运行内容校验；逐篇遍历中英文各 100 篇，核对实际渲染的标题、图源／图注／加载状态和文章链接。六组重点断言覆盖 Strategy 草稿与报告、Research 归档与封存／报告读取、Factor 预填及独立部署／再次部署，并实际点击文章链接；保留公开访问、SDK 同页导航、产品帮助新页、学习案例、代码、公式与图片预览检查。
+- 增加移动端文章菜单导航及当前英文图的 390px 布局检查，输出 `18-help-current-workflow-{zh,en}.png` 与 `18-help-current-workflow-mobile.png`；桌面及窄屏截图已目检。使用方式和验收边界见 `apps/docs/e2e/README.md`。
+
+验证结果：Docs lint、typecheck、修改脚本及 package.json 的格式检查、`git diff --check` 通过；内容校验得到 100 对文章、865 处内部链接、193 张引用图片、29 张原始学习证据；10 项自测通过；shared 与 Docs 构建通过（保留大 chunk 提示）。首次浏览器尝试因临时库 schema 尚未初始化导致开发登录失败，初始化完成后完整 E2E 重跑通过，包括双语各 100 篇与所有既有验收。临时 API/Web/Docs 使用独立空库，没有模型调用或金融重算；浏览器已退出，服务、3001/5173/5174 端口和库连接已释放，临时库已删除。
+
+三提交范围已完成，本地验证通过，不自动 push 或部署。历史结果图和学习案例保留原始证据并明确标注；本轮文档验收不替代金融计算专项回归，也不表示线上站点已经更新。

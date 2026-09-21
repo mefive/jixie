@@ -1,9 +1,14 @@
+import assert from 'node:assert/strict';
+import { checkHelpContent } from './help-content.mjs';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
 mkdirSync(SHOTS, { recursive: true });
+
+const contentInventory = checkHelpContent();
+console.log('[help-content]', contentInventory.summary);
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -391,51 +396,70 @@ try {
         .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
     ),
   ].filter(Boolean);
-  if (articleHrefs.length !== 100) {
-    throw new Error(`expected 100 help articles, got ${articleHrefs.length}`);
-  }
-  for (const href of articleHrefs) {
-    if (new URL(page.url()).pathname !== href) {
-      await Promise.all([
-        page.waitForURL((url) => url.pathname === href),
-        page.locator(`.jx-help-navLink[href="${href}"]`).first().click(),
-      ]);
-    }
-    await page.waitForFunction(
-      (expectedHref) =>
-        document.querySelector('.jx-help-navLink--active')?.getAttribute('href') === expectedHref,
-      href,
-    );
-    await page.locator('.jx-help-markdown h1').waitFor();
-    await page.waitForFunction(() =>
-      [...document.querySelectorAll('.jx-help-figure img')].every((image) => image.complete),
-    );
-    const brokenImages = await page
-      .locator('.jx-help-figure img')
-      .evaluateAll((images) =>
-        images
-          .filter((image) => !image.complete || image.naturalWidth === 0)
-          .map((image) => image.getAttribute('src')),
+  assert.deepEqual(
+    [...articleHrefs].sort(),
+    contentInventory.articles.map((article) => `/docs/help/${article.slug}`).sort(),
+    'rendered navigation must include every registered article',
+  );
+  for (const locale of ['zh', 'en']) {
+    await page
+      .getByText(locale === 'zh' ? '中文' : 'EN', { exact: true })
+      .last()
+      .click();
+    for (const article of contentInventory.articles) {
+      const href = `/docs/help/${article.slug}`;
+      const expected = article.locales[locale];
+      if (new URL(page.url()).pathname !== href) {
+        await Promise.all([
+          page.waitForURL((url) => url.pathname === href),
+          page.locator(`.jx-help-navLink[href="${href}"]`).first().click(),
+        ]);
+      }
+      await page.getByRole('heading', { level: 1, name: expected.title, exact: true }).waitFor();
+      await page.waitForFunction(
+        (expectedHref) =>
+          document.querySelector('.jx-help-navLink--active')?.getAttribute('href') === expectedHref,
+        href,
       );
-    if (brokenImages.length > 0) {
-      throw new Error(`broken help images in ${href}: ${JSON.stringify(brokenImages)}`);
-    }
-    if ((await page.locator('.jx-help-markdown p .jx-help-figure').count()) > 0) {
-      throw new Error(`help image rendered inside a paragraph in ${href}`);
-    }
-    const unknownLinks = await page
-      .locator('.jx-help-markdown a[href^="/docs/help/"]')
-      .evaluateAll(
-        (links, knownHrefs) =>
-          links
-            .map((link) => link.getAttribute('href'))
-            .filter((linkHref) => linkHref && !knownHrefs.includes(linkHref)),
-        articleHrefs,
+      await page.waitForFunction(() =>
+        [...document.querySelectorAll('.jx-help-figure img')].every((image) => image.complete),
       );
-    if (unknownLinks.length > 0) {
-      throw new Error(`unknown help links in ${href}: ${JSON.stringify(unknownLinks)}`);
+      const renderedImages = await page.locator('.jx-help-figure img').evaluateAll((images) =>
+        images.map((image) => ({
+          src: new URL(image.src).pathname,
+          alt: image.alt,
+          loaded: image.complete && image.naturalWidth > 0,
+        })),
+      );
+      assert.deepEqual(
+        renderedImages,
+        expected.figures.map((figure) => ({ ...figure, loaded: true })),
+        `missing, incorrect, or broken figures: ${locale}/${article.slug}`,
+      );
+      assert.equal(
+        await page.locator('.jx-help-markdown p .jx-help-figure').count(),
+        0,
+        `figure nested inside paragraph: ${locale}/${article.slug}`,
+      );
+      const renderedLinks = await page
+        .locator('.jx-help-markdown a')
+        .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
+      const helpLinks = (links) =>
+        links
+          .filter((href) => /^\/(?:docs\/)?help\//.test(href))
+          .map((href) => href.replace(/^\/help\//, '/docs/help/'));
+      assert.deepEqual(
+        helpLinks(renderedLinks),
+        helpLinks(expected.links),
+        `rendered help links differ from source: ${locale}/${article.slug}`,
+      );
+      await checkCurrentWorkflow(article.slug, locale);
     }
+    console.log(
+      `[help-e2e] ${locale}: ${contentInventory.articles.length} articles, localized titles, figures, links, and workflows checked`,
+    );
   }
+  await page.getByText('中文', { exact: true }).last().click();
 
   await page.goto(`${BASE}/docs/help/backtesting/python-strategy`, {
     waitUntil: 'domcontentloaded',
@@ -1042,6 +1066,29 @@ try {
     fullPage: true,
   });
 
+  const mobileNavigation = page.locator('.jx-help-mobileNav');
+  await mobileNavigation.locator('summary').click();
+  await mobileNavigation.locator('a[href="/docs/help/factors/publish-factor"]').click();
+  await page
+    .getByRole('heading', {
+      level: 1,
+      name: 'Publish a Factor and use it in a strategy',
+      exact: true,
+    })
+    .waitFor();
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('.jx-help-figure img')].every(
+      (image) => image.complete && image.naturalWidth > 0,
+    ),
+  );
+  await page.locator('.jx-help-figure').last().scrollIntoViewIfNeeded();
+  assert.equal(
+    await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1),
+    false,
+    'current English workflow must fit at 390px',
+  );
+  await page.screenshot({ path: `${SHOTS}18-help-current-workflow-mobile.png` });
+
   await page.goto(`${BASE}/docs/help/factors/rank-ic-icir`, {
     waitUntil: 'domcontentloaded',
   });
@@ -1070,9 +1117,72 @@ try {
   }
 
   console.log(
-    '[help-e2e] public docs, same-tab docs nav, product popup, no tutorial, image hover, articles, formulas, and narrow layout ok',
+    '[help-e2e] public docs, same-tab docs nav, product popup, bilingual corpus, current workflows, formulas, and narrow layout ok',
   );
 } finally {
   await context.close();
   await browser.close();
+}
+
+async function checkCurrentWorkflow(slug, locale) {
+  const workflows = {
+    'backtesting/workspace': {
+      heading: {
+        zh: '区分草稿、回测报告和部署',
+        en: 'Distinguish the draft, report, and deployment',
+      },
+      text: {
+        zh: '不会把旧报告的代码或参数还原到编辑器',
+        en: "it does not restore that report's code or settings into the editor",
+      },
+      link: 'signals/deploy-strategy',
+    },
+    'research/records': {
+      heading: { zh: '搜索、归档和恢复', en: 'Search, archive, and restore' },
+      text: { zh: '归档与“封存为研究版本”不同', en: 'They serve different purposes' },
+      link: 'research/run-control',
+    },
+    'research/data-catalog': {
+      heading: { zh: '读取已有报告和观测', en: 'Read existing reports and observations' },
+      text: { zh: 'results.backtest', en: 'results.backtest' },
+      link: 'research/embedded-analysis',
+    },
+    'factors/publish-factor': {
+      heading: { zh: '从报告进入策略工作台', en: 'Continue to Strategy' },
+      text: { zh: '此时尚未生成策略代码', en: 'Strategy code has not yet been generated' },
+      link: 'factors/factor-in-strategy',
+    },
+    'signals/deploy-strategy': {
+      heading: { zh: '报告、草稿与部署的关系', en: 'Reports, drafts, and deployments' },
+      text: { zh: '独立', en: 'separate signals and accounts' },
+      link: 'signals/history-pause',
+    },
+    'signals/history-pause': {
+      heading: { zh: '再次部署', en: 'Deploy again' },
+      text: { zh: '新部署', en: 'new deployment' },
+      link: 'signals/deploy-strategy',
+    },
+  };
+  const expected = workflows[slug];
+  if (!expected) {
+    return;
+  }
+  await page
+    .getByRole('heading', { level: 2, name: expected.heading[locale], exact: true })
+    .waitFor();
+  assert.ok(
+    (await page.locator('.jx-help-markdown').innerText()).includes(expected.text[locale]),
+    `missing workflow boundary: ${locale}/${slug}`,
+  );
+  await page.locator(`.jx-help-markdown a[href="/docs/help/${expected.link}"]`).first().waitFor();
+  if (slug === 'factors/publish-factor') {
+    await page.locator('.jx-help-figure').last().scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `${SHOTS}18-help-current-workflow-${locale}.png` });
+  }
+  await page.locator(`.jx-help-markdown a[href="/docs/help/${expected.link}"]`).first().click();
+  await page.waitForURL((url) => url.pathname === `/docs/help/${expected.link}`);
+  const destination = contentInventory.articles.find((article) => article.slug === expected.link);
+  await page
+    .getByRole('heading', { level: 1, name: destination.locales[locale].title, exact: true })
+    .waitFor();
 }
