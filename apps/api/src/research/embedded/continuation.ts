@@ -1,3 +1,4 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
@@ -8,7 +9,7 @@ import { cellCreate } from '../documents/cell-seed.js';
 import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { closeResearchDocumentRuntime } from '../runtime/python/session.js';
+
 import type { ResearchEmbeddedInputModeInput } from '@jixie/shared/api/research';
 
 /** One editable copy per retained run. Repeated clicks return the same document. */
@@ -144,7 +145,7 @@ export async function changeEmbeddedInputMode(
       return true;
     });
     if (changed) {
-      closeResearchDocumentRuntime(documentId);
+      researchRuntimePool.close(documentId);
     }
     return getResearchDocument(userId, documentId);
   } finally {

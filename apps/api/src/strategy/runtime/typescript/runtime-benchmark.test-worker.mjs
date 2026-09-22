@@ -10,12 +10,24 @@ import { register } from 'tsx/esm/api';
 register();
 const { fixturePort } = await import('#engine/testing/fixture-port.js');
 const { runStrategy } = await import('#engine/simulation/run.js');
-const { createTypeScriptStrategyRuntime } = await import('./runtime.ts');
+const { StrategyRuntime } = await import('../strategy-runtime.ts');
 const apiDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 const variant = process.argv[2];
-if (!['baseline', 'before', 'shared'].includes(variant)) {
-  throw new Error('Select baseline, before or shared');
+if (!['baseline', 'before', 'previous', 'shared'].includes(variant)) {
+  throw new Error('Select baseline, before, previous or shared');
 }
+const previousCommit = '4464a616fe5a0bc13a59379da801008e1d3823ab';
+const sandboxDirectory = fileURLToPath(new URL('./', import.meta.url));
+const sdkPath = fileURLToPath(new URL('../../sdk/typescript.ts', import.meta.url));
+const sdkEntry = (source) => source.replaceAll("'./sdk.js'", JSON.stringify(sdkPath));
+const bundledEntry = (entry) => `
+  import { build } from 'esbuild';
+  const buildStrategySandboxBundle = () => build({
+    stdin: { contents: ${JSON.stringify(entry)}, loader: 'ts', resolveDir: ${JSON.stringify(sandboxDirectory)} },
+    bundle: true, write: false, format: 'iife', platform: 'neutral', conditions: ['development'],
+    target: 'es2022', mainFields: ['module', 'main']
+  });
+`;
 const scenario = process.argv[3] ?? 'watch';
 if (!['watch', 'dynamic'].includes(scenario)) {
   throw new Error('Select watch or dynamic');
@@ -64,7 +76,7 @@ try {
         cwd: apiDirectory,
         encoding: 'utf8',
       });
-    const entry = source('wall-entry.ts');
+    const entry = sdkEntry(source('wall-entry.ts'));
     let host = source('walled-run.ts');
     host = host.replace(
       "import { buildWallBundle } from './wall-bundle.js';",
@@ -111,19 +123,27 @@ try {
     baseline = await import(pathToFileURL(path).href);
   }
 
-  let createRuntime = createTypeScriptStrategyRuntime;
-  if (variant === 'before') {
+  let createRuntime = (code) => StrategyRuntime.start({ language: 'typescript', code });
+  if (variant === 'before' || variant === 'previous') {
     directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
     const bridgePath = join(directory, 'bridge.mjs');
     const runtimePath = join(directory, 'runtime.mjs');
-    // Pin the runtime and bridge to Commit 3. Other runtime/Engine dependencies are unchanged.
+    const runtimeCommit = variant === 'before' ? '04f62a16' : previousCommit;
+    // Preserve the pre-refactor entry points for both historical host implementations.
+    const entry = sdkEntry(
+      execFileSync(
+        'git',
+        ['show', `${previousCommit}:apps/api/src/strategy/runtime/typescript/sandbox-entry.ts`],
+        { cwd: apiDirectory, encoding: 'utf8' },
+      ),
+    );
     for (const [relative, output] of [
       ['../bridge.ts', bridgePath],
       ['./runtime.ts', runtimePath],
     ]) {
       const original = new URL(relative, import.meta.url);
       const repositoryPath = relativePath(apiDirectory, fileURLToPath(original));
-      const source = execFileSync('git', ['show', `04f62a16:apps/api/${repositoryPath}`], {
+      let source = execFileSync('git', ['show', `${runtimeCommit}:apps/api/${repositoryPath}`], {
         cwd: apiDirectory,
         encoding: 'utf8',
       }).replace(/from '([.][^']+)'/g, (_match, specifier) => {
@@ -133,6 +153,13 @@ try {
             : new URL(specifier.replace(/\.js$/, '.ts'), original);
         return `from ${JSON.stringify(target.href)}`;
       });
+      if (output === runtimePath) {
+        const bundleImport = `import { buildStrategySandboxBundle } from ${JSON.stringify(new URL('./sandbox-bundle.ts', original).href)};`;
+        if (!source.includes(bundleImport)) {
+          throw new Error('Historical bundle import drift');
+        }
+        source = source.replace(bundleImport, bundledEntry(entry));
+      }
       await writeFile(
         output,
         (await transform(source, { loader: 'ts', format: 'esm', target: 'es2022' })).code,
@@ -163,7 +190,10 @@ try {
       let cleanupStarted;
       try {
         result = await runStrategy({
-          strategy: runtime.strategy,
+          strategy:
+            variant === 'before' || variant === 'previous'
+              ? runtime.strategy
+              : { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
           start: dates[0],
           end: dates.at(-1),
           initialCash: 1_000_000,

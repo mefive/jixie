@@ -1,5 +1,6 @@
+import { FactorRuntime } from '../../runtime/factor-runtime.js';
 import { describe, expect, it } from 'vitest';
-import { compileTimeSeriesFactor } from '../../runtime/typescript/compile-asset-factor.js';
+
 import {
   resolveTimeSeriesTemplateSource,
   timeSeriesTemplateAssetPolicy,
@@ -81,19 +82,26 @@ describe('ETF time-series templates', () => {
       timeSeriesTemplateResource('commodity_futures_carry_time_series_v1', 'zh'),
     ).not.toHaveProperty('strategyKey');
     const source = resolveTimeSeriesTemplateSource('commodity_futures_carry_time_series_v1');
-    const compiled = await compileTimeSeriesFactor(source!.code);
+    const runtime = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'time_series',
+      code: source!.code,
+    });
     try {
-      expect(compiled).toMatchObject({
+      expect(runtime.metadata).toMatchObject({
         analysisKind: 'time_series',
         window: 2,
         inputs: ['commodity.futures.annualizedLogCarry'],
         targetAssetClasses: ['commodity'],
       });
       await expect(
-        compiled.computeSeries({ 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] }, [1]),
+        runtime.execute({
+          fields: { 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] },
+          indexes: [1],
+        }),
       ).resolves.toEqual([0.2]);
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
   });
 
@@ -120,24 +128,28 @@ describe('ETF time-series templates', () => {
     ).toEqual(['159981.SZ']);
 
     const source = resolveTimeSeriesTemplateSource('commodity_warehouse_pressure_20');
-    const compiled = await compileTimeSeriesFactor(source!.code);
+    const runtime = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'time_series',
+      code: source!.code,
+    });
     try {
-      expect(compiled).toMatchObject({
+      expect(runtime.metadata).toMatchObject({
         analysisKind: 'time_series',
         window: 21,
         inputs: ['commodity.warehouseReceipt.volume'],
         targetAssetClasses: ['commodity'],
       });
       await expect(
-        compiled.computeSeries(
-          {
+        runtime.execute({
+          fields: {
             'commodity.warehouseReceipt.volume': [100, ...Array.from({ length: 19 }, () => 90), 80],
           },
-          [20],
-        ),
+          indexes: [20],
+        }),
       ).resolves.toEqual([Math.log1p(100) - Math.log1p(80)]);
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
   });
 
@@ -149,14 +161,18 @@ describe('ETF time-series templates', () => {
       targetAssetClasses: ['fixed_income'],
     });
     const slope = resolveTimeSeriesTemplateSource('cgb_curve_slope_10y_2y');
-    const compiled = await compileTimeSeriesFactor(slope!.code);
+    const runtime = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'time_series',
+      code: slope!.code,
+    });
     try {
-      expect(compiled).toMatchObject({
+      expect(runtime.metadata).toMatchObject({
         inputs: ['rates.cgb.yield.2y', 'rates.cgb.yield.10y'],
         targetAssetClasses: ['fixed_income'],
       });
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
   });
 
@@ -167,15 +183,19 @@ describe('ETF time-series templates', () => {
       label: 'ETF 60-day trend',
     });
     expect(source?.code).toContain("ctx.lag('etf.adjustedClose', 60)");
-    const compiled = await compileTimeSeriesFactor(source!.code);
+    const runtime = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'time_series',
+      code: source!.code,
+    });
     try {
-      expect(compiled).toMatchObject({
+      expect(runtime.metadata).toMatchObject({
         window: 61,
         inputs: ['etf.adjustedClose'],
         targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
       });
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
     expect(resolveTimeSeriesTemplateSource('user_supplied_code')).toBeNull();
   });

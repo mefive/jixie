@@ -1,3 +1,4 @@
+import type { PanelFactorRuntime } from '../runtime/contract.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import {
   COMMODITY_CARRY_MINIMUM_DAYS_TO_DELIVERY,
@@ -8,7 +9,7 @@ import {
 import { COMMODITY_FUTURE_SPECS } from '#market/commodity/commodity-futures.js';
 import { addDays, daysBetween } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { CompiledPanelFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import { COMMODITY_CARRY_FIELD } from '../definitions/fields.js';
 import type { PanelEvaluationObservation } from '../execution/panel-evaluator.js';
 import {
@@ -44,7 +45,7 @@ const COMMODITY_CARRY_ASSET_MAPPINGS: CommodityCarryAssetMapping[] = COMMODITY_F
  * execution remain separate: the future contract is a feature source, never the traded asset. */
 export async function loadCommodityCarryPanelObservations(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: CompiledPanelFactor,
+  factor: PanelFactorRuntime,
 ): Promise<PanelEvaluationObservation[]> {
   assertCommodityCarryPanelProtocol(researchSpec, factor);
   const assetIds = researchSpec.assets.map((asset) => asset.assetId);
@@ -137,7 +138,7 @@ export async function buildCommodityCarryPanelObservations(
   etfRows: PanelEtfDailyRow[],
   openDates: string[],
   carryPoints: CommodityCarryPointV1[],
-  factor: CompiledPanelFactor,
+  factor: PanelFactorRuntime,
 ): Promise<PanelEvaluationObservation[]> {
   assertCommodityCarryPanelProtocol(researchSpec, factor);
   const mappings = selectedMappings(researchSpec);
@@ -190,7 +191,7 @@ export async function buildCommodityCarryPanelObservations(
       const carryPoint = productCarry[carryIndex];
       if (
         !carryPoint ||
-        carryIndex < factor.window - 1 ||
+        carryIndex < factor.metadata.window - 1 ||
         carryPoint.availableDate > asOfDate ||
         daysBetween(carryPoint.availableDate, asOfDate) > COMMODITY_CARRY_MAX_STALENESS_DAYS
       ) {
@@ -200,10 +201,10 @@ export async function buildCommodityCarryPanelObservations(
       eligible.push({ asOfDate, targetDate, priceIndex, carryPoint });
     }
 
-    const scores = await factor.computeSeries(
-      { [COMMODITY_CARRY_FIELD]: productCarry.map((point) => point.annualizedLogCarry) },
-      carryIndexes,
-    );
+    const scores = await factor.execute({
+      fields: { [COMMODITY_CARRY_FIELD]: productCarry.map((point) => point.annualizedLogCarry) },
+      indexes: carryIndexes,
+    });
     if (scores.length !== eligible.length) {
       throw new Error('Commodity carry panel factor returned an unexpected score count.');
     }
@@ -232,22 +233,22 @@ export async function buildCommodityCarryPanelObservations(
   );
 }
 
-export function panelFactorUsesCommodityCarry(factor: CompiledPanelFactor): boolean {
-  return factor.inputs.length === 1 && factor.inputs[0] === COMMODITY_CARRY_FIELD;
+export function panelFactorUsesCommodityCarry(factor: PanelFactorRuntime): boolean {
+  return factor.metadata.inputs.length === 1 && factor.metadata.inputs[0] === COMMODITY_CARRY_FIELD;
 }
 
 function assertCommodityCarryPanelProtocol(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: CompiledPanelFactor,
+  factor: PanelFactorRuntime,
 ): void {
   if (
     researchSpec.observationFrequency !== 'monthly' ||
     researchSpec.target.horizonUnit !== 'trade_day' ||
     !panelFactorUsesCommodityCarry(factor) ||
-    factor.analysisKind !== 'panel' ||
-    factor.outputScope !== 'asset' ||
-    factor.frequency !== 'daily' ||
-    !factor.targetAssetClasses.includes('commodity')
+    factor.metadata.analysisKind !== 'panel' ||
+    factor.metadata.outputScope !== 'asset' ||
+    factor.metadata.frequency !== 'daily' ||
+    !factor.metadata.targetAssetClasses.includes('commodity')
   ) {
     throw new Error('Commodity carry panel requires the frozen monthly commodity protocol.');
   }

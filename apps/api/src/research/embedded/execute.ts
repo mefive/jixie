@@ -1,3 +1,4 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import {
   type ResearchCellOutputBlockV1,
@@ -12,7 +13,6 @@ import {
   type MaterializedResearchOutputs,
 } from '../evidence/artifacts.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
-import { researchRuntimeManager } from '../runtime/python/session.js';
 
 import { assertActiveRun, embeddedInputRecorder } from './inputs.js';
 
@@ -74,7 +74,7 @@ export async function executeEmbeddedRun(
     const {
       embedded: { limits },
     } = run.sourceSnapshot as unknown as { embedded: { limits: ResearchEmbeddedLimitsV1 } };
-    researchRuntimeManager.close(documentId);
+    researchRuntimePool.close(documentId);
     timeout = setTimeout(
       () => controller.abort(new ResearchError('embedded_timeout')),
       limits.executionMilliseconds,
@@ -115,26 +115,32 @@ export async function executeEmbeddedRun(
     let error: string | null = null;
     try {
       const executed = await Promise.race([
-        researchRuntimeManager.execute(
+        researchRuntimePool.withRuntime(
           documentId,
-          { id: cell.sourceCellId!, source: cell.source },
-          {
-            signal,
-            parameters: run.parametersSnapshot as ResearchEmbeddedParametersV1,
-            observer: embeddedInputRecorder(runId, signal, limits),
-            async captureEnvironment(environment) {
-              await prisma.$transaction(async (transaction) => {
-                await assertActiveRun(transaction, runId, signal);
-                await transaction.researchExecution.update({
-                  where: { id: runId, status: 'running' },
-                  data: {
-                    environmentSnapshot: environment as Prisma.InputJsonValue,
-                    environmentFingerprint: researchPayloadHash(environment),
-                  },
-                });
-              });
-            },
-          },
+          (runtime) =>
+            runtime.execute(
+              {
+                cell: { id: cell.sourceCellId!, source: cell.source },
+                parameters: run.parametersSnapshot as ResearchEmbeddedParametersV1,
+              },
+              {
+                signal,
+                observer: embeddedInputRecorder(runId, signal, limits),
+                async captureEnvironment(environment) {
+                  await prisma.$transaction(async (transaction) => {
+                    await assertActiveRun(transaction, runId, signal);
+                    await transaction.researchExecution.update({
+                      where: { id: runId, status: 'running' },
+                      data: {
+                        environmentSnapshot: environment as Prisma.InputJsonValue,
+                        environmentFingerprint: researchPayloadHash(environment),
+                      },
+                    });
+                  });
+                },
+              },
+            ),
+          { signal },
         ),
         aborted,
       ]);
@@ -182,7 +188,7 @@ export async function executeEmbeddedRun(
     }
     controller.abort(new ResearchError('embedded_cancelled'));
     if (documentId) {
-      researchRuntimeManager.close(documentId);
+      researchRuntimePool.close(documentId);
     }
     if (activeControllers.get(runId) === controller) {
       activeControllers.delete(runId);

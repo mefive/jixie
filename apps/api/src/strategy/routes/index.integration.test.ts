@@ -44,8 +44,8 @@ vi.mock('#infra/llm/deepseek.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#infra/llm/deepseek.js')>()),
   chatText: resources.name,
 }));
-vi.mock('../runtime/typescript/runtime.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../runtime/typescript/runtime.js')>()),
+vi.mock('../runtime/inspect-definition.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/inspect-definition.js')>()),
   inspectStrategyParameters: resources.parameters,
 }));
 

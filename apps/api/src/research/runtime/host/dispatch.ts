@@ -22,7 +22,6 @@ import {
   parseResearchFactorWeatherRuntimeRows,
 } from './validation.js';
 import { loadResearchFinancialValues } from '../../datasets/financial-values.js';
-import type { PythonSession } from '#infra/runtime/python/session.js';
 import {
   researchSeriesLoadStart,
   loadResearchSeries,
@@ -367,10 +366,9 @@ export interface ResearchRequestObserver {
 /** Evidence persistence stays outside the Python-catchable dataset error boundary. */
 export async function dispatchResearchRequest(
   documentId: string,
-  session: Pick<PythonSession, 'send'>,
   frame: ResearchRequestFrame,
   observer?: ResearchRequestObserver,
-): Promise<void> {
+): Promise<{ type: 'response'; id: number } & ResearchResponse> {
   await observer?.beforeRequest(frame);
   let request: ParsedResearchRequest;
   try {
@@ -385,5 +383,5 @@ export async function dispatchResearchRequest(
     (await replayResearchInput(documentId, frame)) ??
     (await answerResearchRequest(documentId, request));
   await observer?.captureResponse(frame, response);
-  await session.send({ type: 'response', id: frame.id, ...response });
+  return { type: 'response', id: frame.id, ...response };
 }

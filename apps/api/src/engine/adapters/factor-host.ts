@@ -1,17 +1,12 @@
+import { FactorRuntime } from '#factor/runtime/factor-runtime.js';
+import type {
+  CrossSectionalFactorRuntime,
+  PanelFactorRuntime,
+  TimeSeriesFactorRuntime,
+} from '#factor/runtime/contract.js';
 import { z } from 'zod';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import { compilePythonCrossSectionalFactor } from '#factor/runtime/python/cross-sectional.js';
-import {
-  compilePythonPanelFactor,
-  compilePythonTimeSeriesFactor,
-} from '#factor/runtime/python/asset-factor.js';
-import { compileFactor, type CompiledFactor } from '#factor/runtime/typescript/compile-factor.js';
-import {
-  compilePanelFactor,
-  compileTimeSeriesFactor,
-  type CompiledPanelFactor,
-  type CompiledTimeSeriesFactor,
-} from '#factor/runtime/typescript/compile-asset-factor.js';
+
 import type { CustomFactorModule } from '../factors/custom-factor.js';
 import type {
   FactorComputeRequest,
@@ -19,7 +14,7 @@ import type {
   FactorExecutionPort,
 } from '../factors/execution-port.js';
 
-type CompiledRuntime = CompiledFactor | CompiledTimeSeriesFactor | CompiledPanelFactor;
+type FactorInstance = CrossSectionalFactorRuntime | TimeSeriesFactorRuntime | PanelFactorRuntime;
 
 const numberSchema = z.number().finite();
 const valueSchema = numberSchema.nullable();
@@ -77,7 +72,7 @@ const factorRequestSchema = z.discriminatedUnion('kind', [
 /** One run owns these runtimes. Source comes only from its frozen, permission-checked dependencies. */
 export class FactorHost implements FactorExecutionPort {
   private readonly modules: CustomFactorModule[];
-  private readonly factors = new Map<string, CompiledRuntime>();
+  private readonly factors = new Map<string, FactorInstance>();
   private readonly identifiers = new Set<string>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private definitions?: Promise<FactorDefinition[]>;
@@ -116,12 +111,15 @@ export class FactorHost implements FactorExecutionPort {
       let values: (number | null)[];
       let expected: number;
       if (request.kind === 'cross_sectional') {
-        if (!('computeBatch' in runtime)) {
+        if (!isCrossSectionalRuntime(runtime)) {
           throw new Error('Factor runtime does not support cross-sectional input');
         }
         for (const item of request.items) {
           const length = item.closes?.length;
-          if (length != null && (runtime.window == null || length > runtime.window)) {
+          if (
+            length != null &&
+            (runtime.metadata.window == null || length > runtime.metadata.window)
+          ) {
             throw new Error('Factor history exceeds its declared window');
           }
           for (const history of [
@@ -137,23 +135,26 @@ export class FactorHost implements FactorExecutionPort {
             }
           }
         }
-        values = await runtime.computeBatch(request.items);
+        values = await runtime.execute({ items: request.items });
         expected = request.items.length;
       } else {
-        if (!('computeSeries' in runtime)) {
+        if (isCrossSectionalRuntime(runtime)) {
           throw new Error('Factor runtime does not support asset-series input');
         }
         const keys = Object.keys(request.fields);
         if (
-          keys.length !== runtime.inputs.length ||
-          keys.some((key) => !runtime.inputs.includes(key as (typeof runtime.inputs)[number]))
+          keys.length !== runtime.metadata.inputs.length ||
+          keys.some(
+            (key) =>
+              !runtime.metadata.inputs.includes(key as (typeof runtime.metadata.inputs)[number]),
+          )
         ) {
           throw new Error('Factor fields do not match its declared inputs');
         }
         const lengths = Object.values(request.fields).map((values) => values.length);
         const length = lengths[0];
         if (
-          length !== runtime.window ||
+          length !== runtime.metadata.window ||
           lengths.some((value) => value !== length) ||
           request.indexes.some((index) => index >= length)
         ) {
@@ -165,7 +166,7 @@ export class FactorHost implements FactorExecutionPort {
             values.map((value) => value ?? Number.NaN),
           ]),
         );
-        values = await runtime.computeSeries(fields, request.indexes);
+        values = await runtime.execute({ fields: fields, indexes: request.indexes });
         expected = request.indexes.length;
       }
       if (
@@ -183,7 +184,7 @@ export class FactorHost implements FactorExecutionPort {
   close(): void {
     this.closed = true;
     for (const runtime of this.factors.values()) {
-      runtime.dispose();
+      runtime.close();
     }
     this.factors.clear();
     this.queues.clear();
@@ -239,37 +240,25 @@ export class FactorHost implements FactorExecutionPort {
     }
     const kind = module.analysisKind ?? 'cross_sectional';
     const log: UserLogSink = (level, text) => this.onUserLog?.(level, `${module.key}: ${text}`);
-    let runtime: CompiledRuntime;
-    switch (kind) {
-      case 'cross_sectional':
-        runtime =
-          language === 'python'
-            ? await compilePythonCrossSectionalFactor(source, log)
-            : await compileFactor(source, log);
-        break;
-      case 'time_series':
-        runtime =
-          language === 'python'
-            ? await compilePythonTimeSeriesFactor(source, log)
-            : await compileTimeSeriesFactor(source, log);
-        break;
-      case 'panel':
-        runtime =
-          language === 'python'
-            ? await compilePythonPanelFactor(source, log)
-            : await compilePanelFactor(source, log);
-        break;
-    }
+    const runtime = await FactorRuntime.start({
+      language,
+      analysisKind: kind,
+      code: source,
+      onUserLog: log,
+    });
     if (this.closed) {
-      runtime.dispose();
+      runtime.close();
       throw new Error('Factor runtime is closed');
     }
     this.factors.set(id, runtime);
-    if ('computeBatch' in runtime) {
-      if (runtime.window != null && (!Number.isSafeInteger(runtime.window) || runtime.window < 1)) {
+    if (isCrossSectionalRuntime(runtime)) {
+      if (
+        runtime.metadata.window != null &&
+        (!Number.isSafeInteger(runtime.metadata.window) || runtime.metadata.window < 1)
+      ) {
         throw new Error(`factor ${module.key} has an invalid history window`);
       }
-      if (module.crossSectional && module.crossSectional.window !== runtime.window) {
+      if (module.crossSectional && module.crossSectional.window !== runtime.metadata.window) {
         throw new Error(
           `factor ${module.key} does not match its compiled cross-sectional contract`,
         );
@@ -277,22 +266,26 @@ export class FactorHost implements FactorExecutionPort {
       return {
         id,
         kind: 'cross_sectional',
-        window: runtime.window,
+        window: runtime.metadata.window,
         historyFields: module.historyFields ?? [],
       };
     }
     if (
       !module.assetSeries ||
-      module.assetSeries.window !== runtime.window ||
-      JSON.stringify(module.assetSeries.inputs) !== JSON.stringify(runtime.inputs)
+      module.assetSeries.window !== runtime.metadata.window ||
+      JSON.stringify(module.assetSeries.inputs) !== JSON.stringify(runtime.metadata.inputs)
     ) {
       throw new Error(`factor ${module.key} does not match its compiled asset-series contract`);
     }
     return {
       id,
       kind: 'asset_series',
-      analysisKind: runtime.analysisKind,
-      meta: { window: runtime.window, inputs: [...runtime.inputs] },
+      analysisKind: runtime.metadata.analysisKind,
+      meta: { window: runtime.metadata.window, inputs: [...runtime.metadata.inputs] },
     };
   }
+}
+
+function isCrossSectionalRuntime(runtime: FactorInstance): runtime is CrossSectionalFactorRuntime {
+  return runtime.metadata.analysisKind === 'cross_sectional';
 }

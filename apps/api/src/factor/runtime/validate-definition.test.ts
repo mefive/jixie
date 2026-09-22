@@ -53,17 +53,19 @@ describe('validateFactorDefinition', () => {
     await expect(validateFactorDefinition(PANEL, 'panel')).resolves.toBeUndefined();
   });
 
-  it('rejects cross-protocol source instead of guessing from its syntax', async () => {
-    await expect(validateFactorDefinition(CROSS_SECTIONAL, 'time_series')).rejects.toThrow(
-      /defineFactor is not defined/,
-    );
-    await expect(validateFactorDefinition(TIME_SERIES, 'cross_sectional')).rejects.toThrow(
-      /defineFactorV2 is not defined/,
-    );
-    await expect(validateFactorDefinition(TIME_SERIES, 'panel')).rejects.toThrow(
-      /analysisKind=panel/,
-    );
-  });
+  it.each([
+    ['cross_sectional', 'time_series', CROSS_SECTIONAL, /defineFactor is not defined/],
+    ['cross_sectional', 'panel', CROSS_SECTIONAL, /defineFactor is not defined/],
+    ['time_series', 'cross_sectional', TIME_SERIES, /defineFactorV2 is not defined/],
+    ['panel', 'cross_sectional', PANEL, /defineFactorV2 is not defined/],
+    ['time_series', 'panel', TIME_SERIES, /analysisKind=panel/],
+    ['panel', 'time_series', PANEL, /analysisKind=time_series/],
+  ] as const)(
+    'rejects %s source under %s instead of guessing from its syntax',
+    async (_sourceKind, targetKind, source, expectedError) => {
+      await expect(validateFactorDefinition(source, targetKind)).rejects.toThrow(expectedError);
+    },
+  );
 
   it('keeps commodity carry confined to the controlled research template', async () => {
     await expect(validateFactorDefinition(COMMODITY_CARRY_PANEL, 'panel')).rejects.toThrow(

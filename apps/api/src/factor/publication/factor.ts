@@ -1,16 +1,10 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
 import { prisma } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
 import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
 import { FactorError } from '../errors.js';
-import {
-  compilePythonPanelFactor,
-  compilePythonTimeSeriesFactor,
-} from '../runtime/python/asset-factor.js';
-import {
-  compilePanelFactor,
-  compileTimeSeriesFactor,
-} from '../runtime/typescript/compile-asset-factor.js';
+
 import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 
@@ -120,18 +114,11 @@ async function assetFactorCodeUsesResearchOnlyInput(
   language: FactorLanguage,
 ): Promise<boolean> {
   try {
-    const compiled =
-      language === 'python'
-        ? analysisKind === 'time_series'
-          ? await compilePythonTimeSeriesFactor(code)
-          : await compilePythonPanelFactor(code)
-        : analysisKind === 'time_series'
-          ? await compileTimeSeriesFactor(code)
-          : await compilePanelFactor(code);
+    const runtime = await FactorRuntime.start({ language, analysisKind, code });
     try {
-      return compiled.inputs.some(isResearchOnlyFactorV2Field);
+      return runtime.metadata.inputs.some(isResearchOnlyFactorV2Field);
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
   } catch {
     return true;

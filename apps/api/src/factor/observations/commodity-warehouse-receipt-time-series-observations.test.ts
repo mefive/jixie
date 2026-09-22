@@ -1,7 +1,8 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { addDays } from '#date';
-import { compileTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import {
   buildCommodityWarehouseReceiptTimeSeriesObservations,
   timeSeriesFactorUsesCommodityWarehouseReceipts,
@@ -85,12 +86,16 @@ async function build(
   points: CommodityWarehouseReceiptResearchPoint[] = warehouseReceiptPoints(),
   rows: EtfTrendDailyRow[] = etfRows(),
 ) {
-  const factor = await compileTimeSeriesFactor(factorCode);
+  const factor = await FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: 'time_series',
+    code: factorCode,
+  });
   try {
     expect(timeSeriesFactorUsesCommodityWarehouseReceipts(factor)).toBe(true);
     return await buildCommodityWarehouseReceiptTimeSeriesObservations(spec, rows, points, factor);
   } finally {
-    factor.dispose();
+    factor.close();
   }
 }
 
@@ -162,7 +167,11 @@ describe('commodity warehouse-receipt time-series observations', () => {
     invalid[0].unit = '吨';
     await expect(build(invalid)).rejects.toThrow(/Invalid commodity warehouse-receipt/);
 
-    const factor = await compileTimeSeriesFactor(factorCode);
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'time_series',
+      code: factorCode,
+    });
     try {
       await expect(
         buildCommodityWarehouseReceiptTimeSeriesObservations(
@@ -173,7 +182,7 @@ describe('commodity warehouse-receipt time-series observations', () => {
         ),
       ).rejects.toThrow(/does not map ETF/);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 });

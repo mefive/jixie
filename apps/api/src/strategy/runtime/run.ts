@@ -5,8 +5,8 @@ import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
 import type { BacktestResult, CostModel, SignalBacktestOutput } from '#engine/types.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
-import { createTypeScriptStrategyRuntime } from './typescript/runtime.js';
-import { createPythonStrategyRuntime } from './python/runtime.js';
+import { StrategyRuntime } from './strategy-runtime.js';
+import type { EngineContext } from '#engine/types.js';
 
 export interface SandboxedBacktestConfig {
   code: string;
@@ -45,9 +45,13 @@ async function runSandboxed(
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ): Promise<BacktestResult | SignalBacktestOutput> {
-  const createRuntime =
-    config.language === 'python' ? createPythonStrategyRuntime : createTypeScriptStrategyRuntime;
-  const runtime = await createRuntime(config.code, onUserLog, config.paramOverrides, config.locale);
+  const runtime = await StrategyRuntime.start({
+    language: config.language ?? 'typescript',
+    code: config.code,
+    onUserLog,
+    paramOverrides: config.paramOverrides,
+    locale: config.locale,
+  });
   let factors: FactorHost | undefined;
   try {
     factors = new FactorHost(config.customFactors ?? [], onUserLog);
@@ -57,7 +61,10 @@ async function runSandboxed(
       initialCash: config.initialCash,
       cost: config.cost,
       locale: config.locale,
-      strategy: runtime.strategy,
+      strategy: {
+        ...runtime.metadata,
+        onBar: (context: EngineContext) => runtime.execute({ context }),
+      },
       dataPort: port,
       factorExecution: factors,
       customFactors: config.customFactors,
@@ -70,7 +77,7 @@ async function runSandboxed(
     try {
       factors?.close();
     } finally {
-      await runtime.close();
+      runtime.close();
     }
   }
 }

@@ -1,3 +1,4 @@
+import type { CrossSectionalFactorRuntime, PanelFactorRuntime } from '../runtime/contract.js';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import ts from 'typescript';
 import { buildFactorSdkDts, type FactorBar } from '@jixie/shared';
@@ -10,8 +11,7 @@ import type {
   FactorCtx,
   TimeSeriesFactorCtxV2,
 } from '@jixie/shared/sdk/factor/contract';
-import type { CompiledFactor } from '../runtime/typescript/compile-factor.js';
-import type { CompiledPanelFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import {
   CrossSectionalFactorContext,
   AssetFactorContext,
@@ -30,10 +30,10 @@ describe('Factor authoring contracts', () => {
       Pick<AssetFactorContext, keyof TimeSeriesFactorCtxV2>
     >().toEqualTypeOf<TimeSeriesFactorCtxV2>();
     expectTypeOf<Readonly<FactorBar>>().toEqualTypeOf<PublicFactorBar>();
-    expectTypeOf<Omit<CompiledFactor, 'computeBatch' | 'dispose'>>().toEqualTypeOf<
+    expectTypeOf<Omit<CrossSectionalFactorRuntime['metadata'], 'analysisKind'>>().toEqualTypeOf<
       Omit<CustomFactor, 'compute'>
     >();
-    expectTypeOf<Omit<CompiledPanelFactor, 'computeSeries' | 'dispose' | 'inputs'>>().toExtend<
+    expectTypeOf<Omit<PanelFactorRuntime['metadata'], 'inputs'>>().toExtend<
       Omit<AssetFactorV2, 'compute' | 'inputs'>
     >();
   });

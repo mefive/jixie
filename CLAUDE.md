@@ -68,7 +68,8 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   Contract → `.pyi`、Monaco 补全和 API 校验必须自动同步并由契约测试约束。
 
 - Research 作者对象 `data/results/valuation/charts` 的实现归 `research/sdk/python`；Cell namespace、
-  AST 分析、环境与输出序列化归 `research/runtime/python`，同目录 `session.ts` 只在 API 宿主执行。
+  AST 分析、环境与输出序列化归 `research/runtime/python`；`runtime/research-runtime.ts` 的宿主实例与
+  `runtime/pool.ts` 的文档会话池只在 API 进程执行。
   请求校验、分派和输入回放适配归 `research/runtime/host`，数据查询与业务授权仍归 datasets。
   SDK 只依赖注入的宿主请求能力，不导入 runtime；sandboxd 只负责公共启动、通信和限制。
 - Research Python 辅助模块须逐项列入 Dockerfile、`.dockerignore` 和部署影响清单，同时影响 API/sandboxd；

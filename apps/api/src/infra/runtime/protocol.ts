@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_LOG_BATCH_ENTRIES } from './log-buffer.js';
 
 export const MAX_ERROR_CHARACTERS = 256 * 1024;
 
@@ -24,11 +25,20 @@ export const runtimeNameSchema = z
   .max(200)
   .refine((value) => value.trim().length > 0, 'name must not be blank');
 
-export const runtimeLogFrameSchema = z.strictObject({
-  type: z.literal('log'),
+export const runtimeLogEntrySchema = z.strictObject({
   level: z.enum(['info', 'warning', 'error']),
   text: z.string().max(MAX_LOG_CHARACTERS),
 });
+
+export const runtimeLogFrameSchema = runtimeLogEntrySchema.extend({ type: z.literal('log') });
+
+export const runtimeLogBatchFrameSchema = z.strictObject({
+  type: z.literal('log_batch'),
+  entries: z.array(runtimeLogEntrySchema).min(1).max(MAX_LOG_BATCH_ENTRIES),
+});
+
+export type RuntimeLogFrame = z.infer<typeof runtimeLogFrameSchema>;
+export type RuntimeLogBatchFrame = z.infer<typeof runtimeLogBatchFrameSchema>;
 
 export const runtimeErrorFrameSchema = z.union([
   z.strictObject({

@@ -1,5 +1,6 @@
+import { FactorRuntime } from '../../runtime/factor-runtime.js';
 import { describe, expect, it } from 'vitest';
-import { compilePanelFactor } from '../../runtime/typescript/compile-asset-factor.js';
+
 import {
   panelTemplateCatalog,
   panelTemplateResource,
@@ -56,33 +57,44 @@ describe('multi-asset panel templates', () => {
   it('resolves to an executable frozen Factor V2 panel source', async () => {
     const source = resolvePanelTemplateSource('cross_asset_momentum_120');
     expect(source).toMatchObject({ kind: 'panel', label: 'Cross-asset momentum (120d)' });
-    const compiled = await compilePanelFactor(source!.code);
+    const runtime = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'panel',
+      code: source!.code,
+    });
     try {
-      expect(compiled).toMatchObject({
+      expect(runtime.metadata).toMatchObject({
         analysisKind: 'panel',
         window: 121,
         inputs: ['etf.adjustedClose'],
       });
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
   });
 
   it('compiles the commodity Carry template against the controlled field catalog', async () => {
     const source = resolvePanelTemplateSource('commodity_futures_carry_v1');
-    const compiled = await compilePanelFactor(source!.code);
+    const runtime = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'panel',
+      code: source!.code,
+    });
     try {
-      expect(compiled).toMatchObject({
+      expect(runtime.metadata).toMatchObject({
         analysisKind: 'panel',
         targetAssetClasses: ['commodity'],
         window: 2,
         inputs: ['commodity.futures.annualizedLogCarry'],
       });
       await expect(
-        compiled.computeSeries({ 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] }, [1]),
+        runtime.execute({
+          fields: { 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] },
+          indexes: [1],
+        }),
       ).resolves.toEqual([0.2]);
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
   });
 });

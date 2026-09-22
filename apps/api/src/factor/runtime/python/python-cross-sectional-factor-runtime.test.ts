@@ -1,6 +1,6 @@
+import { FactorRuntime } from '../factor-runtime.js';
 import type { FactorBar } from '@jixie/shared';
 import { afterEach, describe, expect, it } from 'vitest';
-import { compilePythonCrossSectionalFactor } from './cross-sectional.js';
 
 const BAR: FactorBar = {
   code: '000001.SZ',
@@ -30,7 +30,10 @@ describe('Python cross-sectional Factor runtime', () => {
 
   it('computes typed bars and history with py-v1 metadata', async () => {
     enableTestRuntime();
-    const factor = await compilePythonCrossSectionalFactor(`
+    const factor = await FactorRuntime.start({
+      language: 'python',
+      analysisKind: 'cross_sectional',
+      code: `
 from jixie import Factor, FactorBar, CrossSectionalFactorContext
 
 factor = Factor.cross_sectional(name="value momentum", window=3, min_coverage=0.8)
@@ -41,53 +44,66 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     if bar.pe_ttm is None or len(closes) < 3:
         return None
     return 1 / bar.pe_ttm + closes[-1] / closes[0] - 1
-`);
+`,
+    });
     try {
-      expect(factor).toMatchObject({ name: 'value momentum', window: 3, minCoverage: 0.8 });
+      expect(factor.metadata).toMatchObject({
+        name: 'value momentum',
+        window: 3,
+        minCoverage: 0.8,
+      });
       await expect(
-        factor.computeBatch([
-          { bar: BAR, closes: [10, 11, 12], dates: ['1', '2', '3'] },
-          { bar: { ...BAR, peTtm: null }, closes: [10, 11, 12], dates: ['1', '2', '3'] },
-        ]),
+        factor.execute({
+          items: [
+            { bar: BAR, closes: [10, 11, 12], dates: ['1', '2', '3'] },
+            { bar: { ...BAR, peTtm: null }, closes: [10, 11, 12], dates: ['1', '2', '3'] },
+          ],
+        }),
       ).resolves.toEqual([1 / 9 + 0.2, null]);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 
   it('surfaces only the first repeated compute traceback', async () => {
     enableTestRuntime();
     const logs: string[] = [];
-    const factor = await compilePythonCrossSectionalFactor(
-      `
+    const factor = await FactorRuntime.start({
+      language: 'python',
+      analysisKind: 'cross_sectional',
+      code: `
 from jixie import Factor, FactorBar, CrossSectionalFactorContext
 factor = Factor.cross_sectional(name="broken")
 @factor.compute
 def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     raise ValueError("boom")
 `,
-      (_level, text) => logs.push(text),
-    );
+      onUserLog: (_level, text) => logs.push(text),
+    });
     try {
-      await factor.computeBatch([{ bar: BAR }]);
-      await factor.computeBatch([{ bar: BAR }]);
+      await factor.execute({ items: [{ bar: BAR }] });
+      await factor.execute({ items: [{ bar: BAR }] });
       expect(logs).toHaveLength(1);
       expect(logs[0]).toMatch(/\[factor-error\].*factor\.py.*ValueError: boom/s);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 
   it('rejects a mismatched runtime factory before analysis', async () => {
     enableTestRuntime();
     await expect(
-      compilePythonCrossSectionalFactor(`
+      FactorRuntime.start({
+        language: 'python',
+        analysisKind: 'cross_sectional',
+        code: `
 from jixie import Factor
 factor = Factor.time_series(name="wrong", inputs=[], target_asset_classes=[], window=2)
 @factor.compute
 def compute(ctx):
     return 1
-`),
+`,
+      }),
     ).rejects.toThrow(/does not match cross_sectional/);
   });
 });

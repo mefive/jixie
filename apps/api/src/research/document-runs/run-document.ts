@@ -1,3 +1,4 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
@@ -10,7 +11,7 @@ import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
 import { createResearchExecution, finishResearchExecution } from '../evidence/execution-records.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { researchRuntimeManager } from '../runtime/python/session.js';
+
 import {
   type ResearchCellExecutionOutcome,
   executeResearchCell,
@@ -50,7 +51,7 @@ export async function runResearchDocument(
         cells: frozen.cells.map(researchExecutionSourceCellSnapshot),
       });
       researchExecutionId = researchExecution.id;
-      await researchRuntimeManager.reset(documentId);
+      await researchRuntimePool.reset(documentId);
       if (!control.interrupted) {
         await prisma.researchCell.updateMany({
           where: {

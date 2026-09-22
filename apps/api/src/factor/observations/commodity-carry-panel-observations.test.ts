@@ -1,7 +1,8 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
 import type { PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import type { CommodityCarryPointV1 } from '#market/commodity/commodity-carry.js';
-import { compilePanelFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import {
   buildCommodityCarryPanelObservations,
   COMMODITY_CARRY_PANEL_ASSETS,
@@ -102,11 +103,15 @@ function carryPoints(): CommodityCarryPointV1[] {
 }
 
 async function build(points = carryPoints()) {
-  const factor = await compilePanelFactor(factorCode);
+  const factor = await FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: 'panel',
+    code: factorCode,
+  });
   try {
     return await buildCommodityCarryPanelObservations(spec, etfRows(), openDates(), points, factor);
   } finally {
-    factor.dispose();
+    factor.close();
   }
 }
 

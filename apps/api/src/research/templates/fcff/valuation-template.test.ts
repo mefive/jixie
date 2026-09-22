@@ -1,3 +1,4 @@
+import { researchRuntimePool } from '../../runtime/pool.js';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -12,7 +13,6 @@ import {
   EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE,
   equityFcffValuationTemplate,
 } from './valuation-template.js';
-import { researchRuntimeManager } from '../../runtime/python/session.js';
 
 const DOCUMENT_ID = 'equity-fcff-valuation-template-test';
 let previousLocal: string | undefined;
@@ -30,7 +30,7 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
   });
 
   afterEach(() => {
-    researchRuntimeManager.close(DOCUMENT_ID);
+    researchRuntimePool.close(DOCUMENT_ID);
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
@@ -66,7 +66,9 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
     const pythonCells = equityFcffValuationTemplate()
       .cells.filter((cell) => cell.kind === 'python')
       .map((cell, index) => ({ id: `python-${index}`, source: cell.source }));
-    const analysis = await researchRuntimeManager.analyze(DOCUMENT_ID, pythonCells);
+    const analysis = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze(pythonCells),
+    );
     const dependencyCells = analysis.map((cell) => ({
       id: cell.cellId,
       definitions: cell.definitions,
@@ -83,9 +85,11 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
   });
 
   it('matches hand calculations, monotonic checks, and reverse-solver diagnostics', async () => {
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'golden',
-      source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.20}])
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'golden',
+          source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.20}])
 bridge = pd.DataFrame([{
     "bridge_adjustment": 0.0,
     "issued_shares": 10.0,
@@ -165,7 +169,9 @@ pd.DataFrame([{
     "weak_identification": weakly_identified["status"],
     "invalid_diagnostic": invalid_diagnostic,
 }])`,
-    });
+        },
+      }),
+    );
 
     const output = result.outputs[0];
     expect(output?.type).toBe('table');
@@ -189,9 +195,11 @@ pd.DataFrame([{
   });
 
   it('detects nearby reverse roots, tangent roots, and invalid public inputs', async () => {
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'solver-boundaries',
-      source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.8}])
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'solver-boundaries',
+          source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.8}])
 bridge = pd.DataFrame([{"bridge_adjustment": 5.0, "issued_shares": 10.0, "operating_cash_required": 1.0}])
 scenario = pd.DataFrame([{
     "scenario": "quadratic", "revenue_growth": -0.5001, "target_nopat_margin": 0.2,
@@ -241,7 +249,9 @@ pd.DataFrame([{
     "bridge_ok": abs(target["equity_value"] - (target["enterprise_value"] - 5.0)) < 1e-10,
     "formula_version": target["formula_version"],
 }])`,
-    });
+        },
+      }),
+    );
     const output = result.outputs[0];
     if (output?.type !== 'table') {
       throw new Error('Expected a table output');
@@ -260,13 +270,19 @@ pd.DataFrame([{
   });
 
   it('independently recalculates every WACC and terminal-growth sensitivity value', async () => {
-    await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'parameters',
-      source: EQUITY_FCFF_PARAMETER_SOURCE,
-    });
-    await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'fixture',
-      source: `valuation_base = {"revenue": 100.0, "nopat_margin": 0.20}
+    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'parameters',
+          source: EQUITY_FCFF_PARAMETER_SOURCE,
+        },
+      }),
+    );
+    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'fixture',
+          source: `valuation_base = {"revenue": 100.0, "nopat_margin": 0.20}
 valuation_bridge = {
     "bridge_adjustment": 5.0,
     "issued_shares": 10.0,
@@ -283,18 +299,30 @@ valuation_scenarios = pd.DataFrame([{
     "terminal_growth": 0.02,
     "terminal_roic": 0.16,
 }])`,
-    });
-    await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'model',
-      source: EQUITY_FCFF_MODEL_SOURCE,
-    });
-    await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'sensitivity',
-      source: EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE,
-    });
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'independent-check',
-      source: `independent_differences = []
+        },
+      }),
+    );
+    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'model',
+          source: EQUITY_FCFF_MODEL_SOURCE,
+        },
+      }),
+    );
+    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'sensitivity',
+          source: EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE,
+        },
+      }),
+    );
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'independent-check',
+          source: `independent_differences = []
 for sensitivity_row in sensitivity_table.to_dict("records"):
     independent_wacc = sensitivity_row["wacc_pct"] / 100
     independent_growth = sensitivity_row["terminal_growth_pct"] / 100
@@ -334,7 +362,9 @@ pd.DataFrame([{
     "maximum_absolute_difference": max(independent_differences),
     "all_match": max(independent_differences) < 1e-10,
 }])`,
-    });
+        },
+      }),
+    );
 
     const output = result.outputs[0];
     expect(output?.type).toBe('table');
@@ -349,13 +379,19 @@ pd.DataFrame([{
   });
 
   it('stops with explicit diagnostics for financial companies and missing bridges', async () => {
-    await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'selection',
-      source: EQUITY_FCFF_SELECTION_SOURCE,
-    });
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'invalid-inputs',
-      source: `financial_company_metrics = pd.DataFrame([{
+    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'selection',
+          source: EQUITY_FCFF_SELECTION_SOURCE,
+        },
+      }),
+    );
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'invalid-inputs',
+          source: `financial_company_metrics = pd.DataFrame([{
     "report_period": pd.NaT,
     "metric": "revenue",
     "value": np.nan,
@@ -404,7 +440,9 @@ pd.DataFrame([{
     "financial_company": financial_company_diagnostic,
     "missing_bridge": missing_bridge_diagnostic,
 }])`,
-    });
+        },
+      }),
+    );
 
     const output = result.outputs[0];
     expect(output?.type).toBe('table');
@@ -420,13 +458,19 @@ pd.DataFrame([{
   });
 
   it('does not silently fall back to an older annual report when the latest one is quarantined', async () => {
-    await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'selection',
-      source: EQUITY_FCFF_SELECTION_SOURCE,
-    });
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'quarantined-latest',
-      source: `candidate_metrics = pd.DataFrame([
+    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'selection',
+          source: EQUITY_FCFF_SELECTION_SOURCE,
+        },
+      }),
+    );
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'quarantined-latest',
+          source: `candidate_metrics = pd.DataFrame([
     {"report_period": pd.Timestamp("2023-12-31"), "metric": "revenue", "value": 100.0, "status": "ok", "missing_reason": None},
     {"report_period": pd.Timestamp("2024-12-31"), "metric": "revenue", "value": np.nan, "status": "invalid", "missing_reason": "accounting_review_required:test"},
 ])
@@ -436,7 +480,9 @@ try:
 except ValueError as error:
     rejection = str(error)
 pd.DataFrame([{"rejection": rejection}])`,
-    });
+        },
+      }),
+    );
     const output = result.outputs[0];
     expect(output?.type).toBe('table');
     if (output?.type !== 'table') {

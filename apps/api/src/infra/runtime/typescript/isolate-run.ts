@@ -4,8 +4,8 @@ import ivm from 'isolated-vm';
 import { readFileSync } from 'node:fs';
 
 /**
- * Hard sandbox for user/model-authored code (factor compute and historical chart transforms; the strategy
- * onBar bridge belongs to strategy/runtime — see python-and-sandbox.md).
+ * Legacy isolated module support for historical Agent chart transforms. Factor and Strategy use
+ * TypeScriptTransport and the shared command exchange; toCommonJs remains a source-only utility.
  *
  * The layering, spelled out once:
  *   - DB access belongs to OUR code (prisma in workers, the readonly SQL worker) — never injected;
@@ -74,7 +74,7 @@ globalThis.__entries = {};
 /**
  * Load a user CJS module into a fresh isolate. `setup` is extra in-wall JS (evaluated AFTER the
  * user module) that registers callable entries on __entries, closing over `__module.exports`.
- * `injectGlobals` are extra identifiers visible to the user module (e.g. defineFactor shim).
+ * `injectGlobals` are extra identifiers visible to the user module (e.g. chart transform helpers).
  */
 export async function loadIsolatedModule(opts: {
   userJs: string;
@@ -82,7 +82,7 @@ export async function loadIsolatedModule(opts: {
   injectGlobals?: string; // in-wall JS evaluated BEFORE the user module
   withStats?: boolean;
   memoryMb?: number;
-  noun?: string; // for error messages: 'factor code' / 'analysis code'
+  noun?: string; // for error messages: 'analysis code'
 }): Promise<IsolatedModule> {
   const noun = opts.noun ?? 'code';
   const isolate = new ivm.Isolate({ memoryLimit: opts.memoryMb ?? DEFAULT_MEMORY_MB });

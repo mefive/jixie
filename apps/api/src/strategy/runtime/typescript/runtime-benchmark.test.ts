@@ -11,7 +11,9 @@ it.skipIf(process.env.JIXIE_TEST_RUNTIME_BENCHMARK !== '1').each(['watch', 'dyna
   async (scenario) => {
     const results = [];
     const variants =
-      scenario === 'dynamic' ? ['baseline', 'before', 'shared'] : ['baseline', 'shared'];
+      scenario === 'dynamic'
+        ? ['baseline', 'before', 'previous', 'shared']
+        : ['baseline', 'previous', 'shared'];
     for (const variant of variants) {
       const { stdout } = await execute(
         process.execPath,

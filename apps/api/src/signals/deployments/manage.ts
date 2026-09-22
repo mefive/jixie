@@ -1,6 +1,7 @@
+import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
 import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
-import { inspectStrategyMetadata } from '#strategy/runtime/typescript/runtime.js';
+
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type { BacktestConfig, Locale, StrategyDeployment } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';

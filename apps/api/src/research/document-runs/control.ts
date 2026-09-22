@@ -1,9 +1,10 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jixie/shared';
 import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-import { researchRuntimeManager } from '../runtime/python/session.js';
+
 import { getResearchDocumentRun } from './run-state.js';
 
 export async function interruptResearchDocument(
@@ -28,7 +29,7 @@ export async function interruptResearchDocument(
   }
 
   control.interrupted = true;
-  researchRuntimeManager.interrupt(documentId);
+  researchRuntimePool.interrupt(documentId);
   await control.settled;
   return {
     version: 1,
@@ -49,7 +50,7 @@ export async function resetResearchDocumentRuntime(
     throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(documentId);
-  await researchRuntimeManager.reset(documentId);
+  await researchRuntimePool.reset(documentId);
   await prisma.researchCell.updateMany({
     where: {
       documentId,

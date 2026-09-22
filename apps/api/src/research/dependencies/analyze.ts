@@ -1,8 +1,9 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ResearchError } from '../errors.js';
-import { researchRuntimeManager } from '../runtime/python/session.js';
+
 import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
 import { reconcileResearchCellDependencyIssues } from './invalidation.js';
 import { dependencyConflicts } from './run-plan.js';
@@ -50,7 +51,9 @@ export async function analyzeResearchCellSources(
 ): Promise<ResearchPythonAnalysis[]> {
   const pythonCells = cells.filter((cell) => cell.kind === 'python');
   const pythonAnalyses =
-    pythonCells.length > 0 ? await researchRuntimeManager.analyze(documentId, pythonCells) : [];
+    pythonCells.length > 0
+      ? await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.analyze(pythonCells))
+      : [];
   const analysisById = new Map(pythonAnalyses.map((analysis) => [analysis.cellId, analysis]));
   const analyses = cells.map(
     (cell): ResearchPythonAnalysis =>

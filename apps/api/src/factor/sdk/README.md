@@ -12,7 +12,7 @@
 | [contract.test.ts](contract.test.ts) | API 元数据/声明兼容，以及编辑器双语声明对合法与非法作者代码的检查 |
 
 TS 横截面 `compute(bar, ctx)` 与 V2 `compute(ctx)`、Python 的工厂/装饰器调用方式保持不变。
-TS runtime 的 [sdk-bundle.ts](../runtime/typescript/sdk-bundle.ts) 只打包此 SDK，在宿主进程缓存源码；每个因子仍在独立 isolate 中初始化。
+TS runtime 的 [sandbox-bundle.ts](../runtime/typescript/sandbox-bundle.ts) 只打包此 SDK 与受信任的协议入口，在宿主进程缓存源码；每个因子仍在独立 isolate 中初始化。
 SDK 接收宿主已准备的历史数组和声明字段，不查询数据库、不导入 Engine 或 runtime；全局注册、批量调用与错误处理属于 runtime。
 宿主组装的 `FactorBar` 通过映射类型保留可写字段；脚本编辑器/编译契约的 Bar 保持 readonly，字段清单不重复维护。
 TS 编辑器现有五个 V2 字段和 Python 的七个字段继续分别维护；runtime 的受控研究字段及业务准入不随目录迁移改变。

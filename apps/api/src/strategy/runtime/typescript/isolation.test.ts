@@ -1,7 +1,8 @@
+import { StrategyRuntime } from '../strategy-runtime.js';
+import { inspectStrategyMetadata } from '../inspect-definition.js';
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
 import { runStrategy } from '#engine/simulation/run.js';
-import { createTypeScriptStrategyRuntime, inspectStrategyMetadata } from './runtime.js';
 
 const dates = ['20240102', '20240103'];
 const fixture = {
@@ -15,18 +16,18 @@ const fixture = {
 };
 
 async function execute(code: string, spec: FixtureSpec = fixture, start = spec.dates[0]) {
-  const runtime = await createTypeScriptStrategyRuntime(code);
+  const runtime = await StrategyRuntime.start({ language: 'typescript', code: code });
   try {
     const result = await runStrategy({
       start,
       end: spec.dates.at(-1)!,
       initialCash: 100_000,
-      strategy: runtime.strategy,
+      strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
       dataPort: fixturePort(spec),
     });
     return { result, metrics: { ...runtime.metrics } };
   } finally {
-    await runtime.close();
+    runtime.close();
   }
 }
 
@@ -166,17 +167,18 @@ describe('TypeScript strategy isolation and compatibility', () => {
   });
 
   it('releases the isolate on close and rejects subsequent callbacks', async () => {
-    const runtime = await createTypeScriptStrategyRuntime(
-      'export default defineStrategy({ onBar() {} });',
-    );
-    await runtime.close();
-    await runtime.close();
+    const runtime = await StrategyRuntime.start({
+      language: 'typescript',
+      code: 'export default defineStrategy({ onBar() {} });',
+    });
+    runtime.close();
+    runtime.close();
     await expect(
       runStrategy({
         start: dates[0],
         end: dates[1],
         initialCash: 100_000,
-        strategy: runtime.strategy,
+        strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
         dataPort: fixturePort(fixture),
       }),
     ).rejects.toThrow('closed');

@@ -1,3 +1,4 @@
+import { FactorRuntime } from '#factor/runtime/factor-runtime.js';
 import {
   extractCustomFactorHistoryFields,
   type CustomFactorModule,
@@ -5,15 +6,7 @@ import {
 import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
 import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
 import { normalizeAnalysisKind } from '#factor/definitions/views.js';
-import {
-  compilePythonPanelFactor,
-  compilePythonTimeSeriesFactor,
-} from '#factor/runtime/python/asset-factor.js';
-import { compilePythonCrossSectionalFactor } from '#factor/runtime/python/cross-sectional.js';
-import {
-  compilePanelFactor,
-  compileTimeSeriesFactor,
-} from '#factor/runtime/typescript/compile-asset-factor.js';
+
 import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 import { sha256 } from '#factor/sources/fingerprint.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot.js';
@@ -173,7 +166,11 @@ async function prepareFactorModule(
       throw new Error(`factor ${row.key} has an invalid Python runtime version`);
     }
     if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
-      const compiled = await compilePythonCrossSectionalFactor(row.code);
+      const runtime = await FactorRuntime.start({
+        language: 'python',
+        analysisKind: 'cross_sectional',
+        code: row.code,
+      });
       try {
         return {
           key: row.key,
@@ -181,17 +178,18 @@ async function prepareFactorModule(
           runtimeVersion: 'py-v1',
           code: row.code,
           analysisKind: 'cross_sectional',
-          crossSectional: { window: compiled.window },
+          crossSectional: { window: runtime.metadata.window },
           historyFields: extractPythonFactorHistoryFields(row.code),
         };
       } finally {
-        compiled.dispose();
+        runtime.close();
       }
     }
-    const compiled =
-      row.analysisKind === 'panel'
-        ? await compilePythonPanelFactor(row.code)
-        : await compilePythonTimeSeriesFactor(row.code);
+    const runtime = await FactorRuntime.start({
+      language: 'python',
+      analysisKind: row.analysisKind,
+      code: row.code,
+    });
     try {
       return {
         key: row.key,
@@ -199,13 +197,13 @@ async function prepareFactorModule(
         runtimeVersion: 'py-v1',
         code: row.code,
         analysisKind: row.analysisKind,
-        assetSeries: { window: compiled.window, inputs: [...compiled.inputs] },
+        assetSeries: { window: runtime.metadata.window, inputs: [...runtime.metadata.inputs] },
         ...(row.analysisKind === 'panel' && reportSpec != null
           ? { assetUniverse: parseApprovedPanelUniverse(row.key, reportSpec) }
           : {}),
       };
     } finally {
-      compiled.dispose();
+      runtime.close();
     }
   }
   if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
@@ -216,26 +214,23 @@ async function prepareFactorModule(
     };
   }
 
-  let compiled:
-    | Awaited<ReturnType<typeof compileTimeSeriesFactor>>
-    | Awaited<ReturnType<typeof compilePanelFactor>>
-    | null = null;
+  const runtime = await FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: row.analysisKind,
+    code: row.code,
+  });
   try {
-    compiled =
-      row.analysisKind === 'panel'
-        ? await compilePanelFactor(row.code)
-        : await compileTimeSeriesFactor(row.code);
     return {
       key: row.key,
       js: await toCommonJs(row.code, 'factor code'),
       analysisKind: row.analysisKind,
-      assetSeries: { window: compiled.window, inputs: [...compiled.inputs] },
+      assetSeries: { window: runtime.metadata.window, inputs: [...runtime.metadata.inputs] },
       ...(row.analysisKind === 'panel' && reportSpec != null
         ? { assetUniverse: parseApprovedPanelUniverse(row.key, reportSpec) }
         : {}),
     };
   } finally {
-    compiled?.dispose();
+    runtime.close();
   }
 }
 

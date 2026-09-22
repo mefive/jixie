@@ -1,4 +1,4 @@
-import { compilePanelFactor, compileTimeSeriesFactor } from './typescript/compile-asset-factor.js';
+import { FactorRuntime } from './factor-runtime.js';
 import { pythonFactorTargetAssetClasses } from './python/validator.js';
 
 export async function customFactorTargetAssetClasses(input: {
@@ -12,13 +12,14 @@ export async function customFactorTargetAssetClasses(input: {
   if (input.language === 'python') {
     return pythonFactorTargetAssetClasses(input.code);
   }
-  const compiled =
-    input.analysisKind === 'time_series'
-      ? await compileTimeSeriesFactor(input.code)
-      : await compilePanelFactor(input.code);
+  const runtime = await FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: input.analysisKind,
+    code: input.code,
+  });
   try {
-    return [...compiled.targetAssetClasses];
+    return [...runtime.metadata.targetAssetClasses];
   } finally {
-    compiled.dispose();
+    runtime.close();
   }
 }

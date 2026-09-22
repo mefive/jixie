@@ -1,7 +1,8 @@
+import type { TimeSeriesFactorRuntime } from '../runtime/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import { factorV2YieldTerm, type FactorV2FieldKey } from '../definitions/fields.js';
 import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
 import {
@@ -26,15 +27,15 @@ export interface YieldCurveObservationRow {
 
 export async function loadEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
   const historyStart = addDays(
     researchSpec.start,
-    -(factor.window - 1 + researchSpec.target.horizon) * 3,
+    -(factor.metadata.window - 1 + researchSpec.target.horizon) * 3,
   );
   const upperBound = researchSpec.dataPolicy.dataCutoff ?? undefined;
-  const yieldTerms = factor.inputs
+  const yieldTerms = factor.metadata.inputs
     .map(factorV2YieldTerm)
     .filter((term): term is number => term !== null);
   const [bars, adjustments, curvePoints, assets] = await Promise.all([
@@ -108,7 +109,7 @@ export async function loadEtfTimeSeriesObservations(
 export async function buildEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   rows: EtfTrendDailyRow[],
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
   curveRows: YieldCurveObservationRow[] = [],
 ): Promise<TimeSeriesEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
@@ -149,12 +150,12 @@ export async function buildEtfTimeSeriesObservations(
     const { fields, availableDates } = alignedFactorFields(
       assetRows,
       adjustedCloses,
-      factor.inputs,
+      factor.metadata.inputs,
       curveRows,
     );
     const indexes: number[] = [];
     for (
-      let index = factor.window - 1;
+      let index = factor.metadata.window - 1;
       index + researchSpec.target.horizon < assetRows.length;
       index++
     ) {
@@ -171,7 +172,7 @@ export async function buildEtfTimeSeriesObservations(
       }
       indexes.push(index);
     }
-    const scores = await factor.computeSeries(fields, indexes);
+    const scores = await factor.execute({ fields: fields, indexes: indexes });
     if (scores.length !== indexes.length) {
       throw new Error(
         `Time-series factor returned ${scores.length} scores for ${indexes.length} observations`,
@@ -188,7 +189,11 @@ export async function buildEtfTimeSeriesObservations(
       observations.push({
         assetId,
         asOfDate: current.tradeDate,
-        featureAvailableDate: latestFeatureAvailableDate(factor.inputs, availableDates, index),
+        featureAvailableDate: latestFeatureAvailableDate(
+          factor.metadata.inputs,
+          availableDates,
+          index,
+        ),
         targetDate: target.tradeDate,
         score,
         forwardReturn:
@@ -201,7 +206,7 @@ export async function buildEtfTimeSeriesObservations(
 
 function assertSupportedProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): void {
   if (
     researchSpec.observationFrequency !== 'daily' ||
@@ -210,10 +215,10 @@ function assertSupportedProtocol(
     throw new Error('ETF trend observations currently require daily trade-day horizons.');
   }
   if (
-    factor.analysisKind !== 'time_series' ||
-    factor.outputScope !== 'asset' ||
-    factor.frequency !== 'daily' ||
-    factor.inputs.length === 0
+    factor.metadata.analysisKind !== 'time_series' ||
+    factor.metadata.outputScope !== 'asset' ||
+    factor.metadata.frequency !== 'daily' ||
+    factor.metadata.inputs.length === 0
   ) {
     throw new Error('ETF observations require a daily asset-scope Factor V2 definition.');
   }

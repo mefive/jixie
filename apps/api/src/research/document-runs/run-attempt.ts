@@ -1,9 +1,10 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import type { ResearchAffectedRunPlan } from '../dependencies/run-plan.js';
 import { assertResearchCellIdsRunnable } from '../dependencies/runnable.js';
 import { ResearchError } from '../errors.js';
-import { researchRuntimeManager } from '../runtime/python/session.js';
+
 import { executeAffectedResearchCellPlan } from './execute-plan.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
@@ -35,7 +36,7 @@ export async function runResearchCellChangeAttemptPlan(
   try {
     await assertResearchCellIdsRunnable(documentId, plan.cellIds);
     if (args.clean) {
-      await researchRuntimeManager.reset(documentId);
+      await researchRuntimePool.reset(documentId);
       if (!control.interrupted) {
         await prisma.researchCell.updateMany({
           where: {

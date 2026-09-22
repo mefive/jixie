@@ -1,7 +1,8 @@
+import type { PanelFactorRuntime } from '../runtime/contract.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { CompiledPanelFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import type { PanelEvaluationObservation } from '../execution/panel-evaluator.js';
 
 export interface PanelEtfDailyRow {
@@ -22,11 +23,14 @@ export interface PanelEtfMetadata {
 
 export async function loadPanelEtfObservations(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: CompiledPanelFactor,
+  factor: PanelFactorRuntime,
 ): Promise<PanelEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
   const assetIds = researchSpec.assets.map((asset) => asset.assetId);
-  const historyStart = addDays(researchSpec.start, -(Math.max(factor.window, 21) + 10) * 3);
+  const historyStart = addDays(
+    researchSpec.start,
+    -(Math.max(factor.metadata.window, 21) + 10) * 3,
+  );
   const targetEnd = addDays(researchSpec.end, (researchSpec.target.horizon + 10) * 3);
   const upperBound = researchSpec.dataPolicy.dataCutoff
     ? researchSpec.dataPolicy.dataCutoff < targetEnd
@@ -112,7 +116,7 @@ export async function buildPanelEtfObservations(
   researchSpec: PanelFactorResearchSpecV1,
   rows: PanelEtfDailyRow[],
   openDates: string[],
-  factor: CompiledPanelFactor,
+  factor: PanelFactorRuntime,
 ): Promise<PanelEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
   const declaredAssets = new Map(
@@ -170,7 +174,7 @@ export async function buildPanelEtfObservations(
       if (
         index == null ||
         targetIndex == null ||
-        index < factor.window - 1 ||
+        index < factor.metadata.window - 1 ||
         index < 20 ||
         targetIndex <= index
       ) {
@@ -179,10 +183,10 @@ export async function buildPanelEtfObservations(
       scoreIndexes.push(index);
       eligibleDates.push({ asOfDate, targetDate, index });
     }
-    const scores = await factor.computeSeries(
-      { 'etf.adjustedClose': adjustedCloses },
-      scoreIndexes,
-    );
+    const scores = await factor.execute({
+      fields: { 'etf.adjustedClose': adjustedCloses },
+      indexes: scoreIndexes,
+    });
     if (scores.length !== eligibleDates.length) {
       throw new Error(
         `Panel factor returned ${scores.length} scores for ${eligibleDates.length} observations.`,
@@ -234,7 +238,7 @@ export function panelEtfMatchesAssetClass(
 
 function assertSupportedProtocol(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: CompiledPanelFactor,
+  factor: PanelFactorRuntime,
 ): void {
   if (
     researchSpec.observationFrequency !== 'monthly' ||
@@ -243,11 +247,11 @@ function assertSupportedProtocol(
     throw new Error('Panel ETF observations currently require monthly trade-day horizons.');
   }
   if (
-    factor.analysisKind !== 'panel' ||
-    factor.outputScope !== 'asset' ||
-    factor.frequency !== 'daily' ||
-    factor.inputs.length !== 1 ||
-    factor.inputs[0] !== 'etf.adjustedClose'
+    factor.metadata.analysisKind !== 'panel' ||
+    factor.metadata.outputScope !== 'asset' ||
+    factor.metadata.frequency !== 'daily' ||
+    factor.metadata.inputs.length !== 1 ||
+    factor.metadata.inputs[0] !== 'etf.adjustedClose'
   ) {
     throw new Error(
       'Panel ETF observations require a price-only daily asset-scope Factor V2 definition.',
@@ -261,7 +265,7 @@ function assertSupportedProtocol(
         : 'commodity';
   if (
     researchSpec.assets.some(
-      (asset) => !factor.targetAssetClasses.includes(broadClass(asset.assetClass)),
+      (asset) => !factor.metadata.targetAssetClasses.includes(broadClass(asset.assetClass)),
     )
   ) {
     throw new Error('Panel Factor V2 target classes do not cover the declared ETF universe.');

@@ -9,10 +9,7 @@ import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import type { MacroRegimeEvaluationData } from '../observations/macro-regime-observations.js';
 
 const mocks = vi.hoisted(() => ({
-  compileTimeSeries: vi.fn(),
-  compilePythonTimeSeries: vi.fn(),
-  compilePanel: vi.fn(),
-  compilePythonPanel: vi.fn(),
+  start: vi.fn(),
   etf: vi.fn(),
   carry: vi.fn(),
   receipts: vi.fn(),
@@ -25,14 +22,7 @@ const mocks = vi.hoisted(() => ({
   crossSectional: vi.fn(),
 }));
 
-vi.mock('../runtime/typescript/compile-asset-factor.js', () => ({
-  compileTimeSeriesFactor: mocks.compileTimeSeries,
-  compilePanelFactor: mocks.compilePanel,
-}));
-vi.mock('../runtime/python/asset-factor.js', () => ({
-  compilePythonTimeSeriesFactor: mocks.compilePythonTimeSeries,
-  compilePythonPanelFactor: mocks.compilePythonPanel,
-}));
+vi.mock('../runtime/factor-runtime.js', () => ({ FactorRuntime: { start: mocks.start } }));
 vi.mock('../observations/etf-trend-observations.js', () => ({
   loadEtfTimeSeriesObservations: mocks.etf,
 }));
@@ -144,13 +134,11 @@ beforeEach(() => {
 
 describe('shared factor evaluation', () => {
   it.each<FactorLanguage>(['typescript', 'python'])(
-    'returns a raw time-series report for %s and delivers before disposing',
+    'returns a raw time-series report for %s and delivers before closing',
     async (language) => {
       const events: string[] = [];
-      const compiled = { dispose: vi.fn(() => events.push('dispose')) };
-      const compile =
-        language === 'python' ? mocks.compilePythonTimeSeries : mocks.compileTimeSeries;
-      compile.mockResolvedValue(compiled);
+      const runtime = { close: vi.fn(() => events.push('close')) };
+      mocks.start.mockResolvedValue(runtime);
       const onResult = vi.fn(() => events.push('result'));
       const result = await runFactorEvaluation({
         ...options,
@@ -159,19 +147,21 @@ describe('shared factor evaluation', () => {
         onResult,
       });
 
-      expect(compile).toHaveBeenCalledWith(source.code, logs.onUserLog);
-      expect(mocks.etf).toHaveBeenCalledWith(timeSeriesSpec, compiled);
+      expect(mocks.start).toHaveBeenCalledExactlyOnceWith({
+        language,
+        analysisKind: 'time_series',
+        code: source.code,
+        onUserLog: logs.onUserLog,
+      });
+      expect(mocks.etf).toHaveBeenCalledWith(timeSeriesSpec, runtime);
       expect(result).toMatchObject({
         periods: 4,
         observations: 4,
         byAsset: [expect.objectContaining({ correlation: 1, regressionSlope: 0.02 })],
       });
       expect(onResult).toHaveBeenCalledWith(result);
-      expect(events).toEqual(['result', 'dispose']);
-      expect(compiled.dispose).toHaveBeenCalledOnce();
-      expect(
-        language === 'python' ? mocks.compileTimeSeries : mocks.compilePythonTimeSeries,
-      ).not.toHaveBeenCalled();
+      expect(events).toEqual(['result', 'close']);
+      expect(runtime.close).toHaveBeenCalledOnce();
     },
   );
 
@@ -179,30 +169,30 @@ describe('shared factor evaluation', () => {
     { carry: true, receipts: true, loader: 'carry' as const },
     { carry: false, receipts: true, loader: 'receipts' as const },
   ])('retains time-series loader precedence: $loader', async ({ carry, receipts, loader }) => {
-    const compiled = { dispose: vi.fn() };
-    mocks.compileTimeSeries.mockResolvedValue(compiled);
+    const runtime = { close: vi.fn() };
+    mocks.start.mockResolvedValue(runtime);
     mocks.usesCarry.mockReturnValue(carry);
     mocks.usesReceipts.mockReturnValue(receipts);
     await runFactorEvaluation({ ...options, source, spec: timeSeriesSpec });
 
-    expect(mocks[loader]).toHaveBeenCalledWith(timeSeriesSpec, compiled);
+    expect(mocks[loader]).toHaveBeenCalledWith(timeSeriesSpec, runtime);
     expect(mocks.etf).not.toHaveBeenCalled();
     expect(mocks[loader === 'carry' ? 'receipts' : 'carry']).not.toHaveBeenCalled();
-    expect(compiled.dispose).toHaveBeenCalledOnce();
+    expect(runtime.close).toHaveBeenCalledOnce();
   });
 
   it.each(['loading', 'evaluation', 'delivery', 'disposal'] as const)(
     'preserves %s failures and cleanup ordering',
     async (stage) => {
       const failure = new Error(`${stage} failed`);
-      const compiled = {
-        dispose: vi.fn(() => {
+      const runtime = {
+        close: vi.fn(() => {
           if (stage === 'disposal') {
             throw failure;
           }
         }),
       };
-      mocks.compileTimeSeries.mockResolvedValue(compiled);
+      mocks.start.mockResolvedValue(runtime);
       if (stage === 'loading') {
         mocks.etf.mockRejectedValue(failure);
       }
@@ -217,7 +207,7 @@ describe('shared factor evaluation', () => {
       await expect(
         runFactorEvaluation({ ...options, source, spec: timeSeriesSpec, onResult }),
       ).rejects.toThrow(stage === 'evaluation' ? /look-ahead bias/ : failure);
-      expect(compiled.dispose).toHaveBeenCalledOnce();
+      expect(runtime.close).toHaveBeenCalledOnce();
       expect(onResult).toHaveBeenCalledTimes(stage === 'delivery' || stage === 'disposal' ? 1 : 0);
     },
   );
@@ -225,9 +215,8 @@ describe('shared factor evaluation', () => {
   it.each<FactorLanguage>(['typescript', 'python'])(
     'evaluates a %s panel and frees its runtime',
     async (language) => {
-      const compiled = { dispose: vi.fn() };
-      const compile = language === 'python' ? mocks.compilePythonPanel : mocks.compilePanel;
-      compile.mockResolvedValue(compiled);
+      const runtime = { close: vi.fn() };
+      mocks.start.mockResolvedValue(runtime);
       mocks.panelUsesCarry.mockReturnValue(language === 'python');
       const result = await runFactorEvaluation({
         ...options,
@@ -235,10 +224,15 @@ describe('shared factor evaluation', () => {
         spec: panelSpec,
       });
 
-      expect(compile).toHaveBeenCalledWith('panel code', logs.onUserLog);
+      expect(mocks.start).toHaveBeenCalledExactlyOnceWith({
+        language,
+        analysisKind: 'panel',
+        code: 'panel code',
+        onUserLog: logs.onUserLog,
+      });
       expect(language === 'python' ? mocks.panelCarry : mocks.panel).toHaveBeenCalledWith(
         panelSpec,
-        compiled,
+        runtime,
       );
       expect(language === 'python' ? mocks.panel : mocks.panelCarry).not.toHaveBeenCalled();
       expect(result).toMatchObject({
@@ -249,7 +243,7 @@ describe('shared factor evaluation', () => {
           expect.objectContaining({ longShortGrossReturn: 0.05 }),
         ),
       });
-      expect(compiled.dispose).toHaveBeenCalledOnce();
+      expect(runtime.close).toHaveBeenCalledOnce();
     },
   );
 
@@ -286,28 +280,44 @@ describe('shared factor evaluation', () => {
     ],
   };
 
-  it('combines mixed-language panel components and disposes every runtime', async () => {
-    const first = { dispose: vi.fn() },
-      second = { dispose: vi.fn() };
-    mocks.compilePanel.mockResolvedValue(first);
-    mocks.compilePythonPanel.mockResolvedValue(second);
+  it('combines mixed-language panel components and closes every runtime', async () => {
+    const first = { close: vi.fn() },
+      second = { close: vi.fn() };
+    mocks.start.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
     const result = await runFactorEvaluation({ ...options, source: composite, spec: panelSpec });
 
+    expect(mocks.start.mock.calls).toEqual([
+      [
+        {
+          language: 'typescript',
+          analysisKind: 'panel',
+          code: 'first code',
+          onUserLog: logs.onUserLog,
+        },
+      ],
+      [
+        {
+          language: 'python',
+          analysisKind: 'panel',
+          code: 'second code',
+          onUserLog: logs.onUserLog,
+        },
+      ],
+    ]);
     expect(result).toMatchObject({ periods: 3, observations: 12, rankIcMean: 1 });
     expect(mocks.panel).toHaveBeenNthCalledWith(1, panelSpec, first);
     expect(mocks.panel).toHaveBeenNthCalledWith(2, panelSpec, second);
-    expect(first.dispose).toHaveBeenCalledOnce();
-    expect(second.dispose).toHaveBeenCalledOnce();
+    expect(first.close).toHaveBeenCalledOnce();
+    expect(second.close).toHaveBeenCalledOnce();
   });
 
-  it('releases already compiled components if a later component fails to compile', async () => {
-    const first = { dispose: vi.fn() };
-    mocks.compilePanel.mockResolvedValue(first);
-    mocks.compilePythonPanel.mockRejectedValue(new Error('invalid component'));
+  it('releases started components if a later component fails to start', async () => {
+    const first = { close: vi.fn() };
+    mocks.start.mockResolvedValueOnce(first).mockRejectedValueOnce(new Error('invalid component'));
     await expect(
       runFactorEvaluation({ ...options, source: composite, spec: panelSpec }),
     ).rejects.toThrow('invalid component');
-    expect(first.dispose).toHaveBeenCalledOnce();
+    expect(first.close).toHaveBeenCalledOnce();
     expect(mocks.panel).not.toHaveBeenCalled();
   });
 
@@ -402,11 +412,10 @@ describe('shared factor evaluation', () => {
       skippedPeriods: 1,
       pointInTimeEligible: true,
     });
-    expect(mocks.compilePanel).not.toHaveBeenCalled();
-    expect(mocks.compileTimeSeries).not.toHaveBeenCalled();
+    expect(mocks.start).not.toHaveBeenCalled();
   });
 
-  it('rejects a source/protocol mismatch before compiling', async () => {
+  it('rejects a source/protocol mismatch before starting a runtime', async () => {
     await expect(
       runFactorEvaluation({
         ...options,
@@ -414,7 +423,7 @@ describe('shared factor evaluation', () => {
         spec: timeSeriesSpec,
       }),
     ).rejects.toThrow('Time-series evaluator requires a Factor V2 source.');
-    expect(mocks.compileTimeSeries).not.toHaveBeenCalled();
+    expect(mocks.start).not.toHaveBeenCalled();
     expect(mocks.etf).not.toHaveBeenCalled();
   });
 });

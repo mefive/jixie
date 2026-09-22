@@ -1,6 +1,7 @@
+import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
-import { inspectStrategyMetadata } from '#strategy/runtime/typescript/runtime.js';
+
 import { prisma } from '#infra/database/prisma.js';
 import {
   MinistryOfFinanceCurveClient,

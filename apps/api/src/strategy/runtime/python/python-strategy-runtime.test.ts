@@ -1,8 +1,8 @@
+import { StrategyRuntime } from '../strategy-runtime.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
 import { runStrategy } from '#engine/simulation/run.js';
 import { defineStrategy } from '../../sdk/typescript.js';
-import { createPythonStrategyRuntime } from './runtime.js';
 
 const dates = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];
 const spec: FixtureSpec = {
@@ -60,9 +60,11 @@ describe('Python strategy runtime', () => {
   it('keeps fills and NAV identical to a native strategy over the same engine', async () => {
     enableTestRuntime();
     const logs: string[] = [];
-    const runtime = await createPythonStrategyRuntime(pythonCode, (_level, text) =>
-      logs.push(text),
-    );
+    const runtime = await StrategyRuntime.start({
+      language: 'python',
+      code: pythonCode,
+      onUserLog: (_level, text) => logs.push(text),
+    });
     const nativeStrategy = defineStrategy({
       name: 'native-drift',
       watch: ['AAA', 'BBB'],
@@ -84,7 +86,7 @@ describe('Python strategy runtime', () => {
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
-          strategy: runtime.strategy,
+          strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
           dataPort: fixturePort(spec),
         }),
         runStrategy({
@@ -99,17 +101,18 @@ describe('Python strategy runtime', () => {
       expect(pythonResult.nav).toEqual(nativeResult.nav);
       expect(pythonResult.tradeLog).toEqual(nativeResult.tradeLog);
       expect(logs).toHaveLength(dates.length);
-      expect(runtime.strategy.name).toBe('python-drift');
+      expect(runtime.metadata.name).toBe('python-drift');
     } finally {
-      await runtime.close();
+      runtime.close();
     }
   });
 
   it('keeps Python daily technical indicators aligned with the TypeScript SDK', async () => {
     enableTestRuntime();
     const logs: string[] = [];
-    const runtime = await createPythonStrategyRuntime(
-      `
+    const runtime = await StrategyRuntime.start({
+      language: 'python',
+      code: `
 from jixie import Strategy
 
 strategy = Strategy(name="python-indicators", watch=["AAA"])
@@ -131,8 +134,8 @@ def handle_bar(ctx):
     ]
     print("indicator-probe", *values)
 `,
-      (_level, text) => logs.push(text),
-    );
+      onUserLog: (_level, text) => logs.push(text),
+    });
     let nativeValues: number[] = [];
     const nativeStrategy = defineStrategy({
       name: 'native-indicators',
@@ -169,7 +172,7 @@ def handle_bar(ctx):
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
-          strategy: runtime.strategy,
+          strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
           dataPort: fixturePort(spec),
         }),
         runStrategy({
@@ -186,47 +189,53 @@ def handle_bar(ctx):
       expect(pythonValues).toHaveLength(nativeValues.length);
       pythonValues.forEach((value, index) => expect(value).toBeCloseTo(nativeValues[index], 10));
     } finally {
-      await runtime.close();
+      runtime.close();
     }
   });
 
   it('returns Python tracebacks with strategy.py line numbers', async () => {
     enableTestRuntime();
-    const runtime = await createPythonStrategyRuntime(`
+    const runtime = await StrategyRuntime.start({
+      language: 'python',
+      code: `
 from jixie import Strategy
 strategy = Strategy()
 @strategy.on_bar
 def broken(ctx):
     raise ValueError("boom")
-`);
+`,
+    });
     try {
       await expect(
         runStrategy({
           start: dates[0],
           end: dates[1],
           initialCash: 100_000,
-          strategy: runtime.strategy,
+          strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
           dataPort: fixturePort(spec),
         }),
       ).rejects.toThrow(/strategy\.py.*ValueError: boom/s);
     } finally {
-      await runtime.close();
+      runtime.close();
     }
   });
 
   it('allows published Factor keys to flow through the shared engine host', async () => {
     enableTestRuntime();
-    const runtime = await createPythonStrategyRuntime(`
+    const runtime = await StrategyRuntime.start({
+      language: 'python',
+      code: `
 from jixie import Strategy
 strategy = Strategy(factors=["python_value"])
 @strategy.on_bar
 def handle_bar(ctx):
     pass
-`);
+`,
+    });
     try {
-      expect(runtime.strategy.factors).toEqual(['python_value']);
+      expect(runtime.metadata.factors).toEqual(['python_value']);
     } finally {
-      await runtime.close();
+      runtime.close();
     }
   });
 
@@ -238,7 +247,9 @@ def handle_bar(ctx):
       process.env.JIXIE_PYTHON_CODE_TIMEOUT_SECONDS = '0.05';
     }
     await expect(
-      createPythonStrategyRuntime(`
+      StrategyRuntime.start({
+        language: 'python',
+        code: `
 from jixie import Strategy
 while True:
     pass
@@ -246,7 +257,8 @@ strategy = Strategy()
 @strategy.on_bar
 def handle_bar(ctx):
     pass
-`),
+`,
+      }),
     ).rejects.toThrow(/TimeoutError: Python strategy exceeded 0\.05s/s);
   });
 });

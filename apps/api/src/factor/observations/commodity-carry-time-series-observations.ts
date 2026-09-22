@@ -1,3 +1,4 @@
+import type { TimeSeriesFactorRuntime } from '../runtime/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import {
   COMMODITY_CARRY_MAX_STALENESS_DAYS,
@@ -8,7 +9,7 @@ import {
 import { COMMODITY_FUTURE_SPECS } from '#market/commodity/commodity-futures.js';
 import { addDays, daysBetween } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import { COMMODITY_CARRY_FIELD } from '../definitions/fields.js';
 import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
@@ -28,12 +29,12 @@ const COMMODITY_CARRY_TIME_SERIES_MAPPINGS: CommodityCarryTimeSeriesMapping[] =
  * The future is a feature source only; all return targets remain adjusted ETF prices. */
 export async function loadCommodityCarryTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityCarryTimeSeriesProtocol(researchSpec, factor);
   const historyStart = addDays(
     researchSpec.start,
-    -(factor.window - 1 + researchSpec.target.horizon) * 3,
+    -(factor.metadata.window - 1 + researchSpec.target.horizon) * 3,
   );
   const upperBound = researchSpec.dataPolicy.dataCutoff ?? undefined;
   const [bars, adjustments, carryPoints, metadata] = await Promise.all([
@@ -87,7 +88,7 @@ export async function buildCommodityCarryTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   etfRows: EtfTrendDailyRow[],
   carryPoints: CommodityCarryPointV1[],
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityCarryTimeSeriesProtocol(researchSpec, factor);
   const rowsByAsset = groupAndValidateEtfRows(etfRows, mappings);
@@ -105,7 +106,7 @@ export async function buildCommodityCarryTimeSeriesObservations(
     const aligned = alignCarryToEtfDates(rows, productCarry);
     const indexes: number[] = [];
     for (
-      let index = factor.window - 1;
+      let index = factor.metadata.window - 1;
       index + researchSpec.target.horizon < rows.length;
       index++
     ) {
@@ -122,7 +123,10 @@ export async function buildCommodityCarryTimeSeriesObservations(
       }
       indexes.push(index);
     }
-    const scores = await factor.computeSeries({ [COMMODITY_CARRY_FIELD]: aligned.values }, indexes);
+    const scores = await factor.execute({
+      fields: { [COMMODITY_CARRY_FIELD]: aligned.values },
+      indexes: indexes,
+    });
     if (scores.length !== indexes.length) {
       throw new Error('Commodity carry time-series factor returned an unexpected score count.');
     }
@@ -150,22 +154,22 @@ export async function buildCommodityCarryTimeSeriesObservations(
   );
 }
 
-export function timeSeriesFactorUsesCommodityCarry(factor: CompiledTimeSeriesFactor): boolean {
-  return factor.inputs.length === 1 && factor.inputs[0] === COMMODITY_CARRY_FIELD;
+export function timeSeriesFactorUsesCommodityCarry(factor: TimeSeriesFactorRuntime): boolean {
+  return factor.metadata.inputs.length === 1 && factor.metadata.inputs[0] === COMMODITY_CARRY_FIELD;
 }
 
 function assertCommodityCarryTimeSeriesProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): CommodityCarryTimeSeriesMapping[] {
   if (
     researchSpec.observationFrequency !== 'daily' ||
     researchSpec.target.horizonUnit !== 'trade_day' ||
-    factor.analysisKind !== 'time_series' ||
-    factor.outputScope !== 'asset' ||
-    factor.frequency !== 'daily' ||
+    factor.metadata.analysisKind !== 'time_series' ||
+    factor.metadata.outputScope !== 'asset' ||
+    factor.metadata.frequency !== 'daily' ||
     !timeSeriesFactorUsesCommodityCarry(factor) ||
-    !factor.targetAssetClasses.includes('commodity')
+    !factor.metadata.targetAssetClasses.includes('commodity')
   ) {
     throw new Error('Commodity carry time-series research requires the frozen daily protocol.');
   }

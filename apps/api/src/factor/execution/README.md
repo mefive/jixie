@@ -14,7 +14,7 @@
 | [time-series-evaluator.ts](time-series-evaluator.ts)、[panel-evaluator.ts](panel-evaluator.ts)、[macro-regime-evaluator.ts](macro-regime-evaluator.ts) | 对相应观察数据形成评估结果；数值与频率规则留在各评估器 |
 | [evaluation-scope.ts](evaluation-scope.ts) | PIT 指数成分、范围过滤及行业内排序规则 |
 
-run 按 researchSpec 分派来源类型，组合 [observations](../observations/README.md) 和 [runtime](../runtime/README.md)。资产因子计算在 try/finally 中释放编译对象。onResult 保留在释放前调用的顺序；Worker 的 `reportId` 只是消息关联标识，天气可使用 `weather:*`，不要求存在同名数据库报告。
+run 按 researchSpec 分派来源类型，组合 [observations](../observations/README.md) 和 [runtime](../runtime/README.md)。资产因子经 FactorRuntime.start 创建，execute 批量计算，finally close 释放实例。onResult 保留在释放前调用的顺序；Worker 的 `reportId` 只是消息关联标识，天气可使用 `weather:*`，不要求存在同名数据库报告。
 
 更改公共 Worker 时同时检查两个宿主如何接收结果、判断退出和保存终态；不要把天气改造成正式 Job。线程／资源路径以 [运行入口清单](../../../../../docs/backend-runtime-entries.md) 为主要维护位置。
 

@@ -1,6 +1,7 @@
+import { inspectStrategyParameters } from '../inspect-definition.js';
 import { DEFAULT_LOCALE } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { inspectStrategyParameters } from './runtime.js';
+
 import { compileStrategy } from './testing/compile.js';
 
 const CODE = `export default defineStrategy({

@@ -1,6 +1,7 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { compilePanelFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import {
   buildPanelEtfObservations,
   panelEtfMatchesAssetClass,
@@ -69,11 +70,15 @@ function rows(): PanelEtfDailyRow[] {
 }
 
 async function build(sourceRows = rows()) {
-  const factor = await compilePanelFactor(factorCode);
+  const factor = await FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: 'panel',
+    code: factorCode,
+  });
   try {
     return await buildPanelEtfObservations(spec, sourceRows, openDates(), factor);
   } finally {
-    factor.dispose();
+    factor.close();
   }
 }
 

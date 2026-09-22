@@ -1,3 +1,4 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type {
   ResearchCellChangeConflictV1,
@@ -16,7 +17,7 @@ import {
 import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
 import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
-import { researchRuntimeManager } from '../runtime/python/session.js';
+
 import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
 import {
   researchCellChangeProposalView,
@@ -759,7 +760,9 @@ async function validateProposedDocument(
     .filter((cell) => cell.kind === 'python')
     .map((cell) => ({ id: cell.id, source: cell.source }));
   const analyses =
-    pythonCells.length > 0 ? await researchRuntimeManager.analyze(documentId, pythonCells) : [];
+    pythonCells.length > 0
+      ? await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.analyze(pythonCells))
+      : [];
   const syntaxError = analyses.find((analysis) => analysis.error);
   if (syntaxError) {
     throw new Error(`Cell ${syntaxError.cellId} is invalid Python: ${syntaxError.error}`);

@@ -1,3 +1,5 @@
+import type { ResearchRuntime } from '../runtime/research-runtime.js';
+
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchClarificationV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -37,11 +39,15 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('../runtime/python/session.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../runtime/python/session.js')>();
-  vi.spyOn(original.researchRuntimeManager, 'analyze').mockImplementation(resources.analyze);
-  vi.spyOn(original.researchRuntimeManager, 'reset').mockImplementation(resources.reset);
-  return { ...original, closeResearchDocumentRuntime: resources.close };
+vi.mock('../runtime/pool.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../runtime/pool.js')>();
+  vi.spyOn(original.researchRuntimePool, 'withRuntime').mockImplementation(
+    async (documentId, operation) =>
+      operation({ analyze: (cells) => resources.analyze(documentId, cells) } as ResearchRuntime),
+  );
+  vi.spyOn(original.researchRuntimePool, 'reset').mockImplementation(resources.reset);
+  vi.spyOn(original.researchRuntimePool, 'close').mockImplementation(resources.close);
+  return original;
 });
 vi.mock('../language/pyright-service.js', () => ({
   researchPythonLanguageService: { request: resources.language },

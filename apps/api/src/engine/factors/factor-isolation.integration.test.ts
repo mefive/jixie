@@ -1,6 +1,7 @@
+import { StrategyRuntime } from '#strategy/runtime/strategy-runtime.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FactorLanguage } from '@jixie/shared';
-import { createPythonStrategyRuntime } from '#strategy/runtime/python/runtime.js';
+
 import { runSandboxedBacktest } from '#strategy/runtime/run.js';
 import { FactorHost } from '../adapters/factor-host.js';
 import { runStrategy } from '../simulation/run.js';
@@ -118,8 +119,9 @@ describe('strategy and factor sandbox combinations', () => {
           (_level, text) => logs.push(text),
         );
       } else {
-        const runtime = await createPythonStrategyRuntime(
-          `
+        const runtime = await StrategyRuntime.start({
+          language: 'python',
+          code: `
 from jixie import Strategy
 strategy = Strategy(name="bridge", watch=["A"], factors=["value"])
 @strategy.on_bar
@@ -129,10 +131,13 @@ def on_bar(ctx):
     print("value", value)
     ctx.order_target_percent("A", 0.5 if value == 20 else 0)
 `,
-          (_level, text) => logs.push(text),
-        );
+          onUserLog: (_level, text) => logs.push(text),
+        });
         try {
-          result = await runWithFactors(runtime.strategy, [module]);
+          result = await runWithFactors(
+            { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+            [module],
+          );
         } finally {
           await runtime.close();
         }

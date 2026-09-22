@@ -1,3 +1,4 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { quantile, std } from '#math/stats.js';
 import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
 import { execFileSync } from 'node:child_process';
@@ -29,7 +30,7 @@ import { claimQueuedJob } from '#infra/jobs/records.js';
 import { runResearchDocument } from '../document-runs/run-document.js';
 import { getResearchDocument } from '../documents/read.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
-import { researchRuntimeManager } from '../runtime/python/session.js';
+
 import { replayResearchInput } from '../runtime/host/input-replay.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { captureEmbeddedContext } from './context.js';
@@ -99,7 +100,7 @@ describe('embedded analysis with the real Research Python runtime', () => {
   });
   afterEach(async () => {
     for (const document of await prisma.researchDocument.findMany({ select: { id: true } })) {
-      researchRuntimeManager.close(document.id);
+      researchRuntimePool.close(document.id);
     }
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;

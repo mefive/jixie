@@ -113,8 +113,23 @@ interface Startup {
   captureUserLogs: boolean;
 }
 
-(globalThis as Record<string, unknown>).__startStrategy = (json: string) => {
-  const config = JSON.parse(json) as Startup;
+interface StrategyBarSnapshot {
+  date: string;
+  cash: number;
+  value: number;
+  available_cash: number;
+  stock_value: number;
+  future_value: number;
+  stock_available_cash: number;
+  future_available_cash: number;
+  future_margin: number;
+  positions: Array<{ code: string; shares: number; avg_cost: number; market_value: number }>;
+  history_updates?: Record<string, HistoryUpdate>;
+}
+
+type StrategyHostResponse = { id: number } & ({ result: unknown } | { error: string });
+
+function startStrategy(config: Startup) {
   const console = config.captureUserLogs
     ? makeSandboxConsole(
         (level, text) => {
@@ -139,10 +154,9 @@ interface Startup {
       accounts: strategy.accounts ?? null,
     },
   });
-};
+}
 
-(globalThis as Record<string, unknown>).__receiveResponse = (json: string) => {
-  const reply = JSON.parse(json);
+function receiveResponse(reply: StrategyHostResponse) {
   const waiting = pending.get(reply.id);
   if (!waiting) {
     throw new Error('Unexpected strategy response ID');
@@ -153,10 +167,9 @@ interface Startup {
   } else {
     waiting.resolve(reply.result);
   }
-};
+}
 
-(globalThis as Record<string, unknown>).__runStrategyBar = async (json: string) => {
-  const snapshot = JSON.parse(json);
+async function runStrategyBar(snapshot: StrategyBarSnapshot) {
   reads.clear();
   updateHistories(snapshot.history_updates ?? {});
   // Cross-sections are immutable copies; the latest load replaces the visible panel, as in Engine.
@@ -264,4 +277,18 @@ interface Startup {
   };
   await strategy.onBar(core);
   return JSON.stringify({ type: 'done', commands: [] });
+}
+
+(globalThis as Record<string, unknown>).__receiveCommand = (json: string) => {
+  const frame = JSON.parse(json);
+  switch (frame.type) {
+    case 'start':
+      return startStrategy(frame);
+    case 'bar':
+      return runStrategyBar(frame.snapshot);
+    case 'response':
+      return receiveResponse(frame);
+    default:
+      throw new Error(`Unsupported strategy command: ${frame.type}`);
+  }
 };

@@ -4,8 +4,9 @@
 
 | 文件 / 入口 | 消费者及副作用 |
 | --- | --- |
-| [validate-definition.ts](validate-definition.ts) `validateFactorDefinition` | 草稿写入等调用方传源码、不可混淆的 analysisKind 和 language；成功返回 void，失败抛错。TS 会编译并释放对象，Python 做静态验证 |
-| [inspect-definition.ts](inspect-definition.ts) `customFactorTargetAssetClasses` | definitions/read 获取详情资产范围；横截面返回 equity，TS 资产因子编译后 finally dispose，Python 只解析字面量声明 |
+| [factor-runtime.ts](factor-runtime.ts) `FactorRuntime.start` | 所有计算消费者的唯一创建入口，按 language/analysisKind 选择具体实例；实例统一提供 metadata、execute、同步幂等 close，输入类型在 [contract.ts](contract.ts) |
+| [validate-definition.ts](validate-definition.ts) `validateFactorDefinition` | 草稿写入等调用方传源码、不可混淆的 analysisKind 和 language；成功返回 void，失败抛错。TS 会 start 并 close 实例，Python 做静态验证 |
+| [inspect-definition.ts](inspect-definition.ts) `customFactorTargetAssetClasses` | definitions/read 获取详情资产范围；横截面返回 equity，TS 资产因子 start 后读取 metadata，finally close，Python 只解析字面量声明 |
 | [codegen-prompt.ts](codegen-prompt.ts) `buildFactorCodegenPrompt` | Agent profile／生成流程使用，按语言和分析类型构造提示词，不保存因子或报告 |
 
 静态验证、检查元数据与执行因子不是同一操作。Python 验证虽不执行用户 Python，仍启动 Pyright 并创建临时文件；TS 定义检查也有 isolate 资源。纯目录消费者不要经 runtime 获取 definitions/views 中已有的语言映射。

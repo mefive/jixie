@@ -1,6 +1,6 @@
+import { researchRuntimePool } from '../pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/runtime/python/session.js';
-import { researchRuntimeManager } from './session.js';
 
 const documentId = 'capability-test';
 function sessionFixture(capabilities?: string[]) {
@@ -28,7 +28,7 @@ function sessionFixture(capabilities?: string[]) {
 }
 
 afterEach(() => {
-  researchRuntimeManager.close(documentId);
+  researchRuntimePool.close(documentId);
   vi.restoreAllMocks();
 });
 
@@ -36,17 +36,22 @@ describe('Research runtime parameter capability negotiation', () => {
   it('keeps ordinary Cells compatible with a sandbox that has no parameter capability', async () => {
     sessionFixture();
     expect(
-      (await researchRuntimeManager.execute(documentId, { id: 'cell', source: '1' })).outputs,
+      (
+        await researchRuntimePool.withRuntime(documentId, (runtime) =>
+          runtime.execute({ cell: { id: 'cell', source: '1' } }),
+        )
+      ).outputs,
     ).toEqual([{ type: 'value', value: 1 }]);
   });
 
   it('rejects embedded execution before sending source if the sandbox would ignore its parameters', async () => {
     const session = sessionFixture();
     await expect(
-      researchRuntimeManager.execute(
-        documentId,
-        { id: 'cell', source: 'parameters["window"]' },
-        { parameters: { window: 12 } },
+      researchRuntimePool.withRuntime(documentId, (runtime) =>
+        runtime.execute(
+          { cell: { id: 'cell', source: 'parameters["window"]' }, parameters: { window: 12 } },
+          {},
+        ),
       ),
     ).rejects.toThrow('sandbox must be updated');
     expect(session.send.mock.calls.some(([frame]) => frame.type === 'research_execute')).toBe(
@@ -60,10 +65,11 @@ describe('Research runtime parameter capability negotiation', () => {
     const source = 'from __future__ import annotations\nparameters["window"]';
     const parameters = { window: 12, enabled: true, absent: null };
     const captureEnvironment = vi.fn();
-    await researchRuntimeManager.execute(
-      documentId,
-      { id: 'cell', source },
-      { parameters, captureEnvironment },
+    await researchRuntimePool.withRuntime(documentId, (runtime) =>
+      runtime.execute(
+        { cell: { id: 'cell', source }, parameters: parameters },
+        { captureEnvironment },
+      ),
     );
     expect(session.send).toHaveBeenCalledWith({
       type: 'research_execute',

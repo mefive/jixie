@@ -1,7 +1,7 @@
+import { StrategyRuntime } from '../strategy-runtime.js';
 import type { z } from 'zod';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/runtime/python/session.js';
-import { createPythonStrategyRuntime } from './runtime.js';
 
 function sessionFixture(frame: unknown) {
   const session = {
@@ -30,24 +30,31 @@ afterEach(() => vi.restoreAllMocks());
 describe('Python strategy transport adapter', () => {
   it('passes source and parameter overrides to startup and owns successful shutdown', async () => {
     const session = sessionFixture(ready);
-    const runtime = await createPythonStrategyRuntime('source', undefined, { lookback: 7 });
+    const runtime = await StrategyRuntime.start({
+      language: 'python',
+      code: 'source',
+      onUserLog: undefined,
+      paramOverrides: { lookback: 7 },
+    });
     expect(session.send).toHaveBeenCalledExactlyOnceWith({
       type: 'start',
       runtime_version: 'py-v1',
       code: 'source',
       param_overrides: { lookback: 7 },
     });
-    expect(runtime.strategy.params).toEqual({ lookback: 7 });
+    expect(runtime.metadata.params).toEqual({ lookback: 7 });
     expect(session.close).not.toHaveBeenCalled();
-    await runtime.close();
-    expect(session.send).toHaveBeenLastCalledWith({ type: 'close' });
+    runtime.close();
+    expect(session.send).toHaveBeenCalledOnce();
     expect(session.close).toHaveBeenCalledOnce();
   });
 
   it('closes the session when startup sending fails', async () => {
     const session = sessionFixture(ready);
     session.send.mockRejectedValueOnce(new Error('connection lost'));
-    await expect(createPythonStrategyRuntime('source')).rejects.toThrow('connection lost');
+    await expect(StrategyRuntime.start({ language: 'python', code: 'source' })).rejects.toThrow(
+      'connection lost',
+    );
     expect(session.readValidated).not.toHaveBeenCalled();
     expect(session.close).toHaveBeenCalledOnce();
   });
@@ -57,15 +64,16 @@ describe('Python strategy transport adapter', () => {
     { type: 'ready', metadata: { ...ready.metadata, watch: ['AAA', 'AAA'] } },
   ])('closes the session when the bridge rejects startup: $type', async (frame) => {
     const session = sessionFixture(frame);
-    await expect(createPythonStrategyRuntime('source')).rejects.toThrow();
+    await expect(StrategyRuntime.start({ language: 'python', code: 'source' })).rejects.toThrow();
     expect(session.close).toHaveBeenCalledOnce();
   });
 
-  it('closes local resources even when sending the close frame fails', async () => {
+  it('closes synchronously without sending a shutdown frame', async () => {
     const session = sessionFixture(ready);
-    const runtime = await createPythonStrategyRuntime('source');
-    session.send.mockRejectedValueOnce(new Error('peer exited'));
-    await runtime.close();
+    const runtime = await StrategyRuntime.start({ language: 'python', code: 'source' });
+    runtime.close();
+    runtime.close();
+    expect(session.send).toHaveBeenCalledOnce();
     expect(session.close).toHaveBeenCalledOnce();
   });
 });

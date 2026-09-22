@@ -1,3 +1,4 @@
+import { researchRuntimePool } from '../pool.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -9,8 +10,6 @@ vi.mock('../../datasets/results/factor-report.js', () => ({
 }));
 
 vi.mock('./input-replay.js', () => ({ replayResearchInput: vi.fn().mockResolvedValue(undefined) }));
-
-import { researchRuntimeManager } from '../python/session.js';
 
 const DOCUMENT_ID = 'research-factor-report-runtime-test';
 let previousLocal: string | undefined;
@@ -27,7 +26,7 @@ describe('Research FactorReport Python runtime bridge', () => {
   });
 
   afterEach(() => {
-    researchRuntimeManager.close(DOCUMENT_ID);
+    researchRuntimePool.close(DOCUMENT_ID);
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
@@ -36,11 +35,15 @@ describe('Research FactorReport Python runtime bridge', () => {
   });
 
   it('loads a report through results.factor_report without exposing write operations', async () => {
-    const execution = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'factor-report',
-      source:
-        'factor_report = results.factor_report("report-a")\nfactor_report["report"]["ic_mean"]',
-    });
+    const execution = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'factor-report',
+          source:
+            'factor_report = results.factor_report("report-a")\nfactor_report["report"]["ic_mean"]',
+        },
+      }),
+    );
 
     expect(mocks.loadFactorReport).toHaveBeenCalledWith(DOCUMENT_ID, 'report-a');
     expect(execution.outputs).toEqual([{ type: 'value', value: 0.05 }]);

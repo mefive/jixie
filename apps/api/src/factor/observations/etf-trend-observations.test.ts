@@ -1,6 +1,7 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
-import { compileTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import {
   buildEtfTimeSeriesObservations,
   type EtfTrendDailyRow,
@@ -52,11 +53,15 @@ const factorCode = `export default defineFactorV2({
 });`;
 
 async function build(sourceRows: EtfTrendDailyRow[]) {
-  const factor = await compileTimeSeriesFactor(factorCode);
+  const factor = await FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: 'time_series',
+    code: factorCode,
+  });
   try {
     return await buildEtfTimeSeriesObservations(spec, sourceRows, factor);
   } finally {
-    factor.dispose();
+    factor.close();
   }
 }
 
@@ -93,7 +98,10 @@ describe('ETF trend observations', () => {
   });
 
   it('joins the government curve by next-trading-day availability without same-day leakage', async () => {
-    const curveFactor = await compileTimeSeriesFactor(`export default defineFactorV2({
+    const curveFactor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'time_series',
+      code: `export default defineFactorV2({
       version: 2,
       name: 'CGB 10Y yield decline',
       analysisKind: 'time_series',
@@ -107,7 +115,8 @@ describe('ETF trend observations', () => {
         const previous = ctx.lag('rates.cgb.yield.10y', 1);
         return current != null && previous != null ? (previous - current) * 100 : null;
       },
-    });`);
+    });`,
+    });
     const curveRows: YieldCurveObservationRow[] = [
       { tradeDate: '20231229', availableDate: '20240101', termYears: 10, yieldPct: 2 },
       { tradeDate: '20240102', availableDate: '20240103', termYears: 10, yieldPct: 1.9 },
@@ -123,7 +132,7 @@ describe('ETF trend observations', () => {
       expect(observations[0].score).toBeCloseTo(10, 12);
       expect(observations[1].score).toBeCloseTo(20, 12);
     } finally {
-      curveFactor.dispose();
+      curveFactor.close();
     }
   });
 });

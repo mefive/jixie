@@ -1,23 +1,24 @@
-import type { z } from 'zod';
+import {
+  exchangeSandboxCommand,
+  type SandboxFrame,
+  type SandboxTransport,
+} from '#infra/runtime/exchange.js';
+import type { StrategyRuntimeMetadata } from './contract.js';
 import { replayCommands } from './commands.js';
 import { accessStrategyContext } from './context-access.js';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
-import type { EngineContext, BarRow, OhlcBar, EngineStrategy } from '#engine/types.js';
+import type { EngineContext, BarRow, OhlcBar } from '#engine/types.js';
 import { makeSandboxConsole, type UserLogSink } from '#infra/runtime/console.js';
 import {
   strategyExecutionFrameSchema,
   strategyStartupFrameSchema,
   type StrategyRequestFrame,
-  type StrategyMetadata,
 } from './protocol.js';
 
 /** Transport adapters validate frames and abort their session on protocol violations. */
-export interface StrategyTransport {
-  readonly historyUpdates?: boolean;
+export interface StrategyTransport extends SandboxTransport {
   /** Bind only during onBar; synchronous languages preserve call-site errors and first reads. */
-  setContextAccess?(handler: ((input: unknown) => unknown) | undefined): void;
-  send(frame: { type: string; [key: string]: unknown }): Promise<void>;
-  readValidated<Frame>(schema: z.ZodType<Frame>, operation: string): Promise<Frame>;
+  setHostAccess?(handler: ((input: unknown) => unknown) | undefined): void;
 }
 
 interface StrategyBridgeDiagnostics {
@@ -26,34 +27,49 @@ interface StrategyBridgeDiagnostics {
 }
 
 export interface StrategyBridgeOptions {
+  startupCommand: SandboxFrame;
+  historyUpdates?: boolean;
   diagnostics: StrategyBridgeDiagnostics;
   onUserLog?: UserLogSink;
   locale?: Locale;
 }
 
-/** The caller owns startup and cleanup; this bridge owns the engine-facing strategy. */
+export interface StrategyBridge {
+  metadata: StrategyRuntimeMetadata;
+  execute(context: EngineContext): Promise<void>;
+}
+
+/** Share protocol state across callbacks; the owner adapts execute to the engine once. */
 export async function createStrategyBridge(
   session: StrategyTransport,
   options: StrategyBridgeOptions,
-): Promise<EngineStrategy> {
+): Promise<StrategyBridge> {
   const { diagnostics, onUserLog, locale = DEFAULT_LOCALE } = options;
   const sandboxConsole = onUserLog ? makeSandboxConsole(onUserLog, 2_000, locale) : undefined;
   const logSink: UserLogSink | undefined = sandboxConsole
     ? (level, text) => sandboxConsole[level === 'warn' ? 'warn' : level](text)
     : undefined;
-  const metadata = await waitForReady(session, diagnostics, logSink);
-  const historyDates = session.historyUpdates
+  const metadata = await exchangeSandboxCommand(session, {
+    command: options.startupCommand,
+    schema: strategyStartupFrameSchema,
+    operation: `starting a ${diagnostics.language} strategy`,
+    onLog: (frame) => logSink?.(frame.level === 'warning' ? 'warn' : frame.level, frame.text),
+    result: (frame) => frame.metadata,
+  });
+  const historyDates = options.historyUpdates
     ? new Map<string, string | null>(metadata.watch.map((code) => [code, null]))
     : undefined;
   return {
-    name: metadata.name,
-    params: metadata.params,
-    factors: metadata.factors,
-    watch: metadata.watch,
-    futures: metadata.futures,
-    accounts: metadata.accounts ?? undefined,
-    async onBar(context) {
-      session.setContextAccess?.((input) => accessStrategyContext(context, input));
+    metadata: {
+      name: metadata.name,
+      params: metadata.params,
+      factors: metadata.factors,
+      watch: metadata.watch,
+      futures: metadata.futures,
+      accounts: metadata.accounts ?? undefined,
+    },
+    async execute(context) {
+      session.setHostAccess?.((input) => accessStrategyContext(context, input));
       try {
         await runStrategyBar(
           session,
@@ -65,37 +81,10 @@ export async function createStrategyBridge(
           historyDates,
         );
       } finally {
-        session.setContextAccess?.(undefined);
+        session.setHostAccess?.(undefined);
       }
     },
   };
-}
-
-async function waitForReady(
-  session: StrategyTransport,
-  diagnostics: StrategyBridgeDiagnostics,
-  onUserLog?: UserLogSink,
-): Promise<StrategyMetadata> {
-  while (true) {
-    const frame = await session.readValidated(
-      strategyStartupFrameSchema,
-      `starting a ${diagnostics.language} strategy`,
-    );
-    if (forwardLog(frame, onUserLog)) {
-      continue;
-    }
-    if (frame.type === 'ready') {
-      return frame.metadata;
-    }
-    if (frame.type === 'fatal' || frame.type === 'error') {
-      throw new Error(
-        String(frame.message ?? `${diagnostics.language} strategy initialization failed`),
-      );
-    }
-    throw new Error(
-      `unexpected ${diagnostics.language} sandbox frame while starting: ${frame.type}`,
-    );
-  }
 }
 
 async function runStrategyBar(
@@ -107,30 +96,15 @@ async function runStrategyBar(
   onUserLog?: UserLogSink,
   historyDates?: Map<string, string | null>,
 ): Promise<void> {
-  await session.send({ type: 'bar', snapshot: contextSnapshot(context, watch, historyDates) });
-  while (true) {
-    const frame = await session.readValidated(
-      strategyExecutionFrameSchema,
-      `executing a ${diagnostics.language} strategy bar`,
-    );
-    if (forwardLog(frame, onUserLog)) {
-      continue;
-    }
-    if (frame.type === 'request') {
-      await answerRequest(session, frame, context, factors, historyDates);
-      continue;
-    }
-    if (frame.type === 'done') {
-      replayCommands(context, frame.commands);
-      return;
-    }
-    if (frame.type === 'error' || frame.type === 'fatal') {
-      throw new Error(String(frame.message ?? `${diagnostics.language} strategy failed`));
-    }
-    throw new Error(
-      `unexpected ${diagnostics.language} sandbox frame during ${diagnostics.callback}: ${frame.type}`,
-    );
-  }
+  const commands = await exchangeSandboxCommand(session, {
+    command: { type: 'bar', snapshot: contextSnapshot(context, watch, historyDates) },
+    schema: strategyExecutionFrameSchema,
+    operation: `executing a ${diagnostics.language} strategy ${diagnostics.callback}`,
+    onLog: (frame) => onUserLog?.(frame.level === 'warning' ? 'warn' : frame.level, frame.text),
+    onRequest: (frame) => answerRequest(frame, context, factors, historyDates),
+    result: (frame) => frame.commands,
+  });
+  replayCommands(context, commands);
 }
 
 function contextSnapshot(
@@ -173,12 +147,11 @@ function contextSnapshot(
 }
 
 async function answerRequest(
-  session: StrategyTransport,
   frame: StrategyRequestFrame,
   context: EngineContext,
   factors: string[],
   historyDates?: Map<string, string | null>,
-): Promise<void> {
+): Promise<SandboxFrame> {
   const id = frame.id;
   try {
     let result: unknown;
@@ -236,13 +209,13 @@ async function answerRequest(
         break;
       }
     }
-    await session.send({ type: 'response', id, result });
+    return { type: 'response', id, result };
   } catch (error) {
-    await session.send({
+    return {
       type: 'response',
       id,
       error: error instanceof Error ? error.message : String(error),
-    });
+    };
   }
 }
 
@@ -300,20 +273,6 @@ function snapshotOhlc(row: OhlcBar): Record<string, unknown> {
     amount: row.amount,
     turnover_rate_f: row.turnoverRateF,
   };
-}
-
-function forwardLog(
-  frame: { type: string; level?: unknown; text?: unknown },
-  onUserLog?: UserLogSink,
-): boolean {
-  if (frame.type !== 'log') {
-    return false;
-  }
-  onUserLog?.(
-    frame.level === 'error' ? 'error' : frame.level === 'warning' ? 'warn' : 'info',
-    String(frame.text ?? ''),
-  );
-  return true;
 }
 
 /** Transfer history once, then only rows since the last callback, including gaps and suspensions. */

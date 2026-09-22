@@ -26,7 +26,6 @@ const history: OhlcBar = {
 function transport(frames: unknown[], historyUpdates = false) {
   const sent: Array<{ type: string; [key: string]: unknown }> = [];
   const session: StrategyTransport = {
-    historyUpdates,
     async send(frame) {
       sent.push(frame);
     },
@@ -37,7 +36,7 @@ function transport(frames: unknown[], historyUpdates = false) {
       return schema.parse(frames.shift());
     },
   };
-  return { session, sent };
+  return { session, sent, historyUpdates };
 }
 
 function contextFixture() {
@@ -100,17 +99,22 @@ const done = { type: 'done', commands: [] };
 
 describe('shared strategy bridge', () => {
   it('maps metadata, startup/bar logs and watch/holding snapshots without transport ownership', async () => {
-    const { session, sent } = transport([
+    const { session, sent, historyUpdates } = transport([
       { type: 'log', level: 'warning', text: 'startup' },
       ready,
       { type: 'log', level: 'error', text: 'bar' },
       done,
     ]);
     const onUserLog = vi.fn();
-    const strategy = await createStrategyBridge(session, { diagnostics, onUserLog });
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+      onUserLog,
+    });
     const { context, spies } = contextFixture();
-    expect(strategy).toMatchObject(metadata);
-    await strategy.onBar(context);
+    expect(strategy.metadata).toMatchObject(metadata);
+    await strategy.execute(context);
     expect(onUserLog.mock.calls).toEqual([
       ['warn', 'startup'],
       ['error', 'bar'],
@@ -121,6 +125,7 @@ describe('shared strategy bridge', () => {
       ['BBB', 1],
     ]);
     expect(sent).toEqual([
+      { type: 'start' },
       {
         type: 'bar',
         snapshot: {
@@ -162,19 +167,23 @@ describe('shared strategy bridge', () => {
   });
 
   it('batches cross-section factors and history requests with matching response IDs', async () => {
-    const { session, sent } = transport([
+    const { session, sent, historyUpdates } = transport([
       ready,
       { type: 'request', id: 7, method: 'cross_section', arguments: { index_code: 'INDEX' } },
       { type: 'request', id: 8, method: 'bars', arguments: { codes: ['AAA', 'BBB'] } },
       done,
     ]);
-    const strategy = await createStrategyBridge(session, { diagnostics });
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+    });
     const { context, spies } = contextFixture();
-    await strategy.onBar(context);
+    await strategy.execute(context);
     expect(spies.loadCrossSection).toHaveBeenCalledExactlyOnceWith('INDEX');
     expect(spies.factor).toHaveBeenCalledExactlyOnceWith('value', 'AAA');
     expect(spies.ensureBars).toHaveBeenCalledExactlyOnceWith(['AAA', 'BBB']);
-    expect(sent[1]).toMatchObject({
+    expect(sent[2]).toMatchObject({
       type: 'response',
       id: 7,
       result: {
@@ -182,7 +191,7 @@ describe('shared strategy bridge', () => {
         rows: [{ code: 'AAA', pe_ttm: 8, factors: { value: 3 }, list_days: 100 }],
       },
     });
-    expect(sent[2]).toMatchObject({
+    expect(sent[3]).toMatchObject({
       type: 'response',
       id: 8,
       result: {
@@ -193,16 +202,20 @@ describe('shared strategy bridge', () => {
   });
 
   it('reports query failures to the sandbox and continues to its final commands', async () => {
-    const { session, sent } = transport([
+    const { session, sent, historyUpdates } = transport([
       ready,
       { type: 'request', id: 9, method: 'bars', arguments: { codes: ['AAA'] } },
       { type: 'done', commands: [{ operation: 'exit', arguments: { code: 'BBB' } }] },
     ]);
-    const strategy = await createStrategyBridge(session, { diagnostics });
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+    });
     const { context, spies } = contextFixture();
     spies.ensureBars.mockRejectedValueOnce(new Error('history unavailable'));
-    await strategy.onBar(context);
-    expect(sent[1]).toEqual({ type: 'response', id: 9, error: 'history unavailable' });
+    await strategy.execute(context);
+    expect(sent[2]).toEqual({ type: 'response', id: 9, error: 'history unavailable' });
     expect(spies.exit).toHaveBeenCalledExactlyOnceWith('BBB');
   });
 
@@ -219,10 +232,14 @@ describe('shared strategy bridge', () => {
       { operation: 'take_profit', arguments: { code: 'AAA', percentage: 0.2 } },
       { operation: 'cancel_conditional', arguments: { code: 'AAA', kind: null } },
     ];
-    const { session } = transport([ready, { type: 'done', commands }]);
-    const strategy = await createStrategyBridge(session, { diagnostics });
+    const { session, historyUpdates } = transport([ready, { type: 'done', commands }]);
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+    });
     const { context, spies } = contextFixture();
-    await strategy.onBar(context);
+    await strategy.execute(context);
     const calls = [
       spies.orderTargetPercent,
       spies.setHoldings,
@@ -252,7 +269,7 @@ describe('shared strategy bridge', () => {
   });
 
   it('validates the entire command batch before any engine mutation', async () => {
-    const { session } = transport([
+    const { session, historyUpdates } = transport([
       ready,
       {
         type: 'done',
@@ -262,27 +279,40 @@ describe('shared strategy bridge', () => {
         ],
       },
     ]);
-    const strategy = await createStrategyBridge(session, { diagnostics });
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+    });
     const { context, spies } = contextFixture();
-    await expect(strategy.onBar(context)).rejects.toThrow();
+    await expect(strategy.execute(context)).rejects.toThrow();
     expect(spies.exit).not.toHaveBeenCalled();
     expect(spies.order).not.toHaveBeenCalled();
   });
 
   it('preserves sandbox errors during initialization and onBar', async () => {
     const startup = transport([{ type: 'fatal', message: 'startup traceback' }]);
-    await expect(createStrategyBridge(startup.session, { diagnostics })).rejects.toThrow(
-      'startup traceback',
-    );
+    await expect(
+      createStrategyBridge(startup.session, { startupCommand: { type: 'start' }, diagnostics }),
+    ).rejects.toThrow('startup traceback');
     const execution = transport([ready, { type: 'error', message: 'bar traceback' }]);
-    const strategy = await createStrategyBridge(execution.session, { diagnostics });
-    await expect(strategy.onBar(contextFixture().context)).rejects.toThrow('bar traceback');
+    const strategy = await createStrategyBridge(execution.session, {
+      startupCommand: { type: 'start' },
+      diagnostics,
+    });
+    await expect(strategy.execute(contextFixture().context)).rejects.toThrow('bar traceback');
   });
 
   it('normalizes absent account allocation without inventing defaults', async () => {
-    const { session } = transport([{ type: 'ready', metadata: { ...metadata, accounts: null } }]);
-    const strategy = await createStrategyBridge(session, { diagnostics });
-    expect(strategy.accounts).toBeUndefined();
+    const { session, historyUpdates } = transport([
+      { type: 'ready', metadata: { ...metadata, accounts: null } },
+    ]);
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+    });
+    expect(strategy.metadata.accounts).toBeUndefined();
   });
 });
 
@@ -297,8 +327,12 @@ describe('incremental TypeScript history delivery', () => {
 
   it('sends each visible row once across mixed requests, repeated calls, gaps and suspended dates', async () => {
     const frames: unknown[] = [startup];
-    const { session, sent } = transport(frames, true);
-    const strategy = await createStrategyBridge(session, { diagnostics });
+    const { session, sent, historyUpdates } = transport(frames, true);
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+    });
     const { context, spies } = contextFixture();
     const rows = ['20240102', '20240103', '20240105'].map((date) => ({ ...history, date }));
     const loaded = new Set<string>();
@@ -310,7 +344,7 @@ describe('incremental TypeScript history delivery', () => {
     });
 
     frames.push(ensure(1, ['AAA']), ensure(2, ['AAA', 'BBB']), ensure(3, ['AAA']), done);
-    await strategy.onBar(context);
+    await strategy.execute(context);
     expect(sent.filter((frame) => frame.type === 'response')).toEqual([
       {
         type: 'response',
@@ -329,7 +363,7 @@ describe('incremental TypeScript history delivery', () => {
     for (const date of ['20240104', '20240105']) {
       spies.date = date;
       frames.push(ensure(4, ['AAA', 'BBB']), done);
-      await strategy.onBar(context);
+      await strategy.execute(context);
       expect(sent.at(-1)).toEqual({ type: 'response', id: 4, result: { history_updates: {} } });
     }
     const snapshots = sent.filter((frame) => frame.type === 'bar');
@@ -354,7 +388,7 @@ describe('incremental TypeScript history delivery', () => {
   });
 
   it('does not mark failed loads as synchronized and initializes empty histories only once', async () => {
-    const { session, sent } = transport(
+    const { session, sent, historyUpdates } = transport(
       [
         startup,
         ensure(1, ['NEW']),
@@ -365,13 +399,17 @@ describe('incremental TypeScript history delivery', () => {
       ],
       true,
     );
-    const strategy = await createStrategyBridge(session, { diagnostics });
+    const strategy = await createStrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      historyUpdates,
+      diagnostics,
+    });
     const { context, spies } = contextFixture();
     context.positions = () => [];
     context.bars = (code) => (code === 'EMPTY' ? [] : [history]);
     spies.ensureBars.mockRejectedValueOnce(new Error('load failed'));
-    await strategy.onBar(context);
-    expect(sent.slice(1)).toEqual([
+    await strategy.execute(context);
+    expect(sent.slice(2)).toEqual([
       { type: 'response', id: 1, error: 'load failed' },
       {
         type: 'response',

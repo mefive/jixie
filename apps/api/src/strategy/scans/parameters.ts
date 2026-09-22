@@ -1,6 +1,7 @@
+import { inspectStrategyParameters } from '../runtime/inspect-definition.js';
 import { UserCodeError } from '#infra/errors.js';
 import { StrategyError } from '../errors.js';
-import { inspectStrategyParameters } from '../runtime/typescript/runtime.js';
+
 import type { StrategyScanParametersInput } from '@jixie/shared/api/strategy';
 
 export async function inspectStrategyScanParameters(input: StrategyScanParametersInput) {

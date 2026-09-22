@@ -1,3 +1,5 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
+import type { PanelFactorRuntime } from '../runtime/contract.js';
 import { t } from '#i18n/index.js';
 import type {
   FactorAnalysisSpec,
@@ -25,14 +27,7 @@ import {
 import { loadEtfTimeSeriesObservations } from '../observations/etf-trend-observations.js';
 import { loadMacroRegimeObservations } from '../observations/macro-regime-observations.js';
 import { loadPanelEtfObservations } from '../observations/panel-observations.js';
-import {
-  compilePythonPanelFactor,
-  compilePythonTimeSeriesFactor,
-} from '../runtime/python/asset-factor.js';
-import {
-  compilePanelFactor,
-  compileTimeSeriesFactor,
-} from '../runtime/typescript/compile-asset-factor.js';
+
 import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import { factorEvaluatorFor } from './cross-sectional/evaluator.js';
 import { MacroRegimeEvaluator } from './macro-regime-evaluator.js';
@@ -90,14 +85,16 @@ export async function runFactorEvaluation({
       if (source.kind !== 'time_series') {
         throw new Error('Time-series evaluator requires a Factor V2 source.');
       }
-      const compiled =
-        source.language === 'python'
-          ? await compilePythonTimeSeriesFactor(source.code, onUserLog)
-          : await compileTimeSeriesFactor(source.code, onUserLog);
+      const runtime = await FactorRuntime.start({
+        language: source.language ?? 'typescript',
+        analysisKind: 'time_series',
+        code: source.code,
+        onUserLog: onUserLog,
+      });
       try {
-        const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(compiled);
+        const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(runtime);
         const usesCommodityWarehouseReceipts =
-          timeSeriesFactorUsesCommodityWarehouseReceipts(compiled);
+          timeSeriesFactorUsesCommodityWarehouseReceipts(runtime);
         onSystemLog(
           t(
             locale,
@@ -110,15 +107,15 @@ export async function runFactorEvaluation({
           ),
         );
         const observations = usesCommodityCarry
-          ? await loadCommodityCarryTimeSeriesObservations(researchSpec, compiled)
+          ? await loadCommodityCarryTimeSeriesObservations(researchSpec, runtime)
           : usesCommodityWarehouseReceipts
-            ? await loadCommodityWarehouseReceiptTimeSeriesObservations(researchSpec, compiled)
-            : await loadEtfTimeSeriesObservations(researchSpec, compiled);
+            ? await loadCommodityWarehouseReceiptTimeSeriesObservations(researchSpec, runtime)
+            : await loadEtfTimeSeriesObservations(researchSpec, runtime);
         onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
         const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
         return complete(report);
       } finally {
-        compiled.dispose();
+        runtime.close();
       }
     }
     case 'panel': {
@@ -126,38 +123,43 @@ export async function runFactorEvaluation({
         throw new Error('Panel evaluator requires a panel Factor V2 source.');
       }
       if (source.kind === 'panel') {
-        const compiled =
-          source.language === 'python'
-            ? await compilePythonPanelFactor(source.code, onUserLog)
-            : await compilePanelFactor(source.code, onUserLog);
+        const runtime = await FactorRuntime.start({
+          language: source.language ?? 'typescript',
+          analysisKind: 'panel',
+          code: source.code,
+          onUserLog: onUserLog,
+        });
         try {
           onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
-          const observations = panelFactorUsesCommodityCarry(compiled)
-            ? await loadCommodityCarryPanelObservations(researchSpec, compiled)
-            : await loadPanelEtfObservations(researchSpec, compiled);
+          const observations = panelFactorUsesCommodityCarry(runtime)
+            ? await loadCommodityCarryPanelObservations(researchSpec, runtime)
+            : await loadPanelEtfObservations(researchSpec, runtime);
           onSystemLog(t(locale, 'factorPanelEvaluating', { count: observations.length }));
           const report = new PanelEvaluator().evaluate(researchSpec, observations);
           return complete(report);
         } finally {
-          compiled.dispose();
+          runtime.close();
         }
       }
 
-      const compiledComponents: Array<Awaited<ReturnType<typeof compilePanelFactor>>> = [];
+      const componentRuntimes: Array<PanelFactorRuntime> = [];
       try {
         for (const component of source.components) {
-          compiledComponents.push(
-            component.language === 'python'
-              ? await compilePythonPanelFactor(component.code, onUserLog)
-              : await compilePanelFactor(component.code, onUserLog),
+          componentRuntimes.push(
+            await FactorRuntime.start({
+              language: component.language ?? 'typescript',
+              analysisKind: 'panel',
+              code: component.code,
+              onUserLog: onUserLog,
+            }),
           );
         }
         onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
         const componentObservations = await Promise.all(
-          compiledComponents.map((compiled, index) =>
-            (panelFactorUsesCommodityCarry(compiled)
-              ? loadCommodityCarryPanelObservations(researchSpec, compiled)
-              : loadPanelEtfObservations(researchSpec, compiled)
+          componentRuntimes.map((runtime, index) =>
+            (panelFactorUsesCommodityCarry(runtime)
+              ? loadCommodityCarryPanelObservations(researchSpec, runtime)
+              : loadPanelEtfObservations(researchSpec, runtime)
             ).then((observations) => ({
               factor: source.components[index].factor,
               observations,
@@ -172,7 +174,7 @@ export async function runFactorEvaluation({
         const report = new PanelEvaluator().evaluate(researchSpec, observations);
         return complete(report);
       } finally {
-        compiledComponents.forEach((compiled) => compiled.dispose());
+        componentRuntimes.forEach((runtime) => runtime.close());
       }
     }
     case 'macro_regime': {

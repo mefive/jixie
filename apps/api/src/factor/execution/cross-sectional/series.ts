@@ -1,10 +1,11 @@
+import { FactorRuntime } from '../../runtime/factor-runtime.js';
+import type { FactorBatchItem } from '../../runtime/contract.js';
 import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { FactorBar } from '@jixie/shared';
 import { DEFAULT_LOCALE, type FactorLanguage, type Locale } from '@jixie/shared';
-import { compilePythonCrossSectionalFactor } from '../../runtime/python/cross-sectional.js';
-import { compileFactor, type FactorBatchItem } from '../../runtime/typescript/compile-factor.js';
+
 import { finaAsOf, loadFinaIndex, type FinaIndex, type Snap } from './data.js';
 import { LEGACY_POLICY } from './policy.js';
 
@@ -99,12 +100,14 @@ export async function computeFactorSeries(
     }
     onUserLog?.(level, line);
   };
-  const factor =
-    language === 'python'
-      ? await compilePythonCrossSectionalFactor(factorCode, logSink)
-      : await compileFactor(factorCode, logSink);
-  const effectiveMinimumCoverage = factor.minCoverage ?? minimumWindowCoverage;
-  audit.declaredWindowDays = factor.window;
+  const factor = await FactorRuntime.start({
+    language: language,
+    analysisKind: 'cross_sectional',
+    code: factorCode,
+    onUserLog: logSink,
+  });
+  const effectiveMinimumCoverage = factor.metadata.minCoverage ?? minimumWindowCoverage;
+  audit.declaredWindowDays = factor.metadata.window;
   audit.minimumCoverage = effectiveMinimumCoverage;
   const needsTurnoverRateFHistory = factorSourceReferencesHistoryField(
     factorCode,
@@ -212,12 +215,12 @@ export async function computeFactorSeries(
   };
 
   try {
-    if (!factor.window) {
+    if (!factor.metadata.window) {
       // Fast path: pure cross-section, no price history — one wall-crossing per date.
       onLog(t(locale, 'factorDailyCrossSection'));
       for (const date of dates) {
         const bars = [...(await loadBars(date)).values()];
-        const values = await factor.computeBatch(bars.map((bar) => ({ bar })));
+        const values = await factor.execute({ items: bars.map((bar) => ({ bar })) });
         for (let i = 0; i < bars.length; i++) {
           push(date, bars[i].code, values[i]);
         }
@@ -254,7 +257,9 @@ export async function computeFactorSeries(
         tsCodes.add(tsCode);
       }
     }
-    onLog(t(locale, 'factorPerStockWindow', { window: factor.window, count: tsCodes.size }));
+    onLog(
+      t(locale, 'factorPerStockWindow', { window: factor.metadata.window, count: tsCodes.size }),
+    );
     let done = 0;
     for (const tsCode of tsCodes) {
       if (++done % 800 === 0) {
@@ -321,7 +326,7 @@ export async function computeFactorSeries(
       // bar + the hfq close/date window ENDING at that day (ctx.history slices tails in-wall).
       const items: FactorBatchItem[] = [];
       const itemDates: string[] = [];
-      const window = factor.window;
+      const window = factor.metadata.window;
       for (let end = 0; end < tradeDates.length; end++) {
         if (!rebalanceSet.has(tradeDates[end])) {
           continue;
@@ -360,7 +365,7 @@ export async function computeFactorSeries(
         itemDates.push(date);
       }
       if (items.length) {
-        const values = await factor.computeBatch(items);
+        const values = await factor.execute({ items: items });
         for (let i = 0; i < items.length; i++) {
           push(itemDates[i], tsCode, values[i]);
         }
@@ -370,7 +375,7 @@ export async function computeFactorSeries(
     if (firstComputeError) {
       onLog(t(locale, 'factorComputeErrors', { error: firstComputeError }));
     }
-    factor.dispose();
+    factor.close();
   }
   return { series, audit };
 }

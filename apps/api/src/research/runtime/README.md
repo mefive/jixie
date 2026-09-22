@@ -1,16 +1,20 @@
 # Research Cell 运行时
 
-[python/session.ts](python/session.ts) 暴露单例 `researchRuntimeManager`，供 dependencies 的 AST 分析、普通 document-runs 和 embedded 执行共用。以 documentId 为会话键，嵌入分析使用自己的内部文档 ID。
+[ResearchRuntime.start](research-runtime.ts) 接收 `{ documentId, signal? }`，返回具有 `metadata / execute / close` 的实例；metadata 包含 environment 和 capabilities。输入/输出宿主类型归 [contract.ts](contract.ts)。Research 当前仅支持 Python。
 
-- `analyze` 发送源码集合，返回定义、引用、导入及受控 SDK 请求分析；不替调用方保存依赖。
-- `execute` 接收 Cell 源码及可选 signal、observer、parameters、captureEnvironment，返回 outputs、definitions/references 和环境哈希；SDK request 转给 [dispatch](host/README.md)。
-- `reset` 排队清空现有解释器变量，无会话时直接返回；`interrupt` 关闭活动执行会话并标记中断；`close` 移除会话并关闭连接。`closeResearchDocumentRuntime` 是文档归档／删除等资源收尾入口。
+[pool.ts](pool.ts) 的 `ResearchRuntimePool` 及单例 `researchRuntimePool` 按 documentId 复用实例。业务通过 `withRuntime(documentId, runtime => runtime.execute({ cell, parameters? }, options), { signal? })` 借用；依赖分析也借用同一实例调用 analyze。嵌入分析使用自己的内部文档 ID，执行后关闭。
 
-会话获取串行化，每个会话内部按 queue 串行通信；最多 4 个活动会话，达到上限只淘汰无待处理操作的最久未使用会话，否则报 busy。业务文档锁由 document-runs 另行维护，不能用通信队列替代修订或权限检查。
+- runtime.analyze(cells) 返回 AST 定义、引用、导入和受控请求，不保存依赖。
+- runtime.execute({ cell, parameters? }, { signal?, observer?, captureEnvironment? }) 返回 outputs、definitions/references 和环境哈希；SDK request 交给 [dispatch](host/README.md)。
+- pool.reset(documentId) 排队清空现有 namespace，没有实例时直接返回；pool.interrupt 关闭活动执行并标记中断；pool.close 删除条目并关闭连接。文档归档／删除直接调用 pool.close。
 
-启动请求 explicit_parameters 能力，带参数执行时必须确认沙箱支持，避免旧沙箱静默忽略参数。执行环境在发送源码前交给 captureEnvironment。运行输出传输上限 8 MiB；持久化的内联／图片限制归 [evidence](../evidence/README.md)。非业务执行错误会关闭会话，已识别的 Python 执行错误保留其输出与环境信息；AbortSignal 用于 embedded 的取消／超时。
+具体实例直接继承公共 SandboxRuntime。start 经 startSandboxRuntime 创建 PythonSession、发送 research_start 并等待 ready；start/analyze/execute/reset 全部使用公共 exchange。pool 唯一拥有操作队列、容量和实例身份检查，runtime 不再重复排队。失效实例只按原条目身份移除，旧操作不能误关新实例。
 
-这里不查文档所有者、不写执行状态、不决定固化。修改协议与资源回收看 [python/session.test.ts](python/session.test.ts)、[python/capabilities.test.ts](python/capabilities.test.ts)，并对照 [运行入口清单](../../../../../docs/backend-runtime-entries.md) 的 Python runner 和 socket 路径。
+会话获取串行化，每个实例内操作串行执行；最多 4 个活动实例，只淘汰无待处理操作的最久未使用实例，否则报 busy。文档锁另归 document-runs，通信队列不替代修订或权限检查。
+
+启动协商 explicit_parameters；带参数执行时必须检查能力，避免旧沙箱忽略参数。发送源码前交给 captureEnvironment 保存环境。输出传输上限 8 MiB，持久化限制归 evidence。普通 Python 执行错误保留会话；协议、断连或其他非业务异常关闭会话。AbortSignal 由 pool 中止底层阻塞，嵌入分析继续拥有超时策略。
+
+这里不查询文档所有者、不写执行状态、不决定固化。验证入口：[pool.test.ts](pool.test.ts)、[lifecycle.test.ts](lifecycle.test.ts)、[python/capabilities.test.ts](python/capabilities.test.ts)；源码／生产资源路径见 [运行清单](../../../../../docs/backend-runtime-entries.md)。
 
 [返回 Research 总览](../README.md)
 
@@ -23,4 +27,4 @@
 - [python/outputs.py](python/outputs.py)：SDK 图表结果、有限表格预览、JSON 与 matplotlib 图片转换为输出帧。
 
 用户 API 实现见 [sdk](../sdk/README.md)，宿主协议与请求处理见 [host](host/README.md)。
-公共 `jixie_runner.py` 只分派到本业务 runner；以上 Python 文件由 Docker 显式 COPY，TS session 留在 API 进程。
+公共 `jixie_runner.py` 只分派到本业务 runner；以上 Python 文件由 Docker 显式 COPY，TS runtime/pool 留在 API 进程。

@@ -1,9 +1,8 @@
+import { FactorRuntime } from './factor-runtime.js';
 import { UserCodeError } from '#infra/errors.js';
 import type { FactorAnalysisKind, FactorLanguage } from '@jixie/shared';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
 import { validatePythonFactorDefinition } from './python/validator.js';
-import { compilePanelFactor, compileTimeSeriesFactor } from './typescript/compile-asset-factor.js';
-import { compileFactor } from './typescript/compile-factor.js';
 
 export type EditableFactorAnalysisKind = Extract<
   FactorAnalysisKind,
@@ -19,28 +18,16 @@ export async function validateFactorDefinition(
   if (language === 'python') {
     return validatePythonFactorDefinition(code, analysisKind);
   }
-  if (analysisKind === 'time_series') {
-    const compiled = await compileTimeSeriesFactor(code);
-    try {
-      if (compiled.inputs.some(isResearchOnlyFactorV2Field)) {
-        throw new UserCodeError('This input is currently available only as a controlled template.');
-      }
-    } finally {
-      compiled.dispose();
+  const runtime = await FactorRuntime.start({ language, analysisKind, code });
+  try {
+    const metadata = runtime.metadata;
+    if (
+      metadata.analysisKind !== 'cross_sectional' &&
+      metadata.inputs.some(isResearchOnlyFactorV2Field)
+    ) {
+      throw new UserCodeError('This input is currently available only as a controlled template.');
     }
-    return;
+  } finally {
+    runtime.close();
   }
-  if (analysisKind === 'panel') {
-    const compiled = await compilePanelFactor(code);
-    try {
-      if (compiled.inputs.some(isResearchOnlyFactorV2Field)) {
-        throw new UserCodeError('This input is currently available only as a controlled template.');
-      }
-    } finally {
-      compiled.dispose();
-    }
-    return;
-  }
-  const compiled = await compileFactor(code);
-  compiled.dispose();
 }

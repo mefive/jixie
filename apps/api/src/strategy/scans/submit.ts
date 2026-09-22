@@ -1,3 +1,4 @@
+import { inspectStrategyParameters } from '../runtime/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
 import { initializeJobLogs } from '#infra/jobs/logs.js';
@@ -8,7 +9,7 @@ import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
-import { inspectStrategyParameters } from '../runtime/typescript/runtime.js';
+
 import type {
   StrategyScanIdentityQuery,
   SubmitStrategyScanInput,

@@ -1,9 +1,10 @@
+import type { TimeSeriesFactorRuntime } from '../runtime/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { COMMODITY_FUTURE_SPECS } from '#market/commodity/commodity-futures.js';
 import { isAuditedAuKilogramMislabelDate } from '#market/commodity/commodity-warehouse-receipts.js';
 import { addDays, daysBetween } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { CompiledTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
 import { COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD } from '../definitions/fields.js';
 import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
@@ -42,12 +43,12 @@ const COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_MAPPINGS: CommodityWarehouseReceip
 /** Tests a product-local warehouse-receipt transform against its mapped adjusted ETF return. */
 export async function loadCommodityWarehouseReceiptTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityWarehouseReceiptTimeSeriesProtocol(researchSpec, factor);
   const historyStart = addDays(
     researchSpec.start,
-    -(factor.window - 1 + researchSpec.target.horizon) * 3,
+    -(factor.metadata.window - 1 + researchSpec.target.horizon) * 3,
   );
   const upperBound = researchSpec.dataPolicy.dataCutoff ?? undefined;
   const [bars, adjustments, warehouseReceiptPoints, metadata] = await Promise.all([
@@ -117,7 +118,7 @@ export async function buildCommodityWarehouseReceiptTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   etfRows: EtfTrendDailyRow[],
   warehouseReceiptPoints: CommodityWarehouseReceiptResearchPoint[],
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityWarehouseReceiptTimeSeriesProtocol(researchSpec, factor);
   const rowsByAsset = groupAndValidateEtfRows(etfRows, mappings);
@@ -135,7 +136,7 @@ export async function buildCommodityWarehouseReceiptTimeSeriesObservations(
     const aligned = alignWarehouseReceiptsToEtfDates(rows, productPoints);
     const indexes: number[] = [];
     for (
-      let index = factor.window - 1;
+      let index = factor.metadata.window - 1;
       index + researchSpec.target.horizon < rows.length;
       index++
     ) {
@@ -152,10 +153,10 @@ export async function buildCommodityWarehouseReceiptTimeSeriesObservations(
       }
       indexes.push(index);
     }
-    const scores = await factor.computeSeries(
-      { [COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD]: aligned.values },
-      indexes,
-    );
+    const scores = await factor.execute({
+      fields: { [COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD]: aligned.values },
+      indexes: indexes,
+    });
     if (scores.length !== indexes.length) {
       throw new Error('Commodity warehouse-receipt factor returned an unexpected score count.');
     }
@@ -185,25 +186,26 @@ export async function buildCommodityWarehouseReceiptTimeSeriesObservations(
 }
 
 export function timeSeriesFactorUsesCommodityWarehouseReceipts(
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): boolean {
   return (
-    factor.inputs.length === 1 && factor.inputs[0] === COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD
+    factor.metadata.inputs.length === 1 &&
+    factor.metadata.inputs[0] === COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD
   );
 }
 
 function assertCommodityWarehouseReceiptTimeSeriesProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: CompiledTimeSeriesFactor,
+  factor: TimeSeriesFactorRuntime,
 ): CommodityWarehouseReceiptTimeSeriesMapping[] {
   if (
     researchSpec.observationFrequency !== 'daily' ||
     researchSpec.target.horizonUnit !== 'trade_day' ||
-    factor.analysisKind !== 'time_series' ||
-    factor.outputScope !== 'asset' ||
-    factor.frequency !== 'daily' ||
+    factor.metadata.analysisKind !== 'time_series' ||
+    factor.metadata.outputScope !== 'asset' ||
+    factor.metadata.frequency !== 'daily' ||
     !timeSeriesFactorUsesCommodityWarehouseReceipts(factor) ||
-    !factor.targetAssetClasses.includes('commodity')
+    !factor.metadata.targetAssetClasses.includes('commodity')
   ) {
     throw new Error(
       'Commodity warehouse-receipt time-series research requires the frozen daily protocol.',

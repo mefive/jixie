@@ -1,10 +1,14 @@
+import { FactorRuntime } from '../factor-runtime.js';
 import { describe, expect, it } from 'vitest';
-import { compileFactor } from './compile-factor.js';
+
 import { factorSourceReferencesHistoryField } from '../../execution/cross-sectional/series.js';
 
 describe('Factor SDK inside the isolate', () => {
   it('preserves every history field, tail ordering, nulls and window limits', async () => {
-    const factor = await compileFactor(`export default defineFactor({
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `export default defineFactor({
       name: 'history', window: 3,
       compute(bar, ctx) {
         const { history } = ctx;
@@ -23,43 +27,48 @@ describe('Factor SDK inside the isolate', () => {
         copy[1] = -999;
         return ctx.history(1)[0];
       },
-    });`);
+    });`,
+    });
     try {
       expect(
-        await factor.computeBatch([
-          {
-            bar: {} as never,
-            closes: [10, 11, 12],
-            dates: ['20260101', '20260102', '20260103'],
-            amounts: [20, null, 22],
-            turnoverRatesF: [30, 31, 32],
-            roes: [40, 41, null],
-            grossProfitMargins: [50, 51, 52],
-            marketCloses: [60, 61, 62],
-          },
-        ]),
+        await factor.execute({
+          items: [
+            {
+              bar: {} as never,
+              closes: [10, 11, 12],
+              dates: ['20260101', '20260102', '20260103'],
+              amounts: [20, null, 22],
+              turnoverRatesF: [30, 31, 32],
+              roes: [40, 41, null],
+              grossProfitMargins: [50, 51, 52],
+              marketCloses: [60, 61, 62],
+            },
+          ],
+        }),
       ).toEqual([12]);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 
   it('reports missing history without failing the whole batch', async () => {
     const logs: string[] = [];
-    const factor = await compileFactor(
-      `export default defineFactor({
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `export default defineFactor({
       name: 'missing history', compute(bar, ctx) { return ctx.history(1)[0]; },
     });`,
-      (_level, line) => logs.push(line),
-    );
+      onUserLog: (_level, line) => logs.push(line),
+    });
     try {
       expect(
-        await factor.computeBatch([{ bar: {} as never }, { bar: {} as never, closes: [12] }]),
+        await factor.execute({ items: [{ bar: {} as never }, { bar: {} as never, closes: [12] }] }),
       ).toEqual([null, 12]);
       expect(logs).toHaveLength(1);
       expect(logs[0]).toContain('ctx.history');
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 });
@@ -81,18 +90,20 @@ describe('factor source history dependencies', () => {
 
   it('emits only the first repeated compute error from a batch', async () => {
     const logs: string[] = [];
-    const factor = await compileFactor(
-      `export default defineFactor({
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `export default defineFactor({
         name: 'broken',
         compute() { throw new Error('same failure'); },
       });`,
-      (_level, line) => logs.push(line),
-    );
+      onUserLog: (_level, line) => logs.push(line),
+    });
     try {
-      await factor.computeBatch([{ bar: {} as never }, { bar: {} as never }]);
-      await factor.computeBatch([{ bar: {} as never }]);
+      await factor.execute({ items: [{ bar: {} as never }, { bar: {} as never }] });
+      await factor.execute({ items: [{ bar: {} as never }] });
     } finally {
-      factor.dispose();
+      factor.close();
     }
 
     expect(logs).toEqual(['[factor-error] same failure']);

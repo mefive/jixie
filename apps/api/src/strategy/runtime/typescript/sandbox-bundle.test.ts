@@ -14,6 +14,6 @@ describe('strategy sandbox bundle boundary', () => {
       ),
     ).toEqual([]);
     expect(Object.values(bundle.metafile!.outputs).flatMap((output) => output.imports)).toEqual([]);
-    expect(bundle.outputFiles[0].text).toContain('__runStrategyBar');
+    expect(bundle.outputFiles[0].text).toContain('__receiveCommand');
   });
 });

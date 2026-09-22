@@ -26,6 +26,10 @@ export class PythonSession {
     writable.once('error', (error) => this.end(error));
   }
 
+  get isClosed(): boolean {
+    return this.endedError !== null;
+  }
+
   static async connect(signal?: AbortSignal): Promise<PythonSession> {
     signal?.throwIfAborted();
     if (process.env.JIXIE_PYTHON_LOCAL === '1') {

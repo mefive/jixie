@@ -36,8 +36,7 @@ Engine 接收 `EngineStrategy` 决策回调与显式端口，按模拟日期提�
 
 SDK bundle 不包含 Engine、宿主适配器、数据库或 Node 内建模块；`metafile` 用于约束实际依赖。
 
-自定义因子源码不再由 Engine 直接求值。TS 因子复用 `compileFactor` / `compileTimeSeriesFactor` /
-`compilePanelFactor` 的 isolate，Python 因子复用对应 Python runtime，执行位置不依赖策略语言。
+自定义因子源码不再由 Engine 直接求值。FactorHost 统一调用 `FactorRuntime.start({ language, analysisKind, code })`，通过 metadata / execute / close 使用 TS 或 Python 因子实例，执行位置不依赖策略语言。
 宿主 Engine 通过 FactorExecutionPort 调用 FactorHost，DataPort 只负责读取市场数据。每日回调前、截面加载和
 `ensureBars` 后批量准备值；当日首次读取固定结果，未读取的提前计算结果可在输入加载后刷新。
 
@@ -47,6 +46,6 @@ SDK bundle 不包含 Engine、宿主适配器、数据库或 Node 内建模块�
 
 本轮交易循环、账户规则、复权、手续费、历史状态、因子求值和归因算法不变。主要检查所有 `runStrategy` / 信号捕获调用者是否提供正确端口，以及 TS 源码与编译 JS 的 Worker、cell 子进程、sandbox entry 路径是否对应。
 
-`simulation`、`data`、`factors` 下既有测试保持原断言；[runtime.test.ts](../strategy/runtime/typescript/runtime.test.ts)
+`simulation`、`data`、`factors` 下既有测试保持原断言；[runtime.test.ts](../strategy/runtime/typescript/typescript-strategy-runtime.test.ts)
 比较可信原生 fixture 与沙箱回调的净值、成交和信号，[sandbox-bundle.test.ts](../strategy/runtime/typescript/sandbox-bundle.test.ts)
 检查 bundle 不含 Engine 或宿主能力。本次迁移验证状态见 [执行边界设计](../../../../docs/design/python-and-sandbox.md)。

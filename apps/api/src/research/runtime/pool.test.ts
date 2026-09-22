@@ -1,3 +1,4 @@
+import { researchRuntimePool } from './pool.js';
 import {
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
@@ -29,8 +30,7 @@ import {
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
 } from '@jixie/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../../errors.js';
-import { researchRuntimeManager } from './session.js';
+import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
 
 const DOCUMENT_ID = 'research-runtime-test';
 let previousLocal: string | undefined;
@@ -42,7 +42,7 @@ describe('research workbench Python runtime', () => {
   });
 
   afterEach(() => {
-    researchRuntimeManager.close(DOCUMENT_ID);
+    researchRuntimePool.close(DOCUMENT_ID);
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
@@ -51,10 +51,12 @@ describe('research workbench Python runtime', () => {
   });
 
   it('derives definitions and references from Python AST', async () => {
-    const analysis = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      { id: 'load', source: 'monthly = [1, 2, 3]' },
-      { id: 'summary', source: 'average = sum(monthly) / len(monthly)\naverage' },
-    ]);
+    const analysis = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        { id: 'load', source: 'monthly = [1, 2, 3]' },
+        { id: 'summary', source: 'average = sum(monthly) / len(monthly)\naverage' },
+      ]),
+    );
 
     expect(analysis).toEqual([
       {
@@ -75,25 +77,29 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts imported package roots for Agent proposal policy checks', async () => {
-    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      {
-        id: 'statistics',
-        source:
-          'from scipy import stats\nimport statsmodels.api as sm\nimport matplotlib.pyplot as plt\nimport math',
-      },
-    ]);
+    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        {
+          id: 'statistics',
+          source:
+            'from scipy import stats\nimport statsmodels.api as sm\nimport matplotlib.pyplot as plt\nimport math',
+        },
+      ]),
+    );
 
     expect(analysis?.imports).toEqual(['math', 'matplotlib', 'scipy', 'statsmodels']);
   });
 
   it('extracts literal Research SDK series identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      {
-        id: 'series',
-        source:
-          'asset = data.series("index", "000300.SH", start="20200101", end="20251231", measure="market.adjusted_close")',
-      },
-    ]);
+    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        {
+          id: 'series',
+          source:
+            'asset = data.series("index", "000300.SH", start="20200101", end="20251231", measure="market.adjusted_close")',
+        },
+      ]),
+    );
 
     expect(analysis?.seriesRequests).toEqual([
       {
@@ -106,13 +112,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal governed yield-curve identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      {
-        id: 'yield',
-        source:
-          'real_yield = data.yield_curve("us_treasury_real", tenor="10Y", start="20200101", end="20251231")',
-      },
-    ]);
+    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        {
+          id: 'yield',
+          source:
+            'real_yield = data.yield_curve("us_treasury_real", tenor="10Y", start="20200101", end="20251231")',
+        },
+      ]),
+    );
 
     expect(analysis?.yieldCurveRequests).toEqual([
       { line: 1, curve: 'us_treasury_real', tenor: '10Y' },
@@ -120,13 +128,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal supplemental equity identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      {
-        id: 'supplemental',
-        source:
-          'fundamentals = data.equity_fundamentals("600519.SH", start="20200101", end="20251231")\nflows = data.equity_flows(identifier="600519.SH", start="20200101", end="20251231")',
-      },
-    ]);
+    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        {
+          id: 'supplemental',
+          source:
+            'fundamentals = data.equity_fundamentals("600519.SH", start="20200101", end="20251231")\nflows = data.equity_flows(identifier="600519.SH", start="20200101", end="20251231")',
+        },
+      ]),
+    );
 
     expect(analysis?.equityRequests).toEqual([
       { line: 1, method: 'equity_fundamentals', identifier: '600519.SH' },
@@ -135,13 +145,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal governed financial identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      {
-        id: 'financials',
-        source:
-          'statements = data.equity_financial_statements("000858.SZ", as_of="20240429")\npanel = data.equity_financial_panel("index:000300.SH", start="20200101", end="20241231", metrics=["revenue"])',
-      },
-    ]);
+    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        {
+          id: 'financials',
+          source:
+            'statements = data.equity_financial_statements("000858.SZ", as_of="20240429")\npanel = data.equity_financial_panel("index:000300.SH", start="20200101", end="20241231", metrics=["revenue"])',
+        },
+      ]),
+    );
 
     expect(analysis?.equityRequests).toEqual([
       { line: 1, method: 'equity_financial_statements', identifier: '000858.SZ' },
@@ -150,13 +162,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts each batch financial identifier for Agent preflight', async () => {
-    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      {
-        id: 'values',
-        source:
-          'values = data.equity_financial_values(["000858.SZ", "600519.SH"], as_of="20260506", fields=["income.revenue"], report_start="20230101", report_end="20251231")',
-      },
-    ]);
+    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        {
+          id: 'values',
+          source:
+            'values = data.equity_financial_values(["000858.SZ", "600519.SH"], as_of="20260506", fields=["income.revenue"], report_start="20230101", report_end="20251231")',
+        },
+      ]),
+    );
     expect(analysis?.equityRequests).toEqual([
       { line: 1, method: 'equity_financial_values', identifier: '000858.SZ' },
       { line: 1, method: 'equity_financial_values', identifier: '600519.SH' },
@@ -164,13 +178,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal market-reference identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimeManager.analyze(DOCUMENT_ID, [
-      {
-        id: 'references',
-        source:
-          'shares = data.etf_shares("510300.SH", start="20200101", end="20251231")\nindustry = data.industry_state(identifier="食品饮料", start="20200101", end="20251231")\nsettlement = data.futures_settlement("IF2609.CFX", start="20260101", end="20261231")',
-      },
-    ]);
+    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.analyze([
+        {
+          id: 'references',
+          source:
+            'shares = data.etf_shares("510300.SH", start="20200101", end="20251231")\nindustry = data.industry_state(identifier="食品饮料", start="20200101", end="20251231")\nsettlement = data.futures_settlement("IF2609.CFX", start="20260101", end="20261231")',
+        },
+      ]),
+    );
 
     expect(analysis?.equityRequests).toEqual([
       { line: 1, method: 'etf_shares', identifier: '510300.SH' },
@@ -180,14 +196,22 @@ describe('research workbench Python runtime', () => {
   });
 
   it('keeps document-level state and returns typed outputs', async () => {
-    await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'upstream',
-      source: 'returns = [0.01, -0.02, 0.03]',
-    });
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'downstream',
-      source: 'cumulative = sum(returns)\ncumulative',
-    });
+    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'upstream',
+          source: 'returns = [0.01, -0.02, 0.03]',
+        },
+      }),
+    );
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'downstream',
+          source: 'cumulative = sum(returns)\ncumulative',
+        },
+      }),
+    );
 
     expect(result.outputs).toEqual([{ type: 'value', value: 0.019999999999999997 }]);
     expect(result.definitions).toEqual(['cumulative']);
@@ -196,11 +220,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('returns a bounded table preview for record rows', async () => {
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'large-table',
-      source:
-        'rows = [{"row": index, "value": index / 10, "note": "x" * 300} for index in range(260)]\nrows',
-    });
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'large-table',
+          source:
+            'rows = [{"row": index, "value": index / 10, "note": "x" * 300} for index in range(260)]\nrows',
+        },
+      }),
+    );
 
     const output = result.outputs[0];
     expect(output).toMatchObject({
@@ -219,10 +247,14 @@ describe('research workbench Python runtime', () => {
     expect(output.rows).toHaveLength(200);
     expect(output.rows[0]?.note).toMatch(/\[truncated\]$/);
 
-    const wideResult = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'wide-table',
-      source: 'wide = [{f"column_{index}": index for index in range(70)}]\nwide',
-    });
+    const wideResult = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'wide-table',
+          source: 'wide = [{f"column_{index}": index for index in range(70)}]\nwide',
+        },
+      }),
+    );
     const wideOutput = wideResult.outputs[0];
     expect(wideOutput).toMatchObject({
       type: 'table',
@@ -236,11 +268,15 @@ describe('research workbench Python runtime', () => {
     }
     expect(wideOutput.columns).toHaveLength(64);
 
-    const byteLimitedResult = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'byte-limited-table',
-      source:
-        'large = [{f"column_{column}": "x" * 300 for column in range(64)} for row in range(200)]\nlarge',
-    });
+    const byteLimitedResult = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'byte-limited-table',
+          source:
+            'large = [{f"column_{column}": "x" * 300 for column in range(64)} for row in range(200)]\nlarge',
+        },
+      }),
+    );
     const byteLimitedOutput = byteLimitedResult.outputs[0];
     expect(byteLimitedOutput).toMatchObject({
       type: 'table',
@@ -260,11 +296,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('keeps the Python data API signature aligned with the public SDK contract', async () => {
-    const result = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'signature',
-      source:
-        'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, results.factor_weather, data.etf_shares, data.index_valuation, data.industry_state, data.futures_settlement, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel, valuation.fcff_scenarios, valuation.implied_revenue_growth])',
-    });
+    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'signature',
+          source:
+            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, results.factor_weather, data.etf_shares, data.index_valuation, data.industry_state, data.futures_settlement, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel, valuation.fcff_scenarios, valuation.implied_revenue_growth])',
+        },
+      }),
+    );
 
     expect(result.outputs).toEqual([
       {
@@ -306,11 +346,15 @@ describe('research workbench Python runtime', () => {
   });
 
   it('returns native histogram, boxplot, heatmap, and event-path artifacts', async () => {
-    const histogram = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'histogram',
-      source:
-        'observations = [{"return": -0.02}, {"return": -0.01}, {"return": 0.01}, {"return": 0.03}]\ncharts.histogram(observations, column="return", bins=2, title="Return distribution")',
-    });
+    const histogram = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'histogram',
+          source:
+            'observations = [{"return": -0.02}, {"return": -0.01}, {"return": 0.01}, {"return": 0.03}]\ncharts.histogram(observations, column="return", bins=2, title="Return distribution")',
+        },
+      }),
+    );
     expect(histogram.outputs[0]).toMatchObject({
       type: 'chart',
       kind: 'histogram',
@@ -324,10 +368,14 @@ describe('research workbench Python runtime', () => {
     }
     expect(histogramOutput.rows.reduce((total, row) => total + Number(row.count), 0)).toBe(4);
 
-    const boxplot = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'boxplot',
-      source: 'charts.boxplot(observations, y="return")',
-    });
+    const boxplot = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'boxplot',
+          source: 'charts.boxplot(observations, y="return")',
+        },
+      }),
+    );
     expect(boxplot.outputs[0]).toMatchObject({
       type: 'chart',
       kind: 'boxplot',
@@ -335,11 +383,15 @@ describe('research workbench Python runtime', () => {
       rows: [{ category: 'return', min: -0.02, median: 0, max: 0.03 }],
     });
 
-    const heatmap = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'heatmap',
-      source:
-        'matrix = [{"month": "Jan", "asset": "CSI 300", "corr": 0.4}, {"month": "Feb", "asset": "CSI 300", "corr": 0.6}]\ncharts.heatmap(matrix, x="month", y="asset", value="corr")',
-    });
+    const heatmap = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'heatmap',
+          source:
+            'matrix = [{"month": "Jan", "asset": "CSI 300", "corr": 0.4}, {"month": "Feb", "asset": "CSI 300", "corr": 0.6}]\ncharts.heatmap(matrix, x="month", y="asset", value="corr")',
+        },
+      }),
+    );
     expect(heatmap.outputs[0]).toMatchObject({
       type: 'chart',
       kind: 'heatmap',
@@ -348,11 +400,15 @@ describe('research workbench Python runtime', () => {
       series: [{ column: 'corr', label: 'corr' }],
     });
 
-    const eventPath = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'event-path',
-      source:
-        'event_returns = [{"event_day": -1, "car": -0.01}, {"event_day": 0, "car": 0.02}, {"event_day": 1, "car": 0.03}]\ncharts.event_path(event_returns, x="event_day", y="car")',
-    });
+    const eventPath = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'event-path',
+          source:
+            'event_returns = [{"event_day": -1, "car": -0.01}, {"event_day": 0, "car": 0.02}, {"event_day": 1, "car": 0.03}]\ncharts.event_path(event_returns, x="event_day", y="car")',
+        },
+      }),
+    );
     expect(eventPath.outputs[0]).toMatchObject({
       type: 'chart',
       kind: 'event_path',
@@ -360,11 +416,15 @@ describe('research workbench Python runtime', () => {
       series: [{ column: 'car', label: 'car' }],
     });
 
-    const projectedLine = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'projected-line',
-      source:
-        'charts.line([{"date": "2026-01", "nav": 1.1, "unused": "not persisted"}], x="date", y="nav")',
-    });
+    const projectedLine = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'projected-line',
+          source:
+            'charts.line([{"date": "2026-01", "nav": 1.1, "unused": "not persisted"}], x="date", y="nav")',
+        },
+      }),
+    );
     expect(projectedLine.outputs[0]).toMatchObject({
       type: 'chart',
       rows: [{ date: '2026-01', nav: 1.1 }],
@@ -373,10 +433,14 @@ describe('research workbench Python runtime', () => {
 
   it('rejects invalid chart parameters and ambiguous heatmap coordinates', async () => {
     await expect(
-      researchRuntimeManager.execute(DOCUMENT_ID, {
-        id: 'invalid-histogram',
-        source: 'charts.histogram([{"value": 1}], column="value", bins=0)',
-      }),
+      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+        runtime.execute({
+          cell: {
+            id: 'invalid-histogram',
+            source: 'charts.histogram([{"value": 1}], column="value", bins=0)',
+          },
+        }),
+      ),
     ).rejects.toEqual(
       expect.objectContaining<Partial<ResearchPythonExecutionError>>({
         message: expect.stringContaining('bins must be an integer from 1 to 100'),
@@ -384,11 +448,15 @@ describe('research workbench Python runtime', () => {
     );
 
     await expect(
-      researchRuntimeManager.execute(DOCUMENT_ID, {
-        id: 'duplicate-heatmap',
-        source:
-          'charts.heatmap([{"x": "a", "y": "b", "value": 1}, {"x": "a", "y": "b", "value": 2}], x="x", y="y", value="value")',
-      }),
+      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+        runtime.execute({
+          cell: {
+            id: 'duplicate-heatmap',
+            source:
+              'charts.heatmap([{"x": "a", "y": "b", "value": 1}, {"x": "a", "y": "b", "value": 2}], x="x", y="y", value="value")',
+          },
+        }),
+      ),
     ).rejects.toEqual(
       expect.objectContaining<Partial<ResearchPythonExecutionError>>({
         message: expect.stringContaining('requires unique x/y coordinates'),
@@ -396,10 +464,15 @@ describe('research workbench Python runtime', () => {
     );
 
     await expect(
-      researchRuntimeManager.execute(DOCUMENT_ID, {
-        id: 'oversized-chart',
-        source: 'charts.line([{"x": index, "y": index} for index in range(5001)], x="x", y="y")',
-      }),
+      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+        runtime.execute({
+          cell: {
+            id: 'oversized-chart',
+            source:
+              'charts.line([{"x": index, "y": index} for index in range(5001)], x="x", y="y")',
+          },
+        }),
+      ),
     ).rejects.toEqual(
       expect.objectContaining<Partial<ResearchPythonExecutionError>>({
         message: expect.stringContaining('accepts at most 5000 rows'),
@@ -409,10 +482,14 @@ describe('research workbench Python runtime', () => {
 
   it('rejects a Cell output that exceeds the runtime transfer budget', async () => {
     await expect(
-      researchRuntimeManager.execute(DOCUMENT_ID, {
-        id: 'oversized-output',
-        source: '"x" * (9 * 1024 * 1024)',
-      }),
+      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+        runtime.execute({
+          cell: {
+            id: 'oversized-output',
+            source: '"x" * (9 * 1024 * 1024)',
+          },
+        }),
+      ),
     ).rejects.toEqual(
       expect.objectContaining<Partial<ResearchPythonExecutionError>>({
         message: expect.stringContaining('runtime transfer limit'),
@@ -421,29 +498,41 @@ describe('research workbench Python runtime', () => {
   });
 
   it('interrupts active code and starts the next execution in a fresh session', async () => {
-    const execution = researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'infinite',
-      source: 'while True:\n    pass',
-    });
+    const execution = researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'infinite',
+          source: 'while True:\n    pass',
+        },
+      }),
+    );
     await waitForActiveExecution();
 
-    expect(researchRuntimeManager.interrupt(DOCUMENT_ID)).toBe('infinite');
+    expect(researchRuntimePool.interrupt(DOCUMENT_ID)).toBe('infinite');
     await expect(execution).rejects.toBeInstanceOf(ResearchPythonInterruptionError);
 
-    const recovered = await researchRuntimeManager.execute(DOCUMENT_ID, {
-      id: 'recovered',
-      source: '21 * 2',
-    });
+    const recovered = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
+      runtime.execute({
+        cell: {
+          id: 'recovered',
+          source: '21 * 2',
+        },
+      }),
+    );
     expect(recovered.outputs).toEqual([{ type: 'value', value: 42 }]);
   });
 
   it('does not evict active Research sessions when the four-slot sandbox is full', async () => {
     const documentIds = Array.from({ length: 4 }, (_, index) => `research-capacity-${index}`);
     const executions = documentIds.map((documentId, index) =>
-      researchRuntimeManager.execute(documentId, {
-        id: `infinite-${index}`,
-        source: 'while True:\n    pass',
-      }),
+      researchRuntimePool.withRuntime(documentId, (runtime) =>
+        runtime.execute({
+          cell: {
+            id: `infinite-${index}`,
+            source: 'while True:\n    pass',
+          },
+        }),
+      ),
     );
     const settledExecutions = Promise.allSettled(executions);
 
@@ -455,20 +544,24 @@ describe('research workbench Python runtime', () => {
       );
 
       await expect(
-        researchRuntimeManager.execute('research-capacity-overflow', {
-          id: 'overflow',
-          source: '42',
-        }),
+        researchRuntimePool.withRuntime('research-capacity-overflow', (runtime) =>
+          runtime.execute({
+            cell: {
+              id: 'overflow',
+              source: '42',
+            },
+          }),
+        ),
       ).rejects.toThrow('Python sandbox is busy (4/4 Research sessions)');
     } finally {
       for (const documentId of documentIds) {
-        if (researchRuntimeManager.interrupt(documentId) === null) {
-          researchRuntimeManager.close(documentId);
+        if (researchRuntimePool.interrupt(documentId) === null) {
+          researchRuntimePool.close(documentId);
         }
       }
       await settledExecutions;
       for (const documentId of [...documentIds, 'research-capacity-overflow']) {
-        researchRuntimeManager.close(documentId);
+        researchRuntimePool.close(documentId);
       }
     }
   });
@@ -479,7 +572,7 @@ async function waitForActiveExecution(
   expectedCellId = 'infinite',
 ): Promise<void> {
   for (let attempt = 0; attempt < 500; attempt += 1) {
-    if (researchRuntimeManager.activeCellId(documentId) === expectedCellId) {
+    if (researchRuntimePool.activeCellId(documentId) === expectedCellId) {
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 10));

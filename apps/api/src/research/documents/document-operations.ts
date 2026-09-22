@@ -1,8 +1,9 @@
+import { researchRuntimePool } from '../runtime/pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
-import { closeResearchDocumentRuntime } from '../runtime/python/session.js';
+
 import { templateDefinition } from '../templates/document-templates.js';
 import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';
@@ -29,7 +30,7 @@ export async function archiveResearchDocument(
       data: { archivedAt: new Date() },
     });
   }
-  closeResearchDocumentRuntime(documentId);
+  researchRuntimePool.close(documentId);
   return true;
 }
 
@@ -109,7 +110,7 @@ export async function deleteResearchDocument(userId: string, documentId: string)
     },
   });
   if (deleted.count === 1) {
-    closeResearchDocumentRuntime(documentId);
+    researchRuntimePool.close(documentId);
   }
   if (deleted.count !== 1) {
     throw new ResearchError('document_not_found');

@@ -1,3 +1,7 @@
+import type { ResearchRuntime } from '../runtime/research-runtime.js';
+import type { ResearchExecution, ResearchCellInput } from '../runtime/contract.js';
+import { researchRuntimePool } from '../runtime/pool.js';
+import type { ResearchExecutionOptions } from '../runtime/contract.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchEmbeddedRunSummaryV1, ResearchEmbeddedRunV1 } from '@jixie/shared';
 import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
@@ -15,7 +19,7 @@ import {
   expect,
   it,
   vi,
-  type MockInstance,
+  type Mock,
 } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
@@ -40,10 +44,7 @@ import { createJobExecutor } from '#infra/jobs/executor.js';
 import { claimQueuedJob } from '#infra/jobs/records.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { researchRoute } from '../routes/index.js';
-import {
-  researchRuntimeManager,
-  type ResearchExecutionOptions,
-} from '../runtime/python/session.js';
+
 import { dispatchResearchRequest } from '../runtime/host/dispatch.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { embeddedInputRecorder } from './inputs.js';
@@ -97,7 +98,13 @@ const input = {
 };
 const draft = { source: input.source, parameters: input.parameters, inputScope: input.inputScope };
 const environment = { runtime: 'research-py-v1', python: 'fixture' };
-let executeSpy: MockInstance<typeof researchRuntimeManager.execute>;
+let executeSpy: Mock<
+  (
+    documentId: string,
+    cell: ResearchCellInput,
+    options?: ResearchExecutionOptions,
+  ) => Promise<ResearchExecution>
+>;
 
 function request(path: string, method = 'GET', body?: unknown, userId = 'owner', locale = 'en') {
   return app.request(`/research${path}`, {
@@ -171,8 +178,19 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       ],
     });
     executeSpy = vi
-      .spyOn(researchRuntimeManager, 'execute')
+      .fn<
+        (
+          documentId: string,
+          cell: ResearchCellInput,
+          options?: ResearchExecutionOptions,
+        ) => Promise<ResearchExecution>
+      >()
       .mockImplementation(async (_documentId, _cell, options) => capture(options));
+    vi.spyOn(researchRuntimePool, 'withRuntime').mockImplementation(async (documentId, operation) =>
+      operation({
+        execute: ({ cell }, options) => executeSpy(documentId, cell, options),
+      } as ResearchRuntime),
+    );
   });
   afterEach(async () => {
     vi.useRealTimers();
@@ -350,16 +368,15 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     });
     executeSpy.mockImplementationOnce(async (documentId, _cell, options) => {
       await options?.captureEnvironment?.(environment);
-      const send = vi.fn(async () => {
+      const send = vi.fn(async (_response: unknown) => {
         const saved = await prisma.researchExecutionInput.findFirstOrThrow();
         expect(saved.status).toBe('received');
         expect(JSON.parse(saved.responseJson!)).toMatchObject({
           result: { report_id: 'report', report: { ic_mean: 0.05 } },
         });
       });
-      await dispatchResearchRequest(
+      const response = await dispatchResearchRequest(
         documentId,
-        { send },
         {
           type: 'request',
           id: 1,
@@ -368,6 +385,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
         },
         options?.observer,
       );
+      await send(response);
       return capture();
     });
     const { run, analysis } = await fixtureRun();
@@ -469,9 +487,8 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     executeSpy.mockImplementationOnce(async (documentId, _cell, options) => {
       await options?.captureEnvironment?.(environment);
       const send = vi.fn();
-      await dispatchResearchRequest(
+      const response = await dispatchResearchRequest(
         documentId,
-        { send },
         {
           type: 'request',
           id: 1,
@@ -480,6 +497,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
         },
         options?.observer,
       );
+      await send(response);
       expect(send.mock.calls[0][0]).toMatchObject({ error: expect.stringContaining('sealed') });
       expect(JSON.stringify(send.mock.calls)).not.toContain('secret');
       return capture();
@@ -500,7 +518,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
 
   it('cancels active work and rejects late output without freezing or overwriting the record', async () => {
     const started = deferred<void>();
-    const late = deferred<Awaited<ReturnType<typeof researchRuntimeManager.execute>>>();
+    const late = deferred<ResearchExecution>();
     executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => {
       await options?.captureEnvironment?.(environment);
       started.resolve();
@@ -535,7 +553,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
 
   it('ends the execution deadline even if a dataset request never settles', async () => {
     const started = deferred<void>();
-    const late = deferred<Awaited<ReturnType<typeof researchRuntimeManager.execute>>>();
+    const late = deferred<ResearchExecution>();
     executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => {
       await options?.captureEnvironment?.(environment);
       started.resolve();

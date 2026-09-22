@@ -112,7 +112,10 @@ test('business TypeScript SDK and host runtime changes still select only API', (
   for (const changedPath of [
     'apps/api/src/strategy/sdk/typescript.ts',
     'apps/api/src/factor/sdk/typescript.ts',
-    'apps/api/src/research/runtime/python/session.ts',
+    'apps/api/src/research/runtime/research-runtime.ts',
+    'apps/api/src/research/runtime/pool.ts',
+    'apps/api/src/infra/runtime/typescript/transport.ts',
+    'apps/api/src/factor/runtime/typescript/sandbox-entry.ts',
     'apps/api/src/research/runtime/host/dispatch.ts',
   ]) {
     const result = classifyChangedPaths([changedPath], manifest);

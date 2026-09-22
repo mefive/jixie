@@ -15,8 +15,8 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
-vi.mock('../runtime/python/session.js', () => ({
-  closeResearchDocumentRuntime: mocks.runtimeClose,
+vi.mock('../runtime/pool.js', () => ({
+  researchRuntimePool: { close: mocks.runtimeClose },
 }));
 
 import { archiveResearchDocument, restoreResearchDocument } from './document-operations.js';

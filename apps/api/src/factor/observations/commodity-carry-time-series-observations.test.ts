@@ -1,7 +1,8 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import type { CommodityCarryPointV1 } from '#market/commodity/commodity-carry.js';
-import { compileTimeSeriesFactor } from '../runtime/typescript/compile-asset-factor.js';
+
 import {
   buildCommodityCarryTimeSeriesObservations,
   timeSeriesFactorUsesCommodityCarry,
@@ -93,12 +94,16 @@ async function build(
   points: CommodityCarryPointV1[] = carryPoints(),
   rows: EtfTrendDailyRow[] = etfRows(),
 ) {
-  const factor = await compileTimeSeriesFactor(factorCode);
+  const factor = await FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: 'time_series',
+    code: factorCode,
+  });
   try {
     expect(timeSeriesFactorUsesCommodityCarry(factor)).toBe(true);
     return await buildCommodityCarryTimeSeriesObservations(spec, rows, points, factor);
   } finally {
-    factor.dispose();
+    factor.close();
   }
 }
 
@@ -158,7 +163,11 @@ describe('commodity carry time-series observations', () => {
     incomplete[0].adjustmentFactor = Number.NaN;
     await expect(build(carryPoints(), incomplete)).rejects.toThrow(/Invalid commodity carry ETF/);
 
-    const factor = await compileTimeSeriesFactor(factorCode);
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'time_series',
+      code: factorCode,
+    });
     try {
       await expect(
         buildCommodityCarryTimeSeriesObservations(
@@ -169,7 +178,7 @@ describe('commodity carry time-series observations', () => {
         ),
       ).rejects.toThrow(/does not map ETF/);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 });

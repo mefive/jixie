@@ -1,3 +1,5 @@
+import type { ResearchRuntime } from '../runtime/research-runtime.js';
+import type { ResearchExecution } from '../runtime/contract.js';
 import type { Prisma } from '@prisma/client';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
@@ -21,9 +23,19 @@ const runtime = vi.hoisted(() => ({
   reset: vi.fn(),
   interrupt: vi.fn(),
 }));
-vi.mock('../runtime/python/session.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../runtime/python/session.js')>()),
-  researchRuntimeManager: runtime,
+vi.mock('../runtime/pool.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/pool.js')>()),
+  researchRuntimePool: {
+    ...runtime,
+    withRuntime: async <Result>(
+      documentId: string,
+      operation: (runtime: ResearchRuntime) => Promise<Result>,
+    ) =>
+      operation({
+        analyze: (cells) => runtime.analyze(documentId, cells),
+        execute: ({ cell }, options) => runtime.execute(documentId, cell, options),
+      } as ResearchRuntime),
+  },
 }));
 
 import { prisma } from '#infra/database/prisma.js';
@@ -44,7 +56,6 @@ import {
 } from '../proposals/cell-changes.js';
 import { persistResearchCellChangePart } from '../proposals/change-records.js';
 
-import { type ResearchPythonExecution } from '../runtime/python/session.js';
 import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
 import { interruptResearchDocument, resetResearchDocumentRuntime } from './control.js';
 import { runAffectedResearchCells } from './run-affected.js';
@@ -60,7 +71,7 @@ const sourceAnalysis: Record<string, Pick<ResearchPythonAnalysis, 'definitions' 
   'double = value * 2': { definitions: ['double'], references: ['value'] },
   'other = 3': { definitions: ['other'], references: [] },
 };
-function executionResult(source = 'value = 1'): ResearchPythonExecution {
+function executionResult(source = 'value = 1'): ResearchExecution {
   return {
     outputs: [{ type: 'text', text: source, level: 'info' }],
     ...sourceAnalysis[source],
@@ -270,7 +281,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
 
   it('retains the frozen source when a cell is edited during a clean run', async () => {
     const started = deferred<void>();
-    const release = deferred<ResearchPythonExecution>();
+    const release = deferred<ResearchExecution>();
     runtime.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;
@@ -308,7 +319,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
 
   it('shares the run lock and waits for cancellation persistence before releasing it', async () => {
     const started = deferred<void>();
-    const release = deferred<ResearchPythonExecution>();
+    const release = deferred<ResearchExecution>();
     runtime.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;
@@ -410,7 +421,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     const applied = await applyResearchCellChangeProposalForReview(ownerId, proposalId);
     await acceptResearchCellChangeReview(ownerId, proposalId, applied!.document.contentRevision);
     const started = deferred<void>();
-    const release = deferred<ResearchPythonExecution>();
+    const release = deferred<ResearchExecution>();
     runtime.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;

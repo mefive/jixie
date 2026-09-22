@@ -1,11 +1,9 @@
+import { FactorRuntime } from '../runtime/factor-runtime.js';
+import type { CrossSectionalFactorRuntime, FactorBatchItem } from '../runtime/contract.js';
 import { describe, expect, it } from 'vitest';
 import type { FactorBar } from '@jixie/shared';
 import { BUILTIN_FACTORS } from './builtin-factors.js';
-import {
-  compileFactor,
-  type CompiledFactor,
-  type FactorBatchItem,
-} from '../runtime/typescript/compile-factor.js';
+
 import { daysBetween } from '#date';
 import { sha256 } from '../sources/fingerprint.js';
 
@@ -170,18 +168,22 @@ function syntheticSeries(): { px: number[]; dates: string[] } {
   return { px, dates };
 }
 
-async function compiled(key: string): Promise<CompiledFactor> {
+async function startFactorRuntime(key: string): Promise<CrossSectionalFactorRuntime> {
   const def = BUILTIN_FACTORS.find((factor) => factor.key === key)!;
-  return compileFactor(def.code);
+  return FactorRuntime.start({
+    language: 'typescript',
+    analysisKind: 'cross_sectional',
+    code: def.code,
+  });
 }
 
 /** One-item batch helper for the cross-sectional (no-window) presets. */
 async function computeOne(key: string, bar: FactorBar): Promise<number | null> {
-  const factor = await compiled(key);
+  const factor = await startFactorRuntime(key);
   try {
-    return (await factor.computeBatch([{ bar }]))[0];
+    return (await factor.execute({ items: [{ bar }] }))[0];
   } finally {
-    factor.dispose();
+    factor.close();
   }
 }
 
@@ -198,41 +200,52 @@ describe('preset factor code compiles and has the right shape', () => {
   it.each(BUILTIN_FACTORS.map((factor) => [factor.key, factor] as const))(
     '%s compiles',
     async (_key, def) => {
-      const factor = await compileFactor(def.code);
-      expect(factor.name).toBe(def.label);
-      expect(typeof factor.computeBatch).toBe('function');
-      factor.dispose();
+      const factor = await FactorRuntime.start({
+        language: 'typescript',
+        analysisKind: 'cross_sectional',
+        code: def.code,
+      });
+      expect(factor.metadata.name).toBe(def.label);
+      expect(typeof factor.execute).toBe('function');
+      factor.close();
     },
   );
 
   it('price factors declare window, cross-sectional ones do not', async () => {
-    expect((await compiled('mom')).window).toBe(61);
-    expect((await compiled('rev')).window).toBe(6);
-    expect((await compiled('vol')).window).toBe(21);
-    expect((await compiled('resid_vol20')).window).toBe(21);
-    expect((await compiled('maxret21')).window).toBe(22);
-    expect((await compiled('ep')).window).toBeUndefined();
-    expect((await compiled('mf_net_main')).window).toBeUndefined();
+    expect((await startFactorRuntime('mom')).metadata.window).toBe(61);
+    expect((await startFactorRuntime('rev')).metadata.window).toBe(6);
+    expect((await startFactorRuntime('vol')).metadata.window).toBe(21);
+    expect((await startFactorRuntime('resid_vol20')).metadata.window).toBe(21);
+    expect((await startFactorRuntime('maxret21')).metadata.window).toBe(22);
+    expect((await startFactorRuntime('ep')).metadata.window).toBeUndefined();
+    expect((await startFactorRuntime('mf_net_main')).metadata.window).toBeUndefined();
   });
 
   it('accepts an explicit window coverage declaration', async () => {
-    const factor = await compileFactor(`
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `
       export default defineFactor({
         name: 'Coverage fixture',
         window: 20,
         minCoverage: 0.8,
         compute: (_bar, ctx) => ctx.history.close.at(-1) ?? null,
       });
-    `);
+    `,
+    });
     try {
-      expect(factor.minCoverage).toBe(0.8);
+      expect(factor.metadata.minCoverage).toBe(0.8);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 
   it('exposes aligned daily turnover amount history to windowed factors', async () => {
-    const factor = await compileFactor(`
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `
       export default defineFactor({
         name: 'Amount fixture',
         window: 3,
@@ -243,20 +256,23 @@ describe('preset factor code compiles and has the right shape', () => {
             : amounts.reduce((sum, value) => sum + value, 0);
         },
       });
-    `);
+    `,
+    });
     try {
       await expect(
-        factor.computeBatch([
-          {
-            bar: NULL_BAR,
-            closes: [10, 11, 12],
-            dates: ['20240102', '20240103', '20240104'],
-            amounts: [100, 200, 300],
-          },
-        ]),
+        factor.execute({
+          items: [
+            {
+              bar: NULL_BAR,
+              closes: [10, 11, 12],
+              dates: ['20240102', '20240103', '20240104'],
+              amounts: [100, 200, 300],
+            },
+          ],
+        }),
       ).resolves.toEqual([600]);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 });
@@ -272,10 +288,10 @@ describe('price presets match the legacy hardcoded formulas bit-for-bit', () => 
   it.each(cases)(
     '%s matches on all 120 cutoffs (one batched wall-crossing)',
     async (key, legacy) => {
-      const factor = await compiled(key);
-      const items = px.map((_price, end) => windowItem(factor.window!, px, dates, end));
-      const actualValues = await factor.computeBatch(items);
-      factor.dispose();
+      const factor = await startFactorRuntime(key);
+      const items = px.map((_price, end) => windowItem(factor.metadata.window!, px, dates, end));
+      const actualValues = await factor.execute({ items: items });
+      factor.close();
       for (let end = 0; end < px.length; end++) {
         const expected = legacy(px, dates, end);
         if (expected == null) {
@@ -326,16 +342,20 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
   });
 
   it('exposes point-in-time ROA to candidate factors', async () => {
-    const factor = await compileFactor(`export default defineFactor({
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `export default defineFactor({
       name: 'ROA candidate',
       compute: (bar) => bar.roa,
-    });`);
+    });`,
+    });
     try {
       await expect(
-        factor.computeBatch([{ bar: { ...NULL_BAR, roa: 6.25 } }, { bar: NULL_BAR }]),
+        factor.execute({ items: [{ bar: { ...NULL_BAR, roa: 6.25 } }, { bar: NULL_BAR }] }),
       ).resolves.toEqual([6.25, null]);
     } finally {
-      factor.dispose();
+      factor.close();
     }
   });
 });
@@ -365,18 +385,18 @@ describe('3.5 preset-menu additions', () => {
   }
 
   it('declares the right windows; quality presets are cross-sectional', async () => {
-    expect((await compiled('mom_12_1')).window).toBe(245);
-    expect((await compiled('vol120')).window).toBe(121);
-    expect((await compiled('resid_vol20')).window).toBe(21);
-    expect((await compiled('resid_vol20')).minCoverage).toBe(0.8);
-    expect((await compiled('abturn')).window).toBe(252);
-    expect((await compiled('amihud')).window).toBe(21);
-    expect((await compiled('amihud')).minCoverage).toBe(0.8);
-    expect((await compiled('turn20')).window).toBe(20);
-    expect((await compiled('roe_stability')).window).toBe(504);
-    expect((await compiled('roe')).window).toBeUndefined();
-    expect((await compiled('gross_margin')).window).toBeUndefined();
-    expect((await compiled('sales_yield')).window).toBeUndefined();
+    expect((await startFactorRuntime('mom_12_1')).metadata.window).toBe(245);
+    expect((await startFactorRuntime('vol120')).metadata.window).toBe(121);
+    expect((await startFactorRuntime('resid_vol20')).metadata.window).toBe(21);
+    expect((await startFactorRuntime('resid_vol20')).metadata.minCoverage).toBe(0.8);
+    expect((await startFactorRuntime('abturn')).metadata.window).toBe(252);
+    expect((await startFactorRuntime('amihud')).metadata.window).toBe(21);
+    expect((await startFactorRuntime('amihud')).metadata.minCoverage).toBe(0.8);
+    expect((await startFactorRuntime('turn20')).metadata.window).toBe(20);
+    expect((await startFactorRuntime('roe_stability')).metadata.window).toBe(504);
+    expect((await startFactorRuntime('roe')).metadata.window).toBeUndefined();
+    expect((await startFactorRuntime('gross_margin')).metadata.window).toBeUndefined();
+    expect((await startFactorRuntime('sales_yield')).metadata.window).toBeUndefined();
   });
 
   it('sales_yield keeps the admitted code and handles non-positive PS_TTM', async () => {
@@ -391,13 +411,13 @@ describe('3.5 preset-menu additions', () => {
 
   it('mom_12_1 = close[end-21] / close[end-244] − 1, null on short history', async () => {
     const { px, dates } = cleanLongSeries();
-    const factor = await compiled('mom_12_1');
+    const factor = await startFactorRuntime('mom_12_1');
     const items = [
       windowItem(245, px, dates, 259), // full window
       windowItem(245, px, dates, 100), // insufficient history
     ];
-    const [full, short] = await factor.computeBatch(items);
-    factor.dispose();
+    const [full, short] = await factor.execute({ items: items });
+    factor.close();
     // Window [15..259]: index 0 = bar 15 (12 months back), index 223 = bar 238 (~1 month back).
     expect(full).toBeCloseTo(px[238] / px[15] - 1, 12);
     expect(short).toBeNull();
@@ -405,9 +425,9 @@ describe('3.5 preset-menu additions', () => {
 
   it('vol120 = population std of the last 120 daily returns', async () => {
     const { px, dates } = cleanLongSeries();
-    const factor = await compiled('vol120');
-    const [actual] = await factor.computeBatch([windowItem(121, px, dates, 259)]);
-    factor.dispose();
+    const factor = await startFactorRuntime('vol120');
+    const [actual] = await factor.execute({ items: [windowItem(121, px, dates, 259)] });
+    factor.close();
     const returns: number[] = [];
     for (let i = 139; i < 259; i++) {
       returns.push(px[i + 1] / px[i] - 1);
@@ -444,13 +464,15 @@ describe('3.5 preset-menu additions', () => {
     });
     const missingMarket: (number | null)[] = [...marketCloses];
     missingMarket[10] = null;
-    const factor = await compiled('resid_vol20');
-    const [actual, missing, short] = await factor.computeBatch([
-      windowItemWithMarket(21, stockCloses, marketCloses, dates, 20),
-      windowItemWithMarket(21, stockCloses, missingMarket, dates, 20),
-      windowItemWithMarket(21, stockCloses, marketCloses, dates, 10),
-    ]);
-    factor.dispose();
+    const factor = await startFactorRuntime('resid_vol20');
+    const [actual, missing, short] = await factor.execute({
+      items: [
+        windowItemWithMarket(21, stockCloses, marketCloses, dates, 20),
+        windowItemWithMarket(21, stockCloses, missingMarket, dates, 20),
+        windowItemWithMarket(21, stockCloses, marketCloses, dates, 10),
+      ],
+    });
+    factor.close();
 
     expect(actual).toBeCloseTo(0.003, 12);
     expect(missing).toBeNull();
@@ -475,13 +497,15 @@ describe('3.5 preset-menu additions', () => {
     });
     const gapDates = [...dates];
     gapDates[15] = '20240420';
-    const factor = await compiled('maxret21');
-    const [actual, gap, short] = await factor.computeBatch([
-      windowItem(22, closes, dates, 21),
-      windowItem(22, closes, gapDates, 21),
-      windowItem(22, closes, dates, 10),
-    ]);
-    factor.dispose();
+    const factor = await startFactorRuntime('maxret21');
+    const [actual, gap, short] = await factor.execute({
+      items: [
+        windowItem(22, closes, dates, 21),
+        windowItem(22, closes, gapDates, 21),
+        windowItem(22, closes, dates, 10),
+      ],
+    });
+    factor.close();
     expect(actual).toBeCloseTo(0.085, 12);
     expect(gap).toBeNull();
     expect(short).toBeNull();
@@ -490,12 +514,14 @@ describe('3.5 preset-menu additions', () => {
   it('abturn = latest 21-day mean / 252-day mean of free-float turnover', async () => {
     const { px, dates } = cleanLongSeries();
     const turnoverRates = dates.map((_date, index) => 1 + index / 100);
-    const factor = await compiled('abturn');
-    const [actual, short] = await factor.computeBatch([
-      windowItemWithTurnover(252, px, dates, turnoverRates, 259),
-      windowItemWithTurnover(252, px, dates, turnoverRates, 100),
-    ]);
-    factor.dispose();
+    const factor = await startFactorRuntime('abturn');
+    const [actual, short] = await factor.execute({
+      items: [
+        windowItemWithTurnover(252, px, dates, turnoverRates, 259),
+        windowItemWithTurnover(252, px, dates, turnoverRates, 100),
+      ],
+    });
+    factor.close();
     const window = turnoverRates.slice(8, 260);
     const longMean = window.reduce((sum, value) => sum + value, 0) / 252;
     const shortMean = window.slice(-21).reduce((sum, value) => sum + value, 0) / 21;
@@ -508,13 +534,15 @@ describe('3.5 preset-menu additions', () => {
     const turnoverRates: (number | null)[] = dates.map((_date, index) => 2 + index / 50);
     const withGap = [...turnoverRates];
     withGap[250] = null;
-    const factor = await compiled('turn20');
-    const [actual, missing, short] = await factor.computeBatch([
-      windowItemWithTurnover(20, px, dates, turnoverRates, 259),
-      windowItemWithTurnover(20, px, dates, withGap, 259),
-      windowItemWithTurnover(20, px, dates, turnoverRates, 10),
-    ]);
-    factor.dispose();
+    const factor = await startFactorRuntime('turn20');
+    const [actual, missing, short] = await factor.execute({
+      items: [
+        windowItemWithTurnover(20, px, dates, turnoverRates, 259),
+        windowItemWithTurnover(20, px, dates, withGap, 259),
+        windowItemWithTurnover(20, px, dates, turnoverRates, 10),
+      ],
+    });
+    factor.close();
     const window = turnoverRates.slice(240, 260) as number[];
     expect(actual).toBeCloseTo(window.reduce((sum, value) => sum + value, 0) / 20, 12);
     expect(missing).toBeNull();
@@ -543,13 +571,11 @@ describe('3.5 preset-menu additions', () => {
       dates,
       roes: values,
     });
-    const factor = await compiled('roe_stability');
-    const [actual, fewSegments, missing] = await factor.computeBatch([
-      item(roes),
-      item(flat),
-      item(withNull),
-    ]);
-    factor.dispose();
+    const factor = await startFactorRuntime('roe_stability');
+    const [actual, fewSegments, missing] = await factor.execute({
+      items: [item(roes), item(flat), item(withNull)],
+    });
+    factor.close();
     const mean = roes.reduce((sum, value) => sum + value, 0) / roes.length;
     const variance = roes.reduce((sum, value) => sum + (value - mean) ** 2, 0) / roes.length;
     expect(actual).toBeCloseTo(Math.sqrt(variance), 12);
@@ -558,7 +584,10 @@ describe('3.5 preset-menu additions', () => {
   });
 
   it('exposes point-in-time gross-margin history to candidate factors', async () => {
-    const factor = await compileFactor(`export default defineFactor({
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `export default defineFactor({
       name: 'gross-margin delta',
       window: 3,
       compute(bar, ctx) {
@@ -567,29 +596,35 @@ describe('3.5 preset-menu additions', () => {
           ? values[2] - values[0]
           : null;
       },
-    });`);
-    const [actual, missing] = await factor.computeBatch([
-      {
-        bar: NULL_BAR,
-        closes: [10, 10, 10],
-        dates: ['20240101', '20240102', '20240103'],
-        grossProfitMargins: [20, 20, 24],
-      },
-      {
-        bar: NULL_BAR,
-        closes: [10, 10, 10],
-        dates: ['20240101', '20240102', '20240103'],
-        grossProfitMargins: [null, 20, 24],
-      },
-    ]);
-    factor.dispose();
+    });`,
+    });
+    const [actual, missing] = await factor.execute({
+      items: [
+        {
+          bar: NULL_BAR,
+          closes: [10, 10, 10],
+          dates: ['20240101', '20240102', '20240103'],
+          grossProfitMargins: [20, 20, 24],
+        },
+        {
+          bar: NULL_BAR,
+          closes: [10, 10, 10],
+          dates: ['20240101', '20240102', '20240103'],
+          grossProfitMargins: [null, 20, 24],
+        },
+      ],
+    });
+    factor.close();
 
     expect(actual).toBe(4);
     expect(missing).toBeNull();
   });
 
   it('exposes exact-date CSI All Share closes to candidate factors', async () => {
-    const factor = await compileFactor(`export default defineFactor({
+    const factor = await FactorRuntime.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `export default defineFactor({
       name: 'market-relative return',
       window: 3,
       compute(bar, ctx) {
@@ -598,22 +633,25 @@ describe('3.5 preset-menu additions', () => {
         if (market.length < 3 || market.some((value) => value == null)) { return null; }
         return stock[2] / stock[0] - market[2] / market[0];
       },
-    });`);
-    const [actual, missing] = await factor.computeBatch([
-      {
-        bar: NULL_BAR,
-        closes: [10, 11, 12],
-        dates: ['20240101', '20240102', '20240103'],
-        marketCloses: [100, 102, 103],
-      },
-      {
-        bar: NULL_BAR,
-        closes: [10, 11, 12],
-        dates: ['20240101', '20240102', '20240103'],
-        marketCloses: [100, null, 103],
-      },
-    ]);
-    factor.dispose();
+    });`,
+    });
+    const [actual, missing] = await factor.execute({
+      items: [
+        {
+          bar: NULL_BAR,
+          closes: [10, 11, 12],
+          dates: ['20240101', '20240102', '20240103'],
+          marketCloses: [100, 102, 103],
+        },
+        {
+          bar: NULL_BAR,
+          closes: [10, 11, 12],
+          dates: ['20240101', '20240102', '20240103'],
+          marketCloses: [100, null, 103],
+        },
+      ],
+    });
+    factor.close();
 
     expect(actual).toBeCloseTo(12 / 10 - 103 / 100, 12);
     expect(missing).toBeNull();
@@ -626,18 +664,20 @@ describe('3.5 preset-menu additions', () => {
       (_value, index) => `202401${String(index + 2).padStart(2, '0')}`,
     );
     const amounts = Array.from({ length: 21 }, (_value, index) => 1_000 + index * 10);
-    const factor = await compiled('amihud');
+    const factor = await startFactorRuntime('amihud');
     const invalidAmounts: (number | null)[] = [...amounts];
     invalidAmounts[10] = null;
     const gapDates = [...dates];
     gapDates[10] = '20240220';
-    const [actual, missingAmount, gap, short] = await factor.computeBatch([
-      windowItemWithAmounts(21, closes, dates, amounts, 20),
-      windowItemWithAmounts(21, closes, dates, invalidAmounts, 20),
-      windowItemWithAmounts(21, closes, gapDates, amounts, 20),
-      windowItemWithAmounts(21, closes, dates, amounts, 10),
-    ]);
-    factor.dispose();
+    const [actual, missingAmount, gap, short] = await factor.execute({
+      items: [
+        windowItemWithAmounts(21, closes, dates, amounts, 20),
+        windowItemWithAmounts(21, closes, dates, invalidAmounts, 20),
+        windowItemWithAmounts(21, closes, gapDates, amounts, 20),
+        windowItemWithAmounts(21, closes, dates, amounts, 10),
+      ],
+    });
+    factor.close();
     const expected =
       (amounts.slice(1).reduce((sum, amount) => sum + 0.01 / amount, 0) / 20) * 1_000_000;
     expect(actual).toBeCloseTo(expected, 12);
