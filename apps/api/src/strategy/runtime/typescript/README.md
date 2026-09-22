@@ -5,7 +5,7 @@
 
 | 文件 / 入口 | 使用方与契约 |
 | --- | --- |
-| [typescript-strategy-runtime.ts](typescript-strategy-runtime.ts) `TypeScriptStrategyRuntime` | 由公共 StrategyRuntime.start 选择；返回具有 metadata/execute/close 的实例，另保留宿主验证用 metrics；调用方必须 finally 关闭 |
+| [typescript-strategy-runtime.ts](typescript-strategy-runtime.ts) `TypeScriptStrategyRuntime` | 业务由公共 StrategyRuntime.start 选择，公共返回类型只提供 metadata/execute/close；需要 metrics 的测试直接通过本类 start 创建实例；调用方必须 finally 关闭 |
 | [../inspect-definition.ts](../inspect-definition.ts) `inspectStrategyParameters` / `inspectStrategyMetadata` | 扫描、Signals 和 Agent 校验；仅在 isolate 执行声明，finally 释放资源 |
 | [../run.ts](../run.ts) `runSandboxedBacktest` / `runSandboxedSignalCapture` | 正式回测、扫描 cell、Signals；共用宿主 Engine，finally 关闭语言 runtime 和 FactorHost |
 | [sandbox-bundle.ts](sandbox-bundle.ts) / [sandbox-entry.ts](sandbox-entry.ts) | 仅打包 SDK、指标、日志和协议适配；源码/编译入口分别解析 `.ts` / `.js`，进程内缓存 bundle |
@@ -28,7 +28,9 @@ TS 同步命令和读取走经过 schema 限定的 `context-access.ts`；同步�
 
 启动失败、协议失败和 close 释放 isolate；每次运行独立实例，模块状态跨 bar 保留。宿主队列、
 帧大小和共享 schema 有上限；回调沿用一小时运行预算，声明求值五秒。`metrics` 仅用于宿主验证，
-记录帧数、同步调用及传输字节，不属于公开 SDK。
+记录帧数、同步调用及传输字节，不属于公开 SDK 或 StrategyRuntimeInstance 公共宿主契约。
+[isolation.test.ts](isolation.test.ts) 和 [runtime-benchmark.test-worker.mjs](runtime-benchmark.test-worker.mjs)
+直接调用 TypeScriptStrategyRuntime.start 获取这些统计；公共 StrategyRuntime.start 不为此提供返回具体 TS 类型的重载。
 
 验收看 [typescript-strategy-runtime.test.ts](typescript-strategy-runtime.test.ts)、[isolation.test.ts](isolation.test.ts)、
 [sandbox-bundle.test.ts](sandbox-bundle.test.ts) 和包级 `factor-worker.integration.test.ts`。

@@ -1,6 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
 > 状态：2026-09-22 用户已通过最终代码 review。统一宿主入口、TS transport、Factor 批量日志及 Strategy JSON 修复均完成验证：979 项回归、11 项 Python 通信、8 项编译 Worker、2 项 Strategy 性能用例，以及 API 构建和源码／编译资源验证通过。最终结果见文末；以下分轮记录中的“待 review／未验证”描述的是当时状态。
+> 追加 review 修正已通过：StrategyRuntime.start 统一返回 StrategyRuntimeInstance，需要 metrics 的测试直接创建 TS 实例。补充验证 61 项运行时／隔离测试、2 项性能用例及 API 构建通过，详见文末。
 > 2026-09-21：用户要求从历史演进形成的不同入口、名称和调用方式出发，统一规划三业务运行时。
 > 同轮补充：TS 与 Python 一起纳入，采用语言无关的 SandboxRuntime 基类和共同启动流程；基类、协议循环、底层执行资源分别承担不同职责。
 > 最新决定：移除 TS Factor 绕过公共 exchange 的直接执行路径，TS Factor / Strategy 共用 Infra TypeScriptTransport；替代前版“保留 TS Factor 直接调用”的方案。
@@ -198,7 +199,7 @@ TS Strategy 的 response 发送必须能够在执行命令等待宿主数据时�
 
 ### Strategy
 
-对外 `StrategyRuntime.start({ language, code, paramOverrides?, locale?, onUserLog? })`，返回 `metadata`、`execute({ context }): Promise<void>`、`close()`；context 的类型仍为 EngineContext，具名输入与其他业务一致。
+对外 `StrategyRuntime.start({ language, code, paramOverrides?, locale?, onUserLog? })`，只保留一个签名和实现，统一返回 `Promise<StrategyRuntimeInstance>`，提供 `metadata`、`execute({ context }): Promise<void>`、`close()`；context 的类型仍为 EngineContext，具名输入与其他业务一致。
 
 `runtime/run.ts` 是 Engine 适配边界，构造 EngineStrategy：
 
@@ -221,7 +222,7 @@ try {
 
 Python 的 done.commands 仍在共享协议层重放到 EngineContext；TS 现有同步读取/命令的调用处异常、因子首次读取、缓存与 history_updates 都保持。execute 返回 void 的含义是本次策略行为已交给 Engine，不是交易必然成交。
 
-Agent 的 Python 声明校验、TS inspectStrategyMetadata/Parameters 和正式回测都从统一入口启动并关闭。inspect 函数可以保留其实际提取职责，但不再成为一种特殊资源创建机制。TS transport metrics 属于诊断扩展，保留现有测试能力，不放进公共作者 SDK。
+Agent 的 Python 声明校验、TS inspectStrategyMetadata/Parameters 和正式回测都从统一入口启动并关闭。inspect 函数可以保留其实际提取职责，但不再成为一种特殊资源创建机制。TS transport metrics 属于诊断扩展，保留现有测试能力，不放进公共作者 SDK 或 StrategyRuntimeInstance；需要 metrics 的隔离测试和性能工具直接通过 TypeScriptStrategyRuntime.start 创建实例，公共 start 不为诊断暴露具体语言类型。
 
 ### Research
 
@@ -481,3 +482,18 @@ Factor history/value/lag 仍只读取预备数组。Strategy 同步宿主访问�
 本轮证据：`/tmp/jixie-runtime-batching-focused-tests.log`、`/tmp/jixie-runtime-final-regressions.log`、`/tmp/jixie-runtime-final-python-session.log`、`/tmp/jixie-runtime-final-api-build.log`、`/tmp/jixie-runtime-final-compiled-workers.log`、`/tmp/jixie-runtime-final-{source,compiled}-smoke.log`、`/tmp/jixie-runtime-final-strategy-benchmarks.log`；逐样本原始数据在 `/tmp/jixie-runtime-final-benchmarks/`。提交范围包含统一架构、已审查修复、测试和本记录；R1 retained/current response 来源封装继续留在讨论计划中，不纳入本次。
 
 最终差异空白检查及更新文档的相对链接检查通过；临时 benchmark 目录已清理，进程检查确认没有本轮 Vitest、Python runner、性能 worker 或资源 smoke 遗留。未启动持久测试服务。此次提交不包含数据库、临时验证产物或环境配置。
+
+### 追加 review：收敛 Strategy 公共返回类型
+
+用户明确要求将此修改并入当前 runtime 统一任务，提交信息保持 `refactor(runtime): unify runtime contracts and entry points`。已提交版本为 `70c124d7`；本节记录其后的 review 修正，不另立重构任务。
+
+- StrategyRuntime.start 删除仅为 TypeScript metrics 暴露具体类的重载，只留下 `start(options: StrategyStartOptions): Promise<StrategyRuntimeInstance>` 的实现签名；语言分派表达式保持不变。
+- `typescript/isolation.test.ts` 中读取 metrics 的 execute helper，以及 `typescript/runtime-benchmark.test-worker.mjs` 的当前实现变体直接使用 TypeScriptStrategyRuntime.start。保留 metrics 实现、全部统计断言与历史对照。隔离测试中不读取 metrics 的关闭用例仍使用公共入口。
+- 生产业务继续使用 StrategyRuntime.start；不增加类型断言、兼容包装或 Python metrics。公共宿主类型收敛，不改变启动、执行、关闭、作者 SDK、通信协议、数据库或部署依赖关系。
+- 同步 Strategy runtime README、TS runtime README 和本方案，明确业务公共入口与实现专属诊断的边界。静态验收后交付补充 review，批准后复跑 Strategy 运行时／隔离回归、两种性能场景并构建 API；此次类型整理不重复运行未受影响的 Factor／Research 全量验证。
+
+静态验收通过：全仓 typecheck（含生成物一致性、808 文件的后端边界扫描，0 violations）、三个修改代码文件的 ESLint／Prettier、git diff --check 及更新文档相对链接检查。类型检查日志为 `/tmp/jixie-strategy-runtime-return-typecheck.log`。
+
+用户确认补充 review 后，Strategy runtime 的 12 个测试文件、61 项测试全部通过，包含两语言运行、共享 bridge、隔离、缓存／通信统计、声明检查与关闭行为。watch／dynamic 两个性能用例通过，所有历史变体与当前实现的结果哈希一致，动态历史增量的传输量断言仍通过；API 构建通过。本轮没有追加产品或测试修复。
+
+当前实现的总耗时中位数为 watch 102.52 ms、dynamic 492.01 ms；传输量分别仍为 9,818,414 和 50,274,055 字节，帧数及同步调用统计与上轮一致。更换诊断测试的创建入口后，统计能力保持完整；时钟样本不用于宣称此次类型整理带来加速。日志为 `/tmp/jixie-strategy-runtime-return-tests.log`、`/tmp/jixie-strategy-runtime-return-benchmarks.log`、`/tmp/jixie-strategy-runtime-return-build.log`。

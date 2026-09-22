@@ -1,6 +1,8 @@
 # Strategy 宿主运行入口
 
-[StrategyRuntime.start](strategy-runtime.ts) 是两种语言的唯一创建入口，接收 `{ language, code, onUserLog?, paramOverrides?, locale? }`。返回实例统一提供 metadata、execute({ context })、同步幂等 close；宿主类型在 [contract.ts](contract.ts)。
+[StrategyRuntime.start](strategy-runtime.ts) 是两种语言的业务统一创建入口，接收 `{ language, code, onUserLog?, paramOverrides?, locale? }`。只保留一个签名和实现，统一返回 `Promise<StrategyRuntimeInstance>`，提供 metadata、execute({ context })、同步幂等 close；宿主类型在 [contract.ts](contract.ts)。
+
+公共返回类型不暴露语言专属诊断。需要 metrics 的隔离测试和性能工具直接调用 [TypeScriptStrategyRuntime.start](typescript/typescript-strategy-runtime.ts)，继续验证缓存、通信和传输量；普通业务仍使用公共入口，Python 不提供无业务意义的 metrics。
 
 [run.ts](run.ts) 拥有一次回测／信号捕获的 runtime 和 FactorHost，创建唯一生产 EngineStrategy 适配：`{ ...runtime.metadata, onBar: context => runtime.execute({ context }) }`，在 finally 关闭两者。Engine 本身不选择语言，不加载源码。
 

@@ -10,7 +10,7 @@ import { register } from 'tsx/esm/api';
 register();
 const { fixturePort } = await import('#engine/testing/fixture-port.js');
 const { runStrategy } = await import('#engine/simulation/run.js');
-const { StrategyRuntime } = await import('../strategy-runtime.ts');
+const { TypeScriptStrategyRuntime } = await import('./typescript-strategy-runtime.ts');
 const apiDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 const variant = process.argv[2];
 if (!['baseline', 'before', 'previous', 'shared'].includes(variant)) {
@@ -123,7 +123,7 @@ try {
     baseline = await import(pathToFileURL(path).href);
   }
 
-  let createRuntime = (code) => StrategyRuntime.start({ language: 'typescript', code });
+  let createRuntime = (code) => TypeScriptStrategyRuntime.start({ language: 'typescript', code });
   if (variant === 'before' || variant === 'previous') {
     directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
     const bridgePath = join(directory, 'bridge.mjs');
