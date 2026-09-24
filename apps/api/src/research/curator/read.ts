@@ -1,3 +1,4 @@
+import { researchCuratorRunState } from '#research/curator/state.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchCuratorQualityMetricsV1, ResearchCuratorRunV1 } from '@jixie/shared';
 import type { PrismaClient } from '@prisma/client';
@@ -11,11 +12,13 @@ export async function getLatestResearchCuratorRun(
   userId: string,
   database: PrismaClient = prisma,
 ): Promise<ResearchCuratorRunV1 | null> {
-  const run = await database.researchCuratorRun.findFirst({
-    where: { userId },
-    orderBy: { createdAt: 'desc' },
-    include: { job: { select: { id: true } }, findings: { orderBy: { createdAt: 'asc' } } },
-  });
+  const run = await database.researchCuratorRun
+    .findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      include: { job: true, findings: { orderBy: { createdAt: 'asc' } } },
+    })
+    .then((row) => (row ? researchCuratorRunState(row) : row));
   return run ? curatorRunRecord(run, await researchCuratorQuality(userId, database)) : null;
 }
 
@@ -24,10 +27,12 @@ export async function getResearchCuratorRun(
   runId: string,
   database: PrismaClient = prisma,
 ): Promise<ResearchCuratorRunV1> {
-  const run = await database.researchCuratorRun.findFirst({
-    where: { id: runId, userId },
-    include: { job: { select: { id: true } }, findings: { orderBy: { createdAt: 'asc' } } },
-  });
+  const run = await database.researchCuratorRun
+    .findFirst({
+      where: { id: runId, userId },
+      include: { job: true, findings: { orderBy: { createdAt: 'asc' } } },
+    })
+    .then((row) => (row ? researchCuratorRunState(row) : row));
   if (!run) {
     throw new ResearchError('curator_run_not_found');
   }

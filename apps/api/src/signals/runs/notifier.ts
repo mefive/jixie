@@ -1,3 +1,5 @@
+import { signalRunState, currentSignalJob, signalAttemptWhere } from '#signals/runs/state.js';
+import type { Prisma } from '@prisma/client';
 import type { Locale, SignalItem } from '@jixie/shared';
 import { isEmailConfigured, sendEmail } from '#infra/email/email.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -17,20 +19,24 @@ export async function notifySignalRun(
   runId: string,
   notifier: Notifier = emailNotifier,
 ): Promise<void> {
-  const run = await prisma.signalRun.findUnique({
-    where: { id: runId },
-    include: {
-      user: { select: { email: true } },
-      deployment: { select: { strategyName: true, locale: true } },
-    },
-  });
+  const run = await prisma.signalRun
+    .findUnique({
+      where: { id: runId },
+      include: {
+        jobs: currentSignalJob,
+        user: { select: { email: true } },
+        deployment: { select: { strategyName: true, locale: true } },
+      },
+    })
+    .then((row) => (row ? signalRunState(row) : row));
   if (!run || (run.status !== 'done' && run.status !== 'error')) {
     return;
   }
 
+  const attempt = signalAttemptWhere(run.jobs[0]);
   if (!isEmailConfigured() && notifier === emailNotifier) {
     if (process.env.NODE_ENV === 'production') {
-      await recordNotificationError(run.id, 'Email service is not configured');
+      await recordNotificationError(run.id, 'Email service is not configured', attempt);
     } else {
       console.log(`[signals] email notification skipped in development for run ${run.id}`);
     }
@@ -50,12 +56,16 @@ export async function notifySignalRun(
   });
   try {
     await notifier.send({ to: run.user.email, ...message });
-    await prisma.signalRun.update({
-      where: { id: run.id },
+    await prisma.signalRun.updateMany({
+      where: { id: run.id, ...attempt },
       data: { notifiedAt: new Date(), notificationError: null },
     });
   } catch (error) {
-    await recordNotificationError(run.id, error instanceof Error ? error.message : String(error));
+    await recordNotificationError(
+      run.id,
+      error instanceof Error ? error.message : String(error),
+      attempt,
+    );
   }
 }
 
@@ -154,9 +164,13 @@ function parseSignals(value: unknown): SignalItem[] {
   return Array.isArray(value) ? (value as unknown as SignalItem[]) : [];
 }
 
-async function recordNotificationError(runId: string, message: string): Promise<void> {
+async function recordNotificationError(
+  runId: string,
+  message: string,
+  attempt: Prisma.SignalRunWhereInput,
+): Promise<void> {
   await prisma.signalRun
-    .update({ where: { id: runId }, data: { notificationError: message } })
+    .updateMany({ where: { id: runId, ...attempt }, data: { notificationError: message } })
     .catch(() => {});
 }
 

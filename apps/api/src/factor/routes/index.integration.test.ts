@@ -34,11 +34,12 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
-vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('#infra/jobs/logs.js')>()),
-  initializeJobLogs: resources.logs,
-}));
+vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: resources.wake } }));
+vi.mock('#jobs/logs.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('#jobs/logs.js')>();
+  vi.spyOn(original.JobLogs, 'initialize').mockImplementation(resources.logs);
+  return original;
+});
 vi.mock('../weather/refresh.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../weather/refresh.js')>()),
   refreshFactorWeatherPin: resources.refresh,
@@ -83,7 +84,7 @@ async function seedReport(phase = 'explore') {
       userId: 'owner',
       factor: 'draft',
       phase,
-      status: 'done',
+      legacyStatus: 'done',
       freq: 'month',
       start: '20200101',
       end: '20231229',
@@ -465,7 +466,7 @@ describe('Factor HTTP business boundaries', () => {
       reusedRunning: true,
     });
     expect(resources.wake).toHaveBeenCalledTimes(1);
-    expect(resources.logs).toHaveBeenCalledWith(result.jobId);
+    expect(resources.logs).not.toHaveBeenCalled();
   });
 
   it('rolls back holdout report creation when its job cannot be inserted', async () => {
@@ -605,7 +606,7 @@ describe('Factor HTTP business boundaries', () => {
         (await prisma.job.findUniqueOrThrow({ where: { id: jobId } })).payload,
       ).not.toHaveProperty('task');
       expect(resources.wake).toHaveBeenCalledOnce();
-      expect(resources.logs).toHaveBeenCalledWith(jobId);
+      expect(resources.logs).not.toHaveBeenCalled();
     });
 
     it.each([

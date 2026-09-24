@@ -230,7 +230,7 @@ export async function seedEmbeddedStrategies() {
         userId: `question-reader-${locale}`,
         strategyId: id,
         strategyName: name,
-        status: 'done',
+        legacyStatus: 'done',
         config,
         payload,
       },
@@ -297,19 +297,18 @@ export async function seedEmbeddedStrategies() {
       },
     });
   }
-  const { startJobQueue } = await import('#infra/jobs/queue.js');
-  const { createJobExecutor } = await import('#infra/jobs/executor.js');
-  const { jobRegistry } = await import('../src/bootstrap.js');
-  const executor = createJobExecutor(jobRegistry);
-  startJobQueue({
-    execute: async (jobId) => {
-      const execution = executor.execute(jobId);
-      activeExecutions.add(execution);
-      try {
-        await execution;
-      } finally {
-        activeExecutions.delete(execution);
-      }
-    },
+  const { JobScheduler } = await import('#jobs/scheduler.js');
+  const { registerJobLifecycles } = await import('#jobs/register.js');
+  const { JobService } = await import('#jobs/service.js');
+  registerJobLifecycles();
+  JobScheduler.initialize(async (jobId) => {
+    const execution = JobService.execute(jobId);
+    activeExecutions.add(execution);
+    try {
+      await execution;
+    } finally {
+      activeExecutions.delete(execution);
+    }
   });
+  JobScheduler.wake();
 }

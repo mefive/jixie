@@ -1,3 +1,4 @@
+import { signalRunState, currentSignalJob, signalAttemptWhere } from '#signals/runs/state.js';
 import { ulid } from 'ulid';
 import type { ModelPositionSnapshot, SignalItem } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -5,13 +6,16 @@ import { prisma } from '#infra/database/prisma.js';
 
 /** Create queryable execution rows and the two account baselines after a signal run finishes. */
 export async function initializeSignalAccounting(runId: string): Promise<void> {
-  const run = await prisma.signalRun.findUnique({
-    where: { id: runId },
-    include: {
-      deployment: { select: { id: true } },
-      executions: { select: { id: true }, take: 1 },
-    },
-  });
+  const run = await prisma.signalRun
+    .findUnique({
+      where: { id: runId },
+      include: {
+        jobs: currentSignalJob,
+        deployment: { select: { id: true } },
+        executions: { select: { id: true }, take: 1 },
+      },
+    })
+    .then((row) => (row ? signalRunState(row) : row));
   if (
     !run ||
     run.status !== 'done' ||
@@ -26,6 +30,13 @@ export async function initializeSignalAccounting(runId: string): Promise<void> {
   const signals = run.signals as unknown as SignalItem[];
   const positions = run.modelPositions as unknown as ModelPositionSnapshot[];
   await prisma.$transaction(async (transaction) => {
+    const current = await transaction.signalRun.findFirst({
+      where: { id: run.id, ...signalAttemptWhere(run.jobs[0]) },
+      select: { id: true },
+    });
+    if (!current) {
+      return;
+    }
     if (run.executions.length === 0 && signals.length > 0) {
       const immediateSignals = signals.flatMap((signal, signalIndex) =>
         signal.source === 'conditional' ? [] : [{ signal, signalIndex }],

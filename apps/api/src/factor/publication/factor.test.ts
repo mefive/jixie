@@ -53,6 +53,9 @@ describe('immutable Factor publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockReset().mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'cross_sectional',
       phase: 'explore',
@@ -95,6 +98,9 @@ describe('immutable Factor publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-py',
       analysisKind: 'cross_sectional',
       language: 'python',
@@ -116,6 +122,9 @@ describe('immutable Factor publication', () => {
 
   it('rejects an outdated report snapshot', async () => {
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'cross_sectional',
       phase: 'explore',
@@ -146,6 +155,9 @@ describe('immutable Factor publication', () => {
 
   it('rejects a sealed holdout report', async () => {
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'cross_sectional',
       phase: 'holdout',
@@ -169,6 +181,9 @@ describe('immutable Factor publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'panel',
       phase: 'explore',
@@ -193,6 +208,9 @@ describe('immutable Factor publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'time_series',
       phase: 'explore',
@@ -217,6 +235,9 @@ describe('immutable Factor publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'time_series',
       phase: 'explore',
@@ -241,6 +262,9 @@ describe('immutable Factor publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'macro_regime',
       phase: 'explore',
@@ -281,6 +305,9 @@ describe('immutable Factor publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'macro_regime',
       phase: 'explore',

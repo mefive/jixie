@@ -32,23 +32,21 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
   };
 });
-vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: vi.fn() }));
+vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
 vi.mock('#agent/turns/run.js', async (original) => ({
   ...(await original<typeof import('#agent/turns/run.js')>()),
   enqueueAgentTurn: vi.fn(),
 }));
 
 import { prisma } from '#infra/database/prisma.js';
-import type { JobRegistry } from '#infra/jobs/definition.js';
-import { createJobExecutor } from '#infra/jobs/executor.js';
-import { claimQueuedJob } from '#infra/jobs/records.js';
+import { registerJobLifecycles } from '#jobs/register.js';
+import { JobService } from '#jobs/service.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { researchRoute } from '../routes/index.js';
 
 import { dispatchResearchRequest } from '../runtime/host/dispatch.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { embeddedInputRecorder } from './inputs.js';
-import { researchEmbeddedAnalysisJob } from './job.js';
 import { getEmbeddedInput, getEmbeddedRun, getEmbeddedVersion } from './read.js';
 import { submitEmbeddedRun } from './submit.js';
 import {
@@ -57,32 +55,6 @@ import {
   updateEmbeddedVersion,
 } from './versions.js';
 
-const registry: JobRegistry = {
-  backtest: async () => {
-    throw new Error('Unexpected backtest definition');
-  },
-  'factor-analysis': async () => {
-    throw new Error('Unexpected factor analysis definition');
-  },
-  'factor-correlation': async () => {
-    throw new Error('Unexpected factor correlation definition');
-  },
-  'strategy-scan': async () => {
-    throw new Error('Unexpected scan definition');
-  },
-  signal: async () => {
-    throw new Error('Unexpected signal definition');
-  },
-  'research-curator': async () => {
-    throw new Error('Unexpected curator definition');
-  },
-  'research-embedded-analysis': async () => researchEmbeddedAnalysisJob,
-};
-// Recovery enumerates definitions. In this isolated fixture only embedded jobs have records.
-for (const kind of Object.keys(registry) as Array<keyof JobRegistry>) {
-  registry[kind] = async () => researchEmbeddedAnalysisJob;
-}
-const executor = createJobExecutor(registry);
 const app = new Hono().onError(handleApiError);
 app.use('*', async (context, next) => {
   context.set('userId', context.req.header('x-user') ?? 'owner');
@@ -122,8 +94,8 @@ async function fixtureRun(source = input.source) {
   return { ...created, run };
 }
 async function execute(run: ResearchEmbeddedRunSummaryV1) {
-  expect(await claimQueuedJob(run.jobId)).toBe(true);
-  await executor.execute(run.jobId);
+  expect(await JobService.claim(run.jobId)).toBe(true);
+  await JobService.execute(run.jobId);
   return getEmbeddedRun('owner', run.analysisId, run.runId);
 }
 async function capture(options?: ResearchExecutionOptions) {
@@ -360,6 +332,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
         id: 'report',
         userId: 'owner',
         factor: 'fixture',
+        legacyStatus: 'done',
         freq: 'month',
         start: '20200101',
         end: '20251231',
@@ -511,7 +484,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     const cancelled = await cancelEmbeddedRun('owner', analysis.id, run.runId);
     expect(cancelled.status).toBe('cancelled');
     expect(await cancelEmbeddedRun('owner', analysis.id, run.runId)).toEqual(cancelled);
-    expect(await claimQueuedJob(run.jobId)).toBe(false);
+    expect(await JobService.claim(run.jobId)).toBe(false);
     expect(executeSpy).not.toHaveBeenCalled();
     expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
   });
@@ -539,8 +512,8 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
   it('recovers interrupted jobs while leaving queued submissions available after restart', async () => {
     const first = await fixtureRun();
     const second = await fixtureRun();
-    await claimQueuedJob(first.run.jobId);
-    expect(await executor.recoverInterruptedJobs()).toBe(1);
+    await JobService.claim(first.run.jobId);
+    expect(await JobService.recoverInterrupted()).toBe(1);
     expect(await getEmbeddedRun('owner', first.analysis.id, first.run.runId)).toMatchObject({
       status: 'cancelled',
       errorCode: 'interrupted',
@@ -550,6 +523,41 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     );
     expect((await execute(second.run)).status).toBe('success');
   });
+
+  it.each([
+    ['unknown-kind', 'execute'],
+    ['backtest', 'execute'],
+    ['unknown-kind', 'recover'],
+    ['backtest', 'recover'],
+  ] as const)(
+    'cleans persisted Embedded links for corrupt %s metadata during %s',
+    async (kind, action) => {
+      const { run, analysis } = await fixtureRun();
+      await JobService.claim(run.jobId);
+      await prisma.job.update({
+        where: { id: run.jobId },
+        data: { kind, payload: { invalid: true } },
+      });
+
+      if (action === 'recover') {
+        await JobService.recoverInterrupted();
+      } else {
+        await JobService.execute(run.jobId);
+      }
+
+      expect(executeSpy).not.toHaveBeenCalled();
+      expect(await prisma.job.findUniqueOrThrow({ where: { id: run.jobId } })).toMatchObject({
+        status: action === 'recover' ? 'stale' : 'error',
+      });
+      expect(await getEmbeddedRun('owner', analysis.id, run.runId)).toMatchObject({
+        status: action === 'recover' ? 'cancelled' : 'error',
+        errorCode: action === 'recover' ? 'interrupted' : 'execution_failed',
+      });
+      expect(
+        await prisma.researchEmbeddedAnalysis.findUniqueOrThrow({ where: { id: analysis.id } }),
+      ).toMatchObject({ activeRunId: null });
+    },
+  );
 
   it('ends the execution deadline even if a dataset request never settles', async () => {
     const started = deferred<void>();
@@ -572,7 +580,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
 
   it('does not accept SDK evidence that arrives after cancellation', async () => {
     const { run, analysis } = await fixtureRun();
-    await claimQueuedJob(run.jobId);
+    await JobService.claim(run.jobId);
     await prisma.researchExecution.update({
       where: { id: run.runId },
       data: { status: 'running' },
@@ -625,7 +633,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
 
   it('rejects cumulative input and request limits without silently truncating evidence', async () => {
     const { run } = await fixtureRun();
-    await claimQueuedJob(run.jobId);
+    await JobService.claim(run.jobId);
     await prisma.researchExecution.update({
       where: { id: run.runId },
       data: { status: 'running' },
@@ -761,3 +769,5 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     ).toBe(404);
   });
 });
+
+registerJobLifecycles();

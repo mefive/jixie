@@ -55,7 +55,7 @@ describe('native API imports', () => {
         '-e',
         `console.log(JSON.stringify([
           import.meta.resolve('#date'),
-          import.meta.resolve('#infra/jobs/records.js'),
+          import.meta.resolve('#jobs/service.js'),
           import.meta.resolve('#maintenance/workflows/daily-schedule.js'),
         ]));`,
       ],
@@ -63,7 +63,7 @@ describe('native API imports', () => {
     );
     expect(JSON.parse(stdout)).toEqual([
       new URL('../dist/src/date.js', import.meta.url).href,
-      new URL('../dist/src/infra/jobs/records.js', import.meta.url).href,
+      new URL('../dist/src/jobs/service.js', import.meta.url).href,
       new URL('../dist/src/maintenance/workflows/daily-schedule.js', import.meta.url).href,
     ]);
   });

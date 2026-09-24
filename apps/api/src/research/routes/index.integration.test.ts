@@ -52,11 +52,12 @@ vi.mock('../runtime/pool.js', async (importOriginal) => {
 vi.mock('../language/pyright-service.js', () => ({
   researchPythonLanguageService: { request: resources.language },
 }));
-vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
-vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('#infra/jobs/logs.js')>()),
-  initializeJobLogs: resources.logs,
-}));
+vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: resources.wake } }));
+vi.mock('#jobs/logs.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('#jobs/logs.js')>();
+  vi.spyOn(original.JobLogs, 'initialize').mockImplementation(resources.logs);
+  return original;
+});
 
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -459,7 +460,7 @@ describe('Research HTTP business boundaries', () => {
           userId: 'owner',
           strategyId: 'strategy',
           strategyName: 'Fixture strategy',
-          status: 'done',
+          legacyStatus: 'done',
           config: {},
           payload: {},
         },
@@ -468,7 +469,7 @@ describe('Research HTTP business boundaries', () => {
           userId: 'owner',
           strategyId: 'strategy',
           strategyName: 'Fixture strategy',
-          status: 'error',
+          legacyStatus: 'error',
           config: {},
         },
         {
@@ -476,7 +477,7 @@ describe('Research HTTP business boundaries', () => {
           userId: 'owner',
           strategyId: 'strategy',
           strategyName: 'Fixture strategy',
-          status: 'done',
+          legacyStatus: 'done',
           config: {},
         },
       ],
@@ -718,14 +719,14 @@ describe('Research HTTP business boundaries', () => {
     const cursor = new Date('2026-09-01T00:00:00Z');
     await prisma.researchCuratorRun.createMany({
       data: [
-        { id: 'previous', userId: 'owner', cursorTo: cursor, status: 'done' },
+        { id: 'previous', userId: 'owner', cursorTo: cursor, legacyStatus: 'done' },
         {
           id: 'failed',
           userId: 'owner',
           cursorTo: new Date('2026-09-02T00:00:00Z'),
-          status: 'error',
+          legacyStatus: 'error',
         },
-        { id: 'foreign', userId: 'other', cursorTo: new Date(), status: 'running' },
+        { id: 'foreign', userId: 'other', cursorTo: new Date(), legacyStatus: 'running' },
       ],
     });
     const response = await request('/curator/runs');
@@ -734,7 +735,7 @@ describe('Research HTTP business boundaries', () => {
     expect(await prisma.researchCuratorRun.findUnique({ where: { id: run.id } })).toMatchObject({
       userId: 'owner',
       cursorFrom: cursor,
-      status: 'queued',
+      legacyStatus: null,
     });
     const job = await prisma.job.findFirstOrThrow({ where: { researchCuratorRunId: run.id } });
     expect(job).toMatchObject({
@@ -743,7 +744,7 @@ describe('Research HTTP business boundaries', () => {
       kind: 'research-curator',
       payload: { runId: run.id },
     });
-    expect(resources.logs).toHaveBeenCalledExactlyOnceWith(job.id);
+    expect(resources.logs).not.toHaveBeenCalled();
     expect(resources.wake).toHaveBeenCalledOnce();
     expect(await (await request('/curator/runs')).json()).toMatchObject({ id: run.id });
     expect(await prisma.job.count()).toBe(1);
@@ -759,7 +760,7 @@ describe('Research HTTP business boundaries', () => {
         id: 'curator-run',
         userId: 'owner',
         cursorTo: new Date('2026-09-01T00:00:00Z'),
-        status: 'done',
+        legacyStatus: 'done',
         evidenceCount: 1,
         findingsCreated: 1,
         findings: {

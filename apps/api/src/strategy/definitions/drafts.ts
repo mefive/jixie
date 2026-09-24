@@ -1,6 +1,6 @@
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import { ACTIVE_JOB_STATUSES } from '#jobs/service.js';
 import type { Locale } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';

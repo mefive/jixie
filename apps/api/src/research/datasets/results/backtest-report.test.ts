@@ -74,7 +74,9 @@ function backtestReportRow(overrides: Record<string, unknown> = {}) {
     id: 'report-a',
     strategyId: 'strategy-a',
     strategyName: '价值轮动',
-    status: 'done',
+    legacyStatus: null,
+    legacyError: null,
+    job: { status: overrides.status ?? 'done', error: null },
     config: {
       name: '价值轮动',
       start: '20200101',

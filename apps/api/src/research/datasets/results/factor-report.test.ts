@@ -83,7 +83,9 @@ function factorReportRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'report-a',
     factor: 'value',
-    status: 'done',
+    legacyStatus: null,
+    failureMessage: null,
+    job: { status: overrides.status ?? 'done', error: null },
     phase: 'explore',
     language: 'python',
     freq: 'month',

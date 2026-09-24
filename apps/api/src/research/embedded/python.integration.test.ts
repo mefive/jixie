@@ -17,7 +17,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
   };
 });
-vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: vi.fn() }));
+vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
 
 import { embeddedAnalysisTools } from '#agent/tools/run-embedded-analysis.js';
 import {
@@ -26,7 +26,7 @@ import {
   startPersistentTurn,
 } from '#agent/turns/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import { claimQueuedJob } from '#infra/jobs/records.js';
+import { JobService } from '#jobs/service.js';
 import { runResearchDocument } from '../document-runs/run-document.js';
 import { getResearchDocument } from '../documents/read.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
@@ -58,7 +58,7 @@ async function create(source: string) {
   return { ...created, run };
 }
 async function execute(run: ResearchEmbeddedRunSummaryV1) {
-  await claimQueuedJob(run.jobId);
+  await JobService.claim(run.jobId);
   const output = await executeEmbeddedRun(run.runId, 'owner');
   await prisma.$transaction(async (transaction) => {
     await completeEmbeddedRun(transaction, output);
@@ -151,6 +151,7 @@ describe('embedded analysis with the real Research Python runtime', () => {
         id: 'report',
         userId: 'owner',
         factor: 'fixture',
+        legacyStatus: 'done',
         freq: 'month',
         start: '20200101',
         end: '20251231',
@@ -266,7 +267,7 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
 
   it('stops an active Python session on cancellation and retains the submitted source', async () => {
     const { run, analysis, version } = await create('while True:\n    pass');
-    await claimQueuedJob(run.jobId);
+    await JobService.claim(run.jobId);
     const running = executeEmbeddedRun(run.runId, 'owner');
     await vi.waitFor(
       async () => {
@@ -291,6 +292,7 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
         id: 'report',
         userId: 'owner',
         factor: 'fixture',
+        legacyStatus: 'done',
         freq: 'month',
         start: '20200101',
         end: '20251231',

@@ -7,7 +7,7 @@
 扫描 `apps/api/src`、`apps/api/scripts` 和 `apps/api/tests` 的 TS/JS/MJS 文件。使用已有 TypeScript AST 和 API tsconfig 路径解析，支持 `.js` → `.ts`、路径 alias、静态 import、重导出、字面量动态 import、import type 查询和 require。
 
 - Hono 只出现在路由、HTTP 辅助与启动适配；业务操作不能反向导入 HTTP 文件。业务模块根级 `routes.ts` 与该模块的 `routes/` 目录（含 `index.ts` 和 `errors.ts`）属于 HTTP 适配；相邻业务目录不会因此变成 HTTP 适配。HTTP 不直接导入 Prisma，业务操作可以使用 Prisma。Auth 的根级 `routes.ts`、`cookies.ts` 与 `middleware.ts` 属于 HTTP 适配，`session.ts` 属于会话业务；Maintenance 的 `middleware.ts` 同样属于 HTTP 适配。Cookie 与中间件按精确文件路径识别，不放行整个业务目录。
-- `infra/runtime`、`infra/jobs` 不能直接或经基础设施中转反向依赖业务。
+- `infra/runtime`、通用 `jobs` 文件不能直接或间接反向依赖业务。仅 `jobs/register.ts` 可装配业务；除 bootstrap 和直接执行 Job 的 Signals 每日批处理外，不得反向导入它；通用文件也不得经此间接依赖业务。
 - `index → bootstrap → server` 为启动依赖方向；业务/CLI 不导入整应用启动模块。
 - Engine simulation/data/factors/types 核心不能导入宿主适配器、数据库、HTTP 或任务流程。4 条现有纯契约依赖逐条登记。
 - Math/date/i18n 只依赖纯辅助、shared 契约和已有 dayjs 能力；Market registry 不依赖数据库、通道或同步。

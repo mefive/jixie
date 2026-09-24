@@ -1,3 +1,4 @@
+import { completedSignalRunIds } from '../runs/state.js';
 import { prisma } from '#infra/database/prisma.js';
 import type {
   SignalExecution,
@@ -19,9 +20,10 @@ export async function getStrategyExecutionOverview(
     throw new SignalsError('deployment_not_found');
   }
 
+  const completedIds = await completedSignalRunIds({ deploymentId });
   const [runs, snapshots, executions] = await Promise.all([
     prisma.signalRun.findMany({
-      where: { deploymentId, status: 'done', modelEquity: { not: null } },
+      where: { deploymentId, id: { in: completedIds }, modelEquity: { not: null } },
       orderBy: { tradeDate: 'asc' },
       select: { tradeDate: true, modelEquity: true },
     }),

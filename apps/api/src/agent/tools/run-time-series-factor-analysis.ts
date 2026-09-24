@@ -139,7 +139,6 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
         researchIntent: parsed.data.researchIntent as FactorResearchIntentV1,
         locale: context.locale,
         failedMessage: t(context.locale, 'factorAnalysisFailed'),
-        exitedMessage: (code) => t(context.locale, 'factorProcExited', { code }),
       });
       const wait = context.wait ?? waitForTimeSeriesFactorAnalysis;
       const result = await wait(context.userId, started.reportId, runContext?.signal);

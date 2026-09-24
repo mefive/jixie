@@ -1,6 +1,8 @@
+import type { SignalsRunJobPayload } from './job-payload.js';
+import { signalRunState, currentSignalJob } from '#signals/runs/state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { initializeJobLogs } from '#infra/jobs/logs.js';
-import { waitForJobCompletion, wakeJobQueue } from '#infra/jobs/queue.js';
+import { JobScheduler } from '#jobs/scheduler.js';
+import { JobService } from '#jobs/service.js';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { SignalsError } from '../errors.js';
@@ -52,10 +54,12 @@ export async function enqueueSignalRun(
     if (!currentDeployment || currentDeployment.status !== 'active') {
       throw new SignalsError('paused');
     }
-    const existing = await transaction.signalRun.findUnique({
-      where: { deploymentId_tradeDate: { deploymentId, tradeDate } },
-      include: { jobs: { orderBy: { createdAt: 'desc' }, take: 1 } },
-    });
+    const existing = await transaction.signalRun
+      .findUnique({
+        where: { deploymentId_tradeDate: { deploymentId, tradeDate } },
+        include: { jobs: currentSignalJob },
+      })
+      .then((row) => (row ? signalRunState(row) : row));
     if (existing?.status === 'done') {
       return {
         kind: 'existing' as const,
@@ -78,9 +82,9 @@ export async function enqueueSignalRun(
       await transaction.signalRun.update({
         where: { id: runId },
         data: {
-          status: 'running',
+          legacyStatus: null,
+          legacyError: null,
           execDate: calendar.execDate,
-          error: null,
           dataCutoff: null,
           modelEquity: null,
           modelCash: null,
@@ -100,7 +104,8 @@ export async function enqueueSignalRun(
           strategyId: await deploymentStrategyId(transaction, deploymentId),
           tradeDate,
           execDate: calendar.execDate,
-          status: 'running',
+          legacyStatus: null,
+          legacyError: null,
           factorDependencies:
             deployment.factorDependencies == null
               ? undefined
@@ -122,7 +127,7 @@ export async function enqueueSignalRun(
           task: 'signal',
           runId,
           locale: deployment.locale === 'en' ? 'en' : 'zh',
-        },
+        } satisfies SignalsRunJobPayload,
       },
     });
     return { kind: 'start' as const, runId, jobId };
@@ -130,7 +135,7 @@ export async function enqueueSignalRun(
 
   if (start.kind === 'existing') {
     const completion = start.jobId
-      ? waitForJobCompletion(start.jobId).then((status) =>
+      ? JobService.waitForCompletion(start.jobId).then((status) =>
           status === 'done' ? ('done' as const) : ('error' as const),
         )
       : Promise.resolve(start.status);
@@ -142,9 +147,8 @@ export async function enqueueSignalRun(
     };
   }
 
-  initializeJobLogs(start.jobId);
-  wakeJobQueue();
-  const completion = waitForJobCompletion(start.jobId).then((status) =>
+  JobScheduler.wake();
+  const completion = JobService.waitForCompletion(start.jobId).then((status) =>
     status === 'done' ? ('done' as const) : ('error' as const),
   );
   return {

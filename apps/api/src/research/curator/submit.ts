@@ -1,51 +1,51 @@
+import type { ResearchCuratorJobPayload } from './job-payload.js';
+import { researchCuratorRunStatusWhere } from './state.js';
 import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
-import { initializeJobLogs } from '#infra/jobs/logs.js';
-import { wakeJobQueue } from '#infra/jobs/queue.js';
+import { JobScheduler } from '#jobs/scheduler.js';
 import { getResearchCuratorRun } from './read.js';
 
 export async function submitResearchCuratorRun(userId: string) {
-  const active = await prisma.researchCuratorRun.findFirst({
-    where: { userId, status: { in: ['queued', 'running'] } },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true },
-  });
-  if (active) {
-    return (await getResearchCuratorRun(userId, active.id))!;
-  }
-
-  const previous = await prisma.researchCuratorRun.findFirst({
-    where: { userId, status: 'done' },
-    orderBy: { cursorTo: 'desc' },
-    select: { cursorTo: true },
-  });
-  const runId = ulid();
-  const jobId = ulid();
-  const cursorTo = new Date();
-  await prisma.$transaction([
-    prisma.researchCuratorRun.create({
+  const submitted = await prisma.$transaction(async (transaction) => {
+    const active = await transaction.researchCuratorRun.findFirst({
+      where: { userId, AND: [researchCuratorRunStatusWhere(['queued', 'running'])] },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
+    });
+    if (active) {
+      return { runId: active.id, created: false };
+    }
+    const previous = await transaction.researchCuratorRun.findFirst({
+      where: { userId, AND: [researchCuratorRunStatusWhere(['done'])] },
+      orderBy: { cursorTo: 'desc' },
+      select: { cursorTo: true },
+    });
+    const runId = ulid();
+    await transaction.researchCuratorRun.create({
       data: {
         id: runId,
         userId,
+        legacyStatus: null,
+        legacyError: null,
         trigger: 'manual',
         cursorFrom: previous?.cursorTo,
-        cursorTo,
+        cursorTo: new Date(),
+        job: {
+          create: {
+            id: ulid(),
+            userId,
+            kind: 'research-curator',
+            key: 'default',
+            status: 'queued',
+            payload: { runId } satisfies ResearchCuratorJobPayload,
+          },
+        },
       },
-    }),
-    prisma.job.create({
-      data: {
-        id: jobId,
-        userId,
-        kind: 'research-curator',
-        key: 'default',
-        status: 'queued',
-        payload: { runId },
-        researchCuratorRunId: runId,
-      },
-    }),
-  ]);
-
-  initializeJobLogs(jobId);
-  wakeJobQueue();
-  return (await getResearchCuratorRun(userId, runId))!;
+    });
+    return { runId, created: true };
+  });
+  if (submitted.created) {
+    JobScheduler.wake();
+  }
+  return getResearchCuratorRun(userId, submitted.runId);
 }

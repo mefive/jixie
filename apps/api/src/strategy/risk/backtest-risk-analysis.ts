@@ -1,3 +1,4 @@
+import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import type {
   FactorDependency,
   FactorResearchReportPayloadV1,
@@ -213,7 +214,11 @@ async function loadFactorReports(
     return new Map();
   }
   const rows = await database.factorReport.findMany({
-    where: { id: { in: [...dependencyByReportId.keys()] }, status: 'done', payload: { not: null } },
+    where: {
+      id: { in: [...dependencyByReportId.keys()] },
+      AND: [factorReportStatusWhere(['done'])],
+      payload: { not: null },
+    },
     select: { id: true, payload: true },
   });
   const result = new Map<string, FactorResearchReportPayloadV1>();

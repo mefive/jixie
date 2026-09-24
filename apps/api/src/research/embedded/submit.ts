@@ -1,6 +1,6 @@
+import type { ResearchEmbeddedAnalysisJobPayload } from './job-payload.js';
 import { prisma } from '#infra/database/prisma.js';
-import { initializeJobLogs } from '#infra/jobs/logs.js';
-import { wakeJobQueue } from '#infra/jobs/queue.js';
+import { JobScheduler } from '#jobs/scheduler.js';
 import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -125,7 +125,7 @@ export async function submitEmbeddedRun(
             kind: 'research-embedded-analysis',
             key: analysisId,
             status: 'queued',
-            payload: { runId },
+            payload: { runId } satisfies ResearchEmbeddedAnalysisJobPayload,
           },
         },
       },
@@ -133,9 +133,6 @@ export async function submitEmbeddedRun(
     });
     return { run: runSummaryView(run), created: true };
   });
-  if (result.created) {
-    initializeJobLogs(result.run.jobId);
-  }
-  wakeJobQueue();
+  JobScheduler.wake();
   return result.run;
 }

@@ -1,7 +1,7 @@
+import type { BacktestJobPayload } from './job-payload.js';
 import { prisma } from '#infra/database/prisma.js';
-import { initializeJobLogs } from '#infra/jobs/logs.js';
-import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import { JobScheduler } from '#jobs/scheduler.js';
+import { ACTIVE_JOB_STATUSES } from '#jobs/service.js';
 import type { BacktestConfig, Locale } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
@@ -59,6 +59,14 @@ export async function submitStrategyBacktest(
     const committedConfig = { ...config, name: committed!.name };
     const reportId = ulid();
     const jobId = ulid();
+    const payload = {
+      task: 'backtest',
+      reportId,
+      strategyId,
+      userId,
+      locale,
+      config: committedConfig,
+    } satisfies BacktestJobPayload;
 
     await transaction.backtestReport.create({
       data: {
@@ -66,7 +74,8 @@ export async function submitStrategyBacktest(
         userId,
         strategyId,
         strategyName: committedConfig.name,
-        status: 'running',
+        legacyStatus: null,
+        legacyError: null,
         config: JSON.parse(JSON.stringify(committedConfig)) as Prisma.InputJsonValue,
         codeHash: createHash('sha256').update(committedConfig.code).digest('hex'),
         job: {
@@ -76,16 +85,7 @@ export async function submitStrategyBacktest(
             kind: 'backtest',
             key: strategyId,
             status: 'queued',
-            payload: JSON.parse(
-              JSON.stringify({
-                task: 'backtest',
-                reportId,
-                strategyId,
-                userId,
-                locale,
-                config: committedConfig,
-              }),
-            ) as Prisma.InputJsonValue,
+            payload: JSON.parse(JSON.stringify(payload)) as Prisma.InputJsonValue,
           },
         },
       },
@@ -104,8 +104,7 @@ export async function submitStrategyBacktest(
 
   const jobId = start.jobId;
 
-  initializeJobLogs(jobId);
-  wakeJobQueue();
+  JobScheduler.wake();
 
   return { jobId, reportId: start.reportId };
 }

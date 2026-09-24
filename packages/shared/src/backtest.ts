@@ -344,7 +344,7 @@ export interface StrategyScanReport {
   dataCutoff: TradeDate | null;
   payload?: StrategyScanPayload;
   error?: string;
-  jobId: string;
+  jobId: string | null;
   createdAt: string;
   updatedAt: string;
 }

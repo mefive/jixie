@@ -1,3 +1,4 @@
+import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentV1 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
@@ -11,7 +12,12 @@ export async function createResearchDocumentFromBacktestReport(
   reportId: string,
 ): Promise<ResearchDocumentV1> {
   const report = await prisma.backtestReport.findFirst({
-    where: { id: reportId, userId, status: 'done', payload: { not: Prisma.DbNull } },
+    where: {
+      id: reportId,
+      userId,
+      AND: [backtestReportStatusWhere(['done'])],
+      payload: { not: Prisma.DbNull },
+    },
     select: { id: true, strategyName: true },
   });
   if (!report) {

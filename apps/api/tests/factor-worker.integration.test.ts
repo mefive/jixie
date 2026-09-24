@@ -205,6 +205,70 @@ afterAll(async () => {
 });
 
 describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
+  it('imports without consuming, recovers before startup, and drains queued jobs', async () => {
+    const running = `startup-running-${compiled}`;
+    const queued = `startup-queued-${compiled}`;
+    await database.job.createMany({
+      data: [
+        { id: running, userId, kind: 'invalid-fixture', key: running, status: 'running' },
+        { id: queued, userId, kind: 'invalid-fixture', key: queued, status: 'queued' },
+      ],
+    });
+    await executeFile(
+      process.execPath,
+      [
+        ...execArgv,
+        ...(!compiled ? ['--import', 'tsx'] : []),
+        '--input-type=module',
+        '-e',
+        `
+      import assert from 'node:assert/strict';
+      import { registerJobLifecycles } from '#jobs/register.js';
+      import { JobScheduler } from '#jobs/scheduler.js';
+      import { JobService } from '#jobs/service.js';
+      import { prisma } from '#infra/database/prisma.js';
+      assert.equal((await prisma.job.findUniqueOrThrow({ where: { id: ${JSON.stringify(queued)} } })).status, 'queued');
+      registerJobLifecycles();
+      await JobService.recoverInterrupted();
+      assert.equal((await prisma.job.findUniqueOrThrow({ where: { id: ${JSON.stringify(running)} } })).status, 'stale');
+      JobScheduler.initialize(JobService.execute);
+      JobScheduler.wake();
+      try { assert.equal(await JobService.waitForCompletion(${JSON.stringify(queued)}), 'error'); }
+      finally { await prisma.$disconnect(); }
+    `,
+      ],
+      { cwd: apiDirectory, env: environment, timeout: 20_000 },
+    );
+    expect((await database.job.findUniqueOrThrow({ where: { id: queued } })).error).toContain(
+      'Unsupported queued job kind',
+    );
+  }, 25_000);
+
+  it.each([
+    'strategy/backtests/worker',
+    'factor/execution/worker',
+    'factor/correlations/worker',
+    'strategy/scans/strategy-scan-worker',
+  ])(
+    '%s loads its dependencies, reports invalid input, and exits',
+    async (path) => {
+      const worker = new Worker(entry(path), { workerData: {}, env: environment, execArgv });
+      const messages: Array<{ type: string; message?: string }> = [];
+      worker.on('message', (message) => messages.push(message));
+      await expect(
+        waitForExit(worker, () => {
+          void worker.terminate();
+        }),
+      ).rejects.toThrow();
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: 'error', message: expect.any(String) }),
+        ]),
+      );
+    },
+    30_000,
+  );
+
   it.each<[FactorLanguage, FactorLanguage]>([
     ['typescript', 'typescript'],
     ['typescript', 'python'],
@@ -319,7 +383,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
           strategyId,
           tradeDate: dates.at(-1)!,
           execDate: '20240108',
-          status: 'running',
+          legacyStatus: 'running',
           factorDependencies: dependencies as unknown as pkg.Prisma.InputJsonValue,
         },
       });

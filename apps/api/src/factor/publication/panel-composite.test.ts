@@ -72,6 +72,9 @@ describe('immutable panel composite publication', () => {
       status: 'draft',
     });
     mocks.reportFindFirst.mockReset().mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'panel',
       phase: 'explore',
@@ -139,6 +142,9 @@ describe('immutable panel composite publication', () => {
 
   it('rejects a sealed holdout report', async () => {
     mocks.reportFindFirst.mockResolvedValue({
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       id: 'report-1',
       analysisKind: 'panel',
       phase: 'holdout',

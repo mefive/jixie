@@ -1,31 +1,19 @@
 import { serve } from '@hono/node-server';
 import { buildApp } from './server.js';
-import { startJobQueue } from '#infra/jobs/queue.js';
-import { createJobExecutor } from '#infra/jobs/executor.js';
-import type { JobRegistry } from '#infra/jobs/definition.js';
+import { registerJobLifecycles } from '#jobs/register.js';
+import { JobService } from '#jobs/service.js';
+import { JobScheduler } from '#jobs/scheduler.js';
 import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.js';
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
 
-export const jobRegistry: JobRegistry = {
-  backtest: async () => (await import('#strategy/backtests/job.js')).backtestJob,
-  'factor-analysis': async () => (await import('#factor/evaluations/job.js')).factorAnalysisJob,
-  'factor-correlation': async () =>
-    (await import('#factor/correlations/job.js')).factorCorrelationJob,
-  'strategy-scan': async () => (await import('#strategy/scans/job.js')).strategyScanJob,
-  signal: async () => (await import('#signals/runs/job.js')).signalJob,
-  'research-embedded-analysis': async () =>
-    (await import('#research/embedded/job.js')).researchEmbeddedAnalysisJob,
-  'research-curator': async () => (await import('#research/curator/job.js')).researchCuratorJob,
-};
-
 export async function startServer(port: number) {
   const app = buildApp();
-  const executor = createJobExecutor(jobRegistry);
+  registerJobLifecycles();
 
   // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
   const [staleJobs, interruptedTurns, interruptedWeather] = await Promise.all([
-    executor.recoverInterruptedJobs(),
+    JobService.recoverInterrupted(),
     markRunningAgentTurnsInterrupted(),
     resetInterruptedFactorWeatherRefreshes(),
   ]);
@@ -41,7 +29,8 @@ export async function startServer(port: number) {
 
   // Materialize the built-in preset factors (idempotent; repo is the source of truth).
   void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
-  startJobQueue(executor);
+  JobScheduler.initialize(JobService.execute);
+  JobScheduler.wake();
   serve({ fetch: app.fetch, port });
   return app;
 }

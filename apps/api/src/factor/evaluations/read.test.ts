@@ -11,8 +11,9 @@ import { readFactorAnalysisResult } from './read.js';
 describe('readFactorAnalysisResult', () => {
   it('owner-scopes and parses a completed explore payload', async () => {
     mocks.reportFindFirst.mockResolvedValue({
-      status: 'done',
-      error: null,
+      legacyStatus: 'done',
+      failureMessage: null,
+      job: null,
       payload: JSON.stringify({ factor: 'factor-1', icMean: 0.03 }),
     });
 
@@ -20,7 +21,7 @@ describe('readFactorAnalysisResult', () => {
 
     expect(mocks.reportFindFirst).toHaveBeenCalledWith({
       where: { id: 'report-1', userId: 'user-1', phase: 'explore' },
-      select: { status: true, error: true, payload: true },
+      select: { legacyStatus: true, failureMessage: true, job: true, payload: true },
     });
     expect(result).toMatchObject({ status: 'done', payload: { icMean: 0.03 } });
   });

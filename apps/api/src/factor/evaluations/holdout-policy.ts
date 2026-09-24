@@ -1,3 +1,4 @@
+import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type { FactorHoldoutEligibility } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
@@ -5,7 +6,9 @@ import { enoughHoldoutPeriods, getHoldoutPolicy, parseResearchIntent } from './r
 import { resolveEtfCommonLatest } from '../observations/asset-factor-data-cutoff.js';
 import { reportResearchSpec } from './report-spec.js';
 
-export async function holdoutEligibility(row: FactorReportRow): Promise<FactorHoldoutEligibility> {
+export async function holdoutEligibility(
+  row: FactorReportRow & { status: string; error: string | null },
+): Promise<FactorHoldoutEligibility> {
   if (row.phase !== 'explore') {
     return { eligible: false, reason: 'not_explore' };
   }
@@ -52,7 +55,7 @@ export async function holdoutEligibility(row: FactorReportRow): Promise<FactorHo
       userId: row.userId,
       parentReportId: row.id,
       phase: 'holdout',
-      status: { in: ['running', 'done'] },
+      AND: [factorReportStatusWhere(['running', 'done'])],
     },
     orderBy: { createdAt: 'desc' },
     select: { id: true },
@@ -71,7 +74,7 @@ export async function holdoutEligibility(row: FactorReportRow): Promise<FactorHo
           userId: row.userId,
           id: { not: row.id },
           factorCodeHash: row.factorCodeHash,
-          status: 'done',
+          AND: [factorReportStatusWhere(['done'])],
           end: { gt: policy.exploreEnd },
         },
         select: { id: true },

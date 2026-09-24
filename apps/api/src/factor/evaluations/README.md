@@ -12,13 +12,13 @@
 | [read.ts](read.ts) `listFactorReports`、`readFactorReport`、`readFactorAnalysisJob` | analysis 路由；按拥有者读取，分别执行报告投影与 holdout 日志封存 |
 | 同文件 `readFactorAnalysisResult` | Agent 分析工具轮询 explore 结果；不作为通用报告详情入口 |
 | 同文件 `readFactorResearchWindow`、`readFactorResearchSummary` | 研究窗口和尝试统计查询 |
-| [job.ts](job.ts) `factorAnalysisJob` | bootstrap 注册为 factor-analysis，由通用执行器调用生命周期方法 |
+| [factor-analysis-lifecycle.ts](factor-analysis-lifecycle.ts) `factorAnalysisLifecycle` | 在 jobs/register 注册为 factor-analysis；onExecute 计算，onSuccess 保存业务结果 |
 
 ## 冻结、计算和封存
 
-普通提交先计算源码快照／语言哈希、variantKey 与 testKey，再在事务内复查活动报告；可复用则返回原 ID，否则处理遗留 running 报告并创建 Report + queued Job。提交后才初始化日志和唤醒队列。holdout 使用独立的资格检查、父快照和创建事务，不合并成普通提交的别名。
+普通提交先计算源码快照／语言哈希、variantKey 与 testKey，再在事务内复查活动报告；可复用则返回原 ID，否则创建 Report + queued Job。提交后唤醒队列，日志在执行开始时初始化。holdout 使用独立的资格检查、父快照和创建事务，不合并成普通提交的别名。
 
-Job 校验 payload 与持久化报告关联，启动共享 Worker；Worker 返回结果且正常退出后，complete 使用执行器传入的 transaction 更新报告，和 Job 终态一起提交。fail 标记 error，recover 将中断的 running 报告置 stale；计算、编译和外部调用不放入完成事务。
+Job 校验 payload 与持久化报告关联，启动共享 Worker；Worker 返回结果且正常退出后，通过 onSuccess 同事务更新报告与 Job 终态。Worker 失败保留本地化 failureMessage；报告状态从 Job 投影，启动恢复只将中断 Job 置 stale；计算、编译和外部调用不放入完成事务。
 
 [report-spec.ts](report-spec.ts) 的 `reportCompatibilityColumns` / `reportResearchSpec` 维护存储列映射和旧 spec 回退；[report-views.ts](report-views.ts) 负责投影和封存。[identity.ts](identity.ts) 维护评估身份；[research-policy.ts](research-policy.ts)、[holdout-policy.ts](holdout-policy.ts) 维护窗口、统计和资格。
 
@@ -31,3 +31,5 @@ Job 校验 payload 与持久化报告关联，启动共享 Worker；Worker 返�
 [报告历史设计](../../../../../docs/design/factor-report-history.md) 保存背景；[服务边界记录](../../../../../docs/design/core-business-service-boundaries.md#6-单独记录不混入本次重构) 保存 Agent 候选语言传递的既有范围外问题，不把预期修复写成现有行为。
 
 [返回 Factor 总览](../README.md)
+
+输入契约位于 [job-payload.ts](job-payload.ts)：factorAnalysisJobPayloadSchema / FactorAnalysisJobPayload；普通提交和 holdout 共用类型，读取时保留已有 spec 规范化规则。Worker 公共输入归 execution/worker-input.ts。

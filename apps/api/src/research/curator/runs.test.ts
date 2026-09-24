@@ -14,10 +14,17 @@ import {
 import { extractResearchCuratorEvidence } from './prepare.js';
 import { getResearchCuratorRun, researchCuratorQuality } from './read.js';
 
-import type { JobSnapshot } from '#infra/jobs/definition.js';
-import { researchCuratorJob } from './job.js';
+import { JobService, type Job } from '#jobs/service.js';
+import { researchCuratorLifecycle } from './research-curator-lifecycle.js';
 import * as curator from './prepare.js';
 import * as referenceSearch from './reference-search.js';
+
+const fixtureDatabase = vi.hoisted(() => ({ current: null as PrismaClient | null }));
+vi.mock('#infra/database/prisma.js', () => ({
+  get prisma() {
+    return fixtureDatabase.current;
+  },
+}));
 
 const originalPrepare = curator.prepareResearchCuratorRun;
 const { PrismaClient: RuntimePrismaClient } = prismaPackage;
@@ -32,6 +39,7 @@ describe('research curator', () => {
     await writeFile(databasePath, '');
     const databaseUrl = `file:${databasePath}`;
     database = new RuntimePrismaClient({ datasourceUrl: databaseUrl });
+    fixtureDatabase.current = database;
     createFixtureSchema(databaseUrl);
     await seedUserConversation(database, 'user-a', 'a@example.com', 'conversation-a');
     await seedUserConversation(database, 'user-b', 'b@example.com', 'conversation-b');
@@ -385,6 +393,15 @@ describe('research curator', () => {
     await database.researchCuratorRun.create({
       data: {
         id: 'run-prepare-failure',
+        job: {
+          create: {
+            id: 'prepare-attempt',
+            userId: 'user-a',
+            kind: 'research-curator',
+            key: 'prepare',
+            status: 'running',
+          },
+        },
         userId: 'user-a',
         cursorTo: new Date('2026-08-14T02:00:00.000Z'),
       },
@@ -414,7 +431,7 @@ describe('research curator', () => {
       expect(await database.researchCuratorFinding.count()).toBe(0);
       expect(
         await database.researchCuratorRun.findUnique({ where: { id: 'run-prepare-failure' } }),
-      ).toMatchObject({ status: 'running', findingsCreated: 0 });
+      ).toMatchObject({ legacyStatus: null, findingsCreated: 0 });
     } finally {
       search.mockRestore();
     }
@@ -444,8 +461,7 @@ describe('research curator', () => {
   });
 });
 
-// Domain tests use the real task completion method with the fixture transaction.
-// The executor's additional Job update and rollback are covered by lifecycle integration tests.
+// Domain tests execute the registered lifecycle through the service and fixture database.
 async function prepareAndCompleteCuratorRun(
   runId: string,
   options: {
@@ -458,32 +474,30 @@ async function prepareAndCompleteCuratorRun(
     .spyOn(curator, 'prepareResearchCuratorRun')
     .mockImplementation((id) => originalPrepare(id, options));
   try {
-    const prepared = researchCuratorJob.prepare({
-      job: {
-        id: `job-${runId}`,
-        userId: run.userId,
-        researchCuratorRunId: runId,
-        payload: { runId },
-        kind: 'research-curator',
-        key: runId,
-        status: 'running',
-        error: null,
-        logs: null,
-        factorReportId: null,
-        researchExecutionId: null,
-        backtestReportId: null,
-        strategyScanReportId: null,
-        signalRunId: null,
-        queuedAt: new Date(0),
-        startedAt: new Date(0),
-        finishedAt: null,
-        createdAt: new Date(0),
-        updatedAt: new Date(0),
-      } satisfies JobSnapshot,
-      log: () => {},
-    });
-    const result = await prepared.execute();
-    await options.database.$transaction((transaction) => result.complete(transaction));
+    const job = {
+      id: `job-${runId}`,
+      userId: run.userId,
+      researchCuratorRunId: runId,
+      payload: { runId },
+      kind: 'research-curator',
+      key: runId,
+      status: 'running',
+      error: null,
+      logs: null,
+      factorReportId: null,
+      researchExecutionId: null,
+      backtestReportId: null,
+      strategyScanReportId: null,
+      signalRunId: null,
+      queuedAt: new Date(0),
+      startedAt: new Date(0),
+      finishedAt: null,
+      createdAt: new Date(0),
+      updatedAt: new Date(0),
+    } satisfies Job;
+    await options.database.job.create({ data: { ...job, payload: { runId } } });
+    JobService.register('research-curator', researchCuratorLifecycle);
+    await JobService.execute(job.id);
     return (await getResearchCuratorRun(run.userId, runId, options.database))!;
   } finally {
     prepare.mockRestore();

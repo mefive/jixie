@@ -60,7 +60,7 @@ it('upgrades legacy deployment snapshots without losing signal/account children 
         strategyId: 'strategy',
         tradeDate: '20260105',
         execDate: '20260106',
-        status: 'done',
+        legacyStatus: 'done',
         signals: [],
       },
     });

@@ -118,7 +118,6 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         researchIntent: parsed.data.researchIntent as FactorResearchIntentV1,
         locale: context.locale,
         failedMessage: t(context.locale, 'factorAnalysisFailed'),
-        exitedMessage: (code) => t(context.locale, 'factorProcExited', { code }),
       });
       const wait = context.wait ?? waitForFactorAnalysis;
       const result = await wait(context.userId, started.reportId, runContext?.signal);

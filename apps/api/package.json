@@ -98,6 +98,10 @@
     "#date": {
       "development": "./src/date.ts",
       "default": "./dist/src/date.js"
+    },
+    "#jobs/*": {
+      "development": "./src/jobs/*",
+      "default": "./dist/src/jobs/*"
     }
   }
 }

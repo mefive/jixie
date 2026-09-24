@@ -1,3 +1,4 @@
+import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { FactorRuntime } from '../runtime/factor-runtime.js';
 import { prisma } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
@@ -34,7 +35,12 @@ export async function publishFactor(
   }
 
   const report = await prisma.factorReport.findFirst({
-    where: { id: approvedReportId, userId, factor: factorId, status: 'done' },
+    where: {
+      id: approvedReportId,
+      userId,
+      factor: factorId,
+      AND: [factorReportStatusWhere(['done'])],
+    },
     select: {
       id: true,
       analysisKind: true,

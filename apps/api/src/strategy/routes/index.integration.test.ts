@@ -35,11 +35,12 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('#infra/jobs/queue.js', () => ({ wakeJobQueue: resources.wake }));
-vi.mock('#infra/jobs/logs.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('#infra/jobs/logs.js')>()),
-  initializeJobLogs: resources.logs,
-}));
+vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: resources.wake } }));
+vi.mock('#jobs/logs.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('#jobs/logs.js')>();
+  vi.spyOn(original.JobLogs, 'initialize').mockImplementation(resources.logs);
+  return original;
+});
 vi.mock('#infra/llm/deepseek.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#infra/llm/deepseek.js')>()),
   chatText: resources.name,
@@ -242,14 +243,14 @@ describe('Strategy HTTP business boundaries', () => {
     expect(report).toMatchObject({
       config: frozenConfig,
       strategyName: config.name,
-      status: 'running',
+      legacyStatus: null,
       job: { id: jobId, status: 'queued', payload: { config: frozenConfig, locale: 'en' } },
     });
-    expect(resources.logs).toHaveBeenCalledWith(jobId);
+    expect(resources.logs).not.toHaveBeenCalled();
     expect(resources.wake).toHaveBeenCalledTimes(1);
     await prisma.backtestReport.update({
       where: { id: reportId },
-      data: { status: 'done', payload: { marker: 'frozen result' } },
+      data: { job: { update: { status: 'done' } }, payload: { marker: 'frozen result' } },
     });
     await prisma.strategy.update({
       where: { id: 'strategy' },

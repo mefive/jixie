@@ -368,12 +368,25 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
     }
     if (
       local &&
-      /^(?:infra\/(?:runtime|jobs)\/)/.test(local) &&
+      /^(?:infra\/runtime\/|jobs\/)/.test(local) &&
+      local !== 'jobs/register.ts' &&
       target &&
       !target.startsWith('infra/') &&
+      !(target.startsWith('jobs/') && target !== 'jobs/register.ts') &&
       !isPure(edge.to)
     ) {
       report('infra-direction', edge, 'Generic runtime/jobs cannot import business modules');
+    }
+    if (
+      target === 'jobs/register.ts' &&
+      local !== 'bootstrap.ts' &&
+      local !== 'signals/daily/scheduler.ts'
+    ) {
+      report(
+        'jobs-assembly-direction',
+        edge,
+        'Only bootstrap and daily signal execution may import job assembly',
+      );
     }
     if (
       isPure(edge.from) &&
@@ -434,7 +447,8 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
   }
   for (const from of dependencies.files.filter((file) => !isTest(file))) {
     const local = sourcePath(from);
-    const generic = /^(?:infra\/(?:runtime|jobs)\/)/.test(local ?? '');
+    const generic =
+      /^(?:infra\/runtime\/|jobs\/)/.test(local ?? '') && local !== 'jobs/register.ts';
     const market = local?.startsWith('market/');
     if (!generic && !market) {
       continue;
@@ -452,7 +466,9 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
         const forbidden =
           target &&
           (generic
-            ? !target.startsWith('infra/') && !isPure(edge.to)
+            ? !target.startsWith('infra/') &&
+              !(target.startsWith('jobs/') && target !== 'jobs/register.ts') &&
+              !isPure(edge.to)
             : /^(?:strategy|agent|research|signals|maintenance)\//.test(target));
         const trail = [...current.trail, edge.to];
         if (forbidden && trail.length > 2) {

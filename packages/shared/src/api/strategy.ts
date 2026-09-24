@@ -77,7 +77,21 @@ export const strategyScanParametersSchema = z.object({
 
 export type StrategyScanParametersInput = z.output<typeof strategyScanParametersSchema>;
 
-const scanSpecSchema = z.object({
+export const strategyParamValueSchema = z.union([z.number(), z.string()]);
+
+/** Stored normalized scan shape; HTTP admission applies stricter bounds below. */
+export const strategyScanSpecSchema = z.object({
+  dimensions: z.array(
+    z.object({
+      key: z.string().min(1),
+      values: z.array(strategyParamValueSchema),
+    }),
+  ),
+  splitDate: z.string().optional(),
+  view: z.enum(['parameters', 'sizing', 'capacity']).optional(),
+});
+
+const scanSpecSchema = strategyScanSpecSchema.extend({
   dimensions: z
     .array(
       z.object({
@@ -94,7 +108,6 @@ const scanSpecSchema = z.object({
     .string()
     .regex(/^\d{8}$/)
     .optional(),
-  view: z.enum(['parameters', 'sizing', 'capacity']).optional(),
 });
 
 export const submitStrategyScanSchema = z.object({

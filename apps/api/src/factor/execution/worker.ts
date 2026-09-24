@@ -1,13 +1,8 @@
+import { factorAnalysisWorkerInputSchema } from './worker-input.js';
+import type { FactorAnalysisWorkerMessage } from './worker-protocol.js';
 import { prisma } from '#infra/database/prisma.js';
-import type {
-  FactorAnalysisSpec,
-  FactorResearchSpecV1,
-  Locale,
-  LogLevel,
-  LogLine,
-} from '@jixie/shared';
+import type { LogLevel, LogLine } from '@jixie/shared';
 import { parentPort, workerData } from 'node:worker_threads';
-import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import { runFactorEvaluation } from './run.js';
 
 /** Shared computation transport for formal evaluations and weather refreshes. */
@@ -16,20 +11,15 @@ if (!port) {
   throw new Error('factor-worker must be spawned as a worker thread');
 }
 
-// reportId is an opaque transport identifier; weather also uses this envelope.
-const { reportId, factor, source, spec, locale } = workerData as {
-  reportId: string;
-  factor: string;
-  source: FactorAnalysisSource;
-  spec: FactorAnalysisSpec | FactorResearchSpecV1;
-  locale: Locale;
-};
+const send = (message: FactorAnalysisWorkerMessage) => port.postMessage(message);
 
-const emit = (entry: LogLine) => port.postMessage({ type: 'log', entry });
+const emit = (entry: LogLine) => send({ type: 'log', entry });
 const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', text });
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 try {
+  const { reportId, factor, source, spec, locale } =
+    factorAnalysisWorkerInputSchema.parse(workerData);
   await runFactorEvaluation({
     factor,
     source,
@@ -37,11 +27,10 @@ try {
     locale,
     onSystemLog,
     onUserLog,
-    onResult: (result) =>
-      port.postMessage({ type: 'done', reportId, payload: JSON.stringify(result) }),
+    onResult: (result) => send({ type: 'done', reportId, payload: JSON.stringify(result) }),
   });
 } catch (e) {
-  port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
+  send({ type: 'error', message: e instanceof Error ? e.message : String(e) });
 } finally {
   await prisma.$disconnect();
 }

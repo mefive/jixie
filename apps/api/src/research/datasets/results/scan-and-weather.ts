@@ -1,3 +1,4 @@
+import { strategyScanReportState } from '#strategy/scans/state.js';
 import { factorWeatherMethodology } from '#factor/weather/refresh.js';
 import { prisma } from '#infra/database/prisma.js';
 
@@ -13,22 +14,26 @@ type ResearchJsonValue =
 
 export async function loadResearchStrategyScanReportResult(documentId: string, reportId: string) {
   const userId = await researchDocumentUserId(documentId);
-  const row = await prisma.strategyScanReport.findFirst({
-    where: { id: reportId, userId },
-    select: {
-      id: true,
-      strategyId: true,
-      strategyName: true,
-      status: true,
-      config: true,
-      spec: true,
-      codeHash: true,
-      dataCutoff: true,
-      payload: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
+  const row = await prisma.strategyScanReport
+    .findFirst({
+      where: { id: reportId, userId },
+      select: {
+        legacyError: true,
+        job: true,
+        id: true,
+        strategyId: true,
+        strategyName: true,
+        legacyStatus: true,
+        config: true,
+        spec: true,
+        codeHash: true,
+        dataCutoff: true,
+        payload: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    })
+    .then((row) => (row ? strategyScanReportState(row) : row));
   if (!row) {
     throw new Error('Strategy scan report was not found.');
   }

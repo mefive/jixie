@@ -206,7 +206,7 @@ test('resolves TypeScript path aliases before enforcing module ownership', (cont
   const root = fixture(
     context,
     {
-      [src + 'infra/jobs/example.ts']: "export { value } from '@business/model';",
+      [src + 'jobs/example.ts']: "export { value } from '@business/model';",
       [src + 'strategy/model.ts']: 'export const value = 1;',
     },
     { baseUrl: '.', paths: { '@business/*': ['src/strategy/*'] } },
@@ -243,7 +243,7 @@ test('resolves native package imports to source and enforces module ownership', 
           },
         },
       }),
-      [src + 'infra/jobs/example.ts']: "export { value } from '#strategy/model.js';",
+      [src + 'jobs/example.ts']: "export { value } from '#strategy/model.js';",
       [src + 'strategy/model.ts']: 'export const value = 1;',
     },
     { customConditions: ['development'] },
@@ -329,7 +329,7 @@ test('protects helpers, registries and engine core from host imports', (context)
 
 test('detects indirect business imports through infrastructure bridges', (context) => {
   const root = fixture(context, {
-    [src + 'infra/jobs/run.ts']: "import '../bridge.js';",
+    [src + 'jobs/run.ts']: "import '../infra/bridge.js';",
     [src + 'market/read.ts']: "import '../infra/bridge.js';",
     [src + 'infra/bridge.ts']: "export { value } from '../strategy/action.js';",
     [src + 'strategy/action.ts']: 'export const value = 1;',
@@ -501,4 +501,30 @@ test('permits shared workspace contracts when resolution points inside the repos
   );
   const result = checkBackendBoundaries(root, emptyPolicy);
   assert.deepEqual(result.diagnostics, []);
+});
+
+test('allows neutral jobs dependencies and only explicit startup business assembly', (context) => {
+  const root = fixture(context, {
+    [src + 'bootstrap.ts']: "import './jobs/register.js';",
+    [src + 'signals/daily/scheduler.ts']: "import '../../jobs/register.js';",
+    [src + 'jobs/register.ts']: "import '../strategy/task.js'; import './scheduler.js';",
+    [src + 'strategy/task.ts']: "import '../jobs/service.js';",
+    [src + 'jobs/scheduler.ts']: "import './service.js';",
+    [src + 'jobs/service.ts']: "import '../infra/database/prisma.js';",
+    [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+});
+
+test('rejects business and neutral jobs importing assembly, including through a bridge', (context) => {
+  const root = fixture(context, {
+    [src + 'jobs/register.ts']: "import '../strategy/task.js';",
+    [src + 'strategy/task.ts']: 'export const task = 1;',
+    [src + 'strategy/submit.ts']: "import '../jobs/register.js';",
+    [src + 'jobs/service.ts']: "import '../infra/bridge.js';",
+    [src + 'infra/bridge.ts']: "import '../jobs/register.js';",
+  });
+  const found = rules(checkBackendBoundaries(root, emptyPolicy));
+  assert.ok(found.includes('jobs-assembly-direction'));
+  assert.ok(found.includes('infra-transitive-direction'));
 });

@@ -1,9 +1,9 @@
+import type { StrategyScanJobPayload } from './job-payload.js';
 import { inspectStrategyParameters } from '../runtime/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
-import { initializeJobLogs } from '#infra/jobs/logs.js';
-import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import { JobScheduler } from '#jobs/scheduler.js';
+import { ACTIVE_JOB_STATUSES } from '#jobs/service.js';
 import type { BacktestConfig, Locale, StrategyParamValue, StrategyScanSpec } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
@@ -102,7 +102,8 @@ export async function submitStrategyScan(
         userId,
         strategyId,
         strategyName: strategy.name,
-        status: 'running',
+        legacyStatus: null,
+        legacyError: null,
         config: jsonValue(config),
         spec: jsonValue(spec),
         codeHash: createHash('sha256').update(config.code).digest('hex'),
@@ -123,7 +124,7 @@ export async function submitStrategyScan(
               ranges,
               userId,
               locale,
-            }),
+            } satisfies StrategyScanJobPayload),
           },
         },
       },
@@ -140,8 +141,7 @@ export async function submitStrategyScan(
     throw new StrategyError('strategy_scan_in_progress');
   }
 
-  initializeJobLogs(jobId);
-  wakeJobQueue();
+  JobScheduler.wake();
 
   return { reportId, jobId };
 }

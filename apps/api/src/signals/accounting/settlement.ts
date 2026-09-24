@@ -1,3 +1,4 @@
+import { completedSignalRunIds } from '../runs/state.js';
 import { ulid } from 'ulid';
 import type { BacktestConfig } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -18,7 +19,10 @@ export async function settleStrategyAccounts(
   onLog: (line: string) => void = console.log,
 ): Promise<{ deployments: number }> {
   const runs = await prisma.signalRun.findMany({
-    where: { status: 'done', execDate: { lte: throughDate } },
+    where: {
+      id: { in: await completedSignalRunIds({ throughDate }) },
+      execDate: { lte: throughDate },
+    },
     distinct: ['deploymentId'],
     select: { deploymentId: true },
   });
@@ -64,7 +68,9 @@ export async function rebuildDeploymentAccount(
   const runs = await prisma.signalRun.findMany({
     where: {
       deploymentId,
-      status: 'done',
+      id: {
+        in: await completedSignalRunIds({ deploymentId, throughDate, afterDate: latest.tradeDate }),
+      },
       execDate: { gt: latest.tradeDate, lte: throughDate },
     },
     orderBy: { execDate: 'asc' },

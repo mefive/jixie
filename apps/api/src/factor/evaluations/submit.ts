@@ -148,7 +148,6 @@ export async function submitFactorAnalysis(
     parentReportId,
     locale: locale,
     failedMessage: t(locale, 'factorAnalysisFailed'),
-    exitedMessage: (code) => t(locale, 'factorProcExited', { code }),
   });
 
   return response;

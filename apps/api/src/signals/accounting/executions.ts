@@ -1,3 +1,4 @@
+import { signalRunState, currentSignalJob } from '../runs/state.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ActualExecutionUpdate } from '@jixie/shared';
 import { SignalsError } from '../errors.js';
@@ -12,14 +13,20 @@ export async function updateActualExecution(
     where: { id: executionId, userId },
     include: {
       signalRun: {
-        select: { deploymentId: true, execDate: true, status: true },
+        select: {
+          deploymentId: true,
+          execDate: true,
+          legacyStatus: true,
+          legacyError: true,
+          jobs: currentSignalJob,
+        },
       },
     },
   });
   if (!execution) {
     throw new SignalsError('execution_not_found');
   }
-  if (execution.signalRun.status !== 'done') {
+  if (signalRunState(execution.signalRun).status !== 'done') {
     throw new SignalsError('execution_unavailable');
   }
   if (input.status !== 'pending' && execution.simulatedStatus === 'pending') {

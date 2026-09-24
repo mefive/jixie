@@ -1,6 +1,7 @@
+import type { FactorCorrelationJobPayload } from './job-payload.js';
 import { prisma } from '#infra/database/prisma.js';
-import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { ACTIVE_JOB_STATUSES, createJob } from '#infra/jobs/records.js';
+import { JobScheduler } from '#jobs/scheduler.js';
+import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/service.js';
 import type { FactorCorrelation, Locale } from '@jixie/shared';
 import { BUILTIN_KEYS } from '../definitions/builtin-factors.js';
 import { FactorError } from '../errors.js';
@@ -102,7 +103,7 @@ export async function submitFactorCorrelation(
     return { jobId: existing };
   }
 
-  const jobId = await createJob(
+  const jobId = await JobService.create(
     userId,
     'factor-correlation',
     correlationJobKey(resolved.keys, freq, start, end),
@@ -114,10 +115,10 @@ export async function submitFactorCorrelation(
       start,
       end,
       locale: locale,
-    },
+    } satisfies FactorCorrelationJobPayload,
   );
 
-  wakeJobQueue();
+  JobScheduler.wake();
 
   return { jobId };
 }

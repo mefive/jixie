@@ -1,3 +1,4 @@
+import { factorReportState } from '#factor/evaluations/state.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { FactorReport } from '@jixie/shared';
 import { FactorError } from '../errors.js';
@@ -20,23 +21,25 @@ export async function listFactorReports(userId: string, input: FactorReportListQ
         select: { id: true, createdAt: true },
       })
     : null;
-  const rows = await prisma.factorReport.findMany({
-    where: {
-      userId,
-      factor,
-      ...(cursorReport
-        ? {
-            OR: [
-              { createdAt: { lt: cursorReport.createdAt } },
-              { createdAt: cursorReport.createdAt, id: { lt: cursorReport.id } },
-            ],
-          }
-        : {}),
-    },
-    include: { job: { select: { id: true } } },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: limit + 1,
-  });
+  const rows = await prisma.factorReport
+    .findMany({
+      where: {
+        userId,
+        factor,
+        ...(cursorReport
+          ? {
+              OR: [
+                { createdAt: { lt: cursorReport.createdAt } },
+                { createdAt: cursorReport.createdAt, id: { lt: cursorReport.id } },
+              ],
+            }
+          : {}),
+      },
+      include: { job: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+    })
+    .then((rows) => rows.map(factorReportState));
   const hasMore = rows.length > limit;
   const items = rows.slice(0, limit).map(reportSummary);
 
@@ -44,10 +47,12 @@ export async function listFactorReports(userId: string, input: FactorReportListQ
 }
 
 export async function readFactorReport(userId: string, reportId: string) {
-  const row = await prisma.factorReport.findFirst({
-    where: { id: reportId, userId },
-    include: { job: { select: { id: true } } },
-  });
+  const row = await prisma.factorReport
+    .findFirst({
+      where: { id: reportId, userId },
+      include: { job: true },
+    })
+    .then((row) => (row ? factorReportState(row) : row));
 
   if (!row) {
     throw new FactorError('evaluation_not_found');
@@ -115,10 +120,20 @@ export async function readFactorResearchWindow() {
 
 export async function readFactorResearchSummary(userId: string, input: FactorResearchSummaryQuery) {
   const { factor } = input;
-  const rows = await prisma.factorReport.findMany({
-    where: { userId },
-    select: { factor: true, phase: true, status: true, testKey: true, revealedAt: true },
-  });
+  const rows = await prisma.factorReport
+    .findMany({
+      where: { userId },
+      select: {
+        failureMessage: true,
+        job: true,
+        factor: true,
+        phase: true,
+        legacyStatus: true,
+        testKey: true,
+        revealedAt: true,
+      },
+    })
+    .then((rows) => rows.map(factorReportState));
 
   return {
     global: researchCounts(rows),
@@ -134,10 +149,12 @@ export async function readFactorAnalysisResult(
   error?: string;
   payload?: FactorReport;
 } | null> {
-  const row = await prisma.factorReport.findFirst({
-    where: { id: reportId, userId, phase: 'explore' },
-    select: { status: true, error: true, payload: true },
-  });
+  const row = await prisma.factorReport
+    .findFirst({
+      where: { id: reportId, userId, phase: 'explore' },
+      select: { job: true, legacyStatus: true, failureMessage: true, payload: true },
+    })
+    .then((row) => (row ? factorReportState(row) : row));
   if (!row) {
     return null;
   }

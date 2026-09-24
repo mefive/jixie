@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
   commitStrategyConfig: vi.fn(),
   extractFactorKeys: vi.fn(),
-  initializeJobLogs: vi.fn(),
-  wakeJobQueue: vi.fn(),
+  initializeLogs: vi.fn(),
+  wake: vi.fn(),
 }));
 
 vi.mock('#infra/database/prisma.js', () => ({
@@ -30,13 +30,13 @@ vi.mock('../definitions/config.js', () => ({
 vi.mock('../factor-inputs/references.js', () => ({
   extractFactorKeys: mocks.extractFactorKeys,
 }));
-vi.mock('#infra/jobs/records.js', () => ({
+vi.mock('#jobs/service.js', () => ({
   ACTIVE_JOB_STATUSES: ['queued', 'running'],
-  getJob: vi.fn(),
+  JobService: { get: vi.fn() },
 }));
-vi.mock('#infra/jobs/logs.js', () => ({ initializeJobLogs: mocks.initializeJobLogs }));
-vi.mock('#infra/jobs/queue.js', () => ({
-  wakeJobQueue: mocks.wakeJobQueue,
+vi.mock('#jobs/logs.js', () => ({ JobLogs: { initialize: mocks.initializeLogs } }));
+vi.mock('#jobs/scheduler.js', () => ({
+  JobScheduler: { wake: mocks.wake },
 }));
 
 import { strategyRoute } from './index.js';
@@ -91,7 +91,7 @@ describe('backtest report route', () => {
         userId: 'user-a',
         strategyId: 'strategy-a',
         strategyName: '价值轮动',
-        status: 'running',
+        legacyStatus: null,
         config: expect.objectContaining({ name: '价值轮动', code: config.code }),
         codeHash: expect.stringMatching(/^[a-f0-9]{64}$/),
         job: {
@@ -108,8 +108,8 @@ describe('backtest report route', () => {
         },
       }),
     });
-    expect(mocks.initializeJobLogs).toHaveBeenCalledWith(body.jobId);
-    expect(mocks.wakeJobQueue).toHaveBeenCalledOnce();
+    expect(mocks.initializeLogs).not.toHaveBeenCalled();
+    expect(mocks.wake).toHaveBeenCalledOnce();
   });
 
   it('lists compact completed report history within the strategy owner scope', async () => {

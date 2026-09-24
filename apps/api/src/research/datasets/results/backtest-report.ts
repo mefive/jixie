@@ -1,3 +1,4 @@
+import { backtestReportState } from '#strategy/backtests/state.js';
 import type { BacktestConfig } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 
@@ -36,21 +37,25 @@ export async function loadResearchBacktestReportResult(
     throw new Error('Research document was not found.');
   }
 
-  const row = await prisma.backtestReport.findFirst({
-    where: { id: reportId, userId: document.userId },
-    select: {
-      id: true,
-      strategyId: true,
-      strategyName: true,
-      status: true,
-      config: true,
-      codeHash: true,
-      resultHash: true,
-      payload: true,
-      createdAt: true,
-      computedAt: true,
-    },
-  });
+  const row = await prisma.backtestReport
+    .findFirst({
+      where: { id: reportId, userId: document.userId },
+      select: {
+        legacyError: true,
+        job: true,
+        id: true,
+        strategyId: true,
+        strategyName: true,
+        legacyStatus: true,
+        config: true,
+        codeHash: true,
+        resultHash: true,
+        payload: true,
+        createdAt: true,
+        computedAt: true,
+      },
+    })
+    .then((row) => (row ? backtestReportState(row) : row));
   if (!row) {
     throw new Error('Backtest report was not found.');
   }

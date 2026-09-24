@@ -1,3 +1,4 @@
+import { factorReportState } from '#factor/evaluations/state.js';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { parseResearchIntent } from '#factor/evaluations/research-policy.js';
@@ -46,29 +47,33 @@ export async function loadResearchFactorReportResult(
     throw new Error('Research document was not found.');
   }
 
-  const row = await prisma.factorReport.findFirst({
-    where: { id: reportId, userId: document.userId },
-    select: {
-      id: true,
-      factor: true,
-      status: true,
-      phase: true,
-      language: true,
-      freq: true,
-      neutral: true,
-      start: true,
-      end: true,
-      specJson: true,
-      payload: true,
-      factorCodeHash: true,
-      dataRevision: true,
-      parentReportId: true,
-      researchIntentJson: true,
-      revealedAt: true,
-      createdAt: true,
-      computedAt: true,
-    },
-  });
+  const row = await prisma.factorReport
+    .findFirst({
+      where: { id: reportId, userId: document.userId },
+      select: {
+        failureMessage: true,
+        job: true,
+        id: true,
+        factor: true,
+        legacyStatus: true,
+        phase: true,
+        language: true,
+        freq: true,
+        neutral: true,
+        start: true,
+        end: true,
+        specJson: true,
+        payload: true,
+        factorCodeHash: true,
+        dataRevision: true,
+        parentReportId: true,
+        researchIntentJson: true,
+        revealedAt: true,
+        createdAt: true,
+        computedAt: true,
+      },
+    })
+    .then((row) => (row ? factorReportState(row) : row));
   if (!row) {
     throw new Error('Factor report was not found.');
   }

@@ -34,10 +34,15 @@ vi.mock('#strategy/factor-inputs/prepare.js', () => ({
 vi.mock('../factor-inputs/rates.js', () => ({
   governmentYieldCurveReady: resources.yieldReady,
 }));
-vi.mock('#infra/jobs/queue.js', () => ({
-  wakeJobQueue: resources.wake,
-  waitForJobCompletion: resources.completion,
+vi.mock('#jobs/scheduler.js', () => ({
+  JobScheduler: { wake: resources.wake },
 }));
+
+vi.mock('#jobs/service.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('#jobs/service.js')>();
+  vi.spyOn(original.JobService, 'waitForCompletion').mockImplementation(resources.completion);
+  return original;
+});
 
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -95,7 +100,7 @@ async function createReport(id: string, reportConfig = config) {
       userId: 'owner',
       strategyId: 'strategy',
       strategyName: reportConfig.name,
-      status: 'done',
+      legacyStatus: 'done',
       config: reportConfig,
       payload: { factorDependencies: dependencies },
     },
@@ -199,13 +204,26 @@ describe('Signals HTTP and persistence boundaries', () => {
         userId: 'owner',
         strategyId: 'strategy',
         strategyName: config.name,
-        status: 'done',
+        legacyStatus: 'done',
         config,
       },
     });
     expect((await request('/deployments', { reportId: 'empty-report' })).status).toBe(409);
+    await prisma.job.create({
+      data: {
+        id: 'report-attempt',
+        userId: 'owner',
+        kind: 'backtest',
+        key: 'report',
+        status: 'running',
+        backtestReportId: 'report',
+      },
+    });
     for (const status of ['running', 'error', 'stale']) {
-      await prisma.backtestReport.update({ where: { id: 'report' }, data: { status } });
+      await prisma.backtestReport.update({
+        where: { id: 'report' },
+        data: { job: { update: { status } } },
+      });
       const response = await request('/deployments', { reportId: 'report' });
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({
@@ -215,7 +233,7 @@ describe('Signals HTTP and persistence boundaries', () => {
     await prisma.backtestReport.update({
       where: { id: 'report' },
       data: {
-        status: 'done',
+        job: { update: { status: 'done' } },
         config: { ...config, language: 'python', runtimeVersion: 'py-v1' },
       },
     });
@@ -380,7 +398,8 @@ describe('Signals HTTP and persistence boundaries', () => {
       await prisma.signalRun.update({
         where: { id: run.runId },
         data: {
-          status: 'done',
+          jobs: { updateMany: { where: {}, data: { status: 'done' } } },
+          legacyStatus: null,
           modelCash: 100_000,
           modelEquity: 100_000,
           modelPositions: [],
@@ -496,7 +515,10 @@ describe('Signals HTTP and persistence boundaries', () => {
       jobId: first.jobId,
       started: false,
     });
-    await prisma.signalRun.update({ where: { id: first.runId }, data: { status: 'done' } });
+    await prisma.signalRun.update({
+      where: { id: first.runId },
+      data: { jobs: { updateMany: { where: {}, data: { status: 'done' } } }, legacyStatus: null },
+    });
     await prisma.job.update({ where: { id: first.jobId! }, data: { status: 'done' } });
     expect(await enqueue(deployment.id)).toMatchObject({
       runId: first.runId,
@@ -507,8 +529,9 @@ describe('Signals HTTP and persistence boundaries', () => {
     await prisma.signalRun.update({
       where: { id: first.runId },
       data: {
-        status: 'error',
-        error: 'interrupted',
+        jobs: { updateMany: { where: {}, data: { status: 'error', error: 'interrupted' } } },
+        legacyStatus: null,
+        legacyError: null,
         dataCutoff: 'old',
         modelCash: 10,
         modelEquity: 20,
@@ -527,10 +550,14 @@ describe('Signals HTTP and persistence boundaries', () => {
     const retry = await enqueue(deployment.id);
     expect(retry).toMatchObject({ runId: first.runId, started: true });
     expect(retry.jobId).not.toBe(first.jobId);
-    expect(await prisma.signalRun.findUniqueOrThrow({ where: { id: first.runId } })).toMatchObject({
-      status: 'running',
-      factorDependencies: dependencies,
+    expect(await prisma.job.findUniqueOrThrow({ where: { id: retry.jobId! } })).toMatchObject({
+      status: 'queued',
       error: null,
+    });
+    expect(await prisma.signalRun.findUniqueOrThrow({ where: { id: first.runId } })).toMatchObject({
+      legacyStatus: null,
+      factorDependencies: dependencies,
+      legacyError: null,
       dataCutoff: null,
       modelCash: null,
       modelEquity: null,
@@ -716,7 +743,8 @@ describe('Signals HTTP and persistence boundaries', () => {
     await prisma.signalRun.update({
       where: { id: run.runId },
       data: {
-        status: 'done',
+        jobs: { updateMany: { where: {}, data: { status: 'done' } } },
+        legacyStatus: null,
         modelEquity: 100_000,
         modelCash: 100_000,
         modelPositions: [],

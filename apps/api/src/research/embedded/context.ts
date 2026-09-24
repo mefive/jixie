@@ -1,3 +1,5 @@
+import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
+import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import type { ResearchEmbeddedContextV1, ResearchEmbeddedHostV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ResearchError } from '../errors.js';
@@ -77,7 +79,7 @@ export async function captureEmbeddedContext(
           id: reportId,
           userId,
           factor: host.id,
-          status: 'done',
+          AND: [factorReportStatusWhere(['done'])],
           OR: [{ phase: { not: 'holdout' } }, { revealedAt: { not: null } }],
         },
         select: { id: true, payload: true },
@@ -88,7 +90,12 @@ export async function captureEmbeddedContext(
       report = { type: 'factor', id: row.id, contentHash: researchPayloadHash(row.payload) };
     } else {
       const row = await transaction.backtestReport.findFirst({
-        where: { id: reportId, userId, strategyId: host.id, status: 'done' },
+        where: {
+          id: reportId,
+          userId,
+          strategyId: host.id,
+          AND: [backtestReportStatusWhere(['done'])],
+        },
         select: { id: true, payload: true },
       });
       if (!row?.payload) {

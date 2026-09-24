@@ -1,3 +1,4 @@
+import { factorReportState } from '#factor/evaluations/state.js';
 import type { FactorQuestionContextV1, Locale } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
@@ -78,9 +79,9 @@ export async function captureFactorQuestionContext(
 
   let report: FactorQuestionContextV1['report'] = null;
   if (reportId) {
-    const row = await database.factorReport.findFirst({
-      where: { id: reportId, userId, factor: factorKey },
-    });
+    const row = await database.factorReport
+      .findFirst({ include: { job: true }, where: { id: reportId, userId, factor: factorKey } })
+      .then((row) => (row ? factorReportState(row) : row));
     if (
       !row ||
       row.status !== 'done' ||

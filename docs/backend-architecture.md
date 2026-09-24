@@ -6,7 +6,7 @@
 
 ## 第一次看项目，从哪里开始
 
-先看 [server.ts](../apps/api/src/server.ts) 找产品接口，再进入对应模块 README，按业务问题选择子能力 README，最后跟随具名入口、直接调用方和测试链接阅读实现。模块总览维护协作关系，子能力维护当前契约，设计文档维护背景与验收历史。需要理解异步工作时，看 [bootstrap.ts](../apps/api/src/bootstrap.ts) 和 [Job 契约](../apps/api/src/infra/jobs/definition.ts)。只有要修改模拟算法或跨进程协议时，才需要继续进入 Engine、runtime 或 sandboxd。
+先看 [server.ts](../apps/api/src/server.ts) 找产品接口，再进入对应模块 README，按业务问题选择子能力 README，最后跟随具名入口、直接调用方和测试链接阅读实现。模块总览维护协作关系，子能力维护当前契约，设计文档维护背景与验收历史。需要理解异步工作时，看 [bootstrap.ts](../apps/api/src/bootstrap.ts) 和 [Job 契约](../apps/api/src/jobs/register.ts)。只有要修改模拟算法或跨进程协议时，才需要继续进入 Engine、runtime 或 sandboxd。
 
 | 模块 | 拥有什么、服务什么产品操作 | 阅读入口 |
 | --- | --- | --- |
@@ -20,7 +20,7 @@
 | Maintenance | 整轮数据维护、质量门禁、发布水位、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
 | Sharing | 公开库目录与公开详情，策略复制委托 Strategy | [Sharing](../apps/api/src/sharing/README.md) |
 | Auth | 登录、验证码、邀请码、Session 与 Cookie 适配 | [Auth](../apps/api/src/auth/README.md) |
-| Infra | 数据库、HTTP 辅助、任务执行器、Python/TS 运行设施、模型/邮件传输和日志 | [Jobs](../apps/api/src/infra/jobs/README.md)、[Runtime](../apps/api/src/infra/runtime/README.md) |
+| Infra | 数据库、HTTP 辅助、任务执行器、Python/TS 运行设施、模型/邮件传输和日志 | [Jobs](../apps/api/src/jobs/README.md)、[Runtime](../apps/api/src/infra/runtime/README.md) |
 | Math / date.ts / i18n | 共用数值计算、日期和翻译目录；无业务对象或持久化状态 | [math](../apps/api/src/math/)、[date.ts](../apps/api/src/date.ts)、[i18n](../apps/api/src/i18n/) |
 
 `apps/sandboxd` 是独立部署进程，`packages/shared` 提供跨端类型和公开 SDK Contract。它们没有并入 API 的 Infra。一个业务模块也不意味着一个独立服务或数据库。
@@ -97,7 +97,7 @@ shared 不导入 API、数据库、Node 专属能力或 SDK 执行器，根级�
 flowchart TD
   I["index.ts：读取端口"] --> B["bootstrap.startServer"]
   B --> A["server.buildApp：路由与中间件"]
-  B --> E["createJobExecutor：注入 jobRegistry"]
+  B --> E["jobs/register：显式生命周期注册"]
   E --> R["恢复 running Job"]
   B --> T["恢复 Agent turn / 天气刷新"]
   R --> Q["恢复完成后启动 Job 队列"]
@@ -105,19 +105,19 @@ flowchart TD
   Q --> H["serve：监听 HTTP"]
 ```
 
-Bootstrap 是显式装配函数：把业务 Job 的 loader 注册表传给通用执行器，再把执行器传给队列。没有扫描目录、反射或依赖注入容器；新增 Job 需要实现契约并登记 loader。
+Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化事件调度器并监听 HTTP。register 显式登记生命周期对象；Signals/Maintenance 每日批处理条件 claim 后直接执行同一入口，不依赖 API 在线，串行名额独立于 API scheduler。通用调度与存储不反向依赖业务。
 
 实际顺序是：构建应用和执行器 → 并行等待 Job、Agent turn、天气刷新恢复 → 发起内置因子种子初始化 → 启动队列 → 监听 HTTP。种子初始化是后台 Promise，不是启动的阻塞步骤；开发环境监听后再异步探测 Python runtime。`buildApp()` 会加载模块、建立模块内对象，不能据此理解为“零对象创建”，但不会开始领取 Job 或监听服务。
 
 | 资源 | 创建与持有者 | 收尾与当前限制 |
 | --- | --- | --- |
 | API listener | `bootstrap.startServer` 调用 Hono `serve` | 目前只返回 app，没有统一 listener close/stop-drain API；不宣称 API 已有完整优雅退出协议 |
-| Job 队列和并发名额 | `infra/jobs/queue.ts`，启动时注入执行器；默认全局 2、每用户 1，可由环境覆盖 | 执行结束释放名额；queued 保存在 DB，running 在重启时恢复；无多实例租约或统一 drain |
+| Job 队列和并发名额 | `jobs/scheduler.ts`，启动时注入执行器；默认全局 2、每用户 1，可由环境覆盖 | 执行结束释放名额；queued 保存在 DB，running 在重启时恢复；无多实例租约或统一 drain |
 | Worker / IPC 子进程 | 各业务任务、工具或维护入口按需创建 | 主线程接收结果并处理退出；具体入口和取消语义见 [运行入口清单](backend-runtime-entries.md) |
 | Research Python 会话 | `research/runtime/python/session.ts` 由普通文档、嵌入分析和依赖分析共用，按文档 ID 复用；公共 session 负责传输 | 中断、reset、归档和执行收尾按业务规则关闭；普通文档锁归 `document-runs/run-state.ts`，嵌入分析保留独立取消/超时流程 |
 | Factor / Strategy isolate 和 Python 连接 | 各领域 runtime 创建，Infra 提供底层能力 | 调用方在完成/失败时释放；长计算超时策略在各自业务，不由公共传输统一决定 |
 | Prisma | `infra/database/prisma.ts` 的进程内单例；子进程有独立实例 | CLI/子进程在收尾断开；API 整体关闭仍依赖进程退出和上级进程管理 |
-| Agent bus / trace / 日志 | `agent/turns` 与 `infra/jobs/logs.ts` | DB 保存持久记录，内存事件与日志缓存各有清理规则；重启不重放历史增量事件 |
+| Agent bus / trace / 日志 | `agent/turns` 与 `jobs/logs.ts` | DB 保存持久记录，内存事件与日志缓存各有清理规则；重启不重放历史增量事件 |
 | Pyright | `research/language/pyright-service.ts` 按需管理语言服务 | 文档和协议生命周期由服务管理；其 package/stub 路径须独立检查 |
 | sandboxd 与 runner | 独立 `apps/sandboxd`，API 通过 Unix socket 请求会话 | daemon 处理 SIGINT/SIGTERM、关闭 server 与会话；本地模式和生产隔离模式不可混作同一种验收 |
 
@@ -137,13 +137,13 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 ### 2. 提交策略回测并保存报告
 
-1. `strategy/backtests/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后才初始化日志并唤醒队列。
-2. 队列原子领取 Job，执行器加载 `strategy/backtests/job.ts`，解析持久化输入并启动 `strategy/backtests/worker`。
+1. `strategy/backtests/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后唤醒队列，日志在执行开始时初始化。
+2. 队列原子领取 Job，执行器加载 `strategy/backtests/strategy-backtest-lifecycle.ts`，解析持久化输入并启动 `strategy/backtests/worker`。
 3. Worker 调用 `strategy/backtests/run.ts`，通过 `strategy/factor-inputs/prepare.ts` 准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
 4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/risk`，结果位于回测的多资产配置风险面板。
 5. Worker 返回结果并退出；API 主线程的执行器创建 Prisma 事务，把同一个 transaction 交给业务 `complete`，保存报告/相关缓存与 Job 终态。计算与外部调用不占用这个完成事务。
 
-参数扫描使用独立的 `scans/job.ts` 和扫描 Worker，再为各参数 cell fork 子进程，比较冻结范围内的结果。扫描共享因子准备，但 cell 直接调用 `runWalledBacktest`，不经过正式回测编排及风险后处理；Signals 同样只共享因子准备和底层 runtime。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
+参数扫描使用独立的 `scans/strategy-scan-lifecycle.ts` 和扫描 Worker，再为各参数 cell fork 子进程，比较冻结范围内的结果。扫描共享因子准备，但 cell 直接调用 `runWalledBacktest`，不经过正式回测编排及风险后处理；Signals 同样只共享因子准备和底层 runtime。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
 
 ### 3. 维护发布数据并生成每日信号
 
@@ -151,7 +151,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 2. Market 的具体同步函数获取候选数据，按原覆盖规则校验并写库。股票四表、ETF 三表等保留各自的替换事务。
 3. 原始质量通过后重算派生指标，再检查派生质量；Maintenance 才推进发布水位或 dataRevision。单项同步成功不等于整轮维护已发布。
 4. Signals 读取冻结部署、已发布截止日和因子血缘，创建 SignalRun + Job；其子进程调用 Strategy/Engine 生成下一交易日指令。
-5. `runs/job.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化 afterCommit 重试。
+5. `runs/signals-run-lifecycle.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化提交后操作重试。
 
 Market 的同步/读取/基础质量归入所属数据领域，具体入口见模块 README。Signals 的利率依赖解析和 14 天新鲜度政策归 `signals/factor-inputs/rates.ts`；Market 的 `rates/government-yield-availability.ts` 只返回所需期限在交易日已可得的最新日期。日历事实由 `market/calendar` 供 Maintenance 与 Signals 共用，信号下一交易日要求仍归 Signals。
 
@@ -168,11 +168,11 @@ Market 的同步/读取/基础质量归入所属数据领域，具体入口见�
 | StrategyDeployment / SignalRun / 账户记录 | Signals 从成功 BacktestReport 创建独立部署，拥有运行、人工成交和重放；不同报告可同时运行，后续草稿编辑不改已有部署 |
 | MaintenanceRun / MaintenanceState | Maintenance 拥有运行、checkpoint、水位、版本和失败门禁 |
 
-`defineJob()` 是组合式契约，要求 parse / execute / complete / fail / recover，可选 afterCommit。各业务目录内的任务定义使用同一签名；业务不继承一个持有数据库和线程的大 Job 基类。
+每个业务的 `<业务模块>-<任务名>-lifecycle.ts` 导出满足 JobLifecycle 契约的普通对象：onExecute 解析输入并计算，onSuccess 在 JobService 的终态事务中保存结果；可选 onFailure/onInterrupted 处理领域收尾，onCommitted 处理提交后操作。
 
 事务由 Prisma 在同一个 SQLite 连接上管理 BEGIN/COMMIT/ROLLBACK。`complete(transaction, ...)` 的 transaction 由执行器的 `$transaction` 回调提供；业务必须继续使用它，才能让业务结果和 Job 一起提交或回滚。重启恢复在单一事务内按关联 ID 恢复业务记录并标记 running Job stale；queued 不自动丢弃，也不会把中断计算伪装成完成。
 
-并非所有对象共享一个事务：会话创建、模型调用、消息镜像、afterCommit、邮件通知都各有边界。具体事务说明优先看所属模块，不把“用了 Prisma”理解成“整个调用链天然原子”。
+并非所有对象共享一个事务：会话创建、模型调用、消息镜像、提交后操作、邮件通知都各有边界。具体事务说明优先看所属模块，不把“用了 Prisma”理解成“整个调用链天然原子”。
 
 Research 的冻结研究交接负责证据准入与生成，Factor/Strategy 负责目标复用、命名和写入；模型调用不进入目标保存事务。具体顺序、重试差异和调用入口维护在 [Research handoff](../apps/api/src/research/handoff/README.md)，再由它链接到目标 definitions。
 

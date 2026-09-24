@@ -1,3 +1,6 @@
+import { factorReportStatusWhere } from '#factor/evaluations/state.js';
+import { strategyScanReportStatusWhere } from '#strategy/scans/state.js';
+import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
 import {
   RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1,
   RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
@@ -1205,7 +1208,7 @@ async function searchBacktestReports(
   const reports = await prisma.backtestReport.findMany({
     where: {
       userId,
-      status: 'done',
+      AND: [backtestReportStatusWhere(['done'])],
       payload: { not: Prisma.DbNull },
       ...(query
         ? {
@@ -1256,7 +1259,7 @@ async function searchStrategyScanReports(
   const reports = await prisma.strategyScanReport.findMany({
     where: {
       userId,
-      status: 'done',
+      AND: [strategyScanReportStatusWhere(['done'])],
       payload: { not: Prisma.DbNull },
       ...(query
         ? {
@@ -1326,7 +1329,7 @@ async function searchFactorReports(
   const reports = await prisma.factorReport.findMany({
     where: {
       userId,
-      status: 'done',
+      AND: [factorReportStatusWhere(['done'])],
       payload: { not: null },
       ...(query
         ? {

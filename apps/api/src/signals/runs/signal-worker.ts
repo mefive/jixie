@@ -1,3 +1,4 @@
+import type { SignalWorkerMessage } from './worker-protocol.js';
 import { prismaDataPort } from '#engine/adapters/prisma-port.js';
 import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -21,7 +22,9 @@ if (!runId || !process.send) {
   throw new Error('signal-worker must be spawned as an IPC child process with a run id');
 }
 
-const emit = (entry: LogLine) => process.send?.({ type: 'log', entry });
+const send = (message: SignalWorkerMessage) => process.send?.(message);
+
+const emit = (entry: LogLine) => send({ type: 'log', entry });
 const systemLog = (text: string) => emit({ source: 'system', level: 'info', text });
 const userLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
@@ -95,7 +98,7 @@ try {
     [...signals.map((signal) => signal.code), ...modelPositions.map((position) => position.code)],
   );
   systemLog(t(locale, 'signalCaptureDone', { count: signals.length }));
-  process.send({
+  send({
     type: 'done',
     output: {
       dataCutoff: output.capture.tradeDate,
@@ -107,7 +110,7 @@ try {
     },
   });
 } catch (error) {
-  process.send({
+  send({
     type: 'error',
     message: errorMessage(error, locale),
   });

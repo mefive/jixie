@@ -1,3 +1,6 @@
+import { factorAnalysisWorkerInputSchema } from '../execution/worker-input.js';
+import { runWorker } from '#jobs/worker.js';
+import { factorAnalysisWorkerMessageSchema } from '../execution/worker-protocol.js';
 import { Worker } from 'node:worker_threads';
 import type { FactorReport, FactorWeatherPoint } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
@@ -255,7 +258,7 @@ async function incrementalStart(computedThrough: string): Promise<string> {
   return weatherHistoryStart(computedThrough);
 }
 
-function runWeatherWorker(
+async function runWeatherWorker(
   factor: string,
   label: string,
   code: string,
@@ -263,40 +266,22 @@ function runWeatherWorker(
   runtimeVersion: string,
   spec: ReturnType<typeof createDefaultFactorAnalysisSpecV3>,
 ): Promise<FactorReport> {
-  return new Promise((resolve, reject) => {
-    const worker = new Worker(workerUrl, {
-      workerData: {
-        reportId: `weather:${factor}`,
-        factor,
-        source: { kind: 'single', code, label, language, runtimeVersion },
-        spec,
-        locale: 'zh',
-      },
-    });
-    let settled = false;
-    const finish = (handler: () => void) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      handler();
-    };
-
-    worker.on('message', (message: { type: string; payload?: string; message?: string }) => {
-      if (message.type === 'done' && message.payload) {
-        const payload = message.payload;
-        finish(() => resolve(JSON.parse(payload) as FactorReport));
-      } else if (message.type === 'error') {
-        finish(() => reject(new Error(message.message ?? 'Factor weather worker failed.')));
-      }
-    });
-    worker.on('error', (error) => finish(() => reject(error)));
-    worker.on('exit', (code) => {
-      if (code !== 0) {
-        finish(() => reject(new Error(`Factor weather worker exited with code ${code}.`)));
-      }
-    });
+  const payload = await runWorker({
+    start: () =>
+      new Worker(workerUrl, {
+        workerData: factorAnalysisWorkerInputSchema.parse({
+          reportId: `weather:${factor}`,
+          factor,
+          source: { kind: 'single', code, label, language, runtimeVersion },
+          spec,
+          locale: 'zh',
+        }),
+      }),
+    onLog: () => {},
+    readMessage: (raw) => factorAnalysisWorkerMessageSchema.parse(raw),
+    exitedMessage: (code) => `Factor weather worker exited with code ${code} without a result.`,
   });
+  return JSON.parse(payload) as FactorReport;
 }
 
 export function toFactorWeatherPoint(row: {

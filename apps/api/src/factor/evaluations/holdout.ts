@@ -1,7 +1,8 @@
+import type { FactorAnalysisJobPayload } from './job-payload.js';
+import { factorReportState, factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import { initializeJobLogs } from '#infra/jobs/logs.js';
-import { wakeJobQueue } from '#infra/jobs/queue.js';
+import { JobScheduler } from '#jobs/scheduler.js';
 import type { FactorResearchSpecV1, Locale, RunFactorAnalysisResponse } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { FactorError } from '../errors.js';
@@ -19,9 +20,9 @@ import { parseReportPayload, parseResearchPayload, reportSummary } from './repor
 import { parseResearchIntent } from './research-policy.js';
 
 export async function submitFactorHoldout(userId: string, parentReportId: string, locale: Locale) {
-  const parent = await prisma.factorReport.findFirst({
-    where: { id: parentReportId, userId },
-  });
+  const parent = await prisma.factorReport
+    .findFirst({ include: { job: true }, where: { id: parentReportId, userId } })
+    .then((row) => (row ? factorReportState(row) : row));
 
   if (!parent) {
     throw new FactorError('evaluation_not_found');
@@ -31,10 +32,12 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
 
   if (!eligibility.eligible) {
     if (eligibility.existingReportId) {
-      const existing = await prisma.factorReport.findUnique({
-        where: { id: eligibility.existingReportId },
-        include: { job: { select: { id: true } } },
-      });
+      const existing = await prisma.factorReport
+        .findUnique({
+          where: { id: eligibility.existingReportId },
+          include: { job: true },
+        })
+        .then((row) => (row ? factorReportState(row) : row));
       if (existing?.job) {
         return {
           reportId: existing.id,
@@ -118,15 +121,17 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
   const jobId = ulid();
   // Recheck inside the transaction and persist the report and queued job together.
   const created = await prisma.$transaction(async (transaction) => {
-    const existing = await transaction.factorReport.findFirst({
-      where: {
-        userId,
-        parentReportId: parent.id,
-        phase: 'holdout',
-        status: { in: ['running', 'done'] },
-      },
-      include: { job: { select: { id: true } } },
-    });
+    const existing = await transaction.factorReport
+      .findFirst({
+        where: {
+          userId,
+          parentReportId: parent.id,
+          phase: 'holdout',
+          AND: [factorReportStatusWhere(['running', 'done'])],
+        },
+        include: { job: true },
+      })
+      .then((row) => (row ? factorReportState(row) : row));
     if (existing?.job) {
       return { reportId: existing.id, jobId: existing.job.id, reusedRunning: true };
     }
@@ -135,7 +140,8 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
         id: reportId,
         userId,
         factor: parent.factor,
-        status: 'running',
+        legacyStatus: null,
+        failureMessage: null,
         phase: 'holdout',
         ...columns,
         analysisKind: researchSpec.analysisKind,
@@ -165,7 +171,7 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
                 spec: researchSpec,
                 locale,
                 failedMessage: t(locale, 'factorAnalysisFailed'),
-              }),
+              } satisfies FactorAnalysisJobPayload),
             ),
           },
         },
@@ -177,17 +183,16 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
 
   // The queue may observe the job only after its report has committed.
   if (!created.reusedRunning) {
-    initializeJobLogs(jobId);
-    wakeJobQueue();
+    JobScheduler.wake();
   }
 
   return response;
 }
 
 export async function revealFactorHoldout(userId: string, reportId: string) {
-  const report = await prisma.factorReport.findFirst({
-    where: { id: reportId, userId },
-  });
+  const report = await prisma.factorReport
+    .findFirst({ include: { job: true }, where: { id: reportId, userId } })
+    .then((row) => (row ? factorReportState(row) : row));
 
   if (!report) {
     throw new FactorError('evaluation_not_found');
@@ -203,10 +208,12 @@ export async function revealFactorHoldout(userId: string, reportId: string) {
     });
   }
 
-  const revealed = await prisma.factorReport.findUniqueOrThrow({
-    where: { id: reportId },
-    include: { job: { select: { id: true } } },
-  });
+  const revealed = await prisma.factorReport
+    .findUniqueOrThrow({
+      where: { id: reportId },
+      include: { job: true },
+    })
+    .then((row) => (row ? factorReportState(row) : row));
   const researchSpec = reportResearchSpec(revealed);
   const researchPayload = parseResearchPayload(revealed.payload, researchSpec);
 

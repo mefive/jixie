@@ -1,3 +1,4 @@
+import { backtestReportState } from '#strategy/backtests/state.js';
 import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
 import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
@@ -16,9 +17,9 @@ export async function deployBacktestReport(
   reportId: string,
   locale: Locale,
 ): Promise<StrategyDeployment> {
-  const report = await prisma.backtestReport.findFirst({
-    where: { id: reportId, userId },
-  });
+  const report = await prisma.backtestReport
+    .findFirst({ include: { job: true }, where: { id: reportId, userId } })
+    .then((row) => (row ? backtestReportState(row) : row));
   if (!report) {
     throw new SignalsError('report_not_found');
   }

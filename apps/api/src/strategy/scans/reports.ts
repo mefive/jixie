@@ -1,5 +1,6 @@
+import { strategyScanReportState, strategyScanReportStatusWhere } from '#strategy/scans/state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
+import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/service.js';
 import type {
   BacktestConfig,
   StrategyScanPayload,
@@ -12,11 +13,14 @@ import { StrategyError } from '../errors.js';
 import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '@jixie/shared/api/strategy';
 
 export async function listStrategyScanReports(userId: string, query: StrategyScanIdentityQuery) {
-  const rows = await prisma.strategyScanReport.findMany({
-    where: { userId: userId, strategyId: query.strategyId },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
+  const rows = await prisma.strategyScanReport
+    .findMany({
+      include: { job: true },
+      where: { userId: userId, strategyId: query.strategyId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    })
+    .then((rows) => rows.map(strategyScanReportState));
 
   return rows.map(scanReportSummary);
 }
@@ -26,7 +30,7 @@ export async function findActiveStrategyScanJob(userId: string, query: StrategyS
     where: {
       userId: userId,
       strategyId: query.strategyId,
-      status: 'running',
+      AND: [strategyScanReportStatusWhere(['running'])],
       job: { userId, kind: 'strategy-scan', status: { in: ACTIVE_JOB_STATUSES } },
     },
     orderBy: { createdAt: 'desc' },
@@ -50,7 +54,7 @@ export async function readStrategyScanJob(
     throw new StrategyError('strategy_scan_job_not_found');
   }
 
-  const job = await getJob(userId, ownedJob.id, Number(query.since ?? '0'));
+  const job = await JobService.get(userId, ownedJob.id, Number(query.since ?? '0'));
 
   if (!job) {
     throw new StrategyError('strategy_scan_job_not_found');
@@ -60,12 +64,14 @@ export async function readStrategyScanJob(
 }
 
 export async function readStrategyScanReport(userId: string, reportId: string) {
-  const row = await prisma.strategyScanReport.findFirst({
-    where: { id: reportId, userId: userId },
-    include: { job: { select: { id: true } } },
-  });
+  const row = await prisma.strategyScanReport
+    .findFirst({
+      where: { id: reportId, userId: userId },
+      include: { job: true },
+    })
+    .then((row) => (row ? strategyScanReportState(row) : row));
 
-  if (!row?.job) {
+  if (!row) {
     throw new StrategyError('strategy_scan_not_found');
   }
 
@@ -120,7 +126,7 @@ function scanReportDetail(row: {
     dataCutoff: row.dataCutoff,
     payload: (row.payload as unknown as StrategyScanPayload) ?? undefined,
     error: row.error ?? undefined,
-    jobId: row.job!.id,
+    jobId: row.job?.id ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

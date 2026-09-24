@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import { getJob, type JobKind } from '#infra/jobs/records.js';
+import { JobService, type JobKind } from '#jobs/service.js';
 
 export async function readOwnedFactorJob(
   userId: string,
@@ -19,5 +19,5 @@ export async function readOwnedFactorJob(
     select: { id: true },
   });
 
-  return job ? getJob(userId, job.id, since) : null;
+  return job ? JobService.get(userId, job.id, since) : null;
 }

@@ -166,3 +166,14 @@ export class FactorError extends BusinessError<FactorErrorReason> {
     super(reason, definitions[reason], options);
   }
 }
+
+/** A validated analysis reached its Worker and failed before producing a result. */
+export class FactorWorkerError extends Error {
+  constructor(
+    readonly failureMessage: string,
+    cause: unknown,
+  ) {
+    super(cause instanceof Error ? cause.message : String(cause), { cause });
+    this.name = 'FactorWorkerError';
+  }
+}

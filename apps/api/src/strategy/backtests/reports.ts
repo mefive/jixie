@@ -1,5 +1,6 @@
+import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { ACTIVE_JOB_STATUSES, getJob } from '#infra/jobs/records.js';
+import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/service.js';
 import type {
   BacktestConfig,
   BacktestReportDetail,
@@ -40,7 +41,7 @@ export async function listStrategyBacktestReports(
     where: {
       userId: userId,
       strategyId: query.strategyId,
-      status: 'done',
+      AND: [backtestReportStatusWhere(['done'])],
       payload: { not: Prisma.DbNull },
     },
     select: {
@@ -63,7 +64,7 @@ export async function readStrategyBacktestReport(userId: string, reportId: strin
     where: {
       id: reportId,
       userId: userId,
-      status: 'done',
+      AND: [backtestReportStatusWhere(['done'])],
       payload: { not: Prisma.DbNull },
     },
     select: {
@@ -109,7 +110,7 @@ export async function readStrategyBacktestJob(
     throw new StrategyError('backtest_job_not_found');
   }
 
-  const job = await getJob(userId, ownedJob.id, Number(query.since ?? '0'));
+  const job = await JobService.get(userId, ownedJob.id, Number(query.since ?? '0'));
 
   if (!job) {
     throw new StrategyError('backtest_job_not_found');

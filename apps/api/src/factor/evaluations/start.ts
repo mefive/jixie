@@ -1,7 +1,7 @@
+import { factorReportStatusWhere, factorReportState } from '#factor/evaluations/state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { initializeJobLogs } from '#infra/jobs/logs.js';
-import { wakeJobQueue } from '#infra/jobs/queue.js';
-import { ACTIVE_JOB_STATUSES } from '#infra/jobs/records.js';
+import { JobScheduler } from '#jobs/scheduler.js';
+import { ACTIVE_JOB_STATUSES } from '#jobs/service.js';
 import {
   type FactorAnalysisSpec,
   type FactorResearchIntentV1,
@@ -20,7 +20,7 @@ import {
   factorAnalysisSourceSnapshot,
 } from '../sources/snapshot.js';
 import { factorTestKey, factorVariantKey } from './identity.js';
-import type { FactorAnalysisJobPayload } from './job.js';
+import type { FactorAnalysisJobPayload } from './job-payload.js';
 import { reportCompatibilityColumns } from './report-spec.js';
 
 export async function startFactorAnalysis(options: {
@@ -32,17 +32,6 @@ export async function startFactorAnalysis(options: {
   parentReportId?: string | null;
   locale: Locale;
   failedMessage: string;
-  exitedMessage: (code: number) => string;
-  launchWorker?: (options: {
-    reportId: string;
-    jobId: string;
-    factor: string;
-    source: FactorAnalysisSource;
-    spec: FactorResearchSpecV1;
-    locale: Locale;
-    failedMessage: string;
-    exitedMessage: (code: number) => string;
-  }) => Promise<void>;
 }): Promise<RunFactorAnalysisResponse> {
   const factorCodeSnapshot = factorAnalysisSourceSnapshot(options.source);
   const language = factorAnalysisSourceLanguage(options.source);
@@ -58,25 +47,21 @@ export async function startFactorAnalysis(options: {
   const reportId = ulid();
   const jobId = ulid();
   const created = await prisma.$transaction(async (transaction) => {
-    const running = await transaction.factorReport.findFirst({
-      where: {
-        userId: options.userId,
-        factor: options.factor,
-        variantKey,
-        testKey,
-        status: 'running',
-      },
-      include: { job: { select: { id: true, status: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    const running = await transaction.factorReport
+      .findFirst({
+        where: {
+          userId: options.userId,
+          factor: options.factor,
+          variantKey,
+          testKey,
+          AND: [factorReportStatusWhere(['running'])],
+        },
+        include: { job: true },
+        orderBy: { createdAt: 'desc' },
+      })
+      .then((row) => (row ? factorReportState(row) : row));
     if (running?.job && ACTIVE_JOB_STATUSES.includes(running.job.status as 'queued' | 'running')) {
       return { reportId: running.id, jobId: running.job.id, reusedRunning: true };
-    }
-    if (running) {
-      await transaction.factorReport.update({
-        where: { id: running.id },
-        data: { status: 'stale' },
-      });
     }
 
     await transaction.factorReport.create({
@@ -84,7 +69,8 @@ export async function startFactorAnalysis(options: {
         id: reportId,
         userId: options.userId,
         factor: options.factor,
-        status: 'running',
+        legacyStatus: null,
+        failureMessage: null,
         phase: 'explore',
         ...reportColumns,
         analysisKind: researchSpec.analysisKind,
@@ -125,21 +111,7 @@ export async function startFactorAnalysis(options: {
     return response;
   }
 
-  initializeJobLogs(jobId);
-  if (options.launchWorker) {
-    await options.launchWorker({
-      reportId,
-      jobId,
-      factor: options.factor,
-      source: options.source,
-      spec: researchSpec,
-      locale: options.locale,
-      failedMessage: options.failedMessage,
-      exitedMessage: options.exitedMessage,
-    });
-  } else {
-    wakeJobQueue();
-  }
+  JobScheduler.wake();
   return response;
 }
 

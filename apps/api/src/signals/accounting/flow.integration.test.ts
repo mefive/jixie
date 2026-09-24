@@ -82,7 +82,7 @@ integration('strategy execution accounting database flow', () => {
         strategyId,
         tradeDate: '20240101',
         execDate: '20240102',
-        status: 'done',
+        legacyStatus: 'done',
         dataCutoff: '20240101',
         modelEquity: 100_000,
         modelCash: 100_000,

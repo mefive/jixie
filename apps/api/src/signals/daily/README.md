@@ -1,6 +1,6 @@
 # 每日信号编排
 
-[scheduler.ts](scheduler.ts) 提供两个入口：`runDailySignalCycle` 供 CLI 使用，默认取上海当前日期，先 `syncSignalMarketData` 再生成；`generateDailySignals` 供它和 Maintenance 调用，接受已确定的交易日与日志函数，检查开市、全局结算账户，再按 deployedAt 顺序为活动部署入队并等待各次完成，汇总成功／跳过／失败。整批没有总事务。
+[scheduler.ts](scheduler.ts) 提供两个入口：`runDailySignalCycle` 供 CLI 使用，默认取上海当前日期，先 `syncSignalMarketData` 再生成；`generateDailySignals` 供它和 Maintenance 调用，接受已确定的交易日与日志函数，检查开市、全局结算账户，再按 deployedAt 顺序为活动部署入队、条件 claim 并直接执行 Job；claim 失败时等待已有执行者完成，汇总成功／跳过／失败。整批没有总事务。
 
 [sync.ts](sync.ts) 的 `syncSignalMarketData` 拥有“当天这些部署需要什么数据”的业务编排，数据同步实现仍归 Market：
 

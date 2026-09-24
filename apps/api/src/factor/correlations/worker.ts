@@ -1,5 +1,7 @@
+import { factorCorrelationJobPayloadSchema } from './job-payload.js';
+import type { FactorCorrelationWorkerMessage } from './worker-protocol.js';
 import { parentPort, workerData } from 'node:worker_threads';
-import type { FactorFreq, Locale, LogLine, LogLevel } from '@jixie/shared';
+import type { LogLine, LogLevel } from '@jixie/shared';
 import { computeFactorCorrelation } from './compute.js';
 import { prisma } from '#infra/database/prisma.js';
 
@@ -14,21 +16,14 @@ if (!port) {
   throw new Error('correlation-worker must be spawned as a worker thread');
 }
 
-const { keys, freq, start, end, locale } = workerData as {
-  id: string;
-  userId: string;
-  keys: string[];
-  freq: FactorFreq;
-  start: string;
-  end: string;
-  locale: Locale;
-};
+const send = (message: FactorCorrelationWorkerMessage) => port.postMessage(message);
 
-const emit = (entry: LogLine) => port.postMessage({ type: 'log', entry });
+const emit = (entry: LogLine) => send({ type: 'log', entry });
 const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', text });
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 try {
+  const { keys, freq, start, end, locale } = factorCorrelationJobPayloadSchema.parse(workerData);
   const report = await computeFactorCorrelation(
     keys,
     freq,
@@ -39,9 +34,9 @@ try {
     locale,
   );
   const payload = JSON.stringify(report);
-  port.postMessage({ type: 'done', payload });
+  send({ type: 'done', payload });
 } catch (e) {
-  port.postMessage({ type: 'error', message: e instanceof Error ? e.message : String(e) });
+  send({ type: 'error', message: e instanceof Error ? e.message : String(e) });
 } finally {
   await prisma.$disconnect();
 }

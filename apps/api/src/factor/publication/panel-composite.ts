@@ -1,3 +1,4 @@
+import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { PublishedFactor } from '@jixie/shared';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
@@ -27,7 +28,12 @@ export async function publishPanelComposite(
   }
 
   const report = await prisma.factorReport.findFirst({
-    where: { id: approvedReportId, userId, factor: compositeId, status: 'done' },
+    where: {
+      id: approvedReportId,
+      userId,
+      factor: compositeId,
+      AND: [factorReportStatusWhere(['done'])],
+    },
     select: {
       id: true,
       analysisKind: true,

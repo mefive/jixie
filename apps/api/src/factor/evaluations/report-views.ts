@@ -14,7 +14,7 @@ import { reportResearchSpec } from './report-spec.js';
 import { parseResearchIntent } from './research-policy.js';
 
 export function reportSummary(
-  row: FactorReportRow & { job?: { id: string } | null },
+  row: FactorReportRow & { status: string; error: string | null } & { job?: { id: string } | null },
 ): FactorReportSummary {
   const sealed = row.phase === 'holdout' && row.revealedAt === null;
   const researchSpec = reportResearchSpec(row);

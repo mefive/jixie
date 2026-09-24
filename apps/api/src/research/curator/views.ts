@@ -13,7 +13,7 @@ type CuratorRunWithRelations = Prisma.ResearchCuratorRunGetPayload<{
 type CuratorFindingRecord = Prisma.ResearchCuratorFindingGetPayload<object>;
 
 export function curatorRunRecord(
-  run: CuratorRunWithRelations,
+  run: CuratorRunWithRelations & { status: string; error: string | null },
   quality: ResearchCuratorQualityMetricsV1,
 ): ResearchCuratorRunV1 {
   return {

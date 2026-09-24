@@ -1016,7 +1016,7 @@ model FactorReport {
   id                 String    @id // ULID for new reports; legacy composite ids remain valid
   userId             String
   factor             String
-  status             String    @default("done") // 'running' | 'done' | 'error' | 'stale'
+  legacyStatus String? @map("status") // Historical state used only without a Job.
   phase              String    @default("legacy") // 'legacy' | 'explore' | 'holdout'
   analysisKind       String    @default("cross_sectional") // 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime'
   language           String    @default("typescript") // 'typescript' | 'python'
@@ -1031,7 +1031,7 @@ model FactorReport {
   factorCodeHash     String?
   dataRevision       String?
   payload            String? // JSON.stringify(FactorReport wire shape)
-  error              String?
+  failureMessage String? @map("error")
   parentReportId     String?
   testKey            String?
   researchIntentJson String?
@@ -1073,7 +1073,7 @@ model Job {
   status               String // 'queued' | 'running' | 'done' | 'error' | 'stale'
   payload              Json? // Frozen runner input; required for queued jobs to survive an API restart
   error                String?
-  logs                 String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see infra/jobs/logs.ts)
+  logs                 String? // JSON(LogLine[]) — flushed once on finish; live logs stream from memory (see jobs/logs.ts)
   factorReportId       String?             @unique
   factorReport         FactorReport?       @relation(fields: [factorReportId], references: [id], onDelete: Cascade)
   backtestReportId     String?             @unique
@@ -1152,19 +1152,19 @@ model BacktestReport {
   strategyId   String
   strategy     Strategy             @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   strategyName String
-  status       String // 'running' | 'done' | 'error' | 'stale'
+  legacyStatus String? @map("status") // Historical state used only without a Job.
   config       Json // frozen BacktestConfig
   codeHash     String?
   resultHash   String?
   payload      Json? // frozen BacktestSummary
-  error        String?
+  legacyError String? @map("error")
   job          Job?
   deployments  StrategyDeployment[]
   createdAt    DateTime             @default(now())
   computedAt   DateTime?
 
   @@index([userId, strategyId, createdAt])
-  @@index([userId, status, createdAt])
+  @@index([userId, legacyStatus, createdAt])
 }
 
 /// One deployment of an immutable successful backtest report. Different reports operate independently.
@@ -1207,7 +1207,7 @@ model SignalRun {
   strategyId         String
   tradeDate          String // signal is based on this market close (YYYYMMDD)
   execDate           String // intended next open (YYYYMMDD)
-  status             String // 'running' | 'done' | 'error' | 'stale'
+  legacyStatus String? @map("status") // Historical state used only without a Job.
   factorDependencies Json? // deployment factor dependencies copied when this run is created
   factorInputs       Json? // FactorInputSummary[] consumed on the final decision bar
   dataCutoff         String?
@@ -1215,7 +1215,7 @@ model SignalRun {
   modelCash          Float?
   modelPositions     Json? // ModelPositionSnapshot[] at the signal close; seeds forward account tracking
   signals            Json? // SignalItem[]
-  error              String?
+  legacyError String? @map("error")
   notifiedAt         DateTime?
   notificationError  String?
   jobs               Job[]
@@ -1226,7 +1226,7 @@ model SignalRun {
   @@unique([deploymentId, tradeDate])
   @@index([userId, tradeDate])
   @@index([strategyId, tradeDate])
-  @@index([status])
+  @@index([legacyStatus])
 }
 
 /// One immutable signal instruction plus its simulated fill and user-entered real execution. The
@@ -1301,19 +1301,19 @@ model StrategyScanReport {
   strategyId   String
   strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   strategyName String
-  status       String // 'running' | 'done' | 'error' | 'stale'
+  legacyStatus String? @map("status") // Historical state used only without a Job.
   config       Json // frozen BacktestConfig
   spec         Json // StrategyScanSpec
   codeHash     String
   dataCutoff   String?
   payload      Json? // StrategyScanPayload
-  error        String?
+  legacyError String? @map("error")
   job          Job?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([userId, strategyId, createdAt])
-  @@index([userId, status])
+  @@index([userId, legacyStatus])
 }
 
 /// A factor as code (code-first, mirrors Strategy). `language` and `runtimeVersion` select the
@@ -1740,21 +1740,21 @@ model ResearchCuratorRun {
   id                String                   @id // ULID
   userId            String
   user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status            String                   @default("queued") // 'queued' | 'running' | 'done' | 'error' | 'stale'
+  legacyStatus String? @map("status") // Historical state used only without a Job.
   trigger           String                   @default("manual") // 'manual' | 'scheduled'
   cursorFrom        DateTime?
   cursorTo          DateTime
   evidenceCount     Int                      @default(0)
   findingsCreated   Int                      @default(0)
   duplicatesSkipped Int                      @default(0)
-  error             String?
+  legacyError String? @map("error")
   job               Job?
   findings          ResearchCuratorFinding[]
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
 
   @@index([userId, createdAt])
-  @@index([userId, status, createdAt])
+  @@index([userId, legacyStatus, createdAt])
 }
 
 /// One evidence-backed Curator suggestion. Fingerprints suppress repeats across runs; disposition

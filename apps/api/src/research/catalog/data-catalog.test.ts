@@ -531,7 +531,14 @@ describe('research data catalog', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: 'user-a',
-          status: 'done',
+          AND: [
+            {
+              OR: [
+                { job: { is: { status: { in: ['done'] } } } },
+                { job: { is: null }, legacyStatus: { in: ['done'] } },
+              ],
+            },
+          ],
           OR: expect.arrayContaining([{ factor: { in: ['value_quality'] } }]),
         }),
       }),
@@ -586,7 +593,14 @@ describe('research data catalog', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           userId: 'user-a',
-          status: 'done',
+          AND: [
+            {
+              OR: [
+                { job: { is: { status: { in: ['done'] } } } },
+                { job: { is: null }, legacyStatus: { in: ['done'] } },
+              ],
+            },
+          ],
           OR: expect.arrayContaining([{ strategyName: { contains: '价值' } }]),
         }),
       }),

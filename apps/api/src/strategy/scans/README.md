@@ -8,7 +8,7 @@
 | [submit.ts](submit.ts) `submitStrategyScan` | 路由传用户、配置／spec、strategyId 和 locale；冻结参数、交易日范围、截止日，返回 jobId/reportId |
 | [reports.ts](reports.ts) `listStrategyScanReports`、`readStrategyScanReport`、`findActiveStrategyScanJob`、`readStrategyScanJob` | 列表含各状态、最多 50 条；活动和日志以 Job ID 查询，报告详情使用 reportId |
 | [scan.ts](scan.ts) `normalizeScanSpec`、`executeStrategyScan`、`scanCellOverrides` | 规格、组合与摘要；execute 接收 run 回调串行遍历，无数据库或 fork 依赖，组合上限由本文件维护 |
-| [job.ts](job.ts) `strategyScanJob` | 任务完成／失败／恢复及父 Worker 装配 |
+| [strategy-scan-lifecycle.ts](strategy-scan-lifecycle.ts) `strategyScanLifecycle` | 解析输入、装配父 Worker，通过 onSuccess 原子保存结果 |
 
 提交先检查语言／日期、隔离参数和样本内外交易日范围，再开事务校验归属、活动任务并创建 Report + Job，提交后唤醒。这个事务不覆盖之前的源码检查和交易日查询。
 
@@ -17,3 +17,5 @@
 改网格／指标看 [scan.test.ts](scan.test.ts)；改冻结／状态查询／权限看 [路由集成测试](../routes/index.integration.test.ts)；Job 收尾看 [生命周期测试](../../../tests/job-lifecycle.integration.test.ts)；参数运行规则看 [TypeScript runtime](../runtime/typescript/README.md)。
 
 [返回 Strategy 总览](../README.md)
+
+输入契约位于 [job-payload.ts](job-payload.ts)：strategyScanJobPayloadSchema / StrategyScanJobPayload；Worker 输入派生子集，spec 与 HTTP 复用基础结构，HTTP 保留额外限制。

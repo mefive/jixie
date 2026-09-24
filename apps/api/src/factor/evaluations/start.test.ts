@@ -9,10 +9,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
+  wake: vi.fn(),
   reportFindFirst: vi.fn(),
   reportCreate: vi.fn(),
-  reportUpdate: vi.fn(),
 }));
+
+vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: mocks.wake } }));
 
 vi.mock('#infra/database/prisma.js', () => ({
   prisma: {
@@ -63,21 +65,19 @@ describe('startFactorAnalysis', () => {
     mocks.transaction.mockReset();
     mocks.reportFindFirst.mockReset();
     mocks.reportCreate.mockReset();
-    mocks.reportUpdate.mockReset();
+    mocks.wake.mockReset();
     mocks.transaction.mockImplementation(async (run) =>
       run({
         factorReport: {
           findFirst: mocks.reportFindFirst,
           create: mocks.reportCreate,
-          update: mocks.reportUpdate,
         },
       }),
     );
   });
 
-  it('creates one immutable explore report and launches its worker', async () => {
+  it('creates one immutable explore report with a queued job and wakes the scheduler', async () => {
     mocks.reportFindFirst.mockResolvedValue(null);
-    const launchWorker = vi.fn(async (_options: unknown) => {});
 
     const response = await startFactorAnalysis({
       userId: 'user-1',
@@ -87,22 +87,27 @@ describe('startFactorAnalysis', () => {
       researchIntent,
       locale: 'en',
       failedMessage: 'failed',
-      exitedMessage: (code) => `exit ${code}`,
-      launchWorker,
     });
 
     expect(response).toMatchObject({ status: 'running', reusedRunning: false });
     expect(mocks.reportFindFirst.mock.calls[0][0].where).toMatchObject({
       userId: 'user-1',
       factor: 'factor-1',
-      status: 'running',
+      AND: [
+        {
+          OR: [
+            { job: { is: { status: { in: ['running', 'queued'] } } } },
+            { job: { is: null }, legacyStatus: { in: ['running'] } },
+          ],
+        },
+      ],
       testKey: expect.any(String),
     });
     expect(mocks.reportCreate).toHaveBeenCalledOnce();
     expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
       userId: 'user-1',
       factor: 'factor-1',
-      status: 'running',
+      legacyStatus: null,
       phase: 'explore',
       factorCodeSnapshot: 'factor candidate',
       analysisKind: 'cross_sectional',
@@ -118,10 +123,9 @@ describe('startFactorAnalysis', () => {
     expect(mocks.reportCreate.mock.calls[0][0].data.variantKey).toBe(
       factorVariantKey(spec, sha256('factor candidate'), null),
     );
-    expect(launchWorker).toHaveBeenCalledOnce();
-    expect(launchWorker.mock.calls[0][0]).toMatchObject({
+    expect(mocks.wake).toHaveBeenCalledOnce();
+    expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
       reportId: response.reportId,
-      jobId: response.jobId,
       source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
       spec: { version: 1, analysisKind: 'cross_sectional', protocol: spec },
     });
@@ -144,8 +148,6 @@ describe('startFactorAnalysis', () => {
       researchIntent,
       locale: 'en',
       failedMessage: 'failed',
-      exitedMessage: (code) => `exit ${code}`,
-      launchWorker: vi.fn(async () => {}),
     });
 
     expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
@@ -158,7 +160,7 @@ describe('startFactorAnalysis', () => {
 
   it('persists a frozen ETF time-series protocol and source', async () => {
     mocks.reportFindFirst.mockResolvedValue(null);
-    const launchWorker = vi.fn(async (_options: unknown) => {});
+
     const timeSeriesSpec: TimeSeriesFactorResearchSpecV1 = {
       version: 1,
       analysisKind: 'time_series',
@@ -188,8 +190,6 @@ describe('startFactorAnalysis', () => {
       },
       locale: 'en',
       failedMessage: 'failed',
-      exitedMessage: (code) => `exit ${code}`,
-      launchWorker,
     });
 
     expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
@@ -202,12 +202,15 @@ describe('startFactorAnalysis', () => {
       factorCodeSnapshot: source.code,
     });
     expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(timeSeriesSpec);
-    expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: timeSeriesSpec });
+    expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
+      source,
+      spec: timeSeriesSpec,
+    });
   });
 
   it('persists the full cross-asset panel protocol and executable source', async () => {
     mocks.reportFindFirst.mockResolvedValue(null);
-    const launchWorker = vi.fn(async (_options: unknown) => {});
+
     const panelSpec: PanelFactorResearchSpecV1 = {
       version: 1,
       analysisKind: 'panel',
@@ -250,8 +253,6 @@ describe('startFactorAnalysis', () => {
       },
       locale: 'en',
       failedMessage: 'failed',
-      exitedMessage: (code) => `exit ${code}`,
-      launchWorker,
     });
 
     expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
@@ -264,7 +265,10 @@ describe('startFactorAnalysis', () => {
       factorCodeSnapshot: source.code,
     });
     expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(panelSpec);
-    expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: panelSpec });
+    expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
+      source,
+      spec: panelSpec,
+    });
   });
 
   it.each([
@@ -275,7 +279,7 @@ describe('startFactorAnalysis', () => {
     'persists the frozen %s macro-regime protocol and model source',
     async (observationFrequency, storedFrequency) => {
       mocks.reportFindFirst.mockResolvedValue(null);
-      const launchWorker = vi.fn(async (_options: unknown) => {});
+
       const macroRegimeSpec: MacroRegimeFactorResearchSpecV1 = {
         version: 1,
         analysisKind: 'macro_regime',
@@ -309,8 +313,6 @@ describe('startFactorAnalysis', () => {
         },
         locale: 'en',
         failedMessage: 'failed',
-        exitedMessage: (code) => `exit ${code}`,
-        launchWorker,
       });
 
       expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
@@ -325,7 +327,10 @@ describe('startFactorAnalysis', () => {
       expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(
         macroRegimeSpec,
       );
-      expect(launchWorker.mock.calls[0][0]).toMatchObject({ source, spec: macroRegimeSpec });
+      expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
+        source,
+        spec: macroRegimeSpec,
+      });
     },
   );
 
@@ -334,7 +339,6 @@ describe('startFactorAnalysis', () => {
       id: 'report-existing',
       job: { id: 'job-existing', status: 'running' },
     });
-    const launchWorker = vi.fn(async (_options: unknown) => {});
 
     const response = await startFactorAnalysis({
       userId: 'user-1',
@@ -344,8 +348,6 @@ describe('startFactorAnalysis', () => {
       researchIntent,
       locale: 'en',
       failedMessage: 'failed',
-      exitedMessage: (code) => `exit ${code}`,
-      launchWorker,
     });
 
     expect(response).toEqual({
@@ -355,12 +357,12 @@ describe('startFactorAnalysis', () => {
       status: 'running',
     });
     expect(mocks.reportCreate).not.toHaveBeenCalled();
-    expect(launchWorker).not.toHaveBeenCalled();
+    expect(mocks.wake).not.toHaveBeenCalled();
   });
 
   it('freezes the full source bundle for a composite report', async () => {
     mocks.reportFindFirst.mockResolvedValue(null);
-    const launchWorker = vi.fn(async (_options: unknown) => {});
+
     const definition = {
       version: 1 as const,
       name: 'Quality + value',
@@ -390,13 +392,11 @@ describe('startFactorAnalysis', () => {
       researchIntent,
       locale: 'en',
       failedMessage: 'failed',
-      exitedMessage: (code) => `exit ${code}`,
-      launchWorker,
     });
 
     const snapshot = mocks.reportCreate.mock.calls[0][0].data.factorCodeSnapshot;
     expect(JSON.parse(snapshot)).toEqual(source);
-    expect(launchWorker.mock.calls[0][0]).toMatchObject({
+    expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
       source,
       spec: { version: 1, analysisKind: 'cross_sectional', protocol: compositeSpec },
     });

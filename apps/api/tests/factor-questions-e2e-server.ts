@@ -276,7 +276,7 @@ try {
           id: reportId,
           userId,
           factor: factor.key,
-          status: 'done',
+          legacyStatus: 'done',
           phase: 'explore',
           freq: payload.freq,
           start: payload.start,

@@ -1,3 +1,5 @@
+import { JobService } from '#jobs/service.js';
+import { registerJobLifecycles } from '#jobs/register.js';
 import { prisma } from '#infra/database/prisma.js';
 import { settleStrategyAccounts } from '../accounting/settlement.js';
 import { SignalsError } from '../errors.js';
@@ -18,6 +20,7 @@ export async function generateDailySignals(
   tradeDate: string,
   onLog: (line: string) => void = console.log,
 ): Promise<{ deployments: number; done: number; errors: number }> {
+  registerJobLifecycles();
   const open = await prisma.tradeCal.findUnique({
     where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
     select: { isOpen: true },
@@ -46,6 +49,11 @@ export async function generateDailySignals(
       errors++;
       onLog(`Skipped ${deployment.strategyName}: ${error.reason}`);
       continue;
+    }
+    // CLI execution is serial and independent of the API scheduler's concurrency limits.
+    // A failed claim means another consumer owns or has already completed this attempt.
+    if (run.jobId && (await JobService.claim(run.jobId))) {
+      await JobService.execute(run.jobId);
     }
     const status = await run.completion;
     if (status === 'done') {

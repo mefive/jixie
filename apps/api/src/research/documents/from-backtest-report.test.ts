@@ -42,7 +42,18 @@ describe('BacktestReport to Research document handoff', () => {
     expect(result).toEqual({ id: 'document-a' });
     expect(mocks.backtestReportFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: 'report-a', userId: 'user-a', status: 'done' }),
+        where: expect.objectContaining({
+          id: 'report-a',
+          userId: 'user-a',
+          AND: [
+            {
+              OR: [
+                { job: { is: { status: { in: ['done'] } } } },
+                { job: { is: null }, legacyStatus: { in: ['done'] } },
+              ],
+            },
+          ],
+        }),
       }),
     );
     expect(mocks.agentConversationCreate).toHaveBeenCalledWith({

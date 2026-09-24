@@ -1,3 +1,4 @@
+import { researchCuratorRunState } from '#research/curator/state.js';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type {
   AgentTurnTrace,
@@ -151,11 +152,12 @@ export async function prepareResearchCuratorRun(
 ): Promise<PreparedResearchCuratorRun> {
   const database = options.database ?? prisma;
   const llm = options.llm ?? chatJson;
-  const run = await database.researchCuratorRun.findUniqueOrThrow({ where: { id: runId } });
-  await database.researchCuratorRun.update({
-    where: { id: run.id, status: { in: ['queued', 'running'] } },
-    data: { status: 'running', error: null },
-  });
+  const run = await database.researchCuratorRun
+    .findUniqueOrThrow({ include: { job: true }, where: { id: runId } })
+    .then((row) => (row ? researchCuratorRunState(row) : row));
+  if (run.status !== 'running' && run.status !== 'queued') {
+    throw new Error('Curator preparation requires an active Job');
+  }
   const evidence = await extractResearchCuratorEvidence(
     run.userId,
     run.cursorFrom,
