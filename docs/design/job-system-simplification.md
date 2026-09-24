@@ -5,7 +5,7 @@
 
 日期：2026-09-22。
 
-当前状态（2026-09-24）：产品代码与 Prisma SQL 均已获用户审阅批准，静态检查、隔离库升级回归、业务测试、源码/编译 Worker 与构建全部通过。按已授权的提交信息完成本次变更；实际验证见文末记录，前文保留初始设计背景。未 push、部署或操作用户开发库/生产库。
+当前状态（2026-09-24）：产品代码与 Prisma SQL 均已获用户审阅批准，静态检查、隔离库升级回归、业务测试、源码/编译 Worker 与构建全部通过，产品实现已提交为 `1fa1dadd`。用户要求后补跑七类生命周期的浏览器 E2E，功能断言最终全部通过；截图复核发现的 Curator 翻译键缺失已按用户要求修复，中英文复验通过。用户已确认补充测试、文案修复与记录，一并纳入本次补充提交。实际验证见文末记录，前文保留初始设计背景。未 push、部署或操作用户开发库/生产库。
 
 执行入口：[配套 prompt](job-system-simplification.prompt.md)。后续开发必须使用 [review-gated-development](../../../../.codex/skills/review-gated-development/SKILL.md)；当前环境的实际技能路径为 `/Users/liucong/.codex/skills/review-gated-development/SKILL.md`。
 
@@ -386,7 +386,7 @@ JIXIE_TEST_COMPILED=1 pnpm --filter api test tests/factor-worker.integration.tes
 | 产品代码/迁移 | 完成；Prisma 生成的迁移原样保留，隔离升级回归通过 |
 | 静态检查 | 全仓 typecheck、变更文件 ESLint/Prettier、边界与 diff 检查通过 |
 | Gate 2 / SQL 审阅 | 用户分别明确确认，已授权后续验证与提交 |
-| 行为验证/清理 | 全部必要验证通过；临时数据库与 Worker 清理完成，未启动 HTTP 服务 |
+| 行为验证/清理 | 后端验证及后补七类生命周期浏览器 E2E 通过；隔离 HTTP/模型服务、Worker 与临时库已清理 |
 | Commit / push / deployment | 本记录随 `refactor(jobs): simplify background task execution` 提交；push 由用户手动，未部署 |
 
 最终通过后记录实际静态与行为命令、结果、隔离数据位置/清理情况、审阅批准和 commit hash。按技能只暂存本任务文件；验证通过且已有审阅/提交授权后直接提交，不新增重复确认。失败或未完成的验证不能标通过。
@@ -553,3 +553,63 @@ API 首次构建前将旧 dist 移到任务临时目录，从空输出构建；�
 也已清理。没有启动 API/Web/dev server，没有发送真实通知或执行维护、同步、交易流程；未触碰开发库或生产库。
 
 本次提交信息保持 `refactor(jobs): simplify background task execution`。提交 hash 随完成回复交付；不 push 或部署。
+
+### 2026-09-24 补充浏览器 E2E
+
+用户指出上述完成记录尚无浏览器 E2E，并明确要求执行。新增 `pnpm e2e job-system` 隔离入口，
+复用现有六项浏览器流程，补充真实因子研究卡与 Curator 操作；另运行 `pnpm e2e embedded-analysis`。
+原实现提交为 `1fa1dadd`，本轮只修改测试、夹具、运行清单和验证文档，没有修改产品代码或迁移。
+
+| 生命周期 / 用户流程 | 实际结果 |
+| --- | --- |
+| backtest | 页面提交、真实 Worker、重复请求 409、日志与结果、刷新重连通过 |
+| strategy-scan | 4 个参数组合、3 个仓位组合、3 个容量组合实际完成；容量成本曲线断言通过 |
+| factor-analysis | 页面冻结研究卡、Worker、Job 日志与报告、刷新恢复通过；历史版本/holdout 相关浏览器断言通过 |
+| factor-correlation | 页面提交、Job 轮询、3×3 相关矩阵、缓存复用与重连通过 |
+| signal | 页面运行、结果、条件单、成交回填、账户图表、运行历史通过；中英及移动端截图生成 |
+| research-embedded-analysis | 中文/英文分别完成报告来源→真实 Python 表格/图表→新版本→保留到 Research→Strategy→历史图表，含刷新恢复 |
+| research-curator | 页面提交、真实生命周期与 findings 事务、人工核验/接受、刷新保留通过；中英文截图发现下述翻译缺陷 |
+| 无 Job 历史回测报告 | 预置 legacy 终态报告的历史选择、比较、Research 交接通过 |
+
+执行使用全新临时 SQLite、合成行情和本地模型服务；模型仅提供确定的命名/整理或嵌入式分析回复，
+应用调度、Worker/Python 与持久化路径均真实执行。回测/相关性的重连测试注入活动查询竞态，
+因子历史中的未保存草稿拦截使用 HTTP 替身；不将这些局部前端检查算作真实任务计算。
+本轮不验证在线模型分析质量、真实行情或券商执行，也没有发送真实邮件。
+
+初次 aggregate 执行已通过回测、扫描、因子历史、相关性，后因 Signals 夹具参考价与旧用例固定的
+1320 元预期不同而失败。修正合成行情后，选择性重跑回测、Signals、历史回测、因子页面、Curator，
+全部通过。初次 fixture 启动中的 IndexDaily 字段、基准代码错误均已修正；旧历史回测 fixture 使用
+`legacyStatus`。截图复核还发现 Curator 英文图截在抽屉动画中，补上动画稳定和滚动复位后重跑该流程。
+以上仅为测试设施修正，没有弱化产品断言，也不把最初失败的整组命令写作一次全绿。
+
+复跑入口及选择参数见 `apps/web/e2e/README.md`。本次命令日志保留于
+`/tmp/jixie-jobs-embedded-e2e.log`、`/tmp/jixie-jobs-browser-e2e.log`、
+`/tmp/jixie-jobs-browser-rerun.log`、`/tmp/jixie-jobs-curator-e2e.log`。
+验收截图在 `apps/web/acceptance/`（gitignored），已人工查看回测、参数扫描、因子分析、相关性、
+Signals、历史比较、嵌入式分析和 Curator 主要结果。截图及日志是本地验收产物，不随源码提交。
+
+**首次截图发现的视觉问题（后续已修复）**：Curator 核验说明显示原始键
+`curator.verificationNote.cross_market_contract_match`。后端 `research/curator/prepare.ts` 返回该 note，
+`apps/web/src/complex/research/research-curator-drawer.tsx:270` 动态翻译它，但中英文 `research.ts`
+的 `verificationNote` 均缺少对应词条。Job 计算与审核持久化正常；这是本次截图发现的产品展示缺陷，
+当时没有修改产品代码。功能断言通过不能代替此项视觉验收；修复与复验见下文。
+
+全仓 `pnpm typecheck`（836 文件、0 后端边界违规）、变更文件 ESLint/Prettier、
+E2E 运行器 8 个自测及 `git diff --check` 通过。运行器自测同步修正过时的图片任务数量及
+Docs 静态检查辅助文件的枚举排除。所有测试子进程退出；API/模型端口拒绝连接断言通过，
+Prisma 断开并删除临时数据库；没有遗留开发服务。
+
+### 2026-09-24 Curator 核验说明翻译修复
+
+用户明确要求修复上述展示问题。核对共享契约的全部 10 个核验标记，发现
+`cross_market_contract_match` 和 `source_decision_match` 两项都缺少中英文词条，现已补齐。
+文案明确区分登记/候选与实际接入，不把匹配登记信息解释为数据已经可用。
+中文词条表增加 `satisfies Record<ResearchCuratorVerificationNoteV1, string>`，英文继续受
+`typeof zhResearch` 约束，后续契约增加标记时能在类型检查阶段发现漏配。
+
+Web 类型检查、ESLint、Prettier、构建及 diff 检查通过；构建仍有 chunk 大小和混合导入提示。
+使用新构建运行 `JIXIE_JOB_E2E_ONLY=research-curator pnpm e2e job-system`，真实提交、结果事务、
+核验/接受、刷新恢复及语言切换全部通过，新增断言确认中英文核验说明不再显示原始翻译 key。
+已检查 `job-system-curator-notes-zh.png` / `job-system-curator-notes-en.png` 中的实际文案。
+日志为 `/tmp/jixie-curator-i18n-e2e.log`；临时服务、浏览器、端口和数据库均已清理。
+用户已确认修复结果。本次补充提交信息为 `test(jobs): cover lifecycle browser flows and fix curator labels`，包含隔离 E2E、文案修复及验证记录；没有 push 或部署。

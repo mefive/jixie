@@ -465,6 +465,10 @@ export const enResearch: typeof zhResearch = {
         'No API matched the versioned Tushare probe catalog; supplier availability remains unverified.',
       local_capability_unverified:
         'No registered local capability matched this candidate; manual verification is required.',
+      cross_market_contract_match:
+        'Matched a registered cross-market data contract; see the verification evidence for integration status and availability.',
+      source_decision_match:
+        'Matched a data-source selection record; a candidate source is not necessarily integrated. See the verification evidence for availability and licensing restrictions.',
       repository_reference_match:
         'Read-only search found a related code, help, ROADMAP, or design reference.',
     },

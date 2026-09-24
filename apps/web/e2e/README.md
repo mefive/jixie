@@ -36,7 +36,7 @@ E2E 从具体用户任务出发，验证用户通过界面完成任务及其结�
 
 - `research`、`factor`、`strategy`、`market`、`signals`、`learning`、`platform`：按用例启动 Web/API/sandboxd/Docs，并准备相应市场数据。部分任务会写测试数据、执行真实回测或调用模型；运行器不自动启动整套开发环境，也不修改已有环境开关。
 - `docs`：`docs-help` 通过 Web 的 `/docs` 代理验证导航及登录；`research-financial-help` 直接访问 `E2E_DOCS_BASE`（默认 5174）。
-- `isolated`：`factor-questions`、`embedded-analysis` 自行启动隔离 API/模型夹具，需要先构建 shared 和 Web；嵌入式分析还需要 Research Python runtime。
+- `isolated`：`factor-questions`、`embedded-analysis`、`job-system` 自行启动隔离 API/模型夹具，需要先构建 shared 和 Web；嵌入式分析还需要 Research Python runtime。
 - `browser`：只需 Web 服务，使用 HTTP/SSE 夹具；这是前端回归检查，不替代完整业务链路验收。
 - `report-deployments` 必须使用可丢弃的 API 数据库并设置 `E2E_ISOLATED_DB=1`，会保留报告/部署历史。
 - `factor-sdk` 需要 Vite 开发服务和 API，验证三类 TS 因子的双语声明/提示与编辑器自动保存；创建的测试草稿在结束时删除。
@@ -63,6 +63,33 @@ pnpm docs:images --group annotate --list
 5174，因此 E2E 使用同一 origin 验证工作台与公开文档之间的跳转。
 
 `E2E_BASE` 可覆盖前端地址(默认 `http://localhost:5173`);`E2E_NL=1` 打开需要 DEEPSEEK_API_KEY 的真 LLM 步骤,`E2E_BT=1` 打开真回测步骤。
+
+## Job 生命周期浏览器回归
+
+`job-system.mjs` 自行启动 `apps/api/tests/job-system-e2e-server.ts`，在临时 SQLite 上应用全部迁移，
+通过真实页面、HTTP、JobScheduler、生命周期、Worker 和结果事务完成回测、参数扫描、因子分析、
+因子相关性、每日信号及研究整理；嵌入式分析由已有 `embedded-analysis` 命令单独覆盖。
+不需要启动开发服务，不使用开发/生产数据库。行情、交易日历与外部命名/整理模型是受控夹具，
+邮件关闭；不验证真实行情质量、交易日制度或真实模型分析质量。
+
+```bash
+pnpm --filter @jixie/shared build
+pnpm --filter web build
+JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" pnpm e2e job-system
+JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" pnpm e2e embedded-analysis
+```
+
+`job-system` 复用 `strategy-orchestration`、`strategy-parameter-scan`、`factor-report-history`、
+`factor-correlation`、`daily-signals`、`backtest-report-history`，另执行因子研究卡和 Curator 页面流程。
+历史回测报告由夹具预置；回测与因子相关性重连场景只注入活动任务查询竞态，因子历史用例中的
+未保存草稿拦截使用 HTTP 替身。这些局部前端断言与其余真实任务计算分开看待。
+
+失败后可用 `JIXIE_JOB_E2E_ONLY` 选择上述任务名或 `factor-analysis`、`research-curator`（逗号分隔），
+每次仍重新建隔离库。默认不设置该变量时运行全部流程。
+截图位于 `apps/web/acceptance/`，新增截图前缀 `job-system-`，复用用例保留原截图名称；
+服务日志为 `job-system-server.log`，每次运行覆盖。脚本关闭浏览器/API/模型服务、断开 Prisma、
+删除临时库，并断言两个监听端口都已关闭。2026-09-24 实际通过记录见
+`docs/design/job-system-simplification.md`。
 
 ## 因子报告问答：完整用户任务与恢复回归
 

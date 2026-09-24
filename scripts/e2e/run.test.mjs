@@ -46,7 +46,7 @@ test('learning group retains its original sequence and separate image tasks', ()
     e2eCommands.some((command) => command.file.includes('help-content')),
     false,
   );
-  assert.equal(imageCommands.length, 17);
+  assert.equal(imageCommands.length, 18);
   assert.deepEqual(e2eCommands.find((command) => command.name === 'research-fcff-reuse').nodeArgs, [
     '--import',
     'tsx',
@@ -64,9 +64,17 @@ test('catalog covers every runnable browser file exactly once and excludes fixtu
     'technical-indicator-strategy.mjs',
   ]);
   const files = [];
+  const staticChecks = new Set([
+    'apps/docs/e2e/help-content.mjs',
+    'apps/docs/e2e/help-content.test.mjs',
+  ]);
   for (const directory of ['apps/web/e2e', 'apps/docs/e2e']) {
     for (const filename of await readdir(join(repositoryDirectory, directory))) {
-      if (filename.endsWith('.mjs') && !helpers.has(filename)) {
+      if (
+        filename.endsWith('.mjs') &&
+        !helpers.has(filename) &&
+        !staticChecks.has(`${directory}/${filename}`)
+      ) {
         files.push(`${directory}/${filename}`);
       }
     }

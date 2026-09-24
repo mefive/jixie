@@ -1,5 +1,12 @@
 export const e2eCommands = [
   {
+    name: 'job-system',
+    file: 'apps/web/e2e/job-system.mjs',
+    group: 'isolated',
+    notes:
+      'Build shared and Web. Real scheduler and Workers against synthetic market data, a local model and a disposable database. Run embedded-analysis separately for the seventh lifecycle.',
+  },
+  {
     name: 'research-curator',
     file: 'apps/web/e2e/research-curator.mjs',
     group: 'research',

@@ -1,3 +1,5 @@
+import type { ResearchCuratorVerificationNoteV1 } from '@jixie/shared';
+
 export const zhResearch = {
   title: '研究工作台',
   newChat: '新研究',
@@ -437,8 +439,12 @@ export const zhResearch = {
       tushare_probe_empty: '最近一次只读探测没有返回记录，不能据此确认数据可用。',
       tushare_api_unverified: '版本化 Tushare 探测目录未匹配到该接口，供应商能力尚未核验。',
       local_capability_unverified: '未匹配到已登记的本地能力，需要人工核验。',
+      cross_market_contract_match:
+        '已匹配跨市场数据契约登记信息；是否已接入及具体可用性以核验依据为准。',
+      source_decision_match:
+        '已匹配数据源选型记录；候选来源不代表已接入，可用性与许可限制以核验依据为准。',
       repository_reference_match: '只读检索在代码、帮助、ROADMAP 或设计文档中找到相关记录。',
-    },
+    } satisfies Record<ResearchCuratorVerificationNoteV1, string>,
     verificationEvidence: '核验依据',
     verificationStance: {
       supports: '支持',

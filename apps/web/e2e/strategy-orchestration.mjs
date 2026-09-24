@@ -141,6 +141,13 @@ try {
     fail(`page errors: ${JSON.stringify(pageErrors)}`);
   }
 
+  await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
+  await page.mouse.move(0, 0);
+  await page.screenshot({
+    path: new URL('../acceptance/job-system-backtest.png', import.meta.url).pathname,
+    fullPage: true,
+  });
+
   console.log(
     `[strategy-orchestration] PASS id=${strategyId} name=${JSON.stringify(saved.name)} trades=${saved.lastResult.trades}`,
   );
