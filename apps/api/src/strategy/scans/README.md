@@ -8,11 +8,11 @@
 | [submit.ts](submit.ts) `submitStrategyScan` | 路由传用户、配置／spec、strategyId 和 locale；冻结参数、交易日范围、截止日，返回 jobId/reportId |
 | [reports.ts](reports.ts) `listStrategyScanReports`、`readStrategyScanReport`、`findActiveStrategyScanJob`、`readStrategyScanJob` | 列表含各状态、最多 50 条；活动和日志以 Job ID 查询，报告详情使用 reportId |
 | [scan.ts](scan.ts) `normalizeScanSpec`、`parameterCombinations`、`scanCellOverrides`、`metricSummary`、`rebaseNav` | 规格、参数组合、覆盖值与摘要的纯计算，组合上限由本文件维护 |
-| [strategy-scan-lifecycle.ts](strategy-scan-lifecycle.ts) `strategyScanLifecycle` | 解析输入、装配父 Worker，通过 onSuccess 原子保存结果 |
+| [job-lifecycle.ts](job-lifecycle.ts) `strategyScanLifecycle` | 解析输入、装配父 Worker，通过 onSuccess 原子保存结果 |
 
 提交先检查语言／日期、静态参数声明和样本内外交易日范围，再开事务校验归属、活动任务并创建 Report + Job，提交后唤醒。这个事务不覆盖之前的源码检查和交易日查询。
 
-[strategy-scan-worker.ts](strategy-scan-worker.ts) 校验输入、转发日志与结果，并调用 [runStrategyScan](run.ts)，最后断开 Prisma。runStrategyScan 准备一次因子源码，直接循环参数组合，在同一线程中串行调用 [runSandboxedBacktest](../execution/simulation.ts) 完成各区间回测并汇总。每次模拟拥有并释放自己的策略与因子 runtime；scan.ts 仅提供纯计算。不经过正式回测的风险后处理。
+[worker.ts](worker.ts) 校验输入、转发日志与结果，并调用 [runStrategyScan](run.ts)，最后断开 Prisma。runStrategyScan 准备一次因子源码，直接循环参数组合，在同一线程中串行调用 [runSandboxedBacktest](../execution/simulation.ts) 完成各区间回测并汇总。每次模拟拥有并释放自己的策略与因子 runtime；scan.ts 仅提供纯计算。不经过正式回测的风险后处理。
 
 扫描不再为 cell 启动子进程，也没有专用执行器或 stop 消息。Job lifecycle 使用普通 Worker 和通用 runWorker；异常终止等待线程退出，不覆盖 worker.terminate。失去逐 cell 进程退出带来的强制内存回收，因此源码及编译入口回归覆盖同一线程连续运行、正常退出和异常终止。
 

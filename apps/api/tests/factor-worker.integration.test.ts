@@ -256,7 +256,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
     'strategy/backtests/worker',
     'factor/execution/worker',
     'factor/correlations/worker',
-    'strategy/scans/strategy-scan-worker',
+    'strategy/scans/worker',
   ])(
     '%s loads its dependencies, reports invalid input, and exits',
     async (path) => {
@@ -312,7 +312,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
     'scan worker runs consecutive simulations with the %s factor and exits',
     async (language) => {
       const strategyConfig = config('typescript', language);
-      const worker = new Worker(entry('strategy/scans/strategy-scan-worker'), {
+      const worker = new Worker(entry('strategy/scans/worker'), {
         workerData: {
           config: strategyConfig,
           spec: {
@@ -348,7 +348,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
         runWorker<StrategyScanPayload>({
           start: () => {
             const strategyConfig = config('typescript', 'typescript');
-            worker = new Worker(entry('strategy/scans/strategy-scan-worker'), {
+            worker = new Worker(entry('strategy/scans/worker'), {
               workerData: {
                 config: strategyConfig,
                 spec: {
@@ -439,7 +439,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
           factorDependencies: dependencies as unknown as pkg.Prisma.InputJsonValue,
         },
       });
-      const child = fork(entry('signals/runs/signal-worker'), [runId], {
+      const child = fork(entry('signals/runs/worker'), [runId], {
         cwd: apiDirectory,
         env: environment,
         execArgv,

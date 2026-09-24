@@ -38,13 +38,13 @@ Embedded 即使 kind/payload 损坏，仍按 researchExecutionId 清理 activeRu
 
 ## 七类业务
 
-- `strategy/backtests/strategy-backtest-lifecycle.ts`：回测结果及 Strategy.lastResult。
-- `strategy/scans/strategy-scan-lifecycle.ts`：扫描结果；保留父线程和 cell 子进程路径。
-- `factor/evaluations/factor-analysis-lifecycle.ts`：分析结果；onFailure 仅为 Worker 错误保存本地化 failureMessage。
-- `factor/correlations/factor-correlation-lifecycle.ts`：成功 upsert 缓存；失败保留上次成功缓存。
-- `signals/runs/signals-run-lifecycle.ts`：最新 attempt 才能发布结果；onCommitted 再检查当前 attempt，成功时先会计再通知，失败时仅通知。
-- `research/embedded/research-embedded-analysis-lifecycle.ts`：领域结果、证据与首次成功冻结；失败/中断按持久化关系清理。
-- `research/curator/research-curator-lifecycle.ts`：提交时重查 owner/fingerprint，findings 与统计整体保存。
+- `strategy/backtests/job-lifecycle.ts`：回测结果及 Strategy.lastResult。
+- `strategy/scans/job-lifecycle.ts`：扫描结果；同一 Worker 线程串行运行各组合，不创建 cell 子进程。
+- `factor/evaluations/job-lifecycle.ts`：分析结果；onFailure 仅为 Worker 错误保存本地化 failureMessage。
+- `factor/correlations/job-lifecycle.ts`：成功 upsert 缓存；失败保留上次成功缓存。
+- `signals/runs/job-lifecycle.ts`：最新 attempt 才能发布结果；onCommitted 再检查当前 attempt，成功时先会计再通知，失败时仅通知。
+- `research/embedded/job-lifecycle.ts`：领域结果、证据与首次成功冻结；失败/中断按持久化关系清理。
+- `research/curator/job-lifecycle.ts`：提交时重查 owner/fingerprint，findings 与统计整体保存。
 
 有 Job 的报告从 Job 投影状态；历史无 Job 终态回读 nullable legacyStatus/legacyError。
 Factor 保留 failureMessage。ResearchExecution/CellExecution 为领域结果，Job.done 与 execution.error 可以同时成立。

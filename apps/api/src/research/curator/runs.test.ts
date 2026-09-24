@@ -15,7 +15,7 @@ import { extractResearchCuratorEvidence } from './prepare.js';
 import { getResearchCuratorRun, researchCuratorQuality } from './read.js';
 
 import { JobService, type Job } from '#jobs/service.js';
-import { researchCuratorLifecycle } from './research-curator-lifecycle.js';
+import { researchCuratorLifecycle } from './job-lifecycle.js';
 import * as curator from './prepare.js';
 import * as referenceSearch from './reference-search.js';
 

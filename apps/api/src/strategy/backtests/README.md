@@ -8,7 +8,7 @@
 | [reports.ts](reports.ts) `listStrategyBacktestReports`、`readStrategyBacktestReport` | 读取本人成功且有 payload 的冻结报告；不从 Strategy.lastResult 拼装历史 |
 | 同文件 `findActiveStrategyBacktestJob`、`readStrategyBacktestJob` | 活动恢复／日志轮询；active 包含 queued/running，返回 ID 对或 null，日志保留 since 游标并检查 kind 和归属 |
 | [job-payload.ts](job-payload.ts) `backtestJobPayloadSchema`、`BacktestJobPayload` | 保存端与执行端共用的持久化输入契约；保存时类型检查，读取时运行时校验 |
-| [strategy-backtest-lifecycle.ts](strategy-backtest-lifecycle.ts) `strategyBacktestLifecycle` | 解析输入、启动线程，通过 onSuccess 原子保存结果 |
+| [job-lifecycle.ts](job-lifecycle.ts) `strategyBacktestLifecycle` | 解析输入、启动线程，通过 onSuccess 原子保存结果 |
 | [run.ts](run.ts) `runConfiguredBacktest` | 仅回测 Worker 调用；config 和用户上下文 → 完整计算结果，选择 TS/Python、附加因子血缘与风险 |
 
 ## 顺序与事务

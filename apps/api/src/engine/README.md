@@ -22,7 +22,7 @@ Engine 接收 `EngineStrategy` 决策回调与显式端口，按模拟日期提�
 | 确定性测试数据源 | [testing/fixture-port.ts](testing/fixture-port.ts) |
 | 引擎输入、策略接口与结果类型 | [types.ts](types.ts) |
 
-回测线程入口位于 [strategy/backtests/worker.ts](../strategy/backtests/worker.ts)，调用同目录 `run.ts` 编排正式回测，由 `backtests/strategy-backtest-lifecycle.ts` 启动。`signal-worker.*` 已归入 [signals/runs](../signals/runs/signal-worker.ts)，由 Signals 任务启动。Agent 快速回测工具及其专用 Worker 已于 2026-09-10 退役，策略对话生成代码后由用户在工作台显式回测。
+回测线程入口位于 [strategy/backtests/worker.ts](../strategy/backtests/worker.ts)，调用同目录 `run.ts` 编排正式回测，由 `backtests/job-lifecycle.ts` 启动。信号 Worker 位于 [signals/runs/worker.ts](../signals/runs/worker.ts)，由 Signals 任务启动。Agent 快速回测工具及其专用 Worker 已于 2026-09-10 退役，策略对话生成代码后由用户在工作台显式回测。
 
 ## DataPort 与沙盒如何协作
 

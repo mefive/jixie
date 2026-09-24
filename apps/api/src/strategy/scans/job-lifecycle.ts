@@ -8,8 +8,8 @@ import { runWorker } from '#jobs/worker.js';
 import { strategyScanJobPayloadSchema, type StrategyScanWorkerInput } from './job-payload.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('./strategy-scan-worker.boot.mjs', import.meta.url)
-  : new URL('./strategy-scan-worker.js', import.meta.url);
+  ? new URL('./worker.boot.mjs', import.meta.url)
+  : new URL('./worker.js', import.meta.url);
 
 export const strategyScanLifecycle = {
   async onExecute(job, log) {

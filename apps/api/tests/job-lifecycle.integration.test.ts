@@ -38,7 +38,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { completedSignalRunIds } from '#signals/runs/state.js';
 import type { PreparedResearchCuratorRun } from '#research/curator/prepare.js';
 import { registerJobLifecycles } from '#jobs/register.js';
-import { strategyBacktestLifecycle } from '#strategy/backtests/strategy-backtest-lifecycle.js';
+import { strategyBacktestLifecycle } from '#strategy/backtests/job-lifecycle.js';
 import { JobLogs } from '#jobs/logs.js';
 import { JobService } from '#jobs/service.js';
 

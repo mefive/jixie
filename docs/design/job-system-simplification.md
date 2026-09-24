@@ -486,6 +486,8 @@ API/CLI、边界检查、现有测试和当前架构文档同步更新。生命�
 用户随后确认文件名写全，采用 `<业务模块>-<任务名>-lifecycle.ts`，例如 strategy-backtest-lifecycle.ts。
 七类文件及源码/测试导入、README 和当前架构文档同步重命名；行为和导出对象名保持不变。
 
+上述为当时的命名决策；2026-09-24 改为目录内统一使用 `job-lifecycle.ts`，完整导出对象名保留。当前规则与验证记录见 [业务执行职责整理](execution-naming-and-ownership.md#2026-09-24-任务文件命名统一)。本文此前的旧运行路径为历史记录，当前入口以 [后端运行入口清单](../backend-runtime-entries.md) 为准。
+
 导出对象名随后同步为文件名对应的完整驼峰名称：strategyBacktestLifecycle、signalsRunLifecycle、researchEmbeddedAnalysisLifecycle；其余四个名称已符合规则。注册、测试和文档引用同步更新。
 
 ## 2026-09-23 Job payload 与 Worker 输入统一

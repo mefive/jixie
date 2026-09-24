@@ -7,7 +7,7 @@ Factor / Strategy Agent 在宿主页面发起独立 Python 分析；此能力拥
 | [context.ts](context.ts) `captureEmbeddedContext` | Factor/Strategy Agent 启动与版本创建；服务端检查宿主／报告权限，捕获已保存代码和上下文，不信任请求中的 owner |
 | [versions.ts](versions.ts) `createEmbeddedAnalysis`、`deriveEmbeddedVersion`、`updateEmbeddedVersion` | Agent 工具创建分析；embedded 路由和 Agent 工具派生／更新版本及单 Cell 内部文档，更新检查 revision、冻结和活动运行 |
 | [submit.ts](submit.ts) `submitEmbeddedRun` | 路由与 Agent；同一事务冻结源码、参数和上下文，建立 Execution/CellExecution/Job，条件占用 activeRunId |
-| [research-embedded-analysis-lifecycle.ts](research-embedded-analysis-lifecycle.ts) `researchEmbeddedAnalysisLifecycle` | onExecute 解析与执行、onSuccess 保存结果；onFailure/onInterrupted 按真实关联清理 |
+| [job-lifecycle.ts](job-lifecycle.ts) `researchEmbeddedAnalysisLifecycle` | onExecute 解析与执行、onSuccess 保存结果；onFailure/onInterrupted 按真实关联清理 |
 | [read.ts](read.ts) `getEmbeddedRun`、`getEmbeddedInput` 及 list/get 分析／版本入口 | 本人分页和快照查询；运行详情只带输入元数据，单输入入口返回完整留存响应 |
 | [cancel.ts](cancel.ts) `cancelEmbeddedRun` | 路由取消；事务写终态、结束 Job 和释放占用，再中断本进程解释器 |
 | [continuation.ts](continuation.ts) `continueEmbeddedResearch`、`changeEmbeddedInputMode` | 创建普通可编辑接续文档；切换 retained/current 要求文档修订并使 Python 输出过期 |

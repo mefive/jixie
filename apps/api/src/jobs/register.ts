@@ -1,11 +1,11 @@
 import { JobService } from './service.js';
-import { strategyBacktestLifecycle } from '#strategy/backtests/strategy-backtest-lifecycle.js';
-import { strategyScanLifecycle } from '#strategy/scans/strategy-scan-lifecycle.js';
-import { factorAnalysisLifecycle } from '#factor/evaluations/factor-analysis-lifecycle.js';
-import { factorCorrelationLifecycle } from '#factor/correlations/factor-correlation-lifecycle.js';
-import { signalsRunLifecycle } from '#signals/runs/signals-run-lifecycle.js';
-import { researchEmbeddedAnalysisLifecycle } from '#research/embedded/research-embedded-analysis-lifecycle.js';
-import { researchCuratorLifecycle } from '#research/curator/research-curator-lifecycle.js';
+import { strategyBacktestLifecycle } from '#strategy/backtests/job-lifecycle.js';
+import { strategyScanLifecycle } from '#strategy/scans/job-lifecycle.js';
+import { factorAnalysisLifecycle } from '#factor/evaluations/job-lifecycle.js';
+import { factorCorrelationLifecycle } from '#factor/correlations/job-lifecycle.js';
+import { signalsRunLifecycle } from '#signals/runs/job-lifecycle.js';
+import { researchEmbeddedAnalysisLifecycle } from '#research/embedded/job-lifecycle.js';
+import { researchCuratorLifecycle } from '#research/curator/job-lifecycle.js';
 
 /** Explicit process setup: registration never starts work or recovers Jobs. */
 export function registerJobLifecycles(): void {

@@ -6,7 +6,7 @@ Curator 从已有研究证据生成待处理发现，拥有 CuratorRun 与 resea
 
 [prepare.ts](prepare.ts) 的 `extractResearchCuratorEvidence` 和 `prepareResearchCuratorRun` 读取用户证据、调用模型并核验候选；[reference-search.ts](reference-search.ts) 读取仓库参考资料，仓库根按 API 工作目录解析。这些工作发生在完成事务外，prepare 返回候选，不发布 findings。
 
-[research-curator-lifecycle.ts](research-curator-lifecycle.ts) 的 `researchCuratorLifecycle` 准备候选后通过 onSuccess 核对 runId/userId、在同一事务重查 fingerprint 并发布 findings 和统计。运行状态从 Job 投影；失败不发布部分候选，候选准备不进入数据库事务。
+[job-lifecycle.ts](job-lifecycle.ts) 的 `researchCuratorLifecycle` 准备候选后通过 onSuccess 核对 runId/userId、在同一事务重查 fingerprint 并发布 findings 和统计。运行状态从 Job 投影；失败不发布部分候选，候选准备不进入数据库事务。
 
 [read.ts](read.ts) 的 `getLatestResearchCuratorRun`、`getResearchCuratorRun`、`researchCuratorQuality` 查询本人运行／发现和质量统计；[feedback.ts](feedback.ts) 的 `setResearchCuratorFindingDisposition`、`updateResearchCuratorFindingFeedback` 保存人工处置及核验反馈。两者共用 [views.ts](views.ts) 纯映射，不依赖 LLM 准备层。
 

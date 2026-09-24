@@ -9,8 +9,8 @@ import { notifySignalRun } from './notifier.js';
 import { initializeSignalAccounting } from '../accounting/initialize.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('./signal-worker.boot.mjs', import.meta.url)
-  : new URL('./signal-worker.js', import.meta.url);
+  ? new URL('./worker.boot.mjs', import.meta.url)
+  : new URL('./worker.js', import.meta.url);
 
 export const signalsRunLifecycle = {
   async onExecute(job, log) {

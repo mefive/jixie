@@ -496,7 +496,7 @@ runtime 持有会话、串行请求、能力协商、SDK 数据交互与进程�
 | 每日批次 | 准备部署所需数据、结算、遍历部署并调用已有单次运行 | daily |
 | 因子输入约束 | 冻结血缘、输入摘要，以及由部署决定的利率输入与就绪要求 | factor-inputs |
 
-手动提交和每日调度最终都调用 `runs/enqueue.ts`，复用同一 SignalRun + Job 流程；它们只是不同发起入口。`runs/signal-worker.ts` 只服务该运行流程，因此保留在 runs，不新增 execution 目录。`accounting/replay.ts` 虽然是纯计算，也只服务记账，继续跟随 accounting。
+手动提交和每日调度最终都调用 `runs/enqueue.ts`，复用同一 SignalRun + Job 流程；它们只是不同发起入口。`runs/worker.ts` 只服务该运行流程，因此保留在 runs，不新增 execution 目录。`accounting/replay.ts` 虽然是纯计算，也只服务记账，继续跟随 accounting。
 
 改前、改后的主体目录相同，局部变化如下：
 

@@ -2,4 +2,4 @@
 import { register } from 'tsx/esm/api';
 
 register();
-await import(new URL('./strategy-scan-worker.ts', import.meta.url).href);
+await import(new URL('./worker.ts', import.meta.url).href);

@@ -138,12 +138,12 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 ### 2. 提交策略回测并保存报告
 
 1. `strategy/backtests/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后唤醒队列，日志在执行开始时初始化。
-2. 队列原子领取 Job，执行器加载 `strategy/backtests/strategy-backtest-lifecycle.ts`，解析持久化输入并启动 `strategy/backtests/worker`。
+2. 队列原子领取 Job，执行器加载 `strategy/backtests/job-lifecycle.ts`，解析持久化输入并启动 `strategy/backtests/worker`。
 3. Worker 调用 `strategy/backtests/run.ts`，通过 `strategy/factor-inputs/prepare.ts` 准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
 4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/risk`，结果位于回测的多资产配置风险面板。
 5. Worker 返回结果并退出；API 主线程的执行器创建 Prisma 事务，把同一个 transaction 交给业务 `complete`，保存报告/相关缓存与 Job 终态。计算与外部调用不占用这个完成事务。
 
-参数扫描使用独立的 `scans/strategy-scan-lifecycle.ts` 和扫描 Worker。`scans/run.ts` 在同一线程内直接循环并调用 `execution/simulation.ts` 的 `runSandboxedBacktest`，比较冻结范围内的结果；因子源码准备一次，每次模拟单独初始化并关闭 runtime，不经过正式回测的风险后处理。没有 cell 子进程或专用执行器；任务通过通用 Worker 生命周期退出。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
+参数扫描使用独立的 `scans/job-lifecycle.ts` 和扫描 Worker。`scans/run.ts` 在同一线程内直接循环并调用 `execution/simulation.ts` 的 `runSandboxedBacktest`，比较冻结范围内的结果；因子源码准备一次，每次模拟单独初始化并关闭 runtime，不经过正式回测的风险后处理。没有 cell 子进程或专用执行器；任务通过通用 Worker 生命周期退出。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
 
 ### 3. 维护发布数据并生成每日信号
 
@@ -151,7 +151,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 2. Market 的具体同步函数获取候选数据，按原覆盖规则校验并写库。股票四表、ETF 三表等保留各自的替换事务。
 3. 原始质量通过后重算派生指标，再检查派生质量；Maintenance 才推进发布水位或 dataRevision。单项同步成功不等于整轮维护已发布。
 4. Signals 读取冻结部署、已发布截止日和因子血缘，创建 SignalRun + Job；其子进程调用 Strategy/Engine 生成下一交易日指令。
-5. `runs/signals-run-lifecycle.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化提交后操作重试。
+5. `runs/job-lifecycle.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化提交后操作重试。
 
 Market 的同步/读取/基础质量归入所属数据领域，具体入口见模块 README。Signals 的利率依赖解析和 14 天新鲜度政策归 `signals/factor-inputs/rates.ts`；Market 的 `rates/government-yield-availability.ts` 只返回所需期限在交易日已可得的最新日期。日历事实由 `market/calendar` 供 Maintenance 与 Signals 共用，信号下一交易日要求仍归 Signals。
 

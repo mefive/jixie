@@ -12,7 +12,7 @@
 | [read.ts](read.ts) `listFactorReports`、`readFactorReport`、`readFactorAnalysisJob` | analysis 路由；按拥有者读取，分别执行报告投影与 holdout 日志封存 |
 | 同文件 `readFactorAnalysisResult` | Agent 分析工具轮询 explore 结果；不作为通用报告详情入口 |
 | 同文件 `readFactorResearchWindow`、`readFactorResearchSummary` | 研究窗口和尝试统计查询 |
-| [factor-analysis-lifecycle.ts](factor-analysis-lifecycle.ts) `factorAnalysisLifecycle` | 在 jobs/register 注册为 factor-analysis；onExecute 计算，onSuccess 保存业务结果 |
+| [job-lifecycle.ts](job-lifecycle.ts) `factorAnalysisLifecycle` | 在 jobs/register 注册为 factor-analysis；onExecute 计算，onSuccess 保存业务结果 |
 
 ## 冻结、计算和封存
 

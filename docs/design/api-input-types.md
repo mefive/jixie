@@ -86,7 +86,7 @@ TypeScript 类型不能证明数据已经校验，也不引入品牌类型或额
 
 | 保留的解析类别 | 核对的实现及理由 |
 | --- | --- |
-| 数据库存储 / 冻结快照 | `strategy/definitions/visibility.ts`、`strategy/factor-inputs/prepare.ts`；`signals/deployments/manage.ts`、`signals/runs/signal-worker.ts`；Factor 的 `definitions/catalog.ts`、`composition/operations.ts`、`composition/panel-source.ts`、`publication/factor.ts`、`publication/panel-composite.ts`、`sources/resolve.ts`、`sources/snapshot.ts`。这些读取配置、报告、组合或序列化来源，当前 HTTP 的类型不能证明历史数据有效。 |
+| 数据库存储 / 冻结快照 | `strategy/definitions/visibility.ts`、`strategy/factor-inputs/prepare.ts`；`signals/deployments/manage.ts`、`signals/runs/worker.ts`；Factor 的 `definitions/catalog.ts`、`composition/operations.ts`、`composition/panel-source.ts`、`publication/factor.ts`、`publication/panel-composite.ts`、`sources/resolve.ts`、`sources/snapshot.ts`。这些读取配置、报告、组合或序列化来源，当前 HTTP 的类型不能证明历史数据有效。 |
 | Job payload / 结果 | Strategy backtest / scan、Factor analysis / correlation、Signals run、Research curator / embedded 的 `job.ts`；包括相关性输出字符串的解析。队列持久化与 Worker 返回分别是独立边界。 |
 | Factor 版本兼容与规范化 | `factor/execution/spec.ts` 的两个 normalize 函数同时被 HTTP 提交、工具构造、Job、报告回读、holdout 和 evaluator 使用，承担 unknown 解码、旧版协议包裹及默认值补齐。保留当前契约；不以某条 HTTP 链已解析为依据直接删除其公共校验。若继续拆分，需要统一核对历史协议、调用顺序和评估身份，本次不改变这些业务规则。 |
 | Python / SDK | `infra/runtime/python/session.ts` 的信封与业务 frame 校验检查不同层次；`research/sdk/validation.ts` 解析各方法参数和返回行；`research/schema.ts` 检查引用的方法/参数。均保留，不能把“frame 已解析”当成“方法参数已合法”。 |
