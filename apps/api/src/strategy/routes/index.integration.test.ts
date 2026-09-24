@@ -16,6 +16,7 @@ const resources = vi.hoisted(() => ({
   logs: vi.fn(),
   name: vi.fn(),
   parameters: vi.fn(),
+  namingOperations: [] as Promise<boolean>[],
 }));
 vi.mock('ulid', () => ({ ulid: resources.id }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -44,6 +45,17 @@ vi.mock('#infra/llm/deepseek.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#infra/llm/deepseek.js')>()),
   chatText: resources.name,
 }));
+vi.mock('../definitions/naming.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../definitions/naming.js')>();
+  return {
+    ...original,
+    refreshStrategyName: (input: Parameters<typeof original.refreshStrategyName>[0]) => {
+      const operation = original.refreshStrategyName(input);
+      resources.namingOperations.push(operation);
+      return operation;
+    },
+  };
+});
 vi.mock('../scans/inspect-parameters.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../scans/inspect-parameters.js')>()),
   inspectStrategyParameters: resources.parameters,
@@ -136,6 +148,7 @@ describe('Strategy HTTP business boundaries', () => {
     await prisma.daily.create({ data: { tsCode: 'fixture', tradeDate: '20240104' } });
   });
   afterEach(async () => {
+    await Promise.allSettled(resources.namingOperations.splice(0));
     await prisma.user.deleteMany();
     await prisma.factorComposite.deleteMany();
     await prisma.factor.deleteMany();
@@ -177,6 +190,7 @@ describe('Strategy HTTP business boundaries', () => {
     );
     expect(await prisma.backtestReport.count()).toBe(0);
     expect(resources.wake).not.toHaveBeenCalled();
+    expect(resources.namingOperations).toHaveLength(0);
   });
 
   it('freezes committed config and name in report/job and hides foreign reports', async () => {
@@ -200,6 +214,11 @@ describe('Strategy HTTP business boundaries', () => {
     });
     expect(resources.logs).not.toHaveBeenCalled();
     expect(resources.wake).toHaveBeenCalledTimes(1);
+    expect(resources.namingOperations).toHaveLength(1);
+    await expect(resources.namingOperations[0]).resolves.toBe(true);
+    expect((await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).name).toBe(
+      'Generated strategy',
+    );
     await prisma.backtestReport.update({
       where: { id: reportId },
       data: { job: { update: { status: 'done' } }, payload: { marker: 'frozen result' } },
@@ -226,6 +245,34 @@ describe('Strategy HTTP business boundaries', () => {
     ).toBe(404);
   });
 
+  it('discards a delayed name when a newer backtest config has been submitted', async () => {
+    let finishNaming!: (name: string) => void;
+    resources.name.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        finishNaming = resolve;
+      }),
+    );
+    try {
+      const first = await request('/strategies/strategy/backtests', config);
+      expect(first.status).toBe(200);
+      const { jobId } = await first.json();
+      expect(resources.name).toHaveBeenCalledOnce();
+      await prisma.job.update({ where: { id: jobId }, data: { status: 'done' } });
+      resources.name.mockResolvedValueOnce(config.name);
+      const newerConfig = { ...config, code: `${config.code}\n// New version` };
+      expect((await request('/strategies/strategy/backtests', newerConfig)).status).toBe(200);
+      finishNaming('Obsolete name');
+      await expect(resources.namingOperations[0]).resolves.toBe(false);
+      await expect(resources.namingOperations[1]).resolves.toBe(false);
+      expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toMatchObject({
+        name: config.name,
+        config: expect.objectContaining({ code: newerConfig.code }),
+      });
+    } finally {
+      finishNaming('Obsolete name');
+    }
+  });
+
   it('rolls back config, report and job together if the nested job insert fails', async () => {
     await seedJob('backtest', 'done');
     resources.id.mockReturnValueOnce('new-report').mockReturnValueOnce('existing-job');
@@ -244,6 +291,7 @@ describe('Strategy HTTP business boundaries', () => {
     });
     expect(resources.logs).not.toHaveBeenCalled();
     expect(resources.wake).not.toHaveBeenCalled();
+    expect(resources.namingOperations).toHaveLength(0);
   });
 
   it('freezes scan parameters, split ranges and data cutoff without changing the draft', async () => {

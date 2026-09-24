@@ -15,7 +15,7 @@
 
 `strategyRunKey` 只包含影响回测结果的配置，改显示名称不清除 lastResult。保存重名时保留旧名称，回测提交使用实际保存的名称冻结报告。引用提取直接使用 [references](../factor-inputs/README.md)，不为可见性检查加载编译准备能力。
 
-[naming.ts](naming.ts) 的 `proposeStrategyName` 调模型，`uniqueStrategyName` 查询用户内名称，`refreshStrategyName` 在模型返回后开事务复查 expectedRunKey，再决定是否改名；没有独立命名 HTTP API。回测 Job 的命名是完成事务前的尽力动作，不能理解为整个回测原子事务的一部分。
+[naming.ts](naming.ts) 的 `proposeStrategyName` 调模型，`uniqueStrategyName` 查询用户内名称，`refreshStrategyName` 在模型返回后开事务复查 expectedRunKey，再决定是否改名；没有独立命名 HTTP API。回测提交事务成功后异步触发命名，不等待 Job 启动，也不阻塞提交响应或 Job 终态；失败只记录日志，进程退出可能丢失该次命名。冻结报告不随策略改名。
 
 Research 草稿使用默认回测配置和 Python/py-v1、私有状态。创建最多重试 50 次：P2002 后先查同源执行的并发胜者，否则再分配名称；未知错误直接抛出。复用顺序和证据生成归 [Research handoff](../../research/handoff/README.md)，本入口不替代普通创建／公开复制。
 

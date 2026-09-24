@@ -25,9 +25,6 @@ const execution = vi.hoisted(() => ({
 }));
 vi.mock('../src/server.js', () => ({ buildApp: vi.fn() }));
 vi.mock('#jobs/worker.js', () => ({ runWorker: execution.worker }));
-vi.mock('#strategy/definitions/config.js', () => ({
-  strategyRunKey: () => 'fixture',
-}));
 vi.mock('#strategy/definitions/naming.js', () => ({
   refreshStrategyName: execution.rename,
 }));
@@ -313,38 +310,18 @@ describe('durable job and business lifecycle transactions', () => {
   });
 
   it.each(['done', 'error'] as const)(
-    'starts naming alongside the worker and awaits both on %s',
+    'finishes the backtest with %s without invoking naming',
     async (outcome) => {
-      let finishRename!: () => void;
-      let finishWorker!: () => void;
-      execution.rename.mockImplementationOnce(
-        () =>
-          new Promise<void>((resolve) => {
-            finishRename = resolve;
-          }),
-      );
-      execution.worker.mockImplementationOnce(
-        () =>
-          new Promise((resolve, reject) => {
-            finishWorker = () =>
-              outcome === 'done' ? resolve(summary) : reject(new Error('worker failed'));
-          }),
-      );
-      const completion = JobService.execute(ids.backtest);
-      await vi.waitFor(() => {
-        expect(execution.rename).toHaveBeenCalledOnce();
-        expect(execution.worker).toHaveBeenCalledOnce();
-      });
-      try {
-        finishWorker();
-        await Promise.resolve();
-        expect((await prisma.job.findUniqueOrThrow({ where: { id: ids.backtest } })).status).toBe(
-          'running',
-        );
-      } finally {
-        finishRename();
-        await completion;
+      if (outcome === 'done') {
+        execution.worker.mockResolvedValueOnce(summary);
+      } else {
+        execution.worker.mockRejectedValueOnce(new Error('worker failed'));
       }
+
+      await JobService.execute(ids.backtest);
+
+      expect(execution.worker).toHaveBeenCalledOnce();
+      expect(execution.rename).not.toHaveBeenCalled();
       expect((await prisma.job.findUniqueOrThrow({ where: { id: ids.backtest } })).status).toBe(
         outcome,
       );
@@ -402,9 +379,7 @@ describe('durable job and business lifecycle transactions', () => {
         { source: 'system', level: 'info', text: 'fixture log' },
       ]);
       if (kind === 'backtest') {
-        expect(execution.rename).toHaveBeenCalledWith(
-          expect.objectContaining({ id: 'strategy', userId: 'owner', expectedRunKey: 'fixture' }),
-        );
+        expect(execution.rename).not.toHaveBeenCalled();
         expect(
           (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
         ).toEqual(summary);

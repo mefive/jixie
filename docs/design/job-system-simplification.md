@@ -613,3 +613,22 @@ Web 类型检查、ESLint、Prettier、构建及 diff 检查通过；构建仍�
 已检查 `job-system-curator-notes-zh.png` / `job-system-curator-notes-en.png` 中的实际文案。
 日志为 `/tmp/jixie-curator-i18n-e2e.log`；临时服务、浏览器、端口和数据库均已清理。
 用户已确认修复结果。本次补充提交信息为 `test(jobs): cover lifecycle browser flows and fix curator labels`，包含隔离 E2E、文案修复及验证记录；没有 push 或部署。
+
+### 2026-09-24 策略命名改由回测提交触发
+
+用户批准将自动命名从 Job onExecute 移到 submitStrategyBacktest 的成功提交之后。
+本节替代前文关于命名与 Worker 并发、终态等待命名的约定；既有历史验收记录保留。
+提交事务返回实际保存的配置，异步命名使用该快照及 expectedRunKey；拒绝或回滚不触发命名。
+命名失败只记录日志，不阻塞 HTTP 响应或 Job 终态；报告继续冻结提交时名称。
+命名是进程内尽力操作，进程退出可能丢失，不增加持久化任务或自动重试。
+
+提交信息：`fix(strategy): trigger naming on backtest submission`。
+已准备提交顺序、慢命名、命名失败、拒绝/回滚、过期命名和 Job 无命名职责的回归测试。
+全仓 `pnpm typecheck` 通过（838 文件、0 后端边界违规，生成物一致性及全部 workspace 类型检查通过）；
+变更代码 ESLint、Prettier 和 `git diff --check` 通过。
+人工代码 review 已获用户批准。行为验证：
+`pnpm --filter api test src/strategy/routes/backtest.test.ts src/strategy/routes/index.integration.test.ts tests/job-lifecycle.integration.test.ts`
+通过，3 个文件共 83 个测试；`pnpm check:backend-boundaries` 的 30 个自测和项目扫描通过。
+集成测试使用临时 SQLite 和模型/Worker 替身，验证真实提交及终态事务；不验证在线模型或真实回测计算。
+测试完成后 Prisma 连接已断开、临时数据库已清理，测试进程正常退出；本轮未启动开发服务。
+验证通过后按已批准的信息提交；没有 push 或部署。
