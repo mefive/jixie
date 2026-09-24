@@ -17,8 +17,7 @@ export interface CustomFactorModule {
   code?: string; // frozen Python source; TypeScript modules use transformed js below
   js?: string; // factor module transformed to CJS; omitted for a frozen panel composite bundle
   historyFields?: CustomFactorHistoryField[];
-  /** Omitted means the cross-sectional Factor SDK. Asset-scoped Factor V2 definitions carry
-   * their compiler-derived execution contract across the engine wall. */
+  /** Omitted means the cross-sectional Factor SDK. Execution metadata is resolved by FactorHost. */
   analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
   crossSectional?: { window?: number };
   assetSeries?: AssetFactorRuntimeMeta;

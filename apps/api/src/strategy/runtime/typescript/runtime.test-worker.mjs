@@ -3,7 +3,7 @@ import { register } from 'tsx/esm/api';
 
 register();
 
-const { runSandboxedBacktest } = await import('../run.ts');
+const { runSandboxedBacktest } = await import('../../execution/simulation.ts');
 const { fixturePort } = await import('#engine/testing/fixture-port.js');
 
 try {

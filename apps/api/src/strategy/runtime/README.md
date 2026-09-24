@@ -4,7 +4,7 @@
 
 公共返回类型不暴露语言专属诊断。需要 metrics 的隔离测试和性能工具直接调用 [TypeScriptStrategyRuntime.start](typescript/typescript-strategy-runtime.ts)，继续验证缓存、通信和传输量；普通业务仍使用公共入口，Python 不提供无业务意义的 metrics。
 
-[run.ts](run.ts) 拥有一次回测／信号捕获的 runtime 和 FactorHost，创建唯一生产 EngineStrategy 适配：`{ ...runtime.metadata, onBar: context => runtime.execute({ context }) }`，在 finally 关闭两者。Engine 本身不选择语言，不加载源码。
+共享完整模拟归 [execution/simulation.ts](../execution/simulation.ts)，由正式回测、扫描 cell 和 Signals 分别选择普通回测或信号捕获入口。本目录只负责语言运行时和策略协议，不规划完整业务流程。
 
 [bridge.ts](bridge.ts) 统一启动协议、bar 快照、宿主查询、历史同步和命令重放，返回 metadata 与 execute(context)。底层 TypeScriptTransport 与 PythonSession 实现同一 send/readValidated 契约，全部命令交给公共 exchange；具体实例继承公共 SandboxRuntime，以 startSandboxRuntime 创建和交接资源。
 

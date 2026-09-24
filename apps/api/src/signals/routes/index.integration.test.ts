@@ -69,7 +69,6 @@ const dependencies = [
     analysisKind: 'cross_sectional',
     codeHash: 'frozen-factor',
     approvedReportId: 'approved',
-    inputs: ['daily'],
   },
 ];
 const app = new Hono().onError(handleApiError);
@@ -133,7 +132,10 @@ describe('Signals HTTP and persistence boundaries', () => {
     vi.clearAllMocks();
     resources.id.mockReset().mockImplementation(() => `signals-${++fixture.sequence}`);
     resources.metadata.mockReset().mockResolvedValue({ watch: [], futures: [], factors: [] });
-    resources.factors.mockReset().mockResolvedValue({ modules: [], factors: dependencies });
+    resources.factors.mockReset().mockResolvedValue({
+      modules: [{ key: 'quality', js: 'module.exports = defineFactor({ compute: () => 1 });' }],
+      factors: dependencies,
+    });
     resources.yieldReady.mockReset().mockResolvedValue(true);
     resources.completion.mockReset().mockResolvedValue('done');
     await prisma.user.createMany({
@@ -325,7 +327,7 @@ describe('Signals HTTP and persistence boundaries', () => {
 
   it('rejects missing or changed factor evidence rather than silently deploying current dependencies', async () => {
     resources.factors.mockResolvedValueOnce({
-      modules: [],
+      modules: [{ key: 'quality', js: 'module.exports = defineFactor({ compute: () => 1 });' }],
       factors: [{ ...dependencies[0], codeHash: 'changed' }],
     });
     await expect(deployBacktestReport('owner', 'report', 'en')).rejects.toMatchObject({

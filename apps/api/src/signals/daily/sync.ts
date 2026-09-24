@@ -19,7 +19,7 @@ import {
 } from '#market/etfs/sync.js';
 import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
 import { TushareClient } from '#market/providers/tushare/client.js';
-import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
+import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
 
 /** Include deployment references in the same read-only readiness check as the registry. */
 export async function prepareSignalEtfMarketDate(

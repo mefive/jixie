@@ -12,7 +12,7 @@
 
 入队在事务中重查 active 状态。同部署同日 done 或 running 的运行直接复用；error/stale 复用 runId，清理结果与通知状态并创建新 Job，保留冻结依赖。新 Run 从部署冻结依赖。Run 与 queued Job 同事务，提交后唤醒队列，日志在执行开始时初始化。
 
-[signal-worker.ts](signal-worker.ts) 只能经 IPC 运行：加载 Run 和部署，检查日期范围，按 signal 场景准备因子，同时比较部署与 Run 的依赖快照，再调用 `runWalledSignalCapture`。捕获截至 tradeDate 的模型结果和下一开盘意图，补证券名称与因子摘要，通过 IPC 返回；finally 断开 Prisma 和 IPC。Worker 不写账户快照。入口路径见 [运行清单](../../../../../docs/backend-runtime-entries.md)。
+[signal-worker.ts](signal-worker.ts) 接收 runId、调用 [runSignal](run.ts)、转发日志/结果，最后释放 Prisma 和 IPC。runSignal 加载 Run 和部署、准备因子源码、将部署和运行快照交给 Strategy 共享模拟，在因子初始化后、Engine 开始前核对完整血缘并捕获信号，最后补证券名称与因子摘要。部署 locale 保存在函数局部，失败在返回 worker 前翻译，保留原错误作为 cause；Worker 不重复翻译。函数不写账户快照，原 Job 完成事务保持。
 
 任务通过 onSuccess 在终态事务里写运行结果；提交成功后依次等待 [账户初始化](../accounting/README.md) 和 [notifier.ts](notifier.ts) 的 `notifySignalRun`。初始化失败会阻止本次后续通知；这些步骤不与结果保存组成总事务，也没有 outbox 保证。通知结果由 notifier 写回 Run。
 

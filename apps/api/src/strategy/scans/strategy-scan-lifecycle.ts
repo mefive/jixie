@@ -1,4 +1,4 @@
-import { strategyScanWorkerMessageSchema, type StrategyScanControl } from './worker-protocol.js';
+import { strategyScanWorkerMessageSchema } from './worker-protocol.js';
 import { Worker } from 'node:worker_threads';
 import type { StrategyScanPayload } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -19,8 +19,8 @@ export const strategyScanLifecycle = {
     }
     const result = await runWorker<StrategyScanPayload>({
       onLog: log,
-      start: () => {
-        const worker = new Worker(workerUrl, {
+      start: () =>
+        new Worker(workerUrl, {
           workerData: {
             config: input.config,
             spec: input.spec,
@@ -29,15 +29,7 @@ export const strategyScanLifecycle = {
             userId: input.userId,
             locale: input.locale,
           } satisfies StrategyScanWorkerInput,
-        });
-        // Stop the owning scan thread cooperatively so it can reap its active cell process.
-        const exited = new Promise<number>((resolve) => worker.once('exit', resolve));
-        worker.terminate = () => {
-          worker.postMessage({ type: 'stop' } satisfies StrategyScanControl);
-          return exited;
-        };
-        return worker;
-      },
+        }),
       readMessage: (raw) => strategyScanWorkerMessageSchema.parse(raw),
       exitedMessage: (code) =>
         t(input.locale, 'strategyScanProcExited', { code: code ?? 'unknown' }),

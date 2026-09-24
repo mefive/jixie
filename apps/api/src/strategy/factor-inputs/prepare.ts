@@ -1,10 +1,8 @@
-import { FactorRuntime } from '#factor/runtime/factor-runtime.js';
 import {
   extractCustomFactorHistoryFields,
   type CustomFactorModule,
 } from '#engine/factors/custom-factor.js';
 import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
-import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
 import { normalizeAnalysisKind } from '#factor/definitions/views.js';
 
 import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
@@ -111,22 +109,10 @@ export async function prepareStrategyFactors(
       return preparePanelCompositeModule(item.row, approvedReport?.snapshot, approvedReport?.spec);
     }),
   );
-  const researchOnlyInputs = [
-    ...new Set(
-      modules.flatMap((module) =>
-        (module.assetSeries?.inputs ?? []).filter(isResearchOnlyFactorV2Field),
-      ),
-    ),
-  ];
-  if (researchOnlyInputs.length > 0) {
-    throw new StrategyError('research_only_inputs_unavailable', {
-      params: { fields: researchOnlyInputs.join(', ') },
-    });
-  }
 
   return {
     modules,
-    factors: ordered.map((item, index) => {
+    factors: ordered.map((item) => {
       const row = item.row;
       return {
         factorId: row.id,
@@ -145,7 +131,6 @@ export async function prepareStrategyFactors(
           item.kind === 'factor' && item.row.language === 'python' ? 'python' : 'typescript',
         runtimeVersion:
           item.kind === 'factor' && item.row.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
-        ...(modules[index]?.assetSeries ? { inputs: [...modules[index].assetSeries.inputs] } : {}),
       };
     }),
   };
@@ -161,77 +146,35 @@ async function prepareFactorModule(
   },
   reportSpec?: unknown,
 ): Promise<CustomFactorModule> {
-  if (row.language === 'python') {
-    if (row.runtimeVersion !== 'py-v1') {
-      throw new Error(`factor ${row.key} has an invalid Python runtime version`);
-    }
-    if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
-      const runtime = await FactorRuntime.start({
-        language: 'python',
-        analysisKind: 'cross_sectional',
-        code: row.code,
-      });
-      try {
-        return {
-          key: row.key,
-          language: 'python',
-          runtimeVersion: 'py-v1',
-          code: row.code,
-          analysisKind: 'cross_sectional',
-          crossSectional: { window: runtime.metadata.window },
-          historyFields: extractPythonFactorHistoryFields(row.code),
-        };
-      } finally {
-        runtime.close();
-      }
-    }
-    const runtime = await FactorRuntime.start({
-      language: 'python',
-      analysisKind: row.analysisKind,
-      code: row.code,
-    });
-    try {
-      return {
-        key: row.key,
-        language: 'python',
-        runtimeVersion: 'py-v1',
-        code: row.code,
-        analysisKind: row.analysisKind,
-        assetSeries: { window: runtime.metadata.window, inputs: [...runtime.metadata.inputs] },
-        ...(row.analysisKind === 'panel' && reportSpec != null
-          ? { assetUniverse: parseApprovedPanelUniverse(row.key, reportSpec) }
-          : {}),
-      };
-    } finally {
-      runtime.close();
-    }
-  }
-  if (row.analysisKind !== 'time_series' && row.analysisKind !== 'panel') {
-    return {
-      key: row.key,
-      js: await toCommonJs(row.code, 'factor code'),
-      historyFields: extractCustomFactorHistoryFields(row.code),
-    };
+  const analysisKind =
+    row.analysisKind === 'time_series' || row.analysisKind === 'panel'
+      ? row.analysisKind
+      : 'cross_sectional';
+  const language = row.language === 'python' ? 'python' : 'typescript';
+  if (language === 'python' && row.runtimeVersion !== 'py-v1') {
+    throw new Error(`factor ${row.key} has an invalid Python runtime version`);
   }
 
-  const runtime = await FactorRuntime.start({
-    language: 'typescript',
-    analysisKind: row.analysisKind,
-    code: row.code,
-  });
-  try {
-    return {
-      key: row.key,
-      js: await toCommonJs(row.code, 'factor code'),
-      analysisKind: row.analysisKind,
-      assetSeries: { window: runtime.metadata.window, inputs: [...runtime.metadata.inputs] },
-      ...(row.analysisKind === 'panel' && reportSpec != null
-        ? { assetUniverse: parseApprovedPanelUniverse(row.key, reportSpec) }
-        : {}),
-    };
-  } finally {
-    runtime.close();
-  }
+  return {
+    key: row.key,
+    language,
+    runtimeVersion: language === 'python' ? 'py-v1' : 'ts-v1',
+    analysisKind,
+    ...(language === 'python'
+      ? { code: row.code }
+      : { js: await toCommonJs(row.code, 'factor code') }),
+    ...(analysisKind === 'cross_sectional'
+      ? {
+          historyFields:
+            language === 'python'
+              ? extractPythonFactorHistoryFields(row.code)
+              : extractCustomFactorHistoryFields(row.code),
+        }
+      : {}),
+    ...(analysisKind === 'panel' && reportSpec != null
+      ? { assetUniverse: parseApprovedPanelUniverse(row.key, reportSpec) }
+      : {}),
+  };
 }
 
 async function preparePanelCompositeModule(
@@ -278,14 +221,9 @@ async function preparePanelCompositeModule(
       }),
     })),
   );
-  const assetSeries = {
-    window: Math.max(...components.map((component) => component.module.assetSeries!.window)),
-    inputs: [...new Set(components.flatMap((component) => component.module.assetSeries!.inputs))],
-  };
   return {
     key: row.key,
     analysisKind: 'panel',
-    assetSeries,
     assetUniverse: parsedSpec.data.assets.map((asset) => ({ ...asset })),
     panelComposite: {
       standardization: source.definition.standardization,

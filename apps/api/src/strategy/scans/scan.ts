@@ -1,12 +1,6 @@
 import type { BacktestResult } from '#engine/types.js';
 import { UserCodeError } from '#infra/errors.js';
-import type {
-  BacktestMetricSummary,
-  StrategyParamValue,
-  StrategyScanCell,
-  StrategyScanPayload,
-  StrategyScanSpec,
-} from '@jixie/shared';
+import type { BacktestMetricSummary, StrategyParamValue, StrategyScanSpec } from '@jixie/shared';
 
 export const MAX_SCAN_COMBINATIONS = 25;
 export const CAPACITY_DIMENSION_KEY = 'initialCash';
@@ -150,50 +144,6 @@ export function scanCellOverrides(
   return { initialCash, paramOverrides: {} };
 }
 
-export async function executeStrategyScan(options: {
-  spec: StrategyScanSpec;
-  parameters: Record<string, StrategyParamValue>;
-  ranges:
-    | { full: { start: string; end: string } }
-    | {
-        inSample: { start: string; end: string };
-        outOfSample: { start: string; end: string };
-      };
-  run(
-    params: Record<string, StrategyParamValue>,
-    range: { start: string; end: string },
-  ): Promise<BacktestResult>;
-  onCellStart?(index: number, total: number, params: Record<string, StrategyParamValue>): void;
-}): Promise<StrategyScanPayload> {
-  const combinations = parameterCombinations(options.spec);
-  const cells: StrategyScanCell[] = [];
-
-  for (let index = 0; index < combinations.length; index++) {
-    const params = combinations[index];
-    options.onCellStart?.(index, combinations.length, params);
-
-    if ('full' in options.ranges) {
-      const result = await options.run(params, options.ranges.full);
-      cells.push({
-        params,
-        full: metricSummary(result),
-        nav: options.spec.view === 'sizing' ? rebaseNav(result.nav, result.initialCash) : undefined,
-      });
-      continue;
-    }
-
-    const inSample = await options.run(params, options.ranges.inSample);
-    const outOfSample = await options.run(params, options.ranges.outOfSample);
-    cells.push({
-      params,
-      inSample: metricSummary(inSample),
-      outOfSample: metricSummary(outOfSample),
-    });
-  }
-
-  return { parameters: options.parameters, cells };
-}
-
 function annualizedVolatility(nav: { value: number }[]): number {
   if (nav.length < 2) {
     return 0;
@@ -229,7 +179,7 @@ function maximumUnderwaterDays(nav: { value: number }[]): number {
   return longest;
 }
 
-function rebaseNav(
+export function rebaseNav(
   nav: { date: string; value: number }[],
   initialCash: number,
 ): { date: string; value: number }[] {

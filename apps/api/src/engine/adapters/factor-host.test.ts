@@ -34,6 +34,40 @@ const request: FactorComputeRequest = {
 };
 
 describe('FactorHost', () => {
+  it('reads an asset-series contract from source without a preparation runtime', async () => {
+    const host = new FactorHost([
+      {
+        key: 'trend',
+        analysisKind: 'time_series',
+        js: `module.exports = defineFactorV2({
+        version: 2, name: 'Trend', analysisKind: 'time_series', outputScope: 'asset',
+        frequency: 'daily', inputs: ['etf.adjustedClose'], targetAssetClasses: ['equity'],
+        window: 2, compute(ctx) { return ctx.value('etf.adjustedClose'); },
+      });`,
+      },
+    ]);
+    try {
+      expect(await host.describe()).toEqual([
+        {
+          id: 'trend',
+          kind: 'asset_series',
+          analysisKind: 'time_series',
+          meta: { window: 2, inputs: ['etf.adjustedClose'] },
+        },
+      ]);
+      expect(
+        await host.compute({
+          factorId: 'trend',
+          kind: 'asset_series',
+          fields: { 'etf.adjustedClose': [10, 12] },
+          indexes: [1],
+        }),
+      ).toEqual([12]);
+    } finally {
+      host.close();
+    }
+  });
+
   it('keeps source frozen and rejects source injection and unregistered dependencies', async () => {
     const dependency = { ...module };
     const host = new FactorHost([dependency]);

@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { BacktestResult } from '#engine/types.js';
 import type { z } from 'zod';
 import type {
   BacktestSummary,
@@ -7,12 +8,10 @@ import type {
   ModelPositionSnapshot,
   FactorInputSummary,
 } from '@jixie/shared';
-import type { BacktestResult } from '#engine/types.js';
 import { backtestSummarySchema, backtestResultSchema } from '#strategy/backtests/result-schema.js';
 import { backtestWorkerMessageSchema } from '#strategy/backtests/worker-protocol.js';
 import { strategyScanPayloadSchema } from '#strategy/scans/result-schema.js';
 import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
-import { scanCellWorkerMessageSchema } from '#strategy/scans/cell-worker-protocol.js';
 import { factorAnalysisWorkerMessageSchema } from '#factor/execution/worker-protocol.js';
 import { factorCorrelationWorkerMessageSchema } from '#factor/correlations/worker-protocol.js';
 import { signalWorkerMessageSchema } from '#signals/runs/worker-protocol.js';
@@ -148,7 +147,7 @@ describe('shared Worker wire contracts', () => {
     ).toBe(false);
   });
 
-  it('validates scan metrics and rejects malformed cell-worker results', () => {
+  it('validates scan metrics and rejects malformed scan results', () => {
     const payload = {
       parameters: { window: 20 },
       cells: [{ params: { window: 20 }, nav: [{ date: '20240101', value: 1 }] }],
@@ -169,46 +168,6 @@ describe('shared Worker wire contracts', () => {
         payload: { parameters: { flag: true }, cells: [] },
       }).success,
     ).toBe(false);
-    expect(scanCellWorkerMessageSchema.safeParse({ type: 'done', result: summary }).success).toBe(
-      false,
-    );
-    expect(scanCellWorkerMessageSchema.parse({ type: 'error', message: 'cell failed' })).toEqual({
-      type: 'error',
-      message: 'cell failed',
-    });
-  });
-
-  it('accepts a complete engine result from the scan cell without dropping diagnostics', () => {
-    const result: BacktestResult = {
-      ...summary,
-      tradeLog: [],
-      benchReturn: 0,
-      excessReturn: 0.01,
-      informationRatio: 0,
-      calmar: 0,
-      winRate: 0,
-      profitFactor: 0,
-      turnover: 0,
-      totalFees: 0,
-      totalSlippage: 0,
-      cost: {
-        commission: 0.00025,
-        minCommission: 5,
-        stampDuty: 0.0005,
-        transferFee: 0.00001,
-        slippageBps: 2,
-        impactCoef: 0.1,
-        futureCommissionRate: 0,
-        futureCloseTodayRate: 0,
-        futureSlippageTicks: 0,
-        futureMarginRate: 0.1,
-      },
-      monthly: [],
-    };
-    expect(scanCellWorkerMessageSchema.parse({ type: 'done', result })).toEqual({
-      type: 'done',
-      result,
-    });
   });
 
   it('retains Signals conditional orders and T+1 frozen quantities', () => {

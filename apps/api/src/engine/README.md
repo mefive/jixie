@@ -30,7 +30,7 @@ Engine 接收 `EngineStrategy` 决策回调与显式端口，按模拟日期提�
 
 - 正式策略执行由 [strategy/backtests/run.ts](../strategy/backtests/run.ts) 选择语言和宿主 Prisma 端口；TS/Python 因子均由宿主 FactorHost 执行，调用方通过 `EngineConfig.factorExecution` 显式传入并负责关闭。
 - 仓库策略的直接执行入口和回测脚本显式传入 Prisma 端口；测试显式传入 fixture 端口。
-- TS/Python 用户策略均经 [共享运行编排](../strategy/runtime/run.ts) 使用宿主 Engine。TS runtime 创建
+- TS/Python 用户策略均经 [共享模拟](../strategy/execution/simulation.ts) 使用宿主 Engine。TS runtime 创建
   isolate，仅在其中加载 [SDK bundle](../strategy/runtime/typescript/sandbox-bundle.ts) 与用户源码；Python
   runtime 连接 sandboxd。二者复用 [业务 bridge](../strategy/runtime/bridge.ts)，沙箱不能访问 DataPort。
 

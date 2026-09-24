@@ -3,7 +3,7 @@ import {
   runStrategy as runEngine,
   runStrategyWithSignals as runEngineWithSignals,
 } from '../simulation/run.js';
-import { runSandboxedBacktest } from '#strategy/runtime/run.js';
+import { runSandboxedBacktest } from '#strategy/execution/simulation.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 import type { EngineStrategy, EngineConfig } from '../types.js';

@@ -271,9 +271,9 @@ export class FactorHost implements FactorExecutionPort {
       };
     }
     if (
-      !module.assetSeries ||
-      module.assetSeries.window !== runtime.metadata.window ||
-      JSON.stringify(module.assetSeries.inputs) !== JSON.stringify(runtime.metadata.inputs)
+      module.assetSeries &&
+      (module.assetSeries.window !== runtime.metadata.window ||
+        JSON.stringify(module.assetSeries.inputs) !== JSON.stringify(runtime.metadata.inputs))
     ) {
       throw new Error(`factor ${module.key} does not match its compiled asset-series contract`);
     }

@@ -11,7 +11,7 @@ import type {
 import { executionWire } from '../accounting/read.js';
 import { deploymentWire } from '../deployments/read.js';
 import { SignalsError } from '../errors.js';
-import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
+import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
 
 export async function listDeploymentLatestRuns(
   userId: string,

@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
 import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
-import { runSandboxedBacktest, runSandboxedSignalCapture } from '../run.js';
+import { runSandboxedBacktest, runSandboxedSignalCapture } from '../../execution/simulation.js';
 import { compileStrategy } from './testing/compile.js';
 import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
 

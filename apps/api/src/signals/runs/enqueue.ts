@@ -6,7 +6,7 @@ import { JobService } from '#jobs/service.js';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { SignalsError } from '../errors.js';
-import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
+import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
 import { governmentYieldCurveReady } from '../factor-inputs/rates.js';
 import { signalCalendar, signalDataReady } from './readiness.js';
 

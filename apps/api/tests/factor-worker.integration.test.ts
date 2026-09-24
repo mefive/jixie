@@ -8,10 +8,16 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { Worker } from 'node:worker_threads';
 import pkg from '@prisma/client';
-import { transform } from 'esbuild';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { BacktestConfig, FactorLanguage, FactorDependency } from '@jixie/shared';
+import type {
+  BacktestConfig,
+  FactorLanguage,
+  FactorDependency,
+  StrategyScanPayload,
+} from '@jixie/shared';
 import type { BacktestResult } from '#engine/types.js';
+import { runWorker } from '#jobs/worker.js';
+import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
 
 const executeFile = promisify(execFile);
 const apiDirectory = fileURLToPath(new URL('../', import.meta.url));
@@ -79,7 +85,6 @@ interface Completion {
   type: string;
   message?: string;
   payload?: BacktestResult;
-  result?: BacktestResult;
   output?: {
     dataCutoff: string;
     factorInputs: Array<{ key: string; validAssets: number; meanValue: number }>;
@@ -87,15 +92,18 @@ interface Completion {
 }
 
 /** Resolve only after exit: successful IPC alone does not prove runtimes and DB handles were closed. */
-function waitForExit(process: EventEmitter, stop: () => void): Promise<Completion> {
+function waitForExit<Payload = BacktestResult>(
+  process: EventEmitter,
+  stop: () => void,
+): Promise<Omit<Completion, 'payload'> & { payload?: Payload }> {
   return new Promise((resolve, reject) => {
-    let completion: Completion | undefined;
+    let completion: (Omit<Completion, 'payload'> & { payload?: Payload }) | undefined;
     let failure: Error | undefined;
     const timer = setTimeout(() => {
       failure = new Error('Factor worker did not exit within 25 seconds');
       stop();
     }, 25_000);
-    process.on('message', (message: Completion) => {
+    process.on('message', (message: Omit<Completion, 'payload'> & { payload?: Payload }) => {
       if (message.type !== 'log') {
         completion = message;
       }
@@ -301,39 +309,83 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
   );
 
   it.each<FactorLanguage>(['typescript', 'python'])(
-    'scan cell uses the %s factor sandbox and exits',
+    'scan worker runs consecutive simulations with the %s factor and exits',
     async (language) => {
-      const child = fork(entry('strategy/scans/strategy-scan-cell-worker'), [], {
-        cwd: apiDirectory,
+      const strategyConfig = config('typescript', language);
+      const worker = new Worker(entry('strategy/scans/strategy-scan-worker'), {
+        workerData: {
+          config: strategyConfig,
+          spec: {
+            view: 'capacity',
+            dimensions: [{ key: 'initialCash', values: [100_000, 200_000, 300_000] }],
+          },
+          parameters: {},
+          ranges: { full: { start: strategyConfig.start, end: strategyConfig.end } },
+          userId,
+          locale: 'en',
+        },
         env: environment,
         execArgv,
-        silent: true,
       });
-      const completion = waitForExit(child, () => {
-        child.kill('SIGKILL');
+      const completion = await waitForExit<StrategyScanPayload>(worker, () => {
+        void worker.terminate();
       });
-      const source = factorSources[language];
-      child.send({
-        config: config('typescript', language),
-        paramOverrides: {},
-        locale: 'en',
-        customFactors: [
-          {
-            key: `worker_${language}`,
-            language,
-            runtimeVersion: language === 'typescript' ? 'ts-v1' : 'py-v1',
-            ...(language === 'typescript'
-              ? { js: (await transform(source, { loader: 'ts', format: 'cjs' })).code }
-              : { code: source, crossSectional: {} }),
-          },
-        ],
-      });
-      const result = (await completion).result;
-      expect(result?.nav).toHaveLength(dates.length);
-      expect(result?.trades).toBeGreaterThan(0);
+      expect(completion.payload?.cells).toHaveLength(3);
+      for (const cell of completion.payload!.cells) {
+        expect(cell.full?.days).toBe(dates.length);
+        expect(cell.full?.trades).toBeGreaterThan(0);
+      }
     },
     30_000,
   );
+
+  it('terminates the scan thread through the common worker lifecycle on a log failure', async () => {
+    let worker: Worker | undefined;
+    let exited = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await expect(
+        runWorker<StrategyScanPayload>({
+          start: () => {
+            const strategyConfig = config('typescript', 'typescript');
+            worker = new Worker(entry('strategy/scans/strategy-scan-worker'), {
+              workerData: {
+                config: strategyConfig,
+                spec: {
+                  view: 'capacity',
+                  dimensions: [{ key: 'initialCash', values: [100_000, 200_000, 300_000] }],
+                },
+                parameters: {},
+                ranges: { full: { start: strategyConfig.start, end: strategyConfig.end } },
+                userId,
+                locale: 'en',
+              },
+              env: environment,
+              execArgv,
+            });
+            worker.once('exit', () => {
+              exited = true;
+            });
+            timer = setTimeout(() => {
+              void worker?.terminate();
+            }, 25_000);
+            return worker;
+          },
+          onLog: () => {
+            throw new Error('scan log interrupted');
+          },
+          readMessage: (message) => strategyScanWorkerMessageSchema.parse(message),
+          exitedMessage: (code) => `Unexpected scan exit ${code}`,
+        }),
+      ).rejects.toThrow('scan log interrupted');
+      expect(exited).toBe(true);
+    } finally {
+      clearTimeout(timer);
+      if (worker && !exited) {
+        await worker.terminate();
+      }
+    }
+  }, 30_000);
 
   it.each<FactorLanguage>(['typescript', 'python'])(
     'signal worker captures %s factor observations and exits',

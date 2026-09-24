@@ -2,6 +2,8 @@ import { backtestReportState } from '#strategy/backtests/state.js';
 import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
 import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
+import { resolveStrategyFactorMetadata } from '#strategy/factor-inputs/metadata.js';
+import { FactorHost } from '#engine/adapters/factor-host.js';
 
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type { BacktestConfig, Locale, StrategyDeployment } from '@jixie/shared';
@@ -9,7 +11,10 @@ import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { SignalsError } from '../errors.js';
-import { assertFactorDependencies, factorDependenciesFromJson } from '../factor-inputs/lineage.js';
+import {
+  assertFactorDependencies,
+  factorDependenciesFromJson,
+} from '#strategy/factor-inputs/lineage.js';
 import { deploymentWire } from './read.js';
 
 export async function deployBacktestReport(
@@ -50,6 +55,19 @@ export async function deployBacktestReport(
   // Research-only or archived factors cannot become a new daily-signal dependency.
   const prepared = await prepareStrategyFactors(config.code, userId, 'deployment');
 
+  // Deployment has no simulation: inspect once here and release every runtime before persisting.
+  const factorHost = new FactorHost(prepared.modules);
+  let resolved;
+  try {
+    resolved = resolveStrategyFactorMetadata(
+      prepared.modules,
+      prepared.factors,
+      await factorHost.describe(),
+    );
+  } finally {
+    factorHost.close();
+  }
+
   // Deployment must use exactly the factor lineage validated by this report.
   let dependencies;
   try {
@@ -57,7 +75,7 @@ export async function deployBacktestReport(
     if (dependencies == null && prepared.factors.length > 0) {
       throw new SignalsError('dependencies_changed');
     }
-    assertFactorDependencies(dependencies, prepared.factors);
+    assertFactorDependencies(dependencies, resolved.factors);
   } catch {
     throw new SignalsError('dependencies_changed');
   }

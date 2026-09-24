@@ -15,4 +15,4 @@ Python 执行策略 on_bar，交易撮合与账户规则仍由 TS [Engine](../..
 
 [返回 Strategy 总览](../../README.md)
 
-具体类直接继承公共 SandboxRuntime；共享 bridge 返回 metadata 和 execute(context)，不构造 EngineStrategy。唯一生产 onBar 适配位于 `runtime/run.ts`，转调 runtime.execute({ context })。启动与逐 bar 命令使用同一 exchange；close 直接释放资源，不发送关闭通知或等待关闭确认。
+具体类直接继承公共 SandboxRuntime；共享 bridge 返回 metadata 和 execute(context)，不构造 EngineStrategy。唯一生产 onBar 适配位于 `execution/simulation.ts`，转调 runtime.execute({ context })。启动与逐 bar 命令使用同一 exchange；close 直接释放资源，不发送关闭通知或等待关闭确认。

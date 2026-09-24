@@ -5,7 +5,7 @@ import type { UserLogSink } from '#infra/runtime/console.js';
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
 import { prepareStrategyFactors } from '../factor-inputs/prepare.js';
 import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
-import { runSandboxedBacktest } from '../runtime/run.js';
+import { runSandboxedBacktest } from '../execution/simulation.js';
 
 /** Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine. */
 export async function runConfiguredBacktest(
@@ -27,12 +27,17 @@ export async function runConfiguredBacktest(
 
   const prepared = await prepareStrategyFactors(config.code, userId);
   const result = await runSandboxedBacktest(
-    { ...config, customFactors: prepared.modules, locale, paramOverrides },
+    {
+      ...config,
+      customFactors: prepared.modules,
+      factorDependencies: prepared.factors,
+      locale,
+      paramOverrides,
+    },
     prismaDataPort,
     onSystemLog,
     onUserLog,
   );
-  result.factorDependencies = prepared.factors;
   await attachRiskAnalysis(result, locale, onSystemLog);
   return result;
 }

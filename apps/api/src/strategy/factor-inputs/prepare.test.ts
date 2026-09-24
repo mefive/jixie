@@ -1,9 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
+  runtimeStart: vi.fn(),
   factorFindMany: vi.fn(),
   compositeFindMany: vi.fn(),
   reportFindMany: vi.fn(),
+}));
+
+vi.mock('#factor/runtime/factor-runtime.js', () => ({
+  FactorRuntime: { start: mocks.runtimeStart },
 }));
 
 vi.mock('#infra/database/prisma.js', () => ({
@@ -35,9 +40,16 @@ function factor(overrides: Record<string, unknown> = {}) {
 
 describe('published factor preparation', () => {
   beforeEach(() => {
+    mocks.runtimeStart
+      .mockReset()
+      .mockRejectedValue(new Error('Preparation must not start a runtime'));
     mocks.factorFindMany.mockReset().mockResolvedValue([factor()]);
     mocks.compositeFindMany.mockReset().mockResolvedValue([]);
     mocks.reportFindMany.mockReset().mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    expect(mocks.runtimeStart).not.toHaveBeenCalled();
   });
 
   it('loads the exact owned factor and records run lineage', async () => {
@@ -51,6 +63,7 @@ describe('published factor preparation', () => {
         where: expect.objectContaining({ key: { in: ['book_to_market'] } }),
       }),
     );
+    expect(prepared.modules[0].assetSeries).toBeUndefined();
     expect(prepared.modules[0]).toMatchObject({ key: 'book_to_market' });
     expect(prepared.modules[0].js).toContain('defineFactor');
     expect(prepared.factors).toEqual([
@@ -68,9 +81,6 @@ describe('published factor preparation', () => {
   });
 
   it('prepares a published py-v1 Factor without transpiling it to JavaScript', async () => {
-    if (!process.env.JIXIE_SANDBOX_SOCKET) {
-      process.env.JIXIE_PYTHON_LOCAL = '1';
-    }
     const code = `
 from jixie import Factor, FactorBar, CrossSectionalFactorContext
 factor = Factor.cross_sectional(name="Python value")
@@ -92,6 +102,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       'user-1',
     );
 
+    expect(prepared.modules[0].assetSeries).toBeUndefined();
     expect(prepared.modules[0]).toMatchObject({
       key: 'python_value',
       language: 'python',
@@ -104,10 +115,9 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       language: 'python',
       runtimeVersion: 'py-v1',
     });
-    delete process.env.JIXIE_PYTHON_LOCAL;
   });
 
-  it('compiles the published time-series contract for research backtests', async () => {
+  it('prepares time-series source without probing runtime metadata', async () => {
     mocks.factorFindMany.mockResolvedValue([
       factor({
         key: 'etf_trend_20',
@@ -130,14 +140,14 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       `ctx.factor('etf_trend_20', '510300.SH')`,
       'user-1',
     );
+    expect(prepared.modules[0].assetSeries).toBeUndefined();
     expect(prepared.modules[0]).toMatchObject({
       key: 'etf_trend_20',
       analysisKind: 'time_series',
-      assetSeries: { window: 21, inputs: ['etf.adjustedClose'] },
     });
   });
 
-  it('rejects research-only commodity inputs even when referenced by a built-in key', async () => {
+  it('defers research-only input validation to execution initialization', async () => {
     mocks.factorFindMany.mockResolvedValue([
       factor({
         key: 'warehouse_pressure_20_v1',
@@ -159,7 +169,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 
     await expect(
       prepareStrategyFactors(`ctx.factor('warehouse_pressure_20_v1', '518880.SH')`, 'user-1'),
-    ).rejects.toMatchObject({ reason: 'research_only_inputs_unavailable' });
+    ).resolves.toMatchObject({ modules: [{ key: 'warehouse_pressure_20_v1' }] });
   });
 
   it('carries a published panel factor into the same asset-series strategy runtime', async () => {
@@ -209,10 +219,10 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       `ctx.factor('cross_asset_momentum_120', '510300.SH')`,
       'user-1',
     );
+    expect(prepared.modules[0].assetSeries).toBeUndefined();
     expect(prepared.modules[0]).toMatchObject({
       key: 'cross_asset_momentum_120',
       analysisKind: 'panel',
-      assetSeries: { window: 121, inputs: ['etf.adjustedClose'] },
       assetUniverse: [
         { assetId: '510300.SH', assetClass: 'cn_equity' },
         { assetId: '511010.SH', assetClass: 'fixed_income' },
@@ -222,7 +232,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(prepared.factors[0]).toMatchObject({
       key: 'cross_asset_momentum_120',
       analysisKind: 'panel',
-      inputs: ['etf.adjustedClose'],
     });
   });
 
@@ -321,10 +330,10 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       'user-1',
     );
 
+    expect(prepared.modules[0].assetSeries).toBeUndefined();
     expect(prepared.modules[0]).toMatchObject({
       key: 'momentum_reversal_panel',
       analysisKind: 'panel',
-      assetSeries: { window: 61, inputs: ['etf.adjustedClose'] },
       panelComposite: {
         standardization: 'rank',
         assetUniverse: [
@@ -345,12 +354,11 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         analysisKind: 'panel',
         codeHash: sha256(source),
         approvedReportId: 'report-1',
-        inputs: ['etf.adjustedClose'],
       }),
     ]);
   });
 
-  it('freezes time-series inputs for daily signal deployment', async () => {
+  it('resolves deployment source while leaving inputs for admission inspection', async () => {
     mocks.factorFindMany.mockResolvedValue([
       factor({
         key: 'etf_trend_20',
@@ -371,7 +379,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     await expect(
       prepareStrategyFactors(`ctx.factor('etf_trend_20', '510300.SH')`, 'user-1', 'deployment'),
     ).resolves.toMatchObject({
-      factors: [{ key: 'etf_trend_20', inputs: ['etf.adjustedClose'] }],
+      factors: [{ key: 'etf_trend_20' }],
     });
   });
 

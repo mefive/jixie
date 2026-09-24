@@ -2,7 +2,7 @@ import { StrategyRuntime } from '#strategy/runtime/strategy-runtime.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FactorLanguage } from '@jixie/shared';
 
-import { runSandboxedBacktest } from '#strategy/runtime/run.js';
+import { runSandboxedBacktest } from '#strategy/execution/simulation.js';
 import { FactorHost } from '../adapters/factor-host.js';
 import { runStrategy } from '../simulation/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';

@@ -1,19 +1,19 @@
 # TypeScript 策略沙箱运行
 
 用户和 Agent 的策略源码只在 isolated-vm 中执行。Engine 位于宿主 Worker，TS/Python 共享
-[run.ts](../run.ts) 和 [bridge.ts](../bridge.ts) 的业务逻辑，FactorHost 独立管理因子沙箱。
+[simulation.ts](../../execution/simulation.ts) 和 [bridge.ts](../bridge.ts) 的业务逻辑，FactorHost 独立管理因子沙箱。
 
 | 文件 / 入口 | 使用方与契约 |
 | --- | --- |
 | [typescript-strategy-runtime.ts](typescript-strategy-runtime.ts) `TypeScriptStrategyRuntime` | 业务由公共 StrategyRuntime.start 选择，公共返回类型只提供 metadata/execute/close；需要 metrics 的测试直接通过本类 start 创建实例；调用方必须 finally 关闭 |
 | [../inspect-definition.ts](../inspect-definition.ts) `inspectStrategyMetadata` | Signals 和 Agent 校验；在 isolate 执行声明，finally 释放资源 |
 | [../../scans/inspect-parameters.ts](../../scans/inspect-parameters.ts) `inspectStrategyParameters` | 扫描表单和提交共用 AST 静态参数识别，不加载 runtime 或执行用户代码 |
-| [../run.ts](../run.ts) `runSandboxedBacktest` / `runSandboxedSignalCapture` | 正式回测、扫描 cell、Signals；共用宿主 Engine，finally 关闭语言 runtime 和 FactorHost |
+| [simulation.ts](../../execution/simulation.ts) `runSandboxedBacktest` / `runSandboxedSignalCapture` | 正式回测、扫描 cell、Signals；共用宿主 Engine，finally 关闭语言 runtime 和 FactorHost |
 | [sandbox-bundle.ts](sandbox-bundle.ts) / [sandbox-entry.ts](sandbox-entry.ts) | 仅打包 SDK、指标、日志和协议适配；源码/编译入口分别解析 `.ts` / `.js`，进程内缓存 bundle |
 | [../../sdk/typescript.ts](../../sdk/typescript.ts) | `defineStrategy`、`enrich`、选股/仓位/指标辅助；公开类型来自 shared SDK 契约 |
 | [testing/compile.ts](testing/compile.ts) | 仅编译仓库可信 fixture，用于原生行为对照；生产代码禁止导入 |
 
-通用 isolate、消息队列、帧收发与释放归 `infra/runtime/typescript/transport.ts`，Factor/Strategy 共用。connect 只加载受信任的入口，启动用户代码必须显式发送 start；所有命令经 exchange，再由 sandbox-entry 的唯一 __receiveCommand 分派。具体类直接继承 SandboxRuntime，使用 startSandboxRuntime 统一失败清理。bridge 返回 metadata/execute，生产 Engine onBar 适配只在 `runtime/run.ts`。
+通用 isolate、消息队列、帧收发与释放归 `infra/runtime/typescript/transport.ts`，Factor/Strategy 共用。connect 只加载受信任的入口，启动用户代码必须显式发送 start；所有命令经 exchange，再由 sandbox-entry 的唯一 __receiveCommand 分派。具体类直接继承 SandboxRuntime，使用 startSandboxRuntime 统一失败清理。bridge 返回 metadata/execute，生产 Engine onBar 适配只在 `execution/simulation.ts`。
 
 异步数据访问以声明式 request/response 通过共享 bridge 分派。截面整批复制为原生字段；watch/
 持仓的日线历史首次传入当前日期可见数据，之后按日期增量更新。`ensureBars` 首次请求标的时传入

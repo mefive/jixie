@@ -4,9 +4,11 @@ import type { CustomFactorModule } from '#engine/factors/custom-factor.js';
 import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
 import type { BacktestResult, CostModel, SignalBacktestOutput } from '#engine/types.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import type { Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
-import { StrategyRuntime } from './strategy-runtime.js';
+import type { FactorDependency, Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
+import { StrategyRuntime } from '../runtime/strategy-runtime.js';
 import type { EngineContext } from '#engine/types.js';
+import { resolveStrategyFactorMetadata } from '../factor-inputs/metadata.js';
+import { assertFactorDependencies } from '../factor-inputs/lineage.js';
 
 export interface SandboxedBacktestConfig {
   code: string;
@@ -17,6 +19,9 @@ export interface SandboxedBacktestConfig {
   cost?: Partial<CostModel>;
   locale?: Locale;
   customFactors?: CustomFactorModule[];
+  factorDependencies?: FactorDependency[];
+  /** Optional frozen lineage to verify before the engine can execute any strategy bars. */
+  factorDependencySnapshots?: Array<FactorDependency[] | null>;
   paramOverrides?: Record<string, StrategyParamValue>;
 }
 
@@ -55,6 +60,14 @@ async function runSandboxed(
   let factors: FactorHost | undefined;
   try {
     factors = new FactorHost(config.customFactors ?? [], onUserLog);
+    const resolved = resolveStrategyFactorMetadata(
+      config.customFactors ?? [],
+      config.factorDependencies ?? [],
+      await factors.describe(),
+    );
+    for (const snapshot of config.factorDependencySnapshots ?? []) {
+      assertFactorDependencies(snapshot, resolved.factors);
+    }
     const engineConfig = {
       start: config.start,
       end: config.end,
@@ -67,12 +80,17 @@ async function runSandboxed(
       },
       dataPort: port,
       factorExecution: factors,
-      customFactors: config.customFactors,
+      customFactors: resolved.modules,
       onLog,
     };
-    return captureSignals
+    const output = captureSignals
       ? await runStrategyWithSignals(engineConfig)
       : await runStrategy(engineConfig);
+    if (config.factorDependencies) {
+      const result = 'capture' in output ? output.result : output;
+      result.factorDependencies = resolved.factors;
+    }
+    return output;
   } finally {
     try {
       factors?.close();

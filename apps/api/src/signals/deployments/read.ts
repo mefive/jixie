@@ -1,6 +1,6 @@
 import type { BacktestConfig, StrategyDeployment } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { factorDependenciesFromJson } from '../factor-inputs/lineage.js';
+import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
 
 export async function listStrategyDeployments(
   userId: string,
