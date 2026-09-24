@@ -273,7 +273,7 @@ export type WidenStrategyParams<Params extends StrategyParams> = {
 
 export interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
-  /** Finite numeric or non-empty categorical defaults exposed to parameter scans. */
+  /** Scan defaults: inline object with finite numeric or non-blank string literals; no expressions, calls or spreads. See the parameter-scan help page. */
   params?: Params;
   /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + published factor keys. */
   factors?: FactorKey[];

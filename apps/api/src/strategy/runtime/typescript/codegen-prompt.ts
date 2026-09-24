@@ -60,7 +60,7 @@ export function buildCodegenPrompt(
 - Output **only the code itself** — no explanation, no markdown fences.
 - Shaped like \`export default defineStrategy({ name, onBar(ctx) { … } })\`. **Do not write any import** (defineStrategy and the ctx type are both injected globally).
 - Keep cross-bar state in module-level variables (e.g. \`let last = ''\`); they persist across the entire backtest.
-- Put user-tunable constants under \`params: { lookback: 20, sizing: 'atr', ... }\` and read them through \`ctx.params\`; finite numbers and non-empty categorical strings are eligible for parameter/sizing scans. Do not put instrument codes in params.
+- Put user-tunable constants under \`params: { lookback: 20, sizing: 'atr', ... }\` and read them through \`ctx.params\`; finite numbers and non-empty categorical strings are eligible for parameter/sizing scans. For scan discovery, params must be an inline object with fixed keys and numeric/string literals (signed numbers are allowed); do not use variable references, calculations, calls, spreads, computed keys or getters. Do not put instrument codes in params.
 - When the user names a specific stock or ETF, **resolve it with the searchInstruments tool first** and use the returned ts_code — never write a ts_code from memory. For ETFs, only matches with \`hasDailyData: true\` are currently backtestable.
 
 # SDK (capabilities on ctx)

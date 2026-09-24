@@ -77,6 +77,9 @@ importers:
       pyright:
         specifier: 1.1.411
         version: 1.1.411
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
       ulid:
         specifier: ^2.3.0
         version: 2.4.0
@@ -93,9 +96,6 @@ importers:
       tsx:
         specifier: ^4.20.0
         version: 4.22.4
-      typescript:
-        specifier: ^5.9.0
-        version: 5.9.3
       vitest:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)

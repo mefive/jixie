@@ -1,16 +1,5 @@
-import type { StrategyParamValue, StrategySignalMetadata } from '@jixie/shared';
+import type { StrategySignalMetadata } from '@jixie/shared';
 import { StrategyRuntime } from './strategy-runtime.js';
-
-export async function inspectStrategyParameters(
-  code: string,
-): Promise<Record<string, StrategyParamValue>> {
-  const runtime = await StrategyRuntime.start({ language: 'typescript', code });
-  try {
-    return runtime.metadata.params ?? {};
-  } finally {
-    runtime.close();
-  }
-}
 
 export async function inspectStrategyMetadata(code: string): Promise<StrategySignalMetadata> {
   const runtime = await StrategyRuntime.start({ language: 'typescript', code });

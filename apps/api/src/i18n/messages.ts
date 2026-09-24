@@ -508,6 +508,10 @@ const MESSAGES = {
     zh: '风险研究暂不可用，交易回测结果已保留：{error}',
     en: 'Risk research is unavailable; the trading backtest result was preserved: {error}',
   },
+  strategyScanParamsNotStatic: {
+    zh: '无法静态识别 {field}（第 {line} 行，第 {column} 列）。请使用 export default defineStrategy({ params: { lookback: 20, threshold: -0.5, sizing: "equal" }, onBar(ctx) {} })；params 只支持内联对象、固定键及有限数字或非空字符串字面量（最长 100 字符），最多 256 项。不要使用变量、计算、调用、展开、计算属性、getter 或重复键；策略可用仅供默认导出的顶层 const 声明。缺省 params 返回空对象，不执行用户代码。',
+    en: 'Cannot statically inspect {field} (line {line}, column {column}). Use export default defineStrategy({ params: { lookback: 20, threshold: -0.5, sizing: "equal" }, onBar(ctx) {} }). Use an inline params object with fixed keys and finite numeric or non-blank string literals (up to 100 characters), at most 256 entries. Variables, calculations, calls, spreads, computed keys, getters and duplicate keys are unsupported. A top-level const strategy used only for the default export is also supported. Omitted params returns an empty object; user code is never executed.',
+  },
   strategyScanCodeInvalid: {
     zh: '策略代码无法读取参数，请检查 params 声明',
     en: 'Could not inspect strategy parameters; check the params declaration',

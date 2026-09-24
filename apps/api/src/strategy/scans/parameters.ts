@@ -1,4 +1,4 @@
-import { inspectStrategyParameters } from '../runtime/inspect-definition.js';
+import { inspectStrategyParameters } from './inspect-parameters.js';
 import { UserCodeError } from '#infra/errors.js';
 import { StrategyError } from '../errors.js';
 

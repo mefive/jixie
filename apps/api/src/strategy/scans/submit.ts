@@ -1,5 +1,5 @@
 import type { StrategyScanJobPayload } from './job-payload.js';
-import { inspectStrategyParameters } from '../runtime/inspect-definition.js';
+import { inspectStrategyParameters } from './inspect-parameters.js';
 import { prisma } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
 import { JobScheduler } from '#jobs/scheduler.js';

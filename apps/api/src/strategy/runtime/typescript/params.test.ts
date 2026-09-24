@@ -1,4 +1,3 @@
-import { inspectStrategyParameters } from '../inspect-definition.js';
 import { DEFAULT_LOCALE } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 
@@ -29,13 +28,5 @@ describe('strategy params', () => {
     await expect(compileStrategy(CODE, undefined, DEFAULT_LOCALE, { missing: 1 })).rejects.toThrow(
       'unknown strategy parameter: missing',
     );
-  });
-
-  it('inspects defaults inside the hard sandbox', async () => {
-    await expect(inspectStrategyParameters(CODE)).resolves.toEqual({
-      lookback: 20,
-      sizing: 'equal',
-      topFraction: 0.1,
-    });
   });
 });

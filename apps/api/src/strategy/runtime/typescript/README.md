@@ -6,7 +6,8 @@
 | 文件 / 入口 | 使用方与契约 |
 | --- | --- |
 | [typescript-strategy-runtime.ts](typescript-strategy-runtime.ts) `TypeScriptStrategyRuntime` | 业务由公共 StrategyRuntime.start 选择，公共返回类型只提供 metadata/execute/close；需要 metrics 的测试直接通过本类 start 创建实例；调用方必须 finally 关闭 |
-| [../inspect-definition.ts](../inspect-definition.ts) `inspectStrategyParameters` / `inspectStrategyMetadata` | 扫描、Signals 和 Agent 校验；仅在 isolate 执行声明，finally 释放资源 |
+| [../inspect-definition.ts](../inspect-definition.ts) `inspectStrategyMetadata` | Signals 和 Agent 校验；在 isolate 执行声明，finally 释放资源 |
+| [../../scans/inspect-parameters.ts](../../scans/inspect-parameters.ts) `inspectStrategyParameters` | 扫描表单和提交共用 AST 静态参数识别，不加载 runtime 或执行用户代码 |
 | [../run.ts](../run.ts) `runSandboxedBacktest` / `runSandboxedSignalCapture` | 正式回测、扫描 cell、Signals；共用宿主 Engine，finally 关闭语言 runtime 和 FactorHost |
 | [sandbox-bundle.ts](sandbox-bundle.ts) / [sandbox-entry.ts](sandbox-entry.ts) | 仅打包 SDK、指标、日志和协议适配；源码/编译入口分别解析 `.ts` / `.js`，进程内缓存 bundle |
 | [../../sdk/typescript.ts](../../sdk/typescript.ts) | `defineStrategy`、`enrich`、选股/仓位/指标辅助；公开类型来自 shared SDK 契约 |

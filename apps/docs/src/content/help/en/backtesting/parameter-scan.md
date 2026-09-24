@@ -10,6 +10,26 @@ The strategy must declare finite numbers or non-empty strings under `params` and
 
 A scan does not rewrite strategy code or replace the normal backtest shown under Overview. One scan supports up to two parameters and 25 combinations, run sequentially in the background.
 
+
+### Static parameter declarations
+
+Opening the form and submitting a scan read defaults through the TypeScript AST. Neither operation starts a sandbox or executes strategy code. Recommended form:
+
+```ts
+export default defineStrategy({
+  params: { lookback: 20, threshold: -0.5, sizing: 'equal' },
+  onBar(ctx) {
+    const lookback = ctx.params.lookback;
+  },
+});
+```
+
+A directly default-exported object is also supported, as is `const strategy = defineStrategy({ ... }); export default strategy;`. That top-level const must be used only for the default export, with no other references, mutations or function arguments. Parentheses, `as` and `satisfies` wrappers are supported. Use an inline params object with fixed, non-blank keys and finite numeric literals (including signed numbers and decimals) or non-blank string literals. Template strings without interpolation are allowed. Existing limits remain: 256 parameters, 256 characters per key and 100 characters per string value.
+
+Omitted params returns an empty object. Variable references, arithmetic, function calls, spreads, computed keys, shorthand properties, getters, duplicate keys and the `__proto__` parameter key are unsupported. Spreads, computed keys and `__proto__` on the strategy object are also rejected because they could introduce or replace params. Do not replace or otherwise reference the SDK-injected `defineStrategy`. References are checked by variable binding: same-named parameter keys, object properties and independent local variables inside callbacks are allowed. Errors identify the location and explain the supported form; inspection never falls back to execution.
+
+Strategies that previously computed params must inline their defaults to use scans. Successful static inspection does not establish that a strategy can run. Actual backtests and scan cells still execute in the sandbox with runtime validation. Python parameter scans remain unsupported.
+
 ## Enter scan settings
 
 1. Open a saved strategy.

@@ -49,6 +49,10 @@ const definitions = {
     category: 'invalid',
     messageKey: 'strategyPythonScanUnsupported',
   },
+  strategy_scan_params_not_static: {
+    category: 'invalid',
+    messageKey: 'strategyScanParamsNotStatic',
+  },
   strategy_scan_code_invalid: {
     category: 'invalid',
     messageKey: 'strategyScanCodeInvalid',
