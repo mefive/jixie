@@ -1,5 +1,6 @@
 import type { ResearchRuntime } from '../runtime/research-runtime.js';
 
+import { analyzeResearchDocument } from '../dependencies/analyze.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchClarificationV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -532,13 +533,13 @@ describe('Research HTTP business boundaries', () => {
     resources.analyze.mockResolvedValue([
       { cellId: 'input', definitions: ['value'], references: [] },
     ]);
-    expect(
-      (await request('/documents/document/dependency-analysis', undefined, 'other')).status,
-    ).toBe(404);
+    await expect(analyzeResearchDocument('other', 'document')).rejects.toMatchObject({
+      reason: 'document_not_found',
+    });
     expect(resources.analyze).not.toHaveBeenCalled();
-    const analysis = await request('/documents/document/dependency-analysis');
-    expect(analysis.status).toBe(200);
-    expect(await analysis.json()).toMatchObject({
+    expect((await request('/documents/document/dependency-analysis')).status).toBe(404);
+    expect(resources.analyze).not.toHaveBeenCalled();
+    expect(await analyzeResearchDocument('owner', 'document')).toMatchObject({
       version: 1,
       cells: [{ cellId: 'input', definitions: ['value'] }],
     });

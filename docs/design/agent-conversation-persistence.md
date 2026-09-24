@@ -1,5 +1,7 @@
 # 设计：Agent 主导开发的会话、消息与执行轨迹
 
+> 2026-09-24 更新：未被现有产品调用的 HTTP 入口及专用依赖已清理，详见 [清理记录](unused-http-endpoints.md)。下文涉及已退役入口的旧设计与验收记录保留为历史，不表示现行接口。
+
 > 2026-07-11 方案稿，落地前评审用。本文由产品定位变化触发：Strategy / Factor / Screen
 > 不再只是“业务页面附带一个聊天框”，而是由 Agent 主导研究与开发的三个 surface。本文一旦实施，
 > 将取代 `docs/design/unified-agent.md` 中“消息挂宿主 JSON”“工具观察不持久化”“toolTrace 仅用于

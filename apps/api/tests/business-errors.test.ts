@@ -7,7 +7,6 @@ import { BusinessError, errorMessage } from '#infra/errors.js';
 import { handleApiError, validateJson } from '#infra/http/errors.js';
 import { MarketError, TushareError } from '#market/errors.js';
 import { ResearchError } from '#research/errors.js';
-import { SharingError } from '#sharing/errors.js';
 import { SignalsError } from '#signals/errors.js';
 import { StrategyError } from '#strategy/errors.js';
 import { Hono } from 'hono';
@@ -27,7 +26,6 @@ describe('Business errors at the HTTP boundary', () => {
     [new AuthError('login_required'), 401, 'UNAUTHORIZED'],
     [new AuthError('account_disabled'), 403, 'FORBIDDEN'],
     [new AuthError('email_send_failed'), 503, 'SERVICE_UNAVAILABLE'],
-    [new SharingError('strategy_not_found'), 404, 'NOT_FOUND'],
     [new MaintenanceError('in_progress'), 503, 'MAINTENANCE'],
   ] as const)('maps %s through a nested route to %s', async (error, status, code) => {
     const child = new Hono().get('/failure', () => {

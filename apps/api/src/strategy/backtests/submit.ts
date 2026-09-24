@@ -46,16 +46,9 @@ export async function submitStrategyBacktest(
       return { kind: 'running' as const };
     }
 
-    const committed = await commitStrategyConfig(
-      transaction,
-      userId,
-      strategyId,
-      config,
-      undefined,
-      {
-        forcePrivate: extractFactorKeys(config.code).length > 0,
-      },
-    );
+    const committed = await commitStrategyConfig(transaction, userId, strategyId, config, {
+      forcePrivate: extractFactorKeys(config.code).length > 0,
+    });
     const committedConfig = { ...config, name: committed!.name };
     const reportId = ulid();
     const jobId = ulid();

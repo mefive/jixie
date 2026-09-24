@@ -43,10 +43,6 @@ export function listSignalRuns(deploymentId: string, limit = 30): Promise<Signal
   return request(`/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/runs?${query}`);
 }
 
-export function getSignalRun(runId: string): Promise<SignalRun> {
-  return request(`/api/app/signals/runs/${runId}`);
-}
-
 export function submitSignalRun(
   deploymentId: string,
   tradeDate?: string,

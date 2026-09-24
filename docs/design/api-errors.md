@@ -6,7 +6,7 @@
 
 ## 阅读与调用约定
 
-Strategy、Factor、Research、Signals、Market、Agent、Auth、Sharing、Maintenance
+Strategy、Factor、Research、Signals、Market、Agent、Auth、Maintenance
 均在模块根目录 `errors.ts` 定义错误。业务代码直接使用：
 
 ```ts
@@ -27,7 +27,7 @@ throw new ResearchError('cell_revision_conflict', {
 自定义技术异常也移至模块根级 `errors.ts`，保持各自协议字段：Research Python 输出、
 中断指纹、JSON-RPC code，以及 Market 上游状态码和重试信息。技术异常不继承 BusinessError，
 不因为有 Error 类名就自动映射成客户端错误。原生 Error 继续用于基础设施故障和内部不变量失败；
-不为 Engine 等纯内部计算目录补没有实际用途的空 errors.ts。
+不为 Engine 等纯内部计算目录补没有实际用途的空 errors.ts。Sharing 的独立详情入口退役后已删除无消费者的错误类，复制继续使用 Strategy 错误。
 
 ## HTTP 和非 HTTP 边界
 

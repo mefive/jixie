@@ -4,6 +4,7 @@ import { researchRuntimePool } from '../runtime/pool.js';
 import type { ResearchExecutionOptions } from '../runtime/contract.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchEmbeddedRunSummaryV1, ResearchEmbeddedRunV1 } from '@jixie/shared';
+import { embeddedCreateSchema } from '@jixie/shared/api/research';
 import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
 import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
@@ -186,19 +187,21 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       { ...input, parameters: { nested: {} } },
       { ...input, unexpected: true },
     ]) {
-      const response = await request('/embedded-analyses', 'POST', invalid);
-      expect(response.status).toBe(400);
-      expect(await response.json()).toMatchObject({ error: { code: 'VALIDATION_FAILED' } });
+      expect(embeddedCreateSchema.safeParse(invalid).success).toBe(false);
     }
     expect(await prisma.researchEmbeddedAnalysis.count()).toBe(0);
     expect(await prisma.researchDocument.count()).toBe(0);
 
-    const response = await request('/embedded-analyses', 'POST', {
-      ...input,
-      title: '  Inspect sample  ',
-      inputScope: '  Three observations  ',
-    });
-    expect(response.status).toBe(201);
+    expect((await request('/embedded-analyses', 'POST', input)).status).toBe(404);
+    expect(await prisma.researchEmbeddedAnalysis.count()).toBe(0);
+    await createEmbeddedAnalysis(
+      'owner',
+      embeddedCreateSchema.parse({
+        ...input,
+        title: '  Inspect sample  ',
+        inputScope: '  Three observations  ',
+      }),
+    );
     expect(await prisma.researchEmbeddedAnalysis.findFirstOrThrow()).toMatchObject({
       title: input.title,
     });
@@ -686,12 +689,8 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
   });
 
   it('serves owner-scoped APIs and localized errors, while ordinary document APIs cannot mutate embedded versions', async () => {
-    const createdResponse = await request('/embedded-analyses', 'POST', input);
-    expect(createdResponse.status).toBe(201);
-    const created = (await createdResponse.json()) as Awaited<
-      ReturnType<typeof createEmbeddedAnalysis>
-    >;
-    const { analysis, version } = created;
+    const { analysis, version } = await createEmbeddedAnalysis('owner', input);
+    expect((await request(`/embedded-analyses/${analysis.id}/versions`)).status).toBe(404);
     const stored = await prisma.researchEmbeddedAnalysisVersion.findUniqueOrThrow({
       where: { id: version.id },
       include: { document: { include: { cells: true } } },

@@ -31,14 +31,6 @@ export const chatMessagesSchema = z.array(chatMessageSchema).max(60);
 // Charts.
 export const sqlQueryBodySchema = z.object({ sql: z.string().min(8).max(4000) });
 
-// Conversations.
-export const conversationMessagesQuerySchema = z.object({
-  before: z.coerce.number<string>().int().nonnegative().optional(),
-  limit: z.coerce.number<string>().int().min(1).max(100).default(40),
-});
-
-export type ConversationMessagesQuery = z.output<typeof conversationMessagesQuerySchema>;
-
 // Turns.
 export const activeTurnQuerySchema = z.object({
   // Accept the historical Screen prefix for old clients; no current page creates Screen turns.
@@ -47,6 +39,5 @@ export const activeTurnQuerySchema = z.object({
 
 // HTTP input types describe values before defaults and transformations.
 export type AgentSqlRequest = z.input<typeof sqlQueryBodySchema>;
-export type AgentConversationRequestQuery = z.input<typeof conversationMessagesQuerySchema>;
 export type ActiveAgentTurnRequestQuery = z.input<typeof activeTurnQuerySchema>;
 export type ChatMessagesRequest = z.input<typeof chatMessagesSchema>;

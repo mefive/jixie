@@ -2,7 +2,7 @@ import type { CreateStrategyRequest } from '@jixie/shared/api/strategy';
 import type { FactorReportListRequestQuery } from '@jixie/shared/api/factor';
 import type { updateResearchCell } from './research';
 import type { updateFactor } from './factor';
-import type { updateStrategy } from './strategy';
+import type { submitBacktest } from './strategy';
 
 type AssertRejected<Value extends false> = Value;
 
@@ -27,7 +27,5 @@ export type InvalidRequestAssertions = [
       ? true
       : false
   >,
-  AssertRejected<
-    { config: { code: string } } extends Parameters<typeof updateStrategy>[1] ? true : false
-  >,
+  AssertRejected<{ code: string } extends Parameters<typeof submitBacktest>[0] ? true : false>,
 ];

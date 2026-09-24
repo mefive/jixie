@@ -17,7 +17,16 @@ const fetchMock = vi.fn<typeof fetch>();
 beforeAll(async () => {
   // Exercise the real browser serializer with only locale dependencies replaced; no server is started.
   const result = await build({
-    entryPoints: [fileURLToPath(new URL('../../web/src/api/client.ts', import.meta.url))],
+    stdin: {
+      contents: [
+        "export * from './strategy';",
+        "export * from './factor';",
+        "export * from './research';",
+        "export * from './research-embedded';",
+      ].join('\n'),
+      resolveDir: fileURLToPath(new URL('../../web/src/api', import.meta.url)),
+      loader: 'ts',
+    },
     bundle: true,
     write: false,
     platform: 'browser',

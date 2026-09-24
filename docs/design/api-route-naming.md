@@ -1,5 +1,7 @@
 # `/api/app` 资源路由设计
 
+> 2026-09-24 更新：未被现有产品调用的 HTTP 入口及专用依赖已清理，详见 [清理记录](unused-http-endpoints.md)。下文涉及已退役入口的旧设计与验收记录保留为历史，不表示现行接口。
+
 2026-09-10 用户确认；同日 Strategy 路由职责整理方案再次确认。本文是当前 HTTP 路径契约，替代此前以单数表示动作、复数表示 CRUD 的约定；历史迁移记录保留在 Git 与 [后端重构记录](backend-architecture-refactor.md)。
 
 ## 约定与组装
@@ -27,7 +29,7 @@ app.route('/api/app/factors', factorRoute);
 | 方法 | 路径 | 职责 |
 | --- | --- | --- |
 | GET / POST | `/strategies` | 策略列表 / 创建 |
-| GET / PATCH / DELETE | `/strategies/:strategyId` | 读取 / 修改 / 删除定义 |
+| GET / DELETE | `/strategies/:strategyId` | 读取 / 删除定义 |
 | PATCH | `/strategies/:strategyId/visibility` | 修改可见性 |
 | POST | `/strategies/:strategyId/agent/turns` | 启动策略 Agent 对话 |
 | POST | `/strategies/:strategyId/backtests` | 保存配置并提交回测 |
@@ -188,7 +190,6 @@ E2E 使用编译后的 API 与 Web 预览服务及独立 SQLite 副本。两类�
 | `routes/document.ts` | DELETE | `/documents/:documentId` |
 | `routes/execution.ts` | POST | `/cells/:cellId/run` |
 | `routes/execution.ts` | POST | `/cells/:cellId/run-affected` |
-| `routes/execution.ts` | POST | `/documents/:documentId/dependency-analysis` |
 | `routes/execution.ts` | POST | `/documents/:documentId/run` |
 | `routes/execution.ts` | POST | `/documents/:documentId/runtime/interrupt` |
 | `routes/execution.ts` | POST | `/documents/:documentId/runtime/reset` |
@@ -268,12 +269,10 @@ Research 的 Cell/全文/尝试请求等待执行结果；完整 execution 是�
 | signals | `routes/execution.ts` | GET | `/api/app/signals/deployments/:deploymentId/execution-overview` |
 | signals | `routes/execution.ts` | PATCH | `/api/app/signals/executions/:executionId` |
 | signals | `routes/run.ts` | GET | `/api/app/signals/deployments/:deploymentId/runs` |
-| signals | `routes/run.ts` | GET | `/api/app/signals/runs/:runId` |
 | signals | `routes/run.ts` | POST | `/api/app/signals/deployments/:deploymentId/runs` |
 | signals | `routes/run.ts` | GET | `/api/app/signals/run-jobs/:jobId` |
 | agent | `routes/chart.ts` | POST | `/api/app/agent/sql-queries` |
 | agent | `routes/chart.ts` | POST | `/api/app/agent/chart-computations` |
-| agent | `routes/conversation.ts` | GET | `/api/app/agent/conversations/:conversationId/messages` |
 | agent | `routes/turn.ts` | GET | `/api/app/agent/turns/active` |
 | agent | `routes/turn.ts` | GET | `/api/app/agent/turns/:turnId` |
 | agent | `routes/turn.ts` | GET | `/api/app/agent/turns/:turnId/stream` |
@@ -282,11 +281,9 @@ Research 的 Cell/全文/尝试请求等待执行结果；完整 execution 是�
 | market | `routes/instrument.ts` | GET | `/api/app/market/instruments/:assetType/:instrumentId/series` |
 | market | `routes/instrument.ts` | GET | `/api/app/market/indices/:indexCode/series` |
 | market | `routes/state.ts` | GET | `/api/app/market/weather` |
-| market | `routes/state.ts` | GET | `/api/app/market/state` |
 | market | `routes/valuation.ts` | GET | `/api/app/market/index-valuations` |
 | market | `routes/valuation.ts` | GET | `/api/app/market/index-valuations/:indexCode` |
 | sharing | `routes.ts` | GET | `/api/app/library` |
-| sharing | `routes.ts` | GET | `/api/app/library/strategies/:strategyId` |
 | sharing | `routes.ts` | POST | `/api/app/library/strategies/:strategyId/copy` |
 | auth | `routes.ts` | GET | `/api/auth/me` |
 | auth | `routes.ts` | POST | `/api/auth/logout` |

@@ -2,7 +2,7 @@
 
 本目录回答“哪些 Cell 依赖这次修改、哪些已不能运行”，不执行 Cell 或拥有文档运行锁。
 
-[analyze.ts](analyze.ts) 的 `analyzeResearchDocument(userId, documentId)` 是 execution 路由的授权入口；内部 `analyzeAndPersist` 由全文运行调用，读取 Cell，经 `analyzeResearchCellSources` 使用共享 Python AST 分析，事务保存 definitions/references，再协调依赖问题。它会获取 Python 会话及写数据库，不能当作纯图计算。
+[analyze.ts](analyze.ts) 的 `analyzeResearchDocument(userId, documentId)` 是提案尝试流程的内部授权入口；内部 `analyzeAndPersist` 由全文运行调用，读取 Cell，经 `analyzeResearchCellSources` 使用共享 Python AST 分析，事务保存 definitions/references，再协调依赖问题。它会获取 Python 会话及写数据库，不能当作纯图计算。
 
 [run-plan.ts](run-plan.ts) 的 `affectedResearchCellRunPlan`、`downstreamResearchCellIds` 及依赖冲突计算使用已分析的定义／引用，计算执行集合和顺序、检测重复定义与环；这些算法不取数、不运行 Python。受影响执行由 [document-runs](../document-runs/README.md) 消费计划。
 

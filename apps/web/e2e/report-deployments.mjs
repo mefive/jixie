@@ -98,13 +98,11 @@ try {
   await page.keyboard.press('ControlOrMeta+End');
   await page.keyboard.insertText('\n// Unrun draft edit');
   await page.getByRole('button', { name: '暂停上线', exact: true }).waitFor();
-  await api(
-    `/api/app/strategies/${strategy.id}`,
-    {
-      config: { ...config, initialCash: 2_000_000 },
-    },
-    'PATCH',
-  );
+  const edited = await api(`/api/app/strategies/${strategy.id}/backtests`, {
+    ...config,
+    initialCash: 2_000_000,
+  });
+  await waitJob(`/api/app/strategies/backtest-jobs/${edited.jobId}`);
   const frozen = await api(`/api/app/signals/deployments?strategyId=${strategy.id}`);
   assert.equal(frozen.filter((deployment) => deployment.status === 'active').length, 2);
   assert.ok(frozen.every((deployment) => deployment.config.initialCash === 1_000_000));
@@ -131,7 +129,9 @@ try {
     await page.getByRole('button', { name: '立即生成', exact: true }).click();
     const submitted = await (await response).json();
     await waitJob(`/api/app/signals/run-jobs/${submitted.jobId}`);
-    const run = await api(`/api/app/signals/runs/${submitted.runId}`);
+    const history = await api(`/api/app/signals/deployments/${deployment.id}/runs`);
+    const run = history.find((candidate) => candidate.id === submitted.runId);
+    assert.ok(run, 'Submitted run must appear in the deployment history');
     assert.equal(run.deploymentId, deployment.id);
     runs.push(run);
     await page.getByRole('button', { name: '刷新', exact: true }).click();

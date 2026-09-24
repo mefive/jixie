@@ -1,7 +1,6 @@
 import type {
   StrategyCodeConfigRequest,
   CreateStrategyRequest,
-  UpdateStrategyRequest,
   StrategyVisibilityRequest,
   StrategyBacktestRequestParams,
   StrategyBacktestJobRequestQuery,
@@ -149,15 +148,6 @@ export function createStrategy(config: BacktestConfig, prompt?: string): Promise
   return request('/api/app/strategies', {
     method: 'POST',
     body: JSON.stringify(body satisfies CreateStrategyRequest),
-  });
-}
-
-// Update an existing strategy by id. `{ messages }` alone = real-time chat save (config untouched);
-// `{ config }` = a run's config/name update (drops the stale lastResult when code/range/capital moved).
-export function updateStrategy(id: string, patch: UpdateStrategyRequest): Promise<SavedMeta> {
-  return request(`/api/app/strategies/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(patch satisfies UpdateStrategyRequest),
   });
 }
 

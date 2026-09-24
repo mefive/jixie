@@ -29,7 +29,7 @@
 | 模块 | schema → 类型 | 消费者 |
 | --- | --- | --- |
 | Strategy | `codeConfigSchema` → `StrategyCodeConfigInput` | `backtests/submit.ts` |
-| Strategy | `createStrategySchema` → `CreateStrategyInput`；`updateStrategySchema` → `UpdateStrategyInput` | `definitions/drafts.ts` |
+| Strategy | `createStrategySchema` → `CreateStrategyInput` | `definitions/drafts.ts` |
 | Strategy | `strategyVisibilitySchema` → `StrategyVisibilityInput` | `definitions/visibility.ts` |
 | Strategy | `backtestStrategyIdentitySchema` → `StrategyBacktestIdentityQuery`；`backtestJobQuerySchema` → `StrategyBacktestJobQuery` | `backtests/submit.ts`、`backtests/reports.ts` |
 | Strategy | `scanStrategyIdentitySchema` → `StrategyScanIdentityQuery`；`scanJobQuerySchema` → `StrategyScanJobQuery` | `scans/submit.ts`、`scans/reports.ts` |
@@ -53,7 +53,6 @@
 | Research | `embeddedRunSchema` → `ResearchEmbeddedRunInput` | `embedded/submit.ts` |
 | Research | `embeddedPageSchema` → `ResearchEmbeddedPageQuery`；`embeddedListSchema` → `ResearchEmbeddedListQuery` | `embedded/read.ts`，替代局部 `Page` 及其交叉类型 |
 | Research | `embeddedInputModeSchema` → `ResearchEmbeddedInputModeInput` | `embedded/continuation.ts` |
-| Agent | `conversationMessagesQuerySchema` → `ConversationMessagesQuery` | `conversations/read.ts` |
 | Signals | `submitSignalRunBodySchema` → `SubmitSignalRunInput`（附加部署 ID） | `runs/submit.ts` |
 
 Strategy 与 Factor 共替换 34 处内联 Zod 参数；Research、Agent、Signals 共统一 13 处手写参数。

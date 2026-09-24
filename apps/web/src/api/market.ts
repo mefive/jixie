@@ -1,15 +1,12 @@
 import type {
   InstrumentSeriesRequestQuery,
   InstrumentAssetTypeRequestParam,
-  MarketStateRequestQuery,
   MarketWeatherRequestQuery,
   InstrumentNamesRequestQuery,
 } from '@jixie/shared/api/market';
 import type {
   IndexValuationCatalog,
   IndexValuationSeries,
-  MarketStateScope,
-  MarketStateSnapshot,
   MarketWeatherDimension,
   MarketWeatherFrequency,
   MarketWeatherSeries,
@@ -60,14 +57,6 @@ export function fetchIndexValuationSeries(
   signal?: AbortSignal,
 ): Promise<IndexValuationSeries> {
   return request(`/api/app/market/index-valuations/${encodeURIComponent(code)}`, { signal });
-}
-
-export function fetchMarketState(
-  scope: MarketStateScope,
-  signal?: AbortSignal,
-): Promise<MarketStateSnapshot> {
-  const query = serializeQuery({ scope } satisfies MarketStateRequestQuery);
-  return request(`/api/app/market/state?${query}`, { signal });
 }
 
 export function fetchMarketWeather(

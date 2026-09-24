@@ -180,17 +180,8 @@ describe('Sharing catalog boundaries', () => {
     expect(body.mine.factors).toHaveLength(1);
   });
 
-  it('preserves public strategy detail and rejects private or missing sources', async () => {
-    const detail = await (await request('/strategies/public')).json();
-    expect(detail).toMatchObject({
-      id: 'public',
-      name: config.name,
-      config,
-      author: 'p***@fixture.invalid',
-    });
-    expect(Object.keys(detail).sort()).toEqual(
-      ['id', 'name', 'config', 'updatedAt', 'user', 'author'].sort(),
-    );
+  it('retires public strategy detail and still rejects copying private or missing sources', async () => {
+    expect((await request('/strategies/public')).status).toBe(404);
     for (const id of ['private', 'missing']) {
       expect((await request(`/strategies/${id}`)).status).toBe(404);
       expect((await request(`/strategies/${id}/copy`, 'POST')).status).toBe(404);

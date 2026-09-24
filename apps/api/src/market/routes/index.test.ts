@@ -59,7 +59,6 @@ describe('market HTTP reads', () => {
     '/instruments/stock/600519.SH/series?start=invalid',
     '/weather?dimension=unknown',
     '/weather?frequency=day',
-    '/state?scope=unknown',
   ])('rejects invalid input before reading data: %s', async (url) => {
     const response = await request(url);
     expect(response.status).toBe(400);
@@ -185,6 +184,8 @@ describe('market HTTP reads', () => {
     '/indices/000300.SH/valuation',
     '/futures/IF.CFX/series',
     '/industry-weather?frequency=month',
+    '/state',
+    '/state?scope=all',
   ])('removes the old read endpoint %s', async (path) => {
     expect((await request(path)).status).toBe(404);
     for (const table of Object.values(database)) {

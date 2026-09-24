@@ -1,7 +1,5 @@
 import type { TradeDate } from './types.js';
 
-export type MarketStateMetric = 'activity' | 'breadth' | 'trend' | 'crowding';
-
 export type MarketWeatherFrequency = 'week' | 'month' | 'quarter' | 'year';
 
 export type MarketWeatherDimension = 'industry' | 'scale' | 'board' | 'style';
@@ -90,9 +88,7 @@ export interface IndustryWeatherSeries {
   periods: IndustryWeatherPeriod[];
 }
 
-export type MarketStateRegime = 'hotBroad' | 'hotNarrow' | 'coldBroad' | 'coldWeak' | 'balanced';
-
-/** Point-in-time constituent universes exposed by the market-state scope selector. */
+/** Point-in-time constituent universes maintained for market indicators. */
 export const MARKET_STATE_INDEX_CODES = [
   '000016.SH', // SSE 50
   '000300.SH', // CSI 300
@@ -104,43 +100,6 @@ export const MARKET_STATE_INDEX_CODES = [
   '000688.SH', // STAR 50
   '000922.CSI', // CSI Dividend
 ] as const;
-
-export type MarketStateScope = 'all' | (typeof MARKET_STATE_INDEX_CODES)[number];
-
-export interface MarketStateScopeOption {
-  value: MarketStateScope;
-  startDate: TradeDate;
-  endDate: TradeDate;
-  return5Day: number | null;
-  return20Day: number | null;
-  return60Day: number | null;
-  breadth: number | null;
-}
-
-export type MarketStylePairKey = 'csi300' | 'csi500' | 'csi800';
-
-export interface MarketStyleIndexLeg {
-  tsCode: string;
-  name: string;
-  source: string;
-  return5Day: number | null;
-  return20Day: number | null;
-  return60Day: number | null;
-}
-
-export interface MarketStylePair {
-  key: MarketStylePairKey;
-  growth: MarketStyleIndexLeg;
-  value: MarketStyleIndexLeg;
-  spread5Day: number | null;
-  spread20Day: number | null;
-  spread60Day: number | null;
-}
-
-export interface MarketStateMetricSummary {
-  value: number | null;
-  percentile3Year: number | null;
-}
 
 export interface MarketStatePoint {
   date: TradeDate;
@@ -156,47 +115,4 @@ export interface MarketStatePoint {
   limitUpCount: number;
   limitDownCount: number;
   tradedCount: number;
-}
-
-export interface IndustryHeatItem {
-  rank: number;
-  rankChange5Day: number | null;
-  rankChange20Day: number | null;
-  l1Code: string;
-  l1Name: string;
-  tradedCount: number;
-  heatScore: number;
-  trendScore: number;
-  breadthScore: number;
-  activityScore: number;
-  officialReturn5Day: number | null;
-  officialReturn20Day: number | null;
-  officialReturn60Day: number | null;
-  pe: number | null;
-  pb: number | null;
-  pePercentile10Year: number | null;
-  pbPercentile10Year: number | null;
-  return20: number | null;
-  excessReturn20: number | null;
-  positiveReturn20Ratio: number | null;
-  aboveMa20Ratio: number | null;
-  aboveMa60Ratio: number | null;
-  turnoverRate: number | null;
-  amountShare: number | null;
-  topFiveAmountShare: number | null;
-}
-
-export interface MarketStateSnapshot {
-  scope: MarketStateScope;
-  scopeOptions: MarketStateScopeOption[];
-  asOf: TradeDate;
-  historyStart: TradeDate;
-  availableStart: TradeDate;
-  membershipAsOf: TradeDate | null;
-  regime: MarketStateRegime;
-  summaries: Record<MarketStateMetric, MarketStateMetricSummary>;
-  latest: MarketStatePoint;
-  points: MarketStatePoint[];
-  stylePairs: MarketStylePair[];
-  industries: IndustryHeatItem[];
 }

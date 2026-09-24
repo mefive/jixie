@@ -7,7 +7,6 @@ import type {
   ComputeChartSpec,
   SqlRows,
   ToolTraceItem,
-  ResearchConversationMessages,
 } from '@jixie/shared';
 import {
   ApiError,
@@ -64,12 +63,6 @@ export function cancelAgentTurn(turnId: string): Promise<{ ok: true; cancelled: 
 
 export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
   return request(`/api/app/agent/turns/${turnId}`);
-}
-
-export function getAgentConversationMessages(
-  conversationId: string,
-): Promise<ResearchConversationMessages> {
-  return request(`/api/app/agent/conversations/${encodeURIComponent(conversationId)}/messages`);
 }
 
 // Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.

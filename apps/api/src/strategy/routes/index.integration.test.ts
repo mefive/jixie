@@ -1,6 +1,5 @@
 import { UserCodeError } from '#infra/errors.js';
 import { handleApiError } from '#infra/http/errors.js';
-import { textMessage } from '@jixie/shared';
 import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
@@ -49,7 +48,6 @@ vi.mock('../scans/inspect-parameters.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../scans/inspect-parameters.js')>()),
   inspectStrategyParameters: resources.parameters,
 }));
-
 import type { AgentProfile } from '#agent/core.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -151,9 +149,6 @@ describe('Strategy HTTP business boundaries', () => {
 
   it('keeps owner-only editing and generated-name collision handling', async () => {
     expect((await request('/strategies/strategy', undefined, 'other', 'GET')).status).toBe(404);
-    expect((await request('/strategies/strategy', { messages: [] }, 'other', 'PATCH')).status).toBe(
-      404,
-    );
     expect((await request('/strategies/strategy', undefined, 'other', 'DELETE')).status).toBe(404);
     resources.name.mockResolvedValue(config.name);
     const response = await request('/strategies', {
@@ -166,59 +161,16 @@ describe('Strategy HTTP business boundaries', () => {
     expect((await request('/strategies/strategy', undefined, 'owner', 'DELETE')).status).toBe(200);
   });
 
-  it('preserves result cache for renaming and messages but invalidates runnable inputs', async () => {
-    expect(
-      (
-        await request(
-          '/strategies/strategy',
-          { config: { ...config, name: 'Renamed' } },
-          'owner',
-          'PATCH',
-        )
-      ).status,
-    ).toBe(200);
-    expect(
-      (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
-    ).toEqual({ marker: 'old result' });
-    const messages = [textMessage('user', 'Discuss')];
-    expect((await request('/strategies/strategy', { messages }, 'owner', 'PATCH')).status).toBe(
-      200,
-    );
-    const updated = await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } });
-    expect(updated.messages).toEqual(messages);
-    expect(updated.lastResult).toEqual({ marker: 'old result' });
-    expect(
-      (
-        await request(
-          '/strategies/strategy',
-          { config: { ...config, initialCash: 200_000 } },
-          'owner',
-          'PATCH',
-        )
-      ).status,
-    ).toBe(200);
-    expect(
-      (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
-    ).toBeNull();
+  it('retires direct strategy updates without changing stored configuration or messages', async () => {
+    const before = await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } });
+    for (const body of [{ config: { ...config, initialCash: 200_000 } }, { messages: [] }]) {
+      expect((await request('/strategies/strategy', body, 'owner', 'PATCH')).status).toBe(404);
+    }
+    expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toEqual(before);
   });
 
-  it('blocks config mutation during backtest while retaining message-only updates', async () => {
+  it('blocks a second backtest without changing the committed configuration', async () => {
     await seedJob('backtest');
-    const response = await request(
-      '/strategies/strategy',
-      {
-        config: { ...config, code: 'changed' },
-      },
-      'owner',
-      'PATCH',
-    );
-    expect(response.status).toBe(409);
-    expect(await response.json()).toMatchObject({
-      error: { message: t('en', 'strategyBacktestInProgress') },
-    });
-    expect((await request('/strategies/strategy', { messages: [] }, 'owner', 'PATCH')).status).toBe(
-      200,
-    );
     expect((await request('/strategies/strategy/backtests', config)).status).toBe(409);
     expect((await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).config).toEqual(
       config,
@@ -409,7 +361,7 @@ describe('Strategy HTTP business boundaries', () => {
     ).toBe(404);
   });
 
-  it('resolves collection operations before strategy identities and uses PATCH for edits', async () => {
+  it('resolves collection operations before strategy identities and retires direct edits', async () => {
     expect(
       (await request('/strategies/strategy/backtest-reports', undefined, 'owner', 'GET')).status,
     ).toBe(200);

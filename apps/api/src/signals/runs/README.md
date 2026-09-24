@@ -7,7 +7,7 @@
 | [submit.ts](submit.ts) `submitSignalRun` | run 路由传用户、deploymentId 和可选 tradeDate；缺日期时取最新已完成交易日，先全局结算再入队 |
 | [enqueue.ts](enqueue.ts) `enqueueSignalRun` | submit 和 daily/scheduler；检查本人活动部署、交易日、基础数据及冻结因子的利率覆盖，返回运行标识及完成 Promise，准入失败抛出业务错误 |
 | [signals-run-lifecycle.ts](signals-run-lifecycle.ts) `signalsRunLifecycle` | 校验 Job/Run 关联、启动 Worker，仅当前 attempt 可提交结果；运行状态从 Job 投影 |
-| [read.ts](read.ts) `listDeploymentLatestRuns`、`listSignalRuns`、`getSignalRun`、`getSignalRunJob` | 本人列表、详情和 Job 日志；最新列表包含暂停部署及尚无运行的部署，不限制为今天 |
+| [read.ts](read.ts) `listDeploymentLatestRuns`、`listSignalRuns`、`getSignalRun`、`getSignalRunJob` | 本人列表和 Job 日志；`getSignalRun` 仅供成交更新响应内部读取；最新列表包含暂停部署及尚无运行的部署，不限制为今天 |
 | [readiness.ts](readiness.ts) `signalCalendar`、`signalDataReady` | 入队的交易日／基础数据门槛，不同步数据 |
 
 入队在事务中重查 active 状态。同部署同日 done 或 running 的运行直接复用；error/stale 复用 runId，清理结果与通知状态并创建新 Job，保留冻结依赖。新 Run 从部署冻结依赖。Run 与 queued Job 同事务，提交后唤醒队列，日志在执行开始时初始化。

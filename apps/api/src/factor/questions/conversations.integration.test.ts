@@ -288,10 +288,6 @@ describe('private durable Factor questions', () => {
     expect(await prisma.factor.findUniqueOrThrow({ where: { id: 'factor' } })).toEqual(original);
     expect((await history('factor', '', 'other')).messages).toEqual([]);
     expect((await request(`/agent/turns/${first.turnId}`, undefined, 'other')).status).toBe(404);
-    expect(
-      (await request(`/agent/conversations/${first.conversationId}/messages`, undefined, 'other'))
-        .status,
-    ).toBe(404);
     const second = await submit(undefined, 'factor', 'other');
     await finished(second.turnId);
     expect(second.conversationId).not.toBe(first.conversationId);

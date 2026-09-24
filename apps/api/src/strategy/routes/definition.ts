@@ -1,14 +1,10 @@
 import { validateJson } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
 import { Hono } from 'hono';
-import { createStrategy, deleteStrategy, updateStrategy } from '../definitions/drafts.js';
+import { createStrategy, deleteStrategy } from '../definitions/drafts.js';
 import { listStrategies, readStrategy } from '../definitions/read.js';
 import { setStrategyVisibility } from '../definitions/visibility.js';
-import {
-  createStrategySchema,
-  strategyVisibilitySchema,
-  updateStrategySchema,
-} from '@jixie/shared/api/strategy';
+import { createStrategySchema, strategyVisibilitySchema } from '@jixie/shared/api/strategy';
 
 export const strategyDefinitionRoute = new Hono();
 
@@ -33,10 +29,6 @@ strategyDefinitionRoute.patch(
     );
   },
 );
-
-strategyDefinitionRoute.patch('/:strategyId', validateJson(updateStrategySchema), async (c) => {
-  return c.json(await updateStrategy(c.var.userId, c.req.param('strategyId'), c.req.valid('json')));
-});
 
 strategyDefinitionRoute.delete('/:strategyId', async (c) => {
   return c.json(await deleteStrategy(c.var.userId, c.req.param('strategyId')));

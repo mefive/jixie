@@ -1,6 +1,6 @@
 import { validateJson, validateQuery } from '#infra/http/errors.js';
 import { Hono } from 'hono';
-import { getSignalRun, getSignalRunJob, listSignalRuns } from '../runs/read.js';
+import { getSignalRunJob, listSignalRuns } from '../runs/read.js';
 import { submitSignalRun } from '../runs/submit.js';
 import {
   signalRunJobQuerySchema,
@@ -19,11 +19,6 @@ signalRunRoute.get(
     return c.json(runs);
   },
 );
-
-signalRunRoute.get('/runs/:runId', async (c) => {
-  const run = await getSignalRun(c.var.userId, c.req.param('runId'));
-  return c.json(run);
-});
 
 signalRunRoute.post(
   '/deployments/:deploymentId/runs',

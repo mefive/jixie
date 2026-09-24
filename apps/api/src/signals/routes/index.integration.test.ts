@@ -600,15 +600,17 @@ describe('Signals HTTP and persistence boundaries', () => {
     const run = await response.json();
     expect(Object.keys(run).sort()).toEqual(['jobId', 'runId', 'started']);
     expect(
-      await (await request(`/runs/${run.runId}`, undefined, 'owner', 'GET')).json(),
-    ).toMatchObject({
-      id: run.runId,
-      tradeDate: '20240103',
-      execDate: '20240104',
-      factorDependencies: dependencies,
-    });
+      await (await request(`/deployments/${deployment.id}/runs`, undefined, 'owner', 'GET')).json(),
+    ).toMatchObject([
+      {
+        id: run.runId,
+        tradeDate: '20240103',
+        execDate: '20240104',
+        factorDependencies: dependencies,
+      },
+    ]);
+    expect((await request(`/runs/${run.runId}`, undefined, 'owner', 'GET')).status).toBe(404);
     for (const path of [
-      `/runs/${run.runId}`,
       `/deployments/${deployment.id}/runs`,
       `/run-jobs/${run.jobId}`,
       `/deployments/${deployment.id}/execution-overview`,

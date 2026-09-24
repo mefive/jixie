@@ -338,7 +338,6 @@ export type ResearchEmbeddedInputModeInput = z.output<typeof embeddedInputModeSc
 
 // HTTP input types describe values before defaults and transformations.
 export type ResearchUniverseRequest = z.input<typeof universeSpecV1Schema>;
-export type CreateResearchEmbeddedRequest = z.input<typeof embeddedCreateSchema>;
 export type UpdateResearchEmbeddedRequest = z.input<typeof embeddedUpdateSchema>;
 export type DeriveResearchEmbeddedRequest = z.input<typeof embeddedDeriveSchema>;
 export type RunResearchEmbeddedRequest = z.input<typeof embeddedRunSchema>;

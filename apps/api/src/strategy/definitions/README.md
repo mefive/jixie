@@ -5,8 +5,8 @@
 | 文件 / 入口 | 使用方与副作用 |
 | --- | --- |
 | [read.ts](read.ts) `listStrategies`、`readStrategy` | definition 路由；按用户读取策略列表／详情 |
-| [drafts.ts](drafts.ts) `createStrategy`、`updateStrategy`、`deleteStrategy` | definition 路由；创建可调用命名模型；带 config 更新时事务检查活动 backtest 并保存配置，单独更新 messages 不走该检查 |
-| [config.ts](config.ts) `commitStrategyConfig` | update 与 backtests/submit；接收数据库或调用方 transaction、userId、id、config，返回保存结果或 null，不自行开启总事务 |
+| [drafts.ts](drafts.ts) `createStrategy`、`deleteStrategy` | definition 路由；创建可调用命名模型；配置由回测提交保存，消息由 Agent 持久化 |
+| [config.ts](config.ts) `commitStrategyConfig` | backtests/submit；接收数据库或调用方 transaction、userId、id、config，返回保存结果或 null，不自行开启总事务 |
 | [visibility.ts](visibility.ts) `setStrategyVisibility` | definition 路由；含自定义因子引用时不能公开 |
 | [copy-public.ts](copy-public.ts) `copyPublicStrategy` | Sharing 复制公开策略，目标写入仍由 Strategy 管理 |
 | [from-research.ts](from-research.ts) `findResearchStrategyDraft`、`createStrategyDraftFromResearch` | Research handoff 查询复用／创建目标；接收已生成代码、messages 和来源元数据，不运行回测 |

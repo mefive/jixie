@@ -1,8 +1,7 @@
 import { validateQuery } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { MarketError } from '../errors.js';
-import { marketStateQuerySchema, marketWeatherQuerySchema } from '@jixie/shared/api/market';
-import { loadMarketState } from '../state/read.js';
+import { marketWeatherQuerySchema } from '@jixie/shared/api/market';
 import { loadMarketWeather } from '../state/weather.js';
 
 export const marketStateRoute = new Hono();
@@ -14,13 +13,4 @@ marketStateRoute.get('/weather', validateQuery(marketWeatherQuerySchema), async 
     throw new MarketError('no_data');
   }
   return c.json(series);
-});
-
-marketStateRoute.get('/state', validateQuery(marketStateQuerySchema), async (c) => {
-  const scope = c.req.valid('query').scope;
-  const snapshot = await loadMarketState(scope);
-  if (!snapshot) {
-    throw new MarketError('no_data');
-  }
-  return c.json(snapshot);
 });

@@ -19,7 +19,6 @@ import type {
   ResearchCellChangeResolutionResultV1,
   ResearchCellChangeReviewResolutionResultV1,
   ResearchClarificationSelectionV1,
-  ResearchDocumentAnalysisV1,
   ResearchDocumentInterruptResultV1,
   ResearchDocumentListStateV1,
   ResearchDocumentRunResultV1,
@@ -123,15 +122,6 @@ export function runAffectedResearchCells(cellId: string): Promise<ResearchDocume
   return request(`/api/app/research/cells/${encodeURIComponent(cellId)}/run-affected`, {
     method: 'POST',
   });
-}
-
-export function analyzeResearchDocument(documentId: string): Promise<ResearchDocumentAnalysisV1> {
-  return request(
-    `/api/app/research/documents/${encodeURIComponent(documentId)}/dependency-analysis`,
-    {
-      method: 'POST',
-    },
-  );
 }
 
 export function runResearchDocument(

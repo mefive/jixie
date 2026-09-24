@@ -1,5 +1,7 @@
 # 设计:策略 Run / 建行编排收归后端
 
+> 2026-09-24 更新：未被现有产品调用的 HTTP 入口及专用依赖已清理，详见 [清理记录](unused-http-endpoints.md)。下文涉及已退役入口的旧设计与验收记录保留为历史，不表示现行接口。
+
 > 2026-09-09 目录重整更新（Commit 8，验证通过）：本文保留原用例决策；当前保存/命名实现在 `strategy/definitions/`，回测提交事务在 `strategy/backtest/submit.ts`，任务生命周期在根级 `strategy/backtest-job.ts`。现行入口和报告快照链路见 [Strategy 阅读地图](../../apps/api/src/strategy/README.md)。
 
 > 2026-07-10 起草。

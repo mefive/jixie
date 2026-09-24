@@ -1,7 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { extractFactorKeys } from '#strategy/factor-inputs/references.js';
 import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
-import { SharingError } from './errors.js';
 
 export async function listSharingCatalog(
   userId: string,
@@ -171,23 +170,6 @@ export async function listSharingCatalog(
     },
   };
   return response;
-}
-
-export async function getPublicStrategy(strategyId: string) {
-  const strategy = await prisma.strategy.findFirst({
-    where: { id: strategyId, visibility: 'public' },
-    select: {
-      id: true,
-      name: true,
-      config: true,
-      updatedAt: true,
-      user: { select: { name: true, email: true } },
-    },
-  });
-  if (!strategy) {
-    throw new SharingError('strategy_not_found');
-  }
-  return { ...strategy, author: authorLabel(strategy.user) };
 }
 
 function authorLabel(user: { name: string | null; email: string }): string {

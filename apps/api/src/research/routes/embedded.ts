@@ -2,7 +2,6 @@ import { validateJson, validateQuery } from '#infra/http/errors.js';
 import { localeFromRequest } from '#infra/http/locale.js';
 import { Hono } from 'hono';
 import {
-  embeddedCreateSchema,
   embeddedDeriveSchema,
   embeddedInputModeSchema,
   embeddedListSchema,
@@ -20,14 +19,9 @@ import {
   getEmbeddedVersion,
   listEmbeddedAnalyses,
   listEmbeddedRuns,
-  listEmbeddedVersions,
 } from '../embedded/read.js';
 import { submitEmbeddedRun } from '../embedded/submit.js';
-import {
-  createEmbeddedAnalysis,
-  deriveEmbeddedVersion,
-  updateEmbeddedVersion,
-} from '../embedded/versions.js';
+import { deriveEmbeddedVersion, updateEmbeddedVersion } from '../embedded/versions.js';
 
 export const researchEmbeddedRoute = new Hono();
 
@@ -35,18 +29,11 @@ researchEmbeddedRoute.use('*', async (c, next) => {
   c.header('Cache-Control', 'private, no-store');
   await next();
 });
-
-researchEmbeddedRoute.post('/', validateJson(embeddedCreateSchema), async (c) =>
-  c.json(await createEmbeddedAnalysis(c.var.userId, c.req.valid('json')), 201),
-);
 researchEmbeddedRoute.get('/', validateQuery(embeddedListSchema), async (c) =>
   c.json(await listEmbeddedAnalyses(c.var.userId, c.req.valid('query'))),
 );
 researchEmbeddedRoute.get('/:analysisId', async (c) =>
   c.json(await getEmbeddedAnalysis(c.var.userId, c.req.param('analysisId'))),
-);
-researchEmbeddedRoute.get('/:analysisId/versions', validateQuery(embeddedPageSchema), async (c) =>
-  c.json(await listEmbeddedVersions(c.var.userId, c.req.param('analysisId'), c.req.valid('query'))),
 );
 researchEmbeddedRoute.post('/:analysisId/versions', validateJson(embeddedDeriveSchema), async (c) =>
   c.json(

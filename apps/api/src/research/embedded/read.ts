@@ -44,29 +44,6 @@ export async function getEmbeddedAnalysis(userId: string, analysisId: string) {
   return analysisView(await ownedAnalysis(prisma, userId, analysisId));
 }
 
-export async function listEmbeddedVersions(
-  userId: string,
-  analysisId: string,
-  input: ResearchEmbeddedPageQuery,
-) {
-  await ownedAnalysis(prisma, userId, analysisId);
-  const cursor = input.cursor
-    ? await prisma.researchEmbeddedAnalysisVersion.findFirst({
-        where: { id: input.cursor, analysisId },
-        select: { number: true },
-      })
-    : null;
-  if (input.cursor && !cursor) {
-    throw new ResearchError('embedded_not_found');
-  }
-  const rows = await prisma.researchEmbeddedAnalysisVersion.findMany({
-    where: { analysisId, ...(cursor ? { number: { lt: cursor.number } } : {}) },
-    orderBy: { number: 'desc' },
-    take: input.limit + 1,
-  });
-  return page(rows, input.limit, versionView);
-}
-
 export async function getEmbeddedVersion(userId: string, analysisId: string, versionId: string) {
   const row = await prisma.researchEmbeddedAnalysisVersion.findFirst({
     where: { id: versionId, analysisId, analysis: { userId } },

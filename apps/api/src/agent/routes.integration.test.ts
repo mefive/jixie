@@ -164,7 +164,7 @@ describe('Agent HTTP and durable turn boundaries', () => {
     },
   );
 
-  it('preserves message ownership, pagination, parts and turn detail', async () => {
+  it('preserves stored message parts and owner-scoped turn detail after retiring pagination', async () => {
     const { conversationId } = await createTurn('turn');
     await finishPersistentTurn({
       turnId: 'turn',
@@ -172,42 +172,26 @@ describe('Agent HTTP and durable turn boundaries', () => {
       parts: [{ type: 'text', text: 'Answer.' }],
       trace,
     });
-    await prisma.agentConversation.createMany({
-      data: [
-        { id: 'archived', userId: 'owner', surface: 'research', archivedAt: new Date() },
-        { id: 'foreign', userId: 'other', surface: 'strategy' },
-        { id: 'research', userId: 'owner', surface: 'research' },
-      ],
+    const messages = await prisma.agentMessage.findMany({
+      where: { conversationId },
+      orderBy: { sequence: 'asc' },
     });
-    const recent = await (
-      await request(`/conversations/${conversationId}/messages?limit=1`)
-    ).json();
-    expect(recent).toMatchObject({
-      nextBefore: 1,
-      messages: [
-        {
-          role: 'assistant',
-          sequence: 1,
-          turnId: 'turn',
-          parts: [{ type: 'text', text: 'Answer.' }],
-        },
-      ],
-    });
-    const previous = await (
-      await request(`/conversations/${conversationId}/messages?before=${recent.nextBefore}&limit=1`)
-    ).json();
-    expect(previous).toMatchObject({ nextBefore: 0, messages: [{ role: 'user', sequence: 0 }] });
-    expect(
-      await (await request(`/conversations/${conversationId}/messages?before=0`)).json(),
-    ).toEqual({ messages: [] });
-    expect((await request(`/conversations/${conversationId}/messages`, 'other')).status).toBe(404);
+    expect(messages).toMatchObject([
+      { role: 'user', sequence: 0 },
+      {
+        role: 'assistant',
+        sequence: 1,
+        turnId: 'turn',
+        parts: [{ type: 'text', text: 'Answer.' }],
+      },
+    ]);
+    expect((await request(`/conversations/${conversationId}/messages`)).status).toBe(404);
     expect((await request('/turns/turn', 'other')).status).toBe(404);
     expect(await (await request('/turns/turn')).json()).toMatchObject({
       id: 'turn',
       status: 'done',
       trace,
     });
-    expect((await request(`/conversations/${conversationId}/messages?limit=101`)).status).toBe(400);
   });
 
   it('replays SSE snapshots and terminal events and protects stream and cancellation ownership', async () => {

@@ -74,7 +74,7 @@ describe('commitStrategyConfig', () => {
       },
     };
 
-    await commitStrategyConfig(database as never, 'u1', 's1', BASE_CONFIG, undefined, {
+    await commitStrategyConfig(database as never, 'u1', 's1', BASE_CONFIG, {
       forcePrivate: true,
     });
 

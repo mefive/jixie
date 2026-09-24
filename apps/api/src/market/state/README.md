@@ -3,8 +3,7 @@
 | 文件 / 入口 | 职责与使用方 |
 | --- | --- |
 | [sync.ts](sync.ts) `syncMarketIndicators(start, end)` | Maintenance／CLI；按自然年分片执行批量 SQL，构造市场／指数／行业派生指标；每片的临时表和替换在事务内 |
-| [compute.ts](compute.ts) `buildMarketStateSnapshot`、`buildMarketStatePoints`、`buildIndustryWeatherSeries`、`buildIndexWeatherSeries` | 纯计算输入行 → 视图，不查询数据库 |
-| [read.ts](read.ts) `loadMarketState` | state 路由；按 scope 取已发布数据并构造当前状态，缺失返回 null |
+| [compute.ts](compute.ts) `buildMarketStatePoints`、`buildIndustryWeatherSeries`、`buildIndexWeatherSeries` | Research 状态点序列与天气视图的纯计算，不查询数据库 |
 | [weather.ts](weather.ts) `loadMarketWeather`、`loadIndustryWeatherSeries` | weather 路由及其行业分派；按维度和频率装配序列、复用进程内缓存 |
 | [market-risk-drivers.ts](market-risk-drivers.ts) `loadMarketRiskDriverHistory`、`buildMarketRiskDriverHistory` | Strategy 风险与审计输入；前者查库，后者用已有输入构造风险轴收益 |
 | [market-risk-driver-quality.ts](market-risk-driver-quality.ts) `inspectMarketRiskDrivers`、`summarizeMarketRiskDriverQuality` | 基础覆盖／异常审计，分别为读取入口与摘要计算 |
