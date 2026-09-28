@@ -9,7 +9,7 @@ import { executeAffectedResearchCellPlan } from './execute-plan.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
 import { executeResearchCellById } from './run-cell.js';
-import { researchDocumentRunResult } from './run-result.js';
+import { buildResearchDocumentRunResult } from './run-result.js';
 
 /** Execute one prevalidated, document-scoped Cell plan and attach every immutable snapshot to the
  * same Agent proposal attempt. Content revision checks prevent a multi-tab edit from producing a
@@ -80,7 +80,7 @@ export async function runResearchCellChangeAttemptPlan(
         },
       });
     }
-    return researchDocumentRunResult(userId, documentId, executedCellIds, args.clean);
+    return buildResearchDocumentRunResult(userId, documentId, executedCellIds, args.clean);
   } finally {
     finishResearchDocumentRun(control);
   }

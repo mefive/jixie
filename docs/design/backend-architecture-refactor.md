@@ -975,7 +975,7 @@ Worker 验证使用确定性市场 fixture 和独立 SQLite，真实执行 SQL/�
 
 #### 重点 review
 
-1. `sync/stock-daily.ts` 的 `syncDailyCoreDate` 保持“全部候选通过 → 四表单事务替换”；`etf.ts` 的覆盖/可得日期门禁以及 financial reference 的差异协调保持。Maintenance 自身的控制流仅变导入。
+1. `sync/stock-daily.ts` 的 `syncStockDailyData` 保持“全部候选通过 → 四表单事务替换”；`etf.ts` 的覆盖/可得日期门禁以及 financial reference 的差异协调保持。Maintenance 自身的控制流仅变导入。
 2. `state/weather.ts` 保留缓存键、覆盖日期失效、官方估值优先和 0.8 成分覆盖阈值；同日修订不会自动更换原缓存键，这是已有策略，本轮未扩展缓存行为。
 3. `queries/future-series.ts` 仍按每个交易日的映射选择合约，不跨日回填；跨市场基准保留来源、交易日/availableDate、时区、币种与换汇可得时间。
 4. 模型历史要求留在 Strategy，审计组合留在 Maintenance；Market 不反向导入它们。注册表保持纯静态。API 根挂载、研究数据来源链接、CLI 和参考数据子进程需在 review 后通过真实入口验证。

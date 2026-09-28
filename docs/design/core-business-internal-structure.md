@@ -520,7 +520,7 @@ runtime 持有会话、串行请求、能力协商、SDK 数据交互与进程�
 └── deployments/、accounting/、daily/、cli/、routes/ 等保持
 ```
 
-`latestCompletedTradeDate` 和其上海/SSE 日期辅助迁入 Market 的 `calendar/sse-close.ts`；`signalCalendar` 的状态返回和下一交易日要求继续归 runs。利率输入/新鲜度政策归 `factor-inputs/rates.ts`，基础可得性查询归 Market。两项调整在同一个 Market 提交中完成，避免独立提交只搬一半边界。
+`latestCompletedTradeDate` 和其上海/SSE 日期辅助迁入 Market 的 `calendar/sse-close.ts`；`resolveSignalExecutionDate` 的状态返回和下一交易日要求继续归 runs。利率输入/新鲜度政策归 `factor-inputs/rates.ts`，基础可得性查询归 Market。两项调整在同一个 Market 提交中完成，避免独立提交只搬一半边界。
 
 Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再通知的顺序及其事务外行为保持。`daily/sync.ts` 读取 active 部署来决定所需数据，是 Signals 的需求编排；具体数据同步委托 Market，不能把部署需求逻辑搬进 Market。整轮维护等待/发布协调继续归 Maintenance，不改为 Signals 或 Market 的总调度器。
 

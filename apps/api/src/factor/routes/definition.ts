@@ -10,7 +10,7 @@ import {
   updateFactorDraft,
 } from '../definitions/drafts.js';
 import { refreshOwnedFactorMetadata } from '../definitions/metadata.js';
-import { listCustomFactors, readFactorDefinition } from '../definitions/read.js';
+import { listOwnedFactors, readFactorDefinition } from '../definitions/read.js';
 import { archiveFactor, publishFactor } from '../publication/factor.js';
 import { setFactorVisibility } from '../publication/visibility.js';
 import {
@@ -28,7 +28,7 @@ factorDefinitionRoute.get('/catalog', async (c) => {
 });
 
 factorDefinitionRoute.get('/', async (c) => {
-  return c.json(await listCustomFactors(c.var.userId));
+  return c.json(await listOwnedFactors(c.var.userId));
 });
 
 factorDefinitionRoute.post('/', validateJson(createFactorDraftSchema), async (c) => {

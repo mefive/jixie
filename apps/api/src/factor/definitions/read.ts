@@ -1,14 +1,14 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { Locale } from '@jixie/shared';
 import { FactorError } from '../errors.js';
-import { customFactorTargetAssetClasses } from '../runtime/inspect-definition.js';
+import { inspectFactorTargetAssetClasses } from '../runtime/inspect-definition.js';
 import { BUILTIN_USER_ID } from './builtin-factors.js';
 import { macroRegimeTemplateResource } from './templates/macro-regime.js';
 import { panelTemplateResource } from './templates/panel.js';
 import { timeSeriesTemplateResource } from './templates/time-series.js';
 import { strategyKey } from './views.js';
 
-export async function listCustomFactors(userId: string) {
+export async function listOwnedFactors(userId: string) {
   const rows = await prisma.factor.findMany({
     where: { userId },
     select: {
@@ -94,7 +94,7 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
   }
 
   const { userId: ownerId, ...rest } = row;
-  const targetAssetClasses = await customFactorTargetAssetClasses(rest);
+  const targetAssetClasses = await inspectFactorTargetAssetClasses(rest);
 
   return {
     ...rest,

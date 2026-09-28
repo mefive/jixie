@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
   journal: [] as string[],
   noProgress: false,
 }));
-vi.mock('#market/stocks/daily-sync.js', () => ({ syncDailyCoreDate: vi.fn() }));
+vi.mock('#market/stocks/daily-sync.js', () => ({ syncStockDailyData: vi.fn() }));
 vi.mock('#market/stocks/flows-sync.js', () => ({ syncMoneyflow: vi.fn(), syncTopList: vi.fn() }));
 vi.mock('../publication/gate.js', () => ({ validateRawMarketDate: vi.fn() }));
 vi.mock('#market/indices/sync.js', () => ({

@@ -17,7 +17,7 @@ import {
   executeResearchCell,
   executeResearchCellById,
 } from './run-cell.js';
-import { researchDocumentRunResult } from './run-result.js';
+import { buildResearchDocumentRunResult } from './run-result.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
 export async function runResearchDocument(
@@ -90,7 +90,7 @@ export async function runResearchDocument(
               : 'error',
         executedCellIds,
       });
-      return researchDocumentRunResult(userId, documentId, executedCellIds, true, execution);
+      return buildResearchDocumentRunResult(userId, documentId, executedCellIds, true, execution);
     }
 
     const document = await getResearchDocument(userId, documentId);
@@ -112,7 +112,7 @@ export async function runResearchDocument(
         break;
       }
     }
-    return researchDocumentRunResult(userId, documentId, executedCellIds, false);
+    return buildResearchDocumentRunResult(userId, documentId, executedCellIds, false);
   } catch (error) {
     if (researchExecutionId) {
       const active = await prisma.researchExecution.findUnique({

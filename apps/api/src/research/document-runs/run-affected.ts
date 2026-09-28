@@ -7,7 +7,7 @@ import { ResearchError } from '../errors.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 import { executeAffectedResearchCellPlan } from './execute-plan.js';
 import { executeResearchCellById } from './run-cell.js';
-import { researchDocumentRunResult } from './run-result.js';
+import { buildResearchDocumentRunResult } from './run-result.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
 export async function runAffectedResearchCells(
@@ -28,7 +28,7 @@ export async function runAffectedResearchCells(
     const plan = affectedResearchCellRunPlan(cell.id, analyses);
     await assertResearchCellIdsRunnable(cell.documentId, plan.cellIds);
     if (control.interrupted) {
-      return researchDocumentRunResult(userId, cell.documentId, [], false);
+      return buildResearchDocumentRunResult(userId, cell.documentId, [], false);
     }
 
     const downstreamCellIds = plan.cellIds.filter((affectedCellId) => affectedCellId !== cell.id);
@@ -50,7 +50,7 @@ export async function runAffectedResearchCells(
         (await executeResearchCellById(userId, affectedCellId, control)) === 'success',
       () => control.interrupted,
     );
-    return researchDocumentRunResult(userId, cell.documentId, executedCellIds, false);
+    return buildResearchDocumentRunResult(userId, cell.documentId, executedCellIds, false);
   } finally {
     finishResearchDocumentRun(control);
   }

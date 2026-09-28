@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../providers/tushare/client.js';
-import { syncDailyCoreDate } from './daily-sync.js';
+import { syncStockDailyData } from './daily-sync.js';
 import { syncMoneyflow, syncTopList } from './flows-sync.js';
 
 export interface StockDateCounts {
@@ -91,7 +91,7 @@ export async function repairStockDate(
 ): Promise<void> {
   const tradeDate = repair.tradeDate as TradeDate;
   if (repair.core) {
-    await syncDailyCoreDate(client, tradeDate);
+    await syncStockDailyData(client, tradeDate);
   }
   if (repair.moneyflow) {
     await syncMoneyflow(client, tradeDate, tradeDate, { refresh: true });

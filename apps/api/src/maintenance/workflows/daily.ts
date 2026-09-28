@@ -45,7 +45,7 @@ import {
 } from '#market/registry/index-presets.js';
 import { validateDerivedMarketRange } from '#market/state/quality.js';
 import { syncMarketIndicators } from '#market/state/sync.js';
-import { syncDailyCoreDate } from '#market/stocks/daily-sync.js';
+import { syncStockDailyData } from '#market/stocks/daily-sync.js';
 import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
 import { generateDailySignals } from '#signals/daily/scheduler.js';
 import { prepareSignalEtfMarketDate, syncSignalMarketData } from '#signals/daily/sync.js';
@@ -365,7 +365,7 @@ export async function runDailyMaintenance(
           currentDate: tradeDate,
         });
         onLog(`Fetching validated candidates for ${tradeDate}`);
-        const core = await syncDailyCoreDate(client, tradeDate as TradeDate);
+        const core = await syncStockDailyData(client, tradeDate as TradeDate);
         await syncMoneyflow(client, tradeDate as TradeDate, tradeDate as TradeDate, {
           refresh: true,
         });

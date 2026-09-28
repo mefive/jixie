@@ -24,7 +24,7 @@ vi.mock('../providers/tushare/api.js', () => ({
   stkLimit: mocks.stkLimit,
 }));
 vi.mock('#infra/database/prisma.js', () => ({ prisma: mocks.database }));
-import { syncDailyCoreDate } from './daily-sync.js';
+import { syncStockDailyData } from './daily-sync.js';
 
 const client = {} as TushareClient;
 const tradeDate = '20260901';
@@ -63,7 +63,7 @@ function expectNoPublication() {
 
 describe('daily stock publication gate', () => {
   it('publishes all four validated datasets in one replacement transaction', async () => {
-    expect(await syncDailyCoreDate(client, tradeDate)).toEqual({
+    expect(await syncStockDailyData(client, tradeDate)).toEqual({
       tradeDate,
       daily: 1,
       adjustment: 1,
@@ -83,7 +83,7 @@ describe('daily stock publication gate', () => {
 
   it('rejects missing adjustment coverage before deleting any published data', async () => {
     mocks.adjFactor.mockResolvedValue([]);
-    await expect(syncDailyCoreDate(client, tradeDate)).rejects.toThrow('AdjFactor covers');
+    await expect(syncStockDailyData(client, tradeDate)).rejects.toThrow('AdjFactor covers');
     expectNoPublication();
   });
 
@@ -91,13 +91,13 @@ describe('daily stock publication gate', () => {
     mocks.database.daily.groupBy.mockResolvedValue(
       Array.from({ length: 5 }, () => ({ _count: { _all: 100 } })),
     );
-    await expect(syncDailyCoreDate(client, tradeDate)).rejects.toThrow('recent median is 100');
+    await expect(syncStockDailyData(client, tradeDate)).rejects.toThrow('recent median is 100');
     expectNoPublication();
   });
 
   it('rejects a mismatched provider session before any publication', async () => {
     mocks.stkLimit.mockResolvedValue([{ ...identity, trade_date: '20260831' }]);
-    await expect(syncDailyCoreDate(client, tradeDate)).rejects.toThrow('unexpected date');
+    await expect(syncStockDailyData(client, tradeDate)).rejects.toThrow('unexpected date');
     expectNoPublication();
   });
 });

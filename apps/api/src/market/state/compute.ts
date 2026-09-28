@@ -221,7 +221,7 @@ export function buildIndustryWeatherSeries(
   };
 }
 
-export function toUnifiedIndustryWeatherSeries(
+export function industryWeatherToMarketWeather(
   series: IndustryWeatherSeries,
   groups: readonly IndexWeatherGroupConfig[],
 ): MarketWeatherSeries {

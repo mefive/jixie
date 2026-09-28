@@ -1,7 +1,7 @@
 import { FactorRuntime } from './factor-runtime.js';
 import { pythonFactorTargetAssetClasses } from './python/validator.js';
 
-export async function customFactorTargetAssetClasses(input: {
+export async function inspectFactorTargetAssetClasses(input: {
   analysisKind: string;
   language: string;
   code: string;

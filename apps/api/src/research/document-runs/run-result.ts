@@ -1,7 +1,7 @@
 import type { ResearchExecutionSummaryV1, ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { getResearchDocument } from '../documents/read.js';
 
-export async function researchDocumentRunResult(
+export async function buildResearchDocumentRunResult(
   userId: string,
   documentId: string,
   executedCellIds: string[],

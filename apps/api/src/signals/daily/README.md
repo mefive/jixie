@@ -5,7 +5,7 @@
 [sync.ts](sync.ts) 的 `syncSignalMarketData` 拥有“当天这些部署需要什么数据”的业务编排，数据同步实现仍归 Market：
 
 - 加载活动部署源码元数据和冻结依赖；核心未发布时补 SSE 日历至后续 14 天，并检查当天开市。
-- 核心未发布时依次调用 `syncDaily`、`syncDailyBasic`、`syncStkLimit`。这里当前不调用四表原子发布的 `syncDailyCoreDate`，不能混写它们的事务保证。
+- 核心未发布时依次调用 `syncDaily`、`syncDailyBasic`、`syncStkLimit`。这里当前不调用四表原子发布的 `syncStockDailyData`，不能混写它们的事务保证。
 - 有冻结国债曲线依赖时同步最近 21 个日历日；资金流和龙虎榜按策略声明／源码使用决定，已发布扩展数据可跳过。
 - 合并研究 registry ETF 与部署关注 ETF，再调用 `syncEtfMarketDate`。
 

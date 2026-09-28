@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
 import { isCompletedShanghaiDate } from '#market/calendar/sse-close.js';
 
-export async function signalCalendar(
+export async function resolveSignalExecutionDate(
   tradeDate: string,
 ): Promise<
   { kind: 'ready'; execDate: string } | { kind: 'invalid_date' } | { kind: 'next_date_missing' }
@@ -23,7 +23,7 @@ export async function signalCalendar(
   return next ? { kind: 'ready', execDate: next.calDate } : { kind: 'next_date_missing' };
 }
 
-export async function signalDataReady(tradeDate: string): Promise<boolean> {
+export async function isSignalDataReady(tradeDate: string): Promise<boolean> {
   const [daily, adjustment, basic, limits] = await Promise.all([
     prisma.daily.count({ where: { tradeDate } }),
     prisma.adjFactor.count({ where: { tradeDate } }),

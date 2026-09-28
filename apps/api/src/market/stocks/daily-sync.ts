@@ -29,7 +29,7 @@ export interface DailyCoreSyncSummary {
  * Fetch, validate, and atomically publish the four dense stock datasets required by every daily
  * calculation. No database row for the target date changes before every candidate has passed.
  */
-export async function syncDailyCoreDate(
+export async function syncStockDailyData(
   client: TushareClient,
   tradeDate: TradeDate,
 ): Promise<DailyCoreSyncSummary> {

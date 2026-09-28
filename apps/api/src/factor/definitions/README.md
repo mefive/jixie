@@ -6,7 +6,7 @@
 
 | 文件 / 入口 | 消费者与用途 | 输入、返回与副作用 |
 | --- | --- | --- |
-| [catalog.ts](catalog.ts) `listFactorCatalog`；[read.ts](read.ts) `listCustomFactors`、`readFactorDefinition` | 定义路由读取目录、列表及详情 | 按 userId 选择可读内容；详情可调用 runtime 检查目标资产，不能当成仅有数据库读取的投影 |
+| [catalog.ts](catalog.ts) `listFactorCatalog`；[read.ts](read.ts) `listOwnedFactors`、`readFactorDefinition` | 定义路由读取目录、列表及详情 | 按 userId 选择可读内容；详情可调用 runtime 检查目标资产，不能当成仅有数据库读取的投影 |
 | [drafts.ts](drafts.ts) `createFactorDraft`、`updateFactorDraft`、`deleteFactorDraft`、`copyFactorDraft` | 定义路由的草稿操作 | 校验身份、语言与分析类型；修改已发布定义须遵循草稿状态规则，复制产生自己的草稿 |
 | [metadata.ts](metadata.ts) `refreshOwnedFactorMetadata` | 定义路由显式刷新 | 检查所有者和 draft，缺失／非草稿报业务错误；调用模型并更新展示元数据 |
 | 同文件 `refreshFactorMetadata`、`generateFactorMetadata` | Factor Agent 完成回调；生成器供刷新复用 | 低层刷新遇到不存在／非草稿直接返回；生成器返回元数据、不保存定义。模型调用与写入不在一个总事务内 |

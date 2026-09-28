@@ -8,7 +8,7 @@ import { ulid } from 'ulid';
 import { SignalsError } from '../errors.js';
 import { StrategyFactor } from '#strategy/factors/factor.js';
 import { governmentYieldCurveReady } from '../factor-inputs/rates.js';
-import { signalCalendar, signalDataReady } from './readiness.js';
+import { resolveSignalExecutionDate, isSignalDataReady } from './readiness.js';
 
 export interface EnqueuedSignalRun {
   runId: string;
@@ -33,11 +33,11 @@ export async function enqueueSignalRun(
     throw new SignalsError('paused');
   }
 
-  const calendar = await signalCalendar(tradeDate);
+  const calendar = await resolveSignalExecutionDate(tradeDate);
   if (calendar.kind !== 'ready') {
     throw new SignalsError(calendar.kind);
   }
-  if (!(await signalDataReady(tradeDate))) {
+  if (!(await isSignalDataReady(tradeDate))) {
     throw new SignalsError('data_not_ready', { params: { date: tradeDate } });
   }
   const factorDependencies =

@@ -20,7 +20,7 @@ import { TushareClient } from '../providers/tushare/client.js';
 import { getOpenDates } from './read.js';
 import { syncTradeCal } from './sync.js';
 import { isCompletedShanghaiDate, latestCompletedTradeDate } from './sse-close.js';
-import { signalCalendar } from '#signals/runs/readiness.js';
+import { resolveSignalExecutionDate } from '#signals/runs/readiness.js';
 
 beforeAll(() => {
   execFileSync(
@@ -75,13 +75,16 @@ describe('shared SSE calendar and signal dates', () => {
 
   it('preserves the consumer requirement for an open day and a known next trading day', async () => {
     vi.setSystemTime(new Date('2026-09-14T07:59:59Z'));
-    expect(await signalCalendar('20260914')).toEqual({ kind: 'invalid_date' });
+    expect(await resolveSignalExecutionDate('20260914')).toEqual({ kind: 'invalid_date' });
     vi.setSystemTime(new Date('2026-09-14T08:00:00Z'));
-    expect(await signalCalendar('20260914')).toEqual({ kind: 'ready', execDate: '20260915' });
-    expect(await signalCalendar('20260912')).toEqual({ kind: 'invalid_date' });
-    expect(await signalCalendar('invalid')).toEqual({ kind: 'invalid_date' });
+    expect(await resolveSignalExecutionDate('20260914')).toEqual({
+      kind: 'ready',
+      execDate: '20260915',
+    });
+    expect(await resolveSignalExecutionDate('20260912')).toEqual({ kind: 'invalid_date' });
+    expect(await resolveSignalExecutionDate('invalid')).toEqual({ kind: 'invalid_date' });
     vi.setSystemTime(new Date('2026-09-15T08:00:00Z'));
-    expect(await signalCalendar('20260915')).toEqual({ kind: 'next_date_missing' });
+    expect(await resolveSignalExecutionDate('20260915')).toEqual({ kind: 'next_date_missing' });
   });
 
   it('returns no completed date when the SSE calendar is empty', async () => {

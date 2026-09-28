@@ -51,7 +51,7 @@
 
 基线证据（C3 已按下述目标调整归属，当前入口见 §3 和 §7）：
 
-1. [definitions/views.ts](../../apps/api/src/factor/definitions/views.ts) 同时提供纯 `strategyKey` / `factorLanguage` 和会编译、释放运行时的 `customFactorTargetAssetClasses`。`definitions/catalog.ts`、`drafts.ts` 只需要前者；实际编译检查由 `definitions/read.ts` 消费。把编译能力移到 runtime，保留纯映射入口。
+1. [definitions/views.ts](../../apps/api/src/factor/definitions/views.ts) 同时提供纯 `strategyKey` / `factorLanguage` 和会编译、释放运行时的 `inspectFactorTargetAssetClasses`。`definitions/catalog.ts`、`drafts.ts` 只需要前者；实际编译检查由 `definitions/read.ts` 消费。把编译能力移到 runtime，保留纯映射入口。
 2. [definitions/builtin-factors.ts](../../apps/api/src/factor/definitions/builtin-factors.ts) 同时导出 `BUILTIN_*` / `builtinCatalog` 和 `seedBuiltinFactors`。目录、来源解析、天气、复制 key、相关性及 Strategy 只读取注册定义，bootstrap 才执行种子写入。`#infra/database/prisma.ts` 在模块初始化时创建 Prisma 并发出 PRAGMA，因此这里不只是文件看起来大。
 3. [publication/factor.ts](../../apps/api/src/factor/publication/factor.ts) 导出纯 `normalizeAnalysisKind`，Strategy 准备因子却因此导入发布/编译实现。`normalizeFactorLanguage` 与 `definitions/views.ts` 的 `factorLanguage` 等价。`FactorPublicationError` 又被 `definitions/copy-key.ts` 和 Panel 发布共用，错误类型没有必要携带单因子发布实现。
 4. [evaluations/start.ts](../../apps/api/src/factor/evaluations/start.ts) 的私有 `reportCompatibilityColumns` 与 [report-views.ts](../../apps/api/src/factor/evaluations/report-views.ts) 中同名实现重复，分别供普通分析、holdout 使用。两份都将 daily/weekly/monthly 映射为 day/week/month，同一存储口径以后容易分叉。
@@ -102,7 +102,7 @@ C6 已将共享曲线和汇率静态定义移到 Market 现有的 [registry/yiel
 | 同文件的人工反馈 | 新增 `research/curator/feedback.ts` | `updateResearchCuratorFindingFeedback`、`setResearchCuratorFindingDisposition`；PATCH → feedback。 |
 | 同文件的记录映射 | 新增 `research/curator/views.ts` | `curatorRunRecord`、`curatorFindingRecord` 及映射所需类型；read/feedback → views；仅 type 导入 Prisma，不查询、不导入 prepare。旧 runs 文件删除。 |
 | `factor/definitions/builtin-factors.ts` 的写库部分 | 新增 `factor/definitions/seed.ts` | 仅迁移 `seedBuiltinFactors` 及写库依赖；bootstrap → seed → builtin-factors/templates。内置定义/目录仍在原文件。 |
-| `factor/definitions/views.ts` 的编译检查 | 新增 `factor/runtime/inspect-definition.ts` | `customFactorTargetAssetClasses` 与原编译/释放代码；definitions/read → runtime/inspect-definition。 |
+| `factor/definitions/views.ts` 的编译检查 | 新增 `factor/runtime/inspect-definition.ts` | `inspectFactorTargetAssetClasses` 与原编译/释放代码；definitions/read → runtime/inspect-definition。 |
 | `factor/publication/factor.ts` 的共用归一化/错误 | 已有 `factor/definitions/views.ts`、`factor/errors.ts` | `normalizeAnalysisKind` 归 views；语言归一化复用 `factorLanguage`；`FactorPublicationError`/reason 归共用业务 errors。publication、copy-key、HTTP error adapter 和 Strategy 消费相应窄入口。 |
 | 两份 `reportCompatibilityColumns`；views 内 spec 解码 | 新增 `factor/evaluations/report-spec.ts` | 一份 `reportCompatibilityColumns` 与 `reportResearchSpec`；start/holdout/report-views 按需导入。结果投影和封存仍归 report-views/read。 |
 | `factor/definitions/metadata-operations.ts` | 合入已有 `factor/definitions/metadata.ts` | 保留 `refreshOwnedFactorMetadata`、`refreshFactorMetadata`、`generateFactorMetadata` 三个不同层次的入口，删除额外文件。 |
@@ -197,7 +197,7 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 | Signals `submit.ts` 与 daily/scheduler | 手动入口解析日期后先结算再入队；每日入口一次同步/结算后串行处理部署。两者最终共用 enqueue，但前置职责不同；不是应该删除的薄转发。 |
 | Signals accounting 的 read/settlement/replay | 查询映射无编译/LLM；重放是纯计算，settlement 管逐日写入，executions 管人工成交与重建。`deploymentWire` / `executionWire` 位于各自 read 文件无需再各建 views。 |
 | Signals Job 的 afterCommit | 完成事务后先初始化记账，再通知；记账失败不会撤销已完成 Run/Job，并会阻止后续通知。保留顺序，不趁重构添加 outbox/重试协议。 |
-| Market 股票/ETF/期货同步与私有校验 | 候选校验服务原范围替换；股票四表、ETF 三表、历史证券/年度切片具有不同原子性/断点要求。保留 `syncDailyCoreDate`、`syncEtfMarketDate`、`syncEtfDaily` 的不同流程。 |
+| Market 股票/ETF/期货同步与私有校验 | 候选校验服务原范围替换；股票四表、ETF 三表、历史证券/年度切片具有不同原子性/断点要求。保留 `syncStockDailyData`、`syncEtfMarketDate`、`syncEtfDaily` 的不同流程。 |
 | Market 客户端、解析器与同步相邻 | C6 只抽有跨流程消费者的身份事实；不为每个纯 parser 新建文件。美债/FX 仍联合取数和汇总、按原顺序分别写入；不虚构一个联合总事务。 |
 | Market 商品、宏观、财报的数据构造与读取 | `computeCommodityContinuousReturns` 实际加载映射/行情/日历，供 rebuild 和质量审计复算；不能因 compute 名称误判纯函数。`macro/as-of.ts` 仅类型依赖数据库，加载和纯选择围绕同一 vintage 规则。财报 source-contract 的 append 是纯数组合并，不是落库。 |
 | Research datasets/results 跨域只读 | SDK 有 owner、已完成/holdout 封存、传输限制及 snake_case 等映射要求，不能用 HTTP 详情的返回形状替换。它们不接管来源状态或写入，不加全域 repository。 |
@@ -279,7 +279,7 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 提交标题：`refactor(factor): clarify definition and evaluation support boundaries`。
 
 - `seedBuiltinFactors` 原样迁到 `definitions/seed.ts`；bootstrap 及其测试导入新入口，后台启动时机不变。builtin-factors 只保留静态定义、模板键和目录映射，没有 Prisma 导入或兼容转导出。
-- `customFactorTargetAssetClasses` 原样迁到 `runtime/inspect-definition.ts`；definitions/read 直接消费。保留 TS 编译后的 finally 释放、Python 字面量解析和其他 analysisKind 返回 equity 的既有路径。
+- `inspectFactorTargetAssetClasses` 原样迁到 `runtime/inspect-definition.ts`；definitions/read 直接消费。保留 TS 编译后的 finally 释放、Python 字面量解析和其他 analysisKind 返回 equity 的既有路径。
 - `normalizeAnalysisKind` 归 definitions/views；发布复用已有 `factorLanguage`；发布错误类及 reason 归 factor/errors，发布、复制与路由统一引用同一类。Strategy 只为分析类型映射导入 views，不再为此导入发布实现。catalog 的既有分析类型投影以及 cross-sectional/series 接受空值的私有语言辅助不改。
 - `report-spec.ts` 保存一份兼容列映射和原 spec 解码；普通分析、holdout、资格检查及报告读取按需消费。旧 spec 缺失/非法时的回退保持，包括旧 freq 非 week 时仍回退为 month；没有合并普通提交与 holdout 的事务或改动封存映射。
 - `refreshOwnedFactorMetadata` 并入 metadata，删除 metadata-operations；三个原函数的实现保持。HTTP 首次 owner/draft 检查、低层第二次检查、消息回退与错误转换均保留，Agent 不新增 HTTP 拒绝条件。
@@ -384,3 +384,26 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - review 后 13 个 TS 文件内容哈希保持一致。所有临时验收进程退出，Prisma 断开；交付前核对数据库无打开句柄并清理本次数据库、干净构建、日志及探针目录。没有启动应用 HTTP 服务、调用真实 LLM/行情源或发送邮件。
 
 2026-09-28 后续组织调整：上述 C4 函数拆分属于当时实现。当前引用提取、准备与快照方法集中在 `strategy/factors/factor.ts` 的 StrategyFactor 类，数据库及编译器按需加载，保留纯引用方法无数据库副作用的边界；当前接口见 [策略因子](../../apps/api/src/strategy/factors/README.md)。
+
+## 2026-09-28 业务函数命名澄清（审查与验证通过）
+
+计划提交：`refactor(api): clarify business function names`。按用户确认的扫描清单，完成以下七处内部函数改名，并同步生产调用、测试替身、断言和文档：
+
+| 原名称 | 当前名称 |
+| --- | --- |
+| customFactorTargetAssetClasses | inspectFactorTargetAssetClasses |
+| listCustomFactors | listOwnedFactors |
+| toUnifiedIndustryWeatherSeries | industryWeatherToMarketWeather |
+| syncDailyCoreDate | syncStockDailyData |
+| researchDocumentRunResult | buildResearchDocumentRunResult |
+| signalCalendar | resolveSignalExecutionDate |
+| signalDataReady | isSignalDataReady |
+
+仅调整标识符及格式，不改变查询权限、算法、事务、运行时启动/释放、返回值或公共 HTTP/SDK 契约；不保留旧名称转发。保留真实表达来源、执行层级和成交类型的 Custom / ById / Process / Actual 限定词。用户已修改的 backtests/run.ts 与 worker.ts 中 runBacktest 命名及独立 engine-refactor-notes.md 不纳入本次提交。
+
+审查前运行全仓 typecheck（含后端边界及 SDK 一致性）、受影响代码 ESLint / Prettier 和 diff 检查。审查通过后运行 Factor 路由集成、Market state/股票同步/日历、Maintenance 自愈、Research 文档运行生命周期和 Signals 路由集成测试，以及 Shared/API 构建；通过后按上述信息提交，不推送。
+
+本轮静态结果：全仓 typecheck 通过（833 文件边界扫描、0 violations、SDK 生成物一致、全部 workspace 类型通过）；17 个受影响 TS 文件的 ESLint / Prettier 及 git diff --check 通过。行为测试和构建尚未运行，修改未提交，等待人工代码审查。日志：/tmp/jixie-business-naming-typecheck.log。
+
+
+人工审查通过后的验证：Factor 路由集成、Market state/股票同步/日历、Maintenance 自愈、Research 文档运行生命周期、Signals 路由集成共 7 个测试文件、82 项通过，无失败或跳过。Shared/API 构建通过。进程检查无 Vitest、Worker boot 或 Python runner 残留，未启动额外开发服务。日志为 /tmp/jixie-business-naming-tests.log 和 /tmp/jixie-business-naming-build.log。按已确认信息提交，不推送；用户的 runBacktest 两处修改和 engine-refactor-notes.md 保留在工作区。

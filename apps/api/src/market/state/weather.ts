@@ -20,7 +20,7 @@ import type {
 import {
   buildIndexWeatherSeries,
   buildIndustryWeatherSeries,
-  toUnifiedIndustryWeatherSeries,
+  industryWeatherToMarketWeather,
 } from './compute.js';
 
 export async function loadMarketWeather(
@@ -33,7 +33,7 @@ export async function loadMarketWeather(
       return null;
     }
 
-    return toUnifiedIndustryWeatherSeries(industrySeries, MARKET_WEATHER_INDUSTRY_GROUPS);
+    return industryWeatherToMarketWeather(industrySeries, MARKET_WEATHER_INDUSTRY_GROUPS);
   }
 
   const groups = MARKET_WEATHER_INDEX_GROUPS[dimension];
