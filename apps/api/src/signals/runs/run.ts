@@ -1,13 +1,13 @@
 import { prismaDataPort } from '#engine/adapters/prisma-port.js';
 import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
-import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
-import { runSandboxedSignalCapture } from '#strategy/execution/simulation.js';
+import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyExecution } from '#strategy/execution/execution.js';
+import type { SignalBacktestOutput } from '#engine/types.js';
 import { errorMessage } from '#infra/errors.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type { BacktestConfig, Locale, ModelPositionSnapshot, SignalItem } from '@jixie/shared';
-import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
 import { summarizeFactorInputs } from '../factor-inputs/summary.js';
 
 export async function runSignal(
@@ -34,22 +34,34 @@ export async function runSignal(
 
     // Existing deployments retain their frozen dependency after a Factor is archived. The lineage
     // assertion below still rejects code or identity drift before the signal is calculated.
-    const prepared = await prepareStrategyFactors(config.code, run.userId, 'signal');
-    const deploymentDependencies = factorDependenciesFromJson(run.deployment.factorDependencies);
-    const runDependencies = factorDependenciesFromJson(run.factorDependencies);
-    const output = await runSandboxedSignalCapture(
-      {
-        ...config,
-        end: run.tradeDate,
-        locale,
-        customFactors: prepared.modules,
-        factorDependencies: prepared.factors,
-        factorDependencySnapshots: [deploymentDependencies, runDependencies],
-      },
-      prismaDataPort,
-      systemLog,
-      userLog,
+    const prepared = await StrategyFactor.prepare(config.code, run.userId, 'signal');
+    const deploymentDependencies = StrategyFactor.dependenciesFromJson(
+      run.deployment.factorDependencies,
     );
+    const runDependencies = StrategyFactor.dependenciesFromJson(run.factorDependencies);
+    const execution = await StrategyExecution.create({
+      code: config.code,
+      language: config.language,
+      locale,
+      factors: prepared,
+      dataPort: prismaDataPort,
+      onLog: systemLog,
+      onUserLog: userLog,
+    });
+    let output: SignalBacktestOutput;
+    try {
+      if (deploymentDependencies !== null && runDependencies !== null) {
+        StrategyFactor.assertDependencies(deploymentDependencies, runDependencies);
+      }
+      // Legacy rows may have only one snapshot, or neither. Preserve their admission rules.
+      StrategyFactor.assertDependencies(
+        runDependencies ?? deploymentDependencies,
+        execution.factorDependencies,
+      );
+      output = await execution.run({ ...config, end: run.tradeDate, captureSignals: true });
+    } finally {
+      execution.close();
+    }
     const codes = [
       ...new Set([
         ...output.capture.signals.map((signal) => signal.code),
@@ -80,7 +92,7 @@ export async function runSignal(
       }),
     );
     const factorInputs = summarizeFactorInputs(
-      prepared.factors,
+      prepared.map((factor) => factor.toDependency()),
       output.capture.tradeDate,
       output.capture.factorObservations,
       [...signals.map((signal) => signal.code), ...modelPositions.map((position) => position.code)],

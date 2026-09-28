@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import { extractFactorKeys } from '#strategy/factor-inputs/references.js';
+import { StrategyFactor } from '#strategy/factors/factor.js';
 import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
 
 export async function listSharingCatalog(
@@ -130,7 +130,9 @@ export async function listSharingCatalog(
       strategies: ownStrategies
         .filter((asset) => {
           const config = asset.config as unknown as BacktestConfig;
-          return asset.visibility === 'public' || extractFactorKeys(config.code).length === 0;
+          return (
+            asset.visibility === 'public' || StrategyFactor.extractKeys(config.code).length === 0
+          );
         })
         .map((asset) => ({
           id: asset.id,

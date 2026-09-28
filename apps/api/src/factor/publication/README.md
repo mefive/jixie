@@ -10,7 +10,7 @@
 
 单因子发布要求本人 draft 和本人已完成报告，分析类型、语言、runtimeVersion、冻结源码和哈希匹配；未揭示 holdout 不能作为可用证据。宏观报告另检查 as_available 和 PIT 资格，资产因子编译检查受控研究输入，编译失败按报告无效处理。编译对象在 finally 释放。
 
-发布先查询／验证，再以 draft 条件更新状态，并未用一个事务包住所有查询和编译。不得将它写成已具备全链路锁定。归档使资源私有；已有消费者能否使用 archived，由 [Strategy 因子准备](../../strategy/factor-inputs/README.md) 按场景判断。可见性与因子是否可运行不是同一开关。
+发布先查询／验证，再以 draft 条件更新状态，并未用一个事务包住所有查询和编译。不得将它写成已具备全链路锁定。归档使资源私有；已有消费者能否使用 archived，由 [Strategy 因子准备](../../strategy/factors/README.md) 按场景判断。可见性与因子是否可运行不是同一开关。
 
 Panel 组合证据检查先读 panel-composite，再读 [composition/panel-source.ts](../composition/panel-source.ts)；不要直接复用单因子源码相等判断。共用错误类型 `FactorPublicationError` 在 [errors.ts](../errors.ts)，HTTP 映射在 routes，纯语言／类型映射在 definitions/views。
 

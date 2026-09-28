@@ -1,17 +1,21 @@
 import { t } from '#i18n/index.js';
 import type { StrategyScanCell, StrategyScanPayload } from '@jixie/shared';
-import { prepareStrategyFactors } from '../factor-inputs/prepare.js';
+import { StrategyFactor } from '../factors/factor.js';
 import type { StrategyScanWorkerInput } from './job-payload.js';
 import { metricSummary, parameterCombinations, rebaseNav, scanCellOverrides } from './scan.js';
 import { prismaDataPort } from '#engine/adapters/prisma-port.js';
-import { runSandboxedBacktest } from '../execution/simulation.js';
+import {
+  StrategyExecution,
+  type StrategyExecutionInput,
+  type StrategyRunOptions,
+} from '../execution/execution.js';
 
 export async function runStrategyScan(
   input: StrategyScanWorkerInput,
   onSystemLog: (text: string) => void,
 ): Promise<StrategyScanPayload> {
   const { config, spec, parameters, ranges, userId, locale } = input;
-  const { modules: customFactors } = await prepareStrategyFactors(config.code, userId);
+  const factors = await StrategyFactor.prepare(config.code, userId);
   const combinations = parameterCombinations(spec);
   const cells: StrategyScanCell[] = [];
 
@@ -28,12 +32,12 @@ export async function runStrategyScan(
     const cell = {
       ...config,
       initialCash: overrides.initialCash ?? config.initialCash,
-      customFactors,
+      factors,
       paramOverrides: overrides.paramOverrides,
       locale,
     };
     if ('full' in ranges) {
-      const result = await runSandboxedBacktest({ ...cell, ...ranges.full }, prismaDataPort);
+      const result = await runScanRange({ ...cell, ...ranges.full });
       cells.push({
         params,
         full: metricSummary(result),
@@ -42,11 +46,8 @@ export async function runStrategyScan(
       continue;
     }
 
-    const inSample = await runSandboxedBacktest({ ...cell, ...ranges.inSample }, prismaDataPort);
-    const outOfSample = await runSandboxedBacktest(
-      { ...cell, ...ranges.outOfSample },
-      prismaDataPort,
-    );
+    const inSample = await runScanRange({ ...cell, ...ranges.inSample });
+    const outOfSample = await runScanRange({ ...cell, ...ranges.outOfSample });
     cells.push({
       params,
       inSample: metricSummary(inSample),
@@ -55,4 +56,13 @@ export async function runStrategyScan(
   }
 
   return { parameters, cells };
+}
+
+async function runScanRange(config: Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions) {
+  const execution = await StrategyExecution.create({ ...config, dataPort: prismaDataPort });
+  try {
+    return await execution.run({ ...config, captureSignals: false });
+  } finally {
+    execution.close();
+  }
 }

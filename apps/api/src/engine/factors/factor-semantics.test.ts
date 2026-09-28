@@ -1,9 +1,17 @@
+import { StrategyFactor } from '#strategy/factors/factor.js';
+import type { CustomFactorModule } from './custom-factor.js';
+import {
+  StrategyExecution,
+  type StrategyExecutionInput,
+  type StrategyRunOptions,
+} from '#strategy/execution/execution.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
+import type { EngineDataPort } from '#engine/data/data-port.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   runStrategy as runEngine,
   runStrategyWithSignals as runEngineWithSignals,
 } from '../simulation/run.js';
-import { runSandboxedBacktest } from '#strategy/execution/simulation.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 import type { EngineStrategy, EngineConfig } from '../types.js';
@@ -241,7 +249,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
     );
 
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: `export default defineStrategy({
           name: 'walled ETF time-series factor',
@@ -324,7 +332,7 @@ def compute(ctx: AssetFactorContext) -> float | None:
     expect(seen[D[4]]).toBeCloseTo(14 / 12 - 1);
 
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: `export default defineStrategy({
           name: 'walled Python Factor',
@@ -471,7 +479,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(seen[D[1]]).toEqual({ ETF_A: -0.5, ETF_B: 0, ETF_C: 0.5 });
 
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: `export default defineStrategy({
           name: 'walled panel composite',
@@ -571,7 +579,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(seen[D[4]]).toBe(0);
 
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: `export default defineStrategy({
           name: 'walled official yield curve',
@@ -720,7 +728,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     expect(seen[D[4]]).toBe(12);
 
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: `export default defineStrategy({
           name: 'walled turnover history',
@@ -758,7 +766,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         },
       });`;
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: strategyCode,
         start: D[0],
@@ -777,7 +785,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 
 describe('extractFactorKeys (host-side source scan)', () => {
   it('finds published factor keys in ctx.factor reads, deduped', async () => {
-    const { extractFactorKeys } = await import('#strategy/factor-inputs/references.js');
     const source = `
       export default defineStrategy({
         factors: ['earnings_yield', 'mf_net_main'],
@@ -787,7 +794,7 @@ describe('extractFactorKeys (host-side source scan)', () => {
           ctx.factor('mf_net_main', 'A');
         },
       });`;
-    expect(extractFactorKeys(source)).toEqual(['earnings_yield', 'mom_12_1']);
+    expect(StrategyFactor.extractKeys(source)).toEqual(['earnings_yield', 'mom_12_1']);
   });
 
   it('extracts auxiliary history requirements from factor source', async () => {
@@ -851,7 +858,7 @@ describe('market benchmark history for custom factors', () => {
     expect(seen[D[4]]).toBe(2);
 
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: `export default defineStrategy({
           name: 'walled market history',
@@ -939,7 +946,7 @@ describe('point-in-time fundamental history for custom factors', () => {
     expect(seen[D[4]]).toBe(8 * 1_000_000 + (10 + 16 + 16) * 1000 + (30 + 36 + 36));
 
     const logged: string[] = [];
-    await runSandboxedBacktest(
+    await runBacktestFixture(
       {
         code: `export default defineStrategy({
           name: 'walled roe history',
@@ -979,5 +986,41 @@ async function runStrategyWithSignals(config: EngineConfig) {
     return await runEngineWithSignals({ ...config, factorExecution: host });
   } finally {
     host.close();
+  }
+}
+
+type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
+  customFactors?: CustomFactorModule[];
+} & Omit<StrategyRunOptions, 'captureSignals'>;
+
+async function runBacktestFixture(
+  config: ExecutionFixtureConfig,
+  dataPort: EngineDataPort,
+  onLog?: (line: string) => void,
+  onUserLog?: UserLogSink,
+) {
+  const execution = await StrategyExecution.create({
+    ...config,
+    dataPort,
+    onLog,
+    onUserLog,
+    factors: config.customFactors?.map(
+      (module) =>
+        new StrategyFactor({
+          ...module,
+          factorId: module.key,
+          key: module.key,
+          name: module.key,
+          codeHash: 'fixture',
+          analysisKind: module.analysisKind ?? 'cross_sectional',
+          language: module.language,
+          runtimeVersion: module.runtimeVersion,
+        }),
+    ),
+  });
+  try {
+    return await execution.run(config);
+  } finally {
+    execution.close();
   }
 }

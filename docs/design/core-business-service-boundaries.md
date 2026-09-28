@@ -62,7 +62,7 @@
 
 ### E4：Strategy 的纯引用扫描与运行准备耦合，另有单消费者转发
 
-基线证据：原 [factor-inputs/prepare.ts](../../apps/api/src/strategy/factor-inputs/prepare.ts) 的 `extractFactorKeys` 只做正则匹配、过滤引擎内置键、去重；消费者包括 `definitions/drafts.ts`、`visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts`。同文件还导入数据库、TS/Python 编译、Engine 因子类型和发布相关实现。C4 当前归属见 §3 和 §7。
+基线证据：原 [factor-inputs/prepare.ts](../../apps/api/src/strategy/factors/factor.ts) 的 `extractFactorKeys` 只做正则匹配、过滤引擎内置键、去重；消费者包括 `definitions/drafts.ts`、`visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts`。同文件还导入数据库、TS/Python 编译、Engine 因子类型和发布相关实现。C4 当前归属见 §3 和 §7。
 
 将纯引用识别放到 `factor-inputs/references.ts`。`prepareStrategyFactors` 继续查询已发布来源、解析 Panel 快照/研究范围、编译模块、检查输入限制并返回 `{ modules, factors }`。它被回测、扫描和 Signals 使用，是真实共享能力，不应删掉或按消费者复制三份。
 
@@ -106,7 +106,7 @@ C6 已将共享曲线和汇率静态定义移到 Market 现有的 [registry/yiel
 | `factor/publication/factor.ts` 的共用归一化/错误 | 已有 `factor/definitions/views.ts`、`factor/errors.ts` | `normalizeAnalysisKind` 归 views；语言归一化复用 `factorLanguage`；`FactorPublicationError`/reason 归共用业务 errors。publication、copy-key、HTTP error adapter 和 Strategy 消费相应窄入口。 |
 | 两份 `reportCompatibilityColumns`；views 内 spec 解码 | 新增 `factor/evaluations/report-spec.ts` | 一份 `reportCompatibilityColumns` 与 `reportResearchSpec`；start/holdout/report-views 按需导入。结果投影和封存仍归 report-views/read。 |
 | `factor/definitions/metadata-operations.ts` | 合入已有 `factor/definitions/metadata.ts` | 保留 `refreshOwnedFactorMetadata`、`refreshFactorMetadata`、`generateFactorMetadata` 三个不同层次的入口，删除额外文件。 |
-| `strategy/factor-inputs/prepare.ts` 的引用扫描 | 新增 `strategy/factor-inputs/references.ts` | `extractFactorKeys` 与内置键集合；定义/公开范围/提交/Sharing 和 prepare 直接消费。 |
+| `strategy/factors/factor.ts` 的引用扫描 | 新增 `strategy/factors/factor.ts` | `extractFactorKeys` 与内置键集合；定义/公开范围/提交/Sharing 和 prepare 直接消费。 |
 | `prepareCustomFactors` → `prepareStrategyFactors().modules` | 合并到扫描调用点 | 扫描父 Worker 调用 `prepareStrategyFactors` 并解构 modules；类型使用 `PreparedStrategyFactors['modules']`，不保留转发函数。 |
 | Research 内 Factor 草稿 DB 操作 | 新增 `factor/definitions/from-research.ts` | 拟导出 `findResearchFactorDraft(userId, executionId)`、`createFactorDraftFromResearch(userId, input)`。 |
 | Research 内 Strategy 草稿 DB 操作 | 新增 `strategy/definitions/from-research.ts` | 拟导出 `findResearchStrategyDraft(userId, executionId)`、`createStrategyDraftFromResearch(userId, input)`。 |
@@ -299,7 +299,7 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 
 交付为后端内部接口整理，不增加用户可见能力。当前 `extractFactorKeys` 只做源码正则提取、内置键过滤及去重，但四个外部消费者为此导入含数据库/编译器的 prepare；扫描父 Worker 的 `prepareCustomFactors` 则只有一个生产消费者且只转发 `.modules`。
 
-- 新增 `strategy/factor-inputs/references.ts`，迁入 `extractFactorKeys` 与 `ENGINE_FACTOR_KEYS`，仅依赖 shared 静态事实。`definitions/drafts.ts`、`definitions/visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts` 和 prepare 直接引用；同步所有测试/mock，不保留兼容转导出。
+- 新增 `strategy/factors/factor.ts`，迁入 `extractFactorKeys` 与 `ENGINE_FACTOR_KEYS`，仅依赖 shared 静态事实。`definitions/drafts.ts`、`definitions/visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts` 和 prepare 直接引用；同步所有测试/mock，不保留兼容转导出。
 - `prepare.ts` 保留 `prepareStrategyFactors`、使用场景类型及完整查询/编译/Panel 快照准备。删除 `prepareCustomFactors`；扫描父 Worker 直接调用 `prepareStrategyFactors` 并取 modules，cell 参数类型引用 `PreparedStrategyFactors['modules']`。每次扫描只准备一次、各 cell 的串行进程和正常退出后汇总保持。
 - 不改变源码识别正则、返回顺序、去重、内置过滤或公开范围政策；deployment 只允许 published，research/signal 允许 published/archived，Panel 冻结范围及血缘规则保持。回测、Signals 继续消费原准备入口；不改 Engine、HTTP/SDK、数据表、事务、Job payload、Worker URL 或资源释放。
 - 同步 Strategy/Sharing README 和本文。review 前执行改动文件 ESLint/格式、全仓 typecheck/生成契约/后端边界、旧引用核对及 `git diff --check`；静态确认 references 不依赖数据库或编译实现。
@@ -382,3 +382,5 @@ review 通过后视为授权执行约定验证并按上表标题提交，不再�
 - 受影响运行链在两种入口均实际执行：Factor Job → Worker 查询真实 CGB fixture、完成 262 个 time-series 观察值；缺少所需期限时 Job/Report 按原规则失败。Strategy Job → Worker 产生 262 个净值点、34 笔交易和 252 个市场风险观察值；扫描父 Worker 与两个 cell 子进程完成，Signals IPC 返回两个有效因子输入及三个模型持仓，Maintenance 风险审计通过。
 - Signals 利率准入另核对齐备、缺期限、超过 14 天和无利率依赖四种情况。临时策略 fixture 明确验证前 5 个交易日的 6 日窗口预热为空，之后每天必须有利率与 Panel 因子值；探针开发时对预热及最小窗口的错误假设已按现有实现修正，没有改变产品或降低正式断言。自动命名请求由探针拦截并走原有失败回退，本轮不验收命名质量。源码/编译规范化后的 Factor、回测、扫描、Signals 和审计输出完全一致。
 - review 后 13 个 TS 文件内容哈希保持一致。所有临时验收进程退出，Prisma 断开；交付前核对数据库无打开句柄并清理本次数据库、干净构建、日志及探针目录。没有启动应用 HTTP 服务、调用真实 LLM/行情源或发送邮件。
+
+2026-09-28 后续组织调整：上述 C4 函数拆分属于当时实现。当前引用提取、准备与快照方法集中在 `strategy/factors/factor.ts` 的 StrategyFactor 类，数据库及编译器按需加载，保留纯引用方法无数据库副作用的边界；当前接口见 [策略因子](../../apps/api/src/strategy/factors/README.md)。

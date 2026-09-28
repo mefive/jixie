@@ -1,12 +1,21 @@
+import { StrategyFactor } from '../factors/factor.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BacktestResult } from '#engine/types.js';
 import type { StrategyScanWorkerInput } from './job-payload.js';
-import type { SandboxedBacktestConfig } from '../execution/simulation.js';
+import type { StrategyExecutionInput, StrategyRunOptions } from '../execution/execution.js';
 
-const mocks = vi.hoisted(() => ({ prepare: vi.fn(), simulate: vi.fn(), port: {} }));
-vi.mock('../factor-inputs/prepare.js', () => ({ prepareStrategyFactors: mocks.prepare }));
+type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> &
+  Omit<StrategyRunOptions, 'captureSignals'>;
 
-vi.mock('../execution/simulation.js', () => ({ runSandboxedBacktest: mocks.simulate }));
+const mocks = vi.hoisted(() => ({
+  prepare: vi.fn(),
+  simulate: vi.fn(),
+  create: vi.fn(),
+  close: vi.fn(),
+  port: {},
+}));
+
+vi.mock('../execution/execution.js', () => ({ StrategyExecution: { create: mocks.create } }));
 vi.mock('#engine/adapters/prisma-port.js', () => ({ prismaDataPort: mocks.port }));
 
 import { runStrategyScan } from './run.js';
@@ -28,16 +37,31 @@ const input: StrategyScanWorkerInput = {
   userId: 'owner',
   locale: 'en',
 };
-const modules = [{ key: 'quality', js: 'factor source' }];
+const factors = [
+  new StrategyFactor({
+    js: 'factor source',
+    factorId: 'factor-1',
+    key: 'quality',
+    name: 'Quality',
+    analysisKind: 'cross_sectional',
+    codeHash: 'hash',
+  }),
+];
 
 describe('strategy scan execution', () => {
   beforeEach(() => {
+    vi.spyOn(StrategyFactor, 'prepare').mockImplementation(mocks.prepare);
     mocks.simulate.mockReset();
-    mocks.prepare.mockReset().mockResolvedValue({ modules, factors: [] });
+    mocks.close.mockReset();
+    mocks.create.mockReset().mockImplementation(async (input) => ({
+      run: (options: object) => mocks.simulate({ ...input, ...options }, input.dataPort),
+      close: mocks.close,
+    }));
+    mocks.prepare.mockReset().mockResolvedValue(factors);
   });
 
   it('prepares factors once and runs each combination and sample range in order', async () => {
-    const simulate = mocks.simulate.mockImplementation(async (request: SandboxedBacktestConfig) =>
+    const simulate = mocks.simulate.mockImplementation(async (request: ExecutionFixtureConfig) =>
       result(Number(request.paramOverrides!.lookback), request.start, request.end),
     );
     const log = vi.fn();
@@ -58,10 +82,12 @@ describe('strategy scan execution', () => {
     ]);
     for (const [request, port] of simulate.mock.calls) {
       expect(port).toBe(mocks.port);
-      expect(request.customFactors).toBe(modules);
+      expect(request.factors).toBe(factors);
       expect(request.initialCash).toBe(100);
       expect(request.locale).toBe('en');
     }
+    expect(mocks.create).toHaveBeenCalledTimes(4);
+    expect(mocks.close).toHaveBeenCalledTimes(4);
     expect(log).toHaveBeenCalledTimes(2);
     expect(payload.parameters).toEqual({ lookback: 20 });
     expect(payload.cells[0]).toMatchObject({
@@ -73,7 +99,7 @@ describe('strategy scan execution', () => {
   });
 
   it('retains rebased NAV and path-risk metrics for sizing comparisons', async () => {
-    const simulate = mocks.simulate.mockImplementation(async (request: SandboxedBacktestConfig) =>
+    const simulate = mocks.simulate.mockImplementation(async (request: ExecutionFixtureConfig) =>
       result(request.paramOverrides!.sizing === 'atr' ? 20 : 10, request.start, request.end),
     );
     const payload = await runStrategyScan(
@@ -98,7 +124,7 @@ describe('strategy scan execution', () => {
   });
 
   it('applies capacity values to initial cash without passing them as strategy parameters', async () => {
-    const simulate = mocks.simulate.mockImplementation(async (request: SandboxedBacktestConfig) =>
+    const simulate = mocks.simulate.mockImplementation(async (request: ExecutionFixtureConfig) =>
       result(10, request.start, request.end),
     );
     const payload = await runStrategyScan(
@@ -132,7 +158,7 @@ describe('strategy scan execution', () => {
       started = resolve;
     });
     const simulate = mocks.simulate
-      .mockImplementation(async (request: SandboxedBacktestConfig) =>
+      .mockImplementation(async (request: ExecutionFixtureConfig) =>
         result(10, request.start, request.end),
       )
       .mockImplementationOnce(() => {
@@ -151,6 +177,7 @@ describe('strategy scan execution', () => {
     const simulate = mocks.simulate.mockRejectedValue(new Error('Simulation failed'));
     await expect(runStrategyScan(input, vi.fn())).rejects.toThrow('Simulation failed');
     expect(simulate).toHaveBeenCalledTimes(1);
+    expect(mocks.close).toHaveBeenCalledTimes(1);
   });
 });
 

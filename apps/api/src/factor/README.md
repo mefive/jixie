@@ -26,7 +26,7 @@ Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观
 
 普通分析由 evaluations 接收来源与研究配置，冻结报告并入队；其 Job 调用 execution，后者通过 observations 和 runtime 计算，结果回到评估生命周期保存。相关性只复用横截面数据／序列；天气复用计算 Worker，各自持有产物和状态。
 
-探索报告可进入 holdout，完成后需揭示才能读取封存内容；publication 核对证据与当前代码／运行时后发布。Strategy 的 [因子准备](../strategy/factor-inputs/README.md) 消费已批准来源，草稿编辑不会让旧报告自动证明新代码。
+探索报告可进入 holdout，完成后需揭示才能读取封存内容；publication 核对证据与当前代码／运行时后发布。Strategy 的 [因子准备](../strategy/factors/README.md) 消费已批准来源，草稿编辑不会让旧报告自动证明新代码。
 
 编辑 Agent 使用本人草稿上下文并在完成后刷新元数据；只读 questions 建立独立私有会话。Research [handoff](../research/handoff/README.md) 负责证据准入与生成，definitions 负责目标草稿复用、命名和持久化。
 

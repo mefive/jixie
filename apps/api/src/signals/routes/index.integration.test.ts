@@ -1,3 +1,4 @@
+import { StrategyFactor } from '#strategy/factors/factor.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
@@ -27,9 +28,6 @@ vi.mock('#infra/database/prisma.js', async () => {
 });
 vi.mock('#strategy/runtime/inspect-definition.js', () => ({
   inspectStrategyMetadata: resources.metadata,
-}));
-vi.mock('#strategy/factor-inputs/prepare.js', () => ({
-  prepareStrategyFactors: resources.factors,
 }));
 vi.mock('../factor-inputs/rates.js', () => ({
   governmentYieldCurveReady: resources.yieldReady,
@@ -66,7 +64,7 @@ const dependencies = [
     factorId: 'factor',
     key: 'quality',
     name: 'Quality',
-    analysisKind: 'cross_sectional',
+    analysisKind: 'cross_sectional' as const,
     codeHash: 'frozen-factor',
     approvedReportId: 'approved',
   },
@@ -129,13 +127,16 @@ describe('Signals HTTP and persistence boundaries', () => {
     );
   }, 30_000);
   beforeEach(async () => {
+    vi.spyOn(StrategyFactor, 'prepare').mockImplementation(resources.factors);
     vi.clearAllMocks();
     resources.id.mockReset().mockImplementation(() => `signals-${++fixture.sequence}`);
     resources.metadata.mockReset().mockResolvedValue({ watch: [], futures: [], factors: [] });
-    resources.factors.mockReset().mockResolvedValue({
-      modules: [{ key: 'quality', js: 'module.exports = defineFactor({ compute: () => 1 });' }],
-      factors: dependencies,
-    });
+    resources.factors.mockReset().mockResolvedValue([
+      new StrategyFactor({
+        js: 'module.exports = defineFactor({ compute: () => 1 });',
+        ...dependencies[0],
+      }),
+    ]);
     resources.yieldReady.mockReset().mockResolvedValue(true);
     resources.completion.mockReset().mockResolvedValue('done');
     await prisma.user.createMany({
@@ -326,10 +327,13 @@ describe('Signals HTTP and persistence boundaries', () => {
   });
 
   it('rejects missing or changed factor evidence rather than silently deploying current dependencies', async () => {
-    resources.factors.mockResolvedValueOnce({
-      modules: [{ key: 'quality', js: 'module.exports = defineFactor({ compute: () => 1 });' }],
-      factors: [{ ...dependencies[0], codeHash: 'changed' }],
-    });
+    resources.factors.mockResolvedValueOnce([
+      new StrategyFactor({
+        js: 'module.exports = defineFactor({ compute: () => 1 });',
+        ...dependencies[0],
+        codeHash: 'changed',
+      }),
+    ]);
     await expect(deployBacktestReport('owner', 'report', 'en')).rejects.toMatchObject({
       reason: 'dependencies_changed',
     });
@@ -338,7 +342,7 @@ describe('Signals HTTP and persistence boundaries', () => {
       reason: 'dependencies_changed',
     });
     expect(await prisma.strategyDeployment.count()).toBe(0);
-    resources.factors.mockResolvedValue({ modules: [], factors: [] });
+    resources.factors.mockResolvedValue([]);
     expect((await deploy()).factorDependencies).toEqual([]);
   });
 

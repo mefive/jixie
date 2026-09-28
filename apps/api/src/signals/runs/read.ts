@@ -11,7 +11,7 @@ import type {
 import { executionWire } from '../accounting/read.js';
 import { deploymentWire } from '../deployments/read.js';
 import { SignalsError } from '../errors.js';
-import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
+import { StrategyFactor } from '#strategy/factors/factor.js';
 
 export async function listDeploymentLatestRuns(
   userId: string,
@@ -128,7 +128,7 @@ function signalRunWire(
       row.status === 'done' || row.status === 'error' || row.status === 'stale'
         ? row.status
         : 'running',
-    factorDependencies: factorDependenciesFromJson(row.factorDependencies) ?? [],
+    factorDependencies: StrategyFactor.dependenciesFromJson(row.factorDependencies) ?? [],
     factorInputs: Array.isArray(row.factorInputs)
       ? (row.factorInputs as unknown as FactorInputSummary[])
       : [],

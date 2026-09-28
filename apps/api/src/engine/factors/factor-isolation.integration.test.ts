@@ -1,8 +1,15 @@
+import { StrategyFactor } from '#strategy/factors/factor.js';
+import {
+  StrategyExecution,
+  type StrategyExecutionInput,
+  type StrategyRunOptions,
+} from '#strategy/execution/execution.js';
+import type { UserLogSink } from '#infra/runtime/console.js';
+import type { EngineDataPort } from '#engine/data/data-port.js';
 import { StrategyRuntime } from '#strategy/runtime/strategy-runtime.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FactorLanguage } from '@jixie/shared';
 
-import { runSandboxedBacktest } from '#strategy/execution/simulation.js';
 import { FactorHost } from '../adapters/factor-host.js';
 import { runStrategy } from '../simulation/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
@@ -100,7 +107,7 @@ describe('strategy and factor sandbox combinations', () => {
       };
       let result;
       if (strategyLanguage === 'typescript') {
-        result = await runSandboxedBacktest(
+        result = await runBacktestFixture(
           {
             ...config,
             code: `
@@ -329,3 +336,39 @@ def compute(ctx):
     ]);
   });
 });
+
+type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
+  customFactors?: CustomFactorModule[];
+} & Omit<StrategyRunOptions, 'captureSignals'>;
+
+async function runBacktestFixture(
+  config: ExecutionFixtureConfig,
+  dataPort: EngineDataPort,
+  onLog?: (line: string) => void,
+  onUserLog?: UserLogSink,
+) {
+  const execution = await StrategyExecution.create({
+    ...config,
+    dataPort,
+    onLog,
+    onUserLog,
+    factors: config.customFactors?.map(
+      (module) =>
+        new StrategyFactor({
+          ...module,
+          factorId: module.key,
+          key: module.key,
+          name: module.key,
+          codeHash: 'fixture',
+          analysisKind: module.analysisKind ?? 'cross_sectional',
+          language: module.language,
+          runtimeVersion: module.runtimeVersion,
+        }),
+    ),
+  });
+  try {
+    return await execution.run(config);
+  } finally {
+    execution.close();
+  }
+}

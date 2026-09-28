@@ -6,7 +6,7 @@ import { JobService } from '#jobs/service.js';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { SignalsError } from '../errors.js';
-import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
+import { StrategyFactor } from '#strategy/factors/factor.js';
 import { governmentYieldCurveReady } from '../factor-inputs/rates.js';
 import { signalCalendar, signalDataReady } from './readiness.js';
 
@@ -40,7 +40,8 @@ export async function enqueueSignalRun(
   if (!(await signalDataReady(tradeDate))) {
     throw new SignalsError('data_not_ready', { params: { date: tradeDate } });
   }
-  const factorDependencies = factorDependenciesFromJson(deployment.factorDependencies) ?? [];
+  const factorDependencies =
+    StrategyFactor.dependenciesFromJson(deployment.factorDependencies) ?? [];
   if (!(await governmentYieldCurveReady(factorDependencies, tradeDate))) {
     throw new SignalsError('data_not_ready', { params: { date: tradeDate } });
   }

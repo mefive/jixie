@@ -72,3 +72,48 @@
 - Shared/API 从空 dist 构建通过，编译输出无退役入口文件，旧构建保存在 `/tmp/jixie-job-filenames-dist-wp5cdi_y`。
 - 测试使用隔离临时数据库；测试结束进程检查无 Vitest、Worker 或 Python runner 残留。未启动额外开发服务。
 - 日志：`/tmp/jixie-job-filenames-regression.log`、`/tmp/jixie-job-filenames-source-workers.log`、`/tmp/jixie-job-filenames-compiled-workers.log`、`/tmp/jixie-job-filenames-build.log`。
+
+
+## 2026-09-28 策略执行对象与因子输入统一（审查与验证通过）
+
+计划提交：`refactor(strategy): unify prepared factors and execution ownership`。
+
+当前入口为 `strategy/execution/execution.ts` 的 StrategyExecution：create 启动策略和因子并解析元数据，run 内部调用宿主 Engine，close 幂等释放资源。每个对象只运行一次，调用方使用 try/finally；初始化失败自行清理。Backtests、Scans、Signals 全部迁移，扫描每个参数及样本区间创建独立对象，串行执行。
+
+Strategy 的 factor-inputs 目录更名为 factors。因子准备返回 `StrategyFactor[]` 类实例，执行入口只接收一组 factors，共有字段不再在 module/lineage 中重复。factors/factor.ts 集中因子状态、resolveMetadata、toEngineModule 和 toDependency；resolveAll 匹配整组定义并检查输入准入。原 metadata.ts 及测试并入类和 factor.test.ts。元数据解析返回新对象，不修改扫描多个区间共享的准备对象；Engine 输出配置复制数据，报告输出显式提取血缘，避免持久化源码。数据库准备、纯源码引用提取及快照解析/比较也统一为 StrategyFactor 的静态方法；prepare、references、lineage 生产文件删除，内部准备与规范化辅助实现改为私有方法。数据库与编译器按需加载，纯读取操作保持无数据库副作用。运行 inputs 从 assetSeries 派生。执行对象通过 factorDependencies getter 返回脱离内部状态的来源快照，并保留报告结果中的原有字段。扫描也传入完整因子；扫描汇总及对外报告格式不变。
+
+冻结快照比较由 Signals 负责：部署时比较报告与当前解析结果；运行时先核对部署和运行快照，再核对执行对象的实际血缘。两份快照非空才相互比较，否则选择剩余快照；都缺失时保留跳过比较的旧行为。校验在 try/finally 中、Engine 启动前完成，拒绝时关闭执行资源。执行对象不再接受 factorDependencySnapshots，不包含部署/运行记录规则。
+
+保留来源字段、历史兼容、报告与数据库快照格式。风险分析、利率准入、展示、扫描汇总、信号整理继续由原有业务消费。Engine 算法、语言 runtime、公开 HTTP/SDK、数据库及部署组件边界不变。部署计划测试更新文件路径，现有 API 前缀覆盖新路径，无需修改组件清单。
+
+测试辅助函数放各自 .test.ts，不新增 testing 目录。准备与元数据测试适配合并结构；执行测试覆盖一次性运行、初始化失败与关闭、只读血缘副本；Signals 运行测试覆盖各类快照漂移、空集合和缺省兼容，并验证拒绝时不运行 Engine 且关闭资源。
+
+审查前只运行静态检查；审查通过后运行相关因子准备/元数据/执行、TS/Python、扫描、Signals、源码及编译 Worker 回归和构建，通过后提交，不推送。测试和构建尚未运行，修改未提交。
+
+前一轮静态检查通过：全仓 `pnpm typecheck`（839 文件边界扫描，0 violations；SDK 生成物一致；全部 workspace 类型通过）、受影响 TS/MJS 的 ESLint/Prettier、git diff --check，以及 221 个本地 Markdown 链接。日志：`/tmp/jixie-strategy-execution-typecheck.log`。尚未运行行为测试或构建，等待人工代码审查。
+
+扁平 StrategyFactor 修订后静态检查通过：全仓 typecheck（841 文件边界扫描、0 violations、SDK 生成物一致、全部 workspace 类型通过），受影响文件 ESLint/Prettier、git diff --check 与 223 个本地文档链接。增加投影测试确保报告不包含源码/运行配置、输入来自运行元数据，并保持既有 macro_regime 到 Engine 类型的适配。测试与构建仍未运行，修改未提交。
+
+目录与类修订：所有生产、测试导入和文档链接已迁移到 strategy/factors；StrategyFactor 类不持有 runtime 或数据库资源。增加多次解析和返回配置修改的隔离测试，保留组合窗口、研究输入拒绝和血缘兼容覆盖。提交信息保持 `refactor(strategy): unify prepared factors and execution ownership`；待静态复核和人工审查。
+
+目录与类修订后的静态结果：全仓 typecheck 通过（839 文件边界扫描，0 violations，SDK 生成物一致，全部 workspace 类型通过），受影响 TS/MJS 的 ESLint/Prettier 与 git diff --check 通过。扫描 423 个本地文档链接；本次迁移链接有效，core-business-internal-structure.md 中 5 个历史失效链接在 HEAD 中已存在，未扩大范围修改。行为测试和构建未运行，修改未提交，等待人工代码审查。
+
+模块整体收拢修订：factors 仅保留 factor.ts 一个生产实现，FactorUsage / StrategyFactorInput 类型同文件。单因子与组合的批准资产范围校验复用私有方法；外部调用直接使用 StrategyFactor 静态方法，不保留旧接口或转发层。测试按行为保留四个文件，准备替身改为 spyOn 类的静态方法，保留真实元数据与快照逻辑；新增纯引用/空准备禁止加载数据库及编译器的回归。Signals 的业务快照选择仍由 Signals 自己实现。本次修订需重新通过静态检查并提交人工审查，行为测试尚未运行。
+
+整体收拢后的静态结果：全仓 pnpm typecheck 通过（836 文件边界扫描、0 violations、SDK 生成物一致、所有 workspace 类型通过）；受影响 TS/MJS 的 ESLint / Prettier 及 git diff --check 通过。421 个本地 Markdown 链接中，本次修改引用均有效，仍只有前述 5 个既存历史失效链接。行为测试、构建尚未运行，修改未提交，等待本轮人工代码审查。
+
+测试文件进一步合并：prepare / references / lineage 的测试全部并入 factors/factor.test.ts，保留按行为分组和全部既有断言。准备查询替身仅在准备组重置，无数据库/编译器加载检查先于准备组执行；生产代码未改动。其余文档测试入口同步，行为验证仍等待上一轮产品代码审查通过。
+
+测试合并后静态检查通过：全仓 typecheck（833 文件、0 边界违规、SDK 一致及所有 workspace 类型通过）、factor.test.ts 的 ESLint / Prettier、git diff --check。合并文件保留 26 个用例；未执行行为测试，未提交。
+
+
+人工审查通过后验证完成，保留用户将回测入口准备结果命名为 factors 的修改：
+
+- 业务与运行时回归：15 个文件、255 项通过，覆盖 StrategyFactor、StrategyExecution、扫描、策略路由、Signals 快照准入与路由、TS/Python 运行及因子隔离。
+- 真实 Worker：源码 14 项、编译 14 项通过，覆盖 TS/Python 回测、连续扫描、Signals IPC、异常退出和启动恢复。
+- 部署计划：11 项通过。以上共 294 项，无失败或跳过。
+- Shared/API 从空 dist 构建通过，编译输出无退役的 simulation / factor-inputs 入口。旧 dist 备份位于 /tmp/jixie-strategy-execution-dist-mlfvjmw5。
+- 最终受影响 TS/MJS 的 ESLint / Prettier 与 git diff --check 通过；此前全仓 typecheck、后端边界及 SDK 一致性检查通过。
+- 日志：/tmp/jixie-strategy-execution-regression.log、/tmp/jixie-strategy-execution-source-workers.log、/tmp/jixie-strategy-execution-compiled-workers.log、/tmp/jixie-strategy-execution-deploy.log、/tmp/jixie-strategy-execution-build.log。
+
+本次不改变数据库 schema 或公开 SDK。测试使用隔离临时数据库；进程检查未发现 Vitest、Worker boot 或 Python runner 残留，没有启动额外开发服务。按已确认信息提交，不推送；原有未跟踪的 docs/design/engine-refactor-notes.md 不纳入本次提交。

@@ -280,7 +280,7 @@ engine/                     # 保留模拟核心及宿主适配器
 | `strategy/backtest/` | `strategy/backtests/` | 提交事务、配置缓存、报告/任务分离和所有导出函数。 |
 | `strategy/execution/run-configured.ts` | `strategy/backtests/run.ts` | `runConfiguredBacktest` 签名、语言分派、风险错误仅记日志、资源释放。 |
 | `engine/backtest-worker.ts`、`backtest-worker.boot.mjs` | `strategy/backtests/worker.ts`、`worker.boot.mjs` | 消息/日志协议、参数、源码与生产入口及数据库收尾。 |
-| `strategy/execution/prepare-factors.ts` 及测试 | `strategy/factor-inputs/prepare.ts` 及测试 | research/deployment/signal 使用场景、权限、归档因子与冻结血缘规则。 |
+| `strategy/execution/prepare-factors.ts` 及测试 | `strategy/factors/factor.ts` 及测试 | research/deployment/signal 使用场景、权限、归档因子与冻结血缘规则。 |
 | `strategy/analysis/risk/` | `strategy/risk/` | 算法、阈值、报表结构及 Maintenance 审计接口。 |
 
 迁移后删除空的 `strategy/execution/`、`analysis/` 和旧 backtest 目录。HTTP 的 `routes/backtest.ts`、接口地址、函数名和 Job kind 保持；扫描不更换执行路径，Engine 核心不迁入 Strategy。回测 Worker 本来就是调用 Strategy 编排的宿主入口，此次归回唯一使用它的回测业务。
@@ -726,7 +726,7 @@ review 后执行：Factor 相关测试、Bootstrap、Agent 分析工具、Strate
 交付与审查入口：
 
 - [backtests/job.ts](../../apps/api/src/strategy/backtests/job.ts)、[run.ts](../../apps/api/src/strategy/backtests/run.ts)、[worker.ts](../../apps/api/src/strategy/backtests/worker.ts)：回测提交、报告、完整执行编排及原 Engine Worker 聚合；源码 Job 选择同目录 boot，编译 Job 选择同目录 worker.js。消息、日志、风险失败处理和 Prisma/Python 收尾保持。
-- [factor-inputs/prepare.ts](../../apps/api/src/strategy/factor-inputs/prepare.ts)：原因子准备及其测试整体迁移。正式回测/扫描使用 research，Signals 部署/运行使用 deployment / signal，权限、归档、冻结血缘规则不变；定义与 Sharing 的依赖提取消费者已同步。
+- [factor-inputs/prepare.ts](../../apps/api/src/strategy/factors/factor.ts)：原因子准备及其测试整体迁移。正式回测/扫描使用 research，Signals 部署/运行使用 deployment / signal，权限、归档、冻结血缘规则不变；定义与 Sharing 的依赖提取消费者已同步。
 - [risk/backtest-risk-analysis.ts](../../apps/api/src/strategy/risk/backtest-risk-analysis.ts)、[risk/data-readiness.ts](../../apps/api/src/strategy/risk/data-readiness.ts)：risk 全部实现和测试提升一层；算法、样本阈值、输出与 Maintenance 审计调用保持。
 - 扫描仍由原父 Worker fork cell 并直接调用 `runWalledBacktest`；Signals 仍调用 `runWalledSignalCapture`。均未增加对 `backtests/run.ts` 的依赖。
 - 删除旧 backtest、execution、analysis 目录及 Engine 回测 Worker 路径，没有转发。根 CLAUDE、Strategy/Engine/Market/Jobs README、架构地图与运行入口清单已同步；历史设计保留当时路径。

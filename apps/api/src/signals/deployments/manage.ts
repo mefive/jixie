@@ -1,8 +1,7 @@
+import { StrategyFactor } from '#strategy/factors/factor.js';
 import { backtestReportState } from '#strategy/backtests/state.js';
 import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
-import { prepareStrategyFactors } from '#strategy/factor-inputs/prepare.js';
-import { resolveStrategyFactorMetadata } from '#strategy/factor-inputs/metadata.js';
 import { FactorHost } from '#engine/adapters/factor-host.js';
 
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
@@ -11,10 +10,6 @@ import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { SignalsError } from '../errors.js';
-import {
-  assertFactorDependencies,
-  factorDependenciesFromJson,
-} from '#strategy/factor-inputs/lineage.js';
 import { deploymentWire } from './read.js';
 
 export async function deployBacktestReport(
@@ -53,17 +48,13 @@ export async function deployBacktestReport(
     throw new SignalsError('futures_unsupported');
   }
   // Research-only or archived factors cannot become a new daily-signal dependency.
-  const prepared = await prepareStrategyFactors(config.code, userId, 'deployment');
+  const prepared = await StrategyFactor.prepare(config.code, userId, 'deployment');
 
   // Deployment has no simulation: inspect once here and release every runtime before persisting.
-  const factorHost = new FactorHost(prepared.modules);
+  const factorHost = new FactorHost(prepared.map((factor) => factor.toEngineModule()));
   let resolved;
   try {
-    resolved = resolveStrategyFactorMetadata(
-      prepared.modules,
-      prepared.factors,
-      await factorHost.describe(),
-    );
+    resolved = StrategyFactor.resolveAll(prepared, await factorHost.describe());
   } finally {
     factorHost.close();
   }
@@ -71,11 +62,14 @@ export async function deployBacktestReport(
   // Deployment must use exactly the factor lineage validated by this report.
   let dependencies;
   try {
-    dependencies = factorDependenciesFromJson(report.payload.factorDependencies);
-    if (dependencies == null && prepared.factors.length > 0) {
+    dependencies = StrategyFactor.dependenciesFromJson(report.payload.factorDependencies);
+    if (dependencies == null && prepared.length > 0) {
       throw new SignalsError('dependencies_changed');
     }
-    assertFactorDependencies(dependencies, resolved.factors);
+    StrategyFactor.assertDependencies(
+      dependencies,
+      resolved.map((factor) => factor.toDependency()),
+    );
   } catch {
     throw new SignalsError('dependencies_changed');
   }

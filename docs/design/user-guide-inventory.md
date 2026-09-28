@@ -14,7 +14,7 @@
 | 开始使用（5） | `apps/web/src/app-routes.tsx`、`apps/web/src/components/top-nav.tsx`、`apps/web/src/i18n/locales/{zh,en}/common.ts` | 校准工作流、帮助打开方式、版本信息及 Python 支持范围；登录流程保留 |
 | 基础（10） | `apps/api/src/agent/profiles/research.ts`、`packages/shared/src/sdk/research/contract.ts`、`packages/shared/src/research-python-runtime.ts` | 四篇统计文章改为显式 Python 方法；其他概念与交易口径保留 |
 | Research（15） | `apps/web/src/complex/research/`、`apps/web/src/components/research-data-catalog-picker.tsx`、`apps/api/src/research/documents/`、Research SDK Contract | 补搜索归档、保存状态、专用数据与报告读取；现有财报、FCFF、Cell/提案与嵌入分析规则保留 |
-| Strategy（19） | `apps/web/src/complex/strategy/`、`apps/api/src/strategy/factor-inputs/prepare.ts`、`apps/api/src/strategy/runtime/run.ts`、`apps/api/src/engine/factors/factor-isolation.integration.test.ts` | 补草稿/报告/部署区别及复核路径，纠正 Python 自定义因子限制；测试文件仅阅读，未执行 |
+| Strategy（19） | `apps/web/src/complex/strategy/`、`apps/api/src/strategy/factors/factor.ts`、`apps/api/src/strategy/runtime/run.ts`、`apps/api/src/engine/factors/factor-isolation.integration.test.ts` | 补草稿/报告/部署区别及复核路径，纠正 Python 自定义因子限制；测试文件仅阅读，未执行 |
 | Factor（26） | `apps/web/src/complex/factor/`、`apps/web/src/components/embedded-analysis/`、`apps/api/src/factor/` | 总览覆盖研究类型，连接已有报告问答与嵌入分析，修正用于策略步骤；正式报告与 Holdout 方法保留 |
 | 市场估值（5）与因子气象（2） | `apps/web/src/complex/{market,valuation,factor-weather}/`、`apps/api/src/market/registry/`、`apps/api/src/factor/weather/` | 正文保留；图片中的旧导航进入复核清单 |
 | 今日信号（7） | `apps/web/src/complex/signals/`、`apps/api/src/signals/deployments/` | 现有按报告独立部署说明保留；图片需要复核来源报告/部署编号 |

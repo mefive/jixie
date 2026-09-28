@@ -12,6 +12,6 @@
 
 Panel 定义／组件解析在 [composition/panel-source.ts](../composition/panel-source.ts)，模板源码在 [definitions/templates](../definitions/templates/README.md)。纯消费者直接导入 snapshot/fingerprint，不通过 resolve 或 Job 转导出。
 
-改快照或哈希先看 [fingerprint.test.ts](fingerprint.test.ts)、[评估身份测试](../evaluations/identity.test.ts)、[发布测试](../publication/factor.test.ts) 和 [Strategy 准备测试](../../strategy/factor-inputs/prepare.test.ts)，核对旧快照、语言和冻结组合都能按当前规则读取。
+改快照或哈希先看 [fingerprint.test.ts](fingerprint.test.ts)、[评估身份测试](../evaluations/identity.test.ts)、[发布测试](../publication/factor.test.ts) 和 [Strategy 准备测试](../../strategy/factors/factor.test.ts)，核对旧快照、语言和冻结组合都能按当前规则读取。
 
 [返回 Factor 总览](../README.md)

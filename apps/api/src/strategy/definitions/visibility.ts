@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { StrategyError } from '../errors.js';
-import { extractFactorKeys } from '../factor-inputs/references.js';
+import { StrategyFactor } from '../factors/factor.js';
 import { codeConfigSchema, type StrategyVisibilityInput } from '@jixie/shared/api/strategy';
 
 export async function setStrategyVisibility(
@@ -22,7 +22,7 @@ export async function setStrategyVisibility(
   if (visibility === 'public') {
     const config = codeConfigSchema.parse(strategy.config);
 
-    if (extractFactorKeys(config.code).length > 0) {
+    if (StrategyFactor.extractKeys(config.code).length > 0) {
       throw new StrategyError('public_strategy_must_be_self_contained');
     }
   }

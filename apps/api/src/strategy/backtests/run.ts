@@ -3,9 +3,9 @@ import type { BacktestResult } from '#engine/types.js';
 import { t } from '#i18n/messages.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
-import { prepareStrategyFactors } from '../factor-inputs/prepare.js';
+import { StrategyFactor } from '../factors/factor.js';
 import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
-import { runSandboxedBacktest } from '../execution/simulation.js';
+import { StrategyExecution } from '../execution/execution.js';
 
 /** Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine. */
 export async function runConfiguredBacktest(
@@ -25,19 +25,23 @@ export async function runConfiguredBacktest(
     throw new Error(`runtimeVersion ${runtimeVersion} does not match language ${language}`);
   }
 
-  const prepared = await prepareStrategyFactors(config.code, userId);
-  const result = await runSandboxedBacktest(
-    {
-      ...config,
-      customFactors: prepared.modules,
-      factorDependencies: prepared.factors,
-      locale,
-      paramOverrides,
-    },
-    prismaDataPort,
-    onSystemLog,
+  const factors = await StrategyFactor.prepare(config.code, userId);
+  const execution = await StrategyExecution.create({
+    code: config.code,
+    language,
+    factors,
+    locale,
+    paramOverrides,
+    dataPort: prismaDataPort,
+    onLog: onSystemLog,
     onUserLog,
-  );
+  });
+  let result: BacktestResult;
+  try {
+    result = await execution.run(config);
+  } finally {
+    execution.close();
+  }
   await attachRiskAnalysis(result, locale, onSystemLog);
   return result;
 }

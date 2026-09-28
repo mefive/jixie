@@ -1,6 +1,6 @@
 import type { BacktestConfig, StrategyDeployment } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { factorDependenciesFromJson } from '#strategy/factor-inputs/lineage.js';
+import { StrategyFactor } from '#strategy/factors/factor.js';
 
 export async function listStrategyDeployments(
   userId: string,
@@ -35,7 +35,7 @@ export function deploymentWire(row: {
     strategyName: row.strategyName,
     status: row.status === 'active' ? 'active' : 'paused',
     config: row.config as unknown as BacktestConfig,
-    factorDependencies: factorDependenciesFromJson(row.factorDependencies) ?? [],
+    factorDependencies: StrategyFactor.dependenciesFromJson(row.factorDependencies) ?? [],
     codeHash: row.codeHash,
     locale: row.locale === 'en' ? 'en' : 'zh',
     deployedAt: row.deployedAt.toISOString(),

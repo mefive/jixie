@@ -16,7 +16,7 @@ Signals 从成功回测报告创建独立部署，按收盘数据产生下一交
 
 ## 主要协作流程
 
-部署从本人完成回测报告冻结配置，使用 [Strategy factor-inputs](../strategy/factor-inputs/README.md) 检查 deployment 场景。后续策略草稿变化不影响部署，不同报告可同时 active。
+部署从本人完成回测报告冻结配置，使用 [Strategy factor-inputs](../strategy/factors/README.md) 检查 deployment 场景。后续策略草稿变化不影响部署，不同报告可同时 active。
 
 手动运行由 submit 选择日期、先结算账户再入队；Maintenance 数据发布后调用每日生成，CLI 则先同步所需数据。二者共用 enqueue，在事务内创建／复用 Run 和 Job，提交后唤醒队列。
 

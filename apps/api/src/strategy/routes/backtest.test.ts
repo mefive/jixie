@@ -1,3 +1,4 @@
+import { StrategyFactor } from '../factors/factor.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,9 +34,6 @@ vi.mock('../definitions/naming.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../definitions/naming.js')>()),
   refreshStrategyName: mocks.refreshStrategyName,
 }));
-vi.mock('../factor-inputs/references.js', () => ({
-  extractFactorKeys: mocks.extractFactorKeys,
-}));
 vi.mock('#jobs/service.js', () => ({
   ACTIVE_JOB_STATUSES: ['queued', 'running'],
   JobService: { get: vi.fn() },
@@ -58,6 +56,7 @@ app.route('/strategies', strategyRoute);
 
 describe('backtest report route', () => {
   beforeEach(() => {
+    vi.spyOn(StrategyFactor, 'extractKeys').mockImplementation(mocks.extractFactorKeys);
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.strategyFindFirst.mockResolvedValue({ id: 'strategy-a' });
     mocks.jobFindFirst.mockResolvedValue(null);

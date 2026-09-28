@@ -111,7 +111,8 @@ test('every packaged business Python source selects both API and the sandbox ima
 test('business TypeScript SDK and host runtime changes still select only API', () => {
   for (const changedPath of [
     'apps/api/src/strategy/sdk/typescript.ts',
-    'apps/api/src/strategy/execution/simulation.ts',
+    'apps/api/src/strategy/execution/execution.ts',
+    'apps/api/src/strategy/factors/factor.ts',
     'apps/api/src/strategy/scans/run.ts',
     'apps/api/src/signals/runs/run.ts',
     'apps/api/src/factor/sdk/typescript.ts',
