@@ -15,7 +15,7 @@ export async function runStrategyScan(
   onSystemLog: (text: string) => void,
 ): Promise<StrategyScanPayload> {
   const { config, spec, parameters, ranges, userId, locale } = input;
-  const factors = await StrategyFactor.prepare(config.code, userId);
+  const factors = await StrategyFactor.fromStrategySource(config.code, userId);
   const combinations = parameterCombinations(spec);
   const cells: StrategyScanCell[] = [];
 
@@ -61,7 +61,7 @@ export async function runStrategyScan(
 async function runScanRange(config: Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions) {
   const execution = await StrategyExecution.create({ ...config, dataPort: prismaDataPort });
   try {
-    return await execution.run({ ...config, captureSignals: false });
+    return (await execution.run(config)).result;
   } finally {
     execution.close();
   }

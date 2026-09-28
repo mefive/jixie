@@ -17,7 +17,7 @@ Engine 接收 `EngineStrategy` 决策回调与显式端口，按模拟日期提�
 | 缓存、截面、复权、历史状态等数据语义 | [data/engine-data.ts](data/engine-data.ts) |
 | 自定义因子输入准备、当日缓存与数值合成 | [factors/custom-factor.ts](factors/custom-factor.ts) |
 | 宿主数据库读取 | [adapters/prisma-port.ts](adapters/prisma-port.ts) |
-| 宿主 TS/Python 因子沙箱管理 | [adapters/factor-host.ts](adapters/factor-host.ts) |
+| 宿主 TS/Python 因子沙箱管理 | [Strategy FactorHost](../strategy/execution/factor-host.ts) |
 | 独立于存储的数据批次计算契约 | [factors/execution-port.ts](factors/execution-port.ts) |
 | 确定性测试数据源 | [testing/fixture-port.ts](testing/fixture-port.ts) |
 | 引擎输入、策略接口与结果类型 | [types.ts](types.ts) |
@@ -49,3 +49,9 @@ SDK bundle 不包含 Engine、宿主适配器、数据库或 Node 内建模块�
 `simulation`、`data`、`factors` 下既有测试保持原断言；[runtime.test.ts](../strategy/runtime/typescript/typescript-strategy-runtime.test.ts)
 比较可信原生 fixture 与沙箱回调的净值、成交和信号，[sandbox-bundle.test.ts](../strategy/runtime/typescript/sandbox-bundle.test.ts)
 检查 bundle 不含 Engine 或宿主能力。本次迁移验证状态见 [执行边界设计](../../../../docs/design/python-and-sandbox.md)。
+
+因子只通过 FactorExecutionPort 输入：模拟开始先 describe，再根据定义加载行情、基础面历史、利率曲线及批准资产范围。组合的数据需求来自各组件定义。缺失声明或重复顶层 ID 在加载数据前拒绝；无自定义因子时不要求端口。Engine 不接收 StrategyFactor 或任何源码模块对象。定义与计算端口的回归见 [execution-port.test.ts](factors/execution-port.test.ts)。
+
+## 执行结果与末日状态
+
+runStrategy 始终返回 `{ result, finalState }`，不提供 Signals 专用入口。默认只计算结果，finalState 为 null；retainFinalState 显式开启末日因子观测和状态收集。快照保持 Engine 的复权单位，复制仓位、待执行指令和对应行情，不包含投影后的业务信号，也不持有 EngineData／Portfolio 对象。当前仅支持股票／ETF；期货请求该能力时在读取行情前拒绝。真实股数、参考价格和条件单信号投影归 [Signals](../signals/runs/projection.ts)。

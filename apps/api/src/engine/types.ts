@@ -9,7 +9,6 @@
 
 import type { AllocationAnalysis, FactorDependency, Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data/data-port.js';
-import type { CustomFactorModule } from './factors/custom-factor.js';
 import type { FactorExecutionPort } from './factors/execution-port.js';
 
 /** A held position. Only frozenShares remain unavailable until frozenUntil (T+1). */
@@ -267,6 +266,8 @@ export interface EngineStrategy {
 }
 
 export interface EngineConfig {
+  /** Retain final stock/ETF state for downstream consumers; unsupported for futures. */
+  retainFinalState?: boolean;
   start: string; // YYYYMMDD
   end: string;
   initialCash: number;
@@ -281,10 +282,7 @@ export interface EngineConfig {
   locale?: Locale;
   /** Required storage doorway: the host supplies Prisma and tests supply a fixture. */
   dataPort: EngineDataPort;
-  /** Published defineFactor modules referenced through immutable Factor.key values —
-   * host-prepared (ownership-checked, TS→CJS); executed only through factorExecution. A declared custom key with no module here fails the run explicitly. */
-  customFactors?: CustomFactorModule[];
-  /** Required when customFactors are present. The host owns and closes the sandbox runtimes. */
+  /** Provides factor definitions and computation. The caller owns and closes sandbox runtimes. */
   factorExecution?: FactorExecutionPort;
 }
 
@@ -318,57 +316,65 @@ export interface BacktestResult {
   allocationAnalysis?: AllocationAnalysis;
 }
 
-export interface PendingCashSignal {
-  code: string;
-  assetType: 'stock' | 'etf';
-  action: 'buy' | 'sell';
-  shares: number;
-  refPrice: number;
-  refAmount: number;
-  source: 'target' | 'order';
-  targetWeight?: number;
-}
-
-export interface PendingConditionalSignal {
-  code: string;
-  assetType: 'stock' | 'etf';
-  action: 'buy' | 'sell';
-  shares: number;
-  refPrice: number;
-  refAmount: number;
-  source: 'conditional';
-  orderType: ConditionalOrderKind;
-  triggerPrice: number;
-  trailingPct?: number;
-}
-
-export interface PendingModelPosition {
-  code: string;
-  assetType: 'stock' | 'etf';
-  shares: number;
-  markPrice: number;
-  sellableFrom: string;
-  frozenShares: number;
-}
-
 export interface PendingFactorObservation {
   key: string;
   code: string;
   value: number | null;
 }
 
-export interface StrategySignalCapture {
+export type ConditionalOrder =
+  | {
+      kind: 'stop_loss';
+      code: string;
+      triggerPrice: number;
+      placedDate: string;
+    }
+  | {
+      kind: 'trailing_stop';
+      code: string;
+      trailingPct: number;
+      highWater: number;
+      placedDate: string;
+    }
+  | {
+      kind: 'limit_buy';
+      code: string;
+      triggerPrice: number;
+      shares: number;
+      placedDate: string;
+    }
+  | {
+      kind: 'take_profit';
+      code: string;
+      triggerPrice: number;
+      placedDate: string;
+    };
+
+/** Detached stock/ETF state at the final close. Shares and triggers retain Engine adjusted units. */
+export interface StrategyFinalState {
   tradeDate: string;
-  modelEquity: number;
-  modelCash: number;
-  modelPositions: PendingModelPosition[];
-  signals: Array<PendingCashSignal | PendingConditionalSignal>;
+  equity: number;
+  cash: number;
+  positions: Map<string, Position>;
+  pendingTargets: Map<string, number> | null;
+  pendingOrders: Map<string, number> | null;
+  pendingLotOrders: Map<string, number> | null;
+  conditionalOrders: Map<string, ConditionalOrder>;
+  market: Map<
+    string,
+    {
+      assetType: 'stock' | 'etf';
+      adjustedClose: number | null;
+      adjustmentFactor: number | null;
+      rawClose: number | null;
+    }
+  >;
   factorObservations: PendingFactorObservation[];
 }
 
-export interface SignalBacktestOutput {
+export interface StrategyExecutionResult {
   result: BacktestResult;
-  capture: StrategySignalCapture;
+  finalState: StrategyFinalState | null;
 }
 
 export interface SleeveNavPoint {

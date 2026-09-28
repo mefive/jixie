@@ -14,6 +14,7 @@ export type FactorDefinition =
       kind: 'asset_series';
       analysisKind: 'time_series' | 'panel';
       meta: AssetFactorRuntimeMeta;
+      assetUniverse?: Array<{ assetId: string; assetClass: MultiAssetClass }>;
     }
   | {
       id: string;

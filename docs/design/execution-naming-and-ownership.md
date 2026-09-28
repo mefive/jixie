@@ -117,3 +117,39 @@ Strategy 的 factor-inputs 目录更名为 factors。因子准备返回 `Strateg
 - 日志：/tmp/jixie-strategy-execution-regression.log、/tmp/jixie-strategy-execution-source-workers.log、/tmp/jixie-strategy-execution-compiled-workers.log、/tmp/jixie-strategy-execution-deploy.log、/tmp/jixie-strategy-execution-build.log。
 
 本次不改变数据库 schema 或公开 SDK。测试使用隔离临时数据库；进程检查未发现 Vitest、Worker boot 或 Python runner 残留，没有启动额外开发服务。按已确认信息提交，不推送；原有未跟踪的 docs/design/engine-refactor-notes.md 不纳入本次提交。
+
+
+## 2026-09-28 因子宿主与 Engine 输入收敛（待人工代码审查）
+
+计划提交：`refactor(strategy): unify factor hosting around strategy factors`。
+
+FactorHost 从 engine/adapters 移到 strategy/execution，构造函数直接接收 StrategyFactor[]；策略执行和 Signals 部署均不再转换源码模块。删除 CustomFactorModule 与 toEngineModule；StrategyFactorInput 在 Strategy 内定义输入，私有准备方法返回该输入的局部字段，组合组件也使用 StrategyFactor。组件的身份、名称、源码哈希来自冻结组件，批准关系仍由父组合报告承载，不查询当前组件或新增独立批准语义。复制集合与元数据时保留不可变组件实例，避免 structuredClone 丢失类方法。保留用户已改的 fromStrategySource 命名，同步旧测试替身。
+
+EngineConfig 删除 customFactors，只接收 FactorExecutionPort。运行开始读取一次 FactorDefinition[]，再加载行情；辅助历史、单因子/组合 inputs 和批准资产范围从该快照派生。资产序列定义补充可选 assetUniverse，保留单 Panel 因子的批准范围。顶层重复 ID、声明缺失与缺少执行端口在加载数据前拒绝；没有源码配置列表，因此删除与另一份列表的重复一致性比较。计算请求、PIT、标准化/合成、交易与归因算法保持。Signals 冻结血缘准入及报告/数据库/公开 SDK 格式不变，无迁移或新部署组件。
+
+测试随 FactorHost 搬迁，原因子语义/隔离测试使用测试内工厂创建 StrategyFactor；Engine 独立端口测试不导入宿主或用户源码，覆盖元数据先于数据读取、仅凭端口计算、重复/缺失定义、基础面历史及单/组合利率输入。补充单 Panel 资产归因与组合对象复制隔离用例。审查前仅静态检查；审查后运行相关单测、TS/Python/组合集成、回测/扫描/Signals 真实源码及编译 Worker 和 Shared/API 构建，通过后提交，不推送。
+
+审查前静态检查通过：全仓 pnpm typecheck（834 文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过），受影响 TS/MJS 的 ESLint / Prettier、git diff --check，以及 50 个本地文档链接。日志：/tmp/jixie-factor-host-typecheck.log。测试与构建尚未运行，修改未提交，等待本轮人工代码审查。
+
+审查反馈命名修订：StrategyFactor 的静态 resolveAll 与实例 resolveMetadata 统一改为 withRuntimeMetadata，明确返回带运行元数据的新实例；调用处先读取 factorDefinitions，再生成 factorsWithMetadata。同步执行、部署、测试和当前 README；准入及不可变语义保持。此前执行宿主成员和局部变量已改为 factorHost。其余扫描命名候选未修改。
+
+后续审查修订：删除静态及实例 withRuntimeMetadata 和 factorsWithMetadata 中间对象。StrategyFactor.validateRuntimeMetadata 只校验定义完整性与研究输入准入；toDependency(definition) 结合原因子身份和实际运行 inputs 生成报告快照。StrategyExecution 只保留该快照，Signals 部署直接用该快照核对冻结依赖，不复制或回写 StrategyFactor。测试同步覆盖组合 inputs 去重、缺失定义、研究输入拒绝、定义身份匹配及快照隔离；报告格式保持不变。
+
+移除中间因子副本后的静态检查通过：全仓 pnpm typecheck（后端边界、SDK 生成物和全部 workspace 类型）、本轮四个 TS 文件 ESLint / Prettier、git diff --check。日志：/tmp/jixie-factor-metadata-validation-typecheck.log。行为测试和构建仍未运行，当前修改未提交，等待重新审查。
+
+审查反馈：统一执行返回结构并分离信号业务。当前计划提交更新为 `refactor(strategy): unify factor hosting and execution results`。StrategyExecution.run 与 Engine.runStrategy 始终返回 { result, finalState }；删除重载、captureSignals、runStrategyWithSignals 和 SignalBacktestOutput。retainFinalState 按需保留独立末日快照，包含复权仓位、待执行目标／订单／条件单、对应行情及末日因子观测。Signals/runs/projection.ts 从快照生成真实股数、参考价、条件单信号及模型账户；不访问数据库或重跑策略。回测与扫描取 result，报告／HTTP／数据库格式不变。期货默认执行保持，请求末日状态时明确拒绝；无新部署组件。测试同步迁移并补充 Engine 可选状态与 Signals 投影用例，审查前仍只运行静态检查。
+
+统一结果修订的静态检查已通过：全仓 pnpm typecheck（837 个后端文件、0 边界违规、SDK 生成物一致及所有 workspace 类型通过）、全部受影响 TS/MJS 的 ESLint / Prettier、git diff --check。额外扫描并适配两个不受 TypeScript 覆盖的 .mjs Worker 入口。日志：/tmp/jixie-unified-execution-typecheck.log。行为测试和构建尚未运行，修改未提交；审查后验证因子／Engine 股票 ETF 期货规则、末日状态／Signals 投影、执行资源生命周期、TS/Python、扫描、Signals、源码与编译 Worker、部署计划及 Shared/API 构建。
+
+人工审查通过后验证完成：
+
+- 27 个业务／运行时测试文件、341 项通过，覆盖 StrategyFactor、FactorHost、执行生命周期、Engine 端口与股票／ETF／期货规则、末日状态、Signals 投影与准入、TS/Python、扫描及路由集成。
+- 真实 Worker 源码 14 项、编译 14 项通过，包含回测、连续扫描、Signals IPC、启动恢复及错误退出。
+- 部署计划 11 项、历史运行时 watch / dynamic 对比 2 项通过。合计 382 项，无失败或跳过。
+- 历史基准夹具首次运行暴露旧 FactorHost 路径失效；仅修正测试夹具：空因子宿主引用当前路径，旧墙内 Engine 与旧入口共同固定在 f276bfbd，当前入口提取统一返回值中的 result。修正后所有历史／当前变体的结果哈希一致，原有传输量断言通过；未改生产代码。
+- Shared/API 从空 dist 构建通过；旧 dist 备份在 /tmp/jixie-execution-results-dist-cuily7gb。编译输出中旧 engine/adapters/factor-host 已消失，新 strategy/execution/factor-host 存在。
+- 全仓类型、后端边界、SDK 一致性、受影响文件 ESLint / Prettier 和 git diff --check 通过；89 个本地文档链接有效。
+- 测试使用隔离数据库，未启动额外开发服务；进程检查未发现 Vitest、Worker boot、沙箱或 Python runner 残留，历史基准临时目录已清理。
+- 日志：/tmp/jixie-execution-results-regression.log、/tmp/jixie-execution-results-source-workers.log、/tmp/jixie-execution-results-compiled-workers.log、/tmp/jixie-execution-results-deploy.log、/tmp/jixie-execution-results-build.log、/tmp/jixie-execution-results-benchmark.log。
+
+按已确认信息提交，不推送；保留用户原有 runBacktest 重命名及未跟踪的 docs/design/engine-refactor-notes.md，不纳入本次提交。

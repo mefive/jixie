@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FactorBar } from '@jixie/shared';
-import type { CustomFactorModule } from '../factors/custom-factor.js';
-import type { FactorComputeRequest } from '../factors/execution-port.js';
+import { StrategyFactor, type StrategyFactorInput } from '../factors/factor.js';
+import type { FactorComputeRequest } from '#engine/factors/execution-port.js';
 import { FactorHost } from './factor-host.js';
 
 const bar: FactorBar = {
@@ -23,7 +23,7 @@ const bar: FactorBar = {
   grossprofitMargin: null,
   debtToAssets: null,
 };
-const module: CustomFactorModule = {
+const module: FactorFixtureSource = {
   key: 'value',
   js: 'module.exports = defineFactor({ name: "value", compute: (bar) => bar.peTtm * 2 });',
 };
@@ -35,7 +35,7 @@ const request: FactorComputeRequest = {
 
 describe('FactorHost', () => {
   it('reads an asset-series contract from source without a preparation runtime', async () => {
-    const host = new FactorHost([
+    const host = createHost([
       {
         key: 'trend',
         analysisKind: 'time_series',
@@ -70,7 +70,7 @@ describe('FactorHost', () => {
 
   it('keeps source frozen and rejects source injection and unregistered dependencies', async () => {
     const dependency = { ...module };
-    const host = new FactorHost([dependency]);
+    const host = createHost([dependency]);
     dependency.js = 'throw new Error("replaced")';
     try {
       const definitions = await host.describe();
@@ -94,7 +94,7 @@ describe('FactorHost', () => {
   });
 
   it('runs initialization and computation without Node globals or the caller global object', async () => {
-    const host = new FactorHost([
+    const host = createHost([
       {
         key: 'value',
         js: `
@@ -123,8 +123,8 @@ describe('FactorHost', () => {
       js: `let count = 0;
       module.exports = defineFactor({ name: 'counter', compute() { return ++count; } });`,
     };
-    const host = new FactorHost([stateful]);
-    const another = new FactorHost([stateful]);
+    const host = createHost([stateful]);
+    const another = createHost([stateful]);
     try {
       expect(await Promise.all([host.compute(request), host.compute(request)])).toEqual([[1], [2]]);
       expect(await another.compute(request)).toEqual([1]);
@@ -135,7 +135,7 @@ describe('FactorHost', () => {
   });
 
   it('closes successful initializations if a later dependency fails', async () => {
-    const host = new FactorHost([
+    const host = createHost([
       module,
       { key: 'broken', js: 'throw new Error("broken dependency")' },
     ]);
@@ -145,7 +145,7 @@ describe('FactorHost', () => {
   });
 
   it('disposes a runtime whose asynchronous initialization finishes after close', async () => {
-    const host = new FactorHost([module]);
+    const host = createHost([module]);
     const initializing = host.describe();
     host.close();
     await expect(initializing).rejects.toThrow('closed');
@@ -153,8 +153,8 @@ describe('FactorHost', () => {
   });
 
   it('rejects duplicate dependencies and mismatched frozen metadata', async () => {
-    const duplicate = new FactorHost([module, module]);
-    const mismatched = new FactorHost([{ ...module, crossSectional: { window: 3 } }]);
+    const duplicate = createHost([module, module]);
+    const mismatched = createHost([{ ...module, crossSectional: { window: 3 } }]);
     try {
       await expect(duplicate.describe()).rejects.toThrow('Duplicate factor dependency');
       await expect(mismatched.describe()).rejects.toThrow('compiled cross-sectional contract');
@@ -164,3 +164,41 @@ describe('FactorHost', () => {
     }
   });
 });
+
+type FactorFixtureSource = Omit<
+  StrategyFactorInput,
+  'factorId' | 'name' | 'codeHash' | 'analysisKind' | 'panelComposite'
+> & {
+  analysisKind?: StrategyFactorInput['analysisKind'];
+  panelComposite?: {
+    standardization: 'rank' | 'zscore';
+    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
+    components: Array<{ direction: 'positive' | 'negative'; module: FactorFixtureSource }>;
+  };
+};
+
+function factorFixture(source: FactorFixtureSource): StrategyFactor {
+  const { panelComposite, ...input } = source;
+  return new StrategyFactor({
+    ...input,
+    factorId: source.key,
+    name: source.key,
+    codeHash: 'fixture',
+    analysisKind: source.analysisKind ?? 'cross_sectional',
+    ...(panelComposite
+      ? {
+          panelComposite: {
+            ...panelComposite,
+            components: panelComposite.components.map(({ direction, module }) => ({
+              direction,
+              factor: factorFixture(module),
+            })),
+          },
+        }
+      : {}),
+  });
+}
+
+function createHost(sources: FactorFixtureSource[]) {
+  return new FactorHost(sources.map(factorFixture));
+}

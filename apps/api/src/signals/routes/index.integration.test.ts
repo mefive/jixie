@@ -127,7 +127,7 @@ describe('Signals HTTP and persistence boundaries', () => {
     );
   }, 30_000);
   beforeEach(async () => {
-    vi.spyOn(StrategyFactor, 'prepare').mockImplementation(resources.factors);
+    vi.spyOn(StrategyFactor, 'fromStrategySource').mockImplementation(resources.factors);
     vi.clearAllMocks();
     resources.id.mockReset().mockImplementation(() => `signals-${++fixture.sequence}`);
     resources.metadata.mockReset().mockResolvedValue({ watch: [], futures: [], factors: [] });

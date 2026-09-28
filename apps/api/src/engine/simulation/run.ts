@@ -3,6 +3,7 @@ import * as st from '#math/stats.js';
 import { t } from '#i18n/messages.js'; // direct import — keeps hono/locale out of the wall bundle
 import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '#market/registry/index-presets.js';
 import { EngineData, type CrossSection } from '../data/engine-data.js';
+import type { FactorDefinition } from '../factors/execution-port.js';
 import { CustomFactorRuntime } from '../factors/custom-factor.js';
 import { Portfolio } from './portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
@@ -16,13 +17,12 @@ import {
   type BacktestResult,
   type EngineContext,
   type ConditionalOrderKind,
+  type ConditionalOrder,
   type CostModel,
   type EngineConfig,
-  type PendingCashSignal,
-  type PendingConditionalSignal,
-  type SignalBacktestOutput,
+  type StrategyExecutionResult,
   type SleeveNavPoint,
-  type StrategySignalCapture,
+  type StrategyFinalState,
 } from '../types.js';
 
 type FutureIntent =
@@ -30,34 +30,6 @@ type FutureIntent =
   | { kind: 'contracts'; value: number }
   | { kind: 'notional'; value: number }
   | { kind: 'hedge'; value: number };
-
-type ConditionalOrder =
-  | {
-      kind: 'stop_loss';
-      code: string;
-      triggerPrice: number;
-      placedDate: string;
-    }
-  | {
-      kind: 'trailing_stop';
-      code: string;
-      trailingPct: number;
-      highWater: number;
-      placedDate: string;
-    }
-  | {
-      kind: 'limit_buy';
-      code: string;
-      triggerPrice: number;
-      shares: number;
-      placedDate: string;
-    }
-  | {
-      kind: 'take_profit';
-      code: string;
-      triggerPrice: number;
-      placedDate: string;
-    };
 
 type ConditionalCommand =
   | {
@@ -81,22 +53,54 @@ const PERIODS_PER_YEAR = 252; // trading days
 const BENCHMARK = CSI_300_TOTAL_RETURN_INDEX_CODE; // matches adjusted strategy NAV
 const MAX_SLIP = 0.1; // cap slippage at 10% so a huge order in an illiquid name can't produce absurd fills
 
-function needsTurnoverRateFHistory(cfg: EngineConfig): boolean {
-  return (cfg.customFactors ?? []).some((factor) =>
-    factor.historyFields?.includes('turnoverRateF'),
+function factorInputs(definition: FactorDefinition): string[] {
+  if (definition.kind === 'cross_sectional') {
+    return [];
+  }
+  if (definition.kind === 'asset_series') {
+    return definition.meta.inputs;
+  }
+  return definition.components.flatMap((component) => component.definition.meta.inputs);
+}
+
+function needsTurnoverRateFHistory(definitions: FactorDefinition[]): boolean {
+  return definitions.some(
+    (factor) => factor.kind === 'cross_sectional' && factor.historyFields.includes('turnoverRateF'),
   );
 }
 
-function needsGovernmentYieldCurve(cfg: EngineConfig): boolean {
-  return (cfg.customFactors ?? []).some((factor) =>
-    factor.assetSeries?.inputs.some((field) => field.startsWith('rates.cgb.yield.')),
+function needsGovernmentYieldCurve(definitions: FactorDefinition[]): boolean {
+  return definitions.some((factor) =>
+    factorInputs(factor).some((field) => field.startsWith('rates.cgb.yield.')),
   );
 }
 
-function needsFundamentalHistory(cfg: EngineConfig): boolean {
-  return (cfg.customFactors ?? []).some((factor) =>
-    factor.historyFields?.some((field) => field === 'roe' || field === 'grossprofitMargin'),
+function needsFundamentalHistory(definitions: FactorDefinition[]): boolean {
+  return definitions.some(
+    (factor) =>
+      factor.kind === 'cross_sectional' &&
+      factor.historyFields.some((field) => field === 'roe' || field === 'grossprofitMargin'),
   );
+}
+
+async function describeFactors(cfg: EngineConfig, locale: Locale): Promise<FactorDefinition[]> {
+  const declaredKeys = (cfg.strategy.factors ?? []).filter(isComputedFactorKey);
+  if (!cfg.factorExecution) {
+    if (declaredKeys.length > 0) {
+      throw new Error(t(locale, 'customFactorExecutionUnavailable'));
+    }
+    return [];
+  }
+  const definitions = structuredClone(await cfg.factorExecution.describe());
+  const keys = new Set(definitions.map((definition) => definition.id));
+  if (keys.size !== definitions.length) {
+    throw new Error('Duplicate factor definitions');
+  }
+  const missing = declaredKeys.filter((key) => !keys.has(key));
+  if (missing.length > 0) {
+    throw new Error(t(locale, 'customFactorMissing', { keys: missing.join(', ') }));
+  }
+  return definitions;
 }
 
 /**
@@ -116,35 +120,23 @@ function needsFundamentalHistory(cfg: EngineConfig): boolean {
  * gets no fill that day. A blocked order is NOT carried over — the strategy re-expresses intent each bar
  * (condition-based exits re-fire daily until fillable). ST filtering is left to the strategy.
  */
-export async function runStrategy(cfg: EngineConfig): Promise<BacktestResult> {
+export async function runStrategy(cfg: EngineConfig): Promise<StrategyExecutionResult> {
   validateEngineConfig(cfg);
   if (cfg.strategy.futures?.length) {
-    return runMultiAssetStrategy(cfg);
+    if (cfg.retainFinalState) {
+      throw new Error('Final state retention currently supports stock and ETF strategies only');
+    }
+    return { result: await runMultiAssetStrategy(cfg), finalState: null };
   }
-  return (await runStockStrategyCore(cfg, false)).result;
+  return runStockStrategyCore(cfg);
 }
 
-/** Run a stock/ETF strategy and retain its final next-open intent for daily signal generation. */
-export async function runStrategyWithSignals(cfg: EngineConfig): Promise<SignalBacktestOutput> {
-  validateEngineConfig(cfg);
-  if (cfg.strategy.futures?.length) {
-    throw new Error('Daily signals currently support stock and ETF strategies only');
-  }
-  const output = await runStockStrategyCore(cfg, true);
-  if (!output.capture) {
-    throw new Error('Signal capture was not produced');
-  }
-  return { result: output.result, capture: output.capture };
-}
-
-async function runStockStrategyCore(
-  cfg: EngineConfig,
-  captureSignals: boolean,
-): Promise<{ result: BacktestResult; capture: StrategySignalCapture | null }> {
+async function runStockStrategyCore(cfg: EngineConfig): Promise<StrategyExecutionResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
   const locale = cfg.locale ?? DEFAULT_LOCALE;
   const log = cfg.onLog ?? (() => {}); // progress sink (worker forwards to the job; scripts no-op)
-  const allocationClasses = allocationAssetClasses(cfg.customFactors);
+  const definitions = await describeFactors(cfg, locale);
+  const allocationClasses = allocationAssetClasses(definitions);
   const engineData = new EngineData(
     cfg.start,
     cfg.end,
@@ -153,20 +145,20 @@ async function runStockStrategyCore(
     locale,
     cfg.dataPort,
     [],
-    needsTurnoverRateFHistory(cfg),
-    needsGovernmentYieldCurve(cfg) || allocationClasses.size > 0,
+    needsTurnoverRateFHistory(definitions),
+    needsGovernmentYieldCurve(definitions) || allocationClasses.size > 0,
   );
   await engineData.load();
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
   } // per-instrument preload
-  if (needsFundamentalHistory(cfg)) {
+  if (needsFundamentalHistory(definitions)) {
     await engineData.preloadFina();
   } // custom-factor 'roe' histories read fina synchronously
   if (allocationClasses.size > 0) {
     await engineData.loadBars([...allocationClasses.keys()]);
   }
-  const customFactors = await buildCustomFactorRuntime(cfg, engineData, locale, log);
+  const customFactors = buildCustomFactorRuntime(cfg, definitions, engineData, locale, log);
   const portfolio = new Portfolio(cfg.initialCash, cost);
   const allocationTracker =
     allocationClasses.size > 0
@@ -285,7 +277,7 @@ async function runStockStrategyCore(
       conditionalCommands: [],
     };
     const observeFactor =
-      captureSignals && i === total - 1
+      cfg.retainFinalState && i === total - 1
         ? (key: string, code: string, value: number | null) => {
             if (!isComputedFactorKey(key)) {
               return;
@@ -317,8 +309,8 @@ async function runStockStrategyCore(
     applyConditionalCommands(conditionalOrders, collected.conditionalCommands, date);
   }
 
-  const capture = captureSignals
-    ? await capturePendingCashSignals(
+  const finalState = cfg.retainFinalState
+    ? await collectFinalState(
         engineData,
         portfolio,
         pendingTargets,
@@ -342,13 +334,14 @@ async function runStockStrategyCore(
       ret: (result.totalReturn * 100).toFixed(2),
     }),
   );
-  return { result, capture };
+  return { result, finalState };
 }
 
 async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult> {
   const cost = { ...DEFAULT_COST, ...cfg.cost };
   const locale = cfg.locale ?? DEFAULT_LOCALE;
   const log = cfg.onLog ?? (() => {});
+  const definitions = await describeFactors(cfg, locale);
   const futureCodes = cfg.strategy.futures ?? [];
   const engineData = new EngineData(
     cfg.start,
@@ -358,17 +351,17 @@ async function runMultiAssetStrategy(cfg: EngineConfig): Promise<BacktestResult>
     locale,
     cfg.dataPort,
     futureCodes,
-    needsTurnoverRateFHistory(cfg),
-    needsGovernmentYieldCurve(cfg),
+    needsTurnoverRateFHistory(definitions),
+    needsGovernmentYieldCurve(definitions),
   );
   await engineData.load();
   if (cfg.strategy.watch?.length) {
     await engineData.loadBars(cfg.strategy.watch);
   }
-  if (needsFundamentalHistory(cfg)) {
+  if (needsFundamentalHistory(definitions)) {
     await engineData.preloadFina();
   }
-  const customFactors = await buildCustomFactorRuntime(cfg, engineData, locale, log);
+  const customFactors = buildCustomFactorRuntime(cfg, definitions, engineData, locale, log);
   const allocation = accountAllocation(cfg);
   const stockPortfolio = new Portfolio(cfg.initialCash * allocation.stock, cost);
   const futurePortfolio = new FuturesPortfolio(cfg.initialCash * allocation.futures, cost);
@@ -573,36 +566,22 @@ function fmtDate(d: string): string {
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
 }
 
-/** Evaluate the host-prepared custom factor modules and bind them into a per-run runtime. Every
- * custom key the strategy DECLARES must have a module (the host couldn't find a deleted/foreign
- * factor row — fail loudly, not silent nulls). Inline ctx.factor() reads of undeclared
- * keys simply see null, consistent with undeclared moneyflow columns. */
-async function buildCustomFactorRuntime(
+/** Build the decision-day cache from the validated definition snapshot. Unknown inline reads
+ * remain null; declared dependencies have already been checked before data loading. */
+function buildCustomFactorRuntime(
   cfg: EngineConfig,
+  definitions: FactorDefinition[],
   engineData: EngineData,
   locale: Locale,
   log: (line: string) => void,
-): Promise<CustomFactorRuntime | null> {
-  const declaredCustomKeys = (cfg.strategy.factors ?? []).filter(isComputedFactorKey);
-  const modules = cfg.customFactors ?? [];
-  if (declaredCustomKeys.length === 0 && modules.length === 0) {
+): CustomFactorRuntime | null {
+  if (definitions.length === 0) {
     return null;
   }
-
-  const providedKeys = new Set(modules.map((mod) => mod.key));
-  const missing = declaredCustomKeys.filter((key) => !providedKeys.has(key));
-  if (missing.length > 0) {
-    throw new Error(t(locale, 'customFactorMissing', { keys: missing.join(', ') }));
-  }
-
   if (!cfg.factorExecution) {
     throw new Error(t(locale, 'customFactorExecutionUnavailable'));
   }
-  const definitions = await cfg.factorExecution.describe();
   const factors = new Map(definitions.map((definition) => [definition.id, definition]));
-  if (factors.size !== modules.length || modules.some((module) => !factors.has(module.key))) {
-    throw new Error('Factor runtime dependencies do not match the engine configuration');
-  }
   const warnedKeys = new Set<string>();
   return new CustomFactorRuntime(
     factors,
@@ -1345,7 +1324,7 @@ function conditionalLimitBlocked(
     : limit.down != null && bar.high / adjustmentFactor <= limit.down + epsilon;
 }
 
-async function capturePendingCashSignals(
+async function collectFinalState(
   engineData: EngineData,
   portfolio: Portfolio,
   pendingTargets: Map<string, number> | null,
@@ -1354,9 +1333,9 @@ async function capturePendingCashSignals(
   conditionalOrders: Map<string, ConditionalOrder>,
   factorObservations: Map<string, Map<string, number | null>>,
   tradeDate?: string,
-): Promise<StrategySignalCapture> {
+): Promise<StrategyFinalState> {
   if (!tradeDate) {
-    throw new Error('Cannot capture signals from an empty trading range');
+    throw new Error('Cannot retain final state from an empty trading range');
   }
 
   const codes = new Set<string>([
@@ -1368,189 +1347,30 @@ async function capturePendingCashSignals(
   ]);
   await engineData.loadBars([...codes]);
 
-  const modelEquity = portfolio.equity((code) => engineData.closeAt(code, tradeDate));
-  const modelPositions = [...portfolio.positions].flatMap(([code, position]) => {
-    const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
-    const markPrice = engineData.rawCloseAsOf(code, tradeDate);
-    if (!adjustmentFactor || !markPrice) {
-      return [];
-    }
-    return [
-      {
-        code,
-        assetType: engineData.assetType(code),
-        shares: position.shares * adjustmentFactor,
-        markPrice,
-        sellableFrom: position.frozenUntil,
-        frozenShares:
-          position.frozenUntil > tradeDate
-            ? (position.frozenShares ?? position.shares) * adjustmentFactor
-            : 0,
-      },
-    ];
-  });
-  const signals: Array<PendingCashSignal | PendingConditionalSignal> = [];
-
-  if (pendingTargets) {
-    const targetCodes = new Set([...portfolio.positions.keys(), ...pendingTargets.keys()]);
-    for (const code of targetCodes) {
-      const adjustedClose = engineData.closeAt(code, tradeDate);
-      const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
-      const refPrice = engineData.rawCloseAsOf(code, tradeDate);
-      if (adjustedClose == null || adjustedClose <= 0 || !adjustmentFactor || !refPrice) {
-        continue;
-      }
-
-      const targetWeight = pendingTargets.get(code) ?? 0;
-      const targetShares = (targetWeight * modelEquity) / adjustedClose;
-      const currentShares = portfolio.positions.get(code)?.shares ?? 0;
-      const signal = projectCashSignal(
-        engineData,
-        code,
-        targetShares - currentShares,
-        adjustmentFactor,
-        refPrice,
-        'target',
-        targetWeight,
-      );
-      if (signal) {
-        signals.push(signal);
-      }
-    }
-  }
-
-  if (pendingOrders) {
-    for (const [code, delta] of pendingOrders) {
-      const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
-      const refPrice = engineData.rawCloseAsOf(code, tradeDate);
-      if (!adjustmentFactor || !refPrice) {
-        continue;
-      }
-
-      const currentShares = portfolio.positions.get(code)?.shares ?? 0;
-      const executableDelta = delta < 0 ? -Math.min(-delta, currentShares) : delta;
-      const signal = projectCashSignal(
-        engineData,
-        code,
-        executableDelta,
-        adjustmentFactor,
-        refPrice,
-        'order',
-      );
-      if (signal) {
-        signals.push(signal);
-      }
-    }
-  }
-
-  if (pendingLotOrders) {
-    for (const [code, lots] of pendingLotOrders) {
-      const adjustmentFactor = engineData.adjAsOf(code, tradeDate);
-      const refPrice = engineData.rawCloseAsOf(code, tradeDate);
-      if (!adjustmentFactor || !refPrice) {
-        continue;
-      }
-      const signal = projectCashSignal(
-        engineData,
-        code,
-        (lots * 100) / adjustmentFactor,
-        adjustmentFactor,
-        refPrice,
-        'order',
-      );
-      if (signal) {
-        signals.push(signal);
-      }
-    }
-  }
-
-  for (const order of conditionalOrders.values()) {
-    const adjustmentFactor = engineData.adjAsOf(order.code, tradeDate);
-    const refPrice = engineData.rawCloseAsOf(order.code, tradeDate);
-    if (!adjustmentFactor || !refPrice) {
-      continue;
-    }
-    const position = portfolio.positions.get(order.code);
-    const action = order.kind === 'limit_buy' ? 'buy' : 'sell';
-    const adjustedTrigger =
-      order.kind === 'trailing_stop'
-        ? order.highWater * (1 - order.trailingPct)
-        : order.triggerPrice;
-    const triggerPrice = adjustedTrigger / adjustmentFactor;
-    let projectedShares = position?.shares ?? 0;
-    if (pendingTargets?.has(order.code)) {
-      const adjustedClose = engineData.closeAt(order.code, tradeDate);
-      if (adjustedClose != null && adjustedClose > 0) {
-        projectedShares = (pendingTargets.get(order.code)! * modelEquity) / adjustedClose;
-      }
-    }
-    projectedShares = Math.max(
-      0,
-      projectedShares +
-        (pendingOrders?.get(order.code) ?? 0) +
-        ((pendingLotOrders?.get(order.code) ?? 0) * 100) / adjustmentFactor,
-    );
-    const realShares =
-      action === 'buy'
-        ? Math.floor((order.kind === 'limit_buy' ? order.shares * adjustmentFactor : 0) / 100) * 100
-        : Math.max(0, Math.round(projectedShares * adjustmentFactor));
-    if (realShares <= 0) {
-      continue;
-    }
-    signals.push({
-      code: order.code,
-      assetType: engineData.assetType(order.code),
-      action,
-      shares: realShares,
-      refPrice,
-      refAmount: realShares * triggerPrice,
-      source: 'conditional',
-      orderType: order.kind,
-      triggerPrice,
-      ...(order.kind === 'trailing_stop' ? { trailingPct: order.trailingPct } : {}),
-    });
-  }
-
-  return {
+  return structuredClone({
     tradeDate,
-    modelEquity,
-    modelCash: portfolio.cash,
-    modelPositions,
-    signals,
+    equity: portfolio.equity((code) => engineData.closeAt(code, tradeDate)),
+    cash: portfolio.cash,
+    positions: portfolio.positions,
+    pendingTargets,
+    pendingOrders,
+    pendingLotOrders,
+    conditionalOrders,
+    market: new Map(
+      [...codes].map((code) => [
+        code,
+        {
+          assetType: engineData.assetType(code),
+          adjustedClose: engineData.closeAt(code, tradeDate),
+          adjustmentFactor: engineData.adjAsOf(code, tradeDate),
+          rawClose: engineData.rawCloseAsOf(code, tradeDate),
+        },
+      ]),
+    ),
     factorObservations: [...factorObservations].flatMap(([key, byCode]) =>
       [...byCode].map(([code, value]) => ({ key, code, value })),
     ),
-  };
-}
-
-function projectCashSignal(
-  engineData: EngineData,
-  code: string,
-  adjustedDelta: number,
-  adjustmentFactor: number,
-  refPrice: number,
-  source: PendingCashSignal['source'],
-  targetWeight?: number,
-): PendingCashSignal | null {
-  const realDelta = adjustedDelta * adjustmentFactor;
-  const shares =
-    realDelta > 0
-      ? Math.floor(realDelta / 100) * 100
-      : Math.max(0, Math.round(Math.abs(realDelta)));
-  if (shares === 0) {
-    return null;
-  }
-
-  return {
-    code,
-    assetType: engineData.assetType(code),
-    action: realDelta > 0 ? 'buy' : 'sell',
-    shares,
-    refPrice,
-    refAmount: shares * refPrice,
-    source,
-    ...(targetWeight == null ? {} : { targetWeight }),
-  };
+  });
 }
 
 function executeFutureIntents(

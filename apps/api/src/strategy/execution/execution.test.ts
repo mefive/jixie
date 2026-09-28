@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => ({
   strategyStart: vi.fn(),
   strategyClose: vi.fn(),
   engine: vi.fn(),
-  signals: vi.fn(),
 }));
 vi.mock('#factor/runtime/factor-runtime.js', () => ({
   FactorRuntime: { start: mocks.factorStart },
@@ -26,7 +25,6 @@ vi.mock('../runtime/strategy-runtime.js', () => ({
 }));
 vi.mock('#engine/simulation/run.js', () => ({
   runStrategy: mocks.engine,
-  runStrategyWithSignals: mocks.signals,
 }));
 
 const dependency: FactorDependency = {
@@ -65,18 +63,20 @@ describe('simulation factor initialization', () => {
       execute: vi.fn(),
       close: mocks.strategyClose,
     });
-    mocks.engine.mockResolvedValue({});
-    mocks.signals.mockResolvedValue({ result: {}, capture: {} });
+    mocks.engine.mockResolvedValue({ result: {}, finalState: null });
   });
 
   it.each(['typescript', 'python'] as const)(
     'loads a %s factor once and reuses it for computation',
     async (language) => {
       mocks.engine.mockImplementation(async (engineConfig) => {
-        expect(engineConfig.customFactors[0].assetSeries).toEqual({
-          window: 2,
-          inputs: ['rates.cgb.yield.10y'],
-        });
+        expect(await engineConfig.factorExecution.describe()).toEqual([
+          expect.objectContaining({
+            kind: 'asset_series',
+            meta: { window: 2, inputs: ['rates.cgb.yield.10y'] },
+          }),
+        ]);
+        expect(engineConfig).not.toHaveProperty('customFactors');
         await engineConfig.factorExecution.describe();
         await engineConfig.factorExecution.compute({
           factorId: 'trend',
@@ -84,7 +84,7 @@ describe('simulation factor initialization', () => {
           fields: { 'rates.cgb.yield.10y': [2, 3] },
           indexes: [1],
         });
-        return {};
+        return { result: {}, finalState: null };
       });
       const result = await runBacktestFixture(
         {
@@ -151,11 +151,14 @@ describe('simulation factor initialization', () => {
     expect(mocks.strategyClose).toHaveBeenCalledTimes(1);
   });
 
-  it('returns complete signal lineage after successful admission', async () => {
+  it('returns the same result envelope when final state is requested', async () => {
     const matching = [{ ...dependency, inputs: ['rates.cgb.yield.10y'] }];
-    const output = await runSignalCaptureFixture(config, port);
+    const finalState = { tradeDate: '20240201' };
+    mocks.engine.mockResolvedValueOnce({ result: {}, finalState });
+    const output = await runFinalStateFixture(config, port);
+    expect(output.finalState).toBe(finalState);
     expect(output.result.factorDependencies).toEqual(matching);
-    expect(mocks.signals).toHaveBeenCalledTimes(1);
+    expect(mocks.engine).toHaveBeenCalledWith(expect.objectContaining({ retainFinalState: true }));
     expect(mocks.factorStart).toHaveBeenCalledTimes(1);
   });
 
@@ -185,7 +188,7 @@ describe('simulation factor initialization', () => {
     try {
       const running = execution.run(config);
       await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
-      finish({});
+      finish({ result: {}, finalState: null });
       await running;
       await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
       expect(mocks.engine).toHaveBeenCalledTimes(1);
@@ -230,7 +233,7 @@ describe('simulation factor initialization', () => {
 });
 
 type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> &
-  Omit<StrategyRunOptions, 'captureSignals'>;
+  Omit<StrategyRunOptions, 'retainFinalState'>;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -240,13 +243,13 @@ async function runBacktestFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return await execution.run(config);
+    return (await execution.run(config)).result;
   } finally {
     execution.close();
   }
 }
 
-async function runSignalCaptureFixture(
+async function runFinalStateFixture(
   config: ExecutionFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
@@ -254,7 +257,7 @@ async function runSignalCaptureFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return await execution.run({ ...config, captureSignals: true });
+    return await execution.run({ ...config, retainFinalState: true });
   } finally {
     execution.close();
   }

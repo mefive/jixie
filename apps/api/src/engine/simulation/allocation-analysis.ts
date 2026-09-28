@@ -10,7 +10,7 @@ import type {
   MultiAssetClass,
 } from '@jixie/shared';
 import { daysBetween } from '#date';
-import type { CustomFactorModule } from '../factors/custom-factor.js';
+import type { FactorDefinition } from '../factors/execution-port.js';
 import type { GovernmentYieldObservation } from '../data/engine-data.js';
 import type { Position, TradeRecord } from '../types.js';
 
@@ -49,11 +49,12 @@ interface AssetAccumulator {
 
 /** The approved Panel research universe is the authoritative exposure taxonomy for a run. */
 export function allocationAssetClasses(
-  modules: CustomFactorModule[] | undefined,
+  definitions: FactorDefinition[],
 ): Map<string, MultiAssetClass> {
   const classes = new Map<string, MultiAssetClass>();
-  for (const module of modules ?? []) {
-    for (const asset of module.assetUniverse ?? module.panelComposite?.assetUniverse ?? []) {
+  for (const definition of definitions) {
+    for (const asset of ('assetUniverse' in definition ? definition.assetUniverse : undefined) ??
+      []) {
       const existing = classes.get(asset.assetId);
       if (existing && existing !== asset.assetClass) {
         throw new Error(`conflicting asset classes for ${asset.assetId}`);

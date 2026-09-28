@@ -12,7 +12,7 @@ try {
     dataPort: fixturePort(workerData.spec),
   });
   try {
-    const result = await execution.run({
+    const { result } = await execution.run({
       start: workerData.spec.dates[0],
       end: workerData.spec.dates.at(-1),
       initialCash: 100_000,

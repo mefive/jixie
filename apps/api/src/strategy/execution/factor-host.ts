@@ -7,12 +7,12 @@ import type {
 import { z } from 'zod';
 import type { UserLogSink } from '#infra/runtime/console.js';
 
-import type { CustomFactorModule } from '../factors/custom-factor.js';
+import { StrategyFactor } from '../factors/factor.js';
 import type {
   FactorComputeRequest,
   FactorDefinition,
   FactorExecutionPort,
-} from '../factors/execution-port.js';
+} from '#engine/factors/execution-port.js';
 
 type FactorInstance = CrossSectionalFactorRuntime | TimeSeriesFactorRuntime | PanelFactorRuntime;
 
@@ -71,7 +71,7 @@ const factorRequestSchema = z.discriminatedUnion('kind', [
 
 /** One run owns these runtimes. Source comes only from its frozen, permission-checked dependencies. */
 export class FactorHost implements FactorExecutionPort {
-  private readonly modules: CustomFactorModule[];
+  private readonly dependencies: StrategyFactor[];
   private readonly factors = new Map<string, FactorInstance>();
   private readonly identifiers = new Set<string>();
   private readonly queues = new Map<string, Promise<unknown>>();
@@ -79,10 +79,10 @@ export class FactorHost implements FactorExecutionPort {
   private closed = false;
 
   constructor(
-    modules: CustomFactorModule[],
+    factors: StrategyFactor[],
     private readonly onUserLog?: UserLogSink,
   ) {
-    this.modules = structuredClone(modules);
+    this.dependencies = [...factors];
   }
 
   describe(): Promise<FactorDefinition[]> {
@@ -192,13 +192,13 @@ export class FactorHost implements FactorExecutionPort {
 
   private async initialize(): Promise<FactorDefinition[]> {
     const definitions: FactorDefinition[] = [];
-    for (const module of this.modules) {
-      definitions.push(await this.define(module, module.key));
+    for (const factor of this.dependencies) {
+      definitions.push(await this.define(factor, factor.key));
     }
     return definitions;
   }
 
-  private async define(module: CustomFactorModule, id: string): Promise<FactorDefinition> {
+  private async define(factor: StrategyFactor, id: string): Promise<FactorDefinition> {
     if (this.closed) {
       throw new Error('Factor runtime is closed');
     }
@@ -206,40 +206,41 @@ export class FactorHost implements FactorExecutionPort {
       throw new Error(`Duplicate factor dependency ${id}`);
     }
     this.identifiers.add(id);
-    if (module.panelComposite) {
-      if (module.analysisKind !== 'panel' || module.panelComposite.components.length < 2) {
-        throw new Error(`factor ${module.key} has an invalid panel composite contract`);
+    const composite = factor.panelComposite;
+    if (composite) {
+      if (factor.analysisKind !== 'panel' || composite.components.length < 2) {
+        throw new Error(`factor ${factor.key} has an invalid panel composite contract`);
       }
       const components: Extract<FactorDefinition, { kind: 'panel_composite' }>['components'] = [];
-      for (const [index, component] of module.panelComposite.components.entries()) {
-        const definition = await this.define(component.module, `${id}:component:${index}`);
+      for (const [index, component] of composite.components.entries()) {
+        const definition = await this.define(component.factor, `${id}:component:${index}`);
         if (definition.kind !== 'asset_series' || definition.analysisKind !== 'panel') {
-          throw new Error(`factor ${module.key} panel composite components must be panel factors`);
+          throw new Error(`factor ${factor.key} panel composite components must be panel factors`);
         }
         components.push({ direction: component.direction, definition });
       }
       return {
         id,
         kind: 'panel_composite',
-        standardization: module.panelComposite.standardization,
-        assetUniverse: module.panelComposite.assetUniverse,
+        standardization: composite.standardization,
+        assetUniverse: composite.assetUniverse,
         components,
       };
     }
-    const language = module.language ?? 'typescript';
-    const version = module.runtimeVersion ?? (language === 'python' ? 'py-v1' : 'ts-v1');
+    const language = factor.language;
+    const version = factor.runtimeVersion;
     if (
       (language === 'python' && version !== 'py-v1') ||
       (language === 'typescript' && version !== 'ts-v1')
     ) {
-      throw new Error(`factor ${module.key} has an invalid runtime version`);
+      throw new Error(`factor ${factor.key} has an invalid runtime version`);
     }
-    const source = language === 'python' ? module.code : module.js;
+    const source = language === 'python' ? factor.code : factor.js;
     if (!source) {
-      throw new Error(`factor ${module.key} is missing executable code`);
+      throw new Error(`factor ${factor.key} is missing executable code`);
     }
-    const kind = module.analysisKind ?? 'cross_sectional';
-    const log: UserLogSink = (level, text) => this.onUserLog?.(level, `${module.key}: ${text}`);
+    const kind = factor.runtimeKind;
+    const log: UserLogSink = (level, text) => this.onUserLog?.(level, `${factor.key}: ${text}`);
     const runtime = await FactorRuntime.start({
       language,
       analysisKind: kind,
@@ -256,32 +257,33 @@ export class FactorHost implements FactorExecutionPort {
         runtime.metadata.window != null &&
         (!Number.isSafeInteger(runtime.metadata.window) || runtime.metadata.window < 1)
       ) {
-        throw new Error(`factor ${module.key} has an invalid history window`);
+        throw new Error(`factor ${factor.key} has an invalid history window`);
       }
-      if (module.crossSectional && module.crossSectional.window !== runtime.metadata.window) {
+      if (factor.crossSectional && factor.crossSectional.window !== runtime.metadata.window) {
         throw new Error(
-          `factor ${module.key} does not match its compiled cross-sectional contract`,
+          `factor ${factor.key} does not match its compiled cross-sectional contract`,
         );
       }
       return {
         id,
         kind: 'cross_sectional',
         window: runtime.metadata.window,
-        historyFields: module.historyFields ?? [],
+        historyFields: factor.historyFields,
       };
     }
     if (
-      module.assetSeries &&
-      (module.assetSeries.window !== runtime.metadata.window ||
-        JSON.stringify(module.assetSeries.inputs) !== JSON.stringify(runtime.metadata.inputs))
+      factor.assetSeries &&
+      (factor.assetSeries.window !== runtime.metadata.window ||
+        JSON.stringify(factor.assetSeries.inputs) !== JSON.stringify(runtime.metadata.inputs))
     ) {
-      throw new Error(`factor ${module.key} does not match its compiled asset-series contract`);
+      throw new Error(`factor ${factor.key} does not match its compiled asset-series contract`);
     }
     return {
       id,
       kind: 'asset_series',
       analysisKind: runtime.metadata.analysisKind,
       meta: { window: runtime.metadata.window, inputs: [...runtime.metadata.inputs] },
+      ...(factor.assetUniverse ? { assetUniverse: factor.assetUniverse } : {}),
     };
   }
 }

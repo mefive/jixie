@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { join, relative as relativePath } from 'node:path';
+import { dirname, join, relative as relativePath } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { transform } from 'esbuild';
 import { register } from 'tsx/esm/api';
@@ -76,8 +76,38 @@ try {
         cwd: apiDirectory,
         encoding: 'utf8',
       });
-    const entry = sdkEntry(source('wall-entry.ts'));
-    let host = source('walled-run.ts');
+    // Pin Engine alongside the historical wall entry: its return contract must not follow HEAD.
+    directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
+    const enginePrefix = 'apps/api/src/engine/';
+    const engineFiles = execFileSync(
+      'git',
+      ['ls-tree', '--full-tree', '-r', '--name-only', 'f276bfbd', enginePrefix],
+      {
+        cwd: apiDirectory,
+        encoding: 'utf8',
+      },
+    )
+      .trim()
+      .split('\n')
+      .filter((path) => path.endsWith('.ts') && !path.endsWith('.test.ts'));
+    for (const repositoryPath of engineFiles) {
+      const destination = join(directory, 'engine', repositoryPath.slice(enginePrefix.length));
+      await mkdir(dirname(destination), { recursive: true });
+      await writeFile(
+        destination,
+        execFileSync('git', ['show', `f276bfbd:${repositoryPath}`], { cwd: apiDirectory }),
+      );
+    }
+    const engineEntry = join(directory, 'engine/simulation/run.ts');
+    const entry = sdkEntry(source('wall-entry.ts')).replace(
+      "'#engine/simulation/run.js'",
+      JSON.stringify(engineEntry),
+    );
+    // This benchmark has no custom factors; keep the empty host at its current module location.
+    let host = source('walled-run.ts').replace(
+      "'#engine/adapters/factor-host.js'",
+      "'#strategy/execution/factor-host.js'",
+    );
     host = host.replace(
       "import { buildWallBundle } from './wall-bundle.js';",
       `
@@ -114,7 +144,6 @@ try {
       'factorHost.close();\n    isolate.dispose();',
       'const cleanupStarted = performance.now(); factorHost.close(); isolate.dispose(); benchmarkMetrics.cleanupMilliseconds = performance.now() - cleanupStarted;',
     );
-    directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
     const path = join(directory, 'baseline.mjs');
     await writeFile(
       path,
@@ -189,16 +218,18 @@ try {
       const executionStarted = performance.now();
       let cleanupStarted;
       try {
-        result = await runStrategy({
-          strategy:
-            variant === 'before' || variant === 'previous'
-              ? runtime.strategy
-              : { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
-          start: dates[0],
-          end: dates.at(-1),
-          initialCash: 1_000_000,
-          dataPort: port,
-        });
+        result = (
+          await runStrategy({
+            strategy:
+              variant === 'before' || variant === 'previous'
+                ? runtime.strategy
+                : { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+            start: dates[0],
+            end: dates.at(-1),
+            initialCash: 1_000_000,
+            dataPort: port,
+          })
+        ).result;
         metrics = { ...runtime.metrics };
       } finally {
         cleanupStarted = performance.now();

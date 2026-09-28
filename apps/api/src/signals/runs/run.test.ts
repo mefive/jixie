@@ -58,7 +58,7 @@ function record(deployment: FactorDependency[] | null, run: FactorDependency[] |
 describe('signal execution lineage admission', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.spyOn(StrategyFactor, 'prepare').mockImplementation(mocks.prepare);
+    vi.spyOn(StrategyFactor, 'fromStrategySource').mockImplementation(mocks.prepare);
     mocks.findRun.mockResolvedValue(record([dependency], [dependency]));
     mocks.prepare.mockResolvedValue(prepared);
     mocks.create.mockResolvedValue({
@@ -68,13 +68,17 @@ describe('signal execution lineage admission', () => {
     });
     mocks.run.mockResolvedValue({
       result: {},
-      capture: {
-        signals: [],
-        modelPositions: [],
+      finalState: {
+        pendingTargets: null,
+        pendingOrders: null,
+        pendingLotOrders: null,
+        conditionalOrders: new Map(),
+        market: new Map(),
+        positions: new Map(),
         factorObservations: [],
         tradeDate: '20240103',
-        modelEquity: 1000,
-        modelCash: 1000,
+        equity: 1000,
+        cash: 1000,
       },
     });
     mocks.stocks.mockResolvedValue([]);
@@ -86,13 +90,23 @@ describe('signal execution lineage admission', () => {
     expect(mocks.create.mock.calls[0][0].factors).toBe(prepared);
     expect(mocks.create.mock.calls[0][0]).not.toHaveProperty('factorDependencySnapshots');
     expect(mocks.run).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ end: '20240103', captureSignals: true }),
+      expect.objectContaining({ end: '20240103', retainFinalState: true }),
     );
     expect(mocks.close).toHaveBeenCalledTimes(1);
     expect(result.factorInputs[0]).toMatchObject({
       factorId: dependency.factorId,
       key: dependency.key,
     });
+  });
+
+  it('rejects missing final state after closing execution and before enrichment', async () => {
+    mocks.run.mockResolvedValue({ result: {}, finalState: null });
+    await expect(runSignal('run-1', vi.fn(), vi.fn())).rejects.toThrow(
+      'Final strategy state was not retained',
+    );
+    expect(mocks.close).toHaveBeenCalledTimes(1);
+    expect(mocks.stocks).not.toHaveBeenCalled();
+    expect(mocks.etfs).not.toHaveBeenCalled();
   });
 
   it.each([

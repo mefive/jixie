@@ -5,7 +5,7 @@ import {
   classifyAllocationRateRegime,
   type AllocationRateRegimeObservation,
 } from './allocation-analysis.js';
-import type { CustomFactorModule } from '../factors/custom-factor.js';
+import type { FactorDefinition } from '../factors/execution-port.js';
 import type { Position, TradeRecord } from '../types.js';
 
 describe('allocation analysis', () => {
@@ -218,18 +218,16 @@ describe('allocation analysis', () => {
   });
 
   it('takes the approved panel universe as the authoritative asset taxonomy', () => {
-    const modules: CustomFactorModule[] = [
+    const modules: FactorDefinition[] = [
       {
-        key: 'allocation_panel',
-        analysisKind: 'panel',
-        panelComposite: {
-          standardization: 'rank',
-          assetUniverse: [
-            { assetId: 'EQUITY', assetClass: 'cn_equity' },
-            { assetId: 'BOND', assetClass: 'fixed_income' },
-          ],
-          components: [],
-        },
+        id: 'allocation_panel',
+        kind: 'panel_composite',
+        standardization: 'rank',
+        assetUniverse: [
+          { assetId: 'EQUITY', assetClass: 'cn_equity' },
+          { assetId: 'BOND', assetClass: 'fixed_income' },
+        ],
+        components: [],
       },
     ];
     expect([...allocationAssetClasses(modules)]).toEqual([
@@ -238,24 +236,35 @@ describe('allocation analysis', () => {
     ]);
   });
 
+  it('retains the approved asset taxonomy for a single panel factor', () => {
+    const definitions: FactorDefinition[] = [
+      {
+        id: 'panel',
+        kind: 'asset_series',
+        analysisKind: 'panel',
+        meta: { window: 2, inputs: ['etf.adjustedClose'] },
+        assetUniverse: [{ assetId: 'BOND', assetClass: 'fixed_income' }],
+      },
+    ];
+    expect([...allocationAssetClasses(definitions)]).toEqual([['BOND', 'fixed_income']]);
+  });
+
   it('rejects conflicting asset classes instead of silently misclassifying exposure', () => {
-    const modules: CustomFactorModule[] = [
-      panelModule('first', 'cn_equity'),
-      panelModule('second', 'fixed_income'),
+    const modules: FactorDefinition[] = [
+      panelDefinition('first', 'cn_equity'),
+      panelDefinition('second', 'fixed_income'),
     ];
     expect(() => allocationAssetClasses(modules)).toThrow('conflicting asset classes for ETF');
   });
 });
 
-function panelModule(key: string, assetClass: 'cn_equity' | 'fixed_income'): CustomFactorModule {
+function panelDefinition(key: string, assetClass: 'cn_equity' | 'fixed_income'): FactorDefinition {
   return {
-    key,
-    analysisKind: 'panel',
-    panelComposite: {
-      standardization: 'rank',
-      assetUniverse: [{ assetId: 'ETF', assetClass }],
-      components: [],
-    },
+    id: key,
+    kind: 'panel_composite',
+    standardization: 'rank',
+    assetUniverse: [{ assetId: 'ETF', assetClass }],
+    components: [],
   };
 }
 

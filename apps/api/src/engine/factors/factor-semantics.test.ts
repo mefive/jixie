@@ -1,5 +1,4 @@
-import { StrategyFactor } from '#strategy/factors/factor.js';
-import type { CustomFactorModule } from './custom-factor.js';
+import { StrategyFactor, type StrategyFactorInput } from '#strategy/factors/factor.js';
 import {
   StrategyExecution,
   type StrategyExecutionInput,
@@ -8,14 +7,11 @@ import {
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { EngineDataPort } from '#engine/data/data-port.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  runStrategy as runEngine,
-  runStrategyWithSignals as runEngineWithSignals,
-} from '../simulation/run.js';
+import { runStrategy as runEngine } from '../simulation/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
 import type { EngineStrategy, EngineConfig } from '../types.js';
-import { FactorHost } from '../adapters/factor-host.js';
+import { FactorHost } from '#strategy/execution/factor-host.js';
 
 /**
  * ctx.factor() time semantics (factor-to-strategy.md Step 2): a `flow` factor (moneyflow) is an
@@ -128,7 +124,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(specWithValuation()),
-      customFactors: [{ key: 'f1', js }],
+      factorSources: [{ key: 'f1', js }],
     });
     expect(seen[D[0]]).toBe(20);
     expect(seen[D[4]]).toBe(20);
@@ -149,17 +145,19 @@ describe('custom (defineFactor) factors inside the engine', () => {
         seen[ctx.date] = ctx.factor(factorKey, 'A');
       },
     };
-    const output = await runStrategyWithSignals({
+    const output = await runWithFinalState({
       start: D[0],
       end: D[4],
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(specWithValuation()),
-      customFactors: [{ key: factorKey, js }],
+      factorSources: [{ key: factorKey, js }],
     });
     expect(seen[D[0]]).toBe(10);
     expect(seen[D[4]]).toBe(10);
-    expect(output.capture.factorObservations).toEqual([{ key: factorKey, code: 'A', value: 10 }]);
+    expect(output.finalState!.factorObservations).toEqual([
+      { key: factorKey, code: 'A', value: 10 },
+    ]);
   });
 
   it('executes an ETF time-series Factor from adjusted history on direct and walled lanes', async () => {
@@ -225,13 +223,13 @@ describe('custom (defineFactor) factors inside the engine', () => {
       },
     };
 
-    const output = await runStrategyWithSignals({
+    const output = await runWithFinalState({
       start: D[0],
       end: D[4],
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(timeSeriesSpec),
-      customFactors: [module],
+      factorSources: [module],
       onLog: (line) => directLogs.push(line),
     });
     expect(seen[D[1]]).toBeNull();
@@ -241,7 +239,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(directLogs).toContain(
       `[factor-error] ${factorKey}: input etf.adjustedClose requires an ETF code, received A`,
     );
-    expect(output.capture.factorObservations).toEqual(
+    expect(output.finalState!.factorObservations).toEqual(
       expect.arrayContaining([
         { key: factorKey, code: 'A', value: null },
         { key: factorKey, code: etfCode, value: expect.closeTo(28 / 24 - 1) },
@@ -263,7 +261,7 @@ describe('custom (defineFactor) factors inside the engine', () => {
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [module],
+        factorSources: [module],
       },
       fixturePort(timeSeriesSpec),
       undefined,
@@ -326,7 +324,7 @@ def compute(ctx: AssetFactorContext) -> float | None:
         },
       },
       dataPort: fixturePort(pythonSpec),
-      customFactors: [module],
+      factorSources: [module],
     });
     expect(seen[D[1]]).toBeNull();
     expect(seen[D[4]]).toBeCloseTo(14 / 12 - 1);
@@ -345,7 +343,7 @@ def compute(ctx: AssetFactorContext) -> float | None:
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [module],
+        factorSources: [module],
       },
       fixturePort(pythonSpec),
       undefined,
@@ -389,7 +387,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         },
       },
       dataPort: fixturePort(specWithValuation()),
-      customFactors: [module],
+      factorSources: [module],
     });
     expect(seen[D[0]]).toBe(20);
     expect(seen[D[4]]).toBe(20);
@@ -472,7 +470,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(panelSpec),
-      customFactors: [compositeModule],
+      factorSources: [compositeModule],
     });
 
     expect(seen[D[0]]).toEqual({ ETF_A: null, ETF_B: null, ETF_C: null });
@@ -493,7 +491,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [compositeModule],
+        factorSources: [compositeModule],
       },
       fixturePort(panelSpec),
       undefined,
@@ -508,7 +506,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         initialCash: 100_000,
         strategy: { ...strategy, watch: ['ETF_A', 'ETF_B'] },
         dataPort: fixturePort(panelSpec),
-        customFactors: [compositeModule],
+        factorSources: [compositeModule],
       }),
     ).rejects.toThrow('approved research universe');
   });
@@ -569,7 +567,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         },
       },
       dataPort: fixturePort(rateSpec),
-      customFactors: [module],
+      factorSources: [module],
     });
 
     expect(seen[D[0]]).toBeNull();
@@ -592,7 +590,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [module],
+        factorSources: [module],
       },
       fixturePort(rateSpec),
       undefined,
@@ -630,7 +628,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(spec()),
-      customFactors: [{ key: 'w1', js }],
+      factorSources: [{ key: 'w1', js }],
     });
     expect(seen[D[0]]).toBeNull(); // only 1 bar of history — window unfilled
     expect(seen[D[1]]).toBeNull();
@@ -676,7 +674,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(amountSpec),
-      customFactors: [{ key: 'amount', js }],
+      factorSources: [{ key: 'amount', js }],
     });
 
     expect(seen[D[1]]).toBeNull();
@@ -720,7 +718,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(turnoverSpec),
-      customFactors: [{ key: 'turnover', js, historyFields: ['turnoverRateF'] }],
+      factorSources: [{ key: 'turnover', js, historyFields: ['turnoverRateF'] }],
     });
 
     expect(seen[D[1]]).toBeNull();
@@ -741,7 +739,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'turnover', js, historyFields: ['turnoverRateF'] }],
+        factorSources: [{ key: 'turnover', js, historyFields: ['turnoverRateF'] }],
       },
       fixturePort(turnoverSpec),
       undefined,
@@ -772,7 +770,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'f1', js }],
+        factorSources: [{ key: 'f1', js }],
       },
       fixturePort(specWithValuation()),
       undefined,
@@ -851,7 +849,7 @@ describe('market benchmark history for custom factors', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(marketSpec),
-      customFactors: [{ key: 'market_move', js, historyFields: ['marketClose'] }],
+      factorSources: [{ key: 'market_move', js, historyFields: ['marketClose'] }],
     });
     expect(seen[D[1]]).toBeNull();
     expect(seen[D[2]]).toBe(2);
@@ -871,7 +869,7 @@ describe('market benchmark history for custom factors', () => {
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'market_move', js, historyFields: ['marketClose'] }],
+        factorSources: [{ key: 'market_move', js, historyFields: ['marketClose'] }],
       },
       fixturePort(marketSpec),
       undefined,
@@ -937,7 +935,7 @@ describe('point-in-time fundamental history for custom factors', () => {
       initialCash: 100_000,
       strategy,
       dataPort: fixturePort(roeSpec),
-      customFactors: [{ key: 'roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
+      factorSources: [{ key: 'roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
     });
 
     expect(seen[D[1]]).toBeNull(); // only 2 bars of history
@@ -960,7 +958,7 @@ describe('point-in-time fundamental history for custom factors', () => {
         start: D[0],
         end: D[4],
         initialCash: 100_000,
-        customFactors: [{ key: 'roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
+        factorSources: [{ key: 'roestep', js, historyFields: ['roe', 'grossprofitMargin'] }],
       },
       fixturePort(roeSpec),
       undefined,
@@ -971,27 +969,29 @@ describe('point-in-time fundamental history for custom factors', () => {
   });
 });
 
-async function runStrategy(config: EngineConfig) {
-  const host = new FactorHost(config.customFactors ?? []);
+async function runStrategy(config: EngineConfig & { factorSources?: FactorFixtureSource[] }) {
+  const { factorSources = [], ...engineConfig } = config;
+  const host = new FactorHost(factorSources.map(factorFixture));
   try {
-    return await runEngine({ ...config, factorExecution: host });
+    return (await runEngine({ ...engineConfig, factorExecution: host })).result;
   } finally {
     host.close();
   }
 }
 
-async function runStrategyWithSignals(config: EngineConfig) {
-  const host = new FactorHost(config.customFactors ?? []);
+async function runWithFinalState(config: EngineConfig & { factorSources?: FactorFixtureSource[] }) {
+  const { factorSources = [], ...engineConfig } = config;
+  const host = new FactorHost(factorSources.map(factorFixture));
   try {
-    return await runEngineWithSignals({ ...config, factorExecution: host });
+    return await runEngine({ ...engineConfig, factorExecution: host, retainFinalState: true });
   } finally {
     host.close();
   }
 }
 
 type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
-  customFactors?: CustomFactorModule[];
-} & Omit<StrategyRunOptions, 'captureSignals'>;
+  factorSources?: FactorFixtureSource[];
+} & Omit<StrategyRunOptions, 'retainFinalState'>;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -1004,23 +1004,45 @@ async function runBacktestFixture(
     dataPort,
     onLog,
     onUserLog,
-    factors: config.customFactors?.map(
-      (module) =>
-        new StrategyFactor({
-          ...module,
-          factorId: module.key,
-          key: module.key,
-          name: module.key,
-          codeHash: 'fixture',
-          analysisKind: module.analysisKind ?? 'cross_sectional',
-          language: module.language,
-          runtimeVersion: module.runtimeVersion,
-        }),
-    ),
+    factors: config.factorSources?.map(factorFixture),
   });
   try {
-    return await execution.run(config);
+    return (await execution.run(config)).result;
   } finally {
     execution.close();
   }
+}
+
+type FactorFixtureSource = Omit<
+  StrategyFactorInput,
+  'factorId' | 'name' | 'codeHash' | 'analysisKind' | 'panelComposite'
+> & {
+  analysisKind?: StrategyFactorInput['analysisKind'];
+  panelComposite?: {
+    standardization: 'rank' | 'zscore';
+    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
+    components: Array<{ direction: 'positive' | 'negative'; module: FactorFixtureSource }>;
+  };
+};
+
+function factorFixture(source: FactorFixtureSource): StrategyFactor {
+  const { panelComposite, ...input } = source;
+  return new StrategyFactor({
+    ...input,
+    factorId: source.key,
+    name: source.key,
+    codeHash: 'fixture',
+    analysisKind: source.analysisKind ?? 'cross_sectional',
+    ...(panelComposite
+      ? {
+          panelComposite: {
+            ...panelComposite,
+            components: panelComposite.components.map(({ direction, module }) => ({
+              direction,
+              factor: factorFixture(module),
+            })),
+          },
+        }
+      : {}),
+  });
 }

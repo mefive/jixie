@@ -1,3 +1,5 @@
+import { projectSignals } from '#signals/runs/projection.js';
+import type { EngineConfig } from '#engine/types.js';
 import {
   StrategyExecution,
   type StrategyExecutionInput,
@@ -7,7 +9,7 @@ import type { UserLogSink } from '#infra/runtime/console.js';
 import type { EngineDataPort } from '#engine/data/data-port.js';
 import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
-import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
+import { runStrategy } from '#engine/simulation/run.js';
 import { compileStrategy } from './testing/compile.js';
 import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
 
@@ -124,13 +126,15 @@ const CATEGORICAL_PARAMETER_CODE = `
 
 describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
   it('净值逐日一致、成交逐笔一致、用户日志穿墙到达', { timeout: 60_000 }, async () => {
-    const direct = await runStrategy({
-      start: D[0],
-      end: D[D.length - 1],
-      initialCash: 100_000,
-      strategy: await compileStrategy(STRATEGY_CODE),
-      dataPort: fixturePort(SPEC),
-    });
+    const direct = (
+      await runStrategy({
+        start: D[0],
+        end: D[D.length - 1],
+        initialCash: 100_000,
+        strategy: await compileStrategy(STRATEGY_CODE),
+        dataPort: fixturePort(SPEC),
+      })
+    ).result;
 
     const walledUserLogs: string[] = [];
     const walled = await runBacktestFixture(
@@ -186,7 +190,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runStrategyWithSignals({
+    const direct = await runWithProjection({
       start: D[0],
       end: D.at(-1)!,
       initialCash: 100_000,
@@ -225,7 +229,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runStrategyWithSignals({
+    const direct = await runWithProjection({
       start: D[0],
       end: D.at(-1)!,
       initialCash: 100_000,
@@ -263,13 +267,15 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runStrategy({
-      start: D[0],
-      end: D.at(-1)!,
-      initialCash: 100_000,
-      strategy: await compileStrategy(code),
-      dataPort: fixturePort(SPEC),
-    });
+    const direct = (
+      await runStrategy({
+        start: D[0],
+        end: D.at(-1)!,
+        initialCash: 100_000,
+        strategy: await compileStrategy(code),
+        dataPort: fixturePort(SPEC),
+      })
+    ).result;
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -311,13 +317,15 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runStrategy({
-      start: D[0],
-      end: D.at(-1)!,
-      initialCash: 100_000,
-      strategy: await compileStrategy(code),
-      dataPort: fixturePort(SPEC),
-    });
+    const direct = (
+      await runStrategy({
+        start: D[0],
+        end: D.at(-1)!,
+        initialCash: 100_000,
+        strategy: await compileStrategy(code),
+        dataPort: fixturePort(SPEC),
+      })
+    ).result;
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -341,13 +349,15 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runStrategy({
-      start: D[0],
-      end: D.at(-1)!,
-      initialCash: 100_000,
-      strategy: await compileStrategy(code),
-      dataPort: fixturePort(SPEC),
-    });
+    const direct = (
+      await runStrategy({
+        start: D[0],
+        end: D.at(-1)!,
+        initialCash: 100_000,
+        strategy: await compileStrategy(code),
+        dataPort: fixturePort(SPEC),
+      })
+    ).result;
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -372,13 +382,15 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runStrategy({
-      start: D[0],
-      end: D.at(-1)!,
-      initialCash: 100_000,
-      strategy: await compileStrategy(code),
-      dataPort: fixturePort(SPEC),
-    });
+    const direct = (
+      await runStrategy({
+        start: D[0],
+        end: D.at(-1)!,
+        initialCash: 100_000,
+        strategy: await compileStrategy(code),
+        dataPort: fixturePort(SPEC),
+      })
+    ).result;
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -390,13 +402,15 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
   });
 
   it('数值参数与单股持仓查询在进墙车道可直接用于下单', { timeout: 60_000 }, async () => {
-    const direct = await runStrategy({
-      start: D[0],
-      end: D.at(-1)!,
-      initialCash: 100_000,
-      strategy: await compileStrategy(PARAMETERIZED_CODE),
-      dataPort: fixturePort(SPEC),
-    });
+    const direct = (
+      await runStrategy({
+        start: D[0],
+        end: D.at(-1)!,
+        initialCash: 100_000,
+        strategy: await compileStrategy(PARAMETERIZED_CODE),
+        dataPort: fixturePort(SPEC),
+      })
+    ).result;
     const walled = await runBacktestFixture(
       { code: PARAMETERIZED_CODE, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -409,18 +423,20 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
 
   it('分类参数覆盖在直跑与进墙车道保持一致', { timeout: 60_000 }, async () => {
     const paramOverrides = { sizing: 'fixed' };
-    const direct = await runStrategy({
-      start: D[0],
-      end: D.at(-1)!,
-      initialCash: 100_000,
-      strategy: await compileStrategy(
-        CATEGORICAL_PARAMETER_CODE,
-        undefined,
-        undefined,
-        paramOverrides,
-      ),
-      dataPort: fixturePort(SPEC),
-    });
+    const direct = (
+      await runStrategy({
+        start: D[0],
+        end: D.at(-1)!,
+        initialCash: 100_000,
+        strategy: await compileStrategy(
+          CATEGORICAL_PARAMETER_CODE,
+          undefined,
+          undefined,
+          paramOverrides,
+        ),
+        dataPort: fixturePort(SPEC),
+      })
+    ).result;
     const walled = await runBacktestFixture(
       {
         code: CATEGORICAL_PARAMETER_CODE,
@@ -462,7 +478,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
 });
 
 type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> &
-  Omit<StrategyRunOptions, 'captureSignals'>;
+  Omit<StrategyRunOptions, 'retainFinalState'>;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -472,7 +488,7 @@ async function runBacktestFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return await execution.run(config);
+    return (await execution.run(config)).result;
   } finally {
     execution.close();
   }
@@ -486,8 +502,20 @@ async function runSignalCaptureFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return await execution.run({ ...config, captureSignals: true });
+    const output = await execution.run({ ...config, retainFinalState: true });
+    if (!output.finalState) {
+      throw new Error('Expected final state');
+    }
+    return { result: output.result, capture: projectSignals(output.finalState) };
   } finally {
     execution.close();
   }
+}
+
+async function runWithProjection(config: EngineConfig) {
+  const output = await runStrategy({ ...config, retainFinalState: true });
+  if (!output.finalState) {
+    throw new Error('Expected final state');
+  }
+  return { result: output.result, capture: projectSignals(output.finalState) };
 }

@@ -1,4 +1,4 @@
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyFactor, type StrategyFactorInput } from '#strategy/factors/factor.js';
 import {
   StrategyExecution,
   type StrategyExecutionInput,
@@ -10,10 +10,9 @@ import { StrategyRuntime } from '#strategy/runtime/strategy-runtime.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FactorLanguage } from '@jixie/shared';
 
-import { FactorHost } from '../adapters/factor-host.js';
+import { FactorHost } from '#strategy/execution/factor-host.js';
 import { runStrategy } from '../simulation/run.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
-import type { CustomFactorModule } from './custom-factor.js';
 import type { EngineConfig, EngineStrategy } from '../types.js';
 
 const dates = ['20240102', '20240103', '20240104'];
@@ -33,7 +32,7 @@ const spec: FixtureSpec = {
     },
   ],
 };
-const typescriptFactor: CustomFactorModule = {
+const typescriptFactor: FactorFixtureSource = {
   key: 'value',
   js: `
     if (typeof process !== 'undefined') throw new Error('factor initialized on host');
@@ -43,7 +42,7 @@ const typescriptFactor: CustomFactorModule = {
     } });
   `,
 };
-const pythonFactor: CustomFactorModule = {
+const pythonFactor: FactorFixtureSource = {
   key: 'value',
   language: 'python',
   runtimeVersion: 'py-v1',
@@ -59,21 +58,22 @@ def compute(bar, ctx):
 
 async function runWithFactors(
   strategy: EngineStrategy,
-  modules: CustomFactorModule[],
+  modules: FactorFixtureSource[],
   fixture = spec,
 ) {
-  const host = new FactorHost(modules);
+  const host = new FactorHost(modules.map(factorFixture));
   try {
-    return await runStrategy({
-      start: dates[0],
-      end: dates.at(-1)!,
-      initialCash: 100_000,
-      strategy,
-      locale: 'en',
-      customFactors: modules,
-      factorExecution: host,
-      dataPort: fixturePort(fixture),
-    });
+    return (
+      await runStrategy({
+        start: dates[0],
+        end: dates.at(-1)!,
+        initialCash: 100_000,
+        strategy,
+        locale: 'en',
+        factorExecution: host,
+        dataPort: fixturePort(fixture),
+      })
+    ).result;
   } finally {
     host.close();
   }
@@ -103,7 +103,7 @@ describe('strategy and factor sandbox combinations', () => {
         start: dates[0],
         end: dates.at(-1)!,
         initialCash: 100_000,
-        customFactors: [module],
+        factorSources: [module],
       };
       let result;
       if (strategyLanguage === 'typescript') {
@@ -149,18 +149,21 @@ def on_bar(ctx):
           await runtime.close();
         }
       }
-      const expected = await runStrategy({
-        ...config,
-        customFactors: [],
-        dataPort: fixturePort(spec),
-        strategy: {
-          name: 'expected',
-          watch: ['A'],
-          onBar(context) {
-            context.orderTargetPercent('A', 0.5);
+      const expected = (
+        await runStrategy({
+          start: config.start,
+          end: config.end,
+          initialCash: config.initialCash,
+          dataPort: fixturePort(spec),
+          strategy: {
+            name: 'expected',
+            watch: ['A'],
+            onBar(context) {
+              context.orderTargetPercent('A', 0.5);
+            },
           },
-        },
-      });
+        })
+      ).result;
       expect(result.nav).toEqual(expected.nav);
       expect(result.tradeLog).toEqual(expected.tradeLog);
       expect(
@@ -249,7 +252,6 @@ def on_bar(ctx):
       dataPort: fixturePort(spec),
       strategy: { name: 'missing host', factors: ['value'], onBar() {} },
       locale: 'en',
-      customFactors: [typescriptFactor],
     };
     await expect(runStrategy(config)).rejects.toThrow('Custom Factor execution is unavailable');
   });
@@ -279,7 +281,7 @@ def on_bar(ctx):
         bars: dates.map((date) => ({ date, open: 10 + index, close: 10 + index })),
       })),
     };
-    const components: CustomFactorModule[] = [
+    const components: FactorFixtureSource[] = [
       {
         key: 'ts_component',
         analysisKind: 'panel',
@@ -304,7 +306,7 @@ def compute(ctx):
 `,
       },
     ];
-    const composite: CustomFactorModule = {
+    const composite: FactorFixtureSource = {
       key: 'composite',
       analysisKind: 'panel',
       panelComposite: {
@@ -338,8 +340,8 @@ def compute(ctx):
 });
 
 type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
-  customFactors?: CustomFactorModule[];
-} & Omit<StrategyRunOptions, 'captureSignals'>;
+  factorSources?: FactorFixtureSource[];
+} & Omit<StrategyRunOptions, 'retainFinalState'>;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -352,23 +354,45 @@ async function runBacktestFixture(
     dataPort,
     onLog,
     onUserLog,
-    factors: config.customFactors?.map(
-      (module) =>
-        new StrategyFactor({
-          ...module,
-          factorId: module.key,
-          key: module.key,
-          name: module.key,
-          codeHash: 'fixture',
-          analysisKind: module.analysisKind ?? 'cross_sectional',
-          language: module.language,
-          runtimeVersion: module.runtimeVersion,
-        }),
-    ),
+    factors: config.factorSources?.map(factorFixture),
   });
   try {
-    return await execution.run(config);
+    return (await execution.run(config)).result;
   } finally {
     execution.close();
   }
+}
+
+type FactorFixtureSource = Omit<
+  StrategyFactorInput,
+  'factorId' | 'name' | 'codeHash' | 'analysisKind' | 'panelComposite'
+> & {
+  analysisKind?: StrategyFactorInput['analysisKind'];
+  panelComposite?: {
+    standardization: 'rank' | 'zscore';
+    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
+    components: Array<{ direction: 'positive' | 'negative'; module: FactorFixtureSource }>;
+  };
+};
+
+function factorFixture(source: FactorFixtureSource): StrategyFactor {
+  const { panelComposite, ...input } = source;
+  return new StrategyFactor({
+    ...input,
+    factorId: source.key,
+    name: source.key,
+    codeHash: 'fixture',
+    analysisKind: source.analysisKind ?? 'cross_sectional',
+    ...(panelComposite
+      ? {
+          panelComposite: {
+            ...panelComposite,
+            components: panelComposite.components.map(({ direction, module }) => ({
+              direction,
+              factor: factorFixture(module),
+            })),
+          },
+        }
+      : {}),
+  });
 }

@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, type FactorBar, type MultiAssetClass, type Locale } from '@jixie/shared';
+import { DEFAULT_LOCALE, type FactorBar, type Locale } from '@jixie/shared';
 import { t } from '#i18n/messages.js';
 import type {
   FactorDefinition,
@@ -8,30 +8,6 @@ import type {
 import { factorV2YieldTerm, type FactorV2FieldKey } from '#factor/definitions/fields.js';
 import type { EngineData } from '../data/engine-data.js';
 import type { BarRow } from '../types.js';
-
-/** Frozen, ownership-checked dependencies. User source is loaded only by a host factor runtime. */
-export interface CustomFactorModule {
-  key: string; // immutable Factor.key
-  language?: 'typescript' | 'python';
-  runtimeVersion?: 'ts-v1' | 'py-v1';
-  code?: string; // frozen Python source; TypeScript modules use transformed js below
-  js?: string; // factor module transformed to CJS; omitted for a frozen panel composite bundle
-  historyFields?: CustomFactorHistoryField[];
-  /** Omitted means the cross-sectional Factor SDK. Execution metadata is resolved by FactorHost. */
-  analysisKind?: 'cross_sectional' | 'time_series' | 'panel';
-  crossSectional?: { window?: number };
-  assetSeries?: AssetFactorRuntimeMeta;
-  /** Approved Panel research universe. It is metadata for allocation accounting, not factor execution. */
-  assetUniverse?: Array<{ assetId: string; assetClass: MultiAssetClass }>;
-  panelComposite?: {
-    standardization: 'rank' | 'zscore';
-    assetUniverse: Array<{ assetId: string; assetClass: MultiAssetClass }>;
-    components: Array<{
-      direction: 'positive' | 'negative';
-      module: CustomFactorModule;
-    }>;
-  };
-}
 
 export type CustomFactorHistoryField =
   | 'turnoverRateF'

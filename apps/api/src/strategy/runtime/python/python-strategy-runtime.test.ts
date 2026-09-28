@@ -81,7 +81,7 @@ describe('Python strategy runtime', () => {
       },
     });
     try {
-      const [pythonResult, nativeResult] = await Promise.all([
+      const [{ result: pythonResult }, { result: nativeResult }] = await Promise.all([
         runStrategy({
           start: dates[0],
           end: dates.at(-1)!,

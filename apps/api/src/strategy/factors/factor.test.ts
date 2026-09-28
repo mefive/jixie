@@ -38,7 +38,7 @@ vi.mock('#infra/runtime/typescript/isolate-run.js', async (importOriginal) => {
 // Keep source-only checks before preparation loads the mocked dependencies.
 describe('strategy factor references', () => {
   it('returns an empty preparation without loading the database or compiler', async () => {
-    await expect(StrategyFactor.prepare('factors: []', 'owner')).resolves.toEqual([]);
+    await expect(StrategyFactor.fromStrategySource('factors: []', 'owner')).resolves.toEqual([]);
   });
 
   it('finds raw keys in both the declaration and direct calls', () => {
@@ -97,7 +97,12 @@ const factor = new StrategyFactor(input);
 
 describe('strategy factor boundaries', () => {
   it('serializes only report lineage and derives inputs from runtime metadata', () => {
-    const snapshot = factor.toDependency();
+    const snapshot = factor.toDependency({
+      id: factor.key,
+      kind: 'asset_series',
+      analysisKind: 'time_series',
+      meta: input.assetSeries!,
+    });
     expect(JSON.parse(JSON.stringify(snapshot))).toEqual({
       factorId: 'factor-1',
       key: 'trend',
@@ -110,15 +115,15 @@ describe('strategy factor boundaries', () => {
       inputs: ['etf.adjustedClose'],
     });
     snapshot.inputs!.push('rates.cgb.yield.10y');
-    expect(factor.toEngineModule().assetSeries!.inputs).toEqual(['etf.adjustedClose']);
+    expect(factor.assetSeries!.inputs).toEqual(['etf.adjustedClose']);
   });
 
-  it('keeps source and runtime settings in the engine module without report identity', () => {
-    const module = factor.toEngineModule();
+  it('exposes runtime inputs while keeping report serialization separate', () => {
+    const module = factor;
     expect(module).toMatchObject({
       key: 'trend',
       js: 'private source',
-      assetSeries: factor.toEngineModule().assetSeries,
+      assetSeries: factor.assetSeries,
     });
     expect(module).not.toHaveProperty('factorId');
     expect(module).not.toHaveProperty('approvedReportId');
@@ -130,7 +135,7 @@ describe('strategy factor boundaries', () => {
       analysisKind: 'macro_regime',
       assetSeries: undefined,
     });
-    expect(macro.toEngineModule().analysisKind).toBe('cross_sectional');
+    expect(macro.runtimeKind).toBe('cross_sectional');
     expect(macro.toDependency().analysisKind).toBe('macro_regime');
     expect(macro.toDependency()).not.toHaveProperty('inputs');
   });
@@ -146,7 +151,7 @@ const dependency = {
 };
 
 describe('strategy factor metadata', () => {
-  it('aggregates composite requirements for engine data loading and persisted lineage', () => {
+  it('derives composite lineage inputs without modifying source factors', () => {
     const definition: FactorDefinition = {
       id: 'trend',
       kind: 'panel_composite',
@@ -173,21 +178,20 @@ describe('strategy factor metadata', () => {
         },
       ],
     };
-    const resolved = StrategyFactor.resolveAll([new StrategyFactor(dependency)], [definition]);
-    expect(resolved[0].toEngineModule().assetSeries).toEqual({
-      window: 61,
-      inputs: ['etf.adjustedClose', 'rates.cgb.yield.10y'],
-    });
-    expect(resolved[0].toDependency()).toEqual({
+    const factor = new StrategyFactor(dependency);
+    StrategyFactor.validateRuntimeMetadata([factor], [definition]);
+    expect(factor.toDependency(definition)).toEqual({
       ...dependency,
       inputs: ['etf.adjustedClose', 'rates.cgb.yield.10y'],
     });
+    expect(factor.assetSeries).toBeUndefined();
+    expect(factor.toDependency()).not.toHaveProperty('inputs');
     expect(dependency).not.toHaveProperty('inputs');
   });
 
   it('rejects research-only fields inside composite components', () => {
     expect(() =>
-      StrategyFactor.resolveAll(
+      StrategyFactor.validateRuntimeMetadata(
         [new StrategyFactor(dependency)],
         [
           {
@@ -213,37 +217,61 @@ describe('strategy factor metadata', () => {
   });
 
   it('fails closed when a dependency has no runtime definition', () => {
-    expect(() => StrategyFactor.resolveAll([new StrategyFactor(dependency)], [])).toThrow(
-      'Missing factor metadata',
-    );
+    expect(() =>
+      StrategyFactor.validateRuntimeMetadata([new StrategyFactor(dependency)], []),
+    ).toThrow('Missing factor metadata');
   });
 });
 
 describe('strategy factor state isolation', () => {
   it('does not mutate prepared factors or share metadata between runs', () => {
     const original = new StrategyFactor({ ...input, assetSeries: undefined });
-    const first = original.resolveMetadata({
+    const first = original.toDependency({
       id: input.key,
       kind: 'asset_series',
       analysisKind: 'time_series',
       meta: { window: 2, inputs: ['etf.adjustedClose'] },
     });
-    const second = original.resolveMetadata({
+    const second = original.toDependency({
       id: input.key,
       kind: 'asset_series',
       analysisKind: 'time_series',
       meta: { window: 3, inputs: ['rates.cgb.yield.10y'] },
     });
-    const module = first.toEngineModule();
-    module.assetSeries!.inputs.push('rates.cgb.yield.2y');
-    expect(original.toEngineModule().assetSeries).toBeUndefined();
-    expect(first.toDependency().inputs).toEqual(['etf.adjustedClose']);
-    expect(second.toDependency().inputs).toEqual(['rates.cgb.yield.10y']);
+    first.inputs!.push('rates.cgb.yield.2y');
+    expect(original.assetSeries).toBeUndefined();
+    expect(original.toDependency()).not.toHaveProperty('inputs');
+    expect(second.inputs).toEqual(['rates.cgb.yield.10y']);
+  });
+
+  it('keeps composite child instances and freezes the surrounding input collections', () => {
+    const child = new StrategyFactor({ ...input, analysisKind: 'panel' });
+    const composite = {
+      standardization: 'rank' as const,
+      assetUniverse: [{ assetId: 'A', assetClass: 'cn_equity' as const }],
+      components: [{ direction: 'positive' as const, factor: child }],
+    };
+    const parent = new StrategyFactor({
+      ...input,
+      analysisKind: 'panel',
+      panelComposite: composite,
+    });
+    composite.components.length = 0;
+    composite.assetUniverse[0].assetId = 'changed';
+    const first = parent.panelComposite!;
+    expect(first.components[0].factor).toBe(child);
+    expect(first.components[0].factor).toBeInstanceOf(StrategyFactor);
+    first.assetUniverse[0].assetId = 'changed again';
+    first.components.length = 0;
+    expect(parent.panelComposite!.components).toHaveLength(1);
+    expect(parent.panelComposite!.assetUniverse[0].assetId).toBe('A');
+    expect(parent.toDependency()).not.toHaveProperty('panelComposite');
+    expect(parent.toDependency()).not.toHaveProperty('js');
   });
 
   it('rejects metadata belonging to a different factor', () => {
     expect(() =>
-      factor.resolveMetadata({ id: 'other', kind: 'cross_sectional', historyFields: [] }),
+      factor.toDependency({ id: 'other', kind: 'cross_sectional', historyFields: [] }),
     ).toThrow('Factor metadata does not match');
   });
 });
@@ -352,7 +380,7 @@ describe('published factor preparation', () => {
   });
 
   it('loads the exact owned factor and records run lineage', async () => {
-    const prepared = await StrategyFactor.prepare(
+    const prepared = await StrategyFactor.fromStrategySource(
       `ctx.factor('book_to_market', '000001.SZ')`,
       'user-1',
     );
@@ -362,9 +390,9 @@ describe('published factor preparation', () => {
         where: expect.objectContaining({ key: { in: ['book_to_market'] } }),
       }),
     );
-    expect(prepared[0].toEngineModule().assetSeries).toBeUndefined();
-    expect(prepared[0].toEngineModule()).toMatchObject({ key: 'book_to_market' });
-    expect(prepared[0].toEngineModule().js).toContain('defineFactor');
+    expect(prepared[0].assetSeries).toBeUndefined();
+    expect(prepared[0]).toMatchObject({ key: 'book_to_market' });
+    expect(prepared[0].js).toContain('defineFactor');
     expect(prepared.map((factor) => factor.toDependency())).toEqual([
       {
         factorId: 'factor-1',
@@ -396,20 +424,20 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       }),
     ]);
 
-    const prepared = await StrategyFactor.prepare(
+    const prepared = await StrategyFactor.fromStrategySource(
       `strategy = Strategy(factors=["python_value"])`,
       'user-1',
     );
 
-    expect(prepared[0].toEngineModule().assetSeries).toBeUndefined();
-    expect(prepared[0].toEngineModule()).toMatchObject({
+    expect(prepared[0].assetSeries).toBeUndefined();
+    expect(prepared[0]).toMatchObject({
       key: 'python_value',
       language: 'python',
       runtimeVersion: 'py-v1',
       code,
       analysisKind: 'cross_sectional',
     });
-    expect(prepared[0].toEngineModule().js).toBeUndefined();
+    expect(prepared[0].js).toBeUndefined();
     expect(prepared[0].toDependency()).toMatchObject({
       language: 'python',
       runtimeVersion: 'py-v1',
@@ -435,12 +463,12 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       }),
     ]);
 
-    const prepared = await StrategyFactor.prepare(
+    const prepared = await StrategyFactor.fromStrategySource(
       `ctx.factor('etf_trend_20', '510300.SH')`,
       'user-1',
     );
-    expect(prepared[0].toEngineModule().assetSeries).toBeUndefined();
-    expect(prepared[0].toEngineModule()).toMatchObject({
+    expect(prepared[0].assetSeries).toBeUndefined();
+    expect(prepared[0]).toMatchObject({
       key: 'etf_trend_20',
       analysisKind: 'time_series',
     });
@@ -467,7 +495,10 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     ]);
 
     await expect(
-      StrategyFactor.prepare(`ctx.factor('warehouse_pressure_20_v1', '518880.SH')`, 'user-1'),
+      StrategyFactor.fromStrategySource(
+        `ctx.factor('warehouse_pressure_20_v1', '518880.SH')`,
+        'user-1',
+      ),
     ).resolves.toMatchObject([{ key: 'warehouse_pressure_20_v1' }]);
   });
 
@@ -514,12 +545,12 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       },
     ]);
 
-    const prepared = await StrategyFactor.prepare(
+    const prepared = await StrategyFactor.fromStrategySource(
       `ctx.factor('cross_asset_momentum_120', '510300.SH')`,
       'user-1',
     );
-    expect(prepared[0].toEngineModule().assetSeries).toBeUndefined();
-    expect(prepared[0].toEngineModule()).toMatchObject({
+    expect(prepared[0].assetSeries).toBeUndefined();
+    expect(prepared[0]).toMatchObject({
       key: 'cross_asset_momentum_120',
       analysisKind: 'panel',
       assetUniverse: [
@@ -624,13 +655,13 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       },
     ]);
 
-    const prepared = await StrategyFactor.prepare(
+    const prepared = await StrategyFactor.fromStrategySource(
       `ctx.factor('momentum_reversal_panel', '510300.SH')`,
       'user-1',
     );
 
-    expect(prepared[0].toEngineModule().assetSeries).toBeUndefined();
-    expect(prepared[0].toEngineModule()).toMatchObject({
+    expect(prepared[0].assetSeries).toBeUndefined();
+    expect(prepared[0]).toMatchObject({
       key: 'momentum_reversal_panel',
       analysisKind: 'panel',
       panelComposite: {
@@ -641,8 +672,8 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
           { assetId: '518880.SH', assetClass: 'gold' },
         ],
         components: [
-          { direction: 'positive', module: { analysisKind: 'panel' } },
-          { direction: 'negative', module: { analysisKind: 'panel' } },
+          { direction: 'positive', factor: { analysisKind: 'panel' } },
+          { direction: 'negative', factor: { analysisKind: 'panel' } },
         ],
       },
     });
@@ -676,13 +707,21 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       }),
     ]);
     await expect(
-      StrategyFactor.prepare(`ctx.factor('etf_trend_20', '510300.SH')`, 'user-1', 'deployment'),
+      StrategyFactor.fromStrategySource(
+        `ctx.factor('etf_trend_20', '510300.SH')`,
+        'user-1',
+        'deployment',
+      ),
     ).resolves.toMatchObject([{ key: 'etf_trend_20' }]);
   });
 
   it('allows an archived dependency for an existing signal run', async () => {
     await expect(
-      StrategyFactor.prepare(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1', 'signal'),
+      StrategyFactor.fromStrategySource(
+        `ctx.factor('book_to_market', '000001.SZ')`,
+        'user-1',
+        'signal',
+      ),
     ).resolves.toMatchObject([{ key: 'book_to_market' }]);
     expect(mocks.factorFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -694,7 +733,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
   it('fails closed for missing or unpublished factors', async () => {
     mocks.factorFindMany.mockResolvedValue([]);
     await expect(
-      StrategyFactor.prepare(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1'),
+      StrategyFactor.fromStrategySource(`ctx.factor('book_to_market', '000001.SZ')`, 'user-1'),
     ).rejects.toThrow('book_to_market');
   });
 });

@@ -2,10 +2,10 @@ import { StrategyFactor } from '#strategy/factors/factor.js';
 import { backtestReportState } from '#strategy/backtests/state.js';
 import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
-import { FactorHost } from '#engine/adapters/factor-host.js';
+import { FactorHost } from '#strategy/execution/factor-host.js';
 
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
-import type { BacktestConfig, Locale, StrategyDeployment } from '@jixie/shared';
+import type { BacktestConfig, FactorDependency, Locale, StrategyDeployment } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
@@ -48,13 +48,16 @@ export async function deployBacktestReport(
     throw new SignalsError('futures_unsupported');
   }
   // Research-only or archived factors cannot become a new daily-signal dependency.
-  const prepared = await StrategyFactor.prepare(config.code, userId, 'deployment');
+  const prepared = await StrategyFactor.fromStrategySource(config.code, userId, 'deployment');
 
   // Deployment has no simulation: inspect once here and release every runtime before persisting.
-  const factorHost = new FactorHost(prepared.map((factor) => factor.toEngineModule()));
-  let resolved;
+  const factorHost = new FactorHost(prepared);
+  let currentDependencies: FactorDependency[];
   try {
-    resolved = StrategyFactor.resolveAll(prepared, await factorHost.describe());
+    const factorDefinitions = await factorHost.describe();
+    StrategyFactor.validateRuntimeMetadata(prepared, factorDefinitions);
+    const byId = new Map(factorDefinitions.map((definition) => [definition.id, definition]));
+    currentDependencies = prepared.map((factor) => factor.toDependency(byId.get(factor.key)!));
   } finally {
     factorHost.close();
   }
@@ -66,10 +69,7 @@ export async function deployBacktestReport(
     if (dependencies == null && prepared.length > 0) {
       throw new SignalsError('dependencies_changed');
     }
-    StrategyFactor.assertDependencies(
-      dependencies,
-      resolved.map((factor) => factor.toDependency()),
-    );
+    StrategyFactor.assertDependencies(dependencies, currentDependencies);
   } catch {
     throw new SignalsError('dependencies_changed');
   }

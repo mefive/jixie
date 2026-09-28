@@ -1,13 +1,8 @@
-import { FactorHost } from '#engine/adapters/factor-host.js';
+import { FactorHost } from './factor-host.js';
 import type { EngineDataPort } from '#engine/data/data-port.js';
 import { StrategyFactor } from '../factors/factor.js';
-import { runStrategy, runStrategyWithSignals } from '#engine/simulation/run.js';
-import type {
-  BacktestResult,
-  CostModel,
-  EngineContext,
-  SignalBacktestOutput,
-} from '#engine/types.js';
+import { runStrategy } from '#engine/simulation/run.js';
+import type { CostModel, EngineContext, StrategyExecutionResult } from '#engine/types.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { FactorDependency, Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
 import { StrategyRuntime } from '../runtime/strategy-runtime.js';
@@ -29,7 +24,7 @@ export interface StrategyRunOptions {
   end: string;
   initialCash: number;
   cost?: Partial<CostModel>;
-  captureSignals?: boolean;
+  retainFinalState?: boolean;
 }
 
 /** Owns the strategy and factor resources for exactly one engine run. */
@@ -39,8 +34,8 @@ export class StrategyExecution {
 
   private constructor(
     private readonly runtime: StrategyRuntimeInstance,
-    private readonly factors: FactorHost,
-    private readonly resolved: StrategyFactor[],
+    private readonly factorHost: FactorHost,
+    private readonly dependencies: FactorDependency[],
     private readonly input: StrategyExecutionInput,
   ) {}
 
@@ -52,17 +47,19 @@ export class StrategyExecution {
       paramOverrides: input.paramOverrides,
       locale: input.locale,
     });
-    let factors: FactorHost | undefined;
+    let factorHost: FactorHost | undefined;
     try {
-      factors = new FactorHost(
-        (input.factors ?? []).map((factor) => factor.toEngineModule()),
-        input.onUserLog,
+      factorHost = new FactorHost(input.factors ?? [], input.onUserLog);
+      const factorDefinitions = await factorHost.describe();
+      StrategyFactor.validateRuntimeMetadata(input.factors ?? [], factorDefinitions);
+      const byId = new Map(factorDefinitions.map((definition) => [definition.id, definition]));
+      const dependencies = (input.factors ?? []).map((factor) =>
+        factor.toDependency(byId.get(factor.key)!),
       );
-      const resolved = StrategyFactor.resolveAll(input.factors ?? [], await factors.describe());
-      return new StrategyExecution(runtime, factors, resolved, { ...input });
+      return new StrategyExecution(runtime, factorHost, dependencies, { ...input });
     } catch (error) {
       try {
-        factors?.close();
+        factorHost?.close();
       } finally {
         runtime.close();
       }
@@ -72,19 +69,17 @@ export class StrategyExecution {
 
   /** Return a detached lineage snapshot for reports and caller-owned admission checks. */
   get factorDependencies(): FactorDependency[] {
-    return this.resolved.map((factor) => factor.toDependency());
+    return structuredClone(this.dependencies);
   }
 
-  run(options: StrategyRunOptions & { captureSignals: true }): Promise<SignalBacktestOutput>;
-  run(options: StrategyRunOptions & { captureSignals?: false }): Promise<BacktestResult>;
-  run(options: StrategyRunOptions): Promise<BacktestResult | SignalBacktestOutput>;
-  async run(options: StrategyRunOptions): Promise<BacktestResult | SignalBacktestOutput> {
+  async run(options: StrategyRunOptions): Promise<StrategyExecutionResult> {
     if (this.closed || this.started) {
       throw new Error('Strategy execution requires a fresh, open instance');
     }
     this.started = true;
 
     const engineConfig = {
+      retainFinalState: options.retainFinalState,
       start: options.start,
       end: options.end,
       initialCash: options.initialCash,
@@ -95,16 +90,12 @@ export class StrategyExecution {
         onBar: (context: EngineContext) => this.runtime.execute({ context }),
       },
       dataPort: this.input.dataPort,
-      factorExecution: this.factors,
-      customFactors: this.resolved.map((factor) => factor.toEngineModule()),
+      factorExecution: this.factorHost,
       onLog: this.input.onLog,
     };
-    const output = options.captureSignals
-      ? await runStrategyWithSignals(engineConfig)
-      : await runStrategy(engineConfig);
+    const output = await runStrategy(engineConfig);
     if (this.input.factors) {
-      const result = 'capture' in output ? output.result : output;
-      result.factorDependencies = this.factorDependencies;
+      output.result.factorDependencies = this.factorDependencies;
     }
     return output;
   }
@@ -115,7 +106,7 @@ export class StrategyExecution {
     }
     this.closed = true;
     try {
-      this.factors.close();
+      this.factorHost.close();
     } finally {
       this.runtime.close();
     }

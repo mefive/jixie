@@ -5,7 +5,7 @@ import type { StrategyScanWorkerInput } from './job-payload.js';
 import type { StrategyExecutionInput, StrategyRunOptions } from '../execution/execution.js';
 
 type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> &
-  Omit<StrategyRunOptions, 'captureSignals'>;
+  Omit<StrategyRunOptions, 'retainFinalState'>;
 
 const mocks = vi.hoisted(() => ({
   prepare: vi.fn(),
@@ -50,11 +50,14 @@ const factors = [
 
 describe('strategy scan execution', () => {
   beforeEach(() => {
-    vi.spyOn(StrategyFactor, 'prepare').mockImplementation(mocks.prepare);
+    vi.spyOn(StrategyFactor, 'fromStrategySource').mockImplementation(mocks.prepare);
     mocks.simulate.mockReset();
     mocks.close.mockReset();
     mocks.create.mockReset().mockImplementation(async (input) => ({
-      run: (options: object) => mocks.simulate({ ...input, ...options }, input.dataPort),
+      run: async (options: object) => ({
+        result: await mocks.simulate({ ...input, ...options }, input.dataPort),
+        finalState: null,
+      }),
       close: mocks.close,
     }));
     mocks.prepare.mockReset().mockResolvedValue(factors);

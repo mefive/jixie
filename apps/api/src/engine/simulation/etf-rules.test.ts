@@ -38,14 +38,16 @@ describe('ETF daily execution', () => {
       basic: [],
     });
 
-    const result = await runStrategy({
-      start: DATES[0],
-      end: DATES.at(-1)!,
-      initialCash: 100_000,
-      strategy: roundTripStrategy(),
-      dataPort,
-      cost: { slippageBps: 0, impactCoef: 0 },
-    });
+    const result = (
+      await runStrategy({
+        start: DATES[0],
+        end: DATES.at(-1)!,
+        initialCash: 100_000,
+        strategy: roundTripStrategy(),
+        dataPort,
+        cost: { slippageBps: 0, impactCoef: 0 },
+      })
+    ).result;
 
     expect(result.tradeLog.map((trade) => `${trade.assetType}:${trade.side}`)).toEqual([
       'etf:buy',
@@ -62,22 +64,26 @@ describe('ETF daily execution', () => {
       slippageBps: 0,
       impactCoef: 0,
     };
-    const etf = await runStrategy({
-      start: DATES[0],
-      end: DATES.at(-1)!,
-      initialCash: 100_000,
-      strategy: roundTripStrategy(),
-      dataPort: fixturePort({ dates: DATES, stocks: [instrument('etf')] }),
-      cost,
-    });
-    const stock = await runStrategy({
-      start: DATES[0],
-      end: DATES.at(-1)!,
-      initialCash: 100_000,
-      strategy: roundTripStrategy(),
-      dataPort: fixturePort({ dates: DATES, stocks: [instrument('stock')] }),
-      cost,
-    });
+    const etf = (
+      await runStrategy({
+        start: DATES[0],
+        end: DATES.at(-1)!,
+        initialCash: 100_000,
+        strategy: roundTripStrategy(),
+        dataPort: fixturePort({ dates: DATES, stocks: [instrument('etf')] }),
+        cost,
+      })
+    ).result;
+    const stock = (
+      await runStrategy({
+        start: DATES[0],
+        end: DATES.at(-1)!,
+        initialCash: 100_000,
+        strategy: roundTripStrategy(),
+        dataPort: fixturePort({ dates: DATES, stocks: [instrument('stock')] }),
+        cost,
+      })
+    ).result;
 
     expect(etf.tradeLog.map((trade) => trade.fee)).toEqual([1, 1]);
     expect(stock.tradeLog.map((trade) => trade.fee)).toEqual([3, 8]);

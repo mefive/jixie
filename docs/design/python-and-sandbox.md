@@ -22,7 +22,7 @@ Engine 在 Node Worker 中以 `new Function` 直接运行。模块通过编译�
 
 - `engine/factors/execution-port.ts` 定义独立的 `FactorExecutionPort`（描述与批量计算），不再将计算
   塞入 `EngineDataPort.pythonFactorCompute`。Engine 不加载或直接调用用户因子函数。
-- `engine/adapters/factor-host.ts` 的 `FactorHost` 在一次运行内持有冻结依赖，复用 Factor 模块已有的
+- `strategy/execution/factor-host.ts` 的 `FactorHost` 在一次运行内持有冻结依赖，复用 Factor 模块已有的
   TS isolate / Python runtime。沙箱请求只有因子标识、类型与数据，没有源码；宿主检查输入形状、
   已登记依赖、结果长度和数值。同一实例串行计算，初始化失败和运行结束释放运行时。
 - TS 策略仍用墙内 Engine，但因子经独立宿主桥到各自的沙箱；Python 策略的宿主 Engine 使用

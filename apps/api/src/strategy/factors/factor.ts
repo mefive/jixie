@@ -2,7 +2,8 @@ import { ENGINE_FACTORS, FACTOR_KEY_PATTERN, type FactorDependency } from '@jixi
 import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 import {
   extractCustomFactorHistoryFields,
-  type CustomFactorModule,
+  type CustomFactorHistoryField,
+  type AssetFactorRuntimeMeta,
 } from '#engine/factors/custom-factor.js';
 import type { FactorDefinition } from '#engine/factors/execution-port.js';
 import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
@@ -14,8 +15,19 @@ import { StrategyError } from '../errors.js';
 
 export type FactorUsage = 'research' | 'deployment' | 'signal';
 
-export type StrategyFactorInput = Omit<CustomFactorModule, 'analysisKind'> &
-  Omit<FactorDependency, 'inputs'>;
+export interface StrategyFactorInput extends Omit<FactorDependency, 'inputs'> {
+  code?: string;
+  js?: string;
+  historyFields?: CustomFactorHistoryField[];
+  crossSectional?: { window?: number };
+  assetSeries?: AssetFactorRuntimeMeta;
+  assetUniverse?: Array<{ assetId: string; assetClass: import('@jixie/shared').MultiAssetClass }>;
+  panelComposite?: {
+    standardization: 'rank' | 'zscore';
+    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
+    components: Array<{ direction: 'positive' | 'negative'; factor: StrategyFactor }>;
+  };
+}
 
 /** Strategy-side factor preparation, source identity and runtime metadata. */
 export class StrategyFactor {
@@ -24,7 +36,11 @@ export class StrategyFactor {
   private readonly input: StrategyFactorInput;
 
   constructor(input: StrategyFactorInput) {
-    this.input = structuredClone(input);
+    const { panelComposite, ...source } = input;
+    this.input = {
+      ...structuredClone(source),
+      ...(panelComposite ? { panelComposite: StrategyFactor.copyComposite(panelComposite) } : {}),
+    };
   }
 
   get key(): string {
@@ -48,7 +64,7 @@ export class StrategyFactor {
   }
 
   /** Load authorized published sources without starting a factor runtime. */
-  static async prepare(
+  static async fromStrategySource(
     source: string,
     userId: string,
     usage: FactorUsage = 'research',
@@ -129,16 +145,12 @@ export class StrategyFactor {
       ordered.map(async (item): Promise<StrategyFactor> => {
         const row = item.row;
         const report = row.approvedReportId ? approvedReportById.get(row.approvedReportId) : null;
-        const module =
+        const source =
           item.kind === 'factor'
-            ? await StrategyFactor.prepareFactorModule(item.row, report?.spec)
-            : await StrategyFactor.preparePanelCompositeModule(
-                item.row,
-                report?.snapshot,
-                report?.spec,
-              );
+            ? await StrategyFactor.prepareSource(item.row, report?.spec)
+            : await StrategyFactor.prepareComposite(item.row, report?.snapshot, report?.spec);
         return new StrategyFactor({
-          ...module,
+          ...source,
           factorId: row.id,
           key: row.key!,
           name: row.name,
@@ -185,7 +197,7 @@ export class StrategyFactor {
     });
   }
 
-  /** Fail closed if persisted lineage and freshly resolved factors diverge. */
+  /** Fail closed if persisted lineage and current runtime dependencies diverge. */
   static assertDependencies(expected: FactorDependency[] | null, actual: FactorDependency[]): void {
     if (expected == null) {
       return;
@@ -195,80 +207,97 @@ export class StrategyFactor {
     }
   }
 
-  /** Resolve a fresh set so scans cannot mutate the factors shared between runs. */
-  static resolveAll(factors: StrategyFactor[], definitions: FactorDefinition[]): StrategyFactor[] {
+  /** Validate runtime inputs without copying metadata back into source factors. */
+  static validateRuntimeMetadata(factors: StrategyFactor[], definitions: FactorDefinition[]): void {
     const byId = new Map(definitions.map((definition) => [definition.id, definition]));
-    const resolved = factors.map((factor) => {
+    const researchOnlyInputs = new Set<string>();
+    for (const factor of factors) {
       const definition = byId.get(factor.key);
       if (!definition) {
         throw new Error(`Missing factor metadata: ${factor.key}`);
       }
-      return factor.resolveMetadata(definition);
-    });
-    const researchOnlyInputs = [
-      ...new Set(
-        resolved.flatMap((factor) =>
-          (factor.input.assetSeries?.inputs ?? []).filter(isResearchOnlyFactorV2Field),
-        ),
-      ),
-    ];
-    if (researchOnlyInputs.length > 0) {
+      for (const input of StrategyFactor.inputsFromDefinition(definition) ?? []) {
+        if (isResearchOnlyFactorV2Field(input)) {
+          researchOnlyInputs.add(input);
+        }
+      }
+    }
+    if (researchOnlyInputs.size > 0) {
       throw new StrategyError('research_only_inputs_unavailable', {
-        params: { fields: researchOnlyInputs.join(', ') },
+        params: { fields: [...researchOnlyInputs].join(', ') },
       });
     }
-    return resolved;
   }
 
-  /** Return a new factor with metadata; keep the original source object reusable. */
-  resolveMetadata(definition: FactorDefinition): StrategyFactor {
-    if (definition.id !== this.key) {
-      throw new Error(`Factor metadata does not match: ${this.key}`);
-    }
+  private static inputsFromDefinition(
+    definition: FactorDefinition,
+  ): AssetFactorRuntimeMeta['inputs'] | undefined {
     switch (definition.kind) {
       case 'cross_sectional':
-        return new StrategyFactor({ ...this.input, crossSectional: { window: definition.window } });
+        return undefined;
       case 'asset_series':
-        return new StrategyFactor({ ...this.input, assetSeries: definition.meta });
+        return [...definition.meta.inputs];
       case 'panel_composite':
-        return new StrategyFactor({
-          ...this.input,
-          assetSeries: {
-            window: Math.max(
-              ...definition.components.map((component) => component.definition.meta.window),
-            ),
-            inputs: [
-              ...new Set(
-                definition.components.flatMap((component) => component.definition.meta.inputs),
-              ),
-            ],
-          },
-        });
+        return [
+          ...new Set(
+            definition.components.flatMap((component) => component.definition.meta.inputs),
+          ),
+        ];
     }
   }
 
-  /** Preserve the engine's existing analysis-kind mapping and omit report identity. */
-  toEngineModule(): CustomFactorModule {
-    const factor = this.input;
-    return structuredClone({
-      key: factor.key,
-      language: factor.language,
-      runtimeVersion: factor.runtimeVersion,
-      analysisKind:
-        factor.analysisKind === 'macro_regime' ? 'cross_sectional' : factor.analysisKind,
-      code: factor.code,
-      js: factor.js,
-      historyFields: factor.historyFields,
-      crossSectional: factor.crossSectional,
-      assetSeries: factor.assetSeries,
-      assetUniverse: factor.assetUniverse,
-      panelComposite: factor.panelComposite,
-    });
+  get language() {
+    return this.input.language ?? 'typescript';
+  }
+  get runtimeVersion() {
+    return this.input.runtimeVersion ?? (this.language === 'python' ? 'py-v1' : 'ts-v1');
+  }
+  get analysisKind() {
+    return this.input.analysisKind;
+  }
+  get runtimeKind() {
+    return this.input.analysisKind === 'macro_regime' ? 'cross_sectional' : this.input.analysisKind;
+  }
+  get code() {
+    return this.input.code;
+  }
+  get js() {
+    return this.input.js;
+  }
+  get historyFields() {
+    return structuredClone(this.input.historyFields ?? []);
+  }
+  get crossSectional() {
+    return structuredClone(this.input.crossSectional);
+  }
+  get assetSeries() {
+    return structuredClone(this.input.assetSeries);
+  }
+  get assetUniverse() {
+    return structuredClone(this.input.assetUniverse);
+  }
+  get panelComposite() {
+    return this.input.panelComposite
+      ? StrategyFactor.copyComposite(this.input.panelComposite)
+      : undefined;
+  }
+
+  private static copyComposite(composite: NonNullable<StrategyFactorInput['panelComposite']>) {
+    return {
+      standardization: composite.standardization,
+      assetUniverse: structuredClone(composite.assetUniverse),
+      // Child factors are immutable instances; copy only the mutable collection and descriptors.
+      components: composite.components.map(({ direction, factor }) => ({ direction, factor })),
+    };
   }
 
   /** Persist only lineage fields, never source or internal runtime configuration. */
-  toDependency(): FactorDependency {
+  toDependency(definition?: FactorDefinition): FactorDependency {
+    if (definition && definition.id !== this.key) {
+      throw new Error(`Factor metadata does not match: ${this.key}`);
+    }
     const factor = this.input;
+    const inputs = definition ? StrategyFactor.inputsFromDefinition(definition) : undefined;
     return {
       factorId: factor.factorId,
       key: factor.key,
@@ -278,11 +307,11 @@ export class StrategyFactor {
       runtimeVersion: factor.runtimeVersion,
       codeHash: factor.codeHash,
       approvedReportId: factor.approvedReportId,
-      ...(factor.assetSeries ? { inputs: [...factor.assetSeries.inputs] } : {}),
+      ...(inputs ? { inputs } : {}),
     };
   }
 
-  private static async prepareFactorModule(
+  private static async prepareSource(
     row: {
       key: string;
       code: string;
@@ -291,7 +320,7 @@ export class StrategyFactor {
       runtimeVersion?: string;
     },
     reportSpec?: unknown,
-  ): Promise<CustomFactorModule> {
+  ): Promise<Omit<StrategyFactorInput, 'factorId' | 'name' | 'codeHash'>> {
     const analysisKind =
       row.analysisKind === 'time_series' || row.analysisKind === 'panel'
         ? row.analysisKind
@@ -332,7 +361,7 @@ export class StrategyFactor {
     };
   }
 
-  private static async preparePanelCompositeModule(
+  private static async prepareComposite(
     row: {
       id: string;
       key: string | null;
@@ -340,7 +369,7 @@ export class StrategyFactor {
     },
     snapshot: string | null | undefined,
     reportSpec: unknown,
-  ): Promise<CustomFactorModule> {
+  ): Promise<Omit<StrategyFactorInput, 'factorId' | 'name' | 'codeHash'>> {
     if (!row.key || !row.codeHash || !snapshot || sha256(snapshot) !== row.codeHash) {
       throw new Error(`panel composite ${row.key ?? row.id} has invalid publication lineage`);
     }
@@ -359,12 +388,18 @@ export class StrategyFactor {
     const components = await Promise.all(
       source.components.map(async (component) => ({
         direction: component.direction,
-        module: await StrategyFactor.prepareFactorModule({
-          key: component.factor,
-          code: component.code,
-          analysisKind: 'panel',
-          language: component.language,
-          runtimeVersion: component.runtimeVersion,
+        factor: new StrategyFactor({
+          ...(await StrategyFactor.prepareSource({
+            key: component.factor,
+            code: component.code,
+            analysisKind: 'panel',
+            language: component.language,
+            runtimeVersion: component.runtimeVersion,
+          })),
+          // Components are frozen within the parent publication, not independently reloaded.
+          factorId: component.factor,
+          name: component.label,
+          codeHash: sha256(component.code),
         }),
       })),
     );

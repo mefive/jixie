@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureBar, type FixtureSpec } from '../testing/fixture-port.js';
-import { runStrategy, runStrategyWithSignals } from './run.js';
+import { runStrategy } from './run.js';
 import type { EngineContext, EngineStrategy } from '../types.js';
 
 const DATES = ['20240101', '20240102', '20240103', '20240104', '20240105'];
@@ -43,7 +43,7 @@ async function run(
     strategy: scripted(actions),
     dataPort: fixturePort(spec),
     cost: { slippageBps: 0, impactCoef: 0 },
-  });
+  }).then(({ result }) => result);
 }
 
 describe('persistent conditional orders', () => {
@@ -222,19 +222,22 @@ describe('persistent conditional orders', () => {
         },
       ],
     };
-    const lots = await runStrategy({
-      start: DATES[0],
-      end: DATES.at(-1)!,
-      initialCash: 100_000,
-      strategy: scripted({ '20240101': (ctx) => ctx.orderLots('A', 1) }),
-      dataPort: fixturePort(adjustedSpec),
-      cost: { slippageBps: 0, impactCoef: 0 },
-    });
+    const lots = (
+      await runStrategy({
+        start: DATES[0],
+        end: DATES.at(-1)!,
+        initialCash: 100_000,
+        strategy: scripted({ '20240101': (ctx) => ctx.orderLots('A', 1) }),
+        dataPort: fixturePort(adjustedSpec),
+        cost: { slippageBps: 0, impactCoef: 0 },
+      })
+    ).result;
     expect(lots.tradeLog[0].realShares).toBe(100);
   });
 
-  it('captures still-live conditions as broker-ready signal intents', async () => {
-    const paired = await runStrategyWithSignals({
+  it('retains pending lots and live conditions in adjusted engine units', async () => {
+    const paired = await runStrategy({
+      retainFinalState: true,
       start: DATES[0],
       end: DATES[0],
       initialCash: 100_000,
@@ -247,17 +250,14 @@ describe('persistent conditional orders', () => {
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
       cost: { slippageBps: 0, impactCoef: 0 },
     });
-    expect(paired.capture.signals).toEqual([
-      expect.objectContaining({ action: 'buy', shares: 100, source: 'order' }),
-      expect.objectContaining({
-        action: 'sell',
-        shares: 100,
-        source: 'conditional',
-        orderType: 'stop_loss',
-      }),
+    expect(paired.finalState?.pendingLotOrders).toEqual(new Map([['A', 1]]));
+    expect([...paired.finalState!.conditionalOrders.values()]).toEqual([
+      expect.objectContaining({ code: 'A', kind: 'stop_loss', triggerPrice: 9.2 }),
     ]);
+    expect(paired.finalState).not.toHaveProperty('signals');
 
-    const output = await runStrategyWithSignals({
+    const output = await runStrategy({
+      retainFinalState: true,
       start: DATES[0],
       end: '20240102',
       initialCash: 100_000,
@@ -268,20 +268,14 @@ describe('persistent conditional orders', () => {
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
       cost: { slippageBps: 0, impactCoef: 0 },
     });
-    expect(output.capture.signals).toHaveLength(1);
-    const signal = output.capture.signals[0];
-    expect(signal).toMatchObject({
-      code: 'A',
-      action: 'sell',
-      shares: 100,
-      source: 'conditional',
-      orderType: 'trailing_stop',
-      trailingPct: 0.08,
-    });
-    if (signal.source !== 'conditional') {
-      throw new Error('Expected a conditional signal');
-    }
-    expect(signal.triggerPrice).toBeCloseTo(9.2, 10);
+    expect([...output.finalState!.conditionalOrders.values()]).toEqual([
+      expect.objectContaining({
+        code: 'A',
+        kind: 'trailing_stop',
+        trailingPct: 0.08,
+        highWater: 10,
+      }),
+    ]);
   });
 
   it('models an intraday strategy stop before a close-driven next-open exit', async () => {

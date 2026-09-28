@@ -25,7 +25,7 @@ export async function runConfiguredBacktest(
     throw new Error(`runtimeVersion ${runtimeVersion} does not match language ${language}`);
   }
 
-  const factors = await StrategyFactor.prepare(config.code, userId);
+  const factors = await StrategyFactor.fromStrategySource(config.code, userId);
   const execution = await StrategyExecution.create({
     code: config.code,
     language,
@@ -38,7 +38,7 @@ export async function runConfiguredBacktest(
   });
   let result: BacktestResult;
   try {
-    result = await execution.run(config);
+    result = (await execution.run(config)).result;
   } finally {
     execution.close();
   }

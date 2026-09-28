@@ -19,13 +19,15 @@ const fixture = {
 async function execute(code: string, spec: FixtureSpec = fixture, start = spec.dates[0]) {
   const runtime = await TypeScriptStrategyRuntime.start({ language: 'typescript', code });
   try {
-    const result = await runStrategy({
-      start,
-      end: spec.dates.at(-1)!,
-      initialCash: 100_000,
-      strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
-      dataPort: fixturePort(spec),
-    });
+    const result = (
+      await runStrategy({
+        start,
+        end: spec.dates.at(-1)!,
+        initialCash: 100_000,
+        strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+        dataPort: fixturePort(spec),
+      })
+    ).result;
     return { result, metrics: { ...runtime.metrics } };
   } finally {
     runtime.close();

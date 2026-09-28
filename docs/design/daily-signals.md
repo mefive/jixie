@@ -65,16 +65,14 @@ P0 在 V1 上增加：
 2. D 日收盘计价；
 3. 调用 `onBar`，留下 D+1 开盘的 `pendingTargets` / `pendingOrders`。
 
-普通回测结束时第三步的残留原先被丢弃。新增 `runStrategyWithSignals` 与
-`runWalledSignalCapture`，在不改变普通 `BacktestResult` 的前提下返回：
+普通回测结束时第三步的残留默认不保留。StrategyExecution.run 与 Engine.runStrategy 统一返回 `{ result, finalState }`；Signals 通过 `retainFinalState: true` 请求末日快照，再由 `signals/runs/projection.ts` 转换为以下业务数据，原有报告结果格式保持不变：
 
 - 信号日、模型权益、模型现金；
 - 声明式目标仓位产生的真实股数差额；
 - 按股数订单产生的真实股数差额；
 - 标的类型、方向、参考价、概算金额、来源和可选目标权重。
 
-信号捕获与普通用户策略一样在 isolated-vm 硬沙箱内运行，DataPort 留在墙外。直跑/进墙的结果与信号
-均有 parity 测试。
+用户策略由 StrategyRuntime 在沙箱内运行，Engine 和 DataPort 在宿主执行；末日快照保留复权仓位、待执行指令、对应行情和因子观测，Signals 在运行资源关闭后完成信号投影。直跑/进墙的结果与信号均有 parity 测试。末日状态目前仅支持股票／ETF，期货请求该能力时明确拒绝。
 
 ### 目标仓位的执行近似
 

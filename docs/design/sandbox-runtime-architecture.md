@@ -281,7 +281,7 @@ return researchRuntimePool.withRuntime(
 | `infra/runtime/exchange.ts`、`python/session.ts`、`typescript/transport.ts` | 统一命令循环，保留 Python 收发机制，从 Strategy 提取公共 TS transport；移除隐式 ready 启动特例，不导入三业务 |
 | `infra/runtime/typescript/isolate-run.ts` | 源码转换和 Agent 历史图表工具所需的底层能力继续保留；移除 Factor 对 loadIsolatedModule/callJson 的依赖，并修正用途说明 |
 | Factor 消费者 | execution/cross-sectional、execution/run、所有 observations、publication、validate/inspect 改用公共契约；正常释放与错误路径一起迁移 |
-| 跨业务消费者 | engine/adapters/factor-host、strategy/factors、agent/profiles/strategy；移除对具体语言 runtime 创建函数与 TS 专属类型文件的依赖 |
+| 跨业务消费者 | strategy/execution/factor-host、strategy/factors、agent/profiles/strategy；移除对具体语言 runtime 创建函数与 TS 专属类型文件的依赖 |
 | Research 消费者 | dependencies、document-runs、embedded、documents、continuation、routes 的资源清理和所有测试 fixture 改用池/公共契约 |
 | 文档与边界 | 更新各 runtime README、根 CLAUDE.md 中 Research session.ts 的定位、backend-runtime-entries、实际受影响的后端边界规则；不为方便移动整体放宽依赖限制 |
 
