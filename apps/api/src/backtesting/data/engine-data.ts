@@ -53,6 +53,12 @@ const COLUMN_FACTOR_DEFS = new Map<string, EngineFactorDef>(
 const DAILY_ASOF_CAP_DAYS = 14;
 const MONTHLY_ASOF_CAP_DAYS = 35;
 
+export interface EngineDataRequirements {
+  turnoverRateFHistory: boolean;
+  fundamentalHistory: boolean;
+  governmentYieldCurve: boolean;
+}
+
 export interface EngineDataOptions {
   start: string;
   end: string;
@@ -61,8 +67,9 @@ export interface EngineDataOptions {
   onLog?: (line: string) => void;
   locale?: Locale;
   futureCodes?: string[];
-  includeTurnoverRateFHistory?: boolean;
-  includeGovernmentYieldCurve?: boolean;
+  requirements?: EngineDataRequirements;
+  watchCodes?: string[];
+  allocationCodes?: string[];
 }
 
 /**
@@ -152,8 +159,13 @@ export class EngineData {
       onLog: options.onLog ?? (() => {}),
       locale: options.locale ?? DEFAULT_LOCALE,
       futureCodes: options.futureCodes ?? [],
-      includeTurnoverRateFHistory: options.includeTurnoverRateFHistory ?? false,
-      includeGovernmentYieldCurve: options.includeGovernmentYieldCurve ?? false,
+      requirements: options.requirements ?? {
+        turnoverRateFHistory: false,
+        fundamentalHistory: false,
+        governmentYieldCurve: false,
+      },
+      watchCodes: options.watchCodes ?? [],
+      allocationCodes: options.allocationCodes ?? [],
     };
   }
 
@@ -379,7 +391,7 @@ export class EngineData {
       series.pb.push(row.pb);
     }
 
-    if (this.options.includeGovernmentYieldCurve) {
+    if (this.options.requirements.governmentYieldCurve) {
       const points = await this.options.dataPort.yieldCurvePoints(this.options.end);
       for (const point of points) {
         let series = this.governmentYieldByTerm.get(point.termYears);
@@ -477,6 +489,18 @@ export class EngineData {
       for (const [name, set] of dates) {
         this.factorDates.set(name, [...set].sort());
       }
+    }
+
+    if (this.options.watchCodes.length > 0) {
+      await this.loadBars(this.options.watchCodes);
+    }
+
+    if (this.options.requirements.fundamentalHistory) {
+      await this.ensureFina();
+    }
+
+    if (this.options.allocationCodes.length > 0) {
+      await this.loadBars(this.options.allocationCodes);
     }
   }
 
@@ -755,7 +779,7 @@ export class EngineData {
   }
 
   /** Point-in-time ROE (%) for `code` as-of `date` — sync read for custom-factor 'roe' histories.
-   * Callers must have awaited preloadFina() (run.ts does when a factor declares the field). */
+   * Set requirements.fundamentalHistory before load() to make histories available immediately. */
   roeHistoryAt(code: string, date: string): number | null {
     return this.finaAsOf(code, date)?.roe ?? null;
   }
@@ -763,11 +787,6 @@ export class EngineData {
   /** Point-in-time gross profit margin (%) for custom-factor histories. */
   grossProfitMarginHistoryAt(code: string, date: string): number | null {
     return this.finaAsOf(code, date)?.grossprofitMargin ?? null;
-  }
-
-  /** Explicit fina preload for sync as-of reads before any cross-section has been requested. */
-  async preloadFina(): Promise<void> {
-    await this.ensureFina();
   }
 
   /** Load all financial indicators once (PIT-gated by annDate), grouped by code ascending. */
@@ -889,7 +908,7 @@ export class EngineData {
       missing,
       this.options.start,
       this.options.end,
-      { includeTurnoverRateF: this.options.includeTurnoverRateFHistory },
+      { includeTurnoverRateF: this.options.requirements.turnoverRateFHistory },
     );
     const adjMap = new Map(adj.map((row) => [`${row.tsCode}|${row.tradeDate}`, row.adjFactor]));
     const limMap = new Map(limits.map((row) => [`${row.tsCode}|${row.tradeDate}`, row]));

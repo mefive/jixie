@@ -59,7 +59,11 @@ async function loadedData(): Promise<EngineData> {
     locale: DEFAULT_LOCALE,
     dataPort: fixturePort(spec),
     futureCodes: [],
-    includeTurnoverRateFHistory: true,
+    requirements: {
+      turnoverRateFHistory: true,
+      fundamentalHistory: false,
+      governmentYieldCurve: false,
+    },
   });
   await data.load();
   await data.loadBars(['A']);

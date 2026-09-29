@@ -5,6 +5,7 @@ import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '#market/registry/index-presets.
 import { EngineData } from './data/engine-data.js';
 import type { FactorDefinition } from './factors/execution-port.js';
 import { FactorEvaluator } from './factors/evaluator.js';
+import { collectFactorDataRequirements } from './factors/data-requirements.js';
 import { CashPortfolio } from './cash-portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
 import { OrderBook } from './order-book.js';
@@ -138,7 +139,8 @@ export class BacktestingEngine {
 
     await this.loadFactorDefinitions();
 
-    const requirements = this.getDataRequirements();
+    const requirements = collectFactorDataRequirements(this.factorDefinitions);
+
     const allocationClasses = this.futuresEnabled
       ? new Map()
       : allocationAssetClasses(this.factorDefinitions);
@@ -151,22 +153,15 @@ export class BacktestingEngine {
       locale,
       dataPort: config.dataPort,
       futureCodes: config.strategy.futures ?? [],
-      includeTurnoverRateFHistory: requirements.turnoverRateFHistory,
-      includeGovernmentYieldCurve: requirements.governmentYieldCurve || allocationClasses.size > 0,
+      requirements: {
+        ...requirements,
+        governmentYieldCurve: requirements.governmentYieldCurve || allocationClasses.size > 0,
+      },
+      watchCodes: config.strategy.watch ?? [],
+      allocationCodes: [...allocationClasses.keys()],
     });
+
     await this.engineData.load();
-
-    if (config.strategy.watch?.length) {
-      await this.engineData.loadBars(config.strategy.watch);
-    }
-
-    if (requirements.fundamentalHistory) {
-      await this.engineData.preloadFina();
-    }
-
-    if (allocationClasses.size > 0) {
-      await this.engineData.loadBars([...allocationClasses.keys()]);
-    }
 
     this.initializeFactorEvaluator();
 
@@ -220,41 +215,6 @@ export class BacktestingEngine {
     }
 
     this.factorDefinitions = definitions;
-  }
-
-  private getDataRequirements(): {
-    turnoverRateFHistory: boolean;
-    fundamentalHistory: boolean;
-    governmentYieldCurve: boolean;
-  } {
-    const requirements = {
-      turnoverRateFHistory: false,
-      fundamentalHistory: false,
-      governmentYieldCurve: false,
-    };
-
-    for (const definition of this.factorDefinitions) {
-      switch (definition.kind) {
-        case 'cross_sectional':
-          requirements.turnoverRateFHistory ||= definition.historyFields.includes('turnoverRateF');
-          requirements.fundamentalHistory ||= definition.historyFields.some(
-            (field) => field === 'roe' || field === 'grossprofitMargin',
-          );
-          break;
-        case 'asset_series':
-          requirements.governmentYieldCurve ||= definition.meta.inputs.some((field) =>
-            field.startsWith('rates.cgb.yield.'),
-          );
-          break;
-        case 'panel_composite':
-          requirements.governmentYieldCurve ||= definition.components.some((component) =>
-            component.definition.meta.inputs.some((field) => field.startsWith('rates.cgb.yield.')),
-          );
-          break;
-      }
-    }
-
-    return requirements;
   }
 
   private getAccountAllocation(): { stock: number; futures: number } {

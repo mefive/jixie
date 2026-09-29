@@ -19,6 +19,7 @@ Backtesting 模拟交易：推进交易日、提供当时可得的数据、调�
 | 行情读取端口与缓存、PIT、复权语义 | [data-port.ts](data/data-port.ts)、[EngineData](data/engine-data.ts) |
 | 因子输入准备、批量计算、当日缓存与数值合成 | [FactorEvaluator](factors/evaluator.ts) |
 | 因子定义与外部计算契约 | [execution-port.ts](factors/execution-port.ts) |
+| 从因子定义收集额外数据加载需求 | [collectFactorDataRequirements](factors/data-requirements.ts) |
 | 宿主数据库适配 | [prisma-port.ts](adapters/prisma-port.ts) |
 | 多个测试共用的确定性数据源 | [fixture-port.ts](testing/fixture-port.ts) |
 
@@ -39,6 +40,10 @@ Backtesting 模拟交易：推进交易日、提供当时可得的数据、调�
 `FactorEvaluator.evaluate({ date, codes, crossSection })` 组织因子输入并调用计算端口；`read` 读取并固定当日该因子/证券的值。未被读取的预计算值仍可在补充行情后刷新。因子定义是 `FactorExecutionPort.describe()` 的独立快照，组合输入需求由组件定义派生；重复顶层 ID、缺失声明或缺少执行端口在加载行情前拒绝。
 
 因子源码识别及依赖准备归 [StrategyFactor](../strategy/factors/factor.ts)，TS/Python 因子沙箱归 [FactorHost](../strategy/execution/factor-host.ts)。Backtesting 不接收 StrategyFactor 或源码模块。FactorEvaluator 只求值，不创建或维护 runtime。
+
+`collectFactorDataRequirements(definitions)` 是纯函数，汇总因子声明所需的自由流通换手率历史、财务历史与国债收益率曲线。Engine 合并资产配置分析的额外利率需求，将统一的 `requirements`、`watchCodes` 和 `allocationCodes` 交给 EngineData；EngineData 不解析因子定义或资产类别。
+
+`EngineData.load()` 完成基础数据加载后，依次加载关注证券行情、按需预加载财务历史、加载资产配置证券行情，完成后返回。两批证券维持原有顺序并复用缓存；运行中仍可通过 `loadBars()` 动态补充行情。财务数据未要求预加载时，仍在首次截面读取时懒加载。
 
 EngineContext / EngineStrategy 是内部模拟契约，公开 StrategyCtx 仍由 shared SDK 契约定义；[Strategy bridge](../strategy/runtime/bridge.ts) 适配两者。TS SDK bundle 不包含 Engine、Prisma 或宿主能力，沙箱不能访问 DataPort。
 

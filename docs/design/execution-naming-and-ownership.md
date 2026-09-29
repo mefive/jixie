@@ -217,3 +217,15 @@ engine.ts 按单一目的分段，声明与使用、同组校验保持连续，�
 
 
 2026-09-29 剩余修改收口：用户撤回独立设计笔记，并授权提交已有 runConfiguredBacktest → runBacktest 重命名。同步回测 README；其余历史设计记录保留当时名称。本次代码与上一轮 507 项测试、全仓类型检查及 Shared/API 构建时的工作区一致，未新增产品逻辑，因此复用该验证结果。提交消息：refactor(strategy): simplify backtest entry name。
+
+## 2026-09-29 初始数据加载统一（审查与验证通过）
+
+计划提交：`refactor(engine): centralize initial data loading`。
+
+范围已确认：将 BacktestingEngine.getDataRequirements 提取为 `backtesting/factors/data-requirements.ts` 的纯函数 `collectFactorDataRequirements(definitions)`。接收只读 FactorDefinition 数组，返回数据层的 EngineDataRequirements。Engine 合并资产配置额外利率需求，并将 requirements、watchCodes、allocationCodes 交给 EngineData。EngineData.load 在基础数据后依次加载关注证券、财务历史、资产配置证券，保留原顺序及缓存；删除外部 preloadFina 包装方法，财务预加载直接调用内部 ensureFina，动态 loadBars 和截面财务懒加载保持。无公开 API、数据库或部署依赖变化，阅读地图同步入口。
+
+审查前仅执行全仓类型、生成契约一致性、后端边界静态扫描、受影响文件 ESLint / Prettier 与 diff 检查。新增 initial-loading.test.ts 覆盖加载顺序、默认不预加载、重叠证券缓存、动态补充及财务失败后停止；resample.test.ts 适配统一需求参数。
+
+统一预加载后的静态检查通过：全仓 `pnpm typecheck`（850 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、五个受影响 TS 文件的 ESLint（0 警告）与 Prettier、`git diff --check`。
+
+人工审查通过后，运行 engine.test.ts、factors/execution-port.test.ts、factors/factor-semantics.test.ts、allocation-analysis.test.ts 及 data 下全部测试：9 个文件、42 项全部通过，无失败或跳过。覆盖财务历史、换手率历史、单因子与组合利率输入、资产配置、加载顺序、缓存及动态行情补充。未启动额外开发服务，本轮不涉及数据库变更或构建入口变化；未运行构建。按已确认消息提交，不推送。
