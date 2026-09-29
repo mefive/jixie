@@ -302,7 +302,7 @@ export class BacktestingEngine {
   }
 
   private async decide(date: string, observeFactors: boolean): Promise<void> {
-    this.orderBook.beginDecision(date);
+    this.orderBook.beginOrderCollection(date);
 
     await this.factorEvaluator?.evaluate({
       date,
@@ -335,11 +335,11 @@ export class BacktestingEngine {
 
     await this.config.strategy.onBar(context);
 
-    if (this.config.retainFinalState && this.orderBook.hasFutureIntents) {
+    if (this.config.retainFinalState && this.orderBook.hasCollectedFuturesOrders) {
       throw new Error('Final state retention currently supports stock and ETF strategies only');
     }
 
-    this.orderBook.commitDecision();
+    this.orderBook.commitCollectedOrders();
   }
 
   private collectResult(): BacktestingResult {
@@ -377,7 +377,7 @@ export class BacktestingEngine {
     }
 
     const { engineData, cashPortfolio } = this;
-    const snapshot = this.orderBook.snapshot();
+    const snapshot = this.orderBook.snapshotCashOrders();
     const codes = new Set([
       ...cashPortfolio.positions.keys(),
       ...(snapshot.pendingTargets?.keys() ?? []),

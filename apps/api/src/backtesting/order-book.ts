@@ -123,16 +123,16 @@ export class OrderBook {
     this.onRebalance = input.onRebalance;
   }
 
-  get hasFutureIntents(): boolean {
+  get hasCollectedFuturesOrders(): boolean {
     return Boolean(this.decision.futureIntents?.size);
   }
 
-  beginDecision(date: string): void {
+  beginOrderCollection(date: string): void {
     this.decisionDate = date;
     this.decision = emptyDecision();
   }
 
-  commitDecision(): void {
+  commitCollectedOrders(): void {
     validateTargetBook(this.decision.targets);
     this.pending.targets = this.decision.targets;
     this.pending.decisionDate = this.decision.targets ? this.decisionDate : null;
@@ -144,7 +144,7 @@ export class OrderBook {
   }
 
   /** Returns a detached snapshot of cash orders only. */
-  snapshot(): CashOrderSnapshot {
+  snapshotCashOrders(): CashOrderSnapshot {
     return structuredClone({
       pendingTargets: this.pending.targets,
       pendingOrders: this.pending.shareOrders,

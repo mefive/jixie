@@ -73,8 +73,10 @@ Engine 初始化时一次注入共享账户、EngineData、成本、AllocationAn
 
 OrderBook 分开持有当前 decision、待执行 PendingOrders 和持续 conditionalOrders。待执行目标、股数／手数和期货意图在各自步骤成功返回后消费；失败保留当时中间状态。空目标 Map 仍执行清仓、归因和通知，null 表示没有调仓。调仓通知紧随归因与目标消费，早于后续现金和期货指令。
 
-`snapshot()` 保持现金订单消费者契约并深拷贝 Map 和条件单对象，不暴露内部 PendingOrders。条件单先处理退出、再限价买入，最后更新保留移动止损的高水位。
+`snapshotCashOrders()` 保持现金订单消费者契约并深拷贝 Map 和条件单对象，不暴露内部 PendingOrders。条件单先处理退出、再限价买入，最后更新保留移动止损的高水位。
 
 本轮重构范围、审查和验证状态见 [OrderBook 重构记录](../../../../docs/design/order-book-refactor-plan.md)。
 
 OrderBook 将行情、账户、成本、归因与通知保存为明确的私有只读依赖。涨跌停检查、滑点价格、可卖日期、期货名义金额换算和待执行股数／手数合并由私有方法读取依赖及 pending；执行日期和映射日期仍显式传入。无实例依赖的校验、状态工厂与条件候选计算保留为局部函数。滑点回归通过真实成交入口验证。
+
+Engine 使用 `beginOrderCollection(date)` 开始收集，通过 Context 接收策略指令，检查 `hasCollectedFuturesOrders` 后调用 `commitCollectedOrders()`。该查询只反映本轮收集的期货指令，不代表持仓或此前待执行指令；当前现金快照限制保持不变。

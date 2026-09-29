@@ -264,3 +264,24 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" JIXIE_JOB_E2E_ON
 - 使用项目 Python 环境运行 `JIXIE_JOB_E2E_ONLY=strategy-orchestration,mixed-futures pnpm e2e job-system`，两条隔离 E2E 均通过，无需修正产品或测试代码。
 - 本轮 `job-system-backtest.png` 与 `mixed-futures-result.png` 已检查；fixture 正常退出并完成数据库 disconnect／临时库清理，两个服务端口拒绝连接，额外进程检查无遗留 E2E 服务。
 - 全部约定验证通过，以已确认消息提交，不推送。本节取代上述审查中“等待批准／未运行”的阶段状态。
+
+## 生命周期入口命名整理（2026-09-29）
+
+本轮 Gate 1 已确认，提交消息：`refactor(engine): clarify order collection lifecycle names`。
+
+- beginDecision → beginOrderCollection，commitDecision → commitCollectedOrders。
+- hasFutureIntents → hasCollectedFuturesOrders，明确只查询本轮收集的期货指令。
+- snapshot → snapshotCashOrders，明确快照只有现金订单。
+- 同步 Engine、OrderBook 测试和 README；上文旧名称保留为历史记录，以本节为当前命名。
+- 只改命名，不改变调用顺序、校验、状态消费或快照结构；不撤销期货快照限制，不调整 Context 交易接口。
+- 新 session 的期货 Signals 研究任务见 [交接 prompt](futures-signals-research-prompt.md)，不属于本轮实现范围。
+- 当前实现等待 Gate 2 人工审查；本轮行为测试、构建和隔离 E2E 尚未运行。
+- 审查前静态检查全部通过：全仓 typecheck（含边界扫描和生成物一致性）、受影响 TS 文件 ESLint / Prettier、git diff --check、29 个本地文档链接；源码已无旧入口引用。未提交，等待人工审查。
+
+### 生命周期命名整理最终验证
+
+- 用户批准 Gate 2 后完成本轮验证：46 个文件、308 项测试通过；3 项默认关闭的历史性能／会计集成测试跳过，不计为通过。
+- 全仓 `pnpm build` 成功，仅有前端产物体积及混合导入提示。
+- 使用项目 Python 环境的 strategy-orchestration、mixed-futures 隔离 E2E 均通过；本轮股票回测和混合账户截图已检查。
+- fixture 正常退出，数据库连接和临时库由脚本清理，服务端口关闭检查通过，额外进程检查无遗留 E2E 服务。
+- 无需修正产品或测试代码；按已确认消息提交，不推送。本节替代本轮此前等待审查的阶段状态。

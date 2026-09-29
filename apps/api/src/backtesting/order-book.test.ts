@@ -22,30 +22,30 @@ describe('OrderBook decision ownership', () => {
       onRebalance: () => {},
       cost: DEFAULT_COST,
     });
-    orders.beginDecision('20240102');
+    orders.beginOrderCollection('20240102');
     orders.orderLots('A', 2);
     orders.limitBuy('A', 10, 100);
-    orders.commitDecision();
-    const snapshot = orders.snapshot();
+    orders.commitCollectedOrders();
+    const snapshot = orders.snapshotCashOrders();
     snapshot.pendingLotOrders!.set('A', 999);
     const limit = snapshot.conditionalOrders.get('limit_buy:A')!;
     if (limit.kind !== 'limit_buy') {
       throw new Error('Expected limit buy');
     }
     limit.triggerPrice = 999;
-    expect(orders.snapshot().pendingLotOrders!.get('A')).toBe(2);
-    expect(orders.snapshot().conditionalOrders.get('limit_buy:A')).toMatchObject({
+    expect(orders.snapshotCashOrders().pendingLotOrders!.get('A')).toBe(2);
+    expect(orders.snapshotCashOrders().conditionalOrders.get('limit_buy:A')).toMatchObject({
       triggerPrice: 10,
     });
 
-    orders.beginDecision('20240103');
-    orders.commitDecision();
-    expect(orders.snapshot().pendingLotOrders).toBeNull();
-    expect(orders.snapshot().conditionalOrders.size).toBe(1);
-    orders.beginDecision('20240104');
+    orders.beginOrderCollection('20240103');
+    orders.commitCollectedOrders();
+    expect(orders.snapshotCashOrders().pendingLotOrders).toBeNull();
+    expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(1);
+    orders.beginOrderCollection('20240104');
     orders.cancelConditional('A', 'limit_buy');
-    orders.commitDecision();
-    expect(orders.snapshot().conditionalOrders.size).toBe(0);
+    orders.commitCollectedOrders();
+    expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(0);
   });
 });
 
@@ -86,22 +86,22 @@ describe('OrderBook execution boundaries', () => {
     const { orders, cashPortfolio, allocationTracker } = await executionFixture((date) =>
       notifications.push(date),
     );
-    orders.beginDecision('20240102');
+    orders.beginOrderCollection('20240102');
     orders.order('A', 100);
-    orders.commitDecision();
+    orders.commitCollectedOrders();
     await orders.executeOrders('20240103', '20240102');
     expect(cashPortfolio.positions.get('A')?.shares).toBe(100);
     expect(notifications).toEqual([]);
     expect(allocationTracker.finish(cashPortfolio.cash).drift).toEqual([]);
 
-    orders.beginDecision('20240103');
+    orders.beginOrderCollection('20240103');
     orders.setHoldings(new Map());
-    orders.commitDecision();
-    expect(orders.snapshot().pendingTargets).toEqual(new Map());
+    orders.commitCollectedOrders();
+    expect(orders.snapshotCashOrders().pendingTargets).toEqual(new Map());
     await orders.executeOrders('20240104', '20240103');
 
     expect(cashPortfolio.positions.size).toBe(0);
-    expect(orders.snapshot().pendingTargets).toBeNull();
+    expect(orders.snapshotCashOrders().pendingTargets).toBeNull();
     expect(notifications).toEqual(['20240104']);
     expect(allocationTracker.finish(cashPortfolio.cash).drift).toMatchObject([
       { decisionDate: '20240103', executionDate: '20240104', postTradeDistance: 0 },
@@ -122,11 +122,11 @@ describe('OrderBook execution boundaries', () => {
       }
       await loadBars(codes);
     });
-    orders.beginDecision('20240102');
+    orders.beginOrderCollection('20240102');
     orders.setHoldings({ A: 0.5 });
     orders.order('B', 100);
     orders.limitBuy('A', 5, 100);
-    orders.commitDecision();
+    orders.commitCollectedOrders();
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'cash bars unavailable',
@@ -145,21 +145,21 @@ describe('OrderBook execution boundaries', () => {
       5000 / (cashPortfolio.cash + 5000),
     );
 
-    expect(orders.snapshot()).toMatchObject({
+    expect(orders.snapshotCashOrders()).toMatchObject({
       pendingTargets: null,
       pendingOrders: new Map([['B', 100]]),
     });
-    expect(orders.snapshot().conditionalOrders.size).toBe(1);
+    expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(1);
   });
 
   it('consumes rebalance before a throwing notification and preserves unattempted cash orders', async () => {
     const { orders, cashPortfolio, allocationTracker } = await executionFixture(() => {
       throw new Error('notification failed');
     });
-    orders.beginDecision('20240102');
+    orders.beginOrderCollection('20240102');
     orders.setHoldings({ A: 0.5 });
     orders.order('B', 100);
-    orders.commitDecision();
+    orders.commitCollectedOrders();
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'notification failed',
@@ -168,8 +168,8 @@ describe('OrderBook execution boundaries', () => {
     expect(cashPortfolio.positions.has('A')).toBe(true);
     expect(cashPortfolio.positions.has('B')).toBe(false);
     expect(allocationTracker.finish(cashPortfolio.cash).drift).toHaveLength(1);
-    expect(orders.snapshot().pendingTargets).toBeNull();
-    expect(orders.snapshot().pendingOrders).toEqual(new Map([['B', 100]]));
+    expect(orders.snapshotCashOrders().pendingTargets).toBeNull();
+    expect(orders.snapshotCashOrders().pendingOrders).toEqual(new Map([['B', 100]]));
   });
 
   it('consumes cash orders before a conditional load failure and never retries their fills', async () => {
@@ -181,19 +181,19 @@ describe('OrderBook execution boundaries', () => {
       }
       await loadBars(codes);
     });
-    orders.beginDecision('20240102');
+    orders.beginOrderCollection('20240102');
     orders.order('A', 100);
     orders.orderLots('A', 1);
     orders.limitBuy('B', 5, 100);
-    orders.commitDecision();
+    orders.commitCollectedOrders();
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'conditional bars unavailable',
     );
     expect(cashPortfolio.positions.get('A')?.shares).toBe(200);
-    expect(orders.snapshot().pendingOrders).toBeNull();
-    expect(orders.snapshot().pendingLotOrders).toBeNull();
-    expect(orders.snapshot().conditionalOrders.size).toBe(1);
+    expect(orders.snapshotCashOrders().pendingOrders).toBeNull();
+    expect(orders.snapshotCashOrders().pendingLotOrders).toBeNull();
+    expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(1);
 
     await expect(orders.executeOrders('20240104', '20240103')).rejects.toThrow(
       'conditional bars unavailable',
@@ -203,18 +203,18 @@ describe('OrderBook execution boundaries', () => {
 
   it('consumes unfilled ordinary orders while preserving persistent limit buys', async () => {
     const { orders, cashPortfolio } = await executionFixture();
-    orders.beginDecision('20240102');
+    orders.beginOrderCollection('20240102');
     orders.order('MISSING', 100);
     orders.orderLots('MISSING', 1);
     orders.limitBuy('MISSING', 10, 100);
-    orders.commitDecision();
+    orders.commitCollectedOrders();
 
     await orders.executeOrders('20240103', '20240102');
 
     expect(cashPortfolio.trades).toEqual([]);
-    expect(orders.snapshot().pendingOrders).toBeNull();
-    expect(orders.snapshot().pendingLotOrders).toBeNull();
-    expect(orders.snapshot().conditionalOrders.get('limit_buy:MISSING')).toMatchObject({
+    expect(orders.snapshotCashOrders().pendingOrders).toBeNull();
+    expect(orders.snapshotCashOrders().pendingLotOrders).toBeNull();
+    expect(orders.snapshotCashOrders().conditionalOrders.get('limit_buy:MISSING')).toMatchObject({
       placedDate: '20240102',
       triggerPrice: 10,
       shares: 100,
@@ -224,19 +224,19 @@ describe('OrderBook execution boundaries', () => {
   it('keeps first-day futures intents pending but reports only the current decision intents', async () => {
     const { orders, futuresPortfolio } = await executionFixture();
     const executeOrder = vi.spyOn(futuresPortfolio, 'executeOrder');
-    orders.beginDecision('20240102');
+    orders.beginOrderCollection('20240102');
     orders.orderFuture('IF.CFX', 1);
     orders.orderFuture('IF.CFX', 2);
     orders.setFutureTargetContracts('IF.CFX', 4);
     orders.orderFuture('IF.CFX', 2);
     orders.orderFuture('IF.CFX', 1);
-    orders.commitDecision();
-    expect(orders.hasFutureIntents).toBe(true);
+    orders.commitCollectedOrders();
+    expect(orders.hasCollectedFuturesOrders).toBe(true);
 
     await orders.executeOrders('20240102', undefined);
     expect(executeOrder).not.toHaveBeenCalled();
-    orders.beginDecision('20240103');
-    expect(orders.hasFutureIntents).toBe(false);
+    orders.beginOrderCollection('20240103');
+    expect(orders.hasCollectedFuturesOrders).toBe(false);
     await orders.executeOrders('20240103', '20240102');
     expect(executeOrder).toHaveBeenCalledWith(
       expect.objectContaining({ contractDelta: 3, decisionDate: '20240102' }),
