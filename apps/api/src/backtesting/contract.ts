@@ -116,10 +116,10 @@ export interface EngineStrategy {
   /** Instruments a per-instrument strategy trades — the engine preloads their bar series up front so
    * bars()/price() work every day without touching the cross-section. */
   watch?: string[];
-  /** Logical continuous or actual futures codes to preload. */
+  /** @deprecated Accepted for source compatibility; ignored. Use accounts to allocate capital. */
   futures?: string[];
-  /** Explicitly split initial capital into isolated stock/futures sleeves. Omit to preserve legacy
-   * stock-only or futures-only behavior. Cash is not transferred automatically between sleeves. */
+  /** Initial capital weights for isolated stock/futures accounts; defaults to stock 1, futures 0.
+   * Cash is not transferred automatically between accounts. */
   accounts?: EngineAccounts;
   onBar(ctx: EngineContext): void | Promise<void>;
 }

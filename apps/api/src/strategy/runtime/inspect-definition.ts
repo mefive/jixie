@@ -6,7 +6,8 @@ export async function inspectStrategyMetadata(code: string): Promise<StrategySig
   try {
     return {
       watch: runtime.metadata.watch ?? [],
-      futures: runtime.metadata.futures ?? [],
+      futures: [],
+      accounts: runtime.metadata.accounts,
       factors: runtime.metadata.factors ?? [],
     };
   } finally {

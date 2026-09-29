@@ -51,6 +51,7 @@ try {
   const selected = process.env.JIXIE_JOB_E2E_ONLY?.split(',');
   for (const name of [
     'strategy-orchestration',
+    'mixed-futures',
     'strategy-parameter-scan',
     'factor-report-history',
     'factor-correlation',

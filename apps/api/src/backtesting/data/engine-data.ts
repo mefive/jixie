@@ -66,7 +66,6 @@ export interface EngineDataOptions {
   factorKeys?: string[];
   onLog?: (line: string) => void;
   locale?: Locale;
-  futureCodes?: string[];
   requirements?: EngineDataRequirements;
   preloadCodes?: string[];
 }
@@ -157,7 +156,6 @@ export class EngineData {
       factorKeys: options.factorKeys ?? [],
       onLog: options.onLog ?? (() => {}),
       locale: options.locale ?? DEFAULT_LOCALE,
-      futureCodes: options.futureCodes ?? [],
       requirements: options.requirements ?? {
         turnoverRateFHistory: false,
         fundamentalHistory: false,
@@ -401,50 +399,44 @@ export class EngineData {
       }
     }
 
-    if (this.options.futureCodes.length > 0) {
-      const futureRows = await this.options.dataPort.futuresRange(
-        this.options.start,
-        this.options.end,
-      );
-      for (const contract of futureRows.contracts) {
-        this.futureContractByCode.set(contract.tsCode, contract);
-      }
-      for (const row of futureRows.daily) {
-        let rowsByDate = this.futureDailyByCode.get(row.tsCode);
-        if (!rowsByDate) {
-          this.futureDailyByCode.set(row.tsCode, (rowsByDate = new Map()));
-        }
-        rowsByDate.set(row.tradeDate, row);
-      }
-      for (const row of futureRows.mappings) {
-        let mapping = this.futureMappingByCode.get(row.continuousCode);
-        if (!mapping) {
-          this.futureMappingByCode.set(
-            row.continuousCode,
-            (mapping = { dates: [], actualCodes: [] }),
-          );
-        }
-        mapping.dates.push(row.tradeDate);
-        mapping.actualCodes.push(row.mappedTsCode);
-      }
-      for (const mapping of this.futureMappingByCode.values()) {
-        const ordered = mapping.dates
-          .map((date, index) => ({ date, actualCode: mapping.actualCodes[index] }))
-          .sort((left, right) => left.date.localeCompare(right.date));
-        mapping.dates = ordered.map((entry) => entry.date);
-        mapping.actualCodes = ordered.map((entry) => entry.actualCode);
-      }
-      for (const row of futureRows.settlements) {
-        this.futureMarginByKey.set(`${row.tsCode}|${row.tradeDate}`, row);
-      }
+    const futureRows = await this.options.dataPort.futuresRange(
+      this.options.start,
+      this.options.end,
+    );
 
-      for (const code of this.options.futureCodes) {
-        const isActual = this.futureContractByCode.has(code);
-        const hasMapping = this.futureMappingByCode.has(code);
-        if (!isActual && !hasMapping) {
-          throw new Error(`No futures contract or mapping data found for ${code}`);
-        }
+    for (const contract of futureRows.contracts) {
+      this.futureContractByCode.set(contract.tsCode, contract);
+    }
+
+    for (const row of futureRows.daily) {
+      let rowsByDate = this.futureDailyByCode.get(row.tsCode);
+      if (!rowsByDate) {
+        this.futureDailyByCode.set(row.tsCode, (rowsByDate = new Map()));
       }
+      rowsByDate.set(row.tradeDate, row);
+    }
+
+    for (const row of futureRows.mappings) {
+      let mapping = this.futureMappingByCode.get(row.continuousCode);
+      if (!mapping) {
+        this.futureMappingByCode.set(
+          row.continuousCode,
+          (mapping = { dates: [], actualCodes: [] }),
+        );
+      }
+      mapping.dates.push(row.tradeDate);
+      mapping.actualCodes.push(row.mappedTsCode);
+    }
+    for (const mapping of this.futureMappingByCode.values()) {
+      const ordered = mapping.dates
+        .map((date, index) => ({ date, actualCode: mapping.actualCodes[index] }))
+        .sort((left, right) => left.date.localeCompare(right.date));
+      mapping.dates = ordered.map((entry) => entry.date);
+      mapping.actualCodes = ordered.map((entry) => entry.actualCode);
+    }
+
+    for (const row of futureRows.settlements) {
+      this.futureMarginByKey.set(`${row.tsCode}|${row.tradeDate}`, row);
     }
 
     // Declared factor keys must be real: a registry column factor or a published factor key —

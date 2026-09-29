@@ -11,7 +11,6 @@ interface BacktestingContextInput {
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
   futuresPortfolio: FuturesPortfolio;
-  futuresEnabled: boolean;
   factorEvaluator: FactorEvaluator | null;
   orderBook: OrderBook;
   onFactorRead?: (key: string, code: string, value: number | null) => void;
@@ -200,9 +199,7 @@ export class BacktestingContext implements EngineContext {
   }
 
   future(code: string): FutureBar | null {
-    return this.input.futuresEnabled
-      ? this.input.engineData.futureBar(code, this.input.date)
-      : null;
+    return this.input.engineData.futureBar(code, this.input.date);
   }
 
   futureHistory(
@@ -210,9 +207,7 @@ export class BacktestingContext implements EngineContext {
     field: 'open' | 'high' | 'low' | 'close' | 'settle',
     n: number,
   ): number[] {
-    return this.input.futuresEnabled
-      ? this.input.engineData.futureHistory(code, this.input.date, field, n)
-      : [];
+    return this.input.engineData.futureHistory(code, this.input.date, field, n);
   }
 
   futurePosition(code: string): FuturePositionView | null {

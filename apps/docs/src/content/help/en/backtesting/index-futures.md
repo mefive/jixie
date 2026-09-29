@@ -4,6 +4,15 @@
 
 Index futures use margin, and one contract usually represents a notional amount much larger than the margin posted. A contract can be long or short, and a small index move can produce a large account change. If you are new to futures, use historical tests to understand contracts, margin, and rolls; do not treat a backtest as live-trading advice.
 
+
+Futures methods require no enablement declaration. Without `accounts`, all initial capital goes to the stock / ETF cash account and the futures account starts at zero. For a futures-only strategy, configure:
+
+```ts
+accounts: { stock: { cashWeight: 0 }, futures: { cashWeight: 1 } },
+```
+
+The legacy `futures` field is accepted but ignored. Older strategies that relied on this field to allocate all capital to futures must add `accounts` to preserve their original allocation. Orders without sufficient futures margin capital do not fill; there are no automatic transfers between accounts.
+
 ## What to specify when creating the strategy
 
 Include:
@@ -14,7 +23,7 @@ Include:
 - When it opens, closes, or rebalances.
 - Backtest dates and initial capital.
 
-After the strategy appears, verify the declared futures code. `IF.CFX` is the CSI 300 index futures main-continuous code, not one fixed expiry month.
+After the strategy appears, verify the futures codes used in orders and market-data queries. `IF.CFX` is the CSI 300 index futures main-continuous code, not one fixed expiry month.
 
 ## Checks before running
 

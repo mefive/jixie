@@ -17,9 +17,7 @@ describe('OrderBook decision ownership', () => {
       engineData,
       cashPortfolio: new CashPortfolio(10000, DEFAULT_COST),
       futuresPortfolio: new FuturesPortfolio(0, DEFAULT_COST),
-      futuresEnabled: false,
       cost: DEFAULT_COST,
-      stockOrdersEnabled: true,
     });
     orders.beginDecision('20240102');
     orders.orderLots('A', 2);

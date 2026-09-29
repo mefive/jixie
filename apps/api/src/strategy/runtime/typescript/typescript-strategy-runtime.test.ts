@@ -342,7 +342,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     const code = `
       export default defineStrategy({
         name: 'future-drift',
-        futures: ['IF.CFX'],
+        accounts: { stock: { cashWeight: 0 }, futures: { cashWeight: 1 } },
         onBar(ctx) {
           if (ctx.date === '${D[0]}') ctx.orderFuture('IF.CFX', 1);
           if (ctx.date === '${D[3]}') ctx.exitFuture('IF.CFX');
@@ -365,6 +365,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
 
     expect(walled.nav).toEqual(direct.nav);
     expect(walled.tradeLog).toEqual(direct.tradeLog);
+    expect(walled.tradeLog.length).toBeGreaterThan(0);
   });
 
   it('股票成交后动态计算期货对冲在直跑和进墙车道一致', { timeout: 60_000 }, async () => {
@@ -372,7 +373,6 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
       export default defineStrategy({
         name: 'mixed-drift',
         watch: ['AAA'],
-        futures: ['IF.CFX'],
         accounts: { stock: { cashWeight: 0.7 }, futures: { cashWeight: 0.3 } },
         onBar(ctx) {
           if (ctx.date === '${D[0]}') {

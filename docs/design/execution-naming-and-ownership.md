@@ -265,3 +265,24 @@ AllocationAnalysisTracker 始终实例化、记录调仓/每日数据并输出�
 验证期间只修正测试设施：历史报告回放改为显式 report URL；隔离服务器等待断开连接后仍在执行的 HTTP handler，再释放语言服务，解决初始化晚于 dispose 导致的退出超时。测试设施 ESLint、Prettier 与 API 类型检查通过。最终 E2E 正常退出、临时数据库删除、两个服务端口关闭断言通过。业务代码没有审查后的修正。
 
 日志：/tmp/jixie-allocation-tests.log、/tmp/jixie-allocation-signals.log、/tmp/jixie-allocation-build.log、/tmp/jixie-allocation-e2e.log。按已确认消息提交，不推送。
+
+
+## 2026-09-29 移除期货启用开关（审查与验证通过）
+
+计划提交：`refactor(engine): remove futures enablement gates`。
+
+范围已确认：Engine/Context/OrderBook 删除 futuresEnabled 与 stockOrdersEnabled，两个账户统一参与开盘执行、结算、净值、结果及日志；空仓结算无操作，零资金订单由资金/保证金规则决定是否成交。accounts 是唯一初始资金配置，缺省 stock=1、futures=0；非负有限权重合计须为 1。未配置 accounts 的旧纯期货策略不再自动分配期货资金，需要显式补充配置。无账户间自动转账。
+
+旧 futures 字段在 TS/Python 作者入口保留兼容，但不会传播代码列表或驱动执行；内部 ready/Signals 元数据兼容字段固定为空。EngineData 不接收 futureCodes，统一加载回测区间的期货合约/行情/映射/保证金；纯股票回测因此增加期货数据访问和内存占用，数据端口错误正常传播，空数据不阻止股票运行。缺行情查询仍返回空，无法成交的期货订单沿用不成交行为。所有新结果统一包含 sleeveNav，历史结果格式保留兼容。
+
+能力边界独立于旧字段：Python 仍无期货操作 API，正期货资金配置启动时拒绝；Signals 部署依据 accounts 和报告实际期货成交/资金拒绝不支持的报告。retainFinalState 在正期货资金配置时提前拒绝，在实际产生期货订单意图时也拒绝，覆盖零资金、最后一天等场景，避免丢弃期货状态。TS/Python SDK、Agent 示例、双语帮助及 E2E 示例同步。无数据库迁移或新增 workspace/跨包构建依赖；已有部署清单和计划测试已显式覆盖修改的 Strategy Python SDK/runner 对 API 与 sandboxd 的影响，无需更改路径规则。
+
+准备回归：默认资金/旧字段忽略、无声明资金分配与保证金成交、零现金账户股票拒单、混合对冲/换月/结算、最终状态限制、TS 原生与沙箱一致性、Python 能力限制、Signals 部署与历史报告兼容、SDK 契约、Worker。审查前仅运行类型/生成一致性/边界、ESLint/Prettier、Python AST 语法、diff 和本地文档链接检查。人工审查通过后执行上述测试、相关构建和无 futures 声明的混合账户页面验收。当前未执行本轮行为测试、构建或 E2E，修改未提交。
+
+审查前静态检查通过：全仓 pnpm typecheck（853 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、受影响 TS/MJS 的 ESLint（0 警告）与 Prettier、两个 Python 文件 AST 语法、21 个本地文档链接及 git diff --check。SDK 生成使用现有 synchronizeArtifacts，仅同步声明，不准备环境或运行策略。无未解决的静态检查阻塞。
+
+人工审查通过后，Backtesting、Strategy runtime/SDK/execution、Signals 与 Worker 协议共 46 个测试文件、301 项测试通过。另两个显式启用的测试文件（历史 runtime 性能比较 2 项、会计数据库 flow 1 项）按默认开关跳过，不计入通过数。包含无声明期货交易、零资金不成交、TS 直跑/沙箱一致性、Python 资金限制、Signals 实际报告与资金准入。全仓 pnpm build 通过（shared/API/Web/docs/sandboxd），Web/docs 仍有大 chunk 提示。
+
+隔离数据库浏览器验证：strategy-orchestration 通过；mixed-futures 使用新增合成期货行情，通过真实 UI 提交、Worker 计算与持久化，断言股票买入/期货卖出、80/20 初始分配、总净值及现金账户归因对账，中英文截图已检查。首次混合对账仅因约 2e-9 元浮点差异失败，测试改用 1e-6 元误差上限，日期与其余约束保留，重跑通过；产品代码未改动。新增测试设施的 API 类型、ESLint/Prettier 与 diff 检查通过。测试进程正常退出，临时库删除和本地端口关闭断言通过。
+
+截图：apps/web/acceptance/mixed-futures-result.png、mixed-futures-result-en.png。日志：/tmp/jixie-gates-tests.log、/tmp/jixie-gates-build.log、/tmp/jixie-gates-e2e.log（股票通过，首次混合浮点断言失败）、/tmp/jixie-gates-mixed-e2e.log（混合重跑通过）。按已确认消息提交，不推送。

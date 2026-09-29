@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fixturePort } from './testing/fixture-port.js';
-import type { BacktestingConfig } from './contract.js';
+import type { BacktestingConfig, EngineContext } from './contract.js';
 import { BacktestingEngine } from './engine.js';
 
 function config(): BacktestingConfig {
@@ -36,6 +36,29 @@ function config(): BacktestingConfig {
 }
 
 describe('optional final execution state', () => {
+  it('ignores a legacy futures declaration for cash-only final state', async () => {
+    const input = config();
+    input.strategy.futures = ['UNKNOWN'];
+
+    const result = await new BacktestingEngine({ ...input, retainFinalState: true }).run();
+    expect(result.finalState?.positions.size).toBe(1);
+  });
+
+  it.each([
+    (context: EngineContext) => context.orderFuture('IF.CFX', 1),
+    (context: EngineContext) => context.setFutureTargetContracts('IF.CFX', 1),
+    (context: EngineContext) => context.setFutureTargetNotional('IF.CFX', 1000),
+    (context: EngineContext) => context.hedgeFuture('IF.CFX'),
+    (context: EngineContext) => context.exitFuture('IF.CFX'),
+  ])('rejects futures intents even with zero futures capital', async (action) => {
+    const input = config();
+    input.strategy.onBar = action;
+
+    await expect(new BacktestingEngine({ ...input, retainFinalState: true }).run()).rejects.toThrow(
+      'Final state retention currently supports stock and ETF strategies only',
+    );
+  });
+
   it('keeps simulation results identical and retains adjusted state only when requested', async () => {
     const normal = await new BacktestingEngine(config()).run();
     const retained = await new BacktestingEngine({ ...config(), retainFinalState: true }).run();
@@ -64,7 +87,11 @@ describe('optional final execution state', () => {
       new BacktestingEngine({
         ...input,
         retainFinalState: true,
-        strategy: { name: 'futures', futures: ['IF.CFX'], onBar },
+        strategy: {
+          name: 'futures',
+          accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } },
+          onBar,
+        },
       }).run(),
     ).rejects.toThrow('Final state retention currently supports stock and ETF strategies only');
     expect(openDates).not.toHaveBeenCalled();

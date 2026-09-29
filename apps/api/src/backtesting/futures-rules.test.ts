@@ -56,7 +56,7 @@ function futureSpec(mappingByDate: Record<string, string>): FixtureSpec {
 function strategy(actions: Record<string, (context: EngineContext) => void>): EngineStrategy {
   return {
     name: 'future-scripted',
-    futures: ['IF.CFX'],
+    accounts: { stock: { cashWeight: 0 }, futures: { cashWeight: 1 } },
     onBar(context) {
       actions[context.date]?.(context);
     },
@@ -87,6 +87,34 @@ function run(spec: FixtureSpec, scriptedStrategy: EngineStrategy, initialCash = 
 }
 
 describe('股指期货规则', () => {
+  it('ignores obsolete codes and uses account capital for actual futures orders', async () => {
+    const scripted = strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) });
+    scripted.futures = ['UNKNOWN'];
+    const result = await run(
+      futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
+      scripted,
+    );
+
+    expect(result.tradeLog[0]).toMatchObject({ code: 'IF.CFX', contracts: 1, assetType: 'future' });
+  });
+
+  it('leaves zero-capital stock orders unfilled without blocking the futures account', async () => {
+    const spec = futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX'])));
+    spec.stocks = [{ code: 'AAA', bars: DATES.map((date) => ({ date, open: 10, close: 10 })) }];
+    const result = await run(
+      spec,
+      strategy({
+        '20240102': (context) => {
+          context.order('AAA', 100);
+          context.orderFuture('IF.CFX', 1);
+        },
+      }),
+    );
+
+    expect(result.tradeLog.length).toBeGreaterThan(0);
+    expect(result.tradeLog.every((trade) => trade.assetType === 'future')).toBe(true);
+  });
+
   it('returns a finite empty cash-account analysis for a futures-only strategy', async () => {
     const result = await run(
       futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
@@ -110,8 +138,6 @@ describe('股指期货规则', () => {
     let decisions = 0;
     const result = await run(spec, {
       name: 'zero futures cash',
-      futures: ['IF.CFX'],
-      accounts: { stock: { cashWeight: 1 }, futures: { cashWeight: 0 } },
       onBar(context) {
         decisions++;
         expect(context.future('IF.CFX')).not.toBeNull();
@@ -350,7 +376,6 @@ describe('股指期货规则', () => {
     const result = await run(spec, {
       name: 'mixed-hedge',
       watch: ['AAA'],
-      futures: ['IF.CFX'],
       accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } },
       onBar(context) {
         if (context.date === DATES[0]) {
@@ -399,7 +424,6 @@ describe('股指期货规则', () => {
     const result = await run(spec, {
       name: 'filled-exposure',
       watch: ['AAA'],
-      futures: ['IF.CFX'],
       accounts: { stock: { cashWeight: 0.4 }, futures: { cashWeight: 0.6 } },
       onBar(context) {
         if (context.date === DATES[0]) {

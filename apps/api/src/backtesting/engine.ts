@@ -29,7 +29,6 @@ export class BacktestingEngine {
   private readonly cost;
   private readonly locale;
   private readonly log;
-  private readonly futuresEnabled;
   private readonly cnyNumberFormat;
 
   private factorDescription = describeFactors([]);
@@ -51,7 +50,6 @@ export class BacktestingEngine {
     this.cost = { ...DEFAULT_COST, ...config.cost };
     this.locale = config.locale ?? DEFAULT_LOCALE;
     this.log = config.onLog ?? (() => {});
-    this.futuresEnabled = Boolean(config.strategy.futures?.length);
     this.cnyNumberFormat = new Intl.NumberFormat(this.locale === 'zh' ? 'zh-CN' : 'en-US', {
       useGrouping: true,
       maximumFractionDigits: 0,
@@ -77,15 +75,11 @@ export class BacktestingEngine {
 
       this.assertNoDelistedPositions(date);
 
-      if (!this.futuresEnabled || previousDate) {
-        await orderBook.executeOpen(date, previousDate, this.allocationTracker, () =>
-          this.logRebalance(date),
-        );
-      }
+      await orderBook.executeOpen(date, previousDate, this.allocationTracker, () =>
+        this.logRebalance(date),
+      );
 
-      if (this.futuresEnabled) {
-        futuresPortfolio.settle(engineData, date);
-      }
+      futuresPortfolio.settle(engineData, date);
 
       this.recordClose(date);
 
@@ -126,7 +120,7 @@ export class BacktestingEngine {
       throw new Error('Cost setting futureMarginRate must be between 0 and 1');
     }
 
-    if (this.futuresEnabled && config.retainFinalState) {
+    if (config.retainFinalState && (config.strategy.accounts?.futures.cashWeight ?? 0) > 0) {
       throw new Error('Final state retention currently supports stock and ETF strategies only');
     }
   }
@@ -151,7 +145,6 @@ export class BacktestingEngine {
       onLog: log,
       locale,
       dataPort: config.dataPort,
-      futureCodes: config.strategy.futures ?? [],
       requirements: {
         ...dataRequirements,
         governmentYieldCurve:
@@ -173,8 +166,6 @@ export class BacktestingEngine {
       cashPortfolio: this.cashPortfolio,
       futuresPortfolio: this.futuresPortfolio,
       cost,
-      stockOrdersEnabled: !this.futuresEnabled || cashWeights.stock > 0,
-      futuresEnabled: this.futuresEnabled,
     });
 
     this.logStart();
@@ -211,15 +202,10 @@ export class BacktestingEngine {
   }
 
   private resolveInitialCashWeights(): { stock: number; futures: number } {
-    if (!this.futuresEnabled) {
-      return { stock: 1, futures: 0 };
-    }
-
     const { config } = this;
 
-    // Preserve the legacy default: declaring futures without accounts allocates all cash to futures.
     if (!config.strategy.accounts) {
-      return { stock: 0, futures: 1 };
+      return { stock: 1, futures: 0 };
     }
 
     const stock = config.strategy.accounts.stock.cashWeight;
@@ -281,25 +267,23 @@ export class BacktestingEngine {
 
     this.nav.push({ date, value });
 
-    if (this.futuresEnabled) {
-      const stockGrossExposure = cashPortfolio.marketValue((code) =>
-        engineData.adjustedCloseAsOf(code, date),
-      );
-      const futureNotional = futuresPortfolio.notional((actualCode) => {
-        const bar = engineData.futureActualBar(actualCode, date);
-        return bar?.settle ?? bar?.close ?? null;
-      });
+    const stockGrossExposure = cashPortfolio.marketValue((code) =>
+      engineData.adjustedCloseAsOf(code, date),
+    );
+    const futureNotional = futuresPortfolio.notional((actualCode) => {
+      const bar = engineData.futureActualBar(actualCode, date);
+      return bar?.settle ?? bar?.close ?? null;
+    });
 
-      this.sleeveNav.push({
-        date,
-        stockValue,
-        futureValue: futuresPortfolio.cash,
-        futureMargin: futuresPortfolio.margin,
-        stockGrossExposure,
-        futureNotional,
-        netExposure: stockGrossExposure + futureNotional,
-      });
-    }
+    this.sleeveNav.push({
+      date,
+      stockValue,
+      futureValue: futuresPortfolio.cash,
+      futureMargin: futuresPortfolio.margin,
+      stockGrossExposure,
+      futureNotional,
+      netExposure: stockGrossExposure + futureNotional,
+    });
 
     this.allocationTracker.captureDay({
       date,
@@ -335,7 +319,6 @@ export class BacktestingEngine {
       cashPortfolio: this.cashPortfolio,
       futuresPortfolio: this.futuresPortfolio,
       factorEvaluator: this.factorEvaluator,
-      futuresEnabled: this.futuresEnabled,
       orderBook: this.orderBook,
       onFactorRead: observeFactors
         ? (key, code, value) => {
@@ -352,17 +335,19 @@ export class BacktestingEngine {
 
     await this.config.strategy.onBar(context);
 
+    if (this.config.retainFinalState && this.orderBook.hasFutureIntents) {
+      throw new Error('Final state retention currently supports stock and ETF strategies only');
+    }
+
     this.orderBook.commitDecision();
   }
 
   private collectResult(): BacktestingResult {
     const { config, engineData, cashPortfolio, futuresPortfolio } = this;
 
-    const trades = this.futuresEnabled
-      ? [...cashPortfolio.trades, ...futuresPortfolio.trades].sort((left, right) =>
-          left.date.localeCompare(right.date),
-        )
-      : cashPortfolio.trades;
+    const trades = [...cashPortfolio.trades, ...futuresPortfolio.trades].sort((left, right) =>
+      left.date.localeCompare(right.date),
+    );
 
     const result = summarizePerformance(
       config,
@@ -371,7 +356,7 @@ export class BacktestingEngine {
       engineData.indexCloses(BENCHMARK),
       this.cost,
       BENCHMARK,
-      this.futuresEnabled ? this.sleeveNav : undefined,
+      this.sleeveNav,
     );
     result.allocationAnalysis = this.allocationTracker.finish(
       cashPortfolio.equity((code) =>
@@ -427,10 +412,6 @@ export class BacktestingEngine {
   }
 
   private logStart(): void {
-    if (this.futuresEnabled) {
-      return;
-    }
-
     this.log(
       t(this.locale, 'backtestStart', {
         start: day(this.config.start).format('YYYY-MM-DD'),
@@ -441,10 +422,6 @@ export class BacktestingEngine {
   }
 
   private logRebalance(date: string): void {
-    if (this.futuresEnabled) {
-      return;
-    }
-
     this.log(
       t(this.locale, 'backtestRebalance', {
         date: day(date).format('YYYY-MM-DD'),
@@ -456,7 +433,7 @@ export class BacktestingEngine {
   private logProgress(completedDays: number, totalDays: number): void {
     const latestClose = this.nav.at(-1);
 
-    if (this.futuresEnabled || !latestClose) {
+    if (!latestClose) {
       return;
     }
 
@@ -477,10 +454,6 @@ export class BacktestingEngine {
   }
 
   private logResult(result: BacktestingResult): void {
-    if (this.futuresEnabled) {
-      return;
-    }
-
     this.log(
       t(this.locale, 'backtestDone', {
         days: result.days,

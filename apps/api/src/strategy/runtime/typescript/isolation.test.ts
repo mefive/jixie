@@ -35,6 +35,20 @@ async function execute(code: string, spec: FixtureSpec = fixture, start = spec.d
 }
 
 describe('TypeScript strategy isolation and compatibility', () => {
+  it('ignores obsolete declarations while preserving explicit account metadata', async () => {
+    const metadata = await inspectStrategyMetadata(`export default defineStrategy({
+      futures: ['UNKNOWN'],
+      accounts: { stock: { cashWeight: 0.25 }, futures: { cashWeight: 0.75 } },
+      onBar() {},
+    });`);
+
+    expect(metadata.futures).toEqual([]);
+    expect(metadata.accounts).toEqual({
+      stock: { cashWeight: 0.25 },
+      futures: { cashWeight: 0.75 },
+    });
+  });
+
   it('isolates top-level metadata inspection as well as onBar', async () => {
     const code = `
       if (typeof process !== 'undefined' || typeof require === 'undefined') throw new Error('invalid globals');
@@ -57,7 +71,7 @@ describe('TypeScript strategy isolation and compatibility', () => {
       let failures = 0;
       try { ctx.setHoldings({ AAA: 1.2 }); } catch { failures++; }
       try { ctx.stopLoss('AAA', -1); } catch { failures++; }
-      try { ctx.orderFuture('IF.CFX', 1); } catch { failures++; }
+      try { ctx.orderFuture('IF.CFX', NaN); } catch { failures++; }
       if (failures !== 3) throw new Error('order errors must remain synchronous');
       ctx.setHoldings(new Map([['AAA', 0.5]]));
     } });`);

@@ -52,6 +52,33 @@ def handle_bar(ctx):
 `;
 
 describe('Python strategy runtime', () => {
+  it('ignores legacy futures declarations while retaining the cash default', async () => {
+    enableTestRuntime();
+    const runtime = await StrategyRuntime.start({
+      language: 'python',
+      code: pythonCode.replace('watch=["AAA", "BBB"]', 'watch=["AAA", "BBB"], futures=["UNKNOWN"]'),
+    });
+    try {
+      expect(runtime.metadata.futures).toEqual([]);
+      expect(runtime.metadata.accounts).toBeUndefined();
+    } finally {
+      runtime.close();
+    }
+  });
+
+  it('rejects futures capital without relying on a declaration', async () => {
+    enableTestRuntime();
+    await expect(
+      StrategyRuntime.start({
+        language: 'python',
+        code: pythonCode.replace(
+          'watch=["AAA", "BBB"]',
+          'accounts={"stock": {"cashWeight": 0.5}, "futures": {"cashWeight": 0.5}}',
+        ),
+      }),
+    ).rejects.toThrow('supports stock and ETF strategies only');
+  });
+
   afterEach(() => {
     delete process.env.JIXIE_PYTHON_LOCAL;
     delete process.env.JIXIE_PYTHON_CODE_TIMEOUT_SECONDS;

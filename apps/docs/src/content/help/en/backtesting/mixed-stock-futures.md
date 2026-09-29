@@ -15,6 +15,15 @@ For example, 80% stock and 20% futures must add to 100%. The two accounts do not
 
 Too little futures capital may prevent the intended hedge; too much reduces capital available for stocks.
 
+
+Allocate initial capital through `accounts` in the strategy code, for example:
+
+```ts
+accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } },
+```
+
+No `futures` declaration is required; the legacy field is ignored. Omitting `accounts` defaults to 100% in the cash account and 0% in futures. Zero capital does not disable methods; fills remain subject to cash and margin constraints.
+
 ## Checks before running
 
 1. Confirm the stock list and index futures product.

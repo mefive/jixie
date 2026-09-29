@@ -33,7 +33,7 @@ def handle_bar(ctx):
 - Bar fields use snake_case: pe_ttm, adj_close, turnover_rate, total_mv, risk_warning, pending_delisting, etc.
 
 # Runtime constraints
-- py-v1 supports stocks and ETFs. Do not declare futures or published research factors.
+- py-v1 supports stocks and ETFs. Do not allocate capital to the futures account or use futures operations or published research factors. The legacy futures field is ignored; omitted accounts allocate all capital to stocks/ETFs.
 - T+1, price limits, suspensions, whole lots, adjustment, costs and slippage are enforced by the TypeScript engine; never reimplement them.
 - Strategy state may live in module variables and persists for the entire run.
 - Use only data available through ctx. NumPy and pandas are installed, but do not perform network or filesystem access.

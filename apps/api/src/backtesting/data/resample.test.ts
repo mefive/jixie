@@ -58,7 +58,6 @@ async function loadedData(): Promise<EngineData> {
     onLog: () => {},
     locale: DEFAULT_LOCALE,
     dataPort: fixturePort(spec),
-    futureCodes: [],
     requirements: {
       turnoverRateFHistory: true,
       fundamentalHistory: false,

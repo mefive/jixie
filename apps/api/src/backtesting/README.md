@@ -53,11 +53,11 @@ EngineContext / EngineStrategy 是内部模拟契约，公开 StrategyCtx 仍由
 
 `BacktestingResult` 只包含净值、成交和绩效。当前成交使用 `CashTrade | FuturesTrade`，期货必须包含合约、数量及乘数；旧持久化报告的可选字段兼容与 `factorDependencies` 归 [BacktestResult](../strategy/backtests/result.ts)。Backtesting 不再携带报告血缘。
 
-默认 `finalState` 为 null；`retainFinalState` 开启末日因子观测和独立快照。快照保持复权单位，包含仓位、待执行指令、条件单与对应行情，不持有 EngineData 或账户实例。真实股数、参考价与业务信号由 [Signals 投影](../signals/runs/projection.ts) 产生。当前仍仅支持股票/ETF 快照，期货请求在读取行情前拒绝。
+默认 `finalState` 为 null；`retainFinalState` 开启末日因子观测和独立快照。快照保持复权单位，包含仓位、待执行指令、条件单与对应行情，不持有 EngineData 或账户实例。真实股数、参考价与业务信号由 [Signals 投影](../signals/runs/projection.ts) 产生。当前仍仅支持股票/ETF 快照；正期货资金配置在读取行情前拒绝，运行中出现期货订单意图也会拒绝，避免遗漏账户和待执行订单。旧 futures 字段不参与判断。
 
 默认资金分配、成交算法、费用模型和 CSI 300 全收益基准保持原口径。`futureCloseTodayRate` 保留原配置含义，本轮不新增平今费率应用。策略作者 SDK、HTTP 入口及数据库 schema 不变；回测结果新增兼容性可选字段，旧报告仍可读取。
 
-`resolveInitialCashWeights()` 统一确定初始资金比例；现金与期货账户始终创建，未启用期货时初始资金全部分配给现金账户。`futuresEnabled` 由 Engine 根据策略声明确定并传给 Context / OrderBook，控制期货行情访问、订单准入、换月/结算及分账户分析；账户是否存在或资金是否为零不表示功能启用状态。启用期货但分配零资金时仍允许声明订单，成交继续受保证金约束。
+`resolveInitialCashWeights()` 只读取 accounts，默认 stock=1、futures=0；显式权重必须有限、非负且合计为 1。旧 futures 字段兼容接收但被忽略，不启用功能、不改变资金或约束可交易代码。现金与期货账户始终创建，订单/结算/日志/分账户净值统一执行；空账户没有持仓可结算，零资金订单继续受余额/保证金约束，无账户间自动转账。EngineData 统一读取区间期货合约、行情、映射与保证金数据；缺行情的查询返回空，无法执行的订单不成交。纯股票策略也会读取期货数据，增加一批数据访问，不再维护独立的启用状态。
 
 AllocationAnalysisTracker 始终创建与调用，归因范围固定为现金账户。输入为该账户初始资金、每日权益、实际持仓/成交和最终权益，不包含期货盈亏。无因子或分类时仍按 other 记录实际资产；缺少分类时不生成类别相关性/利率环境分析。零资金空账户输出有限的零盈亏和空归因。新报告包含 scope=cash_account 及账户 nav，风险后处理使用该序列；旧报告无 scope 时保持原口径。UI 和帮助明确区分范围。
 

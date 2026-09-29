@@ -91,8 +91,8 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 
 # Stock-index futures (daily; futures-only or mixed stock/futures execution)
 - Available logical main-contract codes: IF.CFX (CSI 300), IH.CFX (SSE 50), IC.CFX (CSI 500), IM.CFX (CSI 1000).
-- Declare codes at the strategy top level, e.g. \`futures: ['IF.CFX']\`. Without \`accounts\`, this preserves futures-only execution.
-- For a mixed strategy, also declare \`accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } }\`; weights must sum to 1. The two sleeves keep separate cash and the engine reports one combined NAV. There is no automatic cash transfer between sleeves.
+- No futures declaration is required. The legacy \`futures\` field is ignored. Without \`accounts\`, all capital stays in the stock/ETF cash account and the futures account has zero capital. For futures-only execution use \`accounts: { stock: { cashWeight: 0 }, futures: { cashWeight: 1 } }\`.
+- For a mixed strategy, configure \`accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } }\`; weights must sum to 1. The two sleeves keep separate cash and the engine reports one combined NAV. There is no automatic cash transfer between sleeves.
 - \`ctx.future(code)\`: today's point-in-time mapped bar with OHLC/settle, actualCode, volume, openInterest, and multiplier.
 - \`ctx.futureHistory(code, field, n)\`: last n mapped values, oldest to newest.
 - \`ctx.futurePosition(code)\`: current signed contracts (+long / -short) and margin, or null.
@@ -241,7 +241,7 @@ export default defineStrategy({
 # Example 7: CSI 300 futures long/short on a 20-day settlement-price moving average
 export default defineStrategy({
   name: 'IF 主力 MA20',
-  futures: ['IF.CFX'],
+  accounts: { stock: { cashWeight: 0 }, futures: { cashWeight: 1 } },
   onBar(ctx) {
     const code = 'IF.CFX';
     const history = ctx.futureHistory(code, 'settle', 20);
@@ -258,7 +258,6 @@ export default defineStrategy({
 let mixedLast = '';
 export default defineStrategy({
   name: '沪深300 多空中性',
-  futures: ['IF.CFX'],
   accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } },
   async onBar(ctx) {
     const period = ctx.period('monthly');

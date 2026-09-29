@@ -243,11 +243,32 @@ describe('Signals HTTP and persistence boundaries', () => {
     expect((await request('/deployments', { reportId: 'report' })).status).toBe(400);
     expect(resources.metadata).not.toHaveBeenCalled();
     await prisma.backtestReport.update({ where: { id: 'report' }, data: { config } });
-    resources.metadata.mockResolvedValue({ watch: [], futures: ['IF.CFX'], factors: [] });
+    resources.metadata.mockResolvedValue({
+      watch: [],
+      futures: [],
+      factors: [],
+      accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } },
+    });
     expect((await request('/deployments', { reportId: 'report' })).status).toBe(400);
     expect(resources.factors).not.toHaveBeenCalled();
     expect(await prisma.strategyDeployment.count()).toBe(0);
   });
+
+  it('ignores legacy declarations when the report and allocation are cash-only', async () => {
+    resources.metadata.mockResolvedValue({ watch: [], futures: ['UNKNOWN'], factors: [] });
+
+    expect((await request('/deployments', { reportId: 'report' })).status).toBe(200);
+  });
+
+  it.each([{ tradeLog: [{ assetType: 'future' }] }, { sleeveNav: [{ futureValue: 1000 }] }])(
+    'rejects historical futures reports even without a declaration',
+    async (payload) => {
+      await prisma.backtestReport.update({ where: { id: 'report' }, data: { payload } });
+
+      expect((await request('/deployments', { reportId: 'report' })).status).toBe(400);
+      expect(await prisma.strategyDeployment.count()).toBe(0);
+    },
+  );
 
   it('freezes the report despite later draft edits and independently deploys identical reports', async () => {
     await prisma.strategy.update({

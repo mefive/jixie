@@ -79,10 +79,13 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" pnpm e2e job-sys
 JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" pnpm e2e embedded-analysis
 ```
 
-`job-system` 复用 `strategy-orchestration`、`strategy-parameter-scan`、`factor-report-history`、
+`job-system` 复用 `strategy-orchestration`、`mixed-futures`、`strategy-parameter-scan`、`factor-report-history`、
 `factor-correlation`、`daily-signals`、`backtest-report-history`，另执行因子研究卡和 Curator 页面流程。
 历史回测报告由夹具预置；回测与因子相关性重连场景只注入活动任务查询竞态，因子历史用例中的
 未保存草稿拦截使用 HTTP 替身。这些局部前端断言与其余真实任务计算分开看待。
+
+`mixed-futures` 使用合成股票与期货行情，验证不声明 futures、仅通过 accounts 分配资金的真实混合回测，
+检查两个账户均有成交、初始 80/20 分配、账户净值对账及中英文结果页面；不验证真实市场数据质量。
 
 失败后可用 `JIXIE_JOB_E2E_ONLY` 选择上述任务名或 `factor-analysis`、`research-curator`（逗号分隔），
 每次仍重新建隔离库。默认不设置该变量时运行全部流程。

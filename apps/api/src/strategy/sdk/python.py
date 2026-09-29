@@ -105,7 +105,8 @@ class Strategy:
         self.params = dict(params or {})
         self.factors = list(factors or [])
         self.watch = list(watch or [])
-        self.futures = list(futures or [])
+        # Retained only for source compatibility; capital allocation uses accounts.
+        self.futures: list[str] = []
         self.accounts = accounts
         self._callback: Callable[[Context], None] | None = None
 

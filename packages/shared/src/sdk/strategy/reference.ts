@@ -213,9 +213,9 @@ interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
-  /** Stock-index futures codes to preload. */
+  /** @deprecated Ignored. Use accounts to allocate capital; futures data is available without a declaration. */
   futures?: string[];
-  /** Initial capital split for a mixed stock/futures strategy; weights must sum to 1. */
+  /** Initial stock/futures cash weights summing to 1. Defaults to stock 1, futures 0; no automatic transfers. */
   accounts?: StrategyAccounts;
   onBar(ctx: StrategyCtx<Params>): void | Promise<void>;
 }
@@ -699,8 +699,8 @@ export const SDK_ENTRIES = [
     name: 'orderFuture',
     group: '股指期货',
     sig: 'orderFuture(code: string, contracts: number): void',
-    zh: '期货整数手增量订单:+买/−卖,次开成交;需在策略 futures 中声明代码。',
-    en: 'Signed integer futures order: +buy / -sell, filled at next open; declare the code in futures.',
+    zh: '期货整数手增量订单:+买/−卖,次开成交；需通过 accounts 分配足够的期货保证金资金。',
+    en: 'Signed integer futures order: +buy / -sell, filled at next open; allocate sufficient futures margin capital through accounts.',
   },
   {
     iface: 'StrategyCtx',

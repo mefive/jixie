@@ -204,7 +204,6 @@ export function defineStrategy<const Params extends StrategyParams = Record<stri
     params: normalizeStrategyParams(s.params),
     factors: s.factors,
     watch: s.watch,
-    futures: s.futures,
     accounts: s.accounts,
     onBar: (core: EngineContext) => s.onBar(enrich(core, strategy.params as Params)),
   };

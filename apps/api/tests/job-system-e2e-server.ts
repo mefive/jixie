@@ -297,4 +297,39 @@ async function seedMarket() {
       close: 4000 + index,
     })),
   });
+
+  const futureDates = dates.filter((date) => date >= '20260601' && date <= '20260630');
+  await prisma.futureContract.create({
+    data: {
+      tsCode: 'IF2607.CFX',
+      symbol: 'IF2607',
+      productCode: 'IF',
+      name: 'Synthetic CSI 300 future',
+      exchange: 'CFFEX',
+      multiplier: 300,
+      listDate: '20260101',
+      delistDate: '20260717',
+    },
+  });
+  await prisma.futureDaily.createMany({
+    data: futureDates.map((tradeDate, index) => ({
+      tsCode: 'IF2607.CFX',
+      tradeDate,
+      open: 4000 + index,
+      high: 4002 + index,
+      low: 3998 + index,
+      close: 4001 + index,
+      settle: 4001 + index,
+      volume: 100000,
+      amount: 100000,
+      openInterest: 200000,
+    })),
+  });
+  await prisma.futureMapping.createMany({
+    data: futureDates.map((tradeDate) => ({
+      continuousCode: 'IF.CFX',
+      tradeDate,
+      mappedTsCode: 'IF2607.CFX',
+    })),
+  });
 }

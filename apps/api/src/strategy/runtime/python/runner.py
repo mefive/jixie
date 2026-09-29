@@ -36,7 +36,7 @@ def _metadata(strategy: Strategy) -> dict[str, Any]:
         "params": strategy.params,
         "factors": strategy.factors,
         "watch": strategy.watch,
-        "futures": strategy.futures,
+        "futures": [],
         "accounts": strategy.accounts,
     }
 
@@ -52,7 +52,7 @@ def run_strategy(
     strategy = run_user_code(
         lambda: _load_strategy(start["code"], start.get("param_overrides", {}))
     )
-    if strategy.futures:
+    if strategy.accounts and strategy.accounts.get("futures", {}).get("cashWeight", 0) > 0:
         raise ValueError("py-v1 currently supports stock and ETF strategies only")
     send_frame({"type": "ready", "metadata": _metadata(strategy)})
     bar_cache: dict[str, list[AttrDict]] = {}

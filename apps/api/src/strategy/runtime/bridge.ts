@@ -66,7 +66,7 @@ export async function createStrategyBridge(
       params: metadata.params,
       factors: metadata.factors,
       watch: metadata.watch,
-      futures: metadata.futures,
+      futures: [],
       accounts: metadata.accounts ?? undefined,
     },
     async execute(context) {

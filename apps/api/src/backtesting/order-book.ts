@@ -67,9 +67,7 @@ interface OrderBookInput {
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
   futuresPortfolio: FuturesPortfolio;
-  futuresEnabled: boolean;
   cost: CostModel;
-  stockOrdersEnabled: boolean;
 }
 
 /** Owns decision collection, next-open orders and persistent conditional orders. */
@@ -93,6 +91,10 @@ export class OrderBook {
       conditionalCommands: [],
       futureIntents: null,
     };
+  }
+
+  get hasFutureIntents(): boolean {
+    return Boolean(this.decision.futureIntents?.size);
   }
 
   beginDecision(date: string): void {
@@ -129,7 +131,7 @@ export class OrderBook {
     const { engineData, cashPortfolio: portfolio, futuresPortfolio } = this.input;
     const heldBeforeOpen = new Set(portfolio.positions.keys());
 
-    if (this.input.futuresEnabled && previousDate) {
+    if (previousDate) {
       futuresPortfolio.roll(
         engineData,
         date,
@@ -187,28 +189,25 @@ export class OrderBook {
       this.executeConditionalOrders(date);
     }
 
-    if (this.input.futuresEnabled && previousDate && this.pendingFutureIntents) {
+    if (previousDate && this.pendingFutureIntents) {
       this.executeFutureIntents(date, previousDate);
       this.pendingFutureIntents = null;
     }
   }
 
   orderTargetPercent(code: string, weight: number): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     validateTargetWeight(code, weight);
     this.decision.targets ??= new Map();
     this.decision.targets.set(code, weight);
   }
 
   setHoldings(weights: Record<string, number> | Map<string, number>): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     const targetWeights = new Map(weights instanceof Map ? weights : Object.entries(weights));
     validateTargetBook(targetWeights);
     this.decision.targets = targetWeights;
   }
 
   order(code: string, shares: number): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     assertFiniteOrderValue(shares, 'Order shares');
     if (!shares) {
       return;
@@ -218,7 +217,6 @@ export class OrderBook {
   }
 
   orderLots(code: string, lots: number): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     assertFiniteOrderValue(lots, 'Order lots');
     const wholeLots = Math.trunc(lots);
     if (!wholeLots) {
@@ -229,7 +227,6 @@ export class OrderBook {
   }
 
   exit(code: string): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     const held = this.input.cashPortfolio.positions.get(code)?.shares ?? 0;
     if (!held) {
       return;
@@ -239,7 +236,6 @@ export class OrderBook {
   }
 
   stopLoss(code: string, price: number): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     assertPositiveOrderValue(price, 'Stop-loss price');
     this.decision.conditionalCommands.push({
       action: 'upsert',
@@ -248,7 +244,6 @@ export class OrderBook {
   }
 
   trailingStop(code: string, pct: number): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     assertFraction(pct, 'Trailing-stop percentage');
     const highWater = this.input.engineData.adjustedCloseAsOf(code, this.date);
     if (highWater == null || highWater <= 0) {
@@ -261,7 +256,6 @@ export class OrderBook {
   }
 
   limitBuy(code: string, price: number, shares: number): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     assertPositiveOrderValue(price, 'Limit-buy price');
     assertPositiveOrderValue(shares, 'Limit-buy shares');
     this.decision.conditionalCommands.push({
@@ -271,7 +265,6 @@ export class OrderBook {
   }
 
   takeProfit(code: string, pct: number): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     assertPositiveOrderValue(pct, 'Take-profit percentage');
     const position = this.input.cashPortfolio.positions.get(code);
     if (!position) {
@@ -288,15 +281,10 @@ export class OrderBook {
   }
 
   cancelConditional(code: string, kind?: ConditionalOrderKind): void {
-    assertStockOrdersEnabled(this.input.stockOrdersEnabled);
     this.decision.conditionalCommands.push({ action: 'cancel', code, kind });
   }
 
   orderFuture(code: string, contracts: number): void {
-    if (!this.input.futuresEnabled) {
-      throw new Error('Declare strategy.futures to use futures orders');
-    }
-
     assertFiniteOrderValue(contracts, 'Futures contracts');
     const roundedContracts = Math.trunc(contracts);
     if (!roundedContracts) {
@@ -309,30 +297,18 @@ export class OrderBook {
   }
 
   setFutureTargetContracts(code: string, contracts: number): void {
-    if (!this.input.futuresEnabled) {
-      throw new Error('Declare strategy.futures to use futures orders');
-    }
-
     assertFiniteOrderValue(contracts, 'Futures target contracts');
     this.decision.futureIntents ??= new Map();
     this.decision.futureIntents.set(code, { kind: 'contracts', value: Math.trunc(contracts) });
   }
 
   setFutureTargetNotional(code: string, notional: number): void {
-    if (!this.input.futuresEnabled) {
-      throw new Error('Declare strategy.futures to use futures orders');
-    }
-
     assertFiniteOrderValue(notional, 'Futures target notional');
     this.decision.futureIntents ??= new Map();
     this.decision.futureIntents.set(code, { kind: 'notional', value: notional });
   }
 
   hedgeFuture(code: string, beta = 1): void {
-    if (!this.input.futuresEnabled) {
-      throw new Error('Declare strategy.futures to use futures orders');
-    }
-
     if (!Number.isFinite(beta) || beta < 0) {
       throw new Error('Futures hedge beta must be a finite non-negative number');
     }
@@ -341,10 +317,6 @@ export class OrderBook {
   }
 
   exitFuture(code: string): void {
-    if (!this.input.futuresEnabled) {
-      throw new Error('Declare strategy.futures to use futures orders');
-    }
-
     this.decision.futureIntents ??= new Map();
     this.decision.futureIntents.set(code, { kind: 'contracts', value: 0 });
   }
@@ -766,12 +738,6 @@ function validateTargetBook(targets: Map<string, number> | null): void {
   }
   if (total > 1 + 1e-9) {
     throw new Error(`Target weights must sum to at most 1; received ${total}`);
-  }
-}
-
-function assertStockOrdersEnabled(enabled: boolean): void {
-  if (!enabled) {
-    throw new Error('Stock orders require a positive strategy.accounts.stock.cashWeight');
   }
 }
 

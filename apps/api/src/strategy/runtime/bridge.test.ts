@@ -114,7 +114,7 @@ describe('shared strategy bridge', () => {
       onUserLog,
     });
     const { context, spies } = contextFixture();
-    expect(strategy.metadata).toMatchObject(metadata);
+    expect(strategy.metadata).toMatchObject({ ...metadata, futures: [] });
     await strategy.execute(context);
     expect(onUserLog.mock.calls).toEqual([
       ['warn', 'startup'],

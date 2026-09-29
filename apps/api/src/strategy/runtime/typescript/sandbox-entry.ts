@@ -151,7 +151,7 @@ function startStrategy(config: Startup) {
       params: strategy.params ?? {},
       factors: strategy.factors ?? [],
       watch: strategy.watch ?? [],
-      futures: strategy.futures ?? [],
+      futures: [],
       accounts: strategy.accounts ?? null,
     },
   });

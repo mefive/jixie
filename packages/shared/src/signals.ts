@@ -3,6 +3,7 @@ import type { actualExecutionSchema } from './api/signals.js';
 import type { BacktestConfig } from './backtest.js';
 import type { FactorDependency, FactorInputSummary } from './factor-dependency.js';
 import type { Locale } from './i18n.js';
+import type { StrategyAccounts } from './sdk/strategy/contract.js';
 import type { TradeDate } from './types.js';
 
 export type SignalAssetType = 'stock' | 'etf';
@@ -148,6 +149,8 @@ export interface SignalTodayEntry {
 
 export interface StrategySignalMetadata {
   watch: string[];
+  /** @deprecated Retained for historical metadata; ignored. */
   futures: string[];
+  accounts?: StrategyAccounts;
   factors: string[];
 }
