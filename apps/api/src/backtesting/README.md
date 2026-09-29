@@ -76,3 +76,5 @@ OrderBook 分开持有当前 decision、待执行 PendingOrders 和持续 condit
 `snapshot()` 保持现金订单消费者契约并深拷贝 Map 和条件单对象，不暴露内部 PendingOrders。条件单先处理退出、再限价买入，最后更新保留移动止损的高水位。
 
 本轮重构范围、审查和验证状态见 [OrderBook 重构记录](../../../../docs/design/order-book-refactor-plan.md)。
+
+OrderBook 将行情、账户、成本、归因与通知保存为明确的私有只读依赖。涨跌停检查、滑点价格、可卖日期、期货名义金额换算和待执行股数／手数合并由私有方法读取依赖及 pending；执行日期和映射日期仍显式传入。无实例依赖的校验、状态工厂与条件候选计算保留为局部函数。滑点回归通过真实成交入口验证。

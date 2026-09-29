@@ -1,48 +1,74 @@
 import { describe, expect, it } from 'vitest';
-import type { EngineData } from './data/engine-data.js';
-import { executionPrice } from './order-book.js';
-import { DEFAULT_COST } from './cost.js';
+import { BacktestingEngine } from './engine.js';
+import { fixturePort } from './testing/fixture-port.js';
 
-// A stub EngineData that only answers turnoverOn (the sole method executionPrice touches). `amountThousand` is
-// the day's turnover in thousand yuan (as stored), or null for a no-turnover day.
-function stubData(amountThousand: number | null): EngineData {
-  return { turnoverOn: () => amountThousand } as unknown as EngineData;
+// Complete a buy and a T+1 sale with ample capital so affordability does not alter the requested size.
+async function roundTrip(amountThousand: number | undefined, shares: number) {
+  const dates = ['20200102', '20200103', '20200106'];
+  const { result } = await new BacktestingEngine({
+    start: dates[0],
+    end: dates.at(-1)!,
+    initialCash: 100_000_000,
+    dataPort: fixturePort({
+      dates,
+      stocks: [
+        {
+          code: 'A',
+          bars: dates.map((date) => ({ date, open: 100, close: 100, amount: amountThousand })),
+        },
+      ],
+    }),
+    strategy: {
+      name: 'slippage fixture',
+      onBar(context) {
+        if (context.date === dates[0]) {
+          context.order('A', shares);
+        } else if (context.date === dates[1]) {
+          context.exit('A');
+        }
+      },
+    },
+  }).run();
+
+  expect(result.tradeLog.map((trade) => [trade.side, trade.date, trade.realShares])).toEqual([
+    ['buy', dates[1], shares],
+    ['sell', dates[2], shares],
+  ]);
+
+  return { buy: result.tradeLog[0].price, sell: result.tradeLog[1].price };
 }
 
-const cost = DEFAULT_COST; // slippageBps 2 → base 0.0002; impactCoef 0.1
+describe('OrderBook fill slippage', () => {
+  it('fills buys above and sells below the open using the configured spread and impact', async () => {
+    const { buy, sell } = await roundTrip(1_000_000, 100);
 
-describe('executionPrice — slippage on the fill price', () => {
-  it('buys fill above the open, sells below (base half-spread, tiny order → impact ~0)', () => {
-    const data = stubData(1_000_000); // 1e6 thousand yuan = 1e9 yuan turnover — an order of ¥1000 barely dents it
-    const buy = executionPrice(data, '600519.SH', '20200102', 'buy', 100, 1000, cost);
-    const sell = executionPrice(data, '600519.SH', '20200102', 'sell', 100, 1000, cost);
     expect(buy).toBeGreaterThan(100);
     expect(sell).toBeLessThan(100);
-    // impact is negligible here → both ≈ base 0.0002 off the open
-    expect(buy).toBeCloseTo(100 * (1 + 0.0002 + 0.1 * (1000 / 1e9)), 6);
-    expect(sell).toBeCloseTo(100 * (1 - 0.0002 - 0.1 * (1000 / 1e9)), 6);
+    expect(buy).toBeCloseTo(100 * (1 + 0.0002 + 0.1 * (10_000 / 1e9)), 6);
+    expect(sell).toBeCloseTo(100 * (1 - 0.0002 - 0.1 * (10_000 / 1e9)), 6);
   });
 
-  it('a bigger order vs. the day turnover pays more slippage (the small/mid-cap penalty)', () => {
-    // Order notional = ¥100k. Thin name: day turnover ¥1e6 → notional/turnover = 0.1 → impact 0.01.
-    const thin = executionPrice(stubData(1000), 'X', '20200102', 'buy', 100, 100_000, cost); // 1000 thousand yuan = 1e6 yuan
-    // Liquid name: same order but ¥1e8 turnover → notional/turnover = 0.001 → impact 0.0001.
-    const liquid = executionPrice(stubData(100_000), 'X', '20200102', 'buy', 100, 100_000, cost);
-    expect(thin).toBeGreaterThan(liquid);
-    expect(thin).toBeCloseTo(100 * (1 + 0.0002 + 0.1 * (100_000 / 1e6)), 6); // base + 0.01
-    expect(liquid).toBeCloseTo(100 * (1 + 0.0002 + 0.1 * (100_000 / 1e8)), 6);
+  it('charges greater impact for the same order in a thinner market', async () => {
+    const thin = await roundTrip(1000, 1000);
+    const liquid = await roundTrip(100_000, 1000);
+
+    expect(thin.buy).toBeGreaterThan(liquid.buy);
+    expect(thin.sell).toBeLessThan(liquid.sell);
+    expect(thin.buy).toBeCloseTo(100 * (1 + 0.0002 + 0.1 * (100_000 / 1e6)), 6);
+    expect(liquid.buy).toBeCloseTo(100 * (1 + 0.0002 + 0.1 * (100_000 / 1e8)), 6);
   });
 
-  it('caps runaway impact at 10% (a giant order in a near-illiquid name)', () => {
-    // notional ¥10m vs ¥1e6 turnover → raw impact 1.0; capped to 0.1.
-    const buy = executionPrice(stubData(1000), 'X', '20200102', 'buy', 100, 10_000_000, cost);
-    const sell = executionPrice(stubData(1000), 'X', '20200102', 'sell', 100, 10_000_000, cost);
-    expect(buy).toBeCloseTo(110, 6); // 100 × 1.10
-    expect(sell).toBeCloseTo(90, 6); // 100 × 0.90
+  it('caps impact at 10% for a large order relative to daily turnover', async () => {
+    const { buy, sell } = await roundTrip(1000, 100_000);
+
+    expect(buy).toBeCloseTo(110, 6);
+    expect(sell).toBeCloseTo(90, 6);
   });
 
-  it('no turnover data for the day → base slippage only (impact drops)', () => {
-    const buy = executionPrice(stubData(null), 'X', '20200102', 'buy', 100, 100_000, cost);
+  it('applies only the base spread when daily turnover is unavailable', async () => {
+    const { buy, sell } = await roundTrip(undefined, 1000);
+
     expect(buy).toBeCloseTo(100 * (1 + 0.0002), 6);
+    expect(sell).toBeCloseTo(100 * (1 - 0.0002), 6);
   });
 });

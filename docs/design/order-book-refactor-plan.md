@@ -239,3 +239,28 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" JIXIE_JOB_E2E_ON
 - 截图已人工式视觉检查：`apps/web/acceptance/job-system-backtest.png`、`apps/web/acceptance/mixed-futures-result.png`；同轮另生成现金归因中英文及混合账户英文截图。
 - E2E fixture 正常退出；脚本完成浏览器／子进程回收、Prisma disconnect、临时数据库删除，并断言 API 与模型服务端口均为 ECONNREFUSED。
 - 按已确认消息直接提交，不推送。后续重构另行讨论，不纳入本次提交。
+
+## 后续封装重构（2026-09-29，独立提交）
+
+前一轮已提交为 `d268ce8e`。本轮 Gate 1 已确认，提交消息为
+`refactor(engine): encapsulate order book execution helpers`。
+
+- 用六个明确的 private readonly 字段持有稳定依赖，替代 input 参数包。
+- 将 conditionalLimitBlocked、futureContractsForNotional、mergeShareAndLotOrders、sellableFromFor、executionPrice、limitBlocked 融入 OrderBook 私有方法。
+- 行情与成本直接读取实例；股数／手数合并直接读取 pending。证券、方向、执行日期、映射日期、价格和数量继续显式传参，不新增临时执行状态。
+- 纯校验、空状态工厂、条件候选及基准价计算保留文件内函数。保持原计算、加载和消费顺序。
+- 本轮按新批准范围取消 executionPrice 独立导出；原先“默认保留导出”的要求属于前轮范围。slippage.test.ts 改为通过 Engine / OrderBook 的实际买卖成交验证原有四类滑点场景，不绕过 private。
+- 不改公共 SDK、数据库、账户交易规则或快照契约。Gate 2 尚未批准，本轮未运行测试、构建或 E2E。
+- 审查前静态检查通过：全仓 `pnpm typecheck`（含边界扫描 0 violations 与生成物一致性）、两个受影响 TS 文件 ESLint / Prettier、`git diff --check`、28 个文档本地链接。当前变更未提交，等待本轮人工代码审查。
+- 审查批准后运行与前轮相同的 Backtesting、Strategy runtime/SDK/execution、Signals、Worker 协议测试、全仓构建及股票／混合账户隔离 E2E；验证成功后更新本节并直接提交，不推送。
+- 审查修订：将唯一调用的 assertFraction 内联到 trailingStop，保持有限值检查、开区间边界、同步抛错及原错误文案；其他多处复用且无实例依赖的校验与键生成函数继续保留为未导出的文件内函数。
+- 本次审查修订后重新完成全仓 typecheck、受影响 TS 文件 ESLint / Prettier、diff 与 28 个本地文档链接检查，全部通过；行为验证仍未运行，等待修订版 Gate 2 审查。
+
+### 封装重构最终验证
+
+- 用户批准包含 assertFraction 内联的修订版 Gate 2，随后执行本轮行为验证。
+- 约定测试：46 个文件、308 项测试通过；3 项默认关闭的历史性能／会计集成测试跳过，未计为通过。4 项实际成交滑点测试全部通过。
+- `pnpm build` 成功；仅有前端 chunk 体积及混合导入提示。
+- 使用项目 Python 环境运行 `JIXIE_JOB_E2E_ONLY=strategy-orchestration,mixed-futures pnpm e2e job-system`，两条隔离 E2E 均通过，无需修正产品或测试代码。
+- 本轮 `job-system-backtest.png` 与 `mixed-futures-result.png` 已检查；fixture 正常退出并完成数据库 disconnect／临时库清理，两个服务端口拒绝连接，额外进程检查无遗留 E2E 服务。
+- 全部约定验证通过，以已确认消息提交，不推送。本节取代上述审查中“等待批准／未运行”的阶段状态。
