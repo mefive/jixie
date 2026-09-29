@@ -33,7 +33,7 @@ it('upgrades legacy deployment snapshots without losing signal/account children 
     await cp(resolve('prisma/schema.prisma'), schemaPath);
     await mkdir(join(directory, 'migrations'));
     for (const name of await readdir(migrations)) {
-      if (name !== migrationName) {
+      if (name < migrationName || name === 'migration_lock.toml') {
         await cp(join(migrations, name), join(directory, 'migrations', name), { recursive: true });
       }
     }
@@ -52,18 +52,7 @@ it('upgrades legacy deployment snapshots without losing signal/account children 
     for (const status of ['active', 'paused']) {
       await prisma.$executeRaw`INSERT INTO "StrategyDeployment" ("id", "userId", "strategyId", "strategyName", "status", "config", "factorDependencies", "codeHash", "locale", "deployedAt", "stoppedAt", "createdAt", "updatedAt") VALUES (${status}, 'owner', 'strategy', 'Legacy', ${status}, ${JSON.stringify(config)}, '[]', 'old-hash', 'en', ${new Date('2026-01-01')}, ${status === 'paused' ? new Date('2026-01-02') : null}, ${new Date('2026-01-01')}, ${new Date('2026-01-02')})`;
     }
-    await prisma.signalRun.create({
-      data: {
-        id: 'run',
-        userId: 'owner',
-        deploymentId: 'active',
-        strategyId: 'strategy',
-        tradeDate: '20260105',
-        execDate: '20260106',
-        legacyStatus: 'done',
-        signals: [],
-      },
-    });
+    await prisma.$executeRaw`INSERT INTO "SignalRun" ("id", "userId", "deploymentId", "strategyId", "tradeDate", "execDate", "status", "signals", "createdAt", "updatedAt") VALUES ('run', 'owner', 'active', 'strategy', '20260105', '20260106', 'done', '[]', ${new Date('2026-01-05')}, ${new Date('2026-01-05')})`;
     await prisma.strategyAccountSnapshot.create({
       data: {
         id: 'account',
@@ -79,13 +68,19 @@ it('upgrades legacy deployment snapshots without losing signal/account children 
         sourceRunId: 'run',
       },
     });
+    await prisma.$executeRaw`INSERT INTO "SignalExecution" ("id", "userId", "signalRunId", "signalIndex", "code", "name", "assetType", "action", "requestedShares", "refPrice", "refAmount", "source", "actualStatus", "actualShares", "actualPrice", "actualFee", "updatedAt") VALUES ('execution', 'owner', 'run', 0, '000001.SZ', 'Fixture', 'stock', 'buy', 100, 10, 1000, 'order', 'filled', 100, 10.1, 5, ${new Date('2026-01-06')})`;
+    const beforeExecutions = await prisma.$queryRaw<
+      Record<string, unknown>[]
+    >`SELECT * FROM "SignalExecution"`;
     const beforeAccounts = await prisma.strategyAccountSnapshot.findMany();
-    const beforeRuns = await prisma.signalRun.findMany();
+    const beforeRuns = await prisma.$queryRaw<Record<string, unknown>[]>`SELECT * FROM "SignalRun"`;
     await prisma.$disconnect();
 
-    await cp(join(migrations, migrationName), join(directory, 'migrations', migrationName), {
-      recursive: true,
-    });
+    for (const name of await readdir(migrations)) {
+      if (name >= migrationName && name !== 'migration_lock.toml') {
+        await cp(join(migrations, name), join(directory, 'migrations', name), { recursive: true });
+      }
+    }
     migrate();
     expect(await prisma.strategyDeployment.findMany({ orderBy: { id: 'asc' } })).toEqual([
       expect.objectContaining({
@@ -107,7 +102,17 @@ it('upgrades legacy deployment snapshots without losing signal/account children 
         codeHash: 'old-hash',
       }),
     ]);
-    expect(await prisma.signalRun.findMany()).toEqual(beforeRuns);
+    expect(await prisma.$queryRaw`SELECT * FROM "SignalRun"`).toEqual(
+      beforeRuns.map((run) =>
+        expect.objectContaining({ ...run, resultVersion: 1, accountingInitialized: false }),
+      ),
+    );
+    expect(
+      (await prisma.strategyDeployment.findMany()).every((row) => row.accountingVersion === 1),
+    ).toBe(true);
+    expect(await prisma.$queryRaw`SELECT * FROM "SignalExecution"`).toEqual(
+      beforeExecutions.map((execution) => expect.objectContaining({ ...execution, version: 1 })),
+    );
     expect(await prisma.strategyAccountSnapshot.findMany()).toEqual(beforeAccounts);
     expect(await prisma.$queryRaw`PRAGMA foreign_key_check`).toEqual([]);
     // A schema-only diff after applying the full history must be empty.

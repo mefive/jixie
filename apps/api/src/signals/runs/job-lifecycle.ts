@@ -46,6 +46,9 @@ export const signalsRunLifecycle = {
     await transaction.signalRun.update({
       where: { id: runId, userId: job.userId },
       data: {
+        resultVersion: output.resultVersion,
+        modelAccounts: output.modelAccounts ?? undefined,
+        intentSnapshot: output.futureSignals,
         dataCutoff: output.dataCutoff,
         modelEquity: output.modelEquity,
         modelCash: output.modelCash,

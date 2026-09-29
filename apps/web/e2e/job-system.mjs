@@ -16,9 +16,13 @@ const require = createRequire(new URL('../../api/package.json', import.meta.url)
 const screenshots = fileURLToPath(new URL('../acceptance/', import.meta.url));
 await mkdir(screenshots, { recursive: true });
 const log = createWriteStream(`${screenshots}/job-system-server.log`);
-const server = fork(`${apiDirectory}/tests/job-system-e2e-server.ts`, [], {
+const compiled = process.env.JIXIE_TEST_COMPILED === '1';
+const fixtureEntry = compiled
+  ? 'dist/tests/job-system-e2e-server.js'
+  : 'tests/job-system-e2e-server.ts';
+const server = fork(`${apiDirectory}/${fixtureEntry}`, [], {
   cwd: apiDirectory,
-  execArgv: ['--conditions=development', '--import', require.resolve('tsx')],
+  execArgv: compiled ? [] : ['--conditions=development', '--import', require.resolve('tsx')],
   stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
 });
 server.stdout.pipe(log, { end: false });
@@ -56,6 +60,7 @@ try {
     'factor-report-history',
     'factor-correlation',
     'daily-signals',
+    'futures-signals',
     'backtest-report-history',
   ]) {
     if (selected && !selected.includes(name)) {

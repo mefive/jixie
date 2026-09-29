@@ -23,3 +23,5 @@
 输入契约位于 [job-payload.ts](job-payload.ts)：signalsRunJobPayloadSchema / SignalsRunJobPayload；入队与读取共用，IPC 子进程仍只接收 runId。
 
 [projection.test.ts](projection.test.ts) 验证目标清仓、复权与整手换算、卖出数量限制、待执行买入与条件单组合、移动止损、缺失行情及快照隔离。投影不访问数据库，不运行策略，也不改变 Engine 快照。
+
+新版结果同时由 `futures-projection.ts` 生成原始期货意图、D 日参考数量/名义额/保证金、参考腿和模型双账户。`worker-protocol.ts` 校验 resultVersion=2 与完整账户载荷匹配。未来执行数量由各账户自己的状态解析，不能把参考手数作为人工录入上限；空参考 hedge 仍发送期货意图通知。

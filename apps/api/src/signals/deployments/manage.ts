@@ -43,30 +43,7 @@ export async function deployBacktestReport(
   if ((config.language ?? 'typescript') === 'python') {
     throw new SignalsError('language_unsupported');
   }
-  const metadata = await inspectStrategyMetadata(config.code);
-  const historicalFutureTrades =
-    Array.isArray(report.payload.tradeLog) &&
-    report.payload.tradeLog.some(
-      (trade) =>
-        trade && typeof trade === 'object' && !Array.isArray(trade) && trade.assetType === 'future',
-    );
-  const historicalFutureCapital =
-    Array.isArray(report.payload.sleeveNav) &&
-    report.payload.sleeveNav.some(
-      (point) =>
-        point &&
-        typeof point === 'object' &&
-        !Array.isArray(point) &&
-        typeof point.futureValue === 'number' &&
-        point.futureValue !== 0,
-    );
-  if (
-    (metadata.accounts?.futures.cashWeight ?? 0) > 0 ||
-    historicalFutureTrades ||
-    historicalFutureCapital
-  ) {
-    throw new SignalsError('futures_unsupported');
-  }
+  await inspectStrategyMetadata(config.code);
   // Research-only or archived factors cannot become a new daily-signal dependency.
   const prepared = await StrategyFactor.fromStrategySource(config.code, userId, 'deployment');
 
@@ -104,6 +81,7 @@ export async function deployBacktestReport(
     activeReportId: report.id,
     strategyName: report.strategyName,
     status: 'active',
+    accountingVersion: 2,
     config: frozenConfig as unknown as Prisma.InputJsonValue,
     factorDependencies: (dependencies ?? []) as unknown as Prisma.InputJsonValue,
     codeHash,

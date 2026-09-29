@@ -5,6 +5,19 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  signalEmailIntentSubject: {
+    zh: '{execDate}：{count} 项期货交易意图待解析',
+    en: '{execDate}: {count} futures intents to resolve',
+  },
+  signalFutureReferenceNote: {
+    zh: '期货手数为收盘参考，动态对冲需确认现金与条件单实际执行后按当时敞口和报价解析。换月两腿独立记录，模拟时序不代表实时成交。',
+    en: 'Futures quantities are close estimates. Resolve hedges using confirmed cash/conditional executions and timestamped quotes. Record roll legs separately; simulation timing is not live execution.',
+  },
+  signalFutureReference: {
+    zh: '参考目标 {contracts} 手；名义敞口 ¥{notional}；模型保证金 ¥{margin}',
+    en: 'Reference target {contracts} contracts; notional CNY {notional}; model margin CNY {margin}',
+  },
+  signalFutureIntent: { zh: '原始意图：{kind} / {value}', en: 'Original intent: {kind} / {value}' },
   correlationKeyCount: {
     zh: '相关性分析需要 2 到 8 个不同因子',
     en: 'Correlation analysis requires 2 to 8 distinct factors.',
@@ -609,6 +622,14 @@ const MESSAGES = {
   signalNextTradeDateMissing: {
     zh: '交易日历中缺少下一交易日，请先同步交易日历',
     en: 'The next trading day is missing; sync the trading calendar first',
+  },
+  signalMaintenanceConflict: {
+    zh: '补入的模型意图与已有维护任务成交冲突；请核对原任务，并记录跳过原因以确认替代，原成交事实会保留',
+    en: 'A backfilled model intent conflicts with recorded maintenance fills. Review the original task and record a skip reason to acknowledge its replacement; observed fills remain retained.',
+  },
+  signalUnresolvedExpiry: {
+    zh: '{code} 在 {date} 已到期且尚未完成平仓或交割记录，无法继续结算',
+    en: '{code} has expired on {date} without a recorded close or settlement; accounting cannot continue',
   },
   signalDataNotReady: {
     zh: '{date} 的市场数据尚未准备完成',

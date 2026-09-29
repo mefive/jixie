@@ -1,3 +1,8 @@
+import {
+  applyFutureFill,
+  settleFuturePosition,
+  normalizeFutureMargin,
+} from './futures-accounting.js';
 import { EngineData } from './data/engine-data.js';
 import type { CostModel } from './cost.js';
 import type { FuturesTrade } from './trade.js';
@@ -182,43 +187,28 @@ export class FuturesPortfolio {
     }
     const side = delta > 0 ? 'buy' : 'sell';
     const fillPrice = slippedPrice(bar.open, side, this.cost);
-    const oldContracts = current?.contracts ?? 0;
-    const newContracts = oldContracts + delta;
     const multiplier = current?.multiplier ?? bar.multiplier;
-    const closedContracts =
-      oldContracts === 0 || Math.sign(oldContracts) === Math.sign(delta)
-        ? 0
-        : Math.min(Math.abs(oldContracts), Math.abs(delta));
-    const realized =
-      closedContracts *
-      Math.sign(oldContracts) *
-      (fillPrice - (current?.referencePrice ?? fillPrice)) *
-      multiplier;
-    const notional = Math.abs(delta) * fillPrice * multiplier;
-    const fee = futuresFee(notional, this.cost);
-    const nextCash = this.cash + realized - fee;
-    const nextMargin =
-      Math.abs(newContracts) *
-      fillPrice *
-      multiplier *
-      marginRate(engineData, actualCode, date, newContracts, this.cost);
+    const fee = futuresFee(Math.abs(delta) * fillPrice * multiplier, this.cost);
+    const applied = applyFutureFill({
+      position: current ?? null,
+      code,
+      actualCode,
+      delta,
+      price: fillPrice,
+      multiplier,
+      fee,
+      marginRate: marginRate(
+        engineData,
+        actualCode,
+        date,
+        (current?.contracts ?? 0) + delta,
+        this.cost,
+      ),
+    });
+    const nextCash = this.cash + applied.equityChange;
     const otherMargin = this.margin - (current?.margin ?? 0);
-    if (nextCash < otherMargin + nextMargin) {
+    if (nextCash < otherMargin + (applied.position?.margin ?? 0)) {
       return false;
-    }
-
-    let nextReference = current?.referencePrice ?? fillPrice;
-    if (
-      oldContracts === 0 ||
-      newContracts === 0 ||
-      Math.sign(oldContracts) !== Math.sign(newContracts)
-    ) {
-      nextReference = fillPrice;
-    } else if (Math.abs(newContracts) > Math.abs(oldContracts)) {
-      const addedContracts = Math.abs(newContracts) - Math.abs(oldContracts);
-      nextReference =
-        (Math.abs(oldContracts) * nextReference + addedContracts * fillPrice) /
-        Math.abs(newContracts);
     }
 
     this.cash = nextCash;
@@ -233,17 +223,10 @@ export class FuturesPortfolio {
       fee,
       bar.open,
     );
-    if (newContracts === 0) {
-      this.positions.delete(code);
+    if (applied.position) {
+      this.positions.set(code, applied.position);
     } else {
-      this.positions.set(code, {
-        code,
-        actualCode,
-        contracts: newContracts,
-        referencePrice: nextReference,
-        multiplier,
-        margin: nextMargin,
-      });
+      this.positions.delete(code);
     }
     return true;
   }
@@ -255,14 +238,13 @@ export class FuturesPortfolio {
       if (bar?.settle == null) {
         throw new Error(`Missing settlement price for ${position.actualCode} on ${date}`);
       }
-      this.cash +=
-        position.contracts * (bar.settle - position.referencePrice) * position.multiplier;
-      position.referencePrice = bar.settle;
-      position.margin =
-        Math.abs(position.contracts) *
-        bar.settle *
-        position.multiplier *
-        marginRate(engineData, position.actualCode, date, position.contracts, this.cost);
+      const settled = settleFuturePosition(
+        position,
+        bar.settle,
+        marginRate(engineData, position.actualCode, date, position.contracts, this.cost),
+      );
+      this.cash += settled.equityChange;
+      Object.assign(position, settled.position);
     }
     if (this.availableCash < -1e-6) {
       throw new Error(
@@ -323,11 +305,5 @@ function marginRate(
     date,
     contracts >= 0 ? 'long' : 'short',
   );
-  if (sourceRate != null && sourceRate > 0 && sourceRate <= 1) {
-    return sourceRate;
-  }
-  if (sourceRate != null && sourceRate > 1 && sourceRate <= 100) {
-    return sourceRate / 100;
-  }
-  return cost.futureMarginRate;
+  return normalizeFutureMargin(sourceRate, cost.futureMarginRate);
 }

@@ -125,8 +125,9 @@ export interface EngineStrategy {
 }
 
 export interface BacktestingConfig {
-  /** Retain final stock/ETF state for downstream consumers; unsupported for futures. */
+  /** Retain a detached, serializable dual-account close state for downstream consumers. */
   retainFinalState?: boolean;
+  strictFutures?: boolean;
   start: string; // YYYYMMDD
   end: string;
   initialCash: number;

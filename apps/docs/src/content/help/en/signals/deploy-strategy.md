@@ -9,7 +9,7 @@ Deployment turns a successful backtest report into an independent operating inst
 3. Select **Deploy**. After success, the action becomes **Pause**.
 4. Open **Daily signals** and check the source report, deployment ID, date, and status. Follow the report link to return to that report.
 
-Deployment supports successful TypeScript stock/ETF reports with results. Python and futures are not supported. Referenced Factors must meet publication requirements and match the report’s lineage. Missing or changed evidence requires a new backtest report.
+Deployment supports successful TypeScript stock, ETF, IF/IH/IC/IM index-futures and mixed reports. Python, commodity futures and broker execution remain unsupported. New deployments use dual-account accounting; existing deployments retain legacy cash accounting. Referenced Factors must meet publication requirements and match the report’s lineage. Missing or changed evidence requires a new backtest report.
 
 **1** distinguishes instances by source report and deployment ID; **2** generates or pauses only the selected deployment.
 

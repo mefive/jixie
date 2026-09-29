@@ -31,6 +31,40 @@ describe('daily signal email', () => {
     expect(email.html).toContain('https://jixie.example.com/signals');
   });
 
+  it('keeps a zero-reference futures intent out of the no-operation message', () => {
+    const email = buildSignalEmail({
+      locale: 'en',
+      strategyName: 'Hedge',
+      tradeDate: '20260618',
+      execDate: '20260619',
+      status: 'done',
+      error: null,
+      signals: [],
+      futureSignals: [
+        {
+          assetType: 'future',
+          code: 'IF.CFX',
+          name: 'IF',
+          intent: { kind: 'hedge', value: 1 },
+          decisionDate: '20260618',
+          execDate: '20260619',
+          actualCode: 'IF2607.CFX',
+          mappingDate: '20260618',
+          referencePrice: 4000,
+          multiplier: 300,
+          referenceTargetContracts: 0,
+          referenceNotional: 0,
+          referenceMargin: 0,
+          marginSource: 'config',
+          referenceLegs: [],
+        },
+      ],
+    });
+    expect(email.html).toContain('IF2607.CFX');
+    expect(email.subject).not.toContain('no action');
+    expect(email.html).toContain('hedge');
+  });
+
   it('renders empty and error subjects distinctly', () => {
     const empty = buildSignalEmail({
       locale: 'en',

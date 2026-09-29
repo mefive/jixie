@@ -1,6 +1,7 @@
+import { futureSignalSchema } from '@jixie/shared/api/signals';
 import { signalRunState, currentSignalJob, signalAttemptWhere } from '#signals/runs/state.js';
 import type { Prisma } from '@prisma/client';
-import type { Locale, SignalItem } from '@jixie/shared';
+import type { Locale, SignalItem, FutureSignalItem } from '@jixie/shared';
 import { isEmailConfigured, sendEmail } from '#infra/email/email.js';
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/messages.js';
@@ -51,6 +52,8 @@ export async function notifySignalRun(
     execDate: run.execDate,
     status: run.status,
     signals: parseSignals(run.signals),
+    futureSignals:
+      run.resultVersion === 2 ? futureSignalSchema.array().parse(run.intentSnapshot) : [],
     error: run.error,
     appUrl: process.env.JIXIE_PUBLIC_URL,
   });
@@ -76,30 +79,37 @@ export function buildSignalEmail(input: {
   execDate: string;
   status: 'done' | 'error';
   signals: SignalItem[];
+  futureSignals?: FutureSignalItem[];
   error: string | null;
   appUrl?: string;
 }): { subject: string; html: string } {
+  const futures = input.futureSignals ?? [];
   const buys = input.signals.filter((signal) => signal.action === 'buy').length;
   const sells = input.signals.filter((signal) => signal.action === 'sell').length;
   const subject =
     input.status === 'error'
       ? t(input.locale, 'signalEmailErrorSubject', { tradeDate: formatDate(input.tradeDate) })
-      : input.signals.length === 0
-        ? t(input.locale, 'signalEmailEmptySubject', { execDate: formatDate(input.execDate) })
-        : t(input.locale, 'signalEmailSubject', {
+      : futures.length > 0
+        ? t(input.locale, 'signalEmailIntentSubject', {
             execDate: formatDate(input.execDate),
-            buys,
-            sells,
-          });
+            count: futures.length,
+          })
+        : input.signals.length === 0
+          ? t(input.locale, 'signalEmailEmptySubject', { execDate: formatDate(input.execDate) })
+          : t(input.locale, 'signalEmailSubject', {
+              execDate: formatDate(input.execDate),
+              buys,
+              sells,
+            });
 
   const content =
     input.status === 'error'
       ? `<p style="color:#b42318;">${escapeHtml(
           t(input.locale, 'signalEmailError', { error: input.error ?? 'unknown error' }),
         )}</p>`
-      : input.signals.length === 0
+      : input.signals.length === 0 && futures.length === 0
         ? `<p>${escapeHtml(t(input.locale, 'signalEmailEmpty'))}</p>`
-        : signalTable(input.signals, input.locale);
+        : signalTable(input.signals, input.locale) + futureSignalTable(futures, input.locale);
   const link = input.appUrl
     ? `<p style="margin-top:24px;"><a href="${escapeHtml(input.appUrl.replace(/\/$/, ''))}/signals" style="color:#111827;font-weight:600;">${escapeHtml(t(input.locale, 'signalEmailOpenPage'))}</a></p>`
     : '';
@@ -185,4 +195,27 @@ function escapeHtml(value: string): string {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
+}
+
+function futureSignalTable(signals: FutureSignalItem[], locale: Locale): string {
+  if (!signals.length) {
+    return '';
+  }
+  return (
+    `<p>${escapeHtml(t(locale, 'signalFutureReferenceNote'))}</p>` +
+    signals
+      .map(
+        (signal) =>
+          `<p><strong>${escapeHtml(signal.code)} / ${escapeHtml(signal.actualCode)}</strong><br>` +
+          `${escapeHtml(
+            t(locale, 'signalFutureReference', {
+              contracts: signal.referenceTargetContracts,
+              notional: signal.referenceNotional.toFixed(2),
+              margin: signal.referenceMargin.toFixed(2),
+            }),
+          )}<br>` +
+          `${escapeHtml(t(locale, 'signalFutureIntent', { kind: signal.intent.kind, value: signal.intent.value }))}</p>`,
+      )
+      .join('')
+  );
 }

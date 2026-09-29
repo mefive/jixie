@@ -1,3 +1,4 @@
+import { serializeFinalState } from './result.js';
 import { DEFAULT_LOCALE, isComputedFactorKey } from '@jixie/shared';
 import { t } from '#i18n/messages.js';
 import { day } from '#date';
@@ -117,10 +118,6 @@ export class BacktestingEngine {
     if (cost.futureMarginRate <= 0 || cost.futureMarginRate > 1) {
       throw new Error('Cost setting futureMarginRate must be between 0 and 1');
     }
-
-    if (config.retainFinalState && (config.strategy.accounts?.futures.cashWeight ?? 0) > 0) {
-      throw new Error('Final state retention currently supports stock and ETF strategies only');
-    }
   }
 
   private async initialize(): Promise<void> {
@@ -143,6 +140,7 @@ export class BacktestingEngine {
       onLog: log,
       locale,
       dataPort: config.dataPort,
+      strictFutures: config.strictFutures,
       requirements: {
         ...dataRequirements,
         governmentYieldCurve:
@@ -335,10 +333,6 @@ export class BacktestingEngine {
 
     await this.config.strategy.onBar(context);
 
-    if (this.config.retainFinalState && this.orderBook.hasCollectedFuturesOrders) {
-      throw new Error('Final state retention currently supports stock and ETF strategies only');
-    }
-
     this.orderBook.commitCollectedOrders();
   }
 
@@ -388,8 +382,16 @@ export class BacktestingEngine {
 
     await engineData.loadBars([...codes]);
 
-    return {
+    return serializeFinalState({
       ...snapshot,
+      futureAccount: {
+        equity: this.futuresPortfolio.cash,
+        margin: this.futuresPortfolio.margin,
+        availableCash: this.futuresPortfolio.availableCash,
+        positions: structuredClone([...this.futuresPortfolio.positions.values()]),
+      },
+      futureOrders: this.orderBook.snapshotFuturesOrders(),
+      futureMarket: this.engineData.snapshotFutures(tradeDate),
       tradeDate,
       equity: cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, tradeDate)),
       cash: cashPortfolio.cash,
@@ -408,7 +410,7 @@ export class BacktestingEngine {
       factorObservations: [...this.factorObservations].flatMap(([key, byCode]) =>
         [...byCode].map(([code, value]) => ({ key, code, value })),
       ),
-    };
+    });
   }
 
   private logStart(): void {

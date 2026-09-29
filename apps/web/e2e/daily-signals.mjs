@@ -1,6 +1,17 @@
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
+assert.equal(
+  process.env.E2E_ISOLATED_DB,
+  '1',
+  'Run this legacy journey through the isolated job-system harness',
+);
+const { PrismaClient } = createRequire(new URL('../../api/package.json', import.meta.url))(
+  '@prisma/client',
+);
+const fixtureDatabase = new PrismaClient();
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
 mkdirSync(SHOTS, { recursive: true });
@@ -119,6 +130,11 @@ try {
   if ((await deployResponse).status() !== 200) {
     fail('deployment request failed');
   }
+  const legacyDeployment = await (await deployResponse).json();
+  await fixtureDatabase.strategyDeployment.update({
+    where: { id: legacyDeployment.id },
+    data: { accountingVersion: 1 },
+  });
   await page.getByRole('button', { name: '暂停上线' }).waitFor({ timeout: 15_000 });
 
   await page.getByRole('link', { name: '今日信号' }).click();
@@ -309,5 +325,6 @@ try {
       }, strategyId)
       .catch(() => {});
   }
+  await fixtureDatabase.$disconnect();
   await browser.close();
 }

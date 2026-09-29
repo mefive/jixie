@@ -23,7 +23,13 @@ export async function updateActualExecution(
       },
     },
   });
-  if (!execution) {
+  if (
+    !execution ||
+    !execution.signalRun ||
+    !execution.signalRunId ||
+    execution.version !== 1 ||
+    execution.requestedShares == null
+  ) {
     throw new SignalsError('execution_not_found');
   }
   if (signalRunState(execution.signalRun).status !== 'done') {

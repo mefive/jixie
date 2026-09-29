@@ -79,4 +79,6 @@ OrderBook 分开持有当前 decision、待执行 PendingOrders 和持续 condit
 
 OrderBook 将行情、账户、成本、归因与通知保存为明确的私有只读依赖。涨跌停检查、滑点价格、可卖日期、期货名义金额换算和待执行股数／手数合并由私有方法读取依赖及 pending；执行日期和映射日期仍显式传入。无实例依赖的校验、状态工厂与条件候选计算保留为局部函数。滑点回归通过真实成交入口验证。
 
-Engine 使用 `beginOrderCollection(date)` 开始收集，通过 Context 接收策略指令，检查 `hasCollectedFuturesOrders` 后调用 `commitCollectedOrders()`。该查询只反映本轮收集的期货指令，不代表持仓或此前待执行指令；当前现金快照限制保持不变。
+Engine 使用 `beginOrderCollection(date)` 收集，通过 Context 接收策略指令，再调用 `commitCollectedOrders()`。`snapshotFuturesOrders()` 返回已提交的期货原始意图。`retainFinalState` 返回可 JSON 往返的 schemaVersion=2 快照：现金持仓、条件单、期货账户、意图及末日市场证据均为纯对象/数组，不含 Map。Signals 通过 `strictFutures` 对实际读取的期货数据执行严格检查，普通回测保留原缺数据规则。
+
+期货持仓计算由 `futures-accounting.ts` 的纯成交/结算函数共享；自动换月仍由 FuturesPortfolio 保留原子预检语义。实际录入可表达部分平旧/开新和负可用资金，不能把模拟保证金拒单当作撤销真实成交。

@@ -32,7 +32,7 @@ export type ConditionalOrder =
       placedDate: string;
     };
 
-type FutureIntent =
+export type FutureIntent =
   | { kind: 'delta'; value: number }
   | { kind: 'contracts'; value: number }
   | { kind: 'notional'; value: number }
@@ -123,10 +123,6 @@ export class OrderBook {
     this.onRebalance = input.onRebalance;
   }
 
-  get hasCollectedFuturesOrders(): boolean {
-    return Boolean(this.decision.futureIntents?.size);
-  }
-
   beginOrderCollection(date: string): void {
     this.decisionDate = date;
     this.decision = emptyDecision();
@@ -153,12 +149,39 @@ export class OrderBook {
     });
   }
 
+  snapshotFuturesOrders(): Array<{ code: string; intent: FutureIntent }> {
+    return structuredClone(
+      [...(this.pending.futureIntents ?? [])].map(([code, intent]) => ({ code, intent })),
+    );
+  }
+
+  /** Load detached orders for forward account simulation, without restoring a strategy runtime. */
+  restoreCashOrders(snapshot: CashOrderSnapshot): void {
+    this.pending.targets = snapshot.pendingTargets ? new Map(snapshot.pendingTargets) : null;
+    this.pending.shareOrders = snapshot.pendingOrders ? new Map(snapshot.pendingOrders) : null;
+    this.pending.lotOrders = snapshot.pendingLotOrders ? new Map(snapshot.pendingLotOrders) : null;
+    this.conditionalOrders.clear();
+    for (const [key, order] of snapshot.conditionalOrders) {
+      this.conditionalOrders.set(key, structuredClone(order));
+    }
+  }
+
   /** Executes pending orders and intraday conditional simulations before daily settlement. */
   async executeOrders(date: string, previousDate: string | undefined): Promise<void> {
     const { engineData, cashPortfolio, futuresPortfolio } = this;
     const heldBeforeExecution = new Set(cashPortfolio.positions.keys());
 
     if (previousDate) {
+      for (const code of new Set([
+        ...futuresPortfolio.positions.keys(),
+        ...(this.pending.futureIntents?.keys() ?? []),
+      ])) {
+        const intent = this.pending.futureIntents?.get(code);
+        const held = futuresPortfolio.positions.get(code);
+        const closingActualCode =
+          intent?.kind === 'contracts' && intent.value === 0 ? held?.actualCode : undefined;
+        engineData.assertFutureExecution(code, previousDate, date, closingActualCode);
+      }
       futuresPortfolio.roll(
         engineData,
         date,
@@ -552,6 +575,7 @@ export class OrderBook {
           ? Math.max(exitCandidate.triggerPrice, slippedPrice)
           : slippedPrice;
         cashPortfolio.fill({
+          source: exitCandidate.order.kind,
           code,
           adjustedShareDelta: -sellableShares,
           adjustedPrice: fillPrice,
@@ -595,6 +619,7 @@ export class OrderBook {
           continue;
         }
         cashPortfolio.fill({
+          source: 'limit_buy',
           code,
           adjustedShareDelta: buy,
           adjustedPrice: fillPrice,

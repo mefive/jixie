@@ -247,3 +247,7 @@ isolated-vm 双车道一致。真库 E2E 在次日模型持仓上生成贵州茅
 所有测试使用隔离数据库，开发数据库未改动；临时服务、监听端口和数据库句柄已清理。验证日志保留于 `/tmp/jixie-report-deployment-verification`。
 
 HTTP 契约同步变化：旧的 `{ strategyId }` 部署请求改为 `{ reportId }`，`GET /deployments/current` 改为部署列表。API、Web 与 Shared 应一并发布并应用迁移，旧页面需要刷新。
+
+## 双账户实现关联（2026-09-29）
+
+新部署的期货/混合账户设计及本轮审查状态见 [期货 Signals 详细设计](futures-signals-design.md)。本文原现金记账流程保留为 version=1 的历史说明；新实例使用原始意图、参考估算、分账户解析及不可变成交修订，不能沿用旧数量上限或等待模拟后才录入的限制。本轮产品变更尚未经过 Gate 2 行为验证。

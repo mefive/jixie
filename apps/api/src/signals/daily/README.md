@@ -8,6 +8,7 @@
 - 核心未发布时依次调用 `syncDaily`、`syncDailyBasic`、`syncStkLimit`。这里当前不调用四表原子发布的 `syncStockDailyData`，不能混写它们的事务保证。
 - 有冻结国债曲线依赖时同步最近 21 个日历日；资金流和龙虎榜按策略声明／源码使用决定，已发布扩展数据可跳过。
 - 合并研究 registry ETF 与部署关注 ETF，再调用 `syncEtfMarketDate`。
+- 对新版本部署及暂停但有账户历史的实例补齐四类股指期货历史 daily、mapping、settlement，并经 Market 的 `publishFutureMarketDate` 校验后不可变发布。期货数据失败记录诊断，不阻断纯现金运行；真正读取期货的 Worker 仍严格拒绝不完整输入。
 
 `coreAlreadyPublished`、`extensionsAlreadyPublished` 是上游已完成同步时的跳过标记，`refresh` 传给扩展数据同步。日期、PIT 可得性和各数据集事务仍按 [Market](../../market/README.md) 的契约；调度不把整个同步串联变成原子发布。
 

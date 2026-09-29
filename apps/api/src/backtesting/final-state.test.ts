@@ -41,7 +41,7 @@ describe('optional final execution state', () => {
     input.strategy.futures = ['UNKNOWN'];
 
     const result = await new BacktestingEngine({ ...input, retainFinalState: true }).run();
-    expect(result.finalState?.positions.size).toBe(1);
+    expect(result.finalState?.positions.length).toBe(1);
   });
 
   it.each([
@@ -50,13 +50,13 @@ describe('optional final execution state', () => {
     (context: EngineContext) => context.setFutureTargetNotional('IF.CFX', 1000),
     (context: EngineContext) => context.hedgeFuture('IF.CFX'),
     (context: EngineContext) => context.exitFuture('IF.CFX'),
-  ])('rejects futures intents even with zero futures capital', async (action) => {
+  ])('retains futures intents even with zero futures capital', async (action) => {
     const input = config();
     input.strategy.onBar = action;
 
-    await expect(new BacktestingEngine({ ...input, retainFinalState: true }).run()).rejects.toThrow(
-      'Final state retention currently supports stock and ETF strategies only',
-    );
+    const result = await new BacktestingEngine({ ...input, retainFinalState: true }).run();
+    expect(result.finalState?.futureOrders).toHaveLength(1);
+    expect(result.finalState?.futureAccount?.equity).toBe(0);
   });
 
   it('keeps simulation results identical and retains adjusted state only when requested', async () => {
@@ -65,36 +65,36 @@ describe('optional final execution state', () => {
     expect(normal.finalState).toBeNull();
     expect(retained.result).toEqual(normal.result);
     expect(retained.finalState).toMatchObject({ tradeDate: '20240102' });
-    expect(retained.finalState!.positions.get('A')?.shares).toBe(50);
-    expect(retained.finalState!.pendingLotOrders!.get('A')).toBe(1);
-    expect(retained.finalState!.market.get('A')).toEqual({
+    expect(new Map(retained.finalState!.positions).get('A')?.shares).toBe(50);
+    expect(new Map(retained.finalState!.pendingLotOrders!).get('A')).toBe(1);
+    expect(new Map(retained.finalState!.market).get('A')).toEqual({
       assetType: 'stock',
       adjustedClose: 20,
       adjustmentFactor: 2,
       rawClose: 10,
     });
-    expect([...retained.finalState!.conditionalOrders.values()]).toEqual([
+    expect([...new Map(retained.finalState!.conditionalOrders).values()]).toEqual([
       expect.objectContaining({ kind: 'stop_loss', triggerPrice: 18 }),
     ]);
     expect(retained.finalState).not.toHaveProperty('signals');
   });
 
-  it('rejects unsupported futures state before market reads or strategy execution', async () => {
+  it('retains both funded accounts without changing the execution lifecycle', async () => {
     const input = config();
     const onBar = vi.fn();
     const openDates = vi.spyOn(input.dataPort, 'openDates');
-    await expect(
-      new BacktestingEngine({
-        ...input,
-        retainFinalState: true,
-        strategy: {
-          name: 'futures',
-          accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } },
-          onBar,
-        },
-      }).run(),
-    ).rejects.toThrow('Final state retention currently supports stock and ETF strategies only');
-    expect(openDates).not.toHaveBeenCalled();
-    expect(onBar).not.toHaveBeenCalled();
+    const result = await new BacktestingEngine({
+      ...input,
+      retainFinalState: true,
+      strategy: {
+        name: 'futures',
+        accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } },
+        onBar,
+      },
+    }).run();
+    expect(result.finalState?.futureAccount?.equity).toBe(5000);
+    expect(JSON.parse(JSON.stringify(result.finalState))).toEqual(result.finalState);
+    expect(openDates).toHaveBeenCalled();
+    expect(onBar).toHaveBeenCalledTimes(2);
   });
 });

@@ -135,3 +135,13 @@ E2E_BASE=http://localhost:5173 pnpm e2e factor-question-recovery
 pnpm e2e strategy-navigation
 node --import tsx --test apps/web/src/complex/strategy/recents.test.ts
 ```
+
+## Futures Signals（代码审查后执行）
+
+`JIXIE_JOB_E2E_ONLY=futures-signals,daily-signals pnpm e2e job-system` 使用临时迁移 SQLite、合成行情、真实 HTTP/Worker 和编译后的前端。`daily-signals` 显式保留 version=1 兼容用例，`futures-signals` 覆盖纯期货、混合 hedge、人工解析、多笔部分成交、三条账户曲线及中英/窄屏截图。两个脚本均要求隔离标记，不能指向开发库；父 harness 负责停止进程并关闭数据库。新增迁移必须在审查后生成并应用，脚本尚未运行。
+
+### Futures Signals source and compiled verification
+
+`JIXIE_JOB_E2E_ONLY=daily-signals,futures-signals pnpm e2e job-system` checks legacy cash execution plus version 2 pure-futures and mixed accounts in a freshly migrated disposable database. The futures journey resolves a hedge using confirmed exposure, records partial fills through HTTP and the actual UI, verifies idempotency and daily account states, and captures Chinese/English desktop and English narrow-screen results. No provider, email or broker is contacted.
+
+After `pnpm build`, use `JIXIE_TEST_COMPILED=1 JIXIE_JOB_E2E_ONLY=futures-signals pnpm e2e job-system` to run the same journey through compiled API, scheduler and Worker entries. Both modes close the browser and fixture services and verify their ports are no longer listening.

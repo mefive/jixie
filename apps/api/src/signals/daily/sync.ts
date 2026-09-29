@@ -1,3 +1,10 @@
+import {
+  syncFutureContracts,
+  syncFutureDaily,
+  syncFutureMappings,
+  syncFutureSettlements,
+} from '#market/futures/sync.js';
+import { publishFutureMarketDate } from '#market/futures/publication.js';
 import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
@@ -143,6 +150,42 @@ export async function syncSignalMarketData(
     await publishPreparedEtfMarketDate(options.preparedEtf);
   } else {
     await syncEtfMarketDate(client, tradeDate as TradeDate, etfCodes);
+  }
+  const versioned = await prisma.strategyDeployment.findMany({
+    where: { accountingVersion: 2 },
+    select: { config: true, status: true, accountStates: { take: 1, select: { id: true } } },
+  });
+  const needed = versioned.filter(
+    (deployment) => deployment.status === 'active' || deployment.accountStates.length,
+  );
+  try {
+    if (needed.length) {
+      const start = needed
+        .map((deployment) => (deployment.config as { start: string }).start)
+        .sort()[0]!;
+      const dates = await prisma.tradeCal.findMany({
+        where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: tradeDate } },
+        orderBy: { calDate: 'asc' },
+      });
+      const published = new Set(
+        (await prisma.futureMarketPublication.findMany({ select: { tradeDate: true } })).map(
+          (row) => row.tradeDate,
+        ),
+      );
+      const missing = dates.filter((row) => !published.has(row.calDate));
+      if (missing.length) {
+        await syncFutureContracts(client);
+        await syncFutureDaily(client, missing[0]!.calDate, tradeDate);
+        await syncFutureMappings(client, missing[0]!.calDate, tradeDate);
+        await syncFutureSettlements(client, missing[0]!.calDate, tradeDate);
+        for (const row of missing) {
+          await publishFutureMarketDate(row.calDate);
+        }
+      }
+    }
+  } catch (error) {
+    // Future-dependent runs enforce readiness independently; cash-only runs can proceed.
+    onLog(`Futures data unavailable: ${error instanceof Error ? error.message : String(error)}`);
   }
   onLog(`Signal data sync complete for ${tradeDate}`);
 }

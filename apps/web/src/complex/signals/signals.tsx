@@ -1,3 +1,4 @@
+import { VersionedAccounts } from './versioned-accounts';
 import {
   Alert,
   Button,
@@ -129,10 +130,17 @@ export const Signals = complex.component(() => {
                   </div>
                 )}
 
-              <ExecutionOverview
-                overview={store.overviewLoader.result}
-                loading={store.overviewLoader.loading}
-              />
+              {selected.deployment.accountingVersion === 2 ? (
+                <VersionedAccounts />
+              ) : (
+                <>
+                  <p>{t('v2.legacy')}</p>
+                  <ExecutionOverview
+                    overview={store.overviewLoader.result}
+                    loading={store.overviewLoader.loading}
+                  />
+                </>
+              )}
               <SignalResult
                 run={store.selectedRun}
                 savingExecutionId={store.savingExecutionId}
@@ -379,7 +387,7 @@ function SignalResult({
 
       <FactorInputs factors={run.factorInputs ?? []} dependencies={run.factorDependencies ?? []} />
 
-      {signals.length === 0 ? (
+      {signals.length === 0 && (run.futureSignals?.length ?? 0) === 0 ? (
         <div className="jx-signals-noAction">
           <FontAwesomeIcon icon={faCircleCheck} />
           <div>

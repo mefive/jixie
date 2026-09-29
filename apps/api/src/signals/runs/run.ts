@@ -1,3 +1,6 @@
+import { publishedFutureRows } from '#market/futures/publication.js';
+import { projectFutureSignals, projectSignalAccounts } from './futures-projection.js';
+import { DEFAULT_COST } from '#backtesting/cost.js';
 import { projectSignals } from './projection.js';
 import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
 import { t } from '#i18n/messages.js';
@@ -45,7 +48,10 @@ export async function runSignal(
       language: config.language,
       locale,
       factors: prepared,
-      dataPort: prismaDataPort,
+      dataPort:
+        run.deployment.accountingVersion === 2
+          ? { ...prismaDataPort, futuresRange: publishedFutureRows }
+          : prismaDataPort,
       onLog: systemLog,
       onUserLog: userLog,
     });
@@ -59,7 +65,12 @@ export async function runSignal(
         runDependencies ?? deploymentDependencies,
         execution.factorDependencies,
       );
-      output = await execution.run({ ...config, end: run.tradeDate, retainFinalState: true });
+      output = await execution.run({
+        ...config,
+        end: run.tradeDate,
+        retainFinalState: true,
+        strictFutures: run.deployment.accountingVersion === 2,
+      });
     } finally {
       execution.close();
     }
@@ -101,9 +112,21 @@ export async function runSignal(
       [...signals.map((signal) => signal.code), ...modelPositions.map((position) => position.code)],
     );
     systemLog(t(locale, 'signalCaptureDone', { count: signals.length }));
+    const versioned = run.deployment.accountingVersion === 2;
+    const futureSignals = versioned
+      ? await projectFutureSignals(output.finalState, run.execDate, {
+          ...DEFAULT_COST,
+          ...config.cost,
+        })
+      : [];
+
     return {
+      resultVersion: versioned ? 2 : 1,
+      modelAccounts: versioned ? projectSignalAccounts(output.finalState) : null,
+      futureSignals,
       dataCutoff: projection.tradeDate,
-      modelEquity: projection.modelEquity,
+      modelEquity:
+        projection.modelEquity + (versioned ? (output.finalState.futureAccount?.equity ?? 0) : 0),
       modelCash: projection.modelCash,
       modelPositions,
       signals,

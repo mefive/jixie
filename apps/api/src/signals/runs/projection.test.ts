@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { BacktestingFinalState } from '#backtesting/result.js';
+import {
+  serializeFinalState,
+  type CashFinalStateView,
+  type BacktestingFinalState,
+} from '#backtesting/result.js';
 import { projectSignals } from './projection.js';
 
-function state(overrides: Partial<BacktestingFinalState> = {}): BacktestingFinalState {
-  return {
+function state(overrides: Partial<CashFinalStateView> = {}): BacktestingFinalState {
+  return serializeFinalState({
     tradeDate: '20240103',
     equity: 10_000,
     cash: 8_000,
@@ -20,7 +24,7 @@ function state(overrides: Partial<BacktestingFinalState> = {}): BacktestingFinal
     ]),
     factorObservations: [{ key: 'trend', code: 'A', value: 1 }],
     ...overrides,
-  };
+  });
 }
 
 describe('final-state signal projection', () => {
@@ -147,8 +151,8 @@ describe('final-state signal projection', () => {
 
   it('preserves missing-price omission and clears expired T+1 freezes', () => {
     const snapshot = state({ pendingTargets: new Map([['B', 0.4]]) });
-    snapshot.market.delete('B');
-    snapshot.positions.get('A')!.frozenUntil = snapshot.tradeDate;
+    snapshot.market = snapshot.market.filter(([code]) => code !== 'B');
+    new Map(snapshot.positions).get('A')!.frozenUntil = snapshot.tradeDate;
     const output = projectSignals(snapshot);
     expect(output.signals.map((signal) => signal.code)).toEqual(['A']);
     expect(output.modelPositions[0].frozenShares).toBe(0);

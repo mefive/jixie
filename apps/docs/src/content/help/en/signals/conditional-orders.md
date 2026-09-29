@@ -1,5 +1,11 @@
 # Use and record conditional orders
 
+## Versioned conditional execution
+
+New deployments execute conditions in the simulated account and preserve each condition's identity and account-specific high-water mark across days. Triggered, cancelled and consumed conditions affect subsequent replay. Simulated hedges use exposure after conditional processing. Actual accounting uses only recorded fills; confirm conditional execution and cash valuation before resolving a manual hedge.
+
+A displayed condition is not a broker order. The historical screenshots below retain their legacy context.
+
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
 A strategy can create stop-loss, trailing-stop, limit-buy, and take-profit conditions. Daily signals lists active conditions under **Pending conditional orders**. The user must recreate them in the broker client for broker-side monitoring; the system never connects to the broker or places them automatically.

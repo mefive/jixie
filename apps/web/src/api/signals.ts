@@ -1,4 +1,9 @@
 import type {
+  SignalResolutionRequest,
+  SignalFillRequest,
+  SignalFillRevisionRequest,
+  SignalTaskDecisionRequest,
+  SignalMarketRevisionRequest,
   DeploymentListRequestQuery,
   ActualExecutionRequest,
   SignalRunListRequestQuery,
@@ -72,4 +77,61 @@ export function updateSignalExecution(
     method: 'PATCH',
     body: JSON.stringify(input satisfies ActualExecutionRequest),
   });
+}
+
+export function getSignalAccountHistory(
+  deploymentId: string,
+): Promise<import('@jixie/shared').SignalAccountHistory> {
+  return request(`/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/executions`);
+}
+export function retrySignalAccounts(
+  deploymentId: string,
+): Promise<import('@jixie/shared').SignalAccountHistory> {
+  return request(
+    `/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/account-replays`,
+    { method: 'POST' },
+  );
+}
+export function resolveActualSignal(
+  executionId: string,
+  input: SignalResolutionRequest,
+): Promise<unknown> {
+  return request(`/api/app/signals/executions/${encodeURIComponent(executionId)}/resolutions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+export function recordSignalFill(executionId: string, input: SignalFillRequest): Promise<unknown> {
+  return request(`/api/app/signals/executions/${encodeURIComponent(executionId)}/fills`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+export function reviseSignalFill(
+  fillId: string,
+  input: SignalFillRevisionRequest,
+): Promise<unknown> {
+  return request(`/api/app/signals/fills/${encodeURIComponent(fillId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+export function setSignalTaskDecision(
+  executionId: string,
+  input: SignalTaskDecisionRequest,
+): Promise<unknown> {
+  return request(`/api/app/signals/executions/${encodeURIComponent(executionId)}/decision`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}
+
+export function reviseSignalMarketInput(
+  deploymentId: string,
+  input: SignalMarketRevisionRequest,
+): Promise<unknown> {
+  return request(
+    `/api/app/signals/deployments/${encodeURIComponent(deploymentId)}/market-input-revisions`,
+    { method: 'POST', body: JSON.stringify(input) },
+  );
 }

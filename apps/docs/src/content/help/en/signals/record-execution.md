@@ -1,5 +1,19 @@
 # Record actual fills and compare execution
 
+## Dual-account fills
+
+After correcting market data, choose **Revise historical market input**, specify the date and reason, and explicitly adopt current stored inputs for both accounts. Ordinary retries do not silently replace frozen inputs. Completion rates are separate for cash and futures tasks: filled / (filled + partial + skipped). Recorded tasks without resolution are excluded.
+
+A new deployment's actual account inherits the **model account baseline** from its first successful signal. It is not a broker import. Cash and futures funding remain separate with no automatic transfers. Total equity adds cash, securities value and futures equity; margin and notional are not additional assets.
+
+Expand a task, inspect its actual resolution, then record each fill with delivery contract, side, open/close, shares or integer contracts, observed price, explicit fee, Shanghai trade date, timestamp with timezone, same-time sequence and reason. Partial fills, multiple fills and observed quantities above references are supported. A skipped task records a reason without a fill.
+
+Editing or voiding appends a revision and retains the original. Actual replay starts at the baseline in execution-time order. If a revision makes a later close invalid, the facts remain saved and replay fails visibly. Check the last complete date and replay state after saving. Simulation failure does not prevent recording actual facts. Negative available margin is a risk flag, without automatic liquidation.
+
+Task states distinguish pending, partial, filled, skipped, no action and recorded without resolution. Price deviation compares only a unique simulated fill for the same delivery contract and side; it remains absent when incomparable. Share and contract quantities are never summed.
+
+The remaining controls, estimated blank fees and execution-rate formula apply only to legacy cash deployments.
+
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
 After signals are generated, the system maintains model, simulated, and actual account layers. Simulation settles from market data; the actual account uses only fills recorded by the user. Recording a fill never sends an order to a broker.

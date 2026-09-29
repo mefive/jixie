@@ -1,3 +1,4 @@
+import { cashFinalStateView, type CashFinalStateView } from '#backtesting/result.js';
 import type { ConditionalOrderKind } from '#backtesting/order-book.js';
 import type { FactorObservation, BacktestingFinalState } from '#backtesting/result.js';
 
@@ -20,6 +21,7 @@ export interface PendingConditionalSignal {
   refPrice: number;
   refAmount: number;
   source: 'conditional';
+  conditionId: string;
   orderType: ConditionalOrderKind;
   triggerPrice: number;
   trailingPct?: number;
@@ -44,7 +46,8 @@ export interface SignalProjection {
 }
 
 /** Convert a detached final state into next-open signal instructions, without rerunning the strategy. */
-export function projectSignals(state: BacktestingFinalState): SignalProjection {
+export function projectSignals(snapshot: BacktestingFinalState): SignalProjection {
+  const state = cashFinalStateView(snapshot);
   const {
     tradeDate,
     positions,
@@ -150,7 +153,7 @@ export function projectSignals(state: BacktestingFinalState): SignalProjection {
     }
   }
 
-  for (const order of conditionalOrders.values()) {
+  for (const [key, order] of conditionalOrders) {
     const adjustmentFactor = market.get(order.code)?.adjustmentFactor ?? null;
     const refPrice = market.get(order.code)?.rawClose ?? null;
     if (!adjustmentFactor || !refPrice) {
@@ -191,6 +194,7 @@ export function projectSignals(state: BacktestingFinalState): SignalProjection {
       refPrice,
       refAmount: realShares * triggerPrice,
       source: 'conditional',
+      conditionId: `${key}:${order.placedDate}`,
       orderType: order.kind,
       triggerPrice,
       ...(order.kind === 'trailing_stop' ? { trailingPct: order.trailingPct } : {}),
@@ -207,7 +211,7 @@ export function projectSignals(state: BacktestingFinalState): SignalProjection {
   };
 }
 function projectCashSignal(
-  market: BacktestingFinalState['market'],
+  market: CashFinalStateView['market'],
   code: string,
   adjustedDelta: number,
   adjustmentFactor: number,

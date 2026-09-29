@@ -1,5 +1,6 @@
 import { computed, makeObservable, observable, runInAction } from 'mobx';
 import type {
+  SignalAccountHistory,
   ActualExecutionUpdate,
   LogLine,
   SignalRun,
@@ -9,6 +10,7 @@ import type {
 } from '@jixie/shared';
 import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
 import {
+  getSignalAccountHistory,
   getStrategyExecutionOverview,
   listSignalRuns,
   listDeploymentLatestRuns,
@@ -28,6 +30,8 @@ export class SignalsStore extends BaseStore {
   public error: string | null = null;
   public queuePosition: number | null = null;
 
+  public accountLoader = new LoaderModel<SignalAccountHistory>();
+  public accountMutationLoader = new LoaderModel<unknown>();
   public todayLoader = new LoaderModel<SignalTodayEntry[]>();
   public historyLoader = new LoaderModel<SignalRun[]>();
   public overviewLoader = new LoaderModel<StrategyExecutionOverview>();
@@ -55,6 +59,14 @@ export class SignalsStore extends BaseStore {
 
   public setup() {
     super.setup();
+    this.accountLoader.setup({
+      request: (deploymentId: string) => getSignalAccountHistory(deploymentId),
+    });
+    this.accountMutationLoader.setup({
+      request: (operation: () => Promise<unknown>) => operation(),
+    });
+    this.registCleaner(() => this.accountLoader.cleanup());
+    this.registCleaner(() => this.accountMutationLoader.cleanup());
     this.todayLoader.setup({ request: () => listDeploymentLatestRuns() });
     this.historyLoader.setup({
       request: (deploymentId: string) => listSignalRuns(deploymentId),
@@ -106,6 +118,7 @@ export class SignalsStore extends BaseStore {
           this.selectedRunId = '';
           this.historyLoader.reset();
           this.overviewLoader.reset();
+          this.accountLoader.reset();
         }
         this.error = null;
       });
@@ -132,6 +145,7 @@ export class SignalsStore extends BaseStore {
       this.selectedRunId = '';
       this.historyLoader.reset();
       this.overviewLoader.reset();
+      this.accountLoader.reset();
       this.logLines = [];
       this.error = null;
     });
@@ -232,11 +246,29 @@ export class SignalsStore extends BaseStore {
     this.poller.start();
   }
 
+  public async mutateAccount(operation: () => Promise<unknown>) {
+    try {
+      await this.accountMutationLoader.run(operation);
+      await this.accountLoader.run(this.selectedDeploymentId);
+      runInAction(() => {
+        this.error = null;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.error = error instanceof Error ? error.message : i18n.t('signals:loadFailed');
+      });
+      throw error;
+    }
+  }
+
   private async loadDeployment(deploymentId: string) {
     try {
       await Promise.all([
         this.historyLoader.run(deploymentId),
-        this.overviewLoader.run(deploymentId),
+        this.entries.find((entry) => entry.deployment.id === deploymentId)?.deployment
+          .accountingVersion === 2
+          ? this.accountLoader.run(deploymentId)
+          : this.overviewLoader.run(deploymentId),
       ]);
     } catch (error) {
       if (this.selectedDeploymentId === deploymentId) {

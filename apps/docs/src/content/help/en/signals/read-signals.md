@@ -1,5 +1,13 @@
 # Read signal instructions
 
+## Dual-account signals
+
+New deployments show tasks under dual-account execution. Cash shares and integer futures contracts use separate units. Futures retain their original delta, contract target, notional target or hedge intent. Close-price quantities, notional exposure and model margin are reference estimates; even a zero reference can require execution later.
+
+Choose **Resolve actual quantity**, provide timestamped cash exposure and a futures quote with its source, and confirm cash and conditional executions. Daily simulation processes automatic rolls, cash orders, conditions and then futures intents. Manual resolution uses your confirmed exposure at that time. Expand a task to inspect delivery contracts and buy/sell/open/close legs. Record a roll's closing and opening legs separately.
+
+The screenshots and single-fill controls below describe legacy cash deployments.
+
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
 A strategy may have several independent deployments. Check the source report and deployment ID. Paused instances remain visible for history, with Generate now disabled.

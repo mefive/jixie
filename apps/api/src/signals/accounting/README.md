@@ -12,7 +12,7 @@
 | [read.ts](read.ts) `getStrategyExecutionOverview`、`executionWire` | 前者先检查部署归属再装配三类账户、执行率及偏差，后者只映射执行记录 |
 | [quotes.ts](quotes.ts) `loadMarketQuotes`、`nextTradingDate` | 重建所需行情和后继交易日读取 |
 
-## 执行顺序和事务边界
+## 旧版现金执行顺序和事务边界
 
 基线来自模型权益、现金和持仓，初始持仓成本取标记价。纯 replay 复制前态，先卖后买，simulation 根据开盘价、缺失报价、涨跌停、可卖量、现金及成本判断成交；actual 只应用人工标为 filled 的记录，最后按收盘行情估值。
 
@@ -23,3 +23,13 @@
 改资金／持仓规则先读 [replay.test.ts](replay.test.ts)；改基线、结算或人工回填顺序看 [flow.integration.test.ts](flow.integration.test.ts)，权限及 HTTP 映射看 [路由集成测试](../routes/index.integration.test.ts)。
 
 [返回 Signals 总览](../README.md)
+
+## accountingVersion=2
+
+新部署使用 `versioned.ts` 初始化模型继承的双账户基线和条件/普通/期货任务。`account-day.ts` 使用 Engine 的 OrderBook 模拟每日顺序，实际账按带时区时间与序号应用不可变成交，再按实约结算。`futures-market.ts` 冻结最小市场输入，`versioned-replay.ts` 枚举所有交易日，写候选 generation 后按输入 revision 和已发布指针进行 CAS 发布。失败保留上一次完整结果，模拟和实际状态独立。
+
+`manual-fills.ts` 提供所有者校验、实际数量解析、幂等成交录入、追加修订和恢复重试；实际成交不受模拟数量上限约束。`execution-summary.ts` 区分任务状态，价格只在同实约同方向且唯一可比时比较。条件单以 key/placedDate 标识，不把每日重复展示当成新任务。
+
+HTTP：GET `deployments/:id/executions`；POST `executions/:id/resolutions`、`executions/:id/fills`、`deployments/:id/account-replays`；PATCH `fills/:id`、`executions/:id/decision`。旧 PATCH `executions/:id` 只处理 version=1。
+
+新增测试代码与静态检查不代表行为验证通过；本轮验证记录见 [期货 Signals 设计](../../../../../docs/design/futures-signals-design.md)。

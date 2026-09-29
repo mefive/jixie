@@ -1,3 +1,4 @@
+import { rebuildVersionedAccount } from '../accounting/versioned-replay.js';
 import { StrategyFactor } from '#strategy/factors/factor.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
@@ -86,8 +87,11 @@ function request(path: string, body?: unknown, userId = 'owner', method = 'POST'
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
-async function deploy(reportId = 'report') {
+async function deploy(reportId = 'report', accountingVersion = 1) {
   const result = await deployBacktestReport('owner', reportId, 'en');
+  // Existing scenarios exercise persisted legacy cash deployments explicitly.
+  await prisma.strategyDeployment.update({ where: { id: result.id }, data: { accountingVersion } });
+
   return result;
 }
 async function createReport(id: string, reportConfig = config) {
@@ -164,6 +168,8 @@ describe('Signals HTTP and persistence boundaries', () => {
         tsCode: '000001.SZ',
         tradeDate,
         open: 10,
+        high: 10.8,
+        low: 9.8,
         close: 10.5,
         amount: 100_000,
       })),
@@ -195,6 +201,156 @@ describe('Signals HTTP and persistence boundaries', () => {
   afterAll(async () => {
     await prisma.$disconnect();
     await rm(fixture.directory, { recursive: true, force: true });
+  });
+
+  it('keeps versioned fills append-only, owner-scoped and idempotent across replay failure', async () => {
+    const deployment = await deploy('report', 2);
+    const run = await enqueue(deployment.id);
+    const accounts = {
+      version: 2,
+      date: '20240103',
+      cash: 100000,
+      positions: [],
+      futures: { equity: 0, margin: 0, availableCash: 0, positions: [] },
+      equity: 100000,
+      risk: [],
+      conditions: [],
+      consumedConditions: [],
+    };
+    await prisma.signalRun.update({
+      where: { id: run.runId },
+      data: {
+        resultVersion: 2,
+        modelAccounts: accounts,
+        intentSnapshot: [],
+        modelCash: 100000,
+        modelEquity: 100000,
+        modelPositions: [],
+        jobs: { updateMany: { where: {}, data: { status: 'done' } } },
+        signals: [
+          {
+            code: '000001.SZ',
+            name: 'Fixture',
+            assetType: 'stock',
+            action: 'buy',
+            shares: 100,
+            refPrice: 10,
+            refAmount: 1000,
+            source: 'order',
+          },
+        ],
+      },
+    });
+    await initializeSignalAccounting(run.runId);
+    const first = await prisma.strategyDeployment.findUniqueOrThrow({
+      where: { id: deployment.id },
+    });
+    await initializeSignalAccounting(run.runId);
+    expect(
+      (await prisma.strategyDeployment.findUniqueOrThrow({ where: { id: deployment.id } }))
+        .accountInputRevision,
+    ).toBe(first.accountInputRevision);
+    const task = await prisma.signalExecution.findFirstOrThrow({
+      where: { deploymentId: deployment.id },
+    });
+    const input = {
+      expectedRevision: first.accountInputRevision,
+      clientRequestId: 'cash-fill-fixture',
+      actualCode: task.code,
+      action: 'buy',
+      effect: 'open',
+      quantity: 200,
+      price: 10,
+      fee: 6,
+      tradeDate: '20240104',
+      executedAt: '2024-01-04T02:00:00Z',
+      sequence: 0,
+      reason: 'Observed quantity exceeds reference',
+    };
+    expect((await request(`/executions/${task.id}/fills`, input, 'other')).status).toBe(404);
+    expect(
+      (await request(`/deployments/${deployment.id}/executions`, undefined, 'other', 'GET')).status,
+    ).toBe(404);
+    const saved = await request(`/executions/${task.id}/fills`, input);
+    expect(saved.status).toBe(200);
+    const original = await saved.json();
+    expect((await request(`/executions/${task.id}/fills`, input)).status).toBe(200);
+    expect(await prisma.signalFill.count({ where: { deploymentId: deployment.id } })).toBe(1);
+    expect(
+      (await request(`/executions/${task.id}/fills`, { ...input, quantity: 300 })).status,
+    ).toBe(409);
+    expect(
+      (await request(`/executions/${task.id}/fills`, { ...input, clientRequestId: 'stale' }))
+        .status,
+    ).toBe(409);
+    await settleStrategyAccounts('20240104', () => {});
+    const published = await prisma.strategyDeployment.findUniqueOrThrow({
+      where: { id: deployment.id },
+    });
+    expect(published.actualAccountStatus, published.actualAccountError ?? '').toBe('ready');
+    const snapshot = await prisma.signalAccountState.findFirstOrThrow({
+      where: {
+        deploymentId: deployment.id,
+        kind: 'actual',
+        generation: published.actualGeneration!,
+        tradeDate: '20240104',
+      },
+    });
+    expect(snapshot.payload).toMatchObject({ cash: 97994 });
+    const competitors = await Promise.allSettled([
+      rebuildVersionedAccount(deployment.id, 'actual', '20240104'),
+      rebuildVersionedAccount(deployment.id, 'actual', '20240104'),
+    ]);
+    expect(competitors.some((result) => result.status === 'fulfilled')).toBe(true);
+    const winner = await prisma.strategyDeployment.findUniqueOrThrow({
+      where: { id: deployment.id },
+    });
+    expect(winner.actualAccountStatus).toBe('ready');
+    published.actualGeneration = winner.actualGeneration;
+
+    const frozen = await prisma.signalAccountMarketInput.findFirstOrThrow({
+      where: { deploymentId: deployment.id, tradeDate: '20240104' },
+    });
+    await prisma.adjFactor.deleteMany({ where: { tradeDate: '20240104' } });
+    const revisedMarket = await request(`/deployments/${deployment.id}/market-input-revisions`, {
+      expectedRevision: published.accountInputRevision,
+      tradeDate: '20240104',
+      reason: 'Deliberately incomplete source correction',
+    });
+    expect(revisedMarket.status).toBe(200);
+    const failedHistory = await revisedMarket.json();
+    expect(failedHistory.status).toBe('failed');
+    const failed = await prisma.strategyDeployment.findUniqueOrThrow({
+      where: { id: deployment.id },
+    });
+    expect(failed.actualGeneration).toBe(published.actualGeneration);
+    expect(
+      (await prisma.signalAccountMarketInput.findUniqueOrThrow({ where: { id: frozen.id } }))
+        .inputHash,
+    ).toBe(frozen.inputHash);
+    expect(await prisma.signalFill.count({ where: { deploymentId: deployment.id } })).toBe(1);
+    published.accountInputRevision = failed.accountInputRevision;
+
+    const voided = await request(
+      `/fills/${original.id}`,
+      {
+        expectedRevision: published.accountInputRevision,
+        clientRequestId: 'void-fixture',
+        void: true,
+      },
+      'owner',
+      'PATCH',
+    );
+    expect(voided.status).toBe(200);
+    expect(await prisma.signalFill.count({ where: { deploymentId: deployment.id } })).toBe(2);
+    expect((await prisma.signalFill.findUniqueOrThrow({ where: { id: original.id } })).voided).toBe(
+      false,
+    );
+    const history = await (
+      await request(`/deployments/${deployment.id}/executions`, undefined, 'owner', 'GET')
+    ).json();
+    expect(history.actual.at(-1).cash).toBe(100000);
+    expect(history.tasks[0].summary.status).toBe('pending');
   });
 
   it('enforces report ownership, completed evidence, language and asset restrictions', async () => {
@@ -249,9 +405,9 @@ describe('Signals HTTP and persistence boundaries', () => {
       factors: [],
       accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } },
     });
-    expect((await request('/deployments', { reportId: 'report' })).status).toBe(400);
-    expect(resources.factors).not.toHaveBeenCalled();
-    expect(await prisma.strategyDeployment.count()).toBe(0);
+    expect((await request('/deployments', { reportId: 'report' })).status).toBe(200);
+    expect(resources.factors).toHaveBeenCalled();
+    expect(await prisma.strategyDeployment.count()).toBe(1);
   });
 
   it('ignores legacy declarations when the report and allocation are cash-only', async () => {
@@ -261,12 +417,15 @@ describe('Signals HTTP and persistence boundaries', () => {
   });
 
   it.each([{ tradeLog: [{ assetType: 'future' }] }, { sleeveNav: [{ futureValue: 1000 }] }])(
-    'rejects historical futures reports even without a declaration',
+    'accepts historical futures reports without a declaration',
     async (payload) => {
-      await prisma.backtestReport.update({ where: { id: 'report' }, data: { payload } });
+      await prisma.backtestReport.update({
+        where: { id: 'report' },
+        data: { payload: { ...payload, factorDependencies: dependencies } },
+      });
 
-      expect((await request('/deployments', { reportId: 'report' })).status).toBe(400);
-      expect(await prisma.strategyDeployment.count()).toBe(0);
+      expect((await request('/deployments', { reportId: 'report' })).status).toBe(200);
+      expect(await prisma.strategyDeployment.count()).toBe(1);
     },
   );
 

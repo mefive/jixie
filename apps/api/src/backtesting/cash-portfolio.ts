@@ -12,6 +12,7 @@ export interface Position {
 type CashAssetType = 'stock' | 'etf';
 
 export interface CashFill {
+  source?: string;
   code: string;
   adjustedShareDelta: number;
   adjustedPrice: number;
@@ -31,6 +32,7 @@ export class CashPortfolio {
   constructor(
     initialCash: number,
     private cost: CostModel,
+    private onFill?: (trade: CashTrade, source: string) => void,
   ) {
     this.cash = initialCash;
   }
@@ -178,7 +180,7 @@ export class CashPortfolio {
         this.positions.delete(code);
       }
     }
-    this.trades.push({
+    const trade: CashTrade = {
       date,
       code,
       side: delta > 0 ? 'buy' : 'sell',
@@ -190,6 +192,8 @@ export class CashPortfolio {
       realShares,
       realPrice,
       assetType,
-    });
+    };
+    this.trades.push(trade);
+    this.onFill?.(trade, input.source ?? 'order');
   }
 }

@@ -1,3 +1,5 @@
+import { errorMessage } from '#infra/errors.js';
+import { initializeVersionedAccounting } from './versioned.js';
 import { signalRunState, currentSignalJob, signalAttemptWhere } from '#signals/runs/state.js';
 import { ulid } from 'ulid';
 import type { ModelPositionSnapshot, SignalItem } from '@jixie/shared';
@@ -11,11 +13,29 @@ export async function initializeSignalAccounting(runId: string): Promise<void> {
       where: { id: runId },
       include: {
         jobs: currentSignalJob,
-        deployment: { select: { id: true } },
+        deployment: { select: { id: true, locale: true } },
         executions: { select: { id: true }, take: 1 },
       },
     })
     .then((row) => (row ? signalRunState(row) : row));
+  if (run?.resultVersion === 2) {
+    try {
+      await initializeVersionedAccounting(runId);
+    } catch (error) {
+      const message = errorMessage(error, run.deployment.locale === 'en' ? 'en' : 'zh');
+      await prisma.strategyDeployment.update({
+        where: { id: run.deploymentId },
+        data: {
+          simulationStatus: 'failed',
+          actualAccountStatus: 'failed',
+          simulationError: message,
+          actualAccountError: message,
+        },
+      });
+      throw error;
+    }
+    return;
+  }
   if (
     !run ||
     run.status !== 'done' ||

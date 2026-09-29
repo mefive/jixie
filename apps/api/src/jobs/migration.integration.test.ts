@@ -42,18 +42,7 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
     await database.strategy.create({
       data: { id: 'strategy', userId: 'owner', name: 'Legacy', config: {} },
     });
-    await database.strategyDeployment.create({
-      data: {
-        id: 'deployment',
-        userId: 'owner',
-        strategyId: 'strategy',
-        strategyName: 'Legacy',
-        status: 'paused',
-        config: {},
-        codeHash: 'hash',
-        locale: 'en',
-      },
-    });
+    await database.$executeRaw`INSERT INTO "StrategyDeployment" ("id", "userId", "strategyId", "strategyName", "status", "config", "codeHash", "locale", "updatedAt") VALUES ('deployment', 'owner', 'strategy', 'Legacy', 'paused', '{}', 'hash', 'en', ${new Date('2026-01-01')})`;
     for (const status of ['done', 'error', 'stale']) {
       await database.backtestReport.create({
         data: {
@@ -91,18 +80,7 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
           legacyError: `detail:${status}`,
         },
       });
-      await database.signalRun.create({
-        data: {
-          id: `signal:${status}`,
-          userId: 'owner',
-          strategyId: 'strategy',
-          deploymentId: 'deployment',
-          tradeDate: status,
-          execDate: status,
-          legacyStatus: status,
-          legacyError: `detail:${status}`,
-        },
-      });
+      await database.$executeRaw`INSERT INTO "SignalRun" ("id", "userId", "strategyId", "deploymentId", "tradeDate", "execDate", "status", "error", "updatedAt") VALUES (${`signal:${status}`}, 'owner', 'strategy', 'deployment', ${status}, ${status}, ${status}, ${`detail:${status}`}, ${new Date('2026-01-01')})`;
       await database.researchCuratorRun.create({
         data: {
           id: `curator:${status}`,
@@ -117,7 +95,7 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
       database.backtestReport.findMany(),
       database.factorReport.findMany(),
       database.strategyScanReport.findMany(),
-      database.signalRun.findMany(),
+      database.$queryRaw`SELECT "id", "userId", "strategyId", "deploymentId", "tradeDate", "execDate", "status", "error", "createdAt", "updatedAt" FROM "SignalRun"`,
       database.researchCuratorRun.findMany(),
     ]);
     for (const name of names) {
@@ -130,7 +108,7 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
       database.backtestReport.findMany(),
       database.factorReport.findMany(),
       database.strategyScanReport.findMany(),
-      database.signalRun.findMany(),
+      database.$queryRaw`SELECT "id", "userId", "strategyId", "deploymentId", "tradeDate", "execDate", "status", "error", "createdAt", "updatedAt" FROM "SignalRun"`,
       database.researchCuratorRun.findMany(),
     ]);
     expect(after).toEqual(before);

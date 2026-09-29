@@ -1,3 +1,4 @@
+import { futureSignalSchema, signalAccountsSchema } from '@jixie/shared/api/signals';
 import { signalRunState, currentSignalJob } from './state.js';
 import { prisma } from '#infra/database/prisma.js';
 import { JobService } from '#jobs/service.js';
@@ -25,7 +26,7 @@ export async function listDeploymentLatestRuns(
         take: 1,
         include: {
           jobs: currentSignalJob,
-          executions: { orderBy: { signalIndex: 'asc' } },
+          executions: { where: { version: 1 }, orderBy: { signalIndex: 'asc' } },
         },
       },
     },
@@ -56,7 +57,7 @@ export async function listSignalRuns(
     take: limit,
     include: {
       jobs: currentSignalJob,
-      executions: { orderBy: { signalIndex: 'asc' } },
+      executions: { where: { version: 1 }, orderBy: { signalIndex: 'asc' } },
     },
   });
   return rows.map((row) => signalRunWire(signalRunState(row), deployment.strategyName));
@@ -68,7 +69,7 @@ export async function getSignalRun(userId: string, runId: string): Promise<Signa
     include: {
       deployment: { select: { strategyName: true } },
       jobs: currentSignalJob,
-      executions: { orderBy: { signalIndex: 'asc' } },
+      executions: { where: { version: 1 }, orderBy: { signalIndex: 'asc' } },
     },
   });
   if (!row) {
@@ -94,6 +95,9 @@ export async function getSignalRunJob(userId: string, jobId: string, since = 0) 
 
 function signalRunWire(
   row: {
+    resultVersion?: number;
+    modelAccounts?: unknown;
+    intentSnapshot?: unknown;
     id: string;
     deploymentId: string;
     strategyId: string;
@@ -118,6 +122,10 @@ function signalRunWire(
   strategyName: string,
 ): SignalRun {
   return {
+    resultVersion: row.resultVersion ?? 1,
+    modelAccounts: row.modelAccounts ? signalAccountsSchema.parse(row.modelAccounts) : null,
+    futureSignals:
+      row.resultVersion === 2 ? futureSignalSchema.array().parse(row.intentSnapshot) : [],
     id: row.id,
     deploymentId: row.deploymentId,
     strategyId: row.strategyId,

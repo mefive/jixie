@@ -1170,26 +1170,43 @@ model BacktestReport {
 /// One deployment of an immutable successful backtest report. Different reports operate independently.
 /// Legacy deployments retain their original snapshots without an inferred report association.
 model StrategyDeployment {
-  id                 String                    @id // ULID
-  userId             String
-  user               User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  strategyId         String
-  strategy           Strategy                  @relation(fields: [strategyId], references: [id], onDelete: NoAction)
-  backtestReportId   String?
-  backtestReport     BacktestReport?           @relation(fields: [backtestReportId], references: [id], onDelete: NoAction)
-  activeReportId     String?                   @unique // Same as backtestReportId while active; null after pause and for legacy rows.
-  strategyName       String
-  status             String // 'active' | 'paused'
-  config             Json // frozen BacktestConfig
-  factorDependencies Json? // frozen FactorDependency[] used by this deployment
-  codeHash           String
-  locale             String // 'zh' | 'en', frozen for scheduler-generated notifications
-  deployedAt         DateTime                  @default(now())
-  stoppedAt          DateTime?
-  signalRuns         SignalRun[]
-  accountSnapshots   StrategyAccountSnapshot[]
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
+  simulationStatus    String  @default("pending")
+  simulationError     String?
+  actualAccountStatus String  @default("pending")
+  actualAccountError  String?
+
+  accountingVersion    Int                        @default(1)
+  accountInputRevision Int                        @default(0)
+  simulationGeneration String?
+  actualGeneration     String?
+  replayStatus         String                     @default("pending")
+  replayError          String?
+  dirtyFromDate        String?
+  resolutions          SignalResolution[]
+  fills                SignalFill[]
+  marketInputs         SignalAccountMarketInput[]
+  accountStates        SignalAccountState[]
+  executionTasks       SignalExecution[]          @relation("DeploymentExecutions")
+  id                   String                     @id // ULID
+  userId               String
+  user                 User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId           String
+  strategy             Strategy                   @relation(fields: [strategyId], references: [id], onDelete: NoAction)
+  backtestReportId     String?
+  backtestReport       BacktestReport?            @relation(fields: [backtestReportId], references: [id], onDelete: NoAction)
+  activeReportId       String?                    @unique // Same as backtestReportId while active; null after pause and for legacy rows.
+  strategyName         String
+  status               String // 'active' | 'paused'
+  config               Json // frozen BacktestConfig
+  factorDependencies   Json? // frozen FactorDependency[] used by this deployment
+  codeHash             String
+  locale               String // 'zh' | 'en', frozen for scheduler-generated notifications
+  deployedAt           DateTime                   @default(now())
+  stoppedAt            DateTime?
+  signalRuns           SignalRun[]
+  accountSnapshots     StrategyAccountSnapshot[]
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
 
   @@index([userId, status])
   @@index([strategyId, status])
@@ -1199,29 +1216,33 @@ model StrategyDeployment {
 /// One durable next-open signal set generated from a deployment and one market close. Retries reuse
 /// the same row, while every computation attempt has its own Job for logs and stale recovery.
 model SignalRun {
-  id                 String             @id // ULID
-  userId             String
-  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deploymentId       String
-  deployment         StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
-  strategyId         String
-  tradeDate          String // signal is based on this market close (YYYYMMDD)
-  execDate           String // intended next open (YYYYMMDD)
-  legacyStatus String? @map("status") // Historical state used only without a Job.
-  factorDependencies Json? // deployment factor dependencies copied when this run is created
-  factorInputs       Json? // FactorInputSummary[] consumed on the final decision bar
-  dataCutoff         String?
-  modelEquity        Float?
-  modelCash          Float?
-  modelPositions     Json? // ModelPositionSnapshot[] at the signal close; seeds forward account tracking
-  signals            Json? // SignalItem[]
-  legacyError String? @map("error")
-  notifiedAt         DateTime?
-  notificationError  String?
-  jobs               Job[]
-  executions         SignalExecution[]
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  accountingInitialized Boolean            @default(false)
+  resultVersion         Int                @default(1)
+  modelAccounts         Json?
+  intentSnapshot        Json?
+  id                    String             @id // ULID
+  userId                String
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deploymentId          String
+  deployment            StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  strategyId            String
+  tradeDate             String // signal is based on this market close (YYYYMMDD)
+  execDate              String // intended next open (YYYYMMDD)
+  legacyStatus          String?            @map("status") // Historical state used only without a Job.
+  factorDependencies    Json? // deployment factor dependencies copied when this run is created
+  factorInputs          Json? // FactorInputSummary[] consumed on the final decision bar
+  dataCutoff            String?
+  modelEquity           Float?
+  modelCash             Float?
+  modelPositions        Json? // ModelPositionSnapshot[] at the signal close; seeds forward account tracking
+  signals               Json? // SignalItem[]
+  legacyError           String?            @map("error")
+  notifiedAt            DateTime?
+  notificationError     String?
+  jobs                  Job[]
+  executions            SignalExecution[]
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@unique([deploymentId, tradeDate])
   @@index([userId, tradeDate])
@@ -1232,36 +1253,44 @@ model SignalRun {
 /// One immutable signal instruction plus its simulated fill and user-entered real execution. The
 /// instruction columns are copied out of SignalRun.signals so cross-day execution quality is queryable.
 model SignalExecution {
-  id                String    @id // ULID
+  deploymentId      String?
+  deployment        StrategyDeployment? @relation("DeploymentExecutions", fields: [deploymentId], references: [id], onDelete: Cascade)
+  execDate          String?
+  taskKey           String?             @unique
+  version           Int                 @default(1)
+  intent            Json?
+  resolutions       SignalResolution[]
+  fills             SignalFill[]
+  id                String              @id // ULID
   userId            String
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  signalRunId       String
-  signalRun         SignalRun @relation(fields: [signalRunId], references: [id], onDelete: Cascade)
-  signalIndex       Int
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signalRunId       String?
+  signalRun         SignalRun?          @relation(fields: [signalRunId], references: [id], onDelete: Cascade)
+  signalIndex       Int?
   code              String
   name              String
-  assetType         String // 'stock' | 'etf'
+  assetType         String // 'stock' | 'etf' | 'future'
   action            String // 'buy' | 'sell'
-  requestedShares   Float
+  requestedShares   Float?
   refPrice          Float
   refAmount         Float
-  source            String // 'target' | 'order'
+  source            String // Cash source or futures intent kind
   targetWeight      Float?
-  simulatedStatus   String    @default("pending") // 'pending' | 'filled' | 'blocked'
+  simulatedStatus   String              @default("pending") // Legacy fill state; v2 maintenance may be 'conflict' or 'superseded'
   simulatedShares   Float?
   simulatedPrice    Float?
   simulatedFee      Float?
   simulatedSlippage Float?
   simulatedReason   String?
-  actualStatus      String    @default("pending") // 'pending' | 'filled' | 'skipped'
+  actualStatus      String              @default("pending") // 'pending' | 'filled' | 'skipped'
   actualShares      Float?
   actualPrice       Float?
   actualFee         Float?
   actualReason      String?
   actualNote        String?
   actualRecordedAt  DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   @@unique([signalRunId, signalIndex])
   @@index([userId, actualStatus])
@@ -1874,4 +1903,71 @@ model ResearchExecutionInput {
   capturedAt   DateTime?
 
   @@unique([executionId, sequence])
+}
+
+model SignalResolution {
+  id              String             @id
+  deploymentId    String
+  deployment      StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  executionId     String
+  execution       SignalExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  kind            String
+  requestKey      String             @unique
+  accountRevision Int
+  payload         Json
+  createdAt       DateTime           @default(now())
+
+  @@index([deploymentId, kind])
+}
+
+model SignalFill {
+  id           String             @id
+  deploymentId String
+  deployment   StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  executionId  String
+  execution    SignalExecution    @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  requestKey   String             @unique
+  replacesId   String?            @unique
+  voided       Boolean            @default(false)
+  tradeDate    String
+  payload      Json
+  createdAt    DateTime           @default(now())
+
+  @@index([deploymentId, tradeDate])
+}
+
+model SignalAccountMarketInput {
+  id           String             @id
+  deploymentId String
+  deployment   StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  tradeDate    String
+  revision     Int                @default(0)
+  reason       String?
+  payload      Json
+  inputHash    String
+  createdAt    DateTime           @default(now())
+
+  @@unique([deploymentId, tradeDate, revision])
+}
+
+model SignalAccountState {
+  id              String             @id
+  deploymentId    String
+  deployment      StrategyDeployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  kind            String
+  generation      String
+  tradeDate       String
+  accountRevision Int
+  payload         Json
+  createdAt       DateTime           @default(now())
+
+  @@unique([deploymentId, kind, generation, tradeDate])
+}
+
+/// Validated immutable futures inputs for one published trading day.
+model FutureMarketPublication {
+  tradeDate   String   @id
+  payload     Json
+  inputHash   String
+  publishedAt DateTime @default(now())
 }

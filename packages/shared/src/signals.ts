@@ -27,6 +27,7 @@ export interface SignalItem {
   refPrice: number;
   refAmount: number;
   source: SignalSource;
+  conditionId?: string;
   orderType?: SignalOrderType;
   triggerPrice?: number;
   trailingPct?: number;
@@ -98,6 +99,7 @@ export type StrategyDeploymentStatus = 'active' | 'paused';
 
 /** Immutable runnable strategy version used by the daily signal scheduler. */
 export interface StrategyDeployment {
+  accountingVersion?: number;
   id: string;
   /** Null only for legacy deployments whose source report is unknown. */
   backtestReportId: string | null;
@@ -118,6 +120,9 @@ export type SignalRunStatus = 'running' | 'done' | 'error' | 'stale';
 
 /** One deployment's durable signal result for a market close. */
 export interface SignalRun {
+  resultVersion?: number;
+  modelAccounts?: SignalAccounts | null;
+  futureSignals?: FutureSignalItem[];
   id: string;
   deploymentId: string;
   strategyId: string;
@@ -153,4 +158,44 @@ export interface StrategySignalMetadata {
   futures: string[];
   accounts?: StrategyAccounts;
   factors: string[];
+}
+
+export type FutureAccountSnapshot = z.infer<typeof import('./api/signals.js').futureAccountSchema>;
+export type FutureSignalItem = z.infer<typeof import('./api/signals.js').futureSignalSchema>;
+export type SignalExecutionLeg = z.infer<typeof import('./api/signals.js').executionLegSchema>;
+export type SignalFutureIntent = z.infer<typeof import('./api/signals.js').futureIntentSchema>;
+export type SignalAccounts = z.infer<typeof import('./api/signals.js').signalAccountsSchema>;
+export interface SignalAccountHistory {
+  simulationStatus: string;
+  actualStatus: string;
+  revision: number;
+  status: string;
+  error: string | null;
+  modelBaseline: boolean;
+  simulation: SignalAccounts[];
+  actual: SignalAccounts[];
+  tasks: SignalTask[];
+}
+export interface SignalExecutionSummary {
+  status: 'pending' | 'partial' | 'filled' | 'recorded' | 'skipped' | 'no_action';
+  fills: number;
+  averagePriceDeviationBps: number | null;
+}
+export interface SignalTask {
+  maintenanceConflict?: boolean;
+  sourceRunId?: string | null;
+  summary?: SignalExecutionSummary;
+  actualStatus: string;
+  actualReason: string | null;
+  id: string;
+  execDate: string;
+  intent: SignalItem | FutureSignalItem;
+  resolutions: Array<{ id: string; kind: string; accountRevision: number; payload: unknown }>;
+  fills: Array<{
+    id: string;
+    tradeDate: string;
+    replacesId: string | null;
+    voided: boolean;
+    payload: unknown;
+  }>;
 }

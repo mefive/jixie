@@ -1,6 +1,6 @@
 # 期货及混合账户 Signals 详细设计
 
-状态：2026-09-29 用户确认设计及第 10 节推荐决策；产品实现待独立 Gate 1 批准。
+状态：2026-09-29 设计与完整实现范围均已获用户确认；产品代码已落盘，等待 Gate 2 人工审查。行为验证和功能提交尚未执行。
 
 日期：2026-09-29。代码核对基线：`521d8df2ab0be96bf897a03bb490e7b4d9a8fa8a`；开始时工作区干净。本次仅新增本文，不运行产品测试、构建、数据库迁移或服务；用户审阅确认后提交本文，不推送。
 
@@ -410,3 +410,60 @@ actual 的负可用资金是待处理事实，记录权益和缺口，不自动�
 设计审查重点是第 3、6、7、10 节。用户确认关键语义后，整理为最终 Gate 1 范围和准确功能提交消息；批准实现后再编码。产品代码完成仅运行静态检查，Gate 2 人工审查通过后才进行行为测试、构建和隔离 E2E。必要验证全部通过后按已批准工作流提交，不推送。
 
 2026-09-29 审查记录：用户回复“确认”，批准本设计及上述推荐决策。文档本地链接 21 项全部存在，新增文件空白检查无诊断；未运行产品行为测试或构建。按预告消息提交本文；下一步提交产品实现 Gate 1 范围，产品代码仍须在实现后经过独立 Gate 2 审查。
+
+
+## 14. 产品实现交接（2026-09-29，未提交）
+
+用户在设计提交 `b9abe343` 后确认完整功能范围及提交消息 `feat(signals): support futures and mixed-account execution`。本轮工作区包含产品、测试、帮助与离线迁移草稿；未修改开发数据库，未运行行为测试、构建、服务或真实通知。
+
+### 14.1 落地结构
+
+- 新部署 `accountingVersion=2`，既有部署/Run/执行行默认 1。版本 1 保留现金记账与旧 PATCH；版本 2 使用新任务、解析、追加成交/修订、逐日双账户和独立错误状态。
+- `BacktestingFinalState.schemaVersion=2` 使用数组代替 Map；`serializeFinalState` 深复制账户、订单和末日市场证据。公开 Strategy SDK 下单签名不变。Worker 的结果版本与账户载荷必须匹配。
+- 现金条件沿用 Engine OrderBook。条件以 key/placedDate 保留身份、账户高水位和已消耗标记；期货计算复用纯成交与结算函数。自动换月保留整体预检，实际账允许部分腿和多个交割合约。
+- 原方案中的 v2 `StrategyAccountSnapshot` 扩展落为独立 `SignalAccountState`，以避免重解释既有现金快照。唯一键为 deployment/kind/generation/date；账户总修订号与旧发布指针共同参与最终 CAS。失败候选不出现在公开曲线和模拟解析中。
+- `SignalExecution` 增加 deployment/date/taskKey/version/intent；`SignalRun.accountingInitialized` 保证新 Run（包括无普通信号但条件变化的 Run）只推进输入修订一次。`SignalResolution` 保存 requestKey、accountRevision 与经过 schema 校验的解析载荷；模拟 requestKey 包含 generation/date/task。`SignalFill` 保存事实，replacesId 唯一，修订和作废均追加新行。
+- `FutureMarketPublication` 保存整日期货输入/摘要；`SignalAccountMarketInput` 保存部署每日最小重放输入、hash、revision 和修订原因。首次成功计算后冻结；普通重试不刷新。显式行情修订从当前库重建指定日期输入，增加账户修订并重放两类账户，旧版本保留。该操作不重写模型 Run 或其市场发布证据。
+- 期货同步失败不会阻止纯现金策略；实际读取期货的 Worker 仍采用严格检查。暂停部署有账户历史时继续参与数据同步和每日结算。
+- 页面保留原信号/历史入口，新增模型/模拟/实际分账户、解析与分腿录入、多笔成交修订、独立账户状态、行情修订、按资产任务统计和可比价格偏差。实际账户显式标为模型继承基线，不是券商余额。六篇中英帮助同步新版语义，旧版截图保留历史标签。
+
+### 14.2 审查入口
+
+| 关注点 | 入口 |
+| --- | --- |
+| 公开请求与快照校验 | `packages/shared/src/api/signals.ts`、`packages/shared/src/signals.ts` |
+| 资金/持仓纯计算及日内顺序 | `apps/api/src/backtesting/futures-accounting.ts`、`apps/api/src/signals/accounting/account-day.ts` |
+| 账户世代、输入冻结与并发发布 | `apps/api/src/signals/accounting/versioned-replay.ts`、`futures-market.ts`、`versioned.ts` |
+| 人工解析、事实、修订及归属检查 | `apps/api/src/signals/accounting/manual-fills.ts`、`execution-summary.ts` |
+| 模型参考、严格数据与通知 | `apps/api/src/signals/runs/futures-projection.ts`、`run.ts`、`worker-protocol.ts`、`notifier.ts` |
+| 页面表单与双语 | `apps/web/src/complex/signals/versioned-accounts.tsx`、`signals-store.ts`、`apps/docs/src/content/help/{zh,en}/signals/` |
+| 数据库 | `apps/api/prisma/schema.prisma`、`apps/api/prisma/migrations/20260929111254_futures_signals_accounts/migration.sql` |
+
+### 14.3 验证状态与审核后动作
+
+审查前只做静态检查：全仓 typecheck（包括后端边界扫描、SDK 生成物一致性）、受影响 TS/TSX/MJS 的 ESLint/Prettier、Prisma validate、离线 migrate diff、空白及本地文档链接检查。最终静态结果以本轮交接回复为准。**测试代码存在不代表测试通过。**
+
+新增回归包括：共享期货记账与重复结算、跳空 notional、不同现金敞口 hedge、旧新实约分腿、无信号日 actual 结算、部分换月、负可用保证金、条件先于 hedge 且不重复、零资金、Worker 版本/有限数校验、直接实约/陈旧映射、同实约价格比较、修订/幂等/权限、输入修订失败保持旧 generation 和并发发布。既有现金场景明确使用 legacy fixture，不通过放宽断言隐藏行为变化。
+
+审查通过后按第 12 节执行：先在临时库生成正式 migration（`migrate dev --create-only`）并与草稿比较，应用并检查旧行兼容；执行 Backtesting/Signals/Market/Job 相关单测与集成测试，真实源码/编译 IPC 与全仓构建；以 `JIXIE_JOB_E2E_ONLY=futures-signals,daily-signals pnpm e2e job-system` 执行隔离浏览器验收，检查中英桌面/窄屏截图并补齐失败分支验收。必要测试修正按 skill 自主处理；若需改产品代码，重新回到 Gate 2。验证全部通过才按已批准消息提交，不推送。
+
+尚未验证的风险：SQLite 并发事务及正式迁移、真实 Worker 全链路、表单与截图、历史任务回填后的冲突。默认全基线重放和保留候选世代会增加计算/存储成本，本次不加入自动删除事实或账户历史的清理器。行情 PIT 仍为交易日级，无法证明供应商全部历史修订的原始发布时间。真实交割、券商接入、强平、资金划转和 Python 部署继续在范围外。
+
+2026-09-29 Gate 2 静态交接结果：全仓 typecheck 通过，后端扫描 868 个文件、0 条边界违规；SDK 生成物一致。受影响 TS/TSX/MJS 的 ESLint 无诊断，Prettier 检查通过；Prisma schema valid，重新生成的离线 diff 与迁移草稿逐字一致；`git diff --check` 无诊断，变更文档中 112 个本地链接均存在。补入模型意图与已成交维护任务的冲突会阻止模拟继续发布，页面要求核对后确认替代，原实际成交保留。产品变更仍未提交，单测/集成/迁移应用/构建/E2E 全部尚未执行。
+
+
+### 14.4 审核后验证结果（2026-09-29）
+
+用户回复 `confirm` 后进入验证阶段。验证期间只修正测试断言、夹具与验收入口，未修改已审核产品逻辑。初轮失败的原因包括：JSON 快照已不再是 Map、Worker 新增默认字段、浮点负零、缺失 OHLC 的行情夹具、错误选取前一日账户快照、报告夹具覆盖因子血缘，以及旧迁移测试通过新 Prisma Client 读取尚未存在的字段。修正保留了具体金额、权限、版本与历史数据完整性断言。重复运行旧集成用例时遇到固定 fixture ID 冲突，最终改用全新临时迁移库执行完整验证，未清空或修改开发数据库。
+
+- Prisma `migrate dev --create-only` 生成 `20260929111254_futures_signals_accounts`。正式 SQL 与审核草稿的语句集合一致，仅表重建顺序及空白不同；未手改 SQL；正式迁移取代不部署的离线草稿。隔离旧库迁移验证部署、Run、已录入 Execution、现金快照保留，默认版本 1、外键检查和最终 schema 无漂移均通过。
+- Backtesting、Signals、Market futures、Maintenance、Strategy execution/runtime/SDK、Jobs 及 Worker/Job 协议和生命周期：**74 个文件通过，478 项通过，2 项性能基准按原配置跳过**。`ACCOUNTING_INTEGRATION=1` 在全新临时迁移库中通过。
+- 真实源码 Worker 与编译 Worker 集成各 **14 项通过**，包括 Signals 结果、进程收尾与失败协议。
+- `pnpm build` 全仓通过；Vite 提示部分 chunk 超过 500 kB，未作为本次无关拆包范围。最终 `pnpm typecheck` 五个 workspace 全部通过，后端边界 868 文件、0 违规，SDK 生成物一致。
+- 源码 API/Worker 隔离 E2E：`daily-signals` 和 `futures-signals` 均通过。编译 API/Worker 隔离 E2E：`futures-signals` 通过。覆盖旧现金流程、纯期货两笔实际成交、混合对冲确认敞口、参考/模拟/实际数量差异、幂等录入、逐日结算和暂停；中英桌面及英文窄屏截图已检查。
+- 行情修订失败、旧 generation 保留、并发发布、事实作废等异常由隔离 HTTP/账户集成测试覆盖；未声称浏览器覆盖所有异常分支。旧帮助截图生成脚本依赖非隔离环境，本轮不执行；双语帮助通过构建与链接检查，保留图片明确标注旧版范围。
+- E2E 首次因沙箱禁止 localhost 监听而退出；在允许本机临时监听的执行环境重试成功。成功 harness 均关闭浏览器、Prisma 和服务，断言端口 `ECONNREFUSED`，删除临时库。首次启动失败遗留的本轮临时目录另行清理。
+
+验收截图：`apps/web/acceptance/futures-signals-pure-zh.png`、`futures-signals-mixed-zh.png`、`futures-signals-mixed-en.png`、`futures-signals-mobile-en.png`、`futures-signals-mobile-tasks-en.png`（验收目录按仓库规则 gitignored）。
+
+本次仍限定日线研究与影子账户，不包含真实交割、券商下单、强平、资金划转或 Python 部署。全部必要检查通过后按已批准消息 `feat(signals): support futures and mixed-account execution` 提交，不推送。

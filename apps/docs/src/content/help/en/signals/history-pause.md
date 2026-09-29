@@ -1,5 +1,11 @@
 # View history and pause a deployment
 
+## Account history after pausing
+
+Pausing stops new strategy runs. Open futures positions still need settlement on every trading day, including days with no new signal. Automatic rolls may create maintenance tasks without a new run; actual holdings change only through recorded fills.
+
+Model, simulation and actual equity remain distinct. Failed replay preserves the previously published complete history; check its status and last date together. Unresolved expiry or missing prices do not imply delivery, liquidation or a fabricated settlement value.
+
 Daily signals stores history per deployment. The same strategy name may represent different reports or repeated deployments of one report; use the source report and deployment ID to distinguish them.
 
 ## View history

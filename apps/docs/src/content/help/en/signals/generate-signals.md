@@ -1,5 +1,11 @@
 # Generate today's signals
 
+## Futures data readiness
+
+New deployments support IF, IH, IC and IM delivery and continuous codes. Default funding is 100% cash and 0% futures; configure initial allocation with strategy `accounts`. The legacy `futures` declaration does not enable or disable trading. Zero funding permits intents, while simulated fills remain margin constrained.
+
+Signals use published historical futures prices, mappings and settlement inputs. Missing required prices fail explicitly instead of borrowing future observations. Missing margin rates may use the frozen cost configuration, labelled model margin. Daily history cannot establish the original publication time of every vendor revision.
+
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
 A strategy may have several independent deployments. Check the source report and deployment ID. Paused instances remain visible for history, with Generate now disabled.

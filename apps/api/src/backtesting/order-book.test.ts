@@ -221,7 +221,7 @@ describe('OrderBook execution boundaries', () => {
     });
   });
 
-  it('keeps first-day futures intents pending but reports only the current decision intents', async () => {
+  it('keeps first-day futures intents pending and snapshots the committed intent', async () => {
     const { orders, futuresPortfolio } = await executionFixture();
     const executeOrder = vi.spyOn(futuresPortfolio, 'executeOrder');
     orders.beginOrderCollection('20240102');
@@ -231,12 +231,14 @@ describe('OrderBook execution boundaries', () => {
     orders.orderFuture('IF.CFX', 2);
     orders.orderFuture('IF.CFX', 1);
     orders.commitCollectedOrders();
-    expect(orders.hasCollectedFuturesOrders).toBe(true);
+    expect(orders.snapshotFuturesOrders()).toEqual([
+      { code: 'IF.CFX', intent: { kind: 'delta', value: 3 } },
+    ]);
 
     await orders.executeOrders('20240102', undefined);
     expect(executeOrder).not.toHaveBeenCalled();
     orders.beginOrderCollection('20240103');
-    expect(orders.hasCollectedFuturesOrders).toBe(false);
+    expect(orders.snapshotFuturesOrders()).toHaveLength(1);
     await orders.executeOrders('20240103', '20240102');
     expect(executeOrder).toHaveBeenCalledWith(
       expect.objectContaining({ contractDelta: 3, decisionDate: '20240102' }),

@@ -332,4 +332,8 @@ async function seedMarket() {
       mappedTsCode: 'IF2607.CFX',
     })),
   });
+  const { publishFutureMarketDate } = await import('#market/futures/publication.js');
+  for (const date of futureDates) {
+    await publishFutureMarketDate(date);
+  }
 }

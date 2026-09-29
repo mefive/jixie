@@ -80,12 +80,20 @@ export async function enqueueSignalRun(
 
     const runId = existing?.id ?? ulid();
     if (existing) {
+      const recorded = await transaction.signalFill.count({
+        where: { execution: { signalRunId: runId } },
+      });
+      if (recorded > 0) {
+        throw new SignalsError('execution_unavailable');
+      }
       await transaction.signalRun.update({
         where: { id: runId },
         data: {
           legacyStatus: null,
           legacyError: null,
           execDate: calendar.execDate,
+          modelAccounts: undefined,
+          intentSnapshot: [],
           dataCutoff: null,
           modelEquity: null,
           modelCash: null,

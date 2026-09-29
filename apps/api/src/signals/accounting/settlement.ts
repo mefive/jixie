@@ -1,3 +1,4 @@
+import { rebuildVersionedAccount } from './versioned-replay.js';
 import { completedSignalRunIds } from '../runs/state.js';
 import { ulid } from 'ulid';
 import type { BacktestConfig } from '@jixie/shared';
@@ -18,8 +19,24 @@ export async function settleStrategyAccounts(
   throughDate: string,
   onLog: (line: string) => void = console.log,
 ): Promise<{ deployments: number }> {
+  const versioned = await prisma.strategyDeployment.findMany({
+    where: { accountingVersion: 2 },
+    select: { id: true },
+  });
+  for (const deployment of versioned) {
+    for (const kind of ['simulation', 'actual'] as const) {
+      try {
+        await rebuildVersionedAccount(deployment.id, kind, throughDate);
+      } catch (error) {
+        onLog(
+          `Account ${deployment.id}/${kind}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
   const runs = await prisma.signalRun.findMany({
     where: {
+      deployment: { accountingVersion: 1 },
       id: { in: await completedSignalRunIds({ throughDate }) },
       execDate: { lte: throughDate },
     },
@@ -33,7 +50,7 @@ export async function settleStrategyAccounts(
   if (runs.length > 0) {
     onLog(`Settled ${runs.length} strategy account(s) through ${throughDate}`);
   }
-  return { deployments: runs.length };
+  return { deployments: runs.length + versioned.length };
 }
 
 export async function rebuildDeploymentAccount(
@@ -44,8 +61,12 @@ export async function rebuildDeploymentAccount(
 ): Promise<void> {
   const deployment = await prisma.strategyDeployment.findUnique({
     where: { id: deploymentId },
-    select: { config: true },
+    select: { config: true, accountingVersion: true },
   });
+  if (deployment?.accountingVersion === 2) {
+    await rebuildVersionedAccount(deploymentId, kind, throughDate);
+    return;
+  }
   const baseline = await prisma.strategyAccountSnapshot.findFirst({
     where: { deploymentId, kind, isBaseline: true },
     orderBy: { tradeDate: 'asc' },

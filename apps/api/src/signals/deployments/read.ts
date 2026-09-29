@@ -14,6 +14,7 @@ export async function listStrategyDeployments(
 }
 
 export function deploymentWire(row: {
+  accountingVersion?: number;
   id: string;
   backtestReportId: string | null;
   strategyId: string;
@@ -29,6 +30,7 @@ export function deploymentWire(row: {
   updatedAt: Date;
 }): StrategyDeployment {
   return {
+    accountingVersion: row.accountingVersion ?? 1,
     id: row.id,
     backtestReportId: row.backtestReportId,
     strategyId: row.strategyId,

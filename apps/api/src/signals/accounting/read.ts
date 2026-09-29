@@ -14,10 +14,14 @@ export async function getStrategyExecutionOverview(
 ): Promise<StrategyExecutionOverview> {
   const deployment = await prisma.strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
-    select: { id: true },
+    select: { id: true, accountingVersion: true },
   });
   if (!deployment) {
     throw new SignalsError('deployment_not_found');
+  }
+
+  if (deployment.accountingVersion === 2) {
+    throw new SignalsError('execution_unavailable');
   }
 
   const completedIds = await completedSignalRunIds({ deploymentId });
@@ -82,13 +86,13 @@ export async function getStrategyExecutionOverview(
 
 export function executionWire(row: {
   id: string;
-  signalRunId: string;
-  signalIndex: number;
+  signalRunId: string | null;
+  signalIndex: number | null;
   code: string;
   name: string;
   assetType: string;
   action: string;
-  requestedShares: number;
+  requestedShares: number | null;
   refPrice: number;
   refAmount: number;
   source: string;
@@ -107,6 +111,15 @@ export function executionWire(row: {
   actualNote: string | null;
   actualRecordedAt: Date | null;
 }): SignalExecution {
+  if (
+    row.signalRunId == null ||
+    row.signalIndex == null ||
+    row.requestedShares == null ||
+    row.assetType === 'future'
+  ) {
+    throw new SignalsError('execution_unavailable');
+  }
+
   return {
     id: row.id,
     signalRunId: row.signalRunId,

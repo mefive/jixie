@@ -5,6 +5,8 @@ import {
 } from '#infra/errors.js';
 
 const definitions = {
+  maintenance_conflict: { category: 'conflict', messageKey: 'signalMaintenanceConflict' },
+  unresolved_expiry: { category: 'conflict', messageKey: 'signalUnresolvedExpiry' },
   report_not_found: {
     category: 'missing',
     messageKey: 'backtestReportNotFound',

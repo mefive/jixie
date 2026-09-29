@@ -1,0 +1,16 @@
+@reference '../../styles/index.css';
+.jx-signalAccounts {
+  @apply flex flex-col gap-4;
+}
+.jx-signalAccounts-balances {
+  @apply grid grid-cols-1 gap-4 md:grid-cols-2;
+}
+.jx-signalAccounts-balance {
+  @apply rounded-lg border border-gray-200 p-4;
+}
+.jx-signalAccounts-actions {
+  @apply flex flex-wrap gap-2;
+}
+.jx-signalAccounts-fill {
+  @apply flex flex-wrap items-center justify-between gap-2 py-2;
+}

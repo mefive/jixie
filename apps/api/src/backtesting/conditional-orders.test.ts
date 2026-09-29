@@ -271,8 +271,8 @@ describe('persistent conditional orders', () => {
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
       cost: { slippageBps: 0, impactCoef: 0 },
     }).run();
-    expect(paired.finalState?.pendingLotOrders).toEqual(new Map([['A', 1]]));
-    expect([...paired.finalState!.conditionalOrders.values()]).toEqual([
+    expect(paired.finalState?.pendingLotOrders).toEqual([['A', 1]]);
+    expect([...new Map(paired.finalState!.conditionalOrders).values()]).toEqual([
       expect.objectContaining({ code: 'A', kind: 'stop_loss', triggerPrice: 9.2 }),
     ]);
     expect(paired.finalState).not.toHaveProperty('signals');
@@ -289,7 +289,7 @@ describe('persistent conditional orders', () => {
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
       cost: { slippageBps: 0, impactCoef: 0 },
     }).run();
-    expect([...output.finalState!.conditionalOrders.values()]).toEqual([
+    expect([...new Map(output.finalState!.conditionalOrders).values()]).toEqual([
       expect.objectContaining({
         code: 'A',
         kind: 'trailing_stop',

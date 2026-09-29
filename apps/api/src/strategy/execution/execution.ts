@@ -33,6 +33,7 @@ export interface StrategyRunOptions {
   initialCash: number;
   cost?: Partial<CostModel>;
   retainFinalState?: boolean;
+  strictFutures?: boolean;
 }
 
 /** Owns the strategy and factor resources for exactly one engine run. */
@@ -88,6 +89,7 @@ export class StrategyExecution {
 
     const backtestingConfig = {
       retainFinalState: options.retainFinalState,
+      strictFutures: options.strictFutures,
       start: options.start,
       end: options.end,
       initialCash: options.initialCash,

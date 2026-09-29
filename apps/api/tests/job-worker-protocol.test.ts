@@ -238,7 +238,7 @@ describe('shared Worker wire contracts', () => {
     };
     expect(signalWorkerMessageSchema.parse({ type: 'done', output })).toEqual({
       type: 'done',
-      output,
+      output: { ...output, resultVersion: 1, modelAccounts: null, futureSignals: [] },
     });
     expect(
       signalWorkerMessageSchema.safeParse({

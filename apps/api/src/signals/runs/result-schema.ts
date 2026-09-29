@@ -16,6 +16,7 @@ export const signalItemSchema = z.object({
   refPrice: z.number(),
   refAmount: z.number(),
   source: signalSourceSchema,
+  conditionId: z.string().optional(),
   orderType: z
     .enum(['market_open', 'stop_loss', 'trailing_stop', 'limit_buy', 'take_profit'])
     .optional(),
