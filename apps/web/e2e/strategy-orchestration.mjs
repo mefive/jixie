@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
@@ -147,6 +148,48 @@ try {
     path: new URL('../acceptance/job-system-backtest.png', import.meta.url).pathname,
     fullPage: true,
   });
+
+  const analysis = saved.lastResult.allocationAnalysis;
+  assert.equal(analysis.scope, 'cash_account');
+  assert.equal(analysis.reconciliation.reconciled, true);
+  assert.deepEqual(analysis.nav, saved.lastResult.nav);
+  assert.ok(analysis.assets.length > 0);
+  assert.ok(analysis.assets.every((asset) => asset.assetClass === 'other'));
+  assert.equal(analysis.correlations, undefined);
+  const allocationPanel = page.getByTestId('allocation-analysis');
+  await allocationPanel.getByText('已与现金账户权益对账', { exact: true }).waitFor();
+  await allocationPanel.getByText(/未分类持仓计入/).waitFor();
+  await allocationPanel.screenshot({
+    path: new URL('../acceptance/allocation-cash-account-zh.png', import.meta.url).pathname,
+  });
+  await page.getByText('EN', { exact: true }).click();
+  await allocationPanel.getByText('Reconciled to cash-account equity', { exact: true }).waitFor();
+  await allocationPanel.getByText(/excludes futures P&L/).waitFor();
+  await allocationPanel.screenshot({
+    path: new URL('../acceptance/allocation-cash-account-en.png', import.meta.url).pathname,
+  });
+
+  // Replay a historical report shape at the HTTP boundary without changing persisted results.
+  await page.route(
+    `**/api/app/strategies/backtest-reports/${backtestReference.reportId}`,
+    async (route) => {
+      const response = await route.fetch();
+      const report = await response.json();
+      delete report.result.allocationAnalysis.scope;
+      delete report.result.allocationAnalysis.nav;
+      await route.fulfill({ json: report });
+    },
+  );
+  await page.goto(`${BASE}/strategy?id=${strategyId}&report=${backtestReference.reportId}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await allocationPanel.getByText('Reconciled to portfolio equity', { exact: true }).waitFor();
+  await allocationPanel.getByText(/Historical report: preserves/).waitFor();
+  assert.equal(await allocationPanel.getByText(/excludes futures P&L/).count(), 0);
+  await allocationPanel.screenshot({
+    path: new URL('../acceptance/allocation-legacy-en.png', import.meta.url).pathname,
+  });
+  assert.deepEqual(pageErrors, []);
 
   console.log(
     `[strategy-orchestration] PASS id=${strategyId} name=${JSON.stringify(saved.name)} trades=${saved.lastResult.trades}`,

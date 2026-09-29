@@ -12,7 +12,9 @@ import type {
   FactorComputeRequest,
   FactorDefinition,
   FactorExecutionPort,
+  FactorDescription,
 } from '#backtesting/factors/execution-port.js';
+import { describeFactors } from '#backtesting/factors/description.js';
 
 type FactorInstance = CrossSectionalFactorRuntime | TimeSeriesFactorRuntime | PanelFactorRuntime;
 
@@ -75,7 +77,7 @@ export class FactorHost implements FactorExecutionPort {
   private readonly factors = new Map<string, FactorInstance>();
   private readonly identifiers = new Set<string>();
   private readonly queues = new Map<string, Promise<unknown>>();
-  private definitions?: Promise<FactorDefinition[]>;
+  private description?: Promise<FactorDescription>;
   private closed = false;
 
   constructor(
@@ -85,15 +87,15 @@ export class FactorHost implements FactorExecutionPort {
     this.dependencies = [...factors];
   }
 
-  describe(): Promise<FactorDefinition[]> {
+  describe(): Promise<FactorDescription> {
     if (this.closed) {
       return Promise.reject(new Error('Factor runtime is closed'));
     }
-    this.definitions ??= this.initialize().catch((error: unknown) => {
+    this.description ??= this.initialize().catch((error: unknown) => {
       this.close();
       throw error;
     });
-    return this.definitions.then((definitions) => structuredClone(definitions));
+    return this.description.then((description) => structuredClone(description));
   }
 
   async compute(input: FactorComputeRequest): Promise<(number | null)[]> {
@@ -190,12 +192,12 @@ export class FactorHost implements FactorExecutionPort {
     this.queues.clear();
   }
 
-  private async initialize(): Promise<FactorDefinition[]> {
+  private async initialize(): Promise<FactorDescription> {
     const definitions: FactorDefinition[] = [];
     for (const factor of this.dependencies) {
       definitions.push(await this.define(factor, factor.key));
     }
-    return definitions;
+    return describeFactors(definitions);
   }
 
   private async define(factor: StrategyFactor, id: string): Promise<FactorDefinition> {

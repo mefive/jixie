@@ -266,30 +266,37 @@ const portfolioRiskAnalysisV1Schema = z.object({
   scenarios: z.array(portfolioRiskScenarioResultV1Schema).optional(),
 });
 
-const allocationAnalysisSchema = z.object({
-  version: z.literal(1),
-  methodology: z.literal('daily_component_pnl'),
-  riskMethodology: z.literal('component_covariance'),
-  observations: z.number(),
-  reconciliation: z.object({
-    portfolioPnl: z.number(),
-    attributedNetPnl: z.number(),
-    residual: z.number(),
-    tolerance: z.number(),
-    reconciled: z.boolean(),
-  }),
-  costs: z.object({
-    fees: z.number(),
-    slippage: z.number(),
-    total: z.number(),
-  }),
-  assets: z.array(allocationContributionRowSchema),
-  assetClasses: z.array(allocationClassContributionRowSchema),
-  drift: z.array(allocationDriftEventSchema),
-  correlations: allocationCorrelationAnalysisSchema.optional(),
-  rateRegimes: allocationRateRegimeAnalysisSchema.optional(),
-  risk: portfolioRiskAnalysisV1Schema.optional(),
-});
+const allocationAnalysisSchema = z
+  .object({
+    version: z.literal(1),
+    scope: z.literal('cash_account').optional(),
+    nav: z.array(z.object({ date: z.string(), value: z.number() })).optional(),
+    methodology: z.literal('daily_component_pnl'),
+    riskMethodology: z.literal('component_covariance'),
+    observations: z.number(),
+    reconciliation: z.object({
+      portfolioPnl: z.number(),
+      attributedNetPnl: z.number(),
+      residual: z.number(),
+      tolerance: z.number(),
+      reconciled: z.boolean(),
+    }),
+    costs: z.object({
+      fees: z.number(),
+      slippage: z.number(),
+      total: z.number(),
+    }),
+    assets: z.array(allocationContributionRowSchema),
+    assetClasses: z.array(allocationClassContributionRowSchema),
+    drift: z.array(allocationDriftEventSchema),
+    correlations: allocationCorrelationAnalysisSchema.optional(),
+    rateRegimes: allocationRateRegimeAnalysisSchema.optional(),
+    risk: portfolioRiskAnalysisV1Schema.optional(),
+  })
+  .refine((analysis) => analysis.scope !== 'cash_account' || analysis.nav != null, {
+    path: ['nav'],
+    message: 'Cash-account analysis requires account NAV',
+  });
 
 export const backtestSummarySchema = z.object({
   name: z.string(),

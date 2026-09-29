@@ -44,12 +44,13 @@ export function buildBacktestRiskAnalysis(
   result: BacktestResult,
   input: BacktestRiskResearchInput,
 ): PortfolioRiskAnalysisV1 | undefined {
-  if (!result.allocationAnalysis || result.nav.length < 2) {
+  const nav = allocationNav(result);
+  if (!result.allocationAnalysis || nav.length < 2 || nav.some((point) => point.value <= 0)) {
     return undefined;
   }
-  const dailyReturns = result.nav.slice(1).map((point, index) => ({
+  const dailyReturns = nav.slice(1).map((point, index) => ({
     tradeDate: point.date,
-    return: point.value / result.nav[index]!.value - 1,
+    return: point.value / nav[index]!.value - 1,
   }));
   const alignedPortfolioReturns = alignPortfolioReturnsToNextSseSession(
     dailyReturns,
@@ -97,7 +98,13 @@ export async function attachBacktestRiskAnalysis(
   result: BacktestResult,
   database: Prisma = prisma,
 ): Promise<void> {
-  if (!result.allocationAnalysis || result.nav.length < 2 || result.end < '20180326') {
+  const nav = allocationNav(result);
+  if (
+    !result.allocationAnalysis ||
+    nav.length < 2 ||
+    nav.some((point) => point.value <= 0) ||
+    result.end < '20180326'
+  ) {
     return;
   }
   const dependencies = result.factorDependencies ?? [];
@@ -149,6 +156,13 @@ export async function attachBacktestRiskAnalysis(
   }
 }
 
+/** Legacy reports used portfolio NAV; scoped reports must never fall back to futures-inclusive NAV. */
+function allocationNav(result: BacktestResult): BacktestResult['nav'] {
+  return result.allocationAnalysis?.scope === 'cash_account'
+    ? (result.allocationAnalysis.nav ?? [])
+    : result.nav;
+}
+
 function buildFactorOverlap(
   result: BacktestResult,
   factorReports: Map<string, FactorResearchReportPayloadV1>,
@@ -190,7 +204,7 @@ function strategyAttributedPeriods(
     return [];
   }
   const monthEnds = new Map<string, BacktestResult['nav'][number]>();
-  for (const point of result.nav) {
+  for (const point of allocationNav(result)) {
     monthEnds.set(point.date.slice(0, 6), point);
   }
   const points = [...monthEnds.values()].sort((left, right) => left.date.localeCompare(right.date));

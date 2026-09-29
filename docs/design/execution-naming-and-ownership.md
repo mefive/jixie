@@ -241,3 +241,27 @@ engine.ts 按单一目的分段，声明与使用、同组校验保持连续，�
 审查前静态检查通过：全仓 `pnpm typecheck`（851 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、四个受影响 TS 文件 ESLint（0 警告）与 Prettier、`git diff --check`。
 
 人工审查通过后运行 evaluator、engine、execution-port、factor-semantics 及 allocation-analysis 测试：5 个文件、35 项全部通过，无失败或跳过。未启动额外开发服务，未运行构建。按已确认消息提交，不推送；资金分配方法命名建议不属于本次变更。
+
+## 2026-09-29 资产归因与因子可用性解耦（审查与验证通过）
+
+计划提交：`refactor(engine): decouple allocation analysis from factor availability`。
+
+本次包含尚未提交的 resolveInitialCashWeights 及期货开关/账户分离修改。两个账户始终创建，Engine 的 futuresEnabled 显式传给 Context / OrderBook，交易、行情、结算与分账户净值开关不再依赖账户存在性。
+
+FactorHost.describe 返回 FactorDescription（definitions、dataRequirements、preloadCodes、assetClassByCode），由因子侧 describeFactors 聚合并校验分类冲突。Engine 只消费描述并合并策略 watch，无 allocationClasses 或以分类 Map 是否为空启用分析的判断。EngineData 只接收去重后的 preloadCodes，统一在财务预加载前加载行情；查询批次、失败时序因此变化。资金比例解析移到数据加载前，以初始化 Tracker 的现金账户基准。
+
+AllocationAnalysisTracker 始终实例化、记录调仓/每日数据并输出报告，使用现金账户初始资金、权益及成交。无因子/无分类仍归因实际持仓，未知类别为 other；分类相关性及利率环境在缺少分类时不可用。纯期货零现金账户有空归因与零盈亏，不产生无效比例。分类仍来自已批准研究资产范围，不擅自推断持仓类别，不增加期货归因模型。
+
+新 AllocationAnalysis 增加兼容性可选 scope=cash_account 与 nav；新报告总是填写，历史报告保留原口径。Worker schema 同步保留字段。风险后处理对新报告只使用现金账户净值，缺失/零账户序列不回退到全组合；历史报告仍使用原组合净值。前端新增中英文范围、对账和无分类说明，双语帮助同步。未新增数据库迁移、workspace 或跨包构建依赖；API/Web/docs/shared 的既有部署规则覆盖。
+
+测试覆盖因子描述汇总与快照隔离、统一预加载、无因子实际持仓归因、混合账户对账、零资金、显式期货开关、现金账户风险序列与历史 Worker 报告兼容。审查前仅全仓 typecheck、SDK 生成一致性、边界静态扫描、lint/format、diff 和文档链接检查。审查通过后运行 Backtesting 全套、FactorHost/StrategyExecution、Signals 部署/运行、风险后处理与 Worker 协议回归，并验证前端报告新旧口径；相关构建与 E2E 放在审查后。当前行为测试、构建与 E2E 均未运行，修改未提交。
+
+审查前静态检查通过：全仓 `pnpm typecheck`（853 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、全部受影响 TS/TSX 文件 ESLint（0 警告）与 Prettier、`git diff --check`；修改文档中的 21 个本地链接均有效。无未解决的静态检查阻塞。
+
+人工审查通过后，Backtesting 全套、StrategyExecution/FactorHost、Signals 部署迁移/运行、风险后处理及 Worker 协议共 28 个文件、168 项测试通过；Signals HTTP/部署持久化集成另 19 项通过，合计 187 项。全仓 `pnpm build` 通过（shared、API、Web、docs、sandboxd）；Web/docs 有既有的大 chunk 提示，无构建失败。
+
+隔离数据库的 strategy-orchestration 与 backtest-report-history 浏览器流程通过：真实页面提交、Worker 计算、报告持久化、刷新恢复、历史比较及 Research 交接。扩展前者验证无因子现金账户归因、中英范围/对账说明及旧报告兼容；旧报告形状通过 HTTP 回放注入，不改数据库。检查了 allocation-cash-account-zh/en.png 与 allocation-legacy-en.png 截图。未运行依赖完整历史行情的 Panel/股债研究全流程，仅同步其中的对账文案断言。
+
+验证期间只修正测试设施：历史报告回放改为显式 report URL；隔离服务器等待断开连接后仍在执行的 HTTP handler，再释放语言服务，解决初始化晚于 dispose 导致的退出超时。测试设施 ESLint、Prettier 与 API 类型检查通过。最终 E2E 正常退出、临时数据库删除、两个服务端口关闭断言通过。业务代码没有审查后的修正。
+
+日志：/tmp/jixie-allocation-tests.log、/tmp/jixie-allocation-signals.log、/tmp/jixie-allocation-build.log、/tmp/jixie-allocation-e2e.log。按已确认消息提交，不推送。

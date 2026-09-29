@@ -95,6 +95,11 @@ describe('shared Worker wire contracts', () => {
       ],
       allocationAnalysis: {
         version: 1,
+        scope: 'cash_account',
+        nav: [
+          { date: '20240101', value: 100 },
+          { date: '20240102', value: 101 },
+        ],
         methodology: 'daily_component_pnl',
         riskMethodology: 'component_covariance',
         observations: 2,
@@ -130,6 +135,21 @@ describe('shared Worker wire contracts', () => {
       type: 'done',
       payload,
     });
+    const { scope: _scope, nav: _nav, ...legacyAnalysis } = payload.allocationAnalysis!;
+    const legacyPayload = { ...payload, allocationAnalysis: legacyAnalysis };
+    expect(backtestWorkerMessageSchema.parse({ type: 'done', payload: legacyPayload })).toEqual({
+      type: 'done',
+      payload: legacyPayload,
+    });
+    expect(
+      backtestWorkerMessageSchema.safeParse({
+        type: 'done',
+        payload: {
+          ...payload,
+          allocationAnalysis: { ...legacyAnalysis, scope: 'cash_account' },
+        },
+      }).success,
+    ).toBe(false);
     expect(
       backtestWorkerMessageSchema.safeParse({
         type: 'done',

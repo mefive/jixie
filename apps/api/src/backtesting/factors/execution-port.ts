@@ -1,5 +1,6 @@
 import type { FactorBar, MultiAssetClass } from '@jixie/shared';
 import type { FactorV2FieldKey } from '#factor/definitions/fields.js';
+import type { EngineDataRequirements } from '../data/engine-data.js';
 
 export type FactorHistoryField = 'turnoverRateF' | 'roe' | 'grossprofitMargin' | 'marketClose';
 
@@ -50,7 +51,14 @@ export type FactorComputeRequest =
   | { factorId: string; kind: 'cross_sectional'; items: FactorBatchInput[] }
   | { factorId: string; kind: 'asset_series'; fields: Record<string, number[]>; indexes: number[] };
 
+export interface FactorDescription {
+  definitions: FactorDefinition[];
+  dataRequirements: EngineDataRequirements;
+  preloadCodes: string[];
+  assetClassByCode: Map<string, MultiAssetClass>;
+}
+
 export interface FactorExecutionPort {
-  describe(): Promise<FactorDefinition[]>;
+  describe(): Promise<FactorDescription>;
   compute(request: FactorComputeRequest): Promise<(number | null)[]>;
 }

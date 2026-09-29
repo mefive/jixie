@@ -1,3 +1,4 @@
+import { describeFactors } from './description.js';
 import { describe, expect, it, vi } from 'vitest';
 import { EngineData } from '../data/engine-data.js';
 import { fixturePort } from '../testing/fixture-port.js';
@@ -10,7 +11,7 @@ async function loadedData() {
   const engineData = new EngineData({
     start: dates[0],
     end: dates[1],
-    watchCodes: ['A', 'B'],
+    preloadCodes: ['A', 'B'],
     dataPort: fixturePort({
       dates,
       stocks: ['A', 'B'].map((code) => ({
@@ -38,7 +39,7 @@ describe('factor evaluator setup', () => {
     const evaluator = new FactorEvaluator({
       definitions,
       engineData,
-      executionPort: { describe: async () => definitions, compute },
+      executionPort: { describe: async () => describeFactors(definitions), compute },
       assetUniverse: ['A', 'B'],
       onComputeError: vi.fn(),
     });
@@ -67,7 +68,7 @@ describe('factor evaluator setup', () => {
     const input = {
       definitions,
       engineData,
-      executionPort: { describe: async () => definitions, compute },
+      executionPort: { describe: async () => describeFactors(definitions), compute },
       assetUniverse: ['A', 'B'],
       onComputeError,
     };
@@ -104,7 +105,7 @@ describe('factor evaluator setup', () => {
       definitions,
       engineData,
       executionPort: {
-        describe: async () => definitions,
+        describe: async () => describeFactors(definitions),
         compute: vi.fn().mockRejectedValue(failure),
       },
       assetUniverse: ['A'],

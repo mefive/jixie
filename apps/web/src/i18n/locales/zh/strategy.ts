@@ -132,6 +132,13 @@ export const zhStrategy = {
   panelExecutionDescription:
     '下方收益来自策略的实际持仓、现金、交易费用与成交约束；它不是因子研究报告中的等权基准或多空诊断收益。',
   allocation: {
+    cashAccountScope:
+      '分析范围：股票 / ETF 现金账户，含未投资现金；不包含期货盈亏。风险研究使用同一账户净值。',
+    legacyScope: '历史报告：保留生成时的组合分析口径。',
+    cashAccountReconciled: '已与现金账户权益对账',
+    cashAccountPnl: '现金账户盈亏（元）',
+    classificationUnavailable:
+      '现金账户未配置资金或缺少研究资产分类，类别相关性与利率环境分析不可用；未分类持仓计入“其他”。',
     title: '多资产配置归因',
     methodology: '基于每日实际持仓、成交与成本核算；风险贡献采用成分收益协方差法',
     reconciled: '已与组合净值对账',

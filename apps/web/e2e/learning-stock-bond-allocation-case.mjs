@@ -296,7 +296,7 @@ try {
   await captureStrategyResult(allocationId, `${OUTPUT}stock-bond-allocation-result.png`);
 
   const allocationPanel = page.getByTestId('allocation-analysis');
-  await allocationPanel.getByText('已与组合净值对账', { exact: true }).waitFor({
+  await allocationPanel.getByText('已与现金账户权益对账', { exact: true }).waitFor({
     timeout: 30_000,
   });
   await allocationPanel.scrollIntoViewIfNeeded();

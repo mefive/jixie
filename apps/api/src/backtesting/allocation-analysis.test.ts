@@ -1,15 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import {
   AllocationAnalysisTracker,
-  allocationAssetClasses,
   classifyAllocationRateRegime,
   type AllocationRateRegimeObservation,
 } from './allocation-analysis.js';
-import type { FactorDefinition } from './factors/execution-port.js';
 import type { Position } from './cash-portfolio.js';
 import type { TradeRecord } from './trade.js';
 
 describe('allocation analysis', () => {
+  it('keeps zero-capital classified accounts empty and finite', () => {
+    const tracker = new AllocationAnalysisTracker(0, new Map([['ETF', 'cn_equity']]));
+    tracker.captureDay({
+      date: '20240102',
+      value: 0,
+      positions: new Map(),
+      closeOf: () => 10,
+      exactCloseOf: () => 10,
+      trades: [],
+    });
+
+    const result = tracker.finish(0);
+
+    expect(result.assets).toEqual([]);
+    expect(result.assetClasses).toEqual([]);
+    expect(result.correlations).toBeUndefined();
+    expect(result.rateRegimes).toBeUndefined();
+    expect(result.nav).toEqual([{ date: '20240102', value: 0 }]);
+    expect(result.reconciliation).toEqual({
+      portfolioPnl: 0,
+      attributedNetPnl: 0,
+      residual: 0,
+      tolerance: 0.01,
+      reconciled: true,
+    });
+    expect(tracker.requiresGovernmentYieldCurve).toBe(false);
+  });
+
   it('reconciles daily asset contribution, costs and portfolio P&L', () => {
     const tracker = new AllocationAnalysisTracker(
       1_000,
@@ -217,57 +243,7 @@ describe('allocation analysis', () => {
     expect(classifyAllocationRateRegime('20260201', tenYear, twoYear)).toBeNull();
     expect(classifyAllocationRateRegime(dates[118], tenYear.slice(0, 119), twoYear)).toBeNull();
   });
-
-  it('takes the approved panel universe as the authoritative asset taxonomy', () => {
-    const modules: FactorDefinition[] = [
-      {
-        id: 'allocation_panel',
-        kind: 'panel_composite',
-        standardization: 'rank',
-        assetUniverse: [
-          { assetId: 'EQUITY', assetClass: 'cn_equity' },
-          { assetId: 'BOND', assetClass: 'fixed_income' },
-        ],
-        components: [],
-      },
-    ];
-    expect([...allocationAssetClasses(modules)]).toEqual([
-      ['EQUITY', 'cn_equity'],
-      ['BOND', 'fixed_income'],
-    ]);
-  });
-
-  it('retains the approved asset taxonomy for a single panel factor', () => {
-    const definitions: FactorDefinition[] = [
-      {
-        id: 'panel',
-        kind: 'asset_series',
-        analysisKind: 'panel',
-        meta: { window: 2, inputs: ['etf.adjustedClose'] },
-        assetUniverse: [{ assetId: 'BOND', assetClass: 'fixed_income' }],
-      },
-    ];
-    expect([...allocationAssetClasses(definitions)]).toEqual([['BOND', 'fixed_income']]);
-  });
-
-  it('rejects conflicting asset classes instead of silently misclassifying exposure', () => {
-    const modules: FactorDefinition[] = [
-      panelDefinition('first', 'cn_equity'),
-      panelDefinition('second', 'fixed_income'),
-    ];
-    expect(() => allocationAssetClasses(modules)).toThrow('conflicting asset classes for ETF');
-  });
 });
-
-function panelDefinition(key: string, assetClass: 'cn_equity' | 'fixed_income'): FactorDefinition {
-  return {
-    id: key,
-    kind: 'panel_composite',
-    standardization: 'rank',
-    assetUniverse: [{ assetId: 'ETF', assetClass }],
-    components: [],
-  };
-}
 
 function tradingDates(count: number): string[] {
   const dates: string[] = [];

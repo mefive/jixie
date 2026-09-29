@@ -1,16 +1,24 @@
-import type { FactorDefinition } from './execution-port.js';
-import type { EngineDataRequirements } from '../data/engine-data.js';
+import type { MultiAssetClass } from '@jixie/shared';
+import type { FactorDefinition, FactorDescription } from './execution-port.js';
 
-export function collectFactorDataRequirements(
-  definitions: readonly FactorDefinition[],
-): EngineDataRequirements {
+export function describeFactors(definitions: FactorDefinition[]): FactorDescription {
   const requirements = {
     turnoverRateFHistory: false,
     fundamentalHistory: false,
     governmentYieldCurve: false,
   };
+  const assetClassByCode = new Map<string, MultiAssetClass>();
 
   for (const definition of definitions) {
+    for (const asset of ('assetUniverse' in definition ? definition.assetUniverse : undefined) ??
+      []) {
+      const existing = assetClassByCode.get(asset.assetId);
+      if (existing && existing !== asset.assetClass) {
+        throw new Error(`conflicting asset classes for ${asset.assetId}`);
+      }
+      assetClassByCode.set(asset.assetId, asset.assetClass);
+    }
+
     switch (definition.kind) {
       case 'cross_sectional':
         requirements.turnoverRateFHistory ||= definition.historyFields.includes('turnoverRateF');
@@ -31,5 +39,10 @@ export function collectFactorDataRequirements(
     }
   }
 
-  return requirements;
+  return {
+    definitions,
+    dataRequirements: requirements,
+    preloadCodes: [...assetClassByCode.keys()],
+    assetClassByCode,
+  };
 }

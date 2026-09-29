@@ -22,15 +22,30 @@ process.env.JIXIE_PYTHON_LOCAL = '1';
 delete process.env.RESEND_API_KEY;
 delete process.env.EMAIL_FROM;
 const servers: Server[] = [];
+const requests = new Set<Promise<Response>>();
 const executions = new Set<Promise<void>>();
 let database: typeof import('#infra/database/prisma.js').prisma | undefined;
 let stopping = false;
 
 async function listen(app: Hono) {
   return new Promise<string>((resolveBase) => {
-    const server = serve({ fetch: app.fetch, hostname: '127.0.0.1', port: 0 }, (address) => {
-      resolveBase(`http://127.0.0.1:${address.port}`);
-    });
+    const server = serve(
+      {
+        fetch: (request, environment) => {
+          const response = Promise.resolve(app.fetch(request, environment));
+          requests.add(response);
+          void response.then(
+            () => requests.delete(response),
+            () => requests.delete(response),
+          );
+
+          return response;
+        },
+        hostname: '127.0.0.1',
+        port: 0,
+      },
+      (address) => resolveBase(`http://127.0.0.1:${address.port}`),
+    );
     servers.push(server as Server);
   });
 }
@@ -45,6 +60,8 @@ async function stop() {
     server.closeAllConnections();
     await closed;
   }
+  // Disconnected clients can leave handlers initializing resources after their sockets close.
+  await Promise.allSettled([...requests]);
   await Promise.allSettled([...executions]);
   const { researchPythonLanguageService } = await import('#research/language/pyright-service.js');
   await researchPythonLanguageService.dispose();

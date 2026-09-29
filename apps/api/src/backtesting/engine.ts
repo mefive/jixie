@@ -3,9 +3,8 @@ import { t } from '#i18n/messages.js';
 import { day } from '#date';
 import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '#market/registry/index-presets.js';
 import { EngineData } from './data/engine-data.js';
-import type { FactorDefinition } from './factors/execution-port.js';
 import { FactorEvaluator } from './factors/evaluator.js';
-import { collectFactorDataRequirements } from './factors/data-requirements.js';
+import { describeFactors } from './factors/description.js';
 import { CashPortfolio } from './cash-portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
 import { OrderBook } from './order-book.js';
@@ -19,11 +18,7 @@ import type {
   SleeveNavPoint,
 } from './result.js';
 import { summarizePerformance } from './performance.js';
-import {
-  AllocationAnalysisTracker,
-  allocationAssetClasses,
-  classifyAllocationRateRegime,
-} from './allocation-analysis.js';
+import { AllocationAnalysisTracker, classifyAllocationRateRegime } from './allocation-analysis.js';
 
 const BENCHMARK = CSI_300_TOTAL_RETURN_INDEX_CODE;
 
@@ -37,14 +32,14 @@ export class BacktestingEngine {
   private readonly futuresEnabled;
   private readonly cnyNumberFormat;
 
-  private factorDefinitions: FactorDefinition[] = [];
+  private factorDescription = describeFactors([]);
 
   private engineData!: EngineData;
   private cashPortfolio!: CashPortfolio;
-  private futuresPortfolio: FuturesPortfolio | null = null;
+  private futuresPortfolio!: FuturesPortfolio;
   private orderBook!: OrderBook;
   private factorEvaluator: FactorEvaluator | null = null;
-  private allocationTracker: AllocationAnalysisTracker | null = null;
+  private allocationTracker!: AllocationAnalysisTracker;
 
   private lastLoggedYear = '';
   private capturedTrades = 0;
@@ -88,7 +83,9 @@ export class BacktestingEngine {
         );
       }
 
-      futuresPortfolio?.settle(engineData, date);
+      if (this.futuresEnabled) {
+        futuresPortfolio.settle(engineData, date);
+      }
 
       this.recordClose(date);
 
@@ -137,13 +134,15 @@ export class BacktestingEngine {
   private async initialize(): Promise<void> {
     const { config, cost, locale, log } = this;
 
-    await this.loadFactorDefinitions();
+    await this.loadFactorDescription();
 
-    const requirements = collectFactorDataRequirements(this.factorDefinitions);
+    const cashWeights = this.resolveInitialCashWeights();
+    const { dataRequirements, preloadCodes, assetClassByCode } = this.factorDescription;
 
-    const allocationClasses = this.futuresEnabled
-      ? new Map()
-      : allocationAssetClasses(this.factorDefinitions);
+    this.allocationTracker = new AllocationAnalysisTracker(
+      config.initialCash * cashWeights.stock,
+      assetClassByCode,
+    );
 
     this.engineData = new EngineData({
       start: config.start,
@@ -154,41 +153,34 @@ export class BacktestingEngine {
       dataPort: config.dataPort,
       futureCodes: config.strategy.futures ?? [],
       requirements: {
-        ...requirements,
-        governmentYieldCurve: requirements.governmentYieldCurve || allocationClasses.size > 0,
+        ...dataRequirements,
+        governmentYieldCurve:
+          dataRequirements.governmentYieldCurve ||
+          this.allocationTracker.requiresGovernmentYieldCurve,
       },
-      watchCodes: config.strategy.watch ?? [],
-      allocationCodes: [...allocationClasses.keys()],
+      preloadCodes: [...new Set([...(config.strategy.watch ?? []), ...preloadCodes])],
     });
 
     await this.engineData.load();
 
     this.initializeFactorEvaluator();
 
-    // Preserve the legacy default: declaring futures without accounts allocates all cash to futures.
-    const allocation = this.futuresEnabled ? this.getAccountAllocation() : { stock: 1, futures: 0 };
-    this.cashPortfolio = new CashPortfolio(config.initialCash * allocation.stock, cost);
-    this.futuresPortfolio = this.futuresEnabled
-      ? new FuturesPortfolio(config.initialCash * allocation.futures, cost)
-      : null;
-
-    this.allocationTracker =
-      allocationClasses.size > 0
-        ? new AllocationAnalysisTracker(config.initialCash, allocationClasses)
-        : null;
+    this.cashPortfolio = new CashPortfolio(config.initialCash * cashWeights.stock, cost);
+    this.futuresPortfolio = new FuturesPortfolio(config.initialCash * cashWeights.futures, cost);
 
     this.orderBook = new OrderBook({
       engineData: this.engineData,
       cashPortfolio: this.cashPortfolio,
       futuresPortfolio: this.futuresPortfolio,
       cost,
-      stockOrdersEnabled: !this.futuresEnabled || allocation.stock > 0,
+      stockOrdersEnabled: !this.futuresEnabled || cashWeights.stock > 0,
+      futuresEnabled: this.futuresEnabled,
     });
 
     this.logStart();
   }
 
-  private async loadFactorDefinitions(): Promise<void> {
+  private async loadFactorDescription(): Promise<void> {
     const { config, locale } = this;
     const declaredKeys = (config.strategy.factors ?? []).filter(isComputedFactorKey);
 
@@ -197,11 +189,12 @@ export class BacktestingEngine {
         throw new Error(t(locale, 'customFactorExecutionUnavailable'));
       }
 
-      this.factorDefinitions = [];
+      this.factorDescription = describeFactors([]);
       return;
     }
 
-    const definitions = structuredClone(await config.factorExecution.describe());
+    const description = structuredClone(await config.factorExecution.describe());
+    const { definitions } = description;
     const keys = new Set(definitions.map((definition) => definition.id));
 
     if (keys.size !== definitions.length) {
@@ -214,12 +207,17 @@ export class BacktestingEngine {
       throw new Error(t(locale, 'customFactorMissing', { keys: missing.join(', ') }));
     }
 
-    this.factorDefinitions = definitions;
+    this.factorDescription = description;
   }
 
-  private getAccountAllocation(): { stock: number; futures: number } {
+  private resolveInitialCashWeights(): { stock: number; futures: number } {
+    if (!this.futuresEnabled) {
+      return { stock: 1, futures: 0 };
+    }
+
     const { config } = this;
 
+    // Preserve the legacy default: declaring futures without accounts allocates all cash to futures.
     if (!config.strategy.accounts) {
       return { stock: 0, futures: 1 };
     }
@@ -238,9 +236,10 @@ export class BacktestingEngine {
   }
 
   private initializeFactorEvaluator(): void {
-    const { config, engineData, locale, log, factorDefinitions } = this;
+    const { config, engineData, locale, log } = this;
+    const { definitions } = this.factorDescription;
 
-    if (factorDefinitions.length === 0) {
+    if (definitions.length === 0) {
       this.factorEvaluator = null;
       return;
     }
@@ -249,7 +248,7 @@ export class BacktestingEngine {
     }
 
     this.factorEvaluator = new FactorEvaluator({
-      definitions: factorDefinitions,
+      definitions,
       engineData,
       executionPort: config.factorExecution,
       assetUniverse: config.strategy.watch ?? [],
@@ -278,11 +277,11 @@ export class BacktestingEngine {
     const { engineData, cashPortfolio, futuresPortfolio } = this;
 
     const stockValue = cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date));
-    const value = stockValue + (futuresPortfolio?.cash ?? 0);
+    const value = stockValue + futuresPortfolio.cash;
 
     this.nav.push({ date, value });
 
-    if (futuresPortfolio) {
+    if (this.futuresEnabled) {
       const stockGrossExposure = cashPortfolio.marketValue((code) =>
         engineData.adjustedCloseAsOf(code, date),
       );
@@ -302,9 +301,9 @@ export class BacktestingEngine {
       });
     }
 
-    this.allocationTracker?.captureDay({
+    this.allocationTracker.captureDay({
       date,
-      value,
+      value: stockValue,
       positions: cashPortfolio.positions,
       closeOf: (code) => engineData.adjustedCloseAsOf(code, date),
       exactCloseOf: (code) => engineData.adjustedOhlcOn(code, date)?.close ?? null,
@@ -336,6 +335,7 @@ export class BacktestingEngine {
       cashPortfolio: this.cashPortfolio,
       futuresPortfolio: this.futuresPortfolio,
       factorEvaluator: this.factorEvaluator,
+      futuresEnabled: this.futuresEnabled,
       orderBook: this.orderBook,
       onFactorRead: observeFactors
         ? (key, code, value) => {
@@ -358,7 +358,7 @@ export class BacktestingEngine {
   private collectResult(): BacktestingResult {
     const { config, engineData, cashPortfolio, futuresPortfolio } = this;
 
-    const trades = futuresPortfolio
+    const trades = this.futuresEnabled
       ? [...cashPortfolio.trades, ...futuresPortfolio.trades].sort((left, right) =>
           left.date.localeCompare(right.date),
         )
@@ -373,9 +373,11 @@ export class BacktestingEngine {
       BENCHMARK,
       this.futuresEnabled ? this.sleeveNav : undefined,
     );
-    if (this.allocationTracker) {
-      result.allocationAnalysis = this.allocationTracker.finish(result.finalValue);
-    }
+    result.allocationAnalysis = this.allocationTracker.finish(
+      cashPortfolio.equity((code) =>
+        engineData.adjustedCloseAsOf(code, this.nav.at(-1)?.date ?? config.end),
+      ),
+    );
 
     this.logResult(result);
 

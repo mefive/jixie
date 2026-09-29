@@ -400,7 +400,7 @@ try {
   });
   await dependencyPanel.getByText('跨资产面板', { exact: false }).waitFor();
   const allocationPanel = page.getByTestId('allocation-analysis');
-  await allocationPanel.getByText('已与组合净值对账', { exact: true }).waitFor({
+  await allocationPanel.getByText('已与现金账户权益对账', { exact: true }).waitFor({
     timeout: 30_000,
   });
   await page.setViewportSize({ width: 1440, height: 1400 });

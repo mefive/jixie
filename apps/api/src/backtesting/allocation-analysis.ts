@@ -10,7 +10,6 @@ import type {
   MultiAssetClass,
 } from '@jixie/shared';
 import { daysBetween } from '#date';
-import type { FactorDefinition } from './factors/execution-port.js';
 import type { GovernmentYieldObservation } from './data/engine-data.js';
 import type { Position } from './cash-portfolio.js';
 import type { TradeRecord } from './trade.js';
@@ -48,24 +47,6 @@ interface AssetAccumulator {
   dailyNetReturns: number[];
 }
 
-/** The approved Panel research universe is the authoritative exposure taxonomy for a run. */
-export function allocationAssetClasses(
-  definitions: FactorDefinition[],
-): Map<string, MultiAssetClass> {
-  const classes = new Map<string, MultiAssetClass>();
-  for (const definition of definitions) {
-    for (const asset of ('assetUniverse' in definition ? definition.assetUniverse : undefined) ??
-      []) {
-      const existing = classes.get(asset.assetId);
-      if (existing && existing !== asset.assetClass) {
-        throw new Error(`conflicting asset classes for ${asset.assetId}`);
-      }
-      classes.set(asset.assetId, asset.assetClass);
-    }
-  }
-  return classes;
-}
-
 /** Produces exact daily component P&L and compact allocation diagnostics inside the engine. */
 export class AllocationAnalysisTracker {
   private readonly assets = new Map<string, AssetAccumulator>();
@@ -79,6 +60,7 @@ export class AllocationAnalysisTracker {
   private readonly drift: AllocationDriftEvent[] = [];
   private previousEquity: number;
   private observations = 0;
+  private readonly nav: Array<{ date: string; value: number }> = [];
 
   constructor(
     private readonly initialCash: number,
@@ -93,6 +75,10 @@ export class AllocationAnalysisTracker {
     }
   }
 
+  get requiresGovernmentYieldCurve(): boolean {
+    return this.initialCash > 0 && this.assetClasses.size > 0;
+  }
+
   captureDay(args: {
     date: string;
     value: number;
@@ -102,6 +88,7 @@ export class AllocationAnalysisTracker {
     trades: TradeRecord[];
     rateRegime?: AllocationRateRegimeObservation | null;
   }): void {
+    this.nav.push({ date: args.date, value: args.value });
     this.captureClassMarketReturns(args.date, args.exactCloseOf);
     this.rateRegimeObservations.push(args.rateRegime ?? null);
     const codes = new Set<string>([
@@ -157,7 +144,9 @@ export class AllocationAnalysisTracker {
     const denominator = this.previousEquity > 0 ? this.previousEquity : this.initialCash;
     this.portfolioReturns.push(denominator > 0 ? args.value / denominator - 1 : 0);
     for (const accumulator of this.assets.values()) {
-      accumulator.dailyNetReturns.push((netPnlByAsset.get(accumulator.assetId) ?? 0) / denominator);
+      accumulator.dailyNetReturns.push(
+        denominator > 0 ? (netPnlByAsset.get(accumulator.assetId) ?? 0) / denominator : 0,
+      );
     }
     this.previousShares.clear();
     for (const [code, position] of args.positions) {
@@ -256,7 +245,7 @@ export class AllocationAnalysisTracker {
       })
       .filter(
         (asset) =>
-          this.assetClasses.has(asset.assetId) ||
+          (this.initialCash > 0 && this.assetClasses.has(asset.assetId)) ||
           Math.abs(asset.netPnl) > 1e-8 ||
           asset.averageWeight > 1e-8,
       )
@@ -283,6 +272,8 @@ export class AllocationAnalysisTracker {
 
     return {
       version: 1,
+      scope: 'cash_account',
+      nav: this.nav.map((point) => ({ ...point })),
       methodology: 'daily_component_pnl',
       riskMethodology: 'component_covariance',
       observations: this.observations,
@@ -297,7 +288,10 @@ export class AllocationAnalysisTracker {
       assets,
       assetClasses,
       drift: this.drift,
-      correlations: this.buildCorrelations(),
+      correlations:
+        this.initialCash > 0 && this.classMarketReturns.size > 0
+          ? this.buildCorrelations()
+          : undefined,
       rateRegimes: this.buildRateRegimes(),
     };
   }
@@ -410,7 +404,7 @@ export class AllocationAnalysisTracker {
 
   private buildRateRegimes(): AllocationRateRegimeAnalysis | undefined {
     const classifiedDays = this.rateRegimeObservations.filter(Boolean).length;
-    if (classifiedDays === 0) {
+    if (this.initialCash <= 0 || this.classMarketReturns.size === 0 || classifiedDays === 0) {
       return undefined;
     }
 

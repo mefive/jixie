@@ -58,7 +58,7 @@ export class StrategyExecution {
     let factorHost: FactorHost | undefined;
     try {
       factorHost = new FactorHost(input.factors ?? [], input.onUserLog);
-      const factorDefinitions = await factorHost.describe();
+      const { definitions: factorDefinitions } = await factorHost.describe();
       StrategyFactor.validateRuntimeMetadata(input.factors ?? [], factorDefinitions);
       const byId = new Map(factorDefinitions.map((definition) => [definition.id, definition]));
       const dependencies = (input.factors ?? []).map((factor) =>

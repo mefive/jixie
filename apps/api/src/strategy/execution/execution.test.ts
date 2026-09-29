@@ -75,7 +75,7 @@ describe('simulation factor initialization', () => {
     'loads a %s factor once and reuses it for computation',
     async (language) => {
       mocks.engine.mockImplementation(async (engineConfig) => {
-        expect(await engineConfig.factorExecution.describe()).toEqual([
+        expect((await engineConfig.factorExecution.describe()).definitions).toEqual([
           expect.objectContaining({
             kind: 'asset_series',
             meta: { window: 2, inputs: ['rates.cgb.yield.10y'] },

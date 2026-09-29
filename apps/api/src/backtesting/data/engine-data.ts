@@ -68,8 +68,7 @@ export interface EngineDataOptions {
   locale?: Locale;
   futureCodes?: string[];
   requirements?: EngineDataRequirements;
-  watchCodes?: string[];
-  allocationCodes?: string[];
+  preloadCodes?: string[];
 }
 
 /**
@@ -164,8 +163,7 @@ export class EngineData {
         fundamentalHistory: false,
         governmentYieldCurve: false,
       },
-      watchCodes: options.watchCodes ?? [],
-      allocationCodes: options.allocationCodes ?? [],
+      preloadCodes: [...new Set(options.preloadCodes ?? [])],
     };
   }
 
@@ -491,17 +489,14 @@ export class EngineData {
       }
     }
 
-    if (this.options.watchCodes.length > 0) {
-      await this.loadBars(this.options.watchCodes);
+    if (this.options.preloadCodes.length > 0) {
+      await this.loadBars(this.options.preloadCodes);
     }
 
     if (this.options.requirements.fundamentalHistory) {
       await this.ensureFina();
     }
 
-    if (this.options.allocationCodes.length > 0) {
-      await this.loadBars(this.options.allocationCodes);
-    }
   }
 
   /** Instruments whose histories are already available to synchronous strategy reads. */

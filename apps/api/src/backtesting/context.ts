@@ -10,7 +10,8 @@ interface BacktestingContextInput {
   date: string;
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
-  futuresPortfolio: FuturesPortfolio | null;
+  futuresPortfolio: FuturesPortfolio;
+  futuresEnabled: boolean;
   factorEvaluator: FactorEvaluator | null;
   orderBook: OrderBook;
   onFactorRead?: (key: string, code: string, value: number | null) => void;
@@ -29,7 +30,7 @@ export class BacktestingContext implements EngineContext {
   get cash(): number {
     const { cashPortfolio, futuresPortfolio } = this.input;
 
-    return cashPortfolio.cash + (futuresPortfolio?.cash ?? 0);
+    return cashPortfolio.cash + futuresPortfolio.cash;
   }
 
   get value(): number {
@@ -37,14 +38,14 @@ export class BacktestingContext implements EngineContext {
 
     return (
       cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date)) +
-      (futuresPortfolio?.cash ?? 0)
+      futuresPortfolio.cash
     );
   }
 
   get availableCash(): number {
     const { cashPortfolio, futuresPortfolio } = this.input;
 
-    return cashPortfolio.cash + (futuresPortfolio?.availableCash ?? 0);
+    return cashPortfolio.cash + futuresPortfolio.availableCash;
   }
 
   get stockValue(): number {
@@ -56,7 +57,7 @@ export class BacktestingContext implements EngineContext {
   get futureValue(): number {
     const { futuresPortfolio } = this.input;
 
-    return futuresPortfolio?.cash ?? 0;
+    return futuresPortfolio.cash;
   }
 
   get stockAvailableCash(): number {
@@ -68,13 +69,13 @@ export class BacktestingContext implements EngineContext {
   get futureAvailableCash(): number {
     const { futuresPortfolio } = this.input;
 
-    return futuresPortfolio?.availableCash ?? 0;
+    return futuresPortfolio.availableCash;
   }
 
   get futureMargin(): number {
     const { futuresPortfolio } = this.input;
 
-    return futuresPortfolio?.margin ?? 0;
+    return futuresPortfolio.margin;
   }
 
   positions(): { code: string; shares: number; avgCost: number; marketValue: number }[] {
@@ -199,7 +200,7 @@ export class BacktestingContext implements EngineContext {
   }
 
   future(code: string): FutureBar | null {
-    return this.input.futuresPortfolio
+    return this.input.futuresEnabled
       ? this.input.engineData.futureBar(code, this.input.date)
       : null;
   }
@@ -209,7 +210,7 @@ export class BacktestingContext implements EngineContext {
     field: 'open' | 'high' | 'low' | 'close' | 'settle',
     n: number,
   ): number[] {
-    return this.input.futuresPortfolio
+    return this.input.futuresEnabled
       ? this.input.engineData.futureHistory(code, this.input.date, field, n)
       : [];
   }
@@ -217,7 +218,7 @@ export class BacktestingContext implements EngineContext {
   futurePosition(code: string): FuturePositionView | null {
     const { futuresPortfolio } = this.input;
 
-    return futuresPortfolio?.position(code) ?? null;
+    return futuresPortfolio.position(code);
   }
 
   orderTargetPercent(code: string, weight: number): void {

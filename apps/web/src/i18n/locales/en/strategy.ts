@@ -140,6 +140,13 @@ export const enStrategy: typeof zhStrategy = {
   panelExecutionDescription:
     "The results below come from the strategy's actual holdings, cash, fees, and fill constraints; they are not the factor report's equal-weight benchmark or long-short diagnostic return.",
   allocation: {
+    cashAccountScope:
+      'Scope: stock / ETF cash account, including uninvested cash; excludes futures P&L. Risk research uses the same account NAV.',
+    legacyScope: 'Historical report: preserves the portfolio scope used when generated.',
+    cashAccountReconciled: 'Reconciled to cash-account equity',
+    cashAccountPnl: 'Cash-account P&L (CNY)',
+    classificationUnavailable:
+      'Class correlation and rate-regime analysis are unavailable without cash-account capital or research asset classifications. Unclassified holdings appear as Other.',
     title: 'Multi-asset allocation attribution',
     methodology:
       'Calculated from actual daily holdings, fills, and costs; risk uses component-return covariance',

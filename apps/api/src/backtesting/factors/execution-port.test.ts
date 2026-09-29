@@ -1,3 +1,4 @@
+import { describeFactors } from './description.js';
 import { describe, expect, it, vi } from 'vitest';
 import { BacktestingEngine } from '../engine.js';
 import { fixturePort } from '../testing/fixture-port.js';
@@ -19,7 +20,7 @@ const crossSectional: FactorDefinition = {
 
 function port(definitions: FactorDefinition[]) {
   return {
-    describe: vi.fn(async () => definitions),
+    describe: vi.fn(async () => describeFactors(definitions)),
     compute: vi.fn(async (request: FactorComputeRequest) =>
       (request.kind === 'cross_sectional' ? request.items : request.indexes).map(() => 42),
     ),

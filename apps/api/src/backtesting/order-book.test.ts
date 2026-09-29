@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { EngineData } from './data/engine-data.js';
 import { fixturePort } from './testing/fixture-port.js';
 import { CashPortfolio } from './cash-portfolio.js';
+import { FuturesPortfolio } from './futures-portfolio.js';
 import { DEFAULT_COST } from './cost.js';
 import { OrderBook } from './order-book.js';
 
@@ -15,7 +16,8 @@ describe('OrderBook decision ownership', () => {
     const orders = new OrderBook({
       engineData,
       cashPortfolio: new CashPortfolio(10000, DEFAULT_COST),
-      futuresPortfolio: null,
+      futuresPortfolio: new FuturesPortfolio(0, DEFAULT_COST),
+      futuresEnabled: false,
       cost: DEFAULT_COST,
       stockOrdersEnabled: true,
     });

@@ -87,6 +87,50 @@ function run(spec: FixtureSpec, scriptedStrategy: EngineStrategy, initialCash = 
 }
 
 describe('股指期货规则', () => {
+  it('returns a finite empty cash-account analysis for a futures-only strategy', async () => {
+    const result = await run(
+      futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
+      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) }),
+    );
+
+    expect(result.tradeLog.length).toBeGreaterThan(0);
+    expect(result.allocationAnalysis).toMatchObject({
+      scope: 'cash_account',
+      assets: [],
+      assetClasses: [],
+      costs: { fees: 0, slippage: 0, total: 0 },
+      reconciliation: { portfolioPnl: 0, attributedNetPnl: 0, residual: 0, reconciled: true },
+      nav: DATES.map((date) => ({ date, value: 0 })),
+    });
+    expect(JSON.stringify(result.allocationAnalysis)).not.toMatch(/NaN|Infinity/);
+  });
+
+  it('allows futures instructions with zero allocated cash while enforcing margin requirements', async () => {
+    const spec = futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX'])));
+    let decisions = 0;
+    const result = await run(spec, {
+      name: 'zero futures cash',
+      futures: ['IF.CFX'],
+      accounts: { stock: { cashWeight: 1 }, futures: { cashWeight: 0 } },
+      onBar(context) {
+        decisions++;
+        expect(context.future('IF.CFX')).not.toBeNull();
+        expect(context.futureHistory('IF.CFX', 'close', 1)).toHaveLength(1);
+        expect(context.stockValue).toBe(100_000);
+        expect(context.futureValue).toBe(0);
+        expect(context.futureMargin).toBe(0);
+        expect(context.futurePosition('IF.CFX')).toBeNull();
+        context.orderFuture('IF.CFX', 1);
+      },
+    });
+
+    expect(decisions).toBe(DATES.length);
+    expect(result.tradeLog).toEqual([]);
+    expect(result.finalValue).toBe(100_000);
+    expect(result.sleeveNav).toHaveLength(DATES.length);
+    expect(result.sleeveNav?.every((point) => point.futureValue === 0)).toBe(true);
+  });
+
   it('attributes futures tick slippage to each fill and the result total', async () => {
     const result = (
       await new BacktestingEngine({
@@ -333,6 +377,15 @@ describe('股指期货规则', () => {
       futureNotional: -81_000,
       netExposure: 7_000,
     });
+    expect(result.allocationAnalysis?.scope).toBe('cash_account');
+    expect(result.allocationAnalysis?.nav).toEqual(
+      result.sleeveNav!.map((point) => ({ date: point.date, value: point.stockValue })),
+    );
+    expect(result.allocationAnalysis?.reconciliation.reconciled).toBe(true);
+    expect(result.allocationAnalysis?.reconciliation.portfolioPnl).toBeCloseTo(
+      result.sleeveNav!.at(-1)!.stockValue - 80_000,
+    );
+    expect(result.allocationAnalysis?.assets.map((asset) => asset.assetId)).toEqual(['AAA']);
   });
 
   it('混合对冲使用股票子账户实际可成交市值,不会按组合总资金过度对冲', async () => {

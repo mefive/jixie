@@ -185,6 +185,10 @@ export interface AllocationRateRegimeAnalysis {
 /** Engine-produced allocation diagnostics. Consumers must not reconstruct accounting from fills. */
 export interface AllocationAnalysis {
   version: 1;
+  /** Missing on historical reports that used whole-portfolio equity. */
+  scope?: 'cash_account';
+  /** Equity of the analyzed cash account; required on newly generated scoped reports. */
+  nav?: { date: string; value: number }[];
   methodology: 'daily_component_pnl';
   riskMethodology: 'component_covariance';
   observations: number;

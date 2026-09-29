@@ -4,6 +4,8 @@
 
 Risk research explains which market drivers the completed multi-asset backtest was sensitive to, how macro conditions moved with returns, and whether Alpha may overlap known risk. It does not alter trades and is not a return forecast.
 
+New reports use cash-account NAV (stocks / ETFs and cash) for market risk, macro sensitivity, strategy-attributed overlap, and scenarios, excluding futures P&L. Factor-report Alpha overlap still uses its separate research returns. Historical reports preserve their original scope.
+
 ## Market risk
 
 Market risk uses up to 252 complete daily observations in a multivariate regression and an EWMA factor covariance matrix. Drivers include China equity, government-curve level/slope/curvature, credit spread, USD/CNH, US real yield, gold, and commodities.

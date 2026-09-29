@@ -12,6 +12,54 @@ import type { MarketRiskDriverHistoryV1 } from '#market/state/market-risk-driver
 import { buildBacktestRiskAnalysis } from './backtest-risk-analysis.js';
 
 describe('backtest risk-analysis orchestration', () => {
+  it('uses scoped cash-account NAV even when futures change the total portfolio path', () => {
+    const fixture = input();
+    const researchInput = {
+      openDates: fixture.openDates,
+      marketHistory: fixture.marketHistory,
+      factorReports: new Map(),
+    };
+    const expected = buildBacktestRiskAnalysis(fixture.result, researchInput);
+    fixture.result.allocationAnalysis = {
+      ...fixture.result.allocationAnalysis!,
+      scope: 'cash_account',
+      nav: fixture.result.nav,
+    };
+    fixture.result.nav = fixture.result.nav.map((point, index) => ({
+      date: point.date,
+      value: 200 + index * 10,
+    }));
+
+    expect(buildBacktestRiskAnalysis(fixture.result, researchInput)).toEqual(expected);
+  });
+
+  it.each([
+    undefined,
+    [],
+    [
+      { date: '20230101', value: 0 },
+      { date: '20230102', value: 0 },
+    ],
+  ])(
+    'does not fall back to total portfolio NAV for missing or zero cash-account NAV (%j)',
+    (nav) => {
+      const fixture = input();
+      fixture.result.allocationAnalysis = {
+        ...fixture.result.allocationAnalysis!,
+        scope: 'cash_account',
+        nav,
+      };
+
+      expect(
+        buildBacktestRiskAnalysis(fixture.result, {
+          openDates: fixture.openDates,
+          marketHistory: fixture.marketHistory,
+          factorReports: new Map(),
+        }),
+      ).toBeUndefined();
+    },
+  );
+
   it('adds market exposure and scenarios only to a multi-asset result', () => {
     const fixture = input();
     const risk = buildBacktestRiskAnalysis(fixture.result, {

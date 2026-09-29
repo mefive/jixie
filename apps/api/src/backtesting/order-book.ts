@@ -66,7 +66,8 @@ export interface CashOrderSnapshot {
 interface OrderBookInput {
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
-  futuresPortfolio: FuturesPortfolio | null;
+  futuresPortfolio: FuturesPortfolio;
+  futuresEnabled: boolean;
   cost: CostModel;
   stockOrdersEnabled: boolean;
 }
@@ -122,13 +123,13 @@ export class OrderBook {
   async executeOpen(
     date: string,
     previousDate: string | undefined,
-    allocationTracker: AllocationAnalysisTracker | null,
+    allocationTracker: AllocationAnalysisTracker,
     onRebalance: () => void,
   ): Promise<void> {
     const { engineData, cashPortfolio: portfolio, futuresPortfolio } = this.input;
     const heldBeforeOpen = new Set(portfolio.positions.keys());
 
-    if (futuresPortfolio && previousDate) {
+    if (this.input.futuresEnabled && previousDate) {
       futuresPortfolio.roll(
         engineData,
         date,
@@ -141,13 +142,13 @@ export class OrderBook {
       await engineData.loadBars([
         ...new Set([...this.pendingTargets.keys(), ...portfolio.positions.keys()]),
       ]);
-      const preTrade = allocationTracker?.weights(
+      const preTrade = allocationTracker.weights(
         portfolio.cash,
         portfolio.positions,
         (code) => engineData.adjustedOpenOn(code, date) ?? engineData.adjustedCloseAsOf(code, date),
       );
       this.rebalance(date);
-      if (allocationTracker && preTrade && this.pendingTargetDecisionDate) {
+      if (this.pendingTargetDecisionDate) {
         allocationTracker.captureRebalance({
           decisionDate: this.pendingTargetDecisionDate,
           executionDate: date,
@@ -186,7 +187,7 @@ export class OrderBook {
       this.executeConditionalOrders(date);
     }
 
-    if (futuresPortfolio && previousDate && this.pendingFutureIntents) {
+    if (this.input.futuresEnabled && previousDate && this.pendingFutureIntents) {
       this.executeFutureIntents(date, previousDate);
       this.pendingFutureIntents = null;
     }
@@ -292,7 +293,7 @@ export class OrderBook {
   }
 
   orderFuture(code: string, contracts: number): void {
-    if (!this.input.futuresPortfolio) {
+    if (!this.input.futuresEnabled) {
       throw new Error('Declare strategy.futures to use futures orders');
     }
 
@@ -308,7 +309,7 @@ export class OrderBook {
   }
 
   setFutureTargetContracts(code: string, contracts: number): void {
-    if (!this.input.futuresPortfolio) {
+    if (!this.input.futuresEnabled) {
       throw new Error('Declare strategy.futures to use futures orders');
     }
 
@@ -318,7 +319,7 @@ export class OrderBook {
   }
 
   setFutureTargetNotional(code: string, notional: number): void {
-    if (!this.input.futuresPortfolio) {
+    if (!this.input.futuresEnabled) {
       throw new Error('Declare strategy.futures to use futures orders');
     }
 
@@ -328,7 +329,7 @@ export class OrderBook {
   }
 
   hedgeFuture(code: string, beta = 1): void {
-    if (!this.input.futuresPortfolio) {
+    if (!this.input.futuresEnabled) {
       throw new Error('Declare strategy.futures to use futures orders');
     }
 
@@ -340,7 +341,7 @@ export class OrderBook {
   }
 
   exitFuture(code: string): void {
-    if (!this.input.futuresPortfolio) {
+    if (!this.input.futuresEnabled) {
       throw new Error('Declare strategy.futures to use futures orders');
     }
 
@@ -638,7 +639,7 @@ export class OrderBook {
       engineData,
     } = this.input;
     const intents = this.pendingFutureIntents;
-    if (!futurePortfolio || !intents) {
+    if (!intents) {
       return;
     }
 

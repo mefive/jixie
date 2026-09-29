@@ -36,8 +36,7 @@ describe('initial data loading', () => {
       start: date,
       end: date,
       dataPort,
-      watchCodes: ['A'],
-      allocationCodes: ['A', 'B'],
+      preloadCodes: ['A', 'B', 'A'],
       requirements: {
         turnoverRateFHistory: true,
         fundamentalHistory: true,
@@ -48,12 +47,10 @@ describe('initial data loading', () => {
     await data.load();
 
     expect(bars.mock.calls).toEqual([
-      [['A'], date, date, { includeTurnoverRateF: true }],
-      [['B'], date, date, { includeTurnoverRateF: true }],
+      [['A', 'B'], date, date, { includeTurnoverRateF: true }],
     ]);
     expect(yields.mock.invocationCallOrder[0]).toBeLessThan(bars.mock.invocationCallOrder[0]);
     expect(bars.mock.invocationCallOrder[0]).toBeLessThan(fundamentals.mock.invocationCallOrder[0]);
-    expect(fundamentals.mock.invocationCallOrder[0]).toBeLessThan(bars.mock.invocationCallOrder[1]);
     expect(data.loadedBarCodes()).toEqual(['A', 'B']);
     expect(data.adjustedCloseAsOf('B', date)).toBe(11);
     expect(data.roeHistoryAt('A', date)).toBe(12);
@@ -62,7 +59,7 @@ describe('initial data loading', () => {
 
     await data.loadBars(['A', 'B', 'C']);
 
-    expect(bars).toHaveBeenCalledTimes(3);
+    expect(bars).toHaveBeenCalledTimes(2);
     expect(bars).toHaveBeenLastCalledWith(['C'], date, date, { includeTurnoverRateF: true });
     expect(data.adjustedCloseAsOf('C', date)).toBe(11);
     expect(fundamentals).toHaveBeenCalledTimes(1);
@@ -87,7 +84,7 @@ describe('initial data loading', () => {
     expect(data.adjustedCloseAsOf('A', date)).toBe(11);
   });
 
-  it('stops before allocation bars if fundamental loading fails', async () => {
+  it('rejects initialization if fundamentals fail after preloading bars', async () => {
     const dataPort = dataFixture();
     const bars = vi.spyOn(dataPort, 'barsRows');
     const failure = new Error('Financial data unavailable');
@@ -97,8 +94,7 @@ describe('initial data loading', () => {
       start: date,
       end: date,
       dataPort,
-      watchCodes: ['A'],
-      allocationCodes: ['B'],
+      preloadCodes: ['A', 'B'],
       requirements: {
         turnoverRateFHistory: false,
         fundamentalHistory: true,
@@ -109,7 +105,7 @@ describe('initial data loading', () => {
     await expect(data.load()).rejects.toBe(failure);
 
     expect(bars).toHaveBeenCalledTimes(1);
-    expect(bars).toHaveBeenCalledWith(['A'], date, date, { includeTurnoverRateF: false });
-    expect(data.loadedBarCodes()).toEqual(['A']);
+    expect(bars).toHaveBeenCalledWith(['A', 'B'], date, date, { includeTurnoverRateF: false });
+    expect(data.loadedBarCodes()).toEqual(['A', 'B']);
   });
 });

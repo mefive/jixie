@@ -2,28 +2,28 @@
 
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
-After a multi-asset ETF strategy using a published Panel Factor completes, Result overview shows Multi-asset allocation attribution. It explains portfolio P&L from actual holdings, price changes, fills, and costs, rather than inferring it from the research long-short series.
+Every new backtest produces cash-account attribution, with no Factor requirement. It covers stock / ETF holdings and uninvested cash, excluding futures P&L; mixed strategies still analyze their cash account. A futures-only run with zero initial cash-account capital produces an empty, zero-P&L report without invalid return or risk ratios. Historical reports preserve their original scope.
 
 ## Open attribution
 
-1. Run a strategy containing several ETF asset classes.
+1. Run a stock, ETF, or mixed strategy.
 2. Wait for completion.
 3. Find Multi-asset allocation attribution.
-4. Confirm Reconciled with portfolio NAV before switching tabs.
+4. Confirm Reconciled to cash-account equity before switching tabs.
 
 ![Historical Chinese UI example: Asset-class and asset-level allocation attribution](/docs/images/help/zh/backtesting/allocation-attribution-01.png)
 
 ## Asset class and asset
 
-Both tables show average weight, return contribution, risk contribution, costs, and net P&L.
+Both tables show average weight, return contribution, risk contribution, costs, and net P&L. Classifications currently come from approved research universes supplied by the factor host. Actual holdings without a classification appear as Other. Without classifications, class correlation and rate-regime diagnostics are unavailable; missing data is not zero.
 
-Return contribution is additive relative to initial capital:
+Return contribution is additive relative to initial cash-account capital:
 
 $$
-C_i=\frac{\text{net P&L of asset }i}{\text{initial capital}}
+C_i=\frac{\text{net P&L of asset }i}{\text{initial cash-account capital}}
 $$
 
-Asset P&L and costs should reconcile to the change in ending equity. Risk contribution uses covariance between each asset's daily net contribution return and portfolio daily return, normalized to 100% when portfolio variance is valid. A negative contribution indicates historical diversification, not zero risk.
+Asset P&L and costs should reconcile to the change in cash-account equity. Risk contribution uses covariance between each asset's daily net contribution return and cash-account daily return, normalized to 100% when cash-account return variance is valid. A negative contribution indicates historical diversification, not zero risk.
 
 ## Allocation drift
 

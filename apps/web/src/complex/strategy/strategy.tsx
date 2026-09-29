@@ -1190,13 +1190,20 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
   const { t } = useTranslation('strategy');
   const money = (value: number) => Math.round(value).toLocaleString();
   const risk = (value: number | null) => (value == null ? '—' : pct(value));
+  const cashAccountScope = analysis.scope === 'cash_account';
 
   return (
     <section className="jx-strategy-allocation" data-testid="allocation-analysis">
       <div className="jx-strategy-allocationHead">
         <div>
           <strong>{t('allocation.title')}</strong>
+          <span>
+            {t(cashAccountScope ? 'allocation.cashAccountScope' : 'allocation.legacyScope')}
+          </span>
           <span>{t('allocation.methodology')}</span>
+          {cashAccountScope && !analysis.correlations ? (
+            <span>{t('allocation.classificationUnavailable')}</span>
+          ) : null}
         </div>
         <span
           className={classNames('jx-strategy-allocationReconciliation', {
@@ -1204,13 +1211,15 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
           })}
         >
           {analysis.reconciliation.reconciled
-            ? t('allocation.reconciled')
+            ? t(cashAccountScope ? 'allocation.cashAccountReconciled' : 'allocation.reconciled')
             : t('allocation.notReconciled')}
         </span>
       </div>
       <div className="jx-strategy-allocationSummary">
         <div>
-          <span>{t('allocation.portfolioPnl')}</span>
+          <span>
+            {t(cashAccountScope ? 'allocation.cashAccountPnl' : 'allocation.portfolioPnl')}
+          </span>
           <b>{money(analysis.reconciliation.portfolioPnl)}</b>
         </div>
         <div>
