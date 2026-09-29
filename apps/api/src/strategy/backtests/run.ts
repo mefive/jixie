@@ -8,7 +8,7 @@ import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
 import { StrategyExecution } from '../execution/execution.js';
 
 /** Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine. */
-export async function runConfiguredBacktest(
+export async function runBacktest(
   config: BacktestConfig,
   userId: string,
   locale: Locale,

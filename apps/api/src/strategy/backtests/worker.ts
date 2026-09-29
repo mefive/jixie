@@ -4,7 +4,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { errorMessage } from '#infra/errors.js';
 import type { Locale, LogLevel, LogLine } from '@jixie/shared';
 import { parentPort, workerData } from 'node:worker_threads';
-import { runConfiguredBacktest } from './run.js';
+import { runBacktest } from './run.js';
 
 /**
  * Backtest worker thread. A backtest is CPU-heavy (loads whole-market panels + ranks them), so it
@@ -33,7 +33,7 @@ try {
   const input = backtestWorkerInputSchema.parse(workerData);
   const { config, userId } = input;
   locale = input.locale;
-  const result = await runConfiguredBacktest(config, userId, locale, onSystemLog, onUserLog);
+  const result = await runBacktest(config, userId, locale, onSystemLog, onUserLog);
   send({ type: 'done', payload: result });
 } catch (e) {
   console.error('[backtest-worker] run failed', e);

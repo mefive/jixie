@@ -214,3 +214,6 @@ engine.ts 按单一目的分段，声明与使用、同组校验保持连续，�
 - 日志：/tmp/jixie-backtesting-regression.log、/tmp/jixie-backtesting-source-workers.log、/tmp/jixie-backtesting-compiled-workers.log、/tmp/jixie-backtesting-tool-tests.log、/tmp/jixie-backtesting-benchmark.log、/tmp/jixie-backtesting-shared-build.log、/tmp/jixie-backtesting-api-build.log、/tmp/jixie-backtesting-final-typecheck.log。
 
 按已确认消息 refactor(engine): clarify simulation ownership and contracts 提交，不推送。保留用户原有 runBacktest 重命名及未跟踪的 docs/design/engine-refactor-notes.md，不纳入本次提交。
+
+
+2026-09-29 剩余修改收口：用户撤回独立设计笔记，并授权提交已有 runConfiguredBacktest → runBacktest 重命名。同步回测 README；其余历史设计记录保留当时名称。本次代码与上一轮 507 项测试、全仓类型检查及 Shared/API 构建时的工作区一致，未新增产品逻辑，因此复用该验证结果。提交消息：refactor(strategy): simplify backtest entry name。
