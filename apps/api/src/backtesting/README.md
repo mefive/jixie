@@ -11,7 +11,7 @@ Backtesting 模拟交易：推进交易日、提供当时可得的数据、调�
 | --- | --- |
 | 一次模拟的初始化、逐日推进、结果收集 | [BacktestingEngine](engine.ts) |
 | 当前决策日的数据、因子和账户视图；转交订单声明 | [BacktestingContext](context.ts) |
-| 收集决策、下个开盘执行、持久条件单及撤单 | [OrderBook](order-book.ts) |
+| 收集决策、次日指令执行与盘中条件单模拟、撤单 | [OrderBook](order-book.ts) |
 | 股票/ETF 现金、持仓、T+1 和成交记账 | [CashPortfolio](cash-portfolio.ts) |
 | 期货保证金、换月、结算和成交记账 | [FuturesPortfolio](futures-portfolio.ts) |
 | 净值与成交绩效统计 | [performance.ts](performance.ts) |
@@ -63,6 +63,16 @@ AllocationAnalysisTracker 始终创建与调用，归因范围固定为现金账
 
 ## Review 与验证
 
-优先阅读 BacktestingBacktesting → OrderBook → BacktestingContext → FactorEvaluator。股票、ETF、期货、条件单、归因、末日状态和因子测试随原入口迁移；新增实例生命周期、订单快照隔离和停牌价格可得性用例。业务验证覆盖 Strategy TS/Python runtime、Signals 投影、Worker、隔离与性能回归，不能只靠核心单测。
+优先阅读 BacktestingEngine → OrderBook → BacktestingContext → FactorEvaluator。股票、ETF、期货、条件单、归因、末日状态和因子测试随原入口迁移；新增实例生命周期、订单快照隔离和停牌价格可得性用例。业务验证覆盖 Strategy TS/Python runtime、Signals 投影、Worker、隔离与性能回归，不能只靠核心单测。
 
 当前变更的审查与验证记录见 [执行命名与归属设计](../../../../docs/design/execution-naming-and-ownership.md)。
+
+## OrderBook 执行边界
+
+Engine 初始化时一次注入共享账户、EngineData、成本、AllocationAnalysisTracker 和 `onRebalance(date)`；每日调用 `executeOrders(date, previousDate)`，之后由 Engine 结算、记录收盘并调用 onBar。previousDate 保留期货映射的决策时点。
+
+OrderBook 分开持有当前 decision、待执行 PendingOrders 和持续 conditionalOrders。待执行目标、股数／手数和期货意图在各自步骤成功返回后消费；失败保留当时中间状态。空目标 Map 仍执行清仓、归因和通知，null 表示没有调仓。调仓通知紧随归因与目标消费，早于后续现金和期货指令。
+
+`snapshot()` 保持现金订单消费者契约并深拷贝 Map 和条件单对象，不暴露内部 PendingOrders。条件单先处理退出、再限价买入，最后更新保留移动止损的高水位。
+
+本轮重构范围、审查和验证状态见 [OrderBook 重构记录](../../../../docs/design/order-book-refactor-plan.md)。

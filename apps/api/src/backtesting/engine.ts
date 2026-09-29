@@ -75,9 +75,7 @@ export class BacktestingEngine {
 
       this.assertNoDelistedPositions(date);
 
-      await orderBook.executeOpen(date, previousDate, this.allocationTracker, () =>
-        this.logRebalance(date),
-      );
+      await orderBook.executeOrders(date, previousDate);
 
       futuresPortfolio.settle(engineData, date);
 
@@ -165,6 +163,8 @@ export class BacktestingEngine {
       engineData: this.engineData,
       cashPortfolio: this.cashPortfolio,
       futuresPortfolio: this.futuresPortfolio,
+      allocationTracker: this.allocationTracker,
+      onRebalance: (date) => this.logRebalance(date),
       cost,
     });
 

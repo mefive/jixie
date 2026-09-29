@@ -51,10 +51,38 @@ type ConditionalCommand =
 
 interface OrderDecision {
   targets: Map<string, number> | null;
-  orders: Map<string, number> | null;
+  shareOrders: Map<string, number> | null;
   lotOrders: Map<string, number> | null;
   conditionalCommands: ConditionalCommand[];
   futureIntents: Map<string, FutureIntent> | null;
+}
+
+interface PendingOrders {
+  decisionDate: string | null;
+  targets: Map<string, number> | null;
+  shareOrders: Map<string, number> | null;
+  lotOrders: Map<string, number> | null;
+  futureIntents: Map<string, FutureIntent> | null;
+}
+
+function emptyDecision(): OrderDecision {
+  return {
+    targets: null,
+    shareOrders: null,
+    lotOrders: null,
+    conditionalCommands: [],
+    futureIntents: null,
+  };
+}
+
+function emptyPendingOrders(): PendingOrders {
+  return {
+    decisionDate: null,
+    targets: null,
+    shareOrders: null,
+    lotOrders: null,
+    futureIntents: null,
+  };
 }
 
 export interface CashOrderSnapshot {
@@ -68,131 +96,139 @@ interface OrderBookInput {
   cashPortfolio: CashPortfolio;
   futuresPortfolio: FuturesPortfolio;
   cost: CostModel;
+  allocationTracker: AllocationAnalysisTracker;
+  onRebalance: (date: string) => void;
 }
 
-/** Owns decision collection, next-open orders and persistent conditional orders. */
+/** Owns decision collection, pending execution and persistent conditional orders. */
 export class OrderBook {
-  private date = '';
-  private decision: OrderDecision = this.emptyDecision();
-  private pendingTargets: Map<string, number> | null = null;
-  private pendingTargetDecisionDate: string | null = null;
-  private pendingOrders: Map<string, number> | null = null;
-  private pendingLotOrders: Map<string, number> | null = null;
-  private pendingFutureIntents: Map<string, FutureIntent> | null = null;
+  private decisionDate = '';
+  private decision = emptyDecision();
+  private readonly pending = emptyPendingOrders();
   private readonly conditionalOrders = new Map<string, ConditionalOrder>();
 
   constructor(private readonly input: OrderBookInput) {}
-
-  private emptyDecision(): OrderDecision {
-    return {
-      targets: null,
-      orders: null,
-      lotOrders: null,
-      conditionalCommands: [],
-      futureIntents: null,
-    };
-  }
 
   get hasFutureIntents(): boolean {
     return Boolean(this.decision.futureIntents?.size);
   }
 
   beginDecision(date: string): void {
-    this.date = date;
-    this.decision = this.emptyDecision();
+    this.decisionDate = date;
+    this.decision = emptyDecision();
   }
 
   commitDecision(): void {
     validateTargetBook(this.decision.targets);
-    this.pendingTargets = this.decision.targets;
-    this.pendingTargetDecisionDate = this.decision.targets ? this.date : null;
-    this.pendingOrders = this.decision.orders;
-    this.pendingLotOrders = this.decision.lotOrders;
-    this.pendingFutureIntents = this.decision.futureIntents;
+    this.pending.targets = this.decision.targets;
+    this.pending.decisionDate = this.decision.targets ? this.decisionDate : null;
+    this.pending.shareOrders = this.decision.shareOrders;
+    this.pending.lotOrders = this.decision.lotOrders;
+    this.pending.futureIntents = this.decision.futureIntents;
+
     this.applyConditionalCommands();
   }
 
+  /** Returns a detached snapshot of cash orders only. */
   snapshot(): CashOrderSnapshot {
     return structuredClone({
-      pendingTargets: this.pendingTargets,
-      pendingOrders: this.pendingOrders,
-      pendingLotOrders: this.pendingLotOrders,
+      pendingTargets: this.pending.targets,
+      pendingOrders: this.pending.shareOrders,
+      pendingLotOrders: this.pending.lotOrders,
       conditionalOrders: this.conditionalOrders,
     });
   }
 
-  /** Keep roll, cash fills, conditions and futures intents in their original execution order. */
-  async executeOpen(
-    date: string,
-    previousDate: string | undefined,
-    allocationTracker: AllocationAnalysisTracker,
-    onRebalance: () => void,
-  ): Promise<void> {
-    const { engineData, cashPortfolio: portfolio, futuresPortfolio } = this.input;
-    const heldBeforeOpen = new Set(portfolio.positions.keys());
+  /** Executes pending orders and intraday conditional simulations before daily settlement. */
+  async executeOrders(date: string, previousDate: string | undefined): Promise<void> {
+    const { engineData, cashPortfolio, futuresPortfolio } = this.input;
+    const heldBeforeExecution = new Set(cashPortfolio.positions.keys());
 
     if (previousDate) {
       futuresPortfolio.roll(
         engineData,
         date,
         previousDate,
-        new Set(this.pendingFutureIntents?.keys() ?? []),
+        new Set(this.pending.futureIntents?.keys() ?? []),
       );
     }
 
-    if (this.pendingTargets) {
-      await engineData.loadBars([
-        ...new Set([...this.pendingTargets.keys(), ...portfolio.positions.keys()]),
-      ]);
-      const preTrade = allocationTracker.weights(
-        portfolio.cash,
-        portfolio.positions,
-        (code) => engineData.adjustedOpenOn(code, date) ?? engineData.adjustedCloseAsOf(code, date),
-      );
-      this.rebalance(date);
-      if (this.pendingTargetDecisionDate) {
-        allocationTracker.captureRebalance({
-          decisionDate: this.pendingTargetDecisionDate,
-          executionDate: date,
-          targets: this.pendingTargets,
-          preTrade,
-          postTrade: allocationTracker.weights(
-            portfolio.cash,
-            portfolio.positions,
-            (code) =>
-              engineData.adjustedOpenOn(code, date) ?? engineData.adjustedCloseAsOf(code, date),
-          ),
-        });
-      }
-      this.pendingTargets = null;
-      this.pendingTargetDecisionDate = null;
-      onRebalance();
+    await this.executePendingRebalance(date);
+
+    await this.executePendingCashOrders(date);
+
+    this.removeConditionsForClosedPositions(heldBeforeExecution);
+
+    await this.executeActiveConditionalOrders(date);
+
+    if (previousDate) {
+      this.executePendingFutureIntents(date, previousDate);
+    }
+  }
+
+  private async executePendingRebalance(date: string): Promise<void> {
+    const { engineData, cashPortfolio, allocationTracker, onRebalance } = this.input;
+    const { targets, decisionDate } = this.pending;
+    if (!targets) {
+      return;
     }
 
-    if (this.pendingOrders || this.pendingLotOrders) {
-      await engineData.loadBars([
-        ...new Set([
-          ...(this.pendingOrders?.keys() ?? []),
-          ...(this.pendingLotOrders?.keys() ?? []),
-        ]),
-      ]);
-      this.executeOrders(date);
-      this.pendingOrders = null;
-      this.pendingLotOrders = null;
+    await engineData.loadBars([...new Set([...targets.keys(), ...cashPortfolio.positions.keys()])]);
+
+    const preTrade = allocationTracker.weights(
+      cashPortfolio.cash,
+      cashPortfolio.positions,
+      (code) => engineData.adjustedOpenOn(code, date) ?? engineData.adjustedCloseAsOf(code, date),
+    );
+
+    this.rebalance(date);
+
+    if (decisionDate) {
+      allocationTracker.captureRebalance({
+        decisionDate,
+        executionDate: date,
+        targets,
+        preTrade,
+        postTrade: allocationTracker.weights(
+          cashPortfolio.cash,
+          cashPortfolio.positions,
+          (code) =>
+            engineData.adjustedOpenOn(code, date) ?? engineData.adjustedCloseAsOf(code, date),
+        ),
+      });
     }
 
-    this.removeConditionsForClosedPositions(heldBeforeOpen);
-    if (this.conditionalOrders.size > 0) {
-      await engineData.loadBars([
-        ...new Set([...this.conditionalOrders.values()].map((order) => order.code)),
-      ]);
-      this.executeConditionalOrders(date);
+    this.pending.targets = null;
+    this.pending.decisionDate = null;
+    onRebalance(date);
+  }
+
+  private async executePendingCashOrders(date: string): Promise<void> {
+    const { shareOrders, lotOrders } = this.pending;
+    if (!shareOrders && !lotOrders) {
+      return;
     }
 
-    if (previousDate && this.pendingFutureIntents) {
-      this.executeFutureIntents(date, previousDate);
-      this.pendingFutureIntents = null;
+    await this.input.engineData.loadBars([
+      ...new Set([...(shareOrders?.keys() ?? []), ...(lotOrders?.keys() ?? [])]),
+    ]);
+
+    this.executeCashOrders(date);
+
+    this.pending.shareOrders = null;
+    this.pending.lotOrders = null;
+  }
+
+  private async executeActiveConditionalOrders(date: string): Promise<void> {
+    if (this.conditionalOrders.size === 0) {
+      return;
     }
+
+    await this.input.engineData.loadBars([
+      ...new Set([...this.conditionalOrders.values()].map((order) => order.code)),
+    ]);
+
+    this.executeConditionalOrders(date);
   }
 
   orderTargetPercent(code: string, weight: number): void {
@@ -212,8 +248,8 @@ export class OrderBook {
     if (!shares) {
       return;
     }
-    this.decision.orders ??= new Map();
-    this.decision.orders.set(code, (this.decision.orders.get(code) ?? 0) + shares);
+    this.decision.shareOrders ??= new Map();
+    this.decision.shareOrders.set(code, (this.decision.shareOrders.get(code) ?? 0) + shares);
   }
 
   orderLots(code: string, lots: number): void {
@@ -231,8 +267,8 @@ export class OrderBook {
     if (!held) {
       return;
     }
-    this.decision.orders ??= new Map();
-    this.decision.orders.set(code, (this.decision.orders.get(code) ?? 0) - held);
+    this.decision.shareOrders ??= new Map();
+    this.decision.shareOrders.set(code, (this.decision.shareOrders.get(code) ?? 0) - held);
   }
 
   stopLoss(code: string, price: number): void {
@@ -245,7 +281,7 @@ export class OrderBook {
 
   trailingStop(code: string, pct: number): void {
     assertFraction(pct, 'Trailing-stop percentage');
-    const highWater = this.input.engineData.adjustedCloseAsOf(code, this.date);
+    const highWater = this.input.engineData.adjustedCloseAsOf(code, this.decisionDate);
     if (highWater == null || highWater <= 0) {
       return;
     }
@@ -322,8 +358,8 @@ export class OrderBook {
   }
 
   private rebalance(date: string): void {
-    const { cashPortfolio: portfolio, engineData, cost } = this.input;
-    const targets = this.pendingTargets;
+    const { cashPortfolio, engineData, cost } = this.input;
+    const targets = this.pending.targets;
     if (!targets) {
       return;
     }
@@ -332,7 +368,7 @@ export class OrderBook {
     const openOf = (code: string) => engineData.adjustedOpenOn(code, date);
 
     // Equity valued at today's open, consistent with fill prices.
-    const equity = portfolio.equity(
+    const equity = cashPortfolio.equity(
       (code) => openOf(code) ?? engineData.adjustedCloseAsOf(code, date),
     );
 
@@ -345,19 +381,19 @@ export class OrderBook {
     }
 
     // Sells first (free up cash). Suspended and newly bought T+1 layers remain held.
-    for (const [code, position] of [...portfolio.positions]) {
+    for (const [code, position] of [...cashPortfolio.positions]) {
       const price = openOf(code);
       if (price == null) {
         continue;
       }
       const target = targetShares.get(code) ?? 0;
       if (target < position.shares && !limitBlocked(engineData, code, date, 'sell', price)) {
-        const sell = Math.min(position.shares - target, portfolio.sellableShares(code, date));
+        const sell = Math.min(position.shares - target, cashPortfolio.sellableShares(code, date));
         if (sell <= 0) {
           continue;
         }
         const fillPrice = executionPrice(engineData, code, date, 'sell', price, sell * price, cost);
-        portfolio.fill({
+        cashPortfolio.fill({
           code,
           adjustedShareDelta: -sell,
           adjustedPrice: fillPrice,
@@ -373,16 +409,16 @@ export class OrderBook {
     // Buys.
     for (const [code, target] of targetShares) {
       const price = openOf(code)!;
-      const currentShares = portfolio.positions.get(code)?.shares ?? 0;
+      const currentShares = cashPortfolio.positions.get(code)?.shares ?? 0;
       if (target > currentShares && !limitBlocked(engineData, code, date, 'buy', price)) {
         const delta = target - currentShares;
         const fillPrice = executionPrice(engineData, code, date, 'buy', price, delta * price, cost);
         const adjustmentFactor = engineData.adjustmentFactorOn(code, date)!;
         const buy = Math.min(
           delta,
-          portfolio.affordableShares(fillPrice, engineData.assetType(code), adjustmentFactor),
+          cashPortfolio.affordableShares(fillPrice, engineData.assetType(code), adjustmentFactor),
         );
-        portfolio.fill({
+        cashPortfolio.fill({
           code,
           adjustedShareDelta: buy,
           adjustedPrice: fillPrice,
@@ -396,13 +432,13 @@ export class OrderBook {
     }
   }
 
-  private executeOrders(date: string): void {
-    const { cashPortfolio: portfolio, engineData, cost } = this.input;
+  private executeCashOrders(date: string): void {
+    const { cashPortfolio, engineData, cost } = this.input;
     const orders = mergeShareAndLotOrders(
       engineData,
       date,
-      this.pendingOrders,
-      this.pendingLotOrders,
+      this.pending.shareOrders,
+      this.pending.lotOrders,
     );
 
     for (const [code, delta] of orders) {
@@ -410,14 +446,14 @@ export class OrderBook {
         continue;
       }
       const price = engineData.adjustedOpenOn(code, date);
-      const position = portfolio.positions.get(code);
+      const position = cashPortfolio.positions.get(code);
       if (price == null || !position) {
         continue;
       } // suspended or no position
-      const sell = Math.min(-delta, portfolio.sellableShares(code, date));
+      const sell = Math.min(-delta, cashPortfolio.sellableShares(code, date));
       if (sell > 0 && !limitBlocked(engineData, code, date, 'sell', price)) {
         const fillPrice = executionPrice(engineData, code, date, 'sell', price, sell * price, cost);
-        portfolio.fill({
+        cashPortfolio.fill({
           code,
           adjustedShareDelta: -sell,
           adjustedPrice: fillPrice,
@@ -447,10 +483,10 @@ export class OrderBook {
       const adjustmentFactor = engineData.adjustmentFactorOn(code, date)!;
       const buy = Math.min(
         delta,
-        portfolio.affordableShares(fillPrice, assetType, adjustmentFactor),
+        cashPortfolio.affordableShares(fillPrice, assetType, adjustmentFactor),
       );
       if (buy > 0) {
-        portfolio.fill({
+        cashPortfolio.fill({
           code,
           adjustedShareDelta: buy,
           adjustedPrice: fillPrice,
@@ -465,7 +501,7 @@ export class OrderBook {
   }
 
   private executeConditionalOrders(date: string): void {
-    const { cashPortfolio: portfolio, engineData, cost } = this.input;
+    const { cashPortfolio, engineData, cost } = this.input;
     const book = this.conditionalOrders;
 
     const byCode = new Map<string, ConditionalOrder[]>();
@@ -481,36 +517,9 @@ export class OrderBook {
         continue;
       }
 
-      const position = portfolio.positions.get(code);
-      const sellableShares = portfolio.sellableShares(code, date);
-      const stopCandidates: Array<{
-        order: Extract<ConditionalOrder, { kind: 'stop_loss' | 'trailing_stop' }>;
-        triggerPrice: number;
-      }> = [];
-      for (const order of orders) {
-        if (order.kind === 'stop_loss' && bar.low <= order.triggerPrice) {
-          stopCandidates.push({ order, triggerPrice: order.triggerPrice });
-        } else if (order.kind === 'trailing_stop') {
-          const triggerPrice = order.highWater * (1 - order.trailingPct);
-          if (bar.low <= triggerPrice) {
-            stopCandidates.push({ order, triggerPrice });
-          }
-        }
-      }
-      stopCandidates.sort((left, right) => right.triggerPrice - left.triggerPrice);
-      const takeProfit = orders.find(
-        (order): order is Extract<ConditionalOrder, { kind: 'take_profit' }> =>
-          order.kind === 'take_profit' && bar.high >= order.triggerPrice,
-      );
-      const exitCandidate: {
-        order: Extract<ConditionalOrder, { kind: 'stop_loss' | 'trailing_stop' | 'take_profit' }>;
-        triggerPrice: number;
-      } | null =
-        stopCandidates.length > 0
-          ? stopCandidates[0]
-          : takeProfit
-            ? { order: takeProfit, triggerPrice: takeProfit.triggerPrice }
-            : null;
+      const position = cashPortfolio.positions.get(code);
+      const sellableShares = cashPortfolio.sellableShares(code, date);
+      const exitCandidate = selectConditionalExit(orders, bar);
 
       if (
         sellableShares > 0 &&
@@ -519,13 +528,7 @@ export class OrderBook {
         !conditionalLimitBlocked(engineData, code, date, 'sell', bar)
       ) {
         const isProfit = exitCandidate.order.kind === 'take_profit';
-        const basePrice = isProfit
-          ? bar.open >= exitCandidate.triggerPrice
-            ? bar.open
-            : exitCandidate.triggerPrice
-          : bar.open <= exitCandidate.triggerPrice
-            ? bar.open
-            : exitCandidate.triggerPrice;
+        const basePrice = conditionalExitBasePrice(exitCandidate, bar.open);
         const slippedPrice = executionPrice(
           engineData,
           code,
@@ -538,7 +541,7 @@ export class OrderBook {
         const fillPrice = isProfit
           ? Math.max(exitCandidate.triggerPrice, slippedPrice)
           : slippedPrice;
-        portfolio.fill({
+        cashPortfolio.fill({
           code,
           adjustedShareDelta: -sellableShares,
           adjustedPrice: fillPrice,
@@ -548,7 +551,7 @@ export class OrderBook {
           assetType: engineData.assetType(code),
           referenceAdjustedPrice: basePrice,
         });
-        if (!portfolio.positions.has(code)) {
+        if (!cashPortfolio.positions.has(code)) {
           for (const order of orders) {
             if (order.kind !== 'limit_buy') {
               book.delete(conditionalOrderKey(order.kind, code));
@@ -578,12 +581,12 @@ export class OrderBook {
         const adjustmentFactor = engineData.adjustmentFactorOn(code, date)!;
         const buy = Math.min(
           order.shares,
-          portfolio.affordableShares(fillPrice, engineData.assetType(code), adjustmentFactor),
+          cashPortfolio.affordableShares(fillPrice, engineData.assetType(code), adjustmentFactor),
         );
         if (buy <= 0) {
           continue;
         }
-        portfolio.fill({
+        cashPortfolio.fill({
           code,
           adjustedShareDelta: buy,
           adjustedPrice: fillPrice,
@@ -604,37 +607,35 @@ export class OrderBook {
     }
   }
 
-  private executeFutureIntents(date: string, mappingDate: string): void {
-    const {
-      futuresPortfolio: futurePortfolio,
-      cashPortfolio: stockPortfolio,
-      engineData,
-    } = this.input;
-    const intents = this.pendingFutureIntents;
+  private executePendingFutureIntents(date: string, mappingDate: string): void {
+    const { futuresPortfolio, cashPortfolio, engineData } = this.input;
+    const intents = this.pending.futureIntents;
     if (!intents) {
       return;
     }
 
-    const stockExposure = stockPortfolio.marketValue(
+    const cashExposure = cashPortfolio.marketValue(
       (code) => engineData.adjustedOpenOn(code, date) ?? engineData.adjustedCloseAsOf(code, date),
     );
+
     for (const [code, intent] of intents) {
-      const currentPosition = futurePortfolio.position(code);
+      const currentPosition = futuresPortfolio.position(code);
       const current = currentPosition?.contracts ?? 0;
-      let target = intent.kind === 'delta' ? current + intent.value : intent.value;
-      if (intent.kind === 'notional' || intent.kind === 'hedge') {
-        const desiredNotional =
-          intent.kind === 'hedge' ? -intent.value * stockExposure : intent.value;
-        target = futureContractsForNotional(engineData, code, desiredNotional, date, mappingDate);
-      }
-      target = Math.trunc(target);
+      const target = this.resolveFutureTargetContracts(
+        intent,
+        code,
+        current,
+        cashExposure,
+        date,
+        mappingDate,
+      );
       const desiredActualCode = engineData.futureExecutionCode(code, mappingDate, date);
       if (
         currentPosition &&
         desiredActualCode &&
         desiredActualCode !== currentPosition.actualCode
       ) {
-        const closed = futurePortfolio.executeOrder({
+        const closed = futuresPortfolio.executeOrder({
           engineData,
           code,
           contractDelta: -current,
@@ -644,7 +645,7 @@ export class OrderBook {
         if (!closed || target === 0) {
           continue;
         }
-        futurePortfolio.executeOrder({
+        futuresPortfolio.executeOrder({
           engineData,
           code,
           contractDelta: target,
@@ -655,7 +656,7 @@ export class OrderBook {
       }
       const delta = target - current;
       if (delta !== 0) {
-        futurePortfolio.executeOrder({
+        futuresPortfolio.executeOrder({
           engineData,
           code,
           contractDelta: delta,
@@ -664,14 +665,46 @@ export class OrderBook {
         });
       }
     }
+
+    this.pending.futureIntents = null;
   }
 
-  private removeConditionsForClosedPositions(heldBeforeOpen: Set<string>): void {
-    const portfolio = this.input.cashPortfolio;
+  private resolveFutureTargetContracts(
+    intent: FutureIntent,
+    code: string,
+    current: number,
+    cashExposure: number,
+    date: string,
+    mappingDate: string,
+  ): number {
+    switch (intent.kind) {
+      case 'delta':
+        return Math.trunc(current + intent.value);
+      case 'contracts':
+        return Math.trunc(intent.value);
+      case 'notional':
+        return Math.trunc(
+          futureContractsForNotional(this.input.engineData, code, intent.value, date, mappingDate),
+        );
+      case 'hedge':
+        return Math.trunc(
+          futureContractsForNotional(
+            this.input.engineData,
+            code,
+            -intent.value * cashExposure,
+            date,
+            mappingDate,
+          ),
+        );
+    }
+  }
+
+  private removeConditionsForClosedPositions(heldBeforeExecution: Set<string>): void {
+    const cashPortfolio = this.input.cashPortfolio;
     const book = this.conditionalOrders;
 
-    for (const code of heldBeforeOpen) {
-      if (portfolio.positions.has(code)) {
+    for (const code of heldBeforeExecution) {
+      if (cashPortfolio.positions.has(code)) {
         continue;
       }
       for (const [key, order] of book) {
@@ -685,7 +718,7 @@ export class OrderBook {
   private applyConditionalCommands(): void {
     const book = this.conditionalOrders;
     const commands = this.decision.conditionalCommands;
-    const placedDate = this.date;
+    const placedDate = this.decisionDate;
 
     for (const command of commands) {
       if (command.action === 'cancel') {
@@ -717,6 +750,50 @@ export class OrderBook {
       }
     }
   }
+}
+
+interface ConditionalExitCandidate {
+  order: Extract<ConditionalOrder, { kind: 'stop_loss' | 'trailing_stop' | 'take_profit' }>;
+  triggerPrice: number;
+}
+
+function selectConditionalExit(
+  orders: ConditionalOrder[],
+  bar: { low: number; high: number },
+): ConditionalExitCandidate | null {
+  const stops: ConditionalExitCandidate[] = [];
+
+  for (const order of orders) {
+    if (order.kind === 'stop_loss' && bar.low <= order.triggerPrice) {
+      stops.push({ order, triggerPrice: order.triggerPrice });
+    } else if (order.kind === 'trailing_stop') {
+      const triggerPrice = order.highWater * (1 - order.trailingPct);
+      if (bar.low <= triggerPrice) {
+        stops.push({ order, triggerPrice });
+      }
+    }
+  }
+
+  stops.sort((left, right) => right.triggerPrice - left.triggerPrice);
+
+  const takeProfit = orders.find(
+    (order): order is Extract<ConditionalOrder, { kind: 'take_profit' }> =>
+      order.kind === 'take_profit' && bar.high >= order.triggerPrice,
+  );
+
+  return (
+    stops[0] ?? (takeProfit ? { order: takeProfit, triggerPrice: takeProfit.triggerPrice } : null)
+  );
+}
+
+function conditionalExitBasePrice(candidate: ConditionalExitCandidate, open: number): number {
+  return candidate.order.kind === 'take_profit'
+    ? open >= candidate.triggerPrice
+      ? open
+      : candidate.triggerPrice
+    : open <= candidate.triggerPrice
+      ? open
+      : candidate.triggerPrice;
 }
 
 const MAX_SLIPPAGE = 0.1;

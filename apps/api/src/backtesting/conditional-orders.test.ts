@@ -49,6 +49,25 @@ async function run(
 }
 
 describe('persistent conditional orders', () => {
+  it('prioritizes the highest triggered stop over a same-day take-profit', async () => {
+    const result = await run(
+      {
+        '20240101': (ctx) => ctx.order('A', 100),
+        '20240102': (ctx) => {
+          ctx.takeProfit('A', 0.05);
+          ctx.stopLoss('A', 9);
+          ctx.trailingStop('A', 0.05);
+        },
+      },
+      { '20240103': { high: 11, low: 8.5 } },
+    );
+
+    expect(result.tradeLog.map((trade) => [trade.side, trade.date, trade.price])).toEqual([
+      ['buy', '20240102', 10],
+      ['sell', '20240103', 9.5],
+    ]);
+  });
+
   it('fills a stop at its trigger and a gap-through stop at the open', async () => {
     const touched = await run(
       {

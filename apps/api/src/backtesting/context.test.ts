@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { AllocationAnalysisTracker } from './allocation-analysis.js';
 import { BacktestingContext } from './context.js';
 import { EngineData } from './data/engine-data.js';
 import { CashPortfolio } from './cash-portfolio.js';
@@ -35,6 +36,8 @@ describe('context futures access', () => {
       engineData,
       cashPortfolio,
       futuresPortfolio,
+      allocationTracker: new AllocationAnalysisTracker(10000, new Map()),
+      onRebalance: () => {},
       cost: DEFAULT_COST,
     });
     const context = new BacktestingContext({
