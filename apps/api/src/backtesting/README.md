@@ -41,6 +41,8 @@ Backtesting 模拟交易：推进交易日、提供当时可得的数据、调�
 
 因子源码识别及依赖准备归 [StrategyFactor](../strategy/factors/factor.ts)，TS/Python 因子沙箱归 [FactorHost](../strategy/execution/factor-host.ts)。Backtesting 不接收 StrategyFactor 或源码模块。FactorEvaluator 只求值，不创建或维护 runtime。
 
+Engine 创建并持有 FactorEvaluator，将因子定义数组与计算依赖传入。FactorEvaluator 内部建立 ID 索引，并在实例生命周期内对每个因子只回调首次输入错误；Engine 负责日志格式与输出。执行端口抛出的异常仍向上传播。
+
 `collectFactorDataRequirements(definitions)` 是纯函数，汇总因子声明所需的自由流通换手率历史、财务历史与国债收益率曲线。Engine 合并资产配置分析的额外利率需求，将统一的 `requirements`、`watchCodes` 和 `allocationCodes` 交给 EngineData；EngineData 不解析因子定义或资产类别。
 
 `EngineData.load()` 完成基础数据加载后，依次加载关注证券行情、按需预加载财务历史、加载资产配置证券行情，完成后返回。两批证券维持原有顺序并复用缓存；运行中仍可通过 `loadBars()` 动态补充行情。财务数据未要求预加载时，仍在首次截面读取时懒加载。

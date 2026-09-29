@@ -236,9 +236,9 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(seen[D[2]]).toBeCloseTo(24 / 10 - 1);
     expect(seen[D[4]]).toBeCloseTo(28 / 24 - 1);
     expect(invalidSeen[D[4]]).toBeNull();
-    expect(directLogs).toContain(
+    expect(directLogs.filter((line) => line.startsWith('[factor-error]'))).toEqual([
       `[factor-error] ${factorKey}: input etf.adjustedClose requires an ETF code, received A`,
-    );
+    ]);
     expect(output.finalState!.factorObservations).toEqual(
       expect.arrayContaining([
         { key: factorKey, code: 'A', value: null },

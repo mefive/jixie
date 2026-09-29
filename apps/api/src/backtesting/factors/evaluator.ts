@@ -16,10 +16,11 @@ export interface FactorEvaluationInput {
 }
 
 export interface FactorEvaluatorInput {
-  definitions: Map<string, FactorDefinition>;
+  definitions: readonly FactorDefinition[];
   engineData: EngineData;
   executionPort: FactorExecutionPort;
   assetUniverse: string[];
+  /** Receives only the first reported error per factor in this evaluator instance. */
   onComputeError: (key: string, message: string) => void;
   locale?: Locale;
 }
@@ -35,17 +36,21 @@ export class FactorEvaluator {
   private cache = new Map<string, { input: string; value: number | null; read: boolean }>();
   private pending: Promise<void> = Promise.resolve();
 
-  private readonly input: Required<FactorEvaluatorInput>;
+  private readonly definitions: Map<string, FactorDefinition>;
+  private readonly warnedKeys = new Set<string>();
+  private readonly input: Omit<Required<FactorEvaluatorInput>, 'definitions'>;
 
   constructor(input: FactorEvaluatorInput) {
-    this.input = { ...input, locale: input.locale ?? DEFAULT_LOCALE };
-    const { definitions: factors, assetUniverse } = this.input;
-    for (const [key, factor] of factors) {
+    const { definitions, ...options } = input;
+    this.input = { ...options, locale: options.locale ?? DEFAULT_LOCALE };
+    this.definitions = new Map(definitions.map((definition) => [definition.id, definition]));
+
+    for (const [key, factor] of this.definitions) {
       if (
         factor.kind === 'panel_composite' &&
         !sameAssetUniverse(
           factor.assetUniverse.map((asset) => asset.assetId),
-          assetUniverse,
+          this.input.assetUniverse,
         )
       ) {
         throw new Error(
@@ -56,7 +61,7 @@ export class FactorEvaluator {
   }
 
   has(key: string): boolean {
-    return this.input.definitions.has(key);
+    return this.definitions.has(key);
   }
 
   /** Prepare only currently accessible instruments; serialize overlapping SDK data loads. */
@@ -70,7 +75,7 @@ export class FactorEvaluator {
         this.date = date;
         this.cache.clear();
       }
-      for (const factor of this.input.definitions.values()) {
+      for (const factor of this.definitions.values()) {
         await this.prepareFactor(factor, date, [...new Set(codes)], crossByCode);
       }
     });
@@ -90,6 +95,14 @@ export class FactorEvaluator {
 
   private cacheKey(key: string, code: string): string {
     return JSON.stringify([key, code]);
+  }
+
+  private reportComputeError(key: string, message: string): void {
+    if (this.warnedKeys.has(key)) {
+      return;
+    }
+    this.warnedKeys.add(key);
+    this.input.onComputeError(key, message);
   }
 
   private needsCompute(key: string, code: string, input: string): boolean {
@@ -197,7 +210,7 @@ export class FactorEvaluator {
     code: string,
   ): Extract<FactorComputeRequest, { kind: 'asset_series' }> | null {
     if (this.input.engineData.assetType(code) !== 'etf') {
-      this.input.onComputeError(
+      this.reportComputeError(
         factor.id,
         factor.meta.inputs.includes('etf.adjustedClose')
           ? `input etf.adjustedClose requires an ETF code, received ${code}`

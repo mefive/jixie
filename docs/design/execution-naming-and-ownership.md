@@ -229,3 +229,15 @@ engine.ts 按单一目的分段，声明与使用、同组校验保持连续，�
 统一预加载后的静态检查通过：全仓 `pnpm typecheck`（850 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、五个受影响 TS 文件的 ESLint（0 警告）与 Prettier、`git diff --check`。
 
 人工审查通过后，运行 engine.test.ts、factors/execution-port.test.ts、factors/factor-semantics.test.ts、allocation-analysis.test.ts 及 data 下全部测试：9 个文件、42 项全部通过，无失败或跳过。覆盖财务历史、换手率历史、单因子与组合利率输入、资产配置、加载顺序、缓存及动态行情补充。未启动额外开发服务，本轮不涉及数据库变更或构建入口变化；未运行构建。按已确认消息提交，不推送。
+
+## 2026-09-29 因子求值器初始化封装（审查与验证通过）
+
+计划提交：`refactor(engine): encapsulate factor evaluator setup`。
+
+范围已确认：FactorEvaluator 接收只读因子定义数组，构造时内部建立 ID 索引并保持定义遍历顺序；warnedKeys 归求值器实例，跨证券、跨日期对每个因子仅回调首次输入错误。Engine 保留无因子判断、执行端口检查、实例创建及日志格式输出。计算、缓存、异常传播及组合资产范围校验保持，无公开 API、数据库或部署变更。
+
+新增 evaluator.test.ts 覆盖定义索引与计算顺序、跨证券/日期错误去重、实例隔离及执行异常传播；既有 factor-semantics.test.ts 收紧为只输出一次因子错误的日志断言。README 同步职责。
+
+审查前静态检查通过：全仓 `pnpm typecheck`（851 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、四个受影响 TS 文件 ESLint（0 警告）与 Prettier、`git diff --check`。
+
+人工审查通过后运行 evaluator、engine、execution-port、factor-semantics 及 allocation-analysis 测试：5 个文件、35 项全部通过，无失败或跳过。未启动额外开发服务，未运行构建。按已确认消息提交，不推送；资金分配方法命名建议不属于本次变更。

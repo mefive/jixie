@@ -248,22 +248,13 @@ export class BacktestingEngine {
       throw new Error(t(locale, 'customFactorExecutionUnavailable'));
     }
 
-    const definitionsById = new Map(
-      factorDefinitions.map((definition) => [definition.id, definition]),
-    );
-    const warnedKeys = new Set<string>();
-
     this.factorEvaluator = new FactorEvaluator({
-      definitions: definitionsById,
+      definitions: factorDefinitions,
       engineData,
       executionPort: config.factorExecution,
       assetUniverse: config.strategy.watch ?? [],
       onComputeError: (key, message) => {
-        // First compute error per factor reaches the run log; later ones are dropped (same failure repeats per stock×day).
-        if (!warnedKeys.has(key)) {
-          warnedKeys.add(key);
-          log(`[factor-error] ${key}: ${message}`);
-        }
+        log(`[factor-error] ${key}: ${message}`);
       },
       locale,
     });
