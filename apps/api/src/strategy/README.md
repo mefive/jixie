@@ -2,7 +2,7 @@
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
 
-Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以及完整回测的风险分析。[Engine](../engine/README.md) 负责交易模拟，Factor 拥有因子定义和发布，Signals 拥有报告部署；这些流程通过具体函数协作。
+Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以及完整回测的风险分析。[Backtesting](../backtesting/README.md) 负责交易模拟，Factor 拥有因子定义和发布，Signals 拥有报告部署；这些流程通过具体函数协作。
 
 ## 按业务问题进入
 
@@ -38,3 +38,7 @@ Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日
 风险数据事实归 Market，模型历史要求归 Strategy；后处理异常按现有规则记录而不阻断主回测。进程／资源路径见 [运行清单](../../../../docs/backend-runtime-entries.md)，整体权限与事务用例在 [routes/index.integration.test.ts](routes/index.integration.test.ts)，算法和运行时测试就近链接。
 
 架构规则见 [后端边界](../../../../docs/backend-boundaries.md)；历史实现／验收见 [Commit 8](../../../../docs/design/backend-architecture-refactor.md#78-commit-8-实现记录2026-09-09完成)、[服务边界设计](../../../../docs/design/core-business-service-boundaries.md) 和 [路由迁移验收](../../../../docs/design/api-route-naming.md#strategy-路由职责整理验收2026-09-10)。已退役的开发演示记录见 [历史清理](../../../../docs/design/backend-architecture-refactor.md#旧策略演示清理2026-09-09)。
+
+## Engine 模拟边界
+
+StrategyExecution 创建并关闭语言 runtime 与 FactorHost，每次执行创建一个 `BacktestingEngine`，接收统一的 `{ result, finalState }`。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`，Signals 自行投影末日快照。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。

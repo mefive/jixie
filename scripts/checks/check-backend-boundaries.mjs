@@ -54,8 +54,8 @@ function isPure(file) {
   return local === 'date.ts' || local?.startsWith('math/') || local?.startsWith('i18n/');
 }
 
-function isEngineCore(file) {
-  return /^apps\/api\/src\/engine\/(?:simulation\/|data\/|factors\/|types\.ts$)/.test(file);
+function isBacktestingCore(file) {
+  return /^apps\/api\/src\/backtesting\/(?:[^/]+\.ts$|data\/|factors\/)/.test(file);
 }
 
 function domain(file) {
@@ -281,7 +281,9 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
   const diagnostics = [...dependencies.diagnostics];
   const exceptionsUsed = new Set();
   const portableContracts = new Set(
-    (policy.edges ?? []).filter((entry) => entry.rule === 'engine-core').map((entry) => entry.to),
+    (policy.edges ?? [])
+      .filter((entry) => entry.rule === 'backtesting-core')
+      .map((entry) => entry.to),
   );
   const exceptionKey = (entry) => `${entry.rule}: ${edgeKey(entry)}`;
   const exceptions = new Map((policy.edges ?? []).map((entry) => [exceptionKey(entry), entry]));
@@ -338,7 +340,7 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
       portableContracts.has(edge.from) &&
       !shared &&
       (edge.internal
-        ? !portableContracts.has(edge.to) && !isPure(edge.to) && !isEngineCore(edge.to)
+        ? !portableContracts.has(edge.to) && !isPure(edge.to) && !isBacktestingCore(edge.to)
         : true)
     ) {
       report(
@@ -402,14 +404,16 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
       );
     }
     if (
-      isEngineCore(edge.from) &&
+      isBacktestingCore(edge.from) &&
       !shared &&
-      (edge.internal ? !isEngineCore(edge.to) && !isPure(edge.to) : edge.to !== '@jixie/shared')
+      (edge.internal
+        ? !isBacktestingCore(edge.to) && !isPure(edge.to)
+        : edge.to !== '@jixie/shared')
     ) {
       report(
-        'engine-core',
+        'backtesting-core',
         edge,
-        'Engine core cannot depend on host adapters, persistence or application workflows',
+        'Backtesting core cannot depend on host adapters, persistence or application workflows',
       );
     }
     if (

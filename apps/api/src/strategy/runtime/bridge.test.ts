@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { describe, expect, it, vi } from 'vitest';
-import type { EngineContext, OhlcBar } from '#engine/types.js';
+import type { EngineContext } from '#backtesting/contract.js';
+import type { OhlcBar } from '#backtesting/data/market.js';
 import { createStrategyBridge, type StrategyTransport } from './bridge.js';
 
 const metadata = {

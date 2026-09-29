@@ -1,5 +1,5 @@
-import { prismaDataPort } from '#engine/adapters/prisma-port.js';
-import type { BacktestResult } from '#engine/types.js';
+import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
+import type { BacktestResult } from './result.js';
 import { t } from '#i18n/messages.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';

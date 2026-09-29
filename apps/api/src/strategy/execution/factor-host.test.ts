@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FactorBar } from '@jixie/shared';
 import { StrategyFactor, type StrategyFactorInput } from '../factors/factor.js';
-import type { FactorComputeRequest } from '#engine/factors/execution-port.js';
+import type { FactorComputeRequest } from '#backtesting/factors/execution-port.js';
 import { FactorHost } from './factor-host.js';
 
 const bar: FactorBar = {

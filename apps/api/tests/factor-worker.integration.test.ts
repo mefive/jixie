@@ -15,7 +15,7 @@ import type {
   FactorDependency,
   StrategyScanPayload,
 } from '@jixie/shared';
-import type { BacktestResult } from '#engine/types.js';
+import type { BacktestResult } from '#strategy/backtests/result.js';
 import { runWorker } from '#jobs/worker.js';
 import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
 

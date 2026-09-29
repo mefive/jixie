@@ -1,6 +1,6 @@
 import { MARKET_RISK_FACTOR_KEYS_V1, MACRO_RISK_AXIS_KEYS_V1 } from '@jixie/shared';
 import { z } from 'zod';
-import type { BacktestResult } from '#engine/types.js';
+import type { BacktestResult } from './result.js';
 import type { BacktestSummary } from '@jixie/shared';
 
 const tradeRecordSchema = z.object({

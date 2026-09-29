@@ -51,9 +51,9 @@
       "development": "./src/auth/*",
       "default": "./dist/src/auth/*"
     },
-    "#engine/*": {
-      "development": "./src/engine/*",
-      "default": "./dist/src/engine/*"
+    "#backtesting/*": {
+      "development": "./src/backtesting/*",
+      "default": "./dist/src/backtesting/*"
     },
     "#factor/*": {
       "development": "./src/factor/*",

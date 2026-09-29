@@ -1,4 +1,4 @@
-import type { BacktestResult } from '#engine/types.js';
+import type { BacktestResult } from '../backtests/result.js';
 import { UserCodeError } from '#infra/errors.js';
 import type { BacktestMetricSummary, StrategyParamValue, StrategyScanSpec } from '@jixie/shared';
 

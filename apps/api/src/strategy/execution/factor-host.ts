@@ -12,7 +12,7 @@ import type {
   FactorComputeRequest,
   FactorDefinition,
   FactorExecutionPort,
-} from '#engine/factors/execution-port.js';
+} from '#backtesting/factors/execution-port.js';
 
 type FactorInstance = CrossSectionalFactorRuntime | TimeSeriesFactorRuntime | PanelFactorRuntime;
 

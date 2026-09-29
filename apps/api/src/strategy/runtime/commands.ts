@@ -1,4 +1,4 @@
-import type { EngineContext } from '#engine/types.js';
+import type { EngineContext } from '#backtesting/contract.js';
 import type { StrategyCommand } from './protocol.js';
 
 export function replayCommands(context: EngineContext, commands: StrategyCommand[]): void {

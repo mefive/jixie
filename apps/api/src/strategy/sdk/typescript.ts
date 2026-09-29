@@ -1,10 +1,5 @@
-import type {
-  EngineContext,
-  BarRow,
-  OhlcBar,
-  ResamplePeriod,
-  EngineStrategy,
-} from '#engine/types.js';
+import type { EngineContext, EngineStrategy } from '#backtesting/contract.js';
+import type { BarRow, OhlcBar, ResamplePeriod } from '#backtesting/data/market.js';
 import type {
   CodeStrategy,
   Schedule,

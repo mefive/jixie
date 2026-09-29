@@ -18,7 +18,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `sandbox-entry.ts` | 同目录 `sandbox-entry.js` | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `strategy/execution/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；TS/Python 共享 execution/execution 在 finally 关闭，初始化失败也清理已建立实例 |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 仅供 Agent 历史图表转换工具加载 isolate 模块；Factor 已使用公共 TypeScriptTransport |
-| `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `engine/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
+| `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `backtesting/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
 | `factor/runtime/typescript/runtime-benchmark.test-worker.mjs` | 性能验证子进程；固定读取 `4464a616` 的 TS Factor 工厂／SDK bundler，和当前 FactorRuntime 比较横截面、窗口、资产序列及日志负载 | 不作为生产入口 | 仅测试；临时旧模块 finally 删除，记录结果哈希、耗时、逻辑载荷字节及新 transport 实测帧字节 |
 | `strategy/runtime/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `f276bfbd` 的旧墙内源码、`04f62a16` 的历史 runtime/bridge，以及 `4464a616` 的本次重构前 runtime/bridge；后两者使用固定 `4464a616` 的 sandbox-entry，与当前 runtime 分进程比较 | 不作为生产入口 | 仅测试；旧 SDK 路径映射至现有 SDK，临时 bundle 保留旧调用入口；非字面量 import 指向本次生成的旧版本模块，finally 删除临时目录 |
 
@@ -114,3 +114,9 @@ Market 业务归属整理保留 CLI 名称与参数；`sync fina` 入口迁至 `
 Backtest、Scan、Factor execution、Factor correlation、Signals 的 worker-protocol.ts 同时约束发送
 和接收端；结果 schema 按领域维护。Scan 只有整任务的 Worker 消息，不再有 cell IPC 或 stop schema。Weather 共用 Factor execution 消息 schema 和 runWorker 资源收尾。
 协议回归见 apps/api/tests/job-worker-protocol.test.ts；源码/编译入口验证仍使用既有 Worker 集成测试。
+
+### Engine 模拟入口（2026-09-28）
+
+StrategyExecution 在宿主创建一次性 `Simulation`，`run()` 返回模拟结果与可选末日快照。旧 `engine/simulation/run.ts` 删除；SDK 沙箱、Worker URL 和 Python 资源路径不变。FactorEvaluator 是宿主求值器，FactorHost 仍由 StrategyExecution 管理，模拟失败后也由其 finally 关闭。历史 runtime benchmark 的旧 run.ts 字面量用于重写固定版本 fixture，不能按当前入口替换。
+
+2026-09-28 命名修订：当前宿主入口为 `backtesting/engine.ts` 的 BacktestingEngine，调用方使用 `#backtesting/*`；原 simulation 目录展开到模块根。上述历史旧入口和 benchmark 固定版本路径仅作迁移记录。

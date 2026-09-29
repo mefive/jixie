@@ -1,4 +1,4 @@
-import type { CostModel } from '#engine/types.js';
+import type { CostModel } from '#backtesting/cost.js';
 
 export type AccountKind = 'simulation' | 'actual';
 

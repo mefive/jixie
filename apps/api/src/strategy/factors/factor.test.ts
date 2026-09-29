@@ -1,4 +1,4 @@
-import type { FactorDefinition } from '#engine/factors/execution-port.js';
+import type { FactorDefinition } from '#backtesting/factors/execution-port.js';
 import { canonicalJson, sha256 } from '#factor/sources/fingerprint.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StrategyFactor, type StrategyFactorInput } from './factor.js';
@@ -378,6 +378,30 @@ describe('published factor preparation', () => {
     mocks.preparationAllowed = false;
     expect(mocks.runtimeStart).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["ctx.history(252, 'turnoverRateF')", ['turnoverRateF']],
+    ['ctx.history(21, "turnoverRateF")', ['turnoverRateF']],
+    ["ctx.history(504, 'roe')", ['roe']],
+    ["ctx.history(504, 'grossprofitMargin')", ['grossprofitMargin']],
+    ["ctx.history(21, 'marketClose')", ['marketClose']],
+    ['bar.roe && ctx.history(21)', []],
+    ["ctx.history(21, 'amount')", []],
+  ])(
+    'extracts auxiliary data requirements while preparing source: %s',
+    async (expression, expected) => {
+      mocks.factorFindMany.mockResolvedValue([
+        factorRow({
+          code: `export default defineFactor({ compute(bar, ctx) { return ${expression}; } });`,
+        }),
+      ]);
+      const factors = await StrategyFactor.fromStrategySource(
+        "ctx.factor('book_to_market', 'A')",
+        'user-1',
+      );
+      expect(factors[0].historyFields).toEqual(expected);
+    },
+  );
 
   it('loads the exact owned factor and records run lineage', async () => {
     const prepared = await StrategyFactor.fromStrategySource(

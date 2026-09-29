@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { EngineContext } from '#engine/types.js';
+import type { EngineContext } from '#backtesting/contract.js';
 import { identifierSchema, finiteNumberSchema } from '#infra/runtime/protocol.js';
 import { strategyCommandSchema } from './protocol.js';
 import { replayCommands } from './commands.js';

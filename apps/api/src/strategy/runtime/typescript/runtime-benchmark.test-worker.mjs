@@ -8,8 +8,8 @@ import { transform } from 'esbuild';
 import { register } from 'tsx/esm/api';
 
 register();
-const { fixturePort } = await import('#engine/testing/fixture-port.js');
-const { runStrategy } = await import('#engine/simulation/run.js');
+const { fixturePort } = await import('#backtesting/testing/fixture-port.js');
+const { BacktestingEngine } = await import('#backtesting/engine.js');
 const { TypeScriptStrategyRuntime } = await import('./typescript-strategy-runtime.ts');
 const apiDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 const variant = process.argv[2];
@@ -219,7 +219,7 @@ try {
       let cleanupStarted;
       try {
         result = (
-          await runStrategy({
+          await new BacktestingEngine({
             strategy:
               variant === 'before' || variant === 'previous'
                 ? runtime.strategy
@@ -228,7 +228,7 @@ try {
             end: dates.at(-1),
             initialCash: 1_000_000,
             dataPort: port,
-          })
+          }).run()
         ).result;
         metrics = { ...runtime.metrics };
       } finally {

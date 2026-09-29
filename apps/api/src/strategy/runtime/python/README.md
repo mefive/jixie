@@ -1,6 +1,6 @@
 # Python 策略桥接
 
-Python 执行策略 on_bar，交易撮合与账户规则仍由 TS [Engine](../../../engine/README.md) 执行。Python 用户接口实现位于 `apps/api/src/strategy/sdk/python.py`；
+Python 执行策略 on_bar，交易撮合与账户规则仍由 TS [Backtesting](../../../backtesting/README.md) 执行。Python 用户接口实现位于 `apps/api/src/strategy/sdk/python.py`；
 `strategy/runtime/python/runner.py` 负责加载声明、请求协议、暂停 I/O 等待期间的执行计时和逐日回调。
 `jixie_runner.py` 保留通用帧、日志、计时与业务分派。SDK 通过注入的 request 回调请求数据，不直接读写帧。
 本目录不拥有回测报告，也不提供 Python 参数扫描或 Signals 部署准入。

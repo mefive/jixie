@@ -286,9 +286,9 @@ test('checks retired paths, broken modules and production imports of test helper
   const root = fixture(context, {
     [src + 'store/old.ts']: 'export const old = 1;',
     [src + 'strategy/action.ts']:
-      "import './missing.js'; import '../engine/testing/fixture-port.js';",
-    [src + 'engine/testing/fixture-port.ts']: 'export const value = 1;',
-    [src + 'strategy/action.test-worker.mjs']: "import '../engine/testing/fixture-port.js';",
+      "import './missing.js'; import '../backtesting/testing/fixture-port.js';",
+    [src + 'backtesting/testing/fixture-port.ts']: 'export const value = 1;',
+    [src + 'strategy/action.test-worker.mjs']: "import '../backtesting/testing/fixture-port.js';",
   });
   const result = checkBackendBoundaries(root, emptyPolicy);
   for (const rule of ['retired-path', 'unresolved-import', 'production-test-dependency']) {
@@ -313,16 +313,16 @@ test('allows only the index to bootstrap to server startup direction', (context)
   assert.equal(issues[0].from, src + 'strategy/action.ts');
 });
 
-test('protects helpers, registries and engine core from host imports', (context) => {
+test('protects helpers, registries and backtesting core from host imports', (context) => {
   const root = fixture(context, {
     [src + 'math/helper.ts']: "import 'node:fs';",
     [src + 'market/registry/example.ts']: "import '../sync/example.js';",
     [src + 'market/sync/example.ts']: 'export const value = 1;',
-    [src + 'engine/simulation/run.ts']: "import '../adapters/port.js';",
-    [src + 'engine/adapters/port.ts']: 'export const value = 1;',
+    [src + 'backtesting/engine.ts']: "import './adapters/port.js';",
+    [src + 'backtesting/adapters/port.ts']: 'export const value = 1;',
   });
   const found = rules(checkBackendBoundaries(root, emptyPolicy));
-  for (const rule of ['pure-helper', 'registry-purity', 'engine-core']) {
+  for (const rule of ['pure-helper', 'registry-purity', 'backtesting-core']) {
     assert.ok(found.includes(rule), rule);
   }
 });
@@ -340,7 +340,7 @@ test('detects indirect business imports through infrastructure bridges', (contex
 });
 
 test('requires exact reviewed exceptions and removes them when no longer used', (context) => {
-  const from = src + 'engine/factors/custom.ts',
+  const from = src + 'backtesting/factors/custom.ts',
     to = src + 'factor/fields.ts';
   const root = fixture(context, {
     [from]: "import { value } from '../../factor/fields.js';",
@@ -349,7 +349,7 @@ test('requires exact reviewed exceptions and removes them when no longer used', 
   const policy = {
     edges: [
       {
-        rule: 'engine-core',
+        rule: 'backtesting-core',
         from,
         to,
         kind: 'runtime',
@@ -492,7 +492,7 @@ test('permits shared workspace contracts when resolution points inside the repos
   const root = fixture(
     context,
     {
-      [src + 'engine/data/input.ts']: "import { value, type Input } from '@jixie/shared';",
+      [src + 'backtesting/data/input.ts']: "import { value, type Input } from '@jixie/shared';",
       [src + 'math/input.ts']: "import type { Input } from '@jixie/shared';",
       [src + 'market/registry/input.ts']: "import { value } from '@jixie/shared';",
       'packages/shared/src/index.ts': 'export interface Input {} export const value = 1;',

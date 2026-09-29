@@ -1,5 +1,5 @@
 import type { Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
-import type { EngineContext, EngineStrategy } from '#engine/types.js';
+import type { EngineContext, EngineStrategy } from '#backtesting/contract.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 

@@ -6,7 +6,7 @@ import {
 } from './execution.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { EngineDataPort } from '#engine/data/data-port.js';
+import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import type { FactorDependency } from '@jixie/shared';
 
 const mocks = vi.hoisted(() => ({
@@ -23,8 +23,13 @@ vi.mock('#factor/runtime/factor-runtime.js', () => ({
 vi.mock('../runtime/strategy-runtime.js', () => ({
   StrategyRuntime: { start: mocks.strategyStart },
 }));
-vi.mock('#engine/simulation/run.js', () => ({
-  runStrategy: mocks.engine,
+vi.mock('#backtesting/engine.js', () => ({
+  BacktestingEngine: class {
+    constructor(private readonly input: unknown) {}
+    run() {
+      return mocks.engine(this.input);
+    }
+  },
 }));
 
 const dependency: FactorDependency = {

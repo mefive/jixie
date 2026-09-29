@@ -9,7 +9,7 @@
 - Hono 只出现在路由、HTTP 辅助与启动适配；业务操作不能反向导入 HTTP 文件。业务模块根级 `routes.ts` 与该模块的 `routes/` 目录（含 `index.ts` 和 `errors.ts`）属于 HTTP 适配；相邻业务目录不会因此变成 HTTP 适配。HTTP 不直接导入 Prisma，业务操作可以使用 Prisma。Auth 的根级 `routes.ts`、`cookies.ts` 与 `middleware.ts` 属于 HTTP 适配，`session.ts` 属于会话业务；Maintenance 的 `middleware.ts` 同样属于 HTTP 适配。Cookie 与中间件按精确文件路径识别，不放行整个业务目录。
 - `infra/runtime`、通用 `jobs` 文件不能直接或间接反向依赖业务。仅 `jobs/register.ts` 可装配业务；除 bootstrap 和直接执行 Job 的 Signals 每日批处理外，不得反向导入它；通用文件也不得经此间接依赖业务。
 - `index → bootstrap → server` 为启动依赖方向；业务/CLI 不导入整应用启动模块。
-- Engine simulation/data/factors/types 核心不能导入宿主适配器、数据库、HTTP 或任务流程。4 条现有纯契约依赖逐条登记。
+- Engine data/factors/types 核心不能导入宿主适配器、数据库、HTTP 或任务流程。4 条现有纯契约依赖逐条登记。
 - Math/date/i18n 只依赖纯辅助、shared 契约和已有 dayjs 能力；Market registry 不依赖数据库、通道或同步。
 - Market 不能直接或间接回调 Strategy、Research、Agent、Signals 或 Maintenance。整体审计由 Maintenance 组合。
 - 应用根目录不新增汇总实现的重导出 barrel。业务模块的 `routes/index.ts` 可以显式具名转导出本模块路由，单文件模块的根级 `routes.ts` 仍可直接实现；该入口仍属于 HTTP 适配，业务操作不能通过它反向依赖 HTTP。旧顶层 application-maintenance（现名 maintenance）及 lib/routes/services/store/tushare/data-quality/types/risk/library 等模块不可重新出现；fundamentals/rates/macro/commodity 只保留在 Market 内。
@@ -24,9 +24,10 @@
 
 | 源 → 目标（省略 `apps/api/src/`） | 理由 |
 | --- | --- |
-| `engine/data/engine-data.ts` → `market/instruments/stock-identity.ts` | 历史证券身份的纯规则，不查询市场数据库 |
-| `engine/factors/custom-factor.ts` → `factor/definitions/fields.ts` | 复用字段常量与纯函数 |
-| `engine/simulation/run.ts` → `market/registry/index-presets.ts` | 复用纯静态基准代码 |
+| `backtesting/data/engine-data.ts` → `market/instruments/stock-identity.ts` | 历史证券身份的纯规则，不查询市场数据库 |
+| `backtesting/factors/evaluator.ts` → `factor/definitions/fields.ts` | 复用字段常量与纯函数 |
+| `backtesting/factors/execution-port.ts` → `factor/definitions/fields.ts` | 仅复用输入字段联合类型，无新增运行时依赖 |
+| `backtesting/engine.ts` → `market/registry/index-presets.ts` | 复用纯静态基准代码 |
 
 例外目标也被检查：不能新增宿主或业务流程依赖，避免允许的契约变成绕过边界的入口。例外不再使用时门禁报错，要求删除过时记录。循环基线目前为空；如果今后确需例外，必须解释具体边，新增循环边不会因节点落在旧循环里而自动放行。
 

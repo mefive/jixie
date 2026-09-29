@@ -1,4 +1,5 @@
-import type { EngineContext, BarRow, IndexHandle, OhlcBar, EngineStrategy } from '#engine/types.js';
+import type { EngineContext, EngineStrategy } from '#backtesting/contract.js';
+import type { BarRow, IndexHandle, OhlcBar } from '#backtesting/data/market.js';
 import type { Locale, StrategyParamValue } from '@jixie/shared';
 import {
   makeSandboxConsole,

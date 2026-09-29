@@ -112,6 +112,9 @@ test('business TypeScript SDK and host runtime changes still select only API', (
   for (const changedPath of [
     'apps/api/src/strategy/sdk/typescript.ts',
     'apps/api/src/strategy/execution/execution.ts',
+    'apps/api/src/backtesting/engine.ts',
+    'apps/api/src/backtesting/order-book.ts',
+    'apps/api/src/backtesting/factors/evaluator.ts',
     'apps/api/src/strategy/factors/factor.ts',
     'apps/api/src/strategy/execution/factor-host.ts',
     'apps/api/src/strategy/scans/run.ts',

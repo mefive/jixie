@@ -1,12 +1,20 @@
 import { FactorHost } from './factor-host.js';
-import type { EngineDataPort } from '#engine/data/data-port.js';
+import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { StrategyFactor } from '../factors/factor.js';
-import { runStrategy } from '#engine/simulation/run.js';
-import type { CostModel, EngineContext, StrategyExecutionResult } from '#engine/types.js';
+import { BacktestingEngine } from '#backtesting/engine.js';
+import type { CostModel } from '#backtesting/cost.js';
+import type { EngineContext } from '#backtesting/contract.js';
+import type { BacktestingFinalState } from '#backtesting/result.js';
+import type { BacktestResult } from '../backtests/result.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { FactorDependency, Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
 import { StrategyRuntime } from '../runtime/strategy-runtime.js';
 import type { StrategyRuntimeInstance } from '../runtime/contract.js';
+
+export interface StrategyExecutionResult {
+  result: BacktestResult;
+  finalState: BacktestingFinalState | null;
+}
 
 export interface StrategyExecutionInput {
   code: string;
@@ -78,7 +86,7 @@ export class StrategyExecution {
     }
     this.started = true;
 
-    const engineConfig = {
+    const backtestingConfig = {
       retainFinalState: options.retainFinalState,
       start: options.start,
       end: options.end,
@@ -93,11 +101,12 @@ export class StrategyExecution {
       factorExecution: this.factorHost,
       onLog: this.input.onLog,
     };
-    const output = await runStrategy(engineConfig);
+    const output = await new BacktestingEngine(backtestingConfig).run();
+    const result: BacktestResult = output.result;
     if (this.input.factors) {
-      output.result.factorDependencies = this.factorDependencies;
+      result.factorDependencies = this.factorDependencies;
     }
-    return output;
+    return { result, finalState: output.finalState };
   }
 
   close(): void {

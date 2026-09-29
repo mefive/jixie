@@ -3,7 +3,7 @@ import type { StrategyScanCell, StrategyScanPayload } from '@jixie/shared';
 import { StrategyFactor } from '../factors/factor.js';
 import type { StrategyScanWorkerInput } from './job-payload.js';
 import { metricSummary, parameterCombinations, rebaseNav, scanCellOverrides } from './scan.js';
-import { prismaDataPort } from '#engine/adapters/prisma-port.js';
+import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
 import {
   StrategyExecution,
   type StrategyExecutionInput,

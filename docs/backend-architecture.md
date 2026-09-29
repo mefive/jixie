@@ -13,7 +13,7 @@
 | Research | 研究文档、Cell、依赖失效、执行证据、Agent 提案和研究交接 | [Research](../apps/api/src/research/README.md) |
 | Factor | 因子定义/组合、分析报告、holdout、发布、持续观察 | [Factor](../apps/api/src/factor/README.md) |
 | Strategy | 策略定义、回测报告、参数扫描、报告风险分析 | [Strategy](../apps/api/src/strategy/README.md) |
-| Engine | 交易日循环、行情读取端口、成交/持仓和因子求值；供回测和信号计算使用 | [Engine](../apps/api/src/engine/README.md) |
+| Backtesting | 交易日循环、行情读取端口、成交/持仓和因子求值；供回测和信号计算使用 | [Backtesting](../apps/api/src/backtesting/README.md) |
 | Signals | 按报告独立部署、每日运行、模拟/人工成交和账户对账 | [Signals](../apps/api/src/signals/README.md) |
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
 | Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、跨资产查询与跨市场流程 | [Market](../apps/api/src/market/README.md) |

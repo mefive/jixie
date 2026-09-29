@@ -1,11 +1,11 @@
 import type { FactorDependency, FactorInputSummary } from '@jixie/shared';
-import type { PendingFactorObservation } from '#engine/types.js';
+import type { FactorObservation } from '#backtesting/result.js';
 
 /** Reduce final-bar factor reads to statistics plus values for assets affected by the run. */
 export function summarizeFactorInputs(
   factors: FactorDependency[],
   asOfDate: string,
-  observations: PendingFactorObservation[],
+  observations: FactorObservation[],
   decisionAssetIds: Iterable<string>,
 ): FactorInputSummary[] {
   const decisionAssets = new Set(decisionAssetIds);

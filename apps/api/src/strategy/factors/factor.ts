@@ -1,11 +1,10 @@
 import { ENGINE_FACTORS, FACTOR_KEY_PATTERN, type FactorDependency } from '@jixie/shared';
 import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
-import {
-  extractCustomFactorHistoryFields,
-  type CustomFactorHistoryField,
-  type AssetFactorRuntimeMeta,
-} from '#engine/factors/custom-factor.js';
-import type { FactorDefinition } from '#engine/factors/execution-port.js';
+import type {
+  FactorHistoryField,
+  FactorInputRequirements,
+  FactorDefinition,
+} from '#backtesting/factors/execution-port.js';
 import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
 import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
 import { normalizeAnalysisKind } from '#factor/definitions/views.js';
@@ -18,9 +17,9 @@ export type FactorUsage = 'research' | 'deployment' | 'signal';
 export interface StrategyFactorInput extends Omit<FactorDependency, 'inputs'> {
   code?: string;
   js?: string;
-  historyFields?: CustomFactorHistoryField[];
+  historyFields?: FactorHistoryField[];
   crossSectional?: { window?: number };
-  assetSeries?: AssetFactorRuntimeMeta;
+  assetSeries?: FactorInputRequirements;
   assetUniverse?: Array<{ assetId: string; assetClass: import('@jixie/shared').MultiAssetClass }>;
   panelComposite?: {
     standardization: 'rank' | 'zscore';
@@ -231,7 +230,7 @@ export class StrategyFactor {
 
   private static inputsFromDefinition(
     definition: FactorDefinition,
-  ): AssetFactorRuntimeMeta['inputs'] | undefined {
+  ): FactorInputRequirements['inputs'] | undefined {
     switch (definition.kind) {
       case 'cross_sectional':
         return undefined;
@@ -311,6 +310,23 @@ export class StrategyFactor {
     };
   }
 
+  private static extractHistoryFields(source: string): FactorHistoryField[] {
+    const fields: FactorHistoryField[] = [];
+    if (/['"]turnoverRateF['"]/.test(source)) {
+      fields.push('turnoverRateF');
+    }
+    if (/['"]roe['"]/.test(source)) {
+      fields.push('roe');
+    }
+    if (/['"]grossprofitMargin['"]/.test(source)) {
+      fields.push('grossprofitMargin');
+    }
+    if (/['"]marketClose['"]/.test(source)) {
+      fields.push('marketClose');
+    }
+    return fields;
+  }
+
   private static async prepareSource(
     row: {
       key: string;
@@ -347,7 +363,7 @@ export class StrategyFactor {
             historyFields:
               language === 'python'
                 ? StrategyFactor.extractPythonFactorHistoryFields(row.code)
-                : extractCustomFactorHistoryFields(row.code),
+                : StrategyFactor.extractHistoryFields(row.code),
           }
         : {}),
       ...(analysisKind === 'panel' && reportSpec != null

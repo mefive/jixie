@@ -1,6 +1,6 @@
 # 正式回测与冻结报告
 
-本能力拥有 BacktestReport、回测 Job、完整语言编排与风险后处理。交易循环归 [Engine](../../engine/README.md)，参数扫描有 [独立流程](../scans/README.md)。
+本能力拥有 BacktestReport、回测 Job、完整语言编排与风险后处理。交易循环归 [Backtesting](../../backtesting/README.md)，参数扫描有 [独立流程](../scans/README.md)。
 
 | 文件 / 入口 | 主要调用方与结果 |
 | --- | --- |

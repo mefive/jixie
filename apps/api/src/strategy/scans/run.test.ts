@@ -1,6 +1,6 @@
 import { StrategyFactor } from '../factors/factor.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { BacktestResult } from '#engine/types.js';
+import type { BacktestResult } from '../backtests/result.js';
 import type { StrategyScanWorkerInput } from './job-payload.js';
 import type { StrategyExecutionInput, StrategyRunOptions } from '../execution/execution.js';
 
@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../execution/execution.js', () => ({ StrategyExecution: { create: mocks.create } }));
-vi.mock('#engine/adapters/prisma-port.js', () => ({ prismaDataPort: mocks.port }));
+vi.mock('#backtesting/adapters/prisma-port.js', () => ({ prismaDataPort: mocks.port }));
 
 import { runStrategyScan } from './run.js';
 

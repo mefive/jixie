@@ -1,8 +1,5 @@
-import type {
-  ConditionalOrderKind,
-  PendingFactorObservation,
-  StrategyFinalState,
-} from '#engine/types.js';
+import type { ConditionalOrderKind } from '#backtesting/order-book.js';
+import type { FactorObservation, BacktestingFinalState } from '#backtesting/result.js';
 
 export interface PendingCashSignal {
   code: string;
@@ -43,11 +40,11 @@ export interface SignalProjection {
   modelCash: number;
   modelPositions: PendingModelPosition[];
   signals: Array<PendingCashSignal | PendingConditionalSignal>;
-  factorObservations: PendingFactorObservation[];
+  factorObservations: FactorObservation[];
 }
 
 /** Convert a detached final state into next-open signal instructions, without rerunning the strategy. */
-export function projectSignals(state: StrategyFinalState): SignalProjection {
+export function projectSignals(state: BacktestingFinalState): SignalProjection {
   const {
     tradeDate,
     positions,
@@ -210,7 +207,7 @@ export function projectSignals(state: StrategyFinalState): SignalProjection {
   };
 }
 function projectCashSignal(
-  market: StrategyFinalState['market'],
+  market: BacktestingFinalState['market'],
   code: string,
   adjustedDelta: number,
   adjustmentFactor: number,

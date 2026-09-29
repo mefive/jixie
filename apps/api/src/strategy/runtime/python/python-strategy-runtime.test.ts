@@ -1,7 +1,7 @@
 import { StrategyRuntime } from '../strategy-runtime.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { fixturePort, type FixtureSpec } from '#engine/testing/fixture-port.js';
-import { runStrategy } from '#engine/simulation/run.js';
+import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
+import { BacktestingEngine } from '#backtesting/engine.js';
 import { defineStrategy } from '../../sdk/typescript.js';
 
 const dates = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];
@@ -82,20 +82,20 @@ describe('Python strategy runtime', () => {
     });
     try {
       const [{ result: pythonResult }, { result: nativeResult }] = await Promise.all([
-        runStrategy({
+        new BacktestingEngine({
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
           strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
           dataPort: fixturePort(spec),
-        }),
-        runStrategy({
+        }).run(),
+        new BacktestingEngine({
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
           strategy: nativeStrategy,
           dataPort: fixturePort(spec),
-        }),
+        }).run(),
       ]);
 
       expect(pythonResult.nav).toEqual(nativeResult.nav);
@@ -168,20 +168,20 @@ def handle_bar(ctx):
 
     try {
       await Promise.all([
-        runStrategy({
+        new BacktestingEngine({
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
           strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
           dataPort: fixturePort(spec),
-        }),
-        runStrategy({
+        }).run(),
+        new BacktestingEngine({
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
           strategy: nativeStrategy,
           dataPort: fixturePort(spec),
-        }),
+        }).run(),
       ]);
 
       const probe = logs.find((line) => line.startsWith('indicator-probe '));
@@ -207,13 +207,13 @@ def broken(ctx):
     });
     try {
       await expect(
-        runStrategy({
+        new BacktestingEngine({
           start: dates[0],
           end: dates[1],
           initialCash: 100_000,
           strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
           dataPort: fixturePort(spec),
-        }),
+        }).run(),
       ).rejects.toThrow(/strategy\.py.*ValueError: boom/s);
     } finally {
       runtime.close();

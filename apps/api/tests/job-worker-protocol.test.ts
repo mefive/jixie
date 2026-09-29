@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import type { BacktestResult } from '#engine/types.js';
+import type { BacktestResult } from '#strategy/backtests/result.js';
 import type { z } from 'zod';
 import type {
   BacktestSummary,

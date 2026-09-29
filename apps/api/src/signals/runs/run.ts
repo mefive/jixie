@@ -1,10 +1,10 @@
 import { projectSignals } from './projection.js';
-import { prismaDataPort } from '#engine/adapters/prisma-port.js';
+import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
 import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
 import { StrategyFactor } from '#strategy/factors/factor.js';
 import { StrategyExecution } from '#strategy/execution/execution.js';
-import type { StrategyExecutionResult } from '#engine/types.js';
+import type { StrategyExecutionResult } from '#strategy/execution/execution.js';
 import { errorMessage } from '#infra/errors.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import { codeConfigSchema } from '@jixie/shared/api/strategy';

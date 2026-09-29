@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { StrategyFinalState } from '#engine/types.js';
+import type { BacktestingFinalState } from '#backtesting/result.js';
 import { projectSignals } from './projection.js';
 
-function state(overrides: Partial<StrategyFinalState> = {}): StrategyFinalState {
+function state(overrides: Partial<BacktestingFinalState> = {}): BacktestingFinalState {
   return {
     tradeDate: '20240103',
     equity: 10_000,

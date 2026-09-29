@@ -4,7 +4,7 @@
 
 | 文件 / 入口 | 主要调用方及副作用 |
 | --- | --- |
-| [initialize.ts](initialize.ts) `initializeSignalAccounting` | signal Job afterCommit；done Run 有模型资产／现金数据时，在自己的事务里建立即时执行记录及缺失的 simulation/actual 基线；条件单不直接建立即时执行记录 |
+| [initialize.ts](initialize.ts) `initializeSignalAccounting` | signal Job afterCommit；done Run 有模型资产／现金数据时，在自己的事务里建立即时执行记录及缺失的 actual 基线；条件单不直接建立即时执行记录 |
 | [settlement.ts](settlement.ts) `settleStrategyAccounts` | 人工提交、每日调度；扫描截止日内所有 done Run 涉及的部署，逐部署先 simulation 再 actual 重建 |
 | 同文件 `rebuildDeploymentAccount` | settlement 和人工成交更新；加载基线、成交及行情，按执行日保存派生账户 |
 | [executions.ts](executions.ts) `updateActualExecution` | execution 路由；检查执行记录所有者和 Run 已完成，保存人工成交，再重放 actual 至最新 simulation 日期 |

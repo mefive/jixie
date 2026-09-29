@@ -6,7 +6,7 @@ import type {
 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma, type Prisma } from '#infra/database/prisma.js';
-import type { BacktestResult } from '#engine/types.js';
+import type { BacktestResult } from '../backtests/result.js';
 import {
   alignAlphaPeriodReturnsToRiskAvailability,
   alphaPeriodsFromFactorReport,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compileStrategy } from './testing/compile.js';
 import { ETF_ROTATION_EXAMPLE } from './codegen-prompt.js';
-import type { EngineContext } from '#engine/types.js';
+import type { EngineContext } from '#backtesting/contract.js';
 
 // A canonical hand-written strategy: MA20 breakout on one name. Import-free — `defineStrategy` is injected.
 const MA_CROSS = `

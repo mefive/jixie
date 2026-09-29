@@ -6,7 +6,8 @@ import type {
   TimeframeSeries,
   Universe,
 } from '@jixie/shared/sdk/strategy/contract';
-import type { BarRow, EngineContext } from '#engine/types.js';
+import type { BarRow } from '#backtesting/data/market.js';
+import type { EngineContext } from '#backtesting/contract.js';
 import { defineStrategy, Universe as UniverseImplementation } from './typescript.js';
 
 /**

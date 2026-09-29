@@ -1,6 +1,6 @@
 import { transform } from 'esbuild';
 import { DEFAULT_LOCALE, type Locale, type StrategyParamValue } from '@jixie/shared';
-import type { EngineStrategy } from '#engine/types.js';
+import type { EngineStrategy } from '#backtesting/contract.js';
 import {
   makeSandboxConsole,
   noopSandboxConsole,

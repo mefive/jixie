@@ -18,7 +18,7 @@ vi.mock('#infra/database/prisma.js', () => ({
     etfBasic: { findMany: mocks.etfs },
   },
 }));
-vi.mock('#engine/adapters/prisma-port.js', () => ({ prismaDataPort: {} }));
+vi.mock('#backtesting/adapters/prisma-port.js', () => ({ prismaDataPort: {} }));
 vi.mock('#strategy/execution/execution.js', () => ({
   StrategyExecution: { create: mocks.create },
 }));

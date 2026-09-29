@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Universe, enrich, periodKey } from './typescript.js';
-import type { EngineContext, BarRow } from '#engine/types.js';
+import type { EngineContext } from '#backtesting/contract.js';
+import type { BarRow } from '#backtesting/data/market.js';
 
 // A bag of fake today-rows keyed by code, plus listDays, behind a minimal EngineContext for Universe.
 function ctxOf(

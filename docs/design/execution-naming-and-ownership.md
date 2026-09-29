@@ -153,3 +153,64 @@ EngineConfig 删除 customFactors，只接收 FactorExecutionPort。运行开始
 - 日志：/tmp/jixie-execution-results-regression.log、/tmp/jixie-execution-results-source-workers.log、/tmp/jixie-execution-results-compiled-workers.log、/tmp/jixie-execution-results-deploy.log、/tmp/jixie-execution-results-build.log、/tmp/jixie-execution-results-benchmark.log。
 
 按已确认信息提交，不推送；保留用户原有 runBacktest 重命名及未跟踪的 docs/design/engine-refactor-notes.md，不纳入本次提交。
+
+## Engine 状态归属与契约重构（2026-09-28，待代码审查）
+
+用户已授权按本轮方案完成可 review 的实现。计划提交：`refactor(engine): clarify simulation ownership and contracts`。
+
+- `new Simulation(config).run()` 替代 runStrategy；实例持有一次模拟状态，股票和多资产共用循环。OrderBook 持有决策与跨日订单，SimulationContext 持有当日截面并提供统一决策视图。CashPortfolio / FuturesPortfolio 负责各自账户。无状态金融计算保留函数。
+- FactorEvaluator 替代 CustomFactorRuntime，接收具名输入，通过 FactorExecutionPort 求值；源码 history 字段提取收回 StrategyFactor。EngineData 改具名配置，精确日与可沿用历史价格的方法显式使用 On / AsOf，复权价格显式使用 adjusted。
+- 删除 engine/types.ts，契约随数据、成本、成交、输出和账户归属。当前成交要求明确资产类型，期货合约/数量/乘数必填；历史可选字段兼容和报告因子血缘放入 Strategy 的 BacktestResult。统一输出保持 result/finalState，不引入业务专用开关或泛型返回。
+- 调用方、类型导入、测试入口和 benchmark 当前实现同步迁移，不留旧入口转发。边界门禁例外迁移到新文件，execution-port 只增加对已有纯字段注册表的类型依赖。
+
+交易顺序、复权、手续费、PIT、默认资金分配、基准、因子缓存固定时机保持；期货末日状态仍明确不支持，futureCloseTodayRate 不在本轮改变计算行为。公开 SDK、HTTP、数据库无变更，无新 workspace 或部署组件。用户自行修改的 runBacktest 命名及独立设计笔记保留。
+
+审查前只运行静态门禁、SDK 生成一致性、全仓 typecheck、受影响文件 lint/format。行为验证代码已迁移，新增一次性模拟生命周期、订单快照隔离与条件单持续、停牌行情 On/AsOf 语义测试。代码 review 后需验证 Engine 全套、Strategy/Signals 相关单测、TS/Python runtime、Worker 协议、隔离与 benchmark、部署影响/边界门禁自测，以及 shared/API 构建与编译产物入口。当前未运行本轮行为测试或构建，未提交。
+
+审查前静态结果：全仓 `pnpm typecheck` 通过（shared/API/docs/sandboxd/web）；边界扫描 848 个文件、0 违规，SDK 生成物一致；所有受影响 TS/MJS 的 ESLint 零警告，格式检查及 `git diff --check` 通过。行为测试与构建仍待本轮代码 review。
+
+### Review 命名修订：Backtesting（2026-09-28）
+
+用户确认顶层模块改为 `backtesting`，`simulation` 展开到根级，主类改为 `BacktestingEngine`，入口 `#backtesting/engine.js`。相关 Simulation 契约统一改为 Backtesting 前缀，旧别名和转发入口删除；Strategy 的 runBacktest 业务入口保持。同步导入、边界门禁及其 fixture、SDK bundle 隔离断言、部署影响用例和阅读地图；历史 benchmark 的固定旧版本路径保留。部署组件仍为 API，无 workspace 或跨包构建依赖变化，既有 apps/api/ 部署覆盖无需调整。计划提交仍为 `refactor(engine): clarify simulation ownership and contracts`。本次修订只做静态验证，产品代码待重新 review。
+
+命名修订静态验证通过：全仓 typecheck、848 文件边界扫描（0 违规）、SDK 生成一致性、受影响文件 ESLint（0 警告）、Prettier 和 diff 检查。未运行本轮行为测试、构建或提交，等待代码 review。
+
+### Review 修订：引擎私有方法归属（2026-09-29）
+
+按用户确认，将配置校验、因子定义加载、账户分配、求值器创建及退市检查收进 BacktestingEngine 私有方法；三个数据需求判断和输入提取合并为 getDataRequirements。run 的收盘计价/归因与结果统计提取为 recordClose / collectResult，累计成交计数归实例，保持原执行顺序。纯日期格式化留在文件内。方法按校验、初始化、逐日处理、收尾排列，保持逻辑段落空行。提交信息不变；本轮产品代码仍待 review，行为测试与构建未运行。
+
+2026-09-29 后续 review：日志日期展示改用既有 `#date` 的 `day(value).format('YYYY-MM-DD')`，删除 engine.ts 本地 formatDate；未新增日期包装函数或改变入口校验。
+
+### Review 修订：运行状态与操作参数（2026-09-29）
+
+因子定义在加载并校验成功后赋给 BacktestingEngine.factorDefinitions；数据需求读取成员，initializeFactorEvaluator 直接设置求值器。派生的 requirements、allocationClasses 与 allocation 保留局部。OrderBook 的调仓、普通订单、条件单、期货指令、清仓条件清理和条件命令应用收为私有方法，读取自身依赖与待执行状态；日期/上日映射日期及开盘前持仓集合保留为操作参数。FactorEvaluator 删除 prepareFactor、assetRequest、preparePanelComposite 重复的 key 参数，统一使用 factor.id；保留日期和批次输入及原异步串行队列。交易顺序、计算公式和公开接口保持，本轮未执行行为验证，提交信息不变，待代码 review。
+
+2026-09-29 后续 review：hasFutures 改为 futuresEnabled，明确其含义是策略声明启用期货模拟，而非当前持仓；期货与 retainFinalState 的不兼容检查合入 validateConfig，保持原校验顺序且仍早于 initialize。
+
+2026-09-29 金额展示 review：相同人民币整数格式只在回测日志使用，暂不新增 utils/format 模块；局部 yuan 改名 formatCny，复用一次运行内的 Intl.NumberFormat，按日志 locale 明确 zh-CN/en-US、分组与整数精度。保留 Math.round 取整和 ¥ 前缀，仅消除环境默认 locale 的隐式依赖。
+
+### Review 修订：阅读分段（2026-09-29）
+
+engine.ts 按单一目的分段，声明与使用、同组校验保持连续，阶段切换及提前退出后的正常路径用单空行分隔。日志文案抽入 logStart/logRebalance/logProgress/logResult，金额格式化及其 Intl 实例留在引擎内，年度日志状态由实例持有。run 保留校验、初始化、逐日执行/结算/记录/决策和收尾的调用顺序；日志触发条件与数值计算保持。本轮仍仅静态验证，等待 review 后统一执行行为回归和构建，未提交。
+
+2026-09-29 收盘状态 review：recordClose 改为 void，只记录账户净值、分账户状态和归因；主循环显式先 recordClose 再 logProgress。logProgress 从 nav 最后一项读取日期与权益，不再传递或新增重复状态，保留年度日志触发规则及原执行顺序。
+
+2026-09-29 结果收尾 review：collectResult 完成绩效与归因汇总后调用 logResult 再返回，run 不再单独输出完成日志。原日志顺序与次数保持，仍待整体行为验证。
+
+2026-09-29 初始化收尾 review：logStart 移入 initialize 末尾，数据、因子、账户及订单簿全部初始化成功后输出；run 只调用 initialize。初始化失败不输出开始日志，日志方法保留独立私有实现。
+
+
+### 审查通过后的验证与提交（2026-09-29）
+
+用户确认本轮 review 通过，停止扩大重构范围，完成验证后直接提交。
+
+- 业务／运行时回归：49 个测试文件、436 项通过，覆盖 Backtesting 全套股票／ETF／期货规则、订单与末日快照、数据 On/AsOf、FactorEvaluator、StrategyFactor／Execution、TS/Python runtime、SDK、扫描、Signals 投影／记账与路由、Worker 协议及原生别名。
+- 真实 Worker：源码 14 项、编译产物 14 项通过，包含启动恢复、TS/Python 回测、连续扫描、Signals IPC、异常输入与退出。
+- 边界检查器及部署计划：41 项通过；历史 runtime watch／dynamic 对比：2 项通过，各变体结果哈希一致，传输量断言通过。合计 507 项通过，无失败或跳过。
+- Shared 构建与 API 空 dist 构建通过；编译产物的新 BacktestingEngine／OrderBook／业务 Worker 入口存在，退役 engine 目录不存在。旧 API dist 备份位于 /tmp/jixie-backtesting-dist-o9pnz3dr。
+- 最终全仓 typecheck、SDK 生成一致性、848 文件后端边界检查（0 违规）、所有受影响 TS/MJS 的 ESLint、Prettier 与 diff 检查通过。并行静态检查曾扫描到运行中的历史 benchmark 临时目录；基准完成清理后重新执行，全部通过。
+- 提交检查发现 .gitignore 的 data 源码例外仍指向旧 engine，已同步到 backtesting，确保迁移后的 data 文件纳入提交；无产品逻辑修正。
+- 测试使用隔离数据库，没有启动额外开发服务；进程检查无本轮 Vitest、benchmark、Worker boot 或 Python runner 残留。
+- 日志：/tmp/jixie-backtesting-regression.log、/tmp/jixie-backtesting-source-workers.log、/tmp/jixie-backtesting-compiled-workers.log、/tmp/jixie-backtesting-tool-tests.log、/tmp/jixie-backtesting-benchmark.log、/tmp/jixie-backtesting-shared-build.log、/tmp/jixie-backtesting-api-build.log、/tmp/jixie-backtesting-final-typecheck.log。
+
+按已确认消息 refactor(engine): clarify simulation ownership and contracts 提交，不推送。保留用户原有 runBacktest 重命名及未跟踪的 docs/design/engine-refactor-notes.md，不纳入本次提交。

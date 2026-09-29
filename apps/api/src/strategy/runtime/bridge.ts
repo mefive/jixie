@@ -7,7 +7,8 @@ import type { StrategyRuntimeMetadata } from './contract.js';
 import { replayCommands } from './commands.js';
 import { accessStrategyContext } from './context-access.js';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
-import type { EngineContext, BarRow, OhlcBar } from '#engine/types.js';
+import type { EngineContext } from '#backtesting/contract.js';
+import type { BarRow, OhlcBar } from '#backtesting/data/market.js';
 import { makeSandboxConsole, type UserLogSink } from '#infra/runtime/console.js';
 import {
   strategyExecutionFrameSchema,
