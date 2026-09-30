@@ -334,3 +334,36 @@ Gate 1 已确认完整范围和提交消息：
 - 使用项目 Python 环境的 strategy-orchestration、mixed-futures、daily-signals、futures-signals 四条隔离 job-system E2E 全部通过。
 - 本轮 mixed-futures-result.png、futures-signals-mixed-zh.png 已视觉检查。fixture 正常退出、数据库连接及临时库由脚本回收，API 与模型服务端口关闭断言通过，额外进程检查无遗留测试服务。
 - 更新记录并按已确认消息直接提交，不推送。本节取代此前等待审查／未运行验证的阶段状态。
+
+## OrderBook 文件阅读顺序（2026-09-30）
+
+- 用户确认在同一文件内整理布局：顶部只保留 imports、OrderBookInput 和 OrderBook 主类，随后排列公开订单／快照契约、内部状态类型和状态工厂／辅助函数。
+- ConditionalOrderKind 改为 ConditionalOrder['kind']，避免重复维护订单种类；不拆文件，不改类方法、交易规则或状态工厂内容。
+- 提交消息：`refactor(engine): move order book supporting types below class`。
+- 审查前执行全仓 typecheck、该文件 ESLint / Prettier 与 diff 检查，并静态对比确认类体和执行辅助函数未变。未运行行为验证，未提交，等待人工审查。
+- 本轮仅布局和等价类型派生，不新增测试；审查通过后运行现有 OrderBook 测试与 API 构建，通过后更新记录并提交，不推送。
+
+### 同轮追加：减少单次调用的内部层级
+
+- 用户确认六处合并，与上述尚未提交的布局调整一起交付；提交消息更新为 `refactor(engine): simplify order book internal structure`，替代此前仅描述布局的消息。
+- applyConditionalCommands 合入 commitCollectedOrders；mergeShareAndLotOrders 合入普通现金订单执行；emptyPendingOrders 改为有类型标注的字段初值；conditionalExitBasePrice 合入成交价格准备；现金订单及条件单的执行体分别与其加载包装合并。
+- 保留执行主流程、调仓算法／归因边界、条件退出优先级选择、期货目标手数换算和清仓后的条件单清理。保持 await 加载位置、加载后读取待执行订单、先卖后买、状态消费、移动止损高水位与 placedDate 规则；基准价继续使用原比较表达式。
+- 现有测试覆盖相关异常边界、撤单、移动止损、跳空、手数换算与一次消费，不新增重复测试。审查前仅静态检查；修订版等待人工审查，尚未运行测试或构建。
+- 审查通过后运行 Backtesting、Strategy runtime/SDK/execution、Signals 及 Worker 协议测试、API 构建和 strategy-orchestration／mixed-futures 两条隔离 E2E；验证通过后更新记录、提交且不推送，并清理测试服务。该验证范围替代此前仅布局时的计划。
+- 修订版静态检查通过：全仓 typecheck（含后端边界扫描与生成物一致性）、OrderBook ESLint / Prettier、git diff --check。尚未提交，等待 Gate 2。
+
+### 审查修订：校验命名
+
+- 用户要求先完成修改点 1，第 2 点（现金与期货指令处理方式统一）留待提交后单独讨论，本轮不实施。
+- assertPositiveOrderValue / assertFiniteOrderValue 统一重命名为 validatePositiveOrderValue / validateFiniteOrderValue，定义及所有调用同步；保留校验条件、抛错文案与顺序。
+- 保留工作区中用户已改的 beginDecision / commitDecision 及 Engine、测试调用，同步方法注释和当前 README。此前布局与六处合并继续纳入同一提交，消息仍为 `refactor(engine): simplify order book internal structure`。
+- 修订版重新执行静态检查后等待 Gate 2；本轮仍未运行行为验证或提交。
+
+### 内部结构简化最终验证
+
+- 用户明确要求当前所有改动一并提交，批准继续验证；包含布局、六处内部合并、beginDecision / commitDecision 命名及修改点 1。修改点 2 未实施，留待提交后讨论。
+- 修订版全仓 typecheck、相关文件 ESLint / Prettier、git diff --check 全部通过。
+- 相关测试 51 个文件、340 项通过；2 个文件中 3 项默认关闭的历史性能／会计集成测试跳过，未计为通过。API 构建通过，验证无需修正代码。
+- strategy-orchestration 和 mixed-futures 两条隔离 E2E 通过；本轮 job-system-backtest.png、mixed-futures-result.png 已视觉检查。
+- fixture 正常退出并回收数据库连接／临时库，测试服务端口关闭断言通过，额外进程检查无遗留 E2E 服务。
+- 按已确认消息提交当前全部五个文件，不推送。本节取代本轮此前等待审查／未运行验证的阶段状态。

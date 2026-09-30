@@ -295,7 +295,7 @@ export class BacktestingEngine {
   }
 
   private async runStrategyOnBar(date: string, observeFactors: boolean): Promise<void> {
-    this.orderBook.beginOrderCollection(date);
+    this.orderBook.beginDecision(date);
 
     await this.factorEvaluator?.evaluate({
       date,
@@ -328,7 +328,7 @@ export class BacktestingEngine {
 
     await this.config.strategy.onBar(context);
 
-    this.orderBook.commitCollectedOrders();
+    this.orderBook.commitDecision();
   }
 
   private collectResult(): BacktestingResult {

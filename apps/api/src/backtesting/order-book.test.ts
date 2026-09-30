@@ -22,10 +22,10 @@ describe('OrderBook decision ownership', () => {
       onRebalance: () => {},
       cost: DEFAULT_COST,
     });
-    orders.beginOrderCollection('20240102');
+    orders.beginDecision('20240102');
     orders.orderLots('A', 2);
     orders.limitBuy('A', 10, 100);
-    orders.commitCollectedOrders();
+    orders.commitDecision();
     const snapshot = orders.snapshotCashOrders();
     snapshot.pendingLotOrders!.set('A', 999);
     const limit = snapshot.conditionalOrders.get('limit_buy:A')!;
@@ -38,13 +38,13 @@ describe('OrderBook decision ownership', () => {
       triggerPrice: 10,
     });
 
-    orders.beginOrderCollection('20240103');
-    orders.commitCollectedOrders();
+    orders.beginDecision('20240103');
+    orders.commitDecision();
     expect(orders.snapshotCashOrders().pendingLotOrders).toBeNull();
     expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(1);
-    orders.beginOrderCollection('20240104');
+    orders.beginDecision('20240104');
     orders.cancelConditional('A', 'limit_buy');
-    orders.commitCollectedOrders();
+    orders.commitDecision();
     expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(0);
   });
 });
@@ -86,17 +86,17 @@ describe('OrderBook execution boundaries', () => {
     const { orders, cashPortfolio, allocationTracker } = await executionFixture((date) =>
       notifications.push(date),
     );
-    orders.beginOrderCollection('20240102');
+    orders.beginDecision('20240102');
     orders.order('A', 100);
-    orders.commitCollectedOrders();
+    orders.commitDecision();
     await orders.executeOrders('20240103', '20240102');
     expect(cashPortfolio.positions.get('A')?.shares).toBe(100);
     expect(notifications).toEqual([]);
     expect(allocationTracker.finish(cashPortfolio.cash).drift).toEqual([]);
 
-    orders.beginOrderCollection('20240103');
+    orders.beginDecision('20240103');
     orders.setHoldings(new Map());
-    orders.commitCollectedOrders();
+    orders.commitDecision();
     expect(orders.snapshotCashOrders().pendingTargets).toEqual(new Map());
     await orders.executeOrders('20240104', '20240103');
 
@@ -122,11 +122,11 @@ describe('OrderBook execution boundaries', () => {
       }
       await loadBars(codes);
     });
-    orders.beginOrderCollection('20240102');
+    orders.beginDecision('20240102');
     orders.setHoldings({ A: 0.5 });
     orders.order('B', 100);
     orders.limitBuy('A', 5, 100);
-    orders.commitCollectedOrders();
+    orders.commitDecision();
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'cash bars unavailable',
@@ -156,10 +156,10 @@ describe('OrderBook execution boundaries', () => {
     const { orders, cashPortfolio, allocationTracker } = await executionFixture(() => {
       throw new Error('notification failed');
     });
-    orders.beginOrderCollection('20240102');
+    orders.beginDecision('20240102');
     orders.setHoldings({ A: 0.5 });
     orders.order('B', 100);
-    orders.commitCollectedOrders();
+    orders.commitDecision();
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'notification failed',
@@ -181,11 +181,11 @@ describe('OrderBook execution boundaries', () => {
       }
       await loadBars(codes);
     });
-    orders.beginOrderCollection('20240102');
+    orders.beginDecision('20240102');
     orders.order('A', 100);
     orders.orderLots('A', 1);
     orders.limitBuy('B', 5, 100);
-    orders.commitCollectedOrders();
+    orders.commitDecision();
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'conditional bars unavailable',
@@ -203,11 +203,11 @@ describe('OrderBook execution boundaries', () => {
 
   it('consumes unfilled ordinary orders while preserving persistent limit buys', async () => {
     const { orders, cashPortfolio } = await executionFixture();
-    orders.beginOrderCollection('20240102');
+    orders.beginDecision('20240102');
     orders.order('MISSING', 100);
     orders.orderLots('MISSING', 1);
     orders.limitBuy('MISSING', 10, 100);
-    orders.commitCollectedOrders();
+    orders.commitDecision();
 
     await orders.executeOrders('20240103', '20240102');
 
@@ -224,20 +224,20 @@ describe('OrderBook execution boundaries', () => {
   it('keeps first-day futures intents pending and snapshots the committed intent', async () => {
     const { orders, futuresPortfolio } = await executionFixture();
     const executeOrder = vi.spyOn(futuresPortfolio, 'executeOrder');
-    orders.beginOrderCollection('20240102');
+    orders.beginDecision('20240102');
     orders.orderFuture('IF.CFX', 1);
     orders.orderFuture('IF.CFX', 2);
     orders.setFutureTargetContracts('IF.CFX', 4);
     orders.orderFuture('IF.CFX', 2);
     orders.orderFuture('IF.CFX', 1);
-    orders.commitCollectedOrders();
+    orders.commitDecision();
     expect(orders.snapshotFuturesOrders()).toEqual([
       { code: 'IF.CFX', intent: { kind: 'delta', value: 3 } },
     ]);
 
     await orders.executeOrders('20240102', undefined);
     expect(executeOrder).not.toHaveBeenCalled();
-    orders.beginOrderCollection('20240103');
+    orders.beginDecision('20240103');
     expect(orders.snapshotFuturesOrders()).toHaveLength(1);
     await orders.executeOrders('20240103', '20240102');
     expect(executeOrder).toHaveBeenCalledWith(
@@ -342,9 +342,9 @@ describe('loaded execution orders', () => {
     'rejects invalid loaded $kind intents synchronously before replacing execution state',
     async (intent) => {
       const { orders } = await executionFixture();
-      orders.beginOrderCollection('20240102');
+      orders.beginDecision('20240102');
       orders.order('A', 100);
-      orders.commitCollectedOrders();
+      orders.commitDecision();
 
       expect(() =>
         orders.loadExecutionOrders({
