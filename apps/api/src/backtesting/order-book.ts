@@ -91,6 +91,11 @@ export interface CashOrderSnapshot {
   pendingLotOrders: Map<string, number> | null;
   conditionalOrders: Map<string, ConditionalOrder>;
 }
+interface ExecutionOrdersInput {
+  cashOrders: CashOrderSnapshot;
+  futuresOrders: ReadonlyArray<{ code: string; intent: FutureIntent }>;
+}
+
 interface OrderBookInput {
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
@@ -155,14 +160,24 @@ export class OrderBook {
     );
   }
 
-  /** Load detached orders for forward account simulation, without restoring a strategy runtime. */
-  restoreCashOrders(snapshot: CashOrderSnapshot): void {
-    this.pending.targets = snapshot.pendingTargets ? new Map(snapshot.pendingTargets) : null;
-    this.pending.shareOrders = snapshot.pendingOrders ? new Map(snapshot.pendingOrders) : null;
-    this.pending.lotOrders = snapshot.pendingLotOrders ? new Map(snapshot.pendingLotOrders) : null;
+  /** Replaces execution state for forward simulation, without collecting a strategy decision. */
+  loadExecutionOrders({ cashOrders, futuresOrders }: ExecutionOrdersInput): void {
+    const cashSnapshot = structuredClone(cashOrders);
+    let futureIntents: Map<string, FutureIntent> | null = null;
+    for (const { code, intent } of futuresOrders) {
+      futureIntents = collectFutureIntent(futureIntents, code, intent);
+    }
+
+    // Forward cash instructions have no target-rebalance attribution decision.
+    this.pending.decisionDate = null;
+    this.pending.targets = cashSnapshot.pendingTargets;
+    this.pending.shareOrders = cashSnapshot.pendingOrders;
+    this.pending.lotOrders = cashSnapshot.pendingLotOrders;
+    this.pending.futureIntents = futureIntents;
+
     this.conditionalOrders.clear();
-    for (const [key, order] of snapshot.conditionalOrders) {
-      this.conditionalOrders.set(key, structuredClone(order));
+    for (const [key, order] of cashSnapshot.conditionalOrders) {
+      this.conditionalOrders.set(key, order);
     }
   }
 
@@ -361,35 +376,31 @@ export class OrderBook {
   }
 
   orderFuture(code: string, contracts: number): void {
-    assertFiniteOrderValue(contracts, 'Futures contracts');
-    const roundedContracts = Math.trunc(contracts);
-    if (!roundedContracts) {
-      return;
-    }
-    this.decision.futureIntents ??= new Map();
-    const prior = this.decision.futureIntents.get(code);
-    const value = prior?.kind === 'delta' ? prior.value + roundedContracts : roundedContracts;
-    this.decision.futureIntents.set(code, { kind: 'delta', value });
+    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
+      kind: 'delta',
+      value: contracts,
+    });
   }
 
   setFutureTargetContracts(code: string, contracts: number): void {
-    assertFiniteOrderValue(contracts, 'Futures target contracts');
-    this.decision.futureIntents ??= new Map();
-    this.decision.futureIntents.set(code, { kind: 'contracts', value: Math.trunc(contracts) });
+    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
+      kind: 'contracts',
+      value: contracts,
+    });
   }
 
   setFutureTargetNotional(code: string, notional: number): void {
-    assertFiniteOrderValue(notional, 'Futures target notional');
-    this.decision.futureIntents ??= new Map();
-    this.decision.futureIntents.set(code, { kind: 'notional', value: notional });
+    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
+      kind: 'notional',
+      value: notional,
+    });
   }
 
   hedgeFuture(code: string, beta = 1): void {
-    if (!Number.isFinite(beta) || beta < 0) {
-      throw new Error('Futures hedge beta must be a finite non-negative number');
-    }
-    this.decision.futureIntents ??= new Map();
-    this.decision.futureIntents.set(code, { kind: 'hedge', value: beta });
+    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
+      kind: 'hedge',
+      value: beta,
+    });
   }
 
   exitFuture(code: string): void {
@@ -951,4 +962,44 @@ function assertFiniteOrderValue(value: number, label: string): void {
 
 function conditionalOrderKey(kind: ConditionalOrderKind, code: string): string {
   return `${kind}:${code}`;
+}
+
+/** Apply identical validation and ordered accumulation to strategy and loaded futures instructions. */
+function collectFutureIntent(
+  intents: Map<string, FutureIntent> | null,
+  code: string,
+  intent: FutureIntent,
+): Map<string, FutureIntent> | null {
+  let value = intent.value;
+  switch (intent.kind) {
+    case 'delta': {
+      assertFiniteOrderValue(value, 'Futures contracts');
+      value = Math.trunc(value);
+      if (!value) {
+        return intents;
+      }
+      const prior = intents?.get(code);
+      if (prior?.kind === 'delta') {
+        value += prior.value;
+      }
+      break;
+    }
+    case 'contracts':
+      assertFiniteOrderValue(value, 'Futures target contracts');
+      value = Math.trunc(value);
+      break;
+    case 'notional':
+      assertFiniteOrderValue(value, 'Futures target notional');
+      break;
+    case 'hedge':
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error('Futures hedge beta must be a finite non-negative number');
+      }
+      break;
+  }
+
+  const result = intents ?? new Map<string, FutureIntent>();
+  result.set(code, { kind: intent.kind, value });
+
+  return result;
 }

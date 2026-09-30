@@ -38,7 +38,7 @@ function baseline(): SignalAccounts {
     consumedConditions: [],
   };
 }
-async function data(missingSettlement = false) {
+async function data(missingSettlement = false, roll = false) {
   const result = new EngineData({
     start: dates[0]!,
     end: dates[2]!,
@@ -71,7 +71,7 @@ async function data(missingSettlement = false) {
       ),
       futureMappings: dates.map((tradeDate) => ({
         continuousCode: 'IF.CFX',
-        mappedTsCode: 'IF2406.CFX',
+        mappedTsCode: roll ? 'IF2409.CFX' : 'IF2406.CFX',
         tradeDate,
       })),
     }),
@@ -208,6 +208,70 @@ describe('versioned account days', () => {
     });
     expect(next.trades).toEqual([]);
     expect(next.state.conditions).toEqual([]);
+  });
+
+  it('loads cash and futures instructions together before execution', async () => {
+    const market = await data();
+    await market.loadBars(['A']);
+
+    const result = await simulateAccountDay({
+      prior: baseline(),
+      date: dates[1]!,
+      previousDate: dates[0]!,
+      data: market,
+      cost,
+      intents: [
+        {
+          assetType: 'stock',
+          code: 'A',
+          name: 'A',
+          action: 'buy',
+          shares: 100,
+          refPrice: 10,
+          refAmount: 1000,
+          source: 'order',
+        },
+        intent,
+      ],
+    });
+
+    expect(result.state.positions[0]).toMatchObject({ code: 'A', shares: 100 });
+    expect(result.state.futures.positions[0]).toMatchObject({ code: 'IF.CFX', contracts: 2 });
+    expect(result.trades.map((trade) => trade.assetType)).toEqual(['stock', 'future']);
+  });
+
+  it('keeps roll signals implicit and lets an explicit exit suppress reopening', async () => {
+    const prior = baseline();
+    prior.futures.positions = [
+      {
+        code: 'IF.CFX',
+        actualCode: 'IF2406.CFX',
+        contracts: 1,
+        referencePrice: 4000,
+        multiplier: 300,
+        margin: 144000,
+      },
+    ];
+    prior.futures.margin = 144000;
+    prior.futures.availableCash -= 144000;
+    const market = await data(false, true);
+    const input = { prior, date: dates[1]!, previousDate: dates[0]!, data: market, cost };
+    const rollSignal: FutureSignalItem = { ...intent, intent: { kind: 'roll', value: 1 } };
+
+    const rolled = await simulateAccountDay({ ...input, intents: [rollSignal] });
+    expect(rolled.state.futures.positions[0]).toMatchObject({
+      actualCode: 'IF2409.CFX',
+      contracts: 1,
+    });
+    expect(rolled.trades.map((trade) => trade.side)).toEqual(['sell', 'buy']);
+
+    const exited = await simulateAccountDay({
+      ...input,
+      intents: [rollSignal, { ...intent, intent: { kind: 'contracts', value: 0 } }],
+    });
+    expect(exited.state.futures.positions).toEqual([]);
+    expect(exited.trades).toHaveLength(1);
+    expect(exited.trades[0]).toMatchObject({ actualCode: 'IF2406.CFX', side: 'sell' });
   });
 
   it('keeps zero-funded simulated orders from using cash-account capital', async () => {

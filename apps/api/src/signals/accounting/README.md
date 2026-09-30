@@ -33,3 +33,5 @@
 HTTP：GET `deployments/:id/executions`；POST `executions/:id/resolutions`、`executions/:id/fills`、`deployments/:id/account-replays`；PATCH `fills/:id`、`executions/:id/decision`。旧 PATCH `executions/:id` 只处理 version=1。
 
 新增测试代码与静态检查不代表行为验证通过；本轮验证记录见 [期货 Signals 设计](../../../../../docs/design/futures-signals-design.md)。
+
+新版账户模拟在 `account-day.ts` 准备现金参考数量、持续条件单和期货意图后，一次调用 OrderBook.loadExecutionOrders，再执行订单及结算。不再通过策略收集入口装载期货，也不重复恢复现金订单。roll 信号保持隐式，由自动换月处理；显式退出继续抑制自动换月。

@@ -82,3 +82,5 @@ OrderBook 将行情、账户、成本、归因与通知保存为明确的私有�
 Engine 使用 `beginOrderCollection(date)` 收集，通过 Context 接收策略指令，再调用 `commitCollectedOrders()`。`snapshotFuturesOrders()` 返回已提交的期货原始意图。`retainFinalState` 返回可 JSON 往返的 schemaVersion=2 快照：现金持仓、条件单、期货账户、意图及末日市场证据均为纯对象/数组，不含 Map。Signals 通过 `strictFutures` 对实际读取的期货数据执行严格检查，普通回测保留原缺数据规则。
 
 期货持仓计算由 `futures-accounting.ts` 的纯成交/结算函数共享；自动换月仍由 FuturesPortfolio 保留原子预检语义。实际录入可表达部分平旧/开新和负可用资金，不能把模拟保证金拒单当作撤销真实成交。
+
+Signals 前向账户模拟使用 `loadExecutionOrders({ cashOrders, futuresOrders })` 一次装载独立执行批次，不经过策略收集／提交。装载复制输入，替换现金与期货待执行状态及持续条件单，不恢复策略 runtime，也不提供调仓归因决策日期。期货意图按输入顺序沿用策略入口的参数校验、取整、delta 累积及目标覆盖规则；自动换月不作为显式意图装载。

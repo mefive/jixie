@@ -249,3 +249,134 @@ describe('OrderBook execution boundaries', () => {
     expect(futuresPortfolio.trades).toEqual([]);
   });
 });
+
+describe('loaded execution orders', () => {
+  it('detaches loaded input and replaces the whole execution batch on the next load', async () => {
+    const { orders } = await executionFixture();
+    const cashOrders = {
+      pendingTargets: null,
+      pendingOrders: new Map([['A', 100]]),
+      pendingLotOrders: new Map([['B', 1]]),
+      conditionalOrders: new Map([
+        [
+          'limit_buy:A',
+          {
+            kind: 'limit_buy' as const,
+            code: 'A',
+            triggerPrice: 5,
+            shares: 100,
+            placedDate: '20240102',
+          },
+        ],
+      ]),
+    };
+    const futuresOrders = [{ code: 'IF.CFX', intent: { kind: 'contracts' as const, value: 2 } }];
+    orders.loadExecutionOrders({ cashOrders, futuresOrders });
+    cashOrders.pendingOrders.set('A', 999);
+    cashOrders.conditionalOrders.get('limit_buy:A')!.triggerPrice = 999;
+    futuresOrders[0].intent.value = 999;
+
+    expect(orders.snapshotCashOrders().pendingOrders?.get('A')).toBe(100);
+    expect(orders.snapshotCashOrders().conditionalOrders.get('limit_buy:A')).toMatchObject({
+      triggerPrice: 5,
+    });
+    expect(orders.snapshotFuturesOrders()).toEqual([
+      { code: 'IF.CFX', intent: { kind: 'contracts', value: 2 } },
+    ]);
+
+    orders.loadExecutionOrders({
+      cashOrders: {
+        pendingTargets: null,
+        pendingOrders: null,
+        pendingLotOrders: null,
+        conditionalOrders: new Map(),
+      },
+      futuresOrders: [],
+    });
+
+    expect(orders.snapshotCashOrders()).toEqual({
+      pendingTargets: null,
+      pendingOrders: null,
+      pendingLotOrders: null,
+      conditionalOrders: new Map(),
+    });
+    expect(orders.snapshotFuturesOrders()).toEqual([]);
+  });
+
+  it('normalizes loaded futures intents with ordered delta accumulation and target replacement', async () => {
+    const { orders } = await executionFixture();
+    orders.loadExecutionOrders({
+      cashOrders: {
+        pendingTargets: null,
+        pendingOrders: null,
+        pendingLotOrders: null,
+        conditionalOrders: new Map(),
+      },
+      futuresOrders: [
+        { code: 'IF.CFX', intent: { kind: 'delta', value: 1.9 } },
+        { code: 'IF.CFX', intent: { kind: 'delta', value: 2.9 } },
+        { code: 'IF.CFX', intent: { kind: 'contracts', value: 8.9 } },
+        { code: 'IF.CFX', intent: { kind: 'delta', value: -2.9 } },
+        { code: 'IF.CFX', intent: { kind: 'delta', value: 0.9 } },
+        { code: 'IF.CFX', intent: { kind: 'delta', value: -1.9 } },
+        { code: 'IH.CFX', intent: { kind: 'contracts', value: 4.9 } },
+        { code: 'IC.CFX', intent: { kind: 'notional', value: -12345.6 } },
+        { code: 'IM.CFX', intent: { kind: 'hedge', value: 0.5 } },
+      ],
+    });
+
+    expect(orders.snapshotFuturesOrders()).toEqual([
+      { code: 'IF.CFX', intent: { kind: 'delta', value: -3 } },
+      { code: 'IH.CFX', intent: { kind: 'contracts', value: 4 } },
+      { code: 'IC.CFX', intent: { kind: 'notional', value: -12345.6 } },
+      { code: 'IM.CFX', intent: { kind: 'hedge', value: 0.5 } },
+    ]);
+  });
+
+  it.each([
+    { kind: 'delta' as const, value: NaN },
+    { kind: 'contracts' as const, value: Infinity },
+    { kind: 'notional' as const, value: -Infinity },
+    { kind: 'hedge' as const, value: -1 },
+  ])(
+    'rejects invalid loaded $kind intents synchronously before replacing execution state',
+    async (intent) => {
+      const { orders } = await executionFixture();
+      orders.beginOrderCollection('20240102');
+      orders.order('A', 100);
+      orders.commitCollectedOrders();
+
+      expect(() =>
+        orders.loadExecutionOrders({
+          cashOrders: {
+            pendingTargets: null,
+            pendingOrders: null,
+            pendingLotOrders: null,
+            conditionalOrders: new Map(),
+          },
+          futuresOrders: [{ code: 'IF.CFX', intent }],
+        }),
+      ).toThrow();
+      expect(orders.snapshotCashOrders().pendingOrders).toEqual(new Map([['A', 100]]));
+    },
+  );
+
+  it('executes loaded cash orders once without strategy collection', async () => {
+    const { orders, cashPortfolio } = await executionFixture();
+    orders.loadExecutionOrders({
+      cashOrders: {
+        pendingTargets: null,
+        pendingOrders: new Map([['A', 100]]),
+        pendingLotOrders: new Map([['A', 1]]),
+        conditionalOrders: new Map(),
+      },
+      futuresOrders: [],
+    });
+
+    await orders.executeOrders('20240103', '20240102');
+    await orders.executeOrders('20240104', '20240103');
+
+    expect(cashPortfolio.positions.get('A')?.shares).toBe(200);
+    expect(cashPortfolio.trades).toHaveLength(1);
+  });
+});

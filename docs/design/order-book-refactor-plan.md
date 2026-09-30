@@ -285,3 +285,27 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" JIXIE_JOB_E2E_ON
 - 使用项目 Python 环境的 strategy-orchestration、mixed-futures 隔离 E2E 均通过；本轮股票回测和混合账户截图已检查。
 - fixture 正常退出，数据库连接和临时库由脚本清理，服务端口关闭检查通过，额外进程检查无遗留 E2E 服务。
 - 无需修正产品或测试代码；按已确认消息提交，不推送。本节替代本轮此前等待审查的阶段状态。
+
+## Signals 直接装载执行订单（2026-09-30）
+
+基于期货 Signals 提交 `7ef4b20f`。Gate 1 已确认完整范围，提交消息为
+`refactor(engine): load execution orders without strategy collection`。
+
+- 删除 restoreCashOrders，新增 loadExecutionOrders({ cashOrders, futuresOrders })，一次复制并替换待执行状态与持续条件单；不调用策略、不经过收集／提交，不恢复完整引擎。
+- 期货输入按顺序共用 collectFutureIntent 的有限值检查、手数截断、零 delta 忽略、delta 累积及目标覆盖规则。该局部函数服务两个独立缓冲区，不将 Signals 暂存状态放到当前策略 decision。
+- 装载先准备独立副本并校验期货意图，再替换执行状态；重复装载不保留上一批订单或条件单。前向现金订单不带目标调仓归因日期，沿用此前恢复现金订单的语义。
+- Signals 的 account-day 直接装载，删除双重恢复和期货收集／提交。roll 不加入显式期货意图，保留自动换月及显式退出抑制换月规则。
+- 测试覆盖输入隔离、批次替换、校验／累积／覆盖、现金订单一次执行、混合指令及换月／退出；已有条件单成交后对冲回归保留。
+- 不修改 SDK、数据库、快照输出或成交规则。当前未提交，等待 Gate 2；审查前只运行静态检查。
+- 审查通过后运行 Backtesting、Strategy runtime/SDK/execution、Signals、Worker 协议测试和全仓构建；隔离 job-system E2E 选择 strategy-orchestration、mixed-futures、daily-signals、futures-signals，覆盖本轮新消费者。
+- 静态检查最终全部通过：全仓 typecheck（含后端边界 0 violations、生成物一致性）、4 个受影响 TS 文件 ESLint / Prettier、git diff --check、41 个本地文档链接。首轮类型检查发现并修正 Signals 意图收窄及 roll 测试必填字段问题；本轮未运行行为验证。
+
+### 直接装载最终验证
+
+- 用户批准继续完成本轮简化，Gate 2 通过后执行行为验证；Signals 的全面梳理留待后续讨论，不扩展本轮范围。
+- 约定测试：51 个文件、335 项测试通过；2 个文件中 3 项默认关闭的历史性能／会计集成测试跳过，未计为通过。
+- 首次测试发现新增混合指令 fixture 未预加载现金行情，导致复权因子读取报 data_not_ready；仅补齐测试行情加载，相关静态检查及完整约定测试重跑通过，未修改产品代码。
+- 全仓 `pnpm build` 通过，仅有既有前端大 chunk 与静态／动态混合导入提示。
+- 使用项目 Python 环境运行 strategy-orchestration、mixed-futures、daily-signals、futures-signals 四条隔离 job-system E2E，全部通过。
+- 本轮 mixed-futures-result.png 与 futures-signals-mixed-zh.png 已视觉检查。fixture 正常退出并完成数据库连接／临时库清理，服务端口关闭断言通过，额外进程检查无遗留测试服务。
+- 更新记录后按已确认消息直接提交，不推送。本节取代本轮此前等待审查／未运行验证的阶段状态。

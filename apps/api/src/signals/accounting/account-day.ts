@@ -1,7 +1,7 @@
 import type { SignalAccounts, SignalItem, FutureSignalItem } from '@jixie/shared';
 import { CashPortfolio } from '#backtesting/cash-portfolio.js';
 import { FuturesPortfolio } from '#backtesting/futures-portfolio.js';
-import { OrderBook, type ConditionalOrder } from '#backtesting/order-book.js';
+import { OrderBook, type ConditionalOrder, type FutureIntent } from '#backtesting/order-book.js';
 import { AllocationAnalysisTracker } from '#backtesting/allocation-analysis.js';
 import {
   applyFutureFill,
@@ -76,46 +76,29 @@ export async function simulateAccountDay(input: AccountDayInput): Promise<{
       (shares.get(intent.code) ?? 0) + ((intent.action === 'buy' ? 1 : -1) * intent.shares) / adj,
     );
   }
-  orderBook.restoreCashOrders({
-    pendingTargets: null,
-    pendingOrders: shares,
-    pendingLotOrders: null,
-    conditionalOrders: new Map(
-      conditions.map(({ key, ...condition }) => [key, condition as ConditionalOrder]),
-    ),
-  });
-  orderBook.beginOrderCollection(previousDate);
-  for (const intent of input.intents) {
-    if (intent.assetType !== 'future') {
-      continue;
-    }
-    switch (intent.intent.kind) {
-      case 'delta':
-        orderBook.orderFuture(intent.code, intent.intent.value);
-        break;
-      case 'contracts':
-        orderBook.setFutureTargetContracts(intent.code, intent.intent.value);
-        break;
-      case 'notional':
-        orderBook.setFutureTargetNotional(intent.code, intent.intent.value);
-        break;
-      case 'hedge':
-        orderBook.hedgeFuture(intent.code, intent.intent.value);
-        break;
-      case 'roll':
-        break;
+  const futuresOrders: Array<{ code: string; intent: FutureIntent }> = [];
+  for (const signal of input.intents) {
+    // Rolls stay implicit so OrderBook can apply its existing automatic-roll rules.
+    if (signal.assetType === 'future' && signal.intent.kind !== 'roll') {
+      futuresOrders.push({
+        code: signal.code,
+        intent: { kind: signal.intent.kind, value: signal.intent.value },
+      });
     }
   }
-  // Commit the future collection, then restore the independent cash reference quantities.
-  orderBook.commitCollectedOrders();
-  orderBook.restoreCashOrders({
-    pendingTargets: null,
-    pendingOrders: shares,
-    pendingLotOrders: null,
-    conditionalOrders: new Map(
-      conditions.map(({ key, ...condition }) => [key, condition as ConditionalOrder]),
-    ),
+
+  orderBook.loadExecutionOrders({
+    cashOrders: {
+      pendingTargets: null,
+      pendingOrders: shares,
+      pendingLotOrders: null,
+      conditionalOrders: new Map(
+        conditions.map(({ key, ...condition }) => [key, condition as ConditionalOrder]),
+      ),
+    },
+    futuresOrders,
   });
+
   assertFutureInputs(input, futures.positions.values());
   await orderBook.executeOrders(date, previousDate);
   futures.settle(data, date);
