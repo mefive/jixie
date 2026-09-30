@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   strategyStart: vi.fn(),
   strategyClose: vi.fn(),
   engine: vi.fn(),
+  collectFinalState: vi.fn(),
 }));
 vi.mock('#factor/runtime/factor-runtime.js', () => ({
   FactorRuntime: { start: mocks.factorStart },
@@ -26,6 +27,9 @@ vi.mock('../runtime/strategy-runtime.js', () => ({
 vi.mock('#backtesting/engine.js', () => ({
   BacktestingEngine: class {
     constructor(private readonly input: unknown) {}
+    collectFinalState() {
+      return mocks.collectFinalState();
+    }
     run() {
       return mocks.engine(this.input);
     }
@@ -68,7 +72,7 @@ describe('simulation factor initialization', () => {
       execute: vi.fn(),
       close: mocks.strategyClose,
     });
-    mocks.engine.mockResolvedValue({ result: {}, finalState: null });
+    mocks.engine.mockResolvedValue({});
   });
 
   it.each(['typescript', 'python'] as const)(
@@ -89,7 +93,7 @@ describe('simulation factor initialization', () => {
           fields: { 'rates.cgb.yield.10y': [2, 3] },
           indexes: [1],
         });
-        return { result: {}, finalState: null };
+        return {};
       });
       const result = await runBacktestFixture(
         {
@@ -156,15 +160,28 @@ describe('simulation factor initialization', () => {
     expect(mocks.strategyClose).toHaveBeenCalledTimes(1);
   });
 
-  it('returns the same result envelope when final state is requested', async () => {
+  it('collects final state explicitly while preserving result lineage', async () => {
     const matching = [{ ...dependency, inputs: ['rates.cgb.yield.10y'] }];
     const finalState = { tradeDate: '20240201' };
-    mocks.engine.mockResolvedValueOnce({ result: {}, finalState });
+    mocks.collectFinalState.mockResolvedValueOnce(finalState);
     const output = await runFinalStateFixture(config, port);
     expect(output.finalState).toBe(finalState);
     expect(output.result.factorDependencies).toEqual(matching);
-    expect(mocks.engine).toHaveBeenCalledWith(expect.objectContaining({ retainFinalState: true }));
+    expect(mocks.collectFinalState).toHaveBeenCalledTimes(1);
     expect(mocks.factorStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('requires a run and an open execution to collect state', async () => {
+    const execution = await StrategyExecution.create({ ...config, dataPort: port });
+    await expect(execution.collectFinalState()).rejects.toThrow('open execution');
+    expect(mocks.collectFinalState).not.toHaveBeenCalled();
+
+    await execution.run(config);
+    expect(mocks.collectFinalState).not.toHaveBeenCalled();
+    execution.close();
+
+    await expect(execution.collectFinalState()).rejects.toThrow('open execution');
+    expect(mocks.collectFinalState).not.toHaveBeenCalled();
   });
 
   it('owns resources until explicitly closed and closes them only once', async () => {
@@ -193,7 +210,7 @@ describe('simulation factor initialization', () => {
     try {
       const running = execution.run(config);
       await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
-      finish({ result: {}, finalState: null });
+      finish({});
       await running;
       await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
       expect(mocks.engine).toHaveBeenCalledTimes(1);
@@ -237,8 +254,7 @@ describe('simulation factor initialization', () => {
   });
 });
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> &
-  Omit<StrategyRunOptions, 'retainFinalState'>;
+type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -248,7 +264,7 @@ async function runBacktestFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return (await execution.run(config)).result;
+    return await execution.run(config);
   } finally {
     execution.close();
   }
@@ -262,7 +278,8 @@ async function runFinalStateFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return await execution.run({ ...config, retainFinalState: true });
+    const result = await execution.run(config);
+    return { result, finalState: await execution.collectFinalState() };
   } finally {
     execution.close();
   }

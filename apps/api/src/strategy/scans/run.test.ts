@@ -4,8 +4,7 @@ import type { BacktestResult } from '../backtests/result.js';
 import type { StrategyScanWorkerInput } from './job-payload.js';
 import type { StrategyExecutionInput, StrategyRunOptions } from '../execution/execution.js';
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> &
-  Omit<StrategyRunOptions, 'retainFinalState'>;
+type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions;
 
 const mocks = vi.hoisted(() => ({
   prepare: vi.fn(),
@@ -54,10 +53,7 @@ describe('strategy scan execution', () => {
     mocks.simulate.mockReset();
     mocks.close.mockReset();
     mocks.create.mockReset().mockImplementation(async (input) => ({
-      run: async (options: object) => ({
-        result: await mocks.simulate({ ...input, ...options }, input.dataPort),
-        finalState: null,
-      }),
+      run: async (options: object) => mocks.simulate({ ...input, ...options }, input.dataPort),
       close: mocks.close,
     }));
     mocks.prepare.mockReset().mockResolvedValue(factors);

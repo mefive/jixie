@@ -53,7 +53,7 @@ EngineContext / EngineStrategy 是内部模拟契约，公开 StrategyCtx 仍由
 
 `BacktestingResult` 只包含净值、成交和绩效。当前成交使用 `CashTrade | FuturesTrade`，期货必须包含合约、数量及乘数；旧持久化报告的可选字段兼容与 `factorDependencies` 归 [BacktestResult](../strategy/backtests/result.ts)。Backtesting 不再携带报告血缘。
 
-默认 `finalState` 为 null；`retainFinalState` 开启末日因子观测和独立快照。快照保持复权单位，包含仓位、待执行指令、条件单与对应行情，不持有 EngineData 或账户实例。真实股数、参考价与业务信号由 [Signals 投影](../signals/runs/projection.ts) 产生。当前仍仅支持股票/ETF 快照；正期货资金配置在读取行情前拒绝，运行中出现期货订单意图也会拒绝，避免遗漏账户和待执行订单。旧 futures 字段不参与判断。
+`BacktestingEngine.run()` 直接返回回测结果。运行成功后，调用方可显式调用异步 `collectFinalState()`：先按需加载末日持仓及待执行现金订单的行情，再返回独立、可序列化的双账户快照。该操作可能查询 DataPort 并失败；运行前、运行中和运行失败后拒绝读取。每次返回独立副本，快照失败不改变已完成的回测结果，可重试读取。末日始终记录策略实际读取的计算因子值，不额外执行因子计算；其他日期不保留观测。真实股数、参考价与业务信号由 [Signals 投影](../signals/runs/projection.ts) 产生。
 
 默认资金分配、成交算法、费用模型和 CSI 300 全收益基准保持原口径。`futureCloseTodayRate` 保留原配置含义，本轮不新增平今费率应用。策略作者 SDK、HTTP 入口及数据库 schema 不变；回测结果新增兼容性可选字段，旧报告仍可读取。
 
@@ -79,7 +79,7 @@ OrderBook 分开持有当前 decision、待执行 PendingOrders 和持续 condit
 
 OrderBook 将行情、账户、成本、归因与通知保存为明确的私有只读依赖。涨跌停检查、滑点价格、可卖日期、期货名义金额换算和待执行股数／手数合并由私有方法读取依赖及 pending；执行日期和映射日期仍显式传入。无实例依赖的校验、状态工厂与条件候选计算保留为局部函数。滑点回归通过真实成交入口验证。
 
-Engine 使用 `beginOrderCollection(date)` 收集，通过 Context 接收策略指令，再调用 `commitCollectedOrders()`。`snapshotFuturesOrders()` 返回已提交的期货原始意图。`retainFinalState` 返回可 JSON 往返的 schemaVersion=2 快照：现金持仓、条件单、期货账户、意图及末日市场证据均为纯对象/数组，不含 Map。Signals 通过 `strictFutures` 对实际读取的期货数据执行严格检查，普通回测保留原缺数据规则。
+Engine 使用 `beginOrderCollection(date)` 收集，通过 Context 接收策略指令，再调用 `commitCollectedOrders()`。`snapshotFuturesOrders()` 返回已提交的期货原始意图。`collectFinalState()` 返回可 JSON 往返的 schemaVersion=2 快照：现金持仓、条件单、期货账户、意图及末日市场证据均为纯对象/数组，不含 Map。Signals 通过 `strictFutures` 对实际读取的期货数据执行严格检查，普通回测保留原缺数据规则。
 
 期货持仓计算由 `futures-accounting.ts` 的纯成交/结算函数共享；自动换月仍由 FuturesPortfolio 保留原子预检语义。实际录入可表达部分平旧/开新和负可用资金，不能把模拟保证金拒单当作撤销真实成交。
 

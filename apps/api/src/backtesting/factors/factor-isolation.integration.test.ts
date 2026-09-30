@@ -63,17 +63,15 @@ async function runWithFactors(
 ) {
   const host = new FactorHost(modules.map(factorFixture));
   try {
-    return (
-      await new BacktestingEngine({
-        start: dates[0],
-        end: dates.at(-1)!,
-        initialCash: 100_000,
-        strategy,
-        locale: 'en',
-        factorExecution: host,
-        dataPort: fixturePort(fixture),
-      }).run()
-    ).result;
+    return await new BacktestingEngine({
+      start: dates[0],
+      end: dates.at(-1)!,
+      initialCash: 100_000,
+      strategy,
+      locale: 'en',
+      factorExecution: host,
+      dataPort: fixturePort(fixture),
+    }).run();
   } finally {
     host.close();
   }
@@ -149,21 +147,19 @@ def on_bar(ctx):
           await runtime.close();
         }
       }
-      const expected = (
-        await new BacktestingEngine({
-          start: config.start,
-          end: config.end,
-          initialCash: config.initialCash,
-          dataPort: fixturePort(spec),
-          strategy: {
-            name: 'expected',
-            watch: ['A'],
-            onBar(context) {
-              context.orderTargetPercent('A', 0.5);
-            },
+      const expected = await new BacktestingEngine({
+        start: config.start,
+        end: config.end,
+        initialCash: config.initialCash,
+        dataPort: fixturePort(spec),
+        strategy: {
+          name: 'expected',
+          watch: ['A'],
+          onBar(context) {
+            context.orderTargetPercent('A', 0.5);
           },
-        }).run()
-      ).result;
+        },
+      }).run();
       expect(result.nav).toEqual(expected.nav);
       expect(result.tradeLog).toEqual(expected.tradeLog);
       expect(
@@ -343,7 +339,7 @@ def compute(ctx):
 
 type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
   factorSources?: FactorFixtureSource[];
-} & Omit<StrategyRunOptions, 'retainFinalState'>;
+} & StrategyRunOptions;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -359,7 +355,7 @@ async function runBacktestFixture(
     factors: config.factorSources?.map(factorFixture),
   });
   try {
-    return (await execution.run(config)).result;
+    return await execution.run(config);
   } finally {
     execution.close();
   }

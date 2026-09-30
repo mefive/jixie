@@ -218,18 +218,16 @@ try {
       const executionStarted = performance.now();
       let cleanupStarted;
       try {
-        result = (
-          await new BacktestingEngine({
-            strategy:
-              variant === 'before' || variant === 'previous'
-                ? runtime.strategy
-                : { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
-            start: dates[0],
-            end: dates.at(-1),
-            initialCash: 1_000_000,
-            dataPort: port,
-          }).run()
-        ).result;
+        result = await new BacktestingEngine({
+          strategy:
+            variant === 'before' || variant === 'previous'
+              ? runtime.strategy
+              : { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+          start: dates[0],
+          end: dates.at(-1),
+          initialCash: 1_000_000,
+          dataPort: port,
+        }).run();
         metrics = { ...runtime.metrics };
       } finally {
         cleanupStarted = performance.now();

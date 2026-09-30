@@ -11,11 +11,6 @@ import type { FactorDependency, Locale, StrategyLanguage, StrategyParamValue } f
 import { StrategyRuntime } from '../runtime/strategy-runtime.js';
 import type { StrategyRuntimeInstance } from '../runtime/contract.js';
 
-export interface StrategyExecutionResult {
-  result: BacktestResult;
-  finalState: BacktestingFinalState | null;
-}
-
 export interface StrategyExecutionInput {
   code: string;
   language?: StrategyLanguage;
@@ -32,7 +27,6 @@ export interface StrategyRunOptions {
   end: string;
   initialCash: number;
   cost?: Partial<CostModel>;
-  retainFinalState?: boolean;
   strictFutures?: boolean;
 }
 
@@ -40,6 +34,7 @@ export interface StrategyRunOptions {
 export class StrategyExecution {
   private started = false;
   private closed = false;
+  private engine: BacktestingEngine | null = null;
 
   private constructor(
     private readonly runtime: StrategyRuntimeInstance,
@@ -81,14 +76,13 @@ export class StrategyExecution {
     return structuredClone(this.dependencies);
   }
 
-  async run(options: StrategyRunOptions): Promise<StrategyExecutionResult> {
+  async run(options: StrategyRunOptions): Promise<BacktestResult> {
     if (this.closed || this.started) {
       throw new Error('Strategy execution requires a fresh, open instance');
     }
     this.started = true;
 
     const backtestingConfig = {
-      retainFinalState: options.retainFinalState,
       strictFutures: options.strictFutures,
       start: options.start,
       end: options.end,
@@ -103,12 +97,21 @@ export class StrategyExecution {
       factorExecution: this.factorHost,
       onLog: this.input.onLog,
     };
-    const output = await new BacktestingEngine(backtestingConfig).run();
-    const result: BacktestResult = output.result;
+    this.engine = new BacktestingEngine(backtestingConfig);
+    const result: BacktestResult = await this.engine.run();
     if (this.input.factors) {
       result.factorDependencies = this.factorDependencies;
     }
-    return { result, finalState: output.finalState };
+    return result;
+  }
+
+  /** Collect a detached snapshot, including market-data loading, before closing this execution. */
+  async collectFinalState(): Promise<BacktestingFinalState> {
+    if (this.closed || !this.engine) {
+      throw new Error('Final state requires an open execution with an engine run');
+    }
+
+    return this.engine.collectFinalState();
   }
 
   close(): void {

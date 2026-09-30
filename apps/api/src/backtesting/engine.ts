@@ -12,12 +12,7 @@ import { OrderBook } from './order-book.js';
 import { BacktestingContext } from './context.js';
 import { DEFAULT_COST } from './cost.js';
 import type { BacktestingConfig } from './contract.js';
-import type {
-  BacktestingOutput,
-  BacktestingResult,
-  BacktestingFinalState,
-  SleeveNavPoint,
-} from './result.js';
+import type { BacktestingResult, BacktestingFinalState, SleeveNavPoint } from './result.js';
 import { summarizePerformance } from './performance.js';
 import { AllocationAnalysisTracker, classifyAllocationRateRegime } from './allocation-analysis.js';
 
@@ -26,6 +21,7 @@ const BENCHMARK = CSI_300_TOTAL_RETURN_INDEX_CODE;
 /** One event-driven run: execute queued orders, mark the close, then ask for the next decision. */
 export class BacktestingEngine {
   private started = false;
+  private completed = false;
 
   private readonly cost;
   private readonly locale;
@@ -57,7 +53,7 @@ export class BacktestingEngine {
     });
   }
 
-  async run(): Promise<BacktestingOutput> {
+  async run(): Promise<BacktestingResult> {
     if (this.started) {
       throw new Error('BacktestingEngine requires a fresh instance');
     }
@@ -67,7 +63,7 @@ export class BacktestingEngine {
 
     await this.initialize();
 
-    const { engineData, futuresPortfolio, orderBook, config } = this;
+    const { engineData, futuresPortfolio, orderBook } = this;
     const total = engineData.timeline.length;
 
     for (let index = 0; index < total; index++) {
@@ -80,18 +76,17 @@ export class BacktestingEngine {
 
       futuresPortfolio.settle(engineData, date);
 
-      this.recordClose(date);
+      this.recordEndOfDay(date);
 
       this.logProgress(index + 1, total);
 
-      await this.decide(date, Boolean(config.retainFinalState && index === total - 1));
+      await this.runStrategyOnBar(date, index === total - 1);
     }
 
-    const finalState = config.retainFinalState ? await this.collectFinalState() : null;
-
     const result = this.collectResult();
+    this.completed = true;
 
-    return { result, finalState };
+    return result;
   }
 
   private validateConfig(): void {
@@ -257,7 +252,7 @@ export class BacktestingEngine {
     }
   }
 
-  private recordClose(date: string): void {
+  private recordEndOfDay(date: string): void {
     const { engineData, cashPortfolio, futuresPortfolio } = this;
 
     const stockValue = cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date));
@@ -299,7 +294,7 @@ export class BacktestingEngine {
     this.capturedTrades = cashPortfolio.trades.length;
   }
 
-  private async decide(date: string, observeFactors: boolean): Promise<void> {
+  private async runStrategyOnBar(date: string, observeFactors: boolean): Promise<void> {
     this.orderBook.beginOrderCollection(date);
 
     await this.factorEvaluator?.evaluate({
@@ -363,7 +358,15 @@ export class BacktestingEngine {
     return result;
   }
 
-  private async collectFinalState(): Promise<BacktestingFinalState> {
+  /**
+   * Builds a detached final-day snapshot after a successful run.
+   * Loads missing cash-order market data before serializing; this may query the data port and fail.
+   */
+  async collectFinalState(): Promise<BacktestingFinalState> {
+    if (!this.completed) {
+      throw new Error('Final state requires a successfully completed engine run');
+    }
+
     const tradeDate = this.nav.at(-1)?.date;
 
     if (!tradeDate) {

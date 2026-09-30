@@ -81,9 +81,7 @@ function run(spec: FixtureSpec, scriptedStrategy: EngineStrategy, initialCash = 
       futureSlippageTicks: 0,
       futureMarginRate: 0.1,
     },
-  })
-    .run()
-    .then(({ result }) => result);
+  }).run();
 }
 
 describe('股指期货规则', () => {
@@ -158,31 +156,29 @@ describe('股指期货规则', () => {
   });
 
   it('attributes futures tick slippage to each fill and the result total', async () => {
-    const result = (
-      await new BacktestingEngine({
-        start: DATES[0],
-        end: DATES.at(-1)!,
-        initialCash: 100_000,
-        strategy: strategy({
-          '20240102': (context) => context.orderFuture('IF.CFX', 1),
-          '20240103': (context) => context.exitFuture('IF.CFX'),
-        }),
-        dataPort: fixturePort(
-          futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
-        ),
-        cost: {
-          commission: 0,
-          minCommission: 0,
-          stampDuty: 0,
-          transferFee: 0,
-          slippageBps: 0,
-          impactCoef: 0,
-          futureCommissionRate: 0,
-          futureSlippageTicks: 1,
-          futureMarginRate: 0.1,
-        },
-      }).run()
-    ).result;
+    const result = await new BacktestingEngine({
+      start: DATES[0],
+      end: DATES.at(-1)!,
+      initialCash: 100_000,
+      strategy: strategy({
+        '20240102': (context) => context.orderFuture('IF.CFX', 1),
+        '20240103': (context) => context.exitFuture('IF.CFX'),
+      }),
+      dataPort: fixturePort(
+        futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
+      ),
+      cost: {
+        commission: 0,
+        minCommission: 0,
+        stampDuty: 0,
+        transferFee: 0,
+        slippageBps: 0,
+        impactCoef: 0,
+        futureCommissionRate: 0,
+        futureSlippageTicks: 1,
+        futureMarginRate: 0.1,
+      },
+    }).run();
 
     for (const trade of result.tradeLog) {
       expect(trade.slippageCost).toBeCloseTo(60, 10);

@@ -61,7 +61,7 @@ export async function runStrategyScan(
 async function runScanRange(config: Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions) {
   const execution = await StrategyExecution.create({ ...config, dataPort: prismaDataPort });
   try {
-    return (await execution.run(config)).result;
+    return await execution.run(config);
   } finally {
     execution.close();
   }

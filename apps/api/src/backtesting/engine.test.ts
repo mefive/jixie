@@ -22,7 +22,7 @@ describe('BacktestingEngine lifecycle', () => {
     const output = await running;
     await expect(simulation.run()).rejects.toThrow('BacktestingEngine requires a fresh instance');
     expect(input.strategy.onBar).toHaveBeenCalledTimes(2);
-    expect(output.result.nav).toEqual([
+    expect(output.nav).toEqual([
       { date: '20240102', value: 10000 },
       { date: '20240103', value: 10000 },
     ]);
@@ -51,7 +51,7 @@ describe('initial account allocation', () => {
       expect(context.value).toBe(10000);
     };
 
-    const { result } = await new BacktestingEngine(input).run();
+    const result = await new BacktestingEngine(input).run();
     expect(result.sleeveNav?.at(-1)).toMatchObject({ stockValue: 2000, futureValue: 8000 });
   });
 
@@ -89,7 +89,7 @@ describe('initial account allocation', () => {
         onBar,
       };
 
-      const { result } = await new BacktestingEngine(input).run();
+      const result = await new BacktestingEngine(input).run();
 
       expect(onBar).toHaveBeenCalledTimes(2);
       expect(futuresRange).toHaveBeenCalledWith(input.start, input.end);
@@ -117,7 +117,7 @@ describe('initial account allocation', () => {
       const input = config();
       input.strategy.onBar = action;
 
-      const { result } = await new BacktestingEngine(input).run();
+      const result = await new BacktestingEngine(input).run();
       expect(result.tradeLog).toEqual([]);
       expect(result.finalValue).toBe(input.initialCash);
     },
@@ -149,7 +149,7 @@ describe('cash-account attribution without factors', () => {
       },
     };
 
-    const { result } = await new BacktestingEngine(input).run();
+    const result = await new BacktestingEngine(input).run();
     const analysis = result.allocationAnalysis!;
 
     expect(result.tradeLog).toHaveLength(1);

@@ -5,7 +5,7 @@ import { fixturePort } from './testing/fixture-port.js';
 // Complete a buy and a T+1 sale with ample capital so affordability does not alter the requested size.
 async function roundTrip(amountThousand: number | undefined, shares: number) {
   const dates = ['20200102', '20200103', '20200106'];
-  const { result } = await new BacktestingEngine({
+  const result = await new BacktestingEngine({
     start: dates[0],
     end: dates.at(-1)!,
     initialCash: 100_000_000,

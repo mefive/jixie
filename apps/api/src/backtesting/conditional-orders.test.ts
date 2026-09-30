@@ -43,9 +43,7 @@ async function run(
     strategy: scripted(actions),
     dataPort: fixturePort(spec),
     cost: { slippageBps: 0, impactCoef: 0 },
-  })
-    .run()
-    .then(({ result }) => result);
+  }).run();
 }
 
 describe('persistent conditional orders', () => {
@@ -243,22 +241,19 @@ describe('persistent conditional orders', () => {
         },
       ],
     };
-    const lots = (
-      await new BacktestingEngine({
-        start: DATES[0],
-        end: DATES.at(-1)!,
-        initialCash: 100_000,
-        strategy: scripted({ '20240101': (ctx) => ctx.orderLots('A', 1) }),
-        dataPort: fixturePort(adjustedSpec),
-        cost: { slippageBps: 0, impactCoef: 0 },
-      }).run()
-    ).result;
+    const lots = await new BacktestingEngine({
+      start: DATES[0],
+      end: DATES.at(-1)!,
+      initialCash: 100_000,
+      strategy: scripted({ '20240101': (ctx) => ctx.orderLots('A', 1) }),
+      dataPort: fixturePort(adjustedSpec),
+      cost: { slippageBps: 0, impactCoef: 0 },
+    }).run();
     expect(lots.tradeLog[0].realShares).toBe(100);
   });
 
   it('retains pending lots and live conditions in adjusted engine units', async () => {
-    const paired = await new BacktestingEngine({
-      retainFinalState: true,
+    const pairedEngine = new BacktestingEngine({
       start: DATES[0],
       end: DATES[0],
       initialCash: 100_000,
@@ -270,15 +265,16 @@ describe('persistent conditional orders', () => {
       }),
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
       cost: { slippageBps: 0, impactCoef: 0 },
-    }).run();
-    expect(paired.finalState?.pendingLotOrders).toEqual([['A', 1]]);
-    expect([...new Map(paired.finalState!.conditionalOrders).values()]).toEqual([
+    });
+    await pairedEngine.run();
+    const paired = await pairedEngine.collectFinalState();
+    expect(paired.pendingLotOrders).toEqual([['A', 1]]);
+    expect([...new Map(paired.conditionalOrders).values()]).toEqual([
       expect.objectContaining({ code: 'A', kind: 'stop_loss', triggerPrice: 9.2 }),
     ]);
-    expect(paired.finalState).not.toHaveProperty('signals');
+    expect(paired).not.toHaveProperty('signals');
 
-    const output = await new BacktestingEngine({
-      retainFinalState: true,
+    const finalEngine = new BacktestingEngine({
       start: DATES[0],
       end: '20240102',
       initialCash: 100_000,
@@ -288,8 +284,10 @@ describe('persistent conditional orders', () => {
       }),
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
       cost: { slippageBps: 0, impactCoef: 0 },
-    }).run();
-    expect([...new Map(output.finalState!.conditionalOrders).values()]).toEqual([
+    });
+    await finalEngine.run();
+    const finalState = await finalEngine.collectFinalState();
+    expect([...new Map(finalState.conditionalOrders).values()]).toEqual([
       expect.objectContaining({
         code: 'A',
         kind: 'trailing_stop',

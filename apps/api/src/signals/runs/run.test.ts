@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   prepare: vi.fn(),
   create: vi.fn(),
   run: vi.fn(),
+  collectFinalState: vi.fn(),
   close: vi.fn(),
 }));
 vi.mock('#infra/database/prisma.js', () => ({
@@ -64,23 +65,22 @@ describe('signal execution lineage admission', () => {
     mocks.create.mockResolvedValue({
       factorDependencies: [dependency],
       run: mocks.run,
+      collectFinalState: mocks.collectFinalState,
       close: mocks.close,
     });
-    mocks.run.mockResolvedValue({
-      result: {},
-      finalState: {
-        pendingTargets: null,
-        pendingOrders: null,
-        pendingLotOrders: null,
-        schemaVersion: 2,
-        conditionalOrders: [],
-        market: [],
-        positions: [],
-        factorObservations: [],
-        tradeDate: '20240103',
-        equity: 1000,
-        cash: 1000,
-      },
+    mocks.run.mockResolvedValue({});
+    mocks.collectFinalState.mockResolvedValue({
+      pendingTargets: null,
+      pendingOrders: null,
+      pendingLotOrders: null,
+      schemaVersion: 2,
+      conditionalOrders: [],
+      market: [],
+      positions: [],
+      factorObservations: [],
+      tradeDate: '20240103',
+      equity: 1000,
+      cash: 1000,
     });
     mocks.stocks.mockResolvedValue([]);
     mocks.etfs.mockResolvedValue([]);
@@ -90,8 +90,13 @@ describe('signal execution lineage admission', () => {
     const result = await runSignal('run-1', vi.fn(), vi.fn());
     expect(mocks.create.mock.calls[0][0].factors).toBe(prepared);
     expect(mocks.create.mock.calls[0][0]).not.toHaveProperty('factorDependencySnapshots');
-    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ end: '20240103', retainFinalState: true }),
+    expect(mocks.run).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ end: '20240103' }));
+    expect(mocks.collectFinalState).toHaveBeenCalledTimes(1);
+    expect(mocks.run.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.collectFinalState.mock.invocationCallOrder[0],
+    );
+    expect(mocks.collectFinalState.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.close.mock.invocationCallOrder[0],
     );
     expect(mocks.close).toHaveBeenCalledTimes(1);
     expect(result.factorInputs[0]).toMatchObject({
@@ -100,11 +105,9 @@ describe('signal execution lineage admission', () => {
     });
   });
 
-  it('rejects missing final state after closing execution and before enrichment', async () => {
-    mocks.run.mockResolvedValue({ result: {}, finalState: null });
-    await expect(runSignal('run-1', vi.fn(), vi.fn())).rejects.toThrow(
-      'Final strategy state was not retained',
-    );
+  it('closes execution when snapshot loading fails before enrichment', async () => {
+    mocks.collectFinalState.mockRejectedValue(new Error('Snapshot data failed'));
+    await expect(runSignal('run-1', vi.fn(), vi.fn())).rejects.toThrow('Snapshot data failed');
     expect(mocks.close).toHaveBeenCalledTimes(1);
     expect(mocks.stocks).not.toHaveBeenCalled();
     expect(mocks.etfs).not.toHaveBeenCalled();
@@ -128,6 +131,7 @@ describe('signal execution lineage admission', () => {
       mocks.create.mockResolvedValue({
         factorDependencies: [...actual],
         run: mocks.run,
+        collectFinalState: mocks.collectFinalState,
         close: mocks.close,
       });
       await expect(runSignal('run-1', vi.fn(), vi.fn())).rejects.toThrow(

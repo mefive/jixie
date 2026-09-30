@@ -38,7 +38,7 @@ export async function runBacktest(
   });
   let result: BacktestResult;
   try {
-    result = (await execution.run(config)).result;
+    result = await execution.run(config);
   } finally {
     execution.close();
   }

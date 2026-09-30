@@ -35,13 +35,69 @@ function config(): BacktestingConfig {
   };
 }
 
-describe('optional final execution state', () => {
+describe('explicit final execution state', () => {
+  it('rejects capture before and during a run, then returns detached snapshots', async () => {
+    const engine = new BacktestingEngine(config());
+    await expect(engine.collectFinalState()).rejects.toThrow('successfully completed');
+
+    const running = engine.run();
+    await expect(engine.collectFinalState()).rejects.toThrow('successfully completed');
+    await running;
+
+    const first = await engine.collectFinalState();
+    first.positions[0][1].shares = 999;
+    first.pendingLotOrders![0][1] = 999;
+    first.conditionalOrders[0][1].code = 'mutated';
+
+    const second = await engine.collectFinalState();
+    expect(second.positions[0][1].shares).toBe(50);
+    expect(second.pendingLotOrders![0][1]).toBe(1);
+    expect(second.conditionalOrders[0][1]).toMatchObject({ code: 'A', triggerPrice: 18 });
+  });
+
+  it('does not expose partial state after a strategy failure', async () => {
+    const input = config();
+    input.strategy.onBar = () => {
+      throw new Error('Strategy failed');
+    };
+    const engine = new BacktestingEngine(input);
+
+    await expect(engine.run()).rejects.toThrow('Strategy failed');
+    await expect(engine.collectFinalState()).rejects.toThrow('successfully completed');
+  });
+
+  it('loads last-day order quotes only on capture and can retry a failed load', async () => {
+    const input = config();
+    input.strategy.watch = [];
+    input.strategy.onBar = (context) => {
+      if (context.date === input.end) {
+        context.orderLots('A', 1);
+      }
+    };
+    const barsRows = vi.spyOn(input.dataPort, 'barsRows');
+    const engine = new BacktestingEngine(input);
+
+    const result = await engine.run();
+    expect(barsRows).not.toHaveBeenCalled();
+    expect(result.tradeLog).toEqual([]);
+
+    barsRows.mockRejectedValueOnce(new Error('Quotes unavailable'));
+    await expect(engine.collectFinalState()).rejects.toThrow('Quotes unavailable');
+
+    const state = await engine.collectFinalState();
+    expect(state.pendingLotOrders).toEqual([['A', 1]]);
+    expect(new Map(state.market).get('A')).toMatchObject({ rawClose: 10, adjustmentFactor: 2 });
+    expect(result.tradeLog).toEqual([]);
+  });
+
   it('ignores a legacy futures declaration for cash-only final state', async () => {
     const input = config();
     input.strategy.futures = ['UNKNOWN'];
 
-    const result = await new BacktestingEngine({ ...input, retainFinalState: true }).run();
-    expect(result.finalState?.positions.length).toBe(1);
+    const engine = new BacktestingEngine(input);
+    await engine.run();
+    const finalState = await engine.collectFinalState();
+    expect(finalState.positions.length).toBe(1);
   });
 
   it.each([
@@ -54,46 +110,50 @@ describe('optional final execution state', () => {
     const input = config();
     input.strategy.onBar = action;
 
-    const result = await new BacktestingEngine({ ...input, retainFinalState: true }).run();
-    expect(result.finalState?.futureOrders).toHaveLength(1);
-    expect(result.finalState?.futureAccount?.equity).toBe(0);
+    const engine = new BacktestingEngine(input);
+    await engine.run();
+    const finalState = await engine.collectFinalState();
+    expect(finalState.futureOrders).toHaveLength(1);
+    expect(finalState.futureAccount?.equity).toBe(0);
   });
 
   it('keeps simulation results identical and retains adjusted state only when requested', async () => {
     const normal = await new BacktestingEngine(config()).run();
-    const retained = await new BacktestingEngine({ ...config(), retainFinalState: true }).run();
-    expect(normal.finalState).toBeNull();
-    expect(retained.result).toEqual(normal.result);
-    expect(retained.finalState).toMatchObject({ tradeDate: '20240102' });
-    expect(new Map(retained.finalState!.positions).get('A')?.shares).toBe(50);
-    expect(new Map(retained.finalState!.pendingLotOrders!).get('A')).toBe(1);
-    expect(new Map(retained.finalState!.market).get('A')).toEqual({
+    const engine = new BacktestingEngine(config());
+    const result = await engine.run();
+    const finalState = await engine.collectFinalState();
+    expect(result).toEqual(normal);
+    expect(finalState).toMatchObject({ tradeDate: '20240102' });
+    expect(new Map(finalState.positions).get('A')?.shares).toBe(50);
+    expect(new Map(finalState.pendingLotOrders!).get('A')).toBe(1);
+    expect(new Map(finalState.market).get('A')).toEqual({
       assetType: 'stock',
       adjustedClose: 20,
       adjustmentFactor: 2,
       rawClose: 10,
     });
-    expect([...new Map(retained.finalState!.conditionalOrders).values()]).toEqual([
+    expect([...new Map(finalState.conditionalOrders).values()]).toEqual([
       expect.objectContaining({ kind: 'stop_loss', triggerPrice: 18 }),
     ]);
-    expect(retained.finalState).not.toHaveProperty('signals');
+    expect(finalState).not.toHaveProperty('signals');
   });
 
   it('retains both funded accounts without changing the execution lifecycle', async () => {
     const input = config();
     const onBar = vi.fn();
     const openDates = vi.spyOn(input.dataPort, 'openDates');
-    const result = await new BacktestingEngine({
+    const engine = new BacktestingEngine({
       ...input,
-      retainFinalState: true,
       strategy: {
         name: 'futures',
         accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } },
         onBar,
       },
-    }).run();
-    expect(result.finalState?.futureAccount?.equity).toBe(5000);
-    expect(JSON.parse(JSON.stringify(result.finalState))).toEqual(result.finalState);
+    });
+    await engine.run();
+    const finalState = await engine.collectFinalState();
+    expect(finalState.futureAccount?.equity).toBe(5000);
+    expect(JSON.parse(JSON.stringify(finalState))).toEqual(finalState);
     expect(openDates).toHaveBeenCalled();
     expect(onBar).toHaveBeenCalledTimes(2);
   });

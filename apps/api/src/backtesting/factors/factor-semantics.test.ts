@@ -130,35 +130,40 @@ describe('custom (defineFactor) factors inside the engine', () => {
     expect(seen[D[4]]).toBe(20);
   });
 
-  it('executes an immutable Factor key through the same computed-factor runtime', async () => {
-    const factorKey = 'etf_trend_20';
-    const js = await toCommonJs(
-      `export default defineFactor({ compute: (bar) => bar.peTtm });`,
-      'published factor code',
-    );
-    const seen: Record<string, number | null> = {};
-    const strategy: EngineStrategy = {
-      name: 'read published factor',
-      factors: [factorKey],
-      async onBar(ctx) {
-        await ctx.loadCrossSection();
-        seen[ctx.date] = ctx.factor(factorKey, 'A');
-      },
-    };
-    const output = await runWithFinalState({
-      start: D[0],
-      end: D[4],
-      initialCash: 100_000,
-      strategy,
-      dataPort: fixturePort(specWithValuation()),
-      factorSources: [{ key: factorKey, js }],
-    });
-    expect(seen[D[0]]).toBe(10);
-    expect(seen[D[4]]).toBe(10);
-    expect(output.finalState!.factorObservations).toEqual([
-      { key: factorKey, code: 'A', value: 10 },
-    ]);
-  });
+  it.each([true, false])(
+    'captures only final-day factor reads (read on final day: %s)',
+    async (readOnFinalDay) => {
+      const factorKey = 'etf_trend_20';
+      const js = await toCommonJs(
+        `export default defineFactor({ compute: (bar) => bar.peTtm });`,
+        'published factor code',
+      );
+      const seen: Record<string, number | null> = {};
+      const strategy: EngineStrategy = {
+        name: 'read published factor',
+        factors: [factorKey],
+        async onBar(ctx) {
+          await ctx.loadCrossSection();
+          if (ctx.date !== D[4] || readOnFinalDay) {
+            seen[ctx.date] = ctx.factor(factorKey, 'A');
+          }
+        },
+      };
+      const output = await runWithFinalState({
+        start: D[0],
+        end: D[4],
+        initialCash: 100_000,
+        strategy,
+        dataPort: fixturePort(specWithValuation()),
+        factorSources: [{ key: factorKey, js }],
+      });
+      expect(seen[D[0]]).toBe(10);
+      expect(seen[D[4]]).toBe(readOnFinalDay ? 10 : undefined);
+      expect(output.finalState.factorObservations).toEqual(
+        readOnFinalDay ? [{ key: factorKey, code: 'A', value: 10 }] : [],
+      );
+    },
+  );
 
   it('executes an ETF time-series Factor from adjusted history on direct and walled lanes', async () => {
     const factorKey = 'etf_trend_20';
@@ -954,7 +959,7 @@ async function runStrategy(config: BacktestingConfig & { factorSources?: FactorF
   const { factorSources = [], ...engineConfig } = config;
   const host = new FactorHost(factorSources.map(factorFixture));
   try {
-    return (await new BacktestingEngine({ ...engineConfig, factorExecution: host }).run()).result;
+    return await new BacktestingEngine({ ...engineConfig, factorExecution: host }).run();
   } finally {
     host.close();
   }
@@ -966,11 +971,9 @@ async function runWithFinalState(
   const { factorSources = [], ...engineConfig } = config;
   const host = new FactorHost(factorSources.map(factorFixture));
   try {
-    return await new BacktestingEngine({
-      ...engineConfig,
-      factorExecution: host,
-      retainFinalState: true,
-    }).run();
+    const engine = new BacktestingEngine({ ...engineConfig, factorExecution: host });
+    const result = await engine.run();
+    return { result, finalState: await engine.collectFinalState() };
   } finally {
     host.close();
   }
@@ -978,7 +981,7 @@ async function runWithFinalState(
 
 type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
   factorSources?: FactorFixtureSource[];
-} & Omit<StrategyRunOptions, 'retainFinalState'>;
+} & StrategyRunOptions;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -994,7 +997,7 @@ async function runBacktestFixture(
     factors: config.factorSources?.map(factorFixture),
   });
   try {
-    return (await execution.run(config)).result;
+    return await execution.run(config);
   } finally {
     execution.close();
   }

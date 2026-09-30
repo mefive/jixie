@@ -41,4 +41,4 @@ Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日
 
 ## Engine 模拟边界
 
-StrategyExecution 创建并关闭语言 runtime 与 FactorHost，每次执行创建一个 `BacktestingEngine`，接收统一的 `{ result, finalState }`。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`，Signals 自行投影末日快照。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。
+StrategyExecution 创建并关闭语言 runtime 与 FactorHost，每次执行创建一个 `BacktestingEngine`，由 run 直接返回回测结果，Signals 在关闭前显式调用 collectFinalState 读取末日快照。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`，Signals 自行投影末日快照。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。

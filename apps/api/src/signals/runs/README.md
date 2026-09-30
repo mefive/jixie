@@ -12,7 +12,7 @@
 
 入队在事务中重查 active 状态。同部署同日 done 或 running 的运行直接复用；error/stale 复用 runId，清理结果与通知状态并创建新 Job，保留冻结依赖。新 Run 从部署冻结依赖。Run 与 queued Job 同事务，提交后唤醒队列，日志在执行开始时初始化。
 
-[worker.ts](worker.ts) 接收 runId、调用 [runSignal](run.ts)、转发日志/结果，最后释放 Prisma 和 IPC。runSignal 加载 Run 和部署、准备包含源码和来源的因子，创建 StrategyExecution；在 try/finally 中先比较部署与运行快照，再与 execution.factorDependencies 比较，通过后调用 run({ retainFinalState: true }) 获取末日状态，最后 close；由 [projection.ts](projection.ts) 的 projectSignals 将快照转换为真实股数、参考价、条件单信号及模型持仓。缺少某份旧快照时使用剩余快照，两份均缺失时保持旧有兼容规则，最后补证券名称与因子摘要。部署 locale 保存在函数局部，失败在返回 worker 前翻译，保留原错误作为 cause；Worker 不重复翻译。函数不写账户快照，原 Job 完成事务保持。
+[worker.ts](worker.ts) 接收 runId、调用 [runSignal](run.ts)、转发日志/结果，最后释放 Prisma 和 IPC。runSignal 加载 Run 和部署、准备包含源码和来源的因子，创建 StrategyExecution；在 try/finally 中先比较部署与运行快照，再与 execution.factorDependencies 比较，通过后调用 run 到信号交易日，再显式 collectFinalState 获取末日状态，最后在 finally 中 close（包括快照行情加载失败）；由 [projection.ts](projection.ts) 的 projectSignals 将快照转换为真实股数、参考价、条件单信号及模型持仓。缺少某份旧快照时使用剩余快照，两份均缺失时保持旧有兼容规则，最后补证券名称与因子摘要。部署 locale 保存在函数局部，失败在返回 worker 前翻译，保留原错误作为 cause；Worker 不重复翻译。函数不写账户快照，原 Job 完成事务保持。
 
 任务通过 onSuccess 在终态事务里写运行结果；提交成功后依次等待 [账户初始化](../accounting/README.md) 和 [notifier.ts](notifier.ts) 的 `notifySignalRun`。初始化失败会阻止本次后续通知；这些步骤不与结果保存组成总事务，也没有 outbox 保证。通知结果由 notifier 写回 Run。
 

@@ -7,7 +7,7 @@ import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
 import { StrategyFactor } from '#strategy/factors/factor.js';
 import { StrategyExecution } from '#strategy/execution/execution.js';
-import type { StrategyExecutionResult } from '#strategy/execution/execution.js';
+import type { BacktestingFinalState } from '#backtesting/result.js';
 import { errorMessage } from '#infra/errors.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
@@ -55,7 +55,7 @@ export async function runSignal(
       onLog: systemLog,
       onUserLog: userLog,
     });
-    let output: StrategyExecutionResult;
+    let finalState: BacktestingFinalState;
     try {
       if (deploymentDependencies !== null && runDependencies !== null) {
         StrategyFactor.assertDependencies(deploymentDependencies, runDependencies);
@@ -65,19 +65,16 @@ export async function runSignal(
         runDependencies ?? deploymentDependencies,
         execution.factorDependencies,
       );
-      output = await execution.run({
+      await execution.run({
         ...config,
         end: run.tradeDate,
-        retainFinalState: true,
         strictFutures: run.deployment.accountingVersion === 2,
       });
+      finalState = await execution.collectFinalState();
     } finally {
       execution.close();
     }
-    if (!output.finalState) {
-      throw new Error('Final strategy state was not retained');
-    }
-    const projection = projectSignals(output.finalState);
+    const projection = projectSignals(finalState);
     const codes = [
       ...new Set([
         ...projection.signals.map((signal) => signal.code),
@@ -114,7 +111,7 @@ export async function runSignal(
     systemLog(t(locale, 'signalCaptureDone', { count: signals.length }));
     const versioned = run.deployment.accountingVersion === 2;
     const futureSignals = versioned
-      ? await projectFutureSignals(output.finalState, run.execDate, {
+      ? await projectFutureSignals(finalState, run.execDate, {
           ...DEFAULT_COST,
           ...config.cost,
         })
@@ -122,11 +119,11 @@ export async function runSignal(
 
     return {
       resultVersion: versioned ? 2 : 1,
-      modelAccounts: versioned ? projectSignalAccounts(output.finalState) : null,
+      modelAccounts: versioned ? projectSignalAccounts(finalState) : null,
       futureSignals,
       dataCutoff: projection.tradeDate,
       modelEquity:
-        projection.modelEquity + (versioned ? (output.finalState.futureAccount?.equity ?? 0) : 0),
+        projection.modelEquity + (versioned ? (finalState.futureAccount?.equity ?? 0) : 0),
       modelCash: projection.modelCash,
       modelPositions,
       signals,

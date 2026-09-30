@@ -105,11 +105,6 @@ export function cashFinalStateView(state: BacktestingFinalState): CashFinalState
   };
 }
 
-export interface BacktestingOutput {
-  result: BacktestingResult;
-  finalState: BacktestingFinalState | null;
-}
-
 export interface SleeveNavPoint {
   date: string;
   stockValue: number;

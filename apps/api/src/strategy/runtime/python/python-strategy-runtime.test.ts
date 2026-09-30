@@ -108,7 +108,7 @@ describe('Python strategy runtime', () => {
       },
     });
     try {
-      const [{ result: pythonResult }, { result: nativeResult }] = await Promise.all([
+      const [pythonResult, nativeResult] = await Promise.all([
         new BacktestingEngine({
           start: dates[0],
           end: dates.at(-1)!,

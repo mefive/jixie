@@ -126,15 +126,13 @@ const CATEGORICAL_PARAMETER_CODE = `
 
 describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
   it('净值逐日一致、成交逐笔一致、用户日志穿墙到达', { timeout: 60_000 }, async () => {
-    const direct = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D[D.length - 1],
-        initialCash: 100_000,
-        strategy: await compileStrategy(STRATEGY_CODE),
-        dataPort: fixturePort(SPEC),
-      }).run()
-    ).result;
+    const direct = await new BacktestingEngine({
+      start: D[0],
+      end: D[D.length - 1],
+      initialCash: 100_000,
+      strategy: await compileStrategy(STRATEGY_CODE),
+      dataPort: fixturePort(SPEC),
+    }).run();
 
     const walledUserLogs: string[] = [];
     const walled = await runBacktestFixture(
@@ -267,15 +265,13 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D.at(-1)!,
-        initialCash: 100_000,
-        strategy: await compileStrategy(code),
-        dataPort: fixturePort(SPEC),
-      }).run()
-    ).result;
+    const direct = await new BacktestingEngine({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    }).run();
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -317,15 +313,13 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D.at(-1)!,
-        initialCash: 100_000,
-        strategy: await compileStrategy(code),
-        dataPort: fixturePort(SPEC),
-      }).run()
-    ).result;
+    const direct = await new BacktestingEngine({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    }).run();
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -349,15 +343,13 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D.at(-1)!,
-        initialCash: 100_000,
-        strategy: await compileStrategy(code),
-        dataPort: fixturePort(SPEC),
-      }).run()
-    ).result;
+    const direct = await new BacktestingEngine({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    }).run();
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -382,15 +374,13 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D.at(-1)!,
-        initialCash: 100_000,
-        strategy: await compileStrategy(code),
-        dataPort: fixturePort(SPEC),
-      }).run()
-    ).result;
+    const direct = await new BacktestingEngine({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(code),
+      dataPort: fixturePort(SPEC),
+    }).run();
     const walled = await runBacktestFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -402,15 +392,13 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
   });
 
   it('数值参数与单股持仓查询在进墙车道可直接用于下单', { timeout: 60_000 }, async () => {
-    const direct = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D.at(-1)!,
-        initialCash: 100_000,
-        strategy: await compileStrategy(PARAMETERIZED_CODE),
-        dataPort: fixturePort(SPEC),
-      }).run()
-    ).result;
+    const direct = await new BacktestingEngine({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(PARAMETERIZED_CODE),
+      dataPort: fixturePort(SPEC),
+    }).run();
     const walled = await runBacktestFixture(
       { code: PARAMETERIZED_CODE, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
@@ -423,20 +411,18 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
 
   it('分类参数覆盖在直跑与进墙车道保持一致', { timeout: 60_000 }, async () => {
     const paramOverrides = { sizing: 'fixed' };
-    const direct = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D.at(-1)!,
-        initialCash: 100_000,
-        strategy: await compileStrategy(
-          CATEGORICAL_PARAMETER_CODE,
-          undefined,
-          undefined,
-          paramOverrides,
-        ),
-        dataPort: fixturePort(SPEC),
-      }).run()
-    ).result;
+    const direct = await new BacktestingEngine({
+      start: D[0],
+      end: D.at(-1)!,
+      initialCash: 100_000,
+      strategy: await compileStrategy(
+        CATEGORICAL_PARAMETER_CODE,
+        undefined,
+        undefined,
+        paramOverrides,
+      ),
+      dataPort: fixturePort(SPEC),
+    }).run();
     const walled = await runBacktestFixture(
       {
         code: CATEGORICAL_PARAMETER_CODE,
@@ -477,8 +463,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
   });
 });
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> &
-  Omit<StrategyRunOptions, 'retainFinalState'>;
+type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions;
 
 async function runBacktestFixture(
   config: ExecutionFixtureConfig,
@@ -488,7 +473,7 @@ async function runBacktestFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return (await execution.run(config)).result;
+    return await execution.run(config);
   } finally {
     execution.close();
   }
@@ -502,20 +487,15 @@ async function runSignalCaptureFixture(
 ) {
   const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    const output = await execution.run({ ...config, retainFinalState: true });
-    if (!output.finalState) {
-      throw new Error('Expected final state');
-    }
-    return { result: output.result, capture: projectSignals(output.finalState) };
+    const result = await execution.run(config);
+    return { result, capture: projectSignals(await execution.collectFinalState()) };
   } finally {
     execution.close();
   }
 }
 
 async function runWithProjection(config: BacktestingConfig) {
-  const output = await new BacktestingEngine({ ...config, retainFinalState: true }).run();
-  if (!output.finalState) {
-    throw new Error('Expected final state');
-  }
-  return { result: output.result, capture: projectSignals(output.finalState) };
+  const engine = new BacktestingEngine(config);
+  const result = await engine.run();
+  return { result, capture: projectSignals(await engine.collectFinalState()) };
 }

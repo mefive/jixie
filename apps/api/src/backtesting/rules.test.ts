@@ -40,9 +40,7 @@ function run(
     dataPort: fixturePort(spec),
     // Zero slippage keeps price assertions exact; the slippage test overrides this.
     cost: { slippageBps: 0, impactCoef: 0 },
-  })
-    .run()
-    .then(({ result }) => result);
+  }).run();
 }
 
 /** Flat 10-yuan stock across all five days (limits far away). */
@@ -225,19 +223,17 @@ describe('A 股规则:停牌与滑点', () => {
   });
 
   it('滑点方向:买价上浮、卖价下压(基础半价差,无成交额则无冲击项)', async () => {
-    const result = (
-      await new BacktestingEngine({
-        start: D[0],
-        end: D[D.length - 1],
-        initialCash: 100_000,
-        strategy: scripted({
-          '20240101': (ctx) => ctx.order('A', 100),
-          '20240102': (ctx) => ctx.exit('A'),
-        }),
-        dataPort: fixturePort({ dates: D, stocks: [flatStock()] }),
-        cost: { slippageBps: 20, impactCoef: 0 }, // 0.2% base, no impact term
-      }).run()
-    ).result;
+    const result = await new BacktestingEngine({
+      start: D[0],
+      end: D[D.length - 1],
+      initialCash: 100_000,
+      strategy: scripted({
+        '20240101': (ctx) => ctx.order('A', 100),
+        '20240102': (ctx) => ctx.exit('A'),
+      }),
+      dataPort: fixturePort({ dates: D, stocks: [flatStock()] }),
+      cost: { slippageBps: 20, impactCoef: 0 }, // 0.2% base, no impact term
+    }).run();
     const [buy, sell] = result.tradeLog;
     expect(buy.price).toBeCloseTo(10 * 1.002, 10);
     expect(sell.price).toBeCloseTo(10 * 0.998, 10);

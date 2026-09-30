@@ -309,3 +309,28 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" JIXIE_JOB_E2E_ON
 - 使用项目 Python 环境运行 strategy-orchestration、mixed-futures、daily-signals、futures-signals 四条隔离 job-system E2E，全部通过。
 - 本轮 mixed-futures-result.png 与 futures-signals-mixed-zh.png 已视觉检查。fixture 正常退出并完成数据库连接／临时库清理，服务端口关闭断言通过，额外进程检查无遗留测试服务。
 - 更新记录后按已确认消息直接提交，不推送。本节取代本轮此前等待审查／未运行验证的阶段状态。
+
+## 显式获取末日状态（2026-09-30）
+
+Gate 1 已确认完整范围和提交消息：
+`refactor(engine): separate final state capture from execution`。
+
+- 保留已存在的 recordEndOfDay / runStrategyOnBar 改名和 beginOrderCollection 方法注释。
+- Engine.run 直接返回 BacktestingResult，删除 retainFinalState 和结果包装类型；公开异步 collectFinalState，仅在运行成功后允许读取。
+- StrategyExecution 持有 Engine，run 直接返回带血缘的结果；提供 collectFinalState，要求调用时对象尚未关闭。Signals 在 run 成功后显式获取快照，再在 finally 关闭资源；普通回测和扫描不采集快照。
+- 末日始终记录策略实际读取的计算因子值，不触发额外求值；快照仍按需补加载现金行情并复制序列化，可能失败，失败可重试。快照结构、交易规则和 Signals 投影保持不变。
+- 更新相关消费者、测试和文档，清理现行 README 中旧的股票限定及结果包装描述；不改变 SDK、HTTP、数据库或账户规则。
+- 必要测试覆盖运行前／中／失败后拒绝读取、独立快照、末日新订单行情延迟加载及失败重试、仅末日因子读取、Signals 运行／采集／关闭顺序和采集失败资源释放。
+- 审查前仅运行静态检查。Gate 2 待人工审查；尚未运行本轮测试、构建及 E2E，尚未提交。
+- 审查批准后运行 Backtesting、Strategy runtime/SDK/execution/scans、Signals 与 Worker 协议测试，全仓构建，以及 strategy-orchestration、mixed-futures、daily-signals、futures-signals 四条隔离 E2E；通过后更新记录并按已确认消息提交，不推送，清理测试服务。
+- 审查前静态检查通过：全仓 typecheck（后端边界 0 violations、生成物一致性、全部 workspace）、23 个受影响 TS 文件 ESLint / Prettier、git diff --check、80 个本地文档链接。首轮检查发现测试仍使用旧返回包装及条件单联合类型字段访问，已修正并重跑通过。
+- 明确时序变化：run 完成结果归集和完成日志后才允许显式快照；后续快照加载失败不撤销已完成的回测，但 Signals 仍失败并在 finally 释放资源。此为拆分操作后的预期边界，不改变成交与快照内容。
+
+### 显式末日状态最终验证
+
+- 用户批准 Gate 2 后执行本轮验证。54 个测试文件、434 项测试通过；2 个文件中 3 项默认关闭的历史性能／会计集成测试跳过，不计为通过。
+- 首次测试发现 runtime.test-worker.mjs 仍解构旧结果包装，修正该测试 Worker，并同步修正 runtime-benchmark.test-worker.mjs 中同类调用。两者 ESLint / Prettier 与 diff 检查通过，完整约定测试重跑通过；未改动已审查产品代码，未运行默认关闭的基准测试。
+- 全仓 pnpm build 通过，只有既有前端 chunk 体积和混合导入提示。
+- 使用项目 Python 环境的 strategy-orchestration、mixed-futures、daily-signals、futures-signals 四条隔离 job-system E2E 全部通过。
+- 本轮 mixed-futures-result.png、futures-signals-mixed-zh.png 已视觉检查。fixture 正常退出、数据库连接及临时库由脚本回收，API 与模型服务端口关闭断言通过，额外进程检查无遗留测试服务。
+- 更新记录并按已确认消息直接提交，不推送。本节取代此前等待审查／未运行验证的阶段状态。

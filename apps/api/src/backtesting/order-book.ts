@@ -128,6 +128,11 @@ export class OrderBook {
     this.onRebalance = input.onRebalance;
   }
 
+  /**
+   * Starts a fresh instruction buffer for the strategy's next onBar call and records its decision date.
+   * Clears previously collected instructions, leaving pending orders and active conditional orders intact.
+   * Subsequent strategy order calls write to this buffer; commitCollectedOrders submits it for execution.
+   */
   beginOrderCollection(date: string): void {
     this.decisionDate = date;
     this.decision = emptyDecision();
