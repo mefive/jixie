@@ -29,6 +29,8 @@ Backtesting 模拟交易：推进交易日、提供当时可得的数据、调�
 
 股票与多资产共用一份循环、上下文和订单处理：检查退市持仓 → 开盘换月及执行昨天的指令 → 期货结算 → 收盘计价与归因 → 准备因子 → 调用策略 → 保存下次待执行指令。
 
+Engine 的 `runDecision(date, observeFactors)` 负责当日决策阶段：开始收集指令、准备因子、创建 `BacktestingContext`、调用注入的 `onBar` 回调，然后提交决策供下一交易日执行。Engine 控制模拟时序；策略源码加载、语言选择和沙箱通信由 Strategy execution/runtime 负责。
+
 `OrderBook` 保持原来的顺序：期货换月、现金账户目标调仓、增减股数/手数、清理已清仓条件单、条件单成交、期货目标指令。条件单跨天保存；普通指令按原有规则处理一次。`BacktestingContext` 持有当日懒加载截面，账户和订单状态分别由 Portfolio 和 OrderBook 持有。
 
 纯验证、成交价格计算和绩效统计保留函数。类用于持有生命周期和状态，不把无状态函数包装成 Runner。

@@ -286,3 +286,13 @@ AllocationAnalysisTracker 始终实例化、记录调仓/每日数据并输出�
 隔离数据库浏览器验证：strategy-orchestration 通过；mixed-futures 使用新增合成期货行情，通过真实 UI 提交、Worker 计算与持久化，断言股票买入/期货卖出、80/20 初始分配、总净值及现金账户归因对账，中英文截图已检查。首次混合对账仅因约 2e-9 元浮点差异失败，测试改用 1e-6 元误差上限，日期与其余约束保留，重跑通过；产品代码未改动。新增测试设施的 API 类型、ESLint/Prettier 与 diff 检查通过。测试进程正常退出，临时库删除和本地端口关闭断言通过。
 
 截图：apps/web/acceptance/mixed-futures-result.png、mixed-futures-result-en.png。日志：/tmp/jixie-gates-tests.log、/tmp/jixie-gates-build.log、/tmp/jixie-gates-e2e.log（股票通过，首次混合浮点断言失败）、/tmp/jixie-gates-mixed-e2e.log（混合重跑通过）。按已确认消息提交，不推送。
+
+## 2026-10-08 Engine 每日决策命名（审查与验证通过）
+
+已确认提交信息：`refactor(engine): clarify daily decision naming`。
+
+将 BacktestingEngine 的私有方法 runStrategyOnBar 改为 runDecision，同步每日循环调用与 Backtesting 阅读地图。方法仍负责开始收集指令、准备因子、创建当日 Context、调用注入的 onBar 并提交决策；Strategy execution/runtime 继续负责源码、语言与沙箱。EngineStrategy、公开 onBar、调用顺序和模拟行为保持不变，无数据库、公开 SDK 或部署依赖变化。
+
+审查前静态检查通过：全仓 pnpm typecheck（868 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、engine.ts 的 ESLint（0 警告）与 Prettier，以及 git diff --check。
+
+人工代码审查已通过；engine.test.ts、order-book.test.ts、conditional-orders.test.ts 和 final-state.test.ts 共 4 个文件、58 项测试全部通过，覆盖 Engine 生命周期、订单、条件单与末日状态，无跳过。未启动临时服务或数据库进程。按已确认信息提交，不推送。

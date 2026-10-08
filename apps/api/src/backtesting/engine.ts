@@ -80,7 +80,7 @@ export class BacktestingEngine {
 
       this.logProgress(index + 1, total);
 
-      await this.runStrategyOnBar(date, index === total - 1);
+      await this.runDecision(date, index === total - 1);
     }
 
     const result = this.collectResult();
@@ -295,7 +295,7 @@ export class BacktestingEngine {
     this.capturedTrades = cashPortfolio.trades.length;
   }
 
-  private async runStrategyOnBar(date: string, observeFactors: boolean): Promise<void> {
+  private async runDecision(date: string, observeFactors: boolean): Promise<void> {
     this.orderBook.beginDecision(date);
 
     await this.factorEvaluator?.evaluate({
