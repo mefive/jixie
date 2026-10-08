@@ -10,10 +10,7 @@ it.skipIf(process.env.JIXIE_TEST_RUNTIME_BENCHMARK !== '1').each(['watch', 'dyna
   { timeout: 180_000 },
   async (scenario) => {
     const results = [];
-    const variants =
-      scenario === 'dynamic'
-        ? ['baseline', 'before', 'previous', 'shared']
-        : ['baseline', 'previous', 'shared'];
+    const variants = ['before', 'shared'];
     for (const variant of variants) {
       const { stdout } = await execute(
         process.execPath,
@@ -31,15 +28,11 @@ it.skipIf(process.env.JIXIE_TEST_RUNTIME_BENCHMARK !== '1').each(['watch', 'dyna
       result.samples.map((sample: { resultHash: string }) => sample.resultHash),
     );
     expect(new Set(hashes).size).toBe(1);
-    if (scenario === 'dynamic') {
-      const before = results.find((result) => result.variant === 'before');
-      const shared = results.find((result) => result.variant === 'shared');
-      // Payload size is deterministic; wall-clock timing remains diagnostic, not a flaky threshold.
-      for (const [index, sample] of shared.samples.entries()) {
-        expect(sample.metrics.transferredBytes).toBeLessThan(
-          before.samples[index].metrics.transferredBytes / 2,
-        );
-      }
+    const before = results.find((result) => result.variant === 'before');
+    const shared = results.find((result) => result.variant === 'shared');
+    // Transport work is deterministic; structural changes must preserve all counters and bytes.
+    for (const [index, sample] of shared.samples.entries()) {
+      expect(sample.metrics).toEqual(before.samples[index].metrics);
     }
     console.log('Runtime benchmark:', JSON.stringify(results));
   },

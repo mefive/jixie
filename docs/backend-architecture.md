@@ -217,7 +217,7 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 Strategy 的公开 TS 签名、文档、Agent 参考归 `packages/shared/src/sdk/strategy/reference.ts`，
 由原有声明生成器同时服务 Monaco 和编译契约 `contract.ts`。Strategy SDK 辅助实现归
 `apps/api/src/strategy/sdk`，不再与 isolate 设施同放；Python SDK 与语言协议分别归
-`strategy/sdk/python.py`、`strategy/runtime/python/runner.py`。
+`strategy/sdk/python.py`、`strategy/runtime/python/runner.py`；基础 Context 代理、缓存与宿主访问归两种语言的 runtime/context。宿主 StrategyRuntime 统一资源生命周期，语言 prepare 只提供启动配置，runner 负责沙箱加载与协议，SDK 接收基础能力。
 Engine 保留内部 `EngineStrategy` / `EngineContext`，负责模拟时钟、PIT 数据、因子准备与交易账户。
 公开上下文不继承 Engine 类型；runtime 把用户回调装配为引擎决策回调，SDK 对公开签名做编译期适配检查。
 实现、兼容性与本次验收见 [Strategy SDK 边界记录](design/strategy-sdk-boundaries.md)。

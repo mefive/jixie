@@ -7,6 +7,7 @@
       "apps/sandboxd/",
       "apps/api/src/strategy/sdk/python.py",
       "apps/api/src/strategy/runtime/python/runner.py",
+      "apps/api/src/strategy/runtime/python/context.py",
       "apps/api/src/factor/sdk/python.py",
       "apps/api/src/factor/runtime/python/runner.py",
       "apps/api/src/research/runtime/python/analysis.py",
@@ -36,6 +37,8 @@
   "noRuntimeFiles": [
     ".gitignore",
     ".prettierignore",
+    ".vscode/settings.json",
+    "pyrightconfig.json",
     "AGENTS.md",
     "CLAUDE.md",
     "README.md",

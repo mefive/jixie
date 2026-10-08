@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 2026-10-08 Strategy 结构整理：用户已确认以唯一宿主 StrategyRuntime 替代 TS/Python 两个具体宿主类，并按 prepare → runner → context → SDK 对齐语言职责。下方历史类名与验收记录保留；本次范围和审查状态见文末。
+
 > 状态：2026-09-22 用户已通过最终代码 review。统一宿主入口、TS transport、Factor 批量日志及 Strategy JSON 修复均完成验证：979 项回归、11 项 Python 通信、8 项编译 Worker、2 项 Strategy 性能用例，以及 API 构建和源码／编译资源验证通过。最终结果见文末；以下分轮记录中的“待 review／未验证”描述的是当时状态。
 > 追加 review 修正已通过：StrategyRuntime.start 统一返回 StrategyRuntimeInstance，需要 metrics 的测试直接创建 TS 实例。补充验证 61 项运行时／隔离测试、2 项性能用例及 API 构建通过，详见文末。
 > 2026-09-21：用户要求从历史演进形成的不同入口、名称和调用方式出发，统一规划三业务运行时。
@@ -417,7 +419,7 @@ Factor history/value/lag 仍只读取预备数组。Strategy 同步宿主访问�
 
 结果哈希一致、消息数量仅新增一个显式启动帧，但耗时明显增加。源码发现：`__receiveCommand` 已解析 frame，随后 start/bar 分支再次 stringify，内部函数又 parse；response 分支也重复 parse。这个转换不是统一协议所必需。
 
-产品修复仅在 [Strategy sandbox-entry.ts](../../apps/api/src/strategy/runtime/typescript/sandbox-entry.ts)：`startStrategy`、`runStrategyBar`、`receiveResponse` 接收已解析对象，入口解析一次后直接分派。增加本地参数类型描述原有 snapshot/response 形状；不改变线格式、SDK、数据拷贝边界、缓存或交易行为。统一 `__receiveCommand`、公共 transport/exchange 继续保留。性能改善幅度须经补充 review 后实测，不以源码推断代替结果。
+产品修复仅在 [Strategy sandbox-entry.ts](../../apps/api/src/strategy/runtime/typescript/runner.ts)：`startStrategy`、`runStrategyBar`、`receiveResponse` 接收已解析对象，入口解析一次后直接分派。增加本地参数类型描述原有 snapshot/response 形状；不改变线格式、SDK、数据拷贝边界、缓存或交易行为。统一 `__receiveCommand`、公共 transport/exchange 继续保留。性能改善幅度须经补充 review 后实测，不以源码推断代替结果。
 
 修复后遵循 review-gated-development，仅运行静态检查；等待补充 review 后复跑受影响的 Strategy／Engine 因子组合、源码 Worker、性能对照，重新构建并验证编译 Worker。已通过且未受这次修复影响的 Factor／Research 验证不必重复。提交信息保持 `refactor(runtime): unify runtime contracts and entry points`。
 
@@ -497,3 +499,74 @@ Factor history/value/lag 仍只读取预备数组。Strategy 同步宿主访问�
 用户确认补充 review 后，Strategy runtime 的 12 个测试文件、61 项测试全部通过，包含两语言运行、共享 bridge、隔离、缓存／通信统计、声明检查与关闭行为。watch／dynamic 两个性能用例通过，所有历史变体与当前实现的结果哈希一致，动态历史增量的传输量断言仍通过；API 构建通过。本轮没有追加产品或测试修复。
 
 当前实现的总耗时中位数为 watch 102.52 ms、dynamic 492.01 ms；传输量分别仍为 9,818,414 和 50,274,055 字节，帧数及同步调用统计与上轮一致。更换诊断测试的创建入口后，统计能力保持完整；时钟样本不用于宣称此次类型整理带来加速。日志为 `/tmp/jixie-strategy-runtime-return-tests.log`、`/tmp/jixie-strategy-runtime-return-benchmarks.log`、`/tmp/jixie-strategy-runtime-return-build.log`。
+
+## 2026-10-08 Strategy 双语言结构整理（审查与验证通过）
+
+已确认提交信息：`refactor(strategy): align language runtime structure`。
+
+本次只整理目录与职责，不采用此前未获批准的跨语言行为统一方案。唯一宿主 StrategyRuntime 直接继承 SandboxRuntime，公共 start 选择 TS/Python prepare 后统一获取资源、建立 bridge 和交接实例，execute/close 由同一类负责。语言 prepare.ts 不获取资源：TS 编译源码并缓存 bundle，返回 transport 工厂、超时与 bridge 配置；Python 返回 session 工厂和启动配置。删除 TypeScriptStrategyRuntime/PythonStrategyRuntime，无旧类别名或转发入口。
+
+两种语言都按 runner/context/SDK 阅读。TS sandbox-entry.ts 改为 runner.ts，基础 EngineContext 代理、历史与读缓存拆入 context.ts；runner 保留源码加载、参数覆盖、日志、帧请求与回调。Python runner.py 以 runtime/context.py 创建基础适配器，再注入 SDK Context；截面/历史缓存、账户快照与命令收集从 SDK 移入 runtime，SDK 保留公开方法、Universe、周期、指标、仓位和条件单声明。SDK 只定义所需的结构能力，不反向导入 runtime。
+
+公开方法、命名、指标、字段映射、数据范围与产品准入保持。TS 同步宿主查询/命令、调用处错误、首次读缓存、增量历史继续保留；Python 阻塞请求、按需加载、截面预读因子和 done 后批量重放保持。Python Context 的构造参数由内部 runner 改为注入 core/params，用户回调接收方式不变；私有 SDK 的缓存/协议状态不再暴露。没有数据库或 HTTP/公开 TS Contract 变化。
+
+metrics 留在 TypeScriptTransport，测试专用 testing/runtime.ts 装配同一 StrategyRuntime 并返回独立指标，不给 Python 或公共 runtime 添加诊断成员。宿主资源归属测试合并为 strategy-runtime.test.ts，两个语言的行为测试都命名为 runtime.test.ts；隔离与历史性能工具同步装配路径，固定旧版本比较入口保留。源码/编译 bundle 入口更新为 runner.ts/runner.js。
+
+新增 Python context.py 显式进入 Dockerfile.python、.dockerignore、deploy/component-impact.json 和部署计划测试；Python 源码影响 API/sandboxd，TS prepare 只影响 API。当前 README、SDK 说明、后端架构及资源入口同步；用户可见接口和行为不变，本次无需修改双语操作帮助。
+
+审查前只运行全仓 typecheck（含边界静态扫描和 SDK 生成物一致性）、受影响 TS/MJS 的 ESLint/Prettier、Python AST 语法、diff 与本地文档链接检查。人工代码审查通过后验证公共 runtime/bridge/protocol、TS/Python runtime 与 SDK、参数/编译、隔离/bundle、Python 打包、StrategyExecution 和相关 Engine 回归；部署计划与边界检查器自测、Shared/API 构建、源码/编译 Worker 和显式 TS 性能回归也在审查后执行，清理临时资源。当前行为测试与构建尚未运行，修改未提交。
+
+审查前静态检查已通过：全仓 pnpm typecheck（870 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过），Strategy runtime 与部署计划测试的 ESLint（0 警告）和 Prettier，3 个 Python 文件 AST 语法、127 个本地 Markdown 链接及 git diff --check。Python 镜像的 16 个业务源码均存在并显式列入 Docker 构建上下文和 sandboxd 部署影响清单；新增 context.py 已同步，无未解决静态阻塞。本轮未执行策略、测试、构建或启动服务。
+
+### 同轮 review 修订：沙箱 runner 对照阅读
+
+用户指出两种 runner 的组织仍差异过大，并要求评估单例 class。本次将两者都整理为会话有状态的 StrategyRunner：每个沙箱入口只创建一个实例，不使用静态 getInstance 或跨会话共享状态。方法顺序对应为 handle、start、execute、loadStrategy/load_strategy、metadata、request、receiveResponse/receive_response；源码加载和元数据都是类内方法。TS 将原模块级 strategy、请求编号、pending Promise 与 ContextAdapter 收入实例；Python 将嵌套 run_strategy/request 闭包中的 strategy、bar_cache、请求编号和 I/O 收入实例，入口只启动实例并驱动阻塞读取。
+
+通信契约保持：TS start/bar 返回 JSON 终态，response 分派兑现 Promise；Python start/bar 发送帧，请求内部阻塞读取对应 response，仍按 bar 重置请求编号，并暂停 I/O 期间的计时。TS 保持跨 bar 编号。同步命令与 Python done 后重放不变。新增 session-state.test.ts 验证跨日状态保留和新会话独立；尚未运行，须重新完成静态检查并提交人工审查。提交信息保持 `refactor(strategy): align language runtime structure`。
+
+runner class 修订后的静态检查通过：全仓 pnpm typecheck（871 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、Strategy runtime ESLint（0 警告）/Prettier、3 个 Python 文件 AST 语法、128 个本地 Markdown 链接与 git diff --check。行为回归（含新增会话状态）、性能、Worker 和构建仍未运行，修改未提交，等待修订后的人工代码审查。
+
+### 同轮 review 修订：Python 编辑器版本
+
+用户截图显示 Pylance 按低于 3.10 的版本分析 match。仓库运行目标和已有 .venv/research-py-v1 均为 CPython 3.13；新增根级 pyrightconfig.json 声明 pythonVersion=3.13，.vscode/settings.json 默认解释器指向已有环境。已选择的 VS Code 解释器不会被 defaultInterpreterPath 自动替换，需要手动选择该环境；本次不安装或改写虚拟环境。
+
+新增编辑器配置显式列入部署影响清单 noRuntimeFiles，并补充计划测试，避免触发未知路径全量部署。Pyright 对 runner.py/context.py/SDK 的静态分析发现 7 项诊断：已提交基线有 6 项（动态 ModuleType 属性及 SDK 可空数据类型），另 1 项为本次 class 的强类型字段暴露的可空回调。用模块字典注册、基于已有启动校验的类型收窄及保持现有回调/查询次数的 typing.cast 修正；未关闭诊断或添加 ignore，不改变用户接口、订单时机或缺失数据行为。
+
+复核通过：上述 3 个 Python 文件 Pyright 0 错误、0 警告，Python 3.13 AST、配置/部署测试格式、部署测试 ESLint 与 git diff --check。部署计划行为测试仍留待审查后执行；其他既定回归和构建同样未运行。提交信息保持 `refactor(strategy): align language runtime structure`，修改未提交，等待人工代码审查。
+
+### 同轮 review 修订：显式业务启动入口
+
+用户确认 TS 应具有与 Python run_strategy 对应的显式业务入口。TS runner.ts 新增 runStrategy：创建唯一 StrategyRunner，调用 start，接入注入的 receive 回调并返回 ready 终态；不直接注册全局函数。新增 entry.ts 负责 __receiveCommand/JSON 与 receive/emit/access 的外围适配，首次 start 时调用 runStrategy，之后转交已安装的 handler。runner 不再在模块加载时直接创建业务实例；后续 start/bar/response 分派、Promise 请求和同步宿主访问保持。
+
+Python run_strategy 同样创建实例、调用 start 并将 handler 交给注入的 receive_commands。阻塞读取 bar/close 的循环移至通用 jixie_runner.py，唯一调用处同步更新；请求内的 read_frame 及暂停计时仍由 StrategyRunner 保留。两种业务入口现在可按“创建 → 启动 → 接入消息处理”直接对照，语言特有的全局注册/阻塞循环在外围。Factor/Research 分派和消息协议未改。
+
+TS bundle 的源码/编译入口改为 entry.ts/entry.js，隔离断言及部署计划用例补充 entry 路径；Python 通用入口已在既有 sandboxd 打包和部署范围内，无新增 Python 镜像输入。阅读地图和运行资源清单同步。本轮人工审查后除原定回归外，补充通用 Python session 与 Factor Python 打包回归，验证共享入口的其他分派；审查前仍只静态检查。提交信息保持 `refactor(strategy): align language runtime structure`，未提交。
+
+显式业务入口修订后的静态检查通过：全仓 pnpm typecheck（872 个后端文件、0 边界违规、SDK 生成物一致及全部 workspace 类型通过）、受影响 runtime/部署测试 ESLint（0 警告）与 Prettier、Strategy 3 个 Python 文件 Pyright（0 错误/警告）、4 个 Python 文件 3.13 AST、131 个本地文档链接及 git diff --check。行为测试、性能、Worker 和构建尚未运行，等待修订后的人工代码审查。
+
+### 审查后验证与测试设施修复
+
+用户已确认当前产品修改，进入行为验证。Shared/API/sandboxd 构建通过，主体 40 个文件、280 项回归及源码/编译 Worker 各 14 项通过。Python session 11 项最初仅因执行环境禁止 Unix socket（listen EPERM）失败；在允许本地 socket 的权限下重跑全部通过，不修改产品或测试代码。部署计划、bootstrap 和边界检查器自测共 50 项通过。
+
+显式性能回归发现历史测试设施不兼容：f276bfbd 的旧 Engine 使用扁平账户接口，测试却注入当前分账户 SDK；旧 04f62a16/4464a616 也沿用过时上下文，已无法公平比较当前结构。测试设施改为固定本次修改前的 5b92107fd9c2070b7e62315e366d05dfcd96a36c，读取其 TS runtime/bridge/sandbox-entry；两边共用相同 SDK、Engine、数据和作者源码。保留 watch/dynamic、独立进程、冷启动/预热/测量样本以及所有样本的 NAV/成交哈希断言；通信验证收紧为所有计数和字节逐样本完全一致。时间只记录诊断，不加易抖动阈值。旧架构对比的历史验收证据保留在上文，不把这次结果当作整个历史仓库复现。
+
+上述修复仅修改测试设施与当前资源说明；产品代码未改动，按技能的 test-only 规则自主进行静态检查和重跑，不新增人工审查门禁。修复后的验证结果将在完成后补充。
+
+### 最终验证结果（2026-10-08）
+
+本轮产品代码审查已通过，之后仅修复上述历史性能测试设施，没有追加产品行为修改。最终全部约定验证通过，无跳过：
+
+- 业务/SDK/runtime/Backtesting/打包/协议：40 个文件、280 项通过；Python session 的 11 项在 socket 权限修正后全部通过，合计 291 项。
+- 真实 Worker：源码 14 项、编译产物 14 项通过，覆盖 TS/Python 策略与因子、连续扫描、Signals IPC、启动恢复、异常输入和退出；使用隔离 SQLite，测试自行清理。
+- 部署计划/Bootstrap/后端边界检查器自测：50 项通过。
+- 显式性能：watch/dynamic 两项通过；全部冷启动、预热和测量样本的 NAV/成交哈希一致，发送帧、接收帧、同步调用和传输字节均逐样本完全一致。
+- 合计 371 项验证通过；Shared、API 和 sandboxd 构建通过。性能测试设施修正后的 API 类型检查、ESLint/Prettier 与 diff 检查通过。
+
+| 场景 | 修改前总耗时中位数 | 当前总耗时中位数 | 传输字节（两边相同） |
+| --- | ---: | ---: | ---: |
+| watch（10 个测量样本） | 103.24 ms | 106.96 ms | 9,810,506 |
+| dynamic（5 个测量样本） | 509.45 ms | 507.32 ms | 50,257,269 |
+
+时间是本机单轮诊断，不据此声称稳定加速或零耗时开销；本次确定性证据是输出与通信工作量保持。详细性能日志：/tmp/jixie-strategy-structure-benchmark.log。
+
+测试结束后进程检查无 Vitest、性能 Worker、Python runner 或策略 Worker 残留；API tests 下临时 benchmark 目录、/tmp 下 Python 通信与 Strategy 打包目录均为零残留。未启动额外开发服务、访问生产数据库或运行部署。按已确认提交信息提交，不推送。

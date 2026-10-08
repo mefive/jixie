@@ -20,7 +20,7 @@
 校验。两者共用同一签名渲染器，不维护平行的 SDK 方法清单。文档 URL 保持不变；订单文档锚点使用 stock.* / futures.* 区分账户。
 
 Python 的 `Strategy`、`Context`、`Universe` 实现在 `apps/api/src/strategy/sdk/python.py`，
-方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/runtime/python/runner.py` 注入数据请求并处理协议与超时。
+方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/runtime/python/runner.py` 处理协议与超时，`runtime/python/context.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
 共享 Engine 不意味着两种语言功能完全对等，也不意味着 SDK 直接访问数据库或券商。
 
 修改公开 TS 方法时：编辑 reference → 生成 contract → 修改 SDK/runtime → 静态类型及生成物一致性检查

@@ -136,7 +136,7 @@ params 缺省返回空对象；固定键和有限数值／非空字符串字面�
 本次按 review-gated-development 先交付静态检查，行为验证在代码审阅通过后执行；不提交或推送 Git。
 
 静态验证：根级 `pnpm typecheck` 通过（含后端边界扫描、SDK 生成物一致性、sandbox 工具与全部 workspace 类型检查）；变更 TS/JSON 文件的 Prettier 检查及定向 ESLint 通过，`git diff --check` 通过。
-审阅后计划运行：新增 `scans/inspect-parameters.test.ts`、`routes/scan-parameters.test.ts`，现有 `routes/index.integration.test.ts`、`scans/scan.test.ts`、`runtime/typescript/params.test.ts`、`runtime/typescript/typescript-strategy-runtime.test.ts`、`runtime/typescript/isolation.test.ts` 与 `sdk/contract.test.ts`，以及 `pnpm check:backend-boundaries` 的检查器自测。
+审阅后计划运行：新增 `scans/inspect-parameters.test.ts`、`routes/scan-parameters.test.ts`，现有 `routes/index.integration.test.ts`、`scans/scan.test.ts`、`runtime/typescript/params.test.ts`、`runtime/typescript/runtime.test.ts`、`runtime/typescript/isolation.test.ts` 与 `sdk/contract.test.ts`，以及 `pnpm check:backend-boundaries` 的检查器自测。
 
 补充全仓 `pnpm lint` 时扫描进入本地 `.venv` 第三方 Notebook 静态代码，已主动终止，不计为通过；本次变更文件的定向 ESLint 已通过。
 

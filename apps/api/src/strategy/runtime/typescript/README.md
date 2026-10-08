@@ -1,40 +1,30 @@
 # TypeScript 策略沙箱运行
 
-用户和 Agent 的策略源码只在 isolated-vm 中执行。Engine 位于宿主 Worker，TS/Python 共享
-[execution.ts](../../execution/execution.ts) 和 [bridge.ts](../bridge.ts) 的业务逻辑，FactorHost 独立管理因子沙箱。
+用户和 Agent 的策略源码只在 isolated-vm 中执行。Engine 位于宿主 Worker，TS/Python 共用 [StrategyRuntime](../strategy-runtime.ts)、[StrategyExecution](../../execution/execution.ts) 和 [bridge.ts](../bridge.ts)，FactorHost 独立管理因子沙箱。
 
-| 文件 / 入口 | 使用方与契约 |
+| 文件 / 入口 | 职责与消费者 |
 | --- | --- |
-| [typescript-strategy-runtime.ts](typescript-strategy-runtime.ts) `TypeScriptStrategyRuntime` | 业务由公共 StrategyRuntime.start 选择，公共返回类型只提供 metadata/execute/close；需要 metrics 的测试直接通过本类 start 创建实例；调用方必须 finally 关闭 |
-| [../inspect-definition.ts](../inspect-definition.ts) `inspectStrategyMetadata` | Signals 和 Agent 校验；在 isolate 执行声明，finally 释放资源 |
-| [../../scans/inspect-parameters.ts](../../scans/inspect-parameters.ts) `inspectStrategyParameters` | 扫描表单和提交共用 AST 静态参数识别，不加载 runtime 或执行用户代码 |
-| [execution.ts](../../execution/execution.ts) `StrategyExecution.create` / `run` / `close` | 正式回测、扫描 cell、Signals；共用宿主 Engine，业务在 finally 调用 close，释放语言 runtime 和 FactorHost |
-| [sandbox-bundle.ts](sandbox-bundle.ts) / [sandbox-entry.ts](sandbox-entry.ts) | 仅打包 SDK、指标、日志和协议适配；源码/编译入口分别解析 `.ts` / `.js`，进程内缓存 bundle |
-| [../../sdk/typescript.ts](../../sdk/typescript.ts) | `defineStrategy`、`enrich`、选股/仓位/指标辅助；公开类型来自 shared SDK 契约 |
-| [testing/compile.ts](testing/compile.ts) | 仅编译仓库可信 fixture，用于原生行为对照；生产代码禁止导入 |
+| [prepare.ts](prepare.ts) | 宿主编译策略、缓存 bundle、准备 TypeScriptTransport 与 bridge 配置；资源获取和关闭交给公共 StrategyRuntime |
+| [entry.ts](entry.ts) | 外围接入：注册 __receiveCommand、解析 JSON；首次 start 调用 runStrategy 并接入后续消息处理 |
+| [runner.ts](runner.ts) | 显式 runStrategy 入口与 StrategyRunner：源码加载、参数覆盖、元数据、日志、start/bar/response 分派及用户回调 |
+| [context.ts](context.ts) | 沙箱基础 Context 代理：当日快照、历史和读缓存、查询、指令及异步数据访问；不实现作者指标或选股辅助 |
+| [sandbox-bundle.ts](sandbox-bundle.ts) | 打包 runner/context、SDK、指标、日志；源码/编译入口分别解析 entry.ts / entry.js |
+| [SDK typescript.ts](../../sdk/typescript.ts) | defineStrategy、enrich、Universe、仓位、周期与指标辅助；公开类型来自 shared SDK 契约 |
+| [testing/compile.ts](testing/compile.ts) | 仅编译可信 fixture，生产代码禁止导入 |
+| [testing/runtime.ts](testing/runtime.ts) | 测试专用资源装配；返回同一 StrategyRuntime 与独立 transport metrics |
 
-通用 isolate、消息队列、帧收发与释放归 `infra/runtime/typescript/transport.ts`，Factor/Strategy 共用。connect 只加载受信任的入口，启动用户代码必须显式发送 start；所有命令经 exchange，再由 sandbox-entry 的唯一 __receiveCommand 分派。具体类直接继承 SandboxRuntime，使用 startSandboxRuntime 统一失败清理。bridge 返回 metadata/execute，生产 Engine onBar 适配只在 `execution/execution.ts`。
+通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 runner 的唯一 __receiveCommand 分派。公共 StrategyRuntime 继承 SandboxRuntime，以 startSandboxRuntime 统一获取、初始化与失败清理。
 
-异步数据访问以声明式 request/response 通过共享 bridge 分派。截面整批复制为原生字段；watch/
-持仓的日线历史首次传入当前日期可见数据，之后按日期增量更新。`ensureBars` 首次请求标的时传入
-可见历史并注册后续更新；重复请求复用已同步日期，只补尚未传输的日线，当日已同步则返回空增量。
-即使没有历史需要传输，请求仍经过 Engine，保留因子准备及错误语义。本地窗口返回副本，指标在 isolate 计算；其他同步读取按回调缓存，
-截面/历史加载后清除查询缓存。因子只在实际读取时调用宿主
-`factor()`，保持首次读取缓存及 Signals 观察值；不会为了生成 TS 截面而提前读取所有因子。
+runner 把同步 access 和异步 request 回调注入 StrategyContextAdapter。该适配器持有跨日历史缓存，每次 create(snapshot) 清理读缓存并创建当日基础 EngineContext；defineStrategy 通过 SDK enrich 包装成公开 StrategyCtx，再调用用户 onBar。
 
-TS 同步命令和读取走经过 schema 限定的 `context-access.ts`；同步命令复用 `commands.ts` 分派，
-保留调用处 try/catch 与条件单取价时点。Python 仍按原协议在 done 后批量重放。两种传输不必具有
-相同同步机制；数据、校验和交易规则只有一套。通道不暴露 DataPort、源码执行或任意宿主方法，
-只在当前 onBar 期间绑定。不支持在回调结束后继续使用保存的 context。
+entry 首次收到 start 时调用 runStrategy，由业务入口创建唯一 StrategyRunner、启动策略并注册后续消息处理。策略定义、请求编号、待响应 Promise 和 ContextAdapter 都是实例状态；方法按 handle、start、execute、loadStrategy、metadata、request、receiveResponse 排列，与 Python runner 对应。__receiveCommand 的全局注册、JSON 接入和回调安装归 entry.ts；runner.ts 只通过注入的 receive/emit/access 接入通信，JSON 帧和同步宿主入口保持原契约。
 
-启动失败、协议失败和 close 释放 isolate；每次运行独立实例，模块状态跨 bar 保留。宿主队列、
-帧大小和共享 schema 有上限；回调沿用一小时运行预算，声明求值五秒。`metrics` 仅用于宿主验证，
-记录帧数、同步调用及传输字节，不属于公开 SDK 或 StrategyRuntimeInstance 公共宿主契约。
-[isolation.test.ts](isolation.test.ts) 和 [runtime-benchmark.test-worker.mjs](runtime-benchmark.test-worker.mjs)
-直接调用 TypeScriptStrategyRuntime.start 获取这些统计；公共 StrategyRuntime.start 不为此提供返回具体 TS 类型的重载。
+异步截面/历史请求通过共享 bridge 分派。watch/持仓历史首次传当前日期可见数据，之后按日期增量更新；动态 ensureBars 注册后续更新，重复请求只补未传输历史。即使没有新历史，请求仍经过 Engine，保留因子准备和错误语义。本地窗口返回副本，指标在 isolate 计算；截面/历史加载后清除查询缓存。factor 只在实际调用时读取宿主，不提前批量读取。
 
-验收看 [typescript-strategy-runtime.test.ts](typescript-strategy-runtime.test.ts)、[isolation.test.ts](isolation.test.ts)、
-[sandbox-bundle.test.ts](sandbox-bundle.test.ts) 和包级 `factor-worker.integration.test.ts`。
-参数用例在本目录，SDK 与契约用例归 `strategy/sdk`；完整验证状态见 [设计记录](../../../../../../docs/design/python-and-sandbox.md)。
+同步命令和读取走 schema 限定的 context-access.ts，命令复用 commands.ts，保持调用处 try/catch 与条件单取价时点。Python 仍在 done 后批量重放。通道不暴露 DataPort、源码执行或任意宿主方法，只在当前 onBar 期间绑定。
+
+启动失败、协议失败和 close 释放 isolate；每次运行独立实例，模块状态跨 bar 保留。帧和队列有上限，回调沿用一小时预算，声明求值五秒。metrics 只属于 transport 诊断，通过测试设施取得，不进入作者 SDK 或公共 StrategyRuntimeInstance。
+
+验收见 [runtime.test.ts](runtime.test.ts)、[isolation.test.ts](isolation.test.ts)、[sandbox-bundle.test.ts](sandbox-bundle.test.ts) 和 API 包级 factor-worker.integration.test.ts；参数用例在本目录，SDK/契约用例归 strategy/sdk。结构整理记录见 [设计记录](../../../../../../docs/design/sandbox-runtime-architecture.md)。
 
 [返回 Strategy 总览](../../README.md)

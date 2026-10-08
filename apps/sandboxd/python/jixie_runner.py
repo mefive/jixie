@@ -109,6 +109,11 @@ def _emit_log(level: str, text: str) -> None:
     _send_frame({"type": "log", "level": level, "text": clipped})
 
 
+def _receive_strategy_commands(handler: Callable[[dict[str, Any]], bool]) -> None:
+    while handler(_read_frame()):
+        pass
+
+
 def main() -> None:
     sys.stdout = _LogStream("info")
     sys.stderr = _LogStream("error")
@@ -134,7 +139,13 @@ def main() -> None:
         return
     from strategy.runtime.python.runner import run_strategy
 
-    run_strategy(start, _read_frame, _send_frame, _run_user_code)
+    run_strategy(
+        start,
+        _receive_strategy_commands,
+        _read_frame,
+        _send_frame,
+        _run_user_code,
+    )
 
 
 try:

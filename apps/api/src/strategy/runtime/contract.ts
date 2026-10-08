@@ -1,7 +1,8 @@
 import type { Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
 import type { EngineContext, EngineStrategy } from '#backtesting/contract.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import type { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import type { SandboxRuntime, SandboxResource } from '#infra/runtime/sandbox-runtime.js';
+import type { StrategyBridgeOptions, StrategyTransport } from './bridge.js';
 
 export interface StrategyStartOptions {
   language: StrategyLanguage;
@@ -18,3 +19,9 @@ export type StrategyRuntimeInstance = Pick<
   SandboxRuntime<StrategyExecutionInput, void, StrategyRuntimeMetadata>,
   'metadata' | 'execute' | 'close'
 >;
+
+/** Language-specific startup inputs; the shared runtime owns acquisition and initialization. */
+export interface StrategyRuntimePreparation {
+  createResource(): Promise<StrategyTransport & SandboxResource>;
+  bridgeOptions: StrategyBridgeOptions;
+}

@@ -1,8 +1,8 @@
 import { execFileSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { dirname, join, relative as relativePath } from 'node:path';
+import { join, relative as relativePath } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { transform } from 'esbuild';
 import { register } from 'tsx/esm/api';
@@ -10,16 +10,15 @@ import { register } from 'tsx/esm/api';
 register();
 const { fixturePort } = await import('#backtesting/testing/fixture-port.js');
 const { BacktestingEngine } = await import('#backtesting/engine.js');
-const { TypeScriptStrategyRuntime } = await import('./typescript-strategy-runtime.ts');
+const { startInstrumentedStrategyRuntime } = await import('./testing/runtime.ts');
 const apiDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 const variant = process.argv[2];
-if (!['baseline', 'before', 'previous', 'shared'].includes(variant)) {
-  throw new Error('Select baseline, before, previous or shared');
+if (!['before', 'shared'].includes(variant)) {
+  throw new Error('Select before or shared');
 }
-const previousCommit = '4464a616fe5a0bc13a59379da801008e1d3823ab';
+// Pin the immediate pre-change runtime with the same public account contract as this fixture.
+const beforeCommit = '5b92107fd9c2070b7e62315e366d05dfcd96a36c';
 const sandboxDirectory = fileURLToPath(new URL('./', import.meta.url));
-const sdkPath = fileURLToPath(new URL('../../sdk/typescript.ts', import.meta.url));
-const sdkEntry = (source) => source.replaceAll("'./sdk.js'", JSON.stringify(sdkPath));
 const bundledEntry = (entry) => `
   import { build } from 'esbuild';
   const buildStrategySandboxBundle = () => build({
@@ -68,120 +67,34 @@ export default defineStrategy({
 });`;
 let directory;
 try {
-  let baseline;
-  if (variant === 'baseline') {
-    // Pin the reviewed pre-migration implementation; do not substitute a native-only baseline.
-    const source = (name) =>
-      execFileSync('git', ['show', `f276bfbd:apps/api/src/strategy/runtime/typescript/${name}`], {
-        cwd: apiDirectory,
-        encoding: 'utf8',
-      });
-    // Pin Engine alongside the historical wall entry: its return contract must not follow HEAD.
-    directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
-    const enginePrefix = 'apps/api/src/engine/';
-    const engineFiles = execFileSync(
-      'git',
-      ['ls-tree', '--full-tree', '-r', '--name-only', 'f276bfbd', enginePrefix],
-      {
-        cwd: apiDirectory,
-        encoding: 'utf8',
-      },
-    )
-      .trim()
-      .split('\n')
-      .filter((path) => path.endsWith('.ts') && !path.endsWith('.test.ts'));
-    for (const repositoryPath of engineFiles) {
-      const destination = join(directory, 'engine', repositoryPath.slice(enginePrefix.length));
-      await mkdir(dirname(destination), { recursive: true });
-      await writeFile(
-        destination,
-        execFileSync('git', ['show', `f276bfbd:${repositoryPath}`], { cwd: apiDirectory }),
-      );
-    }
-    const engineEntry = join(directory, 'engine/simulation/run.ts');
-    const entry = sdkEntry(source('wall-entry.ts')).replace(
-      "'#engine/simulation/run.js'",
-      JSON.stringify(engineEntry),
-    );
-    // This benchmark has no custom factors; keep the empty host at its current module location.
-    let host = source('walled-run.ts').replace(
-      "'#engine/adapters/factor-host.js'",
-      "'#strategy/execution/factor-host.js'",
-    );
-    host = host.replace(
-      "import { buildWallBundle } from './wall-bundle.js';",
-      `
-      import { build } from 'esbuild';
-      const buildWallBundle = () => build({ stdin: { contents: ${JSON.stringify(entry)}, loader: 'ts', resolveDir: ${JSON.stringify(fileURLToPath(new URL('./', import.meta.url)))} },
-        bundle: true, write: false, format: 'iife', platform: 'neutral', conditions: ['development'], target: 'es2022', mainFields: ['module', 'main'] });
-      export const benchmarkMetrics = { dataCalls: 0, setupMilliseconds: 0, executionMilliseconds: 0, cleanupMilliseconds: 0 };
-    `,
-    );
-    host = host.replace(
-      'const portMethod = (',
-      'benchmarkMetrics.dataCalls++; const portMethod = (',
-    );
-    // Instrument only the temporary old host module. Keep its original bundlePromise cache.
-    const replaceOnce = (before, after) => {
-      if (host.split(before).length !== 2) {
-        throw new Error('Baseline instrumentation drift');
-      }
-      host = host.replace(before, after);
-    };
-    replaceOnce(
-      'const userJs = await compileUserSource(cfg.code);',
-      'const benchmarkStarted = performance.now(); const userJs = await compileUserSource(cfg.code);',
-    );
-    replaceOnce(
-      "const resultJson = await context.eval('__runBacktest(__cfg)', {",
-      "const executionStarted = performance.now(); benchmarkMetrics.setupMilliseconds = executionStarted - benchmarkStarted; const resultJson = await context.eval('__runBacktest(__cfg)', {",
-    );
-    replaceOnce(
-      "if (typeof resultJson !== 'string') {\n      throw new Error('walled backtest returned a non-string result');",
-      "benchmarkMetrics.executionMilliseconds = performance.now() - executionStarted; if (typeof resultJson !== 'string') {\n      throw new Error('walled backtest returned a non-string result');",
-    );
-    replaceOnce(
-      'factorHost.close();\n    isolate.dispose();',
-      'const cleanupStarted = performance.now(); factorHost.close(); isolate.dispose(); benchmarkMetrics.cleanupMilliseconds = performance.now() - cleanupStarted;',
-    );
-    const path = join(directory, 'baseline.mjs');
-    await writeFile(
-      path,
-      (await transform(host, { loader: 'ts', format: 'esm', target: 'es2022' })).code,
-    );
-    baseline = await import(pathToFileURL(path).href);
-  }
-
-  let createRuntime = (code) => TypeScriptStrategyRuntime.start({ language: 'typescript', code });
-  if (variant === 'before' || variant === 'previous') {
+  let createRuntime = (code) => startInstrumentedStrategyRuntime({ language: 'typescript', code });
+  if (variant === 'before') {
     directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
     const bridgePath = join(directory, 'bridge.mjs');
     const runtimePath = join(directory, 'runtime.mjs');
-    const runtimeCommit = variant === 'before' ? '04f62a16' : previousCommit;
-    // Preserve the pre-refactor entry points for both historical host implementations.
-    const entry = sdkEntry(
-      execFileSync(
-        'git',
-        ['show', `${previousCommit}:apps/api/src/strategy/runtime/typescript/sandbox-entry.ts`],
-        { cwd: apiDirectory, encoding: 'utf8' },
-      ),
-    );
+    const historicalSource = (repositoryPath) =>
+      execFileSync('git', ['show', `${beforeCommit}:${repositoryPath}`], {
+        cwd: apiDirectory,
+        encoding: 'utf8',
+      });
+    const entry = historicalSource('apps/api/src/strategy/runtime/typescript/sandbox-entry.ts');
+
     for (const [relative, output] of [
       ['../bridge.ts', bridgePath],
-      ['./runtime.ts', runtimePath],
+      ['./typescript-strategy-runtime.ts', runtimePath],
     ]) {
       const original = new URL(relative, import.meta.url);
       const repositoryPath = relativePath(apiDirectory, fileURLToPath(original));
-      let source = execFileSync('git', ['show', `${runtimeCommit}:apps/api/${repositoryPath}`], {
-        cwd: apiDirectory,
-        encoding: 'utf8',
-      }).replace(/from '([.][^']+)'/g, (_match, specifier) => {
-        const target =
-          specifier === '../bridge.js'
-            ? pathToFileURL(bridgePath)
-            : new URL(specifier.replace(/\.js$/, '.ts'), original);
-        return `from ${JSON.stringify(target.href)}`;
-      });
+      let source = historicalSource(`apps/api/${repositoryPath}`).replace(
+        /from '([.][^']+)'/g,
+        (_match, specifier) => {
+          const target =
+            specifier === '../bridge.js'
+              ? pathToFileURL(bridgePath)
+              : new URL(specifier.replace(/\.js$/, '.ts'), original);
+          return `from ${JSON.stringify(target.href)}`;
+        },
+      );
       if (output === runtimePath) {
         const bundleImport = `import { buildStrategySandboxBundle } from ${JSON.stringify(new URL('./sandbox-bundle.ts', original).href)};`;
         if (!source.includes(bundleImport)) {
@@ -194,56 +107,47 @@ try {
         (await transform(source, { loader: 'ts', format: 'esm', target: 'es2022' })).code,
       );
     }
-    createRuntime = (await import(pathToFileURL(runtimePath).href)).createTypeScriptStrategyRuntime;
+    const { TypeScriptStrategyRuntime } = await import(pathToFileURL(runtimePath).href);
+    createRuntime = async (code) => {
+      const runtime = await TypeScriptStrategyRuntime.start({ language: 'typescript', code });
+      return { runtime, metrics: runtime.metrics };
+    };
   }
 
   const samples = [];
   for (let repetition = 0; repetition < (dynamic ? 8 : 13); repetition++) {
     const port = fixturePort(spec);
     const started = performance.now();
+    const { runtime, metrics } = await createRuntime(code);
+    const executionStarted = performance.now();
     let result;
-    let metrics;
-    let phases;
-    if (baseline) {
-      baseline.benchmarkMetrics.dataCalls = 0;
-      result = await baseline.runWalledBacktest(
-        { code, start: dates[0], end: dates.at(-1), initialCash: 1_000_000 },
-        port,
-      );
-      const { dataCalls, ...timings } = baseline.benchmarkMetrics;
-      metrics = { dataCalls };
-      phases = timings;
-    } else {
-      const runtime = await createRuntime(code);
-      const executionStarted = performance.now();
-      let cleanupStarted;
-      try {
-        result = await new BacktestingEngine({
-          strategy:
-            variant === 'before' || variant === 'previous'
-              ? runtime.strategy
-              : { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
-          start: dates[0],
-          end: dates.at(-1),
-          initialCash: 1_000_000,
-          dataPort: port,
-        }).run();
-        metrics = { ...runtime.metrics };
-      } finally {
-        cleanupStarted = performance.now();
-        await runtime.close();
-      }
-      phases = {
-        setupMilliseconds: executionStarted - started,
-        executionMilliseconds: cleanupStarted - executionStarted,
-        cleanupMilliseconds: performance.now() - cleanupStarted,
-      };
+    let cleanupStarted;
+    let transportMetrics;
+
+    try {
+      result = await new BacktestingEngine({
+        strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+        start: dates[0],
+        end: dates.at(-1),
+        initialCash: 1_000_000,
+        dataPort: port,
+      }).run();
+      transportMetrics = { ...metrics };
+    } finally {
+      cleanupStarted = performance.now();
+      runtime.close();
     }
+    const phases = {
+      setupMilliseconds: executionStarted - started,
+      executionMilliseconds: cleanupStarted - executionStarted,
+      cleanupMilliseconds: performance.now() - cleanupStarted,
+    };
+
     samples.push({
       phase: repetition === 0 ? 'cold' : repetition < 3 ? 'warmup' : 'measured',
       milliseconds: performance.now() - started,
       ...phases,
-      metrics,
+      metrics: transportMetrics,
       resultHash: createHash('sha256')
         .update(JSON.stringify({ nav: result.nav, trades: result.tradeLog }))
         .digest('hex'),

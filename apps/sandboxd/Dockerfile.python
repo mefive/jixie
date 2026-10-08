@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir --requirement /tmp/requirements-research-runtime.
 COPY apps/sandboxd/python/jixie_runner.py /opt/jixie/apps/sandboxd/python/jixie_runner.py
 COPY apps/api/src/strategy/sdk/python.py /opt/jixie/apps/api/src/strategy/sdk/python.py
 COPY apps/api/src/strategy/runtime/python/runner.py /opt/jixie/apps/api/src/strategy/runtime/python/runner.py
+COPY apps/api/src/strategy/runtime/python/context.py /opt/jixie/apps/api/src/strategy/runtime/python/context.py
 COPY apps/api/src/factor/sdk/python.py /opt/jixie/apps/api/src/factor/sdk/python.py
 COPY apps/api/src/factor/runtime/python/runner.py /opt/jixie/apps/api/src/factor/runtime/python/runner.py
 

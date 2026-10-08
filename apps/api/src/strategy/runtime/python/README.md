@@ -1,18 +1,25 @@
-# Python 策略桥接
+# Python 策略沙箱运行
 
-Python 执行策略 on_bar，交易撮合与账户规则仍由 TS [Backtesting](../../../backtesting/README.md) 执行。Python 用户接口实现位于 `apps/api/src/strategy/sdk/python.py`；
-`strategy/runtime/python/runner.py` 负责加载声明、请求协议、暂停 I/O 等待期间的执行计时和逐日回调。
-`jixie_runner.py` 保留通用帧、日志、计时与业务分派。SDK 通过注入的 request 回调请求数据，不直接读写帧。
-本目录不拥有回测报告，也不提供 Python 参数扫描或 Signals 部署准入。
+Python 执行用户 on_bar，撮合和账户规则仍由宿主 TypeScript [Backtesting](../../../backtesting/README.md) 执行。两种语言共用 [StrategyRuntime](../strategy-runtime.ts)、StrategyExecution 和 [bridge.ts](../bridge.ts)。
 
-业务消费者调用 [StrategyRuntime.start](../strategy-runtime.ts)，以 `language: 'python'` 选择 [PythonStrategyRuntime](python-strategy-runtime.ts)：通过公共启动流程连接 PythonSession，显式发送 start，等待 metadata，返回具有 execute/close 的实例。策略业务交互委托给共享 [bridge.ts](../bridge.ts)：发送宿主快照、处理批量数据请求，再把 done 中的命令重放到 Engine context。
+| 文件 / 入口 | 职责与消费者 |
+| --- | --- |
+| [prepare.ts](prepare.ts) | 宿主准备 PythonSession 工厂、启动消息与 bridge 配置，不获取会话资源 |
+| [runner.py](runner.py) | 沙箱源码加载、参数覆盖、元数据、帧请求/响应、暂停 I/O 等待计时、用户回调与错误输出 |
+| [context.py](context.py) | 沙箱基础 Context 代理：当日快照、截面/历史缓存、数据请求、账户快照和命令收集 |
+| [SDK python.py](../../sdk/python.py) | Strategy、公开 Context、Universe、周期/指标与账户辅助；接收基础能力，不导入 runtime |
+| [packaging.test.ts](packaging.test.ts) | 只使用镜像显式复制的模块验证真实 runner 与 SDK |
 
-共享 [protocol.ts](../protocol.ts) 校验启动／执行帧与策略命令；共享 bridge 显式映射 snake_case 数据，不从 Prisma 自动生成协议。请求失败与 fatal／error 帧按当前桥接规则传播，日志经过 sandbox console 限制；不能把 Python 返回的命令视为直接券商下单。
+公共 StrategyRuntime.start 选择 prepare，统一通过 startSandboxRuntime 获取资源、建立 bridge 并交接给实例；execute({ context }) 委托 bridge，close 同步幂等释放会话。启动失败自行清理；业务调用方仍须 finally close。通用 jixie_runner.py 只启动/分派，沙箱会话与隔离设施归 Infra/sandboxd。
 
-连接初始化失败由 runtime 关闭会话；成功后调用方必须在 finally `runtime.close()`（同步幂等）。正式回测同时持有 FactorHost（同时管理 TS isolate 和 Python 因子运行时），其关闭责任在 runtime/run。底层 socket／runner 路径见 [运行入口清单](../../../../../../docs/backend-runtime-entries.md)。
+runner 为每个决策日创建 StrategyContextAdapter，将跨日 bar_cache 和 request 注入，再以 Context(core, params) 构造作者上下文。作者 SDK 保留 snake_case 方法、选股、指标和仓位辅助；运行数据与协议状态不再存入 SDK。
 
-[codegen-prompt.ts](codegen-prompt.ts) 的 `buildPythonCodegenPrompt` 供 Python Strategy profile 使用。修改 bridge 看 [python-strategy-runtime.test.ts](python-strategy-runtime.test.ts)、[protocol.test.ts](../protocol.test.ts)、[bridge.test.ts](../bridge.test.ts)；修改生成说明看 [codegen-prompt.test.ts](codegen-prompt.test.ts)，并对照 [正式回测编排](../../backtests/README.md)。
+run_strategy 为当前沙箱会话创建唯一 StrategyRunner，完成 start 后将 handle 交给注入的 receive_commands。阻塞读取 bar/close 的循环归通用 jixie_runner.py；业务 runner 不循环读取消息。策略定义、跨日 bar_cache、请求编号和 I/O 回调都归实例；方法按 handle、start、execute、load_strategy、metadata、request、receive_response 与 TS 排列对应。请求仍在内部读取 response，并在等待期间暂停执行计时；不创建跨会话的共享单例。
+
+结构整理保持原语义：阻塞 request/response、每日 bar_updates、按需完整历史加载、截面中的声明因子值，以及本地收集命令后由 done 返回、bridge 按顺序重放。协议和字段映射仍由公共 protocol/bridge 校验；Python 没有新增期货操作、参数扫描或 Signals 准入。
+
+SDK、runner、context 均显式列入 Dockerfile.python、.dockerignore 和部署影响清单，变更 Python 源码同时影响 API/sandboxd；prepare.ts 只影响 API。路径与资源验证见 [运行入口清单](../../../../../../docs/backend-runtime-entries.md)。
+
+宿主启动/关闭回归见 [strategy-runtime.test.ts](../strategy-runtime.test.ts)，Python 行为见 [runtime.test.ts](runtime.test.ts)，公共交互见 bridge.test.ts/protocol.test.ts；生成说明归 [codegen-prompt.ts](codegen-prompt.ts) 及同名测试。当前结构记录见 [设计记录](../../../../../../docs/design/sandbox-runtime-architecture.md)。
 
 [返回 Strategy 总览](../../README.md)
-
-具体类直接继承公共 SandboxRuntime；共享 bridge 返回 metadata 和 execute(context)，不构造 EngineStrategy。唯一生产 onBar 适配位于 `execution/execution.ts`，转调 runtime.execute({ context })。启动与逐 bar 命令使用同一 exchange；close 直接释放资源，不发送关闭通知或等待关闭确认。

@@ -15,12 +15,12 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `signals/runs/job-lifecycle.ts` | `signals/runs/worker.boot.mjs` → `.ts` | `signals/runs/worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
-| `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `sandbox-entry.ts` | 同目录 `sandbox-entry.js` | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
+| `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → runner.ts/context.ts | 同目录 `entry.js` → runner.js/context.js | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `strategy/execution/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；TS/Python 共享 execution/execution 在 finally 关闭，初始化失败也清理已建立实例 |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 仅供 Agent 历史图表转换工具加载 isolate 模块；Factor 已使用公共 TypeScriptTransport |
 | `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `backtesting/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
 | `factor/runtime/typescript/runtime-benchmark.test-worker.mjs` | 性能验证子进程；固定读取 `4464a616` 的 TS Factor 工厂／SDK bundler，和当前 FactorRuntime 比较横截面、窗口、资产序列及日志负载 | 不作为生产入口 | 仅测试；临时旧模块 finally 删除，记录结果哈希、耗时、逻辑载荷字节及新 transport 实测帧字节 |
-| `strategy/runtime/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `f276bfbd` 的旧墙内源码、`04f62a16` 的历史 runtime/bridge，以及 `4464a616` 的本次重构前 runtime/bridge；后两者使用固定 `4464a616` 的 sandbox-entry，与当前 runtime 分进程比较 | 不作为生产入口 | 仅测试；旧 SDK 路径映射至现有 SDK，临时 bundle 保留旧调用入口；非字面量 import 指向本次生成的旧版本模块，finally 删除临时目录 |
+| `strategy/runtime/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `5b92107f` 的本次结构整理前 TS runtime/bridge/sandbox-entry，与当前 runtime 分进程比较 watch/dynamic | 不作为生产入口 | 仅测试；两边使用相同当前 SDK、Engine 与 fixture，断言 NAV/成交哈希及全部通信计数/字节一致；非字面量 import 指向生成的基线模块，finally 删除临时目录 |
 
 7 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
 
@@ -66,14 +66,14 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | 资源/路径 | 解析规则与归属 |
 | --- | --- |
 | `infra/runtime/sandbox-runtime.ts`、`exchange.ts` | 三业务共同生命周期与命令循环；TS/Python 启动均显式发送命令 |
-| `infra/runtime/typescript/transport.ts` | Factor/Strategy 共用 isolate 和帧传输；加载受信任的业务 sandbox-entry，用户源码在后续启动命令内执行 |
+| `infra/runtime/typescript/transport.ts` | Factor/Strategy 共用 isolate 和帧传输；分别加载可信 Factor sandbox-entry / Strategy entry，用户源码在后续启动命令内执行 |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
-| `strategy/runtime/bridge.ts` | 共享业务 bridge；由 TS/Python runtime 创建，runtime 显式发送启动命令并负责关闭；bridge 提供 metadata/execute，Engine onBar 仅在 strategy/execution/execution 适配。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
+| `strategy/runtime/bridge.ts` | 共享业务 bridge；由唯一 StrategyRuntime 创建，两种 prepare 提供启动配置；runtime 负责资源关闭；bridge 提供 metadata/execute，Engine onBar 仅在 strategy/execution/execution 适配。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
 | `research/runtime/pool.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |
 | `research/language/pyright-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |
-| Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/runner.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
+| Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/runner.py` / 同目录 `context.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
 | Strategy TS 公开类型 | `packages/shared/src/sdk/strategy/reference.ts` → 同目录 `contract.ts`；`setup:sandbox` 生成/校验，API 使用 `@jixie/shared/sdk/strategy/contract` 的类型入口；Monaco 继续动态调用同一声明生成器 |
 | Python Factor SDK/runtime | `apps/api/src/factor/sdk/python.py` / `apps/api/src/factor/runtime/python/runner.py`；与 Strategy 使用相同业务目录导入和镜像显式打包方式，同时影响 API/sandboxd；三种分析类型的打包回归见 `factor/runtime/python/packaging.test.ts` |
 | TS Factor SDK bundle | `factor/runtime/typescript/sandbox-bundle.ts` 从同目录 `sandbox-entry.ts`（开发）或 `.js`（编译后）打包协议入口、SDK 工厂、Context 实现及纯 `infra/runtime/log-buffer`；宿主缓存源码，每个 isolate 独立执行；验收须分别检查源码及 dist 两种路径 |

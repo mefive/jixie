@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from datetime import datetime
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Protocol, cast
 
 
 _RECURSIVE_WARMUP_MULTIPLIER = 4
@@ -123,7 +123,7 @@ class Universe:
     def where(self, predicate: Callable[[AttrDict, str], bool]) -> "Universe":
         return Universe(
             self._context,
-            [code for code in self._codes if predicate(self._context.bar(code), code)],
+            [code for code in self._codes if predicate(cast(AttrDict, self._context.bar(code)), code)],
         )
 
     def min_list_days(self, days: int) -> "Universe":
@@ -133,7 +133,7 @@ class Universe:
                 code
                 for code in self._codes
                 if self._context.list_days(code) is None
-                or self._context.list_days(code) >= days
+                or cast(int, self._context.list_days(code)) >= days
             ],
         )
 
@@ -144,7 +144,7 @@ class Universe:
     ) -> "Universe":
         scored: list[tuple[str, float]] = []
         for code in self._codes:
-            value = score(self._context.bar(code), code)
+            value = score(cast(AttrDict, self._context.bar(code)), code)
             if value is not None and math.isfinite(value):
                 scored.append((code, value))
         scored.sort(key=lambda item: item[1], reverse=direction == "desc")
@@ -165,36 +165,59 @@ class Universe:
         return len(self._codes)
 
 
+# Structural inputs keep author helpers independent of the sandbox runtime.
+class StockAccountCore(Protocol):
+    @property
+    def equity(self) -> float: ...
+
+    @property
+    def available_cash(self) -> float: ...
+
+    def positions(self) -> list[AttrDict]: ...
+    def adjusted_shares(self, code: str) -> float: ...
+    def command(self, operation: str, arguments: dict[str, Any]) -> None: ...
+
+
+class ContextCore(Protocol):
+    @property
+    def portfolio(self) -> AttrDict: ...
+
+    @property
+    def futures(self) -> AttrDict: ...
+
+    @property
+    def stock(self) -> StockAccountCore: ...
+
+    @property
+    def date(self) -> str: ...
+
+    def load_cross_section(self, index_code: str | None = None) -> list[str]: ...
+    def bar(self, code: str) -> AttrDict | None: ...
+    def ensure_bars(self, codes: Iterable[str]) -> None: ...
+    def bars(self, code: str, count: int) -> list[AttrDict]: ...
+    def history(self, code: str, field: str, count: int) -> list[float]: ...
+    def price(self, code: str) -> float | None: ...
+    def list_days(self, code: str) -> int | None: ...
+    def industry(self, code: str) -> str | None: ...
+    def lhb_net(self, code: str) -> float | None: ...
+    def factor(self, name: str, code: str) -> float | None: ...
+
+
 class Context:
     def __init__(
         self,
-        snapshot: dict[str, Any],
+        core: ContextCore,
         params: dict[str, float | str],
-        bar_cache: dict[str, list[AttrDict]],
-        request: Callable[[str, dict[str, Any]], dict[str, Any]],
     ) -> None:
-        self._snapshot = _objects(snapshot)
+        self._core = core
         self.params = AttrDict(params)
-        self._cross: dict[str, AttrDict] = {}
-        self._bars = bar_cache
-        for code, update in self._snapshot.get("bar_updates", {}).items():
-            row = _objects(update)
-            rows = self._bars.setdefault(code, [])
-            if not rows or rows[-1].date != row.date:
-                rows.append(row)
-        self._commands: list[dict[str, Any]] = []
-        self._request = request
-        self.portfolio = AttrDict(equity=self._snapshot.portfolio.equity)
-        self.stock = StockAccount(self)
-        self.futures = AttrDict(
-            equity=self._snapshot.futures.equity,
-            available_cash=self._snapshot.futures.availableCash,
-            margin=self._snapshot.futures.margin,
-        )
+        self.portfolio = core.portfolio
+        self.stock = StockAccount(core.stock)
+        self.futures = core.futures
 
     @property
     def date(self) -> str:
-        return self._snapshot.date
+        return self._core.date
 
     def period(self, schedule: str) -> str:
         date = datetime.strptime(self.date, "%Y%m%d")
@@ -208,62 +231,34 @@ class Context:
         raise ValueError(f"unknown schedule: {schedule}")
 
     def universe(self, index_code: str | None = None) -> Universe:
-        payload = self._request("cross_section", {"index_code": index_code})
-        self._cross = {row["code"]: _objects(row) for row in payload["rows"]}
-        return Universe(self, payload["codes"])
+        return Universe(self, self._core.load_cross_section(index_code))
 
     def bar(self, code: str) -> AttrDict | None:
-        return self._cross.get(code)
+        return self._core.bar(code)
 
     def ensure_bars(self, codes: Iterable[str]) -> None:
-        missing = [
-            code
-            for code in codes
-            if code not in self._bars
-            or not self._bars[code]
-            or self._bars[code][-1].date != self.date
-        ]
-        if not missing:
-            return
-        payload = self._request("bars", {"codes": missing})
-        for code, rows in payload["bars"].items():
-            self._bars[code] = _objects(rows)
+        self._core.ensure_bars(codes)
 
     def bars(self, code: str, count: int) -> list[AttrDict]:
-        if code not in self._bars or len(self._bars[code]) < count:
-            payload = self._request("bars", {"codes": [code]})
-            self._bars[code] = _objects(payload["bars"].get(code, []))
-        else:
-            self.ensure_bars([code])
-        return self._bars.get(code, [])[-max(0, int(count)) :]
+        return self._core.bars(code, count)
 
     def history(self, code: str, field: str, count: int) -> list[float]:
-        field_name = field if field.startswith("adj_") else f"adj_{field}"
-        if field_name not in {"adj_open", "adj_high", "adj_low", "adj_close"}:
-            raise ValueError(
-                "history field must be open, high, low, close, or its adj_ equivalent"
-            )
-        return [row[field_name] for row in self.bars(code, count)]
+        return self._core.history(code, field, count)
 
     def price(self, code: str) -> float | None:
-        values = self.history(code, "close", 1)
-        return values[-1] if values else None
+        return self._core.price(code)
 
     def list_days(self, code: str) -> int | None:
-        row = self.bar(code)
-        return row.list_days if row else None
+        return self._core.list_days(code)
 
     def industry(self, code: str) -> str | None:
-        row = self.bar(code)
-        return row.industry if row else None
+        return self._core.industry(code)
 
     def lhb_net(self, code: str) -> float | None:
-        row = self.bar(code)
-        return row.lhb_net if row else None
+        return self._core.lhb_net(code)
 
     def factor(self, name: str, code: str) -> float | None:
-        row = self.bar(code)
-        return row.factors.get(name) if row else None
+        return self._core.factor(name, code)
 
     def sma(self, code: str, count: int) -> float | None:
         values = self.history(code, "close", count)
@@ -510,27 +505,22 @@ class Context:
 
 
 class StockAccount:
-    def __init__(self, context: Context) -> None:
-        self._context = context
+    def __init__(self, core: StockAccountCore) -> None:
+        self._core = core
 
     @property
     def equity(self) -> float:
-        return self._context._snapshot.stock.equity
+        return self._core.equity
 
     @property
     def available_cash(self) -> float:
-        return self._context._snapshot.stock.availableCash
+        return self._core.available_cash
 
     def positions(self) -> list[AttrDict]:
-        return [
-            AttrDict(code=position.code, shares=position.shares,
-                     avg_cost=position.avgCost, market_value=position.marketValue)
-            for position in self._context._snapshot.stock.positions
-        ]
+        return self._core.positions()
 
     def adjusted_shares(self, code: str) -> float:
-        position = next((item for item in self.positions() if item.code == code), None)
-        return position.shares if position else 0
+        return self._core.adjusted_shares(code)
 
     def equal_weight(self, codes: Iterable[str]) -> None:
         values = list(codes)
@@ -568,4 +558,4 @@ class StockAccount:
         self._command("stock.cancelConditional", code=code, kind=kind)
 
     def _command(self, operation: str, **arguments: Any) -> None:
-        self._context._commands.append({"operation": operation, "arguments": arguments})
+        self._core.command(operation, arguments)

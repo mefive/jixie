@@ -1,4 +1,5 @@
 {
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/research-py-v1",
   "prisma.pinToPrisma6": true,
   "css.lint.unknownAtRules": "ignore",
   "editor.quickSuggestions": { "strings": "on" }

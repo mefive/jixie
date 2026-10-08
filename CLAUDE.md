@@ -85,6 +85,9 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - Engine 的 `EngineStrategy` / `EngineContext` 是内部模拟契约，不作为公开 SDK 继承来源。
   Strategy runtime 负责桥接；Engine 不加载用户源码或选择语言。Python SDK 的实现归
   `apps/api/src/strategy/sdk/python.py`，协议执行归 `apps/api/src/strategy/runtime/python/runner.py`，sandboxd 的通用 runner 只启动/分派。
+- Strategy 宿主生命周期统一由 `runtime/strategy-runtime.ts` 的 StrategyRuntime 持有；两种语言的 `prepare.ts`
+  只准备启动配置和资源工厂。沙箱源码加载与协议归 `runner.ts` / `runner.py`，基础 Context 代理、缓存与
+  宿主访问归 `context.ts` / `context.py`；作者 SDK 接收基础能力，不反向导入 runtime。
 - 沙箱镜像以仓库根目录为构建上下文，`.dockerignore` 只允许显式 Python 输入。Strategy Python 源码
   同时影响 API 与 sandboxd；变更这些路径时保持部署清单和计划测试同步。
 - 本次整理不表示 TS / Python 功能完全对等；保持各自公开命名和既有产品准入。

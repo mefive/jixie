@@ -1,5 +1,5 @@
 import { StrategyRuntime } from '../strategy-runtime.js';
-import { TypeScriptStrategyRuntime } from './typescript-strategy-runtime.js';
+import { startInstrumentedStrategyRuntime } from './testing/runtime.js';
 import { inspectStrategyMetadata } from '../inspect-definition.js';
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
@@ -17,7 +17,10 @@ const fixture = {
 };
 
 async function execute(code: string, spec: FixtureSpec = fixture, start = spec.dates[0]) {
-  const runtime = await TypeScriptStrategyRuntime.start({ language: 'typescript', code });
+  const { runtime, metrics } = await startInstrumentedStrategyRuntime({
+    language: 'typescript',
+    code,
+  });
   try {
     const result = await new BacktestingEngine({
       start,
@@ -26,7 +29,7 @@ async function execute(code: string, spec: FixtureSpec = fixture, start = spec.d
       strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
       dataPort: fixturePort(spec),
     }).run();
-    return { result, metrics: { ...runtime.metrics } };
+    return { result, metrics: { ...metrics } };
   } finally {
     runtime.close();
   }

@@ -6,6 +6,16 @@ describe('strategy sandbox bundle boundary', () => {
     const bundle = await buildStrategySandboxBundle();
     const inputs = Object.keys(bundle.metafile!.inputs);
 
+    expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/entry.ts'))).toBe(
+      true,
+    );
+    expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/runner.ts'))).toBe(
+      true,
+    );
+    expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/context.ts'))).toBe(
+      true,
+    );
+
     expect(inputs.some((input) => input.endsWith('/backtesting/engine.ts'))).toBe(false);
     expect(inputs.some((input) => input.endsWith('/backtesting/data/engine-data.ts'))).toBe(false);
     expect(

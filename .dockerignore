@@ -15,6 +15,7 @@
 !apps/api/src/strategy/runtime/
 !apps/api/src/strategy/runtime/python/
 !apps/api/src/strategy/runtime/python/runner.py
+!apps/api/src/strategy/runtime/python/context.py
 !apps/api/src/factor/
 !apps/api/src/factor/sdk/
 !apps/api/src/factor/sdk/python.py

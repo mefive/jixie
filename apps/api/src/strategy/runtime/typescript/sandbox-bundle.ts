@@ -4,7 +4,7 @@ import { build } from 'esbuild';
 /** Bundle only the strategy SDK and transport entry; the engine remains on the host. */
 export async function buildStrategySandboxBundle() {
   const entry = new URL(
-    import.meta.url.endsWith('.ts') ? './sandbox-entry.ts' : './sandbox-entry.js',
+    import.meta.url.endsWith('.ts') ? './entry.ts' : './entry.js',
     import.meta.url,
   );
   return build({

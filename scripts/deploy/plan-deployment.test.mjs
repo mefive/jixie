@@ -88,6 +88,7 @@ test('every packaged business Python source selects both API and the sandbox ima
   for (const requiredEntry of [
     'apps/api/src/strategy/sdk/python.py',
     'apps/api/src/strategy/runtime/python/runner.py',
+    'apps/api/src/strategy/runtime/python/context.py',
     'apps/api/src/factor/sdk/python.py',
     'apps/api/src/factor/runtime/python/runner.py',
     'apps/api/src/research/sdk/python/data.py',
@@ -111,6 +112,12 @@ test('every packaged business Python source selects both API and the sandbox ima
 test('business TypeScript SDK and host runtime changes still select only API', () => {
   for (const changedPath of [
     'apps/api/src/strategy/sdk/typescript.ts',
+    'apps/api/src/strategy/runtime/strategy-runtime.ts',
+    'apps/api/src/strategy/runtime/typescript/prepare.ts',
+    'apps/api/src/strategy/runtime/typescript/entry.ts',
+    'apps/api/src/strategy/runtime/typescript/runner.ts',
+    'apps/api/src/strategy/runtime/typescript/context.ts',
+    'apps/api/src/strategy/runtime/python/prepare.ts',
     'apps/api/src/strategy/execution/execution.ts',
     'apps/api/src/backtesting/engine.ts',
     'apps/api/src/backtesting/order-book.ts',
@@ -143,6 +150,21 @@ test('documentation changes do not rebuild runtime applications', () => {
     installDependencies: false,
     reasons: [],
   });
+});
+
+test('Python editor settings do not rebuild runtime applications', () => {
+  assert.deepEqual(
+    classifyChangedPaths(['.vscode/settings.json', 'pyrightconfig.json'], manifest),
+    {
+      api: false,
+      web: false,
+      docs: false,
+      sandboxd: false,
+      fullDeploy: false,
+      installDependencies: false,
+      reasons: [],
+    },
+  );
 });
 
 test('application package changes install dependencies', () => {
