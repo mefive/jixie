@@ -184,29 +184,17 @@ class Context:
                 rows.append(row)
         self._commands: list[dict[str, Any]] = []
         self._request = request
+        self.portfolio = AttrDict(equity=self._snapshot.portfolio.equity)
+        self.stock = StockAccount(self)
+        self.futures = AttrDict(
+            equity=self._snapshot.futures.equity,
+            available_cash=self._snapshot.futures.availableCash,
+            margin=self._snapshot.futures.margin,
+        )
 
     @property
     def date(self) -> str:
         return self._snapshot.date
-
-    @property
-    def cash(self) -> float:
-        return self._snapshot.cash
-
-    @property
-    def value(self) -> float:
-        return self._snapshot.value
-
-    @property
-    def available_cash(self) -> float:
-        return self._snapshot.available_cash
-
-    def positions(self) -> list[AttrDict]:
-        return self._snapshot.positions
-
-    def shares(self, code: str) -> float:
-        position = next((item for item in self.positions() if item.code == code), None)
-        return position.shares if position else 0
 
     def period(self, schedule: str) -> str:
         date = datetime.strptime(self.date, "%Y%m%d")
@@ -520,40 +508,64 @@ class Context:
             j_value = 3 * k_value - 2 * d_value
         return AttrDict(k=k_value, d=d_value, j=j_value)
 
+
+class StockAccount:
+    def __init__(self, context: Context) -> None:
+        self._context = context
+
+    @property
+    def equity(self) -> float:
+        return self._context._snapshot.stock.equity
+
+    @property
+    def available_cash(self) -> float:
+        return self._context._snapshot.stock.availableCash
+
+    def positions(self) -> list[AttrDict]:
+        return [
+            AttrDict(code=position.code, shares=position.shares,
+                     avg_cost=position.avgCost, market_value=position.marketValue)
+            for position in self._context._snapshot.stock.positions
+        ]
+
+    def adjusted_shares(self, code: str) -> float:
+        position = next((item for item in self.positions() if item.code == code), None)
+        return position.shares if position else 0
+
     def equal_weight(self, codes: Iterable[str]) -> None:
         values = list(codes)
         weight = 1 / len(values) if values else 0
-        self.set_holdings({code: weight for code in values})
+        self.set_target_weights({code: weight for code in values})
 
-    def order_target_percent(self, code: str, weight: float) -> None:
-        self._command("order_target_percent", code=code, weight=weight)
+    def set_target_weight(self, code: str, weight: float) -> None:
+        self._command("stock.setTargetWeight", code=code, weight=weight)
 
-    def set_holdings(self, weights: dict[str, float]) -> None:
-        self._command("set_holdings", weights=weights)
+    def set_target_weights(self, weights: dict[str, float]) -> None:
+        self._command("stock.setTargetWeights", weights=weights)
 
-    def order(self, code: str, shares: float) -> None:
-        self._command("order", code=code, shares=shares)
+    def order_adjusted_shares(self, code: str, shares: float) -> None:
+        self._command("stock.orderAdjustedShares", code=code, shares=shares)
 
     def order_lots(self, code: str, lots: float) -> None:
-        self._command("order_lots", code=code, lots=lots)
+        self._command("stock.orderLots", code=code, lots=lots)
 
-    def exit(self, code: str) -> None:
-        self._command("exit", code=code)
+    def close_position(self, code: str) -> None:
+        self._command("stock.closePosition", code=code)
 
-    def stop_loss(self, code: str, price: float) -> None:
-        self._command("stop_loss", code=code, price=price)
+    def stop_loss_at_adjusted_price(self, code: str, price: float) -> None:
+        self._command("stock.stopLossAtAdjustedPrice", code=code, price=price)
 
-    def trailing_stop(self, code: str, percentage: float) -> None:
-        self._command("trailing_stop", code=code, percentage=percentage)
+    def trailing_stop_by_fraction(self, code: str, percentage: float) -> None:
+        self._command("stock.trailingStopByFraction", code=code, percentage=percentage)
 
-    def limit_buy(self, code: str, price: float, shares: float) -> None:
-        self._command("limit_buy", code=code, price=price, shares=shares)
+    def limit_buy_at_adjusted_price(self, code: str, price: float, shares: float) -> None:
+        self._command("stock.limitBuyAtAdjustedPrice", code=code, price=price, shares=shares)
 
-    def take_profit(self, code: str, percentage: float) -> None:
-        self._command("take_profit", code=code, percentage=percentage)
+    def take_profit_by_fraction(self, code: str, percentage: float) -> None:
+        self._command("stock.takeProfitByFraction", code=code, percentage=percentage)
 
     def cancel_conditional(self, code: str, kind: str | None = None) -> None:
-        self._command("cancel_conditional", code=code, kind=kind)
+        self._command("stock.cancelConditional", code=code, kind=kind)
 
     def _command(self, operation: str, **arguments: Any) -> None:
-        self._commands.append({"operation": operation, "arguments": arguments})
+        self._context._commands.append({"operation": operation, "arguments": arguments})

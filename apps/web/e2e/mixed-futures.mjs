@@ -36,8 +36,8 @@ try {
   },
   onBar(ctx) {
     if (ctx.date !== '20260615') return;
-    ctx.setHoldings({ '600519.SH': 1 });
-    ctx.hedgeFuture('IF.CFX', 1);
+    ctx.stock.setTargetWeights({ '600519.SH': 1 });
+    ctx.futures.hedgeStock('IF.CFX', 1);
   },
 });`;
     const response = await fetch('/api/app/strategies', {

@@ -23,8 +23,8 @@ const readSchema = z.discriminatedUnion('method', [
     'futureHistory',
     z.tuple([code, z.enum(['open', 'high', 'low', 'close', 'settle']), window]),
   ),
-  read('futurePosition', z.tuple([code])),
-  read('shares', z.tuple([code])),
+  read('futures.position', z.tuple([code])),
+  read('stock.adjustedShares', z.tuple([code])),
   read('indexValues', z.tuple([code])),
   read('indexSma', z.tuple([code, window])),
   read('indexPercentile', z.tuple([code, valuation, window.nullable()])),
@@ -65,10 +65,10 @@ export function accessStrategyContext(context: EngineContext, input: unknown): u
       return context.future(...request.args);
     case 'futureHistory':
       return context.futureHistory(...request.args);
-    case 'futurePosition':
-      return context.futurePosition(...request.args);
-    case 'shares':
-      return context.shares(...request.args);
+    case 'futures.position':
+      return context.futures.position(...request.args);
+    case 'stock.adjustedShares':
+      return context.stock.adjustedShares(...request.args);
     case 'indexValues': {
       const index = context.index(request.args[0]);
       return { close: index.close, pe: index.pe, peTtm: index.peTtm, pb: index.pb };

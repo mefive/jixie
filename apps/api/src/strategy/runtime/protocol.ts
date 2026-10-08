@@ -72,51 +72,54 @@ const strategyRequestFrameSchema = z.union([
 ]);
 
 export const strategyCommandSchema = z.discriminatedUnion('operation', [
-  commandSchema('order_future', { code: identifierSchema, contracts: finiteNumberSchema }),
-  commandSchema('set_future_target_contracts', {
+  commandSchema('futures.orderContracts', {
     code: identifierSchema,
     contracts: finiteNumberSchema,
   }),
-  commandSchema('set_future_target_notional', {
+  commandSchema('futures.setTargetContracts', {
+    code: identifierSchema,
+    contracts: finiteNumberSchema,
+  }),
+  commandSchema('futures.setTargetNotional', {
     code: identifierSchema,
     notional: finiteNumberSchema,
   }),
-  commandSchema('hedge_future', { code: identifierSchema, beta: finiteNumberSchema }),
-  commandSchema('exit_future', { code: identifierSchema }),
-  commandSchema('order_target_percent', {
+  commandSchema('futures.hedgeStock', { code: identifierSchema, beta: finiteNumberSchema }),
+  commandSchema('futures.closePosition', { code: identifierSchema }),
+  commandSchema('stock.setTargetWeight', {
     code: identifierSchema,
     weight: finiteNumberSchema,
   }),
-  commandSchema('set_holdings', {
+  commandSchema('stock.setTargetWeights', {
     weights: boundedRecord(finiteNumberSchema, MAX_LIST_ITEMS),
   }),
-  commandSchema('order', {
+  commandSchema('stock.orderAdjustedShares', {
     code: identifierSchema,
     shares: finiteNumberSchema,
   }),
-  commandSchema('order_lots', {
+  commandSchema('stock.orderLots', {
     code: identifierSchema,
     lots: finiteNumberSchema,
   }),
-  commandSchema('exit', { code: identifierSchema }),
-  commandSchema('stop_loss', {
+  commandSchema('stock.closePosition', { code: identifierSchema }),
+  commandSchema('stock.stopLossAtAdjustedPrice', {
     code: identifierSchema,
     price: finiteNumberSchema,
   }),
-  commandSchema('trailing_stop', {
+  commandSchema('stock.trailingStopByFraction', {
     code: identifierSchema,
     percentage: finiteNumberSchema,
   }),
-  commandSchema('limit_buy', {
+  commandSchema('stock.limitBuyAtAdjustedPrice', {
     code: identifierSchema,
     price: finiteNumberSchema,
     shares: finiteNumberSchema,
   }),
-  commandSchema('take_profit', {
+  commandSchema('stock.takeProfitByFraction', {
     code: identifierSchema,
     percentage: finiteNumberSchema,
   }),
-  commandSchema('cancel_conditional', {
+  commandSchema('stock.cancelConditional', {
     code: identifierSchema,
     kind: z.enum(['stop_loss', 'trailing_stop', 'limit_buy', 'take_profit']).nullable(),
   }),

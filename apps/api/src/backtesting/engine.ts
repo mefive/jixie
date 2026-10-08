@@ -153,6 +153,7 @@ export class BacktestingEngine {
     this.futuresPortfolio = new FuturesPortfolio(config.initialCash * cashWeights.futures, cost);
 
     this.orderBook = new OrderBook({
+      locale: this.locale,
       engineData: this.engineData,
       cashPortfolio: this.cashPortfolio,
       futuresPortfolio: this.futuresPortfolio,

@@ -20,10 +20,10 @@ function roundTripStrategy(): EngineStrategy {
     watch: [ETF_CODE],
     async onBar(ctx: EngineContext) {
       if (ctx.date === DATES[0]) {
-        ctx.order(ETF_CODE, 100);
+        ctx.stock.orderAdjustedShares(ETF_CODE, 100);
       }
       if (ctx.date === DATES[1]) {
-        ctx.exit(ETF_CODE);
+        ctx.stock.closePosition(ETF_CODE);
       }
     },
   };

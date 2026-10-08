@@ -52,7 +52,7 @@ export default defineStrategy({
       )
       .top(10);
 
-    if (picks.length) ctx.equalWeight(picks);
+    if (picks.length) ctx.stock.equalWeight(picks);
   },
 });
 ```

@@ -89,6 +89,7 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" pnpm e2e embedde
 
 失败后可用 `JIXIE_JOB_E2E_ONLY` 选择上述任务名或 `factor-analysis`、`research-curator`（逗号分隔），
 每次仍重新建隔离库。默认不设置该变量时运行全部流程。
+显式选择 `python-strategy` 可在同一隔离夹具验证 Python 历史读取、账户 SDK 下单和回测结果。
 截图位于 `apps/web/acceptance/`，新增截图前缀 `job-system-`，复用用例保留原截图名称；
 服务日志为 `job-system-server.log`，每次运行覆盖。脚本关闭浏览器/API/模型服务、断开 Prisma、
 删除临时库，并断言两个监听端口都已关闭。2026-09-24 实际通过记录见

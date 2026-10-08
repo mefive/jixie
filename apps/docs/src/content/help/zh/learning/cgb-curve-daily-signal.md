@@ -156,9 +156,9 @@ export default defineStrategy({
   onBar(ctx) {
     const score = ctx.factor('cgb_yield_decline_20', bond);
     if (score != null && score > 0) {
-      ctx.setHoldings({ [bond]: 0.8 });
+      ctx.stock.setTargetWeights({ [bond]: 0.8 });
     } else {
-      ctx.setHoldings({});
+      ctx.stock.setTargetWeights({});
     }
   },
 });

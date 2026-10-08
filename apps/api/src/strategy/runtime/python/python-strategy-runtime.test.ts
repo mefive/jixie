@@ -43,12 +43,12 @@ def handle_bar(ctx):
     if ctx.date == "20240101":
         assert ctx.sma("AAA", 1) is not None
         assert ctx.history("AAA", "adj_close", 1) == ctx.history("AAA", "close", 1)
-        ctx.set_holdings({"AAA": 0.4, "BBB": 0.4})
+        ctx.stock.set_target_weights({"AAA": 0.4, "BBB": 0.4})
     if ctx.date == "20240103":
-        ctx.exit("BBB")
+        ctx.stock.close_position("BBB")
     if ctx.date == "20240105":
-        ctx.exit("AAA")
-    print("bar", ctx.date, round(ctx.value))
+        ctx.stock.close_position("AAA")
+    print("bar", ctx.date, round(ctx.portfolio.equity))
 `;
 
 describe('Python strategy runtime', () => {
@@ -97,13 +97,13 @@ describe('Python strategy runtime', () => {
       watch: ['AAA', 'BBB'],
       onBar(context) {
         if (context.date === '20240101') {
-          context.setHoldings({ AAA: 0.4, BBB: 0.4 });
+          context.stock.setTargetWeights({ AAA: 0.4, BBB: 0.4 });
         }
         if (context.date === '20240103') {
-          context.exit('BBB');
+          context.stock.closePosition('BBB');
         }
         if (context.date === '20240105') {
-          context.exit('AAA');
+          context.stock.closePosition('AAA');
         }
       },
     });

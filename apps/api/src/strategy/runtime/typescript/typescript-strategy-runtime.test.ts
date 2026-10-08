@@ -79,15 +79,15 @@ export default defineStrategy({
   watch: ['AAA', 'BBB'],
   onBar(ctx) {
     if (ctx.date === '20240101') {
-      ctx.setHoldings({ AAA: 0.4, BBB: 0.4 });
+      ctx.stock.setTargetWeights({ AAA: 0.4, BBB: 0.4 });
     }
     if (ctx.date === '20240103') {
-      ctx.exit('BBB');
+      ctx.stock.closePosition('BBB');
     }
     if (ctx.date === '20240105') {
-      ctx.exit('AAA');
+      ctx.stock.closePosition('AAA');
     }
-    console.log('bar', ctx.date, Math.round(ctx.value));
+    console.log('bar', ctx.date, Math.round(ctx.portfolio.equity));
   },
 });
 `;
@@ -104,9 +104,9 @@ const PARAMETERIZED_CODE = `
       lastPeriod = period;
       const price = ctx.price('AAA');
       if (price == null) return;
-      const held = ctx.shares('AAA');
+      const held = ctx.stock.adjustedShares('AAA');
       const target = ctx.params.sharesPerMonth;
-      if (held < target) ctx.order('AAA', target - held);
+      if (held < target) ctx.stock.orderAdjustedShares('AAA', target - held);
     },
   });
 `;
@@ -118,7 +118,7 @@ const CATEGORICAL_PARAMETER_CODE = `
     watch: ['AAA'],
     onBar(ctx) {
       if (ctx.date === '20240101' && ctx.params.sizing === 'fixed') {
-        ctx.order('AAA', 100);
+        ctx.stock.orderAdjustedShares('AAA', 100);
       }
     },
   });
@@ -183,8 +183,8 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         name: 'signal-capture',
         watch: ['AAA', 'BBB'],
         onBar(ctx) {
-          if (ctx.date === '${D[0]}') ctx.setHoldings({ AAA: 0.5 });
-          if (ctx.date === '${D.at(-1)}') ctx.setHoldings({ BBB: 0.4 });
+          if (ctx.date === '${D[0]}') ctx.stock.setTargetWeights({ AAA: 0.5 });
+          if (ctx.date === '${D.at(-1)}') ctx.stock.setTargetWeights({ BBB: 0.4 });
         },
       });
     `;
@@ -222,8 +222,8 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         name: 'conditional-drift',
         watch: ['AAA'],
         onBar(ctx) {
-          if (ctx.date === '${D[0]}') ctx.orderLots('AAA', 1);
-          if (ctx.shares('AAA') > 0) ctx.trailingStop('AAA', 0.08);
+          if (ctx.date === '${D[0]}') ctx.stock.orderLots('AAA', 1);
+          if (ctx.stock.adjustedShares('AAA') > 0) ctx.stock.trailingStopByFraction('AAA', 0.08);
         },
       });
     `;
@@ -260,7 +260,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
           if (ctx.date !== '20240105') return;
           const weekly = ctx.weekly('AAA');
           if (weekly.sma(1) != null && weekly.highest('high', 1) != null) {
-            ctx.orderLots('AAA', 1);
+            ctx.stock.orderLots('AAA', 1);
           }
         },
       });
@@ -308,7 +308,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
             convergence.line > 0 &&
             stochastic.k > stochastic.d
           ) {
-            ctx.orderLots('AAA', 1);
+            ctx.stock.orderLots('AAA', 1);
           }
         },
       });
@@ -338,8 +338,8 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         name: 'future-drift',
         accounts: { stock: { cashWeight: 0 }, futures: { cashWeight: 1 } },
         onBar(ctx) {
-          if (ctx.date === '${D[0]}') ctx.orderFuture('IF.CFX', 1);
-          if (ctx.date === '${D[3]}') ctx.exitFuture('IF.CFX');
+          if (ctx.date === '${D[0]}') ctx.futures.orderContracts('IF.CFX', 1);
+          if (ctx.date === '${D[3]}') ctx.futures.closePosition('IF.CFX');
         },
       });
     `;
@@ -368,8 +368,8 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         accounts: { stock: { cashWeight: 0.7 }, futures: { cashWeight: 0.3 } },
         onBar(ctx) {
           if (ctx.date === '${D[0]}') {
-            ctx.setHoldings({ AAA: 1 });
-            ctx.hedgeFuture('IF.CFX');
+            ctx.stock.setTargetWeights({ AAA: 1 });
+            ctx.futures.hedgeStock('IF.CFX');
           }
         },
       });

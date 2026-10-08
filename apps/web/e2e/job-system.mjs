@@ -56,6 +56,7 @@ try {
   for (const name of [
     'strategy-orchestration',
     'mixed-futures',
+    ...(selected?.includes('python-strategy') ? ['python-strategy'] : []),
     'strategy-parameter-scan',
     'factor-report-history',
     'factor-correlation',

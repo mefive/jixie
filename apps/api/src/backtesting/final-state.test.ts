@@ -12,8 +12,8 @@ function config(): BacktestingConfig {
       name: 'final-state fixture',
       watch: ['A'],
       onBar(context) {
-        context.orderLots('A', 1);
-        context.stopLoss('A', 18);
+        context.stock.orderLots('A', 1);
+        context.stock.stopLossAtAdjustedPrice('A', 18);
       },
     },
     dataPort: fixturePort({
@@ -71,7 +71,7 @@ describe('explicit final execution state', () => {
     input.strategy.watch = [];
     input.strategy.onBar = (context) => {
       if (context.date === input.end) {
-        context.orderLots('A', 1);
+        context.stock.orderLots('A', 1);
       }
     };
     const barsRows = vi.spyOn(input.dataPort, 'barsRows');
@@ -101,11 +101,11 @@ describe('explicit final execution state', () => {
   });
 
   it.each([
-    (context: EngineContext) => context.orderFuture('IF.CFX', 1),
-    (context: EngineContext) => context.setFutureTargetContracts('IF.CFX', 1),
-    (context: EngineContext) => context.setFutureTargetNotional('IF.CFX', 1000),
-    (context: EngineContext) => context.hedgeFuture('IF.CFX'),
-    (context: EngineContext) => context.exitFuture('IF.CFX'),
+    (context: EngineContext) => context.futures.orderContracts('IF.CFX', 1),
+    (context: EngineContext) => context.futures.setTargetContracts('IF.CFX', 1),
+    (context: EngineContext) => context.futures.setTargetNotional('IF.CFX', 1000),
+    (context: EngineContext) => context.futures.hedgeStock('IF.CFX'),
+    (context: EngineContext) => context.futures.closePosition('IF.CFX'),
   ])('retains futures intents even with zero futures capital', async (action) => {
     const input = config();
     input.strategy.onBar = action;

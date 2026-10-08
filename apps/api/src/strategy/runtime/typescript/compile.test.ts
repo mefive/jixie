@@ -14,8 +14,8 @@ export default defineStrategy({
     const win = ctx.history(code, 'close', 20);
     if (px == null || win.length < 20) return;
     const ma = win.reduce((a, b) => a + b, 0) / win.length;
-    if (px > ma && ctx.shares(code) === 0) ctx.order(code, 100);
-    else if (px < ma && ctx.shares(code) > 0) ctx.exit(code);
+    if (px > ma && ctx.stock.adjustedShares(code) === 0) ctx.stock.orderAdjustedShares(code, 100);
+    else if (px < ma && ctx.stock.adjustedShares(code) > 0) ctx.stock.closePosition(code);
   },
 });
 `;
@@ -27,9 +27,11 @@ function mockCtx(o: { px: number; window: number[]; held: number }) {
   const ctx = {
     price: () => o.px,
     history: () => o.window,
-    shares: () => o.held,
-    order: (code: string, shares: number) => orders.push({ code, shares }),
-    exit: (code: string) => exits.push(code),
+    stock: {
+      adjustedShares: () => o.held,
+      orderAdjustedShares: (code: string, shares: number) => orders.push({ code, shares }),
+      closePosition: (code: string) => exits.push(code),
+    },
   } as unknown as EngineContext;
   return { ctx, orders, exits };
 }

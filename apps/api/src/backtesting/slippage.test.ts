@@ -22,9 +22,9 @@ async function roundTrip(amountThousand: number | undefined, shares: number) {
       name: 'slippage fixture',
       onBar(context) {
         if (context.date === dates[0]) {
-          context.order('A', shares);
+          context.stock.orderAdjustedShares('A', shares);
         } else if (context.date === dates[1]) {
-          context.exit('A');
+          context.stock.closePosition('A');
         }
       },
     },

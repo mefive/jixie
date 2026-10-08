@@ -113,7 +113,10 @@ function contextSnapshot(
   watch: string[],
   historyDates?: Map<string, string | null>,
 ): Record<string, unknown> {
-  const updateCodes = new Set([...watch, ...context.positions().map((position) => position.code)]);
+  const updateCodes = new Set([
+    ...watch,
+    ...context.stock.positions().map((position) => position.code),
+  ]);
   if (historyDates) {
     for (const code of updateCodes) {
       if (!historyDates.has(code)) {
@@ -124,20 +127,17 @@ function contextSnapshot(
   return {
     ...(historyDates ? { history_updates: historyUpdates(context, historyDates) } : {}),
     date: context.date,
-    cash: context.cash,
-    value: context.value,
-    available_cash: context.availableCash,
-    stock_value: context.stockValue,
-    future_value: context.futureValue,
-    stock_available_cash: context.stockAvailableCash,
-    future_available_cash: context.futureAvailableCash,
-    future_margin: context.futureMargin,
-    positions: context.positions().map((position) => ({
-      code: position.code,
-      shares: position.shares,
-      avg_cost: position.avgCost,
-      market_value: position.marketValue,
-    })),
+    portfolio: { equity: context.portfolio.equity },
+    stock: {
+      equity: context.stock.equity,
+      availableCash: context.stock.availableCash,
+      positions: context.stock.positions(),
+    },
+    futures: {
+      equity: context.futures.equity,
+      availableCash: context.futures.availableCash,
+      margin: context.futures.margin,
+    },
     bar_updates: Object.fromEntries(
       [...updateCodes].flatMap((code) => {
         const row = context.bars(code, 1)[0];

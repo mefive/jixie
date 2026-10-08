@@ -62,7 +62,7 @@ try {
     end: '20260728',
     initialCash: 1_000_000,
     cost: { slippageBps: 2, impactCoef: 0.1 },
-    code: `export default defineStrategy({ name: 'Report deployments', watch: ['600519.SH'], onBar(ctx) { if (ctx.date === '20260728') { ctx.setHoldings({ '600519.SH': 0.5 }); } } });`,
+    code: `export default defineStrategy({ name: 'Report deployments', watch: ['600519.SH'], onBar(ctx) { if (ctx.date === '20260728') { ctx.stock.setTargetWeights({ '600519.SH': 0.5 }); } } });`,
   };
   const strategy = await api('/api/app/strategies', config);
   const reports = [];

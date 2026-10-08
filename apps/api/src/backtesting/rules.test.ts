@@ -64,35 +64,32 @@ describe('A 股规则:成交与 T+1', () => {
   it('订单次日开盘成交(D1 下单 → D2 开盘价成交)', async () => {
     const result = await run(
       { dates: D, stocks: [flatStock({ '20240102': { open: 10.5 } })] },
-      scripted({ '20240101': (ctx) => ctx.order('A', 100) }),
+      scripted({ '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100) }),
     );
     expect(result.trades).toBe(1);
     expect(result.tradeLog[0]).toMatchObject({ date: '20240102', side: 'buy', price: 10.5 });
   });
 
-  it('T+1:同日先买(声明式调仓)后卖(指令单)被冻结拦下', async () => {
-    // Both queue on D1 and both execute on D2: the rebalance buy fills first (frozen until D3),
-    // then the imperative sell hits the freeze — a same-day round trip must not happen.
-    const result = await run(
-      { dates: D, stocks: [flatStock()] },
-      scripted({
-        '20240101': (ctx) => {
-          ctx.setHoldings({ A: 0.5 });
-          ctx.order('A', -100);
-        },
-      }),
-    );
-    expect(result.tradeLog.map((t) => t.side)).toEqual(['buy']); // the sell never filled
-    const buyDate = result.tradeLog[0].date;
-    expect(buyDate).toBe('20240102');
+  it('rejects mixed target weights and incremental orders before execution', async () => {
+    await expect(
+      run(
+        { dates: D, stocks: [flatStock()] },
+        scripted({
+          '20240101': (ctx) => {
+            ctx.stock.setTargetWeights({ A: 0.5 });
+            ctx.stock.orderAdjustedShares('A', -100);
+          },
+        }),
+      ),
+    ).rejects.toThrow(/不能混用|cannot mix/);
   });
 
   it('T+1 只冻结当日:昨日买入今日可卖', async () => {
     const result = await run(
       { dates: D, stocks: [flatStock()] },
       scripted({
-        '20240101': (ctx) => ctx.order('A', 100), // fills D2
-        '20240102': (ctx) => ctx.exit('A'), // fills D3 — bought D2, sold D3 = legal T+1
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100), // fills D2
+        '20240102': (ctx) => ctx.stock.closePosition('A'), // fills D3 — bought D2, sold D3 = legal T+1
       }),
     );
     expect(result.tradeLog.map((t) => `${t.side}@${t.date}`)).toEqual([
@@ -121,8 +118,8 @@ describe('A 股规则:成交与 T+1', () => {
       { dates: D, stocks },
       scripted(
         {
-          '20240101': (ctx) => ctx.setHoldings({ A: 1 }),
-          '20240102': (ctx) => ctx.setHoldings({ B: 1 }),
+          '20240101': (ctx) => ctx.stock.setTargetWeights({ A: 1 }),
+          '20240102': (ctx) => ctx.stock.setTargetWeights({ B: 1 }),
         },
         ['A', 'B'],
       ),
@@ -137,14 +134,17 @@ describe('A 股规则:成交与 T+1', () => {
     await expect(
       run(
         { dates: D, stocks: [flatStock()] },
-        scripted({ '20240101': (ctx) => ctx.orderTargetPercent('A', Infinity) }),
+        scripted({ '20240101': (ctx) => ctx.stock.setTargetWeight('A', Infinity) }),
       ),
     ).rejects.toThrow('must be a finite number between 0 and 1');
 
     await expect(
       run(
         { dates: D, stocks: [flatStock(), { ...flatStock(), code: 'B' }] },
-        scripted({ '20240101': (ctx) => ctx.setHoldings({ A: 0.6, B: 0.6 }) }, ['A', 'B']),
+        scripted({ '20240101': (ctx) => ctx.stock.setTargetWeights({ A: 0.6, B: 0.6 }) }, [
+          'A',
+          'B',
+        ]),
       ),
     ).rejects.toThrow('must sum to at most 1');
   });
@@ -154,7 +154,7 @@ describe('A 股规则:涨跌停', () => {
   it('涨停开盘不可买(且被拦订单不结转)', async () => {
     const result = await run(
       { dates: D, stocks: [flatStock({ '20240102': { open: 11, close: 11 } })] }, // D2 opens AT up-limit
-      scripted({ '20240101': (ctx) => ctx.order('A', 100) }),
+      scripted({ '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100) }),
     );
     expect(result.trades).toBe(0); // blocked on D2, not carried to D3
   });
@@ -163,8 +163,8 @@ describe('A 股规则:涨跌停', () => {
     const result = await run(
       { dates: D, stocks: [flatStock({ '20240103': { open: 9, close: 9 } })] }, // D3 opens AT down-limit
       scripted({
-        '20240101': (ctx) => ctx.order('A', 100), // fills D2
-        '20240102': (ctx) => ctx.exit('A'), // would fill D3 — blocked at the down-limit open
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100), // fills D2
+        '20240102': (ctx) => ctx.stock.closePosition('A'), // would fill D3 — blocked at the down-limit open
       }),
     );
     expect(result.tradeLog.map((t) => t.side)).toEqual(['buy']);
@@ -175,13 +175,13 @@ describe('A 股规则:整手与费用', () => {
   it('买入按整手(100 股)下取整,凑不足一手不成交', async () => {
     const lots = await run(
       { dates: D, stocks: [flatStock()] },
-      scripted({ '20240101': (ctx) => ctx.order('A', 150) }),
+      scripted({ '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 150) }),
     );
     expect(lots.tradeLog[0].realShares).toBe(100); // 150 → 1 lot
 
     const tooSmall = await run(
       { dates: D, stocks: [flatStock()] },
-      scripted({ '20240101': (ctx) => ctx.order('A', 60) }),
+      scripted({ '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 60) }),
     );
     expect(tooSmall.trades).toBe(0); // < 1 lot → no fill
   });
@@ -190,8 +190,8 @@ describe('A 股规则:整手与费用', () => {
     const result = await run(
       { dates: D, stocks: [flatStock()] },
       scripted({
-        '20240101': (ctx) => ctx.order('A', 100), // buy 100 @10 = ¥1000
-        '20240103': (ctx) => ctx.exit('A'), // sell 100 @10 on D4
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100), // buy 100 @10 = ¥1000
+        '20240103': (ctx) => ctx.stock.closePosition('A'), // sell 100 @10 on D4
       }),
     );
     const [buy, sell] = result.tradeLog;
@@ -217,7 +217,7 @@ describe('A 股规则:停牌与滑点', () => {
     };
     const result = await run(
       { dates: D, stocks: [suspended] },
-      scripted({ '20240101': (ctx) => ctx.order('A', 100) }),
+      scripted({ '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100) }),
     );
     expect(result.trades).toBe(0); // D2 had no open → skipped, not carried
   });
@@ -228,8 +228,8 @@ describe('A 股规则:停牌与滑点', () => {
       end: D[D.length - 1],
       initialCash: 100_000,
       strategy: scripted({
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.exit('A'),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.closePosition('A'),
       }),
       dataPort: fixturePort({ dates: D, stocks: [flatStock()] }),
       cost: { slippageBps: 20, impactCoef: 0 }, // 0.2% base, no impact term
@@ -253,7 +253,7 @@ describe('回测数据与统计口径', () => {
           dates: D,
           stocks: [{ ...flatStock(), delistDate: '20240102', listStatus: 'D' }],
         },
-        scripted({ '20240101': (ctx) => ctx.order('A', 100) }),
+        scripted({ '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100) }),
       ),
     ).rejects.toThrow('Cannot value delisted position A on 20240103');
   });
@@ -275,8 +275,8 @@ describe('回测数据与统计口径', () => {
         ],
       },
       scripted({
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.exit('A'),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.closePosition('A'),
       }),
     );
 

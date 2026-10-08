@@ -49,6 +49,31 @@
 
 尚未运行的修改在刷新或关闭页面时也可能丢失。看到浏览器的离开提示时，先取消离开并运行回测；确认不需要修改时再离开。
 
+## 迁移旧版账户接口
+
+策略 SDK 已改为按账户分组。旧版扁平接口不再可用，平台不会自动修改已保存源码或冻结部署。历史报告仍可查看；旧策略重新回测、扫描或生成新信号前需要迁移源码，冻结部署应通过迁移后的新回测重新部署。
+
+| 原调用 | 新调用 |
+| --- | --- |
+| `ctx.value` | `ctx.portfolio.equity`（组合报告）；现金仓位计算使用 `ctx.stock.equity` |
+| `ctx.cash` / `ctx.availableCash` | 按资金用途选择 `ctx.stock.availableCash` 或 `ctx.futures.availableCash`，不能混用 |
+| `ctx.order(code, shares)` | `ctx.stock.orderAdjustedShares(code, shares)`（后复权股数） |
+| `ctx.orderLots(code, lots)` | `ctx.stock.orderLots(code, lots)`（每手 100 真实股） |
+| `ctx.setHoldings(weights)` | `ctx.stock.setTargetWeights(weights)` |
+| `ctx.orderTargetPercent(code, weight)` | `ctx.stock.setTargetWeight(code, weight)` |
+| `ctx.positions()` / `ctx.shares(code)` | `ctx.stock.positions()` / `ctx.stock.adjustedShares(code)` |
+| `ctx.exit(code)` | `ctx.stock.closePosition(code)` |
+| `ctx.orderFuture(code, contracts)` | `ctx.futures.orderContracts(code, contracts)` |
+| `ctx.setFutureTargetContracts` / `ctx.setFutureTargetNotional` | `ctx.futures.setTargetContracts` / `ctx.futures.setTargetNotional` |
+| `ctx.hedgeFuture` / `ctx.exitFuture` / `ctx.futurePosition` | `ctx.futures.hedgeStock` / `ctx.futures.closePosition` / `ctx.futures.position` |
+| `ctx.equalWeight` / `ctx.atrUnits` / `ctx.volTargetWeights` | `ctx.stock.equalWeight` / `ctx.stock.atrAdjustedShares` / `ctx.stock.volTargetWeights` |
+| `ctx.stopLoss` / `ctx.limitBuy` | `ctx.stock.stopLossAtAdjustedPrice` / `ctx.stock.limitBuyAtAdjustedPrice` |
+| `ctx.trailingStop` / `ctx.takeProfit` / `ctx.cancelConditional` | `ctx.stock.trailingStopByFraction` / `ctx.stock.takeProfitByFraction` / `ctx.stock.cancelConditional` |
+
+同日增量单累加，重复目标以后者为准。现金目标表包含整个账户，未列持仓会清仓，不能与现金增量单混用；期货按代码检查目标与增量冲突。`closePosition` 覆盖该标的之前的普通指令，之后再发增量单会报错。清仓仍受停牌、涨跌停和可卖数量限制；持续条件单按原规则独立处理。
+
+Python 对应使用 `ctx.stock.order_adjusted_shares`、`set_target_weights`、`set_target_weight`、`close_position` 等 snake_case 方法，账户字段为 `ctx.portfolio.equity`、`ctx.stock.equity`、`ctx.stock.available_cash`。Python 仍只支持股票和 ETF，不增加期货交易。完整接口见 [SDK 参考](/sdk)。
+
 ## 相关内容
 
 - [设置回测参数](/help/backtesting/run-settings)

@@ -9,7 +9,7 @@ function ctxOf(
   listDays: Record<string, number> = {},
   members: Record<string, string[]> = {},
 ) {
-  const setHoldingsArg: { value: Record<string, number> | null } = { value: null };
+  const targetWeightsArg: { value: Record<string, number> | null } = { value: null };
   const ctx = {
     date: '20240131',
     bar: (c: string) => (rows[c] ? ({ code: c, ...rows[c] } as BarRow) : null),
@@ -25,9 +25,15 @@ function ctxOf(
       return all.filter((c) => set.has(c));
     },
     indexMembers: async (idx: string) => members[idx] ?? [],
-    setHoldings: (w: Record<string, number>) => (setHoldingsArg.value = w),
+    portfolio: { equity: 0 },
+    stock: {
+      equity: 0,
+      availableCash: 0,
+      setTargetWeights: (weights: Record<string, number>) => (targetWeightsArg.value = weights),
+    },
+    futures: { equity: 0, availableCash: 0, margin: 0 },
   } as unknown as EngineContext;
-  return { ctx, setHoldingsArg };
+  return { ctx, targetWeightsArg };
 }
 
 describe('Universe', () => {
@@ -76,15 +82,15 @@ describe('Universe', () => {
 });
 
 describe('enrich', () => {
-  it('equalWeight sets equal target weights via setHoldings', () => {
-    const { ctx, setHoldingsArg } = ctxOf({ A: {}, B: {} });
-    enrich(ctx).equalWeight(['A', 'B', 'C']);
-    expect(setHoldingsArg.value).toEqual({ A: 1 / 3, B: 1 / 3, C: 1 / 3 });
+  it('equalWeight sets equal target weights via stock.setTargetWeights', () => {
+    const { ctx, targetWeightsArg } = ctxOf({ A: {}, B: {} });
+    enrich(ctx).stock.equalWeight(['A', 'B', 'C']);
+    expect(targetWeightsArg.value).toEqual({ A: 1 / 3, B: 1 / 3, C: 1 / 3 });
   });
 
   it('provides neutral ATR-risk units and inverse-volatility weights', () => {
     const { ctx } = ctxOf({});
-    Object.defineProperty(ctx, 'value', { value: 100_000 });
+    Object.defineProperty(ctx.stock, 'equity', { value: 100_000 });
     ctx.bars = () => [
       {
         date: '1',
@@ -120,8 +126,8 @@ describe('enrich', () => {
     ctx.history = (code) => (code === 'A' ? [100, 110, 100] : code === 'B' ? [100, 102, 104] : []);
 
     const sdk = enrich(ctx);
-    expect(sdk.atrUnits('A', 0.01, 2)).toBe(333);
-    const weights = sdk.volTargetWeights(['A', 'B', 'MISSING'], 2);
+    expect(sdk.stock.atrAdjustedShares('A', 0.01, 2)).toBe(333);
+    const weights = sdk.stock.volTargetWeights(['A', 'B', 'MISSING'], 2);
     expect([...weights.keys()]).toEqual(['A', 'B']);
     expect((weights.get('B') ?? 0) > (weights.get('A') ?? 0)).toBe(true);
     expect([...weights.values()].reduce((sum, value) => sum + value, 0)).toBeCloseTo(1);
@@ -197,5 +203,44 @@ describe('periodKey', () => {
     expect(periodKey('20240101', 'weekly')).toBe('20240101');
     expect(periodKey('20240103', 'weekly')).toBe('20240101');
     expect(periodKey('20231231', 'weekly')).toBe('20231225');
+  });
+});
+
+describe('public account scopes', () => {
+  it('exposes isolated funding and removes the old flat trading surface', () => {
+    const { ctx } = ctxOf({});
+    Object.assign(ctx.portfolio, { equity: 100000 });
+    Object.assign(ctx.stock, { equity: 70000, availableCash: 10000 });
+    Object.assign(ctx.futures, { equity: 30000, availableCash: 20000, margin: 10000 });
+    const sdk = enrich(ctx);
+
+    expect(sdk.portfolio.equity).toBe(100000);
+    expect(sdk.stock.equity).toBe(70000);
+    expect(sdk.stock.availableCash).toBe(10000);
+    expect(sdk.futures.equity).toBe(30000);
+    expect(sdk.futures.availableCash).toBe(20000);
+    expect(sdk.futures.margin).toBe(10000);
+    for (const removed of [
+      'value',
+      'cash',
+      'availableCash',
+      'order',
+      'setHoldings',
+      'exit',
+      'positions',
+      'orderFuture',
+      'loadCrossSection',
+    ]) {
+      expect(removed in sdk).toBe(false);
+    }
+    expect('equalWeight' in ctx.stock).toBe(false);
+
+    Object.assign(ctx.stock, { equity: 71000, availableCash: 11000 });
+    Object.assign(ctx.futures, { equity: 31000 });
+    Object.assign(ctx.portfolio, { equity: 102000 });
+    expect(sdk.stock.equity).toBe(71000);
+    expect(sdk.stock.availableCash).toBe(11000);
+    expect(sdk.futures.equity).toBe(31000);
+    expect(sdk.portfolio.equity).toBe(102000);
   });
 });

@@ -13,7 +13,7 @@ import type { Locale } from '../../i18n.js';
 import { ENGINE_FACTORS, type EngineFactorDef } from '../../engine-factors.js';
 
 export interface SdkEntry {
-  iface: 'Universe' | 'StrategyCtx' | 'BarRow';
+  iface: 'Universe' | 'StrategyCtx' | 'StockAccount' | 'FuturesAccount' | 'BarRow';
   name: string; // member name — also the doc anchor id and the openSdkDoc command arg
   sig: string; // exact TS signature line emitted into the .d.ts
   group: string; // doc section
@@ -359,10 +359,10 @@ export const SDK_ENTRIES = [
     en: 'Last n futures values, point-in-time mapped each day, oldest to newest.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'futurePosition',
+    iface: 'FuturesAccount',
+    name: 'futures.position',
     group: '股指期货',
-    sig: 'futurePosition(code: string): FuturePosition | null',
+    sig: 'position(code: string): FuturePosition | null',
     zh: '当前期货持仓;contracts 正数为多头、负数为空头。',
     en: 'Current futures position; positive contracts are long and negative contracts are short.',
   },
@@ -573,166 +573,166 @@ export const SDK_ENTRIES = [
     en: 'Period key for today — compare to a `let last` to fire once per period.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'shares',
+    iface: 'StockAccount',
+    name: 'stock.adjustedShares',
     group: '调度 / 持仓 / 下单',
-    sig: 'shares(code: string): number',
-    zh: '某票当前持仓股数(无则 0)。',
-    en: 'Current shares held of a code (0 if none).',
+    sig: 'adjustedShares(code: string): number',
+    zh: '某票当前后复权持仓股数（无则 0）。',
+    en: 'Current adjusted shares held of a code (0 if none).',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'positions',
+    iface: 'StockAccount',
+    name: 'stock.positions',
     group: '调度 / 持仓 / 下单',
     sig: 'positions(): { code: string; shares: number; avgCost: number; marketValue: number }[]',
     zh: '当前所有持仓(代码/股数/成本/市值)。',
     en: 'All current positions (code / shares / avgCost / marketValue).',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'equalWeight',
+    iface: 'StockAccount',
+    name: 'stock.equalWeight',
     group: '调度 / 持仓 / 下单',
     sig: 'equalWeight(codes: string[]): void',
     zh: '把这些票等权(次开成交的目标仓位调仓)。',
     en: 'Equal-weight the codes (a target-book rebalance at next open).',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'atrUnits',
+    iface: 'StockAccount',
+    name: 'stock.atrAdjustedShares',
     group: '仓位管理',
-    sig: 'atrUnits(code: string, riskPct: number, atrPeriod?: number): number',
-    zh: 'ATR 风险仓位股数:1 个 ATR 的不利波动约等于当前权益 × riskPct；默认 ATR20，实际买入仍由引擎按真实 100 股整手取整。',
-    en: 'ATR risk-sized adjusted shares: a one-ATR adverse move is about current equity × riskPct; defaults to ATR20 and actual buys remain rounded to real 100-share lots.',
-    prompt: 'ctx.atrUnits(code,riskPct,atrPeriod=20)',
+    sig: 'atrAdjustedShares(code: string, riskPct: number, atrPeriod?: number): number',
+    zh: 'ATR 风险仓位股数:1 个 ATR 的不利波动约等于现金账户权益 × riskPct；默认 ATR20，实际买入仍由引擎按真实 100 股整手取整。',
+    en: 'ATR risk-sized adjusted shares: a one-ATR adverse move is about stock-account equity × riskPct; defaults to ATR20 and actual buys remain rounded to real 100-share lots.',
+    prompt: 'ctx.stock.atrAdjustedShares(code,riskPct,atrPeriod=20)',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'volTargetWeights',
+    iface: 'StockAccount',
+    name: 'stock.volTargetWeights',
     group: '仓位管理',
     sig: 'volTargetWeights(codes: string[], lookback?: number): Map<string, number>',
     zh: '按最近日收益波动率倒数分配权重；默认 20 日，历史不足的票剔除，其余权重和为 1。需先加载 K 线。',
     en: 'Inverse-volatility weights from recent daily returns; defaults to 20 days, omits insufficient histories, and normalizes remaining weights to 1. Bars must be loaded first.',
-    prompt: 'ctx.volTargetWeights(codes,lookback=20)',
+    prompt: 'ctx.stock.volTargetWeights(codes,lookback=20)',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'orderTargetPercent',
+    iface: 'StockAccount',
+    name: 'stock.setTargetWeight',
     group: '调度 / 持仓 / 下单',
-    sig: 'orderTargetPercent(code: string, weight: number): void',
-    zh: '声明某票的目标权重（0 到 1，次开调仓）；整张目标表权重和不得超过 1。',
-    en: 'Declarative target weight in [0, 1] for the next-open rebalance; the full target book must sum to at most 1.',
+    sig: 'setTargetWeight(code: string, weight: number): void',
+    zh: '更新本次决策目标表的一项（0 到 1）；未列持仓会清仓，整表和不超过 1。不能与现金增量单混用。',
+    en: "Update one entry of this decision's full target book in [0, 1]; omitted holdings are liquidated, total weight must not exceed 1, and stock deltas cannot be mixed in.",
   },
   {
-    iface: 'StrategyCtx',
-    name: 'setHoldings',
+    iface: 'StockAccount',
+    name: 'stock.setTargetWeights',
     group: '调度 / 持仓 / 下单',
-    sig: 'setHoldings(weights: Record<string, number>): void',
-    zh: '声明整张目标仓位表（代码→权重）；各权重须在 0 到 1，合计不得超过 1。',
-    en: 'Declarative target book (code → weight); every weight must be in [0, 1] and the sum at most 1.',
+    sig: 'setTargetWeights(weights: Record<string, number> | Map<string, number>): void',
+    zh: '替换整张现金账户目标表，未列持仓清仓；各权重 0 到 1、合计不超过 1。同日不能混用现金增量单。',
+    en: 'Replace the full stock-account target book; omitted holdings are liquidated. Weights are in [0, 1], sum at most 1, and cannot mix with stock deltas.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'order',
+    iface: 'StockAccount',
+    name: 'stock.orderAdjustedShares',
     group: '调度 / 持仓 / 下单',
-    sig: 'order(code: string, shares: number): void',
-    zh: '命令式下单:+买 / −卖,次开成交。',
-    en: 'Imperative share order: +buy / -sell, filled at next open.',
+    sig: 'orderAdjustedShares(code: string, shares: number): void',
+    zh: '后复权股数增量：正买负卖，同日累加；不能与现金账户目标权重混用。',
+    en: 'Adjusted-share delta: positive buys, negative sells, accumulated within a decision; cannot mix with stock target weights.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'orderLots',
+    iface: 'StockAccount',
+    name: 'stock.orderLots',
     group: '调度 / 持仓 / 下单',
     sig: 'orderLots(code: string, lots: number): void',
     zh: '按整手下单，每手 100 个真实股数；正数买入、负数卖出，次日开盘成交。',
     en: 'Order whole real-share lots (100 shares each); positive buys and negative sells fill next open.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'exit',
+    iface: 'StockAccount',
+    name: 'stock.closePosition',
     group: '调度 / 持仓 / 下单',
-    sig: 'exit(code: string): void',
-    zh: '清掉某票的全部持仓。',
-    en: 'Sell the entire current position.',
+    sig: 'closePosition(code: string): void',
+    zh: '目标清仓，覆盖该标的先前的普通指令；实际成交仍受资金和交易规则约束。',
+    en: 'Target zero holdings, replacing earlier ordinary instructions for this code; execution remains subject to trading constraints.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'stopLoss',
+    iface: 'StockAccount',
+    name: 'stock.stopLossAtAdjustedPrice',
     group: '条件单',
-    sig: 'stopLoss(code: string, price: number): void',
-    zh: '挂持久止损：下一交易日起，最低价触及触发价时卖出全部可卖持仓；跳空取开盘价。',
-    en: 'Persistent stop loss: from the next trading day, sell all eligible shares when the low reaches the trigger; gaps fill at open.',
+    sig: 'stopLossAtAdjustedPrice(code: string, price: number): void',
+    zh: '按后复权价格挂持久止损：下一交易日起，最低价触及触发价时卖出全部可卖持仓；跳空取开盘价。',
+    en: 'Persistent stop loss at an adjusted price: from the next trading day, sell all eligible shares when the low reaches the trigger; gaps fill at open.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'trailingStop',
+    iface: 'StockAccount',
+    name: 'stock.trailingStopByFraction',
     group: '条件单',
-    sig: 'trailingStop(code: string, pct: number): void',
+    sig: 'trailingStopByFraction(code: string, pct: number): void',
     zh: '挂持久跟踪止损，pct 用小数（0.08 = 8%）；只按前一日已知高水位判断当天触发。',
     en: "Persistent trailing stop (0.08 = 8%); today's trigger uses only the high-water mark known before the bar.",
   },
   {
-    iface: 'StrategyCtx',
-    name: 'limitBuy',
+    iface: 'StockAccount',
+    name: 'stock.limitBuyAtAdjustedPrice',
     group: '条件单',
-    sig: 'limitBuy(code: string, price: number, shares: number): void',
-    zh: '挂持久限价买单；下一交易日起最低价触及限价时成交，成交价不会高于限价。',
-    en: 'Persistent limit buy: eligible from the next trading day and fills when the low reaches the limit, never above it.',
+    sig: 'limitBuyAtAdjustedPrice(code: string, price: number, shares: number): void',
+    zh: '按后复权价格和后复权股数挂持久限价买单；下一交易日起最低价触及限价时成交，成交价不会高于限价。',
+    en: 'Persistent limit buy in adjusted-price and adjusted-share units: eligible from the next trading day and fills when the low reaches the limit, never above it.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'takeProfit',
+    iface: 'StockAccount',
+    name: 'stock.takeProfitByFraction',
     group: '条件单',
-    sig: 'takeProfit(code: string, pct: number): void',
+    sig: 'takeProfitByFraction(code: string, pct: number): void',
     zh: '按当前持仓成本挂持久止盈（0.2 = 盈利 20%），触发后卖出全部可卖持仓。',
     en: 'Persistent take-profit from current position cost (0.2 = +20%); sells all eligible shares when reached.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'cancelConditional',
+    iface: 'StockAccount',
+    name: 'stock.cancelConditional',
     group: '条件单',
     sig: "cancelConditional(code: string, kind?: 'stop_loss' | 'trailing_stop' | 'limit_buy' | 'take_profit'): void",
     zh: '撤销某标的指定类型的条件单；省略 kind 时撤销该标的全部条件单。',
     en: 'Cancel one conditional-order kind for a code, or all conditional orders for that code when kind is omitted.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'orderFuture',
+    iface: 'FuturesAccount',
+    name: 'futures.orderContracts',
     group: '股指期货',
-    sig: 'orderFuture(code: string, contracts: number): void',
-    zh: '期货整数手增量订单:+买/−卖,次开成交；需通过 accounts 分配足够的期货保证金资金。',
-    en: 'Signed integer futures order: +buy / -sell, filled at next open; allocate sufficient futures margin capital through accounts.',
+    sig: 'orderContracts(code: string, contracts: number): void',
+    zh: '期货手数增量：截断为整数，同日同代码累加，不能与该代码目标混用。次开成交，需分配足够期货资金。',
+    en: 'Signed futures delta, truncated to whole contracts and accumulated per code; cannot mix with targets for that code. Filled next open, subject to futures funding.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'setFutureTargetContracts',
+    iface: 'FuturesAccount',
+    name: 'futures.setTargetContracts',
     group: '股指期货',
-    sig: 'setFutureTargetContracts(code: string, contracts: number): void',
+    sig: 'setTargetContracts(code: string, contracts: number): void',
     zh: '设置次日开盘的期货目标手数;正数多头、负数空头。',
     en: 'Set the signed futures contract target for the next open.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'setFutureTargetNotional',
+    iface: 'FuturesAccount',
+    name: 'futures.setTargetNotional',
     group: '股指期货',
-    sig: 'setFutureTargetNotional(code: string, notional: number): void',
+    sig: 'setTargetNotional(code: string, notional: number): void',
     zh: '设置次日开盘的期货目标名义敞口;负数为空头。',
     en: 'Set the signed futures notional target for the next open.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'hedgeFuture',
+    iface: 'FuturesAccount',
+    name: 'futures.hedgeStock',
     group: '股指期货',
-    sig: 'hedgeFuture(code: string, beta?: number): void',
+    sig: 'hedgeStock(code: string, beta?: number): void',
     zh: '按次日股票账户实际成交后的市值对冲;beta=1 为全额空头对冲。',
     en: 'Hedge actual filled stock exposure at the next open; beta=1 requests a full short hedge.',
   },
   {
-    iface: 'StrategyCtx',
-    name: 'exitFuture',
+    iface: 'FuturesAccount',
+    name: 'futures.closePosition',
     group: '股指期货',
-    sig: 'exitFuture(code: string): void',
-    zh: '次日开盘平掉该逻辑代码的全部期货持仓。',
-    en: 'Close the entire futures position at the next open.',
+    sig: 'closePosition(code: string): void',
+    zh: '零手数目标，覆盖该代码此前普通指令；后续增量报错，后续目标可覆盖。次开尝试平仓。',
+    en: 'Replace earlier ordinary instructions for this code with a zero-contract target. Later deltas fail; later targets replace it. Attempt closure next open.',
   },
 
   // —— BarRow: the selection row (what universe()/bar() expose) ——
@@ -989,28 +989,12 @@ export type SdkEntryName<I extends SdkEntry['iface']> = Extract<
 >['name'];
 
 // Read-only ctx properties (not callable members; emitted at the top of StrategyCtx, no doc anchor).
-export const CTX_PROP_NAMES = [
-  'date',
-  'cash',
-  'value',
-  'availableCash',
-  'stockValue',
-  'futureValue',
-  'stockAvailableCash',
-  'futureAvailableCash',
-  'futureMargin',
-  'params',
-] as const;
+export const CTX_PROP_NAMES = ['date', 'portfolio', 'stock', 'futures', 'params'] as const;
 const CTX_PROP_TYPES: Record<(typeof CTX_PROP_NAMES)[number], string> = {
   date: 'string',
-  cash: 'number',
-  value: 'number',
-  availableCash: 'number',
-  stockValue: 'number',
-  futureValue: 'number',
-  stockAvailableCash: 'number',
-  futureAvailableCash: 'number',
-  futureMargin: 'number',
+  portfolio: '{ readonly equity: number }',
+  stock: 'StockAccount',
+  futures: 'FuturesAccount',
   params: 'Readonly<WidenStrategyParams<Params>>',
 };
 const CTX_PROPS = CTX_PROP_NAMES.map(
@@ -1106,6 +1090,23 @@ ${ofIface('Universe')}
 interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
 ${CTX_PROPS}
 ${ofIface('StrategyCtx')}
+}
+
+interface StockAccount {
+  /** ${locale === 'zh' ? '该账户权益，不能跨账户自动挪用。' : 'Equity of this account; funds do not transfer automatically.'} */
+  readonly equity: number;
+  /** ${locale === 'zh' ? '该账户可用现金；期货已扣除保证金。' : 'Spendable cash of this account, excluding reserved margin for futures.'} */
+  readonly availableCash: number;
+${ofIface('StockAccount')}
+}
+
+interface FuturesAccount {
+  /** ${locale === 'zh' ? '该账户权益，不能跨账户自动挪用。' : 'Equity of this account; funds do not transfer automatically.'} */
+  readonly equity: number;
+  /** ${locale === 'zh' ? '该账户可用现金；期货已扣除保证金。' : 'Spendable cash of this account, excluding reserved margin for futures.'} */
+  readonly availableCash: number;
+  readonly margin: number;
+${ofIface('FuturesAccount')}
 }
 
 ${POSTLUDE}

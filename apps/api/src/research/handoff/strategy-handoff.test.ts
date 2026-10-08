@@ -69,7 +69,7 @@ def handle_bar(ctx):
         if len(history) == ctx.params["lookback"] and history[0] > 0:
             ranked.append((code, history[-1] / history[0] - 1))
     picks = [code for code, _ in sorted(ranked, key=lambda item: item[1], reverse=True)[:2]]
-    ctx.equal_weight(picks) if len(picks) == 2 else ctx.set_holdings({})`;
+    ctx.stock.equal_weight(picks) if len(picks) == 2 else ctx.stock.set_target_weights({})`;
 
 describe('research Strategy handoff', () => {
   it('classifies a complete trading rule and returns validated Python Strategy code', async () => {

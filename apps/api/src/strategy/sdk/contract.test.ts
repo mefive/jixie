@@ -35,9 +35,15 @@ describe('sdk-reference registry ↔ runtime SDK types stay in sync', () => {
   });
 
   it('checks complete public primitive signatures against the engine adapter', () => {
-    type PublicPrimitives = Pick<StrategyCtx, Extract<keyof StrategyCtx, keyof EngineContext>>;
+    type PublicPrimitives = Pick<
+      StrategyCtx,
+      Exclude<Extract<keyof StrategyCtx, keyof EngineContext>, 'stock'>
+    >;
     expectTypeOf<EngineContext>().toExtend<PublicPrimitives>();
-    expectTypeOf<Parameters<StrategyCtx['orderTargetPercent']>>().toEqualTypeOf<
+    expectTypeOf<EngineContext['stock']>().toEqualTypeOf<
+      Omit<StrategyCtx['stock'], 'equalWeight' | 'atrAdjustedShares' | 'volTargetWeights'>
+    >();
+    expectTypeOf<Parameters<StrategyCtx['stock']['setTargetWeight']>>().toEqualTypeOf<
       [code: string, weight: number]
     >();
     expectTypeOf<ReturnType<StrategyCtx['history']>>().toEqualTypeOf<number[]>();
@@ -47,6 +53,21 @@ describe('sdk-reference registry ↔ runtime SDK types stay in sync', () => {
     expectTypeOf<SdkEntryName<'StrategyCtx'>>().toExtend<keyof StrategyCtx>();
     expectTypeOf<
       Exclude<keyof StrategyCtx, SdkEntryName<'StrategyCtx'> | CtxUndocumented>
+    >().toEqualTypeOf<never>();
+  });
+
+  it('documents both account surfaces and rejects the removed flat interface', () => {
+    type StockNames = SdkEntryName<'StockAccount'> extends `stock.${infer Name}` ? Name : never;
+    type FuturesNames =
+      SdkEntryName<'FuturesAccount'> extends `futures.${infer Name}` ? Name : never;
+    expectTypeOf<
+      Exclude<keyof StrategyCtx['stock'], 'equity' | 'availableCash'>
+    >().toEqualTypeOf<StockNames>();
+    expectTypeOf<
+      Exclude<keyof StrategyCtx['futures'], 'equity' | 'availableCash' | 'margin'>
+    >().toEqualTypeOf<FuturesNames>();
+    expectTypeOf<
+      Extract<keyof StrategyCtx, 'cash' | 'value' | 'order' | 'exit' | 'orderFuture'>
     >().toEqualTypeOf<never>();
   });
 

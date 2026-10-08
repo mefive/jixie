@@ -114,7 +114,7 @@ describe('strategy and factor sandbox combinations', () => {
             await ctx.universe();
             const value = ctx.factor('value', 'A');
             console.log('value', value);
-            ctx.orderTargetPercent('A', value === 20 ? 0.5 : 0);
+            ctx.stock.setTargetWeight('A', value === 20 ? 0.5 : 0);
           }
         });
       `,
@@ -134,7 +134,7 @@ def on_bar(ctx):
     ctx.universe()
     value = ctx.factor("value", "A")
     print("value", value)
-    ctx.order_target_percent("A", 0.5 if value == 20 else 0)
+    ctx.stock.set_target_weight("A", 0.5 if value == 20 else 0)
 `,
           onUserLog: (_level, text) => logs.push(text),
         });
@@ -156,7 +156,7 @@ def on_bar(ctx):
           name: 'expected',
           watch: ['A'],
           onBar(context) {
-            context.orderTargetPercent('A', 0.5);
+            context.stock.setTargetWeight('A', 0.5);
           },
         },
       }).run();
@@ -222,7 +222,7 @@ def on_bar(ctx):
         factors: ['history'],
         onBar(context) {
           if (context.date === dates[0]) {
-            context.order('A', 100);
+            context.stock.orderAdjustedShares('A', 100);
           } else {
             seen.push(context.factor('history', 'A'));
           }

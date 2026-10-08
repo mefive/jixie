@@ -197,7 +197,13 @@ function installSdk(m: Monaco) {
       }
 
       const word = model.getWordAtPosition(position);
-      if (!word || !sdkNames.has(word.word)) {
+      if (!word) {
+        return null;
+      }
+      const prefix = model.getLineContent(position.lineNumber).slice(0, word.startColumn - 1);
+      const account = prefix.match(/\b(stock|futures)\s*\.\s*$/)?.[1];
+      const anchor = account ? `${account}.${word.word}` : word.word;
+      if (!sdkNames.has(anchor)) {
         return null;
       }
       return {
@@ -209,7 +215,7 @@ function installSdk(m: Monaco) {
         ),
         contents: [
           {
-            value: `[📖 ${i18n.t('strategy:sdkDocTooltip', { name: word.word })}](${location.origin}/docs/sdk#${word.word})`,
+            value: `[📖 ${i18n.t('strategy:sdkDocTooltip', { name: anchor })}](${location.origin}/docs/sdk#${anchor})`,
           },
         ],
       };
@@ -291,8 +297,15 @@ function CodeEditor({
           keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
           run(ed) {
             const pos = ed.getPosition();
-            const word = pos ? ed.getModel()?.getWordAtPosition(pos)?.word : undefined;
-            window.open(word ? `/docs/sdk#${word}` : '/docs/sdk', '_blank');
+            const model = ed.getModel();
+            const word = pos ? model?.getWordAtPosition(pos) : undefined;
+            const prefix =
+              pos && word
+                ? model?.getLineContent(pos.lineNumber).slice(0, word.startColumn - 1)
+                : '';
+            const account = prefix?.match(/\b(stock|futures)\s*\.\s*$/)?.[1];
+            const anchor = word ? (account ? `${account}.${word.word}` : word.word) : undefined;
+            window.open(anchor ? `/docs/sdk#${anchor}` : '/docs/sdk', '_blank');
           },
         });
       }}

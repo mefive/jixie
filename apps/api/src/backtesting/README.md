@@ -2,7 +2,7 @@
 
 Backtesting 模拟交易：推进交易日、提供当时可得的数据、调用决策回调、执行待成交指令、维护账户和累计绩效。它不读取用户源码，不选择语言，不管理沙箱，也不处理回测任务或信号部署。
 
-入口为 `new BacktestingEngine(config).run()`，每个实例只运行一次，统一返回 `{ result, finalState }`。
+入口为 `new BacktestingEngine(config).run()`，每个实例只运行一次，直接返回 `BacktestingResult`，末日快照由调用方显式获取。
 [StrategyExecution](../strategy/execution/execution.ts) 创建策略 runtime 和 FactorHost，注入决策回调、DataPort 与 FactorExecutionPort；它负责关闭这些外部资源。
 
 ## 从职责找文件
@@ -55,7 +55,7 @@ EngineContext / EngineStrategy 是内部模拟契约，公开 StrategyCtx 仍由
 
 `BacktestingEngine.run()` 直接返回回测结果。运行成功后，调用方可显式调用异步 `collectFinalState()`：先按需加载末日持仓及待执行现金订单的行情，再返回独立、可序列化的双账户快照。该操作可能查询 DataPort 并失败；运行前、运行中和运行失败后拒绝读取。每次返回独立副本，快照失败不改变已完成的回测结果，可重试读取。末日始终记录策略实际读取的计算因子值，不额外执行因子计算；其他日期不保留观测。真实股数、参考价与业务信号由 [Signals 投影](../signals/runs/projection.ts) 产生。
 
-默认资金分配、成交算法、费用模型和 CSI 300 全收益基准保持原口径。`futureCloseTodayRate` 保留原配置含义，本轮不新增平今费率应用。策略作者 SDK、HTTP 入口及数据库 schema 不变；回测结果新增兼容性可选字段，旧报告仍可读取。
+默认资金分配、成交算法、费用模型和 CSI 300 全收益基准保持原口径。`futureCloseTodayRate` 保留原配置含义，本轮不新增平今费率应用。HTTP 入口及数据库 schema 不变；回测结果新增兼容性可选字段，旧报告仍可读取。
 
 `resolveInitialCashWeights()` 只读取 accounts，默认 stock=1、futures=0；显式权重必须有限、非负且合计为 1。旧 futures 字段兼容接收但被忽略，不启用功能、不改变资金或约束可交易代码。现金与期货账户始终创建，订单/结算/日志/分账户净值统一执行；空账户没有持仓可结算，零资金订单继续受余额/保证金约束，无账户间自动转账。EngineData 统一读取区间期货合约、行情、映射与保证金数据；缺行情的查询返回空，无法执行的订单不成交。纯股票策略也会读取期货数据，增加一批数据访问，不再维护独立的启用状态。
 
@@ -83,4 +83,10 @@ Engine 使用 `beginDecision(date)` 收集，通过 Context 接收策略指令�
 
 期货持仓计算由 `futures-accounting.ts` 的纯成交/结算函数共享；自动换月仍由 FuturesPortfolio 保留原子预检语义。实际录入可表达部分平旧/开新和负可用资金，不能把模拟保证金拒单当作撤销真实成交。
 
-Signals 前向账户模拟使用 `loadExecutionOrders({ cashOrders, futuresOrders })` 一次装载独立执行批次，不经过策略收集／提交。装载复制输入，替换现金与期货待执行状态及持续条件单，不恢复策略 runtime，也不提供调仓归因决策日期。期货意图按输入顺序沿用策略入口的参数校验、取整、delta 累积及目标覆盖规则；自动换月不作为显式意图装载。
+Signals 前向账户模拟使用 `loadExecutionOrders({ cashOrders, cashDeltas, futuresOrders })` 一次装载独立执行批次，不经过策略收集／提交。装载复制输入，替换现金与期货待执行状态及持续条件单，不恢复策略 runtime，也不提供调仓归因决策日期。现金增量的单位转换由 Signals 完成，累加归 OrderBook；期货意图按输入顺序沿用历史取整、delta 累积及覆盖规则；自动换月不作为显式意图装载。
+
+
+新策略决策拒绝混合现金目标表与现金增量单，期货按代码拒绝目标／增量混合；不同账户互不冲突。
+现金清仓记录在 decision.closePositions，覆盖同标的股数／手数指令；提交时转换为原股数快照或目标权重零，
+不新增持久化快照字段。后续目标可以覆盖清仓，后续增量报错。期货清仓仍是零手数目标。
+历史 Signals 装载不套用新决策的冲突限制，保留历史已保存指令的回放顺序与含义。

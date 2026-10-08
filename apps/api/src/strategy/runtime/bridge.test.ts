@@ -43,15 +43,32 @@ function transport(frames: unknown[], historyUpdates = false) {
 function contextFixture() {
   const context = {
     date: '20240102',
-    cash: 60,
-    value: 100,
-    availableCash: 50,
-    stockValue: 70,
-    futureValue: 30,
-    stockAvailableCash: 40,
-    futureAvailableCash: 10,
-    futureMargin: 20,
-    positions: () => [{ code: 'BBB', shares: 100, avgCost: 9, marketValue: 1_100 }],
+    portfolio: { equity: 100 },
+    stock: {
+      equity: 70,
+      availableCash: 40,
+      positions: () => [{ code: 'BBB', shares: 100, avgCost: 9, marketValue: 1_100 }],
+      setTargetWeight: vi.fn(),
+      setTargetWeights: vi.fn(),
+      orderAdjustedShares: vi.fn(),
+      orderLots: vi.fn(),
+      closePosition: vi.fn(),
+      stopLossAtAdjustedPrice: vi.fn(),
+      trailingStopByFraction: vi.fn(),
+      limitBuyAtAdjustedPrice: vi.fn(),
+      takeProfitByFraction: vi.fn(),
+      cancelConditional: vi.fn(),
+    },
+    futures: {
+      equity: 30,
+      availableCash: 10,
+      margin: 20,
+      orderContracts: vi.fn(),
+      setTargetContracts: vi.fn(),
+      setTargetNotional: vi.fn(),
+      hedgeStock: vi.fn(),
+      closePosition: vi.fn(),
+    },
     bars: vi.fn((code: string) => (code === 'MISSING' ? [] : [history])),
     loadCrossSection: vi.fn(async () => ['AAA', 'MISSING']),
     ensureBars: vi.fn(async () => {}),
@@ -80,16 +97,6 @@ function contextFixture() {
     industry: () => 'fixture',
     lhbNet: () => null,
     factor: vi.fn(() => 3),
-    orderTargetPercent: vi.fn(),
-    setHoldings: vi.fn(),
-    order: vi.fn(),
-    orderLots: vi.fn(),
-    exit: vi.fn(),
-    stopLoss: vi.fn(),
-    trailingStop: vi.fn(),
-    limitBuy: vi.fn(),
-    takeProfit: vi.fn(),
-    cancelConditional: vi.fn(),
   };
   // Only the bridge's context surface is provided; missing calls must fail the test.
   return { context: context as unknown as EngineContext, spies: context };
@@ -131,15 +138,13 @@ describe('shared strategy bridge', () => {
         type: 'bar',
         snapshot: {
           date: '20240102',
-          cash: 60,
-          value: 100,
-          available_cash: 50,
-          stock_value: 70,
-          future_value: 30,
-          stock_available_cash: 40,
-          future_available_cash: 10,
-          future_margin: 20,
-          positions: [{ code: 'BBB', shares: 100, avg_cost: 9, market_value: 1_100 }],
+          portfolio: { equity: 100 },
+          stock: {
+            equity: 70,
+            availableCash: 40,
+            positions: [{ code: 'BBB', shares: 100, avgCost: 9, marketValue: 1_100 }],
+          },
+          futures: { equity: 30, availableCash: 10, margin: 20 },
           bar_updates: {
             AAA: {
               date: '20240102',
@@ -206,7 +211,10 @@ describe('shared strategy bridge', () => {
     const { session, sent, historyUpdates } = transport([
       ready,
       { type: 'request', id: 9, method: 'bars', arguments: { codes: ['AAA'] } },
-      { type: 'done', commands: [{ operation: 'exit', arguments: { code: 'BBB' } }] },
+      {
+        type: 'done',
+        commands: [{ operation: 'stock.closePosition', arguments: { code: 'BBB' } }],
+      },
     ]);
     const strategy = await createStrategyBridge(session, {
       startupCommand: { type: 'start' },
@@ -217,21 +225,29 @@ describe('shared strategy bridge', () => {
     spies.ensureBars.mockRejectedValueOnce(new Error('history unavailable'));
     await strategy.execute(context);
     expect(sent[2]).toEqual({ type: 'response', id: 9, error: 'history unavailable' });
-    expect(spies.exit).toHaveBeenCalledExactlyOnceWith('BBB');
+    expect(spies.stock.closePosition).toHaveBeenCalledExactlyOnceWith('BBB');
   });
 
   it('replays all supported trading commands in their original order', async () => {
     const commands = [
-      { operation: 'order_target_percent', arguments: { code: 'AAA', weight: 0.5 } },
-      { operation: 'set_holdings', arguments: { weights: { AAA: 0.6 } } },
-      { operation: 'order', arguments: { code: 'AAA', shares: 100 } },
-      { operation: 'order_lots', arguments: { code: 'IF', lots: -1 } },
-      { operation: 'exit', arguments: { code: 'BBB' } },
-      { operation: 'stop_loss', arguments: { code: 'AAA', price: 9 } },
-      { operation: 'trailing_stop', arguments: { code: 'AAA', percentage: 0.1 } },
-      { operation: 'limit_buy', arguments: { code: 'AAA', price: 10, shares: 200 } },
-      { operation: 'take_profit', arguments: { code: 'AAA', percentage: 0.2 } },
-      { operation: 'cancel_conditional', arguments: { code: 'AAA', kind: null } },
+      { operation: 'stock.setTargetWeight', arguments: { code: 'AAA', weight: 0.5 } },
+      { operation: 'stock.setTargetWeights', arguments: { weights: { AAA: 0.6 } } },
+      { operation: 'stock.orderAdjustedShares', arguments: { code: 'AAA', shares: 100 } },
+      { operation: 'stock.orderLots', arguments: { code: 'IF', lots: -1 } },
+      { operation: 'stock.closePosition', arguments: { code: 'BBB' } },
+      { operation: 'stock.stopLossAtAdjustedPrice', arguments: { code: 'AAA', price: 9 } },
+      { operation: 'stock.trailingStopByFraction', arguments: { code: 'AAA', percentage: 0.1 } },
+      {
+        operation: 'stock.limitBuyAtAdjustedPrice',
+        arguments: { code: 'AAA', price: 10, shares: 200 },
+      },
+      { operation: 'stock.takeProfitByFraction', arguments: { code: 'AAA', percentage: 0.2 } },
+      { operation: 'stock.cancelConditional', arguments: { code: 'AAA', kind: null } },
+      { operation: 'futures.orderContracts', arguments: { code: 'IF', contracts: -2 } },
+      { operation: 'futures.setTargetContracts', arguments: { code: 'IF', contracts: 3 } },
+      { operation: 'futures.setTargetNotional', arguments: { code: 'IF', notional: -100000 } },
+      { operation: 'futures.hedgeStock', arguments: { code: 'IF', beta: 1 } },
+      { operation: 'futures.closePosition', arguments: { code: 'IF' } },
     ];
     const { session, historyUpdates } = transport([ready, { type: 'done', commands }]);
     const strategy = await createStrategyBridge(session, {
@@ -242,16 +258,21 @@ describe('shared strategy bridge', () => {
     const { context, spies } = contextFixture();
     await strategy.execute(context);
     const calls = [
-      spies.orderTargetPercent,
-      spies.setHoldings,
-      spies.order,
-      spies.orderLots,
-      spies.exit,
-      spies.stopLoss,
-      spies.trailingStop,
-      spies.limitBuy,
-      spies.takeProfit,
-      spies.cancelConditional,
+      spies.stock.setTargetWeight,
+      spies.stock.setTargetWeights,
+      spies.stock.orderAdjustedShares,
+      spies.stock.orderLots,
+      spies.stock.closePosition,
+      spies.stock.stopLossAtAdjustedPrice,
+      spies.stock.trailingStopByFraction,
+      spies.stock.limitBuyAtAdjustedPrice,
+      spies.stock.takeProfitByFraction,
+      spies.stock.cancelConditional,
+      spies.futures.orderContracts,
+      spies.futures.setTargetContracts,
+      spies.futures.setTargetNotional,
+      spies.futures.hedgeStock,
+      spies.futures.closePosition,
     ];
     expect(calls.map((spy) => spy.mock.calls)).toEqual([
       [['AAA', 0.5]],
@@ -264,6 +285,11 @@ describe('shared strategy bridge', () => {
       [['AAA', 10, 200]],
       [['AAA', 0.2]],
       [['AAA', undefined]],
+      [['IF', -2]],
+      [['IF', 3]],
+      [['IF', -100000]],
+      [['IF', 1]],
+      [['IF']],
     ]);
     const order = calls.map((spy) => spy.mock.invocationCallOrder[0]);
     expect(order).toEqual([...order].sort((left, right) => left - right));
@@ -275,8 +301,8 @@ describe('shared strategy bridge', () => {
       {
         type: 'done',
         commands: [
-          { operation: 'exit', arguments: { code: 'AAA' } },
-          { operation: 'order', arguments: { code: 'AAA', shares: Infinity } },
+          { operation: 'stock.closePosition', arguments: { code: 'AAA' } },
+          { operation: 'stock.orderAdjustedShares', arguments: { code: 'AAA', shares: Infinity } },
         ],
       },
     ]);
@@ -287,8 +313,8 @@ describe('shared strategy bridge', () => {
     });
     const { context, spies } = contextFixture();
     await expect(strategy.execute(context)).rejects.toThrow();
-    expect(spies.exit).not.toHaveBeenCalled();
-    expect(spies.order).not.toHaveBeenCalled();
+    expect(spies.stock.closePosition).not.toHaveBeenCalled();
+    expect(spies.stock.orderAdjustedShares).not.toHaveBeenCalled();
   });
 
   it('preserves sandbox errors during initialization and onBar', async () => {
@@ -337,7 +363,7 @@ describe('incremental TypeScript history delivery', () => {
     const { context, spies } = contextFixture();
     const rows = ['20240102', '20240103', '20240105'].map((date) => ({ ...history, date }));
     const loaded = new Set<string>();
-    context.positions = () => [];
+    context.stock.positions = () => [];
     context.bars = (code, count) =>
       loaded.has(code) ? rows.filter((row) => row.date <= context.date).slice(-count) : [];
     context.ensureBars = vi.fn(async (codes: string[]) => {
@@ -406,7 +432,7 @@ describe('incremental TypeScript history delivery', () => {
       diagnostics,
     });
     const { context, spies } = contextFixture();
-    context.positions = () => [];
+    context.stock.positions = () => [];
     context.bars = (code) => (code === 'EMPTY' ? [] : [history]);
     spies.ensureBars.mockRejectedValueOnce(new Error('load failed'));
     await strategy.execute(context);

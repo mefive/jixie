@@ -54,7 +54,7 @@ async function captureReconnectAndDirtyGuard() {
     '      .where((bar) => bar.peTtm != null && bar.peTtm > 0)',
     '      .rankBy((bar) => 1 / bar.peTtm)',
     '      .top(0.01);',
-    '    ctx.equalWeight(picks);',
+    '    ctx.stock.equalWeight(picks);',
     '    console.log(`${ctx.date} 完成月度选股`);',
     '  },',
     '});',
@@ -129,7 +129,7 @@ async function captureFailure() {
   const name = `${PREFIX}失败示例`;
   const strategyId = await seedStrategy({
     name,
-    code: `export default defineStrategy({ name: '${name}', onBar(ctx) { ctx.order(`,
+    code: `export default defineStrategy({ name: '${name}', onBar(ctx) { ctx.stock.orderAdjustedShares(`,
     start: '20240101',
     end: '20240331',
     initialCash: 1_000_000,

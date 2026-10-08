@@ -210,30 +210,30 @@ export function defineStrategy<const Params extends StrategyParams = Record<stri
   return strategy;
 }
 
-/** Layer the SDK helpers onto the engine's per-bar core ctx. */
+/** Adapt engine primitives into an independent public context with isolated account scopes. */
 export function enrich<Params extends StrategyParams = StrategyParams>(
   ctx: EngineContext,
   params = {} as Params,
 ): StrategyCtx<Params> {
-  const helpers: Omit<StrategyCtx<Params>, keyof EngineContext | 'params'> = {
-    period: (schedule) => periodKey(ctx.date, schedule),
-    universe: async (indexCode?: string) =>
-      new Universe(ctx, await ctx.loadCrossSection(indexCode)),
+  const stockHelpers: Pick<
+    StrategyCtx<Params>['stock'],
+    'equalWeight' | 'atrAdjustedShares' | 'volTargetWeights'
+  > = {
     equalWeight: (codes) => {
       const weight = codes.length ? 1 / codes.length : 0;
       const targets: Record<string, number> = {};
       for (const code of codes) {
         targets[code] = weight;
       }
-      ctx.setHoldings(targets);
+      ctx.stock.setTargetWeights(targets);
     },
-    atrUnits: (code, riskPct, atrPeriod = 20) => {
+    atrAdjustedShares: (code, riskPct, atrPeriod = 20) => {
       const window = Math.floor(atrPeriod);
       if (!(riskPct > 0) || window <= 0) {
         return 0;
       }
       const atr = atrBars(ctx.bars(code, window + 1), window);
-      return atr == null || atr <= 0 ? 0 : Math.floor((ctx.value * riskPct) / atr);
+      return atr == null || atr <= 0 ? 0 : Math.floor((ctx.stock.equity * riskPct) / atr);
     },
     volTargetWeights: (codes, lookback = 20) => {
       const window = Math.floor(lookback);
@@ -261,6 +261,39 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
       const total = [...inverseVol.values()].reduce((sum, value) => sum + value, 0);
       return new Map([...inverseVol].map(([code, value]) => [code, value / total]));
     },
+  };
+  const result: StrategyCtx<Params> = {
+    date: ctx.date,
+    params: Object.freeze({ ...params }) as StrategyCtx<Params>['params'],
+    portfolio: ctx.portfolio,
+    stock: {
+      ...ctx.stock,
+      // Preserve live account valuation if a later data read loads additional prices.
+      get equity() {
+        return ctx.stock.equity;
+      },
+      get availableCash() {
+        return ctx.stock.availableCash;
+      },
+      ...stockHelpers,
+    },
+    futures: ctx.futures,
+    bar: (...args) => ctx.bar(...args),
+    bars: (...args) => ctx.bars(...args),
+    ensureBars: (...args) => ctx.ensureBars(...args),
+    listDays: (...args) => ctx.listDays(...args),
+    industry: (...args) => ctx.industry(...args),
+    lhbNet: (...args) => ctx.lhbNet(...args),
+    price: (...args) => ctx.price(...args),
+    history: (...args) => ctx.history(...args),
+    factor: (...args) => ctx.factor(...args),
+    indexMembers: (...args) => ctx.indexMembers(...args),
+    index: (...args) => ctx.index(...args),
+    future: (...args) => ctx.future(...args),
+    futureHistory: (...args) => ctx.futureHistory(...args),
+    period: (schedule) => periodKey(ctx.date, schedule),
+    universe: async (indexCode?: string) =>
+      new Universe(ctx, await ctx.loadCrossSection(indexCode)),
     weekly: (code) => new ResampledSeries(ctx, code, 'weekly'),
     monthly: (code) => new ResampledSeries(ctx, code, 'monthly'),
     sma: (code, n) => {
@@ -295,14 +328,10 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
     kdj: (code, period = 9, kSmoothing = 3, dSmoothing = 3) =>
       latestKdj(ctx.bars(code, kdjLookback(period)), period, kSmoothing, dSmoothing),
   };
-  const enriched = Object.assign(ctx, helpers);
-  // defineProperty preserves the existing immutable parameter property on repeated enrichment.
-  // Only this added property needs an assertion; every context/helper signature is checked on return.
-  return Object.defineProperty(enriched, 'params', {
-    configurable: true,
-    enumerable: true,
-    value: Object.freeze({ ...params }),
-  }) as typeof enriched & Pick<StrategyCtx<Params>, 'params'>;
+
+  Object.defineProperty(result, 'params', { writable: false });
+
+  return result;
 }
 
 export function applyStrategyParamOverrides(

@@ -1,10 +1,10 @@
 import type { EngineContext } from './contract.js';
 import type { EngineData, CrossSection } from './data/engine-data.js';
 import type { BarRow, OhlcBar, ResamplePeriod, IndexHandle, FutureBar } from './data/market.js';
-import type { FuturePositionView, FuturesPortfolio } from './futures-portfolio.js';
+import type { FuturesPortfolio } from './futures-portfolio.js';
 import type { CashPortfolio } from './cash-portfolio.js';
 import type { FactorEvaluator } from './factors/evaluator.js';
-import type { OrderBook, ConditionalOrderKind } from './order-book.js';
+import type { OrderBook } from './order-book.js';
 
 interface BacktestingContextInput {
   date: string;
@@ -20,72 +20,71 @@ interface BacktestingContextInput {
 export class BacktestingContext implements EngineContext {
   private crossSection: CrossSection | null = null;
 
-  constructor(private readonly input: BacktestingContextInput) {}
+  readonly portfolio: EngineContext['portfolio'];
+  readonly stock: EngineContext['stock'];
+  readonly futures: EngineContext['futures'];
+
+  constructor(private readonly input: BacktestingContextInput) {
+    const { date, engineData, cashPortfolio, futuresPortfolio, orderBook } = input;
+    this.portfolio = {
+      get equity() {
+        return (
+          cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date)) +
+          futuresPortfolio.cash
+        );
+      },
+    };
+    this.stock = {
+      get equity() {
+        return cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date));
+      },
+      get availableCash() {
+        return cashPortfolio.cash;
+      },
+      positions: () =>
+        [...cashPortfolio.positions].map(([code, position]) => ({
+          code,
+          shares: position.shares,
+          avgCost: position.avgCost,
+          marketValue: position.shares * (engineData.adjustedCloseAsOf(code, date) ?? 0),
+        })),
+      adjustedShares: (code) => cashPortfolio.positions.get(code)?.shares ?? 0,
+      setTargetWeight: (code, weight) => orderBook.setStockTargetWeight(code, weight),
+      setTargetWeights: (weights) => orderBook.setStockTargetWeights(weights),
+      orderAdjustedShares: (code, shares) => orderBook.orderStockAdjustedShares(code, shares),
+      orderLots: (code, lots) => orderBook.orderStockLots(code, lots),
+      closePosition: (code) => orderBook.closeStockPosition(code),
+      stopLossAtAdjustedPrice: (code, price) =>
+        orderBook.setStockStopLossAtAdjustedPrice(code, price),
+      trailingStopByFraction: (code, fraction) =>
+        orderBook.setStockTrailingStopByFraction(code, fraction),
+      limitBuyAtAdjustedPrice: (code, price, shares) =>
+        orderBook.setStockLimitBuyAtAdjustedPrice(code, price, shares),
+      takeProfitByFraction: (code, fraction) =>
+        orderBook.setStockTakeProfitByFraction(code, fraction),
+      cancelConditional: (code, kind) => orderBook.cancelStockConditional(code, kind),
+    };
+    this.futures = {
+      get equity() {
+        return futuresPortfolio.cash;
+      },
+      get availableCash() {
+        return futuresPortfolio.availableCash;
+      },
+      get margin() {
+        return futuresPortfolio.margin;
+      },
+      position: (code) => futuresPortfolio.position(code),
+      orderContracts: (code, contracts) => orderBook.orderFuturesContracts(code, contracts),
+      setTargetContracts: (code, contracts) => orderBook.setFuturesTargetContracts(code, contracts),
+      setTargetNotional: (code, notional) => orderBook.setFuturesTargetNotional(code, notional),
+      hedgeStock: (code, beta) => orderBook.hedgeStockWithFutures(code, beta),
+      closePosition: (code) => orderBook.closeFuturesPosition(code),
+    };
+  }
 
   get date(): string {
     return this.input.date;
-  }
-
-  get cash(): number {
-    const { cashPortfolio, futuresPortfolio } = this.input;
-
-    return cashPortfolio.cash + futuresPortfolio.cash;
-  }
-
-  get value(): number {
-    const { date, engineData, cashPortfolio, futuresPortfolio } = this.input;
-
-    return (
-      cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date)) +
-      futuresPortfolio.cash
-    );
-  }
-
-  get availableCash(): number {
-    const { cashPortfolio, futuresPortfolio } = this.input;
-
-    return cashPortfolio.cash + futuresPortfolio.availableCash;
-  }
-
-  get stockValue(): number {
-    const { date, engineData, cashPortfolio } = this.input;
-
-    return cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date));
-  }
-
-  get futureValue(): number {
-    const { futuresPortfolio } = this.input;
-
-    return futuresPortfolio.cash;
-  }
-
-  get stockAvailableCash(): number {
-    const { cashPortfolio } = this.input;
-
-    return cashPortfolio.cash;
-  }
-
-  get futureAvailableCash(): number {
-    const { futuresPortfolio } = this.input;
-
-    return futuresPortfolio.availableCash;
-  }
-
-  get futureMargin(): number {
-    const { futuresPortfolio } = this.input;
-
-    return futuresPortfolio.margin;
-  }
-
-  positions(): { code: string; shares: number; avgCost: number; marketValue: number }[] {
-    const { date, engineData, cashPortfolio } = this.input;
-
-    return [...cashPortfolio.positions].map(([code, position]) => ({
-      code,
-      shares: position.shares,
-      avgCost: position.avgCost,
-      marketValue: position.shares * (engineData.adjustedCloseAsOf(code, date) ?? 0),
-    }));
   }
 
   async loadCrossSection(indexCode?: string): Promise<string[]> {
@@ -208,77 +207,5 @@ export class BacktestingContext implements EngineContext {
     n: number,
   ): number[] {
     return this.input.engineData.futureHistory(code, this.input.date, field, n);
-  }
-
-  futurePosition(code: string): FuturePositionView | null {
-    const { futuresPortfolio } = this.input;
-
-    return futuresPortfolio.position(code);
-  }
-
-  orderTargetPercent(code: string, weight: number): void {
-    return this.input.orderBook.orderTargetPercent(code, weight);
-  }
-
-  setHoldings(weights: Record<string, number> | Map<string, number>): void {
-    return this.input.orderBook.setHoldings(weights);
-  }
-
-  order(code: string, shares: number): void {
-    return this.input.orderBook.order(code, shares);
-  }
-
-  orderLots(code: string, lots: number): void {
-    return this.input.orderBook.orderLots(code, lots);
-  }
-
-  exit(code: string): void {
-    return this.input.orderBook.exit(code);
-  }
-
-  stopLoss(code: string, price: number): void {
-    return this.input.orderBook.stopLoss(code, price);
-  }
-
-  trailingStop(code: string, pct: number): void {
-    return this.input.orderBook.trailingStop(code, pct);
-  }
-
-  limitBuy(code: string, price: number, shares: number): void {
-    return this.input.orderBook.limitBuy(code, price, shares);
-  }
-
-  takeProfit(code: string, pct: number): void {
-    return this.input.orderBook.takeProfit(code, pct);
-  }
-
-  cancelConditional(code: string, kind?: ConditionalOrderKind): void {
-    return this.input.orderBook.cancelConditional(code, kind);
-  }
-
-  shares(code: string): number {
-    const { cashPortfolio } = this.input;
-
-    return cashPortfolio.positions.get(code)?.shares ?? 0;
-  }
-
-  orderFuture(code: string, contracts: number): void {
-    return this.input.orderBook.orderFuture(code, contracts);
-  }
-
-  setFutureTargetContracts(code: string, contracts: number): void {
-    return this.input.orderBook.setFutureTargetContracts(code, contracts);
-  }
-
-  setFutureTargetNotional(code: string, notional: number): void {
-    return this.input.orderBook.setFutureTargetNotional(code, notional);
-  }
-
-  hedgeFuture(code: string, beta = 1): void {
-    return this.input.orderBook.hedgeFuture(code, beta);
-  }
-
-  exitFuture(code: string): void {
-    return this.input.orderBook.exitFuture(code);
   }
 }

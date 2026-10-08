@@ -120,7 +120,7 @@ try {
     '    last = period;',
     "    const universe = (await ctx.universe('000300.SH')).minListDays(365);",
     `    const picks = universe.rankBy((_bar, code) => ctx.factor('${factor.body.key}', code)).top(10);`,
-    '    if (picks.length) ctx.equalWeight(picks);',
+    '    if (picks.length) ctx.stock.equalWeight(picks);',
     '  },',
     '});',
   ].join('\n');

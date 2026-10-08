@@ -30,7 +30,9 @@ try {
   await page.goto(`${BASE}/strategy`, { waitUntil: 'domcontentloaded' });
   await page.getByText('或直接写代码').click();
   await page.locator('.monaco-editor').first().waitFor({ timeout: 30000 });
-  await page.waitForTimeout(4500);
+  await page.waitForFunction(() => window.__monaco?.editor.getModels().length > 0, undefined, {
+    timeout: 30_000,
+  });
 
   // Insert a real member usage inside onBar's body, then show the hover at exact offsets.
   await page.evaluate(() => {
@@ -45,7 +47,7 @@ try {
           endLineNumber: anchor.lineNumber,
           endColumn: 1,
         },
-        text: '    const names = ctx.universe();\n',
+        text: '    const names = ctx.universe();\n    ctx.stock.closePosition("AAA");\n    ctx.futures.closePosition("IF.CFX");\n',
       },
     ]);
   });
@@ -88,6 +90,24 @@ try {
   }
   if (!universeHover.includes('SDK 文档')) {
     throw new Error(`hover lost the doc link: ${JSON.stringify(universeHover)}`);
+  }
+
+  for (const [scope, type] of [
+    ['stock', 'StockAccount'],
+    ['futures', 'FuturesAccount'],
+  ]) {
+    const accountHover = await hoverAt(`ctx.${scope}.closePosition`, `ctx.${scope}.`.length + 3);
+    if (
+      !accountHover.includes(type) ||
+      !accountHover.includes('closePosition(code: string): void')
+    ) {
+      throw new Error(`account hover lost its signature: ${JSON.stringify(accountHover)}`);
+    }
+    if (!accountHover.includes(`${scope}.closePosition`)) {
+      throw new Error(
+        `account hover lost its scoped documentation link: ${JSON.stringify(accountHover)}`,
+      );
+    }
   }
 
   const defineHover = await hoverAt('defineStrategy({', 3);

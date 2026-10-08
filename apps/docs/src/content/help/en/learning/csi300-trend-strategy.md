@@ -119,8 +119,8 @@ export default defineStrategy({
   watch: [code],
   onBar(ctx) {
     const price = ctx.price(code);
-    if (price != null && ctx.shares(code) === 0) {
-      ctx.orderTargetPercent(code, 0.95);
+    if (price != null && ctx.stock.adjustedShares(code) === 0) {
+      ctx.stock.setTargetWeight(code, 0.95);
     }
   },
 });
@@ -154,11 +154,11 @@ export default defineStrategy({
     const average = ctx.sma(code, ctx.params.lookback);
     if (price == null || average == null) return;
 
-    const invested = ctx.shares(code) > 0;
+    const invested = ctx.stock.adjustedShares(code) > 0;
     if (price > average && !invested) {
-      ctx.orderTargetPercent(code, 0.95);
+      ctx.stock.setTargetWeight(code, 0.95);
     } else if (price <= average && invested) {
-      ctx.exit(code);
+      ctx.stock.closePosition(code);
     }
   },
 });

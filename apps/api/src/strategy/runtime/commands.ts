@@ -4,50 +4,57 @@ import type { StrategyCommand } from './protocol.js';
 export function replayCommands(context: EngineContext, commands: StrategyCommand[]): void {
   for (const command of commands) {
     switch (command.operation) {
-      case 'order_future':
-        context.orderFuture(command.arguments.code, command.arguments.contracts);
+      case 'futures.orderContracts':
+        context.futures.orderContracts(command.arguments.code, command.arguments.contracts);
         break;
-      case 'set_future_target_contracts':
-        context.setFutureTargetContracts(command.arguments.code, command.arguments.contracts);
+      case 'futures.setTargetContracts':
+        context.futures.setTargetContracts(command.arguments.code, command.arguments.contracts);
         break;
-      case 'set_future_target_notional':
-        context.setFutureTargetNotional(command.arguments.code, command.arguments.notional);
+      case 'futures.setTargetNotional':
+        context.futures.setTargetNotional(command.arguments.code, command.arguments.notional);
         break;
-      case 'hedge_future':
-        context.hedgeFuture(command.arguments.code, command.arguments.beta);
+      case 'futures.hedgeStock':
+        context.futures.hedgeStock(command.arguments.code, command.arguments.beta);
         break;
-      case 'exit_future':
-        context.exitFuture(command.arguments.code);
+      case 'futures.closePosition':
+        context.futures.closePosition(command.arguments.code);
         break;
-      case 'order_target_percent':
-        context.orderTargetPercent(command.arguments.code, command.arguments.weight);
+      case 'stock.setTargetWeight':
+        context.stock.setTargetWeight(command.arguments.code, command.arguments.weight);
         break;
-      case 'set_holdings':
-        context.setHoldings(command.arguments.weights);
+      case 'stock.setTargetWeights':
+        context.stock.setTargetWeights(command.arguments.weights);
         break;
-      case 'order':
-        context.order(command.arguments.code, command.arguments.shares);
+      case 'stock.orderAdjustedShares':
+        context.stock.orderAdjustedShares(command.arguments.code, command.arguments.shares);
         break;
-      case 'order_lots':
-        context.orderLots(command.arguments.code, command.arguments.lots);
+      case 'stock.orderLots':
+        context.stock.orderLots(command.arguments.code, command.arguments.lots);
         break;
-      case 'exit':
-        context.exit(command.arguments.code);
+      case 'stock.closePosition':
+        context.stock.closePosition(command.arguments.code);
         break;
-      case 'stop_loss':
-        context.stopLoss(command.arguments.code, command.arguments.price);
+      case 'stock.stopLossAtAdjustedPrice':
+        context.stock.stopLossAtAdjustedPrice(command.arguments.code, command.arguments.price);
         break;
-      case 'trailing_stop':
-        context.trailingStop(command.arguments.code, command.arguments.percentage);
+      case 'stock.trailingStopByFraction':
+        context.stock.trailingStopByFraction(command.arguments.code, command.arguments.percentage);
         break;
-      case 'limit_buy':
-        context.limitBuy(command.arguments.code, command.arguments.price, command.arguments.shares);
+      case 'stock.limitBuyAtAdjustedPrice':
+        context.stock.limitBuyAtAdjustedPrice(
+          command.arguments.code,
+          command.arguments.price,
+          command.arguments.shares,
+        );
         break;
-      case 'take_profit':
-        context.takeProfit(command.arguments.code, command.arguments.percentage);
+      case 'stock.takeProfitByFraction':
+        context.stock.takeProfitByFraction(command.arguments.code, command.arguments.percentage);
         break;
-      case 'cancel_conditional':
-        context.cancelConditional(command.arguments.code, command.arguments.kind ?? undefined);
+      case 'stock.cancelConditional':
+        context.stock.cancelConditional(
+          command.arguments.code,
+          command.arguments.kind ?? undefined,
+        );
         break;
     }
   }

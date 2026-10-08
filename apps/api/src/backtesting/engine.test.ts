@@ -46,9 +46,9 @@ describe('initial account allocation', () => {
     const input = config();
     input.strategy.accounts = { stock: { cashWeight: 0.2 }, futures: { cashWeight: 0.8 } };
     input.strategy.onBar = (context) => {
-      expect(context.stockValue).toBe(2000);
-      expect(context.futureValue).toBe(8000);
-      expect(context.value).toBe(10000);
+      expect(context.stock.equity).toBe(2000);
+      expect(context.futures.equity).toBe(8000);
+      expect(context.portfolio.equity).toBe(10000);
     };
 
     const result = await new BacktestingEngine(input).run();
@@ -72,16 +72,15 @@ describe('initial account allocation', () => {
       const input = config();
       const futuresRange = vi.spyOn(input.dataPort, 'futuresRange');
       const onBar = vi.fn((context: EngineContext) => {
-        expect(context.cash).toBe(input.initialCash);
-        expect(context.value).toBe(input.initialCash);
-        expect(context.availableCash).toBe(input.initialCash);
-        expect(context.stockValue).toBe(input.initialCash);
-        expect(context.futureValue).toBe(0);
-        expect(context.futureAvailableCash).toBe(0);
-        expect(context.futureMargin).toBe(0);
+        expect(context.portfolio.equity).toBe(input.initialCash);
+        expect(context.stock.availableCash).toBe(input.initialCash);
+        expect(context.stock.equity).toBe(input.initialCash);
+        expect(context.futures.equity).toBe(0);
+        expect(context.futures.availableCash).toBe(0);
+        expect(context.futures.margin).toBe(0);
         expect(context.future('IF.CFX')).toBeNull();
         expect(context.futureHistory('IF.CFX', 'close', 2)).toEqual([]);
-        expect(context.futurePosition('IF.CFX')).toBeNull();
+        expect(context.futures.position('IF.CFX')).toBeNull();
       });
       input.strategy = {
         name: 'default accounts',
@@ -106,11 +105,11 @@ describe('initial account allocation', () => {
   );
 
   it.each([
-    ['order', (context: EngineContext) => context.orderFuture('IF.CFX', 1)],
-    ['contracts', (context: EngineContext) => context.setFutureTargetContracts('IF.CFX', 1)],
-    ['notional', (context: EngineContext) => context.setFutureTargetNotional('IF.CFX', 1000)],
-    ['hedge', (context: EngineContext) => context.hedgeFuture('IF.CFX')],
-    ['exit', (context: EngineContext) => context.exitFuture('IF.CFX')],
+    ['order', (context: EngineContext) => context.futures.orderContracts('IF.CFX', 1)],
+    ['contracts', (context: EngineContext) => context.futures.setTargetContracts('IF.CFX', 1)],
+    ['notional', (context: EngineContext) => context.futures.setTargetNotional('IF.CFX', 1000)],
+    ['hedge', (context: EngineContext) => context.futures.hedgeStock('IF.CFX')],
+    ['exit', (context: EngineContext) => context.futures.closePosition('IF.CFX')],
   ] as const)(
     'accepts %s instructions without a declaration and cannot fill without data or capital',
     async (_name, action) => {
@@ -144,7 +143,7 @@ describe('cash-account attribution without factors', () => {
       watch: ['A'],
       onBar(context) {
         if (context.date === input.start) {
-          context.order('A', 100);
+          context.stock.orderAdjustedShares('A', 100);
         }
       },
     };

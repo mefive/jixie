@@ -45,8 +45,8 @@ export default defineStrategy({
       .filter(item => Number.isFinite(item.score))
       .sort((a, b) => b.score - a.score || a.code.localeCompare(b.code));
     const picks = ranked.slice(0, 2).map(item => item.code);
-    if (picks.length === 2) ctx.equalWeight(picks);
-    else ctx.setHoldings({});
+    if (picks.length === 2) ctx.stock.equalWeight(picks);
+    else ctx.stock.setTargetWeights({});
   },
 });`;
 
@@ -66,9 +66,9 @@ export function buildCodegenPrompt(
 # SDK (capabilities on ctx)
 The backtest engine calls onBar(ctx) once per trading day; you read data and place orders through ctx. Orders fill at the next open; suspension, price adjustment, slippage, and asset-aware costs are enforced behind your orders. The daily engine has no intraday round trip, even for ETF categories whose exchange rules permit same-day turnover.
 - ctx.params: the strategy's frozen numeric/categorical parameters for this run; scans override declared defaults without rewriting source
-- ctx.date / ctx.cash / ctx.value: today's date, cash, and total equity
+- ctx.date / ctx.stock.availableCash / ctx.portfolio.equity: today's date, cash, and total equity
 - ctx.period('daily'|'weekly'|'monthly'): today's period key (combine with \`let last\` to act "only once per month/week")
-- ctx.shares(code): shares held; ctx.price(code): today's backward-adjusted close
+- ctx.stock.adjustedShares(code): shares held; ctx.price(code): today's backward-adjusted close
 - ctx.industry(code): industry label (e.g. '银行'/'白酒'; current classification, not point-in-time; returns null if unknown) — industry-neutral / rotation / restrict to a given industry
 - ctx.lhbNet(code): today's Dragon-Tiger List net buy amount (yuan), **returns null on any day the stock is not listed** (no forward fill) — attention / hot-money extreme signal
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n): the last n backward-adjusted prices / OHLC bars
@@ -78,16 +78,23 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
   strategies.
 - **Built-in indicators** (prefer these, don't hand-roll; all require the instrument's K-line already loaded, return null when data is insufficient):
   ${SDK_SECTIONS.indicators}
-- Neutral sizing primitives: ctx.atrUnits(code,riskPct,atrPeriod=20) returns adjusted shares sized so
-  one ATR risks about equity×riskPct; ctx.volTargetWeights(codes,lookback=20) returns inverse-volatility
+- Neutral sizing primitives: ctx.stock.atrAdjustedShares(code,riskPct,atrPeriod=20) returns adjusted shares sized so
+  one ATR risks about stock-account equity×riskPct; ctx.stock.volTargetWeights(codes,lookback=20) returns inverse-volatility
   weights summing to 1. Loaded-bar requirements still apply; the engine rounds actual buys to real lots.
-- Next-open orders: ctx.order(code, shares) (+buy/-sell), ctx.orderLots(code, lots) (100 real shares/lot),
-  ctx.exit(code), ctx.orderTargetPercent(code, w), ctx.setHoldings({code:w}), ctx.equalWeight(codes)
+- Next-open orders: ctx.stock.orderAdjustedShares(code, shares) (+buy/-sell), ctx.stock.orderLots(code, lots) (100 real shares/lot),
+  ctx.stock.closePosition(code), ctx.stock.setTargetWeight(code, w), ctx.stock.setTargetWeights({code:w}), ctx.stock.equalWeight(codes)
 - Persistent conditional orders (declared after today's close; eligible from the next trading day):
-  ctx.stopLoss(code, price), ctx.trailingStop(code, pct), ctx.limitBuy(code, price, shares),
-  ctx.takeProfit(code, pct), ctx.cancelConditional(code, kind?). A stop gap fills at the open; an intraday
+  ctx.stock.stopLossAtAdjustedPrice(code, price), ctx.stock.trailingStopByFraction(code, pct), ctx.stock.limitBuyAtAdjustedPrice(code, price, shares),
+  ctx.stock.takeProfitByFraction(code, pct), ctx.stock.cancelConditional(code, kind?). A stop gap fills at the open; an intraday
   touch fills at the trigger; T+1 still blocks shares bought that day. Price/pct arguments are adjusted-price
   strategy units and decimal fractions (0.08 = 8%).
+
+# Order decision rules
+- Use ctx.portfolio.equity only for combined reporting. Size stock orders from ctx.stock.equity and ctx.stock.availableCash; size futures from ctx.futures.equity and ctx.futures.availableCash. Accounts never share spendable cash.
+- Deltas accumulate; repeated targets replace earlier targets. Never mix stock target weights and stock incremental orders in one callback. Futures target/delta conflicts are checked per logical code.
+- closePosition replaces earlier ordinary instructions for that code with a zero target. A later delta conflicts; a later target replaces it. Persistent conditional orders remain separate.
+- Stock target weights form a complete account book: omitted holdings are liquidated. setTargetWeight updates one entry of that decision's book, not one independent position. setTargetWeights replaces the whole book.
+- The old flat account/order API is removed. Migrate saved strategy code to the account namespaces before rerunning it.
 
 # Stock-index futures (daily; futures-only or mixed stock/futures execution)
 - Available logical main-contract codes: IF.CFX (CSI 300), IH.CFX (SSE 50), IC.CFX (CSI 500), IM.CFX (CSI 1000).
@@ -95,11 +102,11 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - For a mixed strategy, configure \`accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } }\`; weights must sum to 1. The two sleeves keep separate cash and the engine reports one combined NAV. There is no automatic cash transfer between sleeves.
 - \`ctx.future(code)\`: today's point-in-time mapped bar with OHLC/settle, actualCode, volume, openInterest, and multiplier.
 - \`ctx.futureHistory(code, field, n)\`: last n mapped values, oldest to newest.
-- \`ctx.futurePosition(code)\`: current signed contracts (+long / -short) and margin, or null.
-- \`ctx.orderFuture(code, contracts)\`: signed integer contract delta, filled at the next open; \`ctx.exitFuture(code)\`: close all at the next open.
-- \`ctx.setFutureTargetContracts(code, target)\` / \`ctx.setFutureTargetNotional(code, notional)\`: signed next-open targets.
-- \`ctx.hedgeFuture(code, beta=1)\`: at the next open, execute stock orders first, then size a short futures hedge from the stock sleeve's actually filled market value. Prefer this for stock-long/index-futures-short market-neutral strategies.
-- \`ctx.stockValue\`, \`ctx.futureValue\`, \`ctx.stockAvailableCash\`, \`ctx.futureAvailableCash\`, \`ctx.futureMargin\`: sleeve-level account state. \`ctx.value\` is combined NAV.
+- \`ctx.futures.position(code)\`: current signed contracts (+long / -short) and margin, or null.
+- \`ctx.futures.orderContracts(code, contracts)\`: signed integer contract delta, filled at the next open; \`ctx.futures.closePosition(code)\`: close all at the next open.
+- \`ctx.futures.setTargetContracts(code, target)\` / \`ctx.futures.setTargetNotional(code, notional)\`: signed next-open targets.
+- \`ctx.futures.hedgeStock(code, beta=1)\`: at the next open, execute stock orders first, then size a short futures hedge from the stock sleeve's actually filled market value. Prefer this for stock-long/index-futures-short market-neutral strategies.
+- \`ctx.stock.equity\`, \`ctx.futures.equity\`, \`ctx.stock.availableCash\`, \`ctx.futures.availableCash\`, \`ctx.futures.margin\`: sleeve-level account state. \`ctx.portfolio.equity\` is combined NAV.
 - The engine enforces margin, daily settlement variation, commission, slippage, and main-contract rolls.
 
 # ETFs (daily, explicit watch lists)
@@ -147,8 +154,8 @@ export default defineStrategy({
     const c = '600519.SH';
     const px = ctx.price(c), ma = ctx.sma(c, 20);
     if (px == null || ma == null) return;
-    if (px > ma && ctx.shares(c) === 0) ctx.order(c, Math.floor(ctx.cash / px));
-    else if (px < ma && ctx.shares(c) > 0) ctx.exit(c);
+    if (px > ma && ctx.stock.adjustedShares(c) === 0) ctx.stock.orderAdjustedShares(c, Math.floor(ctx.stock.availableCash / px));
+    else if (px < ma && ctx.stock.adjustedShares(c) > 0) ctx.stock.closePosition(c);
   },
 });
 
@@ -165,7 +172,7 @@ export default defineStrategy({
       .dropBottom(0.25, b => b.turnoverRate ?? 0)
       .rankBy(b => 1 / b.peTtm)
       .top(0.1);
-    ctx.equalWeight(picks);
+    ctx.stock.equalWeight(picks);
   },
 });
 
@@ -180,8 +187,8 @@ export default defineStrategy({
     for (const code of picks) {
       const px = ctx.price(code), ma = ctx.sma(code, 20);
       if (px == null || ma == null) continue;
-      if (px > ma && ctx.shares(code) === 0) ctx.order(code, Math.floor((ctx.value * 0.1) / px)); // ~10% of equity each
-      else if (px < ma && ctx.shares(code) > 0) ctx.exit(code);
+      if (px > ma && ctx.stock.adjustedShares(code) === 0) ctx.stock.orderAdjustedShares(code, Math.floor((ctx.stock.equity * 0.1) / px)); // ~10% of equity each
+      else if (px < ma && ctx.stock.adjustedShares(code) > 0) ctx.stock.closePosition(code);
     }
   },
 });
@@ -199,7 +206,7 @@ export default defineStrategy({
       .dropBottom(0.5, b => b.amount ?? 0) // ensure liquidity first
       .rankBy((b, code) => ctx.factor('mf_net_main', code)) // main-force net inflow, descending
       .top(20);
-    ctx.equalWeight(picks);
+    ctx.stock.equalWeight(picks);
   },
 });
 
@@ -221,7 +228,7 @@ export default defineStrategy({
       perInd[ind] = (perInd[ind] ?? 0) + 1;
       if (perInd[ind] <= 3) picks.push(code);
     }
-    ctx.equalWeight(picks);
+    ctx.stock.equalWeight(picks);
   },
 });
 
@@ -234,7 +241,7 @@ export default defineStrategy({
       .rankBy((b, code) => ctx.lhbNet(code))                     // net buy amount, descending
       .top(5);
     await ctx.ensureBars(picks);
-    ctx.equalWeight(picks); // simplified: reset holdings daily; a real strategy could layer on holding-period / take-profit / stop-loss
+    ctx.stock.equalWeight(picks); // simplified: reset holdings daily; a real strategy could layer on holding-period / take-profit / stop-loss
   },
 });
 
@@ -248,9 +255,9 @@ export default defineStrategy({
     const bar = ctx.future(code);
     if (bar?.settle == null || history.length < 20) return;
     const average = history.reduce((sum, value) => sum + value, 0) / history.length;
-    const held = ctx.futurePosition(code)?.contracts ?? 0;
+    const held = ctx.futures.position(code)?.contracts ?? 0;
     const target = bar.settle > average ? 1 : -1;
-    if (held !== target) ctx.orderFuture(code, target - held);
+    if (held !== target) ctx.futures.orderContracts(code, target - held);
   },
 });
 
@@ -267,8 +274,8 @@ export default defineStrategy({
       .where(b => b.peTtm != null && b.peTtm > 0)
       .rankBy(b => 1 / b.peTtm!)
       .top(20);
-    ctx.equalWeight(picks);
-    ctx.hedgeFuture('IF.CFX', 1);
+    ctx.stock.equalWeight(picks);
+    ctx.futures.hedgeStock('IF.CFX', 1);
   },
 });
 
@@ -286,11 +293,11 @@ export default defineStrategy({
     const atr = ctx.atr(code, 20);
     if (bars.length < 21 || price == null || atr == null) return;
     const priorHigh = Math.max(...bars.slice(0, -1).map(bar => bar.adjHigh));
-    if (ctx.shares(code) === 0 && price > priorHigh) {
-      ctx.orderLots(code, Math.floor((ctx.cash * 0.1) / (price * 100)));
+    if (ctx.stock.adjustedShares(code) === 0 && price > priorHigh) {
+      ctx.stock.orderLots(code, Math.floor((ctx.stock.availableCash * 0.1) / (price * 100)));
     }
-    if (ctx.shares(code) > 0) {
-      ctx.trailingStop(code, Math.min(0.5, (2 * atr) / price));
+    if (ctx.stock.adjustedShares(code) > 0) {
+      ctx.stock.trailingStopByFraction(code, Math.min(0.5, (2 * atr) / price));
     }
   },
 });
@@ -307,10 +314,10 @@ export default defineStrategy({
     const price = ctx.price(code);
     if (weeklyFast == null || weeklySlow == null || daily.length < 21 || price == null) return;
     const priorDailyHigh = Math.max(...daily.slice(0, -1).map(bar => bar.adjHigh));
-    if (weeklyFast > weeklySlow && price > priorDailyHigh && ctx.shares(code) === 0) {
-      ctx.orderLots(code, Math.floor((ctx.cash * 0.1) / (price * 100)));
-    } else if (weeklyFast < weeklySlow && ctx.shares(code) > 0) {
-      ctx.exit(code);
+    if (weeklyFast > weeklySlow && price > priorDailyHigh && ctx.stock.adjustedShares(code) === 0) {
+      ctx.stock.orderLots(code, Math.floor((ctx.stock.availableCash * 0.1) / (price * 100)));
+    } else if (weeklyFast < weeklySlow && ctx.stock.adjustedShares(code) > 0) {
+      ctx.stock.closePosition(code);
     }
   },
 });
@@ -324,12 +331,12 @@ export default defineStrategy({
     const code = '600519.SH';
     const price = ctx.price(code), fast = ctx.sma(code, 20), slow = ctx.sma(code, 60);
     if (price == null || fast == null || slow == null) return;
-    if (fast > slow && ctx.shares(code) === 0) {
-      if (ctx.params.sizing === 'equal') ctx.orderTargetPercent(code, 1);
-      else if (ctx.params.sizing === 'fixed') ctx.orderLots(code, ctx.params.fixedLots);
-      else ctx.order(code, ctx.atrUnits(code, ctx.params.riskPct, 20));
-    } else if (fast < slow && ctx.shares(code) > 0) {
-      ctx.exit(code);
+    if (fast > slow && ctx.stock.adjustedShares(code) === 0) {
+      if (ctx.params.sizing === 'equal') ctx.stock.setTargetWeight(code, 1);
+      else if (ctx.params.sizing === 'fixed') ctx.stock.orderLots(code, ctx.params.fixedLots);
+      else ctx.stock.orderAdjustedShares(code, ctx.stock.atrAdjustedShares(code, ctx.params.riskPct, 20));
+    } else if (fast < slow && ctx.stock.adjustedShares(code) > 0) {
+      ctx.stock.closePosition(code);
     }
   },
 });

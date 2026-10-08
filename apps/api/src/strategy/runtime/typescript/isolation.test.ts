@@ -67,11 +67,11 @@ describe('TypeScript strategy isolation and compatibility', () => {
     const { result } = await execute(`export default defineStrategy({ watch: ['AAA'], onBar(ctx) {
       if (ctx.date !== '${dates[0]}') return;
       let failures = 0;
-      try { ctx.setHoldings({ AAA: 1.2 }); } catch { failures++; }
-      try { ctx.stopLoss('AAA', -1); } catch { failures++; }
-      try { ctx.orderFuture('IF.CFX', NaN); } catch { failures++; }
+      try { ctx.stock.setTargetWeights({ AAA: 1.2 }); } catch { failures++; }
+      try { ctx.stock.stopLossAtAdjustedPrice('AAA', -1); } catch { failures++; }
+      try { ctx.futures.orderContracts('IF.CFX', NaN); } catch { failures++; }
       if (failures !== 3) throw new Error('order errors must remain synchronous');
-      ctx.setHoldings(new Map([['AAA', 0.5]]));
+      ctx.stock.setTargetWeights(new Map([['AAA', 0.5]]));
     } });`);
     expect(result.tradeLog).toHaveLength(1);
     expect(result.tradeLog[0]).toMatchObject({ code: 'AAA', side: 'buy' });

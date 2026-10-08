@@ -39,10 +39,10 @@ export default defineStrategy({
   watch: ['510300.SH'],
   onBar(ctx) {
     if (!entered) {
-      ctx.order('510300.SH', 100);
+      ctx.stock.orderAdjustedShares('510300.SH', 100);
       entered = true;
     } else if (!exited && ctx.date >= '20240110') {
-      ctx.exit('510300.SH');
+      ctx.stock.closePosition('510300.SH');
       exited = true;
     }
   },

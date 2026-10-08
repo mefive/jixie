@@ -40,7 +40,7 @@ describe('strategy sandbox protocol', () => {
       strategyExecutionFrameSchema.parse({
         type: 'done',
         commands: [
-          { operation: 'order_target_percent', arguments: { code: '510300.SH', weight: '1' } },
+          { operation: 'stock.setTargetWeight', arguments: { code: '510300.SH', weight: '1' } },
         ],
       }),
     ).toThrow();

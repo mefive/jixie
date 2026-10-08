@@ -43,8 +43,8 @@ try {
       code: `export default defineStrategy({ name: '${name}', watch: ${mixed ? "['600519.SH']" : '[]'},
         accounts: { stock: { cashWeight: ${mixed ? 0.7 : 0} }, futures: { cashWeight: ${mixed ? 0.3 : 1} } },
         onBar(ctx) {
-          ${mixed ? "if (ctx.date === '20260615') ctx.setHoldings({ '600519.SH': 0.5 });" : ''}
-          if (ctx.date === '20260618') ${mixed ? "ctx.hedgeFuture('IF.CFX', 1)" : "ctx.setFutureTargetContracts('IF.CFX', 2)"};
+          ${mixed ? "if (ctx.date === '20260615') ctx.stock.setTargetWeights({ '600519.SH': 0.5 });" : ''}
+          if (ctx.date === '20260618') ${mixed ? "ctx.futures.hedgeStock('IF.CFX', 1)" : "ctx.futures.setTargetContracts('IF.CFX', 2)"};
         }
       });`,
     };

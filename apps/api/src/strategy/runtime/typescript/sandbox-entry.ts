@@ -116,15 +116,13 @@ interface Startup {
 
 interface StrategyBarSnapshot {
   date: string;
-  cash: number;
-  value: number;
-  available_cash: number;
-  stock_value: number;
-  future_value: number;
-  stock_available_cash: number;
-  future_available_cash: number;
-  future_margin: number;
-  positions: Array<{ code: string; shares: number; avg_cost: number; market_value: number }>;
+  portfolio: { equity: number };
+  stock: {
+    equity: number;
+    availableCash: number;
+    positions: Array<{ code: string; shares: number; avgCost: number; marketValue: number }>;
+  };
+  futures: { equity: number; availableCash: number; margin: number };
   history_updates?: Record<string, HistoryUpdate>;
 }
 
@@ -177,23 +175,45 @@ async function runStrategyBar(snapshot: StrategyBarSnapshot) {
   let rows = new Map<string, BarRow | null>();
   const core: EngineContext = {
     date: snapshot.date,
-    cash: snapshot.cash,
-    value: snapshot.value,
-    availableCash: snapshot.available_cash,
-    stockValue: snapshot.stock_value,
-    futureValue: snapshot.future_value,
-    stockAvailableCash: snapshot.stock_available_cash,
-    futureAvailableCash: snapshot.future_available_cash,
-    futureMargin: snapshot.future_margin,
-    positions: () =>
-      snapshot.positions.map(
-        (position: { code: string; shares: number; avg_cost: number; market_value: number }) => ({
-          code: position.code,
-          shares: position.shares,
-          avgCost: position.avg_cost,
-          marketValue: position.market_value,
+    portfolio: snapshot.portfolio,
+    stock: {
+      equity: snapshot.stock.equity,
+      availableCash: snapshot.stock.availableCash,
+      positions: () => snapshot.stock.positions.map((position) => ({ ...position })),
+      adjustedShares: (code) => query('stock.adjustedShares', [code]) as number,
+      setTargetWeight: (code, weight) => command('stock.setTargetWeight', { code, weight }),
+      setTargetWeights: (weights) =>
+        command('stock.setTargetWeights', {
+          weights: weights instanceof Map ? Object.fromEntries(weights) : weights,
         }),
-      ),
+      orderAdjustedShares: (code, shares) => command('stock.orderAdjustedShares', { code, shares }),
+      orderLots: (code, lots) => command('stock.orderLots', { code, lots }),
+      closePosition: (code) => command('stock.closePosition', { code }),
+      stopLossAtAdjustedPrice: (code, price) =>
+        command('stock.stopLossAtAdjustedPrice', { code, price }),
+      trailingStopByFraction: (code, percentage) =>
+        command('stock.trailingStopByFraction', { code, percentage }),
+      limitBuyAtAdjustedPrice: (code, price, shares) =>
+        command('stock.limitBuyAtAdjustedPrice', { code, price, shares }),
+      takeProfitByFraction: (code, percentage) =>
+        command('stock.takeProfitByFraction', { code, percentage }),
+      cancelConditional: (code, kind) =>
+        command('stock.cancelConditional', { code, kind: kind ?? null }),
+    },
+    futures: {
+      equity: snapshot.futures.equity,
+      availableCash: snapshot.futures.availableCash,
+      margin: snapshot.futures.margin,
+      position: (code) =>
+        query('futures.position', [code]) as ReturnType<EngineContext['futures']['position']>,
+      orderContracts: (code, contracts) => command('futures.orderContracts', { code, contracts }),
+      setTargetContracts: (code, contracts) =>
+        command('futures.setTargetContracts', { code, contracts }),
+      setTargetNotional: (code, notional) =>
+        command('futures.setTargetNotional', { code, notional }),
+      hedgeStock: (code, beta = 1) => command('futures.hedgeStock', { code, beta }),
+      closePosition: (code) => command('futures.closePosition', { code }),
+    },
     async loadCrossSection(indexCode) {
       const result = (await request({
         operation: 'cross_section',
@@ -238,11 +258,8 @@ async function runStrategyBar(snapshot: StrategyBarSnapshot) {
         : (query('history', [code, field, n]) as number[]);
     },
     factor: (name, code) => query('factor', [name, code]) as number | null,
-    shares: (code) => query('shares', [code]) as number,
     future: (code) => query('future', [code]) as ReturnType<EngineContext['future']>,
     futureHistory: (code, field, n) => query('futureHistory', [code, field, n]) as number[],
-    futurePosition: (code) =>
-      query('futurePosition', [code]) as ReturnType<EngineContext['futurePosition']>,
     index(indexCode) {
       const values = query('indexValues', [indexCode]) as Pick<
         IndexHandle,
@@ -255,26 +272,6 @@ async function runStrategyBar(snapshot: StrategyBarSnapshot) {
           query('indexPercentile', [indexCode, field, lookback ?? null]) as number | null,
       };
     },
-    orderTargetPercent: (code, weight) => command('order_target_percent', { code, weight }),
-    setHoldings: (weights) =>
-      command('set_holdings', {
-        weights: weights instanceof Map ? Object.fromEntries(weights) : weights,
-      }),
-    order: (code, shares) => command('order', { code, shares }),
-    orderLots: (code, lots) => command('order_lots', { code, lots }),
-    exit: (code) => command('exit', { code }),
-    stopLoss: (code, price) => command('stop_loss', { code, price }),
-    trailingStop: (code, percentage) => command('trailing_stop', { code, percentage }),
-    limitBuy: (code, price, shares) => command('limit_buy', { code, price, shares }),
-    takeProfit: (code, percentage) => command('take_profit', { code, percentage }),
-    cancelConditional: (code, kind) => command('cancel_conditional', { code, kind: kind ?? null }),
-    orderFuture: (code, contracts) => command('order_future', { code, contracts }),
-    setFutureTargetContracts: (code, contracts) =>
-      command('set_future_target_contracts', { code, contracts }),
-    setFutureTargetNotional: (code, notional) =>
-      command('set_future_target_notional', { code, notional }),
-    hedgeFuture: (code, beta = 1) => command('hedge_future', { code, beta }),
-    exitFuture: (code) => command('exit_future', { code }),
   };
   await strategy.onBar(core);
   return JSON.stringify({ type: 'done', commands: [] });

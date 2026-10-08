@@ -86,7 +86,9 @@ function run(spec: FixtureSpec, scriptedStrategy: EngineStrategy, initialCash = 
 
 describe('股指期货规则', () => {
   it('ignores obsolete codes and uses account capital for actual futures orders', async () => {
-    const scripted = strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) });
+    const scripted = strategy({
+      '20240102': (context) => context.futures.orderContracts('IF.CFX', 1),
+    });
     scripted.futures = ['UNKNOWN'];
     const result = await run(
       futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
@@ -103,8 +105,8 @@ describe('股指期货规则', () => {
       spec,
       strategy({
         '20240102': (context) => {
-          context.order('AAA', 100);
-          context.orderFuture('IF.CFX', 1);
+          context.stock.orderAdjustedShares('AAA', 100);
+          context.futures.orderContracts('IF.CFX', 1);
         },
       }),
     );
@@ -116,7 +118,7 @@ describe('股指期货规则', () => {
   it('returns a finite empty cash-account analysis for a futures-only strategy', async () => {
     const result = await run(
       futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
-      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) }),
+      strategy({ '20240102': (context) => context.futures.orderContracts('IF.CFX', 1) }),
     );
 
     expect(result.tradeLog.length).toBeGreaterThan(0);
@@ -140,11 +142,11 @@ describe('股指期货规则', () => {
         decisions++;
         expect(context.future('IF.CFX')).not.toBeNull();
         expect(context.futureHistory('IF.CFX', 'close', 1)).toHaveLength(1);
-        expect(context.stockValue).toBe(100_000);
-        expect(context.futureValue).toBe(0);
-        expect(context.futureMargin).toBe(0);
-        expect(context.futurePosition('IF.CFX')).toBeNull();
-        context.orderFuture('IF.CFX', 1);
+        expect(context.stock.equity).toBe(100_000);
+        expect(context.futures.equity).toBe(0);
+        expect(context.futures.margin).toBe(0);
+        expect(context.futures.position('IF.CFX')).toBeNull();
+        context.futures.orderContracts('IF.CFX', 1);
       },
     });
 
@@ -161,8 +163,8 @@ describe('股指期货规则', () => {
       end: DATES.at(-1)!,
       initialCash: 100_000,
       strategy: strategy({
-        '20240102': (context) => context.orderFuture('IF.CFX', 1),
-        '20240103': (context) => context.exitFuture('IF.CFX'),
+        '20240102': (context) => context.futures.orderContracts('IF.CFX', 1),
+        '20240103': (context) => context.futures.closePosition('IF.CFX'),
       }),
       dataPort: fixturePort(
         futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
@@ -191,8 +193,8 @@ describe('股指期货规则', () => {
     const result = await run(
       futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
       strategy({
-        '20240102': (context) => context.orderFuture('IF.CFX', 1),
-        '20240103': (context) => context.exitFuture('IF.CFX'),
+        '20240102': (context) => context.futures.orderContracts('IF.CFX', 1),
+        '20240103': (context) => context.futures.closePosition('IF.CFX'),
       }),
     );
 
@@ -221,7 +223,7 @@ describe('股指期货规则', () => {
 
     const result = await run(
       spec,
-      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', -1) }),
+      strategy({ '20240102': (context) => context.futures.orderContracts('IF.CFX', -1) }),
     );
 
     expect(result.nav.find((point) => point.date === '20240103')?.value).toBe(103_000);
@@ -231,7 +233,7 @@ describe('股指期货规则', () => {
   it('保证金不足时拒单且不结转', async () => {
     const result = await run(
       futureSpec(Object.fromEntries(DATES.map((date) => [date, 'IF2401.CFX']))),
-      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 10) }),
+      strategy({ '20240102': (context) => context.futures.orderContracts('IF.CFX', 10) }),
       10_000,
     );
 
@@ -251,7 +253,7 @@ describe('股指期货规则', () => {
     ];
     const result = await run(
       spec,
-      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) }),
+      strategy({ '20240102': (context) => context.futures.orderContracts('IF.CFX', 1) }),
       5_000,
     );
 
@@ -267,7 +269,7 @@ describe('股指期货规则', () => {
         '20240104': 'IF2402.CFX',
         '20240105': 'IF2402.CFX',
       }),
-      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) }),
+      strategy({ '20240102': (context) => context.futures.orderContracts('IF.CFX', 1) }),
     );
 
     expect(
@@ -290,8 +292,8 @@ describe('股指期货规则', () => {
         '20240105': 'IF2402.CFX',
       }),
       strategy({
-        '20240102': (context) => context.orderFuture('IF.CFX', 1),
-        '20240103': (context) => context.exitFuture('IF.CFX'),
+        '20240102': (context) => context.futures.orderContracts('IF.CFX', 1),
+        '20240103': (context) => context.futures.closePosition('IF.CFX'),
       }),
     );
 
@@ -335,7 +337,7 @@ describe('股指期货规则', () => {
 
     const result = await run(
       spec,
-      strategy({ '20240102': (context) => context.orderFuture('IF.CFX', 1) }),
+      strategy({ '20240102': (context) => context.futures.orderContracts('IF.CFX', 1) }),
     );
 
     expect(
@@ -375,10 +377,10 @@ describe('股指期货规则', () => {
       accounts: { stock: { cashWeight: 0.8 }, futures: { cashWeight: 0.2 } },
       onBar(context) {
         if (context.date === DATES[0]) {
-          context.setHoldings({ AAA: 1 });
-          context.hedgeFuture('IF.CFX');
+          context.stock.setTargetWeights({ AAA: 1 });
+          context.futures.hedgeStock('IF.CFX');
         } else if (context.date === DATES[1]) {
-          context.exitFuture('IF.CFX');
+          context.futures.closePosition('IF.CFX');
         }
       },
     });
@@ -423,8 +425,8 @@ describe('股指期货规则', () => {
       accounts: { stock: { cashWeight: 0.4 }, futures: { cashWeight: 0.6 } },
       onBar(context) {
         if (context.date === DATES[0]) {
-          context.setHoldings({ AAA: 1 });
-          context.hedgeFuture('IF.CFX');
+          context.stock.setTargetWeights({ AAA: 1 });
+          context.futures.hedgeStock('IF.CFX');
         }
       },
     });

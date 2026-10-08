@@ -61,8 +61,8 @@ export default defineStrategy({
   name: '${BASELINE_NAME}',
   watch: [equity],
   onBar(ctx) {
-    if (ctx.price(equity) != null && ctx.shares(equity) === 0) {
-      ctx.orderTargetPercent(equity, 0.95);
+    if (ctx.price(equity) != null && ctx.stock.adjustedShares(equity) === 0) {
+      ctx.stock.setTargetWeight(equity, 0.95);
     }
   },
 });`;
@@ -78,9 +78,9 @@ export default defineStrategy({
     const month = ctx.period('monthly');
     if (month === lastMonth) return;
     lastMonth = month;
-    ctx.orderTargetPercent(equity, 0.245);
-    ctx.orderTargetPercent(bond5y, 0.3419);
-    ctx.orderTargetPercent(bond10y, 0.3419);
+    ctx.stock.setTargetWeight(equity, 0.245);
+    ctx.stock.setTargetWeight(bond5y, 0.3419);
+    ctx.stock.setTargetWeight(bond10y, 0.3419);
   },
 });`;
 
@@ -105,8 +105,8 @@ export default defineStrategy({
       .sort((left, right) => right.score - left.score || left.code.localeCompare(right.code))
       .slice(0, 2)
       .map(item => item.code);
-    if (picks.length === 2) ctx.equalWeight(picks);
-    else ctx.setHoldings({});
+    if (picks.length === 2) ctx.stock.equalWeight(picks);
+    else ctx.stock.setTargetWeights({});
   },
 });`;
 }

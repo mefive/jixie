@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
+import { t } from '#i18n/messages.js';
 import { EngineData } from './data/engine-data.js';
 import { CashPortfolio } from './cash-portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
@@ -5,6 +7,7 @@ import type { CostModel } from './cost.js';
 import type { AllocationAnalysisTracker } from './allocation-analysis.js';
 
 interface OrderBookInput {
+  locale?: Locale;
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
   futuresPortfolio: FuturesPortfolio;
@@ -26,6 +29,7 @@ export class OrderBook {
   };
   private readonly conditionalOrders = new Map<string, ConditionalOrder>();
 
+  private readonly locale: Locale;
   private readonly engineData: EngineData;
   private readonly cashPortfolio: CashPortfolio;
   private readonly futuresPortfolio: FuturesPortfolio;
@@ -34,6 +38,7 @@ export class OrderBook {
   private readonly onRebalance: (date: string) => void;
 
   constructor(input: OrderBookInput) {
+    this.locale = input.locale ?? DEFAULT_LOCALE;
     this.engineData = input.engineData;
     this.cashPortfolio = input.cashPortfolio;
     this.futuresPortfolio = input.futuresPortfolio;
@@ -54,6 +59,20 @@ export class OrderBook {
 
   commitDecision(): void {
     validateTargetBook(this.decision.targets);
+
+    // Resolve zero-position targets into the existing snapshot format before publishing the batch.
+    for (const code of this.decision.closePositions) {
+      if (this.decision.targets) {
+        this.decision.targets.set(code, 0);
+      } else {
+        const shares = this.cashPortfolio.positions.get(code)?.shares ?? 0;
+        if (shares) {
+          this.decision.shareOrders ??= new Map();
+          this.decision.shareOrders.set(code, -shares);
+        }
+      }
+    }
+
     this.pending.targets = this.decision.targets;
     this.pending.decisionDate = this.decision.targets ? this.decisionDate : null;
     this.pending.shareOrders = this.decision.shareOrders;
@@ -112,8 +131,13 @@ export class OrderBook {
   }
 
   /** Replaces execution state for forward simulation, without collecting a strategy decision. */
-  loadExecutionOrders({ cashOrders, futuresOrders }: ExecutionOrdersInput): void {
+  loadExecutionOrders({ cashOrders, cashDeltas = [], futuresOrders }: ExecutionOrdersInput): void {
     const cashSnapshot = structuredClone(cashOrders);
+    let shareOrders = cashSnapshot.pendingOrders;
+    for (const { code, shares } of cashDeltas) {
+      shareOrders = collectShareDelta(shareOrders, code, shares);
+    }
+
     let futureIntents: Map<string, FutureIntent> | null = null;
     for (const { code, intent } of futuresOrders) {
       futureIntents = collectFutureIntent(futureIntents, code, intent);
@@ -122,7 +146,7 @@ export class OrderBook {
     // Forward cash instructions have no target-rebalance attribution decision.
     this.pending.decisionDate = null;
     this.pending.targets = cashSnapshot.pendingTargets;
-    this.pending.shareOrders = cashSnapshot.pendingOrders;
+    this.pending.shareOrders = shareOrders;
     this.pending.lotOrders = cashSnapshot.pendingLotOrders;
     this.pending.futureIntents = futureIntents;
 
@@ -408,47 +432,67 @@ export class OrderBook {
     }
   }
 
-  orderTargetPercent(code: string, weight: number): void {
+  setStockTargetWeight(code: string, weight: number): void {
     validateTargetWeight(code, weight);
+    this.validateCashOrderMode('target');
+
+    this.decision.closePositions.delete(code);
     this.decision.targets ??= new Map();
     this.decision.targets.set(code, weight);
   }
 
-  setHoldings(weights: Record<string, number> | Map<string, number>): void {
+  setStockTargetWeights(weights: Record<string, number> | Map<string, number>): void {
     const targetWeights = new Map(weights instanceof Map ? weights : Object.entries(weights));
     validateTargetBook(targetWeights);
+    this.validateCashOrderMode('target');
+
+    this.decision.closePositions.clear();
     this.decision.targets = targetWeights;
   }
 
-  order(code: string, shares: number): void {
+  orderStockAdjustedShares(code: string, shares: number): void {
     validateFiniteOrderValue(shares, 'Order shares');
     if (!shares) {
       return;
     }
-    this.decision.shareOrders ??= new Map();
-    this.decision.shareOrders.set(code, (this.decision.shareOrders.get(code) ?? 0) + shares);
+    this.validateCashOrderMode('delta', code);
+
+    this.decision.shareOrders = collectShareDelta(this.decision.shareOrders, code, shares);
   }
 
-  orderLots(code: string, lots: number): void {
+  orderStockLots(code: string, lots: number): void {
     validateFiniteOrderValue(lots, 'Order lots');
     const wholeLots = Math.trunc(lots);
     if (!wholeLots) {
       return;
     }
+    this.validateCashOrderMode('delta', code);
+
     this.decision.lotOrders ??= new Map();
     this.decision.lotOrders.set(code, (this.decision.lotOrders.get(code) ?? 0) + wholeLots);
   }
 
-  exit(code: string): void {
-    const held = this.cashPortfolio.positions.get(code)?.shares ?? 0;
-    if (!held) {
-      return;
-    }
-    this.decision.shareOrders ??= new Map();
-    this.decision.shareOrders.set(code, (this.decision.shareOrders.get(code) ?? 0) - held);
+  closeStockPosition(code: string): void {
+    this.decision.shareOrders?.delete(code);
+    this.decision.lotOrders?.delete(code);
+    this.decision.targets?.set(code, 0);
+    this.decision.closePositions.add(code);
   }
 
-  stopLoss(code: string, price: number): void {
+  private validateCashOrderMode(mode: 'target' | 'delta', code?: string): void {
+    const conflict =
+      mode === 'target'
+        ? (this.decision.shareOrders?.size ?? 0) > 0 || (this.decision.lotOrders?.size ?? 0) > 0
+        : this.decision.targets !== null ||
+          (code !== undefined && this.decision.closePositions.has(code));
+    if (conflict) {
+      throw new Error(
+        t(this.locale, 'orderDecisionConflict', { account: 'stock', code: code ?? '*' }),
+      );
+    }
+  }
+
+  setStockStopLossAtAdjustedPrice(code: string, price: number): void {
     validatePositiveOrderValue(price, 'Stop-loss price');
     this.decision.conditionalCommands.push({
       action: 'upsert',
@@ -456,7 +500,7 @@ export class OrderBook {
     });
   }
 
-  trailingStop(code: string, pct: number): void {
+  setStockTrailingStopByFraction(code: string, pct: number): void {
     if (!Number.isFinite(pct) || pct <= 0 || pct >= 1) {
       throw new Error('Trailing-stop percentage must be between 0 and 1');
     }
@@ -471,7 +515,7 @@ export class OrderBook {
     });
   }
 
-  limitBuy(code: string, price: number, shares: number): void {
+  setStockLimitBuyAtAdjustedPrice(code: string, price: number, shares: number): void {
     validatePositiveOrderValue(price, 'Limit-buy price');
     validatePositiveOrderValue(shares, 'Limit-buy shares');
     this.decision.conditionalCommands.push({
@@ -480,7 +524,7 @@ export class OrderBook {
     });
   }
 
-  takeProfit(code: string, pct: number): void {
+  setStockTakeProfitByFraction(code: string, pct: number): void {
     validatePositiveOrderValue(pct, 'Take-profit percentage');
     const position = this.cashPortfolio.positions.get(code);
     if (!position) {
@@ -496,41 +540,62 @@ export class OrderBook {
     });
   }
 
-  cancelConditional(code: string, kind?: ConditionalOrderKind): void {
+  cancelStockConditional(code: string, kind?: ConditionalOrderKind): void {
     this.decision.conditionalCommands.push({ action: 'cancel', code, kind });
   }
 
-  orderFuture(code: string, contracts: number): void {
+  orderFuturesContracts(code: string, contracts: number): void {
+    validateFiniteOrderValue(contracts, 'Futures contracts');
+    if (!Math.trunc(contracts)) {
+      return;
+    }
+    this.validateFutureOrderMode(code, 'delta');
+
     this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
       kind: 'delta',
       value: contracts,
     });
   }
 
-  setFutureTargetContracts(code: string, contracts: number): void {
+  setFuturesTargetContracts(code: string, contracts: number): void {
+    validateFiniteOrderValue(contracts, 'Futures target contracts');
+    this.validateFutureOrderMode(code, 'target');
+
     this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
       kind: 'contracts',
       value: contracts,
     });
   }
 
-  setFutureTargetNotional(code: string, notional: number): void {
+  setFuturesTargetNotional(code: string, notional: number): void {
+    validateFiniteOrderValue(notional, 'Futures target notional');
+    this.validateFutureOrderMode(code, 'target');
+
     this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
       kind: 'notional',
       value: notional,
     });
   }
 
-  hedgeFuture(code: string, beta = 1): void {
+  hedgeStockWithFutures(code: string, beta = 1): void {
+    this.validateFutureOrderMode(code, 'target');
+
     this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
       kind: 'hedge',
       value: beta,
     });
   }
 
-  exitFuture(code: string): void {
+  closeFuturesPosition(code: string): void {
     this.decision.futureIntents ??= new Map();
     this.decision.futureIntents.set(code, { kind: 'contracts', value: 0 });
+  }
+
+  private validateFutureOrderMode(code: string, mode: 'target' | 'delta'): void {
+    const prior = this.decision.futureIntents?.get(code);
+    if (prior && (prior.kind === 'delta') !== (mode === 'delta')) {
+      throw new Error(t(this.locale, 'orderDecisionConflict', { account: 'futures', code }));
+    }
   }
 
   private rebalance(date: string): void {
@@ -831,6 +896,7 @@ export interface CashOrderSnapshot {
 }
 
 interface ExecutionOrdersInput {
+  cashDeltas?: ReadonlyArray<{ code: string; shares: number }>;
   cashOrders: CashOrderSnapshot;
   futuresOrders: ReadonlyArray<{ code: string; intent: FutureIntent }>;
 }
@@ -847,6 +913,7 @@ type ConditionalCommand =
   | { action: 'cancel'; code: string; kind?: ConditionalOrderKind };
 
 interface OrderDecision {
+  closePositions: Set<string>;
   targets: Map<string, number> | null;
   shareOrders: Map<string, number> | null;
   lotOrders: Map<string, number> | null;
@@ -869,6 +936,7 @@ interface ConditionalExitCandidate {
 
 function emptyDecision(): OrderDecision {
   return {
+    closePositions: new Set(),
     targets: null,
     shareOrders: null,
     lotOrders: null,
@@ -980,6 +1048,23 @@ function collectFutureIntent(
 
   const result = intents ?? new Map<string, FutureIntent>();
   result.set(code, { kind: intent.kind, value });
+
+  return result;
+}
+
+/** Normalize and accumulate adjusted-share deltas from strategy decisions or signal replay. */
+function collectShareDelta(
+  orders: Map<string, number> | null,
+  code: string,
+  shares: number,
+): Map<string, number> | null {
+  validateFiniteOrderValue(shares, 'Order shares');
+  if (!shares) {
+    return orders;
+  }
+
+  const result = orders ?? new Map<string, number>();
+  result.set(code, (result.get(code) ?? 0) + shares);
 
   return result;
 }

@@ -218,7 +218,7 @@ async function captureStrategyUsageFlow(factorKey) {
     '    const picks = universe',
     `      .rankBy((_bar, code) => ctx.factor('${factorKey}', code))`,
     '      .top(10);',
-    '    if (picks.length) ctx.equalWeight(picks);',
+    '    if (picks.length) ctx.stock.equalWeight(picks);',
     '  },',
     '});',
   ].join('\n');

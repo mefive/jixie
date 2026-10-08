@@ -134,8 +134,8 @@ try {
     '      .sort((a, b) => b.score - a.score || a.code.localeCompare(b.code))',
     '      .slice(0, 2)',
     '      .map(item => item.code);',
-    '    if (picks.length === 2) ctx.equalWeight(picks);',
-    '    else ctx.setHoldings({});',
+    '    if (picks.length === 2) ctx.stock.equalWeight(picks);',
+    '    else ctx.stock.setTargetWeights({});',
     '  },',
     '});',
   ].join('\n');

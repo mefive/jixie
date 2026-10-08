@@ -17,7 +17,7 @@ def handle_bar(ctx):
 \`\`\`
 
 # Context API
-- State: ctx.date, ctx.cash, ctx.value, ctx.available_cash, ctx.params, ctx.positions(), ctx.shares(code)
+- State: ctx.date, ctx.portfolio.equity, ctx.stock.equity, ctx.stock.available_cash, ctx.params, ctx.stock.positions(), ctx.stock.adjusted_shares(code)
 - Scheduling: ctx.period("daily" | "weekly" | "monthly") returns a string period key, not a boolean. Compare it with persistent module state to run once when a new period begins; never use \`if ctx.period(...)\` and never claim this detects the last trading day.
 - Cross-section: ctx.universe(index_code=None), then .where(lambda bar, code: ...), .min_list_days(days), .rank_by(lambda bar, code: score, "desc" | "asc"), .top(n), .codes()
 - Data: ctx.bar(code), ctx.ensure_bars(codes), ctx.bars(code,n), ctx.history(code,field,n), ctx.price(code), ctx.list_days(code), ctx.industry(code), ctx.lhb_net(code), ctx.factor(name,code)
@@ -27,9 +27,9 @@ def handle_bar(ctx):
   ctx.bollinger_bands(code,period=20,standard_deviations=2) -> {middle,upper,lower},
   ctx.rsi(code,period=14), ctx.macd(code,fast_period=12,slow_period=26,signal_period=9) ->
   {line,signal,histogram}, ctx.kdj(code,period=9,k_smoothing=3,d_smoothing=3) -> {k,d,j}
-- Orders: ctx.equal_weight(codes), ctx.set_holdings(dict), ctx.order_target_percent(code,weight), ctx.order(code,shares), ctx.order_lots(code,lots), ctx.exit(code)
-- ctx.set_holdings is the complete target book and liquidates omitted holdings. Use ctx.set_holdings({}) to go flat; do not combine exits with set_holdings in the same callback.
-- Conditional orders: ctx.stop_loss, ctx.trailing_stop, ctx.limit_buy, ctx.take_profit, ctx.cancel_conditional
+- Orders: ctx.stock.equal_weight(codes), ctx.stock.set_target_weights(dict), ctx.stock.set_target_weight(code,weight), ctx.stock.order_adjusted_shares(code,shares), ctx.stock.order_lots(code,lots), ctx.stock.close_position(code)
+- ctx.stock.set_target_weights is the complete target book and liquidates omitted holdings. Use ctx.stock.set_target_weights({}) to go flat; target weights cannot be mixed with incremental orders in the same callback. Closing a position replaces its earlier ordinary orders.
+- Conditional orders: ctx.stock.stop_loss_at_adjusted_price, ctx.stock.trailing_stop_by_fraction, ctx.stock.limit_buy_at_adjusted_price, ctx.stock.take_profit_by_fraction, ctx.stock.cancel_conditional
 - Bar fields use snake_case: pe_ttm, adj_close, turnover_rate, total_mv, risk_warning, pending_delisting, etc.
 
 # Runtime constraints

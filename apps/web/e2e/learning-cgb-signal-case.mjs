@@ -20,9 +20,9 @@ export default defineStrategy({
   onBar(ctx) {
     const score = ctx.factor('${FACTOR_KEY}', bond);
     if (score != null && score > 0) {
-      ctx.setHoldings({ [bond]: 0.8 });
+      ctx.stock.setTargetWeights({ [bond]: 0.8 });
     } else {
-      ctx.setHoldings({});
+      ctx.stock.setTargetWeights({});
     }
   },
 });`;

@@ -242,8 +242,8 @@ try {
     "    const period = ctx.period('monthly');",
     '    if (period === last) return;',
     '    last = period;',
-    '    if (picks.length === 2) ctx.equalWeight(picks);',
-    '    else ctx.setHoldings({});',
+    '    if (picks.length === 2) ctx.stock.equalWeight(picks);',
+    '    else ctx.stock.setTargetWeights({});',
     '  },',
     '});',
   ].join('\n');

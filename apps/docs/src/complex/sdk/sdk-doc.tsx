@@ -122,11 +122,18 @@ export const Sdk = complex.component(() => {
             <h2 className="jx-docs-h2">StrategyCtx</h2>
             <p className="jx-docs-p">
               {t(
-                'onBar(ctx) 里 ctx 的类型 —— 策略每个 bar 看到、操作的入口。下面所有 ctx.xxx 都是它的方法(读数据、算指标、下单);ctx 恒为「今天」,没有 date 参数。',
-                'The type of ctx in onBar(ctx) — the entry through which a strategy reads data and places orders each bar. Every ctx.xxx below is its method; ctx is always bound to "today" (no date arg).',
+                'onBar(ctx) 里 ctx 的类型 —— 策略每个 bar 看到、操作的入口。行情和指标直接使用 ctx；账户和订单通过 ctx.stock / ctx.futures；ctx.portfolio.equity 为组合总权益。ctx 恒为「今天」,没有 date 参数。',
+                'The type of ctx in onBar(ctx) — the entry through which a strategy reads data and places orders each bar. Read market data through ctx, use ctx.stock / ctx.futures for accounts and orders, and ctx.portfolio.equity for combined equity; ctx is always bound to "today" (no date arg).',
               )}
             </p>
           </section>
+
+          <p className="jx-docs-p">
+            {t(
+              'stock.equity 为现金账户权益，stock.availableCash 为该账户可用现金；futures.equity 为期货结算权益，futures.availableCash 扣除保证金，futures.margin 为占用保证金。资金不能跨账户自动挪用。同日增量累加、目标以后者为准；现金账户目标表与增量不可混用，期货按代码检查。closePosition 覆盖该标的此前普通指令，后续增量会报错，持续条件单单独处理。旧版扁平接口已移除，已有策略源码须迁移后重新运行；历史报告不变。',
+              'stock.equity is cash-account equity and stock.availableCash is its spendable cash. futures.equity is settled equity; futures.availableCash excludes futures.margin. Cash never transfers automatically. Deltas accumulate and later targets replace earlier targets. Stock targets conflict with stock deltas; futures conflicts are checked per code. closePosition replaces earlier ordinary instructions for that code, rejects later deltas, and leaves persistent conditions separate. The old flat API has been removed: migrate saved source before rerunning. Historical reports are unchanged.',
+            )}
+          </p>
 
           {groups.map(([group, entries]) => (
             <section className="jx-docs-section" id={typeAnchor(entries[0].iface)} key={group}>
@@ -137,7 +144,18 @@ export const Sdk = complex.component(() => {
                   <h3 className="jx-docs-symName">{e.name}</h3>
                   <p className="jx-docs-symAbstract">{t(e.zh, e.en)}</p>
                   <div className="jx-docs-declLabel">{t('声明', 'Declaration')}</div>
-                  <Declaration prefix={e.iface === 'StrategyCtx' ? 'ctx.' : ''} sig={e.sig} />
+                  <Declaration
+                    prefix={
+                      e.iface === 'StrategyCtx'
+                        ? 'ctx.'
+                        : e.iface === 'StockAccount'
+                          ? 'ctx.stock.'
+                          : e.iface === 'FuturesAccount'
+                            ? 'ctx.futures.'
+                            : ''
+                    }
+                    sig={e.sig}
+                  />
                 </article>
               ))}
             </section>
@@ -309,8 +327,8 @@ export default defineStrategy({
     const c = '600519.SH';
     const px = ctx.price(c), ma = ctx.sma(c, 20);
     if (px == null || ma == null) return;
-    if (px > ma && ctx.shares(c) === 0) ctx.order(c, Math.floor(ctx.cash / px));
-    else if (px < ma && ctx.shares(c) > 0) ctx.exit(c);
+    if (px > ma && ctx.stock.adjustedShares(c) === 0) ctx.stock.orderAdjustedShares(c, Math.floor(ctx.stock.availableCash / px));
+    else if (px < ma && ctx.stock.adjustedShares(c) > 0) ctx.stock.closePosition(c);
   },
 });`,
   en: `// Single name: buy full size when the close crosses above the 20-day MA, exit when it crosses below
@@ -321,8 +339,8 @@ export default defineStrategy({
     const c = '600519.SH';
     const px = ctx.price(c), ma = ctx.sma(c, 20);
     if (px == null || ma == null) return;
-    if (px > ma && ctx.shares(c) === 0) ctx.order(c, Math.floor(ctx.cash / px));
-    else if (px < ma && ctx.shares(c) > 0) ctx.exit(c);
+    if (px > ma && ctx.stock.adjustedShares(c) === 0) ctx.stock.orderAdjustedShares(c, Math.floor(ctx.stock.availableCash / px));
+    else if (px < ma && ctx.stock.adjustedShares(c) > 0) ctx.stock.closePosition(c);
   },
 });`,
 };
@@ -339,7 +357,7 @@ export default defineStrategy({
       .where(b => (b.roe ?? 0) > 15 && b.peTtm != null && b.peTtm > 0)
       .rankBy(b => 1 / b.peTtm)
       .top(30);
-    ctx.equalWeight(picks);
+    ctx.stock.equalWeight(picks);
   },
 });`,
   en: `// Monthly: from CSI 300, the 30 cheapest names with ROE>15, equal-weighted
@@ -353,7 +371,7 @@ export default defineStrategy({
       .where(b => (b.roe ?? 0) > 15 && b.peTtm != null && b.peTtm > 0)
       .rankBy(b => 1 / b.peTtm)
       .top(30);
-    ctx.equalWeight(picks);
+    ctx.stock.equalWeight(picks);
   },
 });`,
 };

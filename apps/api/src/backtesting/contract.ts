@@ -9,16 +9,9 @@ import type { ConditionalOrderKind } from './order-book.js';
 /** Host capabilities for one simulation date. Adapted by Strategy runtime before user access. */
 export interface EngineContext {
   readonly date: string;
-  readonly cash: number;
-  readonly value: number; // total equity = cash + positions market value
-  readonly availableCash: number; // cash less futures margin; equals cash in stock-only mode
-  readonly stockValue: number; // stock sleeve equity (cash + marked stock positions)
-  readonly futureValue: number; // futures sleeve equity after the latest daily settlement
-  readonly stockAvailableCash: number;
-  readonly futureAvailableCash: number; // futures equity less reserved margin
-  readonly futureMargin: number;
-
-  positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
+  readonly portfolio: { readonly equity: number };
+  readonly stock: EngineStockAccount;
+  readonly futures: EngineFuturesAccount;
 
   // Point-in-time market and factor reads.
   /** Load today's tradable cross-section (codes with a daily bar + adj factor + valuation) and return its
@@ -67,38 +60,44 @@ export interface EngineContext {
     field: 'open' | 'high' | 'low' | 'close' | 'settle',
     n: number,
   ): number[];
-  futurePosition(code: string): FuturePositionView | null;
+}
 
-  // —— Orders ——
-  // Declarative (target-book): fits cross-sectional rebalancing, maps cleanly to a web form later.
-  orderTargetPercent(code: string, weight: number): void;
-  setHoldings(weights: Record<string, number> | Map<string, number>): void;
-  // Imperative (share deltas): fits per-instrument systems (Turtle: add a unit, hit a stop). Orders
-  // queue and fill at the next open. A bar uses either the declarative or the imperative API.
-  order(code: string, shares: number): void; // +buy / -sell
-  /** Queue whole real-share lots (100 shares per lot) for the next open. */
+/** Cash-account primitives; strategy sizing helpers belong to the SDK. */
+export interface EngineStockAccount {
+  readonly equity: number;
+  readonly availableCash: number;
+  positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
+  adjustedShares(code: string): number;
+
+  /** Update one entry of the complete target book; omitted holdings are liquidated. */
+  setTargetWeight(code: string, weight: number): void;
+  setTargetWeights(weights: Record<string, number> | Map<string, number>): void;
+  orderAdjustedShares(code: string, shares: number): void;
+  /** One lot is 100 real shares, converted using the execution day's adjustment factor. */
   orderLots(code: string, lots: number): void;
-  exit(code: string): void; // sell the entire current position
+  /** Replace this code's earlier ordinary instructions with a zero-position target. */
+  closePosition(code: string): void;
 
-  // Persistent conditional orders. They are declared after today's close and become eligible on the
-  // next trading day; re-declaring the same kind/code updates it without resetting trailing history.
-  stopLoss(code: string, price: number): void;
-  trailingStop(code: string, pct: number): void;
-  limitBuy(code: string, price: number, shares: number): void;
-  takeProfit(code: string, pct: number): void;
+  // Conditions persist independently of ordinary decisions and are eligible from the next day.
+  stopLossAtAdjustedPrice(code: string, price: number): void;
+  trailingStopByFraction(code: string, fraction: number): void;
+  limitBuyAtAdjustedPrice(code: string, price: number, shares: number): void;
+  takeProfitByFraction(code: string, fraction: number): void;
   cancelConditional(code: string, kind?: ConditionalOrderKind): void;
+}
 
-  /** Convenience: current shares held of `code` (0 if none). */
-  shares(code: string): number;
-  /** Queue a signed futures contract delta for the next open. Requires declared futures. */
-  orderFuture(code: string, contracts: number): void;
-  /** Set the signed contract target for the next open. */
-  setFutureTargetContracts(code: string, contracts: number): void;
-  /** Set a signed futures notional target for the next open (negative means short). */
-  setFutureTargetNotional(code: string, notional: number): void;
-  /** Hedge the actually filled stock sleeve at the next open. beta=1 requests a full short hedge. */
-  hedgeFuture(code: string, beta?: number): void;
-  exitFuture(code: string): void;
+/** Futures-account primitives, including margin already reserved from available cash. */
+export interface EngineFuturesAccount {
+  readonly equity: number;
+  readonly availableCash: number;
+  readonly margin: number;
+  position(code: string): FuturePositionView | null;
+  orderContracts(code: string, contracts: number): void;
+  setTargetContracts(code: string, contracts: number): void;
+  setTargetNotional(code: string, notional: number): void;
+  /** Hedge cash-account exposure after its next-open and conditional fills. */
+  hedgeStock(code: string, beta?: number): void;
+  closePosition(code: string): void;
 }
 
 export interface EngineAccounts {

@@ -44,7 +44,7 @@ export const technicalIndicatorStrategyCode = [
   '',
   '    const target = score >= 4 ? 0.6 : score === 3 ? 0.3 : 0;',
   '    if (target !== lastTarget) {',
-  '      ctx.orderTargetPercent(code, target);',
+  '      ctx.stock.setTargetWeight(code, target);',
   "      console.log('indicator-score', ctx.date, score, target);",
   '      lastTarget = target;',
   '    }',

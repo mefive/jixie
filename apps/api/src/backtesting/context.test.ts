@@ -49,6 +49,24 @@ describe('context futures access', () => {
       factorEvaluator: null,
     });
 
+    expect(context.portfolio.equity).toBe(10000);
+    expect(context.stock.equity).toBe(10000);
+    expect(context.stock.availableCash).toBe(10000);
+    expect(context.futures.equity).toBe(0);
+    expect(context.futures.availableCash).toBe(0);
+    expect('order' in context).toBe(false);
+    expect('orderFuture' in context).toBe(false);
+
+    orderBook.beginDecision('20240102');
+    context.stock.orderAdjustedShares('AAA', 100);
+    context.stock.orderAdjustedShares('AAA', 50);
+    context.futures.orderContracts('IF.CFX', -2);
+    orderBook.commitDecision();
+    expect(orderBook.snapshotCashOrders().pendingOrders?.get('AAA')).toBe(150);
+    expect(orderBook.snapshotFuturesOrders()).toEqual([
+      { code: 'IF.CFX', intent: { kind: 'delta', value: -2 } },
+    ]);
+
     expect(context.future('IF.CFX')).toEqual(bar);
     expect(context.futureHistory('IF.CFX', 'close', 1)).toEqual([100]);
     expect(futureBar).toHaveBeenCalledTimes(1);

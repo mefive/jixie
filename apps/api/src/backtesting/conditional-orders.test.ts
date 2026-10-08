@@ -50,11 +50,11 @@ describe('persistent conditional orders', () => {
   it('prioritizes the highest triggered stop over a same-day take-profit', async () => {
     const result = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
         '20240102': (ctx) => {
-          ctx.takeProfit('A', 0.05);
-          ctx.stopLoss('A', 9);
-          ctx.trailingStop('A', 0.05);
+          ctx.stock.takeProfitByFraction('A', 0.05);
+          ctx.stock.stopLossAtAdjustedPrice('A', 9);
+          ctx.stock.trailingStopByFraction('A', 0.05);
         },
       },
       { '20240103': { high: 11, low: 8.5 } },
@@ -69,8 +69,8 @@ describe('persistent conditional orders', () => {
   it('fills a stop at its trigger and a gap-through stop at the open', async () => {
     const touched = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.stopLoss('A', 9.5),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.stopLossAtAdjustedPrice('A', 9.5),
       },
       { '20240103': { low: 9.4 } },
     );
@@ -81,8 +81,8 @@ describe('persistent conditional orders', () => {
 
     const gapped = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.stopLoss('A', 9.5),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.stopLossAtAdjustedPrice('A', 9.5),
       },
       { '20240103': { open: 9.2, high: 9.3, low: 9, close: 9.1 } },
     );
@@ -93,8 +93,8 @@ describe('persistent conditional orders', () => {
     const result = await run(
       {
         '20240101': (ctx) => {
-          ctx.order('A', 100);
-          ctx.stopLoss('A', 9.5);
+          ctx.stock.orderAdjustedShares('A', 100);
+          ctx.stock.stopLossAtAdjustedPrice('A', 9.5);
         },
       },
       {
@@ -111,10 +111,10 @@ describe('persistent conditional orders', () => {
   it('只冻结当天新增层,条件退出先卖旧股并在下一日卖完新股', async () => {
     const result = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 200),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 200),
         '20240102': (ctx) => {
-          ctx.order('A', 100);
-          ctx.stopLoss('A', 9.5);
+          ctx.stock.orderAdjustedShares('A', 100);
+          ctx.stock.stopLossAtAdjustedPrice('A', 9.5);
         },
       },
       {
@@ -132,11 +132,11 @@ describe('persistent conditional orders', () => {
     const result = await run(
       {
         '20240101': (ctx) => {
-          ctx.order('A', 100);
-          ctx.trailingStop('A', 0.1);
+          ctx.stock.orderAdjustedShares('A', 100);
+          ctx.stock.trailingStopByFraction('A', 0.1);
         },
         // Re-declaring must preserve the 12 high-water mark observed on D3.
-        '20240103': (ctx) => ctx.trailingStop('A', 0.1),
+        '20240103': (ctx) => ctx.stock.trailingStopByFraction('A', 0.1),
       },
       {
         '20240103': { high: 12, low: 9.5, close: 11 },
@@ -151,7 +151,7 @@ describe('persistent conditional orders', () => {
 
   it('persists limit buys until touched and never fills above the limit', async () => {
     const touched = await run(
-      { '20240101': (ctx) => ctx.limitBuy('A', 9.5, 100) },
+      { '20240101': (ctx) => ctx.stock.limitBuyAtAdjustedPrice('A', 9.5, 100) },
       {
         '20240102': { low: 9.7 },
         '20240103': { open: 10, low: 9.4 },
@@ -160,7 +160,7 @@ describe('persistent conditional orders', () => {
     expect(touched.tradeLog[0]).toMatchObject({ side: 'buy', date: '20240103', price: 9.5 });
 
     const gapped = await run(
-      { '20240101': (ctx) => ctx.limitBuy('A', 9.5, 100) },
+      { '20240101': (ctx) => ctx.stock.limitBuyAtAdjustedPrice('A', 9.5, 100) },
       { '20240102': { open: 9.2, high: 9.4, low: 9, close: 9.3 } },
     );
     expect(gapped.tradeLog[0]).toMatchObject({ date: '20240102', price: 9.2 });
@@ -169,8 +169,8 @@ describe('persistent conditional orders', () => {
   it('keeps a condition alive when a sealed price limit blocks the trigger', async () => {
     const result = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.stopLoss('A', 9.5),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.stopLossAtAdjustedPrice('A', 9.5),
       },
       {
         '20240103': { open: 9, high: 9, low: 9, close: 9 },
@@ -186,12 +186,12 @@ describe('persistent conditional orders', () => {
   it('removes stale sell conditions when a next-open order closes the position', async () => {
     const result = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
         '20240102': (ctx) => {
-          ctx.stopLoss('A', 9.5);
-          ctx.exit('A');
+          ctx.stock.stopLossAtAdjustedPrice('A', 9.5);
+          ctx.stock.closePosition('A');
         },
-        '20240103': (ctx) => ctx.order('A', 100),
+        '20240103': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
       },
       { '20240105': { low: 9.4 } },
     );
@@ -205,8 +205,8 @@ describe('persistent conditional orders', () => {
   it('supports take-profit, cancellation, and real-share lot sizing', async () => {
     const profit = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.takeProfit('A', 0.1),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.takeProfitByFraction('A', 0.1),
       },
       { '20240103': { high: 11.2 } },
     );
@@ -218,8 +218,8 @@ describe('persistent conditional orders', () => {
 
     const cancelled = await run(
       {
-        '20240101': (ctx) => ctx.limitBuy('A', 9.5, 100),
-        '20240102': (ctx) => ctx.cancelConditional('A', 'limit_buy'),
+        '20240101': (ctx) => ctx.stock.limitBuyAtAdjustedPrice('A', 9.5, 100),
+        '20240102': (ctx) => ctx.stock.cancelConditional('A', 'limit_buy'),
       },
       { '20240103': { low: 9.4 } },
     );
@@ -245,7 +245,7 @@ describe('persistent conditional orders', () => {
       start: DATES[0],
       end: DATES.at(-1)!,
       initialCash: 100_000,
-      strategy: scripted({ '20240101': (ctx) => ctx.orderLots('A', 1) }),
+      strategy: scripted({ '20240101': (ctx) => ctx.stock.orderLots('A', 1) }),
       dataPort: fixturePort(adjustedSpec),
       cost: { slippageBps: 0, impactCoef: 0 },
     }).run();
@@ -259,8 +259,8 @@ describe('persistent conditional orders', () => {
       initialCash: 100_000,
       strategy: scripted({
         '20240101': (ctx) => {
-          ctx.orderLots('A', 1);
-          ctx.stopLoss('A', 9.2);
+          ctx.stock.orderLots('A', 1);
+          ctx.stock.stopLossAtAdjustedPrice('A', 9.2);
         },
       }),
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
@@ -279,8 +279,8 @@ describe('persistent conditional orders', () => {
       end: '20240102',
       initialCash: 100_000,
       strategy: scripted({
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.trailingStop('A', 0.08),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.trailingStopByFraction('A', 0.08),
       }),
       dataPort: fixturePort({ dates: DATES, stocks: [stock()] }),
       cost: { slippageBps: 0, impactCoef: 0 },
@@ -304,17 +304,17 @@ describe('persistent conditional orders', () => {
     } satisfies Partial<Record<string, Partial<FixtureBar>>>;
     const intraday = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
-        '20240102': (ctx) => ctx.stopLoss('A', 9.5),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
+        '20240102': (ctx) => ctx.stock.stopLossAtAdjustedPrice('A', 9.5),
       },
       overrides,
     );
     const closeDriven = await run(
       {
-        '20240101': (ctx) => ctx.order('A', 100),
+        '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
         '20240103': (ctx) => {
           if ((ctx.price('A') ?? Infinity) <= 9.5) {
-            ctx.exit('A');
+            ctx.stock.closePosition('A');
           }
         },
       },

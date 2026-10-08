@@ -23,8 +23,8 @@ describe('OrderBook decision ownership', () => {
       cost: DEFAULT_COST,
     });
     orders.beginDecision('20240102');
-    orders.orderLots('A', 2);
-    orders.limitBuy('A', 10, 100);
+    orders.orderStockLots('A', 2);
+    orders.setStockLimitBuyAtAdjustedPrice('A', 10, 100);
     orders.commitDecision();
     const snapshot = orders.snapshotCashOrders();
     snapshot.pendingLotOrders!.set('A', 999);
@@ -43,7 +43,7 @@ describe('OrderBook decision ownership', () => {
     expect(orders.snapshotCashOrders().pendingLotOrders).toBeNull();
     expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(1);
     orders.beginDecision('20240104');
-    orders.cancelConditional('A', 'limit_buy');
+    orders.cancelStockConditional('A', 'limit_buy');
     orders.commitDecision();
     expect(orders.snapshotCashOrders().conditionalOrders.size).toBe(0);
   });
@@ -87,7 +87,7 @@ describe('OrderBook execution boundaries', () => {
       notifications.push(date),
     );
     orders.beginDecision('20240102');
-    orders.order('A', 100);
+    orders.orderStockAdjustedShares('A', 100);
     orders.commitDecision();
     await orders.executeOrders('20240103', '20240102');
     expect(cashPortfolio.positions.get('A')?.shares).toBe(100);
@@ -95,7 +95,7 @@ describe('OrderBook execution boundaries', () => {
     expect(allocationTracker.finish(cashPortfolio.cash).drift).toEqual([]);
 
     orders.beginDecision('20240103');
-    orders.setHoldings(new Map());
+    orders.setStockTargetWeights(new Map());
     orders.commitDecision();
     expect(orders.snapshotCashOrders().pendingTargets).toEqual(new Map());
     await orders.executeOrders('20240104', '20240103');
@@ -108,7 +108,7 @@ describe('OrderBook execution boundaries', () => {
     ]);
   });
 
-  it('retains later orders when their load fails after rebalance attribution and notification', async () => {
+  it('replays legacy mixed orders and retains later orders after a load failure', async () => {
     const notifications: string[] = [];
     const { orders, engineData, cashPortfolio, allocationTracker } = await executionFixture(
       (date) => notifications.push(date),
@@ -122,11 +122,20 @@ describe('OrderBook execution boundaries', () => {
       }
       await loadBars(codes);
     });
-    orders.beginDecision('20240102');
-    orders.setHoldings({ A: 0.5 });
-    orders.order('B', 100);
-    orders.limitBuy('A', 5, 100);
-    orders.commitDecision();
+    orders.loadExecutionOrders({
+      cashOrders: {
+        pendingTargets: new Map([['A', 0.5]]),
+        pendingOrders: new Map([['B', 100]]),
+        pendingLotOrders: null,
+        conditionalOrders: new Map([
+          [
+            'limit_buy:A',
+            { kind: 'limit_buy', code: 'A', triggerPrice: 5, shares: 100, placedDate: '20240102' },
+          ],
+        ]),
+      },
+      futuresOrders: [],
+    });
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'cash bars unavailable',
@@ -135,15 +144,7 @@ describe('OrderBook execution boundaries', () => {
     expect(loads).toEqual([['A'], ['B']]);
     expect(cashPortfolio.positions.get('A')?.shares).toBe(500);
     expect(notifications).toEqual(['20240103']);
-    expect(allocationTracker.finish(cashPortfolio.cash).drift).toMatchObject([
-      { decisionDate: '20240102', executionDate: '20240103' },
-    ]);
-    const drift = allocationTracker.finish(cashPortfolio.cash).drift[0];
-    expect(drift.preTrade).toContainEqual({ assetId: 'A', assetClass: 'other', weight: 0 });
-    expect(drift.target).toContainEqual({ assetId: 'A', assetClass: 'other', weight: 0.5 });
-    expect(drift.postTrade.find((point) => point.assetId === 'A')?.weight).toBeCloseTo(
-      5000 / (cashPortfolio.cash + 5000),
-    );
+    expect(allocationTracker.finish(cashPortfolio.cash).drift).toEqual([]);
 
     expect(orders.snapshotCashOrders()).toMatchObject({
       pendingTargets: null,
@@ -156,10 +157,15 @@ describe('OrderBook execution boundaries', () => {
     const { orders, cashPortfolio, allocationTracker } = await executionFixture(() => {
       throw new Error('notification failed');
     });
-    orders.beginDecision('20240102');
-    orders.setHoldings({ A: 0.5 });
-    orders.order('B', 100);
-    orders.commitDecision();
+    orders.loadExecutionOrders({
+      cashOrders: {
+        pendingTargets: new Map([['A', 0.5]]),
+        pendingOrders: new Map([['B', 100]]),
+        pendingLotOrders: null,
+        conditionalOrders: new Map(),
+      },
+      futuresOrders: [],
+    });
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
       'notification failed',
@@ -167,7 +173,7 @@ describe('OrderBook execution boundaries', () => {
 
     expect(cashPortfolio.positions.has('A')).toBe(true);
     expect(cashPortfolio.positions.has('B')).toBe(false);
-    expect(allocationTracker.finish(cashPortfolio.cash).drift).toHaveLength(1);
+    expect(allocationTracker.finish(cashPortfolio.cash).drift).toHaveLength(0);
     expect(orders.snapshotCashOrders().pendingTargets).toBeNull();
     expect(orders.snapshotCashOrders().pendingOrders).toEqual(new Map([['B', 100]]));
   });
@@ -182,9 +188,9 @@ describe('OrderBook execution boundaries', () => {
       await loadBars(codes);
     });
     orders.beginDecision('20240102');
-    orders.order('A', 100);
-    orders.orderLots('A', 1);
-    orders.limitBuy('B', 5, 100);
+    orders.orderStockAdjustedShares('A', 100);
+    orders.orderStockLots('A', 1);
+    orders.setStockLimitBuyAtAdjustedPrice('B', 5, 100);
     orders.commitDecision();
 
     await expect(orders.executeOrders('20240103', '20240102')).rejects.toThrow(
@@ -204,9 +210,9 @@ describe('OrderBook execution boundaries', () => {
   it('consumes unfilled ordinary orders while preserving persistent limit buys', async () => {
     const { orders, cashPortfolio } = await executionFixture();
     orders.beginDecision('20240102');
-    orders.order('MISSING', 100);
-    orders.orderLots('MISSING', 1);
-    orders.limitBuy('MISSING', 10, 100);
+    orders.orderStockAdjustedShares('MISSING', 100);
+    orders.orderStockLots('MISSING', 1);
+    orders.setStockLimitBuyAtAdjustedPrice('MISSING', 10, 100);
     orders.commitDecision();
 
     await orders.executeOrders('20240103', '20240102');
@@ -225,11 +231,9 @@ describe('OrderBook execution boundaries', () => {
     const { orders, futuresPortfolio } = await executionFixture();
     const executeOrder = vi.spyOn(futuresPortfolio, 'executeOrder');
     orders.beginDecision('20240102');
-    orders.orderFuture('IF.CFX', 1);
-    orders.orderFuture('IF.CFX', 2);
-    orders.setFutureTargetContracts('IF.CFX', 4);
-    orders.orderFuture('IF.CFX', 2);
-    orders.orderFuture('IF.CFX', 1);
+    orders.orderFuturesContracts('IF.CFX', 1);
+    orders.orderFuturesContracts('IF.CFX', 2);
+
     orders.commitDecision();
     expect(orders.snapshotFuturesOrders()).toEqual([
       { code: 'IF.CFX', intent: { kind: 'delta', value: 3 } },
@@ -343,7 +347,7 @@ describe('loaded execution orders', () => {
     async (intent) => {
       const { orders } = await executionFixture();
       orders.beginDecision('20240102');
-      orders.order('A', 100);
+      orders.orderStockAdjustedShares('A', 100);
       orders.commitDecision();
 
       expect(() =>
@@ -378,5 +382,135 @@ describe('loaded execution orders', () => {
 
     expect(cashPortfolio.positions.get('A')?.shares).toBe(200);
     expect(cashPortfolio.trades).toHaveLength(1);
+  });
+});
+
+describe('account-scoped decision semantics', () => {
+  it.each(['target-first', 'delta-first'] as const)(
+    'rejects stock target/delta mixtures in either order: %s',
+    async (sequence) => {
+      const { orders } = await executionFixture();
+      orders.beginDecision('20240102');
+      if (sequence === 'target-first') {
+        orders.setStockTargetWeights({ A: 0.5 });
+        expect(() => orders.orderStockAdjustedShares('B', 100)).toThrow(/不能混用|cannot mix/);
+        expect(() => orders.orderStockLots('B', 1)).toThrow(/不能混用|cannot mix/);
+      } else {
+        orders.orderStockLots('A', 1);
+        expect(() => orders.setStockTargetWeight('B', 0.5)).toThrow(/不能混用|cannot mix/);
+        expect(() => orders.setStockTargetWeights({ B: 0.5 })).toThrow(/不能混用|cannot mix/);
+      }
+    },
+  );
+
+  it('accumulates deltas, replaces targets and isolates futures conflicts by code', async () => {
+    const { orders } = await executionFixture();
+    orders.beginDecision('20240102');
+    orders.orderStockAdjustedShares('A', 100);
+    orders.orderStockAdjustedShares('A', -20);
+    orders.orderFuturesContracts('IF.CFX', 1.9);
+    orders.orderFuturesContracts('IF.CFX', 2.1);
+    orders.setFuturesTargetContracts('IH.CFX', 2);
+    orders.setFuturesTargetNotional('IH.CFX', 90000);
+    expect(() => orders.setFuturesTargetContracts('IF.CFX', 5)).toThrow(/不能混用|cannot mix/);
+    expect(() => orders.orderFuturesContracts('IH.CFX', 1)).toThrow(/不能混用|cannot mix/);
+    orders.commitDecision();
+
+    expect(orders.snapshotCashOrders().pendingOrders).toEqual(new Map([['A', 80]]));
+    expect(orders.snapshotFuturesOrders()).toEqual([
+      { code: 'IF.CFX', intent: { kind: 'delta', value: 3 } },
+      { code: 'IH.CFX', intent: { kind: 'notional', value: 90000 } },
+    ]);
+  });
+
+  it('closes a stock position once and cancels preceding buys in both units', async () => {
+    const { orders, cashPortfolio } = await executionFixture();
+    orders.beginDecision('20240102');
+    orders.orderStockAdjustedShares('A', 100);
+    orders.commitDecision();
+    await orders.executeOrders('20240103', '20240102');
+
+    orders.beginDecision('20240103');
+    orders.orderStockAdjustedShares('A', 300);
+    orders.orderStockLots('A', 2);
+    orders.closeStockPosition('A');
+    orders.closeStockPosition('A');
+    expect(() => orders.orderStockAdjustedShares('A', 1)).toThrow(/不能混用|cannot mix/);
+    orders.commitDecision();
+    expect(orders.snapshotCashOrders().pendingOrders?.get('A')).toBe(-100);
+    expect(orders.snapshotCashOrders().pendingLotOrders?.has('A')).toBe(false);
+    await orders.executeOrders('20240104', '20240103');
+
+    expect(cashPortfolio.positions.has('A')).toBe(false);
+    expect(cashPortfolio.trades.map((trade) => trade.side)).toEqual(['buy', 'sell']);
+  });
+
+  it('cancels a buy without a position and leaves persistent conditions independent', async () => {
+    const { orders } = await executionFixture();
+    orders.beginDecision('20240102');
+    orders.orderStockAdjustedShares('A', 100);
+    orders.setStockLimitBuyAtAdjustedPrice('A', 5, 100);
+    orders.closeStockPosition('A');
+    orders.commitDecision();
+
+    expect(orders.snapshotCashOrders().pendingOrders?.has('A')).toBe(false);
+    expect(orders.snapshotCashOrders().conditionalOrders.has('limit_buy:A')).toBe(true);
+  });
+
+  it('allows later targets to replace closes and later closes to override targets', async () => {
+    const { orders } = await executionFixture();
+    orders.beginDecision('20240102');
+    orders.setStockTargetWeights({ A: 0.5, B: 0.5 });
+    orders.closeStockPosition('A');
+    orders.commitDecision();
+    expect(orders.snapshotCashOrders().pendingTargets).toEqual(
+      new Map([
+        ['A', 0],
+        ['B', 0.5],
+      ]),
+    );
+
+    orders.beginDecision('20240103');
+    orders.closeStockPosition('A');
+    orders.setStockTargetWeight('A', 0.3);
+    orders.setFuturesTargetContracts('IF.CFX', 3);
+    orders.closeFuturesPosition('IF.CFX');
+    expect(() => orders.orderFuturesContracts('IF.CFX', 1)).toThrow(/不能混用|cannot mix/);
+    orders.setFuturesTargetContracts('IF.CFX', 2);
+    orders.commitDecision();
+
+    expect(orders.snapshotCashOrders().pendingTargets?.get('A')).toBe(0.3);
+    expect(orders.snapshotFuturesOrders()).toEqual([
+      { code: 'IF.CFX', intent: { kind: 'contracts', value: 2 } },
+    ]);
+  });
+
+  it('normalizes loaded cash deltas without applying new-decision conflicts to old snapshots', async () => {
+    const { orders, cashPortfolio } = await executionFixture();
+    orders.loadExecutionOrders({
+      cashOrders: {
+        pendingTargets: new Map([['A', 0.5]]),
+        pendingOrders: null,
+        pendingLotOrders: null,
+        conditionalOrders: new Map(),
+      },
+      cashDeltas: [
+        { code: 'A', shares: -40 },
+        { code: 'A', shares: -60 },
+      ],
+      futuresOrders: [
+        { code: 'IF.CFX', intent: { kind: 'contracts', value: 2 } },
+        { code: 'IF.CFX', intent: { kind: 'delta', value: 1 } },
+      ],
+    });
+    expect(orders.snapshotCashOrders().pendingOrders?.get('A')).toBe(-100);
+    expect(orders.snapshotFuturesOrders()).toEqual([
+      { code: 'IF.CFX', intent: { kind: 'delta', value: 1 } },
+    ]);
+    await orders.executeOrders('20240103', undefined);
+
+    // The historical target fills first; T+1 blocks the following sale of the new shares.
+    expect(cashPortfolio.trades.map((trade) => trade.side)).toEqual(['buy']);
+    expect(cashPortfolio.positions.get('A')?.shares).toBe(500);
   });
 });

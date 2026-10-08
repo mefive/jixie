@@ -63,7 +63,7 @@ export default defineStrategy({
     ${dynamic ? 'cursor += 20; await ctx.ensureBars(selected);' : ''}
     const ranked = selected.map(code => ({ code, score: ctx.sma(code, ${dynamic ? 20 : 5}) }));
     ranked.sort((left, right) => (right.score ?? 0) - (left.score ?? 0));
-    ctx.equalWeight(ranked.slice(0, 10).map(row => row.code));
+    ctx.stock.equalWeight(ranked.slice(0, 10).map(row => row.code));
   }
 });`;
 let directory;

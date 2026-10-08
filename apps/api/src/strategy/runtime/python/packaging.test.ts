@@ -36,9 +36,15 @@ strategy = Strategy(name="packaged-sdk", params={"weight": 0.5})
 
 @strategy.on_bar
 def handle_bar(ctx: Context):
+    assert ctx.portfolio.equity == 100_000
+    assert ctx.stock.equity == 100_000
+    assert ctx.stock.available_cash == 100_000
+    assert ctx.futures.equity == 0
+    assert not hasattr(ctx, "order")
+    assert not hasattr(ctx, "cash")
     candidates: Universe = ctx.universe()
     for code in candidates.rank_by(lambda bar, code: bar.pe_ttm).top(1):
-        ctx.order_target_percent(code, ctx.params.weight)
+        ctx.stock.set_target_weight(code, ctx.params.weight)
 `;
     const frames = [
       { type: 'start', runtime_version: 'py-v1', code },
@@ -46,10 +52,9 @@ def handle_bar(ctx: Context):
         type: 'bar',
         snapshot: {
           date: '20240102',
-          cash: 100_000,
-          value: 100_000,
-          available_cash: 100_000,
-          positions: [],
+          portfolio: { equity: 100_000 },
+          stock: { equity: 100_000, availableCash: 100_000, positions: [] },
+          futures: { equity: 0, availableCash: 0, margin: 0 },
         },
       },
       {
@@ -88,7 +93,7 @@ def handle_bar(ctx: Context):
     }
     expect(output.map((frame) => frame.type)).toEqual(['ready', 'request', 'done']);
     expect(output[2].commands).toEqual([
-      { operation: 'order_target_percent', arguments: { code: 'BBB', weight: 0.5 } },
+      { operation: 'stock.setTargetWeight', arguments: { code: 'BBB', weight: 0.5 } },
     ]);
   } finally {
     await rm(directory, { recursive: true, force: true });

@@ -67,8 +67,8 @@ try {
     "  factors: ['cgb_yield_decline_20'],",
     '  onBar(ctx) {',
     "    const score = ctx.factor('cgb_yield_decline_20', bond);",
-    '    if (score != null && score > 0) ctx.setHoldings({ [bond]: 0.8 });',
-    '    else ctx.setHoldings({});',
+    '    if (score != null && score > 0) ctx.stock.setTargetWeights({ [bond]: 0.8 });',
+    '    else ctx.stock.setTargetWeights({});',
     '  },',
     '});',
   ].join('\n');

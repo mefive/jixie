@@ -6,8 +6,8 @@ import { factorQaProfile } from './profiles/qa.js';
 import type { AgentLlm } from '#infra/llm/agent-llm.js';
 import type { AgentTool } from './tools/types.js';
 
-const STRATEGY = `export default defineStrategy({ name: 'x', watch: ['600519.SH'], onBar(ctx) { ctx.exit('600519.SH'); } });`;
-const STRATEGY2 = `export default defineStrategy({ name: 'y', watch: ['600519.SH'], onBar(ctx) { ctx.order('600519.SH', 100); } });`;
+const STRATEGY = `export default defineStrategy({ name: 'x', watch: ['600519.SH'], onBar(ctx) { ctx.stock.closePosition('600519.SH'); } });`;
+const STRATEGY2 = `export default defineStrategy({ name: 'y', watch: ['600519.SH'], onBar(ctx) { ctx.stock.orderAdjustedShares('600519.SH', 100); } });`;
 const FACTOR = `export default defineFactor({ name: 'ep', compute: (bar) => (bar.peTtm && bar.peTtm > 0 ? 1 / bar.peTtm : null) });`;
 const FACTOR2 = `export default defineFactor({ name: 'bp', compute: (bar) => (bar.pb && bar.pb > 0 ? 1 / bar.pb : null) });`;
 const TIME_SERIES_FACTOR = `export default defineFactorV2({ version: 2, name: 'ETF trend', analysisKind: 'time_series', outputScope: 'asset', frequency: 'daily', inputs: ['etf.adjustedClose'], targetAssetClasses: ['equity', 'fixed_income', 'commodity'], window: 21, compute(ctx) { const now = ctx.value('etf.adjustedClose'); const before = ctx.lag('etf.adjustedClose', 20); return now != null && before != null && before > 0 ? now / before - 1 : null; } });`;

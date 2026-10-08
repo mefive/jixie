@@ -57,7 +57,7 @@ function config(language: FactorLanguage, factorLanguage: FactorLanguage): Backt
         await ctx.universe();
         const value = ctx.factor('${factor}', '${stock}');
         if (value !== 20) throw new Error('unexpected factor value: ' + value);
-        ctx.orderTargetPercent('${stock}', 0.5);
+        ctx.stock.setTargetWeight('${stock}', 0.5);
       }
     });
   `
@@ -68,7 +68,7 @@ strategy = Strategy(name="worker", factors=["${factor}"], watch=["${stock}"])
 def on_bar(ctx):
     ctx.universe()
     assert ctx.factor("${factor}", "${stock}") == 20
-    ctx.order_target_percent("${stock}", 0.5)
+    ctx.stock.set_target_weight("${stock}", 0.5)
 `;
   return {
     name: 'worker',

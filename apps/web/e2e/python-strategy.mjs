@@ -45,7 +45,7 @@ try {
       '    assert compatible == canonical',
       '    if not ordered and len(canonical) == 20:',
       '        print("python-history-ready", ctx.date, len(canonical))',
-      '        ctx.order_target_percent("600519.SH", 0.5)',
+      '        ctx.stock.set_target_weight("600519.SH", 0.5)',
       '        ordered = True',
     ].join('\n');
     const response = await fetch('/api/app/strategies', {

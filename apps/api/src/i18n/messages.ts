@@ -5,6 +5,10 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  orderDecisionConflict: {
+    zh: '同一次决策不能混用目标仓位与增量订单（账户：{account}，标的：{code}）。清仓后也不能追加增量订单。',
+    en: 'A decision cannot mix position targets and incremental orders (account: {account}, instrument: {code}). Incremental orders after closePosition are also rejected.',
+  },
   signalEmailIntentSubject: {
     zh: '{execDate}：{count} 项期货交易意图待解析',
     en: '{execDate}: {count} futures intents to resolve',

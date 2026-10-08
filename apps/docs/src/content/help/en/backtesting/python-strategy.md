@@ -28,7 +28,7 @@ export default defineStrategy({
   async onBar(ctx) {
     const closes = ctx.history('600519.SH', 'close', 20);
     if (!ordered && closes.length === 20) {
-      ctx.orderTargetPercent('600519.SH', 0.5);
+      ctx.stock.setTargetWeight('600519.SH', 0.5);
       ordered = true;
     }
   },
@@ -45,7 +45,7 @@ def handle_bar(ctx):
     global ordered
     closes = ctx.history("600519.SH", "close", 20)
     if not ordered and len(closes) == 20:
-        ctx.order_target_percent("600519.SH", 0.5)
+        ctx.stock.set_target_weight("600519.SH", 0.5)
         ordered = True
 ```
 :::

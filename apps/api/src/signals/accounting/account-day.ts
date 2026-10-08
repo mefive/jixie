@@ -59,7 +59,7 @@ export async function simulateAccountDay(input: AccountDayInput): Promise<{
         ? { ...condition, highWater: previous.highWater }
         : condition;
     });
-  const shares = new Map<string, number>();
+  const cashDeltas: Array<{ code: string; shares: number }> = [];
   for (const intent of input.intents) {
     if (intent.assetType === 'future' || intent.source === 'conditional') {
       continue;
@@ -71,10 +71,10 @@ export async function simulateAccountDay(input: AccountDayInput): Promise<{
         details: { code: intent.code },
       });
     }
-    shares.set(
-      intent.code,
-      (shares.get(intent.code) ?? 0) + ((intent.action === 'buy' ? 1 : -1) * intent.shares) / adj,
-    );
+    cashDeltas.push({
+      code: intent.code,
+      shares: ((intent.action === 'buy' ? 1 : -1) * intent.shares) / adj,
+    });
   }
   const futuresOrders: Array<{ code: string; intent: FutureIntent }> = [];
   for (const signal of input.intents) {
@@ -90,12 +90,13 @@ export async function simulateAccountDay(input: AccountDayInput): Promise<{
   orderBook.loadExecutionOrders({
     cashOrders: {
       pendingTargets: null,
-      pendingOrders: shares,
+      pendingOrders: null,
       pendingLotOrders: null,
       conditionalOrders: new Map(
         conditions.map(({ key, ...condition }) => [key, condition as ConditionalOrder]),
       ),
     },
+    cashDeltas,
     futuresOrders,
   });
 

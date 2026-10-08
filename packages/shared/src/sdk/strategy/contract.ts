@@ -154,14 +154,9 @@ export interface Universe {
 /** What the strategy sees and acts through on each bar — every ctx.xxx below is its method (read data, compute indicators, place orders); ctx is always "today". */
 export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
   readonly date: string;
-  readonly cash: number;
-  readonly value: number;
-  readonly availableCash: number;
-  readonly stockValue: number;
-  readonly futureValue: number;
-  readonly stockAvailableCash: number;
-  readonly futureAvailableCash: number;
-  readonly futureMargin: number;
+  readonly portfolio: { readonly equity: number };
+  readonly stock: StockAccount;
+  readonly futures: FuturesAccount;
   readonly params: Readonly<WidenStrategyParams<Params>>;
   /** Today's tradable universe (chainable). Pass an index code to restrict to its point-in-time constituents. */
   universe(indexCode?: string): Promise<Universe>;
@@ -175,8 +170,6 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
   future(code: string): FutureBar | null;
   /** Last n futures values, point-in-time mapped each day, oldest to newest. */
   futureHistory(code: string, field: 'open' | 'high' | 'low' | 'close' | 'settle', n: number): number[];
-  /** Current futures position; positive contracts are long and negative contracts are short. */
-  futurePosition(code: string): FuturePosition | null;
   /** Point-in-time SW level-1 industry label effective on the decision date; null without a covering spell. For sector-neutral or rotation logic without classification lookahead. */
   industry(code: string): string | null;
   /** Today's 龙虎榜 net buy amount (yuan); null if not listed that day (never carried forward). */
@@ -223,46 +216,63 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
   kdj(code: string, period?: number, kSmoothing?: number, dSmoothing?: number): { readonly k: number; readonly d: number; readonly j: number } | null;
   /** Period key for today — compare to a `let last` to fire once per period. */
   period(schedule: Schedule): string;
-  /** Current shares held of a code (0 if none). */
-  shares(code: string): number;
+}
+
+export interface StockAccount {
+  /** Equity of this account; funds do not transfer automatically. */
+  readonly equity: number;
+  /** Spendable cash of this account, excluding reserved margin for futures. */
+  readonly availableCash: number;
+  /** Current adjusted shares held of a code (0 if none). */
+  adjustedShares(code: string): number;
   /** All current positions (code / shares / avgCost / marketValue). */
   positions(): { code: string; shares: number; avgCost: number; marketValue: number }[];
   /** Equal-weight the codes (a target-book rebalance at next open). */
   equalWeight(codes: string[]): void;
-  /** ATR risk-sized adjusted shares: a one-ATR adverse move is about current equity × riskPct; defaults to ATR20 and actual buys remain rounded to real 100-share lots. */
-  atrUnits(code: string, riskPct: number, atrPeriod?: number): number;
+  /** ATR risk-sized adjusted shares: a one-ATR adverse move is about stock-account equity × riskPct; defaults to ATR20 and actual buys remain rounded to real 100-share lots. */
+  atrAdjustedShares(code: string, riskPct: number, atrPeriod?: number): number;
   /** Inverse-volatility weights from recent daily returns; defaults to 20 days, omits insufficient histories, and normalizes remaining weights to 1. Bars must be loaded first. */
   volTargetWeights(codes: string[], lookback?: number): Map<string, number>;
-  /** Declarative target weight in [0, 1] for the next-open rebalance; the full target book must sum to at most 1. */
-  orderTargetPercent(code: string, weight: number): void;
-  /** Declarative target book (code → weight); every weight must be in [0, 1] and the sum at most 1. */
-  setHoldings(weights: Record<string, number>): void;
-  /** Imperative share order: +buy / -sell, filled at next open. */
-  order(code: string, shares: number): void;
+  /** Update one entry of this decision's full target book in [0, 1]; omitted holdings are liquidated, total weight must not exceed 1, and stock deltas cannot be mixed in. */
+  setTargetWeight(code: string, weight: number): void;
+  /** Replace the full stock-account target book; omitted holdings are liquidated. Weights are in [0, 1], sum at most 1, and cannot mix with stock deltas. */
+  setTargetWeights(weights: Record<string, number> | Map<string, number>): void;
+  /** Adjusted-share delta: positive buys, negative sells, accumulated within a decision; cannot mix with stock target weights. */
+  orderAdjustedShares(code: string, shares: number): void;
   /** Order whole real-share lots (100 shares each); positive buys and negative sells fill next open. */
   orderLots(code: string, lots: number): void;
-  /** Sell the entire current position. */
-  exit(code: string): void;
-  /** Persistent stop loss: from the next trading day, sell all eligible shares when the low reaches the trigger; gaps fill at open. */
-  stopLoss(code: string, price: number): void;
+  /** Target zero holdings, replacing earlier ordinary instructions for this code; execution remains subject to trading constraints. */
+  closePosition(code: string): void;
+  /** Persistent stop loss at an adjusted price: from the next trading day, sell all eligible shares when the low reaches the trigger; gaps fill at open. */
+  stopLossAtAdjustedPrice(code: string, price: number): void;
   /** Persistent trailing stop (0.08 = 8%); today's trigger uses only the high-water mark known before the bar. */
-  trailingStop(code: string, pct: number): void;
-  /** Persistent limit buy: eligible from the next trading day and fills when the low reaches the limit, never above it. */
-  limitBuy(code: string, price: number, shares: number): void;
+  trailingStopByFraction(code: string, pct: number): void;
+  /** Persistent limit buy in adjusted-price and adjusted-share units: eligible from the next trading day and fills when the low reaches the limit, never above it. */
+  limitBuyAtAdjustedPrice(code: string, price: number, shares: number): void;
   /** Persistent take-profit from current position cost (0.2 = +20%); sells all eligible shares when reached. */
-  takeProfit(code: string, pct: number): void;
+  takeProfitByFraction(code: string, pct: number): void;
   /** Cancel one conditional-order kind for a code, or all conditional orders for that code when kind is omitted. */
   cancelConditional(code: string, kind?: 'stop_loss' | 'trailing_stop' | 'limit_buy' | 'take_profit'): void;
-  /** Signed integer futures order: +buy / -sell, filled at next open; allocate sufficient futures margin capital through accounts. */
-  orderFuture(code: string, contracts: number): void;
+}
+
+export interface FuturesAccount {
+  /** Equity of this account; funds do not transfer automatically. */
+  readonly equity: number;
+  /** Spendable cash of this account, excluding reserved margin for futures. */
+  readonly availableCash: number;
+  readonly margin: number;
+  /** Current futures position; positive contracts are long and negative contracts are short. */
+  position(code: string): FuturePosition | null;
+  /** Signed futures delta, truncated to whole contracts and accumulated per code; cannot mix with targets for that code. Filled next open, subject to futures funding. */
+  orderContracts(code: string, contracts: number): void;
   /** Set the signed futures contract target for the next open. */
-  setFutureTargetContracts(code: string, contracts: number): void;
+  setTargetContracts(code: string, contracts: number): void;
   /** Set the signed futures notional target for the next open. */
-  setFutureTargetNotional(code: string, notional: number): void;
+  setTargetNotional(code: string, notional: number): void;
   /** Hedge actual filled stock exposure at the next open; beta=1 requests a full short hedge. */
-  hedgeFuture(code: string, beta?: number): void;
-  /** Close the entire futures position at the next open. */
-  exitFuture(code: string): void;
+  hedgeStock(code: string, beta?: number): void;
+  /** Replace earlier ordinary instructions for this code with a zero-contract target. Later deltas fail; later targets replace it. Attempt closure next open. */
+  closePosition(code: string): void;
 }
 
 export type StrategyParamValue = number | string;

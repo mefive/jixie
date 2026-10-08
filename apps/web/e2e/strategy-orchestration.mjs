@@ -40,7 +40,7 @@ try {
       "    const period = ctx.period('monthly');",
       '    if (period !== last) {',
       '      last = period;',
-      "      ctx.order('600519.SH', 100);",
+      "      ctx.stock.orderAdjustedShares('600519.SH', 100);",
       '    }',
       '  },',
       '});',

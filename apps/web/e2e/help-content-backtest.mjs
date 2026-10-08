@@ -56,7 +56,7 @@ async function seedStrategy() {
         "    const month = ctx.period('monthly');",
         '    if (month === lastMonth) return;',
         '    lastMonth = month;',
-        "    ctx.order('600519.SH', ctx.params.sharesPerMonth);",
+        "    ctx.stock.orderAdjustedShares('600519.SH', ctx.params.sharesPerMonth);",
         '    console.log(`${ctx.date} 提交月度买入指令`);',
         '  },',
         '});',

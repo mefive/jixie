@@ -367,3 +367,76 @@ Gate 1 已确认完整范围和提交消息：
 - strategy-orchestration 和 mixed-futures 两条隔离 E2E 通过；本轮 job-system-backtest.png、mixed-futures-result.png 已视觉检查。
 - fixture 正常退出并回收数据库连接／临时库，测试服务端口关闭断言通过，额外进程检查无遗留 E2E 服务。
 - 按已确认消息提交当前全部五个文件，不推送。本节取代本轮此前等待审查／未运行验证的阶段状态。
+
+
+## 账户 SDK 与决策语义（2026-09-30）
+
+Gate 1 已确认，基线 `544eec1b`，开始时工作区干净。唯一提交消息：
+`feat(strategy)!: make account scopes and order semantics explicit`。
+
+- TS 作者接口分为 `portfolio.equity`、`stock`、`futures`；行情、因子、日期保留顶层。
+  `stock` 的权益／可用现金只取现金账户；期货权益／可用资金／保证金分别读取期货账户。
+  `enrich` 返回独立公开对象，不继承或扩展 EngineContext，内部 Context 同样按账户分组，桥接命令使用 stock.* / futures.*，临时 bar frame 同步账户结构。
+- 股票下单显式区分后复权股数与真实整手；条件单名区分后复权价格和比例；仓位辅助归 stock，
+  ATR 风险份额只用现金账户权益。期货增量／手数目标／名义金额目标／动态对冲保持各自业务含义。
+- 新策略决策：增量累加、重复目标覆盖；现金完整目标表与现金增量互斥，期货按代码检查。
+  零增量继续忽略。现金 `setTargetWeight` 仍更新当次完整目标表的一项，未列持仓按原规则退出，
+  不偷换为单标的局部目标；`setTargetWeights` 替换整表。
+- `closePosition` 覆盖同标的先前普通指令；现金在提交时转换为原股数订单或目标表中的零权重，
+  期货为零手数目标。后续增量报错，后续目标可覆盖。持续条件单不自动取消，沿用执行时清理规则。
+  成交顺序、复权／真实单位转换、资金、T+1、涨跌停、归因、每日结算保持原有执行逻辑。
+- Signals 把真实股数转换为后复权增量列表；OrderBook 共用收集函数负责累加。
+  `loadExecutionOrders` 仍直接装载历史执行批次，不施加新策略的冲突限制，不改已有信号含义。
+  schemaVersion=2 快照、HTTP 与数据库结构不变，无迁移。
+- Python 现有现金账户接口迁入 `ctx.stock`，使用 snake_case；可读分账户资金，仍不新增期货交易。
+- 旧版扁平作者接口移除；已有源码／冻结部署不自动改写，重新执行前须迁移并重新回测部署。
+  旧报告仍可查看。仓库示例、Agent 提示、SDK 参考、编辑器跳转和中英帮助一并迁移。
+- reference.ts 为公开签名真相源，contract.ts 通过 setup 的静态生成函数生成。生成阶段未准备 Python
+  环境、未运行应用。Python 路径与 workspace 未变化，现有 component-impact 清单已覆盖 API/sandboxd，
+  现有 deployment-plan 回归将于审查后验证；不添加冗余部署条目。
+- 测试代码覆盖冲突双向拒绝、分账户资金、增量累加／目标覆盖、清仓覆盖与重复清仓、条件单独立、
+  原快照混合指令回放和 T+1；TS/Python／Worker／E2E fixture 同步新调用，编辑器验收增加两账户同名方法的文档定位。
+
+当前阶段：实现与静态检查，尚未提交；本轮测试、构建、E2E 未运行，待 Gate 2 人工代码审查。
+批准后运行 Backtesting、Strategy SDK/runtime/execution/scans、Signals、受影响 Factor／Research／Agent 测试及
+Worker 协议、部署／setup 检查，全仓构建；隔离运行 strategy-orchestration、mixed-futures、daily-signals、
+futures-signals，并验收 Python 策略与 SDK hover。全部通过后更新记录、直接提交，不推送，清理服务。
+
+### 首版审查前静态结果
+
+- 全仓 `pnpm typecheck` 通过：shared、API、Docs、sandboxd、Web；SDK 生成物一致性通过。
+- 后端静态边界扫描：868 个文件、0 违规，未增加边界例外。
+- 51 个手工维护的 TS/TSX/MJS 文件 Prettier 检查通过；全部改动脚本及生成契约 ESLint 通过。
+- Python SDK 仅做 AST 语法解析，通过；改动 Markdown 的相对本地链接目标存在；`git diff --check` 通过。
+- 未运行测试、构建、E2E 或数据库操作，未启动服务；工作区尚未提交，等待本轮人工代码审查。
+
+### 内部接口同步（同一提交）
+
+- 用户确认继续完成 SDK、Context、OrderBook 全链路后统一提交；此确认是范围批准，非修订代码审查批准。
+- EngineContext / BacktestingContext 直接提供 portfolio、stock、futures；订单操作与余额不再保留扁平入口。
+- OrderBook 的 SDK 入口明确账户与单位，例如 orderStockAdjustedShares、orderFuturesContracts；
+  Engine 的 beginDecision / commitDecision / executeOrders 生命周期入口保留。
+- runtime 命令、查询和临时账户 frame 同步分组；Python snake_case 入口映射到共享命令。
+  Signals 持久化快照与数据库仍不变，不添加账户类或通用分派层。
+- 增补账户桥接命令顺序、Context 到 OrderBook 的累加和账户区分，以及 SDK 实时权益读取测试。
+- 修订版全仓 typecheck、SDK 生成物一致性通过；后端边界静态扫描 868 文件、0 违规。
+- 66 个手工维护脚本 Prettier 检查通过，改动脚本及生成契约 ESLint 通过，Python AST 解析通过。
+- git diff --check 通过。当前未提交、未启动服务、未运行测试／构建／E2E，修订代码等待 Gate 2 人工审查。
+
+### 审查后验证与提交（2026-10-08）
+
+- 用户批准本轮代码审查；产品实现未再改动。
+- Backtesting、Strategy、Signals、受影响 Agent/Research 与 Factor Worker 测试：68 文件、
+  604 项通过；2 文件中 3 项默认关闭的性能／历史会计测试跳过，不计为通过。
+- sandboxd 生命周期 8 项通过；首次受沙箱临时 socket 权限阻止，放开执行权限后通过。
+- SDK setup、部署计划、后端边界检查器测试共 55 项通过；全仓 build 通过，仅有前端大 chunk 提示。
+- 编译产物模式的隔离 job-system E2E：strategy-orchestration、mixed-futures、
+  python-strategy、daily-signals、futures-signals 全部通过。临时数据库使用合成行情，
+  不涉及开发库、真实供应商或券商。Python 用例加入显式选择列表，默认套件范围不变。
+- SDK hover 使用隔离 API 与临时开发 Vite 验收通过，检查两账户 closePosition 的类型签名和文档链接。
+  临时入口 URL 的重复斜杠已修正；脚本固定等待造成的 Monaco 就绪竞态改为条件等待，
+  修订后重跑通过。仅修改测试脚本及验收记录，无产品修复。
+- 混合账户回测、Python 结果、Signals 英文桌面／窄屏及 SDK hover 截图已视觉检查。
+- 两套夹具正常退出，临时数据库连接关闭并清理，API／模型／Vite 端口关闭断言通过。
+- 验证后的测试修改 ESLint / Prettier、git diff --check 通过。
+  按已确认消息统一提交，不推送。本节取代上文等待审查／未验证的阶段状态。
