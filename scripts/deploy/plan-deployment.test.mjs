@@ -77,6 +77,18 @@ test('deployment infrastructure selects every application', () => {
   }
 });
 
+test('the common Python protocol entry selects the sandbox image', () => {
+  assert.deepEqual(classifyChangedPaths(['apps/sandboxd/python/jixie_runner.py'], manifest), {
+    api: false,
+    web: false,
+    docs: false,
+    sandboxd: true,
+    fullDeploy: false,
+    installDependencies: false,
+    reasons: ['sandboxd'],
+  });
+});
+
 test('every packaged business Python source selects both API and the sandbox image', async () => {
   const dockerfile = await readFile(
     resolve(scriptDirectory, '../../apps/sandboxd/Dockerfile.python'),
@@ -130,7 +142,13 @@ test('business TypeScript SDK and host runtime changes still select only API', (
     'apps/api/src/research/runtime/research-runtime.ts',
     'apps/api/src/research/runtime/pool.ts',
     'apps/api/src/infra/runtime/typescript/transport.ts',
-    'apps/api/src/factor/runtime/typescript/sandbox-entry.ts',
+    'apps/api/src/factor/runtime/factor-runtime.ts',
+    'apps/api/src/factor/runtime/bridge.ts',
+    'apps/api/src/factor/runtime/metadata.ts',
+    'apps/api/src/factor/runtime/typescript/prepare.ts',
+    'apps/api/src/factor/runtime/typescript/entry.ts',
+    'apps/api/src/factor/runtime/typescript/runner.ts',
+    'apps/api/src/factor/runtime/python/prepare.ts',
     'apps/api/src/research/runtime/host/dispatch.ts',
   ]) {
     const result = classifyChangedPaths([changedPath], manifest);

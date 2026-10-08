@@ -13,9 +13,11 @@
 | [testing/compile.ts](testing/compile.ts) | 仅编译可信 fixture，生产代码禁止导入 |
 | [testing/runtime.ts](testing/runtime.ts) | 测试专用资源装配；返回同一 StrategyRuntime 与独立 transport metrics |
 
-通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 runner 的唯一 __receiveCommand 分派。公共 StrategyRuntime 继承 SandboxRuntime，以 startSandboxRuntime 统一获取、初始化与失败清理。
+通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 entry 的唯一 __receiveCommand 接入 runner 分派。公共 StrategyRuntime 继承 SandboxRuntime，以 startSandboxRuntime 统一获取、初始化与失败清理。
 
 runner 把同步 access 和异步 request 回调注入 StrategyContextAdapter。该适配器持有跨日历史缓存，每次 create(snapshot) 清理读缓存并创建当日基础 EngineContext；defineStrategy 通过 SDK enrich 包装成公开 StrategyCtx，再调用用户 onBar。
+
+与 Factor 对应的 runner 类型使用 `StrategyRunnerHost`、`StrategyRunnerStartup`、`StrategyRunnerCommand`、`StrategyRunnerCommandHandler`。
 
 entry 首次收到 start 时调用 runStrategy，由业务入口创建唯一 StrategyRunner、启动策略并注册后续消息处理。策略定义、请求编号、待响应 Promise 和 ContextAdapter 都是实例状态；方法按 handle、start、execute、loadStrategy、metadata、request、receiveResponse 排列，与 Python runner 对应。__receiveCommand 的全局注册、JSON 接入和回调安装归 entry.ts；runner.ts 只通过注入的 receive/emit/access 接入通信，JSON 帧和同步宿主入口保持原契约。
 

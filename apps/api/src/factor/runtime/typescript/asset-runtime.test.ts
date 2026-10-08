@@ -175,7 +175,7 @@ describe('TypeScript asset Factor runtime', () => {
   });
 });
 
-describe('compilePanelFactor', () => {
+describe('panel Factor runtime', () => {
   it('compiles a panel definition without treating it as a time-series protocol', async () => {
     const factor = await FactorRuntime.start({
       language: 'typescript',

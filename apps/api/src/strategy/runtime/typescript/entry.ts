@@ -1,5 +1,5 @@
 import { runStrategy } from './runner.js';
-import type { StrategyCommandHandler, StrategyRunnerHost } from './runner.js';
+import type { StrategyRunnerCommandHandler, StrategyRunnerHost } from './runner.js';
 
 interface HostFunction {
   applySync(receiver: undefined, args: string[]): string;
@@ -7,7 +7,7 @@ interface HostFunction {
 declare const __hostEmit: HostFunction;
 declare const __hostAccess: HostFunction;
 
-let receiveCommand: StrategyCommandHandler = (frame) => {
+let receiveCommand: StrategyRunnerCommandHandler = (frame) => {
   if (frame.type !== 'start') {
     throw new Error(`Unsupported strategy command: ${frame.type}`);
   }

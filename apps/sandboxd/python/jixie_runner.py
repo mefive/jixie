@@ -109,7 +109,7 @@ def _emit_log(level: str, text: str) -> None:
     _send_frame({"type": "log", "level": level, "text": clipped})
 
 
-def _receive_strategy_commands(handler: Callable[[dict[str, Any]], bool]) -> None:
+def _receive_commands(handler: Callable[[dict[str, Any]], bool]) -> None:
     while handler(_read_frame()):
         pass
 
@@ -135,13 +135,13 @@ def main() -> None:
     if start.get("type") == "factor_start":
         from factor.runtime.python.runner import run_factor
 
-        run_factor(start, _read_frame, _send_frame, _run_user_code)
+        run_factor(start, _receive_commands, _send_frame, _run_user_code)
         return
     from strategy.runtime.python.runner import run_strategy
 
     run_strategy(
         start,
-        _receive_strategy_commands,
+        _receive_commands,
         _read_frame,
         _send_frame,
         _run_user_code,

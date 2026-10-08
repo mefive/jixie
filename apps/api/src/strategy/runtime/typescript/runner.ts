@@ -9,12 +9,12 @@ import {
 import { defineStrategy, applyStrategyParamOverrides } from '../../sdk/typescript.js';
 
 export interface StrategyRunnerHost {
-  receive(handler: StrategyCommandHandler): void;
+  receive(handler: StrategyRunnerCommandHandler): void;
   emit(frame: Record<string, unknown>): void;
   access(json: string): string;
 }
 
-interface Startup {
+interface StrategyRunnerStartup {
   userJs: string;
   paramOverrides?: Record<string, StrategyParamValue>;
   locale?: Locale;
@@ -24,11 +24,11 @@ interface Startup {
 type StrategyHostResponse = { id: number } & ({ result: unknown } | { error: string });
 
 export type StrategyRunnerCommand =
-  | ({ type: 'start' } & Startup)
+  | ({ type: 'start' } & StrategyRunnerStartup)
   | { type: 'bar'; snapshot: StrategyBarSnapshot }
   | ({ type: 'response' } & StrategyHostResponse);
 
-export type StrategyCommandHandler = (
+export type StrategyRunnerCommandHandler = (
   frame: StrategyRunnerCommand,
 ) => string | Promise<string> | void;
 
@@ -64,7 +64,7 @@ class StrategyRunner {
     }
   }
 
-  start(config: Startup) {
+  start(config: StrategyRunnerStartup) {
     const console = config.captureUserLogs
       ? makeSandboxConsole(
           (level, text) => {
@@ -159,7 +159,7 @@ class StrategyRunner {
 }
 
 /** Start one strategy session and attach its message handler to the injected transport. */
-export function runStrategy(start: Startup, host: StrategyRunnerHost): string {
+export function runStrategy(start: StrategyRunnerStartup, host: StrategyRunnerHost): string {
   const runner = new StrategyRunner(host);
   const ready = runner.start(start);
 

@@ -67,6 +67,7 @@ def compute(ctx: AssetFactorContext):
       const frames = [
         { type: 'factor_start', runtime_version: 'py-v1', analysis_kind: analysisKind, code },
         request,
+        request,
         { type: 'close' },
       ];
       const input = Buffer.concat(
@@ -90,7 +91,11 @@ def compute(ctx: AssetFactorContext):
         output.push(JSON.parse(result.stdout.subarray(offset + 4, offset + 4 + size).toString()));
         offset += 4 + size;
       }
-      expect(output.map((frame) => frame.type)).toEqual(['factor_ready', 'factor_values']);
+      expect(output.map((frame) => frame.type)).toEqual([
+        'factor_ready',
+        'factor_values',
+        'factor_values',
+      ]);
       expect(output[0].metadata).toMatchObject({
         name: 'packaged-factor',
         analysis_kind: analysisKind,
@@ -99,6 +104,7 @@ def compute(ctx: AssetFactorContext):
       expect(output[1].values).toEqual(
         analysisKind === 'cross_sectional' ? [0.5, null] : [null, 0.5],
       );
+      expect(output[2].values).toEqual(output[1].values);
       if (analysisKind === 'cross_sectional') {
         expect(output[1].first_error).toContain('missing earnings fixture');
       } else {

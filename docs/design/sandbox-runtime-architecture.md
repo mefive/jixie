@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 2026-10-08 Factor / Strategy 对照阅读整理：统一宿主资源归属、prepare/bridge/entry/runner 职责及类型命名；本轮代码审查与验证通过，范围和最终验证结果见文末。
+
 > 2026-10-08 Strategy 结构整理：用户已确认以唯一宿主 StrategyRuntime 替代 TS/Python 两个具体宿主类，并按 prepare → runner → context → SDK 对齐语言职责。下方历史类名与验收记录保留；本次范围和审查状态见文末。
 
 > 状态：2026-09-22 用户已通过最终代码 review。统一宿主入口、TS transport、Factor 批量日志及 Strategy JSON 修复均完成验证：979 项回归、11 项 Python 通信、8 项编译 Worker、2 项 Strategy 性能用例，以及 API 构建和源码／编译资源验证通过。最终结果见文末；以下分轮记录中的“待 review／未验证”描述的是当时状态。
@@ -57,7 +59,7 @@ Strategy 和 Research 的运行时也使用 `StrategyRuntime.start(options)` / `
 | TS Strategy | isolate transport + 同一 Strategy bridge + exchange，另有同步 `__hostAccess` 通道 | 生命周期和异步策略协议；保留同步调用语义 |
 | Research | 当前仅 Python，PythonSession + exchange；执行期间处理 SDK request | 生命周期、命令交互循环；文档池管理复用 |
 
-迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [TS Factor runtime](../../apps/api/src/factor/runtime/typescript/typescript-factor-runtime.ts)、[TS transport](../../apps/api/src/infra/runtime/typescript/transport.ts)、[公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共 exchange](../../apps/api/src/infra/runtime/exchange.ts)。Infra README 已同步实际范围。
+迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [Factor runtime](../../apps/api/src/factor/runtime/factor-runtime.ts)、[TS transport](../../apps/api/src/infra/runtime/typescript/transport.ts)、[公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共 exchange](../../apps/api/src/infra/runtime/exchange.ts)。Infra README 已同步实际范围。
 
 所有实现都具有“建立隔离环境 → 初始化 → 多次执行 → 释放”的共同流程。此次连同 TS Factor 的命令交互统一，批量计算命令本身可以经过公共 exchange，不必把批内每个 item 拆成一次通信。TS 的 isolate 和 Python 的 socket 是底层传输差异，不在业务 runtime 层保留另一套直接调用入口。Strategy TS 的同步上下文访问有作者 SDK 语义依据，仍作为受限通道保留；把它改成 async 会改变作者代码的调用处异常和取数时机。
 
@@ -375,7 +377,7 @@ Factor history/value/lag 仍只读取预备数组。Strategy 同步宿主访问�
 
 本次补充修复：
 
-1. 产品改动仅在 [Factor sandbox-entry.ts](../../apps/api/src/factor/runtime/typescript/sandbox-entry.ts)：将两种定义函数同时注入，恢复为按启动 `analysis_kind` 注入对应函数。横截面仅注入 `defineFactor`，time_series/panel 仅注入 `defineFactorV2`。旧实现原本区分该边界；统一入口不能让横截面接受 V2 源码。
+1. 产品改动仅在 [Factor sandbox-entry.ts（现为 runner.ts）](../../apps/api/src/factor/runtime/typescript/runner.ts)：将两种定义函数同时注入，恢复为按启动 `analysis_kind` 注入对应函数。横截面仅注入 `defineFactor`，time_series/panel 仅注入 `defineFactorV2`。旧实现原本区分该边界；统一入口不能让横截面接受 V2 源码。
 2. [Factor 定义校验测试](../../apps/api/src/factor/runtime/validate-definition.test.ts) 将同一用例中的串联断言拆成 6 个独立的交叉类型拒绝用例，覆盖三种分析类型之间的双向误配，避免第一个断言失败遮住后续回归。
 3. [Strategy bundle 测试](../../apps/api/src/strategy/runtime/typescript/sandbox-bundle.test.ts) 改为检查已批准的统一 `__receiveCommand` 入口；SDK 依赖边界及禁止宿主导入的断言保留。
 
@@ -570,3 +572,52 @@ TS bundle 的源码/编译入口改为 entry.ts/entry.js，隔离断言及部署
 时间是本机单轮诊断，不据此声称稳定加速或零耗时开销；本次确定性证据是输出与通信工作量保持。详细性能日志：/tmp/jixie-strategy-structure-benchmark.log。
 
 测试结束后进程检查无 Vitest、性能 Worker、Python runner 或策略 Worker 残留；API tests 下临时 benchmark 目录、/tmp 下 Python 通信与 Strategy 打包目录均为零残留。未启动额外开发服务、访问生产数据库或运行部署。按已确认提交信息提交，不推送。
+
+
+## 2026-10-08 Factor / Strategy runtime 对照阅读整理（审查与验证通过）
+
+用户已确认完整范围与提交信息：`refactor(runtime): align Factor and Strategy runtime structure`。
+
+统一文件职责、类型后缀及声明/方法顺序。FactorRuntime 从语言/种类工厂改为唯一有资源的宿主类，直接继承 SandboxRuntime；TS/Python prepare 只返回源码启动配置和资源工厂。共享 bridge 负责启动与批次协议、Python 字段映射、首次计算错误去重及长度检查；metadata.ts 保留各语言资产因子校验与原错误类型。四个语言/种类具体宿主类删除，没有兼容别名或转发文件。
+
+FactorExecutionInput<Kind>、FactorRuntimeMetadata<Kind>、FactorRuntimeInstance<Kind> 与 Strategy 对应命名；截面和资产类型使用相同 ExecutionInput/RuntimeMetadata 后缀。条件类型保留不同种类的输入与 metadata 关联，默认种类联合仍返回实例联合；公共调用方继续使用 FactorRuntime.start、metadata、execute、close。FactorBridgeOptions/RuntimePreparation 与 Strategy 对应。种类分派只保留在统一 runtime，传输准备选择不执行用户代码或获取沙箱资源。
+
+TS Factor 的 sandbox-entry.ts 拆为 entry.ts / runner.ts。外围注册、JSON、全局 console 和日志缓冲刷新归 entry；FactorRunner 持有定义、种类和声明输入，方法按 handle、start、execute、loadFactor、metadata、computeValues 排列。runFactor 与 runStrategy 都按创建 → 启动 → 安装 handler 排列；Strategy 的 Startup/CommandHandler 补齐 Runner 前缀以对应 Factor。Factor 直接使用 SDK Context，输入已准备，无宿主查询代理，不增加空的 context.ts。初次 review 版本未改 Python 沙箱 runner/SDK；用户补充授权后的 runner 调整见下。
+
+保持所有帧名称、两语言启动/执行 schema、metadata 归一化、错误类型及文本、TS 256 MiB/5 秒/30 秒预算、批量日志阈值、逐点异常/非有限值返回 null、结果顺序、首次错误去重和失败资源清理。Python 在错误长度检查前报告首次计算错误，TS 在检查后报告，显式保留该差异。没有 SDK/HTTP/schema/数据库/镜像输入或跨包构建依赖变化；部署清单既有 apps/api 前缀已覆盖，部署计划测试更新 TS 和 Python 宿主文件路径。
+
+两语言测试统一命名 cross-sectional-runtime.test.ts / asset-runtime.test.ts，原用例保留；新增统一宿主所有权、三种 metadata、类型关联、字段映射和错误长度处理回归；bundle 边界断言新增 runner，现有 Factor 日志/生命周期与 Worker 退出回归继续保留。更新当前 README、CLAUDE 与资源入口，不重写历史验收记录。
+
+审查前只运行全仓 typecheck（包括 SDK 生成物一致性与边界静态扫描）、受影响 TS/MJS lint/format、文档链接与 git diff --check。人工审查通过后运行 Factor runtime/SDK、协议/生命周期、Factor execution 及相关 Strategy/Engine 消费者回归，部署计划和边界检查器自测；构建 Shared/API 并运行源码/编译 Worker 回归。行为测试和构建尚未运行，修改未提交。
+
+审查前静态验收通过：全仓 pnpm typecheck（875 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过），Factor runtime 与修改的 Strategy TS/部署测试 ESLint（0 警告）、Prettier、77 个本地 Markdown 链接及 git diff --check。未运行任何行为测试、构建或服务，修改未提交。
+
+
+### 同轮 review 修订：Factor Python runner 对照阅读
+
+用户要求 Python 也做对应修改，本次并入相同提交，信息仍为 `refactor(runtime): align Factor and Strategy runtime structure`。Python 的加载/计算函数和 run_factor 内部循环整理为会话 FactorRunner，方法顺序对应 TS：handle、start、_execute、_load_factor、_metadata、_compute_values；实例持有定义和回调状态，两个计算形状使用同一逐点结果归一化。SDK 模块仍在源码求值前注入，改用与 Strategy 相同的 module.__dict__.update，不改公开 SDK。
+
+run_factor 与 run_strategy 都按创建 → 启动 → 接入 handler 排列；阻塞读帧循环移到 sandboxd 通用 jixie_runner.py，_receive_strategy_commands 改为 _receive_commands，两个业务共用，Research 分派不改。Factor 无查询请求，不注入 read_frame 或创建空 context.py。
+
+保留启动版本/种类/metadata 校验、factor initialization/batch/series 超时标签、bool/非有限值返回 null、逐点异常第一条 traceback、输入顺序、close 和异常分派；Python 资产声明集合继续每批次在预算内创建，不强行对齐 TS 的跨批次声明集合。结构变化会更新 traceback 的内部栈位置，原错误内容和帧字段保持。没有新增 Python 镜像输入，现有 Dockerfile/.dockerignore/部署清单已覆盖修改的两文件；Factor runner 同时影响 API/sandboxd，通用入口单独影响 sandboxd，部署测试补充该边界。
+
+新增两语言/三种分析类型的会话状态回归，验证跨批次连续计数和新会话独立；打包回归改为每个隔离镜像布局连续计算两批再 close。人工 review 后增加公共 Python session、Strategy Python runtime/打包和 sandboxd 回归，验证共用入口的其他消费者。
+
+
+Python 修订后的静态验收通过：全仓 pnpm typecheck（876 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、受影响 TS/MJS ESLint（0 警告）与 Prettier；Factor runner/通用入口的 Python 3.13 AST 和 Pyright（显式 API src 搜索路径，0 错误/警告）；79 个本地 Markdown 链接及 git diff --check。补充两种资产类型的 bool/NaN/Infinity/非数值/异常归一化及继续计算、首次错误去重回归后，API 类型与测试文件 lint/format 同样通过。所有行为测试与构建仍未运行，修改未提交，等待包含 Python 修订的人工 review。
+
+
+### 最终验证结果（2026-10-08）
+
+用户授权完成后续流程至提交，视为包含 Python 修订的产品代码 review 通过。按既定范围执行行为验证与构建，期间没有产品或测试修复；最初测试命令的 pnpm 参数转发错误在任何用例运行前修正，最终以下验证均通过，无失败或跳过：
+
+- Factor/Strategy runtime、SDK、协议、隔离、日志、Python 打包、会话状态、Factor execution 和 Engine/Strategy 消费者：49 个文件、300 项通过。
+- 公共 Python session：11 项通过；sandboxd 生命周期：8 项通过，使用临时 Unix socket 和模拟容器 CLI，未连接生产服务或操作实际容器。
+- 部署计划和后端边界检查器自测：43 项通过。
+- 真实源码 Worker 14 项、编译 Worker 14 项通过；覆盖 TS/Python 策略与因子、连续扫描、Signals、启动恢复、非法输入及退出，使用隔离 SQLite。
+- 生产编译 Factor entry/runner/SDK：额外 3 项通过，覆盖 cross_sectional/time_series/panel；确认从 .js 资源打包、无外部导入、沙箱无 Node 暴露，history/value/lag 计算正确。
+- 合计 393 项验证通过；Shared、API 与 sandboxd 构建通过。前述类型、Python AST/Pyright、lint/format、文档链接及 diff 静态检查同样通过。
+
+本次是结构整理，未执行历史性能对照，不据此宣称加速；通信与行为保留由既有协议、批量日志、结果、隔离、状态和退出回归验证。测试结束后无 Vitest、Python runner、临时 sandboxd 或模拟容器进程；Factor/Strategy 打包、Worker 数据库、Python socket 和 sandboxd 临时目录为零残留。未推送或运行生产部署。
+
+验证日志：/tmp/jixie-factor-strategy-align-tests.log、session-tests.log、sandboxd-tests.log、node-tests.log、source-workers.log、compiled-workers.log、compiled-entry.log（后六者沿用相同 jixie-factor-strategy-align- 前缀）；构建日志分别为 shared-build.log、api-build.log、sandboxd-build.log，同一前缀。按已确认提交信息提交。

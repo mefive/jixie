@@ -105,6 +105,11 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   类型继续独立兼容，不能用旧 TS 字段名污染 Python 的 snake_case 契约。
 - TS/Python 作者接口实现归 `apps/api/src/factor/sdk`；Python 源码加载、协议和返回值校验归
   `factor/runtime/python/runner.py`。SDK 不反向依赖 runtime；sandboxd 只分派并打包业务模块，Python 源码同时影响 API/sandboxd。
+- Factor 宿主生命周期统一由 `runtime/factor-runtime.ts` 的 FactorRuntime 持有；两种语言 `prepare.ts`
+  只准备启动配置和资源工厂，共享 `bridge.ts` 负责协议、字段映射及结果检查，`metadata.ts` 保留各语言校验。
+  TS 外围通信归 `entry.ts`，源码加载、会话状态及回调归 `runner.ts` 的 FactorRunner；与 Strategy 使用相同
+  文件职责和类型后缀；Python 同样使用 FactorRunner，run_factor 只启动并接入 handler，外围读帧循环归
+  sandboxd 通用入口。Factor 种类仍关联不同输入与 metadata，不统一作者计算语义。
 - TS runtime 打包 `sdk/typescript.ts`（生产使用编译后的 `.js`）并注入 isolate；工厂与 `history/value/lag`
   只在 SDK 实现，不在 runtime 另写字符串副本。SDK 仅接收已准备的数据，不导入宿主模块。
 

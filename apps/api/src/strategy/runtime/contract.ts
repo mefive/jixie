@@ -11,9 +11,11 @@ export interface StrategyStartOptions {
   locale?: Locale;
   onUserLog?: UserLogSink;
 }
+
 export interface StrategyExecutionInput {
   context: EngineContext;
 }
+
 export type StrategyRuntimeMetadata = Omit<EngineStrategy, 'onBar'>;
 export type StrategyRuntimeInstance = Pick<
   SandboxRuntime<StrategyExecutionInput, void, StrategyRuntimeMetadata>,

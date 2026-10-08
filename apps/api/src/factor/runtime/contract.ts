@@ -1,7 +1,8 @@
 import type { FactorLanguage, FactorBar } from '@jixie/shared';
 import type { AssetFactorV2, CustomFactor } from '@jixie/shared/sdk/factor/contract';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import type { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import type { SandboxRuntime, SandboxResource } from '#infra/runtime/sandbox-runtime.js';
+import type { FactorBridgeOptions, FactorTransport } from './bridge.js';
 import type { FactorHistory } from '../sdk/typescript.js';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
 
@@ -19,40 +20,53 @@ export interface FactorBatchItem extends FactorHistory {
   bar: FactorBar;
 }
 
-export interface CrossSectionalFactorInput {
+export interface CrossSectionalFactorExecutionInput {
   items: FactorBatchItem[];
 }
 
-export interface AssetFactorInput {
+export interface AssetFactorExecutionInput {
   fields: Partial<Record<FactorV2FieldKey, number[]>>;
   indexes: number[];
 }
 
-export interface CrossSectionalFactorMetadata extends Omit<CustomFactor, 'compute'> {
+export type FactorExecutionInput<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
+  Kind extends 'cross_sectional' ? CrossSectionalFactorExecutionInput : AssetFactorExecutionInput;
+
+export interface CrossSectionalFactorRuntimeMetadata extends Omit<CustomFactor, 'compute'> {
   analysisKind: 'cross_sectional';
 }
 
-export interface AssetFactorMetadata<Kind extends AssetFactorKind = AssetFactorKind> extends Omit<
-  AssetFactorV2,
-  'analysisKind' | 'inputs' | 'compute'
-> {
+export interface AssetFactorRuntimeMetadata<
+  Kind extends AssetFactorKind = AssetFactorKind,
+> extends Omit<AssetFactorV2, 'analysisKind' | 'inputs' | 'compute'> {
   analysisKind: Kind;
   // Controlled research templates support fields outside the editable TS SDK surface.
   inputs: FactorV2FieldKey[];
 }
 
+export type FactorRuntimeMetadata<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
+  Kind extends 'cross_sectional'
+    ? CrossSectionalFactorRuntimeMetadata
+    : AssetFactorRuntimeMetadata<Kind & AssetFactorKind>;
+
 export type FactorValues = (number | null)[];
-export type CrossSectionalFactorRuntime = Pick<
-  SandboxRuntime<CrossSectionalFactorInput, FactorValues, CrossSectionalFactorMetadata>,
-  'metadata' | 'execute' | 'close'
->;
-export type AssetFactorRuntime<Kind extends AssetFactorKind = AssetFactorKind> = Pick<
-  SandboxRuntime<AssetFactorInput, FactorValues, AssetFactorMetadata<Kind>>,
-  'metadata' | 'execute' | 'close'
->;
-export type TimeSeriesFactorRuntime = AssetFactorRuntime<'time_series'>;
-export type PanelFactorRuntime = AssetFactorRuntime<'panel'>;
-export type FactorRuntimeInstance =
-  | CrossSectionalFactorRuntime
-  | TimeSeriesFactorRuntime
-  | PanelFactorRuntime;
+export type FactorRuntimeInstance<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
+  Kind extends ExecutableFactorKind
+    ? Pick<
+        SandboxRuntime<FactorExecutionInput<Kind>, FactorValues, FactorRuntimeMetadata<Kind>>,
+        'metadata' | 'execute' | 'close'
+      >
+    : never;
+export type CrossSectionalFactorRuntime = FactorRuntimeInstance<'cross_sectional'>;
+export type AssetFactorRuntime<Kind extends AssetFactorKind = AssetFactorKind> =
+  FactorRuntimeInstance<Kind>;
+export type TimeSeriesFactorRuntime = FactorRuntimeInstance<'time_series'>;
+export type PanelFactorRuntime = FactorRuntimeInstance<'panel'>;
+
+/** Language-specific startup inputs; the shared runtime owns acquisition and initialization. */
+export interface FactorRuntimePreparation<
+  Kind extends ExecutableFactorKind = ExecutableFactorKind,
+> {
+  createResource(): Promise<FactorTransport & SandboxResource>;
+  bridgeOptions: FactorBridgeOptions<Kind>;
+}

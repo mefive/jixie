@@ -1,43 +1,65 @@
-import { PythonCrossSectionalFactorRuntime } from './python/python-cross-sectional-factor-runtime.js';
-import { PythonAssetFactorRuntime } from './python/python-asset-factor-runtime.js';
-import {
-  TypeScriptCrossSectionalFactorRuntime,
-  TypeScriptAssetFactorRuntime,
-} from './typescript/typescript-factor-runtime.js';
+import { SandboxRuntime, startSandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import type { SandboxResource } from '#infra/runtime/sandbox-runtime.js';
+import { createFactorBridge } from './bridge.js';
+import type { FactorBridge, FactorTransport } from './bridge.js';
+import { preparePythonFactorRuntime } from './python/prepare.js';
+import { prepareTypeScriptFactorRuntime } from './typescript/prepare.js';
 import type {
+  ExecutableFactorKind,
   FactorStartOptions,
-  CrossSectionalFactorRuntime,
-  AssetFactorKind,
-  AssetFactorRuntime,
   FactorRuntimeInstance,
+  FactorExecutionInput,
+  FactorRuntimeMetadata,
+  FactorRuntimePreparation,
+  FactorValues,
 } from './contract.js';
 
-/** The only language/kind selection boundary for executable Factor instances. */
-export class FactorRuntime {
-  static start(
-    options: FactorStartOptions<'cross_sectional'>,
-  ): Promise<CrossSectionalFactorRuntime>;
-  static start<Kind extends AssetFactorKind>(
+/** Owns one factor sandbox, independently of its language and transport. */
+export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRuntime<
+  FactorExecutionInput<Kind>,
+  FactorValues,
+  FactorRuntimeMetadata<Kind>
+> {
+  constructor(
+    resource: FactorTransport & SandboxResource,
+    private readonly bridge: FactorBridge<Kind>,
+  ) {
+    super(resource, bridge.metadata);
+  }
+
+  static start<Kind extends ExecutableFactorKind>(
     options: FactorStartOptions<Kind>,
-  ): Promise<AssetFactorRuntime<Kind>>;
-  static start(options: FactorStartOptions): Promise<FactorRuntimeInstance>;
+  ): Promise<FactorRuntimeInstance<Kind>>;
   static start(options: FactorStartOptions): Promise<FactorRuntimeInstance> {
     switch (options.analysisKind) {
       case 'cross_sectional':
-        return options.language === 'python'
-          ? PythonCrossSectionalFactorRuntime.start({ ...options, analysisKind: 'cross_sectional' })
-          : TypeScriptCrossSectionalFactorRuntime.start({
-              ...options,
-              analysisKind: 'cross_sectional',
-            });
+        return FactorRuntime.startForKind({ ...options, analysisKind: 'cross_sectional' });
       case 'time_series':
-        return options.language === 'python'
-          ? PythonAssetFactorRuntime.start({ ...options, analysisKind: 'time_series' })
-          : TypeScriptAssetFactorRuntime.start({ ...options, analysisKind: 'time_series' });
+        return FactorRuntime.startForKind({ ...options, analysisKind: 'time_series' });
       case 'panel':
-        return options.language === 'python'
-          ? PythonAssetFactorRuntime.start({ ...options, analysisKind: 'panel' })
-          : TypeScriptAssetFactorRuntime.start({ ...options, analysisKind: 'panel' });
+        return FactorRuntime.startForKind({ ...options, analysisKind: 'panel' });
     }
+  }
+
+  private static async startForKind<Kind extends ExecutableFactorKind>(
+    options: FactorStartOptions<Kind>,
+  ) {
+    const preparation: FactorRuntimePreparation<Kind> =
+      options.language === 'python'
+        ? preparePythonFactorRuntime(options)
+        : await prepareTypeScriptFactorRuntime(options);
+
+    return startSandboxRuntime({
+      createResource: preparation.createResource,
+      initialize: async (resource) => {
+        const bridge = await createFactorBridge(resource, preparation.bridgeOptions);
+
+        return new FactorRuntime(resource, bridge);
+      },
+    });
+  }
+
+  protected executeInSandbox(input: FactorExecutionInput<Kind>): Promise<FactorValues> {
+    return this.bridge.execute(input, (error) => this.abort(error));
   }
 }

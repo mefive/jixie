@@ -43,6 +43,51 @@ def compute(ctx: AssetFactorContext) -> float | None:
     }
   });
 
+  it.each(['time_series', 'panel'] as const)(
+    'normalizes invalid %s point results and continues after the first traceback',
+    async (analysisKind) => {
+      enableTestRuntime();
+      const logs: string[] = [];
+      const factor = await FactorRuntime.start({
+        language: 'python',
+        analysisKind,
+        onUserLog: (_level, text) => logs.push(text),
+        code: `
+from jixie import Factor
+factor = Factor.${analysisKind}(name="point results", inputs=["etf.adjustedClose"], target_asset_classes=["equity"], window=2)
+@factor.compute
+def compute(ctx):
+    value = ctx.value("etf.adjustedClose")
+    match value:
+        case 1:
+            return True
+        case 2:
+            return float("nan")
+        case 3:
+            return float("inf")
+        case 4:
+            return "invalid"
+        case 5:
+            raise ValueError("point failure fixture")
+        case _:
+            return value
+`,
+      });
+      try {
+        const input = {
+          fields: { 'etf.adjustedClose': [1, 2, 3, 4, 5, 6] },
+          indexes: [0, 1, 2, 3, 4, 5],
+        };
+        await expect(factor.execute(input)).resolves.toEqual([null, null, null, null, null, 6]);
+        await expect(factor.execute(input)).resolves.toEqual([null, null, null, null, null, 6]);
+        expect(logs).toHaveLength(1);
+        expect(logs[0]).toMatch(/\[factor-error\].*ValueError: point failure fixture/s);
+      } finally {
+        factor.close();
+      }
+    },
+  );
+
   it('uses the same execution contract for panel Factors', async () => {
     enableTestRuntime();
     const factor = await FactorRuntime.start({

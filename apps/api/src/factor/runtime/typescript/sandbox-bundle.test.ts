@@ -9,7 +9,8 @@ it('bundles only the pure Factor SDK without host runtime dependencies', async (
   expect(inputs.sort()).toEqual(
     [
       fileURLToPath(new URL('../../sdk/typescript.ts', import.meta.url)),
-      fileURLToPath(new URL('./sandbox-entry.ts', import.meta.url)),
+      fileURLToPath(new URL('./entry.ts', import.meta.url)),
+      fileURLToPath(new URL('./runner.ts', import.meta.url)),
       fileURLToPath(new URL('../../../infra/runtime/log-buffer.ts', import.meta.url)),
     ].sort(),
   );

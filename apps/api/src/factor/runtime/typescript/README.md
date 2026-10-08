@@ -2,9 +2,17 @@
 
 业务消费者调用 [FactorRuntime.start](../factor-runtime.ts)，传 `language: 'typescript'`、analysisKind、code 和可选日志 sink；返回实例具有 `metadata / execute / close`。宿主类型归 [contract.ts](../contract.ts)，不再从语言目录导出 Compiled 对象或 compile 工厂。
 
-[typescript-factor-runtime.ts](typescript-factor-runtime.ts) 中 `TypeScriptCrossSectionalFactorRuntime` 和 `TypeScriptAssetFactorRuntime` 直接继承公共 SandboxRuntime。横截面 execute 接收 `{ items }`；time_series/panel 接收 `{ fields, indexes }`，返回顺序对应的 `(number | null)[]`。两类形状来自不同作者计算契约，语言选择不改变业务含义。
+| 文件 / 入口 | 职责与消费者 |
+| --- | --- |
+| [prepare.ts](prepare.ts) | 宿主编译因子、缓存 bundle、准备 TypeScriptTransport 与 bridge 配置；资源获取和关闭交给公共 FactorRuntime |
+| [entry.ts](entry.ts) | 外围接入：注册 __receiveCommand、解析 JSON、缓冲并刷新日志；首次 factor_start 调用 runFactor 并接入后续消息处理 |
+| [runner.ts](runner.ts) | 显式 runFactor 入口与 FactorRunner：源码加载、元数据、start/compute 分派及用户回调 |
+| [sandbox-bundle.ts](sandbox-bundle.ts) | 打包 entry/runner、SDK、日志；源码/编译入口分别解析 entry.ts / entry.js |
+| [SDK typescript.ts](../../sdk/typescript.ts) | defineFactor/defineFactorV2、CrossSectionalFactorContext/AssetFactorContext；history/value/lag 只读取已准备的数据 |
 
-[sandbox-bundle.ts](sandbox-bundle.ts) 打包 [sandbox-entry.ts](sandbox-entry.ts)、纯 [SDK](../../sdk/README.md) 及无 Node 依赖的 [日志缓冲](../../../infra/runtime/log-buffer.ts)；开发入口为 `.ts`，生产为 `.js`。公共 TypeScriptTransport 创建 isolate 并加载入口后，runtime 通过 exchange 发送 factor_start 加载用户源码、等待 factor_ready；execute 发送 factor_compute_batch/series，最终收到 factor_values。所有启动、日志、计算结果都经公共循环，业务不再调用 callJson。
+与 Strategy 对应的 runner 类型使用 `FactorRunnerHost`、`FactorRunnerStartup`、`FactorRunnerCommand`、`FactorRunnerCommandHandler`。每个沙箱会话只创建一个 FactorRunner，定义、分析类型和声明输入均为实例状态；方法顺序为 handle、start、execute、loadFactor、metadata、computeValues，与 Python 的同名 snake_case 方法对应。业务入口同样按“创建实例 → 启动 → 接入消息处理”排列。Factor 不需要宿主查询代理，直接构造 SDK Context；不为目录对称添加空的 context.ts。
+
+公共 FactorRuntime 直接继承 SandboxRuntime，通过 startSandboxRuntime 获取资源并建立 [共享 bridge](../bridge.ts)。启动发送 factor_start、等待 factor_ready；execute 发送 factor_compute_batch/series、等待 factor_values。横截面输入 `{ items }`，time_series/panel 输入 `{ fields, indexes }`，返回顺序对应的 `(number | null)[]`。传输入口只加载可信 bundle，用户源码在启动命令中求值。
 
 整批输入一次传输，SDK history/value/lag 在 isolate 内读已准备数组。逐点异常或非有限值仍返回 null，首次计算错误去重，结果数量必须匹配输入。isolate 仍无 Node/数据库能力、禁止外部 require；256 MiB 内存、5 秒声明、30 秒整批计算预算不变。传输帧及累计队列限额 256 MiB，避免直接套用 Strategy 的一万帧限制截断 Factor 日志。
 
@@ -12,6 +20,6 @@
 
 启动失败由公共启动流程回收，成功后所有者必须 finally close，close 同步幂等。业务准入、用户权限和正式报告生命周期不归这里。
 
-验证入口：[typescript-cross-sectional-factor-runtime.test.ts](typescript-cross-sectional-factor-runtime.test.ts)、[typescript-asset-factor-runtime.test.ts](typescript-asset-factor-runtime.test.ts)、[lifecycle.test.ts](lifecycle.test.ts)、[sandbox-bundle.test.ts](sandbox-bundle.test.ts)。审查/验证状态见 [统一方案](../../../../../../docs/design/sandbox-runtime-architecture.md)。
+验证入口：[cross-sectional-runtime.test.ts](cross-sectional-runtime.test.ts)、[asset-runtime.test.ts](asset-runtime.test.ts)、[lifecycle.test.ts](lifecycle.test.ts)、[sandbox-bundle.test.ts](sandbox-bundle.test.ts)。审查/验证状态见 [统一方案](../../../../../../docs/design/sandbox-runtime-architecture.md)。
 
 [返回 Factor runtime](../README.md)
