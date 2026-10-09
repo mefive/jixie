@@ -1,4 +1,3 @@
-import { t } from '#i18n/index.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { AgentLlm } from '#infra/llm/agent-llm.js';
 import type { AgentStreamEvent, AgentTurnTrace } from '@jixie/shared';
@@ -8,10 +7,9 @@ import { rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AgentError } from './errors.js';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
-const resources = vi.hoisted(() => ({ llm: vi.fn<AgentLlm>(), sql: vi.fn(), compute: vi.fn() }));
+const resources = vi.hoisted(() => ({ llm: vi.fn<AgentLlm>(), sql: vi.fn() }));
 vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: exports } = await import('@prisma/client');
@@ -24,10 +22,6 @@ vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: resources.llm }));
 vi.mock('./tools/sql/read-only-sql.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./tools/sql/read-only-sql.js')>()),
   runReadOnlySql: resources.sql,
-}));
-vi.mock('./tools/charts/replay.js', () => ({
-  CHART_ROW_CAP: 500,
-  runComputeChartRows: resources.compute,
 }));
 
 import { prisma } from '#infra/database/prisma.js';
@@ -122,7 +116,6 @@ describe('Agent HTTP and durable turn boundaries', () => {
   beforeEach(async () => {
     resources.llm.mockReset().mockResolvedValue({ text: 'Fixture answer.' });
     resources.sql.mockReset();
-    resources.compute.mockReset();
     await prisma.user.createMany({
       data: [
         { id: 'owner', email: 'agent-owner@fixture.invalid' },
@@ -355,6 +348,8 @@ describe('Agent HTTP and durable turn boundaries', () => {
     ['GET', '/turns/running?entity=strategy:strategy'],
     ['POST', '/sql'],
     ['POST', '/chart/compute'],
+    ['POST', '/sql-queries'],
+    ['POST', '/chart-computations'],
   ])(
     'removes the old %s %s endpoint without affecting stored conversations',
     async (method, path) => {
@@ -366,7 +361,6 @@ describe('Agent HTTP and durable turn boundaries', () => {
       expect(await prisma.agentConversation.count()).toBe(1);
       expect(await prisma.agentMessage.count()).toBe(1);
       expect(resources.sql).not.toHaveBeenCalled();
-      expect(resources.compute).not.toHaveBeenCalled();
     },
   );
 
@@ -380,52 +374,5 @@ describe('Agent HTTP and durable turn boundaries', () => {
     expect(await (await request('/turns/active?entity=research:document')).json()).toEqual({
       turnId: null,
     });
-  });
-
-  it('returns 500 without exposing SQL or chart infrastructure failures', async () => {
-    const failure = new Error('private database file or worker startup failure');
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      resources.sql.mockRejectedValue(failure);
-      const response = await request('/sql-queries', 'owner', { sql: 'SELECT * FROM Daily' });
-      expect(response.status).toBe(500);
-      expect(await response.json()).toEqual({
-        error: { code: 'INTERNAL_ERROR', message: t('en', 'internalError') },
-      });
-      expect(log).toHaveBeenCalledWith('[api] Unhandled request error', failure);
-    } finally {
-      log.mockRestore();
-    }
-  });
-
-  it('keeps SQL and computed-chart wire conversion and error mapping', async () => {
-    resources.sql.mockResolvedValue([{ count: 2n }]);
-    expect(
-      await (
-        await request('/sql-queries', 'owner', { sql: 'SELECT count(*) AS count FROM Daily' })
-      ).json(),
-    ).toEqual({ rows: [{ count: 2 }] });
-    expect(resources.sql).toHaveBeenCalledWith('SELECT count(*) AS count FROM Daily', 500);
-    resources.sql.mockRejectedValue(
-      new AgentError('sql_forbidden_table', { params: { table: 'User', tables: 'Daily' } }),
-    );
-    expect((await request('/sql-queries', 'owner', { sql: 'SELECT * FROM User' })).status).toBe(
-      400,
-    );
-    const spec = {
-      source: 'compute',
-      kind: 'line',
-      queries: [{ name: 'daily', sql: 'SELECT close FROM Daily' }],
-      code: 'export default ({data}) => data.daily;',
-      x: 'date',
-      series: [{ column: 'close' }],
-    };
-    resources.compute.mockResolvedValue([{ date: '20240102', close: 10n }]);
-    expect(await (await request('/chart-computations', 'owner', spec)).json()).toEqual({
-      rows: [{ date: '20240102', close: 10 }],
-    });
-    expect(resources.compute).toHaveBeenCalledWith(spec);
-    resources.compute.mockRejectedValue(new AgentError('chart_rows_invalid'));
-    expect((await request('/chart-computations', 'owner', spec)).status).toBe(400);
   });
 });

@@ -1,5 +1,7 @@
 # 用户使用手册功能与截图清单
 
+> 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。
+
 > 当前校准日期：2026-09-21；下方保留阶段 A–M 历史记录。当前状态以本节为准。
 > 总体计划见 `docs/design/user-guide.md`。
 
@@ -332,7 +334,7 @@
 | --- | --- |
 | 页面操作 | 查看分组收益、分位数组合、Rank IC、IC 衰减、多空收益、费后净值、换手、样本数、相关性矩阵和计算图表 |
 | 使用手册文章 | 分组收益；Rank IC；IC 衰减；多空收益；交易成本；换手；相关性矩阵；计算图表 |
-| 当前 E2E | `screener.mjs`、`computed-chart.mjs`、`help-content-factor-basics.mjs`、`help-content-factor-metrics.mjs`、`help-content-factor-discipline.mjs` |
+| 当前 E2E | `embedded-analysis.mjs`（含旧图表停用提示）、`help-content-factor-basics.mjs`、`help-content-factor-metrics.mjs`、`help-content-factor-discipline.mjs` |
 | 当前截图 | 正式截图 `factor-methodology-01.png`、`factor-overview-01.png`、`factor-deciles-01.png`、`factor-rank-ic-01.png`、`factor-ic-decay-01.png`、`factor-cost-settings-01.png`、`factor-cost-results-01.png`、`factor-neutralization-result-01.png`、`factor-correlation-settings-01.png`、`factor-correlation-result-01.png`；验收目录中的 `7-factors.png`、`7b-factors-week.png`、`7d-factors-neutral.png`、`7e-factors-correlation.png`、`7q-computed-chart-cards.png` |
 | 本轮结果 | 第二批解释分组收益、Rank IC、ICIR、IC 衰减、换手、成本和中性化；第三批按实际每期截面 Spearman 均值解释相关性矩阵，并真实计算盈利收益率、账面市值比、股息率和市值列 |
 | 缺口 | 因子报告核心结果和相关性无缺口；后续因子结果新增指标时同步补充 |

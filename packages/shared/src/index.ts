@@ -2,7 +2,6 @@ export * from './types.js';
 export * from './i18n.js';
 export * from './log.js';
 export * from './chat.js';
-export * from './chart.js';
 export * from './backtest.js';
 export * from './instrument-series.js';
 export * from './saved.js';

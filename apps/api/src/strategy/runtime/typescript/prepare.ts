@@ -1,6 +1,6 @@
 import { DEFAULT_LOCALE } from '@jixie/shared';
 import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
-import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
+import { toCommonJs } from '#infra/runtime/typescript/compile.js';
 import type { StrategyStartOptions, StrategyRuntimePreparation } from '../contract.js';
 import { buildStrategySandboxBundle } from './sandbox-bundle.js';
 

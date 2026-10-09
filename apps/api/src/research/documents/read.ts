@@ -1,3 +1,4 @@
+import { normalizeChatMessage } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import type {
   ChatMessage,
@@ -142,14 +143,15 @@ function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
     ...(activeCellChangeReview ? { activeCellChangeReview } : {}),
     cellChangeAttempts: [],
     messages: document.conversation.messages.map(
-      (message): ChatMessage => ({
-        id: message.id,
-        role: message.role === 'assistant' ? 'assistant' : 'user',
-        parts: message.parts as unknown as ChatMessage['parts'],
-        turnId: message.turnId ?? undefined,
-        sequence: message.sequence,
-        createdAt: message.createdAt.toISOString(),
-      }),
+      (message): ChatMessage =>
+        normalizeChatMessage({
+          id: message.id,
+          role: message.role === 'assistant' ? 'assistant' : 'user',
+          parts: message.parts as unknown as ChatMessage['parts'],
+          turnId: message.turnId ?? undefined,
+          sequence: message.sequence,
+          createdAt: message.createdAt.toISOString(),
+        }),
     ),
     createdAt: document.createdAt.toISOString(),
     updatedAt: document.updatedAt.toISOString(),

@@ -348,7 +348,7 @@ export class StrategyFactor {
 
     let js: string | undefined;
     if (language === 'typescript') {
-      const { toCommonJs } = await import('#infra/runtime/typescript/isolate-run.js');
+      const { toCommonJs } = await import('#infra/runtime/typescript/compile.js');
       js = await toCommonJs(row.code, 'factor code');
     }
 

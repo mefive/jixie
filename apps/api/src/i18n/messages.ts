@@ -63,34 +63,6 @@ const MESSAGES = {
     zh: 'LIMIT 最大为 {limit}，请缩小查询范围或先聚合',
     en: 'LIMIT max is {limit}; reduce it or aggregate first',
   },
-  chartColumnsMissing: {
-    zh: '结果缺少列：{missing}（实际列：{available}）',
-    en: 'The result set has no such columns: {missing} (actual columns: {available})',
-  },
-  chartRowsInvalid: {
-    zh: '绘图代码必须返回扁平行对象数组或 { rows: [...] }',
-    en: 'The code must return an ARRAY of flat row objects (or { rows: [...] }) to draw',
-  },
-  chartRowsEmpty: {
-    zh: '代码未返回数据，无法绘图；请检查查询或转换',
-    en: 'The code returned no rows, so no chart can be drawn; check the queries or the transform',
-  },
-  chartRowLimit: {
-    zh: '代码返回 {rows} 行，超过 {limit} 行上限；请聚合或采样',
-    en: 'The code returned {rows} rows (cap {limit}); aggregate or sample down in the code (e.g. monthly points instead of daily)',
-  },
-  chartRowsFlat: {
-    zh: '每行必须是值为标量的扁平对象',
-    en: 'Every returned row must be a flat object of scalars',
-  },
-  chartFieldScalar: {
-    zh: '字段 {field} 必须是数字、字符串或 null',
-    en: "Row field '{field}' is not a scalar; rows must hold numbers/strings/null only",
-  },
-  chartQueryNamesUnique: {
-    zh: '查询名称不能重复',
-    en: 'query names must be unique',
-  },
   universeUnknownMeasure: {
     zh: '股票池包含未知指标：{measures}',
     en: 'Invalid universe spec: unknown measure {measures}',
@@ -110,10 +82,6 @@ const MESSAGES = {
   sqlTimeout: {
     zh: '查询超过 {seconds} 秒，请按日期或证券代码缩小范围',
     en: 'Query exceeded the {seconds}s timeout; add conditions to narrow the range (filter large tables by tradeDate/tsCode)',
-  },
-  chartCodeInvalid: {
-    zh: '图表代码执行失败：{diagnostic}',
-    en: '{diagnostic}',
   },
   codeDiagnostics: {
     zh: '代码校验失败：{diagnostic}',

@@ -1,7 +1,6 @@
 import type { z } from 'zod';
 import type { promoteExecutionSchema } from './api/research.js';
 import type { TradeDate } from './types.js';
-import type { ChartKind, ChartSeriesSpec } from './chart.js';
 import type {
   FactorAnalysisKind,
   FactorEquityIndexCode,
@@ -674,7 +673,24 @@ export interface ResearchCellChangeAttemptV1 {
   finishedAt?: string;
 }
 export type ResearchCellScalarV1 = string | number | boolean | null;
-export type ResearchChartKindV1 = ChartKind | 'boxplot' | 'heatmap' | 'event_path';
+export type ResearchChartKindV1 =
+  | 'line'
+  | 'bar'
+  | 'scatter'
+  | 'area'
+  | 'stackedBar'
+  | 'histogram'
+  | 'combo'
+  | 'boxplot'
+  | 'heatmap'
+  | 'event_path';
+
+export interface ResearchChartSeriesV1 {
+  column: string;
+  label?: string;
+  type?: 'line' | 'bar';
+  yAxis?: 'left' | 'right';
+}
 
 export interface ResearchTableOutputV1 {
   type: 'table';
@@ -696,7 +712,7 @@ export interface ResearchTableOutputV1 {
   };
 }
 
-/** Inline chart data is an execution artifact, unlike conversation ChartSpec queries which rerun. */
+/** Inline chart data is retained as an execution artifact. */
 export interface ResearchChartOutputV1 {
   type: 'chart';
   version: 1;
@@ -704,7 +720,7 @@ export interface ResearchChartOutputV1 {
   kind: ResearchChartKindV1;
   x: string;
   y?: string;
-  series: ChartSeriesSpec[];
+  series: ResearchChartSeriesV1[];
   rows: Record<string, ResearchCellScalarV1>[];
 }
 

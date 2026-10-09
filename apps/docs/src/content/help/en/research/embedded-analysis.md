@@ -54,7 +54,7 @@ Retained inputs support recomputation; they do not guarantee bitwise identical r
 
 ## Charts in older conversations
 
-Older charts stored queries and calculation code without a full snapshot of the original points. Opening them reruns that specification against the current database, as stated on the card. The chart may therefore differ from the old answer. Missing data and execution failures remain visible; original results are not reconstructed or invented. New embedded analyses retain the outputs of each run.
+Legacy chat charts have been retired. Reopening an older conversation preserves chart titles and shows a retirement notice instead of redrawing the charts. Use Research to build a new calculation when you want to continue the analysis. New embedded analyses retain each run’s outputs and sources and are unaffected by this retirement.
 
 ## Move to formal validation
 

@@ -1,5 +1,18 @@
 @reference '../styles/index.css';
 
+.jx-messageParts-retiredChart {
+  @apply mt-2 p-3;
+  @apply rounded-lg border border-line bg-bg;
+}
+
+.jx-messageParts-retiredChartTitle {
+  @apply text-xs font-medium text-ink;
+}
+
+.jx-messageParts-retiredChartDescription {
+  @apply mt-1 text-xs text-muted;
+}
+
 .jx-messageParts-cellContext {
   @apply mb-1.5 flex flex-wrap items-center gap-1.5;
   font-size: 10px;

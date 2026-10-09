@@ -1,5 +1,4 @@
 import type {
-  ChartSpec,
   ResearchCellChangeProposalV1,
   ResearchClarificationV1,
   UniverseSpecV1,
@@ -13,19 +12,11 @@ export interface AgentUniverse {
   spec: UniverseSpecV1;
 }
 
-/** A chart card draft: the query that draws it, never the points.
- * Retained for historical chart-part compatibility. */
-export interface AgentChart {
-  title: string;
-  chart: ChartSpec;
-}
-
 export interface ToolRunResult {
   embeddedAnalysis?: EmbeddedAnalysisPart;
   observation: string; // what the model sees (JSON string, row-capped)
   rows?: number; // row count for the toolTrace
   universe?: AgentUniverse; // set when this call should surface a re-runnable entity universe
-  chart?: AgentChart; // set when this call should surface a chart card in the reply
   researchCellChange?: ResearchCellChangeProposalV1; // pending proposal surfaced as a durable message part
   researchClarification?: ResearchClarificationV1; // durable semantic choice surfaced as a message part
 }

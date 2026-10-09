@@ -1,5 +1,6 @@
 # Agent 后端阅读地图
 
+> 旧聊天图表执行链整体退役见 [当前记录](../../../../docs/design/legacy-chat-chart-retirement.md)。
 > 当前路由清理见 [2026-09-24 记录](../../../../docs/design/unused-http-endpoints.md)。下文 Commit 10 和 2026-09-11 的验证记录为历史状态。
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
@@ -13,9 +14,9 @@ Agent 为 Research、Factor 和 Strategy 提供模型/工具循环、后台对�
 - 订阅/恢复连接/取消：`routes/turn.ts` → [turns/bus.ts](turns/bus.ts)；首帧为 snapshot，随后是增量与终态。断开订阅只解除订阅，取消接口才中止模型调用。
 - 查看执行详情：`routes/turn.ts` → [turns/read.ts](turns/read.ts)，读取持久化状态和轨迹，检查对话所有者。
 - 新对话计算/绘图：页面通过 `profiles/embedded.ts` 添加 `runEmbeddedAnalysis` / `readEmbeddedAnalysis`，绑定已验证用户、宿主和报告；执行与固定输出归 Research，卡片保存精确版本/运行引用。
-- 重绘历史回复中的图表：`POST /sql-queries`、`POST /chart-computations` → `tools/charts/replay.ts`，复用只读 SQL 和原 JS 沙箱；旧卡片显示重新取当前数据的提示，不冒充原始结果。
+- 旧图表消息：shared normalizeChatMessage 只保留标题并投影为 retired_chart 停用提示；前端不再查询或执行旧规格。原聊天 JSON 不做批量迁移。
 
-`routes/index.ts` 直接组合 turn / chart 两组路由，具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
+`routes/index.ts` 组合 turn 路由，具名导出 `agentRoute`，由 server 挂到 `/api/app/agent`。HTTP 路由保留响应与 SSE 传输；查询函数负责资源归属和投影。Agent turn 不进入通用 Job 队列，仍使用进程内注册表和独立的 AgentTurn 记录。
 
 Strategy 基础 profile 提供查询和代码产物校验；页面单独添加嵌入式分析，Research 草稿交接不获得嵌入执行权限；生成代码后由用户在策略工作台显式发起回测。Research profile 保留语义查询与文档提案，统计计算在可见 Cell 中执行；完整交易规则通过封存研究生成 Strategy 草稿，不在对话背后回测。Factor profile 的探索分析工具保持独立边界。
 
@@ -31,9 +32,8 @@ Strategy 基础 profile 提供查询和代码产物校验；页面单独添加�
 | [turns/trace.ts](turns/trace.ts) | 按序积累模型/工具/校验轨迹，串行保存 checkpoint，提供 flush |
 | [conversations/manage.ts](conversations/manage.ts) | 查找/创建实体关联的对话，首次导入既有历史；Research 只复用有效对话 |
 | [conversations/entity-messages.ts](conversations/entity-messages.ts) | 读取实体历史及保留 Strategy/Factor 的 messages 镜像；已发布因子的镜像不可写 |
-| [共享请求契约](../../../../packages/shared/src/api/agent.ts) | 对话、任务、SQL 查询及 parts 消息入参校验；图表规格来自 shared/api/chart |
-| `tools/charts/` | 历史 ChartSpec、重查执行和列校验；不再导出 Agent 绘图工具，不负责 Research 的图表产物 |
-| `tools/sql/` | SQL 白名单、查询限额/超时、只读 Worker 和 Node SQLite 类型声明 |
+| [共享请求契约](../../../../packages/shared/src/api/agent.ts) | 任务及 parts 消息入参校验；退役提示只接受标题 |
+| `tools/sql/` | Agent 只读查询的 SQL 白名单、限额/超时、Worker 和 Node SQLite 类型声明；不提供历史图表 HTTP 接口 |
 | `tools/` 其余具名文件 | 已有数据查询、研究提案、因子分析等工具；工具注册仍由 `tools/index.ts` 组织 |
 
 ## 读懂一次持久化 turn

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { chartSpecSchema } from './chart.js';
 import { universeSpecV1Schema } from './research.js';
 
 // Conversation messages.
@@ -13,7 +12,7 @@ const universePartSchema = z.strictObject({
  * The frontend normalizes legacy `{ role, content }` rows on read, so the API only accepts the new shape. */
 const messagePartSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), text: z.string().max(8000) }),
-  z.object({ type: z.literal('chart'), title: z.string().max(120), chart: chartSpecSchema }),
+  z.strictObject({ type: z.literal('retired_chart'), title: z.string().max(120) }),
   universePartSchema,
 ]);
 
@@ -28,9 +27,6 @@ const chatMessageSchema = z.object({
 
 export const chatMessagesSchema = z.array(chatMessageSchema).max(60);
 
-// Charts.
-export const sqlQueryBodySchema = z.object({ sql: z.string().min(8).max(4000) });
-
 // Turns.
 export const activeTurnQuerySchema = z.object({
   // Accept the historical Screen prefix for old clients; no current page creates Screen turns.
@@ -38,6 +34,5 @@ export const activeTurnQuerySchema = z.object({
 });
 
 // HTTP input types describe values before defaults and transformations.
-export type AgentSqlRequest = z.input<typeof sqlQueryBodySchema>;
 export type ActiveAgentTurnRequestQuery = z.input<typeof activeTurnQuerySchema>;
 export type ChatMessagesRequest = z.input<typeof chatMessagesSchema>;

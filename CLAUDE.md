@@ -23,8 +23,8 @@
 
 Factor / Strategy 对话的嵌入式分析实现与验收记录见
 `docs/design/embedded-python-analysis.md`。它复用 Research Python 能力，保留每次运行记录，首次成功后固定该版本；
-普通 Research 文档继续可编辑。新对话计算使用嵌入式 Python；旧聊天图表保留重查兼容，
-`math/stats.ts` 继续供正式业务及历史图表使用。各提交的审查、验证和发布状态以该文档记录为准。
+普通 Research 文档继续可编辑。对话计算使用嵌入式 Python；旧聊天图表执行链已整体退役，读取旧消息时只显示标题和停用提示。
+`math/stats.ts` 继续供正式业务使用，Factor/Strategy 的源码转换归 infra/runtime/typescript/compile.ts。各提交的审查、验证和发布状态以该文档记录为准。
 
 公开帮助和中英双语是学习产品的核心能力，不是发布后的装饰：中文和英文使用者都应能从概念说明进入真实页面、完成操作并理解指标限制。新增或改变用户可见研究能力时，必须同步判断帮助内容、SDK 参考和双语文案是否需要更新。
 
@@ -116,7 +116,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   Runner 在 session 内持有 Adapter，绑定对象保留本次快照／索引。账户原始操作的命令编码归 Adapter，SDK 只转发。
   公共接口不管理 close/abort，不导入业务；SDK 不导入此 runtime 接口，Python 公共 Protocol 显式打包并同时影响 API/sandboxd。
 - 三业务 Capabilities 由 SDK 声明，Adapter 由 runtime 实现；TS/Python 按相同角色命名，不以是否通信
-  决定是否需要适配。详见 docs/design/sdk-capability-adapters.md，历史图表保持明确兼容边界。
+  决定是否需要适配。详见 docs/design/sdk-capability-adapters.md，旧聊天图表退役规则见 docs/design/legacy-chat-chart-retirement.md。
 - TS runtime 打包 `sdk/typescript.ts`（生产使用编译后的 `.js`）并注入 isolate；工厂与 `history/value/lag`
   只在 SDK 实现，不在 runtime 另写字符串副本。FactorAdapter 将预备数据、索引、声明字段绑定为
   SDK 自有 Capabilities；SDK Context 保留公开方法与校验，不持有传输 DTO 或导入 runtime。
@@ -153,7 +153,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - `apps/api/src/factor` — 定义与草稿归 definitions，观察数据与截止日归 observations，正式评估/报告/holdout 归 evaluations，相关性任务与缓存归 correlations，共享计算及 Worker 归 execution，来源解析/快照/指纹归 sources，Factor Job 归属查询归 jobs，发布/归档归 publication，组合归 composition，作者 SDK 实现归 sdk，语言适配归 runtime，天气固定/刷新归 weather；`routes/index.ts` 直接组合并导出 `factorRoute`，统一挂载到 `/api/app/factors`；定义、组合、Agent、分析、相关性、天气分别由 `routes/definition.ts`、`routes/composite.ts`、`routes/agent.ts`、`routes/analysis.ts`、`routes/correlation.ts`、`routes/weather.ts` 适配请求；报告位于 `/analysis-reports`，普通分析和相关性任务分别使用 `/analysis-jobs` 与 `/correlation-jobs`，`evaluations/job-lifecycle.ts`、`correlations/job-lifecycle.ts` 导出生命周期对象，在 jobs/register 分别注册为 `factor-analysis` / `factor-correlation`，旧 kind 的一次性生产转换已完成，旧库恢复见 `docs/backend-runtime-entries.md`，bootstrap 不再重复转换。入口与调用链见 `src/factor/README.md`。
 - `apps/api/src/strategy` — 定义/命名/配置归 definitions，回测提交、报告、语言编排及 Worker 归 backtests，参数扫描及线程内串行模拟归 scans，策略因子对象、准备与引用归 factors，策略 SDK 辅助实现归 sdk，TS/Python 适配归 runtime，报告风险分析与模型就绪要求归 risk。`routes/index.ts` 直接组合并导出 `strategyRoute`，统一挂载到 `/api/app/strategies`；`routes/agent.ts` 处理 Agent，`routes/definition.ts` 处理列表、创建、删除和公开范围，`routes/backtest.ts` / `routes/scan.ts` 分别处理提交、报告与任务查询；自动命名仅保留内部能力；`backtests/job-lifecycle.ts`、`scans/job-lifecycle.ts` 保留具名任务入口；调用链见 `src/strategy/README.md`。
 - `apps/api/src/signals` — 部署冻结/暂停归 deployments，运行入队/查询/就绪检查与 IPC Worker 归 runs，成交录入/初始化/结算/纯重放归 accounting，因子依赖血缘、输入摘要与利率准入归 factor-inputs，共用日期判断调用 Market calendar；routes/index.ts 直接组合 routes/deployment.ts、routes/run.ts、routes/execution.ts，统一挂载 `/api/app/signals`；最新运行归 `/deployments/latest-runs`，运行提交/列表归 `/deployments/:deploymentId/runs`，任务归 `/run-jobs/:jobId`。`runs/job-lifecycle.ts` 导出生命周期对象，`runs/notifier.ts` 负责运行通知，`daily/scheduler.ts` 与 `daily/sync.ts` 负责每日运行与数据准备。入口与事务边界见 `src/signals/README.md`。
-- `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools/charts、tools/sql 归组具体工具和 Worker。Strategy Agent 负责依据 SDK 和上下文生成代码及必要校验，回测由用户在工作台显式发起；Research 通过封存研究生成 Strategy 草稿，不提供后台回测工具。routes/index.ts 直接组合 routes/turn.ts、routes/chart.ts，适配 `/api/app/agent` HTTP/SSE；消息归 conversations，执行详情/订阅/取消归 turns，图表数据归 sql-queries / chart-computations。入口和消息顺序见 `src/agent/README.md`。
+- `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools/sql 归组只读查询工具和 Worker。Strategy Agent 负责依据 SDK 和上下文生成代码及必要校验，回测由用户在工作台显式发起；Research 通过封存研究生成 Strategy 草稿，不提供后台回测工具。routes/index.ts 组合 routes/turn.ts，适配 `/api/app/agent` HTTP/SSE；消息归 conversations，执行详情/订阅/取消归 turns；旧图表重查接口已移除。入口和消息顺序见 `src/agent/README.md`。
 - `apps/api/src/sharing` — 根级 routes.ts 适配公开库 HTTP，catalog.ts 聚合公开资源列表；策略复制调用 `strategy/definitions/copy-public.ts`，不直接修改他域生命周期。见 `src/sharing/README.md`。
 - `apps/api/src/backtesting` — 根级 BacktestingEngine/OrderBook/BacktestingContext 分别持有运行、订单与当日上下文，CashPortfolio/FuturesPortfolio 负责账户；data 为必填 DataPort/EngineData，factors 的 FactorEvaluator 为引擎内因子求值；adapters 为宿主 Prisma，TS/Python FactorHost 归 strategy/execution，testing 为共用 fixture。因子源码只在各自沙箱执行，Engine 经独立 FactorExecutionPort 使用计算结果。模拟核心不导入宿主适配器；TS/Python 策略经共享 bridge 使用宿主 Engine，TS bundle 只包含 SDK 与沙箱适配。见 `src/backtesting/README.md`。
 - `apps/api/src/market` — stocks/etfs/indices/futures 按数据领域聚合同步与读取，ETF 基础质量归 etfs；calendar 负责同步/读取及上海 16:00 的 SSE 日期规则，cross-market 负责基准同步/换算与美债/外汇联合获取，queries 保留跨资产统一序列；state 聚合指标落库、计算/读取、天气与风险驱动基础质量，valuation 保留估值计算/读取。fundamentals/rates/macro/commodity 承接财报、利率、宏观和商品，rates 只提供逐期限利率可得日期，Signals 自行决定准入。providers/tushare 是数据通道，registry 是纯静态清单，instruments 负责证券身份及历史代码合并。routes/index.ts 直接组合 routes/instrument.ts、routes/valuation.ts、routes/state.ts，适配 `/api/app/market` 的 instruments、index-valuations、indices 序列和 weather。入口见 `src/market/README.md`。Market 不反向导入 Strategy、Signals、Research、Agent 或 Maintenance。

@@ -1,5 +1,7 @@
 # Factor / Strategy 嵌入式 Python 分析
 
+> 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。
+
 > 2026-09-24 更新：未被现有产品调用的 HTTP 入口及专用依赖已清理，详见 [清理记录](unused-http-endpoints.md)。下文涉及已退役入口的旧设计与验收记录保留为历史，不表示现行接口。
 
 > 状态：2026-09-14 全部范围已通过人工审查与验证。前四笔已提交（`74567ccd`、`c883dae3`、`d31f048f`、`e98cc1ba`）；Commit 5 随本变更提交。Factor / Strategy 已接入嵌入分析和 Research 接续，旧工具及统计说明生成链已退出；部署仍需协调此前迁移与各组件。
@@ -26,12 +28,12 @@
 | --- | --- | --- |
 | Factor、Strategy、因子问答仍有统计和图表工具 | [defaultTools](../../apps/api/src/agent/tools/index.ts)、[Factor profile](../../apps/api/src/agent/profiles/factor.ts)、[Strategy profile](../../apps/api/src/agent/profiles/strategy.ts)、[问答 profile](../../apps/api/src/agent/profiles/qa.ts) | 不能因 Screen 移除直接删除其余场景的计算入口 |
 | analyzeData 提交 SQL 与 JS/TS，向模型返回有界结果 | `agent/tools/analyze-data.ts`（本轮删除） | 保留数据直接进入沙箱、完整明细不进入模型的优点 |
-| 旧计算图表保存查询与代码，查看时可以重新计算 | [历史图表执行](../../apps/api/src/agent/tools/charts/replay.ts)、[ChatChart](../../apps/web/src/components/chat-chart.tsx) | 旧卡片需要兼容，不能把重新查询的结果冒充历史快照 |
-| Research 分别保存当前 Cell、单次执行、干净全文执行和产物 | [schema.prisma](../../apps/api/prisma/schema.prisma)、[run-cell.ts](../../apps/api/src/research/execution/run-cell.ts)、[run-document.ts](../../apps/api/src/research/execution/run-document.ts) | 复用现有概念；单 Cell 尝试不自动等价于封存研究 |
+| 旧计算图表保存查询与代码，查看时可以重新计算 | 历史图表执行、ChatChart | 旧卡片需要兼容，不能把重新查询的结果冒充历史快照 |
+| Research 分别保存当前 Cell、单次执行、干净全文执行和产物 | [schema.prisma](../../apps/api/prisma/schema.prisma)、[run-cell.ts](../../apps/api/src/research/document-runs/run-cell.ts)、[run-document.ts](../../apps/api/src/research/document-runs/run-document.ts) | 复用现有概念；单 Cell 尝试不自动等价于封存研究 |
 | 当前 Cell、执行与图片均绑定 ResearchDocument | [共享类型](../../packages/shared/src/research.ts)、[文档管理](../../apps/api/src/research/documents/document-operations.ts) | 需要明确嵌入模式、归属及生命周期，不能只禁用编辑器 |
-| FactorReport、BacktestReport 已能进入 Research | [因子报告读取](../../apps/api/src/research/datasets/results/factor-report.ts)、[回测报告读取](../../apps/api/src/research/datasets/results/backtest-report.ts)、[回测提交](../../apps/api/src/strategy/backtest/submit.ts) | 复用报告及其权限，不新建第二套正式报告 |
+| FactorReport、BacktestReport 已能进入 Research | [因子报告读取](../../apps/api/src/research/datasets/results/factor-report.ts)、[回测报告读取](../../apps/api/src/research/datasets/results/backtest-report.ts)、[回测提交](../../apps/api/src/strategy/backtests/submit.ts) | 复用报告及其权限，不新建第二套正式报告 |
 | 初始调研时只读因子问答没有持久化实体；Commit 3 新增私有持久化路径 | [问答入口](../../apps/api/src/factor/questions/conversations.ts)、[turn runner](../../apps/api/src/agent/turns/run.ts)、[Factor store](../../apps/web/src/complex/factor/factor-store.ts) | 用户与稳定因子身份关联会话，每轮固定报告上下文，刷新恢复；已通过审查与验证 |
-| STATS_DOC 服务于 analyzeData，stats.ts 另有业务调用方 | `scripts/generators/gen-stats-doc.ts`（本轮删除）、[统计库](../../apps/api/src/math/stats.ts)、[因子评估](../../apps/api/src/factor/analysis/cross-sectional.ts)、[模拟引擎](../../apps/api/src/engine/simulation/run.ts) | 删除工具及其文档生成链，保留业务统计库 |
+| STATS_DOC 服务于 analyzeData，stats.ts 另有业务调用方 | `scripts/generators/gen-stats-doc.ts`（本轮删除）、[统计库](../../apps/api/src/math/stats.ts)、[因子评估](../../apps/api/src/factor/execution/cross-sectional/evaluate.ts)、[模拟引擎](../../apps/api/src/backtesting/engine.ts) | 删除工具及其文档生成链，保留业务统计库 |
 
 产品判断：保留工作台内的即时分析入口，复用 Research 的计算与输出，比继续维护两套分析体验更符合本次目标。
 冻结版本用于保护结论依据，不能代替对方法和数据的判断。

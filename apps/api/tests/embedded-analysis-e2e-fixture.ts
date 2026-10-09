@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import {
-  DEFAULT_BACKTEST_COST,
-  type ChatMessage,
-  type ResearchEmbeddedContextV1,
-} from '@jixie/shared';
+import { DEFAULT_BACKTEST_COST, type ResearchEmbeddedContextV1 } from '@jixie/shared';
 
 interface ModelMessage {
   role: string;
@@ -238,7 +234,7 @@ export async function seedEmbeddedStrategies() {
     // Persist representative pre-migration chart messages; a user reopens this saved conversation.
     const english = locale === 'en';
     const sql = "SELECT tradeDate, close FROM Daily WHERE tsCode='000001.SZ' ORDER BY tradeDate";
-    const messages: ChatMessage[] = [
+    const messages = [
       {
         role: 'user',
         parts: [

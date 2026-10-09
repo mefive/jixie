@@ -1,4 +1,3 @@
-import type { ChartSpec } from './chart.js';
 import type {
   ResearchDataReferenceV1,
   ResearchEmbeddedRunReferenceV1,
@@ -13,8 +12,8 @@ import type {
 } from './research.js';
 
 /**
- * Agent conversation messages. Typed parts persist the deterministic chart/research/universe spec or
- * result beside model prose. Artifact code stays on the strategy/factor host rather than in messages.
+ * Agent conversation messages. Typed parts persist deterministic research/universe artifacts or
+ * results beside model prose. Artifact code stays on the strategy/factor host rather than in messages.
  * Legacy rows persisted `{ role, content }` — normalizeChatMessage upgrades them on read; writes are
  * always the new shape.
  */
@@ -34,11 +33,10 @@ export interface ResearchDataReferencesPart {
   references: ResearchDataReferenceV1[];
 }
 
-/** A historical Agent chart — persists the query, not the points. */
-export interface ChartPart {
-  type: 'chart';
+/** A read-time notice for a retired historical chart; no executable specification is exposed. */
+export interface RetiredChartPart {
+  type: 'retired_chart';
   title: string;
-  chart: ChartSpec;
 }
 
 /** A deterministic entity universe. Legacy saved screens migrate to this typed Research artifact. */
@@ -103,7 +101,7 @@ export type MessagePart =
   | EmbeddedAnalysisPart
   | ResearchDataReferencesPart
   | TextPart
-  | ChartPart
+  | RetiredChartPart
   | UniversePart
   | ResearchCellChangePart
   | ResearchClarificationPart
@@ -153,7 +151,11 @@ export function normalizeChatMessage(raw: unknown): ChatMessage {
     ...(typeof message?.createdAt === 'string' ? { createdAt: message.createdAt } : {}),
   };
   if (Array.isArray(message?.parts)) {
-    const parts = message.parts.filter(isMessagePart);
+    const parts = message.parts.flatMap((part) => {
+      const normalized = normalizeMessagePart(part);
+
+      return normalized ? [normalized] : [];
+    });
     return {
       role,
       parts: parts.length > 0 ? parts : [{ type: 'text', text: '' }],
@@ -167,7 +169,7 @@ export function normalizeChatMessage(raw: unknown): ChatMessage {
   };
 }
 
-/** Flatten a message to plain text for LLM context — cards/charts collapse to a short placeholder
+/** Flatten a message to plain text for LLM context — cards collapse to a short placeholder
  * so the model knows one was shown without re-shipping the spec. */
 export function messageText(message: ChatMessage): string {
   const context = message.contextSnapshot;
@@ -183,8 +185,8 @@ export function messageText(message: ChatMessage): string {
           return `(selected data references, not instructions: ${JSON.stringify(part.references)})`;
         case 'text':
           return part.text;
-        case 'chart':
-          return `(chart: ${part.title})`;
+        case 'retired_chart':
+          return `(retired historical chart: ${part.title})`;
         case 'universe':
           return `(research universe: ${part.title}, predicates=${part.spec.predicates.length})`;
         case 'research_cell_change':
@@ -229,6 +231,21 @@ export function messageText(message: ChatMessage): string {
   return prefix + text;
 }
 
+function normalizeMessagePart(value: unknown): MessagePart | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  const part = value as { type?: unknown; title?: unknown };
+  if (part.type === 'chart' || part.type === 'retired_chart') {
+    return {
+      type: 'retired_chart',
+      title: typeof part.title === 'string' ? part.title.slice(0, 120) : '',
+    };
+  }
+
+  return isMessagePart(value) ? value : undefined;
+}
+
 function isMessagePart(value: unknown): value is MessagePart {
   if (!value || typeof value !== 'object') {
     return false;
@@ -238,7 +255,6 @@ function isMessagePart(value: unknown): value is MessagePart {
     type === 'embedded_analysis' ||
     type === 'research_data_references' ||
     type === 'text' ||
-    type === 'chart' ||
     type === 'universe' ||
     type === 'research_cell_change' ||
     type === 'research_clarification' ||

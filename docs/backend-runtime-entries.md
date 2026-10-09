@@ -17,7 +17,6 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
 | `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → runner.ts/adapter.ts | 同目录 `entry.js` → runner.js/adapter.js | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `strategy/execution/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；TS/Python 共享 execution/execution 在 finally 关闭，初始化失败也清理已建立实例 |
-| `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 仅供 Agent 历史图表转换工具加载 isolate 模块；Factor 已使用公共 TypeScriptTransport |
 | `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `backtesting/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
 | `factor/runtime/typescript/runtime-benchmark.test-worker.mjs` | 性能验证子进程；固定读取 `4464a616` 的 TS Factor 工厂／SDK bundler，和当前 FactorRuntime 比较横截面、窗口、资产序列及日志负载 | 不作为生产入口 | 仅测试；临时旧模块 finally 删除，记录结果哈希、耗时、逻辑载荷字节及新 transport 实测帧字节 |
 | `strategy/runtime/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `5b92107f` 的本次结构整理前 TS runtime/bridge/sandbox-entry，与当前 runtime 分进程比较 watch/dynamic | 不作为生产入口 | 仅测试；两边使用相同当前 SDK、Engine 与 fixture，断言 NAV/成交哈希及全部通信计数/字节一致；非字面量 import 指向生成的基线模块，finally 删除临时目录 |
@@ -66,6 +65,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | 资源/路径 | 解析规则与归属 |
 | --- | --- |
 | `infra/runtime/sandbox-runtime.ts`、`exchange.ts` | 三业务共同生命周期与命令循环；TS/Python 启动均显式发送命令 |
+| `infra/runtime/typescript/compile.ts` | toCommonJs 只转换源码，Factor/Strategy 复用；源码／编译入口使用同一函数，没有独立沙箱或 stats 资源加载 |
 | `infra/runtime/typescript/transport.ts` | Factor/Strategy 共用 isolate 和帧传输；分别加载可信 Factor / Strategy entry，用户源码在后续启动命令内执行 |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
 | `strategy/runtime/bridge.ts` | 共享业务 bridge；由唯一 StrategyRuntime 创建，两种 prepare 提供启动配置；runtime 负责资源关闭；bridge 提供 metadata/execute，Engine onBar 仅在 strategy/execution/execution 适配。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
@@ -122,3 +122,5 @@ Backtest、Scan、Factor execution、Factor correlation、Signals 的 worker-pro
 StrategyExecution 在宿主创建一次性 `Simulation`，`run()` 返回模拟结果与可选末日快照。旧 `engine/simulation/run.ts` 删除；SDK 沙箱、Worker URL 和 Python 资源路径不变。FactorEvaluator 是宿主求值器，FactorHost 仍由 StrategyExecution 管理，模拟失败后也由其 finally 关闭。历史 runtime benchmark 的旧 run.ts 字面量用于重写固定版本 fixture，不能按当前入口替换。
 
 2026-09-28 命名修订：当前宿主入口为 `backtesting/engine.ts` 的 BacktestingEngine，调用方使用 `#backtesting/*`；原 simulation 目录展开到模块根。上述历史旧入口和 benchmark 固定版本路径仅作迁移记录。
+
+旧 Agent 聊天图表 JS 执行器、重查路由和统计库注入已整体移除；历史消息只投影为停用提示。Research Python 图表使用其执行产物；只读 SQL Worker 与 TS Factor/Strategy Transport 继续使用。详见 [退役记录](design/legacy-chat-chart-retirement.md)。

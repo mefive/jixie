@@ -47,10 +47,9 @@ export const zhComponents = {
   tracePassed: '验证通过',
   traceFailedStatus: '验证失败',
 
-  // Chat chart
-  points: '{{count}} 点',
-  historicalChartCurrentData: '历史图表：打开时按原查询和代码读取当前数据，可能与当时回答不同。',
-  chartQueryFailed: '图表查询失败(条件可能已过期):',
+  // Retired historical artifacts
+  retiredChartTitle: '历史图表',
+  retiredChartDescription: '旧聊天图表已停用。请在 Research 中重新分析。',
 
   // Query card
   unnamedScreen: '未命名筛选',

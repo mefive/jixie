@@ -39,13 +39,13 @@
 | `/api/app/factors` | `factor/routes/index.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
 | `/api/app/strategies` | `strategy/routes/index.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
 | `/api/app/signals` | `signals/routes/index.ts` 直接组合 deployment / run / execution 路由 |
-| `/api/app/agent` | `agent/routes/index.ts` 直接组合 conversation / turn / chart 路由 |
+| `/api/app/agent` | `agent/routes/index.ts` 组合 turn 路由，提供执行详情、历史、SSE 和取消 |
 | `/api/app/market` | `market/routes/index.ts` 直接组合 instrument / valuation / state 路由 |
 | `/api/app/library` | `sharing/routes.ts`；URL 保留公开库原契约 |
 
 路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。路由对象使用业务/职责明确的具名导出，如 `authRoute`、`strategyRoute` 和 `factorRoute`；server 和外部路由消费者只从所属模块的路由总入口 同名导入。单组路由可以在入口直接实现，Strategy 的 `routes/index.ts` 直接组合 `routes/definition.ts`、`routes/agent.ts`、`routes/backtest.ts` 和 `routes/scan.ts`；Factor 的 `routes/index.ts` 直接组合 `routes/definition.ts`、`routes/composite.ts`、`routes/agent.ts`、`routes/analysis.ts`、`routes/correlation.ts` 和 `routes/weather.ts`。处理器按业务职责分文件实现。完整路径与迁移说明见 [路由设计](design/api-route-naming.md)。组合文件直接导入子路由实现，不反向导入统一出口。
 
-Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，前端先调用所属模块的 Agent 入口；业务完成归属和忙碌检查，配置 profile、工具与上下文，再交给通用 Agent。前端之后用 `/api/app/agent` 订阅 SSE、查询 turn、读取历史或取消。Agent 工具按需调用业务操作，业务状态仍由对应模块管理。通用 Agent 还提供只读 SQL、图表工具接口；它不是所有产品操作必须经过的总调度器。
+Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，前端先调用所属模块的 Agent 入口；业务完成归属和忙碌检查，配置 profile、工具与上下文，再交给通用 Agent。前端之后用 `/api/app/agent` 订阅 SSE、查询 turn、读取历史或取消。Agent 工具按需调用业务操作，业务状态仍由对应模块管理。只读 SQL 仍供 Agent 工具使用，旧聊天图表及重算 HTTP 接口已退役；它不是所有产品操作必须经过的总调度器。
 
 多组路由统一放在业务模块的 `routes/` 中，由 `routes/index.ts` 组合并对外导出，外部显式导入 `routes/index.js`。实现文件名省略 `-routes` 后缀。业务错误统一放在模块根级 `errors.ts`，公共 HTTP 映射由
 `infra/http/errors.ts` 提供，在 `server.ts` 注册 `onError`；公共请求 schema 位于 shared/api；模块根级 `schema.ts` 仅承载后端专属组合和内部输入。
@@ -69,7 +69,7 @@ CLI、Job、Worker 等输出边界通过 `errorMessage` 使用自己的语言。
 ## 输入 schema 的位置
 
 公共 HTTP body/query/已有 param 的唯一结构来源位于 `packages/shared/src/api/`，按 Auth、Strategy、Factor、Research、
-Signals、Agent、Market 拆分；历史图表与消息嵌套规格在同目录的 `chart.ts` / `agent.ts`。API 路由和其他校验边界通过
+Signals、Agent、Market 拆分；消息与标题型退役提示在同目录的 `agent.ts`，Research 图表产物类型归 `shared/research.ts`。API 路由和其他校验边界通过
 `@jixie/shared/api/<业务>` 直接导入 schema；前端 `api/client.ts` 只导入请求类型，在序列化前约束完整 body/query。
 shared 不导入 API、数据库、Node 专属能力或 SDK 执行器，根级运行时 barrel 不导出这些 schema。
 
@@ -240,3 +240,5 @@ AST 分析、环境捕获和输出序列化。sandboxd 通用入口只分派，�
 SDK 不反向导入 runtime，Engine 不参与 Research Cell 执行。完整职责和验收见 [统一 SDK 计划](design/business-sdk-organization.md)。
 
 三业务沙箱使用相同的 Adapter 装配规则：Runner 持有会话 Adapter，bind(input) 返回本次绑定的 SDK Capabilities。公共 SdkAdapter 接口／Protocol 归 infra/runtime；SDK 只依赖自有能力声明。Strategy 两种语言的原始账户操作和命令编码均在 Adapter，TS 即时 host access 与 Python done 后回放保持。具体结构与验证见 [SDK 能力与适配器](design/sdk-capability-adapters.md)。
+
+旧聊天图表执行链已整体移除，Agent 不再生成 ChartSpec 或调用 JS 图表沙箱。历史消息只显示标题和停用提示，正常分析使用 Research 的持久化 Python 输出。ResearchChartKindV1 / ResearchChartSeriesV1 归 shared/research，旧图表重查契约已删除；toCommonJs 独立归 infra/runtime/typescript/compile.ts。详见 [退役记录](design/legacy-chat-chart-retirement.md)。

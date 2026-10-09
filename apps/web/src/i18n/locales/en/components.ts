@@ -49,11 +49,9 @@ export const enComponents: typeof zhComponents = {
   tracePassed: 'Passed',
   traceFailedStatus: 'Failed',
 
-  // Chat chart
-  points: '{{count}} points',
-  historicalChartCurrentData:
-    'Historical chart: opening it reruns the saved query and code on current data, which may differ from the original answer.',
-  chartQueryFailed: 'Chart query failed (conditions may be outdated): ',
+  // Retired historical artifacts
+  retiredChartTitle: 'Historical chart',
+  retiredChartDescription: 'Legacy chat charts have been retired. Use Research for a new analysis.',
 
   // Query card
   unnamedScreen: 'Untitled screen',

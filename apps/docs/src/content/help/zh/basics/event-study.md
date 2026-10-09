@@ -6,7 +6,7 @@
 
 先在[数据目录](/docs/help/research/data-catalog)核对事件定义和日期。当前 `data.equity_dividends()` 读取单只股票**已实施现金分红，并按除息日筛选**，不是分红预案公告样本。不能把除息日替换成预案公告日后仍沿用原研究问题。
 
-如果问题要求预案公告，而公开 SDK 没有相应输入，应保留能力缺口，不生成声称已完成的事件检验。`charts.event_path()` 负责画已有结果，不会自动取得事件、筛选样本或计算显著性。旧对话图表的重查规则见[嵌入式分析](/docs/help/research/embedded-analysis)。
+如果问题要求预案公告，而公开 SDK 没有相应输入，应保留能力缺口，不生成声称已完成的事件检验。`charts.event_path()` 负责画已有结果，不会自动取得事件、筛选样本或计算显著性。旧聊天图表的停用说明见[嵌入式分析](/docs/help/research/embedded-analysis)。
 
 ## 事件日和窗口
 

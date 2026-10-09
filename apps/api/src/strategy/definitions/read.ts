@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import type { BacktestSummary, StrategyCard } from '@jixie/shared';
+import { normalizeChatMessage, type BacktestSummary, type StrategyCard } from '@jixie/shared';
 import { StrategyError } from '../errors.js';
 
 export async function listStrategies(userId: string) {
@@ -70,7 +70,7 @@ export async function readStrategy(userId: string, strategyId: string) {
     updatedAt: row.updatedAt,
     config: row.config,
     lastResult: row.lastResult,
-    messages: row.messages,
+    messages: Array.isArray(row.messages) ? row.messages.map(normalizeChatMessage) : row.messages,
     researchHandoff: row.researchHandoff,
     sourceResearchExecution: row.sourceResearchExecution
       ? {

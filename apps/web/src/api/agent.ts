@@ -1,13 +1,6 @@
-import type { AgentSqlRequest, ActiveAgentTurnRequestQuery } from '@jixie/shared/api/agent';
-import type { ComputeChartRequest } from '@jixie/shared/api/chart';
+import type { ActiveAgentTurnRequestQuery } from '@jixie/shared/api/agent';
 import { localeStore } from '@src/i18n/locale-store';
-import type {
-  AgentStreamEvent,
-  AgentTurnDetail,
-  ComputeChartSpec,
-  SqlRows,
-  ToolTraceItem,
-} from '@jixie/shared';
+import type { AgentStreamEvent, AgentTurnDetail, ToolTraceItem } from '@jixie/shared';
 import {
   ApiError,
   serializeQuery,
@@ -63,22 +56,6 @@ export function cancelAgentTurn(turnId: string): Promise<{ ok: true; cancelled: 
 
 export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
   return request(`/api/app/agent/turns/${turnId}`);
-}
-
-// Read-only SQL over the market-table whitelist — chart cards re-run their persisted query here.
-export function agentSql(sql: string): Promise<SqlRows> {
-  return request('/api/app/agent/sql-queries', {
-    method: 'POST',
-    body: JSON.stringify({ sql } satisfies AgentSqlRequest),
-  });
-}
-
-// Re-run a compute-source chart card (persisted queries + sandboxed transform → row table).
-export function agentComputeChart(spec: ComputeChartSpec): Promise<SqlRows> {
-  return request('/api/app/agent/chart-computations', {
-    method: 'POST',
-    body: JSON.stringify(spec satisfies ComputeChartRequest),
-  });
 }
 
 // Parse an SSE body (hono streamSSE: `data: <json>\n\n` frames). fetch + ReadableStream instead of

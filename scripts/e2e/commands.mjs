@@ -210,11 +210,6 @@ export const e2eCommands = [
     group: 'market',
   },
   {
-    name: 'chart',
-    file: 'apps/web/e2e/computed-chart.mjs',
-    group: 'platform',
-  },
-  {
     name: 'sdk-hover',
     file: 'apps/web/e2e/sdk-hover.mjs',
     group: 'platform',
@@ -303,6 +298,12 @@ export const e2eCommands = [
     name: 'signals',
     file: 'apps/web/e2e/daily-signals.mjs',
     group: 'signals',
+  },
+  {
+    name: 'futures-signals',
+    file: 'apps/web/e2e/futures-signals.mjs',
+    group: 'signals',
+    notes: 'Requires the isolated job-system harness; use JIXIE_JOB_E2E_ONLY=futures-signals.',
   },
   {
     name: 'etf',

@@ -29,34 +29,6 @@ const definitions = {
     category: 'invalid',
     messageKey: 'sqlLimitExceeded',
   },
-  chart_columns_missing: {
-    category: 'invalid',
-    messageKey: 'chartColumnsMissing',
-  },
-  chart_rows_invalid: {
-    category: 'invalid',
-    messageKey: 'chartRowsInvalid',
-  },
-  chart_rows_empty: {
-    category: 'invalid',
-    messageKey: 'chartRowsEmpty',
-  },
-  chart_row_limit: {
-    category: 'invalid',
-    messageKey: 'chartRowLimit',
-  },
-  chart_rows_flat: {
-    category: 'invalid',
-    messageKey: 'chartRowsFlat',
-  },
-  chart_field_scalar: {
-    category: 'invalid',
-    messageKey: 'chartFieldScalar',
-  },
-  chart_query_names_unique: {
-    category: 'invalid',
-    messageKey: 'chartQueryNamesUnique',
-  },
   sql_execution_invalid: {
     category: 'invalid',
     messageKey: 'sqlExecutionInvalid',
@@ -64,10 +36,6 @@ const definitions = {
   sql_timeout: {
     category: 'invalid',
     messageKey: 'sqlTimeout',
-  },
-  chart_code_invalid: {
-    category: 'invalid',
-    messageKey: 'chartCodeInvalid',
   },
   turn_not_found: {
     category: 'missing',

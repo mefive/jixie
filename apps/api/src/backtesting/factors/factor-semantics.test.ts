@@ -9,7 +9,7 @@ import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BacktestingEngine } from '../engine.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
-import { toCommonJs } from '#infra/runtime/typescript/isolate-run.js';
+import { toCommonJs } from '#infra/runtime/typescript/compile.js';
 import type { EngineStrategy, BacktestingConfig } from '../contract.js';
 import { FactorHost } from '#strategy/execution/factor-host.js';
 

@@ -11,7 +11,7 @@ import {
 } from '@jixie/shared';
 import type { AgentLlm, ToolAwareMessage, ToolCall } from '#infra/llm/agent-llm.js';
 import { t } from '#i18n/index.js';
-import type { AgentChart, AgentTool, AgentUniverse } from './tools/types.js';
+import type { AgentTool, AgentUniverse } from './tools/types.js';
 
 /**
  * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
@@ -63,7 +63,6 @@ export interface AgentTurnResult {
   error?: string; // set when a proposed change wouldn't compile (code kept unchanged)
   toolTrace: ToolTraceItem[]; // every tool call this turn — display/debug only, never persisted
   universes: AgentUniverse[]; // entity universes side-produced by runUniverse tool calls this turn
-  charts: AgentChart[]; // legacy chart-part compatibility
   researchCellChanges: ResearchCellChangeProposalV1[]; // pending, user-applied Cell changes
   researchClarifications: ResearchClarificationV1[]; // pending, user-answerable semantic choices
 }
@@ -129,7 +128,7 @@ function recoverDsmlToolCalls(text: string, callNumber: number): ToolCall[] {
   });
 }
 
-/** A turn result as the assistant message's parts: the explanation text + any query/chart cards the
+/** A turn result as the assistant message's parts: the explanation text + durable artifacts the
  * tools side-produced. This is what routes return and the frontend appends + persists. */
 export function turnParts(result: AgentTurnResult): MessagePart[] {
   return [
@@ -141,9 +140,6 @@ export function turnParts(result: AgentTurnResult): MessagePart[] {
         title: universe.title,
         spec: universe.spec,
       }),
-    ),
-    ...result.charts.map(
-      (chart): MessagePart => ({ type: 'chart', title: chart.title, chart: chart.chart }),
     ),
     ...result.researchCellChanges.map(
       (proposal): MessagePart => ({ type: 'research_cell_change', proposal }),
@@ -218,7 +214,6 @@ async function executeToolCall(
   observation: string;
   trace: ToolTraceItem;
   universe?: AgentUniverse;
-  chart?: AgentChart;
   researchCellChange?: ResearchCellChangeProposalV1;
   researchClarification?: ResearchClarificationV1;
 }> {
@@ -251,7 +246,6 @@ async function executeToolCall(
       embeddedAnalysis: result.embeddedAnalysis,
       observation: result.observation,
       universe: result.universe,
-      chart: result.chart,
       researchCellChange: result.researchCellChange,
       researchClarification: result.researchClarification,
       trace: {
@@ -309,7 +303,6 @@ export async function agentTurn(
   // Tool phase → produce: let the model query tools (≤ MAX_TOOL_ROUNDS rounds), then take its text.
   const toolTrace: ToolTraceItem[] = [];
   const universes: AgentUniverse[] = [];
-  const charts: AgentChart[] = [];
   const embeddedAnalyses: EmbeddedAnalysisPart[] = [];
   const researchCellChanges: ResearchCellChangeProposalV1[] = [];
   const researchClarifications: ResearchClarificationV1[] = [];
@@ -388,9 +381,6 @@ export async function agentTurn(
         if (executed.universe) {
           universes.push(executed.universe);
         }
-        if (executed.chart) {
-          charts.push(executed.chart);
-        }
         if (executed.embeddedAnalysis) {
           embeddedAnalyses.push(executed.embeddedAnalysis);
         }
@@ -457,7 +447,6 @@ export async function agentTurn(
       attempts,
       toolTrace,
       universes,
-      charts,
       embeddedAnalyses,
       researchCellChanges,
       researchClarifications,
@@ -475,7 +464,6 @@ export async function agentTurn(
       attempts,
       toolTrace,
       universes,
-      charts,
       embeddedAnalyses,
       researchCellChanges,
       researchClarifications,
@@ -510,7 +498,6 @@ export async function agentTurn(
         attempts,
         toolTrace,
         universes,
-        charts,
         embeddedAnalyses,
         researchCellChanges,
         researchClarifications,
@@ -538,7 +525,6 @@ export async function agentTurn(
     error: lastError,
     toolTrace,
     universes,
-    charts,
     embeddedAnalyses,
     researchCellChanges,
     researchClarifications,

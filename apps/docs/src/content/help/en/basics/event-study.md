@@ -6,7 +6,7 @@ An event study aligns many public events to an “event day” and examines whet
 
 Check the event definition and date in the [data catalog](/docs/help/research/data-catalog). Currently, `data.equity_dividends()` reads **implemented cash dividends for one stock, filtered by ex-dividend date**. It does not supply a dividend-proposal announcement sample. Replacing announcement dates with ex-dividend dates changes the research question.
 
-If the question requires proposal announcements and the public SDK lacks those inputs, record the gap instead of presenting a completed test. `charts.event_path()` plots existing results; it does not fetch events, filter samples, or calculate significance. See [Embedded analysis](/docs/help/research/embedded-analysis) for how old chat charts are re-queried.
+If the question requires proposal announcements and the public SDK lacks those inputs, record the gap instead of presenting a completed test. `charts.event_path()` plots existing results; it does not fetch events, filter samples, or calculate significance. See [Embedded analysis](/docs/help/research/embedded-analysis) for the retirement of legacy chat charts.
 
 ## Event day and window
 

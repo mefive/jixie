@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。
+
 > 2026-10-08 Factor / Strategy 对照阅读整理：统一宿主资源归属、prepare/bridge/entry/runner 职责及类型命名；本轮代码审查与验证通过，范围和最终验证结果见文末。
 
 > 2026-10-08 Strategy 结构整理：用户已确认以唯一宿主 StrategyRuntime 替代 TS/Python 两个具体宿主类，并按 prepare → runner → context → SDK 对齐语言职责。下方历史类名与验收记录保留；本次范围和审查状态见文末。

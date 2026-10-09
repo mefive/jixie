@@ -16,7 +16,7 @@ Factor、Strategy（TS/Python）和 Research（Python）的宿主入口统一为
 - [python/session.ts](python/session.ts)：`PythonSession.connect()` 创建 Unix socket 或开发环境 runner 连接；负责分帧、读写、断连和关闭。`readValidated` 校验业务 schema，非法帧终止会话。
 - [typescript/transport.ts](typescript/transport.ts)：`TypeScriptTransport.connect()` 创建 isolate、加载受信任的入口；用户代码经 exchange 的启动命令加载。Factor／Strategy 共用 send/readValidated、队列、帧限制和回收。Strategy 可显式启用受限同步宿主访问，Factor 不启用。
 - [protocol.ts](protocol.ts)、[python/protocol.ts](python/protocol.ts)：分别拥有通用日志／错误帧与 Python 线格式、传输限制。
-- [typescript/isolate-run.ts](typescript/isolate-run.ts)：`toCommonJs` 只转换源码；`loadIsolatedModule/callJson` 仅供 Agent 历史图表转换工具，Factor 已不再使用该执行路径。
+- [typescript/compile.ts](typescript/compile.ts)：`toCommonJs` 只转换用户源码，供 Factor/Strategy 准备和因子检查使用；不创建 isolate、不注入统计库、不执行源码。旧 Agent 图表执行器已移除。
 - [console.ts](console.ts)：共享日志格式化与预算设施。
 - [log-buffer.ts](log-buffer.ts)：无 Node 依赖的沙箱内日志缓冲，按 256 条或 64 KiB 序列化 UTF-8 字节刷新；保留超出批量阈值的单条 log，由既有传输限额处理。TS Factor 的命令入口负责结束时刷新，其余语言／业务仍使用原日志发送方式。protocol.ts 定义公共 log_batch 形状，业务 schema 显式接受后交给 exchange。
 

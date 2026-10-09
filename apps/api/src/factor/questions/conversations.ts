@@ -1,3 +1,4 @@
+import { normalizeChatMessage } from '@jixie/shared';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { factorQaProfile } from '#agent/profiles/qa.js';
 import { createPersistentTurnInput } from '#agent/turns/records.js';
@@ -32,7 +33,7 @@ const messageSelection = {
 type MessageRow = Prisma.AgentMessageGetPayload<{ select: typeof messageSelection }>;
 
 function questionMessage(row: MessageRow): ChatMessage {
-  return {
+  return normalizeChatMessage({
     id: row.id,
     role: row.role === 'assistant' ? 'assistant' : 'user',
     parts: row.parts as unknown as ChatMessage['parts'],
@@ -46,7 +47,7 @@ function questionMessage(row: MessageRow): ChatMessage {
           turnError: row.turn.error ?? undefined,
         }
       : {}),
-  };
+  });
 }
 
 export async function readFactorQuestions(

@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
-import { messageText, type ChatMessage } from '@jixie/shared';
+import { messageText, normalizeChatMessage, type ChatMessage } from '@jixie/shared';
 import { z } from 'zod';
 import { FactorError } from '../errors.js';
 import type { FactorMetadataInput } from '@jixie/shared/api/factor';
@@ -126,7 +126,7 @@ export async function refreshOwnedFactorMetadata(userId: string, input: FactorMe
     factorId: id,
     userId: userId,
     code,
-    messages: Array.isArray(factor.messages) ? (factor.messages as unknown as ChatMessage[]) : [],
+    messages: Array.isArray(factor.messages) ? factor.messages.map(normalizeChatMessage) : [],
   });
 
   return { ok: true };

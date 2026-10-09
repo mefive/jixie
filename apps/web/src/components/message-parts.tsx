@@ -19,13 +19,9 @@ import { Button, Tag, Tooltip } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { Markdown } from './markdown';
 import { UniverseSpecCard } from './universe-spec-card';
-// Imported here (not only by the lazy chunk) so the Suspense fallback below has its height class
-// available before chat-chart.tsx lands — the placeholder must match the card's footprint.
-import './chat-chart.css';
 import './message-parts.css';
 
 const EmbeddedAnalysisCard = lazy(() => import('./embedded-analysis/embedded-analysis-card'));
-const ChatChart = lazy(() => import('./chat-chart'));
 const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
 const ResearchClarificationCard = lazy(() => import('./research-clarification-card'));
 
@@ -52,8 +48,7 @@ interface MessagePartsProps {
   onOpenResearchCellContextSnapshot?: (cell: ResearchCellContextCellV1) => void;
 }
 
-/** One chat message's typed parts (text / query card / chart card) — the single renderer shared by
- * the strategy, factor and screen conversation bubbles, so a new part type is added in one place. */
+/** Render message parts consistently across Strategy, Factor and Research conversations. */
 export function MessageParts({
   message,
   onApplyResearchCellChange,
@@ -73,6 +68,8 @@ export function MessageParts({
   onNavigateResearchCellContext,
   onOpenResearchCellContextSnapshot,
 }: MessagePartsProps) {
+  const { t } = useTranslation('components');
+
   return (
     <>
       {message.parts.map((part, partIndex) => {
@@ -94,11 +91,20 @@ export function MessageParts({
             </div>
           );
         }
-        if (part.type === 'chart') {
+        if (part.type === 'retired_chart') {
           return (
-            <Suspense key={partIndex} fallback={<div className="jx-chatChart--pending" />}>
-              <ChatChart title={part.title} chart={part.chart} />
-            </Suspense>
+            <div
+              key={partIndex}
+              className="jx-messageParts-retiredChart"
+              data-testid="retired-chart-notice"
+            >
+              <div className="jx-messageParts-retiredChartTitle">
+                {part.title || t('retiredChartTitle')}
+              </div>
+              <div className="jx-messageParts-retiredChartDescription">
+                {t('retiredChartDescription')}
+              </div>
+            </div>
           );
         }
         if (part.type === 'universe') {
