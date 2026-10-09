@@ -89,7 +89,7 @@ function buildCrossSectionalFactorCodegenPrompt(): string {
 
 # Output requirements
 - Output **only the code itself** — no explanations, no markdown fences.
-- Shaped like \`export default defineFactor({ name, window?, compute(bar, ctx) { … } })\`. **Do not write any import** (defineFactor and the types are all injected globally).
+- Shaped like \`export default defineFactor({ name, window?, compute(bar, ctx) { … } })\`. **Do not write any import** (defineFactor is provided by the runtime; types are supplied by the editor).
 - compute evaluates **one stock on the given day** and returns that stock's factor value (number), or returns null to drop it from this period.
 - **Don't pre-judge direction**: return the raw value directly; don't negate it upfront to make "bigger is better" — the analysis's Rank IC sign will tell you the direction.
 

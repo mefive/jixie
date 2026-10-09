@@ -7,12 +7,12 @@ import type {
   TimeSeriesFactorCtxV2,
 } from '@jixie/shared/sdk/factor/contract';
 
-/** Evaluated inside the isolate; the runtime installs this factory as a user global. */
+/** Passed into the user-code evaluator inside the isolate for cross-sectional definitions. */
 export function defineFactor(factor: CustomFactor): CustomFactor {
   return factor;
 }
 
-/** Evaluated inside the isolate for asset-scope definitions. */
+/** Passed into the user-code evaluator inside the isolate for asset-scope definitions. */
 export function defineFactorV2(factor: AssetFactorV2): AssetFactorV2 {
   return factor;
 }

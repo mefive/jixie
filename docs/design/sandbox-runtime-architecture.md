@@ -623,3 +623,50 @@ Python 修订后的静态验收通过：全仓 pnpm typecheck（876 个后端文
 本次是结构整理，未执行历史性能对照，不据此宣称加速；通信与行为保留由既有协议、批量日志、结果、隔离、状态和退出回归验证。测试结束后无 Vitest、Python runner、临时 sandboxd 或模拟容器进程；Factor/Strategy 打包、Worker 数据库、Python socket 和 sandboxd 临时目录为零残留。未推送或运行生产部署。
 
 验证日志：/tmp/jixie-factor-strategy-align-tests.log、session-tests.log、sandboxd-tests.log、node-tests.log、source-workers.log、compiled-workers.log、compiled-entry.log（后六者沿用相同 jixie-factor-strategy-align- 前缀）；构建日志分别为 shared-build.log、api-build.log、sandboxd-build.log，同一前缀。按已确认提交信息提交。
+
+
+## 2026-10-09 Factor TypeScript 工厂参数注入
+
+范围及精确提交信息已确认：`refactor(factor): inject definition factories as evaluation parameters`。
+范围及人工代码审查已通过，静态检查、行为验证和构建全部完成；按上述精确提交信息提交。
+
+FactorRunner.loadFactor 与 Strategy.loadStrategy 使用相同的参数注入方式：横截面把
+defineFactor 传给用户源码求值函数，time_series/panel 把 defineFactorV2 传入。运行时不再
+向 globalThis 注册定义工厂；作者直接调用工厂的写法保持，计算回调通过词法闭包保留工厂。
+显式通过 globalThis.defineFactor / globalThis.defineFactorV2 调用不受支持，用户自行写入
+同名全局属性也不会覆盖已注入的局部参数。两种工厂的 SDK 签名和实现保持。
+
+SDK 注释、Factor SDK/运行时说明和 Agent 的 import-free 编写说明同步更新；公开 Contract、
+Monaco 声明、Python 实现、启动/计算协议、窗口/字段口径、结果与日志、资源预算和生命周期
+保持。无数据库、HTTP、镜像输入、workspace 或跨包构建依赖变化，现有 API 部署范围覆盖。
+
+新增 factory-injection.test.ts，覆盖三种分析类型的初始化/计算闭包、全局属性未注册、连续批次、
+用户全局属性与工厂参数独立、显式全局调用拒绝。既有 validate-definition.test.ts 的六个
+交叉类型拒绝用例继续约束工厂选择及资产种类校验，不放宽现有准入。
+
+审查前只运行全仓类型检查（含 SDK 生成物一致性与后端边界静态扫描）、相关 ESLint/Prettier、
+本地文档链接和 git diff --check。人工代码审查通过后运行 Factor SDK、TS runtime、定义校验及
+bundle 回归，构建 Shared/API，并验证编译后的三个因子种类的参数作用域与计算。
+初始化失败的 isolate 和所有成功实例按既有生命周期关闭；最终结果在验证后补充。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过；SDK 生成物一致，后端边界静态扫描 888 个文件、0 违规。
+- 4 个修改/新增 TS 文件的 ESLint（0 警告）及 Prettier 检查通过。
+- 45 个本地 Markdown 引用均存在，git diff --check 及新增测试文件的空白检查通过。
+- 准备了 7 个工厂作用域回归；既有种类误配、SDK、计算/日志/生命周期和 bundle 回归留待 review 后执行。
+- 本轮没有运行行为测试、构建、运行时探针或服务。静态日志：/tmp/jixie-factor-factory-typecheck.log。
+
+### 审查后验证结果
+
+2026-10-09 用户确认代码审查后执行既定验证，全部首次通过，没有产品或测试修订：
+
+- Factor SDK、TS runtime、定义校验、协议和宿主所有权：11 个测试文件、71 项通过，无失败或跳过。
+  包含新增 7 项工厂作用域回归、既有六种源码/分析类型误配，以及窗口、字段、结果顺序、日志与失败回收。
+- Shared/API 构建通过。
+- 编译后的 bundle 只包含 .js 输入，无外部 import；生产模块解析下的 cross_sectional/time_series/panel
+  均验证初始化、局部工厂与计算闭包、SDK Context 和连续两批计算，未向沙箱暴露 Node process。
+- 所有验证进程正常退出，成功实例在 finally 关闭；没有启动开发服务或访问数据库。
+
+日志：/tmp/jixie-factor-factory-tests.log、shared-build.log、api-build.log、compiled.log
+（后三者沿用相同 jixie-factor-factory- 前缀）。不推送或运行部署。

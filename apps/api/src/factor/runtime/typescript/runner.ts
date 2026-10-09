@@ -97,15 +97,17 @@ class FactorRunner {
   }
 
   private loadFactor(userJs: string): CustomFactor | AssetFactorV2 {
-    Object.assign(
-      globalThis,
-      this.analysisKind === 'cross_sectional' ? { defineFactor } : { defineFactorV2 },
-    );
+    const crossSectional = this.analysisKind === 'cross_sectional';
+    const factoryName = crossSectional ? 'defineFactor' : 'defineFactorV2';
+    const factory = crossSectional ? defineFactor : defineFactorV2;
+
     const module = { exports: {} as Record<string, unknown> };
-    const evaluate = new Function('module', 'exports', 'require', userJs);
-    evaluate(module, module.exports, (id: string) => {
+    const evaluate = new Function('module', 'exports', factoryName, 'require', userJs);
+
+    evaluate(module, module.exports, factory, (id: string) => {
       throw new Error(`cannot import external module (${id})`);
     });
+
     const factor = (module.exports.default ?? module.exports) as unknown as
       | CustomFactor
       | AssetFactorV2;

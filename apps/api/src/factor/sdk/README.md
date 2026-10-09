@@ -13,7 +13,7 @@
 
 TS 横截面 `compute(bar, ctx)` 与 V2 `compute(ctx)`、Python 的工厂/装饰器调用方式保持不变。
 TS runtime 的 [sandbox-bundle.ts](../runtime/typescript/sandbox-bundle.ts) 只打包此 SDK 与受信任的协议入口，在宿主进程缓存源码；每个因子仍在独立 isolate 中初始化。
-SDK 接收自己声明的 Capabilities，Adapter 持有准备好的历史数组、索引和声明字段，不查询数据库、不导入 Engine 或 runtime；全局注册、批量调用与错误处理属于 runtime。
+SDK 接收自己声明的 Capabilities，Adapter 持有准备好的历史数组、索引和声明字段，不查询数据库、不导入 Engine 或 runtime；工厂注入、批量调用与错误处理属于 runtime。
 宿主组装的 `FactorBar` 通过映射类型保留可写字段；脚本编辑器/编译契约的 Bar 保持 readonly，字段清单不重复维护。
 TS 编辑器现有五个 V2 字段和 Python 的七个字段继续分别维护；runtime 的受控研究字段及业务准入不随目录迁移改变。
 本次不扩充 TS 编辑器字段，不把不同语言的能力边界误写成完全对等。
