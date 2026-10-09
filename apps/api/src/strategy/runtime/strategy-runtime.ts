@@ -1,7 +1,7 @@
-import { SandboxRuntime, startSandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 import type { SandboxResource } from '#infra/runtime/sandbox-runtime.js';
 import { createStrategyBridge } from './bridge.js';
-import type { StrategyBridge, StrategyTransport } from './bridge.js';
+import type { StrategyBridge, StrategyBridgeOptions, StrategyTransport } from './bridge.js';
 import { preparePythonStrategyRuntime } from './python/prepare.js';
 import { prepareTypeScriptStrategyRuntime } from './typescript/prepare.js';
 import type {
@@ -16,29 +16,41 @@ import type {
 export class StrategyRuntime extends SandboxRuntime<
   StrategyExecutionInput,
   void,
-  StrategyRuntimeMetadata
+  StrategyRuntimeMetadata,
+  StrategyTransport & SandboxResource
 > {
-  constructor(
-    resource: StrategyTransport & SandboxResource,
-    private readonly bridge: StrategyBridge,
-  ) {
-    super(resource, bridge.metadata);
+  private bridgeOptions!: StrategyBridgeOptions;
+  private bridge!: StrategyBridge;
+
+  protected constructor(private readonly options: StrategyStartOptions) {
+    super();
   }
 
   static async start(options: StrategyStartOptions): Promise<StrategyRuntimeInstance> {
-    const preparation: StrategyRuntimePreparation =
-      options.language === 'python'
-        ? preparePythonStrategyRuntime(options)
-        : await prepareTypeScriptStrategyRuntime(options);
+    const runtime = new StrategyRuntime(options);
+    await runtime.initialize();
 
-    return startSandboxRuntime({
-      createResource: preparation.createResource,
-      initialize: async (resource) => {
-        const bridge = await createStrategyBridge(resource, preparation.bridgeOptions);
+    return runtime;
+  }
 
-        return new StrategyRuntime(resource, bridge);
-      },
-    });
+  protected async createResource(): Promise<StrategyTransport & SandboxResource> {
+    let preparation: StrategyRuntimePreparation;
+    if (this.options.language === 'python') {
+      preparation = preparePythonStrategyRuntime(this.options);
+    } else {
+      preparation = await prepareTypeScriptStrategyRuntime(this.options);
+    }
+    this.bridgeOptions = preparation.bridgeOptions;
+
+    return preparation.createResource();
+  }
+
+  protected async initializeInSandbox(
+    resource: StrategyTransport & SandboxResource,
+  ): Promise<StrategyRuntimeMetadata> {
+    this.bridge = await createStrategyBridge(resource, this.bridgeOptions);
+
+    return this.bridge.metadata;
   }
 
   protected executeInSandbox({ context }: StrategyExecutionInput): Promise<void> {

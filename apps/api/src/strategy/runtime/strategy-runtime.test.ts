@@ -70,6 +70,7 @@ describe.each(['typescript', 'python'] as const)('%s strategy runtime ownership'
     runtime.close();
     expect(session.send).toHaveBeenCalledOnce();
     expect(session.close).toHaveBeenCalledOnce();
+    expect(runtime.metadata.params).toEqual({ lookback: 7 });
   });
 
   it('closes the session when startup sending fails', async () => {

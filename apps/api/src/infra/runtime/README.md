@@ -4,14 +4,16 @@ Factor、Strategy（TS/Python）和 Research（Python）的宿主入口统一为
 
 ```text
 业务所有者 → BusinessRuntime.start(options)
-  → startSandboxRuntime：创建资源 → exchange 启动握手 → 返回实例
+  → new BusinessRuntime(options) → await initialize() → 返回 ready 实例
+      → createResource：语言准备 → 创建资源
+      → initializeInSandbox：exchange 启动握手 → 返回 metadata
 业务所有者 → runtime.execute(input) → executeInSandbox
   → exchangeSandboxCommand：发命令 → 收日志／答宿主请求 → 返回终止结果
 业务所有者 → runtime.close()
 ```
 
 - [sdk-adapter.ts](sdk-adapter.ts)、[python/adapter.py](python/adapter.py)：跨业务 SdkAdapter 接口／Protocol，只约束 bind(input) → Capabilities。业务 Adapter 在 session 内复用，每次装配返回独立绑定；SDK 只导入本业务能力声明，不依赖这个 runtime 接口。
-- [sandbox-runtime.ts](sandbox-runtime.ts)：语言无关的 `SandboxRuntime` 实现可用状态检查、执行入口、同步幂等 close 与 abort；`startSandboxRuntime` 统一资源取得后的启动失败／取消清理。具体业务直接继承这一层，资源由组合提供。普通用户代码错误是否保留实例仍由业务所有者判断。
+- [sandbox-runtime.ts](sandbox-runtime.ts)：语言无关的 `SandboxRuntime` 通过受保护的实例 initialize 固定启动流程，子类实现 createResource/initializeInSandbox。基类强类型持有资源并管理 new/starting/ready/closed 状态、执行入口、同步幂等 close/abort 和失败/取消清理。资源取得前关闭的实例仍回收晚到的资源，成功握手后才发布 metadata；成功实例关闭后仍可读取 metadata。普通用户代码错误是否保留实例仍由业务所有者判断。
 - [exchange.ts](exchange.ts)：每次必须显式发送 command，再处理日志、请求和终止帧；单条 log 或 log_batch 都按顺序交给同一个 onLog，逐条等待回调并检查取消。通用 error/fatal 抛错，Research 的 research_error 由业务结果处理。拒绝重叠交换，不自行排队，不吞掉宿主回调或 evidence 保存异常。
 - [python/session.ts](python/session.ts)：`PythonSession.connect()` 创建 Unix socket 或开发环境 runner 连接；负责分帧、读写、断连和关闭。`readValidated` 校验业务 schema，非法帧终止会话。
 - [typescript/transport.ts](typescript/transport.ts)：`TypeScriptTransport.connect()` 创建 isolate、加载受信任的入口；用户代码经 exchange 的启动命令加载。Factor／Strategy 共用 send/readValidated、队列、帧限制和回收。Strategy 可显式启用受限同步宿主访问，Factor 不启用。

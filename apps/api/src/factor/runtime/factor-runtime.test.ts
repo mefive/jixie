@@ -107,6 +107,7 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       runtime.close();
       runtime.close();
       expect(session.close).toHaveBeenCalledOnce();
+      expect(runtime.metadata).toMatchObject({ name: 'fixture', analysisKind });
       expect(session.send).toHaveBeenCalledOnce();
     },
   );

@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 后续变更（2026-10-09）：宿主启动改为 SandboxRuntime 的实例 initialize 模板，三业务按 new → initialize → return 阅读；本轮范围与审查/验证状态见文末，原 startSandboxRuntime 记录保留为历史事实。
+
 > 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。
 
 > 2026-10-08 Factor / Strategy 对照阅读整理：统一宿主资源归属、prepare/bridge/entry/runner 职责及类型命名；本轮代码审查与验证通过，范围和最终验证结果见文末。
@@ -670,3 +672,79 @@ bundle 回归，构建 Shared/API，并验证编译后的三个因子种类的�
 
 日志：/tmp/jixie-factor-factory-tests.log、shared-build.log、api-build.log、compiled.log
 （后三者沿用相同 jixie-factor-factory- 前缀）。不推送或运行部署。
+
+
+## 2026-10-09 宿主实例初始化模板
+
+范围及精确提交信息已确认：`refactor(runtime): move sandbox startup into instance initialization`。
+范围及人工代码审查已通过，静态检查、必要行为验证和构建全部完成；按上述精确提交信息提交。
+
+移除 startSandboxRuntime 及其回调装配。SandboxRuntime 的受保护实例 initialize 统一调用
+子类 createResource/initializeInSandbox，FactorRuntime、StrategyRuntime、ResearchRuntime 的
+static start 按创建实例 → 等待 initialize → 返回排列。Factor/Strategy 在 createResource 内
+选择现有语言 prepare 并连续获取资源，不新增实例 prepare 方法；initializeInSandbox 建立
+现有业务 bridge 并返回 metadata。Research 的两个方法继续使用 PythonSession 和原启动帧。
+
+基类以 new/starting/ready/closed 状态约束初始化及执行，强类型资源参数在基类/子类之间保持；
+初始化重入被拒绝，只有成功握手后才发布 metadata。metadata 由只读实例字段改为只读 getter，
+成功初始化后关闭仍可访问；构造中的对象不交给生产调用方。资源工厂成功返回前仍拥有并
+清理半初始化资源；返回后由实例接管，包括实例已关闭时晚到的资源。
+
+启动取消监听覆盖资源获取和握手，结束时移除；Research 的 signal 同时传给 connect 和 exchange。
+close/abort 至多释放每次取得的资源一次，abort 原因保留给晚到资源；初始化失败的清理异常
+不替换原异常。普通执行错误仍不由基类自动关闭，Research 的 namespace/池/串行队列、
+分析/reset/interrupt、日志/输出/留痕和业务权限保持；启动帧、execute 输入/结果、资源预算和
+SDK 作者接口保持。PythonSession 缓冲、日志策略、SDK 和沙箱入口不在本次修改范围。
+
+Strategy 可信测试诊断入口通过派生实例复用同一初始化模板，只在测试辅助类保存 transport metrics；
+生产实例接口不增加诊断字段。公共生命周期回归适配为实例启动，补充未 ready、重复初始化、
+资源获取期关闭/取消、握手期关闭、失败后不可重试、无 abort 资源和提前关闭资源；Research
+增加三种启动取消回归，两业务宿主回归补充关闭后 metadata 可读。
+
+同步 CLAUDE、公共/业务 runtime README 和运行入口清单。不新增 workspace、依赖、数据库、
+HTTP/公开 SDK 契约、Python 镜像输入或跨包构建边，既有 API 部署范围覆盖修改路径。
+审查前只运行全仓类型/生成物一致性/后端边界静态扫描、受影响 TS 的 lint/format、引用、文档链接
+和 diff 检查。审查后运行公共生命周期/传输、三业务 TS/Python runtime、Research pool/取消/错误复用、
+Shared/API 构建及相关源码/dist Worker 回归；测试使用隔离数据库并释放所有临时资源。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过；shared/API/Web/Docs/sandboxd 类型与 SDK 生成物一致性通过。
+  后端边界静态扫描覆盖 888 个文件、3296 条运行时边和 868 条类型边，0 违规。
+- 9 个受影响 TS 文件的 ESLint（0 警告）及 Prettier 检查通过。
+- 9 个修改 Markdown 文件的 117 个本地引用存在，git diff --check 通过。
+- API 源码中 startSandboxRuntime 的导出、导入和调用已全部移除；三个生产入口与可信诊断入口
+  均调用同一个实例初始化模板。公共生命周期准备 16 项回归，Research 另增加 3 项启动取消回归。
+- 本 commit 尚未运行行为测试、构建、运行时探针或服务。静态日志：/tmp/jixie-runtime-initialize-typecheck.log。
+
+### 审查后验证与测试 fixture 修订
+
+2026-10-09 用户确认代码审查后执行既定验证。首轮 39 个文件、243 项中，231 项通过，12 项失败：
+
+- 公共 Python session 的 11 项被默认工具沙箱禁止创建临时 Unix socket，错误为 listen EPERM。
+  在允许创建测试自身 socket 的环境重跑，11 项全部通过；没有连接生产 sandboxd 或修改产品。
+- 新增 Research 握手取消回归的 fixture 已排入一条默认 ready，后加的 mockImplementationOnce
+  排在它之后，取消回调没有执行。仅在该用例用 mockReset 清除默认响应，再安装取消回调；
+  断言保持，产品代码未改。API 类型检查、该测试的 ESLint/Prettier 和 diff 检查通过后，
+  Research lifecycle 8 项全部通过。按 test-only 规则自主修订/验证，不新增产品 review 门禁。
+
+最初 pnpm 参数转发错误在任何用例运行前修正为直接执行 Vitest。Python 使用项目配置的
+CPython 3.13.3，为验证预备独立临时 Matplotlib/font cache，未放宽测试或产品超时。
+
+### 最终验证结果
+
+- 公共生命周期/日志/传输、Factor/Strategy TS/Python runtime、Research lifecycle/pool/打包：
+  39 个测试文件、243 项最终全部通过。覆盖 16 项公共生命周期、启动取消、错误后 namespace 复用、
+  四会话容量、SDK bundle/显式 Python 镜像输入，以及同步宿主访问/异步请求与诊断计数。
+- 真实源码 Worker：14 项通过；dist 生产入口同组 Worker：14 项通过。覆盖四种策略/因子语言组合、
+  连续扫描、Signals、启动恢复、非法输入、失败回收和进程退出，使用独立临时 SQLite。
+- 合计 271 项必要回归最终通过，无未完成或跳过的必要验证；历史基线性能对照不在本次范围。
+- Shared/API 构建通过；测试 fixture 修订后 API 再次构建通过。
+- 编译后额外验证 Factor 三种 analysisKind 的初始化、工厂闭包、连续批次、关闭后的 metadata
+  及执行拒绝；Research 验证初始化、AST 分析、跨 Cell 状态、普通错误后复用、reset 与关闭状态。
+- Vitest、Python runner、Worker 验证进程均退出；临时数据库、socket、Python 打包目录和本轮字体
+  缓存已清理。没有启动开发服务、修改开发数据库或运行生产部署；不推送。
+
+日志：/tmp/jixie-runtime-initialize-tests.log、lifecycle-retry.log、session-retry.log、source-workers.log、
+compiled-workers.log、compiled-runtime.log、shared-build.log、api-build-final.log、test-fix-typecheck.log
+（后八者沿用相同 jixie-runtime-initialize- 前缀）。

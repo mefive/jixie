@@ -121,6 +121,11 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   只在 SDK 实现，不在 runtime 另写字符串副本。FactorAdapter 将预备数据、索引、声明字段绑定为
   SDK 自有 Capabilities；SDK Context 保留公开方法与校验，不持有传输 DTO 或导入 runtime。
 
+- Factor、Strategy、Research 宿主 Runtime 的 static start 统一按创建实例 → 等待基类 initialize → 返回排列。
+  SandboxRuntime 通过子类 createResource/initializeInSandbox 管理启动状态、资源和失败/取消清理；
+  语言 prepare 与资源获取在 createResource 内连续完成，prepare 本身仍只返回配置和资源工厂。
+  成功握手后发布只读 metadata，未 ready 不可执行；成功实例关闭后 metadata 仍可读取。
+
 ## Research Python Runtime Contract 工作流
 
 - `packages/shared/src/research-python-runtime.ts` 是 `research-py-v1` 可用 Python 版本、第三方包、导入名和 Agent

@@ -64,7 +64,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 
 | 资源/路径 | 解析规则与归属 |
 | --- | --- |
-| `infra/runtime/sandbox-runtime.ts`、`exchange.ts` | 三业务共同生命周期与命令循环；TS/Python 启动均显式发送命令 |
+| `infra/runtime/sandbox-runtime.ts`、`exchange.ts` | 三业务共同生命周期与命令循环；基类实例 initialize 调用子类 createResource/initializeInSandbox，管理启动状态与失败/取消清理；TS/Python 启动均显式发送命令 |
 | `infra/runtime/typescript/compile.ts` | toCommonJs 只转换源码，Factor/Strategy 复用；源码／编译入口使用同一函数，没有独立沙箱或 stats 资源加载 |
 | `infra/runtime/typescript/transport.ts` | Factor/Strategy 共用 isolate 和帧传输；分别加载可信 Factor / Strategy entry，用户源码在后续启动命令内执行 |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |

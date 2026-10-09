@@ -1,6 +1,7 @@
 import { researchRuntimePool } from './pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/runtime/python/session.js';
+import { ResearchRuntime } from './research-runtime.js';
 
 const documentId = 'runtime-lifecycle';
 const executed = { type: 'research_executed', outputs: [], definitions: [], references: [] };
@@ -24,6 +25,61 @@ afterEach(() => {
 });
 
 describe('Research pool and instance ownership', () => {
+  it('does not connect when startup is already cancelled', async () => {
+    const session = fixture();
+    const error = new Error('cancelled before startup');
+
+    await expect(
+      ResearchRuntime.start({ documentId, signal: AbortSignal.abort(error) }),
+    ).rejects.toBe(error);
+    expect(PythonSession.connect).not.toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
+  });
+
+  it('aborts a connection acquired after startup cancellation without sending the handshake', async () => {
+    const session = fixture();
+    const controller = new AbortController();
+    let complete!: (session: PythonSession) => void;
+    vi.mocked(PythonSession.connect).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
+    const startup = ResearchRuntime.start({ documentId, signal: controller.signal });
+    const error = new Error('cancelled during connection');
+    controller.abort(error);
+    complete(session as unknown as PythonSession);
+
+    await expect(startup).rejects.toBe(error);
+    expect(PythonSession.connect).toHaveBeenCalledExactlyOnceWith(controller.signal);
+    expect(session.abort).toHaveBeenCalledExactlyOnceWith(new Error('Research startup aborted'));
+    expect(session.close).not.toHaveBeenCalled();
+    expect(session.send).not.toHaveBeenCalled();
+  });
+
+  it('rejects a cancelled handshake without publishing a ready instance', async () => {
+    const session = fixture();
+    const controller = new AbortController();
+    const error = new Error('cancelled during handshake');
+    session.readValidated.mockReset().mockImplementationOnce(async () => {
+      controller.abort(error);
+
+      return { type: 'research_ready', environment: {}, capabilities: [] };
+    });
+
+    await expect(ResearchRuntime.start({ documentId, signal: controller.signal })).rejects.toBe(
+      error,
+    );
+    expect(session.abort).toHaveBeenCalledExactlyOnceWith(new Error('Research startup aborted'));
+    expect(session.close).not.toHaveBeenCalled();
+    expect(session.send).toHaveBeenCalledExactlyOnceWith({
+      type: 'research_start',
+      runtime_version: 'research-py-v1',
+      request_capabilities: ['explicit_parameters'],
+    });
+  });
+
   it('does not create a runtime when resetting an unused document', async () => {
     const session = fixture();
     await researchRuntimePool.reset(documentId);

@@ -1,5 +1,5 @@
 import { exchangeSandboxCommand } from '#infra/runtime/exchange.js';
-import { SandboxRuntime, startSandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 import { PythonSession } from '#infra/runtime/python/session.js';
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
 import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
@@ -27,50 +27,55 @@ export class ResearchRuntime extends SandboxRuntime<
   ResearchExecutionInput,
   ResearchExecution,
   ResearchRuntimeMetadata,
+  PythonSession,
   ResearchExecutionOptions
 > {
   activeCellId?: string;
   interrupted = false;
 
-  private constructor(
-    private readonly session: PythonSession,
-    private readonly documentId: string,
-    metadata: ResearchRuntimeMetadata,
-  ) {
-    super(session, metadata);
+  private constructor(private readonly documentId: string) {
+    super();
   }
 
-  static start({ documentId, signal }: ResearchStartOptions): Promise<ResearchRuntime> {
-    return startSandboxRuntime({
-      createResource: () => PythonSession.connect(signal),
-      initialize: async (session) => {
-        const ready = await exchangeSandboxCommand(session, {
-          command: {
-            type: 'research_start',
-            runtime_version: 'research-py-v1',
-            request_capabilities: ['explicit_parameters'],
-          },
-          schema: researchStartupFrameSchema,
-          operation: 'starting the research runtime',
-          signal,
-          result: (frame) => ({
-            environment: frame.environment,
-            capabilities: frame.capabilities ?? [],
-          }),
-        });
-        return new ResearchRuntime(session, documentId, {
-          environment: { ...ready.environment, capabilities: ready.capabilities },
-          capabilities: ready.capabilities,
-        });
+  static async start({ documentId, signal }: ResearchStartOptions): Promise<ResearchRuntime> {
+    const runtime = new ResearchRuntime(documentId);
+    await runtime.initialize({ signal, abortMessage: 'Research startup aborted' });
+
+    return runtime;
+  }
+
+  protected createResource(signal?: AbortSignal): Promise<PythonSession> {
+    return PythonSession.connect(signal);
+  }
+
+  protected async initializeInSandbox(
+    session: PythonSession,
+    signal?: AbortSignal,
+  ): Promise<ResearchRuntimeMetadata> {
+    const ready = await exchangeSandboxCommand(session, {
+      command: {
+        type: 'research_start',
+        runtime_version: 'research-py-v1',
+        request_capabilities: ['explicit_parameters'],
       },
+      schema: researchStartupFrameSchema,
+      operation: 'starting the research runtime',
       signal,
-      abortMessage: 'Research startup aborted',
+      result: (frame) => ({
+        environment: frame.environment,
+        capabilities: frame.capabilities ?? [],
+      }),
     });
+
+    return {
+      environment: { ...ready.environment, capabilities: ready.capabilities },
+      capabilities: ready.capabilities,
+    };
   }
 
   async analyze(cells: Array<{ id: string; source: string }>): Promise<ResearchPythonAnalysis[]> {
     this.assertOpen();
-    const frame = await exchangeSandboxCommand(this.session, {
+    const frame = await exchangeSandboxCommand(this.resource, {
       command: {
         type: 'research_analyze',
         cells: cells.map((cell) => ({ id: cell.id, source: cell.source })),
@@ -140,7 +145,7 @@ export class ResearchRuntime extends SandboxRuntime<
       options.signal?.throwIfAborted();
       const logOutputs: ResearchCellOutputBlockV1[] = [];
       let logBytes = 0;
-      return await exchangeSandboxCommand(this.session, {
+      return await exchangeSandboxCommand(this.resource, {
         command: {
           type: 'research_execute',
           cell_id: cell.id,
@@ -219,7 +224,7 @@ export class ResearchRuntime extends SandboxRuntime<
 
   async reset(): Promise<void> {
     this.assertOpen();
-    await exchangeSandboxCommand(this.session, {
+    await exchangeSandboxCommand(this.resource, {
       command: { type: 'research_reset' },
       schema: researchResetFrameSchema,
       operation: 'resetting the research runtime',

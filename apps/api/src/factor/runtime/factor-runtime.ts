@@ -1,7 +1,7 @@
-import { SandboxRuntime, startSandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 import type { SandboxResource } from '#infra/runtime/sandbox-runtime.js';
 import { createFactorBridge } from './bridge.js';
-import type { FactorBridge, FactorTransport } from './bridge.js';
+import type { FactorBridge, FactorBridgeOptions, FactorTransport } from './bridge.js';
 import { preparePythonFactorRuntime } from './python/prepare.js';
 import { prepareTypeScriptFactorRuntime } from './typescript/prepare.js';
 import type {
@@ -18,13 +18,14 @@ import type {
 export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRuntime<
   FactorExecutionInput<Kind>,
   FactorValues,
-  FactorRuntimeMetadata<Kind>
+  FactorRuntimeMetadata<Kind>,
+  FactorTransport & SandboxResource
 > {
-  constructor(
-    resource: FactorTransport & SandboxResource,
-    private readonly bridge: FactorBridge<Kind>,
-  ) {
-    super(resource, bridge.metadata);
+  private bridgeOptions!: FactorBridgeOptions<Kind>;
+  private bridge!: FactorBridge<Kind>;
+
+  private constructor(private readonly options: FactorStartOptions<Kind>) {
+    super();
   }
 
   static start<Kind extends ExecutableFactorKind>(
@@ -44,19 +45,30 @@ export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRun
   private static async startForKind<Kind extends ExecutableFactorKind>(
     options: FactorStartOptions<Kind>,
   ) {
-    const preparation: FactorRuntimePreparation<Kind> =
-      options.language === 'python'
-        ? preparePythonFactorRuntime(options)
-        : await prepareTypeScriptFactorRuntime(options);
+    const runtime = new FactorRuntime(options);
+    await runtime.initialize();
 
-    return startSandboxRuntime({
-      createResource: preparation.createResource,
-      initialize: async (resource) => {
-        const bridge = await createFactorBridge(resource, preparation.bridgeOptions);
+    return runtime;
+  }
 
-        return new FactorRuntime(resource, bridge);
-      },
-    });
+  protected async createResource(): Promise<FactorTransport & SandboxResource> {
+    let preparation: FactorRuntimePreparation<Kind>;
+    if (this.options.language === 'python') {
+      preparation = preparePythonFactorRuntime(this.options);
+    } else {
+      preparation = await prepareTypeScriptFactorRuntime(this.options);
+    }
+    this.bridgeOptions = preparation.bridgeOptions;
+
+    return preparation.createResource();
+  }
+
+  protected async initializeInSandbox(
+    resource: FactorTransport & SandboxResource,
+  ): Promise<FactorRuntimeMetadata<Kind>> {
+    this.bridge = await createFactorBridge(resource, this.bridgeOptions);
+
+    return this.bridge.metadata;
   }
 
   protected executeInSandbox(input: FactorExecutionInput<Kind>): Promise<FactorValues> {

@@ -13,7 +13,7 @@
 | [testing/compile.ts](testing/compile.ts) | 仅编译可信 fixture，生产代码禁止导入 |
 | [testing/runtime.ts](testing/runtime.ts) | 测试专用资源装配；返回同一 StrategyRuntime 与独立 transport metrics |
 
-通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 entry 的唯一 __receiveCommand 接入 runner 分派。公共 StrategyRuntime 继承 SandboxRuntime，以 startSandboxRuntime 统一获取、初始化与失败清理。
+通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 entry 的唯一 __receiveCommand 接入 runner 分派。公共 StrategyRuntime 继承 SandboxRuntime，start 创建实例并等待基类 initialize；子类 createResource 连续准备配置和获取资源，initializeInSandbox 建立 bridge，基类统一状态与失败/取消清理。
 
 runner 为整个会话持有 StrategyAdapter，把同步 access 和异步 request 回调注入其中。该适配器持有跨日历史缓存，每次 bind(snapshot) 清理读缓存并创建当日 BoundStrategyCapabilities；runner 使用绑定和当前参数创建 SDK StrategyContext，再调用用户 onBar；defineStrategy 保留定义／参数规范与作者 receiver，不构造 Context。
 

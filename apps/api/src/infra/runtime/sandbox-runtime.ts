@@ -5,22 +5,98 @@ export interface SandboxResource {
   readonly isClosed?: boolean;
 }
 
-export abstract class SandboxRuntime<Input, Output, Metadata, Options = undefined> {
-  private closed = false;
+interface SandboxInitializationOptions {
+  signal?: AbortSignal;
+  abortMessage?: string;
+}
 
-  protected constructor(
-    private readonly resource: SandboxResource,
-    readonly metadata: Metadata,
-  ) {}
+export abstract class SandboxRuntime<
+  Input,
+  Output,
+  Metadata,
+  Resource extends SandboxResource = SandboxResource,
+  Options = undefined,
+> {
+  private state: 'new' | 'starting' | 'ready' | 'closed' = 'new';
+  private sandboxResource?: Resource;
+  private initialized?: { metadata: Metadata };
+  private abortError?: Error;
+
+  get metadata(): Metadata {
+    if (!this.initialized) {
+      throw new Error('Sandbox runtime is not ready');
+    }
+
+    return this.initialized.metadata;
+  }
 
   get isClosed(): boolean {
-    return this.closed || this.resource.isClosed === true;
+    return this.state === 'closed' || this.sandboxResource?.isClosed === true;
   }
+
+  protected get resource(): Resource {
+    if (!this.sandboxResource) {
+      throw new Error('Sandbox runtime resource is unavailable');
+    }
+
+    return this.sandboxResource;
+  }
+
+  /** The instance owns resources returned by createResource, including late acquisition after close. */
+  protected async initialize(options: SandboxInitializationOptions = {}): Promise<void> {
+    if (this.isClosed) {
+      throw new Error('Sandbox runtime is closed');
+    }
+    if (this.state !== 'new') {
+      throw new Error('Sandbox runtime initialization has already started');
+    }
+    this.state = 'starting';
+
+    const { signal } = options;
+    const abort = () => this.abort(new Error(options.abortMessage ?? 'Sandbox startup aborted'));
+    signal?.addEventListener('abort', abort, { once: true });
+
+    try {
+      signal?.throwIfAborted();
+      this.sandboxResource = await this.createResource(signal);
+
+      signal?.throwIfAborted();
+      if (this.isClosed) {
+        throw new Error('Sandbox runtime is closed');
+      }
+      const metadata = await this.initializeInSandbox(this.resource, signal);
+
+      signal?.throwIfAborted();
+      if (this.isClosed) {
+        throw new Error('Sandbox runtime is closed');
+      }
+      this.initialized = { metadata };
+      this.state = 'ready';
+    } catch (error) {
+      this.state = 'closed';
+      try {
+        this.releaseResource(this.abortError);
+      } catch {
+        // Cleanup must preserve the initialization failure.
+      }
+      throw error;
+    } finally {
+      signal?.removeEventListener('abort', abort);
+    }
+  }
+
+  protected abstract createResource(signal?: AbortSignal): Promise<Resource>;
+
+  protected abstract initializeInSandbox(
+    resource: Resource,
+    signal?: AbortSignal,
+  ): Promise<Metadata>;
 
   async execute(input: Input, options?: Options): Promise<Output> {
     this.assertOpen();
     const result = await this.executeInSandbox(input, options);
     this.assertOpen();
+
     return result;
   }
 
@@ -30,64 +106,39 @@ export abstract class SandboxRuntime<Input, Output, Metadata, Options = undefine
     if (this.isClosed) {
       throw new Error('Sandbox runtime is closed');
     }
+    if (this.state !== 'ready') {
+      throw new Error('Sandbox runtime is not ready');
+    }
   }
 
   close(): void {
-    if (this.closed) {
+    if (this.state === 'closed') {
       return;
     }
-    this.closed = true;
-    this.resource.close();
+    this.state = 'closed';
+    this.releaseResource();
   }
 
   abort(error: Error): void {
-    if (this.closed) {
+    if (this.state === 'closed') {
       return;
     }
-    this.closed = true;
-    if (this.resource.abort) {
-      this.resource.abort(error);
-    } else {
-      this.resource.close();
-    }
+    this.state = 'closed';
+    this.abortError = error;
+    this.releaseResource(error);
   }
-}
 
-interface SandboxStartup<Resource extends SandboxResource, Runtime> {
-  createResource(): Promise<Resource>;
-  initialize(resource: Resource): Promise<Runtime>;
-  signal?: AbortSignal;
-  abortMessage?: string;
-}
+  private releaseResource(error?: Error): void {
+    const resource = this.sandboxResource;
+    this.sandboxResource = undefined;
+    if (!resource) {
+      return;
+    }
 
-/** The creator owns partial acquisition; ownership transfers to the instance after initialization. */
-export async function startSandboxRuntime<Resource extends SandboxResource, Runtime>(
-  options: SandboxStartup<Resource, Runtime>,
-): Promise<Runtime> {
-  const { signal } = options;
-  signal?.throwIfAborted();
-  const resource = await options.createResource();
-  const abort = () => {
-    if (resource.abort) {
-      resource.abort(new Error(options.abortMessage ?? 'Sandbox startup aborted'));
+    if (error && resource.abort) {
+      resource.abort(error);
     } else {
       resource.close();
     }
-  };
-  signal?.addEventListener('abort', abort, { once: true });
-  try {
-    signal?.throwIfAborted();
-    const runtime = await options.initialize(resource);
-    signal?.throwIfAborted();
-    return runtime;
-  } catch (error) {
-    try {
-      resource.close();
-    } catch {
-      // Cleanup must preserve the initialization failure.
-    }
-    throw error;
-  } finally {
-    signal?.removeEventListener('abort', abort);
   }
 }

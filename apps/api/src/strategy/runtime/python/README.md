@@ -10,7 +10,7 @@ Python 执行用户 on_bar，撮合和账户规则仍由宿主 TypeScript [Backt
 | [SDK python.py](../../sdk/python.py) | Strategy、公开 Context、Universe、周期/指标与账户辅助；接收基础能力，不导入 runtime |
 | [packaging.test.ts](packaging.test.ts) | 只使用镜像显式复制的模块验证真实 runner 与 SDK |
 
-公共 StrategyRuntime.start 选择 prepare，统一通过 startSandboxRuntime 获取资源、建立 bridge 并交接给实例；execute({ context }) 委托 bridge，close 同步幂等释放会话。启动失败自行清理；业务调用方仍须 finally close。通用 jixie_runner.py 只启动/分派，沙箱会话与隔离设施归 Infra/sandboxd。
+公共 StrategyRuntime.start 创建实例并等待基类 initialize；子类 createResource 选择 prepare 并获取会话，initializeInSandbox 建立 bridge，基类负责启动状态及失败/取消清理；execute({ context }) 委托 bridge，close 同步幂等释放会话。业务调用方仍须 finally close。通用 jixie_runner.py 只启动/分派，沙箱会话与隔离设施归 Infra/sandboxd。
 
 runner 为整个会话持有 StrategyAdapter，Adapter 保管跨日历史缓存；每个决策日调用 bind(snapshot) 创建当日 BoundStrategyCapabilities，再以 Context(capabilities, params) 构造作者上下文。作者 SDK 保留 snake_case 方法、选股、指标和仓位辅助；运行数据与协议状态不再存入 SDK。
 
