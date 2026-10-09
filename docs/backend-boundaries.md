@@ -42,3 +42,14 @@ API 跨顶层模块使用 `package.json#imports` 的 `#infra/*` 等原生别名�
 Worker URL、fork 路径、esbuild entry、Python/Prisma/Pyright 的资源目录另见 [运行入口清单](backend-runtime-entries.md)。这些不能用“类型检查已通过”代替实际启动。根级命令不自动运行行为测试，保持本项目先静态检查、人工 review 后验证的工作流。
 
 修改门禁后，人工 review 通过再执行 `pnpm check:backend-boundaries`，一次完成自测与项目扫描。正式用例使用临时目录构造合法/非法依赖，覆盖别名解析、类型与动态边、HTTP/Infra/Market/Engine 规则、例外变脏/过时、新增循环、测试边界和语法错误。用例不依赖本仓库恰好有多少行代码或多少文件。
+
+
+## SDK 能力边界
+
+Factor/Strategy/Research 的 SDK 声明并消费自己的 Capabilities，runtime Adapter 通过公共 SdkAdapter.bind(input) 生成能力绑定，runner 负责注入。
+SdkAdapter 接口／Protocol 归 infra/runtime，仅供 runtime 装配；SDK 不依赖该接口。
+生产 SDK 不导入 runtime、Engine、数据库、传输或执行器；共享公开 Contract 与纯数值/日期 helper 可用。
+TS 的 sdk-isolation 规则包括 type-only 边和不可静态解析的动态 import，沿用后端 AST 扫描；测试可装配 runtime。
+Python 静态检查使用 `scripts/checks/check-python-sdk-boundaries.py`，解析 AST 及 import 所有权，不导入 SDK。
+以项目 CPython 3.13 运行该检查；根 typecheck 的 Node-only 契约保持，Python 检查单独运行。
+检查器自测在人工 review 后运行。规范与兼容边界见 [SDK 能力与适配器](design/sdk-capability-adapters.md)。

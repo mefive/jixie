@@ -1,5 +1,5 @@
-import type { EngineStrategy } from '#backtesting/contract.js';
-import { StrategyContextAdapter, type StrategyBarSnapshot } from './context.js';
+import type { StrategyDefinition } from '../../sdk/capabilities.js';
+import { StrategyAdapter, type StrategyAdapterInput } from './adapter.js';
 import type { Locale, StrategyParamValue } from '@jixie/shared';
 import {
   makeSandboxConsole,
@@ -25,7 +25,7 @@ type StrategyHostResponse = { id: number } & ({ result: unknown } | { error: str
 
 export type StrategyRunnerCommand =
   | ({ type: 'start' } & StrategyRunnerStartup)
-  | { type: 'bar'; snapshot: StrategyBarSnapshot }
+  | { type: 'bar'; snapshot: StrategyAdapterInput }
   | ({ type: 'response' } & StrategyHostResponse);
 
 export type StrategyRunnerCommandHandler = (
@@ -34,8 +34,8 @@ export type StrategyRunnerCommandHandler = (
 
 /** One instance owns one sandbox session and all state shared across its callbacks. */
 class StrategyRunner {
-  private strategy!: EngineStrategy;
-  private readonly contextAdapter: StrategyContextAdapter;
+  private strategy!: StrategyDefinition;
+  private readonly adapter: StrategyAdapter;
   private requestId = 0;
   private readonly pending = new Map<
     number,
@@ -43,7 +43,7 @@ class StrategyRunner {
   >();
 
   constructor(private readonly host: StrategyRunnerHost) {
-    this.contextAdapter = new StrategyContextAdapter({
+    this.adapter = new StrategyAdapter({
       access: (json) => this.host.access(json),
       request: (args) => this.request('context_data', args),
     });
@@ -84,15 +84,15 @@ class StrategyRunner {
     });
   }
 
-  private async execute(snapshot: StrategyBarSnapshot) {
-    const core = this.contextAdapter.create(snapshot);
+  private async execute(snapshot: StrategyAdapterInput) {
+    const capabilities = this.adapter.bind(snapshot);
 
-    await this.strategy.onBar(core);
+    await this.strategy.onBar(capabilities);
 
     return JSON.stringify({ type: 'done', commands: [] });
   }
 
-  private loadStrategy(userJs: string, sandboxConsole: SandboxConsole): EngineStrategy {
+  private loadStrategy(userJs: string, sandboxConsole: SandboxConsole): StrategyDefinition {
     const module: { exports: Record<string, unknown> } = { exports: {} };
 
     try {
@@ -115,13 +115,13 @@ class StrategyRunner {
       );
     }
 
-    const result = (module.exports.default ?? module.exports) as Partial<EngineStrategy>;
+    const result = (module.exports.default ?? module.exports) as Partial<StrategyDefinition>;
     if (!result || typeof result.onBar !== 'function') {
       throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
     }
     result.name ||= 'Untitled strategy';
 
-    return result as EngineStrategy;
+    return result as StrategyDefinition;
   }
 
   private metadata() {

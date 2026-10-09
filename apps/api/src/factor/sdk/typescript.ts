@@ -1,3 +1,4 @@
+import type { CrossSectionalFactorCapabilities, AssetFactorCapabilities } from './capabilities.js';
 import type {
   AssetFactorV2,
   CustomFactor,
@@ -16,23 +17,12 @@ export function defineFactorV2(factor: AssetFactorV2): AssetFactorV2 {
   return factor;
 }
 
-/** Prepared, aligned histories supplied by the host; no SDK method loads data itself. */
-export interface FactorHistory {
-  closes?: number[]; // tail window ending at the evaluation day (windowed factors only)
-  dates?: string[]; // aligned trade dates for the window
-  amounts?: (number | null)[]; // aligned daily turnover amounts (thousand yuan)
-  turnoverRatesF?: (number | null)[]; // aligned free-float turnover rates for the window
-  roes?: (number | null)[]; // aligned point-in-time ROE values (as-of announcement date)
-  grossProfitMargins?: (number | null)[]; // aligned point-in-time gross margins
-  marketCloses?: (number | null)[]; // aligned exact-date CSI All Share closes
-}
-
 /** Cross-sectional history methods over one point-in-time host snapshot. */
 export class CrossSectionalFactorContext implements FactorCtx {
-  readonly #snapshot: FactorHistory;
+  readonly #capabilities: CrossSectionalFactorCapabilities;
 
-  constructor(snapshot: FactorHistory) {
-    this.#snapshot = snapshot;
+  constructor(capabilities: CrossSectionalFactorCapabilities) {
+    this.#capabilities = capabilities;
 
     // Preserve detached calls supported by the previous closure-based context.
     this.history = this.history.bind(this);
@@ -46,34 +36,11 @@ export class CrossSectionalFactorContext implements FactorCtx {
   history(periods: number, field: 'grossprofitMargin'): (number | null)[];
   history(periods: number, field: 'marketClose'): (number | null)[];
   history(periods: number, field?: string): number[] | string[] | (number | null)[] {
-    const snapshot = this.#snapshot;
-    if (!snapshot.closes) {
+    if (!this.#capabilities.hasHistory) {
       throw new Error('要用 ctx.history 需在 defineFactor 里声明 window(所需交易日数,含当天)');
     }
 
-    let source: number[] | string[] | (number | null)[] | undefined;
-    switch (field) {
-      case 'date':
-        source = snapshot.dates;
-        break;
-      case 'amount':
-        source = snapshot.amounts;
-        break;
-      case 'turnoverRateF':
-        source = snapshot.turnoverRatesF;
-        break;
-      case 'roe':
-        source = snapshot.roes;
-        break;
-      case 'grossprofitMargin':
-        source = snapshot.grossProfitMargins;
-        break;
-      case 'marketClose':
-        source = snapshot.marketCloses;
-        break;
-      default:
-        source = snapshot.closes;
-    }
+    const source = this.#capabilities.historyValues(field);
 
     // Missing declared arrays still fail inside the per-item runtime error boundary.
     if (periods <= 0 || source!.length < periods) {
@@ -85,18 +52,10 @@ export class CrossSectionalFactorContext implements FactorCtx {
 
 /** The runtime shares the declared-input set across a batch; values remain index-local. */
 export class AssetFactorContext implements TimeSeriesFactorCtxV2 {
-  readonly #fields: Partial<Record<string, number[]>>;
-  readonly #index: number;
-  readonly #declaredInputs: ReadonlySet<string>;
+  readonly #capabilities: AssetFactorCapabilities;
 
-  constructor(
-    fields: Partial<Record<string, number[]>>,
-    index: number,
-    declaredInputs: ReadonlySet<string>,
-  ) {
-    this.#fields = fields;
-    this.#index = index;
-    this.#declaredInputs = declaredInputs;
+  constructor(capabilities: AssetFactorCapabilities) {
+    this.#capabilities = capabilities;
     this.value = this.value.bind(this);
     this.lag = this.lag.bind(this);
   }
@@ -110,14 +69,13 @@ export class AssetFactorContext implements TimeSeriesFactorCtxV2 {
   }
 
   #access(field: string, periods: number): number | null {
-    if (!this.#declaredInputs.has(field)) {
+    if (!this.#capabilities.declaresInput(field)) {
       throw new Error('Factor code accessed undeclared input ' + field);
     }
     if (!Number.isInteger(periods) || periods < 0) {
       throw new Error('ctx.lag periods must be a non-negative integer');
     }
-    const values = this.#fields[field];
-    const value = values && values[this.#index - periods];
+    const value = this.#capabilities.valueAt(field, periods);
     return Number.isFinite(value) ? value! : null;
   }
 }

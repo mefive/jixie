@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .host import ResearchHost
+from .capabilities import ResearchCapabilities
 
 _FACTOR_WEATHER_COLUMNS = [
     "formation_date",
@@ -19,12 +19,12 @@ _FACTOR_WEATHER_COLUMNS = [
 
 
 class _ResultsApi:
-    def __init__(self, host: ResearchHost, pandas_module: Any) -> None:
-        self._host = host
+    def __init__(self, capabilities: ResearchCapabilities, pandas_module: Any) -> None:
+        self._capabilities = capabilities
         self._pandas = pandas_module
 
     def factor_report(self, report_id: str) -> dict[str, Any]:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_factor_report",
             {"report_id": report_id},
         )
@@ -33,7 +33,7 @@ class _ResultsApi:
         return result
 
     def backtest_report(self, report_id: str) -> dict[str, Any]:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_backtest_report",
             {"report_id": report_id},
         )
@@ -42,7 +42,7 @@ class _ResultsApi:
         return result
 
     def strategy_scan_report(self, report_id: str) -> dict[str, Any]:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_strategy_scan_report",
             {"report_id": report_id},
         )
@@ -51,7 +51,7 @@ class _ResultsApi:
         return result
 
     def factor_weather(self, factor_id: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_factor_weather",
             {"factor_id": factor_id},
         )

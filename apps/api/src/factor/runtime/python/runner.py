@@ -7,6 +7,8 @@ import types
 from collections.abc import Callable
 from typing import Any, cast
 
+from .adapter import FactorAdapter
+
 from ...sdk.python import (
     AssetFactorContext,
     CrossSectionalFactorContext,
@@ -26,6 +28,7 @@ class FactorRunner:
     ) -> None:
         self._send_frame = send_frame
         self._run_user_code = run_user_code
+        self._adapter = FactorAdapter()
         self._factor: _FactorDefinition
 
     def handle(self, frame: dict[str, Any]) -> bool:
@@ -74,7 +77,12 @@ class FactorRunner:
                     len(items),
                     lambda index: callback(
                         FactorBar(items[index]["bar"]),
-                        CrossSectionalFactorContext(items[index].get("history")),
+                        CrossSectionalFactorContext(
+                            self._adapter.bind({
+                                "kind": "cross_sectional",
+                                "history": items[index].get("history"),
+                            })
+                        ),
                     ),
                 )
 
@@ -87,7 +95,14 @@ class FactorRunner:
             return self._compute_values(
                 len(indexes),
                 lambda position: callback(
-                    AssetFactorContext(fields, indexes[position], declared_inputs)
+                    AssetFactorContext(
+                        self._adapter.bind({
+                            "kind": "asset",
+                            "fields": fields,
+                            "index": indexes[position],
+                            "declared_inputs": declared_inputs,
+                        })
+                    )
                 ),
             )
 

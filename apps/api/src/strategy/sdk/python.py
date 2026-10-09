@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from .capabilities import StrategyCapabilities, StrategyStockCapabilities
+
 import math
 from datetime import datetime
-from typing import Any, Callable, Iterable, Protocol, cast
+from typing import Any, Callable, Iterable, cast
 
 
 _RECURSIVE_WARMUP_MULTIPLIER = 4
@@ -165,59 +167,21 @@ class Universe:
         return len(self._codes)
 
 
-# Structural inputs keep author helpers independent of the sandbox runtime.
-class StockAccountCore(Protocol):
-    @property
-    def equity(self) -> float: ...
-
-    @property
-    def available_cash(self) -> float: ...
-
-    def positions(self) -> list[AttrDict]: ...
-    def adjusted_shares(self, code: str) -> float: ...
-    def command(self, operation: str, arguments: dict[str, Any]) -> None: ...
-
-
-class ContextCore(Protocol):
-    @property
-    def portfolio(self) -> AttrDict: ...
-
-    @property
-    def futures(self) -> AttrDict: ...
-
-    @property
-    def stock(self) -> StockAccountCore: ...
-
-    @property
-    def date(self) -> str: ...
-
-    def load_cross_section(self, index_code: str | None = None) -> list[str]: ...
-    def bar(self, code: str) -> AttrDict | None: ...
-    def ensure_bars(self, codes: Iterable[str]) -> None: ...
-    def bars(self, code: str, count: int) -> list[AttrDict]: ...
-    def history(self, code: str, field: str, count: int) -> list[float]: ...
-    def price(self, code: str) -> float | None: ...
-    def list_days(self, code: str) -> int | None: ...
-    def industry(self, code: str) -> str | None: ...
-    def lhb_net(self, code: str) -> float | None: ...
-    def factor(self, name: str, code: str) -> float | None: ...
-
-
 class Context:
     def __init__(
         self,
-        core: ContextCore,
+        capabilities: StrategyCapabilities,
         params: dict[str, float | str],
     ) -> None:
-        self._core = core
+        self._capabilities = capabilities
         self.params = AttrDict(params)
-        self.portfolio = core.portfolio
-        self.stock = StockAccount(core.stock)
-        self.futures = core.futures
+        self.portfolio = capabilities.portfolio
+        self.stock = StockAccount(capabilities.stock)
+        self.futures = capabilities.futures
 
     @property
     def date(self) -> str:
-        return self._core.date
+        return self._capabilities.date
 
     def period(self, schedule: str) -> str:
         date = datetime.strptime(self.date, "%Y%m%d")
@@ -231,34 +195,34 @@ class Context:
         raise ValueError(f"unknown schedule: {schedule}")
 
     def universe(self, index_code: str | None = None) -> Universe:
-        return Universe(self, self._core.load_cross_section(index_code))
+        return Universe(self, self._capabilities.load_cross_section(index_code))
 
     def bar(self, code: str) -> AttrDict | None:
-        return self._core.bar(code)
+        return self._capabilities.bar(code)
 
     def ensure_bars(self, codes: Iterable[str]) -> None:
-        self._core.ensure_bars(codes)
+        self._capabilities.ensure_bars(codes)
 
     def bars(self, code: str, count: int) -> list[AttrDict]:
-        return self._core.bars(code, count)
+        return self._capabilities.bars(code, count)
 
     def history(self, code: str, field: str, count: int) -> list[float]:
-        return self._core.history(code, field, count)
+        return self._capabilities.history(code, field, count)
 
     def price(self, code: str) -> float | None:
-        return self._core.price(code)
+        return self._capabilities.price(code)
 
     def list_days(self, code: str) -> int | None:
-        return self._core.list_days(code)
+        return self._capabilities.list_days(code)
 
     def industry(self, code: str) -> str | None:
-        return self._core.industry(code)
+        return self._capabilities.industry(code)
 
     def lhb_net(self, code: str) -> float | None:
-        return self._core.lhb_net(code)
+        return self._capabilities.lhb_net(code)
 
     def factor(self, name: str, code: str) -> float | None:
-        return self._core.factor(name, code)
+        return self._capabilities.factor(name, code)
 
     def sma(self, code: str, count: int) -> float | None:
         values = self.history(code, "close", count)
@@ -505,22 +469,22 @@ class Context:
 
 
 class StockAccount:
-    def __init__(self, core: StockAccountCore) -> None:
-        self._core = core
+    def __init__(self, capabilities: StrategyStockCapabilities) -> None:
+        self._capabilities = capabilities
 
     @property
     def equity(self) -> float:
-        return self._core.equity
+        return self._capabilities.equity
 
     @property
     def available_cash(self) -> float:
-        return self._core.available_cash
+        return self._capabilities.available_cash
 
     def positions(self) -> list[AttrDict]:
-        return self._core.positions()
+        return self._capabilities.positions()
 
     def adjusted_shares(self, code: str) -> float:
-        return self._core.adjusted_shares(code)
+        return self._capabilities.adjusted_shares(code)
 
     def equal_weight(self, codes: Iterable[str]) -> None:
         values = list(codes)
@@ -528,34 +492,31 @@ class StockAccount:
         self.set_target_weights({code: weight for code in values})
 
     def set_target_weight(self, code: str, weight: float) -> None:
-        self._command("stock.setTargetWeight", code=code, weight=weight)
+        self._capabilities.set_target_weight(code, weight)
 
     def set_target_weights(self, weights: dict[str, float]) -> None:
-        self._command("stock.setTargetWeights", weights=weights)
+        self._capabilities.set_target_weights(weights)
 
     def order_adjusted_shares(self, code: str, shares: float) -> None:
-        self._command("stock.orderAdjustedShares", code=code, shares=shares)
+        self._capabilities.order_adjusted_shares(code, shares)
 
     def order_lots(self, code: str, lots: float) -> None:
-        self._command("stock.orderLots", code=code, lots=lots)
+        self._capabilities.order_lots(code, lots)
 
     def close_position(self, code: str) -> None:
-        self._command("stock.closePosition", code=code)
+        self._capabilities.close_position(code)
 
     def stop_loss_at_adjusted_price(self, code: str, price: float) -> None:
-        self._command("stock.stopLossAtAdjustedPrice", code=code, price=price)
+        self._capabilities.stop_loss_at_adjusted_price(code, price)
 
     def trailing_stop_by_fraction(self, code: str, percentage: float) -> None:
-        self._command("stock.trailingStopByFraction", code=code, percentage=percentage)
+        self._capabilities.trailing_stop_by_fraction(code, percentage)
 
     def limit_buy_at_adjusted_price(self, code: str, price: float, shares: float) -> None:
-        self._command("stock.limitBuyAtAdjustedPrice", code=code, price=price, shares=shares)
+        self._capabilities.limit_buy_at_adjusted_price(code, price, shares)
 
     def take_profit_by_fraction(self, code: str, percentage: float) -> None:
-        self._command("stock.takeProfitByFraction", code=code, percentage=percentage)
+        self._capabilities.take_profit_by_fraction(code, percentage)
 
     def cancel_conditional(self, code: str, kind: str | None = None) -> None:
-        self._command("stock.cancelConditional", code=code, kind=kind)
-
-    def _command(self, operation: str, **arguments: Any) -> None:
-        self._core.command(operation, arguments)
+        self._capabilities.cancel_conditional(code, kind)

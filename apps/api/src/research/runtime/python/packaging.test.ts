@@ -45,6 +45,7 @@ chart
         id: 1,
         result: { rows: [{ date: '20260105', value: 12.5 }], diagnostics: [] },
       },
+      { type: 'research_execute', cell_id: 'syntax-error', source: 'invalid (' },
       {
         type: 'research_execute',
         cell_id: 'cell-2',
@@ -57,6 +58,12 @@ chart
         source:
           'all(name in globals() for name in ["data", "results", "valuation", "charts"]) and "frame" not in globals() and "parameters" not in globals()',
       },
+      {
+        type: 'research_execute',
+        cell_id: 'cell-4',
+        source: 'results.factor_report("report-2")["report_id"]',
+      },
+      { type: 'response', id: 2, result: { report_id: 'report-2' } },
       { type: 'close' },
     ];
     const input = Buffer.concat(
@@ -89,8 +96,11 @@ chart
       'research_analyzed',
       'request',
       'research_executed',
+      'research_error',
       'research_executed',
       'research_reset_done',
+      'research_executed',
+      'request',
       'research_executed',
     ]);
     expect(output[0]).toMatchObject({ capabilities: ['explicit_parameters'] });
@@ -110,8 +120,11 @@ chart
     expect(output[3]).toMatchObject({
       outputs: [{ type: 'chart', kind: 'line', rows: [{ value: 12.5 }] }],
     });
-    expect(output[4].outputs).toEqual([{ type: 'value', value: 25 }]);
-    expect(output[6].outputs).toEqual([{ type: 'value', value: true }]);
+    expect(output[4].message).toEqual(expect.any(String));
+    expect(output[5].outputs).toEqual([{ type: 'value', value: 25 }]);
+    expect(output[7].outputs).toEqual([{ type: 'value', value: true }]);
+    expect(output[8]).toMatchObject({ id: 2, method: 'research_factor_report' });
+    expect(output[9].outputs).toEqual([{ type: 'value', value: 'report-2' }]);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

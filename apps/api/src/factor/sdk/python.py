@@ -4,6 +4,8 @@ import math
 from collections.abc import Callable
 from typing import Any
 
+from .capabilities import CrossSectionalFactorCapabilities, AssetFactorCapabilities
+
 
 class _AttrDict(dict[str, Any]):
     def __getattr__(self, name: str) -> Any:
@@ -18,17 +20,17 @@ class FactorBar(_AttrDict):
 
 
 class CrossSectionalFactorContext:
-    def __init__(self, history: dict[str, list[Any]] | None) -> None:
-        self._history = history
+    def __init__(self, capabilities: CrossSectionalFactorCapabilities) -> None:
+        self._capabilities = capabilities
 
     def history(self, periods: int, field: str = "close") -> list[Any]:
-        if self._history is None:
+        if not self._capabilities.has_history:
             raise RuntimeError(
                 "Factor must declare window before using ctx.history(periods, field)"
             )
         if isinstance(periods, bool) or not isinstance(periods, int) or periods <= 0:
             raise ValueError("history periods must be a positive integer")
-        values = self._history.get(field)
+        values = self._capabilities.history_values(field)
         if values is None:
             raise ValueError(f"unsupported Factor history field: {field}")
         if len(values) < periods:
@@ -37,26 +39,19 @@ class CrossSectionalFactorContext:
 
 
 class AssetFactorContext:
-    def __init__(
-        self, fields: dict[str, list[float]], index: int, declared_inputs: set[str]
-    ) -> None:
-        self._fields = fields
-        self._index = index
-        self._declared_inputs = declared_inputs
+    def __init__(self, capabilities: AssetFactorCapabilities) -> None:
+        self._capabilities = capabilities
 
     def value(self, field: str) -> float | None:
         return self.lag(field, 0)
 
     def lag(self, field: str, periods: int) -> float | None:
-        if field not in self._declared_inputs:
+        if not self._capabilities.declares_input(field):
             raise ValueError(f"Factor code accessed undeclared input {field}")
         if isinstance(periods, bool) or not isinstance(periods, int) or periods < 0:
             raise ValueError("ctx.lag periods must be a non-negative integer")
-        values = self._fields.get(field)
-        value_index = self._index - periods
-        if values is None or value_index < 0 or value_index >= len(values):
-            return None
-        value = values[value_index]
+        value = self._capabilities.value_at(field, periods)
+
         return value if isinstance(value, (int, float)) and math.isfinite(value) else None
 
 

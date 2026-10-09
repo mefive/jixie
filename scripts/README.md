@@ -94,3 +94,8 @@ Strategy / Factor 的 Python SDK/runtime 源码分别归 `apps/api/src/strategy`
 3 项自测再检查文件，沿用 `&&` 首败停止。没有新增执行脚本或修改检查规则。
 根级 build/typecheck 改为直接调用底层扫描，保留仅静态检查的职责；commit-msg hook 不变。
 验证：后端命令 28 项自测通过，扫描 734 个文件、0 违规；提交信息命令 3 项自测通过，带空格文件路径的合法/非法信息分别返回 0/1。package 格式和 diff 检查通过。
+
+
+SDK 依赖所有权检查：TS 在后端 AST 扫描中执行 sdk-isolation；Python 使用项目 CPython 3.13 运行
+`scripts/checks/check-python-sdk-boundaries.py`。该命令只解析/编译源码，不导入 SDK 或执行用户代码。
+相应 Node 自测在 review 后执行；它们使用 JIXIE_PYTHON_EXECUTABLE 或 PATH Python。

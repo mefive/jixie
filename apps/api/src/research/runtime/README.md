@@ -20,9 +20,9 @@
 
 ## Python 进程内执行
 
-- [python/runner.py](python/runner.py)：组合 SDK、初始化/reset namespace、执行 Cell 及消息循环。
+- [python/runner.py](python/runner.py)：ResearchRunner 持有 namespace/定义状态，组合 SDK 并处理 start/execute/analyze/reset；run_research 只启动并接入 handler，阻塞循环归 sandboxd 公共入口。
 - [python/analysis.py](python/analysis.py)：AST 定义/引用/导入和受控请求提取，保留原依赖判定。
-- [python/bridge.py](python/bridge.py)：request/response 帧配对，宿主等待期间暂停执行计时器。
+- [python/adapter.py](python/adapter.py)：ResearchAdapter.bind(input) 返回 BoundResearchCapabilities；Adapter 保管会话请求编号，request/response 帧配对，宿主等待期间暂停执行计时器。
 - [python/environment.py](python/environment.py)：加载既有第三方模块与捕获固定运行环境版本。
 - [python/outputs.py](python/outputs.py)：SDK 图表结果、有限表格预览、JSON 与 matplotlib 图片转换为输出帧。
 

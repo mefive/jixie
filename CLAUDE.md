@@ -71,7 +71,8 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   AST 分析、环境与输出序列化归 `research/runtime/python`；`runtime/research-runtime.ts` 的宿主实例与
   `runtime/pool.ts` 的文档会话池只在 API 进程执行。
   请求校验、分派和输入回放适配归 `research/runtime/host`，数据查询与业务授权仍归 datasets。
-  SDK 只依赖注入的宿主请求能力，不导入 runtime；sandboxd 只负责公共启动、通信和限制。
+  SDK 只依赖自己声明的 Capabilities，不导入 runtime；ResearchAdapter 实现请求能力，ResearchRunner
+  持有 namespace/Cell 状态，run_research 只启动并接入 handler。sandboxd 负责公共循环、通信和限制。
 - Research Python 辅助模块须逐项列入 Dockerfile、`.dockerignore` 和部署影响清单，同时影响 API/sandboxd；
   TS 宿主文件不进入 Python 镜像。shared 根导出及生成 `.pyi` 路径保持稳定。
 
@@ -82,12 +83,13 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   带用户可用因子 key 的声明，编译契约允许运行时解析的字符串 key。
 - 修改公开签名后同步 Strategy SDK 实现与语言适配，运行生成物一致性和类型检查。`strategy/sdk` 的
   `enrich` 在返回处检查完整公开签名，不能用把 EngineContext 整体断言成 StrategyCtx 的方式绕过检查。
+- SDK 自有 StrategyCapabilities / StrategyDefinition 是基础能力与内部加载结果；SDK 不导入 Engine。
 - Engine 的 `EngineStrategy` / `EngineContext` 是内部模拟契约，不作为公开 SDK 继承来源。
   Strategy runtime 负责桥接；Engine 不加载用户源码或选择语言。Python SDK 的实现归
   `apps/api/src/strategy/sdk/python.py`，协议执行归 `apps/api/src/strategy/runtime/python/runner.py`，sandboxd 的通用 runner 只启动/分派。
 - Strategy 宿主生命周期统一由 `runtime/strategy-runtime.ts` 的 StrategyRuntime 持有；两种语言的 `prepare.ts`
-  只准备启动配置和资源工厂。沙箱源码加载与协议归 `runner.ts` / `runner.py`，基础 Context 代理、缓存与
-  宿主访问归 `context.ts` / `context.py`；作者 SDK 接收基础能力，不反向导入 runtime。
+  只准备启动配置和资源工厂。沙箱源码加载与协议归 `runner.ts` / `runner.py`，基础能力适配、缓存与
+  宿主访问归 `adapter.ts` / `adapter.py`；作者 SDK 接收基础能力，不反向导入 runtime。
 - 沙箱镜像以仓库根目录为构建上下文，`.dockerignore` 只允许显式 Python 输入。Strategy Python 源码
   同时影响 API 与 sandboxd；变更这些路径时保持部署清单和计划测试同步。
 - 本次整理不表示 TS / Python 功能完全对等；保持各自公开命名和既有产品准入。
@@ -110,8 +112,14 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   TS 外围通信归 `entry.ts`，源码加载、会话状态及回调归 `runner.ts` 的 FactorRunner；与 Strategy 使用相同
   文件职责和类型后缀；Python 同样使用 FactorRunner，run_factor 只启动并接入 handler，外围读帧循环归
   sandboxd 通用入口。Factor 种类仍关联不同输入与 metadata，不统一作者计算语义。
+- 三业务 Adapter 统一实现 infra/runtime 的 SdkAdapter 接口／Protocol，以 bind(input) 返回能力绑定；
+  Runner 在 session 内持有 Adapter，绑定对象保留本次快照／索引。账户原始操作的命令编码归 Adapter，SDK 只转发。
+  公共接口不管理 close/abort，不导入业务；SDK 不导入此 runtime 接口，Python 公共 Protocol 显式打包并同时影响 API/sandboxd。
+- 三业务 Capabilities 由 SDK 声明，Adapter 由 runtime 实现；TS/Python 按相同角色命名，不以是否通信
+  决定是否需要适配。详见 docs/design/sdk-capability-adapters.md，历史图表保持明确兼容边界。
 - TS runtime 打包 `sdk/typescript.ts`（生产使用编译后的 `.js`）并注入 isolate；工厂与 `history/value/lag`
-  只在 SDK 实现，不在 runtime 另写字符串副本。SDK 仅接收已准备的数据，不导入宿主模块。
+  只在 SDK 实现，不在 runtime 另写字符串副本。FactorAdapter 将预备数据、索引、声明字段绑定为
+  SDK 自有 Capabilities；SDK Context 保留公开方法与校验，不持有传输 DTO 或导入 runtime。
 
 ## Research Python Runtime Contract 工作流
 

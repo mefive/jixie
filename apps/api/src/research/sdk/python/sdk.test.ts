@@ -13,7 +13,8 @@ it('uses injected data access and creates chart results without loading a runtim
 import json
 import sys
 sys.path.insert(0, sys.argv[1])
-from research.sdk.python.charts import _ChartResult, _ChartsApi
+from research.sdk.python.charts import _ChartResult
+from research.sdk.python.bindings import create_research_sdk
 from research.sdk.python.data import _DataApi
 from research.sdk.python.results import _ResultsApi
 from research.sdk.python.valuation import _ValuationApi
@@ -28,9 +29,11 @@ class Host:
         return {"rows": [{"date": "20260105", "value": 12.5}]}
 
 host = Host()
-rows = _DataApi(host, None).series("index", "000300.SH", start="20260101", end="20260131")
-report = _ResultsApi(host, None).factor_report("report-1")
-chart = _ChartsApi().line(rows, x="date", y="value")
+sdk = create_research_sdk(host, None)
+assert list(sdk) == ["data", "charts", "results", "valuation"]
+rows = sdk["data"].series("index", "000300.SH", start="20260101", end="20260131")
+report = sdk["results"].factor_report("report-1")
+chart = sdk["charts"].line(rows, x="date", y="value")
 assert isinstance(chart, _ChartResult)
 assert not any(name.startswith("research.runtime") for name in sys.modules)
 print(json.dumps({"rows": rows, "report": report, "chart": chart.spec, "requests": host.requests}))

@@ -10,8 +10,8 @@
 | [contract.test.ts](contract.test.ts) | 公开成员、内部能力隔离与 Engine 基础签名兼容检查 |
 | [typescript.test.ts](typescript.test.ts) | 选股、仓位与多周期行为验证 |
 
-`defineStrategy` 接受公开 `CodeStrategy`，返回供 runtime 装配的内部 `EngineStrategy`；用户声明中的
-`onBar` 接受独立 `StrategyCtx`，Engine 的基础回调接受 `EngineContext`。`enrich` 用明确的辅助成员
+`defineStrategy` 接受公开 `CodeStrategy`，返回 SDK 自有 `StrategyDefinition`；用户声明中的
+`onBar` 接受独立 `StrategyCtx`，运行时回调接受 SDK 自有 `StrategyCapabilities`。EngineContext 在运行边界保持结构兼容。`enrich` 用明确的辅助成员
 补齐公开上下文，并在返回处校验完整签名，不把 Engine 类型直接作为公开接口继承来源。
 `loadCrossSection` 和 `resampledBars` 是内部能力，公开用户入口是 `universe` / `weekly` / `monthly`。
 内部行情可以携带因子准备需要的额外字段，不因此扩展公开 OHLC 字段；SDK 不更改数据可见时间。
@@ -20,7 +20,7 @@
 校验。两者共用同一签名渲染器，不维护平行的 SDK 方法清单。文档 URL 保持不变；订单文档锚点使用 stock.* / futures.* 区分账户。
 
 Python 的 `Strategy`、`Context`、`Universe` 实现在 `apps/api/src/strategy/sdk/python.py`，
-方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/runtime/python/runner.py` 处理协议与超时，`runtime/python/context.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
+方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/runtime/python/runner.py` 处理协议与超时，`runtime/python/adapter.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
 共享 Engine 不意味着两种语言功能完全对等，也不意味着 SDK 直接访问数据库或券商。
 
 修改公开 TS 方法时：编辑 reference → 生成 contract → 修改 SDK/runtime → 静态类型及生成物一致性检查
@@ -42,3 +42,12 @@ TS 的 `enrich` 构造独立且完整校验的对象，不再修改或透出整�
 OrderBook 方法。runtime 以 stock.* / futures.* 命令回放，并按账户发送临时 bar frame；
 这些 IPC 数据不改变 Signals 持久化快照。SDK 复用账户基础能力并添加 stock 仓位辅助，
 仍由独立公开契约检查完整签名。
+
+
+SDK 基础能力由 [capabilities.ts](capabilities.ts) / [capabilities.py](capabilities.py) 声明，
+SDK 实现不导入 Engine、runtime、帧协议或数据库。TS 的 StrategyDefinition 以这些能力作为内部回调输入；
+Python Context/StockAccount 接收对应 Protocol，runner 注入 StrategyAdapter.bind(snapshot) 返回的能力对象。
+两种语言都显式声明账户原始操作，SDK 只转发能力调用；命令名、参数编码和发送／收集归 runtime Adapter。
+指标、Universe、周期和仓位辅助留在 SDK；快照、缓存、同步/异步请求归 runtime Adapter。
+独立注入验证见 [injection.test.ts](injection.test.ts) / [python-injection.test.ts](python-injection.test.ts)，
+完整规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。

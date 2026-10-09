@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .host import ResearchHost
+from .capabilities import ResearchCapabilities
 
 _EQUITY_DATASET_COLUMNS = [
     "date",
@@ -209,8 +209,8 @@ _FUTURES_SETTLEMENT_COLUMNS = [
 
 
 class _DataApi:
-    def __init__(self, host: ResearchHost, pandas_module: Any) -> None:
-        self._host = host
+    def __init__(self, capabilities: ResearchCapabilities, pandas_module: Any) -> None:
+        self._capabilities = capabilities
         self._pandas = pandas_module
 
     def series(
@@ -225,7 +225,7 @@ class _DataApi:
         transform: str = "level",
         partial_period: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_series",
             {
                 "asset_type": asset_type,
@@ -248,7 +248,7 @@ class _DataApi:
         minimum_listed_days: int = 365,
         risk_warning: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_cross_section",
             {
                 "universe": universe,
@@ -270,7 +270,7 @@ class _DataApi:
         transform: str = "level",
         partial_period: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_yield_curve",
             {
                 "curve": curve,
@@ -294,7 +294,7 @@ class _DataApi:
         transform: str = "level",
         partial_period: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_macro",
             {
                 "series": series,
@@ -317,7 +317,7 @@ class _DataApi:
         transform: str = "level",
         partial_period: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_fx",
             {
                 "pair": pair,
@@ -340,7 +340,7 @@ class _DataApi:
         minimum_listed_days: int = 365,
         risk_warning: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_panel",
             {
                 "universe": universe,
@@ -354,35 +354,35 @@ class _DataApi:
         return self._equity_frame(result)
 
     def commodity_returns(self, product: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_commodity_returns",
             {"product": product, "start": start, "end": end},
         )
         return self._dataset_frame(result, _COMMODITY_RETURN_COLUMNS)
 
     def commodity_warehouse_receipts(self, product: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_commodity_warehouse_receipts",
             {"product": product, "start": start, "end": end},
         )
         return self._dataset_frame(result, _COMMODITY_WAREHOUSE_RECEIPT_COLUMNS)
 
     def commodity_holdings(self, product: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_commodity_holdings",
             {"product": product, "start": start, "end": end},
         )
         return self._dataset_frame(result, _COMMODITY_HOLDING_COLUMNS)
 
     def market_state(self, scope: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_market_state",
             {"scope": scope, "start": start, "end": end},
         )
         return self._dataset_frame(result, _MARKET_STATE_COLUMNS, ["date"])
 
     def equity_fundamentals(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_equity_fundamentals",
             {"identifier": identifier, "start": start, "end": end},
         )
@@ -394,7 +394,7 @@ class _DataApi:
         self, identifiers: str | list[str], *, as_of: str, fields: str | list[str],
         report_start: str, report_end: str, period: str = "reported",
     ) -> Any:
-        result = self._host.request("research_equity_financial_values", {
+        result = self._capabilities.request("research_equity_financial_values", {
             "identifiers": identifiers, "as_of": as_of, "fields": fields,
             "report_start": report_start, "report_end": report_end, "period": period,
         })
@@ -407,7 +407,7 @@ class _DataApi:
         filters = {key: value for key, value in {
             "fields": fields, "report_start": report_start, "report_end": report_end,
         }.items() if value is not None}
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_equity_financial_statements",
             {"identifier": identifier, "as_of": as_of, **filters},
         )
@@ -418,7 +418,7 @@ class _DataApi:
         )
 
     def equity_financial_metrics(self, identifier: str, *, as_of: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_equity_financial_metrics",
             {"identifier": identifier, "as_of": as_of},
         )
@@ -435,7 +435,7 @@ class _DataApi:
         minimum_listed_days: int = 365,
         risk_warning: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_equity_financial_cross_section",
             {
                 "universe": universe,
@@ -460,7 +460,7 @@ class _DataApi:
         minimum_listed_days: int = 365,
         risk_warning: str = "exclude",
     ) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_equity_financial_panel",
             {
                 "universe": universe,
@@ -477,14 +477,14 @@ class _DataApi:
         )
 
     def equity_flows(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_equity_flows",
             {"identifier": identifier, "start": start, "end": end},
         )
         return self._dataset_frame(result, _EQUITY_FLOW_COLUMNS, ["date"])
 
     def equity_dividends(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_equity_dividends",
             {"identifier": identifier, "start": start, "end": end},
         )
@@ -493,28 +493,28 @@ class _DataApi:
         )
 
     def etf_shares(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_etf_shares",
             {"identifier": identifier, "start": start, "end": end},
         )
         return self._dataset_frame(result, _ETF_SHARE_COLUMNS, ["date", "trade_date"])
 
     def index_valuation(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_index_valuation",
             {"identifier": identifier, "start": start, "end": end},
         )
         return self._dataset_frame(result, _INDEX_VALUATION_COLUMNS, ["date"])
 
     def industry_state(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_industry_state",
             {"identifier": identifier, "start": start, "end": end},
         )
         return self._dataset_frame(result, _INDUSTRY_STATE_COLUMNS, ["date"])
 
     def futures_settlement(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._host.request(
+        result = self._capabilities.request(
             "research_futures_settlement",
             {"identifier": identifier, "start": start, "end": end},
         )

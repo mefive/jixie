@@ -127,6 +127,7 @@ def main() -> None:
 
         run_research(
             start,
+            _receive_commands,
             _read_frame,
             _send_frame,
             lambda callback: _run_user_code(callback, "research cell"),

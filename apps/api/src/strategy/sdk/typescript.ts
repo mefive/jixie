@@ -1,5 +1,5 @@
-import type { EngineContext, EngineStrategy } from '#backtesting/contract.js';
-import type { BarRow, OhlcBar, ResamplePeriod } from '#backtesting/data/market.js';
+import type { StrategyCapabilities, StrategyDefinition } from './capabilities.js';
+import type { BarRow, OhlcBar } from '@jixie/shared/sdk/strategy/contract';
 import type {
   CodeStrategy,
   Schedule,
@@ -32,19 +32,19 @@ import {
  * IR stages (schedule / select / sizing) are now one-line *library* calls on `ctx`, not a parallel
  * representation. So the boilerplate stays gone, but there's a single source of truth — the code.
  *
- * `enrich` adapts EngineContext to the independently generated public StrategyCtx, using type-checked primitives and helpers. Authoring is import-free: `defineStrategy` and
+ * `enrich` adapts StrategyCapabilities to the independently generated public StrategyCtx, using type-checked primitives and helpers. Authoring is import-free: `defineStrategy` and
  * the StrategyCtx type are injected ambients (a .d.ts gives Monaco the same surface).
  */
 
 class ResampledSeries implements TimeframeSeries {
   constructor(
-    private readonly ctx: EngineContext,
+    private readonly capabilities: StrategyCapabilities,
     private readonly code: string,
-    private readonly period: ResamplePeriod,
+    private readonly period: 'weekly' | 'monthly',
   ) {}
 
   bars(n: number): OhlcBar[] {
-    return this.ctx.resampledBars(this.code, this.period, n);
+    return this.capabilities.resampledBars(this.code, this.period, n);
   }
 
   history(field: 'open' | 'high' | 'low' | 'close', n: number): number[] {
@@ -112,16 +112,16 @@ class ResampledSeries implements TimeframeSeries {
  * data load; `where`/`rankBy`/etc. refine the loaded panel in memory. */
 export class Universe implements UniverseContract {
   constructor(
-    private readonly ctx: EngineContext,
+    private readonly capabilities: StrategyCapabilities,
     private readonly list: string[],
   ) {}
 
   /** Keep codes whose today-row passes the predicate. */
   where(predicate: (bar: BarRow, code: string) => boolean): Universe {
     return new Universe(
-      this.ctx,
+      this.capabilities,
       this.list.filter((code) => {
-        const bar = this.ctx.bar(code);
+        const bar = this.capabilities.bar(code);
         return bar != null && predicate(bar, code);
       }),
     );
@@ -130,9 +130,9 @@ export class Universe implements UniverseContract {
   /** Keep codes listed at least `days` calendar days (point-in-time stock age). */
   minListDays(days: number): Universe {
     return new Universe(
-      this.ctx,
+      this.capabilities,
       this.list.filter((code) => {
-        const age = this.ctx.listDays(code);
+        const age = this.capabilities.listDays(code);
         return age == null || age >= days;
       }),
     );
@@ -143,7 +143,7 @@ export class Universe implements UniverseContract {
     const scored = this.list.map((code) => ({ code, value: this.scoreOrBottom(code, score) }));
     scored.sort((lower, higher) => lower.value - higher.value);
     return new Universe(
-      this.ctx,
+      this.capabilities,
       scored.slice(Math.floor(scored.length * fraction)).map((entry) => entry.code),
     );
   }
@@ -155,7 +155,7 @@ export class Universe implements UniverseContract {
   ): Universe {
     const scored = this.list
       .map((code) => {
-        const bar = this.ctx.bar(code);
+        const bar = this.capabilities.bar(code);
         return { code, value: bar != null ? score(bar, code) : null };
       })
       .filter(
@@ -166,7 +166,7 @@ export class Universe implements UniverseContract {
       direction === 'desc' ? higher.value - lower.value : lower.value - higher.value,
     );
     return new Universe(
-      this.ctx,
+      this.capabilities,
       scored.map((entry) => entry.code),
     );
   }
@@ -189,7 +189,7 @@ export class Universe implements UniverseContract {
 
   // Score a code via its today-row; a code with no row scores -Infinity so it sorts to the bottom.
   private scoreOrBottom(code: string, score: (bar: BarRow, code: string) => number): number {
-    const bar = this.ctx.bar(code);
+    const bar = this.capabilities.bar(code);
     return bar != null ? score(bar, code) : -Infinity;
   }
 }
@@ -198,21 +198,22 @@ export class Universe implements UniverseContract {
  * code loader injects THIS as the `defineStrategy` ambient. */
 export function defineStrategy<const Params extends StrategyParams = Record<string, never>>(
   s: CodeStrategy<Params>,
-): EngineStrategy {
-  const strategy: EngineStrategy = {
+): StrategyDefinition {
+  const strategy: StrategyDefinition = {
     name: s.name ?? '未命名策略',
     params: normalizeStrategyParams(s.params),
     factors: s.factors,
     watch: s.watch,
     accounts: s.accounts,
-    onBar: (core: EngineContext) => s.onBar(enrich(core, strategy.params as Params)),
+    onBar: (capabilities: StrategyCapabilities) =>
+      s.onBar(enrich(capabilities, strategy.params as Params)),
   };
   return strategy;
 }
 
-/** Adapt engine primitives into an independent public context with isolated account scopes. */
+/** Adapt injected primitives into an independent public context with isolated account scopes. */
 export function enrich<Params extends StrategyParams = StrategyParams>(
-  ctx: EngineContext,
+  capabilities: StrategyCapabilities,
   params = {} as Params,
 ): StrategyCtx<Params> {
   const stockHelpers: Pick<
@@ -225,15 +226,15 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
       for (const code of codes) {
         targets[code] = weight;
       }
-      ctx.stock.setTargetWeights(targets);
+      capabilities.stock.setTargetWeights(targets);
     },
     atrAdjustedShares: (code, riskPct, atrPeriod = 20) => {
       const window = Math.floor(atrPeriod);
       if (!(riskPct > 0) || window <= 0) {
         return 0;
       }
-      const atr = atrBars(ctx.bars(code, window + 1), window);
-      return atr == null || atr <= 0 ? 0 : Math.floor((ctx.stock.equity * riskPct) / atr);
+      const atr = atrBars(capabilities.bars(code, window + 1), window);
+      return atr == null || atr <= 0 ? 0 : Math.floor((capabilities.stock.equity * riskPct) / atr);
     },
     volTargetWeights: (codes, lookback = 20) => {
       const window = Math.floor(lookback);
@@ -242,7 +243,7 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
       }
       const inverseVol = new Map<string, number>();
       for (const code of codes) {
-        const closes = ctx.history(code, 'close', window + 1);
+        const closes = capabilities.history(code, 'close', window + 1);
         if (closes.length < window + 1) {
           continue;
         }
@@ -263,70 +264,85 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
     },
   };
   const result: StrategyCtx<Params> = {
-    date: ctx.date,
+    date: capabilities.date,
     params: Object.freeze({ ...params }) as StrategyCtx<Params>['params'],
-    portfolio: ctx.portfolio,
+    portfolio: capabilities.portfolio,
     stock: {
-      ...ctx.stock,
+      positions: (...args) => capabilities.stock.positions(...args),
+      adjustedShares: (...args) => capabilities.stock.adjustedShares(...args),
+      setTargetWeight: (...args) => capabilities.stock.setTargetWeight(...args),
+      setTargetWeights: (...args) => capabilities.stock.setTargetWeights(...args),
+      orderAdjustedShares: (...args) => capabilities.stock.orderAdjustedShares(...args),
+      orderLots: (...args) => capabilities.stock.orderLots(...args),
+      closePosition: (...args) => capabilities.stock.closePosition(...args),
+      stopLossAtAdjustedPrice: (...args) => capabilities.stock.stopLossAtAdjustedPrice(...args),
+      trailingStopByFraction: (...args) => capabilities.stock.trailingStopByFraction(...args),
+      limitBuyAtAdjustedPrice: (...args) => capabilities.stock.limitBuyAtAdjustedPrice(...args),
+      takeProfitByFraction: (...args) => capabilities.stock.takeProfitByFraction(...args),
+      cancelConditional: (...args) => capabilities.stock.cancelConditional(...args),
       // Preserve live account valuation if a later data read loads additional prices.
       get equity() {
-        return ctx.stock.equity;
+        return capabilities.stock.equity;
       },
       get availableCash() {
-        return ctx.stock.availableCash;
+        return capabilities.stock.availableCash;
       },
       ...stockHelpers,
     },
-    futures: ctx.futures,
-    bar: (...args) => ctx.bar(...args),
-    bars: (...args) => ctx.bars(...args),
-    ensureBars: (...args) => ctx.ensureBars(...args),
-    listDays: (...args) => ctx.listDays(...args),
-    industry: (...args) => ctx.industry(...args),
-    lhbNet: (...args) => ctx.lhbNet(...args),
-    price: (...args) => ctx.price(...args),
-    history: (...args) => ctx.history(...args),
-    factor: (...args) => ctx.factor(...args),
-    indexMembers: (...args) => ctx.indexMembers(...args),
-    index: (...args) => ctx.index(...args),
-    future: (...args) => ctx.future(...args),
-    futureHistory: (...args) => ctx.futureHistory(...args),
-    period: (schedule) => periodKey(ctx.date, schedule),
+    futures: capabilities.futures,
+    bar: (...args) => capabilities.bar(...args),
+    bars: (...args) => capabilities.bars(...args),
+    ensureBars: (...args) => capabilities.ensureBars(...args),
+    listDays: (...args) => capabilities.listDays(...args),
+    industry: (...args) => capabilities.industry(...args),
+    lhbNet: (...args) => capabilities.lhbNet(...args),
+    price: (...args) => capabilities.price(...args),
+    history: (...args) => capabilities.history(...args),
+    factor: (...args) => capabilities.factor(...args),
+    indexMembers: (...args) => capabilities.indexMembers(...args),
+    index: (...args) => capabilities.index(...args),
+    future: (...args) => capabilities.future(...args),
+    futureHistory: (...args) => capabilities.futureHistory(...args),
+    period: (schedule) => periodKey(capabilities.date, schedule),
     universe: async (indexCode?: string) =>
-      new Universe(ctx, await ctx.loadCrossSection(indexCode)),
-    weekly: (code) => new ResampledSeries(ctx, code, 'weekly'),
-    monthly: (code) => new ResampledSeries(ctx, code, 'monthly'),
+      new Universe(capabilities, await capabilities.loadCrossSection(indexCode)),
+    weekly: (code) => new ResampledSeries(capabilities, code, 'weekly'),
+    monthly: (code) => new ResampledSeries(capabilities, code, 'monthly'),
     sma: (code, n) => {
-      return smaValues(ctx.history(code, 'close', n), n);
+      return smaValues(capabilities.history(code, 'close', n), n);
     },
     ema: (code, n) => {
-      return emaValues(ctx.history(code, 'close', n * 4), n);
+      return emaValues(capabilities.history(code, 'close', n * 4), n);
     },
     highest: (code, field, n) => {
-      return extremeValues(ctx.history(code, field, n), n, Math.max);
+      return extremeValues(capabilities.history(code, field, n), n, Math.max);
     },
     lowest: (code, field, n) => {
-      return extremeValues(ctx.history(code, field, n), n, Math.min);
+      return extremeValues(capabilities.history(code, field, n), n, Math.min);
     },
     atr: (code, n) => {
-      return atrBars(ctx.bars(code, n + 1), n);
+      return atrBars(capabilities.bars(code, n + 1), n);
     },
-    avgAmount: (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.amount),
-    avgVol: (code, n) => avgField(ctx.bars(code, n), n, (bar) => bar.vol),
-    adx: (code, period = 14) => calculateAdx(ctx.bars(code, adxLookback(period)), period),
+    avgAmount: (code, n) => avgField(capabilities.bars(code, n), n, (bar) => bar.amount),
+    avgVol: (code, n) => avgField(capabilities.bars(code, n), n, (bar) => bar.vol),
+    adx: (code, period = 14) => calculateAdx(capabilities.bars(code, adxLookback(period)), period),
     bollingerBands: (code, period = 20, standardDeviations = 2) =>
-      calculateBollingerBands(ctx.history(code, 'close', period), period, standardDeviations),
+      calculateBollingerBands(
+        capabilities.history(code, 'close', period),
+        period,
+        standardDeviations,
+      ),
     rsi: (code, period = 14) =>
-      calculateRsi(ctx.history(code, 'close', rsiLookback(period)), period),
+      calculateRsi(capabilities.history(code, 'close', rsiLookback(period)), period),
     macd: (code, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) =>
       calculateMacd(
-        ctx.history(code, 'close', macdLookback(fastPeriod, slowPeriod, signalPeriod)),
+        capabilities.history(code, 'close', macdLookback(fastPeriod, slowPeriod, signalPeriod)),
         fastPeriod,
         slowPeriod,
         signalPeriod,
       ),
     kdj: (code, period = 9, kSmoothing = 3, dSmoothing = 3) =>
-      latestKdj(ctx.bars(code, kdjLookback(period)), period, kSmoothing, dSmoothing),
+      latestKdj(capabilities.bars(code, kdjLookback(period)), period, kSmoothing, dSmoothing),
   };
 
   Object.defineProperty(result, 'params', { writable: false });
@@ -335,7 +351,7 @@ export function enrich<Params extends StrategyParams = StrategyParams>(
 }
 
 export function applyStrategyParamOverrides(
-  strategy: EngineStrategy,
+  strategy: Pick<StrategyDefinition, 'params'>,
   overrides?: Record<string, StrategyParamValue>,
 ): void {
   if (!overrides) {

@@ -1,7 +1,7 @@
 # Research 作者 SDK
 
 Cell 可直接使用 `data`、`results`、`valuation`、`charts`。实际实现位于 `python/`，由
-[runtime/python/runner.py](../runtime/python/runner.py) 创建对象并注入 Cell namespace；reset 重建这些对象。
+[runtime/python/runner.py](../runtime/python/runner.py) 通过 [bindings.py](python/bindings.py) 创建对象并注入 Cell namespace；reset 重建这些对象。
 Research 当前只有 Python 作者接口，不增加空的 TypeScript SDK。
 
 | 对象 | 实现 | 公开方法 |
@@ -11,7 +11,7 @@ Research 当前只有 Python 作者接口，不增加空的 TypeScript SDK。
 | `valuation` | [python/valuation.py](python/valuation.py) | `fcff_scenarios`、`implied_revenue_growth` |
 | `charts` | [python/charts.py](python/charts.py) | `line`、`area`、`bar`、`scatter`、`event_path`、`histogram`、`boxplot`、`heatmap` |
 
-`data/results` 接收 [ResearchHost](python/host.py) 的 `request(method, arguments)` 能力和 pandas 对象；
+`data/results` 接收 [ResearchCapabilities](python/capabilities.py) 的 `request(method, arguments)` 能力和 pandas 对象；
 SDK 负责调用参数组装、公开列映射及 DataFrame 转换，宿主 runtime 负责消息帧、查询、权限和输入回放。
 `valuation` 接收 pandas，保留既有 NumPy/SciPy 数值实现；`charts` 生成 `_ChartResult`，纯标量转换归
 [scalars.py](python/scalars.py)。SDK 不导入 runtime，不管理会话、信号计时器、Cell 变量或图像输出。
@@ -27,3 +27,9 @@ SDK 负责调用参数组装、公开列映射及 DataFrame 转换，宿主 runt
 打包测试不能替代真实 Docker 验收；Python 源文件须同步 Dockerfile、`.dockerignore` 和部署影响清单。
 
 [宿主协议与分派](../runtime/host/README.md) · [运行时](../runtime/README.md) · [返回 Research 总览](../README.md)
+
+
+SDK 绑定入口为 create_research_sdk(capabilities, pandas_module)，返回 data/charts/results/valuation，
+保持原 namespace 成员和插入顺序；np/pd、Cell 变量与 reset 仍归 runner。ResearchAdapter.bind(input) 提供请求能力，
+不把帧、请求编号、暂停计时器或会话状态放入 SDK。valuation/charts 继续是本地辅助实现。
+统一规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。

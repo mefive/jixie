@@ -6,11 +6,12 @@
 | --- | --- |
 | [prepare.ts](prepare.ts) | 宿主编译因子、缓存 bundle、准备 TypeScriptTransport 与 bridge 配置；资源获取和关闭交给公共 FactorRuntime |
 | [entry.ts](entry.ts) | 外围接入：注册 __receiveCommand、解析 JSON、缓冲并刷新日志；首次 factor_start 调用 runFactor 并接入后续消息处理 |
+| [adapter.ts](adapter.ts) | FactorAdapter：历史字段映射、数组/索引读取和声明输入访问；无宿主请求 |
 | [runner.ts](runner.ts) | 显式 runFactor 入口与 FactorRunner：源码加载、元数据、start/compute 分派及用户回调 |
 | [sandbox-bundle.ts](sandbox-bundle.ts) | 打包 entry/runner、SDK、日志；源码/编译入口分别解析 entry.ts / entry.js |
 | [SDK typescript.ts](../../sdk/typescript.ts) | defineFactor/defineFactorV2、CrossSectionalFactorContext/AssetFactorContext；history/value/lag 只读取已准备的数据 |
 
-与 Strategy 对应的 runner 类型使用 `FactorRunnerHost`、`FactorRunnerStartup`、`FactorRunnerCommand`、`FactorRunnerCommandHandler`。每个沙箱会话只创建一个 FactorRunner，定义、分析类型和声明输入均为实例状态；方法顺序为 handle、start、execute、loadFactor、metadata、computeValues，与 Python 的同名 snake_case 方法对应。业务入口同样按“创建实例 → 启动 → 接入消息处理”排列。Factor 不需要宿主查询代理，直接构造 SDK Context；不为目录对称添加空的 context.ts。
+与 Strategy 对应的 runner 类型使用 `FactorRunnerHost`、`FactorRunnerStartup`、`FactorRunnerCommand`、`FactorRunnerCommandHandler`。每个沙箱会话只创建一个 FactorRunner，定义、分析类型和声明输入均为实例状态；方法顺序为 handle、start、execute、loadFactor、metadata、computeValues，与 Python 的同名 snake_case 方法对应。业务入口同样按“创建实例 → 启动 → 接入消息处理”排列。FactorAdapter 将本地预备数据转为 SDK Capabilities，再构造 SDK Context；本地数组读取同样由 Adapter 提供。
 
 公共 FactorRuntime 直接继承 SandboxRuntime，通过 startSandboxRuntime 获取资源并建立 [共享 bridge](../bridge.ts)。启动发送 factor_start、等待 factor_ready；execute 发送 factor_compute_batch/series、等待 factor_values。横截面输入 `{ items }`，time_series/panel 输入 `{ fields, indexes }`，返回顺序对应的 `(number | null)[]`。传输入口只加载可信 bundle，用户源码在启动命令中求值。
 
@@ -23,3 +24,5 @@
 验证入口：[cross-sectional-runtime.test.ts](cross-sectional-runtime.test.ts)、[asset-runtime.test.ts](asset-runtime.test.ts)、[lifecycle.test.ts](lifecycle.test.ts)、[sandbox-bundle.test.ts](sandbox-bundle.test.ts)。审查/验证状态见 [统一方案](../../../../../../docs/design/sandbox-runtime-architecture.md)。
 
 [返回 Factor runtime](../README.md)
+
+两个语言 Adapter 都按输入类型 → FactorAdapter.bind → BoundCrossSectionalFactorCapabilities → BoundAssetFactorCapabilities 排列。bind 使用可辨识输入与重载，横截面和资产输入分别对应其能力类型；每点绑定独立索引／历史，Adapter 在会话内复用。

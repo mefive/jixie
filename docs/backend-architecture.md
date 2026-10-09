@@ -217,7 +217,7 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 Strategy 的公开 TS 签名、文档、Agent 参考归 `packages/shared/src/sdk/strategy/reference.ts`，
 由原有声明生成器同时服务 Monaco 和编译契约 `contract.ts`。Strategy SDK 辅助实现归
 `apps/api/src/strategy/sdk`，不再与 isolate 设施同放；Python SDK 与语言协议分别归
-`strategy/sdk/python.py`、`strategy/runtime/python/runner.py`；基础 Context 代理、缓存与宿主访问归两种语言的 runtime/context。宿主 StrategyRuntime 统一资源生命周期，语言 prepare 只提供启动配置，runner 负责沙箱加载与协议，SDK 接收基础能力。
+`strategy/sdk/python.py`、`strategy/runtime/python/runner.py`；基础能力适配、缓存与宿主访问归两种语言的 runtime/adapter。宿主 StrategyRuntime 统一资源生命周期，语言 prepare 只提供启动配置，runner 负责沙箱加载与协议，SDK 接收基础能力。
 Engine 保留内部 `EngineStrategy` / `EngineContext`，负责模拟时钟、PIT 数据、因子准备与交易账户。
 公开上下文不继承 Engine 类型；runtime 把用户回调装配为引擎决策回调，SDK 对公开签名做编译期适配检查。
 实现、兼容性与本次验收见 [Strategy SDK 边界记录](design/strategy-sdk-boundaries.md)。
@@ -238,3 +238,5 @@ valuation 保留原数值算法，charts 生成公开图表结果。shared 的�
 `research/runtime/python/session.ts` 在 API 宿主管理连接，Python runner 组合 SDK 并管理 Cell namespace、
 AST 分析、环境捕获和输出序列化。sandboxd 通用入口只分派，镜像按显式清单包含三业务的 Python 实现。
 SDK 不反向导入 runtime，Engine 不参与 Research Cell 执行。完整职责和验收见 [统一 SDK 计划](design/business-sdk-organization.md)。
+
+三业务沙箱使用相同的 Adapter 装配规则：Runner 持有会话 Adapter，bind(input) 返回本次绑定的 SDK Capabilities。公共 SdkAdapter 接口／Protocol 归 infra/runtime；SDK 只依赖自有能力声明。Strategy 两种语言的原始账户操作和命令编码均在 Adapter，TS 即时 host access 与 Python done 后回放保持。具体结构与验证见 [SDK 能力与适配器](design/sdk-capability-adapters.md)。

@@ -15,7 +15,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `signals/runs/job-lifecycle.ts` | `signals/runs/worker.boot.mjs` → `.ts` | `signals/runs/worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
-| `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → runner.ts/context.ts | 同目录 `entry.js` → runner.js/context.js | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
+| `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → runner.ts/adapter.ts | 同目录 `entry.js` → runner.js/adapter.js | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `strategy/execution/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；TS/Python 共享 execution/execution 在 finally 关闭，初始化失败也清理已建立实例 |
 | `infra/runtime/typescript/isolate-run.ts` | 相对 URL 定位 `math/stats.ts` | 对应 `math/stats.js` | 仅供 Agent 历史图表转换工具加载 isolate 模块；Factor 已使用公共 TypeScriptTransport |
 | `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `backtesting/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
@@ -74,12 +74,13 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |
 | `research/language/pyright-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |
-| Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/runner.py` / 同目录 `context.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
+| Python SdkAdapter 公共 Protocol | `apps/api/src/infra/runtime/python/adapter.py`；三业务 Adapter 导入，Docker 显式 COPY 并保持 namespace 目录；变更同时影响 API/sandboxd，SDK 不导入此模块 |
+| Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/runner.py` / 同目录 `adapter.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
 | Strategy TS 公开类型 | `packages/shared/src/sdk/strategy/reference.ts` → 同目录 `contract.ts`；`setup:sandbox` 生成/校验，API 使用 `@jixie/shared/sdk/strategy/contract` 的类型入口；Monaco 继续动态调用同一声明生成器 |
 | Python Factor SDK/runtime | `apps/api/src/factor/sdk/python.py` / `apps/api/src/factor/runtime/python/runner.py`；与 Strategy 使用相同业务目录导入和镜像显式打包方式，同时影响 API/sandboxd；run_factor 创建会话 FactorRunner 并将 handler 交给通用 _receive_commands，与 Strategy 共用外围循环；三种分析类型的打包回归见 `factor/runtime/python/packaging.test.ts` |
 | TS Factor SDK bundle | `factor/runtime/typescript/sandbox-bundle.ts` 从同目录 `entry.ts`（开发）或 `.js`（编译后）打包外围入口、`runner.ts` / `.js` 协议执行、SDK 工厂、Context 实现及纯 `infra/runtime/log-buffer`；宿主缓存源码，每个 isolate 独立执行；验收须分别检查源码及 dist 两种路径 |
 | Factor 公开契约 | `packages/shared/src/sdk/factor/reference.ts` → `contract.ts`，TS 编辑器和 API 共用签名来源；`python.ts` 生成原路径 Factor `.pyi`，Pyright/Agent 的既有 shared 导出保持兼容 |
-| Research Python SDK / runner | `apps/api/src/research/sdk/python/` 的 data/results/valuation/charts 与 `runtime/python/` 的 runner/analysis/bridge/environment/outputs 通过通用 runner 加载；Docker 逐项 COPY 所有 Python 输入，同目录 TS 文件不进入镜像；源码变更同时影响 API/sandboxd |
+| Research Python SDK / runner | `apps/api/src/research/sdk/python/` 的 data/results/valuation/charts 与 `runtime/python/` 的 runner/analysis/adapter/environment/outputs 通过通用 runner 加载；Docker 逐项 COPY 所有 Python 输入，同目录 TS 文件不进入镜像；源码变更同时影响 API/sandboxd |
 | Research 宿主协议 | `research/runtime/host/` 拥有参数/帧校验、分派与输入回放；`runtime/research-runtime.ts` 调用它，SDK Python 不反向导入宿主 |
 | 公开 Python stub | `apps/sandboxd/python/jixie_research_sdk.pyi`、`jixie_factor_sdk.pyi` 由 shared Contract 生成；路径移动不得手工改生成结果 |
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |

@@ -1,3 +1,4 @@
+import { FactorAdapter } from './adapter.js';
 import {
   defineFactor,
   defineFactorV2,
@@ -29,6 +30,7 @@ export type FactorRunnerCommandHandler = (frame: FactorRunnerCommand) => string;
 
 /** One instance owns one sandbox session and all state shared across its callbacks. */
 class FactorRunner {
+  private readonly adapter = new FactorAdapter();
   private factor!: CustomFactor | AssetFactorV2;
   private analysisKind!: ExecutableFactorKind;
   private declaredInputs!: Set<AssetFactorV2['inputs'][number]>;
@@ -63,7 +65,12 @@ class FactorRunner {
         this.computeValues(frame.items.length, (index) => {
           const item = frame.items[index];
 
-          return factor.compute(item.bar, new CrossSectionalFactorContext(item));
+          return factor.compute(
+            item.bar,
+            new CrossSectionalFactorContext(
+              this.adapter.bind({ kind: 'cross_sectional', history: item }),
+            ),
+          );
         }),
       );
     }
@@ -76,7 +83,14 @@ class FactorRunner {
     return JSON.stringify(
       this.computeValues(frame.indexes.length, (position) =>
         factor.compute(
-          new AssetFactorContext(frame.fields, frame.indexes[position], this.declaredInputs),
+          new AssetFactorContext(
+            this.adapter.bind({
+              kind: 'asset',
+              fields: frame.fields,
+              index: frame.indexes[position],
+              declaredInputs: this.declaredInputs,
+            }),
+          ),
         ),
       ),
     );

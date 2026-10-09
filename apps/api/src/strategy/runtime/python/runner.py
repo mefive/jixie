@@ -6,8 +6,8 @@ import traceback
 import types
 from typing import Any, Callable, cast
 
-from ...sdk.python import AttrDict, Context, Strategy, Universe
-from .context import StrategyContextAdapter
+from ...sdk.python import Context, Strategy, Universe
+from .adapter import StrategyAdapter, StrategyAdapterInput
 
 
 class StrategyRunner:
@@ -23,7 +23,7 @@ class StrategyRunner:
         self._send_frame = send_frame
         self._run_user_code = run_user_code
         self._strategy: Strategy
-        self._bar_cache: dict[str, list[AttrDict]] = {}
+        self._adapter = StrategyAdapter({"request": self._request})
         self._request_id = 0
 
     def handle(self, frame: dict[str, Any]) -> bool:
@@ -51,10 +51,10 @@ class StrategyRunner:
 
         self._send_frame({"type": "ready", "metadata": self._metadata()})
 
-    def _execute(self, snapshot: dict[str, Any]) -> None:
+    def _execute(self, snapshot: StrategyAdapterInput) -> None:
         self._request_id = 0
-        core = StrategyContextAdapter(snapshot, self._bar_cache, self._request)
-        context = Context(core, self._strategy.params)
+        capabilities = self._adapter.bind(snapshot)
+        context = Context(capabilities, self._strategy.params)
 
         try:
             # Startup validates that the author registered a callback.
@@ -62,7 +62,7 @@ class StrategyRunner:
             self._run_user_code(lambda: callback(context))
             sys.stdout.flush()
             sys.stderr.flush()
-            self._send_frame({"type": "done", "commands": core.commands})
+            self._send_frame({"type": "done", "commands": capabilities.commands})
         except Exception:
             self._send_frame({"type": "error", "message": traceback.format_exc(limit=20)})
 

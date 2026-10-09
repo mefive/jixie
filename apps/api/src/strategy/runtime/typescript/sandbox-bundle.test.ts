@@ -12,7 +12,7 @@ describe('strategy sandbox bundle boundary', () => {
     expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/runner.ts'))).toBe(
       true,
     );
-    expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/context.ts'))).toBe(
+    expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/adapter.ts'))).toBe(
       true,
     );
 

@@ -3,7 +3,6 @@ import type { AssetFactorV2, CustomFactor } from '@jixie/shared/sdk/factor/contr
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { SandboxRuntime, SandboxResource } from '#infra/runtime/sandbox-runtime.js';
 import type { FactorBridgeOptions, FactorTransport } from './bridge.js';
-import type { FactorHistory } from '../sdk/typescript.js';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
 
 export type ExecutableFactorKind = 'cross_sectional' | 'time_series' | 'panel';
@@ -14,6 +13,16 @@ export interface FactorStartOptions<Kind extends ExecutableFactorKind = Executab
   analysisKind: Kind;
   code: string;
   onUserLog?: UserLogSink;
+}
+
+export interface FactorHistory {
+  closes?: number[]; // tail window ending at the evaluation day (windowed factors only)
+  dates?: string[]; // aligned trade dates for the window
+  amounts?: (number | null)[]; // aligned daily turnover amounts (thousand yuan)
+  turnoverRatesF?: (number | null)[]; // aligned free-float turnover rates for the window
+  roes?: (number | null)[]; // aligned point-in-time ROE values (as-of announcement date)
+  grossProfitMargins?: (number | null)[]; // aligned point-in-time gross margins
+  marketCloses?: (number | null)[]; // aligned exact-date CSI All Share closes
 }
 
 export interface FactorBatchItem extends FactorHistory {

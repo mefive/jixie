@@ -305,6 +305,18 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
       });
     }
   }
+  for (const entry of dependencies.nonliteralImports ?? []) {
+    if (
+      !isTest(entry.from) &&
+      /^(factor|strategy|research)\/sdk\//.test(sourcePath(entry.from) ?? '')
+    ) {
+      diagnostics.push({
+        rule: 'sdk-isolation',
+        ...entry,
+        message: 'Author SDK dependencies must be statically declared',
+      });
+    }
+  }
   for (const edge of dependencies.edges) {
     if (isTest(edge.from)) {
       continue;
@@ -313,6 +325,18 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
       target = sourcePath(edge.to);
     const shared = /^@jixie\/shared(?:\/|$)/.test(edge.specifier ?? edge.to);
     const framework = /^(?:hono(?:\/|$)|@hono\/)/.test(edge.to);
+    const sdk = local?.match(/^(factor|strategy|research)\/sdk\//);
+    if (
+      sdk &&
+      !shared &&
+      (edge.internal ? !target?.startsWith(`${sdk[1]}/sdk/`) && !isPure(edge.to) : true)
+    ) {
+      report(
+        'sdk-isolation',
+        edge,
+        'Author SDKs may depend only on their own capabilities, shared contracts and pure helpers',
+      );
+    }
     if (local && !local.includes('/') && edge.form === 're-export') {
       report(
         'root-barrel',

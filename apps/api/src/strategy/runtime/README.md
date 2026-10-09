@@ -10,10 +10,10 @@
 | 宿主获取资源、建立 bridge、执行与关闭 | [strategy-runtime.ts](strategy-runtime.ts) | 同一实现 |
 | 沙箱外围接入 | [typescript/entry.ts](typescript/entry.ts) | [通用 jixie_runner.py](../../../../sandboxd/python/jixie_runner.py) |
 | 沙箱源码加载、元数据、协议分派与用户回调 | [typescript/runner.ts](typescript/runner.ts) | [python/runner.py](python/runner.py) |
-| 沙箱基础 Context 代理、快照、缓存与宿主访问 | [typescript/context.ts](typescript/context.ts) | [python/context.py](python/context.py) |
+| 沙箱基础能力适配、快照、缓存与宿主访问 | [typescript/adapter.ts](typescript/adapter.ts) | [python/adapter.py](python/adapter.py) |
 | 作者声明、公开 Context、选股、周期、指标与仓位辅助 | [SDK typescript.ts](../sdk/typescript.ts) | [SDK python.py](../sdk/python.py) |
 
-阅读顺序是 StrategyRuntime → prepare → bridge → runner → context → SDK → 用户回调。两个语言目录中的 prepare.ts 都在宿主执行；runner/context 在各自沙箱执行。TS 另需 [sandbox-bundle.ts](typescript/sandbox-bundle.ts) 从 entry.ts 打包可信 runner、context 与 SDK；Python 模块由镜像逐项复制。
+阅读顺序是 StrategyRuntime → prepare → bridge → runner → adapter → SDK → 用户回调。两个语言目录中的 prepare.ts 都在宿主执行；runner/adapter 在各自沙箱执行。TS 另需 [sandbox-bundle.ts](typescript/sandbox-bundle.ts) 从 entry.ts 打包可信 runner、adapter 与 SDK；Python 模块由镜像逐项复制。
 
 公共返回类型不暴露语言专属诊断。metrics 归 TypeScriptTransport；隔离测试和性能工具通过 [testing/runtime.ts](typescript/testing/runtime.ts) 装配同一 StrategyRuntime 并单独获取 transport 指标，生产代码不导入测试设施，Python 不增加无业务意义的 metrics。
 

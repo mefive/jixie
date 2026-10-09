@@ -13,14 +13,14 @@
 
 TS 横截面 `compute(bar, ctx)` 与 V2 `compute(ctx)`、Python 的工厂/装饰器调用方式保持不变。
 TS runtime 的 [sandbox-bundle.ts](../runtime/typescript/sandbox-bundle.ts) 只打包此 SDK 与受信任的协议入口，在宿主进程缓存源码；每个因子仍在独立 isolate 中初始化。
-SDK 接收宿主已准备的历史数组和声明字段，不查询数据库、不导入 Engine 或 runtime；全局注册、批量调用与错误处理属于 runtime。
+SDK 接收自己声明的 Capabilities，Adapter 持有准备好的历史数组、索引和声明字段，不查询数据库、不导入 Engine 或 runtime；全局注册、批量调用与错误处理属于 runtime。
 宿主组装的 `FactorBar` 通过映射类型保留可写字段；脚本编辑器/编译契约的 Bar 保持 readonly，字段清单不重复维护。
 TS 编辑器现有五个 V2 字段和 Python 的七个字段继续分别维护；runtime 的受控研究字段及业务准入不随目录迁移改变。
 本次不扩充 TS 编辑器字段，不把不同语言的能力边界误写成完全对等。
 
 两种语言的实现都按工厂、横截面 Context、资产 Context 组织；两个 Context 类采用相同业务名称。
 TS 类由 runtime 构造，不增加用户脚本构造入口；公开类型名 `FactorCtx`、`TimeSeriesFactorCtxV2` 保持兼容。
-TS 方法保持可解构调用；准备好的数组与声明字段集合保存在私有字段中，不新增公开数据属性。
+TS 方法保持可解构调用；能力对象保存在 SDK 私有字段中；预备数组与声明字段集合归 Adapter 返回的绑定对象，不新增公开数据属性。
 
 | 公开能力 | TypeScript | Python |
 | --- | --- | --- |
@@ -41,3 +41,11 @@ sandboxd 仅分派到该业务入口；Dockerfile 保留业务目录结构并显
 
 契约修改流程：shared 来源 → 生成声明 → SDK/runtime 适配 → 静态检查 → 人工审查 → 行为验证。
 本次实施与验证状态见 [统一 SDK 计划](../../../../../docs/design/business-sdk-organization.md)。
+
+
+SDK 的基础能力接口见 [capabilities.ts](capabilities.ts) / [capabilities.py](capabilities.py)。
+两个 Context 保留公开 history/value/lag、参数/声明校验及返回值归一化；不读取 wire frame 或持有输入 DTO。
+[runtime/typescript/adapter.ts](../runtime/typescript/adapter.ts) 和 [runtime/python/adapter.py](../runtime/python/adapter.py)
+通过同一 bind(input) 入口将本地预备数据绑定为这些能力，runner 再注入 Context。内部 Context 构造参数改为能力对象，公开作者契约与回调签名保持。
+独立注入验证见 [injection.test.ts](injection.test.ts) 和 [python-injection.test.ts](python-injection.test.ts)。
+统一规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。

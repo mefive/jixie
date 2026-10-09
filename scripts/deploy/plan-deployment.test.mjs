@@ -89,26 +89,31 @@ test('the common Python protocol entry selects the sandbox image', () => {
   });
 });
 
-test('every packaged business Python source selects both API and the sandbox image', async () => {
+test('every packaged API Python source selects both API and the sandbox image', async () => {
   const dockerfile = await readFile(
     resolve(scriptDirectory, '../../apps/sandboxd/Dockerfile.python'),
     'utf8',
   );
-  const businessSources = [...dockerfile.matchAll(/^COPY (apps\/api\/\S+\.py) /gm)].map(
+  const apiSources = [...dockerfile.matchAll(/^COPY (apps\/api\/\S+\.py) /gm)].map(
     (match) => match[1],
   );
   for (const requiredEntry of [
+    'apps/api/src/infra/runtime/python/adapter.py',
     'apps/api/src/strategy/sdk/python.py',
     'apps/api/src/strategy/runtime/python/runner.py',
-    'apps/api/src/strategy/runtime/python/context.py',
+    'apps/api/src/strategy/runtime/python/adapter.py',
     'apps/api/src/factor/sdk/python.py',
     'apps/api/src/factor/runtime/python/runner.py',
+    'apps/api/src/strategy/sdk/capabilities.py',
+    'apps/api/src/factor/sdk/capabilities.py',
+    'apps/api/src/factor/runtime/python/adapter.py',
+    'apps/api/src/research/sdk/python/bindings.py',
     'apps/api/src/research/sdk/python/data.py',
     'apps/api/src/research/runtime/python/runner.py',
   ]) {
-    assert.ok(businessSources.includes(requiredEntry), `missing Docker input: ${requiredEntry}`);
+    assert.ok(apiSources.includes(requiredEntry), `missing Docker input: ${requiredEntry}`);
   }
-  for (const changedPath of businessSources) {
+  for (const changedPath of apiSources) {
     assert.deepEqual(classifyChangedPaths([changedPath], manifest), {
       api: true,
       web: false,
@@ -128,7 +133,7 @@ test('business TypeScript SDK and host runtime changes still select only API', (
     'apps/api/src/strategy/runtime/typescript/prepare.ts',
     'apps/api/src/strategy/runtime/typescript/entry.ts',
     'apps/api/src/strategy/runtime/typescript/runner.ts',
-    'apps/api/src/strategy/runtime/typescript/context.ts',
+    'apps/api/src/strategy/runtime/typescript/adapter.ts',
     'apps/api/src/strategy/runtime/python/prepare.ts',
     'apps/api/src/strategy/execution/execution.ts',
     'apps/api/src/backtesting/engine.ts',

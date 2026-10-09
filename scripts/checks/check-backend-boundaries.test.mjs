@@ -528,3 +528,40 @@ test('rejects business and neutral jobs importing assembly, including through a 
   assert.ok(found.includes('jobs-assembly-direction'));
   assert.ok(found.includes('infra-transitive-direction'));
 });
+
+test('keeps author SDK capabilities independent of runtime, engine and infrastructure types', (context) => {
+  const root = fixture(context, {
+    [src + 'strategy/sdk/typescript.ts']:
+      "import type { EngineContext } from '../../backtesting/contract.js'; import '../runtime/adapter.js';",
+    [src + 'strategy/runtime/adapter.ts']: 'export const adapter = {};',
+    [src + 'backtesting/contract.ts']: 'export interface EngineContext {}',
+    [src + 'factor/sdk/typescript.ts']:
+      "import type { Session } from '../../infra/runtime/session.js';",
+    [src + 'infra/runtime/session.ts']: 'export interface Session {}',
+  });
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [
+    'sdk-isolation',
+    'sdk-isolation',
+    'sdk-isolation',
+  ]);
+});
+
+test('permits SDK-owned contracts, pure helpers and SDK injection tests', (context) => {
+  const root = fixture(context, {
+    [src + 'strategy/sdk/typescript.ts']:
+      "import type { Capabilities } from './capabilities.js'; import { indicator } from '../../math/indicator.js';",
+    [src + 'strategy/sdk/capabilities.ts']: 'export interface Capabilities {}',
+    [src + 'math/indicator.ts']: 'export const indicator = 1;',
+    [src + 'strategy/sdk/sdk.test.ts']: "import '../runtime/adapter.js';",
+    [src + 'strategy/runtime/adapter.ts']: 'export const adapter = {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
+});
+
+test('rejects undeclared dynamic dependencies inside author SDKs', (context) => {
+  const root = fixture(context, {
+    [src + 'strategy/sdk/typescript.ts']:
+      'const module = "../runtime/adapter.js"; void import(module);',
+  });
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), ['sdk-isolation']);
+});
