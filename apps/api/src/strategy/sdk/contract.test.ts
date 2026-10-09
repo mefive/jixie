@@ -8,7 +8,9 @@ import type {
 } from '@jixie/shared/sdk/strategy/contract';
 import type { BarRow } from '#backtesting/data/market.js';
 import type { EngineContext } from '#backtesting/contract.js';
-import { defineStrategy, Universe as UniverseImplementation } from './typescript.js';
+import { defineStrategy, StrategyContext } from './typescript.js';
+import { Universe as UniverseImplementation } from './universe.js';
+import { ResampledSeries } from './timeframe-series.js';
 
 /**
  * Drift guard between the SDK registry (@jixie/shared sdk/strategy/reference.ts — the single source that
@@ -26,6 +28,9 @@ type UniverseUndocumented = 'length';
 describe('sdk-reference registry ↔ runtime SDK types stay in sync', () => {
   it('implements the public factory and selection signatures', () => {
     expectTypeOf<typeof defineStrategy>().toExtend<DefineStrategy>();
+    expectTypeOf<StrategyContext>().toExtend<StrategyCtx>();
+    expectTypeOf<keyof StrategyContext>().toEqualTypeOf<keyof StrategyCtx>();
+    expectTypeOf<ResampledSeries>().toExtend<TimeframeSeries>();
     expectTypeOf<UniverseImplementation>().toExtend<Universe>();
   });
   it('keeps simulation primitives out of the public authoring context', () => {

@@ -6,7 +6,11 @@ import {
   noopSandboxConsole,
   type SandboxConsole,
 } from '#infra/runtime/console.js';
-import { defineStrategy, applyStrategyParamOverrides } from '../../sdk/typescript.js';
+import {
+  defineStrategy,
+  StrategyContext,
+  applyStrategyParamOverrides,
+} from '../../sdk/typescript.js';
 
 export interface StrategyRunnerHost {
   receive(handler: StrategyRunnerCommandHandler): void;
@@ -86,8 +90,9 @@ class StrategyRunner {
 
   private async execute(snapshot: StrategyAdapterInput) {
     const capabilities = this.adapter.bind(snapshot);
+    const context = new StrategyContext(capabilities, this.strategy.params);
 
-    await this.strategy.onBar(capabilities);
+    await this.strategy.onBar(context);
 
     return JSON.stringify({ type: 'done', commands: [] });
   }

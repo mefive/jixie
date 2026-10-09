@@ -7,7 +7,12 @@ import {
   type SandboxConsole,
   type UserLogSink,
 } from '#infra/runtime/console.js';
-import { applyStrategyParamOverrides, defineStrategy } from '../../../sdk/typescript.js';
+import {
+  applyStrategyParamOverrides,
+  defineStrategy,
+  StrategyContext,
+} from '../../../sdk/typescript.js';
+import type { StrategyDefinition } from '../../../sdk/capabilities.js';
 
 /** Trusted repository fixtures only. Never evaluate user or model source on the host. */
 export async function compileStrategy(
@@ -43,15 +48,26 @@ export async function compileStrategy(
     throw new Error(`strategy code execution error: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  const strategy = (mod.exports.default ?? mod.exports) as Partial<EngineStrategy>;
+  const strategy = (mod.exports.default ?? mod.exports) as Partial<StrategyDefinition>;
   if (!strategy || typeof strategy.onBar !== 'function') {
     throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
   }
   if (!strategy.name) {
     strategy.name = 'Untitled strategy';
   }
-  applyStrategyParamOverrides(strategy as EngineStrategy, paramOverrides);
-  return strategy as EngineStrategy;
+
+  const definition = strategy as StrategyDefinition;
+  applyStrategyParamOverrides(definition, paramOverrides);
+
+  return createFixtureEngineStrategy(definition);
+}
+
+/** Adapt a trusted SDK fixture to the same public context used by the isolated runner. */
+export function createFixtureEngineStrategy(definition: StrategyDefinition): EngineStrategy {
+  return {
+    ...definition,
+    onBar: (capabilities) => definition.onBar(new StrategyContext(capabilities, definition.params)),
+  };
 }
 
 function blockedRequire(id: string): never {

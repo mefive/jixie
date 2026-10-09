@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
 import { BacktestingEngine } from '#backtesting/engine.js';
 import { defineStrategy } from '../../sdk/typescript.js';
+import { createFixtureEngineStrategy } from '../typescript/testing/compile.js';
 
 const dates = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];
 const spec: FixtureSpec = {
@@ -120,7 +121,7 @@ describe('Python strategy runtime', () => {
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
-          strategy: nativeStrategy,
+          strategy: createFixtureEngineStrategy(nativeStrategy),
           dataPort: fixturePort(spec),
         }).run(),
       ]);
@@ -206,7 +207,7 @@ def handle_bar(ctx):
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
-          strategy: nativeStrategy,
+          strategy: createFixtureEngineStrategy(nativeStrategy),
           dataPort: fixturePort(spec),
         }).run(),
       ]);

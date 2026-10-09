@@ -6,13 +6,18 @@
 | --- | --- |
 | `packages/shared/src/sdk/strategy/reference.ts` | 公开 TS 签名与双语文档、Agent 参考；唯一手工维护的公开签名来源 |
 | 同目录 `contract.ts` | `setup:sandbox` 复用声明生成器输出的编译契约；不要手改；通过 `@jixie/shared/sdk/strategy/contract` 类型导入 |
-| [typescript.ts](typescript.ts) | `defineStrategy`、`enrich`、Universe、多周期与指标辅助；沙箱 entry 和可信测试 fixture 使用 |
+| [typescript.ts](typescript.ts) | `defineStrategy`、StrategyContext、参数和周期规则；Runner 构造 Context 后调用公开 onBar |
+| [stock-account.ts](stock-account.ts) | 账户基础方法转发、live getter 与等权／ATR／逆波动率仓位辅助 |
+| [universe.ts](universe.ts) | 选股链的筛选、排序与截取 |
+| [timeframe-series.ts](timeframe-series.ts) | 已完成周／月的序列与指标方法 |
+| [indicators.ts](indicators.ts) | 日频／多周期及账户辅助复用的本地指标计算 |
 | [contract.test.ts](contract.test.ts) | 公开成员、内部能力隔离与 Engine 基础签名兼容检查 |
 | [typescript.test.ts](typescript.test.ts) | 选股、仓位与多周期行为验证 |
 
 `defineStrategy` 接受公开 `CodeStrategy`，返回 SDK 自有 `StrategyDefinition`；用户声明中的
-`onBar` 接受独立 `StrategyCtx`，运行时回调接受 SDK 自有 `StrategyCapabilities`。EngineContext 在运行边界保持结构兼容。`enrich` 用明确的辅助成员
-补齐公开上下文，并在返回处校验完整签名，不把 Engine 类型直接作为公开接口继承来源。
+`onBar` 接受独立 `StrategyCtx`。Runner 执行 `adapter.bind(snapshot) → new StrategyContext(capabilities, params) → onBar(context)`，
+与 Factor 的 Context 构造位置一致；SDK 工厂只规范定义及参数，并保留作者回调 receiver。Context 用私有能力字段和明确公开方法
+实现完整公开签名，不把 Engine 类型直接作为公开接口继承来源。
 `loadCrossSection` 和 `resampledBars` 是内部能力，公开用户入口是 `universe` / `weekly` / `monthly`。
 内部行情可以携带因子准备需要的额外字段，不因此扩展公开 OHLC 字段；SDK 不更改数据可见时间。
 
@@ -30,7 +35,7 @@ Python 的 `Strategy`、`Context`、`Universe` 实现在 `apps/api/src/strategy/
 ## 账户与订单
 
 公开上下文只通过 `portfolio.equity` 提供组合权益；`stock` 和 `futures` 分别提供权益、可用现金及账户操作。
-TS 的 `enrich` 构造独立且完整校验的对象，不再修改或透出整个 EngineContext。现金手数与后复权股数
+TS 的 `StrategyContext` 构造独立且完整校验的对象，公开方法保留解构调用与自身可枚举属性；能力对象使用私有字段保存。现金手数与后复权股数
 显式命名；ATR 仓位辅助使用现金账户权益。Python 同步整理已有现金操作，不新增期货交易。
 
 新策略决策中，增量累加、重复目标覆盖。现金完整目标表不能与现金增量单混用；期货按代码检查。
@@ -45,9 +50,13 @@ OrderBook 方法。runtime 以 stock.* / futures.* 命令回放，并按账户�
 
 
 SDK 基础能力由 [capabilities.ts](capabilities.ts) / [capabilities.py](capabilities.py) 声明，
-SDK 实现不导入 Engine、runtime、帧协议或数据库。TS 的 StrategyDefinition 以这些能力作为内部回调输入；
+SDK 实现不导入 Engine、runtime、帧协议或数据库。TS 的 StrategyDefinition 回调接收公开 Context；
 Python Context/StockAccount 接收对应 Protocol，runner 注入 StrategyAdapter.bind(snapshot) 返回的能力对象。
 两种语言都显式声明账户原始操作，SDK 只转发能力调用；命令名、参数编码和发送／收集归 runtime Adapter。
 指标、Universe、周期和仓位辅助留在 SDK；快照、缓存、同步/异步请求归 runtime Adapter。
 独立注入验证见 [injection.test.ts](injection.test.ts) / [python-injection.test.ts](python-injection.test.ts)，
 完整规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。
+
+TS 的阅读顺序与 Factor 相同：定义工厂 → Context 构造 → 公开方法。账户／选股／周期辅助按业务职责独立，
+不为 Factor 制造不存在的辅助对象。参数保持冻结副本，账户 getter、能力转发与 command 时机保持。
+本轮审查和验证状态见 [Context 对齐记录](../../../../../docs/design/sdk-context-construction.md)。

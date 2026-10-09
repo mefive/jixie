@@ -15,7 +15,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `signals/runs/job-lifecycle.ts` | `signals/runs/worker.boot.mjs` → `.ts` | `signals/runs/worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
-| `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → runner.ts/adapter.ts | 同目录 `entry.js` → runner.js/adapter.js | esbuild neutral bundle，仅 SDK/指标与沙箱适配，不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
+| `strategy/runtime/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → runner.ts/adapter.ts → SDK Context、账户、选股、周期与指标 | 同目录 `entry.js` → runner.js/adapter.js → 对应 SDK .js | esbuild neutral bundle，Runner 绑定能力并显式构造 SDK Context；不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `strategy/execution/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；TS/Python 共享 execution/execution 在 finally 关闭，初始化失败也清理已建立实例 |
 | `strategy/runtime/typescript/runtime.test-worker.mjs` | 测试辅助入口，使用 `backtesting/testing/fixture-port` | 不作为生产入口 | 测试专用；生产不能导入 `.test-worker.mjs` 或 testing fixture |
 | `factor/runtime/typescript/runtime-benchmark.test-worker.mjs` | 性能验证子进程；固定读取 `4464a616` 的 TS Factor 工厂／SDK bundler，和当前 FactorRuntime 比较横截面、窗口、资产序列及日志负载 | 不作为生产入口 | 仅测试；临时旧模块 finally 删除，记录结果哈希、耗时、逻辑载荷字节及新 transport 实测帧字节 |

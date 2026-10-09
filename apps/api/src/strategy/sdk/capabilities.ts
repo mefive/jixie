@@ -30,8 +30,7 @@ export interface StrategyCapabilities extends Pick<
   resampledBars(code: string, period: 'weekly' | 'monthly', count: number): OhlcBar[];
 }
 
-/** A loaded SDK definition; the runtime adapts its callback to the host simulation. */
-export interface StrategyDefinition extends Omit<CodeStrategy, 'name' | 'onBar'> {
+/** A loaded SDK definition; its callback receives the public context created by the runner. */
+export interface StrategyDefinition extends Omit<CodeStrategy, 'name'> {
   name: string;
-  onBar(capabilities: StrategyCapabilities): void | Promise<void>;
 }

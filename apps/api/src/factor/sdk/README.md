@@ -49,3 +49,6 @@ SDK 的基础能力接口见 [capabilities.ts](capabilities.ts) / [capabilities.
 通过同一 bind(input) 入口将本地预备数据绑定为这些能力，runner 再注入 Context。内部 Context 构造参数改为能力对象，公开作者契约与回调签名保持。
 独立注入验证见 [injection.test.ts](injection.test.ts) 和 [python-injection.test.ts](python-injection.test.ts)。
 统一规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。
+
+Strategy TS 也由 Runner 绑定 Capabilities 后显式构造 SDK Context；两者均按工厂 → Context 构造 → 公开方法阅读。
+Strategy 专有的选股、账户和周期辅助归其 SDK 独立文件。见 [Context 对齐记录](../../../../../docs/design/sdk-context-construction.md)。

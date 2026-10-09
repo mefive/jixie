@@ -9,13 +9,13 @@
 | [runner.ts](runner.ts) | 显式 runStrategy 入口与 StrategyRunner：源码加载、参数覆盖、元数据、日志、start/bar/response 分派及用户回调 |
 | [adapter.ts](adapter.ts) | 沙箱基础能力适配：当日快照、历史和读缓存、查询、指令及异步数据访问；不实现作者指标或选股辅助 |
 | [sandbox-bundle.ts](sandbox-bundle.ts) | 打包 runner/adapter、SDK、指标、日志；源码/编译入口分别解析 entry.ts / entry.js |
-| [SDK typescript.ts](../../sdk/typescript.ts) | defineStrategy、enrich、Universe、仓位、周期与指标辅助；公开类型来自 shared SDK 契约 |
+| [SDK typescript.ts](../../sdk/typescript.ts) | defineStrategy、StrategyContext、参数与周期；独立账户／选股／序列／指标辅助仍归 SDK，公开类型来自 shared SDK 契约 |
 | [testing/compile.ts](testing/compile.ts) | 仅编译可信 fixture，生产代码禁止导入 |
 | [testing/runtime.ts](testing/runtime.ts) | 测试专用资源装配；返回同一 StrategyRuntime 与独立 transport metrics |
 
 通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 entry 的唯一 __receiveCommand 接入 runner 分派。公共 StrategyRuntime 继承 SandboxRuntime，以 startSandboxRuntime 统一获取、初始化与失败清理。
 
-runner 为整个会话持有 StrategyAdapter，把同步 access 和异步 request 回调注入其中。该适配器持有跨日历史缓存，每次 bind(snapshot) 清理读缓存并创建当日 BoundStrategyCapabilities；defineStrategy 通过 SDK enrich 包装成公开 StrategyCtx，再调用用户 onBar。
+runner 为整个会话持有 StrategyAdapter，把同步 access 和异步 request 回调注入其中。该适配器持有跨日历史缓存，每次 bind(snapshot) 清理读缓存并创建当日 BoundStrategyCapabilities；runner 使用绑定和当前参数创建 SDK StrategyContext，再调用用户 onBar；defineStrategy 保留定义／参数规范与作者 receiver，不构造 Context。
 
 与 Factor 对应的 runner 类型使用 `StrategyRunnerHost`、`StrategyRunnerStartup`、`StrategyRunnerCommand`、`StrategyRunnerCommandHandler`。
 

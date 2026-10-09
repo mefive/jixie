@@ -1,5 +1,7 @@
 # Strategy SDK 与 Engine 职责分离
 
+> 后续结构对齐（2026-10-09）：StrategyContext 取代 enrich，Runner 显式构造后调用作者回调；见 [Context 对齐记录](sdk-context-construction.md)。下文为首次 SDK 分离的历史记录。
+
 本项是 [业务 SDK 与运行时统一组织计划](business-sdk-organization.md) 的第一个提交；Factor / Research 的后续整理见整体计划。
 
 提交信息：`refactor(strategy): separate SDK contracts from engine internals`。

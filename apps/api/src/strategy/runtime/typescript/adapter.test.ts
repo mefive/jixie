@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import { StrategyAdapter, type StrategyAdapterInput } from './adapter.js';
-import { defineStrategy } from '../../sdk/typescript.js';
+import { defineStrategy, StrategyContext } from '../../sdk/typescript.js';
 import type { StrategyCapabilities } from '../../sdk/capabilities.js';
 import type { OhlcBar } from '#backtesting/data/market.js';
 
@@ -70,7 +70,10 @@ it('keeps host commands synchronous through the SDK account wrapper', async () =
     },
   });
 
-  await strategy.onBar(adapter.bind(snapshot('20260105', 1000)));
+  const capabilities = adapter.bind(snapshot('20260105', 1000));
+  const context = new StrategyContext(capabilities, strategy.params);
+
+  await strategy.onBar(context);
 
   expect(commands).toEqual([
     {

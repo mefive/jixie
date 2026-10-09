@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Universe, enrich, periodKey } from './typescript.js';
+import { StrategyContext, periodKey } from './typescript.js';
+import { Universe } from './universe.js';
 import type { EngineContext } from '#backtesting/contract.js';
 import type { BarRow } from '#backtesting/data/market.js';
 
@@ -81,10 +82,10 @@ describe('Universe', () => {
   });
 });
 
-describe('enrich', () => {
+describe('StrategyContext', () => {
   it('equalWeight sets equal target weights via stock.setTargetWeights', () => {
     const { ctx, targetWeightsArg } = ctxOf({ A: {}, B: {} });
-    enrich(ctx).stock.equalWeight(['A', 'B', 'C']);
+    new StrategyContext(ctx).stock.equalWeight(['A', 'B', 'C']);
     expect(targetWeightsArg.value).toEqual({ A: 1 / 3, B: 1 / 3, C: 1 / 3 });
   });
 
@@ -125,7 +126,7 @@ describe('enrich', () => {
     ];
     ctx.history = (code) => (code === 'A' ? [100, 110, 100] : code === 'B' ? [100, 102, 104] : []);
 
-    const sdk = enrich(ctx);
+    const sdk = new StrategyContext(ctx);
     expect(sdk.stock.atrAdjustedShares('A', 0.01, 2)).toBe(333);
     const weights = sdk.stock.volTargetWeights(['A', 'B', 'MISSING'], 2);
     expect([...weights.keys()]).toEqual(['A', 'B']);
@@ -135,7 +136,7 @@ describe('enrich', () => {
 
   it('universe() loads the cross-section into a Universe', async () => {
     const { ctx } = ctxOf({ A: { peTtm: 10 }, B: { peTtm: 20 } });
-    const u = await enrich(ctx).universe();
+    const u = await new StrategyContext(ctx).universe();
     expect(u.codes().sort()).toEqual(['A', 'B']);
   });
 
@@ -145,14 +146,14 @@ describe('enrich', () => {
       {},
       { '000300.SH': ['A', 'C', 'Z'] }, // Z not tradable today → not in the loaded panel → dropped
     );
-    const u = await enrich(ctx).universe('000300.SH');
+    const u = await new StrategyContext(ctx).universe('000300.SH');
     expect(u.codes().sort()).toEqual(['A', 'C']);
   });
 
   it('period() reflects the schedule bucket', () => {
     const { ctx } = ctxOf({});
-    expect(enrich(ctx).period('monthly')).toBe('202401');
-    expect(enrich(ctx).period('daily')).toBe('20240131');
+    expect(new StrategyContext(ctx).period('monthly')).toBe('202401');
+    expect(new StrategyContext(ctx).period('daily')).toBe('20240131');
   });
 
   it('weekly()/monthly() expose completed-period bars through the shared indicator surface', () => {
@@ -181,7 +182,7 @@ describe('enrich', () => {
     ];
     ctx.resampledBars = (_code, period, n) => (period === 'weekly' ? weeklyBars.slice(-n) : []);
 
-    const weekly = enrich(ctx).weekly('A');
+    const weekly = new StrategyContext(ctx).weekly('A');
     expect(weekly.bars(1)).toEqual([weeklyBars[1]]);
     expect(weekly.history('close', 2)).toEqual([10, 12]);
     expect(weekly.sma(2)).toBe(11);
@@ -192,7 +193,7 @@ describe('enrich', () => {
     expect(weekly.adx(1)?.positiveDi).toBeGreaterThan(weekly.adx(1)?.negativeDi ?? 0);
     expect(weekly.macd(1, 2, 1)?.histogram).toBe(0);
     expect(weekly.kdj(2)).not.toBeNull();
-    expect(enrich(ctx).monthly('A').bars(2)).toEqual([]);
+    expect(new StrategyContext(ctx).monthly('A').bars(2)).toEqual([]);
   });
 });
 
@@ -212,7 +213,7 @@ describe('public account scopes', () => {
     Object.assign(ctx.portfolio, { equity: 100000 });
     Object.assign(ctx.stock, { equity: 70000, availableCash: 10000 });
     Object.assign(ctx.futures, { equity: 30000, availableCash: 20000, margin: 10000 });
-    const sdk = enrich(ctx);
+    const sdk = new StrategyContext(ctx);
 
     expect(sdk.portfolio.equity).toBe(100000);
     expect(sdk.stock.equity).toBe(70000);

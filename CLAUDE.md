@@ -82,7 +82,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   同目录 `contract.ts` 由现有声明生成器经 `pnpm setup:sandbox` 生成，禁止手改；Monaco 继续动态生成
   带用户可用因子 key 的声明，编译契约允许运行时解析的字符串 key。
 - 修改公开签名后同步 Strategy SDK 实现与语言适配，运行生成物一致性和类型检查。`strategy/sdk` 的
-  `enrich` 在返回处检查完整公开签名，不能用把 EngineContext 整体断言成 StrategyCtx 的方式绕过检查。
+  `StrategyContext` 实现完整公开签名，Runner 显式构造后调用作者回调，不能用把 EngineContext 整体断言成 StrategyCtx 的方式绕过检查。
 - SDK 自有 StrategyCapabilities / StrategyDefinition 是基础能力与内部加载结果；SDK 不导入 Engine。
 - Engine 的 `EngineStrategy` / `EngineContext` 是内部模拟契约，不作为公开 SDK 继承来源。
   Strategy runtime 负责桥接；Engine 不加载用户源码或选择语言。Python SDK 的实现归

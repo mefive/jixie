@@ -2,6 +2,8 @@
 
 > 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。
 
+> 后续结构对齐（2026-10-09）：Strategy TS Context 改由 Runner 显式构造，见 [Context 对齐记录](sdk-context-construction.md)。该记录维护本轮审查与验证状态；下文原装配位置保留为历史事实。
+
 状态：人工 review 已通过，静态检查与行为验证完成；随本提交交付。提交信息：
 `refactor(sdk): unify runtime capability adapters`。本轮包含 Factor TS/Python、Strategy TS/Python、Research Python。
 
