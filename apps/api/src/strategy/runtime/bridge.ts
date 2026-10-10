@@ -3,6 +3,7 @@ import {
   type SandboxFrame,
   type SandboxTransport,
 } from '#infra/runtime/exchange.js';
+import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { StrategyRuntimeMetadata } from './contract.js';
 import { replayCommands } from './commands.js';
 import { accessStrategyContext } from './context-access.js';
@@ -35,188 +36,211 @@ export interface StrategyBridgeOptions {
   locale?: Locale;
 }
 
-export interface StrategyBridge {
-  metadata: StrategyRuntimeMetadata;
-  execute(context: EngineContext): Promise<void>;
-}
+/** Owns strategy protocol state across callbacks; the runtime owns resource shutdown. */
+export class StrategyBridge {
+  private factors!: string[];
+  private watch!: string[];
+  private historyDates?: Map<string, string | null>;
+  private readonly sandboxConsole?: ReturnType<typeof makeSandboxConsole>;
 
-/** Share protocol state across callbacks; the owner adapts execute to the engine once. */
-export async function createStrategyBridge(
-  session: StrategyTransport,
-  options: StrategyBridgeOptions,
-): Promise<StrategyBridge> {
-  const { diagnostics, onUserLog, locale = DEFAULT_LOCALE } = options;
-  const sandboxConsole = onUserLog ? makeSandboxConsole(onUserLog, 2_000, locale) : undefined;
-  const logSink: UserLogSink | undefined = sandboxConsole
-    ? (level, text) => sandboxConsole[level === 'warn' ? 'warn' : level](text)
-    : undefined;
-  const metadata = await exchangeSandboxCommand(session, {
-    command: options.startupCommand,
-    schema: strategyStartupFrameSchema,
-    operation: `starting a ${diagnostics.language} strategy`,
-    onLog: (frame) => logSink?.(frame.level === 'warning' ? 'warn' : frame.level, frame.text),
-    result: (frame) => frame.metadata,
-  });
-  const historyDates = options.historyUpdates
-    ? new Map<string, string | null>(metadata.watch.map((code) => [code, null]))
-    : undefined;
-  return {
-    metadata: {
+  constructor(
+    private readonly transport: StrategyTransport,
+    private readonly options: StrategyBridgeOptions,
+  ) {
+    const { onUserLog, locale = DEFAULT_LOCALE } = options;
+    this.sandboxConsole = onUserLog ? makeSandboxConsole(onUserLog, 2_000, locale) : undefined;
+  }
+
+  async initialize(): Promise<StrategyRuntimeMetadata> {
+    const metadata = await exchangeSandboxCommand(this.transport, {
+      command: this.options.startupCommand,
+      schema: strategyStartupFrameSchema,
+      operation: `starting a ${this.options.diagnostics.language} strategy`,
+      onLog: (frame) => this.forwardLog(frame),
+      result: (frame) => frame.metadata,
+    });
+    this.factors = metadata.factors;
+    this.watch = metadata.watch;
+    this.historyDates = this.options.historyUpdates
+      ? new Map<string, string | null>(metadata.watch.map((code) => [code, null]))
+      : undefined;
+
+    return {
       name: metadata.name,
       params: metadata.params,
       factors: metadata.factors,
       watch: metadata.watch,
       futures: [],
       accounts: metadata.accounts ?? undefined,
-    },
-    async execute(context) {
-      session.setHostAccess?.((input) => accessStrategyContext(context, input));
-      try {
-        await runStrategyBar(
-          session,
-          context,
-          metadata.factors,
-          metadata.watch,
-          diagnostics,
-          logSink,
-          historyDates,
-        );
-      } finally {
-        session.setHostAccess?.(undefined);
-      }
-    },
-  };
-}
+    };
+  }
 
-async function runStrategyBar(
-  session: StrategyTransport,
-  context: EngineContext,
-  factors: string[],
-  watch: string[],
-  diagnostics: StrategyBridgeDiagnostics,
-  onUserLog?: UserLogSink,
-  historyDates?: Map<string, string | null>,
-): Promise<void> {
-  const commands = await exchangeSandboxCommand(session, {
-    command: { type: 'bar', snapshot: contextSnapshot(context, watch, historyDates) },
-    schema: strategyExecutionFrameSchema,
-    operation: `executing a ${diagnostics.language} strategy ${diagnostics.callback}`,
-    onLog: (frame) => onUserLog?.(frame.level === 'warning' ? 'warn' : frame.level, frame.text),
-    onRequest: (frame) => answerRequest(frame, context, factors, historyDates),
-    result: (frame) => frame.commands,
-  });
-  replayCommands(context, commands);
-}
+  async execute(context: EngineContext): Promise<void> {
+    this.transport.setHostAccess?.((input) => accessStrategyContext(context, input));
+    try {
+      const commands = await exchangeSandboxCommand(this.transport, {
+        command: { type: 'bar', snapshot: this.contextSnapshot(context) },
+        schema: strategyExecutionFrameSchema,
+        operation: `executing a ${this.options.diagnostics.language} strategy ${this.options.diagnostics.callback}`,
+        onLog: (frame) => this.forwardLog(frame),
+        onRequest: (frame) => this.answerRequest(frame, context),
+        result: (frame) => frame.commands,
+      });
 
-function contextSnapshot(
-  context: EngineContext,
-  watch: string[],
-  historyDates?: Map<string, string | null>,
-): Record<string, unknown> {
-  const updateCodes = new Set([
-    ...watch,
-    ...context.stock.positions().map((position) => position.code),
-  ]);
-  if (historyDates) {
-    for (const code of updateCodes) {
-      if (!historyDates.has(code)) {
-        historyDates.set(code, null);
-      }
+      replayCommands(context, commands);
+    } finally {
+      this.transport.setHostAccess?.(undefined);
     }
   }
-  return {
-    ...(historyDates ? { history_updates: historyUpdates(context, historyDates) } : {}),
-    date: context.date,
-    portfolio: { equity: context.portfolio.equity },
-    stock: {
-      equity: context.stock.equity,
-      availableCash: context.stock.availableCash,
-      positions: context.stock.positions(),
-    },
-    futures: {
-      equity: context.futures.equity,
-      availableCash: context.futures.availableCash,
-      margin: context.futures.margin,
-    },
-    bar_updates: Object.fromEntries(
-      [...updateCodes].flatMap((code) => {
-        const row = context.bars(code, 1)[0];
-        return row ? [[code, snapshotOhlc(row)]] : [];
-      }),
-    ),
-  };
-}
 
-async function answerRequest(
-  frame: StrategyRequestFrame,
-  context: EngineContext,
-  factors: string[],
-  historyDates?: Map<string, string | null>,
-): Promise<SandboxFrame> {
-  const id = frame.id;
-  try {
-    let result: unknown;
-    switch (frame.method) {
-      case 'context_data': {
-        switch (frame.arguments.operation) {
-          case 'cross_section': {
-            const codes = await context.loadCrossSection(frame.arguments.index_code ?? undefined);
-            result = { codes, rows: codes.map((code) => [code, context.bar(code)]) };
-            break;
-          }
-          case 'ensure_bars':
-            await context.ensureBars(frame.arguments.codes);
-            if (historyDates) {
-              const requested = new Map<string, string | null>(
-                frame.arguments.codes.map((code) => [code, historyDates.get(code) ?? null]),
-              );
-              result = { history_updates: historyUpdates(context, requested) };
-              for (const code of requested.keys()) {
-                historyDates.set(code, context.date);
-              }
-            } else {
-              result = null;
-            }
-            break;
-          case 'index_members':
-            result = await context.indexMembers(frame.arguments.index_code);
-            break;
+  private forwardLog(frame: RuntimeLogFrame): void {
+    this.sandboxConsole?.[frame.level === 'warning' ? 'warn' : frame.level](frame.text);
+  }
+
+  private contextSnapshot(context: EngineContext): Record<string, unknown> {
+    const watch = this.watch;
+    const historyDates = this.historyDates;
+    const updateCodes = new Set([
+      ...watch,
+      ...context.stock.positions().map((position) => position.code),
+    ]);
+    if (historyDates) {
+      for (const code of updateCodes) {
+        if (!historyDates.has(code)) {
+          historyDates.set(code, null);
         }
-        break;
-      }
-      case 'cross_section': {
-        const indexCode = frame.arguments.index_code;
-        const codes = await context.loadCrossSection(indexCode ?? undefined);
-        result = {
-          codes,
-          rows: codes.flatMap((code) => {
-            const row = context.bar(code);
-            return row ? [snapshotBarRow(row, context, factors)] : [];
-          }),
-        };
-        break;
-      }
-      case 'bars': {
-        const codes = frame.arguments.codes;
-        await context.ensureBars(codes);
-        result = {
-          bars: Object.fromEntries(
-            codes.map((code) => [
-              code,
-              context.bars(code, Number.MAX_SAFE_INTEGER).map(snapshotOhlc),
-            ]),
-          ),
-        };
-        break;
       }
     }
-    return { type: 'response', id, result };
-  } catch (error) {
+
     return {
-      type: 'response',
-      id,
-      error: error instanceof Error ? error.message : String(error),
+      ...(historyDates ? { history_updates: this.historyUpdates(context, historyDates) } : {}),
+      date: context.date,
+      portfolio: { equity: context.portfolio.equity },
+      stock: {
+        equity: context.stock.equity,
+        availableCash: context.stock.availableCash,
+        positions: context.stock.positions(),
+      },
+      futures: {
+        equity: context.futures.equity,
+        availableCash: context.futures.availableCash,
+        margin: context.futures.margin,
+      },
+      bar_updates: Object.fromEntries(
+        [...updateCodes].flatMap((code) => {
+          const row = context.bars(code, 1)[0];
+          return row ? [[code, snapshotOhlc(row)]] : [];
+        }),
+      ),
     };
+  }
+
+  private async answerRequest(
+    frame: StrategyRequestFrame,
+    context: EngineContext,
+  ): Promise<SandboxFrame> {
+    const factors = this.factors;
+    const historyDates = this.historyDates;
+    const id = frame.id;
+    try {
+      let result: unknown;
+      switch (frame.method) {
+        case 'context_data': {
+          switch (frame.arguments.operation) {
+            case 'cross_section': {
+              const codes = await context.loadCrossSection(frame.arguments.index_code ?? undefined);
+              result = { codes, rows: codes.map((code) => [code, context.bar(code)]) };
+              break;
+            }
+            case 'ensure_bars':
+              await context.ensureBars(frame.arguments.codes);
+              if (historyDates) {
+                const requested = new Map<string, string | null>(
+                  frame.arguments.codes.map((code) => [code, historyDates.get(code) ?? null]),
+                );
+                result = { history_updates: this.historyUpdates(context, requested) };
+                for (const code of requested.keys()) {
+                  historyDates.set(code, context.date);
+                }
+              } else {
+                result = null;
+              }
+              break;
+            case 'index_members':
+              result = await context.indexMembers(frame.arguments.index_code);
+              break;
+          }
+          break;
+        }
+        case 'cross_section': {
+          const indexCode = frame.arguments.index_code;
+          const codes = await context.loadCrossSection(indexCode ?? undefined);
+          result = {
+            codes,
+            rows: codes.flatMap((code) => {
+              const row = context.bar(code);
+              return row ? [snapshotBarRow(row, context, factors)] : [];
+            }),
+          };
+          break;
+        }
+        case 'bars': {
+          const codes = frame.arguments.codes;
+          await context.ensureBars(codes);
+          result = {
+            bars: Object.fromEntries(
+              codes.map((code) => [
+                code,
+                context.bars(code, Number.MAX_SAFE_INTEGER).map(snapshotOhlc),
+              ]),
+            ),
+          };
+          break;
+        }
+      }
+
+      return { type: 'response', id, result };
+    } catch (error) {
+      return {
+        type: 'response',
+        id,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /** Transfer history once, then only rows since the last callback, including gaps and suspensions. */
+  private historyUpdates(
+    context: EngineContext,
+    dates: Map<string, string | null>,
+  ): Record<string, { reset: boolean; bars: OhlcBar[] }> {
+    const updates: Record<string, { reset: boolean; bars: OhlcBar[] }> = {};
+    const timestamp = (date: string) =>
+      Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)));
+
+    for (const [code, previous] of dates) {
+      if (previous === context.date) {
+        continue;
+      }
+
+      // Daily series contain at most one row per calendar day; this also covers skipped callbacks.
+      const count =
+        previous == null
+          ? Number.MAX_SAFE_INTEGER
+          : Math.max(
+              1,
+              Math.ceil((timestamp(context.date) - timestamp(previous)) / 86_400_000) + 1,
+            );
+      const bars = context
+        .bars(code, count)
+        .filter((bar) => previous == null || bar.date > previous);
+      if (previous == null || bars.length) {
+        updates[code] = { reset: previous == null, bars };
+      }
+      dates.set(code, context.date);
+    }
+
+    return updates;
   }
 }
 
@@ -274,30 +298,4 @@ function snapshotOhlc(row: OhlcBar): Record<string, unknown> {
     amount: row.amount,
     turnover_rate_f: row.turnoverRateF,
   };
-}
-
-/** Transfer history once, then only rows since the last callback, including gaps and suspensions. */
-function historyUpdates(
-  context: EngineContext,
-  dates: Map<string, string | null>,
-): Record<string, { reset: boolean; bars: OhlcBar[] }> {
-  const updates: Record<string, { reset: boolean; bars: OhlcBar[] }> = {};
-  const timestamp = (date: string) =>
-    Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8)));
-  for (const [code, previous] of dates) {
-    if (previous === context.date) {
-      continue;
-    }
-    // Daily series contain at most one row per calendar day; this also covers skipped callbacks.
-    const count =
-      previous == null
-        ? Number.MAX_SAFE_INTEGER
-        : Math.max(1, Math.ceil((timestamp(context.date) - timestamp(previous)) / 86_400_000) + 1);
-    const bars = context.bars(code, count).filter((bar) => previous == null || bar.date > previous);
-    if (previous == null || bars.length) {
-      updates[code] = { reset: previous == null, bars };
-    }
-    dates.set(code, context.date);
-  }
-  return updates;
 }

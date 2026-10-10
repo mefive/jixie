@@ -5,13 +5,15 @@
 | 文件 / 入口 | 消费者及副作用 |
 | --- | --- |
 | [factor-runtime.ts](factor-runtime.ts) `FactorRuntime.start` | 所有计算消费者的唯一创建入口，统一持有 TS/Python 沙箱资源和生命周期；按 language 准备配置、按 analysisKind 保留强类型；实例统一提供 metadata、execute、同步幂等 close，输入类型在 [contract.ts](contract.ts) |
-| [bridge.ts](bridge.ts) `createFactorBridge` | 宿主启动/计算协议、语言字段映射、计算错误去重和结果长度检查；异常结果交由 runtime abort |
+| [bridge.ts](bridge.ts) `FactorBridge` | initialize 握手返回 metadata，execute 处理计算协议和语言字段映射；实例持有计算错误去重状态，异常结果通过构造时注入的宿主能力交由 runtime abort |
 | [metadata.ts](metadata.ts) | 保留 TS/Python 各自的资产因子 metadata 校验规则和错误类型 |
 | [validate-definition.ts](validate-definition.ts) `validateFactorDefinition` | 草稿写入等调用方传源码、不可混淆的 analysisKind 和 language；成功返回 void，失败抛错。TS 会 start 并 close 实例，Python 做静态验证 |
 | [inspect-definition.ts](inspect-definition.ts) `inspectFactorTargetAssetClasses` | definitions/read 获取详情资产范围；横截面返回 equity，TS 资产因子 start 后读取 metadata，finally close，Python 只解析字面量声明 |
 | [codegen-prompt.ts](codegen-prompt.ts) `buildFactorCodegenPrompt` | Agent profile／生成流程使用，按语言和分析类型构造提示词，不保存因子或报告 |
 
 与 Strategy 采用相同阅读顺序：contract → runtime → prepare → bridge → entry → runner → SDK。`FactorExecutionInput<Kind>`、`FactorRuntimeMetadata<Kind>`、`FactorRuntimeInstance<Kind>` 保留种类关联；泛化参数为联合时仍返回各类实例的联合，不把截面与资产输入混成可随意搭配的接口。
+
+Runtime 在 initializeInSandbox 中 new FactorBridge(resource, options, this) 并等待 initialize；Bridge 不管理资源或重复实现生命周期。纯 Python 字段映射仍保留为具名函数。
 
 静态验证、检查元数据与执行因子不是同一操作。Python 验证虽不执行用户 Python，仍启动 Pyright 并创建临时文件；TS 定义检查也有 isolate 资源。纯目录消费者不要经 runtime 获取 definitions/views 中已有的语言映射。
 

@@ -184,6 +184,38 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
     }
   });
 
+  it('reports the first compute error once per instance across consecutive batches', async () => {
+    const failedPoint = { type: 'factor_values', values: [null], first_error: 'point failed' };
+    sessionFixture(language, ready(language, 'cross_sectional'), failedPoint, failedPoint);
+    const onUserLog = vi.fn();
+    const options = {
+      language,
+      analysisKind: 'cross_sectional' as const,
+      code: 'source',
+      onUserLog,
+    };
+    const runtime = await FactorRuntime.start(options);
+    try {
+      await expect(runtime.execute({ items: [{ bar }] })).resolves.toEqual([null]);
+      await expect(runtime.execute({ items: [{ bar }] })).resolves.toEqual([null]);
+      expect(onUserLog.mock.calls).toEqual([['error', '[factor-error] point failed']]);
+    } finally {
+      runtime.close();
+    }
+
+    sessionFixture(language, ready(language, 'cross_sectional'), failedPoint);
+    const replacement = await FactorRuntime.start(options);
+    try {
+      await expect(replacement.execute({ items: [{ bar }] })).resolves.toEqual([null]);
+      expect(onUserLog.mock.calls).toEqual([
+        ['error', '[factor-error] point failed'],
+        ['error', '[factor-error] point failed'],
+      ]);
+    } finally {
+      replacement.close();
+    }
+  });
+
   it('aborts malformed result lengths and preserves language-specific error reporting order', async () => {
     const session = sessionFixture(language, ready(language, 'cross_sectional'), {
       type: 'factor_values',

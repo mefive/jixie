@@ -1,7 +1,7 @@
 import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 import type { SandboxResource } from '#infra/runtime/sandbox-runtime.js';
-import { createFactorBridge } from './bridge.js';
-import type { FactorBridge, FactorBridgeOptions, FactorTransport } from './bridge.js';
+import { FactorBridge } from './bridge.js';
+import type { FactorBridgeOptions, FactorTransport } from './bridge.js';
 import { preparePythonFactorRuntime } from './python/prepare.js';
 import { prepareTypeScriptFactorRuntime } from './typescript/prepare.js';
 import type {
@@ -66,12 +66,12 @@ export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRun
   protected async initializeInSandbox(
     resource: FactorTransport & SandboxResource,
   ): Promise<FactorRuntimeMetadata<Kind>> {
-    this.bridge = await createFactorBridge(resource, this.bridgeOptions);
+    this.bridge = new FactorBridge(resource, this.bridgeOptions, this);
 
-    return this.bridge.metadata;
+    return this.bridge.initialize();
   }
 
   protected executeInSandbox(input: FactorExecutionInput<Kind>): Promise<FactorValues> {
-    return this.bridge.execute(input, (error) => this.abort(error));
+    return this.bridge.execute(input);
   }
 }

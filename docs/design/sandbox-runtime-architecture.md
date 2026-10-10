@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 后续变更（2026-10-10）：三业务宿主 Bridge 统一为类，构造依赖 → initialize 握手 → execute 处理协议；Research 协议从 Runtime 移入 Bridge，资源及取消归属保持。本轮范围和审查/验证状态见文末。
+
 > 后续变更（2026-10-09）：宿主启动改为 SandboxRuntime 的实例 initialize 模板，三业务按 new → initialize → return 阅读；本轮范围与审查/验证状态见文末，原 startSandboxRuntime 记录保留为历史事实。
 
 > 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。
@@ -748,3 +750,81 @@ CPython 3.13.3，为验证预备独立临时 Matplotlib/font cache，未放宽�
 日志：/tmp/jixie-runtime-initialize-tests.log、lifecycle-retry.log、session-retry.log、source-workers.log、
 compiled-workers.log、compiled-runtime.log、shared-build.log、api-build-final.log、test-fix-typecheck.log
 （后八者沿用相同 jixie-runtime-initialize- 前缀）。
+
+
+## 2026-10-10 三业务 Bridge 类统一
+
+范围及精确提交信息已确认：`refactor(runtime): unify business bridges as classes`。
+范围及人工代码审查均已通过，静态检查、必要行为验证和构建全部完成；按上述精确提交信息提交。
+
+FactorBridge、StrategyBridge 与新增 ResearchBridge 按构造依赖 → initialize → execute 阅读。
+构造函数只接收传输、配置与宿主能力，initialize 握手并返回规范化 metadata；三 Runtime 在
+initializeInSandbox 中创建 Bridge 并等待 initialize。原 createFactorBridge/createStrategyBridge
+移除，不保留转发别名；不引入 Bridge 基类或重复的生命周期状态机。公共 exchange、传输和
+SandboxRuntime 保持，资源获取、取消、关闭状态和失败清理继续由 Runtime 管理。
+
+Factor 的首次计算错误标记归实例；Python 在长度检查前报告点错误，TS 在检查后报告的差异
+保持，错误长度通过构造时注入的 FactorBridgeHost.abort 交回 Runtime。Python 字段映射
+保留纯函数。三种 analysisKind 的 metadata 校验、输入关联和运行时诊断保持。
+
+Strategy 的日志 console/预算、声明 factors/watch 和历史同步日期归实例；快照、请求分派、
+历史增量处理为私有方法。当前 EngineContext 仍为执行局部参数，同步宿主访问绑定/解除
+保留原 try/finally，完整命令校验与按序重放保持；同步调用处错误、首次读取和查询错误响应
+不变。无状态字段转换继续使用具名函数，不为统一形式改为类。
+
+ResearchBridge 持有已握手的环境/能力；initialize/analyze/execute/reset 处理原协议。Runtime
+保留 activeCellId、interrupted 与中断异常转换，pool 的实例身份、容量和队列不变。执行日志
+字节/输出为每次调用的局部对象，observer/captureEnvironment 也不存入实例；环境留存先于
+发送源码，请求留存先于发送 response，持久化失败原样传播。host/dispatch 的数据授权、输入
+回放与可捕获数据错误边界保持。日志累计超限经 ResearchBridgeHost.close 关闭 Runtime，
+最终 outputs 超限及普通 Python 错误保留会话；8 MiB 限制、错误类型/文案和输出映射保持。
+
+更新 Strategy 既有 Bridge 交互用例，新增同步宿主绑定清理回归；Factor 补充两语言连续批次
+错误去重/独立会话回归。新增 Research Bridge 回归覆盖能力协商、环境引用/哈希、执行前
+留痕/取消、完整 AST 映射、请求留痕等待与失败传播、错误日志、日志/最终输出两种超限及
+错误后继续执行。既有真实 Python、Research 池和留痕集成回归继续负责完整业务链验证。
+
+同步 CLAUDE、业务 runtime README 和运行入口清单。没有新 workspace、依赖、数据库、
+HTTP/公开 SDK 契约、协议帧、Python 镜像输入或跨包构建边；新 Research TS Bridge 被既有
+API 部署路径覆盖，不进入 sandboxd Python 镜像。
+
+审查前检查：全仓 typecheck（含 SDK 生成物一致性与后端边界静态扫描）、受影响 TS 的
+ESLint/Prettier、引用、本地文档链接和 diff。审查后验证：三业务 runtime/Bridge 回归，
+Research dispatch/留痕集成，Shared/API 构建及源码/dist Worker。验证完成后清理临时资源，
+按已确认信息自动提交一个 commit，不推送。
+
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过；Shared/API/Docs/sandboxd 类型检查与 SDK 生成物一致性通过。
+  后端边界静态扫描覆盖 890 个文件、3305 条运行时边和 877 条类型边，0 违规。
+- 9 个受影响 TS 文件的 ESLint（0 警告）和 Prettier 检查通过；静态检查发现的 Factor
+  泛型种类收窄与 Research 测试泛型 mock 签名已修正，没有新增运行时断言或放宽类型校验。
+- 8 个修改 Markdown 文件的 109 个本地引用存在，git diff --check 通过。
+- API TypeScript 中 createFactorBridge/createStrategyBridge 的导出、导入和调用全部移除；
+  三个生产 Runtime 均构造对应类并调用 initialize。新增 13 项有针对性的行为回归，尚未运行。
+- 本 commit 尚未运行行为测试、构建、运行时探针或服务，修改未提交，等待人工代码审查。
+  静态日志：/tmp/jixie-bridge-classes-typecheck.log。
+
+
+### 审查后最终验证结果
+
+2026-10-10 用户确认代码审查后执行既定验证，全部一次通过，没有追加产品或测试修订。
+
+- Factor/Strategy/Research runtime、Bridge、协议、SDK 适配/打包、Research dispatch 与
+  embedded 生命周期/留痕集成：40 个测试文件、249 项全部通过。包含新增 13 项回归、
+  实际 Python namespace/取消/容量、TS 同步宿主访问/历史增量，以及输入留存/回放边界。
+- 真实源码 Worker：14 项通过；dist 生产入口同组 Worker：14 项通过。覆盖四种策略/因子
+  语言组合、连续扫描、Signals、启动恢复、非法输入、失败回收和进程退出，使用独立临时 SQLite。
+- 合计 277 项必要回归全部通过，无失败或未完成的必要验证；历史基线性能对照不在本轮范围。
+- Shared/API 构建通过。编译后额外验证 TS time_series/panel 的 metadata、连续批次和
+  关闭状态；Research 验证能力协商、AST 分析、显式参数、发送前环境留痕、活动 Cell、
+  跨 Cell namespace、普通错误后继续执行、reset、关闭后 metadata 与执行拒绝。
+- Python 使用项目配置的 CPython 3.13.3；预备独立 Matplotlib/font cache，未放宽测试或
+  产品超时。六个审阅过的产品 TS 文件哈希在验证后保持一致，业务实现没有变动。
+- 验证进程均退出；Worker/embedded 临时数据库、Python 打包资源与本轮字体缓存已清理。
+  未启动开发服务、修改开发数据库或运行生产部署；不推送。
+
+日志：/tmp/jixie-bridge-classes-tests.log、source-workers.log、compiled-workers.log、
+compiled-runtime.log、shared-build.log、api-build.log、typecheck.log
+（后六者沿用相同 jixie-bridge-classes- 前缀）。

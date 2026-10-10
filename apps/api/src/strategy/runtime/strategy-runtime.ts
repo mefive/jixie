@@ -1,7 +1,7 @@
 import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 import type { SandboxResource } from '#infra/runtime/sandbox-runtime.js';
-import { createStrategyBridge } from './bridge.js';
-import type { StrategyBridge, StrategyBridgeOptions, StrategyTransport } from './bridge.js';
+import { StrategyBridge } from './bridge.js';
+import type { StrategyBridgeOptions, StrategyTransport } from './bridge.js';
 import { preparePythonStrategyRuntime } from './python/prepare.js';
 import { prepareTypeScriptStrategyRuntime } from './typescript/prepare.js';
 import type {
@@ -48,9 +48,9 @@ export class StrategyRuntime extends SandboxRuntime<
   protected async initializeInSandbox(
     resource: StrategyTransport & SandboxResource,
   ): Promise<StrategyRuntimeMetadata> {
-    this.bridge = await createStrategyBridge(resource, this.bridgeOptions);
+    this.bridge = new StrategyBridge(resource, this.bridgeOptions);
 
-    return this.bridge.metadata;
+    return this.bridge.initialize();
   }
 
   protected executeInSandbox({ context }: StrategyExecutionInput): Promise<void> {

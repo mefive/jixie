@@ -8,13 +8,13 @@
 - runtime.execute({ cell, parameters? }, { signal?, observer?, captureEnvironment? }) 返回 outputs、definitions/references 和环境哈希；SDK request 交给 [dispatch](host/README.md)。
 - pool.reset(documentId) 排队清空现有 namespace，没有实例时直接返回；pool.interrupt 关闭活动执行并标记中断；pool.close 删除条目并关闭连接。文档归档／删除直接调用 pool.close。
 
-具体实例直接继承公共 SandboxRuntime。start 创建实例并等待基类 initialize；createResource 获取 PythonSession，initializeInSandbox 发送 research_start 并等待 ready/返回 metadata，基类统一状态及失败/取消清理。start/analyze/execute/reset 全部使用公共 exchange。pool 唯一拥有操作队列、容量和实例身份检查，runtime 不再重复排队。失效实例只按原条目身份移除，旧操作不能误关新实例。
+具体实例直接继承公共 SandboxRuntime。start 创建实例并等待基类 initialize；createResource 获取 PythonSession，initializeInSandbox 构造 [ResearchBridge](bridge.ts) 并等待 initialize 返回 metadata，基类统一状态及失败/取消清理。Bridge 的 initialize/analyze/execute/reset 使用公共 exchange，持有环境与能力；Runtime 保留活动 Cell 和中断异常转换。单次执行日志、请求 observer 与环境留痕不存入会话字段；日志累计超限通过注入的宿主 close 关闭实例，最终 outputs 超限和普通 Python 错误保留会话。pool 唯一拥有操作队列、容量和实例身份检查，runtime 不再重复排队。失效实例只按原条目身份移除，旧操作不能误关新实例。
 
 会话获取串行化，每个实例内操作串行执行；最多 4 个活动实例，只淘汰无待处理操作的最久未使用实例，否则报 busy。文档锁另归 document-runs，通信队列不替代修订或权限检查。
 
 启动协商 explicit_parameters；带参数执行时必须检查能力，避免旧沙箱忽略参数。发送源码前交给 captureEnvironment 保存环境。输出传输上限 8 MiB，持久化限制归 evidence。普通 Python 执行错误保留会话；协议、断连或其他非业务异常关闭会话。AbortSignal 由 pool 中止底层阻塞，嵌入分析继续拥有超时策略。
 
-这里不查询文档所有者、不写执行状态、不决定固化。验证入口：[pool.test.ts](pool.test.ts)、[lifecycle.test.ts](lifecycle.test.ts)、[python/capabilities.test.ts](python/capabilities.test.ts)；源码／生产资源路径见 [运行清单](../../../../../docs/backend-runtime-entries.md)。
+这里不查询文档所有者、不写执行状态、不决定固化。验证入口：[bridge.test.ts](bridge.test.ts)、[pool.test.ts](pool.test.ts)、[lifecycle.test.ts](lifecycle.test.ts)、[python/capabilities.test.ts](python/capabilities.test.ts)；源码／生产资源路径见 [运行清单](../../../../../docs/backend-runtime-entries.md)。
 
 [返回 Research 总览](../README.md)
 

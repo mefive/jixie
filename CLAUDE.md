@@ -125,6 +125,10 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   SandboxRuntime 通过子类 createResource/initializeInSandbox 管理启动状态、资源和失败/取消清理；
   语言 prepare 与资源获取在 createResource 内连续完成，prepare 本身仍只返回配置和资源工厂。
   成功握手后发布只读 metadata，未 ready 不可执行；成功实例关闭后 metadata 仍可读取。
+- 三业务宿主 Bridge 统一为各自 runtime/bridge.ts 中的类，构造函数接收传输、配置和稳定宿主能力；
+  initialize 负责握手并返回 metadata，execute 负责业务协议，Research 另有 analyze/reset。
+  会话协议状态归 Bridge 实例，单次执行日志归局部变量；资源、取消和关闭状态归 Runtime，
+  Bridge 不直接释放传输。公共命令循环继续复用 exchange，无状态映射和服务分派保留具名函数。
 
 ## Research Python Runtime Contract 工作流
 

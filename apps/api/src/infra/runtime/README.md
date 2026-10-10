@@ -6,8 +6,8 @@ Factor、Strategy（TS/Python）和 Research（Python）的宿主入口统一为
 业务所有者 → BusinessRuntime.start(options)
   → new BusinessRuntime(options) → await initialize() → 返回 ready 实例
       → createResource：语言准备 → 创建资源
-      → initializeInSandbox：exchange 启动握手 → 返回 metadata
-业务所有者 → runtime.execute(input) → executeInSandbox
+      → initializeInSandbox：new BusinessBridge → bridge.initialize → exchange 握手 → 返回 metadata
+业务所有者 → runtime.execute(input) → executeInSandbox → bridge.execute
   → exchangeSandboxCommand：发命令 → 收日志／答宿主请求 → 返回终止结果
 业务所有者 → runtime.close()
 ```
@@ -22,7 +22,7 @@ Factor、Strategy（TS/Python）和 Research（Python）的宿主入口统一为
 - [console.ts](console.ts)：共享日志格式化与预算设施。
 - [log-buffer.ts](log-buffer.ts)：无 Node 依赖的沙箱内日志缓冲，按 256 条或 64 KiB 序列化 UTF-8 字节刷新；保留超出批量阈值的单条 log，由既有传输限额处理。TS Factor 的命令入口负责结束时刷新，其余语言／业务仍使用原日志发送方式。protocol.ts 定义公共 log_batch 形状，业务 schema 显式接受后交给 exchange。
 
-业务协议分别在 `factor/runtime/protocol.ts`、`strategy/runtime/protocol.ts`、`research/runtime/host/protocol.ts`。公共设施不导入业务模块，不决定数据库、SDK 或 Engine 语义。Factor 传预备输入，Strategy 传 bar 快照并动态请求，Research 传 Cell 源码；都使用同一 exchange。
+业务协议状态由各业务 runtime/bridge.ts 的 Bridge 类持有，资源和取消仍由 Runtime 管理；初始化返回 metadata，执行经公共 exchange。无状态映射/服务分派保留具名函数。协议 schema 分别在 `factor/runtime/protocol.ts`、`strategy/runtime/protocol.ts`、`research/runtime/host/protocol.ts`。公共设施不导入业务模块，不决定数据库、SDK 或 Engine 语义。Factor 传预备输入，Strategy 传 bar 快照并动态请求，Research 传 Cell 源码；都使用同一 exchange。
 
 实例所有者负责最终 close；Research 的唯一串行队列和容量管理在 `research/runtime/pool.ts`。signal 检查阻止取消后的发送，打断阻塞读取由资源所有者安装的 abort 监听负责。close 不等待 Python 确认，也不保证用户 finally 执行。
 

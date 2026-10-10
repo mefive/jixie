@@ -7,7 +7,7 @@
 | [validator.ts](validator.ts) `validatePythonFactorDefinition` | 草稿校验：检查 Factor 工厂、compute 装饰器等形状，运行 Pyright；不执行用户 Python |
 | 同文件 `pythonFactorTargetAssetClasses` | runtime/inspect-definition 读取字面量 target_asset_classes；不启动 Python 会话 |
 | [prepare.ts](prepare.ts) `preparePythonFactorRuntime` | 准备 PythonSession 工厂、factor_start 和 bridge 配置；统一 FactorRuntime 负责获取及释放会话 |
-| [../bridge.ts](../bridge.ts) `createFactorBridge` | 三种分析类型共用的宿主协议、Python 字段映射、计算错误去重及结果检查 |
+| [../bridge.ts](../bridge.ts) `FactorBridge` | 三种分析类型共用的宿主协议、Python 字段映射、计算错误去重及结果检查 |
 | [../protocol.ts](../protocol.ts) | startup／execution 帧校验；拒绝错类型或畸形响应 |
 | [adapter.py](adapter.py) `FactorAdapter` | 本地历史/字段/索引访问及声明输入；SDK 只依赖能力协议 |
 | [runner.py](runner.py) `run_factor` / `FactorRunner` | 在沙箱进程内加载用户源码、注入 `jixie`、验证元数据并批量执行；公开类来自 [Python SDK](../../sdk/python.py)，由 sandboxd 公共启动器分派 |

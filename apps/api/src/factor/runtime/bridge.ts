@@ -1,8 +1,10 @@
+import type { z } from 'zod';
 import {
   exchangeSandboxCommand,
   type SandboxFrame,
   type SandboxTransport,
 } from '#infra/runtime/exchange.js';
+import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { FactorBar } from '@jixie/shared';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
@@ -24,6 +26,11 @@ import {
 
 export type FactorTransport = SandboxTransport;
 
+type FactorResultFrame = Extract<
+  z.infer<typeof factorExecutionFrameSchema>,
+  { type: 'factor_values' }
+>;
+
 interface FactorBridgeDiagnostics {
   language: 'TypeScript' | 'Python';
 }
@@ -35,166 +42,175 @@ export interface FactorBridgeOptions<Kind extends ExecutableFactorKind = Executa
   onUserLog?: UserLogSink;
 }
 
-export interface FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKind> {
-  metadata: FactorRuntimeMetadata<Kind>;
-  execute(input: FactorExecutionInput<Kind>, abort: (error: Error) => void): Promise<FactorValues>;
+export interface FactorBridgeHost {
+  abort(error: Error): void;
 }
 
-/** Share protocol state across batches; the runtime owns resource shutdown. */
-export async function createFactorBridge<Kind extends ExecutableFactorKind>(
-  session: FactorTransport,
-  options: FactorBridgeOptions<Kind>,
-): Promise<FactorBridge<Kind>> {
-  const { diagnostics, analysisKind, onUserLog } = options;
-  const onLog = (frame: { level: 'info' | 'warning' | 'error'; text: string }) =>
-    onUserLog?.(frame.level === 'warning' ? 'warn' : frame.level, frame.text);
-  const metadata = await initializeFactor(session, options, onLog);
-  let reportedComputeError = false;
+/** Owns factor protocol state across batches; the runtime owns resource shutdown. */
+export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKind> {
+  private reportedComputeError = false;
 
-  return {
+  constructor(
+    private readonly transport: FactorTransport,
+    private readonly options: FactorBridgeOptions<Kind>,
+    private readonly host: FactorBridgeHost,
+  ) {}
+
+  async initialize(): Promise<FactorRuntimeMetadata<Kind>> {
+    const metadata = await this.initializeMetadata();
+
     // Initialization validates the returned kind before it reaches this generic boundary.
-    metadata: metadata as FactorRuntimeMetadata<Kind>,
-    execute(input, abort) {
-      const crossSectional = 'items' in input;
-      const expectedCount = crossSectional ? input.items.length : input.indexes.length;
-      const command = crossSectional
-        ? {
-            type: 'factor_compute_batch',
-            items:
-              diagnostics.language === 'Python'
-                ? input.items.map(pythonFactorBatchItem)
-                : input.items,
-          }
-        : { type: 'factor_compute_series', fields: input.fields, indexes: input.indexes };
-      const reportComputeError = (firstError: string | null) => {
-        if (!reportedComputeError && firstError) {
-          reportedComputeError = true;
-          onUserLog?.('error', `[factor-error] ${firstError}`);
+    return metadata as FactorRuntimeMetadata<Kind>;
+  }
+
+  execute(input: FactorExecutionInput<Kind>): Promise<FactorValues> {
+    const { diagnostics, analysisKind } = this.options;
+    const crossSectional = 'items' in input;
+    const expectedCount = crossSectional ? input.items.length : input.indexes.length;
+    const command = crossSectional
+      ? {
+          type: 'factor_compute_batch',
+          items:
+            diagnostics.language === 'Python'
+              ? input.items.map(pythonFactorBatchItem)
+              : input.items,
         }
-      };
+      : { type: 'factor_compute_series', fields: input.fields, indexes: input.indexes };
 
-      return exchangeSandboxCommand(session, {
-        command,
-        schema:
-          diagnostics.language === 'Python'
-            ? factorExecutionFrameSchema
-            : typeScriptFactorExecutionFrameSchema,
-        operation:
-          diagnostics.language === 'Python'
-            ? `computing a ${analysisKind === 'cross_sectional' ? 'cross-sectional' : analysisKind} Python Factor`
-            : 'computing a TypeScript Factor',
-        onLog,
-        result: (frame) => {
-          // Python reports point failures before rejecting a malformed result; TS reports them after.
-          if (diagnostics.language === 'Python') {
-            reportComputeError(frame.first_error);
-          }
-
-          if (frame.values.length !== expectedCount) {
-            const error = new Error(
-              diagnostics.language === 'Python'
-                ? `invalid Python Factor result length: expected ${expectedCount}, received ${frame.values.length}`
-                : 'Factor returned an unexpected score count',
-            );
-            abort(error);
-            throw error;
-          }
-
-          if (diagnostics.language === 'TypeScript') {
-            reportComputeError(frame.first_error);
-          }
-
-          return frame.values;
-        },
-      });
-    },
-  };
-}
-
-async function initializeFactor(
-  session: FactorTransport,
-  options: FactorBridgeOptions,
-  onLog: (frame: { level: 'info' | 'warning' | 'error'; text: string }) => void,
-): Promise<FactorRuntimeMetadata> {
-  const { analysisKind, startupCommand, diagnostics } = options;
-
-  if (diagnostics.language === 'Python') {
-    const metadata = await exchangeSandboxCommand(session, {
-      command: startupCommand,
-      schema: factorStartupFrameSchema,
+    return exchangeSandboxCommand(this.transport, {
+      command,
+      schema:
+        diagnostics.language === 'Python'
+          ? factorExecutionFrameSchema
+          : typeScriptFactorExecutionFrameSchema,
       operation:
-        analysisKind === 'cross_sectional'
-          ? 'starting a cross-sectional Python Factor'
-          : 'starting an asset Python Factor',
-      onLog,
-      result: (frame) => frame.metadata,
+        diagnostics.language === 'Python'
+          ? `computing a ${analysisKind === 'cross_sectional' ? 'cross-sectional' : analysisKind} Python Factor`
+          : 'computing a TypeScript Factor',
+      onLog: (frame) => this.forwardLog(frame),
+      result: (frame) => this.executionResult(frame, expectedCount),
     });
+  }
 
-    if (analysisKind === 'cross_sectional') {
-      if (metadata.analysis_kind !== 'cross_sectional') {
+  private async initializeMetadata(): Promise<FactorRuntimeMetadata> {
+    const { analysisKind, startupCommand, diagnostics }: FactorBridgeOptions = this.options;
+
+    if (diagnostics.language === 'Python') {
+      const metadata = await exchangeSandboxCommand(this.transport, {
+        command: startupCommand,
+        schema: factorStartupFrameSchema,
+        operation:
+          analysisKind === 'cross_sectional'
+            ? 'starting a cross-sectional Python Factor'
+            : 'starting an asset Python Factor',
+        onLog: (frame) => this.forwardLog(frame),
+        result: (frame) => frame.metadata,
+      });
+
+      if (analysisKind === 'cross_sectional') {
+        if (metadata.analysis_kind !== 'cross_sectional') {
+          throw new Error(
+            `Python Factor runtime returned ${metadata.analysis_kind} metadata for a cross-sectional Factor`,
+          );
+        }
+
+        return {
+          analysisKind: 'cross_sectional',
+          name: metadata.name,
+          window: metadata.window ?? undefined,
+          minCoverage: metadata.min_coverage ?? undefined,
+        };
+      }
+
+      if (metadata.analysis_kind === 'cross_sectional') {
         throw new Error(
-          `Python Factor runtime returned ${metadata.analysis_kind} metadata for a cross-sectional Factor`,
+          'Python Factor runtime returned cross-sectional metadata for an asset Factor',
         );
       }
 
-      return {
-        analysisKind: 'cross_sectional',
+      const normalized = {
+        version: 2 as const,
         name: metadata.name,
+        analysisKind: metadata.analysis_kind,
+        outputScope: 'asset' as const,
+        frequency: 'daily' as const,
+        inputs: metadata.inputs as FactorV2FieldKey[],
+        targetAssetClasses: metadata.target_asset_classes,
+        window: metadata.window,
+      };
+      validatePythonFactorMetadata(normalized, analysisKind);
+
+      return normalized;
+    }
+
+    if (analysisKind === 'cross_sectional') {
+      const metadata = await exchangeSandboxCommand(this.transport, {
+        command: startupCommand,
+        schema: typeScriptCrossSectionalStartupFrameSchema,
+        operation: 'starting a TypeScript Factor',
+        onLog: (frame) => this.forwardLog(frame),
+        result: (frame) => frame.metadata,
+      });
+
+      return {
+        ...metadata,
         window: metadata.window ?? undefined,
-        minCoverage: metadata.min_coverage ?? undefined,
+        minCoverage: metadata.minCoverage ?? undefined,
       };
     }
 
-    if (metadata.analysis_kind === 'cross_sectional') {
-      throw new Error(
-        'Python Factor runtime returned cross-sectional metadata for an asset Factor',
-      );
+    const metadata = await exchangeSandboxCommand(this.transport, {
+      command: startupCommand,
+      schema: typeScriptAssetStartupFrameSchema,
+      operation: 'starting a TypeScript Factor',
+      onLog: (frame) => this.forwardLog(frame),
+      result: (frame) => frame.metadata,
+    });
+    if (metadata.analysisKind !== analysisKind) {
+      throw new Error('Factor analysis kind mismatch');
     }
-    const normalized = {
-      version: 2 as const,
-      name: metadata.name,
-      analysisKind: metadata.analysis_kind,
-      outputScope: 'asset' as const,
-      frequency: 'daily' as const,
-      inputs: metadata.inputs as FactorV2FieldKey[],
-      targetAssetClasses: metadata.target_asset_classes,
-      window: metadata.window,
-    };
-    validatePythonFactorMetadata(normalized, analysisKind);
+
+    const normalized = { ...metadata, analysisKind, inputs: metadata.inputs as FactorV2FieldKey[] };
+    validateTypeScriptFactorMetadata(normalized);
 
     return normalized;
   }
 
-  if (analysisKind === 'cross_sectional') {
-    const metadata = await exchangeSandboxCommand(session, {
-      command: startupCommand,
-      schema: typeScriptCrossSectionalStartupFrameSchema,
-      operation: 'starting a TypeScript Factor',
-      onLog,
-      result: (frame) => frame.metadata,
-    });
+  private executionResult(frame: FactorResultFrame, expectedCount: number): FactorValues {
+    const { diagnostics } = this.options;
 
-    return {
-      ...metadata,
-      window: metadata.window ?? undefined,
-      minCoverage: metadata.minCoverage ?? undefined,
-    };
+    // Python reports point failures before rejecting a malformed result; TS reports them after.
+    if (diagnostics.language === 'Python') {
+      this.reportComputeError(frame.first_error);
+    }
+
+    if (frame.values.length !== expectedCount) {
+      const error = new Error(
+        diagnostics.language === 'Python'
+          ? `invalid Python Factor result length: expected ${expectedCount}, received ${frame.values.length}`
+          : 'Factor returned an unexpected score count',
+      );
+      this.host.abort(error);
+      throw error;
+    }
+
+    if (diagnostics.language === 'TypeScript') {
+      this.reportComputeError(frame.first_error);
+    }
+
+    return frame.values;
   }
 
-  const metadata = await exchangeSandboxCommand(session, {
-    command: startupCommand,
-    schema: typeScriptAssetStartupFrameSchema,
-    operation: 'starting a TypeScript Factor',
-    onLog,
-    result: (frame) => frame.metadata,
-  });
-  if (metadata.analysisKind !== analysisKind) {
-    throw new Error('Factor analysis kind mismatch');
+  private forwardLog(frame: RuntimeLogFrame): void {
+    this.options.onUserLog?.(frame.level === 'warning' ? 'warn' : frame.level, frame.text);
   }
-  const normalized = { ...metadata, analysisKind, inputs: metadata.inputs as FactorV2FieldKey[] };
-  validateTypeScriptFactorMetadata(normalized);
 
-  return normalized;
+  private reportComputeError(firstError: string | null): void {
+    if (!this.reportedComputeError && firstError) {
+      this.reportedComputeError = true;
+      this.options.onUserLog?.('error', `[factor-error] ${firstError}`);
+    }
+  }
 }
 
 function pythonFactorBatchItem(item: FactorBatchItem): Record<string, unknown> {
@@ -209,6 +225,7 @@ function pythonFactorBatchItem(item: FactorBatchItem): Record<string, unknown> {
         market_close: item.marketCloses ?? [],
       }
     : undefined;
+
   return { bar: pythonFactorBar(item.bar), history };
 }
 
