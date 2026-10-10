@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 后续变更（2026-10-10）：公共 SandboxBridge interface 约束 initialize/execute，三业务 Bridge 显式实现契约、Runtime 字段依赖接口；统一启动 options 和业务 ExecutionInput，Research 扩展 analyze/reset。本轮范围与审查/验证状态见文末。
+
 > 后续变更（2026-10-10）：三业务宿主 Bridge 统一为类，构造依赖 → initialize 握手 → execute 处理协议；Research 协议从 Runtime 移入 Bridge，资源及取消归属保持。本轮范围和审查/验证状态见文末。
 
 > 后续变更（2026-10-09）：宿主启动改为 SandboxRuntime 的实例 initialize 模板，三业务按 new → initialize → return 阅读；本轮范围与审查/验证状态见文末，原 startSandboxRuntime 记录保留为历史事实。
@@ -828,3 +830,79 @@ Research dispatch/留痕集成，Shared/API 构建及源码/dist Worker。验证
 日志：/tmp/jixie-bridge-classes-tests.log、source-workers.log、compiled-workers.log、
 compiled-runtime.log、shared-build.log、api-build.log、typecheck.log
 （后六者沿用相同 jixie-bridge-classes- 前缀）。
+
+
+## 2026-10-10 公共 Bridge 契约补齐
+
+范围及精确提交信息已确认：`refactor(runtime): enforce a shared bridge contract`。
+范围及人工代码审查均已通过，静态检查、必要行为验证和构建全部完成；按上述精确提交信息追加一个 commit。
+
+新增 infra/runtime/sandbox-bridge.ts：SandboxBridge<Input, Output, Metadata, Options> 声明
+initialize(options?) → metadata 与 execute(input, options?) → output，初始化 options 统一
+包含可选 signal。接口只描述业务协议调用；资源、取消监听、关闭状态和队列仍由现有
+Runtime/pool 管理，exchange 仍承担命令循环，不新增公共 Bridge 基类或重复的生命周期状态。
+
+三个业务 contract.ts 定义 BridgeContract：Factor/Strategy 是公共接口的业务类型绑定，
+Research 用 interface extends 公共接口并增加 analyze(cells)/reset。三个 Bridge 类显式
+implements 对应契约，Runtime 在构造处选具体实现，字段与后续调用依赖接口。Factor 保留
+Kind → ExecutionInput/metadata 的泛型关联，Strategy 直接使用既有 StrategyExecutionInput
+的 { context }，Research 保留本业务执行 options，不添加无业务含义的方法或空配置对象。
+
+三个 initialize 统一接收 { signal? }，Runtime.initializeInSandbox 将启动 signal 原样放入
+options；Factor 所有 Python/TS metadata 握手分支和 Strategy 启动 exchange 都传递 signal，
+Research 原 signal 行为保持。signal 的检查阻止取消后发送/发布结果，打断阻塞读取和释放
+资源仍是 Runtime 的职责。Factor/Strategy 的公开 start options 不增加新的取消入口。
+
+构造依赖遵循 transport、业务 options、必要宿主能力的排列；Research 的 documentId 改为
+ResearchBridgeOptions 字段，dispatch 继续使用同一文档 ID。FactorBridgeHost.abort 和
+ResearchBridgeHost.close 保留原行为，Strategy 不引入空宿主接口。startup/执行帧、metadata
+映射、日志、历史增量、命令重放、Research 留痕/回放与错误边界保持。
+
+迁移 Strategy 的 Bridge 测试调用、Research 的构造/启动调用；Research fixture 也依赖扩展
+接口。Factor 增加两语言 × 三种分析类型的启动取消回归，Strategy 增加启动取消回归，均
+验证已取消时不发送和读取后取消不返回 metadata，通过契约类型调用；资源释放不搬到 Bridge。
+既有 Factor 强类型输入、Research 启动取消、执行取消和留痕回归继续验证实际消费者。
+
+同步 CLAUDE、公共/业务 runtime README 和运行入口清单。新文件为 API TS 内部接口，
+既有部署范围覆盖；没有新 workspace、依赖、数据库、迁移、HTTP/公开 SDK 契约、协议帧、
+Python 镜像输入或跨包构建边。内部方法签名统一不表示两语言业务能力完全对等。
+
+审查前检查全仓 typecheck（含生成物一致性/后端边界静态扫描）、受影响 TS 的 ESLint/Prettier、
+调用方/文档引用和 diff。审查通过后运行三业务 runtime/Bridge、Research dispatch/留痕集成、
+Shared/API 构建与源码/dist Worker，清理临时资源后按确认信息追加一个 commit，不推送。
+
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过；Shared/API/Docs/sandboxd 类型检查与 SDK 生成物一致性通过。
+  后端边界静态扫描覆盖 891 个文件、3306 条运行时边和 886 条类型边，0 违规。
+- 13 个受影响 TS 文件的 ESLint（0 警告）和 Prettier 检查通过，git diff --check 通过。
+- 7 个修改 Markdown 文件的 95 个本地引用存在。三个类的 implements、Runtime 契约字段、
+  Strategy 的 { context } 调用和 Research 的 options 构造/启动调用均已迁移；没有遗留生产
+  execute(context) 或 initialize(signal) 的旧 Bridge 调用。
+- 准备新增 7 项启动取消回归，Research 既有取消及其余行为回归保留。本 commit 尚未运行
+  行为测试、构建、运行时探针或服务，修改未提交，等待人工代码审查。
+- 静态日志：/tmp/jixie-bridge-contract-typecheck.log。
+
+
+### 审查后最终验证结果
+
+2026-10-10 用户确认代码审查后执行既定验证，全部一次通过，没有追加产品或测试修订。
+
+- 三业务 runtime/Bridge、协议、SDK 适配/打包、Research dispatch 与 embedded 留痕集成：
+  40 个测试文件、256 项全部通过。新增 7 项验证两语言/三种 Factor 和 Strategy 在发送前、
+  读取后取消时不返回 metadata；Research 原启动/执行取消及文档 ID 分派、留痕边界保持。
+- 真实源码 Worker：14 项通过；dist 生产入口同组 Worker：14 项通过。覆盖四种策略/因子
+  语言组合、连续扫描、Signals、启动恢复、非法输入、失败回收和进程退出，使用独立临时 SQLite。
+- 合计 284 项必要回归全部通过，无失败或未完成的必要验证；历史基线性能对照不在本轮范围。
+- Shared/API 构建通过；编译后额外验证 TS time_series/panel 的 metadata、连续批次和关闭
+  状态，以及 Research 的分析、参数、环境留痕、活动 Cell、跨 Cell namespace、普通错误后
+  复用、reset、关闭后 metadata 与执行拒绝。
+- Python 使用项目配置的 CPython 3.13.3，预备独立 Matplotlib/font cache，未放宽测试或
+  产品超时。10 个审阅过的产品 TS 文件哈希在验证后保持一致；接口改动没有追加运行时修复。
+- 验证进程均退出；Worker/embedded 临时数据库、Python 打包目录与本轮字体缓存已清理。
+  未启动开发服务、修改开发数据库或运行生产部署；不推送。
+
+日志：/tmp/jixie-bridge-contract-tests.log、source-workers.log、compiled-workers.log、
+compiled-runtime.log、shared-build.log、api-build.log、typecheck.log
+（后六者沿用相同 jixie-bridge-contract- 前缀）。

@@ -2,12 +2,14 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { FactorLanguage, FactorBar } from '@jixie/shared';
 import type { z } from 'zod';
 import { FactorRuntime } from './factor-runtime.js';
+import { FactorBridge, type FactorTransport } from './bridge.js';
 import { PythonSession } from '#infra/runtime/python/session.js';
 import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
 import type {
   AssetFactorExecutionInput,
   CrossSectionalFactorExecutionInput,
   ExecutableFactorKind,
+  FactorBridgeContract,
 } from './contract.js';
 
 const bar: FactorBar = {
@@ -84,6 +86,41 @@ function sessionFixture(language: FactorLanguage, ...frames: unknown[]) {
 afterEach(() => vi.restoreAllMocks());
 
 describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', (language) => {
+  it.each(['cross_sectional', 'time_series', 'panel'] as const)(
+    'passes startup cancellation through the shared Bridge contract for %s',
+    async (analysisKind) => {
+      const session = sessionFixture(language, ready(language, analysisKind));
+      const host = { abort: vi.fn() };
+      const bridge: FactorBridgeContract<typeof analysisKind> = new FactorBridge(
+        session as unknown as FactorTransport,
+        {
+          startupCommand: { type: 'factor_start' },
+          analysisKind,
+          diagnostics: { language: language === 'python' ? 'Python' : 'TypeScript' },
+        },
+        host,
+      );
+      const cancelled = new Error('startup cancelled');
+
+      await expect(bridge.initialize({ signal: AbortSignal.abort(cancelled) })).rejects.toBe(
+        cancelled,
+      );
+      expect(session.send).not.toHaveBeenCalled();
+      expect(session.readValidated).not.toHaveBeenCalled();
+
+      const controller = new AbortController();
+      session.readValidated.mockImplementationOnce(async (schema) => {
+        controller.abort(cancelled);
+
+        return schema.parse(ready(language, analysisKind));
+      });
+
+      await expect(bridge.initialize({ signal: controller.signal })).rejects.toBe(cancelled);
+      expect(session.send).toHaveBeenCalledExactlyOnceWith({ type: 'factor_start' });
+      expect(host.abort).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(['cross_sectional', 'time_series', 'panel'] as const)(
     'owns one %s session and passes startup source without changing its protocol',
     async (analysisKind) => {

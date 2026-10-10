@@ -5,6 +5,7 @@ import {
   type SandboxTransport,
 } from '#infra/runtime/exchange.js';
 import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
+import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { FactorBar } from '@jixie/shared';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
@@ -14,6 +15,7 @@ import type {
   FactorRuntimeMetadata,
   FactorValues,
   FactorBatchItem,
+  FactorBridgeContract,
 } from './contract.js';
 import { validateTypeScriptFactorMetadata, validatePythonFactorMetadata } from './metadata.js';
 import {
@@ -47,7 +49,9 @@ export interface FactorBridgeHost {
 }
 
 /** Owns factor protocol state across batches; the runtime owns resource shutdown. */
-export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKind> {
+export class FactorBridge<
+  Kind extends ExecutableFactorKind = ExecutableFactorKind,
+> implements FactorBridgeContract<Kind> {
   private reportedComputeError = false;
 
   constructor(
@@ -56,8 +60,10 @@ export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKi
     private readonly host: FactorBridgeHost,
   ) {}
 
-  async initialize(): Promise<FactorRuntimeMetadata<Kind>> {
-    const metadata = await this.initializeMetadata();
+  async initialize({ signal }: SandboxBridgeInitializationOptions = {}): Promise<
+    FactorRuntimeMetadata<Kind>
+  > {
+    const metadata = await this.initializeMetadata(signal);
 
     // Initialization validates the returned kind before it reaches this generic boundary.
     return metadata as FactorRuntimeMetadata<Kind>;
@@ -92,13 +98,14 @@ export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKi
     });
   }
 
-  private async initializeMetadata(): Promise<FactorRuntimeMetadata> {
+  private async initializeMetadata(signal?: AbortSignal): Promise<FactorRuntimeMetadata> {
     const { analysisKind, startupCommand, diagnostics }: FactorBridgeOptions = this.options;
 
     if (diagnostics.language === 'Python') {
       const metadata = await exchangeSandboxCommand(this.transport, {
         command: startupCommand,
         schema: factorStartupFrameSchema,
+        signal,
         operation:
           analysisKind === 'cross_sectional'
             ? 'starting a cross-sectional Python Factor'
@@ -147,6 +154,7 @@ export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKi
       const metadata = await exchangeSandboxCommand(this.transport, {
         command: startupCommand,
         schema: typeScriptCrossSectionalStartupFrameSchema,
+        signal,
         operation: 'starting a TypeScript Factor',
         onLog: (frame) => this.forwardLog(frame),
         result: (frame) => frame.metadata,
@@ -162,6 +170,7 @@ export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKi
     const metadata = await exchangeSandboxCommand(this.transport, {
       command: startupCommand,
       schema: typeScriptAssetStartupFrameSchema,
+      signal,
       operation: 'starting a TypeScript Factor',
       onLog: (frame) => this.forwardLog(frame),
       result: (frame) => frame.metadata,

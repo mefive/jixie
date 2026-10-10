@@ -5,6 +5,7 @@ import { MAX_LOG_CHARACTERS } from '#infra/runtime/protocol.js';
 import { ResearchPythonExecutionError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { ResearchBridge } from './bridge.js';
+import type { ResearchBridgeContract } from './contract.js';
 import { dispatchResearchRequest, type ResearchRequestObserver } from './host/dispatch.js';
 
 vi.mock('./host/dispatch.js', () => ({ dispatchResearchRequest: vi.fn() }));
@@ -41,7 +42,11 @@ function fixture(...frames: unknown[]) {
     },
   };
   const host = { close: vi.fn() };
-  const bridge = new ResearchBridge(transport, 'document', host);
+  const bridge: ResearchBridgeContract = new ResearchBridge(
+    transport,
+    { documentId: 'document' },
+    host,
+  );
 
   return { bridge, transport, host };
 }
@@ -103,9 +108,9 @@ describe('Research bridge protocol and evidence boundaries', () => {
   it('does not send startup or source after cancellation at their respective boundaries', async () => {
     const cancelled = new Error('cancelled');
     const beforeStartup = fixture(ready);
-    await expect(beforeStartup.bridge.initialize(AbortSignal.abort(cancelled))).rejects.toBe(
-      cancelled,
-    );
+    await expect(
+      beforeStartup.bridge.initialize({ signal: AbortSignal.abort(cancelled) }),
+    ).rejects.toBe(cancelled);
     expect(beforeStartup.transport.send).not.toHaveBeenCalled();
 
     const { bridge, transport } = fixture(ready);

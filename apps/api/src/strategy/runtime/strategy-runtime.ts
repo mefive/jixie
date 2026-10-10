@@ -10,6 +10,7 @@ import type {
   StrategyExecutionInput,
   StrategyRuntimeMetadata,
   StrategyRuntimePreparation,
+  StrategyBridgeContract,
 } from './contract.js';
 
 /** Owns one strategy sandbox, independently of its language and transport. */
@@ -20,7 +21,7 @@ export class StrategyRuntime extends SandboxRuntime<
   StrategyTransport & SandboxResource
 > {
   private bridgeOptions!: StrategyBridgeOptions;
-  private bridge!: StrategyBridge;
+  private bridge!: StrategyBridgeContract;
 
   protected constructor(private readonly options: StrategyStartOptions) {
     super();
@@ -47,13 +48,14 @@ export class StrategyRuntime extends SandboxRuntime<
 
   protected async initializeInSandbox(
     resource: StrategyTransport & SandboxResource,
+    signal?: AbortSignal,
   ): Promise<StrategyRuntimeMetadata> {
     this.bridge = new StrategyBridge(resource, this.bridgeOptions);
 
-    return this.bridge.initialize();
+    return this.bridge.initialize({ signal });
   }
 
-  protected executeInSandbox({ context }: StrategyExecutionInput): Promise<void> {
-    return this.bridge.execute(context);
+  protected executeInSandbox(input: StrategyExecutionInput): Promise<void> {
+    return this.bridge.execute(input);
   }
 }

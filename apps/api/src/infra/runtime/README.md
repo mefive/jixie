@@ -6,13 +6,14 @@ Factor、Strategy（TS/Python）和 Research（Python）的宿主入口统一为
 业务所有者 → BusinessRuntime.start(options)
   → new BusinessRuntime(options) → await initialize() → 返回 ready 实例
       → createResource：语言准备 → 创建资源
-      → initializeInSandbox：new BusinessBridge → bridge.initialize → exchange 握手 → 返回 metadata
+      → initializeInSandbox：new BusinessBridge → bridge.initialize({ signal }) → exchange 握手 → 返回 metadata
 业务所有者 → runtime.execute(input) → executeInSandbox → bridge.execute
   → exchangeSandboxCommand：发命令 → 收日志／答宿主请求 → 返回终止结果
 业务所有者 → runtime.close()
 ```
 
 - [sdk-adapter.ts](sdk-adapter.ts)、[python/adapter.py](python/adapter.py)：跨业务 SdkAdapter 接口／Protocol，只约束 bind(input) → Capabilities。业务 Adapter 在 session 内复用，每次装配返回独立绑定；SDK 只导入本业务能力声明，不依赖这个 runtime 接口。
+- [sandbox-bridge.ts](sandbox-bridge.ts)：公共 `SandboxBridge<Input, Output, Metadata, Options>` 接口，约束 initialize({ signal? }) → metadata 和 execute(input, options?) → output。业务类显式实现本业务 BridgeContract，Runtime 字段依赖契约类型；Research 扩展 analyze/reset。接口只约束业务协议调用，不管理资源，也不提供公共 Bridge 基类。
 - [sandbox-runtime.ts](sandbox-runtime.ts)：语言无关的 `SandboxRuntime` 通过受保护的实例 initialize 固定启动流程，子类实现 createResource/initializeInSandbox。基类强类型持有资源并管理 new/starting/ready/closed 状态、执行入口、同步幂等 close/abort 和失败/取消清理。资源取得前关闭的实例仍回收晚到的资源，成功握手后才发布 metadata；成功实例关闭后仍可读取 metadata。普通用户代码错误是否保留实例仍由业务所有者判断。
 - [exchange.ts](exchange.ts)：每次必须显式发送 command，再处理日志、请求和终止帧；单条 log 或 log_batch 都按顺序交给同一个 onLog，逐条等待回调并检查取消。通用 error/fatal 抛错，Research 的 research_error 由业务结果处理。拒绝重叠交换，不自行排队，不吞掉宿主回调或 evidence 保存异常。
 - [python/session.ts](python/session.ts)：`PythonSession.connect()` 创建 Unix socket 或开发环境 runner 连接；负责分帧、读写、断连和关闭。`readValidated` 校验业务 schema，非法帧终止会话。

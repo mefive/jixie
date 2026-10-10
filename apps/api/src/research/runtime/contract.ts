@@ -1,4 +1,6 @@
 import type { ResearchCellOutputBlockV1, ResearchEmbeddedParametersV1 } from '@jixie/shared';
+import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
+import type { ResearchPythonAnalysis } from './host/analysis-types.js';
 import type { ResearchRequestObserver } from './host/dispatch.js';
 
 export interface ResearchCellInput {
@@ -24,6 +26,17 @@ export interface ResearchRuntimeMetadata {
   environment: Record<string, unknown>;
   capabilities: string[];
 }
+
+export interface ResearchBridgeContract extends SandboxBridge<
+  ResearchExecutionInput,
+  ResearchExecution,
+  ResearchRuntimeMetadata,
+  ResearchExecutionOptions
+> {
+  analyze(cells: ResearchCellInput[]): Promise<ResearchPythonAnalysis[]>;
+  reset(): Promise<void>;
+}
+
 export interface ResearchStartOptions {
   documentId: string;
   signal?: AbortSignal;

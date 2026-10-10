@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { exchangeSandboxCommand, type SandboxTransport } from '#infra/runtime/exchange.js';
 import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
+import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
 import { ResearchPythonExecutionError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
@@ -14,6 +15,7 @@ import {
 } from './host/protocol.js';
 import type {
   ResearchCellInput,
+  ResearchBridgeContract,
   ResearchExecutionInput,
   ResearchExecutionOptions,
   ResearchExecution,
@@ -36,17 +38,23 @@ export interface ResearchBridgeHost {
   close(): void;
 }
 
+export interface ResearchBridgeOptions {
+  documentId: string;
+}
+
 /** Owns research protocol state; the runtime owns resources and interruption handling. */
-export class ResearchBridge {
+export class ResearchBridge implements ResearchBridgeContract {
   private metadata!: ResearchRuntimeMetadata;
 
   constructor(
     private readonly transport: SandboxTransport,
-    private readonly documentId: string,
+    private readonly options: ResearchBridgeOptions,
     private readonly host: ResearchBridgeHost,
   ) {}
 
-  async initialize(signal?: AbortSignal): Promise<ResearchRuntimeMetadata> {
+  async initialize({
+    signal,
+  }: SandboxBridgeInitializationOptions = {}): Promise<ResearchRuntimeMetadata> {
     const ready = await exchangeSandboxCommand(this.transport, {
       command: {
         type: 'research_start',
@@ -154,7 +162,8 @@ export class ResearchBridge {
       operation: 'executing a research cell',
       signal: options.signal,
       onLog: (frame) => this.recordLog(frame, logs),
-      onRequest: (frame) => dispatchResearchRequest(this.documentId, frame, options.observer),
+      onRequest: (frame) =>
+        dispatchResearchRequest(this.options.documentId, frame, options.observer),
       result: (frame) => this.executionResult(frame, logs.outputs),
     });
   }

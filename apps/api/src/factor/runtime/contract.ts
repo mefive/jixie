@@ -2,6 +2,7 @@ import type { FactorLanguage, FactorBar } from '@jixie/shared';
 import type { AssetFactorV2, CustomFactor } from '@jixie/shared/sdk/factor/contract';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { SandboxRuntime, SandboxResource } from '#infra/runtime/sandbox-runtime.js';
+import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
 import type { FactorBridgeOptions, FactorTransport } from './bridge.js';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
 
@@ -59,6 +60,9 @@ export type FactorRuntimeMetadata<Kind extends ExecutableFactorKind = Executable
     : AssetFactorRuntimeMetadata<Kind & AssetFactorKind>;
 
 export type FactorValues = (number | null)[];
+export type FactorBridgeContract<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
+  SandboxBridge<FactorExecutionInput<Kind>, FactorValues, FactorRuntimeMetadata<Kind>>;
+
 export type FactorRuntimeInstance<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
   Kind extends ExecutableFactorKind
     ? Pick<

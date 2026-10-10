@@ -129,6 +129,9 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   initialize 负责握手并返回 metadata，execute 负责业务协议，Research 另有 analyze/reset。
   会话协议状态归 Bridge 实例，单次执行日志归局部变量；资源、取消和关闭状态归 Runtime，
   Bridge 不直接释放传输。公共命令循环继续复用 exchange，无状态映射和服务分派保留具名函数。
+  公共方法由 infra/runtime/sandbox-bridge.ts 的 SandboxBridge 约束：initialize({ signal? })
+  返回 metadata，execute 使用本业务 ExecutionInput 和执行选项；类显式 implements，Runtime
+  字段依赖业务 BridgeContract。Research 的 analyze/reset 归扩展契约，不要求其他业务实现。
 
 ## Research Python Runtime Contract 工作流
 

@@ -6,6 +6,7 @@ import type { ResearchPythonAnalysis } from './host/analysis-types.js';
 import { ResearchBridge } from './bridge.js';
 import type {
   ResearchCellInput,
+  ResearchBridgeContract,
   ResearchExecutionInput,
   ResearchExecutionOptions,
   ResearchExecution,
@@ -20,7 +21,7 @@ export class ResearchRuntime extends SandboxRuntime<
   PythonSession,
   ResearchExecutionOptions
 > {
-  private bridge!: ResearchBridge;
+  private bridge!: ResearchBridgeContract;
 
   activeCellId?: string;
   interrupted = false;
@@ -44,9 +45,9 @@ export class ResearchRuntime extends SandboxRuntime<
     session: PythonSession,
     signal?: AbortSignal,
   ): Promise<ResearchRuntimeMetadata> {
-    this.bridge = new ResearchBridge(session, this.documentId, this);
+    this.bridge = new ResearchBridge(session, { documentId: this.documentId }, this);
 
-    return this.bridge.initialize(signal);
+    return this.bridge.initialize({ signal });
   }
 
   async analyze(cells: ResearchCellInput[]): Promise<ResearchPythonAnalysis[]> {

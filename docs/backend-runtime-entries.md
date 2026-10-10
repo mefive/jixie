@@ -65,12 +65,13 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | 资源/路径 | 解析规则与归属 |
 | --- | --- |
 | `infra/runtime/sandbox-runtime.ts`、`exchange.ts` | 三业务共同生命周期与命令循环；基类实例 initialize 调用子类 createResource/initializeInSandbox，管理启动状态与失败/取消清理；TS/Python 启动均显式发送命令 |
+| `infra/runtime/sandbox-bridge.ts` | 公共 Bridge 方法接口：initialize({ signal? }) 返回 metadata，execute 使用业务 ExecutionInput/执行选项；三业务在 contract.ts 定义 BridgeContract，类 implements、Runtime 字段依赖接口；Research 扩展 analyze/reset。纯 TS 类型，不运行沙箱或释放资源 |
 | `infra/runtime/typescript/compile.ts` | toCommonJs 只转换源码，Factor/Strategy 复用；源码／编译入口使用同一函数，没有独立沙箱或 stats 资源加载 |
 | `infra/runtime/typescript/transport.ts` | Factor/Strategy 共用 isolate 和帧传输；分别加载可信 Factor / Strategy entry，用户源码在后续启动命令内执行 |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
-| `strategy/runtime/bridge.ts` | StrategyBridge 类；由唯一 StrategyRuntime 构造，两种 prepare 提供启动配置；runtime 负责资源关闭；initialize 返回 metadata，execute 处理回调，日志预算/历史日期归实例，Engine onBar 仅在 strategy/execution/execution 适配。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
+| `strategy/runtime/bridge.ts` | StrategyBridge 类；由唯一 StrategyRuntime 构造，两种 prepare 提供启动配置；runtime 负责资源关闭；initialize({ signal? }) 返回 metadata，execute({ context }) 处理回调，日志预算/历史日期归实例，Engine onBar 仅在 strategy/execution/execution 适配。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
 | `factor/runtime/bridge.ts` | FactorBridge 类；唯一 FactorRuntime 持有资源，两种 prepare 提供启动配置；initialize 返回 metadata，execute 处理协议、Python 字段映射和结果检查；错误去重归实例，异常结果请求宿主 abort；TS entry → runFactor → FactorRunner 只在 isolate 执行 |
-| `research/runtime/bridge.ts` | ResearchBridge 类；ResearchRuntime 构造并等待 initialize；analyze/execute/reset 处理原协议和留痕回调，环境与能力归实例，日志归本次执行；资源和中断处理仍归 runtime，数据请求继续由 host/dispatch 分派；TS 文件仅进入 API |
+| `research/runtime/bridge.ts` | ResearchBridge 类；ResearchRuntime 传 { documentId } 构造并等待 initialize({ signal? })；analyze/execute/reset 处理原协议和留痕回调，环境与能力归实例，日志归本次执行；资源和中断处理仍归 runtime，数据请求继续由 host/dispatch 分派；TS 文件仅进入 API |
 | `research/runtime/pool.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |

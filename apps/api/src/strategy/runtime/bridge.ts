@@ -4,7 +4,12 @@ import {
   type SandboxTransport,
 } from '#infra/runtime/exchange.js';
 import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
-import type { StrategyRuntimeMetadata } from './contract.js';
+import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
+import type {
+  StrategyBridgeContract,
+  StrategyExecutionInput,
+  StrategyRuntimeMetadata,
+} from './contract.js';
 import { replayCommands } from './commands.js';
 import { accessStrategyContext } from './context-access.js';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
@@ -37,7 +42,7 @@ export interface StrategyBridgeOptions {
 }
 
 /** Owns strategy protocol state across callbacks; the runtime owns resource shutdown. */
-export class StrategyBridge {
+export class StrategyBridge implements StrategyBridgeContract {
   private factors!: string[];
   private watch!: string[];
   private historyDates?: Map<string, string | null>;
@@ -51,10 +56,13 @@ export class StrategyBridge {
     this.sandboxConsole = onUserLog ? makeSandboxConsole(onUserLog, 2_000, locale) : undefined;
   }
 
-  async initialize(): Promise<StrategyRuntimeMetadata> {
+  async initialize({
+    signal,
+  }: SandboxBridgeInitializationOptions = {}): Promise<StrategyRuntimeMetadata> {
     const metadata = await exchangeSandboxCommand(this.transport, {
       command: this.options.startupCommand,
       schema: strategyStartupFrameSchema,
+      signal,
       operation: `starting a ${this.options.diagnostics.language} strategy`,
       onLog: (frame) => this.forwardLog(frame),
       result: (frame) => frame.metadata,
@@ -75,7 +83,7 @@ export class StrategyBridge {
     };
   }
 
-  async execute(context: EngineContext): Promise<void> {
+  async execute({ context }: StrategyExecutionInput): Promise<void> {
     this.transport.setHostAccess?.((input) => accessStrategyContext(context, input));
     try {
       const commands = await exchangeSandboxCommand(this.transport, {

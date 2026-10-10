@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { EngineContext } from '#backtesting/contract.js';
 import type { OhlcBar } from '#backtesting/data/market.js';
 import { StrategyBridge, type StrategyTransport } from './bridge.js';
+import type { StrategyBridgeContract } from './contract.js';
 
 const metadata = {
   name: 'bridge fixture',
@@ -106,6 +107,32 @@ const ready = { type: 'ready', metadata };
 const done = { type: 'done', commands: [] };
 
 describe('shared strategy bridge', () => {
+  it('passes startup cancellation through the shared Bridge contract before send and after read', async () => {
+    const { session, sent } = transport([ready]);
+    const bridge: StrategyBridgeContract = new StrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      diagnostics,
+    });
+    const cancelled = new Error('startup cancelled');
+
+    await expect(bridge.initialize({ signal: AbortSignal.abort(cancelled) })).rejects.toBe(
+      cancelled,
+    );
+    expect(sent).toEqual([]);
+
+    const controller = new AbortController();
+    const read = session.readValidated.bind(session);
+    session.readValidated = async <Frame>(schema: z.ZodType<Frame>, operation: string) => {
+      const frame = await read(schema, operation);
+      controller.abort(cancelled);
+
+      return frame;
+    };
+
+    await expect(bridge.initialize({ signal: controller.signal })).rejects.toBe(cancelled);
+    expect(sent).toEqual([{ type: 'start' }]);
+  });
+
   it('maps metadata, startup/bar logs and watch/holding snapshots without transport ownership', async () => {
     const { session, sent, historyUpdates } = transport([
       { type: 'log', level: 'warning', text: 'startup' },
@@ -124,7 +151,7 @@ describe('shared strategy bridge', () => {
 
     const { context, spies } = contextFixture();
     expect(initialized).toMatchObject({ ...metadata, futures: [] });
-    await strategy.execute(context);
+    await strategy.execute({ context });
     expect(onUserLog.mock.calls).toEqual([
       ['warn', 'startup'],
       ['error', 'bar'],
@@ -189,7 +216,7 @@ describe('shared strategy bridge', () => {
     await strategy.initialize();
 
     const { context, spies } = contextFixture();
-    await strategy.execute(context);
+    await strategy.execute({ context });
     expect(spies.loadCrossSection).toHaveBeenCalledExactlyOnceWith('INDEX');
     expect(spies.factor).toHaveBeenCalledExactlyOnceWith('value', 'AAA');
     expect(spies.ensureBars).toHaveBeenCalledExactlyOnceWith(['AAA', 'BBB']);
@@ -229,7 +256,7 @@ describe('shared strategy bridge', () => {
 
     const { context, spies } = contextFixture();
     spies.ensureBars.mockRejectedValueOnce(new Error('history unavailable'));
-    await strategy.execute(context);
+    await strategy.execute({ context });
     expect(sent[2]).toEqual({ type: 'response', id: 9, error: 'history unavailable' });
     expect(spies.stock.closePosition).toHaveBeenCalledExactlyOnceWith('BBB');
   });
@@ -264,7 +291,7 @@ describe('shared strategy bridge', () => {
     await strategy.initialize();
 
     const { context, spies } = contextFixture();
-    await strategy.execute(context);
+    await strategy.execute({ context });
     const calls = [
       spies.stock.setTargetWeight,
       spies.stock.setTargetWeights,
@@ -322,7 +349,7 @@ describe('shared strategy bridge', () => {
     await strategy.initialize();
 
     const { context, spies } = contextFixture();
-    await expect(strategy.execute(context)).rejects.toThrow();
+    await expect(strategy.execute({ context })).rejects.toThrow();
     expect(spies.stock.closePosition).not.toHaveBeenCalled();
     expect(spies.stock.orderAdjustedShares).not.toHaveBeenCalled();
   });
@@ -342,7 +369,9 @@ describe('shared strategy bridge', () => {
     });
     await strategy.initialize();
 
-    await expect(strategy.execute(contextFixture().context)).rejects.toThrow('bar traceback');
+    await expect(strategy.execute({ context: contextFixture().context })).rejects.toThrow(
+      'bar traceback',
+    );
   });
 
   it('normalizes absent account allocation without inventing defaults', async () => {
@@ -385,9 +414,9 @@ describe('shared strategy bridge', () => {
 
     const first = contextFixture().context;
     const second = { ...first, industry: () => 'second context' };
-    await strategy.execute(first);
+    await strategy.execute({ context: first });
     expect(hostAccess).toBeUndefined();
-    await expect(strategy.execute(second)).rejects.toThrow('bar failed');
+    await expect(strategy.execute({ context: second })).rejects.toThrow('bar failed');
     expect(hostAccess).toBeUndefined();
     expect(values).toEqual(['fixture', 'second context']);
     expect(bindings).toEqual([expect.any(Function), undefined, expect.any(Function), undefined]);
@@ -424,7 +453,7 @@ describe('incremental TypeScript history delivery', () => {
     });
 
     frames.push(ensure(1, ['AAA']), ensure(2, ['AAA', 'BBB']), ensure(3, ['AAA']), done);
-    await strategy.execute(context);
+    await strategy.execute({ context });
     expect(sent.filter((frame) => frame.type === 'response')).toEqual([
       {
         type: 'response',
@@ -443,7 +472,7 @@ describe('incremental TypeScript history delivery', () => {
     for (const date of ['20240104', '20240105']) {
       spies.date = date;
       frames.push(ensure(4, ['AAA', 'BBB']), done);
-      await strategy.execute(context);
+      await strategy.execute({ context });
       expect(sent.at(-1)).toEqual({ type: 'response', id: 4, result: { history_updates: {} } });
     }
     const snapshots = sent.filter((frame) => frame.type === 'bar');
@@ -490,7 +519,7 @@ describe('incremental TypeScript history delivery', () => {
     context.stock.positions = () => [];
     context.bars = (code) => (code === 'EMPTY' ? [] : [history]);
     spies.ensureBars.mockRejectedValueOnce(new Error('load failed'));
-    await strategy.execute(context);
+    await strategy.execute({ context });
     expect(sent.slice(2)).toEqual([
       { type: 'response', id: 1, error: 'load failed' },
       {
