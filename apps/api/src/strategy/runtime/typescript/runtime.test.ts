@@ -4,12 +4,12 @@ import {
   StrategyExecution,
   type StrategyExecutionInput,
   type StrategyRunOptions,
-} from '../../execution/execution.js';
+} from '../../execution/strategy-execution.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { Worker } from 'node:worker_threads';
 import { describe, expect, it } from 'vitest';
-import { BacktestingEngine } from '#backtesting/engine.js';
+import { BacktestingEngine } from '#backtesting/backtesting-engine.js';
 import { compileStrategy } from './testing/compile.js';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
 

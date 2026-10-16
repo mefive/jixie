@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/pool.js';
+import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
 import { quantile, std } from '#math/stats.js';
 import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
 import { execFileSync } from 'node:child_process';
@@ -17,7 +17,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
   };
 });
-vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
+vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
 
 import { embeddedAnalysisTools } from '#agent/tools/run-embedded-analysis.js';
 import {
@@ -26,7 +26,7 @@ import {
   startPersistentTurn,
 } from '#agent/turns/records.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobService } from '#jobs/service.js';
+import { JobService } from '#jobs/job-service.js';
 import { runResearchDocument } from '../document-runs/run-document.js';
 import { getResearchDocument } from '../documents/read.js';
 import { getResearchExecution } from '../evidence/execution-records.js';

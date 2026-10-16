@@ -1,6 +1,6 @@
 import { FactorRuntime } from '../factor-runtime.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PythonSession } from '#infra/runtime/python/session.js';
+import { PythonSession } from '#infra/runtime/python/python-session.js';
 
 const variants = ['cross_sectional', 'time_series', 'panel'] as const;
 

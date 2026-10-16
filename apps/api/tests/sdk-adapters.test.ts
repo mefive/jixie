@@ -13,11 +13,11 @@ it('keeps Python adapter bindings independent while retaining session state', ()
 import json
 import sys
 sys.path.insert(0, sys.argv[1])
-from factor.runtime.python.adapter import FactorAdapter
+from factor.runtime.python.factor_adapter import FactorAdapter
 from factor.sdk.python import AssetFactorContext, CrossSectionalFactorContext
-from strategy.runtime.python.adapter import StrategyAdapter
+from strategy.runtime.python.strategy_adapter import StrategyAdapter
 from strategy.sdk.python import Context
-from research.runtime.python.adapter import ResearchAdapter
+from research.runtime.python.research_adapter import ResearchAdapter
 
 factor = FactorAdapter()
 fields = {"etf.adjustedClose": [10, 12, 15]}

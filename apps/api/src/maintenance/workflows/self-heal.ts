@@ -4,7 +4,7 @@ import {
   repairIndexDate,
   type IndexDateCounts,
 } from '#market/indices/repair.js';
-import type { TushareClient } from '#market/providers/tushare/client.js';
+import type { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import {
   buildStockDateRepairPlan,
   inspectStockDates,

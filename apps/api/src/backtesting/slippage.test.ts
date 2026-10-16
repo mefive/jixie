@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BacktestingEngine } from './engine.js';
+import { BacktestingEngine } from './backtesting-engine.js';
 import { fixturePort } from './testing/fixture-port.js';
 
 // Complete a buy and a T+1 sale with ample capital so affordability does not alter the requested size.

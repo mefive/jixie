@@ -22,7 +22,7 @@ import {
   startPersistentTurn,
   persistEmbeddedAnalysisPart,
 } from './records.js';
-import { AgentTraceRecorder } from './trace.js';
+import { AgentTraceRecorder } from './agent-trace-recorder.js';
 import { readMessages, writeMessages } from '../conversations/entity-messages.js';
 
 /**

@@ -1,13 +1,13 @@
-import { StrategyFactor, type StrategyFactorInput } from '#strategy/factors/factor.js';
+import { StrategyFactor, type StrategyFactorInput } from '#strategy/factors/strategy-factor.js';
 import {
   StrategyExecution,
   type StrategyExecutionInput,
   type StrategyRunOptions,
-} from '#strategy/execution/execution.js';
+} from '#strategy/execution/strategy-execution.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { BacktestingEngine } from '../engine.js';
+import { BacktestingEngine } from '../backtesting-engine.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import { toCommonJs } from '#infra/runtime/typescript/compile.js';
 import type { EngineStrategy, BacktestingConfig } from '../contract.js';

@@ -1,6 +1,6 @@
 import { t } from '#i18n/index.js';
 import type { StrategyScanCell, StrategyScanPayload } from '@jixie/shared';
-import { StrategyFactor } from '../factors/factor.js';
+import { StrategyFactor } from '../factors/strategy-factor.js';
 import type { StrategyScanWorkerInput } from './job-payload.js';
 import { metricSummary, parameterCombinations, rebaseNav, scanCellOverrides } from './scan.js';
 import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
@@ -8,7 +8,7 @@ import {
   StrategyExecution,
   type StrategyExecutionInput,
   type StrategyRunOptions,
-} from '../execution/execution.js';
+} from '../execution/strategy-execution.js';
 
 export async function runStrategyScan(
   input: StrategyScanWorkerInput,

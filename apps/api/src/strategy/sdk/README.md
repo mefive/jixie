@@ -9,7 +9,7 @@
 | [typescript.ts](typescript.ts) | `defineStrategy`、StrategyContext、参数和周期规则；Runner 构造 Context 后调用公开 onBar |
 | [stock-account.ts](stock-account.ts) | 账户基础方法转发、live getter 与等权／ATR／逆波动率仓位辅助 |
 | [universe.ts](universe.ts) | 选股链的筛选、排序与截取 |
-| [timeframe-series.ts](timeframe-series.ts) | 已完成周／月的序列与指标方法 |
+| [resampled-series.ts](resampled-series.ts) | 已完成周／月的序列与指标方法 |
 | [indicators.ts](indicators.ts) | 日频／多周期及账户辅助复用的本地指标计算 |
 | [contract.test.ts](contract.test.ts) | 公开成员、内部能力隔离与 Engine 基础签名兼容检查 |
 | [typescript.test.ts](typescript.test.ts) | 选股、仓位与多周期行为验证 |
@@ -25,7 +25,7 @@
 校验。两者共用同一签名渲染器，不维护平行的 SDK 方法清单。文档 URL 保持不变；订单文档锚点使用 stock.* / futures.* 区分账户。
 
 Python 的 `Strategy`、`Context`、`Universe` 实现在 `apps/api/src/strategy/sdk/python.py`，
-方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/runtime/python/runner.py` 处理协议与超时，`runtime/python/adapter.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
+方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/runtime/python/strategy_runner.py` 处理协议与超时，`runtime/python/strategy_adapter.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
 共享 Engine 不意味着两种语言功能完全对等，也不意味着 SDK 直接访问数据库或券商。
 
 修改公开 TS 方法时：编辑 reference → 生成 contract → 修改 SDK/runtime → 静态类型及生成物一致性检查

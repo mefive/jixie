@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { StrategyError } from '../errors.js';
-import { StrategyFactor } from '../factors/factor.js';
+import { StrategyFactor } from '../factors/strategy-factor.js';
 import { codeConfigSchema, type StrategyVisibilityInput } from '@jixie/shared/api/strategy';
 
 export async function setStrategyVisibility(

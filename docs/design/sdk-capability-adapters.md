@@ -35,7 +35,7 @@ flowchart LR
 | Transport / sandboxd | infra/runtime 和 apps/sandboxd | 隔离、帧通信、通用限制和资源释放 |
 
 公共装配接口归 [sdk-adapter.ts](../../apps/api/src/infra/runtime/sdk-adapter.ts)，Python 对应
-[SdkAdapter Protocol](../../apps/api/src/infra/runtime/python/adapter.py)：
+[SdkAdapter Protocol](../../apps/api/src/infra/runtime/python/sdk_adapter.py)：
 
 ```ts
 interface SdkAdapter<Input, Capabilities> {

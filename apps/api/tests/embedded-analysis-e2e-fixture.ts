@@ -293,9 +293,9 @@ export async function seedEmbeddedStrategies() {
       },
     });
   }
-  const { JobScheduler } = await import('#jobs/scheduler.js');
+  const { JobScheduler } = await import('#jobs/job-scheduler.js');
   const { registerJobLifecycles } = await import('#jobs/register.js');
-  const { JobService } = await import('#jobs/service.js');
+  const { JobService } = await import('#jobs/job-service.js');
   registerJobLifecycles();
   JobScheduler.initialize(async (jobId) => {
     const execution = JobService.execute(jobId);

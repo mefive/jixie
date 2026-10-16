@@ -1,6 +1,6 @@
 # 策略因子
 
-本模块只有一个生产实现 [factor.ts](factor.ts)。`StrategyFactor` 集中管理策略引用的因子：准备源码、校验运行定义、生成报告来源快照。Factor 业务仍负责定义和发布；Signals 决定部署与运行何时核对哪些冻结快照；沙箱资源由 StrategyExecution / FactorHost 管理。
+本模块只有一个生产实现 [strategy-factor.ts](strategy-factor.ts)。`StrategyFactor` 集中管理策略引用的因子：准备源码、校验运行定义、生成报告来源快照。Factor 业务仍负责定义和发布；Signals 决定部署与运行何时核对哪些冻结快照；沙箱资源由 StrategyExecution / FactorHost 管理。
 
 | 入口 | 消费者 | 职责 |
 | --- | --- | --- |
@@ -25,7 +25,7 @@
 
 实例集中存放源码、身份和预期运行配置，组合组件保留不可变 StrategyFactor 实例。实际运行定义由 FactorHost 提供，校验不回写因子，也不创建附加元数据的因子副本。toDependency(definition) 结合来源身份和实际 inputs 生成独立报告快照；不传定义时仅返回来源身份。StrategyExecution 将 StrategyFactor[] 直接交给 FactorHost，读取元数据后复用同一批运行实例计算；各参数和日期区间使用独立执行对象。Signals 部署显式创建 FactorHost 做准入检查并 finally 关闭。
 
-测试集中在 [factor.test.ts](factor.test.ts)，按引用提取、状态与元数据隔离、快照兼容、授权与源码准备分组。源码操作组在准备组之前验证不加载数据库和编译器；准备组使用独立重置的查询替身，并验证不启动 runtime。Signals 的快照选择与拒绝时机见 [runs/run.test.ts](../../signals/runs/run.test.ts)。
+测试集中在 [strategy-factor.test.ts](strategy-factor.test.ts)，按引用提取、状态与元数据隔离、快照兼容、授权与源码准备分组。源码操作组在准备组之前验证不加载数据库和编译器；准备组使用独立重置的查询替身，并验证不启动 runtime。Signals 的快照选择与拒绝时机见 [runs/run.test.ts](../../signals/runs/run.test.ts)。
 
 [返回 Strategy 总览](../README.md)
 

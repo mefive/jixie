@@ -16,7 +16,7 @@ vi.mock('#infra/database/prisma.js', async () => {
 });
 
 import { prisma } from '#infra/database/prisma.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { getOpenDates } from './read.js';
 import { syncTradeCal } from './sync.js';
 import { isCompletedShanghaiDate, latestCompletedTradeDate } from './sse-close.js';

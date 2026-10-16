@@ -4,10 +4,10 @@
 
 | 文件 / 入口 | 职责与消费者 |
 | --- | --- |
-| [FactorBridge.create](../bridge.ts) | 内部 createTypeScript 编译源码、缓存 bundle、准备启动消息并连接 TypeScriptTransport；Runtime 只创建和持有 Bridge |
+| [FactorBridge.create](../factor-bridge.ts) | 内部 createTypeScript 编译源码、缓存 bundle、准备启动消息并连接 TypeScriptTransport；Runtime 只创建和持有 Bridge |
 | [entry.ts](entry.ts) | 外围接入：注册 __receiveCommand、解析 JSON、缓冲并刷新日志；首次 factor_start 调用 runFactor 并接入后续消息处理 |
-| [adapter.ts](adapter.ts) | FactorAdapter：历史字段映射、数组/索引读取和声明输入访问；无宿主请求 |
-| [runner.ts](runner.ts) | 显式 runFactor 入口与 FactorRunner：源码加载、元数据、start/compute 分派及用户回调 |
+| [factor-adapter.ts](factor-adapter.ts) | FactorAdapter：历史字段映射、数组/索引读取和声明输入访问；无宿主请求 |
+| [factor-runner.ts](factor-runner.ts) | 显式 runFactor 入口与 FactorRunner：源码加载、元数据、start/compute 分派及用户回调 |
 | [sandbox-bundle.ts](sandbox-bundle.ts) | 打包 entry/runner、SDK、日志；源码/编译入口分别解析 entry.ts / entry.js |
 | [SDK typescript.ts](../../sdk/typescript.ts) | defineFactor/defineFactorV2、CrossSectionalFactorContext/AssetFactorContext；history/value/lag 只读取已准备的数据 |
 
@@ -15,7 +15,7 @@
 
 用户源码通过 `new Function` 求值，工厂作为函数参数注入，与 Strategy 的 `defineStrategy` 相同。横截面只提供 `defineFactor`，time_series/panel 只提供 `defineFactorV2`；用户直接调用相应工厂，计算回调通过闭包保留该参数。运行时不向 `globalThis` 注册这两个工厂，显式通过 `globalThis.defineFactor` / `globalThis.defineFactorV2` 调用不受支持。
 
-公共 FactorRuntime 直接继承 SandboxRuntime，start 创建实例并等待基类 initialize：子类 createBridge 仅调用 [FactorBridge.create](../bridge.ts)，由 Bridge 内部完成语言准备、Transport 获取和构造，基类握手取得 metadata 并管理业务状态，Bridge 封装 Transport 回收。启动发送 factor_start、等待 factor_ready；execute 发送 factor_compute_batch/series、等待 factor_values。横截面输入 `{ items }`，time_series/panel 输入 `{ fields, indexes }`，返回顺序对应的 `(number | null)[]`。传输入口只加载可信 bundle，用户源码在启动命令中求值。
+公共 FactorRuntime 直接继承 SandboxRuntime，start 创建实例并等待基类 initialize：子类 createBridge 仅调用 [FactorBridge.create](../factor-bridge.ts)，由 Bridge 内部完成语言准备、Transport 获取和构造，基类握手取得 metadata 并管理业务状态，Bridge 封装 Transport 回收。启动发送 factor_start、等待 factor_ready；execute 发送 factor_compute_batch/series、等待 factor_values。横截面输入 `{ items }`，time_series/panel 输入 `{ fields, indexes }`，返回顺序对应的 `(number | null)[]`。传输入口只加载可信 bundle，用户源码在启动命令中求值。
 
 整批输入一次传输，SDK history/value/lag 在 isolate 内读已准备数组。逐点异常或非有限值仍返回 null，首次计算错误去重，结果数量必须匹配输入。isolate 仍无 Node/数据库能力、禁止外部 require；256 MiB 内存、5 秒声明、30 秒整批计算预算不变。传输帧及累计队列限额 256 MiB，避免直接套用 Strategy 的一万帧限制截断 Factor 日志。
 

@@ -15,7 +15,7 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 
-vi.mock('../runtime/pool.js', () => ({
+vi.mock('../runtime/research-runtime-pool.js', () => ({
   researchRuntimePool: { close: mocks.runtimeClose },
 }));
 

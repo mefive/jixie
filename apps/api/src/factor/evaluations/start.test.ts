@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   reportCreate: vi.fn(),
 }));
 
-vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: mocks.wake } }));
+vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: mocks.wake } }));
 
 vi.mock('#infra/database/prisma.js', () => ({
   prisma: {

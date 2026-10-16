@@ -2,7 +2,7 @@ import { syncCommodityWarehouseReceipts } from '../commodity/commodity-warehouse
 import { COMMODITY_FUTURE_PRODUCT_CODES } from '../commodity/commodity-futures.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { prisma } from '#infra/database/prisma.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /**
  * Sync research-only AU/CU/SC/M exchange warehouse-receipt aggregates.

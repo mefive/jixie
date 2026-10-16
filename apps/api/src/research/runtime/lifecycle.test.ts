@@ -1,6 +1,6 @@
-import { researchRuntimePool } from './pool.js';
+import { researchRuntimePool } from './research-runtime-pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PythonSession } from '#infra/runtime/python/session.js';
+import { PythonSession } from '#infra/runtime/python/python-session.js';
 import { ResearchRuntime } from './research-runtime.js';
 
 const documentId = 'runtime-lifecycle';

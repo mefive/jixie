@@ -3,7 +3,7 @@ import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import { syncExternalMarketDrivers } from '../cross-market/external-drivers.js';
 import { syncTradeCal } from '../calendar/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 const SHANGHAI_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Shanghai',

@@ -1,6 +1,6 @@
 import { strategyScanReportState, strategyScanReportStatusWhere } from '#strategy/scans/state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/service.js';
+import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type {
   BacktestConfig,
   StrategyScanPayload,

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { finaIndicatorVip } from './api.js';
-import type { TushareClient } from './client.js';
+import type { TushareClient } from './tushare-client.js';
 
 function fakeClient() {
   const call = vi.fn().mockResolvedValue([]);

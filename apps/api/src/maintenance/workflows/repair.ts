@@ -4,7 +4,7 @@ import {
   maintainCommodityWarehouseReceipts,
   type CommodityWarehouseReceiptMaintenanceSummary,
 } from '#market/commodity/commodity-warehouse-receipt-maintenance.js';
-import { TushareClient } from '#market/providers/tushare/client.js';
+import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import type { TradeDate } from '@jixie/shared';
 import { runDataQualityAudit } from '../publication/audit.js';

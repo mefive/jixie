@@ -1,8 +1,8 @@
-import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
-import type { TypeScriptTransportMetrics } from '#infra/runtime/typescript/transport.js';
+import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
+import type { TypeScriptTransportMetrics } from '#infra/runtime/typescript/typescript-transport.js';
 import { StrategyRuntime } from '../../strategy-runtime.js';
-import { StrategyBridge } from '../../bridge.js';
-import type { StrategyBridgeOptions, StrategyTransport } from '../../bridge.js';
+import { StrategyBridge } from '../../strategy-bridge.js';
+import type { StrategyBridgeOptions, StrategyTransport } from '../../strategy-bridge.js';
 import type { StrategyStartOptions } from '../../contract.js';
 
 /** Test instrumentation keeps transport diagnostics outside the production runtime interface. */

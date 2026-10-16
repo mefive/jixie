@@ -232,8 +232,8 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
         `
       import assert from 'node:assert/strict';
       import { registerJobLifecycles } from '#jobs/register.js';
-      import { JobScheduler } from '#jobs/scheduler.js';
-      import { JobService } from '#jobs/service.js';
+      import { JobScheduler } from '#jobs/job-scheduler.js';
+      import { JobService } from '#jobs/job-service.js';
       import { prisma } from '#infra/database/prisma.js';
       assert.equal((await prisma.job.findUniqueOrThrow({ where: { id: ${JSON.stringify(queued)} } })).status, 'queued');
       registerJobLifecycles();

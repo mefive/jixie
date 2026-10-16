@@ -1,6 +1,6 @@
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { TushareRow } from '../providers/tushare/client.js';
+import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import { assignExternalAvailableDates } from './external-drivers.js';
 import {
   type CrossMarketBenchmarkDefinition,

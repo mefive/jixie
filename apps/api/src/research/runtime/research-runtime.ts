@@ -2,7 +2,7 @@ import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 import { ResearchPythonInterruptionError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import type { ResearchPythonAnalysis } from './host/analysis-types.js';
-import { ResearchBridge } from './bridge.js';
+import { ResearchBridge } from './research-bridge.js';
 import type {
   ResearchCellInput,
   ResearchBridgeContract,

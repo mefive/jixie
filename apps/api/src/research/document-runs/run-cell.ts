@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/pool.js';
+import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchCellOutputBlockV1, ResearchDocumentV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';

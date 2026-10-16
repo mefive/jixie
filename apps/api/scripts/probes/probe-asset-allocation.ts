@@ -3,7 +3,7 @@ import {
   probeAssetAllocationData,
   type AssetAllocationProbeResult,
 } from '#market/providers/tushare/asset-allocation-probe.js';
-import { TushareClient } from '#market/providers/tushare/client.js';
+import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import {
   persistTushareCapabilityProbes,
   tushareCapabilityProbesAreFresh,

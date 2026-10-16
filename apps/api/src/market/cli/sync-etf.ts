@@ -5,7 +5,7 @@ import { MAJOR_ETF_CODES } from '../registry/etf-presets.js';
 import { ETF_RESEARCH_CODES } from '../registry/etf-research-registry.js';
 import { syncEtfBasic, syncEtfDaily } from '../etfs/history-sync.js';
 import { syncTradeCal } from '../calendar/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 function parseCodes(selector: string): string[] {
   if (selector === 'registry') {

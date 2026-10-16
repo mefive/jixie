@@ -9,7 +9,7 @@ import { register } from 'tsx/esm/api';
 
 register();
 const { FactorRuntime } = await import('../factor-runtime.ts');
-const { TypeScriptTransport } = await import('#infra/runtime/typescript/transport.js');
+const { TypeScriptTransport } = await import('#infra/runtime/typescript/typescript-transport.js');
 const variant = process.argv[2];
 const scenario = process.argv[3] ?? 'cross_sectional';
 if (!['before', 'shared'].includes(variant)) {

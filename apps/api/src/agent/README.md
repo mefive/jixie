@@ -29,7 +29,7 @@ Strategy 基础 profile 提供查询和代码产物校验；页面单独添加�
 | [turns/run.ts](turns/run.ts) | 后台执行顺序、模型 hooks、消息收尾及事件发布 |
 | [turns/bus.ts](turns/bus.ts) | 同步注册、订阅快照、增量、取消、终态 TTL；进程重启后内存状态丢失 |
 | [turns/records.ts](turns/records.ts) | 创建 turn 与用户消息、事务提交回复/Research 产物/终态、启动时标记 interrupted |
-| [turns/trace.ts](turns/trace.ts) | 按序积累模型/工具/校验轨迹，串行保存 checkpoint，提供 flush |
+| [turns/agent-trace-recorder.ts](turns/agent-trace-recorder.ts) | 按序积累模型/工具/校验轨迹，串行保存 checkpoint，提供 flush |
 | [conversations/manage.ts](conversations/manage.ts) | 查找/创建实体关联的对话，首次导入既有历史；Research 只复用有效对话 |
 | [conversations/entity-messages.ts](conversations/entity-messages.ts) | 读取实体历史及保留 Strategy/Factor 的 messages 镜像；已发布因子的镜像不可写 |
 | [共享请求契约](../../../../packages/shared/src/api/agent.ts) | 任务及 parts 消息入参校验；退役提示只接受标题 |

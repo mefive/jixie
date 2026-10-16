@@ -6,7 +6,7 @@ import { inspectStrategyScanParameters } from './parameters.js';
 vi.mock('../runtime/strategy-runtime.js', () => {
   throw new Error('Static inspection must not load StrategyRuntime');
 });
-vi.mock('#infra/runtime/typescript/transport.js', () => {
+vi.mock('#infra/runtime/typescript/typescript-transport.js', () => {
   throw new Error('Static inspection must not load the isolate transport');
 });
 

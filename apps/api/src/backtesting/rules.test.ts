@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BacktestingEngine } from './engine.js';
+import { BacktestingEngine } from './backtesting-engine.js';
 import { fixturePort, type FixtureSpec } from './testing/fixture-port.js';
 import { DEFAULT_COST } from './cost.js';
 import { type EngineContext, type EngineStrategy } from './contract.js';

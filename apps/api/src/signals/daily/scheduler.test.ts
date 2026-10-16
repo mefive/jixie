@@ -19,7 +19,9 @@ vi.mock('#infra/database/prisma.js', () => ({
     },
   },
 }));
-vi.mock('#jobs/service.js', () => ({ JobService: { claim: mocks.claim, execute: mocks.execute } }));
+vi.mock('#jobs/job-service.js', () => ({
+  JobService: { claim: mocks.claim, execute: mocks.execute },
+}));
 vi.mock('#jobs/register.js', () => ({ registerJobLifecycles: vi.fn() }));
 vi.mock('../runs/enqueue.js', () => ({ enqueueSignalRun: mocks.enqueue }));
 vi.mock('../accounting/settlement.js', () => ({ settleStrategyAccounts: mocks.settle }));

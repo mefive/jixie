@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
+import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
 import { FactorRuntime } from '../factor-runtime.js';
 
 const options = {

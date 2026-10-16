@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AllocationAnalysisTracker } from './allocation-analysis.js';
+import { AllocationAnalysisTracker } from './allocation-analysis-tracker.js';
 import { EngineData } from './data/engine-data.js';
 import { fixturePort } from './testing/fixture-port.js';
 import { CashPortfolio } from './cash-portfolio.js';

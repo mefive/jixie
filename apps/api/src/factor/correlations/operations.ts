@@ -1,7 +1,7 @@
 import type { FactorCorrelationJobPayload } from './job-payload.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobScheduler } from '#jobs/scheduler.js';
-import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/service.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
+import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { FactorCorrelation, Locale } from '@jixie/shared';
 import { BUILTIN_KEYS } from '../definitions/builtin-factors.js';
 import { FactorError } from '../errors.js';

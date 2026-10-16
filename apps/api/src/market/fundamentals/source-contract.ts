@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import type { TushareRow, TushareValue } from '../providers/tushare/client.js';
+import type { TushareRow, TushareValue } from '../providers/tushare/tushare-client.js';
 
 export const FINANCIAL_SOURCE_CONTRACT_VERSION = 1;
 export const FINANCIAL_STATEMENT_SOURCE = 'tushare' as const;

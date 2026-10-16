@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MAX_LOG_BATCH_ENTRIES } from '#infra/runtime/log-buffer.js';
+import { MAX_LOG_BATCH_ENTRIES } from '#infra/runtime/sandbox-log-buffer.js';
 import {
   runtimeNameSchema,
   finiteNumberSchema,

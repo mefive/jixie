@@ -15,10 +15,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('./server.js', () => ({ buildApp: mocks.buildApp }));
 vi.mock('@hono/node-server', () => ({ serve: mocks.serve }));
 vi.mock('#jobs/register.js', () => ({ registerJobLifecycles: mocks.register }));
-vi.mock('#jobs/service.js', () => ({
+vi.mock('#jobs/job-service.js', () => ({
   JobService: { recoverInterrupted: mocks.recovery, execute: mocks.execute },
 }));
-vi.mock('#jobs/scheduler.js', () => ({
+vi.mock('#jobs/job-scheduler.js', () => ({
   JobScheduler: { initialize: mocks.initialize, wake: mocks.startQueue },
 }));
 vi.mock('#agent/turns/records.js', () => ({

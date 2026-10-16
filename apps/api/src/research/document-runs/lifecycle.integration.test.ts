@@ -23,8 +23,8 @@ const runtime = vi.hoisted(() => ({
   reset: vi.fn(),
   interrupt: vi.fn(),
 }));
-vi.mock('../runtime/pool.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../runtime/pool.js')>()),
+vi.mock('../runtime/research-runtime-pool.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/research-runtime-pool.js')>()),
   researchRuntimePool: {
     ...runtime,
     withRuntime: async <Result>(

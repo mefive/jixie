@@ -2,9 +2,9 @@ import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { FactorLanguage, FactorBar } from '@jixie/shared';
 import type { z } from 'zod';
 import { FactorRuntime } from './factor-runtime.js';
-import { FactorBridge, type FactorTransport } from './bridge.js';
-import { PythonSession } from '#infra/runtime/python/session.js';
-import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
+import { FactorBridge, type FactorTransport } from './factor-bridge.js';
+import { PythonSession } from '#infra/runtime/python/python-session.js';
+import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
 import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
 import type {
   AssetFactorExecutionInput,

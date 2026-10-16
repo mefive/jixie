@@ -1,7 +1,7 @@
 import { StrategyRuntime } from '../strategy-runtime.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
-import { BacktestingEngine } from '#backtesting/engine.js';
+import { BacktestingEngine } from '#backtesting/backtesting-engine.js';
 import { defineStrategy } from '../../sdk/typescript.js';
 import { createFixtureEngineStrategy } from '../typescript/testing/compile.js';
 

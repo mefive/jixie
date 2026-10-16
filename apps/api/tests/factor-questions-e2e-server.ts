@@ -90,7 +90,7 @@ async function stop() {
       await delay(30);
     }
     if (embeddedJourney) {
-      const { researchRuntimePool } = await import('#research/runtime/pool.js');
+      const { researchRuntimePool } = await import('#research/runtime/research-runtime-pool.js');
       const { cancelEmbeddedRun } = await import('#research/embedded/cancel.js');
       const active = await database.researchExecution.findMany({
         where: { status: { in: ['queued', 'running'] }, embeddedVersionId: { not: null } },
@@ -108,7 +108,7 @@ async function stop() {
       }
       await settleEmbeddedExecutions();
       const { researchPythonLanguageService } =
-        await import('#research/language/pyright-service.js');
+        await import('#research/language/research-python-language-service.js');
       await researchPythonLanguageService.dispose();
     }
     // Completed turns keep a replay TTL timer; test teardown must release that timer too.

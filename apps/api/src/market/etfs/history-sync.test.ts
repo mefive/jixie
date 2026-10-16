@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TradeDate } from '@jixie/shared';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
 const mocks = vi.hoisted(() => ({
   daily: vi.fn(),

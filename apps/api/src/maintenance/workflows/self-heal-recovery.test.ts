@@ -1,4 +1,4 @@
-import type { TushareClient } from '#market/providers/tushare/client.js';
+import type { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,

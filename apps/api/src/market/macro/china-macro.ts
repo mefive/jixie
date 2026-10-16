@@ -1,6 +1,6 @@
 import { addDays, daysBetween } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { TushareRow } from '../providers/tushare/client.js';
+import type { TushareRow } from '../providers/tushare/tushare-client.js';
 
 export type MacroAvailabilityKind = 'official_schedule' | 'published_intraday' | 'conservative_lag';
 export type MacroVintageKind = 'captured_as_available' | 'latest_value_backfill';

@@ -1,7 +1,7 @@
 import { factorReportStatusWhere, factorReportState } from '#factor/evaluations/state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobScheduler } from '#jobs/scheduler.js';
-import { ACTIVE_JOB_STATUSES } from '#jobs/service.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
+import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import {
   type FactorAnalysisSpec,
   type FactorResearchIntentV1,

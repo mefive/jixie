@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../pool.js';
+import { researchRuntimePool } from '../research-runtime-pool.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({

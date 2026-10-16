@@ -4,7 +4,7 @@ import { loadTushareConfig } from '../providers/tushare/config.js';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 import { syncTradeCal } from '../calendar/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 const CHINA_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Shanghai',

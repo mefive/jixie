@@ -3,7 +3,7 @@ import { register } from 'tsx/esm/api';
 
 register();
 
-const { StrategyExecution } = await import('../../execution/execution.ts');
+const { StrategyExecution } = await import('../../execution/strategy-execution.ts');
 const { fixturePort } = await import('#backtesting/testing/fixture-port.js');
 
 try {

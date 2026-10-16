@@ -3,21 +3,21 @@
 Backtesting 模拟交易：推进交易日、提供当时可得的数据、调用决策回调、执行待成交指令、维护账户和累计绩效。它不读取用户源码，不选择语言，不管理沙箱，也不处理回测任务或信号部署。
 
 入口为 `new BacktestingEngine(config).run()`，每个实例只运行一次，直接返回 `BacktestingResult`，末日快照由调用方显式获取。
-[StrategyExecution](../strategy/execution/execution.ts) 创建策略 runtime 和 FactorHost，注入决策回调、DataPort 与 FactorExecutionPort；它负责关闭这些外部资源。
+[StrategyExecution](../strategy/execution/strategy-execution.ts) 创建策略 runtime 和 FactorHost，注入决策回调、DataPort 与 FactorExecutionPort；它负责关闭这些外部资源。
 
 ## 从职责找文件
 
 | 职责 | 入口 |
 | --- | --- |
-| 一次模拟的初始化、逐日推进、结果收集 | [BacktestingEngine](engine.ts) |
-| 当前决策日的数据、因子和账户视图；转交订单声明 | [BacktestingContext](context.ts) |
+| 一次模拟的初始化、逐日推进、结果收集 | [BacktestingEngine](backtesting-engine.ts) |
+| 当前决策日的数据、因子和账户视图；转交订单声明 | [BacktestingContext](backtesting-context.ts) |
 | 收集决策、次日指令执行与盘中条件单模拟、撤单 | [OrderBook](order-book.ts) |
 | 股票/ETF 现金、持仓、T+1 和成交记账 | [CashPortfolio](cash-portfolio.ts) |
 | 期货保证金、换月、结算和成交记账 | [FuturesPortfolio](futures-portfolio.ts) |
 | 净值与成交绩效统计 | [performance.ts](performance.ts) |
-| 逐日持仓、成本、再平衡归因累计 | [allocation-analysis.ts](allocation-analysis.ts) |
+| 逐日持仓、成本、再平衡归因累计 | [allocation-analysis-tracker.ts](allocation-analysis-tracker.ts) |
 | 行情读取端口与缓存、PIT、复权语义 | [data-port.ts](data/data-port.ts)、[EngineData](data/engine-data.ts) |
-| 因子输入准备、批量计算、当日缓存与数值合成 | [FactorEvaluator](factors/evaluator.ts) |
+| 因子输入准备、批量计算、当日缓存与数值合成 | [FactorEvaluator](factors/factor-evaluator.ts) |
 | 因子定义与外部计算契约 | [execution-port.ts](factors/execution-port.ts) |
 | 因子宿主描述的数据需求、证券范围与资产分类 | [describeFactors](factors/description.ts) |
 | 宿主数据库适配 | [prisma-port.ts](adapters/prisma-port.ts) |
@@ -41,7 +41,7 @@ Engine 的 `runDecision(date, observeFactors)` 负责当日决策阶段：开始
 
 `FactorEvaluator.evaluate({ date, codes, crossSection })` 组织因子输入并调用计算端口；`read` 读取并固定当日该因子/证券的值。未被读取的预计算值仍可在补充行情后刷新。`FactorExecutionPort.describe()` 返回独立的 FactorDescription 快照（definitions、dataRequirements、preloadCodes、assetClassByCode），组合输入需求由组件定义派生；重复顶层 ID、缺失声明或缺少执行端口在加载行情前拒绝。
 
-因子源码识别及依赖准备归 [StrategyFactor](../strategy/factors/factor.ts)，TS/Python 因子沙箱归 [FactorHost](../strategy/execution/factor-host.ts)。Backtesting 不接收 StrategyFactor 或源码模块。FactorEvaluator 只求值，不创建或维护 runtime。
+因子源码识别及依赖准备归 [StrategyFactor](../strategy/factors/strategy-factor.ts)，TS/Python 因子沙箱归 [FactorHost](../strategy/execution/factor-host.ts)。Backtesting 不接收 StrategyFactor 或源码模块。FactorEvaluator 只求值，不创建或维护 runtime。
 
 Engine 创建并持有 FactorEvaluator，将因子定义数组与计算依赖传入。FactorEvaluator 内部建立 ID 索引，并在实例生命周期内对每个因子只回调首次输入错误；Engine 负责日志格式与输出。执行端口抛出的异常仍向上传播。
 
@@ -49,7 +49,7 @@ FactorHost 在初始化后调用 `describeFactors(definitions)`，汇总因子�
 
 `EngineData.load()` 完成基础数据后，一批加载 `preloadCodes` 行情，再按需预加载财务历史。证券来源不进入数据层；运行中仍可通过 `loadBars()` 动态补充，财务数据未要求预加载时仍按截面读取懒加载。合并预加载后查询批次和失败时序改变，成功后的缓存范围保持。
 
-EngineContext / EngineStrategy 是内部模拟契约，公开 StrategyCtx 仍由 shared SDK 契约定义；[Strategy bridge](../strategy/runtime/bridge.ts) 适配两者。TS SDK bundle 不包含 Engine、Prisma 或宿主能力，沙箱不能访问 DataPort。
+EngineContext / EngineStrategy 是内部模拟契约，公开 StrategyCtx 仍由 shared SDK 契约定义；[Strategy bridge](../strategy/runtime/strategy-bridge.ts) 适配两者。TS SDK bundle 不包含 Engine、Prisma 或宿主能力，沙箱不能访问 DataPort。
 
 ## 模拟输出与业务结果
 

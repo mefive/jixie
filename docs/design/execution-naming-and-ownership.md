@@ -296,3 +296,121 @@ AllocationAnalysisTracker 始终实例化、记录调仓/每日数据并输出�
 审查前静态检查通过：全仓 pnpm typecheck（868 个后端文件、0 边界违规、SDK 生成物一致、全部 workspace 类型通过）、engine.ts 的 ESLint（0 警告）与 Prettier，以及 git diff --check。
 
 人工代码审查已通过；engine.test.ts、order-book.test.ts、conditional-orders.test.ts 和 final-state.test.ts 共 4 个文件、58 项测试全部通过，覆盖 Engine 生命周期、订单、条件单与末日状态，无跳过。未启动临时服务或数据库进程。按已确认信息提交，不推送。
+
+## 2026-10-16 API 核心类文件名统一
+
+约定 commit：`refactor(api): align core class filenames with class names`。
+用户要求与 Bridge 基类约束拆成两个 commit；前一项已作为 `a16d7bf3` 独立提交，
+13 个测试文件、144 项回归与 Shared/API 构建通过。本节仅记录随后文件命名统一。
+
+以一个主要类为中心的文件与完整类名对应：TS 使用 kebab-case，Python 使用 snake_case。
+下列 32 个候选全部采用，包括此前可选的语言服务、配置收益分析 Tracker 和 Python
+SdkAdapter Protocol；18 个对应测试同步改名。私有 Bound* 辅助类仍与主 Adapter 同文件，
+类型、工厂和函数不机械拆分；errors、SDK 聚合入口、contract/protocol/Capabilities、
+Worker 文件组、Job 生命周期和同主题函数集合继续按原职责命名。
+
+下表路径相对 `apps/api/src/`。旧路径为迁移记录，新路径是当前实现入口。
+
+| 原文件 | 当前文件 |
+| --- | --- |
+| `strategy/runtime/bridge.ts` | [strategy/runtime/strategy-bridge.ts](../../apps/api/src/strategy/runtime/strategy-bridge.ts) |
+| `factor/runtime/bridge.ts` | [factor/runtime/factor-bridge.ts](../../apps/api/src/factor/runtime/factor-bridge.ts) |
+| `research/runtime/bridge.ts` | [research/runtime/research-bridge.ts](../../apps/api/src/research/runtime/research-bridge.ts) |
+| `strategy/runtime/typescript/runner.ts` | [strategy/runtime/typescript/strategy-runner.ts](../../apps/api/src/strategy/runtime/typescript/strategy-runner.ts) |
+| `strategy/runtime/python/runner.py` | [strategy/runtime/python/strategy_runner.py](../../apps/api/src/strategy/runtime/python/strategy_runner.py) |
+| `factor/runtime/typescript/runner.ts` | [factor/runtime/typescript/factor-runner.ts](../../apps/api/src/factor/runtime/typescript/factor-runner.ts) |
+| `factor/runtime/python/runner.py` | [factor/runtime/python/factor_runner.py](../../apps/api/src/factor/runtime/python/factor_runner.py) |
+| `research/runtime/python/runner.py` | [research/runtime/python/research_runner.py](../../apps/api/src/research/runtime/python/research_runner.py) |
+| `strategy/runtime/typescript/adapter.ts` | [strategy/runtime/typescript/strategy-adapter.ts](../../apps/api/src/strategy/runtime/typescript/strategy-adapter.ts) |
+| `strategy/runtime/python/adapter.py` | [strategy/runtime/python/strategy_adapter.py](../../apps/api/src/strategy/runtime/python/strategy_adapter.py) |
+| `factor/runtime/typescript/adapter.ts` | [factor/runtime/typescript/factor-adapter.ts](../../apps/api/src/factor/runtime/typescript/factor-adapter.ts) |
+| `factor/runtime/python/adapter.py` | [factor/runtime/python/factor_adapter.py](../../apps/api/src/factor/runtime/python/factor_adapter.py) |
+| `research/runtime/python/adapter.py` | [research/runtime/python/research_adapter.py](../../apps/api/src/research/runtime/python/research_adapter.py) |
+| `research/runtime/pool.ts` | [research/runtime/research-runtime-pool.ts](../../apps/api/src/research/runtime/research-runtime-pool.ts) |
+| `strategy/execution/execution.ts` | [strategy/execution/strategy-execution.ts](../../apps/api/src/strategy/execution/strategy-execution.ts) |
+| `strategy/factors/factor.ts` | [strategy/factors/strategy-factor.ts](../../apps/api/src/strategy/factors/strategy-factor.ts) |
+| `backtesting/engine.ts` | [backtesting/backtesting-engine.ts](../../apps/api/src/backtesting/backtesting-engine.ts) |
+| `backtesting/context.ts` | [backtesting/backtesting-context.ts](../../apps/api/src/backtesting/backtesting-context.ts) |
+| `backtesting/factors/evaluator.ts` | [backtesting/factors/factor-evaluator.ts](../../apps/api/src/backtesting/factors/factor-evaluator.ts) |
+| `factor/execution/cross-sectional/evaluator.ts` | [factor/execution/cross-sectional/cross-sectional-evaluator.ts](../../apps/api/src/factor/execution/cross-sectional/cross-sectional-evaluator.ts) |
+| `jobs/service.ts` | [jobs/job-service.ts](../../apps/api/src/jobs/job-service.ts) |
+| `jobs/scheduler.ts` | [jobs/job-scheduler.ts](../../apps/api/src/jobs/job-scheduler.ts) |
+| `jobs/logs.ts` | [jobs/job-logs.ts](../../apps/api/src/jobs/job-logs.ts) |
+| `agent/turns/trace.ts` | [agent/turns/agent-trace-recorder.ts](../../apps/api/src/agent/turns/agent-trace-recorder.ts) |
+| `infra/runtime/typescript/transport.ts` | [infra/runtime/typescript/typescript-transport.ts](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts) |
+| `infra/runtime/python/session.ts` | [infra/runtime/python/python-session.ts](../../apps/api/src/infra/runtime/python/python-session.ts) |
+| `infra/runtime/log-buffer.ts` | [infra/runtime/sandbox-log-buffer.ts](../../apps/api/src/infra/runtime/sandbox-log-buffer.ts) |
+| `market/providers/tushare/client.ts` | [market/providers/tushare/tushare-client.ts](../../apps/api/src/market/providers/tushare/tushare-client.ts) |
+| `strategy/sdk/timeframe-series.ts` | [strategy/sdk/resampled-series.ts](../../apps/api/src/strategy/sdk/resampled-series.ts) |
+| `research/language/pyright-service.ts` | [research/language/research-python-language-service.ts](../../apps/api/src/research/language/research-python-language-service.ts) |
+| `backtesting/allocation-analysis.ts` | [backtesting/allocation-analysis-tracker.ts](../../apps/api/src/backtesting/allocation-analysis-tracker.ts) |
+| `infra/runtime/python/adapter.py` | [infra/runtime/python/sdk_adapter.py](../../apps/api/src/infra/runtime/python/sdk_adapter.py) |
+
+所有 TS 原生包内别名、相对导入、动态导入、Worker/new URL 资源引用、Python import、
+测试 mock/断言和当前阅读文档同步更新。API 的 package imports 通配映射保持；类名、
+公开 SDK、HTTP、协议、方法体和数据语义保持。Prisma schema 仅更新 JobLogs 的注释路径，
+没有模型或迁移变更。没有新增 workspace、包依赖或跨包构建边。
+
+Python 通用 runner 的三业务分派和公共 SdkAdapter import 使用新模块名；Docker 显式 COPY、
+.dockerignore、deploy/component-impact.json 与部署计划测试同步，保持原 API/sandboxd
+影响范围。后端边界例外只替换两个 source 路径，不放宽规则。生产不保留旧文件转发入口。
+
+Strategy 历史性能基线仍固定原提交与旧模块路径，测试装配仅将两个共享 Transport 的旧别名
+重定向到当前文件；样本数、独立进程、结果哈希和通信计数/字节断言保持。历史设计记录
+中的旧路径文字保留，指向当前实现的 Markdown 链接更新。
+
+### 审查与验证状态
+
+审查前按 review-gated-development 仅做静态验证，未执行本轮行为测试或构建。
+当时准备在人工审查后运行相关 API/SDK/Job/回测回归、Python 打包、源码与干净编译 Worker、
+语言服务、Strategy 历史对照，以及部署/边界检查器测试和 Shared/API 构建。
+静态检查和审查后实际验证结果见后文。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过：Shared/API/Docs/sandboxd/Web 类型检查及 SDK 生成物一致性通过；
+  后端边界覆盖 888 个文件、3304 条运行时边、889 条类型边，0 违规，依赖边数量与改名前一致。
+- 227 个受影响 TS/MJS 文件的 ESLint（0 警告）和 Prettier 通过，git diff --check 通过。
+- 以 a16d7bf3 为基线，131 个受影响生产 TS/JS 文件在还原路径文字后 AST 一致；8 个 Python
+  文件在还原 import 后 AST 一致。22 个 Python 文件语法检查通过，没有执行模块或写入字节码。
+- 245 处改名后的字面量导入及源码/dist URL 引用静态解析通过；22 个镜像 Python 输入、
+  Docker 源/目标路径、.dockerignore 父目录与显式文件、sandboxd 部署影响条目一致。
+- 613 个本地 Markdown 文件链接有效；历史文档中几处既有退役入口改为当前阅读入口，
+  已移除的一次性迁移脚本及测试仅保留历史路径文字。
+- Prisma schema 静态核对确认仅 JobLogs 的注释路径变化，没有模型或迁移修改。
+- 本轮行为测试、打包执行、构建和性能对照尚未运行，修改未提交，等待人工代码审查。
+
+日志：`/tmp/jixie-api-filenames-typecheck.log`、`/tmp/jixie-api-filenames-lint.log`；
+迁移清单：`/tmp/jixie-api-filenames-migration.json`。后续仅暂存本轮核对过的文件，不推送。
+
+### 审查后验证结果
+
+用户确认运行验证，并在通过后直接提交第二个 commit。
+
+- 相关 API/SDK/Job/回测、运行时、Python 打包、Pyright、Worker 和集成回归覆盖 143 个文件、
+  1172 项。首轮 1171 项通过；1 项仍以 timeframe-series 检查 SDK bundle 输入，测试清单改为
+  resampled-series 后重跑通过，原断言保留。该修正仅涉及一个测试字符串，产品代码未再修改。
+- PythonSession 真实临时 Unix socket 通信单独运行，11 项全部通过。
+- Shared/API 构建通过；另在独立空目录重新编译 API，25 个新类 JS 文件均存在，25 个旧路径
+  均不存在。按镜像清单复制 Python 模块，不依赖工作区旧 dist 或旧 Python 模块。
+- 同一干净目录中运行 compiled Worker 14 项、Pyright 语言服务 8 项，合计 22 项全部通过。
+  Worker 覆盖 TS/Python 策略和因子、扫描、Signals、启动恢复、非法输入和释放，均等待子进程
+  实际退出；各组使用独立临时 SQLite，没有修改开发数据库。
+- watch/dynamic 两项历史性能对照通过；两边所有样本的结果哈希、通信计数和字节一致。
+  固定基线仍为 2c58693b，冷启动和预热样本保留；watch 的 10 个测量样本耗时中位数为
+  90.34 → 82.75 ms，dynamic 的 5 个测量样本为 400.11 → 407.42 ms，仅作本机观察记录。
+- 部署计划/编排、后端与 Python SDK 边界检查器的 58 项测试全部通过；最终依赖扫描仍为
+  888 个文件、3304 条运行时边、889 条类型边，0 违规。以上合计 1265 项验证全部通过。
+- 干净生产 imports 条件下额外验证 TS time_series/panel 连续计算、metadata 与幂等关闭；
+  Research 的分析、显式参数、环境留痕、跨 Cell namespace、普通错误后复用、reset 和关闭
+  均通过。没有 tsx 或 development 条件，smoke 的子进程退出检查通过。
+- 使用项目配置的 CPython 3.13.16。审阅过的 240 个非 Markdown 文件经哈希核对，除上述
+  测试字符串外保持一致；测试修正的 ESLint/Prettier 和回归通过。所有 328 个变更路径均在
+  本轮清单内，包含 50 个改名文件的旧/新路径，未混入其他文件。
+- 测试 fixture 完成临时数据库和 socket 收尾；性能对照临时模块已删除，额外创建的干净
+  编译目录与 Matplotlib/font cache 已清理，验证命令均退出。未启动开发服务、部署或推送。
+
+按已约定的 `refactor(api): align core class filenames with class names` 提交。
+验证日志前缀为 `/tmp/jixie-api-filenames-`，后缀包括 tests.log（首次运行）、bundle-tests.log
+（测试清单修正后）、socket-tests.log、compiled-workers.log、benchmark.log、policy-tests.log、
+shared-build.log、api-build.log、clean-build.log 与 compiled-runtime.log。

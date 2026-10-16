@@ -2,7 +2,7 @@ import type { TradeDate } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma, type Prisma } from '#infra/database/prisma.js';
 import { futureMapping, type FutureMappingRow } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
   COMMODITY_MAIN_CONTRACT_SPECS,
   type CommodityFutureProductCode,

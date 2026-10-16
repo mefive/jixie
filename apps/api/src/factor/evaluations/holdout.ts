@@ -2,7 +2,7 @@ import type { FactorAnalysisJobPayload } from './job-payload.js';
 import { factorReportState, factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobScheduler } from '#jobs/scheduler.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
 import type { FactorResearchSpecV1, Locale, RunFactorAnalysisResponse } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { FactorError } from '../errors.js';

@@ -1,4 +1,4 @@
-import { JobService } from './service.js';
+import { JobService } from './job-service.js';
 import { strategyBacktestLifecycle } from '#strategy/backtests/job-lifecycle.js';
 import { strategyScanLifecycle } from '#strategy/scans/job-lifecycle.js';
 import { factorAnalysisLifecycle } from '#factor/evaluations/job-lifecycle.js';

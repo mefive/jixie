@@ -7,7 +7,7 @@ import {
   futureSettlement,
   futureWarehouseReceipts,
 } from './api.js';
-import type { TushareClient } from './client.js';
+import type { TushareClient } from './tushare-client.js';
 
 function fakeClient() {
   const call = vi.fn().mockResolvedValue([]);

@@ -1,5 +1,5 @@
 import { rebuildVersionedAccount } from '../accounting/versioned-replay.js';
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { execFileSync } from 'node:child_process';
@@ -33,12 +33,12 @@ vi.mock('#strategy/runtime/inspect-definition.js', () => ({
 vi.mock('../factor-inputs/rates.js', () => ({
   governmentYieldCurveReady: resources.yieldReady,
 }));
-vi.mock('#jobs/scheduler.js', () => ({
+vi.mock('#jobs/job-scheduler.js', () => ({
   JobScheduler: { wake: resources.wake },
 }));
 
-vi.mock('#jobs/service.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('#jobs/service.js')>();
+vi.mock('#jobs/job-service.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('#jobs/job-service.js')>();
   vi.spyOn(original.JobService, 'waitForCompletion').mockImplementation(resources.completion);
   return original;
 });

@@ -7,7 +7,7 @@ import type {
 import { z } from 'zod';
 import type { UserLogSink } from '#infra/runtime/console.js';
 
-import { StrategyFactor } from '../factors/factor.js';
+import { StrategyFactor } from '../factors/strategy-factor.js';
 import type {
   FactorComputeRequest,
   FactorDefinition,

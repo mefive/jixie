@@ -1,5 +1,5 @@
 import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
-import { FactorBridge } from './bridge.js';
+import { FactorBridge } from './factor-bridge.js';
 import type {
   ExecutableFactorKind,
   FactorStartOptions,

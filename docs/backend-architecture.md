@@ -112,13 +112,13 @@ Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化�
 | 资源 | 创建与持有者 | 收尾与当前限制 |
 | --- | --- | --- |
 | API listener | `bootstrap.startServer` 调用 Hono `serve` | 目前只返回 app，没有统一 listener close/stop-drain API；不宣称 API 已有完整优雅退出协议 |
-| Job 队列和并发名额 | `jobs/scheduler.ts`，启动时注入执行器；默认全局 2、每用户 1，可由环境覆盖 | 执行结束释放名额；queued 保存在 DB，running 在重启时恢复；无多实例租约或统一 drain |
+| Job 队列和并发名额 | `jobs/job-scheduler.ts`，启动时注入执行器；默认全局 2、每用户 1，可由环境覆盖 | 执行结束释放名额；queued 保存在 DB，running 在重启时恢复；无多实例租约或统一 drain |
 | Worker / IPC 子进程 | 各业务任务、工具或维护入口按需创建 | 主线程接收结果并处理退出；具体入口和取消语义见 [运行入口清单](backend-runtime-entries.md) |
 | Research Python 会话 | `research/runtime/python/session.ts` 由普通文档、嵌入分析和依赖分析共用，按文档 ID 复用；公共 session 负责传输 | 中断、reset、归档和执行收尾按业务规则关闭；普通文档锁归 `document-runs/run-state.ts`，嵌入分析保留独立取消/超时流程 |
 | Factor / Strategy isolate 和 Python 连接 | 各领域 runtime 创建，Infra 提供底层能力 | 调用方在完成/失败时释放；长计算超时策略在各自业务，不由公共传输统一决定 |
 | Prisma | `infra/database/prisma.ts` 的进程内单例；子进程有独立实例 | CLI/子进程在收尾断开；API 整体关闭仍依赖进程退出和上级进程管理 |
-| Agent bus / trace / 日志 | `agent/turns` 与 `jobs/logs.ts` | DB 保存持久记录，内存事件与日志缓存各有清理规则；重启不重放历史增量事件 |
-| Pyright | `research/language/pyright-service.ts` 按需管理语言服务 | 文档和协议生命周期由服务管理；其 package/stub 路径须独立检查 |
+| Agent bus / trace / 日志 | `agent/turns` 与 `jobs/job-logs.ts` | DB 保存持久记录，内存事件与日志缓存各有清理规则；重启不重放历史增量事件 |
+| Pyright | `research/language/research-python-language-service.ts` 按需管理语言服务 | 文档和协议生命周期由服务管理；其 package/stub 路径须独立检查 |
 | sandboxd 与 runner | 独立 `apps/sandboxd`，API 通过 Unix socket 请求会话 | daemon 处理 SIGINT/SIGTERM、关闭 server 与会话；本地模式和生产隔离模式不可混作同一种验收 |
 
 开发 `pnpm dev` 由 [scripts/dev/dev.mjs](../scripts/dev/dev.mjs) 校验 Python 包、先启动 sandboxd，等待 socket 后再启动 API/Web。退出时给服务进程组发信号、限时等待、再清理残留；它不等于 API 内部的业务事务 drain。API、sandboxd 和开发编排各有自己的资源边界。
@@ -139,7 +139,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 1. `strategy/backtests/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后唤醒队列，日志在执行开始时初始化。
 2. 队列原子领取 Job，执行器加载 `strategy/backtests/job-lifecycle.ts`，解析持久化输入并启动 `strategy/backtests/worker`。
-3. Worker 调用 `strategy/backtests/run.ts`，通过 `strategy/factors/factor.ts` 准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
+3. Worker 调用 `strategy/backtests/run.ts`，通过 `strategy/factors/strategy-factor.ts` 准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
 4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/risk`，结果位于回测的多资产配置风险面板。
 5. Worker 返回结果并退出；API 主线程的执行器创建 Prisma 事务，把同一个 transaction 交给业务 `complete`，保存报告/相关缓存与 Job 终态。计算与外部调用不占用这个完成事务。
 
@@ -217,12 +217,12 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 Strategy 的公开 TS 签名、文档、Agent 参考归 `packages/shared/src/sdk/strategy/reference.ts`，
 由原有声明生成器同时服务 Monaco 和编译契约 `contract.ts`。Strategy SDK 辅助实现归
 `apps/api/src/strategy/sdk`，不再与 isolate 设施同放；Python SDK 与语言协议分别归
-`strategy/sdk/python.py`、`strategy/runtime/python/runner.py`；基础能力适配、缓存与宿主访问归两种语言的 runtime/adapter。宿主 StrategyRuntime 统一资源生命周期，语言 prepare 只提供启动配置，runner 负责沙箱加载与协议，SDK 接收基础能力。
+`strategy/sdk/python.py`、`strategy/runtime/python/strategy_runner.py`；基础能力适配、缓存与宿主访问归两种语言的 runtime/adapter。宿主 StrategyRuntime 统一资源生命周期，语言 prepare 只提供启动配置，runner 负责沙箱加载与协议，SDK 接收基础能力。
 Engine 保留内部 `EngineStrategy` / `EngineContext`，负责模拟时钟、PIT 数据、因子准备与交易账户。
 公开上下文不继承 Engine 类型；runtime 把用户回调装配为引擎决策回调，SDK 对公开签名做编译期适配检查。
 实现、兼容性与本次验收见 [Strategy SDK 边界记录](design/strategy-sdk-boundaries.md)。
 
-Factor 遵循相同归属：作者接口归 `factor/sdk`，Python 业务协议与加载归 `factor/runtime/python/runner.py`；
+Factor 遵循相同归属：作者接口归 `factor/sdk`，Python 业务协议与加载归 `factor/runtime/python/factor_runner.py`；
 TS 的工厂与 `history/value/lag` 实现归 SDK，runtime 负责打包、isolate 注入、数据传入与批量调用。`shared/sdk/factor/reference.ts` 统一 TS 编辑器声明与
 生成编译契约；Python 契约归同目录 `python.ts`。SDK 的移动不改变评估、发布或字段准入。
 三个业务的整体范围与逐项验收状态见 [统一 SDK 计划](design/business-sdk-organization.md)。

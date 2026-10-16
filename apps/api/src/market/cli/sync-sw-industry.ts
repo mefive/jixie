@@ -1,5 +1,5 @@
 import { loadTushareConfig } from '../providers/tushare/config.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { prisma } from '#infra/database/prisma.js';
 import { syncSwIndustry } from '../indices/sync.js';
 

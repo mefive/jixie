@@ -35,9 +35,9 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: resources.wake } }));
-vi.mock('#jobs/logs.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('#jobs/logs.js')>();
+vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: resources.wake } }));
+vi.mock('#jobs/job-logs.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('#jobs/job-logs.js')>();
   vi.spyOn(original.JobLogs, 'initialize').mockImplementation(resources.logs);
   return original;
 });

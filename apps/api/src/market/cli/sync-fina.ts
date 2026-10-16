@@ -4,7 +4,7 @@ import {
   syncFinancialStatementsByStock,
   type FinancialStatementSyncSummary,
 } from '../fundamentals/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 
 /**

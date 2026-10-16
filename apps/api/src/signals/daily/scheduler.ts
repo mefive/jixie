@@ -1,4 +1,4 @@
-import { JobService } from '#jobs/service.js';
+import { JobService } from '#jobs/job-service.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { prisma } from '#infra/database/prisma.js';
 import { settleStrategyAccounts } from '../accounting/settlement.js';

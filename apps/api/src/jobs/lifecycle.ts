@@ -1,5 +1,5 @@
 import type { Job, Prisma } from '@prisma/client';
-import type { LogWriter } from './logs.js';
+import type { LogWriter } from './job-logs.js';
 
 /** Business hooks; JobService owns status transitions and transaction boundaries. */
 export interface JobLifecycle<Result> {

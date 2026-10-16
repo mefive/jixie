@@ -5,7 +5,7 @@ import {
   syncChinaTreasuryYieldCurve,
 } from '../rates/china-treasury-curve.js';
 import { syncTradeCal } from '../calendar/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 function currentDate(): string {
   return new Date().toISOString().slice(0, 10).replaceAll('-', '');

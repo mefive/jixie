@@ -1,5 +1,5 @@
-import { runStrategy } from './runner.js';
-import type { StrategyRunnerCommandHandler, StrategyRunnerHost } from './runner.js';
+import { runStrategy } from './strategy-runner.js';
+import type { StrategyRunnerCommandHandler, StrategyRunnerHost } from './strategy-runner.js';
 
 interface HostFunction {
   applySync(receiver: undefined, args: string[]): string;

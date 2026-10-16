@@ -4,7 +4,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { CROSS_MARKET_BENCHMARKS } from '../registry/cross-market-benchmarks.js';
 import { syncCrossMarketBenchmarks } from '../cross-market/benchmark-sync.js';
 import { syncTradeCal } from '../calendar/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 async function main(): Promise<void> {
   const [startDate = '20050101', endDate = shanghaiToday()] = process.argv.slice(2);

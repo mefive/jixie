@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import { JobService, type JobKind } from '#jobs/service.js';
+import { JobService, type JobKind } from '#jobs/job-service.js';
 
 export async function readOwnedFactorJob(
   userId: string,

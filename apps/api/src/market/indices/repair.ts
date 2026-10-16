@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,

@@ -1,6 +1,6 @@
 import type { BacktestConfig, StrategyDeployment } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 
 export async function listStrategyDeployments(
   userId: string,

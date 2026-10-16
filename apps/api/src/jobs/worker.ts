@@ -1,7 +1,7 @@
 import type { Worker } from 'node:worker_threads';
 import type { ChildProcess } from 'node:child_process';
 import type { WorkerLogMessage, WorkerErrorMessage } from './worker-protocol.js';
-import type { LogWriter } from './logs.js';
+import type { LogWriter } from './job-logs.js';
 
 export type WorkerMessage<Result> =
   | WorkerLogMessage

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureBar, type FixtureSpec } from './testing/fixture-port.js';
-import { BacktestingEngine } from './engine.js';
+import { BacktestingEngine } from './backtesting-engine.js';
 import type { EngineContext, EngineStrategy } from './contract.js';
 
 const DATES = ['20240101', '20240102', '20240103', '20240104', '20240105'];

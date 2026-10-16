@@ -1,7 +1,7 @@
 import { futureSignalSchema, signalAccountsSchema } from '@jixie/shared/api/signals';
 import { signalRunState, currentSignalJob } from './state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobService } from '#jobs/service.js';
+import { JobService } from '#jobs/job-service.js';
 import type {
   FactorInputSummary,
   ModelPositionSnapshot,
@@ -12,7 +12,7 @@ import type {
 import { executionWire } from '../accounting/read.js';
 import { deploymentWire } from '../deployments/read.js';
 import { SignalsError } from '../errors.js';
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 
 export async function listDeploymentLatestRuns(
   userId: string,

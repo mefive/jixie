@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../../runtime/pool.js';
+import { researchRuntimePool } from '../../runtime/research-runtime-pool.js';
 import { EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE } from './classification-template.js';
 import { equityFcffClassificationSource } from './classification-evidence.js';
 import { resolve } from 'node:path';

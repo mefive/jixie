@@ -30,7 +30,7 @@ vi.mock('#market/calendar/sync.js', () => ({ syncTradeCal: mocks.calendarSync })
 vi.mock('#market/providers/tushare/config.js', () => ({
   loadTushareConfig: () => ({ token: 'fixture' }),
 }));
-vi.mock('#market/providers/tushare/client.js', () => ({ TushareClient: class {} }));
+vi.mock('#market/providers/tushare/tushare-client.js', () => ({ TushareClient: class {} }));
 vi.mock('#signals/daily/sync.js', () => ({
   prepareSignalEtfMarketDate: mocks.prepare,
   syncSignalMarketData: mocks.publish,

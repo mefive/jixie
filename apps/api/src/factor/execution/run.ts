@@ -29,7 +29,7 @@ import { loadMacroRegimeObservations } from '../observations/macro-regime-observ
 import { loadPanelEtfObservations } from '../observations/panel-observations.js';
 
 import type { FactorAnalysisSource } from '../sources/snapshot.js';
-import { factorEvaluatorFor } from './cross-sectional/evaluator.js';
+import { factorEvaluatorFor } from './cross-sectional/cross-sectional-evaluator.js';
 import { MacroRegimeEvaluator } from './macro-regime-evaluator.js';
 import { PanelEvaluator } from './panel-evaluator.js';
 import { normalizeFactorResearchSpec } from './spec.js';

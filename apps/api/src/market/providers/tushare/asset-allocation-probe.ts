@@ -5,7 +5,7 @@ import {
   type TushareCapabilityDomain,
   type TushareCapabilityProbeCoverage,
 } from './capability-catalog.js';
-import { type TushareRow } from './client.js';
+import { type TushareRow } from './tushare-client.js';
 
 export type AssetAllocationProbeStatus =
   | 'ok'

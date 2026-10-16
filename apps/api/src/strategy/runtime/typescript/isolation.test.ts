@@ -3,7 +3,7 @@ import { startInstrumentedStrategyRuntime } from './testing/runtime.js';
 import { inspectStrategyMetadata } from '../inspect-definition.js';
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
-import { BacktestingEngine } from '#backtesting/engine.js';
+import { BacktestingEngine } from '#backtesting/backtesting-engine.js';
 
 const dates = ['20240102', '20240103'];
 const fixture = {

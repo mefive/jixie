@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import { createHash } from 'node:crypto';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { ETF_RESEARCH_CODES } from '../registry/etf-research-registry.js';
 import { ETF_HISTORY_START, inspectEtfHistoryCoverage } from './history-coverage.js';
 import { fillEtfHistoryGap, syncEtfMarketDate } from './sync.js';

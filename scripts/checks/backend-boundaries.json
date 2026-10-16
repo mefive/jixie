@@ -9,14 +9,14 @@
     },
     {
       "rule": "backtesting-core",
-      "from": "apps/api/src/backtesting/factors/evaluator.ts",
+      "from": "apps/api/src/backtesting/factors/factor-evaluator.ts",
       "to": "apps/api/src/factor/definitions/fields.ts",
       "kind": "runtime",
       "reason": "复用 Factor V2 字段常量和期限解析纯函数；不经过定义读写与发布流程。"
     },
     {
       "rule": "backtesting-core",
-      "from": "apps/api/src/backtesting/engine.ts",
+      "from": "apps/api/src/backtesting/backtesting-engine.ts",
       "to": "apps/api/src/market/registry/index-presets.ts",
       "kind": "runtime",
       "reason": "复用纯静态全收益基准代码，避免另一份市场清单；注册表本身受纯依赖检查。"

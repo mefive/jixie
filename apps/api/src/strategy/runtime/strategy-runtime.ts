@@ -1,5 +1,5 @@
 import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
-import { StrategyBridge } from './bridge.js';
+import { StrategyBridge } from './strategy-bridge.js';
 import type {
   StrategyStartOptions,
   StrategyRuntimeInstance,

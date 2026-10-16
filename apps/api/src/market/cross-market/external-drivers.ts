@@ -1,6 +1,6 @@
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-import type { TushareRow } from '../providers/tushare/client.js';
+import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import {
   US_NOMINAL_CURVE_SOURCE,
   US_NOMINAL_CURVE_CODE,

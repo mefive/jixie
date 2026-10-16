@@ -1,12 +1,12 @@
 import type { SignalsRunJobPayload } from './job-payload.js';
 import { signalRunState, currentSignalJob } from '#signals/runs/state.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobScheduler } from '#jobs/scheduler.js';
-import { JobService } from '#jobs/service.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
+import { JobService } from '#jobs/job-service.js';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { SignalsError } from '../errors.js';
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import { governmentYieldCurveReady } from '../factor-inputs/rates.js';
 import { resolveSignalExecutionDate, isSignalDataReady } from './readiness.js';
 

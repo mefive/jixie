@@ -2,7 +2,7 @@ import type { TradeDate } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma, type Prisma } from '#infra/database/prisma.js';
 import { futureHoldings, type FutureHoldingRow } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { COMMODITY_HOLDING_SPECS, type CommodityHoldingProductCode } from './commodity-futures.js';
 
 export const COMMODITY_HOLDING_POSITION_VERSION = 1 as const;

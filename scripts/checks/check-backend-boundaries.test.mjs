@@ -318,7 +318,7 @@ test('protects helpers, registries and backtesting core from host imports', (con
     [src + 'math/helper.ts']: "import 'node:fs';",
     [src + 'market/registry/example.ts']: "import '../sync/example.js';",
     [src + 'market/sync/example.ts']: 'export const value = 1;',
-    [src + 'backtesting/engine.ts']: "import './adapters/port.js';",
+    [src + 'backtesting/backtesting-engine.ts']: "import './adapters/port.js';",
     [src + 'backtesting/adapters/port.ts']: 'export const value = 1;',
   });
   const found = rules(checkBackendBoundaries(root, emptyPolicy));
@@ -507,10 +507,10 @@ test('allows neutral jobs dependencies and only explicit startup business assemb
   const root = fixture(context, {
     [src + 'bootstrap.ts']: "import './jobs/register.js';",
     [src + 'signals/daily/scheduler.ts']: "import '../../jobs/register.js';",
-    [src + 'jobs/register.ts']: "import '../strategy/task.js'; import './scheduler.js';",
-    [src + 'strategy/task.ts']: "import '../jobs/service.js';",
-    [src + 'jobs/scheduler.ts']: "import './service.js';",
-    [src + 'jobs/service.ts']: "import '../infra/database/prisma.js';",
+    [src + 'jobs/register.ts']: "import '../strategy/task.js'; import './job-scheduler.js';",
+    [src + 'strategy/task.ts']: "import '../jobs/job-service.js';",
+    [src + 'jobs/job-scheduler.ts']: "import './job-service.js';",
+    [src + 'jobs/job-service.ts']: "import '../infra/database/prisma.js';",
     [src + 'infra/database/prisma.ts']: 'export const prisma = {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
@@ -521,7 +521,7 @@ test('rejects business and neutral jobs importing assembly, including through a 
     [src + 'jobs/register.ts']: "import '../strategy/task.js';",
     [src + 'strategy/task.ts']: 'export const task = 1;',
     [src + 'strategy/submit.ts']: "import '../jobs/register.js';",
-    [src + 'jobs/service.ts']: "import '../infra/bridge.js';",
+    [src + 'jobs/job-service.ts']: "import '../infra/bridge.js';",
     [src + 'infra/bridge.ts']: "import '../jobs/register.js';",
   });
   const found = rules(checkBackendBoundaries(root, emptyPolicy));

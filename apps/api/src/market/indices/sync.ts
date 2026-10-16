@@ -11,7 +11,7 @@ import {
   indexWeight,
   swDaily,
 } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
 const LARGE_INDEX_WEIGHT_CODES = new Set(['000985.CSI', '000001.SH', '399102.SZ', '932000.CSI']);
 

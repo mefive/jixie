@@ -1,6 +1,6 @@
 import { getRecentOpenDates } from '#market/calendar/read.js';
 import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
-import { TushareClient } from '#market/providers/tushare/client.js';
+import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import { validateDerivedMarketRange } from '#market/state/quality.js';
 import { syncMarketIndicators } from '#market/state/sync.js';

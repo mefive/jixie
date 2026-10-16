@@ -1,5 +1,5 @@
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
-import { TushareClient } from '#market/providers/tushare/client.js';
+import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { stockBasic, tradeCal } from '#market/providers/tushare/api.js';
 
 /** Connectivity self-test: verify TUSHARE_TOKEN is valid and the HTTP channel works. Run: `pnpm probe tushare`. */

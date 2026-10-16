@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { FutureWarehouseReceiptRow } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
   buildCommodityWarehouseReceiptDaily,
   COMMODITY_WAREHOUSE_RECEIPT_PAGE_LIMIT,

@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/pool.js';
+import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';

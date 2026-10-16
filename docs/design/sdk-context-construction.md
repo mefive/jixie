@@ -24,7 +24,7 @@ Strategy SDK 入口位于 [typescript.ts](../../apps/api/src/strategy/sdk/typesc
 
 - [stock-account.ts](../../apps/api/src/strategy/sdk/stock-account.ts)：账户转发、live getter、等权／ATR／逆波动率仓位。
 - [universe.ts](../../apps/api/src/strategy/sdk/universe.ts)：内存选股链。
-- [timeframe-series.ts](../../apps/api/src/strategy/sdk/timeframe-series.ts)：已完成周／月的序列。
+- [resampled-series.ts](../../apps/api/src/strategy/sdk/resampled-series.ts)：已完成周／月的序列。
 - [indicators.ts](../../apps/api/src/strategy/sdk/indicators.ts)：日频／多周期／仓位复用的原有计算。
 
 Strategy 有更多业务方法，仍比 Factor Context 大；统一类形态、装配位置与阅读步骤，辅助算法保持。

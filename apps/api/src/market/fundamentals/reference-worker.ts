@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { pathToFileURL } from 'node:url';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { syncDividend, syncFinaIndicatorVip, type ReferenceSyncSummary } from './reference-sync.js';
 import type {

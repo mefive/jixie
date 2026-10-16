@@ -1,6 +1,6 @@
-import { researchRuntimePool } from '../pool.js';
+import { researchRuntimePool } from '../research-runtime-pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PythonSession } from '#infra/runtime/python/session.js';
+import { PythonSession } from '#infra/runtime/python/python-session.js';
 
 const documentId = 'capability-test';
 function sessionFixture(capabilities?: string[]) {

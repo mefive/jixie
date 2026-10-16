@@ -25,7 +25,7 @@ import { syncIndexBenchmarks } from '#market/indices/sync.js';
 import { canonicalizeStockCodes } from '#market/instruments/canonicalize-stock-codes.js';
 import { syncChinaMacroData } from '#market/macro/china-macro.js';
 import { BlsPublicDataClient, syncUsHeadlineCpiData } from '#market/macro/us-headline-cpi.js';
-import { TushareClient } from '#market/providers/tushare/client.js';
+import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import type { AuditFinding } from '#market/quality/report.js';
 import {

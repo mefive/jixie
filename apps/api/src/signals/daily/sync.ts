@@ -25,8 +25,8 @@ import {
   type PreparedEtfMarketDate,
 } from '#market/etfs/sync.js';
 import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
-import { TushareClient } from '#market/providers/tushare/client.js';
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { TushareClient } from '#market/providers/tushare/tushare-client.js';
+import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 
 /** Include deployment references in the same read-only readiness check as the registry. */
 export async function prepareSignalEtfMarketDate(

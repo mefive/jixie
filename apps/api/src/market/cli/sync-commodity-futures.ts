@@ -5,7 +5,7 @@ import {
   COMMODITY_FUTURE_SPECS,
 } from '../commodity/commodity-futures.js';
 import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '../futures/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /**
  * Sync research-only AU/CU/SC/M actual contracts and raw settlements.

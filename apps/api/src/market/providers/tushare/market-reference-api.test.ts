@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { indexBenchmark, swDaily } from './api.js';
-import type { TushareClient } from './client.js';
+import type { TushareClient } from './tushare-client.js';
 
 describe('Tushare official market-reference APIs', () => {
   it('requests official benchmark type and compiler provenance', async () => {

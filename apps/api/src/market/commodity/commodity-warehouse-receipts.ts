@@ -5,7 +5,7 @@ import {
   futureWarehouseReceipts,
   type FutureWarehouseReceiptRow,
 } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { COMMODITY_FUTURE_SPECS, type CommodityFutureProductCode } from './commodity-futures.js';
 
 export const COMMODITY_WAREHOUSE_RECEIPT_VERSION = 1 as const;

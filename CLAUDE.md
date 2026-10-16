@@ -69,7 +69,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 
 - Research 作者对象 `data/results/valuation/charts` 的实现归 `research/sdk/python`；Cell namespace、
   AST 分析、环境与输出序列化归 `research/runtime/python`；`runtime/research-runtime.ts` 的宿主实例与
-  `runtime/pool.ts` 的文档会话池只在 API 进程执行。
+  `runtime/research-runtime-pool.ts` 的文档会话池只在 API 进程执行。
   请求校验、分派和输入回放适配归 `research/runtime/host`，数据查询与业务授权仍归 datasets。
   SDK 只依赖自己声明的 Capabilities，不导入 runtime；ResearchAdapter 实现请求能力，ResearchRunner
   持有 namespace/Cell 状态，run_research 只启动并接入 handler。sandboxd 负责公共循环、通信和限制。
@@ -86,10 +86,10 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - SDK 自有 StrategyCapabilities / StrategyDefinition 是基础能力与内部加载结果；SDK 不导入 Engine。
 - Engine 的 `EngineStrategy` / `EngineContext` 是内部模拟契约，不作为公开 SDK 继承来源。
   Strategy runtime 负责桥接；Engine 不加载用户源码或选择语言。Python SDK 的实现归
-  `apps/api/src/strategy/sdk/python.py`，协议执行归 `apps/api/src/strategy/runtime/python/runner.py`，sandboxd 的通用 runner 只启动/分派。
+  `apps/api/src/strategy/sdk/python.py`，协议执行归 `apps/api/src/strategy/runtime/python/strategy_runner.py`，sandboxd 的通用 runner 只启动/分派。
 - Strategy 宿主生命周期统一由 `runtime/strategy-runtime.ts` 的 StrategyRuntime 持有；业务 Bridge.create
-  内部选择语言、准备启动配置并创建 Transport。沙箱源码加载与协议归 `runner.ts` / `runner.py`，基础能力适配、缓存与
-  宿主访问归 `adapter.ts` / `adapter.py`；作者 SDK 接收基础能力，不反向导入 runtime。
+  内部选择语言、准备启动配置并创建 Transport。沙箱源码加载与协议归 `strategy-runner.ts` / `strategy_runner.py`，基础能力适配、缓存与
+  宿主访问归 `strategy-adapter.ts` / `strategy_adapter.py`；作者 SDK 接收基础能力，不反向导入 runtime。
 - 沙箱镜像以仓库根目录为构建上下文，`.dockerignore` 只允许显式 Python 输入。Strategy Python 源码
   同时影响 API 与 sandboxd；变更这些路径时保持部署清单和计划测试同步。
 - 本次整理不表示 TS / Python 功能完全对等；保持各自公开命名和既有产品准入。
@@ -106,10 +106,10 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - Monaco/Pyright 直接复用同一 Contract 渲染的 stub，不另维护前端 Python schema；TypeScript Factor 的 ambient
   类型继续独立兼容，不能用旧 TS 字段名污染 Python 的 snake_case 契约。
 - TS/Python 作者接口实现归 `apps/api/src/factor/sdk`；Python 源码加载、协议和返回值校验归
-  `factor/runtime/python/runner.py`。SDK 不反向依赖 runtime；sandboxd 只分派并打包业务模块，Python 源码同时影响 API/sandboxd。
-- Factor 宿主生命周期统一由 `runtime/factor-runtime.ts` 的 FactorRuntime 持有；共享 `bridge.ts` 的
+  `factor/runtime/python/factor_runner.py`。SDK 不反向依赖 runtime；sandboxd 只分派并打包业务模块，Python 源码同时影响 API/sandboxd。
+- Factor 宿主生命周期统一由 `runtime/factor-runtime.ts` 的 FactorRuntime 持有；共享 `factor-bridge.ts` 的
   Bridge.create 内部选择语言、准备启动配置并创建 Transport，同时负责协议、字段映射及结果检查，`metadata.ts` 保留各语言校验。
-  TS 外围通信归 `entry.ts`，源码加载、会话状态及回调归 `runner.ts` 的 FactorRunner；与 Strategy 使用相同
+  TS 外围通信归 `entry.ts`，源码加载、会话状态及回调归 `factor-runner.ts` 的 FactorRunner；与 Strategy 使用相同
   文件职责和类型后缀；Python 同样使用 FactorRunner，run_factor 只启动并接入 handler，外围读帧循环归
   sandboxd 通用入口。Factor 种类仍关联不同输入与 metadata，不统一作者计算语义。
 - 三业务 Adapter 统一实现 infra/runtime 的 SdkAdapter 接口／Protocol，以 bind(input) 返回能力绑定；
@@ -129,7 +129,8 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   SandboxTransport 统一约束 send/readValidated、close/abort/isClosed；不再另建 SandboxResource。
   Runtime 只持有 Bridge，Bridge 独占 Transport；Runtime 决定业务关闭时机并调用 Bridge，具体 Transport 实现底层回收。
   Bridge.create 返回前构造失败由其内部回收 Transport；返回后包括晚到 Bridge 均由 Runtime 清理。
-- 三业务宿主 Bridge 统一为各自 runtime/bridge.ts 中的类，构造函数接收传输、配置和稳定宿主能力；
+- 三业务宿主 Bridge 分别位于 strategy/runtime/strategy-bridge.ts、factor/runtime/factor-bridge.ts、
+  research/runtime/research-bridge.ts，构造函数接收传输、配置和稳定宿主能力；
   initialize 负责握手并返回 metadata，execute 负责业务协议，Research 另有 analyze/reset。
   会话协议状态归 Bridge 实例，单次执行日志归局部变量；业务状态和取消监听归 Runtime。
   三类统一继承 infra/runtime/sandbox-bridge-base.ts 的 SandboxBridgeBase，基类持有 Transport，
@@ -157,6 +158,8 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 ## 目录约定(对齐 fangtu)
 
 - **文件命名按局部职责**：目录表达业务归属，文件表达局部职责，导出的函数、类型和对象保留完整业务语义。业务 Job 生命周期统一为 `job-lifecycle.ts`，输入为 `job-payload.ts`；单一任务能力的 Worker 文件组使用 `worker.ts`、`worker.boot.mjs`、`worker-protocol.ts`。保留能区分同目录职责的限定词（如 `basic-sync.ts` / `daily-sync.ts`、`reference-worker.ts`），不为文件名全局唯一重复完整业务路径，也不为缩短名称去掉有效语义。不同业务无需具有相同目录结构；前端组件及 store 遵循前端命名约定。
+
+- **API 核心类文件与完整类名对应**：以一个主要类为中心的实现文件使用完整类名，TypeScript 使用 kebab-case，Python 使用 snake_case，例如 StrategyBridge → `strategy-bridge.ts`、StrategyRunner → `strategy_runner.py`、SdkAdapter → `sdk_adapter.py`；同名测试同步使用该前缀。这个规则优先于上一条的目录去重习惯，允许业务前缀重复。围绕主要类的输入类型、工厂和私有辅助类保留在同一文件，不为命名机械拆分。`errors.ts`、SDK 聚合入口、`contract.ts`、`protocol.ts`、Capabilities 与同主题函数集合仍按模块职责命名；Worker 文件组与 Job 生命周期继续遵循上条专项约定。完整映射和验证记录见 `docs/design/execution-naming-and-ownership.md`。
 
 - Factor、Strategy、Research、Market、Signals 五个核心业务模块按业务能力分目录；根级保留 `README.md` 和统一的业务 `errors.ts`；仅有后端专属校验组合或内部入参时保留 `schema.ts`。本业务 Agent 启动与上下文放在 `agent/`，Job 定义与提交、查询放在所属业务目录，测试跟随实现。纯来源类型、快照与哈希不依赖任务执行模块；Factor 分别归 `sources/snapshot.ts` 和 `sources/fingerprint.ts`。不要求五个模块具备相同目录，不将此布局套用到 Agent、Engine、Auth、Sharing 或 Maintenance。
 
@@ -196,7 +199,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 ## 代码约定
 
 - **ESM 相对导入必须带 `.js` 后缀**(即使源是 `.ts`)
-- **API 跨顶层模块导入使用原生包内别名**：例如 `#jobs/service.js`、`#market/instruments/stock-identity.js`，根级日期辅助用 `#date`；模块内部保留相对路径，跨 workspace 继续使用包名。映射唯一来源为 `apps/api/package.json#imports`，新增可跨模块引用的顶层目录时同步补充。Worker/资源的 `new URL(..., import.meta.url)` 仍使用相对路径，不当作模块导入替换。
+- **API 跨顶层模块导入使用原生包内别名**：例如 `#jobs/job-service.js`、`#market/instruments/stock-identity.js`，根级日期辅助用 `#date`；模块内部保留相对路径，跨 workspace 继续使用包名。映射唯一来源为 `apps/api/package.json#imports`，新增可跨模块引用的顶层目录时同步补充。Worker/资源的 `new URL(..., import.meta.url)` 仍使用相对路径，不当作模块导入替换。
 - API 源码执行使用 `--conditions=development`（已有 pnpm API 脚本已配置）；手动执行示例：`node --conditions=development --import tsx scripts/probes/smoke.ts`。生产不传此条件，原生 Node 从 `dist/src` 加载，部署必须保留 API `package.json`。`NODE_ENV=development` 本身不会启用模块解析条件。
 - 跨包用包名 `@jixie/shared`;`@prisma/client` 是 CJS,用 `import pkg from '@prisma/client'; const { PrismaClient } = pkg;`(见 `src/infra/database/prisma.ts`)
 - ID 用 ULID,应用层生成;zod 做入参校验

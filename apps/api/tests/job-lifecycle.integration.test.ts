@@ -39,8 +39,8 @@ import { completedSignalRunIds } from '#signals/runs/state.js';
 import type { PreparedResearchCuratorRun } from '#research/curator/prepare.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { strategyBacktestLifecycle } from '#strategy/backtests/job-lifecycle.js';
-import { JobLogs } from '#jobs/logs.js';
-import { JobService } from '#jobs/service.js';
+import { JobLogs } from '#jobs/job-logs.js';
+import { JobService } from '#jobs/job-service.js';
 
 const kinds = [
   'backtest',

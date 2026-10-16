@@ -17,7 +17,11 @@ import {
   type FinancialStatementReportType,
   type IncomeStatementRow,
 } from '../providers/tushare/api.js';
-import type { TushareClient, TushareRow, TushareValue } from '../providers/tushare/client.js';
+import type {
+  TushareClient,
+  TushareRow,
+  TushareValue,
+} from '../providers/tushare/tushare-client.js';
 import {
   FINANCIAL_SOURCE_CONTRACT_VERSION,
   isV1IndustrialConsolidatedStatement,

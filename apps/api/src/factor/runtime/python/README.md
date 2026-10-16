@@ -6,11 +6,11 @@
 | --- | --- |
 | [validator.ts](validator.ts) `validatePythonFactorDefinition` | 草稿校验：检查 Factor 工厂、compute 装饰器等形状，运行 Pyright；不执行用户 Python |
 | 同文件 `pythonFactorTargetAssetClasses` | runtime/inspect-definition 读取字面量 target_asset_classes；不启动 Python 会话 |
-| [FactorBridge.create](../bridge.ts) | 内部 createPython 准备 factor_start 并连接 PythonSession；Runtime 通过 Bridge 管理业务生命周期 |
-| [../bridge.ts](../bridge.ts) `FactorBridge` | 三种分析类型共用的宿主协议、Python 字段映射、计算错误去重及结果检查 |
+| [FactorBridge.create](../factor-bridge.ts) | 内部 createPython 准备 factor_start 并连接 PythonSession；Runtime 通过 Bridge 管理业务生命周期 |
+| [../factor-bridge.ts](../factor-bridge.ts) `FactorBridge` | 三种分析类型共用的宿主协议、Python 字段映射、计算错误去重及结果检查 |
 | [../protocol.ts](../protocol.ts) | startup／execution 帧校验；拒绝错类型或畸形响应 |
-| [adapter.py](adapter.py) `FactorAdapter` | 本地历史/字段/索引访问及声明输入；SDK 只依赖能力协议 |
-| [runner.py](runner.py) `run_factor` / `FactorRunner` | 在沙箱进程内加载用户源码、注入 `jixie`、验证元数据并批量执行；公开类来自 [Python SDK](../../sdk/python.py)，由 sandboxd 公共启动器分派 |
+| [factor_adapter.py](factor_adapter.py) `FactorAdapter` | 本地历史/字段/索引访问及声明输入；SDK 只依赖能力协议 |
+| [factor_runner.py](factor_runner.py) `run_factor` / `FactorRunner` | 在沙箱进程内加载用户源码、注入 `jixie`、验证元数据并批量执行；公开类来自 [Python SDK](../../sdk/python.py)，由 sandboxd 公共启动器分派 |
 
 每个沙箱会话创建一个 FactorRunner，定义与回调状态由实例持有；方法按 handle、start、_execute、_load_factor、_metadata、_compute_values 排列，与 TS 的 FactorRunner 和 Python 的 StrategyRunner 对照。run_factor 只做“创建 → 启动 → 接入 handler”，阻塞读帧循环归 [sandboxd 通用入口](../../../../../sandboxd/python/jixie_runner.py)，Factor/Strategy 共用 _receive_commands；FactorAdapter 将本地预备数据绑定为 SDK Capabilities，Factor 无宿主查询，不注入 read_frame。
 

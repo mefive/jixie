@@ -29,7 +29,7 @@ import {
   type ExternalMarketSyncSummary,
 } from '#market/cross-market/external-drivers.js';
 import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '#market/indices/sync.js';
-import { TushareClient } from '#market/providers/tushare/client.js';
+import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import {
   MinistryOfFinanceCurveClient,

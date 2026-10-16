@@ -1,4 +1,4 @@
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FactorDependency } from '@jixie/shared';
 
@@ -20,7 +20,7 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 vi.mock('#backtesting/adapters/prisma-port.js', () => ({ prismaDataPort: {} }));
-vi.mock('#strategy/execution/execution.js', () => ({
+vi.mock('#strategy/execution/strategy-execution.js', () => ({
   StrategyExecution: { create: mocks.create },
 }));
 

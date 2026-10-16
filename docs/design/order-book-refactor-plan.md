@@ -180,9 +180,9 @@ snapshot 必须继续返回深拷贝，包括 Map 内的条件单对象。不能
 主要修改：
 
 - [order-book.ts](../../apps/api/src/backtesting/order-book.ts)：依赖、状态、入口与执行步骤。
-- [engine.ts](../../apps/api/src/backtesting/engine.ts)：一次注入 Tracker/通知，调整每日调用。
+- [backtesting-engine.ts](../../apps/api/src/backtesting/backtesting-engine.ts)：一次注入 Tracker/通知，调整每日调用。
 - [order-book.test.ts](../../apps/api/src/backtesting/order-book.test.ts)：构造与生命周期／快照／消费回归。
-- [context.test.ts](../../apps/api/src/backtesting/context.test.ts)：构造参数适配。
+- [backtesting-context.test.ts](../../apps/api/src/backtesting/backtesting-context.test.ts)：构造参数适配。
 - [README.md](../../apps/api/src/backtesting/README.md) 和本设计记录：职责与调用入口。
 
 按实际缺口扩展 backtesting 下 conditional-orders、futures-rules、allocation-analysis、final-state、slippage 测试；必要时调整 strategy runtime 的构造测试。测试应通过成交结果、持仓、归因和快照验证行为，不靠私有方法调用次数或照抄实现。

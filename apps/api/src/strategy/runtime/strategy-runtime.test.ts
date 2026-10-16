@@ -1,10 +1,10 @@
 import { StrategyRuntime } from './strategy-runtime.js';
-import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
+import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
 import type { EngineContext } from '#backtesting/contract.js';
 import type { StrategyLanguage } from '@jixie/shared';
 import type { z } from 'zod';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PythonSession } from '#infra/runtime/python/session.js';
+import { PythonSession } from '#infra/runtime/python/python-session.js';
 
 function sessionFixture(language: StrategyLanguage, frame: unknown) {
   const session = {

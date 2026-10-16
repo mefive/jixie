@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
 import { syncIndexWeight, syncSwIndustry } from './sync.js';
 

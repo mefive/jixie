@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import type { FinancialCorrectionEvidence } from './source-contract.js';
 
 const mocks = vi.hoisted(() => ({

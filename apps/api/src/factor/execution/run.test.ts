@@ -44,7 +44,7 @@ vi.mock('../observations/commodity-carry-panel-observations.js', () => ({
 vi.mock('../observations/macro-regime-observations.js', () => ({
   loadMacroRegimeObservations: mocks.macro,
 }));
-vi.mock('./cross-sectional/evaluator.js', () => ({
+vi.mock('./cross-sectional/cross-sectional-evaluator.js', () => ({
   factorEvaluatorFor: () => ({ evaluate: mocks.crossSectional }),
 }));
 // The computation entry has no report/job database dependency of its own.

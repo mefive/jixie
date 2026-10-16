@@ -13,7 +13,7 @@ import {
   futureSettlement,
   type FutureContractRow,
 } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
 const STOCK_INDEX_FUTURE_PRODUCTS = new Set(['IF', 'IH', 'IC', 'IM']);
 const STOCK_INDEX_FUTURE_CONTINUOUS_CODES = ['IF.CFX', 'IH.CFX', 'IC.CFX', 'IM.CFX'];

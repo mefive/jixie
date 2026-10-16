@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { BacktestingEngine } from '#backtesting/engine.js';
+import { BacktestingEngine } from '#backtesting/backtesting-engine.js';
 import { fixturePort } from '#backtesting/testing/fixture-port.js';
 import { StrategyRuntime } from './strategy-runtime.js';
 

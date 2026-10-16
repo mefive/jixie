@@ -68,19 +68,19 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `infra/runtime/sandbox-bridge-base.ts`、`transport.ts` | 三业务 Bridge 统一继承 SandboxBridgeBase，独占 Transport 并提供 close/abort/isClosed；protected exchange 固定消息循环，按 Transport 跨实例/子类保护，终止帧业务处理完成后才释放；SandboxTransport 完整约束通信与底层回收，TS/Python 显式实现，不另设 SandboxResource |
 | `infra/runtime/sandbox-bridge.ts` | 公共 Bridge 接口：initialize({ signal? }) 返回 metadata，execute 使用业务 ExecutionInput/执行选项，并约束 close/abort/isClosed；SandboxBridgeBase 实现接口并声明抽象 initialize/execute，三业务继承并绑定类型，SandboxRuntime 字段依赖公共接口；Factor/Strategy 不另设泛型绑定别名，Research 扩展接口保留 analyze/reset。纯 TS 类型，不执行应用代码 |
 | `infra/runtime/typescript/compile.ts` | toCommonJs 只转换源码，Factor/Strategy 复用；源码／编译入口使用同一函数，没有独立沙箱或 stats 资源加载 |
-| `infra/runtime/typescript/transport.ts` | Factor/Strategy 共用 isolate 和帧传输；分别加载可信 Factor / Strategy entry，用户源码在后续启动命令内执行 |
-| `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
-| `strategy/runtime/bridge.ts` | StrategyBridge 继承 SandboxBridgeBase；StrategyRuntime.createBridge 仅调用 StrategyBridge.create，Bridge 私有 createPython/createTypeScript 完成语言装配，关闭经 Runtime → Bridge → Transport；initialize({ signal? }) 返回 metadata，execute({ context }) 处理回调，日志预算/历史日期归实例，Engine onBar 仅在 strategy/execution/execution 适配。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
-| `factor/runtime/bridge.ts` | FactorBridge 继承 SandboxBridgeBase；FactorRuntime.createBridge 仅调用 FactorBridge.create，由 Bridge 内部选择语言、准备启动配置并连接 Transport；initialize 返回 metadata，execute 处理协议、Python 字段映射和结果检查；错误去重归实例，异常结果请求宿主 abort；TS entry → runFactor → FactorRunner 只在 isolate 执行 |
-| `research/runtime/bridge.ts` | ResearchBridge 继承 SandboxBridgeBase；ResearchRuntime.createBridge 仅调用 ResearchBridge.create，后者获取 PythonSession 并保存 { documentId }，统一握手返回 metadata；analyze/execute/reset 处理原协议和留痕回调，环境与能力归实例，日志归本次执行；Transport 归 Bridge，业务中断归 Runtime，数据请求继续由 host/dispatch 分派；TS 文件仅进入 API |
-| `research/runtime/pool.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
+| `infra/runtime/typescript/typescript-transport.ts` | Factor/Strategy 共用 isolate 和帧传输；分别加载可信 Factor / Strategy entry，用户源码在后续启动命令内执行 |
+| `infra/runtime/python/python-session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |
+| `strategy/runtime/strategy-bridge.ts` | StrategyBridge 继承 SandboxBridgeBase；StrategyRuntime.createBridge 仅调用 StrategyBridge.create，Bridge 私有 createPython/createTypeScript 完成语言装配，关闭经 Runtime → Bridge → Transport；initialize({ signal? }) 返回 metadata，execute({ context }) 处理回调，日志预算/历史日期归实例，Engine onBar 仅在 strategy/execution/execution 适配。协议位于同目录 `protocol.ts`，不创建额外 Worker，也不运行用户源码 |
+| `factor/runtime/factor-bridge.ts` | FactorBridge 继承 SandboxBridgeBase；FactorRuntime.createBridge 仅调用 FactorBridge.create，由 Bridge 内部选择语言、准备启动配置并连接 Transport；initialize 返回 metadata，execute 处理协议、Python 字段映射和结果检查；错误去重归实例，异常结果请求宿主 abort；TS entry → runFactor → FactorRunner 只在 isolate 执行 |
+| `research/runtime/research-bridge.ts` | ResearchBridge 继承 SandboxBridgeBase；ResearchRuntime.createBridge 仅调用 ResearchBridge.create，后者获取 PythonSession 并保存 { documentId }，统一握手返回 metadata；analyze/execute/reset 处理原协议和留痕回调，环境与能力归实例，日志归本次执行；Transport 归 Bridge，业务中断归 Runtime，数据请求继续由 host/dispatch 分派；TS 文件仅进入 API |
+| `research/runtime/research-runtime-pool.ts` | 普通文档运行、提案尝试、嵌入分析与依赖分析共用同一会话管理器；按文档 ID 获取/回收，经公共 Python session 连接 runner。文档锁归 `document-runs/`，嵌入分析取消/超时归 `embedded/`；不新增 Worker |
 | 本地 Python runner | 相对 API 工作目录解析 `../sandboxd/python/jixie_runner.py`；CLI/验证必须使用 `apps/api` 为 cwd，不能从任意目录裸跑 |
 | `apps/sandboxd/src/index.ts` | 独立 Node daemon，接收 socket 会话并管理 runner；local 模式与生产隔离模式分别验收 |
-| `research/language/pyright-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |
-| Python SdkAdapter 公共 Protocol | `apps/api/src/infra/runtime/python/adapter.py`；三业务 Adapter 导入，Docker 显式 COPY 并保持 namespace 目录；变更同时影响 API/sandboxd，SDK 不导入此模块 |
-| Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/runner.py` / 同目录 `adapter.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
+| `research/language/research-python-language-service.ts` | 从 API 依赖解析 pyright 包，管理语言服务子进程与临时 workspace；`language/document.ts`/`stubs.ts` 提供文档与类型映射 |
+| Python SdkAdapter 公共 Protocol | `apps/api/src/infra/runtime/python/sdk_adapter.py`；三业务 Adapter 导入，Docker 显式 COPY 并保持 namespace 目录；变更同时影响 API/sandboxd，SDK 不导入此模块 |
+| Python Strategy SDK/runtime | `apps/api/src/strategy/sdk/python.py` / `apps/api/src/strategy/runtime/python/strategy_runner.py` / 同目录 `adapter.py`；通用 runner 在 `-I` 模式下显式加入相邻 API src 路径；镜像以仓库根为上下文并保留这组目录结构，只复制 `.dockerignore` 允许的模块；变更业务 Python 同时部署 API/sandboxd，打包回归在 `strategy/runtime/python/packaging.test.ts` |
 | Strategy TS 公开类型 | `packages/shared/src/sdk/strategy/reference.ts` → 同目录 `contract.ts`；`setup:sandbox` 生成/校验，API 使用 `@jixie/shared/sdk/strategy/contract` 的类型入口；Monaco 继续动态调用同一声明生成器 |
-| Python Factor SDK/runtime | `apps/api/src/factor/sdk/python.py` / `apps/api/src/factor/runtime/python/runner.py`；与 Strategy 使用相同业务目录导入和镜像显式打包方式，同时影响 API/sandboxd；run_factor 创建会话 FactorRunner 并将 handler 交给通用 _receive_commands，与 Strategy 共用外围循环；三种分析类型的打包回归见 `factor/runtime/python/packaging.test.ts` |
+| Python Factor SDK/runtime | `apps/api/src/factor/sdk/python.py` / `apps/api/src/factor/runtime/python/factor_runner.py`；与 Strategy 使用相同业务目录导入和镜像显式打包方式，同时影响 API/sandboxd；run_factor 创建会话 FactorRunner 并将 handler 交给通用 _receive_commands，与 Strategy 共用外围循环；三种分析类型的打包回归见 `factor/runtime/python/packaging.test.ts` |
 | TS Factor SDK bundle | `factor/runtime/typescript/sandbox-bundle.ts` 从同目录 `entry.ts`（开发）或 `.js`（编译后）打包外围入口、`runner.ts` / `.js` 协议执行、SDK 工厂、Context 实现及纯 `infra/runtime/log-buffer`；宿主缓存源码，每个 isolate 独立执行；验收须分别检查源码及 dist 两种路径 |
 | Factor 公开契约 | `packages/shared/src/sdk/factor/reference.ts` → `contract.ts`，TS 编辑器和 API 共用签名来源；`python.ts` 生成原路径 Factor `.pyi`，Pyright/Agent 的既有 shared 导出保持兼容 |
 | Research Python SDK / runner | `apps/api/src/research/sdk/python/` 的 data/results/valuation/charts 与 `runtime/python/` 的 runner/analysis/adapter/environment/outputs 通过通用 runner 加载；Docker 逐项 COPY 所有 Python 输入，同目录 TS 文件不进入镜像；源码变更同时影响 API/sandboxd |
@@ -124,6 +124,6 @@ Backtest、Scan、Factor execution、Factor correlation、Signals 的 worker-pro
 
 StrategyExecution 在宿主创建一次性 `Simulation`，`run()` 返回模拟结果与可选末日快照。旧 `engine/simulation/run.ts` 删除；SDK 沙箱、Worker URL 和 Python 资源路径不变。FactorEvaluator 是宿主求值器，FactorHost 仍由 StrategyExecution 管理，模拟失败后也由其 finally 关闭。历史 runtime benchmark 的旧 run.ts 字面量用于重写固定版本 fixture，不能按当前入口替换。
 
-2026-09-28 命名修订：当前宿主入口为 `backtesting/engine.ts` 的 BacktestingEngine，调用方使用 `#backtesting/*`；原 simulation 目录展开到模块根。上述历史旧入口和 benchmark 固定版本路径仅作迁移记录。
+2026-09-28 命名修订：当前宿主入口为 `backtesting/backtesting-engine.ts` 的 BacktestingEngine，调用方使用 `#backtesting/*`；原 simulation 目录展开到模块根。上述历史旧入口和 benchmark 固定版本路径仅作迁移记录。
 
 旧 Agent 聊天图表 JS 执行器、重查路由和统计库注入已整体移除；历史消息只投影为停用提示。Research Python 图表使用其执行产物；只读 SQL Worker 与 TS Factor/Strategy Transport 继续使用。详见 [退役记录](design/legacy-chat-chart-retirement.md)。

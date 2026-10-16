@@ -63,7 +63,8 @@ async function stop() {
   // Disconnected clients can leave handlers initializing resources after their sockets close.
   await Promise.allSettled([...requests]);
   await Promise.allSettled([...executions]);
-  const { researchPythonLanguageService } = await import('#research/language/pyright-service.js');
+  const { researchPythonLanguageService } =
+    await import('#research/language/research-python-language-service.js');
   await researchPythonLanguageService.dispose();
   await database?.$disconnect();
   await rm(directory, { recursive: true, force: true });
@@ -146,8 +147,8 @@ try {
     },
   });
   const { registerJobLifecycles } = await import('#jobs/register.js');
-  const { JobScheduler } = await import('#jobs/scheduler.js');
-  const { JobService } = await import('#jobs/service.js');
+  const { JobScheduler } = await import('#jobs/job-scheduler.js');
+  const { JobService } = await import('#jobs/job-service.js');
   registerJobLifecycles();
   await JobService.recoverInterrupted();
   JobScheduler.initialize(async (jobId) => {

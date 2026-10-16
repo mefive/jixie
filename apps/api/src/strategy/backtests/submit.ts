@@ -1,7 +1,7 @@
 import type { BacktestJobPayload } from './job-payload.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobScheduler } from '#jobs/scheduler.js';
-import { ACTIVE_JOB_STATUSES } from '#jobs/service.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
+import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { BacktestConfig, Locale } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
@@ -9,7 +9,7 @@ import { ulid } from 'ulid';
 import { refreshStrategyName } from '../definitions/naming.js';
 import { commitStrategyConfig, strategyRunKey } from '../definitions/config.js';
 import { StrategyError } from '../errors.js';
-import { StrategyFactor } from '../factors/factor.js';
+import { StrategyFactor } from '../factors/strategy-factor.js';
 import type {
   StrategyBacktestIdentityQuery,
   StrategyCodeConfigInput,

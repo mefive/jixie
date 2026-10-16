@@ -3,7 +3,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { moneyflow, topList } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { getOpenDates } from '../calendar/read.js';
 import { syncTradeCal } from '../calendar/sync.js';
 

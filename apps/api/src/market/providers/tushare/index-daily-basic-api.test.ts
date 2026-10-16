@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { indexDailyBasic } from './api.js';
-import type { TushareClient } from './client.js';
+import type { TushareClient } from './tushare-client.js';
 
 describe('Tushare index daily valuation API', () => {
   it('requests provider-computed PE, PE TTM, and PB fields', async () => {

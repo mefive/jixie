@@ -62,7 +62,7 @@
 
 ### E4：Strategy 的纯引用扫描与运行准备耦合，另有单消费者转发
 
-基线证据：原 [factor-inputs/prepare.ts](../../apps/api/src/strategy/factors/factor.ts) 的 `extractFactorKeys` 只做正则匹配、过滤引擎内置键、去重；消费者包括 `definitions/drafts.ts`、`visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts`。同文件还导入数据库、TS/Python 编译、Engine 因子类型和发布相关实现。C4 当前归属见 §3 和 §7。
+基线证据：原 [factor-inputs/prepare.ts](../../apps/api/src/strategy/factors/strategy-factor.ts) 的 `extractFactorKeys` 只做正则匹配、过滤引擎内置键、去重；消费者包括 `definitions/drafts.ts`、`visibility.ts`、`backtests/submit.ts`、`sharing/catalog.ts`。同文件还导入数据库、TS/Python 编译、Engine 因子类型和发布相关实现。C4 当前归属见 §3 和 §7。
 
 将纯引用识别放到 `factor-inputs/references.ts`。`prepareStrategyFactors` 继续查询已发布来源、解析 Panel 快照/研究范围、编译模块、检查输入限制并返回 `{ modules, factors }`。它被回测、扫描和 Signals 使用，是真实共享能力，不应删掉或按消费者复制三份。
 

@@ -1,8 +1,8 @@
 import { serve } from '@hono/node-server';
 import { buildApp } from './server.js';
 import { registerJobLifecycles } from '#jobs/register.js';
-import { JobService } from '#jobs/service.js';
-import { JobScheduler } from '#jobs/scheduler.js';
+import { JobService } from '#jobs/job-service.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
 import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.js';
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';

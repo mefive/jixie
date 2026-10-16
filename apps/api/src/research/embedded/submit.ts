@@ -1,6 +1,6 @@
 import type { ResearchEmbeddedAnalysisJobPayload } from './job-payload.js';
 import { prisma } from '#infra/database/prisma.js';
-import { JobScheduler } from '#jobs/scheduler.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
 import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';

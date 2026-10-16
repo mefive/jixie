@@ -25,9 +25,9 @@
 | 源 → 目标（省略 `apps/api/src/`） | 理由 |
 | --- | --- |
 | `backtesting/data/engine-data.ts` → `market/instruments/stock-identity.ts` | 历史证券身份的纯规则，不查询市场数据库 |
-| `backtesting/factors/evaluator.ts` → `factor/definitions/fields.ts` | 复用字段常量与纯函数 |
+| `backtesting/factors/factor-evaluator.ts` → `factor/definitions/fields.ts` | 复用字段常量与纯函数 |
 | `backtesting/factors/execution-port.ts` → `factor/definitions/fields.ts` | 仅复用输入字段联合类型，无新增运行时依赖 |
-| `backtesting/engine.ts` → `market/registry/index-presets.ts` | 复用纯静态基准代码 |
+| `backtesting/backtesting-engine.ts` → `market/registry/index-presets.ts` | 复用纯静态基准代码 |
 
 例外目标也被检查：不能新增宿主或业务流程依赖，避免允许的契约变成绕过边界的入口。例外不再使用时门禁报错，要求删除过时记录。循环基线目前为空；如果今后确需例外，必须解释具体边，新增循环边不会因节点落在旧循环里而自动放行。
 

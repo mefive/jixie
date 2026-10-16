@@ -1,6 +1,6 @@
 import type { ResearchRuntime } from '../runtime/research-runtime.js';
 import type { ResearchExecution, ResearchCellInput } from '../runtime/contract.js';
-import { researchRuntimePool } from '../runtime/pool.js';
+import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
 import type { ResearchExecutionOptions } from '../runtime/contract.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchEmbeddedRunSummaryV1, ResearchEmbeddedRunV1 } from '@jixie/shared';
@@ -33,7 +33,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
   };
 });
-vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
+vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));
 vi.mock('#agent/turns/run.js', async (original) => ({
   ...(await original<typeof import('#agent/turns/run.js')>()),
   enqueueAgentTurn: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock('#agent/turns/run.js', async (original) => ({
 
 import { prisma } from '#infra/database/prisma.js';
 import { registerJobLifecycles } from '#jobs/register.js';
-import { JobService } from '#jobs/service.js';
+import { JobService } from '#jobs/job-service.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { researchRoute } from '../routes/index.js';
 

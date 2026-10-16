@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../../runtime/pool.js';
+import { researchRuntimePool } from '../../runtime/research-runtime-pool.js';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {

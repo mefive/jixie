@@ -8,7 +8,7 @@ import {
   normalizeStockNameSpells,
 } from '../instruments/stock-identity.js';
 import { nameChange, stockBasic, type NameChangeRow } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
 const STOCK_LIST_STATUSES = ['L', 'D', 'P', 'G'] as const;
 const TUSHARE_NAME_CHANGE_ROW_LIMIT = 10_000;

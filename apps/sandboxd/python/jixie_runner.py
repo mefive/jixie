@@ -123,7 +123,7 @@ def main() -> None:
     api_source = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../api/src"))
     sys.path.insert(0, api_source)
     if start.get("type") == "research_start":
-        from research.runtime.python.runner import run_research
+        from research.runtime.python.research_runner import run_research
 
         run_research(
             start,
@@ -134,11 +134,11 @@ def main() -> None:
         )
         return
     if start.get("type") == "factor_start":
-        from factor.runtime.python.runner import run_factor
+        from factor.runtime.python.factor_runner import run_factor
 
         run_factor(start, _receive_commands, _send_frame, _run_user_code)
         return
-    from strategy.runtime.python.runner import run_strategy
+    from strategy.runtime.python.strategy_runner import run_strategy
 
     run_strategy(
         start,

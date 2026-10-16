@@ -6,7 +6,7 @@ import {
   syncChinaBondCreditCurves,
 } from '../rates/chinabond-credit-curves.js';
 import { syncTradeCal } from '../calendar/sync.js';
-import { TushareClient } from '../providers/tushare/client.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 async function main(): Promise<void> {
   const [startDate = '20060101', endDate = shanghaiToday()] = process.argv.slice(2);

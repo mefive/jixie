@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '../futures/sync.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
   syncCommodityHoldingPositions,
   type CommodityHoldingSyncSummary,

@@ -2,7 +2,7 @@ import type { ResearchCuratorJobPayload } from './job-payload.js';
 import { researchCuratorRunStatusWhere } from './state.js';
 import { ulid } from 'ulid';
 import { prisma } from '#infra/database/prisma.js';
-import { JobScheduler } from '#jobs/scheduler.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
 import { getResearchCuratorRun } from './read.js';
 
 export async function submitResearchCuratorRun(userId: string) {

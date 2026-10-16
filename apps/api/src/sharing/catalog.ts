@@ -1,5 +1,5 @@
 import { prisma } from '#infra/database/prisma.js';
-import { StrategyFactor } from '#strategy/factors/factor.js';
+import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
 
 export async function listSharingCatalog(

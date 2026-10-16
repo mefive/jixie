@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/pool.js';
+import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';

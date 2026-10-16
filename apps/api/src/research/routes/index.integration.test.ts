@@ -40,8 +40,8 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('../runtime/pool.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../runtime/pool.js')>();
+vi.mock('../runtime/research-runtime-pool.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../runtime/research-runtime-pool.js')>();
   vi.spyOn(original.researchRuntimePool, 'withRuntime').mockImplementation(
     async (documentId, operation) =>
       operation({ analyze: (cells) => resources.analyze(documentId, cells) } as ResearchRuntime),
@@ -50,12 +50,12 @@ vi.mock('../runtime/pool.js', async (importOriginal) => {
   vi.spyOn(original.researchRuntimePool, 'close').mockImplementation(resources.close);
   return original;
 });
-vi.mock('../language/pyright-service.js', () => ({
+vi.mock('../language/research-python-language-service.js', () => ({
   researchPythonLanguageService: { request: resources.language },
 }));
-vi.mock('#jobs/scheduler.js', () => ({ JobScheduler: { wake: resources.wake } }));
-vi.mock('#jobs/logs.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('#jobs/logs.js')>();
+vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: resources.wake } }));
+vi.mock('#jobs/job-logs.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('#jobs/job-logs.js')>();
   vi.spyOn(original.JobLogs, 'initialize').mockImplementation(resources.logs);
   return original;
 });

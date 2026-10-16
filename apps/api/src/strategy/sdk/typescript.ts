@@ -26,7 +26,7 @@ import {
 } from '#math/indicators.js';
 import { createStockAccount } from './stock-account.js';
 import { Universe } from './universe.js';
-import { ResampledSeries } from './timeframe-series.js';
+import { ResampledSeries } from './resampled-series.js';
 import { smaValues, emaValues, atrBars, extremeValues, avgField } from './indicators.js';
 
 /** Normalize a public definition; the runner constructs the context before invoking its callback. */

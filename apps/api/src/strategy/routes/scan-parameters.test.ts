@@ -12,7 +12,7 @@ vi.mock('../scans/reports.js', () => ({
 vi.mock('../runtime/strategy-runtime.js', () => {
   throw new Error('Parameter inspection must not load StrategyRuntime');
 });
-vi.mock('#infra/runtime/typescript/transport.js', () => {
+vi.mock('#infra/runtime/typescript/typescript-transport.js', () => {
   throw new Error('Parameter inspection must not load the isolate transport');
 });
 

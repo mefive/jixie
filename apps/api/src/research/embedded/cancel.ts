@@ -1,6 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
-import { JobLogs } from '#jobs/logs.js';
-import { JobScheduler } from '#jobs/scheduler.js';
+import { JobLogs } from '#jobs/job-logs.js';
+import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ResearchError } from '../errors.js';
 import { abortEmbeddedRuntime } from './execute.js';
 import { failEmbeddedRun } from './finish.js';

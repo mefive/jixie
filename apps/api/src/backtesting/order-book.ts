@@ -4,7 +4,7 @@ import { EngineData } from './data/engine-data.js';
 import { CashPortfolio } from './cash-portfolio.js';
 import { FuturesPortfolio } from './futures-portfolio.js';
 import type { CostModel } from './cost.js';
-import type { AllocationAnalysisTracker } from './allocation-analysis.js';
+import type { AllocationAnalysisTracker } from './allocation-analysis-tracker.js';
 
 interface OrderBookInput {
   locale?: Locale;

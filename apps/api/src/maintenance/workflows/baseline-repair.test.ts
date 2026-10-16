@@ -41,7 +41,7 @@ vi.mock('#market/state/sync.js', () => ({
 vi.mock('#market/providers/tushare/config.js', () => ({
   loadTushareConfig: dependencies.loadTushareConfig,
 }));
-vi.mock('#market/providers/tushare/client.js', () => ({ TushareClient: class {} }));
+vi.mock('#market/providers/tushare/tushare-client.js', () => ({ TushareClient: class {} }));
 vi.mock('../runs/state.js', () => dependencies);
 vi.mock('../publication/watermark.js', () => dependencies);
 vi.mock('#infra/database/prisma.js', () => ({

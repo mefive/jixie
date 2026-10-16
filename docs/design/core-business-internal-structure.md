@@ -627,7 +627,7 @@ Signals 的通知继续归 `runs/notifier.ts`；afterCommit 初始化记账再�
 
 审查入口：
 
-- [正式评估启动](../../apps/api/src/factor/evaluations/start.ts)、[Job 生命周期](../../apps/api/src/factor/evaluations/job.ts)、[报告与封存读取](../../apps/api/src/factor/evaluations/read.ts)：原函数体和事务保持；holdout 仍单独拥有申请事务。
+- [正式评估启动](../../apps/api/src/factor/evaluations/start.ts)、[Job 生命周期](../../apps/api/src/factor/evaluations/job-lifecycle.ts)、[报告与封存读取](../../apps/api/src/factor/evaluations/read.ts)：原函数体和事务保持；holdout 仍单独拥有申请事务。
 - [共享计算](../../apps/api/src/factor/execution/run.ts)、[Worker](../../apps/api/src/factor/execution/worker.ts)：结果回调、异常与释放时序是本次需要重点 review 的边界。
 - [横截面评估](../../apps/api/src/factor/execution/cross-sectional/evaluate.ts)、[数据](../../apps/api/src/factor/execution/cross-sectional/data.ts)、[序列](../../apps/api/src/factor/execution/cross-sectional/series.ts)：按职责提取，函数体、常量和默认参数保持。
 - [共享入口测试](../../apps/api/src/factor/execution/run.test.ts)：补充双语言、数据分派、Panel 组合、天气旧配置、原始结果形状及失败/释放顺序；尚未运行。
@@ -709,9 +709,9 @@ review 后执行：Factor 相关测试、Bootstrap、Agent 分析工具、Strate
 
 按已批准的准确提交信息提交，不推送；实际 hash 由交付消息记录，在下一提交更新本文时补入表格。
 
-审查入口：[部署编排](../../scripts/bootstrap.sh)、[独立迁移](../../apps/api/scripts/migrations/split-factor-job-kinds.ts)、
+审查入口：[部署编排](../../scripts/bootstrap.sh)、独立迁移（历史路径 `apps/api/scripts/migrations/split-factor-job-kinds.ts`，现已移除）、
 [任务注册](../../apps/api/src/bootstrap.ts)、[任务归属](../../apps/api/src/factor/jobs/read.ts)、
-[迁移事务与 CLI 测试](../../apps/api/scripts/migrations/split-factor-job-kinds.integration.test.ts)、
+迁移事务与 CLI 测试（历史路径 `apps/api/scripts/migrations/split-factor-job-kinds.integration.test.ts`，现已移除）、
 [部署失败收尾测试](../../scripts/deploy/bootstrap.test.mjs)。
 
 
@@ -725,8 +725,8 @@ review 后执行：Factor 相关测试、Bootstrap、Agent 分析工具、Strate
 
 交付与审查入口：
 
-- [backtests/job.ts](../../apps/api/src/strategy/backtests/job.ts)、[run.ts](../../apps/api/src/strategy/backtests/run.ts)、[worker.ts](../../apps/api/src/strategy/backtests/worker.ts)：回测提交、报告、完整执行编排及原 Engine Worker 聚合；源码 Job 选择同目录 boot，编译 Job 选择同目录 worker.js。消息、日志、风险失败处理和 Prisma/Python 收尾保持。
-- [factor-inputs/prepare.ts](../../apps/api/src/strategy/factors/factor.ts)：原因子准备及其测试整体迁移。正式回测/扫描使用 research，Signals 部署/运行使用 deployment / signal，权限、归档、冻结血缘规则不变；定义与 Sharing 的依赖提取消费者已同步。
+- [backtests/job-lifecycle.ts](../../apps/api/src/strategy/backtests/job-lifecycle.ts)、[run.ts](../../apps/api/src/strategy/backtests/run.ts)、[worker.ts](../../apps/api/src/strategy/backtests/worker.ts)：回测提交、报告、完整执行编排及原 Engine Worker 聚合；源码 Job 选择同目录 boot，编译 Job 选择同目录 worker.js。消息、日志、风险失败处理和 Prisma/Python 收尾保持。
+- [factor-inputs/prepare.ts](../../apps/api/src/strategy/factors/strategy-factor.ts)：原因子准备及其测试整体迁移。正式回测/扫描使用 research，Signals 部署/运行使用 deployment / signal，权限、归档、冻结血缘规则不变；定义与 Sharing 的依赖提取消费者已同步。
 - [risk/backtest-risk-analysis.ts](../../apps/api/src/strategy/risk/backtest-risk-analysis.ts)、[risk/data-readiness.ts](../../apps/api/src/strategy/risk/data-readiness.ts)：risk 全部实现和测试提升一层；算法、样本阈值、输出与 Maintenance 审计调用保持。
 - 扫描仍由原父 Worker fork cell 并直接调用 `runWalledBacktest`；Signals 仍调用 `runWalledSignalCapture`。均未增加对 `backtests/run.ts` 的依赖。
 - 删除旧 backtest、execution、analysis 目录及 Engine 回测 Worker 路径，没有转发。根 CLAUDE、Strategy/Engine/Market/Jobs README、架构地图与运行入口清单已同步；历史设计保留当时路径。
@@ -783,7 +783,7 @@ review 后执行的行为验收：
 交付与审查入口：
 
 - [document-runs/run-cell.ts](../../apps/api/src/research/document-runs/run-cell.ts)、[run-document.ts](../../apps/api/src/research/document-runs/run-document.ts)、[run-state.ts](../../apps/api/src/research/document-runs/run-state.ts)、[control.ts](../../apps/api/src/research/document-runs/control.ts)：文档运行、提案尝试、共同锁及控制聚合；结果保存、修订冲突、中断等待和锁释放保持。
-- [runtime/python-session.ts](../../apps/api/src/research/runtime/python-session.ts)：Python 会话及两份相邻测试移入 runtime。会话管理器和文档锁实现与基线逐字一致，保留唯一实例、文档 ID 会话键、4 个会话上限、8 MiB 输出限制、能力协商、SDK 分派与原收尾顺序。
+- [runtime/research-runtime.ts](../../apps/api/src/research/runtime/research-runtime.ts)：Python 会话及两份相邻测试移入 runtime。会话管理器和文档锁实现与基线逐字一致，保留唯一实例、文档 ID 会话键、4 个会话上限、8 MiB 输出限制、能力协商、SDK 分派与原收尾顺序。
 - [embedded/execute.ts](../../apps/api/src/research/embedded/execute.ts)、[dependencies/analyze.ts](../../apps/api/src/research/dependencies/analyze.ts)、[proposals/cell-changes.ts](../../apps/api/src/research/proposals/cell-changes.ts)：仍使用同一会话管理器；嵌入分析保留独立超时/取消、完成事务与首次成功冻结。接续、删除和归档关闭会话的原调用点保持。
 - [routes/execution.ts](../../apps/api/src/research/routes/execution.ts) 只改业务导入；HTTP、SDK、数据表和公开行为不变。删除旧 execution 目录，无兼容转发、第二份锁或 Research Worker，普通文档不改成 Job。
 - 测试替身、包级动态导入和边界测试 fixture 已同步；当前 CLAUDE、Research README、架构地图和运行入口清单已更新，历史验证记录保留当时路径。未修改边界检查实现/例外、部署组件或构建依赖。

@@ -3,7 +3,7 @@ import {
   financialStatementSourceFields,
   type FinancialStatementKind,
 } from '../../fundamentals/source-contract.js';
-import type { TushareClient } from './client.js';
+import type { TushareClient } from './tushare-client.js';
 
 export interface StockBasicRow {
   ts_code: TsCode;

@@ -3,9 +3,9 @@ import type { BacktestResult } from './result.js';
 import { t } from '#i18n/messages.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
-import { StrategyFactor } from '../factors/factor.js';
+import { StrategyFactor } from '../factors/strategy-factor.js';
 import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
-import { StrategyExecution } from '../execution/execution.js';
+import { StrategyExecution } from '../execution/strategy-execution.js';
 
 /** Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine. */
 export async function runBacktest(

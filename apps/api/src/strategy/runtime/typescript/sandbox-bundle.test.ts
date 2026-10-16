@@ -9,23 +9,25 @@ describe('strategy sandbox bundle boundary', () => {
     expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/entry.ts'))).toBe(
       true,
     );
-    expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/runner.ts'))).toBe(
-      true,
-    );
-    expect(inputs.some((input) => input.endsWith('/strategy/runtime/typescript/adapter.ts'))).toBe(
-      true,
-    );
+    expect(
+      inputs.some((input) => input.endsWith('/strategy/runtime/typescript/strategy-runner.ts')),
+    ).toBe(true);
+    expect(
+      inputs.some((input) => input.endsWith('/strategy/runtime/typescript/strategy-adapter.ts')),
+    ).toBe(true);
     for (const source of [
       'typescript',
       'stock-account',
       'universe',
-      'timeframe-series',
+      'resampled-series',
       'indicators',
     ]) {
       expect(inputs.some((input) => input.endsWith(`/strategy/sdk/${source}.ts`))).toBe(true);
     }
 
-    expect(inputs.some((input) => input.endsWith('/backtesting/engine.ts'))).toBe(false);
+    expect(inputs.some((input) => input.endsWith('/backtesting/backtesting-engine.ts'))).toBe(
+      false,
+    );
     expect(inputs.some((input) => input.endsWith('/backtesting/data/engine-data.ts'))).toBe(false);
     expect(
       inputs.filter((input) =>

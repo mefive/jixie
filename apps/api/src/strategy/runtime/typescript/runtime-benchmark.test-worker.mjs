@@ -9,7 +9,7 @@ import { register } from 'tsx/esm/api';
 
 register();
 const { fixturePort } = await import('#backtesting/testing/fixture-port.js');
-const { BacktestingEngine } = await import('#backtesting/engine.js');
+const { BacktestingEngine } = await import('#backtesting/backtesting-engine.js');
 const { startInstrumentedStrategyRuntime } = await import('./testing/runtime.ts');
 const apiDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 const variant = process.argv[2];
@@ -78,6 +78,14 @@ try {
         cwd: apiDirectory,
         encoding: 'utf8',
       });
+    // Keep pinned sources intact while resolving renamed shared transports from the current tree.
+    const currentAliases = new Map([
+      [
+        '#infra/runtime/typescript/transport.js',
+        '#infra/runtime/typescript/typescript-transport.js',
+      ],
+      ['#infra/runtime/python/session.js', '#infra/runtime/python/python-session.js'],
+    ]);
 
     for (const [repositoryPath, output] of modules) {
       const original = pathToFileURL(join(apiDirectory, repositoryPath));
@@ -90,6 +98,8 @@ try {
             : undefined;
           if (internalModule) {
             target = pathToFileURL(internalModule);
+          } else if (currentAliases.has(specifier)) {
+            return `from ${JSON.stringify(currentAliases.get(specifier))}`;
           } else if (specifier.startsWith('.')) {
             const current = new URL(specifier.replace(/\.js$/, '.ts'), original);
             const historical = modules.get(relativePath(apiDirectory, fileURLToPath(current)));

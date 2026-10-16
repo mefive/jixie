@@ -2,7 +2,7 @@ import type { TradeDate } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { tradeCal } from '../providers/tushare/api.js';
-import type { TushareClient } from '../providers/tushare/client.js';
+import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /** Sync the trading calendar (range overwrite). */
 export async function syncTradeCal(

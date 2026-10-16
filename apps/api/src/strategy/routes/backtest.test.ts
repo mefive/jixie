@@ -1,4 +1,4 @@
-import { StrategyFactor } from '../factors/factor.js';
+import { StrategyFactor } from '../factors/strategy-factor.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,12 +34,12 @@ vi.mock('../definitions/naming.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../definitions/naming.js')>()),
   refreshStrategyName: mocks.refreshStrategyName,
 }));
-vi.mock('#jobs/service.js', () => ({
+vi.mock('#jobs/job-service.js', () => ({
   ACTIVE_JOB_STATUSES: ['queued', 'running'],
   JobService: { get: vi.fn() },
 }));
-vi.mock('#jobs/logs.js', () => ({ JobLogs: { initialize: mocks.initializeLogs } }));
-vi.mock('#jobs/scheduler.js', () => ({
+vi.mock('#jobs/job-logs.js', () => ({ JobLogs: { initialize: mocks.initializeLogs } }));
+vi.mock('#jobs/job-scheduler.js', () => ({
   JobScheduler: { wake: mocks.wake },
 }));
 

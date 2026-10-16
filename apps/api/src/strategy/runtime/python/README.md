@@ -1,12 +1,12 @@
 # Python 策略沙箱运行
 
-Python 执行用户 on_bar，撮合和账户规则仍由宿主 TypeScript [Backtesting](../../../backtesting/README.md) 执行。两种语言共用 [StrategyRuntime](../strategy-runtime.ts)、StrategyExecution 和 [bridge.ts](../bridge.ts)。
+Python 执行用户 on_bar，撮合和账户规则仍由宿主 TypeScript [Backtesting](../../../backtesting/README.md) 执行。两种语言共用 [StrategyRuntime](../strategy-runtime.ts)、StrategyExecution 和 [strategy-bridge.ts](../strategy-bridge.ts)。
 
 | 文件 / 入口 | 职责与消费者 |
 | --- | --- |
-| [StrategyBridge.create](../bridge.ts) | 内部 createPython 准备启动消息并连接 PythonSession，返回拥有连接的 Bridge |
-| [runner.py](runner.py) | 沙箱源码加载、参数覆盖、元数据、帧请求/响应、暂停 I/O 等待计时、用户回调与错误输出 |
-| [adapter.py](adapter.py) | 沙箱基础能力适配：当日快照、截面/历史缓存、数据请求、账户快照和命令收集 |
+| [StrategyBridge.create](../strategy-bridge.ts) | 内部 createPython 准备启动消息并连接 PythonSession，返回拥有连接的 Bridge |
+| [strategy_runner.py](strategy_runner.py) | 沙箱源码加载、参数覆盖、元数据、帧请求/响应、暂停 I/O 等待计时、用户回调与错误输出 |
+| [strategy_adapter.py](strategy_adapter.py) | 沙箱基础能力适配：当日快照、截面/历史缓存、数据请求、账户快照和命令收集 |
 | [SDK python.py](../../sdk/python.py) | Strategy、公开 Context、Universe、周期/指标与账户辅助；接收基础能力，不导入 runtime |
 | [packaging.test.ts](packaging.test.ts) | 只使用镜像显式复制的模块验证真实 runner 与 SDK |
 

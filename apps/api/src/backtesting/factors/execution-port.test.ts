@@ -1,6 +1,6 @@
 import { describeFactors } from './description.js';
 import { describe, expect, it, vi } from 'vitest';
-import { BacktestingEngine } from '../engine.js';
+import { BacktestingEngine } from '../backtesting-engine.js';
 import { fixturePort } from '../testing/fixture-port.js';
 import type { FactorDefinition, FactorComputeRequest } from './execution-port.js';
 

@@ -10,7 +10,7 @@ import type { BarRow } from '#backtesting/data/market.js';
 import type { EngineContext } from '#backtesting/contract.js';
 import { defineStrategy, StrategyContext } from './typescript.js';
 import { Universe as UniverseImplementation } from './universe.js';
-import { ResampledSeries } from './timeframe-series.js';
+import { ResampledSeries } from './resampled-series.js';
 
 /**
  * Drift guard between the SDK registry (@jixie/shared sdk/strategy/reference.ts — the single source that

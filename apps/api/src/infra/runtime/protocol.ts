@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MAX_LOG_BATCH_ENTRIES } from './log-buffer.js';
+import { MAX_LOG_BATCH_ENTRIES } from './sandbox-log-buffer.js';
 
 export const MAX_ERROR_CHARACTERS = 256 * 1024;
 

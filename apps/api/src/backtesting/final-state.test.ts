@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fixturePort } from './testing/fixture-port.js';
 import type { BacktestingConfig, EngineContext } from './contract.js';
-import { BacktestingEngine } from './engine.js';
+import { BacktestingEngine } from './backtesting-engine.js';
 
 function config(): BacktestingConfig {
   return {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { balanceSheetVip, incomeStatement } from './api.js';
-import type { TushareClient } from './client.js';
+import type { TushareClient } from './tushare-client.js';
 
 describe('Tushare financial statement APIs', () => {
   it('requests the frozen income identity and value fields explicitly', async () => {

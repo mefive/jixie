@@ -1,6 +1,6 @@
-import { runFactor } from './runner.js';
-import type { FactorRunnerCommandHandler, FactorRunnerHost } from './runner.js';
-import { SandboxLogBuffer } from '#infra/runtime/log-buffer.js';
+import { runFactor } from './factor-runner.js';
+import type { FactorRunnerCommandHandler, FactorRunnerHost } from './factor-runner.js';
+import { SandboxLogBuffer } from '#infra/runtime/sandbox-log-buffer.js';
 
 interface HostFunction {
   applySync(receiver: undefined, args: string[]): string;

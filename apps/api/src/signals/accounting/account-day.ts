@@ -2,7 +2,7 @@ import type { SignalAccounts, SignalItem, FutureSignalItem } from '@jixie/shared
 import { CashPortfolio } from '#backtesting/cash-portfolio.js';
 import { FuturesPortfolio } from '#backtesting/futures-portfolio.js';
 import { OrderBook, type ConditionalOrder, type FutureIntent } from '#backtesting/order-book.js';
-import { AllocationAnalysisTracker } from '#backtesting/allocation-analysis.js';
+import { AllocationAnalysisTracker } from '#backtesting/allocation-analysis-tracker.js';
 import {
   applyFutureFill,
   normalizeFutureMargin,
