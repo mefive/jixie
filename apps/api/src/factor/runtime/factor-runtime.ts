@@ -7,7 +7,6 @@ import type {
   FactorExecutionInput,
   FactorRuntimeMetadata,
   FactorValues,
-  FactorBridgeContract,
 } from './contract.js';
 
 /** Owns one factor sandbox, independently of its language and transport. */
@@ -43,7 +42,7 @@ export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRun
     return runtime;
   }
 
-  protected createBridge(): Promise<FactorBridgeContract<Kind>> {
+  protected createBridge(): Promise<FactorBridge<Kind>> {
     return FactorBridge.create(this.options, this);
   }
 }

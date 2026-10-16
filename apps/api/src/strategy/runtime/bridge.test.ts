@@ -5,7 +5,8 @@ import type { OhlcBar } from '#backtesting/data/market.js';
 import { StrategyBridge, type StrategyTransport } from './bridge.js';
 import type { StrategyBridgeOptions } from './bridge.js';
 import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
-import type { StrategyBridgeContract } from './contract.js';
+import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
+import type { StrategyExecutionInput, StrategyRuntimeMetadata } from './contract.js';
 
 const metadata = {
   name: 'bridge fixture',
@@ -168,10 +169,11 @@ describe('Strategy Bridge connection creation', () => {
 describe('shared strategy bridge', () => {
   it('passes startup cancellation through the shared Bridge contract before send and after read', async () => {
     const { session, sent } = transport([ready]);
-    const bridge: StrategyBridgeContract = new StrategyBridge(session, {
-      startupCommand: { type: 'start' },
-      diagnostics,
-    });
+    const bridge: SandboxBridge<StrategyExecutionInput, void, StrategyRuntimeMetadata> =
+      new StrategyBridge(session, {
+        startupCommand: { type: 'start' },
+        diagnostics,
+      });
     const cancelled = new Error('startup cancelled');
 
     await expect(bridge.initialize({ signal: AbortSignal.abort(cancelled) })).rejects.toBe(

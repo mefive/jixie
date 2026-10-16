@@ -19,7 +19,7 @@
 
 策略资源装配与 Engine 调用归 [StrategyExecution](../execution/execution.ts)，由回测、扫描和 Signals 创建执行对象，并负责关闭外部资源。本目录只负责策略 runtime 和协议，不规划完整业务流程。
 
-[bridge.ts](bridge.ts) 的 StrategyBridge 统一启动协议、bar 快照、宿主查询、历史同步和命令重放。Runtime.createBridge 仅调用 StrategyBridge.create，后者内部完成语言选择、源码准备、Transport 连接与 Bridge 构造，基类调用 initialize({ signal }) 返回 metadata，execute({ context }) 使用既有 StrategyExecutionInput 处理一轮回调；类显式实现 [contract.ts](contract.ts) 的 StrategyBridgeContract，Runtime 字段依赖该契约，共同方法由 Infra SandboxBridge 接口约束；类继承 [SandboxBridgeBase](../../infra/runtime/sandbox-bridge-base.ts)，消息循环归继承的 protected exchange。日志预算与历史同步日期归 Bridge 实例，当前 EngineContext 只绑定本次执行，并在 finally 解除同步宿主访问。Bridge 独占 Transport 并继承 close/abort/isClosed；底层 TypeScriptTransport 与 PythonSession 实现同一通信和回收契约。Engine 的生产 onBar 适配只在 execution/execution.ts。
+[bridge.ts](bridge.ts) 的 StrategyBridge 统一启动协议、bar 快照、宿主查询、历史同步和命令重放。Runtime.createBridge 返回具体 StrategyBridge，仅调用 StrategyBridge.create，后者内部完成语言选择、源码准备、Transport 连接与 Bridge 构造。类继承 [SandboxBridgeBase](../../infra/runtime/sandbox-bridge-base.ts)，绑定 StrategyExecutionInput、void、StrategyRuntimeMetadata 和 StrategyTransport；没有执行选项，对应 Options 为 undefined。基类实现公共 SandboxBridge 接口并声明抽象 initialize/execute，StrategyBridge 实现握手和回调协议，不再保留 StrategyBridgeContract 别名；SandboxRuntime 字段仍依赖公共接口。Runtime 基类调用 initialize({ signal }) 返回 metadata，execute({ context }) 使用既有输入处理一轮回调，消息循环归继承的 protected exchange。日志预算与历史同步日期归 Bridge 实例，当前 EngineContext 只绑定本次执行，并在 finally 解除同步宿主访问。Bridge 独占 Transport 并继承 close/abort/isClosed；底层 TypeScriptTransport 与 PythonSession 实现同一通信和回收契约。Engine 的生产 onBar 适配只在 execution/execution.ts。
 
 结构对应不改变现有语言行为：TS 使用受限同步宿主访问与增量历史缓存；Python 保留阻塞 request/response、按需历史加载和回调结束后命令重放。SDK 只接收注入的基础能力，不反向导入 runtime。两种作者 SDK 的既有命名、指标公式和产品准入保持。
 

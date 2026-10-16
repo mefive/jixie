@@ -16,7 +16,6 @@ import type {
   FactorRuntimeMetadata,
   FactorValues,
   FactorBatchItem,
-  FactorBridgeContract,
 } from './contract.js';
 import { validateTypeScriptFactorMetadata, validatePythonFactorMetadata } from './metadata.js';
 import { buildFactorSandboxBundle } from './typescript/sandbox-bundle.js';
@@ -51,10 +50,9 @@ export interface FactorBridgeHost {
 }
 
 /** Owns the factor protocol connection and state across batches. */
-export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKind>
-  extends SandboxBridgeBase<FactorTransport>
-  implements FactorBridgeContract<Kind>
-{
+export class FactorBridge<
+  Kind extends ExecutableFactorKind = ExecutableFactorKind,
+> extends SandboxBridgeBase<FactorExecutionInput<Kind>, FactorValues, FactorRuntimeMetadata<Kind>> {
   private static bundlePromise?: Promise<string>;
 
   private reportedComputeError = false;

@@ -46,7 +46,15 @@ export interface ResearchBridgeOptions {
 }
 
 /** Owns the research protocol connection; the runtime handles business interruption. */
-export class ResearchBridge extends SandboxBridgeBase implements ResearchBridgeContract {
+export class ResearchBridge
+  extends SandboxBridgeBase<
+    ResearchExecutionInput,
+    ResearchExecution,
+    ResearchRuntimeMetadata,
+    ResearchExecutionOptions
+  >
+  implements ResearchBridgeContract
+{
   private metadata!: ResearchRuntimeMetadata;
 
   constructor(

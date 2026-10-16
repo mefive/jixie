@@ -66,7 +66,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | --- | --- |
 | `infra/runtime/sandbox-runtime.ts` | 三业务共同生命周期；基类 initialize 调用 createBridge 后统一执行 bridge.initialize，仅持有 Bridge，管理启动状态与失败/取消清理，并回收晚到 Bridge；Runtime.createBridge 仅调用业务 Bridge.create，后者内部选择语言、准备源码/配置并连接 Transport，构造失败在其内部清理 |
 | `infra/runtime/sandbox-bridge-base.ts`、`transport.ts` | 三业务 Bridge 统一继承 SandboxBridgeBase，独占 Transport 并提供 close/abort/isClosed；protected exchange 固定消息循环，按 Transport 跨实例/子类保护，终止帧业务处理完成后才释放；SandboxTransport 完整约束通信与底层回收，TS/Python 显式实现，不另设 SandboxResource |
-| `infra/runtime/sandbox-bridge.ts` | 公共 Bridge 接口：initialize({ signal? }) 返回 metadata，execute 使用业务 ExecutionInput/执行选项，并约束 close/abort/isClosed；三业务在 contract.ts 定义 BridgeContract，类 implements、Runtime 字段依赖接口；Research 扩展 analyze/reset。纯 TS 类型，不执行应用代码 |
+| `infra/runtime/sandbox-bridge.ts` | 公共 Bridge 接口：initialize({ signal? }) 返回 metadata，execute 使用业务 ExecutionInput/执行选项，并约束 close/abort/isClosed；SandboxBridgeBase 实现接口并声明抽象 initialize/execute，三业务继承并绑定类型，SandboxRuntime 字段依赖公共接口；Factor/Strategy 不另设泛型绑定别名，Research 扩展接口保留 analyze/reset。纯 TS 类型，不执行应用代码 |
 | `infra/runtime/typescript/compile.ts` | toCommonJs 只转换源码，Factor/Strategy 复用；源码／编译入口使用同一函数，没有独立沙箱或 stats 资源加载 |
 | `infra/runtime/typescript/transport.ts` | Factor/Strategy 共用 isolate 和帧传输；分别加载可信 Factor / Strategy entry，用户源码在后续启动命令内执行 |
 | `infra/runtime/python/session.ts` | 生产通过 `JIXIE_SANDBOX_SOCKET` 连接独立 sandboxd；仅非生产可使用本地 runner 分支 |

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { z } from 'zod';
 
 const loadReport = vi.hoisted(() => vi.fn());
 const replayInput = vi.hoisted(() => vi.fn());
@@ -10,10 +11,18 @@ import { dispatchResearchRequest } from './dispatch.js';
 import { SandboxBridgeBase, type SandboxExchange } from '#infra/runtime/sandbox-bridge-base.js';
 import { researchExecutionFrameSchema } from './protocol.js';
 
-class BridgeFixture extends SandboxBridgeBase {
-  override exchange<Frame extends { type: string }, Result>(
-    exchange: SandboxExchange<Frame, Result>,
-  ): Promise<Result> {
+class BridgeFixture extends SandboxBridgeBase<
+  SandboxExchange<z.infer<typeof researchExecutionFrameSchema>, void>,
+  void,
+  void
+> {
+  initialize(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  execute(
+    exchange: SandboxExchange<z.infer<typeof researchExecutionFrameSchema>, void>,
+  ): Promise<void> {
     return super.exchange(exchange);
   }
 }
@@ -134,7 +143,7 @@ describe('Research SDK request dispatch boundary', () => {
       isClosed: false,
     });
 
-    await bridge.exchange({
+    await bridge.execute({
       command: { type: 'research_execute' },
       schema: researchExecutionFrameSchema,
       operation: 'testing Research evidence delivery',
@@ -172,7 +181,7 @@ describe('Research SDK request dispatch boundary', () => {
         close: vi.fn(),
         abort: vi.fn(),
         isClosed: false,
-      }).exchange({
+      }).execute({
         command: { type: 'research_execute' },
         schema: researchExecutionFrameSchema,
         operation: 'testing Research evidence failure',

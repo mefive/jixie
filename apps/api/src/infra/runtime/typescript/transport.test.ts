@@ -3,10 +3,16 @@ import { z } from 'zod';
 import { SandboxBridgeBase, type SandboxExchange } from '../sandbox-bridge-base.js';
 import { TypeScriptTransport } from './transport.js';
 
-class BridgeFixture extends SandboxBridgeBase {
-  override exchange<Frame extends { type: string }, Result>(
-    exchange: SandboxExchange<Frame, Result>,
-  ): Promise<Result> {
+class BridgeFixture extends SandboxBridgeBase<
+  SandboxExchange<z.infer<typeof schema>, number>,
+  number,
+  void
+> {
+  initialize(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  execute(exchange: SandboxExchange<z.infer<typeof schema>, number>): Promise<number> {
     return super.exchange(exchange);
   }
 }
@@ -37,7 +43,7 @@ describe('shared TypeScript transport', () => {
 
     try {
       await expect(
-        bridge.exchange({
+        bridge.execute({
           command: { type: 'compute' },
           schema,
           operation: 'fixture',

@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 后续变更（2026-10-16）：SandboxBridgeBase 实现公共 SandboxBridge 接口并声明抽象 initialize/execute，三业务继承并绑定输入、输出、metadata 和执行选项；删除 Factor/Strategy 的纯泛型契约别名，保留 Research 的 analyze/reset 扩展接口。各业务协议实现保持，当前审查与验证状态见文末。
+
 > 后续变更（2026-10-16）：三业务 Bridge 统一继承 SandboxBridgeBase，exchange 消息循环收为基类 protected 方法，Runtime 仅持有 Bridge、Bridge 独占 Transport；语言准备与连接构造一并收进业务 Bridge.create，统一 createBridge 启动和通信/回收契约，删除独立 SandboxResource；阅读主线为 Runtime → Bridge → Transport → Runner。本轮范围及审查/验证状态见文末，原函数形式保留为历史记录。
 
 > 后续变更（2026-10-10）：公共 SandboxBridge interface 约束 initialize/execute，三业务 Bridge 显式实现契约、Runtime 字段依赖接口；统一启动 options 和业务 ExecutionInput，Research 扩展 analyze/reset。本轮范围与审查/验证状态见文末。
@@ -1030,3 +1032,55 @@ docs/reports/commit-message-standardization.json 三处删除保留，不纳入�
 日志前缀：/tmp/jixie-bridge-base-；后缀为 tests.log、socket-tests.log、source-workers.log、
 compiled-workers.log、benchmark.log、compiled-runtime.log、shared-build.log、api-build.log、
 clean-build.log、boundaries.log、typecheck.log。
+
+## 2026-10-16 由 Bridge 抽象基类统一约束公共方法
+
+约定 commit：`refactor(runtime): enforce bridge contracts through the base class`。
+
+SandboxBridgeBase<Input, Output, Metadata, Options, Transport> 实现公共 SandboxBridge 接口，
+声明抽象 initialize(options?) 和 execute(input, options?)；前三个业务类型为必填，Options
+默认 undefined，Transport 默认 SandboxTransport。泛型前四项与 SandboxBridge、SandboxRuntime
+保持同序。三业务子类绑定类型并实现原协议方法，基类继续提供通信和回收实现，不增加初始化
+钩子、业务状态机或默认协议。
+
+删除 StrategyBridgeContract、FactorBridgeContract 这两个纯泛型绑定别名及其消费者引用。
+StrategyRuntime/FactorRuntime 的 createBridge 返回具体业务 Bridge，SandboxRuntime 持有的
+字段仍受公共 SandboxBridge 接口约束。Factor 的输入与 metadata 继续按 Kind 关联；Strategy
+显式保留扩展 StrategyTransport 的同步宿主访问能力。ResearchBridge 绑定执行选项并继续
+显式实现 ResearchBridgeContract，ResearchRuntime 通过该扩展接口调用 analyze/reset。
+
+公共消息循环、TS Transport 和 Research 留痕测试的派生类改为实现公开 execute，内部委托
+受保护的 exchange；fixture 无启动协议，initialize 返回 void metadata。原行为断言不变，
+生命周期 fixture 也直接通过基类绑定业务类型。Factor/Strategy 的启动取消测试直接以公共
+SandboxBridge 接口接收具体实例，继续验证接口消费；没有为了类型适配公开生产 exchange。
+
+同步 CLAUDE、公共和三业务 runtime README、运行入口清单与本记录。变更仅涉及内部 TS
+类型约束和测试夹具，不改变语言装配、帧协议、启动/执行/关闭时序、公开 SDK、HTTP、数据库、
+部署范围或 Python 镜像输入；没有新增依赖或跨包构建边。开始时工作区干净，仅提交本次文件。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过：Shared/API/Docs/sandboxd/Web 类型检查及 SDK 生成物一致性通过；
+  后端边界覆盖 888 个文件、3304 条运行时边、889 条类型边，0 违规。
+- 14 个受影响 TS 文件的 ESLint（0 警告）与 Prettier 检查通过，git diff --check 通过。
+- 内存中的 TypeScript 编译检查确认：漏写 initialize、漏写 execute、错误 metadata、错误输入、
+  错误执行选项五个派生类均被拒绝；合法派生类可绑定扩展 Transport 并作为公共接口消费。
+  该检查只创建编译器程序，没有输出文件或执行应用代码。
+- AST 静态比较确认六个生产类文件的 42 项方法体/字段初始化与 HEAD 一致；公共消息循环、
+  三业务协议、Bridge 构造与 Runtime 创建流程均未改写。
+- 公共 Bridge 消息循环/生命周期、TS Transport、三业务 Bridge/Runtime、TS/Python 语言
+  生命周期及 Research 留痕回归、Shared/API 构建待人工审查通过后执行。
+  当前未运行行为测试、构建、运行时探针或服务，修改未提交，等待人工代码审查。
+
+静态日志：`/tmp/jixie-bridge-contract-typecheck.log`。
+
+### 审查后验证与提交
+
+用户确认后续文件命名统一另作一个 commit，当前 Bridge 契约调整独立验证和提交。
+
+- 公共 Bridge 消息循环/生命周期、TS Transport、Strategy/Factor/Research Bridge 与 Runtime、
+  TS/Python 语言生命周期和 Research 留痕回归：13 个文件、144 项测试全部通过。
+- Shared/API 构建通过；14 个已审阅 TS 文件的 SHA-256 保持一致，无追加产品或测试修订。
+- 测试和构建进程退出，未启动开发服务或修改数据库。提交仅包含本轮 21 个文件，不推送。
+- 日志：`/tmp/jixie-bridge-contract-tests.log`、`/tmp/jixie-bridge-contract-shared-build.log`、
+  `/tmp/jixie-bridge-contract-api-build.log`。

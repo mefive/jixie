@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { RuntimeLogFrame, RuntimeLogBatchFrame } from './protocol.js';
+import type { SandboxBridge, SandboxBridgeInitializationOptions } from './sandbox-bridge.js';
 import type { SandboxFrame, SandboxTransport } from './transport.js';
 
 type IntermediateFrame = { type: 'log' | 'log_batch' | 'request' | 'error' | 'fatal' };
@@ -15,10 +16,20 @@ export interface SandboxExchange<Frame extends { type: string }, Result> {
 }
 
 /** Owns the transport and shares protocol execution across business bridges. */
-export abstract class SandboxBridgeBase<Transport extends SandboxTransport = SandboxTransport> {
+export abstract class SandboxBridgeBase<
+  Input,
+  Output,
+  Metadata,
+  Options = undefined,
+  Transport extends SandboxTransport = SandboxTransport,
+> implements SandboxBridge<Input, Output, Metadata, Options> {
   private static readonly activeTransports = new WeakSet<SandboxTransport>();
 
   constructor(protected readonly transport: Transport) {}
+
+  abstract initialize(options?: SandboxBridgeInitializationOptions): Promise<Metadata>;
+
+  abstract execute(input: Input, options?: Options): Promise<Output>;
 
   get isClosed(): boolean {
     return this.transport.isClosed;

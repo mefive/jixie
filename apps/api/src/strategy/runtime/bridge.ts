@@ -6,7 +6,6 @@ import type { SandboxFrame, SandboxTransport } from '#infra/runtime/transport.js
 import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type {
-  StrategyBridgeContract,
   StrategyStartOptions,
   StrategyExecutionInput,
   StrategyRuntimeMetadata,
@@ -44,10 +43,13 @@ export interface StrategyBridgeOptions {
 }
 
 /** Owns the strategy protocol connection and state across callbacks. */
-export class StrategyBridge
-  extends SandboxBridgeBase<StrategyTransport>
-  implements StrategyBridgeContract
-{
+export class StrategyBridge extends SandboxBridgeBase<
+  StrategyExecutionInput,
+  void,
+  StrategyRuntimeMetadata,
+  undefined,
+  StrategyTransport
+> {
   private static bundlePromise?: Promise<string>;
 
   private factors!: string[];

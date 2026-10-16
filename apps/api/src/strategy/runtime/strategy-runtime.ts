@@ -5,7 +5,6 @@ import type {
   StrategyRuntimeInstance,
   StrategyExecutionInput,
   StrategyRuntimeMetadata,
-  StrategyBridgeContract,
 } from './contract.js';
 
 /** Owns one strategy sandbox, independently of its language and transport. */
@@ -25,7 +24,7 @@ export class StrategyRuntime extends SandboxRuntime<
     return runtime;
   }
 
-  protected createBridge(): Promise<StrategyBridgeContract> {
+  protected createBridge(): Promise<StrategyBridge> {
     return StrategyBridge.create(this.options);
   }
 }

@@ -8,10 +8,16 @@ import {
   runtimeLogBatchFrameSchema,
 } from './protocol.js';
 
-class BridgeFixture extends SandboxBridgeBase {
-  override exchange<Frame extends { type: string }, Result>(
-    exchange: SandboxExchange<Frame, Result>,
-  ): Promise<Result> {
+class BridgeFixture extends SandboxBridgeBase<
+  SandboxExchange<z.infer<typeof schema>, number>,
+  number,
+  void
+> {
+  initialize(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  execute(exchange: SandboxExchange<z.infer<typeof schema>, number>): Promise<number> {
     return super.exchange(exchange);
   }
 }
@@ -64,7 +70,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     ]);
     const bridge = new BridgeFixture(transport);
     const events: string[] = [];
-    await bridge.exchange({
+    await bridge.execute({
       ...options,
       onLog: async (frame) => {
         await Promise.resolve();
@@ -90,7 +96,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     const bridge = new BridgeFixture(transport);
     const failure = new Error('log sink unavailable');
     await expect(
-      bridge.exchange({
+      bridge.execute({
         ...options,
         onLog: async () => {
           throw failure;
@@ -115,7 +121,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     const controller = new AbortController();
     const onLog = vi.fn(() => controller.abort());
     await expect(
-      bridge.exchange({ ...options, signal: controller.signal, onLog }),
+      bridge.execute({ ...options, signal: controller.signal, onLog }),
     ).rejects.toThrow();
     expect(onLog).toHaveBeenCalledExactlyOnceWith({ type: 'log', level: 'info', text: 'first' });
     expect(transport.read).toHaveBeenCalledOnce();
@@ -126,7 +132,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     const bridge = new BridgeFixture(transport);
     const onLog = vi.fn();
     const input = { type: 'execute', items: [{ history: [1, 2, 3] }] };
-    expect(await bridge.exchange({ ...options, command: input, onLog })).toBe(42);
+    expect(await bridge.execute({ ...options, command: input, onLog })).toBe(42);
     expect(transport.send).toHaveBeenCalledExactlyOnceWith(input);
     expect(onLog).toHaveBeenCalledExactlyOnceWith({
       type: 'log',
@@ -148,7 +154,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     });
     const response = { type: 'response', id: 7, result: { rows: [1, 2] } };
     expect(
-      await bridge.exchange({
+      await bridge.execute({
         ...options,
         onRequest: async (frame) => {
           expect(frame).toEqual(request);
@@ -175,7 +181,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     const bridge = new BridgeFixture(transport);
     const failure = new Error('evidence unavailable');
     await expect(
-      bridge.exchange({
+      bridge.execute({
         ...options,
         onRequest: async () => {
           throw failure;
@@ -192,7 +198,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     const failure = new Error('connection lost');
     transport.send.mockResolvedValueOnce(undefined).mockRejectedValueOnce(failure);
     await expect(
-      bridge.exchange({
+      bridge.execute({
         ...options,
         onRequest: async () => ({ type: 'response', id: 7, result: {} }),
       }),
@@ -206,7 +212,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     const bridge = new BridgeFixture(transport);
     const controller = new AbortController();
     await expect(
-      bridge.exchange({
+      bridge.execute({
         ...options,
         signal: controller.signal,
         onRequest: async () => {
@@ -233,21 +239,21 @@ describe('shared sandbox Bridge protocol execution', () => {
         complete = resolve;
       });
     });
-    const first = bridge.exchange(options);
+    const first = bridge.execute(options);
     await reading;
-    await expect(bridge.exchange(options)).rejects.toThrow('Concurrent');
+    await expect(bridge.execute(options)).rejects.toThrow('Concurrent');
     expect(transport.send).toHaveBeenCalledOnce();
     complete(completed);
     await expect(first).resolves.toBe(42);
     transport.read.mockResolvedValueOnce(completed);
-    await expect(bridge.exchange(options)).resolves.toBe(42);
+    await expect(bridge.execute(options)).resolves.toBe(42);
   });
 
   it.each(['error', 'fatal'])('propagates %s and releases the exchange guard', async (type) => {
     const transport = fixture([{ type, message: 'user failure' }, completed]);
     const bridge = new BridgeFixture(transport);
-    await expect(bridge.exchange(options)).rejects.toThrow('user failure');
-    await expect(bridge.exchange(options)).resolves.toBe(42);
+    await expect(bridge.execute(options)).rejects.toThrow('user failure');
+    await expect(bridge.execute(options)).resolves.toBe(42);
   });
 
   it('shares the transport guard across Bridge instances and subclasses', async () => {
@@ -267,14 +273,14 @@ describe('shared sandbox Bridge protocol execution', () => {
       });
     });
 
-    const first = firstBridge.exchange(options);
+    const first = firstBridge.execute(options);
     await reading;
-    await expect(secondBridge.exchange(options)).rejects.toThrow('Concurrent');
+    await expect(secondBridge.execute(options)).rejects.toThrow('Concurrent');
     expect(transport.send).toHaveBeenCalledOnce();
     complete(completed);
 
     await expect(first).resolves.toBe(42);
-    await expect(secondBridge.exchange(options)).resolves.toBe(42);
+    await expect(secondBridge.execute(options)).resolves.toBe(42);
     expect(transport.send).toHaveBeenCalledTimes(2);
   });
 
@@ -285,7 +291,7 @@ describe('shared sandbox Bridge protocol execution', () => {
     const secondBridge = new OtherBridgeFixture(secondTransport);
 
     await expect(
-      Promise.all([firstBridge.exchange(options), secondBridge.exchange(options)]),
+      Promise.all([firstBridge.execute(options), secondBridge.execute(options)]),
     ).resolves.toEqual([42, 43]);
     expect(firstTransport.send).toHaveBeenCalledOnce();
     expect(secondTransport.send).toHaveBeenCalledOnce();
@@ -299,11 +305,11 @@ describe('shared sandbox Bridge protocol execution', () => {
     let reentrantFailure!: Promise<unknown>;
 
     await expect(
-      firstBridge.exchange({
+      firstBridge.execute({
         ...options,
         result: (frame) => {
           expect(frame).toEqual(completed);
-          reentrantFailure = expect(secondBridge.exchange(options)).rejects.toThrow('Concurrent');
+          reentrantFailure = expect(secondBridge.execute(options)).rejects.toThrow('Concurrent');
 
           throw failure;
         },
@@ -312,14 +318,14 @@ describe('shared sandbox Bridge protocol execution', () => {
     await reentrantFailure;
     expect(transport.send).toHaveBeenCalledOnce();
 
-    await expect(secondBridge.exchange(options)).resolves.toBe(42);
+    await expect(secondBridge.execute(options)).resolves.toBe(42);
     expect(transport.send).toHaveBeenCalledTimes(2);
   });
 
   it('does not silently consume a request without a handler', async () => {
     const transport = fixture([request, completed]);
     const bridge = new BridgeFixture(transport);
-    await expect(bridge.exchange(options)).rejects.toThrow('Unexpected host request');
+    await expect(bridge.execute(options)).rejects.toThrow('Unexpected host request');
     expect(transport.read).toHaveBeenCalledOnce();
   });
 });

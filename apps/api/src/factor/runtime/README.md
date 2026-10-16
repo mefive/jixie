@@ -13,7 +13,7 @@
 
 与 Strategy 采用相同阅读顺序：contract → runtime → FactorBridge.create → initialize/execute → Transport → entry → runner → SDK。`FactorExecutionInput<Kind>`、`FactorRuntimeMetadata<Kind>`、`FactorRuntimeInstance<Kind>` 保留种类关联；泛化参数为联合时仍返回各类实例的联合，不把截面与资产输入混成可随意搭配的接口。
 
-Runtime.createBridge 仅调用 FactorBridge.create(options, this)，Bridge 内部选择语言、准备源码/配置并建立连接，返回后由 Runtime 基类调用 initialize({ signal })；字段使用 [contract.ts](contract.ts) 的 FactorBridgeContract<Kind>，类显式实现同一契约，共同 initialize/execute 方法由 Infra SandboxBridge 约束。FactorBridge 继承 [SandboxBridgeBase](../../infra/runtime/sandbox-bridge-base.ts)，通过 protected exchange 复用消息循环；Bridge 基类统一提供 close/abort/isClosed；Runtime 管理业务状态并通过 Bridge 关闭 Transport。纯 Python 字段映射仍保留为具名函数。
+Runtime.createBridge 返回具体 FactorBridge<Kind>，仅调用 FactorBridge.create(options, this)，Bridge 内部选择语言、准备源码/配置并建立连接，返回后由 Runtime 基类调用 initialize({ signal })。FactorBridge 继承 [SandboxBridgeBase](../../infra/runtime/sandbox-bridge-base.ts)，绑定 FactorExecutionInput<Kind>、FactorValues 和 FactorRuntimeMetadata<Kind>；基类实现公共 SandboxBridge 接口并声明抽象 initialize/execute，业务类实现各自协议，不再保留 FactorBridgeContract 别名。SandboxRuntime 字段仍依赖公共接口。FactorBridge 通过 protected exchange 复用消息循环，Bridge 基类统一提供 close/abort/isClosed；Runtime 管理业务状态并通过 Bridge 关闭 Transport。纯 Python 字段映射仍保留为具名函数。
 
 静态验证、检查元数据与执行因子不是同一操作。Python 验证虽不执行用户 Python，仍启动 Pyright 并创建临时文件；TS 定义检查也有 isolate 资源。纯目录消费者不要经 runtime 获取 definitions/views 中已有的语言映射。
 

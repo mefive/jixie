@@ -5,7 +5,7 @@ import type { SandboxBridge, SandboxBridgeInitializationOptions } from './sandbo
 
 type FixtureBridgeContract = SandboxBridge<number, number, { name: string }>;
 
-class FixtureBridge extends SandboxBridgeBase implements FixtureBridgeContract {
+class FixtureBridge extends SandboxBridgeBase<number, number, { name: string }> {
   readonly initialize = vi.fn(async (_options?: SandboxBridgeInitializationOptions) => ({
     name: 'fixture',
   }));

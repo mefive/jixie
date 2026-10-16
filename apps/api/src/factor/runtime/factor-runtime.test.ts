@@ -5,11 +5,14 @@ import { FactorRuntime } from './factor-runtime.js';
 import { FactorBridge, type FactorTransport } from './bridge.js';
 import { PythonSession } from '#infra/runtime/python/session.js';
 import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
+import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
 import type {
   AssetFactorExecutionInput,
   CrossSectionalFactorExecutionInput,
   ExecutableFactorKind,
-  FactorBridgeContract,
+  FactorExecutionInput,
+  FactorRuntimeMetadata,
+  FactorValues,
 } from './contract.js';
 
 const bar: FactorBar = {
@@ -91,7 +94,11 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
     async (analysisKind) => {
       const session = sessionFixture(language, ready(language, analysisKind));
       const host = { abort: vi.fn() };
-      const bridge: FactorBridgeContract<typeof analysisKind> = new FactorBridge(
+      const bridge: SandboxBridge<
+        FactorExecutionInput<typeof analysisKind>,
+        FactorValues,
+        FactorRuntimeMetadata<typeof analysisKind>
+      > = new FactorBridge(
         session as unknown as FactorTransport,
         {
           startupCommand: { type: 'factor_start' },
