@@ -1,5 +1,7 @@
 # Research SDK 与运行时优化讨论计划
 
+> 2026-10-16：公共消息循环已按后续方案收进 SandboxBridgeBase，所有权统一为 Runtime → Bridge → Transport、启动统一为 createBridge；下文 exchangeSandboxCommand 等名称保留为历史讨论，当前结构与审查/验证状态见统一方案文末。
+
 > 2026-09-22：整体方案已通过最终代码 review 和行为验证，统一宿主入口、TS transport、Factor 批量日志与 Strategy JSON 修复一并交付；最终实测结果见新方案文末。本文旧类名／适配器说明为历史讨论，实际接口见新方案及各目录 README。
 > 最新状态：用户要求将三业务的历史入口、命名和调用方式整体规划。新的统一方案见 [Factor / Strategy / Research 运行时统一方案](sandbox-runtime-architecture.md)。
 > 本文 R2 保留为问题讨论与前两版实现记录；后续目标结构、公共入口和迁移范围以新方案为准。前两版没有独立提交，已纳入最终统一方案，以下阶段状态均保留为历史记录。
@@ -21,7 +23,7 @@
 阅读入口：
 
 - [Python SDK](../../apps/api/src/research/sdk/README.md)：作者接口、参数组装和 DataFrame 转换。
-- [业务 runtime](../../apps/api/src/research/runtime/research-runtime.ts)：提供命令和业务结果解释；[公共 exchange](../../apps/api/src/infra/runtime/exchange.ts) 接收并分派消息；[会话管理](../../apps/api/src/research/runtime/pool.ts) 负责池和排队。
+- [业务 runtime](../../apps/api/src/research/runtime/research-runtime.ts)：提供命令和业务结果解释；[公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts) 接收并分派消息；[会话管理](../../apps/api/src/research/runtime/pool.ts) 负责池和排队。
 - [宿主分派](../../apps/api/src/research/runtime/host/dispatch.ts)：请求校验、observer、response 获取；发送归公共 exchange。
 - [输入回放](../../apps/api/src/research/runtime/host/input-replay.ts)：读取来源、选择模式、授权和校验历史响应。
 - [接续文档](../../apps/api/src/research/embedded/continuation.ts)：从成功嵌入分析创建普通 Research 文档。

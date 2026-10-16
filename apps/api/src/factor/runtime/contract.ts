@@ -1,9 +1,8 @@
 import type { FactorLanguage, FactorBar } from '@jixie/shared';
 import type { AssetFactorV2, CustomFactor } from '@jixie/shared/sdk/factor/contract';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import type { SandboxRuntime, SandboxResource } from '#infra/runtime/sandbox-runtime.js';
+import type { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
 import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
-import type { FactorBridgeOptions, FactorTransport } from './bridge.js';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
 
 export type ExecutableFactorKind = 'cross_sectional' | 'time_series' | 'panel';
@@ -75,11 +74,3 @@ export type AssetFactorRuntime<Kind extends AssetFactorKind = AssetFactorKind> =
   FactorRuntimeInstance<Kind>;
 export type TimeSeriesFactorRuntime = FactorRuntimeInstance<'time_series'>;
 export type PanelFactorRuntime = FactorRuntimeInstance<'panel'>;
-
-/** Language-specific startup inputs; the shared runtime owns acquisition and initialization. */
-export interface FactorRuntimePreparation<
-  Kind extends ExecutableFactorKind = ExecutableFactorKind,
-> {
-  createResource(): Promise<FactorTransport & SandboxResource>;
-  bridgeOptions: FactorBridgeOptions<Kind>;
-}

@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 后续变更（2026-10-16）：三业务 Bridge 统一继承 SandboxBridgeBase，exchange 消息循环收为基类 protected 方法，Runtime 仅持有 Bridge、Bridge 独占 Transport；语言准备与连接构造一并收进业务 Bridge.create，统一 createBridge 启动和通信/回收契约，删除独立 SandboxResource；阅读主线为 Runtime → Bridge → Transport → Runner。本轮范围及审查/验证状态见文末，原函数形式保留为历史记录。
+
 > 后续变更（2026-10-10）：公共 SandboxBridge interface 约束 initialize/execute，三业务 Bridge 显式实现契约、Runtime 字段依赖接口；统一启动 options 和业务 ExecutionInput，Research 扩展 analyze/reset。本轮范围与审查/验证状态见文末。
 
 > 后续变更（2026-10-10）：三业务宿主 Bridge 统一为类，构造依赖 → initialize 握手 → execute 处理协议；Research 协议从 Runtime 移入 Bridge，资源及取消归属保持。本轮范围和审查/验证状态见文末。
@@ -67,7 +69,7 @@ Strategy 和 Research 的运行时也使用 `StrategyRuntime.start(options)` / `
 | TS Strategy | isolate transport + 同一 Strategy bridge + exchange，另有同步 `__hostAccess` 通道 | 生命周期和异步策略协议；保留同步调用语义 |
 | Research | 当前仅 Python，PythonSession + exchange；执行期间处理 SDK request | 生命周期、命令交互循环；文档池管理复用 |
 
-迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [Factor runtime](../../apps/api/src/factor/runtime/factor-runtime.ts)、[TS transport](../../apps/api/src/infra/runtime/typescript/transport.ts)、[公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共 exchange](../../apps/api/src/infra/runtime/exchange.ts)。Infra README 已同步实际范围。
+迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [Factor runtime](../../apps/api/src/factor/runtime/factor-runtime.ts)、[TS transport](../../apps/api/src/infra/runtime/typescript/transport.ts)、[公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)。Infra README 已同步实际范围。
 
 所有实现都具有“建立隔离环境 → 初始化 → 多次执行 → 释放”的共同流程。此次连同 TS Factor 的命令交互统一，批量计算命令本身可以经过公共 exchange，不必把批内每个 item 拆成一次通信。TS 的 isolate 和 Python 的 socket 是底层传输差异，不在业务 runtime 层保留另一套直接调用入口。Strategy TS 的同步上下文访问有作者 SDK 语义依据，仍作为受限通道保留；把它改成 async 会改变作者代码的调用处异常和取数时机。
 
@@ -342,7 +344,7 @@ return researchRuntimePool.withRuntime(
 
 ### 审查入口与实现取舍
 
-先读 [公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共 exchange](../../apps/api/src/infra/runtime/exchange.ts)，再横向对照 factor-runtime.ts、strategy-runtime.ts、research-runtime.ts 的 start 与 execute。Research 的借用入口见 [pool.ts](../../apps/api/src/research/runtime/pool.ts)；语言资源统一见 [TypeScriptTransport](../../apps/api/src/infra/runtime/typescript/transport.ts) 与 PythonSession。
+先读 [公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)，再横向对照 factor-runtime.ts、strategy-runtime.ts、research-runtime.ts 的 start 与 execute。Research 的借用入口见 [pool.ts](../../apps/api/src/research/runtime/pool.ts)；语言资源统一见 [TypeScriptTransport](../../apps/api/src/infra/runtime/typescript/transport.ts) 与 PythonSession。
 
 TS Factor 保留 256 MiB isolate、声明 5 秒、整批 30 秒预算；新帧及累计队列限额也取 256 MiB，没有使用 Strategy 的一万帧上限。初版普通日志逐条经消息帧传出，后经性能验证和用户确认改为文末的沙箱内批量缓冲。启动日志仍在 start 期间消费（迁移前延迟到首次计算 drain），首次计算错误由终止帧回报并去重。这里有真实传输开销变化，需要性能验收；类型检查不能证明时序和性能一致。
 
@@ -906,3 +908,125 @@ Shared/API 构建与源码/dist Worker，清理临时资源后按确认信息追
 日志：/tmp/jixie-bridge-contract-tests.log、source-workers.log、compiled-workers.log、
 compiled-runtime.log、shared-build.log、api-build.log、typecheck.log
 （后六者沿用相同 jixie-bridge-contract- 前缀）。
+
+
+## 2026-10-16 Bridge 公共基类与消息循环
+
+范围及精确提交信息已确认：`refactor(runtime): move message exchanges into a shared bridge base`。
+用户在代码审阅讨论后确认同时收敛 Resource/Transport，将 Transport 所有权、语言选择和启动装配完整收进业务 Bridge。
+以下描述最终完整实现；范围及人工代码审查已通过，必要验证与构建全部完成，实际结果见本节末尾。
+
+所有权统一为 Runtime → Bridge → Transport。SandboxRuntime 仅持有 BridgeContract，
+管理 new/starting/ready/closed、启动取消监听、执行前后检查、metadata 和同步幂等关闭；
+createBridge 返回后统一调用 bridge.initialize({ signal })，默认 executeInSandbox 委托
+bridge.execute(input, options)。具体 Runtime 不再持有 Transport、bridgeOptions 中间字段，
+也不实现 initializeInSandbox；Factor/Strategy 删除重复的执行转发，Research 保留活动 Cell、
+中断异常转换及 analyze/reset，通过强类型 BridgeContract 使用扩展方法。
+
+三个 Runtime.createBridge 只调用对应业务 Bridge.create，既不选择语言，也不导入具体
+Transport 或编译/bundle。FactorBridge/StrategyBridge 的 create 根据 language 调用私有
+createPython/createTypeScript，完整完成源码编译、bundle 缓存、启动消息、连接参数和构造；
+ResearchBridge.create 内部连接 PythonSession。删除四个语言 prepare.ts 和两种 Preparation
+配方接口，不保留 createTransport 回调或旧入口；独立 toCommonJs 与 sandbox-bundle 辅助保留。
+
+Bridge.create 只建立连接，返回后 Runtime 先持有 Bridge，再调用 initialize 发送启动命令并
+执行用户源码，握手成功才进入 ready。Transport 保持 readonly，Bridge 无未连接状态。
+构造失败由 Bridge 内部关闭 Transport 并保留原始异常；返回后包括晚到 Bridge 均由 Runtime
+清理。启动失败、握手取消、abort 原因与 metadata 边界保持，普通错误仍可复用实例。
+原内存、帧/队列、超时、locale、参数覆盖、日志与启动帧设置逐项迁移；bundle 缓存明确归
+各业务 Bridge 类共享，派生类构造也复用同一缓存，不因测试诊断子类变为每实例重新打包。
+
+新增 infra/runtime/sandbox-bridge-base.ts 的抽象 SandboxBridgeBase<Transport>，持有
+protected readonly transport，提供 close/abort/isClosed 和 protected exchange。关闭方法
+委托具体 Transport，Bridge 不再维护第二套业务生命周期状态。FactorBridge、StrategyBridge、
+ResearchBridge 统一 extends 并继续 implements 现有业务 BridgeContract；公共 SandboxBridge
+接口补齐 close/abort/isClosed，具体类继承的方法同样受契约检查。FactorBridgeHost.abort 和
+ResearchBridgeHost.close 保留原行为，仍请求 Runtime 更新业务状态后沿 Bridge 关闭连接。
+
+原 exchange.ts 的消息循环整体迁入基类，不保留旧函数或转发入口。SandboxFrame 与
+SandboxTransport 类型独立到 infra/runtime/transport.ts；删除 SandboxResource 与交叉类型，
+Transport 完整约束 send/readValidated、close/abort、只读 isClosed，TypeScriptTransport 和
+PythonSession 显式实现。TS isolate、Python socket/本地进程、schema 校验与底层回收机制保持，
+Research 池仍负责容量、实例身份和唯一操作队列。没有新增 Session/Provider 或装配工厂抽象。
+
+消息循环保留原处理顺序：发送命令 → 日志/宿主请求 → 终止帧。log_batch 逐条等待回调并
+检查取消，onRequest 及 evidence 留存完成后才发送 response；回调异常原样传播，不补发
+可捕获的错误响应。error/fatal、未知请求、取消和传输失败的既有错误边界保持。
+
+并发保护为基类唯一 static WeakSet，按 Transport 跨实例及子类共享，每轮 finally 释放。
+终止结果钩子仍在保护内调用；Factor 首次点错误上报可触发宿主同步回调，不能把结果转换
+移至 await 之后提前释放保护。业务校验、日志预算、字段映射和返回值仍归子类方法。
+Strategy 同步宿主访问的绑定/finally 解绑、命令重放顺序，以及 Research 的日志/observer/
+captureEnvironment 等单次局部上下文保持；没有新增活动执行实例字段。
+
+exchange.test.ts 迁为 sandbox-bridge-base.test.ts，保留原断言，增加同 Transport 跨实例/
+子类拒绝并发、不同 Transport 并发可行、终止结果重入被拒绝及处理失败后恢复三项回归。
+生命周期测试改为使用真实 Bridge 基类闭环验证 Runtime → Bridge → Transport 的所有权，
+保留启动失败、取消、晚到连接、普通错误后复用、幂等关闭和 metadata 边界断言。原可选
+abort 的 fallback 假设改为验证连接独立关闭后拒绝执行。TS Transport 真实 isolate 测试
+通过拥有它的 Bridge 关闭，新增 abort 原因向阻塞 reader 原样传播回归；Research dispatch
+真实消息/留痕回归也使用基类测试派生类，没有复制消息循环或引入生产测试入口。
+
+Strategy 测试诊断通过 Bridge 派生类构造时捕获 Transport metrics，复用生产 create 和语言
+装配路径，不复制配置、编译或连接逻辑。三个 Bridge 工厂均以 new this 保留派生构造；
+StrategyRuntime.options 为 protected 支持既有诊断子类，不增加生产 metrics 或传输访问器。
+新增三项真实 TS 工厂回归：创建连接不执行用户源码，initialize 才执行；构造失败回收连接，
+以及清理再抛异常时仍保留构造原因。上述新旧断言均纳入审查后验证。
+性能对照固定 2c58693b 的 SandboxRuntime/StrategyRuntime/Bridge/prepare/exchange/诊断辅助，
+仅转换到测试临时目录并重写相互导入；避免旧基线绑定当前已改名的装配方法或删除的函数。
+两边使用相同当前 Transport、Runner/SDK、Engine 与 fixture，保留 watch/dynamic、独立进程、
+冷启动/预热/测量样本及全部结果哈希和通信计数/字节断言。finally 清理临时目录，历史基线
+不进入生产。原工具固定的 5b92107f 依赖已退役入口，本轮改为直接比较当前重构前后；原历史
+验收事实保留在上文。两项性能对照纳入本轮审查后验证，实际结果见本节末尾。
+
+同步 CLAUDE、公共/业务/语言 runtime README、运行入口清单和旧设计的有效阅读链接。
+没有新增 workspace、依赖、数据库、HTTP/公开 SDK 契约、协议帧、Python 镜像输入或跨包
+构建边，新 TS 文件位于既有 API 部署范围。工作区原有 .npmrc、.vscode/settings.json、
+docs/reports/commit-message-standardization.json 三处删除保留，不纳入本次 commit。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过；Shared/API/Docs/sandboxd/Web 类型检查、SDK 生成物一致性通过。
+  后端边界静态扫描覆盖 888 个文件、3304 条运行时边和 887 条类型边，0 违规。
+- 22 个受影响 TS/MJS 文件的 ESLint（0 警告）和 Prettier 检查通过，git diff --check 通过。
+- AST 静态比较确认 exchange 方法体与 HEAD 原函数在 transport/并发保护归属替换后语句一致。
+  API TS 没有 Resource 旧接口、旧 exchange 函数、prepare 工厂或 initializeInSandbox；Runtime 不持有 Transport，也不选择语言。
+- 修改文档的本地链接已核对，固定历史模块仅在测试临时目录中使用。
+- 公共消息循环、生命周期、Transport、三业务 runtime、Research 留痕、源码/dist Worker、
+  watch/dynamic 性能对照及 Shared/API 构建均待人工代码审查确认后执行，完成后清理临时资源。
+  审查前未运行行为测试、构建、运行时探针或服务，修改未提交；审查通过后的实际结果如下。
+- 静态日志：/tmp/jixie-bridge-base-typecheck.log。
+
+
+### 审查后最终验证结果
+
+2026-10-16 用户确认最终代码审查后执行全部既定验证，一次通过，没有追加产品或测试修订。
+
+- 公共 Bridge 消息循环/生命周期、TS Transport、三业务 runtime、SDK 适配/打包及 Research
+  embedded 留痕集成：46 个测试文件、307 项通过。Python 临时 Unix socket 通信单独验证，
+  1 个文件、11 项通过；合计 47 个文件、318 项。
+- 新增回归覆盖跨 Bridge/子类并发保护、终止结果重入、Bridge 关闭/abort 向阻塞 reader 传播、
+  创建连接与执行用户源码的时序，以及构造失败后的回收和原始异常保留。既有启动取消、晚到
+  Bridge、关闭幂等、普通错误后复用、TS 同步宿主访问及 Research 留痕/回放边界全部保持。
+- 真实源码 Worker：14 项通过；dist 生产入口同组 Worker：14 项通过。覆盖四种策略/因子
+  语言组合、连续扫描、Signals、启动恢复、非法输入和失败回收，使用独立临时 SQLite，
+  成功以子进程退出为准。日志中的非法输入错误为预期拒绝用例，整组没有失败。
+- watch/dynamic 两项性能对照通过；两边所有样本的 NAV/成交哈希、通信计数和字节一致。
+  watch 的 10 个测量样本中位耗时为 101.80 → 98.89 ms；dynamic 的 5 个测量样本为
+  401.52 → 398.05 ms，均为本机观察值。冷启动、预热和独立进程的原要求保留。
+- 合计 348 项运行时/Worker/性能回归全部通过。后端边界检查器另有 33 项自测通过，
+  当前静态扫描为 888 个文件、3304 条运行时边和 887 条类型边，0 违规。
+- Shared/API 构建通过。另在独立空目录重新编译 API，以默认生产 imports 条件运行，确认
+  不依赖旧 prepare/exchange 产物：TS time_series/panel metadata、连续批次和关闭通过；
+  Research 的分析、显式参数、环境留痕、活动 Cell、跨 Cell namespace、普通错误后复用、
+  reset、关闭后 metadata 和执行拒绝通过。
+- Python 使用项目配置的本地 CPython 3.13.16；预备独立 Matplotlib/font cache，没有放宽
+  产品或测试超时。22 个审阅过的 TS/MJS 文件哈希在验证后保持一致，无行为修复或断言放宽。
+- 验证进程均退出，临时 socket、Worker/embedded 数据库、性能历史模块、干净编译目录和
+  本轮字体缓存已清理。未启动开发服务、修改开发数据库或部署；不推送。
+- 提交清单明确限定本次修改的 40 个文件，工作区原有的 .npmrc、.vscode/settings.json、
+  docs/reports/commit-message-standardization.json 三处删除不纳入提交。
+
+日志前缀：/tmp/jixie-bridge-base-；后缀为 tests.log、socket-tests.log、source-workers.log、
+compiled-workers.log、benchmark.log、compiled-runtime.log、shared-build.log、api-build.log、
+clean-build.log、boundaries.log、typecheck.log。

@@ -1,12 +1,12 @@
 # Python 因子适配与静态验证
 
-本目录准备 py-v1 的宿主启动配置、提供静态验证及沙箱侧业务运行器。宿主协议归共享 bridge。公开字段真相源为 [python.ts](../../../../../../packages/shared/src/sdk/factor/python.ts)，底层连接由 Infra PythonSession 提供；不从 Prisma 推导 Python API。
+本目录提供 py-v1 的静态验证及沙箱侧业务运行器；宿主启动配置、连接和协议归共享 FactorBridge。公开字段真相源为 [python.ts](../../../../../../packages/shared/src/sdk/factor/python.ts)，底层连接由 Infra PythonSession 提供；不从 Prisma 推导 Python API。
 
 | 文件 / 入口 | 用途与调用方 |
 | --- | --- |
 | [validator.ts](validator.ts) `validatePythonFactorDefinition` | 草稿校验：检查 Factor 工厂、compute 装饰器等形状，运行 Pyright；不执行用户 Python |
 | 同文件 `pythonFactorTargetAssetClasses` | runtime/inspect-definition 读取字面量 target_asset_classes；不启动 Python 会话 |
-| [prepare.ts](prepare.ts) `preparePythonFactorRuntime` | 准备 PythonSession 工厂、factor_start 和 bridge 配置；统一 FactorRuntime 负责获取及释放会话 |
+| [FactorBridge.create](../bridge.ts) | 内部 createPython 准备 factor_start 并连接 PythonSession；Runtime 通过 Bridge 管理业务生命周期 |
 | [../bridge.ts](../bridge.ts) `FactorBridge` | 三种分析类型共用的宿主协议、Python 字段映射、计算错误去重及结果检查 |
 | [../protocol.ts](../protocol.ts) | startup／execution 帧校验；拒绝错类型或畸形响应 |
 | [adapter.py](adapter.py) `FactorAdapter` | 本地历史/字段/索引访问及声明输入；SDK 只依赖能力协议 |
@@ -27,6 +27,6 @@ validator 的临时目录在 finally 删除，Pyright 从 API 依赖解析；这
 
 [返回 Factor 总览](../../README.md)
 
-公共 FactorRuntime 直接继承 SandboxRuntime，start 创建实例并等待基类 initialize；createResource 连续准备配置和获取会话，initializeInSandbox 建立 bridge，基类负责启动失败/取消清理。start 和 execute 均调用公共 exchange，close 同步幂等。FactorHost、评估和 Strategy 因子准备拥有最终释放责任；预备输入与 SDK 本地 history 不变。
+公共 FactorRuntime 直接继承 SandboxRuntime，start 创建实例并等待基类 initialize；createBridge 仅调用 FactorBridge.create，由 Bridge 内部准备配置、获取会话并完成构造，基类负责握手和启动失败/取消清理；关闭经 Bridge 到达 Transport。start 和 execute 均调用公共 exchange，close 同步幂等。FactorHost、评估和 Strategy 因子准备拥有最终释放责任；预备输入与 SDK 本地 history 不变。
 
 两个语言 Adapter 都按输入类型 → FactorAdapter.bind → BoundCrossSectionalFactorCapabilities → BoundAssetFactorCapabilities 排列。bind 使用可辨识输入与重载，横截面和资产输入分别对应其能力类型；每点绑定独立索引／历史，Adapter 在会话内复用。

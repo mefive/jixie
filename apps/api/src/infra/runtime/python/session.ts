@@ -4,9 +4,10 @@ import { connect, type Socket } from 'node:net';
 import type { Readable, Writable } from 'node:stream';
 import { z } from 'zod';
 
+import type { SandboxTransport } from '../transport.js';
 import { MAX_FRAME_BYTES, pythonFrameEnvelopeSchema, type PythonFrame } from './protocol.js';
 
-export class PythonSession {
+export class PythonSession implements SandboxTransport {
   private buffer = Buffer.alloc(0);
   private frames: PythonFrame[] = [];
   private readers: Array<{

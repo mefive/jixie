@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { exchangeSandboxCommand } from '../exchange.js';
+import { SandboxBridgeBase, type SandboxExchange } from '../sandbox-bridge-base.js';
 import { TypeScriptTransport } from './transport.js';
+
+class BridgeFixture extends SandboxBridgeBase {
+  override exchange<Frame extends { type: string }, Result>(
+    exchange: SandboxExchange<Frame, Result>,
+  ): Promise<Result> {
+    return super.exchange(exchange);
+  }
+}
 
 const schema = z.union([
   z.object({ type: z.literal('completed'), value: z.number() }),
@@ -25,9 +33,11 @@ describe('shared TypeScript transport', () => {
       };
     `,
     });
+    const bridge = new BridgeFixture(transport);
+
     try {
       await expect(
-        exchangeSandboxCommand(transport, {
+        bridge.exchange({
           command: { type: 'compute' },
           schema,
           operation: 'fixture',
@@ -38,19 +48,38 @@ describe('shared TypeScript transport', () => {
       expect(transport.metrics.sentFrames).toBe(2);
       expect(transport.metrics.receivedFrames).toBe(2);
     } finally {
-      transport.close();
+      bridge.close();
     }
   });
 
-  it('rejects pending readers on close and discards buffered results', async () => {
+  it('rejects pending readers when the owning Bridge closes and discards buffered results', async () => {
     const transport = await TypeScriptTransport.connect({ ...options, bundle: '' });
+    const bridge = new BridgeFixture(transport);
     const pending = transport.readValidated(schema, 'fixture');
     const failure = expect(pending).rejects.toThrow('closed');
-    transport.close();
-    transport.close();
+    bridge.close();
+    bridge.close();
     await failure;
+    expect(bridge.isClosed).toBe(true);
     await expect(transport.readValidated(schema, 'fixture')).rejects.toThrow('closed');
     await expect(transport.send({ type: 'compute' })).rejects.toThrow('closed');
+  });
+
+  it('propagates the owning Bridge abort cause to a pending reader', async () => {
+    const transport = await TypeScriptTransport.connect({ ...options, bundle: '' });
+    const bridge = new BridgeFixture(transport);
+    const pending = transport.readValidated(schema, 'fixture');
+    const cause = new Error('runtime interrupted');
+    const failure = expect(pending).rejects.toBe(cause);
+
+    try {
+      bridge.abort(cause);
+      await failure;
+      expect(bridge.isClosed).toBe(true);
+      await expect(transport.send({ type: 'compute' })).rejects.toBe(cause);
+    } finally {
+      bridge.close();
+    }
   });
 
   it('rejects malformed terminal frames and closes the isolate', async () => {

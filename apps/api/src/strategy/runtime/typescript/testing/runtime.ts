@@ -1,6 +1,8 @@
 import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
 import type { TypeScriptTransportMetrics } from '#infra/runtime/typescript/transport.js';
 import { StrategyRuntime } from '../../strategy-runtime.js';
+import { StrategyBridge } from '../../bridge.js';
+import type { StrategyBridgeOptions, StrategyTransport } from '../../bridge.js';
 import type { StrategyStartOptions } from '../../contract.js';
 
 /** Test instrumentation keeps transport diagnostics outside the production runtime interface. */
@@ -14,15 +16,23 @@ class InstrumentedStrategyRuntime extends StrategyRuntime {
     return { runtime, metrics: runtime.diagnostics };
   }
 
-  protected async createResource() {
-    const transport = await super.createResource();
-    if (!(transport instanceof TypeScriptTransport)) {
-      transport.close();
-      throw new Error('Strategy instrumentation requires a TypeScript transport');
-    }
-    this.diagnostics = transport.metrics;
+  protected createBridge() {
+    const captureMetrics = (metrics: TypeScriptTransportMetrics) => {
+      this.diagnostics = metrics;
+    };
 
-    return transport;
+    class InstrumentedBridge extends StrategyBridge {
+      constructor(transport: StrategyTransport, options: StrategyBridgeOptions) {
+        super(transport, options);
+
+        if (!(transport instanceof TypeScriptTransport)) {
+          throw new Error('Strategy instrumentation requires a TypeScript transport');
+        }
+        captureMetrics(transport.metrics);
+      }
+    }
+
+    return InstrumentedBridge.create(this.options);
   }
 }
 

@@ -1,9 +1,4 @@
-/** Resources expose ownership without coupling the runtime to a language or wire protocol. */
-export interface SandboxResource {
-  close(): void;
-  abort?(error: Error): void;
-  readonly isClosed?: boolean;
-}
+import type { SandboxBridge } from './sandbox-bridge.js';
 
 interface SandboxInitializationOptions {
   signal?: AbortSignal;
@@ -14,11 +9,16 @@ export abstract class SandboxRuntime<
   Input,
   Output,
   Metadata,
-  Resource extends SandboxResource = SandboxResource,
   Options = undefined,
+  Bridge extends SandboxBridge<Input, Output, Metadata, Options> = SandboxBridge<
+    Input,
+    Output,
+    Metadata,
+    Options
+  >,
 > {
   private state: 'new' | 'starting' | 'ready' | 'closed' = 'new';
-  private sandboxResource?: Resource;
+  private sandboxBridge?: Bridge;
   private initialized?: { metadata: Metadata };
   private abortError?: Error;
 
@@ -31,18 +31,18 @@ export abstract class SandboxRuntime<
   }
 
   get isClosed(): boolean {
-    return this.state === 'closed' || this.sandboxResource?.isClosed === true;
+    return this.state === 'closed' || this.sandboxBridge?.isClosed === true;
   }
 
-  protected get resource(): Resource {
-    if (!this.sandboxResource) {
-      throw new Error('Sandbox runtime resource is unavailable');
+  protected get bridge(): Bridge {
+    if (!this.sandboxBridge) {
+      throw new Error('Sandbox runtime bridge is unavailable');
     }
 
-    return this.sandboxResource;
+    return this.sandboxBridge;
   }
 
-  /** The instance owns resources returned by createResource, including late acquisition after close. */
+  /** Owns acquired bridges, including those returned after the runtime has already closed. */
   protected async initialize(options: SandboxInitializationOptions = {}): Promise<void> {
     if (this.isClosed) {
       throw new Error('Sandbox runtime is closed');
@@ -58,13 +58,13 @@ export abstract class SandboxRuntime<
 
     try {
       signal?.throwIfAborted();
-      this.sandboxResource = await this.createResource(signal);
+      this.sandboxBridge = await this.createBridge(signal);
 
       signal?.throwIfAborted();
       if (this.isClosed) {
         throw new Error('Sandbox runtime is closed');
       }
-      const metadata = await this.initializeInSandbox(this.resource, signal);
+      const metadata = await this.bridge.initialize({ signal });
 
       signal?.throwIfAborted();
       if (this.isClosed) {
@@ -75,7 +75,7 @@ export abstract class SandboxRuntime<
     } catch (error) {
       this.state = 'closed';
       try {
-        this.releaseResource(this.abortError);
+        this.releaseBridge(this.abortError);
       } catch {
         // Cleanup must preserve the initialization failure.
       }
@@ -85,12 +85,7 @@ export abstract class SandboxRuntime<
     }
   }
 
-  protected abstract createResource(signal?: AbortSignal): Promise<Resource>;
-
-  protected abstract initializeInSandbox(
-    resource: Resource,
-    signal?: AbortSignal,
-  ): Promise<Metadata>;
+  protected abstract createBridge(signal?: AbortSignal): Promise<Bridge>;
 
   async execute(input: Input, options?: Options): Promise<Output> {
     this.assertOpen();
@@ -100,7 +95,9 @@ export abstract class SandboxRuntime<
     return result;
   }
 
-  protected abstract executeInSandbox(input: Input, options?: Options): Promise<Output>;
+  protected executeInSandbox(input: Input, options?: Options): Promise<Output> {
+    return this.bridge.execute(input, options);
+  }
 
   protected assertOpen(): void {
     if (this.isClosed) {
@@ -116,7 +113,7 @@ export abstract class SandboxRuntime<
       return;
     }
     this.state = 'closed';
-    this.releaseResource();
+    this.releaseBridge();
   }
 
   abort(error: Error): void {
@@ -125,20 +122,20 @@ export abstract class SandboxRuntime<
     }
     this.state = 'closed';
     this.abortError = error;
-    this.releaseResource(error);
+    this.releaseBridge(error);
   }
 
-  private releaseResource(error?: Error): void {
-    const resource = this.sandboxResource;
-    this.sandboxResource = undefined;
-    if (!resource) {
+  private releaseBridge(error?: Error): void {
+    const bridge = this.sandboxBridge;
+    this.sandboxBridge = undefined;
+    if (!bridge) {
       return;
     }
 
-    if (error && resource.abort) {
-      resource.abort(error);
+    if (error) {
+      bridge.abort(error);
     } else {
-      resource.close();
+      bridge.close();
     }
   }
 }

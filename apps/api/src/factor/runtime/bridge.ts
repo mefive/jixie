@@ -1,9 +1,9 @@
 import type { z } from 'zod';
-import {
-  exchangeSandboxCommand,
-  type SandboxFrame,
-  type SandboxTransport,
-} from '#infra/runtime/exchange.js';
+import { SandboxBridgeBase } from '#infra/runtime/sandbox-bridge-base.js';
+import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
+import { PythonSession } from '#infra/runtime/python/session.js';
+import { toCommonJs } from '#infra/runtime/typescript/compile.js';
+import type { SandboxFrame, SandboxTransport } from '#infra/runtime/transport.js';
 import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
@@ -11,6 +11,7 @@ import type { FactorBar } from '@jixie/shared';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
 import type {
   ExecutableFactorKind,
+  FactorStartOptions,
   FactorExecutionInput,
   FactorRuntimeMetadata,
   FactorValues,
@@ -18,6 +19,7 @@ import type {
   FactorBridgeContract,
 } from './contract.js';
 import { validateTypeScriptFactorMetadata, validatePythonFactorMetadata } from './metadata.js';
+import { buildFactorSandboxBundle } from './typescript/sandbox-bundle.js';
 import {
   factorStartupFrameSchema,
   factorExecutionFrameSchema,
@@ -48,17 +50,106 @@ export interface FactorBridgeHost {
   abort(error: Error): void;
 }
 
-/** Owns factor protocol state across batches; the runtime owns resource shutdown. */
-export class FactorBridge<
-  Kind extends ExecutableFactorKind = ExecutableFactorKind,
-> implements FactorBridgeContract<Kind> {
+/** Owns the factor protocol connection and state across batches. */
+export class FactorBridge<Kind extends ExecutableFactorKind = ExecutableFactorKind>
+  extends SandboxBridgeBase<FactorTransport>
+  implements FactorBridgeContract<Kind>
+{
+  private static bundlePromise?: Promise<string>;
+
   private reportedComputeError = false;
 
   constructor(
-    private readonly transport: FactorTransport,
+    transport: FactorTransport,
     private readonly options: FactorBridgeOptions<Kind>,
     private readonly host: FactorBridgeHost,
-  ) {}
+  ) {
+    super(transport);
+  }
+
+  static create<Kind extends ExecutableFactorKind>(
+    options: FactorStartOptions<Kind>,
+    host: FactorBridgeHost,
+  ): Promise<FactorBridge<Kind>> {
+    switch (options.language) {
+      case 'python':
+        return this.createPython(options, host);
+      case 'typescript':
+        return this.createTypeScript(options, host);
+    }
+  }
+
+  private static async createPython<Kind extends ExecutableFactorKind>(
+    { code, analysisKind, onUserLog }: FactorStartOptions<Kind>,
+    host: FactorBridgeHost,
+  ): Promise<FactorBridge<Kind>> {
+    const transport = await PythonSession.connect();
+
+    try {
+      return new this(
+        transport,
+        {
+          startupCommand: {
+            type: 'factor_start',
+            runtime_version: 'py-v1',
+            analysis_kind: analysisKind,
+            code,
+          },
+          analysisKind,
+          diagnostics: { language: 'Python' },
+          onUserLog,
+        },
+        host,
+      );
+    } catch (error) {
+      try {
+        transport.close();
+      } catch {
+        // Cleanup must preserve the bridge construction failure.
+      }
+      throw error;
+    }
+  }
+
+  private static async createTypeScript<Kind extends ExecutableFactorKind>(
+    { code, analysisKind, onUserLog }: FactorStartOptions<Kind>,
+    host: FactorBridgeHost,
+  ): Promise<FactorBridge<Kind>> {
+    const userJs = await toCommonJs(code, 'factor code');
+    FactorBridge.bundlePromise ??= buildFactorSandboxBundle().then(
+      (bundle) => bundle.outputFiles[0].text,
+    );
+
+    const bundle = await FactorBridge.bundlePromise;
+    const transport = await TypeScriptTransport.connect({
+      bundle,
+      description: 'factor code',
+      memoryMb: 256,
+      maxFrameBytes: 256 * 1024 * 1024,
+      maxQueuedFrames: Number.MAX_SAFE_INTEGER,
+      commandTimeoutMs: (frame) => (frame.type === 'factor_start' ? 5_000 : 30_000),
+    });
+
+    try {
+      return new this(
+        transport,
+        {
+          startupCommand: { type: 'factor_start', analysis_kind: analysisKind, userJs },
+          analysisKind,
+          diagnostics: { language: 'TypeScript' },
+          onUserLog,
+        },
+        host,
+      );
+    } catch (error) {
+      try {
+        transport.close();
+      } catch {
+        // Cleanup must preserve the bridge construction failure.
+      }
+      throw error;
+    }
+  }
 
   async initialize({ signal }: SandboxBridgeInitializationOptions = {}): Promise<
     FactorRuntimeMetadata<Kind>
@@ -83,7 +174,7 @@ export class FactorBridge<
         }
       : { type: 'factor_compute_series', fields: input.fields, indexes: input.indexes };
 
-    return exchangeSandboxCommand(this.transport, {
+    return this.exchange({
       command,
       schema:
         diagnostics.language === 'Python'
@@ -102,7 +193,7 @@ export class FactorBridge<
     const { analysisKind, startupCommand, diagnostics }: FactorBridgeOptions = this.options;
 
     if (diagnostics.language === 'Python') {
-      const metadata = await exchangeSandboxCommand(this.transport, {
+      const metadata = await this.exchange({
         command: startupCommand,
         schema: factorStartupFrameSchema,
         signal,
@@ -151,7 +242,7 @@ export class FactorBridge<
     }
 
     if (analysisKind === 'cross_sectional') {
-      const metadata = await exchangeSandboxCommand(this.transport, {
+      const metadata = await this.exchange({
         command: startupCommand,
         schema: typeScriptCrossSectionalStartupFrameSchema,
         signal,
@@ -167,7 +258,7 @@ export class FactorBridge<
       };
     }
 
-    const metadata = await exchangeSandboxCommand(this.transport, {
+    const metadata = await this.exchange({
       command: startupCommand,
       schema: typeScriptAssetStartupFrameSchema,
       signal,

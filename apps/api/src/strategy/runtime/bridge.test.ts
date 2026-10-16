@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import type { EngineContext } from '#backtesting/contract.js';
 import type { OhlcBar } from '#backtesting/data/market.js';
 import { StrategyBridge, type StrategyTransport } from './bridge.js';
+import type { StrategyBridgeOptions } from './bridge.js';
+import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
 import type { StrategyBridgeContract } from './contract.js';
 
 const metadata = {
@@ -28,6 +30,9 @@ const history: OhlcBar = {
 function transport(frames: unknown[], historyUpdates = false) {
   const sent: Array<{ type: string; [key: string]: unknown }> = [];
   const session: StrategyTransport = {
+    close: vi.fn(),
+    abort: vi.fn(),
+    isClosed: false,
     async send(frame) {
       sent.push(frame);
     },
@@ -105,6 +110,60 @@ function contextFixture() {
 
 const ready = { type: 'ready', metadata };
 const done = { type: 'done', commands: [] };
+
+describe('Strategy Bridge connection creation', () => {
+  it('defers user source execution until initialize after creating the connection', async () => {
+    const bridge = await StrategyBridge.create({
+      language: 'typescript',
+      code: "throw new Error('user source ran');",
+    });
+
+    try {
+      expect(bridge.isClosed).toBe(false);
+      await expect(bridge.initialize()).rejects.toThrow('user source ran');
+    } finally {
+      bridge.close();
+    }
+  });
+
+  it.each([false, true])(
+    'reclaims a connection and preserves construction errors when cleanup throws: %s',
+    async (cleanupThrows) => {
+      const failure = new Error('bridge construction failed');
+      let opened: StrategyTransport | undefined;
+
+      class BrokenBridge extends StrategyBridge {
+        constructor(transport: StrategyTransport, options: StrategyBridgeOptions) {
+          super(transport, options);
+          opened = transport;
+
+          throw failure;
+        }
+      }
+
+      const closeTransport = TypeScriptTransport.prototype.close;
+      const close = vi.spyOn(TypeScriptTransport.prototype, 'close').mockImplementation(function (
+        this: TypeScriptTransport,
+      ) {
+        closeTransport.call(this);
+        if (cleanupThrows) {
+          throw new Error('cleanup failed');
+        }
+      });
+
+      try {
+        await expect(
+          BrokenBridge.create({ language: 'typescript', code: 'export default {};' }),
+        ).rejects.toBe(failure);
+        expect(close).toHaveBeenCalledOnce();
+        expect(opened?.isClosed).toBe(true);
+      } finally {
+        close.mockRestore();
+        opened?.close();
+      }
+    },
+  );
+});
 
 describe('shared strategy bridge', () => {
   it('passes startup cancellation through the shared Bridge contract before send and after read', async () => {

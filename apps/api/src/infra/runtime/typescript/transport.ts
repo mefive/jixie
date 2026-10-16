@@ -1,7 +1,7 @@
 import ivm from 'isolated-vm';
 import type { z } from 'zod';
 import { UserCodeError } from '#infra/errors.js';
-import type { SandboxFrame, SandboxTransport } from '../exchange.js';
+import type { SandboxFrame, SandboxTransport } from '../transport.js';
 
 const DEFAULT_MAX_FRAME_BYTES = 64 * 1024 * 1024;
 

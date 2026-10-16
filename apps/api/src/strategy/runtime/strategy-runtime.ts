@@ -1,15 +1,10 @@
 import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
-import type { SandboxResource } from '#infra/runtime/sandbox-runtime.js';
 import { StrategyBridge } from './bridge.js';
-import type { StrategyBridgeOptions, StrategyTransport } from './bridge.js';
-import { preparePythonStrategyRuntime } from './python/prepare.js';
-import { prepareTypeScriptStrategyRuntime } from './typescript/prepare.js';
 import type {
   StrategyStartOptions,
   StrategyRuntimeInstance,
   StrategyExecutionInput,
   StrategyRuntimeMetadata,
-  StrategyRuntimePreparation,
   StrategyBridgeContract,
 } from './contract.js';
 
@@ -17,13 +12,9 @@ import type {
 export class StrategyRuntime extends SandboxRuntime<
   StrategyExecutionInput,
   void,
-  StrategyRuntimeMetadata,
-  StrategyTransport & SandboxResource
+  StrategyRuntimeMetadata
 > {
-  private bridgeOptions!: StrategyBridgeOptions;
-  private bridge!: StrategyBridgeContract;
-
-  protected constructor(private readonly options: StrategyStartOptions) {
+  protected constructor(protected readonly options: StrategyStartOptions) {
     super();
   }
 
@@ -34,28 +25,7 @@ export class StrategyRuntime extends SandboxRuntime<
     return runtime;
   }
 
-  protected async createResource(): Promise<StrategyTransport & SandboxResource> {
-    let preparation: StrategyRuntimePreparation;
-    if (this.options.language === 'python') {
-      preparation = preparePythonStrategyRuntime(this.options);
-    } else {
-      preparation = await prepareTypeScriptStrategyRuntime(this.options);
-    }
-    this.bridgeOptions = preparation.bridgeOptions;
-
-    return preparation.createResource();
-  }
-
-  protected async initializeInSandbox(
-    resource: StrategyTransport & SandboxResource,
-    signal?: AbortSignal,
-  ): Promise<StrategyRuntimeMetadata> {
-    this.bridge = new StrategyBridge(resource, this.bridgeOptions);
-
-    return this.bridge.initialize({ signal });
-  }
-
-  protected executeInSandbox(input: StrategyExecutionInput): Promise<void> {
-    return this.bridge.execute(input);
+  protected createBridge(): Promise<StrategyBridgeContract> {
+    return StrategyBridge.create(this.options);
   }
 }

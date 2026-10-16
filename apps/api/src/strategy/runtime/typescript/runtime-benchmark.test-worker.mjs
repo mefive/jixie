@@ -17,16 +17,7 @@ if (!['before', 'shared'].includes(variant)) {
   throw new Error('Select before or shared');
 }
 // Pin the immediate pre-change runtime with the same public account contract as this fixture.
-const beforeCommit = '5b92107fd9c2070b7e62315e366d05dfcd96a36c';
-const sandboxDirectory = fileURLToPath(new URL('./', import.meta.url));
-const bundledEntry = (entry) => `
-  import { build } from 'esbuild';
-  const buildStrategySandboxBundle = () => build({
-    stdin: { contents: ${JSON.stringify(entry)}, loader: 'ts', resolveDir: ${JSON.stringify(sandboxDirectory)} },
-    bundle: true, write: false, format: 'iife', platform: 'neutral', conditions: ['development'],
-    target: 'es2022', mainFields: ['module', 'main']
-  });
-`;
+const beforeCommit = '2c58693b0768688014fce59efe65e3b794445f2d';
 const scenario = process.argv[3] ?? 'watch';
 if (!['watch', 'dynamic'].includes(scenario)) {
   throw new Error('Select watch or dynamic');
@@ -70,48 +61,55 @@ try {
   let createRuntime = (code) => startInstrumentedStrategyRuntime({ language: 'typescript', code });
   if (variant === 'before') {
     directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
-    const bridgePath = join(directory, 'bridge.mjs');
-    const runtimePath = join(directory, 'runtime.mjs');
+    const modules = new Map([
+      ['src/infra/runtime/exchange.ts', join(directory, 'exchange.mjs')],
+      ['src/infra/runtime/sandbox-runtime.ts', join(directory, 'sandbox-runtime.mjs')],
+      ['src/strategy/runtime/bridge.ts', join(directory, 'bridge.mjs')],
+      ['src/strategy/runtime/strategy-runtime.ts', join(directory, 'runtime.mjs')],
+      ['src/strategy/runtime/python/prepare.ts', join(directory, 'python-prepare.mjs')],
+      ['src/strategy/runtime/typescript/prepare.ts', join(directory, 'typescript-prepare.mjs')],
+      [
+        'src/strategy/runtime/typescript/testing/runtime.ts',
+        join(directory, 'instrumentation.mjs'),
+      ],
+    ]);
     const historicalSource = (repositoryPath) =>
       execFileSync('git', ['show', `${beforeCommit}:${repositoryPath}`], {
         cwd: apiDirectory,
         encoding: 'utf8',
       });
-    const entry = historicalSource('apps/api/src/strategy/runtime/typescript/sandbox-entry.ts');
 
-    for (const [relative, output] of [
-      ['../bridge.ts', bridgePath],
-      ['./typescript-strategy-runtime.ts', runtimePath],
-    ]) {
-      const original = new URL(relative, import.meta.url);
-      const repositoryPath = relativePath(apiDirectory, fileURLToPath(original));
-      let source = historicalSource(`apps/api/${repositoryPath}`).replace(
-        /from '([.][^']+)'/g,
-        (_match, specifier) => {
-          const target =
-            specifier === '../bridge.js'
-              ? pathToFileURL(bridgePath)
-              : new URL(specifier.replace(/\.js$/, '.ts'), original);
+    for (const [repositoryPath, output] of modules) {
+      const original = pathToFileURL(join(apiDirectory, repositoryPath));
+      const source = historicalSource(`apps/api/${repositoryPath}`).replace(
+        /from '([^']+)'/g,
+        (match, specifier) => {
+          let target;
+          const internalModule = specifier.startsWith('#')
+            ? modules.get(`src/${specifier.slice(1).replace(/\.js$/, '.ts')}`)
+            : undefined;
+          if (internalModule) {
+            target = pathToFileURL(internalModule);
+          } else if (specifier.startsWith('.')) {
+            const current = new URL(specifier.replace(/\.js$/, '.ts'), original);
+            const historical = modules.get(relativePath(apiDirectory, fileURLToPath(current)));
+            target = historical ? pathToFileURL(historical) : current;
+          } else {
+            return match;
+          }
+
           return `from ${JSON.stringify(target.href)}`;
         },
       );
-      if (output === runtimePath) {
-        const bundleImport = `import { buildStrategySandboxBundle } from ${JSON.stringify(new URL('./sandbox-bundle.ts', original).href)};`;
-        if (!source.includes(bundleImport)) {
-          throw new Error('Historical bundle import drift');
-        }
-        source = source.replace(bundleImport, bundledEntry(entry));
-      }
       await writeFile(
         output,
         (await transform(source, { loader: 'ts', format: 'esm', target: 'es2022' })).code,
       );
     }
-    const { TypeScriptStrategyRuntime } = await import(pathToFileURL(runtimePath).href);
-    createRuntime = async (code) => {
-      const runtime = await TypeScriptStrategyRuntime.start({ language: 'typescript', code });
-      return { runtime, metrics: runtime.metrics };
-    };
+    const { startInstrumentedStrategyRuntime: startBeforeRuntime } = await import(
+      pathToFileURL(modules.get('src/strategy/runtime/typescript/testing/runtime.ts')).href
+    );
+    createRuntime = (code) => startBeforeRuntime({ language: 'typescript', code });
   }
 
   const samples = [];

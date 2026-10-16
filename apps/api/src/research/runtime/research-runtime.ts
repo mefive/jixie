@@ -1,5 +1,4 @@
 import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
-import { PythonSession } from '#infra/runtime/python/session.js';
 import { ResearchPythonInterruptionError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import type { ResearchPythonAnalysis } from './host/analysis-types.js';
@@ -18,11 +17,9 @@ export class ResearchRuntime extends SandboxRuntime<
   ResearchExecutionInput,
   ResearchExecution,
   ResearchRuntimeMetadata,
-  PythonSession,
-  ResearchExecutionOptions
+  ResearchExecutionOptions,
+  ResearchBridgeContract
 > {
-  private bridge!: ResearchBridgeContract;
-
   activeCellId?: string;
   interrupted = false;
 
@@ -37,17 +34,8 @@ export class ResearchRuntime extends SandboxRuntime<
     return runtime;
   }
 
-  protected createResource(signal?: AbortSignal): Promise<PythonSession> {
-    return PythonSession.connect(signal);
-  }
-
-  protected async initializeInSandbox(
-    session: PythonSession,
-    signal?: AbortSignal,
-  ): Promise<ResearchRuntimeMetadata> {
-    this.bridge = new ResearchBridge(session, { documentId: this.documentId }, this);
-
-    return this.bridge.initialize({ signal });
+  protected createBridge(signal?: AbortSignal): Promise<ResearchBridgeContract> {
+    return ResearchBridge.create({ documentId: this.documentId, signal }, this);
   }
 
   async analyze(cells: ResearchCellInput[]): Promise<ResearchPythonAnalysis[]> {

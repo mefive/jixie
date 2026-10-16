@@ -1,5 +1,7 @@
 import type { z } from 'zod';
-import { exchangeSandboxCommand, type SandboxTransport } from '#infra/runtime/exchange.js';
+import { SandboxBridgeBase } from '#infra/runtime/sandbox-bridge-base.js';
+import { PythonSession } from '#infra/runtime/python/session.js';
+import type { SandboxTransport } from '#infra/runtime/transport.js';
 import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
@@ -20,6 +22,7 @@ import type {
   ResearchExecutionOptions,
   ResearchExecution,
   ResearchRuntimeMetadata,
+  ResearchStartOptions,
 } from './contract.js';
 
 const MAX_RESEARCH_RUNTIME_OUTPUT_BYTES = 8 * 1024 * 1024;
@@ -42,20 +45,40 @@ export interface ResearchBridgeOptions {
   documentId: string;
 }
 
-/** Owns research protocol state; the runtime owns resources and interruption handling. */
-export class ResearchBridge implements ResearchBridgeContract {
+/** Owns the research protocol connection; the runtime handles business interruption. */
+export class ResearchBridge extends SandboxBridgeBase implements ResearchBridgeContract {
   private metadata!: ResearchRuntimeMetadata;
 
   constructor(
-    private readonly transport: SandboxTransport,
+    transport: SandboxTransport,
     private readonly options: ResearchBridgeOptions,
     private readonly host: ResearchBridgeHost,
-  ) {}
+  ) {
+    super(transport);
+  }
+
+  static async create(
+    { documentId, signal }: ResearchStartOptions,
+    host: ResearchBridgeHost,
+  ): Promise<ResearchBridge> {
+    const transport = await PythonSession.connect(signal);
+
+    try {
+      return new this(transport, { documentId }, host);
+    } catch (error) {
+      try {
+        transport.close();
+      } catch {
+        // Cleanup must preserve the bridge construction failure.
+      }
+      throw error;
+    }
+  }
 
   async initialize({
     signal,
   }: SandboxBridgeInitializationOptions = {}): Promise<ResearchRuntimeMetadata> {
-    const ready = await exchangeSandboxCommand(this.transport, {
+    const ready = await this.exchange({
       command: {
         type: 'research_start',
         runtime_version: 'research-py-v1',
@@ -79,7 +102,7 @@ export class ResearchBridge implements ResearchBridgeContract {
   }
 
   async analyze(cells: ResearchCellInput[]): Promise<ResearchPythonAnalysis[]> {
-    const frame = await exchangeSandboxCommand(this.transport, {
+    const frame = await this.exchange({
       command: {
         type: 'research_analyze',
         cells: cells.map((cell) => ({ id: cell.id, source: cell.source })),
@@ -151,7 +174,7 @@ export class ResearchBridge implements ResearchBridgeContract {
 
     const logs: ResearchExecutionLogs = { outputs: [], bytes: 0 };
 
-    return exchangeSandboxCommand(this.transport, {
+    return this.exchange({
       command: {
         type: 'research_execute',
         cell_id: cell.id,
@@ -169,7 +192,7 @@ export class ResearchBridge implements ResearchBridgeContract {
   }
 
   async reset(): Promise<void> {
-    await exchangeSandboxCommand(this.transport, {
+    await this.exchange({
       command: { type: 'research_reset' },
       schema: researchResetFrameSchema,
       operation: 'resetting the research runtime',

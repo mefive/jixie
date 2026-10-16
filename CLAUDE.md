@@ -87,8 +87,8 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - Engine 的 `EngineStrategy` / `EngineContext` 是内部模拟契约，不作为公开 SDK 继承来源。
   Strategy runtime 负责桥接；Engine 不加载用户源码或选择语言。Python SDK 的实现归
   `apps/api/src/strategy/sdk/python.py`，协议执行归 `apps/api/src/strategy/runtime/python/runner.py`，sandboxd 的通用 runner 只启动/分派。
-- Strategy 宿主生命周期统一由 `runtime/strategy-runtime.ts` 的 StrategyRuntime 持有；两种语言的 `prepare.ts`
-  只准备启动配置和资源工厂。沙箱源码加载与协议归 `runner.ts` / `runner.py`，基础能力适配、缓存与
+- Strategy 宿主生命周期统一由 `runtime/strategy-runtime.ts` 的 StrategyRuntime 持有；业务 Bridge.create
+  内部选择语言、准备启动配置并创建 Transport。沙箱源码加载与协议归 `runner.ts` / `runner.py`，基础能力适配、缓存与
   宿主访问归 `adapter.ts` / `adapter.py`；作者 SDK 接收基础能力，不反向导入 runtime。
 - 沙箱镜像以仓库根目录为构建上下文，`.dockerignore` 只允许显式 Python 输入。Strategy Python 源码
   同时影响 API 与 sandboxd；变更这些路径时保持部署清单和计划测试同步。
@@ -107,8 +107,8 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   类型继续独立兼容，不能用旧 TS 字段名污染 Python 的 snake_case 契约。
 - TS/Python 作者接口实现归 `apps/api/src/factor/sdk`；Python 源码加载、协议和返回值校验归
   `factor/runtime/python/runner.py`。SDK 不反向依赖 runtime；sandboxd 只分派并打包业务模块，Python 源码同时影响 API/sandboxd。
-- Factor 宿主生命周期统一由 `runtime/factor-runtime.ts` 的 FactorRuntime 持有；两种语言 `prepare.ts`
-  只准备启动配置和资源工厂，共享 `bridge.ts` 负责协议、字段映射及结果检查，`metadata.ts` 保留各语言校验。
+- Factor 宿主生命周期统一由 `runtime/factor-runtime.ts` 的 FactorRuntime 持有；共享 `bridge.ts` 的
+  Bridge.create 内部选择语言、准备启动配置并创建 Transport，同时负责协议、字段映射及结果检查，`metadata.ts` 保留各语言校验。
   TS 外围通信归 `entry.ts`，源码加载、会话状态及回调归 `runner.ts` 的 FactorRunner；与 Strategy 使用相同
   文件职责和类型后缀；Python 同样使用 FactorRunner，run_factor 只启动并接入 handler，外围读帧循环归
   sandboxd 通用入口。Factor 种类仍关联不同输入与 metadata，不统一作者计算语义。
@@ -122,16 +122,22 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   SDK 自有 Capabilities；SDK Context 保留公开方法与校验，不持有传输 DTO 或导入 runtime。
 
 - Factor、Strategy、Research 宿主 Runtime 的 static start 统一按创建实例 → 等待基类 initialize → 返回排列。
-  SandboxRuntime 通过子类 createResource/initializeInSandbox 管理启动状态、资源和失败/取消清理；
-  语言 prepare 与资源获取在 createResource 内连续完成，prepare 本身仍只返回配置和资源工厂。
+  SandboxRuntime 通过子类 createBridge 调用对应业务 Bridge.create，并统一调用 bridge.initialize 管理启动状态与失败/取消清理；
+  语言选择、源码准备、Transport 获取和构造均在业务 Bridge.create 内完成；Runtime 不导入语言实现或选择语言。
+  Factor/Strategy 的 createPython/createTypeScript 为 Bridge 私有静态方法，编译/bundle 仍复用技术辅助，旧 prepare 文件和 Preparation 配方类型移除。
   成功握手后发布只读 metadata，未 ready 不可执行；成功实例关闭后 metadata 仍可读取。
+  SandboxTransport 统一约束 send/readValidated、close/abort/isClosed；不再另建 SandboxResource。
+  Runtime 只持有 Bridge，Bridge 独占 Transport；Runtime 决定业务关闭时机并调用 Bridge，具体 Transport 实现底层回收。
+  Bridge.create 返回前构造失败由其内部回收 Transport；返回后包括晚到 Bridge 均由 Runtime 清理。
 - 三业务宿主 Bridge 统一为各自 runtime/bridge.ts 中的类，构造函数接收传输、配置和稳定宿主能力；
   initialize 负责握手并返回 metadata，execute 负责业务协议，Research 另有 analyze/reset。
-  会话协议状态归 Bridge 实例，单次执行日志归局部变量；资源、取消和关闭状态归 Runtime，
-  Bridge 不直接释放传输。公共命令循环继续复用 exchange，无状态映射和服务分派保留具名函数。
+  会话协议状态归 Bridge 实例，单次执行日志归局部变量；业务状态和取消监听归 Runtime。
+  三类统一继承 infra/runtime/sandbox-bridge-base.ts 的 SandboxBridgeBase，基类持有 Transport，
+  提供 close/abort/isClosed 并以 protected exchange 复用消息循环；帧/Transport 契约归 transport.ts。
+  并发保护按 Transport 跨 Bridge 生效并覆盖终止帧业务处理，无状态映射和服务分派保留具名函数。
   公共方法由 infra/runtime/sandbox-bridge.ts 的 SandboxBridge 约束：initialize({ signal? })
-  返回 metadata，execute 使用本业务 ExecutionInput 和执行选项；类显式 implements，Runtime
-  字段依赖业务 BridgeContract。Research 的 analyze/reset 归扩展契约，不要求其他业务实现。
+  返回 metadata，execute 使用本业务 ExecutionInput 和执行选项，同时约束 close/abort/isClosed；类显式 implements，
+  Runtime 字段依赖业务 BridgeContract。Research 的 analyze/reset 归扩展契约，不要求其他业务实现。
 
 ## Research Python Runtime Contract 工作流
 

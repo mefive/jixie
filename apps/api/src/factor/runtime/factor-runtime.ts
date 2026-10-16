@@ -1,16 +1,11 @@
 import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
-import type { SandboxResource } from '#infra/runtime/sandbox-runtime.js';
 import { FactorBridge } from './bridge.js';
-import type { FactorBridgeOptions, FactorTransport } from './bridge.js';
-import { preparePythonFactorRuntime } from './python/prepare.js';
-import { prepareTypeScriptFactorRuntime } from './typescript/prepare.js';
 import type {
   ExecutableFactorKind,
   FactorStartOptions,
   FactorRuntimeInstance,
   FactorExecutionInput,
   FactorRuntimeMetadata,
-  FactorRuntimePreparation,
   FactorValues,
   FactorBridgeContract,
 } from './contract.js';
@@ -19,12 +14,8 @@ import type {
 export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRuntime<
   FactorExecutionInput<Kind>,
   FactorValues,
-  FactorRuntimeMetadata<Kind>,
-  FactorTransport & SandboxResource
+  FactorRuntimeMetadata<Kind>
 > {
-  private bridgeOptions!: FactorBridgeOptions<Kind>;
-  private bridge!: FactorBridgeContract<Kind>;
-
   private constructor(private readonly options: FactorStartOptions<Kind>) {
     super();
   }
@@ -52,28 +43,7 @@ export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRun
     return runtime;
   }
 
-  protected async createResource(): Promise<FactorTransport & SandboxResource> {
-    let preparation: FactorRuntimePreparation<Kind>;
-    if (this.options.language === 'python') {
-      preparation = preparePythonFactorRuntime(this.options);
-    } else {
-      preparation = await prepareTypeScriptFactorRuntime(this.options);
-    }
-    this.bridgeOptions = preparation.bridgeOptions;
-
-    return preparation.createResource();
-  }
-
-  protected async initializeInSandbox(
-    resource: FactorTransport & SandboxResource,
-    signal?: AbortSignal,
-  ): Promise<FactorRuntimeMetadata<Kind>> {
-    this.bridge = new FactorBridge(resource, this.bridgeOptions, this);
-
-    return this.bridge.initialize({ signal });
-  }
-
-  protected executeInSandbox(input: FactorExecutionInput<Kind>): Promise<FactorValues> {
-    return this.bridge.execute(input);
+  protected createBridge(): Promise<FactorBridgeContract<Kind>> {
+    return FactorBridge.create(this.options, this);
   }
 }

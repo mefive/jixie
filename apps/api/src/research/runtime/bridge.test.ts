@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SandboxTransport } from '#infra/runtime/exchange.js';
+import type { SandboxTransport } from '#infra/runtime/transport.js';
 import { MAX_LOG_CHARACTERS } from '#infra/runtime/protocol.js';
 import { ResearchPythonExecutionError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
@@ -33,6 +33,9 @@ const request = {
 function fixture(...frames: unknown[]) {
   const transport: SandboxTransport = {
     send: vi.fn(async () => {}),
+    close: vi.fn(),
+    abort: vi.fn(),
+    isClosed: false,
     async readValidated<Frame>(schema: z.ZodType<Frame>) {
       if (!frames.length) {
         throw new Error('Fixture exhausted before the research bridge completed');

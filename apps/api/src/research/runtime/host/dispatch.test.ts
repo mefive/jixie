@@ -7,8 +7,16 @@ vi.mock('../../datasets/results/factor-report.js', () => ({
   loadResearchFactorReportResult: loadReport,
 }));
 import { dispatchResearchRequest } from './dispatch.js';
-import { exchangeSandboxCommand } from '#infra/runtime/exchange.js';
+import { SandboxBridgeBase, type SandboxExchange } from '#infra/runtime/sandbox-bridge-base.js';
 import { researchExecutionFrameSchema } from './protocol.js';
+
+class BridgeFixture extends SandboxBridgeBase {
+  override exchange<Frame extends { type: string }, Result>(
+    exchange: SandboxExchange<Frame, Result>,
+  ): Promise<Result> {
+    return super.exchange(exchange);
+  }
+}
 
 const executed = { type: 'research_executed', outputs: [], definitions: [], references: [] };
 
@@ -118,28 +126,30 @@ describe('Research SDK request dispatch boundary', () => {
         events.push(frame.type);
       }),
     };
-    await exchangeSandboxCommand(
-      {
-        ...transport,
-        readValidated: async (schema) => schema.parse(frames.shift()),
-      },
-      {
-        command: { type: 'research_execute' },
-        schema: researchExecutionFrameSchema,
-        operation: 'testing Research evidence delivery',
-        onRequest: (frame) =>
-          dispatchResearchRequest('document', frame, {
-            async beforeRequest() {
-              events.push('request');
-            },
-            async captureResponse(_frame, response) {
-              events.push('capture');
-              expect(response).toEqual({ result: { report: { value: 42 } } });
-            },
-          }),
-        result: () => undefined,
-      },
-    );
+    const bridge = new BridgeFixture({
+      ...transport,
+      readValidated: async (schema) => schema.parse(frames.shift()),
+      close: vi.fn(),
+      abort: vi.fn(),
+      isClosed: false,
+    });
+
+    await bridge.exchange({
+      command: { type: 'research_execute' },
+      schema: researchExecutionFrameSchema,
+      operation: 'testing Research evidence delivery',
+      onRequest: (frame) =>
+        dispatchResearchRequest('document', frame, {
+          async beforeRequest() {
+            events.push('request');
+          },
+          async captureResponse(_frame, response) {
+            events.push('capture');
+            expect(response).toEqual({ result: { report: { value: 42 } } });
+          },
+        }),
+      result: () => undefined,
+    });
     expect(events).toEqual(['research_execute', 'request', 'load', 'capture', 'response']);
   });
 
@@ -156,22 +166,25 @@ describe('Research SDK request dispatch boundary', () => {
       executed,
     ];
     await expect(
-      exchangeSandboxCommand(
-        { send, readValidated: async (schema) => schema.parse(frames.shift()) },
-        {
-          command: { type: 'research_execute' },
-          schema: researchExecutionFrameSchema,
-          operation: 'testing Research evidence failure',
-          onRequest: (frame) =>
-            dispatchResearchRequest('document', frame, {
-              beforeRequest: async () => {},
-              captureResponse: async () => {
-                throw new Error('Evidence storage failed');
-              },
-            }),
-          result: () => undefined,
-        },
-      ),
+      new BridgeFixture({
+        send,
+        readValidated: async (schema) => schema.parse(frames.shift()),
+        close: vi.fn(),
+        abort: vi.fn(),
+        isClosed: false,
+      }).exchange({
+        command: { type: 'research_execute' },
+        schema: researchExecutionFrameSchema,
+        operation: 'testing Research evidence failure',
+        onRequest: (frame) =>
+          dispatchResearchRequest('document', frame, {
+            beforeRequest: async () => {},
+            captureResponse: async () => {
+              throw new Error('Evidence storage failed');
+            },
+          }),
+        result: () => undefined,
+      }),
     ).rejects.toThrow('Evidence storage failed');
     expect(send).toHaveBeenCalledExactlyOnceWith({ type: 'research_execute' });
   });

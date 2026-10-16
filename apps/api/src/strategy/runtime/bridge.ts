@@ -1,17 +1,19 @@
-import {
-  exchangeSandboxCommand,
-  type SandboxFrame,
-  type SandboxTransport,
-} from '#infra/runtime/exchange.js';
+import { SandboxBridgeBase } from '#infra/runtime/sandbox-bridge-base.js';
+import { TypeScriptTransport } from '#infra/runtime/typescript/transport.js';
+import { PythonSession } from '#infra/runtime/python/session.js';
+import { toCommonJs } from '#infra/runtime/typescript/compile.js';
+import type { SandboxFrame, SandboxTransport } from '#infra/runtime/transport.js';
 import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type {
   StrategyBridgeContract,
+  StrategyStartOptions,
   StrategyExecutionInput,
   StrategyRuntimeMetadata,
 } from './contract.js';
 import { replayCommands } from './commands.js';
 import { accessStrategyContext } from './context-access.js';
+import { buildStrategySandboxBundle } from './typescript/sandbox-bundle.js';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { EngineContext } from '#backtesting/contract.js';
 import type { BarRow, OhlcBar } from '#backtesting/data/market.js';
@@ -41,25 +43,117 @@ export interface StrategyBridgeOptions {
   locale?: Locale;
 }
 
-/** Owns strategy protocol state across callbacks; the runtime owns resource shutdown. */
-export class StrategyBridge implements StrategyBridgeContract {
+/** Owns the strategy protocol connection and state across callbacks. */
+export class StrategyBridge
+  extends SandboxBridgeBase<StrategyTransport>
+  implements StrategyBridgeContract
+{
+  private static bundlePromise?: Promise<string>;
+
   private factors!: string[];
   private watch!: string[];
   private historyDates?: Map<string, string | null>;
   private readonly sandboxConsole?: ReturnType<typeof makeSandboxConsole>;
 
   constructor(
-    private readonly transport: StrategyTransport,
+    transport: StrategyTransport,
     private readonly options: StrategyBridgeOptions,
   ) {
+    super(transport);
+
     const { onUserLog, locale = DEFAULT_LOCALE } = options;
     this.sandboxConsole = onUserLog ? makeSandboxConsole(onUserLog, 2_000, locale) : undefined;
+  }
+
+  static create(options: StrategyStartOptions): Promise<StrategyBridge> {
+    switch (options.language) {
+      case 'python':
+        return this.createPython(options);
+      case 'typescript':
+        return this.createTypeScript(options);
+    }
+  }
+
+  private static async createPython({
+    code,
+    onUserLog,
+    paramOverrides,
+    locale,
+  }: StrategyStartOptions): Promise<StrategyBridge> {
+    const transport = await PythonSession.connect();
+
+    try {
+      return new this(transport, {
+        startupCommand: {
+          type: 'start',
+          runtime_version: 'py-v1',
+          code,
+          param_overrides: paramOverrides ?? {},
+        },
+        diagnostics: { language: 'Python', callback: 'on_bar' },
+        onUserLog,
+        locale,
+      });
+    } catch (error) {
+      try {
+        transport.close();
+      } catch {
+        // Cleanup must preserve the bridge construction failure.
+      }
+      throw error;
+    }
+  }
+
+  private static async createTypeScript({
+    code,
+    onUserLog,
+    paramOverrides,
+    locale = DEFAULT_LOCALE,
+  }: StrategyStartOptions): Promise<StrategyBridge> {
+    const userJs = await toCommonJs(code, 'strategy code');
+    StrategyBridge.bundlePromise ??= buildStrategySandboxBundle().then(
+      (bundle) => bundle.outputFiles[0].text,
+    );
+
+    const bundle = await StrategyBridge.bundlePromise;
+    const deadline = Date.now() + 3_600_000;
+    const transport = await TypeScriptTransport.connect({
+      bundle,
+      description: 'strategy code',
+      memoryMb: 1024,
+      allowHostAccess: true,
+      commandTimeoutMs: (frame) =>
+        frame.type === 'start' ? 5_000 : Math.max(1, deadline - Date.now()),
+    });
+
+    try {
+      return new this(transport, {
+        startupCommand: {
+          type: 'start',
+          userJs,
+          paramOverrides,
+          locale,
+          captureUserLogs: onUserLog != null,
+        },
+        historyUpdates: true,
+        diagnostics: { language: 'TypeScript', callback: 'onBar' },
+        onUserLog,
+        locale,
+      });
+    } catch (error) {
+      try {
+        transport.close();
+      } catch {
+        // Cleanup must preserve the bridge construction failure.
+      }
+      throw error;
+    }
   }
 
   async initialize({
     signal,
   }: SandboxBridgeInitializationOptions = {}): Promise<StrategyRuntimeMetadata> {
-    const metadata = await exchangeSandboxCommand(this.transport, {
+    const metadata = await this.exchange({
       command: this.options.startupCommand,
       schema: strategyStartupFrameSchema,
       signal,
@@ -86,7 +180,7 @@ export class StrategyBridge implements StrategyBridgeContract {
   async execute({ context }: StrategyExecutionInput): Promise<void> {
     this.transport.setHostAccess?.((input) => accessStrategyContext(context, input));
     try {
-      const commands = await exchangeSandboxCommand(this.transport, {
+      const commands = await this.exchange({
         command: { type: 'bar', snapshot: this.contextSnapshot(context) },
         schema: strategyExecutionFrameSchema,
         operation: `executing a ${this.options.diagnostics.language} strategy ${this.options.diagnostics.callback}`,

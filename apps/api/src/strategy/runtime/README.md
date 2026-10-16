@@ -1,25 +1,25 @@
 # Strategy 宿主运行入口
 
-[StrategyRuntime.start](strategy-runtime.ts) 接收 `{ language, code, onUserLog?, paramOverrides?, locale? }`，统一返回 `Promise<StrategyRuntimeInstance>`，提供 metadata、execute({ context })、同步幂等 close；宿主契约在 [contract.ts](contract.ts)。StrategyRuntime 是唯一持有策略沙箱资源的宿主类，直接继承公共 SandboxRuntime，统一建立 bridge、交接资源和失败清理。
+[StrategyRuntime.start](strategy-runtime.ts) 接收 `{ language, code, onUserLog?, paramOverrides?, locale? }`，统一返回 `Promise<StrategyRuntimeInstance>`，提供 metadata、execute({ context })、同步幂等 close；宿主契约在 [contract.ts](contract.ts)。StrategyRuntime 直接继承公共 SandboxRuntime，通过 createBridge 调用 StrategyBridge.create 并持有策略 Bridge；Bridge 独占 Transport，关闭链为 Runtime → Bridge → Transport。
 
 ## 按同一条路径阅读两种语言
 
 | 职责 | TypeScript | Python |
 | --- | --- | --- |
-| 语言启动准备，不获取资源 | [typescript/prepare.ts](typescript/prepare.ts) | [python/prepare.ts](python/prepare.ts) |
-| 宿主获取资源、建立 bridge、执行与关闭 | [strategy-runtime.ts](strategy-runtime.ts) | 同一实现 |
+| 语言选择、源码准备和连接建立 | [StrategyBridge.create / createTypeScript](bridge.ts) | [StrategyBridge.create / createPython](bridge.ts) |
+| 宿主业务状态、Bridge 创建入口、执行与关闭 | [strategy-runtime.ts](strategy-runtime.ts) | 同一实现 |
 | 沙箱外围接入 | [typescript/entry.ts](typescript/entry.ts) | [通用 jixie_runner.py](../../../../sandboxd/python/jixie_runner.py) |
 | 沙箱源码加载、元数据、协议分派与用户回调 | [typescript/runner.ts](typescript/runner.ts) | [python/runner.py](python/runner.py) |
 | 沙箱基础能力适配、快照、缓存与宿主访问 | [typescript/adapter.ts](typescript/adapter.ts) | [python/adapter.py](python/adapter.py) |
 | 作者声明、公开 Context、选股、周期、指标与仓位辅助 | [SDK typescript.ts](../sdk/typescript.ts) | [SDK python.py](../sdk/python.py) |
 
-阅读顺序是 StrategyRuntime → prepare → bridge → runner → adapter → SDK → 用户回调。两个语言目录中的 prepare.ts 都在宿主执行；runner/adapter 在各自沙箱执行。TS 另需 [sandbox-bundle.ts](typescript/sandbox-bundle.ts) 从 entry.ts 打包可信 runner、adapter 与 SDK；Python 模块由镜像逐项复制。
+阅读顺序是 StrategyRuntime → StrategyBridge.create → initialize/execute → Transport → runner → adapter → SDK → 用户回调。语言选择、源码准备和连接建立都在宿主 Bridge 中；runner/adapter 在各自沙箱执行。TS 复用 [sandbox-bundle.ts](typescript/sandbox-bundle.ts) 从 entry.ts 打包可信 runner、adapter 与 SDK；Python 模块由镜像逐项复制。
 
 公共返回类型不暴露语言专属诊断。metrics 归 TypeScriptTransport；隔离测试和性能工具通过 [testing/runtime.ts](typescript/testing/runtime.ts) 装配同一 StrategyRuntime 并单独获取 transport 指标，生产代码不导入测试设施，Python 不增加无业务意义的 metrics。
 
 策略资源装配与 Engine 调用归 [StrategyExecution](../execution/execution.ts)，由回测、扫描和 Signals 创建执行对象，并负责关闭外部资源。本目录只负责策略 runtime 和协议，不规划完整业务流程。
 
-[bridge.ts](bridge.ts) 的 StrategyBridge 统一启动协议、bar 快照、宿主查询、历史同步和命令重放。Runtime 构造实例后调用 initialize({ signal }) 返回 metadata，execute({ context }) 使用既有 StrategyExecutionInput 处理一轮回调；类显式实现 [contract.ts](contract.ts) 的 StrategyBridgeContract，Runtime 字段依赖该契约，共同方法由 Infra SandboxBridge 约束。日志预算与历史同步日期归 Bridge 实例，当前 EngineContext 只绑定本次执行，并在 finally 解除同步宿主访问。底层 TypeScriptTransport 与 PythonSession 实现同一 send/readValidated 契约。Engine 的生产 onBar 适配只在 execution/execution.ts。
+[bridge.ts](bridge.ts) 的 StrategyBridge 统一启动协议、bar 快照、宿主查询、历史同步和命令重放。Runtime.createBridge 仅调用 StrategyBridge.create，后者内部完成语言选择、源码准备、Transport 连接与 Bridge 构造，基类调用 initialize({ signal }) 返回 metadata，execute({ context }) 使用既有 StrategyExecutionInput 处理一轮回调；类显式实现 [contract.ts](contract.ts) 的 StrategyBridgeContract，Runtime 字段依赖该契约，共同方法由 Infra SandboxBridge 接口约束；类继承 [SandboxBridgeBase](../../infra/runtime/sandbox-bridge-base.ts)，消息循环归继承的 protected exchange。日志预算与历史同步日期归 Bridge 实例，当前 EngineContext 只绑定本次执行，并在 finally 解除同步宿主访问。Bridge 独占 Transport 并继承 close/abort/isClosed；底层 TypeScriptTransport 与 PythonSession 实现同一通信和回收契约。Engine 的生产 onBar 适配只在 execution/execution.ts。
 
 结构对应不改变现有语言行为：TS 使用受限同步宿主访问与增量历史缓存；Python 保留阻塞 request/response、按需历史加载和回调结束后命令重放。SDK 只接收注入的基础能力，不反向导入 runtime。两种作者 SDK 的既有命名、指标公式和产品准入保持。
 
