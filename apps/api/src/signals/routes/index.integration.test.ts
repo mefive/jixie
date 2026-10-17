@@ -27,7 +27,7 @@ vi.mock('#infra/database/prisma.js', async () => {
   writeFileSync(database, '');
   return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
 });
-vi.mock('#strategy/runtime/inspect-definition.js', () => ({
+vi.mock('#strategy/sandbox/inspect-definition.js', () => ({
   inspectStrategyMetadata: resources.metadata,
 }));
 vi.mock('../factor-inputs/rates.js', () => ({

@@ -12,7 +12,7 @@ import { backtestSummarySchema, backtestResultSchema } from '#strategy/backtests
 import { backtestWorkerMessageSchema } from '#strategy/backtests/worker-protocol.js';
 import { strategyScanPayloadSchema } from '#strategy/scans/result-schema.js';
 import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
-import { factorAnalysisWorkerMessageSchema } from '#factor/execution/worker-protocol.js';
+import { factorAnalysisWorkerMessageSchema } from '#factor/analysis/worker-protocol.js';
 import { factorCorrelationWorkerMessageSchema } from '#factor/correlations/worker-protocol.js';
 import { signalWorkerMessageSchema } from '#signals/runs/worker-protocol.js';
 import {

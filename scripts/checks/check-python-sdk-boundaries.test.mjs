@@ -34,11 +34,11 @@ print(json.dumps(checker.inspect_sdk_dependencies(sys.argv[2], sys.argv[3])))
 test('rejects absolute and relative SDK imports of runtime and engine implementations', () => {
   assert.deepEqual(
     inspect(
-      'from ..runtime.adapter import Adapter\nfrom backtesting.context import Context',
+      'from ..sandbox.adapter import Adapter\nfrom backtesting.context import Context',
       'factor.sdk.python',
     ),
     [
-      [1, 'factor.runtime.adapter'],
+      [1, 'factor.sandbox.adapter'],
       [2, 'backtesting.context'],
     ],
   );
@@ -57,11 +57,11 @@ test('permits SDK capabilities and third-party numerical helpers without executi
 test('checks imports inside functions and type-checking branches', () => {
   assert.deepEqual(
     inspect(
-      'if TYPE_CHECKING:\n    from strategy.runtime.adapter import Adapter\ndef execute():\n    import infra.database',
+      'if TYPE_CHECKING:\n    from strategy.sandbox.adapter import Adapter\ndef execute():\n    import infra.database',
       'strategy.sdk.python',
     ),
     [
-      [2, 'strategy.runtime.adapter'],
+      [2, 'strategy.sandbox.adapter'],
       [4, 'infra.database'],
     ],
   );
@@ -70,12 +70,21 @@ test('checks imports inside functions and type-checking branches', () => {
 test('rejects dynamic runtime imports and undeclared dynamic dependencies', () => {
   assert.deepEqual(
     inspect(
-      '__import__("factor.runtime.runner")\nimportlib.import_module(target)',
+      '__import__("factor.sandbox.runner")\nimportlib.import_module(target)',
       'factor.sdk.python',
     ),
     [
-      [1, 'factor.runtime.runner'],
+      [1, 'factor.sandbox.runner'],
       [2, '<dynamic import>'],
     ],
   );
+});
+
+test('rejects both legacy runtime and sandbox imports outside the declared SDK namespace', () => {
+  for (const directory of ['runtime', 'sandbox']) {
+    assert.deepEqual(
+      inspect(`from helpers.${directory} import adapter`, 'research.sdk.python.data'),
+      [[1, `helpers.${directory}`]],
+    );
+  }
 });

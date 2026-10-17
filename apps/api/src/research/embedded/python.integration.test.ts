@@ -1,4 +1,4 @@
-import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
+import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { quantile, std } from '#math/stats.js';
 import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
 import { execFileSync } from 'node:child_process';
@@ -31,7 +31,7 @@ import { runResearchDocument } from '../document-runs/run-document.js';
 import { getResearchDocument } from '../documents/read.js';
 import { getResearchExecution } from '../evidence/execution-records.js';
 
-import { replayResearchInput } from '../runtime/host/input-replay.js';
+import { replayResearchInput } from '../evidence/input-replay.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { captureEmbeddedContext } from './context.js';
 import { changeEmbeddedInputMode, continueEmbeddedResearch } from './continuation.js';
@@ -345,8 +345,6 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
     ).toEqual(original.outputs);
     expect(
       await replayResearchInput(copy.documentId, {
-        type: 'request',
-        id: 1,
         method: 'research_factor_report',
         arguments: { report_id: 'different-report' },
       }),
@@ -360,8 +358,6 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
     });
     await expect(
       replayResearchInput(copy.documentId, {
-        type: 'request',
-        id: 1,
         method: 'research_factor_report',
         arguments: input.arguments,
       }),

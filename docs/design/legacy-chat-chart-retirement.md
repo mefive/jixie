@@ -29,7 +29,7 @@
 
 ## 共用能力的归属
 
-[compile.ts](../../apps/api/src/infra/runtime/typescript/compile.ts) 只保留 toCommonJs，
+[compile.ts](../../apps/api/src/infra/sandbox/typescript/compile.ts) 只保留 toCommonJs，
 Factor / Strategy prepare 与因子检查继续复用；源码转换的错误类别与签名不变，不创建 isolate 或执行源码。
 TS 执行依旧使用 TypeScriptTransport，因此 isolated-vm 依赖保留。
 

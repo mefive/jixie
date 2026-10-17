@@ -15,7 +15,7 @@
 
 | usage | 调用方 | 准入 |
 | --- | --- | --- |
-| research（默认） | backtests/run、扫描 Worker | published 或 archived |
+| research（默认） | backtests/compute、扫描 Worker | published 或 archived |
 | deployment | Signals.deployBacktestReport | 只许 published |
 | signal | Signals Worker | published 或 archived，随后由 Signals 核对冻结血缘 |
 
@@ -25,8 +25,8 @@
 
 实例集中存放源码、身份和预期运行配置，组合组件保留不可变 StrategyFactor 实例。实际运行定义由 FactorHost 提供，校验不回写因子，也不创建附加元数据的因子副本。toDependency(definition) 结合来源身份和实际 inputs 生成独立报告快照；不传定义时仅返回来源身份。StrategySimulation 将 StrategyFactor[] 直接交给 FactorHost，读取元数据后复用同一批运行实例计算；各参数和日期区间使用独立执行对象。Signals 部署显式创建 FactorHost 做准入检查并 finally 关闭。
 
-测试集中在 [strategy-factor.test.ts](strategy-factor.test.ts)，按引用提取、状态与元数据隔离、快照兼容、授权与源码准备分组。源码操作组在准备组之前验证不加载数据库和编译器；准备组使用独立重置的查询替身，并验证不启动 runtime。Signals 的快照选择与拒绝时机见 [runs/run.test.ts](../../signals/runs/run.test.ts)。
+测试集中在 [strategy-factor.test.ts](strategy-factor.test.ts)，按引用提取、状态与元数据隔离、快照兼容、授权与源码准备分组。源码操作组在准备组之前验证不加载数据库和编译器；准备组使用独立重置的查询替身，并验证不启动 runtime。Signals 的快照选择与拒绝时机见 [runs/compute.test.ts](../../signals/runs/compute.test.ts)。
 
 [返回 Strategy 总览](../README.md)
 
-FactorHost 位于 [execution/factor-host.ts](../execution/factor-host.ts)。组合组件也使用 StrategyFactor，来源为批准快照中的嵌入源码，不重新查询当前组件；顶层报告仍只记录原组合依赖。已删除 CustomFactorModule 和 toEngineModule 转换。Engine 从 FactorExecutionPort.describe() 获取数据需求和批准资产范围。
+FactorHost 位于 [simulation/factor-host.ts](../simulation/factor-host.ts)。组合组件也使用 StrategyFactor，来源为批准快照中的嵌入源码，不重新查询当前组件；顶层报告仍只记录原组合依赖。已删除 CustomFactorModule 和 toEngineModule 转换。Engine 从 FactorExecutionPort.describe() 获取数据需求和批准资产范围。

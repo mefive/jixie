@@ -1,10 +1,11 @@
-import type { TimeSeriesFactorSandbox } from '../runtime/contract.js';
+import type { TimeSeriesEvaluationObservation } from './contract.js';
+import type { TimeSeriesFactorSandbox } from '../sandbox/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 
 import { factorV2YieldTerm, type FactorV2FieldKey } from '../definitions/fields.js';
-import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
+
 import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,

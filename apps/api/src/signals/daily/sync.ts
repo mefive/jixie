@@ -5,7 +5,7 @@ import {
   syncFutureSettlements,
 } from '#market/futures/sync.js';
 import { publishFutureMarketDate } from '#market/futures/publication.js';
-import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
+import { inspectStrategyMetadata } from '#strategy/sandbox/inspect-definition.js';
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 

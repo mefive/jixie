@@ -1,8 +1,8 @@
-import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
-import { StrategySandbox } from '#strategy/runtime/strategy-sandbox.js';
-import { buildCodegenPrompt, KNOWN_INDICES } from '#strategy/runtime/typescript/codegen-prompt.js';
+import { inspectStrategyMetadata } from '#strategy/sandbox/inspect-definition.js';
+import { StrategySandbox } from '#strategy/sandbox/strategy-sandbox.js';
+import { buildCodegenPrompt, KNOWN_INDICES } from '#strategy/sandbox/typescript/codegen-prompt.js';
 
-import { buildPythonCodegenPrompt } from '#strategy/runtime/python/codegen-prompt.js';
+import { buildPythonCodegenPrompt } from '#strategy/sandbox/python/codegen-prompt.js';
 
 import { prisma } from '#infra/database/prisma.js';
 import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';

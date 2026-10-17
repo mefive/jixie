@@ -4,7 +4,7 @@ import {
   createDefaultFactorAnalysisSpecV5,
   createDefaultFactorAnalysisSpecV6,
   normalizeFactorAnalysisSpec,
-} from '../execution/spec.js';
+} from '../analysis/spec.js';
 import { sha256 } from '../sources/fingerprint.js';
 import { factorTestKey, factorVariantKey } from './identity.js';
 describe('factor evaluation identity', () => {

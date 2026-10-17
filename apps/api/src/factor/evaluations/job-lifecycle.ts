@@ -1,6 +1,6 @@
 import { factorAnalysisJobPayloadSchema } from './job-payload.js';
-import type { FactorAnalysisWorkerInput } from '../execution/worker-input.js';
-import { factorAnalysisWorkerMessageSchema } from '../execution/worker-protocol.js';
+import type { FactorAnalysisWorkerInput } from '../analysis/worker-input.js';
+import { factorAnalysisWorkerMessageSchema } from '../analysis/worker-protocol.js';
 import { t } from '#i18n/messages.js';
 import type { JobLifecycle } from '#jobs/lifecycle.js';
 import { FactorWorkerError } from '../errors.js';
@@ -8,8 +8,8 @@ import { runWorker } from '#jobs/worker.js';
 import { Worker } from 'node:worker_threads';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../execution/worker.boot.mjs', import.meta.url)
-  : new URL('../execution/worker.js', import.meta.url);
+  ? new URL('../analysis/worker.boot.mjs', import.meta.url)
+  : new URL('../analysis/worker.js', import.meta.url);
 
 export const factorAnalysisLifecycle = {
   async onExecute(job, log) {

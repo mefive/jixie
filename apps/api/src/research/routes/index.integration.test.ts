@@ -1,4 +1,4 @@
-import type { ResearchSandbox } from '../runtime/research-sandbox.js';
+import type { ResearchSandbox } from '../sandbox/research-sandbox.js';
 
 import { analyzeResearchDocument } from '../dependencies/analyze.js';
 import { handleApiError } from '#infra/http/errors.js';
@@ -40,8 +40,8 @@ vi.mock('#agent/turns/bus.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('#agent/turns/bus.js')>()),
   findRunning: resources.running,
 }));
-vi.mock('../runtime/research-sandbox-pool.js', async (importOriginal) => {
-  const original = await importOriginal<typeof import('../runtime/research-sandbox-pool.js')>();
+vi.mock('../sandbox/research-sandbox-pool.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../sandbox/research-sandbox-pool.js')>();
   vi.spyOn(original.researchSandboxPool, 'withSandbox').mockImplementation(
     async (documentId, operation) =>
       operation({ analyze: (cells) => resources.analyze(documentId, cells) } as ResearchSandbox),

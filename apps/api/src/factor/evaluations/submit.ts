@@ -8,7 +8,7 @@ import {
   unsupportedTimeSeriesTemplateAssets,
 } from '../definitions/templates/time-series.js';
 import { FactorError } from '../errors.js';
-import { normalizeFactorResearchSpec } from '../execution/spec.js';
+import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
 import { resolveMacroRegimeDataCutoff } from '../observations/macro-regime-data-cutoff.js';
 import type { SubmitFactorAnalysisInput } from '@jixie/shared/api/factor';

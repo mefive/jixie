@@ -15,11 +15,11 @@ Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以�
 | 回测风险解释与数据门槛 | [risk](risk/README.md)：暴露、宏观、Alpha/Risk、压力情景及模型就绪 |
 | 编辑和解释策略 | [agent](agent/README.md)：业务上下文与共享 Agent 启动 |
 | 用户 SDK 如何定义与实现 | [sdk](sdk/README.md)：公开契约生成、选股/仓位/指标辅助及 Engine 适配 |
-| 策略执行与资源生命周期 | [execution](execution/README.md)：StrategySimulation 装配 runtime、因子与 Engine，提供 create/run/close；不承担正式报告流程 |
-| 策略 runtime 的共同入口与资源归属 | [runtime](runtime/README.md)：start、metadata、execute、close 及唯一 Engine 适配 |
-| TS 策略如何运行 | [runtime/typescript](runtime/typescript/README.md)：宿主 Engine、参数检查、SDK 装配与 isolate 收尾 |
-| 策略共享沙箱协议 | [runtime/strategy-bridge.ts](runtime/strategy-bridge.ts) 与 [runtime/protocol.ts](runtime/protocol.ts)：元数据、快照、批量查询和同步命令确认；TS/Python 共用 |
-| Python 策略如何协作 | [runtime/python](runtime/python/README.md)：会话协议与命令桥接，交易模拟仍由 TS Engine 执行 |
+| 策略执行与资源生命周期 | [simulation](simulation/README.md)：StrategySimulation 装配 runtime、因子与 Engine，提供 create/run/close；不承担正式报告流程 |
+| 策略 runtime 的共同入口与资源归属 | [sandbox](sandbox/README.md)：start、metadata、execute、close 及唯一 Engine 适配 |
+| TS 策略如何运行 | [sandbox/typescript](sandbox/typescript/README.md)：宿主 Engine、参数检查、SDK 装配与 isolate 收尾 |
+| 策略共享沙箱协议 | [sandbox/strategy-bridge.ts](sandbox/strategy-bridge.ts) 与 [sandbox/protocol.ts](sandbox/protocol.ts)：元数据、快照、批量查询和同步命令确认；TS/Python 共用 |
+| Python 策略如何协作 | [sandbox/python](sandbox/python/README.md)：会话协议与命令桥接，交易模拟仍由 TS Engine 执行 |
 
 ## 主要协作流程
 
@@ -41,4 +41,4 @@ Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日
 
 ## Engine 模拟边界
 
-StrategySimulation 创建并关闭语言 runtime 与 FactorHost，每次执行创建一个 `BacktestingEngine`，由 run 直接返回回测结果，Signals 在关闭前显式调用 collectFinalState 读取末日快照。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`，Signals 自行投影末日快照。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。
+StrategySimulation 创建并关闭语言 sandbox 与 FactorHost，每次执行创建一个 `BacktestingEngine`，由 run 直接返回回测结果，Signals 在关闭前显式调用 collectFinalState 读取末日快照。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`，Signals 自行投影末日快照。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。

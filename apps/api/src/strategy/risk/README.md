@@ -4,7 +4,7 @@
 
 | 文件 / 入口 | 职责与主要调用方 |
 | --- | --- |
-| [backtest-risk-analysis.ts](backtest-risk-analysis.ts) `attachBacktestRiskAnalysis`、`buildBacktestRiskAnalysis` | backtests/run 的后处理入口；attach 加载数据并修改计算结果，build 装配分析内容 |
+| [backtest-risk-analysis.ts](backtest-risk-analysis.ts) `attachBacktestRiskAnalysis`、`buildBacktestRiskAnalysis` | backtests/compute 的后处理入口；attach 加载数据并修改计算结果，build 装配分析内容 |
 | [market-risk-model.ts](market-risk-model.ts) `estimatePortfolioMarketRisk` | 市场暴露估计和收益对齐 |
 | [macro-risk-model.ts](macro-risk-model.ts) `estimatePortfolioMacroRisk` | 月频宏观敏感度，区分 strict PIT 与 exploratory 历史 |
 | [alpha-risk-overlap.ts](alpha-risk-overlap.ts) `analyzeAlphaRiskOverlap` | 因子 Alpha 与风险轴重合分析，保留日期及可得性对齐 |

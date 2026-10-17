@@ -1,11 +1,12 @@
+import type { PanelEvaluationObservation } from '../observations/contract.js';
 import type {
   FactorCompositeDefinitionV1,
   FactorLanguage,
   FactorPanelCompositeDefinitionV2,
   FactorRuntimeVersion,
 } from '@jixie/shared';
-import type { PanelEvaluationObservation } from '../execution/panel-evaluator.js';
-import type { Series } from '../execution/cross-sectional/series.js';
+
+import type { Series } from '../observations/cross-sectional/series.js';
 
 export type FactorAnalysisRuntimeSource =
   | {

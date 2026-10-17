@@ -1,6 +1,6 @@
 # 正式评估、报告与 holdout
 
-本目录拥有 FactorReport 与正式评估 Job 的冻结、读取和状态；实际数值计算委托 [execution](../execution/README.md)。相关性缓存和天气观察有各自生命周期，不在这里创建报告。
+本目录拥有 FactorReport 与正式评估 Job 的冻结、读取和状态；实际数值计算委托 [analysis](../analysis/README.md)。相关性缓存和天气观察有各自生命周期，不在这里创建报告。
 
 ## 消费入口
 
@@ -32,4 +32,4 @@ Job 校验 payload 与持久化报告关联，启动共享 Worker；Worker 返�
 
 [返回 Factor 总览](../README.md)
 
-输入契约位于 [job-payload.ts](job-payload.ts)：factorAnalysisJobPayloadSchema / FactorAnalysisJobPayload；普通提交和 holdout 共用类型，读取时保留已有 spec 规范化规则。Worker 公共输入归 execution/worker-input.ts。
+输入契约位于 [job-payload.ts](job-payload.ts)：factorAnalysisJobPayloadSchema / FactorAnalysisJobPayload；普通提交和 holdout 共用类型，读取时保留已有 spec 规范化规则。Worker 公共输入归 analysis/worker-input.ts。

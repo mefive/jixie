@@ -4,7 +4,7 @@ import { factorRuntimeVersion } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { FactorError } from '../errors.js';
-import { validateFactorDefinition } from '../runtime/validate-definition.js';
+import { validateFactorDefinition } from '../sandbox/validate-definition.js';
 import type { CreateFactorDraftInput, UpdateFactorDraftInput } from '@jixie/shared/api/factor';
 import { BUILTIN_KEYS, BUILTIN_USER_ID } from './builtin-factors.js';
 import { nextCopyKey } from './copy-key.js';

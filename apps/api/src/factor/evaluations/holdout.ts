@@ -6,7 +6,7 @@ import { JobScheduler } from '#jobs/job-scheduler.js';
 import type { FactorResearchSpecV1, Locale, RunFactorAnalysisResponse } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { FactorError } from '../errors.js';
-import { normalizeFactorAnalysisSpec } from '../execution/spec.js';
+import { normalizeFactorAnalysisSpec } from '../analysis/spec.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
 import { factorCodeDataRequirements } from '../sources/resolve.js';
 import {

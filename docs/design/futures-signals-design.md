@@ -31,7 +31,7 @@
 | 从成功报告冻结部署；拒绝 Python、期货资金和历史期货结果 | [manage.ts](../../apps/api/src/signals/deployments/manage.ts) `deployBacktestReport` | 当前不是按旧 futures 声明拒绝；deployments README 的文字已滞后 |
 | 手动提交先全局结算，再进入部署归属检查和入队 | [submit.ts](../../apps/api/src/signals/runs/submit.ts)、[enqueue.ts](../../apps/api/src/signals/runs/enqueue.ts) | 保留现有顺序并记录风险，不借机重构授权边界 |
 | 同部署同日 done/running 复用；error/stale 复用 Run、新建 Job | `runs/enqueue.ts`、`runs/state.ts` | 不覆盖已完成且已人工执行的历史信号 |
-| Worker 调用 StrategyExecution，取末日状态后投影 | [run.ts](../../apps/api/src/signals/runs/run.ts)、[strategy-simulation.ts](../../apps/api/src/strategy/execution/strategy-simulation.ts) | 因子血缘仍在运行前校验，资源在 finally 关闭 |
+| Worker 调用 StrategyExecution，取末日状态后投影 | [compute.ts](../../apps/api/src/signals/runs/compute.ts)、[strategy-simulation.ts](../../apps/api/src/strategy/simulation/strategy-simulation.ts) | 因子血缘仍在运行前校验，资源在 finally 关闭 |
 | 末日状态只有现金账户、现金订单和因子观测 | [result.ts](../../apps/api/src/backtesting/result.ts)、[backtesting-engine.ts](../../apps/api/src/backtesting/backtesting-engine.ts) `collectFinalState` | 补双账户及期货意图后才能撤掉 retainFinalState 防护 |
 | 正期货资金提前拒绝，运行中收集期货意图也拒绝 | `engine.ts` `initialize` 所在初始化流程、`decide` | 必须同时处理两处保护，不能只改部署入口 |
 | 执行顺序为自动换月→现金目标→现金增减→条件单→期货意图 | [order-book.ts](../../apps/api/src/backtesting/order-book.ts) `executeOrders` | hedge 读取现金订单和条件单处理后的敞口 |

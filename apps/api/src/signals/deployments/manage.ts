@@ -1,8 +1,8 @@
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import { backtestReportState } from '#strategy/backtests/state.js';
-import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
+import { inspectStrategyMetadata } from '#strategy/sandbox/inspect-definition.js';
 import { prisma } from '#infra/database/prisma.js';
-import { FactorHost } from '#strategy/execution/factor-host.js';
+import { FactorHost } from '#strategy/simulation/factor-host.js';
 
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type { BacktestConfig, FactorDependency, Locale, StrategyDeployment } from '@jixie/shared';

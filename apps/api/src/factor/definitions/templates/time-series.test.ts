@@ -1,4 +1,4 @@
-import { FactorSandbox } from '../../runtime/factor-sandbox.js';
+import { FactorSandbox } from '../../sandbox/factor-sandbox.js';
 import { describe, expect, it } from 'vitest';
 
 import {

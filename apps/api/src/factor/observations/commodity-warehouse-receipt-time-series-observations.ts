@@ -1,4 +1,5 @@
-import type { TimeSeriesFactorSandbox } from '../runtime/contract.js';
+import type { TimeSeriesEvaluationObservation } from './contract.js';
+import type { TimeSeriesFactorSandbox } from '../sandbox/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { COMMODITY_FUTURE_SPECS } from '#market/commodity/commodity-futures.js';
 import { isAuditedAuKilogramMislabelDate } from '#market/commodity/commodity-warehouse-receipts.js';
@@ -7,7 +8,6 @@ import { prisma } from '#infra/database/prisma.js';
 
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
 import { COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD } from '../definitions/fields.js';
-import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
 
 export const COMMODITY_WAREHOUSE_RECEIPT_MAX_STALENESS_DAYS = 7;
 

@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { startFactorAnalysis } from '#factor/evaluations/start.js';
 import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
 import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
-import { createDefaultFactorAnalysisSpecV6 } from '#factor/execution/spec.js';
+import { createDefaultFactorAnalysisSpecV6 } from '#factor/analysis/spec.js';
 import { factorResearchIntentV1Schema } from '@jixie/shared/api/factor';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';

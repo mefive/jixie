@@ -1,5 +1,5 @@
 import { startServer } from './bootstrap.js';
-import { probePythonRuntime } from '#infra/runtime/python/python-session.js';
+import { probePythonRuntime } from '#infra/sandbox/python/python-session.js';
 
 const port = Number(process.env.PORT ?? 3001);
 await startServer(port);

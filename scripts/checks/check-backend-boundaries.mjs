@@ -337,6 +337,20 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
         'Author SDKs may depend only on their own capabilities, shared contracts and pure helpers',
       );
     }
+    if (local?.startsWith('factor/observations/') && target?.startsWith('factor/analysis/')) {
+      report(
+        'factor-observation-direction',
+        edge,
+        'Factor observations own their data contracts and cannot depend on evaluation algorithms',
+      );
+    }
+    if (local?.startsWith('research/evidence/') && target?.startsWith('research/sandbox/')) {
+      report(
+        'research-evidence-direction',
+        edge,
+        'Research evidence cannot depend on sandbox protocol or session implementations',
+      );
+    }
     if (local && !local.includes('/') && edge.form === 're-export') {
       report(
         'root-barrel',
@@ -394,14 +408,14 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
     }
     if (
       local &&
-      /^(?:infra\/runtime\/|jobs\/)/.test(local) &&
+      /^(?:infra\/sandbox\/|jobs\/)/.test(local) &&
       local !== 'jobs/register.ts' &&
       target &&
       !target.startsWith('infra/') &&
       !(target.startsWith('jobs/') && target !== 'jobs/register.ts') &&
       !isPure(edge.to)
     ) {
-      report('infra-direction', edge, 'Generic runtime/jobs cannot import business modules');
+      report('infra-direction', edge, 'Generic sandbox/jobs cannot import business modules');
     }
     if (
       target === 'jobs/register.ts' &&
@@ -476,7 +490,7 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
   for (const from of dependencies.files.filter((file) => !isTest(file))) {
     const local = sourcePath(from);
     const generic =
-      /^(?:infra\/runtime\/|jobs\/)/.test(local ?? '') && local !== 'jobs/register.ts';
+      /^(?:infra\/sandbox\/|jobs\/)/.test(local ?? '') && local !== 'jobs/register.ts';
     const market = local?.startsWith('market/');
     if (!generic && !market) {
       continue;

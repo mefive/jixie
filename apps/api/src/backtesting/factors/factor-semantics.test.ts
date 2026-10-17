@@ -3,15 +3,15 @@ import {
   StrategySimulation,
   type StrategySimulationInput,
   type StrategySimulationOptions,
-} from '#strategy/execution/strategy-simulation.js';
-import type { UserLogSink } from '#infra/runtime/console.js';
+} from '#strategy/simulation/strategy-simulation.js';
+import type { UserLogSink } from '#infra/sandbox/console.js';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { BacktestingEngine } from '../backtesting-engine.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
-import { toCommonJs } from '#infra/runtime/typescript/compile.js';
+import { toCommonJs } from '#infra/sandbox/typescript/compile.js';
 import type { EngineStrategy, BacktestingConfig } from '../contract.js';
-import { FactorHost } from '#strategy/execution/factor-host.js';
+import { FactorHost } from '#strategy/simulation/factor-host.js';
 
 /**
  * ctx.factor() time semantics (factor-to-strategy.md Step 2): a `flow` factor (moneyflow) is an

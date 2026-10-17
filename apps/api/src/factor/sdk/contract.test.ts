@@ -1,4 +1,4 @@
-import type { CrossSectionalFactorSandbox, PanelFactorSandbox } from '../runtime/contract.js';
+import type { CrossSectionalFactorSandbox, PanelFactorSandbox } from '../sandbox/contract.js';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import ts from 'typescript';
 import { buildFactorSdkDts, type FactorBar } from '@jixie/shared';

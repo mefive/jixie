@@ -90,7 +90,7 @@ async function stop() {
       await delay(30);
     }
     if (embeddedJourney) {
-      const { researchSandboxPool } = await import('#research/runtime/research-sandbox-pool.js');
+      const { researchSandboxPool } = await import('#research/sandbox/research-sandbox-pool.js');
       const { cancelEmbeddedRun } = await import('#research/embedded/cancel.js');
       const active = await database.researchExecution.findMany({
         where: { status: { in: ['queued', 'running'] }, embeddedVersionId: { not: null } },

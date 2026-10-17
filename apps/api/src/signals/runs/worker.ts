@@ -1,7 +1,7 @@
 import type { SignalWorkerMessage } from './worker-protocol.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { LogLevel, LogLine } from '@jixie/shared';
-import { runSignal } from './run.js';
+import { runSignal } from './compute.js';
 
 const runId = process.argv[2];
 if (!runId || !process.send) {

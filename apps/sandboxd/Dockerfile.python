@@ -7,21 +7,21 @@ RUN pip install --no-cache-dir --requirement /tmp/requirements-research-runtime.
   && useradd --system --uid 65532 --home-dir /nonexistent --shell /usr/sbin/nologin sandbox
 
 COPY apps/sandboxd/python/jixie_runner.py /opt/jixie/apps/sandboxd/python/jixie_runner.py
-COPY apps/api/src/infra/runtime/python/sdk_adapter.py /opt/jixie/apps/api/src/infra/runtime/python/sdk_adapter.py
+COPY apps/api/src/infra/sandbox/python/sdk_adapter.py /opt/jixie/apps/api/src/infra/sandbox/python/sdk_adapter.py
 COPY apps/api/src/strategy/sdk/python.py /opt/jixie/apps/api/src/strategy/sdk/python.py
 COPY apps/api/src/strategy/sdk/capabilities.py /opt/jixie/apps/api/src/strategy/sdk/capabilities.py
-COPY apps/api/src/strategy/runtime/python/strategy_runner.py /opt/jixie/apps/api/src/strategy/runtime/python/strategy_runner.py
-COPY apps/api/src/strategy/runtime/python/strategy_adapter.py /opt/jixie/apps/api/src/strategy/runtime/python/strategy_adapter.py
+COPY apps/api/src/strategy/sandbox/python/strategy_runner.py /opt/jixie/apps/api/src/strategy/sandbox/python/strategy_runner.py
+COPY apps/api/src/strategy/sandbox/python/strategy_adapter.py /opt/jixie/apps/api/src/strategy/sandbox/python/strategy_adapter.py
 COPY apps/api/src/factor/sdk/python.py /opt/jixie/apps/api/src/factor/sdk/python.py
 COPY apps/api/src/factor/sdk/capabilities.py /opt/jixie/apps/api/src/factor/sdk/capabilities.py
-COPY apps/api/src/factor/runtime/python/factor_runner.py /opt/jixie/apps/api/src/factor/runtime/python/factor_runner.py
-COPY apps/api/src/factor/runtime/python/factor_adapter.py /opt/jixie/apps/api/src/factor/runtime/python/factor_adapter.py
+COPY apps/api/src/factor/sandbox/python/factor_runner.py /opt/jixie/apps/api/src/factor/sandbox/python/factor_runner.py
+COPY apps/api/src/factor/sandbox/python/factor_adapter.py /opt/jixie/apps/api/src/factor/sandbox/python/factor_adapter.py
 
-COPY apps/api/src/research/runtime/python/analysis.py /opt/jixie/apps/api/src/research/runtime/python/analysis.py
-COPY apps/api/src/research/runtime/python/research_adapter.py /opt/jixie/apps/api/src/research/runtime/python/research_adapter.py
-COPY apps/api/src/research/runtime/python/environment.py /opt/jixie/apps/api/src/research/runtime/python/environment.py
-COPY apps/api/src/research/runtime/python/outputs.py /opt/jixie/apps/api/src/research/runtime/python/outputs.py
-COPY apps/api/src/research/runtime/python/research_runner.py /opt/jixie/apps/api/src/research/runtime/python/research_runner.py
+COPY apps/api/src/research/sandbox/python/analysis.py /opt/jixie/apps/api/src/research/sandbox/python/analysis.py
+COPY apps/api/src/research/sandbox/python/research_adapter.py /opt/jixie/apps/api/src/research/sandbox/python/research_adapter.py
+COPY apps/api/src/research/sandbox/python/environment.py /opt/jixie/apps/api/src/research/sandbox/python/environment.py
+COPY apps/api/src/research/sandbox/python/outputs.py /opt/jixie/apps/api/src/research/sandbox/python/outputs.py
+COPY apps/api/src/research/sandbox/python/research_runner.py /opt/jixie/apps/api/src/research/sandbox/python/research_runner.py
 COPY apps/api/src/research/sdk/python/charts.py /opt/jixie/apps/api/src/research/sdk/python/charts.py
 COPY apps/api/src/research/sdk/python/data.py /opt/jixie/apps/api/src/research/sdk/python/data.py
 COPY apps/api/src/research/sdk/python/capabilities.py /opt/jixie/apps/api/src/research/sdk/python/capabilities.py

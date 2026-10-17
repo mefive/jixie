@@ -77,7 +77,7 @@ Strategy 和 Research 的运行时也使用 `StrategyRuntime.start(options)` / `
 | TS Strategy | isolate transport + 同一 Strategy bridge + exchange，另有同步 `__hostAccess` 通道 | 生命周期和异步策略协议；保留同步调用语义 |
 | Research | 当前仅 Python，PythonSession + exchange；执行期间处理 SDK request | 生命周期、命令交互循环；文档池管理复用 |
 
-迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [Factor runtime](../../apps/api/src/factor/runtime/factor-sandbox.ts)、[TS transport](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts)、[公共生命周期](../../apps/api/src/infra/runtime/sandbox.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)。Infra README 已同步实际范围。
+迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [Factor runtime](../../apps/api/src/factor/sandbox/factor-sandbox.ts)、[TS transport](../../apps/api/src/infra/sandbox/typescript/typescript-transport.ts)、[公共生命周期](../../apps/api/src/infra/sandbox/sandbox.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/sandbox/sandbox-bridge-base.ts)。Infra README 已同步实际范围。
 
 所有实现都具有“建立隔离环境 → 初始化 → 多次执行 → 释放”的共同流程。此次连同 TS Factor 的命令交互统一，批量计算命令本身可以经过公共 exchange，不必把批内每个 item 拆成一次通信。TS 的 isolate 和 Python 的 socket 是底层传输差异，不在业务 runtime 层保留另一套直接调用入口。Strategy TS 的同步上下文访问有作者 SDK 语义依据，仍作为受限通道保留；把它改成 async 会改变作者代码的调用处异常和取数时机。
 
@@ -352,7 +352,7 @@ return researchRuntimePool.withRuntime(
 
 ### 审查入口与实现取舍
 
-先读 [公共生命周期](../../apps/api/src/infra/runtime/sandbox.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)，再横向对照 factor-runtime.ts、strategy-runtime.ts、research-runtime.ts 的 start 与 execute。Research 的借用入口见 [research-sandbox-pool.ts](../../apps/api/src/research/runtime/research-sandbox-pool.ts)；语言资源统一见 [TypeScriptTransport](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts) 与 PythonSession。
+先读 [公共生命周期](../../apps/api/src/infra/sandbox/sandbox.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/sandbox/sandbox-bridge-base.ts)，再横向对照 factor-runtime.ts、strategy-runtime.ts、research-runtime.ts 的 start 与 execute。Research 的借用入口见 [research-sandbox-pool.ts](../../apps/api/src/research/sandbox/research-sandbox-pool.ts)；语言资源统一见 [TypeScriptTransport](../../apps/api/src/infra/sandbox/typescript/typescript-transport.ts) 与 PythonSession。
 
 TS Factor 保留 256 MiB isolate、声明 5 秒、整批 30 秒预算；新帧及累计队列限额也取 256 MiB，没有使用 Strategy 的一万帧上限。初版普通日志逐条经消息帧传出，后经性能验证和用户确认改为文末的沙箱内批量缓冲。启动日志仍在 start 期间消费（迁移前延迟到首次计算 drain），首次计算错误由终止帧回报并去重。这里有真实传输开销变化，需要性能验收；类型检查不能证明时序和性能一致。
 
@@ -395,9 +395,9 @@ Factor history/value/lag 仍只读取预备数组。Strategy 同步宿主访问�
 
 本次补充修复：
 
-1. 产品改动仅在 [Factor sandbox-entry.ts（现为 factor-runner.ts）](../../apps/api/src/factor/runtime/typescript/factor-runner.ts)：将两种定义函数同时注入，恢复为按启动 `analysis_kind` 注入对应函数。横截面仅注入 `defineFactor`，time_series/panel 仅注入 `defineFactorV2`。旧实现原本区分该边界；统一入口不能让横截面接受 V2 源码。
-2. [Factor 定义校验测试](../../apps/api/src/factor/runtime/validate-definition.test.ts) 将同一用例中的串联断言拆成 6 个独立的交叉类型拒绝用例，覆盖三种分析类型之间的双向误配，避免第一个断言失败遮住后续回归。
-3. [Strategy bundle 测试](../../apps/api/src/strategy/runtime/typescript/sandbox-bundle.test.ts) 改为检查已批准的统一 `__receiveCommand` 入口；SDK 依赖边界及禁止宿主导入的断言保留。
+1. 产品改动仅在 [Factor sandbox-entry.ts（现为 factor-runner.ts）](../../apps/api/src/factor/sandbox/typescript/factor-runner.ts)：将两种定义函数同时注入，恢复为按启动 `analysis_kind` 注入对应函数。横截面仅注入 `defineFactor`，time_series/panel 仅注入 `defineFactorV2`。旧实现原本区分该边界；统一入口不能让横截面接受 V2 源码。
+2. [Factor 定义校验测试](../../apps/api/src/factor/sandbox/validate-definition.test.ts) 将同一用例中的串联断言拆成 6 个独立的交叉类型拒绝用例，覆盖三种分析类型之间的双向误配，避免第一个断言失败遮住后续回归。
+3. [Strategy bundle 测试](../../apps/api/src/strategy/sandbox/typescript/sandbox-bundle.test.ts) 改为检查已批准的统一 `__receiveCommand` 入口；SDK 依赖边界及禁止宿主导入的断言保留。
 
 按 review-gated-development，产品修复后只执行静态检查，修正版行为测试尚未重跑。三业务消费者与嵌入集成、API 构建、源码／编译资源路径和性能比较仍待完成；不能据上述部分通过结果提交。首轮 Vitest 与 Python 测试进程已退出，无遗留临时服务。
 
@@ -439,7 +439,7 @@ Factor history/value/lag 仍只读取预备数组。Strategy 同步宿主访问�
 
 结果哈希一致、消息数量仅新增一个显式启动帧，但耗时明显增加。源码发现：`__receiveCommand` 已解析 frame，随后 start/bar 分支再次 stringify，内部函数又 parse；response 分支也重复 parse。这个转换不是统一协议所必需。
 
-产品修复仅在 [Strategy sandbox-entry.ts](../../apps/api/src/strategy/runtime/typescript/strategy-runner.ts)：`startStrategy`、`runStrategyBar`、`receiveResponse` 接收已解析对象，入口解析一次后直接分派。增加本地参数类型描述原有 snapshot/response 形状；不改变线格式、SDK、数据拷贝边界、缓存或交易行为。统一 `__receiveCommand`、公共 transport/exchange 继续保留。性能改善幅度须经补充 review 后实测，不以源码推断代替结果。
+产品修复仅在 [Strategy sandbox-entry.ts](../../apps/api/src/strategy/sandbox/typescript/strategy-runner.ts)：`startStrategy`、`runStrategyBar`、`receiveResponse` 接收已解析对象，入口解析一次后直接分派。增加本地参数类型描述原有 snapshot/response 形状；不改变线格式、SDK、数据拷贝边界、缓存或交易行为。统一 `__receiveCommand`、公共 transport/exchange 继续保留。性能改善幅度须经补充 review 后实测，不以源码推断代替结果。
 
 修复后遵循 review-gated-development，仅运行静态检查；等待补充 review 后复跑受影响的 Strategy／Engine 因子组合、源码 Worker、性能对照，重新构建并验证编译 Worker。已通过且未受这次修复影响的 Factor／Research 验证不必重复。提交信息保持 `refactor(runtime): unify runtime contracts and entry points`。
 
@@ -453,7 +453,7 @@ Factor history/value/lag 仍只读取预备数组。Strategy 同步宿主访问�
 
 实现：
 
-- [infra/runtime/sandbox-log-buffer.ts](../../apps/api/src/infra/runtime/sandbox-log-buffer.ts) 提供纯 `SandboxLogBuffer`。console 调用时立即格式化为级别和文本并序列化单条记录，避免延迟读取可变对象；缓冲最多 256 条，或不超过 64 KiB 的实际 UTF-8 JSON 包（包括字段、逗号和包络），到达阈值即发送。没有计时器或新增异步执行机制。
+- [infra/runtime/sandbox-log-buffer.ts](../../apps/api/src/infra/sandbox/sandbox-log-buffer.ts) 提供纯 `SandboxLogBuffer`。console 调用时立即格式化为级别和文本并序列化单条记录，避免延迟读取可变对象；缓冲最多 256 条，或不超过 64 KiB 的实际 UTF-8 JSON 包（包括字段、逗号和包络），到达阈值即发送。没有计时器或新增异步执行机制。
 - 使用 `{ type: 'log_batch', entries: [{ level, text }, ...] }` 公共日志帧。Infra protocol 定义形状和条数上限，公共 exchange 在 schema 校验之后逐条交给现有 onLog，等待回调、维持顺序并检查取消；回调异常仍直接传播，不吞掉。
 - TS Factor 的三类 runtime 启动／执行 schema 接受 log_batch；SDK／命令／计算结果保持原形状。沙箱入口在正常返回结果前刷新尾部，普通命令异常时尽力刷新并保留原异常。逐点计算异常仍按原逻辑返回 null，日志先于结果中的首次计算错误；启动日志不留到首次 execute。
 - 单条日志若超过批量阈值，先刷新前面的队列，再使用既有 log 帧单独发送；不拆行、不截断，继续受既有传输预算限制。没有把批量阈值变成新的单条长度限制，也没有套用 Strategy 的日志条数截断政策。

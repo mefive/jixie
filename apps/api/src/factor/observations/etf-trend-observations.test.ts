@@ -1,4 +1,4 @@
-import { FactorSandbox } from '../runtime/factor-sandbox.js';
+import { FactorSandbox } from '../sandbox/factor-sandbox.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 

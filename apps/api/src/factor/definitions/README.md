@@ -15,7 +15,7 @@
 
 ## 文件与规则
 
-[builtin-factors.ts](builtin-factors.ts) 保存静态定义、内置 key 和 `builtinCatalog`；[views.ts](views.ts) 只做 strategy key、语言和分析类型映射；[fields.ts](fields.ts) 定义输入字段及适用资产。三者不经 seed 或 publication 取得纯事实。代码模板见 [templates](templates/README.md)，编译检查见 [runtime](../runtime/README.md)。
+[builtin-factors.ts](builtin-factors.ts) 保存静态定义、内置 key 和 `builtinCatalog`；[views.ts](views.ts) 只做 strategy key、语言和分析类型映射；[fields.ts](fields.ts) 定义输入字段及适用资产。三者不经 seed 或 publication 取得纯事实。代码模板见 [templates](templates/README.md)，编译检查见 [sandbox](../sandbox/README.md)。
 
 Research 创建负责最多 100 次 key 尝试、32 字符限制与 `_2` 后缀，同时避开 Factor、Composite 和内置 key；P2002 后发现相同源执行的并发胜者则返回 reused，其他冲突继续尝试，未知数据库错误抛出。普通复制使用 [copy-key.ts](copy-key.ts) 的 `nextCopyKey`，保留 `_v2` 规则，不能拿交接命名规则替换。
 

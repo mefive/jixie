@@ -532,12 +532,12 @@ test('rejects business and neutral jobs importing assembly, including through a 
 test('keeps author SDK capabilities independent of runtime, engine and infrastructure types', (context) => {
   const root = fixture(context, {
     [src + 'strategy/sdk/typescript.ts']:
-      "import type { EngineContext } from '../../backtesting/contract.js'; import '../runtime/adapter.js';",
-    [src + 'strategy/runtime/adapter.ts']: 'export const adapter = {};',
+      "import type { EngineContext } from '../../backtesting/contract.js'; import '../sandbox/adapter.js';",
+    [src + 'strategy/sandbox/adapter.ts']: 'export const adapter = {};',
     [src + 'backtesting/contract.ts']: 'export interface EngineContext {}',
     [src + 'factor/sdk/typescript.ts']:
-      "import type { Session } from '../../infra/runtime/session.js';",
-    [src + 'infra/runtime/session.ts']: 'export interface Session {}',
+      "import type { Session } from '../../infra/sandbox/session.js';",
+    [src + 'infra/sandbox/session.ts']: 'export interface Session {}',
   });
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)).sort(), [
     'sdk-isolation',
@@ -552,8 +552,8 @@ test('permits SDK-owned contracts, pure helpers and SDK injection tests', (conte
       "import type { Capabilities } from './capabilities.js'; import { indicator } from '../../math/indicator.js';",
     [src + 'strategy/sdk/capabilities.ts']: 'export interface Capabilities {}',
     [src + 'math/indicator.ts']: 'export const indicator = 1;',
-    [src + 'strategy/sdk/sdk.test.ts']: "import '../runtime/adapter.js';",
-    [src + 'strategy/runtime/adapter.ts']: 'export const adapter = {};',
+    [src + 'strategy/sdk/sdk.test.ts']: "import '../sandbox/adapter.js';",
+    [src + 'strategy/sandbox/adapter.ts']: 'export const adapter = {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 });
@@ -561,7 +561,48 @@ test('permits SDK-owned contracts, pure helpers and SDK injection tests', (conte
 test('rejects undeclared dynamic dependencies inside author SDKs', (context) => {
   const root = fixture(context, {
     [src + 'strategy/sdk/typescript.ts']:
-      'const module = "../runtime/adapter.js"; void import(module);',
+      'const module = "../sandbox/adapter.js"; void import(module);',
   });
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), ['sdk-isolation']);
+});
+
+test('keeps Factor observation data independent of evaluation algorithms and their types', (context) => {
+  const root = fixture(context, {
+    [src + 'factor/observations/data.ts']: "import { evaluate } from '../analysis/evaluator.js';",
+    [src + 'factor/observations/contract.ts']:
+      "import type { Observation } from '../analysis/evaluator.js';",
+    [src + 'factor/analysis/evaluator.ts']:
+      'export const evaluate = () => {}; export interface Observation {}',
+  });
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), [
+    'factor-observation-direction',
+    'factor-observation-direction',
+  ]);
+});
+
+test('keeps Research evidence independent of sandbox implementations and protocol types', (context) => {
+  const root = fixture(context, {
+    [src + 'research/evidence/input-replay.ts']:
+      "import { read } from '../sandbox/host/protocol.js';",
+    [src + 'research/evidence/input-contract.ts']:
+      "import type { Frame } from '../sandbox/host/protocol.js';",
+    [src + 'research/sandbox/host/protocol.ts']:
+      'export const read = () => {}; export interface Frame {}',
+  });
+  assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), [
+    'research-evidence-direction',
+    'research-evidence-direction',
+  ]);
+});
+
+test('permits evaluators to consume observations and sandbox hosts to request retained evidence', (context) => {
+  const root = fixture(context, {
+    [src + 'factor/analysis/evaluator.ts']:
+      "import type { Observation } from '../observations/contract.js';",
+    [src + 'factor/observations/contract.ts']: 'export interface Observation {}',
+    [src + 'research/sandbox/host/dispatch.ts']:
+      "import { replay } from '../../evidence/input-replay.js';",
+    [src + 'research/evidence/input-replay.ts']: 'export const replay = () => {};',
+  });
+  assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 });

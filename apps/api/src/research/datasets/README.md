@@ -1,6 +1,6 @@
 # Research 数据切片与公开列映射
 
-这里将已有市场数据转换成 Research SDK 的字段、时间序列和截面，不负责供应商同步。主要消费者为 [宿主 dispatch](../runtime/host/README.md)，HTTP 的股票池查询和目录也使用其中的读取能力。
+这里将已有市场数据转换成 Research SDK 的字段、时间序列和截面，不负责供应商同步。主要消费者为 [宿主 dispatch](../sandbox/host/README.md)，HTTP 的股票池查询和目录也使用其中的读取能力。
 
 | 文件 / 关键入口 | 业务口径 |
 | --- | --- |
@@ -19,6 +19,6 @@
 
 本人报告的授权、体积和 snake_case 投影有独立 [results 说明](results/README.md)，不复用 HTTP wire 或报告生命周期服务。
 
-改某数据列先读对应同名测试；跨市场约束看 [cross-market-data-contracts.test.ts](cross-market-data-contracts.test.ts)，股票池看 [universe.test.ts](universe.test.ts)，SDK 协议映射还需对照 [dispatch.test.ts](../sdk/dispatch.test.ts)。底层数据解释见 [Market](../../market/README.md)。
+改某数据列先读对应同名测试；跨市场约束看 [cross-market-data-contracts.test.ts](cross-market-data-contracts.test.ts)，股票池看 [universe.test.ts](universe.test.ts)，SDK 协议映射还需对照 [dispatch.test.ts](../sandbox/host/dispatch.test.ts)。底层数据解释见 [Market](../../market/README.md)。
 
 [返回 Research 总览](../README.md)

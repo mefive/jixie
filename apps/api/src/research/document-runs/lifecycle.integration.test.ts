@@ -1,5 +1,5 @@
-import type { ResearchSandbox } from '../runtime/research-sandbox.js';
-import type { ResearchCellRunResult } from '../runtime/contract.js';
+import type { ResearchSandbox } from '../sandbox/research-sandbox.js';
+import type { ResearchCellRunResult } from '../sandbox/contract.js';
 import type { Prisma } from '@prisma/client';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
@@ -23,8 +23,8 @@ const sandbox = vi.hoisted(() => ({
   reset: vi.fn(),
   interrupt: vi.fn(),
 }));
-vi.mock('../runtime/research-sandbox-pool.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../runtime/research-sandbox-pool.js')>()),
+vi.mock('../sandbox/research-sandbox-pool.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../sandbox/research-sandbox-pool.js')>()),
   researchSandboxPool: {
     ...sandbox,
     withSandbox: async <Result>(
@@ -56,7 +56,7 @@ import {
 } from '../proposals/cell-changes.js';
 import { persistResearchCellChangePart } from '../proposals/change-records.js';
 
-import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
+import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
 import { interruptResearchDocument, resetResearchDocumentSandbox } from './control.js';
 import { runAffectedResearchCells } from './run-affected.js';
 import { runResearchCell } from './run-cell.js';

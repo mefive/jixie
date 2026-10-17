@@ -1,4 +1,4 @@
-import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
+import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import type { ResearchAffectedRunPlan } from '../dependencies/run-plan.js';

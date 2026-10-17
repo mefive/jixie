@@ -12,7 +12,7 @@ import {
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
-import { normalizeFactorResearchSpec } from '../execution/spec.js';
+import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 import {
   type FactorAnalysisSource,
   factorAnalysisSourceHash,

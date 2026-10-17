@@ -6,6 +6,6 @@
 
 当前编辑代码可由请求传入；嵌入分析的宿主／报告授权和保存代码快照由 [Research embedded](../../research/embedded/README.md) 负责。Agent 负责生成／解释及既有校验，不提供策略配置保存或后台回测工具；完整回测由用户通过 [backtests](../backtests/README.md) 发起。Research 生成 Strategy 草稿也不自动回测。
 
-SSE、取消、历史消息和通用模型循环见 [Agent 总览](../../agent/README.md)。修改归属、忙碌或上下文装配看 [路由集成测试](../routes/index.integration.test.ts)；修改提示词和编写接口看两种 [TS](../runtime/typescript/README.md)／[Python](../runtime/python/README.md) 运行能力及其提示词测试。
+SSE、取消、历史消息和通用模型循环见 [Agent 总览](../../agent/README.md)。修改归属、忙碌或上下文装配看 [路由集成测试](../routes/index.integration.test.ts)；修改提示词和编写接口看两种 [TS](../sandbox/typescript/README.md)／[Python](../sandbox/python/README.md) 运行能力及其提示词测试。
 
 [返回 Strategy 总览](../README.md)

@@ -3,14 +3,14 @@ import {
   StrategySimulation,
   type StrategySimulationInput,
   type StrategySimulationOptions,
-} from '#strategy/execution/strategy-simulation.js';
-import type { UserLogSink } from '#infra/runtime/console.js';
+} from '#strategy/simulation/strategy-simulation.js';
+import type { UserLogSink } from '#infra/sandbox/console.js';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
-import { StrategySandbox } from '#strategy/runtime/strategy-sandbox.js';
+import { StrategySandbox } from '#strategy/sandbox/strategy-sandbox.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FactorLanguage } from '@jixie/shared';
 
-import { FactorHost } from '#strategy/execution/factor-host.js';
+import { FactorHost } from '#strategy/simulation/factor-host.js';
 import { BacktestingEngine } from '../backtesting-engine.js';
 import { fixturePort, type FixtureSpec } from '../testing/fixture-port.js';
 import type { BacktestingConfig, EngineStrategy } from '../contract.js';

@@ -1,6 +1,6 @@
 # 因子天气固定与刷新
 
-天气保存用户固定版本及按期观察点，不创建正式 FactorReport 或通用 Job。计算复用 [execution](../execution/README.md)，持久化和进程内并发归本目录。
+天气保存用户固定版本及按期观察点，不创建正式 FactorReport 或通用 Job。计算复用 [analysis](../analysis/README.md)，持久化和进程内并发归本目录。
 
 [pins.ts](pins.ts) 的 `listFactorWeatherPins`、`createFactorWeatherPin`、`requestFactorWeatherRefresh`、`deleteFactorWeatherPin` 供 weather 路由调用。参数带 userId、因子／pin 标识及 locale；创建验证来源和方向，冻结代码、语言、runtimeVersion 与方法哈希。非内置因子要求已发布；取消固定有忙碌状态限制。
 

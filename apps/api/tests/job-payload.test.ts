@@ -15,7 +15,7 @@ import {
   factorAnalysisJobPayloadSchema,
   type FactorAnalysisJobPayload,
 } from '#factor/evaluations/job-payload.js';
-import { factorAnalysisWorkerInputSchema } from '#factor/execution/worker-input.js';
+import { factorAnalysisWorkerInputSchema } from '#factor/analysis/worker-input.js';
 import {
   factorCorrelationJobPayloadSchema,
   type FactorCorrelationJobPayload,
@@ -33,7 +33,7 @@ import {
   type ResearchCuratorJobPayload,
 } from '#research/curator/job-payload.js';
 import { submitStrategyScanSchema } from '@jixie/shared/api/strategy';
-import { createDefaultFactorAnalysisSpecV3 } from '#factor/execution/spec.js';
+import { createDefaultFactorAnalysisSpecV3 } from '#factor/analysis/spec.js';
 
 const backtest = {
   task: 'backtest',

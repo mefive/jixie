@@ -11,12 +11,12 @@ Research 提供带 Markdown / Python Cell 的研究文档、可回看的执行�
 | 文档列表／详情、创建、归档和编辑 Cell | [documents](documents/README.md)：内容、修订及旧会话详情补建兼容 |
 | 变量依赖、下游 stale 和删除阻塞 | [dependencies](dependencies/README.md)：AST 分析、失效协调与纯运行计划 |
 | 单 Cell、全文、受影响分支、取消／重置 | [document-runs](document-runs/README.md)：普通同步执行、文档锁与结果回写 |
-| Python 会话如何复用和释放 | [runtime](runtime/README.md)：会话管理、串行通信、能力协商 |
+| Python 会话如何复用和释放 | [sandbox](sandbox/README.md)：会话管理、串行通信、能力协商 |
 | 宿主中的分析版本、Job、输入留存和接续 | [embedded](embedded/README.md)：独立生命周期及 retained/current 模式 |
 | 冻结完整执行、固化和私有图片 | [evidence](evidence/README.md)：快照、哈希、产物和归属读取 |
 | Agent 修改如何审阅、接受／撤回、尝试 | [proposals](proposals/README.md)：修订绑定、消息同步、尝试与澄清 |
 | Python 读取市场数据／私人报告 | [datasets](datasets/README.md)：字段和 PIT 切片；[results](datasets/results/README.md)：业务结果授权与独立映射 |
-| SDK 请求怎样校验、取数、重放 | [runtime/host](runtime/host/README.md)：纯参数解析与有副作用的分派、留存输入回放 |
+| SDK 请求怎样校验、取数、重放 | [sandbox/host](sandbox/host/README.md)：纯参数解析与有副作用的分派、留存输入回放 |
 | Cell 中 data/results/valuation/charts 在哪里实现 | [sdk](sdk/README.md)：Python 作者接口、注入宿主能力；公开契约归 shared/sdk/research |
 | 找数据、概念、支持的方法和来源 | [catalog](catalog/README.md)：可发现能力、语义绑定与来源决策 |
 | 编辑器补全、诊断和跨 Cell 符号 | [language](language/README.md)：Pyright、虚拟文档和 stub |
@@ -27,11 +27,11 @@ Research 提供带 Markdown / Python Cell 的研究文档、可回看的执行�
 
 ## 主要协作流程
 
-编辑经 documents 保存修订，再由 dependencies 更新关系、stale/blocked。document-runs 取得进程内文档锁，通过 runtime 执行；Python SDK 请求交给 runtime/host，再由 datasets 读取市场或私有报告。干净全文运行冻结开始时的源码和 DAG，evidence 保存完整结果，成功后可固化并交接。
+编辑经 documents 保存修订，再由 dependencies 更新关系、stale/blocked。document-runs 取得进程内文档锁，通过 sandbox 执行；Python SDK 请求交给 sandbox/host，再由 datasets 读取市场或私有报告。干净全文运行冻结开始时的源码和 DAG，evidence 保存完整结果，成功后可固化并交接。
 
 Agent 提案通过 proposals 审阅；接受不会自动运行，用户明确发起 attempt 后才走执行计划。attempt 是尝试记录，不替代完整证据。handoff 先查询已有目标草稿，未命中才校验证据并生成，目标模块保存结果。
 
-embedded Job 独立管理版本、取消、预算和输入留存，复用 runtime／SDK／产物；接续生成普通文档后可用原输入重放。Curator 是另一类 Job，事务外生成候选，完成事务内查重发布发现；两者不改变普通文档直接等待执行结果的方式。
+embedded Job 独立管理版本、取消、预算和输入留存，复用 sandbox／SDK／产物；接续生成普通文档后可用原输入重放。Curator 是另一类 Job，事务外生成候选，完成事务内查重发布发现；两者不改变普通文档直接等待执行结果的方式。
 
 ## 模块入口与共同约束
 

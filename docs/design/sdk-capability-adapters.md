@@ -36,8 +36,8 @@ flowchart LR
 | 宿主 bridge / dispatch | business/runtime | 校验帧、业务请求、数据权限及回放；不作为 SDK 实现 |
 | Transport / sandboxd | infra/runtime 和 apps/sandboxd | 隔离、帧通信、通用限制和资源释放 |
 
-公共装配接口归 [sdk-adapter.ts](../../apps/api/src/infra/runtime/sdk-adapter.ts)，Python 对应
-[SdkAdapter Protocol](../../apps/api/src/infra/runtime/python/sdk_adapter.py)：
+公共装配接口归 [sdk-adapter.ts](../../apps/api/src/infra/sandbox/sdk-adapter.ts)，Python 对应
+[SdkAdapter Protocol](../../apps/api/src/infra/sandbox/python/sdk_adapter.py)：
 
 ```ts
 interface SdkAdapter<Input, Capabilities> {

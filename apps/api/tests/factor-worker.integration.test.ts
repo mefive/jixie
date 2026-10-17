@@ -254,7 +254,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
 
   it.each([
     'strategy/backtests/worker',
-    'factor/execution/worker',
+    'factor/analysis/worker',
     'factor/correlations/worker',
     'strategy/scans/worker',
   ])(

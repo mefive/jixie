@@ -1,7 +1,7 @@
-import type { ResearchSandbox } from '../runtime/research-sandbox.js';
-import type { ResearchCellRunResult, ResearchCellInput } from '../runtime/contract.js';
-import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
-import type { ResearchCellRunOptions } from '../runtime/contract.js';
+import type { ResearchSandbox } from '../sandbox/research-sandbox.js';
+import type { ResearchCellRunResult, ResearchCellInput } from '../sandbox/contract.js';
+import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
+import type { ResearchCellRunOptions } from '../sandbox/contract.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchEmbeddedRunSummaryV1, ResearchEmbeddedRunV1 } from '@jixie/shared';
 import { embeddedCreateSchema } from '@jixie/shared/api/research';
@@ -45,7 +45,7 @@ import { JobService } from '#jobs/job-service.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { researchRoute } from '../routes/index.js';
 
-import { dispatchResearchRequest } from '../runtime/host/dispatch.js';
+import { dispatchResearchRequest } from '../sandbox/host/dispatch.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { embeddedInputRecorder } from './inputs.js';
 import { getEmbeddedInput, getEmbeddedRun, getEmbeddedVersion } from './read.js';

@@ -1,6 +1,10 @@
 # 观察数据与可得截止日
 
-本能力把 Market 数据变成评估器需要的观察序列。评估提交先确定可用截止日，[execution](../execution/README.md) 再加载并计算；这里不拥有报告／Job 状态。
+本能力把 Market 数据变成评估器需要的观察序列。评估提交先确定可用截止日，[analysis](../analysis/README.md) 再加载并计算；这里不拥有报告／Job 状态。
+
+[contract.ts](contract.ts) 拥有时间序列、Panel 和股票风格控制暴露的数据结构，评估器与组合能力只消费这些类型。横截面窗口覆盖率的默认值保持 0，由同一常量供观察序列和历史分析政策使用；版本化政策的其他阈值仍归 analysis。观察能力不反向导入评估器或统计推断。
+
+[cross-sectional](cross-sectional/README.md) 负责股票截面、PIT 财务、行业与风格控制数据，以及 FactorSandbox 生成的因子序列，供评估和相关性直接复用。
 
 | 实现与具名入口 | 主要用途 |
 | --- | --- |

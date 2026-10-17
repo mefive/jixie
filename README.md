@@ -57,7 +57,7 @@ apps/api/                          # Hono + Prisma 后端
   src/infra/http/                  # HTTP 错误、校验与请求语言
   src/infra/llm/                   # 模型供应商适配
   src/infra/email/                 # 邮件传输；登录邮件模板在 auth/
-  src/infra/runtime/               # 公共 Python 通信、TS isolate 与沙盒日志
+  src/infra/sandbox/               # 公共 Python 通信、TS isolate 与沙盒日志
   src/infra/jobs/                  # 任务契约、执行器、记录、日志与调度队列
   src/research/                    # 文档、依赖、执行、证据与 Agent 提案
   src/math/                        # 共用统计、推断与技术指标

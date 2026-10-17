@@ -1,6 +1,6 @@
 # Factor SDK
 
-这里放因子作者使用的工厂、Context 方法与 Python 对象。公开契约归 shared，源码加载、隔离、协议和资源生命周期归 [runtime](../runtime/README.md)。
+这里放因子作者使用的工厂、Context 方法与 Python 对象。公开契约归 shared，源码加载、隔离、协议和资源生命周期归 [sandbox](../sandbox/README.md)。
 
 | 入口 | 职责与消费者 |
 | --- | --- |
@@ -12,7 +12,7 @@
 | [contract.test.ts](contract.test.ts) | API 元数据/声明兼容，以及编辑器双语声明对合法与非法作者代码的检查 |
 
 TS 横截面 `compute(bar, ctx)` 与 V2 `compute(ctx)`、Python 的工厂/装饰器调用方式保持不变。
-TS runtime 的 [sandbox-bundle.ts](../runtime/typescript/sandbox-bundle.ts) 只打包此 SDK 与受信任的协议入口，在宿主进程缓存源码；每个因子仍在独立 isolate 中初始化。
+TS runtime 的 [sandbox-bundle.ts](../sandbox/typescript/sandbox-bundle.ts) 只打包此 SDK 与受信任的协议入口，在宿主进程缓存源码；每个因子仍在独立 isolate 中初始化。
 SDK 接收自己声明的 Capabilities，Adapter 持有准备好的历史数组、索引和声明字段，不查询数据库、不导入 Engine 或 runtime；工厂注入、批量调用与错误处理属于 runtime。
 宿主组装的 `FactorBar` 通过映射类型保留可写字段；脚本编辑器/编译契约的 Bar 保持 readonly，字段清单不重复维护。
 TS 编辑器现有五个 V2 字段和 Python 的七个字段继续分别维护；runtime 的受控研究字段及业务准入不随目录迁移改变。
@@ -35,7 +35,7 @@ TS 方法保持可解构调用；能力对象保存在 SDK 私有字段中；预
 （类型声明不允许该调用），Python 报错；TS 收盘价历史声明省略第二参数，Python 还允许显式 `"close"`。
 这些差异以及上面的字段范围不作为本次整理的隐式变更；若统一行为或改公开工厂，须另行评估存量代码兼容。
 
-Python 运行器位于 [factor_runner.py](../runtime/python/factor_runner.py)，它在隔离进程内注册 `jixie` 模块并加载用户定义。
+Python 运行器位于 [factor_runner.py](../sandbox/python/factor_runner.py)，它在隔离进程内注册 `jixie` 模块并加载用户定义。
 sandboxd 仅分派到该业务入口；Dockerfile 保留业务目录结构并显式打包 SDK 与 runner，二者同时影响 API/sandboxd 部署。
 生成 `.pyi` 仍位于 `apps/sandboxd/python/jixie_factor_sdk.pyi`；它是静态声明，不是执行实现。
 
@@ -45,7 +45,7 @@ sandboxd 仅分派到该业务入口；Dockerfile 保留业务目录结构并显
 
 SDK 的基础能力接口见 [capabilities.ts](capabilities.ts) / [capabilities.py](capabilities.py)。
 两个 Context 保留公开 history/value/lag、参数/声明校验及返回值归一化；不读取 wire frame 或持有输入 DTO。
-[runtime/typescript/factor-adapter.ts](../runtime/typescript/factor-adapter.ts) 和 [runtime/python/factor_adapter.py](../runtime/python/factor_adapter.py)
+[sandbox/typescript/factor-adapter.ts](../sandbox/typescript/factor-adapter.ts) 和 [sandbox/python/factor_adapter.py](../sandbox/python/factor_adapter.py)
 通过同一 bind(input) 入口将本地预备数据绑定为这些能力，runner 再注入 Context。内部 Context 构造参数改为能力对象，公开作者契约与回调签名保持。
 独立注入验证见 [injection.test.ts](injection.test.ts) 和 [python-injection.test.ts](python-injection.test.ts)。
 统一规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。

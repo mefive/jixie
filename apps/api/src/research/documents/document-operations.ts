@@ -1,4 +1,4 @@
-import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
+import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';

@@ -1,4 +1,4 @@
-import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
+import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';

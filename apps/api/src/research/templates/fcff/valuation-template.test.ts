@@ -1,4 +1,4 @@
-import { researchSandboxPool } from '../../runtime/research-sandbox-pool.js';
+import { researchSandboxPool } from '../../sandbox/research-sandbox-pool.js';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {

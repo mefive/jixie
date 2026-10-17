@@ -1,6 +1,6 @@
 # 业务执行职责整理
 
-> 最新命名（2026-10-17）：宿主类统一为 Sandbox，策略模拟为 StrategySimulation；单次调用契约采用 Compute / Decision / CellRun，本轮审查与验证已通过。当前范围与验证记录见文末，下方较早章节保留历史名称。
+> 最新结构（2026-10-17）：会话设施归 sandbox，策略模拟归 simulation，因子评估计算归 analysis，观察数据归 observations，Research 输入回放归 evidence。本次目录与依赖调整已通过代码审阅、静态检查和行为验证；范围及本轮结果见文末，下方较早章节保留历史名称。
 
 状态：人工代码审查已确认，行为验证与构建通过，按已确认的提交信息交付。
 
@@ -315,38 +315,38 @@ Worker 文件组、Job 生命周期和同主题函数集合继续按原职责命
 
 | 原文件 | 当前文件 |
 | --- | --- |
-| `strategy/runtime/bridge.ts` | [strategy/runtime/strategy-bridge.ts](../../apps/api/src/strategy/runtime/strategy-bridge.ts) |
-| `factor/runtime/bridge.ts` | [factor/runtime/factor-bridge.ts](../../apps/api/src/factor/runtime/factor-bridge.ts) |
-| `research/runtime/bridge.ts` | [research/runtime/research-bridge.ts](../../apps/api/src/research/runtime/research-bridge.ts) |
-| `strategy/runtime/typescript/runner.ts` | [strategy/runtime/typescript/strategy-runner.ts](../../apps/api/src/strategy/runtime/typescript/strategy-runner.ts) |
-| `strategy/runtime/python/runner.py` | [strategy/runtime/python/strategy_runner.py](../../apps/api/src/strategy/runtime/python/strategy_runner.py) |
-| `factor/runtime/typescript/runner.ts` | [factor/runtime/typescript/factor-runner.ts](../../apps/api/src/factor/runtime/typescript/factor-runner.ts) |
-| `factor/runtime/python/runner.py` | [factor/runtime/python/factor_runner.py](../../apps/api/src/factor/runtime/python/factor_runner.py) |
-| `research/runtime/python/runner.py` | [research/runtime/python/research_runner.py](../../apps/api/src/research/runtime/python/research_runner.py) |
-| `strategy/runtime/typescript/adapter.ts` | [strategy/runtime/typescript/strategy-adapter.ts](../../apps/api/src/strategy/runtime/typescript/strategy-adapter.ts) |
-| `strategy/runtime/python/adapter.py` | [strategy/runtime/python/strategy_adapter.py](../../apps/api/src/strategy/runtime/python/strategy_adapter.py) |
-| `factor/runtime/typescript/adapter.ts` | [factor/runtime/typescript/factor-adapter.ts](../../apps/api/src/factor/runtime/typescript/factor-adapter.ts) |
-| `factor/runtime/python/adapter.py` | [factor/runtime/python/factor_adapter.py](../../apps/api/src/factor/runtime/python/factor_adapter.py) |
-| `research/runtime/python/adapter.py` | [research/runtime/python/research_adapter.py](../../apps/api/src/research/runtime/python/research_adapter.py) |
-| `research/runtime/pool.ts` | [research/runtime/research-runtime-pool.ts](../../apps/api/src/research/runtime/research-sandbox-pool.ts) |
-| `strategy/execution/execution.ts` | [strategy/execution/strategy-execution.ts](../../apps/api/src/strategy/execution/strategy-simulation.ts) |
+| `strategy/runtime/bridge.ts` | [strategy/runtime/strategy-bridge.ts](../../apps/api/src/strategy/sandbox/strategy-bridge.ts) |
+| `factor/runtime/bridge.ts` | [factor/runtime/factor-bridge.ts](../../apps/api/src/factor/sandbox/factor-bridge.ts) |
+| `research/runtime/bridge.ts` | [research/runtime/research-bridge.ts](../../apps/api/src/research/sandbox/research-bridge.ts) |
+| `strategy/runtime/typescript/runner.ts` | [strategy/runtime/typescript/strategy-runner.ts](../../apps/api/src/strategy/sandbox/typescript/strategy-runner.ts) |
+| `strategy/runtime/python/runner.py` | [strategy/runtime/python/strategy_runner.py](../../apps/api/src/strategy/sandbox/python/strategy_runner.py) |
+| `factor/runtime/typescript/runner.ts` | [factor/runtime/typescript/factor-runner.ts](../../apps/api/src/factor/sandbox/typescript/factor-runner.ts) |
+| `factor/runtime/python/runner.py` | [factor/runtime/python/factor_runner.py](../../apps/api/src/factor/sandbox/python/factor_runner.py) |
+| `research/runtime/python/runner.py` | [research/runtime/python/research_runner.py](../../apps/api/src/research/sandbox/python/research_runner.py) |
+| `strategy/runtime/typescript/adapter.ts` | [strategy/runtime/typescript/strategy-adapter.ts](../../apps/api/src/strategy/sandbox/typescript/strategy-adapter.ts) |
+| `strategy/runtime/python/adapter.py` | [strategy/runtime/python/strategy_adapter.py](../../apps/api/src/strategy/sandbox/python/strategy_adapter.py) |
+| `factor/runtime/typescript/adapter.ts` | [factor/runtime/typescript/factor-adapter.ts](../../apps/api/src/factor/sandbox/typescript/factor-adapter.ts) |
+| `factor/runtime/python/adapter.py` | [factor/runtime/python/factor_adapter.py](../../apps/api/src/factor/sandbox/python/factor_adapter.py) |
+| `research/runtime/python/adapter.py` | [research/runtime/python/research_adapter.py](../../apps/api/src/research/sandbox/python/research_adapter.py) |
+| `research/runtime/pool.ts` | [research/runtime/research-runtime-pool.ts](../../apps/api/src/research/sandbox/research-sandbox-pool.ts) |
+| `strategy/execution/execution.ts` | [strategy/execution/strategy-execution.ts](../../apps/api/src/strategy/simulation/strategy-simulation.ts) |
 | `strategy/factors/factor.ts` | [strategy/factors/strategy-factor.ts](../../apps/api/src/strategy/factors/strategy-factor.ts) |
 | `backtesting/engine.ts` | [backtesting/backtesting-engine.ts](../../apps/api/src/backtesting/backtesting-engine.ts) |
 | `backtesting/context.ts` | [backtesting/backtesting-context.ts](../../apps/api/src/backtesting/backtesting-context.ts) |
 | `backtesting/factors/evaluator.ts` | [backtesting/factors/factor-evaluator.ts](../../apps/api/src/backtesting/factors/factor-evaluator.ts) |
-| `factor/execution/cross-sectional/evaluator.ts` | [factor/execution/cross-sectional/cross-sectional-evaluator.ts](../../apps/api/src/factor/execution/cross-sectional/cross-sectional-evaluator.ts) |
+| `factor/execution/cross-sectional/evaluator.ts` | [factor/execution/cross-sectional/cross-sectional-evaluator.ts](../../apps/api/src/factor/analysis/cross-sectional/cross-sectional-evaluator.ts) |
 | `jobs/service.ts` | [jobs/job-service.ts](../../apps/api/src/jobs/job-service.ts) |
 | `jobs/scheduler.ts` | [jobs/job-scheduler.ts](../../apps/api/src/jobs/job-scheduler.ts) |
 | `jobs/logs.ts` | [jobs/job-logs.ts](../../apps/api/src/jobs/job-logs.ts) |
 | `agent/turns/trace.ts` | [agent/turns/agent-trace-recorder.ts](../../apps/api/src/agent/turns/agent-trace-recorder.ts) |
-| `infra/runtime/typescript/transport.ts` | [infra/runtime/typescript/typescript-transport.ts](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts) |
-| `infra/runtime/python/session.ts` | [infra/runtime/python/python-session.ts](../../apps/api/src/infra/runtime/python/python-session.ts) |
-| `infra/runtime/log-buffer.ts` | [infra/runtime/sandbox-log-buffer.ts](../../apps/api/src/infra/runtime/sandbox-log-buffer.ts) |
+| `infra/runtime/typescript/transport.ts` | [infra/runtime/typescript/typescript-transport.ts](../../apps/api/src/infra/sandbox/typescript/typescript-transport.ts) |
+| `infra/runtime/python/session.ts` | [infra/runtime/python/python-session.ts](../../apps/api/src/infra/sandbox/python/python-session.ts) |
+| `infra/runtime/log-buffer.ts` | [infra/runtime/sandbox-log-buffer.ts](../../apps/api/src/infra/sandbox/sandbox-log-buffer.ts) |
 | `market/providers/tushare/client.ts` | [market/providers/tushare/tushare-client.ts](../../apps/api/src/market/providers/tushare/tushare-client.ts) |
 | `strategy/sdk/timeframe-series.ts` | [strategy/sdk/resampled-series.ts](../../apps/api/src/strategy/sdk/resampled-series.ts) |
 | `research/language/pyright-service.ts` | [research/language/research-python-language-service.ts](../../apps/api/src/research/language/research-python-language-service.ts) |
 | `backtesting/allocation-analysis.ts` | [backtesting/allocation-analysis-tracker.ts](../../apps/api/src/backtesting/allocation-analysis-tracker.ts) |
-| `infra/runtime/python/adapter.py` | [infra/runtime/python/sdk_adapter.py](../../apps/api/src/infra/runtime/python/sdk_adapter.py) |
+| `infra/runtime/python/adapter.py` | [infra/runtime/python/sdk_adapter.py](../../apps/api/src/infra/sandbox/python/sdk_adapter.py) |
 
 所有 TS 原生包内别名、相对导入、动态导入、Worker/new URL 资源引用、Python import、
 测试 mock/断言和当前阅读文档同步更新。API 的 package imports 通配映射保持；类名、
@@ -558,3 +558,117 @@ renames.json、ast-check.json 与 static-files.json。
 
 验证日志前缀：`/tmp/jixie-operation-contract-`；后缀为 tests.log、socket-tests.log、
 source-workers.log、compiled-workers.log、shared-build.log 与 api-build.log。
+
+## 2026-10-17 Sandbox 与业务能力目录调整
+
+约定 commit：`refactor(api): align sandbox and business capability directories`。
+
+用户确认按业务能力组织目录，并确认单个 commit 完成迁移与依赖整理。以 `e3e9df5a` 为基线，
+开始时工作区干净。155 个现有文件搬迁或更名，不保留旧入口转发；新增两份有实际消费者的业务契约
+和一份横截面观察 README，其他业务目录与类名保持。
+
+| 原目录或文件 | 当前归属 | 搬迁文件数 |
+| --- | --- | ---: |
+| infra/runtime | infra/sandbox | 20 |
+| strategy/runtime | strategy/sandbox | 36 |
+| factor/runtime | factor/sandbox | 34 |
+| research/runtime（除 input-replay.ts） | research/sandbox | 26 |
+| strategy/execution | strategy/simulation | 5 |
+| factor/execution（除横截面 data/series） | factor/analysis | 25 |
+| factor/execution/cross-sectional/data.ts、series.ts 及 series.test.ts | factor/observations/cross-sectional | 3 |
+| research/runtime/host/input-replay.ts | research/evidence/input-replay.ts | 1 |
+| strategy/backtests/run.ts | strategy/backtests/compute.ts | 1 |
+| strategy/scans/run.ts 及 run.test.ts | strategy/scans/compute.ts 及 compute.test.ts | 2 |
+| signals/runs/run.ts 及 run.test.ts | signals/runs/compute.ts 及 compute.test.ts | 2 |
+
+代码审阅中用户确认按实际动作调整四个泛化的 run.ts：Factor 搬迁后的
+analysis/run.ts 与 run.test.ts 同时更名为 evaluate.ts 与 evaluate.test.ts；其余三个入口
+及已有同名测试按上表更名。runFactorEvaluation、runBacktest、runStrategyScan、runSignal
+函数名与行为保持。同步四个 Worker 的导入、部署路径用例、当前阅读地图和历史文档的有效链接。
+Agent 后台对话的 turns/run.ts、SignalRun 的 routes/run.ts、Research 的具名运行文件、
+CLI、工具和对象 run() 保留，Worker 或 Job 身份不作为 run 命名依据。
+
+Factor 的 observations/contract.ts 拥有 TimeSeriesEvaluationObservation、
+PanelEvaluationObservation、EquityStyleControlExposureV1；字段原样迁移，分析器与组合直接
+消费。横截面取数、PIT 财务、行业、风格和因子序列归 observations；analysis 保留四类评估器、
+统计政策、推断、分派与共享 Worker，evaluations 继续拥有正式报告、holdout 与 Job 终态，
+weather/correlations 保持各自生命周期。原最小窗口覆盖率默认值仍为 0，观察序列与历史分析
+政策引用同一纯常量，不再让 observations 反向依赖 analysis；其他政策与计算表达式保持。
+
+Research 的 evidence/input-contract.ts 拥有 ResearchInputRequest 与 ResearchInputResponse。
+回放只接收方法和参数，保留来源运行、拥有者、retained/current、参数匹配、歧义与 SHA-256
+检查，返回内容与存储格式保持。sandbox/host 仍按原顺序执行 observer.beforeRequest、参数
+解析、回放或数据加载、observer.captureResponse 和带原 ID 的响应；部分错误与证据保存失败
+边界保持。文档运行、嵌入分析、依赖、数据集与沙盒会话继续各自拥有业务职责。
+
+同步 TS 导入与 URL、Worker 源码/编译路径、Python namespace import、sandboxd 分派、Docker
+COPY 与 .dockerignore、部署影响清单与计划测试。公共设施方向规则改为 infra/sandbox，新增
+observations 不依赖 analysis、evidence 不依赖 sandbox 的直接依赖规则及正反例；SDK 隔离
+同时覆盖旧 runtime 和新 sandbox 名称，不新增边界例外。API package imports 的通配映射保持。
+
+固定历史性能基线仍为 Strategy `2c58693b`、Factor `4464a616`，保留当时的模块路径和样本数。
+Factor 夹具与 Strategy 一样，抽取完整固定版本的 API 源码、package/tsconfig 并连接现有
+node_modules，避免历史 isolate-run 被当前目录与已退役模块影响；不改历史实现或弱化结果断言。
+当前入口地图与本地 Markdown 链接更新，历史叙述保留原名称。公开 SDK/HTTP/数据库模型、
+协议字段、runtimeVersion、环境契约、计算、撮合、权限和持久化时序均保持，无迁移或新依赖。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过：Shared/API/Docs/sandboxd/Web 类型检查及 SDK 生成物一致性通过。
+  后端扫描为 889 个文件、3300 条运行时边、894 条类型边，0 违规；原 4 条例外和 0 跨域环保持。
+- 214 个受影响 TS/MJS 文件 ESLint（0 警告）与 Prettier 检查通过；Factor 历史性能夹具修订后
+  单独重复相应静态检查与 Node 语法检查通过。
+- 113 个生产 TS/MJS 文件在归一化路径、已批准的类型归属、回放请求接口和默认常量后 AST
+  与 HEAD 一致。三份观察接口、窗口覆盖率默认值 0 和 Research 响应联合结构单独比较一致。
+- 11 个 Python 模块在归一化 namespace import 后 AST 一致，没有导入或执行这些模块；
+  23 个 Python 源码模块的 AST 语法检查通过，Python SDK 边界扫描覆盖 11 个文件，0 违规。
+- 22 个 Python 镜像输入（其中 21 个 API Python 文件）的文件、目标 namespace、Docker
+  白名单父目录和 API/sandboxd 部署覆盖一致；27 个字面量 source/dist 资源引用静态解析通过。
+- 引用扫描只保留两个固定历史源码路径；旧目录中的 17 个生成字节码缓存已清理，没有旧目录
+  或兼容模块残留。52 份修改文档的本地链接目标存在，git diff --check 通过。
+- 四个业务计算入口更名后完整重跑全仓 typecheck 和 214 个 TS/MJS 文件的 ESLint/Prettier。
+  四份计算实现与上一轮待审阅内容逐字节一致；三个同名测试和四个 Worker 在还原导入路径后
+  哈希一致。Agent、Signals 路由、Research、CLI、工具和对象的 run 命名保持。
+
+以上为审阅前静态结果；该阶段没有运行行为测试、构建、运行时探针或服务。
+用户随后确认本轮代码审阅，授权运行约定验证并在通过后自动提交。
+
+### 审阅后验证结果
+
+- 主回归 192 个文件、1399 项测试通过，覆盖三业务 Sandbox/Bridge/SDK、Python 实际执行与
+  打包、Factor 观察/分析/正式评估/天气、Research 文档/嵌入分析/输入回放、Strategy 模拟、
+  Backtesting、Signals、Job、模块别名和 CLI 入口。默认跳过的账户流程用独立临时 SQLite
+  建库并设置 ACCOUNTING_INTEGRATION=1 补跑，1 项通过，没有剩余待验证跳过项。
+- 真实 Worker 源码和干净编译版本各 14 项通过，覆盖启动恢复、四个业务 Worker 的依赖加载、
+  TS/Python 策略和因子组合、扫描连续运行/异常回收及 Signals IPC；成功消息之后继续等待
+  实际进程退出。编译测试使用全新临时 API 包，确认旧 runtime/execution 目录及四个旧
+  run.js 入口不存在，新 evaluate.js/compute.js 入口存在，没有使用现有 dist 补齐依赖。
+- 后端边界检查器、Python SDK 边界检查器和部署计划共 54 项测试通过。
+- Shared 构建通过；API 使用 --outDir 指向全新临时目录的构建通过。无需修改产品代码或测试
+  断言来通过本轮验证，审阅快照中的文件在验证过程中保持一致。
+- Strategy 固定基线 2c58693b 的 watch/dynamic 两项对照通过，NAV/成交哈希和帧计数一致，
+  字节差值符合既有同步命令协议断言，分别减少 1891 / 4003 字节。
+- Factor 固定基线 4464a616 的 cross_sectional/windowed/asset_series/logs 四组对照通过；
+  每个版本每组 8 次（冷启动 1、预热 2、计量 5），结果哈希、逻辑输入/结果字节及日志数一致，
+  有限得分断言保持。历史宿主、辅助模块与 SDK 一起抽取，结束后清理。
+
+本轮 API 测试合计 1430 项通过（主回归 1399、账户补跑 1、源码/编译 Worker 28、Strategy
+对照 2），另有上述 54 项检查器测试和四组 Factor 对照。耗时仅保留诊断，不声明稳定性能门槛：
+
+| 场景 | 历史版本计量中位数 ms | 当前版本计量中位数 ms | 计量内容 |
+| --- | ---: | ---: | --- |
+| Strategy watch | 95.99 | 111.61 | 整次模拟 |
+| Strategy dynamic | 419.46 | 419.30 | 整次模拟 |
+| Factor cross_sectional | 10.92 | 13.60 | execute |
+| Factor windowed | 42.40 | 42.93 | execute |
+| Factor asset_series | 11.67 | 13.06 | execute |
+| Factor logs | 5.29 | 11.54 | execute |
+
+本次变更保持计算实现，以上历史版本跨越既有 Bridge/Transport 与同步命令改造；这些数字
+不单独归因于目录更名。临时 Python/Worker 进程、socket、SQLite 句柄、历史源码树、字体
+缓存及干净编译目录均已检查和清理，没有遗留测试服务。按约定消息提交，不推送。
+
+日志与清单前缀：`/tmp/jixie-capability-directories-`；包括 migration.json、
+entry-names-typecheck.log、entry-names-lint.log、ast.json、resources.json、python-inputs.json、
+links.json、tests.log、source-workers.log、compiled-workers.log、accounting.log、checkers.log、
+shared-build.log、api-build.log、strategy-benchmark.json、factor-benchmark.json 与 cleanup.json。

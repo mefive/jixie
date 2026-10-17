@@ -8,6 +8,6 @@ Strategy 负责准备可执行因子；这里负责 Signals 对报告、部署�
 
 [summary.ts](summary.ts) 的 `summarizeFactorInputs` 由 signal Worker 调用，把捕获的因子输入与信号／持仓使用情况整理成运行展示摘要；不重新计算因子或改变冻结血缘。
 
-运行前的快照选择、拒绝与资源释放见 [runs/run.test.ts](../runs/run.test.ts)。改兼容比较看 [lineage.test.ts](../../strategy/factors/strategy-factor.test.ts)，改期限和窗口看 [rates.test.ts](rates.test.ts)，改展示摘要看 [summary.test.ts](summary.test.ts)。数据身份及可得日实现分别见 [Market registry](../../market/registry/README.md)、[rates](../../market/rates/README.md)。
+运行前的快照选择、拒绝与资源释放见 [runs/compute.test.ts](../runs/compute.test.ts)。改兼容比较看 [lineage.test.ts](../../strategy/factors/strategy-factor.test.ts)，改期限和窗口看 [rates.test.ts](rates.test.ts)，改展示摘要看 [summary.test.ts](summary.test.ts)。数据身份及可得日实现分别见 [Market registry](../../market/registry/README.md)、[rates](../../market/rates/README.md)。
 
 [返回 Signals 总览](../README.md)

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { factorAnalysisWorkerInputSchema } from '../execution/worker-input.js';
-import { normalizeFactorResearchSpec } from '../execution/spec.js';
+import { factorAnalysisWorkerInputSchema } from '../analysis/worker-input.js';
+import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 
 export const factorAnalysisJobPayloadSchema = factorAnalysisWorkerInputSchema.extend({
   spec: factorAnalysisWorkerInputSchema.shape.spec.transform(normalizeFactorResearchSpec),

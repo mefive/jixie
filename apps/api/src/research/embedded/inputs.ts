@@ -1,11 +1,12 @@
+import type { ResearchInputResponse } from '../evidence/input-contract.js';
 import { prisma } from '#infra/database/prisma.js';
 import { RESEARCH_EMBEDDED_LIMITS, type ResearchEmbeddedLimitsV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
-import type { ResearchRequestObserver, ResearchResponse } from '../runtime/host/dispatch.js';
-import type { ResearchRequestFrame } from '../runtime/host/protocol.js';
+import type { ResearchRequestObserver } from '../sandbox/host/dispatch.js';
+import type { ResearchRequestFrame } from '../sandbox/host/protocol.js';
 
 /** Persist before delivery, so a Python try/except cannot turn missing evidence into success. */
 export function embeddedInputRecorder(
@@ -44,7 +45,7 @@ export function embeddedInputRecorder(
       inputBytes += argumentBytes;
       pending = { id, requestId: frame.id };
     },
-    async captureResponse(frame: ResearchRequestFrame, response: ResearchResponse) {
+    async captureResponse(frame: ResearchRequestFrame, response: ResearchInputResponse) {
       signal.throwIfAborted();
       if (!pending || pending.requestId !== frame.id) {
         throw new Error('SDK response does not match its recorded request');
@@ -101,7 +102,7 @@ export async function assertActiveRun(
 /** Only copy metadata already defined by the SDK; never infer adjustment/currency semantics. */
 function responseMetadata(
   frame: ResearchRequestFrame,
-  response: ResearchResponse,
+  response: ResearchInputResponse,
 ): Record<string, unknown> {
   if ('error' in response) {
     return {};

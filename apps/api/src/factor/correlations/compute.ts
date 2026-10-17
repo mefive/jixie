@@ -1,11 +1,15 @@
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { FactorCorrelation, FactorFreq } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import type { UserLogSink } from '#infra/runtime/console.js';
+import type { UserLogSink } from '#infra/sandbox/console.js';
 import { t } from '#i18n/messages.js';
 import * as st from '#math/stats.js';
-import { getRebalanceDates, loadSnapshots, type Snap } from '../execution/cross-sectional/data.js';
-import { computeFactorSeries, type Series } from '../execution/cross-sectional/series.js';
+import {
+  getRebalanceDates,
+  loadSnapshots,
+  type Snap,
+} from '../observations/cross-sectional/data.js';
+import { computeFactorSeries, type Series } from '../observations/cross-sectional/series.js';
 
 const SIZE_KEY = 'size'; // the fixed pseudo-factor: log(total market cap), always the last column
 const SIZE_LABEL = '市值(ln)';

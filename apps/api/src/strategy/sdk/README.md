@@ -25,7 +25,7 @@
 校验。两者共用同一签名渲染器，不维护平行的 SDK 方法清单。文档 URL 保持不变；订单文档锚点使用 stock.* / futures.* 区分账户。
 
 Python 的 `Strategy`、`Context`、`Universe` 实现在 `apps/api/src/strategy/sdk/python.py`，
-方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/runtime/python/strategy_runner.py` 处理协议与超时，`runtime/python/strategy_adapter.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
+方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/sandbox/python/strategy_runner.py` 处理协议与超时，`sandbox/python/strategy_adapter.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
 共享 Engine 不意味着两种语言功能完全对等，也不意味着 SDK 直接访问数据库或券商。
 
 修改公开 TS 方法时：编辑 reference → 生成 contract → 修改 SDK/runtime → 静态类型及生成物一致性检查
@@ -52,8 +52,8 @@ OrderBook 方法。runtime 以 stock.* / futures.* 命令逐条提交并确认�
 SDK 基础能力由 [capabilities.ts](capabilities.ts) / [capabilities.py](capabilities.py) 声明，
 SDK 实现不导入 Engine、runtime、帧协议或数据库。TS 的 StrategyDefinition 回调接收公开 Context；
 Python Context/StockAccount 接收对应 Protocol，runner 注入 StrategyAdapter.bind(snapshot) 返回的能力对象。
-两种语言都显式声明账户原始操作，SDK 只转发能力调用；命令名、参数编码和同步发送归 runtime Adapter。
-指标、Universe、周期和仓位辅助留在 SDK；快照、缓存、同步/异步请求归 runtime Adapter。
+两种语言都显式声明账户原始操作，SDK 只转发能力调用；命令名、参数编码和同步发送归 sandbox Adapter。
+指标、Universe、周期和仓位辅助留在 SDK；快照、缓存、同步/异步请求归 sandbox Adapter。
 独立注入验证见 [injection.test.ts](injection.test.ts) / [python-injection.test.ts](python-injection.test.ts)，
 完整规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。
 

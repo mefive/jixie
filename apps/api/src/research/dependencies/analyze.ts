@@ -1,10 +1,10 @@
-import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
+import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ResearchError } from '../errors.js';
 
-import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
+import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
 import { reconcileResearchCellDependencyIssues } from './invalidation.js';
 import { dependencyConflicts } from './run-plan.js';
 

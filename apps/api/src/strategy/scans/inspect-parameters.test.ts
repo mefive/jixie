@@ -3,10 +3,10 @@ import { inspectStrategyParameters } from './inspect-parameters.js';
 import { inspectStrategyScanParameters } from './parameters.js';
 
 // Loading any execution infrastructure makes this static-only suite fail immediately.
-vi.mock('../runtime/strategy-sandbox.js', () => {
+vi.mock('../sandbox/strategy-sandbox.js', () => {
   throw new Error('Static inspection must not load StrategySandbox');
 });
-vi.mock('#infra/runtime/typescript/typescript-transport.js', () => {
+vi.mock('#infra/sandbox/typescript/typescript-transport.js', () => {
   throw new Error('Static inspection must not load the isolate transport');
 });
 

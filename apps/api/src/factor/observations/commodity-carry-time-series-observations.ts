@@ -1,4 +1,5 @@
-import type { TimeSeriesFactorSandbox } from '../runtime/contract.js';
+import type { TimeSeriesEvaluationObservation } from './contract.js';
+import type { TimeSeriesFactorSandbox } from '../sandbox/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import {
   COMMODITY_CARRY_MAX_STALENESS_DAYS,
@@ -11,7 +12,7 @@ import { addDays, daysBetween } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 
 import { COMMODITY_CARRY_FIELD } from '../definitions/fields.js';
-import type { TimeSeriesEvaluationObservation } from '../execution/time-series-evaluator.js';
+
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
 
 interface CommodityCarryTimeSeriesMapping {

@@ -33,7 +33,7 @@
 | 当前 Cell、执行与图片均绑定 ResearchDocument | [共享类型](../../packages/shared/src/research.ts)、[文档管理](../../apps/api/src/research/documents/document-operations.ts) | 需要明确嵌入模式、归属及生命周期，不能只禁用编辑器 |
 | FactorReport、BacktestReport 已能进入 Research | [因子报告读取](../../apps/api/src/research/datasets/results/factor-report.ts)、[回测报告读取](../../apps/api/src/research/datasets/results/backtest-report.ts)、[回测提交](../../apps/api/src/strategy/backtests/submit.ts) | 复用报告及其权限，不新建第二套正式报告 |
 | 初始调研时只读因子问答没有持久化实体；Commit 3 新增私有持久化路径 | [问答入口](../../apps/api/src/factor/questions/conversations.ts)、[turn runner](../../apps/api/src/agent/turns/run.ts)、[Factor store](../../apps/web/src/complex/factor/factor-store.ts) | 用户与稳定因子身份关联会话，每轮固定报告上下文，刷新恢复；已通过审查与验证 |
-| STATS_DOC 服务于 analyzeData，stats.ts 另有业务调用方 | `scripts/generators/gen-stats-doc.ts`（本轮删除）、[统计库](../../apps/api/src/math/stats.ts)、[因子评估](../../apps/api/src/factor/execution/cross-sectional/evaluate.ts)、[模拟引擎](../../apps/api/src/backtesting/backtesting-engine.ts) | 删除工具及其文档生成链，保留业务统计库 |
+| STATS_DOC 服务于 analyzeData，stats.ts 另有业务调用方 | `scripts/generators/gen-stats-doc.ts`（本轮删除）、[统计库](../../apps/api/src/math/stats.ts)、[因子评估](../../apps/api/src/factor/analysis/cross-sectional/evaluate.ts)、[模拟引擎](../../apps/api/src/backtesting/backtesting-engine.ts) | 删除工具及其文档生成链，保留业务统计库 |
 
 产品判断：保留工作台内的即时分析入口，复用 Research 的计算与输出，比继续维护两套分析体验更符合本次目标。
 冻结版本用于保护结论依据，不能代替对方法和数据的判断。

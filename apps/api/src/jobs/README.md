@@ -83,7 +83,7 @@ Embedded 和 Curator 直接调用领域执行函数，没有新增 Worker 协议
 持久化 JSON 读取时调用同一 schema。schema 文件不导入生命周期执行代码。
 
 回测与扫描 Worker 输入通过 Job schema 的 omit 派生，相关性 Worker 直接消费同一 Job schema。
-Factor 公共计算输入位于 factor/execution/worker-input.ts，支持正式研究 spec 与天气分析 spec；
+Factor 公共计算输入位于 factor/analysis/worker-input.ts，支持正式研究 spec 与天气分析 spec；
 evaluations/job-payload.ts 在此基础上增加 failedMessage 并保留正式任务既有的 spec 规范化。
 四类 Worker 在 try/catch/finally 中解析输入，非法输入发出 error 并执行资源清理。
 Signals 子进程仍只接收 runId，两个 Research 任务直接调用领域函数。

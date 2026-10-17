@@ -1,6 +1,6 @@
 import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
-import { normalizeFactorResearchSpec } from '../execution/spec.js';
+import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 
 export function reportResearchSpec(row: FactorReportRow) {
   if (row.specJson) {

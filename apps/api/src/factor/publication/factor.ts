@@ -1,5 +1,5 @@
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
-import { FactorSandbox } from '../runtime/factor-sandbox.js';
+import { FactorSandbox } from '../sandbox/factor-sandbox.js';
 import { prisma } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';

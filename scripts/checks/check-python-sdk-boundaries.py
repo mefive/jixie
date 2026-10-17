@@ -34,7 +34,7 @@ def inspect_sdk_dependencies(source: str, module: str) -> list[tuple[int, str]]:
             if parts[0] in {"factor", "strategy", "research", "backtesting", "infra", "jobs"}:
                 if parts[:2] != [package[0], "sdk"]:
                     issues.append((node.lineno, name))
-            elif "runtime" in parts or "sandboxd" in parts:
+            elif "runtime" in parts or "sandbox" in parts or "sandboxd" in parts:
                 issues.append((node.lineno, name))
     return issues
 

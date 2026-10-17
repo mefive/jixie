@@ -1,5 +1,5 @@
-import { FactorSandbox } from '../runtime/factor-sandbox.js';
-import type { CrossSectionalFactorSandbox, FactorBatchItem } from '../runtime/contract.js';
+import { FactorSandbox } from '../sandbox/factor-sandbox.js';
+import type { CrossSectionalFactorSandbox, FactorBatchItem } from '../sandbox/contract.js';
 import { describe, expect, it } from 'vitest';
 import type { FactorBar } from '@jixie/shared';
 import { BUILTIN_FACTORS } from './builtin-factors.js';

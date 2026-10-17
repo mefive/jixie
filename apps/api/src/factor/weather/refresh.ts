@@ -1,15 +1,15 @@
-import { factorAnalysisWorkerInputSchema } from '../execution/worker-input.js';
+import { factorAnalysisWorkerInputSchema } from '../analysis/worker-input.js';
 import { runWorker } from '#jobs/worker.js';
-import { factorAnalysisWorkerMessageSchema } from '../execution/worker-protocol.js';
+import { factorAnalysisWorkerMessageSchema } from '../analysis/worker-protocol.js';
 import { Worker } from 'node:worker_threads';
 import type { FactorReport, FactorWeatherPoint } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
-import { createDefaultFactorAnalysisSpecV3 } from '../execution/spec.js';
+import { createDefaultFactorAnalysisSpecV3 } from '../analysis/spec.js';
 import { canonicalJson, sha256 } from '../sources/fingerprint.js';
 
 const workerUrl = import.meta.url.endsWith('.ts')
-  ? new URL('../execution/worker.boot.mjs', import.meta.url)
-  : new URL('../execution/worker.js', import.meta.url);
+  ? new URL('../analysis/worker.boot.mjs', import.meta.url)
+  : new URL('../analysis/worker.js', import.meta.url);
 
 const HISTORY_START = '20150101';
 const standardSpecTemplate = createDefaultFactorAnalysisSpecV3({

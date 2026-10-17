@@ -1,4 +1,4 @@
-import { researchSandboxPool } from '../../runtime/research-sandbox-pool.js';
+import { researchSandboxPool } from '../../sandbox/research-sandbox-pool.js';
 import { EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE } from './classification-template.js';
 import { equityFcffClassificationSource } from './classification-evidence.js';
 import { resolve } from 'node:path';

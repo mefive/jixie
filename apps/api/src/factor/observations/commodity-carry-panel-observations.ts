@@ -1,4 +1,5 @@
-import type { PanelFactorSandbox } from '../runtime/contract.js';
+import type { PanelEvaluationObservation } from './contract.js';
+import type { PanelFactorSandbox } from '../sandbox/contract.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import {
   COMMODITY_CARRY_MINIMUM_DAYS_TO_DELIVERY,
@@ -11,7 +12,7 @@ import { addDays, daysBetween } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 
 import { COMMODITY_CARRY_FIELD } from '../definitions/fields.js';
-import type { PanelEvaluationObservation } from '../execution/panel-evaluator.js';
+
 import {
   monthlyPanelDecisionDates,
   panelEtfMatchesAssetClass,

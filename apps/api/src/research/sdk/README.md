@@ -1,7 +1,7 @@
 # Research 作者 SDK
 
 Cell 可直接使用 `data`、`results`、`valuation`、`charts`。实际实现位于 `python/`，由
-[runtime/python/research_runner.py](../runtime/python/research_runner.py) 通过 [bindings.py](python/bindings.py) 创建对象并注入 Cell namespace；reset 重建这些对象。
+[sandbox/python/research_runner.py](../sandbox/python/research_runner.py) 通过 [bindings.py](python/bindings.py) 创建对象并注入 Cell namespace；reset 重建这些对象。
 Research 当前只有 Python 作者接口，不增加空的 TypeScript SDK。
 
 | 对象 | 实现 | 公开方法 |
@@ -22,11 +22,11 @@ SDK 负责调用参数组装、公开列映射及 DataFrame 转换，宿主 runt
 `pnpm setup:sandbox` 继续生成原路径 `apps/sandboxd/python/jixie_research_sdk.pyi`，生成物不承担实现。
 当前内部类名保留 `_DataApi` 等；作者使用的是注入对象，不需要自行构造这些类或修改已有 Cell。
 
-验收入口：[独立 SDK 注入测试](python/sdk.test.ts)、[Python 会话回归](../runtime/research-sandbox-pool.test.ts)、
-[FCFF 数值回归](../templates/fcff/valuation-template.test.ts)、[镜像输入打包测试](../runtime/python/packaging.test.ts)。
+验收入口：[独立 SDK 注入测试](python/sdk.test.ts)、[Python 会话回归](../sandbox/research-sandbox-pool.test.ts)、
+[FCFF 数值回归](../templates/fcff/valuation-template.test.ts)、[镜像输入打包测试](../sandbox/python/packaging.test.ts)。
 打包测试不能替代真实 Docker 验收；Python 源文件须同步 Dockerfile、`.dockerignore` 和部署影响清单。
 
-[宿主协议与分派](../runtime/host/README.md) · [运行时](../runtime/README.md) · [返回 Research 总览](../README.md)
+[宿主协议与分派](../sandbox/host/README.md) · [运行时](../sandbox/README.md) · [返回 Research 总览](../README.md)
 
 
 SDK 绑定入口为 create_research_sdk(capabilities, pandas_module)，返回 data/charts/results/valuation，

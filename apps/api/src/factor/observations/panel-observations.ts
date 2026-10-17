@@ -1,9 +1,8 @@
-import type { PanelFactorSandbox } from '../runtime/contract.js';
+import type { PanelEvaluationObservation } from './contract.js';
+import type { PanelFactorSandbox } from '../sandbox/contract.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
-
-import type { PanelEvaluationObservation } from '../execution/panel-evaluator.js';
 
 export interface PanelEtfDailyRow {
   assetId: string;

@@ -4,7 +4,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { errorMessage } from '#infra/errors.js';
 import type { Locale } from '@jixie/shared';
 import { parentPort, workerData } from 'node:worker_threads';
-import { runStrategyScan } from './run.js';
+import { runStrategyScan } from './compute.js';
 
 const port = parentPort;
 if (!port) {

@@ -1,7 +1,7 @@
 import { normalizeChatMessage, type Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { FactorError } from '../errors.js';
-import { inspectFactorTargetAssetClasses } from '../runtime/inspect-definition.js';
+import { inspectFactorTargetAssetClasses } from '../sandbox/inspect-definition.js';
 import { BUILTIN_USER_ID } from './builtin-factors.js';
 import { macroRegimeTemplateResource } from './templates/macro-regime.js';
 import { panelTemplateResource } from './templates/panel.js';

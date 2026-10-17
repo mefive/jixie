@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   reportFindMany: vi.fn(),
 }));
 
-vi.mock('#factor/runtime/factor-sandbox.js', () => ({
+vi.mock('#factor/sandbox/factor-sandbox.js', () => ({
   FactorSandbox: { start: mocks.runtimeStart },
 }));
 
@@ -28,11 +28,11 @@ vi.mock('#infra/database/prisma.js', () => {
   };
 });
 
-vi.mock('#infra/runtime/typescript/compile.js', async (importOriginal) => {
+vi.mock('#infra/sandbox/typescript/compile.js', async (importOriginal) => {
   if (!mocks.preparationAllowed) {
     throw new Error('Source-only factor operations must not load the compiler');
   }
-  return importOriginal<typeof import('#infra/runtime/typescript/compile.js')>();
+  return importOriginal<typeof import('#infra/sandbox/typescript/compile.js')>();
 });
 
 // Keep source-only checks before preparation loads the mocked dependencies.
