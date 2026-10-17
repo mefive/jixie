@@ -25,6 +25,7 @@ function sessionFixture(language: StrategyLanguage, frame: unknown) {
 
 const ready = {
   type: 'ready',
+  command_mode: 'synchronous',
   metadata: {
     name: 'fixture',
     params: { lookback: 7 },
@@ -85,7 +86,9 @@ describe.each(['typescript', 'python'] as const)('%s strategy runtime ownership'
 
   it.each([
     { type: 'fatal', message: 'initialization failed' },
-    { type: 'ready', metadata: { ...ready.metadata, watch: ['AAA', 'AAA'] } },
+    { ...ready, metadata: { ...ready.metadata, watch: ['AAA', 'AAA'] } },
+    { type: 'ready', metadata: ready.metadata },
+    { ...ready, command_mode: 'buffered' },
   ])('closes the session when the bridge rejects startup: $type', async (frame) => {
     const session = sessionFixture(language, frame);
     await expect(StrategySandbox.start({ language, code: 'source' })).rejects.toThrow();

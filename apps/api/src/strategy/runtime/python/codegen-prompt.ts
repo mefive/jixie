@@ -29,6 +29,7 @@ def handle_bar(ctx):
   {line,signal,histogram}, ctx.kdj(code,period=9,k_smoothing=3,d_smoothing=3) -> {k,d,j}
 - Orders: ctx.stock.equal_weight(codes), ctx.stock.set_target_weights(dict), ctx.stock.set_target_weight(code,weight), ctx.stock.order_adjusted_shares(code,shares), ctx.stock.order_lots(code,lots), ctx.stock.close_position(code)
 - ctx.stock.set_target_weights is the complete target book and liquidates omitted holdings. Use ctx.stock.set_target_weights({}) to go flat; target weights cannot be mixed with incremental orders in the same callback. Closing a position replaces its earlier ordinary orders.
+- Account methods wait for host acceptance. Host command rejections raise RuntimeError at the call site and may be caught; accepted decisions are not fills. Earlier accepted commands remain when the callback catches a later error.
 - Conditional orders: ctx.stock.stop_loss_at_adjusted_price, ctx.stock.trailing_stop_by_fraction, ctx.stock.limit_buy_at_adjusted_price, ctx.stock.take_profit_by_fraction, ctx.stock.cancel_conditional
 - Bar fields use snake_case: pe_ttm, adj_close, turnover_rate, total_mv, risk_warning, pending_delisting, etc.
 

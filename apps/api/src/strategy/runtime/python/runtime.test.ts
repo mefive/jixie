@@ -135,6 +135,81 @@ describe('Python strategy runtime', () => {
     }
   });
 
+  it('matches TypeScript command rejection, catch-and-recover behavior and resulting trades', async () => {
+    enableTestRuntime();
+    const sources = {
+      typescript: `export default defineStrategy({ name: 'command-recovery', watch: ['AAA'], onBar(ctx) {
+        if (ctx.date !== '20240101') return;
+        let rejected = 0;
+        try { ctx.stock.setTargetWeight('AAA', 1.2); } catch { rejected++; }
+        try { ctx.stock.stopLossAtAdjustedPrice('AAA', -1); } catch { rejected++; }
+        try { ctx.stock.setTargetWeight('AAA', 'invalid' as unknown as number); } catch { rejected++; }
+        try { ctx.stock.orderLots('AAA', NaN); } catch { rejected++; }
+        if (rejected !== 4) throw new Error('command errors did not return to the call site');
+        ctx.stock.setTargetWeight('AAA', 0.5);
+        console.log('command-recovery', rejected);
+      } });`,
+      python: `
+from jixie import Strategy
+strategy = Strategy(name="command-recovery", watch=["AAA"])
+
+@strategy.on_bar
+def handle_bar(ctx):
+    if ctx.date != "20240101":
+        return
+    rejected = 0
+    try:
+        ctx.stock.set_target_weight("AAA", 1.2)
+    except RuntimeError:
+        rejected += 1
+    try:
+        ctx.stock.stop_loss_at_adjusted_price("AAA", -1)
+    except RuntimeError:
+        rejected += 1
+    try:
+        ctx.stock.set_target_weight("AAA", "invalid")
+    except RuntimeError:
+        rejected += 1
+    try:
+        ctx.stock.order_lots("AAA", float("nan"))
+    except ValueError:
+        rejected += 1
+    assert rejected == 4, "command errors did not return to the call site"
+    ctx.stock.set_target_weight("AAA", 0.5)
+    print("command-recovery", rejected)
+`,
+    };
+    const results = [];
+
+    for (const language of ['typescript', 'python'] as const) {
+      const logs: string[] = [];
+      const sandbox = await StrategySandbox.start({
+        language,
+        code: sources[language],
+        onUserLog: (_level, text) => logs.push(text),
+      });
+
+      try {
+        results.push(
+          await new BacktestingEngine({
+            start: dates[0],
+            end: dates.at(-1)!,
+            initialCash: 100_000,
+            strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
+            dataPort: fixturePort(spec),
+          }).run(),
+        );
+        expect(logs).toEqual(['command-recovery 4']);
+      } finally {
+        sandbox.close();
+      }
+    }
+
+    expect(results[0].tradeLog).toHaveLength(1);
+    expect(results[1].tradeLog).toEqual(results[0].tradeLog);
+    expect(results[1].nav).toEqual(results[0].nav);
+  });
+
   it('keeps Python daily technical indicators aligned with the TypeScript SDK', async () => {
     enableTestRuntime();
     const logs: string[] = [];

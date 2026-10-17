@@ -23,7 +23,7 @@ entry 首次收到 start 时调用 runStrategy，由业务入口创建唯一 Str
 
 异步截面/历史请求通过共享 bridge 分派。watch/持仓历史首次传当前日期可见数据，之后按日期增量更新；动态 ensureBars 注册后续更新，重复请求只补未传输历史。即使没有新历史，请求仍经过 Engine，保留因子准备和错误语义。本地窗口返回副本，指标在 isolate 计算；截面/历史加载后清除查询缓存。factor 只在实际调用时读取宿主，不提前批量读取。
 
-同步命令和读取走 schema 限定的 context-access.ts，命令复用 commands.ts，保持调用处 try/catch 与条件单取价时点。Python 仍在 done 后批量重放。通道不暴露 DataPort、源码执行或任意宿主方法，只在当前 onBar 期间绑定。
+同步宿主访问由 StrategyBridge 分派；context-access.ts 约束读取能力，账户命令与 Python command 请求共用 Bridge.executeCommand 的校验和分派，保持调用处 try/catch 与条件单取价时点。ready 声明 command_mode=synchronous，done 不携带命令批次。通道不暴露 DataPort、源码执行或任意宿主方法，只在当前 onBar 期间绑定。
 
 启动失败、协议失败和 close 释放 isolate；每次运行独立实例，模块状态跨 bar 保留。帧和队列有上限，回调沿用一小时预算，声明求值五秒。metrics 只属于 transport 诊断，通过测试设施取得，不进入作者 SDK 或公共 StrategySandboxInstance。
 
@@ -31,4 +31,4 @@ entry 首次收到 start 时调用 runStrategy，由业务入口创建唯一 Str
 
 [返回 Strategy 总览](../../README.md)
 
-Adapter 的对照阅读顺序：会话装配与 bind → BoundStockAccountCapabilities → BoundStrategyCapabilities 的快照／市场数据 → 缓存与通信。SDK 中的原始账户方法只转发能力调用；命令编码由绑定账户实现，TS 同步发送，Python 收集到当日 commands 后回放。
+Adapter 的对照阅读顺序：会话装配与 bind → BoundStockAccountCapabilities → BoundStrategyCapabilities 的快照／市场数据 → 缓存与通信。SDK 中的原始账户方法只转发能力调用；命令编码由绑定账户实现，TS 通过同步宿主访问发送，Python 通过阻塞请求发送；两者均等待宿主确认。

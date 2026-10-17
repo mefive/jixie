@@ -52,6 +52,21 @@ def handle_bar(ctx):
 
 Python 模块会在整次回测中保留变量，所以示例中的 `ordered` 可以防止每天重复下达同一意图。
 
+## 账户命令确认与错误
+
+`ctx.stock.set_target_weight` 等账户方法会等待引擎接受决策。如果引擎拒绝命令，Python 会在该调用处抛出 `RuntimeError`，可以用 `try/except` 捕获后继续执行。之后捕获的错误不会撤销此前成功提交的命令。
+
+下面故意传入超出范围的权重，命令被拒绝后再提交回退值：
+
+```python
+try:
+    ctx.stock.set_target_weight("600519.SH", 1.2)
+except RuntimeError:
+    ctx.stock.set_target_weight("600519.SH", 0.5)
+```
+
+确认不代表成交。撮合、T+1、涨跌停和费用仍按引擎交易规则处理；当次回调的账户快照不会在每条命令后刷新。未捕获的异常会终止本次运行。
+
 ## 可用技术指标
 
 Python 日线 SDK 提供 `sma`、`ema`、`atr`、`highest`、`lowest`、`avg_amount`、`avg_vol`，以及：

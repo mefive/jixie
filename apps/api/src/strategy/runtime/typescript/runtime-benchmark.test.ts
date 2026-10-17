@@ -30,9 +30,18 @@ it.skipIf(process.env.JIXIE_TEST_RUNTIME_BENCHMARK !== '1').each(['watch', 'dyna
     expect(new Set(hashes).size).toBe(1);
     const before = results.find((result) => result.variant === 'before');
     const shared = results.find((result) => result.variant === 'shared');
-    // Transport work is deterministic; structural changes must preserve all counters and bytes.
+    // Every bar submits one synchronous command. Only the mode marker and unit/done replies change.
+    const bars = scenario === 'dynamic' ? 252 : 120;
+    const byteDelta =
+      Buffer.byteLength(',"command_mode":"synchronous"') -
+      bars *
+        (Buffer.byteLength(',"commands":[]') + Buffer.byteLength('null') - Buffer.byteLength('{}'));
     for (const [index, sample] of shared.samples.entries()) {
-      expect(sample.metrics).toEqual(before.samples[index].metrics);
+      expect(sample.metrics.synchronousCalls).toBe(bars);
+      expect(sample.metrics).toEqual({
+        ...before.samples[index].metrics,
+        transferredBytes: before.samples[index].metrics.transferredBytes + byteDelta,
+      });
     }
     console.log('Runtime benchmark:', JSON.stringify(results));
   },

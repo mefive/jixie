@@ -92,6 +92,10 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   宿主访问归 `strategy-adapter.ts` / `strategy_adapter.py`；作者 SDK 接收基础能力，不反向导入 runtime。
 - 沙箱镜像以仓库根目录为构建上下文，`.dockerignore` 只允许显式 Python 输入。Strategy Python 源码
   同时影响 API 与 sandboxd；变更这些路径时保持部署清单和计划测试同步。
+- TS/Python 账户命令均逐条提交并等待宿主确认；StrategyBridge 的 executeCommand 统一校验与执行。
+  TS 通过受限同步宿主调用，Python 使用阻塞 command request/response，命令错误在作者调用处抛出。
+  ready 必须声明 command_mode=synchronous，done 仅表示回调完成，不携带命令批次；API 与 Python 镜像须配套更新。
+  账户快照与撮合时序保持；确认不等于成交，后续错误不自动回滚已接受的命令。
 - 本次整理不表示 TS / Python 功能完全对等；保持各自公开命名和既有产品准入。
 
 ## Factor SDK Contract 工作流

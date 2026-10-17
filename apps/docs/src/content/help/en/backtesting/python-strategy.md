@@ -52,6 +52,21 @@ def handle_bar(ctx):
 
 Python module variables persist for the full backtest. `ordered` prevents the example from sending the same intent every day.
 
+## Account command confirmation and errors
+
+Account methods such as `ctx.stock.set_target_weight` wait for the engine to accept the decision. If the engine rejects the command, Python raises `RuntimeError` at that call, so the callback can catch it and continue. Commands accepted before a later caught error remain in effect.
+
+For example, this deliberately invalid weight is rejected before the fallback is submitted:
+
+```python
+try:
+    ctx.stock.set_target_weight("600519.SH", 1.2)
+except RuntimeError:
+    ctx.stock.set_target_weight("600519.SH", 0.5)
+```
+
+Acceptance is not a fill. Matching, T+1, price limits and costs still follow the engine's trading rules; the callback's account snapshot does not refresh after each command. An uncaught error stops the run.
+
 ## Available technical indicators
 
 The Python daily SDK provides `sma`, `ema`, `atr`, `highest`, `lowest`, `avg_amount`, and `avg_vol`, plus:

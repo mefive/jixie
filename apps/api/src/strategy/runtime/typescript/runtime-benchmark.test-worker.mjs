@@ -1,10 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { join, relative as relativePath } from 'node:path';
+import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
-import { transform } from 'esbuild';
 import { register } from 'tsx/esm/api';
 
 register();
@@ -61,63 +60,28 @@ try {
   let createSandbox = (code) => startInstrumentedStrategySandbox({ language: 'typescript', code });
   if (variant === 'before') {
     directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
-    const modules = new Map([
-      ['src/infra/runtime/exchange.ts', join(directory, 'exchange.mjs')],
-      ['src/infra/runtime/sandbox-runtime.ts', join(directory, 'sandbox-runtime.mjs')],
-      ['src/strategy/runtime/bridge.ts', join(directory, 'bridge.mjs')],
-      ['src/strategy/runtime/strategy-runtime.ts', join(directory, 'runtime.mjs')],
-      ['src/strategy/runtime/python/prepare.ts', join(directory, 'python-prepare.mjs')],
-      ['src/strategy/runtime/typescript/prepare.ts', join(directory, 'typescript-prepare.mjs')],
+    // Keep the full pinned host and bundle sources together as their wire protocol evolves.
+    const archive = execFileSync(
+      'git',
       [
-        'src/strategy/runtime/typescript/testing/runtime.ts',
-        join(directory, 'instrumentation.mjs'),
+        'archive',
+        beforeCommit,
+        'apps/api/src',
+        'apps/api/package.json',
+        'apps/api/tsconfig.json',
+        'tsconfig.base.json',
       ],
-    ]);
-    const historicalSource = (repositoryPath) =>
-      execFileSync('git', ['show', `${beforeCommit}:${repositoryPath}`], {
-        cwd: apiDirectory,
-        encoding: 'utf8',
-      });
-    // Keep pinned sources intact while resolving renamed shared transports from the current tree.
-    const currentAliases = new Map([
-      [
-        '#infra/runtime/typescript/transport.js',
-        '#infra/runtime/typescript/typescript-transport.js',
-      ],
-      ['#infra/runtime/python/session.js', '#infra/runtime/python/python-session.js'],
-    ]);
-
-    for (const [repositoryPath, output] of modules) {
-      const original = pathToFileURL(join(apiDirectory, repositoryPath));
-      const source = historicalSource(`apps/api/${repositoryPath}`).replace(
-        /from '([^']+)'/g,
-        (match, specifier) => {
-          let target;
-          const internalModule = specifier.startsWith('#')
-            ? modules.get(`src/${specifier.slice(1).replace(/\.js$/, '.ts')}`)
-            : undefined;
-          if (internalModule) {
-            target = pathToFileURL(internalModule);
-          } else if (currentAliases.has(specifier)) {
-            return `from ${JSON.stringify(currentAliases.get(specifier))}`;
-          } else if (specifier.startsWith('.')) {
-            const current = new URL(specifier.replace(/\.js$/, '.ts'), original);
-            const historical = modules.get(relativePath(apiDirectory, fileURLToPath(current)));
-            target = historical ? pathToFileURL(historical) : current;
-          } else {
-            return match;
-          }
-
-          return `from ${JSON.stringify(target.href)}`;
-        },
-      );
-      await writeFile(
-        output,
-        (await transform(source, { loader: 'ts', format: 'esm', target: 'es2022' })).code,
-      );
-    }
+      { cwd: join(apiDirectory, '../..'), maxBuffer: 32 * 1024 * 1024 },
+    );
+    execFileSync('tar', ['-xf', '-', '-C', directory], { input: archive });
+    await symlink(
+      join(apiDirectory, 'node_modules'),
+      join(directory, 'apps/api/node_modules'),
+      'dir',
+    );
     const { startInstrumentedStrategyRuntime: startBeforeRuntime } = await import(
-      pathToFileURL(modules.get('src/strategy/runtime/typescript/testing/runtime.ts')).href
+      pathToFileURL(join(directory, 'apps/api/src/strategy/runtime/typescript/testing/runtime.ts'))
+        .href
     );
     createSandbox = async (code) => {
       const { runtime: sandbox, metrics } = await startBeforeRuntime({

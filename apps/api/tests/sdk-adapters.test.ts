@@ -32,6 +32,8 @@ assert history.history(2) == [10, 12]
 requests = []
 def request(method, arguments):
     requests.append([method, arguments])
+    if method == "command":
+        return {}
     if method == "cross_section":
         return {"codes": ["AAA"], "rows": [{"code": "AAA", "industry": "banking"}]}
     raise AssertionError("unexpected host request")
@@ -49,8 +51,7 @@ strategy = StrategyAdapter({"request": request})
 first = strategy.bind(snapshot("20260105", 1000, 10))
 first_context = Context(first, {})
 first_context.stock.set_target_weight("AAA", 0.5)
-assert first.commands == [{"operation": "stock.setTargetWeight", "arguments": {"code": "AAA", "weight": 0.5}}]
-assert requests == []
+assert requests == [["command", {"operation": "stock.setTargetWeight", "arguments": {"code": "AAA", "weight": 0.5}}]]
 assert first_context.universe().codes() == ["AAA"]
 second = strategy.bind(snapshot("20260106", 1200, 12))
 second_context = Context(second, {})
@@ -58,7 +59,7 @@ assert first.date == "20260105" and first.stock.equity == 1000
 assert second.date == "20260106" and second.stock.equity == 1200
 assert first.industry("AAA") == "banking" and second.bar("AAA") is None
 assert second_context.history("AAA", "close", 2) == [10, 12]
-assert second.commands == [] and len(first.commands) == 1
+assert len(requests) == 2
 second_context.stock.equal_weight(["AAA", "BBB"])
 second_context.stock.order_adjusted_shares("AAA", 10)
 second_context.stock.order_lots("AAA", 2)
@@ -68,7 +69,8 @@ second_context.stock.trailing_stop_by_fraction("AAA", 0.1)
 second_context.stock.limit_buy_at_adjusted_price("AAA", 10, 5)
 second_context.stock.take_profit_by_fraction("AAA", 0.2)
 second_context.stock.cancel_conditional("AAA")
-assert second.commands == [
+assert [arguments for method, arguments in requests if method == "command"] == [
+    {"operation": "stock.setTargetWeight", "arguments": {"code": "AAA", "weight": 0.5}},
     {"operation": "stock.setTargetWeights", "arguments": {"weights": {"AAA": 0.5, "BBB": 0.5}}},
     {"operation": "stock.orderAdjustedShares", "arguments": {"code": "AAA", "shares": 10}},
     {"operation": "stock.orderLots", "arguments": {"code": "AAA", "lots": 2}},
@@ -79,7 +81,7 @@ assert second.commands == [
     {"operation": "stock.takeProfitByFraction", "arguments": {"code": "AAA", "percentage": 0.2}},
     {"operation": "stock.cancelConditional", "arguments": {"code": "AAA", "kind": None}},
 ]
-assert len(requests) == 1
+assert len(requests) == 11
 
 frames = []
 def read_frame():

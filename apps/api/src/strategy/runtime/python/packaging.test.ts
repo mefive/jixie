@@ -68,6 +68,7 @@ def handle_bar(ctx: Context):
           ],
         },
       },
+      { type: 'response', id: 2, result: {} },
       { type: 'close' },
     ];
     const input = Buffer.concat(
@@ -91,10 +92,15 @@ def handle_bar(ctx: Context):
       output.push(JSON.parse(result.stdout.subarray(offset + 4, offset + 4 + size).toString()));
       offset += 4 + size;
     }
-    expect(output.map((frame) => frame.type)).toEqual(['ready', 'request', 'done']);
-    expect(output[2].commands).toEqual([
-      { operation: 'stock.setTargetWeight', arguments: { code: 'BBB', weight: 0.5 } },
-    ]);
+    expect(output.map((frame) => frame.type)).toEqual(['ready', 'request', 'request', 'done']);
+    expect(output[0]).toMatchObject({ command_mode: 'synchronous' });
+    expect(output[2]).toEqual({
+      type: 'request',
+      id: 2,
+      method: 'command',
+      arguments: { operation: 'stock.setTargetWeight', arguments: { code: 'BBB', weight: 0.5 } },
+    });
+    expect(output[3]).toEqual({ type: 'done' });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

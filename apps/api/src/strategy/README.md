@@ -18,7 +18,7 @@ Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以�
 | 策略执行与资源生命周期 | [execution](execution/README.md)：StrategySimulation 装配 runtime、因子与 Engine，提供 create/run/close；不承担正式报告流程 |
 | 策略 runtime 的共同入口与资源归属 | [runtime](runtime/README.md)：start、metadata、execute、close 及唯一 Engine 适配 |
 | TS 策略如何运行 | [runtime/typescript](runtime/typescript/README.md)：宿主 Engine、参数检查、SDK 装配与 isolate 收尾 |
-| 策略共享沙箱协议 | [runtime/strategy-bridge.ts](runtime/strategy-bridge.ts) 与 [runtime/protocol.ts](runtime/protocol.ts)：元数据、快照、批量查询和指令重放；TS/Python 共用 |
+| 策略共享沙箱协议 | [runtime/strategy-bridge.ts](runtime/strategy-bridge.ts) 与 [runtime/protocol.ts](runtime/protocol.ts)：元数据、快照、批量查询和同步命令确认；TS/Python 共用 |
 | Python 策略如何协作 | [runtime/python](runtime/python/README.md)：会话协议与命令桥接，交易模拟仍由 TS Engine 执行 |
 
 ## 主要协作流程

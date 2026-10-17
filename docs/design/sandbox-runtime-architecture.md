@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 当前协议（2026-10-17）：TS/Python Strategy 账户命令统一同步提交确认，ready 声明 command_mode=synchronous，done 不再携带 commands；原 Python 批量回放描述为历史行为。本轮范围、审查与验证状态见文末。
+
 > 当前命名（2026-10-17）：公共生命周期类为 Sandbox，三个宿主类为 StrategySandbox / FactorSandbox / ResearchSandbox，会话池为 ResearchSandboxPool，完整策略模拟为 StrategySimulation。实现和验证记录见 [命名统一记录](execution-naming-and-ownership.md#2026-10-17-sandbox-与-strategysimulation-命名统一)。下文保留各次变更时的历史名称，阅读链接指向当前文件。
 
 > 后续变更（2026-10-16）：核心类文件统一使用完整类名，例如 strategy-bridge.ts、strategy-runner.ts、strategy_runner.py；当前映射和审查验证状态见 [API 文件命名记录](execution-naming-and-ownership.md#2026-10-16-api-核心类文件名统一)。下文历史路径文字保留，阅读链接指向当前文件。
@@ -1088,3 +1090,70 @@ SandboxBridge 接口接收具体实例，继续验证接口消费；没有为了
 - 测试和构建进程退出，未启动开发服务或修改数据库。提交仅包含本轮 21 个文件，不推送。
 - 日志：`/tmp/jixie-bridge-contract-tests.log`、`/tmp/jixie-bridge-contract-shared-build.log`、
   `/tmp/jixie-bridge-contract-api-build.log`。
+
+## 2026-10-17 Strategy 同步命令提交统一
+
+约定 commit：`fix(strategy): unify synchronous command submission`。
+
+TS 和 Python 账户命令均在作者调用处逐条提交并等待宿主接受。StrategyBridge 的私有
+executeCommand 统一解析 strategyCommandSchema，再调用既有 EngineContext 方法；删除
+commands.ts 与回调结束后的批量重放。TS 保留受限同步宿主访问，Python Adapter 的 _command
+复用 Runner 已有的阻塞 request/response、请求 ID 校验与宿主等待期间的计时预算处理。
+成功确认统一返回空对象；done 仅表示作者回调正常结束，不再携带 commands。
+
+Python 的命令参数或业务拒绝通过 response.error 返回，在原调用处抛出 RuntimeError，作者
+可以捕获并提交后续命令。命令内容在 Bridge 的错误响应边界内校验；非法外层通信帧仍按协议
+错误处理。无法编码为 JSON 的值可在本地抛出 ValueError。错误不会自动回滚此前已接受的命令；
+未捕获的回调异常仍使本次运行失败。账户快照、Engine 决策提交、撮合、T+1 和费用时序保持，
+确认不表示成交，也不保证读取账户快照能立刻看到命令变化。
+
+ready 强制声明 command_mode=synchronous，新旧 API 与 Python 镜像组合在握手时明确失败。
+API 与 sandboxd 镜像须配套更新；公开 SDK 签名和 py-v1/ts-v1 版本标识保持。现有部署影响清单
+已逐项覆盖 strategy_adapter.py、strategy_runner.py 对 API/sandboxd 的共同影响，没有新增
+包或构建依赖，因此不改部署清单。公开中英帮助、Python 代码生成提示与 SDK/runtime README
+同步说明调用处异常和成功确认的边界。
+
+回归代码覆盖双通道的全部 15 个命令及顺序、非法命令的逐条拒绝与恢复、先成功后失败、确认
+发送失败、旧握手拒绝、真实 TS/Python 的 try/catch 与 try/except 恢复及成交/NAV 一致性，
+并更新 Python 镜像打包与 SDK 适配夹具。性能夹具仍固定原历史 commit、样本数、结果哈希和
+通信计数；历史宿主与沙箱源码一并冻结，字节断言显式计入新增握手标识、精简 done 和空确认
+结果带来的协议差值，避免混用当前协议或放宽断言。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过，Shared/API/Docs/sandboxd/Web 类型检查及 SDK 生成物一致性通过；
+  后端边界覆盖 887 个文件、3300 条运行时边和 887 条类型边，0 违规。
+- 13 个受影响 TS/MJS 文件的 ESLint（0 警告）和 Prettier 检查通过；两个 Python 模块及
+  八段内嵌 Python 测试源码的 AST 语法检查通过，没有导入或执行这些模块。Python SDK 边界
+  静态扫描覆盖 11 个文件，0 违规。
+- TypeScript AST 比较确认全部 15 个 EngineContext 调用及参数与 HEAD 的旧分派一致；
+  没有存活的 replayCommands、accessStrategyContext 或已删除 commands.ts 依赖。
+  十份修改文档的 120 个本地链接目标存在，git diff --check 通过。
+- 公共消息循环/Transport、Strategy Bridge/Sandbox、TS/Python 实际运行、SDK 适配/打包、
+  Simulation/Engine/Worker 回归、部署影响计划测试、性能对照以及 Shared/API/Docs 构建，
+  均待人工代码审阅通过后执行。当前未运行行为测试、构建、运行时探针或服务，修改未提交。
+
+静态日志前缀：`/tmp/jixie-strategy-command-`。
+
+### 审查后验证与提交
+
+2026-10-17 用户确认代码审阅并授权测试、构建通过后提交，全部既定验证通过，没有追加产品或
+测试修订；验证前后 26 个已审阅文件的 SHA-256 保持一致，仅在最后补录本节结果。
+
+- Strategy TS/Python 实际运行、Bridge/Sandbox、公共消息循环/Transport、SDK 适配/打包、
+  Simulation、Engine 与扫描/Signals 调用回归：47 个测试文件、418 项通过。真实语言用例
+  确认业务拒绝和非法参数在调用处被捕获，之后有效命令正常执行，成交与 NAV 完全一致。
+- Python Unix socket 通信：11 项通过，连接与临时 socket 均回收。
+- 源码 Worker 和 dist 生产入口各 14 项通过，覆盖四种 Strategy/Factor 语言组合、连续扫描、
+  Signals、恢复、非法输入和失败回收，使用独立临时 SQLite；以子进程正常退出作为成功条件。
+- TS watch/dynamic 历史性能对照两项通过，所有样本的成交/NAV 哈希一致，通信计数一致，
+  字节差值与本次协议变化精确匹配。watch 的 10 个测量样本中位耗时为 87.92 → 87.02 ms，
+  dynamic 的 5 个测量样本为 424.83 → 431.54 ms，均为本机观察值，不作为速度提升结论。
+- 部署影响计划 13 项通过；合计 459 项运行时/Worker/性能回归与 13 项部署测试，共 472 项。
+- Shared、API 和 Docs 构建通过；Docs 报告 chunk 体积提示，没有构建错误。
+- 测试与构建进程均退出，Python 打包、历史模块、Worker 数据库和 socket 临时目录已清理；
+  未启动开发服务、修改开发数据库或部署。提交清单限定本次 26 个文件，不推送。
+
+日志前缀：`/tmp/jixie-strategy-command-`；后缀为 tests.log、socket-tests.log、
+source-workers.log、compiled-workers.log、benchmark.log、deployment-tests.log、
+shared-build.log、api-build.log、docs-build.log；性能摘要为 benchmark-summary.json。

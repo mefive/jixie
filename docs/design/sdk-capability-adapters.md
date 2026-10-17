@@ -1,5 +1,7 @@
 # SDK 能力与运行时适配器统一规范
 
+> 当前命令语义（2026-10-17）：Strategy TS/Python 均逐条提交账户命令并等待宿主确认，Python 不再保存 commands 列表。详见 [同步命令统一记录](sandbox-runtime-architecture.md#2026-10-17-strategy-同步命令提交统一)。下方保留原重构时的历史叙述。
+
 > 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。
 
 > 后续结构对齐（2026-10-09）：Strategy TS Context 改由 Runner 显式构造，见 [Context 对齐记录](sdk-context-construction.md)。该记录维护本轮审查与验证状态；下文原装配位置保留为历史事实。

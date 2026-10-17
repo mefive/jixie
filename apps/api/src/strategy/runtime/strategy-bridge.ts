@@ -10,8 +10,7 @@ import type {
   StrategyCallbackInput,
   StrategySandboxMetadata,
 } from './contract.js';
-import { replayCommands } from './commands.js';
-import { accessStrategyContext } from './context-access.js';
+import { readStrategyContext, strategyContextAccessSchema } from './context-access.js';
 import { buildStrategySandboxBundle } from './typescript/sandbox-bundle.js';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { EngineContext } from '#backtesting/contract.js';
@@ -19,6 +18,7 @@ import type { BarRow, OhlcBar } from '#backtesting/data/market.js';
 import { makeSandboxConsole, type UserLogSink } from '#infra/runtime/console.js';
 import {
   strategyExecutionFrameSchema,
+  strategyCommandSchema,
   strategyStartupFrameSchema,
   type StrategyRequestFrame,
 } from './protocol.js';
@@ -180,20 +180,92 @@ export class StrategyBridge extends SandboxBridgeBase<
   }
 
   async execute({ context }: StrategyCallbackInput): Promise<void> {
-    this.transport.setHostAccess?.((input) => accessStrategyContext(context, input));
+    this.transport.setHostAccess?.((input) => this.accessContext(context, input));
     try {
-      const commands = await this.exchange({
+      await this.exchange({
         command: { type: 'bar', snapshot: this.contextSnapshot(context) },
         schema: strategyExecutionFrameSchema,
         operation: `executing a ${this.options.diagnostics.language} strategy ${this.options.diagnostics.callback}`,
         onLog: (frame) => this.forwardLog(frame),
         onRequest: (frame) => this.answerRequest(frame, context),
-        result: (frame) => frame.commands,
+        result: () => undefined,
       });
-
-      replayCommands(context, commands);
     } finally {
       this.transport.setHostAccess?.(undefined);
+    }
+  }
+
+  private accessContext(context: EngineContext, input: unknown): unknown {
+    const access = strategyContextAccessSchema.parse(input);
+    if (access.type === 'read') {
+      return readStrategyContext(context, access.request);
+    }
+
+    this.executeCommand(context, access.command);
+
+    return {};
+  }
+
+  private executeCommand(context: EngineContext, input: unknown): void {
+    const command = strategyCommandSchema.parse(input);
+
+    switch (command.operation) {
+      case 'futures.orderContracts':
+        context.futures.orderContracts(command.arguments.code, command.arguments.contracts);
+        break;
+      case 'futures.setTargetContracts':
+        context.futures.setTargetContracts(command.arguments.code, command.arguments.contracts);
+        break;
+      case 'futures.setTargetNotional':
+        context.futures.setTargetNotional(command.arguments.code, command.arguments.notional);
+        break;
+      case 'futures.hedgeStock':
+        context.futures.hedgeStock(command.arguments.code, command.arguments.beta);
+        break;
+      case 'futures.closePosition':
+        context.futures.closePosition(command.arguments.code);
+        break;
+      case 'stock.setTargetWeight':
+        context.stock.setTargetWeight(command.arguments.code, command.arguments.weight);
+        break;
+      case 'stock.setTargetWeights':
+        context.stock.setTargetWeights(command.arguments.weights);
+        break;
+      case 'stock.orderAdjustedShares':
+        context.stock.orderAdjustedShares(command.arguments.code, command.arguments.shares);
+        break;
+      case 'stock.orderLots':
+        context.stock.orderLots(command.arguments.code, command.arguments.lots);
+        break;
+      case 'stock.closePosition':
+        context.stock.closePosition(command.arguments.code);
+        break;
+      case 'stock.stopLossAtAdjustedPrice':
+        context.stock.stopLossAtAdjustedPrice(command.arguments.code, command.arguments.price);
+        break;
+      case 'stock.trailingStopByFraction':
+        context.stock.trailingStopByFraction(command.arguments.code, command.arguments.percentage);
+        break;
+      case 'stock.limitBuyAtAdjustedPrice':
+        context.stock.limitBuyAtAdjustedPrice(
+          command.arguments.code,
+          command.arguments.price,
+          command.arguments.shares,
+        );
+        break;
+      case 'stock.takeProfitByFraction':
+        context.stock.takeProfitByFraction(command.arguments.code, command.arguments.percentage);
+        break;
+      case 'stock.cancelConditional':
+        context.stock.cancelConditional(
+          command.arguments.code,
+          command.arguments.kind ?? undefined,
+        );
+        break;
+      default: {
+        const unsupportedCommand: never = command;
+        throw new Error(`Unsupported strategy command: ${JSON.stringify(unsupportedCommand)}`);
+      }
     }
   }
 
@@ -249,6 +321,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     try {
       let result: unknown;
       switch (frame.method) {
+        case 'command':
+          this.executeCommand(context, frame.arguments);
+          result = {};
+          break;
         case 'context_data': {
           switch (frame.arguments.operation) {
             case 'cross_section': {

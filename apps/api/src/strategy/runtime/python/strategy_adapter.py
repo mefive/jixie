@@ -128,7 +128,6 @@ class BoundStrategyCapabilities(StrategyCapabilities):
         self._request = request
         self._bars = bar_cache
         self._cross: dict[str, AttrDict] = {}
-        self.commands: list[dict[str, Any]] = []
         self._portfolio = AttrDict(equity=snapshot.portfolio.equity)
         self._stock = BoundStockAccountCapabilities(snapshot.stock, self._command)
         self._futures = AttrDict(
@@ -212,4 +211,4 @@ class BoundStrategyCapabilities(StrategyCapabilities):
         return row.factors.get(name) if row else None
 
     def _command(self, operation: str, arguments: dict[str, Any]) -> None:
-        self.commands.append({"operation": operation, "arguments": arguments})
+        self._request("command", {"operation": operation, "arguments": arguments})

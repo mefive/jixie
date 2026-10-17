@@ -49,7 +49,9 @@ class StrategyRunner:
         ):
             raise ValueError("py-v1 currently supports stock and ETF strategies only")
 
-        self._send_frame({"type": "ready", "metadata": self._metadata()})
+        self._send_frame(
+            {"type": "ready", "command_mode": "synchronous", "metadata": self._metadata()}
+        )
 
     def _execute(self, snapshot: StrategyAdapterInput) -> None:
         self._request_id = 0
@@ -62,7 +64,7 @@ class StrategyRunner:
             self._run_user_code(lambda: callback(context))
             sys.stdout.flush()
             sys.stderr.flush()
-            self._send_frame({"type": "done", "commands": capabilities.commands})
+            self._send_frame({"type": "done"})
         except Exception:
             self._send_frame({"type": "error", "message": traceback.format_exc(limit=20)})
 

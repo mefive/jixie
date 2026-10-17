@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import type { EngineContext } from '#backtesting/contract.js';
 import { identifierSchema, finiteNumberSchema } from '#infra/runtime/protocol.js';
-import { strategyCommandSchema } from './protocol.js';
-import { replayCommands } from './commands.js';
 
 const code = identifierSchema;
 const window = finiteNumberSchema;
@@ -29,19 +27,15 @@ const readSchema = z.discriminatedUnion('method', [
   read('indexSma', z.tuple([code, window])),
   read('indexPercentile', z.tuple([code, valuation, window.nullable()])),
 ]);
-const accessSchema = z.union([
+export const strategyContextAccessSchema = z.union([
   z.strictObject({ type: z.literal('read'), request: readSchema }),
-  z.strictObject({ type: z.literal('command'), command: strategyCommandSchema }),
+  z.strictObject({ type: z.literal('command'), command: z.record(z.string(), z.unknown()) }),
 ]);
 
+type StrategyContextRead = z.infer<typeof readSchema>;
+
 /** Only synchronous engine primitives are exposed, never storage or arbitrary property access. */
-export function accessStrategyContext(context: EngineContext, input: unknown): unknown {
-  const access = accessSchema.parse(input);
-  if (access.type === 'command') {
-    replayCommands(context, [access.command]);
-    return null;
-  }
-  const request = access.request;
+export function readStrategyContext(context: EngineContext, request: StrategyContextRead): unknown {
   switch (request.method) {
     case 'bar':
       return context.bar(...request.args);

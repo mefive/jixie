@@ -44,7 +44,7 @@ TS 的 `StrategyContext` 构造独立且完整校验的对象，公开方法保�
 见 [迁移说明](../../../../docs/src/content/help/zh/backtesting/edit-rerun.md)。
 
 内部 EngineContext 同样按 portfolio / stock / futures 分组，Context 将操作交给带账户及单位名称的
-OrderBook 方法。runtime 以 stock.* / futures.* 命令回放，并按账户发送临时 bar frame；
+OrderBook 方法。runtime 以 stock.* / futures.* 命令逐条提交并确认，并按账户发送临时 bar frame；
 这些 IPC 数据不改变 Signals 持久化快照。SDK 复用账户基础能力并添加 stock 仓位辅助，
 仍由独立公开契约检查完整签名。
 
@@ -52,7 +52,7 @@ OrderBook 方法。runtime 以 stock.* / futures.* 命令回放，并按账户�
 SDK 基础能力由 [capabilities.ts](capabilities.ts) / [capabilities.py](capabilities.py) 声明，
 SDK 实现不导入 Engine、runtime、帧协议或数据库。TS 的 StrategyDefinition 回调接收公开 Context；
 Python Context/StockAccount 接收对应 Protocol，runner 注入 StrategyAdapter.bind(snapshot) 返回的能力对象。
-两种语言都显式声明账户原始操作，SDK 只转发能力调用；命令名、参数编码和发送／收集归 runtime Adapter。
+两种语言都显式声明账户原始操作，SDK 只转发能力调用；命令名、参数编码和同步发送归 runtime Adapter。
 指标、Universe、周期和仓位辅助留在 SDK；快照、缓存、同步/异步请求归 runtime Adapter。
 独立注入验证见 [injection.test.ts](injection.test.ts) / [python-injection.test.ts](python-injection.test.ts)，
 完整规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。
@@ -60,3 +60,7 @@ Python Context/StockAccount 接收对应 Protocol，runner 注入 StrategyAdapte
 TS 的阅读顺序与 Factor 相同：定义工厂 → Context 构造 → 公开方法。账户／选股／周期辅助按业务职责独立，
 不为 Factor 制造不存在的辅助对象。参数保持冻结副本，账户 getter、能力转发与 command 时机保持。
 本轮审查和验证状态见 [Context 对齐记录](../../../../../docs/design/sdk-context-construction.md)。
+
+
+账户命令在调用处完成宿主校验与决策提交。TS 可用 try/catch、Python 可用 try/except RuntimeError 处理宿主拒绝后继续执行；
+命令确认不表示已经成交，账户快照与 Engine 的撮合顺序保持。之后捕获的错误不自动撤销此前成功提交的命令。

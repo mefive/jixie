@@ -84,6 +84,7 @@ class StrategyRunner {
 
     return JSON.stringify({
       type: 'ready',
+      command_mode: 'synchronous',
       metadata: this.metadata(),
     });
   }
@@ -94,7 +95,7 @@ class StrategyRunner {
 
     await this.strategy.onBar(context);
 
-    return JSON.stringify({ type: 'done', commands: [] });
+    return JSON.stringify({ type: 'done' });
   }
 
   private loadStrategy(userJs: string, sandboxConsole: SandboxConsole): StrategyDefinition {

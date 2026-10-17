@@ -109,8 +109,14 @@ function contextFixture() {
   return { context: context as unknown as EngineContext, spies: context };
 }
 
-const ready = { type: 'ready', metadata };
-const done = { type: 'done', commands: [] };
+const ready = { type: 'ready', command_mode: 'synchronous', metadata };
+const done = { type: 'done' };
+const commandRequest = (id: number, command: unknown) => ({
+  type: 'request',
+  id,
+  method: 'command',
+  arguments: command,
+});
 
 describe('Strategy Bridge connection creation', () => {
   it('defers user source execution until initialize after creating the connection', async () => {
@@ -299,14 +305,12 @@ describe('shared strategy bridge', () => {
     expect(spies.bars).toHaveBeenCalledWith('AAA', Number.MAX_SAFE_INTEGER);
   });
 
-  it('reports query failures to the sandbox and continues to its final commands', async () => {
+  it('reports query failures to the sandbox and continues with acknowledged commands', async () => {
     const { session, sent, historyUpdates } = transport([
       ready,
       { type: 'request', id: 9, method: 'bars', arguments: { codes: ['AAA'] } },
-      {
-        type: 'done',
-        commands: [{ operation: 'stock.closePosition', arguments: { code: 'BBB' } }],
-      },
+      commandRequest(10, { operation: 'stock.closePosition', arguments: { code: 'BBB' } }),
+      done,
     ]);
     const strategy = new StrategyBridge(session, {
       startupCommand: { type: 'start' },
@@ -322,97 +326,215 @@ describe('shared strategy bridge', () => {
     expect(spies.stock.closePosition).toHaveBeenCalledExactlyOnceWith('BBB');
   });
 
-  it('replays all supported trading commands in their original order', async () => {
-    const commands = [
-      { operation: 'stock.setTargetWeight', arguments: { code: 'AAA', weight: 0.5 } },
-      { operation: 'stock.setTargetWeights', arguments: { weights: { AAA: 0.6 } } },
-      { operation: 'stock.orderAdjustedShares', arguments: { code: 'AAA', shares: 100 } },
-      { operation: 'stock.orderLots', arguments: { code: 'IF', lots: -1 } },
-      { operation: 'stock.closePosition', arguments: { code: 'BBB' } },
-      { operation: 'stock.stopLossAtAdjustedPrice', arguments: { code: 'AAA', price: 9 } },
-      { operation: 'stock.trailingStopByFraction', arguments: { code: 'AAA', percentage: 0.1 } },
-      {
-        operation: 'stock.limitBuyAtAdjustedPrice',
-        arguments: { code: 'AAA', price: 10, shares: 200 },
-      },
-      { operation: 'stock.takeProfitByFraction', arguments: { code: 'AAA', percentage: 0.2 } },
-      { operation: 'stock.cancelConditional', arguments: { code: 'AAA', kind: null } },
-      { operation: 'futures.orderContracts', arguments: { code: 'IF', contracts: -2 } },
-      { operation: 'futures.setTargetContracts', arguments: { code: 'IF', contracts: 3 } },
-      { operation: 'futures.setTargetNotional', arguments: { code: 'IF', notional: -100000 } },
-      { operation: 'futures.hedgeStock', arguments: { code: 'IF', beta: 1 } },
-      { operation: 'futures.closePosition', arguments: { code: 'IF' } },
-    ];
-    const { session, historyUpdates } = transport([ready, { type: 'done', commands }]);
+  it.each(['synchronous', 'request'] as const)(
+    'executes all supported commands in order through the %s channel',
+    async (channel) => {
+      const commands = [
+        { operation: 'stock.setTargetWeight', arguments: { code: 'AAA', weight: 0.5 } },
+        { operation: 'stock.setTargetWeights', arguments: { weights: { AAA: 0.6 } } },
+        { operation: 'stock.orderAdjustedShares', arguments: { code: 'AAA', shares: 100 } },
+        { operation: 'stock.orderLots', arguments: { code: 'IF', lots: -1 } },
+        { operation: 'stock.closePosition', arguments: { code: 'BBB' } },
+        { operation: 'stock.stopLossAtAdjustedPrice', arguments: { code: 'AAA', price: 9 } },
+        { operation: 'stock.trailingStopByFraction', arguments: { code: 'AAA', percentage: 0.1 } },
+        {
+          operation: 'stock.limitBuyAtAdjustedPrice',
+          arguments: { code: 'AAA', price: 10, shares: 200 },
+        },
+        { operation: 'stock.takeProfitByFraction', arguments: { code: 'AAA', percentage: 0.2 } },
+        { operation: 'stock.cancelConditional', arguments: { code: 'AAA', kind: null } },
+        { operation: 'futures.orderContracts', arguments: { code: 'IF', contracts: -2 } },
+        { operation: 'futures.setTargetContracts', arguments: { code: 'IF', contracts: 3 } },
+        { operation: 'futures.setTargetNotional', arguments: { code: 'IF', notional: -100000 } },
+        { operation: 'futures.hedgeStock', arguments: { code: 'IF', beta: 1 } },
+        { operation: 'futures.closePosition', arguments: { code: 'IF' } },
+      ];
+      const { session, sent, historyUpdates } = transport([
+        ready,
+        ...(channel === 'request'
+          ? commands.map((command, index) => commandRequest(index + 1, command))
+          : []),
+        done,
+      ]);
+      if (channel === 'synchronous') {
+        let hostAccess: ((input: unknown) => unknown) | undefined;
+        session.setHostAccess = (handler) => {
+          hostAccess = handler;
+        };
+        const send = session.send.bind(session);
+        session.send = async (frame) => {
+          if (frame.type === 'bar') {
+            expect(hostAccess).toBeTypeOf('function');
+            for (const command of commands) {
+              expect(hostAccess!({ type: 'command', command })).toEqual({});
+            }
+          }
+          await send(frame);
+        };
+      }
+      const strategy = new StrategyBridge(session, {
+        startupCommand: { type: 'start' },
+        historyUpdates,
+        diagnostics,
+      });
+      await strategy.initialize();
+
+      const { context, spies } = contextFixture();
+      await strategy.execute({ context });
+      const calls = [
+        spies.stock.setTargetWeight,
+        spies.stock.setTargetWeights,
+        spies.stock.orderAdjustedShares,
+        spies.stock.orderLots,
+        spies.stock.closePosition,
+        spies.stock.stopLossAtAdjustedPrice,
+        spies.stock.trailingStopByFraction,
+        spies.stock.limitBuyAtAdjustedPrice,
+        spies.stock.takeProfitByFraction,
+        spies.stock.cancelConditional,
+        spies.futures.orderContracts,
+        spies.futures.setTargetContracts,
+        spies.futures.setTargetNotional,
+        spies.futures.hedgeStock,
+        spies.futures.closePosition,
+      ];
+      expect(calls.map((spy) => spy.mock.calls)).toEqual([
+        [['AAA', 0.5]],
+        [[{ AAA: 0.6 }]],
+        [['AAA', 100]],
+        [['IF', -1]],
+        [['BBB']],
+        [['AAA', 9]],
+        [['AAA', 0.1]],
+        [['AAA', 10, 200]],
+        [['AAA', 0.2]],
+        [['AAA', undefined]],
+        [['IF', -2]],
+        [['IF', 3]],
+        [['IF', -100000]],
+        [['IF', 1]],
+        [['IF']],
+      ]);
+      const order = calls.map((spy) => spy.mock.invocationCallOrder[0]);
+      expect(order).toEqual([...order].sort((left, right) => left - right));
+      expect(sent.filter((frame) => frame.type === 'response')).toEqual(
+        channel === 'request'
+          ? commands.map((_command, index) => ({ type: 'response', id: index + 1, result: {} }))
+          : [],
+      );
+    },
+  );
+
+  it('rejects individual malformed commands without mutating them and accepts later commands', async () => {
+    const { session, sent } = transport([
+      ready,
+      commandRequest(1, { operation: 'stock.closePosition', arguments: { code: 'AAA' } }),
+      commandRequest(2, {
+        operation: 'stock.orderAdjustedShares',
+        arguments: { code: 'AAA', shares: 'invalid' },
+      }),
+      commandRequest(3, { operation: 'shell', arguments: { command: 'id' } }),
+      commandRequest(4, { operation: 'stock.closePosition', arguments: { code: 'BBB' } }),
+      done,
+    ]);
     const strategy = new StrategyBridge(session, {
       startupCommand: { type: 'start' },
-      historyUpdates,
       diagnostics,
     });
     await strategy.initialize();
 
     const { context, spies } = contextFixture();
     await strategy.execute({ context });
-    const calls = [
-      spies.stock.setTargetWeight,
-      spies.stock.setTargetWeights,
-      spies.stock.orderAdjustedShares,
-      spies.stock.orderLots,
-      spies.stock.closePosition,
-      spies.stock.stopLossAtAdjustedPrice,
-      spies.stock.trailingStopByFraction,
-      spies.stock.limitBuyAtAdjustedPrice,
-      spies.stock.takeProfitByFraction,
-      spies.stock.cancelConditional,
-      spies.futures.orderContracts,
-      spies.futures.setTargetContracts,
-      spies.futures.setTargetNotional,
-      spies.futures.hedgeStock,
-      spies.futures.closePosition,
-    ];
-    expect(calls.map((spy) => spy.mock.calls)).toEqual([
-      [['AAA', 0.5]],
-      [[{ AAA: 0.6 }]],
-      [['AAA', 100]],
-      [['IF', -1]],
-      [['BBB']],
-      [['AAA', 9]],
-      [['AAA', 0.1]],
-      [['AAA', 10, 200]],
-      [['AAA', 0.2]],
-      [['AAA', undefined]],
-      [['IF', -2]],
-      [['IF', 3]],
-      [['IF', -100000]],
-      [['IF', 1]],
-      [['IF']],
+
+    expect(spies.stock.closePosition.mock.calls).toEqual([['AAA'], ['BBB']]);
+    expect(spies.stock.orderAdjustedShares).not.toHaveBeenCalled();
+    expect(sent.filter((frame) => frame.type === 'response')).toEqual([
+      { type: 'response', id: 1, result: {} },
+      { type: 'response', id: 2, error: expect.any(String) },
+      { type: 'response', id: 3, error: expect.any(String) },
+      { type: 'response', id: 4, result: {} },
     ]);
-    const order = calls.map((spy) => spy.mock.invocationCallOrder[0]);
-    expect(order).toEqual([...order].sort((left, right) => left - right));
+    expect(session.abort).not.toHaveBeenCalled();
   });
 
-  it('validates the entire command batch before any engine mutation', async () => {
-    const { session, historyUpdates } = transport([
+  it('returns engine rejection at the command request and lets the callback recover', async () => {
+    const { session, sent } = transport([
       ready,
-      {
-        type: 'done',
-        commands: [
-          { operation: 'stock.closePosition', arguments: { code: 'AAA' } },
-          { operation: 'stock.orderAdjustedShares', arguments: { code: 'AAA', shares: Infinity } },
-        ],
-      },
+      commandRequest(1, {
+        operation: 'stock.setTargetWeight',
+        arguments: { code: 'AAA', weight: 1.2 },
+      }),
+      commandRequest(2, {
+        operation: 'stock.setTargetWeight',
+        arguments: { code: 'AAA', weight: 0.5 },
+      }),
+      done,
     ]);
     const strategy = new StrategyBridge(session, {
       startupCommand: { type: 'start' },
-      historyUpdates,
       diagnostics,
     });
     await strategy.initialize();
 
     const { context, spies } = contextFixture();
-    await expect(strategy.execute({ context })).rejects.toThrow();
-    expect(spies.stock.closePosition).not.toHaveBeenCalled();
-    expect(spies.stock.orderAdjustedShares).not.toHaveBeenCalled();
+    spies.stock.setTargetWeight.mockImplementationOnce(() => {
+      throw new Error('invalid target weight');
+    });
+    await strategy.execute({ context });
+
+    expect(spies.stock.setTargetWeight.mock.calls).toEqual([
+      ['AAA', 1.2],
+      ['AAA', 0.5],
+    ]);
+    expect(sent.filter((frame) => frame.type === 'response')).toEqual([
+      { type: 'response', id: 1, error: 'invalid target weight' },
+      { type: 'response', id: 2, result: {} },
+    ]);
+  });
+
+  it('does not roll back accepted commands when the callback subsequently fails', async () => {
+    const { session } = transport([
+      ready,
+      commandRequest(1, { operation: 'stock.closePosition', arguments: { code: 'AAA' } }),
+      { type: 'error', message: 'callback failed after the command' },
+    ]);
+    const strategy = new StrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      diagnostics,
+    });
+    await strategy.initialize();
+
+    const { context, spies } = contextFixture();
+    await expect(strategy.execute({ context })).rejects.toThrow(
+      'callback failed after the command',
+    );
+    expect(spies.stock.closePosition).toHaveBeenCalledExactlyOnceWith('AAA');
+  });
+
+  it('propagates a failed command acknowledgement without undoing the accepted command', async () => {
+    const { session } = transport([
+      ready,
+      commandRequest(1, { operation: 'stock.closePosition', arguments: { code: 'AAA' } }),
+      done,
+    ]);
+    const send = session.send.bind(session);
+    session.send = async (frame) => {
+      if (frame.type === 'response') {
+        throw new Error('connection lost during acknowledgement');
+      }
+      await send(frame);
+    };
+    const strategy = new StrategyBridge(session, {
+      startupCommand: { type: 'start' },
+      diagnostics,
+    });
+    await strategy.initialize();
+
+    const { context, spies } = contextFixture();
+    await expect(strategy.execute({ context })).rejects.toThrow(
+      'connection lost during acknowledgement',
+    );
+    expect(spies.stock.closePosition).toHaveBeenCalledExactlyOnceWith('AAA');
   });
 
   it('preserves sandbox errors during initialization and onBar', async () => {
@@ -437,7 +559,7 @@ describe('shared strategy bridge', () => {
 
   it('normalizes absent account allocation without inventing defaults', async () => {
     const { session, historyUpdates } = transport([
-      { type: 'ready', metadata: { ...metadata, accounts: null } },
+      { ...ready, metadata: { ...metadata, accounts: null } },
     ]);
     const strategy = new StrategyBridge(session, {
       startupCommand: { type: 'start' },
@@ -491,7 +613,7 @@ describe('incremental TypeScript history delivery', () => {
     method: 'context_data',
     arguments: { operation: 'ensure_bars', codes },
   });
-  const startup = { type: 'ready', metadata: { ...metadata, watch: [] } };
+  const startup = { ...ready, metadata: { ...metadata, watch: [] } };
 
   it('sends each visible row once across mixed requests, repeated calls, gaps and suspended dates', async () => {
     const frames: unknown[] = [startup];

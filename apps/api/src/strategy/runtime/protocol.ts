@@ -36,10 +36,18 @@ const strategyMetadataSchema = z.strictObject({
 
 const strategyReadyFrameSchema = z.strictObject({
   type: z.literal('ready'),
+  command_mode: z.literal('synchronous'),
   metadata: strategyMetadataSchema,
 });
 
 const strategyRequestFrameSchema = z.union([
+  z.strictObject({
+    type: z.literal('request'),
+    id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    method: z.literal('command'),
+    // Command validation errors must return to the author at the call site.
+    arguments: z.record(z.string(), z.unknown()),
+  }),
   z.strictObject({
     type: z.literal('request'),
     id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
@@ -127,7 +135,6 @@ export const strategyCommandSchema = z.discriminatedUnion('operation', [
 
 const strategyDoneFrameSchema = z.strictObject({
   type: z.literal('done'),
-  commands: z.array(strategyCommandSchema).max(MAX_LIST_ITEMS),
 });
 
 export const strategyStartupFrameSchema = z.union([
