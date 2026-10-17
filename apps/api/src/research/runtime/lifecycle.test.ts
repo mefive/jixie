@@ -1,7 +1,7 @@
-import { researchRuntimePool } from './research-runtime-pool.js';
+import { researchSandboxPool } from './research-sandbox-pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/runtime/python/python-session.js';
-import { ResearchRuntime } from './research-runtime.js';
+import { ResearchSandbox } from './research-sandbox.js';
 
 const documentId = 'runtime-lifecycle';
 const executed = { type: 'research_executed', outputs: [], definitions: [], references: [] };
@@ -20,7 +20,7 @@ function fixture() {
 }
 const cell = { id: 'cell', source: '1' };
 afterEach(() => {
-  researchRuntimePool.close(documentId);
+  researchSandboxPool.close(documentId);
   vi.restoreAllMocks();
 });
 
@@ -30,7 +30,7 @@ describe('Research pool and instance ownership', () => {
     const error = new Error('cancelled before startup');
 
     await expect(
-      ResearchRuntime.start({ documentId, signal: AbortSignal.abort(error) }),
+      ResearchSandbox.start({ documentId, signal: AbortSignal.abort(error) }),
     ).rejects.toBe(error);
     expect(PythonSession.connect).not.toHaveBeenCalled();
     expect(session.send).not.toHaveBeenCalled();
@@ -46,7 +46,7 @@ describe('Research pool and instance ownership', () => {
           complete = resolve;
         }),
     );
-    const startup = ResearchRuntime.start({ documentId, signal: controller.signal });
+    const startup = ResearchSandbox.start({ documentId, signal: controller.signal });
     const error = new Error('cancelled during connection');
     controller.abort(error);
     complete(session as unknown as PythonSession);
@@ -68,7 +68,7 @@ describe('Research pool and instance ownership', () => {
       return { type: 'research_ready', environment: {}, capabilities: [] };
     });
 
-    await expect(ResearchRuntime.start({ documentId, signal: controller.signal })).rejects.toBe(
+    await expect(ResearchSandbox.start({ documentId, signal: controller.signal })).rejects.toBe(
       error,
     );
     expect(session.abort).toHaveBeenCalledExactlyOnceWith(new Error('Research startup aborted'));
@@ -82,7 +82,7 @@ describe('Research pool and instance ownership', () => {
 
   it('does not create a runtime when resetting an unused document', async () => {
     const session = fixture();
-    await researchRuntimePool.reset(documentId);
+    await researchSandboxPool.reset(documentId);
     expect(PythonSession.connect).not.toHaveBeenCalled();
     expect(session.send).not.toHaveBeenCalled();
   });
@@ -96,17 +96,17 @@ describe('Research pool and instance ownership', () => {
       references: [],
     });
     await expect(
-      researchRuntimePool.withRuntime(documentId, (runtime) => runtime.execute({ cell: cell })),
+      researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.execute({ cell: cell })),
     ).rejects.toThrow('user failure');
-    await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.execute({ cell: cell }));
+    await researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.execute({ cell: cell }));
     expect(PythonSession.connect).toHaveBeenCalledOnce();
     session.readValidated.mockRejectedValueOnce(new Error('invalid protocol'));
     await expect(
-      researchRuntimePool.withRuntime(documentId, (runtime) => runtime.execute({ cell: cell })),
+      researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.execute({ cell: cell })),
     ).rejects.toThrow('invalid protocol');
     expect(session.close).toHaveBeenCalledOnce();
     fixture();
-    await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.execute({ cell: cell }));
+    await researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.execute({ cell: cell }));
   });
 
   it('does not reuse an instance closed by the log transfer limit', async () => {
@@ -117,11 +117,11 @@ describe('Research pool and instance ownership', () => {
       level: 'info',
     });
     await expect(
-      researchRuntimePool.withRuntime(documentId, (runtime) => runtime.execute({ cell: cell })),
+      researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.execute({ cell: cell })),
     ).rejects.toThrow('log output');
     expect(session.close).toHaveBeenCalledOnce();
     const replacement = fixture();
-    await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.execute({ cell: cell }));
+    await researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.execute({ cell: cell }));
     expect(replacement.send).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'research_start' }),
     );
@@ -140,12 +140,12 @@ describe('Research pool and instance ownership', () => {
         complete = resolve;
       });
     });
-    const first = researchRuntimePool.withRuntime(documentId, (runtime) =>
-      runtime.execute({ cell: { ...cell, id: 'first' } }),
+    const first = researchSandboxPool.withSandbox(documentId, (sandbox) =>
+      sandbox.execute({ cell: { ...cell, id: 'first' } }),
     );
     await reading;
-    const second = researchRuntimePool.withRuntime(documentId, (runtime) =>
-      runtime.execute({ cell: { ...cell, id: 'second' } }),
+    const second = researchSandboxPool.withSandbox(documentId, (sandbox) =>
+      sandbox.execute({ cell: { ...cell, id: 'second' } }),
     );
     expect(
       session.send.mock.calls.filter(([frame]) => frame.type === 'research_execute'),
@@ -174,8 +174,8 @@ describe('Research pool and instance ownership', () => {
       });
     });
     session.abort.mockImplementation((error: Error) => rejectRead(error));
-    const first = researchRuntimePool.withRuntime(documentId, (runtime) =>
-      runtime.execute({ cell: cell }),
+    const first = researchSandboxPool.withSandbox(documentId, (sandbox) =>
+      sandbox.execute({ cell: cell }),
     );
     const firstFailure = expect(first).rejects.toThrow('aborted');
     await reading;
@@ -189,10 +189,10 @@ describe('Research pool and instance ownership', () => {
       addListener(...args);
       listening();
     });
-    const second = researchRuntimePool.withRuntime(
+    const second = researchSandboxPool.withSandbox(
       documentId,
-      (runtime) =>
-        runtime.execute({ cell: { ...cell, id: 'queued' } }, { signal: controller.signal }),
+      (sandbox) =>
+        sandbox.execute({ cell: { ...cell, id: 'queued' } }, { signal: controller.signal }),
       { signal: controller.signal },
     );
     const secondFailure = expect(second).rejects.toThrow();
@@ -202,7 +202,7 @@ describe('Research pool and instance ownership', () => {
     await Promise.all([firstFailure, secondFailure]);
     expect(session.send.mock.calls.some(([frame]) => frame.cell_id === 'queued')).toBe(false);
     const replacement = fixture();
-    await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.execute({ cell: cell }));
+    await researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.execute({ cell: cell }));
     expect(replacement.close).not.toHaveBeenCalled();
   });
 });

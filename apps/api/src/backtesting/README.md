@@ -3,7 +3,7 @@
 Backtesting 模拟交易：推进交易日、提供当时可得的数据、调用决策回调、执行待成交指令、维护账户和累计绩效。它不读取用户源码，不选择语言，不管理沙箱，也不处理回测任务或信号部署。
 
 入口为 `new BacktestingEngine(config).run()`，每个实例只运行一次，直接返回 `BacktestingResult`，末日快照由调用方显式获取。
-[StrategyExecution](../strategy/execution/strategy-execution.ts) 创建策略 runtime 和 FactorHost，注入决策回调、DataPort 与 FactorExecutionPort；它负责关闭这些外部资源。
+[StrategySimulation](../strategy/execution/strategy-simulation.ts) 创建策略 runtime 和 FactorHost，注入决策回调、DataPort 与 FactorExecutionPort；它负责关闭这些外部资源。
 
 ## 从职责找文件
 

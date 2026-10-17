@@ -1,5 +1,5 @@
-import { FactorRuntime } from '../runtime/factor-runtime.js';
-import type { CrossSectionalFactorRuntime, FactorBatchItem } from '../runtime/contract.js';
+import { FactorSandbox } from '../runtime/factor-sandbox.js';
+import type { CrossSectionalFactorSandbox, FactorBatchItem } from '../runtime/contract.js';
 import { describe, expect, it } from 'vitest';
 import type { FactorBar } from '@jixie/shared';
 import { BUILTIN_FACTORS } from './builtin-factors.js';
@@ -168,9 +168,9 @@ function syntheticSeries(): { px: number[]; dates: string[] } {
   return { px, dates };
 }
 
-async function startFactorRuntime(key: string): Promise<CrossSectionalFactorRuntime> {
+async function startFactorSandbox(key: string): Promise<CrossSectionalFactorSandbox> {
   const def = BUILTIN_FACTORS.find((factor) => factor.key === key)!;
-  return FactorRuntime.start({
+  return FactorSandbox.start({
     language: 'typescript',
     analysisKind: 'cross_sectional',
     code: def.code,
@@ -179,7 +179,7 @@ async function startFactorRuntime(key: string): Promise<CrossSectionalFactorRunt
 
 /** One-item batch helper for the cross-sectional (no-window) presets. */
 async function computeOne(key: string, bar: FactorBar): Promise<number | null> {
-  const factor = await startFactorRuntime(key);
+  const factor = await startFactorSandbox(key);
   try {
     return (await factor.execute({ items: [{ bar }] }))[0];
   } finally {
@@ -200,7 +200,7 @@ describe('preset factor code compiles and has the right shape', () => {
   it.each(BUILTIN_FACTORS.map((factor) => [factor.key, factor] as const))(
     '%s compiles',
     async (_key, def) => {
-      const factor = await FactorRuntime.start({
+      const factor = await FactorSandbox.start({
         language: 'typescript',
         analysisKind: 'cross_sectional',
         code: def.code,
@@ -212,17 +212,17 @@ describe('preset factor code compiles and has the right shape', () => {
   );
 
   it('price factors declare window, cross-sectional ones do not', async () => {
-    expect((await startFactorRuntime('mom')).metadata.window).toBe(61);
-    expect((await startFactorRuntime('rev')).metadata.window).toBe(6);
-    expect((await startFactorRuntime('vol')).metadata.window).toBe(21);
-    expect((await startFactorRuntime('resid_vol20')).metadata.window).toBe(21);
-    expect((await startFactorRuntime('maxret21')).metadata.window).toBe(22);
-    expect((await startFactorRuntime('ep')).metadata.window).toBeUndefined();
-    expect((await startFactorRuntime('mf_net_main')).metadata.window).toBeUndefined();
+    expect((await startFactorSandbox('mom')).metadata.window).toBe(61);
+    expect((await startFactorSandbox('rev')).metadata.window).toBe(6);
+    expect((await startFactorSandbox('vol')).metadata.window).toBe(21);
+    expect((await startFactorSandbox('resid_vol20')).metadata.window).toBe(21);
+    expect((await startFactorSandbox('maxret21')).metadata.window).toBe(22);
+    expect((await startFactorSandbox('ep')).metadata.window).toBeUndefined();
+    expect((await startFactorSandbox('mf_net_main')).metadata.window).toBeUndefined();
   });
 
   it('accepts an explicit window coverage declaration', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `
@@ -242,7 +242,7 @@ describe('preset factor code compiles and has the right shape', () => {
   });
 
   it('exposes aligned daily turnover amount history to windowed factors', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `
@@ -288,7 +288,7 @@ describe('price presets match the legacy hardcoded formulas bit-for-bit', () => 
   it.each(cases)(
     '%s matches on all 120 cutoffs (one batched wall-crossing)',
     async (key, legacy) => {
-      const factor = await startFactorRuntime(key);
+      const factor = await startFactorSandbox(key);
       const items = px.map((_price, end) => windowItem(factor.metadata.window!, px, dates, end));
       const actualValues = await factor.execute({ items: items });
       factor.close();
@@ -342,7 +342,7 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
   });
 
   it('exposes point-in-time ROA to candidate factors', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `export default defineFactor({
@@ -385,18 +385,18 @@ describe('3.5 preset-menu additions', () => {
   }
 
   it('declares the right windows; quality presets are cross-sectional', async () => {
-    expect((await startFactorRuntime('mom_12_1')).metadata.window).toBe(245);
-    expect((await startFactorRuntime('vol120')).metadata.window).toBe(121);
-    expect((await startFactorRuntime('resid_vol20')).metadata.window).toBe(21);
-    expect((await startFactorRuntime('resid_vol20')).metadata.minCoverage).toBe(0.8);
-    expect((await startFactorRuntime('abturn')).metadata.window).toBe(252);
-    expect((await startFactorRuntime('amihud')).metadata.window).toBe(21);
-    expect((await startFactorRuntime('amihud')).metadata.minCoverage).toBe(0.8);
-    expect((await startFactorRuntime('turn20')).metadata.window).toBe(20);
-    expect((await startFactorRuntime('roe_stability')).metadata.window).toBe(504);
-    expect((await startFactorRuntime('roe')).metadata.window).toBeUndefined();
-    expect((await startFactorRuntime('gross_margin')).metadata.window).toBeUndefined();
-    expect((await startFactorRuntime('sales_yield')).metadata.window).toBeUndefined();
+    expect((await startFactorSandbox('mom_12_1')).metadata.window).toBe(245);
+    expect((await startFactorSandbox('vol120')).metadata.window).toBe(121);
+    expect((await startFactorSandbox('resid_vol20')).metadata.window).toBe(21);
+    expect((await startFactorSandbox('resid_vol20')).metadata.minCoverage).toBe(0.8);
+    expect((await startFactorSandbox('abturn')).metadata.window).toBe(252);
+    expect((await startFactorSandbox('amihud')).metadata.window).toBe(21);
+    expect((await startFactorSandbox('amihud')).metadata.minCoverage).toBe(0.8);
+    expect((await startFactorSandbox('turn20')).metadata.window).toBe(20);
+    expect((await startFactorSandbox('roe_stability')).metadata.window).toBe(504);
+    expect((await startFactorSandbox('roe')).metadata.window).toBeUndefined();
+    expect((await startFactorSandbox('gross_margin')).metadata.window).toBeUndefined();
+    expect((await startFactorSandbox('sales_yield')).metadata.window).toBeUndefined();
   });
 
   it('sales_yield keeps the admitted code and handles non-positive PS_TTM', async () => {
@@ -411,7 +411,7 @@ describe('3.5 preset-menu additions', () => {
 
   it('mom_12_1 = close[end-21] / close[end-244] − 1, null on short history', async () => {
     const { px, dates } = cleanLongSeries();
-    const factor = await startFactorRuntime('mom_12_1');
+    const factor = await startFactorSandbox('mom_12_1');
     const items = [
       windowItem(245, px, dates, 259), // full window
       windowItem(245, px, dates, 100), // insufficient history
@@ -425,7 +425,7 @@ describe('3.5 preset-menu additions', () => {
 
   it('vol120 = population std of the last 120 daily returns', async () => {
     const { px, dates } = cleanLongSeries();
-    const factor = await startFactorRuntime('vol120');
+    const factor = await startFactorSandbox('vol120');
     const [actual] = await factor.execute({ items: [windowItem(121, px, dates, 259)] });
     factor.close();
     const returns: number[] = [];
@@ -464,7 +464,7 @@ describe('3.5 preset-menu additions', () => {
     });
     const missingMarket: (number | null)[] = [...marketCloses];
     missingMarket[10] = null;
-    const factor = await startFactorRuntime('resid_vol20');
+    const factor = await startFactorSandbox('resid_vol20');
     const [actual, missing, short] = await factor.execute({
       items: [
         windowItemWithMarket(21, stockCloses, marketCloses, dates, 20),
@@ -497,7 +497,7 @@ describe('3.5 preset-menu additions', () => {
     });
     const gapDates = [...dates];
     gapDates[15] = '20240420';
-    const factor = await startFactorRuntime('maxret21');
+    const factor = await startFactorSandbox('maxret21');
     const [actual, gap, short] = await factor.execute({
       items: [
         windowItem(22, closes, dates, 21),
@@ -514,7 +514,7 @@ describe('3.5 preset-menu additions', () => {
   it('abturn = latest 21-day mean / 252-day mean of free-float turnover', async () => {
     const { px, dates } = cleanLongSeries();
     const turnoverRates = dates.map((_date, index) => 1 + index / 100);
-    const factor = await startFactorRuntime('abturn');
+    const factor = await startFactorSandbox('abturn');
     const [actual, short] = await factor.execute({
       items: [
         windowItemWithTurnover(252, px, dates, turnoverRates, 259),
@@ -534,7 +534,7 @@ describe('3.5 preset-menu additions', () => {
     const turnoverRates: (number | null)[] = dates.map((_date, index) => 2 + index / 50);
     const withGap = [...turnoverRates];
     withGap[250] = null;
-    const factor = await startFactorRuntime('turn20');
+    const factor = await startFactorSandbox('turn20');
     const [actual, missing, short] = await factor.execute({
       items: [
         windowItemWithTurnover(20, px, dates, turnoverRates, 259),
@@ -571,7 +571,7 @@ describe('3.5 preset-menu additions', () => {
       dates,
       roes: values,
     });
-    const factor = await startFactorRuntime('roe_stability');
+    const factor = await startFactorSandbox('roe_stability');
     const [actual, fewSegments, missing] = await factor.execute({
       items: [item(roes), item(flat), item(withNull)],
     });
@@ -584,7 +584,7 @@ describe('3.5 preset-menu additions', () => {
   });
 
   it('exposes point-in-time gross-margin history to candidate factors', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `export default defineFactor({
@@ -621,7 +621,7 @@ describe('3.5 preset-menu additions', () => {
   });
 
   it('exposes exact-date CSI All Share closes to candidate factors', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `export default defineFactor({
@@ -664,7 +664,7 @@ describe('3.5 preset-menu additions', () => {
       (_value, index) => `202401${String(index + 2).padStart(2, '0')}`,
     );
     const amounts = Array.from({ length: 21 }, (_value, index) => 1_000 + index * 10);
-    const factor = await startFactorRuntime('amihud');
+    const factor = await startFactorSandbox('amihud');
     const invalidAmounts: (number | null)[] = [...amounts];
     invalidAmounts[10] = null;
     const gapDates = [...dates];

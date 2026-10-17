@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import {
   type ResearchCellOutputBlockV1,
@@ -74,7 +74,7 @@ export async function executeEmbeddedRun(
     const {
       embedded: { limits },
     } = run.sourceSnapshot as unknown as { embedded: { limits: ResearchEmbeddedLimitsV1 } };
-    researchRuntimePool.close(documentId);
+    researchSandboxPool.close(documentId);
     timeout = setTimeout(
       () => controller.abort(new ResearchError('embedded_timeout')),
       limits.executionMilliseconds,
@@ -115,10 +115,10 @@ export async function executeEmbeddedRun(
     let error: string | null = null;
     try {
       const executed = await Promise.race([
-        researchRuntimePool.withRuntime(
+        researchSandboxPool.withSandbox(
           documentId,
-          (runtime) =>
-            runtime.execute(
+          (sandbox) =>
+            sandbox.execute(
               {
                 cell: { id: cell.sourceCellId!, source: cell.source },
                 parameters: run.parametersSnapshot as ResearchEmbeddedParametersV1,
@@ -188,7 +188,7 @@ export async function executeEmbeddedRun(
     }
     controller.abort(new ResearchError('embedded_cancelled'));
     if (documentId) {
-      researchRuntimePool.close(documentId);
+      researchSandboxPool.close(documentId);
     }
     if (activeControllers.get(runId) === controller) {
       activeControllers.delete(runId);

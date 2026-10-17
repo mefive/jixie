@@ -3,7 +3,7 @@ import { validateJson } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import {
   interruptResearchDocument,
-  resetResearchDocumentRuntime,
+  resetResearchDocumentSandbox,
 } from '../document-runs/control.js';
 import { runAffectedResearchCells } from '../document-runs/run-affected.js';
 import { runResearchCell } from '../document-runs/run-cell.js';
@@ -40,6 +40,6 @@ researchExecutionRoute.post('/documents/:documentId/runtime/interrupt', async (c
 });
 
 researchExecutionRoute.post('/documents/:documentId/runtime/reset', async (c) => {
-  const document = await resetResearchDocumentRuntime(c.var.userId, c.req.param('documentId'));
+  const document = await resetResearchDocumentSandbox(c.var.userId, c.req.param('documentId'));
   return c.json(document);
 });

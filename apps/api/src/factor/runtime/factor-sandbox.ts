@@ -1,19 +1,19 @@
-import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import { Sandbox } from '#infra/runtime/sandbox.js';
 import { FactorBridge } from './factor-bridge.js';
 import type {
   ExecutableFactorKind,
   FactorStartOptions,
-  FactorRuntimeInstance,
+  FactorSandboxInstance,
   FactorExecutionInput,
-  FactorRuntimeMetadata,
+  FactorSandboxMetadata,
   FactorValues,
 } from './contract.js';
 
 /** Owns one factor sandbox, independently of its language and transport. */
-export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRuntime<
+export class FactorSandbox<Kind extends ExecutableFactorKind> extends Sandbox<
   FactorExecutionInput<Kind>,
   FactorValues,
-  FactorRuntimeMetadata<Kind>
+  FactorSandboxMetadata<Kind>
 > {
   private constructor(private readonly options: FactorStartOptions<Kind>) {
     super();
@@ -21,25 +21,25 @@ export class FactorRuntime<Kind extends ExecutableFactorKind> extends SandboxRun
 
   static start<Kind extends ExecutableFactorKind>(
     options: FactorStartOptions<Kind>,
-  ): Promise<FactorRuntimeInstance<Kind>>;
-  static start(options: FactorStartOptions): Promise<FactorRuntimeInstance> {
+  ): Promise<FactorSandboxInstance<Kind>>;
+  static start(options: FactorStartOptions): Promise<FactorSandboxInstance> {
     switch (options.analysisKind) {
       case 'cross_sectional':
-        return FactorRuntime.startForKind({ ...options, analysisKind: 'cross_sectional' });
+        return FactorSandbox.startForKind({ ...options, analysisKind: 'cross_sectional' });
       case 'time_series':
-        return FactorRuntime.startForKind({ ...options, analysisKind: 'time_series' });
+        return FactorSandbox.startForKind({ ...options, analysisKind: 'time_series' });
       case 'panel':
-        return FactorRuntime.startForKind({ ...options, analysisKind: 'panel' });
+        return FactorSandbox.startForKind({ ...options, analysisKind: 'panel' });
     }
   }
 
   private static async startForKind<Kind extends ExecutableFactorKind>(
     options: FactorStartOptions<Kind>,
   ) {
-    const runtime = new FactorRuntime(options);
-    await runtime.initialize();
+    const sandbox = new FactorSandbox(options);
+    await sandbox.initialize();
 
-    return runtime;
+    return sandbox;
   }
 
   protected createBridge(): Promise<FactorBridge<Kind>> {

@@ -10,7 +10,7 @@ import { register } from 'tsx/esm/api';
 register();
 const { fixturePort } = await import('#backtesting/testing/fixture-port.js');
 const { BacktestingEngine } = await import('#backtesting/backtesting-engine.js');
-const { startInstrumentedStrategyRuntime } = await import('./testing/runtime.ts');
+const { startInstrumentedStrategySandbox } = await import('./testing/sandbox.ts');
 const apiDirectory = fileURLToPath(new URL('../../../../', import.meta.url));
 const variant = process.argv[2];
 if (!['before', 'shared'].includes(variant)) {
@@ -58,7 +58,7 @@ export default defineStrategy({
 });`;
 let directory;
 try {
-  let createRuntime = (code) => startInstrumentedStrategyRuntime({ language: 'typescript', code });
+  let createSandbox = (code) => startInstrumentedStrategySandbox({ language: 'typescript', code });
   if (variant === 'before') {
     directory = await mkdtemp(join(apiDirectory, 'tests/.runtime-benchmark-'));
     const modules = new Map([
@@ -119,14 +119,21 @@ try {
     const { startInstrumentedStrategyRuntime: startBeforeRuntime } = await import(
       pathToFileURL(modules.get('src/strategy/runtime/typescript/testing/runtime.ts')).href
     );
-    createRuntime = (code) => startBeforeRuntime({ language: 'typescript', code });
+    createSandbox = async (code) => {
+      const { runtime: sandbox, metrics } = await startBeforeRuntime({
+        language: 'typescript',
+        code,
+      });
+
+      return { sandbox, metrics };
+    };
   }
 
   const samples = [];
   for (let repetition = 0; repetition < (dynamic ? 8 : 13); repetition++) {
     const port = fixturePort(spec);
     const started = performance.now();
-    const { runtime, metrics } = await createRuntime(code);
+    const { sandbox, metrics } = await createSandbox(code);
     const executionStarted = performance.now();
     let result;
     let cleanupStarted;
@@ -134,7 +141,7 @@ try {
 
     try {
       result = await new BacktestingEngine({
-        strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+        strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
         start: dates[0],
         end: dates.at(-1),
         initialCash: 1_000_000,
@@ -143,7 +150,7 @@ try {
       transportMetrics = { ...metrics };
     } finally {
       cleanupStarted = performance.now();
-      runtime.close();
+      sandbox.close();
     }
     const phases = {
       setupMilliseconds: executionStarted - started,

@@ -23,7 +23,7 @@
 阅读入口：
 
 - [Python SDK](../../apps/api/src/research/sdk/README.md)：作者接口、参数组装和 DataFrame 转换。
-- [业务 runtime](../../apps/api/src/research/runtime/research-runtime.ts)：提供命令和业务结果解释；[公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts) 接收并分派消息；[会话管理](../../apps/api/src/research/runtime/research-runtime-pool.ts) 负责池和排队。
+- [业务 runtime](../../apps/api/src/research/runtime/research-sandbox.ts)：提供命令和业务结果解释；[公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts) 接收并分派消息；[会话管理](../../apps/api/src/research/runtime/research-sandbox-pool.ts) 负责池和排队。
 - [宿主分派](../../apps/api/src/research/runtime/host/dispatch.ts)：请求校验、observer、response 获取；发送归公共 exchange。
 - [输入回放](../../apps/api/src/research/runtime/host/input-replay.ts)：读取来源、选择模式、授权和校验历史响应。
 - [接续文档](../../apps/api/src/research/embedded/continuation.ts)：从成功嵌入分析创建普通 Research 文档。

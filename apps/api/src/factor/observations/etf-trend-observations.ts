@@ -1,4 +1,4 @@
-import type { TimeSeriesFactorRuntime } from '../runtime/contract.js';
+import type { TimeSeriesFactorSandbox } from '../runtime/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
@@ -27,7 +27,7 @@ export interface YieldCurveObservationRow {
 
 export async function loadEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
   const historyStart = addDays(
@@ -109,7 +109,7 @@ export async function loadEtfTimeSeriesObservations(
 export async function buildEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   rows: EtfTrendDailyRow[],
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
   curveRows: YieldCurveObservationRow[] = [],
 ): Promise<TimeSeriesEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
@@ -206,7 +206,7 @@ export async function buildEtfTimeSeriesObservations(
 
 function assertSupportedProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): void {
   if (
     researchSpec.observationFrequency !== 'daily' ||

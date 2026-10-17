@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -52,7 +52,7 @@ export async function analyzeResearchCellSources(
   const pythonCells = cells.filter((cell) => cell.kind === 'python');
   const pythonAnalyses =
     pythonCells.length > 0
-      ? await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.analyze(pythonCells))
+      ? await researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.analyze(pythonCells))
       : [];
   const analysisById = new Map(pythonAnalyses.map((analysis) => [analysis.cellId, analysis]));
   const analyses = cells.map(

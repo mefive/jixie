@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { FactorRuntime } from './factor-runtime.js';
+import { FactorSandbox } from './factor-sandbox.js';
 import type { FactorBar, FactorLanguage } from '@jixie/shared';
 import type { ExecutableFactorKind, FactorValues } from './contract.js';
 
@@ -60,26 +60,26 @@ async function runSession(
   const code = source(language, analysisKind);
 
   if (analysisKind === 'cross_sectional') {
-    const runtime = await FactorRuntime.start({ language, analysisKind, code });
+    const sandbox = await FactorSandbox.start({ language, analysisKind, code });
     try {
       return [
-        await runtime.execute({ items: [{ bar }, { bar }] }),
-        await runtime.execute({ items: [{ bar }] }),
+        await sandbox.execute({ items: [{ bar }, { bar }] }),
+        await sandbox.execute({ items: [{ bar }] }),
       ];
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   }
 
-  const runtime = await FactorRuntime.start({ language, analysisKind, code });
+  const sandbox = await FactorSandbox.start({ language, analysisKind, code });
   const fields = { 'etf.adjustedClose': [1, 2] };
   try {
     return [
-      await runtime.execute({ fields, indexes: [0, 1] }),
-      await runtime.execute({ fields, indexes: [1] }),
+      await sandbox.execute({ fields, indexes: [0, 1] }),
+      await sandbox.execute({ fields, indexes: [1] }),
     ];
   } finally {
-    runtime.close();
+    sandbox.close();
   }
 }
 

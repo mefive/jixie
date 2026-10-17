@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
   reportFindMany: vi.fn(),
 }));
 
-vi.mock('#factor/runtime/factor-runtime.js', () => ({
-  FactorRuntime: { start: mocks.runtimeStart },
+vi.mock('#factor/runtime/factor-sandbox.js', () => ({
+  FactorSandbox: { start: mocks.runtimeStart },
 }));
 
 vi.mock('#infra/database/prisma.js', () => {
@@ -179,7 +179,7 @@ describe('strategy factor metadata', () => {
       ],
     };
     const factor = new StrategyFactor(dependency);
-    StrategyFactor.validateRuntimeMetadata([factor], [definition]);
+    StrategyFactor.validateSandboxMetadata([factor], [definition]);
     expect(factor.toDependency(definition)).toEqual({
       ...dependency,
       inputs: ['etf.adjustedClose', 'rates.cgb.yield.10y'],
@@ -191,7 +191,7 @@ describe('strategy factor metadata', () => {
 
   it('rejects research-only fields inside composite components', () => {
     expect(() =>
-      StrategyFactor.validateRuntimeMetadata(
+      StrategyFactor.validateSandboxMetadata(
         [new StrategyFactor(dependency)],
         [
           {
@@ -218,7 +218,7 @@ describe('strategy factor metadata', () => {
 
   it('fails closed when a dependency has no runtime definition', () => {
     expect(() =>
-      StrategyFactor.validateRuntimeMetadata([new StrategyFactor(dependency)], []),
+      StrategyFactor.validateSandboxMetadata([new StrategyFactor(dependency)], []),
     ).toThrow('Missing factor metadata');
   });
 });

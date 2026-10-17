@@ -1,22 +1,22 @@
 import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
-import { ResearchRuntime } from './research-runtime.js';
+import { ResearchSandbox } from './research-sandbox.js';
 
 const MAX_LIVE_RESEARCH_SESSIONS = 4;
 
-interface ResearchRuntimeEntry {
-  runtime: ResearchRuntime;
+interface ResearchSandboxEntry {
+  sandbox: ResearchSandbox;
   queue: Promise<void>;
   touchedAt: number;
   pendingOperations: number;
 }
 
-export class ResearchRuntimePool {
-  private readonly entries = new Map<string, ResearchRuntimeEntry>();
+export class ResearchSandboxPool {
+  private readonly entries = new Map<string, ResearchSandboxEntry>();
   private entryAcquisitionQueue: Promise<void> = Promise.resolve();
 
-  async withRuntime<Result>(
+  async withSandbox<Result>(
     documentId: string,
-    operation: (runtime: ResearchRuntime) => Promise<Result>,
+    operation: (sandbox: ResearchSandbox) => Promise<Result>,
     options: { signal?: AbortSignal } = {},
   ): Promise<Result> {
     options.signal?.throwIfAborted();
@@ -26,17 +26,17 @@ export class ResearchRuntimePool {
 
   interrupt(documentId: string): string | null {
     const entry = this.entries.get(documentId);
-    if (!entry?.runtime.activeCellId) {
+    if (!entry?.sandbox.activeCellId) {
       return null;
     }
-    const cellId = entry.runtime.activeCellId;
+    const cellId = entry.sandbox.activeCellId;
     this.entries.delete(documentId);
-    entry.runtime.interrupt();
+    entry.sandbox.interrupt();
     return cellId;
   }
 
   activeCellId(documentId: string): string | null {
-    return this.entries.get(documentId)?.runtime.activeCellId ?? null;
+    return this.entries.get(documentId)?.sandbox.activeCellId ?? null;
   }
 
   async reset(documentId: string): Promise<void> {
@@ -45,7 +45,7 @@ export class ResearchRuntimePool {
       return;
     }
     entry.pendingOperations += 1;
-    await this.useEntry(documentId, entry, (runtime) => runtime.reset());
+    await this.useEntry(documentId, entry, (sandbox) => sandbox.reset());
   }
 
   close(documentId: string): void {
@@ -54,20 +54,20 @@ export class ResearchRuntimePool {
       return;
     }
     this.entries.delete(documentId);
-    entry.runtime.close();
+    entry.sandbox.close();
   }
 
   private async useEntry<T>(
     documentId: string,
-    entry: ResearchRuntimeEntry,
-    operation: (runtime: ResearchRuntime) => Promise<T>,
+    entry: ResearchSandboxEntry,
+    operation: (sandbox: ResearchSandbox) => Promise<T>,
     signal?: AbortSignal,
   ): Promise<T> {
-    const abort = () => entry.runtime.abort(new Error('Research execution aborted'));
+    const abort = () => entry.sandbox.abort(new Error('Research execution aborted'));
     signal?.addEventListener('abort', abort, { once: true });
     const result = entry.queue.then(() => {
       signal?.throwIfAborted();
-      return operation(entry.runtime);
+      return operation(entry.sandbox);
     });
     entry.queue = result.then(
       () => undefined,
@@ -77,7 +77,7 @@ export class ResearchRuntimePool {
       return await result;
     } catch (error) {
       if (
-        entry.runtime.isClosed ||
+        entry.sandbox.isClosed ||
         (!(error instanceof ResearchPythonExecutionError) &&
           !(error instanceof ResearchPythonInterruptionError))
       ) {
@@ -96,7 +96,7 @@ export class ResearchRuntimePool {
   private async acquireEntry(
     documentId: string,
     signal?: AbortSignal,
-  ): Promise<ResearchRuntimeEntry> {
+  ): Promise<ResearchSandboxEntry> {
     const acquisition = this.entryAcquisitionQueue.then(async () => {
       signal?.throwIfAborted();
       const entry = await this.getOrCreate(documentId, signal);
@@ -113,7 +113,7 @@ export class ResearchRuntimePool {
   private async getOrCreate(
     documentId: string,
     signal?: AbortSignal,
-  ): Promise<ResearchRuntimeEntry> {
+  ): Promise<ResearchSandboxEntry> {
     const existing = this.entries.get(documentId);
     if (existing) {
       return existing;
@@ -131,9 +131,9 @@ export class ResearchRuntimePool {
       }
     }
 
-    const runtime = await ResearchRuntime.start({ documentId, signal });
-    const entry: ResearchRuntimeEntry = {
-      runtime,
+    const sandbox = await ResearchSandbox.start({ documentId, signal });
+    const entry: ResearchSandboxEntry = {
+      sandbox,
       queue: Promise.resolve(),
       touchedAt: Date.now(),
       pendingOperations: 0,
@@ -143,4 +143,4 @@ export class ResearchRuntimePool {
   }
 }
 
-export const researchRuntimePool = new ResearchRuntimePool();
+export const researchSandboxPool = new ResearchSandboxPool();

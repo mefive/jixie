@@ -783,7 +783,7 @@ review 后执行的行为验收：
 交付与审查入口：
 
 - [document-runs/run-cell.ts](../../apps/api/src/research/document-runs/run-cell.ts)、[run-document.ts](../../apps/api/src/research/document-runs/run-document.ts)、[run-state.ts](../../apps/api/src/research/document-runs/run-state.ts)、[control.ts](../../apps/api/src/research/document-runs/control.ts)：文档运行、提案尝试、共同锁及控制聚合；结果保存、修订冲突、中断等待和锁释放保持。
-- [runtime/research-runtime.ts](../../apps/api/src/research/runtime/research-runtime.ts)：Python 会话及两份相邻测试移入 runtime。会话管理器和文档锁实现与基线逐字一致，保留唯一实例、文档 ID 会话键、4 个会话上限、8 MiB 输出限制、能力协商、SDK 分派与原收尾顺序。
+- [runtime/research-runtime.ts](../../apps/api/src/research/runtime/research-sandbox.ts)：Python 会话及两份相邻测试移入 runtime。会话管理器和文档锁实现与基线逐字一致，保留唯一实例、文档 ID 会话键、4 个会话上限、8 MiB 输出限制、能力协商、SDK 分派与原收尾顺序。
 - [embedded/execute.ts](../../apps/api/src/research/embedded/execute.ts)、[dependencies/analyze.ts](../../apps/api/src/research/dependencies/analyze.ts)、[proposals/cell-changes.ts](../../apps/api/src/research/proposals/cell-changes.ts)：仍使用同一会话管理器；嵌入分析保留独立超时/取消、完成事务与首次成功冻结。接续、删除和归档关闭会话的原调用点保持。
 - [routes/execution.ts](../../apps/api/src/research/routes/execution.ts) 只改业务导入；HTTP、SDK、数据表和公开行为不变。删除旧 execution 目录，无兼容转发、第二份锁或 Research Worker，普通文档不改成 Job。
 - 测试替身、包级动态导入和边界测试 fixture 已同步；当前 CLAUDE、Research README、架构地图和运行入口清单已更新，历史验证记录保留当时路径。未修改边界检查实现/例外、部署组件或构建依赖。

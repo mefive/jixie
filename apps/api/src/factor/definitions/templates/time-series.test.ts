@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../../runtime/factor-runtime.js';
+import { FactorSandbox } from '../../runtime/factor-sandbox.js';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -82,26 +82,26 @@ describe('ETF time-series templates', () => {
       timeSeriesTemplateResource('commodity_futures_carry_time_series_v1', 'zh'),
     ).not.toHaveProperty('strategyKey');
     const source = resolveTimeSeriesTemplateSource('commodity_futures_carry_time_series_v1');
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: source!.code,
     });
     try {
-      expect(runtime.metadata).toMatchObject({
+      expect(sandbox.metadata).toMatchObject({
         analysisKind: 'time_series',
         window: 2,
         inputs: ['commodity.futures.annualizedLogCarry'],
         targetAssetClasses: ['commodity'],
       });
       await expect(
-        runtime.execute({
+        sandbox.execute({
           fields: { 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] },
           indexes: [1],
         }),
       ).resolves.toEqual([0.2]);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
@@ -128,20 +128,20 @@ describe('ETF time-series templates', () => {
     ).toEqual(['159981.SZ']);
 
     const source = resolveTimeSeriesTemplateSource('commodity_warehouse_pressure_20');
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: source!.code,
     });
     try {
-      expect(runtime.metadata).toMatchObject({
+      expect(sandbox.metadata).toMatchObject({
         analysisKind: 'time_series',
         window: 21,
         inputs: ['commodity.warehouseReceipt.volume'],
         targetAssetClasses: ['commodity'],
       });
       await expect(
-        runtime.execute({
+        sandbox.execute({
           fields: {
             'commodity.warehouseReceipt.volume': [100, ...Array.from({ length: 19 }, () => 90), 80],
           },
@@ -149,7 +149,7 @@ describe('ETF time-series templates', () => {
         }),
       ).resolves.toEqual([Math.log1p(100) - Math.log1p(80)]);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
@@ -161,18 +161,18 @@ describe('ETF time-series templates', () => {
       targetAssetClasses: ['fixed_income'],
     });
     const slope = resolveTimeSeriesTemplateSource('cgb_curve_slope_10y_2y');
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: slope!.code,
     });
     try {
-      expect(runtime.metadata).toMatchObject({
+      expect(sandbox.metadata).toMatchObject({
         inputs: ['rates.cgb.yield.2y', 'rates.cgb.yield.10y'],
         targetAssetClasses: ['fixed_income'],
       });
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
@@ -183,19 +183,19 @@ describe('ETF time-series templates', () => {
       label: 'ETF 60-day trend',
     });
     expect(source?.code).toContain("ctx.lag('etf.adjustedClose', 60)");
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: source!.code,
     });
     try {
-      expect(runtime.metadata).toMatchObject({
+      expect(sandbox.metadata).toMatchObject({
         window: 61,
         inputs: ['etf.adjustedClose'],
         targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
       });
     } finally {
-      runtime.close();
+      sandbox.close();
     }
     expect(resolveTimeSeriesTemplateSource('user_supplied_code')).toBeNull();
   });

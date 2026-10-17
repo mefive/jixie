@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
@@ -145,7 +145,7 @@ export async function changeEmbeddedInputMode(
       return true;
     });
     if (changed) {
-      researchRuntimePool.close(documentId);
+      researchSandboxPool.close(documentId);
     }
     return getResearchDocument(userId, documentId);
   } finally {

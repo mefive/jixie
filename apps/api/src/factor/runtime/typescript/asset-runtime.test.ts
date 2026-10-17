@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../factor-runtime.js';
+import { FactorSandbox } from '../factor-sandbox.js';
 import { describe, expect, it } from 'vitest';
 
 const source = `export default defineFactorV2({
@@ -22,7 +22,7 @@ describe('TypeScript asset Factor runtime', () => {
     'rejects lag %s inside the SDK and preserves the error boundary',
     async (periods) => {
       const logs: string[] = [];
-      const factor = await FactorRuntime.start({
+      const factor = await FactorSandbox.start({
         language: 'typescript',
         analysisKind: 'time_series',
         code: source.replace(
@@ -44,7 +44,7 @@ describe('TypeScript asset Factor runtime', () => {
 
   it('returns null for missing, non-finite and out-of-range values without compute errors', async () => {
     const logs: string[] = [];
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: source,
@@ -68,7 +68,7 @@ describe('TypeScript asset Factor runtime', () => {
   });
 
   it('evaluates aligned history and supports detached context methods inside the isolate', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: source
@@ -100,7 +100,7 @@ describe('TypeScript asset Factor runtime', () => {
 
   it('fails closed when a definition declares an unknown field', async () => {
     await expect(
-      FactorRuntime.start({
+      FactorSandbox.start({
         language: 'typescript',
         analysisKind: 'time_series',
         code: source.replace('etf.adjustedClose', 'macro.futureValue'),
@@ -109,7 +109,7 @@ describe('TypeScript asset Factor runtime', () => {
   });
 
   it('computes a bond-price-aligned signal from the point-in-time government curve', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: `export default defineFactorV2({
@@ -141,7 +141,7 @@ describe('TypeScript asset Factor runtime', () => {
 
   it('rejects government-curve inputs for non-fixed-income target classes', async () => {
     await expect(
-      FactorRuntime.start({
+      FactorSandbox.start({
         language: 'typescript',
         analysisKind: 'time_series',
         code: source
@@ -156,7 +156,7 @@ describe('TypeScript asset Factor runtime', () => {
 
   it('returns null and reports an undeclared runtime access once', async () => {
     const logs: string[] = [];
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: source.replace("ctx.value('etf.adjustedClose')", "ctx.value('macro.futureValue')"),
@@ -177,7 +177,7 @@ describe('TypeScript asset Factor runtime', () => {
 
 describe('panel Factor runtime', () => {
   it('compiles a panel definition without treating it as a time-series protocol', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'panel',
       code: source.replace("analysisKind: 'time_series'", "analysisKind: 'panel'"),
@@ -197,7 +197,7 @@ describe('panel Factor runtime', () => {
 
   it('rejects a time-series definition', async () => {
     await expect(
-      FactorRuntime.start({ language: 'typescript', analysisKind: 'panel', code: source }),
+      FactorSandbox.start({ language: 'typescript', analysisKind: 'panel', code: source }),
     ).rejects.toThrow('analysisKind=panel');
   });
 });

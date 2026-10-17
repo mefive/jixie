@@ -1,4 +1,4 @@
-import { StrategyRuntime } from '../strategy-runtime.js';
+import { StrategySandbox } from '../strategy-sandbox.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
 import { BacktestingEngine } from '#backtesting/backtesting-engine.js';
@@ -55,22 +55,22 @@ def handle_bar(ctx):
 describe('Python strategy runtime', () => {
   it('ignores legacy futures declarations while retaining the cash default', async () => {
     enableTestRuntime();
-    const runtime = await StrategyRuntime.start({
+    const sandbox = await StrategySandbox.start({
       language: 'python',
       code: pythonCode.replace('watch=["AAA", "BBB"]', 'watch=["AAA", "BBB"], futures=["UNKNOWN"]'),
     });
     try {
-      expect(runtime.metadata.futures).toEqual([]);
-      expect(runtime.metadata.accounts).toBeUndefined();
+      expect(sandbox.metadata.futures).toEqual([]);
+      expect(sandbox.metadata.accounts).toBeUndefined();
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
   it('rejects futures capital without relying on a declaration', async () => {
     enableTestRuntime();
     await expect(
-      StrategyRuntime.start({
+      StrategySandbox.start({
         language: 'python',
         code: pythonCode.replace(
           'watch=["AAA", "BBB"]',
@@ -88,7 +88,7 @@ describe('Python strategy runtime', () => {
   it('keeps fills and NAV identical to a native strategy over the same engine', async () => {
     enableTestRuntime();
     const logs: string[] = [];
-    const runtime = await StrategyRuntime.start({
+    const sandbox = await StrategySandbox.start({
       language: 'python',
       code: pythonCode,
       onUserLog: (_level, text) => logs.push(text),
@@ -114,7 +114,7 @@ describe('Python strategy runtime', () => {
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
-          strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+          strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
           dataPort: fixturePort(spec),
         }).run(),
         new BacktestingEngine({
@@ -129,16 +129,16 @@ describe('Python strategy runtime', () => {
       expect(pythonResult.nav).toEqual(nativeResult.nav);
       expect(pythonResult.tradeLog).toEqual(nativeResult.tradeLog);
       expect(logs).toHaveLength(dates.length);
-      expect(runtime.metadata.name).toBe('python-drift');
+      expect(sandbox.metadata.name).toBe('python-drift');
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
   it('keeps Python daily technical indicators aligned with the TypeScript SDK', async () => {
     enableTestRuntime();
     const logs: string[] = [];
-    const runtime = await StrategyRuntime.start({
+    const sandbox = await StrategySandbox.start({
       language: 'python',
       code: `
 from jixie import Strategy
@@ -200,7 +200,7 @@ def handle_bar(ctx):
           start: dates[0],
           end: dates.at(-1)!,
           initialCash: 100_000,
-          strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+          strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
           dataPort: fixturePort(spec),
         }).run(),
         new BacktestingEngine({
@@ -217,13 +217,13 @@ def handle_bar(ctx):
       expect(pythonValues).toHaveLength(nativeValues.length);
       pythonValues.forEach((value, index) => expect(value).toBeCloseTo(nativeValues[index], 10));
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
   it('returns Python tracebacks with strategy.py line numbers', async () => {
     enableTestRuntime();
-    const runtime = await StrategyRuntime.start({
+    const sandbox = await StrategySandbox.start({
       language: 'python',
       code: `
 from jixie import Strategy
@@ -239,18 +239,18 @@ def broken(ctx):
           start: dates[0],
           end: dates[1],
           initialCash: 100_000,
-          strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+          strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
           dataPort: fixturePort(spec),
         }).run(),
       ).rejects.toThrow(/strategy\.py.*ValueError: boom/s);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
   it('allows published Factor keys to flow through the shared engine host', async () => {
     enableTestRuntime();
-    const runtime = await StrategyRuntime.start({
+    const sandbox = await StrategySandbox.start({
       language: 'python',
       code: `
 from jixie import Strategy
@@ -261,9 +261,9 @@ def handle_bar(ctx):
 `,
     });
     try {
-      expect(runtime.metadata.factors).toEqual(['python_value']);
+      expect(sandbox.metadata.factors).toEqual(['python_value']);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
@@ -275,7 +275,7 @@ def handle_bar(ctx):
       process.env.JIXIE_PYTHON_CODE_TIMEOUT_SECONDS = '0.05';
     }
     await expect(
-      StrategyRuntime.start({
+      StrategySandbox.start({
         language: 'python',
         code: `
 from jixie import Strategy

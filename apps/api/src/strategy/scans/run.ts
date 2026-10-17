@@ -5,10 +5,10 @@ import type { StrategyScanWorkerInput } from './job-payload.js';
 import { metricSummary, parameterCombinations, rebaseNav, scanCellOverrides } from './scan.js';
 import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
 import {
-  StrategyExecution,
-  type StrategyExecutionInput,
-  type StrategyRunOptions,
-} from '../execution/strategy-execution.js';
+  StrategySimulation,
+  type StrategySimulationInput,
+  type StrategySimulationOptions,
+} from '../execution/strategy-simulation.js';
 
 export async function runStrategyScan(
   input: StrategyScanWorkerInput,
@@ -58,11 +58,13 @@ export async function runStrategyScan(
   return { parameters, cells };
 }
 
-async function runScanRange(config: Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions) {
-  const execution = await StrategyExecution.create({ ...config, dataPort: prismaDataPort });
+async function runScanRange(
+  config: Omit<StrategySimulationInput, 'dataPort'> & StrategySimulationOptions,
+) {
+  const simulation = await StrategySimulation.create({ ...config, dataPort: prismaDataPort });
   try {
-    return await execution.run(config);
+    return await simulation.run(config);
   } finally {
-    execution.close();
+    simulation.close();
   }
 }

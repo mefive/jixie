@@ -20,8 +20,8 @@ vi.mock('#infra/database/prisma.js', () => ({
   },
 }));
 vi.mock('#backtesting/adapters/prisma-port.js', () => ({ prismaDataPort: {} }));
-vi.mock('#strategy/execution/strategy-execution.js', () => ({
-  StrategyExecution: { create: mocks.create },
+vi.mock('#strategy/execution/strategy-simulation.js', () => ({
+  StrategySimulation: { create: mocks.create },
 }));
 
 import { runSignal } from './run.js';

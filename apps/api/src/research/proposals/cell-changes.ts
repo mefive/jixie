@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type {
   ResearchCellChangeConflictV1,
@@ -761,7 +761,7 @@ async function validateProposedDocument(
     .map((cell) => ({ id: cell.id, source: cell.source }));
   const analyses =
     pythonCells.length > 0
-      ? await researchRuntimePool.withRuntime(documentId, (runtime) => runtime.analyze(pythonCells))
+      ? await researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.analyze(pythonCells))
       : [];
   const syntaxError = analyses.find((analysis) => analysis.error);
   if (syntaxError) {

@@ -6,7 +6,7 @@ import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
 import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
-import { StrategyExecution } from '#strategy/execution/strategy-execution.js';
+import { StrategySimulation } from '#strategy/execution/strategy-simulation.js';
 import type { BacktestingFinalState } from '#backtesting/result.js';
 import { errorMessage } from '#infra/errors.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
@@ -43,7 +43,7 @@ export async function runSignal(
       run.deployment.factorDependencies,
     );
     const runDependencies = StrategyFactor.dependenciesFromJson(run.factorDependencies);
-    const execution = await StrategyExecution.create({
+    const simulation = await StrategySimulation.create({
       code: config.code,
       language: config.language,
       locale,
@@ -63,16 +63,16 @@ export async function runSignal(
       // Legacy rows may have only one snapshot, or neither. Preserve their admission rules.
       StrategyFactor.assertDependencies(
         runDependencies ?? deploymentDependencies,
-        execution.factorDependencies,
+        simulation.factorDependencies,
       );
-      await execution.run({
+      await simulation.run({
         ...config,
         end: run.tradeDate,
         strictFutures: run.deployment.accountingVersion === 2,
       });
-      finalState = await execution.collectFinalState();
+      finalState = await simulation.collectFinalState();
     } finally {
-      execution.close();
+      simulation.close();
     }
     const projection = projectSignals(finalState);
     const codes = [

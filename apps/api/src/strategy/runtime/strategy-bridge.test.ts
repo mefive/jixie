@@ -6,7 +6,7 @@ import { StrategyBridge, type StrategyTransport } from './strategy-bridge.js';
 import type { StrategyBridgeOptions } from './strategy-bridge.js';
 import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
 import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
-import type { StrategyExecutionInput, StrategyRuntimeMetadata } from './contract.js';
+import type { StrategyCallbackInput, StrategySandboxMetadata } from './contract.js';
 
 const metadata = {
   name: 'bridge fixture',
@@ -169,7 +169,7 @@ describe('Strategy Bridge connection creation', () => {
 describe('shared strategy bridge', () => {
   it('passes startup cancellation through the shared Bridge contract before send and after read', async () => {
     const { session, sent } = transport([ready]);
-    const bridge: SandboxBridge<StrategyExecutionInput, void, StrategyRuntimeMetadata> =
+    const bridge: SandboxBridge<StrategyCallbackInput, void, StrategySandboxMetadata> =
       new StrategyBridge(session, {
         startupCommand: { type: 'start' },
         diagnostics,

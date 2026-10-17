@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import type { ResearchAffectedRunPlan } from '../dependencies/run-plan.js';
@@ -36,7 +36,7 @@ export async function runResearchCellChangeAttemptPlan(
   try {
     await assertResearchCellIdsRunnable(documentId, plan.cellIds);
     if (args.clean) {
-      await researchRuntimePool.reset(documentId);
+      await researchSandboxPool.reset(documentId);
       if (!control.interrupted) {
         await prisma.researchCell.updateMany({
           where: {

@@ -143,7 +143,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/risk`，结果位于回测的多资产配置风险面板。
 5. Worker 返回结果并退出；API 主线程的执行器创建 Prisma 事务，把同一个 transaction 交给业务 `complete`，保存报告/相关缓存与 Job 终态。计算与外部调用不占用这个完成事务。
 
-参数扫描使用独立的 `scans/job-lifecycle.ts` 和扫描 Worker。`scans/run.ts` 在同一线程内循环，为每个参数及区间创建 `StrategyExecution`，调用 run 并在 finally 中 close，比较冻结范围内的结果；因子源码准备一次，每次模拟单独初始化并关闭 runtime，不经过正式回测的风险后处理。没有 cell 子进程或专用执行器；任务通过通用 Worker 生命周期退出。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
+参数扫描使用独立的 `scans/job-lifecycle.ts` 和扫描 Worker。`scans/run.ts` 在同一线程内循环，为每个参数及区间创建 `StrategySimulation`，调用 run 并在 finally 中 close，比较冻结范围内的结果；因子源码准备一次，每次模拟单独初始化并关闭 runtime，不经过正式回测的风险后处理。没有 cell 子进程或专用执行器；任务通过通用 Worker 生命周期退出。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
 
 ### 3. 维护发布数据并生成每日信号
 
@@ -217,7 +217,7 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 Strategy 的公开 TS 签名、文档、Agent 参考归 `packages/shared/src/sdk/strategy/reference.ts`，
 由原有声明生成器同时服务 Monaco 和编译契约 `contract.ts`。Strategy SDK 辅助实现归
 `apps/api/src/strategy/sdk`，不再与 isolate 设施同放；Python SDK 与语言协议分别归
-`strategy/sdk/python.py`、`strategy/runtime/python/strategy_runner.py`；基础能力适配、缓存与宿主访问归两种语言的 runtime/adapter。宿主 StrategyRuntime 统一资源生命周期，语言 prepare 只提供启动配置，runner 负责沙箱加载与协议，SDK 接收基础能力。
+`strategy/sdk/python.py`、`strategy/runtime/python/strategy_runner.py`；基础能力适配、缓存与宿主访问归两种语言的 runtime/adapter。宿主 StrategySandbox 统一资源生命周期，语言 prepare 只提供启动配置，runner 负责沙箱加载与协议，SDK 接收基础能力。
 Engine 保留内部 `EngineStrategy` / `EngineContext`，负责模拟时钟、PIT 数据、因子准备与交易账户。
 公开上下文不继承 Engine 类型；runtime 把用户回调装配为引擎决策回调，SDK 对公开签名做编译期适配检查。
 实现、兼容性与本次验收见 [Strategy SDK 边界记录](design/strategy-sdk-boundaries.md)。

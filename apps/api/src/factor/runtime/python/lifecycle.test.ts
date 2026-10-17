@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../factor-runtime.js';
+import { FactorSandbox } from '../factor-sandbox.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/runtime/python/python-session.js';
 
@@ -29,18 +29,18 @@ afterEach(() => vi.restoreAllMocks());
 
 describe.each(variants)('%s lifecycle', (kind) => {
   const start = () =>
-    FactorRuntime.start({ language: 'python', analysisKind: kind, code: 'source' });
+    FactorSandbox.start({ language: 'python', analysisKind: kind, code: 'source' });
   it('owns startup and releases once through the shared lifecycle interface', async () => {
     const session = fixture(kind);
-    const runtime = await start();
+    const sandbox = await start();
     expect(session.send).toHaveBeenCalledExactlyOnceWith({
       type: 'factor_start',
       runtime_version: 'py-v1',
       analysis_kind: kind,
       code: 'source',
     });
-    runtime.close();
-    runtime.close();
+    sandbox.close();
+    sandbox.close();
     expect(session.close).toHaveBeenCalledOnce();
   });
 

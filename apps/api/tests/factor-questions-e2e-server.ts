@@ -90,7 +90,7 @@ async function stop() {
       await delay(30);
     }
     if (embeddedJourney) {
-      const { researchRuntimePool } = await import('#research/runtime/research-runtime-pool.js');
+      const { researchSandboxPool } = await import('#research/runtime/research-sandbox-pool.js');
       const { cancelEmbeddedRun } = await import('#research/embedded/cancel.js');
       const active = await database.researchExecution.findMany({
         where: { status: { in: ['queued', 'running'] }, embeddedVersionId: { not: null } },
@@ -104,7 +104,7 @@ async function stop() {
         );
       }
       for (const document of await database.researchDocument.findMany({ select: { id: true } })) {
-        researchRuntimePool.close(document.id);
+        researchSandboxPool.close(document.id);
       }
       await settleEmbeddedExecutions();
       const { researchPythonLanguageService } =

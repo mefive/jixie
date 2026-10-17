@@ -5,7 +5,7 @@ import type { UserLogSink } from '#infra/runtime/console.js';
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
 import { StrategyFactor } from '../factors/strategy-factor.js';
 import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
-import { StrategyExecution } from '../execution/strategy-execution.js';
+import { StrategySimulation } from '../execution/strategy-simulation.js';
 
 /** Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine. */
 export async function runBacktest(
@@ -26,7 +26,7 @@ export async function runBacktest(
   }
 
   const factors = await StrategyFactor.fromStrategySource(config.code, userId);
-  const execution = await StrategyExecution.create({
+  const simulation = await StrategySimulation.create({
     code: config.code,
     language,
     factors,
@@ -38,9 +38,9 @@ export async function runBacktest(
   });
   let result: BacktestResult;
   try {
-    result = await execution.run(config);
+    result = await simulation.run(config);
   } finally {
-    execution.close();
+    simulation.close();
   }
   await attachRiskAnalysis(result, locale, onSystemLog);
   return result;

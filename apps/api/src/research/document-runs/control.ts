@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jixie/shared';
 import { getResearchDocument } from '../documents/read.js';
@@ -29,7 +29,7 @@ export async function interruptResearchDocument(
   }
 
   control.interrupted = true;
-  researchRuntimePool.interrupt(documentId);
+  researchSandboxPool.interrupt(documentId);
   await control.settled;
   return {
     version: 1,
@@ -38,7 +38,7 @@ export async function interruptResearchDocument(
   };
 }
 
-export async function resetResearchDocumentRuntime(
+export async function resetResearchDocumentSandbox(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentV1> {
@@ -50,7 +50,7 @@ export async function resetResearchDocumentRuntime(
     throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(documentId);
-  await researchRuntimePool.reset(documentId);
+  await researchSandboxPool.reset(documentId);
   await prisma.researchCell.updateMany({
     where: {
       documentId,

@@ -1,8 +1,8 @@
 import { UserCodeError } from '#infra/errors.js';
 import { FACTOR_V2_FIELDS, isFactorV2FieldKey } from '../definitions/fields.js';
-import type { AssetFactorKind, AssetFactorRuntimeMetadata } from './contract.js';
+import type { AssetFactorKind, AssetFactorSandboxMetadata } from './contract.js';
 
-export function validateTypeScriptFactorMetadata(metadata: AssetFactorRuntimeMetadata): void {
+export function validateTypeScriptFactorMetadata(metadata: AssetFactorSandboxMetadata): void {
   if (!metadata.name?.trim()) {
     throw new UserCodeError('Factor V2 requires a name.');
   }
@@ -37,7 +37,7 @@ export function validateTypeScriptFactorMetadata(metadata: AssetFactorRuntimeMet
 }
 
 export function validatePythonFactorMetadata(
-  metadata: AssetFactorRuntimeMetadata,
+  metadata: AssetFactorSandboxMetadata,
   analysisKind: AssetFactorKind,
 ): void {
   if (metadata.analysisKind !== analysisKind || !metadata.name?.trim()) {

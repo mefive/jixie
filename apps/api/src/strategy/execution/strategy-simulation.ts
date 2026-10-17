@@ -8,10 +8,10 @@ import type { BacktestingFinalState } from '#backtesting/result.js';
 import type { BacktestResult } from '../backtests/result.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { FactorDependency, Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
-import { StrategyRuntime } from '../runtime/strategy-runtime.js';
-import type { StrategyRuntimeInstance } from '../runtime/contract.js';
+import { StrategySandbox } from '../runtime/strategy-sandbox.js';
+import type { StrategySandboxInstance } from '../runtime/contract.js';
 
-export interface StrategyExecutionInput {
+export interface StrategySimulationInput {
   code: string;
   language?: StrategyLanguage;
   locale?: Locale;
@@ -22,7 +22,7 @@ export interface StrategyExecutionInput {
   onUserLog?: UserLogSink;
 }
 
-export interface StrategyRunOptions {
+export interface StrategySimulationOptions {
   start: string;
   end: string;
   initialCash: number;
@@ -31,20 +31,20 @@ export interface StrategyRunOptions {
 }
 
 /** Owns the strategy and factor resources for exactly one engine run. */
-export class StrategyExecution {
+export class StrategySimulation {
   private started = false;
   private closed = false;
   private engine: BacktestingEngine | null = null;
 
   private constructor(
-    private readonly runtime: StrategyRuntimeInstance,
+    private readonly sandbox: StrategySandboxInstance,
     private readonly factorHost: FactorHost,
     private readonly dependencies: FactorDependency[],
-    private readonly input: StrategyExecutionInput,
+    private readonly input: StrategySimulationInput,
   ) {}
 
-  static async create(input: StrategyExecutionInput): Promise<StrategyExecution> {
-    const runtime = await StrategyRuntime.start({
+  static async create(input: StrategySimulationInput): Promise<StrategySimulation> {
+    const sandbox = await StrategySandbox.start({
       language: input.language ?? 'typescript',
       code: input.code,
       onUserLog: input.onUserLog,
@@ -55,17 +55,17 @@ export class StrategyExecution {
     try {
       factorHost = new FactorHost(input.factors ?? [], input.onUserLog);
       const { definitions: factorDefinitions } = await factorHost.describe();
-      StrategyFactor.validateRuntimeMetadata(input.factors ?? [], factorDefinitions);
+      StrategyFactor.validateSandboxMetadata(input.factors ?? [], factorDefinitions);
       const byId = new Map(factorDefinitions.map((definition) => [definition.id, definition]));
       const dependencies = (input.factors ?? []).map((factor) =>
         factor.toDependency(byId.get(factor.key)!),
       );
-      return new StrategyExecution(runtime, factorHost, dependencies, { ...input });
+      return new StrategySimulation(sandbox, factorHost, dependencies, { ...input });
     } catch (error) {
       try {
         factorHost?.close();
       } finally {
-        runtime.close();
+        sandbox.close();
       }
       throw error;
     }
@@ -76,7 +76,7 @@ export class StrategyExecution {
     return structuredClone(this.dependencies);
   }
 
-  async run(options: StrategyRunOptions): Promise<BacktestResult> {
+  async run(options: StrategySimulationOptions): Promise<BacktestResult> {
     if (this.closed || this.started) {
       throw new Error('Strategy execution requires a fresh, open instance');
     }
@@ -90,8 +90,8 @@ export class StrategyExecution {
       cost: options.cost,
       locale: this.input.locale,
       strategy: {
-        ...this.runtime.metadata,
-        onBar: (context: EngineContext) => this.runtime.execute({ context }),
+        ...this.sandbox.metadata,
+        onBar: (context: EngineContext) => this.sandbox.execute({ context }),
       },
       dataPort: this.input.dataPort,
       factorExecution: this.factorHost,
@@ -105,7 +105,7 @@ export class StrategyExecution {
     return result;
   }
 
-  /** Collect a detached snapshot, including market-data loading, before closing this execution. */
+  /** Collect a detached snapshot, including market-data loading, before closing this simulation. */
   async collectFinalState(): Promise<BacktestingFinalState> {
     if (this.closed || !this.engine) {
       throw new Error('Final state requires an open execution with an engine run');
@@ -122,7 +122,7 @@ export class StrategyExecution {
     try {
       this.factorHost.close();
     } finally {
-      this.runtime.close();
+      this.sandbox.close();
     }
   }
 }

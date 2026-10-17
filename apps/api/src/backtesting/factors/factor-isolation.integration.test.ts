@@ -1,12 +1,12 @@
 import { StrategyFactor, type StrategyFactorInput } from '#strategy/factors/strategy-factor.js';
 import {
-  StrategyExecution,
-  type StrategyExecutionInput,
-  type StrategyRunOptions,
-} from '#strategy/execution/strategy-execution.js';
+  StrategySimulation,
+  type StrategySimulationInput,
+  type StrategySimulationOptions,
+} from '#strategy/execution/strategy-simulation.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
-import { StrategyRuntime } from '#strategy/runtime/strategy-runtime.js';
+import { StrategySandbox } from '#strategy/runtime/strategy-sandbox.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { FactorLanguage } from '@jixie/shared';
 
@@ -124,7 +124,7 @@ describe('strategy and factor sandbox combinations', () => {
           (_level, text) => logs.push(text),
         );
       } else {
-        const runtime = await StrategyRuntime.start({
+        const sandbox = await StrategySandbox.start({
           language: 'python',
           code: `
 from jixie import Strategy
@@ -140,11 +140,11 @@ def on_bar(ctx):
         });
         try {
           result = await runWithFactors(
-            { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+            { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
             [module],
           );
         } finally {
-          await runtime.close();
+          await sandbox.close();
         }
       }
       const expected = await new BacktestingEngine({
@@ -337,17 +337,17 @@ def compute(ctx):
   });
 });
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
+type SimulationFixtureConfig = Omit<StrategySimulationInput, 'dataPort'> & {
   factorSources?: FactorFixtureSource[];
-} & StrategyRunOptions;
+} & StrategySimulationOptions;
 
 async function runBacktestFixture(
-  config: ExecutionFixtureConfig,
+  config: SimulationFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ) {
-  const execution = await StrategyExecution.create({
+  const simulation = await StrategySimulation.create({
     ...config,
     dataPort,
     onLog,
@@ -355,9 +355,9 @@ async function runBacktestFixture(
     factors: config.factorSources?.map(factorFixture),
   });
   try {
-    return await execution.run(config);
+    return await simulation.run(config);
   } finally {
-    execution.close();
+    simulation.close();
   }
 }
 

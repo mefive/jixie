@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../../runtime/research-sandbox-pool.js';
 import { EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE } from './classification-template.js';
 import { equityFcffClassificationSource } from './classification-evidence.js';
 import { resolve } from 'node:path';
@@ -26,7 +26,7 @@ describe('FCFF research evidence', { timeout: 60_000 }, () => {
     );
   });
   afterEach(() => {
-    researchRuntimePool.close(DOCUMENT_ID);
+    researchSandboxPool.close(DOCUMENT_ID);
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
@@ -40,8 +40,8 @@ describe('FCFF research evidence', { timeout: 60_000 }, () => {
   });
 
   it('separates growth duration, terminal reinvestment, and the unchanged-path roll', async () => {
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'financial-evidence',
           source: `
@@ -78,8 +78,8 @@ pd.DataFrame([{"passed": True}])`,
     const functionsOnly = EQUITY_FCFF_MARKET_REVIEW_SOURCE.split(
       '\nmarket_observations = aligned_market_observations(',
     )[0];
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'market-evidence',
           source: `
@@ -106,8 +106,8 @@ pd.DataFrame([{"passed": True}])`,
     expect(result.outputs[0]).toMatchObject({ type: 'table', rows: [{ passed: true }] });
   });
   it('reconciles annual classification without doubling maturing products or current leases', async () => {
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'classification-evidence',
           source: `

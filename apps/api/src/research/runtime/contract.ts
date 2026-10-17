@@ -22,7 +22,7 @@ export interface ResearchExecution {
   references: string[];
   environmentFingerprint: string;
 }
-export interface ResearchRuntimeMetadata {
+export interface ResearchSandboxMetadata {
   environment: Record<string, unknown>;
   capabilities: string[];
 }
@@ -30,7 +30,7 @@ export interface ResearchRuntimeMetadata {
 export interface ResearchBridgeContract extends SandboxBridge<
   ResearchExecutionInput,
   ResearchExecution,
-  ResearchRuntimeMetadata,
+  ResearchSandboxMetadata,
   ResearchExecutionOptions
 > {
   analyze(cells: ResearchCellInput[]): Promise<ResearchPythonAnalysis[]>;

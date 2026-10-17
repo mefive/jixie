@@ -1,4 +1,4 @@
-import type { TimeSeriesFactorRuntime } from '../runtime/contract.js';
+import type { TimeSeriesFactorSandbox } from '../runtime/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { COMMODITY_FUTURE_SPECS } from '#market/commodity/commodity-futures.js';
 import { isAuditedAuKilogramMislabelDate } from '#market/commodity/commodity-warehouse-receipts.js';
@@ -43,7 +43,7 @@ const COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_MAPPINGS: CommodityWarehouseReceip
 /** Tests a product-local warehouse-receipt transform against its mapped adjusted ETF return. */
 export async function loadCommodityWarehouseReceiptTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityWarehouseReceiptTimeSeriesProtocol(researchSpec, factor);
   const historyStart = addDays(
@@ -118,7 +118,7 @@ export async function buildCommodityWarehouseReceiptTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   etfRows: EtfTrendDailyRow[],
   warehouseReceiptPoints: CommodityWarehouseReceiptResearchPoint[],
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityWarehouseReceiptTimeSeriesProtocol(researchSpec, factor);
   const rowsByAsset = groupAndValidateEtfRows(etfRows, mappings);
@@ -186,7 +186,7 @@ export async function buildCommodityWarehouseReceiptTimeSeriesObservations(
 }
 
 export function timeSeriesFactorUsesCommodityWarehouseReceipts(
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): boolean {
   return (
     factor.metadata.inputs.length === 1 &&
@@ -196,7 +196,7 @@ export function timeSeriesFactorUsesCommodityWarehouseReceipts(
 
 function assertCommodityWarehouseReceiptTimeSeriesProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): CommodityWarehouseReceiptTimeSeriesMapping[] {
   if (
     researchSpec.observationFrequency !== 'daily' ||

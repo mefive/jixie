@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../runtime/factor-runtime.js';
+import { FactorSandbox } from '../runtime/factor-sandbox.js';
 import type { PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import type { CommodityCarryPointV1 } from '#market/commodity/commodity-carry.js';
@@ -103,7 +103,7 @@ function carryPoints(): CommodityCarryPointV1[] {
 }
 
 async function build(points = carryPoints()) {
-  const factor = await FactorRuntime.start({
+  const factor = await FactorSandbox.start({
     language: 'typescript',
     analysisKind: 'panel',
     code: factorCode,

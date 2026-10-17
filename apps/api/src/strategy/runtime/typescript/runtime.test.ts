@@ -1,10 +1,10 @@
 import { projectSignals } from '#signals/runs/projection.js';
 import type { BacktestingConfig } from '#backtesting/contract.js';
 import {
-  StrategyExecution,
-  type StrategyExecutionInput,
-  type StrategyRunOptions,
-} from '../../execution/strategy-execution.js';
+  StrategySimulation,
+  type StrategySimulationInput,
+  type StrategySimulationOptions,
+} from '../../execution/strategy-simulation.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { Worker } from 'node:worker_threads';
@@ -463,34 +463,35 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
   });
 });
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions;
+type SimulationFixtureConfig = Omit<StrategySimulationInput, 'dataPort'> &
+  StrategySimulationOptions;
 
 async function runBacktestFixture(
-  config: ExecutionFixtureConfig,
+  config: SimulationFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ) {
-  const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
+  const simulation = await StrategySimulation.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return await execution.run(config);
+    return await simulation.run(config);
   } finally {
-    execution.close();
+    simulation.close();
   }
 }
 
 async function runSignalCaptureFixture(
-  config: ExecutionFixtureConfig,
+  config: SimulationFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ) {
-  const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
+  const simulation = await StrategySimulation.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    const result = await execution.run(config);
-    return { result, capture: projectSignals(await execution.collectFinalState()) };
+    const result = await simulation.run(config);
+    return { result, capture: projectSignals(await simulation.collectFinalState()) };
   } finally {
-    execution.close();
+    simulation.close();
   }
 }
 

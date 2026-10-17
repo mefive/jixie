@@ -1,4 +1,4 @@
-import { researchRuntimePool } from './research-runtime-pool.js';
+import { researchSandboxPool } from './research-sandbox-pool.js';
 import {
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
@@ -42,7 +42,7 @@ describe('research workbench Python runtime', () => {
   });
 
   afterEach(() => {
-    researchRuntimePool.close(DOCUMENT_ID);
+    researchSandboxPool.close(DOCUMENT_ID);
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
@@ -51,8 +51,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('derives definitions and references from Python AST', async () => {
-    const analysis = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const analysis = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         { id: 'load', source: 'monthly = [1, 2, 3]' },
         { id: 'summary', source: 'average = sum(monthly) / len(monthly)\naverage' },
       ]),
@@ -77,8 +77,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts imported package roots for Agent proposal policy checks', async () => {
-    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         {
           id: 'statistics',
           source:
@@ -91,8 +91,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal Research SDK series identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         {
           id: 'series',
           source:
@@ -112,8 +112,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal governed yield-curve identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         {
           id: 'yield',
           source:
@@ -128,8 +128,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal supplemental equity identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         {
           id: 'supplemental',
           source:
@@ -145,8 +145,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal governed financial identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         {
           id: 'financials',
           source:
@@ -162,8 +162,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts each batch financial identifier for Agent preflight', async () => {
-    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         {
           id: 'values',
           source:
@@ -178,8 +178,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('extracts literal market-reference identities for proposal preflight', async () => {
-    const [analysis] = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze([
+    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze([
         {
           id: 'references',
           source:
@@ -196,16 +196,16 @@ describe('research workbench Python runtime', () => {
   });
 
   it('keeps document-level state and returns typed outputs', async () => {
-    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'upstream',
           source: 'returns = [0.01, -0.02, 0.03]',
         },
       }),
     );
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'downstream',
           source: 'cumulative = sum(returns)\ncumulative',
@@ -220,8 +220,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('returns a bounded table preview for record rows', async () => {
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'large-table',
           source:
@@ -247,8 +247,8 @@ describe('research workbench Python runtime', () => {
     expect(output.rows).toHaveLength(200);
     expect(output.rows[0]?.note).toMatch(/\[truncated\]$/);
 
-    const wideResult = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const wideResult = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'wide-table',
           source: 'wide = [{f"column_{index}": index for index in range(70)}]\nwide',
@@ -268,8 +268,8 @@ describe('research workbench Python runtime', () => {
     }
     expect(wideOutput.columns).toHaveLength(64);
 
-    const byteLimitedResult = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const byteLimitedResult = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'byte-limited-table',
           source:
@@ -296,8 +296,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('keeps the Python data API signature aligned with the public SDK contract', async () => {
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'signature',
           source:
@@ -346,8 +346,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('returns native histogram, boxplot, heatmap, and event-path artifacts', async () => {
-    const histogram = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const histogram = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'histogram',
           source:
@@ -368,8 +368,8 @@ describe('research workbench Python runtime', () => {
     }
     expect(histogramOutput.rows.reduce((total, row) => total + Number(row.count), 0)).toBe(4);
 
-    const boxplot = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const boxplot = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'boxplot',
           source: 'charts.boxplot(observations, y="return")',
@@ -383,8 +383,8 @@ describe('research workbench Python runtime', () => {
       rows: [{ category: 'return', min: -0.02, median: 0, max: 0.03 }],
     });
 
-    const heatmap = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const heatmap = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'heatmap',
           source:
@@ -400,8 +400,8 @@ describe('research workbench Python runtime', () => {
       series: [{ column: 'corr', label: 'corr' }],
     });
 
-    const eventPath = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const eventPath = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'event-path',
           source:
@@ -416,8 +416,8 @@ describe('research workbench Python runtime', () => {
       series: [{ column: 'car', label: 'car' }],
     });
 
-    const projectedLine = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const projectedLine = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'projected-line',
           source:
@@ -433,8 +433,8 @@ describe('research workbench Python runtime', () => {
 
   it('rejects invalid chart parameters and ambiguous heatmap coordinates', async () => {
     await expect(
-      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-        runtime.execute({
+      researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
           cell: {
             id: 'invalid-histogram',
             source: 'charts.histogram([{"value": 1}], column="value", bins=0)',
@@ -448,8 +448,8 @@ describe('research workbench Python runtime', () => {
     );
 
     await expect(
-      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-        runtime.execute({
+      researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
           cell: {
             id: 'duplicate-heatmap',
             source:
@@ -464,8 +464,8 @@ describe('research workbench Python runtime', () => {
     );
 
     await expect(
-      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-        runtime.execute({
+      researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
           cell: {
             id: 'oversized-chart',
             source:
@@ -482,8 +482,8 @@ describe('research workbench Python runtime', () => {
 
   it('rejects a Cell output that exceeds the runtime transfer budget', async () => {
     await expect(
-      researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-        runtime.execute({
+      researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
           cell: {
             id: 'oversized-output',
             source: '"x" * (9 * 1024 * 1024)',
@@ -498,8 +498,8 @@ describe('research workbench Python runtime', () => {
   });
 
   it('interrupts active code and starts the next execution in a fresh session', async () => {
-    const execution = researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const execution = researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'infinite',
           source: 'while True:\n    pass',
@@ -508,11 +508,11 @@ describe('research workbench Python runtime', () => {
     );
     await waitForActiveExecution();
 
-    expect(researchRuntimePool.interrupt(DOCUMENT_ID)).toBe('infinite');
+    expect(researchSandboxPool.interrupt(DOCUMENT_ID)).toBe('infinite');
     await expect(execution).rejects.toBeInstanceOf(ResearchPythonInterruptionError);
 
-    const recovered = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const recovered = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'recovered',
           source: '21 * 2',
@@ -525,8 +525,8 @@ describe('research workbench Python runtime', () => {
   it('does not evict active Research sessions when the four-slot sandbox is full', async () => {
     const documentIds = Array.from({ length: 4 }, (_, index) => `research-capacity-${index}`);
     const executions = documentIds.map((documentId, index) =>
-      researchRuntimePool.withRuntime(documentId, (runtime) =>
-        runtime.execute({
+      researchSandboxPool.withSandbox(documentId, (sandbox) =>
+        sandbox.execute({
           cell: {
             id: `infinite-${index}`,
             source: 'while True:\n    pass',
@@ -544,8 +544,8 @@ describe('research workbench Python runtime', () => {
       );
 
       await expect(
-        researchRuntimePool.withRuntime('research-capacity-overflow', (runtime) =>
-          runtime.execute({
+        researchSandboxPool.withSandbox('research-capacity-overflow', (sandbox) =>
+          sandbox.execute({
             cell: {
               id: 'overflow',
               source: '42',
@@ -555,13 +555,13 @@ describe('research workbench Python runtime', () => {
       ).rejects.toThrow('Python sandbox is busy (4/4 Research sessions)');
     } finally {
       for (const documentId of documentIds) {
-        if (researchRuntimePool.interrupt(documentId) === null) {
-          researchRuntimePool.close(documentId);
+        if (researchSandboxPool.interrupt(documentId) === null) {
+          researchSandboxPool.close(documentId);
         }
       }
       await settledExecutions;
       for (const documentId of [...documentIds, 'research-capacity-overflow']) {
-        researchRuntimePool.close(documentId);
+        researchSandboxPool.close(documentId);
       }
     }
   });
@@ -572,7 +572,7 @@ async function waitForActiveExecution(
   expectedCellId = 'infinite',
 ): Promise<void> {
   for (let attempt = 0; attempt < 500; attempt += 1) {
-    if (researchRuntimePool.activeCellId(documentId) === expectedCellId) {
+    if (researchSandboxPool.activeCellId(documentId) === expectedCellId) {
       return;
     }
     await new Promise((resolve) => setTimeout(resolve, 10));

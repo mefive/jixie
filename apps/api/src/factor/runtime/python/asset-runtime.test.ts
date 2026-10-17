@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../factor-runtime.js';
+import { FactorSandbox } from '../factor-sandbox.js';
 import { afterEach, describe, expect, it } from 'vitest';
 
 describe('Python asset Factor runtime', () => {
@@ -8,7 +8,7 @@ describe('Python asset Factor runtime', () => {
 
   it('computes a time-series score with declared inputs and lag', async () => {
     enableTestRuntime();
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'python',
       analysisKind: 'time_series',
       code: `
@@ -48,7 +48,7 @@ def compute(ctx: AssetFactorContext) -> float | None:
     async (analysisKind) => {
       enableTestRuntime();
       const logs: string[] = [];
-      const factor = await FactorRuntime.start({
+      const factor = await FactorSandbox.start({
         language: 'python',
         analysisKind,
         onUserLog: (_level, text) => logs.push(text),
@@ -90,7 +90,7 @@ def compute(ctx):
 
   it('uses the same execution contract for panel Factors', async () => {
     enableTestRuntime();
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'python',
       analysisKind: 'panel',
       code: `

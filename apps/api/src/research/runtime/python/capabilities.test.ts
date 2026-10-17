@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../research-runtime-pool.js';
+import { researchSandboxPool } from '../research-sandbox-pool.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PythonSession } from '#infra/runtime/python/python-session.js';
 
@@ -28,7 +28,7 @@ function sessionFixture(capabilities?: string[]) {
 }
 
 afterEach(() => {
-  researchRuntimePool.close(documentId);
+  researchSandboxPool.close(documentId);
   vi.restoreAllMocks();
 });
 
@@ -37,8 +37,8 @@ describe('Research runtime parameter capability negotiation', () => {
     sessionFixture();
     expect(
       (
-        await researchRuntimePool.withRuntime(documentId, (runtime) =>
-          runtime.execute({ cell: { id: 'cell', source: '1' } }),
+        await researchSandboxPool.withSandbox(documentId, (sandbox) =>
+          sandbox.execute({ cell: { id: 'cell', source: '1' } }),
         )
       ).outputs,
     ).toEqual([{ type: 'value', value: 1 }]);
@@ -47,8 +47,8 @@ describe('Research runtime parameter capability negotiation', () => {
   it('rejects embedded execution before sending source if the sandbox would ignore its parameters', async () => {
     const session = sessionFixture();
     await expect(
-      researchRuntimePool.withRuntime(documentId, (runtime) =>
-        runtime.execute(
+      researchSandboxPool.withSandbox(documentId, (sandbox) =>
+        sandbox.execute(
           { cell: { id: 'cell', source: 'parameters["window"]' }, parameters: { window: 12 } },
           {},
         ),
@@ -65,8 +65,8 @@ describe('Research runtime parameter capability negotiation', () => {
     const source = 'from __future__ import annotations\nparameters["window"]';
     const parameters = { window: 12, enabled: true, absent: null };
     const captureEnvironment = vi.fn();
-    await researchRuntimePool.withRuntime(documentId, (runtime) =>
-      runtime.execute(
+    await researchSandboxPool.withSandbox(documentId, (sandbox) =>
+      sandbox.execute(
         { cell: { id: 'cell', source }, parameters: parameters },
         { captureEnvironment },
       ),

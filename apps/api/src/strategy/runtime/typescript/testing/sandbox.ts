@@ -1,19 +1,19 @@
 import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
 import type { TypeScriptTransportMetrics } from '#infra/runtime/typescript/typescript-transport.js';
-import { StrategyRuntime } from '../../strategy-runtime.js';
+import { StrategySandbox } from '../../strategy-sandbox.js';
 import { StrategyBridge } from '../../strategy-bridge.js';
 import type { StrategyBridgeOptions, StrategyTransport } from '../../strategy-bridge.js';
 import type { StrategyStartOptions } from '../../contract.js';
 
-/** Test instrumentation keeps transport diagnostics outside the production runtime interface. */
-class InstrumentedStrategyRuntime extends StrategyRuntime {
+/** Test instrumentation keeps transport diagnostics outside the production sandbox interface. */
+class InstrumentedStrategySandbox extends StrategySandbox {
   private diagnostics!: TypeScriptTransportMetrics;
 
   static async startInstrumented(options: StrategyStartOptions) {
-    const runtime = new InstrumentedStrategyRuntime({ ...options, language: 'typescript' });
-    await runtime.initialize();
+    const sandbox = new InstrumentedStrategySandbox({ ...options, language: 'typescript' });
+    await sandbox.initialize();
 
-    return { runtime, metrics: runtime.diagnostics };
+    return { sandbox, metrics: sandbox.diagnostics };
   }
 
   protected createBridge() {
@@ -36,6 +36,6 @@ class InstrumentedStrategyRuntime extends StrategyRuntime {
   }
 }
 
-export function startInstrumentedStrategyRuntime(options: StrategyStartOptions) {
-  return InstrumentedStrategyRuntime.startInstrumented(options);
+export function startInstrumentedStrategySandbox(options: StrategyStartOptions) {
+  return InstrumentedStrategySandbox.startInstrumented(options);
 }

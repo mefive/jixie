@@ -1,5 +1,7 @@
 # Factor / Strategy / Research 运行时统一方案
 
+> 当前命名（2026-10-17）：公共生命周期类为 Sandbox，三个宿主类为 StrategySandbox / FactorSandbox / ResearchSandbox，会话池为 ResearchSandboxPool，完整策略模拟为 StrategySimulation。实现和验证记录见 [命名统一记录](execution-naming-and-ownership.md#2026-10-17-sandbox-与-strategysimulation-命名统一)。下文保留各次变更时的历史名称，阅读链接指向当前文件。
+
 > 后续变更（2026-10-16）：核心类文件统一使用完整类名，例如 strategy-bridge.ts、strategy-runner.ts、strategy_runner.py；当前映射和审查验证状态见 [API 文件命名记录](execution-naming-and-ownership.md#2026-10-16-api-核心类文件名统一)。下文历史路径文字保留，阅读链接指向当前文件。
 
 > 后续变更（2026-10-16）：SandboxBridgeBase 实现公共 SandboxBridge 接口并声明抽象 initialize/execute，三业务继承并绑定输入、输出、metadata 和执行选项；删除 Factor/Strategy 的纯泛型契约别名，保留 Research 的 analyze/reset 扩展接口。各业务协议实现保持，当前审查与验证状态见文末。
@@ -73,7 +75,7 @@ Strategy 和 Research 的运行时也使用 `StrategyRuntime.start(options)` / `
 | TS Strategy | isolate transport + 同一 Strategy bridge + exchange，另有同步 `__hostAccess` 通道 | 生命周期和异步策略协议；保留同步调用语义 |
 | Research | 当前仅 Python，PythonSession + exchange；执行期间处理 SDK request | 生命周期、命令交互循环；文档池管理复用 |
 
-迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [Factor runtime](../../apps/api/src/factor/runtime/factor-runtime.ts)、[TS transport](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts)、[公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)。Infra README 已同步实际范围。
+迁移前的 TS Factor 工厂可从基线提交 `4464a616` 查看；旧 Python 基类来自未提交的 R2 草案。现有实现入口为 [Factor runtime](../../apps/api/src/factor/runtime/factor-sandbox.ts)、[TS transport](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts)、[公共生命周期](../../apps/api/src/infra/runtime/sandbox.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)。Infra README 已同步实际范围。
 
 所有实现都具有“建立隔离环境 → 初始化 → 多次执行 → 释放”的共同流程。此次连同 TS Factor 的命令交互统一，批量计算命令本身可以经过公共 exchange，不必把批内每个 item 拆成一次通信。TS 的 isolate 和 Python 的 socket 是底层传输差异，不在业务 runtime 层保留另一套直接调用入口。Strategy TS 的同步上下文访问有作者 SDK 语义依据，仍作为受限通道保留；把它改成 async 会改变作者代码的调用处异常和取数时机。
 
@@ -348,7 +350,7 @@ return researchRuntimePool.withRuntime(
 
 ### 审查入口与实现取舍
 
-先读 [公共生命周期](../../apps/api/src/infra/runtime/sandbox-runtime.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)，再横向对照 factor-runtime.ts、strategy-runtime.ts、research-runtime.ts 的 start 与 execute。Research 的借用入口见 [research-runtime-pool.ts](../../apps/api/src/research/runtime/research-runtime-pool.ts)；语言资源统一见 [TypeScriptTransport](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts) 与 PythonSession。
+先读 [公共生命周期](../../apps/api/src/infra/runtime/sandbox.ts) 和 [公共消息循环（现 Bridge 基类）](../../apps/api/src/infra/runtime/sandbox-bridge-base.ts)，再横向对照 factor-runtime.ts、strategy-runtime.ts、research-runtime.ts 的 start 与 execute。Research 的借用入口见 [research-sandbox-pool.ts](../../apps/api/src/research/runtime/research-sandbox-pool.ts)；语言资源统一见 [TypeScriptTransport](../../apps/api/src/infra/runtime/typescript/typescript-transport.ts) 与 PythonSession。
 
 TS Factor 保留 256 MiB isolate、声明 5 秒、整批 30 秒预算；新帧及累计队列限额也取 256 MiB，没有使用 Strategy 的一万帧上限。初版普通日志逐条经消息帧传出，后经性能验证和用户确认改为文末的沙箱内批量缓冲。启动日志仍在 start 期间消费（迁移前延迟到首次计算 drain），首次计算错误由终止帧回报并去重。这里有真实传输开销变化，需要性能验收；类型检查不能证明时序和性能一致。
 

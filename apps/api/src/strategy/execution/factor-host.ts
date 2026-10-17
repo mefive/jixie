@@ -1,8 +1,8 @@
-import { FactorRuntime } from '#factor/runtime/factor-runtime.js';
+import { FactorSandbox } from '#factor/runtime/factor-sandbox.js';
 import type {
-  CrossSectionalFactorRuntime,
-  PanelFactorRuntime,
-  TimeSeriesFactorRuntime,
+  CrossSectionalFactorSandbox,
+  PanelFactorSandbox,
+  TimeSeriesFactorSandbox,
 } from '#factor/runtime/contract.js';
 import { z } from 'zod';
 import type { UserLogSink } from '#infra/runtime/console.js';
@@ -16,7 +16,7 @@ import type {
 } from '#backtesting/factors/execution-port.js';
 import { describeFactors } from '#backtesting/factors/description.js';
 
-type FactorInstance = CrossSectionalFactorRuntime | TimeSeriesFactorRuntime | PanelFactorRuntime;
+type FactorInstance = CrossSectionalFactorSandbox | TimeSeriesFactorSandbox | PanelFactorSandbox;
 
 const numberSchema = z.number().finite();
 const valueSchema = numberSchema.nullable();
@@ -71,7 +71,7 @@ const factorRequestSchema = z.discriminatedUnion('kind', [
   }),
 ]);
 
-/** One run owns these runtimes. Source comes only from its frozen, permission-checked dependencies. */
+/** One simulation owns these factor sandboxes. Source comes only from its frozen, permission-checked dependencies. */
 export class FactorHost implements FactorExecutionPort {
   private readonly dependencies: StrategyFactor[];
   private readonly factors = new Map<string, FactorInstance>();
@@ -101,8 +101,8 @@ export class FactorHost implements FactorExecutionPort {
   async compute(input: FactorComputeRequest): Promise<(number | null)[]> {
     const request = factorRequestSchema.parse(input);
     await this.describe();
-    const runtime = this.factors.get(request.factorId);
-    if (!runtime) {
+    const sandbox = this.factors.get(request.factorId);
+    if (!sandbox) {
       throw new Error(`Unknown factor dependency ${request.factorId}`);
     }
     const previous = this.queues.get(request.factorId) ?? Promise.resolve();
@@ -113,14 +113,14 @@ export class FactorHost implements FactorExecutionPort {
       let values: (number | null)[];
       let expected: number;
       if (request.kind === 'cross_sectional') {
-        if (!isCrossSectionalRuntime(runtime)) {
+        if (!isCrossSectionalSandbox(sandbox)) {
           throw new Error('Factor runtime does not support cross-sectional input');
         }
         for (const item of request.items) {
           const length = item.closes?.length;
           if (
             length != null &&
-            (runtime.metadata.window == null || length > runtime.metadata.window)
+            (sandbox.metadata.window == null || length > sandbox.metadata.window)
           ) {
             throw new Error('Factor history exceeds its declared window');
           }
@@ -137,18 +137,18 @@ export class FactorHost implements FactorExecutionPort {
             }
           }
         }
-        values = await runtime.execute({ items: request.items });
+        values = await sandbox.execute({ items: request.items });
         expected = request.items.length;
       } else {
-        if (isCrossSectionalRuntime(runtime)) {
+        if (isCrossSectionalSandbox(sandbox)) {
           throw new Error('Factor runtime does not support asset-series input');
         }
         const keys = Object.keys(request.fields);
         if (
-          keys.length !== runtime.metadata.inputs.length ||
+          keys.length !== sandbox.metadata.inputs.length ||
           keys.some(
             (key) =>
-              !runtime.metadata.inputs.includes(key as (typeof runtime.metadata.inputs)[number]),
+              !sandbox.metadata.inputs.includes(key as (typeof sandbox.metadata.inputs)[number]),
           )
         ) {
           throw new Error('Factor fields do not match its declared inputs');
@@ -156,7 +156,7 @@ export class FactorHost implements FactorExecutionPort {
         const lengths = Object.values(request.fields).map((values) => values.length);
         const length = lengths[0];
         if (
-          length !== runtime.metadata.window ||
+          length !== sandbox.metadata.window ||
           lengths.some((value) => value !== length) ||
           request.indexes.some((index) => index >= length)
         ) {
@@ -168,7 +168,7 @@ export class FactorHost implements FactorExecutionPort {
             values.map((value) => value ?? Number.NaN),
           ]),
         );
-        values = await runtime.execute({ fields: fields, indexes: request.indexes });
+        values = await sandbox.execute({ fields: fields, indexes: request.indexes });
         expected = request.indexes.length;
       }
       if (
@@ -185,8 +185,8 @@ export class FactorHost implements FactorExecutionPort {
 
   close(): void {
     this.closed = true;
-    for (const runtime of this.factors.values()) {
-      runtime.close();
+    for (const sandbox of this.factors.values()) {
+      sandbox.close();
     }
     this.factors.clear();
     this.queues.clear();
@@ -243,25 +243,25 @@ export class FactorHost implements FactorExecutionPort {
     }
     const kind = factor.runtimeKind;
     const log: UserLogSink = (level, text) => this.onUserLog?.(level, `${factor.key}: ${text}`);
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language,
       analysisKind: kind,
       code: source,
       onUserLog: log,
     });
     if (this.closed) {
-      runtime.close();
+      sandbox.close();
       throw new Error('Factor runtime is closed');
     }
-    this.factors.set(id, runtime);
-    if (isCrossSectionalRuntime(runtime)) {
+    this.factors.set(id, sandbox);
+    if (isCrossSectionalSandbox(sandbox)) {
       if (
-        runtime.metadata.window != null &&
-        (!Number.isSafeInteger(runtime.metadata.window) || runtime.metadata.window < 1)
+        sandbox.metadata.window != null &&
+        (!Number.isSafeInteger(sandbox.metadata.window) || sandbox.metadata.window < 1)
       ) {
         throw new Error(`factor ${factor.key} has an invalid history window`);
       }
-      if (factor.crossSectional && factor.crossSectional.window !== runtime.metadata.window) {
+      if (factor.crossSectional && factor.crossSectional.window !== sandbox.metadata.window) {
         throw new Error(
           `factor ${factor.key} does not match its compiled cross-sectional contract`,
         );
@@ -269,27 +269,27 @@ export class FactorHost implements FactorExecutionPort {
       return {
         id,
         kind: 'cross_sectional',
-        window: runtime.metadata.window,
+        window: sandbox.metadata.window,
         historyFields: factor.historyFields,
       };
     }
     if (
       factor.assetSeries &&
-      (factor.assetSeries.window !== runtime.metadata.window ||
-        JSON.stringify(factor.assetSeries.inputs) !== JSON.stringify(runtime.metadata.inputs))
+      (factor.assetSeries.window !== sandbox.metadata.window ||
+        JSON.stringify(factor.assetSeries.inputs) !== JSON.stringify(sandbox.metadata.inputs))
     ) {
       throw new Error(`factor ${factor.key} does not match its compiled asset-series contract`);
     }
     return {
       id,
       kind: 'asset_series',
-      analysisKind: runtime.metadata.analysisKind,
-      meta: { window: runtime.metadata.window, inputs: [...runtime.metadata.inputs] },
+      analysisKind: sandbox.metadata.analysisKind,
+      meta: { window: sandbox.metadata.window, inputs: [...sandbox.metadata.inputs] },
       ...(factor.assetUniverse ? { assetUniverse: factor.assetUniverse } : {}),
     };
   }
 }
 
-function isCrossSectionalRuntime(runtime: FactorInstance): runtime is CrossSectionalFactorRuntime {
-  return runtime.metadata.analysisKind === 'cross_sectional';
+function isCrossSectionalSandbox(sandbox: FactorInstance): sandbox is CrossSectionalFactorSandbox {
+  return sandbox.metadata.analysisKind === 'cross_sectional';
 }

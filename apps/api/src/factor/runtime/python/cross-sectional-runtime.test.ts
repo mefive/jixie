@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../factor-runtime.js';
+import { FactorSandbox } from '../factor-sandbox.js';
 import type { FactorBar } from '@jixie/shared';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -30,7 +30,7 @@ describe('Python cross-sectional Factor runtime', () => {
 
   it('computes typed bars and history with py-v1 metadata', async () => {
     enableTestRuntime();
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'python',
       analysisKind: 'cross_sectional',
       code: `
@@ -68,7 +68,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
   it('surfaces only the first repeated compute traceback', async () => {
     enableTestRuntime();
     const logs: string[] = [];
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'python',
       analysisKind: 'cross_sectional',
       code: `
@@ -93,7 +93,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
   it('rejects a mismatched runtime factory before analysis', async () => {
     enableTestRuntime();
     await expect(
-      FactorRuntime.start({
+      FactorSandbox.start({
         language: 'python',
         analysisKind: 'cross_sectional',
         code: `

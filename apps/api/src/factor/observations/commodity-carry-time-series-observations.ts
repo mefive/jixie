@@ -1,4 +1,4 @@
-import type { TimeSeriesFactorRuntime } from '../runtime/contract.js';
+import type { TimeSeriesFactorSandbox } from '../runtime/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import {
   COMMODITY_CARRY_MAX_STALENESS_DAYS,
@@ -29,7 +29,7 @@ const COMMODITY_CARRY_TIME_SERIES_MAPPINGS: CommodityCarryTimeSeriesMapping[] =
  * The future is a feature source only; all return targets remain adjusted ETF prices. */
 export async function loadCommodityCarryTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityCarryTimeSeriesProtocol(researchSpec, factor);
   const historyStart = addDays(
@@ -88,7 +88,7 @@ export async function buildCommodityCarryTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   etfRows: EtfTrendDailyRow[],
   carryPoints: CommodityCarryPointV1[],
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): Promise<TimeSeriesEvaluationObservation[]> {
   const mappings = assertCommodityCarryTimeSeriesProtocol(researchSpec, factor);
   const rowsByAsset = groupAndValidateEtfRows(etfRows, mappings);
@@ -154,13 +154,13 @@ export async function buildCommodityCarryTimeSeriesObservations(
   );
 }
 
-export function timeSeriesFactorUsesCommodityCarry(factor: TimeSeriesFactorRuntime): boolean {
+export function timeSeriesFactorUsesCommodityCarry(factor: TimeSeriesFactorSandbox): boolean {
   return factor.metadata.inputs.length === 1 && factor.metadata.inputs[0] === COMMODITY_CARRY_FIELD;
 }
 
 function assertCommodityCarryTimeSeriesProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
-  factor: TimeSeriesFactorRuntime,
+  factor: TimeSeriesFactorSandbox,
 ): CommodityCarryTimeSeriesMapping[] {
   if (
     researchSpec.observationFrequency !== 'daily' ||

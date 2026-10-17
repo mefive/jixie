@@ -1,6 +1,6 @@
 # TypeScript 策略沙箱运行
 
-用户和 Agent 的策略源码只在 isolated-vm 中执行。Engine 位于宿主 Worker，TS/Python 共用 [StrategyRuntime](../strategy-runtime.ts)、[StrategyExecution](../../execution/strategy-execution.ts) 和 [strategy-bridge.ts](../strategy-bridge.ts)，FactorHost 独立管理因子沙箱。
+用户和 Agent 的策略源码只在 isolated-vm 中执行。Engine 位于宿主 Worker，TS/Python 共用 [StrategySandbox](../strategy-sandbox.ts)、[StrategySimulation](../../execution/strategy-simulation.ts) 和 [strategy-bridge.ts](../strategy-bridge.ts)，FactorHost 独立管理因子沙箱。
 
 | 文件 / 入口 | 职责与消费者 |
 | --- | --- |
@@ -11,9 +11,9 @@
 | [sandbox-bundle.ts](sandbox-bundle.ts) | 打包 runner/adapter、SDK、指标、日志；源码/编译入口分别解析 entry.ts / entry.js |
 | [SDK typescript.ts](../../sdk/typescript.ts) | defineStrategy、StrategyContext、参数与周期；独立账户／选股／序列／指标辅助仍归 SDK，公开类型来自 shared SDK 契约 |
 | [testing/compile.ts](testing/compile.ts) | 仅编译可信 fixture，生产代码禁止导入 |
-| [testing/runtime.ts](testing/runtime.ts) | 测试专用 Bridge 派生类复用生产 create，在构造时取得独立 transport metrics；返回同一 StrategyRuntime |
+| [testing/sandbox.ts](testing/sandbox.ts) | 测试专用 Bridge 派生类复用生产 create，在构造时取得独立 transport metrics；返回同一 StrategySandbox |
 
-通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/typescript-transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 entry 的唯一 __receiveCommand 接入 runner 分派。公共 StrategyRuntime 继承 SandboxRuntime，start 创建实例并等待基类 initialize；子类 createBridge 仅调用 StrategyBridge.create，由 Bridge 内部完成语言选择、源码/配置准备、Transport 连接和构造，基类调用 bridge.initialize 并统一状态与失败/取消清理；Bridge 封装消息循环和 Transport 回收。
+通用 isolate、消息队列、帧收发与释放归 infra/runtime/typescript/typescript-transport.ts，Factor/Strategy 共用。connect 只加载可信 entry，启动用户代码须显式发送 start；命令经 exchange，再由 entry 的唯一 __receiveCommand 接入 runner 分派。公共 StrategySandbox 继承 Sandbox，start 创建实例并等待基类 initialize；子类 createBridge 仅调用 StrategyBridge.create，由 Bridge 内部完成语言选择、源码/配置准备、Transport 连接和构造，基类调用 bridge.initialize 并统一状态与失败/取消清理；Bridge 封装消息循环和 Transport 回收。
 
 runner 为整个会话持有 StrategyAdapter，把同步 access 和异步 request 回调注入其中。该适配器持有跨日历史缓存，每次 bind(snapshot) 清理读缓存并创建当日 BoundStrategyCapabilities；runner 使用绑定和当前参数创建 SDK StrategyContext，再调用用户 onBar；defineStrategy 保留定义／参数规范与作者 receiver，不构造 Context。
 
@@ -25,7 +25,7 @@ entry 首次收到 start 时调用 runStrategy，由业务入口创建唯一 Str
 
 同步命令和读取走 schema 限定的 context-access.ts，命令复用 commands.ts，保持调用处 try/catch 与条件单取价时点。Python 仍在 done 后批量重放。通道不暴露 DataPort、源码执行或任意宿主方法，只在当前 onBar 期间绑定。
 
-启动失败、协议失败和 close 释放 isolate；每次运行独立实例，模块状态跨 bar 保留。帧和队列有上限，回调沿用一小时预算，声明求值五秒。metrics 只属于 transport 诊断，通过测试设施取得，不进入作者 SDK 或公共 StrategyRuntimeInstance。
+启动失败、协议失败和 close 释放 isolate；每次运行独立实例，模块状态跨 bar 保留。帧和队列有上限，回调沿用一小时预算，声明求值五秒。metrics 只属于 transport 诊断，通过测试设施取得，不进入作者 SDK 或公共 StrategySandboxInstance。
 
 验收见 [runtime.test.ts](runtime.test.ts)、[isolation.test.ts](isolation.test.ts)、[sandbox-bundle.test.ts](sandbox-bundle.test.ts) 和 API 包级 factor-worker.integration.test.ts；参数用例在本目录，SDK/契约用例归 strategy/sdk。结构整理记录见 [设计记录](../../../../../../docs/design/sandbox-runtime-architecture.md)。
 

@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../runtime/factor-runtime.js';
+import { FactorSandbox } from '../runtime/factor-sandbox.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 
@@ -53,7 +53,7 @@ const factorCode = `export default defineFactorV2({
 });`;
 
 async function build(sourceRows: EtfTrendDailyRow[]) {
-  const factor = await FactorRuntime.start({
+  const factor = await FactorSandbox.start({
     language: 'typescript',
     analysisKind: 'time_series',
     code: factorCode,
@@ -98,7 +98,7 @@ describe('ETF trend observations', () => {
   });
 
   it('joins the government curve by next-trading-day availability without same-day leakage', async () => {
-    const curveFactor = await FactorRuntime.start({
+    const curveFactor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: `export default defineFactorV2({

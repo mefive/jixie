@@ -1,4 +1,4 @@
-import type { ResearchRuntime } from '../runtime/research-runtime.js';
+import type { ResearchSandbox } from '../runtime/research-sandbox.js';
 import type { ResearchExecution } from '../runtime/contract.js';
 import type { Prisma } from '@prisma/client';
 import { execFileSync } from 'node:child_process';
@@ -17,24 +17,24 @@ vi.mock('#infra/database/prisma.js', async () => {
   writeFileSync(databasePath, '');
   return { prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }) };
 });
-const runtime = vi.hoisted(() => ({
+const sandbox = vi.hoisted(() => ({
   analyze: vi.fn(),
   execute: vi.fn(),
   reset: vi.fn(),
   interrupt: vi.fn(),
 }));
-vi.mock('../runtime/research-runtime-pool.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../runtime/research-runtime-pool.js')>()),
-  researchRuntimePool: {
-    ...runtime,
-    withRuntime: async <Result>(
+vi.mock('../runtime/research-sandbox-pool.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../runtime/research-sandbox-pool.js')>()),
+  researchSandboxPool: {
+    ...sandbox,
+    withSandbox: async <Result>(
       documentId: string,
-      operation: (runtime: ResearchRuntime) => Promise<Result>,
+      operation: (sandbox: ResearchSandbox) => Promise<Result>,
     ) =>
       operation({
-        analyze: (cells) => runtime.analyze(documentId, cells),
-        execute: ({ cell }, options) => runtime.execute(documentId, cell, options),
-      } as ResearchRuntime),
+        analyze: (cells) => sandbox.analyze(documentId, cells),
+        execute: ({ cell }, options) => sandbox.execute(documentId, cell, options),
+      } as ResearchSandbox),
   },
 }));
 
@@ -57,7 +57,7 @@ import {
 import { persistResearchCellChangePart } from '../proposals/change-records.js';
 
 import type { ResearchPythonAnalysis } from '../runtime/host/analysis-types.js';
-import { interruptResearchDocument, resetResearchDocumentRuntime } from './control.js';
+import { interruptResearchDocument, resetResearchDocumentSandbox } from './control.js';
 import { runAffectedResearchCells } from './run-affected.js';
 import { runResearchCell } from './run-cell.js';
 import { runResearchDocument } from './run-document.js';
@@ -140,8 +140,8 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
   }, 30_000);
 
   beforeEach(async () => {
-    Object.values(runtime).forEach((mock) => mock.mockReset());
-    runtime.analyze.mockImplementation(
+    Object.values(sandbox).forEach((mock) => mock.mockReset());
+    sandbox.analyze.mockImplementation(
       async (_documentId: string, cells: Array<{ id: string; source: string }>) =>
         cells.map((cell) => {
           const analysis = sourceAnalysis[cell.source];
@@ -151,10 +151,10 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
           return { cellId: cell.id, ...analysis };
         }),
     );
-    runtime.execute.mockImplementation(async (_documentId: string, cell: { source: string }) =>
+    sandbox.execute.mockImplementation(async (_documentId: string, cell: { source: string }) =>
       executionResult(cell.source),
     );
-    runtime.reset.mockResolvedValue(undefined);
+    sandbox.reset.mockResolvedValue(undefined);
     await prisma.user.create({ data: { id: ownerId, email: 'owner@fixture.invalid' } });
     await prisma.agentConversation.create({
       data: { id: documentId, userId: ownerId, surface: 'research', title: 'Fixture research' },
@@ -231,10 +231,10 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     await expect(interruptResearchDocument('other', documentId)).rejects.toMatchObject({
       reason: 'document_not_found',
     });
-    await expect(resetResearchDocumentRuntime('other', documentId)).rejects.toMatchObject({
+    await expect(resetResearchDocumentSandbox('other', documentId)).rejects.toMatchObject({
       reason: 'document_not_found',
     });
-    expect(runtime.execute).not.toHaveBeenCalled();
+    expect(sandbox.execute).not.toHaveBeenCalled();
     const result = await runResearchDocument(ownerId, documentId, true);
     await expect(getResearchExecution('other', result!.execution!.id)).rejects.toMatchObject({
       reason: 'execution_not_found',
@@ -273,7 +273,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     });
     const result = await runAffectedResearchCells(ownerId, 'independent');
     expect(result?.executedCellIds).toEqual(['independent']);
-    await resetResearchDocumentRuntime(ownerId, documentId);
+    await resetResearchDocumentSandbox(ownerId, documentId);
     expect(
       (await getResearchDocument(ownerId, documentId))?.cells.map((cell) => cell.status),
     ).toEqual(['blocked', 'stale']);
@@ -282,7 +282,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
   it('retains the frozen source when a cell is edited during a clean run', async () => {
     const started = deferred<void>();
     const release = deferred<ResearchExecution>();
-    runtime.execute.mockImplementationOnce(() => {
+    sandbox.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;
     });
@@ -304,7 +304,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
         revision: 2,
         status: 'idle',
       });
-      expect(runtime.reset).toHaveBeenCalledWith(documentId);
+      expect(sandbox.reset).toHaveBeenCalledWith(documentId);
       expect(
         await promoteResearchExecution(ownerId, result!.execution!.id, {
           displayName: 'Frozen run',
@@ -320,11 +320,11 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
   it('shares the run lock and waits for cancellation persistence before releasing it', async () => {
     const started = deferred<void>();
     const release = deferred<ResearchExecution>();
-    runtime.execute.mockImplementationOnce(() => {
+    sandbox.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;
     });
-    runtime.interrupt.mockImplementationOnce(() =>
+    sandbox.interrupt.mockImplementationOnce(() =>
       release.reject(new ResearchPythonInterruptionError('fixture-interrupted')),
     );
     const running = runResearchDocument(ownerId, documentId, true);
@@ -352,7 +352,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
   });
 
   it('records a failed branch and skips its dependents releases the run lock', async () => {
-    runtime.execute.mockRejectedValueOnce(new Error('fixture computation failed'));
+    sandbox.execute.mockRejectedValueOnce(new Error('fixture computation failed'));
     const result = await runAffectedResearchCells(ownerId, 'input');
     expect(result?.executedCellIds).toEqual(['input']);
     expect(result?.document.cells.map((cell) => cell.status)).toEqual(['error', 'idle', 'idle']);
@@ -367,7 +367,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     const proposalId = await saveProposal();
     const applied = await applyResearchCellChangeProposalForReview(ownerId, proposalId);
     expect(applied?.outcome).toBe('applied');
-    expect(runtime.execute).not.toHaveBeenCalled();
+    expect(sandbox.execute).not.toHaveBeenCalled();
     await expect(runResearchCell(ownerId, 'input')).rejects.toMatchObject({
       name: 'ResearchError',
       reason: 'cell_change_review_open',
@@ -376,7 +376,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
       name: 'ResearchError',
       reason: 'cell_change_review_open',
     });
-    await expect(resetResearchDocumentRuntime(ownerId, documentId)).rejects.toMatchObject({
+    await expect(resetResearchDocumentSandbox(ownerId, documentId)).rejects.toMatchObject({
       name: 'ResearchError',
       reason: 'cell_change_review_open',
     });
@@ -413,7 +413,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     expect(
       await prisma.researchCellChangeProposal.findUnique({ where: { id: proposalId } }),
     ).toMatchObject({ reviewStatus: 'reverted' });
-    expect(runtime.execute).not.toHaveBeenCalled();
+    expect(sandbox.execute).not.toHaveBeenCalled();
   });
 
   it('stops an accepted attempt if the document changes between cell executions', async () => {
@@ -422,7 +422,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     await acceptResearchCellChangeReview(ownerId, proposalId, applied!.document.contentRevision);
     const started = deferred<void>();
     const release = deferred<ResearchExecution>();
-    runtime.execute.mockImplementationOnce(() => {
+    sandbox.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;
     });
@@ -436,7 +436,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
         status: 'error',
         error: 'document_changed_during_run',
       });
-      expect(runtime.execute).toHaveBeenCalledTimes(1);
+      expect(sandbox.execute).toHaveBeenCalledTimes(1);
       expect(
         await prisma.researchCellExecution.count({
           where: { cellChangeAttemptId: result!.attempt.id },

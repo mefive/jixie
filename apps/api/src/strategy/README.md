@@ -15,7 +15,7 @@ Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以�
 | 回测风险解释与数据门槛 | [risk](risk/README.md)：暴露、宏观、Alpha/Risk、压力情景及模型就绪 |
 | 编辑和解释策略 | [agent](agent/README.md)：业务上下文与共享 Agent 启动 |
 | 用户 SDK 如何定义与实现 | [sdk](sdk/README.md)：公开契约生成、选股/仓位/指标辅助及 Engine 适配 |
-| 策略执行与资源生命周期 | [execution](execution/README.md)：StrategyExecution 装配 runtime、因子与 Engine，提供 create/run/close；不承担正式报告流程 |
+| 策略执行与资源生命周期 | [execution](execution/README.md)：StrategySimulation 装配 runtime、因子与 Engine，提供 create/run/close；不承担正式报告流程 |
 | 策略 runtime 的共同入口与资源归属 | [runtime](runtime/README.md)：start、metadata、execute、close 及唯一 Engine 适配 |
 | TS 策略如何运行 | [runtime/typescript](runtime/typescript/README.md)：宿主 Engine、参数检查、SDK 装配与 isolate 收尾 |
 | 策略共享沙箱协议 | [runtime/strategy-bridge.ts](runtime/strategy-bridge.ts) 与 [runtime/protocol.ts](runtime/protocol.ts)：元数据、快照、批量查询和指令重放；TS/Python 共用 |
@@ -25,7 +25,7 @@ Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以�
 
 回测提交检查用户与配置，在事务中保存配置、冻结 BacktestReport 并创建 Job；提交后异步触发命名并唤醒队列，命名不阻塞提交响应或回测终态。Worker 准备因子、选择语言 runtime、调用 Engine 并附加风险；结果由 Job 完成事务保存到报告和策略缓存。
 
-扫描单独冻结配置／参数／日期范围，不覆盖草稿。父 Worker 准备一次因子，每个 cell 的每个区间创建独立 StrategyExecution，在宿主运行 Engine；不经过正式回测风险后处理。Signals 也直接使用因子准备和策略执行对象的末日信号捕获能力，三者不共享完整回测生命周期。
+扫描单独冻结配置／参数／日期范围，不覆盖草稿。父 Worker 准备一次因子，每个 cell 的每个区间创建独立 StrategySimulation，在宿主运行 Engine；不经过正式回测风险后处理。Signals 也直接使用因子准备和策略执行对象的末日信号捕获能力，三者不共享完整回测生命周期。
 
 Agent 构造策略、指数和因子上下文后交给通用执行器；用户通过回测入口发起完整计算。Research [handoff](../research/handoff/README.md) 生成草稿，definitions 保存并处理冲突，也不自动回测。
 
@@ -41,4 +41,4 @@ Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日
 
 ## Engine 模拟边界
 
-StrategyExecution 创建并关闭语言 runtime 与 FactorHost，每次执行创建一个 `BacktestingEngine`，由 run 直接返回回测结果，Signals 在关闭前显式调用 collectFinalState 读取末日快照。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`，Signals 自行投影末日快照。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。
+StrategySimulation 创建并关闭语言 runtime 与 FactorHost，每次执行创建一个 `BacktestingEngine`，由 run 直接返回回测结果，Signals 在关闭前显式调用 collectFinalState 读取末日快照。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`，Signals 自行投影末日快照。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。

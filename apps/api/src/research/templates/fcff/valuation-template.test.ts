@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../../runtime/research-sandbox-pool.js';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -30,7 +30,7 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
   });
 
   afterEach(() => {
-    researchRuntimePool.close(DOCUMENT_ID);
+    researchSandboxPool.close(DOCUMENT_ID);
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
@@ -66,8 +66,8 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
     const pythonCells = equityFcffValuationTemplate()
       .cells.filter((cell) => cell.kind === 'python')
       .map((cell, index) => ({ id: `python-${index}`, source: cell.source }));
-    const analysis = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.analyze(pythonCells),
+    const analysis = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.analyze(pythonCells),
     );
     const dependencyCells = analysis.map((cell) => ({
       id: cell.cellId,
@@ -85,8 +85,8 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
   });
 
   it('matches hand calculations, monotonic checks, and reverse-solver diagnostics', async () => {
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'golden',
           source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.20}])
@@ -195,8 +195,8 @@ pd.DataFrame([{
   });
 
   it('detects nearby reverse roots, tangent roots, and invalid public inputs', async () => {
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'solver-boundaries',
           source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.8}])
@@ -270,16 +270,16 @@ pd.DataFrame([{
   });
 
   it('independently recalculates every WACC and terminal-growth sensitivity value', async () => {
-    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'parameters',
           source: EQUITY_FCFF_PARAMETER_SOURCE,
         },
       }),
     );
-    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'fixture',
           source: `valuation_base = {"revenue": 100.0, "nopat_margin": 0.20}
@@ -302,24 +302,24 @@ valuation_scenarios = pd.DataFrame([{
         },
       }),
     );
-    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'model',
           source: EQUITY_FCFF_MODEL_SOURCE,
         },
       }),
     );
-    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'sensitivity',
           source: EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE,
         },
       }),
     );
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'independent-check',
           source: `independent_differences = []
@@ -379,16 +379,16 @@ pd.DataFrame([{
   });
 
   it('stops with explicit diagnostics for financial companies and missing bridges', async () => {
-    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'selection',
           source: EQUITY_FCFF_SELECTION_SOURCE,
         },
       }),
     );
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'invalid-inputs',
           source: `financial_company_metrics = pd.DataFrame([{
@@ -458,16 +458,16 @@ pd.DataFrame([{
   });
 
   it('does not silently fall back to an older annual report when the latest one is quarantined', async () => {
-    await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'selection',
           source: EQUITY_FCFF_SELECTION_SOURCE,
         },
       }),
     );
-    const result = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'quarantined-latest',
           source: `candidate_metrics = pd.DataFrame([

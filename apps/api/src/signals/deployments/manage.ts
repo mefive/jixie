@@ -52,7 +52,7 @@ export async function deployBacktestReport(
   let currentDependencies: FactorDependency[];
   try {
     const { definitions: factorDefinitions } = await factorHost.describe();
-    StrategyFactor.validateRuntimeMetadata(prepared, factorDefinitions);
+    StrategyFactor.validateSandboxMetadata(prepared, factorDefinitions);
     const byId = new Map(factorDefinitions.map((definition) => [definition.id, definition]));
     currentDependencies = prepared.map((factor) => factor.toDependency(byId.get(factor.key)!));
   } finally {

@@ -19,7 +19,7 @@
 SDK 与 runner 按业务目录结构进入 Python 镜像。移动它们须同时更新 Dockerfile、`.dockerignore`、部署影响清单和测试；
 [packaging.test.ts](packaging.test.ts) 用 Dockerfile 的实际 COPY 输入在隔离目录覆盖三种分析类型的启动与求值，不依赖仓库外的 Python 模块。
 
-业务消费者统一调用 `FactorRuntime.start({ language: 'python', analysisKind, code, onUserLog? })`。统一宿主实例经公共启动流程连接会话，发送 factor_start 并等待 metadata；execute 接收 `{ items }` 或 `{ fields, indexes }`，将宿主字段显式映射为 Python 字段。返回值数量必须匹配请求，异常长度会 abort；初始化异常关闭连接，成功实例的 close 由调用方负责。计算日志按协议转发，不把因子错误伪造为成功报告。
+业务消费者统一调用 `FactorSandbox.start({ language: 'python', analysisKind, code, onUserLog? })`。统一宿主实例经公共启动流程连接会话，发送 factor_start 并等待 metadata；execute 接收 `{ items }` 或 `{ fields, indexes }`，将宿主字段显式映射为 Python 字段。返回值数量必须匹配请求，异常长度会 abort；初始化异常关闭连接，成功实例的 close 由调用方负责。计算日志按协议转发，不把因子错误伪造为成功报告。
 
 validator 的临时目录在 finally 删除，Pyright 从 API 依赖解析；这与真正的 Python 沙箱执行是两条路径。`pythonFactorTargetAssetClasses` 只接受非空、唯一、支持类型的字面量列表，不能据此声称执行过源码。
 
@@ -27,6 +27,6 @@ validator 的临时目录在 finally 删除，Pyright 从 API 依赖解析；这
 
 [返回 Factor 总览](../../README.md)
 
-公共 FactorRuntime 直接继承 SandboxRuntime，start 创建实例并等待基类 initialize；createBridge 仅调用 FactorBridge.create，由 Bridge 内部准备配置、获取会话并完成构造，基类负责握手和启动失败/取消清理；关闭经 Bridge 到达 Transport。start 和 execute 均调用公共 exchange，close 同步幂等。FactorHost、评估和 Strategy 因子准备拥有最终释放责任；预备输入与 SDK 本地 history 不变。
+公共 FactorSandbox 直接继承 Sandbox，start 创建实例并等待基类 initialize；createBridge 仅调用 FactorBridge.create，由 Bridge 内部准备配置、获取会话并完成构造，基类负责握手和启动失败/取消清理；关闭经 Bridge 到达 Transport。start 和 execute 均调用公共 exchange，close 同步幂等。FactorHost、评估和 Strategy 因子准备拥有最终释放责任；预备输入与 SDK 本地 history 不变。
 
 两个语言 Adapter 都按输入类型 → FactorAdapter.bind → BoundCrossSectionalFactorCapabilities → BoundAssetFactorCapabilities 排列。bind 使用可辨识输入与重载，横截面和资产输入分别对应其能力类型；每点绑定独立索引／历史，Adapter 在会话内复用。

@@ -3,23 +3,23 @@ import { register } from 'tsx/esm/api';
 
 register();
 
-const { StrategyExecution } = await import('../../execution/strategy-execution.ts');
+const { StrategySimulation } = await import('../../execution/strategy-simulation.ts');
 const { fixturePort } = await import('#backtesting/testing/fixture-port.js');
 
 try {
-  const execution = await StrategyExecution.create({
+  const simulation = await StrategySimulation.create({
     code: workerData.code,
     dataPort: fixturePort(workerData.spec),
   });
   try {
-    const result = await execution.run({
+    const result = await simulation.run({
       start: workerData.spec.dates[0],
       end: workerData.spec.dates.at(-1),
       initialCash: 100_000,
     });
     parentPort.postMessage({ trades: result.trades, nav: result.nav });
   } finally {
-    execution.close();
+    simulation.close();
   }
 } catch (error) {
   parentPort.postMessage({

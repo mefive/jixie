@@ -1,7 +1,7 @@
 import type { FactorLanguage, FactorBar } from '@jixie/shared';
 import type { AssetFactorV2, CustomFactor } from '@jixie/shared/sdk/factor/contract';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import type { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import type { Sandbox } from '#infra/runtime/sandbox.js';
 import type { FactorV2FieldKey } from '../definitions/fields.js';
 
 export type ExecutableFactorKind = 'cross_sectional' | 'time_series' | 'panel';
@@ -40,11 +40,11 @@ export interface AssetFactorExecutionInput {
 export type FactorExecutionInput<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
   Kind extends 'cross_sectional' ? CrossSectionalFactorExecutionInput : AssetFactorExecutionInput;
 
-export interface CrossSectionalFactorRuntimeMetadata extends Omit<CustomFactor, 'compute'> {
+export interface CrossSectionalFactorSandboxMetadata extends Omit<CustomFactor, 'compute'> {
   analysisKind: 'cross_sectional';
 }
 
-export interface AssetFactorRuntimeMetadata<
+export interface AssetFactorSandboxMetadata<
   Kind extends AssetFactorKind = AssetFactorKind,
 > extends Omit<AssetFactorV2, 'analysisKind' | 'inputs' | 'compute'> {
   analysisKind: Kind;
@@ -52,22 +52,22 @@ export interface AssetFactorRuntimeMetadata<
   inputs: FactorV2FieldKey[];
 }
 
-export type FactorRuntimeMetadata<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
+export type FactorSandboxMetadata<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
   Kind extends 'cross_sectional'
-    ? CrossSectionalFactorRuntimeMetadata
-    : AssetFactorRuntimeMetadata<Kind & AssetFactorKind>;
+    ? CrossSectionalFactorSandboxMetadata
+    : AssetFactorSandboxMetadata<Kind & AssetFactorKind>;
 
 export type FactorValues = (number | null)[];
 
-export type FactorRuntimeInstance<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
+export type FactorSandboxInstance<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
   Kind extends ExecutableFactorKind
     ? Pick<
-        SandboxRuntime<FactorExecutionInput<Kind>, FactorValues, FactorRuntimeMetadata<Kind>>,
+        Sandbox<FactorExecutionInput<Kind>, FactorValues, FactorSandboxMetadata<Kind>>,
         'metadata' | 'execute' | 'close'
       >
     : never;
-export type CrossSectionalFactorRuntime = FactorRuntimeInstance<'cross_sectional'>;
-export type AssetFactorRuntime<Kind extends AssetFactorKind = AssetFactorKind> =
-  FactorRuntimeInstance<Kind>;
-export type TimeSeriesFactorRuntime = FactorRuntimeInstance<'time_series'>;
-export type PanelFactorRuntime = FactorRuntimeInstance<'panel'>;
+export type CrossSectionalFactorSandbox = FactorSandboxInstance<'cross_sectional'>;
+export type AssetFactorSandbox<Kind extends AssetFactorKind = AssetFactorKind> =
+  FactorSandboxInstance<Kind>;
+export type TimeSeriesFactorSandbox = FactorSandboxInstance<'time_series'>;
+export type PanelFactorSandbox = FactorSandboxInstance<'panel'>;

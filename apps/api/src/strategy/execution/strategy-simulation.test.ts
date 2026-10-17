@@ -1,9 +1,9 @@
 import { StrategyFactor } from '../factors/strategy-factor.js';
 import {
-  StrategyExecution,
-  type StrategyExecutionInput,
-  type StrategyRunOptions,
-} from './strategy-execution.js';
+  StrategySimulation,
+  type StrategySimulationInput,
+  type StrategySimulationOptions,
+} from './strategy-simulation.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
@@ -18,11 +18,11 @@ const mocks = vi.hoisted(() => ({
   engine: vi.fn(),
   collectFinalState: vi.fn(),
 }));
-vi.mock('#factor/runtime/factor-runtime.js', () => ({
-  FactorRuntime: { start: mocks.factorStart },
+vi.mock('#factor/runtime/factor-sandbox.js', () => ({
+  FactorSandbox: { start: mocks.factorStart },
 }));
-vi.mock('../runtime/strategy-runtime.js', () => ({
-  StrategyRuntime: { start: mocks.strategyStart },
+vi.mock('../runtime/strategy-sandbox.js', () => ({
+  StrategySandbox: { start: mocks.strategyStart },
 }));
 vi.mock('#backtesting/backtesting-engine.js', () => ({
   BacktestingEngine: class {
@@ -127,18 +127,18 @@ describe('simulation factor initialization', () => {
   );
 
   it('exposes detached resolved lineage before running the engine', async () => {
-    const execution = await StrategyExecution.create({ ...config, dataPort: port });
+    const simulation = await StrategySimulation.create({ ...config, dataPort: port });
     try {
-      const lineage = execution.factorDependencies;
+      const lineage = simulation.factorDependencies;
       expect(lineage).toEqual([{ ...dependency, inputs: ['rates.cgb.yield.10y'] }]);
       lineage[0].codeHash = 'changed';
       lineage[0].inputs!.push('etf.adjustedClose');
-      expect(execution.factorDependencies).toEqual([
+      expect(simulation.factorDependencies).toEqual([
         { ...dependency, inputs: ['rates.cgb.yield.10y'] },
       ]);
       expect(mocks.engine).not.toHaveBeenCalled();
     } finally {
-      execution.close();
+      simulation.close();
     }
   });
 
@@ -172,29 +172,29 @@ describe('simulation factor initialization', () => {
   });
 
   it('requires a run and an open execution to collect state', async () => {
-    const execution = await StrategyExecution.create({ ...config, dataPort: port });
-    await expect(execution.collectFinalState()).rejects.toThrow('open execution');
+    const simulation = await StrategySimulation.create({ ...config, dataPort: port });
+    await expect(simulation.collectFinalState()).rejects.toThrow('open execution');
     expect(mocks.collectFinalState).not.toHaveBeenCalled();
 
-    await execution.run(config);
+    await simulation.run(config);
     expect(mocks.collectFinalState).not.toHaveBeenCalled();
-    execution.close();
+    simulation.close();
 
-    await expect(execution.collectFinalState()).rejects.toThrow('open execution');
+    await expect(simulation.collectFinalState()).rejects.toThrow('open execution');
     expect(mocks.collectFinalState).not.toHaveBeenCalled();
   });
 
   it('owns resources until explicitly closed and closes them only once', async () => {
-    const execution = await StrategyExecution.create({ ...config, dataPort: port });
+    const simulation = await StrategySimulation.create({ ...config, dataPort: port });
     expect(mocks.engine).not.toHaveBeenCalled();
-    await execution.run(config);
+    await simulation.run(config);
     expect(mocks.factorClose).not.toHaveBeenCalled();
     expect(mocks.strategyClose).not.toHaveBeenCalled();
-    execution.close();
-    execution.close();
+    simulation.close();
+    simulation.close();
     expect(mocks.factorClose).toHaveBeenCalledTimes(1);
     expect(mocks.strategyClose).toHaveBeenCalledTimes(1);
-    await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
+    await expect(simulation.run(config)).rejects.toThrow('fresh, open instance');
     expect(mocks.engine).toHaveBeenCalledTimes(1);
   });
 
@@ -206,29 +206,29 @@ describe('simulation factor initialization', () => {
           finish = resolve;
         }),
     );
-    const execution = await StrategyExecution.create({ ...config, dataPort: port });
+    const simulation = await StrategySimulation.create({ ...config, dataPort: port });
     try {
-      const running = execution.run(config);
-      await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
+      const running = simulation.run(config);
+      await expect(simulation.run(config)).rejects.toThrow('fresh, open instance');
       finish({});
       await running;
-      await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
+      await expect(simulation.run(config)).rejects.toThrow('fresh, open instance');
       expect(mocks.engine).toHaveBeenCalledTimes(1);
     } finally {
-      execution.close();
+      simulation.close();
     }
   });
 
   it('rejects a run after closing an unused instance', async () => {
-    const execution = await StrategyExecution.create({ ...config, dataPort: port });
-    execution.close();
-    await expect(execution.run(config)).rejects.toThrow('fresh, open instance');
+    const simulation = await StrategySimulation.create({ ...config, dataPort: port });
+    simulation.close();
+    await expect(simulation.run(config)).rejects.toThrow('fresh, open instance');
     expect(mocks.engine).not.toHaveBeenCalled();
   });
 
   it('releases the strategy if factor startup fails', async () => {
     mocks.factorStart.mockRejectedValue(new Error('Factor startup failed'));
-    await expect(StrategyExecution.create({ ...config, dataPort: port })).rejects.toThrow(
+    await expect(StrategySimulation.create({ ...config, dataPort: port })).rejects.toThrow(
       'Factor startup failed',
     );
     expect(mocks.strategyClose).toHaveBeenCalledTimes(1);
@@ -236,13 +236,13 @@ describe('simulation factor initialization', () => {
   });
 
   it('closes the strategy even when factor cleanup throws', async () => {
-    const execution = await StrategyExecution.create({ ...config, dataPort: port });
+    const simulation = await StrategySimulation.create({ ...config, dataPort: port });
     mocks.factorClose.mockImplementation(() => {
       throw new Error('Factor cleanup failed');
     });
-    expect(() => execution.close()).toThrow('Factor cleanup failed');
+    expect(() => simulation.close()).toThrow('Factor cleanup failed');
     expect(mocks.strategyClose).toHaveBeenCalledTimes(1);
-    execution.close();
+    simulation.close();
     expect(mocks.strategyClose).toHaveBeenCalledTimes(1);
   });
 
@@ -254,33 +254,34 @@ describe('simulation factor initialization', () => {
   });
 });
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions;
+type SimulationFixtureConfig = Omit<StrategySimulationInput, 'dataPort'> &
+  StrategySimulationOptions;
 
 async function runBacktestFixture(
-  config: ExecutionFixtureConfig,
+  config: SimulationFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ) {
-  const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
+  const simulation = await StrategySimulation.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    return await execution.run(config);
+    return await simulation.run(config);
   } finally {
-    execution.close();
+    simulation.close();
   }
 }
 
 async function runFinalStateFixture(
-  config: ExecutionFixtureConfig,
+  config: SimulationFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ) {
-  const execution = await StrategyExecution.create({ ...config, dataPort, onLog, onUserLog });
+  const simulation = await StrategySimulation.create({ ...config, dataPort, onLog, onUserLog });
   try {
-    const result = await execution.run(config);
-    return { result, finalState: await execution.collectFinalState() };
+    const result = await simulation.run(config);
+    return { result, finalState: await simulation.collectFinalState() };
   } finally {
-    execution.close();
+    simulation.close();
   }
 }

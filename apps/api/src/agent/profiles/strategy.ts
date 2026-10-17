@@ -1,5 +1,5 @@
 import { inspectStrategyMetadata } from '#strategy/runtime/inspect-definition.js';
-import { StrategyRuntime } from '#strategy/runtime/strategy-runtime.js';
+import { StrategySandbox } from '#strategy/runtime/strategy-sandbox.js';
 import { buildCodegenPrompt, KNOWN_INDICES } from '#strategy/runtime/typescript/codegen-prompt.js';
 
 import { buildPythonCodegenPrompt } from '#strategy/runtime/python/codegen-prompt.js';
@@ -70,8 +70,8 @@ Backtests run only when the user explicitly starts a run in the Strategy workben
       language,
       validate: async (code) => {
         if (language === 'python') {
-          const runtime = await StrategyRuntime.start({ language: 'python', code: code });
-          await runtime.close();
+          const sandbox = await StrategySandbox.start({ language: 'python', code: code });
+          await sandbox.close();
         } else {
           await inspectStrategyMetadata(code);
         }

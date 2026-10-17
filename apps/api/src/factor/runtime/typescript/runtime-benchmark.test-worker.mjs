@@ -8,7 +8,7 @@ import { transform } from 'esbuild';
 import { register } from 'tsx/esm/api';
 
 register();
-const { FactorRuntime } = await import('../factor-runtime.ts');
+const { FactorSandbox } = await import('../factor-sandbox.ts');
 const { TypeScriptTransport } = await import('#infra/runtime/typescript/typescript-transport.js');
 const variant = process.argv[2];
 const scenario = process.argv[3] ?? 'cross_sectional';
@@ -52,8 +52,8 @@ const input = asset
     };
 let directory;
 try {
-  let createRuntime = (onUserLog) =>
-    FactorRuntime.start({ language: 'typescript', analysisKind, code, onUserLog });
+  let createSandbox = (onUserLog) =>
+    FactorSandbox.start({ language: 'typescript', analysisKind, code, onUserLog });
   if (variant === 'before') {
     directory = await mkdtemp(join(apiDirectory, 'tests/.factor-runtime-benchmark-'));
     const sourceDirectory = new URL('./', import.meta.url);
@@ -85,7 +85,7 @@ try {
     const baseline = await import(
       pathToFileURL(join(directory, asset ? 'compile-asset-factor.mjs' : 'compile-factor.mjs')).href
     );
-    createRuntime = async (onUserLog) => {
+    createSandbox = async (onUserLog) => {
       const factor = asset
         ? await baseline.compileTimeSeriesFactor(code, onUserLog)
         : await baseline.compileFactor(code, onUserLog);
@@ -110,12 +110,12 @@ try {
     for (let repetition = 0; repetition < 8; repetition++) {
       let logCount = 0;
       const started = performance.now();
-      const runtime = await createRuntime(() => logCount++);
+      const sandbox = await createSandbox(() => logCount++);
       const initialized = performance.now();
       let result;
       let completed;
       try {
-        result = await runtime.execute(input);
+        result = await sandbox.execute(input);
         completed = performance.now();
         if (
           result.length !== count ||
@@ -124,7 +124,7 @@ try {
           throw new Error('Benchmark returned invalid scores');
         }
       } finally {
-        runtime.close();
+        sandbox.close();
       }
       samples.push({
         phase: repetition === 0 ? 'cold' : repetition < 3 ? 'warmup' : 'measured',

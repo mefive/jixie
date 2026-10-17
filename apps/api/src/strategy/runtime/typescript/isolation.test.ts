@@ -1,5 +1,5 @@
-import { StrategyRuntime } from '../strategy-runtime.js';
-import { startInstrumentedStrategyRuntime } from './testing/runtime.js';
+import { StrategySandbox } from '../strategy-sandbox.js';
+import { startInstrumentedStrategySandbox } from './testing/sandbox.js';
 import { inspectStrategyMetadata } from '../inspect-definition.js';
 import { describe, expect, it } from 'vitest';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
@@ -17,7 +17,7 @@ const fixture = {
 };
 
 async function execute(code: string, spec: FixtureSpec = fixture, start = spec.dates[0]) {
-  const { runtime, metrics } = await startInstrumentedStrategyRuntime({
+  const { sandbox, metrics } = await startInstrumentedStrategySandbox({
     language: 'typescript',
     code,
   });
@@ -26,12 +26,12 @@ async function execute(code: string, spec: FixtureSpec = fixture, start = spec.d
       start,
       end: spec.dates.at(-1)!,
       initialCash: 100_000,
-      strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+      strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
       dataPort: fixturePort(spec),
     }).run();
     return { result, metrics: { ...metrics } };
   } finally {
-    runtime.close();
+    sandbox.close();
   }
 }
 
@@ -185,18 +185,18 @@ describe('TypeScript strategy isolation and compatibility', () => {
   });
 
   it('releases the isolate on close and rejects subsequent callbacks', async () => {
-    const runtime = await StrategyRuntime.start({
+    const sandbox = await StrategySandbox.start({
       language: 'typescript',
       code: 'export default defineStrategy({ onBar() {} });',
     });
-    runtime.close();
-    runtime.close();
+    sandbox.close();
+    sandbox.close();
     await expect(
       new BacktestingEngine({
         start: dates[0],
         end: dates[1],
         initialCash: 100_000,
-        strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+        strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
         dataPort: fixturePort(fixture),
       }).run(),
     ).rejects.toThrow('closed');

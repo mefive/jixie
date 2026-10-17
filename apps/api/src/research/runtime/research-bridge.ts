@@ -21,7 +21,7 @@ import type {
   ResearchExecutionInput,
   ResearchExecutionOptions,
   ResearchExecution,
-  ResearchRuntimeMetadata,
+  ResearchSandboxMetadata,
   ResearchStartOptions,
 } from './contract.js';
 
@@ -45,17 +45,17 @@ export interface ResearchBridgeOptions {
   documentId: string;
 }
 
-/** Owns the research protocol connection; the runtime handles business interruption. */
+/** Owns the research protocol connection; the sandbox handles business interruption. */
 export class ResearchBridge
   extends SandboxBridgeBase<
     ResearchExecutionInput,
     ResearchExecution,
-    ResearchRuntimeMetadata,
+    ResearchSandboxMetadata,
     ResearchExecutionOptions
   >
   implements ResearchBridgeContract
 {
-  private metadata!: ResearchRuntimeMetadata;
+  private metadata!: ResearchSandboxMetadata;
 
   constructor(
     transport: SandboxTransport,
@@ -85,7 +85,7 @@ export class ResearchBridge
 
   async initialize({
     signal,
-  }: SandboxBridgeInitializationOptions = {}): Promise<ResearchRuntimeMetadata> {
+  }: SandboxBridgeInitializationOptions = {}): Promise<ResearchSandboxMetadata> {
     const ready = await this.exchange({
       command: {
         type: 'research_start',

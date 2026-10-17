@@ -1,4 +1,4 @@
-import { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import { Sandbox } from '#infra/runtime/sandbox.js';
 import { ResearchPythonInterruptionError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 import type { ResearchPythonAnalysis } from './host/analysis-types.js';
@@ -9,14 +9,14 @@ import type {
   ResearchExecutionInput,
   ResearchExecutionOptions,
   ResearchExecution,
-  ResearchRuntimeMetadata,
+  ResearchSandboxMetadata,
   ResearchStartOptions,
 } from './contract.js';
 
-export class ResearchRuntime extends SandboxRuntime<
+export class ResearchSandbox extends Sandbox<
   ResearchExecutionInput,
   ResearchExecution,
-  ResearchRuntimeMetadata,
+  ResearchSandboxMetadata,
   ResearchExecutionOptions,
   ResearchBridgeContract
 > {
@@ -27,11 +27,11 @@ export class ResearchRuntime extends SandboxRuntime<
     super();
   }
 
-  static async start({ documentId, signal }: ResearchStartOptions): Promise<ResearchRuntime> {
-    const runtime = new ResearchRuntime(documentId);
-    await runtime.initialize({ signal, abortMessage: 'Research startup aborted' });
+  static async start({ documentId, signal }: ResearchStartOptions): Promise<ResearchSandbox> {
+    const sandbox = new ResearchSandbox(documentId);
+    await sandbox.initialize({ signal, abortMessage: 'Research startup aborted' });
 
-    return runtime;
+    return sandbox;
   }
 
   protected createBridge(signal?: AbortSignal): Promise<ResearchBridgeContract> {

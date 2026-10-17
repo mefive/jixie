@@ -1,5 +1,5 @@
-import { FactorRuntime } from '../runtime/factor-runtime.js';
-import type { PanelFactorRuntime } from '../runtime/contract.js';
+import { FactorSandbox } from '../runtime/factor-sandbox.js';
+import type { PanelFactorSandbox } from '../runtime/contract.js';
 import { t } from '#i18n/index.js';
 import type {
   FactorAnalysisSpec,
@@ -85,16 +85,16 @@ export async function runFactorEvaluation({
       if (source.kind !== 'time_series') {
         throw new Error('Time-series evaluator requires a Factor V2 source.');
       }
-      const runtime = await FactorRuntime.start({
+      const sandbox = await FactorSandbox.start({
         language: source.language ?? 'typescript',
         analysisKind: 'time_series',
         code: source.code,
         onUserLog: onUserLog,
       });
       try {
-        const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(runtime);
+        const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(sandbox);
         const usesCommodityWarehouseReceipts =
-          timeSeriesFactorUsesCommodityWarehouseReceipts(runtime);
+          timeSeriesFactorUsesCommodityWarehouseReceipts(sandbox);
         onSystemLog(
           t(
             locale,
@@ -107,15 +107,15 @@ export async function runFactorEvaluation({
           ),
         );
         const observations = usesCommodityCarry
-          ? await loadCommodityCarryTimeSeriesObservations(researchSpec, runtime)
+          ? await loadCommodityCarryTimeSeriesObservations(researchSpec, sandbox)
           : usesCommodityWarehouseReceipts
-            ? await loadCommodityWarehouseReceiptTimeSeriesObservations(researchSpec, runtime)
-            : await loadEtfTimeSeriesObservations(researchSpec, runtime);
+            ? await loadCommodityWarehouseReceiptTimeSeriesObservations(researchSpec, sandbox)
+            : await loadEtfTimeSeriesObservations(researchSpec, sandbox);
         onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
         const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
         return complete(report);
       } finally {
-        runtime.close();
+        sandbox.close();
       }
     }
     case 'panel': {
@@ -123,7 +123,7 @@ export async function runFactorEvaluation({
         throw new Error('Panel evaluator requires a panel Factor V2 source.');
       }
       if (source.kind === 'panel') {
-        const runtime = await FactorRuntime.start({
+        const sandbox = await FactorSandbox.start({
           language: source.language ?? 'typescript',
           analysisKind: 'panel',
           code: source.code,
@@ -131,22 +131,22 @@ export async function runFactorEvaluation({
         });
         try {
           onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
-          const observations = panelFactorUsesCommodityCarry(runtime)
-            ? await loadCommodityCarryPanelObservations(researchSpec, runtime)
-            : await loadPanelEtfObservations(researchSpec, runtime);
+          const observations = panelFactorUsesCommodityCarry(sandbox)
+            ? await loadCommodityCarryPanelObservations(researchSpec, sandbox)
+            : await loadPanelEtfObservations(researchSpec, sandbox);
           onSystemLog(t(locale, 'factorPanelEvaluating', { count: observations.length }));
           const report = new PanelEvaluator().evaluate(researchSpec, observations);
           return complete(report);
         } finally {
-          runtime.close();
+          sandbox.close();
         }
       }
 
-      const componentRuntimes: Array<PanelFactorRuntime> = [];
+      const componentSandboxes: Array<PanelFactorSandbox> = [];
       try {
         for (const component of source.components) {
-          componentRuntimes.push(
-            await FactorRuntime.start({
+          componentSandboxes.push(
+            await FactorSandbox.start({
               language: component.language ?? 'typescript',
               analysisKind: 'panel',
               code: component.code,
@@ -156,10 +156,10 @@ export async function runFactorEvaluation({
         }
         onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
         const componentObservations = await Promise.all(
-          componentRuntimes.map((runtime, index) =>
-            (panelFactorUsesCommodityCarry(runtime)
-              ? loadCommodityCarryPanelObservations(researchSpec, runtime)
-              : loadPanelEtfObservations(researchSpec, runtime)
+          componentSandboxes.map((sandbox, index) =>
+            (panelFactorUsesCommodityCarry(sandbox)
+              ? loadCommodityCarryPanelObservations(researchSpec, sandbox)
+              : loadPanelEtfObservations(researchSpec, sandbox)
             ).then((observations) => ({
               factor: source.components[index].factor,
               observations,
@@ -174,7 +174,7 @@ export async function runFactorEvaluation({
         const report = new PanelEvaluator().evaluate(researchSpec, observations);
         return complete(report);
       } finally {
-        componentRuntimes.forEach((runtime) => runtime.close());
+        componentSandboxes.forEach((sandbox) => sandbox.close());
       }
     }
     case 'macro_regime': {

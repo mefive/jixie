@@ -13,7 +13,7 @@ import type {
   ExecutableFactorKind,
   FactorStartOptions,
   FactorExecutionInput,
-  FactorRuntimeMetadata,
+  FactorSandboxMetadata,
   FactorValues,
   FactorBatchItem,
 } from './contract.js';
@@ -52,7 +52,7 @@ export interface FactorBridgeHost {
 /** Owns the factor protocol connection and state across batches. */
 export class FactorBridge<
   Kind extends ExecutableFactorKind = ExecutableFactorKind,
-> extends SandboxBridgeBase<FactorExecutionInput<Kind>, FactorValues, FactorRuntimeMetadata<Kind>> {
+> extends SandboxBridgeBase<FactorExecutionInput<Kind>, FactorValues, FactorSandboxMetadata<Kind>> {
   private static bundlePromise?: Promise<string>;
 
   private reportedComputeError = false;
@@ -150,12 +150,12 @@ export class FactorBridge<
   }
 
   async initialize({ signal }: SandboxBridgeInitializationOptions = {}): Promise<
-    FactorRuntimeMetadata<Kind>
+    FactorSandboxMetadata<Kind>
   > {
     const metadata = await this.initializeMetadata(signal);
 
     // Initialization validates the returned kind before it reaches this generic boundary.
-    return metadata as FactorRuntimeMetadata<Kind>;
+    return metadata as FactorSandboxMetadata<Kind>;
   }
 
   execute(input: FactorExecutionInput<Kind>): Promise<FactorValues> {
@@ -187,7 +187,7 @@ export class FactorBridge<
     });
   }
 
-  private async initializeMetadata(signal?: AbortSignal): Promise<FactorRuntimeMetadata> {
+  private async initializeMetadata(signal?: AbortSignal): Promise<FactorSandboxMetadata> {
     const { analysisKind, startupCommand, diagnostics }: FactorBridgeOptions = this.options;
 
     if (diagnostics.language === 'Python') {

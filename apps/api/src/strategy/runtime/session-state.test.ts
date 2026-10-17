@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { BacktestingEngine } from '#backtesting/backtesting-engine.js';
 import { fixturePort } from '#backtesting/testing/fixture-port.js';
-import { StrategyRuntime } from './strategy-runtime.js';
+import { StrategySandbox } from './strategy-sandbox.js';
 
 const previousPythonLocal = process.env.JIXIE_PYTHON_LOCAL;
 const dates = ['20240102', '20240103'];
@@ -50,7 +50,7 @@ describe.each(['typescript', 'python'] as const)('%s sandbox session state', (la
 
     for (let index = 0; index < 2; index++) {
       const logs: string[] = [];
-      const runtime = await StrategyRuntime.start({
+      const sandbox = await StrategySandbox.start({
         language,
         code: sources[language],
         onUserLog: (_level, text) => logs.push(text),
@@ -61,13 +61,13 @@ describe.each(['typescript', 'python'] as const)('%s sandbox session state', (la
           start: dates[0],
           end: dates[1],
           initialCash: 100_000,
-          strategy: { ...runtime.metadata, onBar: (context) => runtime.execute({ context }) },
+          strategy: { ...sandbox.metadata, onBar: (context) => sandbox.execute({ context }) },
           dataPort: fixturePort(spec),
         }).run();
 
         sessions.push(logs.filter((line) => line.startsWith('session-state ')));
       } finally {
-        runtime.close();
+        sandbox.close();
       }
     }
 

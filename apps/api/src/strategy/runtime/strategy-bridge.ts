@@ -7,8 +7,8 @@ import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type {
   StrategyStartOptions,
-  StrategyExecutionInput,
-  StrategyRuntimeMetadata,
+  StrategyCallbackInput,
+  StrategySandboxMetadata,
 } from './contract.js';
 import { replayCommands } from './commands.js';
 import { accessStrategyContext } from './context-access.js';
@@ -44,9 +44,9 @@ export interface StrategyBridgeOptions {
 
 /** Owns the strategy protocol connection and state across callbacks. */
 export class StrategyBridge extends SandboxBridgeBase<
-  StrategyExecutionInput,
+  StrategyCallbackInput,
   void,
-  StrategyRuntimeMetadata,
+  StrategySandboxMetadata,
   undefined,
   StrategyTransport
 > {
@@ -154,7 +154,7 @@ export class StrategyBridge extends SandboxBridgeBase<
 
   async initialize({
     signal,
-  }: SandboxBridgeInitializationOptions = {}): Promise<StrategyRuntimeMetadata> {
+  }: SandboxBridgeInitializationOptions = {}): Promise<StrategySandboxMetadata> {
     const metadata = await this.exchange({
       command: this.options.startupCommand,
       schema: strategyStartupFrameSchema,
@@ -179,7 +179,7 @@ export class StrategyBridge extends SandboxBridgeBase<
     };
   }
 
-  async execute({ context }: StrategyExecutionInput): Promise<void> {
+  async execute({ context }: StrategyCallbackInput): Promise<void> {
     this.transport.setHostAccess?.((input) => accessStrategyContext(context, input));
     try {
       const commands = await this.exchange({

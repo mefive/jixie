@@ -1,6 +1,6 @@
-import type { ResearchRuntime } from '../runtime/research-runtime.js';
+import type { ResearchSandbox } from '../runtime/research-sandbox.js';
 import type { ResearchExecution, ResearchCellInput } from '../runtime/contract.js';
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import type { ResearchExecutionOptions } from '../runtime/contract.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchEmbeddedRunSummaryV1, ResearchEmbeddedRunV1 } from '@jixie/shared';
@@ -159,10 +159,10 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
         ) => Promise<ResearchExecution>
       >()
       .mockImplementation(async (_documentId, _cell, options) => capture(options));
-    vi.spyOn(researchRuntimePool, 'withRuntime').mockImplementation(async (documentId, operation) =>
+    vi.spyOn(researchSandboxPool, 'withSandbox').mockImplementation(async (documentId, operation) =>
       operation({
         execute: ({ cell }, options) => executeSpy(documentId, cell, options),
-      } as ResearchRuntime),
+      } as ResearchSandbox),
     );
   });
   afterEach(async () => {

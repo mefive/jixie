@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchCellOutputBlockV1, ResearchDocumentV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -239,8 +239,8 @@ async function executeCell(cell: {
         environmentFingerprint: researchPayloadHash({ renderer: 'markdown-v1' }),
       };
     case 'python':
-      return researchRuntimePool.withRuntime(cell.documentId, (runtime) =>
-        runtime.execute({ cell: cell }),
+      return researchSandboxPool.withSandbox(cell.documentId, (sandbox) =>
+        sandbox.execute({ cell: cell }),
       );
     default:
       throw new Error(`unknown research cell kind: ${cell.kind}`);

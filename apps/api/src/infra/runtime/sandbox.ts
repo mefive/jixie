@@ -5,7 +5,7 @@ interface SandboxInitializationOptions {
   abortMessage?: string;
 }
 
-export abstract class SandboxRuntime<
+export abstract class Sandbox<
   Input,
   Output,
   Metadata,
@@ -42,7 +42,7 @@ export abstract class SandboxRuntime<
     return this.sandboxBridge;
   }
 
-  /** Owns acquired bridges, including those returned after the runtime has already closed. */
+  /** Owns acquired bridges, including those returned after the sandbox has already closed. */
   protected async initialize(options: SandboxInitializationOptions = {}): Promise<void> {
     if (this.isClosed) {
       throw new Error('Sandbox runtime is closed');

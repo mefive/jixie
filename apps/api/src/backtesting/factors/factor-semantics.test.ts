@@ -1,9 +1,9 @@
 import { StrategyFactor, type StrategyFactorInput } from '#strategy/factors/strategy-factor.js';
 import {
-  StrategyExecution,
-  type StrategyExecutionInput,
-  type StrategyRunOptions,
-} from '#strategy/execution/strategy-execution.js';
+  StrategySimulation,
+  type StrategySimulationInput,
+  type StrategySimulationOptions,
+} from '#strategy/execution/strategy-simulation.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -979,17 +979,17 @@ async function runWithFinalState(
   }
 }
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & {
+type SimulationFixtureConfig = Omit<StrategySimulationInput, 'dataPort'> & {
   factorSources?: FactorFixtureSource[];
-} & StrategyRunOptions;
+} & StrategySimulationOptions;
 
 async function runBacktestFixture(
-  config: ExecutionFixtureConfig,
+  config: SimulationFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
   onUserLog?: UserLogSink,
 ) {
-  const execution = await StrategyExecution.create({
+  const simulation = await StrategySimulation.create({
     ...config,
     dataPort,
     onLog,
@@ -997,9 +997,9 @@ async function runBacktestFixture(
     factors: config.factorSources?.map(factorFixture),
   });
   try {
-    return await execution.run(config);
+    return await simulation.run(config);
   } finally {
-    execution.close();
+    simulation.close();
   }
 }
 

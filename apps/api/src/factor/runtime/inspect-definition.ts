@@ -1,4 +1,4 @@
-import { FactorRuntime } from './factor-runtime.js';
+import { FactorSandbox } from './factor-sandbox.js';
 import { pythonFactorTargetAssetClasses } from './python/validator.js';
 
 export async function inspectFactorTargetAssetClasses(input: {
@@ -12,14 +12,14 @@ export async function inspectFactorTargetAssetClasses(input: {
   if (input.language === 'python') {
     return pythonFactorTargetAssetClasses(input.code);
   }
-  const runtime = await FactorRuntime.start({
+  const sandbox = await FactorSandbox.start({
     language: 'typescript',
     analysisKind: input.analysisKind,
     code: input.code,
   });
   try {
-    return [...runtime.metadata.targetAssetClasses];
+    return [...sandbox.metadata.targetAssetClasses];
   } finally {
-    runtime.close();
+    sandbox.close();
   }
 }

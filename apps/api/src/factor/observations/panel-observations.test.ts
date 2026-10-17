@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../runtime/factor-runtime.js';
+import { FactorSandbox } from '../runtime/factor-sandbox.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 
@@ -70,7 +70,7 @@ function rows(): PanelEtfDailyRow[] {
 }
 
 async function build(sourceRows = rows()) {
-  const factor = await FactorRuntime.start({
+  const factor = await FactorSandbox.start({
     language: 'typescript',
     analysisKind: 'panel',
     code: factorCode,

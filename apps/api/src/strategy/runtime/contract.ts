@@ -1,7 +1,7 @@
 import type { Locale, StrategyLanguage, StrategyParamValue } from '@jixie/shared';
 import type { EngineContext, EngineStrategy } from '#backtesting/contract.js';
 import type { UserLogSink } from '#infra/runtime/console.js';
-import type { SandboxRuntime } from '#infra/runtime/sandbox-runtime.js';
+import type { Sandbox } from '#infra/runtime/sandbox.js';
 
 export interface StrategyStartOptions {
   language: StrategyLanguage;
@@ -11,13 +11,13 @@ export interface StrategyStartOptions {
   onUserLog?: UserLogSink;
 }
 
-export interface StrategyExecutionInput {
+export interface StrategyCallbackInput {
   context: EngineContext;
 }
 
-export type StrategyRuntimeMetadata = Omit<EngineStrategy, 'onBar'>;
+export type StrategySandboxMetadata = Omit<EngineStrategy, 'onBar'>;
 
-export type StrategyRuntimeInstance = Pick<
-  SandboxRuntime<StrategyExecutionInput, void, StrategyRuntimeMetadata>,
+export type StrategySandboxInstance = Pick<
+  Sandbox<StrategyCallbackInput, void, StrategySandboxMetadata>,
   'metadata' | 'execute' | 'close'
 >;

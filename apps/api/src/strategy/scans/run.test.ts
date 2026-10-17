@@ -3,11 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BacktestResult } from '../backtests/result.js';
 import type { StrategyScanWorkerInput } from './job-payload.js';
 import type {
-  StrategyExecutionInput,
-  StrategyRunOptions,
-} from '../execution/strategy-execution.js';
+  StrategySimulationInput,
+  StrategySimulationOptions,
+} from '../execution/strategy-simulation.js';
 
-type ExecutionFixtureConfig = Omit<StrategyExecutionInput, 'dataPort'> & StrategyRunOptions;
+type SimulationFixtureConfig = Omit<StrategySimulationInput, 'dataPort'> &
+  StrategySimulationOptions;
 
 const mocks = vi.hoisted(() => ({
   prepare: vi.fn(),
@@ -17,8 +18,8 @@ const mocks = vi.hoisted(() => ({
   port: {},
 }));
 
-vi.mock('../execution/strategy-execution.js', () => ({
-  StrategyExecution: { create: mocks.create },
+vi.mock('../execution/strategy-simulation.js', () => ({
+  StrategySimulation: { create: mocks.create },
 }));
 vi.mock('#backtesting/adapters/prisma-port.js', () => ({ prismaDataPort: mocks.port }));
 
@@ -65,7 +66,7 @@ describe('strategy scan execution', () => {
   });
 
   it('prepares factors once and runs each combination and sample range in order', async () => {
-    const simulate = mocks.simulate.mockImplementation(async (request: ExecutionFixtureConfig) =>
+    const simulate = mocks.simulate.mockImplementation(async (request: SimulationFixtureConfig) =>
       result(Number(request.paramOverrides!.lookback), request.start, request.end),
     );
     const log = vi.fn();
@@ -103,7 +104,7 @@ describe('strategy scan execution', () => {
   });
 
   it('retains rebased NAV and path-risk metrics for sizing comparisons', async () => {
-    const simulate = mocks.simulate.mockImplementation(async (request: ExecutionFixtureConfig) =>
+    const simulate = mocks.simulate.mockImplementation(async (request: SimulationFixtureConfig) =>
       result(request.paramOverrides!.sizing === 'atr' ? 20 : 10, request.start, request.end),
     );
     const payload = await runStrategyScan(
@@ -128,7 +129,7 @@ describe('strategy scan execution', () => {
   });
 
   it('applies capacity values to initial cash without passing them as strategy parameters', async () => {
-    const simulate = mocks.simulate.mockImplementation(async (request: ExecutionFixtureConfig) =>
+    const simulate = mocks.simulate.mockImplementation(async (request: SimulationFixtureConfig) =>
       result(10, request.start, request.end),
     );
     const payload = await runStrategyScan(
@@ -162,7 +163,7 @@ describe('strategy scan execution', () => {
       started = resolve;
     });
     const simulate = mocks.simulate
-      .mockImplementation(async (request: ExecutionFixtureConfig) =>
+      .mockImplementation(async (request: SimulationFixtureConfig) =>
         result(10, request.start, request.end),
       )
       .mockImplementationOnce(() => {

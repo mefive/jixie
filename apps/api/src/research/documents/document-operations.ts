@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
@@ -30,7 +30,7 @@ export async function archiveResearchDocument(
       data: { archivedAt: new Date() },
     });
   }
-  researchRuntimePool.close(documentId);
+  researchSandboxPool.close(documentId);
   return true;
 }
 
@@ -110,7 +110,7 @@ export async function deleteResearchDocument(userId: string, documentId: string)
     },
   });
   if (deleted.count === 1) {
-    researchRuntimePool.close(documentId);
+    researchSandboxPool.close(documentId);
   }
   if (deleted.count !== 1) {
     throw new ResearchError('document_not_found');

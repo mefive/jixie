@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../../runtime/factor-runtime.js';
+import { FactorSandbox } from '../../runtime/factor-sandbox.js';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -57,44 +57,44 @@ describe('multi-asset panel templates', () => {
   it('resolves to an executable frozen Factor V2 panel source', async () => {
     const source = resolvePanelTemplateSource('cross_asset_momentum_120');
     expect(source).toMatchObject({ kind: 'panel', label: 'Cross-asset momentum (120d)' });
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'panel',
       code: source!.code,
     });
     try {
-      expect(runtime.metadata).toMatchObject({
+      expect(sandbox.metadata).toMatchObject({
         analysisKind: 'panel',
         window: 121,
         inputs: ['etf.adjustedClose'],
       });
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
   it('compiles the commodity Carry template against the controlled field catalog', async () => {
     const source = resolvePanelTemplateSource('commodity_futures_carry_v1');
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'panel',
       code: source!.code,
     });
     try {
-      expect(runtime.metadata).toMatchObject({
+      expect(sandbox.metadata).toMatchObject({
         analysisKind: 'panel',
         targetAssetClasses: ['commodity'],
         window: 2,
         inputs: ['commodity.futures.annualizedLogCarry'],
       });
       await expect(
-        runtime.execute({
+        sandbox.execute({
           fields: { 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] },
           indexes: [1],
         }),
       ).resolves.toEqual([0.2]);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 });

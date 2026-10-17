@@ -1,5 +1,5 @@
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
-import { FactorRuntime } from '../runtime/factor-runtime.js';
+import { FactorSandbox } from '../runtime/factor-sandbox.js';
 import { prisma } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
@@ -120,11 +120,11 @@ async function assetFactorCodeUsesResearchOnlyInput(
   language: FactorLanguage,
 ): Promise<boolean> {
   try {
-    const runtime = await FactorRuntime.start({ language, analysisKind, code });
+    const sandbox = await FactorSandbox.start({ language, analysisKind, code });
     try {
-      return runtime.metadata.inputs.some(isResearchOnlyFactorV2Field);
+      return sandbox.metadata.inputs.some(isResearchOnlyFactorV2Field);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   } catch {
     return true;

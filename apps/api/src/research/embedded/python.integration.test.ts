@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { quantile, std } from '#math/stats.js';
 import type { ResearchEmbeddedRunSummaryV1 } from '@jixie/shared';
 import { execFileSync } from 'node:child_process';
@@ -100,7 +100,7 @@ describe('embedded analysis with the real Research Python runtime', () => {
   });
   afterEach(async () => {
     for (const document of await prisma.researchDocument.findMany({ select: { id: true } })) {
-      researchRuntimePool.close(document.id);
+      researchSandboxPool.close(document.id);
     }
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;

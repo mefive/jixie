@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../runtime/factor-runtime.js';
+import { FactorSandbox } from '../runtime/factor-sandbox.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { describe, expect, it } from 'vitest';
 import { addDays } from '#date';
@@ -86,7 +86,7 @@ async function build(
   points: CommodityWarehouseReceiptResearchPoint[] = warehouseReceiptPoints(),
   rows: EtfTrendDailyRow[] = etfRows(),
 ) {
-  const factor = await FactorRuntime.start({
+  const factor = await FactorSandbox.start({
     language: 'typescript',
     analysisKind: 'time_series',
     code: factorCode,
@@ -167,7 +167,7 @@ describe('commodity warehouse-receipt time-series observations', () => {
     invalid[0].unit = '吨';
     await expect(build(invalid)).rejects.toThrow(/Invalid commodity warehouse-receipt/);
 
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
       code: factorCode,

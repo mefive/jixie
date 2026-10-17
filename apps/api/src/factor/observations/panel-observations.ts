@@ -1,4 +1,4 @@
-import type { PanelFactorRuntime } from '../runtime/contract.js';
+import type { PanelFactorSandbox } from '../runtime/contract.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
@@ -23,7 +23,7 @@ export interface PanelEtfMetadata {
 
 export async function loadPanelEtfObservations(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: PanelFactorRuntime,
+  factor: PanelFactorSandbox,
 ): Promise<PanelEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
   const assetIds = researchSpec.assets.map((asset) => asset.assetId);
@@ -116,7 +116,7 @@ export async function buildPanelEtfObservations(
   researchSpec: PanelFactorResearchSpecV1,
   rows: PanelEtfDailyRow[],
   openDates: string[],
-  factor: PanelFactorRuntime,
+  factor: PanelFactorSandbox,
 ): Promise<PanelEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
   const declaredAssets = new Map(
@@ -238,7 +238,7 @@ export function panelEtfMatchesAssetClass(
 
 function assertSupportedProtocol(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: PanelFactorRuntime,
+  factor: PanelFactorSandbox,
 ): void {
   if (
     researchSpec.observationFrequency !== 'monthly' ||

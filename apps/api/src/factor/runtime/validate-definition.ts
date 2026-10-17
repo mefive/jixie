@@ -1,4 +1,4 @@
-import { FactorRuntime } from './factor-runtime.js';
+import { FactorSandbox } from './factor-sandbox.js';
 import { UserCodeError } from '#infra/errors.js';
 import type { FactorAnalysisKind, FactorLanguage } from '@jixie/shared';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
@@ -18,9 +18,9 @@ export async function validateFactorDefinition(
   if (language === 'python') {
     return validatePythonFactorDefinition(code, analysisKind);
   }
-  const runtime = await FactorRuntime.start({ language, analysisKind, code });
+  const sandbox = await FactorSandbox.start({ language, analysisKind, code });
   try {
-    const metadata = runtime.metadata;
+    const metadata = sandbox.metadata;
     if (
       metadata.analysisKind !== 'cross_sectional' &&
       metadata.inputs.some(isResearchOnlyFactorV2Field)
@@ -28,6 +28,6 @@ export async function validateFactorDefinition(
       throw new UserCodeError('This input is currently available only as a controlled template.');
     }
   } finally {
-    runtime.close();
+    sandbox.close();
   }
 }

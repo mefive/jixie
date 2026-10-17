@@ -1,11 +1,11 @@
-import { FactorRuntime } from '../factor-runtime.js';
+import { FactorSandbox } from '../factor-sandbox.js';
 import { describe, expect, it } from 'vitest';
 
 import { factorSourceReferencesHistoryField } from '../../execution/cross-sectional/series.js';
 
 describe('Factor SDK inside the isolate', () => {
   it('preserves every history field, tail ordering, nulls and window limits', async () => {
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `export default defineFactor({
@@ -53,7 +53,7 @@ describe('Factor SDK inside the isolate', () => {
 
   it('reports missing history without failing the whole batch', async () => {
     const logs: string[] = [];
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `export default defineFactor({
@@ -90,7 +90,7 @@ describe('factor source history dependencies', () => {
 
   it('emits only the first repeated compute error from a batch', async () => {
     const logs: string[] = [];
-    const factor = await FactorRuntime.start({
+    const factor = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `export default defineFactor({

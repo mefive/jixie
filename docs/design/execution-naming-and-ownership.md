@@ -1,5 +1,7 @@
 # 业务执行职责整理
 
+> 最新命名（2026-10-17）：宿主类统一为 Sandbox，策略模拟为 StrategySimulation；当前范围与审查状态见文末。下方较早章节保留历史名称。
+
 状态：人工代码审查已确认，行为验证与构建通过，按已确认的提交信息交付。
 
 提交信息：`refactor(api): clarify execution roles and naming`
@@ -326,8 +328,8 @@ Worker 文件组、Job 生命周期和同主题函数集合继续按原职责命
 | `factor/runtime/typescript/adapter.ts` | [factor/runtime/typescript/factor-adapter.ts](../../apps/api/src/factor/runtime/typescript/factor-adapter.ts) |
 | `factor/runtime/python/adapter.py` | [factor/runtime/python/factor_adapter.py](../../apps/api/src/factor/runtime/python/factor_adapter.py) |
 | `research/runtime/python/adapter.py` | [research/runtime/python/research_adapter.py](../../apps/api/src/research/runtime/python/research_adapter.py) |
-| `research/runtime/pool.ts` | [research/runtime/research-runtime-pool.ts](../../apps/api/src/research/runtime/research-runtime-pool.ts) |
-| `strategy/execution/execution.ts` | [strategy/execution/strategy-execution.ts](../../apps/api/src/strategy/execution/strategy-execution.ts) |
+| `research/runtime/pool.ts` | [research/runtime/research-runtime-pool.ts](../../apps/api/src/research/runtime/research-sandbox-pool.ts) |
+| `strategy/execution/execution.ts` | [strategy/execution/strategy-execution.ts](../../apps/api/src/strategy/execution/strategy-simulation.ts) |
 | `strategy/factors/factor.ts` | [strategy/factors/strategy-factor.ts](../../apps/api/src/strategy/factors/strategy-factor.ts) |
 | `backtesting/engine.ts` | [backtesting/backtesting-engine.ts](../../apps/api/src/backtesting/backtesting-engine.ts) |
 | `backtesting/context.ts` | [backtesting/backtesting-context.ts](../../apps/api/src/backtesting/backtesting-context.ts) |
@@ -414,3 +416,69 @@ Strategy 历史性能基线仍固定原提交与旧模块路径，测试装配�
 验证日志前缀为 `/tmp/jixie-api-filenames-`，后缀包括 tests.log（首次运行）、bundle-tests.log
 （测试清单修正后）、socket-tests.log、compiled-workers.log、benchmark.log、policy-tests.log、
 shared-build.log、api-build.log、clean-build.log 与 compiled-runtime.log。
+
+## 2026-10-17 Sandbox 与 StrategySimulation 命名统一
+
+计划提交：`refactor(api): adopt sandbox and simulation naming`。
+
+用户已确认以 Sandbox 表达有状态的用户代码沙箱会话，以 StrategySimulation 表达一次完整策略模拟。
+本轮人工代码审查已通过，行为验证与构建通过；最终验证记录见本节末尾。
+
+| 原类型 | 当前类型 | 当前实现（相对 apps/api/src） |
+| --- | --- | --- |
+| SandboxRuntime | Sandbox | infra/runtime/sandbox.ts |
+| StrategyRuntime | StrategySandbox | strategy/runtime/strategy-sandbox.ts |
+| FactorRuntime | FactorSandbox | factor/runtime/factor-sandbox.ts |
+| ResearchRuntime | ResearchSandbox | research/runtime/research-sandbox.ts |
+| ResearchRuntimePool | ResearchSandboxPool | research/runtime/research-sandbox-pool.ts |
+| StrategyExecution | StrategySimulation | strategy/execution/strategy-simulation.ts |
+
+Sandbox 保留原有启动模板、ready 状态、metadata、执行前后检查及关闭/取消/失败清理。
+三个业务子类继续调用 Bridge.create；语言选择、源码准备、协议、Transport 归属与关闭链保持。
+ResearchSandboxPool 的单例为 researchSandboxPool，借用方法为 withSandbox；每个 documentId 的
+队列、容量、实例身份检查和中断行为保持。沙箱实例/metadata 类型与直接关联变量、测试、mock 同步命名。
+
+StrategySimulation 通过组合拥有 StrategySandbox、FactorHost 和 BacktestingEngine；没有新增
+Simulation 基类或公共接口。create 接收 StrategySimulationInput，run 接收 StrategySimulationOptions；
+StrategyCallbackInput 单独表达每次 onBar 的 EngineContext，消除原来两种 StrategyExecutionInput 的同名歧义。
+一次性模拟限制、因子血缘校验、末日快照读取及资源回收顺序保持，StrategyFactor 的校验方法同步为
+validateSandboxMetadata。回测、扫描与 Signals 直接消费同一模拟类。
+
+文件与主要类名对应，同名测试同步迁移；TS 诊断夹具为 testing/sandbox.ts，返回 sandbox 与 metrics。
+保留 runtime/execution 目录及各业务现有功能划分，不移动 Python 模块，不改变 Docker 输入或 workspace。
+SDK、HTTP/Worker/沙箱协议、runtimeVersion、环境指纹字段、数据库、ResearchExecution 结果与记录保持。
+历史设计叙述保留当时名称，链接指向当前文件；历史性能比较的提交、源码路径、旧导出和返回字段保留，
+仅在测试适配处转换为当前 sandbox 变量。
+
+审查前计划执行全仓类型/SDK 生成一致性/后端边界静态扫描、受影响文件 lint/format、diff、
+生产代码 AST 归一化比较及引用/文档链接检查。人工审查后再验证 Sandbox/Bridge 生命周期、
+TS/Python Strategy/Factor、Research 会话池、模拟与 Engine/Signals/扫描、源码/编译 Worker、
+部署规则及 Shared/API 构建；保留现有断言，不为纯改名新增镜像实现的测试。
+
+本轮静态验收通过：
+
+- 全仓 pnpm typecheck 通过：Shared/API/Docs/sandboxd/Web；SDK 生成物一致。
+- 后端静态扫描仍为 888 个文件、3304 条运行时边和 889 条类型边，0 违规，原有 4 条例外保持。
+- 93 个受影响 TS/MJS 文件 ESLint 零警告、Prettier 和 git diff --check 通过。
+- 41 个生产 TS 文件归一化已批准的符号/局部变量与导入路径后 AST 一致；没有计算或生命周期表达式变化。
+- 92 处改名后的字面量引用均可解析；26 个 Markdown 文件中的 492 个本地链接有效。
+- 6 个主体类文件、5 个同名测试和 1 个诊断夹具文件完成改名，不保留旧入口转发。
+- 历史 Strategy 性能夹具保留 2c58693b 的源码路径、旧导出与返回字段，在历史/当前边界将返回值适配为 sandbox；基准提交、样本数量、结果哈希和传输量断言保持。
+- 日志：/tmp/jixie-sandbox-simulation-typecheck.log、/tmp/jixie-sandbox-simulation-lint.log。
+
+审查前状态：修改未提交，行为回归、源码/编译 Worker 和构建未运行；随后用户确认代码，验证结果如下。
+
+
+人工审查确认后的验证完成：
+
+- API 151 个测试文件、1250 项通过，包含 Sandbox/Bridge、TS/Python Strategy/Factor、Research 会话池与嵌入式执行、StrategySimulation/Engine/Signals/扫描及源码 Worker 14 项；无失败或跳过。
+- PythonSession 临时 Unix socket 通信 11 项通过。
+- 边界检查器、Python SDK 边界、部署计划与部署 bootstrap 共 58 项通过。
+- 历史 Strategy watch/dynamic 性能夹具 2 项通过；before/shared 每个场景结果哈希一致，每个采样的传输统计一致。watch 各 13 个样本、10 个 measured；dynamic 各 8 个样本、5 个 measured，基线和断言保持。
+- Shared/API 常规构建通过；另在独立临时目录从空输出编译 API，7 个新 JS 模块路径存在，所有对应旧路径不存在。按 Docker 输入重建 22 个 Python 文件后，生产模式的编译 Worker 14 项通过，覆盖回测、扫描、Signals 和启动恢复，并等待 Worker 退出。
+- 清洁编译产物在不启用 development/tsx 的条件下完成 TS time_series/panel 和 Research Python 运行检查，覆盖计算复用、metadata、参数、环境留痕、namespace、普通错误恢复、reset 和幂等关闭，并等待子进程退出。
+- 合计 1335 项测试/策略检查通过，另有清洁生产模式运行检查和构建；审阅后的 93 个代码文件哈希保持，没有新增产品修改或测试修复。
+- 测试使用临时数据库与本地 Python 夹具；本轮临时编译目录和 matplotlib 缓存已清理，不启动开发服务。
+- 日志位于 /tmp/jixie-sandbox-simulation-*：tests.log、socket-tests.log、policy-tests.log、benchmark.log、shared-build.log、api-build.log、clean-build.log、compiled-workers.log、compiled-smoke.log。
+
+按已确认消息 refactor(api): adopt sandbox and simulation naming 提交本轮文件；不推送。

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { FactorRuntime } from '../factor-runtime.js';
+import { FactorSandbox } from '../factor-sandbox.js';
 
 describe('TypeScript Factor definition factory injection', () => {
   it('keeps the cross-sectional factory in evaluation and callback scope', async () => {
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `
@@ -27,22 +27,22 @@ describe('TypeScript Factor definition factory injection', () => {
     });
 
     try {
-      expect(runtime.metadata.name).toBe('local cross-sectional factory');
-      await expect(runtime.execute({ items: [{ bar: { close: 10 } as never }] })).resolves.toEqual([
+      expect(sandbox.metadata.name).toBe('local cross-sectional factory');
+      await expect(sandbox.execute({ items: [{ bar: { close: 10 } as never }] })).resolves.toEqual([
         10,
       ]);
-      await expect(runtime.execute({ items: [{ bar: { close: 20 } as never }] })).resolves.toEqual([
+      await expect(sandbox.execute({ items: [{ bar: { close: 20 } as never }] })).resolves.toEqual([
         20,
       ]);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
   it.each(['time_series', 'panel'] as const)(
     'keeps the %s factory in evaluation and callback scope',
     async (analysisKind) => {
-      const runtime = await FactorRuntime.start({
+      const sandbox = await FactorSandbox.start({
         language: 'typescript',
         analysisKind,
         code: `
@@ -73,21 +73,21 @@ describe('TypeScript Factor definition factory injection', () => {
       });
 
       try {
-        expect(runtime.metadata).toMatchObject({ name: 'local asset factory', analysisKind });
+        expect(sandbox.metadata).toMatchObject({ name: 'local asset factory', analysisKind });
         await expect(
-          runtime.execute({ fields: { 'etf.adjustedClose': [10, 20] }, indexes: [1, 0] }),
+          sandbox.execute({ fields: { 'etf.adjustedClose': [10, 20] }, indexes: [1, 0] }),
         ).resolves.toEqual([20, 10]);
         await expect(
-          runtime.execute({ fields: { 'etf.adjustedClose': [30, 40] }, indexes: [1] }),
+          sandbox.execute({ fields: { 'etf.adjustedClose': [30, 40] }, indexes: [1] }),
         ).resolves.toEqual([40]);
       } finally {
-        runtime.close();
+        sandbox.close();
       }
     },
   );
 
   it('keeps the injected factory independent of user-assigned global properties', async () => {
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'cross_sectional',
       code: `
@@ -103,11 +103,11 @@ describe('TypeScript Factor definition factory injection', () => {
     });
 
     try {
-      await expect(runtime.execute({ items: [{ bar: { close: 10 } as never }] })).resolves.toEqual([
+      await expect(sandbox.execute({ items: [{ bar: { close: 10 } as never }] })).resolves.toEqual([
         10,
       ]);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
@@ -119,7 +119,7 @@ describe('TypeScript Factor definition factory injection', () => {
     'rejects global factory access for $analysisKind',
     async ({ analysisKind, factoryName }) => {
       await expect(
-        FactorRuntime.start({
+        FactorSandbox.start({
           language: 'typescript',
           analysisKind,
           code: `export default globalThis.${factoryName}({});`,

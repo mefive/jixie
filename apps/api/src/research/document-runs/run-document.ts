@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../runtime/research-runtime-pool.js';
+import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
@@ -51,7 +51,7 @@ export async function runResearchDocument(
         cells: frozen.cells.map(researchExecutionSourceCellSnapshot),
       });
       researchExecutionId = researchExecution.id;
-      await researchRuntimePool.reset(documentId);
+      await researchSandboxPool.reset(documentId);
       if (!control.interrupted) {
         await prisma.researchCell.updateMany({
           where: {

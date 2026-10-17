@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import type { FactorLanguage, FactorBar } from '@jixie/shared';
 import type { z } from 'zod';
-import { FactorRuntime } from './factor-runtime.js';
+import { FactorSandbox } from './factor-sandbox.js';
 import { FactorBridge, type FactorTransport } from './factor-bridge.js';
 import { PythonSession } from '#infra/runtime/python/python-session.js';
 import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
@@ -11,7 +11,7 @@ import type {
   CrossSectionalFactorExecutionInput,
   ExecutableFactorKind,
   FactorExecutionInput,
-  FactorRuntimeMetadata,
+  FactorSandboxMetadata,
   FactorValues,
 } from './contract.js';
 
@@ -97,7 +97,7 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       const bridge: SandboxBridge<
         FactorExecutionInput<typeof analysisKind>,
         FactorValues,
-        FactorRuntimeMetadata<typeof analysisKind>
+        FactorSandboxMetadata<typeof analysisKind>
       > = new FactorBridge(
         session as unknown as FactorTransport,
         {
@@ -132,10 +132,10 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
     'owns one %s session and passes startup source without changing its protocol',
     async (analysisKind) => {
       const session = sessionFixture(language, ready(language, analysisKind));
-      const runtime = await FactorRuntime.start({ language, analysisKind, code: 'source' });
-      expect(runtime).toBeInstanceOf(FactorRuntime);
-      expect(runtime.metadata).toMatchObject({ name: 'fixture', analysisKind });
-      expect(runtime).not.toHaveProperty('metrics');
+      const sandbox = await FactorSandbox.start({ language, analysisKind, code: 'source' });
+      expect(sandbox).toBeInstanceOf(FactorSandbox);
+      expect(sandbox.metadata).toMatchObject({ name: 'fixture', analysisKind });
+      expect(sandbox).not.toHaveProperty('metrics');
       expect(session.send).toHaveBeenCalledExactlyOnceWith(
         language === 'python'
           ? {
@@ -148,10 +148,10 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       );
       expect(session.close).not.toHaveBeenCalled();
 
-      runtime.close();
-      runtime.close();
+      sandbox.close();
+      sandbox.close();
       expect(session.close).toHaveBeenCalledOnce();
-      expect(runtime.metadata).toMatchObject({ name: 'fixture', analysisKind });
+      expect(sandbox.metadata).toMatchObject({ name: 'fixture', analysisKind });
       expect(session.send).toHaveBeenCalledOnce();
     },
   );
@@ -160,7 +160,7 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
     const session = sessionFixture(language, ready(language, 'cross_sectional'));
     session.send.mockRejectedValueOnce(new Error('connection lost'));
     await expect(
-      FactorRuntime.start({ language, analysisKind: 'cross_sectional', code: 'source' }),
+      FactorSandbox.start({ language, analysisKind: 'cross_sectional', code: 'source' }),
     ).rejects.toThrow('connection lost');
     expect(session.readValidated).not.toHaveBeenCalled();
     expect(session.close).toHaveBeenCalledOnce();
@@ -169,7 +169,7 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
   it('closes a session when metadata declares the wrong kind', async () => {
     const session = sessionFixture(language, ready(language, 'panel'));
     await expect(
-      FactorRuntime.start({ language, analysisKind: 'time_series', code: 'source' }),
+      FactorSandbox.start({ language, analysisKind: 'time_series', code: 'source' }),
     ).rejects.toThrow();
     expect(session.close).toHaveBeenCalledOnce();
   });
@@ -180,17 +180,17 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       values: [3],
       first_error: null,
     });
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language,
       analysisKind: 'cross_sectional',
       code: 'source',
     });
-    expectTypeOf(runtime.execute).parameter(0).toEqualTypeOf<CrossSectionalFactorExecutionInput>();
+    expectTypeOf(sandbox.execute).parameter(0).toEqualTypeOf<CrossSectionalFactorExecutionInput>();
     const input: CrossSectionalFactorExecutionInput = {
       items: [{ bar, closes: [1, 2], dates: ['20260101', '20260102'] }],
     };
     try {
-      await expect(runtime.execute(input)).resolves.toEqual([3]);
+      await expect(sandbox.execute(input)).resolves.toEqual([3]);
       const command = session.send.mock.calls[1][0];
       expect(command).toMatchObject(
         language === 'python'
@@ -206,7 +206,7 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
           : { type: 'factor_compute_batch', ...input },
       );
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
@@ -216,15 +216,15 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       values: [2],
       first_error: null,
     });
-    const runtime = await FactorRuntime.start({ language, analysisKind: 'panel', code: 'source' });
-    expectTypeOf(runtime.execute).parameter(0).toEqualTypeOf<AssetFactorExecutionInput>();
-    expectTypeOf(runtime.metadata.analysisKind).toEqualTypeOf<'panel'>();
+    const sandbox = await FactorSandbox.start({ language, analysisKind: 'panel', code: 'source' });
+    expectTypeOf(sandbox.execute).parameter(0).toEqualTypeOf<AssetFactorExecutionInput>();
+    expectTypeOf(sandbox.metadata.analysisKind).toEqualTypeOf<'panel'>();
     const input = { fields: { 'etf.adjustedClose': [1, 2] }, indexes: [1] };
     try {
-      await expect(runtime.execute(input)).resolves.toEqual([2]);
+      await expect(sandbox.execute(input)).resolves.toEqual([2]);
       expect(session.send).toHaveBeenLastCalledWith({ type: 'factor_compute_series', ...input });
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 
@@ -238,17 +238,17 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       code: 'source',
       onUserLog,
     };
-    const runtime = await FactorRuntime.start(options);
+    const sandbox = await FactorSandbox.start(options);
     try {
-      await expect(runtime.execute({ items: [{ bar }] })).resolves.toEqual([null]);
-      await expect(runtime.execute({ items: [{ bar }] })).resolves.toEqual([null]);
+      await expect(sandbox.execute({ items: [{ bar }] })).resolves.toEqual([null]);
+      await expect(sandbox.execute({ items: [{ bar }] })).resolves.toEqual([null]);
       expect(onUserLog.mock.calls).toEqual([['error', '[factor-error] point failed']]);
     } finally {
-      runtime.close();
+      sandbox.close();
     }
 
     sessionFixture(language, ready(language, 'cross_sectional'), failedPoint);
-    const replacement = await FactorRuntime.start(options);
+    const replacement = await FactorSandbox.start(options);
     try {
       await expect(replacement.execute({ items: [{ bar }] })).resolves.toEqual([null]);
       expect(onUserLog.mock.calls).toEqual([
@@ -267,23 +267,23 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       first_error: 'point failed',
     });
     const onUserLog = vi.fn();
-    const runtime = await FactorRuntime.start({
+    const sandbox = await FactorSandbox.start({
       language,
       analysisKind: 'cross_sectional',
       code: 'source',
       onUserLog,
     });
     try {
-      await expect(runtime.execute({ items: [{ bar }] })).rejects.toThrow(
+      await expect(sandbox.execute({ items: [{ bar }] })).rejects.toThrow(
         language === 'python' ? 'invalid Python Factor result length' : 'score count',
       );
       expect(session.abort).toHaveBeenCalledOnce();
       expect(onUserLog.mock.calls).toEqual(
         language === 'python' ? [['error', '[factor-error] point failed']] : [],
       );
-      await expect(runtime.execute({ items: [] })).rejects.toThrow('closed');
+      await expect(sandbox.execute({ items: [] })).rejects.toThrow('closed');
     } finally {
-      runtime.close();
+      sandbox.close();
     }
   });
 });

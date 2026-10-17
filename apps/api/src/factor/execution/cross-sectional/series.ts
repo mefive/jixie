@@ -1,4 +1,4 @@
-import { FactorRuntime } from '../../runtime/factor-runtime.js';
+import { FactorSandbox } from '../../runtime/factor-sandbox.js';
 import type { FactorBatchItem } from '../../runtime/contract.js';
 import { t } from '#i18n/messages.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -100,7 +100,7 @@ export async function computeFactorSeries(
     }
     onUserLog?.(level, line);
   };
-  const factor = await FactorRuntime.start({
+  const factor = await FactorSandbox.start({
     language: language,
     analysisKind: 'cross_sectional',
     code: factorCode,

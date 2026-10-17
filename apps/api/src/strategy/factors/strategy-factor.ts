@@ -207,7 +207,7 @@ export class StrategyFactor {
   }
 
   /** Validate runtime inputs without copying metadata back into source factors. */
-  static validateRuntimeMetadata(factors: StrategyFactor[], definitions: FactorDefinition[]): void {
+  static validateSandboxMetadata(factors: StrategyFactor[], definitions: FactorDefinition[]): void {
     const byId = new Map(definitions.map((definition) => [definition.id, definition]));
     const researchOnlyInputs = new Set<string>();
     for (const factor of factors) {

@@ -1,6 +1,6 @@
 # Python 策略沙箱运行
 
-Python 执行用户 on_bar，撮合和账户规则仍由宿主 TypeScript [Backtesting](../../../backtesting/README.md) 执行。两种语言共用 [StrategyRuntime](../strategy-runtime.ts)、StrategyExecution 和 [strategy-bridge.ts](../strategy-bridge.ts)。
+Python 执行用户 on_bar，撮合和账户规则仍由宿主 TypeScript [Backtesting](../../../backtesting/README.md) 执行。两种语言共用 [StrategySandbox](../strategy-sandbox.ts)、StrategySimulation 和 [strategy-bridge.ts](../strategy-bridge.ts)。
 
 | 文件 / 入口 | 职责与消费者 |
 | --- | --- |
@@ -10,7 +10,7 @@ Python 执行用户 on_bar，撮合和账户规则仍由宿主 TypeScript [Backt
 | [SDK python.py](../../sdk/python.py) | Strategy、公开 Context、Universe、周期/指标与账户辅助；接收基础能力，不导入 runtime |
 | [packaging.test.ts](packaging.test.ts) | 只使用镜像显式复制的模块验证真实 runner 与 SDK |
 
-公共 StrategyRuntime.start 创建实例并等待基类 initialize；子类 createBridge 仅调用 StrategyBridge.create，由 Bridge 内部准备配置、获取会话并完成构造，基类负责握手、启动状态及失败/取消清理；execute({ context }) 委托 bridge，close 同步幂等释放会话。业务调用方仍须 finally close。通用 jixie_runner.py 只启动/分派，沙箱会话与隔离设施归 Infra/sandboxd。
+公共 StrategySandbox.start 创建实例并等待基类 initialize；子类 createBridge 仅调用 StrategyBridge.create，由 Bridge 内部准备配置、获取会话并完成构造，基类负责握手、启动状态及失败/取消清理；execute({ context }) 委托 bridge，close 同步幂等释放会话。业务调用方仍须 finally close。通用 jixie_runner.py 只启动/分派，沙箱会话与隔离设施归 Infra/sandboxd。
 
 runner 为整个会话持有 StrategyAdapter，Adapter 保管跨日历史缓存；每个决策日调用 bind(snapshot) 创建当日 BoundStrategyCapabilities，再以 Context(capabilities, params) 构造作者上下文。作者 SDK 保留 snake_case 方法、选股、指标和仓位辅助；运行数据与协议状态不再存入 SDK。
 
@@ -20,7 +20,7 @@ run_strategy 为当前沙箱会话创建唯一 StrategyRunner，完成 start 后
 
 SDK、runner、adapter 及公共 SdkAdapter Protocol 均显式列入 Dockerfile.python、.dockerignore 和部署影响清单，变更 Python 源码同时影响 API/sandboxd；宿主 bridge.ts 只影响 API。路径与资源验证见 [运行入口清单](../../../../../../docs/backend-runtime-entries.md)。
 
-宿主启动/关闭回归见 [strategy-runtime.test.ts](../strategy-runtime.test.ts)，Python 行为见 [runtime.test.ts](runtime.test.ts)，公共交互见 bridge.test.ts/protocol.test.ts；生成说明归 [codegen-prompt.ts](codegen-prompt.ts) 及同名测试。当前结构记录见 [设计记录](../../../../../../docs/design/sandbox-runtime-architecture.md)。
+宿主启动/关闭回归见 [strategy-sandbox.test.ts](../strategy-sandbox.test.ts)，Python 行为见 [runtime.test.ts](runtime.test.ts)，公共交互见 bridge.test.ts/protocol.test.ts；生成说明归 [codegen-prompt.ts](codegen-prompt.ts) 及同名测试。当前结构记录见 [设计记录](../../../../../../docs/design/sandbox-runtime-architecture.md)。
 
 [返回 Strategy 总览](../../README.md)
 

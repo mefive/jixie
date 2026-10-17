@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   crossSectional: vi.fn(),
 }));
 
-vi.mock('../runtime/factor-runtime.js', () => ({ FactorRuntime: { start: mocks.start } }));
+vi.mock('../runtime/factor-sandbox.js', () => ({ FactorSandbox: { start: mocks.start } }));
 vi.mock('../observations/etf-trend-observations.js', () => ({
   loadEtfTimeSeriesObservations: mocks.etf,
 }));

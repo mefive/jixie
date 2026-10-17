@@ -1,4 +1,4 @@
-import { researchRuntimePool } from '../research-runtime-pool.js';
+import { researchSandboxPool } from '../research-sandbox-pool.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -26,7 +26,7 @@ describe('Research BacktestReport Python runtime bridge', () => {
   });
 
   afterEach(() => {
-    researchRuntimePool.close(DOCUMENT_ID);
+    researchSandboxPool.close(DOCUMENT_ID);
     if (previousLocal === undefined) {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
@@ -35,8 +35,8 @@ describe('Research BacktestReport Python runtime bridge', () => {
   });
 
   it('loads a report through results.backtest_report without exposing write operations', async () => {
-    const execution = await researchRuntimePool.withRuntime(DOCUMENT_ID, (runtime) =>
-      runtime.execute({
+    const execution = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+      sandbox.execute({
         cell: {
           id: 'backtest-report',
           source:

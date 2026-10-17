@@ -1,4 +1,4 @@
-import type { PanelFactorRuntime } from '../runtime/contract.js';
+import type { PanelFactorSandbox } from '../runtime/contract.js';
 import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import {
   COMMODITY_CARRY_MINIMUM_DAYS_TO_DELIVERY,
@@ -45,7 +45,7 @@ const COMMODITY_CARRY_ASSET_MAPPINGS: CommodityCarryAssetMapping[] = COMMODITY_F
  * execution remain separate: the future contract is a feature source, never the traded asset. */
 export async function loadCommodityCarryPanelObservations(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: PanelFactorRuntime,
+  factor: PanelFactorSandbox,
 ): Promise<PanelEvaluationObservation[]> {
   assertCommodityCarryPanelProtocol(researchSpec, factor);
   const assetIds = researchSpec.assets.map((asset) => asset.assetId);
@@ -138,7 +138,7 @@ export async function buildCommodityCarryPanelObservations(
   etfRows: PanelEtfDailyRow[],
   openDates: string[],
   carryPoints: CommodityCarryPointV1[],
-  factor: PanelFactorRuntime,
+  factor: PanelFactorSandbox,
 ): Promise<PanelEvaluationObservation[]> {
   assertCommodityCarryPanelProtocol(researchSpec, factor);
   const mappings = selectedMappings(researchSpec);
@@ -233,13 +233,13 @@ export async function buildCommodityCarryPanelObservations(
   );
 }
 
-export function panelFactorUsesCommodityCarry(factor: PanelFactorRuntime): boolean {
+export function panelFactorUsesCommodityCarry(factor: PanelFactorSandbox): boolean {
   return factor.metadata.inputs.length === 1 && factor.metadata.inputs[0] === COMMODITY_CARRY_FIELD;
 }
 
 function assertCommodityCarryPanelProtocol(
   researchSpec: PanelFactorResearchSpecV1,
-  factor: PanelFactorRuntime,
+  factor: PanelFactorSandbox,
 ): void {
   if (
     researchSpec.observationFrequency !== 'monthly' ||
