@@ -2,6 +2,7 @@
 
 /**
  * 记录 FCFF 模型分类的来源证据，供适用性说明。
+ *
  * Retain source evidence for FCFF model classification and applicability.
  */
 export interface FcffClassificationEvidence {

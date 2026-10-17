@@ -5,6 +5,7 @@ const MAX_LIVE_RESEARCH_SESSIONS = 4;
 
 /**
  * 维护文档沙盒创建、引用和关闭状态，供池化生命周期。
+ *
  * Track document sandbox creation, references and closure in the pool.
  */
 interface ResearchSandboxEntry {
@@ -63,6 +64,7 @@ export class ResearchSandboxPool {
 
   /**
    * 在会话池条目中串行使用沙盒，处理在途引用与释放。
+   *
    * Use a pooled sandbox entry with serialized access and lifetime tracking.
    */
   private async useEntry<T>(
@@ -120,6 +122,7 @@ export class ResearchSandboxPool {
 
   /**
    * 按文档复用或创建 Research 会话，协调并发创建与关闭清理。
+   *
    * Reuse or create a document sandbox while coordinating concurrent creation and cleanup.
    */
   private async getOrCreate(

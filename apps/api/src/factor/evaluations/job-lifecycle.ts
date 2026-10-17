@@ -14,6 +14,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
 export const factorAnalysisLifecycle = {
   /**
    * 执行冻结因子来源计算，报告与 Job 终态由生命周期事务统一提交。
+   *
    * Evaluate a frozen factor source for atomic report and job completion.
    */
   async onExecute(job, log) {

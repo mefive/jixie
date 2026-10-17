@@ -16,6 +16,7 @@ const MAX_PANEL_ROWS = 100_000;
 
 /**
  * 约束股票研究的证券、期间与返回行数，防止无界读取。
+ *
  * Bound research instruments, periods and rows to prevent unbounded equity queries.
  */
 interface ResearchEquityDatasetLimits {
@@ -25,6 +26,7 @@ interface ResearchEquityDatasetLimits {
 
 /**
  * 共享股票数据集日期、字段和证券池请求。
+ *
  * Describe shared equity dataset dates, fields and universe input.
  */
 export interface ResearchEquityDatasetRequestBaseV1 {
@@ -35,6 +37,7 @@ export interface ResearchEquityDatasetRequestBaseV1 {
 
 /**
  * 指定单个历史日期的股票截面请求。
+ *
  * Request one historical equity cross-section.
  */
 export interface ResearchCrossSectionRequestV1 extends ResearchEquityDatasetRequestBaseV1 {
@@ -43,6 +46,7 @@ export interface ResearchCrossSectionRequestV1 extends ResearchEquityDatasetRequ
 
 /**
  * 指定完成月末采样的股票 Panel 请求。
+ *
  * Request an equity panel sampled at completed month ends.
  */
 export interface ResearchPanelRequestV1 extends ResearchEquityDatasetRequestBaseV1 {
@@ -53,6 +57,7 @@ export interface ResearchPanelRequestV1 extends ResearchEquityDatasetRequestBase
 
 /**
  * 定义公开股票研究行，隔离内部存储字段。
+ *
  * Define public equity research rows independently of storage fields.
  */
 export interface ResearchEquityDatasetRowV1 {
@@ -77,6 +82,7 @@ export interface ResearchEquityDatasetRowV1 {
 
 /**
  * 记录股票采样日期与样本覆盖，供结果解释。
+ *
  * Retain equity sampling dates and coverage for interpretation.
  */
 export interface ResearchEquityDatasetPeriodV1 {
@@ -88,6 +94,7 @@ export interface ResearchEquityDatasetPeriodV1 {
 
 /**
  * 描述股票数据集的口径、来源与缺失限制。
+ *
  * Describe equity dataset conventions, provenance and missing-data limits.
  */
 export interface ResearchEquityDatasetMetadataV1 {
@@ -104,6 +111,7 @@ export interface ResearchEquityDatasetMetadataV1 {
 
 /**
  * 组合股票公开数据、采样期间和可复现元数据。
+ *
  * Return public equity rows, sampled periods and reproducibility metadata.
  */
 export interface ResearchEquityDatasetResultV1 {
@@ -113,6 +121,7 @@ export interface ResearchEquityDatasetResultV1 {
 
 /**
  * 通过与 UniverseSpec 相同的规则读取有界时点股票截面。
+ *
  * Load one bounded point-in-time equity cross-section through the same rules as UniverseSpec.
  */
 export async function loadResearchCrossSection(
@@ -134,6 +143,7 @@ export async function loadResearchCrossSection(
 
 /**
  * 读取已完成月末截面，缺失月份不沿用上月值。
+ *
  * Load completed month-end cross-sections without carrying a missing month's values forward.
  */
 export async function loadResearchPanel(
@@ -181,6 +191,7 @@ export async function loadResearchPanel(
 
 /**
  * 承载内部采样日期和有效证券集，供逐期加载。
+ *
  * Describe an internal sampling date and eligible instrument set.
  */
 interface DatasetPeriod {
@@ -191,6 +202,7 @@ interface DatasetPeriod {
 
 /**
  * 执行一个数据集采样日的时点证券池与字段读取。
+ *
  * Execute point-in-time universe and field reads for one dataset period.
  */
 async function executeDatasetPeriod(
@@ -226,6 +238,7 @@ async function executeDatasetPeriod(
 
 /**
  * 组合数据行、期间和覆盖元数据，形成统一股票研究响应。
+ *
  * Assemble rows, periods and coverage metadata into the equity research response.
  */
 function datasetResult(
@@ -267,6 +280,7 @@ function datasetResult(
 
 /**
  * 将已选证券行映射为研究公开字段，保持缺失与单位口径。
+ *
  * Map selected instrument rows to public research fields with explicit missing values and units.
  */
 function equityDatasetRow(
@@ -308,6 +322,7 @@ function equityUniverseSource(universe: string): ResearchEntitySetSourceV1 {
 
 /**
  * 校验股票数据集日期、证券池和行数上限。
+ *
  * Validate equity dataset dates, universe and row limits.
  */
 function validateDatasetRequest(request: ResearchEquityDatasetRequestBaseV1): void {
@@ -326,6 +341,7 @@ function validateDatasetRequest(request: ResearchEquityDatasetRequestBaseV1): vo
 
 /**
  * 枚举区间内已完成月末的最后交易日，供 Panel 采样。
+ *
  * Enumerate completed month-end trading dates for panel sampling.
  */
 async function completedMonthEndDates(

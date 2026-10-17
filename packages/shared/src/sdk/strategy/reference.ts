@@ -14,6 +14,7 @@ import { ENGINE_FACTORS, type EngineFactorDef } from '../../engine-factors.js';
 
 /**
  * 登记策略 SDK 成员签名和双语说明，供文档、Monaco 与实现契约同源。
+ *
  * Define canonical strategy member signatures and bilingual guidance for docs, Monaco and implementation types.
  */
 export interface SdkEntry {
@@ -167,6 +168,7 @@ const TYPE_DOCS: Record<
 
 /**
  * 按当前 SDK 参考构造声明前置类型，供 Monaco 和生成契约复用。
+ *
  * Build SDK prelude types shared by Monaco declarations and generated contracts.
  */
 const buildPrelude = (locale: Locale) => `/** ${TYPE_DOCS.ohlcBar[locale]} */
@@ -235,6 +237,7 @@ declare function defineStrategy<const Params extends StrategyParams = Record<str
 
 /**
  * 描述可加入编辑器 FactorKey 联合的因子依赖。
+ *
  * A factor dependency offered in the editor's FactorKey union.
  */
 export interface DtsFactorOption {
@@ -252,6 +255,7 @@ const FACTOR_KEY_DOC: Record<Locale, string> = {
 
 /**
  * 从引擎列因子及已发布研究因子目录构造 FactorKey ambient 类型。
+ *
  * The FactorKey ambient type: engine column factors plus published research Factors from the catalog.
  */
 function buildFactorKeyType(locale: Locale, factorOptions: DtsFactorOption[]): string {
@@ -998,6 +1002,7 @@ export const SDK_ENTRIES = [
 
 /**
  * 保留接口成员名的字面量联合，供 API 侧契约漂移检查。
+ *
  * Literal union of the entry names of one interface — the anchor for the api-side drift type-test.
  */
 export type SdkEntryName<I extends SdkEntry['iface']> = Extract<
@@ -1020,6 +1025,7 @@ const CTX_PROPS = CTX_PROP_NAMES.map(
 
 /**
  * 从参考条目生成代码提示的 SDK 列表，使新增入口自动进入提示。
+ *
  * The codegen prompt's SDK-surface lists, generated so a new entry lands in the prompt automatically.
  * The prompt's narrative, examples, and capability boundary stay hand-written in codegen-prompt.ts;
  * each entry's `prompt` fragment (fallback: its name) is tuned wording, not the doc copy.
@@ -1054,6 +1060,7 @@ export function buildPromptSections(): {
 
 /**
  * 按当前语言生成 Monaco ambient 声明，使 hover 与文档同源。
+ *
  * Build the Monaco ambient .d.ts from the entries in the active locale. Editor hovers carry the
  * locale-appropriate copy (`entry[locale]`); `docLink(name)` optionally appends a 📖 link line to each
  * member's/type's JSDoc (→ /docs#name).
@@ -1068,6 +1075,7 @@ export function buildSdkDts(
 
 /**
  * 从编辑器共用签名生成实现类型，已发布因子 key 保持运行时可解析。
+ *
  * Generate implementation types from the same signatures as editor declarations.
  * Published factor keys are resolved per user at runtime, so this package cannot enumerate them.
  */
@@ -1084,6 +1092,7 @@ export function renderStrategySdkContract(): string {
 
 /**
  * 从 SDK 条目和类型前置段组合完整声明，供编辑器与生成器复用。
+ *
  * Compose complete declarations from SDK entries and prelude types for editor and generator reuse.
  */
 function buildDeclarations(

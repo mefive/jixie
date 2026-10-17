@@ -596,6 +596,7 @@ export type ResearchSdkParameterTypeV1 =
 
 /**
  * 定义 SDK 参数类型、默认值及双语语义，供生成和校验同源。
+ *
  * Define parameter types, defaults and bilingual semantics for shared generation and validation.
  */
 export interface ResearchSdkParameterContractV1 {
@@ -614,6 +615,7 @@ export interface ResearchSdkParameterContractV1 {
 
 /**
  * 定义 DataFrame 公开列、Python 类型与单位，隔离 Prisma 存储。
+ *
  * Define public DataFrame columns, Python types and units independently of Prisma.
  */
 export interface ResearchSdkDataFrameColumnContractV1 {
@@ -633,6 +635,7 @@ export interface ResearchSdkDataFrameColumnContractV1 {
 
 /**
  * 区分数据表、图表及其他公开返回结构，供 stub 与响应校验。
+ *
  * Discriminate public result shapes for stubs and response validation.
  */
 export type ResearchSdkReturnContractV1 =
@@ -645,6 +648,7 @@ export type ResearchSdkReturnContractV1 =
 
 /**
  * 定义公开方法签名、说明与返回列，供 SDK 全链路消费。
+ *
  * Define public method signatures, guidance and result columns across SDK consumers.
  */
 export interface ResearchSdkFunctionContractV1 {
@@ -662,6 +666,7 @@ export interface ResearchSdkFunctionContractV1 {
 
 /**
  * 作为 Research SDK 唯一公开契约，驱动补全、Python stub 与宿主校验。
+ *
  * Provide the canonical Research SDK contract for completion, Python stubs and host validation.
  */
 export interface ResearchSdkContractV1 {
@@ -1176,6 +1181,7 @@ export const RESEARCH_COMMODITY_HOLDING_COLUMNS_V1 = [
 
 /**
  * 为商品数据方法构造统一参数与返回列契约。
+ *
  * Construct a commodity dataset method contract with common arguments and result columns.
  */
 function commodityDatasetFunction(
@@ -1867,6 +1873,7 @@ const futuresSettlementColumns = [
 
 /**
  * 为带日期和标识的数据集构造公开 SDK 契约。
+ *
  * Construct a public SDK contract for a dated identifier dataset.
  */
 function datedIdentifierDatasetFunction(
@@ -1917,6 +1924,7 @@ function datedIdentifierDatasetFunction(
 
 /**
  * 为市场参考数据生成参数、结果列及双语说明契约。
+ *
  * Construct market-reference method arguments, result columns and bilingual guidance.
  */
 function referenceDatasetFunction(
@@ -1972,6 +1980,7 @@ function referenceDatasetFunction(
 
 /**
  * 为图表方法构造公开参数和产物契约，供补全与宿主校验。
+ *
  * Construct public chart method and artifact contracts for completion and host validation.
  */
 function chartFunction(

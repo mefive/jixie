@@ -8,6 +8,7 @@ import type { TurnEntity } from '../turns/run.js';
 
 /**
  * 读取并校验实体持久化对话消息，为恢复 Agent 上下文提供可信历史。
+ *
  * Read and validate an entity's persisted messages before restoring agent context.
  */
 export async function readMessages(
@@ -71,6 +72,7 @@ export async function readMessages(
 
 /**
  * 将实体对话消息写回其持久化会话，供后续轮次恢复。
+ *
  * Persist entity conversation messages for subsequent turns.
  */
 export async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promise<void> {

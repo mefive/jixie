@@ -1,5 +1,6 @@
 /**
  * 记录已确认股票代码接续关系，供规范身份解析。
+ *
  * Describe confirmed stock-code succession for canonical identity resolution.
  */
 export interface StockCodeChangeDefinition {
@@ -35,6 +36,7 @@ const CODE_CHANGE_BY_OLD = new Map(STOCK_CODE_CHANGES.map((change) => [change.ol
 
 /**
  * 沿已确认代码变更链解析当前供应商身份。
+ *
  * Resolve a historical alias to the current provider identity. Supports future chained changes.
  */
 export function canonicalStockCode(tsCode: string): string {
@@ -55,6 +57,7 @@ export function canonicalStockCode(tsCode: string): string {
 
 /**
  * 保留证券名称的生效区间，供历史风险警示判断。
+ *
  * Retain security-name effective intervals for dated risk-status checks.
  */
 export interface StockNameSpell {
@@ -66,6 +69,7 @@ export interface StockNameSpell {
 
 /**
  * 描述指定历史时点的证券名称与风险状态。
+ *
  * Describe security name and risk state at a historical date.
  */
 export interface HistoricalStockStatus {
@@ -84,6 +88,7 @@ function previousCalendarDate(date: string): string {
 
 /**
  * 修复重复或重叠名称区间，不为真实缺口伪造历史覆盖。
+ *
  * Repair upstream duplicate/overlapping spells without inventing coverage for genuine gaps.
  * When overlapping rows repeat the same name, the later effective-date row is authoritative.
  */
@@ -138,6 +143,7 @@ const DELISTING_PERIOD_NAME = /(?:退$|^退市)/;
 
 /**
  * 根据当时证券名称中的交易所风险标记分类历史状态。
+ *
  * Classify exchange risk markers from the point-in-time security name.
  */
 export function classifyStockName(name: string | null): HistoricalStockStatus {
@@ -154,6 +160,7 @@ export class StockNameLookup {
 
   /**
    * 按证券组织并排序生效名称区间，供时点查询。
+   *
    * Index and order effective stock name spells for dated reads.
    */
   public constructor(spells: StockNameSpell[]) {
@@ -174,6 +181,7 @@ export class StockNameLookup {
 
   /**
    * 按历史日期选择生效名称区间，供风险警示与退市状态判断。
+   *
    * Select the effective historical name spell for dated investability checks.
    */
   public at(tsCode: string, date: string): HistoricalStockStatus {

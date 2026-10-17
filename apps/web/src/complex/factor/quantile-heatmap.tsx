@@ -5,6 +5,7 @@ import './quantile-heatmap.css';
 
 /**
  * 渲染分位组与前瞻窗口热图，行列和色值对应冻结报告的收益口径。
+ *
  * Quantile × forward-period heatmap —— rows = forward period, cols = quantile D1..D10, cell = daily
  * average forward return (in ‱, basis-of-ten-thousand), red up / green down. Read off which forward
  * period gives the strongest monotonic quantile spread (low on the left → high on the right) and whether
@@ -54,6 +55,7 @@ export function QuantileHeatmap({
 
 /**
  * 按收益幅度和符号映射分位热图背景。
+ *
  * Map return magnitude and sign to quantile heatmap colors.
  */
 function bg(v: number): CSSProperties {

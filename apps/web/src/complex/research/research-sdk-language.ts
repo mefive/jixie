@@ -6,6 +6,7 @@ const researchSdkNamespacePattern = [
 
 /**
  * 描述光标所在 SDK 名称空间、方法或参数，供补全分派。
+ *
  * Describe SDK namespace, method or argument context for completion.
  */
 export type ResearchSdkCompletionContext =
@@ -33,6 +34,7 @@ export type ResearchSdkCompletionContext =
 
 /**
  * 保留未结束调用的参数文本与位置，供签名帮助。
+ *
  * Describe arguments and positions in an active unfinished SDK call.
  */
 export interface ResearchSdkActiveCall {
@@ -43,6 +45,7 @@ export interface ResearchSdkActiveCall {
 
 /**
  * 解析光标前的命名空间、方法与字符串位置，供 SDK 补全分派。
+ *
  * Resolve namespace, method and string context before the cursor for SDK completion.
  */
 export function researchSdkCompletionContext(
@@ -120,6 +123,7 @@ export function researchSdkCompletionContext(
 
 /**
  * 静态识别 SDK DataFrame 变量绑定，供列名补全。
+ *
  * Identify SDK DataFrame variable bindings for column completion.
  */
 export function researchSdkDataFrameBindings(
@@ -149,6 +153,7 @@ export function researchSdkDataFrameBindings(
 
 /**
  * 解析尚未结束的 SDK 调用及当前参数，供签名帮助。
+ *
  * Resolve the active unfinished SDK call and current argument.
  */
 export function researchSdkActiveCall(
@@ -178,6 +183,7 @@ export function researchSdkActiveCall(
 
 /**
  * 定位光标下公开 SDK 契约，供 hover 文档查询。
+ *
  * Locate the public SDK contract at the cursor for hover documentation.
  */
 export function researchSdkHoverContract(
@@ -199,6 +205,7 @@ export function researchSdkHoverContract(
 
 /**
  * 从当前调用读取已完成字符串参数，兼容位置参数与具名参数。
+ *
  * Read a completed string argument from the active SDK call, whether positional or named.
  */
 export function researchSdkStringArgument(
@@ -235,6 +242,7 @@ function researchSdkFrameVariable(argumentSource: string): string | undefined {
 
 /**
  * 按顶层逗号拆分参数，同时跳过字符串和嵌套括号。
+ *
  * Split top-level arguments while respecting strings and nested parentheses.
  */
 function splitTopLevelArguments(source: string): string[] {
@@ -272,6 +280,7 @@ function splitTopLevelArguments(source: string): string[] {
 
 /**
  * 判断调用括号在光标前是否仍未关闭，供补全上下文。
+ *
  * Determine whether a call remains open before the cursor.
  */
 function callRemainsOpen(prefix: string, openParenthesis: number): boolean {
@@ -306,6 +315,7 @@ function callRemainsOpen(prefix: string, openParenthesis: number): boolean {
 
 /**
  * 查找对应右括号，忽略字符串和嵌套调用中的括号。
+ *
  * Find the matching closing parenthesis while respecting strings and nested calls.
  */
 function matchingClosingParenthesis(source: string, openParenthesis: number): number {
@@ -340,6 +350,7 @@ function matchingClosingParenthesis(source: string, openParenthesis: number): nu
 
 /**
  * 根据位置和关键字参数确定公开契约中的当前参数索引。
+ *
  * Resolve the active contract parameter from positional and keyword arguments.
  */
 function activeParameterIndex(

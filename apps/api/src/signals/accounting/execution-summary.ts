@@ -19,6 +19,7 @@ const tradesSchema = z.object({
 
 /**
  * 按资产分别统计执行任务，仅比较同交割合约、同方向的价格。
+ *
  * Count tasks separately by asset; compare prices only for the same delivery contract and side.
  */
 export function summarizeSignalExecution(task: SignalTask): SignalExecutionSummary {

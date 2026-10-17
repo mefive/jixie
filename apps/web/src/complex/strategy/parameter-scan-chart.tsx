@@ -5,6 +5,7 @@ import { metricValue, type ScanMetric } from './parameter-scan';
 
 /**
  * 按扫描维度构造参数或容量图，保留结果指标与缺失点。
+ *
  * Plot parameter or capacity scans by dimension with explicit metrics and missing points.
  */
 export default function ParameterScanChart({
@@ -143,6 +144,7 @@ export default function ParameterScanChart({
 
 /**
  * 按扫描参数值类型格式化图表标签。
+ *
  * Format scan parameter labels according to their value type.
  */
 function formatValue(metric: ScanMetric, value: unknown): string {

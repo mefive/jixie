@@ -7,6 +7,7 @@ import './library.css';
 
 /**
  * 展示可访问研究资产与个人资源，连接复制、打开和可见范围操作。
+ *
  * Present accessible research assets and owned resources with copy, open and visibility actions.
  */
 export const Library = complex.component(() => {
@@ -220,6 +221,7 @@ function AssetCard({
 
 /**
  * 展示自有策略摘要、绩效与公开状态操作。
+ *
  * Present owned strategy summaries, performance and visibility actions.
  */
 function OwnedStrategyCard({ asset, onToggle }: { asset: SharingStrategy; onToggle: () => void }) {
@@ -240,6 +242,7 @@ function OwnedStrategyCard({ asset, onToggle }: { asset: SharingStrategy; onTogg
 
 /**
  * 展示自有因子摘要及其公开状态操作。
+ *
  * Present an owned factor summary and visibility actions.
  */
 function OwnedFactorCard({ asset, onToggle }: { asset: SharingFactor; onToggle: () => void }) {

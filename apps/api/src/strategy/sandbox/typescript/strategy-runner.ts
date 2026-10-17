@@ -14,6 +14,7 @@ import {
 
 /**
  * 限定策略运行器与外围消息传输的交互能力。
+ *
  * Define the strategy runner's communication capabilities supplied by the transport entry.
  */
 export interface StrategyRunnerHost {
@@ -24,6 +25,7 @@ export interface StrategyRunnerHost {
 
 /**
  * 承载策略加载所需源码与配置，供会话初始化。
+ *
  * Describe source and configuration needed to initialize a strategy session.
  */
 interface StrategyRunnerStartup {
@@ -37,6 +39,7 @@ type StrategyHostResponse = { id: number } & ({ result: unknown } | { error: str
 
 /**
  * 区分策略会话协议命令，供运行器分派。
+ *
  * Discriminate strategy session commands handled by the runner.
  */
 export type StrategyRunnerCommand =
@@ -67,6 +70,7 @@ class StrategyRunner {
 
   /**
    * 按启动或决策帧推进策略会话，统一输出结果与协议错误。
+   *
    * Dispatch startup and decision frames through the strategy session and report results or failures.
    */
   handle(frame: StrategyRunnerCommand): string | Promise<string> | void {
@@ -116,6 +120,7 @@ class StrategyRunner {
 
   /**
    * 加载用户策略定义并校验 SDK 元数据，准备后续决策回调。
+   *
    * Load and validate the authored strategy definition before decision callbacks run.
    */
   private loadStrategy(userJs: string, sandboxConsole: SandboxConsole): StrategyDefinition {
@@ -172,6 +177,7 @@ class StrategyRunner {
 
   /**
    * 按请求身份完成等待中的同步响应，处理宿主错误。
+   *
    * Resolve a pending synchronous response by request identity and host status.
    */
   private receiveResponse(reply: StrategyHostResponse) {
@@ -190,6 +196,7 @@ class StrategyRunner {
 
 /**
  * 启动一个策略会话并将消息处理器接入注入的传输。
+ *
  * Start one strategy session and attach its message handler to the injected transport.
  */
 export function runStrategy(start: StrategyRunnerStartup, host: StrategyRunnerHost): string {

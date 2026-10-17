@@ -7,6 +7,7 @@ import type { FactorHistory, AssetFactorComputeInput } from '../contract.js';
 
 /**
  * 绑定截面输入、索引与声明字段，供 SDK 原始能力读取。
+ *
  * Bind cross-sectional inputs, indexes and declared fields for SDK capabilities.
  */
 interface CrossSectionalFactorAdapterInput {
@@ -16,6 +17,7 @@ interface CrossSectionalFactorAdapterInput {
 
 /**
  * 绑定资产序列与历史窗口，供 SDK 原始能力读取。
+ *
  * Bind asset series and history windows for SDK capabilities.
  */
 interface AssetFactorAdapterInput {
@@ -27,12 +29,14 @@ interface AssetFactorAdapterInput {
 
 /**
  * 区分截面与资产适配输入，供按因子种类绑定。
+ *
  * Discriminate cross-sectional and asset adapter inputs for capability binding.
  */
 type FactorAdapterInput = CrossSectionalFactorAdapterInput | AssetFactorAdapterInput;
 
 /**
  * 统一因子 SDK 原始能力联合，保留按种类访问约束。
+ *
  * Unify kind-specific factor SDK capabilities while retaining access constraints.
  */
 type FactorCapabilities = CrossSectionalFactorCapabilities | AssetFactorCapabilities;
@@ -60,6 +64,7 @@ class BoundCrossSectionalFactorCapabilities implements CrossSectionalFactorCapab
 
   /**
    * 从当前能力绑定读取历史字段，并遵守其声明范围和索引。
+   *
    * Read declared history fields from the current capability binding and indexes.
    */
   historyValues(field?: string) {

@@ -7,6 +7,7 @@ import { createSession } from './session.js';
 
 /**
  * 仅在开发登录条件满足时解析用户并建立会话。
+ *
  * Resolve a user and create a session under development-login guards.
  */
 export async function developmentLogin(email: string) {

@@ -7,6 +7,7 @@ import { request } from './client';
 
 /**
  * 承载已登录用户身份，供前端鉴权与账户展示。
+ *
  * Supply authenticated identity for access and account rendering.
  */
 export interface AuthUser {

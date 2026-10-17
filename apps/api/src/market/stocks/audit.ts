@@ -7,6 +7,7 @@ import type { AuditFinding, AuditStatus } from '../quality/report.js';
 
 /**
  * 承载字段空值计数，供市场质量审计。
+ *
  * Supply field null counts for market-quality audits.
  */
 export interface NullCountRow {
@@ -23,6 +24,7 @@ export interface NullCountRow {
 
 /**
  * 描述证券复权异常跳变及日期，供来源诊断。
+ *
  * Identify dated adjustment jumps for source diagnostics.
  */
 export interface AdjustmentJumpRow {
@@ -36,6 +38,7 @@ export interface AdjustmentJumpRow {
 
 /**
  * 描述单评估窗口的行情覆盖。
+ *
  * Describe price coverage for one evaluation window.
  */
 export interface WindowCoverageRow {
@@ -45,6 +48,7 @@ export interface WindowCoverageRow {
 
 /**
  * 汇总多个研究窗口的覆盖与缺口。
+ *
  * Summarize coverage and gaps across research windows.
  */
 export interface WindowCoverageSummary {
@@ -68,6 +72,7 @@ export const DENSE_TABLES = [
 
 /**
  * 读取稠密市场表逐日数量，供覆盖审计避免全量加载。
+ *
  * Load daily row counts from dense market tables for coverage auditing.
  */
 export async function loadDenseDateCounts(
@@ -122,6 +127,7 @@ export async function loadDenseDateCounts(
 
 /**
  * 审计稀疏龙虎榜数据，不将合法无上榜日当作稠密缺口。
+ *
  * Audit sparse Dragon-Tiger List data without treating legitimate empty dates as dense-data gaps.
  */
 export async function auditSparseTopList(
@@ -159,6 +165,7 @@ export async function auditSparseTopList(
 
 /**
  * 统计关键市场字段空值比例，供数据质量诊断。
+ *
  * Audit null rates in key market fields for data-quality diagnostics.
  */
 export async function auditKeyNullRates(
@@ -236,6 +243,7 @@ export async function auditKeyNullRates(
 
 /**
  * 检查复权因子异常跳变，识别来源或身份问题。
+ *
  * Audit adjustment-factor jumps for source and identity anomalies.
  */
 export async function auditAdjustmentJumps(
@@ -306,6 +314,7 @@ export async function auditAdjustmentJumps(
 
 /**
  * 检查历史上市、名称及风险状态覆盖，供可投资性研究限制。
+ *
  * Audit historical listing, name and risk-status coverage for investability research.
  */
 export async function auditHistoricalInvestability(database: Prisma): Promise<AuditFinding> {
@@ -388,6 +397,7 @@ export async function auditHistoricalInvestability(database: Prisma): Promise<Au
 
 /**
  * 核对评估窗口所需市场日期与记录量，报告不可验证覆盖。
+ *
  * Audit required market dates and row coverage in an evaluation window.
  */
 export async function auditWindowCoverage(
@@ -450,6 +460,7 @@ export async function auditWindowCoverage(
 
 /**
  * 为窗口审计选取代表评估日期，供历史覆盖检查。
+ *
  * Select evaluation dates used to inspect historical window coverage.
  */
 export function selectEvaluationDates(openDates: string[], count: number): string[] {

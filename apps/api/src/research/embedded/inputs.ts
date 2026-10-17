@@ -10,6 +10,7 @@ import type { ResearchRequestFrame } from '../sandbox/host/protocol.js';
 
 /**
  * 在将响应交给 Python 前持久化输入证据，避免 try/except 掩盖证据缺失。
+ *
  * Persist before delivery, so a Python try/except cannot turn missing evidence into success.
  */
 export function embeddedInputRecorder(
@@ -23,6 +24,7 @@ export function embeddedInputRecorder(
   return {
     /**
      * 在数据请求前准备证据身份与模式校验，供执行留存或回放。
+     *
      * Prepare request evidence identity and mode checks before dataset delivery.
      */
     async beforeRequest(frame) {
@@ -55,6 +57,7 @@ export function embeddedInputRecorder(
 
     /**
      * 保存确切宿主响应及元数据，再允许其进入 Python。
+     *
      * Persist the exact host response and metadata before Python receives it.
      */
     async captureResponse(frame: ResearchRequestFrame, response: ResearchInputResponse) {
@@ -113,6 +116,7 @@ export async function assertActiveRun(
 
 /**
  * 只复制 SDK 明确定义的元数据，不推测复权或币种口径。
+ *
  * Only copy metadata already defined by the SDK; never infer adjustment/currency semantics.
  */
 function responseMetadata(

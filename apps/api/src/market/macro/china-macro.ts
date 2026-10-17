@@ -9,6 +9,7 @@ export type ChinaMacroSourceApi = 'cn_pmi' | 'cn_cpi' | 'cn_ppi' | 'cn_m' | 'sf_
 
 /**
  * 隔离中国宏观来源与日程获取能力。
+ *
  * Abstract China macro source and release-schedule fetching.
  */
 export interface ChinaMacroClient {
@@ -17,6 +18,7 @@ export interface ChinaMacroClient {
 
 /**
  * 定义宏观序列身份、单位与来源映射，供规范化同步。
+ *
  * Define macro identity, units and source mapping for normalized synchronization.
  */
 export interface ChinaMacroSeriesDefinition {
@@ -36,6 +38,7 @@ export interface ChinaMacroSeriesDefinition {
 
 /**
  * 限定宏观来源 API 及有界参数，防止截断。
+ *
  * Describe a bounded macro source request to prevent truncation.
  */
 export interface ChinaMacroSourceRequest {
@@ -45,6 +48,7 @@ export interface ChinaMacroSourceRequest {
 
 /**
  * 携带宏观发布日程证据，供可得日映射。
+ *
  * Supply macro release-schedule evidence for availability mapping.
  */
 export interface MacroScheduleRow {
@@ -57,6 +61,7 @@ export interface MacroScheduleRow {
 
 /**
  * 组合标准化宏观值、可得日与抓取版本，供追加保存。
+ *
  * Collect normalized macro values, availability and capture vintage for persistence.
  */
 export interface PreparedMacroObservation {
@@ -70,6 +75,7 @@ export interface PreparedMacroObservation {
 
 /**
  * 汇总宏观来源请求与版本写入结果。
+ *
  * Summarize macro fetching and vintage persistence.
  */
 export interface ChinaMacroSyncSummary {
@@ -277,6 +283,7 @@ const CHINA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
 
 /**
  * 同步标准化中国宏观序列，保留抓取版本及可得日期证据。
+ *
  * Syncs normalized Chinese macro series while preserving capture vintages and availability evidence.
  */
 export async function syncChinaMacroData(
@@ -402,6 +409,7 @@ export async function syncChinaMacroData(
 
 /**
  * 解析宏观发布日程行，供观测值的披露可得日期匹配。
+ *
  * Parse macro release schedule rows for observation availability matching.
  */
 export function parseMacroScheduleRows(rows: TushareRow[]): MacroScheduleRow[] {
@@ -437,6 +445,7 @@ export function parseMacroScheduleRows(rows: TushareRow[]): MacroScheduleRow[] {
 
 /**
  * 规范化宏观数值与披露证据，形成可追加的版本化观测。
+ *
  * Normalize macro values and release evidence into versioned observations.
  */
 export function prepareMacroObservations(
@@ -492,6 +501,7 @@ export function prepareMacroObservations(
 
 /**
  * 为 Shibor 等来源生成有界请求，避免静默超过 2,000 行截断。
+ *
  * Builds bounded requests so Shibor never silently truncates at its 2,000-row API limit.
  */
 export function chinaMacroSourceRequests(
@@ -680,6 +690,7 @@ function minimumDate(left: string, right: string): string {
 
 /**
  * 校验宏观同步月份范围，防止非法或倒序请求。
+ *
  * Validate the requested macro month range before source fetching.
  */
 function assertMonthRange(startMonth: string, endMonth: string): void {

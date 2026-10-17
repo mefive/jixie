@@ -4,6 +4,7 @@ import './monthly-returns.css';
 
 /**
  * 展示年度与月份收益热图，并按复利汇总全年收益；上涨红色、下跌绿色。
+ *
  * Monthly return table — year × month heatmap (A-share red up / green down), with a compounded full-year column.
  */
 export function MonthlyReturns({ monthly }: { monthly: { month: string; ret: number }[] }) {
@@ -80,6 +81,7 @@ function fmt(r: number): string {
 
 /**
  * 按收益符号和幅度选择月度热图背景。
+ *
  * Choose a monthly heatmap background from return direction and magnitude.
  */
 function bg(r?: number): React.CSSProperties {

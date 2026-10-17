@@ -37,6 +37,7 @@ import { TimeSeriesEvaluator } from './time-series-evaluator.js';
 
 /**
  * 统一不同因子种类的冻结计算输出，供报告生命周期持久化。
+ *
  * Unify kind-specific frozen evaluation outputs for report persistence.
  */
 export type FactorEvaluationResult =
@@ -47,6 +48,7 @@ export type FactorEvaluationResult =
 
 /**
  * 对冻结来源执行计算，不管理报告、任务或因子气象的持久化生命周期。
+ *
  * Compute a frozen source without owning a report, job, or weather persistence lifecycle.
  */
 export async function runFactorEvaluation({

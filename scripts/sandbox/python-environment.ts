@@ -24,6 +24,7 @@ export const packageValidation = [
 
 /**
  * 配置 Python 环境管理命令的执行和输出方式。
+ *
  * Configure execution and output for Python environment commands.
  */
 interface RunOptions {
@@ -56,6 +57,7 @@ export function runPython(command: string, args: string[], options: RunOptions):
 
 /**
  * 根据唯一运行时契约准备固定 Python 环境及依赖，并验证实际版本。
+ *
  * Prepare and verify the pinned Python environment and dependencies from the canonical runtime contract.
  */
 export async function ensurePythonEnvironment(

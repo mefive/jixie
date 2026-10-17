@@ -22,6 +22,7 @@ export const US_HEADLINE_CPI_SERIES = {
 
 /**
  * 映射 BLS 原始期间与指数值，供 CPI 规范化。
+ *
  * Describe raw BLS periods and levels for CPI normalization.
  */
 export interface BlsObservationRow {
@@ -32,6 +33,7 @@ export interface BlsObservationRow {
 
 /**
  * 抽象 BLS 公共来源访问，供统一 CPI 同步。
+ *
  * Abstract BLS public source access for CPI synchronization.
  */
 export interface BlsPublicDataClientLike {
@@ -40,6 +42,7 @@ export interface BlsPublicDataClientLike {
 
 /**
  * 汇总美国总体 CPI 来源、版本与写入结果。
+ *
  * Summarize US headline CPI sources, vintages and persistence.
  */
 export interface UsHeadlineCpiSyncSummary {
@@ -52,6 +55,7 @@ export interface UsHeadlineCpiSyncSummary {
 
 /**
  * 保存已校验 CPI 月份和值，保持原生基期。
+ *
  * Retain validated monthly CPI levels in the native base convention.
  */
 interface NormalizedCpiObservation {
@@ -116,6 +120,7 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
 
   /**
    * 根据配置读取美国 CPI 来源序列，供统一标准化。
+   *
    * Load the configured US CPI source series for normalization.
    */
   async loadSeries(
@@ -258,6 +263,7 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
 
   /**
    * 获取 OECD CPI 原始 CSV 文本，供精确序列解析。
+   *
    * Fetch raw OECD CPI CSV for exact-series parsing.
    */
   private async loadOecdText(): Promise<string> {
@@ -306,6 +312,7 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
 
   /**
    * 获取 FRED CPI 导出行，供原始基期口径解析。
+   *
    * Fetch FRED CPI export rows in their native base-period convention.
    */
   private loadFredRows(seriesId: string): Promise<BlsObservationRow[]> {
@@ -353,6 +360,7 @@ const OECD_REQUIRED_DIMENSIONS = {
 
 /**
  * 解析精确 OECD 美国 CPI SDMX 序列，并恢复 BLS 原生 1982–84=100 基期。
+ *
  * Parses OECD's exact US CPI SDMX series and restores BLS's native 1982-84=100 scale.
  *
  * OECD rebases the same national CPI observations to 2015=100, so the conversion uses BLS's
@@ -422,6 +430,7 @@ export function parseOecdUsCpiCsv(value: string, minimumRecentPeriod: string): B
 
 /**
  * 解析 FRED 精确 BLS CPIAUCNS 导出，保持 1982–84=100 原生基期。
+ *
  * Parses FRED's exact BLS CPIAUCNS graph export in its native 1982-84=100 scale.
  */
 export function parseFredUsCpiCsv(value: string, minimumRecentPeriod: string): BlsObservationRow[] {
@@ -485,6 +494,7 @@ export function parseFredUsCpiCsv(value: string, minimumRecentPeriod: string): B
 
 /**
  * 解析含引号的 CSV 行，供多个 CPI 来源复用。
+ *
  * Parse CSV records, including quoted fields, for CPI source adapters.
  */
 function parseCsvRows(value: string): string[][] {
@@ -530,6 +540,7 @@ function parseCsvRows(value: string): string[][] {
 
 /**
  * 计算最近 CPI 覆盖要求的最早期间，供来源完整性检查。
+ *
  * Resolve the minimum recent CPI period required by coverage checks.
  */
 function minimumRecentCpiPeriod(now: Date): string {
@@ -542,6 +553,7 @@ function minimumRecentCpiPeriod(now: Date): string {
 
 /**
  * 验证月度序列期间连续，防止来源截断伪装完整历史。
+ *
  * Require continuous monthly periods so truncated sources cannot appear complete.
  */
 function assertContinuousMonthlyPeriods(periods: string[], source: string): void {
@@ -580,6 +592,7 @@ function sleep(milliseconds: number): Promise<void> {
 
 /**
  * 从 BLS 制表符分隔批量文件中提取精确 CPI 总指数序列。
+ *
  * Parses one exact series from BLS's tab-separated CPI All Items bulk file.
  */
 export function parseBlsBulkFile(value: string, seriesId: string): BlsObservationRow[] {
@@ -610,6 +623,7 @@ export function parseBlsBulkFile(value: string, seriesId: string): BlsObservatio
 
 /**
  * 构造不重叠且不超过 BLS 未注册十年上限的年度请求。
+ *
  * Builds non-overlapping public-API ranges that never exceed BLS's unregistered 10-year limit.
  */
 export function blsYearRanges(
@@ -629,6 +643,7 @@ export function blsYearRanges(
 
 /**
  * 规范化 BLS 月度指数，跳过年度均值与明确缺失值。
+ *
  * Normalizes the BLS monthly index and skips annual averages or explicitly unavailable values.
  */
 export function parseUsHeadlineCpiRows(
@@ -666,6 +681,7 @@ export function parseUsHeadlineCpiRows(
 
 /**
  * 为 BLS 历史值赋予保守的中国收盘可得日期。
+ *
  * Assigns a deliberately conservative China-close availability date to BLS historical values.
  */
 export function prepareUsHeadlineCpiObservations(
@@ -694,6 +710,7 @@ export function prepareUsHeadlineCpiObservations(
 
 /**
  * 同步 BLS 总体 CPI 水平，将更正保留为明确抓取版本。
+ *
  * Syncs BLS headline CPI levels while preserving corrections as explicit captured vintages.
  */
 export async function syncUsHeadlineCpiData(
@@ -778,6 +795,7 @@ export async function syncUsHeadlineCpiData(
 
 /**
  * 校验 BLS 响应状态并提取请求序列，拒绝不完整或错误来源。
+ *
  * Validate BLS response status and extract the requested series.
  */
 function parseBlsResponse(value: unknown, seriesId: string): BlsObservationRow[] {

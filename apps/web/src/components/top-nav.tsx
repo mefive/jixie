@@ -13,6 +13,7 @@ import './top-nav.css';
 
 /**
  * 展示主导航、语言、账户与维护状态，协调当前路由入口。
+ *
  * Present navigation, locale, account and maintenance state for the current route.
  */
 export const TopNav = observer(() => {
@@ -131,6 +132,7 @@ type NavigationKey = keyof typeof NAVIGATION_LABEL_KEYS;
 
 /**
  * 将当前路径映射到主导航选中项。
+ *
  * Map the current route to the selected primary navigation item.
  */
 function navigationKey(pathname: string): NavigationKey | undefined {

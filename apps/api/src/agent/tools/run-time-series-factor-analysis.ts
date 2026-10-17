@@ -44,6 +44,7 @@ const argsSchema = z
 
 /**
  * 承载单资产时间序列探索结果与报告身份，供工具输出和消息留存。
+ *
  * Carry time-series exploration results and report identity for tool output and persistence.
  */
 type TimeSeriesAnalysisResult = {
@@ -54,6 +55,7 @@ type TimeSeriesAnalysisResult = {
 
 /**
  * 绑定时间序列因子工具的定义与探索范围，供权限及状态校验。
+ *
  * Bind a time-series tool to its definition and permitted exploration scope.
  */
 interface TimeSeriesResearchContext {
@@ -74,6 +76,7 @@ interface TimeSeriesResearchContext {
 
 /**
  * 创建仅用于 ETF 时间序列探索的因子工具，不接受股票池、中性化和正式保留段操作。
+ *
  * The time-series counterpart of runFactorAnalysis. It freezes an ETF-only explore report and
  * deliberately omits stock-universe, neutralization and rebalance-frequency arguments.
  */
@@ -85,6 +88,7 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
 
     /**
      * 校验并提交时间序列探索任务，等待终态后返回报告摘要。
+     *
      * Validate and submit time-series exploration, then return its completed report summary.
      */
     async run(args, runContext) {
@@ -187,6 +191,7 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
 
 /**
  * 等待时间序列分析任务完成，并读取已保存的报告结果。
+ *
  * Wait for time-series analysis and read the persisted report result.
  */
 async function waitForTimeSeriesFactorAnalysis(

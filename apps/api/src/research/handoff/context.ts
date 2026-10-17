@@ -6,6 +6,7 @@ const MAX_OUTPUT_CHARACTERS = 3_000;
 
 /**
  * 为模型交接门禁构造有界不可变执行上下文，不携带图片字节。
+ *
  * Build a bounded, image-byte-free view of one immutable execution for an LLM handoff gate.
  */
 export function researchHandoffContext(execution: ResearchExecutionV1): string {
@@ -35,6 +36,7 @@ export function researchHandoffContext(execution: ResearchExecutionV1): string {
 
 /**
  * 将执行输出压缩为交接预览，保留结果含义与证据引用。
+ *
  * Summarize execution outputs for handoff with meaning and evidence references.
  */
 function researchOutputPreview(output: ResearchCellOutputBlockV1): unknown {

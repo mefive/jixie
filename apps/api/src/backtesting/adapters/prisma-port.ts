@@ -100,6 +100,7 @@ export const prismaDataPort: EngineDataPort = {
 
   /**
    * 为模拟引擎批量读取指定日期的行情、复权和估值原始截面，时点筛选由 EngineData 负责。
+   *
    * Load raw daily price, adjustment and valuation rows for the simulation data port; EngineData applies visibility rules.
    */
   async crossSectionRows(date, codes) {
@@ -167,6 +168,7 @@ export const prismaDataPort: EngineDataPort = {
 
   /**
    * 按代码和日期范围准备原始行情及所需辅助历史，供引擎批量建立价格缓存。
+   *
    * Fetch raw bars and requested auxiliary histories so the engine can populate its per-instrument caches.
    */
   async barsRows(codes, start, end, options) {
@@ -235,6 +237,7 @@ export const prismaDataPort: EngineDataPort = {
 
   /**
    * 按回测区间组合期货合约、行情、主力映射和结算数据，供引擎建立期货市场视图。
+   *
    * Assemble futures contracts, bars, mappings and settlements for the simulation range.
    */
   async futuresRange(start, end) {

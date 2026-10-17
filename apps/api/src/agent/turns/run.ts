@@ -27,6 +27,7 @@ import { readMessages, writeMessages } from '../conversations/entity-messages.js
 
 /**
  * 标识后台 Agent 轮次关联的业务实体，供状态和消息持久化分派。
+ *
  * Background agent-turn runner (marginalia's streamRun pattern). The start route registers the turn
  * on the bus + returns the turnId immediately; the turn runs here detached from any HTTP request,
  * publishing incremental events that subscribers (including a refreshed page) receive via SSE.
@@ -48,6 +49,7 @@ export function entityKey(entity: TurnEntity): string {
 
 /**
  * 收集后台轮次启动所需的用户、实体、消息及配置。
+ *
  * Supply user, entity, messages and profile information for a background turn.
  */
 export interface EnqueueTurnArgs {
@@ -66,6 +68,7 @@ export interface EnqueueTurnArgs {
 
 /**
  * 同步在事件总线注册后再启动后台执行，使订阅者能够立即接入。
+ *
  * Register on the bus synchronously (so subscribers can join right away), then run detached.
  */
 export function enqueueAgentTurn(args: EnqueueTurnArgs): void {
@@ -82,6 +85,7 @@ export function enqueueAgentTurn(args: EnqueueTurnArgs): void {
 
 /**
  * 编排后台模型执行、流式事件与消息持久化，并统一处理成功、取消和错误终态。
+ *
  * Coordinate model execution, stream events and message persistence across success, cancellation and failure.
  */
 async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void> {

@@ -23,6 +23,7 @@ export type AgentToolTraceItem = ToolTraceItem;
 
 /**
  * 按轮次身份订阅 SSE，解析快照与增量直到终态。
+ *
  * Subscribe to turn SSE and decode snapshots and increments until completion.
  */
 export async function subscribeAgentTurn(turnId: string, signal?: AbortSignal): Promise<Response> {
@@ -68,6 +69,7 @@ export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
 
 /**
  * 从响应流解析 SSE 事件并处理取消与结束，供 Agent 增量消息消费。
+ *
  * Parse SSE events from a response stream with cancellation and completion handling.
  */
 export async function* readSSE(res: Response): AsyncGenerator<AgentStreamEvent> {

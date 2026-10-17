@@ -41,6 +41,7 @@ export async function listResearchCellChangeAttempts(
 
 /**
  * 将修改尝试的执行状态与证据映射为客户端记录。
+ *
  * Map a cell-change attempt and execution evidence into its client record.
  */
 export function researchCellChangeAttemptView(
@@ -72,6 +73,7 @@ export function researchCellChangeAttemptView(
 
 /**
  * 将单 Cell 尝试结果及快照映射为客户端详情。
+ *
  * Map one attempted cell's result and snapshot into client details.
  */
 function researchCellChangeAttemptCellView(
@@ -106,6 +108,7 @@ function researchCellChangeAttemptCellView(
 
 /**
  * 对比两次修改尝试的执行与输出差异，供用户评估改动效果。
+ *
  * Compare execution and output differences between cell-change attempts.
  */
 function compareCellChangeAttempts(

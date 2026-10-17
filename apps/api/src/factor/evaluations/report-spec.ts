@@ -4,6 +4,7 @@ import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 
 /**
  * 从报告中恢复冻结研究规格，供复核与后续准入判断。
+ *
  * Recover the frozen research specification stored in a report.
  */
 export function reportResearchSpec(row: FactorReportRow) {

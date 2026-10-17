@@ -6,6 +6,7 @@ import './log-view.css';
 
 /**
  * 提供带来源日志和滚动选项，供任务日志面板。
+ *
  * Supply sourced logs and scrolling options to the job log panel.
  */
 type LogViewProps = {
@@ -16,6 +17,7 @@ type LogViewProps = {
 
 /**
  * 展示流式任务日志并区分系统与用户来源，供回测和分析进度查看。
+ *
  * Streamed job-log panel (backtest / factor analysis). Each line is tagged as system (engine progress) or
  * user (the strategy/factor code's own console.*) so the two are visually distinct; warn/error user
  * lines are colored. Auto-scrolls to the latest line as logs stream in.

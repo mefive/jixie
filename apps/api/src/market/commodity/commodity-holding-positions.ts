@@ -24,6 +24,7 @@ const M_DOUBLED_RANKING_DATES = new Set(['20201106']);
 
 /**
  * 提供代表合约选择所需日线和持仓信息。
+ *
  * Supply contract bars and open interest for representative selection.
  */
 export interface CommodityHoldingContractBar {
@@ -37,6 +38,7 @@ export interface CommodityHoldingContractBar {
 
 /**
  * 固定产品日期对应的实际合约，供会员排名请求。
+ *
  * Identify the dated actual representative contract for holdings requests.
  */
 export interface CommodityHoldingRepresentative extends CommodityHoldingContractBar {
@@ -45,6 +47,7 @@ export interface CommodityHoldingRepresentative extends CommodityHoldingContract
 
 /**
  * 描述同一代表合约连续日期的有界来源请求。
+ *
  * Describe a bounded request over a representative-contract spell.
  */
 export interface CommodityHoldingFetchRange {
@@ -59,6 +62,7 @@ export interface CommodityHoldingFetchRange {
 
 /**
  * 保留会员排名聚合与子集覆盖，供研究读取。
+ *
  * Retain member-ranking aggregates and subset coverage for research reads.
  */
 export interface CommodityHoldingPositionV1 {
@@ -91,6 +95,7 @@ export interface CommodityHoldingPositionV1 {
 
 /**
  * 汇总商品持仓同步范围、分页与写入结果。
+ *
  * Summarize commodity holding fetch and persistence outcomes.
  */
 export interface CommodityHoldingSyncSummary {
@@ -108,6 +113,7 @@ export function isAuditedCommodityHoldingCorrectionDate(
 
 /**
  * 按产品和日期选择实际代表合约，不用供应商连续符号冒充交割合约。
+ *
  * Pick one actual contract per product/date without using a vendor continuous symbol.
  */
 export function selectCommodityHoldingRepresentatives(
@@ -158,6 +164,7 @@ export function selectCommodityHoldingRepresentatives(
 
 /**
  * 将连续代表日期合并成单实际合约的有界请求区间。
+ *
  * Collapse consecutive representative dates into bounded source requests for one actual contract.
  */
 export function buildCommodityHoldingFetchRanges(
@@ -194,6 +201,7 @@ export function buildCommodityHoldingFetchRanges(
 
 /**
  * 读取代表合约区间的全部分页，并检测供应商忽略 offset 的情况。
+ *
  * Fetch every page for one representative-contract spell and detect ignored offset pagination.
  */
 export async function fetchCommodityHoldingRange(
@@ -231,6 +239,7 @@ export async function fetchCommodityHoldingRange(
 
 /**
  * 去重商品持仓来源行，避免分页重叠重复计入排名聚合。
+ *
  * Deduplicate holding source rows so overlapping pages cannot inflate aggregates.
  */
 function deduplicateHoldingRows(rows: FutureHoldingRow[]): FutureHoldingRow[] {
@@ -251,6 +260,7 @@ function deduplicateHoldingRows(rows: FutureHoldingRow[]): FutureHoldingRow[] {
 
 /**
  * 聚合交易所三类会员排名，同时保留各排名只是子集的语义。
+ *
  * Aggregate the exchange's three top-member lists while preserving their subset semantics.
  */
 export function buildCommodityHoldingPositions(
@@ -383,6 +393,7 @@ export function buildCommodityHoldingPositions(
 
 /**
  * 同步 AU/CU/M 每日会员排名聚合；INE 来源未具备前不纳入 SC。
+ *
  * Sync daily aggregates for AU/CU/M; SC is deliberately excluded until Tushare returns INE rows.
  */
 export async function syncCommodityHoldingPositions(
@@ -442,6 +453,7 @@ export async function syncCommodityHoldingPositions(
 
 /**
  * 读取商品持仓代表合约及所需行情，供有界来源请求规划。
+ *
  * Load representative delivery contracts and market data for bounded holdings requests.
  */
 export async function loadCommodityHoldingRepresentatives(
@@ -495,6 +507,7 @@ export async function loadCommodityHoldingRepresentatives(
 
 /**
  * 校验会员排名行的合约、日期和指标，拒绝不符合来源契约的数据。
+ *
  * Validate holding-row contract identity, dates and metrics against the source contract.
  */
 function validateHoldingRow(row: FutureHoldingRow): void {
@@ -514,6 +527,7 @@ function validateHoldingRow(row: FutureHoldingRow): void {
 
 /**
  * 规范化会员排名来源字段，保持缺失排名与零持仓的区别。
+ *
  * Normalize member-ranking fields while preserving missing-versus-zero semantics.
  */
 function normalizeHoldingRow(

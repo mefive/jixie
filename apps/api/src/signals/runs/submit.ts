@@ -6,6 +6,7 @@ import { enqueueSignalRun } from './enqueue.js';
 
 /**
  * 解析手动请求的信号日期并先结算账户，再将部署运行入队。
+ *
  * Resolve a manual signal date and settle accounts before enqueueing the requested deployment.
  */
 export async function submitSignalRun(userId: string, input: SubmitSignalRunInput) {

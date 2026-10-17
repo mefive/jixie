@@ -16,6 +16,7 @@ const MAX_VERIFY_ATTEMPTS = 5;
 
 /**
  * 校验邮箱登录请求并创建、发送登录凭证，保持验证与发送流程一致。
+ *
  * Validate an email login request and create and send its verification credential.
  */
 export async function requestEmailLogin(
@@ -117,6 +118,7 @@ export async function requestEmailLogin(
 
 /**
  * 验证邮箱登录凭证并建立会话，拒绝失效或不匹配凭证。
+ *
  * Verify an email login credential and create a session after validity checks.
  */
 export async function verifyEmailLogin({

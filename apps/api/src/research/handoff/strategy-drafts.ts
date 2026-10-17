@@ -14,6 +14,7 @@ import { generateResearchStrategyDraft } from './strategy-handoff.js';
 
 /**
  * 验证封存研究及交接资格后创建策略草稿，不在后台自动回测。
+ *
  * Validate frozen research and handoff eligibility before creating a strategy draft.
  */
 export async function createResearchStrategyDraft(

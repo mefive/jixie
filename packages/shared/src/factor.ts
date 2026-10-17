@@ -5,6 +5,7 @@ import type { FactorStatus } from './factor-dependency.js';
 
 /**
  * 限定冻结因子分析使用的调仓频率。
+ *
  * Factor-analysis wire types (product line 1.5 · factor research). Each analysis is a single-factor, monthly- or
  * weekly-rebalanced cross-sectional study over a date range — decile-sorted forward returns + Rank IC
  * + a long-short (top−bottom) leg. These are the shapes the API returns and the /factors page renders.
@@ -21,12 +22,14 @@ export function factorRuntimeVersion(language: FactorLanguage): FactorRuntimeVer
 
 /**
  * 标识不可变研究运行所采用的评估协议。
+ *
  * Evaluation protocol used by one immutable research run.
  */
 export type FactorAnalysisKind = 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime';
 
 /**
  * 规定 IC 和分组前的截面中性化方式，保留规模与行业区别。
+ *
  * Cross-sectional neutralization applied to factor values before IC / bucketing (3.4). 'none' = raw
  * values; 'size' = residual after regressing on log(total market cap); 'size_industry' = additionally
  * orthogonal to Shenwan level-1 industry (removes the "new factor is just a small-cap / sector bet"
@@ -36,6 +39,7 @@ export type Neutral = 'none' | 'size' | 'size_industry';
 
 /**
  * 规定分位收益等权或市值加权口径。
+ *
  * Quantile-return weighting scheme (modeled on JoinQuant's weight_method): equal-weight = signal
  * strength (small-cap bias); market-cap-weight = tradability / capacity.
  */
@@ -43,6 +47,7 @@ export type FactorWeight = 'equal' | 'mktcap';
 
 /**
  * 表示分位组与前瞻期的日度归一化平均收益。
+ *
  * One row of quantile × forward horizon (daily-normalized) — each quantile's average daily forward
  * return at a given horizon, computed for both weighting schemes.
  */
@@ -54,6 +59,7 @@ export interface QuantileHorizon {
 
 /**
  * 区分因子数值来源，决定计算路径及目录标签。
+ *
  * How a factor's values are sourced — drives the compute path (and shown as a tag in the UI).
  * 'custom' = user-authored (defineFactor); its compute runs cross-sectionally over a FactorBar.
  */
@@ -69,12 +75,14 @@ export type FactorKind =
 
 /**
  * 承载宿主构造的可变市场行，供公开只读因子行情映射。
+ *
  * Mutable host data assembled for the public, readonly Factor authoring bar.
  */
 export type FactorBar = { -readonly [Field in keyof FactorSdkBar]: FactorSdkBar[Field] };
 
 /**
  * 提供因子目录身份，不携带完整分析结果。
+ *
  * Catalog entry — one row in the factor list (no analysis, just identity).
  */
 export interface FactorMeta {
@@ -102,6 +110,7 @@ export interface FactorMeta {
 
 /**
  * 记录单分位组前瞻收益，0 为最低因子值组、9 为最高组。
+ *
  * One decile bucket's forward-return stats (bucket 0 = lowest factor value … 9 = highest).
  */
 export interface BucketStat {
@@ -114,6 +123,7 @@ export interface BucketStat {
 
 /**
  * 记录最高组减最低组的假设市场中性收益。
+ *
  * The long-short leg (top decile − bottom decile), as a hypothetical market-neutral return stream.
  */
 export interface LongShortStat {
@@ -125,6 +135,7 @@ export interface LongShortStat {
 
 /**
  * 保留多空腿毛收益与费后净值，首日期作为净值起点。
+ *
  * The long-short leg's NAV over time, gross vs net-of-cost (equal-weight). `dates[0]` is the first
  * formation date (NAV starts at 1 there); each later date is a period-end. gross/net are 1 longer than
  * the number of periods (the leading 1). Drives the gross-vs-net NAV line chart (net-of-cost view).
@@ -137,6 +148,7 @@ export interface LongShortNav {
 
 /**
  * 描述已实现调仓期，形成日观测与实际前瞻收益区间分别保留。
+ *
  * One realized rebalance period. The formation cross-section is observed on `formationDate`, and
  * returns are measured through `periodEndDate`. This compact series supports offline factor
  * monitoring without persisting per-stock factor values.
@@ -156,6 +168,7 @@ export interface FactorPeriodObservation {
 
 /**
  * 对有序期序列均值保存 HAC 推断，估计值保持原收益单位。
+ *
  * HAC inference for the mean of one ordered period series. Estimates remain in the series' native
  * units: Rank IC for `rankIc`, period return for long-short, and standardized cross-sectional return
  * exposure for Fama–MacBeth.
@@ -178,6 +191,7 @@ export type FactorFamaMacbethUnavailableReasonV1 = 'insufficient_periods' | 'col
 
 /**
  * 汇总逐期截面回归的第二步推断，控制变量是辅助证据。
+ *
  * Second-pass summary of per-period cross-sectional regressions. The controls are deliberately
  * fixed and versioned instead of being user-selectable, so reports remain directly comparable.
  */
@@ -195,6 +209,7 @@ export interface FactorFamaMacbethReportV1 {
 
 /**
  * 附加范围明确的稳健推断，不替换主指标或发布门槛。
+ *
  * Robust inference attached to scope-aware cross-sectional reports. This is evidence-only: it does
  * not rewrite the frozen publication criterion or the primary IC / decile return series.
  */
@@ -214,6 +229,7 @@ export interface FactorRobustInferenceV1 {
 
 /**
  * 保存某 N 交易日前瞻收益的 Rank IC，供衰减曲线。
+ *
  * Rank IC measured against the N-trading-day-forward return — one point on the IC-decay curve.
  */
 export interface IcDecayPoint {
@@ -226,6 +242,7 @@ export type FactorDiagnosticDimension = 'industry' | 'size_bucket' | 'liquidity_
 
 /**
  * 仅用于稳健性诊断的样本切片，不改变主报告与发布标准。
+ *
  * Robustness-only slice. It never changes the primary report metrics or publication criterion.
  */
 export interface FactorDiagnosticSlice {
@@ -240,6 +257,7 @@ export interface FactorDiagnosticSlice {
 
 /**
  * 封装固定频率、起止日期上的单因子分析结果。
+ *
  * A single-factor analysis report over one (freq, start, end) window.
  */
 export interface FactorReport {
@@ -275,6 +293,7 @@ export interface FactorReport {
 
 /**
  * 保存跨调仓日平均的共同样本 Spearman 因子相关性。
+ *
  * A factor-correlation report: mean cross-sectional Spearman (Rank IC-style) between each pair of the
  * selected factors, averaged over the rebalance dates. `keys`/`labels` include a fixed trailing pseudo-
  * factor 'size' (log total market cap) so every factor's entanglement with size is always visible. The
@@ -292,6 +311,7 @@ export interface FactorCorrelation {
 
 /**
  * 冻结创建分析报告时规范化的版本输入。
+ *
  * Versioned, normalized inputs frozen when a factor-analysis report is created.
  */
 export interface FactorAnalysisSpecV1 {
@@ -306,6 +326,7 @@ export type FactorOutlierMethod = 'none' | 'winsor' | 'mad';
 
 /**
  * 冻结截尾或其他异常值处理及参数。
+ *
  * Freeze outlier preprocessing and its parameters.
  */
 export interface FactorOutlierSpecV1 {
@@ -316,6 +337,7 @@ export interface FactorOutlierSpecV1 {
 
 /**
  * 为分析输入增加版本化研究处理设置，供历史兼容。
+ *
  * Version analysis preprocessing inputs for report compatibility.
  */
 export interface FactorAnalysisSpecV2 {
@@ -345,6 +367,7 @@ export interface FactorAnalysisSpecV2 {
 
 /**
  * 保存对应版本的分析与组合输入，供冻结报告复现。
+ *
  * Retain versioned analysis and composition inputs for reproducibility.
  */
 export interface FactorAnalysisSpecV3 extends Omit<FactorAnalysisSpecV2, 'version' | 'universe'> {
@@ -360,6 +383,7 @@ export type FactorCompositeDirection = 'positive' | 'negative';
 
 /**
  * 冻结组合组件、方向、权重和标准化方式。
+ *
  * Freeze composite components, directions, weights and standardization.
  */
 export interface FactorCompositeDefinitionV1 {
@@ -375,6 +399,7 @@ export interface FactorCompositeDefinitionV1 {
 
 /**
  * 定义跨资产 Panel 组合，组件由因子目录解析并冻结。
+ *
  * Cross-asset panel composite. Components are resolved against the factor catalog and frozen with
  * their executable sources in every report, while this reusable definition keeps stable identities.
  */
@@ -393,6 +418,7 @@ export interface FactorPanelCompositeDefinitionV2 {
 
 /**
  * 区分不同研究协议的组合定义，供计算分派。
+ *
  * Discriminate protocol-specific composite definitions for evaluation.
  */
 export type FactorCompositeDefinition =
@@ -401,6 +427,7 @@ export type FactorCompositeDefinition =
 
 /**
  * 组合公开组合身份、定义与状态，供目录和编辑器。
+ *
  * Describe composite identity, definition and state for catalogs and editors.
  */
 export interface FactorCompositeResource {
@@ -419,6 +446,7 @@ export interface FactorCompositeResource {
 
 /**
  * 保留该版本冻结分析规格，供历史报告读取。
+ *
  * Retain versioned frozen analysis settings for historical reports.
  */
 export interface FactorAnalysisSpecV4 extends Omit<FactorAnalysisSpecV3, 'version'> {
@@ -430,6 +458,7 @@ export type FactorEquityIndexCode = '000300.SH' | '000905.SH' | '000852.SH';
 
 /**
  * 冻结全市场或时点指数证券池及组内排名规则。
+ *
  * Freeze global or dated index universes and within-group ranking rules.
  */
 export interface FactorEvaluationScopeV1 {
@@ -444,6 +473,7 @@ export interface FactorEvaluationScopeV1 {
 
 /**
  * 首次显式冻结评估证券范围，不从当前成员推断历史。
+ *
  * First scope-aware cross-sectional spec. EvaluationScope V1 freezes global or point-in-time SW L1
  * within-industry ranking. Diagnostic choices remain part of report identity as they are enabled.
  */
@@ -454,6 +484,7 @@ export interface FactorAnalysisSpecV5 extends Omit<FactorAnalysisSpecV3, 'versio
 
 /**
  * 冻结截面稳健推断的样本、控制和滞后设置。
+ *
  * Freeze sample, control and lag settings for robust cross-sectional inference.
  */
 export interface FactorCrossSectionalInferenceSpecV1 {
@@ -473,6 +504,7 @@ export interface FactorCrossSectionalInferenceSpecV1 {
 
 /**
  * 在 V5 主样本和指标不变的基础上增加稳健推断。
+ *
  * Cross-sectional V6 adds robust inference without changing V5's primary analysis population.
  * Composite is optional because single and composite factors now share one current protocol.
  */
@@ -485,6 +517,7 @@ export interface FactorAnalysisSpecV6 extends Omit<FactorAnalysisSpecV3, 'versio
 
 /**
  * 统一历史版本的分析规格，供兼容读取与冻结执行。
+ *
  * Unify versioned analysis specifications for compatible reads and execution.
  */
 export type FactorAnalysisSpec =
@@ -507,6 +540,7 @@ export type FactorSampleStageKey =
 
 /**
  * 记录一个采样阶段的保留与剔除数量。
+ *
  * Record retained and excluded samples at one analysis stage.
  */
 export interface FactorSampleStageAudit {
@@ -517,6 +551,7 @@ export interface FactorSampleStageAudit {
 
 /**
  * 核验研究窗口所需价格和辅助数据覆盖。
+ *
  * Describe required price and auxiliary coverage within a research window.
  */
 export interface FactorWindowCoverageAudit {
@@ -529,6 +564,7 @@ export interface FactorWindowCoverageAudit {
 
 /**
  * 保留组内排名范围和样本诊断。
+ *
  * Retain ranking scope and sample diagnostics.
  */
 export type FactorRankingAudit =
@@ -544,6 +580,7 @@ export type FactorRankingAudit =
 
 /**
  * 组合采样、覆盖和处理证据，解释报告方法。
+ *
  * Collect sampling, coverage and preprocessing evidence for methodology review.
  */
 export interface FactorMethodologyAudit {
@@ -576,6 +613,7 @@ export type FactorResearchMetric =
 
 /**
  * 保存研究假设、方向与预注册门槛，供探索和保留段准入。
+ *
  * Retain hypotheses, directions and criteria for exploration and holdout admission.
  */
 export interface FactorResearchIntentV1 {
@@ -593,6 +631,7 @@ export interface FactorResearchIntentV1 {
 
 /**
  * 冻结保留段日期、门槛和揭示约束。
+ *
  * Freeze holdout dates, criteria and reveal constraints.
  */
 export interface FactorHoldoutPolicyV1 {
@@ -616,6 +655,7 @@ export type FactorHoldoutIneligibleReason =
 
 /**
  * 返回保留段是否准入及不可准入原因。
+ *
  * Describe holdout eligibility and rejection reasons.
  */
 export interface FactorHoldoutEligibility {
@@ -627,6 +667,7 @@ export interface FactorHoldoutEligibility {
 
 /**
  * 提供报告身份、范围和状态摘要，供历史列表。
+ *
  * Describe report identity, scope and state for history lists.
  */
 export interface FactorReportSummary {
@@ -660,6 +701,7 @@ export interface FactorReportSummary {
 
 /**
  * 返回可见冻结报告的规格、结果与方法证据。
+ *
  * Return a visible frozen report's specification, results and methodology evidence.
  */
 export interface FactorReportDetail extends FactorReportSummary {
@@ -675,6 +717,7 @@ export interface FactorReportDetail extends FactorReportSummary {
 
 /**
  * 组合因子报告分页列表与状态信息。
+ *
  * Collect paginated factor reports and state metadata.
  */
 export interface FactorReportListResponse {
@@ -686,6 +729,7 @@ export type RunFactorAnalysisRequest = SubmitFactorAnalysisRequest;
 
 /**
  * 汇总探索、保留段和揭示次数，供研究纪律展示。
+ *
  * Summarize exploration, holdout and reveal counts for research discipline.
  */
 export interface FactorResearchCounts {
@@ -699,6 +743,7 @@ export interface FactorResearchCounts {
 
 /**
  * 组合研究记录计数、准入与最近报告信息。
+ *
  * Collect research counts, eligibility and recent report metadata.
  */
 export interface FactorResearchSummary {
@@ -708,6 +753,7 @@ export interface FactorResearchSummary {
 
 /**
  * 返回分析入队后的报告与 Job 身份。
+ *
  * Return report and job identities after evaluation enqueueing.
  */
 export interface RunFactorAnalysisResponse {

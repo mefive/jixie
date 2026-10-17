@@ -5,6 +5,7 @@ import { factorPanelCompositeDefinitionV2Schema } from '@jixie/shared/api/factor
 
 /**
  * 解析 Panel 组合来源与冻结依赖，供评估复用一致输入。
+ *
  * Resolve panel composite sources and frozen dependencies for evaluation.
  */
 export async function resolvePanelFactorSource(
@@ -55,6 +56,7 @@ export async function resolvePanelFactorSource(
 
 /**
  * 解析作者 Panel 因子来源，校验协议与公开范围。
+ *
  * Resolve an authored panel source and validate its protocol and visibility.
  */
 async function resolveCustomPanelSource(

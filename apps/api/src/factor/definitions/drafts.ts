@@ -12,6 +12,7 @@ import { factorLanguage } from './views.js';
 
 /**
  * 根据指定协议创建因子草稿及初始代码。
+ *
  * Create a factor draft and initial source under the chosen protocol.
  */
 export async function createFactorDraft(userId: string, input: CreateFactorDraftInput) {
@@ -77,6 +78,7 @@ export async function createFactorDraft(userId: string, input: CreateFactorDraft
 
 /**
  * 校验归属与不可变协议后更新草稿，维护代码版本与显示元数据。
+ *
  * Update an owned draft under its immutable protocol and retain source-version metadata.
  */
 export async function updateFactorDraft(userId: string, id: string, input: UpdateFactorDraftInput) {
@@ -157,6 +159,7 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
 
 /**
  * 验证因子草稿可删除状态并清理其业务关联。
+ *
  * Validate draft deletion eligibility and remove its business associations.
  */
 export async function deleteFactorDraft(userId: string, id: string) {
@@ -187,6 +190,7 @@ export async function deleteFactorDraft(userId: string, id: string) {
 
 /**
  * 从可访问来源创建独立因子草稿，保留来源关联。
+ *
  * Create an independent factor draft from an accessible source with provenance.
  */
 export async function copyFactorDraft(userId: string, factorId: string) {

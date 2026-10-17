@@ -1,5 +1,6 @@
 /**
  * 描述显式费率和隐式滑点；费用计入成交 fee，滑点通过不利成交价格体现。
+ *
  * Trading friction model: explicit fees (rates are fractions of trade value) + implicit slippage. Fees
  * hit `fee` on the trade; slippage instead worsens the fill PRICE (buys above / sells below the open), so
  * it shows up as a worse realized price, not a fee line.

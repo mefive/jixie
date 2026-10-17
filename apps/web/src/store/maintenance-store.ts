@@ -47,6 +47,7 @@ class MaintenanceStore {
 
   /**
    * 接收维护状态并检测部署变化，协调应用门禁与刷新提示。
+   *
    * Accept maintenance state and detect deployment changes for availability gating and refresh prompts.
    */
   public acceptStatus(status: MaintenanceStatus): void {

@@ -23,6 +23,7 @@ import {
 
 /**
  * 组合运行、版本与分析详情，供卡片操作使用一致快照。
+ *
  * Collect run, version and analysis details into a consistent card snapshot.
  */
 interface Detail {
@@ -33,6 +34,7 @@ interface Detail {
 
 /**
  * 保存嵌入式编辑草稿字段，供版本更新与运行。
+ *
  * Describe embedded draft fields used for version updates and execution.
  */
 export interface EmbeddedDraftForm {
@@ -43,6 +45,7 @@ export interface EmbeddedDraftForm {
 
 /**
  * 区分继续、输入、取消、编辑及运行操作，供卡片分派。
+ *
  * Discriminate continuation, input, cancellation, editing and execution actions.
  */
 type Action =
@@ -71,6 +74,7 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
 
   /**
    * 配置嵌入式运行详情、版本与轮询 Loader，注册卡片卸载清理。
+   *
    * Initialize embedded run, version and polling loaders with card cleanup.
    */
   public setup(params: { part: EmbeddedAnalysisPart }) {
@@ -103,6 +107,7 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
 
       /**
        * 轮询当前嵌入式运行，结束、加载失败或已卸载时停止。
+       *
        * Poll the embedded run until completion, failure or disposal.
        */
       request: async () => {
@@ -131,6 +136,7 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
 
   /**
    * 刷新嵌入式详情，仅在仍排队或运行时继续轮询。
+   *
    * Refresh embedded details and continue polling only for queued or running state.
    */
   public async refresh() {
@@ -160,6 +166,7 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
 
   /**
    * 分页读取嵌入式历史运行，保持当前卡片版本关联。
+   *
    * Load embedded run history while retaining the current card's version association.
    */
   public async loadHistory(older = false) {
@@ -207,6 +214,7 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
 
   /**
    * 按继续研究、读取输入、取消、编辑或运行动作分派并协调版本状态。
+   *
    * Dispatch continuation, input reads, cancellation, editing and execution with version-state coordination.
    */
   private async perform(action: Action): Promise<{ documentId?: string; input?: unknown }> {

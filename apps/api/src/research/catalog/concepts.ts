@@ -37,6 +37,7 @@ export const RESEARCH_CONCEPT_SELECTION_DIMENSIONS = [
 
 /**
  * 表达研究概念的市场、单位、期限等语义维度，供防止替代错配。
+ *
  * Describe market, unit and tenor dimensions that prevent semantic substitution.
  */
 export interface ResearchConceptDimensionsV1 {
@@ -48,6 +49,7 @@ export interface ResearchConceptDimensionsV1 {
 
 /**
  * 定义稳定概念与双语别名及语义维度，供受控检索。
+ *
  * Define a stable concept, bilingual aliases and semantic dimensions for governed search.
  */
 export interface ResearchConceptDefinitionV1 {
@@ -264,6 +266,7 @@ export const researchConceptById: ReadonlyMap<ResearchConceptId, ResearchConcept
 
 /**
  * 生成提供给模型的紧凑受控词表，证券行仍来自动态目录。
+ *
  * Compact controlled vocabulary supplied to the LLM. Instrument rows remain dynamic catalog data.
  */
 export function compactResearchConceptManifest() {
@@ -279,6 +282,7 @@ export function compactResearchConceptManifest() {
 
 /**
  * 按受控概念及别名推断查询中的概念身份，供目录解析。
+ *
  * Infer governed concept identities from query terms and aliases.
  */
 export function inferResearchConceptIds(text: string): ResearchConceptId[] {

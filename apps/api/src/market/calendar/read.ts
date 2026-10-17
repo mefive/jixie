@@ -3,6 +3,7 @@ import type { TradeDate } from '@jixie/shared';
 
 /**
  * 读取区间内开市交易日并升序返回，供同步与回测统一使用。
+ *
  * Open trading days within the range (ascending).
  */
 export async function getOpenDates(

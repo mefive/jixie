@@ -48,6 +48,7 @@ import { type ResearchFinancialValuesRequestV1 } from '../../datasets/financial-
 
 /**
  * 以方法区分已校验宿主请求，供穷尽分派。
+ *
  * Discriminate validated host requests by SDK method for dispatch.
  */
 export type ParsedResearchRequest =
@@ -137,6 +138,7 @@ export type ParsedResearchRequest =
 
 /**
  * 按消息方法解析 SDK 参数，执行共享契约校验后生成可分派请求。
+ *
  * Parse SDK method frames and validate shared-contract arguments before dispatch.
  */
 export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedResearchRequest {

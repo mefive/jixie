@@ -14,6 +14,7 @@ type CuratorFindingRecord = Prisma.ResearchCuratorFindingGetPayload<object>;
 
 /**
  * 将持久化整理运行转换为客户端记录，供列表及详情读取。
+ *
  * Map a persisted curator run into its client record.
  */
 export function curatorRunRecord(
@@ -40,6 +41,7 @@ export function curatorRunRecord(
 
 /**
  * 将整理发现与反馈映射为客户端记录，保留来源引用。
+ *
  * Map a finding and feedback into its client record with provenance.
  */
 export function curatorFindingRecord(finding: CuratorFindingRecord): ResearchCuratorFindingV1 {

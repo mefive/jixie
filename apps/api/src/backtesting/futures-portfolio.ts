@@ -9,6 +9,7 @@ import type { FuturesTrade } from './trade.js';
 
 /**
  * 对外呈现期货仓位的数量、保证金与估值信息。
+ *
  * Expose futures position quantities, margin and valuation information.
  */
 export interface FuturePositionView {
@@ -20,6 +21,7 @@ export interface FuturePositionView {
 
 /**
  * 维护期货账户内部的交割合约持仓和结算基准。
+ *
  * Track delivery-contract holdings and settlement bases inside the futures account.
  */
 interface FuturePosition {
@@ -35,6 +37,7 @@ const FUTURE_TICK = 0.2;
 
 /**
  * 表示待执行的期货合约数量变化及其来源，供开盘撮合。
+ *
  * Describe a pending futures quantity change and its source for open-price execution.
  */
 export interface FuturesOrder {
@@ -86,6 +89,7 @@ export class FuturesPortfolio {
 
   /**
    * 按给定价格查询汇总带方向的期货名义敞口。
+   *
    * Signed futures exposure at the supplied price lookup.
    */
   notional(priceOf: (actualCode: string) => number | null): number {
@@ -101,6 +105,7 @@ export class FuturesPortfolio {
 
   /**
    * 根据映射日已知信息在当日开盘换月，两条腿分别计入费用、滑点及已实现盈亏。
+   *
    * Roll positions at today's open using a mapping known on `mappingDate` (normally the previous
    * trading day). Both legs pay commission and slippage; the old leg realizes P&L from its latest
    * settlement reference before the new contract is opened.
@@ -182,6 +187,7 @@ export class FuturesPortfolio {
 
   /**
    * 按当日开盘执行合约数量变化；保证金不足时返回 false，拒绝订单不结转。
+   *
    * Execute one signed contract delta at today's open. Returns false when the requested position
    * would exceed available margin; rejected orders are not carried forward.
    */
@@ -254,6 +260,7 @@ export class FuturesPortfolio {
 
   /**
    * 按当日结算价收付变动保证金，并刷新所需保证金。
+   *
    * Credit/debit variation margin at today's settlement and refresh required margin.
    */
   settle(engineData: EngineData, date: string): void {
@@ -279,6 +286,7 @@ export class FuturesPortfolio {
 
   /**
    * 将期货成交及费用写入成交日志，供绩效与归因回放。
+   *
    * Append a futures fill and its costs to the trade log for performance and attribution.
    */
   private recordTrade(

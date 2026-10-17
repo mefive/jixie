@@ -9,6 +9,7 @@ import { getResearchDocumentRun } from './run-state.js';
 
 /**
  * 标记文档运行中断并取消活动 Cell，供用户停止执行。
+ *
  * Interrupt the document run and cancel its active cell.
  */
 export async function interruptResearchDocument(
@@ -44,6 +45,7 @@ export async function interruptResearchDocument(
 
 /**
  * 验证文档归属和活动运行后重置 Python 会话，并使旧输出失效。
+ *
  * Authorize and reset a document sandbox and invalidate prior outputs.
  */
 export async function resetResearchDocumentSandbox(

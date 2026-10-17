@@ -15,6 +15,7 @@ export async function listStrategyDeployments(
 
 /**
  * 将部署记录、冻结配置和最近运行状态组装为客户端响应。
+ *
  * Map deployment records, frozen configuration and latest run state into the client response.
  */
 export function deploymentWire(row: {

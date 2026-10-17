@@ -27,6 +27,7 @@ const ResearchClarificationCard = lazy(() => import('./research-clarification-ca
 
 /**
  * 提供类型化消息片段和业务动作，供一致对话渲染。
+ *
  * Supply typed message parts and actions for consistent conversation rendering.
  */
 interface MessagePartsProps {
@@ -54,6 +55,7 @@ interface MessagePartsProps {
 
 /**
  * 一致渲染策略、因子与研究消息片段。
+ *
  * Render message parts consistently across Strategy, Factor and Research conversations.
  */
 export function MessageParts({
@@ -173,6 +175,7 @@ export function MessageParts({
 
 /**
  * 展示发送时冻结的 Cell 上下文引用，标记当前已改动或已删除状态。
+ *
  * Present frozen cell context references with current changed or deleted indicators.
  */
 function ResearchCellContextChips({
@@ -199,6 +202,7 @@ function ResearchCellContextChips({
 
         /**
          * 根据消息产物类型执行已授权的查看或交接动作。
+         *
          * Dispatch the requested view or handoff action for a message artifact.
          */
         const action = () => {

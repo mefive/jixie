@@ -15,6 +15,7 @@ import { logger } from 'hono/logger';
 
 /**
  * 构造 HTTP 应用并挂载中间件与业务路由，不启动恢复或后台调度。
+ *
  * Construct the HTTP app and mount middleware and routes without starting recovery or dispatch.
  */
 export function buildApp() {

@@ -25,6 +25,7 @@ export class FactorSandbox<Kind extends ExecutableFactorKind> extends Sandbox<
 
   /**
    * 创建因子会话后等待基类初始化，失败或取消时统一回收。
+   *
    * Create and initialize a factor session with shared failure and cancellation cleanup.
    */
   static start(options: FactorStartOptions): Promise<FactorSandboxInstance> {

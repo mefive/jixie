@@ -3,6 +3,7 @@ import { build } from 'esbuild';
 
 /**
  * 只打包策略 SDK 与通信入口，撮合引擎继续留在宿主。
+ *
  * Bundle only the strategy SDK and transport entry; the engine remains on the host.
  */
 export async function buildStrategySandboxBundle() {

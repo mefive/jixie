@@ -9,6 +9,7 @@ import type {
 
 /**
  * 在截面因子 isolate 加载期间规范化作者定义。
+ *
  * Passed into the user-code evaluator inside the isolate for cross-sectional definitions.
  */
 export function defineFactor(factor: CustomFactor): CustomFactor {
@@ -17,6 +18,7 @@ export function defineFactor(factor: CustomFactor): CustomFactor {
 
 /**
  * 在资产范围因子 isolate 加载期间规范化 V2 定义。
+ *
  * Passed into the user-code evaluator inside the isolate for asset-scope definitions.
  */
 export function defineFactorV2(factor: AssetFactorV2): AssetFactorV2 {
@@ -44,6 +46,7 @@ export class CrossSectionalFactorContext implements FactorCtx {
 
   /**
    * 按字段与截止索引读取受限历史，保留不足窗口语义。
+   *
    * Read bounded field history up to the current index.
    */
   history(periods: number, field?: string): number[] | string[] | (number | null)[] {
@@ -81,6 +84,7 @@ export class AssetFactorContext implements TimeSeriesFactorCtxV2 {
 
   /**
    * 校验当前证券数据访问并返回绑定能力，阻止未声明或不可见输入读取。
+   *
    * Validate current instrument access and return bound capabilities for declared visible inputs.
    */
   #access(field: string, periods: number): number | null {

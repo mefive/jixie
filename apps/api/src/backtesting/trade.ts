@@ -1,5 +1,6 @@
 /**
  * 表示一次已执行成交，是报告成交日志与图表共用的基本单位。
+ *
  * One executed fill — the trade log unit (returned with the result; plotted + listed in the UI).
  */
 interface TradeFill {
@@ -17,6 +18,7 @@ interface TradeFill {
 
 /**
  * 记录股票或 ETF 成交，保留复权与真实价格数量以及费用。
+ *
  * Represent a stock or ETF fill with adjusted and real quantities, prices and costs.
  */
 export interface CashTrade extends TradeFill {
@@ -25,6 +27,7 @@ export interface CashTrade extends TradeFill {
 
 /**
  * 记录期货成交的实际交割合约、合约数、乘数及费用。
+ *
  * Represent a futures fill with its delivery contract, count, multiplier and costs.
  */
 export interface FuturesTrade extends TradeFill {
@@ -36,6 +39,7 @@ export interface FuturesTrade extends TradeFill {
 
 /**
  * 统一现金与期货成交联合类型，供绩效汇总按资产种类分派。
+ *
  * Unify cash and futures fills so performance consumers can dispatch by asset type.
  */
 export type TradeRecord = CashTrade | FuturesTrade;

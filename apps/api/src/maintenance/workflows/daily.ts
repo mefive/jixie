@@ -72,6 +72,7 @@ import { selfHealMarketDates, type SelfHealSummary } from './self-heal.js';
 
 /**
  * 配置日更维护的日期范围、触发方式和进度回调。
+ *
  * Configure the date range, trigger and progress callbacks for daily maintenance.
  */
 export interface DailyMaintenanceOptions {
@@ -86,6 +87,7 @@ export interface DailyMaintenanceOptions {
 
 /**
  * 汇总日更同步、校验、发布与信号处理结果，供维护记录及 CLI 输出。
+ *
  * Summarize daily synchronization, validation, publication and signal outcomes.
  */
 export interface DailyMaintenanceSummary {
@@ -109,6 +111,7 @@ export interface DailyMaintenanceSummary {
 
 /**
  * 协调日更范围、在途任务、数据同步、质量校验和水位发布，并留存可重试检查点。
+ *
  * Coordinate daily ranges, in-flight work, synchronization, quality checks and publication with retryable checkpoints.
  */
 export async function runDailyMaintenance(
@@ -477,6 +480,7 @@ export async function runDailyMaintenance(
 
 /**
  * 建立已发布数据基线并校验其完整性，供首次日更和修复恢复。
+ *
  * Initialize and validate the published data baseline for first runs and repair recovery.
  */
 async function initializePublishedBaseline(
@@ -574,6 +578,7 @@ async function initializePublishedBaseline(
 
 /**
  * 在既有市场水位上只运行信号维护，复用任务协调和运行记录。
+ *
  * Run signal-only maintenance against the published market cutoff with coordinated run tracking.
  */
 async function runSignalOnlyMaintenance(
@@ -779,6 +784,7 @@ async function refreshCommodityContinuousReturns(
 
 /**
  * 检查并修复已发布尾部数据，避免后续维护建立在不完整基线上。
+ *
  * Check and heal the published data tail before later maintenance relies on it.
  */
 async function healPublishedTail(

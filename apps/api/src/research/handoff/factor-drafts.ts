@@ -10,6 +10,7 @@ import { generateResearchFactorDraft } from './factor-handoff.js';
 
 /**
  * 验证已封存研究和交接资格后创建带血缘的因子草稿。
+ *
  * Validate frozen research and handoff eligibility before creating a factor draft with provenance.
  */
 export async function createResearchFactorDraft(

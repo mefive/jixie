@@ -27,6 +27,7 @@ export function parseProbeArguments(input: string[]) {
 
 /**
  * 校验能力探测命令参数，避免无效来源请求。
+ *
  * Validate probe command parameters before source access.
  */
 function validateProbeParameters(command: CommandDefinition, input: string[]): void {

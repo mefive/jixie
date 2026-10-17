@@ -9,6 +9,7 @@ export const GOVERNMENT_YIELD_MAX_STALENESS_DAYS = 14;
 
 /**
  * 从活跃 Definition V2 依赖中解析被冻结的利率曲线期限。
+ *
  * Resolve the exact curve maturities frozen into active Definition V2 dependencies.
  */
 export function governmentYieldTermsFromDependencies(dependencies: FactorDependency[]): number[] {
@@ -32,6 +33,7 @@ export function governmentYieldTermsFromDependencies(dependencies: FactorDepende
 
 /**
  * 确认每个所需期限都有不超过 14 天的时点可得观测。
+ *
  * Ensure every required maturity has a point-in-time observation no more than 14 days old.
  */
 export function governmentYieldCurveCoverageReady(

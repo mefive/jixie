@@ -18,6 +18,7 @@ export type EtfResearchRole = 'primary' | 'backup';
 
 /**
  * 声明 ETF 研究角色、区域、币种敞口与覆盖要求。
+ *
  * Define ETF research roles, regions, currency exposures and coverage requirements.
  */
 export interface EtfResearchRegistryEntry {
@@ -38,6 +39,7 @@ export interface EtfResearchRegistryEntry {
 
 /**
  * 定义 ETF 在研究代理池中的生效区间。
+ *
  * Describe an ETF's effective membership in the research proxy set.
  */
 export interface EtfResearchMembership {
@@ -56,6 +58,7 @@ export interface EtfResearchMembership {
 
 /**
  * 提供 ETF 注册条目初始化字段，供清单校验。
+ *
  * Supply ETF registry entry fields for initialization and validation.
  */
 interface RegistryEntryInput extends Omit<
@@ -374,6 +377,7 @@ const membershipByCode = new Map<string, EtfResearchMembership>();
 
 /**
  * 校验 ETF 研究清单的身份、币种、成员区间与角色，防止错误代理进入研究。
+ *
  * Validate ETF registry identities, currencies, membership periods and roles before research use.
  */
 export function validateEtfResearchRegistry(

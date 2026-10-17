@@ -101,6 +101,7 @@ type EditableFactorAnalysisKind = Extract<
 
 /**
  * 组合因子目录、编辑器、研究参数、报告和 Agent 面板，形成完整工作台。
+ *
  * Compose the factor catalog, editor, research settings, reports and agent workspace.
  */
 export const Factor = complex.component(() => {
@@ -201,6 +202,7 @@ export const Factor = complex.component(() => {
 
 /**
  * 展示因子作者或只读问答面板，连接持久会话与当前上下文。
+ *
  * Render factor authoring or read-only Q&A with persistent conversations and context.
  */
 const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDiscard }) => {
@@ -258,6 +260,7 @@ const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDis
 
 /**
  * 按因子种类和语言收集创建输入，再交由 store 创建草稿。
+ *
  * Collect factor kind and language before creating a draft through the store.
  */
 const NewFactorModal = complex.component(
@@ -288,6 +291,7 @@ const NewFactorModal = complex.component(
 
     /**
      * 校验因子创建表单并先创建持久化草稿。
+     *
      * Validate the factor form and create its persisted draft.
      */
     const create = async () => {
@@ -359,6 +363,7 @@ const NewFactorModal = complex.component(
 
 /**
  * 渲染因子消息、问答上下文及输入状态，协调发送与重连。
+ *
  * Render factor messages, Q&A context and input state with send and reconnect controls.
  */
 const AgentChat = complex.component(() => {
@@ -567,6 +572,7 @@ const AgentChat = complex.component(() => {
 
 /**
  * 展示研究交接附带的报告建议，允许用户明确采用参数。
+ *
  * Present research handoff report suggestions for explicit parameter adoption.
  */
 function ResearchReportSuggestion({
@@ -631,6 +637,7 @@ function ResearchReportSuggestion({
 
 /**
  * 渲染因子会话消息与工具产物，保持流式和持久消息一致。
+ *
  * Render factor messages and tool artifacts consistently across streamed and persisted history.
  */
 function ChatLog({
@@ -704,6 +711,7 @@ function ChatLog({
 
 /**
  * 组织预置、作者及组合因子选择，协调筛选与未保存切换。
+ *
  * Organize builtin, authored and composite factor selection with filtering and draft guards.
  */
 const FactorLibrary = complex.component(
@@ -735,6 +743,7 @@ const FactorLibrary = complex.component(
 
     /**
      * 协调因子切换及未保存草稿确认，供目录选择。
+     *
      * Coordinate factor selection with unsaved-draft guards.
      */
     const pick = (key: string, isCustom: boolean) => {
@@ -986,6 +995,7 @@ const FactorLibrary = complex.component(
 
 /**
  * 编辑组合组件、方向与权重，并校验后提交创建或更新。
+ *
  * Edit composite components, directions and weights before validated creation or update.
  */
 const CompositeModal = complex.component(
@@ -1034,6 +1044,7 @@ const CompositeModal = complex.component(
 
     /**
      * 校验组合表单并提交创建或更新操作。
+     *
      * Validate and submit composite creation or update.
      */
     const save = async () => {
@@ -1209,6 +1220,7 @@ const CompositeModal = complex.component(
 
 /**
  * 展示所选因子的相关性运行配置、任务与矩阵结果。
+ *
  * Present correlation configuration, progress and matrix results for selected factors.
  */
 const CorrelationModal = complex.component(
@@ -1300,6 +1312,7 @@ const CorrelationModal = complex.component(
 
 /**
  * 根据因子种类选择对应研究工作区，保持编辑和报告布局一致。
+ *
  * Select the appropriate factor research workspace while keeping editor and report layout consistent.
  */
 const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardDiscard }) => {
@@ -1378,6 +1391,7 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
 
 /**
  * 展示单资产时间序列因子的代码、参数和探索结果。
+ *
  * Present single-asset factor source, research settings and exploration results.
  */
 const TimeSeriesWorkspace = complex.component(() => {
@@ -1456,6 +1470,7 @@ const TimeSeriesWorkspace = complex.component(() => {
 
 /**
  * 展示宏观状态研究配置、来源与分状态评估。
+ *
  * Present macro-regime settings, provenance and state-specific evaluation.
  */
 const MacroRegimeWorkspace = complex.component(() => {
@@ -1502,6 +1517,7 @@ const MacroRegimeWorkspace = complex.component(() => {
 
 /**
  * 展示组合定义、组件与相关报告，供编辑和研究。
+ *
  * Present a composite definition, components and reports for editing and research.
  */
 const CompositeWorkspace = complex.component(() => {
@@ -1572,6 +1588,7 @@ const CompositeWorkspace = complex.component(() => {
 
 /**
  * 展示当前因子身份、状态与可见范围，供工作台定位。
+ *
  * Present the selected factor's identity, status and visibility.
  */
 const FactorIdentityBar = complex.component(() => {
@@ -1645,6 +1662,7 @@ const ResultColumn = complex.component(() => {
 
 /**
  * 提示当前草稿与冻结报告不匹配，避免误读旧结果。
+ *
  * Indicate when a draft no longer matches its frozen report.
  */
 const ReportOutdatedWarning = complex.component(() => {
@@ -1667,6 +1685,7 @@ const ReportOutdatedWarning = complex.component(() => {
 
 /**
  * 展示当前分析方法和主要参数，并提供参数编辑入口。
+ *
  * Present the analysis method and headline parameters with editing access.
  */
 const ParamsBar = complex.component(() => {
@@ -1749,6 +1768,7 @@ const ParamsBar = complex.component(() => {
 
 /**
  * 编辑横截面研究的频率、范围、处理和交易成本设置。
+ *
  * Edit cross-sectional frequency, dates, preprocessing and cost settings.
  */
 const ParamsPopover = complex.component(() => {
@@ -1968,6 +1988,7 @@ const ParamsPopover = complex.component(() => {
 
 /**
  * 编辑单资产研究的目标资产、窗口和评估参数。
+ *
  * Edit single-asset targets, windows and evaluation settings.
  */
 const TimeSeriesParamsPopover = complex.component(
@@ -2064,6 +2085,7 @@ const TimeSeriesParamsPopover = complex.component(
 
 /**
  * 编辑 Panel 研究的资产范围与排序评估参数。
+ *
  * Edit panel universes and ranking-evaluation settings.
  */
 const PanelParamsPopover = complex.component(
@@ -2129,6 +2151,7 @@ const PanelParamsPopover = complex.component(
 
 /**
  * 编辑宏观状态研究的日期、状态和目标资产设置。
+ *
  * Edit macro-regime dates, states and target assets.
  */
 const MacroRegimeParamsPopover = complex.component(
@@ -2227,6 +2250,7 @@ function outlierOptions(t: TFunction<'factor'>) {
 
 /**
  * 展示探索、预注册和保留段纪律，连接对应状态操作。
+ *
  * Present exploration, preregistration and holdout discipline with state-specific actions.
  */
 const ResearchDisciplineBar = complex.component(() => {
@@ -2323,6 +2347,7 @@ const ResearchDisciplineBar = complex.component(() => {
 
 /**
  * 按研究种类与状态校验运行条件，并处理探索或保留段提交。
+ *
  * Validate run eligibility by research kind and state and submit exploration or holdout actions.
  */
 const ResearchRunButton = complex.component(
@@ -2548,6 +2573,7 @@ const ResearchRunButton = complex.component(
 
 /**
  * 展示不可变报告历史和任务状态，允许切换到明确报告身份。
+ *
  * Present immutable report history and job state for identity-based selection.
  */
 const ReportHistory = complex.component(() => {
@@ -2654,6 +2680,7 @@ const ReportHistory = complex.component(() => {
 
 /**
  * 根据分析种类选择报告主体，同时呈现来源与过期提示。
+ *
  * Select the kind-specific report body with provenance and freshness indicators.
  */
 const FactorResult = complex.component(() => {
@@ -2721,6 +2748,7 @@ const FactorResult = complex.component(() => {
 
 /**
  * 展示宏观状态样本、区间与资产表现，并提示统计限制。
+ *
  * Present macro-regime samples, episodes and asset performance with statistical limits.
  */
 const MacroRegimeReportBody = complex.component(() => {
@@ -2833,6 +2861,7 @@ const MacroRegimeReportBody = complex.component(() => {
 
 /**
  * 展示单资产预测关系、收益与样本诊断。
+ *
  * Present single-asset predictive statistics, returns and sample diagnostics.
  */
 const TimeSeriesReportBody = complex.component(() => {
@@ -2960,6 +2989,7 @@ const TimeSeriesReportBody = complex.component(() => {
 
 /**
  * 展示 Panel 排序、分层、多空和资产类别结果。
+ *
  * Present panel ranking, quantile, long-short and asset-class results.
  */
 const PanelReportBody = complex.component(() => {
@@ -3139,6 +3169,7 @@ const PanelReportBody = complex.component(() => {
 
 /**
  * 展示截面 Rank IC、分组收益、费用与稳健推断。
+ *
  * Present cross-sectional Rank IC, grouped returns, costs and robust inference.
  */
 const ReportBody = complex.component(() => {
@@ -3324,6 +3355,7 @@ const ReportBody = complex.component(() => {
 
 /**
  * 展示 HAC 与 Fama–MacBeth 等稳健推断及样本约束。
+ *
  * Present HAC and Fama-MacBeth inference with sample constraints.
  */
 function RobustInferenceCard({
@@ -3415,6 +3447,7 @@ function RobustInferenceCard({
 
 /**
  * 解释冻结方法、数据范围与处理政策，支持结果复核。
+ *
  * Explain the frozen method, data scope and preprocessing policy for report review.
  */
 const MethodologyCard = complex.component(() => {
@@ -3561,6 +3594,7 @@ const MethodologyCard = complex.component(() => {
 
 /**
  * 展示发布资格、证据与操作状态，供用户明确提交发布。
+ *
  * Present publication eligibility, evidence and state for explicit publication.
  */
 const FactorPublicationCard = complex.component(() => {
@@ -3694,6 +3728,7 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
 
 /**
  * 将冻结报告参数转换为本地化简短标签。
+ *
  * Render frozen report parameters as concise localized labels.
  */
 function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>): string {
@@ -3757,6 +3792,7 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
 
 /**
  * 提供因子 Agent 输入、发送与取消控制，保留会话模式提示。
+ *
  * Provide factor agent input, send and cancel controls with conversation-mode guidance.
  */
 function PromptBox({
@@ -3799,6 +3835,7 @@ function PromptBox({
 
 /**
  * 提取仅用于当前显示的临时工具轨迹，重载会话后不再存在。
+ *
  * The turn's ephemeral tool trace (display only — absent once a conversation is reloaded).
  */
 function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
@@ -3823,6 +3860,7 @@ function compositeComponents(
 
 /**
  * 按默认协议生成空组合定义，供组合编辑表单初始化。
+ *
  * Create an empty composite definition for form initialization.
  */
 function emptyCompositeDefinition(
@@ -3909,6 +3947,7 @@ function modalConfirmReveal(t: TFunction<'factor'>, onOk: () => void): void {
 
 /**
  * 读取当前报告指标并按预注册阈值判断显示状态。
+ *
  * Evaluate the report metric against its preregistered threshold.
  */
 function criterionPassed(report: FactorReport, intent?: FactorResearchIntentV1): boolean {
@@ -3980,6 +4019,7 @@ function decayHint(points: IcDecayPoint[]): string {
 
 /**
  * 根据视口尺寸计算因子工作区分栏初始宽度。
+ *
  * Derive initial factor splitter sizes from the viewport.
  */
 function splitterDefaults(leftPx: number): { left: string; rest: string } {

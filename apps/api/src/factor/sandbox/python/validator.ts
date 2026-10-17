@@ -16,12 +16,14 @@ const MAX_DIAGNOSTICS = 4;
 
 /**
  * 限定 Python 因子公开资产类别，供静态元数据校验。
+ *
  * Restrict public Python factor asset classes for static metadata validation.
  */
 type PythonAssetClass = 'equity' | 'fixed_income' | 'commodity';
 
 /**
  * 承载 Pyright 原始诊断输出，供作者代码校验。
+ *
  * Describe raw Pyright diagnostics used in author-source validation.
  */
 interface PyrightOutput {
@@ -34,6 +36,7 @@ interface PyrightOutput {
 
 /**
  * 静态校验 Python 因子而不执行用户源码，运行时元数据另行校验。
+ *
  * Validate a Python Factor without executing user code. Runtime metadata is validated separately.
  */
 export async function validatePythonFactorDefinition(
@@ -108,6 +111,7 @@ export async function validatePythonFactorDefinition(
 
 /**
  * 静态读取字面量资产类别声明，不启动 Python 执行沙盒。
+ *
  * Read the literal asset-domain declaration without starting the Python execution sandbox.
  */
 export function pythonFactorTargetAssetClasses(source: string): PythonAssetClass[] {
@@ -130,6 +134,7 @@ export function pythonFactorTargetAssetClasses(source: string): PythonAssetClass
 
 /**
  * 在准备好的类型环境中运行 Pyright，收集作者代码静态诊断。
+ *
  * Run Pyright against the prepared typing environment and collect author-source diagnostics.
  */
 function runPyright(workspacePath: string): Promise<PyrightOutput> {

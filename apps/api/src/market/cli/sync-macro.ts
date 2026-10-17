@@ -14,6 +14,7 @@ const CHINA_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
 
 /**
  * 同步标准化中美宏观序列，并保留时点可得性证据。
+ *
  * Sync normalized China and US macro series with PIT availability evidence.
  */
 async function main(): Promise<void> {

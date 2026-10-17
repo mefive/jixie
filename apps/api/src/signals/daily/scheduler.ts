@@ -8,6 +8,7 @@ import { syncSignalMarketData } from './sync.js';
 
 /**
  * 先同步一次市场数据，再串行计算所有活跃部署的每日信号。
+ *
  * Run one complete daily cycle: synchronize data once, then compute active deployments serially.
  */
 export async function runDailySignalCycle(
@@ -20,6 +21,7 @@ export async function runDailySignalCycle(
 
 /**
  * 基于已发布市场数据截止日为活跃部署生成信号。
+ *
  * Generate active-deployment signals from an already-published market-data cutoff.
  */
 export async function generateDailySignals(

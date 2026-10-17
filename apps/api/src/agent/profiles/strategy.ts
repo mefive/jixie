@@ -10,6 +10,7 @@ import { defaultTools } from '../tools/index.js';
 
 /**
  * 静态提取并去重策略中的证券代码字面量；注释中的代码也参与检查。
+ *
  * ts_code-shaped literals in the strategy code (6 digits + exchange suffix), deduped. Comments are
  * scanned too — a stale code in a comment forces the model to clean it up, which is fine.
  */
@@ -19,6 +20,7 @@ export function extractInstrumentCodes(code: string): string[] {
 
 /**
  * 拒绝本地证券、ETF 和指数数据中均不存在的代码，防止生成不可用策略。
+ *
  * Reject codes that exist nowhere in the local data (not a stock/ETF, not an offered index, not a synced
  * index series). An LLM writing a ts_code from memory otherwise fails SILENTLY at runtime: ensureBars
  * loads nothing → indicators return null → the backtest completes with zero trades. Throwing here
@@ -56,6 +58,7 @@ async function assertKnownInstruments(code: string): Promise<void> {
 
 /**
  * 配置策略工作台 Agent，通过只读工具迭代并编译校验策略代码。
+ *
  * The strategy-lab agent: iterates on defineStrategy code, compile-validated, with read-only data tools.
  */
 export function strategyProfile(

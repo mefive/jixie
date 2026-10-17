@@ -14,6 +14,7 @@ import type {
 
 /**
  * 提供助手消息提交时物化提案所需归属与产物。
+ *
  * Supply ownership and artifact data for proposal materialization at message commit.
  */
 interface PersistResearchCellChangePartArgs {
@@ -27,6 +28,7 @@ interface PersistResearchCellChangePartArgs {
 
 /**
  * 只在助手消息提交时物化服务端生成的修改提案。
+ *
  * Materialize a server-authored proposal only when its assistant message is committed.
  */
 export async function persistResearchCellChangePart(
@@ -85,6 +87,7 @@ export async function persistResearchCellChangePart(
 
 /**
  * 解析消息中持久提案引用，验证文档归属与状态。
+ *
  * Resolve a durable proposal reference with document ownership and state checks.
  */
 export async function resolveResearchCellChangeProposalRecord(
@@ -124,6 +127,7 @@ export async function syncResearchCellChangeProposalRecords(
 
 /**
  * 将持久化提案状态同步到对话产物，保持消息与审阅一致。
+ *
  * Synchronize proposal state into conversation artifacts for consistent review history.
  */
 export async function syncResearchCellChangeProposalRecord(
@@ -157,6 +161,7 @@ export async function syncResearchCellChangeProposalRecord(
 
 /**
  * 将修改提案、操作和状态映射为客户端审阅视图。
+ *
  * Map a proposal, its operations and state into the client review view.
  */
 export function researchCellChangeProposalView(
@@ -198,6 +203,7 @@ export function researchCellChangeProposalView(
 
 /**
  * 将应用前后快照和审阅状态转换为客户端记录。
+ *
  * Map before-and-after snapshots and review state into the client record.
  */
 export function researchCellChangeReviewView(

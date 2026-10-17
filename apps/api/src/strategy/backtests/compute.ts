@@ -9,6 +9,7 @@ import { StrategySimulation } from '../simulation/strategy-simulation.js';
 
 /**
  * 按策略语言选择运行时，所有语言仍复用唯一 TypeScript 撮合引擎。
+ *
  * Dispatch a DB-authored strategy to its language runtime while keeping one TypeScript engine.
  */
 export async function runBacktest(

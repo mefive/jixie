@@ -54,6 +54,7 @@ function startService(name, filter) {
 
 /**
  * 等待开发服务 socket 就绪或提前退出，避免启动器静默挂起。
+ *
  * Wait for a development socket or early process failure.
  */
 async function waitForSocket(child) {
@@ -87,6 +88,7 @@ function stopService(child, signal) {
 
 /**
  * 协调所有开发子进程组关闭并等待退出，防止遗留监听。
+ *
  * Shut down development process groups and wait for exit to avoid stale listeners.
  */
 async function shutdown(exitCode) {
@@ -132,6 +134,7 @@ await developmentFinished;
 
 /**
  * 启动开发服务前校验固定 CPython 与研究包精确版本，不静默退回系统环境。
+ *
  * Verify pinned CPython and research package versions before starting development services.
  */
 async function verifyResearchPythonRuntime() {

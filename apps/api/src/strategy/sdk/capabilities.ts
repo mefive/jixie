@@ -7,6 +7,7 @@ export type StrategyStockCapabilities = Omit<
 
 /**
  * 定义执行环境提供的原始能力，公开辅助方法归 SDK 自身。
+ *
  * Primitives supplied by the execution environment; public helpers belong to the SDK.
  */
 export interface StrategyCapabilities extends Pick<
@@ -35,6 +36,7 @@ export interface StrategyCapabilities extends Pick<
 
 /**
  * 表示已加载的 SDK 策略定义，回调接收运行器构造的公开上下文。
+ *
  * A loaded SDK definition; its callback receives the public context created by the runner.
  */
 export interface StrategyDefinition extends Omit<CodeStrategy, 'name'> {

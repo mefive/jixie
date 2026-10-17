@@ -5,6 +5,7 @@ import type { FactorQuestionContextV1 } from '@jixie/shared';
 // The system prompt below is English (i18n-exempt); only the reply language follows the user.
 /**
  * 围绕已选因子定义与报告提供只读解释。
+ *
  * Read-only explanations of an identified Factor definition and the selected report summary.
  */
 export function factorQaProfile(context: FactorQuestionContextV1): AgentProfile {

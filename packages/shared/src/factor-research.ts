@@ -11,6 +11,7 @@ export type FactorObservationFrequency = 'daily' | 'weekly' | 'monthly';
 
 /**
  * 冻结前瞻收益窗口及目标定义，供评估一致计算。
+ *
  * Freeze forward-return windows and target definitions for evaluation.
  */
 export interface FactorForwardReturnTargetV1 {
@@ -21,6 +22,7 @@ export interface FactorForwardReturnTargetV1 {
 
 /**
  * 声明因子研究的时点可得规则，供来源对齐。
+ *
  * Declare point-in-time rules used to align factor research sources.
  */
 export interface FactorPointInTimePolicyV1 {
@@ -31,6 +33,7 @@ export interface FactorPointInTimePolicyV1 {
 
 /**
  * 声明宏观版本及披露政策，避免当前修订回填。
+ *
  * Declare macro vintage and release policies to prevent revised-data backfill.
  */
 export interface MacroPointInTimePolicyV1 {
@@ -41,6 +44,7 @@ export interface MacroPointInTimePolicyV1 {
 
 /**
  * 兼容生产股票截面评估器，冻结其嵌套协议。
+ *
  * Compatibility branch for the production equity evaluator. The nested protocol remains immutable
  * so V1–V5 reports retain byte-for-byte research identity while gaining a typed analysis envelope.
  */
@@ -52,6 +56,7 @@ export interface CrossSectionalFactorResearchSpecV1 {
 
 /**
  * 冻结单资产时间序列研究的目标、窗口与政策。
+ *
  * Freeze time-series targets, windows and research policies.
  */
 export interface TimeSeriesFactorResearchSpecV1 {
@@ -71,6 +76,7 @@ export interface TimeSeriesFactorResearchSpecV1 {
 
 /**
  * 冻结跨资产 Panel 范围、标准化和收益协议。
+ *
  * Freeze panel universe, normalization and return protocol.
  */
 export interface PanelFactorResearchSpecV1 {
@@ -104,6 +110,7 @@ export type MultiAssetClass =
 
 /**
  * 冻结宏观状态与目标资产研究的时点、期间及规则。
+ *
  * Freeze dates, periods and policies for macro-regime asset research.
  */
 export interface MacroRegimeFactorResearchSpecV1 {
@@ -120,6 +127,7 @@ export interface MacroRegimeFactorResearchSpecV1 {
 
 /**
  * 区分截面、时间序列、Panel 与宏观状态研究，供协议穷尽分派。
+ *
  * Discriminate cross-sectional, time-series, panel and regime protocols.
  */
 export type FactorResearchSpecV1 =
@@ -130,6 +138,7 @@ export type FactorResearchSpecV1 =
 
 /**
  * 保存单资产预测统计与覆盖，供时间序列报告。
+ *
  * Describe per-asset predictive statistics and coverage for time-series reports.
  */
 export interface FactorTimeSeriesAssetReportV1 {
@@ -146,6 +155,7 @@ export interface FactorTimeSeriesAssetReportV1 {
 
 /**
  * 组合资产结果、聚合指标与研究口径。
+ *
  * Collect asset results, aggregate metrics and time-series conventions.
  */
 export interface FactorTimeSeriesReportV1 {
@@ -157,6 +167,7 @@ export interface FactorTimeSeriesReportV1 {
 
 /**
  * 记录 Panel 资产的有效样本与缺口。
+ *
  * Describe valid samples and gaps for a panel asset.
  */
 export interface FactorPanelAssetCoverageV1 {
@@ -169,6 +180,7 @@ export interface FactorPanelAssetCoverageV1 {
 
 /**
  * 汇总 Panel 单资产类别的研究表现。
+ *
  * Summarize panel research performance by asset class.
  */
 export interface FactorPanelAssetClassReportV1 {
@@ -181,6 +193,7 @@ export interface FactorPanelAssetClassReportV1 {
 
 /**
  * 解释 Panel 组内标准化的可用组与剔除数量。
+ *
  * Describe usable groups and exclusions in panel normalization.
  */
 export interface FactorPanelNormalizationDiagnosticsV1 {
@@ -194,6 +207,7 @@ export interface FactorPanelNormalizationDiagnosticsV1 {
 
 /**
  * 保留单期 Panel 排名、分组及组合表现。
+ *
  * Retain period panel ranks, groups and portfolio performance.
  */
 export interface FactorPanelPeriodReportV1 {
@@ -211,6 +225,7 @@ export interface FactorPanelPeriodReportV1 {
 
 /**
  * 汇总 Panel 分层、收益、成本与覆盖诊断。
+ *
  * Collect panel grouping, returns, costs and coverage diagnostics.
  */
 export interface FactorPanelReportV1 {
@@ -247,6 +262,7 @@ export type FactorMacroRegimeStateKeyV1 =
 
 /**
  * 保存单资产在某宏观状态下的收益和样本。
+ *
  * Describe an asset's returns and samples within a macro state.
  */
 export interface FactorMacroRegimeAssetStateReportV1 {
@@ -265,6 +281,7 @@ export interface FactorMacroRegimeAssetStateReportV1 {
 
 /**
  * 汇总某宏观状态及其资产表现。
+ *
  * Summarize a macro state and its asset performance.
  */
 export interface FactorMacroRegimeStateReportV1 {
@@ -279,6 +296,7 @@ export interface FactorMacroRegimeStateReportV1 {
 
 /**
  * 保留宏观状态评估区间、目标和结果。
+ *
  * Describe macro evaluation periods, targets and outcomes.
  */
 export interface FactorMacroRegimePeriodReportV1 {
@@ -294,6 +312,7 @@ export interface FactorMacroRegimePeriodReportV1 {
 
 /**
  * 组合宏观状态统计、区间及来源诊断。
+ *
  * Collect macro-state statistics, episodes and source diagnostics.
  */
 export interface FactorMacroRegimeReportV1 {
@@ -312,6 +331,7 @@ export interface FactorMacroRegimeReportV1 {
 
 /**
  * 统一按研究种类区分的报告 payload，供读取和渲染。
+ *
  * Unify kind-specific research report payloads for loading and rendering.
  */
 export type FactorResearchReportPayloadV1 =
@@ -322,6 +342,7 @@ export type FactorResearchReportPayloadV1 =
 
 /**
  * 汇总时间序列研究的可比较指标，供预注册判断。
+ *
  * Collect comparable time-series metrics for preregistered criteria.
  */
 export interface FactorTimeSeriesAggregateMetricsV1 {
@@ -331,6 +352,7 @@ export interface FactorTimeSeriesAggregateMetricsV1 {
 
 /**
  * 从时间序列研究结果提取聚合指标，供门槛比较。
+ *
  * Extract aggregate time-series metrics for criterion evaluation.
  */
 export function timeSeriesAggregateMetrics(
@@ -359,6 +381,7 @@ export function timeSeriesAggregateMetrics(
 
 /**
  * 按研究种类读取指定指标，保留不适用或缺失语义。
+ *
  * Resolve a metric by research kind while preserving unavailable or inapplicable values.
  */
 export function factorResearchMetricValue(
@@ -393,6 +416,7 @@ export function factorResearchMetricValue(
 
 /**
  * 按预注册比较方向与阈值判断指标是否通过，缺失值不能视为通过。
+ *
  * Evaluate a metric against its preregistered direction and threshold without passing missing values.
  */
 export function factorResearchCriterionPassed(

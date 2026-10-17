@@ -34,6 +34,7 @@ const EXACT_LINE_DIFF_PRODUCT_LIMIT = 1_000_000;
 
 /**
  * 区分新增、编辑、删除与排序 Cell 操作，供提案校验。
+ *
  * Discriminate cell insertion, editing, deletion and ordering operations.
  */
 export type ResearchCellChangeRequestOperation =
@@ -57,6 +58,7 @@ export type ResearchCellChangeRequestOperation =
 
 /**
  * 绑定提案操作与预期文档修订，供乐观并发校验。
+ *
  * Bind proposed edits to the expected document revision.
  */
 export interface ResearchCellChangeProposalRequest {
@@ -67,6 +69,7 @@ export interface ResearchCellChangeProposalRequest {
 
 /**
  * 提供提案构造时的当前 Cell 状态，供冲突比较。
+ *
  * Supply current cell state for proposal conflict checks.
  */
 interface CurrentResearchCell {
@@ -81,6 +84,7 @@ interface CurrentResearchCell {
 
 /**
  * 返回提案应用事务的修改和审阅身份。
+ *
  * Return applied edits and review identity from the proposal transaction.
  */
 interface ApplyTransactionResult {
@@ -91,6 +95,7 @@ interface ApplyTransactionResult {
 
 /**
  * 从单次 Agent 工具调用构造只读且绑定修订的修改提案。
+ *
  * Build a read-only, revision-bound proposal from one Agent tool call.
  */
 export async function prepareResearchCellChangeProposal(
@@ -284,6 +289,7 @@ export function applyResearchCellChangeProposalForReview(
 
 /**
  * 在事务中验证修订与提案状态，应用 Cell 修改并建立待审记录。
+ *
  * Validate revisions and proposal state transactionally, apply edits and create a pending review.
  */
 async function applyResearchCellChangeProposalInternal(
@@ -446,6 +452,7 @@ async function applyResearchCellChangeProposalInternal(
 
 /**
  * 验证归属与提案状态后拒绝修改，保留审计记录。
+ *
  * Reject an authorized proposal under state guards and retain its audit record.
  */
 export async function rejectResearchCellChangeProposal(
@@ -482,6 +489,7 @@ export async function rejectResearchCellChangeProposal(
 
 /**
  * 接受当前已应用修改的审阅，完成提案状态转换。
+ *
  * Accept review of applied changes and finalize the proposal transition.
  */
 export async function acceptResearchCellChangeReview(
@@ -542,6 +550,7 @@ export async function acceptResearchCellChangeReview(
 
 /**
  * 按原快照恢复已应用修改，并协调依赖及审阅状态。
+ *
  * Revert applied edits from their snapshots and reconcile dependency and review state.
  */
 export async function revertResearchCellChangeReview(
@@ -695,6 +704,7 @@ export async function revertResearchCellChangeReview(
 
 /**
  * 按顺序应用新增、编辑、删除等 Cell 操作，保持位置与身份一致。
+ *
  * Apply ordered cell operations while maintaining positions and identities.
  */
 async function applyOperations(
@@ -775,6 +785,7 @@ async function applyOperations(
 
 /**
  * 验证提案形成的完整文档及依赖，不允许无效结构进入审阅。
+ *
  * Validate the proposed document and dependencies before review.
  */
 async function validateProposedDocument(
@@ -843,6 +854,7 @@ async function validateProposedDocument(
 
 /**
  * 检查提案后依赖图是否有环，避免创建无法执行的文档。
+ *
  * Detect cycles in the proposed dependency graph before execution.
  */
 function hasDependencyCycle(
@@ -866,6 +878,7 @@ function hasDependencyCycle(
 
   /**
    * 用访问中与已完成集合深度遍历依赖图，检测回边形成的环。
+   *
    * Detect dependency cycles using active and completed sets in depth-first traversal.
    */
   const visit = (cellId: string): boolean => {
@@ -890,6 +903,7 @@ function hasDependencyCycle(
 
 /**
  * 将提案修订或状态冲突转换为稳定业务错误。
+ *
  * Build a stable business error for proposal revision or state conflicts.
  */
 function proposalConflict(
@@ -938,6 +952,7 @@ function proposalConflict(
 
 /**
  * 计算应用提案后 Cell 的完整顺序，供位置更新与计划校验。
+ *
  * Resolve the complete cell order after proposed operations.
  */
 function orderedCellIdsAfterChanges(
@@ -981,6 +996,7 @@ function validateCellSource(kind: ResearchCellKindV1, source: string): void {
 
 /**
  * 统计源码行增删，供提案差异摘要展示。
+ *
  * Count added and removed source lines for proposal diff summaries.
  */
 function lineChangeCounts(
@@ -1038,6 +1054,7 @@ function jsonStringArray(value: Prisma.JsonValue | undefined): string[] {
 
 /**
  * 汇总提案操作与验证结果，形成可持久化的提案响应。
+ *
  * Summarize operations and validation into the persistable proposal outcome.
  */
 function proposalOutcome(status: string): ResearchCellChangeResolutionResultV1['outcome'] {

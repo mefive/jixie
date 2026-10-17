@@ -9,6 +9,7 @@ import {
 
 /**
  * 提供宏观状态目标 ETF 的原始价格与复权输入。
+ *
  * Supply ETF prices and adjustments for macro-state return targets.
  */
 export interface MacroRegimeEtfDailyRow {
@@ -20,6 +21,7 @@ export interface MacroRegimeEtfDailyRow {
 
 /**
  * 绑定宏观状态、可得日与资产收益，供分状态评估。
+ *
  * Associate macro states, availability dates and asset returns for evaluation.
  */
 export interface MacroRegimeEvaluationObservation {
@@ -36,6 +38,7 @@ export interface MacroRegimeEvaluationObservation {
 
 /**
  * 描述宏观决策与收益目标区间，供不重叠评估分段。
+ *
  * Describe macro decision and return-target intervals for evaluation periods.
  */
 export interface MacroRegimeEvaluationPeriod {
@@ -45,6 +48,7 @@ export interface MacroRegimeEvaluationPeriod {
 
 /**
  * 组合宏观状态观测、期间与诊断，供评估器使用。
+ *
  * Collect macro observations, periods and diagnostics for evaluation.
  */
 export interface MacroRegimeEvaluationData {
@@ -56,6 +60,7 @@ export interface MacroRegimeEvaluationData {
 
 /**
  * 加载宏观状态与 ETF 价格，为冻结研究窗口构造可得性对齐输入。
+ *
  * Load macro states and ETF prices for availability-aligned evaluation.
  */
 export async function loadMacroRegimeObservations(
@@ -130,6 +135,7 @@ export async function loadMacroRegimeObservations(
 
 /**
  * 将宏观状态与后续资产收益映射为评估期间，保留各时点诊断。
+ *
  * Build evaluation periods from macro states and subsequent asset returns with dated diagnostics.
  */
 export function buildMacroRegimeEvaluationData(
@@ -209,6 +215,7 @@ export function buildMacroRegimeEvaluationData(
 
 /**
  * 确定各宏观状态决策日对应的目标收益区间。
+ *
  * Resolve return-target intervals for macro-regime decision dates.
  */
 export function macroRegimeDecisionTargets(

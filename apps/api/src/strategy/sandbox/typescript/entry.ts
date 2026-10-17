@@ -3,6 +3,7 @@ import type { StrategyRunnerCommandHandler, StrategyRunnerHost } from './strateg
 
 /**
  * 定义策略 isolate 可调用的受限同步宿主函数。
+ *
  * Describe the restricted synchronous host function available inside a strategy isolate.
  */
 interface HostFunction {

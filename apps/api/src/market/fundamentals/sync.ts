@@ -34,6 +34,7 @@ import {
 
 /**
  * 汇总三张表同步新增与修订，供维护记录。
+ *
  * Summarize statement additions and revisions for maintenance records.
  */
 export interface FinancialStatementSyncSummary {
@@ -48,6 +49,7 @@ export interface FinancialStatementSyncSummary {
 
 /**
  * 配置单证券财报修复的公告日期窗口。
+ *
  * Configure announcement windows for per-stock statement repair.
  */
 export interface FinancialStatementStockSyncOptions {
@@ -58,6 +60,7 @@ export interface FinancialStatementStockSyncOptions {
 
 /**
  * 保存财报更正证据并关联来源身份，供历史可得日期解析。
+ *
  * Persist statement correction evidence for historical availability resolution.
  */
 export async function storeFinancialCorrectionEvidence(
@@ -131,6 +134,7 @@ export async function storeFinancialCorrectionEvidence(
 
 /**
  * 组合单次获取的三张表来源，供原子持久化。
+ *
  * Collect fetched statement sources for atomic persistence.
  */
 interface FinancialStatementBatch {
@@ -141,6 +145,7 @@ interface FinancialStatementBatch {
 
 /**
  * 记录已持久化新增、重复与修订结果。
+ *
  * Describe persisted statement additions, duplicates and revisions.
  */
 interface PersistedFinancialStatementChanges {
@@ -170,6 +175,7 @@ const DATABASE_BATCH_SIZE = 250;
 
 /**
  * 按报告期显式请求各报告类型，回填三张追加式来源表。
+ *
  * Backfills the three append-only statement tables by report period. Each report type is requested
  * explicitly because Tushare's default response omits adjusted comparative versions.
  */
@@ -200,6 +206,7 @@ export async function syncFinancialStatementsVip(
 
 /**
  * 按有界公告日窗口修复指定证券，避免标准接口全历史查询截断。
+ *
  * Repairs selected stocks through bounded announcement-date windows. A full-history standard API
  * call can stop at the provider row cap, so this path never requests an unbounded history.
  */
@@ -248,6 +255,7 @@ export async function syncFinancialStatementsByStock(
 
 /**
  * 按公告日拆分财报请求窗口，限制单次来源返回规模。
+ *
  * Partition announcement dates into bounded financial statement request windows.
  */
 export function financialStatementDateWindows(
@@ -293,6 +301,7 @@ async function fetchFinancialStatementPeriod(
 
 /**
  * 获取单证券单公告窗口的三张表来源，供版本化合并。
+ *
  * Fetch one instrument's statement window for versioned source merging.
  */
 async function fetchFinancialStatementStockWindow(
@@ -326,6 +335,7 @@ async function fetchFinancialStatementStockWindow(
 
 /**
  * 原子持久化一批报表及其修订变化，供后续 PIT 解析。
+ *
  * Persist a statement batch and its revisions atomically for PIT resolution.
  */
 async function persistFinancialStatementBatch(
@@ -363,6 +373,7 @@ async function persistFinancialStatementBatch(
 
   /**
    * 将资产负债表来源科目和公共版本元数据映射为存储行。
+   *
    * Map balance-sheet source fields and shared version metadata to storage rows.
    */
   const balanceData = normalized.balanceSheet.map((row) => ({
@@ -471,6 +482,7 @@ async function persistFinancialStatementBatch(
 
 /**
  * 校验并规范化三张表来源行，供版本指纹和存储映射。
+ *
  * Validate and normalize statement source rows for fingerprints and persistence.
  */
 function normalizeRows(
@@ -498,6 +510,7 @@ function normalizeRows(
 
 /**
  * 统一映射报表来源元数据，供三张表持久化保持相同版本语义。
+ *
  * Map common statement provenance into consistent versioned persistence fields.
  */
 function commonStatementData(
@@ -530,6 +543,7 @@ function commonStatementData(
 
 /**
  * 读取披露可得性计算所需交易日历，供下一交易日映射。
+ *
  * Load trading sessions required to map statement release availability.
  */
 async function loadTradingSessions(
@@ -560,6 +574,7 @@ async function loadTradingSessions(
 
 /**
  * 读取报表更正证据，供来源行解析历史修订日期。
+ *
  * Load correction evidence used to date historical statement revisions.
  */
 async function loadCorrectionEvidence(
@@ -595,6 +610,7 @@ async function loadCorrectionEvidence(
 
 /**
  * 将来源行按追加式规则入库并汇总新增、重复与修订。
+ *
  * Append source rows and summarize new, duplicate and revised observations.
  */
 async function appendRows<Row extends { sourceRowFingerprint: string; tsCode: string }>(
@@ -631,6 +647,7 @@ async function attachEvidenceToUnambiguousVersion(
 
 /**
  * 要求来源响应符合请求的证券、期间与类型。
+ *
  * Require source rows to match requested instruments, periods and types.
  */
 function assertExpectedRows(
@@ -653,6 +670,7 @@ function emptyFinancialStatementSyncSummary(requested: number): FinancialStateme
 
 /**
  * 二分选择严格晚于披露日的首个交易日，供可得性映射。
+ *
  * Find the first trading date strictly after release for availability mapping.
  */
 function nextStrictlyLaterDate(sortedDates: string[], target: string): string | undefined {

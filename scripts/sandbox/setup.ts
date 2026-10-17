@@ -28,6 +28,7 @@ export function sandboxArtifacts() {
 
 /**
  * 解析 setup、check 与 help 模式，拒绝未知参数。
+ *
  * Parse setup, check and help modes and reject unsupported arguments.
  */
 export function parseSetupMode(args: string[]): 'setup' | 'check' | 'help' {
@@ -48,6 +49,7 @@ export function parseSetupMode(args: string[]): 'setup' | 'check' | 'help' {
 
 /**
  * 比较或写入公开契约生成物，check 模式只读并报告过期文件。
+ *
  * Compare or synchronize generated artifacts; check mode is read-only and reports stale files.
  */
 export async function synchronizeArtifacts(directory: string, check: boolean): Promise<string[]> {
@@ -77,6 +79,7 @@ export async function synchronizeArtifacts(directory: string, check: boolean): P
 
 /**
  * 按模式协调生成物同步和 Python 环境准备，check 模式不安装或启动服务。
+ *
  * Coordinate artifact synchronization and Python preparation without installation or services in check mode.
  */
 export async function setupSandbox(

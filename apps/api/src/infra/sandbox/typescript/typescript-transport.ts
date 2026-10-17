@@ -7,6 +7,7 @@ const DEFAULT_MAX_FRAME_BYTES = 64 * 1024 * 1024;
 
 /**
  * 记录 TypeScript isolate 传输的执行与资源指标，供诊断使用。
+ *
  * Record TypeScript isolate transport execution and resource metrics for diagnostics.
  */
 export interface TypeScriptTransportMetrics {
@@ -18,6 +19,7 @@ export interface TypeScriptTransportMetrics {
 
 /**
  * 配置 TypeScript isolate 的启动、限制及宿主调用能力。
+ *
  * Configure TypeScript isolate startup, limits and host-call capabilities.
  */
 export interface TypeScriptTransportOptions {
@@ -68,6 +70,7 @@ export class TypeScriptTransport implements SandboxTransport {
 
   /**
    * 创建并准备 isolate 执行环境，接入受限宿主函数和消息通道。
+   *
    * Initialize the isolate, restricted host callbacks and protocol channel.
    */
   private async initialize(): Promise<void> {
@@ -107,6 +110,7 @@ export class TypeScriptTransport implements SandboxTransport {
 
   /**
    * 向 TypeScript 沙盒发送输入帧，并处理已关闭或失败会话。
+   *
    * Send an input frame to the TypeScript sandbox with closure and failure handling.
    */
   async send(frame: { type: string; [key: string]: unknown }): Promise<void> {
@@ -147,6 +151,7 @@ export class TypeScriptTransport implements SandboxTransport {
 
   /**
    * 读取并校验沙盒输出帧，协议不合法时终止会话。
+   *
    * Read and validate a sandbox frame, aborting the session on protocol violations.
    */
   async readValidated<Frame>(schema: z.ZodType<Frame>, operation: string): Promise<Frame> {
@@ -185,6 +190,7 @@ export class TypeScriptTransport implements SandboxTransport {
 
   /**
    * 终止 isolate 并释放等待中的消息与宿主资源。
+   *
    * Abort the isolate and release pending messages and host resources.
    */
   abort(cause: unknown): void {
@@ -207,6 +213,7 @@ export class TypeScriptTransport implements SandboxTransport {
 
   /**
    * 将沙盒输出放入读取队列或交给等待方，维护传输结束状态。
+   *
    * Queue sandbox output or deliver it to a waiting reader while preserving transport state.
    */
   private enqueue(frame: unknown): void {

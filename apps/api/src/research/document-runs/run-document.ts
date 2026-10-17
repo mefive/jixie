@@ -22,6 +22,7 @@ import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state
 
 /**
  * 协调归属与提案审阅约束，按文档顺序执行 Cell；干净运行重置会话并保存不可变执行证据。
+ *
  * Coordinate ownership and review guards and run ordered cells; clean runs reset the session and retain immutable execution evidence.
  */
 export async function runResearchDocument(

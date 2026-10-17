@@ -7,6 +7,7 @@ const RESEARCH_DIFF_THEME = 'jixie-research-diff';
 
 /**
  * 提供只读前后源码及语言，供提案 Diff 展示。
+ *
  * Supply read-only original and proposed source for diff rendering.
  */
 interface ResearchCellChangeDiffProps {
@@ -16,6 +17,7 @@ interface ResearchCellChangeDiffProps {
 
 /**
  * 只读展示 Monaco 差异；应用提案始终由独立明确动作触发。
+ *
  * Read-only Monaco diff; applying the proposal always remains a separate explicit action.
  */
 export default function ResearchCellChangeDiff({

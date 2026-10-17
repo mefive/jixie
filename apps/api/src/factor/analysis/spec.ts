@@ -94,6 +94,7 @@ export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec 
 
 /**
  * 将各版本研究输入规范化为当前可执行规格。
+ *
  * Normalize versioned research input into executable specifications.
  */
 export function normalizeFactorResearchSpec(input: unknown): FactorResearchSpecV1 {

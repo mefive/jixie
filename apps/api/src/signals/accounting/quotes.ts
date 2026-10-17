@@ -3,6 +3,7 @@ import type { MarketQuote } from './replay.js';
 
 /**
  * 按执行日期读取可用行情，供现金资产成交与估值重放。
+ *
  * Load dated cash-asset quotes for fill and valuation replay.
  */
 export async function loadMarketQuotes(

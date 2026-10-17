@@ -11,6 +11,7 @@ import { timeSeriesTemplateResource } from '#factor/definitions/templates/time-s
 
 /**
  * 由服务端解析业务身份，宿主实体之后消失也不影响快照读取。
+ *
  * Resolve identity on the server; snapshots remain readable if the host later disappears.
  */
 export async function captureEmbeddedContext(

@@ -17,6 +17,7 @@ const FUND_ADJ_PAGE_SIZE = 2_000;
 
 /**
  * 只补齐缺失键，来源无观测时明确保留空缺，不构造行情。
+ *
  * Fill only missing keys. Empty historical observations remain explicit, never fabricated.
  */
 export async function fillEtfHistoryGap(
@@ -122,6 +123,7 @@ export async function fillEtfHistoryGap(
 
 /**
  * 汇总 ETF 单日行情、复权与份额发布结果。
+ *
  * Summarize dated ETF bar, adjustment and share-size publication.
  */
 export interface EtfMarketDateSyncSummary {
@@ -137,6 +139,7 @@ export interface EtfMarketDateSyncSummary {
 
 /**
  * 汇总 ETF 单日份额原子更新结果。
+ *
  * Summarize an atomic dated ETF share-size update.
  */
 export interface EtfShareSizeDateSyncSummary {
@@ -150,6 +153,7 @@ export interface EtfShareSizeDateSyncSummary {
 
 /**
  * 汇总 ETF 历史份额回填与恢复进度。
+ *
  * Summarize ETF historical share-size backfill and resumption.
  */
 export interface EtfShareSizeRangeSyncSummary {
@@ -164,6 +168,7 @@ export interface EtfShareSizeRangeSyncSummary {
 
 /**
  * 记录 ETF 修订范围与最早语义变化日，供失效判断。
+ *
  * Retain ETF revision bounds and earliest semantic change for invalidation.
  */
 export interface EtfRevisionRefreshSummary {
@@ -176,6 +181,7 @@ export interface EtfRevisionRefreshSummary {
 
 /**
  * 完整读取某日基金复权分页，检测忽略分页的供应商响应。
+ *
  * Fetch every fund_adj page for one date and reject a provider that ignores pagination.
  */
 export async function fetchAllFundAdjForDate(
@@ -211,6 +217,7 @@ export async function fetchAllFundAdjForDate(
 
 /**
  * 只读获取并验证 ETF 来源候选，不修改已发布市场数据。
+ *
  * Read and validate source candidates without changing any published market data.
  */
 export async function prepareEtfMarketDate(
@@ -266,6 +273,7 @@ export type PreparedEtfMarketDate = Awaited<ReturnType<typeof prepareEtfMarketDa
 
 /**
  * 原子替换已校验的来源候选，保持发布批次一致。
+ *
  * Atomically replace only validated source candidates.
  */
 export async function publishPreparedEtfMarketDate(
@@ -308,6 +316,7 @@ export async function publishPreparedEtfMarketDate(
 
 /**
  * 为选定 ETF 原子替换当日日线、复权及份额切片。
+ *
  * Atomically replace daily price, adjustment, and share-size slices for selected ETF products.
  */
 export async function syncEtfMarketDate(
@@ -322,6 +331,7 @@ export async function syncEtfMarketDate(
 
 /**
  * 仅原子替换指定日期的份额切片，供有界历史回填。
+ *
  * Atomically replace only the share-size slice, used by bounded historical backfills.
  */
 export async function syncEtfShareSizeDate(
@@ -372,6 +382,7 @@ export async function syncEtfShareSizeDate(
 
 /**
  * 按交易日回填份额，以原子记录数量支持逐日恢复。
+ *
  * Backfill open-date share-size slices with date-level resumption based on atomic row counts.
  */
 export async function syncEtfShareSizeRange(
@@ -431,6 +442,7 @@ export async function syncEtfShareSizeRange(
 
 /**
  * 刷新有界区间并报告最早发生语义修订的日期。
+ *
  * Refresh bounded date slices and report the earliest semantic provider revision.
  */
 export async function refreshEtfRegistryRevisions(
@@ -473,6 +485,7 @@ export async function refreshEtfRegistryRevisions(
 
 /**
  * 将准备好的 ETF 日线、复权和份额一并发布，保持同日输入一致。
+ *
  * Publish prepared ETF bars, adjustments and share sizes as a consistent dated input set.
  */
 async function publishEtfMarketDate(
@@ -561,6 +574,7 @@ async function nextSseTradingDate(tradeDate: TradeDate): Promise<TradeDate> {
 
 /**
  * 校验 ETF 来源行并限制到请求证券范围，供原子发布使用。
+ *
  * Validate ETF source rows and filter to requested instruments before atomic publication.
  */
 function validateAndFilterRows<Row extends { ts_code: string; trade_date: string }>(
@@ -636,6 +650,7 @@ function shareSizeData(row: EtfShareSizeRow, availableDate: TradeDate) {
 
 /**
  * 读取现有 ETF 切片快照，供来源修订比较。
+ *
  * Load stored ETF slices for semantic source-revision comparison.
  */
 async function loadEtfRevisionSnapshot(
@@ -683,6 +698,7 @@ async function loadEtfRevisionSnapshot(
 
 /**
  * 比较新旧 ETF 切片，定位最早语义修订日期。
+ *
  * Find the earliest semantic difference between ETF snapshots.
  */
 function earliestSnapshotChange(

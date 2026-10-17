@@ -10,6 +10,7 @@ import {
 
 /**
  * 生成沙盒产物与 Pyright 工作区共用的 Python 类型表面。
+ *
  * Render the Python typing surface used by both the sandbox artifact and Pyright workspace.
  */
 export function renderResearchSdkPythonStub(
@@ -51,6 +52,7 @@ export function renderResearchSdkPythonStub(
 
 /**
  * 从单方法契约渲染 Python 声明及来源说明，不改变方法签名。
+ *
  * Render one Python method declaration and guidance from its canonical contract.
  */
 function renderFunction(contract: ResearchSdkFunctionContractV1): string[] {

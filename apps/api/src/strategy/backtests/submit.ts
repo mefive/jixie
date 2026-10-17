@@ -17,6 +17,7 @@ import type {
 
 /**
  * 校验策略和可运行配置，冻结本次输入并提交后台回测任务。
+ *
  * Validate the strategy, freeze runnable inputs and submit a background backtest.
  */
 export async function submitStrategyBacktest(

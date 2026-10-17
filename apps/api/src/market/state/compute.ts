@@ -11,6 +11,7 @@ import type {
 
 /**
  * 提供已计算全市场指标，供状态和气象派生。
+ *
  * Supply computed market indicators for state and weather derivation.
  */
 export interface MarketIndicatorRow {
@@ -31,6 +32,7 @@ export interface MarketIndicatorRow {
 
 /**
  * 提供行业指标与日期，供行业气象聚合。
+ *
  * Supply dated industry indicators for weather aggregation.
  */
 export interface IndustryIndicatorRow {
@@ -50,6 +52,7 @@ export interface IndustryIndicatorRow {
 
 /**
  * 提供指数日期与收盘，供状态收益计算。
+ *
  * Supply dated index closes for state return calculation.
  */
 export interface IndexCloseRow {
@@ -60,6 +63,7 @@ export interface IndexCloseRow {
 
 /**
  * 提供申万一级行业日线，供行业基准收益。
+ *
  * Supply Shenwan industry bars for benchmark returns.
  */
 export interface SwIndexDailyRow {
@@ -72,6 +76,7 @@ export interface SwIndexDailyRow {
 
 /**
  * 提供指数气象所需指标历史。
+ *
  * Supply index indicator history for weather computation.
  */
 export interface IndexWeatherIndicatorRow {
@@ -88,6 +93,7 @@ export interface IndexWeatherIndicatorRow {
 
 /**
  * 提供指数估值与换手等基础指标，供气象解释。
+ *
  * Supply index valuations and activity for weather interpretation.
  */
 export interface IndexWeatherBasicRow {
@@ -100,6 +106,7 @@ export interface IndexWeatherBasicRow {
 
 /**
  * 保留指数分类及显示身份，供气象分组。
+ *
  * Supply index metadata for weather grouping.
  */
 export interface IndexWeatherMetadataRow {
@@ -109,6 +116,7 @@ export interface IndexWeatherMetadataRow {
 
 /**
  * 配置指数气象组与成员，供统一看板组织。
+ *
  * Configure index weather groups and members.
  */
 export interface IndexWeatherGroupConfig {
@@ -119,6 +127,7 @@ const ACTIVITY_WINDOW = 20;
 
 /**
  * 构建完整描述性市场状态序列，供 Research 数据集读取。
+ *
  * Build the full descriptive point series for Research datasets.
  */
 export function buildMarketStatePoints(marketRows: MarketIndicatorRow[]): MarketStatePoint[] {
@@ -147,6 +156,7 @@ function toPoint(row: MarketIndicatorRow, activity: number | null): MarketStateP
 
 /**
  * 按行业聚合状态指标与收益，生成各周期行业气象。
+ *
  * Aggregate industry indicators and returns into period-specific industry weather.
  */
 export function buildIndustryWeatherSeries(
@@ -196,6 +206,7 @@ export function buildIndustryWeatherSeries(
 
   /**
    * 按周期边界对齐行业快照和前期价格，生成周期行业气象。
+   *
    * Align industry snapshots and prior prices for period weather.
    */
   const periods = periodBoundaries.map((boundary, periodIndex) => {
@@ -221,6 +232,7 @@ export function buildIndustryWeatherSeries(
 
     /**
      * 从收益、广度、活跃度和估值构造单行业气象项。
+     *
      * Build industry weather from returns, breadth, activity and valuation.
      */
     const industries = snapshotRows.map((row): IndustryWeatherItem => {
@@ -272,6 +284,7 @@ export function buildIndustryWeatherSeries(
 
 /**
  * 将行业气象映射为通用市场气象展示结构。
+ *
  * Map industry weather into the common market-weather response.
  */
 export function industryWeatherToMarketWeather(
@@ -311,6 +324,7 @@ export function industryWeatherToMarketWeather(
 
 /**
  * 按指数与周期聚合状态、估值和行情，生成指数气象。
+ *
  * Aggregate index state, valuation and prices into period-specific weather.
  */
 export function buildIndexWeatherSeries(
@@ -377,6 +391,7 @@ export function buildIndexWeatherSeries(
 
   /**
    * 按周期对齐指数收盘及基准，生成指数气象。
+   *
    * Align index and benchmark closes for period weather.
    */
   const periods = periodBoundaries.map((boundary, periodIndex) => {
@@ -415,6 +430,7 @@ export function buildIndexWeatherSeries(
 
     /**
      * 对有当期收盘的指数计算气象指标，缺行情不生成虚假项目。
+     *
      * Build index weather only where a current close exists.
      */
     const items = configuredCodes.flatMap((code): MarketWeatherItem[] => {
@@ -501,6 +517,7 @@ function classifyIndustryWeather(
 
 /**
  * 按现有指标阈值划分描述性市场气象，不生成交易建议。
+ *
  * Classify descriptive market weather from the implemented indicator thresholds.
  */
 function classifyMarketWeather(
@@ -565,6 +582,7 @@ function classifyMarketWeather(
 
 /**
  * 从交易日序列构造周月等周期边界，供气象聚合。
+ *
  * Build period boundaries from trading dates for weather aggregation.
  */
 function buildWeatherPeriodBoundaries(
@@ -600,6 +618,7 @@ function buildWeatherPeriodBoundaries(
 
 /**
  * 将日期映射为气象周期键，供相同周期聚合。
+ *
  * Map a date to its weather aggregation period key.
  */
 function weatherPeriodKey(tradeDate: string, frequency: MarketWeatherFrequency): string {
@@ -619,6 +638,7 @@ function weatherPeriodKey(tradeDate: string, frequency: MarketWeatherFrequency):
 
 /**
  * 将日期归入 ISO 周一，供市场周期边界。
+ *
  * Map a date to its ISO Monday for market periods.
  */
 function isoWeekKey(tradeDate: string): string {
@@ -650,6 +670,7 @@ function groupRows<Row>(rows: Row[], key: (row: Row) => string): Map<string, Row
 
 /**
  * 按历史窗口建立分位查询，供状态指标描述当前位置。
+ *
  * Build historical percentile lookups for descriptive state indicators.
  */
 function buildRollingPercentileLookup<Row extends { tradeDate: string }>(
@@ -707,6 +728,7 @@ function removeSorted(values: number[], value: number): void {
 
 /**
  * 二分定位首个不小于目标的历史值，供分位统计。
+ *
  * Find the first sorted historical value not below a target.
  */
 function lowerBound(values: number[], target: number): number {
@@ -725,6 +747,7 @@ function lowerBound(values: number[], target: number): number {
 
 /**
  * 二分定位首个大于目标的历史值，供并列分位处理。
+ *
  * Find the first sorted historical value above a target.
  */
 function upperBound(values: number[], target: number): number {
@@ -747,6 +770,7 @@ function industryBreadth(row: IndustryIndicatorRow): number | null {
 
 /**
  * 在固定窗口滚动计算均值，供市场活跃度指标。
+ *
  * Compute fixed-window rolling averages for market activity.
  */
 function rollingAverage(

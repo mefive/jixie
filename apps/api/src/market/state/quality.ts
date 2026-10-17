@@ -3,6 +3,7 @@ import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.
 
 /**
  * 描述派生状态区间完整性，供发布门禁。
+ *
  * Describe derived-state interval completeness for publication gates.
  */
 export interface DerivedRangeQuality {
@@ -15,6 +16,7 @@ export interface DerivedRangeQuality {
 
 /**
  * 检查派生市场状态范围是否完整，供维护发布门禁。
+ *
  * Validate derived market-state coverage for publication gating.
  */
 export async function validateDerivedMarketRange(

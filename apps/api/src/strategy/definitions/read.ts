@@ -44,6 +44,7 @@ function strategyCardSnapshot(lastResult: unknown): StrategyCard['snapshot'] {
 
 /**
  * 按用户归属读取策略及配置，并整理当前运行信息。
+ *
  * Read an owned strategy, its configuration and current execution information.
  */
 export async function readStrategy(userId: string, strategyId: string) {

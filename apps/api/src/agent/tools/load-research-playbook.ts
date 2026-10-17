@@ -19,6 +19,7 @@ export const loadResearchPlaybookTool: AgentTool = {
 
   /**
    * 解析研究方法标识并返回对应 playbook，为 Agent 选择研究步骤提供依据。
+   *
    * Resolve a research playbook request and return its methodological guidance.
    */
   async run(args) {

@@ -10,6 +10,7 @@ import { factorAnalysisSourceSnapshot } from '../sources/snapshot.js';
 
 /**
  * 验证 Panel 组合的组件与准入证据后发布冻结版本。
+ *
  * Publish a frozen panel composite after validating components and admission evidence.
  */
 export async function publishPanelComposite(
@@ -102,6 +103,7 @@ export async function publishPanelComposite(
 
 /**
  * 归档 Panel 组合并维护依赖引用约束。
+ *
  * Archive a panel composite while respecting dependency constraints.
  */
 export async function archivePanelComposite(

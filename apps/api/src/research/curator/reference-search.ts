@@ -9,6 +9,7 @@ export type CuratorRepositoryReferenceKind = Extract<
 
 /**
  * 表示仓库内可核验产品知识引用，供整理证据匹配。
+ *
  * Describe a verifiable repository knowledge reference for curation evidence.
  */
 export interface CuratorRepositoryReference {
@@ -19,6 +20,7 @@ export interface CuratorRepositoryReference {
 
 /**
  * 缓存知识引用的索引字段，供有界检索。
+ *
  * Retain indexed reference fields for bounded knowledge search.
  */
 interface IndexedReference {
@@ -67,6 +69,7 @@ let cachedDefaultIndex: Promise<IndexedReference[]> | undefined;
 
 /**
  * 只读搜索已纳入版本控制的产品知识，不扩展到任意本地文件。
+ *
  * Search is deliberately read-only and limited to checked-in product knowledge.
  */
 export async function searchCuratorRepositoryReferences(
@@ -128,6 +131,7 @@ async function buildReferenceIndex(repositoryRoot: string): Promise<IndexedRefer
 
 /**
  * 在允许的知识路径下收集受支持文件，供只读引用索引。
+ *
  * Collect supported files within allowed knowledge paths for the read-only reference index.
  */
 async function collectFiles(

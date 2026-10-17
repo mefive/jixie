@@ -24,6 +24,7 @@ export const searchInstruments: AgentTool = {
 
   /**
    * 按用户查询匹配本地证券与指数，返回可用于研究的稳定代码。
+   *
    * Match local instruments and indices to a query and return stable research identifiers.
    */
   async run(args) {

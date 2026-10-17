@@ -5,6 +5,7 @@ import type { LogWriter } from './job-logs.js';
 
 /**
  * 定义 Worker 进度、日志与结果消息，供宿主统一收集。
+ *
  * Describe worker progress, log and result messages consumed by the host.
  */
 export type WorkerMessage<Result> =
@@ -14,6 +15,7 @@ export type WorkerMessage<Result> =
 
 /**
  * 配置 Worker 输入、事件与取消处理，供宿主管理单次后台计算。
+ *
  * Configure worker input, events and cancellation for a background computation.
  */
 type WorkerRunOptions<Result> = {
@@ -61,6 +63,7 @@ class WorkerRun<Result> {
 
   /**
    * 停止 Worker 并清理监听与等待状态，供取消及异常收尾复用。
+   *
    * Stop a worker and clean up listeners and pending completion state.
    */
   private stop(error: unknown): void {

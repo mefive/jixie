@@ -30,6 +30,7 @@ const RATE_REGIME_KEYS: AllocationRateRegimeKey[] = [
 
 /**
  * 记录利率环境分类使用的观测日期和曲线信息，支持组合归因结果追溯。
+ *
  * Retain the dated curve observations used to explain allocation rate-regime classifications.
  */
 export interface AllocationRateRegimeObservation {
@@ -43,6 +44,7 @@ export interface AllocationRateRegimeObservation {
 
 /**
  * 在逐日归因期间累计单资产敞口、盈亏与成本，最终转换为报告中的资产贡献。
+ *
  * Accumulate one asset's exposure, profit and costs before producing allocation contribution rows.
  */
 interface AssetAccumulator {
@@ -72,6 +74,7 @@ export class AllocationAnalysisTracker {
 
   /**
    * 按归因范围初始化资产及类别累积器，供逐日捕获。
+   *
    * Initialize asset and class accumulators for daily allocation capture.
    */
   constructor(
@@ -93,6 +96,7 @@ export class AllocationAnalysisTracker {
 
   /**
    * 从当日账户快照累计资产净值、风险敞口和收益贡献，为最终组合归因准备时间序列。
+   *
    * Accumulate daily account values, exposures and contributions for the final allocation analysis.
    */
   captureDay(args: {
@@ -191,6 +195,7 @@ export class AllocationAnalysisTracker {
 
   /**
    * 记录调仓前后权重及成交成本，用于解释配置变化和换手来源。
+   *
    * Capture pre- and post-rebalance weights and costs to explain allocation changes and turnover.
    */
   captureRebalance(args: {
@@ -227,6 +232,7 @@ export class AllocationAnalysisTracker {
 
   /**
    * 将逐日累计数据整理为资产贡献、相关性、利率环境和调仓分析结果。
+   *
    * Finalize accumulated daily observations into contribution, correlation, rate-regime and rebalance analyses.
    */
   finish(finalValue: number): AllocationAnalysis {
@@ -322,6 +328,7 @@ export class AllocationAnalysisTracker {
 
   /**
    * 按资产类别累计可用的市场收益序列，供跨类别相关性和环境分析使用。
+   *
    * Collect available market returns by asset class for correlation and regime analysis.
    */
   private captureClassMarketReturns(
@@ -368,6 +375,7 @@ export class AllocationAnalysisTracker {
 
   /**
    * 对齐共同日期上的资产收益，生成指定窗口的相关性输入与结果。
+   *
    * Align asset returns on common dates and build the requested correlation window.
    */
   private buildCorrelationWindow(
@@ -436,6 +444,7 @@ export class AllocationAnalysisTracker {
 
   /**
    * 按当时可得的利率数据划分环境并汇总组合表现，避免用未来曲线回填历史。
+   *
    * Group allocation performance by rate environments using only curve information available at the time.
    */
   private buildRateRegimes(): AllocationRateRegimeAnalysis | undefined {
@@ -526,6 +535,7 @@ export class AllocationAnalysisTracker {
 
 /**
  * 只使用截至指定日期已可得的曲线点，对利率环境作透明、可追溯的分类。
+ *
  * Classifies a transparent rate environment using only curve points available by `asOfDate`.
  */
 export function classifyAllocationRateRegime(
@@ -641,6 +651,7 @@ function median(values: number[]): number {
 
 /**
  * 从一段环境区间的净值计算最大峰谷回撤，用于环境表现诊断。
+ *
  * Measure the largest peak-to-trough NAV decline within a regime episode.
  */
 function maximumEpisodeDrawdown(
@@ -677,6 +688,7 @@ function maximumEpisodeDrawdown(
 
 /**
  * 读取两条已对齐收益序列的相关性；不可计算时保留缺失语义。
+ *
  * Read pairwise correlation for aligned return series while preserving unavailable results.
  */
 function correlationAt(

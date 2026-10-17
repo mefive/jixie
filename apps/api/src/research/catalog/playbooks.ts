@@ -9,6 +9,7 @@ export type ResearchPlaybookId = (typeof RESEARCH_PLAYBOOK_IDS)[number];
 
 /**
  * 将研究方法关联到受控概念，供 playbook 检索。
+ *
  * Associate a research method with governed concepts for playbook discovery.
  */
 export interface ResearchPlaybookConceptV1 {
@@ -21,6 +22,7 @@ export interface ResearchPlaybookConceptV1 {
 
 /**
  * 定义研究方法步骤、输入与限制，供 Agent 按问题选择。
+ *
  * Describe a playbook's procedure, inputs and limits for agent selection.
  */
 export interface ResearchPlaybookDefinitionV1 {

@@ -7,6 +7,7 @@ export function researchPayloadHash(value: unknown): string {
 
 /**
  * 递归规范 JSON 键序，供研究证据稳定指纹。
+ *
  * Canonicalize JSON keys recursively for stable evidence fingerprints.
  */
 function canonicalize(value: unknown): unknown {

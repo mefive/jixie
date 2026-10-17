@@ -9,6 +9,7 @@ import { proposeStrategyName, uniqueStrategyName } from './naming.js';
 
 /**
  * 创建归属当前用户的策略草稿并初始化默认配置。
+ *
  * Create an owned strategy draft with its initial configuration.
  */
 export async function createStrategy(userId: string, input: CreateStrategyInput, locale: Locale) {
@@ -49,6 +50,7 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
 
 /**
  * 校验策略归属及依赖状态后删除并清理关联。
+ *
  * Authorize strategy deletion and validate dependent state.
  */
 export async function deleteStrategy(userId: string, strategyId: string) {

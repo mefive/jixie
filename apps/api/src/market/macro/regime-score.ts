@@ -24,6 +24,7 @@ export type MacroRegimeStateKey = FactorMacroRegimeStateKeyV1;
 
 /**
  * 返回宏观轴总分、水平与动量分数及样本覆盖。
+ *
  * Describe a macro-axis score, level, momentum and sample coverage.
  */
 export interface MacroRegimeAxisV1 {
@@ -36,6 +37,7 @@ export interface MacroRegimeAxisV1 {
 
 /**
  * 返回增长及通胀轴分数和输入覆盖，供描述性状态研究。
+ *
  * Return growth and inflation scores with input coverage for regime research.
  */
 export interface MacroRegimeScoreV1 {
@@ -63,6 +65,7 @@ export interface MacroRegimeScoreV1 {
 
 /**
  * 保存逐日宏观状态评分与来源说明。
+ *
  * Retain dated macro-regime scores and provenance.
  */
 export interface MacroRegimeHistoryV1 {
@@ -74,6 +77,7 @@ export interface MacroRegimeHistoryV1 {
 
 /**
  * 限定状态历史的决策范围与版本政策。
+ *
  * Configure regime-history dates and vintage policy.
  */
 export interface MacroRegimeHistoryOptions {
@@ -84,6 +88,7 @@ export interface MacroRegimeHistoryOptions {
 
 /**
  * 提供单宏观序列带日期数值，供标准化评分。
+ *
  * Supply dated macro values for standardized scoring.
  */
 interface SeriesPoint {
@@ -95,6 +100,7 @@ interface SeriesPoint {
 
 /**
  * 绑定单序列评分与样本覆盖，供轴组合。
+ *
  * Associate a series score with sample coverage for axis construction.
  */
 interface SeriesScore {
@@ -107,6 +113,7 @@ interface SeriesScore {
 
 /**
  * 一次加载宏观版本窗口，并对每个决策日应用同一 PIT 规则。
+ *
  * Loads a macro vintage window once and evaluates the same PIT rule at every decision date.
  */
 export async function loadMacroRegimeScoreHistory(
@@ -125,6 +132,7 @@ export async function loadMacroRegimeScoreHistory(
 
 /**
  * 按决策日期组合可见宏观观测，生成状态分数历史。
+ *
  * Build dated regime score history from macro observations visible at each decision.
  */
 export function buildMacroRegimeScoreHistory(
@@ -160,6 +168,7 @@ export function buildMacroRegimeScoreHistory(
 
 /**
  * 从已通过 PIT 筛选的宏观快照计算透明增长与通胀轴。
+ *
  * Computes transparent growth/inflation axes from one already PIT-gated macro snapshot.
  */
 export function computeMacroRegimeScore(snapshot: MacroAsOfSnapshot): MacroRegimeScoreV1 {
@@ -234,6 +243,7 @@ export function computeMacroRegimeScore(snapshot: MacroAsOfSnapshot): MacroRegim
 
 /**
  * 将单序列历史转换为可比较分数，供宏观状态轴组合。
+ *
  * Score one macro series for combination into transparent regime axes.
  */
 function scoreSeries(rows: MacroObservationVintageRow[], seriesKey: string): SeriesScore {
@@ -276,6 +286,7 @@ function scoreSeries(rows: MacroObservationVintageRow[], seriesKey: string): Ser
 
 /**
  * 用尾部历史窗口标准化当前观测，供透明状态评分。
+ *
  * Standardize an observation against trailing history for regime scoring.
  */
 function trailingZScore(points: Array<{ value: number }>): number | null {
@@ -310,6 +321,7 @@ function stateKey(growthScore: number, inflationScore: number): MacroRegimeState
 
 /**
  * 按月份移动紧凑日期，供宏观期间窗口计算。
+ *
  * Shift a compact date by calendar months for macro windows.
  */
 function addMonths(period: string, months: number): string {

@@ -86,6 +86,7 @@ const ResearchCodeDiffEditor = lazy(() =>
 
 /**
  * 组合文档侧栏、研究 Cell、运行控制与 Agent 会话，恢复当前路由选择。
+ *
  * Compose document navigation, cells, execution controls and agent conversation for the current route.
  */
 export const Research = complex.component(() => {
@@ -160,6 +161,7 @@ export const Research = complex.component(() => {
 
   /**
    * 根据 Cell 身份导航并聚焦编辑器，供错误与上下文链接定位。
+   *
    * Navigate to and focus a cell referenced by an error or context link.
    */
   const navigateToCell = (cellId: string) => {
@@ -259,6 +261,7 @@ export const Research = complex.component(() => {
 
 /**
  * 展示活跃及归档文档并提供创建、打开与管理入口。
+ *
  * Present active and archived documents with creation, opening and management actions.
  */
 const ResearchSidebar = complex.component(
@@ -394,6 +397,7 @@ const ResearchSidebar = complex.component(
 
 /**
  * 展示单文档摘要与管理菜单，协调选择与异步操作。
+ *
  * Present a document summary and management menu with selection and async actions.
  */
 const DocumentItem = complex.component(
@@ -470,6 +474,7 @@ const DocumentItem = complex.component(
     const menu: MenuProps = {
       /**
        * 阻止列表项冒泡后分派归档、恢复与删除操作。
+       *
        * Stop list-item propagation and dispatch archive, restore or delete actions.
        */
       onClick: ({ key, domEvent }) => {
@@ -570,6 +575,7 @@ function formatResearchDocumentDate(value: string, language: string): string {
 
 /**
  * 提供问题或模板起始入口，创建可编辑研究文档。
+ *
  * Provide prompt and template entry points for editable research documents.
  */
 const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: () => void }) => {
@@ -655,6 +661,7 @@ const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: (
 
 /**
  * 展示文档 Cell 和运行工具栏，协调数据插入与执行控制。
+ *
  * Render document cells and the toolbar with data insertion and execution controls.
  */
 const ResearchWorkspace = complex.component(
@@ -728,6 +735,7 @@ const ResearchWorkspace = complex.component(
 
       /**
        * 分派目录、执行历史、运行及重置动作，复用文档 store 的执行控制。
+       *
        * Dispatch catalog, history, run and reset actions through document execution controls.
        */
       onClick: ({ key }) => {
@@ -961,6 +969,7 @@ const ResearchWorkspace = complex.component(
 
 /**
  * 按 Cell 类型装配编辑器、输出和依赖提示，并连接自动保存及提案审阅。
+ *
  * Compose cell editing, output and dependency indicators with autosave and proposal review.
  */
 const ResearchCell = complex.component(
@@ -1342,6 +1351,7 @@ function CellStatus({ status }: { status: ResearchCellStatusV1 }) {
 
 /**
  * 展示草稿保存、冲突与失败状态，供用户判断输入是否已持久化。
+ *
  * Present draft saving, conflict and failure states so users can judge persistence.
  */
 function CellSaveState({
@@ -1389,6 +1399,7 @@ function CellSaveState({
 
 /**
  * 呈现研究消息、上下文、澄清与提案，连接轮次发送和取消。
+ *
  * Present research messages, context, clarification and proposals with turn controls.
  */
 const ResearchAgentPanel = complex.component(
@@ -1622,6 +1633,7 @@ const ResearchAgentPanel = complex.component(
 
 /**
  * 只读展示发送给 Agent 的 Cell 源码快照，支持核对当时上下文。
+ *
  * Render the exact cell source snapshot sent to the agent for context review.
  */
 function ResearchCellContextSnapshotModal({
@@ -1697,6 +1709,7 @@ function ResearchCellContextSnapshotModal({
 
 /**
  * 收集研究问题并显示选定上下文与发送状态。
+ *
  * Collect a research question with selected context and submission state.
  */
 function ResearchPromptBox({
@@ -1756,6 +1769,7 @@ function cellIcon(kind: ResearchCellKindV1) {
 
 /**
  * 根据 Cell 状态选择可解释执行图标。
+ *
  * Select an execution icon for the cell state.
  */
 function statusIcon(status: ResearchCellStatusV1) {
@@ -1777,6 +1791,7 @@ const RESEARCH_CELL_DRAG_TYPE = 'application/x-jixie-research-cell';
 
 /**
  * 按视口计算研究侧栏、Cell 与对话分栏宽度。
+ *
  * Derive research sidebar, cell and conversation splitter sizes.
  */
 function researchSplitterDefaults(agentWidth: number): { main: string; agent: string } {

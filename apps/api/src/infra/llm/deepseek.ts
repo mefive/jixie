@@ -7,6 +7,7 @@ import { getDeepSeekAgentModel, getDeepSeekModel } from './config.js';
 
 /**
  * 定义通用文本对话消息，供模型传输适配使用。
+ *
  * Describe a text conversation message consumed by the model transport adapter.
  */
 export interface ChatMessage {
@@ -36,6 +37,7 @@ export function deepseek(): OpenAI {
 
 /**
  * 发起强制 JSON 输出的单次对话补全，返回原始 content。
+ *
  * One chat completion forcing JSON output; returns raw message.content.
  */
 export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
@@ -55,6 +57,7 @@ export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string
 
 /**
  * 发起返回自由文本的单次补全，供命名等场景使用。
+ *
  * One chat completion returning free text (naming, etc.). Same LlmCall shape as chatJson.
  */
 export const chatText: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
@@ -73,6 +76,7 @@ export const chatText: LlmCall = async (messages: ChatMessage[]): Promise<string
 
 /**
  * 将内部带工具消息转换为 OpenAI 兼容请求格式。
+ *
  * Map internal tool-aware messages to the OpenAI-compatible request format.
  */
 function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMessageParam[] {
@@ -103,6 +107,7 @@ function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMe
 
 /**
  * 发起统一 Agent 的单次工具感知补全，空工具集合退化为普通文本补全。
+ *
  * One tool-aware chat completion — the unified agent's production LlmCall (tests inject a scripted
  * mock instead). Empty `tools` = a plain completion (repair rounds run with tools disabled).
  * Always streams upstream: text tokens forward through opts.onDelta (when given) for the SSE path;

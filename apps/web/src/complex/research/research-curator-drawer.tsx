@@ -28,6 +28,7 @@ type ResearchCuratorDrawerProps = {
 
 /**
  * 展示 Curator 运行历史、质量与发现，连接启动和反馈操作。
+ *
  * Present curator runs, quality and findings with start and feedback actions.
  */
 export const ResearchCuratorDrawer = complex.component(
@@ -167,6 +168,7 @@ const CuratorRunSummary = ({ run, locale }: { run: ResearchCuratorRunV1; locale?
 
 /**
  * 展示整理发现的核验覆盖与反馈质量摘要。
+ *
  * Present verification coverage and feedback quality for curation findings.
  */
 const CuratorQuality = ({ run }: { run: ResearchCuratorRunV1 }) => {
@@ -227,6 +229,7 @@ const QualityMetric = ({
 
 /**
  * 展示单项整理证据、建议和处理状态，允许用户提交反馈。
+ *
  * Present one finding's evidence, recommendation and disposition with feedback actions.
  */
 const CuratorFinding = complex.component(({ finding }: { finding: ResearchCuratorFindingV1 }) => {

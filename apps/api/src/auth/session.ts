@@ -5,6 +5,7 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * 返回新会话标识及有效期，供登录响应设置 Cookie。
+ *
  * Return a newly created session and its expiry for login cookie handling.
  */
 export interface CreatedSession {
@@ -26,6 +27,7 @@ export async function destroySession(sessionId: string): Promise<void> {
 
 /**
  * 提供会话解析所需的用户身份信息，供鉴权上下文使用。
+ *
  * Describe the user identity resolved from a session for authentication context.
  */
 export interface SessionUser {
@@ -36,6 +38,7 @@ export interface SessionUser {
 
 /**
  * 区分有效、缺失或失效会话的解析结果，供鉴权处理。
+ *
  * Distinguish session resolution outcomes for authentication handling.
  */
 export type SessionResolution =
@@ -44,6 +47,7 @@ export type SessionResolution =
 
 /**
  * 根据会话令牌读取并验证有效期与用户身份，供 HTTP 鉴权共用。
+ *
  * Resolve a session token and validate expiry and user identity for HTTP authentication.
  */
 export async function resolveSession(sessionId: string | undefined): Promise<SessionResolution> {

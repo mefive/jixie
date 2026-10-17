@@ -13,6 +13,7 @@ import { ResearchError } from '../errors.js';
 
 /**
  * 提供助手消息提交时物化澄清所需上下文。
+ *
  * Supply context for clarification materialization at message commit.
  */
 interface PersistResearchClarificationPartArgs {
@@ -26,6 +27,7 @@ interface PersistResearchClarificationPartArgs {
 
 /**
  * 只有助手消息提交后才物化服务端澄清卡片。
+ *
  * Materialize a server-authored clarification only after its assistant message is committed.
  */
 export async function persistResearchClarificationPart(
@@ -79,6 +81,7 @@ export async function persistResearchClarificationPart(
 
 /**
  * 校验用户选择的澄清答案并保存确认引用，供后续轮次使用。
+ *
  * Validate and persist clarification selections and confirmed references for later turns.
  */
 export async function resolveResearchClarificationAnswer(
@@ -123,6 +126,7 @@ export async function resolveResearchClarificationAnswer(
 
 /**
  * 将澄清状态同步到对话消息产物，保持选择记录一致。
+ *
  * Synchronize clarification state into its conversation artifact.
  */
 async function syncResearchClarificationRecord(
@@ -176,6 +180,7 @@ export function researchClarificationView(
 
 /**
  * 检查选择项是否属于当前澄清问题及合法候选集合。
+ *
  * Validate selections against the current clarification and allowed options.
  */
 function validateSelections(

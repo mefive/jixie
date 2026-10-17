@@ -8,6 +8,7 @@ export const factorLanguage = (language: string): FactorLanguage =>
 
 /**
  * 规范化报告分析种类，兼容历史字段并供显示分派。
+ *
  * Normalize analysis kinds for report rendering and legacy compatibility.
  */
 export function normalizeAnalysisKind(value: string): FactorAnalysisKind {

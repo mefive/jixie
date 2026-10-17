@@ -6,6 +6,7 @@ import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /**
  * 同步已配置商品的交易所仓单聚合，供研究数据读取。
+ *
  * Sync research-only AU/CU/SC/M exchange warehouse-receipt aggregates.
  * Usage: pnpm --filter api sync commodity-warehouse-receipts [start] [end]
  */

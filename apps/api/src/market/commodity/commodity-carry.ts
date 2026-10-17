@@ -9,6 +9,7 @@ export const COMMODITY_CARRY_MAX_STALENESS_DAYS = 7;
 
 /**
  * 提供实际交割月及结算行情，供近远月 Carry 曲线构造。
+ *
  * Supply actual delivery months and settlements for near-far carry construction.
  */
 export interface CommodityCarryContractBar {
@@ -23,6 +24,7 @@ export interface CommodityCarryContractBar {
 
 /**
  * 保留近远月身份、期限和年化 Carry，供研究特征读取。
+ *
  * Retain dated contract identities, maturities and annualized carry for research features.
  */
 export interface CommodityCarryPointV1 {
@@ -45,6 +47,7 @@ export interface CommodityCarryPointV1 {
 
 /**
  * 限定商品 Carry 的日期、产品与读取窗口。
+ *
  * Bound commodity carry loading by date, product and window.
  */
 export interface LoadCommodityCarryOptions {
@@ -56,6 +59,7 @@ export interface LoadCommodityCarryOptions {
 
 /**
  * 从实际交割月结算价构造商品期限结构，不使用连续价格替代真实合约。
+ *
  * Loads actual delivery-month settlements and constructs a curve without using a continuous price
  * series. Commodity trading remains disabled; these points are research-only features.
  */
@@ -144,6 +148,7 @@ export async function loadCommodityCarryHistory(
 
 /**
  * 对齐同日近远月实际合约结算，计算带合约身份和期限口径的 Carry 历史。
+ *
  * Align actual near and far delivery settlements and construct a dated carry curve with contract provenance.
  */
 export function buildCommodityCarryHistory(

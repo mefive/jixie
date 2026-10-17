@@ -12,6 +12,7 @@ export type FinancialFieldPeriodSemantics = 'flow_ytd' | 'stock';
 
 /**
  * 声明原始财报字段的单位、期间和来源语义。
+ *
  * Define a source statement field's units, period and provenance semantics.
  */
 export interface FinancialSourceFieldDefinition {
@@ -25,6 +26,7 @@ export interface FinancialSourceFieldDefinition {
 
 /**
  * 携带完整原始财报数值及版本元数据，供追加合并。
+ *
  * Carry complete source statement values and version metadata for append-only merging.
  */
 export interface FinancialStatementSourceRow {
@@ -44,6 +46,7 @@ export interface FinancialStatementSourceRow {
 
 /**
  * 记录财报可用日期及证据质量，供严格 PIT 筛选。
+ *
  * Describe statement availability dates and evidence quality for strict PIT selection.
  */
 export interface FinancialAvailability {
@@ -56,6 +59,7 @@ export interface FinancialAvailability {
 
 /**
  * 绑定财报更正公告与来源证据，供修订可得日判断。
+ *
  * Associate correction releases with source evidence for revision availability.
  */
 export interface FinancialCorrectionEvidence {
@@ -177,6 +181,7 @@ export function financialStatementSourceFields(statementKind: FinancialStatement
 
 /**
  * 识别 Tushare report_type 1/4/5 且 comp_type=1 的合并工业企业报表版本。
+ *
  * Tushare report_type 1/4/5 and comp_type=1 are consolidated industrial statement versions.
  */
 export function isV1IndustrialConsolidatedStatement(row: FinancialStatementSourceRow): boolean {
@@ -185,6 +190,7 @@ export function isV1IndustrialConsolidatedStatement(row: FinancialStatementSourc
 
 /**
  * 校验并标准化原始财报行，保留报告类型、来源及版本身份。
+ *
  * Validate and normalize a source statement row with report type, provenance and version identity.
  */
 export function normalizeFinancialStatementSourceRow(
@@ -218,6 +224,7 @@ export function normalizeFinancialStatementSourceRow(
 
 /**
  * 为完整选定来源行计算指纹，忽略对象键序和 undefined 字段。
+ *
  * Fingerprints the complete selected source row; object key order and undefined fields do not matter.
  */
 export function financialSourceRowFingerprint(
@@ -258,6 +265,7 @@ export function financialStatementPeriodIdentity(row: FinancialStatementSourceRo
 
 /**
  * 仅对报表业务数值计算身份，排除来源元数据以比较有日期修订。
+ *
  * Values-only identity excludes source metadata so dated statement revisions can be compared.
  */
 export function financialStatementValuesFingerprint(row: FinancialStatementSourceRow): string {
@@ -279,6 +287,7 @@ export function financialStatementValuesFingerprint(row: FinancialStatementSourc
 
 /**
  * 追加合并来源行；完全重复忽略，数值变化保留为新版本而不覆盖历史。
+ *
  * Append-only merge used by fixtures and ingestion. Exact duplicates are ignored, while a changed
  * source row for the same announcement remains a separate version.
  */
@@ -297,6 +306,7 @@ export function appendFinancialStatementSourceRows(
 
 /**
  * 按版本规则将日期化披露延迟到下一交易日；修订可得性须有证据，不能以当前抓取日伪造历史。
+ *
  * V1 delays every dated release until the next session. CNInfo evidence can prove a correction
  * date; a same-date Tushare content change without such evidence remains reconstructed.
  */

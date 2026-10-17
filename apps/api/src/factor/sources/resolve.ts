@@ -10,6 +10,7 @@ import { type AssetFactorDataRequirements } from '../observations/asset-factor-d
 
 /**
  * 从冻结来源协议推导实际数据需求，供截止日与预载使用。
+ *
  * Resolve dataset requirements from the frozen source protocol.
  */
 export function factorAnalysisSourceDataRequirements(
@@ -41,6 +42,7 @@ export function factorCodeDataRequirements(code: string): AssetFactorDataRequire
 
 /**
  * 按来源种类解析因子定义与快照，并验证访问权限。
+ *
  * Resolve factor definitions and snapshots by source kind with access checks.
  */
 export async function resolveFactorSource(
@@ -110,6 +112,7 @@ export async function resolveFactorSource(
 
 /**
  * 解析可访问的作者时间序列因子，校验其冻结协议和数据需求。
+ *
  * Resolve an accessible authored time-series factor under its frozen protocol.
  */
 export async function resolveCustomTimeSeriesFactorSource(

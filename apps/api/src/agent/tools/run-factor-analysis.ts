@@ -37,6 +37,7 @@ type FactorAnalysisResult = NonNullable<Awaited<ReturnType<typeof readFactorAnal
 
 /**
  * 冻结因子探索使用的定义和研究范围，限制 Agent 工具的操作权限。
+ *
  * Bind a factor exploration tool to its definition and permitted research scope.
  */
 interface FactorResearchContext {
@@ -53,6 +54,7 @@ interface FactorResearchContext {
 
 /**
  * 创建只允许冻结探索报告的因子工具，不开放 holdout 揭示、发布或策略部署。
+ *
  * Create the custom-factor research tool. It can only freeze an explore report; holdout creation,
  * reveal, Factor publication, and strategy deployment remain explicit user actions outside Agent.
  */
@@ -64,6 +66,7 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
 
     /**
      * 校验因子探索请求、提交分析并等待结果，向 Agent 返回报告证据。
+     *
      * Validate and submit factor exploration, wait for completion and return report evidence.
      */
     async run(args, runContext) {
@@ -161,6 +164,7 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
 
 /**
  * 观察因子分析任务直到终态，供工具返回持久化探索报告。
+ *
  * Observe factor analysis until completion so the tool can return its persisted report.
  */
 async function waitForFactorAnalysis(

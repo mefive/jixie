@@ -7,6 +7,7 @@ function currentDate(): string {
 
 /**
  * 预计算全市场、时点指数证券池与申万一级行业状态。
+ *
  * Precompute daily whole-market, point-in-time index, and Shenwan level-1 state.
  * Usage: pnpm --filter api sync market-state [start] [end]
  */

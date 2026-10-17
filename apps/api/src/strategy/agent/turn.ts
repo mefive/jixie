@@ -13,6 +13,7 @@ import { publishedFactorContext, syncedIndexContext } from './context.js';
 
 /**
  * 校验策略归属并创建后台 Agent 轮次，持久化输入和初始状态。
+ *
  * Authorize a strategy and start a persisted background agent turn.
  */
 export async function startStrategyAgentTurn(

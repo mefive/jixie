@@ -4,6 +4,7 @@ import type { FactorVisibilityInput } from '@jixie/shared/api/factor';
 
 /**
  * 检查因子公开资格与归属后更新可见范围。
+ *
  * Validate ownership and publication eligibility before updating factor visibility.
  */
 export async function setFactorVisibility(
@@ -34,6 +35,7 @@ export async function setFactorVisibility(
 
 /**
  * 检查组合组件可见性与归属后更新组合公开范围。
+ *
  * Validate component visibility and ownership before updating composite visibility.
  */
 export async function setCompositeVisibility(

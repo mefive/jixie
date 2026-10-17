@@ -4,6 +4,7 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 /**
  * 提供前瞻窗口与 IC 值，供衰减曲线渲染。
+ *
  * Supply forward horizons and IC values to the decay chart.
  */
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 /**
  * 绘制不同前瞻期 Rank IC，供观察信号衰减。
+ *
  * Plot Rank IC over forward horizons to inspect signal decay.
  */
 export default function IcDecayChart({ points }: Props) {

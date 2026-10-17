@@ -7,6 +7,7 @@ const PERIODS_PER_YEAR = 252;
 
 /**
  * 按净值日期对齐基准，汇总年化绩效、回撤、成交盈亏与费用；年化固定使用 252 期。
+ *
  * Align the benchmark to NAV dates and summarize annualized performance, drawdown, realized fills and costs using 252 periods per year.
  */
 export function summarizePerformance(
@@ -113,6 +114,7 @@ export function summarizePerformance(
 
 /**
  * 按股票和 ETF 成交顺序重放平均成本，提取平仓已实现盈亏用于胜率统计。
+ *
  * Replay cash fills at average cost and extract realized closing profit for win-rate statistics.
  */
 function stockTradePnl(tradeLog: CashTrade[]): number[] {
@@ -141,6 +143,7 @@ function stockTradePnl(tradeLog: CashTrade[]): number[] {
 
 /**
  * 按实际期货合约匹配成交与平仓，提取已实现盈亏供成交绩效统计。
+ *
  * Replay fills by actual futures contract and extract realized closing profit for trade statistics.
  */
 function futuresTradePnl(tradeLog: FuturesTrade[]): number[] {
@@ -196,6 +199,7 @@ function futuresTradePnl(tradeLog: FuturesTrade[]): number[] {
 
 /**
  * 从已实现盈亏计算胜率和盈亏比，按实现处理无成交或无亏损边界。
+ *
  * Summarize realized outcomes into win rate and profit factor with the implementation's empty and no-loss conventions.
  */
 function realizedStats(realized: number[]) {

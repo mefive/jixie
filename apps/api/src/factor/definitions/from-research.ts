@@ -12,6 +12,7 @@ import { BUILTIN_KEYS } from './builtin-factors.js';
 
 /**
  * 携带研究证据与因子源码，供从封存研究创建草稿。
+ *
  * Supply research evidence and factor source for draft handoff.
  */
 export interface FactorDraftFromResearchInput {
@@ -47,6 +48,7 @@ export async function findResearchFactorDraft(
 
 /**
  * 由已封存研究创建带证据血缘的因子草稿。
+ *
  * Create a factor draft with evidence lineage from frozen research.
  */
 export async function createFactorDraftFromResearch(
@@ -111,6 +113,7 @@ function factorKeyCandidate(requested: string, attempt: number): string {
 
 /**
  * 将因子草稿身份和研究来源整理为交接响应。
+ *
  * Build the handoff response containing factor draft identity and research provenance.
  */
 function factorDraftResult(

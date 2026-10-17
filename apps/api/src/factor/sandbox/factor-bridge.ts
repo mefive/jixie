@@ -36,6 +36,7 @@ type FactorResultFrame = Extract<
 
 /**
  * 收集因子 Bridge 的通信与执行诊断。
+ *
  * Collect factor bridge transport and execution diagnostics.
  */
 interface FactorBridgeDiagnostics {
@@ -44,6 +45,7 @@ interface FactorBridgeDiagnostics {
 
 /**
  * 装配因子 Bridge 的传输、启动输入与宿主能力。
+ *
  * Configure factor bridge transport, startup input and host capabilities.
  */
 export interface FactorBridgeOptions<Kind extends ExecutableFactorKind = ExecutableFactorKind> {
@@ -55,6 +57,7 @@ export interface FactorBridgeOptions<Kind extends ExecutableFactorKind = Executa
 
 /**
  * 定义因子 Bridge 可访问的稳定宿主能力。
+ *
  * Define stable host capabilities available to the factor bridge.
  */
 export interface FactorBridgeHost {
@@ -91,6 +94,7 @@ export class FactorBridge<
 
   /**
    * 准备 Python 因子启动参数并取得传输，失败时清理资源。
+   *
    * Prepare Python factor startup and acquire its transport with failure cleanup.
    */
   private static async createPython<Kind extends ExecutableFactorKind>(
@@ -127,6 +131,7 @@ export class FactorBridge<
 
   /**
    * 打包 TypeScript 因子 SDK 与运行入口并建立 isolate 传输。
+   *
    * Bundle the TypeScript factor SDK and entry and create its isolate transport.
    */
   private static async createTypeScript<Kind extends ExecutableFactorKind>(
@@ -180,6 +185,7 @@ export class FactorBridge<
 
   /**
    * 通过协议执行一次因子批次，收集日志并校验返回值形状。
+   *
    * Execute one factor batch through the protocol, collecting logs and validating returned values.
    */
   execute(input: FactorComputeInput<Kind>): Promise<FactorValues> {
@@ -213,6 +219,7 @@ export class FactorBridge<
 
   /**
    * 校验握手元数据与因子协议，成功后发布只读运行定义。
+   *
    * Validate handshake metadata against the factor protocol before exposing the runtime definition.
    */
   private async initializeMetadata(signal?: AbortSignal): Promise<FactorSandboxMetadata> {
@@ -304,6 +311,7 @@ export class FactorBridge<
 
   /**
    * 按因子类型校验计算返回值的证券、日期与数值范围。
+   *
    * Validate factor results against their kind-specific identities and numeric constraints.
    */
   private readComputeResult(frame: FactorResultFrame, expectedCount: number): FactorValues {

@@ -8,6 +8,7 @@ export type FactorSignalHorizonUnit = 'trade_day' | 'calendar_day' | 'month';
 
 /**
  * 冻结回测、部署或信号所引用的已发布因子身份。
+ *
  * Immutable published factor identity frozen into a backtest, deployment, or signal run.
  */
 export interface FactorDependency {
@@ -29,6 +30,7 @@ export type PublishFactorRequest = PublishFactorRequestBody;
 
 /**
  * 公开已发布因子定义及其可执行协议元数据。
+ *
  * Describe a published factor and executable protocol metadata.
  */
 export interface PublishedFactor {
@@ -47,6 +49,7 @@ export interface PublishedFactor {
 
 /**
  * 记录单因子在指定资产日期的信号，供运行输出。
+ *
  * Describe a dated asset signal from one factor.
  */
 export interface FactorSignal {
@@ -64,6 +67,7 @@ export interface FactorSignal {
 
 /**
  * 保存某因子实际消费的输入观测，供运行审计。
+ *
  * Retain observations actually consumed by a factor for auditing.
  */
 export interface FactorInputObservation {
@@ -73,6 +77,7 @@ export interface FactorInputObservation {
 
 /**
  * 紧凑汇总已发布因子消费的输入值。
+ *
  * Compact audit summary of the values consumed from one published factor.
  */
 export interface FactorInputSummary {

@@ -6,6 +6,7 @@ export type StrategyDatabase = Pick<Prisma.TransactionClient, 'strategy'>;
 
 /**
  * 为影响回测结果的所有输入生成稳定身份，显示名称不参与。
+ *
  * Stable identity of every input that can change a backtest result. The display name is excluded.
  */
 export function strategyRunKey(config: unknown): string {
@@ -37,6 +38,7 @@ export function strategyRunKey(config: unknown): string {
 
 /**
  * 按用户归属提交可运行配置快照，并使旧输入产生的结果失效。
+ *
  * Commit the runnable snapshot by owner-scoped id and invalidate a result produced by older inputs.
  */
 export async function commitStrategyConfig(

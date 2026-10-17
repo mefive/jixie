@@ -14,6 +14,7 @@ export async function syncedIndexContext(): Promise<string> {
 
 /**
  * 整理当前可用的已发布因子及契约，供策略 Agent 生成合法依赖。
+ *
  * Describe available published factors and their contracts for strategy authoring.
  */
 export async function publishedFactorContext(userId: string): Promise<string> {

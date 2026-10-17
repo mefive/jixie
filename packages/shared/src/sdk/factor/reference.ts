@@ -80,6 +80,7 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
 
 /**
  * 从因子参考条目生成当前语言的 Monaco 声明，保持作者签名唯一来源。
+ *
  * Render localized Monaco declarations from the canonical factor reference entries.
  */
 export function buildFactorSdkDts(locale: Locale): string {
@@ -165,6 +166,7 @@ declare function defineFactorV2(factor: AssetFactorV2): AssetFactorV2;
 
 /**
  * 从 Monaco 共用作者签名生成 API 类型，避免实现契约漂移。
+ *
  * Generate API types from the exact same authoring signatures used by Monaco.
  */
 export function renderFactorSdkContract(): string {

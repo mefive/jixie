@@ -10,6 +10,7 @@ import './agent-pending.css';
 
 /**
  * 展示 Agent 等待与处理中状态，提供可读进度提示。
+ *
  * Render agent pending and processing states with readable progress.
  */
 export const AgentPending = reactUtils.observer(

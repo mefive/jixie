@@ -6,6 +6,7 @@ import { syncMoneyflow, syncTopList } from './flows-sync.js';
 
 /**
  * 记录股票各数据集单日数量，供修复比较。
+ *
  * Supply stock dataset counts for dated repair checks.
  */
 export interface StockDateCounts {
@@ -19,6 +20,7 @@ export interface StockDateCounts {
 
 /**
  * 描述单日需补齐数据种类，供定向修复。
+ *
  * Identify missing dated stock datasets for targeted repair.
  */
 export interface StockDateRepair {
@@ -30,6 +32,7 @@ export interface StockDateRepair {
 
 /**
  * 比较股票日期覆盖与预期数据集，生成最小补齐计划。
+ *
  * Build a stock-date repair plan from required datasets and observed coverage.
  */
 export function buildStockDateRepairPlan(counts: StockDateCounts[]): StockDateRepair[] {
@@ -99,6 +102,7 @@ export async function inspectStockDates(tradeDates: string[]): Promise<StockDate
 
 /**
  * 按缺口计划修复单日股票数据并返回校验结果。
+ *
  * Repair one stock market date according to its gap plan and validate the outcome.
  */
 export async function repairStockDate(
@@ -123,6 +127,7 @@ function coverage(rows: number, daily: number): number {
 
 /**
  * 从计数样本计算中位数，供修复覆盖阈值。
+ *
  * Compute a count median for repair coverage thresholds.
  */
 function median(values: number[]): number | null {

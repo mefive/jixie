@@ -6,6 +6,7 @@ import { prisma } from '#infra/database/prisma.js';
 
 /**
  * 限定商品研究数据的产品、日期和公开字段请求。
+ *
  * Configure commodity product, dates and public dataset fields.
  */
 export interface ResearchCommodityDatasetRequestV1<TProduct extends string> {
@@ -16,6 +17,7 @@ export interface ResearchCommodityDatasetRequestV1<TProduct extends string> {
 
 /**
  * 按研究可得日期读取已审计商品收益链。
+ *
  * Load the audited return chain by research availability date.
  */
 export async function loadResearchCommodityReturns(
@@ -58,6 +60,7 @@ export async function loadResearchCommodityReturns(
 
 /**
  * 读取交易所仓单并保留各来源原始单位。
+ *
  * Load exchange warehouse receipts without collapsing source units.
  */
 export async function loadResearchCommodityWarehouseReceipts(
@@ -92,6 +95,7 @@ export async function loadResearchCommodityWarehouseReceipts(
 
 /**
  * 读取确定性代表合约的会员排名子集聚合。
+ *
  * Load ranked-member aggregates for the deterministic representative contract.
  */
 export async function loadResearchCommodityHoldings(

@@ -30,6 +30,7 @@ export const COMMODITY_CARRY_PANEL_ASSETS: PanelFactorResearchSpecV1['assets'] =
 
 /**
  * 绑定商品 Carry 特征与 ETF 收益目标，明确产品和代理身份。
+ *
  * Bind commodity carry features to ETF return targets with explicit identities.
  */
 interface CommodityCarryAssetMapping {
@@ -48,6 +49,7 @@ const COMMODITY_CARRY_ASSET_MAPPINGS: CommodityCarryAssetMapping[] = COMMODITY_F
 
 /**
  * 将实际合约曲线与映射 ETF 收益目标连接，明确区分曲线特征与 ETF 执行代理。
+ *
  * Joins one product's actual-contract curve to its ETF return target. Curve construction and ETF
  * execution remain separate: the future contract is a feature source, never the traded asset.
  */
@@ -143,6 +145,7 @@ export async function loadCommodityCarryPanelObservations(
 
 /**
  * 对齐共同日期的 Carry 特征与 ETF 前瞻收益，生成 Panel 观测。
+ *
  * Align carry features and ETF forward returns on common dates to build panel observations.
  */
 export async function buildCommodityCarryPanelObservations(
@@ -284,6 +287,7 @@ function selectedMappings(researchSpec: PanelFactorResearchSpecV1): CommodityCar
 
 /**
  * 按 ETF 代码组织并校验价格和复权行，供 Carry Panel 目标收益计算。
+ *
  * Group and validate ETF prices and adjustments for carry panel return targets.
  */
 function groupAndValidateEtfRows(
@@ -316,6 +320,7 @@ function groupAndValidateEtfRows(
 
 /**
  * 按商品组织并校验实际合约 Carry 点，供 Panel 特征对齐。
+ *
  * Group and validate actual-contract carry points for panel alignment.
  */
 function groupAndValidateCarryPoints(

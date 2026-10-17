@@ -10,6 +10,7 @@ import './sdk-doc.css';
 
 /**
  * 展示策略及因子 SDK 参考与锚点导航，供作者查询契约。
+ *
  * Render strategy and factor SDK references with navigable contract anchors.
  */
 export const Sdk = complex.component(() => {
@@ -211,6 +212,7 @@ export const Sdk = complex.component(() => {
 
 /**
  * 按成员签名渲染类型引用和文档锚点。
+ *
  * Render member signatures with type references and documentation anchors.
  */
 function Declaration({ prefix, sig }: { prefix: string; sig: string }) {
@@ -232,6 +234,7 @@ const TYPE_RE = new RegExp(`\\b(${LINKABLE_TYPES.join('|')})\\b`, 'g');
 
 /**
  * 为类型引用添加文档内链接，供 SDK 阅读时跳转定义。
+ *
  * Link recognized type references to their SDK documentation anchors.
  */
 function linkifyTypes(text: string): ReactNode[] {

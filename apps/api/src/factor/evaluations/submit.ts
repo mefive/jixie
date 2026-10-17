@@ -22,6 +22,7 @@ import { startFactorAnalysis } from './start.js';
 
 /**
  * 校验协议、范围、数据截止日和准入约束后冻结分析输入并提交任务。
+ *
  * Validate protocol, scope, data cutoff and admission rules before freezing inputs and submitting evaluation.
  */
 export async function submitFactorAnalysis(
@@ -159,6 +160,7 @@ export async function submitFactorAnalysis(
 
 /**
  * 检查预注册门槛与分析种类是否兼容，避免错误统计量进入准入。
+ *
  * Check preregistered criteria against the selected analysis kind.
  */
 function criterionMatchesAnalysisKind(

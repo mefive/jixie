@@ -18,6 +18,7 @@ const EMPTY_TRACE: AgentTurnTrace = { version: 1, steps: [], truncated: false };
 
 /**
  * 保存 Agent 轮次输入、归属和执行状态，支持中断后查询与追溯。
+ *
  * Persist an agent turn's input, ownership and execution state for recovery and inspection.
  */
 export interface PersistentTurn {
@@ -48,6 +49,7 @@ export async function startPersistentTurn(args: {
 
 /**
  * 允许业务在同一事务中预留会话并持久化本轮输入。
+ *
  * Allows a domain to reserve its conversation and persist the input in one transaction.
  */
 export async function createPersistentTurnInput(
@@ -93,6 +95,7 @@ export async function createPersistentTurnInput(
 
 /**
  * 持久化轮次终态和输出，供历史查询与故障追溯。
+ *
  * Persist the terminal turn state and output for history and diagnostics.
  */
 export async function finishPersistentTurn(args: {
@@ -199,6 +202,7 @@ export async function finishPersistentTurn(args: {
 
 /**
  * 在等待 Python 或生成模型解释前保存精确运行引用。
+ *
  * Save the exact run before the tool waits for Python or the model generates its explanation.
  */
 export async function persistEmbeddedAnalysisPart(turnId: string, part: EmbeddedAnalysisPart) {

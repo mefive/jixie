@@ -80,6 +80,7 @@ export async function getSignalRun(userId: string, runId: string): Promise<Signa
 
 /**
  * 验证信号任务归属并返回运行状态及日志。
+ *
  * Authorize a signal job and return state and logs.
  */
 export async function getSignalRunJob(userId: string, jobId: string, since = 0) {
@@ -99,6 +100,7 @@ export async function getSignalRunJob(userId: string, jobId: string, since = 0) 
 
 /**
  * 组合信号运行、结果与任务状态，供客户端查询和历史展示。
+ *
  * Combine signal run results and job state for client queries and history.
  */
 function signalRunWire(

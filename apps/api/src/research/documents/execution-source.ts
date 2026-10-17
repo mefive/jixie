@@ -6,6 +6,7 @@ import { jsonStringArray } from '../dependencies/cell-values.js';
 
 /**
  * 保留可执行 Cell 的源码、修订和依赖字段。
+ *
  * Describe executable cell source, revision and dependencies.
  */
 export interface ExecutableResearchCellRow {
@@ -30,6 +31,7 @@ export interface ExecutableResearchCellRow {
 
 /**
  * 读取并冻结待执行文档源码与修订身份，供可复现执行快照。
+ *
  * Load and freeze executable document sources and revisions for reproducible execution.
  */
 export async function loadResearchExecutionSeed(userId: string, documentId: string) {
@@ -68,6 +70,7 @@ export async function loadResearchExecutionSeed(userId: string, documentId: stri
 
 /**
  * 将可执行 Cell 转换为独立源码快照，供不可变执行。
+ *
  * Map an executable cell into a detached execution source snapshot.
  */
 export function researchExecutionSourceCellSnapshot(

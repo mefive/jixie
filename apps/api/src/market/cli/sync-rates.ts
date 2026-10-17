@@ -24,6 +24,7 @@ function addCalendarDays(date: string, days: number): string {
 
 /**
  * 同步财政部官方中国国债收益率曲线。
+ *
  * Sync the official Ministry of Finance China government-bond yield curve.
  */
 async function main(): Promise<void> {

@@ -6,6 +6,7 @@ import './maintenance-gate.css';
 
 /**
  * 根据维护状态展示可用性门禁，并处理服务恢复与部署刷新。
+ *
  * Gate application availability during maintenance and handle recovery and deployment refresh.
  */
 export const MaintenanceGate = observer(() => {

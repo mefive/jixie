@@ -8,6 +8,7 @@ import { fillEtfHistoryGap, syncEtfMarketDate } from './sync.js';
 
 /**
  * 配置 ETF 全历史恢复范围和来源能力。
+ *
  * Configure ETF history recovery bounds and source access.
  */
 export interface EtfRecoveryOptions {
@@ -18,6 +19,7 @@ export interface EtfRecoveryOptions {
 
 /**
  * 每次恢复都重新核验全部历史，以实际数据行而非旧标记证明覆盖。
+ *
  * Reinspect the entire history on every attempt; rows, not old markers, prove coverage.
  */
 export async function recoverEtfRegistry(

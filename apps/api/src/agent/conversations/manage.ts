@@ -6,6 +6,7 @@ import type { TurnEntity } from '../turns/run.js';
 
 /**
  * 按业务实体查找或创建会话，保持同一实体的消息归属一致。
+ *
  * Find or create the conversation belonging to a business entity.
  */
 export async function findOrCreateConversation(args: {

@@ -3,6 +3,7 @@ import { TushareError } from '../../errors.js';
 
 /**
  * 限定列式来源单元值，供响应解码。
+ *
  * Define scalar cells accepted in columnar provider responses.
  */
 export type TushareValue = string | number | null;
@@ -10,6 +11,7 @@ export type TushareRow = Record<string, TushareValue>;
 
 /**
  * 描述 Tushare 列式响应及错误状态，供客户端统一校验。
+ *
  * Describe columnar Tushare responses and provider status for validation.
  */
 interface TushareResponse {
@@ -20,6 +22,7 @@ interface TushareResponse {
 
 /**
  * 配置 Tushare 连接、限流与重试，供来源调用复用。
+ *
  * Configure Tushare connection, throttling and retries.
  */
 export interface TushareClientOptions {
@@ -38,6 +41,7 @@ export interface TushareClientOptions {
 
 /**
  * 等待来源请求限流间隔，供 Tushare 重试与节流使用。
+ *
  * Wait for a source-request delay used by Tushare throttling and retries.
  */
 
@@ -71,6 +75,7 @@ export class TushareClient {
 
   /**
    * 调用 Tushare 并将列式响应转换为行对象，按实现处理限流和重试。
+   *
    * Call any Tushare API and return an array of row objects (the columnar {fields, items} is
    * already converted to Records).
    *
@@ -92,6 +97,7 @@ export class TushareClient {
 
   /**
    * 协调请求排队、限流与重试，供 Tushare 调用共享连接策略。
+   *
    * Coordinate queuing, throttling and retries for Tushare calls.
    */
   private async execute(
@@ -130,6 +136,7 @@ export class TushareClient {
 
   /**
    * 发送单次 Tushare HTTP 请求并检查响应及供应商错误码。
+   *
    * Send one Tushare HTTP request and validate transport and provider status.
    */
   private async doFetch(
@@ -167,6 +174,7 @@ export class TushareClient {
 
 /**
  * 将 fields/items 列式响应转换为对象行，供业务来源映射使用。
+ *
  * Convert Tushare's columnar response {fields, items} into a more usable array of row objects.
  */
 function toRows(data: TushareResponse['data']): TushareRow[] {

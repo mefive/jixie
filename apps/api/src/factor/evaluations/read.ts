@@ -15,6 +15,7 @@ import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './researc
 
 /**
  * 按权限列出因子报告及运行状态，保留探索与保留段区别。
+ *
  * List authorized factor reports and execution state with explicit explore and holdout scope.
  */
 export async function listFactorReports(userId: string, input: FactorReportListQuery) {
@@ -52,6 +53,7 @@ export async function listFactorReports(userId: string, input: FactorReportListQ
 
 /**
  * 校验报告归属与揭示状态后读取完整结果。
+ *
  * Authorize a report and its reveal state before returning the full result.
  */
 export async function readFactorReport(userId: string, reportId: string) {
@@ -89,6 +91,7 @@ export async function readFactorReport(userId: string, reportId: string) {
 
 /**
  * 按归属读取因子分析任务与关联报告状态。
+ *
  * Read an owned factor-analysis job and associated report state.
  */
 export async function readFactorAnalysisJob(
@@ -155,6 +158,7 @@ export async function readFactorResearchSummary(userId: string, input: FactorRes
 
 /**
  * 读取已完成且可见的分析结果，保留未完成与不可揭示状态。
+ *
  * Read a completed visible analysis result while preserving pending and sealed states.
  */
 export async function readFactorAnalysisResult(

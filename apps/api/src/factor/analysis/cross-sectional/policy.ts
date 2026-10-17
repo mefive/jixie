@@ -21,6 +21,7 @@ export const LEGACY_POLICY = {
 
 /**
  * 解析本次分析的异常值与中性化政策，供不同计算入口保持一致。
+ *
  * Resolve outlier and neutralization policies shared by evaluation steps.
  */
 export function analysisPolicy(spec: FactorAnalysisSpec) {
@@ -41,6 +42,7 @@ export function analysisPolicy(spec: FactorAnalysisSpec) {
 
 /**
  * 按明确政策处理截面异常值，不修改未声明的数据语义。
+ *
  * Apply the declared outlier policy to cross-sectional observations.
  */
 export function applyOutlierPolicy(values: number[], policy: FactorOutlierSpecV1): number[] {

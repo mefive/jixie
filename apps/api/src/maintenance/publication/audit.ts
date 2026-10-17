@@ -32,6 +32,7 @@ import { auditMacroRiskAxes, auditMarketRiskDrivers } from './risk-audit.js';
 
 /**
  * 汇总维护发布前的数据质量检查结果，供审计与发布判断。
+ *
  * Summarize pre-publication data-quality checks for auditing and publication decisions.
  */
 export interface DataQualityAuditReport {
@@ -47,6 +48,7 @@ export interface DataQualityAuditReport {
 
 /**
  * 配置数据质量审计的范围及输出选项。
+ *
  * Configure the scope and output options of a data-quality audit.
  */
 export interface DataQualityAuditOptions {
@@ -69,6 +71,7 @@ export function validateDateRange(startDate: string, endDate: string): void {
 
 /**
  * 组合各数据域的质量检查并生成可追溯维护审计报告。
+ *
  * Combine dataset quality checks into a traceable maintenance audit report.
  */
 export async function runDataQualityAudit(

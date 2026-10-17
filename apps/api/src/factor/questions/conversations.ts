@@ -34,6 +34,7 @@ type MessageRow = Prisma.AgentMessageGetPayload<{ select: typeof messageSelectio
 
 /**
  * 将持久化因子问题输入转换为统一消息及固定上下文。
+ *
  * Map a persisted factor question into a message with fixed context.
  */
 function questionMessage(row: MessageRow): ChatMessage {
@@ -56,6 +57,7 @@ function questionMessage(row: MessageRow): ChatMessage {
 
 /**
  * 按权限读取指定因子的问答消息与所选证据上下文。
+ *
  * Read authorized factor Q&A messages and their selected evidence context.
  */
 export async function readFactorQuestions(
@@ -94,6 +96,7 @@ export async function readFactorQuestions(
 
 /**
  * 冻结用户所选因子上下文并启动只读问答轮次。
+ *
  * Capture the selected factor context and start a read-only question turn.
  */
 export async function startFactorQuestion(

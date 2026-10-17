@@ -59,6 +59,7 @@ export class SignalsStore extends BaseStore {
 
   /**
    * 配置部署、信号历史、账户和任务轮询，并注册页面退出清理。
+   *
    * Initialize deployment, history, account and job polling with page cleanup.
    */
   public setup() {
@@ -112,6 +113,7 @@ export class SignalsStore extends BaseStore {
 
   /**
    * 刷新部署列表并协调当前选择，部署变化时清理旧运行与账户数据。
+   *
    * Refresh deployments and reconcile selection, clearing stale run and account data when it changes.
    */
   public async refresh() {
@@ -168,6 +170,7 @@ export class SignalsStore extends BaseStore {
 
   /**
    * 保存执行表单并刷新信号和账户，防止提交期间重复操作。
+   *
    * Save execution edits and refresh signals and accounts under mutation guards.
    */
   public async saveExecution(executionId: string, input: ActualExecutionUpdate) {
@@ -218,6 +221,7 @@ export class SignalsStore extends BaseStore {
 
   /**
    * 为当前部署提交信号运行，关联后台任务并开始轮询。
+   *
    * Submit a signal run for the selected deployment and start associated job polling.
    */
   public async generate(deploymentId: string) {
@@ -279,6 +283,7 @@ export class SignalsStore extends BaseStore {
 
   /**
    * 读取指定部署的运行历史、执行概览与账户状态。
+   *
    * Load run history, execution overview and accounts for a selected deployment.
    */
   private async loadDeployment(deploymentId: string) {
@@ -301,6 +306,7 @@ export class SignalsStore extends BaseStore {
 
   /**
    * 读取信号任务进度，在终态后刷新结果与账户并停止轮询。
+   *
    * Poll signal job progress and refresh results and accounts at completion.
    */
   private async pollOnce(): Promise<false | void> {

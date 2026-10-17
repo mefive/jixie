@@ -6,6 +6,7 @@ import './market.css';
 
 /**
  * 组合市场与行业气象看板，呈现加载和质量限制。
+ *
  * Compose market and industry weather dashboards with loading and quality limits.
  */
 export const Market = complex.component(() => {

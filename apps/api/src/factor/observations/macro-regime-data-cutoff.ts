@@ -3,6 +3,7 @@ import { prisma, type Prisma } from '#infra/database/prisma.js';
 
 /**
  * 解析宏观版本、状态与目标资产的共同可用截止日。
+ *
  * Resolve the common available cutoff across macro vintages, states and target assets.
  */
 export async function resolveMacroRegimeDataCutoff(

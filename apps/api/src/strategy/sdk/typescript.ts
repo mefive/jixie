@@ -31,6 +31,7 @@ import { smaValues, emaValues, atrBars, extremeValues, avgField } from './indica
 
 /**
  * 规范化作者策略定义；运行器在调用回调前创建公开上下文。
+ *
  * Normalize a public definition; the runner constructs the context before invoking its callback.
  */
 export function defineStrategy<const Params extends StrategyParams = Record<string, never>>(
@@ -60,6 +61,7 @@ export class StrategyContext<
 
   /**
    * 将注入原始能力包装为公开策略上下文，集中实现指标与周期辅助。
+   *
    * Wrap injected primitives in the public strategy context and helpers.
    */
   constructor(capabilities: StrategyCapabilities, params = {} as Params) {
@@ -243,6 +245,7 @@ export class StrategyContext<
 
 /**
  * 按参数覆盖更新作者定义，供参数扫描复用同一策略源码。
+ *
  * Apply parameter overrides to an authored definition for source-stable scans.
  */
 export function applyStrategyParamOverrides(
@@ -288,6 +291,7 @@ function validParamValue(value: StrategyParamValue): boolean {
 
 /**
  * 将日期映射到调度周期键，键变化表示新的调仓边界。
+ *
  * Period bucket for a schedule — a new key means a new period (rebalance boundary).
  */
 export function periodKey(date: string, schedule: Schedule): string {

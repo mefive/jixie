@@ -97,6 +97,7 @@ export const MACRO_RISK_AXIS_DEFINITIONS_V1: readonly MacroRiskAxisDefinitionV1[
 
 /**
  * 提供市场观测作为宏观风险轴输入。
+ *
  * Supply market observations used by macro risk axes.
  */
 export interface MacroRiskMarketObservation {
@@ -108,6 +109,7 @@ export interface MacroRiskMarketObservation {
 
 /**
  * 保存五轴状态分数、可得日期和诊断。
+ *
  * Retain five-axis scores, availability and diagnostics.
  */
 export interface MacroRiskAxisStateV1 {
@@ -122,6 +124,7 @@ export interface MacroRiskAxisStateV1 {
 
 /**
  * 记录风险轴相邻状态变化，供月度敏感度模型。
+ *
  * Describe risk-axis state changes for monthly sensitivity models.
  */
 export interface MacroRiskAxisObservationV1 {
@@ -131,6 +134,7 @@ export interface MacroRiskAxisObservationV1 {
 
 /**
  * 汇总风险轴水平、变化与来源血缘。
+ *
  * Collect risk-axis levels, changes and lineage.
  */
 export interface MacroRiskAxisHistoryV1 {
@@ -145,6 +149,7 @@ export interface MacroRiskAxisHistoryV1 {
 
 /**
  * 配置风险轴历史的日期、样本和输入要求。
+ *
  * Configure dates, sample and input requirements for risk-axis history.
  */
 export interface BuildMacroRiskAxisHistoryOptions {
@@ -156,6 +161,7 @@ export interface BuildMacroRiskAxisHistoryOptions {
 
 /**
  * 按自然月组织指标水平，供轴评分对齐。
+ *
  * Supply monthly levels for aligned axis scoring.
  */
 interface MonthlyPoint {
@@ -166,6 +172,7 @@ interface MonthlyPoint {
 
 /**
  * 将月度数值与标准化评分绑定，供风险轴组合。
+ *
  * Associate monthly values and standardized scores for axis construction.
  */
 interface ScoredPoint {
@@ -175,6 +182,7 @@ interface ScoredPoint {
 
 /**
  * 保留单风险轴的数值与可用性，供状态汇总。
+ *
  * Retain an axis value and its availability for state assembly.
  */
 interface AxisValue {
@@ -184,6 +192,7 @@ interface AxisValue {
 
 /**
  * 构造透明的五轴宏观状态及其月度分数变化。
+ *
  * Builds transparent five-axis macro states and their month-over-month score changes.
  */
 export function buildMacroRiskAxisHistory(
@@ -196,6 +205,7 @@ export function buildMacroRiskAxisHistory(
 
   /**
    * 逐决策日筛选可得宏观与市场输入，再计算风险轴状态。
+   *
    * Select available macro and market inputs and compute each decision-date axis state.
    */
   const states = decisionDates.map((decisionDate) => {
@@ -232,6 +242,7 @@ export function buildMacroRiskAxisHistory(
 
   /**
    * 对相邻自然月的同轴状态求变化，缺失月份不跨期伪配。
+   *
    * Compute same-axis changes between consecutive calendar months without bridging missing months.
    */
   const observations = states.map((state): MacroRiskAxisObservationV1 => {
@@ -286,6 +297,7 @@ export function buildMacroRiskAxisHistory(
 
 /**
  * 加载宏观和市场输入后构造风险轴历史，供风险研究共用。
+ *
  * Load macro and market inputs and construct risk-axis history for risk research.
  */
 export async function loadMacroRiskAxisHistory(
@@ -386,6 +398,7 @@ export async function loadMacroRiskAxisHistory(
 
 /**
  * 按声明的序列组合计算宏观五轴，保留不可计算状态。
+ *
  * Compute the declared macro axes while preserving unavailable states.
  */
 function computeAxes(
@@ -419,6 +432,7 @@ function computeAxes(
 
 /**
  * 将宏观观测按自然月组织，保持可得性选择。
+ *
  * Group available macro observations into monthly points.
  */
 function monthlyMacroPoints(rows: MacroObservationVintageRow[], seriesKey: string): MonthlyPoint[] {
@@ -437,6 +451,7 @@ function monthlyMacroPoints(rows: MacroObservationVintageRow[], seriesKey: strin
 
 /**
  * 将可得市场水平映射为月末点，供风险轴对齐。
+ *
  * Map available market levels to month-end points for axis alignment.
  */
 function monthlyMarketPoints(
@@ -479,6 +494,7 @@ function yearOverYearPoints(points: MonthlyPoint[]): MonthlyPoint[] {
 
 /**
  * 按历史窗口标准化序列点，供风险轴可比评分。
+ *
  * Standardize historical series points for comparable risk-axis scores.
  */
 function scorePoints(points: MonthlyPoint[]): ScoredPoint | null {
@@ -503,6 +519,7 @@ function scorePoints(points: MonthlyPoint[]): ScoredPoint | null {
 
 /**
  * 由尾部样本均值和离散度计算风险轴标准分。
+ *
  * Standardize risk-axis observations using trailing moments.
  */
 function trailingZScore(points: MonthlyPoint[]): number | null {
@@ -540,6 +557,7 @@ function invertScore(score: ScoredPoint | null): ScoredPoint | null {
 
 /**
  * 汇总状态所依赖序列的可得日期，供严格时点对齐。
+ *
  * Resolve the availability of source series contributing to a state.
  */
 function stateSeriesAvailability(
@@ -597,6 +615,7 @@ function validateDecisionDates(decisionDates: string[]): string[] {
 
 /**
  * 校验市场输入日期、可得日期和有限值，供风险轴构造。
+ *
  * Validate dates, availability and finite market inputs before axis construction.
  */
 function validateMarketRows(rows: MacroRiskMarketObservation[]): void {
@@ -615,6 +634,7 @@ function validateMarketRows(rows: MacroRiskMarketObservation[]): void {
 
 /**
  * 按自然月偏移日期，供风险轴相邻月比较。
+ *
  * Shift dates by calendar months for adjacent-axis comparison.
  */
 function addMonths(month: string, months: number): string {

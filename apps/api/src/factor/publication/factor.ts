@@ -11,6 +11,7 @@ import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 
 /**
  * 校验因子来源、报告及准入状态，再冻结并发布定义。
+ *
  * Validate source, report and admission state before freezing and publishing a factor.
  */
 export async function publishFactor(
@@ -175,6 +176,7 @@ export async function archiveFactor(userId: string, factorId: string): Promise<P
 
 /**
  * 将已发布因子的冻结来源和报告元数据转换为公开资源。
+ *
  * Render a published factor's frozen source and report metadata.
  */
 function publishedFactorResource(row: {

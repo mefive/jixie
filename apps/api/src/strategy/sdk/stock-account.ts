@@ -4,6 +4,7 @@ import { atrBars, sampleDeviation } from './indicators.js';
 
 /**
  * 在原始现金账户能力上增加公开辅助方法，保持脱离对象调用和实时 getter 的语义。
+ *
  * Add public stock helpers while preserving detached calls and live account getters.
  */
 export function createStockAccount(capabilities: StrategyCapabilities): StockAccount {
@@ -30,6 +31,7 @@ export function createStockAccount(capabilities: StrategyCapabilities): StockAcc
 
       /**
        * 根据波动率目标将候选权重缩放为策略股票账户目标权重。
+       *
        * Scale candidate stock weights to the requested volatility target.
        */
       volTargetWeights: (codes, lookback = 20) => {

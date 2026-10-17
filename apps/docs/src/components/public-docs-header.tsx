@@ -8,6 +8,7 @@ import './public-docs-header.css';
 
 /**
  * 展示公开文档站点导航、语言切换与工作台入口。
+ *
  * Render public documentation navigation, language selection and workspace entry.
  */
 export const PublicDocsHeader = observer(function PublicDocsHeader({

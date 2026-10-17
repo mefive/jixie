@@ -4,6 +4,7 @@ import type { AssetFactorKind, AssetFactorSandboxMetadata } from './contract.js'
 
 /**
  * 校验 TypeScript 作者元数据与输入声明，供握手和定义验证共用。
+ *
  * Validate TypeScript factor metadata and declared inputs for handshake and definition checks.
  */
 export function validateTypeScriptFactorMetadata(metadata: AssetFactorSandboxMetadata): void {
@@ -42,6 +43,7 @@ export function validateTypeScriptFactorMetadata(metadata: AssetFactorSandboxMet
 
 /**
  * 校验 Python 作者元数据及协议字段，不混用 TypeScript 命名。
+ *
  * Validate Python factor metadata under its own protocol and naming conventions.
  */
 export function validatePythonFactorMetadata(

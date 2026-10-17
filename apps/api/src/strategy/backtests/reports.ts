@@ -35,6 +35,7 @@ export async function findActiveStrategyBacktestJob(
 
 /**
  * 按用户与策略归属列出冻结回测报告，供历史结果选择。
+ *
  * List frozen backtest reports within user and strategy ownership.
  */
 export async function listStrategyBacktestReports(
@@ -65,6 +66,7 @@ export async function listStrategyBacktestReports(
 
 /**
  * 校验报告访问归属并读取其冻结结果及配置。
+ *
  * Authorize access and read a report's frozen results and configuration.
  */
 export async function readStrategyBacktestReport(userId: string, reportId: string) {
@@ -106,6 +108,7 @@ export async function readStrategyBacktestReport(userId: string, reportId: strin
 
 /**
  * 验证回测任务归属及报告关联后返回进度。
+ *
  * Authorize a backtest job and report association before returning progress.
  */
 export async function readStrategyBacktestJob(
@@ -133,6 +136,7 @@ export async function readStrategyBacktestJob(
 
 /**
  * 提取回测报告的关键绩效与身份，供列表及研究目录展示。
+ *
  * Extract report identity and headline performance for lists and research catalogs.
  */
 function backtestReportSummary(report: {

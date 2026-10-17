@@ -21,6 +21,7 @@ import { parseResearchIntent } from './research-policy.js';
 
 /**
  * 验证准入后冻结独立保留段任务，不提前揭示正式结果。
+ *
  * Freeze an eligible holdout evaluation without prematurely revealing its result.
  */
 export async function submitFactorHoldout(userId: string, parentReportId: string, locale: Locale) {
@@ -195,6 +196,7 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
 
 /**
  * 按保留段状态与授权揭示冻结结果，并记录揭示行为。
+ *
  * Reveal an authorized frozen holdout result and record the reveal transition.
  */
 export async function revealFactorHoldout(userId: string, reportId: string) {

@@ -9,6 +9,7 @@ import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /**
  * 同步已配置商品实际交割合约与原始结算数据，供商品研究使用。
+ *
  * Sync research-only AU/CU/SC/M actual contracts and raw settlements.
  * Usage: pnpm --filter api sync commodity-futures [start] [end]
  */

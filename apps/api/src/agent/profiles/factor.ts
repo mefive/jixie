@@ -8,6 +8,7 @@ import { runTimeSeriesFactorAnalysisTool } from '../tools/run-time-series-factor
 
 /**
  * 配置因子工作台 Agent，通过只读数据工具迭代并编译校验作者因子代码。
+ *
  * The factor-workbench agent: iterates on defineFactor code, compile-validated, with read-only data tools.
  */
 export function factorProfile(research?: {

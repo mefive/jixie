@@ -4,6 +4,7 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 /**
  * 提供分位组统计与方向，供收益图渲染。
+ *
  * Supply quantile statistics and direction to the decile chart.
  */
 interface Props {
@@ -23,6 +24,7 @@ function inkRamp(i: number, n: number): string {
 
 /**
  * 展示分位组收益比较，供检查因子单调性。
+ *
  * Render quantile-return comparisons for factor monotonicity inspection.
  */
 export default function DecileChart({ buckets }: Props) {

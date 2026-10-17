@@ -39,6 +39,7 @@ function sqlite3(args) {
 
 /**
  * 使用 SQLite CLI 生成一致备份并执行保留策略，避免引入应用依赖。
+ *
  * Create a consistent SQLite CLI backup and apply retention without application dependencies.
  */
 function main() {
@@ -85,6 +86,7 @@ function main() {
 
 /**
  * 按时间排序保留最新 keep 份备份并清理其余文件。
+ *
  * Keep the newest `keep` backups, delete the rest (names sort lexically = chronologically).
  */
 function rotate() {
@@ -104,6 +106,7 @@ function rotate() {
 
 /**
  * 生成本地时间 YYYYMMDD-HHMMSS 文件名，保证可读且可按字典序排序。
+ *
  * Local-time YYYYMMDD-HHMMSS (sorts chronologically, human-readable in the filename).
  */
 function timestamp() {

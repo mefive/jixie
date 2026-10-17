@@ -28,6 +28,7 @@ type LoaderButtonProps = Omit<ButtonProps, 'loading' | 'onClick'> & {
 
 /**
  * 将异步动作接入按钮加载和错误状态，避免重复点击。
+ *
  * Connect async actions to button loading and error state and prevent repeated clicks.
  */
 export const LoaderButton = reactUtils.observer((props: LoaderButtonProps) => {
@@ -52,6 +53,7 @@ export const LoaderButton = reactUtils.observer((props: LoaderButtonProps) => {
 
   /**
    * 在 Loader 状态下执行点击动作，统一异步完成与异常处理。
+   *
    * Execute a click action under loader state with consistent async completion handling.
    */
   const handleClick = async () => {

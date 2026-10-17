@@ -2,6 +2,7 @@ const pollIntervalMs = 50;
 
 /**
  * 向整个子进程组发送信号，并处理进程已退出的边界。
+ *
  * Signal an entire child process group and handle already-exited processes.
  */
 export function signalProcessGroup(child, signal) {
@@ -29,6 +30,7 @@ export function signalProcessGroup(child, signal) {
 
 /**
  * 检测子进程组是否仍存活，供有界退出等待。
+ *
  * Check whether a child process group remains alive during bounded shutdown.
  */
 export function processGroupIsRunning(child) {

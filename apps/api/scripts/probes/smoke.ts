@@ -4,6 +4,7 @@ import { stockBasic, tradeCal } from '#market/providers/tushare/api.js';
 
 /**
  * 检查 Tushare 令牌和 HTTP 通道连通性，供手动环境诊断。
+ *
  * Connectivity self-test: verify TUSHARE_TOKEN is valid and the HTTP channel works. Run: `pnpm probe tushare`.
  */
 async function main(): Promise<void> {

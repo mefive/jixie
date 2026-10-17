@@ -56,6 +56,7 @@ type Classification = z.infer<typeof classificationSchema>;
 
 /**
  * 封装生成因子草稿与分类证据，供交接创建。
+ *
  * Collect generated factor source and classification evidence for handoff.
  */
 export interface GeneratedResearchFactorDraft {
@@ -72,6 +73,7 @@ export interface GeneratedResearchFactorDraft {
 
 /**
  * 根据冻结研究证据与因子契约生成草稿，保留模型验证诊断。
+ *
  * Generate a factor draft from frozen research evidence and the factor contract with validation diagnostics.
  */
 export async function generateResearchFactorDraft(
@@ -131,6 +133,7 @@ export async function generateResearchFactorDraft(
 
 /**
  * 判断研究证据适用的因子种类，供生成对应作者协议。
+ *
  * Classify research evidence into a supported factor kind for authoring.
  */
 async function classifyResearchFactor(
@@ -185,6 +188,7 @@ Use ${locale === 'en' ? 'English' : 'Chinese'} for factorName, summary, unresolv
 
 /**
  * 从研究上下文整理可选报告建议，不自动触发正式评估。
+ *
  * Build optional report suggestions from research context without starting formal evaluation.
  */
 function factorReportSuggestion(
@@ -265,6 +269,7 @@ function withRequiredValidationItems(items: string[], locale: Locale): string[] 
 
 /**
  * 按已确认因子种类生成基础代码，供草稿初始化。
+ *
  * Build initial factor source for the confirmed factor kind.
  */
 function defaultFactorCode(analysisKind: ResearchFactorDraftAnalysisKindV1): string {

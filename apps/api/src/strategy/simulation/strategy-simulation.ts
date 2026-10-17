@@ -13,6 +13,7 @@ import type { StrategySandboxInstance } from '../sandbox/contract.js';
 
 /**
  * 提供完整策略模拟的配置、来源及初始状态，供宿主装配引擎。
+ *
  * Supply configuration, source and initial state for a complete strategy simulation.
  */
 export interface StrategySimulationInput {
@@ -28,6 +29,7 @@ export interface StrategySimulationInput {
 
 /**
  * 配置策略模拟的日志、进度和取消等宿主执行选项。
+ *
  * Configure simulation logging, progress and cancellation capabilities.
  */
 export interface StrategySimulationOptions {
@@ -53,6 +55,7 @@ export class StrategySimulation {
 
   /**
    * 创建策略沙盒与因子宿主并注入引擎，失败时回收已取得资源。
+   *
    * Create the strategy sandbox and factor host, inject engine capabilities and clean up failed construction.
    */
   static async create(input: StrategySimulationInput): Promise<StrategySimulation> {
@@ -85,6 +88,7 @@ export class StrategySimulation {
 
   /**
    * 返回独立血缘快照，供报告留存及调用方准入检查。
+   *
    * Return a detached lineage snapshot for reports and caller-owned admission checks.
    */
   get factorDependencies(): FactorDependency[] {
@@ -93,6 +97,7 @@ export class StrategySimulation {
 
   /**
    * 运行已装配的引擎模拟，并由会话统一管理外部沙盒生命周期。
+   *
    * Run the prepared simulation engine under the session's sandbox lifecycle.
    */
   async run(options: StrategySimulationOptions): Promise<BacktestResult> {
@@ -126,6 +131,7 @@ export class StrategySimulation {
 
   /**
    * 在关闭模拟会话前读取末日独立快照，必要时补载市场数据。
+   *
    * Collect a detached snapshot, including market-data loading, before closing this simulation.
    */
   async collectFinalState(): Promise<BacktestingFinalState> {

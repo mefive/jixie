@@ -3,6 +3,7 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 /**
  * 提供相关性矩阵与展示选项，供因子热图渲染。
+ *
  * Supply matrix values and options to the factor correlation heatmap.
  */
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 /**
  * 将因子相关性矩阵渲染为热图，保留规模列与数值提示。
+ *
  * Render the factor correlation matrix with its size column and numeric tooltips.
  */
 export default function CorrelationHeatmap({ data }: Props) {

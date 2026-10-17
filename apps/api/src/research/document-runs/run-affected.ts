@@ -12,6 +12,7 @@ import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state
 
 /**
  * 验证归属及依赖后构造受影响计划，再在文档控制下执行。
+ *
  * Authorize the document, build its affected plan and execute under document run control.
  */
 export async function runAffectedResearchCells(

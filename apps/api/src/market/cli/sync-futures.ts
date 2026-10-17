@@ -11,6 +11,7 @@ import { syncTradeCal } from '../calendar/sync.js';
 
 /**
  * 同步中金所股指期货合约、日线、主力映射与结算参数。
+ *
  * Sync CFFEX stock-index futures metadata, daily bars, main-contract mappings, and settlement params.
  * Usage: pnpm --filter api sync futures [start] [end]
  * Example: pnpm --filter api sync futures 20240101 20241231

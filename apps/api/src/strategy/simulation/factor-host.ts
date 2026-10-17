@@ -18,6 +18,7 @@ import { describeFactors } from '#backtesting/factors/description.js';
 
 /**
  * 保存一个模拟会话的因子沙盒及其绑定定义，供重复计算复用。
+ *
  * Retain a factor sandbox and its definition within one simulation session.
  */
 type FactorInstance = CrossSectionalFactorSandbox | TimeSeriesFactorSandbox | PanelFactorSandbox;
@@ -104,6 +105,7 @@ export class FactorHost implements FactorExecutionPort {
 
   /**
    * 为已注册因子准备输入并调用对应沙盒，收集按请求关联的计算结果。
+   *
    * Prepare registered factor inputs, invoke their sandboxes and collect request-associated results.
    */
   async compute(input: FactorComputeRequest): Promise<(number | null)[]> {
@@ -117,6 +119,7 @@ export class FactorHost implements FactorExecutionPort {
 
     /**
      * 将一次因子请求排入会话计算，校验种类、输入和输出数量。
+     *
      * Run a session-queued factor request with kind, input and result-count validation.
      */
     const pending = previous.then(async () => {
@@ -215,6 +218,7 @@ export class FactorHost implements FactorExecutionPort {
 
   /**
    * 加载并校验单个因子定义，建立模拟会话持有的计算实例。
+   *
    * Load and validate a factor definition and create its simulation-owned instance.
    */
   private async define(factor: StrategyFactor, id: string): Promise<FactorDefinition> {

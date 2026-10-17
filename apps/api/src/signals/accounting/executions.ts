@@ -6,6 +6,7 @@ import { rebuildDeploymentAccount } from './settlement.js';
 
 /**
  * 更新实际执行记录并触发相关账户重算，保持任务状态与账本一致。
+ *
  * Update an actual execution and rebuild affected accounting state.
  */
 export async function updateActualExecution(

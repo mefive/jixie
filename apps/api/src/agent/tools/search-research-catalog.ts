@@ -82,6 +82,7 @@ const argsSchema = z
 
 /**
  * 描述研究目录查询的概念、对象和范围，供语义解析与检索共用。
+ *
  * Describe concepts, objects and scope for research catalog interpretation and lookup.
  */
 export interface ResearchCatalogQueryInput {
@@ -101,6 +102,7 @@ export interface ResearchCatalogQueryInput {
 
 /**
  * 保留目录候选的身份、标签和匹配证据，供排序及澄清。
+ *
  * Retain a catalog candidate's identity, label and match evidence for ranking and clarification.
  */
 interface CatalogCandidate {
@@ -116,6 +118,7 @@ const CONCEPT_RESULT_CAP = 12;
 
 /**
  * 累计当前轮目录检索证据，约束后续研究引用与澄清选项。
+ *
  * Retain catalog evidence discovered in the current turn for later references and clarification.
  */
 export interface ResearchCatalogTurnEvidence {
@@ -166,6 +169,7 @@ const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
 
 /**
  * 将结构化概念与命名对象解析为精确稳定的本地研究引用。
+ *
  * Resolve structured concepts and named objects to exact stable local research references.
  */
 export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEvidence): AgentTool {
@@ -176,6 +180,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
 
     /**
      * 检索研究目录并检查概念维度，返回可执行引用或明确的澄清需求。
+     *
      * Search the catalog and check semantic dimensions to return executable references or clarification needs.
      */
     async run(args) {
@@ -482,6 +487,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
 
       /**
        * 比较概念及别名与查询内容，供目录候选匹配使用。
+       *
        * Match concepts and aliases against a catalog query.
        */
       const conceptMatches = interpretation.conceptIds.map((conceptId) => {
@@ -624,6 +630,7 @@ export function isResearchPythonRuntimeCatalogQuery(text: string | undefined): b
 
 /**
  * 将研究查询解释为结构化概念与约束，供后续精确目录检索。
+ *
  * Interpret a research query into structured concepts and constraints for exact catalog lookup.
  */
 export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput): {
@@ -685,6 +692,7 @@ export function researchCatalogTenorYears(query: string): number | null {
 
 /**
  * 记录用户请求与可执行目录绑定之间的语义维度差异。
+ *
  * Describe a semantic dimension mismatch between a request and an executable catalog binding.
  */
 export interface ResearchConceptDimensionMismatch {
@@ -695,6 +703,7 @@ export interface ResearchConceptDimensionMismatch {
 
 /**
  * 对比用户可确认的语义请求与已审计的可执行绑定，返回维度差异。
+ *
  * Compare a user-confirmable semantic request with one audited executable binding.
  */
 export function researchConceptDimensionMismatches(
@@ -721,6 +730,7 @@ export function researchConceptDimensionMismatches(
 
 /**
  * 根据匹配与维度差异确定研究概念的解析状态。
+ *
  * Classify concept resolution from candidate matches and semantic mismatches.
  */
 function researchConceptResolutionStatus(args: {
@@ -803,6 +813,7 @@ function candidate(
 
 /**
  * 按请求的来源和资产维度筛除不兼容目录候选。
+ *
  * Filter catalog candidates against requested source and asset dimensions.
  */
 function candidateAllowed(
@@ -851,6 +862,7 @@ function searchScore(values: string[], terms: string[]): number {
 
     /**
      * 累积精确、前缀和包含匹配中的最高得分，供目录排序。
+     *
      * Keep the strongest exact, prefix or substring score for catalog ranking.
      */
     const best = normalizedValues.reduce((valueScore, value) => {
@@ -871,6 +883,7 @@ function searchScore(values: string[], terms: string[]): number {
 
 /**
  * 将证券查询匹配到本地稳定证券身份，供研究目录返回引用。
+ *
  * Match an instrument query to a stable local identity for catalog references.
  */
 function instrumentMatch(
@@ -901,6 +914,7 @@ function instrumentMatch(
 
 /**
  * 匹配 ETF 身份与元数据，供研究目录选择可用交易代理。
+ *
  * Match ETF identities and metadata for selecting available research proxies.
  */
 export function etfInstrumentMatch(

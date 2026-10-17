@@ -7,6 +7,7 @@ import { archiveResearchDocument } from './document-operations.js';
 
 /**
  * 仅在文档空闲时归档，避免与活动编辑或运行竞争。
+ *
  * Archive an idle document without racing active work.
  */
 export async function archiveIdleResearchDocument(userId: string, documentId: string) {

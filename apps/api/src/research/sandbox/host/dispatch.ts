@@ -63,6 +63,7 @@ import type { ResearchSeriesInputSpecV1 } from '@jixie/shared';
 
 /**
  * 根据已校验 SDK 请求分派数据读取与结果访问，保持权限和公开字段映射。
+ *
  * Dispatch a validated SDK request to authorized loaders and public result mappings.
  */
 async function answerResearchRequest(
@@ -331,6 +332,7 @@ async function answerResearchRequest(
 
 /**
  * 加载受控序列并按 SDK 频率与变换准备公开结果。
+ *
  * Load a governed series and prepare public frequency and transform results.
  */
 async function loadAndPrepareResearchSeries(input: {
@@ -367,6 +369,7 @@ async function loadAndPrepareResearchSeries(input: {
 
 /**
  * 观察数据请求与响应以留存证据，独立于数据业务加载。
+ *
  * Observe dataset requests and responses for evidence retention.
  */
 export interface ResearchRequestObserver {
@@ -376,6 +379,7 @@ export interface ResearchRequestObserver {
 
 /**
  * 将输入证据持久化放在 Python 可捕获数据错误边界之外，证据失败不能被用户代码吞掉。
+ *
  * Evidence persistence stays outside the Python-catchable dataset error boundary.
  */
 export async function dispatchResearchRequest(

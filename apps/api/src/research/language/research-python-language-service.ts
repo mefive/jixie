@@ -32,6 +32,7 @@ type JsonRpcId = number | string;
 
 /**
  * 约束 JSON-RPC 请求、响应与通知，供 Pyright 通信。
+ *
  * Describe JSON-RPC requests, responses and notifications for Pyright communication.
  */
 interface JsonRpcMessage {
@@ -45,6 +46,7 @@ interface JsonRpcMessage {
 
 /**
  * 保存 LSP 零基行列位置，供 Cell 映射。
+ *
  * Describe zero-based LSP positions for cell mapping.
  */
 interface LspPosition {
@@ -54,6 +56,7 @@ interface LspPosition {
 
 /**
  * 定义 LSP 源码范围，供文本编辑和诊断。
+ *
  * Describe LSP source ranges for edits and diagnostics.
  */
 interface LspRange {
@@ -63,6 +66,7 @@ interface LspRange {
 
 /**
  * 承载 Pyright 原始诊断，供公开语言结果规范化。
+ *
  * Describe raw Pyright diagnostics before public normalization.
  */
 interface LspDiagnostic {
@@ -75,6 +79,7 @@ interface LspDiagnostic {
 
 /**
  * 维护已打开文档内容与版本，供请求和诊断关联。
+ *
  * Track open document content and versions for request and diagnostic association.
  */
 interface OpenResearchLanguageDocument {
@@ -87,6 +92,7 @@ interface OpenResearchLanguageDocument {
 
 /**
  * 保存某文档版本发布的诊断，避免应用陈旧结果。
+ *
  * Associate published diagnostics with a document revision.
  */
 interface PublishedDiagnostics {
@@ -96,6 +102,7 @@ interface PublishedDiagnostics {
 
 /**
  * 登记等待诊断的版本与清理，供有界异步请求。
+ *
  * Track a bounded diagnostic wait and its cleanup.
  */
 interface DiagnosticWaiter {
@@ -122,6 +129,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 发送带身份的 JSON-RPC 请求，并管理响应等待、超时与取消。
+   *
    * Send an identified JSON-RPC request with response waiting, timeout and cancellation handling.
    */
   public async request(
@@ -174,6 +182,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 关闭语言服务子进程并拒绝未完成请求，释放监听资源。
+   *
    * Dispose the language-service process and reject pending requests while releasing listeners.
    */
   public async dispose(): Promise<void> {
@@ -201,6 +210,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 完成 LSP 初始化并声明客户端能力，供后续语言请求。
+   *
    * Initialize LSP capabilities before language requests.
    */
   private async initialize(): Promise<void> {
@@ -219,6 +229,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 启动 Pyright 语言服务并完成初始化，接入消息与退出处理。
+   *
    * Start and initialize the Pyright language service with message and exit handling.
    */
   private async start(): Promise<void> {
@@ -315,6 +326,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 打开或更新合成文档，建立文档修订与诊断关联。
+   *
    * Open or update a synthesized document and associate revisions with diagnostics.
    */
   private async openDocument(
@@ -365,6 +377,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 关闭超出缓存限制的旧文档，释放语言服务资源。
+   *
    * Evict old language documents beyond cache limits.
    */
   private trimDocuments(activeSessionKey: string): void {
@@ -386,6 +399,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 打开当前合成文档后请求补全，规范化响应和编辑范围。
+   *
    * Open the synthesized document and request normalized completions.
    */
   private async completion(
@@ -445,6 +459,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 请求定义或引用位置并过滤无效响应，供 Cell 导航。
+   *
    * Request and normalize definition or reference locations for cell navigation.
    */
   private async locations(
@@ -505,6 +520,7 @@ export class ResearchPythonLanguageService {
 
   /**
    * 处理诊断等语言服务通知，唤醒等待对应文档版本的调用方。
+   *
    * Handle language notifications and wake callers waiting for matching document diagnostics.
    */
   private handleNotification(message: JsonRpcMessage): void {
@@ -645,6 +661,7 @@ class JsonRpcStdioConnection {
 
   /**
    * 从子进程字节流解析 Content-Length 消息，保留不完整帧。
+   *
    * Parse Content-Length messages from the child stream while retaining partial frames.
    */
   private consume(chunk: Buffer): void {
@@ -680,6 +697,7 @@ class JsonRpcStdioConnection {
 
   /**
    * 按 JSON-RPC 身份路由响应与通知，处理协议错误。
+   *
    * Route JSON-RPC responses and notifications by identity and handle protocol errors.
    */
   private receive(message: JsonRpcMessage): void {
@@ -725,6 +743,7 @@ class JsonRpcStdioConnection {
 
   /**
    * 关闭指定语言文档并清理对应诊断与等待状态。
+   *
    * Close a language document and clear its diagnostics and waiters.
    */
   private close(error: Error): void {
@@ -748,6 +767,7 @@ async function writeLanguageStub(path: string, source: string): Promise<void> {
 
 /**
  * 规范化补全列表及编辑范围，供 Cell 编辑器消费。
+ *
  * Normalize completion items and edit ranges for cell editors.
  */
 function normalizeCompletion(
@@ -803,6 +823,7 @@ function normalizeCompletion(
 
 /**
  * 将 LSP 文本编辑转换到公开编辑器契约，保留插入替换范围。
+ *
  * Map LSP text edits into the public editor contract with insert and replace ranges.
  */
 function normalizeTextEdit(
@@ -822,6 +843,7 @@ function normalizeTextEdit(
 
 /**
  * 规范化 hover 内容与范围，供编辑器展示。
+ *
  * Normalize hover content and ranges for editor rendering.
  */
 function normalizeHover(
@@ -843,6 +865,7 @@ function normalizeHover(
 
 /**
  * 整理签名帮助和当前参数索引，供编辑器提示。
+ *
  * Normalize signature help and active parameter indexes for the editor.
  */
 function normalizeSignatureHelp(raw: unknown): ResearchLanguageSignatureHelpV1 | null {
@@ -852,6 +875,7 @@ function normalizeSignatureHelp(raw: unknown): ResearchLanguageSignatureHelpV1 |
 
   /**
    * 过滤非法签名并规范化参数标签，供 Monaco 签名帮助。
+   *
    * Filter invalid signatures and normalize parameter labels for Monaco signature help.
    */
   const signatures = raw.signatures.flatMap((signature) => {
@@ -896,6 +920,7 @@ function normalizeSignatureHelp(raw: unknown): ResearchLanguageSignatureHelpV1 |
 
 /**
  * 将语言服务位置映射为公开位置，供跳转定义使用。
+ *
  * Map language-service locations into public navigation locations.
  */
 function normalizeLocation(
@@ -916,6 +941,7 @@ function normalizeLocation(
 
 /**
  * 规范化重命名预检查结果，保留合法范围和默认文本。
+ *
  * Normalize rename preparation ranges and placeholder text.
  */
 function normalizeRenamePreparation(
@@ -936,6 +962,7 @@ function normalizeRenamePreparation(
 
 /**
  * 规范化跨文档编辑集合，供重命名安全应用。
+ *
  * Normalize workspace edit collections for safe rename application.
  */
 function normalizeWorkspaceEdit(
@@ -970,6 +997,7 @@ function normalizeWorkspaceEdit(
 
 /**
  * 规范化诊断严重度、范围和消息，供 Cell 标注。
+ *
  * Normalize diagnostic severity, range and message for cell annotations.
  */
 function normalizeDiagnostic(
@@ -1000,6 +1028,7 @@ function normalizeDiagnostic(
 
 /**
  * 提取多种 hover 内容为可展示文本，保留代码与 Markdown。
+ *
  * Extract displayable text from hover variants while preserving code and Markdown.
  */
 function hoverText(raw: unknown): string {

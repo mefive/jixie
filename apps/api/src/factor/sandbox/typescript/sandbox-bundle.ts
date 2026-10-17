@@ -3,6 +3,7 @@ import { build } from 'esbuild';
 
 /**
  * 仅打包因子 SDK 与通信入口，撮合引擎留在宿主。
+ *
  * Bundle only the factor SDK and transport entry; the engine remains on the host.
  */
 export async function buildFactorSandboxBundle() {

@@ -14,6 +14,7 @@ import { deploymentWire } from './read.js';
 
 /**
  * 将回测报告冻结为信号部署，验证归属、依赖与可运行状态。
+ *
  * Freeze a backtest report into a signal deployment after ownership, dependency and readiness checks.
  */
 export async function deployBacktestReport(
@@ -120,6 +121,7 @@ export async function deployBacktestReport(
 
 /**
  * 校验部署归属后暂停未来信号调度，保留历史结果。
+ *
  * Authorize and pause future signal scheduling for a deployment.
  */
 export async function pauseDeployment(

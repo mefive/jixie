@@ -12,6 +12,7 @@ import type { ReferenceWorkerStage } from './reference-worker-protocol.js';
 
 /**
  * 限定财务参考历史导入的区间与证券。
+ *
  * Configure dates and instruments for financial reference import.
  */
 export interface FinancialReferenceImportOptions {
@@ -23,6 +24,7 @@ export interface FinancialReferenceImportOptions {
 
 /**
  * 汇总财务历史导入的新增、修订与覆盖。
+ *
  * Summarize imported financial additions, corrections and coverage.
  */
 export interface FinancialReferenceImportSummary {
@@ -33,6 +35,7 @@ export interface FinancialReferenceImportSummary {
 
 /**
  * 导入财务参考历史并记录覆盖与修订结果，供 PIT 基线修复。
+ *
  * Import financial reference history and record coverage and corrections for PIT baseline repair.
  */
 export async function importFinancialReferenceHistory(

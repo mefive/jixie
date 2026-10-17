@@ -2,6 +2,7 @@ import type { OhlcBar } from '@jixie/shared/sdk/strategy/contract';
 
 /**
  * 计算窗口内指定字段均值，有效值不足 n 个时返回 null。
+ *
  * Mean of a per-bar field over the window, or null if fewer than n valid values.
  */
 export function avgField(
@@ -21,6 +22,7 @@ export function smaValues(values: number[], n: number): number | null {
 
 /**
  * 以首窗口均值初始化并递推 EMA，历史不足返回 null。
+ *
  * Seed EMA from the initial window mean and update recursively.
  */
 export function emaValues(values: number[], n: number): number | null {
@@ -45,6 +47,7 @@ export function extremeValues(
 
 /**
  * 从相邻 OHLC 真实波幅计算 ATR，要求足够前一根行情。
+ *
  * Compute ATR from adjacent-bar true ranges with required prior history.
  */
 export function atrBars(bars: OhlcBar[], n: number): number | null {
@@ -66,6 +69,7 @@ export function atrBars(bars: OhlcBar[], n: number): number | null {
 
 /**
  * 将公开 OHLC 字段名映射为行情记录的对应字段。
+ *
  * Map a public OHLC field name to the corresponding bar property.
  */
 export function ohlcField(bar: OhlcBar, field: 'open' | 'high' | 'low' | 'close'): number {
@@ -80,6 +84,7 @@ export function ohlcField(bar: OhlcBar, field: 'open' | 'high' | 'low' | 'close'
 
 /**
  * 计算窗口样本标准差，供策略风险辅助方法。
+ *
  * Compute sample dispersion for strategy risk helpers.
  */
 export function sampleDeviation(values: number[]): number {

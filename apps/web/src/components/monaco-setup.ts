@@ -9,6 +9,7 @@ import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 self.MonacoEnvironment = {
   /**
    * 按语言选择 Monaco Worker，避免编辑器服务使用错误运行入口。
+   *
    * Select the appropriate Monaco worker for each language service.
    */
   getWorker(_workerId, label) {

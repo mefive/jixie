@@ -6,6 +6,7 @@ const MAX_HITS = 50;
 
 /**
  * 只从本地元数据解析已验证股票或 ETF 身份，不接受模型虚构代码。
+ *
  * Resolve a verified stock/ETF code from local metadata; never accept model-invented identity.
  */
 export async function resolveInstruments(text: string): Promise<string[]> {

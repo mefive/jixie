@@ -43,6 +43,7 @@ const FX_ROUNDING_INVERSION_TOLERANCE = 0.0001 + 1e-9;
 
 /**
  * 定义外部曲线与外汇读取能力，供统一同步。
+ *
  * Define external curve and FX fetching for synchronization.
  */
 export interface ExternalMarketClient {
@@ -51,6 +52,7 @@ export interface ExternalMarketClient {
 
 /**
  * 携带外部曲线实际期限点，供下一 SSE 可得日映射。
+ *
  * Supply published external curve terms for next-SSE availability mapping.
  */
 export interface ExternalYieldCurvePoint {
@@ -61,6 +63,7 @@ export interface ExternalYieldCurvePoint {
 
 /**
  * 保留货币对买卖报价与来源日期，供中间价及质量校验。
+ *
  * Retain dated FX bid and ask quotes for mid-price and quality checks.
  */
 export interface ExternalFxDailyBar {
@@ -80,6 +83,7 @@ export interface ExternalFxDailyBar {
 
 /**
  * 汇总外部曲线及汇率同步结果，供维护留存。
+ *
  * Summarize external curve and FX sync outcomes for maintenance.
  */
 export interface ExternalMarketSyncSummary {
@@ -91,6 +95,7 @@ export interface ExternalMarketSyncSummary {
 
 /**
  * 解析美国国债曲线响应，不对缺失期限插值。
+ *
  * Parse a Tushare US Treasury response without interpolating absent tenors.
  */
 export function parseExternalYieldCurveRows(
@@ -141,6 +146,7 @@ export function parseExternalYieldCurveRows(
 
 /**
  * 解析 USD/CNH 原始买卖报价，拒绝倒挂或不可能的数值。
+ *
  * Parse raw USD/CNH bid/ask bars and fail closed on inverted or impossible quotes.
  */
 export function parseUsdCnhRows(
@@ -153,6 +159,7 @@ export function parseUsdCnhRows(
 
 /**
  * 只接受声明的 FXCM 货币对，并拒绝错配或倒挂报价。
+ *
  * Parse one declared FXCM pair without silently accepting a different pair or inverted quotes.
  */
 export function parseExternalFxRows(
@@ -229,6 +236,7 @@ export function parseExternalFxRows(
 
 /**
  * 将来源市场日期映射到之后首个 SSE 交易日，作为中国收盘研究可得日。
+ *
  * Maps a source-market date to the first later SSE session for China-close research.
  */
 export function assignExternalAvailableDates<T extends { tradeDate: string }>(
@@ -247,6 +255,7 @@ export function assignExternalAvailableDates<T extends { tradeDate: string }>(
 
 /**
  * 按统一可审计的中国市场 PIT 规则同步美国名义、实际利率曲线与 USD/CNH。
+ *
  * Synchronize US nominal/real curves and USD/CNH with one auditable China-market PIT rule.
  */
 export async function syncExternalMarketDrivers(
@@ -353,6 +362,7 @@ export async function syncExternalMarketDrivers(
 
 /**
  * 原子替换已验证曲线区间，保持同一批次期限数据一致。
+ *
  * Replace a validated yield-curve range atomically so term observations remain consistent.
  */
 async function replaceCurveRange(

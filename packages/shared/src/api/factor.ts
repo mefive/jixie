@@ -298,6 +298,7 @@ const primaryCriterionSchema = z.object({
 
 /**
  * 按分析种类组合研究意图 schema，统一默认值与请求边界校验。
+ *
  * Build kind-specific research intent validation with shared defaults and input constraints.
  */
 export const factorResearchIntentV1Schema = z

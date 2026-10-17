@@ -5,6 +5,7 @@ const NORMAL_95_PERCENT_CRITICAL_VALUE = 1.959963984540054;
 
 /**
  * 封装回归系数、标准误及统计推断结果，供研究报告展示。
+ *
  * Collect regression coefficients, standard errors and inferential statistics for research reports.
  */
 export interface RegressionInference {
@@ -15,6 +16,7 @@ export interface RegressionInference {
 
 /**
  * 按常用带宽规则选择 Newey–West 滞后阶数，并限制在可用观测范围。
+ *
  * Common automatic bandwidth rule, capped to the available ordered observations.
  */
 export function automaticNeweyWestLag(observations: number, minimumLag = 0): number {
@@ -24,6 +26,7 @@ export function automaticNeweyWestLag(observations: number, minimumLag = 0): num
 
 /**
  * 对按时间排序的序列均值进行 Newey–West/HAC 稳健推断。
+ *
  * Newey–West/HAC inference for the mean of an ordered period series.
  */
 export function neweyWestMeanInference(
@@ -61,6 +64,7 @@ export function neweyWestMeanInference(
 
 /**
  * 对单个截面计算总体 z-score；无有效离散度时返回 null。
+ *
  * Population z-scores for one cross-section. Null means the exposure has no usable dispersion.
  */
 export function populationZScores(values: number[]): number[] | null {
@@ -78,6 +82,7 @@ export function populationZScores(values: number[]): number[] | null {
 
 /**
  * 对调用方提供的设计矩阵求 OLS 系数；需要截距时由调用方显式加入常数列。
+ *
  * OLS coefficients for a caller-supplied design matrix. Include an intercept column when required.
  */
 export function leastSquaresCoefficients(design: number[][], response: number[]): number[] | null {
@@ -119,6 +124,7 @@ export function leastSquaresCoefficients(design: number[][], response: number[])
 
 /**
  * 对按时间排序的 OLS 回归计算 Newey–West 三明治协方差与稳健推断。
+ *
  * Newey–West sandwich inference for a time-ordered OLS regression.
  */
 export function neweyWestRegression(
@@ -169,6 +175,7 @@ export function neweyWestRegression(
 
 /**
  * 检查回归矩阵、响应向量和样本维度，避免在不匹配输入上计算。
+ *
  * Validate regression matrix, response and sample dimensions before numerical operations.
  */
 function validateRegressionDimensions(design: number[][], response: number[]): void {
@@ -188,6 +195,7 @@ function validateRegressionDimensions(design: number[][], response: number[]): v
 
 /**
  * 通过消元求方阵逆，检测不可逆或不稳定枢轴供回归计算使用。
+ *
  * Invert a square matrix by elimination, detecting unusable pivots for regression calculations.
  */
 function invertMatrix(matrix: number[][]): number[][] | null {
@@ -224,6 +232,7 @@ function invertMatrix(matrix: number[][]): number[][] | null {
 
 /**
  * 计算设计矩阵交叉积，供 OLS 与稳健协方差公式使用。
+ *
  * Compute the design cross-product used by OLS and robust covariance calculations.
  */
 function crossProduct(matrix: number[][]): number[][] {
@@ -237,6 +246,7 @@ function crossProduct(matrix: number[][]): number[][] {
 
 /**
  * 执行矩阵乘法，供回归系数与协方差运算复用。
+ *
  * Multiply matrices for regression coefficient and covariance calculations.
  */
 function multiplyMatrices(left: number[][], right: number[][]): number[][] {
@@ -249,6 +259,7 @@ function multiplyMatrices(left: number[][], right: number[][]): number[][] {
 
 /**
  * 按权重将向量外积累加到矩阵，供 HAC 协方差核累积。
+ *
  * Accumulate a weighted vector outer product into the HAC covariance kernel.
  */
 function addOuterProduct(target: number[][], left: number[], right: number[], scale: number): void {
@@ -261,6 +272,7 @@ function addOuterProduct(target: number[][], left: number[], right: number[], sc
 
 /**
  * 按指定维度构造零矩阵，供数值算法累加使用。
+ *
  * Allocate a zero matrix for numerical accumulation.
  */
 function zeroMatrix(dimensions: number): number[][] {
@@ -269,6 +281,7 @@ function zeroMatrix(dimensions: number): number[][] {
 
 /**
  * 计算向量内积，供回归预测和矩阵运算使用。
+ *
  * Compute a vector dot product for regression prediction and matrix operations.
  */
 function dot(left: number[], right: number[]): number {

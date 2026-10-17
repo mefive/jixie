@@ -41,6 +41,7 @@ export async function getResearchCuratorRun(
 
 /**
  * 从已验证发现和反馈计算整理质量摘要。
+ *
  * Summarize curation quality from verified findings and feedback.
  */
 export async function researchCuratorQuality(

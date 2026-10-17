@@ -10,6 +10,7 @@ type Strategy = Awaited<ReturnType<typeof getStrategy>>;
 
 /**
  * 读取策略最近回测并展示独立执行详情页。
+ *
  * Standalone execution-detail page (`/trades?id=<strategyId>`). Loads the strategy's last backtest
  * result and renders the same portfolio-level summary, filters, and fill ledger.
  */

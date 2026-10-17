@@ -1,5 +1,6 @@
 /**
  * 提供来源访问令牌及请求设置，供 Tushare 客户端初始化。
+ *
  * Supply provider credentials and request settings for client initialization.
  */
 export interface TushareConfig {
@@ -12,6 +13,7 @@ export interface TushareConfig {
 
 /**
  * 读取 Tushare 配置，令牌缺失时立即返回带修复提示的错误。
+ *
  * Load Tushare config. Throws immediately with a fix hint if the token is missing.
  * (The database connection is handled by Prisma via DATABASE_URL, not here.)
  */

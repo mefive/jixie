@@ -33,6 +33,7 @@ export class PythonSession implements SandboxTransport {
 
   /**
    * 建立 Python 会话连接并注册帧读取与生命周期处理。
+   *
    * Connect a Python session and attach frame reading and lifecycle handling.
    */
   static async connect(signal?: AbortSignal): Promise<PythonSession> {
@@ -72,6 +73,7 @@ export class PythonSession implements SandboxTransport {
 
   /**
    * 通过会话发送协议消息并处理关闭或传输失败。
+   *
    * Send a protocol message while respecting session closure and transport failure.
    */
   async send(frame: PythonFrame): Promise<void> {
@@ -114,6 +116,7 @@ export class PythonSession implements SandboxTransport {
 
   /**
    * 优先返回已排队帧，否则等待响应并处理会话结束。
+   *
    * Read queued frames or await a response with session-end handling.
    */
   read(): Promise<PythonFrame> {
@@ -156,6 +159,7 @@ export class PythonSession implements SandboxTransport {
 
   /**
    * 接收并解析 Python 帧，将消息交给等待方或会话队列。
+   *
    * Accept and decode a Python frame for a waiting reader or the session queue.
    */
   private accept(chunk: Buffer): void {

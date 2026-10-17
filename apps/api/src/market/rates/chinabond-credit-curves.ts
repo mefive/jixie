@@ -41,6 +41,7 @@ const TERM_BY_HEADER = new Map([
 
 /**
  * 保留中债信用曲线种类、期限与发布值。
+ *
  * Describe published ChinaBond credit curve types, terms and yields.
  */
 export interface ChinaBondCreditCurvePoint {
@@ -53,6 +54,7 @@ export interface ChinaBondCreditCurvePoint {
 
 /**
  * 抽象中债工作簿获取，供年度切片同步。
+ *
  * Abstract ChinaBond workbook access for yearly synchronization.
  */
 export interface ChinaBondCreditCurveClient {
@@ -86,6 +88,7 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
 
   /**
    * 获取官方信用曲线工作簿，供来源解析和质量检查。
+   *
    * Fetch the official credit-curve workbook for parsing and validation.
    */
   private async fetchWorkbook(url: string): Promise<Uint8Array> {
@@ -140,6 +143,7 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
 
 /**
  * 解析来源工作簿，只保留实际发布的期限点。
+ *
  * Parse the source workbook and preserve only actual published term points.
  */
 export function parseChinaBondCurveWorkbook(
@@ -239,6 +243,7 @@ export function parseChinaBondCurveWorkbook(
 
 /**
  * 仅替换成功下载的自然年度切片，并按中国收盘之后发布规则标记可得日。
+ *
  * Replace one successfully downloaded calendar-year slice. ChinaBond publishes these curves
  * after the China close, so each observation is gated to the first strictly later SSE session.
  */
@@ -357,6 +362,7 @@ function normalizeSourceDate(value: string): string {
 
 /**
  * 按年度组织信用曲线下载范围，供切片原子替换。
+ *
  * Partition credit-curve downloads into yearly replacement ranges.
  */
 function yearlyRanges(startDate: string, endDate: string) {
@@ -393,6 +399,7 @@ function addCalendarDays(date: string, days: number): string {
 
 /**
  * 为来源工作簿解析失败构造带上下文的诊断错误。
+ *
  * Build a contextual diagnostic for source-workbook parsing failures.
  */
 function diagnosticError(error: unknown): Error {

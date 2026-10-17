@@ -9,6 +9,7 @@ import './agent-trace.css';
 
 /**
  * 呈现 Agent 执行步骤与可展开工具详情。
+ *
  * Present agent execution steps with expandable tool details.
  */
 export function AgentTrace({ turnId }: { turnId: string }) {
@@ -69,6 +70,7 @@ function TraceChain({ trace, running }: { trace: AgentTurnTrace; running: boolea
 
 /**
  * 展示单步工具输入、输出及错误诊断。
+ *
  * Present one tool step's input, output and failure details.
  */
 function StepDetail({ step }: { step: AgentTraceStep }) {
@@ -109,6 +111,7 @@ function StepDetail({ step }: { step: AgentTraceStep }) {
 
 /**
  * 按工具与阶段选择可读轨迹标题。
+ *
  * Choose readable trace titles from tool and execution stage.
  */
 function stepTitle(step: AgentTraceStep, t: TFunction<'components'>): string {
@@ -128,6 +131,7 @@ function stepTitle(step: AgentTraceStep, t: TFunction<'components'>): string {
 
 /**
  * 从轨迹输入与结果提取紧凑说明，供展开详情。
+ *
  * Summarize trace input and results for expandable details.
  */
 function stepDescription(step: AgentTraceStep, t: TFunction<'components'>): string {
@@ -142,6 +146,7 @@ function stepDescription(step: AgentTraceStep, t: TFunction<'components'>): stri
 
 /**
  * 将轨迹执行状态映射为界面状态。
+ *
  * Map trace execution state into display state.
  */
 function stepStatus(

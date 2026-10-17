@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 
 /**
  * 关联策略扫描任务与报告状态，供运行及历史查询。
+ *
  * Associate strategy scan jobs and report state for execution and history queries.
  */
 type ExecutionState = {
@@ -12,6 +13,7 @@ type ExecutionState = {
 
 /**
  * 从报告和任务派生扫描状态，兼容历史已完成报告。
+ *
  * Derive scan report state from its job with legacy terminal-result support.
  */
 export function strategyScanReportState<Row extends ExecutionState>(row: Row) {

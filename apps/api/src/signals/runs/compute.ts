@@ -16,6 +16,7 @@ import { summarizeFactorInputs } from '../factor-inputs/summary.js';
 
 /**
  * 从冻结部署运行策略模拟，收集末日状态并生成持久化信号与依赖摘要。
+ *
  * Simulate the frozen deployment and derive signals and dependency summaries from its final state.
  */
 export async function runSignal(

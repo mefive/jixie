@@ -17,6 +17,7 @@ const LARGE_INDEX_WEIGHT_CODES = new Set(['000985.CSI', '000001.SH', '399102.SZ'
 
 /**
  * 按月同步指数成分和权重，避免宽区间请求超过行数上限。
+ *
  * Sync an index's monthly constituents (index_weight) over a date range. Large universes are fetched
  * month by month because one snapshot can exceed 5,000 constituents; smaller indices use quarterly
  * slices. Every slice is replaced atomically, so retries remain idempotent and resumable.
@@ -101,6 +102,7 @@ export async function syncIndexWeight(
 
 /**
  * 同步申万一级行业历史归属，供时点行业映射。
+ *
  * Sync Shenwan (SW2021) level-1 industry membership — the point-in-time (stock → industry) map used
  * for industry-neutralization in factor analysis. Fetches the 31 level-1 industries, then for each
  * pulls current ('Y') + historical ('N') members and unions them so every membership spell (with its
@@ -151,6 +153,7 @@ export async function syncSwIndustry(client: TushareClient): Promise<number> {
 
 /**
  * 替换用于审计指数分类的小型官方基准目录。
+ *
  * Replace the small official benchmark catalog used to audit index classifications.
  */
 export async function syncIndexBenchmarks(client: TushareClient): Promise<number> {
@@ -177,6 +180,7 @@ export async function syncIndexBenchmarks(client: TushareClient): Promise<number
 
 /**
  * 同步 SW2021 一级行业行情；单日用一次请求，历史按范围分块。
+ *
  * Sync official SW2021 level-1 industry bars. A single-date refresh uses one upstream call; range
  * backfills fetch one industry at a time to stay under the response cap.
  */
@@ -233,6 +237,7 @@ export async function syncSwIndexDaily(
 
 /**
  * 同步指数日收盘并对请求分段，避免上游行数截断。
+ *
  * Sync an index's daily close (e.g. 000300.SH) — for benchmark return curves. The upstream endpoint
  * truncates large responses, so the requested range is fetched in ten-year windows.
  */
@@ -276,6 +281,7 @@ export async function syncIndexDaily(
 
 /**
  * 分段同步主要宽基指数每日估值，遵守上游行数限制。
+ *
  * Sync provider-computed daily valuation metrics for broad-market indices. The upstream endpoint has
  * a 3,000-row response cap, so each code is fetched in ten-year windows.
  */

@@ -9,6 +9,7 @@ import { BaseStore, LoaderModel } from '@src/lib';
 
 /**
  * 配置市场气象的范围、周期与对象查询。
+ *
  * Configure market weather scope, period and object queries.
  */
 interface MarketWeatherRequest {

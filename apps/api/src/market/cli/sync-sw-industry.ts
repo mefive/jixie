@@ -5,6 +5,7 @@ import { syncSwIndustry } from '../indices/sync.js';
 
 /**
  * 同步申万 SW2021 一级行业成员历史，供时点行业归属查询。
+ *
  * Sync Shenwan (SW2021) level-1 industry membership into the local store — the point-in-time
  * (stock → industry) map behind factor industry-neutralization (3.4).
  * Usage: pnpm --filter api sync sw-industry

@@ -76,6 +76,7 @@ export type ECOption = ComposeOption<
 
 /**
  * 提供 ECharts 配置、尺寸及就绪回调，供图表壳。
+ *
  * Supply ECharts options, sizing and readiness callbacks to the chart shell.
  */
 interface Props {
@@ -86,6 +87,7 @@ interface Props {
 
 /**
  * 统一封装 ECharts 初始化、配置、尺寸变化与销毁，供各图表复用。
+ *
  * Ultra-thin ECharts shell: wraps init / setOption / resize / dispose once, reused directly by later charts.
  */
 export function EChart({ option, className, onClick }: Props) {

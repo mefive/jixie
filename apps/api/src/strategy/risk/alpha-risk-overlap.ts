@@ -20,6 +20,7 @@ const BASIS_POINT_FACTORS = new Set<MarketRiskFactorKeyV1>([
 
 /**
  * 记录已对齐可得时点的 Alpha 区间收益，供风险重合分析。
+ *
  * Describe availability-aligned Alpha period returns for risk overlap analysis.
  */
 export interface AlphaPeriodReturnObservation {
@@ -31,6 +32,7 @@ export interface AlphaPeriodReturnObservation {
 
 /**
  * 记录原始 Alpha 区间收益及边界，供严格时点对齐。
+ *
  * Describe raw Alpha return periods before availability alignment.
  */
 export interface RawAlphaPeriodReturnObservation {
@@ -41,6 +43,7 @@ export interface RawAlphaPeriodReturnObservation {
 
 /**
  * 配置 Alpha 与风险驱动重合分析的对齐、窗口和推断选项。
+ *
  * Configure alignment, windows and inference for Alpha-risk overlap analysis.
  */
 export interface AnalyzeAlphaRiskOverlapOptions {
@@ -50,6 +53,7 @@ export interface AnalyzeAlphaRiskOverlapOptions {
 
 /**
  * 将收盘到收盘的 Alpha 区间映射到下一 SSE 可得边界。
+ *
  * Maps close-to-close Alpha periods onto strict next-SSE availability boundaries.
  */
 export function alignAlphaPeriodReturnsToRiskAvailability(
@@ -75,6 +79,7 @@ export function alignAlphaPeriodReturnsToRiskAvailability(
 
 /**
  * 从横截面或 Panel Alpha 报告读取已冻结的净多空收益证据。
+ *
  * Extracts the frozen net long-short evidence already persisted by cross-sectional and Panel Alpha reports.
  */
 export function alphaPeriodsFromFactorReport(
@@ -101,6 +106,7 @@ export function alphaPeriodsFromFactorReport(
 
 /**
  * 逐因子比较 Alpha 收益与精确对齐的市场驱动变化，生成描述性重合证据。
+ *
  * Correlates an Alpha return stream with exactly aligned market-driver changes, one factor at a time.
  */
 export function analyzeAlphaRiskOverlap(
@@ -149,6 +155,7 @@ export function analyzeAlphaRiskOverlap(
 
 /**
  * 按现有阈值对 Alpha 与风险驱动重合程度分类。
+ *
  * Classify Alpha-risk overlap using the implemented diagnostic thresholds.
  */
 export function classifyAlphaRiskOverlap(
@@ -169,6 +176,7 @@ export function classifyAlphaRiskOverlap(
 
 /**
  * 按 Alpha 期间聚合精确对齐的市场驱动变化。
+ *
  * Aggregate aligned market-factor changes over an Alpha period.
  */
 function aggregateMarketFactor(
@@ -229,6 +237,7 @@ function validateRawPeriod(period: RawAlphaPeriodReturnObservation): void {
 
 /**
  * 对已对齐序列计算 Pearson，离散度不足时保持不可用语义。
+ *
  * Compute Pearson correlation on aligned series with degenerate-dispersion handling.
  */
 function pearson(left: number[], right: number[]): number | null {

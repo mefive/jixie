@@ -5,6 +5,7 @@ import { auditEtfResearchRegistry } from './registry-audit.js';
 
 /**
  * 审计 ETF 注册清单与本地覆盖，识别研究代理缺口。
+ *
  * Audit registered ETF proxies against local metadata and history coverage.
  */
 export async function auditEtfRegistry(database: Prisma, endDate: string): Promise<AuditFinding> {

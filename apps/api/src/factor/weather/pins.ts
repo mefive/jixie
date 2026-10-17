@@ -19,6 +19,7 @@ const builtinDirections = new Map(
 
 /**
  * 按用户读取因子气象固定项及最近刷新状态。
+ *
  * List owned factor-weather pins and their latest refresh state.
  */
 export async function listFactorWeatherPins(userId: string, locale: Locale) {
@@ -56,6 +57,7 @@ export async function listFactorWeatherPins(userId: string, locale: Locale) {
 
 /**
  * 验证来源及研究配置后创建气象固定项。
+ *
  * Validate source and research settings before creating a factor-weather pin.
  */
 export async function createFactorWeatherPin(userId: string, input: CreateFactorWeatherPinInput) {
@@ -141,6 +143,7 @@ export async function requestFactorWeatherRefresh(userId: string, pinId: string)
 
 /**
  * 校验气象固定项归属后移除，并保持查询状态一致。
+ *
  * Authorize and remove a factor-weather pin.
  */
 export async function deleteFactorWeatherPin(userId: string, pinId: string) {

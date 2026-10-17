@@ -6,6 +6,7 @@ const MAX_STRATEGY_SCAN_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
 /**
  * 约束扫描与气象输出中的 JSON 值，供安全映射。
+ *
  * Constrain JSON values mapped from scan and weather results.
  */
 type ResearchJsonValue =
@@ -18,6 +19,7 @@ type ResearchJsonValue =
 
 /**
  * 读取已授权扫描报告的冻结组合结果，供 Python 研究分析。
+ *
  * Read authorized frozen scan combinations for Python research analysis.
  */
 export async function loadResearchStrategyScanReportResult(documentId: string, reportId: string) {
@@ -72,6 +74,7 @@ export async function loadResearchStrategyScanReportResult(documentId: string, r
 
 /**
  * 读取可访问因子气象的持久化结果，保留数据截止与版本信息。
+ *
  * Read accessible persisted factor-weather results with cutoff and version metadata.
  */
 export async function loadResearchFactorWeatherResult(documentId: string, factorId: string) {
@@ -145,6 +148,7 @@ async function researchDocumentUserId(documentId: string): Promise<string> {
 
 /**
  * 递归转换扫描及气象结果键名，供 Python 作者统一读取。
+ *
  * Recursively convert scan and weather result keys for Python author access.
  */
 function snakeCaseJson(value: unknown): ResearchJsonValue {

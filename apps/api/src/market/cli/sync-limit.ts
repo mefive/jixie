@@ -5,6 +5,7 @@ import { syncStkLimit } from '../stocks/daily-sync.js';
 
 /**
  * 同步每日原始涨跌停价，供引擎阻止受限成交。
+ *
  * Sync daily price limits (limit-up / limit-down prices) into the local store — what the engine reads
  * to block fills at the limit (no buy at limit-up, no sell at limit-down). Resumable: skips trading
  * days already loaded.

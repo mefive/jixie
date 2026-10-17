@@ -6,6 +6,7 @@ const MAX_BACKTEST_REPORT_PAYLOAD_BYTES = 8 * 1024 * 1024;
 
 /**
  * 限制报告结果可序列化值，供 Python 结果映射。
+ *
  * Constrain serializable report values for Python result mapping.
  */
 type ResearchJsonValue =
@@ -18,6 +19,7 @@ type ResearchJsonValue =
 
 /**
  * 封装已授权回测报告的冻结指标、净值与成交。
+ *
  * Describe authorized frozen backtest metrics, NAV and fills.
  */
 export interface ResearchBacktestReportResultV1 extends Record<string, unknown> {
@@ -35,6 +37,7 @@ export interface ResearchBacktestReportResultV1 extends Record<string, unknown> 
 
 /**
  * 校验回测报告权限后映射冻结结果，供 Research 读取而非重新计算。
+ *
  * Authorize and map a frozen backtest report for research without rerunning it.
  */
 export async function loadResearchBacktestReportResult(
@@ -106,6 +109,7 @@ export async function loadResearchBacktestReportResult(
 
 /**
  * 递归转换报告 JSON 字段为 Python 风格命名，保持值及数组结构。
+ *
  * Recursively map report JSON keys to snake_case while preserving values and arrays.
  */
 function snakeCaseJson(value: unknown): ResearchJsonValue {

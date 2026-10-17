@@ -4,6 +4,7 @@ export type ResearchSourceDecisionStatus = 'blocked_external_license';
 
 /**
  * 保留概念来源决策的引用与审计证据。
+ *
  * Retain references and audit evidence supporting concept source decisions.
  */
 export interface ResearchSourceEvidenceV1 {
@@ -14,6 +15,7 @@ export interface ResearchSourceEvidenceV1 {
 
 /**
  * 记录已审阅的来源决策，解释为何某概念尚无本地可执行绑定。
+ *
  * A reviewed source decision explains why an exact Concept does not yet have a local Binding.
  */
 export interface ResearchConceptSourceDecisionV1 {

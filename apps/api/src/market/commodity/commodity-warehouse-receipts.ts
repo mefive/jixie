@@ -16,6 +16,7 @@ const MAXIMUM_WAREHOUSE_RECEIPT_PAGES = 100;
 
 /**
  * 保存商品仓单原始单位、日期与可得性，供研究变换。
+ *
  * Retain receipt units, dates and availability for research transforms.
  */
 export interface CommodityWarehouseReceiptPointV1 {
@@ -34,6 +35,7 @@ export interface CommodityWarehouseReceiptPointV1 {
 
 /**
  * 声明产品在交易所来源中的名称与单位，供正确聚合。
+ *
  * Define source product names and units for exchange-row aggregation.
  */
 export interface CommodityWarehouseReceiptProductSpec {
@@ -44,6 +46,7 @@ export interface CommodityWarehouseReceiptProductSpec {
 
 /**
  * 保留已校验物理仓单行，供排除小计后的聚合。
+ *
  * Carry validated physical receipt rows after subtotal filtering.
  */
 interface CleanWarehouseReceiptRow {
@@ -80,6 +83,7 @@ export function isAuditedAuKilogramMislabelDate(tradeDate: string): boolean {
 
 /**
  * 按产品和日期聚合物理仓单行，绝对量保持交易所原始单位。
+ *
  * Aggregates physical warehouse rows within one product and date. Absolute levels remain in the
  * exchange's original product-specific unit and must never be ranked across products directly.
  */
@@ -194,6 +198,7 @@ export function buildCommodityWarehouseReceiptDaily(
 
 /**
  * 获取产品区间的全部分页，供应商忽略 offset 时明确失败。
+ *
  * Fetches all pages for one product slice and fails if the provider ignores offset pagination.
  */
 export async function fetchCommodityWarehouseReceiptRange(
@@ -237,6 +242,7 @@ export async function fetchCommodityWarehouseReceiptRange(
 
 /**
  * 按有界月度切片同步仅供研究的每日仓单聚合。
+ *
  * Synchronizes research-only daily warehouse-receipt aggregates in bounded monthly slices.
  */
 export async function syncCommodityWarehouseReceipts(
@@ -329,6 +335,7 @@ export async function syncCommodityWarehouseReceipts(
 
 /**
  * 将来源日期切成有界月度区间，供仓单全分页读取。
+ *
  * Split source dates into bounded monthly receipt requests.
  */
 function monthlyRanges(

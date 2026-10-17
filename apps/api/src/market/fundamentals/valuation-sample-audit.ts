@@ -16,6 +16,7 @@ export const VALUATION_AUDIT_METRICS = [
 
 /**
  * 审计估值样本财务状态与指标覆盖，供研究示例解释缺失限制。
+ *
  * Audit valuation sample financial state and metric coverage for research limitations.
  */
 export function auditValuationState(

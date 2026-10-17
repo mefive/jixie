@@ -33,6 +33,7 @@ const argsSchema = z.strictObject({
 
 /**
  * 构造持久化的用户澄清卡片，候选项必须可追溯到研究目录。
+ *
  * Build one durable, catalog-backed user clarification card for the current Research turn.
  */
 export function createRequestResearchClarificationTool(args: {
@@ -48,6 +49,7 @@ export function createRequestResearchClarificationTool(args: {
 
     /**
      * 校验澄清问题及其候选引用，并创建当前研究轮次的澄清产物。
+     *
      * Validate a clarification question and its references, then persist the turn's clarification artifact.
      */
     async run(input) {
@@ -139,6 +141,7 @@ export function createRequestResearchClarificationTool(args: {
 
 /**
  * 将目录候选整理为可供用户选择的澄清选项。
+ *
  * Convert a catalog candidate into a user-selectable clarification option.
  */
 function clarificationOption(
@@ -185,6 +188,7 @@ function clarificationOption(
 
 /**
  * 解析澄清选项对应的稳定目录引用，供选择结果追溯。
+ *
  * Resolve the stable catalog reference associated with a clarification option.
  */
 function optionReference(option: z.infer<typeof optionSchema>): string {

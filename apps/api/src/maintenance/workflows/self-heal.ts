@@ -16,12 +16,14 @@ import { validateRawMarketDate } from '../publication/gate.js';
 
 /**
  * 汇总单日市场数据数量，供完整性比较和修复判定。
+ *
  * Collect market-date row counts for completeness checks and repair decisions.
  */
 export interface MarketDateCounts extends StockDateCounts, IndexDateCounts {}
 
 /**
  * 记录单个日期需要执行的修复，供自愈流程排队处理。
+ *
  * Describe the repair required for one market date in self-healing maintenance.
  */
 export interface MarketDateRepair {
@@ -34,6 +36,7 @@ export interface MarketDateRepair {
 
 /**
  * 汇总自愈检查和修复结果，供维护审计与输出。
+ *
  * Summarize self-healing checks and repairs for maintenance auditing.
  */
 export interface SelfHealSummary {
@@ -49,6 +52,7 @@ export interface SelfHealSummary {
 
 /**
  * 配置自愈日期范围与执行回调，供维护工作流复用。
+ *
  * Configure date bounds and execution callbacks for market self-healing.
  */
 export interface SelfHealOptions {
@@ -72,6 +76,7 @@ export function buildMarketDateRepairPlan(counts: MarketDateCounts[]): MarketDat
 
 /**
  * 逐日检查市场覆盖并修复可恢复缺口，汇总无法修复的异常。
+ *
  * Check daily market coverage, repair recoverable gaps and summarize unresolved issues.
  */
 export async function selfHealMarketDates(

@@ -29,6 +29,7 @@ type ScanView = 'parameters' | 'sizing' | 'capacity';
 
 /**
  * 协调扫描弹窗、参数加载与提交，复用当前策略冻结配置。
+ *
  * Coordinate scan configuration and submission using the current strategy configuration.
  */
 export const ParameterScanButton = complex.component(() => {
@@ -48,6 +49,7 @@ export const ParameterScanButton = complex.component(() => {
 
   /**
    * 打开扫描界面并加载当前策略可扫描参数与最近状态。
+   *
    * Open the scan panel and load supported parameters and recent state.
    */
   const openModal = async () => {
@@ -70,6 +72,7 @@ export const ParameterScanButton = complex.component(() => {
 
   /**
    * 校验扫描表单并提交参数或容量范围，关联后台进度。
+   *
    * Validate scan settings, submit parameter or capacity ranges and attach progress.
    */
   const submit = () => {
@@ -128,6 +131,7 @@ export const ParameterScanButton = complex.component(() => {
 
   /**
    * 切换扫描视图并恢复该模式对应的参数与结果选择。
+   *
    * Switch scan views and reconcile mode-specific parameters and results.
    */
   const changeView = (next: string | number) => {
@@ -265,6 +269,7 @@ export const ParameterScanButton = complex.component(() => {
 
 /**
  * 按扫描模式选择参数、仓位或容量结果展示。
+ *
  * Select parameter, sizing or capacity result views for a scan.
  */
 export const ParameterScanPanel = complex.component(() => {
@@ -344,6 +349,7 @@ export const ParameterScanPanel = complex.component(() => {
 
 /**
  * 绑定扫描参数维度与编辑回调，供扫描表单。
+ *
  * Bind scan dimensions and editing callbacks to the scan form.
  */
 interface ScanDimensionProps {
@@ -357,6 +363,7 @@ interface ScanDimensionProps {
 
 /**
  * 展示仓位扫描的目标与对应绩效，供规模比较。
+ *
  * Present sizing targets and their performance for position-scale comparison.
  */
 function SizingTable({ report }: { report: StrategyScanReport }) {
@@ -396,6 +403,7 @@ function SizingTable({ report }: { report: StrategyScanReport }) {
 
 /**
  * 汇总容量扫描的资本、成本和绩效变化。
+ *
  * Summarize capital, costs and performance across a capacity scan.
  */
 function CapacitySummary({ report }: { report: StrategyScanReport }) {
@@ -487,6 +495,7 @@ function ScanDimension(props: ScanDimensionProps) {
 
 /**
  * 展示各参数组合及绩效指标，供扫描结果排序比较。
+ *
  * Present parameter combinations and metrics for scan comparison.
  */
 function ScanTable({ report, metric }: { report: StrategyScanReport; metric: ScanMetric }) {
@@ -564,6 +573,7 @@ export function metricValue(
 
 /**
  * 按绩效指标单位格式化扫描结果。
+ *
  * Format scan metrics according to their performance units.
  */
 function formatMetric(metric: ScanMetric, summary?: BacktestMetricSummary): string {
@@ -591,6 +601,7 @@ function formatMetric(metric: ScanMetric, summary?: BacktestMetricSummary): stri
 
 /**
  * 解析扫描输入值，校验数值、枚举和去重结果。
+ *
  * Parse and validate numeric or categorical scan values and remove duplicates.
  */
 function parseValues(
@@ -614,6 +625,7 @@ function parseValues(
 
 /**
  * 根据参数默认值生成可编辑候选扫描点。
+ *
  * Suggest editable scan values around a parameter default.
  */
 function suggestedValues(

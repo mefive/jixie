@@ -14,6 +14,7 @@ import {
 
 /**
  * 提供 ETF 趋势所需日线字段，供特征与收益构造。
+ *
  * Supply ETF daily fields for trend features and returns.
  */
 export interface EtfTrendDailyRow {
@@ -25,6 +26,7 @@ export interface EtfTrendDailyRow {
 
 /**
  * 提供带日期的利率点，供 ETF 趋势输入时点对齐。
+ *
  * Supply dated yields for availability-aligned ETF trend inputs.
  */
 export interface YieldCurveObservationRow {
@@ -36,6 +38,7 @@ export interface YieldCurveObservationRow {
 
 /**
  * 加载 ETF 趋势研究的行情与利率输入，供时点观测构造。
+ *
  * Load ETF price and yield inputs for trend-factor observations.
  */
 export async function loadEtfTimeSeriesObservations(
@@ -121,6 +124,7 @@ export async function loadEtfTimeSeriesObservations(
 
 /**
  * 按策略字段和窗口构造 ETF 趋势与前瞻收益观测。
+ *
  * Build ETF trend features and forward-return observations under the declared windows.
  */
 export async function buildEtfTimeSeriesObservations(
@@ -223,6 +227,7 @@ export async function buildEtfTimeSeriesObservations(
 
 /**
  * 验证 ETF 趋势研究的窗口、目标和协议支持范围。
+ *
  * Validate supported windows, targets and ETF trend protocols.
  */
 function assertSupportedProtocol(
@@ -247,6 +252,7 @@ function assertSupportedProtocol(
 
 /**
  * 从已声明字段构造对齐历史，供作者因子读取。
+ *
  * Build aligned field histories for authored factor reads.
  */
 function alignedFactorFields(

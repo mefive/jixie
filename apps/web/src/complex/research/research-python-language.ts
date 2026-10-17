@@ -14,6 +14,7 @@ import { requestResearchLanguage } from '@src/api/research';
 
 /**
  * 将编辑模型关联到文档、Cell 与修订，供语言服务映射。
+ *
  * Associate an editor model with document, cell and revision for language mapping.
  */
 interface ResearchPythonModelContext {
@@ -27,6 +28,7 @@ interface ResearchPythonModelContext {
 
 /**
  * 保留诊断对应版本及请求状态，防止旧响应覆盖当前模型。
+ *
  * Track diagnostic revision and requests to prevent stale editor updates.
  */
 interface DiagnosticState {
@@ -52,6 +54,7 @@ export function researchPythonModelUri(
 
 /**
  * 注册 Python 语言服务能力与编辑器导航，复用文档级位置映射。
+ *
  * Register Python language-service features and navigation with document position mapping.
  */
 export function installResearchPythonLanguage(monacoInstance: Monaco): void {
@@ -89,6 +92,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
   monacoInstance.languages.registerHoverProvider('python', {
     /**
      * 将文档级 hover 范围映射为当前 Cell 的编辑器坐标。
+     *
      * Map document hover ranges into the current cell editor.
      */
     async provideHover(
@@ -115,6 +119,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
 
     /**
      * 将文档级签名帮助映射回当前 Cell 的编辑位置。
+     *
      * Map document-level signature help back to the active cell.
      */
     async provideSignatureHelp(
@@ -152,6 +157,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
   monacoInstance.languages.registerDefinitionProvider('python', {
     /**
      * 请求定义位置并映射目标 Cell URI 与范围。
+     *
      * Request definitions and map targets to cell URIs and ranges.
      */
     async provideDefinition(
@@ -182,6 +188,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
   monacoInstance.languages.registerReferenceProvider('python', {
     /**
      * 请求引用位置并映射至文档内各 Cell。
+     *
      * Request references and map them to document cell locations.
      */
     async provideReferences(
@@ -213,6 +220,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
   monacoInstance.languages.registerRenameProvider('python', {
     /**
      * 解析重命名位置与可编辑范围，供 Monaco 预检查。
+     *
      * Resolve a rename location and editable range for Monaco preparation.
      */
     async resolveRenameLocation(
@@ -243,6 +251,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
 
     /**
      * 请求文档重命名并将编辑映射到各 Cell 模型。
+     *
      * Request a document rename and map edits to individual cell models.
      */
     async provideRenameEdits(
@@ -290,6 +299,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
   monacoInstance.editor.registerEditorOpener({
     /**
      * 根据语言服务位置定位并打开相应 Cell 编辑器。
+     *
      * Locate and open the cell editor referenced by a language-service location.
      */
     openCodeEditor(
@@ -325,6 +335,7 @@ export function installResearchPythonLanguage(monacoInstance: Monaco): void {
 
 /**
  * 将 Monaco 模型绑定到研究文档及 Cell，接入诊断并返回释放能力。
+ *
  * Bind a Monaco model to a research document and cell with diagnostics and cleanup.
  */
 export function attachResearchPythonModel(
@@ -343,6 +354,7 @@ export function attachResearchPythonModel(
   return {
     /**
      * 清理 Python 模型绑定、监听器与诊断，避免页面离开后更新旧模型。
+     *
      * Dispose Python model bindings, listeners and diagnostics after the editor closes.
      */
     dispose() {
@@ -371,6 +383,7 @@ export function attachResearchPythonModel(
 
 /**
  * 将目录生成的 SDK 代码插入当前或首个可用 Python Cell。
+ *
  * Insert catalog-generated SDK code into the current (or first available) Python Cell.
  */
 export function insertResearchPythonSnippet(documentId: string, snippet: string): boolean {
@@ -440,6 +453,7 @@ function scheduleDiagnostics(monacoInstance: Monaco, documentId: string, delay =
 
 /**
  * 为当前文档版本请求诊断，仅将匹配版本结果应用到编辑器。
+ *
  * Request diagnostics for the current document revision and apply matching results.
  */
 async function requestDocumentDiagnostics(
@@ -491,6 +505,7 @@ function applyDiagnostics(
 
 /**
  * 携带文档与 Cell 上下文调用语言服务，并处理不可用状态。
+ *
  * Call the language service with document and cell context and handle unavailable state.
  */
 async function languageRequest(
@@ -523,6 +538,7 @@ async function languageRequest(
 
 /**
  * 从模型和光标构造带修订的语言请求。
+ *
  * Build revision-aware language requests from editor models and positions.
  */
 function makeLanguageRequest(
@@ -553,6 +569,7 @@ function collectDocumentCells(context: ResearchPythonModelContext): ResearchLang
 
 /**
  * 将服务端补全项和文本编辑转换为 Monaco 补全契约。
+ *
  * Map server completions and text edits into Monaco completion items.
  */
 function toCompletionItem(
@@ -587,6 +604,7 @@ function toCompletionItem(
 
 /**
  * 将语言服务补全种类映射为 Monaco 枚举。
+ *
  * Map language-service completion kinds to Monaco values.
  */
 function completionKind(
@@ -626,6 +644,7 @@ function completionKind(
 
 /**
  * 将诊断严重度映射为编辑器标记级别。
+ *
  * Map diagnostic severity into editor marker severity.
  */
 function markerSeverity(
@@ -650,6 +669,7 @@ function toLanguagePosition(position: MonacoTypes.Position): ResearchLanguagePos
 
 /**
  * 将零基公开范围转换为 Monaco 一基行列。
+ *
  * Convert zero-based public ranges into Monaco's one-based coordinates.
  */
 function toMonacoRange(monacoInstance: Monaco, range: ResearchLanguageRangeV1): MonacoTypes.Range {

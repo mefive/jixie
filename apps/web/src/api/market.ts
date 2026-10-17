@@ -18,6 +18,7 @@ import { serializeQuery, request } from './client';
 
 /**
  * 序列化证券序列查询并读取统一图表数据。
+ *
  * Serialize an instrument-series query and load its common chart response.
  */
 export function fetchInstrumentSeries(

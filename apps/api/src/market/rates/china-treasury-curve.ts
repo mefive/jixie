@@ -17,6 +17,7 @@ const CHINA_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
 
 /**
  * 声明国债曲线来源序列与期限身份。
+ *
  * Identify government-curve source series and tenors.
  */
 interface ChinaTreasuryCurveSeries {
@@ -28,6 +29,7 @@ interface ChinaTreasuryCurveSeries {
 
 /**
  * 保留官方国债曲线的实际发布点。
+ *
  * Describe actually published government-curve points.
  */
 export interface ChinaTreasuryCurvePoint {
@@ -38,6 +40,7 @@ export interface ChinaTreasuryCurvePoint {
 
 /**
  * 为官方曲线点附加中国市场可得日。
+ *
  * Associate official curve points with China-market availability.
  */
 export interface AvailableChinaTreasuryCurvePoint extends ChinaTreasuryCurvePoint {
@@ -46,6 +49,7 @@ export interface AvailableChinaTreasuryCurvePoint extends ChinaTreasuryCurvePoin
 
 /**
  * 隔离官方国债来源获取，供同步与验证。
+ *
  * Abstract official government-curve fetching for synchronization.
  */
 export interface ChinaTreasuryCurveClient {
@@ -61,6 +65,7 @@ export class MinistryOfFinanceCurveClient implements ChinaTreasuryCurveClient {
 
   /**
    * 按日期范围获取官方国债曲线，供完整期限校验。
+   *
    * Fetch official government curves over a bounded date range.
    */
   public async fetchRange(startDate: string, endDate: string): Promise<ChinaTreasuryCurvePoint[]> {
@@ -96,6 +101,7 @@ export class MinistryOfFinanceCurveClient implements ChinaTreasuryCurveClient {
 
 /**
  * 校验并解析财政部国债曲线响应，保留实际发布期限。
+ *
  * Validate and parse official government curve responses without inventing term points.
  */
 export function parseChinaTreasuryCurveResponse(
@@ -158,6 +164,7 @@ export function assignCurveAvailableDates<T extends ChinaTreasuryCurvePoint>(
 
 /**
  * 分段同步国债收益率及可得日期，供研究和信号利率读取。
+ *
  * Synchronize government yields and availability dates for research and signal reads.
  */
 export async function syncChinaTreasuryYieldCurve(
@@ -216,6 +223,7 @@ export async function syncChinaTreasuryYieldCurve(
 
 /**
  * 验证每个日期所需曲线期限齐全，避免部分曲线静默发布。
+ *
  * Validate required terms for each date before publishing a curve slice.
  */
 function validateCompleteDates(points: ChinaTreasuryCurvePoint[]): ChinaTreasuryCurvePoint[] {
@@ -240,6 +248,7 @@ function validateCompleteDates(points: ChinaTreasuryCurvePoint[]): ChinaTreasury
 
 /**
  * 按年度切分国债曲线请求，限制来源区间。
+ *
  * Split government-curve requests into calendar-year ranges.
  */
 function yearlyRanges(startDate: string, endDate: string) {

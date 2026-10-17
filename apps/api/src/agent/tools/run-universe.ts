@@ -26,6 +26,7 @@ export const runUniverseTool: AgentTool = {
 
   /**
    * 解析并执行确定性证券池筛选，向模型返回可重跑的时点证券集合。
+   *
    * Execute a deterministic universe request and return a rerunnable point-in-time instrument set.
    */
   async run(args) {

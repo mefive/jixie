@@ -3,12 +3,14 @@ import { t } from '#i18n/messages.js';
 
 /**
  * 定义沙盒用户日志的接收边界，Worker 可将其转为带来源标签的消息。
+ *
  * Where a sandbox console line goes — the worker wires this to postMessage({source:'user', ...}).
  */
 export type UserLogSink = (level: LogLevel, text: string) => void;
 
 /**
  * 限定提供给作者代码的 console 方法集合。
+ *
  * The subset of `console` we expose to strategy/factor code (the free `console` identifier).
  */
 export interface SandboxConsole {
@@ -23,6 +25,7 @@ export interface SandboxConsole {
 
 /**
  * 将沙盒日志参数安全转换为文本，供有界日志缓冲使用。
+ *
  * Format sandbox console arguments as text for bounded log collection.
  */
 function formatArg(arg: unknown): string {
@@ -41,6 +44,7 @@ function formatArg(arg: unknown): string {
 
 /**
  * 将作者 console 调用映射为带用户来源和级别的任务日志。
+ *
  * A `console` shim for the strategy/factor sandbox. It forwards console.log/info/warn/error to the job
  * log tagged source:'user' (level maps warn→warn, error→error, log/info→info).
  *

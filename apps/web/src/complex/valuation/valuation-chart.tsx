@@ -4,6 +4,7 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 /**
  * 提供估值历史、当前指标与区间，供估值图。
+ *
  * Supply valuation history, metric and range to the chart.
  */
 interface Props {
@@ -17,6 +18,7 @@ const CLOSE_COLOR = '#a5abb3';
 
 /**
  * 绘制指数估值及历史分位，保留指标范围和缺失提示。
+ *
  * Plot index valuations and historical percentiles with explicit ranges and missing values.
  */
 export default function ValuationChart({ indexName, metric, points }: Props) {

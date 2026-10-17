@@ -15,6 +15,7 @@ import { uniqueStrategyName } from './naming.js';
 
 /**
  * 承载从封存研究生成策略草稿所需的证据和代码输入。
+ *
  * Supply frozen research evidence and source for creating a strategy draft.
  */
 export interface StrategyDraftFromResearchInput {
@@ -39,6 +40,7 @@ export async function findResearchStrategyDraft(
 
 /**
  * 从已授权封存研究创建带来源血缘的策略草稿。
+ *
  * Create a strategy draft with provenance from authorized frozen research.
  */
 export async function createStrategyDraftFromResearch(
@@ -86,6 +88,7 @@ export async function createStrategyDraftFromResearch(
 
 /**
  * 将新建策略草稿与来源身份整理为交接响应。
+ *
  * Build the handoff response for a created strategy draft and its provenance.
  */
 function strategyDraftResult(

@@ -3,6 +3,7 @@
 
 /**
  * 计算算术均值，空数组按现有约定返回 0。
+ *
  * Arithmetic mean (0 for an empty array).
  */
 export function mean(xs: number[]): number {
@@ -11,6 +12,7 @@ export function mean(xs: number[]): number {
 
 /**
  * 计算标准差；sample=true 使用 n−1 分母，否则使用总体分母 n。
+ *
  * Standard deviation. sample=true uses the sample (n-1), false uses the population (n).
  */
 export function std(xs: number[], sample = true): number {
@@ -24,6 +26,7 @@ export function std(xs: number[], sample = true): number {
 
 /**
  * 生成从 1 开始的平均排名，并列值使用其占据名次的均值。
+ *
  * Average ranks (1-based; ties take the average rank).
  */
 function averageRanks(xs: number[]): number[] {
@@ -46,6 +49,7 @@ function averageRanks(xs: number[]): number[] {
 
 /**
  * 计算等长序列的 Pearson 相关系数，调用方须先对齐并过滤输入。
+ *
  * Pearson correlation of two equal-length arrays (align/filter them first).
  */
 export function pearson(xs: number[], ys: number[]): number {
@@ -66,6 +70,7 @@ export function pearson(xs: number[], ys: number[]): number {
 
 /**
  * 对平均排名计算 Pearson 相关，即 Spearman / Rank IC。
+ *
  * Spearman rank correlation = Pearson on ranks. I.e. Rank IC.
  */
 export function spearman(xs: number[], ys: number[]): number {
@@ -74,6 +79,7 @@ export function spearman(xs: number[], ys: number[]): number {
 
 /**
  * 将截面值截尾到指定的两侧分位点范围。
+ *
  * Cross-sectional winsorization: clip values to the [p, 1-p] quantile range.
  */
 export function winsorize(xs: number[], p = 0.01): number[] {
@@ -88,6 +94,7 @@ export function winsorize(xs: number[], p = 0.01): number[] {
 
 /**
  * 按值升序分配 0 到 n−1 的分组编号，保留输入元素顺序。
+ *
  * Split elements into n buckets by ascending rank (returns each element's bucket 0..n-1).
  * Bucket 0 = lowest factor value, n-1 = highest.
  */
@@ -102,6 +109,7 @@ export function quantileBuckets(values: number[], n: number): number[] {
 
 /**
  * 从初始净值 1 开始逐期复利累计收益序列。
+ *
  * Build a NAV series from per-period returns (starting at 1).
  */
 export function navFromReturns(periodReturns: number[]): number[] {
@@ -114,6 +122,7 @@ export function navFromReturns(periodReturns: number[]): number[] {
 
 /**
  * 按给定年度期数将逐期收益几何年化。
+ *
  * Annualized return (geometric).
  */
 export function annualizedReturn(periodReturns: number[], periodsPerYear: number): number {
@@ -126,6 +135,7 @@ export function annualizedReturn(periodReturns: number[], periodsPerYear: number
 
 /**
  * 使用年度无风险利率与给定年度期数计算年化 Sharpe。
+ *
  * Annualized Sharpe (rf is the annualized risk-free rate).
  */
 export function sharpe(periodReturns: number[], periodsPerYear: number, rf = 0): number {
@@ -139,6 +149,7 @@ export function sharpe(periodReturns: number[], periodsPerYear: number, rf = 0):
 
 /**
  * 计算非正数口径的最大峰谷回撤，如 -0.32 表示下跌 32%。
+ *
  * Max drawdown (negative, e.g. -0.32 means a max drop of 32%).
  */
 export function maxDrawdown(nav: number[]): number {
@@ -158,6 +169,7 @@ export function maxDrawdown(nav: number[]): number {
 
 /**
  * 计算中位数，空数组按现有约定返回 0。
+ *
  * Median (0 for an empty array).
  */
 export function median(xs: number[]): number {
@@ -166,6 +178,7 @@ export function median(xs: number[]): number {
 
 /**
  * 用线性插值计算 p 分位数，p 的有效范围为 [0, 1]。
+ *
  * The p-quantile (0 ≤ p ≤ 1) with linear interpolation; e.g. quantile(xs, 0.9) = 90th percentile.
  */
 export function quantile(xs: number[], p: number): number {
@@ -181,6 +194,7 @@ export function quantile(xs: number[], p: number): number {
 
 /**
  * 计算等长序列的样本协方差。
+ *
  * Sample covariance of two equal-length arrays.
  */
 export function covariance(xs: number[], ys: number[]): number {
@@ -198,6 +212,7 @@ export function covariance(xs: number[], ys: number[]): number {
 
 /**
  * 拟合带截距的一元 OLS 并返回斜率、截距与 R²；收益回归中的截距为每期 alpha。
+ *
  * OLS linear regression y = slope·x + intercept; r2 is the coefficient of determination.
  * Classic use: regress stock returns on index returns → slope is beta, intercept is (per-period) alpha.
  */
@@ -217,6 +232,7 @@ export function linearRegression(
 
 /**
  * 按平行分组键减去组均值，等价于剔除组虚拟变量的截面效应。
+ *
  * Subtract each value's group mean (within-group demeaning). Groups are given by a parallel key array.
  * This is exactly "regress out a set of group dummies": the demeaned series is the residual after
  * removing per-group intercepts — the industry half of a market-cap + industry neutralization.
@@ -238,6 +254,7 @@ export function groupDemean(values: number[], groups: string[]): number[] {
 
 /**
  * 计算带截距一元 OLS 的残差，作为规模等连续暴露的截面中性化基础。
+ *
  * Residuals of an OLS fit y ~ x (with intercept): the part of y that x does not explain. This is the
  * cross-sectional neutralization primitive — regress factor value on log(size) and keep the residual.
  * When `groups` is given, both y and x are group-demeaned first, so the residual is additionally

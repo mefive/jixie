@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 
 /**
  * 关联回测报告与任务状态，供运行和历史结果查询。
+ *
  * Associate backtest reports and job state for execution and history queries.
  */
 type ExecutionState = {
@@ -12,6 +13,7 @@ type ExecutionState = {
 
 /**
  * 从报告和关联任务派生回测状态，兼容无任务历史结果。
+ *
  * Derive backtest report state from linked jobs with legacy-result compatibility.
  */
 export function backtestReportState<Row extends ExecutionState>(row: Row) {

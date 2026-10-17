@@ -45,6 +45,7 @@ import {
 
 /**
  * 在宿主边界描述公开序列的频率、变换和未完成周期政策。
+ *
  * Describe series frequency, transform and partial-period policy at the host boundary.
  */
 export interface ResearchSeriesRuntimeRequestV1 {
@@ -60,6 +61,7 @@ export interface ResearchSeriesRuntimeRequestV1 {
 
 /**
  * 约束公开序列返回列，供宿主与 Python 通信校验。
+ *
  * Constrain public series result columns across host and Python.
  */
 export interface ResearchSeriesRuntimeRowV1 {
@@ -69,6 +71,7 @@ export interface ResearchSeriesRuntimeRowV1 {
 
 /**
  * 限定利率曲线、期限与变换，供宿主参数校验。
+ *
  * Describe curve, tenor and transform arguments validated by the host.
  */
 export interface ResearchYieldCurveRuntimeRequestV1 {
@@ -83,6 +86,7 @@ export interface ResearchYieldCurveRuntimeRequestV1 {
 
 /**
  * 限定宏观序列、日期与变换，供宿主参数校验。
+ *
  * Describe macro series, date and transform arguments validated by the host.
  */
 export interface ResearchMacroRuntimeRequestV1 {
@@ -96,6 +100,7 @@ export interface ResearchMacroRuntimeRequestV1 {
 
 /**
  * 限定已声明货币对与变换，供宿主参数校验。
+ *
  * Describe declared FX pair and transform arguments validated by the host.
  */
 export interface ResearchFxRuntimeRequestV1 {
@@ -109,6 +114,7 @@ export interface ResearchFxRuntimeRequestV1 {
 
 /**
  * 限定商品收益或仓单请求的产品和日期。
+ *
  * Bound commodity return or receipt requests by product and dates.
  */
 export interface ResearchCommodityRuntimeRequestV1 {
@@ -119,6 +125,7 @@ export interface ResearchCommodityRuntimeRequestV1 {
 
 /**
  * 限定会员排名聚合的产品和日期。
+ *
  * Bound ranked-member holding requests by product and dates.
  */
 export interface ResearchCommodityHoldingRuntimeRequestV1 {
@@ -129,6 +136,7 @@ export interface ResearchCommodityHoldingRuntimeRequestV1 {
 
 /**
  * 限定市场状态范围与日期，供描述性数据读取。
+ *
  * Bound descriptive market-state scope and dates.
  */
 export interface ResearchMarketStateRuntimeRequestV1 {
@@ -139,6 +147,7 @@ export interface ResearchMarketStateRuntimeRequestV1 {
 
 /**
  * 定义带日期对象查询的 snake_case 传输参数。
+ *
  * Describe snake_case arguments for dated identifier reads.
  */
 export interface ResearchDatedIdentifierRuntimeRequestV1 {
@@ -149,6 +158,7 @@ export interface ResearchDatedIdentifierRuntimeRequestV1 {
 
 /**
  * 描述股票时点截面的证券池与可投资性筛选。
+ *
  * Describe universe and investability filters for a dated equity cross-section.
  */
 export interface ResearchCrossSectionRuntimeRequestV1 {
@@ -160,6 +170,7 @@ export interface ResearchCrossSectionRuntimeRequestV1 {
 
 /**
  * 描述已完成月末 Panel 的证券池与日期。
+ *
  * Describe universe and dates for a completed-month-end panel.
  */
 export interface ResearchPanelRuntimeRequestV1 {
@@ -173,6 +184,7 @@ export interface ResearchPanelRuntimeRequestV1 {
 
 /**
  * 限定单证券财报的时点、字段与报告期边界。
+ *
  * Bound a single-instrument financial query by as-of date, fields and reports.
  */
 export interface ResearchSingleFinancialRuntimeRequestV1 {
@@ -185,6 +197,7 @@ export interface ResearchSingleFinancialRuntimeRequestV1 {
 
 /**
  * 在股票截面参数上增加显式财务指标选择。
+ *
  * Extend cross-section arguments with selected financial metrics.
  */
 export interface ResearchFinancialCrossSectionRuntimeRequestV1 extends ResearchCrossSectionRuntimeRequestV1 {
@@ -193,6 +206,7 @@ export interface ResearchFinancialCrossSectionRuntimeRequestV1 extends ResearchC
 
 /**
  * 在股票 Panel 参数上增加显式财务指标选择。
+ *
  * Extend panel arguments with selected financial metrics.
  */
 export interface ResearchFinancialPanelRuntimeRequestV1 extends ResearchPanelRuntimeRequestV1 {
@@ -201,6 +215,7 @@ export interface ResearchFinancialPanelRuntimeRequestV1 extends ResearchPanelRun
 
 /**
  * 传递因子报告身份，访问与揭示校验仍由业务加载器负责。
+ *
  * Identify a factor report; the loader retains access and reveal checks.
  */
 export interface ResearchFactorReportRuntimeRequestV1 {
@@ -209,6 +224,7 @@ export interface ResearchFactorReportRuntimeRequestV1 {
 
 /**
  * 传递回测报告身份，归属校验仍由业务加载器负责。
+ *
  * Identify a backtest report; the loader retains ownership checks.
  */
 export interface ResearchBacktestReportRuntimeRequestV1 {
@@ -217,6 +233,7 @@ export interface ResearchBacktestReportRuntimeRequestV1 {
 
 /**
  * 传递不可变扫描报告身份，供授权结果读取。
+ *
  * Identify an immutable scan report for authorized loading.
  */
 export interface ResearchStrategyScanReportRuntimeRequestV1 {
@@ -225,6 +242,7 @@ export interface ResearchStrategyScanReportRuntimeRequestV1 {
 
 /**
  * 传递因子气象身份，供归属校验后的结果读取。
+ *
  * Identify factor weather for ownership-checked loading.
  */
 export interface ResearchFactorWeatherRuntimeRequestV1 {
@@ -671,6 +689,7 @@ function sdkDataFrameRowsSchema(
 
 /**
  * 从公开 SDK 参数定义构造边界校验，避免另写运行时 schema。
+ *
  * Derive request validation from public SDK parameter definitions.
  */
 function sdkParameterSchema(parameter: ResearchSdkParameterContractV1): z.ZodType {
@@ -709,6 +728,7 @@ function sdkParameterSchema(parameter: ResearchSdkParameterContractV1): z.ZodTyp
 
 /**
  * 从公开返回列定义构造响应校验，保持 Python 与宿主字段一致。
+ *
  * Derive response-column validation from the public SDK contract.
  */
 function sdkWireColumnSchema(column: ResearchSdkDataFrameColumnContractV1): z.ZodType {

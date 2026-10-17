@@ -21,6 +21,7 @@ import './versioned-accounts.css';
 
 /**
  * 展示版本化任务、成交与账户历史，连接修订、跳过和重放操作。
+ *
  * Present versioned tasks, fills and account history with revision, skip and replay actions.
  */
 export const VersionedAccounts = complex.component(() => {
@@ -43,6 +44,7 @@ export const VersionedAccounts = complex.component(() => {
 
   /**
    * 按任务资产类型和录入模式初始化成交表单及修订信息。
+   *
    * Initialize the fill form and revision state for the selected task and input mode.
    */
   const open = (task: SignalTask, mode: 'fill' | 'resolve' | 'skip') => {
@@ -70,6 +72,7 @@ export const VersionedAccounts = complex.component(() => {
 
   /**
    * 校验表单后提交带期望修订的成交、修订或跳过操作。
+   *
    * Validate and submit a fill, revision or skip action with optimistic revision checks.
    */
   const save = async () => {
@@ -317,6 +320,7 @@ export const VersionedAccounts = complex.component(() => {
         expandable={{
           /**
            * 展开任务行展示版本化成交和处理动作，供对账修订。
+           *
            * Render versioned fills and reconciliation actions for an expanded task row.
            */
           expandedRowRender: (task) => (

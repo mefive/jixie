@@ -3,6 +3,7 @@
 
 /**
  * 返回 ADX 趋势强度及正负方向指标，供技术分析与策略决策。
+ *
  * Return ADX trend strength together with positive and negative directional indicators.
  */
 export interface AdxResult {
@@ -13,6 +14,7 @@ export interface AdxResult {
 
 /**
  * 返回布林带中轨和上下轨，供波动区间判断。
+ *
  * Return Bollinger middle, upper and lower bands for volatility-range analysis.
  */
 export interface BollingerBandsResult {
@@ -23,6 +25,7 @@ export interface BollingerBandsResult {
 
 /**
  * 返回 MACD 差离线、信号线和未加倍柱值，供趋势分析。
+ *
  * Return the MACD line, signal and undoubled histogram for trend analysis.
  */
 export interface MacdResult {
@@ -33,6 +36,7 @@ export interface MacdResult {
 
 /**
  * 返回随机指标 K、D、J，供技术指标展示与策略读取。
+ *
  * Return stochastic K, D and J values for charting and strategy reads.
  */
 export interface KdjResult {
@@ -43,6 +47,7 @@ export interface KdjResult {
 
 /**
  * 提供技术指标计算所需 OHLC，避免依赖宿主行情对象。
+ *
  * Supply the OHLC input required by technical indicators independently of host market objects.
  */
 export interface TechnicalOhlcBar {
@@ -55,6 +60,7 @@ const RECURSIVE_WARMUP_MULTIPLIER = 4;
 
 /**
  * 计算 ADX 及其平滑所需的历史长度，供策略预载行情。
+ *
  * Compute the history requirement for ADX and its smoothing stages.
  */
 export function adxLookback(period = 14): number {
@@ -63,6 +69,7 @@ export function adxLookback(period = 14): number {
 
 /**
  * 计算 KDJ 窗口与递推预热所需历史长度。
+ *
  * Compute the history requirement for the KDJ window and recursive warm-up.
  */
 export function kdjLookback(period = 9): number {
@@ -71,6 +78,7 @@ export function kdjLookback(period = 9): number {
 
 /**
  * 计算 MACD 双 EMA 与信号平滑所需历史长度。
+ *
  * Compute the history requirement for MACD's EMAs and signal smoothing.
  */
 export function macdLookback(fastPeriod = 12, slowPeriod = 26, signalPeriod = 9): number {
@@ -88,6 +96,7 @@ export function macdLookback(fastPeriod = 12, slowPeriod = 26, signalPeriod = 9)
 
 /**
  * 计算 RSI 的差分与 Wilder 平滑所需历史长度。
+ *
  * Compute the history requirement for RSI differences and Wilder smoothing.
  */
 export function rsiLookback(period = 14): number {
@@ -100,6 +109,7 @@ export function rsiLookback(period = 14): number {
 
 /**
  * 通过 Wilder 平滑计算 ADX 及正负方向指标，供趋势强度判断。
+ *
  * Average Directional Index with Wilder-smoothed positive and negative Directional Indicators.
  */
 export function adx(bars: TechnicalOhlcBar[], period = 14): AdxResult | null {
@@ -164,6 +174,7 @@ export function adx(bars: TechnicalOhlcBar[], period = 14): AdxResult | null {
 
 /**
  * 以收盘序列的总体标准差计算布林带。
+ *
  * Bollinger Bands over closes; dispersion uses population standard deviation.
  */
 export function bollingerBands(
@@ -190,6 +201,7 @@ export function bollingerBands(
 
 /**
  * 计算 MACD 差离线、信号线及二者之差，柱值不加倍。
+ *
  * Moving Average Convergence Divergence; histogram is line minus signal, without doubling.
  */
 export function macd(
@@ -227,6 +239,7 @@ export function macd(
 
 /**
  * 用 Wilder 平滑计算 RSI；完全横盘窗口返回中性值 50。
+ *
  * Relative Strength Index using Wilder smoothing; a flat window is neutral at 50.
  */
 export function rsi(closes: number[], period = 14): number | null {
@@ -268,6 +281,7 @@ export function rsi(closes: number[], period = 14): number | null {
 
 /**
  * 根据窗口高低范围计算最新 KDJ，K 和 D 以 50 初始化。
+ *
  * Latest KDJ value. RSV uses the period range; K and D are seeded at 50.
  */
 export function latestKdj(
@@ -298,6 +312,7 @@ export function latestKdj(
 
 /**
  * 计算与输入对齐的 KDJ 序列；使用窗口 RSV 递推 K、D 并计算 J，默认参数为 9/3/3。
+ *
  * KDJ (stochastic oscillator). Returns k/d/j series aligned to the input. Defaults are the standard
  * KDJ(9,3,3): RSV over `n` bars, K = ((k-1)/k)·Kprev + (1/k)·RSV, D = ((d-1)/d)·Dprev + (1/d)·K,
  * J = 3K − 2D. Seeded with K=D=50. When the n-bar range is flat, K is carried forward (no spike).
@@ -342,6 +357,7 @@ export function kdj(
 
 /**
  * 计算截止索引对应窗口的简单移动平均，历史不足返回 null。
+ *
  * Simple moving average of `values[end-window+1 .. end]`, or null if there isn't enough history.
  */
 export function smaAt(values: number[], end: number, window: number): number | null {
@@ -357,6 +373,7 @@ export function smaAt(values: number[], end: number, window: number): number | n
 
 /**
  * 将周期乘以固定递推预热倍数，得到安全的历史需求。
+ *
  * Multiply a period by the fixed recursive warm-up factor to resolve a safe history requirement.
  */
 function recursiveLookback(period: number): number {
@@ -365,6 +382,7 @@ function recursiveLookback(period: number): number {
 
 /**
  * 仅保留正安全整数历史长度，非法输入返回 0。
+ *
  * Accept only positive safe-integer history requirements and return zero otherwise.
  */
 function safeLookback(value: number): number {
@@ -373,6 +391,7 @@ function safeLookback(value: number): number {
 
 /**
  * 检查技术指标周期是否为有效正整数。
+ *
  * Check whether an indicator period is a valid positive integer.
  */
 function validPeriod(period: number): boolean {
@@ -381,6 +400,7 @@ function validPeriod(period: number): boolean {
 
 /**
  * 计算指标内部窗口均值，供平滑与波动估计使用。
+ *
  * Compute an internal window mean for smoothing and dispersion estimates.
  */
 function mean(values: number[]): number {
@@ -389,6 +409,7 @@ function mean(values: number[]): number {
 
 /**
  * 从初始均值开始递推 EMA 序列，供 MACD 等指标共用。
+ *
  * Seed and recursively update an EMA series for MACD and related indicators.
  */
 function exponentialMovingAverageSeries(values: number[], period: number): (number | null)[] {
@@ -410,6 +431,7 @@ function exponentialMovingAverageSeries(values: number[], period: number): (numb
 
 /**
  * 从相邻 OHLC 计算真实波幅及正负方向变化，供 ADX 平滑。
+ *
  * Derive true range and directional movement from adjacent OHLC bars for ADX smoothing.
  */
 function directionalMovement(
@@ -432,6 +454,7 @@ function directionalMovement(
 
 /**
  * 由平滑方向变化与真实波幅计算方向指标，供 ADX 递推。
+ *
  * Convert smoothed directional movements and true range into directional indicator values.
  */
 function directionalValues(

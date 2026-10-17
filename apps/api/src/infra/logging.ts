@@ -1,5 +1,6 @@
 /**
  * 为应用日志添加统一前缀，便于与依赖输出区分。
+ *
  * Minimal logging: a uniform prefix to distinguish our output from dependencies'.
  * Swap in something stronger (levels / file output) when needed.
  */

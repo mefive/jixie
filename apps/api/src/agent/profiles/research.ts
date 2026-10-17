@@ -13,6 +13,7 @@ import type { AgentTool } from '../tools/types.js';
 
 /**
  * 配置以问题为中心的研究 Agent，使用研究能力而不开放 SQL 或任意代码工具。
+ *
  * Question-centered quantitative research. It deliberately has no SQL or arbitrary-code tools.
  */
 export function researchProfile(

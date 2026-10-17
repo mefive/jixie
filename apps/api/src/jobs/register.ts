@@ -9,6 +9,7 @@ import { researchCuratorLifecycle } from '#research/curator/job-lifecycle.js';
 
 /**
  * 显式注册业务任务处理器，不启动任务或执行恢复。
+ *
  * Explicit process setup: registration never starts work or recovers Jobs.
  */
 export function registerJobLifecycles(): void {

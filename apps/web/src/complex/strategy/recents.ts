@@ -9,6 +9,7 @@ const CAP = 12; // keep a few more than we show (6), so deletes/misses still lea
 
 /**
  * 从本地存储读取最近策略记录并兼容损坏或旧数据。
+ *
  * Read recent strategy visits from local storage with malformed-data handling.
  */
 export function readRecents(): string[] {
@@ -35,6 +36,7 @@ export function readRecents(): string[] {
 
 /**
  * 将访问记录去重移到首位，并限制最近列表长度。
+ *
  * Record a visit: move `id` to the front (dedup), cap the list.
  */
 export function pushRecent(id: string): void {

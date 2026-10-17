@@ -3,6 +3,7 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 /**
  * 提供配置相关性矩阵与窗口选择，供相关性图。
+ *
  * Supply allocation correlations and window selection to correlation charts.
  */
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 
 /**
  * 绘制资产或资产类别相关性及窗口对比，供配置分散化检查。
+ *
  * Plot asset and class correlations across windows for diversification inspection.
  */
 export default function AllocationCorrelationCharts({ data, pair, labels }: Props) {

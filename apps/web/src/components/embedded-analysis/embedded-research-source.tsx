@@ -7,6 +7,7 @@ import './embedded-analysis-toolbar.css';
 
 /**
  * 提供继续研究来源的运行身份和输入模式。
+ *
  * Describe a continuation document's source run and input mode.
  */
 interface EmbeddedResearchSourceProps {
@@ -17,6 +18,7 @@ interface EmbeddedResearchSourceProps {
 
 /**
  * 展示继续研究文档对应的嵌入式运行来源与输入模式。
+ *
  * Present embedded-run provenance and input mode for a continuation document.
  */
 export function EmbeddedResearchSource({

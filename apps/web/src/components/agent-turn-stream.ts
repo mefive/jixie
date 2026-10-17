@@ -11,6 +11,7 @@ import i18n from '@src/i18n';
 
 /**
  * 封装轮次完成结果，供业务 store 更新消息和产物。
+ *
  * Carry terminal turn results into store message and artifact updates.
  */
 export interface AgentTurnDone {
@@ -23,6 +24,7 @@ export interface AgentTurnDone {
 
 /**
  * 定义流式轮次增量与终态回调，供各工作台复用。
+ *
  * Define incremental and terminal callbacks shared by workspace streams.
  */
 export interface AgentTurnHandlers {
@@ -64,6 +66,7 @@ export class AgentTurnStream {
 
   /**
    * 订阅轮次并处理事件直到终态，终态后 Promise 完成。
+   *
    * Subscribe to a turn and pump events until a terminal one. Resolves after the terminal event.
    */
   public async attach(turnId: string, handlers: AgentTurnHandlers): Promise<void> {
@@ -107,6 +110,7 @@ export class AgentTurnStream {
 
   /**
    * 刷新时查找并重连实体活动轮次，无活动轮次时保持原状态。
+   *
    * Refresh reattach: look up the entity's live turn and attach if there is one. Like attach(),
    * resolves only after the terminal event — callers gate their `sending` flag on it.
    */
@@ -121,6 +125,7 @@ export class AgentTurnStream {
 
   /**
    * 查询活动轮次而不改变已渲染流状态。
+   *
    * Resolve the live turn without changing rendered stream state.
    */
   public async findRunning(entityKey: string): Promise<string | null> {
@@ -134,6 +139,7 @@ export class AgentTurnStream {
 
   /**
    * 在服务端取消轮次，上游 LLM 被中断并产生 cancelled 终态。
+   *
    * Stop the TURN server-side (the upstream LLM aborts; the stream ends with `cancelled`).
    */
   public cancel(): void {
@@ -144,6 +150,7 @@ export class AgentTurnStream {
 
   /**
    * 只断开当前订阅，服务端轮次继续运行。
+   *
    * Drop the SUBSCRIPTION only (store cleanup / page switch) — the turn keeps running server-side.
    */
   public detach(): void {
@@ -162,6 +169,7 @@ export class AgentTurnStream {
 
   /**
    * 将单个事件映射到可观察状态，返回是否终态供停止读取。
+   *
    * Mirror one event into the observables; true = terminal (stop pumping).
    */
   private applyEvent(ev: AgentStreamEvent, handlers: AgentTurnHandlers): boolean {

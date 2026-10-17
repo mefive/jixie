@@ -29,6 +29,7 @@ import './research-execution-drawer.css';
 
 /**
  * 提供执行历史选择和交接操作，供证据抽屉。
+ *
  * Supply execution selection and handoff actions to the evidence drawer.
  */
 interface ResearchExecutionDrawerProps {
@@ -45,6 +46,7 @@ const ResearchReadOnlyCodeEditor = lazy(() =>
 
 /**
  * 展示不可变执行历史和详情，连接证据提升及因子、策略交接。
+ *
  * Present immutable execution history and evidence with promotion and factor or strategy handoffs.
  */
 export const ResearchExecutionDrawer = complex.component(
@@ -93,6 +95,7 @@ export const ResearchExecutionDrawer = complex.component(
 
     /**
      * 提交已选执行的证据提升，并刷新历史状态。
+     *
      * Promote the selected execution and refresh history state.
      */
     const promote = async () => {
@@ -113,6 +116,7 @@ export const ResearchExecutionDrawer = complex.component(
 
     /**
      * 从已选不可变执行提交因子草稿交接，并导航到创建结果。
+     *
      * Create a factor draft from the selected immutable execution and navigate to it.
      */
     const createFactorDraft = async (execution: ResearchExecutionSummaryV1) => {
@@ -141,6 +145,7 @@ export const ResearchExecutionDrawer = complex.component(
 
     /**
      * 从已选不可变执行提交策略草稿交接，并导航到创建结果。
+     *
      * Create a strategy draft from the selected immutable execution and navigate to it.
      */
     const createStrategyDraft = async (execution: ResearchExecutionSummaryV1) => {
@@ -306,6 +311,7 @@ export const ResearchExecutionDrawer = complex.component(
 
 /**
  * 呈现一项执行的来源、状态与时间，供历史选择。
+ *
  * Present one execution's provenance, state and timing for history selection.
  */
 function ExecutionListItem({
@@ -417,6 +423,7 @@ function ExecutionListItem({
 
 /**
  * 展示选定执行的冻结 Cell 和输出证据。
+ *
  * Present the selected execution's frozen cells and output evidence.
  */
 function ExecutionDetail({
@@ -523,6 +530,7 @@ function ExecutionDetail({
 
 /**
  * 只读展示一次执行中单 Cell 的源码与结果。
+ *
  * Render one execution cell's immutable source and result.
  */
 function ExecutionCell({
@@ -575,6 +583,7 @@ function ExecutionCell({
 
 /**
  * 按执行终态选择图标，保持成功、失败与取消区别。
+ *
  * Choose an icon that distinguishes execution success, failure and cancellation.
  */
 function executionStatusIcon(status: ResearchExecutionStatusV1) {

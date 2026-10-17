@@ -33,6 +33,7 @@ const activeRefreshes = new Map<string, Promise<FactorWeatherRefreshResult>>();
 
 /**
  * 汇总气象刷新成功、失败与更新范围，供调度和状态展示。
+ *
  * Summarize weather refresh outcomes and updated ranges for scheduling and display.
  */
 export interface FactorWeatherRefreshResult {
@@ -68,6 +69,7 @@ export function refreshFactorWeatherPin(
 
 /**
  * 启动时将旧进程遗留 running 刷新状态恢复为可重试状态。
+ *
  * On API boot, a persisted running state can only belong to a worker killed with the old process.
  */
 export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> {
@@ -80,6 +82,7 @@ export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> 
 
 /**
  * 依次刷新所有符合条件的因子气象固定项，汇总结果。
+ *
  * Refresh eligible factor-weather pins and collect outcomes.
  */
 export async function refreshAllFactorWeatherPins(
@@ -109,6 +112,7 @@ export async function refreshAllFactorWeatherPins(
 
 /**
  * 确定增量区间、执行气象计算并持久化结果与刷新状态。
+ *
  * Resolve the incremental interval, compute weather and persist output and refresh state.
  */
 async function performRefresh(
@@ -212,6 +216,7 @@ async function performRefresh(
 
 /**
  * 解析最近已完成月末，避免将未完成月纳入气象分析。
+ *
  * Resolve the latest completed month end for weather analysis.
  */
 async function latestCompletedMonthEnd(): Promise<string | null> {
@@ -258,6 +263,7 @@ async function weatherHistoryStart(end: string): Promise<string> {
 
 /**
  * 根据已有结果和回看需求确定增量重算起点。
+ *
  * Resolve the incremental recalculation start from stored results and lookback needs.
  */
 async function incrementalStart(computedThrough: string): Promise<string> {
@@ -283,6 +289,7 @@ async function incrementalStart(computedThrough: string): Promise<string> {
 
 /**
  * 在 Worker 执行气象计算，并管理日志、取消与退出清理。
+ *
  * Compute weather in a worker with log forwarding, cancellation and exit cleanup.
  */
 async function runWeatherWorker(

@@ -34,6 +34,7 @@ import { serializeQuery, request } from './client';
 
 /**
  * 描述回测任务、日志与终态，供策略页面轮询。
+ *
  * Describe backtest job state and logs for strategy polling.
  */
 export interface BacktestJob {

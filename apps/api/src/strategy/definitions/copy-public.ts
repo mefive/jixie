@@ -7,6 +7,7 @@ import { uniqueStrategyName } from './naming.js';
 
 /**
  * 从可见公开策略创建当前用户独立副本，重置运行身份。
+ *
  * Copy an accessible public strategy into an independent owned draft.
  */
 export async function copyPublicStrategy(userId: string, strategyId: string) {

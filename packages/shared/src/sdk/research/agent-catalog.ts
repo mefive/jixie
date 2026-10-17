@@ -7,6 +7,7 @@ import { renderResearchSdkPythonSignature } from './python-signature.js';
 
 /**
  * 描述 Agent 可检索 SDK 方法的身份、参数和说明。
+ *
  * Describe discoverable SDK methods, arguments and guidance for agents.
  */
 export interface ResearchSdkAgentMethodV1 extends ResearchSdkFunctionContractV1 {
@@ -18,6 +19,7 @@ export interface ResearchSdkAgentMethodV1 extends ResearchSdkFunctionContractV1 
 
 /**
  * 组合公开方法与检索元数据，供 Agent 查询合法能力。
+ *
  * Collect public methods and search metadata for agent capability discovery.
  */
 export interface ResearchSdkAgentCatalogV1 {
@@ -46,6 +48,7 @@ export const RESEARCH_SDK_AGENT_CATALOG_V1 = createResearchSdkAgentCatalog();
 
 /**
  * 根据查询检索公开 SDK 方法说明，供 Agent 生成合法研究代码。
+ *
  * Search public SDK method guidance for contract-aware research authoring.
  */
 export function searchResearchSdkAgentCatalog(
@@ -87,6 +90,7 @@ const SDK_QUERY_STOP_WORDS = new Set([
 
 /**
  * 按方法名、描述和别名匹配评分，供 SDK 目录排序。
+ *
  * Score SDK method matches by names, descriptions and aliases.
  */
 function sdkMethodSearchScore(

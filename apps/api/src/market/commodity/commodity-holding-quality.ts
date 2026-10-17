@@ -13,6 +13,7 @@ export type CommodityHoldingQualityStatus = 'pass' | 'warn' | 'error';
 
 /**
  * 提供持仓质量审计所需日期、产品和数值。
+ *
  * Supply dated product values for holdings quality auditing.
  */
 export interface CommodityHoldingQualityRow {
@@ -45,6 +46,7 @@ export interface CommodityHoldingQualityRow {
 
 /**
  * 汇总单产品会员排名覆盖及质量诊断。
+ *
  * Summarize a product's member-ranking coverage and diagnostics.
  */
 export interface CommodityHoldingProductQuality {
@@ -60,6 +62,7 @@ export interface CommodityHoldingProductQuality {
 
 /**
  * 聚合各产品持仓质量状态，供维护与研究判断。
+ *
  * Collect product holdings quality for maintenance and research.
  */
 export interface CommodityHoldingQualitySummary {
@@ -73,6 +76,7 @@ export interface CommodityHoldingQualitySummary {
 
 /**
  * 审计商品持仓聚合的覆盖与异常，供研究数据质量判断。
+ *
  * Audit holdings coverage and anomalies for research data-quality decisions.
  */
 export async function auditCommodityHoldingPositions(
@@ -103,6 +107,7 @@ export async function auditCommodityHoldingPositions(
 
 /**
  * 按产品汇总商品持仓质量发现，保留各排名指标的覆盖口径。
+ *
  * Summarize holdings quality by product and ranked metric coverage.
  */
 export function summarizeCommodityHoldingQuality(
@@ -169,6 +174,7 @@ export function summarizeCommodityHoldingQuality(
 
   /**
    * 对比各产品代表合约日期与持仓聚合覆盖。
+   *
    * Compare representative-contract dates with holdings coverage per product.
    */
   const products = supportedProducts.map((productCode): CommodityHoldingProductQuality => {

@@ -23,6 +23,7 @@ import { futureSignalReference } from '../runs/futures-projection.js';
 
 /**
  * 按版本化执行输入顺序重放账户并发布一致结果，避免部分重算暴露。
+ *
  * Replay versioned execution inputs and publish a consistent account result.
  */
 export async function rebuildVersionedAccount(
@@ -378,6 +379,7 @@ export async function rebuildVersionedAccount(
 
 /**
  * 读取当前已发布账本版本，供查询稳定账户结果。
+ *
  * Read the published ledger version for stable account queries.
  */
 export async function readPublishedAccount(

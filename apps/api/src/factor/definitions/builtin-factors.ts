@@ -17,6 +17,7 @@ export const BUILTIN_USER_ID = 'builtin';
 
 /**
  * 定义预置因子身份、协议与显示信息，供种子及目录同源引用。
+ *
  * Define builtin factor identity, protocol and metadata shared by seed and catalog.
  */
 export interface BuiltinFactorDef {
@@ -588,6 +589,7 @@ export const BUILTIN_KEYS = new Set([
 
 /**
  * 提供预置因子显示元数据，身份来自注册表而代码来自种子记录。
+ *
  * Catalog metadata for the presets — identity comes from this registry, code rows from the seed.
  */
 export function builtinCatalog(): FactorMeta[] {

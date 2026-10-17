@@ -30,6 +30,7 @@ import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 
 /**
  * 将部署引用和注册清单纳入同一只读 ETF 就绪检查。
+ *
  * Include deployment references in the same read-only readiness check as the registry.
  */
 export async function prepareSignalEtfMarketDate(
@@ -57,6 +58,7 @@ export async function prepareSignalEtfMarketDate(
 
 /**
  * 同步活跃股票与 ETF 部署在信号收盘日所需的数据集。
+ *
  * Synchronize the datasets needed by active stock/ETF deployments for one signal close.
  */
 export async function syncSignalMarketData(

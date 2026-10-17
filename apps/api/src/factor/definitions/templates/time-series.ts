@@ -4,6 +4,7 @@ import type { FactorAnalysisSource } from '../../sources/snapshot.js';
 
 /**
  * 定义单资产时间序列模板，供草稿目录与创建入口复用。
+ *
  * Describe a time-series template shared by catalog and draft creation.
  */
 export interface TimeSeriesTemplate {
@@ -263,6 +264,7 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
 
 /**
  * 整理单资产时间序列模板的目录信息，供创建草稿时选择。
+ *
  * Build catalog metadata for single-asset time-series templates.
  */
 export function timeSeriesTemplateCatalog(locale: Locale): FactorMeta[] {
@@ -327,6 +329,7 @@ export function isTimeSeriesTemplateKey(key: string): boolean {
 
 /**
  * 将选定时间序列模板转换为可创建因子的资源。
+ *
  * Render a selected time-series template as a factor creation resource.
  */
 export function timeSeriesTemplateResource(key: string, locale: Locale) {

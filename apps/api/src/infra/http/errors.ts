@@ -14,6 +14,7 @@ import { localeFromRequest } from './locale.js';
 
 /**
  * 限定 HTTP 错误响应的稳定代码，供客户端按契约处理。
+ *
  * Define stable HTTP error codes consumed by clients.
  */
 export type ErrorCode =
@@ -28,6 +29,7 @@ export type ErrorCode =
 
 /**
  * 定义对外 HTTP 错误的代码、翻译后消息及可公开详情。
+ *
  * Describe the public HTTP error envelope with a stable code, localized message and safe details.
  */
 export interface ApiErrorBody {
@@ -61,6 +63,7 @@ const CODE_FOR_CATEGORY = {
 
 /**
  * 将已知业务错误映射为稳定 HTTP 状态与本地化消息，未知错误保留内部诊断。
+ *
  * Map business failures to stable HTTP status and localized messages while retaining internal diagnostics.
  */
 export function handleApiError(error: Error, context: Context) {

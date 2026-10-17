@@ -5,6 +5,7 @@ import { codeConfigSchema, type StrategyVisibilityInput } from '@jixie/shared/ap
 
 /**
  * 验证策略公开条件并更新可见范围，供公共库访问控制。
+ *
  * Validate publication eligibility and update strategy visibility for public access.
  */
 export async function setStrategyVisibility(

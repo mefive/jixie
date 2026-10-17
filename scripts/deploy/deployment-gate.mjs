@@ -28,6 +28,7 @@ try {
 
 /**
  * 建立部署维护门禁并记录部署身份，供后续等待与切换。
+ *
  * Establish the deployment maintenance gate and record deployment identity.
  */
 async function begin(commandArgs) {
@@ -96,6 +97,7 @@ async function begin(commandArgs) {
 
 /**
  * 标记部署门禁结束及结果，供应用恢复状态读取。
+ *
  * Finalize deployment-gate state and outcome for application recovery.
  */
 function finish(commandArgs) {
@@ -113,6 +115,7 @@ function finish(commandArgs) {
 
 /**
  * 等待在途业务运行退出，供部署在安全边界切换进程。
+ *
  * Wait for in-flight business work before deployment switches processes.
  */
 async function waitForRunningWork(runId) {

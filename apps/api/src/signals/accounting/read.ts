@@ -10,6 +10,7 @@ import type { AccountKind } from './replay.js';
 
 /**
  * 汇总策略部署的信号执行与账户表现，供对账入口读取。
+ *
  * Summarize deployment executions and account performance for reconciliation.
  */
 export async function getStrategyExecutionOverview(
@@ -90,6 +91,7 @@ export async function getStrategyExecutionOverview(
 
 /**
  * 将持久化执行状态与任务转换为客户端响应，保持缺失和版本信息。
+ *
  * Map persisted execution tasks and state into the client response.
  */
 export function executionWire(row: {

@@ -16,6 +16,7 @@ const DEFAULT_LIMIT = 50;
 
 /**
  * 配置时点股票池执行的范围与限制。
+ *
  * Configure point-in-time universe execution bounds and limits.
  */
 export interface ExecuteUniverseSpecOptions {
@@ -24,6 +25,7 @@ export interface ExecuteUniverseSpecOptions {
 
 /**
  * 执行已校验的时点股票证券池，不接受调用方 SQL。
+ *
  * Execute one validated point-in-time equity universe without accepting SQL from the caller.
  */
 export async function executeUniverseSpec(
@@ -124,6 +126,7 @@ export async function executeUniverseSpec(
 
   /**
    * 将当日原始证券行与历史元数据组合为证券池筛选值。
+   *
    * Assemble dated source rows and historical metadata into universe filter values.
    */
   let rows = dailyBasics
@@ -210,6 +213,7 @@ export async function executeUniverseSpec(
 
 /**
  * 将已验证证券池筛选和排序作用于当日候选行。
+ *
  * Apply validated universe filters and ranking to dated candidate rows.
  */
 export function applyUniverseSpec(
@@ -264,6 +268,7 @@ export function applyUniverseSpec(
 
 /**
  * 解析证券池来源的当时成员，不用当前成员回填历史。
+ *
  * Resolve dated universe-source membership without current-membership backfill.
  */
 async function resolveSource(

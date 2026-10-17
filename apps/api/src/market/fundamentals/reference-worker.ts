@@ -11,6 +11,7 @@ import { syncFinancialStatementsVip } from './sync.js';
 
 /**
  * 按阶段执行财务参考同步，逐项等待父进程确认后继续。
+ *
  * Execute financial reference stages and await parent acknowledgement for each completed item.
  */
 export async function runReferenceWorker(
@@ -37,6 +38,7 @@ export async function runReferenceWorker(
 
 /**
  * 解析财报 Worker 启动参数并接入父进程协议，统一收尾。
+ *
  * Parse financial worker startup and connect the parent protocol with resource cleanup.
  */
 async function main(): Promise<void> {
@@ -73,6 +75,7 @@ async function main(): Promise<void> {
 
 /**
  * 只有调用方持久接受当前完成结果后，才允许开始下一项。
+ *
  * The next item may start only after the caller durably accepts this completion.
  */
 async function reportCompletedItem(item: string): Promise<void> {

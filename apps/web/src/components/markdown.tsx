@@ -6,6 +6,7 @@ import './markdown.css';
 
 /**
  * 配置安全 Markdown 内容、流式状态和链接行为。
+ *
  * Configure safe Markdown content, streaming and links.
  */
 interface MarkdownProps {
@@ -21,6 +22,7 @@ const markdownComponents = {
 
 /**
  * 统一安全渲染 CommonMark/GFM，流式模式缓存未完成语法以减少抖动。
+ *
  * Shared safe CommonMark/GFM renderer. Streaming mode caches incomplete syntax so incoming LLM
  * chunks do not repeatedly replace already-rendered DOM nodes.
  */
@@ -45,6 +47,7 @@ export function Markdown({ text, streaming = false }: MarkdownProps) {
 
 /**
  * 按代码语言渲染 Markdown 围栏，保留安全链接与格式。
+ *
  * Render Markdown code fences by language with safe linking and formatting.
  */
 function MarkdownCode({ block, children, className, lang }: ComponentProps) {

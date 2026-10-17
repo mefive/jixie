@@ -31,6 +31,7 @@ const researchDataCatalogRequests = new Map<string, Promise<ResearchDataCatalogR
 
 /**
  * 绑定可编辑源码、语言和变更回调，供 Cell 编辑器。
+ *
  * Bind editable source, language and change callbacks to the cell editor.
  */
 interface ResearchCodeEditorProps {
@@ -46,6 +47,7 @@ interface ResearchCodeEditorProps {
 
 /**
  * 提供原始与当前源码及审阅回调，供内联差异编辑。
+ *
  * Supply original and current source and review actions for inline diff editing.
  */
 interface ResearchCodeDiffEditorProps {
@@ -63,6 +65,7 @@ interface ResearchCodeDiffEditorProps {
 
 /**
  * 提供不可变执行源码及语言，供只读查看。
+ *
  * Supply immutable execution source and language for read-only viewing.
  */
 interface ResearchReadOnlyCodeEditorProps {
@@ -74,6 +77,7 @@ interface ResearchReadOnlyCodeEditorProps {
 
 /**
  * 为研究 Cell 提供轻量 Python/JSON 编辑器，执行仍由服务端隔离完成。
+ *
  * Lightweight Python/JSON editor for research cells; execution remains server-side and isolated.
  */
 export default function ResearchCodeEditor({
@@ -174,6 +178,7 @@ export default function ResearchCodeEditor({
 
 /**
  * 只读展示冻结 Research Execution 中的不可变源码。
+ *
  * Immutable source viewer for one frozen Research Execution snapshot.
  */
 export function ResearchReadOnlyCodeEditor({
@@ -212,6 +217,7 @@ export function ResearchReadOnlyCodeEditor({
 
 /**
  * 以内联 Diff 支持审阅，原模型不可修改而当前 Cell 仍可编辑。
+ *
  * Cursor-style inline review: the original model is immutable and the current Cell stays editable.
  */
 export function ResearchCodeDiffEditor({
@@ -329,6 +335,7 @@ function configureResearchInlineDiffTheme(monacoInstance: Monaco): void {
 
 /**
  * 向 Monaco 注册公开 Research SDK 的补全、签名与 hover。
+ *
  * Register public Research SDK completion, signature and hover providers in Monaco.
  */
 function installResearchSdkLanguage(monacoInstance: Monaco): void {
@@ -345,6 +352,7 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
 
     /**
      * 根据光标上下文生成 SDK 方法、参数或目录补全项。
+     *
      * Provide SDK method, parameter or catalog completions for the cursor context.
      */
     async provideCompletionItems(model: monaco.editor.ITextModel, position: monaco.Position) {
@@ -450,6 +458,7 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
 
     /**
      * 解析当前 SDK 调用与参数位置，返回契约签名帮助。
+     *
      * Resolve the active SDK call and parameter to provide contract signature help.
      */
     provideSignatureHelp(model: monaco.editor.ITextModel, position: monaco.Position) {
@@ -483,6 +492,7 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
   monacoInstance.languages.registerHoverProvider('python', {
     /**
      * 将光标下 SDK 身份解析为双语契约说明。
+     *
      * Resolve the SDK identity at the cursor into bilingual contract hover information.
      */
     provideHover(model: monaco.editor.ITextModel, position: monaco.Position) {
@@ -511,6 +521,7 @@ function installResearchSdkLanguage(monacoInstance: Monaco): void {
 
 /**
  * 根据当前参数与已加载目录生成稳定引用补全建议。
+ *
  * Build stable-reference suggestions from the active parameter and loaded catalog.
  */
 async function researchDataCatalogSuggestions(
@@ -584,6 +595,7 @@ async function researchDataCatalogSuggestions(
 
 /**
  * 复用目录加载请求并缓存合法结果，避免编辑器补全重复读取。
+ *
  * Reuse catalog requests and cache valid results for editor completion.
  */
 function cachedResearchDataCatalog(
@@ -661,6 +673,7 @@ function researchSdkColumnSuggestions(
 
 /**
  * 根据公开参数定义渲染 SDK 签名，保持关键字参数位置。
+ *
  * Render an SDK signature from public parameter definitions with keyword-only boundaries.
  */
 function researchSdkSignature(contract: ResearchSdkFunctionContractV1): string {
@@ -694,6 +707,7 @@ function researchSdkSignature(contract: ResearchSdkFunctionContractV1): string {
 
 /**
  * 将契约参数类型渲染为编辑器可读标注。
+ *
  * Render a contract parameter type for editor hints.
  */
 function researchSdkParameterType(parameter: ResearchSdkParameterContractV1): string {
@@ -748,6 +762,7 @@ function researchSdkPlaceholder(
 
 /**
  * 为已声明参数选择受支持示例值，供补全插入。
+ *
  * Choose supported example values for declared parameter completion.
  */
 function suggestedParameterValue(parameter: ResearchSdkParameterContractV1): string {

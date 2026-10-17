@@ -3,6 +3,7 @@ import type { FactorAnalysisSource } from '../../sources/snapshot.js';
 
 /**
  * 定义 Panel 因子模板的协议和源码，供草稿初始化。
+ *
  * Describe panel template protocol and source for draft initialization.
  */
 export interface PanelTemplate {
@@ -141,6 +142,7 @@ export function resolvePanelTemplateSource(
 
 /**
  * 将 Panel 模板映射为可创建资源，补齐公开元数据。
+ *
  * Map a panel template into a creation resource with public metadata.
  */
 export function panelTemplateResource(key: string, locale: Locale) {

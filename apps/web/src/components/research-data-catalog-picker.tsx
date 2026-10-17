@@ -67,6 +67,7 @@ import './research-data-catalog-picker.css';
 
 /**
  * 配置受控目录筛选及片段插入，供多个研究入口复用。
+ *
  * Configure governed catalog filters and insertion across research entry points.
  */
 interface ResearchDataCatalogPickerProps {
@@ -90,6 +91,7 @@ type CatalogView = ResearchDataCatalogScopeV1;
 
 /**
  * 组合语义、资产和范围筛选，搜索受控目录并生成可插入 SDK 引用。
+ *
  * Combine semantic, asset and scope filters to search the governed catalog and generate insertable SDK references.
  */
 export const ResearchDataCatalogPicker = reactUtils.observer(
@@ -225,6 +227,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
 
     /**
      * 将证券选择转换为 SDK 片段与稳定引用，供插入研究 Cell。
+     *
      * Convert an instrument selection into an SDK snippet and stable research reference.
      */
     const chooseInstrument = (instrument: ResearchDataCatalogInstrumentV1) => {
@@ -245,6 +248,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
 
     /**
      * 将数据集和参数选择转换为精确 SDK 请求及附件。
+     *
      * Convert a dataset selection and arguments into an exact SDK call and attachment.
      */
     const chooseDataset = (dataset: ResearchDataCatalogDatasetV1) => {
@@ -271,6 +275,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
 
     /**
      * 将目录片段交给当前 Cell 插入入口，并同步选定引用。
+     *
      * Insert a catalog snippet into the active cell and retain its selected reference.
      */
     const insert = () => {
@@ -1194,6 +1199,7 @@ function localizedDatasetName(dataset: ResearchDataCatalogDatasetV1, language: s
 
 /**
  * 将数据集身份映射为公开 SDK 方法标签。
+ *
  * Map a dataset identity to its public SDK method label.
  */
 function datasetMethodTag(method: ResearchDataCatalogDatasetV1['method']): string {
@@ -1232,6 +1238,7 @@ function localizedColumnDescription(
 
 /**
  * 按研究数据方法选择目录图标。
+ *
  * Choose a catalog icon for the research data method.
  */
 function researchDataMethodIcon(qualifiedName: string) {
@@ -1255,6 +1262,7 @@ function researchDataMethodIcon(qualifiedName: string) {
 
 /**
  * 根据目录筛选范围选择本地化搜索提示。
+ *
  * Choose a localized catalog search hint for the active scope.
  */
 function dataCatalogSearchPlaceholder(

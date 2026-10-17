@@ -1,5 +1,6 @@
 /**
  * 根据公开 Python 策略契约和上下文构造作者代码生成提示。
+ *
  * Build authoring instructions from the public Python strategy contract and context.
  */
 export function buildPythonCodegenPrompt(availableIndices?: string): string {

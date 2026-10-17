@@ -22,6 +22,7 @@ export type FactorPythonV2FieldKey = (typeof FACTOR_PYTHON_V2_FIELD_KEYS)[number
 
 /**
  * 生成沙盒校验与 Monaco/Pyright 共用的 Python 作者类型表面。
+ *
  * Render the Python authoring surface consumed by the sandbox validator and Monaco/Pyright.
  */
 export function renderFactorPythonSdkStub(): string {

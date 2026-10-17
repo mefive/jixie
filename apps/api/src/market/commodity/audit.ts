@@ -7,6 +7,7 @@ import { auditCommodityWarehouseReceipts } from './commodity-warehouse-receipt-q
 
 /**
  * 审计商品仓单的历史可得性和来源证据，识别不可验证的 PIT 数据。
+ *
  * Audit commodity warehouse-receipt availability evidence and identify unverifiable point-in-time history.
  */
 export async function auditCommodityWarehouseReceiptPit(

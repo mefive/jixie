@@ -6,6 +6,7 @@ import type { CashOrderSnapshot } from './order-book.js';
 
 /**
  * 汇总一次模拟的净值、成交、费用、绩效和可选配置归因结果。
+ *
  * Collect NAV, fills, costs, performance and optional allocation analysis from one simulation.
  */
 export interface BacktestingResult {
@@ -39,6 +40,7 @@ export interface BacktestingResult {
 
 /**
  * 记录用于策略决策或归因的因子观测，保留证券和日期身份。
+ *
  * Retain dated factor observations used by decisions or attribution.
  */
 export interface FactorObservation {
@@ -49,6 +51,7 @@ export interface FactorObservation {
 
 /**
  * 冻结末日股票和 ETF 状态；数量与触发价格保持引擎复权单位。
+ *
  * Detached stock/ETF state at the final close. Shares and triggers retain Engine adjusted units.
  */
 export interface CashFinalStateView extends CashOrderSnapshot {
@@ -73,6 +76,7 @@ export interface CashFinalStateView extends CashOrderSnapshot {
 
 /**
  * 冻结末日账户、价格和待执行订单，供信号与后续重放读取。
+ *
  * Snapshot final accounts, prices and pending orders for signals and subsequent replay.
  */
 export interface BacktestingFinalState extends Omit<
@@ -97,6 +101,7 @@ export interface BacktestingFinalState extends Omit<
 
 /**
  * 将引擎末日状态转换为可持久化、与内部可变对象分离的快照。
+ *
  * Serialize the engine's final state without retaining references to mutable simulation objects.
  */
 export function serializeFinalState(state: CashFinalStateView): BacktestingFinalState {
@@ -114,6 +119,7 @@ export function serializeFinalState(state: CashFinalStateView): BacktestingFinal
 
 /**
  * 构造现金账户末日持仓及订单视图，保留复权数量与价格。
+ *
  * Build a detached final cash-account view with adjusted quantities, prices and pending orders.
  */
 export function cashFinalStateView(state: BacktestingFinalState): CashFinalStateView {
@@ -130,6 +136,7 @@ export function cashFinalStateView(state: BacktestingFinalState): CashFinalState
 
 /**
  * 记录资产袖套逐日净值，供回测组合贡献与风险分析。
+ *
  * Retain daily sleeve NAV observations for allocation contribution and risk analysis.
  */
 export interface SleeveNavPoint {

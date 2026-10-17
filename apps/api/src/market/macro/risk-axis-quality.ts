@@ -4,6 +4,7 @@ import { loadMacroRiskAxisHistory, type MacroRiskAxisHistoryV1 } from './risk-ax
 
 /**
  * 描述单风险轴的覆盖与可得性质量。
+ *
  * Describe coverage and availability quality for one risk axis.
  */
 export interface MacroRiskAxisQualityAxis {
@@ -15,6 +16,7 @@ export interface MacroRiskAxisQualityAxis {
 
 /**
  * 汇总全部风险轴的就绪状态与异常。
+ *
  * Collect readiness and diagnostics across risk axes.
  */
 export interface MacroRiskAxisQualitySummary {
@@ -53,6 +55,7 @@ export async function inspectMacroRiskAxes(
 
 /**
  * 检查风险轴样本、可得日期与缺口，汇总模型输入质量。
+ *
  * Summarize risk-axis samples, availability and gaps for model input quality.
  */
 export function summarizeMacroRiskAxisQuality(

@@ -53,6 +53,7 @@ import { selfHealMarketDates, type SelfHealSummary } from './self-heal.js';
 
 /**
  * 汇总每周维护各阶段的同步与审计结果。
+ *
  * Summarize synchronization and audit outcomes from weekly maintenance stages.
  */
 export interface WeeklyMaintenanceSummary {
@@ -79,6 +80,7 @@ export interface WeeklyMaintenanceSummary {
 
 /**
  * 汇总低频参考数据同步结果，供周更维护留存。
+ *
  * Collect reference-data synchronization results for weekly maintenance records.
  */
 interface WeeklyReferenceSyncSummary extends ReferenceSyncSummary {
@@ -92,6 +94,7 @@ const WEEKLY_AUDIT_TRADING_DAYS = 270;
 
 /**
  * 编排低频参考数据同步与校验，持久化每周维护进度和终态。
+ *
  * Coordinate reference synchronization and validation with persisted weekly progress and completion.
  */
 export async function runWeeklyMaintenance(
@@ -374,6 +377,7 @@ function createClient(minimumInterval = 0): TushareClient {
 
 /**
  * 执行一组低频参考同步并记录阶段结果，供周更重试及审计。
+ *
  * Execute a reference synchronization stage and retain its outcome for retries and auditing.
  */
 async function runReferenceStage(
@@ -444,6 +448,7 @@ function addMonths(date: string, months: number): string {
 
 /**
  * 按 ISO 周一计算周更身份，避免自然年周边界误判。
+ *
  * Resolve an ISO-week key for weekly maintenance identity.
  */
 function isoWeekKey(date: string): string {

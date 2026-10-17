@@ -15,6 +15,7 @@ import type { AgentTool, AgentUniverse } from './tools/types.js';
 
 /**
  * 配置统一 Agent 单轮执行的提示、工具与产物校验，使各业务复用同一对话循环。
+ *
  * Unified agent core (design: docs/design/unified-agent.md). One turn loop shared by every agent
  * surface (strategy lab / factor / Research / Q&A); what varies per surface lives in an AgentProfile:
  * the system prompt, the whitelisted tool set, and — when the conversation produces code — the
@@ -37,6 +38,7 @@ export type { ToolTraceItem };
 
 /**
  * 为流式调用提供文本与执行事件钩子，同步调用可以省略。
+ *
  * Optional streaming hooks (the SSE path wires these to the turn bus; sync callers omit them).
  * onDelta fires for tool-phase / produce-phase text only — repair rounds are silent (their output is
  * just code); onRepair announces each retry instead. `signal` aborts between LLM calls AND the
@@ -60,6 +62,7 @@ export interface AgentTurnHooks {
 
 /**
  * 汇总单轮回答及工具产生的持久产物，供消息保存和流式终态输出。
+ *
  * Collect a turn's response and durable artifacts for message persistence and terminal events.
  */
 export interface AgentTurnResult {
@@ -95,6 +98,7 @@ function hasLeakedToolProtocol(text: string): boolean {
 
 /**
  * 恢复兼容端点误放入 content 的 DeepSeek DSML 工具调用，仅识别受限格式。
+ *
  * Recover DeepSeek's serialized DSML tool requests when an OpenAI-compatible endpoint puts them
  * in `content` instead of `tool_calls`. Only the narrow invoke/parameter grammar is accepted here;
  * the normal tool whitelist, JSON parsing and each tool's zod schema still gate execution.
@@ -141,6 +145,7 @@ function recoverDsmlToolCalls(text: string, callNumber: number): ToolCall[] {
 
 /**
  * 将回答文本与工具产物组装为消息片段，供持久化和返回客户端。
+ *
  * A turn result as the assistant message's parts: the explanation text + durable artifacts the
  * tools side-produced. This is what routes return and the frontend appends + persists.
  */
@@ -200,6 +205,7 @@ When you use a research runner, freeze the complete candidate and the test inten
 
 /**
  * 提取回答中的围栏产物，无围栏时保留纯回答语义。
+ *
  * The fenced artifact block, or null when the reply has none (a pure answer).
  */
 function extractFenced(text: string): string | null {
@@ -209,6 +215,7 @@ function extractFenced(text: string): string | null {
 
 /**
  * 移除围栏代码以保留面向用户的解释文本。
+ *
  * The human-readable part of a reply = the text with the code fence removed.
  */
 function stripFence(text: string): string {
@@ -217,6 +224,7 @@ function stripFence(text: string): string {
 
 /**
  * 从修复轮回答提取代码，兼容围栏、说明文字和纯代码。
+ *
  * Pull the code out of a repair-round reply — tolerates fences / prose, else uses it whole.
  */
 function extractRepairCode(text: string): string {
@@ -226,6 +234,7 @@ function extractRepairCode(text: string): string {
 
 /**
  * 执行单次工具调用并将解析、校验或运行失败转为观察，使模型能够纠正请求。
+ *
  * Execute one requested tool call; failures (unknown tool, bad JSON, zod rejection, runtime error)
  * become observations too, so the model can correct itself instead of the turn dying.
  */
@@ -289,6 +298,7 @@ async function executeToolCall(
 
 /**
  * 编排一轮 Agent 工具查询、产物生成与修复，并将文本和持久产物交给调用方。
+ *
  * One agent turn: given the prior conversation + the current artifact code + a new user message, the
  * model may first query the whitelisted tools, then replies with a short explanation and (when a
  * change is warranted) the full updated code. A proposed change is validated by the profile's

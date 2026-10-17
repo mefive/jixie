@@ -3,6 +3,7 @@ import type { FactorDefinition, FactorDescription } from './execution-port.js';
 
 /**
  * 归纳因子的证券范围、数据需求和资产类别，供模拟预载与求值准备使用。
+ *
  * Summarize factor universes, input requirements and asset classes for simulation preparation.
  */
 export function describeFactors(definitions: FactorDefinition[]): FactorDescription {

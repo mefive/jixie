@@ -4,6 +4,7 @@ import { ResearchError } from '../errors.js';
 
 /**
  * 校验证券池来源、筛选与上限，防止无界或未治理股票查询。
+ *
  * Validate universe sources, filters and limits before governed equity queries.
  */
 export function validateUniverseSpec(spec: UniverseSpecV1): void {

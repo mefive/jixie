@@ -21,6 +21,7 @@ function parseCodes(value: string): string[] {
 
 /**
  * 仅同步指数收盘序列，不拉取成分权重。
+ *
  * Sync index close series without fetching constituent weights.
  * Usage: pnpm --filter api sync index-daily [start] [end] [major|CODE,CODE]
  */

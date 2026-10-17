@@ -4,6 +4,7 @@ import { SandboxLogBuffer } from '#infra/sandbox/sandbox-log-buffer.js';
 
 /**
  * 约束因子 isolate 可调用的宿主通信函数。
+ *
  * Define the host communication function available to the factor isolate.
  */
 interface HostFunction {

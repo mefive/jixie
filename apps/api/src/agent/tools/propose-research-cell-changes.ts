@@ -32,6 +32,7 @@ const argsSchema = z.strictObject({
 
 /**
  * 为当前 Research 轮次创建绑定文档的 Cell 修改提案工具。
+ *
  * Create the document-bound proposal artifact for one Research Agent turn.
  */
 export function createProposeResearchCellChangesTool(args: {
@@ -49,6 +50,7 @@ export function createProposeResearchCellChangesTool(args: {
 
     /**
      * 校验 Cell 修改请求并保存待审提案，将可追溯产物交给对话。
+     *
      * Validate requested cell edits and persist a reviewable proposal artifact for the conversation.
      */
     async run(input) {

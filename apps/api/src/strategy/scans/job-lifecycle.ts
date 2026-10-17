@@ -14,6 +14,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
 export const strategyScanLifecycle = {
   /**
    * 在任务计算阶段执行参数扫描，结果由生命周期终态事务持久化。
+   *
    * Compute a strategy scan for later persistence by the job lifecycle.
    */
   async onExecute(job, log) {

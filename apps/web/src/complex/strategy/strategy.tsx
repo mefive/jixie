@@ -67,6 +67,7 @@ import './strategy.css';
 
 /**
  * 提供历史报告列表及选择回调，供不可变报告切换。
+ *
  * Supply report history and selection callbacks to the history picker.
  */
 interface BacktestHistoryPickerProps {
@@ -79,6 +80,7 @@ interface BacktestHistoryPickerProps {
 
 /**
  * 绑定两个冻结报告与比较加载状态，供结果比较。
+ *
  * Supply two frozen reports and loading state for comparison.
  */
 interface BacktestComparisonPanelProps {
@@ -88,6 +90,7 @@ interface BacktestComparisonPanelProps {
 
 /**
  * 定义比较指标的标签、单位与取值，供一致差异展示。
+ *
  * Define comparison metric labels, units and accessors.
  */
 interface BacktestComparisonMetric {
@@ -111,6 +114,7 @@ const AllocationCorrelationCharts = lazy(() => import('./allocation-correlation-
 
 /**
  * 组合策略编辑、Agent、回测配置及不可变报告，形成策略研究工作台。
+ *
  * Compose strategy editing, agent conversation, backtest settings and immutable reports.
  */
 export const Strategy = complex.component(() => {
@@ -293,6 +297,7 @@ export const Strategy = complex.component(() => {
 
 /**
  * 展示初始策略工作台说明与创建入口。
+ *
  * Present the initial strategy workspace guidance and creation actions.
  */
 const StrategyHero = complex.component(
@@ -357,6 +362,7 @@ const StrategyHero = complex.component(
 
 /**
  * 收集新策略研究问题并进入持久化作者会话。
+ *
  * Collect a new strategy question and start a persistent authoring conversation.
  */
 const NewStrategyPrompt = complex.component(
@@ -449,6 +455,7 @@ const NewStrategyPrompt = complex.component(
 
 /**
  * 呈现策略创建入口并将用户选择交给 store。
+ *
  * Present strategy creation choices and dispatch them through the store.
  */
 function NewStrategyModal({
@@ -485,6 +492,7 @@ function NewStrategyModal({
 
 /**
  * 展示策略 Agent 会话与运行状态。
+ *
  * Present strategy agent conversation and execution state.
  */
 const AgentPanel = complex.component(
@@ -529,6 +537,7 @@ const AgentPanel = complex.component(
 
 /**
  * 呈现策略对话历史、流式响应和输入控制。
+ *
  * Render strategy history, streamed replies and input controls.
  */
 const AgentChat = complex.component(() => {
@@ -579,6 +588,7 @@ const AgentChat = complex.component(() => {
 
 /**
  * 编辑回测日期、资本与交易成本，保持策略源码独立。
+ *
  * Edit backtest dates, capital and trading costs alongside strategy source.
  */
 const RunConfig = complex.component(() => {
@@ -737,6 +747,7 @@ const RunConfig = complex.component(() => {
 
 /**
  * 一致展示策略消息与工具产物。
+ *
  * Render strategy messages and tool artifacts consistently.
  */
 function ChatLog({
@@ -789,6 +800,7 @@ function ChatLog({
 
 /**
  * 展示近期策略并提供恢复与删除入口。
+ *
  * Present recent strategies with restore and delete actions.
  */
 const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => void }) => {
@@ -824,6 +836,7 @@ const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => voi
 
 /**
  * 收集策略提示词并处理发送、取消与键盘操作。
+ *
  * Collect strategy prompts with send, cancel and keyboard handling.
  */
 function PromptBox({
@@ -847,6 +860,7 @@ function PromptBox({
 }) {
   /**
    * 按键盘提交规则发送提示，保留换行与输入法组合行为。
+   *
    * Handle prompt submission keys while preserving newline and composition behavior.
    */
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -888,6 +902,7 @@ function PromptBox({
 
 /**
  * 展示策略源码编辑器及语言相关帮助。
+ *
  * Render strategy source editing with language-specific guidance.
  */
 const StrategyCode = complex.component(() => {
@@ -933,6 +948,7 @@ const StrategyCode = complex.component(() => {
 
 /**
  * 展示封存研究来源与交接限制，供核对策略草稿血缘。
+ *
  * Present frozen research provenance and handoff limits for strategy drafts.
  */
 const StrategyResearchHandoff = complex.component(() => {
@@ -998,6 +1014,7 @@ const StrategyResearchHandoff = complex.component(() => {
 
 /**
  * 组织冻结回测报告的绩效、净值、交易和风险结果。
+ *
  * Organize immutable backtest performance, NAV, fills and risk results.
  */
 const ResultPanel = complex.component(() => {
@@ -1179,6 +1196,7 @@ const ResultPanel = complex.component(() => {
 
 /**
  * 按选定不可变报告比较绩效与收益路径。
+ *
  * Compare performance and return paths across selected immutable reports.
  */
 const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanelProps) => {
@@ -1264,6 +1282,7 @@ const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanel
 
 /**
  * 展示配置资产贡献、调仓与费用，解释组合收益来源。
+ *
  * Present allocation contributions, rebalances and costs to explain portfolio returns.
  */
 const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis }) => {
@@ -1489,6 +1508,7 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
 
 /**
  * 展示市场、宏观、情景及 Alpha 重合风险证据与限制。
+ *
  * Present market, macro, scenario and Alpha-overlap risk evidence with limitations.
  */
 const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
@@ -1815,6 +1835,7 @@ const RiskSummaryMetric = ({ label, value }: { label: string; value: string }) =
 
 /**
  * 按利率环境展示配置收益、风险与区间诊断。
+ *
  * Present allocation returns, risks and episode diagnostics by rate environment.
  */
 const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysis }) => {
@@ -1936,6 +1957,7 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
 
 /**
  * 展示配置相关性矩阵与窗口变化，供分散化检查。
+ *
  * Present allocation correlation matrices and window changes for diversification checks.
  */
 const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnalysis }) => {
@@ -2070,6 +2092,7 @@ const LogDock = complex.component(() => {
 
 /**
  * 在绩效、净值、执行和风险视图之间切换冻结报告结果。
+ *
  * Switch immutable report results among performance, NAV, execution and risk views.
  */
 const ResultTabs = complex.component(() => {
@@ -2186,6 +2209,7 @@ const ResultTabs = complex.component(() => {
 
 /**
  * 读取并选择策略历史报告，区分当前查看与最近运行。
+ *
  * Select historical strategy reports with explicit viewed-versus-latest state.
  */
 const BacktestHistoryPicker = complex.component(
@@ -2298,6 +2322,7 @@ const BacktestHistoryPicker = complex.component(
 
 /**
  * 提取仅当前显示使用的工具轨迹，重载后不再存在。
+ *
  * The turn's ephemeral tool trace (display only — absent once a conversation is reloaded).
  */
 function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
@@ -2316,6 +2341,7 @@ const EXAMPLE_PROMPTS = [
 
 /**
  * 定义绩效指标展示标签、值与格式，供结果面板。
+ *
  * Describe performance metric labels, values and formatting.
  */
 interface Metric {
@@ -2336,6 +2362,7 @@ function pct(x: number): string {
 
 /**
  * 按视口设置策略编辑与对话分栏初始尺寸。
+ *
  * Derive initial strategy editor and conversation splitter sizes.
  */
 function splitterDefaults(leftPx: number): { left: string; rest: string } {

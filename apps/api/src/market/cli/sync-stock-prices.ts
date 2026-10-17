@@ -7,6 +7,7 @@ import { syncDaily } from '../stocks/daily-sync.js';
 
 /**
  * 同步股票原始价格和复权因子到本地存储。
+ *
  * Sync stock daily prices and adjustment factors into the local SQLite store (Prisma).
  * Usage: pnpm sync stock-prices [start] [end]   e.g. pnpm sync stock-prices 20240101 20240131
  */

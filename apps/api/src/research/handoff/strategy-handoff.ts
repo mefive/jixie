@@ -33,6 +33,7 @@ type Classification = z.infer<typeof classificationSchema>;
 
 /**
  * 封装生成策略草稿与限制说明，供人工可审交接。
+ *
  * Collect generated strategy source and limitations for reviewable handoff.
  */
 export interface GeneratedResearchStrategyDraft {
@@ -45,6 +46,7 @@ export interface GeneratedResearchStrategyDraft {
 
 /**
  * 使用不可变研究证据生成符合公开 SDK 的策略草稿。
+ *
  * Generate a public-SDK strategy draft from immutable research evidence.
  */
 export async function generateResearchStrategyDraft(
@@ -102,6 +104,7 @@ export async function generateResearchStrategyDraft(
 
 /**
  * 判断研究是否具备策略交接所需信息，供生成门禁使用。
+ *
  * Classify whether research contains the information required for strategy handoff.
  */
 async function classifyResearchStrategy(

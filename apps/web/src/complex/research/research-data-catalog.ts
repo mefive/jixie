@@ -15,6 +15,7 @@ import type {
 
 /**
  * 绑定数据集、日期及财务选项，供生成精确 SDK 片段。
+ *
  * Supply dataset, dates and financial options for exact SDK snippets.
  */
 export interface ResearchDatasetSnippetOptions {
@@ -31,6 +32,7 @@ export interface ResearchDatasetSnippetOptions {
 
 /**
  * 绑定证券、指标、频率和变换，供序列 SDK 片段。
+ *
  * Supply instrument, measure, frequency and transform for series snippets.
  */
 export interface ResearchSeriesSnippetOptions {
@@ -44,6 +46,7 @@ export interface ResearchSeriesSnippetOptions {
 
 /**
  * 同时返回可插入代码与稳定引用，避免来源附件漂移。
+ *
  * Return insertable source and its stable reference together.
  */
 export interface ResearchCatalogSelection {
@@ -53,6 +56,7 @@ export interface ResearchCatalogSelection {
 
 /**
  * 源码片段与附件引用由同一参数对象及公开 SDK 契约生成，避免两者漂移。
+ *
  * The source and attachment derive from the same argument object and public SDK contract.
  */
 function catalogSelection(
@@ -80,6 +84,7 @@ function catalogSelection(
 
 /**
  * 把目录参数转换为 Python 字面量，正确处理 null、布尔与数组。
+ *
  * Render catalog argument values as Python literals, including null, booleans and arrays.
  */
 function pythonLiteral(value: unknown): string {
@@ -159,6 +164,7 @@ export function researchSeriesSelection(options: ResearchSeriesSnippetOptions) {
 
 /**
  * 按数据集种类构造精确 SDK 调用与研究引用。
+ *
  * Build an exact SDK call and research reference for the selected dataset kind.
  */
 export function researchDatasetSelection(
@@ -268,6 +274,7 @@ export const researchDatasetSnippet = (options: ResearchDatasetSnippetOptions) =
 
 /**
  * 从数据集身份生成合法 Python 变量名，供插入代码使用。
+ *
  * Derive a valid Python variable name from a dataset identity.
  */
 function researchDatasetVariableName(

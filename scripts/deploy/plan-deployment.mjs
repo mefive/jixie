@@ -9,6 +9,7 @@ const defaultManifestPath = resolve(scriptDirectory, '../../deploy/component-imp
 
 /**
  * 按部署影响清单分类变更路径，未知路径触发完整部署。
+ *
  * Classify changed paths with the impact manifest and fall back to full deployment for unknown paths.
  */
 export function classifyChangedPaths(changedPaths, manifest) {
@@ -98,6 +99,7 @@ function fullPlan(manifest, reason) {
 
 /**
  * 组合受影响组件和依赖生成部署计划，供 CI 决定构建与发布范围。
+ *
  * Combine impacted components and dependencies into the CI deployment plan.
  */
 async function planDeployment({ repositoryDirectory, baseRevision, headRevision, manifestPath }) {
@@ -141,6 +143,7 @@ async function planDeployment({ repositoryDirectory, baseRevision, headRevision,
 
 /**
  * 解析部署规划参数与路径输入，拒绝未知选项。
+ *
  * Parse deployment-planner arguments and paths and reject unknown options.
  */
 function parseArguments(arguments_) {
@@ -164,6 +167,7 @@ function parseArguments(arguments_) {
 
 /**
  * 读取变更清单与影响配置，输出 CI 可消费部署计划。
+ *
  * Read changed paths and impact configuration and emit the CI deployment plan.
  */
 async function main() {

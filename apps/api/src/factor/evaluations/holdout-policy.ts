@@ -8,6 +8,7 @@ import { reportResearchSpec } from './report-spec.js';
 
 /**
  * 检查探索报告、预注册门槛和时间划分是否满足保留段准入。
+ *
  * Check exploration evidence, preregistration and date splits for holdout eligibility.
  */
 export async function holdoutEligibility(
@@ -93,6 +94,7 @@ export async function holdoutEligibility(
 
 /**
  * 以实际 ETF 数据截止日约束保留段范围，避免不可验证尾部。
+ *
  * Cap holdout bounds to available ETF data.
  */
 async function capHoldoutPolicyAtEtfData(

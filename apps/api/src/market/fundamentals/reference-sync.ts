@@ -9,6 +9,7 @@ import { stockCodesWithDailyData } from '../stocks/read.js';
 
 /**
  * 按证券同步完整财务指标历史，处理重复报告期与可恢复进度。
+ *
  * Sync financial indicators per stock. One call returns a stock's full period history (with
  * duplicate periods from restatements); we keep the latest annDate per (tsCode, endDate). Resumable:
  * skips stocks already synced. Financial APIs are rate-limited (~80/min), so run with a ≥800ms interval.
@@ -92,6 +93,7 @@ export async function syncFinaIndicator(
 
 /**
  * 同步分红从预案到实施的原始行，按证券保留可恢复进度。
+ *
  * Sync dividend distributions per stock (raw rows across proposal→execution stages). Resumable:
  * skips stocks already synced. Same financial rate limit applies.
  */
@@ -156,6 +158,7 @@ export async function syncDividend(
 
 /**
  * 汇总指标及分红参考同步结果，供维护检查点。
+ *
  * Summarize indicator and dividend synchronization for maintenance checkpoints.
  */
 export interface ReferenceSyncSummary {
@@ -170,6 +173,7 @@ export interface ReferenceSyncSummary {
 
 /**
  * 通过 VIP 接口按报告期获取全市场财务指标，供批量历史补齐。
+ *
  * Fetch market-wide financial indicators by report period through the VIP endpoint.
  */
 export async function syncFinaIndicatorVip(
@@ -246,6 +250,7 @@ function toFinaIndicatorData(row: Awaited<ReturnType<typeof finaIndicatorVip>>[n
 
 /**
  * 核对单报告期财务指标与已存记录，识别新增和修订。
+ *
  * Reconcile one reporting period's financial indicators against stored records.
  */
 async function reconcileFinaIndicatorPeriod(
@@ -283,6 +288,7 @@ async function reconcileFinaIndicatorPeriod(
 
 /**
  * 按证券与报告期合并财务指标，保留来源修订语义。
+ *
  * Reconcile financial indicators by instrument and reporting period.
  */
 async function reconcileFinaIndicator(
@@ -329,6 +335,7 @@ async function reconcileFinaIndicator(
 
 /**
  * 比较财务指标的业务数值，供避免无意义重复写入。
+ *
  * Compare financial indicator values to avoid semantically unchanged writes.
  */
 function sameFinaIndicator(
@@ -373,6 +380,7 @@ function sameFinaIndicator(
 
 /**
  * 对齐分红来源记录及实施状态，供历史参考同步。
+ *
  * Reconcile dividend source rows and distribution stages for historical reference sync.
  */
 async function reconcileDividend(

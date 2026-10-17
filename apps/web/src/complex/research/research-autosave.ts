@@ -6,6 +6,7 @@ export type ResearchCellSaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'c
 
 /**
  * 记录 Cell 本地源码、服务端修订及保存冲突，供自动保存协调。
+ *
  * Track local source, server revision and save conflicts for cell autosave.
  */
 export interface ResearchCellDraftState {

@@ -19,6 +19,7 @@ export async function getMaintenanceState(): Promise<{
 
 /**
  * 根据已验证市场数据建立日更发布水位，供后续维护确定起点。
+ *
  * Initialize the daily publication watermark from verified market data.
  */
 export async function initializeDailyWatermark(tradeDate: string): Promise<void> {

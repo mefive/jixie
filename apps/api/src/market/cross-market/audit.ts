@@ -11,6 +11,7 @@ import { US_NOMINAL_CURVE_CODE, US_REAL_CURVE_CODE } from '../registry/yield-cur
 
 /**
  * 记录单基准源日期与可得性证据，供 PIT 审计。
+ *
  * Record benchmark dates and availability evidence for PIT auditing.
  */
 export interface CrossMarketBenchmarkPitAuditRow {
@@ -23,6 +24,7 @@ export interface CrossMarketBenchmarkPitAuditRow {
 
 /**
  * 汇总跨市场基准时点质量及缺口。
+ *
  * Summarize cross-market benchmark PIT quality and gaps.
  */
 export interface CrossMarketBenchmarkPitAuditSummary {
@@ -51,6 +53,7 @@ export function summarizeExternalMarketPit(
 
 /**
  * 汇总跨市场基准的源日期、可得日期与汇率口径，供 PIT 审计。
+ *
  * Summarize benchmark source dates, availability dates and FX conventions for PIT auditing.
  */
 export function summarizeCrossMarketBenchmarkPit(
@@ -83,6 +86,7 @@ export function summarizeCrossMarketBenchmarkPit(
 
 /**
  * 检查外部利率与汇率数据的时点可得性证据。
+ *
  * Audit point-in-time availability evidence for external yield and FX observations.
  */
 export async function auditExternalMarketPit(
@@ -169,6 +173,7 @@ export async function auditExternalMarketPit(
 
 /**
  * 读取跨市场基准并审计中国研究时钟上的可得性。
+ *
  * Audit cross-market benchmark availability on the China research clock.
  */
 export async function auditCrossMarketBenchmarkPit(

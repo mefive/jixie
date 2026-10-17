@@ -4,6 +4,7 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 /**
  * 绘制时间序列状态与资产路径，供信号区间比较。
+ *
  * Plot time-series states and asset paths for signal-period comparison.
  */
 export default function TimeSeriesStateChart({ report }: { report: FactorTimeSeriesReportV1 }) {

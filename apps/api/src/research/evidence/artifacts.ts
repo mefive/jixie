@@ -7,6 +7,7 @@ export const MAX_PERSISTED_INLINE_RESEARCH_OUTPUT_BYTES = 2 * 1024 * 1024;
 
 /**
  * 提供二进制或结构化研究产物的创建字段。
+ *
  * Supply fields for creating binary or structured research artifacts.
  */
 export interface ResearchArtifactCreateInput {
@@ -24,6 +25,7 @@ export interface ResearchArtifactCreateInput {
 
 /**
  * 组合已物化产物与替换后的输出 JSON。
+ *
  * Collect materialized artifacts and substituted output JSON.
  */
 export interface MaterializedResearchOutputs {
@@ -33,6 +35,7 @@ export interface MaterializedResearchOutputs {
 
 /**
  * 在保存 Cell 输出 JSON 前提取二进制图片并物化为独立产物。
+ *
  * Extract binary images before Cell output JSON is persisted.
  */
 export function materializeResearchOutputArtifacts(
@@ -44,6 +47,7 @@ export function materializeResearchOutputArtifacts(
 
   /**
    * 验证图片大小与元数据，物化为产物后替换输出中的二进制内容。
+   *
    * Validate image sizes and metadata and replace binary output with persisted artifact references.
    */
   const persistedOutputs = outputs.map((output): ResearchCellOutputBlockV1 => {
@@ -100,6 +104,7 @@ export function materializeResearchOutputArtifacts(
 
 /**
  * 校验图片 data URL、MIME 与编码，再解码为产物字节。
+ *
  * Validate an image data URL, MIME and encoding before decoding artifact bytes.
  */
 function decodeImageDataUrl(
@@ -119,6 +124,7 @@ function decodeImageDataUrl(
 
 /**
  * 从 PNG 头读取并校验尺寸，供产物元数据一致性检查。
+ *
  * Read validated PNG dimensions for artifact metadata checks.
  */
 function pngDimensions(data: Buffer): { width: number; height: number } | undefined {

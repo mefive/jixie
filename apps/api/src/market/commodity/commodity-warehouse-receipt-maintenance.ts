@@ -9,6 +9,7 @@ import { syncCommodityWarehouseReceipts } from './commodity-warehouse-receipts.j
 
 /**
  * 记录仓单修订刷新及质量门禁结果。
+ *
  * Record receipt revision refresh and quality-gate outcomes.
  */
 export interface CommodityWarehouseReceiptMaintenanceSummary {
@@ -22,6 +23,7 @@ export interface CommodityWarehouseReceiptMaintenanceSummary {
 
 /**
  * 配置仓单维护的有界修订窗口与来源访问。
+ *
  * Configure a bounded receipt revision window and source access.
  */
 interface CommodityWarehouseReceiptMaintenanceOptions {
@@ -34,6 +36,7 @@ const DEFAULT_MAXIMUM_LAG_TRADING_DAYS = 3;
 
 /**
  * 刷新有界修订窗口，并拒绝结构异常或陈旧的仓单结果。
+ *
  * Refreshes a bounded revision window and rejects structurally invalid or stale results.
  */
 export async function maintainCommodityWarehouseReceipts(

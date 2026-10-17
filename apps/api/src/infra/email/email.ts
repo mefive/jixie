@@ -17,6 +17,7 @@ const RESEND_API_URL = 'https://api.resend.com/emails';
 
 /**
  * 描述邮件收件人、主题与正文，供基础设施邮件传输使用。
+ *
  * Describe recipients, subject and body passed to the email transport.
  */
 export interface SendEmailArgs {
@@ -33,6 +34,7 @@ export function isEmailConfigured(): boolean {
 
 /**
  * 按邮件配置发送内容并将传输错误交给调用边界处理。
+ *
  * Send an email through the configured transport and propagate delivery failures.
  */
 export async function sendEmail(args: SendEmailArgs): Promise<void> {

@@ -16,6 +16,7 @@ export type AssetAllocationProbeStatus =
 
 /**
  * 声明能力探测的接口、参数与预期证据。
+ *
  * Configure a capability probe's API, arguments and expected evidence.
  */
 export interface AssetAllocationProbeDefinition {
@@ -31,6 +32,7 @@ export interface AssetAllocationProbeDefinition {
 
 /**
  * 记录能力探测状态、覆盖及诊断。
+ *
  * Retain capability probe status, coverage and diagnostics.
  */
 export interface AssetAllocationProbeResult {
@@ -53,6 +55,7 @@ export interface AssetAllocationProbeResult {
 
 /**
  * 抽象能力探测所需来源调用，便于受控探测。
+ *
  * Abstract provider calls required for controlled capability probing.
  */
 export interface AssetAllocationProbeClient {
@@ -69,6 +72,7 @@ export const ASSET_ALLOCATION_PROBES: readonly AssetAllocationProbeDefinition[] 
 
 /**
  * 逐项探测配置数据能力的来源响应与覆盖，供资产配置数据准入。
+ *
  * Probe configured data capabilities and coverage for asset-allocation readiness.
  */
 export async function probeAssetAllocationData(
@@ -122,6 +126,7 @@ export async function probeAssetAllocationData(
 
 /**
  * 从来源观测解析实际历史覆盖，供能力探测判断。
+ *
  * Derive observed history bounds from source rows for capability probes.
  */
 function observedHistory(

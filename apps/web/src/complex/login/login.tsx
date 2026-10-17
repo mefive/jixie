@@ -10,6 +10,7 @@ import './login.css';
 
 /**
  * 按邮箱、邀请和验证码步骤选择登录表单。
+ *
  * Select email, invitation and verification forms by login step.
  */
 export const Login = complex.component(() => {
@@ -46,6 +47,7 @@ export const Login = complex.component(() => {
 
 /**
  * 收集并验证邮箱，发起登录凭证请求。
+ *
  * Collect and validate an email address before requesting a login credential.
  */
 const EmailStep = complex.component(() => {
@@ -88,6 +90,7 @@ const EmailStep = complex.component(() => {
 
 /**
  * 收集邀请信息，连接受邀注册流程。
+ *
  * Collect invitation details for invited registration.
  */
 const InviteStep = complex.component(() => {
@@ -127,6 +130,7 @@ const InviteStep = complex.component(() => {
 
 /**
  * 收集验证码并提交登录验证，呈现重试和错误状态。
+ *
  * Submit a verification code with retry and error states.
  */
 const VerifyStep = complex.component(() => {

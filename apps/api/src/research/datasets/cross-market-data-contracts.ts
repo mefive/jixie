@@ -7,6 +7,7 @@ export type ResearchSourceDecisionStatusV1 = 'integrated' | 'candidate';
 
 /**
  * 将概念绑定投影为数据契约语义，供一致性校验。
+ *
  * Project a concept binding into data-contract semantics for consistency checks.
  */
 export interface ResearchBindingDataContractProjectionV1 {
@@ -22,6 +23,7 @@ export interface ResearchBindingDataContractProjectionV1 {
 
 /**
  * 冻结跨市场身份、时钟、币种与 PIT 限制，供研究目录准入。
+ *
  * Define cross-market identity, clock, currency and PIT limits for catalog admission.
  */
 export interface CrossMarketResearchDataContractV1 {
@@ -70,6 +72,7 @@ export interface CrossMarketResearchDataContractV1 {
 
 /**
  * 记录研究概念的来源选择与缺口，供数据源矩阵。
+ *
  * Describe concept source decisions and gaps in the research source matrix.
  */
 export interface ResearchSourceDecisionMatrixEntryV1 {
@@ -110,6 +113,7 @@ export interface ResearchSourceDecisionMatrixEntryV1 {
 
 /**
  * 提供跨市场契约校验样例，约束未建模市场假设。
+ *
  * Supply contract fixtures constraining unmodeled cross-market assumptions.
  */
 export interface CrossMarketContractFixtureV1 {
@@ -1163,6 +1167,7 @@ export function researchBindingDataContract(id: string): ResearchBindingDataCont
 
 /**
  * 压缩跨市场契约清单，供 Agent 获取已治理的语义边界。
+ *
  * Produce a compact cross-market contract manifest for governed research semantics.
  */
 export function compactCrossMarketDataContractRegistry() {
@@ -1200,6 +1205,7 @@ export function compactCrossMarketDataContractRegistry() {
 
 /**
  * 校验跨市场契约、绑定和来源决策的一致性，防止未治理数据进入目录。
+ *
  * Validate consistency among cross-market contracts, bindings and source decisions.
  */
 export function validateCrossMarketDataContractRegistry(): void {
@@ -1269,6 +1275,7 @@ export function validateCrossMarketDataContractRegistry(): void {
 
 /**
  * 为价格指数基准建立含市场、币种和时钟约束的数据契约。
+ *
  * Construct a price-index benchmark contract with market, currency and clock constraints.
  */
 function equityBenchmarkContract(input: {
@@ -1346,6 +1353,7 @@ function equityBenchmarkContract(input: {
 
 /**
  * 为股票研究建立明确证券身份、交易和可得性口径的契约。
+ *
  * Construct an equity research contract with identity, trading and availability conventions.
  */
 function equityContract(input: {
@@ -1419,6 +1427,7 @@ function equityContract(input: {
 
 /**
  * 为宏观序列建立版本与披露日期明确的数据契约。
+ *
  * Construct a macro-series contract with explicit vintage and release conventions.
  */
 function macroContract(input: {

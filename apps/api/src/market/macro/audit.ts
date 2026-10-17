@@ -6,6 +6,7 @@ import { US_HEADLINE_CPI_SERIES_KEY } from './us-headline-cpi.js';
 
 /**
  * 记录单宏观序列版本的可得性审计证据。
+ *
  * Describe vintage availability evidence for one macro series.
  */
 export interface MacroPitAuditRow {
@@ -19,6 +20,7 @@ export interface MacroPitAuditRow {
 
 /**
  * 汇总宏观 PIT 覆盖与来源问题。
+ *
  * Summarize macro PIT coverage and source findings.
  */
 export interface MacroPitAuditSummary {
@@ -32,6 +34,7 @@ export interface MacroPitAuditSummary {
 
 /**
  * 汇总宏观来源及版本的可得性审计，供 PIT 质量判断。
+ *
  * Summarize macro source and vintage availability audits.
  */
 export function summarizeMacroPit(
@@ -70,6 +73,7 @@ export function summarizeMacroPit(
 
 /**
  * 检查宏观版本与披露证据，识别不可验证的历史值。
+ *
  * Audit macro vintages and release evidence for unverifiable history.
  */
 export async function auditMacroPit(database: Prisma): Promise<AuditFinding> {

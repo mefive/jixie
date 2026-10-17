@@ -11,6 +11,7 @@ import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from './sync.js
 
 /**
  * 记录指数逐日数量，供修复计划比较。
+ *
  * Supply index date counts for repair planning.
  */
 export interface IndexDateCounts {
@@ -22,6 +23,7 @@ export interface IndexDateCounts {
 
 /**
  * 比较目标日期记录量与所需覆盖，生成指数补齐计划。
+ *
  * Build an index repair plan from observed and required date coverage.
  */
 export function buildIndexDateRepairPlan(row: IndexDateCounts): {
@@ -57,6 +59,7 @@ export function buildIndexDateRepairPlan(row: IndexDateCounts): {
 
 /**
  * 读取指定日期的指数数据覆盖，供修复规划。
+ *
  * Inspect index coverage on requested dates for repair planning.
  */
 export async function inspectIndexDates(tradeDates: string[]): Promise<IndexDateCounts[]> {
@@ -94,6 +97,7 @@ export async function inspectIndexDates(tradeDates: string[]): Promise<IndexDate
 
 /**
  * 按缺口补齐指数行情与估值，返回单日修复结果。
+ *
  * Repair missing index prices and valuations for a date.
  */
 export async function repairIndexDate(client: TushareClient, tradeDate: TradeDate): Promise<void> {

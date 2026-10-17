@@ -10,6 +10,7 @@ import { getResearchDocument } from './read.js';
 
 /**
  * 校验文档归属与运行状态后归档，清理活动会话关联。
+ *
  * Authorize and archive a document after run-state checks and session cleanup.
  */
 export async function archiveResearchDocument(
@@ -40,6 +41,7 @@ export async function archiveResearchDocument(
 
 /**
  * 恢复已归档文档并协调当前运行、会话和列表状态。
+ *
  * Restore an archived document under run and conversation state guards.
  */
 export async function restoreResearchDocument(
@@ -110,6 +112,7 @@ export async function renameResearchDocument(userId: string, documentId: string,
 
 /**
  * 验证文档可删除状态并清理关联资源，避免活动运行悬挂。
+ *
  * Validate deletion eligibility and remove document resources safely around active runs.
  */
 export async function deleteResearchDocument(userId: string, documentId: string) {

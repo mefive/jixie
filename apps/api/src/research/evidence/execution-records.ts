@@ -16,6 +16,7 @@ import { researchPayloadHash } from './fingerprints.js';
 
 /**
  * 冻结单 Cell 源码与修订，供执行证据。
+ *
  * Snapshot one cell's source and revision for execution evidence.
  */
 export interface ResearchExecutionSourceCellSnapshot {
@@ -32,6 +33,7 @@ export interface ResearchExecutionSourceCellSnapshot {
 
 /**
  * 冻结整个执行的文档内容与运行版本。
+ *
  * Snapshot document content and runtime version for an execution.
  */
 interface ResearchExecutionSourceSnapshot {
@@ -41,6 +43,7 @@ interface ResearchExecutionSourceSnapshot {
 
 /**
  * 冻结执行依赖图，供输出与重放追溯。
+ *
  * Snapshot the execution dependency graph for evidence and replay.
  */
 interface ResearchExecutionDagSnapshot {
@@ -54,6 +57,7 @@ type ResearchExecutionWithCells = Prisma.ResearchExecutionGetPayload<{
 
 /**
  * 冻结源码、修订与依赖图，创建不可变研究执行记录。
+ *
  * Freeze source, revisions and dependency graph into an immutable research execution.
  */
 export async function createResearchExecution(args: {
@@ -101,6 +105,7 @@ export async function createResearchExecution(args: {
 
 /**
  * 提交研究执行终态及已执行 Cell 集合，保留失败与取消证据。
+ *
  * Finalize execution state and completed cells while retaining failed and cancelled evidence.
  */
 export async function finishResearchExecution(args: {
@@ -181,6 +186,7 @@ export async function getResearchExecution(
 
 /**
  * 验证干净完整执行后提升为可交接证据，拒绝不满足要求的运行。
+ *
  * Promote a clean complete execution into handoff evidence after eligibility checks.
  */
 export async function promoteResearchExecution(
@@ -211,6 +217,7 @@ export async function promoteResearchExecution(
 
 /**
  * 根据冻结 Cell 定义与引用构造执行 DAG 快照。
+ *
  * Build a frozen execution DAG from cell definitions and references.
  */
 export function researchExecutionDag(
@@ -256,6 +263,7 @@ function researchExecutionView(execution: ResearchExecutionWithCells): ResearchE
 
 /**
  * 将执行身份和状态映射为客户端摘要。
+ *
  * Map execution identity and status into a client summary.
  */
 function researchExecutionSummaryView(execution: ResearchExecution): ResearchExecutionSummaryV1 {
@@ -288,6 +296,7 @@ function researchExecutionSummaryView(execution: ResearchExecution): ResearchExe
 
 /**
  * 将冻结 Cell 源码与输出证据映射为执行详情。
+ *
  * Map frozen cell source and output evidence into execution details.
  */
 function researchExecutionCellView(

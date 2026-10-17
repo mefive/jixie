@@ -129,6 +129,7 @@ const QUERY_TIMEOUT_MS = 10_000;
 
 /**
  * 校验并规范化只读 SQL；失败作为工具观察返回，成功后才可交给 Worker。
+ *
  * Validate + normalize a query, returning the SQL to actually execute. Throws human-readable
  * errors (they are fed back to the model as observations, so it can fix its own SQL).
  */
@@ -187,6 +188,7 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
 
 /**
  * 在 JSON 序列化时处理 SQLite 返回的 BigInt 整数。
+ *
  * JSON.stringify replacer: SQLite integers come back as BigInt via the raw API.
  */
 export function jsonSafe(_key: string, value: unknown): unknown {
@@ -202,6 +204,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
 
 /**
  * 按 Prisma schema 所在目录解析相对 SQLite 路径。
+ *
  * Prisma resolves a relative sqlite DATABASE_URL against the schema directory — mirror that.
  */
 function databasePath(): string {
@@ -211,6 +214,7 @@ function databasePath(): string {
 
 /**
  * 跟踪只读 SQL 请求的超时及完成回调，供 Worker 响应关联。
+ *
  * Track a pending read-only SQL request, timeout and completion callbacks.
  */
 interface PendingQuery {
@@ -233,6 +237,7 @@ function failAllPending(error: Error): void {
 
 /**
  * 按需启动只读 SQL Worker 并接入响应及退出处理。
+ *
  * Start the read-only SQL worker on demand and attach response and exit handling.
  */
 function ensureWorker(): Worker {
@@ -279,6 +284,7 @@ function ensureWorker(): Worker {
 
 /**
  * 在 Worker 中执行已验证的只读查询，并施加墙钟超时。
+ *
  * Execute a validated read-only query in the worker with a hard wall-clock timeout.
  */
 export async function runReadOnlySql(

@@ -6,6 +6,7 @@ import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /**
  * 按范围覆盖同步交易日历，供交易日期判断使用。
+ *
  * Sync the trading calendar (range overwrite).
  */
 export async function syncTradeCal(

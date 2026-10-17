@@ -8,6 +8,7 @@ import { getResearchDocument } from './read.js';
 
 /**
  * 从当前用户拥有的不可变回测报告创建研究文档。
+ *
  * Create a Research document that starts from one owned immutable BacktestReport.
  */
 export async function createResearchDocumentFromBacktestReport(

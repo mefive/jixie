@@ -38,6 +38,7 @@ import { researchCapabilityCatalog } from './capabilities.js';
 
 /**
  * 限定研究目录的关键词、范围和资产筛选。
+ *
  * Configure research catalog terms, scope and asset filters.
  */
 export interface ResearchDataCatalogQuery {
@@ -53,6 +54,7 @@ const DEFAULT_DATASET_LIMIT = 100;
 
 /**
  * 搜索平台治理的研究对象，只返回所请求资产类型可用的指标。
+ *
  * Search platform-governed instruments and return the measures valid for the requested asset type.
  */
 export async function searchResearchDataCatalog(
@@ -349,6 +351,7 @@ export async function searchResearchDataCatalog(
 
 /**
  * 按目录范围列出合法 SDK 方法，供候选过滤。
+ *
  * List supported SDK methods for a catalog scope.
  */
 function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
@@ -388,6 +391,7 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
 
 /**
  * 根据语义请求筛选数据集及其参数，供目录选择。
+ *
  * Filter governed datasets and parameters for a semantic catalog request.
  */
 async function searchDatasets(
@@ -550,6 +554,7 @@ async function searchDatasets(
 
   /**
    * 构造股票截面和 Panel 数据集目录项，保留证券池与 PIT 约束。
+   *
    * Build equity cross-section and panel catalog entries with universe and PIT constraints.
    */
   const equityDatasets = RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1.flatMap((universe) => {
@@ -689,6 +694,7 @@ async function searchDatasets(
 
   /**
    * 构造商品研究数据集目录，明确实际合约和研究代理边界。
+   *
    * Build commodity research catalog entries with actual-contract and proxy boundaries.
    */
   const commodityDatasets = RESEARCH_COMMODITY_PRODUCT_CODES_V1.flatMap((product) => {
@@ -916,6 +922,7 @@ async function searchDatasets(
 
   /**
    * 构造财务证券池数据集目录，保留指标、字段与报告期选项。
+   *
    * Build financial universe catalog entries with metric, field and reporting-period options.
    */
   const financialUniverseDatasets: ResearchDataCatalogDatasetV1[] =
@@ -991,6 +998,7 @@ async function searchDatasets(
 
 /**
  * 整理股票证券池标识与覆盖，供数据集目录展示。
+ *
  * Describe equity-universe identifiers and coverage for the dataset catalog.
  */
 function equityUniverseMeta(universe: string): { nameZh: string; nameEn: string; tags: string[] } {
@@ -1008,6 +1016,7 @@ function equityUniverseMeta(universe: string): { nameZh: string; nameEn: string;
 
 /**
  * 整理公开利率曲线来源与期限，供精确目录选择。
+ *
  * Describe public yield-curve sources and tenors for exact catalog selection.
  */
 function yieldCurveMeta(curve: (typeof RESEARCH_YIELD_CURVE_CODES_V1)[number]): {
@@ -1057,6 +1066,7 @@ function yieldCurveMeta(curve: (typeof RESEARCH_YIELD_CURVE_CODES_V1)[number]): 
 
 /**
  * 整理已声明外汇序列及报价币种，供目录引用。
+ *
  * Describe declared FX series and quote currencies for catalog references.
  */
 function fxSeriesMeta(pair: ResearchFxSeriesIdV1): {
@@ -1113,6 +1123,7 @@ function datasetCoverageByProduct(
 
 /**
  * 整理已支持商品产品与研究数据覆盖。
+ *
  * Describe supported commodity products and research-data coverage.
  */
 function commodityProductMeta(product: (typeof RESEARCH_COMMODITY_PRODUCT_CODES_V1)[number]): {
@@ -1134,6 +1145,7 @@ function commodityProductMeta(product: (typeof RESEARCH_COMMODITY_PRODUCT_CODES_
 
 /**
  * 整理市场状态可查询范围及稳定标识，供 SDK 参数生成。
+ *
  * Describe supported market-state scopes and stable identifiers for SDK arguments.
  */
 function marketStateScopeMeta(scope: (typeof RESEARCH_MARKET_STATE_SCOPES_V1)[number]): {
@@ -1167,6 +1179,7 @@ function marketStateScopeMeta(scope: (typeof RESEARCH_MARKET_STATE_SCOPES_V1)[nu
 
 /**
  * 将目录期限转换为年数，供匹配与排序。
+ *
  * Convert catalog tenors to years for matching and sorting.
  */
 function yieldTenorYears(tenor: (typeof RESEARCH_YIELD_TENORS_V1)[number]): number {
@@ -1201,6 +1214,7 @@ function datasetSearchText(dataset: ResearchDataCatalogDatasetV1): string {
 
 /**
  * 从数据集定义提取合法标识选项，供目录参数校验。
+ *
  * Extract supported identifiers from dataset definitions for argument validation.
  */
 function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
@@ -1232,6 +1246,7 @@ function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
 
 /**
  * 取多个数据集覆盖交集，供共同可运行窗口说明。
+ *
  * Intersect dataset coverage to describe common usable bounds.
  */
 function intersectDatasetCoverage(
@@ -1264,6 +1279,7 @@ function missingDatasetCoverage(): ResearchDataCatalogDatasetCoverageV1 {
 
 /**
  * 按用户权限搜索冻结回测报告，返回可用于 Research 的稳定引用。
+ *
  * Search authorized frozen backtest reports and return stable research references.
  */
 async function searchBacktestReports(
@@ -1319,6 +1335,7 @@ async function searchBacktestReports(
 
 /**
  * 按用户权限搜索扫描报告，提供可重用的报告身份。
+ *
  * Search authorized scan reports for reusable report identities.
  */
 async function searchStrategyScanReports(
@@ -1380,6 +1397,7 @@ async function searchStrategyScanReports(
 
 /**
  * 只搜索可见因子报告，防止未揭示保留段通过目录泄露。
+ *
  * Search visible factor reports without exposing sealed holdout results.
  */
 async function searchFactorReports(
@@ -1446,6 +1464,7 @@ async function searchFactorReports(
 
 /**
  * 搜索可访问因子气象及其刷新结果，供研究引用。
+ *
  * Search accessible factor-weather results for research references.
  */
 async function searchFactorWeather(
@@ -1491,6 +1510,7 @@ function factorReportPhase(value: string): ResearchDataCatalogFactorReportV1['ph
 
 /**
  * 规范化目录因子报告的分析种类，供匹配和展示。
+ *
  * Normalize factor report analysis kinds for catalog matching and rendering.
  */
 function factorAnalysisKind(value: string): FactorAnalysisKind {
@@ -1506,6 +1526,7 @@ function factorAnalysisKind(value: string): FactorAnalysisKind {
 
 /**
  * 为目录候选附加本地数据起止范围与记录覆盖。
+ *
  * Attach local data bounds and coverage to catalog candidates.
  */
 async function attachLocalDataCoverage(
@@ -1677,6 +1698,7 @@ function dataCatalogRegistry(membership: EtfResearchMembership): ResearchDataCat
 
 /**
  * 将已验证证券映射为带合法 measure 的目录项。
+ *
  * Map a verified instrument into a catalog entry with supported measures.
  */
 function instrument(
@@ -1722,6 +1744,7 @@ function uniqueRankedInstruments(
 
 /**
  * 根据精确身份、名称和语义匹配为目录候选评分。
+ *
  * Score catalog candidates using identity, name and semantic matches.
  */
 function catalogScore(item: ResearchDataCatalogInstrumentV1, query: string): number {

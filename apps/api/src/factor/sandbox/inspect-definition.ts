@@ -3,6 +3,7 @@ import { pythonFactorTargetAssetClasses } from './python/validator.js';
 
 /**
  * 静态解析因子目标资产类别，不启动作者运行时。
+ *
  * Inspect declared factor asset classes without running authored code.
  */
 export async function inspectFactorTargetAssetClasses(input: {

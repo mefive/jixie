@@ -30,6 +30,7 @@ export async function listOwnedFactors(userId: string) {
 
 /**
  * 按访问权限读取因子定义及当前相关状态。
+ *
  * Read an authorized factor definition and its related state.
  */
 export async function readFactorDefinition(userId: string, factorId: string, locale: Locale) {

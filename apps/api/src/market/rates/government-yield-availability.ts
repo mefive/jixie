@@ -7,6 +7,7 @@ import {
 
 /**
  * 返回所需期限最近可见利率及陈旧性，供下游自行准入。
+ *
  * Return the latest visible yield and age per tenor for downstream admission.
  */
 export interface GovernmentYieldAvailability {
@@ -16,6 +17,7 @@ export interface GovernmentYieldAvailability {
 
 /**
  * 为每个所需期限加载最新时点可得的官方利率观测。
+ *
  * Load the latest point-in-time observation for each requested maturity.
  */
 export async function loadGovernmentYieldAvailability(

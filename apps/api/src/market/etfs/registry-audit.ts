@@ -11,6 +11,7 @@ import {
 
 /**
  * 汇总单 ETF 身份与历史覆盖审计。
+ *
  * Summarize one ETF's identity and historical coverage audit.
  */
 export interface EtfRegistryProductAudit {
@@ -36,6 +37,7 @@ export interface EtfRegistryProductAudit {
 
 /**
  * 聚合注册 ETF 的覆盖与错误，供研究清单准入。
+ *
  * Collect registered ETF coverage and errors for research readiness.
  */
 export interface EtfRegistryAuditReport {
@@ -52,6 +54,7 @@ export interface EtfRegistryAuditReport {
 
 /**
  * 对研究 ETF 清单逐项核验身份、有效区间与历史覆盖。
+ *
  * Audit identities, membership periods and historical coverage of research ETFs.
  */
 export async function auditEtfResearchRegistry(
@@ -181,6 +184,7 @@ export async function auditEtfResearchRegistry(
 
   /**
    * 逐 ETF 核对身份、成员区间及各数据集历史覆盖。
+   *
    * Audit each ETF's identity, membership and dataset coverage.
    */
   const rows = codes.map((tsCode): EtfRegistryProductAudit => {
@@ -325,6 +329,7 @@ async function latestRegistryAuditDate(database: Prisma): Promise<string> {
 
 /**
  * 验证 ETF 所需历史键覆盖，向审计报告返回明确缺口。
+ *
  * Validate required ETF history keys and report explicit coverage gaps.
  */
 function validateCoverage(

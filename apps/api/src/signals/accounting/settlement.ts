@@ -16,6 +16,7 @@ import { loadMarketQuotes, nextTradingDate } from './quotes.js';
 
 /**
  * 结算所有执行日已被发布市场数据覆盖的账户。
+ *
  * Settle every account whose execution date is now covered by published market data.
  */
 export async function settleStrategyAccounts(
@@ -58,6 +59,7 @@ export async function settleStrategyAccounts(
 
 /**
  * 从部署基线重建账户，顺序重放已发布执行日及其输入。
+ *
  * Rebuild a deployment account from its baseline and published execution inputs.
  */
 export async function rebuildDeploymentAccount(

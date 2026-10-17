@@ -19,6 +19,7 @@ import { analysisView, versionView } from './views.js';
 
 /**
  * 为已授权业务实体创建嵌入式分析及初始版本。
+ *
  * Create embedded analysis and its initial version for an authorized host entity.
  */
 export async function createEmbeddedAnalysis(
@@ -50,6 +51,7 @@ export async function createEmbeddedAnalysis(
 
 /**
  * 从现有分析版本派生可编辑版本，保留来源血缘。
+ *
  * Derive an editable analysis version with provenance from its parent.
  */
 export async function deriveEmbeddedVersion(
@@ -85,6 +87,7 @@ export async function deriveEmbeddedVersion(
 
 /**
  * 只更新仍可编辑的分析版本，成功冻结后要求派生新版本。
+ *
  * Update only editable analysis versions and require derivation after successful freezing.
  */
 export async function updateEmbeddedVersion(
@@ -164,6 +167,7 @@ export async function ownedAnalysis(
 
 /**
  * 保存版本源码、上下文与来源身份，供嵌入式运行复用。
+ *
  * Persist version source, context and provenance for embedded execution.
  */
 async function createVersion(

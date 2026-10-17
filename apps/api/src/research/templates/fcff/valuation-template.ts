@@ -18,6 +18,7 @@ import { EQUITY_FCFF_REPLAY_CASES, equityFcffParameterSource } from './replay-ca
 
 /**
  * 提供估值模板初始 Cell 的类型和源码。
+ *
  * Supply initial valuation-template cell kinds and source.
  */
 export interface ResearchTemplateCellSeed {
@@ -547,6 +548,7 @@ narrative_review`;
 
 /**
  * 构造包含数据、情景与限制说明的 FCFF 估值研究文档模板。
+ *
  * Construct an FCFF valuation research template with data, scenarios and methodological limits.
  */
 export function equityFcffValuationTemplate(): {

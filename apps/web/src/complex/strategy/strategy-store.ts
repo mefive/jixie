@@ -70,12 +70,14 @@ import { PANEL_ASSET_IDS } from '../factor/panel-universe';
 
 /**
  * 指定策略路由的已保存身份与初始状态。
+ *
  * Configure saved strategy identity and initial route state.
  */
 type StrategySetupParams = { id?: string; report?: string; isNew?: boolean; factorKey?: string };
 
 /**
  * 区分部署与暂停动作，供统一异步变更。
+ *
  * Discriminate deployment and pause actions for async mutations.
  */
 type DeploymentAction =
@@ -149,6 +151,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 登记策略配置、报告及运行状态的可观察属性。
+   *
    * Register observable strategy configuration, report and execution state.
    */
   public constructor(parentStore?: any) {
@@ -193,6 +196,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 配置策略、报告比较、扫描、部署与 Agent 流状态，注册所有清理。
+   *
    * Initialize strategy, report comparison, scan, deployment and agent state with cleanup.
    */
   public setup(params: StrategySetupParams) {
@@ -240,6 +244,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.factorLoader.setup({
       /**
        * 读取已发布因子及批准报告，为策略引用补全提供可用资产范围。
+       *
        * Load a published factor and approved report to describe supported assets for strategy references.
        */
       request: async (factorKey: string) => {
@@ -332,6 +337,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 判断回测是否在运行，供加载和进度显示。
+   *
    * True while a backtest is running (drives the loading state + progress log).
    */
   public get running(): boolean {
@@ -340,6 +346,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 识别尚未保存、编辑或运行的初始策略，供提示词优先入口。
+   *
    * Untouched starter strategy (no saved id, default code, no run, no chat) → show the prompt-first hero.
    */
   public get isFresh(): boolean {
@@ -350,6 +357,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 比较上次运行相关配置，名称变化不使回测失效。
+   *
    * The run-relevant config (range/capital/code — NOT name) changed since the last run. Gates Run-backtest:
    * a never-run strategy has an empty baseline → dirty → runnable; a fresh run resets the baseline.
    */
@@ -359,6 +367,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 比较当前代码和参数与数据库持久配置，供未保存离开提示。
+   *
    * The code/params differ from what's PERSISTED in the DB — i.e. there are unrun edits that leaving
    * would lose. Gates the leave guard (New / switch strategy / refresh). A just-opened strategy is NOT edited (even
    * if never run → dirty), so opening one doesn't false-warn.
@@ -369,6 +378,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 依据不可变报告身份选择部署，忽略当前可变编辑状态。
+   *
    * Report identity governs deployment; mutable editor state is irrelevant.
    */
   public get deployment(): StrategyDeployment | null {
@@ -391,6 +401,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 判断是否正在查看最近回测，保持独立成交页与最近运行关联。
+   *
    * The standalone trade page remains tied to the latest run.
    */
   public get viewingLatestBacktest(): boolean {
@@ -400,6 +411,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 将日期、资本和作者代码组装为可运行回测配置。
+   *
    * Range/capital + the strategy code → a runnable BacktestConfig.
    */
   public get config(): BacktestConfig {
@@ -472,6 +484,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 先确保策略持久化，再发送 Agent 消息并连接增量响应。
+   *
    * One Agent turn — streamed. Append the user message locally, ensure the strategy exists (the
    * first prompt creates it, LLM-named from that request), START the turn (server persists both the
    * user message and the reply onto the strategy row), then subscribe to its SSE stream; the reply
@@ -543,6 +556,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 提供新轮次与刷新重连共用的终态处理。
+   *
    * Terminal-event handlers shared by sendAgent and the refresh reattach.
    */
   private turnHandlers(): AgentTurnHandlers {
@@ -601,6 +615,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 按策略身份查找活动对话并重新订阅，通过快照恢复内容。
+   *
    * Refresh reattach: if this strategy has a live turn, subscribe (snapshot replays what we missed).
    */
   private async reattachTurn() {
@@ -623,6 +638,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 首次提示或手写策略首次运行前先创建持久化策略记录。
+   *
    * Create the strategy row if it doesn't exist yet (first Agent prompt, or a first run of a
    * hand-written strategy). The server names it from the prompt when given, else from the code. The
    * baseline is left empty so a never-run strategy is dirty (→ runnable). Best-effort.
@@ -652,6 +668,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 重置为新的空策略骨架及未运行编辑基线。
+   *
    * Start fresh: a blank skeleton strategy. Empty baseline → dirty → Run-backtest enabled.
    */
   public newStrategy(language: StrategyLanguage = 'typescript') {
@@ -696,6 +713,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 将当前不可变报告提交为信号部署并刷新关联状态。
+   *
    * Deploy the selected immutable report and refresh deployment state.
    */
   public async deploy() {
@@ -736,6 +754,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 暂停已选部署并刷新状态，保持当前报告关联。
+   *
    * Pause the selected deployment and refresh its state.
    */
   public async pauseDeployment() {
@@ -770,6 +789,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 提交回测作为配置持久化点，记录新报告身份并启动后台进度轮询。
+   *
    * Run a backtest. This is the commit point: it persists the current config (code/range/capital) onto
    * the strategy, replaces the shown result with the new run, and re-derives the name from the code.
    */
@@ -805,6 +825,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 根据保存的 jobId 重连仍在运行的回测，不重复提交。
+   *
    * Re-attach to a still-running backtest (jobId from localStorage) without resubmitting.
    */
   public resume(jobId: string) {
@@ -819,6 +840,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 将 Worker 增量日志追加到当前回测输出。
+   *
    * Append log lines streamed from the backtest worker.
    */
   public appendLogs(lines: LogLine[]) {
@@ -829,6 +851,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 恢复已保存配置到编辑器，调用方另行管理结果和报告身份。
+   *
    * Reflect a full saved BacktestConfig back into the editor (name + range/capital + code). The caller
    * (openSaved) sets the `dirty` baseline, since it depends on whether a run result exists.
    */
@@ -846,6 +869,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 序列化影响运行的配置以判断 dirty，名称不参与。
+   *
    * Serialize the RUN-relevant config for `dirty` (excludes name — a rename doesn't invalidate a run).
    */
   private configKey(): string {
@@ -876,6 +900,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 将已提交配置设为运行与持久化基线，重置两种变更判断。
+   *
    * A run committed the current config: it's both the new run baseline (dirty) and persisted (edited).
    */
   private markSaved() {
@@ -886,6 +911,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 打开已保存策略、恢复配置和最近结果，并重连活动回测。
+   *
    * Reopen a saved strategy: load its config + last result, and re-attach to a running backtest if one
    * is still in flight for it (so a refresh continues streaming logs instead of losing the run).
    */
@@ -984,6 +1010,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 删除已保存策略后刷新列表。
+   *
    * Delete a saved strategy, then refresh the list.
    */
   public removeSaved(id: string) {
@@ -1014,6 +1041,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 轮询扫描任务并在终态后加载持久化报告。
+   *
    * Poll a scan job and load its persisted report at completion.
    */
   private async pollScanOnce(): Promise<false | void> {
@@ -1052,6 +1080,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 单次轮询追加回测日志，完成、失败或过期时返回 false 停止。
+   *
    * One poll tick — append new logs; return false to stop the poller (done / error / expired).
    */
   private async pollOnce(): Promise<false | void> {
@@ -1117,6 +1146,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 读取明确历史报告并更新查看身份，不覆盖当前编辑配置。
+   *
    * Load an explicit historical report and update viewed identity independently of editing.
    */
   public async viewBacktestReport(reportId: string) {
@@ -1138,6 +1168,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   /**
    * 加载比较报告并校验当前选择，避免旧请求覆盖新比较。
+   *
    * Load a comparison report under selection guards against stale requests.
    */
   public async loadBacktestComparison(reportId: string) {

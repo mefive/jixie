@@ -15,6 +15,7 @@ const TUSHARE_NAME_CHANGE_ROW_LIMIT = 10_000;
 
 /**
  * 先完成全部上游请求，再原子替换完整股票主表。
+ *
  * Sync the complete stock master. All upstream calls finish before the atomic replacement starts.
  */
 export async function syncStockBasic(client: TushareClient): Promise<number> {
@@ -50,6 +51,7 @@ export async function syncStockBasic(client: TushareClient): Promise<number> {
 
 /**
  * 幂等写入交易所已确认的证券代码接续清单。
+ *
  * Seed the small, exchange-confirmed code-succession registry idempotently.
  */
 export async function seedStockCodeChanges(): Promise<number> {
@@ -71,6 +73,7 @@ export async function seedStockCodeChanges(): Promise<number> {
 
 /**
  * 递归或分段获取历史名称，避免来源请求行数截断。
+ *
  * Fetch bounded name-change history without source truncation.
  */
 async function fetchNameChangeRange(
@@ -99,6 +102,7 @@ async function fetchNameChangeRange(
 
 /**
  * 完整分段抓取后替换时点名称区间表。
+ *
  * Replace the small point-in-time name-spell table after a complete segmented upstream fetch.
  */
 export async function syncStockNameHistory(

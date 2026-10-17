@@ -5,6 +5,7 @@ import { syncTopList } from '../stocks/flows-sync.js';
 
 /**
  * 按交易日同步龙虎榜净买入，供精确日期查询。
+ *
  * Sync Dragon-Tiger List (LHB) net buy per day into TopList — read exact-date via ctx.lhbNet(code).
  * Resumable. Usage: pnpm sync toplist [start] [end]   e.g. pnpm sync toplist 20200101 20241231
  */

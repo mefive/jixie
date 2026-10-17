@@ -4,6 +4,7 @@ import type { AuditFinding } from '../quality/report.js';
 
 /**
  * 提供完整股票身份与上市状态，供证券池审计。
+ *
  * Supply stock identities and listing status for universe auditing.
  */
 export interface StockMasterRow {
@@ -13,6 +14,7 @@ export interface StockMasterRow {
 
 /**
  * 记录股票历史行情覆盖，供主表与数据对照。
+ *
  * Describe stock price coverage for comparison with the master list.
  */
 export interface StockCoverageRow {
@@ -23,6 +25,7 @@ export interface StockCoverageRow {
 
 /**
  * 核验股票主表与上市历史及本地数据覆盖，识别研究范围缺口。
+ *
  * Audit the stock master, listing history and local data coverage for universe gaps.
  */
 export async function auditStockUniverse(database: Prisma): Promise<AuditFinding> {

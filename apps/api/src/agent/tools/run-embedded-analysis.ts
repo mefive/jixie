@@ -30,6 +30,7 @@ import type { AgentTool } from './types.js';
 
 /**
  * 绑定嵌入式分析的版本、用户与会话归属，约束工具执行范围。
+ *
  * Bind embedded analysis to its authorized user, version and conversation.
  */
 export interface EmbeddedAnalysisToolContext {
@@ -50,6 +51,7 @@ const readSchema = z.strictObject({ analysisId: z.string().min(1), runId: z.stri
 
 /**
  * 为已授权实体构造嵌入式分析工具，复用研究执行和证据留存能力。
+ *
  * Construct authorized embedded-analysis tools using research execution and evidence persistence.
  */
 export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): AgentTool[] {
@@ -73,6 +75,7 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
 
       /**
        * 创建并执行嵌入式分析，将确切运行记录留存在当前对话中。
+       *
        * Create and execute embedded analysis while retaining the exact run in the conversation.
        */
       async run(raw, execution) {
@@ -180,6 +183,7 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
 
       /**
        * 按绑定实体的分析上下文分派版本或运行读取，供工具观察。
+       *
        * Dispatch embedded version or run reads under the bound entity context.
        */
       async run(raw) {
@@ -202,6 +206,7 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
 
 /**
  * 将嵌入式运行结果压缩为模型观察，保留执行与产物引用。
+ *
  * Summarize an embedded run for the model while retaining execution and artifact references.
  */
 function embeddedObservation(

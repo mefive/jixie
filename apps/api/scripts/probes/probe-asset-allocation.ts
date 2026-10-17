@@ -12,6 +12,7 @@ import { TUSHARE_CAPABILITIES } from '#market/providers/tushare/capability-catal
 
 /**
  * 解析探测日期并校验格式，供上游能力请求使用。
+ *
  * Resolve and validate a probe date for upstream capability requests.
  */
 function probeDate(args: string[]): string {
@@ -50,6 +51,7 @@ function displayRows(results: AssetAllocationProbeResult[]) {
 
 /**
  * 执行资产配置来源探测并按配置保存或输出证据。
+ *
  * Probe allocation data sources and persist or print the resulting evidence.
  */
 async function main(): Promise<void> {

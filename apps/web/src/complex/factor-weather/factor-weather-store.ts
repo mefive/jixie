@@ -10,6 +10,7 @@ import {
 
 /**
  * 区分气象固定、刷新与移除变更，供 Loader 穷尽分派。
+ *
  * Discriminate weather pin, refresh and removal mutations for loader dispatch.
  */
 type FactorWeatherMutation =
@@ -27,6 +28,7 @@ export class FactorWeatherStore extends BaseStore {
 
   /**
    * 配置气象目录、变更和轮询 Loader，并注册页面退出清理。
+   *
    * Configure weather catalog, mutation and polling loaders with page cleanup.
    */
   public setup() {
@@ -38,6 +40,7 @@ export class FactorWeatherStore extends BaseStore {
 
       /**
        * 按固定、刷新或移除操作调用气象接口，供统一 Loader 管理状态。
+       *
        * Dispatch pin, refresh and unpin operations through the weather mutation loader.
        */
       request: async (mutation: FactorWeatherMutation) => {

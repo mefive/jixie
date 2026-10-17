@@ -13,6 +13,7 @@ export const COMMODITY_WAREHOUSE_RECEIPT_MAX_STALENESS_DAYS = 7;
 
 /**
  * 提供有可得日期与单位的仓单点，供因子时点对齐。
+ *
  * Supply receipt observations with units and availability dates for factor alignment.
  */
 export interface CommodityWarehouseReceiptResearchPoint {
@@ -29,6 +30,7 @@ export interface CommodityWarehouseReceiptResearchPoint {
 
 /**
  * 绑定仓单产品与 ETF 目标，供产品本地时间序列检验。
+ *
  * Bind a warehouse-receipt product to its ETF return target.
  */
 interface CommodityWarehouseReceiptTimeSeriesMapping {
@@ -50,6 +52,7 @@ const COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_MAPPINGS: CommodityWarehouseReceip
 
 /**
  * 用商品本地仓单变换检验对应复权 ETF 前瞻收益。
+ *
  * Tests a product-local warehouse-receipt transform against its mapped adjusted ETF return.
  */
 export async function loadCommodityWarehouseReceiptTimeSeriesObservations(
@@ -127,6 +130,7 @@ export async function loadCommodityWarehouseReceiptTimeSeriesObservations(
 
 /**
  * 构造仓单特征与 ETF 前瞻收益观测，传播缺失、来源与窗口诊断。
+ *
  * Build warehouse-receipt features and ETF forward returns with source and window diagnostics.
  */
 export async function buildCommodityWarehouseReceiptTimeSeriesObservations(
@@ -211,6 +215,7 @@ export function timeSeriesFactorUsesCommodityWarehouseReceipts(
 
 /**
  * 验证仓单时间序列协议的产品、变换和评估范围。
+ *
  * Validate product, transform and scope in the warehouse-receipt time-series protocol.
  */
 function assertCommodityWarehouseReceiptTimeSeriesProtocol(
@@ -251,6 +256,7 @@ function assertCommodityWarehouseReceiptTimeSeriesProtocol(
 
 /**
  * 按 ETF 组织并校验行情，为仓单研究计算目标收益。
+ *
  * Validate and group ETF bars for warehouse-receipt research targets.
  */
 function groupAndValidateEtfRows(
@@ -283,6 +289,7 @@ function groupAndValidateEtfRows(
 
 /**
  * 校验并分组商品仓单点，保留单位与可得日期限制。
+ *
  * Validate and group receipt observations with units and availability constraints.
  */
 function groupAndValidateWarehouseReceiptPoints(
@@ -328,6 +335,7 @@ function groupAndValidateWarehouseReceiptPoints(
 
 /**
  * 按可得日期将仓单观测对齐 ETF 决策日，不回填未来发布。
+ *
  * Align receipt observations to ETF decisions without backfilling future releases.
  */
 function alignWarehouseReceiptsToEtfDates(

@@ -5,6 +5,7 @@ import type { AssetAllocationProbeResult } from './asset-allocation-probe.js';
 
 /**
  * 持久化一次能力探测的时间与结果，供最新可用性查询。
+ *
  * Describe persisted timestamped probes for current availability queries.
  */
 export interface StoredTushareCapabilityProbe {
@@ -28,6 +29,7 @@ export interface StoredTushareCapabilityProbe {
 
 /**
  * 保存 Tushare 能力探测结果与时间，供后续覆盖展示。
+ *
  * Persist timestamped Tushare capability probe results for coverage inspection.
  */
 export async function persistTushareCapabilityProbes(
@@ -60,6 +62,7 @@ export async function persistTushareCapabilityProbes(
 
 /**
  * 读取各能力最新探测记录，供目录展示当前可用性。
+ *
  * Read the latest probe per capability for current availability reporting.
  */
 export async function latestTushareCapabilityProbes(
@@ -115,6 +118,7 @@ export async function latestTushareCapabilityProbes(
 
 /**
  * 检查探测时间与当前要求，判断能力结果是否仍新鲜。
+ *
  * Check probe timestamps against freshness requirements.
  */
 export async function tushareCapabilityProbesAreFresh(

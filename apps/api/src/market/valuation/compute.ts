@@ -7,6 +7,7 @@ import type {
 
 /**
  * 提供指数官方估值历史，供分位序列计算。
+ *
  * Supply official index valuation history for percentile series.
  */
 type IndexBasicRow = {
@@ -27,6 +28,7 @@ const METRICS: IndexValuationMetric[] = ['peTtm', 'pb', 'pe', 'turnoverRate'];
 
 /**
  * 按指数历史估值计算可展示数值及分位序列，保留缺失。
+ *
  * Build index valuation and historical-percentile series while preserving missing values.
  */
 export function buildIndexValuationSeries(
@@ -98,6 +100,7 @@ function lastNonNull(points: IndexValuationPoint[], metric: IndexValuationMetric
 
 /**
  * 计算当前数值在已提供历史样本中的分位位置。
+ *
  * Compute a value's percentile position within the supplied historical sample.
  */
 function percentileRank(

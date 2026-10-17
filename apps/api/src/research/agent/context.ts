@@ -20,6 +20,7 @@ const MAX_RESEARCH_AGENT_OUTPUT_BLOCKS = 10;
 
 /**
  * 保留提供给 Agent 的单 Cell 源码与执行上下文。
+ *
  * Describe a cell's source and execution context supplied to the agent.
  */
 interface ResearchAgentDocumentCell {
@@ -38,6 +39,7 @@ interface ResearchAgentDocumentCell {
 
 /**
  * 限定 Agent 可见的文档快照，供有界上下文构造。
+ *
  * Describe the document snapshot used to build bounded agent context.
  */
 interface ResearchAgentDocument {
@@ -50,6 +52,7 @@ interface ResearchAgentDocument {
 
 /**
  * 保留完整持久消息，仅向模型发送有界且与当前决策相关的文本。
+ *
  * Keep durable chat history intact while sending only bounded, decision-relevant text to the LLM.
  */
 export function compactResearchAgentHistory(history: ChatMessage[]): ChatMessage[] {
@@ -104,6 +107,7 @@ export function compactResearchAgentHistory(history: ChatMessage[]): ChatMessage
 
 /**
  * 构建有界文档快照，并标记完整源码已提供、可安全编辑的 Cell。
+ *
  * Build a bounded document snapshot and identify Cells whose complete source is safe to edit.
  */
 export function researchAgentDocumentContext(
@@ -177,6 +181,7 @@ export function researchAgentDocumentContext(
 
   /**
    * 为纳入上下文的 Cell 分配来源角色并裁剪源码及输出摘要。
+   *
    * Assign context roles and bounded source and output summaries to included cells.
    */
   const includedCells = contextCells.map((cell) => {
@@ -292,6 +297,7 @@ function outputType(output: unknown): string {
 
 /**
  * 将不同 Cell 输出压缩为适合模型上下文的摘要，避免携带大表或二进制内容。
+ *
  * Summarize cell outputs for model context without embedding large tables or binary data.
  */
 function summarizeResearchOutput(output: unknown): Record<string, unknown> {

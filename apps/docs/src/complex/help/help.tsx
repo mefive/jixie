@@ -31,6 +31,7 @@ import './help.css';
 
 /**
  * 组合帮助目录、文章和语言导航，供公开学习文档入口。
+ *
  * Compose the help catalog, articles and language navigation for public learning documentation.
  */
 export const Help = complex.component(() => {
@@ -153,6 +154,7 @@ const LEARNING_PATHS = [
 
 /**
  * 呈现学习路径与文章入口，帮助用户选择研究主题。
+ *
  * Present learning paths and article entry points for selecting a research topic.
  */
 function HelpLanding() {
@@ -254,6 +256,7 @@ function HelpLanding() {
 
 /**
  * 保留章节标题、层级与锚点，供文章导航。
+ *
  * Retain heading text, level and anchor for article navigation.
  */
 type Heading = {
@@ -264,6 +267,7 @@ type Heading = {
 
 /**
  * 区分普通 Markdown 与语言代码标签组，供帮助渲染。
+ *
  * Discriminate Markdown and language-code tab segments for help rendering.
  */
 type HelpMarkdownSegment =
@@ -274,6 +278,7 @@ const helpMarkdownConfig = { extensions: Latex() };
 
 /**
  * 根据文章与标题生成相邻导航，供帮助页阅读。
+ *
  * Build article and heading navigation for help-page reading.
  */
 function ArticleNavigation({
@@ -345,6 +350,7 @@ function ArticlePager({
 
 /**
  * 渲染帮助 Markdown 并处理章节、代码标签与站内链接。
+ *
  * Render help Markdown with heading, code-tab and internal-link handling.
  */
 function HelpMarkdown({ content }: { content: string }) {
@@ -418,6 +424,7 @@ function HelpCodeBlock({
 
 /**
  * 在同一示例中切换 Python 与 TypeScript 代码，保持上下文一致。
+ *
  * Switch between Python and TypeScript examples within the same documentation context.
  */
 function LanguageCodeTabs({ typescript, python }: { typescript: string; python: string }) {
@@ -515,6 +522,7 @@ function createHeading(level: 1 | 2 | 3) {
 
 /**
  * 按链接目标选择站内导航或外部链接行为。
+ *
  * Choose internal navigation or external-link behavior from a help link target.
  */
 function HelpLink({
@@ -547,6 +555,7 @@ function HelpLink({
 
 /**
  * 将相邻代码块整理为语言标签组，保留非代码内容顺序。
+ *
  * Group adjacent code blocks into language tabs while preserving surrounding content order.
  */
 function splitCodeTabs(markdown: string): HelpMarkdownSegment[] {
@@ -570,6 +579,7 @@ function splitCodeTabs(markdown: string): HelpMarkdownSegment[] {
 
 /**
  * 将代码语言别名规范化为帮助页支持的语言标签。
+ *
  * Normalize code-language aliases into supported help tab labels.
  */
 function normalizeCodeLanguage(language?: string): string {

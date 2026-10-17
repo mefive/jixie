@@ -8,6 +8,7 @@ import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /**
  * 同步商品主力映射并重建仅用于研究的收益账本，不生成可交易连续价格。
+ *
  * Sync Tushare main mappings and rebuild the audited research-only commodity return ledger.
  * Usage: pnpm --filter api sync commodity-continuous [start] [end]
  */

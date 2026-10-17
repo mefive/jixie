@@ -7,6 +7,7 @@ export type CommodityWarehouseReceiptQualityStatus = 'pass' | 'warn' | 'error';
 
 /**
  * 提供仓单质量审计的来源日期、数量与单位。
+ *
  * Supply source dates, quantities and units for receipt quality auditing.
  */
 export interface CommodityWarehouseReceiptQualityRow {
@@ -24,6 +25,7 @@ export interface CommodityWarehouseReceiptQualityRow {
 
 /**
  * 汇总单商品仓单覆盖、陈旧性与异常。
+ *
  * Summarize receipt coverage, staleness and anomalies for one product.
  */
 export interface CommodityWarehouseReceiptProductQuality {
@@ -37,6 +39,7 @@ export interface CommodityWarehouseReceiptProductQuality {
 
 /**
  * 聚合仓单质量发现，供维护门禁与研究说明。
+ *
  * Collect receipt quality findings for maintenance gating and research limits.
  */
 export interface CommodityWarehouseReceiptQualitySummary {
@@ -53,6 +56,7 @@ export interface CommodityWarehouseReceiptQualitySummary {
 
 /**
  * 限定仓单审计范围及新鲜度要求。
+ *
  * Bound receipt audit dates and freshness requirements.
  */
 interface CommodityWarehouseReceiptQualityOptions {
@@ -67,6 +71,7 @@ const MAXIMUM_INVALID_ROW_DETAILS = 8;
 
 /**
  * 审计维护和因子研究所用的有界仓单窗口。
+ *
  * Audits the bounded warehouse-receipt window used by maintenance and Factor research.
  */
 export async function auditCommodityWarehouseReceipts(
@@ -114,6 +119,7 @@ export async function auditCommodityWarehouseReceipts(
 
 /**
  * 按产品统计仓单覆盖、陈旧性与异常，生成质量摘要。
+ *
  * Summarize warehouse-receipt coverage, staleness and anomalies by product.
  */
 export function summarizeCommodityWarehouseReceiptQuality(
@@ -213,6 +219,7 @@ export function summarizeCommodityWarehouseReceiptQuality(
 
   /**
    * 汇总各产品仓单最新观测、可得日与质量状态。
+   *
    * Summarize each product's latest receipts, availability and quality state.
    */
   const products = COMMODITY_FUTURE_SPECS.map((specification) => {
@@ -273,6 +280,7 @@ export function summarizeCommodityWarehouseReceiptQuality(
 
 /**
  * 验证仓单质量窗口与新鲜度配置。
+ *
  * Validate receipt quality windows and freshness settings.
  */
 function assertOptions(options: CommodityWarehouseReceiptQualityOptions): void {

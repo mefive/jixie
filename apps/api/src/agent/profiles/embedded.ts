@@ -7,6 +7,7 @@ import { createSearchResearchCatalogTool } from '../tools/search-research-catalo
 
 /**
  * 只为服务端已确认归属的页面入口注入可持久化嵌入式计算能力。
+ *
  * Only page entry points with server-resolved ownership enable the persisted runner.
  */
 export function withEmbeddedAnalysis(

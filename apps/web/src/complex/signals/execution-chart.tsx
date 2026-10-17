@@ -4,6 +4,7 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 /**
  * 将模型和实际账户历史绘制为执行比较曲线。
+ *
  * Plot model and actual account histories for execution comparison.
  */
 export default function ExecutionChart({ overview }: { overview: StrategyExecutionOverview }) {

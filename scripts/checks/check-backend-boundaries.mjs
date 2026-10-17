@@ -78,6 +78,7 @@ function walk(directory) {
 
 /**
  * 只读取语法并解析依赖，不加载或执行应用模块。
+ *
  * Read syntax and resolve dependencies without loading or evaluating application modules.
  */
 export function collectBackendDependencies(root) {
@@ -127,6 +128,7 @@ export function collectBackendDependencies(root) {
 
     /**
      * 解析静态模块引用并记录类型或运行时依赖及来源行号。
+     *
      * Resolve a static module reference and record dependency kind and source location.
      */
     const add = (specifier, node, kind, form) => {
@@ -162,6 +164,7 @@ export function collectBackendDependencies(root) {
 
     /**
      * 遍历导入、导出与字面量动态引用，区分类型边与运行时边。
+     *
      * Collect imports, exports and literal dynamic references as type or runtime edges.
      */
     const visit = (node) => {
@@ -232,6 +235,7 @@ function edgeKey(edge) {
 
 /**
  * 返回跨业务强连通分量中实际参与循环的运行时依赖边。
+ *
  * Return exact runtime edges participating in strongly connected, cross-domain components.
  */
 export function crossDomainCycles(edges) {
@@ -254,6 +258,7 @@ export function crossDomainCycles(edges) {
 
   /**
    * 使用 Tarjan 深度遍历提取强连通分量，供精确依赖循环诊断。
+   *
    * Extract strongly connected components with Tarjan traversal for precise cycle diagnostics.
    */
   const visit = (file) => {
@@ -299,6 +304,7 @@ export function crossDomainCycles(edges) {
 
 /**
  * 按模块归属检查静态依赖边界，普通业务模块仍可直接使用 Prisma。
+ *
  * Rules are intentionally about ownership; ordinary business modules may use Prisma directly.
  */
 export function inspectBackendBoundaries(dependencies, policy = { edges: [], cycles: [] }) {

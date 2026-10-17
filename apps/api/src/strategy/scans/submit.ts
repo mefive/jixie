@@ -18,6 +18,7 @@ import { normalizeScanSpec } from './scan.js';
 
 /**
  * 校验策略与扫描范围，冻结输入并创建后台扫描任务。
+ *
  * Validate the strategy and scan scope, freeze inputs and create a background scan job.
  */
 export async function submitStrategyScan(
@@ -152,6 +153,7 @@ export async function submitStrategyScan(
 
 /**
  * 解析各参数扫描区间并校验可执行组合范围。
+ *
  * Resolve parameter ranges and validate the executable combination scope.
  */
 async function resolveRanges(config: BacktestConfig, spec: StrategyScanSpec) {

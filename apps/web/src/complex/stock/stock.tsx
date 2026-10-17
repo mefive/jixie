@@ -9,6 +9,7 @@ const StockChart = lazy(() => import('./stock-chart'));
 
 /**
  * 加载已选证券的行情与指标，组织价格和成交量展示。
+ *
  * Load selected instrument prices and measures for price and volume views.
  */
 export const Stock = complex.component(() => {

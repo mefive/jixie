@@ -18,6 +18,7 @@ const DECOMPOSITION_TOLERANCE = 1e-12;
 
 /**
  * 记录来源日期到实际主力合约的映射，供收益链换约。
+ *
  * Map source dates to actual main contracts for return-chain rolling.
  */
 export interface CommodityMainContractMapping {
@@ -29,6 +30,7 @@ export interface CommodityMainContractMapping {
 
 /**
  * 提供收益链所需实际合约结算，避免拼接连续价格。
+ *
  * Supply actual-contract settlements for return chaining without spliced prices.
  */
 export interface CommodityContinuousSettlementBar {
@@ -39,6 +41,7 @@ export interface CommodityContinuousSettlementBar {
 
 /**
  * 记录持有收益、映射收益和换月分解，供可审计连续收益读取。
+ *
  * Retain holding returns, mapped returns and roll decomposition for auditable research.
  */
 export interface CommodityContinuousReturnPointV1 {
@@ -65,6 +68,7 @@ export interface CommodityContinuousReturnPointV1 {
 
 /**
  * 汇总映射及连续收益写入范围，供同步记录。
+ *
  * Summarize mapping and return-chain persistence for synchronization records.
  */
 export interface CommodityContinuousReturnSyncSummary {
@@ -75,6 +79,7 @@ export interface CommodityContinuousReturnSyncSummary {
 
 /**
  * 按有界年度范围获取主力合约映射，不使用 L 后缀近月连续代码。
+ *
  * Fetch Tushare's main-contract (not L-suffixed nearby-continuous) mapping in bounded years.
  */
 export async function syncCommodityMainContractMappings(
@@ -151,6 +156,7 @@ export async function syncCommodityMainContractMappings(
 
 /**
  * 构建包含显式换月分解的收益链，将映射价格收益与连续持有收益、换月差异分开。
+ *
  * Build a return chain with an explicit roll decomposition:
  * mappedLogReturn = continuousLogReturn + rollGapLogReturn.
  * continuousLogReturn always compares the current mapped contract on both interval endpoints.
@@ -283,6 +289,7 @@ export function buildCommodityContinuousReturns(
 
 /**
  * 按产品与日期计算连续持有收益和换月分解，保留缺失及诊断。
+ *
  * Compute dated continuous holding returns and roll decomposition with explicit missing-data diagnostics.
  */
 export async function computeCommodityContinuousReturns(
@@ -396,6 +403,7 @@ export async function syncCommodityContinuousReturns(
 
 /**
  * 校验映射批次中的产品、日期与实际合约，阻止错误来源写入。
+ *
  * Validate mapping products, dates and delivery contracts before persistence.
  */
 function validateMappingBatch(
@@ -425,6 +433,7 @@ function validateMappingBatch(
 
 /**
  * 将请求区间切成年度片段，限制来源请求范围。
+ *
  * Split a request interval into bounded calendar-year slices.
  */
 function yearlyRanges(startDate: string, endDate: string) {

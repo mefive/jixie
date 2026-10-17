@@ -12,7 +12,7 @@ docs(repo): document complex workflows and contracts in Chinese and English
 
 根 `CLAUDE.md` 的代码注释规则改为中英文双语，同时修正术语定义处的英文单语要求及多语言条款中的关联表述。标识符、LLM prompt、工具 description 和 few-shot 仍保持英文；用户界面文案仍使用原有 i18n。
 
-TypeScript / TSX / MJS 在声明前使用双语 JSDoc，中文说明不加语言前缀，中英文之间不留空行；保留已有英文细节、参数说明和链接。包装组件的注释放在外层声明前，不插进 `observer` 或 `complex.component` 参数中。Python 使用相邻中文、英文注释，不新增或翻译运行时 docstring。
+TypeScript / TSX / MJS 在声明前使用双语 JSDoc，中文说明不加语言前缀，JSDoc 的中英文说明之间保留一个空段，供 Markdown hover 分段；保留已有英文细节、参数说明和链接。包装组件的注释放在外层声明前，不插进 `observer` 或 `complex.component` 参数中。Python 使用相邻中文、英文注释，不新增或翻译运行时 docstring。
 
 本次只改变源码注释、相邻空行和项目说明。公开签名、算法、调用顺序、JSON、提示词、数据库、依赖、部署组件及构建依赖均保持原样；SDK 生成物没有变化。
 
@@ -112,3 +112,16 @@ pnpm build
 - 未运行迁移、数据同步或 E2E 服务；测试子进程已结束。
 
 2026-10-17 用户已确认代码审阅，验证通过后使用既定提交信息提交；不推送。
+
+
+## 恢复 hover 段落分隔（2026-10-17）
+
+用户确认恢复中英文说明之间的空段，提交信息为 `docs(repo): separate bilingual comment paragraphs`。
+现有 577 个 TS / TSX / MJS 文件共 2,815 处双语 JSDoc 增加一行 ` *`，使 Markdown hover 分段显示。
+保留去掉的中文语言前缀，Python 的相邻行注释保持原格式；根规范同步明确 JSDoc 段落规则。
+并行审阅的 Python 测试环境改动中，3 个新增文件的 5 处 JSDoc 也采用此格式，随该改动提交。
+
+对全部 580 个受影响源码文件逐字比对：移除 JSDoc 分隔行后与调整前完全相同，无表达式、字面量或调用顺序变化。
+ESLint、Prettier、根级 typecheck、SDK 生成物一致性和 diff 检查均通过。
+同批验证 API 227 项、sandboxd 8 项、环境与边界回归 29 项全部通过，全部 workspace 构建成功。
+用户已确认两项改动，分别按各自既定信息提交；不推送。

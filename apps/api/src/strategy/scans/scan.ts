@@ -7,6 +7,7 @@ export const CAPACITY_DIMENSION_KEY = 'initialCash';
 
 /**
  * 校验并规范化扫描维度、范围和组合上限，供计算入口共用。
+ *
  * Validate and normalize scan dimensions, ranges and combination limits.
  */
 export function normalizeScanSpec(
@@ -23,6 +24,7 @@ export function normalizeScanSpec(
 
   /**
    * 逐维校验已声明参数和候选值，去重并拒绝未知或重复维度。
+   *
    * Validate declared scan parameters and deduplicate values while rejecting unknown or repeated dimensions.
    */
   const dimensions = spec.dimensions.map((dimension) => {
@@ -89,6 +91,7 @@ export function normalizeScanSpec(
 
 /**
  * 按扫描维度生成参数笛卡尔积，供串行模拟逐组执行。
+ *
  * Generate the Cartesian product of scan dimensions for sequential simulation.
  */
 export function parameterCombinations(
@@ -113,6 +116,7 @@ export function parameterCombinations(
 
 /**
  * 从单次回测提取扫描比较需要的绩效指标。
+ *
  * Extract comparable performance metrics from one backtest result.
  */
 export function metricSummary(result: BacktestResult): BacktestMetricSummary {
@@ -146,6 +150,7 @@ export function metricSummary(result: BacktestResult): BacktestMetricSummary {
 
 /**
  * 按扫描模式生成单组合参数覆盖，供统一模拟入口。
+ *
  * Build per-cell overrides for the selected scan mode.
  */
 export function scanCellOverrides(
@@ -167,6 +172,7 @@ export function scanCellOverrides(
 
 /**
  * 由日收益标准差和年度期数计算年化波动率。
+ *
  * Annualize daily return dispersion for scan comparisons.
  */
 function annualizedVolatility(nav: { value: number }[]): number {
@@ -190,6 +196,7 @@ function annualizedVolatility(nav: { value: number }[]): number {
 
 /**
  * 统计净值低于历史峰值的最长持续交易日数。
+ *
  * Measure the longest trading-day interval below the running NAV peak.
  */
 function maximumUnderwaterDays(nav: { value: number }[]): number {
@@ -217,6 +224,7 @@ export function rebaseNav(
 
 /**
  * 校验并规范化容量扫描的资本与成本设置。
+ *
  * Validate and normalize capital and cost settings for a capacity scan.
  */
 function normalizeCapacitySpec(spec: StrategyScanSpec): StrategyScanSpec {

@@ -26,6 +26,7 @@ export function parseAuditArguments(input: string[]) {
 
 /**
  * 校验审计命令参数与日期范围，供统一命令入口分派。
+ *
  * Validate audit parameters and date bounds before command dispatch.
  */
 function validateAuditParameters(command: CommandDefinition, args: string[]): void {

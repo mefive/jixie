@@ -5,18 +5,21 @@ import { getMaintenanceState } from '../publication/watermark.js';
 
 /**
  * 标识维护工作流种类，供状态查询和恢复使用。
+ *
  * Identify maintenance workflow kinds for status and recovery.
  */
 export type MaintenanceKind = 'daily' | 'weekly' | 'repair' | 'deploy';
 
 /**
  * 记录维护由手动还是定时触发，供审计与调度规则使用。
+ *
  * Identify how maintenance was triggered for auditing and scheduling rules.
  */
 export type MaintenanceTrigger = 'timer' | 'manual';
 
 /**
  * 约束维护运行状态，供可用性门禁与恢复逻辑使用。
+ *
  * Define maintenance run states for availability gates and recovery.
  */
 export interface MaintenanceStatus {
@@ -37,6 +40,7 @@ export interface MaintenanceStatus {
 
 /**
  * 持有本轮维护身份及更新能力，供阶段记录和最终收尾。
+ *
  * Carry the current maintenance identity and update capabilities through workflow stages.
  */
 export interface MaintenanceRunHandle {
@@ -48,6 +52,7 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 
 /**
  * 重试沿用原运行日期范围，不因当前时间推进而改变任务范围。
+ *
  * A retry owns its original range even after the wall clock advances.
  */
 export async function getPendingDailyRun(publishedThrough: string | null) {
@@ -64,6 +69,7 @@ export async function getPendingDailyRun(publishedThrough: string | null) {
 
 /**
  * 只允许纯预检尝试记录为非阻塞来源等待，不能降级历史或已写入的错误。
+ *
  * Only preflight-only attempts can be non-blocking. Never downgrade a legacy/dirty error.
  */
 export async function recordDailySourceWait(input: {
@@ -105,6 +111,7 @@ export async function recordDailySourceWait(input: {
 
 /**
  * 登记维护运行并建立执行范围，供后续阶段持久化检查点。
+ *
  * Create a maintenance run and its execution range for subsequent checkpoints.
  */
 export async function beginMaintenanceRun(input: {
@@ -178,6 +185,7 @@ export async function updateMaintenanceRun(
 
 /**
  * 写入维护终态、摘要或错误，供发布门禁及重试读取。
+ *
  * Persist maintenance completion, summary or failure for publication gates and retries.
  */
 export async function finishMaintenanceRun(
@@ -232,6 +240,7 @@ export async function completeMaintenanceItem(
 
 /**
  * 汇总维护运行和水位状态，供前端与可用性中间件读取。
+ *
  * Collect maintenance run and watermark state for UI and availability middleware.
  */
 export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
@@ -298,6 +307,7 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
 
 /**
  * 在持有跨进程锁后恢复遗留 running 记录，因为其原进程已不再拥有该锁。
+ *
  * The caller holds the cross-process flock, so any pre-existing running row belongs to a process
  * that no longer owns the lock. Converting it to an error makes crash recovery explicit and keeps
  * the next run from leaving an immortal maintenance Gate behind.
@@ -319,6 +329,7 @@ export async function recoverInterruptedMaintenanceRuns(): Promise<number> {
 
 /**
  * 在耗时网络阶段定期更新维护心跳，保持状态查询可判断活性。
+ *
  * Keep status polling fresh while a single network-heavy stage is running.
  */
 export function startMaintenanceHeartbeat(runId: string): () => Promise<void> {

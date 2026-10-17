@@ -13,6 +13,7 @@ import { buildResearchDocumentRunResult } from './run-result.js';
 
 /**
  * 执行预校验的文档 Cell 计划，将不可变快照统一关联到同一 Agent 提案尝试。
+ *
  * Execute one prevalidated, document-scoped Cell plan and attach every immutable snapshot to the
  * same Agent proposal attempt. Content revision checks prevent a multi-tab edit from producing a
  * mixed-source attempt.

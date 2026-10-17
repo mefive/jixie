@@ -14,6 +14,7 @@ import { SignalsError } from '../errors.js';
 
 /**
  * 从末日账户状态预测下一执行日的模型账户输入。
+ *
  * Project next-execution account inputs from the simulation's final accounts.
  */
 export function projectSignalAccounts(snapshot: BacktestingFinalState): SignalAccounts {
@@ -47,6 +48,7 @@ export function projectSignalAccounts(snapshot: BacktestingFinalState): SignalAc
 
 /**
  * 将期货目标与当前持仓转换为实际交割合约的开平信号。
+ *
  * Convert futures targets and holdings into delivery-contract opening and closing signals.
  */
 export async function projectFutureSignals(
@@ -92,6 +94,7 @@ export async function projectFutureSignals(
 
 /**
  * 选择期货信号对应的真实合约与参考行情，供执行任务记录。
+ *
  * Resolve the actual contract and reference market data for a futures signal.
  */
 export function futureSignalReference(input: {

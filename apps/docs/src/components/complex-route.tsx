@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 
 /**
  * 限定路由持有的 Complex 实例与生命周期能力。
+ *
  * Describe the Complex instance and lifecycle used by documentation routes.
  */
 type ComplexInstance = {
@@ -16,6 +17,7 @@ type ComplexEntry = {
 
 /**
  * 将路由挂载和卸载接入 Complex 生命周期，保证页面 store 创建及清理。
+ *
  * Connect route mounting to the Complex store lifecycle and cleanup.
  */
 export function ComplexRoute({

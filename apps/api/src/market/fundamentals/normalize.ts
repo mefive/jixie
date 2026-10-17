@@ -36,6 +36,7 @@ export type CashFlowField = (typeof CASH_FLOW_FIELDS)[number];
 
 /**
  * 保存标准化财务值与可追溯诊断。
+ *
  * Retain a standardized financial value and provenance diagnostics.
  */
 export interface StandardizedFinancialValue {
@@ -46,6 +47,7 @@ export interface StandardizedFinancialValue {
 
 /**
  * 区分累计、单季和 TTM 财务流量值。
+ *
  * Describe standardized cumulative, quarterly and TTM flows.
  */
 export interface StandardizedFinancialFlow<Field extends string> {
@@ -56,6 +58,7 @@ export interface StandardizedFinancialFlow<Field extends string> {
 
 /**
  * 按报告期组织标准化流量，供指标按窗口读取。
+ *
  * Organize standardized flows by reporting period for metric windows.
  */
 export interface StandardizedFlowSeries<Field extends string> {
@@ -66,6 +69,7 @@ export interface StandardizedFlowSeries<Field extends string> {
 
 /**
  * 提供年度累计流量及版本身份，供单季差分。
+ *
  * Supply year-to-date flows and version identity for quarterly differencing.
  */
 interface CumulativeFlowStatement<Field extends string> {
@@ -77,6 +81,7 @@ interface CumulativeFlowStatement<Field extends string> {
 
 /**
  * 将自然年度累计利润表流量标准化为单季与滚动四季口径。
+ *
  * Convert calendar-year YTD statement flows into single quarters and rolling four-quarter sums.
  */
 export function normalizeIncomeFlows(
@@ -87,6 +92,7 @@ export function normalizeIncomeFlows(
 
 /**
  * 标准化现金流量表流量，期初和期末现金存量不参与差分。
+ *
  * Beginning/end cash stocks are intentionally excluded because they must not be differenced.
  */
 export function normalizeCashFlows(
@@ -97,6 +103,7 @@ export function normalizeCashFlows(
 
 /**
  * 按年度累计语义派生单季及 TTM 流量，并传播缺失与版本诊断。
+ *
  * Derive quarterly and TTM flows from year-to-date statements while propagating missing-data and version diagnostics.
  */
 export function normalizeCumulativeFlows<Field extends string>(
@@ -145,6 +152,7 @@ export function normalizeCumulativeFlows<Field extends string>(
 
 /**
  * 解析前一自然季度末，供累计流量差分对齐。
+ *
  * Resolve the prior calendar quarter end for cumulative-flow differencing.
  */
 export function previousQuarterEnd(endDate: string): string {
@@ -179,6 +187,7 @@ export function isStandardFinancialPeriod(endDate: string): boolean {
 
 /**
  * 以同年相邻累计值相减计算单季流量，缺少必要前值时保留缺失。
+ *
  * Derive a single-quarter flow from same-year cumulative values, preserving missing prerequisites.
  */
 function singleQuarterValue<Field extends string>(
@@ -221,6 +230,7 @@ function singleQuarterValue<Field extends string>(
 
 /**
  * 汇总连续四季度流量形成 TTM，不能用不完整季度凑值。
+ *
  * Combine four consecutive quarterly flows into TTM while preserving incomplete windows.
  */
 function trailingTwelveMonths<Field extends string>(
@@ -309,6 +319,7 @@ function inputVersions<Field extends string>(
 
 /**
  * 将报告期转换为自然季度身份，供流量标准化排序。
+ *
  * Map a reporting date to its calendar quarter for flow normalization.
  */
 function calendarQuarter(endDate: string): 1 | 2 | 3 | 4 | null {

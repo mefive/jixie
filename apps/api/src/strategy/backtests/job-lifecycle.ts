@@ -15,6 +15,7 @@ const workerUrl = import.meta.url.endsWith('.ts')
 export const strategyBacktestLifecycle = {
   /**
    * 在任务事务外调用回测计算，结果由生命周期终态事务保存。
+   *
    * Compute a backtest outside the terminal transaction for later lifecycle persistence.
    */
   async onExecute(job, log) {

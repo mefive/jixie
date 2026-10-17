@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 
 /**
  * 定义新建 Cell 的种类、源码和位置，供模板或提案创建。
+ *
  * Supply cell kind, source and position for template or proposal creation.
  */
 export interface CellSeed {

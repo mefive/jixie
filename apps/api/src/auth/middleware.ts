@@ -8,6 +8,7 @@ import { resolveSession } from './session.js';
 declare module 'hono' {
   /**
    * 扩展 HTTP 上下文中的已认证用户信息，供后续路由使用。
+   *
    * Declare authenticated user context shared by HTTP middleware and routes.
    */
   interface ContextVariableMap {
@@ -20,6 +21,7 @@ declare module 'hono' {
 
 /**
  * 解析请求会话并注入用户上下文，未认证时阻止受保护路由执行。
+ *
  * Resolve the request session and populate user context before protected routes run.
  */
 export const requireAuth: MiddlewareHandler = async (context, next) => {

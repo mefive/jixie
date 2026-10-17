@@ -10,6 +10,7 @@ type Side = TradeRecord['side'];
 
 /**
  * 以组合执行为中心展示成交详情，证券、方向与资产类型用于辅助筛选。
+ *
  * Portfolio-level execution detail. Instrument, side, and asset type are deliberately secondary
  * table filters. Instrument price charts belong to a single-fill drill-down rather than this view.
  */
@@ -219,6 +220,7 @@ function normalizedAssetType(trade: TradeRecord): AssetType {
 
 /**
  * 将成交资产种类映射为本地化标签键。
+ *
  * Map a fill's asset type to its localized label key.
  */
 function assetTypeKey(assetType: AssetType): 'assetStock' | 'assetEtf' | 'assetFuture' {

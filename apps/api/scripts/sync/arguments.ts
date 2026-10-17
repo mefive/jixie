@@ -5,6 +5,7 @@ export type SyncRequest = CommandRequest<SyncCommand>;
 
 /**
  * 在读取配置及导入数据库、网络代码前解析同步参数。
+ *
  * Parse before loading configuration or importing any database/network code.
  */
 export function parseSyncArguments(input: string[]): SyncRequest {
@@ -13,6 +14,7 @@ export function parseSyncArguments(input: string[]): SyncRequest {
 
 /**
  * 校验同步命令的日期、代码与可选参数，供入口统一分派。
+ *
  * Validate sync dates, identifiers and options before dispatch.
  */
 function validateParameters(command: SyncCommand, args: string[]): void {
@@ -56,6 +58,7 @@ function validateSelector(value: string | undefined, selectors: string[]): void 
 
 /**
  * 校验财报同步的报告期、证券及来源选项，避免无界请求。
+ *
  * Validate financial sync periods, instruments and source options.
  */
 function validateFinancialParameters(args: string[]): void {

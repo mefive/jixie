@@ -11,6 +11,7 @@ import { sha256 } from '../sources/fingerprint.js';
 
 /**
  * 只捕获已选且已授权的来源，不按显示名称或最新报告猜测上下文。
+ *
  * Capture only the selected, authorized source. Never resolve a display name or latest report.
  */
 export async function captureFactorQuestionContext(

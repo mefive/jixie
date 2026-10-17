@@ -9,6 +9,7 @@ import {
 
 /**
  * 规范化跨市场基准行情，保留源市场日期与计价。
+ *
  * Describe normalized benchmark bars with source dates and denomination.
  */
 export interface CrossMarketBenchmarkBar {
@@ -28,6 +29,7 @@ export interface CrossMarketBenchmarkBar {
 
 /**
  * 汇总跨市场基准同步与覆盖结果。
+ *
  * Summarize cross-market benchmark synchronization and coverage.
  */
 export interface CrossMarketBenchmarkSyncSummary {
@@ -36,6 +38,7 @@ export interface CrossMarketBenchmarkSyncSummary {
 
 /**
  * 隔离基准来源访问，供同步实现和可替换测试来源。
+ *
  * Abstract benchmark source access for synchronization and source substitutes.
  */
 export interface CrossMarketBenchmarkClient {
@@ -48,6 +51,7 @@ const INDEX_GLOBAL_FIELDS =
 
 /**
  * 校验并规范化单来源基准切片，保持价格指数原有语义。
+ *
  * Validate and normalize one provider slice without changing its price-index semantics.
  */
 export function parseCrossMarketBenchmarkRows(
@@ -112,6 +116,7 @@ export function parseCrossMarketBenchmarkRows(
 
 /**
  * 按有界五年切片幂等同步固定中港美基准集合。
+ *
  * Idempotently synchronize the fixed CN/HK/US benchmark set in bounded five-year slices.
  */
 export async function syncCrossMarketBenchmarks(
@@ -211,6 +216,7 @@ function benchmarkReferenceRow(benchmark: CrossMarketBenchmarkDefinition) {
 
 /**
  * 检查基准来源行是否超出请求日线范围，阻止来源忽略参数。
+ *
  * Detect benchmark rows outside the requested daily bounds.
  */
 function outsideDailyRange(value: number | null, low: number | null, high: number | null): boolean {
@@ -244,6 +250,7 @@ function requiredNumber(row: TushareRow, field: string): number {
 
 /**
  * 解析来源可选数值，保留缺失并拒绝非法数字。
+ *
  * Parse an optional source number while preserving missing values and rejecting invalid numbers.
  */
 function optionalNumber(row: TushareRow, field: string): number | null {
@@ -266,6 +273,7 @@ function assertDateRange(startDate: string, endDate: string): void {
 
 /**
  * 按五年切分基准请求，避免超出上游返回上限。
+ *
  * Split benchmark requests into five-year slices to respect source limits.
  */
 function fiveYearRanges(startDate: string, endDate: string) {

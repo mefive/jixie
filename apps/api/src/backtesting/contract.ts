@@ -8,6 +8,7 @@ import type { ConditionalOrderKind } from './order-book.js';
 
 /**
  * 定义一个模拟日的宿主能力，由策略适配层转换后提供给作者代码。
+ *
  * Host capabilities for one simulation date. Adapted by Strategy runtime before user access.
  */
 export interface EngineContext {
@@ -67,6 +68,7 @@ export interface EngineContext {
 
 /**
  * 定义现金账户原始操作；仓位计算等作者辅助逻辑由 SDK 提供。
+ *
  * Cash-account primitives; strategy sizing helpers belong to the SDK.
  */
 export interface EngineStockAccount {
@@ -94,6 +96,7 @@ export interface EngineStockAccount {
 
 /**
  * 定义期货账户原始操作，可用现金已扣除占用保证金。
+ *
  * Futures-account primitives, including margin already reserved from available cash.
  */
 export interface EngineFuturesAccount {
@@ -111,6 +114,7 @@ export interface EngineFuturesAccount {
 
 /**
  * 聚合现金和期货账户能力，供引擎决策上下文统一访问。
+ *
  * Group cash and futures account primitives exposed through the engine decision context.
  */
 export interface EngineAccounts {
@@ -120,6 +124,7 @@ export interface EngineAccounts {
 
 /**
  * 表示已准备的策略决策回调，不携带源码、语言运行时或持久化身份。
+ *
  * A prepared decision callback. Contains no source, language runtime, user or saved-record identity.
  */
 export interface EngineStrategy {
@@ -141,6 +146,7 @@ export interface EngineStrategy {
 
 /**
  * 配置一次引擎模拟的区间、资本、数据端口、策略回调与初始账户状态。
+ *
  * Configure a simulation's dates, capital, data ports, prepared decision callback and initial state.
  */
 export interface BacktestingConfig {

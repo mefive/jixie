@@ -7,6 +7,7 @@ import {
 
 /**
  * 描述单市场驱动的质量覆盖，供模型就绪判断。
+ *
  * Describe coverage quality for one market risk driver.
  */
 export interface MarketRiskDriverQualityFactor {
@@ -17,6 +18,7 @@ export interface MarketRiskDriverQualityFactor {
 
 /**
  * 汇总市场驱动质量与不可用原因。
+ *
  * Summarize market-driver quality and unavailability reasons.
  */
 export interface MarketRiskDriverQualitySummary {
@@ -56,6 +58,7 @@ export async function inspectMarketRiskDrivers(
 
 /**
  * 汇总市场风险驱动的日期覆盖、缺失与异常，供模型就绪判断。
+ *
  * Summarize market-driver coverage, missing values and anomalies for model readiness.
  */
 export function summarizeMarketRiskDriverQuality(
