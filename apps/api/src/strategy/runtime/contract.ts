@@ -11,13 +11,13 @@ export interface StrategyStartOptions {
   onUserLog?: UserLogSink;
 }
 
-export interface StrategyCallbackInput {
+export interface StrategyDecisionInput {
   context: EngineContext;
 }
 
 export type StrategySandboxMetadata = Omit<EngineStrategy, 'onBar'>;
 
 export type StrategySandboxInstance = Pick<
-  Sandbox<StrategyCallbackInput, void, StrategySandboxMetadata>,
+  Sandbox<StrategyDecisionInput, void, StrategySandboxMetadata>,
   'metadata' | 'execute' | 'close'
 >;

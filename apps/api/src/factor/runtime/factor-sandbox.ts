@@ -4,14 +4,14 @@ import type {
   ExecutableFactorKind,
   FactorStartOptions,
   FactorSandboxInstance,
-  FactorExecutionInput,
+  FactorComputeInput,
   FactorSandboxMetadata,
   FactorValues,
 } from './contract.js';
 
 /** Owns one factor sandbox, independently of its language and transport. */
 export class FactorSandbox<Kind extends ExecutableFactorKind> extends Sandbox<
-  FactorExecutionInput<Kind>,
+  FactorComputeInput<Kind>,
   FactorValues,
   FactorSandboxMetadata<Kind>
 > {

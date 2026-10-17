@@ -12,7 +12,7 @@ import type { FactorV2FieldKey } from '../definitions/fields.js';
 import type {
   ExecutableFactorKind,
   FactorStartOptions,
-  FactorExecutionInput,
+  FactorComputeInput,
   FactorSandboxMetadata,
   FactorValues,
   FactorBatchItem,
@@ -21,16 +21,16 @@ import { validateTypeScriptFactorMetadata, validatePythonFactorMetadata } from '
 import { buildFactorSandboxBundle } from './typescript/sandbox-bundle.js';
 import {
   factorStartupFrameSchema,
-  factorExecutionFrameSchema,
+  factorComputeFrameSchema,
   typeScriptCrossSectionalStartupFrameSchema,
   typeScriptAssetStartupFrameSchema,
-  typeScriptFactorExecutionFrameSchema,
+  typeScriptFactorComputeFrameSchema,
 } from './protocol.js';
 
 export type FactorTransport = SandboxTransport;
 
 type FactorResultFrame = Extract<
-  z.infer<typeof factorExecutionFrameSchema>,
+  z.infer<typeof factorComputeFrameSchema>,
   { type: 'factor_values' }
 >;
 
@@ -52,7 +52,7 @@ export interface FactorBridgeHost {
 /** Owns the factor protocol connection and state across batches. */
 export class FactorBridge<
   Kind extends ExecutableFactorKind = ExecutableFactorKind,
-> extends SandboxBridgeBase<FactorExecutionInput<Kind>, FactorValues, FactorSandboxMetadata<Kind>> {
+> extends SandboxBridgeBase<FactorComputeInput<Kind>, FactorValues, FactorSandboxMetadata<Kind>> {
   private static bundlePromise?: Promise<string>;
 
   private reportedComputeError = false;
@@ -158,7 +158,7 @@ export class FactorBridge<
     return metadata as FactorSandboxMetadata<Kind>;
   }
 
-  execute(input: FactorExecutionInput<Kind>): Promise<FactorValues> {
+  execute(input: FactorComputeInput<Kind>): Promise<FactorValues> {
     const { diagnostics, analysisKind } = this.options;
     const crossSectional = 'items' in input;
     const expectedCount = crossSectional ? input.items.length : input.indexes.length;
@@ -176,14 +176,14 @@ export class FactorBridge<
       command,
       schema:
         diagnostics.language === 'Python'
-          ? factorExecutionFrameSchema
-          : typeScriptFactorExecutionFrameSchema,
+          ? factorComputeFrameSchema
+          : typeScriptFactorComputeFrameSchema,
       operation:
         diagnostics.language === 'Python'
           ? `computing a ${analysisKind === 'cross_sectional' ? 'cross-sectional' : analysisKind} Python Factor`
           : 'computing a TypeScript Factor',
       onLog: (frame) => this.forwardLog(frame),
-      result: (frame) => this.executionResult(frame, expectedCount),
+      result: (frame) => this.readComputeResult(frame, expectedCount),
     });
   }
 
@@ -274,7 +274,7 @@ export class FactorBridge<
     return normalized;
   }
 
-  private executionResult(frame: FactorResultFrame, expectedCount: number): FactorValues {
+  private readComputeResult(frame: FactorResultFrame, expectedCount: number): FactorValues {
     const { diagnostics } = this.options;
 
     // Python reports point failures before rejecting a malformed result; TS reports them after.

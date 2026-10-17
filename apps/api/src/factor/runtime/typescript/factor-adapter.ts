@@ -3,7 +3,7 @@ import type {
   AssetFactorCapabilities,
 } from '../../sdk/capabilities.js';
 import type { SdkAdapter } from '#infra/runtime/sdk-adapter.js';
-import type { FactorHistory, AssetFactorExecutionInput } from '../contract.js';
+import type { FactorHistory, AssetFactorComputeInput } from '../contract.js';
 
 interface CrossSectionalFactorAdapterInput {
   kind: 'cross_sectional';
@@ -12,7 +12,7 @@ interface CrossSectionalFactorAdapterInput {
 
 interface AssetFactorAdapterInput {
   kind: 'asset';
-  fields: AssetFactorExecutionInput['fields'];
+  fields: AssetFactorComputeInput['fields'];
   index: number;
   declaredInputs: ReadonlySet<string>;
 }
@@ -63,7 +63,7 @@ class BoundCrossSectionalFactorCapabilities implements CrossSectionalFactorCapab
 
 class BoundAssetFactorCapabilities implements AssetFactorCapabilities {
   constructor(
-    private readonly fields: AssetFactorExecutionInput['fields'],
+    private readonly fields: AssetFactorComputeInput['fields'],
     private readonly index: number,
     private readonly declaredInputs: ReadonlySet<string>,
   ) {}

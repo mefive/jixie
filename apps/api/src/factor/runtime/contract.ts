@@ -28,17 +28,17 @@ export interface FactorBatchItem extends FactorHistory {
   bar: FactorBar;
 }
 
-export interface CrossSectionalFactorExecutionInput {
+export interface CrossSectionalFactorComputeInput {
   items: FactorBatchItem[];
 }
 
-export interface AssetFactorExecutionInput {
+export interface AssetFactorComputeInput {
   fields: Partial<Record<FactorV2FieldKey, number[]>>;
   indexes: number[];
 }
 
-export type FactorExecutionInput<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
-  Kind extends 'cross_sectional' ? CrossSectionalFactorExecutionInput : AssetFactorExecutionInput;
+export type FactorComputeInput<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
+  Kind extends 'cross_sectional' ? CrossSectionalFactorComputeInput : AssetFactorComputeInput;
 
 export interface CrossSectionalFactorSandboxMetadata extends Omit<CustomFactor, 'compute'> {
   analysisKind: 'cross_sectional';
@@ -62,7 +62,7 @@ export type FactorValues = (number | null)[];
 export type FactorSandboxInstance<Kind extends ExecutableFactorKind = ExecutableFactorKind> =
   Kind extends ExecutableFactorKind
     ? Pick<
-        Sandbox<FactorExecutionInput<Kind>, FactorValues, FactorSandboxMetadata<Kind>>,
+        Sandbox<FactorComputeInput<Kind>, FactorValues, FactorSandboxMetadata<Kind>>,
         'metadata' | 'execute' | 'close'
       >
     : never;

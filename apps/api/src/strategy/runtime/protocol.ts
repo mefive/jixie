@@ -143,7 +143,7 @@ export const strategyStartupFrameSchema = z.union([
   runtimeErrorFrameSchema,
 ]);
 
-export const strategyExecutionFrameSchema = z.union([
+export const strategyDecisionFrameSchema = z.union([
   runtimeLogFrameSchema,
   strategyRequestFrameSchema,
   strategyDoneFrameSchema,

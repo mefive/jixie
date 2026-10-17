@@ -208,7 +208,7 @@ export const researchAnalysisFrameSchema = z.union([
   runtimeErrorFrameSchema,
 ]);
 
-export const researchExecutionFrameSchema = z.union([
+export const researchCellRunFrameSchema = z.union([
   runtimeLogFrameSchema,
   researchExecutedFrameSchema,
   researchErrorFrameSchema,
@@ -254,7 +254,7 @@ export const researchResetFrameSchema = z.union([
 ]);
 
 export type ResearchRequestFrame = Extract<
-  z.infer<typeof researchExecutionFrameSchema>,
+  z.infer<typeof researchCellRunFrameSchema>,
   { type: 'request' }
 >;
 

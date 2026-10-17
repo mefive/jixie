@@ -3,12 +3,12 @@ import { StrategyBridge } from './strategy-bridge.js';
 import type {
   StrategyStartOptions,
   StrategySandboxInstance,
-  StrategyCallbackInput,
+  StrategyDecisionInput,
   StrategySandboxMetadata,
 } from './contract.js';
 
 /** Owns one strategy sandbox, independently of its language and transport. */
-export class StrategySandbox extends Sandbox<StrategyCallbackInput, void, StrategySandboxMetadata> {
+export class StrategySandbox extends Sandbox<StrategyDecisionInput, void, StrategySandboxMetadata> {
   protected constructor(protected readonly options: StrategyStartOptions) {
     super();
   }

@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { factorExecutionFrameSchema, typeScriptFactorExecutionFrameSchema } from './protocol.js';
+import { factorComputeFrameSchema, typeScriptFactorComputeFrameSchema } from './protocol.js';
 
 describe('factor Python protocol', () => {
   it('requires finite, nullable Factor values without extra payload fields', () => {
     expect(
-      factorExecutionFrameSchema.parse({
+      factorComputeFrameSchema.parse({
         type: 'factor_values',
         values: [1.2, null],
         first_error: null,
       }),
     ).toMatchObject({ type: 'factor_values' });
     expect(() =>
-      factorExecutionFrameSchema.parse({
+      factorComputeFrameSchema.parse({
         type: 'factor_values',
         values: [Number.POSITIVE_INFINITY],
         first_error: null,
@@ -23,8 +23,8 @@ describe('factor Python protocol', () => {
 describe('TypeScript Factor log protocol', () => {
   it('accepts batches while preserving the existing longer TS log lines', () => {
     const batch = { type: 'log_batch', entries: [{ level: 'info', text: 'x'.repeat(30_000) }] };
-    expect(typeScriptFactorExecutionFrameSchema.parse(batch)).toEqual(batch);
-    expect(factorExecutionFrameSchema.safeParse(batch).success).toBe(false);
+    expect(typeScriptFactorComputeFrameSchema.parse(batch)).toEqual(batch);
+    expect(factorComputeFrameSchema.safeParse(batch).success).toBe(false);
   });
 
   it.each([
@@ -42,6 +42,6 @@ describe('TypeScript Factor log protocol', () => {
       },
     ],
   ])('rejects a batch with %s', (_name, frame) => {
-    expect(typeScriptFactorExecutionFrameSchema.safeParse(frame).success).toBe(false);
+    expect(typeScriptFactorComputeFrameSchema.safeParse(frame).success).toBe(false);
   });
 });

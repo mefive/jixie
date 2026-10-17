@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { researchExecutionFrameSchema } from './protocol.js';
+import { researchCellRunFrameSchema } from './protocol.js';
 
 describe('research Python protocol', () => {
   it('rejects unrecognized Research output fields and request methods', () => {
     expect(() =>
-      researchExecutionFrameSchema.parse({
+      researchCellRunFrameSchema.parse({
         type: 'research_executed',
         outputs: [{ type: 'text', text: 'result', executable: true }],
         definitions: [],
@@ -12,7 +12,7 @@ describe('research Python protocol', () => {
       }),
     ).toThrow();
     expect(() =>
-      researchExecutionFrameSchema.parse({
+      researchCellRunFrameSchema.parse({
         type: 'request',
         id: 1,
         method: 'read_file',
@@ -20,7 +20,7 @@ describe('research Python protocol', () => {
       }),
     ).toThrow();
     expect(
-      researchExecutionFrameSchema.parse({
+      researchCellRunFrameSchema.parse({
         type: 'request',
         id: 2,
         method: 'research_factor_report',

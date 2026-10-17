@@ -1,6 +1,6 @@
 # 业务执行职责整理
 
-> 最新命名（2026-10-17）：宿主类统一为 Sandbox，策略模拟为 StrategySimulation；当前范围与审查状态见文末。下方较早章节保留历史名称。
+> 最新命名（2026-10-17）：宿主类统一为 Sandbox，策略模拟为 StrategySimulation；单次调用契约采用 Compute / Decision / CellRun，本轮审查与验证已通过。当前范围与验证记录见文末，下方较早章节保留历史名称。
 
 状态：人工代码审查已确认，行为验证与构建通过，按已确认的提交信息交付。
 
@@ -482,3 +482,79 @@ TS/Python Strategy/Factor、Research 会话池、模拟与 Engine/Signals/扫描
 - 日志位于 /tmp/jixie-sandbox-simulation-*：tests.log、socket-tests.log、policy-tests.log、benchmark.log、shared-build.log、api-build.log、clean-build.log、compiled-workers.log、compiled-smoke.log。
 
 按已确认消息 refactor(api): adopt sandbox and simulation naming 提交本轮文件；不推送。
+
+## 2026-10-17 沙盒单次操作契约命名
+
+约定 commit：`refactor(sandbox): clarify operation contract names`。
+
+用户确认此前残留命名清单，并确认 Strategy 使用 Decision 表达一次 onBar 决策。以
+`54996f9d` 为基线，工作区开始时干净。本轮只整理内部调用契约，Sandbox 继续表达会话，
+StrategySimulation 继续表达完整模拟；execute、onBar 及现有目录和文件名保持。
+
+| 原名称 | 当前名称 | 归属 |
+| --- | --- | --- |
+| FactorExecutionInput | FactorComputeInput | factor/runtime/contract.ts |
+| CrossSectionalFactorExecutionInput | CrossSectionalFactorComputeInput | 同上 |
+| AssetFactorExecutionInput | AssetFactorComputeInput | 同上 |
+| StrategyCallbackInput | StrategyDecisionInput | strategy/runtime/contract.ts |
+| ResearchExecutionInput | ResearchCellRunInput | research/runtime/contract.ts |
+| ResearchExecutionOptions | ResearchCellRunOptions | 同上 |
+| ResearchExecution | ResearchCellRunResult | 同上，仅宿主单 Cell 返回值 |
+| ResearchExecutionLogs | ResearchCellRunLogs | research/runtime/research-bridge.ts |
+| factorExecutionFrameSchema | factorComputeFrameSchema | factor/runtime/protocol.ts |
+| typeScriptFactorExecutionFrameSchema | typeScriptFactorComputeFrameSchema | 同上 |
+| strategyExecutionFrameSchema | strategyDecisionFrameSchema | strategy/runtime/protocol.ts |
+| researchExecutionFrameSchema | researchCellRunFrameSchema | research/runtime/host/protocol.ts |
+| FactorBridge.executionResult | FactorBridge.readComputeResult | factor/runtime/factor-bridge.ts |
+| ResearchBridge.executionResult | ResearchBridge.readCellRunResult | research/runtime/research-bridge.ts |
+
+通过 TypeScript 语义引用完成 14 个符号、117 处代码引用更新，覆盖 23 个 TS 文件，其中
+15 个生产文件、8 个测试文件。三业务 Sandbox/Bridge、Factor Runner/Adapter、Research
+输入校验以及文档/嵌入运行的测试消费者同步；不保留旧类型别名或转发入口。Factor 输入和
+metadata 的 Kind 关联、Research 部分输出与环境留痕、Strategy EngineContext 绑定保持。
+根 CLAUDE 与三业务 runtime README 同步当前名称，较早设计记录保留当时的名称。
+
+Prisma ResearchExecution、ResearchCellExecution 和公开 ResearchExecutionV1 仍表示
+持久化研究证据；SignalExecution、FactorExecutionPort、ResearchPythonExecutionError
+及既有 Job 状态私有类型保持。本轮没有修改 SDK/HTTP/Worker/Python 帧字段、schema 校验
+规则、异常类型、生命周期、计算、撮合或持久化行为，没有新增依赖或迁移。Python 镜像输入、
+workspace 与跨包构建依赖保持，既有部署影响清单继续覆盖这些 API 路径。
+
+### 审查前静态结果
+
+- 全仓 pnpm typecheck 通过：Shared/API/Docs/sandboxd/Web 类型检查及 SDK 生成物一致性通过。
+  后端边界仍为 887 个文件、3300 条运行时边、887 条类型边，0 违规，原有例外保持。
+- 23 个受影响 TS 文件的 ESLint（0 警告）和 Prettier 检查通过。
+- AST 静态比较确认，归一化已批准的标识符改名后，全部 23 个 TS 文件与 HEAD 结构一致，
+  包括 15 个生产文件；所有字符串与数值字面量保持，协议和业务表达式未改写。
+- 引用扫描确认运行时代码中没有旧输入、选项、日志和帧 schema 名称；ResearchExecution
+  的 Prisma 消费者、研究证据文案与历史记录继续保留。
+- 五份修改文档的 91 个本地链接目标存在，git diff --check 通过。本轮未运行测试、构建、
+  运行时探针或服务，修改尚未提交，等待人工代码审阅。
+
+人工审阅通过后验证三业务 Sandbox/Bridge、TS/Python 运行、Research 会话池/宿主协议及
+文档和嵌入分析留痕、SDK 打包、模拟调用、源码与编译 Worker，并运行 Shared/API 构建。
+沿用既有行为和类型断言，不为纯改名新增镜像实现的测试；通过后仅提交本轮文件，不推送。
+
+静态日志与清单前缀：`/tmp/jixie-operation-contract-`；包括 typecheck.log、lint.log、
+renames.json、ast-check.json 与 static-files.json。
+
+### 审查后验证与提交
+
+2026-10-17 用户确认代码审阅，授权按既定范围验证，通过后自动提交。
+
+- 三业务 Sandbox/Bridge、TS/Python 运行、Research 会话池/宿主协议、文档运行与真实 Python
+  嵌入分析留痕、三业务 Python 打包、SDK 适配与 StrategySimulation：53 个文件、361 项
+  全部通过，无失败或跳过。覆盖 Factor 种类关联、Strategy 调用处错误恢复、Research 普通
+  错误后复用、取消、环境与输入留痕、部分输出、日志及结果预算、持久化证据等既有行为。
+- Python 临时 Unix socket 通信另有 11 项通过；源码 Worker 和 dist 生产入口各 14 项通过，
+  覆盖 TS/Python Strategy/Factor 四种组合、连续扫描、Signals、启动恢复、非法输入与回收，
+  均使用独立临时 SQLite，并等待子进程正常退出。以上合计 400 项测试通过。
+- Shared/API 构建通过。验证前后全部 28 个已审阅文件 SHA-256 一致，没有追加产品或测试
+  修订；最后仅更新本开发记录的审查状态与实际结果。
+- 测试、构建及子进程均已退出，临时数据库、Python 打包目录、socket 和本轮独立 Matplotlib
+  缓存已清理。未启动开发服务、修改开发数据库、部署或推送。
+- 提交清单限定本轮 28 个文件，按已确认消息提交。
+
+验证日志前缀：`/tmp/jixie-operation-contract-`；后缀为 tests.log、socket-tests.log、
+source-workers.log、compiled-workers.log、shared-build.log 与 api-build.log。

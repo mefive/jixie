@@ -8,7 +8,7 @@ import {
 import type { CustomFactor, AssetFactorV2 } from '@jixie/shared/sdk/factor/contract';
 import type {
   FactorBatchItem,
-  AssetFactorExecutionInput,
+  AssetFactorComputeInput,
   ExecutableFactorKind,
 } from '../contract.js';
 
@@ -24,7 +24,7 @@ interface FactorRunnerStartup {
 export type FactorRunnerCommand =
   | ({ type: 'factor_start' } & FactorRunnerStartup)
   | { type: 'factor_compute_batch'; items: FactorBatchItem[] }
-  | ({ type: 'factor_compute_series' } & AssetFactorExecutionInput);
+  | ({ type: 'factor_compute_series' } & AssetFactorComputeInput);
 
 export type FactorRunnerCommandHandler = (frame: FactorRunnerCommand) => string;
 

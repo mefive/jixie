@@ -52,7 +52,7 @@ export const factorStartupFrameSchema = z.union([
   runtimeErrorFrameSchema,
 ]);
 
-export const factorExecutionFrameSchema = z.union([
+export const factorComputeFrameSchema = z.union([
   runtimeLogFrameSchema,
   factorValuesFrameSchema,
   runtimeErrorFrameSchema,
@@ -70,7 +70,7 @@ const typeScriptFactorValuesFrameSchema = factorValuesFrameSchema.extend({
   values: z.array(finiteNumberSchema.nullable()),
   first_error: z.string().nullable(),
 });
-export const typeScriptFactorExecutionFrameSchema = z.union([
+export const typeScriptFactorComputeFrameSchema = z.union([
   typeScriptLogFrameSchema,
   typeScriptLogBatchFrameSchema,
   typeScriptFactorValuesFrameSchema,

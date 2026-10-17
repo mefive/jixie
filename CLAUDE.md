@@ -141,11 +141,16 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   提供 close/abort/isClosed 并以 protected exchange 复用消息循环；帧/Transport 契约归 transport.ts。
   并发保护按 Transport 跨 Bridge 生效并覆盖终止帧业务处理，无状态映射和服务分派保留具名函数。
   公共方法由 infra/runtime/sandbox-bridge.ts 的 SandboxBridge 约束：initialize({ signal? })
-  返回 metadata，execute 使用本业务 ExecutionInput 和执行选项，同时约束 close/abort/isClosed。
+  返回 metadata，execute 接收本业务单次操作的输入和选项，同时约束 close/abort/isClosed。
   SandboxBridgeBase 实现公共接口并声明抽象 initialize/execute；业务子类绑定类型并实现协议方法，
   不重复 implements，也不为 Factor/Strategy 保留纯泛型绑定的 BridgeContract 别名。
   Sandbox 字段依赖公共 SandboxBridge；Research 的 analyze/reset 归扩展契约，类显式 implements，
   ResearchSandbox 通过扩展接口使用这两个方法，不要求其他业务实现。
+- 沙盒单次调用的宿主契约按业务动作命名：FactorComputeInput（横截面与资产输入仍按 Kind 关联）、
+  StrategyDecisionInput（当前 EngineContext）、ResearchCellRunInput / ResearchCellRunOptions /
+  ResearchCellRunResult（一次 Cell 调用）。协议 schema 对应使用 Compute / Decision / CellRun。
+  Sandbox 表达会话生命周期，StrategySimulationInput 表达完整模拟配置；ResearchExecution
+  继续表示持久化研究运行记录，不与一次 Cell 的沙盒返回值混用。
 
 ## Research Python Runtime Contract 工作流
 

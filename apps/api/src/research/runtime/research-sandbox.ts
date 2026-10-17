@@ -6,18 +6,18 @@ import { ResearchBridge } from './research-bridge.js';
 import type {
   ResearchCellInput,
   ResearchBridgeContract,
-  ResearchExecutionInput,
-  ResearchExecutionOptions,
-  ResearchExecution,
+  ResearchCellRunInput,
+  ResearchCellRunOptions,
+  ResearchCellRunResult,
   ResearchSandboxMetadata,
   ResearchStartOptions,
 } from './contract.js';
 
 export class ResearchSandbox extends Sandbox<
-  ResearchExecutionInput,
-  ResearchExecution,
+  ResearchCellRunInput,
+  ResearchCellRunResult,
   ResearchSandboxMetadata,
-  ResearchExecutionOptions,
+  ResearchCellRunOptions,
   ResearchBridgeContract
 > {
   activeCellId?: string;
@@ -45,9 +45,9 @@ export class ResearchSandbox extends Sandbox<
   }
 
   protected async executeInSandbox(
-    input: ResearchExecutionInput,
-    options: ResearchExecutionOptions = {},
-  ): Promise<ResearchExecution> {
+    input: ResearchCellRunInput,
+    options: ResearchCellRunOptions = {},
+  ): Promise<ResearchCellRunResult> {
     this.activeCellId = input.cell.id;
     try {
       return await this.bridge.execute(input, options);

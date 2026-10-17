@@ -7,16 +7,16 @@ export interface ResearchCellInput {
   id: string;
   source: string;
 }
-export interface ResearchExecutionInput {
+export interface ResearchCellRunInput {
   cell: ResearchCellInput;
   parameters?: ResearchEmbeddedParametersV1;
 }
-export interface ResearchExecutionOptions {
+export interface ResearchCellRunOptions {
   signal?: AbortSignal;
   observer?: ResearchRequestObserver;
   captureEnvironment?(environment: Record<string, unknown>): Promise<void>;
 }
-export interface ResearchExecution {
+export interface ResearchCellRunResult {
   outputs: ResearchCellOutputBlockV1[];
   definitions: string[];
   references: string[];
@@ -28,10 +28,10 @@ export interface ResearchSandboxMetadata {
 }
 
 export interface ResearchBridgeContract extends SandboxBridge<
-  ResearchExecutionInput,
-  ResearchExecution,
+  ResearchCellRunInput,
+  ResearchCellRunResult,
   ResearchSandboxMetadata,
-  ResearchExecutionOptions
+  ResearchCellRunOptions
 > {
   analyze(cells: ResearchCellInput[]): Promise<ResearchPythonAnalysis[]>;
   reset(): Promise<void>;

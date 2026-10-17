@@ -1,5 +1,5 @@
 import type { ResearchSandbox } from '../runtime/research-sandbox.js';
-import type { ResearchExecution } from '../runtime/contract.js';
+import type { ResearchCellRunResult } from '../runtime/contract.js';
 import type { Prisma } from '@prisma/client';
 import { execFileSync } from 'node:child_process';
 import { rm } from 'node:fs/promises';
@@ -71,7 +71,7 @@ const sourceAnalysis: Record<string, Pick<ResearchPythonAnalysis, 'definitions' 
   'double = value * 2': { definitions: ['double'], references: ['value'] },
   'other = 3': { definitions: ['other'], references: [] },
 };
-function executionResult(source = 'value = 1'): ResearchExecution {
+function executionResult(source = 'value = 1'): ResearchCellRunResult {
   return {
     outputs: [{ type: 'text', text: source, level: 'info' }],
     ...sourceAnalysis[source],
@@ -281,7 +281,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
 
   it('retains the frozen source when a cell is edited during a clean run', async () => {
     const started = deferred<void>();
-    const release = deferred<ResearchExecution>();
+    const release = deferred<ResearchCellRunResult>();
     sandbox.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;
@@ -319,7 +319,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
 
   it('shares the run lock and waits for cancellation persistence before releasing it', async () => {
     const started = deferred<void>();
-    const release = deferred<ResearchExecution>();
+    const release = deferred<ResearchCellRunResult>();
     sandbox.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;
@@ -421,7 +421,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     const applied = await applyResearchCellChangeProposalForReview(ownerId, proposalId);
     await acceptResearchCellChangeReview(ownerId, proposalId, applied!.document.contentRevision);
     const started = deferred<void>();
-    const release = deferred<ResearchExecution>();
+    const release = deferred<ResearchCellRunResult>();
     sandbox.execute.mockImplementationOnce(() => {
       started.resolve();
       return release.promise;

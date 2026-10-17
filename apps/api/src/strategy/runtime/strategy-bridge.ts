@@ -7,7 +7,7 @@ import type { RuntimeLogFrame } from '#infra/runtime/protocol.js';
 import type { SandboxBridgeInitializationOptions } from '#infra/runtime/sandbox-bridge.js';
 import type {
   StrategyStartOptions,
-  StrategyCallbackInput,
+  StrategyDecisionInput,
   StrategySandboxMetadata,
 } from './contract.js';
 import { readStrategyContext, strategyContextAccessSchema } from './context-access.js';
@@ -17,7 +17,7 @@ import type { EngineContext } from '#backtesting/contract.js';
 import type { BarRow, OhlcBar } from '#backtesting/data/market.js';
 import { makeSandboxConsole, type UserLogSink } from '#infra/runtime/console.js';
 import {
-  strategyExecutionFrameSchema,
+  strategyDecisionFrameSchema,
   strategyCommandSchema,
   strategyStartupFrameSchema,
   type StrategyRequestFrame,
@@ -44,7 +44,7 @@ export interface StrategyBridgeOptions {
 
 /** Owns the strategy protocol connection and state across callbacks. */
 export class StrategyBridge extends SandboxBridgeBase<
-  StrategyCallbackInput,
+  StrategyDecisionInput,
   void,
   StrategySandboxMetadata,
   undefined,
@@ -179,12 +179,12 @@ export class StrategyBridge extends SandboxBridgeBase<
     };
   }
 
-  async execute({ context }: StrategyCallbackInput): Promise<void> {
+  async execute({ context }: StrategyDecisionInput): Promise<void> {
     this.transport.setHostAccess?.((input) => this.accessContext(context, input));
     try {
       await this.exchange({
         command: { type: 'bar', snapshot: this.contextSnapshot(context) },
-        schema: strategyExecutionFrameSchema,
+        schema: strategyDecisionFrameSchema,
         operation: `executing a ${this.options.diagnostics.language} strategy ${this.options.diagnostics.callback}`,
         onLog: (frame) => this.forwardLog(frame),
         onRequest: (frame) => this.answerRequest(frame, context),

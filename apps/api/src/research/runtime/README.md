@@ -2,13 +2,15 @@
 
 [ResearchSandbox.start](research-sandbox.ts) 接收 `{ documentId, signal? }`，返回具有 `metadata / execute / close` 的实例；metadata 包含 environment 和 capabilities。输入/输出宿主类型归 [contract.ts](contract.ts)。Research 当前仅支持 Python。
 
+单次 Cell 调用使用 `ResearchCellRunInput` / `ResearchCellRunOptions`，返回 `ResearchCellRunResult`，包含输出、定义、引用和环境指纹。宿主内部以 ResearchCellRunLogs 累计日志，以 researchCellRunFrameSchema 校验帧，由 Bridge.readCellRunResult 读取结果。持久化的 ResearchExecution / ResearchExecutionV1 表示完整研究运行证据，继续保留原名。
+
 [research-sandbox-pool.ts](research-sandbox-pool.ts) 的 `ResearchSandboxPool` 及单例 `researchSandboxPool` 按 documentId 复用实例。业务通过 `withSandbox(documentId, sandbox => sandbox.execute({ cell, parameters? }, options), { signal? })` 借用；依赖分析也借用同一实例调用 analyze。嵌入分析使用自己的内部文档 ID，执行后关闭。
 
 - sandbox.analyze(cells) 返回 AST 定义、引用、导入和受控请求，不保存依赖。
 - sandbox.execute({ cell, parameters? }, { signal?, observer?, captureEnvironment? }) 返回 outputs、definitions/references 和环境哈希；SDK request 交给 [dispatch](host/README.md)。
 - pool.reset(documentId) 排队清空现有 namespace，没有实例时直接返回；pool.interrupt 关闭活动执行并标记中断；pool.close 删除条目并关闭连接。文档归档／删除直接调用 pool.close。
 
-具体实例直接继承公共 Sandbox。start 创建实例并等待基类 initialize；createBridge 仅调用 [ResearchBridge.create](research-bridge.ts)，后者内部获取 PythonSession 并保存 { documentId }，返回后基类调用 initialize({ signal }) 并统一状态及失败/取消清理；Bridge 独占 Transport，并继承 close/abort/isClosed。ResearchBridge 继承 [SandboxBridgeBase](../../infra/runtime/sandbox-bridge-base.ts)，绑定执行输入、输出、metadata 和 ResearchExecutionOptions，由基类的抽象 initialize/execute 统一约束公共方法。类另显式实现 [contract.ts](contract.ts) 的 ResearchBridgeContract，Sandbox 字段依赖该接口；这个扩展接口保留 analyze/reset 两个业务方法。initialize/analyze/execute/reset 调用继承的 protected exchange，持有环境与能力；Sandbox 保留活动 Cell 和中断异常转换。单次执行日志、请求 observer 与环境留痕不存入会话字段；日志累计超限通过注入的宿主 close 关闭实例，最终 outputs 超限和普通 Python 错误保留会话。pool 唯一拥有操作队列、容量和实例身份检查，sandbox 不再重复排队。失效实例只按原条目身份移除，旧操作不能误关新实例。
+具体实例直接继承公共 Sandbox。start 创建实例并等待基类 initialize；createBridge 仅调用 [ResearchBridge.create](research-bridge.ts)，后者内部获取 PythonSession 并保存 { documentId }，返回后基类调用 initialize({ signal }) 并统一状态及失败/取消清理；Bridge 独占 Transport，并继承 close/abort/isClosed。ResearchBridge 继承 [SandboxBridgeBase](../../infra/runtime/sandbox-bridge-base.ts)，绑定执行输入、输出、metadata 和 ResearchCellRunOptions，由基类的抽象 initialize/execute 统一约束公共方法。类另显式实现 [contract.ts](contract.ts) 的 ResearchBridgeContract，Sandbox 字段依赖该接口；这个扩展接口保留 analyze/reset 两个业务方法。initialize/analyze/execute/reset 调用继承的 protected exchange，持有环境与能力；Sandbox 保留活动 Cell 和中断异常转换。单次执行日志、请求 observer 与环境留痕不存入会话字段；日志累计超限通过注入的宿主 close 关闭实例，最终 outputs 超限和普通 Python 错误保留会话。pool 唯一拥有操作队列、容量和实例身份检查，sandbox 不再重复排队。失效实例只按原条目身份移除，旧操作不能误关新实例。
 
 会话获取串行化，每个实例内操作串行执行；最多 4 个活动实例，只淘汰无待处理操作的最久未使用实例，否则报 busy。文档锁另归 document-runs，通信队列不替代修订或权限检查。
 

@@ -7,10 +7,10 @@ import { PythonSession } from '#infra/runtime/python/python-session.js';
 import { TypeScriptTransport } from '#infra/runtime/typescript/typescript-transport.js';
 import type { SandboxBridge } from '#infra/runtime/sandbox-bridge.js';
 import type {
-  AssetFactorExecutionInput,
-  CrossSectionalFactorExecutionInput,
+  AssetFactorComputeInput,
+  CrossSectionalFactorComputeInput,
   ExecutableFactorKind,
-  FactorExecutionInput,
+  FactorComputeInput,
   FactorSandboxMetadata,
   FactorValues,
 } from './contract.js';
@@ -95,7 +95,7 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       const session = sessionFixture(language, ready(language, analysisKind));
       const host = { abort: vi.fn() };
       const bridge: SandboxBridge<
-        FactorExecutionInput<typeof analysisKind>,
+        FactorComputeInput<typeof analysisKind>,
         FactorValues,
         FactorSandboxMetadata<typeof analysisKind>
       > = new FactorBridge(
@@ -185,8 +185,8 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       analysisKind: 'cross_sectional',
       code: 'source',
     });
-    expectTypeOf(sandbox.execute).parameter(0).toEqualTypeOf<CrossSectionalFactorExecutionInput>();
-    const input: CrossSectionalFactorExecutionInput = {
+    expectTypeOf(sandbox.execute).parameter(0).toEqualTypeOf<CrossSectionalFactorComputeInput>();
+    const input: CrossSectionalFactorComputeInput = {
       items: [{ bar, closes: [1, 2], dates: ['20260101', '20260102'] }],
     };
     try {
@@ -217,7 +217,7 @@ describe.each(['typescript', 'python'] as const)('%s factor runtime ownership', 
       first_error: null,
     });
     const sandbox = await FactorSandbox.start({ language, analysisKind: 'panel', code: 'source' });
-    expectTypeOf(sandbox.execute).parameter(0).toEqualTypeOf<AssetFactorExecutionInput>();
+    expectTypeOf(sandbox.execute).parameter(0).toEqualTypeOf<AssetFactorComputeInput>();
     expectTypeOf(sandbox.metadata.analysisKind).toEqualTypeOf<'panel'>();
     const input = { fields: { 'etf.adjustedClose': [1, 2] }, indexes: [1] };
     try {

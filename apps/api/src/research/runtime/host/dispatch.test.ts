@@ -9,10 +9,10 @@ vi.mock('../../datasets/results/factor-report.js', () => ({
 }));
 import { dispatchResearchRequest } from './dispatch.js';
 import { SandboxBridgeBase, type SandboxExchange } from '#infra/runtime/sandbox-bridge-base.js';
-import { researchExecutionFrameSchema } from './protocol.js';
+import { researchCellRunFrameSchema } from './protocol.js';
 
 class BridgeFixture extends SandboxBridgeBase<
-  SandboxExchange<z.infer<typeof researchExecutionFrameSchema>, void>,
+  SandboxExchange<z.infer<typeof researchCellRunFrameSchema>, void>,
   void,
   void
 > {
@@ -21,7 +21,7 @@ class BridgeFixture extends SandboxBridgeBase<
   }
 
   execute(
-    exchange: SandboxExchange<z.infer<typeof researchExecutionFrameSchema>, void>,
+    exchange: SandboxExchange<z.infer<typeof researchCellRunFrameSchema>, void>,
   ): Promise<void> {
     return super.exchange(exchange);
   }
@@ -145,7 +145,7 @@ describe('Research SDK request dispatch boundary', () => {
 
     await bridge.execute({
       command: { type: 'research_execute' },
-      schema: researchExecutionFrameSchema,
+      schema: researchCellRunFrameSchema,
       operation: 'testing Research evidence delivery',
       onRequest: (frame) =>
         dispatchResearchRequest('document', frame, {
@@ -183,7 +183,7 @@ describe('Research SDK request dispatch boundary', () => {
         isClosed: false,
       }).execute({
         command: { type: 'research_execute' },
-        schema: researchExecutionFrameSchema,
+        schema: researchCellRunFrameSchema,
         operation: 'testing Research evidence failure',
         onRequest: (frame) =>
           dispatchResearchRequest('document', frame, {

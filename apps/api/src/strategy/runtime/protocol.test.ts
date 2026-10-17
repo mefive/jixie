@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   strategyStartupFrameSchema,
-  strategyExecutionFrameSchema,
+  strategyDecisionFrameSchema,
   strategyCommandSchema,
 } from './protocol.js';
 
@@ -25,7 +25,7 @@ describe('strategy sandbox protocol', () => {
 
   it('rejects extra fields on governed strategy requests', () => {
     expect(() =>
-      strategyExecutionFrameSchema.parse({
+      strategyDecisionFrameSchema.parse({
         type: 'request',
         id: 1,
         method: 'bars',
@@ -57,7 +57,7 @@ describe('strategy sandbox protocol', () => {
       arguments: { operation: 'stock.setTargetWeight', arguments: { code: 'AAA', weight: 'bad' } },
     };
 
-    expect(strategyExecutionFrameSchema.parse(request)).toEqual(request);
+    expect(strategyDecisionFrameSchema.parse(request)).toEqual(request);
     expect(strategyCommandSchema.safeParse(request.arguments).success).toBe(false);
 
     for (const malformed of [
@@ -66,13 +66,13 @@ describe('strategy sandbox protocol', () => {
       { ...request, unrestricted: true },
       { ...request, method: 'arbitrary_access' },
     ]) {
-      expect(strategyExecutionFrameSchema.safeParse(malformed).success).toBe(false);
+      expect(strategyDecisionFrameSchema.safeParse(malformed).success).toBe(false);
     }
   });
 
   it('accepts completion without a deferred command batch and rejects the old payload', () => {
-    expect(strategyExecutionFrameSchema.parse({ type: 'done' })).toEqual({ type: 'done' });
-    expect(strategyExecutionFrameSchema.safeParse({ type: 'done', commands: [] }).success).toBe(
+    expect(strategyDecisionFrameSchema.parse({ type: 'done' })).toEqual({ type: 'done' });
+    expect(strategyDecisionFrameSchema.safeParse({ type: 'done', commands: [] }).success).toBe(
       false,
     );
   });

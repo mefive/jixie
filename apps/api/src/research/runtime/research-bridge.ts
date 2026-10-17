@@ -11,16 +11,16 @@ import type { ResearchPythonAnalysis } from './host/analysis-types.js';
 import { dispatchResearchRequest } from './host/dispatch.js';
 import {
   researchAnalysisFrameSchema,
-  researchExecutionFrameSchema,
+  researchCellRunFrameSchema,
   researchResetFrameSchema,
   researchStartupFrameSchema,
 } from './host/protocol.js';
 import type {
   ResearchCellInput,
   ResearchBridgeContract,
-  ResearchExecutionInput,
-  ResearchExecutionOptions,
-  ResearchExecution,
+  ResearchCellRunInput,
+  ResearchCellRunOptions,
+  ResearchCellRunResult,
   ResearchSandboxMetadata,
   ResearchStartOptions,
 } from './contract.js';
@@ -28,11 +28,11 @@ import type {
 const MAX_RESEARCH_RUNTIME_OUTPUT_BYTES = 8 * 1024 * 1024;
 
 type ResearchResultFrame = Extract<
-  z.infer<typeof researchExecutionFrameSchema>,
+  z.infer<typeof researchCellRunFrameSchema>,
   { type: 'research_executed' | 'research_error' }
 >;
 
-interface ResearchExecutionLogs {
+interface ResearchCellRunLogs {
   outputs: ResearchCellOutputBlockV1[];
   bytes: number;
 }
@@ -48,10 +48,10 @@ export interface ResearchBridgeOptions {
 /** Owns the research protocol connection; the sandbox handles business interruption. */
 export class ResearchBridge
   extends SandboxBridgeBase<
-    ResearchExecutionInput,
-    ResearchExecution,
+    ResearchCellRunInput,
+    ResearchCellRunResult,
     ResearchSandboxMetadata,
-    ResearchExecutionOptions
+    ResearchCellRunOptions
   >
   implements ResearchBridgeContract
 {
@@ -167,9 +167,9 @@ export class ResearchBridge
   }
 
   async execute(
-    { cell, parameters }: ResearchExecutionInput,
-    options: ResearchExecutionOptions = {},
-  ): Promise<ResearchExecution> {
+    { cell, parameters }: ResearchCellRunInput,
+    options: ResearchCellRunOptions = {},
+  ): Promise<ResearchCellRunResult> {
     options.signal?.throwIfAborted();
     if (parameters !== undefined && !this.metadata.capabilities.includes('explicit_parameters')) {
       throw new Error(
@@ -180,7 +180,7 @@ export class ResearchBridge
     await options.captureEnvironment?.(this.metadata.environment);
     options.signal?.throwIfAborted();
 
-    const logs: ResearchExecutionLogs = { outputs: [], bytes: 0 };
+    const logs: ResearchCellRunLogs = { outputs: [], bytes: 0 };
 
     return this.exchange({
       command: {
@@ -189,13 +189,13 @@ export class ResearchBridge
         source: cell.source,
         ...(parameters ? { parameters: parameters } : {}),
       },
-      schema: researchExecutionFrameSchema,
+      schema: researchCellRunFrameSchema,
       operation: 'executing a research cell',
       signal: options.signal,
       onLog: (frame) => this.recordLog(frame, logs),
       onRequest: (frame) =>
         dispatchResearchRequest(this.options.documentId, frame, options.observer),
-      result: (frame) => this.executionResult(frame, logs.outputs),
+      result: (frame) => this.readCellRunResult(frame, logs.outputs),
     });
   }
 
@@ -208,7 +208,7 @@ export class ResearchBridge
     });
   }
 
-  private recordLog(frame: RuntimeLogFrame, logs: ResearchExecutionLogs): void {
+  private recordLog(frame: RuntimeLogFrame, logs: ResearchCellRunLogs): void {
     logs.bytes += Buffer.byteLength(JSON.stringify(frame), 'utf8');
     if (logs.bytes > MAX_RESEARCH_RUNTIME_OUTPUT_BYTES) {
       this.host.close();
@@ -228,10 +228,10 @@ export class ResearchBridge
     });
   }
 
-  private executionResult(
+  private readCellRunResult(
     frame: ResearchResultFrame,
     logOutputs: ResearchCellOutputBlockV1[],
-  ): ResearchExecution {
+  ): ResearchCellRunResult {
     switch (frame.type) {
       case 'research_executed': {
         const outputs: ResearchCellOutputBlockV1[] = [...logOutputs, ...frame.outputs];

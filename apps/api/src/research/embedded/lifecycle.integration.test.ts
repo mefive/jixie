@@ -1,7 +1,7 @@
 import type { ResearchSandbox } from '../runtime/research-sandbox.js';
-import type { ResearchExecution, ResearchCellInput } from '../runtime/contract.js';
+import type { ResearchCellRunResult, ResearchCellInput } from '../runtime/contract.js';
 import { researchSandboxPool } from '../runtime/research-sandbox-pool.js';
-import type { ResearchExecutionOptions } from '../runtime/contract.js';
+import type { ResearchCellRunOptions } from '../runtime/contract.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { ResearchEmbeddedRunSummaryV1, ResearchEmbeddedRunV1 } from '@jixie/shared';
 import { embeddedCreateSchema } from '@jixie/shared/api/research';
@@ -75,8 +75,8 @@ let executeSpy: Mock<
   (
     documentId: string,
     cell: ResearchCellInput,
-    options?: ResearchExecutionOptions,
-  ) => Promise<ResearchExecution>
+    options?: ResearchCellRunOptions,
+  ) => Promise<ResearchCellRunResult>
 >;
 
 function request(path: string, method = 'GET', body?: unknown, userId = 'owner', locale = 'en') {
@@ -99,7 +99,7 @@ async function execute(run: ResearchEmbeddedRunSummaryV1) {
   await JobService.execute(run.jobId);
   return getEmbeddedRun('owner', run.analysisId, run.runId);
 }
-async function capture(options?: ResearchExecutionOptions) {
+async function capture(options?: ResearchCellRunOptions) {
   await options?.captureEnvironment?.(environment);
   return {
     outputs: [{ type: 'value' as const, value: 3 }],
@@ -155,8 +155,8 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
         (
           documentId: string,
           cell: ResearchCellInput,
-          options?: ResearchExecutionOptions,
-        ) => Promise<ResearchExecution>
+          options?: ResearchCellRunOptions,
+        ) => Promise<ResearchCellRunResult>
       >()
       .mockImplementation(async (_documentId, _cell, options) => capture(options));
     vi.spyOn(researchSandboxPool, 'withSandbox').mockImplementation(async (documentId, operation) =>
@@ -494,7 +494,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
 
   it('cancels active work and rejects late output without freezing or overwriting the record', async () => {
     const started = deferred<void>();
-    const late = deferred<ResearchExecution>();
+    const late = deferred<ResearchCellRunResult>();
     executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => {
       await options?.captureEnvironment?.(environment);
       started.resolve();
@@ -564,7 +564,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
 
   it('ends the execution deadline even if a dataset request never settles', async () => {
     const started = deferred<void>();
-    const late = deferred<ResearchExecution>();
+    const late = deferred<ResearchCellRunResult>();
     executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => {
       await options?.captureEnvironment?.(environment);
       started.resolve();
