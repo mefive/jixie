@@ -1,3 +1,4 @@
+import { testPythonExecutable } from './python-environment.js';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
@@ -5,7 +6,7 @@ import { expect, it } from 'vitest';
 it('keeps Python adapter bindings independent while retaining session state', () => {
   const apiSource = fileURLToPath(new URL('../src/', import.meta.url));
   const result = spawnSync(
-    process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3',
+    testPythonExecutable(),
     [
       '-I',
       '-c',

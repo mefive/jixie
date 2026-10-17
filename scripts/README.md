@@ -26,6 +26,28 @@ shared 契约时跳过安装，否则按固定 requirements 安装并复核。SD
 
 `pnpm setup:sandbox --check` 只比较五份生成物，报告所有过期/缺失文件；不写文件、不要求 Python、
 不安装依赖。根级 build/typecheck 共用此门禁，`pnpm dev` 保留实际运行环境校验。
+
+### 测试使用的 Python
+
+API 的 `test` / `test:watch`、sandboxd 的 `test` 以及直接使用各应用 Vitest 配置的调用，均在收集测试前
+通过 `scripts/sandbox/test-python-environment.ts` 校验 Python。默认解释器由仓库位置解析为
+`.venv/research-py-v1/bin/python3`，与启动命令的工作目录无关。首次测试前运行 `pnpm setup:sandbox`。
+
+测试要求 CPython 3.13.x、契约中固定版本的包及其导入全部通过。可以通过 `JIXIE_PYTHON_EXECUTABLE`
+指定外部解释器，它同样必须通过完整校验；显式空值也视为配置错误。校验失败会明确提示环境路径和
+`pnpm setup:sandbox`，不会尝试 PATH 中的 Python、其他解释器或自动安装。测试 Worker 和其子进程
+继承校验后的解释器；因此运行纯 TypeScript 用例也需要先准备此环境。
+
+相关独立自测入口：
+
+```sh
+pnpm test:python-environment
+pnpm test:python-sdk-boundaries
+```
+
+前者覆盖默认路径、覆盖配置、失败时不回退及真实 Vitest 入口；后者运行 Python SDK 边界检查器自测。
+这两个命令通过 `tsx` 加载共享 TypeScript 环境校验。静态 `typecheck` 和 `setup:sandbox --check` 仍不要求
+Python 环境，不执行测试初始化。
 Strategy TS 复用 `packages/shared/src/sdk/strategy/reference.ts` 的声明生成器，额外输出同目录
 `contract.ts` 供实现做类型检查；编辑器仍动态生成带用户因子 key 的声明。Factor TS 同样由
 `sdk/factor/reference.ts` 生成同目录 `contract.ts`，前端直接消费共享声明渲染器。另三份生成物为 Research / Factor
@@ -98,4 +120,5 @@ Strategy / Factor 的 Python SDK/runtime 源码分别归 `apps/api/src/strategy`
 
 SDK 依赖所有权检查：TS 在后端 AST 扫描中执行 sdk-isolation；Python 使用项目 CPython 3.13 运行
 `scripts/checks/check-python-sdk-boundaries.py`。该命令只解析/编译源码，不导入 SDK 或执行用户代码。
-相应 Node 自测在 review 后执行；它们使用 JIXIE_PYTHON_EXECUTABLE 或 PATH Python。
+相应 Node 自测在 review 后通过 `pnpm test:python-sdk-boundaries` 执行，使用已校验的项目环境或显式覆盖，
+不回退到 PATH Python。

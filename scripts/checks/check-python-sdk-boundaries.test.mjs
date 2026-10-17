@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { initializeTestPythonEnvironment } from '../sandbox/test-python-environment.ts';
 
 const checker = fileURLToPath(new URL('./check-python-sdk-boundaries.py', import.meta.url));
-const python = process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3';
+const python = await initializeTestPythonEnvironment();
 
 function inspect(source, module) {
   return JSON.parse(

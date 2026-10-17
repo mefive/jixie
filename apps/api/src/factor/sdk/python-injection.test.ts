@@ -1,3 +1,4 @@
+import { testPythonExecutable } from '../../../tests/python-environment.js';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
@@ -5,7 +6,7 @@ import { expect, it } from 'vitest';
 it('uses Factor Python capabilities without importing a runtime and preserves SDK validation', () => {
   const apiSource = fileURLToPath(new URL('../../', import.meta.url));
   const result = spawnSync(
-    process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3',
+    testPythonExecutable(),
     [
       '-I',
       '-c',

@@ -1,3 +1,4 @@
+import { testPythonExecutable } from '../../../../tests/python-environment.js';
 import { spawnSync } from 'node:child_process';
 import { copyFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -79,7 +80,7 @@ def compute(ctx: AssetFactorContext):
         }),
       );
       const result = spawnSync(
-        process.env.JIXIE_PYTHON_EXECUTABLE ?? 'python3',
+        testPythonExecutable(),
         ['-I', '-u', join(directory, 'apps/sandboxd/python/jixie_runner.py')],
         { input, timeout: 10_000 },
       );

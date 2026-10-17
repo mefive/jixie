@@ -1,7 +1,6 @@
 import { researchSandboxPool } from '../../sandbox/research-sandbox-pool.js';
 import { EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE } from './classification-template.js';
 import { equityFcffClassificationSource } from './classification-evidence.js';
-import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -13,17 +12,11 @@ import {
 
 const DOCUMENT_ID = 'fcff-evidence-golden';
 let previousLocal: string | undefined;
-let previousExecutable: string | undefined;
 
 describe('FCFF research evidence', { timeout: 60_000 }, () => {
   beforeEach(() => {
     previousLocal = process.env.JIXIE_PYTHON_LOCAL;
-    previousExecutable = process.env.JIXIE_PYTHON_EXECUTABLE;
     process.env.JIXIE_PYTHON_LOCAL = '1';
-    process.env.JIXIE_PYTHON_EXECUTABLE = resolve(
-      process.cwd(),
-      '../../.venv/research-py-v1/bin/python3',
-    );
   });
   afterEach(() => {
     researchSandboxPool.close(DOCUMENT_ID);
@@ -31,11 +24,6 @@ describe('FCFF research evidence', { timeout: 60_000 }, () => {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
       process.env.JIXIE_PYTHON_LOCAL = previousLocal;
-    }
-    if (previousExecutable === undefined) {
-      delete process.env.JIXIE_PYTHON_EXECUTABLE;
-    } else {
-      process.env.JIXIE_PYTHON_EXECUTABLE = previousExecutable;
     }
   });
 

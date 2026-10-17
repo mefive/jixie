@@ -167,6 +167,9 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
   和相关 runtime / Agent / Pyright 测试。
 - 本地首次运行或 Contract 变化后执行 `pnpm setup:sandbox`。`pnpm dev` 会在启动 Web、API 和 sandboxd
   前校验 CPython 3.13 及所有固定包的精确版本；校验失败不得静默退化到系统 Python。
+- API、sandboxd 及 Python 检查器测试入口同样校验项目 Python 环境；默认路径从仓库位置解析，显式
+  `JIXIE_PYTHON_EXECUTABLE` 覆盖也必须匹配 CPython 3.13 与固定依赖。环境异常明确报错并提示
+  `pnpm setup:sandbox`，不回退到系统 Python，也不在测试入口自动安装。
 - Agent 生成 Python 前必须查询 `searchResearchCatalog("runtime.python")`。prompt、Catalog、提案导入白名单、
   Docker requirements 和本地运行时必须复用同一 Contract；清单外能力应明确报缺口，不得猜测安装状态或手写替代。
 

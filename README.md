@@ -90,6 +90,10 @@ pnpm dev                         # 同时启动 sandboxd、API 和 Web
 仅调试不涉及 Python 执行的单个进程时，仍可分别运行 `pnpm dev:api` 或 `pnpm dev:web`；需要 Python
 Research、Factor 或 Strategy 时使用完整的 `pnpm dev`。
 
+API 与 sandboxd 测试默认使用本机 `.venv/research-py-v1`，先运行 `pnpm setup:sandbox` 准备 CPython 3.13
+和固定依赖。测试启动时校验环境，缺失或不兼容就报错，不回退到系统 Python；
+`JIXIE_PYTHON_EXECUTABLE` 可覆盖解释器路径，但仍须通过相同校验。详见[测试 Python 说明](scripts/README.md#测试使用的-python)。
+
 日常数据补齐统一运行 `pnpm maintenance`；它会按连续发布水位自动判断缺失交易日。底层
 `pnpm sync <任务>` 提供定向补数；审计命令用于检查数据。部署会按需调用同步入口，但生产机器首次安装和升级的统一操作入口仍是
 `./scripts/bootstrap.sh`，详见 [`docs/deployment.md`](./docs/deployment.md)。

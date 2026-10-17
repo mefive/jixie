@@ -1,5 +1,4 @@
 import { researchSandboxPool } from '../../sandbox/research-sandbox-pool.js';
-import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   researchDownstreamDependencyCellIds,
@@ -16,17 +15,11 @@ import {
 
 const DOCUMENT_ID = 'equity-fcff-valuation-template-test';
 let previousLocal: string | undefined;
-let previousExecutable: string | undefined;
 
 describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
   beforeEach(() => {
     previousLocal = process.env.JIXIE_PYTHON_LOCAL;
-    previousExecutable = process.env.JIXIE_PYTHON_EXECUTABLE;
     process.env.JIXIE_PYTHON_LOCAL = '1';
-    process.env.JIXIE_PYTHON_EXECUTABLE = resolve(
-      process.cwd(),
-      '../../.venv/research-py-v1/bin/python3',
-    );
   });
 
   afterEach(() => {
@@ -35,11 +28,6 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
       delete process.env.JIXIE_PYTHON_LOCAL;
     } else {
       process.env.JIXIE_PYTHON_LOCAL = previousLocal;
-    }
-    if (previousExecutable === undefined) {
-      delete process.env.JIXIE_PYTHON_EXECUTABLE;
-    } else {
-      process.env.JIXIE_PYTHON_EXECUTABLE = previousExecutable;
     }
   });
 

@@ -12,6 +12,8 @@
     "dev:web": "pnpm --filter web dev",
     "dev:docs": "pnpm --filter docs dev",
     "test:dev-shutdown": "node --test scripts/dev/process-group.test.mjs",
+    "test:python-environment": "node --import tsx --test scripts/sandbox/test-python-environment.test.ts",
+    "test:python-sdk-boundaries": "node --import tsx --test scripts/checks/check-python-sdk-boundaries.test.mjs",
     "build": "node scripts/checks/check-backend-boundaries.mjs && pnpm setup:sandbox --check && pnpm -r build",
     "typecheck": "node scripts/checks/check-backend-boundaries.mjs && pnpm setup:sandbox --check && tsc -p scripts/sandbox/tsconfig.json && node scripts/checks/typecheck-workspaces.mjs",
     "lint": "eslint .",
