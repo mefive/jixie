@@ -9,11 +9,8 @@ import { complex } from './complex';
 import './sdk-doc.css';
 
 /**
- * Standalone SDK reference (route `/docs/sdk`, opened from the strategy Docs button + the documentation
- * links / Cmd+I action in the editor). Apple-Developer-docs information architecture — sticky sidebar
- * nav with scroll-spy, eyebrow→title→abstract per symbol, and declaration blocks whose type names link
- * to their documentation. Language follows the global localeStore. SDK_ENTRIES is also the source for
- * the Monaco types.
+ * 展示策略及因子 SDK 参考与锚点导航，供作者查询契约。
+ * Render strategy and factor SDK references with navigable contract anchors.
  */
 export const Sdk = complex.component(() => {
   const store = complex.useStore();
@@ -211,6 +208,11 @@ export const Sdk = complex.component(() => {
 
 // A signature rendered as a Declaration block — member name emphasized, types (BarRow/OhlcBar/Universe)
 // rendered as links to their doc section.
+
+/**
+ * 按成员签名渲染类型引用和文档锚点。
+ * Render member signatures with type references and documentation anchors.
+ */
 function Declaration({ prefix, sig }: { prefix: string; sig: string }) {
   const paren = sig.search(/[(:]/); // method '(' or field ':'
   const name = paren < 0 ? sig : sig.slice(0, paren);
@@ -228,6 +230,10 @@ function Declaration({ prefix, sig }: { prefix: string; sig: string }) {
 
 const TYPE_RE = new RegExp(`\\b(${LINKABLE_TYPES.join('|')})\\b`, 'g');
 
+/**
+ * 为类型引用添加文档内链接，供 SDK 阅读时跳转定义。
+ * Link recognized type references to their SDK documentation anchors.
+ */
 function linkifyTypes(text: string): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;

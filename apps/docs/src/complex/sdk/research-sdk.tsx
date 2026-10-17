@@ -6,6 +6,10 @@ import { localeStore } from '@src/i18n/locale-store';
 import { complex } from './complex';
 import './sdk-doc.css';
 
+/**
+ * 从公开研究契约展示 SDK 方法、参数、结果列和双语说明。
+ * Render research SDK methods, parameters, result columns and bilingual guidance from the public contract.
+ */
 export const ResearchSdk = complex.component(() => {
   const [selectedName, setSelectedName] = useState(
     () => window.location.hash.slice(1) || 'data.series',

@@ -272,6 +272,10 @@ export function searchResearchDataCatalog(
   return request(`/api/app/research/data-catalog?${parameters}`, { signal });
 }
 
+/**
+ * 提交研究对话输入并连接流式轮次响应。
+ * Submit research conversation input and connect to streamed turn output.
+ */
 export function sendResearchAgent(
   message: string,
   conversationId?: string,

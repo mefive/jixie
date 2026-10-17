@@ -3,7 +3,10 @@ import { defaultTools } from '../tools/index.js';
 import type { FactorQuestionContextV1 } from '@jixie/shared';
 
 // The system prompt below is English (i18n-exempt); only the reply language follows the user.
-/** Read-only explanations of an identified Factor definition and the selected report summary. */
+/**
+ * 围绕已选因子定义与报告提供只读解释。
+ * Read-only explanations of an identified Factor definition and the selected report summary.
+ */
 export function factorQaProfile(context: FactorQuestionContextV1): AgentProfile {
   return {
     system: `You are a factor research assistant. Explain the selected definition and its report (Rank IC, sorted returns, decay, turnover, or the corresponding time-series/panel/macro-regime metrics). Keep answers concise; markdown is fine. ${REPLY_LANGUAGE}

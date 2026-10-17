@@ -23,6 +23,11 @@ export const runUniverseTool: AgentTool = {
   description:
     'Resolve a versioned point-in-time A-share UniverseSpec into a deterministic table. Use only universe measure ids and units returned by searchResearchCatalog. The model never supplies SQL or table/column names. fixed asOf resolves to the latest available trading snapshot on or before that date; latest_available uses the newest snapshot. index_members resolves historical membership on or before the snapshot. eligibility explicitly freezes minimum listing days, suspension exclusion, and risk-warning handling. The result is attached as a re-runnable Universe artifact.',
   parameters: z.toJSONSchema(argsSchema),
+
+  /**
+   * 解析并执行确定性证券池筛选，向模型返回可重跑的时点证券集合。
+   * Execute a deterministic universe request and return a rerunnable point-in-time instrument set.
+   */
   async run(args) {
     const parsed = argsSchema.safeParse(args);
     if (!parsed.success) {

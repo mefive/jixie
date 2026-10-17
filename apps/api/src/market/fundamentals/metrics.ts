@@ -23,6 +23,10 @@ export type FinancialMetricConcept = ResearchFinancialMetricV1;
 export type FinancialMetricUnit = 'CNY' | 'shares' | 'ratio';
 export type FinancialMetricStatus = 'ok' | 'missing' | 'invalid' | 'not_applicable';
 
+/**
+ * 返回单指标数值、单位、状态与诊断，缺失不等于零。
+ * Return a metric's value, unit, status and diagnostics without equating missing with zero.
+ */
 export interface FinancialMetricResult {
   concept: FinancialMetricConcept;
   value: number | null;
@@ -34,11 +38,19 @@ export interface FinancialMetricResult {
   missingReason?: string;
 }
 
+/**
+ * 组合同报告期财务指标及其来源元数据。
+ * Group reporting-period metrics and provenance metadata.
+ */
 export interface FinancialPeriodMetrics {
   endDate: string;
   metrics: Record<FinancialMetricConcept, FinancialMetricResult>;
 }
 
+/**
+ * 封装历史财务指标与覆盖说明，供研究 SDK 映射。
+ * Collect historical metrics and coverage for Research SDK mapping.
+ */
 export interface FinancialMetricsResult {
   formulaVersion: typeof FINANCIAL_FORMULA_VERSION;
   resolverVersion: number;
@@ -49,6 +61,10 @@ export interface FinancialMetricsResult {
   resultFingerprint: string;
 }
 
+/**
+ * 将财务操作数与缺失状态绑定，供公式安全组合。
+ * Associate a financial operand with validity for formula composition.
+ */
 interface Operand {
   value: number | null;
   inputVersions: string[];
@@ -137,7 +153,10 @@ export const FINANCIAL_METRIC_DEFINITIONS: Record<
   issuedShares: { unit: 'shares', formula: 'balance-sheet issued shares' },
 };
 
-/** Calculate deterministic historical metrics without persisting a derived snapshot. */
+/**
+ * 从历史财报确定性计算指标，不持久化派生快照。
+ * Calculate deterministic historical metrics without persisting a derived snapshot.
+ */
 export function calculateFinancialMetrics(state: ResolvedFinancialState): FinancialMetricsResult {
   const diagnostics = [...state.diagnostics];
   if (state.applicability === 'unsupported_financial') {
@@ -162,6 +181,11 @@ export function calculateFinancialMetrics(state: ResolvedFinancialState): Financ
   );
   const periodsByDate = new Map(state.periods.map((period) => [period.endDate, period]));
   const latestPeriod = state.periods.at(-1)?.endDate;
+
+  /**
+   * 按报告期组织标准化流量和往年比较，生成指标与缺失诊断。
+   * Assemble normalized flows and prior-year comparisons into period metrics.
+   */
   const periods = state.periods.map((period) => {
     if (!isStandardFinancialPeriod(period.endDate)) {
       return {
@@ -210,6 +234,10 @@ export function calculateFinancialMetrics(state: ResolvedFinancialState): Financ
   return { ...result, resultFingerprint: fingerprintResult(result) };
 }
 
+/**
+ * 提供单期已选报表及价格输入，供指标计算。
+ * Supply selected statements and prices for one period's calculations.
+ */
 interface PeriodCalculationInput {
   period: ResolvedFinancialPeriod;
   priorYear: ResolvedFinancialPeriod | undefined;
@@ -225,6 +253,10 @@ interface PeriodCalculationInput {
   includeMarketBridge: boolean;
 }
 
+/**
+ * 按报告期组合已标准化财报操作数并计算指标与诊断。
+ * Compute a reporting period's metrics and diagnostics from standardized statement operands.
+ */
 function calculatePeriodMetrics(
   input: PeriodCalculationInput,
 ): Record<FinancialMetricConcept, FinancialMetricResult> {
@@ -431,6 +463,10 @@ function calculatePeriodMetrics(
   };
 }
 
+/**
+ * 根据操作数有效性与单位构造财务指标结果，传播不可用原因。
+ * Build a financial metric with operand validity, units and unavailability reasons.
+ */
 function metric(concept: FinancialMetricConcept, operand: Operand): FinancialMetricResult {
   const definition = FINANCIAL_METRIC_DEFINITIONS[concept];
   const status: FinancialMetricStatus = operand.invalidReason
@@ -463,6 +499,10 @@ function missingPeriodMetrics(
   ) as Record<FinancialMetricConcept, FinancialMetricResult>;
 }
 
+/**
+ * 从标准化流量选择指定口径，保留缺失状态。
+ * Select a standardized flow convention while preserving unavailable state.
+ */
 function standardized(
   value: StandardizedFinancialValue | undefined,
   fallbackReason: string,
@@ -476,6 +516,10 @@ function standardized(
     : missing(fallbackReason);
 }
 
+/**
+ * 读取资产负债科目并附加有效性，供公式组合。
+ * Resolve a balance-sheet operand and its validity for formulas.
+ */
 function balanceValue<Key extends keyof ResolvedBalanceSheet['values']>(
   balance: ResolvedBalanceSheet | null,
   field: Key,
@@ -500,6 +544,10 @@ function optionalBalanceValue<Key extends keyof ResolvedBalanceSheet['values']>(
   return { value: balance.values[field] ?? 0, inputVersions: [balance.sourceRowFingerprint] };
 }
 
+/**
+ * 汇总已声明的有息债务科目，缺项按财务指标缺失规则处理。
+ * Combine declared interest-bearing debt items under the metric missing-data rules.
+ */
 function interestBearingDebt(balance: ResolvedBalanceSheet | null): Operand {
   if (!balance || balance.values.totalLiab == null) {
     return {
@@ -517,6 +565,10 @@ function interestBearingDebt(balance: ResolvedBalanceSheet | null): Operand {
   };
 }
 
+/**
+ * 由经营流动科目计算营运资本；必要总额缺失时返回不可用，可选细项遵守实现中的零值约定。
+ * Compute operating working capital with required-total checks and the implemented optional-item zero conventions.
+ */
 function workingCapital(balance: ResolvedBalanceSheet | null): Operand {
   if (!balance) {
     return missing('missing_balance_sheet');
@@ -539,6 +591,10 @@ function workingCapital(balance: ResolvedBalanceSheet | null): Operand {
   };
 }
 
+/**
+ * 由资本与经营资产科目构造投入资本，保留口径诊断。
+ * Compute invested capital from declared items with convention diagnostics.
+ */
 function investedCapital(balance: ResolvedBalanceSheet | null): Operand {
   if (!balance) {
     return missing('missing_balance_sheet');
@@ -626,6 +682,10 @@ function cagr(current: Operand, previous: Operand, years: number): Operand {
   );
 }
 
+/**
+ * 组合指标操作数与状态，避免将缺失数据静默当成零。
+ * Combine metric operands and validity states without silently treating missing data as zero.
+ */
 function combine(operands: Operand[], calculation: (...values: number[]) => number): Operand {
   const invalid = operands.find((operand) => operand.invalidReason);
   if (invalid) {
@@ -661,6 +721,10 @@ function combinedVersions(operands: Operand[]): string[] {
   return sortedUnique(operands.flatMap((operand) => operand.inputVersions));
 }
 
+/**
+ * 将指标缺失、口径或计算限制加入诊断，供研究结果解释。
+ * Append missing-data, convention and calculation limitations to metric diagnostics.
+ */
 function appendMetricDiagnostics(
   periods: FinancialPeriodMetrics[],
   diagnostics: FinancialDiagnostic[],

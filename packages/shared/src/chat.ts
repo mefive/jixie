@@ -12,6 +12,7 @@ import type {
 } from './research.js';
 
 /**
+ * 保存对话纯文本片段，与确定性产物共用消息结构。
  * Agent conversation messages. Typed parts persist deterministic research/universe artifacts or
  * results beside model prose. Artifact code stays on the strategy/factor host rather than in messages.
  * Legacy rows persisted `{ role, content }` — normalizeChatMessage upgrades them on read; writes are
@@ -22,37 +23,57 @@ export interface TextPart {
   text: string;
 }
 
+/**
+ * 持久引用嵌入式分析与运行，不把实时结果嵌入文本。
+ * Reference durable embedded analysis and runs from a message.
+ */
 export interface EmbeddedAnalysisPart {
   type: 'embedded_analysis';
   title: string;
   reference: ResearchEmbeddedRunReferenceV1;
 }
 
+/**
+ * 保存用户选定的数据请求引用，供对话追溯与代码生成。
+ * Retain selected data-request references for conversation provenance and authoring.
+ */
 export interface ResearchDataReferencesPart {
   type: 'research_data_references';
   references: ResearchDataReferenceV1[];
 }
 
-/** A read-time notice for a retired historical chart; no executable specification is exposed. */
+/**
+ * 只提供历史退役图表的读取提示，不暴露可执行规格。
+ * A read-time notice for a retired historical chart; no executable specification is exposed.
+ */
 export interface RetiredChartPart {
   type: 'retired_chart';
   title: string;
 }
 
-/** A deterministic entity universe. Legacy saved screens migrate to this typed Research artifact. */
+/**
+ * 保存确定性时点证券池，兼容迁移后的筛选产物。
+ * A deterministic entity universe. Legacy saved screens migrate to this typed Research artifact.
+ */
 export interface UniversePart {
   type: 'universe';
   title: string;
   spec: UniverseSpecV1;
 }
 
-/** A durable Agent-authored Cell change proposal. Applying it remains an explicit user action. */
+/**
+ * 保存 Agent 生成的持久 Cell 修改提案，应用仍由用户明确触发。
+ * A durable Agent-authored Cell change proposal. Applying it remains an explicit user action.
+ */
 export interface ResearchCellChangePart {
   type: 'research_cell_change';
   proposal: ResearchCellChangeProposalV1;
 }
 
-/** A durable, document-bound question that pauses semantic substitution until the user answers. */
+/**
+ * 保存文档绑定澄清问题，等待用户确认后才能继续语义替代。
+ * A durable, document-bound question that pauses semantic substitution until the user answers.
+ */
 export interface ResearchClarificationPart {
   type: 'research_clarification';
   clarification: ResearchClarificationV1;
@@ -60,6 +81,10 @@ export interface ResearchClarificationPart {
 
 export type ResearchCellContextRoleV1 = 'attached' | 'dependency';
 
+/**
+ * 冻结消息引用的 Cell 身份、源码和依赖角色。
+ * Snapshot a message's referenced cell identity, source and dependency role.
+ */
 export interface ResearchCellContextCellV1 {
   cellId: string;
   position: number;
@@ -71,7 +96,10 @@ export interface ResearchCellContextCellV1 {
   sourceHash?: string;
 }
 
-/** Immutable Cell and dependency snapshots attached to one Research user message. */
+/**
+ * 将不可变 Cell 与依赖快照绑定到一条用户研究消息。
+ * Immutable Cell and dependency snapshots attached to one Research user message.
+ */
 export interface ResearchCellContextPart {
   type: 'research_cell_context';
   snapshotVersion: 1;
@@ -80,6 +108,10 @@ export interface ResearchCellContextPart {
 
 export type ResearchCellContextSnapshotStateV1 = 'current' | 'updated' | 'deleted';
 
+/**
+ * 比较 Cell 上下文快照与当前修订，判断已修改或已删除状态。
+ * Compare a cell context snapshot with current revisions to classify changed or deleted state.
+ */
 export function researchCellContextSnapshotState(
   snapshot: ResearchCellContextCellV1,
   current: ResearchCellV1 | undefined,
@@ -97,6 +129,10 @@ export function researchCellContextSnapshotState(
     : 'updated';
 }
 
+/**
+ * 区分文本与各类持久研究产物，供消息渲染和模型压缩。
+ * Discriminate text and durable research artifacts for rendering and model summarization.
+ */
 export type MessagePart =
   | EmbeddedAnalysisPart
   | ResearchDataReferencesPart
@@ -107,6 +143,10 @@ export type MessagePart =
   | ResearchClarificationPart
   | ResearchCellContextPart;
 
+/**
+ * 统一角色、片段与时间的对话消息，供各工作台存储。
+ * Describe role, parts and timing in shared workspace conversation messages.
+ */
 export interface ChatMessage {
   id?: string;
   role: 'user' | 'assistant';
@@ -119,12 +159,18 @@ export interface ChatMessage {
   turnError?: string;
 }
 
-/** Build a plain one-text-part message (the common case for user turns and error bubbles). */
+/**
+ * 构造仅含文本片段的消息，供用户输入和错误提示共用。
+ * Build a plain one-text-part message (the common case for user turns and error bubbles).
+ */
 export function textMessage(role: ChatMessage['role'], text: string): ChatMessage {
   return { role, parts: [{ type: 'text', text }] };
 }
 
-/** Upgrade a persisted message to the parts shape — tolerates the legacy `{ role, content }` rows. */
+/**
+ * 将历史 role/content 消息升级为统一 parts 结构，兼容旧持久数据。
+ * Upgrade a persisted message to the parts shape — tolerates the legacy `{ role, content }` rows.
+ */
 export function normalizeChatMessage(raw: unknown): ChatMessage {
   const message = raw as {
     id?: unknown;
@@ -169,8 +215,11 @@ export function normalizeChatMessage(raw: unknown): ChatMessage {
   };
 }
 
-/** Flatten a message to plain text for LLM context — cards collapse to a short placeholder
- * so the model knows one was shown without re-shipping the spec. */
+/**
+ * 将消息展开为模型上下文纯文本，卡片压缩为短占位以控制上下文大小。
+ * Flatten a message to plain text for LLM context — cards collapse to a short placeholder
+ * so the model knows one was shown without re-shipping the spec.
+ */
 export function messageText(message: ChatMessage): string {
   const context = message.contextSnapshot;
   const prefix = context
@@ -231,6 +280,10 @@ export function messageText(message: ChatMessage): string {
   return prefix + text;
 }
 
+/**
+ * 校验并规范化持久化消息片段，避免未知结构进入渲染与模型上下文。
+ * Validate and normalize persisted message parts before rendering or model context use.
+ */
 function normalizeMessagePart(value: unknown): MessagePart | undefined {
   if (!value || typeof value !== 'object') {
     return undefined;

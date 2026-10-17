@@ -39,6 +39,10 @@ import { LogView } from '@src/components/log-view';
 import { complex } from './complex';
 import './signals.css';
 
+/**
+ * 组合部署选择、信号运行、执行录入和账户历史，供日常对账。
+ * Compose deployment selection, signal runs, fill entry and account history for reconciliation.
+ */
 export const Signals = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('signals');
@@ -163,6 +167,10 @@ export const Signals = complex.component(() => {
 
 const ExecutionChart = lazy(() => import('./execution-chart'));
 
+/**
+ * 展示部署身份、冻结策略与运行状态，供选择执行对象。
+ * Present deployment identity, frozen strategy and run state for selection.
+ */
 function DeploymentCard({
   entry,
   active,
@@ -204,6 +212,10 @@ function DeploymentCard({
   );
 }
 
+/**
+ * 展示当前信号日期、来源报告与执行日。
+ * Present the selected signal date, source report and execution date.
+ */
 function SignalHeader({ entry }: { entry: SignalTodayEntry }) {
   const { t } = useTranslation('signals');
   return (
@@ -237,6 +249,10 @@ function SignalHeader({ entry }: { entry: SignalTodayEntry }) {
   );
 }
 
+/**
+ * 汇总部署执行任务与模型、实际账户差异。
+ * Summarize deployment tasks and differences between model and actual accounts.
+ */
 function ExecutionOverview({
   overview,
   loading,
@@ -294,6 +310,10 @@ function ExecutionOverview({
   );
 }
 
+/**
+ * 按单位格式化并呈现单个账户指标与差异。
+ * Format and present one account measure and its comparison.
+ */
 function AccountMetric({
   label,
   value,
@@ -326,6 +346,10 @@ function AccountMetric({
   );
 }
 
+/**
+ * 按资产和订单种类展示信号结果与持仓参考。
+ * Present signal results and position references by asset and order kind.
+ */
 function SignalResult({
   run,
   savingExecutionId,
@@ -441,6 +465,10 @@ function SignalResult({
   );
 }
 
+/**
+ * 展示本次运行的因子依赖和输入摘要，供信号溯源。
+ * Present factor dependencies and input summaries for signal provenance.
+ */
 function FactorInputs({
   factors,
   dependencies,
@@ -503,6 +531,10 @@ function FactorInputs({
   );
 }
 
+/**
+ * 展示通知发送状态及失败重试信息，避免与信号计算状态混淆。
+ * Present notification delivery and retry state separately from computation state.
+ */
 function NotificationState({ run }: { run: SignalRun }) {
   const { t } = useTranslation('signals');
   return (
@@ -531,6 +563,10 @@ function formatFactorValue(value: number | null): string {
   return Math.abs(value) >= 100 ? value.toFixed(2) : value.toFixed(4);
 }
 
+/**
+ * 展示部署信号历史并按明确运行身份切换。
+ * Present deployment signal history for explicit run selection.
+ */
 function History({
   runs,
   selectedRunId,
@@ -572,6 +608,10 @@ function History({
   );
 }
 
+/**
+ * 编辑实际执行信息，按现金或期货任务约束表单字段。
+ * Edit actual executions with cash- or futures-specific form constraints.
+ */
 function ExecutionEditor({
   execution,
   loading,
@@ -591,6 +631,10 @@ function ExecutionEditor({
   const [note, setNote] = useState(execution.actualNote ?? '');
   const editable = execution.simulatedStatus !== 'pending';
 
+  /**
+   * 校验实际执行表单，规范化股票与期货字段后保存。
+   * Validate execution form values and normalize cash and futures fields before saving.
+   */
   const submit = () => {
     if (status === 'filled') {
       onSave({
@@ -718,6 +762,10 @@ function ExecutionEditor({
   );
 }
 
+/**
+ * 构造当前执行任务表格列，统一资产、指令与状态展示。
+ * Build execution-task columns with consistent asset, instruction and state rendering.
+ */
 function executionColumns(
   t: (key: string, options?: any) => string,
   savingExecutionId: string,
@@ -795,6 +843,10 @@ function executionColumns(
   ];
 }
 
+/**
+ * 展示信号执行任务终态与异常说明。
+ * Present execution task state and failure details.
+ */
 function ExecutionState({
   status,
   price,
@@ -830,6 +882,10 @@ function ExecutionState({
   );
 }
 
+/**
+ * 构造历史信号表格列，保持旧结果展示兼容。
+ * Build table columns for legacy signal-result compatibility.
+ */
 function legacySignalColumns(t: (key: string, options?: any) => string): ColumnsType<SignalItem> {
   return [
     {
@@ -877,6 +933,10 @@ function legacySignalColumns(t: (key: string, options?: any) => string): Columns
   ];
 }
 
+/**
+ * 构造条件单表格列，明确触发类型与参考价格。
+ * Build conditional-signal columns with trigger types and reference prices.
+ */
 function conditionalSignalColumns(
   t: (key: string, options?: any) => string,
 ): ColumnsType<SignalItem> {

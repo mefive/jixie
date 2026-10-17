@@ -5,11 +5,19 @@ import {
 } from '#maintenance/publication/audit.js';
 import type { AuditFinding } from '#market/quality/report.js';
 
+/**
+ * 保存审计日期、范围和输出选项，供 CLI 校验后执行。
+ * Carry audit dates, scope and output options from CLI parsing into execution.
+ */
 interface CliOptions extends DataQualityAuditOptions {
   json: boolean;
   strict: boolean;
 }
 
+/**
+ * 组合审计参数、配置与业务执行，按发现设置 CLI 退出状态。
+ * Coordinate audit arguments, configuration and execution and set CLI status from findings.
+ */
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const startedAt = Date.now();
@@ -26,6 +34,10 @@ async function main(): Promise<void> {
   }
 }
 
+/**
+ * 解析审计范围与输出选项，拒绝非法参数后再加载业务依赖。
+ * Parse audit scope and output options before loading business dependencies.
+ */
 function parseArgs(args: string[]): CliOptions {
   const dates = args.filter((arg) => !arg.startsWith('--'));
   const valueOf = (prefix: string) =>
@@ -56,6 +68,10 @@ function parseArgs(args: string[]): CliOptions {
   return options;
 }
 
+/**
+ * 将审计发现与覆盖摘要输出到 CLI，保留失败和警告区分。
+ * Print audit findings and coverage summaries with distinct failures and warnings.
+ */
 function printReport(
   report: Awaited<ReturnType<typeof runDataQualityAudit>>,
   elapsedMilliseconds: number,

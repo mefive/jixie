@@ -1,3 +1,7 @@
+/**
+ * 区分同步位置参数的日期、证券和其他输入语义。
+ * Classify positional sync arguments by their validation semantics.
+ */
 export type SyncArgumentKind =
   | 'dates'
   | 'months'
@@ -7,6 +11,10 @@ export type SyncArgumentKind =
   | 'none'
   | 'financial';
 
+/**
+ * 声明同步命令及参数规则，供入口解析与校验。
+ * Describe a sync command and its argument validation rules.
+ */
 export interface SyncCommand {
   name: string;
   entry: string;

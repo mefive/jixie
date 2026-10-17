@@ -8,11 +8,19 @@ import {
 import { researchDependencyCell, downstreamResearchCellIds } from './run-plan.js';
 import type { Prisma } from '@prisma/client';
 
+/**
+ * 保存修改前依赖状态，供变更后失效协调。
+ * Retain pre-change dependencies for post-edit invalidation.
+ */
 export interface ResearchCellChangeDependencySeed {
   cellId: string;
   previousDefinitions: string[];
 }
 
+/**
+ * 根据 Cell 修改计算受影响下游，并更新依赖状态与输出有效性。
+ * Reconcile downstream dependency state and output validity after cell changes.
+ */
 export async function reconcileResearchCellChanges(
   documentId: string,
   seeds: ResearchCellChangeDependencySeed[],
@@ -40,6 +48,10 @@ export async function reconcileResearchCellChanges(
   await reconcileResearchCellDependencyIssues(documentId, analyses);
 }
 
+/**
+ * 从已删除 Cell 的定义建立下游缺失索引，供失效解释。
+ * Index definitions lost through deleted cells for downstream diagnostics.
+ */
 export function deletedDependencyDefinitionsByCellId(
   deletedCellId: string,
   deletedDefinitions: string[],
@@ -62,6 +74,10 @@ export function deletedDependencyDefinitionsByCellId(
   return definitionsByCellId;
 }
 
+/**
+ * 为引用已删除 Cell 的下游增加明确依赖问题。
+ * Attach dependency issues to downstream cells referencing deleted cells.
+ */
 export async function appendDeletedResearchCellDependencyIssues(
   documentId: string,
   issue: ResearchCellDependencyIssueV1,
@@ -100,6 +116,10 @@ export async function appendDeletedResearchCellDependencyIssues(
   }
 }
 
+/**
+ * 根据静态分析结果协调缺失、冲突和依赖状态，供可运行性检查。
+ * Reconcile missing, conflicting and blocked dependencies from static analysis.
+ */
 export async function reconcileResearchCellDependencyIssues(
   documentId: string,
   analyses: ResearchPythonAnalysis[],
@@ -137,6 +157,11 @@ export async function reconcileResearchCellDependencyIssues(
     downstreamCellIdsByIssueDefinition.set(key, downstream);
     return downstream;
   };
+
+  /**
+   * 重算仍存在的缺失依赖问题并生成 Cell 更新集合。
+   * Recompute remaining missing-dependency issues and prepare cell updates.
+   */
   const updates = cells.flatMap((cell) => {
     const currentIssues = researchCellDependencyIssues(cell.dependencyIssues);
     const dependencyIssues = currentIssues.flatMap((issue) => {

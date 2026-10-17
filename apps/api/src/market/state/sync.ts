@@ -2,6 +2,10 @@ import { prisma } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
 
+/**
+ * 限定市场指标重算的年度切片。
+ * Bound a yearly market-indicator recalculation slice.
+ */
 interface DateSlice {
   start: string;
   end: string;
@@ -11,6 +15,7 @@ const DATE_PATTERN = /^\d{8}$/;
 const INDEX_CODES_SQL = MARKET_WEATHER_INDICATOR_INDEX_CODES.map((code) => `'${code}'`).join(', ');
 
 /**
+ * 预计算全市场、时点指数证券池和申万一级行业状态，保留原始截面的数据语义。
  * Precompute whole-market, point-in-time index-universe, and Shenwan level-1 industry state. The
  * raw panel is built one calendar year at a time so a full-history backfill does not materialize the
  * entire market in one temp table. SQLite window functions are intentional here: computing rolling
@@ -26,6 +31,10 @@ export async function syncMarketIndicators(start: string, end: string): Promise<
   }
 }
 
+/**
+ * 计算并原子替换一个市场状态切片，供分段历史重建。
+ * Compute and replace one market-state slice for segmented historical rebuilding.
+ */
 async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
   log(`syncMarketIndicators ${slice.start}~${slice.end} (panel from ${panelStart})`);
 
@@ -560,6 +569,10 @@ async function paddedStart(start: string, observations: number): Promise<string>
   return previousDates.at(-1)?.calDate ?? start;
 }
 
+/**
+ * 按年度拆分市场状态区间，限制内存与单次持久化范围。
+ * Split market-state ranges by year to bound memory and persistence scope.
+ */
 function yearlySlices(start: string, end: string): DateSlice[] {
   const slices: DateSlice[] = [];
   const startYear = Number(start.slice(0, 4));

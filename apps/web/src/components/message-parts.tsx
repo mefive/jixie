@@ -25,6 +25,10 @@ const EmbeddedAnalysisCard = lazy(() => import('./embedded-analysis/embedded-ana
 const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
 const ResearchClarificationCard = lazy(() => import('./research-clarification-card'));
 
+/**
+ * 提供类型化消息片段和业务动作，供一致对话渲染。
+ * Supply typed message parts and actions for consistent conversation rendering.
+ */
 interface MessagePartsProps {
   message: ChatMessage;
   onApplyResearchCellChange?: (proposalId: string) => Promise<void>;
@@ -48,7 +52,10 @@ interface MessagePartsProps {
   onOpenResearchCellContextSnapshot?: (cell: ResearchCellContextCellV1) => void;
 }
 
-/** Render message parts consistently across Strategy, Factor and Research conversations. */
+/**
+ * 一致渲染策略、因子与研究消息片段。
+ * Render message parts consistently across Strategy, Factor and Research conversations.
+ */
 export function MessageParts({
   message,
   onApplyResearchCellChange,
@@ -164,6 +171,10 @@ export function MessageParts({
   );
 }
 
+/**
+ * 展示发送时冻结的 Cell 上下文引用，标记当前已改动或已删除状态。
+ * Present frozen cell context references with current changed or deleted indicators.
+ */
 function ResearchCellContextChips({
   cells,
   researchCells,
@@ -185,6 +196,11 @@ function ResearchCellContextChips({
         const hasSnapshot = typeof cell.source === 'string';
         const canNavigate = Boolean(currentCell && onNavigate);
         const canOpenSnapshot = Boolean(hasSnapshot && onOpenSnapshot);
+
+        /**
+         * 根据消息产物类型执行已授权的查看或交接动作。
+         * Dispatch the requested view or handoff action for a message artifact.
+         */
         const action = () => {
           if (state === 'current' && canNavigate) {
             onNavigate?.(cell.cellId);

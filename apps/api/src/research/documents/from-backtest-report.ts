@@ -6,7 +6,10 @@ import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
 import { getResearchDocument } from './read.js';
 
-/** Create a Research document that starts from one owned immutable BacktestReport. */
+/**
+ * 从当前用户拥有的不可变回测报告创建研究文档。
+ * Create a Research document that starts from one owned immutable BacktestReport.
+ */
 export async function createResearchDocumentFromBacktestReport(
   userId: string,
   reportId: string,

@@ -28,6 +28,10 @@ import { submitEmbeddedRun } from '#research/embedded/submit.js';
 import { cancelEmbeddedRun } from '#research/embedded/cancel.js';
 import type { AgentTool } from './types.js';
 
+/**
+ * 绑定嵌入式分析的版本、用户与会话归属，约束工具执行范围。
+ * Bind embedded analysis to its authorized user, version and conversation.
+ */
 export interface EmbeddedAnalysisToolContext {
   userId: string;
   source: ResearchEmbeddedContextV1;
@@ -44,6 +48,10 @@ const runSchema = embeddedDraftSchema.omit({ reportId: true }).extend({
 });
 const readSchema = z.strictObject({ analysisId: z.string().min(1), runId: z.string().min(1) });
 
+/**
+ * 为已授权实体构造嵌入式分析工具，复用研究执行和证据留存能力。
+ * Construct authorized embedded-analysis tools using research execution and evidence persistence.
+ */
 export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): AgentTool[] {
   let attempts = 0;
   const assertHost = async (analysisId: string) => {
@@ -62,6 +70,11 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
       description:
         'Execute one self-contained Research Python analysis for the current Factor or Strategy. Query runtime.python and the exact SDK methods with searchResearchCatalog first. Source and parameters are retained; each attempt is recorded. A first success freezes the version. To repair a failed draft or change a frozen version, pass its exact parent reference and expectedRevision from readEmbeddedAnalysis. A frozen parent creates a new version. Use explicit results.factor_report/backtest_report calls for the selected report; no report or previous Python variables are injected. Use print(...) for text. Only the last expression is captured as a table, value or charts.* result. Newly created Matplotlib figures are captured automatically at the end of the Cell; keep them open. No Jupyter/IPython display() function is provided. This is exploratory analysis of existing data: no formal evaluation, backtest, publication or account actions. At most four submissions per conversation turn. The resulting card is saved before waiting for execution.',
       parameters: z.toJSONSchema(runSchema),
+
+      /**
+       * 创建并执行嵌入式分析，将确切运行记录留存在当前对话中。
+       * Create and execute embedded analysis while retaining the exact run in the conversation.
+       */
       async run(raw, execution) {
         const input = runSchema.parse(raw);
         execution?.signal?.throwIfAborted();
@@ -164,6 +177,11 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
       description:
         'Read the exact prior embedded run named in a conversation card. Returns code, parameters, input diagnostics, status and bounded outputs; never reads a mutable latest run. Use this before changing a previous analysis or discussing its computed result.',
       parameters: z.toJSONSchema(readSchema),
+
+      /**
+       * 按绑定实体的分析上下文分派版本或运行读取，供工具观察。
+       * Dispatch embedded version or run reads under the bound entity context.
+       */
       async run(raw) {
         const input = readSchema.parse(raw);
         await assertHost(input.analysisId);
@@ -182,6 +200,10 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
   ];
 }
 
+/**
+ * 将嵌入式运行结果压缩为模型观察，保留执行与产物引用。
+ * Summarize an embedded run for the model while retaining execution and artifact references.
+ */
 function embeddedObservation(
   run: ResearchEmbeddedRunV1,
   versionNumber: number,

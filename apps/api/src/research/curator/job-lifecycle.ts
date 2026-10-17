@@ -22,6 +22,11 @@ export const researchCuratorLifecycle = {
 
     return output;
   },
+
+  /**
+   * 在终态事务中保存整理发现及运行结果，与 Job 状态一致提交。
+   * Persist curator findings and run results in the job's terminal transaction.
+   */
   async onSuccess(transaction, job, output) {
     if (output.runId !== job.researchCuratorRunId || output.userId !== job.userId) {
       throw new Error('Curator result does not match its persisted owner or run');

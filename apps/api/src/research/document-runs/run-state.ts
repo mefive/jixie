@@ -1,4 +1,9 @@
 import { ResearchError } from '../errors.js';
+
+/**
+ * 维护文档活动执行和取消状态，供所有 Cell 共享控制。
+ * Share active-run and interruption state across a document's cells.
+ */
 export interface ResearchDocumentRunControl {
   documentId: string;
   interrupted: boolean;

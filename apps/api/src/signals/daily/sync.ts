@@ -28,7 +28,10 @@ import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
 import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 
-/** Include deployment references in the same read-only readiness check as the registry. */
+/**
+ * 将部署引用和注册清单纳入同一只读 ETF 就绪检查。
+ * Include deployment references in the same read-only readiness check as the registry.
+ */
 export async function prepareSignalEtfMarketDate(
   client: TushareClient,
   tradeDate: TradeDate,
@@ -52,7 +55,10 @@ export async function prepareSignalEtfMarketDate(
   ]);
 }
 
-/** Synchronize the datasets needed by active stock/ETF deployments for one signal close. */
+/**
+ * 同步活跃股票与 ETF 部署在信号收盘日所需的数据集。
+ * Synchronize the datasets needed by active stock/ETF deployments for one signal close.
+ */
 export async function syncSignalMarketData(
   tradeDate: string,
   onLog: (line: string) => void = console.log,

@@ -32,15 +32,27 @@ type ResearchResultFrame = Extract<
   { type: 'research_executed' | 'research_error' }
 >;
 
+/**
+ * 收集单 Cell 标准输出与级别日志，供运行结果。
+ * Collect per-cell output and leveled logs for run results.
+ */
 interface ResearchCellRunLogs {
   outputs: ResearchCellOutputBlockV1[];
   bytes: number;
 }
 
+/**
+ * 提供研究 Bridge 的稳定宿主请求处理能力。
+ * Define stable host request handling used by the Research bridge.
+ */
 export interface ResearchBridgeHost {
   close(): void;
 }
 
+/**
+ * 配置研究传输、握手与宿主能力。
+ * Configure research transport, handshake and host capabilities.
+ */
 export interface ResearchBridgeOptions {
   documentId: string;
 }
@@ -83,6 +95,10 @@ export class ResearchBridge
     }
   }
 
+  /**
+   * 完成 Research 会话握手并发布运行元数据，失败时沿宿主生命周期清理。
+   * Complete the Research handshake and expose runtime metadata under host cleanup control.
+   */
   async initialize({
     signal,
   }: SandboxBridgeInitializationOptions = {}): Promise<ResearchSandboxMetadata> {
@@ -109,6 +125,10 @@ export class ResearchBridge
     return this.metadata;
   }
 
+  /**
+   * 向 Python 会话发送 Cell 静态分析请求并校验依赖响应。
+   * Request Python cell analysis and validate the returned dependency information.
+   */
   async analyze(cells: ResearchCellInput[]): Promise<ResearchPythonAnalysis[]> {
     const frame = await this.exchange({
       command: {
@@ -166,6 +186,10 @@ export class ResearchBridge
     });
   }
 
+  /**
+   * 执行单个 Cell 消息循环，处理数据请求、日志与终态输出。
+   * Run one cell protocol exchange, handling dataset requests, logs and terminal output.
+   */
   async execute(
     { cell, parameters }: ResearchCellRunInput,
     options: ResearchCellRunOptions = {},
@@ -208,6 +232,10 @@ export class ResearchBridge
     });
   }
 
+  /**
+   * 按日志级别收集单次 Cell 输出，供执行记录和任务日志使用。
+   * Collect per-cell logs by level for execution evidence and job output.
+   */
   private recordLog(frame: RuntimeLogFrame, logs: ResearchCellRunLogs): void {
     logs.bytes += Buffer.byteLength(JSON.stringify(frame), 'utf8');
     if (logs.bytes > MAX_RESEARCH_RUNTIME_OUTPUT_BYTES) {
@@ -228,6 +256,10 @@ export class ResearchBridge
     });
   }
 
+  /**
+   * 校验 Cell 运行终态与输出，区分错误、中断与成功结果。
+   * Validate terminal cell output and distinguish error, interruption and success.
+   */
   private readCellRunResult(
     frame: ResearchResultFrame,
     logOutputs: ResearchCellOutputBlockV1[],

@@ -10,9 +10,13 @@ from ...sdk.python import Context, Strategy, Universe
 from .strategy_adapter import StrategyAdapter, StrategyAdapterInput
 
 
+# 管理策略加载与逐次决策回调，外围通信归 sandboxd。
+# English: Manage strategy loading and decision callbacks while sandboxd owns outer communication.
 class StrategyRunner:
     """One instance owns one sandbox session and all state shared across its callbacks."""
 
+    # 绑定策略帧通信与用户执行包装器，初始化会话请求身份。
+    # English: Bind strategy communication and user execution and initialize request identity.
     def __init__(
         self,
         read_frame: Callable[[], dict[str, Any]],
@@ -36,6 +40,8 @@ class StrategyRunner:
             case _:
                 raise ValueError(f"unexpected sandbox message: {frame.get('type')}")
 
+    # 加载策略定义并验证元数据，完成同步命令模式握手。
+    # English: Load and validate the strategy before synchronous-command handshake.
     def start(self, config: dict[str, Any]) -> None:
         if config.get("type") != "start" or config.get("runtime_version") != "py-v1":
             raise ValueError("first sandbox frame must start py-v1")
@@ -53,6 +59,8 @@ class StrategyRunner:
             {"type": "ready", "command_mode": "synchronous", "metadata": self._metadata()}
         )
 
+    # 绑定当次决策快照后调用作者回调，返回完成或错误帧。
+    # English: Bind the decision snapshot, invoke the authored callback and emit completion or failure.
     def _execute(self, snapshot: StrategyAdapterInput) -> None:
         self._request_id = 0
         capabilities = self._adapter.bind(snapshot)
@@ -68,6 +76,8 @@ class StrategyRunner:
         except Exception:
             self._send_frame({"type": "error", "message": traceback.format_exc(limit=20)})
 
+    # 在受限环境加载策略源码并校验单一定义。
+    # English: Load strategy source in a restricted environment and validate the definition.
     def _load_strategy(self, source: str, overrides: dict[str, float | str]) -> Strategy:
         module = types.ModuleType("jixie")
         module.__dict__.update(Strategy=Strategy, Universe=Universe, Context=Context)
@@ -97,6 +107,8 @@ class StrategyRunner:
             "accounts": self._strategy.accounts,
         }
 
+    # 向宿主同步发送能力请求，等待对应响应或抛出宿主错误。
+    # English: Send a synchronous capability request and await its response or host failure.
     def _request(self, method: str, arguments: dict[str, Any]) -> dict[str, Any]:
         self._request_id += 1
 

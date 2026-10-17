@@ -12,15 +12,27 @@ import type {
   ExecutableFactorKind,
 } from '../contract.js';
 
+/**
+ * 限定因子运行器与外围传输的交互能力。
+ * Define factor runner communication supplied by the transport entry.
+ */
 export interface FactorRunnerHost {
   receive(handler: FactorRunnerCommandHandler): void;
 }
 
+/**
+ * 承载因子源码与协议配置，供会话加载。
+ * Supply factor source and protocol settings for session loading.
+ */
 interface FactorRunnerStartup {
   userJs: string;
   analysis_kind: ExecutableFactorKind;
 }
 
+/**
+ * 区分会话启动与计算命令，供因子运行器分派。
+ * Discriminate startup and computation commands handled by the factor runner.
+ */
 export type FactorRunnerCommand =
   | ({ type: 'factor_start' } & FactorRunnerStartup)
   | { type: 'factor_compute_batch'; items: FactorBatchItem[] }
@@ -35,6 +47,10 @@ class FactorRunner {
   private analysisKind!: ExecutableFactorKind;
   private declaredInputs!: Set<AssetFactorV2['inputs'][number]>;
 
+  /**
+   * 按协议帧分派因子加载与计算，统一输出结果和错误。
+   * Dispatch factor loading and computation frames and report results or errors.
+   */
   handle(frame: FactorRunnerCommand): string {
     switch (frame.type) {
       case 'factor_start':
@@ -54,6 +70,10 @@ class FactorRunner {
     return JSON.stringify({ type: 'factor_ready', metadata: this.metadata() });
   }
 
+  /**
+   * 按本轮绑定调用作者因子，整理与请求对应的数值结果。
+   * Invoke the authored factor using the current binding and associate values with the request.
+   */
   private execute(frame: Exclude<FactorRunnerCommand, { type: 'factor_start' }>): string {
     if (frame.type === 'factor_compute_batch') {
       if (this.analysisKind !== 'cross_sectional') {
@@ -96,6 +116,10 @@ class FactorRunner {
     );
   }
 
+  /**
+   * 加载并校验作者因子定义，建立会话内可复用计算状态。
+   * Load and validate the authored factor definition for reuse within the session.
+   */
   private loadFactor(userJs: string): CustomFactor | AssetFactorV2 {
     const crossSectional = this.analysisKind === 'cross_sectional';
     const factoryName = crossSectional ? 'defineFactor' : 'defineFactorV2';
@@ -118,6 +142,10 @@ class FactorRunner {
     return factor;
   }
 
+  /**
+   * 从已加载定义提取公开运行元数据，供握手响应。
+   * Extract runtime metadata from the loaded definition for the handshake response.
+   */
   private metadata() {
     if (this.analysisKind === 'cross_sectional') {
       const factor = this.factor as CustomFactor;
@@ -169,6 +197,11 @@ class FactorRunner {
 
   private computeValues(count: number, callback: (index: number) => number | null) {
     let firstError: string | null = null;
+
+    /**
+     * 逐项调用作者回调，将缺失或非有限值归为 null，并保留首个异常。
+     * Evaluate callbacks into nullable finite values and retain the first failure.
+     */
     const values = Array.from({ length: count }, (_, index) => {
       try {
         const value = callback(index);
@@ -187,7 +220,10 @@ class FactorRunner {
   }
 }
 
-/** Start one factor session and attach its message handler to the injected transport. */
+/**
+ * 启动单个因子会话并将消息处理器接入注入传输。
+ * Start one factor session and attach its message handler to the injected transport.
+ */
 export function runFactor(start: FactorRunnerStartup, host: FactorRunnerHost): string {
   const runner = new FactorRunner();
   const ready = runner.start(start);

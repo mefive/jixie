@@ -20,16 +20,28 @@ export const US_HEADLINE_CPI_SERIES = {
   revisionPolicy: 'latest_value_with_captured_vintages',
 } as const;
 
+/**
+ * 映射 BLS 原始期间与指数值，供 CPI 规范化。
+ * Describe raw BLS periods and levels for CPI normalization.
+ */
 export interface BlsObservationRow {
   year: string;
   period: string;
   value: string;
 }
 
+/**
+ * 抽象 BLS 公共来源访问，供统一 CPI 同步。
+ * Abstract BLS public source access for CPI synchronization.
+ */
 export interface BlsPublicDataClientLike {
   loadSeries(seriesId: string, startYear: number, endYear: number): Promise<BlsObservationRow[]>;
 }
 
+/**
+ * 汇总美国总体 CPI 来源、版本与写入结果。
+ * Summarize US headline CPI sources, vintages and persistence.
+ */
 export interface UsHeadlineCpiSyncSummary {
   series: 1;
   sourceRows: number;
@@ -38,6 +50,10 @@ export interface UsHeadlineCpiSyncSummary {
   deferredObservations: number;
 }
 
+/**
+ * 保存已校验 CPI 月份和值，保持原生基期。
+ * Retain validated monthly CPI levels in the native base convention.
+ */
 interface NormalizedCpiObservation {
   period: string;
   value: number;
@@ -98,6 +114,10 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     private readonly delay: (milliseconds: number) => Promise<void> = sleep,
   ) {}
 
+  /**
+   * 根据配置读取美国 CPI 来源序列，供统一标准化。
+   * Load the configured US CPI source series for normalization.
+   */
   async loadSeries(
     seriesId: string,
     startYear: number,
@@ -236,6 +256,10 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     return this.oecdRowsPromise;
   }
 
+  /**
+   * 获取 OECD CPI 原始 CSV 文本，供精确序列解析。
+   * Fetch raw OECD CPI CSV for exact-series parsing.
+   */
   private async loadOecdText(): Promise<string> {
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= OECD_MAX_ATTEMPTS; attempt += 1) {
@@ -280,6 +304,10 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     throw lastError ?? new Error('official SDMX endpoint failed without an error');
   }
 
+  /**
+   * 获取 FRED CPI 导出行，供原始基期口径解析。
+   * Fetch FRED CPI export rows in their native base-period convention.
+   */
   private loadFredRows(seriesId: string): Promise<BlsObservationRow[]> {
     if (seriesId !== US_HEADLINE_CPI_BLS_SERIES_ID) {
       return Promise.reject(
@@ -324,6 +352,7 @@ const OECD_REQUIRED_DIMENSIONS = {
 } as const;
 
 /**
+ * 解析精确 OECD 美国 CPI SDMX 序列，并恢复 BLS 原生 1982–84=100 基期。
  * Parses OECD's exact US CPI SDMX series and restores BLS's native 1982-84=100 scale.
  *
  * OECD rebases the same national CPI observations to 2015=100, so the conversion uses BLS's
@@ -391,7 +420,10 @@ export function parseOecdUsCpiCsv(value: string, minimumRecentPeriod: string): B
   return periods.map((period) => observations.get(period)!);
 }
 
-/** Parses FRED's exact BLS CPIAUCNS graph export in its native 1982-84=100 scale. */
+/**
+ * 解析 FRED 精确 BLS CPIAUCNS 导出，保持 1982–84=100 原生基期。
+ * Parses FRED's exact BLS CPIAUCNS graph export in its native 1982-84=100 scale.
+ */
 export function parseFredUsCpiCsv(value: string, minimumRecentPeriod: string): BlsObservationRow[] {
   if (!/^\d{4}-(?:0[1-9]|1[0-2])$/.test(minimumRecentPeriod)) {
     throw new Error(`Invalid FRED CPI freshness period ${minimumRecentPeriod}`);
@@ -451,6 +483,10 @@ export function parseFredUsCpiCsv(value: string, minimumRecentPeriod: string): B
   return observationPeriods.map((period) => observations.get(period)!);
 }
 
+/**
+ * 解析含引号的 CSV 行，供多个 CPI 来源复用。
+ * Parse CSV records, including quoted fields, for CPI source adapters.
+ */
 function parseCsvRows(value: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
@@ -492,6 +528,10 @@ function parseCsvRows(value: string): string[][] {
   return rows;
 }
 
+/**
+ * 计算最近 CPI 覆盖要求的最早期间，供来源完整性检查。
+ * Resolve the minimum recent CPI period required by coverage checks.
+ */
 function minimumRecentCpiPeriod(now: Date): string {
   const currentMonth = shanghaiDate(now).slice(0, 6);
   const year = Number(currentMonth.slice(0, 4));
@@ -500,6 +540,10 @@ function minimumRecentCpiPeriod(now: Date): string {
   return `${minimum.getUTCFullYear()}-${String(minimum.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
+/**
+ * 验证月度序列期间连续，防止来源截断伪装完整历史。
+ * Require continuous monthly periods so truncated sources cannot appear complete.
+ */
 function assertContinuousMonthlyPeriods(periods: string[], source: string): void {
   for (let index = 1; index < periods.length; index += 1) {
     const previous = periods[index - 1]!;
@@ -534,7 +578,10 @@ function sleep(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-/** Parses one exact series from BLS's tab-separated CPI All Items bulk file. */
+/**
+ * 从 BLS 制表符分隔批量文件中提取精确 CPI 总指数序列。
+ * Parses one exact series from BLS's tab-separated CPI All Items bulk file.
+ */
 export function parseBlsBulkFile(value: string, seriesId: string): BlsObservationRow[] {
   const rows: BlsObservationRow[] = [];
   for (const [index, line] of value.split(/\r?\n/).entries()) {
@@ -561,7 +608,10 @@ export function parseBlsBulkFile(value: string, seriesId: string): BlsObservatio
   return rows;
 }
 
-/** Builds non-overlapping public-API ranges that never exceed BLS's unregistered 10-year limit. */
+/**
+ * 构造不重叠且不超过 BLS 未注册十年上限的年度请求。
+ * Builds non-overlapping public-API ranges that never exceed BLS's unregistered 10-year limit.
+ */
 export function blsYearRanges(
   startMonth: string,
   endMonth: string,
@@ -577,7 +627,10 @@ export function blsYearRanges(
   return ranges;
 }
 
-/** Normalizes the BLS monthly index and skips annual averages or explicitly unavailable values. */
+/**
+ * 规范化 BLS 月度指数，跳过年度均值与明确缺失值。
+ * Normalizes the BLS monthly index and skips annual averages or explicitly unavailable values.
+ */
 export function parseUsHeadlineCpiRows(
   rows: BlsObservationRow[],
   startMonth: string,
@@ -611,7 +664,10 @@ export function parseUsHeadlineCpiRows(
   return [...observations.values()].sort((left, right) => left.period.localeCompare(right.period));
 }
 
-/** Assigns a deliberately conservative China-close availability date to BLS historical values. */
+/**
+ * 为 BLS 历史值赋予保守的中国收盘可得日期。
+ * Assigns a deliberately conservative China-close availability date to BLS historical values.
+ */
 export function prepareUsHeadlineCpiObservations(
   observations: NormalizedCpiObservation[],
   openDates: string[],
@@ -636,7 +692,10 @@ export function prepareUsHeadlineCpiObservations(
   });
 }
 
-/** Syncs BLS headline CPI levels while preserving corrections as explicit captured vintages. */
+/**
+ * 同步 BLS 总体 CPI 水平，将更正保留为明确抓取版本。
+ * Syncs BLS headline CPI levels while preserving corrections as explicit captured vintages.
+ */
 export async function syncUsHeadlineCpiData(
   client: BlsPublicDataClientLike,
   startMonth: string,
@@ -717,6 +776,10 @@ export async function syncUsHeadlineCpiData(
   return summary;
 }
 
+/**
+ * 校验 BLS 响应状态并提取请求序列，拒绝不完整或错误来源。
+ * Validate BLS response status and extract the requested series.
+ */
 function parseBlsResponse(value: unknown, seriesId: string): BlsObservationRow[] {
   if (!isObject(value) || value.status !== 'REQUEST_SUCCEEDED') {
     throw new Error(`BLS Public Data API request failed: ${responseMessages(value).join('; ')}`);

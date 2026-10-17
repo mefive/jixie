@@ -10,6 +10,10 @@ import {
 } from './reference-worker-process.js';
 import type { ReferenceWorkerStage } from './reference-worker-protocol.js';
 
+/**
+ * 限定财务参考历史导入的区间与证券。
+ * Configure dates and instruments for financial reference import.
+ */
 export interface FinancialReferenceImportOptions {
   throughDate: string;
   financialPeriodsPerProcess: number;
@@ -17,12 +21,20 @@ export interface FinancialReferenceImportOptions {
   onLog?: (line: string) => void;
 }
 
+/**
+ * 汇总财务历史导入的新增、修订与覆盖。
+ * Summarize imported financial additions, corrections and coverage.
+ */
 export interface FinancialReferenceImportSummary {
   financialStatements: ReferenceSyncSummary;
   financials: ReferenceSyncSummary;
   dividends: ReferenceSyncSummary;
 }
 
+/**
+ * 导入财务参考历史并记录覆盖与修订结果，供 PIT 基线修复。
+ * Import financial reference history and record coverage and corrections for PIT baseline repair.
+ */
 export async function importFinancialReferenceHistory(
   options: FinancialReferenceImportOptions,
 ): Promise<FinancialReferenceImportSummary> {

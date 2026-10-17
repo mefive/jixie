@@ -12,14 +12,31 @@ const MANAGED_LABEL = 'io.jixie.sandboxd.managed=true';
 const OWNER_LABEL_KEY = 'io.jixie.sandboxd.owner';
 const MAX_COMMAND_OUTPUT_CHARACTERS = 16_000;
 
+/**
+ * 区分本地进程与容器沙盒模式，供运行时创建和回收分派。
+ * Select local-process or container sandbox execution and cleanup.
+ */
 export type SandboxMode = 'local' | 'docker' | 'podman';
+
+/**
+ * 记录运行时停止原因，供取消、超时与故障诊断。
+ * Classify runtime stop reasons for cancellation, timeouts and diagnostics.
+ */
 export type RuntimeStopReason = 'graceful' | 'force' | 'exited';
 
+/**
+ * 约束沙盒子运行时的通信与停止能力，供会话桥接统一管理。
+ * Expose communication and stop capabilities for a managed child sandbox runtime.
+ */
 export interface SandboxRuntime {
   child: ChildProcessWithoutNullStreams;
   stop(reason: RuntimeStopReason): Promise<void>;
 }
 
+/**
+ * 配置子运行时的语言、资源限制及连接参数。
+ * Configure a child runtime's language, resource limits and connection parameters.
+ */
 export interface SpawnSandboxRuntimeOptions {
   mode: string;
   nodeEnvironment?: string;
@@ -33,6 +50,10 @@ export interface SpawnSandboxRuntimeOptions {
   onWarning?: (message: string) => void;
 }
 
+/**
+ * 限定遗留运行时清理范围，避免回收其他活跃实例。
+ * Scope stale-runtime cleanup so active instances remain protected.
+ */
 export interface CleanupStaleSandboxRuntimesOptions {
   mode: string;
   nodeEnvironment?: string;
@@ -40,6 +61,10 @@ export interface CleanupStaleSandboxRuntimesOptions {
   onWarning?: (message: string) => void;
 }
 
+/**
+ * 保存容器管理命令的退出码与输出，供运行时错误处理。
+ * Collect container-management command status and output for diagnostics.
+ */
 interface RuntimeCommandResult {
   exitCode: number | null;
   signal: NodeJS.Signals | null;
@@ -49,6 +74,10 @@ interface RuntimeCommandResult {
   timedOut: boolean;
 }
 
+/**
+ * 按配置启动本地或容器运行时，并返回统一的通信和停止接口。
+ * Spawn a local or container runtime and return uniform communication and stop capabilities.
+ */
 export async function spawnSandboxRuntime(
   options: SpawnSandboxRuntimeOptions,
 ): Promise<SandboxRuntime> {
@@ -70,6 +99,10 @@ export async function spawnSandboxRuntime(
   }
 }
 
+/**
+ * 识别并回收本应用遗留的沙盒运行时，供服务启动恢复。
+ * Find and clean up stale application sandbox runtimes during service recovery.
+ */
 export async function cleanupStaleSandboxRuntimes(
   options: CleanupStaleSandboxRuntimesOptions,
 ): Promise<void> {
@@ -119,6 +152,10 @@ function localRuntime(options: SpawnSandboxRuntimeOptions): SandboxRuntime {
   };
 }
 
+/**
+ * 创建容器沙盒并接入标准输入输出、退出及停止控制。
+ * Create a container sandbox and attach streams, exit handling and stop controls.
+ */
 async function containerRuntime(
   executable: Extract<SandboxMode, 'docker' | 'podman'>,
   options: SpawnSandboxRuntimeOptions,
@@ -150,6 +187,10 @@ async function containerRuntime(
   };
 }
 
+/**
+ * 根据沙盒配置生成容器参数，包含资源限制与所需挂载。
+ * Build container arguments from sandbox configuration, limits and required mounts.
+ */
 function containerRunArgs(
   executable: Extract<SandboxMode, 'docker' | 'podman'>,
   options: SpawnSandboxRuntimeOptions,
@@ -185,6 +226,10 @@ function containerRunArgs(
   ];
 }
 
+/**
+ * 终止本地子进程并等待退出，避免遗留执行进程。
+ * Stop a local child runtime and wait for its exit.
+ */
 async function stopLocalRuntime(
   child: ChildProcessWithoutNullStreams,
   reason: RuntimeStopReason,
@@ -202,6 +247,10 @@ async function stopLocalRuntime(
   }
 }
 
+/**
+ * 停止并移除对应容器，确保超时或取消后释放资源。
+ * Stop and remove a container runtime after completion, timeout or cancellation.
+ */
 async function stopContainerRuntime(args: {
   child: ChildProcessWithoutNullStreams;
   executable: Extract<SandboxMode, 'docker' | 'podman'>;
@@ -242,6 +291,10 @@ async function stopContainerRuntime(args: {
   }
 }
 
+/**
+ * 等待容器身份可用，再进行状态检查或清理。
+ * Wait for a container identity before inspecting or cleaning up its runtime.
+ */
 async function waitForContainerId(
   containerIdPath: string,
   child: ChildProcessWithoutNullStreams,
@@ -262,6 +315,10 @@ async function waitForContainerId(
   return null;
 }
 
+/**
+ * 移除指定容器并处理已退出或不存在的清理边界。
+ * Remove a container while handling already-exited or missing instances.
+ */
 async function removeContainer(
   executable: Extract<SandboxMode, 'docker' | 'podman'>,
   containerId: string,
@@ -302,6 +359,10 @@ async function removeContainer(
   );
 }
 
+/**
+ * 描述容器当前状态，供停止与遗留实例回收判断。
+ * Describe container state used by stop and stale-instance cleanup.
+ */
 type ContainerStatus = 'present' | 'absent' | 'unknown';
 
 async function inspectContainer(
@@ -315,6 +376,10 @@ async function inspectContainer(
   return commandReportsMissingContainer(result) ? 'absent' : 'unknown';
 }
 
+/**
+ * 执行受控运行时管理命令并收集退出状态和诊断输出。
+ * Run a controlled runtime-management command and collect status and diagnostics.
+ */
 function runRuntimeCommand(executable: string, args: string[]): Promise<RuntimeCommandResult> {
   return new Promise((resolveCommand) => {
     const command = spawn(executable, args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -377,6 +442,10 @@ function commandReportsMissingContainer(result: RuntimeCommandResult): boolean {
   );
 }
 
+/**
+ * 将容器管理命令失败整理为可诊断错误。
+ * Convert a failed runtime-management command into a diagnostic error.
+ */
 function commandFailure(result: RuntimeCommandResult): string {
   if (result.timedOut) {
     return `timed out after ${CLEANUP_COMMAND_TIMEOUT_MS}ms`;
@@ -388,6 +457,10 @@ function commandFailure(result: RuntimeCommandResult): string {
   return `${result.signal ?? `exit code ${result.exitCode}`}${detail ? `: ${detail}` : ''}`;
 }
 
+/**
+ * 解析容器执行程序配置，供启动和清理命令共用。
+ * Resolve the configured container executable for startup and cleanup commands.
+ */
 function containerExecutable(
   mode: string,
   nodeEnvironment?: string,

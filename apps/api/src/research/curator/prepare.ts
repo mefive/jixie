@@ -62,6 +62,10 @@ const SIGNAL_PATTERNS: Array<[string, RegExp]> = [
 
 const CURATOR_EVIDENCE_CHUNK_SIZE = 80;
 
+/**
+ * 从研究文档和执行证据提取可整理内容，保留可核验引用。
+ * Extract curation candidates from document and execution evidence with verifiable references.
+ */
 export async function extractResearchCuratorEvidence(
   userId: string,
   cursorFrom: Date | null,
@@ -138,6 +142,10 @@ export async function extractResearchCuratorEvidence(
   });
 }
 
+/**
+ * 承载已验证整理发现与来源，供终态事务保存。
+ * Carry verified curator findings and provenance into terminal persistence.
+ */
 export interface PreparedResearchCuratorRun {
   runId: string;
   userId: string;
@@ -146,6 +154,11 @@ export interface PreparedResearchCuratorRun {
 }
 
 // Prepare candidates outside the completion transaction; publish none until the Job commits.
+
+/**
+ * 验证候选发现的证据、权限和来源，形成可持久化整理结果。
+ * Verify finding evidence, permissions and provenance before producing a persistable curator result.
+ */
 export async function prepareResearchCuratorRun(
   runId: string,
   options: { database?: PrismaClient; llm?: LlmCall } = {},
@@ -235,6 +248,10 @@ async function summarizeEvidenceChunk(evidence: ResearchCuratorEvidenceV1[], llm
   return curatorResponseSchema.parse(JSON.parse(content)).findings;
 }
 
+/**
+ * 逐项核验生成草稿的引用与建议，拒绝无证据或超权限的发现。
+ * Verify draft references and recommendations and reject unsupported or unauthorized findings.
+ */
 function verifyDraft(
   category: ResearchCuratorFindingCategoryV1,
   title: string,
@@ -409,6 +426,10 @@ function verifyDraft(
   };
 }
 
+/**
+ * 将权限范围转换为整理上下文说明，供模型理解可访问边界。
+ * Describe access scope in curator context so recommendations respect permissions.
+ */
 function permissionDescription(
   permission: (typeof TUSHARE_CAPABILITIES)[number]['permission'],
   language: 'zh' | 'en',

@@ -4,6 +4,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { syncDailyBasic } from '../stocks/daily-sync.js';
 
 /**
+ * 解析 CLI 区间并同步每日估值指标，输出结果并关闭数据库连接。
  * Sync daily valuation metrics (daily_basic) into the local store.
  * Usage: pnpm --filter api sync basic [start] [end]   e.g. pnpm --filter api sync basic 20240101 20241231
  */

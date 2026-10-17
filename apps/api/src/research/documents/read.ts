@@ -27,6 +27,10 @@ type ResearchDocumentRow = Prisma.ResearchDocumentGetPayload<{
   };
 }>;
 
+/**
+ * 按用户归属列出研究文档及最近状态，供工作台导航。
+ * List owned research documents and recent state for workspace navigation.
+ */
 export async function listResearchDocuments(
   userId: string,
   state: ResearchDocumentListStateV1 = 'active',
@@ -65,7 +69,10 @@ export async function listResearchDocuments(
   }));
 }
 
-/** Load an owned document, materializing its legacy conversation on the first read. */
+/**
+ * 加载归属当前用户的文档，首次读取时物化其历史会话。
+ * Load an owned document, materializing its legacy conversation on the first read.
+ */
 export async function getResearchDocument(
   userId: string,
   documentId: string,
@@ -123,6 +130,10 @@ async function loadDocumentRow(
   });
 }
 
+/**
+ * 组装文档、Cell 与执行控制状态，供客户端恢复完整工作台。
+ * Assemble document, cells and execution control state for client restoration.
+ */
 function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
   const activeCellChangeReview = researchCellChangeReviewView(document.cellChangeProposals);
   return {
@@ -158,6 +169,10 @@ function documentView(document: ResearchDocumentRow): ResearchDocumentV1 {
   };
 }
 
+/**
+ * 将 Cell 持久化字段和输出映射为客户端视图。
+ * Map persisted cell fields and outputs into the client view.
+ */
 function cellView(cell: ResearchDocumentRow['cells'][number]): ResearchCellV1 {
   return {
     version: 1,
@@ -184,6 +199,10 @@ function cellView(cell: ResearchDocumentRow['cells'][number]): ResearchCellV1 {
   };
 }
 
+/**
+ * 压缩消息片段作为文档列表预览，避免携带完整大产物。
+ * Summarize message parts for document list previews without copying large artifacts.
+ */
 function messagePreview(parts: Prisma.JsonValue | undefined): string {
   if (!Array.isArray(parts)) {
     return '';

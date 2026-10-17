@@ -12,6 +12,10 @@ export const MARKET_RISK_ANNUALIZATION = 252;
 
 const SINGULAR_TOLERANCE = 1e-10;
 
+/**
+ * 记录组合逐日收益和日期，供市场风险驱动对齐。
+ * Describe dated portfolio returns for market-driver alignment.
+ */
 export interface PortfolioReturnObservation {
   /** Availability-aligned SSE session. The underlying close return must be shifted by the same
    * next-session rule used by domestic market drivers before entering this model. */
@@ -19,6 +23,10 @@ export interface PortfolioReturnObservation {
   return: number;
 }
 
+/**
+ * 配置市场敞口估计和 EWMA 风险贡献的样本要求。
+ * Configure sample requirements for market exposure and EWMA risk estimation.
+ */
 export interface EstimatePortfolioMarketRiskOptions {
   asOfDate: string;
   lookbackObservations?: number;
@@ -26,8 +34,11 @@ export interface EstimatePortfolioMarketRiskOptions {
   covarianceHalfLife?: number;
 }
 
-/** Shift close-to-close portfolio returns onto the same next-SSE availability key as domestic
- * end-of-day drivers. This changes only the join key, never the return value. */
+/**
+ * 仅将组合收益连接键移到下一 SSE 可得日，收益本身不移位。
+ * Shift close-to-close portfolio returns onto the same next-SSE availability key as domestic
+ * end-of-day drivers. This changes only the join key, never the return value.
+ */
 export function alignPortfolioReturnsToNextSseSession(
   rows: Array<{ tradeDate: string; return: number }>,
   openDates: string[],
@@ -56,7 +67,10 @@ export function alignPortfolioReturnsToNextSseSession(
     });
 }
 
-/** Estimate contemporaneous market exposures and EWMA factor-risk contributions. */
+/**
+ * 估计同期市场敞口与 EWMA 因子风险贡献。
+ * Estimate contemporaneous market exposures and EWMA factor-risk contributions.
+ */
 export function estimatePortfolioMarketRisk(
   portfolioReturns: PortfolioReturnObservation[],
   driverHistory: MarketRiskDriverHistoryV1,
@@ -161,6 +175,10 @@ export function estimatePortfolioMarketRisk(
   };
 }
 
+/**
+ * 标准化设计矩阵后估计最小二乘，供多变量市场敞口模型。
+ * Standardize the design and estimate least squares for multivariate market exposures.
+ */
 function standardizedLeastSquares(
   matrix: number[][],
   response: number[],
@@ -212,7 +230,10 @@ function standardizedLeastSquares(
   };
 }
 
-/** Modified Gram-Schmidt QR is sufficient for the fixed 9-column standardized design. */
+/**
+ * 用修正 Gram–Schmidt QR 解固定九列标准化设计的最小二乘。
+ * Modified Gram-Schmidt QR is sufficient for the fixed 9-column standardized design.
+ */
 function solveLeastSquaresQr(matrix: number[][], response: number[]): number[] | null {
   const observations = matrix.length;
   const factors = matrix[0]?.length ?? 0;
@@ -285,6 +306,10 @@ function coefficientUnit(
     : 'return_per_return';
 }
 
+/**
+ * 校验市场风险窗口与 EWMA 参数，避免不合法估计。
+ * Validate market risk windows and EWMA parameters.
+ */
 function validateOptions(
   asOfDate: string,
   lookbackObservations: number,

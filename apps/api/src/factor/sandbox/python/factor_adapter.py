@@ -7,11 +7,15 @@ from infra.sandbox.python.sdk_adapter import SdkAdapter
 from ...sdk.capabilities import AssetFactorCapabilities, CrossSectionalFactorCapabilities
 
 
+# 绑定截面因子的行情与字段输入，供 Python SDK 读取。
+# English: Bind cross-sectional bars and declared fields for Python SDK access.
 class CrossSectionalFactorAdapterInput(TypedDict):
     kind: Literal["cross_sectional"]
     history: dict[str, list[Any]] | None
 
 
+# 绑定资产因子的历史序列与索引，供 Python SDK 读取。
+# English: Bind asset histories and indexes for Python SDK access.
 class AssetFactorAdapterInput(TypedDict):
     kind: Literal["asset"]
     fields: dict[str, list[float]]
@@ -23,6 +27,8 @@ FactorAdapterInput = CrossSectionalFactorAdapterInput | AssetFactorAdapterInput
 FactorCapabilities = CrossSectionalFactorCapabilities | AssetFactorCapabilities
 
 
+# 将宿主输入绑定到 SDK 原始能力，不管理会话生命周期。
+# English: Bind host inputs to SDK primitives independently of session lifecycle.
 class FactorAdapter(SdkAdapter[FactorAdapterInput, FactorCapabilities]):
     """Bind prepared data to SDK primitives without introducing host requests."""
 
@@ -44,6 +50,8 @@ class FactorAdapter(SdkAdapter[FactorAdapterInput, FactorCapabilities]):
         )
 
 
+# 只暴露当前截面的已声明字段，供作者代码读取。
+# English: Expose declared current cross-section fields to author code.
 class BoundCrossSectionalFactorCapabilities(CrossSectionalFactorCapabilities):
     def __init__(self, history: dict[str, list[Any]] | None) -> None:
         self._history = history
@@ -56,6 +64,8 @@ class BoundCrossSectionalFactorCapabilities(CrossSectionalFactorCapabilities):
         return self._history.get(field) if self._history is not None else None
 
 
+# 提供当前资产的受限历史读取，保留输入绑定的窗口。
+# English: Expose bounded asset histories from the current input binding.
 class BoundAssetFactorCapabilities(AssetFactorCapabilities):
     def __init__(self, fields: dict[str, list[float]], index: int, declared_inputs: set[str]) -> None:
         self._fields = fields

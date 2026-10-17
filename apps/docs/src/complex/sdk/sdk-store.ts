@@ -6,6 +6,10 @@ export class SdkStore extends BaseStore {
   public readonly groups = groupEntries(this.entries);
 }
 
+/**
+ * 按接口与文档分组组织 SDK 条目，供导航展示。
+ * Group SDK entries by interface and documentation section.
+ */
 function groupEntries(entries: readonly SdkEntry[]): [string, SdkEntry[]][] {
   const groupOrder: string[] = [];
   const entriesByGroup = new Map<string, SdkEntry[]>();

@@ -1,7 +1,10 @@
 import { prisma } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 
-/** Open trading days within the range (ascending). */
+/**
+ * 读取区间内开市交易日并升序返回，供同步与回测统一使用。
+ * Open trading days within the range (ascending).
+ */
 export async function getOpenDates(
   start: TradeDate,
   end: TradeDate,

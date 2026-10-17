@@ -10,6 +10,7 @@ import {
 } from '../stocks/basic-sync.js';
 
 /**
+ * 刷新完整股票主表与历史名称区间，供历史可投资性判断。
  * Refresh the complete stock master and point-in-time historical names.
  * Usage: pnpm --filter api sync stock-history [announcementStart] [announcementEnd]
  */

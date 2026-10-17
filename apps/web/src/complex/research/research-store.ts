@@ -82,18 +82,30 @@ import {
   type ResearchCellDraftState,
 } from './research-autosave';
 
+/**
+ * 配置研究路由的文档、执行或报告初始选择。
+ * Configure initial document, execution or report selection for the research route.
+ */
 type ResearchSetupParams = {
   document?: string;
   execution?: string;
   backtestReport?: string;
 };
 
+/**
+ * 限定工作台目录搜索范围与筛选条件。
+ * Configure catalog scope and filters in the research workspace.
+ */
 interface ResearchDataCatalogQuery {
   query: string;
   assetType?: ResearchAssetTypeV1;
   scope: ResearchDataCatalogScopeV1;
 }
 
+/**
+ * 区分文档和 Cell 变更，供统一 Mutation Loader。
+ * Discriminate document and cell mutations for the shared loader.
+ */
 type ResearchDocumentMutation =
   | {
       kind: 'embedded-input-mode';
@@ -108,11 +120,19 @@ type ResearchDocumentMutation =
   | { kind: 'run'; cellId: string }
   | { kind: 'reset'; documentId: string };
 
+/**
+ * 区分归档、恢复和删除，供文档管理请求。
+ * Discriminate archive, restore and delete document actions.
+ */
 type ResearchDocumentManagementMutation =
   | { kind: 'archive'; documentId: string }
   | { kind: 'restore'; documentId: string }
   | { kind: 'delete'; documentId: string };
 
+/**
+ * 区分整理启动和反馈更新，供 Curator 请求。
+ * Discriminate curator starts and feedback changes.
+ */
 type ResearchCuratorMutation =
   | { kind: 'start' }
   | {
@@ -131,6 +151,10 @@ type ResearchCellChangeResolution = {
   proposalId: string;
 };
 
+/**
+ * 绑定审阅接受或撤销动作与当前记录身份。
+ * Associate review accept or revert actions with the current review identity.
+ */
 type ResearchCellChangeReviewResolution = {
   kind: 'accept' | 'revert';
   proposalId: string;
@@ -187,6 +211,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   private queuedCellSaves = new Map<string, Promise<boolean>>();
   private documentSwitchGeneration = 0;
 
+  /**
+   * 登记研究工作区可观察状态与计算视图。
+   * Register observable research workspace state and computed views.
+   */
   public constructor(parentStore?: any) {
     super(parentStore);
     makeObservable(this, {
@@ -214,6 +242,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
   }
 
+  /**
+   * 配置文档、Cell、对话、提案和整理 Loader，并注册轮询与订阅清理。
+   * Initialize document, cell, conversation, proposal and curator loaders with polling and subscription cleanup.
+   */
   public setup(params: ResearchSetupParams) {
     super.setup(params);
     runInAction(() => {
@@ -225,6 +257,11 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.documentLoader.setup({ request: (documentId: string) => getResearchDocument(documentId) });
     this.documentMutationLoader.setup({
       preserveResult: false,
+
+      /**
+       * 按文档变更种类分派创建、Cell 编辑和输入模式接口。
+       * Dispatch document creation, cell edits and input-mode changes through the mutation loader.
+       */
       request: (mutation: ResearchDocumentMutation) => {
         switch (mutation.kind) {
           case 'embedded-input-mode':
@@ -261,6 +298,11 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
     this.documentManagementLoader.setup({
       preserveResult: false,
+
+      /**
+       * 按归档、恢复或删除意图分派文档管理请求。
+       * Dispatch archive, restore or delete requests for document management.
+       */
       request: (mutation: ResearchDocumentManagementMutation) => {
         switch (mutation.kind) {
           case 'archive':
@@ -311,6 +353,11 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
     this.cellChangeResolutionLoader.setup({
       preserveResult: false,
+
+      /**
+       * 按应用、待审应用或拒绝动作分派提案接口。
+       * Dispatch proposal application, review-first application or rejection.
+       */
       request: (resolution: ResearchCellChangeResolution) => {
         switch (resolution.kind) {
           case 'apply':
@@ -349,6 +396,11 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
     this.curatorMutationLoader.setup({
       preserveResult: false,
+
+      /**
+       * 按整理启动或反馈动作分派 Curator 请求。
+       * Dispatch curator starts and finding feedback mutations.
+       */
       request: (mutation: ResearchCuratorMutation) => {
         switch (mutation.kind) {
           case 'start':
@@ -526,6 +578,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
   }
 
+  /**
+   * 创建研究文档后提交初始问题，保留导航与会话身份。
+   * Create a research document and submit its initial question with navigation and conversation identity.
+   */
   public async createDocumentFromPrompt(message: string) {
     const text = message.trim();
     if (!text || this.documentMutationLoader.loading || this.sending) {
@@ -558,6 +614,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     await this.runAgentTurn(text, document.conversationId);
   }
 
+  /**
+   * 从选定模板创建文档并切换到其工作区。
+   * Create a document from a selected template and open its workspace.
+   */
   public async createDocumentFromTemplate(template: ResearchDocumentTemplateV1) {
     if (this.documentMutationLoader.loading || this.sending) {
       return;
@@ -603,6 +663,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     void this.documentsLoader.run();
   }
 
+  /**
+   * 切换文档前保存草稿并清理旧订阅，随后恢复目标文档和运行状态。
+   * Save drafts and detach old subscriptions before restoring the selected document and runs.
+   */
   public async openDocument(id: string) {
     if (id === this.documentId || !(await this.flushAllCellDrafts())) {
       return;
@@ -636,6 +700,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return this.flushAllCellDrafts();
   }
 
+  /**
+   * 提交嵌入式输入模式修订并刷新当前文档。
+   * Submit an embedded input-mode revision and refresh the document.
+   */
   public async changeEmbeddedInputMode(inputMode: 'retained' | 'current') {
     if (
       !this.document?.embeddedSource ||
@@ -720,6 +788,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
+  /**
+   * 先保存草稿再执行整文档，协调活动运行与结果刷新。
+   * Flush drafts before running the document and refresh execution state.
+   */
   public async runAll(clean = true) {
     if (
       !this.documentId ||
@@ -836,6 +908,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return this.executionLoader.run(executionId);
   }
 
+  /**
+   * 提升当前执行证据并刷新可交接状态。
+   * Promote execution evidence and refresh handoff eligibility.
+   */
   public async promoteExecution(executionId: string, input: ResearchExecutionPromotionInputV1) {
     const result = await this.executionPromotionLoader.run({ executionId, input });
     if (this.documentId) {
@@ -855,6 +931,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return this.researchStrategyDraftLoader.run(executionId);
   }
 
+  /**
+   * 先保存 Cell 草稿，再冻结当前上下文提交 Agent 消息，阻止审阅或澄清冲突。
+   * Flush cell drafts before submitting captured agent context and guard against review or clarification conflicts.
+   */
   public async send(message: string, attemptId?: string) {
     const text = message.trim();
     if (
@@ -900,6 +980,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     await this.runAgentTurn(text, conversationId, attemptId, contextCellIds);
   }
 
+  /**
+   * 保存澄清选择并恢复研究对话，保留确认的数据引用。
+   * Persist clarification selections and resume the conversation with confirmed references.
+   */
   public async answerClarification(
     clarification: ResearchClarificationV1,
     selections: ResearchClarificationSelectionV1[],
@@ -964,6 +1048,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
+  /**
+   * 创建研究后台轮次并连接增量事件流。
+   * Start a background research turn and attach its incremental event stream.
+   */
   private async runAgentTurn(
     text: string,
     conversationId: string,
@@ -1020,6 +1108,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
+  /**
+   * 归档前处理草稿与选择，完成后刷新文档列表。
+   * Reconcile drafts and selection before archiving and refreshing documents.
+   */
   public async archiveDocument(documentId: string): Promise<boolean> {
     const isCurrentDocument = this.documentId === documentId;
     if (
@@ -1112,6 +1204,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
   }
 
+  /**
+   * 应用或拒绝提案后刷新文档与消息，保持审阅入口同步。
+   * Resolve a proposal and refresh document and messages consistently.
+   */
   private async resolveCellChangeProposal(
     kind: ResearchCellChangeResolution['kind'],
     proposalId: string,
@@ -1138,6 +1234,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
+  /**
+   * 接受或撤销已应用修改后刷新 Cell 与依赖状态。
+   * Accept or revert applied edits and refresh cells and dependency state.
+   */
   private async resolveCellChangeReview(
     kind: ResearchCellChangeReviewResolution['kind'],
     proposalId: string,
@@ -1177,6 +1277,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     void this.resolveCellChangeProposal('apply_for_review', proposal.id);
   }
 
+  /**
+   * 将服务端 Cell 修订与本地草稿协调，保留未保存编辑及冲突。
+   * Reconcile server cell revisions with local drafts while preserving edits and conflicts.
+   */
   private reconcileCellDrafts(
     document: ResearchDocumentV1,
     savedCell?: { cellId: string; source: string },
@@ -1263,6 +1367,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return save;
   }
 
+  /**
+   * 按草稿版本提交 Cell 修改，仅在请求仍对应当前草稿时确认保存。
+   * Save a cell draft and acknowledge it only if the draft version still matches.
+   */
   private async persistCellDraft(cellId: string): Promise<boolean> {
     const current = this.cellDrafts.get(cellId);
     if (!current || current.status === 'saved') {
@@ -1309,6 +1417,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     return this.flushCellDrafts([...this.cellDrafts.keys()]);
   }
 
+  /**
+   * 按文档顺序刷新待保存 Cell，供运行或对话前建立稳定输入。
+   * Flush pending cell saves to establish stable input before execution or conversation.
+   */
   private async flushCellDrafts(cellIds: string[]): Promise<boolean> {
     while (true) {
       const candidates = cellIds.filter((cellId) => {
@@ -1329,6 +1441,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
+  /**
+   * 处理研究轮次增量和终态，并刷新对应文档、提案及消息。
+   * Handle research turn events and refresh associated documents, proposals and messages.
+   */
   private turnHandlers(): AgentTurnHandlers {
     return {
       onDone: (done) => {
@@ -1374,6 +1490,10 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
+  /**
+   * 轮询整理任务并在完成时读取发现，停止无效或终态轮询。
+   * Poll curation and load completed findings while stopping terminal or invalid polling.
+   */
   private async pollCurator(): Promise<false | void> {
     const runId = this.curatorLoader.result?.id;
     if (!runId) {

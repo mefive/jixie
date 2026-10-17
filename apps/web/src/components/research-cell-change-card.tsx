@@ -25,6 +25,10 @@ import './research-cell-change-card.css';
 
 const ResearchCellChangeDiff = lazy(() => import('./research-cell-change-diff'));
 
+/**
+ * 绑定持久 Cell 提案和审阅动作，供提案卡片。
+ * Bind durable cell proposals and review actions to the proposal card.
+ */
 interface ResearchCellChangeCardProps {
   proposal: ResearchCellChangeProposalV1;
   busy?: boolean;
@@ -40,7 +44,10 @@ interface ResearchCellChangeCardProps {
   onExplain?: (attempt: ResearchCellChangeAttemptV1) => Promise<void>;
 }
 
-/** Compact, review-first rendering of an Agent-authored Cell change proposal. */
+/**
+ * 以先审阅为原则紧凑展示 Agent Cell 修改提案。
+ * Compact, review-first rendering of an Agent-authored Cell change proposal.
+ */
 export default function ResearchCellChangeCard({
   proposal,
   busy = false,
@@ -325,6 +332,10 @@ function LineChanges({ operation }: { operation: ResearchCellChangeOperationV1 }
   );
 }
 
+/**
+ * 展示提案运行尝试的成功、失败及输出差异摘要。
+ * Present proposal attempt outcomes and output-difference summaries.
+ */
 function CellChangeAttemptSummary({
   attempt,
   count,
@@ -393,6 +404,10 @@ function CellChangeAttemptSummary({
   );
 }
 
+/**
+ * 按 Cell 修改操作种类选择图标。
+ * Choose an icon for the cell-change operation kind.
+ */
 function operationIcon(kind: ResearchCellChangeOperationV1['kind']) {
   switch (kind) {
     case 'create':
@@ -404,6 +419,10 @@ function operationIcon(kind: ResearchCellChangeOperationV1['kind']) {
   }
 }
 
+/**
+ * 按修改提案或审阅状态选择图标。
+ * Choose an icon for proposal and review state.
+ */
 function statusIcon(
   status:
     | ResearchCellChangeProposalV1['status']
@@ -427,6 +446,10 @@ function statusIcon(
   }
 }
 
+/**
+ * 按修改尝试终态选择图标，区分失败与中断。
+ * Choose an attempt icon distinguishing failure and interruption.
+ */
 function attemptStatusIcon(status: ResearchCellChangeAttemptV1['status']) {
   switch (status) {
     case 'success':

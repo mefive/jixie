@@ -8,12 +8,20 @@ export const currentSignalJob = {
   take: 1,
 } satisfies Prisma.JobFindManyArgs;
 
+/**
+ * 关联信号尝试、任务与执行状态，供结果读取与重试校验。
+ * Associate signal attempts, jobs and execution state for reads and retries.
+ */
 type SignalExecutionState = {
   legacyStatus: string | null;
   legacyError: string | null;
   jobs: Array<{ id: string; status: string; error: string | null }>;
 };
 
+/**
+ * 从持久化运行与任务派生对外状态，兼容历史终态记录。
+ * Derive public signal state from persisted runs and jobs, including legacy terminal records.
+ */
 export function signalRunState<Row extends SignalExecutionState>(row: Row) {
   const job = row.jobs[0];
   const status = job?.status ?? row.legacyStatus;
@@ -30,7 +38,10 @@ export function signalRunState<Row extends SignalExecutionState>(row: Row) {
   };
 }
 
-/** Guard post-commit metadata against a retry that superseded this attempt. */
+/**
+ * 使用尝试身份限制提交后元数据更新，防止覆盖更新的重试。
+ * Guard post-commit metadata against a retry that superseded this attempt.
+ */
 export function signalAttemptWhere(
   job: { id: string; createdAt: Date } | undefined,
 ): Prisma.SignalRunWhereInput {
@@ -54,7 +65,10 @@ export function signalAttemptWhere(
   };
 }
 
-/** Approved SQL exception: Prisma relation filters cannot compare sibling attempt timestamps. */
+/**
+ * 使用已批准的 SQL 例外比较同级尝试时间戳，解析已完成信号运行。
+ * Approved SQL exception: Prisma relation filters cannot compare sibling attempt timestamps.
+ */
 export async function completedSignalRunIds(input: {
   deploymentId?: string;
   throughDate?: string;

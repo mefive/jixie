@@ -15,6 +15,10 @@ export const COMMIT_TYPES = [
   'revert',
 ];
 
+/**
+ * 校验提交信息结构、长度与明显非英文内容，返回可解释诊断。
+ * Validate commit-message structure, length and obvious untranslated content with actionable diagnostics.
+ */
 export function checkCommitMessage(message) {
   const errors = [];
   const normalized = message.replace(/\r\n/g, '\n').trimEnd();

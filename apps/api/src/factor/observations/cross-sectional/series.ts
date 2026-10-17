@@ -9,6 +9,10 @@ import { DEFAULT_LOCALE, type FactorLanguage, type Locale } from '@jixie/shared'
 
 import { finaAsOf, loadFinaIndex, type FinaIndex, type Snap } from './data.js';
 
+/**
+ * 保留因子序列各采样阶段数量，供研究覆盖审计。
+ * Retain sample-stage counts for factor-series coverage auditing.
+ */
 export interface FactorSeriesAudit {
   declaredWindowDays?: number;
   minimumCoverage: number;
@@ -17,6 +21,10 @@ export interface FactorSeriesAudit {
   droppedForCoverage: number;
 }
 
+/**
+ * 将因子序列与覆盖审计一起返回，供评估解释样本变化。
+ * Return factor series with coverage evidence explaining sample changes.
+ */
 export interface FactorSeriesResult {
   series: Series;
   audit: FactorSeriesAudit;
@@ -36,6 +44,7 @@ export function mergeFactorSeriesAudits(audits: FactorSeriesAudit[]): FactorSeri
 export type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance date -> [{tsCode, value}]
 
 /**
+ * 在各调仓日即时计算单因子值，预置与作者因子复用同一沙盒路径并留存覆盖审计。
  * Compute ONE factor's value on each rebalance date, on the fly. Presets and user factors share this
  * single path (factor-to-strategy.md Step 1b): load the Factor row's code (preset rows are seeded
  * from builtin-factors.ts), compile into an isolated-vm sandbox, run compute cross-sectionally.
@@ -140,6 +149,11 @@ export async function computeFactorSeries(
   // date, absent = null, never carried forward) + as-of fundamentals (latest annDate ≤ date). Queried
   // per-date (not batched with `in: dates`) — measured slower when batched, likely Prisma row-
   // deserialization + IN-list planning overhead.
+
+  /**
+   * 批量加载因子所需历史行情，供本轮观察序列计算。
+   * Batch-load historical bars required to compute factor observations.
+   */
   const loadBars = async (date: string): Promise<Map<string, FactorBar>> => {
     const [basicRows, flowRows] = await Promise.all([
       prisma.dailyBasic.findMany({
@@ -388,6 +402,10 @@ function normalizeFactorLanguage(value: string | null | undefined): FactorLangua
   return value === 'python' ? 'python' : 'typescript';
 }
 
+/**
+ * 二分定位有序日期中首个不小于目标的位置。
+ * Binary-search the first sorted date not below the target.
+ */
 function lowerBound(values: string[], target: string): number {
   let low = 0;
   let high = values.length;
@@ -402,6 +420,10 @@ function lowerBound(values: string[], target: string): number {
   return low;
 }
 
+/**
+ * 统计计算窗口内实际行情覆盖，供因子采样审计。
+ * Measure observed bar coverage in a factor window.
+ */
 export function calculateWindowCoverage(
   stockTradeDates: string[],
   stockEndIndex: number,

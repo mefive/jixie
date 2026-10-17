@@ -2,6 +2,7 @@ import type { MessagePart, EmbeddedAnalysisPart } from './chat.js';
 import type { FactorQuestionContextV1 } from './factor-questions.js';
 
 /**
+ * 描述工具调用轨迹的展示单元，供后台轮次与 SSE 客户端共享。
  * Agent turn streaming (SSE) — the wire protocol between the background turn runner and any number
  * of subscribers (pattern borrowed from marginalia's streamBus). A turn runs server-side detached
  * from the HTTP request; POST returns a turnId immediately and GET /agent/turns/:id/stream
@@ -17,12 +18,20 @@ export interface ToolTraceItem {
   ms: number;
 }
 
+/**
+ * 聚合单轮执行阶段与工具轨迹，供流式恢复。
+ * Collect a turn's phases and tool trace for stream restoration.
+ */
 export interface AgentTurnTrace {
   version: 1;
   steps: AgentTraceStep[];
   truncated: boolean;
 }
 
+/**
+ * 定义执行轨迹共享身份与时间，供各步骤变体复用。
+ * Define trace identity and timing shared by step variants.
+ */
 interface AgentTraceBase {
   id: string;
   sequence: number;
@@ -30,6 +39,10 @@ interface AgentTraceBase {
   createdAt: string;
 }
 
+/**
+ * 区分模型、工具与产物执行步骤，供增量轨迹展示。
+ * Discriminate model, tool and artifact steps in incremental traces.
+ */
 export type AgentTraceStep =
   | (AgentTraceBase & {
       type: 'model';
@@ -62,6 +75,10 @@ export type AgentTraceStep =
       message?: string;
     });
 
+/**
+ * 返回轮次持久输入、状态与轨迹，供刷新恢复。
+ * Return persisted turn input, status and trace for refresh recovery.
+ */
 export interface AgentTurnDetail {
   id: string;
   status: 'running' | 'done' | 'error' | 'cancelled' | 'interrupted';
@@ -80,6 +97,10 @@ export type AgentTurnPhase =
   | 'validating_proposal'
   | 'awaiting_review';
 
+/**
+ * 定义 SSE 增量、快照与终态事件，供服务端与前端一致消费。
+ * Define SSE increment, snapshot and terminal events shared by server and client.
+ */
 export type AgentStreamEvent =
   | {
       type: 'snapshot';

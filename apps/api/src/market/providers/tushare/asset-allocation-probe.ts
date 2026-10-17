@@ -14,6 +14,10 @@ export type AssetAllocationProbeStatus =
   | 'request_error'
   | 'network_error';
 
+/**
+ * 声明能力探测的接口、参数与预期证据。
+ * Configure a capability probe's API, arguments and expected evidence.
+ */
 export interface AssetAllocationProbeDefinition {
   version?: number;
   domain: TushareCapabilityDomain;
@@ -25,6 +29,10 @@ export interface AssetAllocationProbeDefinition {
   params: (probeDate: string) => Record<string, unknown>;
 }
 
+/**
+ * 记录能力探测状态、覆盖及诊断。
+ * Retain capability probe status, coverage and diagnostics.
+ */
 export interface AssetAllocationProbeResult {
   catalogVersion: number;
   domain: AssetAllocationProbeDefinition['domain'];
@@ -43,6 +51,10 @@ export interface AssetAllocationProbeResult {
   errorMessage?: string;
 }
 
+/**
+ * 抽象能力探测所需来源调用，便于受控探测。
+ * Abstract provider calls required for controlled capability probing.
+ */
 export interface AssetAllocationProbeClient {
   call(apiName: string, params?: Record<string, unknown>, fields?: string): Promise<TushareRow[]>;
 }
@@ -55,6 +67,10 @@ export interface AssetAllocationProbeClient {
 export const ASSET_ALLOCATION_PROBES: readonly AssetAllocationProbeDefinition[] =
   TUSHARE_CAPABILITIES;
 
+/**
+ * 逐项探测配置数据能力的来源响应与覆盖，供资产配置数据准入。
+ * Probe configured data capabilities and coverage for asset-allocation readiness.
+ */
 export async function probeAssetAllocationData(
   client: AssetAllocationProbeClient,
   probeDate: string,
@@ -104,6 +120,10 @@ export async function probeAssetAllocationData(
   return results;
 }
 
+/**
+ * 从来源观测解析实际历史覆盖，供能力探测判断。
+ * Derive observed history bounds from source rows for capability probes.
+ */
 function observedHistory(
   rows: TushareRow[],
   history: AssetAllocationProbeDefinition['history'],

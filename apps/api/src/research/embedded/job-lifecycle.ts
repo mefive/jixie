@@ -4,6 +4,10 @@ import { executeEmbeddedRun } from './execute.js';
 import { completeEmbeddedRun, failEmbeddedRun } from './finish.js';
 
 export const researchEmbeddedAnalysisLifecycle = {
+  /**
+   * 执行排队的嵌入式运行，尊重任务取消与冻结版本。
+   * Execute a queued embedded run under cancellation and version guards.
+   */
   async onExecute(job, log) {
     const input = researchEmbeddedAnalysisJobPayloadSchema.parse(job.payload);
     if (input.runId !== job.researchExecutionId) {

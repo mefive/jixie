@@ -61,8 +61,11 @@ const LEGACY_EVALUATION_SCOPE: FactorEvaluationScopeV1 = {
 
 const NEUTRAL_MIN_GROUP = 5; // industries smaller than this are merged into the largest one before demeaning
 
-/** Relabel members of any group smaller than NEUTRAL_MIN_GROUP into the largest group, so a handful of
- * lone-industry stocks don't each form their own (degenerate, residual-zero) demeaning bucket. */
+/**
+ * 将样本数不足的行业组并入最大组，避免小组中性化退化。
+ * Relabel members of any group smaller than NEUTRAL_MIN_GROUP into the largest group, so a handful of
+ * lone-industry stocks don't each form their own (degenerate, residual-zero) demeaning bucket.
+ */
 function mergeSmallGroups(groups: string[]): string[] {
   const counts = new Map<string, number>();
   for (const g of groups) {
@@ -78,6 +81,7 @@ function mergeSmallGroups(groups: string[]): string[] {
 }
 
 /**
+ * 按调仓日原位替换为规模或行业中性化残差，保持评估使用同一处理后序列。
  * Replace each rebalance date's factor values with their neutralized residuals (in place on the map).
  * 'size' regresses out log(total market cap); 'size_industry' additionally removes SW level-1 industry
  * means (FWL — see stats.residualize). Stocks without a positive market cap that day are dropped (can't
@@ -143,6 +147,7 @@ function neutralizeCandidates<T extends { tsCode: string; value: number; mktcap:
 }
 
 /**
+ * 按冻结的频率和日期范围计算截面分组、Rank IC、多空收益、成本及稳健推断。
  * Analyze one factor over a (freq, start, end) window: monthly/weekly cross-sectional deciles + Rank IC
  * + long-short. Values are computed on the fly and held only for this call — the caller persists the
  * returned report, not the values.
@@ -496,6 +501,10 @@ export async function analyzeFactor(
     }
 
     if (scopeAware && evaluationScope.diagnostics.length > 0) {
+      /**
+       * 按诊断维度分组样本并计算切片统计，不影响主报告。
+       * Group diagnostic samples and compute slice statistics independently of the primary report.
+       */
       const collect = (
         dimension: 'industry' | 'size_bucket' | 'liquidity_bucket',
         keys: Array<string | null>,
@@ -842,7 +851,10 @@ function transformSeriesOutliers(series: Series, policy: FactorOutlierSpecV1): v
 
 // —— weighting helpers ——
 
-/** One-way turnover of a decile leg: fraction of the current names that weren't in the previous set. */
+/**
+ * 计算单侧换手，即当前组中不属于上一期证券集合的比例。
+ * One-way turnover of a decile leg: fraction of the current names that weren't in the previous set.
+ */
 function oneWayTurnover(current: Set<string>, previous: Set<string>): number {
   if (!current.size) {
     return 0;
@@ -856,12 +868,18 @@ function oneWayTurnover(current: Set<string>, previous: Set<string>): number {
   return changed / current.size;
 }
 
-/** Equal-weight mean of a bucket's values. */
+/**
+ * 计算分组观测的等权均值。
+ * Equal-weight mean of a bucket's values.
+ */
 function equalMean(items: { v: number }[]): number {
   return items.length ? items.reduce((s, x) => s + x.v, 0) / items.length : 0;
 }
 
-/** Cap-weight mean: Σ(v·w) / Σw (w = total market cap); 0 if the bucket has no positive-cap names. */
+/**
+ * 按总市值计算加权均值，无正市值证券时按现有约定返回 0。
+ * Cap-weight mean: Σ(v·w) / Σw (w = total market cap); 0 if the bucket has no positive-cap names.
+ */
 function capMean(items: { v: number; w: number }[]): number {
   let sumW = 0;
   let sumVW = 0;

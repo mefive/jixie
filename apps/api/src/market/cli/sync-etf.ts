@@ -7,6 +7,10 @@ import { syncEtfBasic, syncEtfDaily } from '../etfs/history-sync.js';
 import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 
+/**
+ * 解析并去重 ETF 代码参数，拒绝空或非法代码。
+ * Parse and deduplicate ETF codes and reject invalid input.
+ */
 function parseCodes(selector: string): string[] {
   if (selector === 'registry') {
     return [...ETF_RESEARCH_CODES];
@@ -21,6 +25,7 @@ function parseCodes(selector: string): string[] {
 }
 
 /**
+ * 同步 ETF 元数据及选定区间的日线和复权因子。
  * Sync ETF metadata plus selected daily bars/adjustment factors.
  * Usage: pnpm --filter api sync etf [start] [end] [registry|major|CODE,CODE] [refresh]
  */

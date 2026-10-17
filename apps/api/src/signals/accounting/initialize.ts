@@ -6,7 +6,10 @@ import type { ModelPositionSnapshot, SignalItem } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '#infra/database/prisma.js';
 
-/** Create queryable execution rows and the two account baselines after a signal run finishes. */
+/**
+ * 在信号运行完成后建立可查询执行任务及模型、实际两个账户基线。
+ * Create queryable execution rows and the two account baselines after a signal run finishes.
+ */
 export async function initializeSignalAccounting(runId: string): Promise<void> {
   const run = await prisma.signalRun
     .findUnique({

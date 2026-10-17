@@ -594,6 +594,10 @@ export type ResearchSdkParameterTypeV1 =
   | 'string_or_string_list'
   | 'string_map';
 
+/**
+ * 定义 SDK 参数类型、默认值及双语语义，供生成和校验同源。
+ * Define parameter types, defaults and bilingual semantics for shared generation and validation.
+ */
 export interface ResearchSdkParameterContractV1 {
   name: string;
   type: ResearchSdkParameterTypeV1;
@@ -608,6 +612,10 @@ export interface ResearchSdkParameterContractV1 {
   descriptionEn: string;
 }
 
+/**
+ * 定义 DataFrame 公开列、Python 类型与单位，隔离 Prisma 存储。
+ * Define public DataFrame columns, Python types and units independently of Prisma.
+ */
 export interface ResearchSdkDataFrameColumnContractV1 {
   name: string;
   wireType:
@@ -623,6 +631,10 @@ export interface ResearchSdkDataFrameColumnContractV1 {
   descriptionEn: string;
 }
 
+/**
+ * 区分数据表、图表及其他公开返回结构，供 stub 与响应校验。
+ * Discriminate public result shapes for stubs and response validation.
+ */
 export type ResearchSdkReturnContractV1 =
   | {
       kind: 'dataframe';
@@ -631,6 +643,10 @@ export type ResearchSdkReturnContractV1 =
   | { kind: 'mapping'; pythonType: 'Mapping[str, Any]' }
   | { kind: 'chart' };
 
+/**
+ * 定义公开方法签名、说明与返回列，供 SDK 全链路消费。
+ * Define public method signatures, guidance and result columns across SDK consumers.
+ */
 export interface ResearchSdkFunctionContractV1 {
   qualifiedName: string;
   namespace: string;
@@ -644,6 +660,10 @@ export interface ResearchSdkFunctionContractV1 {
   returns: ResearchSdkReturnContractV1;
 }
 
+/**
+ * 作为 Research SDK 唯一公开契约，驱动补全、Python stub 与宿主校验。
+ * Provide the canonical Research SDK contract for completion, Python stubs and host validation.
+ */
 export interface ResearchSdkContractV1 {
   version: 1;
   runtimeVersion: 'research-py-v1';
@@ -1154,6 +1174,10 @@ export const RESEARCH_COMMODITY_HOLDING_COLUMNS_V1 = [
   },
 ] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
+/**
+ * 为商品数据方法构造统一参数与返回列契约。
+ * Construct a commodity dataset method contract with common arguments and result columns.
+ */
 function commodityDatasetFunction(
   name: 'commodity_returns' | 'commodity_warehouse_receipts' | 'commodity_holdings',
   descriptionZh: string,
@@ -1841,6 +1865,10 @@ const futuresSettlementColumns = [
   },
 ] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
+/**
+ * 为带日期和标识的数据集构造公开 SDK 契约。
+ * Construct a public SDK contract for a dated identifier dataset.
+ */
 function datedIdentifierDatasetFunction(
   name: 'equity_fundamentals' | 'equity_flows' | 'equity_dividends',
   descriptionZh: string,
@@ -1887,6 +1915,10 @@ function datedIdentifierDatasetFunction(
   };
 }
 
+/**
+ * 为市场参考数据生成参数、结果列及双语说明契约。
+ * Construct market-reference method arguments, result columns and bilingual guidance.
+ */
 function referenceDatasetFunction(
   name: 'etf_shares' | 'index_valuation' | 'industry_state' | 'futures_settlement',
   descriptionZh: string,
@@ -1938,6 +1970,10 @@ function referenceDatasetFunction(
   };
 }
 
+/**
+ * 为图表方法构造公开参数和产物契约，供补全与宿主校验。
+ * Construct public chart method and artifact contracts for completion and host validation.
+ */
 function chartFunction(
   name: 'line' | 'area' | 'bar' | 'scatter' | 'event_path',
   descriptionZh: string,

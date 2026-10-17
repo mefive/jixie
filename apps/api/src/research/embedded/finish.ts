@@ -2,6 +2,10 @@ import type { Prisma } from '@prisma/client';
 import type { ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
 import type { EmbeddedExecutionResult } from './execute.js';
 
+/**
+ * 原子保存成功运行与版本冻结状态，供结果和会话读取。
+ * Persist successful run completion and version freezing consistently.
+ */
 export async function completeEmbeddedRun(
   transaction: Prisma.TransactionClient,
   result: EmbeddedExecutionResult,
@@ -85,6 +89,10 @@ export async function completeEmbeddedRun(
   }
 }
 
+/**
+ * 保存嵌入式运行失败或取消结果，保留可查询诊断。
+ * Persist embedded failure or cancellation with queryable diagnostics.
+ */
 export async function failEmbeddedRun(
   transaction: Prisma.TransactionClient,
   runId: string,

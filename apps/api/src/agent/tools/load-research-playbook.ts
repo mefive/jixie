@@ -16,6 +16,11 @@ export const loadResearchPlaybookTool: AgentTool = {
   description:
     'Load a versioned domain research playbook by its exact registered id. A playbook provides candidate concept ids, workflow, common hypothesis directions, and non-substitution rules. It never supplies or validates a database entity id; pass its concept ids to searchResearchCatalog for exact local resolution.',
   parameters: z.toJSONSchema(argsSchema),
+
+  /**
+   * 解析研究方法标识并返回对应 playbook，为 Agent 选择研究步骤提供依据。
+   * Resolve a research playbook request and return its methodological guidance.
+   */
   async run(args) {
     const parsed = argsSchema.safeParse(args);
     if (!parsed.success) {

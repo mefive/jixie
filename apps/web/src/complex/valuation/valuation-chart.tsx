@@ -2,6 +2,10 @@ import { useTranslation } from 'react-i18next';
 import type { IndexValuationMetric, IndexValuationPoint } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
+/**
+ * 提供估值历史、当前指标与区间，供估值图。
+ * Supply valuation history, metric and range to the chart.
+ */
 interface Props {
   indexName: string;
   metric: IndexValuationMetric;
@@ -11,6 +15,10 @@ interface Props {
 const METRIC_COLOR = '#111827';
 const CLOSE_COLOR = '#a5abb3';
 
+/**
+ * 绘制指数估值及历史分位，保留指标范围和缺失提示。
+ * Plot index valuations and historical percentiles with explicit ranges and missing values.
+ */
 export default function ValuationChart({ indexName, metric, points }: Props) {
   const { t } = useTranslation('valuation');
   const dates = points.map((point) => point.date);

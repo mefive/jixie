@@ -1,6 +1,10 @@
 import { t, type MessageKey } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
 
+/**
+ * 限定稳定业务错误分类，供 HTTP、CLI 与 Agent 输出边界映射。
+ * Define stable business-error categories for HTTP, CLI and agent output mapping.
+ */
 export type BusinessErrorCategory =
   | 'invalid'
   | 'missing'
@@ -10,12 +14,20 @@ export type BusinessErrorCategory =
   | 'unavailable'
   | 'maintenance';
 
+/**
+ * 定义业务错误的分类、翻译键及默认说明，供领域错误共用。
+ * Define business-error classification and translation metadata reused by domain errors.
+ */
 export interface BusinessErrorDefinition {
   category: BusinessErrorCategory;
   messageKey: MessageKey;
   details?: unknown;
 }
 
+/**
+ * 提供业务异常的公开详情、翻译参数与内部原因，避免输出边界猜测文案。
+ * Supply public details, translation parameters and an internal cause for a business error.
+ */
 export interface BusinessErrorOptions {
   params?: Record<string, string | number>;
   details?: unknown;
@@ -43,7 +55,10 @@ export class BusinessError<Reason extends string = string> extends Error {
   }
 }
 
-/** Format at HTTP, CLI, Agent or job output boundaries; never classify errors by their message. */
+/**
+ * 仅在 HTTP、CLI、Agent 或 Job 输出边界翻译错误，不根据错误文案判断分类。
+ * Format at HTTP, CLI, Agent or job output boundaries; never classify errors by their message.
+ */
 export function errorMessage(error: unknown, locale: Locale): string {
   if (error instanceof BusinessError) {
     return t(locale, error.messageKey, error.params);

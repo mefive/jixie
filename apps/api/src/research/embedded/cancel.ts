@@ -7,6 +7,10 @@ import { failEmbeddedRun } from './finish.js';
 
 import { runSummaryView } from './views.js';
 
+/**
+ * 按归属取消嵌入式运行并协调沙盒与持久化终态。
+ * Authorize and cancel an embedded run with sandbox and terminal-state coordination.
+ */
 export async function cancelEmbeddedRun(userId: string, analysisId: string, runId: string) {
   let terminalLogs: string | undefined;
   const result = await prisma.$transaction(async (transaction) => {

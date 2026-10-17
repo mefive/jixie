@@ -9,11 +9,8 @@ import { LiveReasoning } from './agent-trace';
 import './agent-pending.css';
 
 /**
- * The in-flight assistant bubble: streamed text so far + phase notes (tool calls / compile repair).
- * A fenced code block streams into the EDITOR at done, not the chat — so the bubble shows only the
- * pre-fence prose plus a "writing code" indicator once a fence opens. Streams as markdown too, so
- * the final message landing doesn't re-layout the bubble. Surfaces can opt into following the bottom;
- * screen disables it because its conversation keeps the latest user turn anchored near the top.
+ * 展示 Agent 等待与处理中状态，提供可读进度提示。
+ * Render agent pending and processing states with readable progress.
  */
 export const AgentPending = reactUtils.observer(
   ({ stream, autoScroll = true }: { stream: AgentTurnStream; autoScroll?: boolean }) => {

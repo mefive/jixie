@@ -4,6 +4,10 @@ import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { syncStockDailyData } from './daily-sync.js';
 import { syncMoneyflow, syncTopList } from './flows-sync.js';
 
+/**
+ * 记录股票各数据集单日数量，供修复比较。
+ * Supply stock dataset counts for dated repair checks.
+ */
 export interface StockDateCounts {
   tradeDate: string;
   daily: number;
@@ -13,6 +17,10 @@ export interface StockDateCounts {
   moneyflow: number;
 }
 
+/**
+ * 描述单日需补齐数据种类，供定向修复。
+ * Identify missing dated stock datasets for targeted repair.
+ */
 export interface StockDateRepair {
   tradeDate: string;
   core: boolean;
@@ -20,6 +28,10 @@ export interface StockDateRepair {
   reasons: string[];
 }
 
+/**
+ * 比较股票日期覆盖与预期数据集，生成最小补齐计划。
+ * Build a stock-date repair plan from required datasets and observed coverage.
+ */
 export function buildStockDateRepairPlan(counts: StockDateCounts[]): StockDateRepair[] {
   const populatedDailyCounts = counts
     .map((row) => row.daily)
@@ -85,6 +97,10 @@ export async function inspectStockDates(tradeDates: string[]): Promise<StockDate
   }));
 }
 
+/**
+ * 按缺口计划修复单日股票数据并返回校验结果。
+ * Repair one stock market date according to its gap plan and validate the outcome.
+ */
 export async function repairStockDate(
   client: TushareClient,
   repair: StockDateRepair,
@@ -105,6 +121,10 @@ function coverage(rows: number, daily: number): number {
   return daily > 0 ? rows / daily : 0;
 }
 
+/**
+ * 从计数样本计算中位数，供修复覆盖阈值。
+ * Compute a count median for repair coverage thresholds.
+ */
 function median(values: number[]): number | null {
   if (values.length === 0) {
     return null;

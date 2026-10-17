@@ -7,12 +7,20 @@ export type CuratorRepositoryReferenceKind = Extract<
   'code_reference' | 'help_article' | 'roadmap_item' | 'design_document'
 >;
 
+/**
+ * 表示仓库内可核验产品知识引用，供整理证据匹配。
+ * Describe a verifiable repository knowledge reference for curation evidence.
+ */
 export interface CuratorRepositoryReference {
   kind: CuratorRepositoryReferenceKind;
   id: string;
   excerpt: string;
 }
 
+/**
+ * 缓存知识引用的索引字段，供有界检索。
+ * Retain indexed reference fields for bounded knowledge search.
+ */
 interface IndexedReference {
   kind: CuratorRepositoryReferenceKind;
   path: string;
@@ -57,7 +65,10 @@ const STOP_TERMS = new Set([
 
 let cachedDefaultIndex: Promise<IndexedReference[]> | undefined;
 
-/** Search is deliberately read-only and limited to checked-in product knowledge. */
+/**
+ * 只读搜索已纳入版本控制的产品知识，不扩展到任意本地文件。
+ * Search is deliberately read-only and limited to checked-in product knowledge.
+ */
 export async function searchCuratorRepositoryReferences(
   text: string,
   options: { repositoryRoot?: string; limit?: number } = {},
@@ -115,6 +126,10 @@ async function buildReferenceIndex(repositoryRoot: string): Promise<IndexedRefer
   return entries.sort((left, right) => left.path.localeCompare(right.path));
 }
 
+/**
+ * 在允许的知识路径下收集受支持文件，供只读引用索引。
+ * Collect supported files within allowed knowledge paths for the read-only reference index.
+ */
 async function collectFiles(
   path: string,
   kind: CuratorRepositoryReferenceKind,

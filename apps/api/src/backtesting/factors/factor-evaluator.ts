@@ -9,12 +9,20 @@ import { factorV2YieldTerm } from '#factor/definitions/fields.js';
 import type { EngineData } from '../data/engine-data.js';
 import type { BarRow } from '../data/market.js';
 
+/**
+ * 提供一次决策日因子求值的证券与行情上下文。
+ * Supply the instruments and market context for one decision-date factor evaluation.
+ */
 export interface FactorEvaluationInput {
   date: string;
   codes: string[];
   crossSection?: Map<string, BarRow> | null;
 }
 
+/**
+ * 装配因子求值器的数据读取、执行端口和已注册因子定义。
+ * Configure factor evaluation with market reads, execution capabilities and registered definitions.
+ */
 export interface FactorEvaluatorInput {
   definitions: readonly FactorDefinition[];
   engineData: EngineData;
@@ -40,6 +48,10 @@ export class FactorEvaluator {
   private readonly warnedKeys = new Set<string>();
   private readonly input: Omit<Required<FactorEvaluatorInput>, 'definitions'>;
 
+  /**
+   * 整理因子依赖与预载需求，建立本轮求值缓存。
+   * Initialize factor dependencies, preload requirements and session caches.
+   */
   constructor(input: FactorEvaluatorInput) {
     const { definitions, ...options } = input;
     this.input = { ...options, locale: options.locale ?? DEFAULT_LOCALE };
@@ -64,7 +76,10 @@ export class FactorEvaluator {
     return this.definitions.has(key);
   }
 
-  /** Prepare only currently accessible instruments; serialize overlapping SDK data loads. */
+  /**
+   * 只准备当前可访问证券的因子输入，并串行处理重叠的 SDK 数据加载。
+   * Prepare only currently accessible instruments; serialize overlapping SDK data loads.
+   */
   evaluate({
     date,
     codes,
@@ -83,7 +98,10 @@ export class FactorEvaluator {
     return pending;
   }
 
-  /** Reading commits the cached value for this decision date; later loads cannot revise it. */
+  /**
+   * 读取并锁定当日缓存值，避免后续加载改变已用于决策的因子结果。
+   * Reading commits the cached value for this decision date; later loads cannot revise it.
+   */
   read(key: string, date: string, code: string): number | null {
     const entry = this.cache.get(this.cacheKey(key, code));
     if (date !== this.date || !entry) {
@@ -111,6 +129,10 @@ export class FactorEvaluator {
     return !previous || (!previous.read && previous.input !== input);
   }
 
+  /**
+   * 准备因子声明的数据和依赖，按类型分派求值并缓存结果。
+   * Prepare declared inputs and dependencies, dispatch evaluation by factor kind and cache the result.
+   */
   private async prepareFactor(
     factor: FactorDefinition,
     date: string,
@@ -176,6 +198,10 @@ export class FactorEvaluator {
     }
   }
 
+  /**
+   * 从当日截面构造单证券因子输入，保留其可用字段与时点语义。
+   * Construct one instrument's factor input from the current cross-section and its available fields.
+   */
   private crossSectionalItem(
     factor: Extract<FactorDefinition, { kind: 'cross_sectional' }>,
     date: string,
@@ -204,6 +230,10 @@ export class FactorEvaluator {
     };
   }
 
+  /**
+   * 装配单资产因子的日期窗口和所需市场历史，供外部因子执行。
+   * Assemble a single-asset factor request from the required historical window.
+   */
   private assetRequest(
     factor: Extract<FactorDefinition, { kind: 'asset_series' }>,
     date: string,
@@ -241,6 +271,10 @@ export class FactorEvaluator {
     };
   }
 
+  /**
+   * 准备 Panel 组合因子的依赖与横截面输入，供组合求值使用。
+   * Prepare dependency values and panel inputs for composite evaluation.
+   */
   private preparePanelComposite(
     factor: Extract<FactorDefinition, { kind: 'panel_composite' }>,
   ): void {
@@ -275,8 +309,11 @@ export class FactorEvaluator {
     }
   }
 
-  /** The factor-side bar for (code, today), assembled from the engine's cross-section row. Moneyflow
-   * columns come through the engine's own flow-semantics store when declared. */
+  /**
+   * 从引擎截面组装当日因子行情；资金流仅在声明后按其流量语义提供。
+   * The factor-side bar for (code, today), assembled from the engine's cross-section row. Moneyflow
+   * columns come through the engine's own flow-semantics store when declared.
+   */
   private assembleFactorBar(date: string, code: string, crossBar: BarRow | null): FactorBar {
     return {
       code,
@@ -300,6 +337,10 @@ export class FactorEvaluator {
   }
 }
 
+/**
+ * 将截面数值转换为中心化排名，供按相对排序组合因子。
+ * Convert cross-sectional values to centered ranks for rank-based factor composition.
+ */
 function centeredRanks(values: number[]): number[] {
   if (values.length === 1) {
     return [0];

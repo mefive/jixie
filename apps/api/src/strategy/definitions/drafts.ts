@@ -7,6 +7,10 @@ import { StrategyError } from '../errors.js';
 import type { CreateStrategyInput } from '@jixie/shared/api/strategy';
 import { proposeStrategyName, uniqueStrategyName } from './naming.js';
 
+/**
+ * 创建归属当前用户的策略草稿并初始化默认配置。
+ * Create an owned strategy draft with its initial configuration.
+ */
 export async function createStrategy(userId: string, input: CreateStrategyInput, locale: Locale) {
   const { messages, prompt, ...candidate } = input;
   let proposedName = candidate.name;
@@ -43,6 +47,10 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
   return row;
 }
 
+/**
+ * 校验策略归属及依赖状态后删除并清理关联。
+ * Authorize strategy deletion and validate dependent state.
+ */
 export async function deleteStrategy(userId: string, strategyId: string) {
   const r = await prisma.strategy.deleteMany({
     where: { id: strategyId, userId, deployments: { none: {} } },

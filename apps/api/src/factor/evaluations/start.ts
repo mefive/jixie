@@ -23,6 +23,10 @@ import { factorTestKey, factorVariantKey } from './identity.js';
 import type { FactorAnalysisJobPayload } from './job-payload.js';
 import { reportCompatibilityColumns } from './report-spec.js';
 
+/**
+ * 建立因子分析记录及任务关联，供后台评估运行。
+ * Create factor-analysis records and job associations for background evaluation.
+ */
 export async function startFactorAnalysis(options: {
   userId: string;
   factor: string;

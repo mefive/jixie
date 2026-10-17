@@ -2,6 +2,10 @@ import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
 import { MAJOR_ETF_CODES } from '#market/registry/etf-presets.js';
 import type { FactorAnalysisSource } from '../../sources/snapshot.js';
 
+/**
+ * 定义单资产时间序列模板，供草稿目录与创建入口复用。
+ * Describe a time-series template shared by catalog and draft creation.
+ */
 export interface TimeSeriesTemplate {
   key: string;
   kind: FactorKind;
@@ -257,6 +261,10 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
   },
 ];
 
+/**
+ * 整理单资产时间序列模板的目录信息，供创建草稿时选择。
+ * Build catalog metadata for single-asset time-series templates.
+ */
 export function timeSeriesTemplateCatalog(locale: Locale): FactorMeta[] {
   return TIME_SERIES_TEMPLATES.map((template) => ({
     key: template.key,
@@ -317,6 +325,10 @@ export function isTimeSeriesTemplateKey(key: string): boolean {
   return TIME_SERIES_TEMPLATES.some((template) => template.key === key);
 }
 
+/**
+ * 将选定时间序列模板转换为可创建因子的资源。
+ * Render a selected time-series template as a factor creation resource.
+ */
 export function timeSeriesTemplateResource(key: string, locale: Locale) {
   const template = TIME_SERIES_TEMPLATES.find((candidate) => candidate.key === key);
   return template

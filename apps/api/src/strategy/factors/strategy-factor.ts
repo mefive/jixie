@@ -12,8 +12,16 @@ import { sha256 } from '#factor/sources/fingerprint.js';
 import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot.js';
 import { StrategyError } from '../errors.js';
 
+/**
+ * 记录策略对因子的引用方式与所需历史，供依赖准备。
+ * Describe factor usage and history requirements discovered in strategy source.
+ */
 export type FactorUsage = 'research' | 'deployment' | 'signal';
 
+/**
+ * 提供解析及准备策略因子所需的用户、源码和冻结依赖。
+ * Supply ownership, strategy source and frozen dependencies for factor preparation.
+ */
 export interface StrategyFactorInput extends Omit<FactorDependency, 'inputs'> {
   code?: string;
   js?: string;
@@ -46,7 +54,10 @@ export class StrategyFactor {
     return this.input.key;
   }
 
-  /** Extract literal factor keys from declarations and ctx.factor() calls without evaluating user code. */
+  /**
+   * 静态提取声明与 ctx.factor 调用中的字面量 key，不执行用户代码。
+   * Extract literal factor keys from declarations and ctx.factor() calls without evaluating user code.
+   */
   static extractKeys(source: string): string[] {
     const callKeys = [...source.matchAll(/\bctx\s*\.\s*factor\s*\(\s*['"]([^'"]+)['"]/g)].map(
       (match) => match[1],
@@ -62,7 +73,10 @@ export class StrategyFactor {
     ];
   }
 
-  /** Load authorized published sources without starting a factor runtime. */
+  /**
+   * 加载用户可访问的已发布因子来源，不启动因子运行时。
+   * Load authorized published sources without starting a factor runtime.
+   */
   static async fromStrategySource(
     source: string,
     userId: string,
@@ -169,7 +183,10 @@ export class StrategyFactor {
     );
   }
 
-  /** Parse the immutable dependency snapshot stored in Prisma JSON. */
+  /**
+   * 校验并解析 Prisma JSON 中的不可变依赖快照。
+   * Parse the immutable dependency snapshot stored in Prisma JSON.
+   */
   static dependenciesFromJson(value: unknown): FactorDependency[] | null {
     if (value == null) {
       return null;
@@ -196,7 +213,10 @@ export class StrategyFactor {
     });
   }
 
-  /** Fail closed if persisted lineage and current runtime dependencies diverge. */
+  /**
+   * 当持久化血缘与当前运行依赖不一致时拒绝执行。
+   * Fail closed if persisted lineage and current runtime dependencies diverge.
+   */
   static assertDependencies(expected: FactorDependency[] | null, actual: FactorDependency[]): void {
     if (expected == null) {
       return;
@@ -206,7 +226,10 @@ export class StrategyFactor {
     }
   }
 
-  /** Validate runtime inputs without copying metadata back into source factors. */
+  /**
+   * 校验沙盒报告的运行输入，不将元数据反向写回来源因子。
+   * Validate runtime inputs without copying metadata back into source factors.
+   */
   static validateSandboxMetadata(factors: StrategyFactor[], definitions: FactorDefinition[]): void {
     const byId = new Map(definitions.map((definition) => [definition.id, definition]));
     const researchOnlyInputs = new Set<string>();
@@ -228,6 +251,10 @@ export class StrategyFactor {
     }
   }
 
+  /**
+   * 从因子定义提取所需输入，供策略模拟准备依赖。
+   * Extract input requirements from a factor definition for strategy simulation.
+   */
   private static inputsFromDefinition(
     definition: FactorDefinition,
   ): FactorInputRequirements['inputs'] | undefined {
@@ -290,7 +317,10 @@ export class StrategyFactor {
     };
   }
 
-  /** Persist only lineage fields, never source or internal runtime configuration. */
+  /**
+   * 仅持久化血缘字段，不保存源码或内部运行配置。
+   * Persist only lineage fields, never source or internal runtime configuration.
+   */
   toDependency(definition?: FactorDefinition): FactorDependency {
     if (definition && definition.id !== this.key) {
       throw new Error(`Factor metadata does not match: ${this.key}`);
@@ -310,6 +340,10 @@ export class StrategyFactor {
     };
   }
 
+  /**
+   * 解析策略所需因子历史字段，供按需数据加载。
+   * Resolve factor history fields required by the strategy for selective data loading.
+   */
   private static extractHistoryFields(source: string): FactorHistoryField[] {
     const fields: FactorHistoryField[] = [];
     if (/['"]turnoverRateF['"]/.test(source)) {
@@ -327,6 +361,10 @@ export class StrategyFactor {
     return fields;
   }
 
+  /**
+   * 准备单个因子来源及其快照，供模拟创建因子宿主。
+   * Prepare a factor source and snapshot for simulation factor-host creation.
+   */
   private static async prepareSource(
     row: {
       key: string;
@@ -377,6 +415,10 @@ export class StrategyFactor {
     };
   }
 
+  /**
+   * 解析组合因子的子依赖和计算配置，供策略运行统一加载。
+   * Prepare a composite factor's dependencies and configuration for strategy execution.
+   */
   private static async prepareComposite(
     row: {
       id: string;
@@ -431,6 +473,10 @@ export class StrategyFactor {
     };
   }
 
+  /**
+   * 从 Python 因子来源提取声明的历史字段，供运行输入预备。
+   * Extract declared history fields from a Python factor source.
+   */
   private static extractPythonFactorHistoryFields(source: string) {
     return [
       source.includes('"turnover_rate_f"') || source.includes("'turnover_rate_f'")
@@ -446,6 +492,10 @@ export class StrategyFactor {
     ].filter((field): field is NonNullable<typeof field> => field != null);
   }
 
+  /**
+   * 校验已批准的 Panel 证券池，拒绝不符合冻结契约的范围。
+   * Validate an approved panel universe against its frozen contract.
+   */
   private static parseApprovedPanelUniverse(
     subject: string,
     reportSpec: unknown,

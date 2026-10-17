@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next';
 import type { QuantileHorizon, FactorWeight } from '@jixie/shared';
 import './quantile-heatmap.css';
 
-/** Quantile × forward-period heatmap —— rows = forward period, cols = quantile D1..D10, cell = daily
+/**
+ * 渲染分位组与前瞻窗口热图，行列和色值对应冻结报告的收益口径。
+ * Quantile × forward-period heatmap —— rows = forward period, cols = quantile D1..D10, cell = daily
  * average forward return (in ‱, basis-of-ten-thousand), red up / green down. Read off which forward
  * period gives the strongest monotonic quantile spread (low on the left → high on the right) and whether
- * the signal decays. After daily normalization the forward periods are directly comparable. */
+ * the signal decays. After daily normalization the forward periods are directly comparable.
+ */
 export function QuantileHeatmap({
   rows,
   weight,
@@ -48,6 +51,11 @@ export function QuantileHeatmap({
 }
 
 // Red (+) / green (−) tint (A-share convention), intensity by |daily avg return|; ≥15‱ ≈ full. White text once dark enough.
+
+/**
+ * 按收益幅度和符号映射分位热图背景。
+ * Map return magnitude and sign to quantile heatmap colors.
+ */
 function bg(v: number): CSSProperties {
   const a = Math.min(Math.abs(v * 10000) / 15, 1) * 0.8;
   return {

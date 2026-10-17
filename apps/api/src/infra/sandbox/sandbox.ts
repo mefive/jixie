@@ -1,5 +1,9 @@
 import type { SandboxBridge } from './sandbox-bridge.js';
 
+/**
+ * 传递沙盒初始化所需的取消选项，供会话启动控制。
+ * Configure cancellation for sandbox initialization.
+ */
 interface SandboxInitializationOptions {
   signal?: AbortSignal;
   abortMessage?: string;
@@ -42,7 +46,10 @@ export abstract class Sandbox<
     return this.sandboxBridge;
   }
 
-  /** Owns acquired bridges, including those returned after the sandbox has already closed. */
+  /**
+   * 接管初始化获得的 Bridge，包括关闭后才返回的实例，确保资源被回收。
+   * Owns acquired bridges, including those returned after the sandbox has already closed.
+   */
   protected async initialize(options: SandboxInitializationOptions = {}): Promise<void> {
     if (this.isClosed) {
       throw new Error('Sandbox runtime is closed');
@@ -125,6 +132,10 @@ export abstract class Sandbox<
     this.releaseBridge(error);
   }
 
+  /**
+   * 按关闭或终止原因释放已取得 Bridge，并清理沙盒引用。
+   * Release an acquired bridge under close or abort semantics.
+   */
   private releaseBridge(error?: Error): void {
     const bridge = this.sandboxBridge;
     this.sandboxBridge = undefined;

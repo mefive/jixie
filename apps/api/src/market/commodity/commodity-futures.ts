@@ -94,8 +94,11 @@ export function commodityWarehouseReceiptProductCodesForEtfs(etfs: string[]): st
     : null;
 }
 
-/** Keeps only the configured commodity products and fails closed before a metadata refresh can
- * delete an existing product whose upstream response unexpectedly became empty. */
+/**
+ * 只保留配置中的商品实际合约，并在刷新删除前验证元数据完整性。
+ * Keeps only the configured commodity products and fails closed before a metadata refresh can
+ * delete an existing product whose upstream response unexpectedly became empty.
+ */
 export function selectCommodityFutureContracts(rows: FutureContractRow[]): FutureContractRow[] {
   const expected = new Set<string>(
     COMMODITY_FUTURE_SPECS.map((spec) => `${spec.exchange}:${spec.productCode}`),

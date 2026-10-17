@@ -1,3 +1,7 @@
+/**
+ * 限定资产因子可声明输入字段，供契约与元数据校验。
+ * Restrict asset-factor input fields accepted by contract validation.
+ */
 export type FactorV2FieldKey =
   | 'etf.adjustedClose'
   | 'rates.cgb.yield.2y'
@@ -16,6 +20,10 @@ const RESEARCH_ONLY_FACTOR_V2_FIELDS = new Set<FactorV2FieldKey>([
   COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD,
 ]);
 
+/**
+ * 描述因子字段的来源、单位和历史语义，供作者输入说明。
+ * Describe a factor field's source, units and history semantics.
+ */
 export interface FactorV2FieldDefinition {
   key: FactorV2FieldKey;
   inputDomain: 'price' | 'fundamental' | 'flow' | 'rates' | 'commodity' | 'macro';

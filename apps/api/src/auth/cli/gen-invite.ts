@@ -10,6 +10,10 @@
 import { prisma } from '#infra/database/prisma.js';
 import { generateInviteCode } from '../invite-code.js';
 
+/**
+ * 解析邀请生成参数、创建邀请并输出结果，负责 CLI 资源收尾。
+ * Parse invitation arguments, create the invite and print its result with CLI cleanup.
+ */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const count = args[0] ? Number.parseInt(args[0], 10) : 1;

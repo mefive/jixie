@@ -11,6 +11,10 @@ import { ownedAnalysis } from './versions.js';
 
 import { runSummaryView } from './views.js';
 
+/**
+ * 校验实体归属、版本状态和输入模式后创建嵌入式运行。
+ * Authorize the host entity and validate version and input mode before creating an embedded run.
+ */
 export async function submitEmbeddedRun(
   userId: string,
   analysisId: string,

@@ -1,6 +1,7 @@
 import type { FactorLanguage } from '@jixie/shared';
 
 /**
+ * 为自定义因子 Agent 构造遵守公开契约的系统提示。
  * System prompt for the custom-factor Agent (mirrors the strategy codegen prompt). A custom factor is
  * a cross-sectional expression over one stock's point-in-time bar (valuation/size/liquidity/moneyflow), plus an
  * optional hfq-close history window via ctx.history when the factor declares `window`. The model
@@ -23,6 +24,10 @@ export function buildFactorCodegenPrompt(
   return buildCrossSectionalFactorCodegenPrompt();
 }
 
+/**
+ * 根据公开 Python 因子契约构造代码生成提示。
+ * Build factor authoring instructions from the public Python contract.
+ */
 function buildPythonFactorCodegenPrompt(
   analysisKind: 'cross_sectional' | 'time_series' | 'panel',
 ): string {
@@ -84,6 +89,10 @@ def compute(ctx: AssetFactorContext) -> float | None:
     return current / previous - 1 if current is not None and previous is not None and previous > 0 else None`;
 }
 
+/**
+ * 为横截面因子生成包含输入与时点约束的作者提示。
+ * Build cross-sectional authoring instructions with input and availability constraints.
+ */
 function buildCrossSectionalFactorCodegenPrompt(): string {
   return `You are an A-share "factor" code generator. Turn the user's natural-language factor idea into a **complete, compilable** TypeScript factor module.
 
@@ -145,6 +154,10 @@ export default defineFactor({
 });`;
 }
 
+/**
+ * 为单资产时间序列因子生成协议和历史窗口提示。
+ * Build single-asset time-series authoring instructions with protocol and history constraints.
+ */
 function buildTimeSeriesFactorCodegenPrompt(): string {
   return `You are an ETF time-series factor code generator. Turn the user's signal idea into a **complete, compilable** TypeScript Factor Definition V2 module.
 
@@ -189,6 +202,10 @@ export default defineFactorV2({
 });`;
 }
 
+/**
+ * 为 Panel 因子生成资产范围及跨资产输入约束提示。
+ * Build panel factor authoring instructions with universe and cross-asset input constraints.
+ */
 function buildPanelFactorCodegenPrompt(): string {
   return `You are a cross-asset ETF panel-factor code generator. Turn the user's ranking signal into a **complete, compilable** TypeScript Factor Definition V2 module.
 

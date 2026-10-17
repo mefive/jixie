@@ -8,6 +8,7 @@ import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 
 /**
+ * 同步原始财报版本、财务指标与分红历史，保留可恢复进度。
  * Sync raw statement versions, fina_indicator, and dividend history into the local store. The two
  * all-market financial sources use VIP report-period pagination. Dividend history remains per-stock.
  * Every full-history stage runs in bounded child processes.
@@ -51,6 +52,10 @@ async function main(): Promise<void> {
   console.log('✅ Financial sync complete');
 }
 
+/**
+ * 按选定证券与公告窗口修复原始财报，留存同步摘要。
+ * Repair source statements over declared stocks and announcement windows.
+ */
 async function repairFinancialStatements(
   code: string,
   config: ReturnType<typeof loadTushareConfig>,

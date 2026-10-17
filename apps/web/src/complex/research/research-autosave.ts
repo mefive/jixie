@@ -4,6 +4,10 @@ export const RESEARCH_AUTOSAVE_MAX_DIRTY_MS = 5_000;
 
 export type ResearchCellSaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict';
 
+/**
+ * 记录 Cell 本地源码、服务端修订及保存冲突，供自动保存协调。
+ * Track local source, server revision and save conflicts for cell autosave.
+ */
 export interface ResearchCellDraftState {
   cellId: string;
   draft: string;

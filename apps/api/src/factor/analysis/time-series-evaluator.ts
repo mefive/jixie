@@ -46,6 +46,10 @@ export function resolveNeweyWestLag(
   return Math.min(Math.max(requestedLag, overlappingTargetLag(researchSpec)), observations - 1);
 }
 
+/**
+ * 根据前瞻收益窗口确定重叠所需 HAC 滞后阶数。
+ * Resolve the HAC lag required by overlapping return targets.
+ */
 function overlappingTargetLag(researchSpec: TimeSeriesFactorResearchSpecV1): number {
   const observationsPerUnit = {
     daily: { trade_day: 1, calendar_day: 1, month: 21 },
@@ -55,6 +59,10 @@ function overlappingTargetLag(researchSpec: TimeSeriesFactorResearchSpecV1): num
   return Math.max(0, Math.ceil(researchSpec.target.horizon * observationsPerUnit) - 1);
 }
 
+/**
+ * 验证时间序列因子与前瞻收益的日期和数值对齐。
+ * Validate dated factor and forward-return observations for time-series evaluation.
+ */
 function validateObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   observations: TimeSeriesEvaluationObservation[],
@@ -116,6 +124,10 @@ function validateObservations(
   return validated;
 }
 
+/**
+ * 计算单资产时间序列信号与前瞻收益的统计关系，保留有效样本数。
+ * Summarize the relation between one asset's signal and forward returns with valid sample counts.
+ */
 function summarizeAsset(
   assetId: string,
   observations: TimeSeriesEvaluationObservation[],

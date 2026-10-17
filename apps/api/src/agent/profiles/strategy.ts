@@ -8,16 +8,22 @@ import { prisma } from '#infra/database/prisma.js';
 import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
 
-/** ts_code-shaped literals in the strategy code (6 digits + exchange suffix), deduped. Comments are
- * scanned too — a stale code in a comment forces the model to clean it up, which is fine. */
+/**
+ * 静态提取并去重策略中的证券代码字面量；注释中的代码也参与检查。
+ * ts_code-shaped literals in the strategy code (6 digits + exchange suffix), deduped. Comments are
+ * scanned too — a stale code in a comment forces the model to clean it up, which is fine.
+ */
 export function extractInstrumentCodes(code: string): string[] {
   return [...new Set(code.match(/\b\d{6}\.[A-Z]{2,3}\b/g) ?? [])];
 }
 
-/** Reject codes that exist nowhere in the local data (not a stock/ETF, not an offered index, not a synced
+/**
+ * 拒绝本地证券、ETF 和指数数据中均不存在的代码，防止生成不可用策略。
+ * Reject codes that exist nowhere in the local data (not a stock/ETF, not an offered index, not a synced
  * index series). An LLM writing a ts_code from memory otherwise fails SILENTLY at runtime: ensureBars
  * loads nothing → indicators return null → the backtest completes with zero trades. Throwing here
- * turns that into a repair-round message telling the model to look the instrument up. */
+ * turns that into a repair-round message telling the model to look the instrument up.
+ */
 async function assertKnownInstruments(code: string): Promise<void> {
   const candidates = extractInstrumentCodes(code).filter((tsCode) => !KNOWN_INDICES[tsCode]);
   if (candidates.length === 0) {
@@ -48,7 +54,10 @@ async function assertKnownInstruments(code: string): Promise<void> {
   }
 }
 
-/** The strategy-lab agent: iterates on defineStrategy code, compile-validated, with read-only data tools. */
+/**
+ * 配置策略工作台 Agent，通过只读工具迭代并编译校验策略代码。
+ * The strategy-lab agent: iterates on defineStrategy code, compile-validated, with read-only data tools.
+ */
 export function strategyProfile(
   availableIndices?: string,
   referencableFactors?: string,

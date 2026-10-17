@@ -129,6 +129,11 @@ export function setFactorVisibility(
 
 // —— Custom factors (code-first, Agent-authored) —— created on the first Agent prompt, then updated by
 // id: messages in real time, code/name on an analysis run. Mirrors the strategy workbench.
+
+/**
+ * 提供因子编辑所需协议、身份和显示元数据。
+ * Supply protocol, identity and display metadata for factor editing.
+ */
 export interface CustomFactorMeta {
   id: string;
   name: string;
@@ -139,6 +144,10 @@ export interface CustomFactorMeta {
   updatedAt: string;
 }
 
+/**
+ * 读取因子详情并转换为编辑器需要的定义与元数据。
+ * Read factor details and map them into editor definition and metadata.
+ */
 export function getCustomFactor(id: string): Promise<{
   id: string;
   name: string;
@@ -180,6 +189,11 @@ export function copyFactor(
 }
 
 // Create a NEW factor row (up front on the first Agent prompt / first run of a hand-written one).
+
+/**
+ * 提交新因子输入并返回持久化身份，供草稿编辑初始化。
+ * Submit factor creation input and return the persisted identity for draft editing.
+ */
 export function createFactor(
   key: string,
   name: string,
@@ -328,6 +342,10 @@ export function revealFactorHoldout(reportId: string): Promise<FactorReportDetai
   });
 }
 
+/**
+ * 描述分析任务身份及状态，供因子页面轮询。
+ * Describe analysis job identity and state for factor polling.
+ */
 export interface FactorJob {
   status: 'queued' | 'running' | 'done' | 'error' | 'stale';
   queuePosition?: number;

@@ -41,16 +41,28 @@ const FX_FIELDS =
 // FXCM history contains isolated one-pip bid/ask inversions caused by four-decimal rounding.
 const FX_ROUNDING_INVERSION_TOLERANCE = 0.0001 + 1e-9;
 
+/**
+ * 定义外部曲线与外汇读取能力，供统一同步。
+ * Define external curve and FX fetching for synchronization.
+ */
 export interface ExternalMarketClient {
   call(apiName: string, params?: Record<string, unknown>, fields?: string): Promise<TushareRow[]>;
 }
 
+/**
+ * 携带外部曲线实际期限点，供下一 SSE 可得日映射。
+ * Supply published external curve terms for next-SSE availability mapping.
+ */
 export interface ExternalYieldCurvePoint {
   tradeDate: string;
   termYears: number;
   yieldPct: number;
 }
 
+/**
+ * 保留货币对买卖报价与来源日期，供中间价及质量校验。
+ * Retain dated FX bid and ask quotes for mid-price and quality checks.
+ */
 export interface ExternalFxDailyBar {
   tsCode: string;
   tradeDate: string;
@@ -66,6 +78,10 @@ export interface ExternalFxDailyBar {
   tickQty: number;
 }
 
+/**
+ * 汇总外部曲线及汇率同步结果，供维护留存。
+ * Summarize external curve and FX sync outcomes for maintenance.
+ */
 export interface ExternalMarketSyncSummary {
   nominalCurvePoints: number;
   realCurvePoints: number;
@@ -73,7 +89,10 @@ export interface ExternalMarketSyncSummary {
   fxBarsByCode: Record<string, number>;
 }
 
-/** Parse a Tushare US Treasury response without interpolating absent tenors. */
+/**
+ * 解析美国国债曲线响应，不对缺失期限插值。
+ * Parse a Tushare US Treasury response without interpolating absent tenors.
+ */
 export function parseExternalYieldCurveRows(
   rows: TushareRow[],
   kind: 'nominal' | 'real',
@@ -120,7 +139,10 @@ export function parseExternalYieldCurveRows(
   );
 }
 
-/** Parse raw USD/CNH bid/ask bars and fail closed on inverted or impossible quotes. */
+/**
+ * 解析 USD/CNH 原始买卖报价，拒绝倒挂或不可能的数值。
+ * Parse raw USD/CNH bid/ask bars and fail closed on inverted or impossible quotes.
+ */
 export function parseUsdCnhRows(
   rows: TushareRow[],
   startDate: string,
@@ -129,7 +151,10 @@ export function parseUsdCnhRows(
   return parseExternalFxRows(rows, USD_CNH_CODE, startDate, endDate);
 }
 
-/** Parse one declared FXCM pair without silently accepting a different pair or inverted quotes. */
+/**
+ * 只接受声明的 FXCM 货币对，并拒绝错配或倒挂报价。
+ * Parse one declared FXCM pair without silently accepting a different pair or inverted quotes.
+ */
 export function parseExternalFxRows(
   rows: TushareRow[],
   expectedCode: (typeof EXTERNAL_FX_CODES)[number],
@@ -202,7 +227,10 @@ export function parseExternalFxRows(
   return bars.sort((left, right) => left.tradeDate.localeCompare(right.tradeDate));
 }
 
-/** Maps a source-market date to the first later SSE session for China-close research. */
+/**
+ * 将来源市场日期映射到之后首个 SSE 交易日，作为中国收盘研究可得日。
+ * Maps a source-market date to the first later SSE session for China-close research.
+ */
 export function assignExternalAvailableDates<T extends { tradeDate: string }>(
   observations: T[],
   openDates: string[],
@@ -217,7 +245,10 @@ export function assignExternalAvailableDates<T extends { tradeDate: string }>(
   });
 }
 
-/** Synchronize US nominal/real curves and USD/CNH with one auditable China-market PIT rule. */
+/**
+ * 按统一可审计的中国市场 PIT 规则同步美国名义、实际利率曲线与 USD/CNH。
+ * Synchronize US nominal/real curves and USD/CNH with one auditable China-market PIT rule.
+ */
 export async function syncExternalMarketDrivers(
   client: ExternalMarketClient,
   startDate: string,
@@ -320,6 +351,10 @@ export async function syncExternalMarketDrivers(
   return summary;
 }
 
+/**
+ * 原子替换已验证曲线区间，保持同一批次期限数据一致。
+ * Replace a validated yield-curve range atomically so term observations remain consistent.
+ */
 async function replaceCurveRange(
   curveCode: string,
   curveName: string,

@@ -35,6 +35,10 @@ const argsSchema = z.object({
 
 type FactorAnalysisResult = NonNullable<Awaited<ReturnType<typeof readFactorAnalysisResult>>>;
 
+/**
+ * 冻结因子探索使用的定义和研究范围，限制 Agent 工具的操作权限。
+ * Bind a factor exploration tool to its definition and permitted research scope.
+ */
 interface FactorResearchContext {
   userId: string;
   factorId: string;
@@ -47,13 +51,21 @@ interface FactorResearchContext {
   wait?: (userId: string, reportId: string, signal?: AbortSignal) => Promise<FactorAnalysisResult>;
 }
 
-/** Create the custom-factor research tool. It can only freeze an explore report; holdout creation,
- * reveal, Factor publication, and strategy deployment remain explicit user actions outside Agent. */
+/**
+ * 创建只允许冻结探索报告的因子工具，不开放 holdout 揭示、发布或策略部署。
+ * Create the custom-factor research tool. It can only freeze an explore report; holdout creation,
+ * reveal, Factor publication, and strategy deployment remain explicit user actions outside Agent.
+ */
 export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool {
   return {
     name: 'runFactorAnalysis',
     description: `Run one disciplined EXPLORE analysis for the current custom factor or a candidate full factor module. You must declare the research card before seeing metrics: mode, hypothesis, expected direction, and primary criterion. Use exploratory mode only when no directional hypothesis exists; exploratory reports are not holdout-eligible. Choose the formal universe explicitly when it matters; use within_industry ranking to test stock selection inside point-in-time SW L1 industries, not as a cosmetic report filter. The end date must not cross the returned holdout boundary. Results are immutable FactorReports. This tool cannot start or reveal holdout, publish a Factor, deploy a strategy, or alter the saved factor code. Normally compare at most two materially different candidates in one turn.`,
     parameters: z.toJSONSchema(argsSchema),
+
+    /**
+     * 校验因子探索请求、提交分析并等待结果，向 Agent 返回报告证据。
+     * Validate and submit factor exploration, wait for completion and return report evidence.
+     */
     async run(args, runContext) {
       const parsed = argsSchema.safeParse(args);
       if (!parsed.success) {
@@ -147,6 +159,10 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
   };
 }
 
+/**
+ * 观察因子分析任务直到终态，供工具返回持久化探索报告。
+ * Observe factor analysis until completion so the tool can return its persisted report.
+ */
 async function waitForFactorAnalysis(
   userId: string,
   reportId: string,

@@ -15,6 +15,10 @@ import { COMMODITY_CARRY_FIELD } from '../definitions/fields.js';
 
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
 
+/**
+ * 定义单商品时间序列的实际合约特征与 ETF 目标映射。
+ * Map a product-local actual-contract feature to its ETF time-series target.
+ */
 interface CommodityCarryTimeSeriesMapping {
   productCode: string;
   assetId: string;
@@ -26,8 +30,11 @@ const COMMODITY_CARRY_TIME_SERIES_MAPPINGS: CommodityCarryTimeSeriesMapping[] =
     assetId: spec.targetEtf,
   }));
 
-/** Tests each product's own actual-contract carry against the forward return of its mapped ETF.
- * The future is a feature source only; all return targets remain adjusted ETF prices. */
+/**
+ * 逐商品检验实际合约 Carry 与映射 ETF 前瞻收益，期货仅作特征而非成交资产。
+ * Tests each product's own actual-contract carry against the forward return of its mapped ETF.
+ * The future is a feature source only; all return targets remain adjusted ETF prices.
+ */
 export async function loadCommodityCarryTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   factor: TimeSeriesFactorSandbox,
@@ -85,6 +92,10 @@ export async function loadCommodityCarryTimeSeriesObservations(
   );
 }
 
+/**
+ * 构造逐商品 Carry 时间序列观测，保持 ETF 目标及特征可得时点一致。
+ * Build product-local carry observations aligned with ETF targets and feature availability.
+ */
 export async function buildCommodityCarryTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   etfRows: EtfTrendDailyRow[],
@@ -159,6 +170,10 @@ export function timeSeriesFactorUsesCommodityCarry(factor: TimeSeriesFactorSandb
   return factor.metadata.inputs.length === 1 && factor.metadata.inputs[0] === COMMODITY_CARRY_FIELD;
 }
 
+/**
+ * 要求使用已支持的 Carry 时间序列研究协议和窗口。
+ * Require the supported carry time-series protocol and research window.
+ */
 function assertCommodityCarryTimeSeriesProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   factor: TimeSeriesFactorSandbox,
@@ -193,6 +208,10 @@ function assertCommodityCarryTimeSeriesProtocol(
   return mappings;
 }
 
+/**
+ * 校验并分组 ETF 行情，供 Carry 时间序列目标收益计算。
+ * Validate and group ETF bars for carry time-series return targets.
+ */
 function groupAndValidateEtfRows(
   rows: EtfTrendDailyRow[],
   mappings: CommodityCarryTimeSeriesMapping[],
@@ -221,6 +240,10 @@ function groupAndValidateEtfRows(
   return result;
 }
 
+/**
+ * 校验并分组 Carry 特征，保留产品和可得日期身份。
+ * Validate and group carry features with product and availability identity.
+ */
 function groupAndValidateCarryPoints(
   points: CommodityCarryPointV1[],
   mappings: CommodityCarryTimeSeriesMapping[],
@@ -248,6 +271,10 @@ function groupAndValidateCarryPoints(
   return result;
 }
 
+/**
+ * 只将已可得 Carry 特征映射到 ETF 决策日期，避免未来信息。
+ * Align only available carry features to ETF decision dates.
+ */
 function alignCarryToEtfDates(
   rows: EtfTrendDailyRow[],
   points: CommodityCarryPointV1[],

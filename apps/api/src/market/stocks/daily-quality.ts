@@ -1,5 +1,9 @@
 import { prisma } from '#infra/database/prisma.js';
 
+/**
+ * 记录当日证券数据覆盖，供股票发布校验。
+ * Supply dated instrument coverage for stock publication checks.
+ */
 interface CoverageRow {
   daily: bigint | number;
   adjustmentMatches: bigint | number;
@@ -9,6 +13,10 @@ interface CoverageRow {
   aliasedCodes: bigint | number;
 }
 
+/**
+ * 汇总股票单日核心数据质量。
+ * Summarize one day's core stock-data quality.
+ */
 export interface StockDateQuality {
   daily: number;
   adjustmentCoverage: number;
@@ -17,6 +25,10 @@ export interface StockDateQuality {
   moneyflowCoverage: number;
 }
 
+/**
+ * 验证单日股票行情、估值及交易约束覆盖，供发布判断。
+ * Validate one day's stock prices, valuations and trading constraints before publication.
+ */
 export async function validateStockDate(tradeDate: string): Promise<StockDateQuality> {
   const coverageRows = await prisma.$queryRaw<CoverageRow[]>`
       SELECT

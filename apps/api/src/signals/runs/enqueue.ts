@@ -10,6 +10,10 @@ import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import { governmentYieldCurveReady } from '../factor-inputs/rates.js';
 import { resolveSignalExecutionDate, isSignalDataReady } from './readiness.js';
 
+/**
+ * 返回信号入队后可查询的运行与任务身份。
+ * Return the persisted run and job identities created by signal enqueueing.
+ */
 export interface EnqueuedSignalRun {
   runId: string;
   jobId: string | null;
@@ -17,6 +21,10 @@ export interface EnqueuedSignalRun {
   completion: Promise<'done' | 'error' | 'running'>;
 }
 
+/**
+ * 为部署与信号日期创建运行和后台任务，保持重复提交与状态关联一致。
+ * Create a signal run and background job for a deployment and date with consistent submission state.
+ */
 export async function enqueueSignalRun(
   userId: string,
   deploymentId: string,

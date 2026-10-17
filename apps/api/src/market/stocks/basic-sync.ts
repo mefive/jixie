@@ -13,7 +13,10 @@ import type { TushareClient } from '../providers/tushare/tushare-client.js';
 const STOCK_LIST_STATUSES = ['L', 'D', 'P', 'G'] as const;
 const TUSHARE_NAME_CHANGE_ROW_LIMIT = 10_000;
 
-/** Sync the complete stock master. All upstream calls finish before the atomic replacement starts. */
+/**
+ * 先完成全部上游请求，再原子替换完整股票主表。
+ * Sync the complete stock master. All upstream calls finish before the atomic replacement starts.
+ */
 export async function syncStockBasic(client: TushareClient): Promise<number> {
   const batches = await Promise.all(
     STOCK_LIST_STATUSES.map((listStatus) => stockBasic(client, { list_status: listStatus })),
@@ -45,7 +48,10 @@ export async function syncStockBasic(client: TushareClient): Promise<number> {
   return rows.length;
 }
 
-/** Seed the small, exchange-confirmed code-succession registry idempotently. */
+/**
+ * 幂等写入交易所已确认的证券代码接续清单。
+ * Seed the small, exchange-confirmed code-succession registry idempotently.
+ */
 export async function seedStockCodeChanges(): Promise<number> {
   await prisma.$transaction(
     STOCK_CODE_CHANGES.map((change) =>
@@ -63,6 +69,10 @@ export async function seedStockCodeChanges(): Promise<number> {
   return STOCK_CODE_CHANGES.length;
 }
 
+/**
+ * 递归或分段获取历史名称，避免来源请求行数截断。
+ * Fetch bounded name-change history without source truncation.
+ */
 async function fetchNameChangeRange(
   client: TushareClient,
   start: TradeDate,
@@ -87,7 +97,10 @@ async function fetchNameChangeRange(
   return left.concat(right);
 }
 
-/** Replace the small point-in-time name-spell table after a complete segmented upstream fetch. */
+/**
+ * 完整分段抓取后替换时点名称区间表。
+ * Replace the small point-in-time name-spell table after a complete segmented upstream fetch.
+ */
 export async function syncStockNameHistory(
   client: TushareClient,
   start: TradeDate,

@@ -8,7 +8,10 @@ import { ResearchError } from '../errors.js';
 import type { ResearchRequestObserver } from '../sandbox/host/dispatch.js';
 import type { ResearchRequestFrame } from '../sandbox/host/protocol.js';
 
-/** Persist before delivery, so a Python try/except cannot turn missing evidence into success. */
+/**
+ * 在将响应交给 Python 前持久化输入证据，避免 try/except 掩盖证据缺失。
+ * Persist before delivery, so a Python try/except cannot turn missing evidence into success.
+ */
 export function embeddedInputRecorder(
   runId: string,
   signal: AbortSignal,
@@ -18,6 +21,10 @@ export function embeddedInputRecorder(
   let inputBytes = 0;
   let pending: { id: string; requestId: number | string } | undefined;
   return {
+    /**
+     * 在数据请求前准备证据身份与模式校验，供执行留存或回放。
+     * Prepare request evidence identity and mode checks before dataset delivery.
+     */
     async beforeRequest(frame) {
       signal.throwIfAborted();
       sequence += 1;
@@ -45,6 +52,11 @@ export function embeddedInputRecorder(
       inputBytes += argumentBytes;
       pending = { id, requestId: frame.id };
     },
+
+    /**
+     * 保存确切宿主响应及元数据，再允许其进入 Python。
+     * Persist the exact host response and metadata before Python receives it.
+     */
     async captureResponse(frame: ResearchRequestFrame, response: ResearchInputResponse) {
       signal.throwIfAborted();
       if (!pending || pending.requestId !== frame.id) {
@@ -99,7 +111,10 @@ export async function assertActiveRun(
   signal.throwIfAborted();
 }
 
-/** Only copy metadata already defined by the SDK; never infer adjustment/currency semantics. */
+/**
+ * 只复制 SDK 明确定义的元数据，不推测复权或币种口径。
+ * Only copy metadata already defined by the SDK; never infer adjustment/currency semantics.
+ */
 function responseMetadata(
   frame: ResearchRequestFrame,
   response: ResearchInputResponse,

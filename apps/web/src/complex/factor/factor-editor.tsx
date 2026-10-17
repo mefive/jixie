@@ -12,6 +12,11 @@ import {
 } from '../research/research-python-language';
 
 // `observer` so the hover docs re-register live when the global locale switches.
+
+/**
+ * 按因子语言装配代码编辑与契约提示，保留只读状态。
+ * Configure factor editing and contract hints by language with read-only support.
+ */
 function FactorEditor({
   value,
   onChange,

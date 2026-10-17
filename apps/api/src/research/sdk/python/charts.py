@@ -10,12 +10,18 @@ _MAX_CHART_ROWS = 5_000
 _MAX_CHART_SERIES = 20
 
 
+# 封装图表结果，供运行时按产物类型序列化。
+# English: Wrap a chart result for artifact-aware serialization.
 class _ChartResult:
     def __init__(self, spec: dict[str, Any]) -> None:
         self.spec = spec
 
 
+# 校验并构造受支持图表，不拥有文档执行状态。
+# English: Validate and construct supported charts independently of document execution state.
 class _ChartsApi:
+    # 校验表格字段后构造折线图系列。
+    # English: Validate tabular fields and construct line-chart series.
     def line(
         self,
         frame: Any,
@@ -27,6 +33,8 @@ class _ChartsApi:
     ) -> _ChartResult:
         return self._chart("line", frame, x=x, y=y, title=title, labels=labels)
 
+    # 校验表格字段后构造面积图系列。
+    # English: Validate tabular fields and construct area-chart series.
     def area(
         self,
         frame: Any,
@@ -38,6 +46,8 @@ class _ChartsApi:
     ) -> _ChartResult:
         return self._chart("area", frame, x=x, y=y, title=title, labels=labels)
 
+    # 校验表格字段后构造柱状图系列。
+    # English: Validate tabular fields and construct bar-chart series.
     def bar(
         self,
         frame: Any,
@@ -49,6 +59,8 @@ class _ChartsApi:
     ) -> _ChartResult:
         return self._chart("bar", frame, x=x, y=y, title=title, labels=labels)
 
+    # 校验坐标与分组字段后构造散点图。
+    # English: Validate coordinates and grouping fields before constructing a scatter chart.
     def scatter(
         self,
         frame: Any,
@@ -60,6 +72,8 @@ class _ChartsApi:
     ) -> _ChartResult:
         return self._chart("scatter", frame, x=x, y=y, title=title, labels=labels)
 
+    # 校验事件日期与数值，构造事件路径图。
+    # English: Validate event dates and values before constructing an event-path chart.
     def event_path(
         self,
         frame: Any,
@@ -71,6 +85,8 @@ class _ChartsApi:
     ) -> _ChartResult:
         return self._chart("event_path", frame, x=x, y=y, title=title, labels=labels)
 
+    # 按显式分箱参数聚合数值，构造直方图及必要诊断。
+    # English: Aggregate numeric values into explicit histogram bins with diagnostics.
     def histogram(
         self,
         frame: Any,
@@ -132,6 +148,8 @@ class _ChartsApi:
             }
         )
 
+    # 计算分组四分位数、须和异常点，构造箱线图结果。
+    # English: Compute grouped quartiles, whiskers and outliers for boxplot results.
     def boxplot(
         self,
         frame: Any,
@@ -193,6 +211,8 @@ class _ChartsApi:
             }
         )
 
+    # 按分类轴与数值列构建热图，校验重复和缺失组合。
+    # English: Build heatmap categories and values with duplicate and missing-cell checks.
     def heatmap(
         self,
         frame: Any,
@@ -234,6 +254,8 @@ class _ChartsApi:
             }
         )
 
+    # 统一图表标题、系列和大小限制，形成可传输图表结果。
+    # English: Apply shared chart metadata and size bounds to transferable results.
     def _chart(
         self,
         kind: str,
@@ -273,6 +295,8 @@ class _ChartsApi:
         )
 
 
+# 将表格输入转换为图表记录并检查字段可用性。
+# English: Convert tabular chart input into records and validate available fields.
 def _records(value: Any, limit: int) -> list[dict[str, Any]]:
     if hasattr(value, "to_frame") and not hasattr(value, "columns"):
         value = value.to_frame()
@@ -330,6 +354,8 @@ def _box_summary(values: list[float]) -> dict[str, float]:
     }
 
 
+# 通过线性插值计算分位数，供图表统计。
+# English: Compute an interpolated quantile for chart statistics.
 def _quantile(ordered: list[float], probability: float) -> float:
     position = (len(ordered) - 1) * probability
     lower = math.floor(position)

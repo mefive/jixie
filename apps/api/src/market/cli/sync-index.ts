@@ -16,6 +16,7 @@ function parseCodes(value: string): string[] {
 }
 
 /**
+ * 同步指数成分权重与每日收盘，供证券池及基准计算。
  * Sync index constituents (index_weight) + daily close (index_daily) into the local store.
  * Usage: pnpm --filter api sync index [market-state|CODE,CODE] [start] [end]
  *   default: 000852.SH (CSI 1000) 2015-2024

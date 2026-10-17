@@ -8,11 +8,15 @@ from infra.sandbox.python.sdk_adapter import SdkAdapter
 from ...sdk.python.capabilities import ResearchCapabilities
 
 
+# 提供研究适配器的宿主请求入口，供单次能力绑定。
+# English: Supply the host request entry used to bind research capabilities.
 class ResearchAdapterInput(TypedDict):
     read_frame: Callable[[], dict[str, Any]]
     send_frame: Callable[[dict[str, Any]], None]
 
 
+# 实现数据请求与宿主响应关联，SDK 不直接依赖帧循环。
+# English: Associate dataset requests and host responses independently of SDK frame handling.
 class ResearchAdapter(SdkAdapter[ResearchAdapterInput, ResearchCapabilities]):
     """One session owns request IDs; each namespace receives a fresh capability binding."""
 
@@ -24,6 +28,8 @@ class ResearchAdapter(SdkAdapter[ResearchAdapterInput, ResearchCapabilities]):
             lambda method, arguments: self._request(input, method, arguments)
         )
 
+    # 同步请求宿主并校验响应身份与错误，供 Python 数据方法使用。
+    # English: Request the host synchronously and validate response identity and failure.
     def _request(self, input: ResearchAdapterInput, method: str, arguments: dict[str, Any]) -> Any:
         self._request_id += 1
         request_id = self._request_id
@@ -49,6 +55,8 @@ class ResearchAdapter(SdkAdapter[ResearchAdapterInput, ResearchCapabilities]):
         return response.get("result")
 
 
+# 将本轮请求能力绑定为研究 SDK 所需原始能力。
+# English: Bind current request access to the primitives required by the Research SDK.
 class BoundResearchCapabilities(ResearchCapabilities):
     def __init__(self, request: Callable[[str, dict[str, Any]], Any]) -> None:
         self._request = request

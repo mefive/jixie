@@ -7,6 +7,10 @@ import {
 export const RESEARCH_PLAYBOOK_IDS = ['gold_price_drivers'] as const;
 export type ResearchPlaybookId = (typeof RESEARCH_PLAYBOOK_IDS)[number];
 
+/**
+ * 将研究方法关联到受控概念，供 playbook 检索。
+ * Associate a research method with governed concepts for playbook discovery.
+ */
 export interface ResearchPlaybookConceptV1 {
   conceptId: ResearchConceptId;
   role: 'outcome' | 'driver' | 'context';
@@ -15,6 +19,10 @@ export interface ResearchPlaybookConceptV1 {
   rationale: string;
 }
 
+/**
+ * 定义研究方法步骤、输入与限制，供 Agent 按问题选择。
+ * Describe a playbook's procedure, inputs and limits for agent selection.
+ */
 export interface ResearchPlaybookDefinitionV1 {
   id: ResearchPlaybookId;
   version: 1;

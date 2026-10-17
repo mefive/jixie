@@ -29,7 +29,10 @@ export const PANEL_ASSETS: PanelFactorResearchSpecV1['assets'] = [
 
 export const PANEL_ASSET_IDS = PANEL_ASSETS.map((asset) => asset.assetId);
 
-/** Keep the research method (panel) orthogonal to the selected asset domain. */
+/**
+ * 保持 Panel 研究方法与所选资产领域独立，按资产领域选择证券范围。
+ * Keep the research method (panel) orthogonal to the selected asset domain.
+ */
 export function panelAssetsFor(
   targetAssetClasses?: Array<'equity' | 'fixed_income' | 'commodity'>,
 ): PanelFactorResearchSpecV1['assets'] {

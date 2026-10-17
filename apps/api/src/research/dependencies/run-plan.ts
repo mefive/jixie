@@ -5,6 +5,10 @@ import {
 import { ResearchError } from '../errors.js';
 import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
 
+/**
+ * 给出受影响 Cell 的执行顺序与阻塞原因。
+ * Describe affected cell order and blocking reasons.
+ */
 export interface ResearchAffectedRunPlan {
   cellIds: string[];
   dependenciesByCellId: Map<string, string[]>;
@@ -30,6 +34,10 @@ export function downstreamResearchCellIds(
   );
 }
 
+/**
+ * 从改动 Cell 计算需重跑的下游闭包和顺序，供受影响运行。
+ * Build the affected downstream execution closure and order from changed cells.
+ */
 export function affectedResearchCellRunPlan(
   selectedCellIds: string | string[],
   analyses: ResearchPythonAnalysis[],
@@ -134,6 +142,10 @@ export function affectedResearchCellRunPlan(
   return { cellIds: orderedCellIds, dependenciesByCellId: affectedDependenciesByCellId };
 }
 
+/**
+ * 从静态分析汇总多重定义及依赖冲突。
+ * Collect duplicate definitions and dependency conflicts from analysis.
+ */
 export function dependencyConflicts(
   analyses: ResearchPythonAnalysis[],
 ): ResearchDependencyConflictV1[] {

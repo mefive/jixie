@@ -4,6 +4,10 @@ import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
 import { syncIndexWeight, syncSwIndustry } from './sync.js';
 
+/**
+ * 回填历史指数成分权重，供时点证券池查询。
+ * Synchronize historical index membership for point-in-time universe reads.
+ */
 export async function syncIndexMembershipHistory(
   client: TushareClient,
   startDate: string,
@@ -34,6 +38,10 @@ export async function syncIndexMembershipHistory(
   );
 }
 
+/**
+ * 同步行业成员历史并检测修订范围。
+ * Synchronize industry membership history and detect revisions.
+ */
 export async function syncIndustryMembershipHistory(client: TushareClient): Promise<string | null> {
   const industryBefore = await prisma.swIndustryMember.findMany({
     orderBy: [{ tsCode: 'asc' }, { l1Code: 'asc' }, { inDate: 'asc' }],
@@ -50,6 +58,10 @@ export async function syncIndustryMembershipHistory(client: TushareClient): Prom
   );
 }
 
+/**
+ * 比较新旧成员记录，定位最早受影响日期。
+ * Find the earliest changed membership date across snapshots.
+ */
 function earliestChangedDate<Row>(
   before: Row[],
   after: Row[],

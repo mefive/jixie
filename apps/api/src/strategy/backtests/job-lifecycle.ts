@@ -13,6 +13,10 @@ const workerUrl = import.meta.url.endsWith('.ts')
   : new URL('./worker.js', import.meta.url);
 
 export const strategyBacktestLifecycle = {
+  /**
+   * 在任务事务外调用回测计算，结果由生命周期终态事务保存。
+   * Compute a backtest outside the terminal transaction for later lifecycle persistence.
+   */
   async onExecute(job, log) {
     const input = backtestJobPayloadSchema.parse(job.payload);
     if (input.reportId !== job.backtestReportId || input.userId !== job.userId) {

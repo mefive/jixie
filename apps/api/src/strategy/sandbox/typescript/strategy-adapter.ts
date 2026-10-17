@@ -2,16 +2,28 @@ import type { StrategyCapabilities, StrategyStockCapabilities } from '../../sdk/
 import type { SdkAdapter } from '#infra/sandbox/sdk-adapter.js';
 import type { BarRow, IndexHandle, OhlcBar } from '#backtesting/data/market.js';
 
+/**
+ * 定义策略适配层访问宿主读取和同步命令的能力。
+ * Describe host-read and synchronous command access used by the strategy adapter.
+ */
 interface StrategyAdapterAccess {
   access(input: string): string;
   request(input: Record<string, unknown>): Promise<unknown>;
 }
 
+/**
+ * 传输自上次决策以来的新增历史行，供沙盒增量缓存。
+ * Transfer newly available history rows into the sandbox's incremental cache.
+ */
 interface HistoryUpdate {
   reset: boolean;
   bars: OhlcBar[];
 }
 
+/**
+ * 维护沙盒内跨决策复用的历史与账户快照状态。
+ * Retain history and account snapshot state across sandbox decisions.
+ */
 interface StrategyAdapterState {
   reads: Map<string, string>;
   histories: Map<string, OhlcBar[]>;
@@ -20,18 +32,30 @@ interface StrategyAdapterState {
 type StrategyQuery = (method: string, args: unknown[]) => unknown;
 type StrategyCommand = (operation: string, args: Record<string, unknown>) => void;
 
+/**
+ * 冻结当前决策可见的现金账户视图，供 SDK 读取。
+ * Describe the cash-account snapshot visible to the current SDK decision.
+ */
 interface StrategyStockSnapshot {
   equity: number;
   availableCash: number;
   positions: Array<{ code: string; shares: number; avgCost: number; marketValue: number }>;
 }
 
+/**
+ * 冻结当前决策可见的期货账户视图，供 SDK 读取。
+ * Describe the futures-account snapshot visible to the current SDK decision.
+ */
 interface StrategyFuturesSnapshot {
   equity: number;
   availableCash: number;
   margin: number;
 }
 
+/**
+ * 提供一次 SDK 能力绑定所需的决策快照、历史更新及宿主访问。
+ * Supply decision snapshots, history updates and host access for one SDK capability binding.
+ */
 export interface StrategyAdapterInput {
   date: string;
   portfolio: { equity: number };
@@ -137,6 +161,10 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
   readonly futures: StrategyCapabilities['futures'];
   private rows = new Map<string, BarRow | null>();
 
+  /**
+   * 将快照和受限宿主访问绑定为策略原始能力，历史跨回调复用。
+   * Bind snapshots and restricted host access to session-reused strategy primitives.
+   */
   constructor(
     snapshot: StrategyAdapterInput,
     private readonly state: StrategyAdapterState,
@@ -275,6 +303,10 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
     return bars.slice(Math.max(0, bars.length - count)).map((bar) => ({ ...bar }));
   }
 
+  /**
+   * 按能力请求编码同步宿主读取，校验返回结果。
+   * Encode synchronous capability reads and validate host results.
+   */
   private query(method: string, args: unknown[]): unknown {
     const key = JSON.stringify({ type: 'read', request: { method, args } });
     let json = this.state.reads.get(key);
@@ -303,6 +335,10 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
   }
 }
 
+/**
+ * 合并新增历史行，保留每证券有序缓存及缺口。
+ * Merge incremental history rows into ordered per-instrument caches.
+ */
 function updateHistories(
   histories: Map<string, OhlcBar[]>,
   updates: Record<string, HistoryUpdate>,

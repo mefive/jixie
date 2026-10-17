@@ -1,5 +1,9 @@
 import { equityFcffClassificationSource } from './classification-evidence.js';
 
+/**
+ * 冻结回放情景的预测参数与来源。
+ * Freeze forecast parameters and provenance for an FCFF replay scenario.
+ */
 export interface EquityFcffReplayScenario {
   scenario: 'downside' | 'base' | 'upside';
   revenueGrowth: number;
@@ -10,6 +14,10 @@ export interface EquityFcffReplayScenario {
   terminalRoic: number;
 }
 
+/**
+ * 组合估值回放公司的情景、输入与限制。
+ * Describe a valuation replay case with scenarios, inputs and limitations.
+ */
 export interface EquityFcffReplayCase {
   identifier: string;
   companyName: string;
@@ -58,6 +66,10 @@ export const EQUITY_FCFF_REPLAY_CASES = [
   },
 ] as const satisfies readonly EquityFcffReplayCase[];
 
+/**
+ * 为 FCFF 回放案例提供参数来源说明，便于复查假设。
+ * Describe parameter provenance for an FCFF replay case.
+ */
 export function equityFcffParameterSource(replayCase: EquityFcffReplayCase): string {
   const rows = replayCase.scenarios
     .map(

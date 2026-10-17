@@ -1,6 +1,10 @@
 export const MAX_LOG_BATCH_ENTRIES = 256;
 export const MAX_LOG_BATCH_BYTES = 64 * 1024;
 
+/**
+ * 限定沙盒日志可用级别，供缓冲与协议输出一致处理。
+ * Define supported sandbox log levels for buffering and protocol output.
+ */
 type SandboxLogLevel = 'info' | 'warning' | 'error';
 
 const BATCH_PREFIX = '{"type":"log_batch","entries":[';
@@ -14,6 +18,10 @@ export class SandboxLogBuffer {
 
   constructor(private readonly emit: (json: string) => void) {}
 
+  /**
+   * 在数量与字节限制内追加日志，防止用户输出耗尽宿主资源。
+   * Append a log entry within count and byte limits to bound user output.
+   */
   append(level: SandboxLogLevel, text: string): void {
     const entry = JSON.stringify({ level, text });
     const entryBytes = utf8Bytes(entry);
@@ -46,7 +54,10 @@ export class SandboxLogBuffer {
   }
 }
 
-/** JSON escapes lone surrogates; valid pairs occupy four UTF-8 bytes. No Node APIs are available. */
+/**
+ * 在无 Node API 的沙盒内计算 UTF-8 大小，正确处理代理对和孤立代理项的 JSON 转义。
+ * JSON escapes lone surrogates; valid pairs occupy four UTF-8 bytes. No Node APIs are available.
+ */
 function utf8Bytes(json: string): number {
   let bytes = 0;
   for (let index = 0; index < json.length; index++) {

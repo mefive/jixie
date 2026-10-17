@@ -1,7 +1,10 @@
 import type { ResearchAssetTypeV1, StockSeries } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 
-/** Load the chartable daily series for a verified object identity. */
+/**
+ * 为已验证对象身份加载可绘图日序列。
+ * Load the chartable daily series for a verified object identity.
+ */
 export async function instrumentSeries(
   assetType: ResearchAssetTypeV1,
   tsCode: string,
@@ -21,14 +24,26 @@ export async function instrumentSeries(
   return stockSeries(tsCode, tradeDate);
 }
 
+/**
+ * 封装已校验行情日期边界，供各资产查询共用。
+ * Carry validated instrument-series date bounds across asset loaders.
+ */
 type TradeDateRange = { gte?: string; lte?: string } | undefined;
 
+/**
+ * 解析并校验行情序列日期范围，供各资产查询共用。
+ * Resolve and validate date bounds shared by instrument-series queries.
+ */
 function dateRange(start?: string, end?: string): TradeDateRange {
   return start || end
     ? { ...(start ? { gte: start } : {}), ...(end ? { lte: end } : {}) }
     : undefined;
 }
 
+/**
+ * 读取 ETF 原始日线并映射图表指标，保留份额与复权口径。
+ * Load ETF daily bars and map chart measures with explicit share-size and adjustment conventions.
+ */
 async function etfSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [basic, prices, factors] = await Promise.all([
     prisma.etfBasic.findUnique({ where: { tsCode }, select: { name: true } }),
@@ -59,6 +74,10 @@ async function etfSeries(tsCode: string, tradeDate: TradeDateRange): Promise<Sto
   };
 }
 
+/**
+ * 读取股票行情及所选指标，形成统一绘图序列。
+ * Load stock prices and selected measures into a common chart series.
+ */
 async function stockSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [prices, valuations, factors, basic] = await Promise.all([
     prisma.daily.findMany({
@@ -94,6 +113,10 @@ async function stockSeries(tsCode: string, tradeDate: TradeDateRange): Promise<S
   };
 }
 
+/**
+ * 读取指数行情或估值，形成统一绘图序列。
+ * Load index prices or valuation measures into a common chart series.
+ */
 async function indexSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [basic, prices, valuations] = await Promise.all([
     prisma.indexBenchmark.findUnique({ where: { tsCode }, select: { name: true } }),
@@ -124,6 +147,10 @@ async function indexSeries(tsCode: string, tradeDate: TradeDateRange): Promise<S
   };
 }
 
+/**
+ * 读取期货实际合约或研究序列，保留合约身份与数据限制。
+ * Load futures series while retaining contract identity and research-data limitations.
+ */
 async function futureSeries(tsCode: string, start?: string, end?: string): Promise<StockSeries> {
   const lower = start ?? '20150101';
   const upper = end ?? '20991231';

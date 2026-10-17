@@ -6,7 +6,10 @@ import type { CostModel } from './cost.js';
 import type { FuturePositionView } from './futures-portfolio.js';
 import type { ConditionalOrderKind } from './order-book.js';
 
-/** Host capabilities for one simulation date. Adapted by Strategy runtime before user access. */
+/**
+ * 定义一个模拟日的宿主能力，由策略适配层转换后提供给作者代码。
+ * Host capabilities for one simulation date. Adapted by Strategy runtime before user access.
+ */
 export interface EngineContext {
   readonly date: string;
   readonly portfolio: { readonly equity: number };
@@ -62,7 +65,10 @@ export interface EngineContext {
   ): number[];
 }
 
-/** Cash-account primitives; strategy sizing helpers belong to the SDK. */
+/**
+ * 定义现金账户原始操作；仓位计算等作者辅助逻辑由 SDK 提供。
+ * Cash-account primitives; strategy sizing helpers belong to the SDK.
+ */
 export interface EngineStockAccount {
   readonly equity: number;
   readonly availableCash: number;
@@ -86,7 +92,10 @@ export interface EngineStockAccount {
   cancelConditional(code: string, kind?: ConditionalOrderKind): void;
 }
 
-/** Futures-account primitives, including margin already reserved from available cash. */
+/**
+ * 定义期货账户原始操作，可用现金已扣除占用保证金。
+ * Futures-account primitives, including margin already reserved from available cash.
+ */
 export interface EngineFuturesAccount {
   readonly equity: number;
   readonly availableCash: number;
@@ -100,12 +109,19 @@ export interface EngineFuturesAccount {
   closePosition(code: string): void;
 }
 
+/**
+ * 聚合现金和期货账户能力，供引擎决策上下文统一访问。
+ * Group cash and futures account primitives exposed through the engine decision context.
+ */
 export interface EngineAccounts {
   stock: { cashWeight: number };
   futures: { cashWeight: number };
 }
 
-/** A prepared decision callback. Contains no source, language runtime, user or saved-record identity. */
+/**
+ * 表示已准备的策略决策回调，不携带源码、语言运行时或持久化身份。
+ * A prepared decision callback. Contains no source, language runtime, user or saved-record identity.
+ */
 export interface EngineStrategy {
   name: string;
   /** User-declared finite numeric parameters. Scan overrides replace these values before a run. */
@@ -123,6 +139,10 @@ export interface EngineStrategy {
   onBar(ctx: EngineContext): void | Promise<void>;
 }
 
+/**
+ * 配置一次引擎模拟的区间、资本、数据端口、策略回调与初始账户状态。
+ * Configure a simulation's dates, capital, data ports, prepared decision callback and initial state.
+ */
 export interface BacktestingConfig {
   strictFutures?: boolean;
   start: string; // YYYYMMDD

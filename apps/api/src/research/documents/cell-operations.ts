@@ -16,6 +16,10 @@ import {
   reconcileResearchCellDependencyIssues,
 } from '../dependencies/invalidation.js';
 
+/**
+ * 按位置新增研究 Cell，并更新文档修订与依赖状态。
+ * Insert a research cell and update document revision and dependency state.
+ */
 export async function addResearchCell(
   userId: string,
   documentId: string,
@@ -49,6 +53,10 @@ export async function addResearchCell(
   return getResearchDocument(userId, documentId);
 }
 
+/**
+ * 更新 Cell 源码或元数据，同时使受影响结果明确失效。
+ * Update cell source or metadata and explicitly invalidate affected outputs.
+ */
 export async function updateResearchCell(
   userId: string,
   cellId: string,
@@ -180,6 +188,10 @@ export async function updateResearchCell(
   return getResearchDocument(userId, cell.documentId);
 }
 
+/**
+ * 删除 Cell 并协调引用它的下游依赖，保留可解释缺失。
+ * Delete a cell and reconcile downstream references with explicit missing-dependency diagnostics.
+ */
 export async function deleteResearchCell(
   userId: string,
   cellId: string,

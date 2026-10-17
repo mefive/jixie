@@ -21,16 +21,30 @@ import {
   readEmbeddedInput,
 } from '@src/api/research-embedded';
 
+/**
+ * 组合运行、版本与分析详情，供卡片操作使用一致快照。
+ * Collect run, version and analysis details into a consistent card snapshot.
+ */
 interface Detail {
   run: ResearchEmbeddedRunV1;
   version: ResearchEmbeddedVersionV1;
   analysis: ResearchEmbeddedAnalysisV1;
 }
+
+/**
+ * 保存嵌入式编辑草稿字段，供版本更新与运行。
+ * Describe embedded draft fields used for version updates and execution.
+ */
 export interface EmbeddedDraftForm {
   source: string;
   parameters: string;
   inputScope: string;
 }
+
+/**
+ * 区分继续、输入、取消、编辑及运行操作，供卡片分派。
+ * Discriminate continuation, input, cancellation, editing and execution actions.
+ */
 type Action =
   | { type: 'run' | 'cancel' | 'continue' }
   | { type: 'edit'; draft: EmbeddedDraftForm }
@@ -54,6 +68,11 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
     super();
     makeObservable(this, { runId: observable.ref, historyItems: observable.ref });
   }
+
+  /**
+   * 配置嵌入式运行详情、版本与轮询 Loader，注册卡片卸载清理。
+   * Initialize embedded run, version and polling loaders with card cleanup.
+   */
   public setup(params: { part: EmbeddedAnalysisPart }) {
     super.setup(params);
     runInAction(() => {
@@ -81,6 +100,11 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
     this.action.setup({ request: (action: Action) => this.perform(action) });
     this.polling.setup({
       interval: 1_000,
+
+      /**
+       * 轮询当前嵌入式运行，结束、加载失败或已卸载时停止。
+       * Poll the embedded run until completion, failure or disposal.
+       */
       request: async () => {
         if (!this.ready) {
           return false;
@@ -104,6 +128,11 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
     this.registCleaner(() => this.polling.cleanup());
     void this.refresh();
   }
+
+  /**
+   * 刷新嵌入式详情，仅在仍排队或运行时继续轮询。
+   * Refresh embedded details and continue polling only for queued or running state.
+   */
   public async refresh() {
     if (this.detail.loading) {
       return;
@@ -128,6 +157,11 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
     });
     await this.refresh();
   }
+
+  /**
+   * 分页读取嵌入式历史运行，保持当前卡片版本关联。
+   * Load embedded run history while retaining the current card's version association.
+   */
   public async loadHistory(older = false) {
     if (this.history.loading) {
       return;
@@ -170,6 +204,11 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
       );
     });
   }
+
+  /**
+   * 按继续研究、读取输入、取消、编辑或运行动作分派并协调版本状态。
+   * Dispatch continuation, input reads, cancellation, editing and execution with version-state coordination.
+   */
   private async perform(action: Action): Promise<{ documentId?: string; input?: unknown }> {
     const { run, version, analysis } = this.detail.result;
     const analysisId = analysis.id;

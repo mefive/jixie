@@ -17,7 +17,10 @@ import { ResearchError } from '../errors.js';
 
 import { runResearchCellChangeAttemptPlan } from '../document-runs/run-attempt.js';
 
-/** Run an applied Agent proposal only after a separate user action, retaining failures as attempts. */
+/**
+ * 只在单独用户动作后运行已应用提案，失败也保存为可追溯尝试。
+ * Run an applied Agent proposal only after a separate user action, retaining failures as attempts.
+ */
 export async function runResearchCellChangeProposalAttempt(
   userId: string,
   proposalId: string,
@@ -153,6 +156,10 @@ function executableRootCellIds(operations: ResearchCellChangeOperationV1[]): str
   ];
 }
 
+/**
+ * 根据已应用提案和依赖构造可执行尝试计划。
+ * Build an executable attempt plan from an applied proposal and its dependencies.
+ */
 async function cellChangeAttemptPlan(
   userId: string,
   documentId: string,
@@ -188,6 +195,10 @@ async function cellChangeAttemptPlan(
   return { cellIds, dependenciesByCellId };
 }
 
+/**
+ * 提交修改尝试终态并关联不可变执行证据。
+ * Finalize a cell-change attempt and associate its immutable execution evidence.
+ */
 async function finishCellChangeAttempt(attemptId: string, plannedCellCount: number): Promise<void> {
   const executions = await prisma.researchCellExecution.findMany({
     where: { cellChangeAttemptId: attemptId },

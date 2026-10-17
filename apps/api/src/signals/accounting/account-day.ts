@@ -14,6 +14,10 @@ import type { TradeRecord } from '#backtesting/trade.js';
 import type { SignalFillInput } from '@jixie/shared/api/signals';
 import { SignalsError } from '../errors.js';
 
+/**
+ * 提供一个执行日的账户起点、行情和指令，供模型与实际账户记账共用。
+ * Supply starting accounts, market data and orders for one execution day's accounting.
+ */
 export interface AccountDayInput {
   prior: SignalAccounts;
   date: string;
@@ -24,6 +28,10 @@ export interface AccountDayInput {
   conditions?: SignalAccounts['conditions'];
 }
 
+/**
+ * 从账户起点模拟一日指令与结算，生成可重放的账户变化。
+ * Simulate one day of orders and settlement from the starting account state.
+ */
 export async function simulateAccountDay(input: AccountDayInput): Promise<{
   state: SignalAccounts;
   trades: TradeRecord[];
@@ -151,6 +159,10 @@ export async function simulateAccountDay(input: AccountDayInput): Promise<{
   return { state, trades: [...cash.trades, ...futures.trades], cashTrace };
 }
 
+/**
+ * 按已录入实际成交和行情更新执行日账本，保留与模型账户可比较的结果。
+ * Apply recorded actual fills and market data to the day's ledger for comparison with the model account.
+ */
 export function applyActualAccountDay(
   input: AccountDayInput,
   fills: Array<{
@@ -312,6 +324,10 @@ export function applyActualAccountDay(
   return state;
 }
 
+/**
+ * 验证期货记账所需的合约和结算输入，拒绝不完整重放。
+ * Validate futures contract and settlement inputs required for account replay.
+ */
 function assertFutureInputs(
   input: AccountDayInput,
   positions: Iterable<SignalAccounts['futures']['positions'][number]>,

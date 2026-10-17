@@ -18,6 +18,8 @@ _FACTOR_WEATHER_COLUMNS = [
 ]
 
 
+# 读取授权冻结报告与气象结果，不重新执行研究计算。
+# English: Read authorized frozen reports and weather results without recomputing them.
 class _ResultsApi:
     def __init__(self, capabilities: ResearchCapabilities, pandas_module: Any) -> None:
         self._capabilities = capabilities
@@ -50,6 +52,8 @@ class _ResultsApi:
             raise RuntimeError("Strategy scan report response must be an object")
         return result
 
+    # 按因子身份读取气象结果并整理可供 Python 使用的数据。
+    # English: Read factor-weather results by identity and map them for Python use.
     def factor_weather(self, factor_id: str) -> Any:
         result = self._capabilities.request(
             "research_factor_weather",

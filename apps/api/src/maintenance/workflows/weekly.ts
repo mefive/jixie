@@ -51,6 +51,10 @@ import {
 } from '../runs/state.js';
 import { selfHealMarketDates, type SelfHealSummary } from './self-heal.js';
 
+/**
+ * 汇总每周维护各阶段的同步与审计结果。
+ * Summarize synchronization and audit outcomes from weekly maintenance stages.
+ */
 export interface WeeklyMaintenanceSummary {
   date: string;
   auditStart: string;
@@ -73,6 +77,10 @@ export interface WeeklyMaintenanceSummary {
   recoveryTotal: number;
 }
 
+/**
+ * 汇总低频参考数据同步结果，供周更维护留存。
+ * Collect reference-data synchronization results for weekly maintenance records.
+ */
 interface WeeklyReferenceSyncSummary extends ReferenceSyncSummary {
   planned: number;
   resumed: number;
@@ -82,6 +90,10 @@ interface WeeklyReferenceSyncSummary extends ReferenceSyncSummary {
 // small calendar buffer while still requiring the quality gate's 252 complete observations.
 const WEEKLY_AUDIT_TRADING_DAYS = 270;
 
+/**
+ * 编排低频参考数据同步与校验，持久化每周维护进度和终态。
+ * Coordinate reference synchronization and validation with persisted weekly progress and completion.
+ */
 export async function runWeeklyMaintenance(
   options: {
     force?: boolean;
@@ -360,6 +372,10 @@ function createClient(minimumInterval = 0): TushareClient {
   });
 }
 
+/**
+ * 执行一组低频参考同步并记录阶段结果，供周更重试及审计。
+ * Execute a reference synchronization stage and retain its outcome for retries and auditing.
+ */
 async function runReferenceStage(
   runId: string,
   stage: ReferenceWorkerStage,
@@ -426,6 +442,10 @@ function addMonths(date: string, months: number): string {
   return parsed.toISOString().slice(0, 10).replaceAll('-', '');
 }
 
+/**
+ * 按 ISO 周一计算周更身份，避免自然年周边界误判。
+ * Resolve an ISO-week key for weekly maintenance identity.
+ */
 function isoWeekKey(date: string): string {
   const parsed = new Date(
     Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8))),

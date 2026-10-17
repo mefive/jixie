@@ -10,11 +10,18 @@ import { useTranslation } from 'react-i18next';
 import { runResearchUniverse } from '@src/api/research';
 import './universe-spec-card.css';
 
+/**
+ * 提供只读时点证券池与查询摘要，供消息产物。
+ * Supply a read-only point-in-time universe and query summary as a message artifact.
+ */
 interface UniverseSpecCardProps {
   part: UniversePart;
 }
 
-/** Read-only Research artifact used by migrated saved screens and point-in-time universe queries. */
+/**
+ * 只读展示时点证券池及其筛选约束，支持历史保存筛选结果。
+ * Read-only Research artifact used by migrated saved screens and point-in-time universe queries.
+ */
 export function UniverseSpecCard({ part }: UniverseSpecCardProps) {
   const { t, i18n } = useTranslation('research');
   const { spec } = part;
@@ -164,6 +171,10 @@ function formatDate(value: string): string {
   return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 }
 
+/**
+ * 按证券池筛选值类型渲染可读标签。
+ * Format universe filter values into readable labels.
+ */
 function formatValue(value: number | null, unit: string): string {
   if (value == null || !Number.isFinite(value)) {
     return '—';

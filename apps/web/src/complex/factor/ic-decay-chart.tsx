@@ -2,12 +2,21 @@ import { useTranslation } from 'react-i18next';
 import type { IcDecayPoint } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
+/**
+ * 提供前瞻窗口与 IC 值，供衰减曲线渲染。
+ * Supply forward horizons and IC values to the decay chart.
+ */
 interface Props {
   points: IcDecayPoint[]; // Rank IC at forward horizons (1/5/10/20/60 trading days)
 }
 
 // Lazy-loaded (echarts in its own chunk). The IC-decay curve: how the factor's Rank IC changes with the
 // forward horizon → its natural holding period (peak = best hold; fast decay = short-term factor).
+
+/**
+ * 绘制不同前瞻期 Rank IC，供观察信号衰减。
+ * Plot Rank IC over forward horizons to inspect signal decay.
+ */
 export default function IcDecayChart({ points }: Props) {
   const { t } = useTranslation('factor');
   const option: ECOption = {

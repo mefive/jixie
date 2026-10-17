@@ -2,12 +2,20 @@ import type { Prisma } from '#infra/database/prisma.js';
 import { formatNumber, formatPercent, toNumber } from '../quality/format.js';
 import type { AuditFinding, AuditStatus } from '../quality/report.js';
 
+/**
+ * 提供财务公告及可得日期，供 PIT 审计。
+ * Supply financial announcement and availability dates for PIT auditing.
+ */
 export interface FinancialPitRow {
   total: bigint | number;
   missingAnnouncementDate: bigint | number;
   announcementBeforePeriodEnd: bigint | number;
 }
 
+/**
+ * 记录财报版本完整性与修订诊断。
+ * Describe statement-version integrity and correction findings.
+ */
 export interface FinancialStatementVersionAuditRow {
   total: bigint | number;
   invalidAnnouncementDate: bigint | number;
@@ -16,6 +24,10 @@ export interface FinancialStatementVersionAuditRow {
   invalidReportScope: bigint | number;
 }
 
+/**
+ * 记录不同财报选定版本的对账差异。
+ * Describe reconciliation differences among selected statements.
+ */
 export interface FinancialStatementReconciliationRow {
   indicatorPeriods: bigint | number;
   incomeMatches: bigint | number;
@@ -23,6 +35,10 @@ export interface FinancialStatementReconciliationRow {
   cashFlowMatches: bigint | number;
 }
 
+/**
+ * 保存会计恒等式检查的两侧数值及偏差。
+ * Retain accounting-identity operands and discrepancies.
+ */
 export interface FinancialAccountingIdentityAuditRow {
   comparable: bigint | number;
   mismatches: bigint | number;
@@ -30,11 +46,19 @@ export interface FinancialAccountingIdentityAuditRow {
   reviewFlags?: bigint | number;
 }
 
+/**
+ * 描述标准化财务指标的样本和缺失覆盖。
+ * Describe sample and missing-data coverage of financial metrics.
+ */
 export interface FinancialMetricCoverageAuditRow {
   totalPeriods: bigint | number;
   completePeriods: bigint | number;
 }
 
+/**
+ * 审计财务观测的公告及可得日期，识别历史可用性问题。
+ * Audit financial announcement and availability dates for historical usability.
+ */
 export async function auditFinancialPit(database: Prisma): Promise<AuditFinding> {
   const rows = await database.$queryRaw<FinancialPitRow[]>`
     SELECT
@@ -62,6 +86,10 @@ export async function auditFinancialPit(database: Prisma): Promise<AuditFinding>
   };
 }
 
+/**
+ * 审计追加式三张表的版本、修订证据与可得性。
+ * Audit append-only statement versions, correction evidence and availability.
+ */
 export async function auditFinancialStatementVersions(database: Prisma): Promise<AuditFinding> {
   const [versionRows, reconciliationRows] = await Promise.all([
     database.$queryRaw<FinancialStatementVersionAuditRow[]>`
@@ -103,6 +131,10 @@ export async function auditFinancialStatementVersions(database: Prisma): Promise
   return summarizeFinancialStatementVersions(versionRows[0], reconciliationRows[0]);
 }
 
+/**
+ * 解析已选财报版本并检查会计恒等式及相关差异。
+ * Resolve selected statements and audit accounting identities and reconciliation differences.
+ */
 export async function auditFinancialStatementAccounting(database: Prisma): Promise<AuditFinding> {
   const [balanceRows, cashRows, crossRows, coverageRows] = await Promise.all([
     database.$queryRaw<FinancialAccountingIdentityAuditRow[]>`
@@ -211,6 +243,10 @@ export async function auditFinancialStatementAccounting(database: Prisma): Promi
   return finding;
 }
 
+/**
+ * 汇总财报版本覆盖与修订异常，供来源审计输出。
+ * Summarize statement-version coverage and correction findings.
+ */
 export function summarizeFinancialStatementVersions(
   versions: FinancialStatementVersionAuditRow | undefined,
   reconciliation: FinancialStatementReconciliationRow | undefined,
@@ -248,6 +284,10 @@ export function summarizeFinancialStatementVersions(
   };
 }
 
+/**
+ * 汇总财报会计关系检查结果，供数据质量报告使用。
+ * Summarize statement accounting checks for data-quality reporting.
+ */
 export function summarizeFinancialStatementAccounting(
   balance: FinancialAccountingIdentityAuditRow | undefined,
   cash: FinancialAccountingIdentityAuditRow | undefined,

@@ -7,6 +7,10 @@ import { panelTemplateCatalog } from './templates/panel.js';
 import { macroRegimeTemplateCatalog } from './templates/macro-regime.js';
 import { strategyKey, factorLanguage } from './views.js';
 
+/**
+ * 组合预置、作者及组合因子目录，按用户访问范围返回。
+ * Combine builtin, authored and composite factor catalogs within user access.
+ */
 export async function listFactorCatalog(userId: string, locale: Locale) {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
   const custom = await prisma.factor.findMany({
@@ -24,6 +28,11 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
     },
     orderBy: { updatedAt: 'desc' },
   });
+
+  /**
+   * 将作者因子定义映射为目录元数据。
+   * Map an authored factor definition into catalog metadata.
+   */
   const customMeta = custom.map((factor) => ({
     key: factor.id,
     label: factor.name,
@@ -51,6 +60,11 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
     where: { userId: userId },
     orderBy: { updatedAt: 'desc' },
   });
+
+  /**
+   * 将组合因子配置映射为目录元数据。
+   * Map a composite factor configuration into catalog metadata.
+   */
   const compositeMeta = composites.map((composite) => {
     const definition = factorCompositeDefinitionSchema.parse(composite.definition);
     return {

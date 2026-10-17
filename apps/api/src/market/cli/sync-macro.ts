@@ -12,7 +12,10 @@ const CHINA_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: '2-digit',
 });
 
-/** Sync normalized China and US macro series with PIT availability evidence. */
+/**
+ * 同步标准化中美宏观序列，并保留时点可得性证据。
+ * Sync normalized China and US macro series with PIT availability evidence.
+ */
 async function main(): Promise<void> {
   const [startMonth = '200501', endMonth = currentMonth()] = process.argv.slice(2);
   assertMonthRange(startMonth, endMonth);

@@ -11,6 +11,7 @@ import './loading-area.css';
 export const LOADING_SHOW_DELAY_MS = 150;
 
 /**
+ * 活动持续达到 delay 后才显示加载，过早结束则不显示，避免闪烁。
  * `active` returns true only after it has stayed active for `delay` ms; if it ends within the window,
  * `true` is never returned. Powers "don't flash a spinner when data comes back fast". `delay<=0` = immediate.
  */
@@ -48,6 +49,10 @@ export type LoaderLike<T = unknown> = Partial<
   Pick<LoaderModel<T>, 'loaded' | 'loading' | 'error' | 'errorObject' | 'run' | 'result'>
 >;
 
+/**
+ * 配置加载延迟、覆盖与内容保留行为。
+ * Configure loading delay, overlay and retained content.
+ */
 interface LoadingAreaProps<T = unknown> {
   /** A single loader; its `result` is passed to children (function form) once loaded + non-null. */
   loader?: LoaderLike<T>;
@@ -71,6 +76,10 @@ interface LoadingAreaProps<T = unknown> {
   minimumVisibleDuration?: number;
 }
 
+/**
+ * 按延迟与覆盖模式呈现加载状态，协调保留内容及交互。
+ * Render delayed loading overlays while coordinating retained content and interaction.
+ */
 const LoadingAreaImpl = reactUtils.observer((props: LoadingAreaProps<any>) => {
   const {
     loader,

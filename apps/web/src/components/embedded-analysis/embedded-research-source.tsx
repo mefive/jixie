@@ -5,12 +5,20 @@ import type { ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
 import { EmbeddedAnalysisInspector } from './embedded-analysis-card';
 import './embedded-analysis-toolbar.css';
 
+/**
+ * 提供继续研究来源的运行身份和输入模式。
+ * Describe a continuation document's source run and input mode.
+ */
 interface EmbeddedResearchSourceProps {
   source: ResearchEmbeddedDocumentSourceV1;
   disabled: boolean;
   onChangeMode(mode: 'retained' | 'current'): void;
 }
 
+/**
+ * 展示继续研究文档对应的嵌入式运行来源与输入模式。
+ * Present embedded-run provenance and input mode for a continuation document.
+ */
 export function EmbeddedResearchSource({
   source,
   disabled,

@@ -11,6 +11,10 @@ import { refreshFactorMetadata } from '../definitions/metadata.js';
 import { FactorError } from '../errors.js';
 import type { FactorAgentInput } from '../schema.js';
 
+/**
+ * 校验因子草稿归属与当前上下文，持久化并启动后台 Agent 轮次。
+ * Authorize a factor draft, capture its context and start a persisted agent turn.
+ */
 export async function startFactorAgentTurn(
   userId: string,
   input: FactorAgentInput,

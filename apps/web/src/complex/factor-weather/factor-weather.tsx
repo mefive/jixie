@@ -22,6 +22,10 @@ import i18n from '@src/i18n';
 import { complex } from './complex';
 import './factor-weather.css';
 
+/**
+ * 展示固定因子的月度气象、分组与刷新操作，连接目录选择及任务状态。
+ * Render pinned factor weather, groups and refresh actions with catalog selection and job state.
+ */
 export const FactorWeather = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factorWeather');
@@ -42,6 +46,11 @@ export const FactorWeather = complex.component(() => {
     setFactorId(nextFactorId);
     setDirection(factor?.expectedDirection ?? 'positive');
   };
+
+  /**
+   * 校验气象固定表单并提交所选因子和方向。
+   * Validate the pin form and submit the selected factor and direction.
+   */
   const submitPin = async () => {
     if (!selectedFactor) {
       return;
@@ -177,6 +186,10 @@ export const FactorWeather = complex.component(() => {
 
 // —— Subcomponents / helpers ——
 
+/**
+ * 按研究种类组织气象卡片，保留空组和加载提示。
+ * Group weather cards by research kind with empty and loading states.
+ */
 function FactorGroups({
   pins,
   onRefresh,
@@ -219,6 +232,10 @@ function FactorGroups({
   );
 }
 
+/**
+ * 呈现单因子的气象历史、方向与操作入口。
+ * Present one factor's weather history, direction and actions.
+ */
 function FactorCard({
   pin,
   onRefresh,
@@ -363,6 +380,10 @@ function Metric({ label, value, tone }: { label: string; value: string; tone: nu
   );
 }
 
+/**
+ * 按月绘制气象颜色和提示，区分缺失与有效观测。
+ * Render monthly weather colors and tooltips with explicit missing observations.
+ */
 function MonthStrip({
   points,
   direction,
@@ -395,6 +416,11 @@ function MonthStrip({
       moved: false,
     };
   };
+
+  /**
+   * 将指针位置映射为月份索引，更新气象提示与选中状态。
+   * Map pointer position to a weather month and update its tooltip selection.
+   */
   const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const element = stripRef.current;
     if (!element || drag.current.pointerId !== event.pointerId) {
@@ -470,6 +496,10 @@ function factorPinName(pin: FactorWeatherPin): string {
     : pin.factorName;
 }
 
+/**
+ * 只对已对齐的有效收益复利累计，供气象区间表现。
+ * Compound valid aligned returns for weather-period performance.
+ */
 function compoundAligned(
   points: FactorWeatherPoint[],
   selectedIndex: number,

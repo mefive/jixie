@@ -1,5 +1,9 @@
 import type { ResearchAffectedRunPlan } from '../dependencies/run-plan.js';
 
+/**
+ * 按已验证顺序执行受影响 Cell，遇到错误或中断保留已完成证据。
+ * Execute a validated affected-cell plan and retain completed evidence on failure or interruption.
+ */
 export async function executeAffectedResearchCellPlan(
   plan: ResearchAffectedRunPlan,
   executeCellById: (cellId: string) => Promise<boolean>,

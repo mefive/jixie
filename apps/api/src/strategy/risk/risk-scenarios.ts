@@ -17,12 +17,20 @@ const BASIS_POINT_FACTORS = new Set<MarketRiskFactorKeyV1>([
   'us_real_yield',
 ]);
 
+/**
+ * 冻结确定性风险冲击与标签，供当前敞口情景分析。
+ * Describe a frozen deterministic shock applied to current risk exposures.
+ */
 export interface DeterministicRiskScenarioPresetV1 {
   key: string;
   kind: 'deterministic';
   shocks: PortfolioRiskScenarioShockV1[];
 }
 
+/**
+ * 定义历史风险窗口的日期与来源，供历史驱动变化重放。
+ * Describe a historical risk window used to replay driver changes.
+ */
 export interface HistoricalRiskScenarioWindowV1 {
   key: string;
   kind: 'historical';
@@ -71,7 +79,10 @@ export const HISTORICAL_RISK_SCENARIO_WINDOWS_V1: readonly HistoricalRiskScenari
   },
 ];
 
-/** Applies frozen deterministic shocks to the current multivariate exposure vector. */
+/**
+ * 将冻结确定性冲击应用于当前多变量敞口向量。
+ * Applies frozen deterministic shocks to the current multivariate exposure vector.
+ */
 export function evaluateDeterministicRiskScenarios(
   marketRisk: PortfolioMarketRiskAnalysisV1,
   presets: readonly DeterministicRiskScenarioPresetV1[] = DETERMINISTIC_RISK_SCENARIO_PRESETS_V1,
@@ -90,7 +101,10 @@ export function evaluateDeterministicRiskScenarios(
   }));
 }
 
-/** Replays cumulative historical driver moves against current exposures without replaying prices. */
+/**
+ * 用历史累计驱动变化作用于当前敞口，不重放证券价格。
+ * Replays cumulative historical driver moves against current exposures without replaying prices.
+ */
 export function evaluateHistoricalRiskScenarios(
   marketRisk: PortfolioMarketRiskAnalysisV1,
   driverHistory: MarketRiskDriverHistoryV1,
@@ -168,6 +182,10 @@ function scenarioImpact(
   }, 0);
 }
 
+/**
+ * 在历史情景窗口累计驱动变化，并按驱动单位组合冲击。
+ * Aggregate historical driver changes according to each driver's units.
+ */
 function aggregateHistoricalShock(
   history: MarketRiskDriverHistoryV1,
   factor: MarketRiskFactorKeyV1,

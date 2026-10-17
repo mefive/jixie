@@ -50,6 +50,10 @@ export default defineStrategy({
   },
 });`;
 
+/**
+ * 根据公开 TypeScript 策略契约与上下文构造作者代码生成提示。
+ * Build authoring instructions from the public TypeScript strategy contract and context.
+ */
 export function buildCodegenPrompt(
   availableIndices: string = DEFAULT_INDICES,
   referencableFactors = '(none yet)',

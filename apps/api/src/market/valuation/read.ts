@@ -2,6 +2,10 @@ import { prisma } from '#infra/database/prisma.js';
 import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../registry/index-presets.js';
 import { buildIndexValuationSeries } from './compute.js';
 
+/**
+ * 读取可用指数估值目录及覆盖信息，供前端选择。
+ * Load available index valuation identities and coverage for selection.
+ */
 export async function loadIndexValuationCatalog() {
   const coverage = await prisma.indexDailyBasic.groupBy({
     by: ['tsCode'],
@@ -28,6 +32,10 @@ export async function loadIndexValuationCatalog() {
   return { indices };
 }
 
+/**
+ * 读取指定指数估值历史并生成查询所需序列。
+ * Load the requested index valuation history and prepare its response series.
+ */
 export async function loadIndexValuation(tsCode: string) {
   if (!MAJOR_INDEX_DAILY_BASIC_CODES.some((code) => code === tsCode)) {
     return null;

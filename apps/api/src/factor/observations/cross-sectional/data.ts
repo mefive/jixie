@@ -4,6 +4,11 @@ import { prisma } from '#infra/database/prisma.js';
 import type { FactorAnalysisSpecV6, FactorFreq } from '@jixie/shared';
 
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
+
+/**
+ * 从交易日历解析指定频率的调仓日期，供截面研究统一采样。
+ * Resolve frequency-specific rebalance dates from the trading calendar.
+ */
 export async function getRebalanceDates(
   freq: FactorFreq,
   start: string,
@@ -29,8 +34,11 @@ export async function getRebalanceDates(
 
 export type Snap = Map<string, { adjClose: number; amount: number; mktcap: number }>; // tsCode -> quote
 
-/** Load a "hfq close + turnover (+ total market cap for cap-weighting)" snapshot for each day. `withMktcap` only
- * for rebalance (formation) dates — forward snapshots weight by the formation-date cap, so they skip it. */
+/**
+ * 按调仓日加载复权收盘、换手和可选总市值快照，供收益与加权计算。
+ * Load a "hfq close + turnover (+ total market cap for cap-weighting)" snapshot for each day. `withMktcap` only
+ * for rebalance (formation) dates — forward snapshots weight by the formation-date cap, so they skip it.
+ */
 export async function loadSnapshots(
   dates: string[],
   withMktcap = false,
@@ -74,6 +82,11 @@ export async function loadSnapshots(
 }
 
 // One financial report's as-of fundamentals + the announcement date that gates them (PIT).
+
+/**
+ * 提供按公告日期索引的财务数据，供因子历史读取。
+ * Supply announcement-indexed financial values for historical factor reads.
+ */
 type FinaReport = {
   annDate: string;
   roe: number | null;
@@ -83,10 +96,13 @@ type FinaReport = {
 };
 export type FinaIndex = Map<string, FinaReport[]>; // code -> reports ascending by annDate
 
-/** Load all financial reports once, grouped by code ascending by annDate — the point-in-time source for
+/**
+ * 一次加载财务报告并按证券和公告日索引，供因子时点读取。
+ * Load all financial reports once, grouped by code ascending by annDate — the point-in-time source for
  * the FactorBar fundamentals (ROE / ROA / gross margin / debt ratio). Rows without an annDate are
  * skipped (they can't be PIT-gated). Mirrors EngineData.ensureFina so the factor and backtest sides
- * read fina the same way. */
+ * read fina the same way.
+ */
 export async function loadFinaIndex(): Promise<FinaIndex> {
   const rows = await prisma.finaIndicator.findMany({
     where: { annDate: { not: null } },
@@ -117,8 +133,11 @@ export async function loadFinaIndex(): Promise<FinaIndex> {
   return index;
 }
 
-/** The latest report public as-of `date` for `code` (largest annDate ≤ date), or null — binary search
- * over the ascending list. Same PIT rule as EngineData.roeAsOf: no report visible before its annDate. */
+/**
+ * 用二分搜索读取公告日不晚于指定日期的最近财务报告。
+ * The latest report public as-of `date` for `code` (largest annDate ≤ date), or null — binary search
+ * over the ascending list. Same PIT rule as EngineData.roeAsOf: no report visible before its annDate.
+ */
 export function finaAsOf(index: FinaIndex, code: string, date: string): FinaReport | null {
   const list = index.get(code);
   if (!list || !list.length) {
@@ -141,8 +160,11 @@ export function finaAsOf(index: FinaIndex, code: string, date: string): FinaRepo
 
 type EquityStyleControlsByDate = Map<string, Map<string, EquityStyleControlExposureV1>>;
 
-/** Point-in-time, fixed-version controls for the Fama–MacBeth auxiliary regression. Missing control
- * inputs remove a stock from that regression only; they never change the primary report sample. */
+/**
+ * 加载固定版本时点风格控制；控制缺失的证券从该期辅助回归中剔除。
+ * Point-in-time, fixed-version controls for the Fama–MacBeth auxiliary regression. Missing control
+ * inputs remove a stock from that regression only; they never change the primary report sample.
+ */
 export async function loadEquityStyleControls(
   spec: FactorAnalysisSpecV6,
   dates: string[],
@@ -223,10 +245,17 @@ export async function loadEquityStyleControls(
   return controlsByDate;
 }
 
+/**
+ * 表示行业归属的有效区间，供历史日期查询。
+ * Describe an industry's membership interval for historical lookup.
+ */
 export type IndustrySpell = { inDate: string; outDate: string | null; l1Name: string };
 
-/** Load Shenwan level-1 membership once and index it by stock, spells ascending by inDate — the
- * point-in-time (stock → industry) lookup for industry-neutralization. */
+/**
+ * 一次加载申万一级历史归属，并按证券及生效日期索引。
+ * Load Shenwan level-1 membership once and index it by stock, spells ascending by inDate — the
+ * point-in-time (stock → industry) lookup for industry-neutralization.
+ */
 export async function loadIndustryLookup(): Promise<Map<string, IndustrySpell[]>> {
   const rows = await prisma.swIndustryMember.findMany({
     select: { tsCode: true, l1Name: true, inDate: true, outDate: true },
@@ -241,7 +270,10 @@ export async function loadIndustryLookup(): Promise<Map<string, IndustrySpell[]>
   return byStock;
 }
 
-/** The stock's SW level-1 industry on `date`: the spell covering [inDate, outDate) — or null if none. */
+/**
+ * 选择覆盖 [inDate, outDate) 的申万一级行业，无覆盖时返回 null。
+ * The stock's SW level-1 industry on `date`: the spell covering [inDate, outDate) — or null if none.
+ */
 export function industryOn(spells: IndustrySpell[] | undefined, date: string): string | null {
   if (!spells) {
     return null;

@@ -14,6 +14,10 @@ import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from './fingerprints.js';
 
+/**
+ * 冻结单 Cell 源码与修订，供执行证据。
+ * Snapshot one cell's source and revision for execution evidence.
+ */
 export interface ResearchExecutionSourceCellSnapshot {
   inputSnapshot?: Record<string, unknown>;
   id: string;
@@ -26,11 +30,19 @@ export interface ResearchExecutionSourceCellSnapshot {
   references: string[];
 }
 
+/**
+ * 冻结整个执行的文档内容与运行版本。
+ * Snapshot document content and runtime version for an execution.
+ */
 interface ResearchExecutionSourceSnapshot {
   version: 1;
   cells: ResearchExecutionSourceCellSnapshot[];
 }
 
+/**
+ * 冻结执行依赖图，供输出与重放追溯。
+ * Snapshot the execution dependency graph for evidence and replay.
+ */
 interface ResearchExecutionDagSnapshot {
   version: 1;
   nodes: ResearchExecutionDagNodeV1[];
@@ -40,6 +52,10 @@ type ResearchExecutionWithCells = Prisma.ResearchExecutionGetPayload<{
   include: { cellExecutions: true };
 }>;
 
+/**
+ * 冻结源码、修订与依赖图，创建不可变研究执行记录。
+ * Freeze source, revisions and dependency graph into an immutable research execution.
+ */
 export async function createResearchExecution(args: {
   documentId: string;
   title: string;
@@ -83,6 +99,10 @@ export async function createResearchExecution(args: {
   });
 }
 
+/**
+ * 提交研究执行终态及已执行 Cell 集合，保留失败与取消证据。
+ * Finalize execution state and completed cells while retaining failed and cancelled evidence.
+ */
 export async function finishResearchExecution(args: {
   executionId: string;
   status: Exclude<ResearchExecutionStatusV1, 'running'>;
@@ -159,6 +179,10 @@ export async function getResearchExecution(
   return researchExecutionView(execution);
 }
 
+/**
+ * 验证干净完整执行后提升为可交接证据，拒绝不满足要求的运行。
+ * Promote a clean complete execution into handoff evidence after eligibility checks.
+ */
 export async function promoteResearchExecution(
   userId: string,
   executionId: string,
@@ -185,6 +209,10 @@ export async function promoteResearchExecution(
   return researchExecutionSummaryView(updated);
 }
 
+/**
+ * 根据冻结 Cell 定义与引用构造执行 DAG 快照。
+ * Build a frozen execution DAG from cell definitions and references.
+ */
 export function researchExecutionDag(
   cells: ResearchExecutionSourceCellSnapshot[],
 ): ResearchExecutionDagNodeV1[] {
@@ -226,6 +254,10 @@ function researchExecutionView(execution: ResearchExecutionWithCells): ResearchE
   };
 }
 
+/**
+ * 将执行身份和状态映射为客户端摘要。
+ * Map execution identity and status into a client summary.
+ */
 function researchExecutionSummaryView(execution: ResearchExecution): ResearchExecutionSummaryV1 {
   const sourceSnapshot = execution.sourceSnapshot as unknown as ResearchExecutionSourceSnapshot;
   const executedCellIds = jsonStringArray(execution.executedCellIds);
@@ -254,6 +286,10 @@ function researchExecutionSummaryView(execution: ResearchExecution): ResearchExe
   };
 }
 
+/**
+ * 将冻结 Cell 源码与输出证据映射为执行详情。
+ * Map frozen cell source and output evidence into execution details.
+ */
 function researchExecutionCellView(
   snapshot: ResearchExecutionSourceCellSnapshot,
   execution?: ResearchCellExecution,

@@ -7,6 +7,10 @@ import { syncMarketIndicators } from '#market/state/sync.js';
 import { assertProductionLock } from '../runs/coordination.js';
 import { selfHealMarketDates, type SelfHealSummary } from './self-heal.js';
 
+/**
+ * 修复发布基线所依赖的历史缺口，完成后更新维护记录。
+ * Repair historical gaps required by the published baseline and record the outcome.
+ */
 export async function repairBaseline(targetDate?: string): Promise<SelfHealSummary> {
   assertProductionLock();
   const latestCompleted = await latestCompletedTradeDate();

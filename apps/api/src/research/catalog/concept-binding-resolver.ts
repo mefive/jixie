@@ -6,12 +6,20 @@ import {
 } from './concept-bindings.js';
 import type { ResearchCatalogAssetType, ResearchCatalogSourceKind } from './concepts.js';
 
+/**
+ * 约束概念绑定的资产、来源及语义维度筛选。
+ * Constrain concept bindings by asset, source and semantic dimensions.
+ */
 export interface ResearchBindingFilters {
   sourceKinds?: ResearchCatalogSourceKind[];
   assetTypes?: ResearchCatalogAssetType[];
   termYears?: number;
 }
 
+/**
+ * 返回绑定解析身份、执行状态与本地覆盖。
+ * Collect resolved binding identity, execution status and local coverage.
+ */
 export interface ResolvedResearchConceptBinding {
   binding: ResearchConceptBindingV1;
   available: boolean;
@@ -19,6 +27,10 @@ export interface ResolvedResearchConceptBinding {
   unavailableReason: 'binding_registered_no_local_data' | null;
 }
 
+/**
+ * 描述本地数据起止与数量，供目录可用性说明。
+ * Describe local data bounds and counts for catalog availability.
+ */
 interface DataCoverage {
   observationCount: number;
   startDate: string;
@@ -35,6 +47,10 @@ export async function resolveResearchConceptBindings(
   );
 }
 
+/**
+ * 根据请求过滤条件判断已审计概念绑定是否可用。
+ * Check whether an audited concept binding satisfies the requested filters.
+ */
 export function researchBindingAllowed(
   binding: ResearchConceptBindingV1,
   filters?: ResearchBindingFilters,
@@ -59,6 +75,10 @@ export function researchBindingAllowed(
   return true;
 }
 
+/**
+ * 按绑定来源分派身份解析，并附加本地覆盖与可执行状态。
+ * Resolve a binding by source kind and attach local coverage and execution status.
+ */
 async function resolveBinding(
   binding: ResearchConceptBindingV1,
 ): Promise<ResolvedResearchConceptBinding> {
@@ -74,6 +94,10 @@ async function resolveBinding(
   }
 }
 
+/**
+ * 校验绑定证券的本地身份与行情覆盖，供目录引用使用。
+ * Resolve a bound instrument against local identity and market coverage.
+ */
 async function resolveInstrumentBinding(
   binding: ResearchConceptBindingV1,
   source: Extract<ResearchConceptBindingV1['source'], { kind: 'instrument' }>,
@@ -235,6 +259,10 @@ async function resolveInstrumentBinding(
   );
 }
 
+/**
+ * 解析绑定宏观序列的版本覆盖与可得性。
+ * Resolve a bound macro series and its vintage coverage and availability.
+ */
 async function resolveMacroBinding(
   binding: ResearchConceptBindingV1,
   source: Extract<ResearchConceptBindingV1['source'], { kind: 'macro' }>,
@@ -274,6 +302,10 @@ async function resolveMacroBinding(
   );
 }
 
+/**
+ * 解析绑定利率曲线及期限的本地覆盖。
+ * Resolve a bound yield curve and tenor against local coverage.
+ */
 async function resolveYieldBinding(
   binding: ResearchConceptBindingV1,
   source: Extract<ResearchConceptBindingV1['source'], { kind: 'yield_curve' }>,
@@ -309,6 +341,10 @@ async function resolveYieldBinding(
   );
 }
 
+/**
+ * 解析绑定外汇货币对及报价口径，供精确 SDK 引用。
+ * Resolve a bound FX pair and quote convention for exact SDK references.
+ */
 async function resolveFxBinding(
   binding: ResearchConceptBindingV1,
   source: Extract<ResearchConceptBindingV1['source'], { kind: 'fx' }>,
@@ -337,6 +373,10 @@ async function resolveFxBinding(
   );
 }
 
+/**
+ * 将绑定身份、覆盖与状态整理为目录解析结果。
+ * Assemble binding identity, coverage and status into a catalog resolution result.
+ */
 function bindingResult(
   binding: ResearchConceptBindingV1,
   dataCoverage: DataCoverage | null,

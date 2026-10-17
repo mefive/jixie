@@ -13,22 +13,38 @@ import {
 
 export const FAMA_MACBETH_CONTROLS = ['size', 'value', 'momentum', 'quality'] as const;
 
+/**
+ * 承载单证券当期因子、目标收益与控制变量，供 Fama–MacBeth 回归。
+ * Supply a dated instrument's factor, target return and controls to Fama-MacBeth regression.
+ */
 export interface FamaMacbethCrossSectionRowV1 extends EquityStyleControlExposureV1 {
   candidate: number;
   forwardReturn: number;
 }
 
+/**
+ * 记录单期截面回归的系数与样本诊断，供第二步时序汇总。
+ * Retain period regression coefficients and diagnostics for second-pass inference.
+ */
 export interface FamaMacbethPeriodEstimateV1 {
   coefficient: number;
   observations: number;
 }
 
+/**
+ * 区分单期回归可用估计与不可估原因，避免缺样本被当作零。
+ * Distinguish usable period estimates from unavailability reasons.
+ */
 export interface FamaMacbethPeriodAttemptV1 {
   completeObservations: number;
   estimate: FamaMacbethPeriodEstimateV1 | null;
   collinear: boolean;
 }
 
+/**
+ * 对单个截面拟合含冻结控制变量的 Fama–MacBeth 辅助回归，并保留样本诊断。
+ * Estimate one Fama-MacBeth cross-section with frozen controls and retain sample diagnostics.
+ */
 export function estimateFamaMacbethPeriod(
   rows: FamaMacbethCrossSectionRowV1[],
   minimumObservations: number,
@@ -69,6 +85,10 @@ export function estimateFamaMacbethPeriod(
   };
 }
 
+/**
+ * 汇总截面 IC 和逐期回归，生成时序稳健推断与覆盖限制。
+ * Combine IC and period regressions into robust time-series inference and coverage diagnostics.
+ */
 export function buildCrossSectionalRobustInference(input: {
   spec: FactorAnalysisSpecV6;
   rankIc: number[];

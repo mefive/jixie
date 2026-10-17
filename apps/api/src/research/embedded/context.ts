@@ -9,7 +9,10 @@ import { macroRegimeTemplateResource } from '#factor/definitions/templates/macro
 import { panelTemplateResource } from '#factor/definitions/templates/panel.js';
 import { timeSeriesTemplateResource } from '#factor/definitions/templates/time-series.js';
 
-/** Resolve identity on the server; snapshots remain readable if the host later disappears. */
+/**
+ * 由服务端解析业务身份，宿主实体之后消失也不影响快照读取。
+ * Resolve identity on the server; snapshots remain readable if the host later disappears.
+ */
 export async function captureEmbeddedContext(
   transaction: Prisma.TransactionClient,
   userId: string,

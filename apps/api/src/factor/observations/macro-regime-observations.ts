@@ -7,6 +7,10 @@ import {
   type MacroRegimeScoreV1,
 } from '#market/macro/regime-score.js';
 
+/**
+ * 提供宏观状态目标 ETF 的原始价格与复权输入。
+ * Supply ETF prices and adjustments for macro-state return targets.
+ */
 export interface MacroRegimeEtfDailyRow {
   assetId: string;
   tradeDate: string;
@@ -14,6 +18,10 @@ export interface MacroRegimeEtfDailyRow {
   adjustmentFactor: number;
 }
 
+/**
+ * 绑定宏观状态、可得日与资产收益，供分状态评估。
+ * Associate macro states, availability dates and asset returns for evaluation.
+ */
 export interface MacroRegimeEvaluationObservation {
   assetId: string;
   asOfDate: string;
@@ -26,11 +34,19 @@ export interface MacroRegimeEvaluationObservation {
   forwardReturn: number;
 }
 
+/**
+ * 描述宏观决策与收益目标区间，供不重叠评估分段。
+ * Describe macro decision and return-target intervals for evaluation periods.
+ */
 export interface MacroRegimeEvaluationPeriod {
   score: MacroRegimeScoreV1;
   targetDate: string;
 }
 
+/**
+ * 组合宏观状态观测、期间与诊断，供评估器使用。
+ * Collect macro observations, periods and diagnostics for evaluation.
+ */
 export interface MacroRegimeEvaluationData {
   observations: MacroRegimeEvaluationObservation[];
   periods: MacroRegimeEvaluationPeriod[];
@@ -38,6 +54,10 @@ export interface MacroRegimeEvaluationData {
   skippedMacroDates: string[];
 }
 
+/**
+ * 加载宏观状态与 ETF 价格，为冻结研究窗口构造可得性对齐输入。
+ * Load macro states and ETF prices for availability-aligned evaluation.
+ */
 export async function loadMacroRegimeObservations(
   researchSpec: MacroRegimeFactorResearchSpecV1,
   database: Prisma = prisma,
@@ -108,6 +128,10 @@ export async function loadMacroRegimeObservations(
   );
 }
 
+/**
+ * 将宏观状态与后续资产收益映射为评估期间，保留各时点诊断。
+ * Build evaluation periods from macro states and subsequent asset returns with dated diagnostics.
+ */
 export function buildMacroRegimeEvaluationData(
   researchSpec: MacroRegimeFactorResearchSpecV1,
   rows: MacroRegimeEtfDailyRow[],
@@ -183,6 +207,10 @@ export function buildMacroRegimeEvaluationData(
   };
 }
 
+/**
+ * 确定各宏观状态决策日对应的目标收益区间。
+ * Resolve return-target intervals for macro-regime decision dates.
+ */
 export function macroRegimeDecisionTargets(
   researchSpec: MacroRegimeFactorResearchSpecV1,
   openDates: string[],

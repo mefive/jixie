@@ -7,11 +7,19 @@ type PlainRow = Record<string, unknown>;
 
 const CANONICALIZATION_TRANSACTION_TIMEOUT_MS = 120_000;
 
+/**
+ * 汇总股票代码规范化的合并数量与受影响范围。
+ * Summarize stock identity merges and affected ranges.
+ */
 export interface StockCodeCanonicalizationSummary {
   migrated: number;
   earliestMarketDate: string | null;
 }
 
+/**
+ * 配置历史别名数据合并的稳定键与冲突规则。
+ * Configure stable keys and conflicts for historical identity merging.
+ */
 interface MergeRowsOptions<Row extends PlainRow> {
   table: string;
   oldCode: string;
@@ -36,6 +44,10 @@ function stableRow(row: PlainRow): string {
   );
 }
 
+/**
+ * 按稳定键合并历史证券代码对应记录，保留已有数据而避免重复。
+ * Merge rows by stable keys when consolidating historical stock identities.
+ */
 async function mergeRows<Row extends PlainRow>(options: MergeRowsOptions<Row>): Promise<number> {
   const newByKey = new Map(options.newRows.map((row) => [options.keyOf(row), row]));
   const rowsToCreate: Row[] = [];
@@ -70,6 +82,10 @@ function withoutCode(row: PlainRow, codeField: 'tsCode' | 'conCode', ignored: st
   return Object.fromEntries(Object.entries(row).filter(([key]) => !excluded.has(key)));
 }
 
+/**
+ * 比较分红收益率的等价数值，供历史身份合并去重。
+ * Compare equivalent dividend yields during historical identity merging.
+ */
 function equivalentDividendYield(oldValue: unknown, newValue: unknown): boolean {
   if (oldValue === newValue) {
     return true;
@@ -94,6 +110,10 @@ function equivalentDailyBasic(oldRow: PlainRow, newRow: PlainRow): boolean {
   );
 }
 
+/**
+ * 将确认的历史代码别名统一到规范证券身份，并修复关联记录。
+ * Canonicalize confirmed stock-code aliases and merge their related records.
+ */
 export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizationSummary> {
   await seedStockCodeChanges();
   let totalMigrated = 0;
@@ -310,6 +330,10 @@ export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizatio
   return { migrated: totalMigrated, earliestMarketDate };
 }
 
+/**
+ * 读取规范化修复涉及的最早市场日期，供失效与重算范围判断。
+ * Find the earliest market input affected by identity consolidation.
+ */
 async function earliestMarketInputDate(oldTsCode: string): Promise<string | null> {
   const [daily, adjustment, basic, limits, membership, weight] = await Promise.all([
     prisma.daily.aggregate({

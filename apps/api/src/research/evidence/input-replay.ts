@@ -4,7 +4,10 @@ import type { ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
 
-/** Retained mode never falls through to live loaders, including for an edited SDK request. */
+/**
+ * 留存模式只回放已保存输入；修改过的 SDK 请求也不能退回实时加载。
+ * Retained mode never falls through to live loaders, including for an edited SDK request.
+ */
 export async function replayResearchInput(
   documentId: string,
   request: ResearchInputRequest,

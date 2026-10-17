@@ -3,6 +3,10 @@ import { StrategyError } from '../errors.js';
 import { StrategyFactor } from '../factors/strategy-factor.js';
 import { codeConfigSchema, type StrategyVisibilityInput } from '@jixie/shared/api/strategy';
 
+/**
+ * 验证策略公开条件并更新可见范围，供公共库访问控制。
+ * Validate publication eligibility and update strategy visibility for public access.
+ */
 export async function setStrategyVisibility(
   userId: string,
   strategyId: string,

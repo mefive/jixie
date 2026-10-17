@@ -12,6 +12,10 @@ const VIRTUAL_PRELUDE = [
   '',
 ] as const;
 
+/**
+ * 映射合成 Python 模块片段到原 Cell，供诊断定位。
+ * Map a synthesized Python segment back to its source cell.
+ */
 export interface ResearchLanguageDocumentSegment {
   cellId: string;
   virtualStartLine: number;
@@ -19,12 +23,19 @@ export interface ResearchLanguageDocumentSegment {
   sourceLines: string[];
 }
 
+/**
+ * 组合 Python 模块源码及 Cell 位置映射，供语言服务。
+ * Supply synthesized Python source and cell mappings to the language service.
+ */
 export interface ResearchLanguageDocument {
   text: string;
   segments: ResearchLanguageDocumentSegment[];
 }
 
-/** Build the single Python module Pyright sees from the ordered Python cells in a document. */
+/**
+ * 按 Python Cell 顺序构造 Pyright 看到的单一模块，并保留位置映射。
+ * Build the single Python module Pyright sees from the ordered Python cells in a document.
+ */
 export function buildResearchLanguageDocument(
   cells: readonly ResearchLanguageCellV1[],
 ): ResearchLanguageDocument {

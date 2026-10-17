@@ -7,6 +7,10 @@ import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.js';
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
 
+/**
+ * 完成应用恢复与调度器初始化后启动 HTTP 服务，并接入退出清理。
+ * Recover application state and initialize dispatch before starting HTTP with shutdown cleanup.
+ */
 export async function startServer(port: number) {
   const app = buildApp();
   registerJobLifecycles();

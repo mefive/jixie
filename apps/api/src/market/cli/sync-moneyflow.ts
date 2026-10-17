@@ -4,6 +4,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { syncMoneyflow } from '../stocks/flows-sync.js';
 
 /**
+ * 同步个股每日资金流，保留主力与总净流入的区分。
  * Sync per-stock daily moneyflow into the Moneyflow table (netMain = main-force net / netTotal = total
  * net, in 10k CNY) — the attention/capital-flow signal, read via a strategy's `factors: ['mf_net_main']`
  * + `ctx.factor(...)`. Resumable.

@@ -26,7 +26,10 @@ export class ApiError extends Error {
   }
 }
 
-/** Serialize an already typed HTTP query without applying server defaults or coercion. */
+/**
+ * 序列化已通过类型约束的 HTTP 查询，不在前端应用服务端默认值或强制转换。
+ * Serialize an already typed HTTP query without applying server defaults or coercion.
+ */
 export function serializeQuery(query: Record<string, string | undefined>): string {
   const parameters = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
@@ -37,6 +40,10 @@ export function serializeQuery(query: Record<string, string | undefined>): strin
   return parameters.toString();
 }
 
+/**
+ * 携带当前语言发送请求，解析响应并统一映射网络及业务错误。
+ * Send a localized API request, parse its response and normalize transport and business errors.
+ */
 export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {

@@ -7,7 +7,10 @@ import { signalsRunLifecycle } from '#signals/runs/job-lifecycle.js';
 import { researchEmbeddedAnalysisLifecycle } from '#research/embedded/job-lifecycle.js';
 import { researchCuratorLifecycle } from '#research/curator/job-lifecycle.js';
 
-/** Explicit process setup: registration never starts work or recovers Jobs. */
+/**
+ * 显式注册业务任务处理器，不启动任务或执行恢复。
+ * Explicit process setup: registration never starts work or recovers Jobs.
+ */
 export function registerJobLifecycles(): void {
   JobService.register('backtest', strategyBacktestLifecycle);
   JobService.register('strategy-scan', strategyScanLifecycle);

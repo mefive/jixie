@@ -21,6 +21,11 @@ export const searchInstruments: AgentTool = {
   description:
     'Look up an A-share stock or ETF in local metadata by name / name-fragment / 6-digit code (deterministic matching, never fabricates codes). One lookup at a time; returns an empty list when nothing is found.',
   parameters: z.toJSONSchema(argsSchema),
+
+  /**
+   * 按用户查询匹配本地证券与指数，返回可用于研究的稳定代码。
+   * Match local instruments and indices to a query and return stable research identifiers.
+   */
   async run(args) {
     const parsed = argsSchema.safeParse(args);
     if (!parsed.success) {

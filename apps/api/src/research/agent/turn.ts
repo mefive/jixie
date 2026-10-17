@@ -17,6 +17,10 @@ import { resolveResearchClarificationAnswer } from '../proposals/clarification-r
 import type { ResearchAgentTurnInput } from '@jixie/shared/api/research';
 import { researchAgentDocumentContext } from './context.js';
 
+/**
+ * 验证文档归属和运行状态，冻结本轮上下文并启动后台研究对话。
+ * Authorize the document, capture turn context and start a background research conversation.
+ */
 export async function startResearchAgentTurn(
   userId: string,
   input: ResearchAgentTurnInput,

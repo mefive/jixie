@@ -10,6 +10,10 @@ import { BUILTIN_KEYS, BUILTIN_USER_ID } from './builtin-factors.js';
 import { nextCopyKey } from './copy-key.js';
 import { factorLanguage } from './views.js';
 
+/**
+ * 根据指定协议创建因子草稿及初始代码。
+ * Create a factor draft and initial source under the chosen protocol.
+ */
 export async function createFactorDraft(userId: string, input: CreateFactorDraftInput) {
   const { key, name, code, analysisKind, language, messages } = input;
 
@@ -71,6 +75,10 @@ export async function createFactorDraft(userId: string, input: CreateFactorDraft
   }
 }
 
+/**
+ * 校验归属与不可变协议后更新草稿，维护代码版本与显示元数据。
+ * Update an owned draft under its immutable protocol and retain source-version metadata.
+ */
 export async function updateFactorDraft(userId: string, id: string, input: UpdateFactorDraftInput) {
   const { code, name, messages } = input;
 
@@ -147,6 +155,10 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
   return row;
 }
 
+/**
+ * 验证因子草稿可删除状态并清理其业务关联。
+ * Validate draft deletion eligibility and remove its business associations.
+ */
 export async function deleteFactorDraft(userId: string, id: string) {
   if (BUILTIN_KEYS.has(id)) {
     throw new FactorError('preset_factor_readonly_delete');
@@ -173,6 +185,10 @@ export async function deleteFactorDraft(userId: string, id: string) {
   return { ok: true };
 }
 
+/**
+ * 从可访问来源创建独立因子草稿，保留来源关联。
+ * Create an independent factor draft from an accessible source with provenance.
+ */
 export async function copyFactorDraft(userId: string, factorId: string) {
   const source = await prisma.factor.findFirst({
     where: {

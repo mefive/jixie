@@ -2,6 +2,7 @@ import type { DtsFactorOption, Locale } from '@jixie/shared';
 import { buildSdkDts } from '@jixie/shared';
 
 /**
+ * 为 Monaco 生成策略 SDK ambient 声明，并加入当前用户可用因子 key。
  * The strategy SDK surface, as an ambient .d.ts fed to Monaco (addExtraLib) so the editor gives real
  * autocomplete + type-checking against `ctx` / `defineStrategy`. GENERATED from sdk/strategy/reference.ts (the
  * single source, in @jixie/shared) — each member's hover carries the active-locale copy + a 📖 link

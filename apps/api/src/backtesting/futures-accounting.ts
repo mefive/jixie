@@ -2,6 +2,10 @@ import type { FutureAccountSnapshot, SignalExecutionLeg, SignalFutureIntent } fr
 
 export type FutureLedgerPosition = FutureAccountSnapshot['positions'][number];
 
+/**
+ * 承载已观测期货成交的合约、方向、数量与价格，供账本重放。
+ * Describe an observed futures fill for deterministic account posting.
+ */
 export interface FutureFillInput {
   position: FutureLedgerPosition | null;
   code: string;
@@ -13,7 +17,10 @@ export interface FutureFillInput {
   marginRate: number;
 }
 
-/** Apply an observed fill without pricing it or rejecting an already executed trade for margin. */
+/**
+ * 将已发生的期货成交记入账户，不重新定价，也不因保证金不足拒绝历史成交。
+ * Apply an observed fill without pricing it or rejecting an already executed trade for margin.
+ */
 export function applyFutureFill(input: FutureFillInput): {
   position: FutureLedgerPosition | null;
   equityChange: number;
@@ -68,6 +75,10 @@ export function applyFutureFill(input: FutureFillInput): {
   };
 }
 
+/**
+ * 按结算价更新单合约变动盈亏与保证金基准。
+ * Settle one contract's variation profit and margin basis.
+ */
 export function settleFuturePosition(
   position: FutureLedgerPosition,
   price: number,
@@ -93,6 +104,10 @@ export function settleFuturePosition(
   };
 }
 
+/**
+ * 将期货目标转换为当前合约持仓需要的调整量。
+ * Resolve a futures target against current positions to determine required changes.
+ */
 export function resolveFutureTarget(input: {
   intent: SignalFutureIntent;
   current: number;
@@ -123,7 +138,10 @@ export function resolveFutureTarget(input: {
   return target === 0 ? 0 : target;
 }
 
-/** Preserve separate close/open legs, including multiple old delivery contracts. */
+/**
+ * 将期货目标拆为独立平仓和开仓腿，保留多个旧交割合约。
+ * Preserve separate close/open legs, including multiple old delivery contracts.
+ */
 export function resolveFutureLegs(input: {
   code: string;
   actualCode: string;

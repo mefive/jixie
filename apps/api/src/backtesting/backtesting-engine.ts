@@ -56,6 +56,10 @@ export class BacktestingEngine {
     });
   }
 
+  /**
+   * 推进完整交易日循环，按既定顺序执行订单、决策和结算，返回本次模拟结果。
+   * Run the simulation calendar through order execution, decisions and settlement, then collect the result.
+   */
   async run(): Promise<BacktestingResult> {
     if (this.started) {
       throw new Error('BacktestingEngine requires a fresh instance');
@@ -92,6 +96,10 @@ export class BacktestingEngine {
     return result;
   }
 
+  /**
+   * 在模拟开始前验证配置与执行范围，尽早拒绝无法正确运行的输入。
+   * Validate simulation configuration and supported execution requirements before initializing a run.
+   */
   private validateConfig(): void {
     const { config, cost } = this;
 
@@ -118,6 +126,10 @@ export class BacktestingEngine {
     }
   }
 
+  /**
+   * 预载模拟所需市场数据并恢复初始账户及订单状态，为交易日循环建立起点。
+   * Load required market data and initialize accounts and order state before advancing trading days.
+   */
   private async initialize(): Promise<void> {
     const { config, cost, locale, log } = this;
 
@@ -168,6 +180,10 @@ export class BacktestingEngine {
     this.logStart();
   }
 
+  /**
+   * 读取已注册因子的定义与数据需求，供引擎准备依赖而不加载用户源码。
+   * Load registered factor descriptions and data requirements without loading user source into the engine.
+   */
   private async loadFactorDescription(): Promise<void> {
     const { config, locale } = this;
     const declaredKeys = (config.strategy.factors ?? []).filter(isComputedFactorKey);
@@ -198,6 +214,10 @@ export class BacktestingEngine {
     this.factorDescription = description;
   }
 
+  /**
+   * 解析初始现金资产权重，供模拟启动时建立配置对应的资产分配。
+   * Resolve initial cash-asset weights for the starting allocation.
+   */
   private resolveInitialCashWeights(): { stock: number; futures: number } {
     const { config } = this;
 
@@ -218,6 +238,10 @@ export class BacktestingEngine {
     return { stock, futures };
   }
 
+  /**
+   * 将已加载定义、行情与执行端口装配为会话因子求值器。
+   * Construct the session evaluator from prepared definitions, data and execution ports.
+   */
   private initializeFactorEvaluator(): void {
     const { config, engineData, locale, log } = this;
     const { definitions } = this.factorDescription;
@@ -242,6 +266,10 @@ export class BacktestingEngine {
     });
   }
 
+  /**
+   * 阻止账户在官方最后上市日期之后继续持有证券。
+   * Reject positions carried beyond their official final listing dates.
+   */
   private assertNoDelistedPositions(date: string): void {
     const { cashPortfolio: portfolio, engineData } = this;
 
@@ -256,6 +284,10 @@ export class BacktestingEngine {
     }
   }
 
+  /**
+   * 在当日交易及结算完成后记录账户净值和归因观察，供绩效汇总使用。
+   * Record end-of-day account values and allocation observations after execution and settlement.
+   */
   private recordEndOfDay(date: string): void {
     const { engineData, cashPortfolio, futuresPortfolio } = this;
 
@@ -298,6 +330,10 @@ export class BacktestingEngine {
     this.capturedTrades = cashPortfolio.trades.length;
   }
 
+  /**
+   * 为当前决策日构造上下文并调用已准备的策略回调，将决策提交到订单簿。
+   * Construct the current decision context, invoke the prepared strategy callback and commit its orders.
+   */
   private async runDecision(date: string, observeFactors: boolean): Promise<void> {
     this.orderBook.beginDecision(date);
 
@@ -335,6 +371,10 @@ export class BacktestingEngine {
     this.orderBook.commitDecision();
   }
 
+  /**
+   * 组合净值、成交、成本和归因数据，生成完整回测报告。
+   * Combine NAV, fills, costs and allocation observations into the backtest report.
+   */
   private collectResult(): BacktestingResult {
     const { config, engineData, cashPortfolio, futuresPortfolio } = this;
 
@@ -363,6 +403,7 @@ export class BacktestingEngine {
   }
 
   /**
+   * 仅在模拟成功后生成与内部状态分离的末日快照；补载待执行现金订单的数据可能失败。
    * Builds a detached final-day snapshot after a successful run.
    * Loads missing cash-order market data before serializing; this may query the data port and fail.
    */
@@ -439,6 +480,10 @@ export class BacktestingEngine {
     );
   }
 
+  /**
+   * 在首次进入新年份时报告年度进度和净值，减少逐日日志。
+   * Report progress and equity once per new simulation year.
+   */
   private logProgress(completedDays: number, totalDays: number): void {
     const latestClose = this.nav.at(-1);
 

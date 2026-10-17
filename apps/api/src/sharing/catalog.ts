@@ -2,6 +2,10 @@ import { prisma } from '#infra/database/prisma.js';
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
 
+/**
+ * 按公开范围聚合因子、组合和策略资源，供公共资产库检索。
+ * Aggregate visible factors, composites and strategies for public-library discovery.
+ */
 export async function listSharingCatalog(
   userId: string,
   user: { name: string | null; email: string },

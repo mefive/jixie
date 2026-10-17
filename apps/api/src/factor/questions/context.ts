@@ -9,7 +9,10 @@ import { FactorError } from '../errors.js';
 import { reportSummary } from '../evaluations/report-views.js';
 import { sha256 } from '../sources/fingerprint.js';
 
-/** Capture only the selected, authorized source. Never resolve a display name or latest report. */
+/**
+ * 只捕获已选且已授权的来源，不按显示名称或最新报告猜测上下文。
+ * Capture only the selected, authorized source. Never resolve a display name or latest report.
+ */
 export async function captureFactorQuestionContext(
   database: Prisma.TransactionClient,
   userId: string,

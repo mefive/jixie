@@ -5,12 +5,20 @@ import {
   type MarketRiskDriverHistoryV1,
 } from './market-risk-drivers.js';
 
+/**
+ * 描述单市场驱动的质量覆盖，供模型就绪判断。
+ * Describe coverage quality for one market risk driver.
+ */
 export interface MarketRiskDriverQualityFactor {
   factor: MarketRiskFactorKeyV1;
   observations: number;
   latestDate: string | null;
 }
 
+/**
+ * 汇总市场驱动质量与不可用原因。
+ * Summarize market-driver quality and unavailability reasons.
+ */
 export interface MarketRiskDriverQualitySummary {
   expectedDates: number;
   completeObservations: number;
@@ -46,6 +54,10 @@ export async function inspectMarketRiskDrivers(
   );
 }
 
+/**
+ * 汇总市场风险驱动的日期覆盖、缺失与异常，供模型就绪判断。
+ * Summarize market-driver coverage, missing values and anomalies for model readiness.
+ */
 export function summarizeMarketRiskDriverQuality(
   history: MarketRiskDriverHistoryV1,
   expectedDates: string[],

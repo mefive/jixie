@@ -32,6 +32,10 @@ import {
   evaluateHistoricalRiskScenarios,
 } from './risk-scenarios.js';
 
+/**
+ * 提供已完成回测及风险数据窗口，供附加风险研究。
+ * Supply a completed backtest and source windows for optional risk research.
+ */
 export interface BacktestRiskResearchInput {
   openDates: string[];
   marketHistory: MarketRiskDriverHistoryV1;
@@ -39,7 +43,10 @@ export interface BacktestRiskResearchInput {
   factorReports: Map<string, FactorResearchReportPayloadV1>;
 }
 
-/** Adds optional Phase 5 risk evidence to a completed multi-asset backtest. */
+/**
+ * 为已完成的多资产回测构造可选风险研究证据。
+ * Adds optional Phase 5 risk evidence to a completed multi-asset backtest.
+ */
 export function buildBacktestRiskAnalysis(
   result: BacktestResult,
   input: BacktestRiskResearchInput,
@@ -93,7 +100,10 @@ export function buildBacktestRiskAnalysis(
   };
 }
 
-/** Loads only the source windows needed by one result, then mutates its allocation-analysis envelope. */
+/**
+ * 只读取当前报告需要的来源区间，并补入其配置风险分析结果。
+ * Loads only the source windows needed by one result, then mutates its allocation-analysis envelope.
+ */
 export async function attachBacktestRiskAnalysis(
   result: BacktestResult,
   database: Prisma = prisma,
@@ -156,13 +166,20 @@ export async function attachBacktestRiskAnalysis(
   }
 }
 
-/** Legacy reports used portfolio NAV; scoped reports must never fall back to futures-inclusive NAV. */
+/**
+ * 选择配置袖套净值；作用域报告不得退回包含期货的总组合净值。
+ * Legacy reports used portfolio NAV; scoped reports must never fall back to futures-inclusive NAV.
+ */
 function allocationNav(result: BacktestResult): BacktestResult['nav'] {
   return result.allocationAnalysis?.scope === 'cash_account'
     ? (result.allocationAnalysis.nav ?? [])
     : result.nav;
 }
 
+/**
+ * 为报告中的因子依赖构造 Alpha 与风险重合分析。
+ * Build factor Alpha-risk overlap evidence for a backtest report.
+ */
 function buildFactorOverlap(
   result: BacktestResult,
   factorReports: Map<string, FactorResearchReportPayloadV1>,
@@ -196,6 +213,10 @@ function buildFactorOverlap(
   });
 }
 
+/**
+ * 选择明确归属于策略袖套的收益期间，避免混用总组合。
+ * Select strategy-attributed return periods instead of unrelated total-portfolio returns.
+ */
 function strategyAttributedPeriods(
   result: BacktestResult,
   dependencies: FactorDependency[],
@@ -215,6 +236,10 @@ function strategyAttributedPeriods(
   }));
 }
 
+/**
+ * 读取风险分析所需的冻结因子报告，保留原研究证据。
+ * Load frozen factor reports required by the risk analysis.
+ */
 async function loadFactorReports(
   dependencies: FactorDependency[],
   database: Prisma,

@@ -208,11 +208,15 @@ _FUTURES_SETTLEMENT_COLUMNS = [
 ]
 
 
+# 公开受控研究数据方法，负责参数转发与 DataFrame 映射。
+# English: Expose governed research reads with argument forwarding and DataFrame mapping.
 class _DataApi:
     def __init__(self, capabilities: ResearchCapabilities, pandas_module: Any) -> None:
         self._capabilities = capabilities
         self._pandas = pandas_module
 
+    # 请求受控序列并还原带元数据的 DataFrame，保留频率和变换口径。
+    # English: Load a governed series into a metadata-bearing DataFrame with frequency and transform conventions.
     def series(
         self,
         asset_type: str,
@@ -240,6 +244,8 @@ class _DataApi:
         )
         return self._series_frame(result)
 
+    # 请求历史时点股票截面，保持证券池资格参数。
+    # English: Request a dated equity cross-section with explicit eligibility arguments.
     def cross_section(
         self,
         universe: str,
@@ -259,6 +265,8 @@ class _DataApi:
         )
         return self._equity_frame(result)
 
+    # 请求公开曲线和期限，保留收益率变换与周期政策。
+    # English: Request a public curve and tenor with yield transforms and period policy.
     def yield_curve(
         self,
         curve: str,
@@ -284,6 +292,8 @@ class _DataApi:
         )
         return self._series_frame(result)
 
+    # 请求宏观序列并映射 DataFrame，保持可得性与变换元数据。
+    # English: Request macro data and map its availability and transform metadata into a DataFrame.
     def macro(
         self,
         series: str,
@@ -307,6 +317,8 @@ class _DataApi:
         )
         return self._series_frame(result)
 
+    # 请求明确货币对并映射 DataFrame，保留报价与变换口径。
+    # English: Request an explicit FX pair and retain quote and transform conventions.
     def fx(
         self,
         pair: str,
@@ -330,6 +342,8 @@ class _DataApi:
         )
         return self._series_frame(result)
 
+    # 请求已完成月末股票 Panel，保持资格及频率约束。
+    # English: Request a completed-month-end equity panel with explicit eligibility and frequency.
     def panel(
         self,
         universe: str,
@@ -400,6 +414,8 @@ class _DataApi:
         })
         return self._dataset_frame(result, _FINANCIAL_VALUE_COLUMNS, ["as_of_date", "report_period", "available_date"])
 
+    # 读取单证券历史可见财报，规范化字段及报告期请求。
+    # English: Load as-of statements for one instrument with normalized field and reporting bounds.
     def equity_financial_statements(
         self, identifier: str, *, as_of: str, fields: str | list[str] | None = None,
         report_start: str | None = None, report_end: str | None = None,
@@ -426,6 +442,8 @@ class _DataApi:
             result, _FINANCIAL_METRIC_COLUMNS, ["date", "report_period"]
         )
 
+    # 请求有界股票财务截面并规范化所选指标。
+    # English: Request bounded equity financial cross-sections with normalized metric selections.
     def equity_financial_cross_section(
         self,
         universe: str,
@@ -449,6 +467,8 @@ class _DataApi:
             result, _FINANCIAL_METRIC_COLUMNS, ["date", "report_period"]
         )
 
+    # 读取有界历史月末财务 Panel，规范化指标参数。
+    # English: Load a bounded historical month-end financial panel with normalized metric arguments.
     def equity_financial_panel(
         self,
         universe: str,
@@ -520,6 +540,8 @@ class _DataApi:
         )
         return self._dataset_frame(result, _FUTURES_SETTLEMENT_COLUMNS, ["date"])
 
+    # 将股票数据响应转成 DataFrame 并附加覆盖元数据。
+    # English: Map equity responses into DataFrames with coverage metadata.
     def _equity_frame(self, result: Any) -> Any:
         rows = result.get("rows", []) if isinstance(result, dict) else []
         if self._pandas is None:
@@ -531,6 +553,8 @@ class _DataApi:
             frame.attrs["jixie"] = result["metadata"]
         return frame
 
+    # 将序列响应转成 DataFrame 并保留单位与来源。
+    # English: Map series responses into DataFrames with units and provenance.
     def _series_frame(self, result: Any) -> Any:
         rows = result.get("rows", []) if isinstance(result, dict) else []
         if self._pandas is None:
@@ -542,6 +566,8 @@ class _DataApi:
             frame.attrs["jixie"] = {"diagnostics": result["diagnostics"]}
         return frame
 
+    # 将通用数据集响应转成 DataFrame 并保留公开元数据。
+    # English: Map dataset responses into DataFrames while retaining public metadata.
     def _dataset_frame(
         self, result: Any, columns: list[str], date_columns: list[str] | None = None
     ) -> Any:

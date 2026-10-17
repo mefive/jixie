@@ -1,3 +1,7 @@
+/**
+ * 枚举范围内的季度报告期，供按期批量财务同步。
+ * Enumerate quarterly report dates for period-based financial synchronization.
+ */
 export function quarterlyReportPeriods(startDate: string, endDate: string): string[] {
   const periods: string[] = [];
   const quarterEnds = ['0331', '0630', '0930', '1231'];

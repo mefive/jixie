@@ -15,10 +15,18 @@ function supportsSameDayTurnover(row: {
   return /黄金|商品期货/.test(row.name);
 }
 
-/** Refresh ETF metadata across listed, pending, and delisted statuses. */
+/**
+ * 刷新上市、待上市及退市 ETF 的元数据。
+ * Refresh ETF metadata across listed, pending, and delisted statuses.
+ */
 export async function syncEtfBasic(client: TushareClient): Promise<number> {
   const [etfRows, fundRows] = await Promise.all([etfBasic(client), fundBasic(client)]);
   const fundByCode = new Map(fundRows.map((row) => [row.ts_code, row]));
+
+  /**
+   * 合并 ETF 与基金来源元数据并映射持久字段。
+   * Merge ETF and fund metadata into persistence fields.
+   */
   const data = etfRows.map((row) => {
     const fund = fundByCode.get(row.ts_code);
     const name = row.extname || row.csname || fund?.name || row.ts_code;
@@ -51,11 +59,19 @@ export async function syncEtfBasic(client: TushareClient): Promise<number> {
   return data.length;
 }
 
+/**
+ * 定义 ETF 历史原子同步切片的日期边界。
+ * Bound an atomic ETF history synchronization slice.
+ */
 interface DateSlice {
   start: TradeDate;
   end: TradeDate;
 }
 
+/**
+ * 将 ETF 历史区间按年度切片，供可恢复同步。
+ * Split ETF history into annual slices for resumable synchronization.
+ */
 function yearlySlices(start: TradeDate, end: TradeDate): DateSlice[] {
   const slices: DateSlice[] = [];
   for (let year = Number(start.slice(0, 4)); year <= Number(end.slice(0, 4)); year++) {
@@ -68,6 +84,7 @@ function yearlySlices(start: TradeDate, end: TradeDate): DateSlice[] {
 }
 
 /**
+ * 按证券与年度原子同步日线及复权，完成标记仅表示该切片完成。
  * Sync selected ETF daily bars and adjustment factors in atomic code/year slices.
  * Completion markers make a long backfill resumable; pass refresh to refetch completed slices.
  */

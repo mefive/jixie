@@ -4,6 +4,10 @@ import type { MultiAssetClass, PanelFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 
+/**
+ * 提供 Panel ETF 的逐日原始价格和复权字段。
+ * Supply daily ETF price and adjustment fields for panel construction.
+ */
 export interface PanelEtfDailyRow {
   assetId: string;
   tradeDate: string;
@@ -11,6 +15,10 @@ export interface PanelEtfDailyRow {
   adjustmentFactor: number;
 }
 
+/**
+ * 提供 ETF 资产类别及成员区间，供历史 Panel 池选择。
+ * Supply ETF asset classes and membership intervals for dated panel selection.
+ */
 export interface PanelEtfMetadata {
   assetId: string;
   name: string;
@@ -20,6 +28,10 @@ export interface PanelEtfMetadata {
   etfType: string | null;
 }
 
+/**
+ * 加载 Panel ETF 池的行情与成员元数据，供历史截面对齐。
+ * Load panel ETF bars and membership metadata for dated cross-sectional alignment.
+ */
 export async function loadPanelEtfObservations(
   researchSpec: PanelFactorResearchSpecV1,
   factor: PanelFactorSandbox,
@@ -111,6 +123,10 @@ export async function loadPanelEtfObservations(
   );
 }
 
+/**
+ * 在共同日期上构造有效 ETF 特征与前瞻收益，保留资产类别。
+ * Build ETF features and forward returns on common dates while retaining asset classes.
+ */
 export async function buildPanelEtfObservations(
   researchSpec: PanelFactorResearchSpecV1,
   rows: PanelEtfDailyRow[],
@@ -216,6 +232,10 @@ export async function buildPanelEtfObservations(
   );
 }
 
+/**
+ * 按注册清单声明验证 ETF 是否属于研究资产类别。
+ * Check ETF asset-class membership against the research registry.
+ */
 export function panelEtfMatchesAssetClass(
   metadata: PanelEtfMetadata,
   assetClass: MultiAssetClass,
@@ -235,6 +255,10 @@ export function panelEtfMatchesAssetClass(
   }
 }
 
+/**
+ * 拒绝未实现的 Panel 协议，防止隐含变更研究口径。
+ * Reject unsupported panel protocols rather than silently changing research conventions.
+ */
 function assertSupportedProtocol(
   researchSpec: PanelFactorResearchSpecV1,
   factor: PanelFactorSandbox,
@@ -282,6 +306,10 @@ export function validatePanelCalendar(openDates: string[]): string[] {
   return calendar;
 }
 
+/**
+ * 选择每月已完成的决策日期，供 Panel 统一采样。
+ * Select completed monthly decision dates for panel sampling.
+ */
 export function monthlyPanelDecisionDates(
   calendar: string[],
   start: string,
@@ -296,6 +324,10 @@ export function monthlyPanelDecisionDates(
   return [...byMonth.values()];
 }
 
+/**
+ * 从决策日以前的收益窗口估计 Panel 资产波动。
+ * Estimate panel asset volatility from returns preceding the decision.
+ */
 export function trailingPanelVolatility(values: number[], index: number, periods: number): number {
   const returns: number[] = [];
   for (let position = index - periods + 1; position <= index; position++) {

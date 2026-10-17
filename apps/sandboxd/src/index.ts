@@ -49,6 +49,10 @@ server.listen(socketPath, async () => {
   process.stdout.write(`[sandboxd] listening on ${socketPath} (${mode})\n`);
 });
 
+/**
+ * 为一个已接受连接启动运行时并桥接通信，在完成或错误时关闭会话。
+ * Start a runtime for an accepted connection, bridge its protocol and finalize the session on completion or failure.
+ */
 function serveSession(client: Socket): void {
   clients.add(client);
   client.once('close', () => clients.delete(client));
@@ -79,6 +83,10 @@ function serveSession(client: Socket): void {
   sessionCompletions.add(completion);
 }
 
+/**
+ * 获取会话配额后启动并跟踪运行，统一释放占用。
+ * Acquire capacity, run a sandbox session and release its registration.
+ */
 async function runSession(client: Socket): Promise<void> {
   const runtime = await spawnSandboxRuntime({
     mode,
@@ -101,6 +109,10 @@ async function runSession(client: Socket): Promise<void> {
   await bridgeSession(client, runtime);
 }
 
+/**
+ * 在客户端与子运行时之间双向转发帧，并协调退出和取消。
+ * Bridge frames between the client and child runtime while coordinating exit and cancellation.
+ */
 function bridgeSession(client: Socket, runtime: SandboxRuntime): Promise<void> {
   return new Promise((resolveSession) => {
     let stderr = '';
@@ -147,6 +159,10 @@ function bridgeSession(client: Socket, runtime: SandboxRuntime): Promise<void> {
     runtime.child.once('error', handleRuntimeError);
     runtime.child.once('exit', handleRuntimeExit);
 
+    /**
+     * 结束沙盒会话并统一清理连接、子进程和资源登记。
+     * Finalize a sandbox session and clean up its connection, child process and registration.
+     */
     async function finishSession(
       reason: RuntimeStopReason,
       result: { fatalMessage?: string } = {},
@@ -194,6 +210,10 @@ function shutdown(): void {
   void shutdownDaemon();
 }
 
+/**
+ * 停止接入新会话并清理现有运行及监听器。
+ * Stop accepting sessions and clean up active runtimes and listeners.
+ */
 async function shutdownDaemon(): Promise<void> {
   const serverClosed = closeServer();
   for (const client of clients) {

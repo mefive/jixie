@@ -1,9 +1,21 @@
 import type { CostModel } from '#backtesting/cost.js';
 
+/**
+ * 区分模型账户与实际账户，供同一重放算法选择输入。
+ * Distinguish model and actual accounts when selecting replay inputs.
+ */
 export type AccountKind = 'simulation' | 'actual';
 
+/**
+ * 限定信号现金账户中的股票和 ETF，供费用与数量规则分派。
+ * Identify stock and ETF cash assets for fee and sizing rules.
+ */
 type CashAssetType = 'stock' | 'etf';
 
+/**
+ * 描述可重放账户的持仓、成本与冻结状态。
+ * Describe holdings, cost bases and frozen quantities in a replayable account.
+ */
 export interface AccountPosition {
   code: string;
   name: string;
@@ -15,11 +27,19 @@ export interface AccountPosition {
   frozenShares?: number;
 }
 
+/**
+ * 封装重放起点或结果的现金和持仓，供逐日结转。
+ * Carry cash and holdings between replayed account days.
+ */
 export interface AccountState {
   cash: number;
   positions: AccountPosition[];
 }
 
+/**
+ * 保存执行日原始价格与交易约束，供纯账本重放。
+ * Supply execution-day raw prices and trading constraints to pure ledger replay.
+ */
 export interface MarketQuote {
   open: number | null;
   close: number | null;
@@ -28,6 +48,10 @@ export interface MarketQuote {
   downLimit: number | null;
 }
 
+/**
+ * 规范化待重放订单及其方向、数量和来源。
+ * Describe a normalized order, side, quantity and source for ledger replay.
+ */
 export interface ReplayOrder {
   id: string;
   code: string;
@@ -41,6 +65,10 @@ export interface ReplayOrder {
   actualFee: number | null;
 }
 
+/**
+ * 承载模拟执行变化，供持久化执行状态与账户结果。
+ * Describe simulated execution updates persisted alongside account results.
+ */
 interface SimulationUpdate {
   id: string;
   status: 'filled' | 'blocked';
@@ -53,6 +81,10 @@ interface SimulationUpdate {
 
 const MAX_SLIPPAGE = 0.1;
 
+/**
+ * 按输入账户、订单及行情纯重放一天交易，统一费用、冻结与持仓更新。
+ * Replay one day from account state, orders and quotes with consistent fees, freezing and position updates.
+ */
 export function replayAccountDay(
   prior: AccountState,
   orders: ReplayOrder[],
@@ -186,6 +218,10 @@ export function replayAccountDay(
   return { state, simulationUpdates };
 }
 
+/**
+ * 按方向将滑点施加于参考价，供模拟成交。
+ * Apply side-aware slippage to a reference price for simulated fills.
+ */
 function simulatedPrice(
   action: 'buy' | 'sell',
   open: number,
@@ -200,6 +236,10 @@ function simulatedPrice(
   return action === 'buy' ? open * (1 + slippage) : open * (1 - slippage);
 }
 
+/**
+ * 按资产与方向计算佣金、印花税和过户费。
+ * Calculate commissions and asset-specific taxes and transfer fees.
+ */
 function executionFee(
   action: 'buy' | 'sell',
   value: number,
@@ -212,6 +252,10 @@ function executionFee(
   return commission + transfer + stamp;
 }
 
+/**
+ * 计算扣除费用后可承担的整手买入量，供模拟账户执行。
+ * Compute affordable whole-lot purchases after fees for simulated execution.
+ */
 function affordableShares(
   cash: number,
   price: number,

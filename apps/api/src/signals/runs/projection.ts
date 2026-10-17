@@ -2,6 +2,10 @@ import { cashFinalStateView, type CashFinalStateView } from '#backtesting/result
 import type { ConditionalOrderKind } from '#backtesting/order-book.js';
 import type { FactorObservation, BacktestingFinalState } from '#backtesting/result.js';
 
+/**
+ * 保存待执行现金信号的数量、价格与来源，供执行任务持久化。
+ * Describe a pending cash signal and its quantity, reference price and source.
+ */
 export interface PendingCashSignal {
   code: string;
   assetType: 'stock' | 'etf';
@@ -13,6 +17,10 @@ export interface PendingCashSignal {
   targetWeight?: number;
 }
 
+/**
+ * 保存条件退出信号及触发信息，供下一执行日任务生成。
+ * Describe a conditional exit signal and its trigger for execution-task generation.
+ */
 export interface PendingConditionalSignal {
   code: string;
   assetType: 'stock' | 'etf';
@@ -27,6 +35,10 @@ export interface PendingConditionalSignal {
   trailingPct?: number;
 }
 
+/**
+ * 保存模型末日仓位的真实数量和价格，供信号账户基线。
+ * Describe final model positions in real units for signal account baselines.
+ */
 export interface PendingModelPosition {
   code: string;
   assetType: 'stock' | 'etf';
@@ -36,6 +48,10 @@ export interface PendingModelPosition {
   frozenShares: number;
 }
 
+/**
+ * 汇总现金、条件单与仓位投影结果，供运行结果持久化。
+ * Collect projected cash signals, conditional exits and model positions for persistence.
+ */
 export interface SignalProjection {
   tradeDate: string;
   modelEquity: number;
@@ -45,7 +61,10 @@ export interface SignalProjection {
   factorObservations: FactorObservation[];
 }
 
-/** Convert a detached final state into next-open signal instructions, without rerunning the strategy. */
+/**
+ * 直接将独立末日快照转换为下一开盘信号，不重新执行策略。
+ * Convert a detached final state into next-open signal instructions, without rerunning the strategy.
+ */
 export function projectSignals(snapshot: BacktestingFinalState): SignalProjection {
   const state = cashFinalStateView(snapshot);
   const {
@@ -210,6 +229,11 @@ export function projectSignals(snapshot: BacktestingFinalState): SignalProjectio
     factorObservations: structuredClone(state.factorObservations),
   };
 }
+
+/**
+ * 将单条现金指令从引擎复权单位转换为执行信号所需口径。
+ * Convert one cash instruction from engine-adjusted units into execution-signal units.
+ */
 function projectCashSignal(
   market: CashFinalStateView['market'],
   code: string,

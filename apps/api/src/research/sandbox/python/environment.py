@@ -6,6 +6,8 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 
+# 加载契约允许的可选模块，为受限研究命名空间提供能力。
+# English: Load contract-approved optional modules for the restricted research namespace.
 def _optional_modules() -> dict[str, Any]:
     modules: dict[str, Any] = {"numpy": None, "pandas": None, "matplotlib": None}
     try:

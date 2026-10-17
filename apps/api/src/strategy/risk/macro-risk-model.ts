@@ -9,11 +9,19 @@ export const MACRO_RISK_MINIMUM_OBSERVATIONS = 36;
 
 const SINGULAR_TOLERANCE = 1e-10;
 
+/**
+ * 记录按自然月聚合的组合收益及月份身份，供宏观回归。
+ * Describe monthly portfolio returns and month identities for macro regression.
+ */
 export interface PortfolioMonthlyReturnObservation {
   date: string;
   return: number;
 }
 
+/**
+ * 配置宏观风险模型样本、窗口与稳健推断要求。
+ * Configure samples, windows and robust inference for macro risk estimation.
+ */
 export interface EstimatePortfolioMacroRiskOptions {
   asOfDate: string;
   lookbackObservations?: number;
@@ -21,7 +29,10 @@ export interface EstimatePortfolioMacroRiskOptions {
   neweyWestLag?: number;
 }
 
-/** Compounds daily portfolio returns into calendar months keyed by the last observed SSE session. */
+/**
+ * 将日收益复利聚合到自然月，以该月最后观测 SSE 交易日为键。
+ * Compounds daily portfolio returns into calendar months keyed by the last observed SSE session.
+ */
 export function aggregatePortfolioMonthlyReturns(
   rows: Array<{ date: string; return: number }>,
 ): PortfolioMonthlyReturnObservation[] {
@@ -47,7 +58,10 @@ export function aggregatePortfolioMonthlyReturns(
   return [...byMonth.values()];
 }
 
-/** Estimates descriptive monthly portfolio sensitivities with Newey-West robust inference. */
+/**
+ * 估计描述性月度宏观敏感度，使用 Newey–West 稳健推断。
+ * Estimates descriptive monthly portfolio sensitivities with Newey-West robust inference.
+ */
 export function estimatePortfolioMacroRisk(
   portfolioReturns: PortfolioMonthlyReturnObservation[],
   axisHistory: MacroRiskAxisHistoryV1,
@@ -147,6 +161,10 @@ export function estimatePortfolioMacroRisk(
   };
 }
 
+/**
+ * 为宏观敏感度回归计算 OLS 系数及 Newey–West 稳健误差。
+ * Estimate macro regression coefficients and Newey-West robust uncertainty.
+ */
 function neweyWestRegression(
   matrix: number[][],
   response: number[],
@@ -207,6 +225,10 @@ function neweyWestRegression(
   };
 }
 
+/**
+ * 按时间滞后累积 Newey–West 协方差的中间核矩阵。
+ * Accumulate the lag-weighted Newey-West covariance kernel.
+ */
 function neweyWestMeat(design: number[][], residuals: number[], lag: number): number[][] {
   const dimensions = design[0]!.length;
   const meat = zeroMatrix(dimensions);
@@ -224,6 +246,10 @@ function neweyWestMeat(design: number[][], residuals: number[], lag: number): nu
   return meat;
 }
 
+/**
+ * 通过 QR 分解求最小二乘系数，供宏观回归使用。
+ * Solve least-squares coefficients by QR decomposition for macro regression.
+ */
 function solveLeastSquaresQr(matrix: number[][], response: number[]): number[] | null {
   const observations = matrix.length;
   const factors = matrix[0]?.length ?? 0;
@@ -257,6 +283,10 @@ function solveLeastSquaresQr(matrix: number[][], response: number[]): number[] |
   return solution;
 }
 
+/**
+ * 对宏观模型需要的方阵求逆，并处理不可用枢轴。
+ * Invert the matrix required by macro-model inference and reject unusable pivots.
+ */
 function invertMatrix(matrix: number[][]): number[][] | null {
   const dimensions = matrix.length;
   const augmented = matrix.map((row, index) => [
@@ -318,6 +348,10 @@ function zeroMatrix(dimensions: number): number[][] {
   return Array.from({ length: dimensions }, () => Array(dimensions).fill(0) as number[]);
 }
 
+/**
+ * 校验宏观风险窗口、样本和滞后参数。
+ * Validate macro risk windows, sample requirements and lags.
+ */
 function validateOptions(
   asOfDate: string,
   lookbackObservations: number,

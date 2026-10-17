@@ -19,7 +19,10 @@ import {
 
 export type ResearchBindingDataContractV1 = ResearchBindingDataContractProjectionV1;
 
-/** An audited allow-list entry from one semantic concept to one executable local series. */
+/**
+ * 表示一个经审计的概念到本地可执行序列的白名单映射。
+ * An audited allow-list entry from one semantic concept to one executable local series.
+ */
 export interface ResearchConceptBindingV1 {
   id: string;
   version: 1;
@@ -227,6 +230,10 @@ export function researchConceptBindings(conceptId: ResearchConceptId): ResearchC
     .sort((left, right) => left.priority - right.priority || left.id.localeCompare(right.id));
 }
 
+/**
+ * 保留绑定对应的精确公开 SDK 方法及参数。
+ * Describe the exact public SDK method and arguments for a binding.
+ */
 export type ResearchConceptBindingSdkCallV1 =
   | {
       method: 'data.series';
@@ -248,7 +255,10 @@ export type ResearchConceptBindingSdkCallV1 =
       pair: ResearchFxSeriesIdV1;
     };
 
-/** Return the exact public Research SDK call for a binding, or null when it is not exposed yet. */
+/**
+ * 返回绑定对应的精确公开 SDK 调用，尚未公开时返回 null。
+ * Return the exact public Research SDK call for a binding, or null when it is not exposed yet.
+ */
 export function researchConceptBindingSdkCall(
   binding: ResearchConceptBindingV1,
 ): ResearchConceptBindingSdkCallV1 | null {
@@ -306,6 +316,10 @@ export function researchYieldCurveSdkCall(
     : null;
 }
 
+/**
+ * 从公开 SDK 利率调用解析明确来源，避免同名曲线混用。
+ * Resolve the declared source behind a public yield-curve SDK call.
+ */
 export function researchYieldCurveSourceForSdkCall(
   curveCode: string,
   tenor: string,
@@ -332,7 +346,10 @@ export function researchYieldCurveSourceForSdkCall(
   };
 }
 
-/** Resolve one exact public yield-curve SDK identity through the audited binding registry. */
+/**
+ * 通过已审计绑定清单解析精确公开利率曲线 SDK 身份。
+ * Resolve one exact public yield-curve SDK identity through the audited binding registry.
+ */
 export function researchYieldCurveBindingForSdkCall(
   curve: string,
   tenor: string,
@@ -349,6 +366,10 @@ function researchYieldCurveType(curve: ResearchYieldCurveCodeV1): 'par' | 'ytm' 
   return curve.startsWith('us_treasury_') ? 'par' : 'ytm';
 }
 
+/**
+ * 将利率期限标签转换为年数，供期限筛选与排序。
+ * Convert a yield tenor label into years for filtering and ordering.
+ */
 function tenorYears(tenor: ResearchYieldTenorV1): number {
   switch (tenor) {
     case '1M':
@@ -364,6 +385,10 @@ function tenorYears(tenor: ResearchYieldTenorV1): number {
   }
 }
 
+/**
+ * 构造带明确证券身份的概念绑定，供受控研究目录。
+ * Construct an instrument-identified concept binding for the governed catalog.
+ */
 function instrumentBinding(input: {
   id: string;
   conceptId: ResearchConceptId;
@@ -400,6 +425,10 @@ function instrumentBinding(input: {
   };
 }
 
+/**
+ * 构造跨市场基准绑定，保留市场与币种语义。
+ * Construct a benchmark binding with explicit market and currency semantics.
+ */
 function benchmarkBinding(input: {
   id: string;
   conceptId:
@@ -437,6 +466,10 @@ function benchmarkBinding(input: {
   };
 }
 
+/**
+ * 构造利率曲线与期限绑定，供公开 SDK 精确调用。
+ * Construct a curve-and-tenor binding for exact public SDK calls.
+ */
 function yieldBinding(input: {
   id: string;
   conceptId: 'rates.us_treasury.nominal' | 'rates.us_treasury.real';

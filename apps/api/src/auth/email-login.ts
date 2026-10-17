@@ -13,6 +13,11 @@ const RESEND_THROTTLE_MS = 60_000;
 const MAX_VERIFY_ATTEMPTS = 5;
 
 // Input has already passed the HTTP schema's normalization and shape validation.
+
+/**
+ * 校验邮箱登录请求并创建、发送登录凭证，保持验证与发送流程一致。
+ * Validate an email login request and create and send its verification credential.
+ */
 export async function requestEmailLogin(
   { email, inviteCode }: { email: string; inviteCode?: string },
   locale: Locale,
@@ -110,6 +115,10 @@ export async function requestEmailLogin(
   return { challengeId, expiresIn: VERIFICATION_CODE_TTL_MS / 1000 };
 }
 
+/**
+ * 验证邮箱登录凭证并建立会话，拒绝失效或不匹配凭证。
+ * Verify an email login credential and create a session after validity checks.
+ */
 export async function verifyEmailLogin({
   challengeId,
   code,

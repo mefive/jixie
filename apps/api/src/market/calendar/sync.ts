@@ -4,7 +4,10 @@ import { log } from '#infra/logging.js';
 import { tradeCal } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
-/** Sync the trading calendar (range overwrite). */
+/**
+ * 按范围覆盖同步交易日历，供交易日期判断使用。
+ * Sync the trading calendar (range overwrite).
+ */
 export async function syncTradeCal(
   client: TushareClient,
   start: TradeDate,

@@ -2,6 +2,10 @@ import { useTranslation } from 'react-i18next';
 import type { LongShortNav } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
+/**
+ * 提供多空净值、频率和费用口径，供收益路径图。
+ * Supply long-short NAV, frequency and cost conventions to its chart.
+ */
 interface Props {
   nav: LongShortNav; // equal-weight long-short NAV, gross vs net-of-cost
 }
@@ -9,6 +13,11 @@ interface Props {
 // Lazy-loaded (echarts in its own chunk). The long-short leg's cumulative NAV, before vs after trading
 // cost — the tradability gate: a high-turnover factor's gross curve can look great while its net curve
 // (after ~30bps round-trip per name churned each rebalance) flattens or reverses.
+
+/**
+ * 绘制多空净值与相关收益序列，保留报告频率口径。
+ * Plot long-short NAV and related return series at the report frequency.
+ */
 export default function LsNavChart({ nav }: Props) {
   const { t } = useTranslation('factor');
   const labels = nav.dates.map((d) => `${d.slice(0, 4)}-${d.slice(4, 6)}`);

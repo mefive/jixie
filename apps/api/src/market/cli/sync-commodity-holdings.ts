@@ -7,6 +7,7 @@ import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 /**
+ * 同步代表合约的会员排名聚合，保留排名子集口径。
  * Sync research-only ranked-member aggregates for representative AU/CU/M contracts.
  * Usage: pnpm --filter api sync commodity-holdings [start] [end]
  */

@@ -1,6 +1,10 @@
 import type { FactorCorrelation } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
+/**
+ * 提供相关性矩阵与展示选项，供因子热图渲染。
+ * Supply matrix values and options to the factor correlation heatmap.
+ */
 interface Props {
   data: FactorCorrelation;
 }
@@ -8,6 +12,11 @@ interface Props {
 // Lazy-loaded (echarts in its own chunk). Factor × factor mean cross-sectional Spearman, red = positive
 // (redundant factors), blue = negative. The trailing 'size' column shows every factor's entanglement
 // with market cap (the "is this new factor just a small-cap bet?" check).
+
+/**
+ * 将因子相关性矩阵渲染为热图，保留规模列与数值提示。
+ * Render the factor correlation matrix with its size column and numeric tooltips.
+ */
 export default function CorrelationHeatmap({ data }: Props) {
   const n = data.labels.length;
   // echarts heatmap wants [x, y, value]; put the first factor at the top-left (y reversed).

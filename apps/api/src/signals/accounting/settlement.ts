@@ -14,7 +14,10 @@ import {
 } from './replay.js';
 import { loadMarketQuotes, nextTradingDate } from './quotes.js';
 
-/** Settle every account whose execution date is now covered by published market data. */
+/**
+ * 结算所有执行日已被发布市场数据覆盖的账户。
+ * Settle every account whose execution date is now covered by published market data.
+ */
 export async function settleStrategyAccounts(
   throughDate: string,
   onLog: (line: string) => void = console.log,
@@ -53,6 +56,10 @@ export async function settleStrategyAccounts(
   return { deployments: runs.length + versioned.length };
 }
 
+/**
+ * 从部署基线重建账户，顺序重放已发布执行日及其输入。
+ * Rebuild a deployment account from its baseline and published execution inputs.
+ */
 export async function rebuildDeploymentAccount(
   deploymentId: string,
   kind: AccountKind,

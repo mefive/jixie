@@ -1,10 +1,19 @@
 import { prisma } from '#infra/database/prisma.js';
 import { JobService } from './job-service.js';
 
+/**
+ * 保存待调度任务的种类、归属和排队信息，供公平调度选择。
+ * Describe a queued job candidate and ownership used by fair dispatch.
+ */
 interface QueueCandidate {
   id: string;
   userId: string;
 }
+
+/**
+ * 配置任务队列并发与调度限制，供后台消费者使用。
+ * Configure concurrency and dispatch limits for the background job queue.
+ */
 export interface JobQueueConfig {
   concurrency: number;
   perUserConcurrency: number;
@@ -69,6 +78,10 @@ export class JobScheduler {
     }
   }
 
+  /**
+   * 按队列公平性和并发限制选择待执行任务，交由 JobService 管理生命周期。
+   * Select queued jobs under fairness and concurrency limits and dispatch them through JobService.
+   */
   private async dispatchQueuedJobs() {
     while (this.activeJobs.size < this.config.concurrency) {
       const counts = new Map<string, number>();

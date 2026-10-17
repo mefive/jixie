@@ -19,6 +19,8 @@ _log_lines_emitted = 0
 _log_capped = False
 
 
+# 为用户回调安装墙钟超时，结束时取消计时并恢复原信号处理器。
+# English: Bound a user callback with a wall-clock timer and restore the prior signal handler afterward.
 def _run_user_code(callback: Callable[[], Any], timeout_label: str = "strategy") -> Any:
     def timeout_user_code(_signum: int, _frame: Any) -> None:
         raise TimeoutError(
@@ -35,6 +37,8 @@ def _run_user_code(callback: Callable[[], Any], timeout_label: str = "strategy")
         signal.signal(signal.SIGALRM, previous_handler)
 
 
+# 从协议流读满指定字节数，区分正常 EOF 与截断。
+# English: Read an exact protocol byte count and distinguish EOF from truncation.
 def _read_exact(size: int) -> bytes:
     chunks: list[bytes] = []
     remaining = size
@@ -66,11 +70,15 @@ def _send_frame(value: dict[str, Any]) -> None:
     _OUTPUT.flush()
 
 
+# 将用户标准输出转换为有界日志帧，避免污染协议流。
+# English: Convert user output into bounded log frames without corrupting the protocol stream.
 class _LogStream:
     def __init__(self, level: str) -> None:
         self.level = level
         self.pending = ""
 
+    # 接收标准输出文本并拆分日志行，处理缓冲与大小限制。
+    # English: Split written text into log lines with buffering and size limits.
     def write(self, text: str) -> int:
         original_length = len(text)
         self.pending += str(text)
@@ -89,6 +97,8 @@ class _LogStream:
             self.pending = ""
 
 
+# 按级别发送日志，维护共享缓冲上限。
+# English: Emit leveled logs under shared buffering limits.
 def _emit_log(level: str, text: str) -> None:
     global _log_lines_emitted, _log_capped
     if _log_lines_emitted >= _MAX_LOG_LINES:
@@ -114,6 +124,8 @@ def _receive_commands(handler: Callable[[dict[str, Any]], bool]) -> None:
         pass
 
 
+# 读取启动配置并分派业务运行器，统一处理帧循环和进程退出。
+# English: Read startup configuration and dispatch a business runner under the shared frame loop and process cleanup.
 def main() -> None:
     sys.stdout = _LogStream("info")
     sys.stderr = _LogStream("error")

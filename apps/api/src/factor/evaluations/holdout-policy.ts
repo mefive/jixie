@@ -6,6 +6,10 @@ import { enoughHoldoutPeriods, getHoldoutPolicy, parseResearchIntent } from './r
 import { resolveEtfCommonLatest } from '../observations/asset-factor-data-cutoff.js';
 import { reportResearchSpec } from './report-spec.js';
 
+/**
+ * 检查探索报告、预注册门槛和时间划分是否满足保留段准入。
+ * Check exploration evidence, preregistration and date splits for holdout eligibility.
+ */
 export async function holdoutEligibility(
   row: FactorReportRow & { status: string; error: string | null },
 ): Promise<FactorHoldoutEligibility> {
@@ -87,6 +91,10 @@ export async function holdoutEligibility(
   return { eligible: true, window: policy };
 }
 
+/**
+ * 以实际 ETF 数据截止日约束保留段范围，避免不可验证尾部。
+ * Cap holdout bounds to available ETF data.
+ */
 async function capHoldoutPolicyAtEtfData(
   policy: NonNullable<Awaited<ReturnType<typeof getHoldoutPolicy>>>,
   assets: string[],

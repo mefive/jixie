@@ -20,6 +20,10 @@ export function parseTaskIntent(value: unknown): SignalItem | FutureSignalItem {
   return signalItemSchema.parse(value);
 }
 
+/**
+ * 建立版本化账户基线与运行关联，供后续成交重放。
+ * Initialize versioned account baselines and execution associations for later replay.
+ */
 export async function initializeVersionedAccounting(runId: string): Promise<void> {
   const row = await prisma.signalRun.findUnique({
     where: { id: runId },
@@ -128,6 +132,10 @@ export async function initializeVersionedAccounting(runId: string): Promise<void
   });
 }
 
+/**
+ * 创建归属明确的执行任务及其版本输入，供人工录入与重放。
+ * Create an execution task with ownership and versioned input for manual fills and replay.
+ */
 export async function createExecutionTask(
   transaction: Prisma.TransactionClient,
   input: {

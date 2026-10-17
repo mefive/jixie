@@ -43,6 +43,10 @@ export function readEmbeddedRun(
   );
 }
 
+/**
+ * 序列化分页和取消选项，读取嵌入式运行历史。
+ * Load paginated embedded run history with cancellation options.
+ */
 export function listEmbeddedRuns(
   analysisId: string,
   cursor?: string,

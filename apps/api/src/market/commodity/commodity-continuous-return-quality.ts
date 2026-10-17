@@ -10,6 +10,10 @@ import { COMMODITY_MAIN_CONTRACT_SPECS } from './commodity-futures.js';
 
 export type CommodityContinuousReturnQualityStatus = 'pass' | 'warn' | 'error';
 
+/**
+ * 汇总单商品连续收益的覆盖与换月分解质量。
+ * Summarize one product's continuous-return coverage and roll quality.
+ */
 export interface CommodityContinuousReturnQualityProduct {
   productCode: string;
   expectedOpenDates: number;
@@ -24,6 +28,10 @@ export interface CommodityContinuousReturnQualityProduct {
   trailingMappingGaps: number;
 }
 
+/**
+ * 聚合连续收益质量发现，供研究数据审计。
+ * Collect continuous-return quality findings for research auditing.
+ */
 export interface CommodityContinuousReturnQualitySummary {
   status: CommodityContinuousReturnQualityStatus;
   rows: number;
@@ -33,6 +41,10 @@ export interface CommodityContinuousReturnQualitySummary {
   warnings: string[];
 }
 
+/**
+ * 检查商品连续收益账本的日期、合约与换月分解，汇总质量状态。
+ * Audit continuous return dates, contracts and roll decomposition and summarize quality findings.
+ */
 export async function auditCommodityContinuousReturns(
   options: { startDate: string; endDate: string },
   database: Prisma = prisma,
@@ -81,6 +93,10 @@ export async function auditCommodityContinuousReturns(
     (point) => !storedKeys.has(`${point.productCode}|${point.tradeDate}`),
   ).length;
 
+  /**
+   * 按产品比较预期日期、映射和收益链，形成连续收益质量诊断。
+   * Compare expected sessions, mappings and returns for product-level quality findings.
+   */
   const products = COMMODITY_MAIN_CONTRACT_SPECS.map(
     (specification): CommodityContinuousReturnQualityProduct => {
       const expectedOpenDates = calendar
@@ -156,6 +172,10 @@ export async function auditCommodityContinuousReturns(
   };
 }
 
+/**
+ * 核对收益账本中的点与来源映射、结算是否一致。
+ * Check a return-ledger point against its source mapping and settlements.
+ */
 function matchesPoint(
   stored: {
     version: number;

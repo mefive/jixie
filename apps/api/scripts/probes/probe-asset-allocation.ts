@@ -10,6 +10,10 @@ import {
 } from '#market/providers/tushare/capability-probe-store.js';
 import { TUSHARE_CAPABILITIES } from '#market/providers/tushare/capability-catalog.js';
 
+/**
+ * 解析探测日期并校验格式，供上游能力请求使用。
+ * Resolve and validate a probe date for upstream capability requests.
+ */
 function probeDate(args: string[]): string {
   const index = args.indexOf('--date');
   const value = index >= 0 ? args[index + 1] : undefined;
@@ -44,6 +48,10 @@ function displayRows(results: AssetAllocationProbeResult[]) {
   }));
 }
 
+/**
+ * 执行资产配置来源探测并按配置保存或输出证据。
+ * Probe allocation data sources and persist or print the resulting evidence.
+ */
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const date = probeDate(args);

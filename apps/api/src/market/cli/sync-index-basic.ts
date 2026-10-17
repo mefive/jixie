@@ -19,6 +19,7 @@ function parseCodes(value: string): string[] {
 }
 
 /**
+ * 同步宽基指数每日估值指标。
  * Sync broad-market index daily valuation metrics.
  * Usage: pnpm --filter api sync index-basic [start] [end] [major|CODE,CODE]
  */

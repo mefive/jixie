@@ -3,6 +3,10 @@ export const HKD_CNH_DERIVED_CODE = 'HKDCNH.DERIVED';
 
 export type CrossMarketBenchmarkMarket = 'CN' | 'HK' | 'US';
 
+/**
+ * 冻结跨市场基准身份、来源和币种语义。
+ * Define benchmark identities, sources and currency conventions.
+ */
 export interface CrossMarketBenchmarkDefinition {
   id: string;
   provider: 'Tushare Pro';

@@ -6,6 +6,10 @@ import type { CashPortfolio } from './cash-portfolio.js';
 import type { FactorEvaluator } from './factors/factor-evaluator.js';
 import type { OrderBook } from './order-book.js';
 
+/**
+ * 装配一个决策日的引擎上下文，连接行情、账户、因子求值和订单收集能力。
+ * Supply the market, account, factor and order capabilities used to construct one decision-date context.
+ */
 interface BacktestingContextInput {
   date: string;
   engineData: EngineData;
@@ -24,6 +28,10 @@ export class BacktestingContext implements EngineContext {
   readonly stock: EngineContext['stock'];
   readonly futures: EngineContext['futures'];
 
+  /**
+   * 将当日行情、因子和账户绑定到引擎上下文，订单能力委托给订单簿。
+   * Bind dated market, factor and account capabilities to the context and delegate orders to the book.
+   */
   constructor(private readonly input: BacktestingContextInput) {
     const { date, engineData, cashPortfolio, futuresPortfolio, orderBook } = input;
     this.portfolio = {

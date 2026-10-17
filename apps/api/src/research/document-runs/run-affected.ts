@@ -10,6 +10,10 @@ import { executeResearchCellById } from './run-cell.js';
 import { buildResearchDocumentRunResult } from './run-result.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
+/**
+ * 验证归属及依赖后构造受影响计划，再在文档控制下执行。
+ * Authorize the document, build its affected plan and execute under document run control.
+ */
 export async function runAffectedResearchCells(
   userId: string,
   cellId: string,

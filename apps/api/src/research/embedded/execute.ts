@@ -21,6 +21,10 @@ export function abortEmbeddedRuntime(runId: string) {
   activeControllers.get(runId)?.abort(new ResearchError('embedded_cancelled'));
 }
 
+/**
+ * 返回嵌入式运行的终态与证据引用。
+ * Return embedded execution status and evidence references.
+ */
 export interface EmbeddedExecutionResult {
   runId: string;
   cellExecutionId: string;
@@ -33,6 +37,10 @@ export interface EmbeddedExecutionResult {
   materialized: MaterializedResearchOutputs;
 }
 
+/**
+ * 执行冻结嵌入式版本并记录输入和输出，首次成功后固定版本。
+ * Execute a frozen embedded version with retained inputs and outputs and freeze it after the first success.
+ */
 export async function executeEmbeddedRun(
   runId: string,
   userId: string,

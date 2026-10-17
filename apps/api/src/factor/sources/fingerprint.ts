@@ -8,6 +8,10 @@ export function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+/**
+ * 递归稳定排序 JSON 键，供来源指纹跨对象顺序一致。
+ * Sort JSON keys recursively for order-independent source fingerprints.
+ */
 function sortJsonValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     return value.map(sortJsonValue);

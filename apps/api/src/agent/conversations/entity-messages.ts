@@ -6,6 +6,10 @@ import type { TurnEntity } from '../turns/run.js';
 
 // —— entity messages IO ——
 
+/**
+ * 读取并校验实体持久化对话消息，为恢复 Agent 上下文提供可信历史。
+ * Read and validate an entity's persisted messages before restoring agent context.
+ */
 export async function readMessages(
   entity: TurnEntity,
   userId: string,
@@ -65,6 +69,10 @@ export async function readMessages(
   return Array.isArray(row.messages) ? (row.messages as unknown[]) : [];
 }
 
+/**
+ * 将实体对话消息写回其持久化会话，供后续轮次恢复。
+ * Persist entity conversation messages for subsequent turns.
+ */
 export async function writeMessages(entity: TurnEntity, messages: ChatMessage[]): Promise<void> {
   if (entity.kind === 'research' || entity.kind === 'factor-question') {
     return;

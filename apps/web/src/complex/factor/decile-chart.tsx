@@ -2,6 +2,10 @@ import { useTranslation } from 'react-i18next';
 import type { BucketStat } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
+/**
+ * 提供分位组统计与方向，供收益图渲染。
+ * Supply quantile statistics and direction to the decile chart.
+ */
 interface Props {
   buckets: BucketStat[]; // length 10, ascending by factor value (D1 low … D10 high)
 }
@@ -16,6 +20,11 @@ function inkRamp(i: number, n: number): string {
 }
 
 // Lazy-loaded so echarts stays in its own chunk (apps/web/CLAUDE.md §3).
+
+/**
+ * 展示分位组收益比较，供检查因子单调性。
+ * Render quantile-return comparisons for factor monotonicity inspection.
+ */
 export default function DecileChart({ buckets }: Props) {
   const { t } = useTranslation('factor');
   const n = buckets.length;

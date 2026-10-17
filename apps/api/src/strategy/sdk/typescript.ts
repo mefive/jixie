@@ -29,7 +29,10 @@ import { Universe } from './universe.js';
 import { ResampledSeries } from './resampled-series.js';
 import { smaValues, emaValues, atrBars, extremeValues, avgField } from './indicators.js';
 
-/** Normalize a public definition; the runner constructs the context before invoking its callback. */
+/**
+ * 规范化作者策略定义；运行器在调用回调前创建公开上下文。
+ * Normalize a public definition; the runner constructs the context before invoking its callback.
+ */
 export function defineStrategy<const Params extends StrategyParams = Record<string, never>>(
   definition: CodeStrategy<Params>,
 ): StrategyDefinition {
@@ -55,6 +58,10 @@ export class StrategyContext<
   readonly stock: StrategyCtx<Params>['stock'];
   readonly futures: StrategyCtx<Params>['futures'];
 
+  /**
+   * 将注入原始能力包装为公开策略上下文，集中实现指标与周期辅助。
+   * Wrap injected primitives in the public strategy context and helpers.
+   */
   constructor(capabilities: StrategyCapabilities, params = {} as Params) {
     this.#capabilities = capabilities;
     this.date = capabilities.date;
@@ -234,6 +241,10 @@ export class StrategyContext<
   }
 }
 
+/**
+ * 按参数覆盖更新作者定义，供参数扫描复用同一策略源码。
+ * Apply parameter overrides to an authored definition for source-stable scans.
+ */
 export function applyStrategyParamOverrides(
   strategy: Pick<StrategyDefinition, 'params'>,
   overrides?: Record<string, StrategyParamValue>,
@@ -275,7 +286,10 @@ function validParamValue(value: StrategyParamValue): boolean {
     : value.trim().length > 0 && value.length <= 100;
 }
 
-/** Period bucket for a schedule — a new key means a new period (rebalance boundary). */
+/**
+ * 将日期映射到调度周期键，键变化表示新的调仓边界。
+ * Period bucket for a schedule — a new key means a new period (rebalance boundary).
+ */
 export function periodKey(date: string, schedule: Schedule): string {
   if (schedule === 'monthly') {
     return date.slice(0, 6);

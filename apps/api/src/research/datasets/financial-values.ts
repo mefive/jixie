@@ -14,6 +14,10 @@ import { canonicalStockCode } from '#market/instruments/stock-identity.js';
 import { prisma } from '#infra/database/prisma.js';
 import { normalizeFinancialFields, validateFinancialReportRange } from './financial.js';
 
+/**
+ * 限定所选财报科目、期间口径与报告期范围。
+ * Request selected statement fields, period semantics and report bounds.
+ */
 export interface ResearchFinancialValuesRequestV1 {
   identifiers: string | string[];
   as_of: string;
@@ -23,7 +27,10 @@ export interface ResearchFinancialValuesRequestV1 {
   period?: ResearchFinancialPeriodV1;
 }
 
-/** Read bounded, explicitly selected fields without applying industrial valuation formulas. */
+/**
+ * 只读取显式选择且有界的财报字段，不隐式应用工业企业估值公式。
+ * Read bounded, explicitly selected fields without applying industrial valuation formulas.
+ */
 export async function loadResearchFinancialValues(
   request: ResearchFinancialValuesRequestV1,
   database: PrismaClient = prisma,
@@ -77,6 +84,11 @@ export async function loadResearchFinancialValues(
     },
     database,
   );
+
+  /**
+   * 将选定财报来源按字段和期间展开为长表，保留版本指纹。
+   * Expand selected statement fields and periods into long-table rows with source fingerprints.
+   */
   const result = states.flatMap((state) => {
     const statements: ResolvedFinancialStatement[] = state.periods.flatMap((entry) =>
       [entry.income, entry.balanceSheet, entry.cashFlow].filter(

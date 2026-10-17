@@ -5,6 +5,7 @@ import { TIME_SERIES_TEMPLATES } from './templates/time-series.js';
 import { PANEL_TEMPLATES } from './templates/panel.js';
 
 /**
+ * 幂等地将预置代码物化为只读因子记录，启动时保持来源版本一致。
  * Idempotent seed: materialize every preset into its read-only Factor row (called on server boot).
  * A code change updates only the current preset row. Historical reports retain the exact source used
  * for their run.

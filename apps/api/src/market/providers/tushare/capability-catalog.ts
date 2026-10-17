@@ -8,6 +8,10 @@ export type TushareCapabilityProbeCoverage =
   | 'full_response'
   | 'reference_snapshot';
 
+/**
+ * 定义来源能力的域、频率、权限与探测覆盖。
+ * Describe provider capability domain, frequency, permissions and probe coverage.
+ */
 export interface TushareCapabilityDefinitionV1 {
   version: 1;
   domain: TushareCapabilityDomain;

@@ -6,6 +6,10 @@ import { useTranslation } from 'react-i18next';
 
 const DEFAULT_PAGE_SIZE = 50;
 
+/**
+ * 将研究长表渲染为可浏览表格，按列类型格式化并处理截断说明。
+ * Render research tables with type-aware formatting and truncation information.
+ */
 export function ResearchCellTable({
   output,
   compact = false,
@@ -112,6 +116,10 @@ export function ResearchCellTable({
   );
 }
 
+/**
+ * 按研究表格单元类型格式化数值、空值和复杂对象。
+ * Format research table cells by numeric, missing and structured value types.
+ */
 function formatTableValue(value: unknown): string {
   if (typeof value === 'number') {
     return Number.isInteger(value)

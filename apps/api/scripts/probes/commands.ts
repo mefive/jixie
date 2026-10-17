@@ -25,6 +25,10 @@ export function parseProbeArguments(input: string[]) {
   return parseCommandArguments('probe', probeCommands, input, validateProbeParameters);
 }
 
+/**
+ * 校验能力探测命令参数，避免无效来源请求。
+ * Validate probe command parameters before source access.
+ */
 function validateProbeParameters(command: CommandDefinition, input: string[]): void {
   // The old deployment invocation includes an optional separator after the task name.
   const args = input[0] === '--' ? input.slice(1) : input;

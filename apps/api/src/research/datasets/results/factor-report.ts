@@ -6,6 +6,10 @@ import { normalizeFactorResearchSpec } from '#factor/analysis/spec.js';
 
 const MAX_FACTOR_REPORT_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
+/**
+ * 限制因子报告可序列化值，供公开 Python 结果。
+ * Constrain serializable factor-report values for public Python results.
+ */
 type ResearchJsonValue =
   | null
   | boolean
@@ -14,6 +18,10 @@ type ResearchJsonValue =
   | ResearchJsonValue[]
   | { [key: string]: ResearchJsonValue };
 
+/**
+ * 封装可见因子报告的冻结研究规格和结果。
+ * Collect visible frozen factor research specifications and results.
+ */
 export interface ResearchFactorReportResultV1 extends Record<string, unknown> {
   version: 1;
   report_id: string;
@@ -35,6 +43,10 @@ export interface ResearchFactorReportResultV1 extends Record<string, unknown> {
   report: ResearchJsonValue;
 }
 
+/**
+ * 校验因子报告可见性与揭示状态，再输出冻结研究结果。
+ * Authorize factor report visibility and reveal state before returning frozen evidence.
+ */
 export async function loadResearchFactorReportResult(
   documentId: string,
   reportId: string,
@@ -116,6 +128,10 @@ export async function loadResearchFactorReportResult(
   };
 }
 
+/**
+ * 提供恢复报告研究规格所需的持久化字段。
+ * Supply persisted fields needed to recover a report specification.
+ */
 interface FactorReportSpecRow {
   specJson: string | null;
   freq: string;
@@ -124,6 +140,10 @@ interface FactorReportSpecRow {
   neutral: string;
 }
 
+/**
+ * 恢复报告冻结的研究规格，供 Python 结果携带可解释上下文。
+ * Recover frozen report specifications for interpretable Python result metadata.
+ */
 function factorReportResearchSpec(row: FactorReportSpecRow): FactorResearchSpecV1 {
   if (row.specJson) {
     try {
@@ -155,6 +175,10 @@ function parseJsonObject(value: string, label: string): Record<string, unknown> 
   return parsed as Record<string, unknown>;
 }
 
+/**
+ * 将因子结果 JSON 的键转换为 snake_case，保持数值与空值。
+ * Convert factor result JSON keys to snake_case without changing values or nulls.
+ */
 function snakeCaseJson(value: unknown): ResearchJsonValue {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') {
     return value;

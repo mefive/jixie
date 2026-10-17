@@ -15,8 +15,11 @@ const SIZE_KEY = 'size'; // the fixed pseudo-factor: log(total market cap), alwa
 const SIZE_LABEL = '市值(ln)';
 const MIN_PAIR_STOCKS = 50; // skip a date's pair correlation if fewer than this many stocks overlap
 
-/** Build the log-market-cap "size" pseudo-factor series from the rebalance snapshots, so every real
- * factor's entanglement with size is always visible in the matrix (the "is it just a cap bet?" check). */
+/**
+ * 从调仓快照构造对数市值伪因子，供真实因子与规模的纠缠比较。
+ * Build the log-market-cap "size" pseudo-factor series from the rebalance snapshots, so every real
+ * factor's entanglement with size is always visible in the matrix (the "is it just a cap bet?" check).
+ */
 function sizeSeries(snaps: Map<string, Snap>): Map<string, Map<string, number>> {
   const byDate = new Map<string, Map<string, number>>();
   for (const [date, snap] of snaps) {
@@ -31,7 +34,10 @@ function sizeSeries(snaps: Map<string, Snap>): Map<string, Map<string, number>> 
   return byDate;
 }
 
-/** Turn a factor's Series (date → [{tsCode,value}]) into per-date lookup maps for fast pair intersection. */
+/**
+ * 将日期到观测列表转换为逐日证券查找，供相关性快速求交集。
+ * Turn a factor's Series (date → [{tsCode,value}]) into per-date lookup maps for fast pair intersection.
+ */
 function toLookup(series: Series): Map<string, Map<string, number>> {
   const byDate = new Map<string, Map<string, number>>();
   for (const [date, rows] of series) {
@@ -44,8 +50,11 @@ function toLookup(series: Series): Map<string, Map<string, number>> {
   return byDate;
 }
 
-/** Mean cross-sectional Spearman between two factor columns across the rebalance dates: on each date,
- * rank both on the stocks they share and correlate; average over dates with enough overlap. */
+/**
+ * 逐调仓日对共同证券计算 Spearman，再汇总跨期均值。
+ * Mean cross-sectional Spearman between two factor columns across the rebalance dates: on each date,
+ * rank both on the stocks they share and correlate; average over dates with enough overlap.
+ */
 function meanPairwiseSpearman(
   a: Map<string, Map<string, number>>,
   b: Map<string, Map<string, number>>,
@@ -77,6 +86,7 @@ function meanPairwiseSpearman(
 }
 
 /**
+ * 计算 2–8 个因子及固定规模列的相关性矩阵，保留共同样本口径。
  * Correlation matrix over 2–8 factors + a fixed size column: on each rebalance date, the pairwise
  * cross-sectional Spearman on the stocks two factors share, averaged over dates. Reuses the single-
  * factor path (computeFactorSeries) per factor, so windowed factors (e.g. momentum) walk their price

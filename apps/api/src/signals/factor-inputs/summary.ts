@@ -1,7 +1,10 @@
 import type { FactorDependency, FactorInputSummary } from '@jixie/shared';
 import type { FactorObservation } from '#backtesting/result.js';
 
-/** Reduce final-bar factor reads to statistics plus values for assets affected by the run. */
+/**
+ * 将末根行情的因子读取归纳为统计及本次涉及资产的数值。
+ * Reduce final-bar factor reads to statistics plus values for assets affected by the run.
+ */
 export function summarizeFactorInputs(
   factors: FactorDependency[],
   asOfDate: string,

@@ -5,12 +5,19 @@ import {
   CHINA_TREASURY_CURVE_TYPE,
 } from '../registry/yield-curves.js';
 
+/**
+ * 返回所需期限最近可见利率及陈旧性，供下游自行准入。
+ * Return the latest visible yield and age per tenor for downstream admission.
+ */
 export interface GovernmentYieldAvailability {
   termYears: number;
   availableDate: string;
 }
 
-/** Load the latest point-in-time observation for each requested maturity. */
+/**
+ * 为每个所需期限加载最新时点可得的官方利率观测。
+ * Load the latest point-in-time observation for each requested maturity.
+ */
 export async function loadGovernmentYieldAvailability(
   requiredTerms: number[],
   tradeDate: string,

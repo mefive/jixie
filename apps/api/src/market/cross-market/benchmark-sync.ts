@@ -7,6 +7,10 @@ import {
   CROSS_MARKET_BENCHMARKS,
 } from '../registry/cross-market-benchmarks.js';
 
+/**
+ * 规范化跨市场基准行情，保留源市场日期与计价。
+ * Describe normalized benchmark bars with source dates and denomination.
+ */
 export interface CrossMarketBenchmarkBar {
   benchmarkId: string;
   tradeDate: string;
@@ -22,10 +26,18 @@ export interface CrossMarketBenchmarkBar {
   volume: number | null;
 }
 
+/**
+ * 汇总跨市场基准同步与覆盖结果。
+ * Summarize cross-market benchmark synchronization and coverage.
+ */
 export interface CrossMarketBenchmarkSyncSummary {
   benchmarkRows: Record<string, number>;
 }
 
+/**
+ * 隔离基准来源访问，供同步实现和可替换测试来源。
+ * Abstract benchmark source access for synchronization and source substitutes.
+ */
 export interface CrossMarketBenchmarkClient {
   call(apiName: string, params?: Record<string, unknown>, fields?: string): Promise<TushareRow[]>;
 }
@@ -34,7 +46,10 @@ const INDEX_DAILY_FIELDS = 'ts_code,trade_date,open,high,low,close,pre_close,cha
 const INDEX_GLOBAL_FIELDS =
   'ts_code,trade_date,open,high,low,close,pre_close,change,pct_chg,swing,vol';
 
-/** Validate and normalize one provider slice without changing its price-index semantics. */
+/**
+ * 校验并规范化单来源基准切片，保持价格指数原有语义。
+ * Validate and normalize one provider slice without changing its price-index semantics.
+ */
 export function parseCrossMarketBenchmarkRows(
   definition: CrossMarketBenchmarkDefinition,
   rows: TushareRow[],
@@ -95,7 +110,10 @@ export function parseCrossMarketBenchmarkRows(
     .sort((left, right) => left.tradeDate.localeCompare(right.tradeDate));
 }
 
-/** Idempotently synchronize the fixed CN/HK/US benchmark set in bounded five-year slices. */
+/**
+ * 按有界五年切片幂等同步固定中港美基准集合。
+ * Idempotently synchronize the fixed CN/HK/US benchmark set in bounded five-year slices.
+ */
 export async function syncCrossMarketBenchmarks(
   client: CrossMarketBenchmarkClient,
   startDate: string,
@@ -191,6 +209,10 @@ function benchmarkReferenceRow(benchmark: CrossMarketBenchmarkDefinition) {
   };
 }
 
+/**
+ * 检查基准来源行是否超出请求日线范围，阻止来源忽略参数。
+ * Detect benchmark rows outside the requested daily bounds.
+ */
 function outsideDailyRange(value: number | null, low: number | null, high: number | null): boolean {
   if (value == null || low == null || high == null) {
     return false;
@@ -220,6 +242,10 @@ function requiredNumber(row: TushareRow, field: string): number {
   return value;
 }
 
+/**
+ * 解析来源可选数值，保留缺失并拒绝非法数字。
+ * Parse an optional source number while preserving missing values and rejecting invalid numbers.
+ */
 function optionalNumber(row: TushareRow, field: string): number | null {
   const value = row[field];
   if (value == null || value === '') {
@@ -238,6 +264,10 @@ function assertDateRange(startDate: string, endDate: string): void {
   }
 }
 
+/**
+ * 按五年切分基准请求，避免超出上游返回上限。
+ * Split benchmark requests into five-year slices to respect source limits.
+ */
 function fiveYearRanges(startDate: string, endDate: string) {
   const ranges: Array<{ startDate: string; endDate: string }> = [];
   for (let year = Number(startDate.slice(0, 4)); year <= Number(endDate.slice(0, 4)); year += 5) {

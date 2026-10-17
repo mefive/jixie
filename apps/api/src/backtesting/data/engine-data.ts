@@ -11,12 +11,19 @@ import { StockNameLookup } from '#market/instruments/stock-identity.js';
 import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
 import type { BarRow, FutureBar, IndexValuationField, OhlcBar, ResamplePeriod } from './market.js';
 
-/** Whole-market cross-section for one trading day. */
+/**
+ * 表示一个交易日的全市场可用截面，用于策略选股与因子计算。
+ * Whole-market cross-section for one trading day.
+ */
 export interface CrossSection {
   codes: string[]; // tradable codes that day (ascending), the rankable universe
   byCode: Map<string, BarRow>;
 }
 
+/**
+ * 缓存单只现金资产的逐日价格、成交量与复权信息，供同步行情读取使用。
+ * Cache one cash instrument's dated price, volume and adjustment series for synchronous reads.
+ */
 interface StockBars {
   dates: string[]; // ascending trading days
   adjOpen: number[];
@@ -32,12 +39,20 @@ interface StockBars {
   idx: Map<string, number>; // date -> index (exact)
 }
 
+/**
+ * 缓存由日线聚合的高周期行情及其完成日期，供时点安全的周月线读取。
+ * Store aggregated higher-timeframe bars and completion dates for point-in-time reads.
+ */
 interface ResampledBars {
   keys: string[];
   dates: string[];
   bars: OhlcBar[];
 }
 
+/**
+ * 保留官方国债收益率的观测和可得日期，供决策日选择可见利率。
+ * Retain official government-yield values and visibility dates for decision-time selection.
+ */
 export interface GovernmentYieldObservation {
   availableDate: string;
   yieldPct: number;
@@ -53,12 +68,20 @@ const COLUMN_FACTOR_DEFS = new Map<string, EngineFactorDef>(
 const DAILY_ASOF_CAP_DAYS = 14;
 const MONTHLY_ASOF_CAP_DAYS = 35;
 
+/**
+ * 声明因子与策略需要的预载数据能力，决定行情加载范围。
+ * Declare data capabilities required by factors and strategy reads to control preloading.
+ */
 export interface EngineDataRequirements {
   turnoverRateFHistory: boolean;
   fundamentalHistory: boolean;
   governmentYieldCurve: boolean;
 }
 
+/**
+ * 配置 EngineData 的数据端口、运行区间和按需预载要求。
+ * Configure EngineData's port, simulation range and optional preload requirements.
+ */
 export interface EngineDataOptions {
   start: string;
   end: string;
@@ -167,13 +190,19 @@ export class EngineData {
     };
   }
 
-  /** Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller aligns to nav). */
+  /**
+   * 返回预载的指数收盘序列，供调用方按净值日期对齐后计算超额收益与信息比率。
+   * Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller aligns to nav).
+   */
   indexCloses(code: string): { date: string; close: number }[] {
     const s = this.indexByCode.get(code);
     return s ? s.dates.map((date, i) => ({ date, close: s.closes[i] })) : [];
   }
 
-  /** Exact-date index close. Benchmark histories must not carry a stale close across a missing day. */
+  /**
+   * 只读取精确日期的指数收盘，不跨缺失日期沿用旧价格。
+   * Exact-date index close. Benchmark histories must not carry a stale close across a missing day.
+   */
   indexCloseOn(code: string, date: string): number | null {
     const series = this.indexByCode.get(code);
     if (!series) {
@@ -183,7 +212,10 @@ export class EngineData {
     return index >= 0 && series.dates[index] === date ? series.closes[index] : null;
   }
 
-  /** Latest official government yield visible on the decision date, with a daily staleness cap. */
+  /**
+   * 读取决策日可见且未超过陈旧上限的最近官方国债收益率。
+   * Latest official government yield visible on the decision date, with a daily staleness cap.
+   */
   governmentYieldAsOf(termYears: number, date: string): number | null {
     const series = this.governmentYieldByTerm.get(termYears);
     if (!series) {
@@ -196,7 +228,10 @@ export class EngineData {
     return series.values[index];
   }
 
-  /** Official yield observations visible by `date`, newest last and bounded to the requested count. */
+  /**
+   * 读取截至决策日已可见的官方利率历史，按时间升序并限制数量。
+   * Official yield observations visible by `date`, newest last and bounded to the requested count.
+   */
   governmentYieldHistoryAsOf(
     termYears: number,
     date: string,
@@ -221,8 +256,11 @@ export class EngineData {
     return observations;
   }
 
-  /** Index close as-of `date` (latest index date ≤ date); null if the index isn't synced / no data yet.
-   * Powers ctx.index(code).close — point-in-time, no forward data. */
+  /**
+   * 读取不晚于指定日期的最近指数收盘，未同步或尚无数据时返回 null。
+   * Index close as-of `date` (latest index date ≤ date); null if the index isn't synced / no data yet.
+   * Powers ctx.index(code).close — point-in-time, no forward data.
+   */
   indexCloseAsOf(code: string, date: string): number | null {
     const s = this.indexByCode.get(code);
     if (!s) {
@@ -232,7 +270,10 @@ export class EngineData {
     return i >= 0 ? s.closes[i] : null;
   }
 
-  /** n-day SMA of an index's close as-of `date` (point-in-time); null if fewer than n closes exist yet. */
+  /**
+   * 只用指定日期以前的指数收盘计算移动平均，历史不足时返回 null。
+   * n-day SMA of an index's close as-of `date` (point-in-time); null if fewer than n closes exist yet.
+   */
   indexSma(code: string, date: string, n: number): number | null {
     const s = this.indexByCode.get(code);
     if (!s) {
@@ -249,7 +290,10 @@ export class EngineData {
     return sum / n;
   }
 
-  /** Provider-computed index valuation as-of `date`, never reading a later observation. */
+  /**
+   * 读取决策日之前已公布的指数估值，避免读取未来观测。
+   * Provider-computed index valuation as-of `date`, never reading a later observation.
+   */
   indexValuationAsOf(code: string, date: string, field: IndexValuationField): number | null {
     const series = this.indexBasicByCode.get(code);
     if (!series) {
@@ -264,7 +308,10 @@ export class EngineData {
     return null;
   }
 
-  /** Historical percentile in [0, 1], using only valuation observations at or before `date`. */
+  /**
+   * 只用截至决策日的估值历史计算分位数，结果范围为 [0, 1]。
+   * Historical percentile in [0, 1], using only valuation observations at or before `date`.
+   */
   indexValuationPercentile(
     code: string,
     date: string,
@@ -301,6 +348,10 @@ export class EngineData {
     return count > 0 ? atOrBelow / count : null;
   }
 
+  /**
+   * 按需求预载交易日历、证券身份、行情及辅助数据，并建立同步读取索引与缓存。
+   * Preload calendars, instrument identities, prices and requested auxiliary data, then build synchronous lookup indexes and caches.
+   */
   async load(): Promise<void> {
     // Price reads stay strictly inside [start, end]. The small calendar-only lookahead lets the last
     // backtest bar tell whether its ISO week / natural month has actually closed (including a
@@ -493,7 +544,10 @@ export class EngineData {
 
   }
 
-  /** Instruments whose histories are already available to synchronous strategy reads. */
+  /**
+   * 列出已缓存历史行情的证券，供同步策略读取判断可访问范围。
+   * Instruments whose histories are already available to synchronous strategy reads.
+   */
   loadedBarCodes(): string[] {
     return [...this.barsCache.keys()];
   }
@@ -502,6 +556,10 @@ export class EngineData {
     return this.nextDayOf.get(date) ?? date;
   }
 
+  /**
+   * 验证期货执行所需行情和映射已具备，避免在不完整数据上成交。
+   * Require the futures market data and mappings needed for execution.
+   */
   assertFutureExecution(code: string, knownDate: string, executionDate: string, closingActualCode?: string): void {
     if (!this.options.strictFutures) { return; }
     const actualCode = closingActualCode ?? this.futureExecutionCode(code, knownDate, executionDate);
@@ -530,6 +588,10 @@ export class EngineData {
     };
   }
 
+  /**
+   * 按指定日期的映射解析期货连续代码对应的实际交割合约。
+   * Resolve a continuous futures code to its mapped delivery contract on the requested date.
+   */
   futureActualCode(code: string, date: string): string | null {
     if (this.futureContractByCode.has(code)) {
       return code;
@@ -542,9 +604,12 @@ export class EngineData {
     return index >= 0 ? mapping.actualCodes[index] : null;
   }
 
-  /** Resolve the actual contract tradable at `executionDate` using information available on
+  /**
+   * 仅用已知日可得的映射解析执行日合约；临近到期时遵循实现中的换约处理。
+   * Resolve the actual contract tradable at `executionDate` using information available on
    * `knownDate`. If the vendor main mapping still points at a contract on its last trading day,
-   * proactively choose the active same-product contract with the highest known open interest. */
+   * proactively choose the active same-product contract with the highest known open interest.
+   */
   futureExecutionCode(code: string, knownDate: string, executionDate: string): string | null {
     const mappedCode = this.futureActualCode(code, knownDate);
     if (!mappedCode) {
@@ -578,6 +643,10 @@ export class EngineData {
     return selectedCode;
   }
 
+  /**
+   * 读取实际期货合约在指定日期的行情，供成交与结算使用。
+   * Read an actual futures contract's dated bar for execution and settlement.
+   */
   futureBar(code: string, date: string): FutureBar | null {
     const actualCode = this.futureActualCode(code, date);
     if (!actualCode) {
@@ -613,6 +682,10 @@ export class EngineData {
     return this.futureBar(actualCode, date);
   }
 
+  /**
+   * 读取截止日以前的期货历史窗口，供策略进行同步历史查询。
+   * Read a bounded futures history window ending at the requested date.
+   */
   futureHistory(
     code: string,
     date: string,
@@ -657,13 +730,19 @@ export class EngineData {
     return side === 'long' ? (row?.longMarginRate ?? null) : (row?.shortMarginRate ?? null);
   }
 
-  /** Calendar days since listing as of `date` (point-in-time stock age), or null if unknown. */
+  /**
+   * 按指定日期计算自上市以来的自然日数，上市信息缺失时返回 null。
+   * Calendar days since listing as of `date` (point-in-time stock age), or null if unknown.
+   */
   listDays(code: string, date: string): number | null {
     const ld = this.listDateOf.get(code);
     return ld ? daysBetween(ld, date) : null;
   }
 
-  /** Point-in-time SW level-1 industry label covering `date`, or null if no spell covers it. */
+  /**
+   * 读取覆盖指定日期的申万一级行业归属，无对应区间时返回 null。
+   * Point-in-time SW level-1 industry label covering `date`, or null if no spell covers it.
+   */
   industry(code: string, date: string): string | null {
     const spells = this.industrySpellsByCode.get(code);
     if (!spells) {
@@ -678,18 +757,25 @@ export class EngineData {
     return null;
   }
 
-  /** A position cannot be carried beyond the instrument's official final listing date. */
+  /**
+   * 根据官方最后上市日期判断持仓是否已不能继续结转。
+   * A position cannot be carried beyond the instrument's official final listing date.
+   */
   delistedBefore(code: string, date: string): string | null {
     const delistDate = this.delistDateOf.get(code);
     return delistDate != null && date > delistDate ? delistDate : null;
   }
 
-  /** Today's Dragon-Tiger List net buy amount (yuan) for `code`, or null if it wasn't on the Dragon-Tiger List that exact day (not carried forward). */
+  /**
+   * 读取指定日龙虎榜净买入金额，单位为元；当日未上榜返回 null，不沿用前值。
+   * Today's Dragon-Tiger List net buy amount (yuan) for `code`, or null if it wasn't on the Dragon-Tiger List that exact day (not carried forward).
+   */
   lhbNet(code: string, date: string): number | null {
     return this.lhbByDate.get(date)?.get(code) ?? null;
   }
 
   /**
+   * 按交易日惰性构建并缓存可交易截面，要求同日具备行情、复权和估值数据。
    * Tradable cross-section for `date` (lazy + cached). A code is included only if it has a daily bar, an
    * adjustment factor, and a valuation row that day (i.e. it actually traded with valuation).
    *
@@ -777,9 +863,12 @@ export class EngineData {
     return cs;
   }
 
-  /** Stored factor value for `date`, honoring the factor's DECLARED time semantics (engine-factors.ts):
+  /**
+   * 按因子声明的时间语义读取历史值；流量只取当日值，状态值遵守各自可得规则。
+   * Stored factor value for `date`, honoring the factor's DECLARED time semantics (engine-factors.ts):
    * flow = exact day only (yesterday's inflow is not today's — same rule as lhbNet); level = as-of
-   * (latest value ≤ date) capped by the data's frequency, so a stale value can't ride forever. */
+   * (latest value ≤ date) capped by the data's frequency, so a stale value can't ride forever.
+   */
   factor(name: string, date: string, code: string): number | null {
     const def = COLUMN_FACTOR_DEFS.get(name);
     if (def?.kind === 'flow') {
@@ -801,18 +890,27 @@ export class EngineData {
     return this.factorByKey.get(`${name}|${dates[j]}`)?.get(code) ?? null;
   }
 
-  /** Point-in-time ROE (%) for `code` as-of `date` — sync read for custom-factor 'roe' histories.
-   * Set requirements.fundamentalHistory before load() to make histories available immediately. */
+  /**
+   * 读取决策日已可得的 ROE 百分比历史；加载前须声明基本面历史需求。
+   * Point-in-time ROE (%) for `code` as-of `date` — sync read for custom-factor 'roe' histories.
+   * Set requirements.fundamentalHistory before load() to make histories available immediately.
+   */
   roeHistoryAt(code: string, date: string): number | null {
     return this.finaAsOf(code, date)?.roe ?? null;
   }
 
-  /** Point-in-time gross profit margin (%) for custom-factor histories. */
+  /**
+   * 读取用于自定义因子的、满足时点可见性的毛利率百分比历史。
+   * Point-in-time gross profit margin (%) for custom-factor histories.
+   */
   grossProfitMarginHistoryAt(code: string, date: string): number | null {
     return this.finaAsOf(code, date)?.grossprofitMargin ?? null;
   }
 
-  /** Load all financial indicators once (PIT-gated by annDate), grouped by code ascending. */
+  /**
+   * 一次加载并按证券组织财务指标，通过公告日期控制历史可见性。
+   * Load all financial indicators once (PIT-gated by annDate), grouped by code ascending.
+   */
   private async ensureFina(): Promise<void> {
     if (this.finaLoaded) {
       return;
@@ -835,7 +933,10 @@ export class EngineData {
     }
   }
 
-  /** Latest financial report public as-of `date` for `code` (point-in-time), or null. */
+  /**
+   * 返回指定证券截至决策日已公开的最新财务报告，无报告时返回 null。
+   * Latest financial report public as-of `date` for `code` (point-in-time), or null.
+   */
   private finaAsOf(
     code: string,
     date: string,
@@ -865,7 +966,10 @@ export class EngineData {
     return ans < 0 ? null : list[ans];
   }
 
-  /** Point-in-time constituents of `indexCode` as of `date` (codes from the latest snapshot ≤ date). */
+  /**
+   * 读取不晚于指定日期的最近指数成分快照。
+   * Point-in-time constituents of `indexCode` as of `date` (codes from the latest snapshot ≤ date).
+   */
   async indexMembers(indexCode: string, date: string): Promise<string[]> {
     let idx = this.indexCache.get(indexCode);
     if (!idx) {
@@ -901,9 +1005,12 @@ export class EngineData {
     return [...(idx.membersByDate.get(idx.dates[j]) ?? [])];
   }
 
-  /** Batch-load (and cache) daily adjusted bar series for any codes not yet cached. One port call
+  /**
+   * 批量加载尚未缓存的证券日线历史；端口实现负责分块，后续同步查询复用缓存。
+   * Batch-load (and cache) daily adjusted bar series for any codes not yet cached. One port call
    * for all missing codes (the direct-lane implementation chunks internally; the walled lane makes
-   * it one crossing). */
+   * it one crossing).
+   */
   async loadBars(codes: string[]): Promise<void> {
     const missing = codes.filter((c) => !this.barsCache.has(c));
     if (missing.length === 0) {
@@ -974,7 +1081,10 @@ export class EngineData {
     return this.sameDayTurnoverEtfCodes.has(code);
   }
 
-  /** Adjusted open on exactly `date` (null if the stock didn't trade that day). */
+  /**
+   * 只读取精确日期的复权开盘价，当日无交易时返回 null。
+   * Adjusted open on exactly `date` (null if the stock didn't trade that day).
+   */
   adjustedOpenOn(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
     if (!b) {
@@ -984,9 +1094,12 @@ export class EngineData {
     return i == null ? null : b.adjOpen[i];
   }
 
-  /** Adjusted OHLC on exactly `date` (null when suspended / no bar). Conditional orders must use
+  /**
+   * 只读取精确日期的复权 OHLC，避免条件单在停牌日使用结转旧行情成交。
+   * Adjusted OHLC on exactly `date` (null when suspended / no bar). Conditional orders must use
    * an exact-day row instead of the carried history helpers, otherwise a suspension could retrigger
-   * against an earlier day's range. */
+   * against an earlier day's range.
+   */
   adjustedOhlcOn(
     code: string,
     date: string,
@@ -1007,8 +1120,11 @@ export class EngineData {
     };
   }
 
-  /** Raw turnover (thousand yuan) on exactly `date` (null if the stock didn't trade that day) — the day's turnover,
-   * the liquidity gate for the slippage/impact model (a big order in a thin name pays more). */
+  /**
+   * 读取精确日期的原始成交额，单位为千元，供滑点与市场冲击流动性约束使用。
+   * Raw turnover (thousand yuan) on exactly `date` (null if the stock didn't trade that day) — the day's turnover,
+   * the liquidity gate for the slippage/impact model (a big order in a thin name pays more).
+   */
   turnoverOn(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
     if (!b) {
@@ -1018,8 +1134,11 @@ export class EngineData {
     return i == null ? null : b.amount[i];
   }
 
-  /** adj_factor on exactly `date` (null if the stock didn't trade that day) — to convert a hfq fill price
-   * (adjOpen) back to the real unadjusted price (adjOpen / adj) and hfq shares back to real (hfq × adj). */
+  /**
+   * 读取精确日期的复权因子，用于复权与真实成交价格、数量之间的转换。
+   * adj_factor on exactly `date` (null if the stock didn't trade that day) — to convert a hfq fill price
+   * (adjOpen) back to the real unadjusted price (adjOpen / adj) and hfq shares back to real (hfq × adj).
+   */
   adjustmentFactorOn(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
     if (!b) {
@@ -1029,8 +1148,11 @@ export class EngineData {
     return i == null ? null : b.adj[i];
   }
 
-  /** Most recent adjustment factor on or before `date`, used to translate an end-of-day model
-   * position into real shares even when the instrument is suspended on the signal date. */
+  /**
+   * 读取不晚于指定日期的最近复权因子，支持停牌日末将模型持仓转换为实际股数。
+   * Most recent adjustment factor on or before `date`, used to translate an end-of-day model
+   * position into real shares even when the instrument is suspended on the signal date.
+   */
   adjustmentFactorAsOf(code: string, date: string): number | null {
     const bars = this.barsCache.get(code);
     if (!bars) {
@@ -1040,7 +1162,10 @@ export class EngineData {
     return index < 0 ? null : bars.adj[index];
   }
 
-  /** Raw up/down-limit price on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit. */
+  /**
+   * 读取精确日期的原始涨跌停价，供撮合拒绝受限成交。
+   * Raw up/down-limit price on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit.
+   */
   priceLimitsOn(code: string, date: string): { up: number | null; down: number | null } | null {
     const b = this.barsCache.get(code);
     if (!b) {
@@ -1053,7 +1178,10 @@ export class EngineData {
     return { up: b.up[i], down: b.down[i] };
   }
 
-  /** Adjusted close as of `date`, carried forward from the last trading day ≤ date (for marking). */
+  /**
+   * 读取最近交易日复权收盘并跨停牌结转，供持仓盯市。
+   * Adjusted close as of `date`, carried forward from the last trading day ≤ date (for marking).
+   */
   adjustedCloseAsOf(code: string, date: string): number | null {
     const b = this.barsCache.get(code);
     if (!b) {
@@ -1067,7 +1195,10 @@ export class EngineData {
     return j < 0 ? null : b.adjClose[j];
   }
 
-  /** Unadjusted close as of `date`, carried forward across suspensions for an executable reference. */
+  /**
+   * 读取最近交易日未复权收盘并跨停牌结转，供可执行价格参考。
+   * Unadjusted close as of `date`, carried forward across suspensions for an executable reference.
+   */
   rawCloseAsOf(code: string, date: string): number | null {
     const bars = this.barsCache.get(code);
     if (!bars) {
@@ -1080,7 +1211,10 @@ export class EngineData {
     return bars.adjClose[index] / bars.adj[index];
   }
 
-  /** Last n adjusted prices (open|high|low|close) up to and including `date` (empty if not cached). */
+  /**
+   * 读取截至指定日期最近 n 个复权价格，未缓存时返回空数组。
+   * Last n adjusted prices (open|high|low|close) up to and including `date` (empty if not cached).
+   */
   history(
     code: string,
     date: string,
@@ -1106,7 +1240,10 @@ export class EngineData {
     return series.slice(Math.max(0, end - n + 1), end + 1);
   }
 
-  /** Last n adjusted OHLC bars up to and including `date` (empty if not cached). */
+  /**
+   * 读取截至指定日期最近 n 根复权 OHLC，未缓存时返回空数组。
+   * Last n adjusted OHLC bars up to and including `date` (empty if not cached).
+   */
   bars(code: string, date: string, n: number): OhlcBar[] {
     const b = this.barsCache.get(code);
     if (!b) {
@@ -1132,10 +1269,13 @@ export class EngineData {
     return out;
   }
 
-  /** Last n completed ISO-week or natural-month bars as-of `date` (empty if daily bars aren't loaded).
+  /**
+   * 读取已完成的 ISO 周或自然月行情；聚合缓存按运行复用，可见性按查询日筛选。
+   * Last n completed ISO-week or natural-month bars as-of `date` (empty if daily bars aren't loaded).
    * The aggregate is cached once per code/timeframe for this EngineData run; visibility is sliced
    * point-in-time on every call. Volume/amount are period sums, while turnoverRateF is the mean of
-   * available daily observations. */
+   * available daily observations.
+   */
   resampledBars(code: string, date: string, period: ResamplePeriod, n: number): OhlcBar[] {
     if (n <= 0) {
       return [];
@@ -1161,7 +1301,10 @@ export class EngineData {
     return end < 0 ? [] : resampled.bars.slice(Math.max(0, end - n + 1), end + 1);
   }
 
-  /** Index of the bar on `date`, or the last bar before it (-1 if none); used by history/bars. */
+  /**
+   * 定位指定日期或其之前最近一根行情，无历史时返回 -1。
+   * Index of the bar on `date`, or the last bar before it (-1 if none); used by history/bars.
+   */
   private endIndex(b: StockBars, date: string): number {
     const exact = b.idx.get(date);
     return exact != null ? exact : lastIndexAtOrBefore(b.dates, date);
@@ -1172,7 +1315,10 @@ function resampleKey(date: string, period: ResamplePeriod): string {
   return period === 'weekly' ? isoWeekKey(date) : date.slice(0, 6);
 }
 
-/** Pure daily → completed-period candidate aggregation. Point-in-time visibility is applied later. */
+/**
+ * 将日线聚合为高周期候选行情，时点可见性由后续读取控制。
+ * Pure daily → completed-period candidate aggregation. Point-in-time visibility is applied later.
+ */
 function aggregateBars(daily: StockBars, period: ResamplePeriod): ResampledBars {
   const keys: string[] = [];
   const bars: OhlcBar[] = [];
@@ -1224,7 +1370,10 @@ function sumNullable(left: number | null, right: number | null): number | null {
   return (left ?? 0) + (right ?? 0);
 }
 
-/** Index of the largest element ≤ target in a sorted string array (-1 if none). */
+/**
+ * 在有序字符串数组中定位不大于目标的最后一个元素，无匹配时返回 -1。
+ * Index of the largest element ≤ target in a sorted string array (-1 if none).
+ */
 function lastIndexAtOrBefore(sorted: string[], target: string): number {
   let lo = 0;
   let hi = sorted.length - 1;

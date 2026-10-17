@@ -22,7 +22,10 @@ function addCalendarDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10).replaceAll('-', '');
 }
 
-/** Sync the official Ministry of Finance China government-bond yield curve. */
+/**
+ * 同步财政部官方中国国债收益率曲线。
+ * Sync the official Ministry of Finance China government-bond yield curve.
+ */
 async function main(): Promise<void> {
   const [startDate = '20060301', endDate = currentDate()] = process.argv.slice(2);
   if (!/^\d{8}$/.test(startDate) || !/^\d{8}$/.test(endDate) || startDate > endDate) {

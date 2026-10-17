@@ -7,6 +7,10 @@ import {
 } from '@jixie/shared/api/factor';
 import type { FactorAnalysisRuntimeSource } from '../composition/composite.js';
 
+/**
+ * 冻结评估所需因子来源、协议与代码身份，供复现运行。
+ * Freeze factor source, protocol and code identity for reproducible evaluation.
+ */
 export type FactorAnalysisSource =
   | FactorAnalysisRuntimeSource
   | {
@@ -117,6 +121,10 @@ export function parseFactorAnalysisSourceSnapshot(
   return factorAnalysisRuntimeSourceSchema.parse(JSON.parse(snapshot));
 }
 
+/**
+ * 校验持久化资产因子来源快照，供复现计算与报告读取。
+ * Validate a persisted asset-factor source snapshot for reproducible evaluation.
+ */
 export function parseAssetFactorAnalysisSourceSnapshot(
   snapshot: string,
   label: string,

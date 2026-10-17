@@ -82,6 +82,11 @@ function StrategyRoute() {
 
 // Wire a complex's store lifecycle into react-router: createInstance on mount,
 // store.setup when setupParams arrive/change, cleanup on unmount. render() returns null until store is ready.
+
+/**
+ * 限定工作台路由管理的 Complex 生命周期能力。
+ * Describe Complex lifecycle capabilities used by workspace routes.
+ */
 type ComplexInstance = {
   store?: { setup: (params?: any) => void; ready?: boolean };
   render: () => ReactNode;
@@ -89,6 +94,10 @@ type ComplexInstance = {
 };
 type ComplexEntry = { createInstance: () => ComplexInstance };
 
+/**
+ * 将带参路由映射到 Complex 页面实例，保持参数变化时生命周期一致。
+ * Bind parameterized routes to Complex page instances and their lifecycle.
+ */
 function ComplexRoute({
   entry,
   setupParams,

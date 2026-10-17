@@ -10,6 +10,10 @@ import { parentPort, workerData } from 'node:worker_threads';
  */
 const db = new DatabaseSync(workerData.dbPath as string, { readOnly: true });
 
+/**
+ * 定义宿主向 SQL Worker 发送的查询消息，供受限只读执行。
+ * Describe a host query request sent to the restricted SQL worker.
+ */
 interface SqlRequest {
   id: number;
   sql: string;

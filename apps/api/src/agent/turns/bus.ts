@@ -6,6 +6,7 @@ import type {
 } from '@jixie/shared';
 
 /**
+ * 维护单个进行中轮次的内存事件与订阅状态，支持增量推送和刷新后重放。
  * In-memory pub/sub for in-flight agent turns — one entry per turnId (pattern borrowed from
  * marginalia's streamBus). Work model:
  *   start()       route registers the turn + gets the AbortSignal (before spawning the runner)
@@ -44,6 +45,10 @@ const turns = new Map<string, TurnEntry>();
 // window; afterwards the persisted message (already in the entity row) is the source of truth.
 const DONE_TTL_MS = 60_000;
 
+/**
+ * 注册进行中的 Agent 轮次并初始化回放状态，供客户端立即订阅。
+ * Register an in-flight agent turn and initialize state for immediate subscription.
+ */
 export function start(
   turnId: string,
   userId: string,
@@ -71,7 +76,10 @@ export function start(
   return { signal: controller.signal };
 }
 
-/** Forward an incremental event to subscribers, accumulating what a snapshot must replay. */
+/**
+ * 广播增量事件并累积重连快照所需的内容。
+ * Forward an incremental event to subscribers, accumulating what a snapshot must replay.
+ */
 export function publish(
   turnId: string,
   ev: Extract<
@@ -120,7 +128,10 @@ export function publish(
   }
 }
 
-/** Terminal event (done/error/cancelled): broadcast, clear subscribers, start the TTL. */
+/**
+ * 广播终态事件、清理订阅者并启动保留期限。
+ * Terminal event (done/error/cancelled): broadcast, clear subscribers, start the TTL.
+ */
 export function finish(
   turnId: string,
   finalEvent: Extract<AgentStreamEvent, { type: 'done' | 'error' | 'cancelled' }>,
@@ -144,7 +155,10 @@ export function finish(
   }, DONE_TTL_MS);
 }
 
-/** Abort the upstream LLM; the runner's catch emits the terminal event. False = nothing to cancel. */
+/**
+ * 取消上游 LLM 请求，由执行器产生终态；无可取消轮次时返回 false。
+ * Abort the upstream LLM; the runner's catch emits the terminal event. False = nothing to cancel.
+ */
 export function cancel(turnId: string, userId: string): boolean {
   const turn = turns.get(turnId);
   if (!turn || turn.done || turn.userId !== userId) {
@@ -154,14 +168,21 @@ export function cancel(turnId: string, userId: string): boolean {
   return true;
 }
 
+/**
+ * 承载订阅结果与清理能力，供 SSE 连接管理轮次监听。
+ * Return turn subscription state and cleanup capabilities to the SSE connection.
+ */
 export type SubscribeResult =
   | { kind: 'live'; unsubscribe: () => void; closed: Promise<void> }
   | { kind: 'finished' }
   | { kind: 'not_found' }
   | { kind: 'forbidden' };
 
-/** Join a turn's stream. Synchronous through "snapshot → add subscriber" (no await — events
- * published concurrently must not interleave with the replay). */
+/**
+ * 同步完成快照重放和订阅注册，避免其间插入事件导致丢失或重复。
+ * Join a turn's stream. Synchronous through "snapshot → add subscriber" (no await — events
+ * published concurrently must not interleave with the replay).
+ */
 export function subscribe(
   turnId: string,
   userId: string,
@@ -215,8 +236,11 @@ export function subscribe(
   };
 }
 
-/** The live turn for an entity, if any — powers refresh-reattach discovery and the "one turn per
- * entity at a time" guard on the start endpoints. */
+/**
+ * 查找实体正在运行的轮次，支持刷新重连并限制同实体并发轮次。
+ * The live turn for an entity, if any — powers refresh-reattach discovery and the "one turn per
+ * entity at a time" guard on the start endpoints.
+ */
 export function findRunning(entityKey: string, userId: string): string | null {
   for (const turn of turns.values()) {
     if (!turn.done && turn.entityKey === entityKey && turn.userId === userId) {
@@ -226,7 +250,10 @@ export function findRunning(entityKey: string, userId: string): string | null {
   return null;
 }
 
-/** Test-only teardown. */
+/**
+ * 清理内存轮次与订阅，仅供测试隔离。
+ * Test-only teardown.
+ */
 export function _resetForTest(): void {
   for (const turn of turns.values()) {
     if (turn.ttlTimer) {

@@ -32,6 +32,10 @@ async function validateCompositeComponents(userId: string, definition: FactorCom
   );
 }
 
+/**
+ * 将组合因子及其组件配置整理为对外资源。
+ * Render a composite factor and its component configuration as a public resource.
+ */
 function compositeResource(row: {
   id: string;
   key: string | null;
@@ -77,6 +81,10 @@ export async function readFactorComposite(userId: string, compositeId: string) {
   throw new FactorError('factor_not_found');
 }
 
+/**
+ * 验证组件可访问性和协议兼容性后创建组合因子。
+ * Validate component access and protocol compatibility before creating a composite factor.
+ */
 export async function createFactorComposite(userId: string, input: FactorCompositeInput) {
   const definition = input.definition;
   const invalid = await validateCompositeComponents(userId, definition);
@@ -126,6 +134,10 @@ export async function createFactorComposite(userId: string, input: FactorComposi
   }
 }
 
+/**
+ * 按归属更新组合定义并处理旧配置结果的失效。
+ * Update an owned composite definition and invalidate results tied to older inputs.
+ */
 export async function updateFactorComposite(
   userId: string,
   compositeId: string,
@@ -186,6 +198,10 @@ export async function deleteFactorComposite(userId: string, compositeId: string)
   return { ok: true };
 }
 
+/**
+ * 复制可访问组合及其组件引用，创建当前用户的独立草稿。
+ * Copy an accessible composite and its component references into an owned draft.
+ */
 export async function copyFactorComposite(userId: string, compositeId: string) {
   const source = await prisma.factorComposite.findFirst({
     where: {

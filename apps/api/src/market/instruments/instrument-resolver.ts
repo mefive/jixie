@@ -4,7 +4,10 @@ const CODE_RE = /^(\d{6})(\.(SH|SZ|BJ))?$/i;
 const NAME_TOKEN_RE = /^[一-龥A-Za-z]{2,8}$/;
 const MAX_HITS = 50;
 
-/** Resolve a verified stock/ETF code from local metadata; never accept model-invented identity. */
+/**
+ * 只从本地元数据解析已验证股票或 ETF 身份，不接受模型虚构代码。
+ * Resolve a verified stock/ETF code from local metadata; never accept model-invented identity.
+ */
 export async function resolveInstruments(text: string): Promise<string[]> {
   const value = text.trim();
   if (!value) {

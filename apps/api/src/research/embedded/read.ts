@@ -72,6 +72,10 @@ export async function listEmbeddedRuns(
   return page(rows, input.limit, runSummaryView);
 }
 
+/**
+ * 校验运行访问权限并读取冻结版本、输出与输入证据。
+ * Authorize an embedded run and read its frozen version, outputs and retained inputs.
+ */
 export async function getEmbeddedRun(
   userId: string,
   analysisId: string,
@@ -142,6 +146,10 @@ export async function getEmbeddedRun(
   };
 }
 
+/**
+ * 验证运行与输入归属后读取留存请求响应。
+ * Authorize and read a retained input request and response.
+ */
 export async function getEmbeddedInput(
   userId: string,
   analysisId: string,

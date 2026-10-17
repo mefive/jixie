@@ -4,6 +4,10 @@ import type { AuditFinding, AuditStatus } from '../quality/report.js';
 import { CHINA_MACRO_SERIES } from './china-macro.js';
 import { US_HEADLINE_CPI_SERIES_KEY } from './us-headline-cpi.js';
 
+/**
+ * 记录单宏观序列版本的可得性审计证据。
+ * Describe vintage availability evidence for one macro series.
+ */
 export interface MacroPitAuditRow {
   seriesKey: string;
   period: string;
@@ -13,6 +17,10 @@ export interface MacroPitAuditRow {
   vintageKind: string;
 }
 
+/**
+ * 汇总宏观 PIT 覆盖与来源问题。
+ * Summarize macro PIT coverage and source findings.
+ */
 export interface MacroPitAuditSummary {
   missingSeries: string[];
   invalidAvailabilityRows: number;
@@ -22,6 +30,10 @@ export interface MacroPitAuditSummary {
   capturedAsAvailableRows: number;
 }
 
+/**
+ * 汇总宏观来源及版本的可得性审计，供 PIT 质量判断。
+ * Summarize macro source and vintage availability audits.
+ */
 export function summarizeMacroPit(
   observedSeries: string[],
   observations: MacroPitAuditRow[],
@@ -56,6 +68,10 @@ export function summarizeMacroPit(
   };
 }
 
+/**
+ * 检查宏观版本与披露证据，识别不可验证的历史值。
+ * Audit macro vintages and release evidence for unverifiable history.
+ */
 export async function auditMacroPit(database: Prisma): Promise<AuditFinding> {
   const observations = await database.macroObservation.findMany({
     select: {

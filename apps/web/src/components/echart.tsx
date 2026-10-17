@@ -74,13 +74,20 @@ export type ECOption = ComposeOption<
   | TitleComponentOption
 >;
 
+/**
+ * 提供 ECharts 配置、尺寸及就绪回调，供图表壳。
+ * Supply ECharts options, sizing and readiness callbacks to the chart shell.
+ */
 interface Props {
   option: ECOption;
   className?: string; // Container must have a height (ECharts won't size itself), e.g. .jx-xxxChart { height: 260px }
   onClick?: (params: echarts.ECElementEvent) => void; // chart 'click' (e.g. select a trade point)
 }
 
-/** Ultra-thin ECharts shell: wraps init / setOption / resize / dispose once, reused directly by later charts. */
+/**
+ * 统一封装 ECharts 初始化、配置、尺寸变化与销毁，供各图表复用。
+ * Ultra-thin ECharts shell: wraps init / setOption / resize / dispose once, reused directly by later charts.
+ */
 export function EChart({ option, className, onClick }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);

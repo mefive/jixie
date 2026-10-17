@@ -23,6 +23,10 @@ let staticSdkInstalled = false;
 let factorOptions: DtsFactorOption[] = [];
 let factorOptionsRequested = false;
 
+/**
+ * 提供已发布因子 key、类型和说明，供策略代码补全。
+ * Describe published factor keys, kinds and guidance for strategy completion.
+ */
 interface FactorReference {
   option: DtsFactorOption;
   start: number;
@@ -31,6 +35,11 @@ interface FactorReference {
 
 // Find a catalog-backed published factor. Restricting this to known options prevents arbitrary
 // strings from becoming navigation links.
+
+/**
+ * 从因子目录构造策略编辑器可引用的已发布依赖列表。
+ * Build published factor references for strategy editing from the catalog.
+ */
 function factorReferences(text: string): FactorReference[] {
   const optionsByKey = new Map(factorOptions.map((option) => [option.key, option]));
   const references: FactorReference[] = [];
@@ -57,6 +66,10 @@ function escapeMarkdown(value: string): string {
   return value.replace(/[\\`*_{}[\]()#+.!|>-]/g, '\\$&');
 }
 
+/**
+ * 识别策略源码中的因子引用上下文，供已发布因子补全。
+ * Resolve factor-reference context in strategy source for published-factor completion.
+ */
 function factorCompletionContext(
   m: Monaco,
   model: monaco.editor.ITextModel,
@@ -120,6 +133,11 @@ function loadFactorOptions(m: Monaco) {
 
 // Teach Monaco the SDK: the locale-independent bits (compiler options + doc link provider) once, then the
 // ambient defineStrategy + ctx types in the active locale (re-registered on language switch, see effect).
+
+/**
+ * 向 Monaco 注册策略 SDK 类型及已发布因子，保持公开契约一致。
+ * Install strategy SDK declarations and published factors into Monaco.
+ */
 function installSdk(m: Monaco) {
   monacoRef = m;
   if (import.meta.env.DEV) {
@@ -172,6 +190,10 @@ function installSdk(m: Monaco) {
   // QuickInfo for SDK members/types (hover-provider results merge with the TS hover, unlike links).
   const sdkNames = new Set<string>([...MEMBER_NAMES, ...LINKABLE_TYPES]);
   m.languages.registerHoverProvider('typescript', {
+    /**
+     * 解析 SDK 方法或因子身份并返回编辑器 hover 说明。
+     * Resolve SDK or factor references into editor hover information.
+     */
     provideHover(model: monaco.editor.ITextModel, position: monaco.Position) {
       const offset = model.getOffsetAt(position);
       const reference = factorReferences(model.getValue()).find(
@@ -254,6 +276,7 @@ function installSdk(m: Monaco) {
 }
 
 /**
+ * 加载公开 SDK 声明以提供策略代码补全、类型检查与上下文帮助。
  * The strategy code editor — Monaco with the SDK types loaded, so the user gets autocomplete on `ctx`
  * and type errors against the real API. Lazy-loaded (Monaco is heavy → its own chunk). `observer` so the
  * hover docs re-register live when the global locale switches.
@@ -295,6 +318,11 @@ function CodeEditor({
           contextMenuGroupId: 'navigation',
           contextMenuOrder: 1.5,
           keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI],
+
+          /**
+           * 根据光标方法和账户命名空间打开精确 SDK 文档锚点。
+           * Open the SDK documentation anchor for the method and account namespace under the cursor.
+           */
           run(ed) {
             const pos = ed.getPosition();
             const model = ed.getModel();

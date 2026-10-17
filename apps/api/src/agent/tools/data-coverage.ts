@@ -28,12 +28,20 @@ const argsSchema = z.object({
     .describe('the table whose coverage to check'),
 });
 
+/**
+ * 汇总数据表的日期范围与记录量，供 Agent 判断研究数据覆盖。
+ * Describe a table's date range and row coverage for research-data discovery.
+ */
 interface Coverage {
   rowCount: number;
   firstTradeDate: string | null;
   lastTradeDate: string | null;
 }
 
+/**
+ * 读取白名单表的数据范围与数量，供工具返回可用性摘要。
+ * Query coverage bounds and counts for an allowed data table.
+ */
 async function tableCoverage(table: TableKey): Promise<Coverage> {
   // One aggregate per table; Prisma delegates are per-model types, so an explicit switch keeps it typed.
   const aggregateArgs = {

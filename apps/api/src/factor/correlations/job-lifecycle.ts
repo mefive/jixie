@@ -10,6 +10,10 @@ const workerUrl = import.meta.url.endsWith('.ts')
   : new URL('./worker.js', import.meta.url);
 
 export const factorCorrelationLifecycle = {
+  /**
+   * 解析冻结相关性来源并执行矩阵计算，供生命周期保存。
+   * Resolve frozen correlation sources and compute the matrix for persistence.
+   */
   async onExecute(job, log) {
     const input = factorCorrelationJobPayloadSchema.parse(job.payload);
     if (input.userId !== job.userId) {

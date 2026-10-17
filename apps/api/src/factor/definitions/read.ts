@@ -28,6 +28,10 @@ export async function listOwnedFactors(userId: string) {
   return rows;
 }
 
+/**
+ * 按访问权限读取因子定义及当前相关状态。
+ * Read an authorized factor definition and its related state.
+ */
 export async function readFactorDefinition(userId: string, factorId: string, locale: Locale) {
   // Own factors are editable; builtin (preset) rows are readable by anyone — the UI shows their
   // code read-only with a "copy as custom" affordance.

@@ -8,7 +8,10 @@ function currentDate(): string {
   return new Date().toISOString().slice(0, 10).replaceAll('-', '');
 }
 
-/** Sync the official index catalog, dashboard index closes, and SW2021 level-1 industry bars. */
+/**
+ * 同步官方指数目录、看板指数行情和申万一级行业行情。
+ * Sync the official index catalog, dashboard index closes, and SW2021 level-1 industry bars.
+ */
 async function main(): Promise<void> {
   const config = loadTushareConfig();
   const [start = '20150101', end = currentDate()] = process.argv.slice(2);

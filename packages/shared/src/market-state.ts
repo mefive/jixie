@@ -13,6 +13,10 @@ export type MarketWeatherState =
   | 'cooling'
   | 'balanced';
 
+/**
+ * 呈现市场或指数气象的指标与分类，供看板卡片。
+ * Describe market or index measures and classifications for weather cards.
+ */
 export interface MarketWeatherItem {
   code: string;
   name: string;
@@ -30,11 +34,19 @@ export interface MarketWeatherItem {
   coverage: 'full' | 'partial';
 }
 
+/**
+ * 将同类气象对象组合为展示分组。
+ * Group comparable weather objects for display.
+ */
 export interface MarketWeatherGroup {
   key: string;
   codes: string[];
 }
 
+/**
+ * 保留一个气象周期的边界与对象结果。
+ * Describe weather period boundaries and object results.
+ */
 export interface MarketWeatherPeriod {
   key: string;
   startDate: TradeDate;
@@ -43,6 +55,10 @@ export interface MarketWeatherPeriod {
   items: MarketWeatherItem[];
 }
 
+/**
+ * 组合不同频率的市场气象历史。
+ * Collect market weather history across frequencies.
+ */
 export interface MarketWeatherSeries {
   dimension: MarketWeatherDimension;
   frequency: MarketWeatherFrequency;
@@ -61,6 +77,10 @@ export type IndustryWeatherState =
   | 'cooling'
   | 'balanced';
 
+/**
+ * 保留行业指标、表现和气象分类。
+ * Describe industry measures, performance and weather classification.
+ */
 export interface IndustryWeatherItem {
   l1Code: string;
   l1Name: string;
@@ -73,6 +93,10 @@ export interface IndustryWeatherItem {
   state: IndustryWeatherState;
 }
 
+/**
+ * 汇总单周期各行业气象，供行业热图。
+ * Collect industry weather within one period for heatmaps.
+ */
 export interface IndustryWeatherPeriod {
   key: string;
   startDate: TradeDate;
@@ -81,6 +105,10 @@ export interface IndustryWeatherPeriod {
   industries: IndustryWeatherItem[];
 }
 
+/**
+ * 返回行业气象各周期序列，供看板比较。
+ * Return industry weather histories for dashboard comparison.
+ */
 export interface IndustryWeatherSeries {
   frequency: MarketWeatherFrequency;
   startDate: TradeDate;
@@ -101,6 +129,10 @@ export const MARKET_STATE_INDEX_CODES = [
   '000922.CSI', // CSI Dividend
 ] as const;
 
+/**
+ * 定义描述性市场状态的公开逐日指标。
+ * Describe public daily descriptive market-state measures.
+ */
 export interface MarketStatePoint {
   date: TradeDate;
   activity: number | null;

@@ -1,7 +1,10 @@
 import { UserCodeError } from '../../errors.js';
 import { transform } from 'esbuild';
 
-/** Compile user TypeScript to CommonJS for Factor and Strategy runtime preparation. */
+/**
+ * 将作者 TypeScript 编译为 CommonJS，供因子与策略沙盒准备阶段使用。
+ * Compile user TypeScript to CommonJS for Factor and Strategy runtime preparation.
+ */
 export async function toCommonJs(source: string, noun = 'code'): Promise<string> {
   try {
     const { code } = await transform(source, { loader: 'ts', format: 'cjs', target: 'es2022' });

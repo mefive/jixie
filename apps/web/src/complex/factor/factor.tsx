@@ -100,11 +100,8 @@ type EditableFactorAnalysisKind = Extract<
 >;
 
 /**
- * Factor research — Agent-authored, IDE-style (aligned with the strategy workbench). 3-column Splitter: an Agent
- * panel (a chat that writes the custom factor's defineFactor code, + a factor-library tab of presets & custom
- * factors) | the code editor over a collapsible log dock (a preset shows a greyed note — no code) | the
- * analysis params + result (deciles + Rank IC + long-short + heatmap). Preset factors skip the editor and
- * go straight to analysis; custom factors are authored by the Agent and persisted on a run.
+ * 组合因子目录、编辑器、研究参数、报告和 Agent 面板，形成完整工作台。
+ * Compose the factor catalog, editor, research settings, reports and agent workspace.
  */
 export const Factor = complex.component(() => {
   const store = complex.useStore();
@@ -201,6 +198,11 @@ export const Factor = complex.component(() => {
 // —— Subcomponents ——
 
 // Left column: Agent (chat authors the factor) | factor library (presets + custom, to select).
+
+/**
+ * 展示因子作者或只读问答面板，连接持久会话与当前上下文。
+ * Render factor authoring or read-only Q&A with persistent conversations and context.
+ */
 const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDiscard }) => {
   const { t } = useTranslation('factor');
   const [tab, setTab] = useState('agent');
@@ -254,6 +256,10 @@ const AgentPanel = complex.component(({ guardDiscard }: { guardDiscard: GuardDis
   );
 }, 'AgentPanel');
 
+/**
+ * 按因子种类和语言收集创建输入，再交由 store 创建草稿。
+ * Collect factor kind and language before creating a draft through the store.
+ */
 const NewFactorModal = complex.component(
   ({
     analysisKind,
@@ -279,6 +285,11 @@ const NewFactorModal = complex.component(
     }, [analysisKind]);
 
     const valid = name.trim().length > 0 && /^[a-z][a-z0-9_]{0,31}$/.test(key.trim());
+
+    /**
+     * 校验因子创建表单并先创建持久化草稿。
+     * Validate the factor form and create its persisted draft.
+     */
     const create = async () => {
       if (!analysisKind || !valid || saving) {
         return;
@@ -345,6 +356,11 @@ const NewFactorModal = complex.component(
 );
 
 // Agent tab: a chat that writes / iterates the custom factor code, over a Cursor-style composer.
+
+/**
+ * 渲染因子消息、问答上下文及输入状态，协调发送与重连。
+ * Render factor messages, Q&A context and input state with send and reconnect controls.
+ */
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -549,6 +565,10 @@ const AgentChat = complex.component(() => {
   );
 }, 'AgentChat');
 
+/**
+ * 展示研究交接附带的报告建议，允许用户明确采用参数。
+ * Present research handoff report suggestions for explicit parameter adoption.
+ */
 function ResearchReportSuggestion({
   suggestion,
 }: {
@@ -608,6 +628,11 @@ function ResearchReportSuggestion({
 }
 
 // Chat bubbles, auto-scrolled to the latest; a thinking row while an Agent turn is in flight.
+
+/**
+ * 渲染因子会话消息与工具产物，保持流式和持久消息一致。
+ * Render factor messages and tool artifacts consistently across streamed and persisted history.
+ */
 function ChatLog({
   messages,
   sending,
@@ -676,6 +701,11 @@ function ChatLog({
 
 // factor-library tab: presets grouped by kind + this user's custom factors. Click to select (→ analyze); custom
 // rows have a delete affordance. Picking one jumps back to the Agent tab.
+
+/**
+ * 组织预置、作者及组合因子选择，协调筛选与未保存切换。
+ * Organize builtin, authored and composite factor selection with filtering and draft guards.
+ */
 const FactorLibrary = complex.component(
   ({ onPickCustom, guardDiscard }: { onPickCustom: () => void; guardDiscard: GuardDiscard }) => {
     const store = complex.useStore();
@@ -702,6 +732,11 @@ const FactorLibrary = complex.component(
     const composites = list.filter((f) => f.kind === 'composite');
 
     // A custom factor → jump to Agent (edit/chat); a preset stays here (select → analyze, no code).
+
+    /**
+     * 协调因子切换及未保存草稿确认，供目录选择。
+     * Coordinate factor selection with unsaved-draft guards.
+     */
     const pick = (key: string, isCustom: boolean) => {
       if (key === store.selectedKey) {
         if (isCustom) {
@@ -949,6 +984,10 @@ const FactorLibrary = complex.component(
   'FactorLibrary',
 );
 
+/**
+ * 编辑组合组件、方向与权重，并校验后提交创建或更新。
+ * Edit composite components, directions and weights before validated creation or update.
+ */
 const CompositeModal = complex.component(
   ({
     open,
@@ -992,6 +1031,11 @@ const CompositeModal = complex.component(
       definition.components.length <= 5 &&
       definition.components.every((component) => component.factor) &&
       chosen.size === definition.components.length;
+
+    /**
+     * 校验组合表单并提交创建或更新操作。
+     * Validate and submit composite creation or update.
+     */
     const save = async () => {
       if (!valid || saving) {
         return;
@@ -1162,6 +1206,11 @@ const CompositeModal = complex.component(
 
 // Correlation matrix (3.4): pick 2–8 factors → mean cross-sectional Spearman heatmap (+ a fixed size
 // column). Uses the params bar's freq/range. Self-contained modal so it doesn't disturb the workbench.
+
+/**
+ * 展示所选因子的相关性运行配置、任务与矩阵结果。
+ * Present correlation configuration, progress and matrix results for selected factors.
+ */
 const CorrelationModal = complex.component(
   ({ open, onClose }: { open: boolean; onClose: () => void }) => {
     const store = complex.useStore();
@@ -1248,6 +1297,11 @@ const CorrelationModal = complex.component(
 
 // Middle column: the Monaco editor over a collapsible log dock. A preset is a seeded READ-ONLY code
 // row — shown in the same editor with a lock bar + copy-as-custom (fork), instead of being hidden.
+
+/**
+ * 根据因子种类选择对应研究工作区，保持编辑和报告布局一致。
+ * Select the appropriate factor research workspace while keeping editor and report layout consistent.
+ */
 const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardDiscard }) => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1322,6 +1376,10 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
   );
 }, 'MiddleColumn');
 
+/**
+ * 展示单资产时间序列因子的代码、参数和探索结果。
+ * Present single-asset factor source, research settings and exploration results.
+ */
 const TimeSeriesWorkspace = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1396,6 +1454,10 @@ const TimeSeriesWorkspace = complex.component(() => {
   );
 }, 'TimeSeriesWorkspace');
 
+/**
+ * 展示宏观状态研究配置、来源与分状态评估。
+ * Present macro-regime settings, provenance and state-specific evaluation.
+ */
 const MacroRegimeWorkspace = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1438,6 +1500,10 @@ const MacroRegimeWorkspace = complex.component(() => {
   );
 }, 'MacroRegimeWorkspace');
 
+/**
+ * 展示组合定义、组件与相关报告，供编辑和研究。
+ * Present a composite definition, components and reports for editing and research.
+ */
 const CompositeWorkspace = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1504,6 +1570,10 @@ const CompositeWorkspace = complex.component(() => {
   );
 }, 'CompositeWorkspace');
 
+/**
+ * 展示当前因子身份、状态与可见范围，供工作台定位。
+ * Present the selected factor's identity, status and visibility.
+ */
 const FactorIdentityBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1573,6 +1643,10 @@ const ResultColumn = complex.component(() => {
   );
 }, 'ResultColumn');
 
+/**
+ * 提示当前草稿与冻结报告不匹配，避免误读旧结果。
+ * Indicate when a draft no longer matches its frozen report.
+ */
 const ReportOutdatedWarning = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1590,6 +1664,11 @@ const ReportOutdatedWarning = complex.component(() => {
 }, 'ReportOutdatedWarning');
 
 // Frequency + date range + run. Every terminal run creates a new report.
+
+/**
+ * 展示当前分析方法和主要参数，并提供参数编辑入口。
+ * Present the analysis method and headline parameters with editing access.
+ */
 const ParamsBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1668,6 +1747,10 @@ const ParamsBar = complex.component(() => {
   );
 }, 'ParamsBar');
 
+/**
+ * 编辑横截面研究的频率、范围、处理和交易成本设置。
+ * Edit cross-sectional frequency, dates, preprocessing and cost settings.
+ */
 const ParamsPopover = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -1883,6 +1966,10 @@ const ParamsPopover = complex.component(() => {
   );
 }, 'ParamsPopover');
 
+/**
+ * 编辑单资产研究的目标资产、窗口和评估参数。
+ * Edit single-asset targets, windows and evaluation settings.
+ */
 const TimeSeriesParamsPopover = complex.component(
   ({ runningSameDraft }: { runningSameDraft: boolean }) => {
     const store = complex.useStore();
@@ -1975,6 +2062,10 @@ const TimeSeriesParamsPopover = complex.component(
   'TimeSeriesParamsPopover',
 );
 
+/**
+ * 编辑 Panel 研究的资产范围与排序评估参数。
+ * Edit panel universes and ranking-evaluation settings.
+ */
 const PanelParamsPopover = complex.component(
   ({ runningSameDraft }: { runningSameDraft: boolean }) => {
     const store = complex.useStore();
@@ -2036,6 +2127,10 @@ const PanelParamsPopover = complex.component(
   'PanelParamsPopover',
 );
 
+/**
+ * 编辑宏观状态研究的日期、状态和目标资产设置。
+ * Edit macro-regime dates, states and target assets.
+ */
 const MacroRegimeParamsPopover = complex.component(
   ({ runningSameDraft }: { runningSameDraft: boolean }) => {
     const store = complex.useStore();
@@ -2130,6 +2225,10 @@ function outlierOptions(t: TFunction<'factor'>) {
   ];
 }
 
+/**
+ * 展示探索、预注册和保留段纪律，连接对应状态操作。
+ * Present exploration, preregistration and holdout discipline with state-specific actions.
+ */
 const ResearchDisciplineBar = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -2222,6 +2321,10 @@ const ResearchDisciplineBar = complex.component(() => {
   );
 }, 'ResearchDisciplineBar');
 
+/**
+ * 按研究种类与状态校验运行条件，并处理探索或保留段提交。
+ * Validate run eligibility by research kind and state and submit exploration or holdout actions.
+ */
 const ResearchRunButton = complex.component(
   ({
     children,
@@ -2442,6 +2545,11 @@ const ResearchRunButton = complex.component(
 );
 
 // A quiet secondary action opens immutable reports in a modal list.
+
+/**
+ * 展示不可变报告历史和任务状态，允许切换到明确报告身份。
+ * Present immutable report history and job state for identity-based selection.
+ */
 const ReportHistory = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -2543,6 +2651,11 @@ const ReportHistory = complex.component(() => {
 // Result: running / loading / error / prompt-to-run / the report. The live log streams in the dock.
 // Thin wrapper: jobRunning shows a running placeholder; a never-run factor shows a run prompt; otherwise
 // LoadingArea drives the cached-report load with a DELAYED spinner (so a fast reload doesn't flash it).
+
+/**
+ * 根据分析种类选择报告主体，同时呈现来源与过期提示。
+ * Select the kind-specific report body with provenance and freshness indicators.
+ */
 const FactorResult = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -2606,6 +2719,10 @@ const FactorResult = complex.component(() => {
   );
 }, 'FactorResult');
 
+/**
+ * 展示宏观状态样本、区间与资产表现，并提示统计限制。
+ * Present macro-regime samples, episodes and asset performance with statistical limits.
+ */
 const MacroRegimeReportBody = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -2714,6 +2831,10 @@ const MacroRegimeReportBody = complex.component(() => {
   );
 }, 'MacroRegimeReportBody');
 
+/**
+ * 展示单资产预测关系、收益与样本诊断。
+ * Present single-asset predictive statistics, returns and sample diagnostics.
+ */
 const TimeSeriesReportBody = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -2837,6 +2958,10 @@ const TimeSeriesReportBody = complex.component(() => {
   );
 }, 'TimeSeriesReportBody');
 
+/**
+ * 展示 Panel 排序、分层、多空和资产类别结果。
+ * Present panel ranking, quantile, long-short and asset-class results.
+ */
 const PanelReportBody = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -3011,6 +3136,11 @@ const PanelReportBody = complex.component(() => {
 }, 'PanelReportBody');
 
 // The report render (decile chart + metrics + IC decay + heatmap) for the loaded analysis.
+
+/**
+ * 展示截面 Rank IC、分组收益、费用与稳健推断。
+ * Present cross-sectional Rank IC, grouped returns, costs and robust inference.
+ */
 const ReportBody = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -3192,6 +3322,10 @@ const ReportBody = complex.component(() => {
   );
 }, 'ReportBody');
 
+/**
+ * 展示 HAC 与 Fama–MacBeth 等稳健推断及样本约束。
+ * Present HAC and Fama-MacBeth inference with sample constraints.
+ */
 function RobustInferenceCard({
   inference,
   useMktcap,
@@ -3279,6 +3413,10 @@ function RobustInferenceCard({
   );
 }
 
+/**
+ * 解释冻结方法、数据范围与处理政策，支持结果复核。
+ * Explain the frozen method, data scope and preprocessing policy for report review.
+ */
 const MethodologyCard = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -3421,6 +3559,10 @@ const MethodologyCard = complex.component(() => {
   );
 }, 'MethodologyCard');
 
+/**
+ * 展示发布资格、证据与操作状态，供用户明确提交发布。
+ * Present publication eligibility, evidence and state for explicit publication.
+ */
 const FactorPublicationCard = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
@@ -3550,6 +3692,10 @@ function Metric({ label, value, hint }: { label: string; value: string; hint?: s
   );
 }
 
+/**
+ * 将冻结报告参数转换为本地化简短标签。
+ * Render frozen report parameters as concise localized labels.
+ */
 function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>): string {
   if (report.researchSpec.analysisKind === 'time_series') {
     const spec = report.researchSpec;
@@ -3608,6 +3754,11 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
 }
 
 // Cursor-style chat input — Enter sends, Shift+Enter newline, IME-safe.
+
+/**
+ * 提供因子 Agent 输入、发送与取消控制，保留会话模式提示。
+ * Provide factor agent input, send and cancel controls with conversation-mode guidance.
+ */
 function PromptBox({
   value,
   onChange,
@@ -3646,7 +3797,10 @@ function PromptBox({
 
 // —— Helpers / config ——
 
-/** The turn's ephemeral tool trace (display only — absent once a conversation is reloaded). */
+/**
+ * 提取仅用于当前显示的临时工具轨迹，重载会话后不再存在。
+ * The turn's ephemeral tool trace (display only — absent once a conversation is reloaded).
+ */
 function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
   const trace = (message as ChatMessage & { toolTrace?: AgentToolTraceItem[] }).toolTrace;
   return trace?.length ? trace : undefined;
@@ -3667,6 +3821,10 @@ function compositeComponents(
   );
 }
 
+/**
+ * 按默认协议生成空组合定义，供组合编辑表单初始化。
+ * Create an empty composite definition for form initialization.
+ */
 function emptyCompositeDefinition(
   factors: FactorMeta[],
   analysisKind: 'cross_sectional' | 'panel',
@@ -3749,6 +3907,10 @@ function modalConfirmReveal(t: TFunction<'factor'>, onOk: () => void): void {
   });
 }
 
+/**
+ * 读取当前报告指标并按预注册阈值判断显示状态。
+ * Evaluate the report metric against its preregistered threshold.
+ */
 function criterionPassed(report: FactorReport, intent?: FactorResearchIntentV1): boolean {
   const criterion = intent?.primaryCriterion;
   if (!criterion) {
@@ -3815,6 +3977,11 @@ function decayHint(points: IcDecayPoint[]): string {
 // content-driven widths and visibly jump to the computed widths on frame two. Percentage
 // defaultSizes are applied as flex-basis on frame one, so pre-convert "left = leftPx, the other
 // two split the rest" into percentages of the viewport (the splitter spans the full app width).
+
+/**
+ * 根据视口尺寸计算因子工作区分栏初始宽度。
+ * Derive initial factor splitter sizes from the viewport.
+ */
 function splitterDefaults(leftPx: number): { left: string; rest: string } {
   const viewportWidth = document.documentElement.clientWidth || 1440;
   const leftFraction = leftPx / viewportWidth;

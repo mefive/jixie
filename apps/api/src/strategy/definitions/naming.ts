@@ -5,7 +5,10 @@ import { chatText } from '#infra/llm/deepseek.js';
 import { prisma } from '#infra/database/prisma.js';
 import { strategyRunKey, type StrategyDatabase } from './config.js';
 
-/** Ask the naming model for a short localized strategy name. */
+/**
+ * 请求命名模型生成简短的本地化策略名称。
+ * Ask the naming model for a short localized strategy name.
+ */
 export async function proposeStrategyName(input: {
   code?: string;
   prompt?: string;
@@ -45,7 +48,10 @@ export async function proposeStrategyName(input: {
     .slice(0, 20);
 }
 
-/** Make a generated name unique within one user's strategy collection. */
+/**
+ * 在用户的策略集合内为生成名称消除重复。
+ * Make a generated name unique within one user's strategy collection.
+ */
 export async function uniqueStrategyName(
   database: StrategyDatabase,
   userId: string,
@@ -66,7 +72,10 @@ export async function uniqueStrategyName(
   return `${base} ${ulid().slice(-4)}`;
 }
 
-/** Rename only if the row still contains the config snapshot that requested this proposal. */
+/**
+ * 仅在配置快照仍匹配命名请求时更新名称，避免旧请求覆盖新配置。
+ * Rename only if the row still contains the config snapshot that requested this proposal.
+ */
 export async function refreshStrategyName(input: {
   id: string;
   userId: string;

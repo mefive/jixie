@@ -13,6 +13,10 @@ import type {
   ResearchTransformV1,
 } from '@jixie/shared';
 
+/**
+ * 绑定数据集、日期及财务选项，供生成精确 SDK 片段。
+ * Supply dataset, dates and financial options for exact SDK snippets.
+ */
 export interface ResearchDatasetSnippetOptions {
   dataset: ResearchDataCatalogDatasetV1;
   start: string;
@@ -25,6 +29,10 @@ export interface ResearchDatasetSnippetOptions {
   reportEnd?: string;
 }
 
+/**
+ * 绑定证券、指标、频率和变换，供序列 SDK 片段。
+ * Supply instrument, measure, frequency and transform for series snippets.
+ */
 export interface ResearchSeriesSnippetOptions {
   instrument: ResearchDataCatalogInstrumentV1;
   measure: string;
@@ -34,12 +42,19 @@ export interface ResearchSeriesSnippetOptions {
   transform: ResearchTransformV1;
 }
 
+/**
+ * 同时返回可插入代码与稳定引用，避免来源附件漂移。
+ * Return insertable source and its stable reference together.
+ */
 export interface ResearchCatalogSelection {
   snippet: string;
   reference: ResearchDataReferenceV1;
 }
 
-/** The source and attachment derive from the same argument object and public SDK contract. */
+/**
+ * 源码片段与附件引用由同一参数对象及公开 SDK 契约生成，避免两者漂移。
+ * The source and attachment derive from the same argument object and public SDK contract.
+ */
 function catalogSelection(
   method: string,
   variable: string,
@@ -62,6 +77,11 @@ function catalogSelection(
     reference: { label: variable, method: `research_${contract.name}`, arguments: arguments_ },
   };
 }
+
+/**
+ * 把目录参数转换为 Python 字面量，正确处理 null、布尔与数组。
+ * Render catalog argument values as Python literals, including null, booleans and arrays.
+ */
 function pythonLiteral(value: unknown): string {
   if (value === null) {
     return 'None';
@@ -136,6 +156,11 @@ export function researchSeriesSelection(options: ResearchSeriesSnippetOptions) {
     transform: options.transform,
   });
 }
+
+/**
+ * 按数据集种类构造精确 SDK 调用与研究引用。
+ * Build an exact SDK call and research reference for the selected dataset kind.
+ */
 export function researchDatasetSelection(
   options: ResearchDatasetSnippetOptions,
 ): ResearchCatalogSelection {
@@ -241,6 +266,10 @@ export const researchSeriesSnippet = (options: ResearchSeriesSnippetOptions) =>
 export const researchDatasetSnippet = (options: ResearchDatasetSnippetOptions) =>
   researchDatasetSelection(options).snippet;
 
+/**
+ * 从数据集身份生成合法 Python 变量名，供插入代码使用。
+ * Derive a valid Python variable name from a dataset identity.
+ */
 function researchDatasetVariableName(
   dataset: ResearchDataCatalogDatasetV1,
   configuredIdentifier?: string,

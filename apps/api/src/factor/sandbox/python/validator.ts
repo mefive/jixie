@@ -13,8 +13,17 @@ const FACTOR_COMPUTE_PATTERN = /(?:^|\n)\s*@factor\.compute\s*(?:\n|$)/;
 const FACTOR_IMPORT_PATTERN = /(?:^|\n)\s*from\s+jixie\s+import\s+[^\n]*\bFactor\b[^\n]*(?:\n|$)/;
 const TARGET_ASSET_CLASSES_PATTERN = /\btarget_asset_classes\s*=\s*\[([^\]]*)\]/m;
 const MAX_DIAGNOSTICS = 4;
+
+/**
+ * 限定 Python 因子公开资产类别，供静态元数据校验。
+ * Restrict public Python factor asset classes for static metadata validation.
+ */
 type PythonAssetClass = 'equity' | 'fixed_income' | 'commodity';
 
+/**
+ * 承载 Pyright 原始诊断输出，供作者代码校验。
+ * Describe raw Pyright diagnostics used in author-source validation.
+ */
 interface PyrightOutput {
   generalDiagnostics?: Array<{
     severity?: string;
@@ -23,7 +32,10 @@ interface PyrightOutput {
   }>;
 }
 
-/** Validate a Python Factor without executing user code. Runtime metadata is validated separately. */
+/**
+ * 静态校验 Python 因子而不执行用户源码，运行时元数据另行校验。
+ * Validate a Python Factor without executing user code. Runtime metadata is validated separately.
+ */
 export async function validatePythonFactorDefinition(
   source: string,
   analysisKind: EditableFactorAnalysisKind,
@@ -94,7 +106,10 @@ export async function validatePythonFactorDefinition(
   }
 }
 
-/** Read the literal asset-domain declaration without starting the Python execution sandbox. */
+/**
+ * 静态读取字面量资产类别声明，不启动 Python 执行沙盒。
+ * Read the literal asset-domain declaration without starting the Python execution sandbox.
+ */
 export function pythonFactorTargetAssetClasses(source: string): PythonAssetClass[] {
   const declaration = source.match(TARGET_ASSET_CLASSES_PATTERN)?.[1];
   if (declaration === undefined) {
@@ -113,6 +128,10 @@ export function pythonFactorTargetAssetClasses(source: string): PythonAssetClass
   return values;
 }
 
+/**
+ * 在准备好的类型环境中运行 Pyright，收集作者代码静态诊断。
+ * Run Pyright against the prepared typing environment and collect author-source diagnostics.
+ */
 function runPyright(workspacePath: string): Promise<PyrightOutput> {
   const require = createRequire(import.meta.url);
   const packagePath = require.resolve('pyright/package.json');

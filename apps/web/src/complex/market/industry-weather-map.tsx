@@ -20,6 +20,10 @@ import type {
 } from '@jixie/shared';
 import './industry-weather-map.css';
 
+/**
+ * 提供气象对象、周期和交互，供市场热度图。
+ * Supply weather objects, periods and actions to the weather map.
+ */
 interface Props {
   series: MarketWeatherSeries | null;
   loading: boolean;
@@ -29,6 +33,10 @@ interface Props {
   onFrequencyChange: (frequency: MarketWeatherFrequency) => void;
 }
 
+/**
+ * 按市场或行业组织气象格子与抽屉，连接周期与指标选择。
+ * Organize market or industry weather cells and details with period and metric selection.
+ */
 export function MarketWeatherMap({
   series,
   loading,
@@ -251,6 +259,10 @@ export function MarketWeatherMap({
 
 // Subcomponents and helpers.
 
+/**
+ * 展示一个气象对象的指标、区间与缺失提示。
+ * Present one weather object's measures, ranges and missing-data indicators.
+ */
 function MarketWeatherCard({
   item,
   frequency,
@@ -336,6 +348,10 @@ function MarketWeatherCard({
   );
 }
 
+/**
+ * 展示选中气象对象的历史和估值详情。
+ * Present historical weather and valuation details for the selected object.
+ */
 function MarketWeatherDrawer({
   series,
   periodIndex,
@@ -447,6 +463,10 @@ function WeatherMetric({
   );
 }
 
+/**
+ * 按气象指标的单位与缺失状态格式化展示数值。
+ * Format weather measures according to their units and missing-value state.
+ */
 function formatWeatherMetric(
   value: number | null,
   format: 'score' | 'percent' | 'percentile',
@@ -464,6 +484,10 @@ function formatWeatherMetric(
   }
 }
 
+/**
+ * 根据气象指标与基准范围选择热度分档，供一致着色。
+ * Classify weather measures into heat bands for consistent coloring.
+ */
 function weatherHeatBand(score: number): WeatherHeatBand {
   if (score >= 85) {
     return 'extreme';
@@ -494,6 +518,10 @@ function valuationClassName(value: number | null): string {
   });
 }
 
+/**
+ * 根据估值字段选择本地化标签，供气象卡片解释。
+ * Resolve a localized valuation label for weather cards.
+ */
 function valuationLabel(
   value: number | null,
   t: ReturnType<typeof useTranslation<'valuation'>>['t'],
@@ -535,6 +563,10 @@ function formatDate(value: string): string {
   return `${value.slice(0, 4)}-${value.slice(4, 6)}-${value.slice(6, 8)}`;
 }
 
+/**
+ * 将周期边界格式化为气象展示标签。
+ * Format weather period boundaries into display labels.
+ */
 function formatPeriodLabel(
   key: string,
   frequency: MarketWeatherFrequency,

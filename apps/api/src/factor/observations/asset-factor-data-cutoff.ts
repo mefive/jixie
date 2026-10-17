@@ -5,11 +5,19 @@ import {
 } from '#market/commodity/commodity-futures.js';
 import { prisma, type Prisma } from '#infra/database/prisma.js';
 
+/**
+ * 声明资产因子所需市场数据，供共同截止日计算。
+ * Declare asset-factor datasets used to resolve a common cutoff.
+ */
 export interface AssetFactorDataRequirements {
   commodityCarry?: boolean;
   commodityWarehouseReceipts?: boolean;
 }
 
+/**
+ * 根据资产因子声明的输入数据集取共同可用截止日。
+ * Resolve the common available cutoff across an asset factor's declared datasets.
+ */
 export async function resolveAssetFactorDataCutoff(
   researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'time_series' | 'panel' }>,
   requirements: AssetFactorDataRequirements = {},
@@ -66,6 +74,10 @@ export async function resolveEtfCommonLatest(
   );
 }
 
+/**
+ * 计算商品实际合约相关数据的共同最新日期，供研究范围冻结。
+ * Resolve the latest common date across required actual-contract commodity data.
+ */
 async function resolveCommodityFutureCommonLatest(
   assets: string[],
   database: Prisma,
@@ -98,6 +110,10 @@ async function resolveCommodityFutureCommonLatest(
   return latestDates.length === productCodes.length ? (latestDates.sort()[0] ?? null) : null;
 }
 
+/**
+ * 计算仓单与 ETF 目标的共同最新可得日期。
+ * Resolve the common latest available receipt and ETF target date.
+ */
 async function resolveCommodityWarehouseReceiptCommonLatest(
   assets: string[],
   database: Prisma,

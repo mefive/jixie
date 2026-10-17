@@ -10,6 +10,8 @@ from typing import Any, Callable, Iterable, cast
 _RECURSIVE_WARMUP_MULTIPLIER = 4
 
 
+# 将策略数据映射为属性访问，供 Python 作者读取。
+# English: Expose strategy data mappings as Python attributes.
 class AttrDict(dict[str, Any]):
     def __getattr__(self, name: str) -> Any:
         try:
@@ -46,6 +48,8 @@ def _mean(values: list[float]) -> float:
     return sum(values) / len(values)
 
 
+# 以首窗口均值为种子递推 EMA 序列，供 MACD。
+# English: Seed and recursively compute EMA series for MACD.
 def _ema_series(values: list[float], period: int) -> list[float | None]:
     averages: list[float | None] = [None] * len(values)
     if not _valid_period(period) or len(values) < period:
@@ -60,6 +64,8 @@ def _ema_series(values: list[float], period: int) -> list[float | None]:
     return averages
 
 
+# 根据相邻 OHLC 计算真实波幅与方向变化。
+# English: Compute true range and directional movements from adjacent OHLC bars.
 def _directional_movement(previous: AttrDict, current: AttrDict) -> AttrDict:
     upward_move = current.adj_high - previous.adj_high
     downward_move = previous.adj_low - current.adj_low
@@ -74,6 +80,8 @@ def _directional_movement(previous: AttrDict, current: AttrDict) -> AttrDict:
     )
 
 
+# 根据平滑波幅和方向变化计算 DI 与 DX。
+# English: Compute DI and DX from smoothed true range and directional movements.
 def _directional_values(
     smoothed_true_range: float,
     smoothed_positive_movement: float,
@@ -92,7 +100,11 @@ def _directional_values(
     )
 
 
+# 规范化作者策略定义和调度配置，供运行器加载。
+# English: Normalize authored strategy definitions and schedules for runner loading.
 class Strategy:
+    # 复制并保存作者策略的名称、参数、依赖与账户配置，供运行器加载和参数覆盖。
+    # English: Copy and retain authored strategy metadata, parameters, dependencies and accounts for loading and overrides.
     def __init__(
         self,
         *,
@@ -117,6 +129,8 @@ class Strategy:
         return callback
 
 
+# 实现可链式时点证券池筛选与排序，供策略选股。
+# English: Provide chainable dated universe filtering and ranking for strategy selection.
 class Universe:
     def __init__(self, context: "Context", codes: Iterable[str]) -> None:
         self._context = context
@@ -139,6 +153,8 @@ class Universe:
             ],
         )
 
+    # 按分数排序并剔除缺失值，保持指定升降方向。
+    # English: Rank available scores in the requested direction and exclude missing scores.
     def rank_by(
         self,
         score: Callable[[AttrDict, str], float | None],
@@ -167,6 +183,8 @@ class Universe:
         return len(self._codes)
 
 
+# 封装决策日期的公开策略接口与技术指标，不持有宿主数据库。
+# English: Expose dated strategy context and indicators independently of host storage.
 class Context:
     def __init__(
         self,
@@ -183,6 +201,8 @@ class Context:
     def date(self) -> str:
         return self._capabilities.date
 
+    # 比较调度周期键决定是否进入新周期，供周月调仓。
+    # English: Compare schedule keys to detect new weekly or monthly periods.
     def period(self, schedule: str) -> str:
         date = datetime.strptime(self.date, "%Y%m%d")
         if schedule == "daily":
@@ -228,6 +248,8 @@ class Context:
         values = self.history(code, "close", count)
         return sum(values) / count if len(values) == count else None
 
+    # 计算窗口 EMA，历史不足返回缺失。
+    # English: Compute a window EMA with insufficient-history handling.
     def ema(self, code: str, count: int) -> float | None:
         values = self.history(code, "close", count * 4)
         if len(values) < count:
@@ -238,6 +260,8 @@ class Context:
             result = alpha * value + (1 - alpha) * result
         return result
 
+    # 对相邻行情真实波幅取均值，要求前一根收盘可用。
+    # English: Average true ranges with the required previous close.
     def atr(self, code: str, count: int) -> float | None:
         rows = self.bars(code, count + 1)
         if len(rows) < count + 1:
@@ -271,6 +295,8 @@ class Context:
         values = [row.vol for row in self.bars(code, count) if row.vol is not None]
         return sum(values) / count if len(values) == count else None
 
+    # 以 Wilder 平滑计算 ADX 和正负方向指标，历史不足返回缺失。
+    # English: Compute Wilder ADX and directional indicators with explicit insufficient history.
     def adx(self, code: str, period: int = 14) -> AttrDict | None:
         if not _valid_period(period):
             return None
@@ -337,6 +363,8 @@ class Context:
             negative_di=directional.negative_di,
         )
 
+    # 按总体标准差构造布林带，保留默认窗口与倍数。
+    # English: Construct Bollinger Bands with population dispersion and declared defaults.
     def bollinger_bands(
         self,
         code: str,
@@ -359,6 +387,8 @@ class Context:
         width = math.sqrt(variance) * standard_deviations
         return AttrDict(middle=middle, upper=middle + width, lower=middle - width)
 
+    # 用 Wilder 平滑计算 RSI，按现有规则处理横盘。
+    # English: Compute Wilder RSI with the implemented flat-window convention.
     def rsi(self, code: str, period: int = 14) -> float | None:
         if not _valid_period(period):
             return None
@@ -391,6 +421,8 @@ class Context:
             return 100
         return 100 - 100 / (1 + average_gain / average_loss)
 
+    # 计算 MACD 双 EMA、信号与未加倍柱值。
+    # English: Compute MACD EMAs, signal and undoubled histogram.
     def macd(
         self,
         code: str,
@@ -427,6 +459,8 @@ class Context:
             return None
         return AttrDict(line=line, signal=signal, histogram=line - signal)
 
+    # 由历史高低范围递推 KDJ，保持默认窗口和平滑种子。
+    # English: Compute recursive KDJ from historical ranges with declared defaults and seeds.
     def kdj(
         self,
         code: str,
@@ -468,6 +502,8 @@ class Context:
         return AttrDict(k=k_value, d=d_value, j=j_value)
 
 
+# 在现金账户原始能力上实现仓位和风险辅助方法。
+# English: Add sizing and risk helpers over primitive cash-account capabilities.
 class StockAccount:
     def __init__(self, capabilities: StrategyStockCapabilities) -> None:
         self._capabilities = capabilities

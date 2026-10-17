@@ -113,11 +113,19 @@ export const MARKET_RISK_FACTOR_DEFINITIONS_V1: readonly MarketRiskFactorDefinit
   },
 ];
 
+/**
+ * 提供市场风险模型的指数水平输入。
+ * Supply index levels for market risk drivers.
+ */
 export interface MarketRiskIndexClose {
   tradeDate: string;
   close: number;
 }
 
+/**
+ * 提供风险模型所需期限收益率点。
+ * Supply dated curve terms for risk drivers.
+ */
 export interface MarketRiskCurvePoint {
   curveCode: string;
   tradeDate: string;
@@ -126,6 +134,10 @@ export interface MarketRiskCurvePoint {
   yieldPct: number;
 }
 
+/**
+ * 提供风险模型的汇率水平输入。
+ * Supply FX levels for risk drivers.
+ */
 export interface MarketRiskFxClose {
   tradeDate: string;
   availableDate: string;
@@ -133,6 +145,10 @@ export interface MarketRiskFxClose {
   askClose: number;
 }
 
+/**
+ * 提供已审计商品连续收益，供风险驱动计算。
+ * Supply audited commodity returns for risk-driver construction.
+ */
 export interface MarketRiskCommodityReturn {
   productCode: string;
   tradeDate: string;
@@ -140,11 +156,19 @@ export interface MarketRiskCommodityReturn {
   continuousReturn: number;
 }
 
+/**
+ * 绑定风险驱动变化、单位和可得时点。
+ * Associate risk-driver changes with units and availability.
+ */
 export interface MarketRiskDriverObservationV1 {
   date: string;
   values: Partial<Record<MarketRiskFactorKeyV1, number>>;
 }
 
+/**
+ * 汇总风险驱动历史及其来源血缘。
+ * Collect market-driver history and provenance.
+ */
 export interface MarketRiskDriverHistoryV1 {
   version: 1;
   definitions: readonly MarketRiskFactorDefinitionV1[];
@@ -152,6 +176,10 @@ export interface MarketRiskDriverHistoryV1 {
   lineage: RiskDataLineageV1;
 }
 
+/**
+ * 组合构造风险驱动所需基准、曲线、汇率及商品来源。
+ * Supply benchmark, curve, FX and commodity inputs for driver construction.
+ */
 export interface BuildMarketRiskDriverHistoryInput {
   dataCutoff: string;
   openDates: string[];
@@ -161,7 +189,10 @@ export interface BuildMarketRiskDriverHistoryInput {
   commodityRows: MarketRiskCommodityReturn[];
 }
 
-/** Build non-revised daily drivers keyed by the first SSE session on which every value is usable. */
+/**
+ * 以所有数值首次可用的 SSE 交易日为键，构建不修订日度风险驱动。
+ * Build non-revised daily drivers keyed by the first SSE session on which every value is usable.
+ */
 export function buildMarketRiskDriverHistory(
   input: BuildMarketRiskDriverHistoryInput,
 ): MarketRiskDriverHistoryV1 {
@@ -285,6 +316,10 @@ export function buildMarketRiskDriverHistory(
   };
 }
 
+/**
+ * 加载基准、利率、汇率和商品输入后构建统一风险驱动历史。
+ * Load benchmark, yield, FX and commodity inputs and build aligned risk-driver history.
+ */
 export async function loadMarketRiskDriverHistory(
   options: { startDate: string; endDate: string },
   database: Prisma = prisma,
@@ -396,12 +431,20 @@ export async function loadMarketRiskDriverHistory(
   };
 }
 
+/**
+ * 保存未差分的日期化水平，供可得性对齐后计算变化。
+ * Retain dated levels before availability-aligned differencing.
+ */
 interface LevelObservation {
   sourceDate: string;
   availableDate: string;
   value: number;
 }
 
+/**
+ * 按所需期限构造本土曲线水平并附加可得日期。
+ * Build domestic curve levels with explicit terms and availability.
+ */
 function buildDomesticCurveLevels(rows: MarketRiskCurvePoint[]): {
   level: LevelObservation[];
   slope: LevelObservation[];
@@ -425,6 +468,10 @@ function buildDomesticCurveLevels(rows: MarketRiskCurvePoint[]): {
   return { level, slope, curvature };
 }
 
+/**
+ * 从匹配期限的信用与政府曲线构造信用利差水平。
+ * Construct credit-spread levels from matching credit and government curve terms.
+ */
 function buildCreditSpreadLevels(rows: MarketRiskCurvePoint[]): LevelObservation[] {
   const byDate = new Map<string, Map<string, MarketRiskCurvePoint>>();
   for (const row of rows) {
@@ -464,6 +511,10 @@ function buildCreditSpreadLevels(rows: MarketRiskCurvePoint[]): LevelObservation
   return levels;
 }
 
+/**
+ * 按曲线与期限组织观测，供同期限利差和利率变化计算。
+ * Group observations by curve and term for matched spreads and yield changes.
+ */
 function groupCurveTerms(rows: MarketRiskCurvePoint[], curveCode: string, terms: number[]) {
   const allowed = new Set(terms);
   const grouped = new Map<
@@ -492,6 +543,10 @@ function groupCurveTerms(rows: MarketRiskCurvePoint[], curveCode: string, terms:
   );
 }
 
+/**
+ * 从已对齐价格水平计算相邻收益，保留不可用区间。
+ * Compute adjacent returns from aligned prices while preserving gaps.
+ */
 function buildPriceReturns(
   rows: LevelObservation[],
   output: Map<string, number>,
@@ -519,6 +574,10 @@ function buildLevelChanges(
   }
 }
 
+/**
+ * 验证风险驱动水平数据的日期与数值，防止异常输入传播。
+ * Validate level observation dates and values before risk-driver construction.
+ */
 function validateLevelRows(rows: LevelObservation[], label: string): LevelObservation[] {
   const sourceDates = new Set<string>();
   const latestByAvailableDate = new Map<string, LevelObservation>();

@@ -2,6 +2,10 @@ import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
 import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 
+/**
+ * 从报告中恢复冻结研究规格，供复核与后续准入判断。
+ * Recover the frozen research specification stored in a report.
+ */
 export function reportResearchSpec(row: FactorReportRow) {
   if (row.specJson) {
     try {

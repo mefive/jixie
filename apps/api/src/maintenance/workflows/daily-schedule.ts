@@ -1,6 +1,9 @@
 import type { MaintenanceTrigger } from '../runs/state.js';
 
-/** A delayed/persistent timer before 23:00 must not start the current trading day's batch. */
+/**
+ * 约束定时日更的截止日，23:00 前的延迟触发不得启动当日批次。
+ * A delayed/persistent timer before 23:00 must not start the current trading day's batch.
+ */
 export function scheduledDailyUpperBound(now = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',
@@ -21,6 +24,10 @@ export function scheduledDailyUpperBound(now = new Date()): string {
     .replaceAll('-', '');
 }
 
+/**
+ * 提供定时维护的日期与交易日历信息，供休市跳过规则判断。
+ * Supply schedule dates and calendar state for closed-day skipping.
+ */
 export interface ScheduledClosedDayInput {
   trigger: MaintenanceTrigger;
   targetDate?: string;
@@ -29,6 +36,7 @@ export interface ScheduledClosedDayInput {
 }
 
 /**
+ * 只在交易日历明确标记休市时跳过定时维护；日历缺失不能视为休市。
  * A weekday systemd schedule cannot encode exchange holidays. Only a confirmed `isOpen = 0`
  * is safe to skip: `null` means calendar synchronization did not produce today's row and must
  * stay on the normal validation path. Pending dates always take precedence so holiday wake-ups

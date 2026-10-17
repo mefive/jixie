@@ -5,6 +5,8 @@ import sys
 from typing import Any
 
 
+# 提供确定性 FCFF 情景与反向求解工具，负责公式和输入约束。
+# English: Provide deterministic FCFF scenarios and reverse valuation with explicit formula constraints.
 class _ValuationApi:
     _BASE_COLUMNS = ["revenue", "nopat_margin"]
     _SCENARIO_COLUMNS = [
@@ -21,6 +23,8 @@ class _ValuationApi:
     def __init__(self, pandas_module: Any) -> None:
         self._pandas = pandas_module
 
+    # 校验基期、情景和权益桥输入，逐情景计算预测、终值与估值诊断。
+    # English: Validate base, scenarios and equity bridge and compute forecasts, terminal values and valuation diagnostics.
     def fcff_scenarios(
         self,
         base: Any,
@@ -62,6 +66,8 @@ class _ValuationApi:
             )
         return self._frame(rows)
 
+    # 在有界增长区间求解目标企业价值，检查可识别性、端点和收敛，不把无解当成成功。
+    # English: Solve growth within declared bounds with identification, endpoint and convergence checks.
     def implied_revenue_growth(
         self,
         base: Any,
@@ -196,6 +202,8 @@ class _ValuationApi:
             "unique_solution_within_declared_bounds",
         )
 
+    # 逐年推演收入、NOPAT、再投资与 FCFF，并计算终值、贴现和权益桥。
+    # English: Project revenue, NOPAT, reinvestment and FCFF, then discount terminal value and apply the equity bridge.
     def _scenario_rows(
         self,
         base: dict[str, Any],
@@ -271,6 +279,8 @@ class _ValuationApi:
         }
         return [{**row, **summary} for row in rows]
 
+    # 对候选增长率计算企业价值，供反向求解重复求值。
+    # English: Evaluate enterprise value for a candidate growth rate during reverse solving.
     def _enterprise_value_for_growth(
         self,
         base: dict[str, Any],
@@ -283,6 +293,8 @@ class _ValuationApi:
         rows = self._scenario_rows(base, candidate, bridge, forecast_years, 1.0)
         return float(rows[0]["enterprise_value"])
 
+    # 校验经济参数的有限性与模型可用范围，防止非法终值公式。
+    # English: Validate finite economic inputs and model bounds before terminal-value formulas.
     def _validated_values(
         self, base: dict[str, Any], scenario: dict[str, Any], bridge: dict[str, Any]
     ) -> dict[str, float]:
@@ -331,12 +343,16 @@ class _ValuationApi:
             raise ValueError("issued_shares_must_be_positive")
         return values
 
+    # 要求估值输入恰有一行，防止隐式跨公司混合。
+    # English: Require exactly one valuation input row to prevent implicit entity mixing.
     def _one_row(self, value: Any, columns: list[str], name: str) -> dict[str, Any]:
         rows = self._rows(value, columns, name, 1)
         if len(rows) != 1:
             raise ValueError(f"{name}_must_have_exactly_one_row")
         return rows[0]
 
+    # 将表格输入规范为有界记录集合，并检查必需列。
+    # English: Normalize tabular input into bounded records and require declared columns.
     def _rows(
         self, value: Any, columns: list[str], name: str, maximum_rows: int
     ) -> list[dict[str, Any]]:
@@ -353,6 +369,8 @@ class _ValuationApi:
             raise ValueError(f"{name}_missing_columns:{','.join(missing)}")
         return value[columns].to_dict(orient="records")
 
+    # 解析有限浮点参数，拒绝 NaN、无穷和不支持值。
+    # English: Parse a finite numeric parameter and reject NaN, infinity and unsupported values.
     def _finite(self, name: str, value: Any) -> float:
         if isinstance(value, bool):
             raise ValueError(f"non_finite_input:{name}")
@@ -364,12 +382,16 @@ class _ValuationApi:
             raise ValueError(f"non_finite_input:{name}")
         return number
 
+    # 验证预测年数的整数与范围要求。
+    # English: Validate integer forecast years and supported bounds.
     def _validate_years(self, forecast_years: int) -> None:
         if isinstance(forecast_years, bool) or not isinstance(forecast_years, int):
             raise ValueError("forecast_years_must_be_between_1_and_20")
         if not 1 <= forecast_years <= 20:
             raise ValueError("forecast_years_must_be_between_1_and_20")
 
+    # 构造反向求解结果表及状态、边界和诊断元数据。
+    # English: Build the reverse-solver result frame with status, bounds and diagnostics.
     def _solver_frame(
         self,
         status: str,

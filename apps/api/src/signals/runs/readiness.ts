@@ -1,6 +1,10 @@
 import { prisma } from '#infra/database/prisma.js';
 import { isCompletedShanghaiDate } from '#market/calendar/sse-close.js';
 
+/**
+ * 根据市场发布水位与交易日历确定可用执行日。
+ * Resolve an eligible execution date from publication state and the market calendar.
+ */
 export async function resolveSignalExecutionDate(
   tradeDate: string,
 ): Promise<

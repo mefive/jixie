@@ -4,7 +4,10 @@ import { futureMarketSchema } from './snapshot.js';
 
 const products = ['IF', 'IH', 'IC', 'IM'];
 
-/** Validate all live contracts before publishing an immutable daily input set. */
+/**
+ * 验证所有存续期货合约后才发布不可变的当日输入集合。
+ * Validate all live contracts before publishing an immutable daily input set.
+ */
 export async function publishFutureMarketDate(tradeDate: string): Promise<void> {
   if (await prisma.futureMarketPublication.findUnique({ where: { tradeDate } })) {
     return;
@@ -86,6 +89,10 @@ export async function publishFutureMarketDate(tradeDate: string): Promise<void> 
   });
 }
 
+/**
+ * 从已发布期货输入还原运行所需行情，避免直接读取未发布切片。
+ * Read runtime futures rows from the published input set.
+ */
 export async function publishedFutureRows(start: string, end: string) {
   const publications = await prisma.futureMarketPublication.findMany({
     where: { tradeDate: { gte: start, lte: end } },

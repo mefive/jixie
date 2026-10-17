@@ -8,7 +8,10 @@ import {
   researchSdkPythonReturnType,
 } from './python-signature.js';
 
-/** Render the Python typing surface used by both the sandbox artifact and Pyright workspace. */
+/**
+ * 生成沙盒产物与 Pyright 工作区共用的 Python 类型表面。
+ * Render the Python typing surface used by both the sandbox artifact and Pyright workspace.
+ */
 export function renderResearchSdkPythonStub(
   sdk: ResearchSdkContractV1 = RESEARCH_SDK_CONTRACT_V1,
 ): string {
@@ -46,6 +49,10 @@ export function renderResearchSdkPythonStub(
   return lines.join('\n');
 }
 
+/**
+ * 从单方法契约渲染 Python 声明及来源说明，不改变方法签名。
+ * Render one Python method declaration and guidance from its canonical contract.
+ */
 function renderFunction(contract: ResearchSdkFunctionContractV1): string[] {
   const lines = [`    # ${contract.descriptionEn}`];
   for (const note of contract.notesEn) {

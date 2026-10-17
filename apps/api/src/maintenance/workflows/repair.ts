@@ -17,6 +17,10 @@ import {
 } from '../runs/state.js';
 import { runDailyMaintenance } from './daily.js';
 
+/**
+ * 编排指定范围的修复维护并记录恢复结果。
+ * Coordinate maintenance repair over the requested range and record its outcome.
+ */
 export async function runRepairMaintenance(startDate: string, endDate: string): Promise<void> {
   assertProductionLock();
   assertRange(startDate, endDate);

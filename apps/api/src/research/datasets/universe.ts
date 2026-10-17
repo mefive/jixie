@@ -14,11 +14,18 @@ type UniverseValueRow = ResearchUniverseRowV1 & { values: Record<string, number 
 
 const DEFAULT_LIMIT = 50;
 
+/**
+ * 配置时点股票池执行的范围与限制。
+ * Configure point-in-time universe execution bounds and limits.
+ */
 export interface ExecuteUniverseSpecOptions {
   defaultLimit?: number | null;
 }
 
-/** Execute one validated point-in-time equity universe without accepting SQL from the caller. */
+/**
+ * 执行已校验的时点股票证券池，不接受调用方 SQL。
+ * Execute one validated point-in-time equity universe without accepting SQL from the caller.
+ */
 export async function executeUniverseSpec(
   spec: UniverseSpecV1,
   database: PrismaClient = prisma,
@@ -114,6 +121,11 @@ export async function executeUniverseSpec(
   }
 
   const stages: ResearchUniverseStageV1[] = [{ code: 'source', count: dailyBasics.length }];
+
+  /**
+   * 将当日原始证券行与历史元数据组合为证券池筛选值。
+   * Assemble dated source rows and historical metadata into universe filter values.
+   */
   let rows = dailyBasics
     .filter((row) => {
       const basic = basicByCode.get(row.tsCode);
@@ -196,6 +208,10 @@ export async function executeUniverseSpec(
   };
 }
 
+/**
+ * 将已验证证券池筛选和排序作用于当日候选行。
+ * Apply validated universe filters and ranking to dated candidate rows.
+ */
 export function applyUniverseSpec(
   inputRows: UniverseValueRow[],
   spec: UniverseSpecV1,
@@ -246,6 +262,10 @@ export function applyUniverseSpec(
   return { total, rows: limit == null ? rows : rows.slice(0, limit) };
 }
 
+/**
+ * 解析证券池来源的当时成员，不用当前成员回填历史。
+ * Resolve dated universe-source membership without current-membership backfill.
+ */
 async function resolveSource(
   database: PrismaClient,
   spec: UniverseSpecV1,

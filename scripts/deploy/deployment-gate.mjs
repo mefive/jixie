@@ -26,6 +26,10 @@ try {
   database.close();
 }
 
+/**
+ * 建立部署维护门禁并记录部署身份，供后续等待与切换。
+ * Establish the deployment maintenance gate and record deployment identity.
+ */
 async function begin(commandArgs) {
   const [targetKey, ...rest] = commandArgs;
   if (!targetKey || rest.length > 0) {
@@ -90,6 +94,10 @@ async function begin(commandArgs) {
   }
 }
 
+/**
+ * 标记部署门禁结束及结果，供应用恢复状态读取。
+ * Finalize deployment-gate state and outcome for application recovery.
+ */
 function finish(commandArgs) {
   const [runId, outcome, ...rest] = commandArgs;
   if (!runId || (outcome !== 'done' && outcome !== 'error') || rest.length > 0) {
@@ -103,6 +111,10 @@ function finish(commandArgs) {
   );
 }
 
+/**
+ * 等待在途业务运行退出，供部署在安全边界切换进程。
+ * Wait for in-flight business work before deployment switches processes.
+ */
 async function waitForRunningWork(runId) {
   const timeoutMilliseconds = positiveInteger(
     process.env.MAINTENANCE_JOB_DRAIN_TIMEOUT_MS,

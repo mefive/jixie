@@ -39,6 +39,10 @@ const TERM_BY_HEADER = new Map([
   ['30年', 30],
 ]);
 
+/**
+ * 保留中债信用曲线种类、期限与发布值。
+ * Describe published ChinaBond credit curve types, terms and yields.
+ */
 export interface ChinaBondCreditCurvePoint {
   curveCode: (typeof CHINABOND_PUBLIC_CURVES)[number]['curveCode'];
   curveName: (typeof CHINABOND_PUBLIC_CURVES)[number]['curveName'];
@@ -47,6 +51,10 @@ export interface ChinaBondCreditCurvePoint {
   yieldPct: number;
 }
 
+/**
+ * 抽象中债工作簿获取，供年度切片同步。
+ * Abstract ChinaBond workbook access for yearly synchronization.
+ */
 export interface ChinaBondCreditCurveClient {
   fetchRange(startDate: string, endDate: string): Promise<ChinaBondCreditCurvePoint[]>;
 }
@@ -76,6 +84,10 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
     return parseChinaBondCurveWorkbook(workbook, startDate, endDate);
   }
 
+  /**
+   * 获取官方信用曲线工作簿，供来源解析和质量检查。
+   * Fetch the official credit-curve workbook for parsing and validation.
+   */
   private async fetchWorkbook(url: string): Promise<Uint8Array> {
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= MAX_FETCH_ATTEMPTS; attempt += 1) {
@@ -126,7 +138,10 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
   }
 }
 
-/** Parse the source workbook and preserve only actual published term points. */
+/**
+ * 解析来源工作簿，只保留实际发布的期限点。
+ * Parse the source workbook and preserve only actual published term points.
+ */
 export function parseChinaBondCurveWorkbook(
   workbook: Uint8Array,
   startDate: string,
@@ -223,6 +238,7 @@ export function parseChinaBondCurveWorkbook(
 }
 
 /**
+ * 仅替换成功下载的自然年度切片，并按中国收盘之后发布规则标记可得日。
  * Replace one successfully downloaded calendar-year slice. ChinaBond publishes these curves
  * after the China close, so each observation is gated to the first strictly later SSE session.
  */
@@ -339,6 +355,10 @@ function normalizeSourceDate(value: string): string {
   return normalized;
 }
 
+/**
+ * 按年度组织信用曲线下载范围，供切片原子替换。
+ * Partition credit-curve downloads into yearly replacement ranges.
+ */
 function yearlyRanges(startDate: string, endDate: string) {
   const ranges: Array<{ startDate: string; endDate: string }> = [];
   for (let year = Number(startDate.slice(0, 4)); year <= Number(endDate.slice(0, 4)); year++) {
@@ -371,6 +391,10 @@ function addCalendarDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10).replaceAll('-', '');
 }
 
+/**
+ * 为来源工作簿解析失败构造带上下文的诊断错误。
+ * Build a contextual diagnostic for source-workbook parsing failures.
+ */
 function diagnosticError(error: unknown): Error {
   const failure = error instanceof Error ? error : new Error(String(error));
   const cause = failure.cause;

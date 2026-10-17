@@ -13,6 +13,10 @@ const ValuationChart = lazy(() => import('./valuation-chart'));
 
 type HistoryRange = '5y' | '10y' | 'all';
 
+/**
+ * 加载指数估值目录与历史，协调指标和时间范围选择。
+ * Load valuation catalogs and history and coordinate metric and range selection.
+ */
 export const Valuation = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('valuation');
@@ -116,6 +120,10 @@ export const Valuation = complex.component(() => {
 
 // —— Subcomponents / helpers ——
 
+/**
+ * 展示单个估值指标、分位与当前状态。
+ * Present one valuation measure, percentile and current state.
+ */
 function MetricCard({
   metric,
   summary,
@@ -165,6 +173,10 @@ function ChartSkeleton() {
   return <Skeleton.Node active className="jx-valuation-chartSkeleton" />;
 }
 
+/**
+ * 按所选历史范围过滤估值点，保持原有时间顺序。
+ * Filter valuation points by the selected history range.
+ */
 function filterPoints(
   points: IndexValuationPoint[],
   asOf: string,

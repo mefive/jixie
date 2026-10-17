@@ -1,4 +1,5 @@
 /**
+ * 登记引擎可直接提供的存储因子及其时间语义。
  * Registry of the factor columns the BACKTEST ENGINE can serve through ctx.factor() — the single
  * source (like sdk/strategy/reference.ts) for: the engine's time semantics, the Monaco dts FactorKey union,
  * and the codegen prompt's factor list. Distinct from the factor-RESEARCH catalog (builtin-factors):
@@ -48,7 +49,10 @@ export const ENGINE_FACTORS = [
   },
 ] as const satisfies readonly EngineFactorDef[];
 
-/** Literal union of the engine-served stored factor keys. */
+/**
+ * 限定引擎已登记的存储因子 key。
+ * Literal union of the engine-served stored factor keys.
+ */
 export type EngineFactorKey = (typeof ENGINE_FACTORS)[number]['key'];
 
 /** User-authored factor keys share the same lower_snake_case namespace as engine factor keys. */

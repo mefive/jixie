@@ -12,6 +12,10 @@ export async function syncedIndexContext(): Promise<string> {
     : '(no index constituents on record yet)';
 }
 
+/**
+ * 整理当前可用的已发布因子及契约，供策略 Agent 生成合法依赖。
+ * Describe available published factors and their contracts for strategy authoring.
+ */
 export async function publishedFactorContext(userId: string): Promise<string> {
   const [factors, composites] = await Promise.all([
     prisma.factor.findMany({

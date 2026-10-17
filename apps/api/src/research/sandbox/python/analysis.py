@@ -8,6 +8,8 @@ from typing import Any
 _RUNTIME_NAMES = {"charts", "data", "np", "pd", "results", "valuation"}
 
 
+# 返回 Cell 的定义、读取和静态诊断，供依赖图。
+# English: Collect cell definitions, references and static diagnostics for the dependency graph.
 @dataclass
 class _Analysis:
     definitions: list[str]
@@ -22,6 +24,8 @@ class _Analysis:
     error: str | None = None
 
 
+# 通过 Python AST 分析名字和 SDK 调用，不执行用户代码。
+# English: Analyze names and SDK calls from Python AST without executing user code.
 class _NameAnalysis(ast.NodeVisitor):
     def __init__(self) -> None:
         self.definitions: set[str] = set()
@@ -58,6 +62,8 @@ class _NameAnalysis(ast.NodeVisitor):
             self.imports.add(import_root)
             self.definitions.add(alias.asname or import_root)
 
+    # 识别 from-import 绑定并排除通配导入的歧义。
+    # English: Track from-import bindings and handle wildcard ambiguity.
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         if node.module:
             self.imports.add(node.module.split(".", 1)[0])
@@ -65,6 +71,8 @@ class _NameAnalysis(ast.NodeVisitor):
             if alias.name != "*":
                 self.definitions.add(alias.asname or alias.name)
 
+    # 识别受支持 SDK 调用、参数和数据引用，供治理及依赖分析。
+    # English: Identify supported SDK calls, arguments and data references for governance and dependency analysis.
     def visit_Call(self, node: ast.Call) -> None:
         if (
             isinstance(node.func, ast.Attribute)
@@ -182,6 +190,8 @@ class _NameAnalysis(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+# 解析单 Cell AST 并收集定义与引用，将语法错误转为静态诊断。
+# English: Parse a cell AST and collect definitions and references with syntax diagnostics.
 def _analyze(source: str) -> _Analysis:
     try:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")

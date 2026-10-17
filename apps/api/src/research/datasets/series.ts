@@ -16,16 +16,28 @@ import {
 } from '#market/cross-market/benchmark-conversion.js';
 import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
 
+/**
+ * 保存研究序列的日期、数值及相关标记。
+ * Describe a dated research value and associated indicators.
+ */
 export interface ResearchSeriesPoint {
   date: string;
   value: number;
 }
 
+/**
+ * 组合已加载序列与单位、来源及可得性说明。
+ * Collect loaded series with units, provenance and availability.
+ */
 export interface LoadedResearchSeries {
   points: ResearchSeriesPoint[];
   diagnostics: ResearchDiagnosticV1[];
 }
 
+/**
+ * 提供带版本身份的宏观研究值，供严格对齐。
+ * Supply macro research values with vintage identity for strict alignment.
+ */
 export interface MacroResearchObservationRow {
   period: string;
   vintageDate: string;
@@ -40,12 +52,20 @@ export type ResearchSeriesLoader = (
   end: string,
 ) => Promise<LoadedResearchSeries>;
 
+/**
+ * 区分加载预热区间和实际输出区间。
+ * Separate warm-up loading bounds from requested output bounds.
+ */
 export interface ResearchSeriesPreparationRange {
   start: string;
   end: string;
   partialPeriod: 'exclude' | 'include';
 }
 
+/**
+ * 解析受控序列身份、加载来源并应用频率与变换，保留单位和可得性元数据。
+ * Resolve a governed series, load its source and apply frequency and transforms with units and availability metadata.
+ */
 export const loadResearchSeries: ResearchSeriesLoader = async (input, start, end) => {
   switch (input.source.kind) {
     case 'instrument':
@@ -59,6 +79,10 @@ export const loadResearchSeries: ResearchSeriesLoader = async (input, start, end
   }
 };
 
+/**
+ * 按请求窗口重采样并变换预载数据，裁剪输出至目标范围。
+ * Resample and transform preloaded data and trim output to the requested window.
+ */
 export function prepareResearchSeries(
   points: ResearchSeriesPoint[],
   frequency: ResearchFrequencyV1,
@@ -82,7 +106,10 @@ export function prepareResearchSeries(
   );
 }
 
-/** Load enough history before the requested window to compute its first transformed observation. */
+/**
+ * 为首个输出观测预留变换所需历史，避免窗口起点计算不足。
+ * Load enough history before the requested window to compute its first transformed observation.
+ */
 export function researchSeriesLoadStart(
   start: string,
   frequency: ResearchFrequencyV1,
@@ -99,6 +126,10 @@ export function researchSeriesLoadStart(
   return shiftCalendarDays(start, -14);
 }
 
+/**
+ * 将已按时点对齐的序列聚合为所请求频率。
+ * Resample an availability-aligned series to the requested frequency.
+ */
 export function resampleSeries(
   points: ResearchSeriesPoint[],
   frequency: ResearchFrequencyV1,
@@ -122,6 +153,10 @@ export function resampleSeries(
     .sort((left, right) => left.date.localeCompare(right.date));
 }
 
+/**
+ * 对有序序列执行请求变换，并保留缺失与预热限制。
+ * Apply the requested transform to an ordered series with explicit missing and warm-up behavior.
+ */
 export function transformSeries(
   points: ResearchSeriesPoint[],
   transform: ResearchTransformV1,
@@ -165,6 +200,10 @@ export function transformSeries(
   return transformed;
 }
 
+/**
+ * 读取已验证证券的价格序列并映射研究指标。
+ * Load a verified instrument's prices and map the requested research measure.
+ */
 async function loadInstrumentSeries(
   source: Extract<ResearchSeriesInputSpecV1['source'], { kind: 'instrument' }>,
   measure: string,
@@ -245,6 +284,10 @@ async function loadInstrumentSeries(
   };
 }
 
+/**
+ * 读取跨市场基准及计价转换结果，保留中国研究时钟。
+ * Load cross-market benchmark values and currency conversions on the China research clock.
+ */
 async function loadCrossMarketBenchmarkSeries(
   benchmark: CrossMarketBenchmarkDefinition,
   measure: string,
@@ -320,6 +363,10 @@ async function loadCrossMarketBenchmarkSeries(
   };
 }
 
+/**
+ * 读取声明的期货研究序列，保留实际合约与连续收益的不同语义。
+ * Load declared futures research series with explicit actual-contract and continuous-return semantics.
+ */
 async function loadFutureSeries(
   id: string,
   start: string,
@@ -373,6 +420,7 @@ async function loadMacroSeries(
 }
 
 /**
+ * 按经审计可得日期对齐宏观值，并为每期间选择最早抓取版本。
  * Align macro values to their audited market availability while choosing the earliest captured
  * vintage per period. Historical latest-value imports remain usable for exploratory work, but the
  * returned diagnostic prevents them from being described as real-time vintage data.
@@ -440,6 +488,10 @@ async function loadYieldCurveSeries(
   };
 }
 
+/**
+ * 读取受控货币对序列，保留报价方向和可得日期。
+ * Load a governed FX pair with its quote direction and availability dates.
+ */
 async function loadFxSeries(id: string, start: string, end: string): Promise<LoadedResearchSeries> {
   if (id === HKD_CNH_DERIVED_CODE) {
     const rows = await prisma.fxDaily.findMany({
@@ -490,6 +542,10 @@ function calendarMonthEnd(date: string): string {
   return `${String(year).padStart(4, '0')}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}`;
 }
 
+/**
+ * 按自然月偏移加载起点，供变换预热。
+ * Shift loading bounds by calendar months for transform warm-up.
+ */
 function shiftMonth(date: string, offset: number): string {
   const year = Number(date.slice(0, 4));
   const monthIndex = Number(date.slice(4, 6)) - 1;
@@ -497,6 +553,10 @@ function shiftMonth(date: string, offset: number): string {
   return `${shifted.getUTCFullYear()}${String(shifted.getUTCMonth() + 1).padStart(2, '0')}01`;
 }
 
+/**
+ * 按自然日偏移查询范围，供历史预热读取。
+ * Shift date bounds by calendar days for historical warm-up.
+ */
 function shiftCalendarDays(date: string, offset: number): string {
   const value = new Date(
     Date.UTC(Number(date.slice(0, 4)), Number(date.slice(4, 6)) - 1, Number(date.slice(6, 8))),

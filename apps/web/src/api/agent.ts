@@ -20,6 +20,11 @@ export type AgentToolTraceItem = ToolTraceItem;
 
 // Subscribe to a turn's SSE stream. `signal` cancels the SUBSCRIPTION only (the turn keeps running
 // server-side); to stop the turn itself call cancelAgentTurn.
+
+/**
+ * 按轮次身份订阅 SSE，解析快照与增量直到终态。
+ * Subscribe to turn SSE and decode snapshots and increments until completion.
+ */
 export async function subscribeAgentTurn(turnId: string, signal?: AbortSignal): Promise<Response> {
   const res = await fetch(`/api/app/agent/turns/${turnId}/stream`, {
     signal,
@@ -60,6 +65,11 @@ export function getAgentTurn(turnId: string): Promise<AgentTurnDetail> {
 
 // Parse an SSE body (hono streamSSE: `data: <json>\n\n` frames). fetch + ReadableStream instead of
 // EventSource — EventSource can't attach an AbortSignal or read a failed response body.
+
+/**
+ * 从响应流解析 SSE 事件并处理取消与结束，供 Agent 增量消息消费。
+ * Parse SSE events from a response stream with cancellation and completion handling.
+ */
 export async function* readSSE(res: Response): AsyncGenerator<AgentStreamEvent> {
   if (!res.body) {
     throw new Error('SSE response has no body');

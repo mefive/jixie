@@ -68,7 +68,16 @@ import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
 import { pushRecent, readRecents, removeRecent } from './recents';
 import { PANEL_ASSET_IDS } from '../factor/panel-universe';
 
+/**
+ * 指定策略路由的已保存身份与初始状态。
+ * Configure saved strategy identity and initial route state.
+ */
 type StrategySetupParams = { id?: string; report?: string; isNew?: boolean; factorKey?: string };
+
+/**
+ * 区分部署与暂停动作，供统一异步变更。
+ * Discriminate deployment and pause actions for async mutations.
+ */
 type DeploymentAction =
   | { type: 'deploy'; reportId: string }
   | { type: 'pause'; deploymentId: string };
@@ -138,6 +147,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   public deploymentActionLoader = new LoaderModel<StrategyDeployment>();
   public factorLoader = new LoaderModel<{ factor: FactorMeta; assets: string[] } | null>();
 
+  /**
+   * 登记策略配置、报告及运行状态的可观察属性。
+   * Register observable strategy configuration, report and execution state.
+   */
   public constructor(parentStore?: any) {
     super(parentStore);
     makeObservable(this, {
@@ -178,6 +191,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     });
   }
 
+  /**
+   * 配置策略、报告比较、扫描、部署与 Agent 流状态，注册所有清理。
+   * Initialize strategy, report comparison, scan, deployment and agent state with cleanup.
+   */
   public setup(params: StrategySetupParams) {
     super.setup(params);
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
@@ -221,6 +238,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
           : pauseStrategyDeployment(action.deploymentId),
     });
     this.factorLoader.setup({
+      /**
+       * 读取已发布因子及批准报告，为策略引用补全提供可用资产范围。
+       * Load a published factor and approved report to describe supported assets for strategy references.
+       */
       request: async (factorKey: string) => {
         const factor = (await getFactorCatalog()).find(
           (candidate) => candidate.strategyKey === factorKey && candidate.status === 'published',
@@ -309,32 +330,47 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     });
   }
 
-  /** True while a backtest is running (drives the loading state + progress log). */
+  /**
+   * 判断回测是否在运行，供加载和进度显示。
+   * True while a backtest is running (drives the loading state + progress log).
+   */
   public get running(): boolean {
     return this.backtestPoller.running;
   }
 
-  /** Untouched starter strategy (no saved id, default code, no run, no chat) → show the prompt-first hero. */
+  /**
+   * 识别尚未保存、编辑或运行的初始策略，供提示词优先入口。
+   * Untouched starter strategy (no saved id, default code, no run, no chat) → show the prompt-first hero.
+   */
   public get isFresh(): boolean {
     return (
       !this.savedId && !this.result && this.code === DEFAULT_CODE && this.chatMessages.length === 0
     );
   }
 
-  /** The run-relevant config (range/capital/code — NOT name) changed since the last run. Gates Run-backtest:
-   * a never-run strategy has an empty baseline → dirty → runnable; a fresh run resets the baseline. */
+  /**
+   * 比较上次运行相关配置，名称变化不使回测失效。
+   * The run-relevant config (range/capital/code — NOT name) changed since the last run. Gates Run-backtest:
+   * a never-run strategy has an empty baseline → dirty → runnable; a fresh run resets the baseline.
+   */
   public get dirty(): boolean {
     return this.configKey() !== this.savedConfig;
   }
 
-  /** The code/params differ from what's PERSISTED in the DB — i.e. there are unrun edits that leaving
+  /**
+   * 比较当前代码和参数与数据库持久配置，供未保存离开提示。
+   * The code/params differ from what's PERSISTED in the DB — i.e. there are unrun edits that leaving
    * would lose. Gates the leave guard (New / switch strategy / refresh). A just-opened strategy is NOT edited (even
-   * if never run → dirty), so opening one doesn't false-warn. */
+   * if never run → dirty), so opening one doesn't false-warn.
+   */
   public get edited(): boolean {
     return this.configKey() !== this.persistedConfig;
   }
 
-  /** Report identity governs deployment; mutable editor state is irrelevant. */
+  /**
+   * 依据不可变报告身份选择部署，忽略当前可变编辑状态。
+   * Report identity governs deployment; mutable editor state is irrelevant.
+   */
   public get deployment(): StrategyDeployment | null {
     return (
       this.deployments.find(
@@ -353,13 +389,19 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     return !!report && report.language === 'typescript';
   }
 
-  /** The standalone trade page remains tied to the latest run. */
+  /**
+   * 判断是否正在查看最近回测，保持独立成交页与最近运行关联。
+   * The standalone trade page remains tied to the latest run.
+   */
   public get viewingLatestBacktest(): boolean {
     const latestReportId = this.backtestHistoryLoader.result?.[0]?.id;
     return !latestReportId || this.activeBacktestReportId === latestReportId;
   }
 
-  /** Range/capital + the strategy code → a runnable BacktestConfig. */
+  /**
+   * 将日期、资本和作者代码组装为可运行回测配置。
+   * Range/capital + the strategy code → a runnable BacktestConfig.
+   */
   public get config(): BacktestConfig {
     return {
       name: this.name.trim() || '未命名策略',
@@ -428,10 +470,13 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
   }
 
-  /** One Agent turn — streamed. Append the user message locally, ensure the strategy exists (the
+  /**
+   * 先确保策略持久化，再发送 Agent 消息并连接增量响应。
+   * One Agent turn — streamed. Append the user message locally, ensure the strategy exists (the
    * first prompt creates it, LLM-named from that request), START the turn (server persists both the
    * user message and the reply onto the strategy row), then subscribe to its SSE stream; the reply
-   * lands via turnHandlers. Code is NOT persisted here (only a run commits config). */
+   * lands via turnHandlers. Code is NOT persisted here (only a run commits config).
+   */
   public async sendAgent(
     message: string,
     includeReport = true,
@@ -496,7 +541,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
   }
 
-  /** Terminal-event handlers shared by sendAgent and the refresh reattach. */
+  /**
+   * 提供新轮次与刷新重连共用的终态处理。
+   * Terminal-event handlers shared by sendAgent and the refresh reattach.
+   */
   private turnHandlers(): AgentTurnHandlers {
     const strategyId = this.savedId;
     const selection = this.chatSelection;
@@ -551,7 +599,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     };
   }
 
-  /** Refresh reattach: if this strategy has a live turn, subscribe (snapshot replays what we missed). */
+  /**
+   * 按策略身份查找活动对话并重新订阅，通过快照恢复内容。
+   * Refresh reattach: if this strategy has a live turn, subscribe (snapshot replays what we missed).
+   */
   private async reattachTurn() {
     if (!this.savedId) {
       return;
@@ -570,9 +621,12 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     } // resolved at the terminal event (or no live turn)
   }
 
-  /** Create the strategy row if it doesn't exist yet (first Agent prompt, or a first run of a
+  /**
+   * 首次提示或手写策略首次运行前先创建持久化策略记录。
+   * Create the strategy row if it doesn't exist yet (first Agent prompt, or a first run of a
    * hand-written strategy). The server names it from the prompt when given, else from the code. The
-   * baseline is left empty so a never-run strategy is dirty (→ runnable). Best-effort. */
+   * baseline is left empty so a never-run strategy is dirty (→ runnable). Best-effort.
+   */
   private async ensureStrategy(namePrompt?: string) {
     if (this.savedId) {
       return;
@@ -596,7 +650,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
   }
 
-  /** Start fresh: a blank skeleton strategy. Empty baseline → dirty → Run-backtest enabled. */
+  /**
+   * 重置为新的空策略骨架及未运行编辑基线。
+   * Start fresh: a blank skeleton strategy. Empty baseline → dirty → Run-backtest enabled.
+   */
   public newStrategy(language: StrategyLanguage = 'typescript') {
     this.chatSelection += 1;
     this.turnStream.detach();
@@ -637,6 +694,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.deploymentActionLoader.reset();
   }
 
+  /**
+   * 将当前不可变报告提交为信号部署并刷新关联状态。
+   * Deploy the selected immutable report and refresh deployment state.
+   */
   public async deploy() {
     if (
       !this.savedId ||
@@ -673,6 +734,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
   }
 
+  /**
+   * 暂停已选部署并刷新状态，保持当前报告关联。
+   * Pause the selected deployment and refresh its state.
+   */
   public async pauseDeployment() {
     if (!this.deployment || this.deploymentActionLoader.loading) {
       return;
@@ -703,8 +768,11 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
   }
 
-  /** Run a backtest. This is the commit point: it persists the current config (code/range/capital) onto
-   * the strategy, replaces the shown result with the new run, and re-derives the name from the code. */
+  /**
+   * 提交回测作为配置持久化点，记录新报告身份并启动后台进度轮询。
+   * Run a backtest. This is the commit point: it persists the current config (code/range/capital) onto
+   * the strategy, replaces the shown result with the new run, and re-derives the name from the code.
+   */
   public async run() {
     await this.ensureStrategy(); // create the row if this is a hand-written strategy that never talked to the agent
     if (!this.savedId) {
@@ -735,7 +803,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.startPolling(jobId);
   }
 
-  /** Re-attach to a still-running backtest (jobId from localStorage) without resubmitting. */
+  /**
+   * 根据保存的 jobId 重连仍在运行的回测，不重复提交。
+   * Re-attach to a still-running backtest (jobId from localStorage) without resubmitting.
+   */
   public resume(jobId: string) {
     runInAction(() => {
       this.logLines = [];
@@ -746,15 +817,21 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.startPolling(jobId);
   }
 
-  /** Append log lines streamed from the backtest worker. */
+  /**
+   * 将 Worker 增量日志追加到当前回测输出。
+   * Append log lines streamed from the backtest worker.
+   */
   public appendLogs(lines: LogLine[]) {
     runInAction(() => {
       this.logLines = [...this.logLines, ...lines];
     });
   }
 
-  /** Reflect a full saved BacktestConfig back into the editor (name + range/capital + code). The caller
-   * (openSaved) sets the `dirty` baseline, since it depends on whether a run result exists. */
+  /**
+   * 恢复已保存配置到编辑器，调用方另行管理结果和报告身份。
+   * Reflect a full saved BacktestConfig back into the editor (name + range/capital + code). The caller
+   * (openSaved) sets the `dirty` baseline, since it depends on whether a run result exists.
+   */
   public applyConfig(config: BacktestConfig) {
     runInAction(() => {
       this.name = config.name;
@@ -767,7 +844,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     });
   }
 
-  /** Serialize the RUN-relevant config for `dirty` (excludes name — a rename doesn't invalidate a run). */
+  /**
+   * 序列化影响运行的配置以判断 dirty，名称不参与。
+   * Serialize the RUN-relevant config for `dirty` (excludes name — a rename doesn't invalidate a run).
+   */
   private configKey(): string {
     return JSON.stringify({
       start: this.start,
@@ -794,15 +874,21 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.scanReportLoader.reset();
   }
 
-  /** A run committed the current config: it's both the new run baseline (dirty) and persisted (edited). */
+  /**
+   * 将已提交配置设为运行与持久化基线，重置两种变更判断。
+   * A run committed the current config: it's both the new run baseline (dirty) and persisted (edited).
+   */
   private markSaved() {
     runInAction(() => {
       this.savedConfig = this.persistedConfig = this.configKey();
     });
   }
 
-  /** Reopen a saved strategy: load its config + last result, and re-attach to a running backtest if one
-   * is still in flight for it (so a refresh continues streaming logs instead of losing the run). */
+  /**
+   * 打开已保存策略、恢复配置和最近结果，并重连活动回测。
+   * Reopen a saved strategy: load its config + last result, and re-attach to a running backtest if one
+   * is still in flight for it (so a refresh continues streaming logs instead of losing the run).
+   */
   public async openSaved(id: string, reportId?: string) {
     const selection = ++this.chatSelection;
     this.turnStream.detach();
@@ -896,7 +982,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
   }
 
-  /** Delete a saved strategy, then refresh the list. */
+  /**
+   * 删除已保存策略后刷新列表。
+   * Delete a saved strategy, then refresh the list.
+   */
   public removeSaved(id: string) {
     removeRecent(id);
     void deleteStrategy(id).then(() => this.savedLoader.run());
@@ -923,6 +1012,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.scanPoller.start();
   }
 
+  /**
+   * 轮询扫描任务并在终态后加载持久化报告。
+   * Poll a scan job and load its persisted report at completion.
+   */
   private async pollScanOnce(): Promise<false | void> {
     try {
       const job = await pollStrategyScan(this.scanJobId!, this.scanSince);
@@ -957,7 +1050,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
   }
 
-  /** One poll tick — append new logs; return false to stop the poller (done / error / expired). */
+  /**
+   * 单次轮询追加回测日志，完成、失败或过期时返回 false 停止。
+   * One poll tick — append new logs; return false to stop the poller (done / error / expired).
+   */
   private async pollOnce(): Promise<false | void> {
     try {
       const job = await pollBacktest(this.jobId!, this.since);
@@ -1019,6 +1115,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     void this.benchmarkLoader.run({ start, end }).catch(() => {});
   }
 
+  /**
+   * 读取明确历史报告并更新查看身份，不覆盖当前编辑配置。
+   * Load an explicit historical report and update viewed identity independently of editing.
+   */
   public async viewBacktestReport(reportId: string) {
     if (reportId === this.activeBacktestReportId || !this.savedId) {
       return;
@@ -1036,6 +1136,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.loadBenchmarks(detail.result);
   }
 
+  /**
+   * 加载比较报告并校验当前选择，避免旧请求覆盖新比较。
+   * Load a comparison report under selection guards against stale requests.
+   */
   public async loadBacktestComparison(reportId: string) {
     if (!this.savedId || reportId === this.activeBacktestReportId) {
       return null;

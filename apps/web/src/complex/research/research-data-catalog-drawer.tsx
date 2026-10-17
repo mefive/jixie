@@ -4,11 +4,19 @@ import { ResearchDataCatalogPicker } from '@src/components/research-data-catalog
 import { complex } from './complex';
 import { insertResearchPythonSnippet } from './research-python-language';
 
+/**
+ * 传递研究数据选择与插入回调，供目录抽屉。
+ * Supply research selection and insertion callbacks to the catalog drawer.
+ */
 interface ResearchDataCatalogDrawerProps {
   open: boolean;
   onClose(): void;
 }
 
+/**
+ * 在研究工作区打开受控数据目录选择器并传递选中引用。
+ * Open the governed data picker and return selected references to the research workspace.
+ */
 export const ResearchDataCatalogDrawer = complex.component(
   ({ open, onClose }: ResearchDataCatalogDrawerProps) => {
     const store = complex.useStore();

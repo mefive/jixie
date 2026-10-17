@@ -12,7 +12,10 @@ import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 
 import type { ResearchEmbeddedInputModeInput } from '@jixie/shared/api/research';
 
-/** One editable copy per retained run. Repeated clicks return the same document. */
+/**
+ * 每个留存运行只创建一个可编辑副本，重复操作返回同一文档。
+ * One editable copy per retained run. Repeated clicks return the same document.
+ */
 export async function continueEmbeddedResearch(
   userId: string,
   analysisId: string,
@@ -97,6 +100,10 @@ export async function continueEmbeddedResearch(
   return { documentId };
 }
 
+/**
+ * 切换嵌入式输入模式并保留版本约束，明确留存输入与实时读取区别。
+ * Change embedded input mode under version guards with explicit retained-versus-live semantics.
+ */
 export async function changeEmbeddedInputMode(
   userId: string,
   documentId: string,

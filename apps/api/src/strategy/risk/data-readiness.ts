@@ -13,6 +13,10 @@ export function marketRiskDataReadiness(quality: MarketRiskDriverQualitySummary)
     : [];
 }
 
+/**
+ * 检查宏观风险模型所需数据覆盖，供回测和信号准入判断。
+ * Check source coverage required by the macro risk model.
+ */
 export function macroRiskDataReadiness(quality: MacroRiskAxisQualitySummary) {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -37,6 +41,10 @@ export function macroRiskDataReadiness(quality: MacroRiskAxisQualitySummary) {
   return { errors, warnings };
 }
 
+/**
+ * 根据宏观预热及回看需求确定质量审计起点。
+ * Resolve the audit start from macro warm-up and lookback requirements.
+ */
 export function selectMacroRiskAuditStart(startDate: string, endDate: string): string {
   const end = new Date(
     Date.UTC(

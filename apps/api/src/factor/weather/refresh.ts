@@ -31,6 +31,10 @@ export const FACTOR_WEATHER_METHODOLOGY_HASH = sha256(canonicalJson(STANDARD_MET
 
 const activeRefreshes = new Map<string, Promise<FactorWeatherRefreshResult>>();
 
+/**
+ * 汇总气象刷新成功、失败与更新范围，供调度和状态展示。
+ * Summarize weather refresh outcomes and updated ranges for scheduling and display.
+ */
 export interface FactorWeatherRefreshResult {
   pinId: string;
   computedThrough: string | null;
@@ -62,7 +66,10 @@ export function refreshFactorWeatherPin(
   return refresh;
 }
 
-/** On API boot, a persisted running state can only belong to a worker killed with the old process. */
+/**
+ * 启动时将旧进程遗留 running 刷新状态恢复为可重试状态。
+ * On API boot, a persisted running state can only belong to a worker killed with the old process.
+ */
 export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> {
   const result = await prisma.factorWeatherPin.updateMany({
     where: { status: 'running' },
@@ -71,6 +78,10 @@ export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> 
   return result.count;
 }
 
+/**
+ * 依次刷新所有符合条件的因子气象固定项，汇总结果。
+ * Refresh eligible factor-weather pins and collect outcomes.
+ */
 export async function refreshAllFactorWeatherPins(
   options: {
     onLog?: (line: string) => void;
@@ -96,6 +107,10 @@ export async function refreshAllFactorWeatherPins(
   return results;
 }
 
+/**
+ * 确定增量区间、执行气象计算并持久化结果与刷新状态。
+ * Resolve the incremental interval, compute weather and persist output and refresh state.
+ */
 async function performRefresh(
   pinId: string,
   options: { force?: boolean },
@@ -195,6 +210,10 @@ async function performRefresh(
   }
 }
 
+/**
+ * 解析最近已完成月末，避免将未完成月纳入气象分析。
+ * Resolve the latest completed month end for weather analysis.
+ */
 async function latestCompletedMonthEnd(): Promise<string | null> {
   const currentMonthStart = shanghaiToday().slice(0, 6) + '01';
   const published = await prisma.maintenanceState.findUnique({
@@ -237,6 +256,10 @@ async function weatherHistoryStart(end: string): Promise<string> {
   return firstDaily.tradeDate;
 }
 
+/**
+ * 根据已有结果和回看需求确定增量重算起点。
+ * Resolve the incremental recalculation start from stored results and lookback needs.
+ */
 async function incrementalStart(computedThrough: string): Promise<string> {
   const rows = await prisma.tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { lte: computedThrough } },
@@ -258,6 +281,10 @@ async function incrementalStart(computedThrough: string): Promise<string> {
   return weatherHistoryStart(computedThrough);
 }
 
+/**
+ * 在 Worker 执行气象计算，并管理日志、取消与退出清理。
+ * Compute weather in a worker with log forwarding, cancellation and exit cleanup.
+ */
 async function runWeatherWorker(
   factor: string,
   label: string,

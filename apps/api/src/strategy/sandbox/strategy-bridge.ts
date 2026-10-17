@@ -23,17 +23,28 @@ import {
   type StrategyRequestFrame,
 } from './protocol.js';
 
-/** Transport adapters validate frames and abort their session on protocol violations. */
+/**
+ * 约束会校验输出帧并在协议违规时终止会话的策略传输。
+ * Transport adapters validate frames and abort their session on protocol violations.
+ */
 export interface StrategyTransport extends SandboxTransport {
   /** Bind only during onBar; synchronous languages preserve call-site errors and first reads. */
   setHostAccess?(handler: ((input: unknown) => unknown) | undefined): void;
 }
 
+/**
+ * 保存策略 Bridge 的运行诊断，供调用方排查通信与执行问题。
+ * Collect strategy bridge diagnostics for transport and execution troubleshooting.
+ */
 interface StrategyBridgeDiagnostics {
   language: string;
   callback: string;
 }
 
+/**
+ * 配置策略 Bridge 的传输、启动输入和稳定宿主能力。
+ * Configure the strategy bridge transport, startup input and stable host capabilities.
+ */
 export interface StrategyBridgeOptions {
   startupCommand: SandboxFrame;
   historyUpdates?: boolean;
@@ -76,6 +87,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     }
   }
 
+  /**
+   * 准备 Python 启动参数并取得传输，构造失败时回收底层资源。
+   * Prepare Python startup and acquire its transport, cleaning up on construction failure.
+   */
   private static async createPython({
     code,
     onUserLog,
@@ -106,6 +121,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     }
   }
 
+  /**
+   * 编译打包 TypeScript 策略并取得 isolate 传输，供 Bridge 管理会话。
+   * Compile and bundle the TypeScript strategy and acquire its isolate transport.
+   */
   private static async createTypeScript({
     code,
     onUserLog,
@@ -152,6 +171,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     }
   }
 
+  /**
+   * 完成策略协议握手并验证同步命令模式，成功后发布元数据。
+   * Complete the strategy handshake and verify synchronous command mode before exposing metadata.
+   */
   async initialize({
     signal,
   }: SandboxBridgeInitializationOptions = {}): Promise<StrategySandboxMetadata> {
@@ -206,6 +229,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     return {};
   }
 
+  /**
+   * 校验并同步执行作者账户命令，将宿主确认或错误返回当前调用。
+   * Validate and synchronously execute an author account command, returning host acknowledgement or failure.
+   */
   private executeCommand(context: EngineContext, input: unknown): void {
     const command = strategyCommandSchema.parse(input);
 
@@ -273,6 +300,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     this.sandboxConsole?.[frame.level === 'warning' ? 'warn' : frame.level](frame.text);
   }
 
+  /**
+   * 构造当前决策的可传输账户及行情快照，供策略适配层读取。
+   * Build the serializable account and market snapshot for the current strategy decision.
+   */
   private contextSnapshot(context: EngineContext): Record<string, unknown> {
     const watch = this.watch;
     const historyDates = this.historyDates;
@@ -311,6 +342,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     };
   }
 
+  /**
+   * 按请求种类分派受限宿主读取，向策略运行时返回协议响应。
+   * Dispatch supported host-read requests and reply through the strategy protocol.
+   */
   private async answerRequest(
     frame: StrategyRequestFrame,
     context: EngineContext,
@@ -389,7 +424,10 @@ export class StrategyBridge extends SandboxBridgeBase<
     }
   }
 
-  /** Transfer history once, then only rows since the last callback, including gaps and suspensions. */
+  /**
+   * 首次传输完整历史，后续只发送新行，同时保留缺口与停牌信息。
+   * Transfer history once, then only rows since the last callback, including gaps and suspensions.
+   */
   private historyUpdates(
     context: EngineContext,
     dates: Map<string, string | null>,
@@ -424,6 +462,10 @@ export class StrategyBridge extends SandboxBridgeBase<
   }
 }
 
+/**
+ * 将引擎行情行转换为策略沙盒快照字段，保持价格口径。
+ * Map an engine bar into the strategy sandbox snapshot without changing price conventions.
+ */
 function snapshotBarRow(
   row: BarRow,
   context: EngineContext,

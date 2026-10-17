@@ -11,6 +11,10 @@ import {
 
 export type CommodityHoldingQualityStatus = 'pass' | 'warn' | 'error';
 
+/**
+ * 提供持仓质量审计所需日期、产品和数值。
+ * Supply dated product values for holdings quality auditing.
+ */
 export interface CommodityHoldingQualityRow {
   version: number;
   source: string;
@@ -39,6 +43,10 @@ export interface CommodityHoldingQualityRow {
   sourceCorrectionApplied: boolean;
 }
 
+/**
+ * 汇总单产品会员排名覆盖及质量诊断。
+ * Summarize a product's member-ranking coverage and diagnostics.
+ */
 export interface CommodityHoldingProductQuality {
   productCode: string;
   expectedDates: number;
@@ -50,6 +58,10 @@ export interface CommodityHoldingProductQuality {
   trailingMissingDates: number;
 }
 
+/**
+ * 聚合各产品持仓质量状态，供维护与研究判断。
+ * Collect product holdings quality for maintenance and research.
+ */
 export interface CommodityHoldingQualitySummary {
   status: CommodityHoldingQualityStatus;
   rows: number;
@@ -59,6 +71,10 @@ export interface CommodityHoldingQualitySummary {
   warnings: string[];
 }
 
+/**
+ * 审计商品持仓聚合的覆盖与异常，供研究数据质量判断。
+ * Audit holdings coverage and anomalies for research data-quality decisions.
+ */
 export async function auditCommodityHoldingPositions(
   options: { startDate: string; endDate: string },
   database: Prisma = prisma,
@@ -85,6 +101,10 @@ export async function auditCommodityHoldingPositions(
   );
 }
 
+/**
+ * 按产品汇总商品持仓质量发现，保留各排名指标的覆盖口径。
+ * Summarize holdings quality by product and ranked metric coverage.
+ */
 export function summarizeCommodityHoldingQuality(
   rows: CommodityHoldingQualityRow[],
   representatives: CommodityHoldingRepresentative[],
@@ -147,6 +167,10 @@ export function summarizeCommodityHoldingQuality(
     observedKeys.add(key);
   }
 
+  /**
+   * 对比各产品代表合约日期与持仓聚合覆盖。
+   * Compare representative-contract dates with holdings coverage per product.
+   */
   const products = supportedProducts.map((productCode): CommodityHoldingProductQuality => {
     const expected = representatives
       .filter((representative) => representative.productCode === productCode)

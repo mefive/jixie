@@ -30,7 +30,10 @@ const argsSchema = z.strictObject({
   operations: z.array(operationSchema).min(1).max(8),
 });
 
-/** Create the document-bound proposal artifact for one Research Agent turn. */
+/**
+ * 为当前 Research 轮次创建绑定文档的 Cell 修改提案工具。
+ * Create the document-bound proposal artifact for one Research Agent turn.
+ */
 export function createProposeResearchCellChangesTool(args: {
   userId: string;
   documentId: string;
@@ -43,6 +46,11 @@ export function createProposeResearchCellChangesTool(args: {
     description:
       'Create one user-reviewed batch of Research Cell changes. Call this only when the user explicitly asks to change the current research document. Use exact Cell ids and revisions from the supplied document context. Preserve unrelated Cells and source. Create accepts markdown or python source and may insert after one existing Cell. Update must send the complete replacement source and expectedRevision. Delete is allowed only when the user explicitly requests removal. The tool validates Python syntax, duplicate definitions, dependency cycles, source sizes, and current revisions. The product may auto-apply a non-deleting proposal into an editable review after the turn; deletion remains pending for explicit application. It never executes Cells. After success, tell the user that the changes are ready for review; never claim that code ran or that the user accepted them.',
     parameters: z.toJSONSchema(argsSchema),
+
+    /**
+     * 校验 Cell 修改请求并保存待审提案，将可追溯产物交给对话。
+     * Validate requested cell edits and persist a reviewable proposal artifact for the conversation.
+     */
     async run(input) {
       if (proposalCreated) {
         throw new Error('Only one Research Cell change proposal is allowed per Agent turn.');

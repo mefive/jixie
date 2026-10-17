@@ -19,7 +19,10 @@ type ResearchDataCatalogSearch = (input: {
   limit: number;
 }) => Promise<ResearchDataCatalogResultV1>;
 
-/** Validate every Agent-authored governed time-series identity before a Diff can reach the user. */
+/**
+ * 在向用户呈现 Diff 前校验每个 Agent 生成的治理时间序列身份。
+ * Validate every Agent-authored governed time-series identity before a Diff can reach the user.
+ */
 export async function validateResearchSeriesProposal(
   analyses: ResearchPythonAnalysis[],
   searchCatalog: ResearchDataCatalogSearch = searchResearchDataCatalog,
@@ -158,6 +161,10 @@ export async function validateResearchSeriesProposal(
   }
 }
 
+/**
+ * 将来源请求类型映射为允许的资产类型，供序列提案校验。
+ * Map a governed source request to its allowed asset type for proposal validation.
+ */
 function identifierRequestAssetType(
   method: NonNullable<ResearchPythonAnalysis['equityRequests']>[number]['method'],
 ): ResearchAssetTypeV1 {

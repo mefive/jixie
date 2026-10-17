@@ -4,6 +4,10 @@ const researchSdkNamespacePattern = [
   ...new Set(RESEARCH_SDK_CONTRACT_V1.functions.map((item) => item.namespace)),
 ].join('|');
 
+/**
+ * 描述光标所在 SDK 名称空间、方法或参数，供补全分派。
+ * Describe SDK namespace, method or argument context for completion.
+ */
 export type ResearchSdkCompletionContext =
   | { kind: 'namespace_member'; namespace: string; partial: string }
   | {
@@ -27,12 +31,20 @@ export type ResearchSdkCompletionContext =
       contract: ResearchSdkFunctionContractV1;
     };
 
+/**
+ * 保留未结束调用的参数文本与位置，供签名帮助。
+ * Describe arguments and positions in an active unfinished SDK call.
+ */
 export interface ResearchSdkActiveCall {
   contract: ResearchSdkFunctionContractV1;
   argumentSource: string;
   activeParameter: number;
 }
 
+/**
+ * 解析光标前的命名空间、方法与字符串位置，供 SDK 补全分派。
+ * Resolve namespace, method and string context before the cursor for SDK completion.
+ */
 export function researchSdkCompletionContext(
   source: string,
   offset: number,
@@ -106,6 +118,10 @@ export function researchSdkCompletionContext(
   return null;
 }
 
+/**
+ * 静态识别 SDK DataFrame 变量绑定，供列名补全。
+ * Identify SDK DataFrame variable bindings for column completion.
+ */
 export function researchSdkDataFrameBindings(
   source: string,
 ): Map<string, ResearchSdkFunctionContractV1> {
@@ -131,6 +147,10 @@ export function researchSdkDataFrameBindings(
   return bindings;
 }
 
+/**
+ * 解析尚未结束的 SDK 调用及当前参数，供签名帮助。
+ * Resolve the active unfinished SDK call and current argument.
+ */
 export function researchSdkActiveCall(
   source: string,
   offset: number,
@@ -156,6 +176,10 @@ export function researchSdkActiveCall(
   return active;
 }
 
+/**
+ * 定位光标下公开 SDK 契约，供 hover 文档查询。
+ * Locate the public SDK contract at the cursor for hover documentation.
+ */
 export function researchSdkHoverContract(
   source: string,
   offset: number,
@@ -173,7 +197,10 @@ export function researchSdkHoverContract(
   return null;
 }
 
-/** Read a completed string argument from the active SDK call, whether positional or named. */
+/**
+ * 从当前调用读取已完成字符串参数，兼容位置参数与具名参数。
+ * Read a completed string argument from the active SDK call, whether positional or named.
+ */
 export function researchSdkStringArgument(
   argumentSource: string,
   contract: ResearchSdkFunctionContractV1,
@@ -206,6 +233,10 @@ function researchSdkFrameVariable(argumentSource: string): string | undefined {
   return argumentSource.match(/^\s*([A-Za-z_]\w*)\s*(?:,|$)/)?.[1];
 }
 
+/**
+ * 按顶层逗号拆分参数，同时跳过字符串和嵌套括号。
+ * Split top-level arguments while respecting strings and nested parentheses.
+ */
 function splitTopLevelArguments(source: string): string[] {
   const argumentsList: string[] = [];
   let start = 0;
@@ -239,6 +270,10 @@ function splitTopLevelArguments(source: string): string[] {
   return argumentsList;
 }
 
+/**
+ * 判断调用括号在光标前是否仍未关闭，供补全上下文。
+ * Determine whether a call remains open before the cursor.
+ */
 function callRemainsOpen(prefix: string, openParenthesis: number): boolean {
   let depth = 0;
   let quote: string | null = null;
@@ -269,6 +304,10 @@ function callRemainsOpen(prefix: string, openParenthesis: number): boolean {
   return depth > 0;
 }
 
+/**
+ * 查找对应右括号，忽略字符串和嵌套调用中的括号。
+ * Find the matching closing parenthesis while respecting strings and nested calls.
+ */
 function matchingClosingParenthesis(source: string, openParenthesis: number): number {
   let depth = 0;
   let quote: string | null = null;
@@ -299,6 +338,10 @@ function matchingClosingParenthesis(source: string, openParenthesis: number): nu
   return -1;
 }
 
+/**
+ * 根据位置和关键字参数确定公开契约中的当前参数索引。
+ * Resolve the active contract parameter from positional and keyword arguments.
+ */
 function activeParameterIndex(
   argumentSource: string,
   contract: ResearchSdkFunctionContractV1,

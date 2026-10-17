@@ -40,6 +40,10 @@ export async function findActiveStrategyScanJob(userId: string, query: StrategyS
   return row?.job ? { jobId: row.job.id, reportId: row.id } : null;
 }
 
+/**
+ * 验证扫描任务归属与报告关联，供进度查询。
+ * Authorize scan job ownership and report association for progress queries.
+ */
 export async function readStrategyScanJob(
   userId: string,
   jobId: string,
@@ -100,6 +104,10 @@ function scanReportSummary(row: {
   };
 }
 
+/**
+ * 将扫描报告及各组合结果整理为可查询详情。
+ * Build queryable scan details from the report and combination results.
+ */
 function scanReportDetail(row: {
   id: string;
   strategyId: string;

@@ -26,6 +26,10 @@ import {
 
 export type ResearchCellExecutionOutcome = 'success' | 'error' | 'interrupted';
 
+/**
+ * 校验并启动单 Cell 运行，建立共享文档执行控制。
+ * Validate and start a single-cell run under document execution control.
+ */
 export async function runResearchCell(userId: string, cellId: string): Promise<ResearchDocumentV1> {
   const cell = await loadExecutableResearchCell(userId, cellId);
   if (!cell) {
@@ -42,6 +46,10 @@ export async function runResearchCell(userId: string, cellId: string): Promise<R
   }
 }
 
+/**
+ * 按归属读取 Cell 并执行，缺失时保留不可执行结果。
+ * Read an owned cell and execute it, preserving missing-cell outcomes.
+ */
 export async function executeResearchCellById(
   userId: string,
   cellId: string,
@@ -56,6 +64,10 @@ export async function executeResearchCellById(
   return cell ? executeResearchCell(cell, control, cellChangeAttemptId, researchExecutionId) : null;
 }
 
+/**
+ * 校验单 Cell 可运行状态、调用研究沙盒并持久化输出、证据及依赖失效。
+ * Validate and run one research cell, persisting outputs, evidence and downstream invalidation.
+ */
 export async function executeResearchCell(
   cell: ExecutableResearchCellRow,
   control: ResearchDocumentRunControl,
@@ -197,6 +209,10 @@ export async function executeResearchCell(
   }
 }
 
+/**
+ * 为中断 Cell 保存明确状态与执行记录，避免误留 running。
+ * Persist an interrupted cell's state and execution record instead of leaving it running.
+ */
 async function persistInterruptedResearchCell(
   cell: ExecutableResearchCellRow,
   executionId: string,
@@ -247,6 +263,10 @@ async function executeCell(cell: {
   }
 }
 
+/**
+ * 规范化执行失败和取消的公开状态与内部诊断。
+ * Normalize execution failure and cancellation into public state and diagnostics.
+ */
 function executionFailure(error: unknown) {
   if (error instanceof ResearchPythonExecutionError) {
     return {

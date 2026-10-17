@@ -17,6 +17,10 @@ const builtinDirections = new Map(
   BUILTIN_FACTORS.map((factor) => [factor.key, factor.expectedDirection]),
 );
 
+/**
+ * 按用户读取因子气象固定项及最近刷新状态。
+ * List owned factor-weather pins and their latest refresh state.
+ */
 export async function listFactorWeatherPins(userId: string, locale: Locale) {
   const pins = await prisma.factorWeatherPin.findMany({
     where: { userId },
@@ -50,6 +54,10 @@ export async function listFactorWeatherPins(userId: string, locale: Locale) {
   };
 }
 
+/**
+ * 验证来源及研究配置后创建气象固定项。
+ * Validate source and research settings before creating a factor-weather pin.
+ */
 export async function createFactorWeatherPin(userId: string, input: CreateFactorWeatherPinInput) {
   const { factorId, direction: requestedDirection } = input;
   const factor = await prisma.factor.findFirst({
@@ -131,6 +139,10 @@ export async function requestFactorWeatherRefresh(userId: string, pinId: string)
   return { id: pin.id, status: 'running' as const };
 }
 
+/**
+ * 校验气象固定项归属后移除，并保持查询状态一致。
+ * Authorize and remove a factor-weather pin.
+ */
 export async function deleteFactorWeatherPin(userId: string, pinId: string) {
   const pin = await prisma.factorWeatherPin.findFirst({
     where: { id: pinId, userId },

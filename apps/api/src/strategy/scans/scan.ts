@@ -5,6 +5,10 @@ import type { BacktestMetricSummary, StrategyParamValue, StrategyScanSpec } from
 export const MAX_SCAN_COMBINATIONS = 25;
 export const CAPACITY_DIMENSION_KEY = 'initialCash';
 
+/**
+ * 校验并规范化扫描维度、范围和组合上限，供计算入口共用。
+ * Validate and normalize scan dimensions, ranges and combination limits.
+ */
 export function normalizeScanSpec(
   spec: StrategyScanSpec,
   declaredParams: Record<string, StrategyParamValue>,
@@ -16,6 +20,11 @@ export function normalizeScanSpec(
     throw new UserCodeError('parameter scan requires one or two dimensions');
   }
   const seenKeys = new Set<string>();
+
+  /**
+   * 逐维校验已声明参数和候选值，去重并拒绝未知或重复维度。
+   * Validate declared scan parameters and deduplicate values while rejecting unknown or repeated dimensions.
+   */
   const dimensions = spec.dimensions.map((dimension) => {
     const key = dimension.key.trim();
     if (!key || !(key in declaredParams)) {
@@ -78,6 +87,10 @@ export function normalizeScanSpec(
   };
 }
 
+/**
+ * 按扫描维度生成参数笛卡尔积，供串行模拟逐组执行。
+ * Generate the Cartesian product of scan dimensions for sequential simulation.
+ */
 export function parameterCombinations(
   spec: StrategyScanSpec,
 ): Record<string, StrategyParamValue>[] {
@@ -98,6 +111,10 @@ export function parameterCombinations(
   return combinations;
 }
 
+/**
+ * 从单次回测提取扫描比较需要的绩效指标。
+ * Extract comparable performance metrics from one backtest result.
+ */
 export function metricSummary(result: BacktestResult): BacktestMetricSummary {
   return {
     start: result.start,
@@ -127,6 +144,10 @@ export function metricSummary(result: BacktestResult): BacktestMetricSummary {
   };
 }
 
+/**
+ * 按扫描模式生成单组合参数覆盖，供统一模拟入口。
+ * Build per-cell overrides for the selected scan mode.
+ */
 export function scanCellOverrides(
   spec: StrategyScanSpec,
   combination: Record<string, StrategyParamValue>,
@@ -144,6 +165,10 @@ export function scanCellOverrides(
   return { initialCash, paramOverrides: {} };
 }
 
+/**
+ * 由日收益标准差和年度期数计算年化波动率。
+ * Annualize daily return dispersion for scan comparisons.
+ */
 function annualizedVolatility(nav: { value: number }[]): number {
   if (nav.length < 2) {
     return 0;
@@ -163,6 +188,10 @@ function annualizedVolatility(nav: { value: number }[]): number {
   return Math.sqrt(variance * 252);
 }
 
+/**
+ * 统计净值低于历史峰值的最长持续交易日数。
+ * Measure the longest trading-day interval below the running NAV peak.
+ */
 function maximumUnderwaterDays(nav: { value: number }[]): number {
   let peak = -Infinity;
   let current = 0;
@@ -186,6 +215,10 @@ export function rebaseNav(
   return nav.map((point) => ({ date: point.date, value: point.value / initialCash }));
 }
 
+/**
+ * 校验并规范化容量扫描的资本与成本设置。
+ * Validate and normalize capital and cost settings for a capacity scan.
+ */
 function normalizeCapacitySpec(spec: StrategyScanSpec): StrategyScanSpec {
   if (spec.dimensions.length !== 1 || spec.splitDate) {
     throw new UserCodeError('capacity scan requires one dimension and no sample split');

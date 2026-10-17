@@ -16,6 +16,10 @@ export type EtfResearchRegion = 'CN' | 'HK' | 'US' | 'JP' | 'EU' | 'APAC' | 'SA'
 export type EtfResearchCurrencyExposure = 'CNY' | 'HKD' | 'USD' | 'JPY' | 'EUR' | 'MULTI';
 export type EtfResearchRole = 'primary' | 'backup';
 
+/**
+ * 声明 ETF 研究角色、区域、币种敞口与覆盖要求。
+ * Define ETF research roles, regions, currency exposures and coverage requirements.
+ */
 export interface EtfResearchRegistryEntry {
   registryVersion: typeof ETF_RESEARCH_REGISTRY_VERSION;
   exposureId: string;
@@ -32,6 +36,10 @@ export interface EtfResearchRegistryEntry {
   knownLimitations: readonly string[];
 }
 
+/**
+ * 定义 ETF 在研究代理池中的生效区间。
+ * Describe an ETF's effective membership in the research proxy set.
+ */
 export interface EtfResearchMembership {
   registryVersion: typeof ETF_RESEARCH_REGISTRY_VERSION;
   exposureId: string;
@@ -46,6 +54,10 @@ export interface EtfResearchMembership {
   knownLimitations: readonly string[];
 }
 
+/**
+ * 提供 ETF 注册条目初始化字段，供清单校验。
+ * Supply ETF registry entry fields for initialization and validation.
+ */
 interface RegistryEntryInput extends Omit<
   EtfResearchRegistryEntry,
   'registryVersion' | 'selectionAsOf' | 'selectionEvidence' | 'knownLimitations'
@@ -360,6 +372,10 @@ export const ETF_RESEARCH_CODE_SET = new Set<string>(ETF_RESEARCH_CODES);
 
 const membershipByCode = new Map<string, EtfResearchMembership>();
 
+/**
+ * 校验 ETF 研究清单的身份、币种、成员区间与角色，防止错误代理进入研究。
+ * Validate ETF registry identities, currencies, membership periods and roles before research use.
+ */
 export function validateEtfResearchRegistry(
   registry: readonly EtfResearchRegistryEntry[] = ETF_RESEARCH_REGISTRY,
 ): void {

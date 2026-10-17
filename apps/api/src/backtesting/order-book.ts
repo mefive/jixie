@@ -6,6 +6,10 @@ import { FuturesPortfolio } from './futures-portfolio.js';
 import type { CostModel } from './cost.js';
 import type { AllocationAnalysisTracker } from './allocation-analysis-tracker.js';
 
+/**
+ * 装配订单簿所需的行情、账户、成本和执行回调。
+ * Supply market, account, cost and execution capabilities to the order book.
+ */
 interface OrderBookInput {
   locale?: Locale;
   engineData: EngineData;
@@ -48,6 +52,7 @@ export class OrderBook {
   }
 
   /**
+   * 为下一次策略回调重置决策缓冲并记录决策日，保留待执行订单和有效条件单。
    * Starts a fresh instruction buffer for the strategy's next onBar call and records its decision date.
    * Clears previously collected instructions, leaving pending orders and active conditional orders intact.
    * Subsequent strategy order calls write to this buffer; commitDecision submits it for execution.
@@ -57,6 +62,10 @@ export class OrderBook {
     this.decision = emptyDecision();
   }
 
+  /**
+   * 将本次策略声明提交为后续执行状态，统一调仓、现金和期货指令的生效边界。
+   * Commit collected strategy instructions to pending execution state.
+   */
   commitDecision(): void {
     validateTargetBook(this.decision.targets);
 
@@ -114,7 +123,10 @@ export class OrderBook {
     }
   }
 
-  /** Returns a detached snapshot of cash orders only. */
+  /**
+   * 返回与内部可变状态分离的现金订单快照。
+   * Returns a detached snapshot of cash orders only.
+   */
   snapshotCashOrders(): CashOrderSnapshot {
     return structuredClone({
       pendingTargets: this.pending.targets,
@@ -130,7 +142,10 @@ export class OrderBook {
     );
   }
 
-  /** Replaces execution state for forward simulation, without collecting a strategy decision. */
+  /**
+   * 装载前推模拟的执行状态，不触发策略决策收集。
+   * Replaces execution state for forward simulation, without collecting a strategy decision.
+   */
   loadExecutionOrders({ cashOrders, cashDeltas = [], futuresOrders }: ExecutionOrdersInput): void {
     const cashSnapshot = structuredClone(cashOrders);
     let shareOrders = cashSnapshot.pendingOrders;
@@ -156,7 +171,10 @@ export class OrderBook {
     }
   }
 
-  /** Executes pending orders and intraday conditional simulations before daily settlement. */
+  /**
+   * 在每日结算前执行待成交订单和盘中条件单模拟。
+   * Executes pending orders and intraday conditional simulations before daily settlement.
+   */
   async executeOrders(date: string, previousDate: string | undefined): Promise<void> {
     const { engineData, cashPortfolio, futuresPortfolio } = this;
     const heldBeforeExecution = new Set(cashPortfolio.positions.keys());
@@ -193,6 +211,10 @@ export class OrderBook {
     }
   }
 
+  /**
+   * 按待执行目标权重计算并执行调仓，复用账户和市场限制。
+   * Execute pending target-weight rebalancing through the account and market constraints.
+   */
   private async executePendingRebalance(date: string): Promise<void> {
     const { engineData, cashPortfolio, allocationTracker, onRebalance } = this;
     const { targets, decisionDate } = this.pending;
@@ -230,6 +252,10 @@ export class OrderBook {
     onRebalance(date);
   }
 
+  /**
+   * 处理待执行的现金数量指令，将可成交部分交由现金账户记账。
+   * Process pending cash share orders and post executable fills to the cash account.
+   */
   private async executePendingCashOrders(date: string): Promise<void> {
     const { shareOrders, lotOrders } = this.pending;
     if (!shareOrders && !lotOrders) {
@@ -313,6 +339,10 @@ export class OrderBook {
     this.pending.lotOrders = null;
   }
 
+  /**
+   * 结合当日 OHLC 与条件单规则选择出场，避免停牌或价格限制下的虚假成交。
+   * Evaluate active conditional exits against exact-day OHLC and execution constraints.
+   */
   private async executeActiveConditionalOrders(date: string): Promise<void> {
     if (this.conditionalOrders.size === 0) {
       return;
@@ -479,6 +509,10 @@ export class OrderBook {
     this.decision.closePositions.add(code);
   }
 
+  /**
+   * 验证现金指令模式与当前决策是否兼容，避免混合冲突。
+   * Validate cash order mode against the current decision to avoid conflicting instructions.
+   */
   private validateCashOrderMode(mode: 'target' | 'delta', code?: string): void {
     const conflict =
       mode === 'target'
@@ -500,6 +534,10 @@ export class OrderBook {
     });
   }
 
+  /**
+   * 将跟踪止损比例转换为订单簿条件状态，校验输入。
+   * Validate and register a fraction-based cash trailing stop.
+   */
   setStockTrailingStopByFraction(code: string, pct: number): void {
     if (!Number.isFinite(pct) || pct <= 0 || pct >= 1) {
       throw new Error('Trailing-stop percentage must be between 0 and 1');
@@ -598,6 +636,10 @@ export class OrderBook {
     }
   }
 
+  /**
+   * 将目标权重转换为可执行的现金资产调整，按持仓与买入预算处理调仓。
+   * Translate target weights into cash-asset adjustments using holdings and available purchase budgets.
+   */
   private rebalance(date: string): void {
     const { cashPortfolio, engineData } = this;
     const targets = this.pending.targets;
@@ -673,6 +715,10 @@ export class OrderBook {
     }
   }
 
+  /**
+   * 依次执行累积期货意图，并解析目标仓位与换约所需的交易腿。
+   * Execute accumulated futures intents in order, resolving target positions and contract legs.
+   */
   private executePendingFutureIntents(date: string, mappingDate: string): void {
     const { futuresPortfolio, cashPortfolio, engineData } = this;
     const intents = this.pending.futureIntents;
@@ -735,6 +781,10 @@ export class OrderBook {
     this.pending.futureIntents = null;
   }
 
+  /**
+   * 将期货目标敞口转换为合约数量，供订单执行使用。
+   * Convert a futures target exposure into the contract count used by execution.
+   */
   private resolveFutureTargetContracts(
     intent: FutureIntent,
     code: string,
@@ -757,6 +807,10 @@ export class OrderBook {
     }
   }
 
+  /**
+   * 在仓位关闭后清理对应条件单，避免无持仓触发退出。
+   * Remove conditional exits associated with positions that are now closed.
+   */
   private removeConditionsForClosedPositions(heldBeforeExecution: Set<string>): void {
     const cashPortfolio = this.cashPortfolio;
     const book = this.conditionalOrders;
@@ -773,6 +827,10 @@ export class OrderBook {
     }
   }
 
+  /**
+   * 按方向、触发价和当日限价判断条件成交是否受阻。
+   * Check conditional fills against side, trigger price and daily price limits.
+   */
   private conditionalLimitBlocked(
     code: string,
     date: string,
@@ -791,6 +849,10 @@ export class OrderBook {
       : limit.down != null && bar.high / adjustmentFactor <= limit.down + epsilon;
   }
 
+  /**
+   * 将目标名义敞口按价格与乘数转换为整数合约数。
+   * Convert target notional into integer contracts using price and multiplier.
+   */
   private futureContractsForNotional(
     code: string,
     notional: number,
@@ -813,6 +875,10 @@ export class OrderBook {
     return this.engineData.supportsSameDayTurnover(code) ? date : this.engineData.nextDay(date);
   }
 
+  /**
+   * 结合基准价、滑点和冲击计算不利成交价，保持方向一致。
+   * Compute an adverse execution price from reference, slippage and impact.
+   */
   private executionPrice(
     code: string,
     date: string,
@@ -829,6 +895,10 @@ export class OrderBook {
     return side === 'buy' ? adjustedPrice * (1 + slip) : adjustedPrice * (1 - slip);
   }
 
+  /**
+   * 判断指定方向的成交是否受当日涨跌停约束。
+   * Determine whether daily price limits block a fill in the requested direction.
+   */
   private limitBlocked(
     code: string,
     date: string,
@@ -852,6 +922,10 @@ export class OrderBook {
   }
 }
 
+/**
+ * 保存盘中条件退出的触发价、类型与证券身份，供当日 OHLC 撮合。
+ * Represent an active conditional exit and its trigger for intraday OHLC simulation.
+ */
 export type ConditionalOrder =
   | {
       kind: 'stop_loss';
@@ -882,12 +956,20 @@ export type ConditionalOrder =
 
 export type ConditionalOrderKind = ConditionalOrder['kind'];
 
+/**
+ * 保存策略声明的期货目标或增量及其顺序，供后续执行。
+ * Retain an ordered futures target or quantity intent for subsequent execution.
+ */
 export type FutureIntent =
   | { kind: 'delta'; value: number }
   | { kind: 'contracts'; value: number }
   | { kind: 'notional'; value: number }
   | { kind: 'hedge'; value: number };
 
+/**
+ * 冻结现金待执行订单与条件单状态，供末日快照和信号前推复用。
+ * Snapshot pending cash orders and conditional exits for final state and signal projection.
+ */
 export interface CashOrderSnapshot {
   pendingTargets: Map<string, number> | null;
   pendingOrders: Map<string, number> | null;
@@ -895,12 +977,20 @@ export interface CashOrderSnapshot {
   conditionalOrders: Map<string, ConditionalOrder>;
 }
 
+/**
+ * 提供待执行订单状态，供信号前推恢复订单簿。
+ * Supply pending execution state when restoring an order book for signal projection.
+ */
 interface ExecutionOrdersInput {
   cashDeltas?: ReadonlyArray<{ code: string; shares: number }>;
   cashOrders: CashOrderSnapshot;
   futuresOrders: ReadonlyArray<{ code: string; intent: FutureIntent }>;
 }
 
+/**
+ * 描述条件单的新增或撤销意图，供决策缓冲统一提交。
+ * Describe conditional-order changes collected during a strategy decision.
+ */
 type ConditionalCommand =
   | {
       action: 'upsert';
@@ -912,6 +1002,10 @@ type ConditionalCommand =
     }
   | { action: 'cancel'; code: string; kind?: ConditionalOrderKind };
 
+/**
+ * 汇总一次策略回调产生的调仓、现金、期货与条件指令。
+ * Collect rebalance, cash, futures and conditional instructions from one strategy callback.
+ */
 interface OrderDecision {
   closePositions: Set<string>;
   targets: Map<string, number> | null;
@@ -921,6 +1015,10 @@ interface OrderDecision {
   futureIntents: Map<string, FutureIntent> | null;
 }
 
+/**
+ * 维护已提交但尚待执行的订单集合，区分决策与成交时序。
+ * Retain committed orders awaiting execution, separating decision time from fill time.
+ */
 interface PendingOrders {
   decisionDate: string | null;
   targets: Map<string, number> | null;
@@ -929,6 +1027,10 @@ interface PendingOrders {
   futureIntents: Map<string, FutureIntent> | null;
 }
 
+/**
+ * 承载单个条件退出的候选成交价格与触发类型，供冲突选择。
+ * Describe a candidate conditional fill and trigger for deterministic exit selection.
+ */
 interface ConditionalExitCandidate {
   order: Extract<ConditionalOrder, { kind: 'stop_loss' | 'trailing_stop' | 'take_profit' }>;
   triggerPrice: number;
@@ -945,6 +1047,10 @@ function emptyDecision(): OrderDecision {
   };
 }
 
+/**
+ * 在同日多个退出条件之间按现有规则选择成交，统一止损与止盈冲突处理。
+ * Select a conditional fill when multiple exit triggers compete within one day.
+ */
 function selectConditionalExit(
   orders: ConditionalOrder[],
   bar: { low: number; high: number },
@@ -982,6 +1088,10 @@ function validateTargetWeight(code: string, weight: number): void {
   }
 }
 
+/**
+ * 验证目标权重集合的证券与数值约束，供策略及重放入口共用。
+ * Validate instrument and numeric constraints on target weights for strategy and replay callers.
+ */
 function validateTargetBook(targets: Map<string, number> | null): void {
   if (!targets) {
     return;
@@ -1012,7 +1122,10 @@ function conditionalOrderKey(kind: ConditionalOrderKind, code: string): string {
   return `${kind}:${code}`;
 }
 
-/** Apply identical validation and ordered accumulation to strategy and loaded futures instructions. */
+/**
+ * 对策略和恢复的期货指令采用相同校验并按序累积。
+ * Apply identical validation and ordered accumulation to strategy and loaded futures instructions.
+ */
 function collectFutureIntent(
   intents: Map<string, FutureIntent> | null,
   code: string,
@@ -1052,7 +1165,10 @@ function collectFutureIntent(
   return result;
 }
 
-/** Normalize and accumulate adjusted-share deltas from strategy decisions or signal replay. */
+/**
+ * 规范化并累积复权数量变化，供策略决策和信号重放共用。
+ * Normalize and accumulate adjusted-share deltas from strategy decisions or signal replay.
+ */
 function collectShareDelta(
   orders: Map<string, number> | null,
   code: string,

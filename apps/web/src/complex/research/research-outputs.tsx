@@ -26,6 +26,10 @@ export function ResearchOutputs({
   );
 }
 
+/**
+ * 按研究输出种类选择文本、表格、图表或图片渲染。
+ * Dispatch research output rendering by text, table, chart or image kind.
+ */
 function ResearchOutput({
   output,
   compact,

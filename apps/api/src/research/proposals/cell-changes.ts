@@ -32,6 +32,10 @@ const MAX_PROPOSAL_SOURCE_CHARACTERS = 200_000;
 const POSITION_OFFSET = 1_000_000;
 const EXACT_LINE_DIFF_PRODUCT_LIMIT = 1_000_000;
 
+/**
+ * 区分新增、编辑、删除与排序 Cell 操作，供提案校验。
+ * Discriminate cell insertion, editing, deletion and ordering operations.
+ */
 export type ResearchCellChangeRequestOperation =
   | {
       kind: 'create';
@@ -51,12 +55,20 @@ export type ResearchCellChangeRequestOperation =
       expectedRevision: number;
     };
 
+/**
+ * 绑定提案操作与预期文档修订，供乐观并发校验。
+ * Bind proposed edits to the expected document revision.
+ */
 export interface ResearchCellChangeProposalRequest {
   title: string;
   summary: string;
   operations: ResearchCellChangeRequestOperation[];
 }
 
+/**
+ * 提供提案构造时的当前 Cell 状态，供冲突比较。
+ * Supply current cell state for proposal conflict checks.
+ */
 interface CurrentResearchCell {
   id: string;
   position: number;
@@ -67,13 +79,20 @@ interface CurrentResearchCell {
   lastExecutedRevision: number | null;
 }
 
+/**
+ * 返回提案应用事务的修改和审阅身份。
+ * Return applied edits and review identity from the proposal transaction.
+ */
 interface ApplyTransactionResult {
   outcome: ResearchCellChangeResolutionResultV1['outcome'];
   proposal: ResearchCellChangeProposalV1;
   seeds: ResearchCellChangeDependencySeed[];
 }
 
-/** Build a read-only, revision-bound proposal from one Agent tool call. */
+/**
+ * 从单次 Agent 工具调用构造只读且绑定修订的修改提案。
+ * Build a read-only, revision-bound proposal from one Agent tool call.
+ */
 export async function prepareResearchCellChangeProposal(
   userId: string,
   documentId: string,
@@ -263,6 +282,10 @@ export function applyResearchCellChangeProposalForReview(
   return applyResearchCellChangeProposalInternal(userId, proposalId, true);
 }
 
+/**
+ * 在事务中验证修订与提案状态，应用 Cell 修改并建立待审记录。
+ * Validate revisions and proposal state transactionally, apply edits and create a pending review.
+ */
 async function applyResearchCellChangeProposalInternal(
   userId: string,
   proposalId: string,
@@ -421,6 +444,10 @@ async function applyResearchCellChangeProposalInternal(
   };
 }
 
+/**
+ * 验证归属与提案状态后拒绝修改，保留审计记录。
+ * Reject an authorized proposal under state guards and retain its audit record.
+ */
 export async function rejectResearchCellChangeProposal(
   userId: string,
   proposalId: string,
@@ -453,6 +480,10 @@ export async function rejectResearchCellChangeProposal(
   return { version: 1, ...transactionResult, document };
 }
 
+/**
+ * 接受当前已应用修改的审阅，完成提案状态转换。
+ * Accept review of applied changes and finalize the proposal transition.
+ */
 export async function acceptResearchCellChangeReview(
   userId: string,
   proposalId: string,
@@ -509,6 +540,10 @@ export async function acceptResearchCellChangeReview(
   return { version: 1, outcome: 'accepted', document };
 }
 
+/**
+ * 按原快照恢复已应用修改，并协调依赖及审阅状态。
+ * Revert applied edits from their snapshots and reconcile dependency and review state.
+ */
 export async function revertResearchCellChangeReview(
   userId: string,
   proposalId: string,
@@ -658,6 +693,10 @@ export async function revertResearchCellChangeReview(
   return { version: 1, outcome: 'reverted', document };
 }
 
+/**
+ * 按顺序应用新增、编辑、删除等 Cell 操作，保持位置与身份一致。
+ * Apply ordered cell operations while maintaining positions and identities.
+ */
 async function applyOperations(
   transaction: Prisma.TransactionClient,
   documentId: string,
@@ -734,6 +773,10 @@ async function applyOperations(
   return { seeds };
 }
 
+/**
+ * 验证提案形成的完整文档及依赖，不允许无效结构进入审阅。
+ * Validate the proposed document and dependencies before review.
+ */
 async function validateProposedDocument(
   documentId: string,
   currentCells: CurrentResearchCell[],
@@ -798,6 +841,10 @@ async function validateProposedDocument(
   return analyses;
 }
 
+/**
+ * 检查提案后依赖图是否有环，避免创建无法执行的文档。
+ * Detect cycles in the proposed dependency graph before execution.
+ */
 function hasDependencyCycle(
   analyses: Array<{ cellId: string; definitions: string[]; references: string[] }>,
   definitionsByName: Map<string, string[]>,
@@ -816,6 +863,11 @@ function hasDependencyCycle(
 
   const visiting = new Set<string>();
   const visited = new Set<string>();
+
+  /**
+   * 用访问中与已完成集合深度遍历依赖图，检测回边形成的环。
+   * Detect dependency cycles using active and completed sets in depth-first traversal.
+   */
   const visit = (cellId: string): boolean => {
     if (visiting.has(cellId)) {
       return true;
@@ -836,6 +888,10 @@ function hasDependencyCycle(
   return analyses.some((analysis) => visit(analysis.cellId));
 }
 
+/**
+ * 将提案修订或状态冲突转换为稳定业务错误。
+ * Build a stable business error for proposal revision or state conflicts.
+ */
 function proposalConflict(
   documentContentRevision: number,
   expectedDocumentContentRevision: number | null,
@@ -880,6 +936,10 @@ function proposalConflict(
   return null;
 }
 
+/**
+ * 计算应用提案后 Cell 的完整顺序，供位置更新与计划校验。
+ * Resolve the complete cell order after proposed operations.
+ */
 function orderedCellIdsAfterChanges(
   currentCellIds: string[],
   operations: ResearchCellChangeOperationV1[],
@@ -919,6 +979,10 @@ function validateCellSource(kind: ResearchCellKindV1, source: string): void {
   }
 }
 
+/**
+ * 统计源码行增删，供提案差异摘要展示。
+ * Count added and removed source lines for proposal diff summaries.
+ */
 function lineChangeCounts(
   beforeSource: string,
   afterSource: string,
@@ -972,6 +1036,10 @@ function jsonStringArray(value: Prisma.JsonValue | undefined): string[] {
     : [];
 }
 
+/**
+ * 汇总提案操作与验证结果，形成可持久化的提案响应。
+ * Summarize operations and validation into the persistable proposal outcome.
+ */
 function proposalOutcome(status: string): ResearchCellChangeResolutionResultV1['outcome'] {
   switch (status) {
     case 'applied':

@@ -32,21 +32,37 @@ export type ResearchTransformV1 =
   | 'percent_change'
   | 'year_over_year';
 
+/**
+ * 携带平台对象的稳定资产身份，供查询与目录。
+ * Describe stable platform asset identity for queries and catalogs.
+ */
 export interface ResearchEntityRefV1 {
   assetType: ResearchAssetTypeV1;
   id: string;
 }
 
+/**
+ * 指定证券集合来自全市场、指数或明确列表，供时点解析。
+ * Define universe sources for point-in-time resolution.
+ */
 export type ResearchEntitySetSourceV1 =
   | { kind: 'equity_market'; market: 'CN' }
   | { kind: 'index_members'; indexCode: string }
   | { kind: 'explicit'; entities: ResearchEntityRefV1[] };
 
+/**
+ * 显式指定历史观察时点，避免默认当前数据。
+ * Declare an observation date instead of assuming current data.
+ */
 export type ResearchAsOfSpecV1 =
   | { kind: 'fixed'; date: TradeDate }
   | { kind: 'latest_available' }
   | { kind: 'periodic'; frequency: 'month_end' };
 
+/**
+ * 描述指标比较条件，供受控证券池筛选。
+ * Describe measure predicates for governed universe filtering.
+ */
 export interface ResearchMeasurePredicateV1 {
   measure: string;
   measureVersion: 1;
@@ -54,18 +70,29 @@ export interface ResearchMeasurePredicateV1 {
   value: number | string;
 }
 
+/**
+ * 绑定证券池指标与所需输入，供筛选读取。
+ * Describe universe measures and required inputs for filtering.
+ */
 export interface ResearchUniverseMeasureRefV1 {
   measure: string;
   measureVersion: 1;
 }
 
+/**
+ * 冻结上市、风险警示等资格政策，供历史可投资性过滤。
+ * Freeze listing and risk-warning policies for dated eligibility.
+ */
 export interface ResearchUniverseEligibilityV1 {
   minimumListedDays: number;
   suspension: 'exclude';
   riskWarning: 'include' | 'exclude';
 }
 
-/** A point-in-time entity selector used by screening and Python research. */
+/**
+ * 定义供筛选及 Python 研究共用的时点实体选择器。
+ * A point-in-time entity selector used by screening and Python research.
+ */
 export interface UniverseSpecV1 {
   version: 1;
   source: ResearchEntitySetSourceV1;
@@ -78,6 +105,10 @@ export interface UniverseSpecV1 {
   limit?: number;
 }
 
+/**
+ * 声明证券池可用指标及其单位和语义。
+ * Define available universe measures, units and semantics.
+ */
 export interface ResearchUniverseMeasureDefinitionV1 {
   id: string;
   version: 1;
@@ -89,6 +120,10 @@ export interface ResearchUniverseMeasureDefinitionV1 {
   pointInTime: true;
 }
 
+/**
+ * 表示已通过筛选的证券及公开指标值。
+ * Describe an eligible instrument and public measure values.
+ */
 export interface ResearchUniverseRowV1 {
   entity: ResearchEntityRefV1;
   name: string;
@@ -96,11 +131,19 @@ export interface ResearchUniverseRowV1 {
   values: Record<string, number | null>;
 }
 
+/**
+ * 记录证券池各筛选阶段的数量，供覆盖解释。
+ * Record universe filter-stage counts for coverage interpretation.
+ */
 export interface ResearchUniverseStageV1 {
   code: 'source' | 'listed' | 'not_suspended' | 'risk_warning' | 'predicates';
   count: number;
 }
 
+/**
+ * 返回证券池结果、阶段审计与时点信息。
+ * Return universe rows, stage audits and as-of metadata.
+ */
 export interface ResearchUniverseRunResultV1 {
   version: 1;
   spec: UniverseSpecV1;
@@ -115,12 +158,20 @@ export interface ResearchUniverseRunResultV1 {
   diagnostics: ResearchDiagnosticV1[];
 }
 
+/**
+ * 定义受控序列的身份与来源，不接受任意 SQL。
+ * Identify a governed series and source without arbitrary SQL.
+ */
 export type ResearchSeriesSourceV1 =
   | { kind: 'instrument'; assetType: ResearchAssetTypeV1; id: string }
   | { kind: 'macro'; seriesKey: string }
   | { kind: 'yield_curve'; curveCode: string; curveType: string; termYears: number }
   | { kind: 'fx'; id: string };
 
+/**
+ * 冻结序列日期、频率和变换，供可复现读取。
+ * Freeze series dates, frequency and transforms for reproducible reads.
+ */
 export interface ResearchSeriesInputSpecV1 {
   type: 'series';
   id: string;
@@ -130,6 +181,10 @@ export interface ResearchSeriesInputSpecV1 {
   label?: string;
 }
 
+/**
+ * 定义研究指标名称、单位和合法变换。
+ * Describe research measures, units and supported transforms.
+ */
 export interface ResearchMeasureDefinitionV1 {
   id: string;
   nameZh: string;
@@ -144,13 +199,20 @@ export interface ResearchMeasureDefinitionV1 {
   version: number;
 }
 
+/**
+ * 公开研究可用对象、指标与范围，供目录和补全。
+ * Describe research objects, measures and scope for catalog and completion.
+ */
 export interface ResearchCapabilityCatalogV1 {
   version: 1;
   measures: ResearchMeasureDefinitionV1[];
   universeMeasures: ResearchUniverseMeasureDefinitionV1[];
 }
 
-/** Searchable, stable platform object that can be passed to `data.series`. */
+/**
+ * 定义可传入 data.series 的可搜索稳定平台对象。
+ * Searchable, stable platform object that can be passed to `data.series`.
+ */
 export interface ResearchDataCatalogInstrumentV1 {
   kind: 'instrument';
   assetType: ResearchAssetTypeV1;
@@ -166,6 +228,10 @@ export interface ResearchDataCatalogInstrumentV1 {
   researchRegistry?: ResearchDataCatalogRegistryV1 | null;
 }
 
+/**
+ * 记录对象历史覆盖与缺失状态，供目录可用性显示。
+ * Describe object history coverage and missing-data state.
+ */
 export type ResearchDataCatalogCoverageV1 =
   | {
       status: 'ready';
@@ -179,6 +245,10 @@ export type ResearchDataCatalogCoverageV1 =
       reason: 'source_available_but_local_data_missing';
     };
 
+/**
+ * 说明目录对象可通过何种 SDK 方法访问。
+ * Describe SDK methods available for a catalog object.
+ */
 export type ResearchDataCatalogSdkAccessV1 =
   | { status: 'ready'; method: 'data.series' }
   | {
@@ -186,6 +256,10 @@ export type ResearchDataCatalogSdkAccessV1 =
       reason: 'source_available_but_local_data_missing';
     };
 
+/**
+ * 保留受治理清单的角色、币种和成员信息。
+ * Describe governed registry roles, currencies and membership.
+ */
 export interface ResearchDataCatalogRegistryV1 {
   exposureId: string;
   role: 'primary' | 'backup';
@@ -195,6 +269,10 @@ export interface ResearchDataCatalogRegistryV1 {
   knownLimitations: readonly string[];
 }
 
+/**
+ * 提供 SDK 方法签名、示例及双语列说明，供目录与补全同源展示。
+ * Describe SDK signatures, examples and bilingual columns for catalog and completion.
+ */
 export interface ResearchDataCatalogSdkMethodV1 {
   qualifiedName: string;
   name: string;
@@ -210,6 +288,10 @@ export interface ResearchDataCatalogSdkMethodV1 {
   }>;
 }
 
+/**
+ * 描述数据集日期、证券及行数覆盖。
+ * Describe dataset date, instrument and row coverage.
+ */
 export type ResearchDataCatalogDatasetCoverageV1 =
   | {
       status: 'ready';
@@ -222,6 +304,10 @@ export type ResearchDataCatalogDatasetCoverageV1 =
       reason: 'source_available_but_local_data_missing';
     };
 
+/**
+ * 共享公开数据集身份、方法与说明，供目录变体复用。
+ * Define shared dataset identity, method and guidance for catalog variants.
+ */
 interface ResearchDataCatalogDatasetBaseV1 {
   kind: 'dataset';
   id: string;
@@ -233,7 +319,10 @@ interface ResearchDataCatalogDatasetBaseV1 {
   localDataCoverage: ResearchDataCatalogDatasetCoverageV1;
 }
 
-/** A governed, locally available dataset that can be inserted as an exact SDK call. */
+/**
+ * 定义本地已治理数据集，可插入为精确 SDK 调用。
+ * A governed, locally available dataset that can be inserted as an exact SDK call.
+ */
 export type ResearchDataCatalogDatasetV1 =
   | (ResearchDataCatalogDatasetBaseV1 & {
       method: 'data.cross_section' | 'data.panel';
@@ -280,7 +369,10 @@ export type ResearchDataCatalogDatasetV1 =
       identifier: string;
     });
 
-/** A completed FactorReport owned by the current user and discoverable from Research. */
+/**
+ * 引用当前用户已完成且可见的因子报告，供研究目录发现。
+ * A completed FactorReport owned by the current user and discoverable from Research.
+ */
 export interface ResearchDataCatalogFactorReportV1 {
   kind: 'factor_report';
   id: string;
@@ -293,7 +385,10 @@ export interface ResearchDataCatalogFactorReportV1 {
   computedAt: string | null;
 }
 
-/** A completed BacktestReport owned by the current user and discoverable from Research. */
+/**
+ * 引用当前用户已完成的回测报告，供研究目录发现。
+ * A completed BacktestReport owned by the current user and discoverable from Research.
+ */
 export interface ResearchDataCatalogBacktestReportV1 {
   kind: 'backtest_report';
   id: string;
@@ -306,7 +401,10 @@ export interface ResearchDataCatalogBacktestReportV1 {
   computedAt: string | null;
 }
 
-/** A completed immutable strategy parameter scan owned by the current user. */
+/**
+ * 引用用户拥有的已完成不可变参数扫描。
+ * A completed immutable strategy parameter scan owned by the current user.
+ */
 export interface ResearchDataCatalogStrategyScanReportV1 {
   kind: 'strategy_scan_report';
   id: string;
@@ -318,7 +416,10 @@ export interface ResearchDataCatalogStrategyScanReportV1 {
   updatedAt: string;
 }
 
-/** A ready Factor Weather pin owned by the current user. */
+/**
+ * 引用当前用户已就绪的因子气象固定项。
+ * A ready Factor Weather pin owned by the current user.
+ */
 export interface ResearchDataCatalogFactorWeatherV1 {
   kind: 'factor_weather';
   factorId: string;
@@ -329,7 +430,10 @@ export interface ResearchDataCatalogFactorWeatherV1 {
   createdAt: string;
 }
 
-/** One response powers the catalog UI and Monaco's identifier/measure completion. */
+/**
+ * 同一响应供目录 UI 与 Monaco 标识、指标补全使用。
+ * One response powers the catalog UI and Monaco's identifier/measure completion.
+ */
 export interface ResearchDataCatalogResultV1 {
   version: 1;
   query: string;
@@ -343,6 +447,10 @@ export interface ResearchDataCatalogResultV1 {
   measures: ResearchMeasureDefinitionV1[];
 }
 
+/**
+ * 记录研究数据或运行限制，供结果解释。
+ * Describe research data or execution limitations for interpretation.
+ */
 export interface ResearchDiagnosticV1 {
   code: string;
   severity: 'info' | 'warning' | 'error';
@@ -365,6 +473,10 @@ export type ResearchCuratorDispositionV1 =
   | 'deferred'
   | 'duplicate';
 
+/**
+ * 绑定整理发现与文档、执行或仓库来源。
+ * Associate curation findings with document, execution or repository evidence.
+ */
 export interface ResearchCuratorEvidenceV1 {
   id: string;
   sourceType: 'message' | 'tool_failure';
@@ -375,6 +487,10 @@ export interface ResearchCuratorEvidenceV1 {
   signals: string[];
 }
 
+/**
+ * 记录引用匹配的身份和置信依据，供整理核验。
+ * Describe verified reference matches and supporting evidence.
+ */
 export interface ResearchCuratorVerificationMatchV1 {
   kind:
     | 'research_measure'
@@ -390,6 +506,10 @@ export interface ResearchCuratorVerificationMatchV1 {
   id: string;
 }
 
+/**
+ * 保存整理核验的解释与限制。
+ * Retain curation verification explanations and limits.
+ */
 export type ResearchCuratorVerificationNoteV1 =
   | 'local_capability_match'
   | 'tushare_catalog_match_requires_smoke_check'
@@ -402,6 +522,10 @@ export type ResearchCuratorVerificationNoteV1 =
   | 'source_decision_match'
   | 'repository_reference_match';
 
+/**
+ * 组合引用匹配及核验说明，供可追溯发现。
+ * Collect matches and verification notes for traceable findings.
+ */
 export interface ResearchCuratorVerificationEvidenceV1 {
   stance: 'supports' | 'limits';
   kind: 'catalog' | 'probe' | 'repository';
@@ -410,8 +534,16 @@ export interface ResearchCuratorVerificationEvidenceV1 {
   detailEn: string;
 }
 
+/**
+ * 记录人工对核验结果的评估，供质量反馈。
+ * Describe human assessment of verification evidence.
+ */
 export type ResearchCuratorVerificationAssessmentV1 = 'correct' | 'incorrect';
 
+/**
+ * 汇总整理覆盖、核验与反馈指标。
+ * Summarize curation coverage, verification and feedback metrics.
+ */
 export interface ResearchCuratorQualityMetricsV1 {
   totalFindings: number;
   pending: number;
@@ -431,6 +563,10 @@ export interface ResearchCuratorQualityMetricsV1 {
   minimumVerificationAssessments: number;
 }
 
+/**
+ * 描述可处理的整理建议、证据、状态与反馈。
+ * Describe an actionable curator finding, evidence, state and feedback.
+ */
 export interface ResearchCuratorFindingV1 {
   version: 1;
   id: string;
@@ -458,6 +594,10 @@ export interface ResearchCuratorFindingV1 {
   createdAt: string;
 }
 
+/**
+ * 关联整理范围、运行状态与发现，供异步查询。
+ * Describe curation scope, execution state and findings.
+ */
 export interface ResearchCuratorRunV1 {
   version: 1;
   id: string;
@@ -475,6 +615,10 @@ export interface ResearchCuratorRunV1 {
   createdAt: string;
 }
 
+/**
+ * 提供研究会话身份及轮次元数据。
+ * Describe research conversation identity and turn metadata.
+ */
 export interface ResearchConversationMeta {
   id: string;
   title: string;
@@ -483,6 +627,10 @@ export interface ResearchConversationMeta {
   updatedAt: string;
 }
 
+/**
+ * 返回研究消息分页及会话状态，供恢复。
+ * Return research message pages and conversation state.
+ */
 export interface ResearchConversationMessages {
   messages: import('./chat.js').ChatMessage[];
   nextBefore?: number;
@@ -492,6 +640,11 @@ export interface ResearchConversationMessages {
 
 export type ResearchCellKindV1 = 'markdown' | 'python';
 export type ResearchCellStatusV1 = 'idle' | 'running' | 'success' | 'error' | 'stale' | 'blocked';
+
+/**
+ * 描述 Cell 缺失、冲突或陈旧依赖，供阻塞解释。
+ * Describe missing, conflicting or stale cell dependencies.
+ */
 export interface ResearchCellDependencyIssueV1 {
   version: 1;
   reason: 'deleted_upstream_cell';
@@ -508,6 +661,10 @@ export type ResearchCellChangeReviewStatusV1 = 'open' | 'accepted' | 'reverted';
 export type ResearchCellChangeAttemptStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
 export type ResearchCellChangeAttemptScopeV1 = 'affected' | 'clean_document';
 
+/**
+ * 绑定澄清候选与稳定目录引用，防止模糊替代。
+ * Associate clarification options with stable catalog references.
+ */
 export interface ResearchClarificationOptionV1 {
   id: string;
   kind: ResearchClarificationOptionKindV1;
@@ -518,6 +675,10 @@ export interface ResearchClarificationOptionV1 {
   descriptionEn: string;
 }
 
+/**
+ * 定义澄清问题、选择方式和候选集合。
+ * Describe a clarification question, selection mode and allowed options.
+ */
 export interface ResearchClarificationQuestionV1 {
   id: string;
   prompt: string;
@@ -526,17 +687,29 @@ export interface ResearchClarificationQuestionV1 {
   allowCustom: boolean;
 }
 
+/**
+ * 记录用户对某澄清问题确认的候选身份。
+ * Retain confirmed option identities for one clarification question.
+ */
 export interface ResearchClarificationSelectionV1 {
   questionId: string;
   selectedOptionIds: string[];
   customText?: string;
 }
 
+/**
+ * 组合用户澄清选择，供恢复研究对话。
+ * Collect user clarification selections for conversation continuation.
+ */
 export interface ResearchClarificationAnswerV1 {
   selections: ResearchClarificationSelectionV1[];
   answeredAt: string;
 }
 
+/**
+ * 持久化文档绑定的问题、答案与解决状态。
+ * Describe durable document-bound questions, answers and resolution state.
+ */
 export interface ResearchClarificationV1 {
   version: 1;
   id: string;
@@ -548,6 +721,10 @@ export interface ResearchClarificationV1 {
   createdAt: string;
 }
 
+/**
+ * 共享提案 Cell 操作身份与预期修订。
+ * Define cell-operation identity and expected revision shared by proposals.
+ */
 interface ResearchCellChangeOperationBaseV1 {
   operationId: string;
   cellId: string;
@@ -559,6 +736,10 @@ interface ResearchCellChangeOperationBaseV1 {
   afterReferences: string[];
 }
 
+/**
+ * 区分 Cell 创建、更新、删除与排序，供提案应用。
+ * Discriminate proposed cell creation, update, deletion and reordering.
+ */
 export type ResearchCellChangeOperationV1 =
   | (ResearchCellChangeOperationBaseV1 & {
       kind: 'create';
@@ -586,11 +767,19 @@ export type ResearchCellChangeConflictReasonV1 =
   | 'cell_revision_changed'
   | 'cell_source_changed';
 
+/**
+ * 返回提案无法应用的稳定原因及相关 Cell。
+ * Describe stable proposal conflicts and affected cells.
+ */
 export interface ResearchCellChangeConflictV1 {
   reason: ResearchCellChangeConflictReasonV1;
   cellIds: string[];
 }
 
+/**
+ * 冻结 Agent 建议的操作、源码基线与状态，应用需明确用户动作。
+ * Retain proposed operations, source baseline and state for explicit application.
+ */
 export interface ResearchCellChangeProposalV1 {
   version: 1;
   id: string;
@@ -612,6 +801,10 @@ export interface ResearchCellChangeProposalV1 {
   resolvedAt?: string;
 }
 
+/**
+ * 保存审阅前后单 Cell 快照，供接受或撤销。
+ * Snapshot a cell before and after reviewable application.
+ */
 export interface ResearchCellChangeReviewCellV1 {
   cellId: string;
   cellKind: ResearchCellKindV1;
@@ -620,6 +813,10 @@ export interface ResearchCellChangeReviewCellV1 {
   beforeSource: string;
 }
 
+/**
+ * 关联已应用变更、审阅状态和回退证据。
+ * Describe applied edits, review state and revert evidence.
+ */
 export interface ResearchCellChangeReviewV1 {
   version: 1;
   id: string;
@@ -631,6 +828,10 @@ export interface ResearchCellChangeReviewV1 {
   createdAt: string;
 }
 
+/**
+ * 保存修改尝试中单 Cell 的执行与输出。
+ * Describe one cell's execution and output in a change attempt.
+ */
 export interface ResearchCellChangeAttemptCellV1 {
   inputSnapshot?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   executionId: string;
@@ -646,6 +847,10 @@ export interface ResearchCellChangeAttemptCellV1 {
   error?: string;
 }
 
+/**
+ * 对比尝试的运行与输出变化，供效果审阅。
+ * Describe execution and output differences between attempts.
+ */
 export interface ResearchCellChangeAttemptComparisonV1 {
   version: 1;
   previousAttemptId: string;
@@ -655,6 +860,10 @@ export interface ResearchCellChangeAttemptComparisonV1 {
   environmentChanged: boolean;
 }
 
+/**
+ * 关联提案、范围、终态及不可变执行证据。
+ * Describe proposal attempt scope, state and immutable execution evidence.
+ */
 export interface ResearchCellChangeAttemptV1 {
   version: 1;
   id: string;
@@ -672,6 +881,11 @@ export interface ResearchCellChangeAttemptV1 {
   startedAt: string;
   finishedAt?: string;
 }
+
+/**
+ * 限定 Cell 表格与参数可传输标量，供安全序列化。
+ * Constrain transferable cell scalars for safe serialization.
+ */
 export type ResearchCellScalarV1 = string | number | boolean | null;
 export type ResearchChartKindV1 =
   | 'line'
@@ -685,6 +899,10 @@ export type ResearchChartKindV1 =
   | 'heatmap'
   | 'event_path';
 
+/**
+ * 定义图表序列的标签和值，供通用研究渲染。
+ * Describe chart series labels and values for research rendering.
+ */
 export interface ResearchChartSeriesV1 {
   column: string;
   label?: string;
@@ -692,6 +910,10 @@ export interface ResearchChartSeriesV1 {
   yAxis?: 'left' | 'right';
 }
 
+/**
+ * 保留研究表格列、数据及截断信息，供结果解释。
+ * Describe table columns, rows and truncation metadata.
+ */
 export interface ResearchTableOutputV1 {
   type: 'table';
   columns: string[];
@@ -712,7 +934,10 @@ export interface ResearchTableOutputV1 {
   };
 }
 
-/** Inline chart data is retained as an execution artifact. */
+/**
+ * 将内联图表数据保留为执行产物，供历史结果读取。
+ * Inline chart data is retained as an execution artifact.
+ */
 export interface ResearchChartOutputV1 {
   type: 'chart';
   version: 1;
@@ -741,6 +966,10 @@ export type ResearchImageOutputV1 = {
     }
 );
 
+/**
+ * 区分文本、表格、图表及图片输出，供统一渲染。
+ * Discriminate text, table, chart and image outputs for rendering.
+ */
 export type ResearchCellOutputBlockV1 =
   | { type: 'text'; text: string; level?: 'info' | 'warning' | 'error' }
   | { type: 'value'; value: ResearchCellScalarV1 | ResearchCellScalarV1[] }
@@ -748,6 +977,10 @@ export type ResearchCellOutputBlockV1 =
   | ResearchChartOutputV1
   | ResearchImageOutputV1;
 
+/**
+ * 组合可编辑源码、修订、依赖与最近输出，供研究工作区。
+ * Describe editable source, revisions, dependencies and latest output in a research cell.
+ */
 export interface ResearchCellV1 {
   version: 1;
   id: string;
@@ -768,7 +1001,10 @@ export interface ResearchCellV1 {
   updatedAt: string;
 }
 
-/** Resolve transitive upstream Cell providers in breadth-first order. */
+/**
+ * 按广度优先顺序解析上游 Cell 提供者的传递闭包。
+ * Resolve transitive upstream Cell providers in breadth-first order.
+ */
 export function researchUpstreamDependencyCellIds(
   cells: Array<{ id: string; definitions: string[]; references: string[] }>,
   rootCellIds: string[],
@@ -806,7 +1042,10 @@ export function researchUpstreamDependencyCellIds(
   return dependencies;
 }
 
-/** Resolve transitive downstream consumers in document order. */
+/**
+ * 按文档顺序返回下游消费者的传递闭包。
+ * Resolve transitive downstream consumers in document order.
+ */
 export function researchDownstreamDependencyCellIds(
   cells: Array<{ id: string; definitions: string[]; references: string[] }>,
   rootCellIds: string[],
@@ -843,6 +1082,10 @@ export function researchDownstreamDependencyCellIds(
   return cells.filter((cell) => downstreamCellIds.has(cell.id)).map((cell) => cell.id);
 }
 
+/**
+ * 提供研究文档身份、时间与最近状态，供侧栏。
+ * Describe document identity, timing and recent state for navigation.
+ */
 export interface ResearchDocumentSummaryV1 extends ResearchConversationMeta {
   cellCount: number;
   staleCount: number;
@@ -852,6 +1095,10 @@ export interface ResearchDocumentSummaryV1 extends ResearchConversationMeta {
 
 export type ResearchDocumentListStateV1 = 'active' | 'archived';
 
+/**
+ * 返回文档内容、Cell、会话及运行信息，供工作区恢复。
+ * Return document content, cells, conversation and run state for workspace restoration.
+ */
 export interface ResearchDocumentV1 {
   embeddedSource?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   version: 1;
@@ -868,6 +1115,10 @@ export interface ResearchDocumentV1 {
   updatedAt: string;
 }
 
+/**
+ * 返回提案应用或拒绝后的状态与文档修订。
+ * Return proposal resolution state and resulting document revision.
+ */
 export interface ResearchCellChangeResolutionResultV1 {
   version: 1;
   outcome: 'applied' | 'rejected' | 'conflicted';
@@ -875,38 +1126,66 @@ export interface ResearchCellChangeResolutionResultV1 {
   document: ResearchDocumentV1;
 }
 
+/**
+ * 返回审阅接受或撤销后的 Cell 与提案状态。
+ * Return cells and proposal state after accepting or reverting review.
+ */
 export interface ResearchCellChangeReviewResolutionResultV1 {
   version: 1;
   outcome: 'accepted' | 'reverted' | 'conflicted';
   document: ResearchDocumentV1;
 }
 
+/**
+ * 返回修改尝试的运行计划、结果与证据。
+ * Return a change attempt's plan, results and evidence.
+ */
 export interface ResearchCellChangeRunResultV1 {
   version: 1;
   attempt: ResearchCellChangeAttemptV1;
   document: ResearchDocumentV1;
 }
 
+/**
+ * 记录依赖图冲突及涉及 Cell，供静态分析解释。
+ * Describe dependency conflicts and affected cells.
+ */
 export interface ResearchDependencyConflictV1 {
   name: string;
   cellIds: string[];
 }
 
+/**
+ * 汇总文档依赖分析与冲突，供运行前校验。
+ * Collect document dependency analysis and conflicts before execution.
+ */
 export interface ResearchDocumentAnalysisV1 {
   version: 1;
   cells: Array<{ cellId: string; definitions: string[]; references: string[] }>;
   conflicts: ResearchDependencyConflictV1[];
 }
 
+/**
+ * 声明文档模板的身份、说明与初始 Cell。
+ * Describe template identity, guidance and initial cells.
+ */
 export type ResearchDocumentTemplateV1 = 'blank' | 'index_relationship' | 'equity_fcff_valuation';
 
 export type ResearchExecutionStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
 
+/**
+ * 冻结执行 DAG 中单 Cell 的上下游关系。
+ * Snapshot one cell's upstream and downstream execution relationships.
+ */
 export interface ResearchExecutionDagNodeV1 {
   cellId: string;
   dependsOnCellIds: string[];
 }
 
+/**
+ * 保存不可变执行 Cell 的源码、状态及输出。
+ * Describe immutable execution cell source, state and output.
+ */
 export interface ResearchExecutionCellV1 {
   inputSnapshot?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   version: 1;
@@ -926,6 +1205,10 @@ export interface ResearchExecutionCellV1 {
   finishedAt?: string;
 }
 
+/**
+ * 提供研究执行身份、结果与时间摘要。
+ * Describe execution identity, outcome and timing summaries.
+ */
 export interface ResearchExecutionSummaryV1 {
   version: 1;
   id: string;
@@ -948,6 +1231,10 @@ export interface ResearchExecutionSummaryV1 {
   finishedAt?: string;
 }
 
+/**
+ * 组合冻结源码、DAG、Cell 与证据，供复现及交接。
+ * Collect frozen source, DAG, cells and evidence for reproducibility and handoff.
+ */
 export interface ResearchExecutionV1 extends ResearchExecutionSummaryV1 {
   cells: ResearchExecutionCellV1[];
   dag: ResearchExecutionDagNodeV1[];
@@ -960,8 +1247,11 @@ export type ResearchFactorDraftAnalysisKindV1 = Extract<
   'cross_sectional' | 'time_series' | 'panel'
 >;
 
-/** Supported FactorReport inputs recovered from a frozen Research version. Missing fields retain the
- * Factor workbench defaults and remain explicit review work; this suggestion never starts a run. */
+/**
+ * 从冻结版本恢复已支持的报告输入，缺失字段仍需用户补齐。
+ * Supported FactorReport inputs recovered from a frozen Research version. Missing fields retain the
+ * Factor workbench defaults and remain explicit review work; this suggestion never starts a run.
+ */
 export interface ResearchFactorReportSuggestionV1 {
   version: 1;
   analysisKind: ResearchFactorDraftAnalysisKindV1;
@@ -976,7 +1266,10 @@ export interface ResearchFactorReportSuggestionV1 {
   expectedDirection?: FactorExpectedDirection;
 }
 
-/** The durable, human-reviewable handoff from one frozen research version into a Factor draft. */
+/**
+ * 保存从冻结研究到因子草稿的可人工审阅交接。
+ * The durable, human-reviewable handoff from one frozen research version into a Factor draft.
+ */
 export interface ResearchFactorHandoffV1 {
   version: 1;
   sourceExecutionId: string;
@@ -997,6 +1290,10 @@ export interface ResearchFactorHandoffV1 {
   };
 }
 
+/**
+ * 返回新因子草稿身份及其研究来源。
+ * Return a created factor draft and its research provenance.
+ */
 export interface ResearchFactorDraftResultV1 {
   version: 1;
   factorId: string;
@@ -1008,7 +1305,10 @@ export interface ResearchFactorDraftResultV1 {
   reused: boolean;
 }
 
-/** The durable, human-reviewable handoff from one frozen research version into a Strategy draft. */
+/**
+ * 保存从冻结研究到策略草稿的可人工审阅交接。
+ * The durable, human-reviewable handoff from one frozen research version into a Strategy draft.
+ */
 export interface ResearchStrategyHandoffV1 {
   version: 1;
   sourceExecutionId: string;
@@ -1026,6 +1326,10 @@ export interface ResearchStrategyHandoffV1 {
   };
 }
 
+/**
+ * 返回新策略草稿身份及其研究来源。
+ * Return a created strategy draft and its research provenance.
+ */
 export interface ResearchStrategyDraftResultV1 {
   version: 1;
   strategyId: string;
@@ -1035,6 +1339,10 @@ export interface ResearchStrategyDraftResultV1 {
   reused: boolean;
 }
 
+/**
+ * 汇总整文档执行的 Cell、终态与冻结证据。
+ * Describe document-run cells, terminal state and frozen evidence.
+ */
 export interface ResearchDocumentRunResultV1 {
   version: 1;
   document: ResearchDocumentV1;
@@ -1043,6 +1351,10 @@ export interface ResearchDocumentRunResultV1 {
   execution?: ResearchExecutionSummaryV1;
 }
 
+/**
+ * 返回文档中断请求状态，供执行控制反馈。
+ * Describe document interruption state for execution controls.
+ */
 export interface ResearchDocumentInterruptResultV1 {
   version: 1;
   document: ResearchDocumentV1;

@@ -30,6 +30,10 @@ export type MacroRiskAxisKeyV1 = (typeof MACRO_RISK_AXIS_KEYS_V1)[number];
 
 export type RiskDriverUnitV1 = 'decimal_return' | 'basis_point_change' | 'score_change';
 
+/**
+ * 定义市场风险因子身份、单位和数据来源。
+ * Define market risk factor identity, units and sources.
+ */
 export interface MarketRiskFactorDefinitionV1 {
   version: 1;
   kind: 'market_risk_factor';
@@ -40,6 +44,10 @@ export interface MarketRiskFactorDefinitionV1 {
   pointInTime: true;
 }
 
+/**
+ * 定义宏观风险轴的方向、含义与来源。
+ * Define macro risk axis direction, meaning and sources.
+ */
 export interface MacroRiskAxisDefinitionV1 {
   version: 1;
   kind: 'macro_risk_axis';
@@ -50,14 +58,26 @@ export interface MacroRiskAxisDefinitionV1 {
   pointInTime: true;
 }
 
+/**
+ * 统一市场与宏观驱动定义，供风险报告解释。
+ * Unify market and macro driver definitions for risk interpretation.
+ */
 export type RiskDriverDefinitionV1 = MarketRiskFactorDefinitionV1 | MacroRiskAxisDefinitionV1;
 
+/**
+ * 保留单来源序列覆盖与可得性，供风险血缘。
+ * Describe source coverage and availability for risk lineage.
+ */
 export interface RiskDataLineageSeriesV1 {
   seriesKey: string;
   availableThrough: TradeDate;
   revisionPolicy: 'as_available' | 'latest_vintage' | 'not_revised';
 }
 
+/**
+ * 汇总模型输入序列、日期和缺口，供复核。
+ * Collect model input series, dates and gaps for review.
+ */
 export interface RiskDataLineageV1 {
   dataCutoff: TradeDate;
   pointInTimeEligible: boolean;
@@ -65,6 +85,10 @@ export interface RiskDataLineageV1 {
   series: RiskDataLineageSeriesV1[];
 }
 
+/**
+ * 描述组合市场敞口系数及稳健诊断。
+ * Describe portfolio market exposure coefficients and diagnostics.
+ */
 export interface PortfolioMarketRiskExposureV1 {
   factor: MarketRiskFactorKeyV1;
   coefficient: number;
@@ -73,6 +97,10 @@ export interface PortfolioMarketRiskExposureV1 {
   varianceContributionShare: number | null;
 }
 
+/**
+ * 组合市场敞口、风险贡献与数据血缘。
+ * Collect market exposures, risk contributions and lineage.
+ */
 export interface PortfolioMarketRiskAnalysisV1 {
   version: 1;
   frequency: 'daily';
@@ -88,6 +116,10 @@ export interface PortfolioMarketRiskAnalysisV1 {
   lineage: RiskDataLineageV1;
 }
 
+/**
+ * 保存组合宏观敏感度及稳健统计，不将描述关系解释为因果。
+ * Describe macro sensitivities and robust statistics without implying causation.
+ */
 export interface PortfolioMacroSensitivityV1 {
   axis: MacroRiskAxisKeyV1;
   coefficient: number;
@@ -95,6 +127,10 @@ export interface PortfolioMacroSensitivityV1 {
   observations: number;
 }
 
+/**
+ * 汇总月度宏观敏感度、样本和限制。
+ * Collect monthly macro sensitivities, samples and limitations.
+ */
 export interface PortfolioMacroRiskAnalysisV1 {
   version: 1;
   frequency: 'monthly';
@@ -109,6 +145,10 @@ export interface PortfolioMacroRiskAnalysisV1 {
   lineage: RiskDataLineageV1;
 }
 
+/**
+ * 记录 Alpha 收益与风险驱动的对齐相关关系及样本。
+ * Describe aligned Alpha-risk relationships and samples.
+ */
 export interface AlphaRiskOverlapV1 {
   alphaFactorKey: string;
   alphaReturnKind: 'net_long_short' | 'strategy_attributed';
@@ -118,12 +158,20 @@ export interface AlphaRiskOverlapV1 {
   classification: 'low' | 'material' | 'dominant';
 }
 
+/**
+ * 定义作用于当前敞口的冻结风险冲击。
+ * Describe a frozen shock applied to current exposures.
+ */
 export interface PortfolioRiskScenarioShockV1 {
   factor: MarketRiskFactorKeyV1;
   shock: number;
   unit: Exclude<RiskDriverUnitV1, 'score_change'>;
 }
 
+/**
+ * 共享情景分析的身份、估计损益和限制。
+ * Describe shared scenario identity, estimated impact and limitations.
+ */
 interface PortfolioRiskScenarioResultBaseV1 {
   key: string;
   asOfDate: TradeDate;
@@ -141,8 +189,11 @@ export type PortfolioRiskScenarioResultV1 = PortfolioRiskScenarioResultBaseV1 &
       }
   );
 
-/** Optional on cached backtests created before Phase 5. Each section is populated only after its
- * own data lineage and coverage gates pass; missing evidence stays missing instead of becoming 0. */
+/**
+ * 为历史回测提供可选风险结果，各部分仅在输入满足要求后填充。
+ * Optional on cached backtests created before Phase 5. Each section is populated only after its
+ * own data lineage and coverage gates pass; missing evidence stays missing instead of becoming 0.
+ */
 export interface PortfolioRiskAnalysisV1 {
   version: 1;
   separationPolicy: 'daily_market_risk_and_monthly_macro_sensitivity';

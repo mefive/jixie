@@ -19,6 +19,8 @@ _MAX_TABLE_PREVIEW_BYTES = 1 * 1024 * 1024
 _MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
 
+# 按输出种类转换 Python 结果，收集表格、图表和图片诊断。
+# English: Serialize Python results by output kind with table, chart and image diagnostics.
 def _outputs(value: Any, figures_before: set[int], modules: dict[str, Any]) -> list[dict[str, Any]]:
     outputs: list[dict[str, Any]] = []
     if isinstance(value, _ChartResult):
@@ -80,6 +82,8 @@ def _is_record_table(value: Any) -> bool:
     )
 
 
+# 将 DataFrame 或等价表格转换为有界可传输结果，保留列和截断信息。
+# English: Serialize bounded tabular results with columns and truncation metadata.
 def _table_output(value: Any) -> dict[str, Any]:
     if hasattr(value, "to_frame") and not hasattr(value, "columns"):
         value = value.to_frame()
@@ -171,6 +175,8 @@ def _table_output(value: Any) -> dict[str, Any]:
     return output
 
 
+# 为重复或空表头生成稳定唯一列名，供 DataFrame 序列化。
+# English: Generate stable unique column names for duplicate or empty table headings.
 def _unique_column_names(columns: Any) -> list[str]:
     names: list[str] = []
     used: set[str] = set()

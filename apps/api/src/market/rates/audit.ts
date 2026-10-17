@@ -7,6 +7,10 @@ import type {
 } from '../quality/report.js';
 import { CHINABOND_PUBLIC_CURVES } from './chinabond-credit-curves.js';
 
+/**
+ * 汇总信用曲线历史可得性与期限覆盖。
+ * Summarize credit-curve availability and tenor coverage.
+ */
 export interface CreditCurvePitAuditSummary extends ExternalMarketPitAuditSummary {
   staleSeries: string[];
 }
@@ -36,6 +40,10 @@ export function summarizeCreditCurvePit(
   };
 }
 
+/**
+ * 审计信用曲线来源日期与可得日期，供利差风险输入验证。
+ * Audit credit-curve source and availability dates for spread-risk inputs.
+ */
 export async function auditCreditCurvePit(
   database: Prisma,
   endDate: string,

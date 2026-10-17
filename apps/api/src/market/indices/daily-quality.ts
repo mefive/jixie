@@ -7,6 +7,10 @@ import {
   MARKET_WEATHER_INDICATOR_INDEX_CODES,
 } from '../registry/index-presets.js';
 
+/**
+ * 提供单日指数发布的覆盖检查结果。
+ * Describe coverage checks for one index publication date.
+ */
 export interface IndexDateQuality {
   indexDaily: number;
   indexDailyBasic: number;
@@ -16,6 +20,10 @@ export interface IndexDateQuality {
   activeIndustries: number;
 }
 
+/**
+ * 检查指数指定日期的行情与估值覆盖，供日更发布门禁。
+ * Validate dated index price and valuation coverage before publication.
+ */
 export async function validateIndexDate(
   tradeDate: string,
   maximumIndexWeightAgeDays = 190,

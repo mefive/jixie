@@ -11,9 +11,12 @@ import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state
 import { executeResearchCellById } from './run-cell.js';
 import { buildResearchDocumentRunResult } from './run-result.js';
 
-/** Execute one prevalidated, document-scoped Cell plan and attach every immutable snapshot to the
+/**
+ * 执行预校验的文档 Cell 计划，将不可变快照统一关联到同一 Agent 提案尝试。
+ * Execute one prevalidated, document-scoped Cell plan and attach every immutable snapshot to the
  * same Agent proposal attempt. Content revision checks prevent a multi-tab edit from producing a
- * mixed-source attempt. */
+ * mixed-source attempt.
+ */
 export async function runResearchCellChangeAttemptPlan(
   userId: string,
   documentId: string,

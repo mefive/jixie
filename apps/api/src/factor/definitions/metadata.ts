@@ -11,13 +11,20 @@ const metadataSchema = z.object({
   descriptionEn: z.string().trim().min(1).max(400),
 });
 
+/**
+ * 承载生成的名称与用途等可变显示信息，不决定冻结计算身份。
+ * Carry mutable display metadata independently of frozen computation identity.
+ */
 export interface FactorMetadata {
   nameZh: string;
   descriptionZh: string;
   descriptionEn: string;
 }
 
-/** Generate display metadata from the current code and recent conversation. */
+/**
+ * 从当前源码和最近对话生成因子显示元数据。
+ * Generate display metadata from the current code and recent conversation.
+ */
 export async function generateFactorMetadata(
   input: {
     code: string;
@@ -65,7 +72,10 @@ Keep the current name and descriptions when they remain accurate; update them wh
   }
 }
 
-/** Refresh mutable display metadata for a draft factor. */
+/**
+ * 刷新草稿因子的可变显示元数据。
+ * Refresh mutable display metadata for a draft factor.
+ */
 export async function refreshFactorMetadata(input: {
   factorId: string;
   userId: string;
@@ -107,6 +117,10 @@ export async function refreshFactorMetadata(input: {
   });
 }
 
+/**
+ * 在归属和版本仍匹配时保存生成元数据，避免旧请求覆盖新草稿。
+ * Persist generated metadata only while ownership and source version still match.
+ */
 export async function refreshOwnedFactorMetadata(userId: string, input: FactorMetadataInput) {
   const { id, code } = input;
   const factor = await prisma.factor.findFirst({

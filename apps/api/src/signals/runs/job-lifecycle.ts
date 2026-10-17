@@ -13,6 +13,10 @@ const workerUrl = import.meta.url.endsWith('.ts')
   : new URL('./worker.js', import.meta.url);
 
 export const signalsRunLifecycle = {
+  /**
+   * 读取冻结部署输入并执行信号计算，供终态事务持久化。
+   * Compute signals from frozen deployment inputs for terminal persistence.
+   */
   async onExecute(job, log) {
     const input = signalsRunJobPayloadSchema.parse(job.payload);
     if (input.runId !== job.signalRunId) {
@@ -58,6 +62,11 @@ export const signalsRunLifecycle = {
       },
     });
   },
+
+  /**
+   * 在信号结果与任务事务提交后执行通知和后续处理。
+   * Perform notification and follow-up work after the signal and job transaction commits.
+   */
   async onCommitted(job, status) {
     const parsed = signalsRunJobPayloadSchema.safeParse(job.payload);
     if (!parsed.success || parsed.data.runId !== job.signalRunId) {

@@ -5,13 +5,21 @@ import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { ETF_RESEARCH_CODES } from '../registry/etf-research-registry.js';
 import { ETF_HISTORY_START, inspectEtfHistoryCoverage } from './history-coverage.js';
 import { fillEtfHistoryGap, syncEtfMarketDate } from './sync.js';
+
+/**
+ * 配置 ETF 全历史恢复范围和来源能力。
+ * Configure ETF history recovery bounds and source access.
+ */
 export interface EtfRecoveryOptions {
   loadCompleted?: (scope: string) => Promise<Set<string>>;
   onItemComplete?: (scope: string, item: string) => Promise<void>;
   onProgress?: (completed: number, total: number) => Promise<void>;
 }
 
-/** Reinspect the entire history on every attempt; rows, not old markers, prove coverage. */
+/**
+ * 每次恢复都重新核验全部历史，以实际数据行而非旧标记证明覆盖。
+ * Reinspect the entire history on every attempt; rows, not old markers, prove coverage.
+ */
 export async function recoverEtfRegistry(
   client: TushareClient,
   through: string,

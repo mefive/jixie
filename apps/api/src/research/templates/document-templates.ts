@@ -2,6 +2,10 @@ import type { ResearchDocumentTemplateV1 } from '@jixie/shared';
 import type { CellSeed } from '../documents/cell-seed.js';
 import { equityFcffValuationTemplate } from './fcff/valuation-template.js';
 
+/**
+ * 将模板元数据与 Cell 定义整理为可创建文档的配置。
+ * Build document-creation configuration from template metadata and cell definitions.
+ */
 export function templateDefinition(template: ResearchDocumentTemplateV1): {
   title: string;
   cells: CellSeed[];
@@ -41,6 +45,10 @@ export function legacyDefinition(title: string): { cells: CellSeed[] } {
   };
 }
 
+/**
+ * 构造指数关系研究模板，提供可直接运行的受控数据与分析 Cell。
+ * Construct the index-relationship template from governed data and analysis cells.
+ */
 function indexRelationshipTemplate(): { title: string; cells: CellSeed[] } {
   return {
     title: '沪深300 vs 中证500：月收益关系',

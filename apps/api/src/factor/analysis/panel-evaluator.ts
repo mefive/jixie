@@ -8,10 +8,18 @@ import type {
 } from '@jixie/shared';
 import { annualizedReturn, mean, median, spearman, std } from '#math/stats.js';
 
+/**
+ * 绑定资产身份与组合权重，供 Panel 分层收益计算。
+ * Associate an asset with its portfolio weight for panel returns.
+ */
 interface WeightedAsset extends PanelEvaluationObservation {
   weight: number;
 }
 
+/**
+ * 保存单评估期的多空腿和权重，供换手、费用与收益统计。
+ * Retain period portfolio legs and weights for turnover, cost and return statistics.
+ */
 interface PeriodPortfolio {
   report: FactorPanelPeriodReportV1;
   weights: Map<string, number>;
@@ -25,6 +33,10 @@ interface PeriodPortfolio {
 export class PanelEvaluator {
   public readonly analysisKind = 'panel' as const;
 
+  /**
+   * 评估 Panel 因子的同期排序与前瞻收益，生成分层、费后与资产类别诊断。
+   * Evaluate panel ranks against forward returns and produce grouped, net-of-cost and asset-class diagnostics.
+   */
   public evaluate(
     researchSpec: PanelFactorResearchSpecV1,
     observations: PanelEvaluationObservation[],
@@ -117,6 +129,10 @@ export class PanelEvaluator {
   }
 }
 
+/**
+ * 检查 Panel 观测的日期、资产身份和数值，拒绝无效评估输入。
+ * Validate dates, asset identities and values in panel evaluation observations.
+ */
 function validateObservations(
   researchSpec: PanelFactorResearchSpecV1,
   observations: PanelEvaluationObservation[],
@@ -195,6 +211,10 @@ function groupByDate(
   return result;
 }
 
+/**
+ * 按当期排名与权重政策构造多空组合，计算换手与成本。
+ * Build the period's ranked portfolio and calculate turnover and costs under the weighting policy.
+ */
 function buildPeriodPortfolio(
   researchSpec: PanelFactorResearchSpecV1,
   asOfDate: string,
@@ -266,6 +286,10 @@ function buildPeriodPortfolio(
   };
 }
 
+/**
+ * 按资产类别聚合排序腿，供跨类别组合表现分析。
+ * Build ranked legs across asset classes for panel portfolio analysis.
+ */
 function buildBetweenClassLegs(
   observations: PanelEvaluationObservation[],
   researchSpec: PanelFactorResearchSpecV1,
@@ -338,6 +362,10 @@ function portfolioTurnover(
   return absoluteChanges / 2;
 }
 
+/**
+ * 按资产类别归纳收益、覆盖与贡献，解释总体 Panel 结果。
+ * Summarize asset-class returns, coverage and contributions within panel evaluation.
+ */
 function summarizeAssetClasses(
   researchSpec: PanelFactorResearchSpecV1,
   observations: PanelEvaluationObservation[],
@@ -368,6 +396,10 @@ function summarizeAssetClasses(
   });
 }
 
+/**
+ * 汇总组内标准化覆盖和分组不足诊断，解释可比较样本限制。
+ * Summarize within-group normalization coverage and undersized-group diagnostics.
+ */
 function buildNormalizationDiagnostics(
   observations: PanelEvaluationObservation[],
   portfolios: PeriodPortfolio[],

@@ -4,6 +4,11 @@ import { AuthError } from './errors.js';
 import { createSession } from './session.js';
 
 // Only the non-production HTTP route exposes this development operation.
+
+/**
+ * 仅在开发登录条件满足时解析用户并建立会话。
+ * Resolve a user and create a session under development-login guards.
+ */
 export async function developmentLogin(email: string) {
   let user = await prisma.user.findUnique({ where: { email } });
   if (!user) {

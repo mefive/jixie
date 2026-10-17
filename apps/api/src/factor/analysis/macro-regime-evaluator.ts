@@ -21,6 +21,10 @@ const STATE_KEYS: readonly FactorMacroRegimeStateKeyV1[] = [
 const MINIMUM_PERIODS = 12;
 const MINIMUM_ASSET_OBSERVATIONS = 3;
 
+/**
+ * 汇总连续宏观状态区间及表现，供状态评估报告。
+ * Summarize contiguous macro-state episodes and performance for evaluation reports.
+ */
 interface StateEpisodeSummary {
   transitions: number;
   durations: Map<FactorMacroRegimeStateKeyV1, number[]>;
@@ -29,6 +33,10 @@ interface StateEpisodeSummary {
 export class MacroRegimeEvaluator {
   public readonly analysisKind = 'macro_regime' as const;
 
+  /**
+   * 对宏观状态因子按可得日期分段，评估各状态下资产收益和区间表现。
+   * Evaluate a macro-regime factor against availability-aligned asset returns and state episodes.
+   */
   public evaluate(
     researchSpec: MacroRegimeFactorResearchSpecV1,
     data: MacroRegimeEvaluationData,
@@ -88,6 +96,10 @@ export class MacroRegimeEvaluator {
   }
 }
 
+/**
+ * 检查宏观评估输入的日期、状态及收益约束。
+ * Validate dates, states and returns in macro-regime evaluation input.
+ */
 function validateEvaluationData(
   researchSpec: MacroRegimeFactorResearchSpecV1,
   data: MacroRegimeEvaluationData,
@@ -203,6 +215,10 @@ function validateEvaluationData(
   };
 }
 
+/**
+ * 汇总单资产在各宏观状态下的表现，保留样本与缺失诊断。
+ * Summarize one asset's performance across macro states with sample diagnostics.
+ */
 function summarizeAssetState(
   assetId: string,
   state: FactorMacroRegimeStateKeyV1,
@@ -240,6 +256,10 @@ function summarizeAssetState(
   };
 }
 
+/**
+ * 合并连续状态为独立区间，统计持续期及对应表现。
+ * Group consecutive states into episodes and summarize duration and performance.
+ */
 function summarizeEpisodes(periods: MacroRegimeEvaluationPeriod[]): StateEpisodeSummary {
   const durations = new Map<FactorMacroRegimeStateKeyV1, number[]>();
   let currentState: FactorMacroRegimeStateKeyV1 | null = null;
@@ -275,6 +295,10 @@ function summarizeEpisodes(periods: MacroRegimeEvaluationPeriod[]): StateEpisode
   return { transitions, durations };
 }
 
+/**
+ * 只读取紧邻且连续的前一状态，避免跨缺期比较。
+ * Select only the immediately preceding consecutive state.
+ */
 function previousConsecutiveState(
   periods: MacroRegimeEvaluationPeriod[],
 ): Map<string, FactorMacroRegimeStateKeyV1> {

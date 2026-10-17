@@ -8,10 +8,18 @@ import { ResearchOutputs } from '@src/complex/research/research-outputs';
 import { EmbeddedAnalysisModel, type EmbeddedDraftForm } from './embedded-analysis-model';
 import './embedded-analysis-card.css';
 
+/**
+ * 绑定嵌入式消息引用与导航，供分析卡片。
+ * Bind an embedded message reference and navigation to its analysis card.
+ */
 interface EmbeddedAnalysisCardProps {
   part: EmbeddedAnalysisPart;
 }
 
+/**
+ * 将对话中的嵌入式分析引用绑定到可展开运行卡片。
+ * Bind an embedded analysis reference to an expandable run card.
+ */
 export default reactUtils.observer(function EmbeddedAnalysisCard({
   part,
 }: EmbeddedAnalysisCardProps) {
@@ -79,6 +87,10 @@ export const EmbeddedAnalysisInspector = reactUtils.observer(function EmbeddedAn
   );
 }, 'EmbeddedAnalysisInspector');
 
+/**
+ * 展示版本、代码、输出及留存输入，连接继续研究和重试操作。
+ * Present versions, source, output and retained inputs with continuation and retry actions.
+ */
 const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDetail({
   part,
 }: EmbeddedAnalysisCardProps) {
@@ -297,6 +309,10 @@ const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDeta
   );
 }, 'EmbeddedAnalysisDetail');
 
+/**
+ * 编辑尚未冻结分析版本的源码与说明。
+ * Edit source and description for an unfrozen embedded analysis version.
+ */
 const EmbeddedDraftEditor = reactUtils.observer(function EmbeddedDraftEditor({
   model,
   onSubmitted,

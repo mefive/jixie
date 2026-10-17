@@ -2,6 +2,10 @@ import type { Prisma } from '@prisma/client';
 import { FactorError } from '../errors.js';
 import { BUILTIN_KEYS } from './builtin-factors.js';
 
+/**
+ * 在当前用户可用命名范围内选择不重复的复制 key。
+ * Choose a nonconflicting copy key within the user's factor namespace.
+ */
 export async function nextCopyKey(
   database: Pick<Prisma.TransactionClient, 'factor' | 'factorComposite'>,
   userId: string,

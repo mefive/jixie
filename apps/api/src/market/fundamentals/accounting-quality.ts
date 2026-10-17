@@ -1,6 +1,10 @@
 import type { ResearchFinancialMetricV1 } from '@jixie/shared';
 import type { FinancialDiagnostic, ResolvedFinancialPeriod } from './resolver.js';
 
+/**
+ * 描述所选财报的会计关系异常及证据。
+ * Describe accounting inconsistencies in selected statement versions.
+ */
 export interface FinancialAccountingIssue {
   diagnostic: FinancialDiagnostic;
   inputVersions: string[];
@@ -37,7 +41,10 @@ const BALANCE_METRICS: readonly ResearchFinancialMetricV1[] = [
   'issuedShares',
 ];
 
-/** Inspect selected versions, not all combinations of stored source rows. */
+/**
+ * 检查已选中的财报版本，而非任意拼接所有来源行进行会计恒等式检查。
+ * Inspect selected versions, not all combinations of stored source rows.
+ */
 export function inspectFinancialAccounting(
   period: ResolvedFinancialPeriod,
 ): FinancialAccountingIssue[] {

@@ -1,5 +1,9 @@
 import { prisma } from '#infra/database/prisma.js';
 
+/**
+ * 等待在途业务任务结束后进入维护，避免读写与发布时点冲突。
+ * Wait for in-flight work before maintenance proceeds across publication boundaries.
+ */
 export async function waitForRunningWork(onLog: (line: string) => void): Promise<void> {
   const timeoutMilliseconds = Number(process.env.MAINTENANCE_JOB_DRAIN_TIMEOUT_MS ?? 120_000);
   const quietMilliseconds = Number(process.env.MAINTENANCE_JOB_QUIET_MS ?? 5_000);

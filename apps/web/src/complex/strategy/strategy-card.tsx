@@ -8,6 +8,7 @@ import type { StrategyCard } from '@jixie/shared';
 import './strategy-card.css';
 
 /**
+ * 展示已保存策略的名称、最近净值缩略图与关键绩效。
  * One saved-strategy card: name + a lightweight SVG sparkline of its last run's equity curve + headline
  * metrics. Click opens the strategy; the trash button (when onDelete is given) confirms then deletes.
  */
@@ -73,7 +74,10 @@ export function StrategyCardView({
   );
 }
 
-/** A lightweight equity-curve thumbnail (plain SVG polyline, scaled to the card). */
+/**
+ * 将净值缩放到卡片范围，绘制轻量 SVG 缩略曲线。
+ * A lightweight equity-curve thumbnail (plain SVG polyline, scaled to the card).
+ */
 function Sparkline({ data, up }: { data: number[]; up: boolean }) {
   if (data.length < 2) {
     return <div className="jx-sp-spark" />;

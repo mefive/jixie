@@ -12,7 +12,10 @@ export class Universe implements UniverseContract {
     private readonly list: string[],
   ) {}
 
-  /** Keep codes whose today-row passes the predicate. */
+  /**
+   * 仅保留当日行情通过谓词的证券。
+   * Keep codes whose today-row passes the predicate.
+   */
   where(predicate: (bar: BarRow, code: string) => boolean): Universe {
     return new Universe(
       this.capabilities,
@@ -23,7 +26,10 @@ export class Universe implements UniverseContract {
     );
   }
 
-  /** Keep codes listed at least `days` calendar days (point-in-time stock age). */
+  /**
+   * 按时点上市天数筛选，至少满足指定自然日数。
+   * Keep codes listed at least `days` calendar days (point-in-time stock age).
+   */
   minListDays(days: number): Universe {
     return new Universe(
       this.capabilities,
@@ -34,7 +40,10 @@ export class Universe implements UniverseContract {
     );
   }
 
-  /** Drop the bottom `fraction` by `score` (e.g. liquidity: `dropBottom(0.25, b => b.turnoverRate ?? 0)`). */
+  /**
+   * 按评分丢弃底部比例，供流动性等证券池过滤。
+   * Drop the bottom `fraction` by `score` (e.g. liquidity: `dropBottom(0.25, b => b.turnoverRate ?? 0)`).
+   */
   dropBottom(fraction: number, score: (bar: BarRow, code: string) => number): Universe {
     const scored = this.list.map((code) => ({ code, value: this.scoreOrBottom(code, score) }));
     scored.sort((lower, higher) => lower.value - higher.value);
@@ -44,7 +53,10 @@ export class Universe implements UniverseContract {
     );
   }
 
-  /** Rank by a score (codes scoring null are dropped). `direction` 'desc' = highest first (default). */
+  /**
+   * 按分数排序并剔除 null，默认降序即高分在前。
+   * Rank by a score (codes scoring null are dropped). `direction` 'desc' = highest first (default).
+   */
   rankBy(
     score: (bar: BarRow, code: string) => number | null,
     direction: 'desc' | 'asc' = 'desc',
@@ -67,14 +79,20 @@ export class Universe implements UniverseContract {
     );
   }
 
-  /** Take the leading slice: a fraction when `n < 1` (0.1 = top decile, min 1), else a count. */
+  /**
+   * 截取前部证券，n 小于 1 时解释为比例，否则解释为数量。
+   * Take the leading slice: a fraction when `n < 1` (0.1 = top decile, min 1), else a count.
+   */
   top(n: number): string[] {
     // n < 1 → take a fraction (0.1 = top 10%, at least 1); n ≥ 1 → take a count
     const count = n < 1 ? Math.max(1, Math.floor(this.list.length * n)) : Math.floor(n);
     return this.list.slice(0, count);
   }
 
-  /** The current codes (after any chained steps). */
+  /**
+   * 返回完成链式筛选后的当前证券代码集合。
+   * The current codes (after any chained steps).
+   */
   codes(): string[] {
     return this.list;
   }

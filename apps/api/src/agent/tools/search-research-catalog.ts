@@ -80,6 +80,10 @@ const argsSchema = z
     }
   });
 
+/**
+ * 描述研究目录查询的概念、对象和范围，供语义解析与检索共用。
+ * Describe concepts, objects and scope for research catalog interpretation and lookup.
+ */
 export interface ResearchCatalogQueryInput {
   text?: string;
   conceptIds?: ResearchConceptId[];
@@ -95,6 +99,10 @@ export interface ResearchCatalogQueryInput {
   };
 }
 
+/**
+ * 保留目录候选的身份、标签和匹配证据，供排序及澄清。
+ * Retain a catalog candidate's identity, label and match evidence for ranking and clarification.
+ */
 interface CatalogCandidate {
   match: Record<string, unknown>;
   searchValues: string[];
@@ -106,6 +114,10 @@ interface CatalogCandidate {
 const RESULT_CAP = 40;
 const CONCEPT_RESULT_CAP = 12;
 
+/**
+ * 累计当前轮目录检索证据，约束后续研究引用与澄清选项。
+ * Retain catalog evidence discovered in the current turn for later references and clarification.
+ */
 export interface ResearchCatalogTurnEvidence {
   sdkReadyBindingIds: Set<string>;
   sdkMethodNames: Set<string>;
@@ -152,12 +164,20 @@ const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
   'IM.CFX': { zh: '中证 1000 股指期货主力连续', en: 'CSI 1000 futures continuous contract' },
 };
 
-/** Resolve structured concepts and named objects to exact stable local research references. */
+/**
+ * 将结构化概念与命名对象解析为精确稳定的本地研究引用。
+ * Resolve structured concepts and named objects to exact stable local research references.
+ */
 export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEvidence): AgentTool {
   return {
     name: 'searchResearchCatalog',
     description: `Resolve one structured ConceptQuery against the local research catalog. Before proposing any Python Cell, query the exact text ${RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1} and follow the returned fixed-package capability contract; never guess an installed package or reimplement a supplied statistical routine. For each semantic variable interpreted from the user, prefer conceptRequests with the verbatim originalText, one canonical conceptId from the supplied manifest, and explicit dimensions such as instrumentForm, quoteCurrency, market, or termYears. Use conceptIds supplied by a loaded playbook only when the user has not specified dimensions; use text for a named object, exact code, or exact Research SDK method such as data.panel or charts.line. SDK method results provide the generated Python signature, parameter defaults, fixed return columns, examples, and PIT or frequency notes. Concept ids resolve only through audited binding allow-list entries, while lexical database search is limited to explicitly named objects. Per-concept results distinguish exact matches, choice-required results, governed alternatives, unavailable capabilities, and sdkAccess; only sdkAccess.status=ready is executable from a Python Cell. Never guess or silently substitute a different source or SDK signature.`,
     parameters: z.toJSONSchema(argsSchema),
+
+    /**
+     * 检索研究目录并检查概念维度，返回可执行引用或明确的澄清需求。
+     * Search the catalog and check semantic dimensions to return executable references or clarification needs.
+     */
     async run(args) {
       const parsed = argsSchema.safeParse(args);
       if (!parsed.success) {
@@ -459,6 +479,11 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
           : []),
         ...registeredCapabilityCandidates(terms),
       ].filter((item) => candidateAllowed(item, parsed.data.filters));
+
+      /**
+       * 比较概念及别名与查询内容，供目录候选匹配使用。
+       * Match concepts and aliases against a catalog query.
+       */
       const conceptMatches = interpretation.conceptIds.map((conceptId) => {
         const concept = researchConceptById.get(conceptId)!;
         const structuredRequest = parsed.data.conceptRequests.find(
@@ -597,6 +622,10 @@ export function isResearchPythonRuntimeCatalogQuery(text: string | undefined): b
   return text?.trim().toLowerCase() === RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1;
 }
 
+/**
+ * 将研究查询解释为结构化概念与约束，供后续精确目录检索。
+ * Interpret a research query into structured concepts and constraints for exact catalog lookup.
+ */
 export function interpretResearchCatalogQuery(input: ResearchCatalogQueryInput): {
   text: string | null;
   explicitConceptIds: ResearchConceptId[];
@@ -654,13 +683,20 @@ export function researchCatalogTenorYears(query: string): number | null {
   return chineseTenors.find(([pattern]) => pattern.test(query))?.[1] ?? null;
 }
 
+/**
+ * 记录用户请求与可执行目录绑定之间的语义维度差异。
+ * Describe a semantic dimension mismatch between a request and an executable catalog binding.
+ */
 export interface ResearchConceptDimensionMismatch {
   dimension: keyof ResearchConceptDimensionsV1;
   requested: string | number;
   available: string | number | null;
 }
 
-/** Compare a user-confirmable semantic request with one audited executable binding. */
+/**
+ * 对比用户可确认的语义请求与已审计的可执行绑定，返回维度差异。
+ * Compare a user-confirmable semantic request with one audited executable binding.
+ */
 export function researchConceptDimensionMismatches(
   requested: ResearchConceptDimensionsV1,
   available: ResearchConceptDimensionsV1,
@@ -683,6 +719,10 @@ export function researchConceptDimensionMismatches(
   });
 }
 
+/**
+ * 根据匹配与维度差异确定研究概念的解析状态。
+ * Classify concept resolution from candidate matches and semantic mismatches.
+ */
 function researchConceptResolutionStatus(args: {
   selectionDimensions: string[];
   requestedDimensions: ResearchConceptDimensionsV1;
@@ -761,6 +801,10 @@ function candidate(
   return { match, searchValues, sourceKind, assetType, continuousFuture };
 }
 
+/**
+ * 按请求的来源和资产维度筛除不兼容目录候选。
+ * Filter catalog candidates against requested source and asset dimensions.
+ */
 function candidateAllowed(
   item: CatalogCandidate,
   filters?: ResearchCatalogQueryInput['filters'],
@@ -804,6 +848,11 @@ function searchScore(values: string[], terms: string[]): number {
   const normalizedValues = values.map((value) => value.toLocaleLowerCase());
   return terms.reduce((score, term) => {
     const normalizedTerm = term.toLocaleLowerCase();
+
+    /**
+     * 累积精确、前缀和包含匹配中的最高得分，供目录排序。
+     * Keep the strongest exact, prefix or substring score for catalog ranking.
+     */
     const best = normalizedValues.reduce((valueScore, value) => {
       if (value === normalizedTerm) {
         return Math.max(valueScore, 8);
@@ -820,6 +869,10 @@ function searchScore(values: string[], terms: string[]): number {
   }, 0);
 }
 
+/**
+ * 将证券查询匹配到本地稳定证券身份，供研究目录返回引用。
+ * Match an instrument query to a stable local identity for catalog references.
+ */
 function instrumentMatch(
   assetType: ResearchCatalogAssetType,
   id: string,
@@ -846,6 +899,10 @@ function instrumentMatch(
   };
 }
 
+/**
+ * 匹配 ETF 身份与元数据，供研究目录选择可用交易代理。
+ * Match ETF identities and metadata for selecting available research proxies.
+ */
 export function etfInstrumentMatch(
   item: { tsCode: string; name: string; fundType: string | null; indexName: string | null },
   coverage:

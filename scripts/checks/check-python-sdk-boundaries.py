@@ -5,6 +5,8 @@ import sys
 from pathlib import Path
 
 
+# 静态扫描 Python 导入与文件归属，检查 SDK 不依赖 runtime。
+# English: Inspect Python imports and ownership without execution to enforce SDK boundaries.
 def inspect_sdk_dependencies(source: str, module: str) -> list[tuple[int, str]]:
     """Inspect import ownership without importing or executing SDK code."""
     tree = ast.parse(source)
@@ -39,6 +41,8 @@ def inspect_sdk_dependencies(source: str, module: str) -> list[tuple[int, str]]:
     return issues
 
 
+# 解析边界检查范围并输出静态发现与退出码。
+# English: Parse boundary-check scope and report static findings and status.
 def main() -> None:
     root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[2]
     source_root = root / "apps/api/src"

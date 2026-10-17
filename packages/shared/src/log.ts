@@ -8,6 +8,10 @@ export type LogSource = 'system' | 'user';
 
 export type LogLevel = 'info' | 'warn' | 'error';
 
+/**
+ * 描述带级别、来源和时间的任务日志行。
+ * Describe a timestamped job log with level and source.
+ */
 export interface LogLine {
   source: LogSource;
   level: LogLevel;

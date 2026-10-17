@@ -2,7 +2,10 @@ import type { StrategyCapabilities } from './capabilities.js';
 import type { StockAccount } from '@jixie/shared/sdk/strategy/contract';
 import { atrBars, sampleDeviation } from './indicators.js';
 
-/** Add public stock helpers while preserving detached calls and live account getters. */
+/**
+ * 在原始现金账户能力上增加公开辅助方法，保持脱离对象调用和实时 getter 的语义。
+ * Add public stock helpers while preserving detached calls and live account getters.
+ */
 export function createStockAccount(capabilities: StrategyCapabilities): StockAccount {
   const stockHelpers: Pick<StockAccount, 'equalWeight' | 'atrAdjustedShares' | 'volTargetWeights'> =
     {
@@ -24,6 +27,11 @@ export function createStockAccount(capabilities: StrategyCapabilities): StockAcc
           ? 0
           : Math.floor((capabilities.stock.equity * riskPct) / atr);
       },
+
+      /**
+       * 根据波动率目标将候选权重缩放为策略股票账户目标权重。
+       * Scale candidate stock weights to the requested volatility target.
+       */
       volTargetWeights: (codes, lookback = 20) => {
         const window = Math.floor(lookback);
         if (window < 2) {

@@ -5,11 +5,19 @@ import {
   CNY_BASE_CURRENCY,
 } from '../registry/cross-market-benchmarks.js';
 
+/**
+ * 携带本币基准收盘及日期，供人民币换算。
+ * Supply dated local benchmark closes for CNY conversion.
+ */
 export interface BenchmarkClosePoint {
   date: string;
   value: number;
 }
 
+/**
+ * 携带汇率中间价及可得日期，供基准时点换算。
+ * Supply FX mid closes and availability dates for dated conversion.
+ */
 export interface BenchmarkFxRow {
   tsCode: string;
   tradeDate: string;
@@ -18,7 +26,10 @@ export interface BenchmarkFxRow {
   askClose: number;
 }
 
-/** Convert each local price index to a CNY-denominated close on the audited China study clock. */
+/**
+ * 在已审计的中国研究时钟上，将本地价格指数转换为人民币计价收盘。
+ * Convert each local price index to a CNY-denominated close on the audited China study clock.
+ */
 export function deriveBenchmarkCnyCloses(
   benchmark: Pick<CrossMarketBenchmarkDefinition, 'market' | 'currency'>,
   benchmarkRows: Array<{ availableDate: string; close: number }>,
@@ -56,7 +67,10 @@ export function deriveBenchmarkCnyCloses(
   return { points, missingFxDates };
 }
 
-/** Derive HKD/CNH from two explicitly stored FXCM pairs; no direct pair is claimed. */
+/**
+ * 由两个已明确存储的 FXCM 货币对推导 HKD/CNH，不宣称存在直接报价。
+ * Derive HKD/CNH from two explicitly stored FXCM pairs; no direct pair is claimed.
+ */
 export function deriveHkdCnhMidCloses(
   fxRows: BenchmarkFxRow[],
   startDate: string,
@@ -73,6 +87,10 @@ export function deriveHkdCnhMidCloses(
   });
 }
 
+/**
+ * 选择截至目标日期最近可用的外汇中间价，供基准换算。
+ * Select the latest available FX mid close for benchmark conversion.
+ */
 function latestMidClose(rows: BenchmarkFxRow[], date: string): number | null {
   let latest: BenchmarkFxRow | null = null;
   for (const row of rows) {

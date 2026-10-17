@@ -5,6 +5,10 @@ import { prisma } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { getResearchCuratorRun } from './read.js';
 
+/**
+ * 冻结整理范围与证据输入并创建后台 Curator 任务。
+ * Freeze curation scope and evidence inputs and create a background curator job.
+ */
 export async function submitResearchCuratorRun(userId: string) {
   const submitted = await prisma.$transaction(async (transaction) => {
     const active = await transaction.researchCuratorRun.findFirst({

@@ -5,6 +5,10 @@ import OpenAI from 'openai';
 import type { AgentLlm, ToolAwareMessage } from './agent-llm.js';
 import { getDeepSeekAgentModel, getDeepSeekModel } from './config.js';
 
+/**
+ * 定义通用文本对话消息，供模型传输适配使用。
+ * Describe a text conversation message consumed by the model transport adapter.
+ */
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -30,7 +34,10 @@ export function deepseek(): OpenAI {
   return _client;
 }
 
-/** One chat completion forcing JSON output; returns raw message.content. */
+/**
+ * 发起强制 JSON 输出的单次对话补全，返回原始 content。
+ * One chat completion forcing JSON output; returns raw message.content.
+ */
 export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
   const model = getDeepSeekModel();
   const res = await deepseek().chat.completions.create({
@@ -46,7 +53,10 @@ export const chatJson: LlmCall = async (messages: ChatMessage[]): Promise<string
   return content;
 };
 
-/** One chat completion returning free text (naming, etc.). Same LlmCall shape as chatJson. */
+/**
+ * 发起返回自由文本的单次补全，供命名等场景使用。
+ * One chat completion returning free text (naming, etc.). Same LlmCall shape as chatJson.
+ */
 export const chatText: LlmCall = async (messages: ChatMessage[]): Promise<string> => {
   const model = getDeepSeekModel();
   const res = await deepseek().chat.completions.create({
@@ -61,6 +71,10 @@ export const chatText: LlmCall = async (messages: ChatMessage[]): Promise<string
   return content;
 };
 
+/**
+ * 将内部带工具消息转换为 OpenAI 兼容请求格式。
+ * Map internal tool-aware messages to the OpenAI-compatible request format.
+ */
 function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMessageParam[] {
   return messages.map((message): OpenAI.ChatCompletionMessageParam => {
     if (message.role === 'tool') {
@@ -87,10 +101,13 @@ function toOpenAiMessages(messages: ToolAwareMessage[]): OpenAI.ChatCompletionMe
   });
 }
 
-/** One tool-aware chat completion — the unified agent's production LlmCall (tests inject a scripted
+/**
+ * 发起统一 Agent 的单次工具感知补全，空工具集合退化为普通文本补全。
+ * One tool-aware chat completion — the unified agent's production LlmCall (tests inject a scripted
  * mock instead). Empty `tools` = a plain completion (repair rounds run with tools disabled).
  * Always streams upstream: text tokens forward through opts.onDelta (when given) for the SSE path;
- * incremental tool_call fragments are accumulated by index and returned whole at the end. */
+ * incremental tool_call fragments are accumulated by index and returned whole at the end.
+ */
 export const chatTools: AgentLlm = async (messages, tools, opts) => {
   const model = getDeepSeekAgentModel();
   const thinking = process.env.DEEPSEEK_AGENT_THINKING !== 'false';

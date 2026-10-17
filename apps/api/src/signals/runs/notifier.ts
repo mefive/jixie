@@ -6,6 +6,10 @@ import { isEmailConfigured, sendEmail } from '#infra/email/email.js';
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/messages.js';
 
+/**
+ * 定义信号结果通知的发送边界，供生产传输和测试替换。
+ * Define the signal notification delivery boundary for production transport and test substitutes.
+ */
 export interface Notifier {
   send(input: { to: string; subject: string; html: string }): Promise<void>;
 }
@@ -14,8 +18,11 @@ const emailNotifier: Notifier = {
   send: sendEmail,
 };
 
-/** Send the durable result after it and its Job have committed. Notification failures never change
- * the signal result; they are recorded on SignalRun for the Today page and operational diagnosis. */
+/**
+ * 只在结果与 Job 提交后发送通知；通知失败单独记录，不改变信号计算结果。
+ * Send the durable result after it and its Job have committed. Notification failures never change
+ * the signal result; they are recorded on SignalRun for the Today page and operational diagnosis.
+ */
 export async function notifySignalRun(
   runId: string,
   notifier: Notifier = emailNotifier,
@@ -72,6 +79,10 @@ export async function notifySignalRun(
   }
 }
 
+/**
+ * 将已持久化信号整理为通知邮件，供邮件传输发送。
+ * Render persisted signal results into a notification email.
+ */
 export function buildSignalEmail(input: {
   locale: Locale;
   strategyName: string;
@@ -156,6 +167,10 @@ function signalTable(signals: SignalItem[], locale: Locale): string {
   </table>`;
 }
 
+/**
+ * 将信号指令分类为通知可读的订单类型。
+ * Classify a signal instruction for notification rendering.
+ */
 function signalOrderType(signal: SignalItem, locale: Locale): string {
   const key =
     signal.orderType === 'stop_loss'

@@ -9,7 +9,10 @@ export type EditableFactorAnalysisKind = Extract<
   'cross_sectional' | 'time_series' | 'panel'
 >;
 
-/** Validate an editable definition with exactly the compiler selected by its immutable protocol. */
+/**
+ * 使用不可变协议指定的编译器校验可编辑因子定义。
+ * Validate an editable definition with exactly the compiler selected by its immutable protocol.
+ */
 export async function validateFactorDefinition(
   code: string,
   analysisKind: EditableFactorAnalysisKind,

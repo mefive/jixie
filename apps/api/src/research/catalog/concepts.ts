@@ -35,6 +35,10 @@ export const RESEARCH_CONCEPT_SELECTION_DIMENSIONS = [
   'termYears',
 ] as const;
 
+/**
+ * 表达研究概念的市场、单位、期限等语义维度，供防止替代错配。
+ * Describe market, unit and tenor dimensions that prevent semantic substitution.
+ */
 export interface ResearchConceptDimensionsV1 {
   instrumentForm?: (typeof RESEARCH_CONCEPT_INSTRUMENT_FORMS)[number];
   quoteCurrency?: (typeof RESEARCH_CONCEPT_QUOTE_CURRENCIES)[number];
@@ -42,6 +46,10 @@ export interface ResearchConceptDimensionsV1 {
   termYears?: number;
 }
 
+/**
+ * 定义稳定概念与双语别名及语义维度，供受控检索。
+ * Define a stable concept, bilingual aliases and semantic dimensions for governed search.
+ */
 export interface ResearchConceptDefinitionV1 {
   id: ResearchConceptId;
   version: 1;
@@ -254,7 +262,10 @@ export const researchConceptRegistry = {
 export const researchConceptById: ReadonlyMap<ResearchConceptId, ResearchConceptDefinitionV1> =
   new Map(researchConceptRegistry.concepts.map((concept) => [concept.id, concept]));
 
-/** Compact controlled vocabulary supplied to the LLM. Instrument rows remain dynamic catalog data. */
+/**
+ * 生成提供给模型的紧凑受控词表，证券行仍来自动态目录。
+ * Compact controlled vocabulary supplied to the LLM. Instrument rows remain dynamic catalog data.
+ */
 export function compactResearchConceptManifest() {
   return researchConceptRegistry.concepts.map((concept) => ({
     id: concept.id,
@@ -266,6 +277,10 @@ export function compactResearchConceptManifest() {
   }));
 }
 
+/**
+ * 按受控概念及别名推断查询中的概念身份，供目录解析。
+ * Infer governed concept identities from query terms and aliases.
+ */
 export function inferResearchConceptIds(text: string): ResearchConceptId[] {
   const normalizedText = normalizeConceptText(text);
   const matches = researchConceptRegistry.concepts

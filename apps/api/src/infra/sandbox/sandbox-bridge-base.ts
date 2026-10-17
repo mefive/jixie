@@ -5,6 +5,10 @@ import type { SandboxFrame, SandboxTransport } from './transport.js';
 
 type IntermediateFrame = { type: 'log' | 'log_batch' | 'request' | 'error' | 'fatal' };
 
+/**
+ * 描述一次 Bridge 消息交换的输入、终止条件和处理回调。
+ * Configure input, termination and callbacks for one bridge message exchange.
+ */
 export interface SandboxExchange<Frame extends { type: string }, Result> {
   command: SandboxFrame;
   schema: z.ZodType<Frame>;
@@ -43,7 +47,10 @@ export abstract class SandboxBridgeBase<
     this.transport.abort(error);
   }
 
-  /** Keep terminal processing inside the transport guard, including synchronous business callbacks. */
+  /**
+   * 在传输并发保护范围内完成消息循环及终止帧业务处理。
+   * Keep terminal processing inside the transport guard, including synchronous business callbacks.
+   */
   protected async exchange<Frame extends { type: string }, Result>(
     exchange: SandboxExchange<Frame, Result>,
   ): Promise<Result> {

@@ -71,6 +71,7 @@ const SKIP_DIRS = new Set([
 ]);
 
 /**
+ * 识别 Prisma 自动生成输出路径，避免将手写 schema 和迁移排除统计。
  * Path segments that look like Prisma *generated* output, not hand-written schema/migrations.
  * Hand-written lives at apps/api/prisma/{schema.prisma,migrations/}.
  */
@@ -100,6 +101,10 @@ function extensionOf(filePath) {
   return ext || null;
 }
 
+/**
+ * 遍历受支持源码并排除生成物与依赖，供代码量统计。
+ * Walk supported source files while excluding generated output and dependencies.
+ */
 async function walk(dir, relativeRoot, onFile) {
   let entries;
   try {
@@ -140,6 +145,10 @@ async function walk(dir, relativeRoot, onFile) {
   }
 }
 
+/**
+ * 统计总行数与非空行数，供代码量汇总。
+ * Count total and nonblank lines for source-size aggregation.
+ */
 function countLines(text) {
   if (text.length === 0) {
     return { total: 0, nonBlank: 0 };
@@ -155,6 +164,10 @@ function countLines(text) {
   return { total, nonBlank };
 }
 
+/**
+ * 按字符串长度填充统计列，供表格左右对齐。
+ * Pad source-count columns by string length for left or right alignment.
+ */
 function pad(value, width, align = 'right') {
   const text = String(value);
   if (text.length >= width) {
@@ -189,6 +202,10 @@ function printTable(title, rows, columns) {
   }
 }
 
+/**
+ * 按语言和模块汇总代码量并输出统计，供仓库规模观察。
+ * Aggregate source counts by language and module for repository size reporting.
+ */
 async function main() {
   /** @type {Map<string, { files: number, lines: number, nonBlank: number }>} */
   const byExtension = new Map();

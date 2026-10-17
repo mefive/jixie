@@ -33,25 +33,45 @@ const MAX_FINANCIAL_CROSS_SECTION_ROWS = 50_000;
 const MAX_FINANCIAL_PANEL_ROWS = 100_000;
 const FINANCIAL_METRIC_SET = new Set<string>(RESEARCH_FINANCIAL_METRICS_V1);
 
+/**
+ * 指定单证券财务查询的历史日期与范围。
+ * Configure an instrument's historical financial query.
+ */
 export interface ResearchSingleFinancialRequestV1 {
   identifier: string;
   as_of: string;
 }
 
+/**
+ * 限定原始财报读取的字段、报表类型与报告期。
+ * Configure statement fields, types and reporting periods.
+ */
 export interface ResearchFinancialStatementRequestV1 extends ResearchSingleFinancialRequestV1 {
   fields?: string | string[];
   report_start?: string;
   report_end?: string;
 }
 
+/**
+ * 指定有界证券池的时点财务指标截面。
+ * Request bounded point-in-time financial metrics for a universe.
+ */
 export interface ResearchFinancialCrossSectionRequestV1 extends ResearchCrossSectionRequestV1 {
   metrics: ResearchFinancialMetricV1 | ResearchFinancialMetricV1[];
 }
 
+/**
+ * 指定历史月末财务指标 Panel，不使用当前值回填。
+ * Request historical month-end financial panels without current-value backfill.
+ */
 export interface ResearchFinancialPanelRequestV1 extends ResearchPanelRequestV1 {
   metrics: ResearchFinancialMetricV1 | ResearchFinancialMetricV1[];
 }
 
+/**
+ * 定义三张表公开长表的字段、数值和版本身份。
+ * Describe public statement long-table values and version identity.
+ */
 export interface ResearchFinancialStatementRowV1 {
   as_of_date: string;
   code: string;
@@ -69,6 +89,10 @@ export interface ResearchFinancialStatementRowV1 {
   source_row_fingerprint: string;
 }
 
+/**
+ * 定义指标长表的值、单位与缺失诊断。
+ * Describe metric long-table values, units and missing-data diagnostics.
+ */
 export interface ResearchFinancialMetricRowV1 {
   date: string;
   code: string;
@@ -86,7 +110,10 @@ export interface ResearchFinancialMetricRowV1 {
   input_versions_json: string;
 }
 
-/** Return the strict-PIT statement state as one stable, typed long table. */
+/**
+ * 将严格 PIT 的报表状态转换为稳定的有类型长表。
+ * Return the strict-PIT statement state as one stable, typed long table.
+ */
 export async function loadResearchFinancialStatements(
   request: ResearchFinancialStatementRequestV1,
   database: PrismaClient = prisma,
@@ -117,7 +144,10 @@ export async function loadResearchFinancialStatements(
   return rows;
 }
 
-/** Return all M2 metrics known for one stock on a historical date. */
+/**
+ * 返回某证券在历史日期已知的全部标准化财务指标。
+ * Return all M2 metrics known for one stock on a historical date.
+ */
 export async function loadResearchFinancialMetrics(
   request: ResearchSingleFinancialRequestV1,
   database: PrismaClient = prisma,
@@ -144,7 +174,10 @@ export async function loadResearchFinancialMetrics(
   return rows;
 }
 
-/** Return one bounded PIT universe with a constant number of financial database queries. */
+/**
+ * 以固定次数批量查询返回有界 PIT 财务截面。
+ * Return one bounded PIT universe with a constant number of financial database queries.
+ */
 export async function loadResearchFinancialCrossSection(
   request: ResearchFinancialCrossSectionRequestV1,
   database: PrismaClient = prisma,
@@ -160,7 +193,10 @@ export async function loadResearchFinancialCrossSection(
   return loadFinancialMetricPeriod(dataset.rows, dataDate, metrics, database);
 }
 
-/** Return bounded historical month-end financial snapshots without current-data backfill. */
+/**
+ * 返回历史月末财务快照，不用当前数据回填过去。
+ * Return bounded historical month-end financial snapshots without current-data backfill.
+ */
 export async function loadResearchFinancialPanel(
   request: ResearchFinancialPanelRequestV1,
   database: PrismaClient = prisma,
@@ -184,6 +220,10 @@ export async function loadResearchFinancialPanel(
   return output;
 }
 
+/**
+ * 为一个采样日期解析有界证券池并计算所选财务指标。
+ * Resolve a bounded universe and selected financial metrics for one sampling date.
+ */
 async function loadFinancialMetricPeriod(
   rows: ResearchEquityDatasetRowV1[],
   date: string,
@@ -233,6 +273,10 @@ function statementRows(
   }));
 }
 
+/**
+ * 从已解析财务状态生成指标长表行与诊断。
+ * Render metric long-table rows and diagnostics from resolved financial state.
+ */
 function metricRowsForState(
   state: ResolvedFinancialState,
   name: string,
@@ -290,6 +334,10 @@ function metricRow(
   };
 }
 
+/**
+ * 验证并去重请求指标，保持公开契约规定顺序和范围。
+ * Validate and deduplicate selected metrics under the public contract.
+ */
 function normalizeSelectedMetrics(
   input: ResearchFinancialMetricV1 | ResearchFinancialMetricV1[],
 ): ResearchFinancialMetricV1[] {
@@ -313,6 +361,10 @@ function assertRowLimit(rows: number, limit: number, label: string): void {
   }
 }
 
+/**
+ * 验证并规范化原始财报字段选择，拒绝未公开字段。
+ * Validate and normalize financial field selections against the public contract.
+ */
 export function normalizeFinancialFields(input?: string | string[]): Set<string> | undefined {
   if (input === undefined) {
     return undefined;
@@ -330,6 +382,10 @@ export function normalizeFinancialFields(input?: string | string[]): Set<string>
   return new Set(fields);
 }
 
+/**
+ * 校验报告期起止范围与查询约束，避免无界财报读取。
+ * Validate reporting-period bounds and query limits before statement loading.
+ */
 export function validateFinancialReportRange(start?: string, end?: string): void {
   for (const date of [start, end]) {
     if (date !== undefined) {

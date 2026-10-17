@@ -8,6 +8,7 @@ import { getOpenDates } from '../calendar/read.js';
 import { syncTradeCal } from '../calendar/sync.js';
 
 /**
+ * 按交易日同步龙虎榜并合并同证券多个上榜原因。
  * Sync the Dragon-Tiger List per trading day into TopList (resumable). A stock can be on multiple
  * lists in a day → multiple rows; we sum net_amount per (code, date) into one row. Per-day deleteMany +
  * createMany keeps it idempotent.
@@ -59,6 +60,7 @@ export async function syncTopList(
 }
 
 /**
+ * 同步资金流并保留主力净额和总净额的不同口径。
  * Sync per-stock daily moneyflow into the Moneyflow table (netMain = net main-force amount, netTotal = net total amount, in 10k CNY),
  * per trading day (resumable). Raw fetched point-in-time data: strategies read it via ctx.moneyflow,
  * factor analysis reads the column directly. Idempotent: per-day deleteMany + createMany.

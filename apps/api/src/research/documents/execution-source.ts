@@ -4,6 +4,10 @@ import type { ResearchExecutionSourceCellSnapshot } from '../evidence/execution-
 import type { ResearchCellKindV1 } from '@jixie/shared';
 import { jsonStringArray } from '../dependencies/cell-values.js';
 
+/**
+ * 保留可执行 Cell 的源码、修订和依赖字段。
+ * Describe executable cell source, revision and dependencies.
+ */
 export interface ExecutableResearchCellRow {
   id: string;
   documentId: string;
@@ -24,6 +28,10 @@ export interface ExecutableResearchCellRow {
   };
 }
 
+/**
+ * 读取并冻结待执行文档源码与修订身份，供可复现执行快照。
+ * Load and freeze executable document sources and revisions for reproducible execution.
+ */
 export async function loadResearchExecutionSeed(userId: string, documentId: string) {
   const document = await prisma.researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
@@ -58,6 +66,10 @@ export async function loadResearchExecutionSeed(userId: string, documentId: stri
   };
 }
 
+/**
+ * 将可执行 Cell 转换为独立源码快照，供不可变执行。
+ * Map an executable cell into a detached execution source snapshot.
+ */
 export function researchExecutionSourceCellSnapshot(
   cell: ExecutableResearchCellRow,
 ): ResearchExecutionSourceCellSnapshot {

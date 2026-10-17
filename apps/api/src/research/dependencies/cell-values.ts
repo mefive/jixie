@@ -7,6 +7,10 @@ export function jsonStringArray(value: Prisma.JsonValue): string[] {
     : [];
 }
 
+/**
+ * 识别 Cell 读取的依赖与当前值不一致情况，供 stale 与 blocked 解释。
+ * Identify cell dependency mismatches for stale and blocked diagnostics.
+ */
 export function researchCellDependencyIssues(value: unknown): ResearchCellDependencyIssueV1[] {
   if (!Array.isArray(value)) {
     return [];

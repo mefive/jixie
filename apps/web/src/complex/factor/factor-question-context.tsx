@@ -3,11 +3,19 @@ import { useTranslation } from 'react-i18next';
 import { Alert } from 'antd';
 import './factor-question-context.css';
 
+/**
+ * 提供冻结问答上下文及查看动作，供上下文卡片。
+ * Supply frozen Q&A context and inspection actions to the context card.
+ */
 interface FactorQuestionContextProps {
   message: ChatMessage;
   selectedReportId: string;
 }
 
+/**
+ * 展示问答绑定的因子和冻结报告上下文，避免与当前编辑混淆。
+ * Present the factor and frozen report context bound to a question.
+ */
 export function FactorQuestionContext({ message, selectedReportId }: FactorQuestionContextProps) {
   const { t } = useTranslation('factor');
   const context = message.contextSnapshot;

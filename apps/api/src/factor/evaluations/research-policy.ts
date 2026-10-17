@@ -28,6 +28,10 @@ export function parseHoldoutPolicy(value: string | null): FactorHoldoutPolicyV1 
   }
 }
 
+/**
+ * 读取已冻结的 holdout 政策，供提交与揭示入口共用。
+ * Read the frozen holdout policy shared by submission and reveal operations.
+ */
 export async function getHoldoutPolicy(): Promise<FactorHoldoutPolicyV1 | null> {
   const latest = await prisma.daily.findFirst({
     orderBy: { tradeDate: 'desc' },

@@ -34,7 +34,10 @@ export const strategyContextAccessSchema = z.union([
 
 type StrategyContextRead = z.infer<typeof readSchema>;
 
-/** Only synchronous engine primitives are exposed, never storage or arbitrary property access. */
+/**
+ * 只向沙盒暴露同步引擎原始能力，不开放存储或任意属性读取。
+ * Only synchronous engine primitives are exposed, never storage or arbitrary property access.
+ */
 export function readStrategyContext(context: EngineContext, request: StrategyContextRead): unknown {
   switch (request.method) {
     case 'bar':

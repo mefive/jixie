@@ -10,6 +10,10 @@ import {
   type StrategySimulationOptions,
 } from '../simulation/strategy-simulation.js';
 
+/**
+ * 遍历参数或容量组合，串行运行共享模拟并收集扫描指标。
+ * Run shared simulations across parameter or capacity combinations and collect scan metrics.
+ */
 export async function runStrategyScan(
   input: StrategyScanWorkerInput,
   onSystemLog: (text: string) => void,

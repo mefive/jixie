@@ -8,6 +8,10 @@ import {
   unpinFactorWeather,
 } from '@src/api/factor';
 
+/**
+ * 区分气象固定、刷新与移除变更，供 Loader 穷尽分派。
+ * Discriminate weather pin, refresh and removal mutations for loader dispatch.
+ */
 type FactorWeatherMutation =
   | { kind: 'pin'; factorId: string; direction?: FactorWeatherDirection }
   | { kind: 'refresh'; pinId: string }
@@ -21,12 +25,21 @@ export class FactorWeatherStore extends BaseStore {
   public mutationLoader = new LoaderModel<void>();
   public poller = new PollingModel();
 
+  /**
+   * 配置气象目录、变更和轮询 Loader，并注册页面退出清理。
+   * Configure weather catalog, mutation and polling loaders with page cleanup.
+   */
   public setup() {
     super.setup();
     this.weatherLoader.setup({ request: () => getFactorWeather() });
     this.catalogLoader.setup({ request: () => getFactorCatalog() });
     this.mutationLoader.setup({
       preserveResult: false,
+
+      /**
+       * 按固定、刷新或移除操作调用气象接口，供统一 Loader 管理状态。
+       * Dispatch pin, refresh and unpin operations through the weather mutation loader.
+       */
       request: async (mutation: FactorWeatherMutation) => {
         switch (mutation.kind) {
           case 'pin':

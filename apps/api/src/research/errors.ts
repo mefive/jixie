@@ -304,6 +304,10 @@ const definitions = {
 
 export type ResearchErrorReason = keyof typeof definitions;
 
+/**
+ * 约束可公开研究错误详情，供业务边界输出。
+ * Constrain public research error details at business output boundaries.
+ */
 interface ResearchErrorDetails {
   cell_revision_conflict: {
     reason: 'cell_revision_changed';

@@ -106,8 +106,17 @@ export const MACRO_REGIME_ASSETS: TimeSeriesAsset[] = [
   '159985.SZ',
 ];
 type MacroRevisionPolicy = MacroRegimeFactorResearchSpecV1['dataPolicy']['revisionPolicy'];
+
+/**
+ * 绑定证券池选项身份与显示信息，供研究参数选择。
+ * Describe a universe choice for research parameter selection.
+ */
 type FactorUniverseChoice = 'cn_a' | FactorEquityIndexCode;
 
+/**
+ * 保留因子草稿来自的冻结研究执行身份。
+ * Retain the frozen research execution behind a factor draft.
+ */
 type SourceResearchExecution = {
   id: string;
   documentId: string;
@@ -294,6 +303,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   private corrJobId: string | null = null;
   private corrSince = 0;
 
+  /**
+   * 登记因子页面可观察状态与计算属性，供 UI 一致响应。
+   * Register observable factor workspace state and computed views.
+   */
   public constructor(parentStore?: any) {
     super(parentStore);
     makeObservable(this, {
@@ -372,6 +385,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     });
   }
 
+  /**
+   * 配置因子目录、报告、问答及任务轮询，注册离开时订阅和 Loader 清理。
+   * Initialize factor catalogs, reports, Q&A and job polling with subscription and loader cleanup.
+   */
   public setup(params: FactorSetupParams) {
     super.setup(params);
     this.questionsLoader.setup({
@@ -460,7 +477,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return this.catalogLoader.result?.find((f) => f.key === this.selectedKey) ?? null;
   }
 
-  /** The current report only if it matches the selected factor (guards a stale render mid-switch). */
+  /**
+   * 仅在报告属于当前所选因子时返回，避免切换中的陈旧显示。
+   * The current report only if it matches the selected factor (guards a stale render mid-switch).
+   */
   public get report(): FactorReport | null {
     return this.reportDetail?.payload ?? null;
   }
@@ -522,7 +542,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       : null;
   }
 
-  /** Draft parameters are independent from the selected immutable report. */
+  /**
+   * 判断编辑中的参数是否与独立冻结报告不同。
+   * Draft parameters are independent from the selected immutable report.
+   */
   public get paramsModified(): boolean {
     const detail = this.reportDetail;
     if (!detail) {
@@ -544,6 +567,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return !!detail.spec && JSON.stringify(detail.spec) !== JSON.stringify(this.analysisSpec);
   }
 
+  /**
+   * 将编辑表单转换为普通分析参数，供提交与报告比较。
+   * Build analysis parameters from the draft form for submission and report comparison.
+   */
   public get analysisSpec(): FactorAnalysisSpec {
     const common = {
       freq: this.freq,
@@ -599,6 +626,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return { version: 3, ...common, ...this.methodology };
   }
 
+  /**
+   * 将方法种类对应的编辑状态转换为完整研究规格。
+   * Build a kind-specific research specification from draft state.
+   */
   public get researchSpec(): FactorResearchSpecV1 {
     if (this.isMacroRegime) {
       return {
@@ -671,7 +702,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       : this.evaluationScope.universe.indexCode;
   }
 
-  /** The editor source no longer matches the immutable source that produced the selected report. */
+  /**
+   * 判断编辑源码是否已偏离生成当前报告的不可变来源。
+   * The editor source no longer matches the immutable source that produced the selected report.
+   */
   public get codeModifiedSinceReport(): boolean {
     if (
       this.mode === 'composite' ||
@@ -685,22 +719,34 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return snapshot !== undefined && this.code !== snapshot;
   }
 
-  /** A report is only current when both its frozen source and run parameters match the draft. */
+  /**
+   * 仅当来源与运行参数都匹配时将报告视为当前结果。
+   * A report is only current when both its frozen source and run parameters match the draft.
+   */
   public get reportOutdated(): boolean {
     return !!this.reportDetail && (this.codeModifiedSinceReport || this.paramsModified);
   }
 
-  /** A custom factor has unsaved code edits vs. the persisted DB copy → gates the leave guard. */
+  /**
+   * 判断作者因子是否有尚未保存到数据库的代码改动，供离开守卫。
+   * A custom factor has unsaved code edits vs. the persisted DB copy → gates the leave guard.
+   */
   public get edited(): boolean {
     return this.mode === 'custom' && this.code !== this.persistedCode;
   }
 
-  /** Changes that would be discarded by switching factors or leaving the workbench. */
+  /**
+   * 汇总切换因子或离开工作台时可能丢弃的草稿变更。
+   * Changes that would be discarded by switching factors or leaving the workbench.
+   */
   public get hasDraftChanges(): boolean {
     return this.edited || this.paramsModified;
   }
 
-  /** A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code). */
+  /**
+   * 预置因子使用只读问答模式，Agent 不写代码。
+   * A preset factor is selected → the Agent is in Q&A mode (answers questions, never writes code).
+   */
   public get qaMode(): boolean {
     return (
       (this.mode === 'preset' ||
@@ -842,8 +888,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.nlText = v));
   }
 
-  /** Pick a factor from the factor library. A preset → readonly code + Q&A agent. A custom factor → load its
-   * code + conversation into the editor/chat. Either way, open its newest report by default. */
+  /**
+   * 切换因子并恢复对应编辑、报告和问答模式，处理未保存草稿与在途状态。
+   * Pick a factor from the factor library. A preset → readonly code + Q&A agent. A custom factor → load its
+   * code + conversation into the editor/chat. Either way, open its newest report by default.
+   */
   public async selectFactor(key: string, preferredReportId?: string) {
     const selection = ++this.chatSelection;
     this.turnStream.detach();
@@ -996,6 +1045,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
+  /**
+   * 将研究交接建议应用到草稿参数，保持方法与来源匹配。
+   * Apply research handoff suggestions to draft parameters under their method and source constraints.
+   */
   private applyResearchReportSuggestion(handoff: ResearchFactorHandoffV1 | null) {
     const suggestion = handoff?.suggestedReport;
     if (!suggestion || suggestion.analysisKind !== this.definitionAnalysisKind) {
@@ -1059,7 +1112,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     });
   }
 
-  /** Copy the selected preset or owned Factor into an independent editable draft. */
+  /**
+   * 将所选预置或已有因子复制为独立可编辑草稿。
+   * Copy the selected preset or owned Factor into an independent editable draft.
+   */
   public async copySelected(sourceId = this.selectedKey) {
     if (!sourceId) {
       return;
@@ -1072,7 +1128,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     await this.selectFactor(copy.id);
   }
 
-  /** Persist a brand-new draft before opening its editor or Agent conversation. */
+  /**
+   * 先持久化新草稿，再打开编辑器和 Agent 会话。
+   * Persist a brand-new draft before opening its editor or Agent conversation.
+   */
   public async newFactor(analysisKind: EditableFactorAnalysisKind, key: string, name: string) {
     this.analysisPoller.stop();
     const code =
@@ -1086,7 +1145,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     await this.selectFactor(created.id);
   }
 
-  /** Run one Agent turn for an already persisted draft factor. */
+  /**
+   * 为已持久化因子草稿启动一轮作者 Agent 对话。
+   * Run one Agent turn for an already persisted draft factor.
+   */
   public async sendAgent(
     message: string,
     includeReport = true,
@@ -1153,7 +1215,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Terminal-event handlers for authoring and its refresh reattach. */
+  /**
+   * 构造作者对话与刷新重连共用的终态事件处理。
+   * Terminal-event handlers for authoring and its refresh reattach.
+   */
   private turnHandlers(codeAtRequest?: string): AgentTurnHandlers {
     const selection = this.chatSelection;
     return {
@@ -1214,7 +1279,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     };
   }
 
-  /** Refresh reattach: a saved custom factor with a live turn re-subscribes (snapshot replays). */
+  /**
+   * 对已保存因子的活动轮次重新订阅，并通过快照恢复增量内容。
+   * Refresh reattach: a saved custom factor with a live turn re-subscribes (snapshot replays).
+   */
   private async reattachTurn() {
     if (!this.selectedKey || this.mode !== 'custom' || this.qaMode) {
       return;
@@ -1233,6 +1301,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     } // resolved at the terminal event (or no live turn)
   }
 
+  /**
+   * 延迟保存当前草稿并取消旧定时器，避免重复提交。
+   * Debounce current draft saves and cancel superseded timers.
+   */
   private scheduleDraftSave() {
     if (!this.selectedKey || this.mode !== 'custom' || this.factorStatus !== 'draft') {
       return;
@@ -1258,7 +1330,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Load durable input/terminal state, then reconnect to the exact live turn when requested. */
+  /**
+   * 先恢复持久输入及终态，再按明确轮次身份重连活动问答。
+   * Load durable input/terminal state, then reconnect to the exact live turn when requested.
+   */
   public async restoreQuestions(attach = true) {
     const key = this.selectedKey;
     const selection = this.chatSelection;
@@ -1288,6 +1363,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
+  /**
+   * 分页读取更早问答并合并到当前历史，防止切换选择后错写。
+   * Load and merge earlier Q&A pages while guarding against selection changes.
+   */
   public async loadEarlierQuestions() {
     if (this.questionNextBefore === null || this.earlierQuestionsLoader.loading) {
       return;
@@ -1314,6 +1393,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
+  /**
+   * 将指定问答轮次接入事件流，更新当前选择的消息与终态。
+   * Attach a selected Q&A turn and update its messages and terminal state.
+   */
   private async attachQuestionTurn(turnId: string, selection: number) {
     if (selection !== this.chatSelection) {
       return;
@@ -1349,6 +1432,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
+  /**
+   * 提交只读因子问题并连接持久化问答轮次。
+   * Submit a read-only factor question and attach its persisted turn.
+   */
   private async runQa(
     text: string,
     includeReport: boolean,
@@ -1394,7 +1481,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
   }
 
-  /** Delete a custom factor; deselect it if it was open, then refresh the catalog. */
+  /**
+   * 删除作者因子，必要时取消当前选择并刷新目录。
+   * Delete a custom factor; deselect it if it was open, then refresh the catalog.
+   */
   public async removeFactor(id: string) {
     await deleteCustomFactor(id);
     if (this.selectedKey === id) {
@@ -1418,6 +1508,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     await this.catalogLoader.run();
   }
 
+  /**
+   * 保存组合草稿后刷新目录及选择状态。
+   * Save a composite draft and refresh catalog and selection.
+   */
   public async saveComposite(
     definition: FactorCompositeDefinition,
     id?: string,
@@ -1446,7 +1540,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     await this.catalogLoader.run();
   }
 
-  /** Open an immutable report, restore its parameters, and reattach its live Job when needed. */
+  /**
+   * 打开不可变报告、恢复参数，并在需要时重连其活动任务。
+   * Open an immutable report, restore its parameters, and reattach its live Job when needed.
+   */
   public async openReport(reportId: string): Promise<boolean> {
     this.analysisPoller.stop();
     runInAction(() => {
@@ -1582,7 +1679,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return true;
   }
 
-  /** Commit custom code, create a new immutable report, then stream its one-to-one Job. */
+  /**
+   * 保存作者代码、创建不可变报告并追踪一对一后台任务。
+   * Commit custom code, create a new immutable report, then stream its one-to-one Job.
+   */
   public async runAnalysis(researchIntent: FactorResearchIntentV1) {
     if (this.mode === 'custom') {
       if (!this.selectedKey) {
@@ -1701,6 +1801,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     void this.researchSummaryLoader.run();
   }
 
+  /**
+   * 提交当前报告的发布请求并刷新定义及目录状态。
+   * Publish the selected report and refresh definition and catalog state.
+   */
   public async publishSelectedReport(): Promise<PublishedFactor> {
     const selection = this.chatSelection;
     const reportId = this.selectedReportId;
@@ -1739,7 +1843,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return factor;
   }
 
-  /** Reload mutable metadata after the server-side Agent/metadata hook has completed. */
+  /**
+   * 在 Agent 或元数据更新完成后重新读取可变显示身份。
+   * Reload mutable metadata after the server-side Agent/metadata hook has completed.
+   */
   private async refreshIdentity() {
     if (!this.selectedKey || this.mode !== 'custom' || this.qaMode) {
       return;
@@ -1773,7 +1880,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.analysisPoller.start();
   }
 
-  /** One poll tick — append new logs; on finish fetch the persisted report. Returns false to stop. */
+  /**
+   * 单次轮询追加日志，完成后加载持久报告；返回 false 停止轮询。
+   * One poll tick — append new logs; on finish fetch the persisted report. Returns false to stop.
+   */
   private async pollOnce(): Promise<false | void> {
     const jobId = this.jobId;
     const reportId = this.pollingReportId;
@@ -1820,7 +1930,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.corrKeys = keys.slice(0, 8))); // API caps at 8
   }
 
-  /** The current correlation report, guarded to the current selection (avoids a stale render). */
+  /**
+   * 只返回与当前因子选择匹配的相关性报告。
+   * The current correlation report, guarded to the current selection (avoids a stale render).
+   */
   public get correlation(): FactorCorrelation | null {
     const r = this.correlationLoader.result;
     if (!r) {
@@ -1831,7 +1944,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return want === got ? r : null;
   }
 
-  /** Run (or view, if cached) the correlation matrix over the selected factors + the shared freq/range. */
+  /**
+   * 按所选因子及共同频率范围提交或读取缓存相关性矩阵。
+   * Run (or view, if cached) the correlation matrix over the selected factors + the shared freq/range.
+   */
   public async runCorrelation(refresh = false) {
     if (this.corrKeys.length < 2) {
       return;
@@ -1867,6 +1983,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.correlationPoller.start();
   }
 
+  /**
+   * 读取相关性任务进度，终态后保存矩阵并停止轮询。
+   * Poll correlation progress and load the matrix at completion.
+   */
   private async pollCorrelationOnce(): Promise<false | void> {
     try {
       const job = await pollFactorCorrelationJob(this.corrJobId!, this.corrSince);
@@ -1899,7 +2019,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     runInAction(() => (this.corrRunning = false));
   }
 
-  /** On opening the correlation modal, re-attach to a still-running job (survives a refresh). */
+  /**
+   * 打开相关性界面时重连活动任务，支持刷新后恢复。
+   * On opening the correlation modal, re-attach to a still-running job (survives a refresh).
+   */
   public async reattachCorrelation() {
     if (this.corrKeys.length < 2) {
       return;
@@ -1920,6 +2043,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 }
 
+/**
+ * 生成资产研究草稿身份，供判断报告与当前编辑是否匹配。
+ * Build an asset-research draft identity for report freshness checks.
+ */
 function assetResearchDraftIdentity(
   spec:
     | TimeSeriesFactorResearchSpecV1

@@ -2,6 +2,10 @@ import type { z } from 'zod';
 import type { embeddedDraftSchema } from './api/research.js';
 import type { ResearchCellOutputBlockV1 } from './research.js';
 
+/**
+ * 冻结嵌入式分析的输入、输出及运行大小限制。
+ * Define bounded input, output and runtime sizes for embedded analysis.
+ */
 export interface ResearchEmbeddedLimitsV1 {
   sourceCharacters: number;
   parametersBytes: number;
@@ -38,6 +42,10 @@ export type ResearchEmbeddedErrorCodeV1 =
 
 export type ResearchEmbeddedDraftInputV1 = z.input<typeof embeddedDraftSchema>;
 
+/**
+ * 冻结分析宿主身份和上下文，即使原实体消失仍可追溯。
+ * Snapshot analysis host identity and context for durable provenance.
+ */
 export interface ResearchEmbeddedContextV1 {
   host: ResearchEmbeddedHostV1;
   name: string;
@@ -48,6 +56,10 @@ export interface ResearchEmbeddedContextV1 {
   report?: { type: 'factor' | 'backtest'; id: string; contentHash: string };
 }
 
+/**
+ * 保存分析版本源码、状态和血缘，首次成功后不可编辑。
+ * Describe analysis source, state and lineage with freezing after first success.
+ */
 export interface ResearchEmbeddedVersionV1 {
   id: string;
   analysisId: string;
@@ -63,6 +75,10 @@ export interface ResearchEmbeddedVersionV1 {
   updatedAt: string;
 }
 
+/**
+ * 聚合嵌入式版本及宿主归属，供对话重用。
+ * Describe an embedded analysis, versions and host ownership.
+ */
 export interface ResearchEmbeddedAnalysisV1 {
   version: 1;
   id: string;
@@ -73,24 +89,39 @@ export interface ResearchEmbeddedAnalysisV1 {
   updatedAt: string;
 }
 
+/**
+ * 稳定引用一次持久运行，供消息卡片和继续研究。
+ * Identify a durable run for message cards and research continuation.
+ */
 export interface ResearchEmbeddedRunReferenceV1 {
   analysisId: string;
   versionId: string;
   runId: string;
 }
 
-/** A catalog selection is a request, not data or a Python variable injected into the runtime. */
+/**
+ * 表示目录选择形成的数据请求，不是已经加载的数据或注入的 Python 变量。
+ * A catalog selection is a request, not data or a Python variable injected into the runtime.
+ */
 export interface ResearchDataReferenceV1 {
   label: string;
   method: string;
   arguments: Record<string, unknown>;
 }
 
+/**
+ * 记录继续研究文档的嵌入式来源与输入模式。
+ * Describe embedded provenance and input mode in a continuation document.
+ */
 export interface ResearchEmbeddedDocumentSourceV1 extends ResearchEmbeddedRunReferenceV1 {
   title: string;
   inputMode: 'retained' | 'current';
 }
 
+/**
+ * 提供嵌入式运行身份、状态和时间，供历史列表。
+ * Describe embedded run identity, state and timing for history.
+ */
 export interface ResearchEmbeddedRunSummaryV1 extends ResearchEmbeddedRunReferenceV1 {
   sequence: number;
   revision: number;
@@ -105,6 +136,10 @@ export interface ResearchEmbeddedRunSummaryV1 extends ResearchEmbeddedRunReferen
   finishedAt: string | null;
 }
 
+/**
+ * 返回完整冻结运行的源码、输出与错误诊断。
+ * Describe a frozen embedded run's source, outputs and diagnostics.
+ */
 export interface ResearchEmbeddedRunV1 extends ResearchEmbeddedRunSummaryV1 {
   researchDocumentId?: string;
   source: string;
@@ -119,6 +154,10 @@ export interface ResearchEmbeddedRunV1 extends ResearchEmbeddedRunSummaryV1 {
   limits: ResearchEmbeddedLimitsV1;
 }
 
+/**
+ * 保存运行实际消费的请求、响应与元数据，供回放。
+ * Retain requests, responses and metadata actually consumed by a run.
+ */
 export interface ResearchEmbeddedInputV1 {
   id: string;
   sequence: number;
@@ -134,6 +173,10 @@ export interface ResearchEmbeddedInputV1 {
   capturedAt: string | null;
 }
 
+/**
+ * 组合分页嵌入式记录与继续游标。
+ * Collect paginated embedded records and continuation metadata.
+ */
 export interface ResearchEmbeddedPageV1<T> {
   items: T[];
   nextCursor: string | null;

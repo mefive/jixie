@@ -128,7 +128,10 @@ export const embeddedDataReferenceSchema = z.strictObject({
   arguments: z.record(z.string(), z.unknown()),
 });
 
-/** The API supplies the SDK validator without duplicating the wire shape or collection limits. */
+/**
+ * 由 API 注入 SDK 校验器，复用同一传输结构与集合上限。
+ * The API supplies the SDK validator without duplicating the wire shape or collection limits.
+ */
 export function createEmbeddedDataReferencesSchema(
   referenceSchema: typeof embeddedDataReferenceSchema = embeddedDataReferenceSchema,
 ) {
@@ -213,6 +216,10 @@ const clarificationSelectionSchema = z.strictObject({
   customText: z.string().trim().min(1).max(500).optional(),
 });
 
+/**
+ * 组合研究消息、Cell 上下文与提案尝试参数的请求校验。
+ * Build research-agent input validation for messages, cell context and proposal attempts.
+ */
 export const researchAgentInputSchema = z
   .strictObject({
     conversationId: z.string().min(1).optional(),
@@ -275,6 +282,10 @@ const languagePosition = z.strictObject({
   character: z.number().int().min(0).max(100_000),
 });
 
+/**
+ * 按语言请求种类构造参数 schema，保持客户端与宿主字段一致。
+ * Build kind-specific language request validation shared by client and host.
+ */
 export const pythonLanguageRequestSchema = z
   .strictObject({
     version: z.literal(1),

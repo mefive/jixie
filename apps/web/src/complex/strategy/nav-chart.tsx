@@ -6,6 +6,10 @@ import { faFilter } from '@fortawesome/free-solid-svg-icons';
 import { EChart, type ECOption } from '@src/components/echart';
 import { BENCHMARKS, type BenchmarkCode, type BenchmarkSeries } from './benchmarks';
 
+/**
+ * 提供回测净值、基准及比较报告，供路径和回撤切换。
+ * Supply NAV, benchmark and comparison reports for equity and drawdown views.
+ */
 interface Props {
   nav: { date: string; value: number }[];
   up: boolean;
@@ -17,6 +21,11 @@ interface Props {
 type ChartView = 'equity' | 'drawdown';
 
 // Lazy-loaded so echarts lands in its own chunk (see apps/web/CLAUDE.md §3).
+
+/**
+ * 按净值或回撤视图构造图表，支持报告比较与基准展示。
+ * Render NAV or drawdown views with report comparison and benchmark support.
+ */
 export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmarksLoading }: Props) {
   const { t } = useTranslation('strategy');
   const [view, setView] = useState<ChartView>('equity');
@@ -98,6 +107,10 @@ export default function NavChart({ nav, up, comparisonNav, benchmarks, benchmark
   );
 }
 
+/**
+ * 将两个不可变报告按可用日期绘制比较净值，保留各自起点。
+ * Build comparative equity options from immutable reports and their available dates.
+ */
 function comparisonEquityOption(
   primary: Props['nav'],
   secondary: Props['nav'],
@@ -174,6 +187,10 @@ function normalizeNav(nav: Props['nav'], dates: string[]): (number | null)[] {
   });
 }
 
+/**
+ * 构造策略与基准净值图，供回测收益路径比较。
+ * Build strategy and benchmark equity options for backtest comparison.
+ */
 function equityOption(
   nav: Props['nav'],
   up: boolean,
@@ -276,6 +293,10 @@ function rebaseBenchmark(
   });
 }
 
+/**
+ * 构造水下曲线及回撤标注，保持负回撤口径。
+ * Build underwater drawdown options and markers using the negative drawdown convention.
+ */
 function drawdownOption(
   points: DrawdownPoint[],
   period: DrawdownSeries,
@@ -349,12 +370,20 @@ function drawdownOption(
   };
 }
 
+/**
+ * 记录单日净值峰值回撤，供水下曲线。
+ * Describe a dated drawdown from the running NAV peak.
+ */
 interface DrawdownPoint {
   date: string;
   value: number;
   drawdown: number;
 }
 
+/**
+ * 组合回撤路径及区间标记，供图表提示。
+ * Collect drawdown paths and episode markers for charting.
+ */
 interface DrawdownSeries {
   points: DrawdownPoint[];
   peak?: DrawdownPoint;
@@ -362,6 +391,10 @@ interface DrawdownSeries {
   recovery?: DrawdownPoint;
 }
 
+/**
+ * 定位回撤开始、谷底或恢复事件，供曲线标注。
+ * Identify drawdown start, trough or recovery markers.
+ */
 interface DrawdownMarker {
   name: string;
   coord: [string, number];
@@ -370,6 +403,10 @@ interface DrawdownMarker {
   label: { formatter: string; color: string; fontSize: number };
 }
 
+/**
+ * 从净值计算逐日峰值回撤，并提取开始、谷底和恢复标记。
+ * Derive drawdowns from running NAV peaks and identify start, trough and recovery markers.
+ */
 function drawdownSeries(nav: Props['nav']): DrawdownSeries {
   if (!nav.length) {
     return { points: [] };
@@ -380,6 +417,11 @@ function drawdownSeries(nav: Props['nav']): DrawdownSeries {
   let maxDrawdown = 0;
   let maxPeakIndex = 0;
   let troughIndex = 0;
+
+  /**
+   * 更新净值运行峰值并计算百分比回撤，同时记录最深谷底区间。
+   * Update the running NAV peak and percentage drawdown while tracking the deepest episode.
+   */
   const points = nav.map((point, index) => {
     if (point.value > runningPeak) {
       runningPeak = point.value;

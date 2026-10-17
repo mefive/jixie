@@ -7,6 +7,10 @@ const KEY = 'jx-strategy-recents';
 const LEGACY_KEY = 'jx-lab-recents';
 const CAP = 12; // keep a few more than we show (6), so deletes/misses still leave enough
 
+/**
+ * 从本地存储读取最近策略记录并兼容损坏或旧数据。
+ * Read recent strategy visits from local storage with malformed-data handling.
+ */
 export function readRecents(): string[] {
   try {
     const current = localStorage.getItem(KEY);
@@ -29,7 +33,10 @@ export function readRecents(): string[] {
   }
 }
 
-/** Record a visit: move `id` to the front (dedup), cap the list. */
+/**
+ * 将访问记录去重移到首位，并限制最近列表长度。
+ * Record a visit: move `id` to the front (dedup), cap the list.
+ */
 export function pushRecent(id: string): void {
   const next = [id, ...readRecents().filter((existing) => existing !== id)].slice(0, CAP);
   try {

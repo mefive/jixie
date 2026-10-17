@@ -4,6 +4,7 @@ import type { MultiAssetClass } from './factor-research.js';
 import type { PortfolioRiskAnalysisV1 } from './risk-research.js';
 
 /**
+ * 配置回测显式费用与隐式冲击，费率、金额和基点字段保持各自单位。
  * Backtest config + result — the wire types for product line 1 (strategy backtest). The strategy itself is now
  * user-authored TypeScript (`code`), compiled and run on the engine; there is no IR.
  */
@@ -33,7 +34,10 @@ export const DEFAULT_BACKTEST_COST: Readonly<CostConfig> = {
 export type StrategyLanguage = 'typescript' | 'python';
 export type StrategyRuntimeVersion = 'ts-v1' | 'py-v1';
 
-/** A full, runnable backtest spec: range + capital + cost + user-authored strategy code. */
+/**
+ * 描述完整可运行回测的日期、资本、成本及作者源码。
+ * A full, runnable backtest spec: range + capital + cost + user-authored strategy code.
+ */
 export interface BacktestConfig {
   name: string;
   start: TradeDate;
@@ -47,9 +51,12 @@ export interface BacktestConfig {
   code: string;
 }
 
-/** One executed fill (the trade-log unit shown on the chart + list). `shares`/`price` are the engine's
+/**
+ * 记录一次成交的复权及实际价格数量；真实成交金额在两种口径下一致。
+ * One executed fill (the trade-log unit shown on the chart + list). `shares`/`price` are the engine's
  * internal backward-adjusted (hfq) units; `realShares`/`realPrice` are the real, tradable numbers shown to
- * the user — whole lots (100-share lots) at the unadjusted price. `amount` (real money) is the same either way. */
+ * the user — whole lots (100-share lots) at the unadjusted price. `amount` (real money) is the same either way.
+ */
 export interface TradeRecord {
   date: TradeDate;
   code: string;
@@ -69,6 +76,10 @@ export interface TradeRecord {
 
 export type AllocationAssetClass = MultiAssetClass | 'other';
 
+/**
+ * 返回单资产收益、成本与风险贡献，供配置报告。
+ * Describe one asset's return, cost and risk contributions for allocation reports.
+ */
 export interface AllocationContributionRow {
   assetId: string;
   assetClass: AllocationAssetClass;
@@ -82,6 +93,10 @@ export interface AllocationContributionRow {
   riskContribution: number | null;
 }
 
+/**
+ * 按资产类别聚合收益与风险贡献，供配置比较。
+ * Aggregate return and risk contributions by asset class.
+ */
 export interface AllocationClassContributionRow {
   assetClass: AllocationAssetClass;
   averageWeight: number;
@@ -92,12 +107,20 @@ export interface AllocationClassContributionRow {
   riskContribution: number | null;
 }
 
+/**
+ * 记录单日目标或实际资产权重，供配置路径。
+ * Describe dated allocation weights for exposure history.
+ */
 export interface AllocationWeightPoint {
   assetId: string;
   assetClass: AllocationAssetClass;
   weight: number;
 }
 
+/**
+ * 记录目标与实际配置偏离及调仓信息，供解释执行差异。
+ * Describe allocation drift and rebalances for execution analysis.
+ */
 export interface AllocationDriftEvent {
   decisionDate: TradeDate;
   executionDate: TradeDate;
@@ -110,18 +133,30 @@ export interface AllocationDriftEvent {
   maxPostTradeDeviation: number;
 }
 
+/**
+ * 记录单对资产在指定日期的相关性。
+ * Describe a dated pairwise asset correlation.
+ */
 export interface AllocationCorrelationPoint {
   date: TradeDate;
   value: number | null;
   observations: number;
 }
 
+/**
+ * 保存一对资产的相关性历史，供滚动比较。
+ * Retain pairwise correlation history for rolling comparisons.
+ */
 export interface AllocationCorrelationPairSeries {
   left: AllocationAssetClass;
   right: AllocationAssetClass;
   points: AllocationCorrelationPoint[];
 }
 
+/**
+ * 封装同一窗口的矩阵与覆盖，供相关性图表。
+ * Describe a correlation window's matrix and coverage.
+ */
 export interface AllocationCorrelationWindow {
   window: 60 | 120;
   asOfDate: TradeDate;
@@ -132,6 +167,10 @@ export interface AllocationCorrelationWindow {
   series: AllocationCorrelationPairSeries[];
 }
 
+/**
+ * 组合各窗口相关性和滚动序列，供分散化诊断。
+ * Collect correlation windows and rolling series for diversification diagnostics.
+ */
 export interface AllocationCorrelationAnalysis {
   methodology: 'equal_weight_asset_class_returns';
   sampling: 'month_end';
@@ -145,6 +184,10 @@ export type AllocationRateRegimeKey =
   | 'rates_falling_curve_steep'
   | 'rates_falling_curve_flat';
 
+/**
+ * 汇总某利率环境中单资产类别的绩效。
+ * Summarize an asset class's performance within a rate environment.
+ */
 export interface AllocationRateRegimeClassMetrics {
   assetClass: AllocationAssetClass;
   observations: number;
@@ -155,6 +198,10 @@ export interface AllocationRateRegimeClassMetrics {
   maximumEpisodeDrawdown: number;
 }
 
+/**
+ * 保留利率环境分类、曲线证据与区间。
+ * Describe rate classifications, curve evidence and episodes.
+ */
 export interface AllocationRateRegimeState {
   key: AllocationRateRegimeKey;
   observations: number;
@@ -163,6 +210,10 @@ export interface AllocationRateRegimeState {
   assetClasses: AllocationRateRegimeClassMetrics[];
 }
 
+/**
+ * 组合利率环境下的配置收益与风险诊断。
+ * Collect allocation performance and risk diagnostics by rate regime.
+ */
 export interface AllocationRateRegimeAnalysis {
   methodology: 'cgb_10y_direction_and_10y_2y_relative_slope';
   pointInTime: 'available_date';
@@ -182,7 +233,10 @@ export interface AllocationRateRegimeAnalysis {
   states: AllocationRateRegimeState[];
 }
 
-/** Engine-produced allocation diagnostics. Consumers must not reconstruct accounting from fills. */
+/**
+ * 返回引擎生成的配置诊断，消费方不应从成交重新构造账户。
+ * Engine-produced allocation diagnostics. Consumers must not reconstruct accounting from fills.
+ */
 export interface AllocationAnalysis {
   version: 1;
   /** Missing on historical reports that used whole-portfolio equity. */
@@ -215,7 +269,10 @@ export interface AllocationAnalysis {
   risk?: PortfolioRiskAnalysisV1;
 }
 
-/** Backtest result shape returned over the wire (mirrors the engine's BacktestResult). */
+/**
+ * 定义回测结果的 HTTP 传输形状，与引擎结果保持映射一致。
+ * Backtest result shape returned over the wire (mirrors the engine's BacktestResult).
+ */
 export interface BacktestSummary {
   name: string;
   start: TradeDate;
@@ -257,7 +314,10 @@ export interface BacktestSummary {
   allocationAnalysis?: AllocationAnalysis;
 }
 
-/** Compact immutable-run metadata for the Strategy Lab history picker. */
+/**
+ * 提供不可变运行的紧凑元数据，供策略历史选择。
+ * Compact immutable-run metadata for the Strategy Lab history picker.
+ */
 export interface BacktestReportSummary {
   id: string;
   strategyId: string;
@@ -275,7 +335,10 @@ export interface BacktestReportSummary {
   computedAt: string | null;
 }
 
-/** Full immutable run loaded only after the user selects one history item. */
+/**
+ * 在选定历史报告后读取完整冻结配置与结果。
+ * Full immutable run loaded only after the user selects one history item.
+ */
 export interface BacktestReportDetail extends BacktestReportSummary {
   config: BacktestConfig;
   result: BacktestSummary;
@@ -283,19 +346,35 @@ export interface BacktestReportDetail extends BacktestReportSummary {
   resultHash: string | null;
 }
 
+/**
+ * 约束策略参数可序列化值，供配置和扫描共享。
+ * Constrain serializable strategy parameter values used by configuration and scans.
+ */
 export type StrategyParamValue = number | string;
 
+/**
+ * 定义一个扫描参数及其候选值，供笛卡尔积构造。
+ * Describe a scan parameter and candidate values for combination generation.
+ */
 export interface StrategyParameterDimension {
   key: string;
   values: StrategyParamValue[];
 }
 
+/**
+ * 冻结参数、仓位或容量扫描规格，供复现计算。
+ * Freeze parameter, sizing or capacity scan specifications for reproducibility.
+ */
 export interface StrategyScanSpec {
   dimensions: StrategyParameterDimension[];
   splitDate?: TradeDate;
   view?: 'parameters' | 'sizing' | 'capacity';
 }
 
+/**
+ * 汇总单次回测核心指标，供扫描单元比较。
+ * Collect headline backtest metrics for scan-cell comparison.
+ */
 export interface BacktestMetricSummary {
   start: TradeDate;
   end: TradeDate;
@@ -321,6 +400,10 @@ export interface BacktestMetricSummary {
   annSlippageDrag?: number;
 }
 
+/**
+ * 关联一组参数与其运行指标或错误，供扫描结果。
+ * Associate one parameter combination with metrics or failure.
+ */
 export interface StrategyScanCell {
   params: Record<string, StrategyParamValue>;
   full?: BacktestMetricSummary;
@@ -330,6 +413,10 @@ export interface StrategyScanCell {
   nav?: { date: string; value: number }[];
 }
 
+/**
+ * 保存完整扫描维度、结果和配置快照。
+ * Retain scan dimensions, results and configuration snapshots.
+ */
 export interface StrategyScanPayload {
   parameters: Record<string, StrategyParamValue>;
   cells: StrategyScanCell[];
@@ -337,6 +424,10 @@ export interface StrategyScanPayload {
 
 export type StrategyScanStatus = 'running' | 'done' | 'error' | 'stale';
 
+/**
+ * 关联扫描身份、状态与冻结结果，供详情读取。
+ * Describe scan identity, state and frozen results.
+ */
 export interface StrategyScanReport {
   id: string;
   strategyId: string;
@@ -353,6 +444,10 @@ export interface StrategyScanReport {
   updatedAt: string;
 }
 
+/**
+ * 提供扫描报告紧凑摘要，供历史列表。
+ * Describe compact scan report metadata for history lists.
+ */
 export interface StrategyScanReportSummary {
   id: string;
   strategyId: string;

@@ -20,6 +20,10 @@ const correlationId = (userId: string, keys: string[], freq: string, start: stri
 const correlationJobKey = (keys: string[], freq: string, start: string, end: string) =>
   `corr|${sortedKeys(keys).join(',')}|${freq}|${start}|${end}`;
 
+/**
+ * 解析相关性请求的因子身份并验证数量、权限和可比较范围。
+ * Resolve correlation factor keys and validate count, access and comparable scope.
+ */
 async function resolveCorrelationKeys(userId: string, raw: string[]): Promise<{ keys: string[] }> {
   const keys = [...new Set(raw.map((key) => key.trim()).filter(Boolean))];
 
@@ -73,6 +77,10 @@ export async function findActiveFactorCorrelationJob(
   return jobId ? { jobId } : null;
 }
 
+/**
+ * 冻结相关性请求并创建后台任务，供异步矩阵计算。
+ * Freeze a correlation request and create its background computation job.
+ */
 export async function submitFactorCorrelation(
   userId: string,
   input: SubmitFactorCorrelationInput,

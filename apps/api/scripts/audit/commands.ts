@@ -24,6 +24,10 @@ export function parseAuditArguments(input: string[]) {
   return parseCommandArguments('data:audit', auditCommands, input, validateAuditParameters);
 }
 
+/**
+ * 校验审计命令参数与日期范围，供统一命令入口分派。
+ * Validate audit parameters and date bounds before command dispatch.
+ */
 function validateAuditParameters(command: CommandDefinition, args: string[]): void {
   const usage = `Usage: pnpm data:audit ${command.name} ${command.usage}`;
   switch (command.name) {

@@ -6,10 +6,18 @@ import {
   type ReferenceWorkerStage,
 } from './reference-worker-protocol.js';
 
+/**
+ * 配置财报子进程参数、事件和持久确认回调。
+ * Configure financial worker startup, events and durable acknowledgements.
+ */
 export interface ReferenceWorkerProcessOptions {
   onItemComplete?: (item: string) => Promise<void>;
 }
 
+/**
+ * 启动财报子进程并处理进度、持久化确认及失败清理。
+ * Run the financial reference child process with progress, durable acknowledgements and failure cleanup.
+ */
 export async function runReferenceWorkerProcess(
   stage: ReferenceWorkerStage,
   codes: string[],
@@ -105,6 +113,10 @@ export function emptyReferenceSyncSummary(): ReferenceSyncSummary {
   };
 }
 
+/**
+ * 将子进程同步摘要累积到维护总结果，保持各计数口径。
+ * Accumulate worker sync summaries into maintenance totals.
+ */
 export function addReferenceSyncSummary(
   total: ReferenceSyncSummary,
   current: ReferenceSyncSummary,

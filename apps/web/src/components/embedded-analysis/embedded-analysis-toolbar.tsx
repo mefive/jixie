@@ -20,6 +20,10 @@ import { ResearchDataCatalogPicker } from '../research-data-catalog-picker';
 import { EmbeddedAnalysisInspector } from './embedded-analysis-card';
 import './embedded-analysis-toolbar.css';
 
+/**
+ * 绑定已授权业务实体和分析入口，供嵌入式工具栏。
+ * Supply an authorized host entity and analysis actions to the toolbar.
+ */
 interface EmbeddedAnalysisToolbarProps {
   host?: ResearchEmbeddedHostV1;
   reportId?: string;
@@ -30,6 +34,10 @@ interface EmbeddedAnalysisToolbarProps {
   disabled?: boolean;
 }
 
+/**
+ * 展示已授权实体的嵌入式分析版本及操作入口。
+ * Present embedded analysis versions and actions for an authorized host entity.
+ */
 export const EmbeddedAnalysisToolbar = reactUtils.observer(function EmbeddedAnalysisToolbar({
   host,
   reportId,
@@ -216,6 +224,11 @@ class EmbeddedToolbarModel extends BaseModel<{ host?: ResearchEmbeddedHostV1 }> 
       return undefined;
     }
   }
+
+  /**
+   * 读取嵌入式分析的可用版本和运行，供工具栏选择。
+   * Load available embedded versions and runs for toolbar selection.
+   */
   public async load(older = false) {
     if (!this.setupParams?.host) {
       return;

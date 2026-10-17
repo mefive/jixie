@@ -1,12 +1,19 @@
 import { prisma } from '#infra/database/prisma.js';
 
+/**
+ * 指定受控参考数据的身份和日期范围。
+ * Request a governed reference dataset by identity and date range.
+ */
 export interface ResearchReferenceDatasetRequestV1 {
   identifier: string;
   start: string;
   end: string;
 }
 
-/** ETF shares are gated by the first later China-market session on which the source row is usable. */
+/**
+ * 按来源行可用的首个后续中国交易日筛选 ETF 份额。
+ * ETF shares are gated by the first later China-market session on which the source row is usable.
+ */
 export async function loadResearchEtfShares(request: ResearchReferenceDatasetRequestV1) {
   const rows = await prisma.etfShareSize.findMany({
     where: {
@@ -26,7 +33,10 @@ export async function loadResearchEtfShares(request: ResearchReferenceDatasetReq
   }));
 }
 
-/** Preserve the provider's official index-level methodology instead of reconstructing valuations. */
+/**
+ * 保留供应商官方指数估值方法，不从成分数据自行重建。
+ * Preserve the provider's official index-level methodology instead of reconstructing valuations.
+ */
 export async function loadResearchIndexValuation(request: ResearchReferenceDatasetRequestV1) {
   const rows = await prisma.indexDailyBasic.findMany({
     where: {
@@ -50,7 +60,10 @@ export async function loadResearchIndexValuation(request: ResearchReferenceDatas
   }));
 }
 
-/** Load one governed Shenwan level-1 industry by either its stable code or exact name. */
+/**
+ * 按稳定代码或精确名称解析受治理申万一级行业后读取状态。
+ * Load one governed Shenwan level-1 industry by either its stable code or exact name.
+ */
 export async function loadResearchIndustryState(request: ResearchReferenceDatasetRequestV1) {
   const rows = await prisma.industryIndicator.findMany({
     where: {
@@ -75,7 +88,10 @@ export async function loadResearchIndustryState(request: ResearchReferenceDatase
   }));
 }
 
-/** Load exchange settlement parameters only for an actual delivery contract. */
+/**
+ * 只为实际交割合约读取交易所结算参数。
+ * Load exchange settlement parameters only for an actual delivery contract.
+ */
 export async function loadResearchFuturesSettlement(request: ResearchReferenceDatasetRequestV1) {
   const rows = await prisma.futureSettlement.findMany({
     where: {

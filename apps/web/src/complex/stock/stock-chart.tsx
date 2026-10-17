@@ -4,6 +4,10 @@ import { EChart, type ECOption } from '@src/components/echart';
 
 export type Adjust = 'none' | 'qfq' | 'hfq';
 
+/**
+ * 提供证券行情、复权方式和时间范围，供价格成交量图。
+ * Supply prices, adjustment mode and dates to the instrument chart.
+ */
 interface Props {
   series: StockSeries;
   logY?: boolean; // log price axis
@@ -16,6 +20,7 @@ const DOWN = '#2f9e5b'; // green down
 const PE_COLOR = '#307df9';
 
 /**
+ * 惰性加载双网格证券图表，上层展示价格、下层展示成交量。
  * Stock chart, lazy-loaded so echarts (incl. candlestick) lands in its own chunk.
  * Two grids: price (candlestick on the left axis + PE line on a right second axis) and volume.
  * Price axis switches linear↔log via `logY`; OHLC adjusted per `adjust` (none/qfq/hfq).

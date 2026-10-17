@@ -4,7 +4,10 @@ import pkg from '@prisma/client';
 const { Prisma: PrismaNs } = pkg;
 export type StrategyDatabase = Pick<Prisma.TransactionClient, 'strategy'>;
 
-/** Stable identity of every input that can change a backtest result. The display name is excluded. */
+/**
+ * 为影响回测结果的所有输入生成稳定身份，显示名称不参与。
+ * Stable identity of every input that can change a backtest result. The display name is excluded.
+ */
 export function strategyRunKey(config: unknown): string {
   const candidate = config as Partial<BacktestConfig> | null;
   const cost = candidate?.cost;
@@ -32,7 +35,10 @@ export function strategyRunKey(config: unknown): string {
   });
 }
 
-/** Commit the runnable snapshot by owner-scoped id and invalidate a result produced by older inputs. */
+/**
+ * 按用户归属提交可运行配置快照，并使旧输入产生的结果失效。
+ * Commit the runnable snapshot by owner-scoped id and invalidate a result produced by older inputs.
+ */
 export async function commitStrategyConfig(
   database: StrategyDatabase,
   userId: string,

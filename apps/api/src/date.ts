@@ -9,32 +9,50 @@ dayjs.extend(isoWeek);
 
 const FMT = 'YYYYMMDD';
 
-/** Parse a 'YYYYMMDD' string into a dayjs object. */
+/**
+ * 将 YYYYMMDD 日期解析为 dayjs，供统一日期运算。
+ * Parse a 'YYYYMMDD' string into a dayjs object.
+ */
 export function day(ymd: string) {
   return dayjs(ymd, FMT);
 }
 
-/** Whether two 'YYYYMMDD' dates fall in the same calendar month. */
+/**
+ * 判断两个紧凑日期是否属于同一自然月。
+ * Whether two 'YYYYMMDD' dates fall in the same calendar month.
+ */
 export function sameMonth(a: string, b: string): boolean {
   return day(a).isSame(day(b), 'month');
 }
 
-/** Whether two 'YYYYMMDD' dates fall in the same ISO week (Mon–Sun). */
+/**
+ * 判断两个日期是否属于同一 ISO 周，即周一到周日。
+ * Whether two 'YYYYMMDD' dates fall in the same ISO week (Mon–Sun).
+ */
 export function sameWeek(a: string, b: string): boolean {
   return day(a).startOf('isoWeek').isSame(day(b).startOf('isoWeek'), 'day');
 }
 
-/** Monday date (YYYYMMDD) of the ISO week containing `ymd`. */
+/**
+ * 返回指定日期所在 ISO 周的周一 YYYYMMDD 键。
+ * Monday date (YYYYMMDD) of the ISO week containing `ymd`.
+ */
 export function isoWeekKey(ymd: string): string {
   return day(ymd).startOf('isoWeek').format(FMT);
 }
 
-/** The 'YYYYMMDD' that is `n` calendar days after `ymd` (negative values move backwards). */
+/**
+ * 按自然日移动日期，负数向过去移动。
+ * The 'YYYYMMDD' that is `n` calendar days after `ymd` (negative values move backwards).
+ */
 export function addDays(ymd: string, n: number): string {
   return day(ymd).add(n, 'day').format(FMT);
 }
 
-/** The 'YYYYMMDD' that is `n` calendar days before `ymd`. */
+/**
+ * 返回指定自然日数之前的 YYYYMMDD 日期。
+ * The 'YYYYMMDD' that is `n` calendar days before `ymd`.
+ */
 export function minusDays(ymd: string, n: number): string {
   return addDays(ymd, -n);
 }
@@ -45,6 +63,7 @@ function epochDay(ymd: string): number {
 }
 
 /**
+ * 计算 b−a 的完整自然日差，供因子等高频日期判断。
  * Whole calendar days from `a` to `b` (b - a), both 'YYYYMMDD'.
  * Hot path — called per factor evaluation (millions of times under on-the-fly computation), so it
  * uses integer date math instead of dayjs parsing (which is far too slow at that volume). dayjs is

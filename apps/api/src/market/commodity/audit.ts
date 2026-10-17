@@ -5,6 +5,10 @@ import { auditCommodityContinuousReturns } from './commodity-continuous-return-q
 import { auditCommodityHoldingPositions } from './commodity-holding-quality.js';
 import { auditCommodityWarehouseReceipts } from './commodity-warehouse-receipt-quality.js';
 
+/**
+ * 审计商品仓单的历史可得性和来源证据，识别不可验证的 PIT 数据。
+ * Audit commodity warehouse-receipt availability evidence and identify unverifiable point-in-time history.
+ */
 export async function auditCommodityWarehouseReceiptPit(
   database: Prisma,
   startDate: string,

@@ -12,6 +12,10 @@ import {
   CHINA_TREASURY_CURVE_TYPE,
 } from '#market/registry/yield-curves.js';
 
+/**
+ * 提供 ETF 趋势所需日线字段，供特征与收益构造。
+ * Supply ETF daily fields for trend features and returns.
+ */
 export interface EtfTrendDailyRow {
   assetId: string;
   tradeDate: string;
@@ -19,6 +23,10 @@ export interface EtfTrendDailyRow {
   adjustmentFactor: number;
 }
 
+/**
+ * 提供带日期的利率点，供 ETF 趋势输入时点对齐。
+ * Supply dated yields for availability-aligned ETF trend inputs.
+ */
 export interface YieldCurveObservationRow {
   tradeDate: string;
   availableDate: string;
@@ -26,6 +34,10 @@ export interface YieldCurveObservationRow {
   yieldPct: number;
 }
 
+/**
+ * 加载 ETF 趋势研究的行情与利率输入，供时点观测构造。
+ * Load ETF price and yield inputs for trend-factor observations.
+ */
 export async function loadEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   factor: TimeSeriesFactorSandbox,
@@ -107,6 +119,10 @@ export async function loadEtfTimeSeriesObservations(
   );
 }
 
+/**
+ * 按策略字段和窗口构造 ETF 趋势与前瞻收益观测。
+ * Build ETF trend features and forward-return observations under the declared windows.
+ */
 export async function buildEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   rows: EtfTrendDailyRow[],
@@ -205,6 +221,10 @@ export async function buildEtfTimeSeriesObservations(
   return observations;
 }
 
+/**
+ * 验证 ETF 趋势研究的窗口、目标和协议支持范围。
+ * Validate supported windows, targets and ETF trend protocols.
+ */
 function assertSupportedProtocol(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   factor: TimeSeriesFactorSandbox,
@@ -225,6 +245,10 @@ function assertSupportedProtocol(
   }
 }
 
+/**
+ * 从已声明字段构造对齐历史，供作者因子读取。
+ * Build aligned field histories for authored factor reads.
+ */
 function alignedFactorFields(
   assetRows: EtfTrendDailyRow[],
   adjustedCloses: number[],

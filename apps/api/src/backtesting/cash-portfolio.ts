@@ -1,7 +1,10 @@
 import type { CostModel } from './cost.js';
 import type { CashTrade } from './trade.js';
 
-/** A held position. Only frozenShares remain unavailable until frozenUntil (T+1). */
+/**
+ * 表示持有的现金资产仓位；仅冻结数量在 T+1 解冻日前不可卖出。
+ * A held position. Only frozenShares remain unavailable until frozenUntil (T+1).
+ */
 export interface Position {
   shares: number;
   avgCost: number;
@@ -9,8 +12,16 @@ export interface Position {
   frozenShares?: number;
 }
 
+/**
+ * 区分股票与 ETF 的现金成交费用和交易规则。
+ * Distinguish stock and ETF cash fills when applying instrument-specific fees and rules.
+ */
 type CashAssetType = 'stock' | 'etf';
 
+/**
+ * 承载一次现金成交的复权数量、价格、交易日及解冻日期，供账户统一记账。
+ * Describe an adjusted-share cash fill and its execution and sellability dates for account posting.
+ */
 export interface CashFill {
   source?: string;
   code: string;
@@ -37,12 +48,18 @@ export class CashPortfolio {
     this.cash = initialCash;
   }
 
-  /** Max adjusted shares buyable as whole real-share lots, including minimum commission. */
+  /**
+   * 计算计入最低佣金后可买入的最大复权数量，实际股数须满足整手要求。
+   * Max adjusted shares buyable as whole real-share lots, including minimum commission.
+   */
   affordableShares(price: number, assetType: CashAssetType, adj: number): number {
     return this.affordableRealShares(price, assetType, adj) / adj;
   }
 
-  /** Shares currently available to sell; only the most recent T+1 purchase layer is frozen. */
+  /**
+   * 计算指定日期可卖出的数量，仅扣除仍受 T+1 限制的冻结层。
+   * Shares currently available to sell; only the most recent T+1 purchase layer is frozen.
+   */
   sellableShares(code: string, date: string): number {
     const position = this.positions.get(code);
     if (!position) {
@@ -52,12 +69,18 @@ export class CashPortfolio {
     return Math.max(0, position.shares - Math.min(position.shares, frozen));
   }
 
-  /** Total equity given a price lookup (suspended → its position is held at the carried price). */
+  /**
+   * 按给定价格查询计算现金加持仓市值；停牌资产的估值价格由调用方提供。
+   * Total equity given a price lookup (suspended → its position is held at the carried price).
+   */
   equity(priceOf: (code: string) => number | null): number {
     return this.cash + this.marketValue(priceOf);
   }
 
-  /** Gross long stock market value. */
+  /**
+   * 按价格查询汇总现金账户多头持仓市值。
+   * Gross long stock market value.
+   */
   marketValue(priceOf: (code: string) => number | null): number {
     let v = 0;
     for (const [code, p] of this.positions) {
@@ -69,6 +92,10 @@ export class CashPortfolio {
     return v;
   }
 
+  /**
+   * 计算股票或 ETF 买入费用，计入最低佣金及股票过户费。
+   * Compute cash buy fees with minimum commission and stock-only transfer fees.
+   */
   private buyFee(value: number, assetType: CashAssetType): number {
     return (
       Math.max(value * this.cost.commission, this.cost.minCommission) +
@@ -76,6 +103,10 @@ export class CashPortfolio {
     );
   }
 
+  /**
+   * 计算股票或 ETF 卖出费用，股票另计印花税与过户费。
+   * Compute cash sell fees with stock-only stamp duty and transfer fees.
+   */
   private sellFee(value: number, assetType: CashAssetType): number {
     return (
       Math.max(value * this.cost.commission, this.cost.minCommission) +
@@ -83,6 +114,10 @@ export class CashPortfolio {
     );
   }
 
+  /**
+   * 用二分搜索计算现金可覆盖的最大百股整手数量，同时计入买入费用。
+   * Binary-search affordable 100-share lots including buy-side fees; invalid price or adjustment inputs yield zero.
+   */
   private affordableRealShares(price: number, assetType: CashAssetType, adj: number): number {
     if (!Number.isFinite(price) || !Number.isFinite(adj) || price <= 0 || adj <= 0) {
       return 0;
@@ -102,10 +137,13 @@ export class CashPortfolio {
     return low * 100;
   }
 
-  /** Execute adjustedShareDelta (+buy / -sell) at adjustedPrice on date. adjustmentFactor is the day's
+  /**
+   * 按复权数量执行买卖并同步现金、费用、持仓及 T+1 冻结层；买入按实际股数向下取整手，卖出允许清理复权尾差。
+   * Execute adjustedShareDelta (+buy / -sell) at adjustedPrice on date. adjustmentFactor is the day's
    * adj_factor, used to enforce A-share whole-lot (100-share) sizing in REAL shares and to record the real
    * (unadjusted) price/shares the user sees. Buys floor to whole lots (deploy ≤ budget); sells clear the
-   * requested hfq amount as-is (so positions fully exit — no hfq dust from dividend drift over the hold). */
+   * requested hfq amount as-is (so positions fully exit — no hfq dust from dividend drift over the hold).
+   */
   fill(input: CashFill): void {
     const {
       code,

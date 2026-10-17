@@ -8,6 +8,10 @@ import type {
 
 import type { Series } from '../observations/cross-sectional/series.js';
 
+/**
+ * 统一可执行的因子来源形状，供组合计算准备。
+ * Unify executable factor sources used to prepare composite evaluation.
+ */
 export type FactorAnalysisRuntimeSource =
   | {
       kind: 'single';
@@ -43,14 +47,21 @@ export type FactorAnalysisRuntimeSource =
       }>;
     };
 
+/**
+ * 承载组件序列、方向与权重，供同日交集标准化组合。
+ * Supply component series, directions and weights for intersection-based composition.
+ */
 export interface CompositeSeriesInput {
   factor: string;
   series: Series;
 }
 
-/** Combine factor exposures date by date. Every component is standardized on the common stock
+/**
+ * 逐日按共同证券交集标准化各组件，再应用方向与权重组合截面因子。
+ * Combine factor exposures date by date. Every component is standardized on the common stock
  * intersection before directions and equal weights are applied, so missingness cannot silently give
- * different stocks different effective models. */
+ * different stocks different effective models.
+ */
 export function combineFactorSeries(
   inputs: CompositeSeriesInput[],
   definition: FactorCompositeDefinitionV1,
@@ -98,9 +109,12 @@ export function combineFactorSeries(
   return combined;
 }
 
-/** Combine asset-scope component observations on the exact date/asset intersection. Each component
+/**
+ * 按日期和资产精确交集组合组件，并按协议要求进行组内标准化。
+ * Combine asset-scope component observations on the exact date/asset intersection. Each component
  * is standardized within the common cross-asset panel before direction alignment and equal weighting.
- * Forward returns and volatility come from the shared market observation and must agree exactly. */
+ * Forward returns and volatility come from the shared market observation and must agree exactly.
+ */
 export function combinePanelFactorObservations(
   inputs: Array<{ factor: string; observations: PanelEvaluationObservation[] }>,
   definition: FactorPanelCompositeDefinitionV2,
@@ -187,6 +201,10 @@ function assertMatchingPanelTargets(
   }
 }
 
+/**
+ * 将数值转换为中心化排名分位，供组合因子消除尺度差异。
+ * Convert values to centered rank percentiles for scale-independent composition.
+ */
 function centeredRankPercentiles(values: number[]): number[] {
   const order = values
     .map((value, index) => ({ value, index }))

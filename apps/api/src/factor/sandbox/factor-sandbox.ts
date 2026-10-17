@@ -22,6 +22,11 @@ export class FactorSandbox<Kind extends ExecutableFactorKind> extends Sandbox<
   static start<Kind extends ExecutableFactorKind>(
     options: FactorStartOptions<Kind>,
   ): Promise<FactorSandboxInstance<Kind>>;
+
+  /**
+   * 创建因子会话后等待基类初始化，失败或取消时统一回收。
+   * Create and initialize a factor session with shared failure and cancellation cleanup.
+   */
   static start(options: FactorStartOptions): Promise<FactorSandboxInstance> {
     switch (options.analysisKind) {
       case 'cross_sectional':

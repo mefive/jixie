@@ -8,6 +8,10 @@ export const FINANCIAL_RESOLVER_VERSION = 1;
 
 export type FinancialStatementReportType = '1' | '4' | '5';
 
+/**
+ * 记录财务缺失、修订与计算限制，供 SDK 解释。
+ * Describe financial missing data, revisions and calculation limits.
+ */
 export interface FinancialDiagnostic {
   code: string;
   severity: 'info' | 'warning' | 'error';
@@ -17,6 +21,10 @@ export interface FinancialDiagnostic {
   metric?: string;
 }
 
+/**
+ * 保留财报版本与可得性证据，供历史状态追溯。
+ * Retain statement version and availability provenance.
+ */
 export interface FinancialStatementVersionMetadata {
   id: string;
   source: string;
@@ -33,6 +41,10 @@ export interface FinancialStatementVersionMetadata {
   sourceRowFingerprint: string;
 }
 
+/**
+ * 呈现历史时点选定的利润表版本及字段。
+ * Describe the income statement selected for an as-of date.
+ */
 export interface ResolvedIncomeStatement extends FinancialStatementVersionMetadata {
   statementKind: 'income';
   values: {
@@ -50,6 +62,10 @@ export interface ResolvedIncomeStatement extends FinancialStatementVersionMetada
   };
 }
 
+/**
+ * 呈现历史时点选定的资产负债表存量。
+ * Describe balance-sheet stocks selected for an as-of date.
+ */
 export interface ResolvedBalanceSheet extends FinancialStatementVersionMetadata {
   statementKind: 'balance_sheet';
   values: {
@@ -99,6 +115,10 @@ export interface ResolvedBalanceSheet extends FinancialStatementVersionMetadata 
   };
 }
 
+/**
+ * 呈现历史时点选定的现金流量表流量。
+ * Describe cash-flow statement flows selected for an as-of date.
+ */
 export interface ResolvedCashFlowStatement extends FinancialStatementVersionMetadata {
   statementKind: 'cash_flow';
   values: {
@@ -117,11 +137,19 @@ export interface ResolvedCashFlowStatement extends FinancialStatementVersionMeta
   };
 }
 
+/**
+ * 统一三张表的已解析版本，供财务状态组合。
+ * Unify resolved statement variants for financial-state assembly.
+ */
 export type ResolvedFinancialStatement =
   | ResolvedIncomeStatement
   | ResolvedBalanceSheet
   | ResolvedCashFlowStatement;
 
+/**
+ * 组合某报告期可见的三张表与诊断。
+ * Collect visible statements and diagnostics for one reporting period.
+ */
 export interface ResolvedFinancialPeriod {
   endDate: string;
   income: ResolvedIncomeStatement | null;
@@ -129,12 +157,20 @@ export interface ResolvedFinancialPeriod {
   cashFlow: ResolvedCashFlowStatement | null;
 }
 
+/**
+ * 提供财务状态对应的时点行情与估值。
+ * Supply dated prices and valuations accompanying financial state.
+ */
 export interface ResolvedFinancialMarketSnapshot {
   tradeDate: string;
   marketCapitalization: number | null;
   sourceIdentity: string;
 }
 
+/**
+ * 汇总某证券某历史日可得的报表、行情和诊断。
+ * Collect an instrument's as-of statements, market snapshot and diagnostics.
+ */
 export interface ResolvedFinancialState {
   resolverVersion: number;
   tsCode: string;
@@ -147,6 +183,10 @@ export interface ResolvedFinancialState {
   diagnostics: FinancialDiagnostic[];
 }
 
+/**
+ * 按证券索引批量行情快照，避免逐股重复读取。
+ * Index batched market snapshots by instrument to avoid repeated reads.
+ */
 export interface BatchFinancialMarketSnapshot extends ResolvedFinancialMarketSnapshot {
   tsCode: string;
 }
@@ -172,7 +212,10 @@ const QUALITY_PRIORITY: Record<FinancialAvailabilityQuality, number> = {
   reconstructed: 0,
 };
 
-/** Resolve the independently versioned statements that were usable on a historical date. */
+/**
+ * 独立解析三张表在历史日期可用的版本，避免跨版本拼接造成未来信息。
+ * Resolve the independently versioned statements that were usable on a historical date.
+ */
 export async function resolveFinancialState(
   input: { tsCode: string; asOfDate: string; purpose?: 'metrics' | 'statements' },
   database: FinancialResolverDatabase = prisma,
@@ -224,7 +267,10 @@ export async function resolveFinancialState(
   });
 }
 
-/** Resolve a bounded stock set with four database queries instead of one query sequence per stock. */
+/**
+ * 以四次批量查询解析有界股票集合，避免逐证券重复查询。
+ * Resolve a bounded stock set with four database queries instead of one query sequence per stock.
+ */
 export async function resolveFinancialStates(
   input: {
     tsCodes: readonly string[];
@@ -297,6 +343,10 @@ export async function resolveFinancialStates(
   );
 }
 
+/**
+ * 组合指定时点可见的报表版本、市场快照和诊断，形成研究财务状态。
+ * Build an as-of financial state from visible statement versions, market snapshots and diagnostics.
+ */
 function buildFinancialState(input: {
   purpose?: 'metrics' | 'statements';
   tsCode: string;
@@ -351,6 +401,10 @@ function buildFinancialState(input: {
   };
 }
 
+/**
+ * 按公告、可得日期和版本规则选择各报表最新可用来源。
+ * Select each statement's latest usable source under announcement, availability and version rules.
+ */
 export function selectLatestStatementVersions<Statement extends ResolvedFinancialStatement>(
   rows: readonly Statement[],
   diagnostics: FinancialDiagnostic[] = [],
@@ -464,6 +518,10 @@ function statementValuesFingerprint(row: ResolvedFinancialStatement): string {
   return createHash('sha256').update(JSON.stringify(row.values)).digest('hex');
 }
 
+/**
+ * 提取三张表共用的来源与可得性元数据，供状态响应一致追溯。
+ * Extract shared statement provenance and availability metadata for consistent state responses.
+ */
 function commonMetadata(
   row: {
     id: string;
@@ -528,6 +586,10 @@ function mapIncome(
   };
 }
 
+/**
+ * 将资产负债表原始字段映射为已解析状态，保持存量口径。
+ * Map balance-sheet source fields into resolved financial state without changing stock semantics.
+ */
 function mapBalance(
   row: Awaited<ReturnType<FinancialResolverDatabase['financialBalanceSheet']['findMany']>>[number],
 ): ResolvedBalanceSheet {

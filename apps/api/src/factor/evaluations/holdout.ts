@@ -19,6 +19,10 @@ import { reportCompatibilityColumns, reportResearchSpec } from './report-spec.js
 import { parseReportPayload, parseResearchPayload, reportSummary } from './report-views.js';
 import { parseResearchIntent } from './research-policy.js';
 
+/**
+ * 验证准入后冻结独立保留段任务，不提前揭示正式结果。
+ * Freeze an eligible holdout evaluation without prematurely revealing its result.
+ */
 export async function submitFactorHoldout(userId: string, parentReportId: string, locale: Locale) {
   const parent = await prisma.factorReport
     .findFirst({ include: { job: true }, where: { id: parentReportId, userId } })
@@ -189,6 +193,10 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
   return response;
 }
 
+/**
+ * 按保留段状态与授权揭示冻结结果，并记录揭示行为。
+ * Reveal an authorized frozen holdout result and record the reveal transition.
+ */
 export async function revealFactorHoldout(userId: string, reportId: string) {
   const report = await prisma.factorReport
     .findFirst({ include: { job: true }, where: { id: reportId, userId } })

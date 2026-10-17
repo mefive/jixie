@@ -13,6 +13,10 @@ import { timeSeriesAggregateMetrics } from '@jixie/shared';
 import { reportResearchSpec } from './report-spec.js';
 import { parseResearchIntent } from './research-policy.js';
 
+/**
+ * 提取报告摘要并屏蔽不应公开的保留段结果。
+ * Build report summary metadata without exposing sealed holdout results.
+ */
 export function reportSummary(
   row: FactorReportRow & { status: string; error: string | null } & { job?: { id: string } | null },
 ): FactorReportSummary {
@@ -61,6 +65,10 @@ export function reportSummary(
   };
 }
 
+/**
+ * 将报告与任务状态映射为对外可读状态。
+ * Map report and job state into the public report status.
+ */
 function reportStatus(status: string): FactorReportStatus {
   switch (status) {
     case 'running':
@@ -83,6 +91,10 @@ export function parseReportPayload(payload: string | null): FactorAnalysisPayloa
   }
 }
 
+/**
+ * 校验持久化研究 payload，拒绝无法解释的历史数据形状。
+ * Validate a persisted research payload before interpreting its contents.
+ */
 export function parseResearchPayload(
   payload: string | null,
   researchSpec: FactorResearchSpecV1,

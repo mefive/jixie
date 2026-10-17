@@ -7,6 +7,10 @@ import { useTranslation } from 'react-i18next';
 import i18n from '@src/i18n';
 import './research-clarification-card.css';
 
+/**
+ * 绑定澄清卡片、用户选择及提交回调。
+ * Bind clarification content, user selections and submission callbacks.
+ */
 interface ResearchClarificationCardProps {
   clarification: ResearchClarificationV1;
   busy: boolean;
@@ -16,6 +20,10 @@ interface ResearchClarificationCardProps {
   ) => Promise<void>;
 }
 
+/**
+ * 展示持久澄清问题与合法候选，保存用户确认选择。
+ * Present durable clarification questions and allowed options and save confirmed selections.
+ */
 export default function ResearchClarificationCard({
   clarification,
   busy,
@@ -155,6 +163,10 @@ export default function ResearchClarificationCard({
   );
 }
 
+/**
+ * 展示澄清候选的语义和稳定数据身份，供用户区分。
+ * Present clarification option semantics and stable data identity.
+ */
 function OptionCopy({
   option,
 }: {

@@ -31,7 +31,10 @@ const argsSchema = z.strictObject({
   questions: z.array(questionSchema).min(1).max(3),
 });
 
-/** Build one durable, catalog-backed user clarification card for the current Research turn. */
+/**
+ * 构造持久化的用户澄清卡片，候选项必须可追溯到研究目录。
+ * Build one durable, catalog-backed user clarification card for the current Research turn.
+ */
 export function createRequestResearchClarificationTool(args: {
   documentId: string;
   catalogEvidence: ResearchCatalogTurnEvidence;
@@ -42,6 +45,11 @@ export function createRequestResearchClarificationTool(args: {
     description:
       'Ask the user one to three structured Research questions and end this turn without proposing Python. Use this after searchResearchCatalog reports choice_required or no_exact_match, or when a material Concept dimension remains ambiguous. Every option must reference an exact canonical conceptId, an audited bindingId returned with sdkAccess.status=ready, or keep_gap. Never invent an option or use a fuzzy match as a substitute. The rendered card lets the user select an option or enter custom text; their durable answer starts a new Agent turn.',
     parameters: z.toJSONSchema(argsSchema),
+
+    /**
+     * 校验澄清问题及其候选引用，并创建当前研究轮次的澄清产物。
+     * Validate a clarification question and its references, then persist the turn's clarification artifact.
+     */
     async run(input) {
       if (clarificationCreated) {
         throw new Error('Only one Research clarification is allowed per Agent turn.');
@@ -129,6 +137,10 @@ export function createRequestResearchClarificationTool(args: {
   };
 }
 
+/**
+ * 将目录候选整理为可供用户选择的澄清选项。
+ * Convert a catalog candidate into a user-selectable clarification option.
+ */
 function clarificationOption(
   option: z.infer<typeof optionSchema>,
   bindingById: Map<string, ResearchConceptBindingV1>,
@@ -171,6 +183,10 @@ function clarificationOption(
   }
 }
 
+/**
+ * 解析澄清选项对应的稳定目录引用，供选择结果追溯。
+ * Resolve the stable catalog reference associated with a clarification option.
+ */
 function optionReference(option: z.infer<typeof optionSchema>): string {
   switch (option.kind) {
     case 'concept':

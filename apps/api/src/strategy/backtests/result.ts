@@ -1,7 +1,10 @@
 import type { FactorDependency } from '@jixie/shared';
 import type { BacktestingResult } from '#backtesting/result.js';
 
-/** One executed fill — the trade log unit (returned with the result; plotted + listed in the UI). */
+/**
+ * 表示一次已执行成交，作为持久化回测日志与图表单位。
+ * One executed fill — the trade log unit (returned with the result; plotted + listed in the UI).
+ */
 export interface BacktestTrade {
   date: string; // fill date (next open after the order)
   code: string;
@@ -19,7 +22,10 @@ export interface BacktestTrade {
   multiplier?: number; // CNY per index point
 }
 
-/** Persisted report contract; legacy optional trade fields remain readable here. */
+/**
+ * 定义持久化回测结果，并保留历史成交可选字段的读取兼容性。
+ * Persisted report contract; legacy optional trade fields remain readable here.
+ */
 export interface BacktestResult extends Omit<BacktestingResult, 'tradeLog'> {
   tradeLog: BacktestTrade[];
   factorDependencies?: FactorDependency[];

@@ -2,11 +2,19 @@ import { median } from '#math/stats.js';
 import { appendDateList, formatNumber } from './format.js';
 import type { AuditFinding, AuditStatus } from './report.js';
 
+/**
+ * 记录单日期行数，供稠密覆盖检查。
+ * Supply date counts for dense-coverage checks.
+ */
 export interface DateCount {
   tradeDate: string;
   count: number;
 }
 
+/**
+ * 对比预期交易日与实际数据，定位缺失和多余日期。
+ * Describe expected and observed dates for calendar coverage analysis.
+ */
 export interface CalendarCoverage {
   observedStart: string | null;
   observedEnd: string | null;
@@ -19,6 +27,10 @@ export interface CalendarCoverage {
   maximumRows: number;
 }
 
+/**
+ * 按交易日历检查数据日期覆盖，区分缺口与合法休市。
+ * Analyze stored dates against the trading calendar to distinguish gaps from closed days.
+ */
 export function analyzeCalendarCoverage(
   openDates: string[],
   dateCounts: DateCount[],
@@ -60,6 +72,10 @@ export function analyzeCalendarCoverage(
   };
 }
 
+/**
+ * 识别相邻日期记录量骤降，供稠密数据质量预警。
+ * Detect sharp dated row-count drops in dense datasets.
+ */
 export function findSharpRowCountDrops(
   dateCounts: DateCount[],
   lookback = 20,
@@ -81,6 +97,10 @@ export function findSharpRowCountDrops(
   return drops;
 }
 
+/**
+ * 将稠密数据集覆盖检查转换为统一审计发现。
+ * Convert dense dataset coverage checks into a standardized audit finding.
+ */
 export function buildDenseCoverageFinding(
   id: string,
   title: string,

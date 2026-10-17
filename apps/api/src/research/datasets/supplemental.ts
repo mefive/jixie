@@ -3,19 +3,30 @@ import { buildMarketStatePoints } from '#market/state/compute.js';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
 
+/**
+ * 指定带日期稳定对象标识的数据查询。
+ * Request dated data for a stable governed identifier.
+ */
 export interface ResearchDatedIdentifierRequestV1 {
   identifier: string;
   start: string;
   end: string;
 }
 
+/**
+ * 指定描述性市场状态范围及指标。
+ * Request descriptive market-state scope and measures.
+ */
 export interface ResearchMarketStateRequestV1 {
   scope: ResearchMarketStateScopeV1;
   start: string;
   end: string;
 }
 
-/** Load the full descriptive market-state series with enough history for activity warm-up. */
+/**
+ * 读取描述性市场状态并预留活跃度计算预热历史。
+ * Load the full descriptive market-state series with enough history for activity warm-up.
+ */
 export async function loadResearchMarketState(request: ResearchMarketStateRequestV1) {
   const warmStart = addDays(request.start, -45);
   const rows =
@@ -50,7 +61,10 @@ export async function loadResearchMarketState(request: ResearchMarketStateReques
     }));
 }
 
-/** Load financial indicators only from their announcement date onward. */
+/**
+ * 财务指标只从其公告日期起进入研究可见范围。
+ * Load financial indicators only from their announcement date onward.
+ */
 export async function loadResearchEquityFundamentals(request: ResearchDatedIdentifierRequestV1) {
   const rows = await prisma.finaIndicator.findMany({
     where: {
@@ -74,7 +88,10 @@ export async function loadResearchEquityFundamentals(request: ResearchDatedIdent
   }));
 }
 
-/** Join exact-date money flow and Dragon-Tiger List events without carrying either series forward. */
+/**
+ * 只连接同日资金流与龙虎榜，不将任一事件序列前值结转。
+ * Join exact-date money flow and Dragon-Tiger List events without carrying either series forward.
+ */
 export async function loadResearchEquityFlows(request: ResearchDatedIdentifierRequestV1) {
   const [moneyflow, topList] = await Promise.all([
     prisma.moneyflow.findMany({
@@ -121,7 +138,10 @@ export async function loadResearchEquityFlows(request: ResearchDatedIdentifierRe
     .map(([date, row]) => ({ date, ...row }));
 }
 
-/** Load only implemented distributions, using the ex-date as the availability gate. */
+/**
+ * 仅读取已实施分红，以除权日为可得性边界。
+ * Load only implemented distributions, using the ex-date as the availability gate.
+ */
 export async function loadResearchEquityDividends(request: ResearchDatedIdentifierRequestV1) {
   const rows = await prisma.dividend.findMany({
     where: {

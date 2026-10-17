@@ -32,6 +32,10 @@ import {
   type FinancialStatementSourceRow,
 } from './source-contract.js';
 
+/**
+ * 汇总三张表同步新增与修订，供维护记录。
+ * Summarize statement additions and revisions for maintenance records.
+ */
 export interface FinancialStatementSyncSummary {
   requested: number;
   skipped: number;
@@ -42,12 +46,20 @@ export interface FinancialStatementSyncSummary {
   deleted: number;
 }
 
+/**
+ * 配置单证券财报修复的公告日期窗口。
+ * Configure announcement windows for per-stock statement repair.
+ */
 export interface FinancialStatementStockSyncOptions {
   startDate: string;
   endDate: string;
   onCodeComplete?: (code: string) => Promise<void> | void;
 }
 
+/**
+ * 保存财报更正证据并关联来源身份，供历史可得日期解析。
+ * Persist statement correction evidence for historical availability resolution.
+ */
 export async function storeFinancialCorrectionEvidence(
   evidence: readonly FinancialCorrectionEvidence[],
   observedAt = new Date(),
@@ -117,12 +129,20 @@ export async function storeFinancialCorrectionEvidence(
   return evidence.length;
 }
 
+/**
+ * 组合单次获取的三张表来源，供原子持久化。
+ * Collect fetched statement sources for atomic persistence.
+ */
 interface FinancialStatementBatch {
   income: IncomeStatementRow[];
   balanceSheet: BalanceSheetRow[];
   cashFlow: CashFlowStatementRow[];
 }
 
+/**
+ * 记录已持久化新增、重复与修订结果。
+ * Describe persisted statement additions, duplicates and revisions.
+ */
 interface PersistedFinancialStatementChanges {
   created: number;
   changedCodes: Set<string>;
@@ -149,6 +169,7 @@ const FINANCIAL_REPORT_TYPES: readonly FinancialStatementReportType[] = ['1', '4
 const DATABASE_BATCH_SIZE = 250;
 
 /**
+ * 按报告期显式请求各报告类型，回填三张追加式来源表。
  * Backfills the three append-only statement tables by report period. Each report type is requested
  * explicitly because Tushare's default response omits adjusted comparative versions.
  */
@@ -178,6 +199,7 @@ export async function syncFinancialStatementsVip(
 }
 
 /**
+ * 按有界公告日窗口修复指定证券，避免标准接口全历史查询截断。
  * Repairs selected stocks through bounded announcement-date windows. A full-history standard API
  * call can stop at the provider row cap, so this path never requests an unbounded history.
  */
@@ -224,6 +246,10 @@ export async function syncFinancialStatementsByStock(
   return summary;
 }
 
+/**
+ * 按公告日拆分财报请求窗口，限制单次来源返回规模。
+ * Partition announcement dates into bounded financial statement request windows.
+ */
 export function financialStatementDateWindows(
   startDate: string,
   endDate: string,
@@ -265,6 +291,10 @@ async function fetchFinancialStatementPeriod(
   return batch;
 }
 
+/**
+ * 获取单证券单公告窗口的三张表来源，供版本化合并。
+ * Fetch one instrument's statement window for versioned source merging.
+ */
 async function fetchFinancialStatementStockWindow(
   client: TushareClient,
   tsCode: TsCode,
@@ -294,6 +324,10 @@ async function fetchFinancialStatementStockWindow(
   return batch;
 }
 
+/**
+ * 原子持久化一批报表及其修订变化，供后续 PIT 解析。
+ * Persist a statement batch and its revisions atomically for PIT resolution.
+ */
 async function persistFinancialStatementBatch(
   batch: FinancialStatementBatch,
   database: FinancialStatementDatabase,
@@ -326,6 +360,11 @@ async function persistFinancialStatementBatch(
     rdExp: numberValue(row.values.rd_exp, 'rd_exp'),
     finExpIntExp: numberValue(row.values.fin_exp_int_exp, 'fin_exp_int_exp'),
   }));
+
+  /**
+   * 将资产负债表来源科目和公共版本元数据映射为存储行。
+   * Map balance-sheet source fields and shared version metadata to storage rows.
+   */
   const balanceData = normalized.balanceSheet.map((row) => ({
     ...commonStatementData(row, normalized.balanceSheet, nextOpenDate, evidence),
     moneyCap: numberValue(row.values.money_cap, 'money_cap'),
@@ -430,6 +469,10 @@ async function persistFinancialStatementBatch(
   };
 }
 
+/**
+ * 校验并规范化三张表来源行，供版本指纹和存储映射。
+ * Validate and normalize statement source rows for fingerprints and persistence.
+ */
 function normalizeRows(
   statementKind: FinancialStatementKind,
   rows: Array<IncomeStatementRow | BalanceSheetRow | CashFlowStatementRow>,
@@ -453,6 +496,10 @@ function normalizeRows(
   return [...byFingerprint.values()];
 }
 
+/**
+ * 统一映射报表来源元数据，供三张表持久化保持相同版本语义。
+ * Map common statement provenance into consistent versioned persistence fields.
+ */
 function commonStatementData(
   row: FinancialStatementSourceRow,
   siblings: FinancialStatementSourceRow[],
@@ -481,6 +528,10 @@ function commonStatementData(
   };
 }
 
+/**
+ * 读取披露可得性计算所需交易日历，供下一交易日映射。
+ * Load trading sessions required to map statement release availability.
+ */
 async function loadTradingSessions(
   rows: FinancialStatementSourceRow[],
   database: FinancialStatementDatabase,
@@ -507,6 +558,10 @@ async function loadTradingSessions(
   return sessions.map((session) => session.calDate);
 }
 
+/**
+ * 读取报表更正证据，供来源行解析历史修订日期。
+ * Load correction evidence used to date historical statement revisions.
+ */
 async function loadCorrectionEvidence(
   rows: FinancialStatementSourceRow[],
   database: FinancialStatementDatabase,
@@ -538,6 +593,10 @@ async function loadCorrectionEvidence(
   }));
 }
 
+/**
+ * 将来源行按追加式规则入库并汇总新增、重复与修订。
+ * Append source rows and summarize new, duplicate and revised observations.
+ */
 async function appendRows<Row extends { sourceRowFingerprint: string; tsCode: string }>(
   rows: Row[],
   findExisting: (fingerprints: string[]) => Promise<Array<{ sourceRowFingerprint: string }>>,
@@ -570,6 +629,10 @@ async function attachEvidenceToUnambiguousVersion(
   return true;
 }
 
+/**
+ * 要求来源响应符合请求的证券、期间与类型。
+ * Require source rows to match requested instruments, periods and types.
+ */
 function assertExpectedRows(
   rows: Array<IncomeStatementRow | BalanceSheetRow | CashFlowStatementRow>,
   period: string | undefined,
@@ -588,6 +651,10 @@ function emptyFinancialStatementSyncSummary(requested: number): FinancialStateme
   return { requested, skipped: 0, processed: 0, changed: 0, created: 0, updated: 0, deleted: 0 };
 }
 
+/**
+ * 二分选择严格晚于披露日的首个交易日，供可得性映射。
+ * Find the first trading date strictly after release for availability mapping.
+ */
 function nextStrictlyLaterDate(sortedDates: string[], target: string): string | undefined {
   let low = 0;
   let high = sortedDates.length;

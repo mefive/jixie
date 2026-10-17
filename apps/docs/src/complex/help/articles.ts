@@ -215,6 +215,10 @@ export const HELP_GROUPS = [
 ] as const;
 export type HelpGroup = (typeof HELP_GROUPS)[number];
 
+/**
+ * 定义帮助文章的身份、路径与双语内容，供目录和正文导航。
+ * Describe help article identity, path and bilingual content for navigation.
+ */
 export type HelpArticle = {
   slug: string;
   group: HelpGroup;

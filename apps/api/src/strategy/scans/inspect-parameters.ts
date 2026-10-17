@@ -2,7 +2,10 @@ import type { StrategyParamValue } from '@jixie/shared';
 import ts from 'typescript';
 import { StrategyError } from '../errors.js';
 
-/** Read scan defaults without loading the strategy runtime or evaluating any source expression. */
+/**
+ * 静态读取扫描默认值，不加载运行时或执行用户源码表达式。
+ * Read scan defaults without loading the strategy runtime or evaluating any source expression.
+ */
 export async function inspectStrategyParameters(
   code: string,
 ): Promise<Record<string, StrategyParamValue>> {
@@ -190,6 +193,10 @@ export async function inspectStrategyParameters(
     return checker.getSymbolAtLocation(identifier);
   }
 
+  /**
+   * 构造包含源码位置的扫描参数诊断，供静态读取失败解释。
+   * Build a source-positioned diagnostic for invalid scan parameter declarations.
+   */
   function invalid(node: ts.Node, field: string, position = node.getStart(source)): StrategyError {
     const { line, character } = source.getLineAndCharacterOfPosition(position);
     return new StrategyError('strategy_scan_params_not_static', {

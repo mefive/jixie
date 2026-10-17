@@ -7,6 +7,8 @@ if TYPE_CHECKING:
 
 
 # Structural inputs keep author helpers independent of the sandbox runtime.
+# 声明现金作者 SDK 需要的读取和订单原始能力。
+# English: Declare cash-account reads and order primitives required by the author SDK.
 class StrategyStockCapabilities(Protocol):
     @property
     def equity(self) -> float: ...
@@ -28,6 +30,8 @@ class StrategyStockCapabilities(Protocol):
     def cancel_conditional(self, code: str, kind: str | None = None) -> None: ...
 
 
+# 声明策略作者 SDK 的行情、因子与账户能力。
+# English: Declare market, factor and account capabilities required by the strategy SDK.
 class StrategyCapabilities(Protocol):
     @property
     def portfolio(self) -> AttrDict: ...

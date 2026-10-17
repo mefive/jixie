@@ -90,6 +90,10 @@ export async function createReplayData(
   return data;
 }
 
+/**
+ * 加载信号执行日的股票与期货市场输入，供账户计算使用。
+ * Load cash and futures market inputs for signal-day accounting.
+ */
 export async function loadSignalMarketInput(
   deploymentId: string,
   date: string,
@@ -148,6 +152,10 @@ export async function loadSignalMarketInput(
   return input;
 }
 
+/**
+ * 将本次执行使用的市场数据冻结为可持久化输入，供后续重放复现。
+ * Freeze the market input used by an execution so subsequent replay is reproducible.
+ */
 export async function freezeSignalMarketInput(deploymentId: string, input: SignalMarketInput) {
   const saved = await prisma.signalAccountMarketInput.findFirst({
     where: { deploymentId, tradeDate: input.date },
@@ -178,6 +186,10 @@ export async function freezeSignalMarketInput(deploymentId: string, input: Signa
   }
 }
 
+/**
+ * 校验冻结期货行情的身份、日期和数值，供账本重放安全读取。
+ * Validate identities, dates and numeric fields in frozen futures market input.
+ */
 function validateFutureInput(
   input: SignalMarketInput,
   futureCodes: string[],

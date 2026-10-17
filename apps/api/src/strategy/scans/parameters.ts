@@ -4,6 +4,10 @@ import { StrategyError } from '../errors.js';
 
 import type { StrategyScanParametersInput } from '@jixie/shared/api/strategy';
 
+/**
+ * 检查策略可扫描参数与默认值，供扫描表单及提交校验。
+ * Inspect scan parameters and defaults for forms and submission validation.
+ */
 export async function inspectStrategyScanParameters(input: StrategyScanParametersInput) {
   const body = input;
 

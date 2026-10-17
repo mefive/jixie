@@ -13,9 +13,13 @@ from .environment import _environment, _optional_modules
 from .outputs import _figure_numbers, _outputs
 
 
+# 持有文档命名空间与 Cell 执行状态，负责分析、重置和执行命令。
+# English: Own document namespace and cell state for analysis, reset and execution commands.
 class ResearchRunner:
     """One instance owns one sandbox session and all state shared across its cells."""
 
+    # 绑定宿主读写并初始化文档级命名空间状态。
+    # English: Bind host communication and initialize document namespace state.
     def __init__(
         self,
         read_frame: Callable[[], dict[str, Any]],
@@ -33,6 +37,8 @@ class ResearchRunner:
         self._namespace: dict[str, Any]
         self._definitions_by_cell: dict[str, set[str]] = {}
 
+    # 分派执行、分析、重置与关闭命令，拒绝未知研究帧。
+    # English: Dispatch execute, analyze, reset and close commands and reject unknown research frames.
     def handle(self, frame: dict[str, Any]) -> bool:
         match frame.get("type"):
             case "research_execute":
@@ -49,6 +55,8 @@ class ResearchRunner:
             case _:
                 raise ValueError(f"unexpected research sandbox message: {frame.get('type')}")
 
+    # 建立干净研究环境和 SDK 绑定，返回运行版本握手。
+    # English: Create a clean research environment and SDK binding and return runtime handshake metadata.
     def start(self, config: dict[str, Any]) -> None:
         if config.get("runtime_version") != "research-py-v1":
             raise ValueError("research runtime requires research-py-v1")
@@ -64,6 +72,8 @@ class ResearchRunner:
 
         self._send_frame(ready)
 
+    # 在当前命名空间执行单 Cell，收集输出、异常及依赖信息。
+    # English: Execute one cell in the current namespace and collect output, failures and dependencies.
     def _execute(self, frame: dict[str, Any]) -> None:
         cell_id = str(frame.get("cell_id", ""))
         source = str(frame.get("source", ""))
@@ -118,6 +128,8 @@ class ResearchRunner:
                 }
             )
 
+    # 创建受限全局命名空间并注入研究 SDK 与允许模块。
+    # English: Create a restricted namespace with the Research SDK and allowed modules.
     def _new_namespace(self) -> dict[str, Any]:
         capabilities = self._adapter.bind(self._adapter_input)
 
@@ -132,6 +144,8 @@ class ResearchRunner:
 
         return namespace
 
+    # 对一组 Cell 做静态名字与 SDK 引用分析，返回依赖信息。
+    # English: Analyze cell names and SDK references to return dependency information.
     def _analyze(self, cells: list[dict[str, Any]]) -> None:
         analyses = []
         for cell in cells:
@@ -174,6 +188,8 @@ def run_research(
     receive_commands(runner.handle)
 
 
+# 执行 AST 编译后的 Cell 代码并捕获最后表达式，供结果展示。
+# English: Execute compiled cell code and capture its final expression for display.
 def _execute(source: str, namespace: dict[str, Any]) -> Any:
     tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     if not tree.body or not isinstance(tree.body[-1], ast.Expr):

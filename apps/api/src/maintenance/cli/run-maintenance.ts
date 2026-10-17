@@ -6,8 +6,16 @@ import { runDailyMaintenance } from '../workflows/daily.js';
 import { runRepairMaintenance } from '../workflows/repair.js';
 import { runWeeklyMaintenance } from '../workflows/weekly.js';
 
+/**
+ * 区分维护 CLI 的日更、修复等命令，供入口分派。
+ * Identify maintenance CLI commands for entry-point dispatch.
+ */
 type MaintenanceCommand = 'daily' | 'weekly' | 'repair' | 'baseline';
 
+/**
+ * 解析维护命令、执行对应工作流并负责进程与数据库收尾。
+ * Parse and dispatch maintenance commands and close process and database resources.
+ */
 async function main(): Promise<void> {
   const [firstArgument, ...remainingArguments] = process.argv.slice(2);
   const command = maintenanceCommand(firstArgument);
@@ -30,6 +38,10 @@ async function main(): Promise<void> {
   }
 }
 
+/**
+ * 解析维护子命令并校验支持范围。
+ * Resolve and validate a maintenance subcommand.
+ */
 function maintenanceCommand(argument: string | undefined): MaintenanceCommand {
   if (!argument || argument === 'daily' || argument.startsWith('--') || /^\d{8}$/.test(argument)) {
     return 'daily';
@@ -53,6 +65,10 @@ async function recoverInterruptedRuns(
   }
 }
 
+/**
+ * 组合日更参数并执行维护，向 CLI 输出本轮进度和结果。
+ * Prepare and run daily maintenance and report progress and results to the CLI.
+ */
 async function runDaily(args: string[]): Promise<void> {
   const force = args.includes('--force');
   const resumeOnly = args.includes('--resume-only');

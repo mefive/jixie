@@ -22,7 +22,10 @@ function isStockIndexFuture(productCode: string): boolean {
   return STOCK_INDEX_FUTURE_PRODUCTS.has(productCode.toUpperCase());
 }
 
-/** Refresh the complete metadata list of actual CFFEX stock-index futures contracts. */
+/**
+ * 刷新全部实际中金所股指期货合约元数据。
+ * Refresh the complete metadata list of actual CFFEX stock-index futures contracts.
+ */
 export async function syncFutureContracts(client: TushareClient): Promise<number> {
   const rows = (await futureContracts(client, { exchange: 'CFFEX', fut_type: '1' })).filter((row) =>
     isStockIndexFuture(row.fut_code),
@@ -35,8 +38,11 @@ export async function syncFutureContracts(client: TushareClient): Promise<number
   return rows.length;
 }
 
-/** Refresh the configured research-only commodity delivery-month contracts without touching the
- * stock-index contracts that are enabled by the trading engine. */
+/**
+ * 只刷新已配置商品实际合约，不修改股指期货数据。
+ * Refresh the configured research-only commodity delivery-month contracts without touching the
+ * stock-index contracts that are enabled by the trading engine.
+ */
 export async function syncCommodityFutureContracts(client: TushareClient): Promise<number> {
   const exchangeRows: FutureContractRow[] = [];
   for (const exchange of COMMODITY_FUTURE_EXCHANGES) {
@@ -48,8 +54,11 @@ export async function syncCommodityFutureContracts(client: TushareClient): Promi
   return rows.length;
 }
 
-/** Sync actual-contract daily bars. Fetching by contract keeps a full-history load to a few hundred
- * calls instead of one call per trading day across the whole CFFEX market. */
+/**
+ * 按实际合约同步日线，降低完整历史读取的请求次数。
+ * Sync actual-contract daily bars. Fetching by contract keeps a full-history load to a few hundred
+ * calls instead of one call per trading day across the whole CFFEX market.
+ */
 export async function syncFutureDaily(
   client: TushareClient,
   start: TradeDate,
@@ -64,8 +73,11 @@ export async function syncFutureDaily(
   );
 }
 
-/** Sync raw settlements for configured commodity contracts. This does not create a tradable
- * continuous series and does not enable commodity order execution. */
+/**
+ * 同步已配置商品的原始结算价，不生成可交易连续价格。
+ * Sync raw settlements for configured commodity contracts. This does not create a tradable
+ * continuous series and does not enable commodity order execution.
+ */
 export async function syncCommodityFutureDaily(
   client: TushareClient,
   start: TradeDate,
@@ -80,6 +92,10 @@ export async function syncCommodityFutureDaily(
   );
 }
 
+/**
+ * 按指定产品集共同同步期货实际合约日线，供各资产入口复用。
+ * Synchronize actual-contract daily bars for a declared futures product set.
+ */
 async function syncFutureDailyForProducts(
   client: TushareClient,
   start: TradeDate,
@@ -131,7 +147,10 @@ async function syncFutureDailyForProducts(
   return totalRows;
 }
 
-/** Sync vendor main-contract mappings for all four stock-index futures products. */
+/**
+ * 同步四类股指期货的供应商主力合约映射。
+ * Sync vendor main-contract mappings for all four stock-index futures products.
+ */
 export async function syncFutureMappings(
   client: TushareClient,
   start: TradeDate,
@@ -163,7 +182,10 @@ export async function syncFutureMappings(
   return totalRows;
 }
 
-/** Sync historical exchange fee and margin parameters for actual contracts. */
+/**
+ * 同步实际交割合约的历史交易所费率及保证金参数。
+ * Sync historical exchange fee and margin parameters for actual contracts.
+ */
 export async function syncFutureSettlements(
   client: TushareClient,
   start: TradeDate,
@@ -235,6 +257,10 @@ async function overlappingFutureContracts(
   return contracts;
 }
 
+/**
+ * 在完整来源校验后替换目标产品的合约元数据，避免误删其他产品。
+ * Replace validated contract metadata only within the requested products.
+ */
 async function replaceFutureContracts(
   productCodes: readonly string[],
   rows: Awaited<ReturnType<typeof futureContracts>>,

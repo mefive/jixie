@@ -8,22 +8,30 @@ from ...sdk.capabilities import StrategyCapabilities, StrategyStockCapabilities
 from ...sdk.python import AttrDict, _objects
 
 
+# 约束策略适配器的宿主读取与同步命令入口。
+# English: Define strategy adapter host reads and synchronous commands.
 class StrategyAdapterAccess(TypedDict):
     request: Callable[[str, dict[str, Any]], dict[str, Any]]
 
 
+# 冻结策略当前可见现金账户数值和持仓。
+# English: Describe cash account values and holdings visible to the current decision.
 class StrategyStockSnapshot(TypedDict):
     equity: float
     availableCash: float
     positions: list[dict[str, Any]]
 
 
+# 冻结策略当前可见期货账户与保证金。
+# English: Describe futures account and margin visible to the current decision.
 class StrategyFuturesSnapshot(TypedDict):
     equity: float
     availableCash: float
     margin: float
 
 
+# 绑定决策快照、历史更新和宿主访问能力。
+# English: Supply decision snapshots, history updates and host capabilities.
 class StrategyAdapterInput(TypedDict):
     date: str
     portfolio: dict[str, float]
@@ -32,6 +40,8 @@ class StrategyAdapterInput(TypedDict):
     bar_updates: NotRequired[dict[str, dict[str, Any]]]
 
 
+# 将本轮策略输入绑定为 SDK 原始能力。
+# English: Bind current strategy input to SDK primitives.
 class StrategyAdapter(SdkAdapter[StrategyAdapterInput, StrategyCapabilities]):
     """One session owns the cache; each binding owns its snapshot and visible cross-section."""
 
@@ -39,6 +49,8 @@ class StrategyAdapter(SdkAdapter[StrategyAdapterInput, StrategyCapabilities]):
         self._input = input
         self._bars: dict[str, list[AttrDict]] = {}
 
+    # 将决策输入与会话共享状态绑定为策略能力。
+    # English: Bind decision inputs and shared session state to strategy capabilities.
     def bind(self, input: StrategyAdapterInput) -> BoundStrategyCapabilities:
         snapshot = _objects(input)
 
@@ -51,6 +63,8 @@ class StrategyAdapter(SdkAdapter[StrategyAdapterInput, StrategyCapabilities]):
         return BoundStrategyCapabilities(snapshot, self._bars, self._input["request"])
 
 
+# 提供现金账户原始读写，每条命令等待宿主同步确认。
+# English: Expose cash-account primitives with synchronous host acknowledgement per command.
 class BoundStockAccountCapabilities(StrategyStockCapabilities):
     def __init__(
         self,
@@ -117,7 +131,11 @@ class BoundStockAccountCapabilities(StrategyStockCapabilities):
         self._emit_command(operation, arguments)
 
 
+# 提供策略行情与历史原始能力，保留会话增量缓存。
+# English: Expose strategy market and history primitives with incremental session caches.
 class BoundStrategyCapabilities(StrategyCapabilities):
+    # 连接策略适配器访问并初始化跨回调共享缓存。
+    # English: Bind strategy host access and initialize caches shared across callbacks.
     def __init__(
         self,
         snapshot: AttrDict,
@@ -160,6 +178,8 @@ class BoundStrategyCapabilities(StrategyCapabilities):
     def bar(self, code: str) -> AttrDict | None:
         return self._cross.get(code)
 
+    # 批量补取尚未缓存的证券历史，供同步 SDK 查询。
+    # English: Fetch missing instrument histories into the cache for synchronous SDK reads.
     def ensure_bars(self, codes: Iterable[str]) -> None:
         missing = [
             code

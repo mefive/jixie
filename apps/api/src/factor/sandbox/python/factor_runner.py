@@ -18,6 +18,8 @@ from ...sdk.python import (
 )
 
 
+# 管理因子定义加载与会话内计算，外围帧循环由 sandboxd 负责。
+# English: Manage factor loading and session computation while sandboxd owns the outer frame loop.
 class FactorRunner:
     """One instance owns one sandbox session and all state shared across its callbacks."""
 
@@ -31,6 +33,8 @@ class FactorRunner:
         self._adapter = FactorAdapter()
         self._factor: _FactorDefinition
 
+    # 分派因子会话命令，返回握手、计算结果或错误。
+    # English: Dispatch factor session commands into handshake, computation or error output.
     def handle(self, frame: dict[str, Any]) -> bool:
         message_type = frame.get("type")
 
@@ -52,6 +56,8 @@ class FactorRunner:
             case _:
                 raise ValueError(f"unexpected factor sandbox message: {message_type}")
 
+    # 加载并校验因子定义后返回握手元数据。
+    # English: Load and validate the factor definition before returning handshake metadata.
     def start(self, config: dict[str, Any]) -> None:
         if config.get("runtime_version") != "py-v1":
             raise ValueError("factor sandbox requires runtime py-v1")
@@ -66,7 +72,11 @@ class FactorRunner:
 
         self._send_frame({"type": "factor_ready", "metadata": self._metadata()})
 
+    # 按因子种类绑定输入并执行计算，整理日志与结果。
+    # English: Bind kind-specific inputs, compute values and collect logs and results.
     def _execute(self, frame: dict[str, Any]) -> None:
+        # 逐证券调用截面回调并校验有限数值，保留单项错误。
+        # English: Invoke per-instrument callbacks and validate finite values with per-item errors.
         def compute() -> tuple[list[float | int | None], str | None]:
             # Startup validates that the author registered a callback.
             callback = cast(Callable[..., float | int | None], self._factor._callback)
@@ -115,6 +125,8 @@ class FactorRunner:
             {"type": "factor_values", "values": values, "first_error": first_error}
         )
 
+    # 在受限命名空间加载源码，校验单一定义和公开元数据。
+    # English: Load source in a restricted namespace and validate the definition and metadata.
     def _load_factor(self, source: str, expected_kind: str) -> _FactorDefinition:
         module = types.ModuleType("jixie")
         module.__dict__.update(
@@ -181,6 +193,8 @@ class FactorRunner:
             "target_asset_classes": self._factor.target_asset_classes,
         }
 
+    # 将作者返回值规范化为可传输数值，保持缺失语义。
+    # English: Normalize authored results into transferable numeric values with explicit missing data.
     def _compute_values(
         self,
         count: int,

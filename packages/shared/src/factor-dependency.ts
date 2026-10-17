@@ -6,7 +6,10 @@ export type FactorInputDomain = 'price' | 'fundamental' | 'flow' | 'rates' | 'co
 export type FactorTargetAssetClass = 'equity' | 'fixed_income' | 'commodity' | 'cash' | 'fx';
 export type FactorSignalHorizonUnit = 'trade_day' | 'calendar_day' | 'month';
 
-/** Immutable published factor identity frozen into a backtest, deployment, or signal run. */
+/**
+ * 冻结回测、部署或信号所引用的已发布因子身份。
+ * Immutable published factor identity frozen into a backtest, deployment, or signal run.
+ */
 export interface FactorDependency {
   factorId: string;
   key: string;
@@ -24,6 +27,10 @@ export interface FactorDependency {
 
 export type PublishFactorRequest = PublishFactorRequestBody;
 
+/**
+ * 公开已发布因子定义及其可执行协议元数据。
+ * Describe a published factor and executable protocol metadata.
+ */
 export interface PublishedFactor {
   id: string;
   key: string;
@@ -38,6 +45,10 @@ export interface PublishedFactor {
   archivedAt?: string | null;
 }
 
+/**
+ * 记录单因子在指定资产日期的信号，供运行输出。
+ * Describe a dated asset signal from one factor.
+ */
 export interface FactorSignal {
   asOfDate: string;
   assetId: string | null;
@@ -51,12 +62,19 @@ export interface FactorSignal {
   dataCutoff: string;
 }
 
+/**
+ * 保存某因子实际消费的输入观测，供运行审计。
+ * Retain observations actually consumed by a factor for auditing.
+ */
 export interface FactorInputObservation {
   assetId: string;
   value: number | null;
 }
 
-/** Compact audit summary of the values consumed from one published factor. */
+/**
+ * 紧凑汇总已发布因子消费的输入值。
+ * Compact audit summary of the values consumed from one published factor.
+ */
 export interface FactorInputSummary {
   factorId: string;
   key: string;

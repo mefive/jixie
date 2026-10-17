@@ -1,6 +1,10 @@
 import type { ResearchChartOutputV1 } from '@jixie/shared';
 import { EChart, type ECOption } from '@src/components/echart';
 
+/**
+ * 提供结构化研究图表及尺寸，供 ECharts 映射。
+ * Supply structured research charts and sizing for ECharts rendering.
+ */
 interface ResearchCellChartProps {
   chart: ResearchChartOutputV1;
 }
@@ -13,6 +17,10 @@ export default function ResearchCellChart({ chart }: ResearchCellChartProps) {
 
 const SERIES_PALETTE = ['#111827', '#e8463b', '#2f9e5b', '#b38f2d', '#64748b'];
 
+/**
+ * 根据研究图表种类生成 ECharts 配置，统一坐标、图例和提示。
+ * Build ECharts options by research chart kind with consistent axes, legends and tooltips.
+ */
 export function chartOption(chart: ResearchChartOutputV1): ECOption {
   if (chart.kind === 'boxplot') {
     return boxplotOption(chart);
@@ -76,6 +84,10 @@ export function chartOption(chart: ResearchChartOutputV1): ECOption {
   } as ECOption;
 }
 
+/**
+ * 将箱线图统计值映射为 ECharts 箱体与异常值系列。
+ * Map boxplot statistics into ECharts box and outlier series.
+ */
 function boxplotOption(chart: ResearchChartOutputV1): ECOption {
   const points = chart.rows.flatMap((row) => {
     const values = ['min', 'q1', 'median', 'q3', 'max'].map((column) => numberValue(row[column]));
@@ -112,6 +124,10 @@ function boxplotOption(chart: ResearchChartOutputV1): ECOption {
   } as ECOption;
 }
 
+/**
+ * 将研究热图的分类轴和单元值转换为 ECharts 配置。
+ * Map research heatmap categories and cell values into ECharts options.
+ */
 function heatmapOption(chart: ResearchChartOutputV1): ECOption {
   const yColumn = chart.y ?? 'y';
   const xCategories = unique(chart.rows.map((row) => formatDate(row[chart.x])));

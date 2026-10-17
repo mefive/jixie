@@ -16,6 +16,10 @@ import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { getOpenDates } from '../calendar/read.js';
 import { syncTradeCal } from '../calendar/sync.js';
 
+/**
+ * 汇总股票核心日更抓取、校验与原子发布。
+ * Summarize core stock fetching, validation and atomic publication.
+ */
 export interface DailyCoreSyncSummary {
   tradeDate: string;
   daily: number;
@@ -26,6 +30,7 @@ export interface DailyCoreSyncSummary {
 }
 
 /**
+ * 获取、校验并原子发布日常计算所需四类稠密股票数据集。
  * Fetch, validate, and atomically publish the four dense stock datasets required by every daily
  * calculation. No database row for the target date changes before every candidate has passed.
  */
@@ -81,6 +86,10 @@ export async function syncStockDailyData(
   };
 }
 
+/**
+ * 将来源候选行归一到规范股票代码，供覆盖校验和发布。
+ * Canonicalize source candidate stock identities before validation and publication.
+ */
 function canonicalizeCandidateRows<Row extends { ts_code: string; trade_date: string }>(
   rows: Row[],
   tradeDate: string,
@@ -100,6 +109,10 @@ function canonicalizeCandidateRows<Row extends { ts_code: string; trade_date: st
   return [...canonical.values()];
 }
 
+/**
+ * 读取最近日线记录数量中位数，供当日覆盖校验基线。
+ * Compute a recent daily row-count median for coverage validation.
+ */
 async function recentDailyCountMedian(tradeDate: string): Promise<number | null> {
   const rows = await prisma.daily.groupBy({
     by: ['tradeDate'],
@@ -116,6 +129,10 @@ async function recentDailyCountMedian(tradeDate: string): Promise<number | null>
   return counts.length % 2 === 0 ? (counts[middle - 1] + counts[middle]) / 2 : counts[middle];
 }
 
+/**
+ * 对同日核心来源联合校验日期、代码与数值，防止不完整批次发布。
+ * Validate dated core candidates together so incomplete stock input sets cannot publish.
+ */
 function validateDailyCoreCandidates(input: {
   tradeDate: string;
   prices: DailyRow[];
@@ -142,6 +159,10 @@ function validateDailyCoreCandidates(input: {
   assertCodeCoverage(input.tradeDate, 'StkLimit', priceCodes, input.limits, 0.85);
 }
 
+/**
+ * 要求候选数据覆盖预期证券集合，报告缺失代码。
+ * Require candidate rows to cover the expected instrument set.
+ */
 function assertCodeCoverage<Row extends { ts_code: string }>(
   tradeDate: string,
   table: string,
@@ -165,6 +186,7 @@ function assertCodeCoverage<Row extends { ts_code: string }>(
 }
 
 /**
+ * 按交易日同步全市场日线与复权，供历史可恢复补齐。
  * Sync "whole-market daily quotes + adjustment factors" day by day, per trading day.
  *
  * One daily(trade_date=X) / adj_factor(trade_date=X) returns all ~5000 instruments for that day,
@@ -221,6 +243,7 @@ export async function syncDaily(
 }
 
 /**
+ * 按交易日同步估值指标，已有日期可跳过以支持恢复。
  * Sync daily valuation metrics (daily_basic) by trading day. Resumable: skips days already present.
  * One call per day returns the whole market (~5000 rows).
  */
@@ -261,6 +284,7 @@ export async function syncDailyBasic(
 }
 
 /**
+ * 按交易日同步涨跌停价，支持跳过已完成日期。
  * Sync daily price limits (limit-up / limit-down prices) for the range, per trading day (resumable: skips days already
  * loaded). Mirrors syncDailyBasic — per-day deleteMany + createMany keeps repeated syncs idempotent.
  */

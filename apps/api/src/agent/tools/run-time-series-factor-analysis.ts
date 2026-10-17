@@ -42,12 +42,20 @@ const argsSchema = z
     }
   });
 
+/**
+ * 承载单资产时间序列探索结果与报告身份，供工具输出和消息留存。
+ * Carry time-series exploration results and report identity for tool output and persistence.
+ */
 type TimeSeriesAnalysisResult = {
   status: 'running' | 'done' | 'error' | 'stale';
   error?: string;
   payload?: FactorTimeSeriesReportV1;
 };
 
+/**
+ * 绑定时间序列因子工具的定义与探索范围，供权限及状态校验。
+ * Bind a time-series tool to its definition and permitted exploration scope.
+ */
 interface TimeSeriesResearchContext {
   userId: string;
   factorId: string;
@@ -64,13 +72,21 @@ interface TimeSeriesResearchContext {
   ) => Promise<TimeSeriesAnalysisResult>;
 }
 
-/** The time-series counterpart of runFactorAnalysis. It freezes an ETF-only explore report and
- * deliberately omits stock-universe, neutralization and rebalance-frequency arguments. */
+/**
+ * 创建仅用于 ETF 时间序列探索的因子工具，不接受股票池、中性化和正式保留段操作。
+ * The time-series counterpart of runFactorAnalysis. It freezes an ETF-only explore report and
+ * deliberately omits stock-universe, neutralization and rebalance-frequency arguments.
+ */
 export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchContext): AgentTool {
   return {
     name: 'runTimeSeriesFactorAnalysis',
     description: `Run one disciplined EXPLORE time-series study for the current custom Factor Definition V2 or a candidate full definition. Freeze the candidate code, ETF assets, forward-return horizon, sample dates, hypothesis/direction, and a time-series primary criterion before seeing metrics. Current assets are 511010.SH (5Y Treasury Bond ETF), 511260.SH (10Y Treasury Bond ETF), 511090.SH (30Y Treasury Bond ETF), 518880.SH (Gold ETF), and 510300.SH (CSI 300 ETF); government-curve inputs only support the fixed-income ETFs. Horizon is 5, 20, or 60 trading days. The observation frequency is daily, prices are adjusted, inference is Newey–West with automatic lag, and data cutoff is the requested end date. This tool cannot reveal holdout, publish, deploy, place orders, or claim strategy performance. Normally compare at most two materially different candidates in one turn.`,
     parameters: z.toJSONSchema(argsSchema),
+
+    /**
+     * 校验并提交时间序列探索任务，等待终态后返回报告摘要。
+     * Validate and submit time-series exploration, then return its completed report summary.
+     */
     async run(args, runContext) {
       const parsed = argsSchema.safeParse(args);
       if (!parsed.success) {
@@ -169,6 +185,10 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
   };
 }
 
+/**
+ * 等待时间序列分析任务完成，并读取已保存的报告结果。
+ * Wait for time-series analysis and read the persisted report result.
+ */
 async function waitForTimeSeriesFactorAnalysis(
   userId: string,
   reportId: string,

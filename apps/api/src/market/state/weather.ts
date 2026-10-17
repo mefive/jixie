@@ -23,6 +23,10 @@ import {
   industryWeatherToMarketWeather,
 } from './compute.js';
 
+/**
+ * 组合市场、指数和行业气象，供市场看板查询。
+ * Load and combine market, index and industry weather for the dashboard.
+ */
 export async function loadMarketWeather(
   dimension: MarketWeatherDimension,
   frequency: MarketWeatherFrequency,
@@ -141,6 +145,10 @@ let industryWeatherRawCache:
     }
   | undefined;
 
+/**
+ * 按指数身份合并估值与状态气象，保留来源口径。
+ * Merge index valuations with weather by stable index identity.
+ */
 function mergeIndexWeatherValuations(
   officialRows: Array<Omit<IndexWeatherBasicRow, 'source'>>,
   indicatorRows: IndexWeatherIndicatorRow[],
@@ -169,6 +177,10 @@ function mergeIndexWeatherValuations(
   );
 }
 
+/**
+ * 读取行业历史状态并构造周期气象序列。
+ * Load industry state history and construct period-specific weather.
+ */
 export async function loadIndustryWeatherSeries(
   frequency: MarketWeatherFrequency,
 ): Promise<IndustryWeatherSeries | null> {

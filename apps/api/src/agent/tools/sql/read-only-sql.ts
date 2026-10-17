@@ -127,8 +127,11 @@ const DECLARED_LIMIT_CAP = 500;
 
 const QUERY_TIMEOUT_MS = 10_000;
 
-/** Validate + normalize a query, returning the SQL to actually execute. Throws human-readable
- * errors (they are fed back to the model as observations, so it can fix its own SQL). */
+/**
+ * 校验并规范化只读 SQL；失败作为工具观察返回，成功后才可交给 Worker。
+ * Validate + normalize a query, returning the SQL to actually execute. Throws human-readable
+ * errors (they are fed back to the model as observations, so it can fix its own SQL).
+ */
 export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): string {
   const trimmed = sql.trim().replace(/;\s*$/, '');
 
@@ -182,7 +185,10 @@ export function prepareReadOnlySql(sql: string, rowCap: number = SQL_ROW_CAP): s
   return trimmed;
 }
 
-/** JSON.stringify replacer: SQLite integers come back as BigInt via the raw API. */
+/**
+ * 在 JSON 序列化时处理 SQLite 返回的 BigInt 整数。
+ * JSON.stringify replacer: SQLite integers come back as BigInt via the raw API.
+ */
 export function jsonSafe(_key: string, value: unknown): unknown {
   return typeof value === 'bigint' ? Number(value) : value;
 }
@@ -194,12 +200,19 @@ const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('./sql-worker.boot.mjs', import.meta.url)
   : new URL('./sql-worker.js', import.meta.url);
 
-/** Prisma resolves a relative sqlite DATABASE_URL against the schema directory — mirror that. */
+/**
+ * 按 Prisma schema 所在目录解析相对 SQLite 路径。
+ * Prisma resolves a relative sqlite DATABASE_URL against the schema directory — mirror that.
+ */
 function databasePath(): string {
   const raw = (process.env.DATABASE_URL ?? 'file:./dev.db').replace(/^file:/, '');
   return raw.startsWith('/') ? raw : new URL(`../../../../prisma/${raw}`, import.meta.url).pathname;
 }
 
+/**
+ * 跟踪只读 SQL 请求的超时及完成回调，供 Worker 响应关联。
+ * Track a pending read-only SQL request, timeout and completion callbacks.
+ */
 interface PendingQuery {
   resolve(rows: Record<string, unknown>[]): void;
   reject(error: Error): void;
@@ -218,6 +231,10 @@ function failAllPending(error: Error): void {
   pending.clear();
 }
 
+/**
+ * 按需启动只读 SQL Worker 并接入响应及退出处理。
+ * Start the read-only SQL worker on demand and attach response and exit handling.
+ */
 function ensureWorker(): Worker {
   if (sqlWorker) {
     return sqlWorker;
@@ -260,7 +277,10 @@ function ensureWorker(): Worker {
   return worker;
 }
 
-/** Execute a validated read-only query in the worker with a hard wall-clock timeout. */
+/**
+ * 在 Worker 中执行已验证的只读查询，并施加墙钟超时。
+ * Execute a validated read-only query in the worker with a hard wall-clock timeout.
+ */
 export async function runReadOnlySql(
   sql: string,
   rowCap?: number,

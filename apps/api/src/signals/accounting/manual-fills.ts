@@ -43,6 +43,10 @@ async function ownedTask(userId: string, executionId: string) {
   };
 }
 
+/**
+ * 按用户与部署归属解析实际信号任务，供成交录入授权。
+ * Resolve an actual signal task within its user and deployment ownership.
+ */
 export async function resolveActualSignal(
   userId: string,
   executionId: string,
@@ -204,6 +208,10 @@ export async function resolveActualSignal(
   });
 }
 
+/**
+ * 校验并保存人工录入的成交，更新关联执行任务与重放状态。
+ * Validate and persist a manually recorded fill and update related execution and replay state.
+ */
 export async function recordSignalFill(
   userId: string,
   executionId: string,
@@ -254,6 +262,10 @@ export async function recordSignalFill(
   return { id: row.id, replay };
 }
 
+/**
+ * 检查成交数量、价格、方向及任务匹配约束，避免无效录入污染账本。
+ * Validate fill quantities, prices, sides and task consistency before ledger posting.
+ */
 async function validateFill(
   task: Awaited<ReturnType<typeof ownedTask>>,
   input: SignalFillInput,
@@ -376,6 +388,10 @@ async function validateFill(
   }
 }
 
+/**
+ * 修订已录入成交并使受影响账户重新计算，保留版本化审计。
+ * Revise a recorded fill and rebuild affected versioned account results.
+ */
 export async function reviseSignalFill(
   userId: string,
   fillId: string,
@@ -445,6 +461,10 @@ export async function reviseSignalFill(
   return { id: row.id, replay: await replayActualAfterFill(task.deploymentId) };
 }
 
+/**
+ * 录入或修订成交后重放实际账户，保存失败以便重试。
+ * Replay the actual account after fill changes and retain retryable failures.
+ */
 async function replayActualAfterFill(deploymentId: string): Promise<string> {
   const latest = await prisma.signalAccountMarketInput.findFirst({
     where: { deploymentId },
@@ -464,6 +484,10 @@ async function replayActualAfterFill(deploymentId: string): Promise<string> {
   }
 }
 
+/**
+ * 读取部署账户历史及相关执行信息，供信号对账页面展示。
+ * Read deployment account history and execution information for reconciliation.
+ */
 export async function getSignalAccountHistory(
   userId: string,
   deploymentId: string,
@@ -551,6 +575,10 @@ export async function getSignalAccountHistory(
   };
 }
 
+/**
+ * 重试受影响账户的重放，将最新成交与冻结行情重新纳入账本。
+ * Retry account replay using recorded fills and frozen market inputs.
+ */
 export async function retrySignalAccounts(userId: string, deploymentId: string) {
   await getSignalAccountHistory(userId, deploymentId);
   const dates = await prisma.tradeCal.findMany({
@@ -585,6 +613,10 @@ export async function retrySignalAccounts(userId: string, deploymentId: string) 
   return getSignalAccountHistory(userId, deploymentId);
 }
 
+/**
+ * 保存执行任务的人工决策，并更新对应账户计算状态。
+ * Persist a manual task decision and update related accounting state.
+ */
 export async function setSignalTaskDecision(
   userId: string,
   executionId: string,
@@ -614,6 +646,10 @@ export async function setSignalTaskDecision(
   return getSignalAccountHistory(userId, task.deploymentId);
 }
 
+/**
+ * 修订信号执行使用的市场输入并重放账户，保留可追溯版本。
+ * Revise execution market input and rebuild accounts with versioned provenance.
+ */
 export async function reviseSignalMarketInput(
   userId: string,
   deploymentId: string,

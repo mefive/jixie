@@ -1,5 +1,9 @@
 const MAX_RESEARCH_AGENT_ATTEMPT_CHARACTERS = 32_000;
 
+/**
+ * 为 Agent 汇总已执行修改尝试及差异，供修复决策复用证据。
+ * Summarize prior cell-change attempts and differences for evidence-based agent repair.
+ */
 export function researchAgentCellChangeAttemptContext(attempt: {
   id: string;
   proposalId: string;
@@ -28,6 +32,11 @@ export function researchAgentCellChangeAttemptContext(attempt: {
   }>;
 }): string {
   let remainingCharacters = MAX_RESEARCH_AGENT_ATTEMPT_CHARACTERS;
+
+  /**
+   * 在共享字数预算内裁剪尝试源码与输出，供 Agent 修复上下文。
+   * Bound attempted source and output under a shared context character budget.
+   */
   const executions = attempt.executions.map((execution) => {
     const sourceCharacters = Math.min(4_000, remainingCharacters, execution.source.length);
     const source = execution.source.slice(0, sourceCharacters);

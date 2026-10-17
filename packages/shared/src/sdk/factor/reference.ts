@@ -77,6 +77,11 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
 };
 
 // The factor authoring surface as an ambient .d.ts in the active locale — mirrors the strategy SDK.
+
+/**
+ * 从因子参考条目生成当前语言的 Monaco 声明，保持作者签名唯一来源。
+ * Render localized Monaco declarations from the canonical factor reference entries.
+ */
 export function buildFactorSdkDts(locale: Locale): string {
   const doc = (key: string) => FACTOR_DOCS[key][locale];
   return `
@@ -158,7 +163,10 @@ declare function defineFactorV2(factor: AssetFactorV2): AssetFactorV2;
 `;
 }
 
-/** Generate API types from the exact same authoring signatures used by Monaco. */
+/**
+ * 从 Monaco 共用作者签名生成 API 类型，避免实现契约漂移。
+ * Generate API types from the exact same authoring signatures used by Monaco.
+ */
 export function renderFactorSdkContract(): string {
   const declarations = buildFactorSdkDts('en').replace(
     /^declare function (defineFactor(?:V2)?)\((.*)\): (.*);$/gm,

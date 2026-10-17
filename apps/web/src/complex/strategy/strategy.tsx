@@ -65,6 +65,10 @@ import { StrategyCardView } from './strategy-card';
 import { readRecents } from './recents';
 import './strategy.css';
 
+/**
+ * 提供历史报告列表及选择回调，供不可变报告切换。
+ * Supply report history and selection callbacks to the history picker.
+ */
 interface BacktestHistoryPickerProps {
   comparing: boolean;
   comparisonReportId: string | null;
@@ -73,11 +77,19 @@ interface BacktestHistoryPickerProps {
   onSelectComparison: (reportId: string) => void;
 }
 
+/**
+ * 绑定两个冻结报告与比较加载状态，供结果比较。
+ * Supply two frozen reports and loading state for comparison.
+ */
 interface BacktestComparisonPanelProps {
   primary: BacktestSummary;
   secondary: BacktestSummary;
 }
 
+/**
+ * 定义比较指标的标签、单位与取值，供一致差异展示。
+ * Define comparison metric labels, units and accessors.
+ */
 interface BacktestComparisonMetric {
   label: string;
   primary: string;
@@ -98,11 +110,8 @@ const TradeDetail = lazy(() => import('./trade-detail'));
 const AllocationCorrelationCharts = lazy(() => import('./allocation-correlation-charts'));
 
 /**
- * Strategy workbench — code-first, IDE-style. A first-time visit (no recents) opens a focused prompt
- * hero; otherwise New pops a prompt modal over the workbench. The workbench is a 3-column Splitter: an
- * Agent panel (a chat that iterates on the strategy code, plus a History tab) | the code editor over a
- * collapsible log dock | a right column with the run summary/actions over Results-overview /
- * Trade-detail tabs. All regions are drag-resizable.
+ * 组合策略编辑、Agent、回测配置及不可变报告，形成策略研究工作台。
+ * Compose strategy editing, agent conversation, backtest settings and immutable reports.
  */
 export const Strategy = complex.component(() => {
   const store = complex.useStore();
@@ -281,6 +290,11 @@ export const Strategy = complex.component(() => {
 // New-strategy hero: the full-page new-strategy view, shown only on a first visit with no recents. Describe the
 // strategy → the Agent writes it → the workbench takes over. Below the prompt, Recent visits tiles the
 // last-opened strategies for one-click reopen.
+
+/**
+ * 展示初始策略工作台说明与创建入口。
+ * Present the initial strategy workspace guidance and creation actions.
+ */
 const StrategyHero = complex.component(
   ({
     onSubmit,
@@ -340,6 +354,11 @@ const StrategyHero = complex.component(
 
 // The shared prompt block (hero + New modal): a prompt box + example chips + a "write code directly" escape.
 // Local draft (not the store's chat draft) so the modal opens clean. onSubmit fires the first Agent turn.
+
+/**
+ * 收集新策略研究问题并进入持久化作者会话。
+ * Collect a new strategy question and start a persistent authoring conversation.
+ */
 const NewStrategyPrompt = complex.component(
   ({
     onSubmit,
@@ -427,6 +446,11 @@ const NewStrategyPrompt = complex.component(
 );
 
 // New → a prompt modal (ported from the hero) over the workbench, instead of the full new-strategy view.
+
+/**
+ * 呈现策略创建入口并将用户选择交给 store。
+ * Present strategy creation choices and dispatch them through the store.
+ */
 function NewStrategyModal({
   open,
   onSubmit,
@@ -458,6 +482,11 @@ function NewStrategyModal({
 
 // —— Agent panel (left column) —— a chat that iterates on the strategy, over a sticky run-config; plus a
 // History tab to switch strategies. The agent edits the code in the middle editor; the user can still hand-edit.
+
+/**
+ * 展示策略 Agent 会话与运行状态。
+ * Present strategy agent conversation and execution state.
+ */
 const AgentPanel = complex.component(
   ({ onNew, onOpenStrategy }: { onNew: () => void; onOpenStrategy: (id: string) => void }) => {
     const { t } = useTranslation('strategy');
@@ -497,6 +526,11 @@ const AgentPanel = complex.component(
 // Agent tab: the strategy name over a scrollable chat log + a Cursor-style composer (a bordered box, no
 // button — Enter sends; the box stays multi-row rather than collapsing to one line). The run-config
 // (date/capital + Run-backtest) lives atop the results column, next to the output it produces.
+
+/**
+ * 呈现策略对话历史、流式响应和输入控制。
+ * Render strategy history, streamed replies and input controls.
+ */
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
@@ -542,6 +576,11 @@ const AgentChat = complex.component(() => {
 
 // Run bar atop the results column: a compact read-only summary + primary Run action. The edit trigger
 // opens the less-frequent start/end/capital controls without making the result header look like a form.
+
+/**
+ * 编辑回测日期、资本与交易成本，保持策略源码独立。
+ * Edit backtest dates, capital and trading costs alongside strategy source.
+ */
 const RunConfig = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
@@ -695,6 +734,11 @@ const RunConfig = complex.component(() => {
 // Chat bubbles, auto-scrolled to the latest; a thinking row while an Agent turn is in flight.
 // `quiet` suppresses the empty-state hint while the initial strategy is still loading — the real
 // messages land ~100ms later and the hint would flash-swap into them.
+
+/**
+ * 一致展示策略消息与工具产物。
+ * Render strategy messages and tool artifacts consistently.
+ */
 function ChatLog({
   messages,
   sending,
@@ -742,6 +786,11 @@ function ChatLog({
 }
 
 // History tab: this user's strategies as vertical cards — open loads the strategy + its conversation.
+
+/**
+ * 展示近期策略并提供恢复与删除入口。
+ * Present recent strategies with restore and delete actions.
+ */
 const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => void }) => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
@@ -772,6 +821,11 @@ const HistoryList = complex.component(({ onOpen }: { onOpen: (id: string) => voi
 }, 'HistoryList');
 
 // NL prompt textarea — Enter sends, Shift+Space / Shift+Enter newline, IME-safe (mirrors the screener page).
+
+/**
+ * 收集策略提示词并处理发送、取消与键盘操作。
+ * Collect strategy prompts with send, cancel and keyboard handling.
+ */
 function PromptBox({
   value,
   onChange,
@@ -791,6 +845,10 @@ function PromptBox({
   variant?: 'borderless' | 'outlined';
   autoSize?: { minRows: number; maxRows: number };
 }) {
+  /**
+   * 按键盘提交规则发送提示，保留换行与输入法组合行为。
+   * Handle prompt submission keys while preserving newline and composition behavior.
+   */
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.nativeEvent.isComposing) {
       return;
@@ -827,6 +885,11 @@ function PromptBox({
 }
 
 // The strategy code editor — Monaco with SDK autocomplete/types, lazy-loaded into its own chunk.
+
+/**
+ * 展示策略源码编辑器及语言相关帮助。
+ * Render strategy source editing with language-specific guidance.
+ */
 const StrategyCode = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
@@ -868,6 +931,10 @@ const StrategyCode = complex.component(() => {
   );
 }, 'StrategyCode');
 
+/**
+ * 展示封存研究来源与交接限制，供核对策略草稿血缘。
+ * Present frozen research provenance and handoff limits for strategy drafts.
+ */
 const StrategyResearchHandoff = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
@@ -928,6 +995,11 @@ const StrategyResearchHandoff = complex.component(() => {
 // Results overview — metrics + equity curve + monthly returns. Logs and Trade-detail live in the dock below (ResultDock), so this
 // panel no longer swaps to a log view while running; it shows a running placeholder and lets the log
 // stream in the dock.
+
+/**
+ * 组织冻结回测报告的绩效、净值、交易和风险结果。
+ * Organize immutable backtest performance, NAV, fills and risk results.
+ */
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
@@ -1105,6 +1177,10 @@ const ResultPanel = complex.component(() => {
   );
 }, 'ResultPanel');
 
+/**
+ * 按选定不可变报告比较绩效与收益路径。
+ * Compare performance and return paths across selected immutable reports.
+ */
 const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanelProps) => {
   const { t } = useTranslation('strategy');
   const signed = (value: number, digits = 2) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
@@ -1186,6 +1262,10 @@ const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanel
   );
 };
 
+/**
+ * 展示配置资产贡献、调仓与费用，解释组合收益来源。
+ * Present allocation contributions, rebalances and costs to explain portfolio returns.
+ */
 const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis }) => {
   const { t } = useTranslation('strategy');
   const money = (value: number) => Math.round(value).toLocaleString();
@@ -1407,6 +1487,10 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
   );
 };
 
+/**
+ * 展示市场、宏观、情景及 Alpha 重合风险证据与限制。
+ * Present market, macro, scenario and Alpha-overlap risk evidence with limitations.
+ */
 const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
   const { t } = useTranslation('strategy');
   const market = data.market;
@@ -1729,6 +1813,10 @@ const RiskSummaryMetric = ({ label, value }: { label: string; value: string }) =
   </div>
 );
 
+/**
+ * 按利率环境展示配置收益、风险与区间诊断。
+ * Present allocation returns, risks and episode diagnostics by rate environment.
+ */
 const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysis }) => {
   const { t } = useTranslation('strategy');
   const assetClasses = [
@@ -1846,6 +1934,10 @@ const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysi
   );
 };
 
+/**
+ * 展示配置相关性矩阵与窗口变化，供分散化检查。
+ * Present allocation correlation matrices and window changes for diversification checks.
+ */
 const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnalysis }) => {
   const { t } = useTranslation('strategy');
   const [windowDays, setWindowDays] = useState<60 | 120>(data.windows[0]?.window ?? 60);
@@ -1975,6 +2067,11 @@ const LogDock = complex.component(() => {
 
 // Right column: Results-overview (metrics + performance chart + monthly returns) / portfolio-level
 // execution detail as tabs. Trade-detail appears only once a run has trades.
+
+/**
+ * 在绩效、净值、执行和风险视图之间切换冻结报告结果。
+ * Switch immutable report results among performance, NAV, execution and risk views.
+ */
 const ResultTabs = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
@@ -2087,6 +2184,10 @@ const ResultTabs = complex.component(() => {
   );
 }, 'ResultTabs');
 
+/**
+ * 读取并选择策略历史报告，区分当前查看与最近运行。
+ * Select historical strategy reports with explicit viewed-versus-latest state.
+ */
 const BacktestHistoryPicker = complex.component(
   ({
     comparing,
@@ -2195,7 +2296,10 @@ const BacktestHistoryPicker = complex.component(
 
 // —— Helpers / config ——
 
-/** The turn's ephemeral tool trace (display only — absent once a conversation is reloaded). */
+/**
+ * 提取仅当前显示使用的工具轨迹，重载后不再存在。
+ * The turn's ephemeral tool trace (display only — absent once a conversation is reloaded).
+ */
 function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
   const trace = (message as ChatMessage & { toolTrace?: AgentToolTraceItem[] }).toolTrace;
   return trace?.length ? trace : undefined;
@@ -2210,6 +2314,10 @@ const EXAMPLE_PROMPTS = [
   { labelKey: 'exampleEtfRotationLabel', promptKey: 'exampleEtfRotationPrompt' },
 ] as const;
 
+/**
+ * 定义绩效指标展示标签、值与格式，供结果面板。
+ * Describe performance metric labels, values and formatting.
+ */
 interface Metric {
   label: string;
   value: string;
@@ -2225,6 +2333,11 @@ function pct(x: number): string {
 // content-driven widths and visibly jump on frame two. Percentage defaultSizes land as flex-basis
 // on frame one, so pre-convert "left = leftPx, the other two split the rest" into percentages of
 // the viewport (the splitter spans the full app width). Same fix as factor.tsx.
+
+/**
+ * 按视口设置策略编辑与对话分栏初始尺寸。
+ * Derive initial strategy editor and conversation splitter sizes.
+ */
 function splitterDefaults(leftPx: number): { left: string; rest: string } {
   const viewportWidth = document.documentElement.clientWidth || 1440;
   const leftFraction = leftPx / viewportWidth;

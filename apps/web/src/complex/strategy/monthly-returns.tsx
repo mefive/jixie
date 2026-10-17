@@ -2,7 +2,10 @@ import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import './monthly-returns.css';
 
-/** Monthly return table — year × month heatmap (A-share red up / green down), with a compounded full-year column. */
+/**
+ * 展示年度与月份收益热图，并按复利汇总全年收益；上涨红色、下跌绿色。
+ * Monthly return table — year × month heatmap (A-share red up / green down), with a compounded full-year column.
+ */
 export function MonthlyReturns({ monthly }: { monthly: { month: string; ret: number }[] }) {
   const { t } = useTranslation('strategy');
   if (!monthly?.length) {
@@ -74,6 +77,11 @@ function fmt(r: number): string {
 }
 
 // Red (+) / green (−) tint, intensity by magnitude (≥10% = full); white text once dark enough.
+
+/**
+ * 按收益符号和幅度选择月度热图背景。
+ * Choose a monthly heatmap background from return direction and magnitude.
+ */
 function bg(r?: number): React.CSSProperties {
   if (r == null) {
     return {};

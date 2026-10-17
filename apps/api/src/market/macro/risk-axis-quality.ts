@@ -1,6 +1,11 @@
 import { MACRO_RISK_AXIS_KEYS_V1, type MacroRiskAxisKeyV1 } from '@jixie/shared';
 import { prisma, type Prisma } from '#infra/database/prisma.js';
 import { loadMacroRiskAxisHistory, type MacroRiskAxisHistoryV1 } from './risk-axes.js';
+
+/**
+ * 描述单风险轴的覆盖与可得性质量。
+ * Describe coverage and availability quality for one risk axis.
+ */
 export interface MacroRiskAxisQualityAxis {
   axis: MacroRiskAxisKeyV1;
   exploratoryObservations: number;
@@ -8,6 +13,10 @@ export interface MacroRiskAxisQualityAxis {
   latestExploratoryDate: string | null;
 }
 
+/**
+ * 汇总全部风险轴的就绪状态与异常。
+ * Collect readiness and diagnostics across risk axes.
+ */
 export interface MacroRiskAxisQualitySummary {
   expectedMonths: number;
   exploratoryCompleteObservations: number;
@@ -42,6 +51,10 @@ export async function inspectMacroRiskAxes(
   return summarizeMacroRiskAxisQuality(exploratory, strict);
 }
 
+/**
+ * 检查风险轴样本、可得日期与缺口，汇总模型输入质量。
+ * Summarize risk-axis samples, availability and gaps for model input quality.
+ */
 export function summarizeMacroRiskAxisQuality(
   exploratory: MacroRiskAxisHistoryV1,
   strict: MacroRiskAxisHistoryV1,

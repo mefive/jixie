@@ -4,6 +4,10 @@ import { prisma } from '#infra/database/prisma.js';
 import { JobLogs } from './job-logs.js';
 import type { JobLifecycle } from './lifecycle.js';
 
+/**
+ * 限定已注册任务的业务种类，供生命周期分派。
+ * Identify registered business job kinds for lifecycle dispatch.
+ */
 export type JobKind =
   | 'backtest'
   | 'factor-analysis'
@@ -13,6 +17,10 @@ export type JobKind =
   | 'research-curator'
   | 'research-embedded-analysis';
 
+/**
+ * 定义任务持久化状态，供提交、执行和终态恢复共用。
+ * Define persisted job states shared by submission, execution and recovery.
+ */
 export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'stale';
 
 export type ActiveJobStatus = Extract<JobStatus, 'queued' | 'running'>;
@@ -27,6 +35,10 @@ export class JobService {
   private static readonly relations = new Map<JobRelation, JobLifecycle<unknown>>();
   private constructor() {}
 
+  /**
+   * 登记业务生命周期处理器，供任务执行按 kind 分派。
+   * Register a business lifecycle handler for dispatch by job kind.
+   */
   static register<Result>(
     kind: JobKind,
     lifecycle: JobLifecycle<Result>,
@@ -57,6 +69,10 @@ export class JobService {
     return id;
   }
 
+  /**
+   * 读取任务及相关业务归属，供查询与生命周期管理。
+   * Read a job and its business association for status and lifecycle handling.
+   */
   static async get(userId: string, jobId: string, since = 0) {
     const job = await prisma.job.findFirst({ where: { id: jobId, userId } });
     if (!job) {
@@ -94,7 +110,10 @@ export class JobService {
     return count === 1;
   }
 
-  /** This observer does not dispatch work or recover another consumer's tasks. */
+  /**
+   * 观察任务直到终态；不会派发工作或恢复其他消费者的任务。
+   * This observer does not dispatch work or recover another consumer's tasks.
+   */
   static async waitForCompletion(
     jobId: string,
   ): Promise<Extract<JobStatus, 'done' | 'error' | 'stale'>> {
@@ -110,6 +129,10 @@ export class JobService {
     }
   }
 
+  /**
+   * 在统一生命周期内执行计算，并通过终态事务写入业务结果及任务状态。
+   * Run job computation and commit business results and terminal job state through the lifecycle transaction.
+   */
   static async execute(jobId: string): Promise<void> {
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job || job.status !== 'running') {
@@ -187,6 +210,10 @@ export class JobService {
     return committed;
   }
 
+  /**
+   * 通过任务失败生命周期提交错误和业务终态，避免残留运行状态。
+   * Finalize job failure through business lifecycle and terminal state handling.
+   */
   private static async fail(job: Job, error: unknown): Promise<boolean> {
     const logs = JobLogs.snapshot(job.id);
     const message = error instanceof Error ? error.message : String(error);
@@ -210,6 +237,11 @@ export class JobService {
   }
 
   // Persisted links still need cleanup when kind or payload is corrupt.
+
+  /**
+   * 查找与业务实体关联的生命周期处理器，供任务管理共用。
+   * Resolve lifecycle handlers associated with a business entity.
+   */
   private static relatedLifecycles(job: Job): Set<JobLifecycle<unknown>> {
     const lifecycles = new Set<JobLifecycle<unknown>>();
     const selected = JobService.lifecycles.get(job.kind);

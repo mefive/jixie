@@ -5,8 +5,11 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { AgentToolTraceItem } from '@src/api/agent';
 import './tool-trace.css';
 
-/** A muted "queried the DB N times" line under a fresh agent reply — display only, never persisted
- * (a reopened conversation simply doesn't show it). Hover for the per-call detail. */
+/**
+ * 在新回答下显示临时查询次数提示，不将该显示状态持久化。
+ * A muted "queried the DB N times" line under a fresh agent reply — display only, never persisted
+ * (a reopened conversation simply doesn't show it). Hover for the per-call detail.
+ */
 export function ToolTrace({ trace }: { trace: AgentToolTraceItem[] }) {
   const { t } = useTranslation('components');
   if (!trace.length) {
