@@ -10,7 +10,11 @@ import {
 describe('China macro PIT normalization', () => {
   it('uses monthly source ranges and year-bounded Shibor requests', () => {
     expect(chinaMacroSourceRequests('202512', '202601')).toEqual([
-      { sourceApi: 'cn_pmi', params: { start_m: '202512', end_m: '202601' } },
+      {
+        sourceApi: 'cn_pmi',
+        params: { start_m: '202512', end_m: '202601' },
+        fields: 'month,pmi010000',
+      },
       { sourceApi: 'cn_cpi', params: { start_m: '202512', end_m: '202601' } },
       { sourceApi: 'cn_ppi', params: { start_m: '202512', end_m: '202601' } },
       { sourceApi: 'cn_m', params: { start_m: '202512', end_m: '202601' } },

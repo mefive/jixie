@@ -44,6 +44,7 @@ export interface ChinaMacroSeriesDefinition {
 export interface ChinaMacroSourceRequest {
   sourceApi: ChinaMacroSourceApi;
   params: Record<string, unknown>;
+  fields?: string;
 }
 
 /**
@@ -300,10 +301,15 @@ export async function syncChinaMacroData(
       : monthRange(maximumMonth(startMonth, FIRST_SCHEDULE_MONTH), addMonths(endMonth, 1));
   const [sourceRequestBatches, scheduleBatches] = await Promise.all([
     Promise.all(
-      chinaMacroSourceRequests(startMonth, endMonth).map(async (request) => ({
-        sourceApi: request.sourceApi,
-        rows: await client.call(request.sourceApi, request.params),
-      })),
+      chinaMacroSourceRequests(startMonth, endMonth).map(async (request) => {
+        const rows = await client.call(request.sourceApi, request.params, request.fields);
+
+        if (request.sourceApi === 'cn_pmi') {
+          validateManufacturingPmiRows(rows, startMonth, endMonth);
+        }
+
+        return { sourceApi: request.sourceApi, rows };
+      }),
     ),
     Promise.all(
       scheduleMonths.map(async (month) => ({
@@ -519,6 +525,7 @@ export function chinaMacroSourceRequests(
   const requests: ChinaMacroSourceRequest[] = monthlyApis.map((sourceApi) => ({
     sourceApi,
     params: { start_m: startMonth, end_m: endMonth },
+    ...(sourceApi === 'cn_pmi' ? { fields: 'month,pmi010000' } : {}),
   }));
   const startDate = `${startMonth}01`;
   const endDate = monthEnd(endMonth);
@@ -532,6 +539,54 @@ export function chinaMacroSourceRequests(
     });
   }
   return requests;
+}
+
+/**
+ * 在写库前拒绝 PMI 缺列、重复月份和非法值，避免供应商静默忽略字段。
+ *
+ * Reject missing PMI columns, duplicate months and invalid values before any database writes.
+ */
+function validateManufacturingPmiRows(
+  rows: TushareRow[],
+  startMonth: string,
+  endMonth: string,
+): void {
+  if (rows.length === 0) {
+    throw new Error('cn_pmi returned no manufacturing PMI observations');
+  }
+
+  const months = new Set<string>();
+
+  for (const row of rows) {
+    const month = fieldValue(row, 'month');
+
+    if (typeof month !== 'string' || !/^\d{4}(0[1-9]|1[0-2])$/.test(month)) {
+      throw new Error(`cn_pmi returned invalid month ${String(month)}`);
+    }
+    if (month < startMonth || month > endMonth) {
+      throw new Error(`cn_pmi returned month ${month} outside ${startMonth}..${endMonth}`);
+    }
+    if (months.has(month)) {
+      throw new Error(`cn_pmi returned duplicate month ${month}`);
+    }
+
+    months.add(month);
+
+    const sourceValue = fieldValue(row, 'pmi010000');
+
+    if (
+      (typeof sourceValue !== 'number' && typeof sourceValue !== 'string') ||
+      (typeof sourceValue === 'string' && sourceValue.trim() === '')
+    ) {
+      throw new Error(`cn_pmi returned missing or invalid pmi010000 for ${month}`);
+    }
+
+    const value = Number(sourceValue);
+
+    if (!Number.isFinite(value) || value < 0 || value > 100) {
+      throw new Error(`cn_pmi returned invalid pmi010000 for ${month}: ${String(sourceValue)}`);
+    }
+  }
 }
 
 function officialReleaseDate(
