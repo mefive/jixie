@@ -1,0 +1,15 @@
+@reference '../styles/index.css';
+
+.jx-codeChange-card {
+  @apply flex flex-col items-start gap-2;
+  @apply my-2 rounded-lg border border-gray-200 p-3;
+}
+
+.jx-codeChange-heading {
+  @apply flex items-center gap-2;
+  @apply font-medium;
+}
+
+.jx-codeChange-content {
+  @apply flex flex-col gap-3;
+}

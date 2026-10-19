@@ -1,3 +1,5 @@
+import type { CodeChangeProposalV1 } from '@jixie/shared';
+import { acceptFactorCodeChange } from '@src/api/factor';
 import type { ResearchDataReferenceV1 } from '@jixie/shared';
 import {
   embeddedUserMessage,
@@ -243,6 +245,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public catalogLoader = new LoaderModel<FactorMeta[]>();
   public reportLoader = new LoaderModel<FactorReportDetail>();
   public reportsLoader = new LoaderModel<FactorReportListResponse>();
+  public codeChangeLoader = new LoaderModel<CodeChangeProposalV1>();
   public saveLoader = new LoaderModel<{ id: string; name: string }>();
   public analysisPoller = new PollingModel();
   public researchSummaryLoader = new LoaderModel<FactorResearchSummary>();
@@ -260,7 +263,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public compositeDefinition: FactorCompositeDefinition | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
-  public pendingAgentCode: string | null = null; // Agent result held back when the user edited mid-turn
   public chatMessages: ChatMessage[] = [];
   public questionsLoader = new LoaderModel<FactorQuestionHistoryV1>();
   public earlierQuestionsLoader = new LoaderModel<FactorQuestionHistoryV1>();
@@ -322,7 +324,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       compositeDefinition: observable.ref,
       code: observable.ref,
       persistedCode: observable.ref,
-      pendingAgentCode: observable.ref,
       chatMessages: observable.ref,
       questionNextBefore: observable.ref,
       questionStreamError: observable.ref,
@@ -395,6 +396,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
    */
   public setup(params: FactorSetupParams) {
     super.setup(params);
+    this.codeChangeLoader.setup({
+      preserveResult: false,
+      request: (input: { entityId: string; proposalId: string; beforeCode: string }) =>
+        acceptFactorCodeChange(input.entityId, input.proposalId, input.beforeCode),
+    });
+    this.registCleaner(() => this.codeChangeLoader.cleanup());
     this.questionsLoader.setup({
       request: (key: string, signal) => getFactorQuestions(key, undefined, signal),
     });
@@ -881,22 +888,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.scheduleDraftSave();
   }
 
-  public applyPendingAgentCode() {
-    if (this.pendingAgentCode === null) {
-      return;
-    }
-    runInAction(() => {
-      this.code = this.pendingAgentCode!;
-      this.pendingAgentCode = null;
-    });
-    this.scheduleDraftSave();
-  }
-
-  public dismissPendingAgentCode() {
-    runInAction(() => {
-      this.pendingAgentCode = null;
-    });
-  }
   public setNlText(v: string) {
     runInAction(() => (this.nlText = v));
   }
@@ -969,7 +960,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.description = meta?.description ?? '';
       this.researchHandoff = null;
       this.sourceResearchExecution = null;
-      this.pendingAgentCode = null;
       if (!isCustom) {
         this.code = '';
         this.persistedCode = '';
@@ -1199,6 +1189,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.nlText = '';
     });
     try {
+      await this.saveDraft();
+
       const codeAtRequest = this.code;
       const { turnId } = await sendFactorAgent(this.selectedKey, text, codeAtRequest, {
         dataReferences,
@@ -1210,7 +1202,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       if (selection !== this.chatSelection) {
         return;
       }
-      await this.turnStream.attach(turnId, this.turnHandlers(codeAtRequest)); // resolves after terminal event
+      await this.turnStream.attach(turnId, this.turnHandlers()); // resolves after terminal event
     } catch (e) {
       if (selection !== this.chatSelection) {
         return;
@@ -1234,11 +1226,53 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /**
+   * 明确接受后使用服务端保存的代码；请求期间的本地编辑不被覆盖。
+   *
+   * Adopt server-saved code only after acceptance, preserving edits made while the request was pending.
+   */
+  public async acceptCodeChange(proposal: CodeChangeProposalV1) {
+    if (
+      this.codeChangeLoader.loading ||
+      proposal.surface !== 'factor' ||
+      proposal.entityId !== this.selectedKey ||
+      this.code !== proposal.beforeCode ||
+      this.language !== proposal.language
+    ) {
+      return;
+    }
+    const selection = this.chatSelection;
+    const beforeCode = this.code;
+    const accepted = await this.codeChangeLoader.run({
+      entityId: proposal.entityId,
+      proposalId: proposal.id,
+      beforeCode,
+    });
+    if (selection !== this.chatSelection || this.selectedKey !== proposal.entityId) {
+      return;
+    }
+
+    runInAction(() => {
+      this.chatMessages = this.chatMessages.map((message) => ({
+        ...message,
+        parts: message.parts.map((part) =>
+          part.type === 'code_change' && part.proposal.id === accepted.id
+            ? { type: 'code_change' as const, proposal: accepted }
+            : part,
+        ),
+      }));
+      if (this.code === beforeCode) {
+        this.code = accepted.afterCode;
+        this.persistedCode = accepted.afterCode;
+      }
+    });
+  }
+
+  /**
    * 构造作者对话与刷新重连共用的终态事件处理。
    *
    * Terminal-event handlers for authoring and its refresh reattach.
    */
-  private turnHandlers(codeAtRequest?: string): AgentTurnHandlers {
+  private turnHandlers(): AgentTurnHandlers {
     const selection = this.chatSelection;
     return {
       onEmbeddedAnalysis: (part, turnId) => {
@@ -1261,15 +1295,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
             turnId: done.turnId,
             toolTrace: done.toolTrace,
           } as ChatMessage);
-          if (done.changed) {
-            if (codeAtRequest !== undefined && this.code !== codeAtRequest) {
-              this.pendingAgentCode = done.code;
-            } else {
-              this.code = done.code; // editor updates; analysis result stays until the next run
-              this.pendingAgentCode = null;
-              this.scheduleDraftSave();
-            }
-          }
         });
         void this.refreshIdentity();
       },
@@ -1314,7 +1339,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       return;
     }
     if (turnId) {
-      await this.turnStream.attach(turnId, this.turnHandlers(this.code));
+      await this.turnStream.attach(turnId, this.turnHandlers());
     }
     if (selection === this.chatSelection) {
       runInAction(() => (this.sending = false));
@@ -1526,7 +1551,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.factorKey = '';
         this.factorStatus = 'draft';
         this.description = '';
-        this.pendingAgentCode = null;
       });
       this.reportLoader.reset();
       this.reportsLoader.reset();

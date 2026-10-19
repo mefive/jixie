@@ -1,5 +1,6 @@
-import { normalizeChatMessage, type Locale } from '@jixie/shared';
+import { type Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
+import { readCodeProposalHistory } from '#agent/conversations/code-proposals.js';
 import { FactorError } from '../errors.js';
 import { inspectFactorTargetAssetClasses } from '../sandbox/inspect-definition.js';
 import { BUILTIN_USER_ID } from './builtin-factors.js';
@@ -107,7 +108,7 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
     messages:
       ownerId === userId
         ? Array.isArray(row.messages)
-          ? row.messages.map(normalizeChatMessage)
+          ? await readCodeProposalHistory(prisma, userId, 'factor', factorId, row.messages)
           : row.messages
         : null,
     researchHandoff: ownerId === userId ? row.researchHandoff : null,

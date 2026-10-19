@@ -1,3 +1,5 @@
+import { acceptCodeChangeSchema } from '@jixie/shared/api/factor';
+import { getFactorCodeProposal, acceptFactorCodeProposal } from '../agent/code-proposals.js';
 import { FactorError } from '../errors.js';
 
 import { validateJson, validateParam, validateQuery } from '#infra/http/errors.js';
@@ -60,4 +62,29 @@ factorAgentRoute.post(
       await startFactorQuestion(c.var.userId, c.req.valid('json'), localeFromRequest(c)),
     );
   },
+);
+
+factorAgentRoute.get('/:factorId/code-change-proposals/:proposalId', async (context) => {
+  context.header('Cache-Control', 'private, no-store');
+  return context.json(
+    await getFactorCodeProposal(
+      context.var.userId,
+      context.req.param('factorId'),
+      context.req.param('proposalId'),
+    ),
+  );
+});
+
+factorAgentRoute.post(
+  '/:factorId/code-change-proposals/:proposalId/accept',
+  validateJson(acceptCodeChangeSchema),
+  async (context) =>
+    context.json(
+      await acceptFactorCodeProposal(
+        context.var.userId,
+        context.req.param('factorId'),
+        context.req.param('proposalId'),
+        context.req.valid('json'),
+      ),
+    ),
 );

@@ -1,3 +1,5 @@
+import type { CodeChangeProposalV1 } from '@jixie/shared';
+import { acceptStrategyCodeChange } from '@src/api/strategy';
 import type { ResearchDataReferenceV1 } from '@jixie/shared';
 import {
   embeddedUserMessage,
@@ -85,15 +87,11 @@ type DeploymentAction =
   | { type: 'pause'; deploymentId: string };
 
 /**
- * Strategy workbench store — code-first. Persistence model (per the agent workflow):
- *  - a strategy row is CREATED up front on the first Agent prompt (LLM-named from the request), so the
- *    conversation has something to attach to;
- *  - `messages` save in real time (every Agent turn, by id);
- *  - `config` (code / range / capital) + `name` persist ONLY on a run — the name is re-derived from the
- *    code each run (the model keeps it when it still fits). So the editor's code/params are a working
- *    state that only commits when you Run backtest; an unrun edit is lost on refresh (by design).
- * `dirty` = the run-relevant config changed since the last run → gates the Run-backtest button + the "result
- * is stale" behavior. The result is replaced only by a run, never cleared by editing code.
+ * 策略工作台保留编辑状态；Agent 建议独立持久化，用户接受时才保存源码。
+ * 手动参数与源码修改仍随明确提交回测保存，接受建议不会启动回测。
+ *
+ * Keep editor state separate from durable Agent proposals; only explicit acceptance saves generated source.
+ * Manual code and parameter edits are committed with a backtest; acceptance never starts one.
  */
 export class StrategyStore extends BaseStore<StrategySetupParams> {
   public name = ''; // LLM-derived name; regenerated from the code on each run (the strategy name, not the code's own)
@@ -137,6 +135,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   public backtestPoller = new PollingModel();
   public scanPoller = new PollingModel();
+  public codeChangeLoader = new LoaderModel<CodeChangeProposalV1>();
   public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
   public backtestHistoryLoader = new LoaderModel<BacktestReportSummary[]>();
   public backtestReportLoader = new LoaderModel<BacktestReportDetail>();
@@ -201,6 +200,12 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
    */
   public setup(params: StrategySetupParams) {
     super.setup(params);
+    this.codeChangeLoader.setup({
+      preserveResult: false,
+      request: (input: { entityId: string; proposalId: string; beforeCode: string }) =>
+        acceptStrategyCodeChange(input.entityId, input.proposalId, input.beforeCode),
+    });
+    this.registCleaner(() => this.codeChangeLoader.cleanup());
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.scanPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollScanOnce() });
     this.savedLoader.setup({ request: () => listStrategies() });
@@ -555,7 +560,49 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   }
 
   /**
-   * 提供新轮次与刷新重连共用的终态处理。
+   * 明确接受后使用服务端保存的代码；请求期间的本地编辑不被覆盖。
+   *
+   * Adopt server-saved code only after acceptance, preserving edits made while the request was pending.
+   */
+  public async acceptCodeChange(proposal: CodeChangeProposalV1) {
+    if (
+      this.codeChangeLoader.loading ||
+      proposal.surface !== 'strategy' ||
+      proposal.entityId !== this.savedId ||
+      this.code !== proposal.beforeCode ||
+      this.language !== proposal.language
+    ) {
+      return;
+    }
+    const selection = this.chatSelection;
+    const beforeCode = this.code;
+    const accepted = await this.codeChangeLoader.run({
+      entityId: proposal.entityId,
+      proposalId: proposal.id,
+      beforeCode,
+    });
+    if (selection !== this.chatSelection || this.savedId !== proposal.entityId) {
+      return;
+    }
+
+    runInAction(() => {
+      this.chatMessages = this.chatMessages.map((message) => ({
+        ...message,
+        parts: message.parts.map((part) =>
+          part.type === 'code_change' && part.proposal.id === accepted.id
+            ? { type: 'code_change' as const, proposal: accepted }
+            : part,
+        ),
+      }));
+      if (this.code === beforeCode) {
+        this.code = accepted.afterCode;
+      }
+      this.result = null;
+    });
+  }
+
+  /**
+   * 构造发送与刷新重连共用的终态事件处理。
    *
    * Terminal-event handlers shared by sendAgent and the refresh reattach.
    */
@@ -583,9 +630,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
             turnId: done.turnId,
             toolTrace: done.toolTrace,
           } as ChatMessage);
-          if (done.changed) {
-            this.code = done.code; // dirty → runnable; the shown result stays until the next run
-          }
         });
       },
       onError: (message) => {

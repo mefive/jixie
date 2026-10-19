@@ -486,6 +486,42 @@ describe('agentTurn tool loop', () => {
     ).toBe(true);
   });
 
+  it('keeps a pending candidate available for discussion without adopting it as current code', async () => {
+    const llm = scriptedLlm([{ text: 'Please review the pending suggestion.' }]);
+    const candidate = 'const pendingCandidate = 20;';
+    const result = await agentTurn(
+      { system: 'Explain the pending change.' },
+      [
+        {
+          role: 'assistant',
+          parts: [
+            {
+              type: 'code_change',
+              proposal: {
+                version: 1,
+                id: 'proposal',
+                surface: 'strategy',
+                entityId: 'strategy',
+                language: 'typescript',
+                beforeCode: STRATEGY,
+                afterCode: candidate,
+                status: 'pending',
+                createdAt: new Date().toISOString(),
+              },
+            },
+          ],
+        },
+      ],
+      'Explain the proposal.',
+      STRATEGY,
+      llm,
+    );
+    expect(result.code).toBe(STRATEGY);
+    expect(result.changed).toBe(false);
+    expect(llm.mock.calls[0][0].at(-1)?.content).toContain(candidate);
+    expect(llm.mock.calls[0][0].at(-1)?.content).toContain('not accepted or applied');
+  });
+
   it('repair rounds run with tools disabled', async () => {
     const tool = fakeTool('echo', async () => ({ observation: '{}' }));
     const validate = vi

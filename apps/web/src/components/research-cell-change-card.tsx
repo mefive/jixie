@@ -253,18 +253,6 @@ export default function ResearchCellChangeCard({
               />
             </Tooltip>
           )}
-          {pending && onApply && (
-            <Tooltip title={t('workbench.cellChange.apply')}>
-              <Button
-                className="jx-researchCellChange-actionButton jx-researchCellChange-actionButton--apply"
-                size="small"
-                loading={busy}
-                icon={<FontAwesomeIcon icon={faCheck} />}
-                aria-label={t('workbench.cellChange.apply')}
-                onClick={() => void onApply(proposal.id)}
-              />
-            </Tooltip>
-          )}
         </div>
       </footer>
 
@@ -274,7 +262,18 @@ export default function ResearchCellChangeCard({
         open={diffOpen}
         centered
         width="min(1360px, calc(100vw - 64px))"
-        footer={null}
+        footer={
+          pending && onApply ? (
+            <Button
+              type="primary"
+              loading={busy}
+              data-testid="research-cell-change-accept-proposal"
+              onClick={() => void onApply(proposal.id).catch(() => {})}
+            >
+              {t('workbench.cellChange.acceptProposal')}
+            </Button>
+          ) : null
+        }
         destroyOnHidden
         closeIcon={<FontAwesomeIcon icon={faXmark} />}
         classNames={{

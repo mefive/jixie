@@ -553,6 +553,11 @@ const AgentChat = complex.component(() => {
     <div className="jx-strategy-chat">
       <div className="jx-strategy-agentName">{store.name || t('agentUnsavedName')}</div>
       <ChatLog
+        currentCode={store.code}
+        currentLanguage={store.language}
+        onAcceptCodeChange={(proposal) => store.acceptCodeChange(proposal)}
+        codeChangeBusy={store.codeChangeLoader.loading}
+        codeChangeError={store.codeChangeLoader.errorObject?.message}
         messages={store.chatMessages}
         sending={store.sending}
         quiet={store.initializing}
@@ -751,11 +756,21 @@ const RunConfig = complex.component(() => {
  * Render strategy messages and tool artifacts consistently.
  */
 function ChatLog({
+  currentCode,
+  currentLanguage,
+  onAcceptCodeChange,
+  codeChangeBusy,
+  codeChangeError,
   messages,
   sending,
   quiet,
   stream,
 }: {
+  currentCode: string;
+  currentLanguage: 'typescript' | 'python';
+  onAcceptCodeChange: (proposal: import('@jixie/shared').CodeChangeProposalV1) => Promise<void>;
+  codeChangeBusy: boolean;
+  codeChangeError?: string;
   messages: ChatMessage[];
   sending: boolean;
   quiet?: boolean;
@@ -784,7 +799,14 @@ function ChatLog({
           ) : (
             traceOf(message) && <ToolTrace trace={traceOf(message)!} />
           )}
-          <MessageParts message={message} />
+          <MessageParts
+            message={message}
+            currentCode={currentCode}
+            currentCodeLanguage={currentLanguage}
+            onAcceptCodeChange={onAcceptCodeChange}
+            codeChangeBusy={codeChangeBusy}
+            codeChangeError={codeChangeError}
+          />
         </div>
       ))}
       {sending && (

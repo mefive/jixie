@@ -138,3 +138,6 @@ export type InspectStrategyParametersRequest = z.input<typeof strategyScanParame
 export type SubmitStrategyScanRequest = z.input<typeof submitStrategyScanSchema>;
 export type StrategyAgentRequest = z.input<typeof strategyAgentBodySchema>;
 export type StrategyAgentRequestParams = z.input<typeof strategyAgentParamsSchema>;
+
+export { acceptCodeChangeSchema } from './agent.js';
+export type { AcceptCodeChangeInput, AcceptCodeChangeRequest } from './agent.js';

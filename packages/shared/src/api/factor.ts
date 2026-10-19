@@ -488,3 +488,6 @@ export type FactorAgentRequest = z.input<typeof factorAgentBodySchema>;
 export type FactorAgentRequestParams = z.input<typeof factorAgentParamsSchema>;
 export type FactorQuestionRequest = z.input<typeof factorQuestionSchema>;
 export type FactorQuestionHistoryRequestQuery = z.input<typeof factorQuestionHistorySchema>;
+
+export { acceptCodeChangeSchema } from './agent.js';
+export type { AcceptCodeChangeInput, AcceptCodeChangeRequest } from './agent.js';

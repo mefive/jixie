@@ -8,6 +8,7 @@ import { embeddedUserParts } from '#research/embedded/data-references.js';
 import type { Locale } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
+import { strategyCodeIdentity } from './code-proposals.js';
 import type { StrategyAgentInput } from '../schema.js';
 import { publishedFactorContext, syncedIndexContext } from './context.js';
 
@@ -22,7 +23,10 @@ export async function startStrategyAgentTurn(
   locale: Locale,
 ) {
   const { id, message, code, language = 'typescript' } = input;
-  const strategy = await prisma.strategy.findFirst({ where: { id, userId }, select: { id: true } });
+  const strategy = await prisma.strategy.findFirst({
+    where: { id, userId },
+    select: { id: true, config: true },
+  });
 
   if (!strategy) {
     throw new StrategyError('strategy_not_found');
@@ -55,6 +59,13 @@ export async function startStrategyAgentTurn(
     message,
     userParts: embeddedUserParts(message, input.dataReferences),
     currentCode: code,
+    codeProposal: {
+      surface: 'strategy',
+      entityId: id,
+      language,
+      beforeCode: code,
+      baseIdentity: strategyCodeIdentity(strategy.config),
+    },
     locale,
   });
 

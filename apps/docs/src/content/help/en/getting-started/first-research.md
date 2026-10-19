@@ -40,9 +40,7 @@ not visible, and an unrevealed holdout report remains sealed.
 ## Work with the Research Agent
 
 The Agent can add statistical methods and formulas, query the exact Research SDK contract, edit Markdown/Python cells, and
-explain real output. Its changes enter inline cell review: previous lines remain read-only while Agent-added or modified content
-can still be edited. Accept keeps the user's final edited version, and Undo restores the pre-review document. A proposal never
-runs a cell by itself.
+explain real output. Its changes are saved as pending proposals without modifying Cells. Open the message card's read-only diff and explicitly accept to save them. Closing keeps them pending; changed content cannot be overwritten. Acceptance does not execute Cells.
 
 The Agent cannot claim that unexecuted code has run or replace code and output with prose. If an exact object, dataset, SDK
 method, or analysis capability is unavailable, it must report that gap instead of silently substituting similar data.

@@ -5,6 +5,8 @@ import {
 } from '#infra/errors.js';
 
 const definitions = {
+  code_proposal_not_found: { category: 'missing', messageKey: 'codeProposalNotFound' },
+  code_proposal_conflict: { category: 'conflict', messageKey: 'codeProposalConflict' },
   sql_single_statement: {
     category: 'invalid',
     messageKey: 'sqlSingleStatement',

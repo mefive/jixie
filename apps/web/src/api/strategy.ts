@@ -1,3 +1,5 @@
+import type { AcceptCodeChangeRequest } from '@jixie/shared/api/strategy';
+import type { CodeChangeProposalV1 } from '@jixie/shared';
 import type {
   StrategyCodeConfigRequest,
   CreateStrategyRequest,
@@ -169,4 +171,18 @@ export function setStrategyVisibility(
     method: 'PATCH',
     body: JSON.stringify({ visibility } satisfies StrategyVisibilityRequest),
   });
+}
+
+export function acceptStrategyCodeChange(
+  strategyId: string,
+  proposalId: string,
+  beforeCode: string,
+): Promise<CodeChangeProposalV1> {
+  return request(
+    `/api/app/strategies/${encodeURIComponent(strategyId)}/code-change-proposals/${encodeURIComponent(proposalId)}/accept`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ beforeCode } satisfies AcceptCodeChangeRequest),
+    },
+  );
 }

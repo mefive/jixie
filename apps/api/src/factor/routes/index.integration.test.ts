@@ -827,7 +827,12 @@ describe('Factor HTTP business boundaries', () => {
         entity: { kind: 'factor', id: 'draft' },
         currentCode: frozenCode,
         locale: 'en',
-        afterTurn: expect.any(Function),
+        codeProposal: expect.objectContaining({
+          surface: 'factor',
+          entityId: 'draft',
+          beforeCode: frozenCode,
+          baseIdentity: expect.any(String),
+        }),
       }),
     );
   });

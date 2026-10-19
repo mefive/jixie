@@ -424,9 +424,6 @@ export const zhFactor = {
   historyDiscardTitle: '恢复历史报告参数？',
   historyDiscardContent: '当前分析参数已修改，打开历史报告会恢复该报告的参数。',
   historyDiscardOk: '打开历史报告',
-  agentCodeConflict: 'Agent 已生成新代码，但你在等待期间修改了编辑器，代码尚未应用。',
-  keepMyCode: '保留我的修改',
-  applyAgentCode: '应用 Agent 代码',
 
   corrTrigger: '相关性矩阵',
   corrTitle: '因子相关性矩阵',

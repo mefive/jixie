@@ -48,6 +48,13 @@ Strategy 基础 profile 提供查询和代码产物校验；页面单独添加�
 
 **这些步骤并非一个总事务。** 创建 conversation、开始 turn、实体镜像和完成 turn 保留原边界，不为目录整理扩大事务。Research 提案/澄清、所属消息与完成状态仍在同一个完成事务中。`bootstrap.ts` 调用 `markRunningAgentTurnsInterrupted` 恢复数据库中的运行记录；它不会重放模型调用或重建内存事件。
 
+
+## 生成代码的接受边界
+
+Factor／Strategy 的校验结果随助手消息事务保存为 AgentCodeChangeProposal，done 事件携带 `code_change` 产物，不直接修改业务源码。前端仅展示卡片，用户点开只读 diff 并接受后，由各业务 `agent/code-proposals.ts` 在事务中校验保存基准身份、编辑器基准及业务状态，再保存源码和接受状态。原消息状态同步更新，不追加接受／撤回消息；实体消息镜像读取时从提案表补齐权威状态。
+
+Research 继续使用 Cell 修改提案；新提案不再自动应用，只有明确接受才更新 Cell。旧版开放审阅的接受／恢复仅作历史兼容。三类接受均不自动执行分析或回测。设计和待验证项目见 [代码修改审阅](../../../../docs/design/agent-code-change-review.md)。
+
 ## Worker 与验证
 
 SQL Worker 使用 Node `DatabaseSync` 的只读连接；主线程负责超时和重建。相对 `DATABASE_URL` 必须继续相对 `apps/api/prisma` 解析，迁移目录时已同步这一资源路径。SQL Worker 保留源码 `.boot.mjs` 与编译 `.js` 入口。

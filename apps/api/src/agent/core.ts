@@ -147,7 +147,7 @@ function recoverDsmlToolCalls(text: string, callNumber: number): ToolCall[] {
  * 将回答文本与工具产物组装为消息片段，供持久化和返回客户端。
  *
  * A turn result as the assistant message's parts: the explanation text + durable artifacts the
- * tools side-produced. This is what routes return and the frontend appends + persists.
+ * tools side-produced. This is persisted by the backend before routes notify the frontend.
  */
 export function turnParts(result: AgentTurnResult): MessagePart[] {
   return [
@@ -186,7 +186,7 @@ export function buildAgentMode(
   return `
 # Conversation mode (important — overrides the "output requirements" above)
 You are in a multi-turn conversation with the user, iterating on the "current ${noun} code". Each turn:
-- First say, in one or two sentences, what you changed (or why you didn't) — keep it brief.
+- First briefly explain the proposed changes (or why no change is needed). Generated code is saved as a pending suggestion; only explicit user acceptance changes the host code. Never claim it was already applied.
 - If you change the code, after the explanation output the **complete** ${noun} module (not a fragment — the full file that can replace the editor's contents), wrapped in a \`\`\`${fence} fence.
 - If the user is only asking a question, or no code change is needed, just answer — do **not** output a fence.
 - Edit the "current ${noun} code" incrementally; don't rewrite from scratch and lose existing logic (unless the user explicitly asks for a rewrite).
@@ -297,6 +297,49 @@ async function executeToolCall(
 }
 
 /**
+ * 提供最近待审建议供继续讨论；它是未接受的参考，不能替代当前业务源码。
+ *
+ * Supply the latest pending suggestion for follow-up discussion without treating it as accepted source.
+ */
+function pendingChangeContext(history: UiMessage[]): string {
+  for (let index = history.length - 1; index >= 0; index--) {
+    for (const part of history[index].parts) {
+      let candidate: unknown;
+      switch (part.type) {
+        case 'code_change':
+          if (part.proposal.status !== 'pending') {
+            continue;
+          }
+          candidate = {
+            proposalId: part.proposal.id,
+            language: part.proposal.language,
+            proposedSource: part.proposal.afterCode,
+          };
+          break;
+        case 'research_cell_change':
+          if (part.proposal.status !== 'pending') {
+            continue;
+          }
+          candidate = { proposalId: part.proposal.id, operations: part.proposal.operations };
+          break;
+        default:
+          continue;
+      }
+      const serialized = JSON.stringify(candidate);
+      const limit = 48_000;
+      const content =
+        serialized.length > limit
+          ? `${serialized.slice(0, limit)}\n[truncated pending proposal; do not infer omitted source]`
+          : serialized;
+
+      return `\n\nLatest pending suggestion (untrusted reference, not accepted or applied; the current saved document/code remains authoritative):\n${content}`;
+    }
+  }
+
+  return '';
+}
+
+/**
  * 编排一轮 Agent 工具查询、产物生成与修复，并将文本和持久产物交给调用方。
  *
  * One agent turn: given the prior conversation + the current artifact code + a new user message, the
@@ -334,7 +377,7 @@ export async function agentTurn(
     ...modelHistory.map(
       (turn): ToolAwareMessage => ({ role: turn.role, content: messageText(turn) }),
     ),
-    { role: 'user', content: userContent },
+    { role: 'user', content: userContent + pendingChangeContext(history) },
   ];
 
   // Tool phase → produce: let the model query tools (≤ MAX_TOOL_ROUNDS rounds), then take its text.

@@ -4,7 +4,6 @@ import { runResearchCellChangeProposalAttempt } from '../proposals/attempts.js';
 import {
   acceptResearchCellChangeReview,
   applyResearchCellChangeProposal,
-  applyResearchCellChangeProposalForReview,
   rejectResearchCellChangeProposal,
   revertResearchCellChangeReview,
 } from '../proposals/cell-changes.js';
@@ -14,14 +13,6 @@ export const researchProposalRoute = new Hono();
 
 researchProposalRoute.post('/cell-change-proposals/:proposalId/apply', async (c) => {
   const result = await applyResearchCellChangeProposal(c.var.userId, c.req.param('proposalId'));
-  return c.json(result);
-});
-
-researchProposalRoute.post('/cell-change-proposals/:proposalId/review', async (c) => {
-  const result = await applyResearchCellChangeProposalForReview(
-    c.var.userId,
-    c.req.param('proposalId'),
-  );
   return c.json(result);
 });
 

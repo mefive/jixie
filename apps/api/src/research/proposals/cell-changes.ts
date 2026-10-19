@@ -273,29 +273,14 @@ export async function prepareResearchCellChangeProposal(
   };
 }
 
-export function applyResearchCellChangeProposal(
-  userId: string,
-  proposalId: string,
-): Promise<ResearchCellChangeResolutionResultV1> {
-  return applyResearchCellChangeProposalInternal(userId, proposalId, false);
-}
-
-export function applyResearchCellChangeProposalForReview(
-  userId: string,
-  proposalId: string,
-): Promise<ResearchCellChangeResolutionResultV1> {
-  return applyResearchCellChangeProposalInternal(userId, proposalId, true);
-}
-
 /**
- * 在事务中验证修订与提案状态，应用 Cell 修改并建立待审记录。
+ * 明确接受时原子校验提案并更新 Cell，不建立先应用后撤回的审阅状态。
  *
- * Validate revisions and proposal state transactionally, apply edits and create a pending review.
+ * Validate and apply a proposal on explicit acceptance without opening a pre-applied review.
  */
-async function applyResearchCellChangeProposalInternal(
+export async function applyResearchCellChangeProposal(
   userId: string,
   proposalId: string,
-  openReview: boolean,
 ): Promise<ResearchCellChangeResolutionResultV1> {
   const transactionResult = await prisma.$transaction(
     async (transaction): Promise<ApplyTransactionResult> => {
@@ -335,18 +320,14 @@ async function applyResearchCellChangeProposalInternal(
       }
 
       const operations = proposal.operations as unknown as ResearchCellChangeOperationV1[];
-      if (!openReview) {
-        const activeReview = await transaction.researchCellChangeProposal.findFirst({
-          where: { documentId: proposal.document.id, reviewStatus: 'open' },
-          select: { id: true },
-        });
-        if (activeReview) {
-          throw new ResearchError('review_already_open');
-        }
+      const activeReview = await transaction.researchCellChangeProposal.findFirst({
+        where: { documentId: proposal.document.id, reviewStatus: 'open' },
+        select: { id: true },
+      });
+      if (activeReview) {
+        throw new ResearchError('review_already_open');
       }
-      if (openReview && operations.some((operation) => operation.kind === 'delete')) {
-        throw new ResearchError('review_delete_requires_explicit_application');
-      }
+
       const conflict = proposalConflict(
         proposal.document.contentRevision,
         proposal.expectedDocumentContentRevision,
@@ -374,56 +355,10 @@ async function applyResearchCellChangeProposalInternal(
         operations,
         resolvedAt,
       );
-      if (openReview) {
-        const activeReview = await transaction.researchCellChangeProposal.findFirst({
-          where: {
-            documentId: proposal.document.id,
-            reviewStatus: 'open',
-            reviewSessionId: { not: null },
-          },
-          orderBy: [{ reviewSequence: 'desc' }, { createdAt: 'desc' }],
-          select: { reviewSessionId: true, reviewSequence: true },
-        });
-        const reviewSessionId = activeReview?.reviewSessionId ?? ulid();
-        const reviewSequence = (activeReview?.reviewSequence ?? 0) + 1;
-        const previousReviewProposals = activeReview?.reviewSessionId
-          ? await transaction.researchCellChangeProposal.findMany({
-              where: {
-                documentId: proposal.document.id,
-                reviewSessionId: activeReview.reviewSessionId,
-                reviewStatus: 'open',
-              },
-              select: { id: true },
-            })
-          : [];
-        if (previousReviewProposals.length > 0) {
-          await transaction.researchCellChangeProposal.updateMany({
-            where: { id: { in: previousReviewProposals.map((candidate) => candidate.id) } },
-            data: { reviewIsLatest: false },
-          });
-        }
-        await transaction.researchCellChangeProposal.update({
-          where: { id: proposal.id },
-          data: {
-            status: 'applied',
-            appliedDocumentContentRevision: proposal.document.contentRevision + 1,
-            resolvedAt,
-            reviewSessionId,
-            reviewSequence,
-            reviewStatus: 'open',
-            reviewIsLatest: true,
-          },
-        });
-        const synced = await syncResearchCellChangeProposalRecords(transaction, [
-          ...previousReviewProposals.map((candidate) => candidate.id),
-          proposal.id,
-        ]);
-        return {
-          outcome: 'applied',
-          proposal: synced.find((candidate) => candidate.id === proposal.id)!,
-          seeds: result.seeds,
-        };
-      }
+      await transaction.researchCellChangeProposal.update({
+        where: { id: proposal.id },
+        data: { reviewStatus: 'accepted', reviewResolvedAt: resolvedAt },
+      });
       const applied = await resolveResearchCellChangeProposalRecord(transaction, {
         proposalId: proposal.id,
         status: 'applied',

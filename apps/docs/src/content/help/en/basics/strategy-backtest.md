@@ -43,3 +43,7 @@ Excess return is strategy return minus benchmark return. Positive excess return 
 ## Embedded analysis in chat
 
 For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.
+
+## Review strategy code suggestions
+
+Agent code is saved separately as a pending proposal. Select **View changes** to open a read-only diff; it never opens or replaces code automatically. **Accept changes** saves the strategy source. Closing keeps it pending and refreshes preserve it. Changed code or language prevents accepting an outdated suggestion. Acceptance does not start a backtest; check the parameters and run it explicitly.

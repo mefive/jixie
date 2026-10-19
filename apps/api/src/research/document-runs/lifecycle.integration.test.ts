@@ -50,11 +50,14 @@ import { getResearchExecution, promoteResearchExecution } from '../evidence/exec
 import { runResearchCellChangeProposalAttempt } from '../proposals/attempts.js';
 import {
   acceptResearchCellChangeReview,
-  applyResearchCellChangeProposalForReview,
+  applyResearchCellChangeProposal,
   prepareResearchCellChangeProposal,
   revertResearchCellChangeReview,
 } from '../proposals/cell-changes.js';
-import { persistResearchCellChangePart } from '../proposals/change-records.js';
+import {
+  persistResearchCellChangePart,
+  syncResearchCellChangeProposalRecord,
+} from '../proposals/change-records.js';
 
 import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
 import { interruptResearchDocument, resetResearchDocumentSandbox } from './control.js';
@@ -117,6 +120,31 @@ async function saveProposal() {
     }),
   );
   return proposal.id;
+}
+
+/**
+ * 直接构造旧版已应用待审记录，验证升级后的历史处置；产品不再创建此状态。
+ *
+ * Seed a legacy applied review directly; new product flows can no longer create this state.
+ */
+async function seedLegacyOpenReview(proposalId: string) {
+  const applied = await applyResearchCellChangeProposal(ownerId, proposalId);
+  const proposal = await prisma.$transaction(async (transaction) => {
+    await transaction.researchCellChangeProposal.update({
+      where: { id: proposalId },
+      data: {
+        reviewSessionId: 'legacy-session',
+        reviewSequence: 1,
+        reviewStatus: 'open',
+        reviewIsLatest: true,
+        reviewResolvedAt: null,
+      },
+    });
+
+    return syncResearchCellChangeProposalRecord(transaction, proposalId);
+  });
+
+  return { ...applied, proposal, document: await getResearchDocument(ownerId, documentId) };
 }
 
 describe('Research editing, execution evidence and proposal lifecycle', () => {
@@ -363,9 +391,26 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     expect((await runResearchCell(ownerId, 'independent'))?.cells[2].status).toBe('success');
   });
 
+  it('retains pending changes independently and applies only on explicit acceptance', async () => {
+    const proposalId = await saveProposal();
+    const before = await getResearchDocument(ownerId, documentId);
+    expect(before.cells[0].source).toBe('value = 1');
+    expect(before.activeCellChangeReview).toBeUndefined();
+    expect(sandbox.execute).not.toHaveBeenCalled();
+
+    const result = await applyResearchCellChangeProposal(ownerId, proposalId);
+    expect(result.document.cells[0].source).toBe('value = 2');
+    expect(result.proposal.reviewStatus).toBe('accepted');
+    expect(result.document.activeCellChangeReview).toBeUndefined();
+    const retry = await applyResearchCellChangeProposal(ownerId, proposalId);
+    expect(retry.document.contentRevision).toBe(result.document.contentRevision);
+    expect(sandbox.execute).not.toHaveBeenCalled();
+    expect(await prisma.agentMessage.count()).toBe(1);
+  });
+
   it('requires review acceptance before an applied proposal can run and links attempt evidence', async () => {
     const proposalId = await saveProposal();
-    const applied = await applyResearchCellChangeProposalForReview(ownerId, proposalId);
+    const applied = await seedLegacyOpenReview(proposalId);
     expect(applied?.outcome).toBe('applied');
     expect(sandbox.execute).not.toHaveBeenCalled();
     await expect(runResearchCell(ownerId, 'input')).rejects.toMatchObject({
@@ -402,7 +447,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
 
   it('reverts a review without executing cells or discarding the proposal history', async () => {
     const proposalId = await saveProposal();
-    const applied = await applyResearchCellChangeProposalForReview(ownerId, proposalId);
+    const applied = await seedLegacyOpenReview(proposalId);
     const result = await revertResearchCellChangeReview(
       ownerId,
       proposalId,
@@ -418,7 +463,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
 
   it('stops an accepted attempt if the document changes between cell executions', async () => {
     const proposalId = await saveProposal();
-    const applied = await applyResearchCellChangeProposalForReview(ownerId, proposalId);
+    const applied = await seedLegacyOpenReview(proposalId);
     await acceptResearchCellChangeReview(ownerId, proposalId, applied!.document.contentRevision);
     const started = deferred<void>();
     const release = deferred<ResearchCellRunResult>();

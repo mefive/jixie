@@ -410,17 +410,6 @@
   font-size: 11px;
 }
 
-.jx-factor-agentCodeConflict {
-  @apply flex flex-wrap items-center justify-between gap-2 border-b border-line text-up;
-  background: rgb(232 70 59 / 0.07);
-  padding: 7px 10px;
-  font-size: 12px;
-}
-
-.jx-factor-agentCodeConflictActions {
-  @apply ml-auto flex items-center gap-2;
-}
-
 .jx-factor-code {
   @apply flex flex-1 overflow-hidden;
   min-height: 0;

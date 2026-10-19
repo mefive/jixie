@@ -5,6 +5,14 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  codeProposalNotFound: {
+    zh: '待审修改不存在或无权访问。',
+    en: 'The proposed change was not found or is not accessible.',
+  },
+  codeProposalConflict: {
+    zh: '当前代码或语言已变化，请重新比较或生成修改；未覆盖当前代码。',
+    en: 'The current code or language has changed. Compare again or generate a new change; your code was not overwritten.',
+  },
   orderDecisionConflict: {
     zh: '同一次决策不能混用目标仓位与增量订单（账户：{account}，标的：{code}）。清仓后也不能追加增量订单。',
     en: 'A decision cannot mix position targets and incremental orders (account: {account}, instrument: {code}). Incremental orders after closePosition are also rejected.',
@@ -105,7 +113,7 @@ const MESSAGES = {
   },
 
   // —— Agent reply chrome (code-generated, not model output; localized by the turn's locale) ——
-  codeUpdated: { zh: '(已更新代码)', en: '(code updated)' },
+  codeUpdated: { zh: '(修改建议已生成，等待审阅)', en: '(proposed changes ready for review)' },
   changeDidNotCompile: {
     zh: '(⚠️ 生成的改动没能通过编译,已保留原代码;换个说法再试。错误:{error})',
     en: '(⚠️ The generated change did not compile; the original code was kept. Try rephrasing. Error: {error})',

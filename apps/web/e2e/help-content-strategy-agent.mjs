@@ -111,6 +111,12 @@ async function waitForCompletedAssistantTurn(count) {
 }
 
 async function waitForEditorText(text) {
+  const card = page.locator('[data-testid^="code-change-"]').last();
+  await card.getByRole('button', { name: '查看修改', exact: true }).click();
+  await page.getByTestId('code-change-accept').click();
+  await card.getByText('已接受', { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+
   await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   await page.waitForFunction(
     (expected) =>

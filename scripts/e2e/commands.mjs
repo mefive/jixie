@@ -1,5 +1,12 @@
 export const e2eCommands = [
   {
+    name: 'agent-code-review',
+    file: 'apps/web/e2e/agent-code-review.mjs',
+    group: 'isolated',
+    notes:
+      'Build shared and Web first. Disposable database; real pending/diff/accept flows for Factor, Strategy and Research.',
+  },
+  {
     name: 'job-system',
     file: 'apps/web/e2e/job-system.mjs',
     group: 'isolated',

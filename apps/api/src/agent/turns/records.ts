@@ -8,6 +8,7 @@ import {
   normalizeChatMessage,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
+import { codeProposalView, type CodeProposalContext } from '../conversations/code-proposals.js';
 import { prisma } from '#infra/database/prisma.js';
 import { persistResearchCellChangePart } from '#research/proposals/change-records.js';
 import { persistResearchClarificationPart } from '#research/proposals/clarification-records.js';
@@ -104,6 +105,7 @@ export async function finishPersistentTurn(args: {
   parts?: MessagePart[];
   error?: string;
   trace: AgentTurnTrace;
+  codeChange?: CodeProposalContext & { afterCode: string };
 }): Promise<MessagePart[] | undefined> {
   return prisma.$transaction(async (transaction) => {
     const turn = await transaction.agentTurn.findUnique({
@@ -143,6 +145,27 @@ export async function finishPersistentTurn(args: {
           turnId: args.turnId,
         },
       });
+      if (args.codeChange) {
+        const { afterCode, ...context } = args.codeChange;
+        if (context.surface !== turn.conversation.surface) {
+          throw new Error('Code proposal surface must match its conversation.');
+        }
+        const proposal = await transaction.agentCodeChangeProposal.create({
+          data: {
+            id: ulid(),
+            userId: turn.conversation.userId,
+            ...context,
+            afterCode,
+            sourceTurnId: args.turnId,
+            sourceMessageId: messageId,
+          },
+        });
+        persistedParts.push({ type: 'code_change', proposal: codeProposalView(proposal) });
+        await transaction.agentMessage.update({
+          where: { id: messageId },
+          data: { parts: persistedParts as unknown as Prisma.InputJsonValue },
+        });
+      }
       const researchCellChangePartIndexes = persistedParts.flatMap((part, partIndex) =>
         part.type === 'research_cell_change' ? [partIndex] : [],
       );

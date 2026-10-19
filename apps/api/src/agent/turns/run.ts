@@ -24,6 +24,7 @@ import {
 } from './records.js';
 import { AgentTraceRecorder } from './agent-trace-recorder.js';
 import { readMessages, writeMessages } from '../conversations/entity-messages.js';
+import type { CodeProposalContext } from '../conversations/code-proposals.js';
 
 /**
  * 标识后台 Agent 轮次关联的业务实体，供状态和消息持久化分派。
@@ -62,6 +63,7 @@ export interface EnqueueTurnArgs {
   message: string;
   userParts?: MessagePart[];
   currentCode: string;
+  codeProposal?: CodeProposalContext;
   locale?: Locale; // the requester's locale — localizes code-generated reply chrome (default zh)
   afterTurn?(result: AgentTurnResult, messages: ChatMessage[]): Promise<void>;
 }
@@ -199,6 +201,9 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
         (await finishPersistentTurn({
           turnId,
           status: 'done',
+          ...(args.codeProposal && result.changed && result.code !== currentCode
+            ? { codeChange: { ...args.codeProposal, afterCode: result.code } }
+            : {}),
           parts,
           trace: traceRecorder.trace,
         })) ?? parts;
@@ -212,8 +217,10 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
     turnBus.finish(turnId, {
       type: 'done',
       parts: completedParts,
-      code: result.code,
-      changed: result.changed,
+      // 待审代码只随持久化产物返回，旧客户端也不能根据终态自动覆盖源码。
+      // Proposed code travels only in durable parts; legacy clients cannot auto-apply terminal code.
+      code: args.codeProposal ? currentCode : result.code,
+      changed: args.codeProposal ? false : result.changed,
       attempts: result.attempts,
       toolTrace: result.toolTrace,
       ...(result.error ? { error: result.error } : {}),

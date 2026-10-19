@@ -55,8 +55,10 @@ try {
     throw new Error('Executing a Cell must not increment the document content revision.');
   }
 
-  await applyCard.getByRole('button', { name: '应用提案' }).click();
-  await applyCard.getByText('已应用', { exact: true }).waitFor({ timeout: 30_000 });
+  await applyCard.getByRole('button', { name: '审查变更' }).click();
+  await page.getByTestId('research-cell-change-accept-proposal').click();
+  await page.keyboard.press('Escape');
+  await applyCard.getByText('已接受', { exact: true }).waitFor({ timeout: 30_000 });
   const appliedDocument = await api(page, `/api/app/research/documents/${fixture.documentId}`);
   if (
     !appliedDocument.cells.some(
@@ -115,7 +117,9 @@ try {
     }),
   });
   const conflictCard = page.getByTestId(`research-cell-change-${fixture.conflictProposalId}`);
-  await conflictCard.getByRole('button', { name: '应用提案' }).click();
+  await conflictCard.getByRole('button', { name: '审查变更' }).click();
+  await page.getByTestId('research-cell-change-accept-proposal').click();
+  await page.keyboard.press('Escape');
   await conflictCard.getByText('有冲突', { exact: true }).waitFor({ timeout: 30_000 });
   const conflictedDocument = await api(page, `/api/app/research/documents/${fixture.documentId}`);
   const currentMarkdown = conflictedDocument.cells.find(

@@ -36,3 +36,15 @@ export const activeTurnQuerySchema = z.object({
 // HTTP input types describe values before defaults and transformations.
 export type ActiveAgentTurnRequestQuery = z.input<typeof activeTurnQuerySchema>;
 export type ChatMessagesRequest = z.input<typeof chatMessagesSchema>;
+
+/**
+ * 接受请求携带正在比较的编辑器源码，服务端据此拒绝过时的比较。
+ *
+ * Acceptance carries the compared editor source so stale comparisons are rejected server-side.
+ */
+export const acceptCodeChangeSchema = z.strictObject({
+  beforeCode: z.string().max(100_000),
+});
+
+export type AcceptCodeChangeInput = z.output<typeof acceptCodeChangeSchema>;
+export type AcceptCodeChangeRequest = z.input<typeof acceptCodeChangeSchema>;

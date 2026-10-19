@@ -1016,7 +1016,7 @@ model FactorReport {
   id                 String    @id // ULID for new reports; legacy composite ids remain valid
   userId             String
   factor             String
-  legacyStatus String? @map("status") // Historical state used only without a Job.
+  legacyStatus       String?   @map("status") // Historical state used only without a Job.
   phase              String    @default("legacy") // 'legacy' | 'explore' | 'holdout'
   analysisKind       String    @default("cross_sectional") // 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime'
   language           String    @default("typescript") // 'typescript' | 'python'
@@ -1031,7 +1031,7 @@ model FactorReport {
   factorCodeHash     String?
   dataRevision       String?
   payload            String? // JSON.stringify(FactorReport wire shape)
-  failureMessage String? @map("error")
+  failureMessage     String?   @map("error")
   parentReportId     String?
   testKey            String?
   researchIntentJson String?
@@ -1152,12 +1152,12 @@ model BacktestReport {
   strategyId   String
   strategy     Strategy             @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   strategyName String
-  legacyStatus String? @map("status") // Historical state used only without a Job.
+  legacyStatus String?              @map("status") // Historical state used only without a Job.
   config       Json // frozen BacktestConfig
   codeHash     String?
   resultHash   String?
   payload      Json? // frozen BacktestSummary
-  legacyError String? @map("error")
+  legacyError  String?              @map("error")
   job          Job?
   deployments  StrategyDeployment[]
   createdAt    DateTime             @default(now())
@@ -1330,13 +1330,13 @@ model StrategyScanReport {
   strategyId   String
   strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   strategyName String
-  legacyStatus String? @map("status") // Historical state used only without a Job.
+  legacyStatus String?  @map("status") // Historical state used only without a Job.
   config       Json // frozen BacktestConfig
   spec         Json // StrategyScanSpec
   codeHash     String
   dataCutoff   String?
   payload      Json? // StrategyScanPayload
-  legacyError String? @map("error")
+  legacyError  String?  @map("error")
   job          Job?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -1493,6 +1493,7 @@ model AgentMessage {
   turn           AgentTurn?        @relation(fields: [turnId], references: [id], onDelete: SetNull)
   createdAt      DateTime          @default(now())
 
+  codeChangeProposals         AgentCodeChangeProposal[]
   researchCellChangeProposals ResearchCellChangeProposal[]
   researchClarifications      ResearchClarification[]
 
@@ -1516,6 +1517,7 @@ model AgentTurn {
   finishedAt      DateTime?
 
   messages                    AgentMessage[]
+  codeChangeProposals         AgentCodeChangeProposal[]
   researchCellChangeProposals ResearchCellChangeProposal[]
   researchClarifications      ResearchClarification[]
 
@@ -1769,14 +1771,14 @@ model ResearchCuratorRun {
   id                String                   @id // ULID
   userId            String
   user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  legacyStatus String? @map("status") // Historical state used only without a Job.
+  legacyStatus      String?                  @map("status") // Historical state used only without a Job.
   trigger           String                   @default("manual") // 'manual' | 'scheduled'
   cursorFrom        DateTime?
   cursorTo          DateTime
   evidenceCount     Int                      @default(0)
   findingsCreated   Int                      @default(0)
   duplicatesSkipped Int                      @default(0)
-  legacyError String? @map("error")
+  legacyError       String?                  @map("error")
   job               Job?
   findings          ResearchCuratorFinding[]
   createdAt         DateTime                 @default(now())
@@ -1970,4 +1972,27 @@ model FutureMarketPublication {
   payload     Json
   inputHash   String
   publishedAt DateTime @default(now())
+}
+
+/// 独立保存 Agent 待审代码；只在用户接受后更新业务对象。
+/// Retain Agent code suggestions separately; mutate the host only on explicit acceptance.
+model AgentCodeChangeProposal {
+  id              String       @id
+  userId          String
+  surface         String
+  entityId        String
+  sourceTurnId    String
+  sourceTurn      AgentTurn    @relation(fields: [sourceTurnId], references: [id], onDelete: Cascade)
+  sourceMessageId String
+  sourceMessage   AgentMessage @relation(fields: [sourceMessageId], references: [id], onDelete: Cascade)
+  language        String
+  baseIdentity    String
+  beforeCode      String
+  afterCode       String
+  status          String       @default("pending")
+  createdAt       DateTime     @default(now())
+  acceptedAt      DateTime?
+
+  @@unique([sourceTurnId])
+  @@index([userId, surface, entityId, createdAt])
 }

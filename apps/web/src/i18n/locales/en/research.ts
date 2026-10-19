@@ -219,6 +219,7 @@ export const enResearch: typeof zhResearch = {
       answerBeforeContinuing: 'Answer the research clarification above to continue',
     },
     cellChange: {
+      acceptProposal: 'Accept changes',
       status: {
         pending: 'Review',
         applied: 'Applied',

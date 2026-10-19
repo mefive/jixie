@@ -61,7 +61,6 @@ import {
   faEllipsis,
   faClockRotateLeft,
   faCheck,
-  faTriangleExclamation,
   faLayerGroup,
   faPen,
   faArrowUpRightFromSquare,
@@ -501,6 +500,11 @@ const AgentChat = complex.component(() => {
         </div>
       )}
       <ChatLog
+        currentCode={store.code}
+        currentLanguage={store.language}
+        onAcceptCodeChange={(proposal) => store.acceptCodeChange(proposal)}
+        codeChangeBusy={store.codeChangeLoader.loading}
+        codeChangeError={store.codeChangeLoader.errorObject?.message}
         messages={store.chatMessages}
         selectedReportId={store.selectedReportId}
         sending={store.sending}
@@ -641,12 +645,22 @@ function ResearchReportSuggestion({
  * Render factor messages and tool artifacts consistently across streamed and persisted history.
  */
 function ChatLog({
+  currentCode,
+  currentLanguage,
+  onAcceptCodeChange,
+  codeChangeBusy,
+  codeChangeError,
   messages,
   sending,
   emptyKey,
   stream,
   selectedReportId,
 }: {
+  currentCode: string;
+  currentLanguage: 'typescript' | 'python';
+  onAcceptCodeChange: (proposal: import('@jixie/shared').CodeChangeProposalV1) => Promise<void>;
+  codeChangeBusy: boolean;
+  codeChangeError?: string;
   messages: ChatMessage[];
   sending: boolean;
   emptyKey:
@@ -694,7 +708,14 @@ function ChatLog({
             traceOf(message) && <ToolTrace trace={traceOf(message)!} />
           )}
           <FactorQuestionContext message={message} selectedReportId={selectedReportId} />
-          <MessageParts message={message} />
+          <MessageParts
+            message={message}
+            currentCode={currentCode}
+            currentCodeLanguage={currentLanguage}
+            onAcceptCodeChange={onAcceptCodeChange}
+            codeChangeBusy={codeChangeBusy}
+            codeChangeError={codeChangeError}
+          />
         </div>
       ))}
       {sending && (
@@ -1354,21 +1375,6 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
             </div>
           )}
           {!preset && store.selectedKey && <FactorIdentityBar />}
-          {store.pendingAgentCode !== null && (
-            <div className="jx-factor-agentCodeConflict">
-              <span>
-                <FontAwesomeIcon icon={faTriangleExclamation} /> {t('agentCodeConflict')}
-              </span>
-              <span className="jx-factor-agentCodeConflictActions">
-                <Button size="small" onClick={() => store.dismissPendingAgentCode()}>
-                  {t('keepMyCode')}
-                </Button>
-                <Button size="small" type="primary" onClick={() => store.applyPendingAgentCode()}>
-                  {t('applyAgentCode')}
-                </Button>
-              </span>
-            </div>
-          )}
           <div className="jx-factor-code">
             <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
               <FactorEditor
@@ -1427,21 +1433,6 @@ const TimeSeriesWorkspace = complex.component(() => {
             </Tag>
           </div>
           {editable && store.selectedKey && <FactorIdentityBar />}
-          {editable && store.pendingAgentCode !== null && (
-            <div className="jx-factor-agentCodeConflict">
-              <span>
-                <FontAwesomeIcon icon={faTriangleExclamation} /> {t('agentCodeConflict')}
-              </span>
-              <span className="jx-factor-agentCodeConflictActions">
-                <Button size="small" onClick={() => store.dismissPendingAgentCode()}>
-                  {t('keepMyCode')}
-                </Button>
-                <Button size="small" type="primary" onClick={() => store.applyPendingAgentCode()}>
-                  {t('applyAgentCode')}
-                </Button>
-              </span>
-            </div>
-          )}
           <div className="jx-factor-timeDefinitionAudit">
             <span>{t(store.isPanel ? 'panel.methodBadge' : 'timeSeries.methodBadge')}</span>
             <span>{t('timeSeries.inputAudit', { inputs: inputs || '—' })}</span>

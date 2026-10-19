@@ -7,7 +7,7 @@ import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
 import type { Locale } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { refreshFactorMetadata } from '../definitions/metadata.js';
+import { factorCodeIdentity } from './code-proposals.js';
 import { FactorError } from '../errors.js';
 import type { FactorAgentInput } from '../schema.js';
 
@@ -24,7 +24,14 @@ export async function startFactorAgentTurn(
   const { id, message, code } = input;
   const factor = await prisma.factor.findFirst({
     where: { id, userId },
-    select: { id: true, analysisKind: true, language: true, status: true },
+    select: {
+      id: true,
+      code: true,
+      runtimeVersion: true,
+      analysisKind: true,
+      language: true,
+      status: true,
+    },
   });
 
   if (!factor) {
@@ -71,8 +78,12 @@ export async function startFactorAgentTurn(
     userParts: embeddedUserParts(message, input.dataReferences),
     currentCode: code,
     locale,
-    afterTurn: async (result, messages) => {
-      await refreshFactorMetadata({ factorId: id, userId, code: result.code, messages });
+    codeProposal: {
+      surface: 'factor',
+      entityId: id,
+      language: factor.language === 'python' ? 'python' : 'typescript',
+      baseIdentity: factorCodeIdentity(factor),
+      beforeCode: code,
     },
   });
 

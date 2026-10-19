@@ -2,6 +2,17 @@ import type { zhComponents } from '../zh/components';
 
 // English mirror of zhComponents (structurally identical — enforced by typeof).
 export const enComponents: typeof zhComponents = {
+  codeChange: {
+    acceptedHint: 'Changes accepted and saved. Start analysis or a backtest separately.',
+    title: 'Proposed code changes',
+    hint: 'Your code is unchanged. Review the differences before accepting.',
+    pending: 'Pending review',
+    accepted: 'Accepted',
+    view: 'View changes',
+    accept: 'Accept changes',
+    conflict: 'The current code or language has changed. Compare again or generate a new proposal.',
+    loading: 'Loading differences…',
+  },
   // Agent turn stream (transient status lines)
   streamConnectionFailed: 'Stream connection failed',
   queryingTool: 'Querying {{name}}…',

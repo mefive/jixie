@@ -4,6 +4,7 @@ import type {
 } from './research-embedded.js';
 import type { FactorQuestionContextV1 } from './factor-questions.js';
 import type { AgentTurnDetail } from './agent.js';
+import type { CodeChangeProposalV1 } from './code-proposals.js';
 import type {
   ResearchCellChangeProposalV1,
   ResearchCellV1,
@@ -15,7 +16,7 @@ import type {
  * 保存对话纯文本片段，与确定性产物共用消息结构。
  *
  * Agent conversation messages. Typed parts persist deterministic research/universe artifacts or
- * results beside model prose. Artifact code stays on the strategy/factor host rather than in messages.
+ * results beside model prose. Generated code is retained in a proposal; the host changes only after user acceptance.
  * Legacy rows persisted `{ role, content }` — normalizeChatMessage upgrades them on read; writes are
  * always the new shape.
  */
@@ -140,11 +141,17 @@ export function researchCellContextSnapshotState(
 }
 
 /**
- * 区分文本与各类持久研究产物，供消息渲染和模型压缩。
+ * 引用后端持久化的待审代码，接受前不修改业务对象。
  *
- * Discriminate text and durable research artifacts for rendering and model summarization.
+ * Reference durable proposed code without changing the business object before acceptance.
  */
+export interface CodeChangePart {
+  type: 'code_change';
+  proposal: CodeChangeProposalV1;
+}
+
 export type MessagePart =
+  | CodeChangePart
   | EmbeddedAnalysisPart
   | ResearchDataReferencesPart
   | TextPart
@@ -253,6 +260,8 @@ export function messageText(message: ChatMessage): string {
           return `(retired historical chart: ${part.title})`;
         case 'universe':
           return `(research universe: ${part.title}, predicates=${part.spec.predicates.length})`;
+        case 'code_change':
+          return `(code change proposal: ${part.proposal.id}, status=${part.proposal.status})`;
         case 'research_cell_change':
           return `(research cell change proposal: ${part.proposal.title}, status=${part.proposal.status}, operations=${part.proposal.operations.length})`;
         case 'research_clarification': {
@@ -305,6 +314,24 @@ function normalizeMessagePart(value: unknown): MessagePart | undefined {
     return undefined;
   }
   const part = value as { type?: unknown; title?: unknown };
+  if (part.type === 'code_change') {
+    const proposal = (value as { proposal?: unknown }).proposal;
+    if (!proposal || typeof proposal !== 'object') {
+      return undefined;
+    }
+    const candidate = proposal as Record<string, unknown>;
+    const stringFields = ['id', 'entityId', 'beforeCode', 'afterCode', 'createdAt'];
+    if (
+      candidate.version !== 1 ||
+      !stringFields.every((field) => typeof candidate[field] === 'string') ||
+      !['factor', 'strategy'].includes(String(candidate.surface)) ||
+      !['typescript', 'python'].includes(String(candidate.language)) ||
+      !['pending', 'accepted'].includes(String(candidate.status)) ||
+      (candidate.acceptedAt !== undefined && typeof candidate.acceptedAt !== 'string')
+    ) {
+      return undefined;
+    }
+  }
   if (part.type === 'chart' || part.type === 'retired_chart') {
     return {
       type: 'retired_chart',
@@ -321,6 +348,7 @@ function isMessagePart(value: unknown): value is MessagePart {
   }
   const type = (value as { type?: unknown }).type;
   return (
+    type === 'code_change' ||
     type === 'embedded_analysis' ||
     type === 'research_data_references' ||
     type === 'text' ||

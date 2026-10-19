@@ -1,3 +1,5 @@
+import type { AcceptCodeChangeRequest } from '@jixie/shared/api/factor';
+import type { CodeChangeProposalV1 } from '@jixie/shared';
 import type {
   CreateFactorDraftRequest,
   UpdateFactorDraftRequest,
@@ -444,4 +446,18 @@ export function refreshFactorWeatherPin(id: string): Promise<{ id: string; statu
 
 export function unpinFactorWeather(id: string): Promise<{ ok: true }> {
   return request(`/api/app/factors/weather/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function acceptFactorCodeChange(
+  factorId: string,
+  proposalId: string,
+  beforeCode: string,
+): Promise<CodeChangeProposalV1> {
+  return request(
+    `/api/app/factors/${encodeURIComponent(factorId)}/code-change-proposals/${encodeURIComponent(proposalId)}/accept`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ beforeCode } satisfies AcceptCodeChangeRequest),
+    },
+  );
 }

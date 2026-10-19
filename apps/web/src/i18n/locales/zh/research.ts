@@ -212,6 +212,7 @@ export const zhResearch = {
       answerBeforeContinuing: '请先回答上方研究确认问题',
     },
     cellChange: {
+      acceptProposal: '接受修改',
       status: {
         pending: '待审核',
         applied: '已应用',

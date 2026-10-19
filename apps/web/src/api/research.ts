@@ -194,15 +194,6 @@ export function applyResearchCellChangeProposal(
   );
 }
 
-export function applyResearchCellChangeProposalForReview(
-  proposalId: string,
-): Promise<ResearchCellChangeResolutionResultV1> {
-  return request(
-    `/api/app/research/cell-change-proposals/${encodeURIComponent(proposalId)}/review`,
-    { method: 'POST' },
-  );
-}
-
 export function acceptResearchCellChangeReview(
   proposalId: string,
   expectedContentRevision: number,

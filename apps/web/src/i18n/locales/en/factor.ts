@@ -452,10 +452,6 @@ export const enFactor: typeof zhFactor = {
   historyDiscardContent:
     'The current analysis parameters changed. Opening this report will restore its parameters.',
   historyDiscardOk: 'Open report',
-  agentCodeConflict:
-    'The Agent generated new code, but you edited during the turn, so it has not been applied.',
-  keepMyCode: 'Keep my changes',
-  applyAgentCode: 'Apply Agent code',
 
   corrTrigger: 'Correlation matrix',
   corrTitle: 'Factor correlation matrix',

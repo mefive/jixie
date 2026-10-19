@@ -21,26 +21,17 @@ Select the paperclip on a Cell, or drag the Cell into the Agent composer, to mak
 
 Cell labels in the conversation navigate to the current Cell. A changed current version is marked **Updated**, while a removed Cell is marked **Deleted**. Select either state to inspect the source snapshot from when the message was sent; when the current Cell still exists, you can also navigate to that version. On mobile, navigation closes the Agent panel and returns to the document.
 
-## Review Cell changes
+## Review and accept Cell changes
 
-A proposed edit appears as a change card and an inline diff in its target Cell:
+Generated changes are saved separately. Your current document stays unchanged. The message card lists created, updated and deleted Cells and their line counts.
 
-- red lines are old content proposed for removal and are read-only;
-- green lines are new or changed content and remain editable;
-- created, modified, and deleted Cells are listed separately;
-- line counts help locate changes but do not measure their quality.
+1. Select **Review changes** to open a read-only diff. It never opens automatically or edits a Cell.
+2. Check fields, dates, formulas, dependencies, missing values and wording.
+3. Select **Accept changes** to save the changes and record acceptance. Closing the dialog keeps the proposal pending; you can also reject it.
 
-![Historical Chinese UI example: Inline review of Research Agent Cell changes](/docs/images/help/zh/research/agent-collaboration-01.png)
+If the document has changed, the old suggestion cannot overwrite the new content. Request a new proposal against the current version. Pending changes and accepted states survive a page refresh. Acceptance does not execute Cells; existing dependent output may become stale.
 
-Check data fields, dates, formulas, dependencies, missing values, and conclusion wording. For a small correction, edit the green current version directly instead of asking for the same proposal again.
-
-## Accept, undo, or reject
-
-- Select **Accept current version** to keep the version you reviewed and edited.
-- Select **Undo this Agent change** to restore the Cell content from before the review.
-- Reject a still-pending proposal when it should not be applied.
-
-Acceptance changes source only; it does not execute the Cell. Its output normally becomes stale afterward.
+Open reviews already applied by the previous version retain their accept and restore actions for historical recovery. New proposals never apply before acceptance.
 
 ## Run a proposal
 

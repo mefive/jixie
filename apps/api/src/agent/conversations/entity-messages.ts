@@ -3,6 +3,7 @@ import type { ChatMessage, Locale } from '@jixie/shared';
 import { prisma } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import type { TurnEntity } from '../turns/run.js';
+import { readCodeProposalHistory } from './code-proposals.js';
 
 // —— entity messages IO ——
 
@@ -67,7 +68,9 @@ export async function readMessages(
   if (!row) {
     throw new Error(t(locale, 'turnHostGone'));
   }
-  return Array.isArray(row.messages) ? (row.messages as unknown[]) : [];
+  return Array.isArray(row.messages)
+    ? readCodeProposalHistory(prisma, userId, entity.kind, entity.id, row.messages)
+    : [];
 }
 
 /**

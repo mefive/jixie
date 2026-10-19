@@ -151,3 +151,7 @@ Yes. Verify fields, direction, missing-value treatment, and units, then use a re
 - [Read your first factor analysis result](/docs/help/factors/results-overview)
 - [Set a Factor key](/docs/help/factors/strategy-key)
 - [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis)
+
+## Review Agent code suggestions
+
+Generated code is saved as a pending suggestion without replacing your factor code. Select **View changes** in the message card, review the read-only diff, then choose **Accept changes**. Closing keeps it pending, including after a refresh. If your code has changed, the old suggestion cannot overwrite it; compare again or request a new proposal. Acceptance saves the draft without starting an analysis.

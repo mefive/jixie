@@ -149,3 +149,7 @@ Factor 在新建确认时就已持久化，草稿编辑会自动保存。提交�
 - [查看第一份因子分析结果](/docs/help/factors/results-overview)
 - [设置 Factor key](/docs/help/factors/strategy-key)
 - [让因子 Agent 运行探索分析](/docs/help/factors/agent-explore-analysis)
+
+## 审阅 Agent 的代码建议
+
+Agent 生成的代码会单独保存为待审修改，不会直接替换当前因子代码。点击消息卡片的“查看修改”，在只读 diff 弹窗中检查，再点击“接受修改”。关闭弹窗保持待审；刷新后仍可继续审阅。若你已修改当前代码，旧建议会被阻止覆盖，需要重新比较或生成。接受只更新草稿，运行分析仍需明确发起。

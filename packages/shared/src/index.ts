@@ -28,3 +28,5 @@ export * from './research-python-runtime.js';
 export * from './sharing.js';
 export * from './research-embedded.js';
 export * from './factor-questions.js';
+
+export type { CodeChangeProposalV1 } from './code-proposals.js';

@@ -1,5 +1,16 @@
 // Shared components (agent stream, cards, log/loading views). zh is the source-of-truth shape.
 export const zhComponents = {
+  codeChange: {
+    acceptedHint: '修改已接受并保存。分析和回测仍需明确发起。',
+    title: '代码修改建议',
+    hint: '当前代码未修改。请查看差异后决定是否接受。',
+    pending: '待审阅',
+    accepted: '已接受',
+    view: '查看修改',
+    accept: '接受修改',
+    conflict: '当前代码或语言已变化，需要重新比较或生成修改。',
+    loading: '正在加载差异…',
+  },
   // Agent turn stream (transient status lines)
   streamConnectionFailed: '流式连接失败',
   queryingTool: '正在查询 {{name}}…',

@@ -41,7 +41,6 @@ import {
   acceptResearchCellChangeReview,
   addResearchCell,
   applyResearchCellChangeProposal,
-  applyResearchCellChangeProposalForReview,
   archiveResearchDocument,
   createResearchDocument,
   createResearchDocumentFromBacktestReport,
@@ -152,7 +151,7 @@ type ResearchCuratorMutation =
     };
 
 type ResearchCellChangeResolution = {
-  kind: 'apply' | 'apply_for_review' | 'reject';
+  kind: 'apply' | 'reject';
   proposalId: string;
 };
 
@@ -373,8 +372,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
         switch (resolution.kind) {
           case 'apply':
             return applyResearchCellChangeProposal(resolution.proposalId);
-          case 'apply_for_review':
-            return applyResearchCellChangeProposalForReview(resolution.proposalId);
           case 'reject':
             return rejectResearchCellChangeProposal(resolution.proposalId);
         }
@@ -1290,17 +1287,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
   }
 
-  private autoApplyCellChangeProposal(parts: MessagePart[]): void {
-    const proposal = parts.find(
-      (part): part is Extract<MessagePart, { type: 'research_cell_change' }> =>
-        part.type === 'research_cell_change',
-    )?.proposal;
-    if (!proposal || proposal.operations.some((operation) => operation.kind === 'delete')) {
-      return;
-    }
-    void this.resolveCellChangeProposal('apply_for_review', proposal.id);
-  }
-
   /**
    * 将服务端 Cell 修订与本地草稿协调，保留未保存编辑及冲突。
    *
@@ -1488,7 +1474,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
           ];
           this.sending = false;
         });
-        this.autoApplyCellChangeProposal(done.parts);
       },
       onError: (message) => {
         runInAction(() => {

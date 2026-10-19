@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type {
   ChatMessage,
+  CodeChangeProposalV1,
   ResearchCellChangeAttemptV1,
   ResearchCellContextCellV1,
   ResearchCellV1,
@@ -23,6 +24,7 @@ import './message-parts.css';
 
 const EmbeddedAnalysisCard = lazy(() => import('./embedded-analysis/embedded-analysis-card'));
 const ResearchCellChangeCard = lazy(() => import('./research-cell-change-card'));
+const CodeChangeCard = lazy(() => import('./code-change-card'));
 const ResearchClarificationCard = lazy(() => import('./research-clarification-card'));
 
 /**
@@ -32,6 +34,11 @@ const ResearchClarificationCard = lazy(() => import('./research-clarification-ca
  */
 interface MessagePartsProps {
   message: ChatMessage;
+  currentCode?: string;
+  currentCodeLanguage?: 'typescript' | 'python';
+  onAcceptCodeChange?: (proposal: CodeChangeProposalV1) => Promise<void>;
+  codeChangeBusy?: boolean;
+  codeChangeError?: string;
   onApplyResearchCellChange?: (proposalId: string) => Promise<void>;
   onRejectResearchCellChange?: (proposalId: string) => Promise<void>;
   onAcceptResearchCellChangeReview?: (proposalId: string) => Promise<void>;
@@ -60,6 +67,11 @@ interface MessagePartsProps {
  */
 export function MessageParts({
   message,
+  currentCode,
+  currentCodeLanguage,
+  onAcceptCodeChange,
+  codeChangeBusy,
+  codeChangeError,
   onApplyResearchCellChange,
   onRejectResearchCellChange,
   onAcceptResearchCellChangeReview,
@@ -82,6 +94,20 @@ export function MessageParts({
   return (
     <>
       {message.parts.map((part, partIndex) => {
+        if (part.type === 'code_change') {
+          return (
+            <Suspense key={part.proposal.id} fallback={null}>
+              <CodeChangeCard
+                proposal={part.proposal}
+                currentCode={currentCode}
+                currentLanguage={currentCodeLanguage}
+                onAccept={onAcceptCodeChange}
+                busy={codeChangeBusy}
+                error={codeChangeError}
+              />
+            </Suspense>
+          );
+        }
         if (part.type === 'embedded_analysis') {
           return (
             <Suspense key={part.reference.runId} fallback={null}>
