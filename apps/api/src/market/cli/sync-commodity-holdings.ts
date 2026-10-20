@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { syncCommodityHoldingPositions } from '../commodity/commodity-holding-positions.js';
 import { COMMODITY_HOLDING_SPECS } from '../commodity/commodity-futures.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
@@ -13,7 +15,10 @@ import { TushareClient } from '../providers/tushare/tushare-client.js';
  * Usage: pnpm --filter api sync commodity-holdings [start] [end]
  */
 async function main(): Promise<void> {
-  const currentDate = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
+  const currentDate = stagingNow().toISOString().slice(0, 10).replaceAll('-', '');
   const [startDate = '20150105', endDate = currentDate] = process.argv.slice(2);
   if (!/^\d{8}$/.test(startDate) || !/^\d{8}$/.test(endDate) || startDate > endDate) {
     throw new Error('start/end must be YYYYMMDD and start must not exceed end');
@@ -32,7 +37,7 @@ async function main(): Promise<void> {
   console.log('Commodity holding position sync complete:', summary);
 }
 
-main()
+await main()
   .catch((error: unknown) => {
     console.error(
       'sync commodity-holdings failed:',

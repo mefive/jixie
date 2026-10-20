@@ -29,13 +29,21 @@ import {
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
 } from '@jixie/shared';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
+
+vi.mock('#infra/coordination/market-access.js', async (original) => ({
+  ...(await original<typeof import('#infra/coordination/market-access.js')>()),
+  withMarketAccess: async (operation: () => Promise<unknown>) => operation(),
+}));
+vi.mock('#infra/database/prisma.js', () => ({
+  prisma: { maintenanceState: { findUnique: async () => ({ dataRevision: 0 }) } },
+}));
 
 const DOCUMENT_ID = 'research-runtime-test';
 let previousLocal: string | undefined;
 
-describe('research workbench Python runtime', () => {
+describe('research workbench Python runtime', { timeout: 60_000 }, () => {
   beforeEach(() => {
     previousLocal = process.env.JIXIE_PYTHON_LOCAL;
     process.env.JIXIE_PYTHON_LOCAL = '1';
@@ -524,6 +532,12 @@ describe('research workbench Python runtime', () => {
 
   it('does not evict active Research sessions when the four-slot sandbox is full', async () => {
     const documentIds = Array.from({ length: 4 }, (_, index) => `research-capacity-${index}`);
+    // 先准备所有解释器，避免冷启动耗时让先启动的无限循环触及运行时限。
+    // Warm all interpreters before execution so cold starts cannot exhaust earlier loops' limits.
+    for (const documentId of documentIds) {
+      await researchSandboxPool.withSandbox(documentId, (sandbox) => sandbox.analyze([]));
+    }
+
     const executions = documentIds.map((documentId, index) =>
       researchSandboxPool.withSandbox(documentId, (sandbox) =>
         sandbox.execute({
@@ -571,7 +585,7 @@ async function waitForActiveExecution(
   documentId = DOCUMENT_ID,
   expectedCellId = 'infinite',
 ): Promise<void> {
-  for (let attempt = 0; attempt < 500; attempt += 1) {
+  for (let attempt = 0; attempt < 3_000; attempt += 1) {
     if (researchSandboxPool.activeCellId(documentId) === expectedCellId) {
       return;
     }

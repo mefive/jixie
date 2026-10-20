@@ -29,6 +29,12 @@ export const zhCommon = {
     serviceUnavailable: '服务暂时不可用，请稍后重试',
   },
   maintenance: {
+    backgroundDescription: '准备阶段使用独立数据，您可以继续使用当前已发布版本。',
+    background: {
+      preparing: '数据准备中',
+      postprocessing: '数据已发布，后续处理中',
+      error: '数据更新待重试',
+    },
     title: '系统正在维护',
     description: '正在校验并发布最新市场数据，请稍候。',
     deploymentDescription: '正在安全更新系统版本，请稍候。',
@@ -41,6 +47,8 @@ export const zhCommon = {
     progress: '处理进度',
     returnNote: '维护完成后会自动恢复当前页面。',
     stages: {
+      publishing: '发布新版市场数据',
+      uninitialized: '等待首次数据就绪',
       starting: '准备维护',
       reconnecting: '等待服务恢复',
       waiting_for_jobs: '等待后台任务结束',

@@ -1,3 +1,5 @@
+import { prisma } from '#infra/database/prisma.js';
+import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
 import { ResearchSandbox } from './research-sandbox.js';
 
@@ -10,6 +12,7 @@ const MAX_LIVE_RESEARCH_SESSIONS = 4;
  */
 interface ResearchSandboxEntry {
   sandbox: ResearchSandbox;
+  dataRevision: number;
   queue: Promise<void>;
   touchedAt: number;
   pendingOperations: number;
@@ -25,8 +28,10 @@ export class ResearchSandboxPool {
     options: { signal?: AbortSignal } = {},
   ): Promise<Result> {
     options.signal?.throwIfAborted();
-    const entry = await this.acquireEntry(documentId, options.signal);
-    return this.useEntry(documentId, entry, operation, options.signal);
+    return withMarketAccess(async () => {
+      const entry = await this.acquireEntry(documentId, options.signal);
+      return this.useEntry(documentId, entry, operation, options.signal);
+    });
   }
 
   interrupt(documentId: string): string | null {
@@ -129,9 +134,20 @@ export class ResearchSandboxPool {
     documentId: string,
     signal?: AbortSignal,
   ): Promise<ResearchSandboxEntry> {
+    const state = await prisma.maintenanceState.findUnique({
+      where: { key: 'global' },
+      select: { dataRevision: true },
+    });
+    const dataRevision = state?.dataRevision ?? 0;
     const existing = this.entries.get(documentId);
-    if (existing) {
+    if (existing?.dataRevision === dataRevision) {
       return existing;
+    }
+    if (existing) {
+      if (existing.pendingOperations) {
+        throw new Error('Cannot invalidate an active Research session');
+      }
+      this.close(documentId);
     }
     if (this.entries.size >= MAX_LIVE_RESEARCH_SESSIONS) {
       const oldest = [...this.entries.entries()]
@@ -149,6 +165,7 @@ export class ResearchSandboxPool {
     const sandbox = await ResearchSandbox.start({ documentId, signal });
     const entry: ResearchSandboxEntry = {
       sandbox,
+      dataRevision,
       queue: Promise.resolve(),
       touchedAt: Date.now(),
       pendingOperations: 0,

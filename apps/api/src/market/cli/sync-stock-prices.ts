@@ -1,3 +1,4 @@
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -12,6 +13,9 @@ import { syncDaily } from '../stocks/daily-sync.js';
  * Usage: pnpm sync stock-prices [start] [end]   e.g. pnpm sync stock-prices 20240101 20240131
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const cfg = loadTushareConfig();
   const [start = '20240101', end = '20240131'] = process.argv.slice(2);
 
@@ -39,7 +43,7 @@ async function main(): Promise<void> {
   console.log('✅ Sync complete');
 }
 
-main().catch(async (e: unknown) => {
+await main().catch(async (e: unknown) => {
   console.error('\n❌ sync stock-prices failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;

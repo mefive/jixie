@@ -1,46 +1,20 @@
-import { prisma } from '#infra/database/prisma.js';
+import { assertMaintenanceOwner, isStagingDatabase } from '#infra/coordination/market-access.js';
 
 /**
- * 等待在途业务任务结束后进入维护，避免读写与发布时点冲突。
+ * 数据准备必须在候选中执行；正式发布由协调器通过 P/R 句柄排空业务。
  *
- * Wait for in-flight work before maintenance proceeds across publication boundaries.
+ * Prepare data only in a candidate; the coordinator drains formal work through P/R descriptors.
  */
-export async function waitForRunningWork(onLog: (line: string) => void): Promise<void> {
-  const timeoutMilliseconds = Number(process.env.MAINTENANCE_JOB_DRAIN_TIMEOUT_MS ?? 120_000);
-  const quietMilliseconds = Number(process.env.MAINTENANCE_JOB_QUIET_MS ?? 5_000);
-  const deadline = Date.now() + timeoutMilliseconds;
-  let quietSince: number | null = null;
-
-  for (;;) {
-    const [jobs, agentTurns, factorWeatherRuns] = await Promise.all([
-      prisma.job.count({ where: { status: { in: ['queued', 'running'] } } }),
-      prisma.agentTurn.count({ where: { status: 'running' } }),
-      prisma.factorWeatherPin.count({ where: { status: 'running' } }),
-    ]);
-    if (jobs + agentTurns + factorWeatherRuns === 0) {
-      quietSince ??= Date.now();
-      if (Date.now() - quietSince >= quietMilliseconds) {
-        return;
-      }
-    } else {
-      quietSince = null;
-    }
-    if (Date.now() >= deadline) {
-      throw new Error(
-        `Timed out waiting for ${jobs} background jobs, ${agentTurns} Agent turns, and ${factorWeatherRuns} factor weather runs`,
-      );
-    }
-    if (jobs + agentTurns + factorWeatherRuns > 0) {
-      onLog(
-        `Waiting for ${jobs} background jobs, ${agentTurns} Agent turns, and ${factorWeatherRuns} factor weather runs`,
-      );
-    }
-    await new Promise((resolve) => setTimeout(resolve, 2_000));
+export async function waitForRunningWork(_onLog: (line: string) => void): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Formal draining requires the publication coordinator');
   }
 }
 
 export function assertProductionLock(): void {
-  if (process.env.NODE_ENV === 'production' && process.env.JIXIE_MAINTENANCE_LOCK_HELD !== '1') {
-    throw new Error('Production maintenance must run through the flock-protected systemd service');
+  if (isStagingDatabase()) {
+    return;
   }
+  assertMaintenanceOwner();
+  throw new Error('Market workflows must run in an isolated maintenance candidate');
 }

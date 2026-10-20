@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { addDays } from '#date';
 import { prisma } from '#infra/database/prisma.js';
@@ -7,6 +9,9 @@ import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const [startDate = '20050101', endDate = shanghaiToday()] = process.argv.slice(2);
   if (!/^\d{8}$/.test(startDate) || !/^\d{8}$/.test(endDate) || startDate > endDate) {
     throw new Error('start/end must be YYYYMMDD and start must not exceed end');
@@ -37,13 +42,13 @@ function shanghaiToday(): string {
       month: '2-digit',
       day: '2-digit',
     })
-      .formatToParts(new Date())
+      .formatToParts(stagingNow())
       .map((part) => [part.type, part.value]),
   );
   return `${parts.year}${parts.month}${parts.day}`;
 }
 
-main()
+await main()
   .catch((error: unknown) => {
     console.error(
       'Cross-market benchmark sync failed:',

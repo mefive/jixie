@@ -65,6 +65,9 @@ importers:
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
+      fs-ext:
+        specifier: ^2.1.1
+        version: 2.1.1
       hono:
         specifier: ^4.9.0
         version: 4.12.26
@@ -87,6 +90,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@types/fs-ext':
+        specifier: ^2.0.3
+        version: 2.0.3
       '@types/node':
         specifier: ^20.19.0
         version: 20.19.43
@@ -96,21 +102,6 @@ importers:
       tsx:
         specifier: ^4.20.0
         version: 4.22.4
-      vitest:
-        specifier: ^3.0.0
-        version: 3.2.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
-
-  apps/sandboxd:
-    devDependencies:
-      '@types/node':
-        specifier: ^20.19.0
-        version: 20.19.43
-      tsx:
-        specifier: ^4.21.0
-        version: 4.22.4
-      typescript:
-        specifier: ^5.9.0
-        version: 5.9.3
       vitest:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
@@ -187,6 +178,21 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.3(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
+
+  apps/sandboxd:
+    devDependencies:
+      '@types/node':
+        specifier: ^20.19.0
+        version: 20.19.43
+      tsx:
+        specifier: ^4.21.0
+        version: 4.22.4
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.22.4)(yaml@2.9.0)
 
   apps/web:
     dependencies:
@@ -1525,6 +1531,9 @@ packages:
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
 
+  '@types/fs-ext@2.0.3':
+    resolution: {integrity: sha512-0j2F+laosJF2NTd2DVheQ5GvXo8ln9L175VwLPfbsppE33iYC+6gn6XlOQS0pGvZm2yrQ32/LRZh0As/7rCs2Q==}
+
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
 
@@ -2157,6 +2166,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -2243,6 +2253,10 @@ packages:
   format@0.2.2:
     resolution: {integrity: sha512-wzsgA6WOq+09wrU1tsJ09udeR/YZRaeArL9e1wPbFg3GG2yDnC2ldKpxs4xunpFF9DgqCqOIra3bc1HWrJ37Ww==}
     engines: {node: '>=0.4.x'}
+
+  fs-ext@2.1.1:
+    resolution: {integrity: sha512-/TrISPOFhCkbgIRWK9lzscRzwPCu0PqtCcvMc9jsHKBgZGoqA0VzhspVht5Zu8lxaXjIYIBWILHpRotYkCCcQA==}
+    engines: {node: '>= 8.0.0'}
 
   fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
@@ -2628,6 +2642,9 @@ packages:
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
+
+  nan@2.30.0:
+    resolution: {integrity: sha512-P5mokDkSvCGBz6mZDD/2l+w9QoICRXdCyZ9ONGmTePr40oihJg3Kpn0YU3twKd6PJnwSlLBWNQeOT6yWEV2c4A==}
 
   nanoid@3.3.15:
     resolution: {integrity: sha512-y7Wygv/7mEOvxTuEQDB8StXdMRBWf1kR/tlhAzBRUFkB2jfcLOAxO/SHmOO2zgz1pVgK29/kyupn059/bCHdjA==}
@@ -4362,6 +4379,10 @@ snapshots:
 
   '@types/estree@1.0.9': {}
 
+  '@types/fs-ext@2.0.3':
+    dependencies:
+      '@types/node': 20.19.43
+
   '@types/geojson@7946.0.16': {}
 
   '@types/hast@3.0.5':
@@ -5236,6 +5257,10 @@ snapshots:
 
   format@0.2.2: {}
 
+  fs-ext@2.1.1:
+    dependencies:
+      nan: 2.30.0
+
   fsevents@2.3.2:
     optional: true
 
@@ -5579,6 +5604,8 @@ snapshots:
       marked: 14.0.0
 
   ms@2.1.3: {}
+
+  nan@2.30.0: {}
 
   nanoid@3.3.15: {}
 

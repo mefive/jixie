@@ -15,7 +15,7 @@
     "maintenance": "tsx --conditions=development --env-file=.env src/maintenance/cli/run-maintenance.ts",
     "signals:run": "tsx --conditions=development --env-file=.env src/signals/cli/run-signals.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
-    "canonicalize:stock-codes": "tsx --conditions=development --env-file=.env src/market/cli/canonicalize-stock-codes.ts",
+    "canonicalize:stock-codes": "tsx --conditions=development --env-file=.env src/maintenance/cli/canonicalize-stock-codes.ts",
     "sync": "node --conditions=development --import tsx scripts/sync/index.ts",
     "data:audit": "node --conditions=development --import tsx scripts/audit/index.ts",
     "probe": "node --conditions=development --import tsx scripts/probes/index.ts"
@@ -28,6 +28,7 @@
     "dayjs": "^1.11.13",
     "esbuild": "^0.28.1",
     "fflate": "^0.8.2",
+    "fs-ext": "^2.1.1",
     "hono": "^4.9.0",
     "isolated-vm": "^7.0.0",
     "openai": "^6.44.0",
@@ -37,6 +38,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/fs-ext": "^2.0.3",
     "@types/node": "^20.19.0",
     "prisma": "^6.16.0",
     "tsx": "^4.20.0",

@@ -1,3 +1,10 @@
+import {
+  acquireMarketScope,
+  acquireWorkOwner,
+  MarketAccessBusyError,
+  type MarketReaderScope,
+  type MarketLock,
+} from '#infra/coordination/market-access.js';
 import { ulid } from 'ulid';
 import type { Job, Prisma } from '@prisma/client';
 import { prisma } from '#infra/database/prisma.js';
@@ -35,6 +42,10 @@ type JobRelation = Exclude<Extract<keyof Job, `${string}Id`>, 'userId'>;
 export class JobService {
   private static readonly lifecycles = new Map<string, JobLifecycle<unknown>>();
   private static readonly relations = new Map<JobRelation, JobLifecycle<unknown>>();
+  private static readonly claims = new Map<
+    string,
+    { reader: MarketReaderScope; owner: MarketLock }
+  >();
   private constructor() {}
 
   /**
@@ -107,11 +118,36 @@ export class JobService {
   }
 
   static async claim(jobId: string): Promise<boolean> {
-    const { count } = await prisma.job.updateMany({
-      where: { id: jobId, status: 'queued' },
-      data: { status: 'running', startedAt: new Date(), error: null },
-    });
-    return count === 1;
+    const reader = await acquireMarketScope();
+    let owner: MarketLock | undefined;
+    let claimed = false;
+    try {
+      try {
+        owner = await acquireWorkOwner('job', jobId);
+      } catch (error) {
+        if (error instanceof MarketAccessBusyError) {
+          return false;
+        }
+        throw error;
+      }
+      const { count } = await prisma.job.updateMany({
+        where: { id: jobId, status: 'queued' },
+        data: { status: 'running', startedAt: new Date(), error: null },
+      });
+      claimed = count === 1;
+      if (claimed) {
+        JobService.claims.set(jobId, { reader, owner });
+      }
+      return claimed;
+    } finally {
+      if (!claimed) {
+        try {
+          await owner?.release();
+        } finally {
+          await reader.release();
+        }
+      }
+    }
   }
 
   /**
@@ -140,6 +176,23 @@ export class JobService {
    * Run job computation and commit business results and terminal job state through the lifecycle transaction.
    */
   static async execute(jobId: string): Promise<void> {
+    const claim = JobService.claims.get(jobId);
+    if (!claim) {
+      throw new Error('Job execution requires a locally owned claim');
+    }
+    try {
+      await claim.reader.run(() => JobService.executeOwned(jobId));
+    } finally {
+      JobService.claims.delete(jobId);
+      try {
+        await claim.owner.release();
+      } finally {
+        await claim.reader.release();
+      }
+    }
+  }
+
+  private static async executeOwned(jobId: string): Promise<void> {
     const job = await prisma.job.findUnique({ where: { id: jobId } });
     if (!job || job.status !== 'running') {
       return;
@@ -173,24 +226,37 @@ export class JobService {
   }
 
   static async recoverInterrupted(): Promise<number> {
-    return prisma.$transaction(async (transaction) => {
-      const jobs = await transaction.job.findMany({ where: { status: 'running' } });
-      let count = 0;
-      for (const job of jobs) {
-        const claimed = await transaction.job.updateMany({
-          where: { id: job.id, status: 'running' },
-          data: { status: 'stale', finishedAt: new Date() },
-        });
-        if (claimed.count !== 1) {
+    const jobs = await prisma.job.findMany({ where: { status: 'running' } });
+    let count = 0;
+    for (const job of jobs) {
+      let owner: MarketLock;
+      try {
+        owner = await acquireWorkOwner('job', job.id);
+      } catch (error) {
+        if (error instanceof MarketAccessBusyError) {
           continue;
         }
-        for (const lifecycle of JobService.relatedLifecycles(job)) {
-          await lifecycle.onInterrupted?.(transaction, job);
-        }
-        count++;
+        throw error;
       }
-      return count;
-    });
+      try {
+        count += await prisma.$transaction(async (transaction) => {
+          const claimed = await transaction.job.updateMany({
+            where: { id: job.id, status: 'running' },
+            data: { status: 'stale', finishedAt: new Date() },
+          });
+          if (!claimed.count) {
+            return 0;
+          }
+          for (const lifecycle of JobService.relatedLifecycles(job)) {
+            await lifecycle.onInterrupted?.(transaction, job);
+          }
+          return 1;
+        });
+      } finally {
+        await owner.release();
+      }
+    }
+    return count;
   }
 
   private static async complete(

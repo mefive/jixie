@@ -1,3 +1,4 @@
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -12,6 +13,9 @@ import { syncMoneyflow } from '../stocks/flows-sync.js';
  * Usage: pnpm sync moneyflow [start] [end]   e.g. pnpm sync moneyflow 20200101 20241231
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const cfg = loadTushareConfig();
   const [start = '20240101', end = '20241231'] = process.argv.slice(2);
 
@@ -34,7 +38,7 @@ async function main(): Promise<void> {
   console.log('✅ Moneyflow sync complete');
 }
 
-main().catch(async (e: unknown) => {
+await main().catch(async (e: unknown) => {
   console.error('\n❌ sync moneyflow failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;

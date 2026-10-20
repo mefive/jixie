@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { syncChinaMacroData } from '../macro/china-macro.js';
 import { BlsPublicDataClient, syncUsHeadlineCpiData } from '../macro/us-headline-cpi.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
@@ -18,6 +20,9 @@ const CHINA_MONTH_FORMATTER = new Intl.DateTimeFormat('en-US', {
  * Sync normalized China and US macro series with PIT availability evidence.
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const [startMonth = '200501', endMonth = currentMonth()] = process.argv.slice(2);
   assertMonthRange(startMonth, endMonth);
   const config = loadTushareConfig();
@@ -36,7 +41,7 @@ async function main(): Promise<void> {
 
 function currentMonth(): string {
   const parts = Object.fromEntries(
-    CHINA_MONTH_FORMATTER.formatToParts(new Date()).map((part) => [part.type, part.value]),
+    CHINA_MONTH_FORMATTER.formatToParts(stagingNow()).map((part) => [part.type, part.value]),
   );
   return `${parts.year}${parts.month}`;
 }
@@ -54,7 +59,7 @@ function assertMonthRange(startMonth: string, endMonth: string): void {
   }
 }
 
-main()
+await main()
   .catch((error: unknown) => {
     console.error(
       'Macro data sync failed:',

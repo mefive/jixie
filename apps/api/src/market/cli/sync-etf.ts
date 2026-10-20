@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { prisma } from '#infra/database/prisma.js';
 import { syncEtfShareSizeRange } from '../etfs/sync.js';
@@ -32,8 +34,11 @@ function parseCodes(selector: string): string[] {
  * Usage: pnpm --filter api sync etf [start] [end] [registry|major|CODE,CODE] [refresh]
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const config = loadTushareConfig();
-  const currentDate = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  const currentDate = stagingNow().toISOString().slice(0, 10).replaceAll('-', '');
   const [start = '20150101', end = currentDate, selector = 'registry', refreshArg] =
     process.argv.slice(2);
   if (!/^\d{8}$/.test(start) || !/^\d{8}$/.test(end) || start > end) {
@@ -79,7 +84,7 @@ function addCalendarDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10).replaceAll('-', '');
 }
 
-main().catch(async (error: unknown) => {
+await main().catch(async (error: unknown) => {
   console.error('\n❌ sync etf failed: ', error instanceof Error ? error.message : error);
   await prisma.$disconnect();
   process.exitCode = 1;

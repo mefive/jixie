@@ -7,6 +7,16 @@ import { request } from './client';
  */
 export interface MaintenanceStatus {
   active: boolean;
+  phase?:
+    | 'preparing'
+    | 'publishing'
+    | 'postprocessing'
+    | 'error'
+    | 'legacy'
+    | 'idle'
+    | 'uninitialized';
+  running?: boolean;
+  dataReady?: boolean;
   runId: string | null;
   kind: 'daily' | 'weekly' | 'repair' | 'deploy' | null;
   startDate: string | null;

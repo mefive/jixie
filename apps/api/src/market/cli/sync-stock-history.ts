@@ -1,3 +1,4 @@
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import dayjs from 'dayjs';
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '../providers/tushare/config.js';
@@ -16,6 +17,9 @@ import {
  * Usage: pnpm --filter api sync stock-history [announcementStart] [announcementEnd]
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const config = loadTushareConfig();
   const [start = '19900101', end = dayjs().format('YYYYMMDD')] = process.argv.slice(2) as [
     TradeDate?,
@@ -37,7 +41,7 @@ async function main(): Promise<void> {
   console.log('Stock-history sync complete');
 }
 
-main().catch(async (error: unknown) => {
+await main().catch(async (error: unknown) => {
   console.error('sync stock-history failed:', error instanceof Error ? error.message : error);
   await prisma.$disconnect();
   process.exitCode = 1;

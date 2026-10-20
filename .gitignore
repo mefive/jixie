@@ -11,6 +11,12 @@ dist
 data
 *.log
 .jixie-import/
+# 本地维护候选与稳定锁文件不入库。 / Keep local maintenance candidates and stable lock files private.
+apps/api/prisma/maintenance-staging/
+apps/api/prisma/maintenance.lock
+apps/api/prisma/market-publish-intent.lock
+apps/api/prisma/market-access.lock
+apps/api/prisma/owner-*
 .venv/
 __pycache__/
 

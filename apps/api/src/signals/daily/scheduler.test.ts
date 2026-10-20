@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SignalsError } from '../errors.js';
 import { generateDailySignals } from './scheduler.js';
 
+vi.mock('#infra/coordination/market-access.js', async (original) => ({
+  ...(await original<typeof import('#infra/coordination/market-access.js')>()),
+  withMarketAccess: async (operation: () => Promise<unknown>) => operation(),
+}));
+
 const mocks = vi.hoisted(() => ({
   enqueue: vi.fn(),
   settle: vi.fn(),

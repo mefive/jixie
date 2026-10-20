@@ -1,8 +1,10 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { prisma } from '#infra/database/prisma.js';
 import { syncMarketIndicators } from '../state/sync.js';
 
 function currentDate(): string {
-  return new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  return stagingNow().toISOString().slice(0, 10).replaceAll('-', '');
 }
 
 /**
@@ -12,6 +14,9 @@ function currentDate(): string {
  * Usage: pnpm --filter api sync market-state [start] [end]
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const [start = '20150101', end = currentDate()] = process.argv.slice(2);
   console.log(`Precomputing market state ${start} ~ ${end}\n`);
 
@@ -25,7 +30,7 @@ async function main(): Promise<void> {
   console.log('Market-state precompute complete');
 }
 
-main()
+await main()
   .catch((error: unknown) => {
     console.error(
       'Market-state precompute failed:',

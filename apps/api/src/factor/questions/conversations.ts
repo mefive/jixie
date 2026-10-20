@@ -1,3 +1,4 @@
+import { acquireWorkOwner } from '#infra/coordination/market-access.js';
 import { normalizeChatMessage } from '@jixie/shared';
 import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { factorQaProfile } from '#agent/profiles/qa.js';
@@ -105,79 +106,86 @@ export async function startFactorQuestion(
   locale: Locale,
 ): Promise<FactorQuestionTurnV1> {
   const turnId = ulid();
-  const model = getDeepSeekAgentModel();
-  const prepared = await prisma.$transaction(async (database) => {
-    const context = await captureFactorQuestionContext(
-      database,
-      userId,
-      input.factorKey,
-      input.reportId,
-      locale,
-    );
-    const conversation = await database.agentConversation.upsert({
-      where: { userId_questionFactorKey: { userId, questionFactorKey: input.factorKey } },
-      create: {
-        id: ulid(),
+  const ownership = await acquireWorkOwner('agent', turnId);
+  try {
+    const model = getDeepSeekAgentModel();
+    const prepared = await prisma.$transaction(async (database) => {
+      const context = await captureFactorQuestionContext(
+        database,
         userId,
-        surface: 'factor-question',
-        questionFactorKey: input.factorKey,
-        title: context.factor.name,
-      },
-      update: { updatedAt: new Date() },
-      select: { id: true },
-    });
-    if (
-      await database.agentTurn.findFirst({
-        where: { conversationId: conversation.id, status: 'running' },
+        input.factorKey,
+        input.reportId,
+        locale,
+      );
+      const conversation = await database.agentConversation.upsert({
+        where: { userId_questionFactorKey: { userId, questionFactorKey: input.factorKey } },
+        create: {
+          id: ulid(),
+          userId,
+          surface: 'factor-question',
+          questionFactorKey: input.factorKey,
+          title: context.factor.name,
+        },
+        update: { updatedAt: new Date() },
         select: { id: true },
-      })
-    ) {
-      throw new FactorError('factor_turn_in_progress');
-    }
-    const history = (
-      await database.agentMessage.findMany({
-        where: { conversationId: conversation.id },
-        orderBy: { sequence: 'desc' },
-        take: 60,
-        select: messageSelection,
-      })
-    )
-      .reverse()
-      .map(questionMessage);
-    const { inputMessageId } = await createPersistentTurnInput(database, {
-      turnId,
-      conversationId: conversation.id,
-      model,
-      userParts: embeddedUserParts(input.message, input.dataReferences),
-      contextSnapshot: context,
+      });
+      if (
+        await database.agentTurn.findFirst({
+          where: { conversationId: conversation.id, status: 'running' },
+          select: { id: true },
+        })
+      ) {
+        throw new FactorError('factor_turn_in_progress');
+      }
+      const history = (
+        await database.agentMessage.findMany({
+          where: { conversationId: conversation.id },
+          orderBy: { sequence: 'desc' },
+          take: 60,
+          select: messageSelection,
+        })
+      )
+        .reverse()
+        .map(questionMessage);
+      const { inputMessageId } = await createPersistentTurnInput(database, {
+        turnId,
+        conversationId: conversation.id,
+        model,
+        userParts: embeddedUserParts(input.message, input.dataReferences),
+        contextSnapshot: context,
+      });
+      const message = questionMessage(
+        await database.agentMessage.findUniqueOrThrow({
+          where: { id: inputMessageId },
+          select: messageSelection,
+        }),
+      );
+      const embeddedSource = await captureEmbeddedContext(
+        database,
+        userId,
+        { type: 'factor', id: input.factorKey },
+        input.reportId,
+      );
+      return { conversationId: conversation.id, context, embeddedSource, history, message };
     });
-    const message = questionMessage(
-      await database.agentMessage.findUniqueOrThrow({
-        where: { id: inputMessageId },
-        select: messageSelection,
+    enqueueAgentTurn({
+      turnId,
+      ownership,
+      userId,
+      entity: { kind: 'factor-question', id: prepared.conversationId },
+      profile: withEmbeddedAnalysis(factorQaProfile(prepared.context), {
+        userId,
+        source: prepared.embeddedSource,
+        dataReferences: input.dataReferences,
       }),
-    );
-    const embeddedSource = await captureEmbeddedContext(
-      database,
-      userId,
-      { type: 'factor', id: input.factorKey },
-      input.reportId,
-    );
-    return { conversationId: conversation.id, context, embeddedSource, history, message };
-  });
-  enqueueAgentTurn({
-    turnId,
-    userId,
-    entity: { kind: 'factor-question', id: prepared.conversationId },
-    profile: withEmbeddedAnalysis(factorQaProfile(prepared.context), {
-      userId,
-      source: prepared.embeddedSource,
-      dataReferences: input.dataReferences,
-    }),
-    message: input.message,
-    currentCode: '',
-    locale,
-    persistedInput: { history: prepared.history, message: prepared.message },
-  });
-  return { turnId, conversationId: prepared.conversationId, message: prepared.message };
+      message: input.message,
+      currentCode: '',
+      locale,
+      persistedInput: { history: prepared.history, message: prepared.message },
+    });
+    return { turnId, conversationId: prepared.conversationId, message: prepared.message };
+  } catch (error) {
+    await ownership.release();
+    throw error;
+  }
 }

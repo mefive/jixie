@@ -1,3 +1,7 @@
+import {
+  isMarketPublicationActive,
+  isMaintenanceOwnerActive,
+} from '#infra/coordination/market-access.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -24,6 +28,16 @@ export type MaintenanceTrigger = 'timer' | 'manual';
  */
 export interface MaintenanceStatus {
   active: boolean;
+  phase?:
+    | 'preparing'
+    | 'publishing'
+    | 'postprocessing'
+    | 'error'
+    | 'legacy'
+    | 'idle'
+    | 'uninitialized';
+  running?: boolean;
+  dataReady?: boolean;
   runId: string | null;
   kind: MaintenanceKind | null;
   startDate: string | null;
@@ -173,6 +187,10 @@ export async function updateMaintenanceRun(
   stage: string,
   summary?: unknown,
 ): Promise<void> {
+  if (process.env.JIXIE_STAGING_DATABASE && process.send) {
+    process.send({ type: 'maintenance-progress', stage, summary });
+  }
+
   await prisma.maintenanceRun.update({
     where: { id: runId },
     data: {
@@ -247,19 +265,23 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
   const [running, latestDailyError, latestWeekly, latestRepairError, state, waiting] =
     await Promise.all([
       prisma.maintenanceRun.findFirst({
-        where: { status: 'running' },
+        where: { status: 'running', NOT: { targetKey: { startsWith: 'candidate:' } } },
         orderBy: { startedAt: 'desc' },
       }),
       prisma.maintenanceRun.findFirst({
-        where: { kind: 'daily', status: 'error' },
+        where: { kind: 'daily', status: 'error', NOT: { targetKey: { startsWith: 'candidate:' } } },
         orderBy: { startedAt: 'desc' },
       }),
       prisma.maintenanceRun.findFirst({
-        where: { kind: 'weekly' },
+        where: { kind: 'weekly', NOT: { targetKey: { startsWith: 'candidate:' } } },
         orderBy: { startedAt: 'desc' },
       }),
       prisma.maintenanceRun.findFirst({
-        where: { kind: 'repair', status: 'error' },
+        where: {
+          kind: 'repair',
+          status: 'error',
+          NOT: { targetKey: { startsWith: 'candidate:' } },
+        },
         orderBy: { startedAt: 'desc' },
       }),
       getMaintenanceState(),
@@ -286,21 +308,50 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
     waiting.endDate > state.dailyPublishedThrough
       ? waiting
       : null);
-  const summary = asSummary(visibleRun?.summary);
+  const candidate = await prisma.maintenanceRun.findFirst({
+    where: { targetKey: { startsWith: 'candidate:' } },
+    orderBy: { startedAt: 'desc' },
+  });
+  const [publicationActive, maintenanceRunning] = await Promise.all([
+    isMarketPublicationActive(),
+    isMaintenanceOwnerActive(),
+  ]);
+  const displayRun = visibleRun ?? candidate;
+  const summary = asSummary(displayRun?.summary);
+  const progress = summary.protocol === 2 ? asSummary(summary.progress) : summary;
 
   return {
-    active: activeRun != null,
-    runId: visibleRun?.id ?? null,
-    kind: (visibleRun?.kind as MaintenanceKind | undefined) ?? null,
-    startDate: visibleRun?.startDate ?? null,
-    endDate: visibleRun?.endDate ?? null,
-    completedDates: numberField(summary, 'completedDates'),
-    totalDates: numberField(summary, 'totalDates'),
+    active: publicationActive || activeRun != null || !state.dailyPublishedThrough,
+    running: maintenanceRunning,
+    dataReady: Boolean(state.dailyPublishedThrough),
+    phase: publicationActive
+      ? 'publishing'
+      : activeRun
+        ? 'legacy'
+        : !state.dailyPublishedThrough
+          ? 'uninitialized'
+          : summary.phase === 'preparing' || summary.phase === 'ready'
+            ? displayRun?.error || !maintenanceRunning
+              ? 'error'
+              : 'preparing'
+            : summary.phase === 'published'
+              ? 'postprocessing'
+              : 'idle',
+    runId: displayRun?.id ?? null,
+    kind: (displayRun?.kind as MaintenanceKind | undefined) ?? null,
+    startDate: displayRun?.startDate ?? null,
+    endDate: displayRun?.endDate ?? null,
+    completedDates: numberField(progress ?? summary, 'completedDates'),
+    totalDates: numberField(progress ?? summary, 'totalDates'),
     lastSuccessfulDailyDate: state.dailyPublishedThrough,
-    stage: visibleRun?.stage ?? null,
-    startedAt: visibleRun?.startedAt.toISOString() ?? null,
-    heartbeatAt: visibleRun?.heartbeatAt.toISOString() ?? null,
-    error: visibleRun?.error ?? null,
+    stage: publicationActive
+      ? 'publishing'
+      : !state.dailyPublishedThrough
+        ? 'uninitialized'
+        : (displayRun?.stage ?? null),
+    startedAt: displayRun?.startedAt.toISOString() ?? null,
+    heartbeatAt: displayRun?.heartbeatAt.toISOString() ?? null,
+    error: displayRun?.error ?? null,
     retryAfterSeconds: 5,
   };
 }

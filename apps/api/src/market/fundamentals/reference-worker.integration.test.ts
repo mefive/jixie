@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -20,8 +20,10 @@ const requests: string[] = [];
 
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), 'jixie-reference-worker-'));
-  databaseUrl = `file:${join(directory, 'fixture.db')}`;
-  await writeFile(join(directory, 'fixture.db'), '');
+  await mkdir(join(directory, 'maintenance-staging', 'TEST'), { recursive: true });
+  databaseUrl = `file:${join(directory, 'maintenance-staging', 'TEST', 'candidate.db')}`;
+  await writeFile(join(directory, 'formal.db'), '');
+  await writeFile(join(directory, 'maintenance-staging', 'TEST', 'candidate.db'), '');
   await executeFile(
     process.execPath,
     [require.resolve('prisma/build/index.js'), 'migrate', 'deploy'],
@@ -89,6 +91,9 @@ async function runWorker(callback: string, compiled: boolean) {
         NODE_OPTIONS: '',
         NODE_ENV: 'test',
         DATABASE_URL: databaseUrl,
+        JIXIE_STAGING_DATABASE: databaseUrl,
+        JIXIE_FORMAL_DATABASE_URL: `file:${join(directory, 'formal.db')}`,
+        JIXIE_MAINTENANCE_CANDIDATE: 'TEST',
         TUSHARE_TOKEN: 'fixture',
         TUSHARE_BASE_URL: providerUrl,
       },

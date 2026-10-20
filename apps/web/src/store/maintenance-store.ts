@@ -25,7 +25,7 @@ class MaintenanceStore {
         try {
           const status = await fetchMaintenanceStatus();
           this.acceptStatus(status);
-          return status.active ? undefined : false;
+          return undefined;
         } catch {
           this.acceptServiceUnavailable();
           return undefined;
@@ -54,13 +54,11 @@ class MaintenanceStore {
     const wasBlocking = this.status?.active === true || this.serviceUnavailable;
     this.status = status;
     this.serviceUnavailable = false;
-    if (status.active && !this.polling.running) {
+    if (!this.polling.running) {
       this.polling.start();
-    } else if (!status.active) {
-      this.polling.stop();
-      if (wasBlocking) {
-        window.location.reload();
-      }
+    }
+    if (!status.active && wasBlocking) {
+      window.location.reload();
     }
   }
 

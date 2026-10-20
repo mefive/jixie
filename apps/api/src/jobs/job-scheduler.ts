@@ -1,3 +1,7 @@
+import {
+  MarketAccessBusyError,
+  runOutsideMarketAccess,
+} from '#infra/coordination/market-access.js';
 import { prisma } from '#infra/database/prisma.js';
 import { JobService } from './job-service.js';
 
@@ -61,7 +65,7 @@ export class JobScheduler {
     }
     this.dispatchLoopActive = true;
     queueMicrotask(() => {
-      void this.dispatchLoop();
+      void runOutsideMarketAccess(() => this.dispatchLoop());
     });
   }
 
@@ -72,7 +76,11 @@ export class JobScheduler {
         try {
           await this.dispatchQueuedJobs();
         } catch (error) {
-          console.error('[jixie] job dispatch failed', error);
+          if (!(error instanceof MarketAccessBusyError)) {
+            console.error('[jixie] job dispatch failed', error);
+          }
+          const retry = setTimeout(() => this.requestDispatch(), 500);
+          retry.unref();
         }
       }
     } finally {
@@ -103,7 +111,9 @@ export class JobScheduler {
         return;
       }
       if (!(await JobService.claim(candidate.id))) {
-        continue;
+        const retry = setTimeout(() => this.requestDispatch(), 500);
+        retry.unref();
+        return;
       }
       this.activeJobs.set(candidate.id, candidate.userId);
       void this.executeClaimed(candidate);

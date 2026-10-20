@@ -51,7 +51,7 @@ async function begin(commandArgs) {
              heartbeatAt = ?,
              finishedAt = ?,
              updatedAt = ?
-         WHERE status = 'running'`,
+         WHERE status = 'running' AND kind = 'deploy'`,
       )
       .run(now, now, now);
     database
@@ -85,7 +85,11 @@ async function begin(commandArgs) {
   });
 
   try {
-    await waitForRunningWork(runId);
+    // 只有旧 API 升级过渡使用数据库计数，新 API 的在途范围由 bootstrap 的 P/R 排空。
+    // Database counting is only a legacy upgrade fallback; bootstrap drains new APIs through P/R.
+    if (process.env.JIXIE_DEPLOY_LEGACY_DRAIN !== '0') {
+      await waitForRunningWork(runId);
+    }
     updateStage(runId, 'ready_to_stop');
     gateActive = false;
     process.stdout.write(`${runId}\n`);
@@ -137,10 +141,12 @@ async function waitForRunningWork(runId) {
       .get();
     const jobs = Number(counts.jobs);
     const agentTurns = Number(counts.agentTurns);
+    const researchCells = runningRowsIfPresent('ResearchCellExecution');
+    const weather = runningRowsIfPresent('FactorWeatherPin');
     const now = Date.now();
     heartbeat(runId);
 
-    if (jobs + agentTurns === 0) {
+    if (jobs + agentTurns + researchCells + weather === 0) {
       quietSince ??= now;
       if (now - quietSince >= quietMilliseconds) {
         return;
@@ -148,7 +154,7 @@ async function waitForRunningWork(runId) {
     } else {
       quietSince = null;
       process.stderr.write(
-        `[deployment] Waiting for ${jobs} background jobs and ${agentTurns} Agent turns\n`,
+        `[deployment] Waiting for ${jobs} background jobs, ${agentTurns} Agent turns, ${researchCells} Research cells, and ${weather} weather refreshes\n`,
       );
     }
     if (now >= deadline) {
@@ -158,6 +164,22 @@ async function waitForRunningWork(runId) {
     }
     await new Promise((resolve) => setTimeout(resolve, 2_000));
   }
+}
+
+/** 旧 schema 不一定有全部后台表。 / Legacy schemas may lack newer work tables. */
+function runningRowsIfPresent(table) {
+  const exists = database
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+    .get(table);
+  if (!exists) {
+    return 0;
+  }
+  if (table !== 'ResearchCellExecution' && table !== 'FactorWeatherPin') {
+    throw new Error('Invalid legacy work table');
+  }
+  return Number(
+    database.prepare(`SELECT count(*) AS count FROM "${table}" WHERE status='running'`).get().count,
+  );
 }
 
 function heartbeat(runId) {

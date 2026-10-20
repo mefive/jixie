@@ -20,8 +20,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "maintenance": "./scripts/maintenance/with-maintenance-lock.sh pnpm --filter api maintenance",
-    "import:data": "./scripts/maintenance/with-maintenance-lock.sh ./scripts/maintenance/import-market-data.sh",
+    "maintenance": "pnpm --filter api maintenance",
+    "import:data": "./scripts/maintenance/import-market-data.sh",
     "signals:run": "pnpm --filter api signals:run",
     "loc": "node scripts/tools/loc.mjs",
     "prepare": "simple-git-hooks",
@@ -62,6 +62,7 @@
     "onlyBuiltDependencies": [
       "@prisma/client",
       "@prisma/engines",
+      "fs-ext",
       "esbuild",
       "isolated-vm",
       "prisma"

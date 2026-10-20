@@ -83,6 +83,7 @@ export interface DailyMaintenanceOptions {
   maintainWarehouseReceipts?: boolean;
   resumeOnly?: boolean;
   initializeOnly?: boolean;
+  generateSignals?: boolean;
 }
 
 /**
@@ -148,7 +149,11 @@ export async function runDailyMaintenance(
   const scheduledDate = options.targetDate
     ? null
     : await prisma.tradeCal.findFirst({
-        where: { exchange: 'SSE', isOpen: 1, calDate: { lte: scheduledDailyUpperBound() } },
+        where: {
+          exchange: 'SSE',
+          isOpen: 1,
+          calDate: { lte: process.env.JIXIE_MAINTENANCE_UPPER_BOUND ?? scheduledDailyUpperBound() },
+        },
         orderBy: { calDate: 'desc' },
         select: { calDate: true },
       });
@@ -460,7 +465,7 @@ export async function runDailyMaintenance(
       );
     }
 
-    if (cutoff === latestAvailableCutoff) {
+    if (options.generateSignals !== false && cutoff === latestAvailableCutoff) {
       await updateMaintenanceRun(run.id, 'signals', summary);
       summary.signals = await generateDailySignals(cutoff, onLog);
     }
@@ -828,6 +833,9 @@ function createClient(): TushareClient {
 }
 
 function shanghaiToday(): string {
+  if (process.env.JIXIE_MAINTENANCE_DATE) {
+    return process.env.JIXIE_MAINTENANCE_DATE;
+  }
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',

@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('#infra/coordination/market-access.js', async (original) => ({
+  ...(await original<typeof import('#infra/coordination/market-access.js')>()),
+  acquireMarketScope: async () => ({
+    run: async (operation: () => Promise<unknown>) => operation(),
+    release: async () => {},
+  }),
+  acquireWorkOwner: async () => ({ assertHeld: () => {}, release: async () => {} }),
+}));
+
 type Job = { id: string; userId: string; kind: string; status: string; payload: unknown };
 const fixture = vi.hoisted(() => ({
   jobs: [] as Job[],

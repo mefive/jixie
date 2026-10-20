@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { prisma } from '#infra/database/prisma.js';
 import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../registry/index-presets.js';
@@ -5,7 +7,7 @@ import { syncIndexDailyBasic } from '../indices/sync.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 function currentDate(): string {
-  return new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  return stagingNow().toISOString().slice(0, 10).replaceAll('-', '');
 }
 
 function parseCodes(value: string): string[] {
@@ -25,6 +27,9 @@ function parseCodes(value: string): string[] {
  * Usage: pnpm --filter api sync index-basic [start] [end] [major|CODE,CODE]
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const config = loadTushareConfig();
   const [start = '20040101', end = currentDate(), codeArgument = 'major'] = process.argv.slice(2);
   const codes = parseCodes(codeArgument);
@@ -58,7 +63,7 @@ async function main(): Promise<void> {
   console.log('Index daily valuation sync complete');
 }
 
-main()
+await main()
   .catch((error: unknown) => {
     console.error(
       'Index daily valuation sync failed:',

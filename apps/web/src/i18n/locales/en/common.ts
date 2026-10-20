@@ -31,6 +31,13 @@ export const enCommon: typeof zhCommon = {
     serviceUnavailable: 'Service temporarily unavailable. Please try again shortly.',
   },
   maintenance: {
+    backgroundDescription:
+      'Preparation uses isolated data. You can continue using the published version.',
+    background: {
+      preparing: 'Preparing data',
+      postprocessing: 'Published; finishing follow-up work',
+      error: 'Data update awaiting retry',
+    },
     title: 'System maintenance',
     description: 'The latest market data is being validated and published.',
     deploymentDescription: 'A system update is being applied safely.',
@@ -44,6 +51,8 @@ export const enCommon: typeof zhCommon = {
     progress: 'Progress',
     returnNote: 'This page will resume automatically when maintenance completes.',
     stages: {
+      publishing: 'Publishing market data',
+      uninitialized: 'Waiting for initial market data',
       starting: 'Preparing maintenance',
       reconnecting: 'Waiting for the service to recover',
       waiting_for_jobs: 'Waiting for background work',

@@ -1,7 +1,15 @@
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, closeStagingIPC } from '#infra/database/prisma.js';
 import { assertProductionLock } from '../runs/coordination.js';
 import { recoverInterruptedMaintenanceRuns } from '../runs/state.js';
-import { repairBaseline } from '../workflows/baseline-repair.js';
+import {
+  acquireMarketLock,
+  isStagingDatabase,
+  MarketAccessBusyError,
+} from '#infra/coordination/market-access.js';
+import {
+  runStagedMaintenance,
+  type MaintenanceCommand as StagedCommand,
+} from '../staging/coordinator.js';
 import { runDailyMaintenance } from '../workflows/daily.js';
 import { runRepairMaintenance } from '../workflows/repair.js';
 import { runWeeklyMaintenance } from '../workflows/weekly.js';
@@ -11,7 +19,7 @@ import { runWeeklyMaintenance } from '../workflows/weekly.js';
  *
  * Identify maintenance CLI commands for entry-point dispatch.
  */
-type MaintenanceCommand = 'daily' | 'weekly' | 'repair' | 'baseline';
+type MaintenanceCommand = 'daily' | 'weekly' | 'repair';
 
 /**
  * 解析维护命令、执行对应工作流并负责进程与数据库收尾。
@@ -20,23 +28,61 @@ type MaintenanceCommand = 'daily' | 'weekly' | 'repair' | 'baseline';
  */
 async function main(): Promise<void> {
   const [firstArgument, ...remainingArguments] = process.argv.slice(2);
-  const command = maintenanceCommand(firstArgument);
-  const args =
-    command === 'daily' && firstArgument !== 'daily' ? process.argv.slice(2) : remainingArguments;
+  if (!isStagingDatabase()) {
+    const command =
+      firstArgument === 'sync' || firstArgument === 'canonicalize' || firstArgument === 'import'
+        ? firstArgument
+        : maintenanceCommand(firstArgument);
+    const args =
+      command === 'daily' && firstArgument !== 'daily' ? process.argv.slice(2) : remainingArguments;
+    await runStagedMaintenance(command as StagedCommand, args);
+    return;
+  }
+  if (!process.connected || !process.env.JIXIE_MAINTENANCE_CANDIDATE) {
+    throw new Error('Staging workflow requires its coordinator IPC');
+  }
+  const owner = await acquireMarketLock(`owner-${process.env.JIXIE_MAINTENANCE_CANDIDATE}`, true);
 
-  switch (command) {
-    case 'daily':
-      await runDaily(args);
-      break;
-    case 'weekly':
-      await runWeekly(args);
-      break;
-    case 'repair':
-      await runRepair(args);
-      break;
-    case 'baseline':
-      await healBaseline(args);
-      break;
+  try {
+    if (firstArgument === 'finalize') {
+      const { finalizeCandidate } = await import('../staging/finalize.js');
+      await finalizeCandidate();
+      return;
+    }
+    if (firstArgument === 'import') {
+      const { importMarketData } = await import('../workflows/import.js');
+      await importMarketData(remainingArguments);
+      return;
+    }
+    if (firstArgument === 'sync') {
+      process.argv = [process.argv[0], process.argv[1], ...remainingArguments];
+      await import('../../../scripts/sync/index.js');
+      return;
+    }
+    if (firstArgument === 'canonicalize') {
+      const { canonicalizeStockCodes } =
+        await import('#market/instruments/canonicalize-stock-codes.js');
+      await canonicalizeStockCodes();
+      return;
+    }
+    const command = maintenanceCommand(firstArgument);
+    const args =
+      command === 'daily' && firstArgument !== 'daily' ? process.argv.slice(2) : remainingArguments;
+
+    switch (command) {
+      case 'daily':
+        await runDaily(args);
+        break;
+      case 'weekly':
+        await runWeekly(args);
+        break;
+      case 'repair':
+        await runRepair(args);
+        break;
+    }
+  } finally {
+    await owner.release();
+    closeStagingIPC();
   }
 }
 
@@ -49,7 +95,7 @@ function maintenanceCommand(argument: string | undefined): MaintenanceCommand {
   if (!argument || argument === 'daily' || argument.startsWith('--') || /^\d{8}$/.test(argument)) {
     return 'daily';
   }
-  if (argument === 'weekly' || argument === 'repair' || argument === 'baseline') {
+  if (argument === 'weekly' || argument === 'repair') {
     return argument;
   }
 
@@ -58,9 +104,7 @@ function maintenanceCommand(argument: string | undefined): MaintenanceCommand {
   );
 }
 
-async function recoverInterruptedRuns(
-  kind: Exclude<MaintenanceCommand, 'baseline'>,
-): Promise<void> {
+async function recoverInterruptedRuns(kind: MaintenanceCommand): Promise<void> {
   assertProductionLock();
   const recovered = await recoverInterruptedMaintenanceRuns();
   if (recovered > 0) {
@@ -98,7 +142,12 @@ async function runDaily(args: string[]): Promise<void> {
   await recoverInterruptedRuns('daily');
   const summary = await runDailyMaintenance({ targetDate, force, resumeOnly, initializeOnly });
   console.log('[maintenance:daily] complete', summary);
-  if (summary?.retryForNewTarget && !resumeOnly && process.env.INVOCATION_ID) {
+  if (
+    summary?.retryForNewTarget &&
+    !resumeOnly &&
+    process.env.INVOCATION_ID &&
+    !isStagingDatabase()
+  ) {
     console.log(
       '[maintenance:daily] Original target completed; schedule a separate catch-up attempt',
     );
@@ -117,27 +166,16 @@ async function runWeekly(args: string[]): Promise<void> {
 }
 
 async function runRepair(args: string[]): Promise<void> {
-  const [startDate, endDate, ...rest] = args;
-  if (!startDate || !endDate || rest.length > 0) {
-    throw new Error('Usage: pnpm maintenance repair YYYYMMDD YYYYMMDD');
+  const dates = args.filter((argument) => argument !== '--refresh');
+  const [startDate, endDate] = dates;
+  if (dates.length !== 0 && dates.length !== 2) {
+    throw new Error('Usage: pnpm maintenance repair [YYYYMMDD YYYYMMDD] [--refresh]');
   }
   assertDate(startDate, 'Start date');
   assertDate(endDate, 'End date');
 
   await recoverInterruptedRuns('repair');
-  await runRepairMaintenance(startDate, endDate);
-  console.log(`[maintenance:repair] complete ${startDate}..${endDate}`);
-}
-
-async function healBaseline(args: string[]): Promise<void> {
-  const [argument, ...rest] = args;
-  if (rest.length > 0) {
-    throw new Error('Usage: pnpm maintenance baseline [YYYYMMDD]');
-  }
-  assertDate(argument, 'Baseline date');
-
-  const summary = await repairBaseline(argument);
-  console.log('[maintenance:baseline] complete', summary);
+  await runRepairMaintenance(startDate, endDate, args.includes('--refresh'));
 }
 
 function assertDate(value: string | undefined, label: string): void {
@@ -148,6 +186,10 @@ function assertDate(value: string | undefined, label: string): void {
 
 main()
   .catch((error: unknown) => {
+    if (error instanceof MarketAccessBusyError) {
+      process.exitCode = 75;
+      return;
+    }
     console.error('[maintenance] failed:', error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   })

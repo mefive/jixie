@@ -20,7 +20,7 @@
 
 - `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
 - 下表 `start` / `end` / `date` 使用 `YYYYMMDD`，宏观月份使用 `YYYYMM`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
-- 日常维护优先从仓库根目录运行 `pnpm maintenance ...`，它通过 `scripts/maintenance/with-maintenance-lock.sh` 获得维护锁；批量导入使用根级 `pnpm import:data`。
+- 日常维护优先从仓库根目录运行 `pnpm maintenance ...`，它由 TS 协调器直接获取并校验系统文件锁；批量导入使用根级 `pnpm import:data`。
 - `pnpm maintenance daily --resume-only` 仅恢复旧目标，`daily --initialize-only` 仅验证已导入基线；两者不能与显式日期或 `--force` 混用。部署不再隐式运行普通 daily。
 - 同步会写市场数据；维护和研究命令可能写任务、信号或用户研究数据。只读审计不等于完全无文件输出，具体见下表。
 
@@ -90,9 +90,9 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
-| `maintenance` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair start end`、`baseline [date]` | 写市场数据和维护状态；优先使用根级加锁入口 |
+| `maintenance` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair [start end] [--refresh]`、`daily --initialize-only`、`daily --resume-only` | 先在独立候选中准备，再一次性事务发布；准备失败不阻塞主库 |
 | `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
-| `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/market/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
+| `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/maintenance/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
 | `gen:invite` | [gen-invite.ts](../src/auth/cli/gen-invite.ts) | `[count] [note]` | 创建邀请码，写数据库，不发送邮件 |
 | `backup` | [backup-db.mjs](backup-db.mjs) | 环境变量见下文 | SQLite 在线备份、校验和文件轮换 |
 

@@ -16,15 +16,36 @@ import {
   updateMaintenanceRun,
 } from '../runs/state.js';
 import { runDailyMaintenance } from './daily.js';
+import { getRecentOpenDates } from '#market/calendar/read.js';
+import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
+import { selfHealMarketDates } from './self-heal.js';
+import { syncMarketIndicators } from '#market/state/sync.js';
+import { validateDerivedMarketRange } from '#market/state/quality.js';
+import { bumpDataRevision } from '../publication/watermark.js';
 
 /**
  * 编排指定范围的修复维护并记录恢复结果。
  *
  * Coordinate maintenance repair over the requested range and record its outcome.
  */
-export async function runRepairMaintenance(startDate: string, endDate: string): Promise<void> {
+export async function runRepairMaintenance(
+  startDate?: string,
+  endDate?: string,
+  refresh = false,
+): Promise<void> {
   assertProductionLock();
+  const cutoff = endDate ?? (await latestCompletedTradeDate());
+  if (!cutoff) {
+    throw new Error('No completed market date is available');
+  }
+  const recent = startDate ? [] : await getRecentOpenDates(cutoff, 20);
+  startDate ??= recent[0];
+  endDate = cutoff;
+  if (!startDate) {
+    throw new Error('No repair trading dates are available');
+  }
   assertRange(startDate, endDate);
+  const originalState = await prisma.maintenanceState.findUnique({ where: { key: 'global' } });
   const run = await beginMaintenanceRun({
     kind: 'repair',
     targetKey: `${startDate}:${endDate}`,
@@ -66,12 +87,26 @@ export async function runRepairMaintenance(startDate: string, endDate: string): 
     for (const row of dates) {
       summary.currentDate = row.calDate;
       await updateMaintenanceRun(run.id, 'repairing_date', summary);
-      await runDailyMaintenance({
-        targetDate: row.calDate,
-        force: true,
-        trigger: 'manual',
-        maintainWarehouseReceipts: false,
-      });
+      if (refresh) {
+        await runDailyMaintenance({
+          targetDate: row.calDate,
+          force: true,
+          trigger: 'manual',
+          maintainWarehouseReceipts: false,
+          generateSignals: false,
+        });
+      } else {
+        const healed = await selfHealMarketDates(client, [row.calDate], { maxRepairDates: 1 });
+        if (healed.deferredDates.length) {
+          throw new Error('Repair has unresolved dates');
+        }
+        if (healed.earliestDerivedChange) {
+          await syncMarketIndicators(healed.earliestDerivedChange, row.calDate);
+          await validateDerivedMarketRange(healed.earliestDerivedChange, row.calDate, [
+            row.calDate,
+          ]);
+        }
+      }
       summary.completedDates++;
     }
 
@@ -80,6 +115,23 @@ export async function runRepairMaintenance(startDate: string, endDate: string): 
       client,
       endDate as TradeDate,
       prisma,
+    );
+
+    const state = await prisma.maintenanceState.findUnique({ where: { key: 'global' } });
+    const derivedEnd =
+      state?.dailyPublishedThrough && state.dailyPublishedThrough > endDate
+        ? state.dailyPublishedThrough
+        : endDate;
+    await syncMarketIndicators(startDate, derivedEnd);
+    const expected = await prisma.tradeCal.findMany({
+      where: { exchange: 'SSE', isOpen: 1, calDate: { gte: startDate, lte: derivedEnd } },
+      orderBy: { calDate: 'asc' },
+      select: { calDate: true },
+    });
+    await validateDerivedMarketRange(
+      startDate,
+      derivedEnd,
+      expected.map((row) => row.calDate),
     );
 
     await updateMaintenanceRun(run.id, 'auditing', summary);
@@ -95,6 +147,13 @@ export async function runRepairMaintenance(startDate: string, endDate: string): 
         `Repair audit found ${errors.length} errors: ${errors.map((finding) => finding.title).join(', ')}`,
       );
     }
+    // 修复不建立或推进连续日水位，初始化仍由独立选项负责。
+    // Repair never initializes or advances the continuous daily watermark.
+    await prisma.maintenanceState.updateMany({
+      where: { key: 'global' },
+      data: { dailyPublishedThrough: originalState?.dailyPublishedThrough ?? null },
+    });
+    await bumpDataRevision();
     await finishMaintenanceRun(run.id, 'done', { summary });
   } catch (error) {
     const failure = error instanceof Error ? error : new Error(String(error));

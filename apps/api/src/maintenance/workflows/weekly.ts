@@ -429,6 +429,9 @@ function positiveInteger(value: string | undefined, fallback: number): number {
 }
 
 function shanghaiToday(): string {
+  if (process.env.JIXIE_MAINTENANCE_DATE) {
+    return process.env.JIXIE_MAINTENANCE_DATE;
+  }
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',
     year: 'numeric',

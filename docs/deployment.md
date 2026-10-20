@@ -166,9 +166,7 @@ pnpm import:data
 ```
 
 默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、
-官方指数分类、风格指数与申万一级行业行情、主要 ETF、指数和股指期货。最终阶段先修复基线，再预计算
-市场状态并执行严格数据审计。随后 bootstrap 启动 daily coordinator，由 daily 在同一维护状态机内验证
-基线、建立连续发布水位并完成 catch-up。财务和分红阶段内部按股票分批启动短生命周期子进程，避免首次
+官方指数分类、风格指数与申万一级行业行情、主要 ETF、指数和股指期货。所有阶段在同一个独立候选库内执行，补齐宏观、跨市场和商品研究依赖后，统一 repair、计算市场状态、审计并初始化水位；正式库只接受一次事务发布。财务和分红阶段内部按股票分批启动短生命周期子进程，避免首次
 导入也积累 Node/Prisma 原生内存；这不会增加新的部署命令。
 
 > **研究史(用户、策略、因子、回测记录)不会生成或迁移**——Tushare 只提供市场数据，prod 从空库开始积累自己的研究。
@@ -194,7 +192,7 @@ Node/Prisma 原生内存。不要再安装旧 cron，也不要在 API 内启动�
 daily 失败后由 systemd 每 30 分钟退避重试，不再因三次启动耗尽而停止跨夜恢复；bootstrap 同步更新旧的
 `jixie-maintenance.service.d/retry.conf`。weekly 仍保留六小时最多三次的原策略。
 daily 优先恢复原目标，不因日期变化扩展任务；新目标在上海 23:00 前最多取上一已开市日期。
-ETF 候选在行情写入前检查；纯来源等待可继续使用旧水位，已写入或旧版本遗留错误仍保留 Gate。
+第一阶段的下载、历史修复和审计都在独立候选中执行，失败继续使用旧水位；只有第二阶段持有发布锁时暂停新业务。旧协议遗留错误必须先通过完整校验，不能直接清状态解封。
 weekly 还会在市场派生数据完成后增量计算所有已钉住因子的月度气象点。首次钉住会由 API worker 回填
 历史，部署本身不需要额外执行 factor sync；相关表由 Prisma migration 自动创建。
 完整顺序、锁、维护 Gate 和手动修复见
@@ -258,3 +256,10 @@ daily / weekly maintenance 阻塞，bootstrap 只报告状态并失败退出，�
 - **登录靠邮件**:生产无 console 验证码兜底,`RESEND_API_KEY` + 已验证的 `EMAIL_FROM` 域名必须配好,否则没人能登录。
 - **内存/磁盘**:见 §1;回测与 `vite build` 别在紧内存机器上同时跑。
 - **私有仓库 clone**:VPS 需 GitHub 访问凭据(SSH key / deploy token),否则 `git clone` 失败。
+
+
+### TS 原生文件锁
+
+维护使用 fs-ext 的 OS flock，生产 Ubuntu 必须在目标平台运行 pnpm install；不要复制 macOS node_modules。bootstrap 检查 g++、make、Python 3（用于 node-gyp 编译），应用维护逻辑仍为 TypeScript。Node ABI 或 CPU 架构变化时应重新安装／构建依赖。所有入口共用真实数据库目录中的 maintenance.lock、market-publish-intent.lock、market-access.lock，锁文件不得删除或轮换。
+
+生产维护 unit 直接启动 Node，由协调器取得锁。bootstrap 为迁移和停服使用 M→P→R，并直接启动 Node 传递真实 FD；不再使用环境布尔值作为持锁证明。没有发布基线时状态为 uninitialized；准备失败不会使已发布基线封站。

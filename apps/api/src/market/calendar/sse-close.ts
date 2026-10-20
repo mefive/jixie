@@ -24,7 +24,7 @@ function shanghaiClock(): { today: string; hour: number } {
     day: '2-digit',
     hour: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date());
+  }).formatToParts(new Date(process.env.JIXIE_MAINTENANCE_TIME ?? Date.now()));
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return {
     today: `${value.year}${value.month}${value.day}`,

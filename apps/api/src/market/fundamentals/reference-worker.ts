@@ -1,4 +1,5 @@
-import { prisma } from '#infra/database/prisma.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
+import { prisma, closeStagingIPC } from '#infra/database/prisma.js';
 import { pathToFileURL } from 'node:url';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
@@ -42,6 +43,9 @@ export async function runReferenceWorker(
  * Parse financial worker startup and connect the parent protocol with resource cleanup.
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase() || !process.connected) {
+    throw new Error('Financial workers require isolated coordinator ownership and IPC');
+  }
   const [stageArgument, ...items] = process.argv.slice(2);
   if (
     stageArgument !== 'financial_statements' &&
@@ -123,8 +127,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     .finally(async () => {
       process.off('disconnect', parentDisconnected);
       await prisma.$disconnect();
-      if (process.connected) {
-        process.disconnect();
-      }
+      closeStagingIPC();
     });
 }

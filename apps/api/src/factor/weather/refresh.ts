@@ -1,3 +1,10 @@
+import { deferMaintenanceAction } from '#infra/coordination/staging-input.js';
+import {
+  withRetainedMarketAccess,
+  acquireWorkOwner,
+  MarketAccessBusyError,
+  type MarketLock,
+} from '#infra/coordination/market-access.js';
 import { factorAnalysisWorkerInputSchema } from '../analysis/worker-input.js';
 import { runWorker } from '#jobs/worker.js';
 import { factorAnalysisWorkerMessageSchema } from '../analysis/worker-protocol.js';
@@ -62,7 +69,14 @@ export function refreshFactorWeatherPin(
     return active;
   }
 
-  const refresh = performRefresh(pinId, options).finally(() => activeRefreshes.delete(pinId));
+  const refresh = withRetainedMarketAccess(async () => {
+    const owner = await acquireWorkOwner('weather', pinId);
+    try {
+      return await performRefresh(pinId, options);
+    } finally {
+      await owner.release();
+    }
+  }).finally(() => activeRefreshes.delete(pinId));
   activeRefreshes.set(pinId, refresh);
   return refresh;
 }
@@ -70,14 +84,35 @@ export function refreshFactorWeatherPin(
 /**
  * 启动时将旧进程遗留 running 刷新状态恢复为可重试状态。
  *
- * On API boot, a persisted running state can only belong to a worker killed with the old process.
+ * On API boot, reset only work without a live cross-process owner.
  */
 export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> {
-  const result = await prisma.factorWeatherPin.updateMany({
+  const pins = await prisma.factorWeatherPin.findMany({
     where: { status: 'running' },
-    data: { status: 'pending', error: null },
+    select: { id: true },
   });
-  return result.count;
+  let count = 0;
+  for (const pin of pins) {
+    let owner: MarketLock;
+    try {
+      owner = await acquireWorkOwner('weather', pin.id);
+    } catch (error) {
+      if (error instanceof MarketAccessBusyError) {
+        continue;
+      }
+      throw error;
+    }
+    try {
+      const result = await prisma.factorWeatherPin.updateMany({
+        where: { id: pin.id, status: 'running' },
+        data: { status: 'pending', error: null },
+      });
+      count += result.count;
+    } finally {
+      await owner.release();
+    }
+  }
+  return count;
 }
 
 /**
@@ -88,8 +123,13 @@ export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> 
 export async function refreshAllFactorWeatherPins(
   options: {
     onLog?: (line: string) => void;
+    strict?: boolean;
   } = {},
 ): Promise<FactorWeatherRefreshResult[]> {
+  if (deferMaintenanceAction({ kind: 'weather' })) {
+    return [];
+  }
+
   const pins = await prisma.factorWeatherPin.findMany({
     orderBy: { createdAt: 'asc' },
     select: { id: true, factorName: true },
@@ -101,6 +141,9 @@ export async function refreshAllFactorWeatherPins(
     try {
       results.push(await refreshFactorWeatherPin(pin.id));
     } catch (error) {
+      if (options.strict) {
+        throw error;
+      }
       options.onLog?.(
         `Factor weather failed for ${pin.factorName}: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -124,6 +167,16 @@ async function performRefresh(
     return { pinId, computedThrough: null, pointsWritten: 0, skipped: true };
   }
 
+  const state = await prisma.maintenanceState.findUnique({
+    where: { key: 'global' },
+    select: { dataRevision: true },
+  });
+  const methodologyHash = sha256(
+    canonicalJson({
+      methodology: FACTOR_WEATHER_METHODOLOGY_HASH,
+      dataRevision: state?.dataRevision ?? 0,
+    }),
+  );
   const completedThrough = await latestCompletedMonthEnd();
   if (!completedThrough) {
     await prisma.factorWeatherPin.update({
@@ -133,9 +186,7 @@ async function performRefresh(
     return { pinId, computedThrough: null, pointsWritten: 0, skipped: true };
   }
   const requiresFullRefresh =
-    Boolean(options.force) ||
-    !pin.computedThrough ||
-    pin.methodologyHash !== FACTOR_WEATHER_METHODOLOGY_HASH;
+    Boolean(options.force) || !pin.computedThrough || pin.methodologyHash !== methodologyHash;
   if (!requiresFullRefresh && pin.status === 'ready' && pin.computedThrough === completedThrough) {
     return { pinId, computedThrough: completedThrough, pointsWritten: 0, skipped: true };
   }
@@ -198,7 +249,7 @@ async function performRefresh(
           status: 'ready',
           error: null,
           computedThrough: completedThrough,
-          methodologyHash: FACTOR_WEATHER_METHODOLOGY_HASH,
+          methodologyHash,
         },
       });
     });

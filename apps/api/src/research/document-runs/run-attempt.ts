@@ -1,3 +1,4 @@
+import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
@@ -28,64 +29,66 @@ export async function runResearchCellChangeAttemptPlan(
     expectedContentRevision: number;
   },
 ): Promise<ResearchDocumentRunResultV1> {
-  const document = await prisma.researchDocument.findFirst({
-    where: { id: documentId, userId, embeddedVersion: null },
-    select: { id: true },
-  });
-  if (!document) {
-    throw new ResearchError('document_not_found');
-  }
-
-  const control = startResearchDocumentRun(documentId);
-  try {
-    await assertResearchCellIdsRunnable(documentId, plan.cellIds);
-    if (args.clean) {
-      await researchSandboxPool.reset(documentId);
-      if (!control.interrupted) {
-        await prisma.researchCell.updateMany({
-          where: {
-            documentId,
-            kind: 'python',
-            status: { not: 'blocked' },
-            lastExecutedRevision: { not: null },
-          },
-          data: { status: 'stale' },
-        });
-      }
+  return withMarketAccess(async () => {
+    const document = await prisma.researchDocument.findFirst({
+      where: { id: documentId, userId, embeddedVersion: null },
+      select: { id: true },
+    });
+    if (!document) {
+      throw new ResearchError('document_not_found');
     }
 
-    const executedCellIds = await executeAffectedResearchCellPlan(
-      plan,
-      async (cellId) => {
-        const current = await prisma.researchDocument.findUnique({
-          where: { id: documentId },
-          select: { contentRevision: true },
-        });
-        if (!current || current.contentRevision !== args.expectedContentRevision) {
-          throw new ResearchError('document_revision_conflict', {
-            details: {
-              currentContentRevision: current?.contentRevision ?? args.expectedContentRevision,
+    const control = startResearchDocumentRun(documentId);
+    try {
+      await assertResearchCellIdsRunnable(documentId, plan.cellIds);
+      if (args.clean) {
+        await researchSandboxPool.reset(documentId);
+        if (!control.interrupted) {
+          await prisma.researchCell.updateMany({
+            where: {
+              documentId,
+              kind: 'python',
+              status: { not: 'blocked' },
+              lastExecutedRevision: { not: null },
             },
+            data: { status: 'stale' },
           });
         }
-        const outcome = await executeResearchCellById(userId, cellId, control, args.attemptId);
-        return outcome === 'success';
-      },
-      () => control.interrupted,
-    );
-    const finalDocument = await prisma.researchDocument.findUnique({
-      where: { id: documentId },
-      select: { contentRevision: true },
-    });
-    if (!finalDocument || finalDocument.contentRevision !== args.expectedContentRevision) {
-      throw new ResearchError('document_revision_conflict', {
-        details: {
-          currentContentRevision: finalDocument?.contentRevision ?? args.expectedContentRevision,
+      }
+
+      const executedCellIds = await executeAffectedResearchCellPlan(
+        plan,
+        async (cellId) => {
+          const current = await prisma.researchDocument.findUnique({
+            where: { id: documentId },
+            select: { contentRevision: true },
+          });
+          if (!current || current.contentRevision !== args.expectedContentRevision) {
+            throw new ResearchError('document_revision_conflict', {
+              details: {
+                currentContentRevision: current?.contentRevision ?? args.expectedContentRevision,
+              },
+            });
+          }
+          const outcome = await executeResearchCellById(userId, cellId, control, args.attemptId);
+          return outcome === 'success';
         },
+        () => control.interrupted,
+      );
+      const finalDocument = await prisma.researchDocument.findUnique({
+        where: { id: documentId },
+        select: { contentRevision: true },
       });
+      if (!finalDocument || finalDocument.contentRevision !== args.expectedContentRevision) {
+        throw new ResearchError('document_revision_conflict', {
+          details: {
+            currentContentRevision: finalDocument?.contentRevision ?? args.expectedContentRevision,
+          },
+        });
+      }
+      return buildResearchDocumentRunResult(userId, documentId, executedCellIds, args.clean);
+    } finally {
+      finishResearchDocumentRun(control);
     }
-    return buildResearchDocumentRunResult(userId, documentId, executedCellIds, args.clean);
-  } finally {
-    finishResearchDocumentRun(control);
-  }
+  });
 }

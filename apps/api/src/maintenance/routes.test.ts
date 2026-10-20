@@ -2,6 +2,11 @@ import { handleApiError } from '#infra/http/errors.js';
 import { Hono } from 'hono';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('#infra/coordination/market-access.js', async (original) => ({
+  ...(await original<typeof import('#infra/coordination/market-access.js')>()),
+  withMarketAccess: async (operation: () => Promise<unknown>) => operation(),
+}));
+
 const mocks = vi.hoisted(() => ({ getMaintenanceStatus: vi.fn(), protectedHandler: vi.fn() }));
 vi.mock('./runs/state.js', () => ({ getMaintenanceStatus: mocks.getMaintenanceStatus }));
 

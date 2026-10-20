@@ -1,3 +1,4 @@
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -23,6 +24,9 @@ function parseCodes(value: string): string[] {
  *   default: 000852.SH (CSI 1000) 2015-2024
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const cfg = loadTushareConfig();
   const [codeArgument = '000852.SH', start = '20150101', end = '20241231'] = process.argv.slice(2);
   const indexCodes = parseCodes(codeArgument);
@@ -78,7 +82,7 @@ async function main(): Promise<void> {
   console.log('✅ Index constituents sync complete');
 }
 
-main().catch(async (e: unknown) => {
+await main().catch(async (e: unknown) => {
   console.error('\n❌ sync index failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;

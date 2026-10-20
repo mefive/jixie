@@ -1,3 +1,4 @@
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { prisma } from '#infra/database/prisma.js';
@@ -14,6 +15,9 @@ import { syncSwIndustry } from '../indices/sync.js';
  * 31 industries, so a ~300ms interval keeps it well under Tushare rate limits.
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const cfg = loadTushareConfig();
   const client = new TushareClient({
     token: cfg.token,
@@ -31,7 +35,7 @@ async function main(): Promise<void> {
   console.log('✅ SW industry sync complete');
 }
 
-main().catch(async (e: unknown) => {
+await main().catch(async (e: unknown) => {
   console.error('\n❌ sync sw-industry failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;

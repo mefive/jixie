@@ -1,6 +1,31 @@
 // @prisma/client 6.x is still CJS. Strict ESM in Node disallows named imports from CJS,
 // so we take the default export and destructure it — works in both dev (tsx) and after build.
 import pkg from '@prisma/client';
+import { isMainThread } from 'node:worker_threads';
+import { acquireMarketLock, isStagingDatabase } from '../coordination/market-access.js';
+
+// 每个候选写进程独立持有所有权引用，父进程退出后不能误用仍活动的候选。
+// Every candidate writer retains ownership so recovery cannot reuse files with a live descendant.
+const stagingDatabase = isStagingDatabase();
+const stagingOwner =
+  stagingDatabase && isMainThread
+    ? await acquireMarketLock(`owner-${process.env.JIXIE_MAINTENANCE_CANDIDATE}`, true)
+    : undefined;
+const parentDisconnected = () => process.exit(1);
+if (stagingOwner && isMainThread && process.connected) {
+  process.once('disconnect', parentDisconnected);
+}
+process.once('beforeExit', () => {
+  void stagingOwner?.release();
+});
+
+/** 正常退出先移除父进程故障监听。 / Detach the failure handler before normal IPC shutdown. */
+export function closeStagingIPC(): void {
+  process.removeListener('disconnect', parentDisconnected);
+  if (process.connected) {
+    process.disconnect();
+  }
+}
 
 const { PrismaClient } = pkg;
 

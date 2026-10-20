@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { prisma } from '#infra/database/prisma.js';
 import {
@@ -8,7 +10,7 @@ import { syncTradeCal } from '../calendar/sync.js';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 function currentDate(): string {
-  return new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  return stagingNow().toISOString().slice(0, 10).replaceAll('-', '');
 }
 
 function addCalendarDays(date: string, days: number): string {
@@ -28,6 +30,9 @@ function addCalendarDays(date: string, days: number): string {
  * Sync the official Ministry of Finance China government-bond yield curve.
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const [startDate = '20060301', endDate = currentDate()] = process.argv.slice(2);
   if (!/^\d{8}$/.test(startDate) || !/^\d{8}$/.test(endDate) || startDate > endDate) {
     throw new Error('start/end must be YYYYMMDD and start must not exceed end');
@@ -47,7 +52,7 @@ async function main(): Promise<void> {
   console.log(`China treasury curve sync complete: ${count} points`);
 }
 
-main()
+await main()
   .catch((error: unknown) => {
     console.error('Rate data sync failed:', error instanceof Error ? error.message : String(error));
     process.exitCode = 1;

@@ -9,6 +9,7 @@ const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 let serviceAvailable = false;
 let maintenanceRequests = 0;
+let maintenancePhase = 'idle';
 
 await context.route('**/api/auth/me', (route) => {
   if (!serviceAvailable) {
@@ -23,8 +24,17 @@ await context.route('**/api/maintenance/status', (route) => {
   if (!serviceAvailable) {
     return gatewayUnavailable(route);
   }
-  return json(route, inactiveMaintenanceStatus());
+  return json(route, {
+    ...inactiveMaintenanceStatus(),
+    phase: maintenancePhase,
+    active: maintenancePhase === 'publishing',
+    stage: maintenancePhase === 'publishing' ? 'publishing' : null,
+    kind: maintenancePhase === 'idle' ? null : 'daily',
+  });
 });
+await context.route('**/api/maintenance/version', (route) =>
+  json(route, { revision: 'maintenance-review' }),
+);
 await context.route('**/api/app/market/weather**', (route) => json(route, marketWeatherSeries()));
 
 const page = await context.newPage();
@@ -60,6 +70,36 @@ try {
     throw new Error(`unexpected page errors: ${pageErrors.join('; ')}`);
   }
 
+  maintenancePhase = 'preparing';
+  await page.getByText('数据准备中', { exact: true }).waitFor({ timeout: 10_000 });
+  if (await page.locator('.jx-maintenanceGate').count()) {
+    throw new Error('Preparation must not gate the published application');
+  }
+  await page.screenshot({ path: `${SHOTS}maintenance-preparing-zh.png`, fullPage: true });
+  await page.getByText('EN', { exact: true }).click();
+  await page.getByText('Preparing data', { exact: true }).waitFor();
+  await page.screenshot({ path: `${SHOTS}maintenance-preparing-en.png`, fullPage: true });
+
+  maintenancePhase = 'error';
+  await page.getByText('Data update awaiting retry', { exact: true }).waitFor({ timeout: 10_000 });
+  if (await page.locator('.jx-maintenanceGate').count()) {
+    throw new Error('Candidate failure must not gate the published application');
+  }
+  await page.screenshot({ path: `${SHOTS}maintenance-candidate-error.png`, fullPage: true });
+
+  maintenancePhase = 'publishing';
+  await page.locator('.jx-maintenanceGate').waitFor({ timeout: 10_000 });
+  await page.getByText('Publishing market data', { exact: true }).waitFor();
+  await assertCurrentRoute(page);
+  await page.screenshot({ path: `${SHOTS}maintenance-publishing-en.png`, fullPage: true });
+  const resumed = page.waitForEvent('framenavigated', {
+    predicate: (frame) => frame === page.mainFrame(),
+    timeout: 10_000,
+  });
+  maintenancePhase = 'idle';
+  await resumed;
+  await page.locator('.jx-maintenanceGate').waitFor({ state: 'detached' });
+  await assertCurrentRoute(page);
   await page.screenshot({ path: `${SHOTS}maintenance-service-recovered.png`, fullPage: true });
   console.log('[maintenance-fallback-e2e] gateway outage is gated and recovers automatically');
 } finally {

@@ -132,3 +132,11 @@ StrategySimulation 在宿主创建一次性 `Simulation`，`run()` 返回模拟�
 2026-09-28 命名修订：当前宿主入口为 `backtesting/backtesting-engine.ts` 的 BacktestingEngine，调用方使用 `#backtesting/*`；原 simulation 目录展开到模块根。上述历史旧入口和 benchmark 固定版本路径仅作迁移记录。
 
 旧 Agent 聊天图表 JS 执行器、重查路由和统计库注入已整体移除；历史消息只投影为停用提示。Research Python 图表使用其执行产物；只读 SQL Worker 与 TS Factor/Strategy Transport 继续使用。详见 [退役记录](design/legacy-chat-chart-retirement.md)。
+
+## 候选维护进程与原生锁（待审阅／验证）
+
+- `maintenance/cli/run-maintenance` 的正式进程持 M；fork 同一入口的候选进程先固定 DATABASE_URL，再加载 Prisma。所有候选进程／财报子进程持 candidate owner 共享引用，父 IPC 失踪即退出。
+- 候选 import 按阶段 fork `scripts/sync/index`，每个入口使用 top-level await 等待完整业务完成，并在正常退出时清理 IPC。finalize 是同一维护入口的内部子命令，不对主库直接执行。
+- TS 的 `infra/coordination/market-access` 加载 fs-ext 原生绑定。HTTP／Job／Agent／Research／Weather 的结果写入完成前保留 R；queued 调度必须脱离唤醒它的 HTTP AsyncLocalStorage 上下文后重新准入。空闲会话和 SSE 不持 R。
+- bootstrap 使用真实 M/P/R FD，迁移和停服前排空活读者。仅升级缺少新协议的旧 API 时使用旧计数兜底，计入 Research Cell 和 Weather；数据库 running 不作为新协议持锁证明。
+- 验证资源：`market-lock.fixture.ts`（真实进程退出／争用）、`staging/coordinator.integration.test.ts`（隔离正式／候选库、提交／回滚／后续恢复）、`reference-worker.integration.test.ts`（源码及编译 IPC）、`maintenance-fallback.mjs`（中英 UI 与截图）。人工代码审阅前均不执行行为验证。

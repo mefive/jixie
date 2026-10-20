@@ -1,3 +1,8 @@
+import {
+  acquireWorkOwner,
+  MarketAccessBusyError,
+  type MarketLock,
+} from '#infra/coordination/market-access.js';
 import type { Prisma } from '@prisma/client';
 import {
   type AgentTurnTrace,
@@ -298,9 +303,34 @@ function mergeEmbeddedParts(parts: MessagePart[], saved: MessagePart[]): Message
 }
 
 export async function markRunningAgentTurnsInterrupted(): Promise<number> {
-  const result = await prisma.agentTurn.updateMany({
+  const turns = await prisma.agentTurn.findMany({
     where: { status: 'running' },
-    data: { status: 'interrupted', finishedAt: new Date(), error: 'API process restarted' },
+    select: { id: true },
   });
-  return result.count;
+  let count = 0;
+  for (const turn of turns) {
+    let owner: MarketLock;
+    try {
+      owner = await acquireWorkOwner('agent', turn.id);
+    } catch (error) {
+      if (error instanceof MarketAccessBusyError) {
+        continue;
+      }
+      throw error;
+    }
+    try {
+      const result = await prisma.agentTurn.updateMany({
+        where: { id: turn.id, status: 'running' },
+        data: {
+          status: 'interrupted',
+          finishedAt: new Date(),
+          error: 'Owning Agent process exited',
+        },
+      });
+      count += result.count;
+    } finally {
+      await owner.release();
+    }
+  }
+  return count;
 }

@@ -680,9 +680,13 @@ have sqlite3 || PKGS+=(sqlite3)     # scripts/backup-db.mjs requires the sqlite3
 have podman  || PKGS+=(podman)      # rootless runtime for untrusted Python strategy containers
 # isolated-vm(硬沙箱)是原生模块,pnpm install 时需要 C++ 工具链编译
 if [[ "$PKG" == apt ]]; then
-  have g++ || PKGS+=(build-essential python3)
+  have g++ || PKGS+=(build-essential)
+  have make || PKGS+=(make)
+  have python3 || PKGS+=(python3)
 else
-  have g++ || PKGS+=(gcc-c++ make python3)
+  have g++ || PKGS+=(gcc-c++)
+  have make || PKGS+=(make)
+  have python3 || PKGS+=(python3)
 fi
 # certbot + 其 nginx 插件(两发行版包名一致:python3-certbot-nginx)
 have certbot || PKGS+=(certbot python3-certbot-nginx)
@@ -806,7 +810,7 @@ PODMAN_CGROUP_VERSION="$(podman_as_deploy_user info --format '{{.Host.CgroupsVer
 DB_FILE="$JIXIE_DATA_DIR/prod.db"
 exec 9>>"$JIXIE_DATA_DIR/maintenance.lock"
 flock -n -E 75 9 || die "maintenance 正在运行,本次 bootstrap 不与其并发"
-export JIXIE_MAINTENANCE_LOCK_HELD=1
+export JIXIE_MAINTENANCE_LOCK_FD=9
 
 SUCCESSFUL_REVISION_FILE="$JIXIE_DATA_DIR/deployed-revision"
 DEPLOYED_REVISION=""
@@ -919,6 +923,24 @@ cleanup_deployment_gate() {
 
 trap cleanup_deployment_gate EXIT
 
+if [[ "$DEPLOY_API" == "1" ]]; then
+  # 老版本没有共享读锁，升级时保留一次旧计数排空；新版只认真实句柄。
+  # Older APIs lack shared admission; use their legacy drain only for the upgrade transition.
+  export JIXIE_DEPLOY_LEGACY_DRAIN=1
+  existing_maintenance_status="$(curl -fsS "localhost:$JIXIE_PORT/api/maintenance/status" 2>/dev/null || true)"
+  if STATUS_JSON="$existing_maintenance_status" node -e 'try { process.exit(JSON.parse(process.env.STATUS_JSON).phase ? 0 : 1); } catch { process.exit(1); }'; then
+    export JIXIE_DEPLOY_LEGACY_DRAIN=0
+  fi
+  # 先关闭共享准入，再排空完整业务范围，queued 不持读锁。
+  # Close shared admission before draining complete business scopes; queued jobs hold no reader lock.
+  exec 10>>"$JIXIE_DATA_DIR/market-publish-intent.lock"
+  flock -w 120 -E 75 10 || die "无法取得部署发布意图锁"
+  exec 11>>"$JIXIE_DATA_DIR/market-access.lock"
+  flock -w 120 -E 75 11 || die "等待在途市场访问超时"
+  export JIXIE_MARKET_PUBLISH_LOCK_FD=10
+  export JIXIE_MARKET_ACCESS_LOCK_FD=11
+fi
+
 if [[ "$DEPLOY_API" == "1" ]] && systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
   API_WAS_ACTIVE=1
   MAINTENANCE_TABLE_EXISTS="$(
@@ -992,7 +1014,7 @@ if [[ "${DAILY_ROWS:-0}" -eq 0 ]]; then
 fi
 if [[ -f "$IMPORT_REQUIRED_MARKER" ]]; then
   log "行情库尚未完成初始化,执行可断点续传的全量导入"
-  pnpm import:data
+  "$JIXIE_DIR/scripts/maintenance/import-market-data.sh"
   rm -f "$IMPORT_REQUIRED_MARKER"
 else
   read -r MARKET_REFERENCE_START MARKET_REFERENCE_END < <(
@@ -1016,7 +1038,7 @@ else
   )
   if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 || "$WEATHER_HISTORICAL_CODES" -ne 34 ]]; then
     log "补全官方指数分类、市场气象指数和申万一级行业历史行情: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
-    pnpm --filter api sync market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
 
     read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
       market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
@@ -1029,11 +1051,11 @@ else
 
   if [[ "$WEATHER_WEIGHT_CODES" -ne 34 ]]; then
     log "补全34个市场气象指数的历史成分权重: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
-    pnpm --filter api sync index market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync index market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
   fi
   if [[ "$WEATHER_WEIGHT_CODES" -ne 34 || "$WEATHER_INDICATOR_CODES" -ne 34 ]]; then
     log "按时点成分重算市场气象广度、活跃度和估值"
-    pnpm --filter api sync market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
+    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
 
     read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
       market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
@@ -1047,7 +1069,7 @@ else
   COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
   if [[ "$COMMODITY_ETF_COMPLETE" -ne 3 ]]; then
     log "补全豆粕、有色金属和能源化工 ETF 历史行情: 20191201 ~ $MARKET_REFERENCE_END"
-    pnpm --filter api sync etf 20191201 "$MARKET_REFERENCE_END" \
+    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync etf 20191201 "$MARKET_REFERENCE_END" \
       159985.SZ,159980.SZ,159981.SZ refresh
     COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
     [[ "$COMMODITY_ETF_COMPLETE" -eq 3 ]] || die "商品 ETF 日线或复权历史回填后仍不完整"
@@ -1063,7 +1085,7 @@ MACRO_SYNC_END="$(
 MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
 if [[ "$MACRO_SERIES_COMPLETE" -ne 14 ]]; then
   log "补全中美通胀、增长、货币、信用和 Shibor 宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
-  pnpm --filter api sync macro 200501 "$MACRO_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync macro 200501 "$MACRO_SYNC_END"
   MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
   [[ "$MACRO_SERIES_COMPLETE" -eq 14 ]] || die "宏观系列回填后仍不完整"
 else
@@ -1079,7 +1101,7 @@ CROSS_MARKET_PROXY_COMPLETE="$(
 )"
 if [[ "$CROSS_MARKET_PROXY_COMPLETE" -ne 3 ]]; then
   log "补全沪深300、恒生和标普500可交易 ETF 代理: 20120501 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync etf 20120501 "$EXTERNAL_MARKET_SYNC_END" \
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync etf 20120501 "$EXTERNAL_MARKET_SYNC_END" \
     510300.SH,159920.SZ,513500.SH refresh
   CROSS_MARKET_PROXY_COMPLETE="$(
     cross_market_proxy_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
@@ -1094,7 +1116,7 @@ EXTERNAL_MARKET_COMPLETE="$(
 )"
 if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 4 ]]; then
   log "补全美国名义/实际国债曲线和 USD/CNH、USD/HKD: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync external-market 20050101 "$EXTERNAL_MARKET_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync external-market 20050101 "$EXTERNAL_MARKET_SYNC_END"
   EXTERNAL_MARKET_COMPLETE="$(
     external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1108,7 +1130,7 @@ CHINA_TREASURY_CURVE_COMPLETE="$(
 )"
 if [[ "$CHINA_TREASURY_CURVE_COMPLETE" -ne 1 ]]; then
   log "补全财政部中国国债收益率曲线: 20060301 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync rates 20060301 "$EXTERNAL_MARKET_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync rates 20060301 "$EXTERNAL_MARKET_SYNC_END"
   CHINA_TREASURY_CURVE_COMPLETE="$(
     china_treasury_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1122,7 +1144,7 @@ CROSS_MARKET_BENCHMARK_COMPLETE="$(
 )"
 if [[ "$CROSS_MARKET_BENCHMARK_COMPLETE" -ne 3 ]]; then
   log "补全沪深300、恒生和标普500价格指数基准: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync cross-market-benchmarks 20050101 "$EXTERNAL_MARKET_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync cross-market-benchmarks 20050101 "$EXTERNAL_MARKET_SYNC_END"
   CROSS_MARKET_BENCHMARK_COMPLETE="$(
     cross_market_benchmark_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1136,7 +1158,7 @@ CREDIT_CURVE_COMPLETE="$(
 )"
 if [[ "$CREDIT_CURVE_COMPLETE" -ne 3 ]]; then
   log "补全中债国债、商业银行 AAA 和中短票 AAA 收益率曲线: 20060101 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync credit-curves 20060101 "$EXTERNAL_MARKET_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync credit-curves 20060101 "$EXTERNAL_MARKET_SYNC_END"
   CREDIT_CURVE_COMPLETE="$(
     credit_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1150,7 +1172,7 @@ COMMODITY_FUTURE_COMPLETE="$(
 )"
 if [[ "$COMMODITY_FUTURE_COMPLETE" -ne 4 ]]; then
   log "补全 AU/CU/SC/M 实际月合约与日线: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync commodity-futures 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-futures 20150105 "$EXTERNAL_MARKET_SYNC_END"
   COMMODITY_FUTURE_COMPLETE="$(
     commodity_future_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1164,7 +1186,7 @@ COMMODITY_HOLDING_COMPLETE="$(
 )"
 if [[ "$COMMODITY_HOLDING_COMPLETE" -ne 3 ]]; then
   log "补全 AU/CU/M 主导实际合约的会员持仓排名: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync commodity-holdings 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-holdings 20150105 "$EXTERNAL_MARKET_SYNC_END"
   COMMODITY_HOLDING_COMPLETE="$(
     commodity_holding_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1178,7 +1200,7 @@ COMMODITY_CONTINUOUS_COMPLETE="$(
 )"
 if [[ "$COMMODITY_CONTINUOUS_COMPLETE" -ne 4 ]]; then
   log "补全 AU/CU/SC/M 主力映射、连续收益与换月台账: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  pnpm --filter api sync commodity-continuous 20150105 "$EXTERNAL_MARKET_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-continuous 20150105 "$EXTERNAL_MARKET_SYNC_END"
   COMMODITY_CONTINUOUS_COMPLETE="$(
     commodity_continuous_return_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
   )"
@@ -1196,7 +1218,7 @@ WAREHOUSE_RECEIPT_COMPLETE="$(
 )"
 if [[ "$WAREHOUSE_RECEIPT_COMPLETE" -ne 4 ]]; then
   log "补全 AU/CU/SC/M 商品仓单研究底座: 20150101 ~ $WAREHOUSE_RECEIPT_SYNC_END"
-  pnpm --filter api sync commodity-warehouse-receipts 20150101 "$WAREHOUSE_RECEIPT_SYNC_END"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-warehouse-receipts 20150101 "$WAREHOUSE_RECEIPT_SYNC_END"
   WAREHOUSE_RECEIPT_COMPLETE="$(
     commodity_warehouse_receipt_coverage "$DB_FILE" "$WAREHOUSE_RECEIPT_SYNC_END"
   )"
@@ -1332,8 +1354,12 @@ else
 fi
 
 # ─────────────────────────────── 9. 激活维护与冒烟测试 ───────────────────────────────
+if [[ -n "${JIXIE_MARKET_ACCESS_LOCK_FD:-}" ]]; then
+  flock -u 11
+  flock -u 10
+fi
 flock -u 9
-unset JIXIE_MAINTENANCE_LOCK_HELD
+unset JIXIE_MAINTENANCE_LOCK_FD JIXIE_MARKET_ACCESS_LOCK_FD JIXIE_MARKET_PUBLISH_LOCK_FD
 if [[ -z "$CURRENT_WATERMARK" ]]; then
   "$JIXIE_DIR/scripts/deploy/activate-maintenance.sh"
 fi

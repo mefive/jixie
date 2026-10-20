@@ -1,3 +1,4 @@
+import { stagingRequirements } from '#infra/coordination/staging-input.js';
 import {
   syncFutureContracts,
   syncFutureDaily,
@@ -37,10 +38,12 @@ export async function prepareSignalEtfMarketDate(
   client: TushareClient,
   tradeDate: TradeDate,
 ): Promise<PreparedEtfMarketDate> {
-  const deployments = await prisma.strategyDeployment.findMany({
-    where: { status: 'active' },
-    select: { config: true },
-  });
+  const deployments =
+    stagingRequirements()?.active ??
+    (await prisma.strategyDeployment.findMany({
+      where: { status: 'active' },
+      select: { config: true },
+    }));
   const definitions = await Promise.all(
     deployments.map(async (deployment) => {
       const code = (deployment.config as { code?: unknown }).code;
@@ -77,10 +80,12 @@ export async function syncSignalMarketData(
     baseUrl: config.baseUrl,
     minIntervalMs: config.minIntervalMs,
   });
-  const deployments = await prisma.strategyDeployment.findMany({
-    where: { status: 'active' },
-    select: { config: true, factorDependencies: true },
-  });
+  const deployments =
+    stagingRequirements()?.active ??
+    (await prisma.strategyDeployment.findMany({
+      where: { status: 'active' },
+      select: { config: true, factorDependencies: true },
+    }));
   const definitions = await Promise.all(
     deployments.map(async (deployment) => {
       const strategyConfig = deployment.config as { code?: unknown };
@@ -159,10 +164,16 @@ export async function syncSignalMarketData(
   } else {
     await syncEtfMarketDate(client, tradeDate as TradeDate, etfCodes);
   }
-  const versioned = await prisma.strategyDeployment.findMany({
-    where: { accountingVersion: 2 },
-    select: { config: true, status: true, accountStates: { take: 1, select: { id: true } } },
-  });
+  const versioned =
+    stagingRequirements()?.versioned.map((entry) => ({
+      config: entry.config,
+      status: entry.status,
+      accountStates: entry.hasAccounts ? [{ id: 'frozen' }] : [],
+    })) ??
+    (await prisma.strategyDeployment.findMany({
+      where: { accountingVersion: 2 },
+      select: { config: true, status: true, accountStates: { take: 1, select: { id: true } } },
+    }));
   const needed = versioned.filter(
     (deployment) => deployment.status === 'active' || deployment.accountStates.length,
   );

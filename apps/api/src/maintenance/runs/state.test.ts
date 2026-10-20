@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const locks = vi.hoisted(() => ({ publication: vi.fn(), owner: vi.fn() }));
+vi.mock('#infra/coordination/market-access.js', () => ({
+  isMarketPublicationActive: locks.publication,
+  isMaintenanceOwnerActive: locks.owner,
+}));
 const findFirst = vi.fn();
 const updateMany = vi.fn();
 const updateRun = vi.fn();
@@ -32,7 +37,9 @@ const {
 
 describe('maintenance status gate', () => {
   beforeEach(() => {
-    findFirst.mockReset();
+    findFirst.mockReset().mockResolvedValue(null);
+    locks.publication.mockReset().mockResolvedValue(false);
+    locks.owner.mockReset().mockResolvedValue(false);
     updateMany.mockReset();
     updateRun.mockReset();
     checkpointFindMany.mockReset();
@@ -231,6 +238,31 @@ describe('maintenance status gate', () => {
         data: expect.objectContaining({ status: 'error', stage: 'interrupted' }),
       }),
     );
+  });
+
+  it.each(['running', 'error'])('does not block on protocol-two %s candidates', async (status) => {
+    findState.mockResolvedValue({ dailyPublishedThrough: '20261016', dataRevision: 7 });
+    findFirst.mockImplementation(async (input) =>
+      input.where.targetKey
+        ? {
+            id: 'candidate',
+            kind: 'daily',
+            status,
+            stage: 'candidate_error',
+            error: 'Source failed',
+            summary: { protocol: 2, phase: 'preparing' },
+            startedAt: new Date(),
+            heartbeatAt: new Date(),
+          }
+        : null,
+    );
+    expect(await getMaintenanceStatus()).toMatchObject({ active: false, phase: 'error' });
+    locks.publication.mockResolvedValue(true);
+    expect(await getMaintenanceStatus()).toMatchObject({
+      active: true,
+      phase: 'publishing',
+      stage: 'publishing',
+    });
   });
 
   it('persists resumable per-item checkpoints', async () => {

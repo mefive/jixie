@@ -1,3 +1,4 @@
+import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { prisma } from '#infra/database/prisma.js';
 import type { ResearchCellOutputBlockV1, ResearchDocumentV1 } from '@jixie/shared';
@@ -32,19 +33,21 @@ export type ResearchCellExecutionOutcome = 'success' | 'error' | 'interrupted';
  * Validate and start a single-cell run under document execution control.
  */
 export async function runResearchCell(userId: string, cellId: string): Promise<ResearchDocumentV1> {
-  const cell = await loadExecutableResearchCell(userId, cellId);
-  if (!cell) {
-    throw new ResearchError('document_not_found');
-  }
-  await assertNoOpenCellChangeReview(cell.documentId);
-  assertResearchCellsRunnable([cell]);
-  const control = startResearchDocumentRun(cell.documentId);
-  try {
-    await executeResearchCell(cell, control);
-    return getResearchDocument(userId, cell.documentId);
-  } finally {
-    finishResearchDocumentRun(control);
-  }
+  return withMarketAccess(async () => {
+    const cell = await loadExecutableResearchCell(userId, cellId);
+    if (!cell) {
+      throw new ResearchError('document_not_found');
+    }
+    await assertNoOpenCellChangeReview(cell.documentId);
+    assertResearchCellsRunnable([cell]);
+    const control = startResearchDocumentRun(cell.documentId);
+    try {
+      await executeResearchCell(cell, control);
+      return getResearchDocument(userId, cell.documentId);
+    } finally {
+      finishResearchDocumentRun(control);
+    }
+  });
 }
 
 /**
@@ -77,139 +80,145 @@ export async function executeResearchCell(
   cellChangeAttemptId?: string,
   researchExecutionId?: string,
 ): Promise<ResearchCellExecutionOutcome> {
-  if (control.interrupted) {
-    return 'interrupted';
-  }
-
-  const executionId = ulid();
-  const startedAt = new Date();
-  await prisma.$transaction(async (transaction) => {
-    const current = await transaction.researchCell.findUnique({
-      where: { id: cell.id },
-      select: { id: true, revision: true, source: true },
-    });
-    if (current?.revision === cell.revision && current.source === cell.source) {
-      await transaction.researchCell.update({
-        where: { id: current.id },
-        data: { status: 'running' },
-      });
-    }
-    await transaction.researchCellExecution.create({
-      data: {
-        id: executionId,
-        documentId: cell.documentId,
-        ...(current ? { cellId: current.id } : {}),
-        sourceCellId: cell.id,
-        sourcePosition: cell.position,
-        sourceKind: cell.kind,
-        revision: cell.revision,
-        source: cell.source,
-        status: 'running',
-        definitions: cell.definitions as Prisma.InputJsonValue,
-        references: cell.references as Prisma.InputJsonValue,
-        environmentFingerprint: 'pending',
-        ...(cell.document.embeddedSource
-          ? { inputSnapshot: cell.document.embeddedSource as Prisma.InputJsonValue }
-          : {}),
-        startedAt,
-        ...(cellChangeAttemptId ? { cellChangeAttemptId } : {}),
-        ...(researchExecutionId ? { researchExecutionId } : {}),
-      },
-    });
-  });
-
-  if (control.interrupted) {
-    await persistInterruptedResearchCell(cell, executionId);
-    return 'interrupted';
-  }
-
-  try {
-    const result = await executeCell(cell);
-    let persisted;
-    try {
-      persisted = materializeResearchOutputArtifacts(result.outputs, cell.documentId, executionId);
-    } catch (error) {
-      throw new ResearchPythonExecutionError(
-        error instanceof Error ? error.message : String(error),
-        [],
-        result.definitions,
-        result.references,
-        result.environmentFingerprint,
-      );
-    }
-    await prisma.$transaction(async (transaction) => {
-      for (const artifact of persisted.artifacts) {
-        await transaction.researchArtifact.create({ data: artifact });
-      }
-      await transaction.researchCell.updateMany({
-        where: { id: cell.id, revision: cell.revision, source: cell.source },
-        data: {
-          status: 'success',
-          output: persisted.outputs as unknown as Prisma.InputJsonValue,
-          definitions: result.definitions as unknown as Prisma.InputJsonValue,
-          references: result.references as unknown as Prisma.InputJsonValue,
-          lastExecutedRevision: cell.revision,
-          lastExecutedAt: new Date(),
-        },
-      });
-      await transaction.researchCellExecution.update({
-        where: { id: executionId },
-        data: {
-          status: 'success',
-          output: persisted.outputs as unknown as Prisma.InputJsonValue,
-          definitions: result.definitions as unknown as Prisma.InputJsonValue,
-          references: result.references as unknown as Prisma.InputJsonValue,
-          environmentFingerprint: result.environmentFingerprint,
-          finishedAt: new Date(),
-        },
-      });
-      await transaction.researchDocument.update({
-        where: { id: cell.documentId },
-        data: { updatedAt: new Date() },
-      });
-    });
-    return 'success';
-  } catch (error) {
-    if (error instanceof ResearchPythonInterruptionError) {
-      await persistInterruptedResearchCell(cell, executionId, error.environmentFingerprint);
+  return withMarketAccess(async () => {
+    if (control.interrupted) {
       return 'interrupted';
     }
 
-    const failure = executionFailure(error);
-    const outputs: ResearchCellOutputBlockV1[] = [
-      ...failure.outputs,
-      { type: 'text', text: failure.message, level: 'error' },
-    ];
-    await prisma.$transaction([
-      prisma.researchCell.updateMany({
-        where: { id: cell.id, revision: cell.revision, source: cell.source },
+    const executionId = ulid();
+    const startedAt = new Date();
+    await prisma.$transaction(async (transaction) => {
+      const current = await transaction.researchCell.findUnique({
+        where: { id: cell.id },
+        select: { id: true, revision: true, source: true },
+      });
+      if (current?.revision === cell.revision && current.source === cell.source) {
+        await transaction.researchCell.update({
+          where: { id: current.id },
+          data: { status: 'running' },
+        });
+      }
+      await transaction.researchCellExecution.create({
         data: {
-          status: 'error',
-          output: outputs as unknown as Prisma.InputJsonValue,
-          definitions: failure.definitions as unknown as Prisma.InputJsonValue,
-          references: failure.references as unknown as Prisma.InputJsonValue,
-          lastExecutedAt: new Date(),
+          id: executionId,
+          documentId: cell.documentId,
+          ...(current ? { cellId: current.id } : {}),
+          sourceCellId: cell.id,
+          sourcePosition: cell.position,
+          sourceKind: cell.kind,
+          revision: cell.revision,
+          source: cell.source,
+          status: 'running',
+          definitions: cell.definitions as Prisma.InputJsonValue,
+          references: cell.references as Prisma.InputJsonValue,
+          environmentFingerprint: 'pending',
+          ...(cell.document.embeddedSource
+            ? { inputSnapshot: cell.document.embeddedSource as Prisma.InputJsonValue }
+            : {}),
+          startedAt,
+          ...(cellChangeAttemptId ? { cellChangeAttemptId } : {}),
+          ...(researchExecutionId ? { researchExecutionId } : {}),
         },
-      }),
-      prisma.researchCellExecution.update({
-        where: { id: executionId },
-        data: {
-          status: 'error',
-          output: outputs as unknown as Prisma.InputJsonValue,
-          error: failure.message.slice(0, 8_000),
-          definitions: failure.definitions as unknown as Prisma.InputJsonValue,
-          references: failure.references as unknown as Prisma.InputJsonValue,
-          environmentFingerprint: failure.environmentFingerprint,
-          finishedAt: new Date(),
-        },
-      }),
-      prisma.researchDocument.update({
-        where: { id: cell.documentId },
-        data: { updatedAt: new Date() },
-      }),
-    ]);
-    return 'error';
-  }
+      });
+    });
+
+    if (control.interrupted) {
+      await persistInterruptedResearchCell(cell, executionId);
+      return 'interrupted';
+    }
+
+    try {
+      const result = await executeCell(cell);
+      let persisted;
+      try {
+        persisted = materializeResearchOutputArtifacts(
+          result.outputs,
+          cell.documentId,
+          executionId,
+        );
+      } catch (error) {
+        throw new ResearchPythonExecutionError(
+          error instanceof Error ? error.message : String(error),
+          [],
+          result.definitions,
+          result.references,
+          result.environmentFingerprint,
+        );
+      }
+      await prisma.$transaction(async (transaction) => {
+        for (const artifact of persisted.artifacts) {
+          await transaction.researchArtifact.create({ data: artifact });
+        }
+        await transaction.researchCell.updateMany({
+          where: { id: cell.id, revision: cell.revision, source: cell.source },
+          data: {
+            status: 'success',
+            output: persisted.outputs as unknown as Prisma.InputJsonValue,
+            definitions: result.definitions as unknown as Prisma.InputJsonValue,
+            references: result.references as unknown as Prisma.InputJsonValue,
+            lastExecutedRevision: cell.revision,
+            lastExecutedAt: new Date(),
+          },
+        });
+        await transaction.researchCellExecution.update({
+          where: { id: executionId },
+          data: {
+            status: 'success',
+            output: persisted.outputs as unknown as Prisma.InputJsonValue,
+            definitions: result.definitions as unknown as Prisma.InputJsonValue,
+            references: result.references as unknown as Prisma.InputJsonValue,
+            environmentFingerprint: result.environmentFingerprint,
+            finishedAt: new Date(),
+          },
+        });
+        await transaction.researchDocument.update({
+          where: { id: cell.documentId },
+          data: { updatedAt: new Date() },
+        });
+      });
+      return 'success';
+    } catch (error) {
+      if (error instanceof ResearchPythonInterruptionError) {
+        await persistInterruptedResearchCell(cell, executionId, error.environmentFingerprint);
+        return 'interrupted';
+      }
+
+      const failure = executionFailure(error);
+      const outputs: ResearchCellOutputBlockV1[] = [
+        ...failure.outputs,
+        { type: 'text', text: failure.message, level: 'error' },
+      ];
+      await prisma.$transaction([
+        prisma.researchCell.updateMany({
+          where: { id: cell.id, revision: cell.revision, source: cell.source },
+          data: {
+            status: 'error',
+            output: outputs as unknown as Prisma.InputJsonValue,
+            definitions: failure.definitions as unknown as Prisma.InputJsonValue,
+            references: failure.references as unknown as Prisma.InputJsonValue,
+            lastExecutedAt: new Date(),
+          },
+        }),
+        prisma.researchCellExecution.update({
+          where: { id: executionId },
+          data: {
+            status: 'error',
+            output: outputs as unknown as Prisma.InputJsonValue,
+            error: failure.message.slice(0, 8_000),
+            definitions: failure.definitions as unknown as Prisma.InputJsonValue,
+            references: failure.references as unknown as Prisma.InputJsonValue,
+            environmentFingerprint: failure.environmentFingerprint,
+            finishedAt: new Date(),
+          },
+        }),
+        prisma.researchDocument.update({
+          where: { id: cell.documentId },
+          data: { updatedAt: new Date() },
+        }),
+      ]);
+      return 'error';
+    }
+  });
 }
 
 /**

@@ -29,6 +29,7 @@ vi.mock('#infra/database/prisma.js', async () => {
   const { default: packageExports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-embedded-lifecycle-');
   writeFileSync(`${fixture.directory}/test.db`, '');
+  vi.stubEnv('DATABASE_URL', `file:${fixture.directory}/test.db`);
   return {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
   };
@@ -177,6 +178,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
   });
   afterAll(async () => {
     await prisma.$disconnect();
+    vi.unstubAllEnvs();
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
@@ -515,7 +517,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
   it('recovers interrupted jobs while leaving queued submissions available after restart', async () => {
     const first = await fixtureRun();
     const second = await fixtureRun();
-    await JobService.claim(first.run.jobId);
+    await prisma.job.update({ where: { id: first.run.jobId }, data: { status: 'running' } });
     expect(await JobService.recoverInterrupted()).toBe(1);
     expect(await getEmbeddedRun('owner', first.analysis.id, first.run.runId)).toMatchObject({
       status: 'cancelled',
@@ -536,10 +538,12 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     'cleans persisted Embedded links for corrupt %s metadata during %s',
     async (kind, action) => {
       const { run, analysis } = await fixtureRun();
-      await JobService.claim(run.jobId);
+      if (action === 'execute') {
+        await JobService.claim(run.jobId);
+      }
       await prisma.job.update({
         where: { id: run.jobId },
-        data: { kind, payload: { invalid: true } },
+        data: { kind, payload: { invalid: true }, status: 'running' },
       });
 
       if (action === 'recover') {

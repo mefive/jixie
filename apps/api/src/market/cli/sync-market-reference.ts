@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
 import { prisma } from '#infra/database/prisma.js';
 import { MARKET_WEATHER_INDEX_CODES } from '../registry/index-presets.js';
@@ -5,7 +7,7 @@ import { syncIndexBenchmarks, syncIndexDaily, syncSwIndexDaily } from '../indice
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 
 function currentDate(): string {
-  return new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  return stagingNow().toISOString().slice(0, 10).replaceAll('-', '');
 }
 
 /**
@@ -14,6 +16,9 @@ function currentDate(): string {
  * Sync the official index catalog, dashboard index closes, and SW2021 level-1 industry bars.
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const config = loadTushareConfig();
   const [start = '20150101', end = currentDate()] = process.argv.slice(2);
   if (!/^\d{8}$/.test(start) || !/^\d{8}$/.test(end) || start > end) {
@@ -33,7 +38,7 @@ async function main(): Promise<void> {
   await syncSwIndexDaily(client, start, end);
 }
 
-main()
+await main()
   .catch((error: unknown) => {
     console.error(
       'Market reference sync failed:',

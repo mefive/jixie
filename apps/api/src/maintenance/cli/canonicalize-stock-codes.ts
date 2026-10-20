@@ -1,7 +1,7 @@
 import { prisma } from '#infra/database/prisma.js';
-import { canonicalizeStockCodes } from '../instruments/canonicalize-stock-codes.js';
+import { runStagedMaintenance } from '../staging/coordinator.js';
 
-canonicalizeStockCodes()
+runStagedMaintenance('canonicalize', [])
   .catch((error: unknown) => {
     console.error(
       'canonicalize-stock-codes failed:',

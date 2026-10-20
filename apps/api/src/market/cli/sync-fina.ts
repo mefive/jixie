@@ -1,3 +1,5 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
 import { prisma } from '#infra/database/prisma.js';
 import { importFinancialReferenceHistory } from '../fundamentals/financial-history-import.js';
 import {
@@ -15,6 +17,9 @@ import { loadTushareConfig } from '../providers/tushare/config.js';
  * Every full-history stage runs in bounded child processes.
  */
 async function main(): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
   const cfg = loadTushareConfig();
   const interval = Math.max(cfg.minIntervalMs, 800);
   const repairCode = argumentValue(process.argv.slice(2), '--repair-code');
@@ -89,7 +94,7 @@ function shanghaiToday(): string {
     month: '2-digit',
     day: '2-digit',
   })
-    .format(new Date())
+    .format(stagingNow())
     .replaceAll('-', '');
 }
 
@@ -103,7 +108,7 @@ function argumentValue(args: string[], name: string): string | undefined {
   return index >= 0 ? args[index + 1] : undefined;
 }
 
-main().catch(async (e: unknown) => {
+await main().catch(async (e: unknown) => {
   console.error('\n❌ sync fina failed: ', e instanceof Error ? e.message : e);
   await prisma.$disconnect();
   process.exitCode = 1;

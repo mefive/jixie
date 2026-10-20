@@ -1,3 +1,4 @@
+import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { auditEtfResearchRegistry } from '#market/etfs/registry-audit.js';
 import { prisma } from '#infra/database/prisma.js';
 
@@ -57,7 +58,7 @@ async function main(): Promise<void> {
   }
 }
 
-main()
+await withMarketAccess(main)
   .catch((error: unknown) => {
     console.error('ETF registry audit failed:', error instanceof Error ? error.message : error);
     process.exitCode = 1;

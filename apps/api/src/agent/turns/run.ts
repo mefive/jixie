@@ -1,4 +1,9 @@
 import {
+  withRetainedMarketAccess,
+  acquireWorkOwner,
+  type MarketLock,
+} from '#infra/coordination/market-access.js';
+import {
   DEFAULT_LOCALE,
   normalizeChatMessage,
   textMessage,
@@ -55,6 +60,7 @@ export function entityKey(entity: TurnEntity): string {
  */
 export interface EnqueueTurnArgs {
   turnId: string;
+  ownership?: MarketLock;
   userId: string;
   profile: AgentProfile;
   entity: TurnEntity | null;
@@ -82,7 +88,25 @@ export function enqueueAgentTurn(args: EnqueueTurnArgs): void {
   if (args.entity?.kind === 'research') {
     turnBus.publish(args.turnId, { type: 'phase', phase: 'reading_context' });
   }
-  void runTurn(args, signal);
+  void withRetainedMarketAccess(async () => {
+    const owner = args.ownership ?? (await acquireWorkOwner('agent', args.turnId));
+    try {
+      await runTurn(args, signal);
+    } finally {
+      await owner.release();
+    }
+  }).catch(async (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    const recorder = new AgentTraceRecorder(args.turnId, getDeepSeekAgentModel());
+    recorder.terminal('error', message);
+    await finishPersistentTurn({
+      turnId: args.turnId,
+      status: 'error',
+      error: message,
+      trace: recorder.trace,
+    }).catch(() => {});
+    turnBus.finish(args.turnId, { type: 'error', message });
+  });
 }
 
 /**
@@ -226,10 +250,10 @@ async function runTurn(args: EnqueueTurnArgs, signal: AbortSignal): Promise<void
       ...(result.error ? { error: result.error } : {}),
     });
 
-    // The after-turn hook (factor metadata refresh) is itself an LLM call — run it AFTER `done` fires,
-    // fire-and-forget, so it never delays the turn's completion signal. Errors are logged, not surfaced.
+    // 终态事件已发送，但后续写入仍属于本轮读锁范围。
+    // The terminal event is sent, but follow-up writes still belong to this reader scope.
     if (args.afterTurn) {
-      void args.afterTurn(result, completedMessages).catch((error) => {
+      await args.afterTurn(result, completedMessages).catch((error) => {
         console.error(`[agent] after-turn hook failed (turnId=${turnId})`, error);
       });
     }
