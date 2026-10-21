@@ -100,6 +100,7 @@ const WEEKLY_AUDIT_TRADING_DAYS = 270;
 export async function runWeeklyMaintenance(
   options: {
     force?: boolean;
+    deferPublication?: boolean;
     trigger?: MaintenanceTrigger;
     onLog?: (line: string) => void;
   } = {},
@@ -311,35 +312,37 @@ export async function runWeeklyMaintenance(
 
     const invalidated = await completedMaintenanceItems(run.id, 'derived-invalidation');
     summary.earliestMarketChange = minimumDate([summary.earliestMarketChange, ...invalidated]);
-    await updateMaintenanceRun(run.id, 'auditing', summary);
-    const audit = await runDataQualityAudit(prisma, {
-      startDate: summary.auditStart,
-      endDate: summary.auditEnd,
-      windowTradingDays: 60,
-      evaluationPoints: 3,
-    });
-    summary.auditErrors = audit.findings.filter((finding) => finding.status === 'error').length;
-    summary.auditWarnings = audit.findings.filter((finding) => finding.status === 'warn').length;
-    summary.auditFindings = audit.findings.filter((finding) => finding.status !== 'pass');
-    await updateMaintenanceRun(run.id, 'auditing', summary);
-    if (summary.auditErrors > 0) {
-      const names = audit.findings
-        .filter((finding) => finding.status === 'error')
-        .map((finding) => `${finding.title}: ${finding.summary}`)
-        .join(', ');
-      throw new Error(`Weekly data audit found ${summary.auditErrors} errors: ${names}`);
-    }
+    if (!options.deferPublication) {
+      if (
+        summary.earliestMarketChange &&
+        state.dailyPublishedThrough &&
+        summary.earliestMarketChange <= state.dailyPublishedThrough
+      ) {
+        await updateMaintenanceRun(run.id, 'market_state', summary);
+        await syncMarketIndicators(summary.earliestMarketChange, state.dailyPublishedThrough);
+        await validateDerivedMarketRange(state.dailyPublishedThrough, state.dailyPublishedThrough, [
+          state.dailyPublishedThrough,
+        ]);
+      }
 
-    if (
-      summary.earliestMarketChange &&
-      state.dailyPublishedThrough &&
-      summary.earliestMarketChange <= state.dailyPublishedThrough
-    ) {
-      await updateMaintenanceRun(run.id, 'market_state', summary);
-      await syncMarketIndicators(summary.earliestMarketChange, state.dailyPublishedThrough);
-      await validateDerivedMarketRange(state.dailyPublishedThrough, state.dailyPublishedThrough, [
-        state.dailyPublishedThrough,
-      ]);
+      await updateMaintenanceRun(run.id, 'auditing', summary);
+      const audit = await runDataQualityAudit(prisma, {
+        startDate: summary.auditStart,
+        endDate: summary.auditEnd,
+        windowTradingDays: 60,
+        evaluationPoints: 3,
+      });
+      summary.auditErrors = audit.findings.filter((finding) => finding.status === 'error').length;
+      summary.auditWarnings = audit.findings.filter((finding) => finding.status === 'warn').length;
+      summary.auditFindings = audit.findings.filter((finding) => finding.status !== 'pass');
+      await updateMaintenanceRun(run.id, 'auditing', summary);
+      if (summary.auditErrors > 0) {
+        const names = audit.findings
+          .filter((finding) => finding.status === 'error')
+          .map((finding) => `${finding.title}: ${finding.summary}`)
+          .join(', ');
+        throw new Error(`Weekly data audit found ${summary.auditErrors} errors: ${names}`);
+      }
     }
 
     await updateMaintenanceRun(run.id, 'factor_weather', summary);

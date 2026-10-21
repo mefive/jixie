@@ -410,9 +410,15 @@ export async function auditWindowCoverage(
   const summaries = (
     await Promise.all(
       evaluationDates.map(async (evaluationDate): Promise<WindowCoverageSummary | null> => {
-        const endIndex = openDates.indexOf(evaluationDate);
-        const startIndex = Math.max(0, endIndex - windowTradingDays + 1);
-        const windowDates = openDates.slice(startIndex, endIndex + 1);
+        // 评估日期属于本轮区间，窗口输入可以来自区间之前；短 repair 也必须实查完整历史。
+        // Evaluation dates belong to the requested range; their input windows may begin before it.
+        const calendar = await database.tradeCal.findMany({
+          where: { exchange: 'SSE', isOpen: 1, calDate: { lte: evaluationDate } },
+          orderBy: { calDate: 'desc' },
+          take: windowTradingDays,
+          select: { calDate: true },
+        });
+        const windowDates = calendar.map((row) => row.calDate).reverse();
         if (windowDates.length < windowTradingDays) {
           return null;
         }

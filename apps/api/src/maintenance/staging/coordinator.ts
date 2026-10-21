@@ -211,8 +211,10 @@ async function freezeChanges(manifest: StagingManifest, directory: string): Prom
     );
     source.exec('COMMIT');
     const result = candidate
-      .prepare('SELECT summary FROM MaintenanceRun ORDER BY startedAt DESC LIMIT 1')
-      .get();
+      .prepare(
+        'SELECT summary FROM MaintenanceRun ORDER BY (kind = ?) DESC, startedAt DESC LIMIT 1',
+      )
+      .get(manifest.command);
     manifest.result = result?.summary ? JSON.parse(String(result.summary)) : null;
   } finally {
     candidate.close();

@@ -3,7 +3,7 @@ import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
 } from '../registry/index-presets.js';
-import { validateIndexDate } from './daily-quality.js';
+import { validateIndexDate, validateIndexWeightDate } from './daily-quality.js';
 const database = vi.hoisted(() => ({
   daily: vi.fn(),
   basic: vi.fn(),
@@ -53,5 +53,15 @@ describe('index date quality', () => {
     await expect(validateIndexDate('20260918')).rejects.toThrow('no point-in-time snapshot');
     database.industry.mockResolvedValue([]);
     await expect(validateIndexDate('20260918')).rejects.toThrow('0/31');
+  });
+  it('validates constituent prerequisites without requiring daily bars', async () => {
+    await expect(validateIndexWeightDate('20260918')).resolves.toBe('20260901');
+    expect(database.daily).not.toHaveBeenCalled();
+    expect(database.weight).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { indexCode: expect.any(String), tradeDate: { lte: '20260918' } },
+      }),
+    );
+    await expect(validateIndexWeightDate('20260918', 10)).rejects.toThrow('older than 10 days');
   });
 });

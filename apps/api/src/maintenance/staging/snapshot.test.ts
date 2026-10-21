@@ -51,6 +51,25 @@ describe('isolated market snapshots and frozen deltas', () => {
     }
   });
 
+  it('freezes old values with updates so historical validity can be compared', async () => {
+    await createStagingSnapshot(resolve(directory, 'formal.db'), resolve(directory, 'candidate'), [
+      table,
+    ]);
+    const candidate = new DatabaseSync(resolve(directory, 'candidate/candidate.db'));
+    try {
+      candidate.exec("UPDATE Daily SET close=11 WHERE tsCode='000001.SZ'");
+      freezeTableChanges(formal, candidate, directory, table);
+      const change = JSON.parse(await readFile(resolve(directory, 'Daily.changes'), 'utf8'));
+      expect(change).toMatchObject({
+        operation: 'update',
+        before: { close: 10 },
+        row: { close: 11 },
+      });
+    } finally {
+      candidate.close();
+    }
+  });
+
   it('freezes only changed keys, preserving explicit deletions', async () => {
     await createStagingSnapshot(resolve(directory, 'formal.db'), resolve(directory, 'candidate'), [
       table,

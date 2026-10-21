@@ -5,6 +5,9 @@ import {
   type MarketRiskDriverHistoryV1,
 } from './market-risk-drivers.js';
 
+/** 最晚启用的必需商品驱动的历史起点。 / Historical floor of the latest required commodity driver. */
+export const MARKET_RISK_EARLIEST_DATE = '20180326';
+
 /**
  * 描述单市场驱动的质量覆盖，供模型就绪判断。
  *
@@ -37,7 +40,8 @@ export async function inspectMarketRiskDrivers(
   options: { startDate: string; endDate: string },
   database: Prisma = prisma,
 ): Promise<MarketRiskDriverQualitySummary> {
-  const eligibleStart = options.startDate > '20180326' ? options.startDate : '20180326';
+  const eligibleStart =
+    options.startDate > MARKET_RISK_EARLIEST_DATE ? options.startDate : MARKET_RISK_EARLIEST_DATE;
   const [history, calendar] = await Promise.all([
     loadMarketRiskDriverHistory({ startDate: eligibleStart, endDate: options.endDate }, database),
     database.tradeCal.findMany({

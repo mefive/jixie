@@ -54,15 +54,7 @@ export async function validateIndexDate(
           OR: [{ outDate: null }, { outDate: { gt: tradeDate } }],
         },
       }),
-      Promise.all(
-        MARKET_WEATHER_INDICATOR_INDEX_CODES.map((indexCode) =>
-          prisma.indexWeight.findFirst({
-            where: { indexCode, tradeDate: { lte: tradeDate } },
-            orderBy: { tradeDate: 'desc' },
-            select: { tradeDate: true },
-          }),
-        ),
-      ),
+      readIndexWeightSnapshots(tradeDate),
     ]);
   const actualIndexCodes = new Set(indexCodes.map((row) => row.tsCode));
   const missingIndexCodes = MAJOR_INDEX_DAILY_CODES.filter((code) => !actualIndexCodes.has(code));
@@ -86,6 +78,63 @@ export async function validateIndexDate(
       `IndexDailyBasic is missing ${missingIndexBasicCodes.join(', ')} for ${tradeDate}`,
     );
   }
+  const oldestIndexWeightSnapshot = assertIndexWeightSnapshots(
+    tradeDate,
+    maximumIndexWeightAgeDays,
+    indexSnapshots,
+  );
+  if (activeIndustries.length < 20) {
+    throw new Error(
+      `Only ${activeIndustries.length} active Shenwan industries are available for ${tradeDate}`,
+    );
+  }
+  if (swIndexRows.length !== 31) {
+    throw new Error(
+      `SwIndexDaily has ${swIndexRows.length}/31 level-1 industries for ${tradeDate}`,
+    );
+  }
+
+  return {
+    indexDaily: actualIndexCodes.size,
+    indexDailyBasic: actualIndexBasicCodes.size,
+    weatherIndexDaily: MARKET_WEATHER_INDEX_CODES.length,
+    swIndexDaily: swIndexRows.length,
+    oldestIndexWeightSnapshot,
+    activeIndustries: activeIndustries.length,
+  };
+}
+
+/**
+ * 在逐日下载前独立校验成分快照，复用日发布的时点及新鲜度约束。
+ *
+ * Check constituent prerequisites before daily fetching using the same PIT and freshness rules.
+ */
+export async function validateIndexWeightDate(
+  tradeDate: string,
+  maximumIndexWeightAgeDays = 190,
+): Promise<string> {
+  const snapshots = await readIndexWeightSnapshots(tradeDate);
+
+  return assertIndexWeightSnapshots(tradeDate, maximumIndexWeightAgeDays, snapshots);
+}
+
+function readIndexWeightSnapshots(tradeDate: string): Promise<({ tradeDate: string } | null)[]> {
+  return Promise.all(
+    MARKET_WEATHER_INDICATOR_INDEX_CODES.map((indexCode) =>
+      prisma.indexWeight.findFirst({
+        where: { indexCode, tradeDate: { lte: tradeDate } },
+        orderBy: { tradeDate: 'desc' },
+        select: { tradeDate: true },
+      }),
+    ),
+  );
+}
+
+function assertIndexWeightSnapshots(
+  tradeDate: string,
+  maximumIndexWeightAgeDays: number,
+  indexSnapshots: ({ tradeDate: string } | null)[],
+): string {
   const missingSnapshots = MARKET_WEATHER_INDICATOR_INDEX_CODES.filter(
     (_, index) => !indexSnapshots[index],
   );
@@ -104,25 +153,8 @@ export async function validateIndexDate(
       `IndexWeight point-in-time snapshots are older than ${maximumIndexWeightAgeDays} days for ${staleSnapshots.join(', ')}`,
     );
   }
-  if (activeIndustries.length < 20) {
-    throw new Error(
-      `Only ${activeIndustries.length} active Shenwan industries are available for ${tradeDate}`,
-    );
-  }
-  if (swIndexRows.length !== 31) {
-    throw new Error(
-      `SwIndexDaily has ${swIndexRows.length}/31 level-1 industries for ${tradeDate}`,
-    );
-  }
 
-  return {
-    indexDaily: actualIndexCodes.size,
-    indexDailyBasic: actualIndexBasicCodes.size,
-    weatherIndexDaily: MARKET_WEATHER_INDEX_CODES.length,
-    swIndexDaily: swIndexRows.length,
-    oldestIndexWeightSnapshot: indexSnapshots.map((snapshot) => snapshot!.tradeDate).sort()[0],
-    activeIndustries: activeIndustries.length,
-  };
+  return indexSnapshots.map((snapshot) => snapshot!.tradeDate).sort()[0];
 }
 
 function addCalendarDays(date: string, days: number): string {

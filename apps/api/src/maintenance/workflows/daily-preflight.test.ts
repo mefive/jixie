@@ -1,3 +1,6 @@
+vi.mock('#market/indices/prepare-membership.js', () => ({
+  prepareIndexMembership: vi.fn(async () => {}),
+}));
 import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 import { MarketSourcePendingError } from '#market/errors.js';
 
@@ -42,7 +45,10 @@ vi.mock('../publication/watermark.js', () => ({
   advanceDailyWatermark: vi.fn(),
   bumpDataRevision: vi.fn(),
 }));
-vi.mock('../publication/gate.js', () => ({ validateRawMarketDate: vi.fn() }));
+vi.mock('../publication/gate.js', () => ({
+  validateRawMarketDate: vi.fn(),
+  indexWeightMaximumAgeDays: () => 190,
+}));
 vi.mock('../runs/coordination.js', () => ({
   assertProductionLock: vi.fn(),
   waitForRunningWork: vi.fn(),

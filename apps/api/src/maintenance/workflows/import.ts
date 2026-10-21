@@ -80,10 +80,11 @@ export async function importMarketData(args: string[]): Promise<void> {
     if (!dates[0]) {
       throw new Error('Imported calendar has no completed repair dates');
     }
-    await runRepairMaintenance(dates[0], end);
+    await runRepairMaintenance(dates[0], end, false, true);
   });
-  await sync('derived', 'market-state', start, end);
-  await stage('initialize', () => runDailyMaintenance({ initializeOnly: true }));
+  await stage('initialize', () =>
+    runDailyMaintenance({ initializeOnly: true, deferPublication: true }),
+  );
 }
 
 async function syncChild(args: string[]): Promise<void> {

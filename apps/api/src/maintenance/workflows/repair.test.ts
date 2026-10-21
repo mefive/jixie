@@ -14,6 +14,9 @@ const dependencies = vi.hoisted(() => ({
   runDataQualityAudit: vi.fn(),
   bumpDataRevision: vi.fn(),
   syncTradeCal: vi.fn(),
+  syncStockBasic: vi.fn(),
+  syncStockNameHistory: vi.fn(),
+  prepareIndexMembership: vi.fn(),
   maintainCommodityWarehouseReceipts: vi.fn(),
   dates: vi.fn(),
   state: vi.fn(),
@@ -23,6 +26,9 @@ vi.mock('../runs/state.js', () => dependencies);
 vi.mock('#market/calendar/sse-close.js', () => dependencies);
 vi.mock('#market/calendar/read.js', () => dependencies);
 vi.mock('#market/calendar/sync.js', () => dependencies);
+vi.mock('#market/stocks/basic-sync.js', () => dependencies);
+vi.mock('#market/indices/prepare-membership.js', () => dependencies);
+vi.mock('../publication/gate.js', () => ({ indexWeightMaximumAgeDays: () => 190 }));
 vi.mock('#market/providers/tushare/config.js', () => ({
   loadTushareConfig: () => ({ token: 'fixture', baseUrl: 'http://invalid', minIntervalMs: 1 }),
 }));
@@ -69,12 +75,31 @@ describe('unified repair', () => {
       expect.objectContaining({ startDate: '20261016', endDate: '20261019' }),
     );
     expect(dependencies.bumpDataRevision).toHaveBeenCalledOnce();
+    expect(dependencies.syncStockBasic.mock.invocationCallOrder[0]).toBeLessThan(
+      dependencies.selfHealMarketDates.mock.invocationCallOrder[0],
+    );
+    expect(dependencies.syncStockNameHistory).toHaveBeenCalledWith(
+      expect.anything(),
+      '19900101',
+      '20261019',
+    );
+    expect(dependencies.prepareIndexMembership).toHaveBeenCalledWith(
+      expect.anything(),
+      ['20261016', '20261019'],
+      190,
+    );
+    expect(dependencies.prepareIndexMembership.mock.invocationCallOrder[0]).toBeLessThan(
+      dependencies.selfHealMarketDates.mock.invocationCallOrder[0],
+    );
   });
-  it('refreshes only when explicitly requested and recomputes through the existing watermark', async () => {
+  it('refreshes only the requested dates and defers child computations', async () => {
     await runRepairMaintenance('20261016', '20261019', true);
     expect(dependencies.runDailyMaintenance).toHaveBeenCalledTimes(2);
     expect(dependencies.selfHealMarketDates).not.toHaveBeenCalled();
-    expect(dependencies.syncMarketIndicators).toHaveBeenLastCalledWith('20261016', '20261020');
+    expect(dependencies.syncMarketIndicators).toHaveBeenLastCalledWith('20261016', '20261019');
+    expect(dependencies.prepareIndexMembership.mock.invocationCallOrder[0]).toBeLessThan(
+      dependencies.runDailyMaintenance.mock.invocationCallOrder[0],
+    );
   });
   it('preserves failures for retry without reporting completion', async () => {
     dependencies.selfHealMarketDates.mockResolvedValue({
@@ -88,5 +113,30 @@ describe('unified repair', () => {
       expect.anything(),
     );
     expect(dependencies.bumpDataRevision).not.toHaveBeenCalled();
+  });
+  it('does not start daily work or report success if constituent preparation fails', async () => {
+    dependencies.prepareIndexMembership.mockRejectedValue(new Error('Missing PIT snapshot'));
+    await expect(runRepairMaintenance('20261016', '20261019', true)).rejects.toThrow(
+      'Missing PIT snapshot',
+    );
+    expect(dependencies.runDailyMaintenance).not.toHaveBeenCalled();
+    expect(dependencies.runDataQualityAudit).not.toHaveBeenCalled();
+    expect(dependencies.bumpDataRevision).not.toHaveBeenCalled();
+    expect(dependencies.finishMaintenanceRun).toHaveBeenCalledWith(
+      'repair',
+      'error',
+      expect.objectContaining({ error: 'Missing PIT snapshot' }),
+    );
+  });
+  it('defers calculations and audit to the coordinator for staged repair', async () => {
+    await runRepairMaintenance('20261016', '20261019', true, true);
+    expect(dependencies.runDailyMaintenance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deferPublication: true,
+        membershipPrepared: true,
+      }),
+    );
+    expect(dependencies.syncMarketIndicators).not.toHaveBeenCalled();
+    expect(dependencies.runDataQualityAudit).not.toHaveBeenCalled();
   });
 });

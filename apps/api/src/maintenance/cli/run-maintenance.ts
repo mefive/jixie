@@ -140,7 +140,13 @@ async function runDaily(args: string[]): Promise<void> {
   assertDate(targetDate, 'Target date');
 
   await recoverInterruptedRuns('daily');
-  const summary = await runDailyMaintenance({ targetDate, force, resumeOnly, initializeOnly });
+  const summary = await runDailyMaintenance({
+    targetDate,
+    force,
+    resumeOnly,
+    initializeOnly,
+    deferPublication: true,
+  });
   console.log('[maintenance:daily] complete', summary);
   if (
     summary?.retryForNewTarget &&
@@ -161,7 +167,10 @@ async function runWeekly(args: string[]): Promise<void> {
   }
 
   await recoverInterruptedRuns('weekly');
-  const summary = await runWeeklyMaintenance({ force: args.includes('--force') });
+  const summary = await runWeeklyMaintenance({
+    force: args.includes('--force'),
+    deferPublication: true,
+  });
   console.log('[maintenance:weekly] complete', summary);
 }
 
@@ -175,7 +184,7 @@ async function runRepair(args: string[]): Promise<void> {
   assertDate(endDate, 'End date');
 
   await recoverInterruptedRuns('repair');
-  await runRepairMaintenance(startDate, endDate, args.includes('--refresh'));
+  await runRepairMaintenance(startDate, endDate, args.includes('--refresh'), true);
 }
 
 function assertDate(value: string | undefined, label: string): void {

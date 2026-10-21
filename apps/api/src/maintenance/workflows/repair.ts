@@ -7,7 +7,8 @@ import {
 import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import type { TradeDate } from '@jixie/shared';
-import { runDataQualityAudit } from '../publication/audit.js';
+import { runDataQualityAudit, type DataQualityAuditReport } from '../publication/audit.js';
+import { syncStockBasic, syncStockNameHistory } from '#market/stocks/basic-sync.js';
 import { assertProductionLock } from '../runs/coordination.js';
 import {
   beginMaintenanceRun,
@@ -22,6 +23,8 @@ import { selfHealMarketDates } from './self-heal.js';
 import { syncMarketIndicators } from '#market/state/sync.js';
 import { validateDerivedMarketRange } from '#market/state/quality.js';
 import { bumpDataRevision } from '../publication/watermark.js';
+import { prepareIndexMembership } from '#market/indices/prepare-membership.js';
+import { indexWeightMaximumAgeDays } from '../publication/gate.js';
 
 /**
  * 编排指定范围的修复维护并记录恢复结果。
@@ -32,6 +35,7 @@ export async function runRepairMaintenance(
   startDate?: string,
   endDate?: string,
   refresh = false,
+  deferPublication = false,
 ): Promise<void> {
   assertProductionLock();
   const cutoff = endDate ?? (await latestCompletedTradeDate());
@@ -61,6 +65,7 @@ export async function runRepairMaintenance(
     totalDates: 0,
     currentDate: null as string | null,
     warehouseReceipts: null as CommodityWarehouseReceiptMaintenanceSummary | null,
+    audit: null as DataQualityAuditReport | null,
   };
   const stopHeartbeat = startMaintenanceHeartbeat(run.id);
 
@@ -84,6 +89,23 @@ export async function runRepairMaintenance(
     });
     summary.totalDates = dates.length;
 
+    // 新上市证券也需要完整身份与名称历史，不能只刷新行情后在整轮审计中发现孤儿代码。
+    // Refresh security identities and name history before new listings can create orphan price codes.
+    await updateMaintenanceRun(run.id, 'stock_reference', summary);
+    await syncStockBasic(client);
+    await syncStockNameHistory(
+      client,
+      '19900101' as TradeDate,
+      (process.env.JIXIE_MAINTENANCE_DATE ?? endDate) as TradeDate,
+    );
+
+    await updateMaintenanceRun(run.id, 'index_membership', summary);
+    await prepareIndexMembership(
+      client,
+      dates.map((row) => row.calDate),
+      indexWeightMaximumAgeDays(),
+    );
+
     for (const row of dates) {
       summary.currentDate = row.calDate;
       await updateMaintenanceRun(run.id, 'repairing_date', summary);
@@ -94,17 +116,13 @@ export async function runRepairMaintenance(
           trigger: 'manual',
           maintainWarehouseReceipts: false,
           generateSignals: false,
+          membershipPrepared: true,
+          deferPublication: true,
         });
       } else {
         const healed = await selfHealMarketDates(client, [row.calDate], { maxRepairDates: 1 });
         if (healed.deferredDates.length) {
           throw new Error('Repair has unresolved dates');
-        }
-        if (healed.earliestDerivedChange) {
-          await syncMarketIndicators(healed.earliestDerivedChange, row.calDate);
-          await validateDerivedMarketRange(healed.earliestDerivedChange, row.calDate, [
-            row.calDate,
-          ]);
         }
       }
       summary.completedDates++;
@@ -117,35 +135,35 @@ export async function runRepairMaintenance(
       prisma,
     );
 
-    const state = await prisma.maintenanceState.findUnique({ where: { key: 'global' } });
-    const derivedEnd =
-      state?.dailyPublishedThrough && state.dailyPublishedThrough > endDate
-        ? state.dailyPublishedThrough
-        : endDate;
-    await syncMarketIndicators(startDate, derivedEnd);
-    const expected = await prisma.tradeCal.findMany({
-      where: { exchange: 'SSE', isOpen: 1, calDate: { gte: startDate, lte: derivedEnd } },
-      orderBy: { calDate: 'asc' },
-      select: { calDate: true },
-    });
-    await validateDerivedMarketRange(
-      startDate,
-      derivedEnd,
-      expected.map((row) => row.calDate),
-    );
-
-    await updateMaintenanceRun(run.id, 'auditing', summary);
-    const audit = await runDataQualityAudit(prisma, {
-      startDate,
-      endDate,
-      windowTradingDays: 60,
-      evaluationPoints: 3,
-    });
-    const errors = audit.findings.filter((finding) => finding.status === 'error');
-    if (errors.length > 0) {
-      throw new Error(
-        `Repair audit found ${errors.length} errors: ${errors.map((finding) => finding.title).join(', ')}`,
+    // 候选收尾根据最终原始变更计算一次，再检查派生和审计；直接调用仍完成本地验证。
+    // The coordinator finalizes frozen inputs once; direct workflow callers still validate locally.
+    if (!deferPublication) {
+      await syncMarketIndicators(startDate, endDate);
+      const expected = await prisma.tradeCal.findMany({
+        where: { exchange: 'SSE', isOpen: 1, calDate: { gte: startDate, lte: endDate } },
+        orderBy: { calDate: 'asc' },
+        select: { calDate: true },
+      });
+      await validateDerivedMarketRange(
+        startDate,
+        endDate,
+        expected.map((row) => row.calDate),
       );
+
+      await updateMaintenanceRun(run.id, 'auditing', summary);
+      const audit = await runDataQualityAudit(prisma, {
+        startDate,
+        endDate,
+        windowTradingDays: 60,
+        evaluationPoints: 3,
+      });
+      summary.audit = audit;
+      const errors = audit.findings.filter((finding) => finding.status === 'error');
+      if (errors.length > 0) {
+        throw new Error(
+          `Repair audit found ${errors.length} errors: ${errors.map((finding) => finding.title).join(', ')}`,
+        );
+      }
     }
     // 修复不建立或推进连续日水位，初始化仍由独立选项负责。
     // Repair never initializes or advances the continuous daily watermark.

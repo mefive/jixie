@@ -50,7 +50,8 @@ import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
 import { generateDailySignals } from '#signals/daily/scheduler.js';
 import { prepareSignalEtfMarketDate, syncSignalMarketData } from '#signals/daily/sync.js';
 import type { TradeDate } from '@jixie/shared';
-import { validateRawMarketDate } from '../publication/gate.js';
+import { validateRawMarketDate, indexWeightMaximumAgeDays } from '../publication/gate.js';
+import { prepareIndexMembership } from '#market/indices/prepare-membership.js';
 import {
   advanceDailyWatermark,
   bumpDataRevision,
@@ -84,6 +85,10 @@ export interface DailyMaintenanceOptions {
   resumeOnly?: boolean;
   initializeOnly?: boolean;
   generateSignals?: boolean;
+  /** 候选由协调器收尾后才发布。 / The coordinator finalizes this candidate before publication. */
+  deferPublication?: boolean;
+  /** repair 已为整个目标区间准备资料。 / Repair already prepared the complete target range. */
+  membershipPrepared?: boolean;
 }
 
 /**
@@ -166,7 +171,13 @@ export async function runDailyMaintenance(
     throw new Error(`${options.targetDate} has not completed in Asia/Shanghai`);
   }
   if (!options.targetDate && !state.dailyPublishedThrough) {
-    state = await initializePublishedBaseline(client, cutoff, trigger, onLog);
+    state = await initializePublishedBaseline(
+      client,
+      cutoff,
+      trigger,
+      onLog,
+      options.deferPublication,
+    );
   }
   if (options.initializeOnly) {
     return null;
@@ -250,10 +261,15 @@ export async function runDailyMaintenance(
       trigger,
       onLog,
       options.maintainWarehouseReceipts !== false,
+      options.deferPublication,
     );
   }
 
   const startDate = dates[0];
+  if (!options.membershipPrepared) {
+    await prepareIndexMembership(client, dates, indexWeightMaximumAgeDays());
+  }
+
   // All ETF candidates are retained until publication. A later source regression cannot turn a
   // successful preflight into an incomplete fetch after published history has been modified.
   const preparedEtfs = new Map<string, PreparedEtfMarketDate>();
@@ -294,6 +310,7 @@ export async function runDailyMaintenance(
       trigger,
       onLog,
       options.maintainWarehouseReceipts !== false,
+      options.deferPublication,
     );
   }
 
@@ -326,6 +343,7 @@ export async function runDailyMaintenance(
         run.id,
         state.dailyPublishedThrough,
         onLog,
+        options.deferPublication,
       );
       if (summary.selfHealing.repairedDates.length > 0) {
         summary.dataRevision = await bumpDataRevision();
@@ -439,12 +457,14 @@ export async function runDailyMaintenance(
 
     if (completedDates.length > 0) {
       const readyThrough = completedDates.at(-1)!;
-      await updateMaintenanceRun(run.id, 'market_state', summary);
-      onLog(`Computing market state ${startDate}..${readyThrough}`);
-      await syncMarketIndicators(startDate, readyThrough);
+      if (!options.deferPublication) {
+        await updateMaintenanceRun(run.id, 'market_state', summary);
+        onLog(`Computing market state ${startDate}..${readyThrough}`);
+        await syncMarketIndicators(startDate, readyThrough);
 
-      await updateMaintenanceRun(run.id, 'validating_derived', summary);
-      const derived = await validateDerivedMarketRange(startDate, readyThrough, completedDates);
+        await updateMaintenanceRun(run.id, 'validating_derived', summary);
+        await validateDerivedMarketRange(startDate, readyThrough, completedDates);
+      }
       const advancesWatermark =
         !options.targetDate ||
         (state.dailyPublishedThrough != null &&
@@ -453,7 +473,11 @@ export async function runDailyMaintenance(
         ? await advanceDailyWatermark(readyThrough)
         : await bumpDataRevision();
       summary.readyThrough = readyThrough;
-      await updateMaintenanceRun(run.id, 'published', { ...summary, derived });
+      await updateMaintenanceRun(
+        run.id,
+        options.deferPublication ? 'raw_ready' : 'published',
+        summary,
+      );
     }
 
     if (dateFailure) {
@@ -470,7 +494,9 @@ export async function runDailyMaintenance(
       summary.signals = await generateDailySignals(cutoff, onLog);
     }
     await finishMaintenanceRun(run.id, 'done', { summary });
-    onLog(`Published ${summary.completedDates}/${summary.totalDates} dates through ${cutoff}`);
+    onLog(
+      `${options.deferPublication ? 'Prepared' : 'Published'} ${summary.completedDates}/${summary.totalDates} dates through ${cutoff}`,
+    );
     return summary;
   } catch (error) {
     const failure = toError(error);
@@ -493,6 +519,7 @@ async function initializePublishedBaseline(
   cutoff: string,
   trigger: MaintenanceTrigger,
   onLog: (line: string) => void,
+  deferPublication = false,
 ): Promise<Awaited<ReturnType<typeof getMaintenanceState>>> {
   const latest = await prisma.daily.findFirst({
     where: { tradeDate: { lte: cutoff } },
@@ -536,6 +563,7 @@ async function initializePublishedBaseline(
     await waitForRunningWork(onLog);
     const lookback = positiveInteger(process.env.MAINTENANCE_BASELINE_REPAIR_LOOKBACK_DAYS, 20);
     const dates = await getRecentOpenDates(tradeDate, lookback);
+    await prepareIndexMembership(client, dates, indexWeightMaximumAgeDays());
     await updateMaintenanceRun(run.id, 'self_healing', summary);
     summary.selfHealing = await selfHealMarketDates(client, dates, {
       maxRepairDates: lookback,
@@ -549,19 +577,23 @@ async function initializePublishedBaseline(
 
     await updateMaintenanceRun(run.id, 'validating_raw', summary);
     await validateRawMarketDate(tradeDate);
-    const marketIndicator = await prisma.marketIndicator.findUnique({
-      where: { tradeDate },
-      select: { tradeDate: true },
-    });
-    const validationStart = summary.selfHealing.earliestDerivedChange ?? tradeDate;
-    if (summary.selfHealing.earliestDerivedChange || !marketIndicator) {
-      await updateMaintenanceRun(run.id, 'market_state', summary);
-      await syncMarketIndicators(validationStart, tradeDate);
+    if (!deferPublication) {
+      const marketIndicator = await prisma.marketIndicator.findUnique({
+        where: { tradeDate },
+        select: { tradeDate: true },
+      });
+      const validationStart = summary.selfHealing.earliestDerivedChange ?? tradeDate;
+      if (summary.selfHealing.earliestDerivedChange || !marketIndicator) {
+        await updateMaintenanceRun(run.id, 'market_state', summary);
+        await syncMarketIndicators(validationStart, tradeDate);
+      }
+      const expectedDates =
+        validationStart === tradeDate
+          ? [tradeDate]
+          : await getOpenDates(validationStart, tradeDate);
+      await updateMaintenanceRun(run.id, 'validating_derived', summary);
+      await validateDerivedMarketRange(validationStart, tradeDate, expectedDates);
     }
-    const expectedDates =
-      validationStart === tradeDate ? [tradeDate] : await getOpenDates(validationStart, tradeDate);
-    await updateMaintenanceRun(run.id, 'validating_derived', summary);
-    await validateDerivedMarketRange(validationStart, tradeDate, expectedDates);
 
     await initializeDailyWatermark(tradeDate);
     const state = await getMaintenanceState();
@@ -594,6 +626,7 @@ async function runSignalOnlyMaintenance(
   trigger: MaintenanceTrigger,
   onLog: (line: string) => void,
   maintainWarehouseReceipts: boolean,
+  deferPublication = false,
 ): Promise<DailyMaintenanceSummary> {
   const run = await beginMaintenanceRun({
     kind: 'daily',
@@ -625,7 +658,13 @@ async function runSignalOnlyMaintenance(
   try {
     await updateMaintenanceRun(run.id, 'waiting_for_jobs', summary);
     await waitForRunningWork(onLog);
-    summary.selfHealing = await healPublishedTail(client, run.id, publishedThrough, onLog);
+    summary.selfHealing = await healPublishedTail(
+      client,
+      run.id,
+      publishedThrough,
+      onLog,
+      deferPublication,
+    );
     if (summary.selfHealing.repairedDates.length > 0) {
       summary.dataRevision = await bumpDataRevision();
     }
@@ -797,9 +836,11 @@ async function healPublishedTail(
   runId: string,
   publishedThrough: string,
   onLog: (line: string) => void,
+  deferPublication = false,
 ): Promise<SelfHealSummary> {
   const lookback = positiveInteger(process.env.MAINTENANCE_DAILY_REPAIR_LOOKBACK_DAYS, 5);
   const dates = await getRecentOpenDates(publishedThrough, lookback);
+  await prepareIndexMembership(client, dates, indexWeightMaximumAgeDays());
   await updateMaintenanceRun(runId, 'self_healing', {
     publishedThrough,
     inspectedDates: dates.length,
@@ -809,7 +850,7 @@ async function healPublishedTail(
     onLog,
   });
   await validateRawMarketDate(publishedThrough);
-  if (repaired.earliestDerivedChange) {
+  if (repaired.earliestDerivedChange && !deferPublication) {
     await updateMaintenanceRun(runId, 'market_state', repaired);
     await syncMarketIndicators(repaired.earliestDerivedChange, publishedThrough);
     const expectedDates = await getOpenDates(repaired.earliestDerivedChange, publishedThrough);

@@ -13,12 +13,25 @@ import type { MarketTable } from './tables.js';
 export interface MarketChange {
   operation: 'insert' | 'update' | 'delete';
   row: StoredRow;
+  before?: StoredRow;
 }
 export interface TableChanges {
   table: string;
   count: number;
   hash: string;
 }
+const storedRowSchema = z.record(z.string(), z.union([z.string(), z.number(), z.null()]));
+
+export const marketChangeSchema = z
+  .object({
+    operation: z.enum(['insert', 'update', 'delete']),
+    row: storedRowSchema,
+    before: storedRowSchema.optional(),
+  })
+  .refine((change) => change.operation !== 'update' || change.before !== undefined, {
+    message: 'Updated market changes require their baseline values',
+  });
+
 interface PublicationDelegate {
   createMany(input: { data: Record<string, unknown>[] }): Promise<unknown>;
   updateMany(input: {
@@ -106,7 +119,7 @@ export function freezeTableChanges(
               throw new Error(`Financial source payload mutated: ${table.name}`);
             }
           }
-          append({ operation: 'update', row: after.value! });
+          append({ operation: 'update', row: after.value!, before: before.value! });
         }
         before = baseline.next();
         after = prepared.next();
@@ -178,12 +191,7 @@ export async function applyTableChanges(
   try {
     for await (const line of lines) {
       digest.update(line + '\n');
-      const change = z
-        .object({
-          operation: z.enum(['insert', 'update', 'delete']),
-          row: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
-        })
-        .parse(JSON.parse(line));
+      const change = marketChangeSchema.parse(JSON.parse(line));
       count++;
       if ((change.operation === 'delete') !== (mode === 'delete')) {
         continue;

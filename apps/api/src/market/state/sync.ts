@@ -1,5 +1,6 @@
 import { prisma } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
+import { allMarketIndicatorScope, type DerivedMarketScope } from './scope.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
 
 /**
@@ -13,7 +14,6 @@ interface DateSlice {
 }
 
 const DATE_PATTERN = /^\d{8}$/;
-const INDEX_CODES_SQL = MARKET_WEATHER_INDICATOR_INDEX_CODES.map((code) => `'${code}'`).join(', ');
 
 /**
  * 预计算全市场、时点指数证券池和申万一级行业状态，保留原始截面的数据语义。
@@ -24,12 +24,19 @@ const INDEX_CODES_SQL = MARKET_WEATHER_INDICATOR_INDEX_CODES.map((code) => `'${c
  * prices through Prisma row objects was measured to require millions of allocations and repeated
  * per-day queries.
  */
-export async function syncMarketIndicators(start: string, end: string): Promise<void> {
+export async function syncMarketIndicators(
+  start: string,
+  end: string,
+  scope: DerivedMarketScope = allMarketIndicatorScope(),
+): Promise<void> {
   validateRange(start, end);
+  if (scope.indexCodes.some((code) => !MARKET_WEATHER_INDICATOR_INDEX_CODES.includes(code))) {
+    throw new Error('Unknown derived index scope');
+  }
 
   for (const slice of yearlySlices(start, end)) {
     const panelStart = await paddedStart(slice.start, 60);
-    await syncSlice(panelStart, slice);
+    await syncSlice(panelStart, slice, scope);
   }
 }
 
@@ -38,7 +45,12 @@ export async function syncMarketIndicators(start: string, end: string): Promise<
  *
  * Compute and replace one market-state slice for segmented historical rebuilding.
  */
-async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
+async function syncSlice(
+  panelStart: string,
+  slice: DateSlice,
+  scope: DerivedMarketScope,
+): Promise<void> {
+  const indexCodesSql = scope.indexCodes.map((code) => `'${code}'`).join(', ') || 'NULL';
   log(`syncMarketIndicators ${slice.start}~${slice.end} (panel from ${panelStart})`);
 
   await prisma.$transaction(
@@ -140,7 +152,7 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
           FROM (
             SELECT DISTINCT "indexCode", "tradeDate"
             FROM "IndexWeight"
-            WHERE "indexCode" IN (${INDEX_CODES_SQL})
+            WHERE "indexCode" IN (${indexCodesSql})
           )
         )
         SELECT
@@ -170,7 +182,7 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
               ORDER BY "tradeDate"
             ) AS "close20"
           FROM "IndexDaily"
-          WHERE "tsCode" IN (${INDEX_CODES_SQL})
+          WHERE "tsCode" IN (${indexCodesSql})
             AND "tradeDate" BETWEEN '${panelStart}' AND '${slice.end}'
         )
         SELECT
@@ -235,17 +247,27 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
           )
       `);
 
-      await transaction.marketIndicator.deleteMany({
-        where: { tradeDate: { gte: slice.start, lte: slice.end } },
-      });
-      await transaction.indexIndicator.deleteMany({
-        where: { tradeDate: { gte: slice.start, lte: slice.end } },
-      });
-      await transaction.industryIndicator.deleteMany({
-        where: { tradeDate: { gte: slice.start, lte: slice.end } },
-      });
+      if (scope.market) {
+        await transaction.marketIndicator.deleteMany({
+          where: { tradeDate: { gte: slice.start, lte: slice.end } },
+        });
+      }
+      if (scope.indexCodes.length) {
+        await transaction.indexIndicator.deleteMany({
+          where: {
+            indexCode: { in: scope.indexCodes },
+            tradeDate: { gte: slice.start, lte: slice.end },
+          },
+        });
+      }
+      if (scope.industries) {
+        await transaction.industryIndicator.deleteMany({
+          where: { tradeDate: { gte: slice.start, lte: slice.end } },
+        });
+      }
 
-      await transaction.$executeRawUnsafe(`
+      if (scope.market) {
+        await transaction.$executeRawUnsafe(`
         INSERT INTO "MarketIndicator" (
           "tradeDate",
           "tradedCount",
@@ -311,8 +333,10 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
         FROM market_state_market_ranked
         GROUP BY "tradeDate"
       `);
+      }
 
-      await transaction.$executeRawUnsafe(`
+      if (scope.indexCodes.length) {
+        await transaction.$executeRawUnsafe(`
         INSERT INTO "IndexIndicator" (
           "indexCode",
           "tradeDate",
@@ -465,8 +489,10 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
           AND close."tradeDate" = ranked."tradeDate"
         GROUP BY ranked."indexCode", ranked."tradeDate"
       `);
+      }
 
-      await transaction.$executeRawUnsafe(`
+      if (scope.industries) {
+        await transaction.$executeRawUnsafe(`
         INSERT INTO "IndustryIndicator" (
           "l1Code",
           "l1Name",
@@ -535,6 +561,7 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
         WHERE ranked."l1Code" IS NOT NULL
         GROUP BY ranked."l1Code", ranked."tradeDate"
       `);
+      }
 
       await transaction.$executeRawUnsafe('DROP TABLE market_state_ranked');
       await transaction.$executeRawUnsafe('DROP TABLE market_state_index_ranked');
@@ -547,15 +574,22 @@ async function syncSlice(panelStart: string, slice: DateSlice): Promise<void> {
   );
 
   const [marketRows, indexRows, industryRows] = await Promise.all([
-    prisma.marketIndicator.count({
-      where: { tradeDate: { gte: slice.start, lte: slice.end } },
-    }),
+    scope.market
+      ? prisma.marketIndicator.count({
+          where: { tradeDate: { gte: slice.start, lte: slice.end } },
+        })
+      : 0,
     prisma.indexIndicator.count({
-      where: { tradeDate: { gte: slice.start, lte: slice.end } },
+      where: {
+        indexCode: { in: scope.indexCodes },
+        tradeDate: { gte: slice.start, lte: slice.end },
+      },
     }),
-    prisma.industryIndicator.count({
-      where: { tradeDate: { gte: slice.start, lte: slice.end } },
-    }),
+    scope.industries
+      ? prisma.industryIndicator.count({
+          where: { tradeDate: { gte: slice.start, lte: slice.end } },
+        })
+      : 0,
   ]);
   log(
     `  stored ${marketRows} market days / ${indexRows} index days / ${industryRows} industry days`,

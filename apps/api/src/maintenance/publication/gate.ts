@@ -16,10 +16,15 @@ export interface RawDateQuality extends StockDateQuality, IndexDateQuality {
  * Publication policy selects freshness; Market validates each dataset.
  */
 export async function validateRawMarketDate(tradeDate: string): Promise<RawDateQuality> {
-  const maximumAge = Number(process.env.MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS);
-  const maximumIndexWeightAgeDays =
-    Number.isInteger(maximumAge) && maximumAge > 0 ? maximumAge : 190;
   const stocks = await validateStockDate(tradeDate);
-  const indices = await validateIndexDate(tradeDate, maximumIndexWeightAgeDays);
+  const indices = await validateIndexDate(tradeDate, indexWeightMaximumAgeDays());
+
   return { tradeDate, ...stocks, ...indices };
+}
+
+/** 成分历史下载与校验共用发布新鲜度策略。 / Share publication freshness policy between membership preparation and validation. */
+export function indexWeightMaximumAgeDays(): number {
+  const maximumAge = Number(process.env.MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS);
+
+  return Number.isInteger(maximumAge) && maximumAge > 0 ? maximumAge : 190;
 }

@@ -7,6 +7,7 @@ import {
 } from '#market/macro/risk-axis-quality.js';
 import {
   inspectMarketRiskDrivers,
+  MARKET_RISK_EARLIEST_DATE,
   summarizeMarketRiskDriverQuality as marketDriverQuality,
   type MarketRiskDriverQualitySummary,
 } from '#market/state/market-risk-driver-quality.js';
@@ -16,12 +17,40 @@ import {
   marketRiskDataReadiness,
   selectMacroRiskAuditStart,
 } from '#strategy/risk/data-readiness.js';
+import { MARKET_RISK_LOOKBACK_OBSERVATIONS } from '#strategy/risk/market-risk-model.js';
 
 export async function auditMarketRiskDrivers(
   options: { startDate: string; endDate: string },
   database: Prisma = prisma,
 ) {
-  return marketAuditSummary(await inspectMarketRiskDrivers(options, database));
+  let startDate = options.startDate;
+  let quality = await inspectMarketRiskDrivers(options, database);
+
+  // 按完整向量数扩展真实历史，不把 20 日修复区间误当成模型全部历史，也不降低 252 日要求。
+  // Extend actual history by complete vectors instead of treating a short repair as the full model sample.
+  while (
+    quality.completeObservations < MARKET_RISK_LOOKBACK_OBSERVATIONS &&
+    startDate > MARKET_RISK_EARLIEST_DATE
+  ) {
+    const precedingDates = await database.tradeCal.findMany({
+      where: {
+        exchange: 'SSE',
+        isOpen: 1,
+        calDate: { gte: MARKET_RISK_EARLIEST_DATE, lt: startDate, lte: options.endDate },
+      },
+      orderBy: { calDate: 'desc' },
+      take: MARKET_RISK_LOOKBACK_OBSERVATIONS,
+      select: { calDate: true },
+    });
+    const expandedStart = precedingDates.at(-1)?.calDate;
+    if (!expandedStart || expandedStart >= startDate) {
+      break;
+    }
+    startDate = expandedStart;
+    quality = await inspectMarketRiskDrivers({ ...options, startDate }, database);
+  }
+
+  return marketAuditSummary(quality);
 }
 
 export async function auditMacroRiskAxes(
