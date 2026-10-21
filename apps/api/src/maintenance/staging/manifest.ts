@@ -27,6 +27,7 @@ export const manifestSchema = z.object({
   ),
   completedActions: z.array(z.string()),
   publishedRevision: z.number().optional(),
+  timings: z.record(z.string(), z.number().nonnegative()).optional(),
   result: z.json().optional(),
   audit: z.json().optional(),
 });

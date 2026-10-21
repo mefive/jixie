@@ -101,6 +101,27 @@ function stagingDirectory(id: string): string {
   return resolve(dirname(databaseFilename()), 'maintenance-staging', id);
 }
 
+/** 记录阶段耗时和正式控制进度，不改变市场数据。 / Record stage timings and control progress without changing market data. */
+async function measureStage<Result>(
+  manifest: StagingManifest,
+  stage: string,
+  operation: () => Promise<Result>,
+): Promise<Result> {
+  await prisma.maintenanceRun.update({
+    where: { id: manifest.id },
+    data: { stage, heartbeatAt: new Date() },
+  });
+  const started = performance.now();
+  console.info(`[maintenance] ${stage} started`);
+  try {
+    return await operation();
+  } finally {
+    const elapsed = Math.round(performance.now() - started);
+    manifest.timings = { ...manifest.timings, [stage]: elapsed };
+    console.info(`[maintenance] ${stage} finished: ${elapsed} ms`);
+  }
+}
+
 async function prepareWorkflow(
   manifest: StagingManifest,
   directory: string,
@@ -196,7 +217,8 @@ async function freezeChanges(manifest: StagingManifest, directory: string): Prom
     source.exec('BEGIN');
     if (
       schemaHash(source) !== manifest.snapshot.schemaHash ||
-      schemaHash(candidate) !== manifest.snapshot.schemaHash
+      schemaHash(candidate, maintenanceTables(manifest.command, manifest.args)) !==
+        manifest.snapshot.schemaHash
     ) {
       throw new Error('Schema changed while preparing market candidates');
     }
@@ -262,7 +284,11 @@ async function publish(manifest: StagingManifest, directory: string): Promise<vo
   } finally {
     candidate.close();
   }
+  const waiting = performance.now();
   await withMarketPublication(async () => {
+    console.info(
+      `[maintenance] publication lock acquired: ${Math.round(performance.now() - waiting)} ms`,
+    );
     if (fingerprint(await requirements()) !== manifest.requirementsHash) {
       throw new Error('Deployment requirements changed; retry to rebuild the candidate');
     }
@@ -533,7 +559,8 @@ async function candidateIsCurrent(
     });
     try {
       return (
-        schemaHash(candidate) === manifest.snapshot.schemaHash &&
+        schemaHash(candidate, maintenanceTables(manifest.command, manifest.args)) ===
+          manifest.snapshot.schemaHash &&
         candidate.prepare('PRAGMA quick_check').get()?.quick_check === 'ok'
       );
     } finally {
@@ -649,10 +676,12 @@ export async function runStagedMaintenance(
         },
       });
       try {
-        manifest.snapshot = await createStagingSnapshot(
-          databaseFilename(),
-          directory,
-          maintenanceTables(command, manifest.args),
+        manifest.snapshot = await measureStage(manifest, 'snapshot', () =>
+          createStagingSnapshot(
+            databaseFilename(),
+            directory,
+            maintenanceTables(command, manifest!.args),
+          ),
         );
         await saveJson(resolve(directory, 'requirements.json'), inputs);
         await saveJson(resolve(directory, 'manifest.json'), manifest);
@@ -681,20 +710,22 @@ export async function runStagedMaintenance(
         },
       });
       if (manifest.phase === 'preparing') {
-        await prepareWorkflow(manifest, directory);
+        await measureStage(manifest, 'preparation', () => prepareWorkflow(manifest!, directory));
         const finishedWriters = await acquireMarketLock(`owner-${manifest.id}`);
         try {
-          await freezeChanges(manifest, directory);
+          await measureStage(manifest, 'input_changes', () => freezeChanges(manifest!, directory));
         } finally {
           await finishedWriters.release();
         }
         // 先检测实际变化，再在候选中重算影响范围并做最终审计。
         // Detect actual changes before recomputing affected outputs and auditing the candidate.
         await saveJson(resolve(directory, 'manifest.json'), manifest);
-        await prepareWorkflow(manifest, directory, true);
+        await measureStage(manifest, 'finalization', () =>
+          prepareWorkflow(manifest!, directory, true),
+        );
         const frozen = await acquireMarketLock(`owner-${manifest.id}`);
         try {
-          await freezeChanges(manifest, directory);
+          await measureStage(manifest, 'final_changes', () => freezeChanges(manifest!, directory));
         } finally {
           await frozen.release();
         }
@@ -705,7 +736,11 @@ export async function runStagedMaintenance(
           data: { summary: payload(manifest), stage: 'ready' },
         });
       }
-      await publish(manifest, directory);
+      await measureStage(manifest, 'publication', () => publish(manifest!, directory));
+      await prisma.maintenanceRun.update({
+        where: { id: manifest.id },
+        data: { summary: payload(manifest) },
+      });
     } catch (error) {
       const receipt = await prisma.maintenanceRun.findUniqueOrThrow({ where: { id: manifest.id } });
       const persisted = manifestSchema.parse(receipt.summary);

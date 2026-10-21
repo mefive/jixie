@@ -121,6 +121,40 @@ describe('candidate preparation and atomic publication', () => {
     expect(candidates.length).toBeGreaterThan(0);
   }, 30_000);
 
+  it('rebuilds a failed candidate whose persistent write capture was removed', async () => {
+    fixture.prepareFailure = true;
+    await expect(
+      runStagedMaintenance('sync', ['stock-prices', '20261019', '20261019']),
+    ).rejects.toThrow('Candidate preparation');
+    const previous = await prisma.maintenanceRun.findFirstOrThrow();
+    const candidate = new DatabaseSync(
+      resolve(directory, 'maintenance-staging', previous.id, 'candidate.db'),
+    );
+    try {
+      candidate.exec('DROP TRIGGER _maintenance_track_TradeCal_UPDATE');
+    } finally {
+      candidate.close();
+    }
+
+    fixture.prepareFailure = false;
+    await runStagedMaintenance('sync', ['stock-prices', '20261019', '20261019']);
+    expect(
+      (await prisma.maintenanceRun.findUniqueOrThrow({ where: { id: previous.id } })).stage,
+    ).toBe('abandoned');
+    expect(await formalOpen()).toBe(1);
+    const published = await prisma.maintenanceRun.findFirstOrThrow({ where: { status: 'done' } });
+    expect(published.id).not.toBe(previous.id);
+    expect(published.summary).toMatchObject({
+      publishedRevision: 8,
+      timings: {
+        snapshot: expect.any(Number),
+        input_changes: expect.any(Number),
+        final_changes: expect.any(Number),
+        publication: expect.any(Number),
+      },
+    });
+  }, 30_000);
+
   it('allows phase-one users, excludes private rows, serializes coordinators and commits one revision', async () => {
     let release!: () => void;
     let ready!: () => void;

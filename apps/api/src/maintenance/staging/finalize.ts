@@ -107,9 +107,17 @@ export async function finalizeCandidate(): Promise<void> {
 
   // 只有这一次计算改变输出；之后的派生检查和综合审计均只读同一批最终输入。
   // All writes finish here; subsequent derived checks and audits read the same final inputs.
+  let phaseStarted = performance.now();
+  console.info('[maintenance] indicator calculation started');
   for (const range of ranges) {
     await syncMarketIndicators(range.startDate, range.endDate, range.scope);
   }
+  console.info(
+    `[maintenance] indicator calculation finished: ${Math.round(performance.now() - phaseStarted)} ms`,
+  );
+
+  phaseStarted = performance.now();
+  console.info('[maintenance] derived validation started');
   for (const range of ranges) {
     await validateDerivedMarketRange(
       range.startDate,
@@ -127,7 +135,13 @@ export async function finalizeCandidate(): Promise<void> {
     );
   }
 
+  console.info(
+    `[maintenance] derived validation finished: ${Math.round(performance.now() - phaseStarted)} ms`,
+  );
+
   if (['daily', 'weekly', 'repair', 'import', 'canonicalize'].includes(manifest.command)) {
+    phaseStarted = performance.now();
+    console.info('[maintenance] comprehensive audit started');
     const audits: DataQualityAuditReport[] = [];
     const auditStart = targetStart ?? ranges[0]?.startDate ?? last;
     const auditEnd = targetEnd ?? ranges.at(-1)?.endDate ?? last;
@@ -207,6 +221,9 @@ export async function finalizeCandidate(): Promise<void> {
     }
     const errors = audits.flatMap((report) =>
       report.findings.filter((finding) => finding.status === 'error'),
+    );
+    console.info(
+      `[maintenance] comprehensive audit finished: ${Math.round(performance.now() - phaseStarted)} ms, ${errors.length} errors`,
     );
     if (errors.length) {
       throw new Error(

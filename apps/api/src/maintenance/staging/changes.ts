@@ -7,7 +7,8 @@ import { resolve } from 'node:path';
 import pkg from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { quoted, type StoredRow } from './snapshot.js';
+import type { StoredRow } from './snapshot.js';
+import { quoted, TRACKED_KEYS, validateTracking } from './tracking.js';
 import type { MarketTable } from './tables.js';
 
 export interface MarketChange {
@@ -41,26 +42,10 @@ interface PublicationDelegate {
   deleteMany(input: { where: Record<string, unknown> }): Promise<{ count: number }>;
 }
 
-function compareKeys(left: StoredRow, right: StoredRow, keys: readonly string[]): number {
-  for (const key of keys) {
-    const first = left[key];
-    const second = right[key];
-    const difference =
-      typeof first === 'number' && typeof second === 'number'
-        ? first - second
-        : Buffer.compare(Buffer.from(String(first)), Buffer.from(String(second)));
-    if (difference) {
-      return difference;
-    }
-  }
-
-  return 0;
-}
-
 /**
- * 在发布门禁前比较规范候选与只读正式基线，保留显式数据域的删除规则。
+ * 仅按触及的主键比较候选和正式基线，保留净增删改及版本约束。
  *
- * Freeze domain changes before admission closes, preserving deletions and special version semantics.
+ * Compare only touched keys against the formal baseline, preserving net changes and version policies.
  */
 export function freezeTableChanges(
   source: DatabaseSync,
@@ -68,12 +53,16 @@ export function freezeTableChanges(
   directory: string,
   table: MarketTable,
 ): TableChanges {
-  const order = table.keys.map(quoted).join(',');
-  const query = `SELECT * FROM ${quoted(table.name)} ORDER BY ${order}`;
-  const baseline = source.prepare(query).iterate() as IterableIterator<StoredRow>;
-  const prepared = candidate.prepare(query).iterate() as IterableIterator<StoredRow>;
-  let before = baseline.next();
-  let after = prepared.next();
+  validateTracking(candidate, [table]);
+  const started = performance.now();
+  const query = `SELECT * FROM ${quoted(table.name)} WHERE ${table.keys.map((key) => `${quoted(key)}=?`).join(' AND ')}`;
+  const baseline = source.prepare(query);
+  const prepared = candidate.prepare(query);
+  const keys = candidate
+    .prepare(`SELECT rowKey FROM ${quoted(TRACKED_KEYS)} WHERE tableName=? ORDER BY rowKey`)
+    .iterate(table.name);
+  const keySchema = z.array(z.union([z.string(), z.number()])).length(table.keys.length);
+  let touched = 0;
   const descriptor = openSync(resolve(directory, `${table.name}.changes`), 'w', 0o600);
   const digest = createHash('sha256');
   let count = 0;
@@ -90,50 +79,42 @@ export function freezeTableChanges(
     count++;
   };
   try {
-    while (!before.done || !after.done) {
-      const comparison = before.done
-        ? 1
-        : after.done
-          ? -1
-          : compareKeys(before.value, after.value, table.keys);
-      if (comparison < 0) {
-        append({ operation: 'delete', row: before.value! });
-        before = baseline.next();
-      } else if (comparison > 0) {
-        append({ operation: 'insert', row: after.value! });
-        after = prepared.next();
-      } else {
-        if (JSON.stringify(before.value) !== JSON.stringify(after.value)) {
-          if (table.policy === 'versioned') {
-            const allowed = new Set([
-              'tsCode',
-              'availabilityQuality',
-              'evidenceSource',
-              'evidenceId',
-            ]);
-            if (
-              Object.keys(before.value!).some(
-                (key) => !allowed.has(key) && before.value![key] !== after.value![key],
-              )
-            ) {
-              throw new Error(`Financial source payload mutated: ${table.name}`);
-            }
+    for (const entry of keys) {
+      const key = keySchema.parse(JSON.parse(String(entry.rowKey)));
+      const before = baseline.get(...key) as StoredRow | undefined;
+      const after = prepared.get(...key) as StoredRow | undefined;
+      touched++;
+      if (before && !after) {
+        append({ operation: 'delete', row: before });
+      } else if (!before && after) {
+        append({ operation: 'insert', row: after });
+      } else if (before && after && JSON.stringify(before) !== JSON.stringify(after)) {
+        if (table.policy === 'versioned') {
+          const allowed = new Set([
+            'tsCode',
+            'availabilityQuality',
+            'evidenceSource',
+            'evidenceId',
+          ]);
+          if (Object.keys(before).some((key) => !allowed.has(key) && before[key] !== after[key])) {
+            throw new Error(`Financial source payload mutated: ${table.name}`);
           }
-          append({ operation: 'update', row: after.value!, before: before.value! });
         }
-        before = baseline.next();
-        after = prepared.next();
+        append({ operation: 'update', row: after, before });
       }
     }
   } finally {
-    baseline.return?.();
-    prepared.return?.();
+    keys.return?.();
     try {
       fsyncSync(descriptor);
     } finally {
       closeSync(descriptor);
     }
   }
+
+  console.info(
+    `[maintenance] changes ${table.name}: ${touched} touched keys, ${count} net changes, ${Math.round(performance.now() - started)} ms`,
+  );
 
   return { table: table.name, count, hash: digest.digest('hex') };
 }

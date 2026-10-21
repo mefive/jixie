@@ -1,4 +1,6 @@
-import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
+import { DatabaseSync } from 'node:sqlite';
+import { pathToFileURL } from 'node:url';
+import { installTracking, quoted, validateTracking } from './tracking.js';
 import { createHash } from 'node:crypto';
 import { chmod, mkdir, open, rename } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -11,28 +13,28 @@ export interface StagingSnapshot {
   tables: string[];
 }
 
-export function quoted(name: string): string {
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
-    throw new Error('Invalid administrative SQL identifier');
-  }
-
-  return `"${name}"`;
-}
-
-export function schemaHash(database: DatabaseSync): string {
+export function schemaHash(
+  database: DatabaseSync,
+  trackingTables?: readonly MarketTable[],
+  schema: 'main' | 'baseline' = 'main',
+): string {
+  const ignored = trackingTables ? validateTracking(database, trackingTables) : new Set<string>();
   const rows = database
     .prepare(
-      "SELECT type, name, sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type, name",
+      `SELECT type, name, sql FROM ${schema}.sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type, name`,
     )
-    .all();
+    .all()
+    .filter((row) => !ignored.has(String(row.name)));
 
   const hasMigrations = database
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='_prisma_migrations'")
+    .prepare(
+      `SELECT name FROM ${schema}.sqlite_master WHERE type='table' AND name='_prisma_migrations'`,
+    )
     .get();
   const migrations = hasMigrations
     ? database
         .prepare(
-          'SELECT migration_name, checksum, finished_at, rolled_back_at FROM _prisma_migrations ORDER BY migration_name',
+          `SELECT migration_name, checksum, finished_at, rolled_back_at FROM ${schema}._prisma_migrations ORDER BY migration_name`,
         )
         .all()
     : [];
@@ -51,56 +53,71 @@ export async function createStagingSnapshot(
   tables: readonly MarketTable[],
 ): Promise<StagingSnapshot> {
   await mkdir(directory, { recursive: true, mode: 0o700 });
-  const source = new DatabaseSync(sourceFile, { readOnly: true });
   const destinationFile = resolve(directory, 'candidate.db');
   const destination = new DatabaseSync(destinationFile);
   try {
-    source.exec('BEGIN');
-    const schema = source
+    await chmod(destinationFile, 0o600);
+    const baselineUrl = pathToFileURL(sourceFile);
+    baselineUrl.searchParams.set('mode', 'ro');
+    destination.prepare('ATTACH DATABASE ? AS baseline').run(baselineUrl.href);
+    destination.exec('PRAGMA foreign_keys=OFF; BEGIN');
+    const schema = destination
       .prepare(
-        "SELECT type, sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name",
+        "SELECT type, sql FROM baseline.sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name",
       )
       .all() as unknown as { type: string; sql: string }[];
-    for (const row of schema) {
-      destination.exec(row.sql);
-    }
-    const base = source
-      .prepare('SELECT dataRevision FROM MaintenanceState WHERE key = ?')
-      .get('global') as { dataRevision: number } | undefined;
+    const base = destination
+      .prepare('SELECT dataRevision FROM baseline.MaintenanceState WHERE key=?')
+      .get('global');
     const snapshot: StagingSnapshot = {
-      schemaHash: schemaHash(source),
-      baseRevision: base?.dataRevision ?? 0,
+      schemaHash: schemaHash(destination, undefined, 'baseline'),
+      baseRevision: Number(base?.dataRevision ?? 0),
       tables: tables.map((entry) => entry.name),
     };
-    destination.exec('BEGIN');
+    for (const row of schema.filter((entry) => entry.type === 'table')) {
+      destination.exec(row.sql);
+    }
+
+    // 同一连接、同一读快照在 SQLite 内复制；不把历史逐行送入 JavaScript。
+    // Copy inside SQLite on one connection and one read snapshot, without streaming historical rows through JavaScript.
     for (const name of [...snapshot.tables, 'MaintenanceState', '_prisma_migrations']) {
-      const columns = source.prepare(`PRAGMA table_info(${quoted(name)})`).all() as unknown as {
-        name: string;
-      }[];
+      const columns = destination
+        .prepare(`PRAGMA baseline.table_info(${quoted(name)})`)
+        .all() as unknown as { name: string }[];
       if (!columns.length) {
         if (name === '_prisma_migrations') {
           continue;
         }
         throw new Error(`Missing staging dependency: ${name}`);
       }
-      const insert = destination.prepare(
-        `INSERT INTO ${quoted(name)} (${columns.map((column) => quoted(column.name)).join(',')}) VALUES (${columns.map(() => '?').join(',')})`,
+      const columnList = columns.map((column) => quoted(column.name)).join(',');
+      const started = performance.now();
+      const result = destination
+        .prepare(
+          `INSERT INTO main.${quoted(name)} (${columnList}) SELECT ${columnList} FROM baseline.${quoted(name)}`,
+        )
+        .run();
+      console.info(
+        `[maintenance] snapshot ${name}: ${result.changes} rows, ${Math.round(performance.now() - started)} ms`,
       );
-      // 一致性复制属于数据库快照操作，不改变业务字段映射或公开 SDK。
-      // Snapshot copying preserves storage values without deriving public SDK contracts.
-      for (const row of source.prepare(`SELECT * FROM ${quoted(name)}`).iterate()) {
-        insert.run(...columns.map((column) => row[column.name] as SQLInputValue));
-      }
     }
-    destination.exec('COMMIT');
-    source.exec('COMMIT');
-    await chmod(destinationFile, 0o600);
+
+    // 数据复制后建立索引和触发器，随后才启用本轮变更记录。
+    // Build indexes and triggers after copying, then enable tracking for this run's writes only.
+    console.info('[maintenance] snapshot indexes and schema objects started');
+    for (const row of schema.filter((entry) => entry.type !== 'table')) {
+      destination.exec(row.sql);
+    }
+    installTracking(destination, tables);
+    if (schemaHash(destination, tables) !== snapshot.schemaHash) {
+      throw new Error('Copied candidate schema does not match the formal baseline');
+    }
+    destination.exec('COMMIT; DETACH DATABASE baseline; PRAGMA foreign_keys=ON');
     await saveJson(resolve(directory, 'snapshot.json'), snapshot);
 
     return snapshot;
   } finally {
     destination.close();
-    source.close();
   }
 }
 
