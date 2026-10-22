@@ -70,6 +70,8 @@ export async function syncSignalMarketData(
   options: {
     coreAlreadyPublished?: boolean;
     extensionsAlreadyPublished?: boolean;
+    /** 维护已准备本日利率曲线。 / Maintenance already prepared the yield curve for this date. */
+    treasuryAlreadyPublished?: boolean;
     refresh?: boolean;
     preparedEtf?: PreparedEtfMarketDate;
   } = {},
@@ -118,7 +120,7 @@ export async function syncSignalMarketData(
     (deployment) => StrategyFactor.dependenciesFromJson(deployment.factorDependencies) ?? [],
   );
   const yieldTerms = governmentYieldTermsFromDependencies(factorDependencies);
-  if (yieldTerms.length > 0) {
+  if (yieldTerms.length > 0 && !options.treasuryAlreadyPublished) {
     onLog(`Syncing government yield curve for active maturities ${yieldTerms.join(', ')}Y`);
     await syncChinaTreasuryYieldCurve(
       new MinistryOfFinanceCurveClient(),

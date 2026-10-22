@@ -27,6 +27,8 @@ export interface CommodityWarehouseReceiptMaintenanceSummary {
  * Configure a bounded receipt revision window and source access.
  */
 interface CommodityWarehouseReceiptMaintenanceOptions {
+  /** 人工修复使用显式起点，覆盖整个请求区间。 / Repair uses an explicit start covering the full requested range. */
+  startDate?: TradeDate;
   lookbackTradingDays?: number;
   maximumLagTradingDays?: number;
 }
@@ -46,6 +48,10 @@ export async function maintainCommodityWarehouseReceipts(
   onLog: (line: string) => void = console.log,
   options: CommodityWarehouseReceiptMaintenanceOptions = {},
 ): Promise<CommodityWarehouseReceiptMaintenanceSummary> {
+  if (options.startDate && (!/^\d{8}$/.test(options.startDate) || options.startDate > endDate)) {
+    throw new Error('Invalid commodity warehouse-receipt maintenance range.');
+  }
+
   const lookbackTradingDays = positiveInteger(
     options.lookbackTradingDays,
     DEFAULT_LOOKBACK_TRADING_DAYS,
@@ -55,9 +61,9 @@ export async function maintainCommodityWarehouseReceipts(
     DEFAULT_MAXIMUM_LAG_TRADING_DAYS,
   );
   const recentDates = await database.tradeCal.findMany({
-    where: { exchange: 'SSE', isOpen: 1, calDate: { lte: endDate } },
+    where: { exchange: 'SSE', isOpen: 1, calDate: { gte: options.startDate, lte: endDate } },
     orderBy: { calDate: 'desc' },
-    take: lookbackTradingDays,
+    take: options.startDate ? undefined : lookbackTradingDays,
     select: { calDate: true },
   });
   const startDate = recentDates.at(-1)?.calDate;

@@ -87,6 +87,25 @@ async function formalOpen(): Promise<number> {
 }
 
 describe('candidate preparation and atomic publication', () => {
+  it('rejects the obsolete repair flag before creating a candidate or changing the formal database', async () => {
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    const artifacts = async () =>
+      (await readdir(directory))
+        .filter((name) => name.startsWith('maintenance') || name.startsWith('owner-'))
+        .sort();
+    const before = await artifacts();
+
+    await expect(
+      withDatabase(prisma, () =>
+        runStagedMaintenance('repair', ['20260910', '20260910', '--refresh']),
+      ),
+    ).rejects.toThrow('remove --refresh');
+
+    expect(await prisma.maintenanceRun.count()).toBe(0);
+    expect(await artifacts()).toEqual(before);
+    expect(await formalOpen()).toBe(0);
+  });
+
   it('keeps the formal market and user access unchanged on preparation failure', async () => {
     const { withDatabase } = await import('#infra/database/prisma.js');
     return withDatabase(prisma, async () => {

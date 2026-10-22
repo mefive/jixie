@@ -17,6 +17,7 @@ import {
 } from '#infra/database/prisma.js';
 import { withStagingContext } from '#infra/coordination/staging-input.js';
 import { executeMaintenanceWorkflow } from '../workflows/execute.js';
+import { parseRepairArguments } from '../workflows/repair-arguments.js';
 import { finalizeCandidate } from './finalize.js';
 import {
   acquireWorkOwner,
@@ -459,6 +460,10 @@ export async function runStagedMaintenance(
   command: MaintenanceCommand,
   args: string[],
 ): Promise<void> {
+  if (command === 'repair') {
+    parseRepairArguments(args);
+  }
+
   await retryPublishedActions();
   await withMaintenanceLock(async () => {
     try {

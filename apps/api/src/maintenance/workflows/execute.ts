@@ -2,6 +2,7 @@ import { assertProductionLock } from '../runs/coordination.js';
 import { recoverInterruptedMaintenanceRuns } from '../runs/state.js';
 import { runDailyMaintenance } from './daily.js';
 import { runRepairMaintenance } from './repair.js';
+import { parseRepairArguments } from './repair-arguments.js';
 import { runWeeklyMaintenance } from './weekly.js';
 import { importMarketData } from './import.js';
 import { executeMarketSync } from '#market/sync/dispatch.js';
@@ -93,16 +94,10 @@ async function runWeekly(args: string[]): Promise<void> {
 }
 
 async function runRepair(args: string[]): Promise<void> {
-  const dates = args.filter((argument) => argument !== '--refresh');
-  const [startDate, endDate] = dates;
-  if (dates.length !== 0 && dates.length !== 2) {
-    throw new Error('Usage: pnpm maintenance repair [YYYYMMDD YYYYMMDD] [--refresh]');
-  }
-  assertDate(startDate, 'Start date');
-  assertDate(endDate, 'End date');
+  const options = parseRepairArguments(args);
 
   await recoverInterruptedRuns('repair');
-  await runRepairMaintenance(startDate, endDate, args.includes('--refresh'), true);
+  await runRepairMaintenance({ ...options, deferPublication: true });
 }
 
 function assertDate(value: string | undefined, label: string): void {

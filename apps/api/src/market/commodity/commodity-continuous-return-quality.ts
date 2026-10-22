@@ -55,7 +55,7 @@ export async function auditCommodityContinuousReturns(
   const continuousCodes = COMMODITY_MAIN_CONTRACT_SPECS.map(
     (specification) => specification.continuousCode,
   );
-  const [stored, expected, mappings, calendar] = await Promise.all([
+  const [stored, expected, mappings, calendar, previousOpenDate] = await Promise.all([
     database.commodityContinuousReturn.findMany({
       where: { tradeDate: { gte: options.startDate, lte: options.endDate } },
       orderBy: [{ productCode: 'asc' }, { tradeDate: 'asc' }],
@@ -76,6 +76,11 @@ export async function auditCommodityContinuousReturns(
       },
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
+    }),
+    database.tradeCal.findFirst({
+      where: { exchange: 'SSE', isOpen: 1, calDate: { lt: options.startDate } },
+      select: { calDate: true },
+      orderBy: { calDate: 'desc' },
     }),
   ]);
 
@@ -117,7 +122,13 @@ export async function auditCommodityContinuousReturns(
         (point) => point.productCode === specification.productCode,
       );
       const latestMappingDate = productMappings.at(-1) ?? null;
-      const maximumIntervals = Math.max(0, productMappings.length - 1);
+
+      // 区间首日可使用区间外的前一交易日形成收益；分母取日历，不随缺失映射缩小。
+      // The first day can use a preceding session outside the range; missing mappings must not shrink the denominator.
+      const maximumIntervals = expectedOpenDates.filter(
+        (_, index) => index > 0 || (previousOpenDate?.calDate ?? '') >= specification.startDate,
+      ).length;
+
       return {
         productCode: specification.productCode,
         expectedOpenDates: expectedOpenDates.length,

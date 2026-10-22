@@ -90,7 +90,7 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
-| `maintenance` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair [start end] [--refresh]`、`daily --initialize-only`、`daily --resume-only` | 先在独立候选中准备，再一次性事务发布；准备失败不阻塞主库 |
+| `maintenance` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair [start end]`、`daily --initialize-only`、`daily --resume-only` | 先在独立候选中准备，再一次性事务发布；准备失败不阻塞主库 |
 | `maintenance cleanup [--apply]` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | 默认预览；显式 `--apply` 删除 | 按凭据和恢复条件回收候选及空闲 owner 文件，不下载或发布 |
 | `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
 | `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/maintenance/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |

@@ -29,7 +29,6 @@ import {
   syncExternalMarketDrivers,
   type ExternalMarketSyncSummary,
 } from '#market/cross-market/external-drivers.js';
-import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from '#market/indices/sync.js';
 import { TushareClient } from '#market/providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 import {
@@ -40,16 +39,11 @@ import {
   ChinaBondPublicCurveClient,
   syncChinaBondCreditCurves,
 } from '#market/rates/chinabond-credit-curves.js';
-import {
-  DAILY_MAINTAINED_INDEX_CODES,
-  MAJOR_INDEX_DAILY_BASIC_CODES,
-} from '#market/registry/index-presets.js';
 import { validateDerivedMarketRange } from '#market/state/quality.js';
 import { syncMarketIndicators } from '#market/state/sync.js';
-import { syncStockDailyData } from '#market/stocks/daily-sync.js';
-import { syncMoneyflow, syncTopList } from '#market/stocks/flows-sync.js';
 import { generateDailySignals } from '#signals/daily/scheduler.js';
-import { prepareSignalEtfMarketDate, syncSignalMarketData } from '#signals/daily/sync.js';
+import { prepareSignalEtfMarketDate } from '#signals/daily/sync.js';
+import { refreshMarketDate } from './refresh-market-date.js';
 import type { TradeDate } from '@jixie/shared';
 import { validateRawMarketDate, indexWeightMaximumAgeDays } from '../publication/gate.js';
 import { prepareIndexMembership } from '#market/indices/prepare-membership.js';
@@ -88,8 +82,6 @@ export interface DailyMaintenanceOptions {
   generateSignals?: boolean;
   /** 候选由协调器收尾后才发布。 / The coordinator finalizes this candidate before publication. */
   deferPublication?: boolean;
-  /** repair 已为整个目标区间准备资料。 / Repair already prepared the complete target range. */
-  membershipPrepared?: boolean;
 }
 
 /**
@@ -267,9 +259,7 @@ export async function runDailyMaintenance(
   }
 
   const startDate = dates[0];
-  if (!options.membershipPrepared) {
-    await prepareIndexMembership(client, dates, indexWeightMaximumAgeDays());
-  }
+  await prepareIndexMembership(client, dates, indexWeightMaximumAgeDays());
 
   // All ETF candidates are retained until publication. A later source regression cannot turn a
   // successful preflight into an incomplete fetch after published history has been modified.
@@ -399,47 +389,12 @@ export async function runDailyMaintenance(
 
     for (const tradeDate of dates) {
       try {
-        await updateMaintenanceRun(run.id, 'syncing_raw', {
-          ...summary,
-          currentDate: tradeDate,
+        const { core, quality } = await refreshMarketDate(client, tradeDate as TradeDate, {
+          preparedEtf: preparedEtfs.get(tradeDate)!,
+          onLog,
+          onStage: (stage) =>
+            updateMaintenanceRun(run.id, stage, { ...summary, currentDate: tradeDate }),
         });
-        onLog(`Fetching validated candidates for ${tradeDate}`);
-        const core = await syncStockDailyData(client, tradeDate as TradeDate);
-        await syncMoneyflow(client, tradeDate as TradeDate, tradeDate as TradeDate, {
-          refresh: true,
-        });
-        await syncTopList(client, tradeDate as TradeDate, tradeDate as TradeDate, {
-          refresh: true,
-        });
-
-        await updateMaintenanceRun(run.id, 'syncing_indices', {
-          ...summary,
-          currentDate: tradeDate,
-          core,
-        });
-        for (const indexCode of DAILY_MAINTAINED_INDEX_CODES) {
-          await syncIndexDaily(client, indexCode, tradeDate as TradeDate, tradeDate as TradeDate);
-        }
-        await syncSwIndexDaily(client, tradeDate as TradeDate, tradeDate as TradeDate);
-        await syncIndexDailyBasic(
-          client,
-          [...MAJOR_INDEX_DAILY_BASIC_CODES],
-          tradeDate as TradeDate,
-          tradeDate as TradeDate,
-        );
-        await syncSignalMarketData(tradeDate, onLog, {
-          coreAlreadyPublished: true,
-          extensionsAlreadyPublished: true,
-          refresh: true,
-          preparedEtf: preparedEtfs.get(tradeDate),
-        });
-
-        await updateMaintenanceRun(run.id, 'validating_raw', {
-          ...summary,
-          currentDate: tradeDate,
-          core,
-        });
-        const quality = await validateRawMarketDate(tradeDate);
         completedDates.push(tradeDate);
         summary.completedDates = completedDates.length;
         summary.readyThrough = tradeDate;

@@ -8,8 +8,8 @@ import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '#market/registry/index-pre
 import { TushareClient, type TushareRow } from '#market/providers/tushare/tushare-client.js';
 import { auditWindowCoverage } from '#market/stocks/audit.js';
 
-// 保留真实 repair → daily → 来源映射 → SQLite → 原始校验链路；其他数据域单独回归。
-// Keep repair, daily, provider mapping, SQLite and raw validation real; regress other domains separately.
+// 保留真实 repair → 单日刷新 → 来源映射 → SQLite → 原始校验链路；其他数据域单独回归。
+// Keep repair, daily refresh, provider mapping, SQLite and raw validation real; regress other domains separately.
 vi.mock('#market/providers/tushare/config.js', () => ({
   loadTushareConfig: () => ({ token: 'fixture', baseUrl: 'http://invalid', minIntervalMs: 1 }),
 }));
@@ -57,7 +57,7 @@ vi.mock('#market/rates/chinabond-credit-curves.js', () => ({
   syncChinaBondCreditCurves: vi.fn(async () => 0),
 }));
 
-const tradeDates = ['20260813', '20260814'];
+let tradeDates = ['20260813', '20260814'];
 const oldCodes = [
   '000016.SH',
   '000300.SH',
@@ -118,9 +118,13 @@ beforeEach(async () => {
 
     return send(message, ...args);
   });
+  tradeDates = ['20260813', '20260814'];
   providerMode = 'complete';
   requests.length = 0;
   await prisma.$transaction([
+    prisma.commodityHoldingPosition.deleteMany(),
+    prisma.futureDaily.deleteMany(),
+    prisma.futureContract.deleteMany(),
     prisma.maintenanceRun.deleteMany(),
     prisma.maintenanceCheckpoint.deleteMany(),
     prisma.indexWeight.deleteMany(),
@@ -193,6 +197,40 @@ function providerRows(api: string, parameters: Record<string, unknown>): Tushare
     amount: 1000,
   };
   switch (api) {
+    case 'fut_basic':
+      return [
+        { product: 'AU', exchange: 'SHFE', suffix: 'SHF' },
+        { product: 'CU', exchange: 'SHFE', suffix: 'SHF' },
+        { product: 'SC', exchange: 'INE', suffix: 'INE' },
+        { product: 'M', exchange: 'DCE', suffix: 'DCE' },
+      ]
+        .filter((contract) => contract.exchange === parameters.exchange)
+        .map((contract) => ({
+          ts_code: `${contract.product}2612.${contract.suffix}`,
+          symbol: `${contract.product}2612`,
+          name: contract.product,
+          exchange: contract.exchange,
+          fut_code: contract.product,
+          list_date: '20260101',
+          delist_date: '20261231',
+        }));
+    case 'fut_daily':
+      return [{ ...bars, settle: 10, pre_settle: 10, oi: 1000, oi_chg: 0 }];
+    case 'fut_holding':
+      return [
+        {
+          trade_date: tradeDate,
+          symbol: String(parameters.symbol),
+          broker: 'Fixture member',
+          exchange: String(parameters.exchange),
+          vol: 100,
+          vol_chg: 0,
+          long_hld: 50,
+          long_chg: 0,
+          short_hld: 50,
+          short_chg: 0,
+        },
+      ];
     case 'stock_basic':
       if (parameters.list_status !== 'L' && parameters.list_status !== 'D') {
         return [];
@@ -219,7 +257,7 @@ function providerRows(api: string, parameters: Record<string, unknown>): Tushare
         },
       ];
     case 'trade_cal':
-      return tradeDates
+      return [...tradeDates, ...(tradeDates[0] === '20260910' ? ['20260911'] : [])]
         .filter(
           (date) => date >= String(parameters.start_date) && date <= String(parameters.end_date),
         )
@@ -273,7 +311,7 @@ function providerRows(api: string, parameters: Record<string, unknown>): Tushare
 }
 
 describe('repair index prerequisites against migrated SQLite', () => {
-  it('fills the missing 24 universes before real refresh/daily validation and preserves the publication watermark', async () => {
+  it('fills the missing 24 universes before real daily refresh validation and preserves the publication watermark', async () => {
     const { withDatabase } = await import('#infra/database/prisma.js');
     const { withStagingContext } = await import('#infra/coordination/staging-input.js');
     return withStagingContext(
@@ -291,7 +329,7 @@ describe('repair index prerequisites against migrated SQLite', () => {
           await expect(validateIndexWeightDate(tradeDates[0])).rejects.toThrow(
             'no point-in-time snapshot',
           );
-          await runRepairMaintenance(tradeDates[0], tradeDates[1], true);
+          await runRepairMaintenance({ startDate: tradeDates[0], endDate: tradeDates[1] });
           expect(await prisma.indexWeight.groupBy({ by: ['indexCode'] })).toHaveLength(
             MARKET_WEATHER_INDICATOR_INDEX_CODES.length,
           );
@@ -302,15 +340,10 @@ describe('repair index prerequisites against migrated SQLite', () => {
           ).toBeGreaterThan(0);
           expect(
             await prisma.maintenanceRun.findMany({ select: { kind: true, status: true } }),
-          ).toEqual(
-            expect.arrayContaining([
-              { kind: 'repair', status: 'done' },
-              { kind: 'daily', status: 'done' },
-            ]),
-          );
+          ).toEqual(expect.arrayContaining([{ kind: 'repair', status: 'done' }]));
           expect(
             await prisma.maintenanceRun.count({ where: { kind: 'daily', status: 'done' } }),
-          ).toBe(2);
+          ).toBe(0);
           expect(
             await prisma.maintenanceState.findUnique({ where: { key: 'global' } }),
           ).toMatchObject({
@@ -329,7 +362,7 @@ describe('repair index prerequisites against migrated SQLite', () => {
     );
   });
 
-  it('prepares the same prerequisites for gap-only repair', async () => {
+  it('refreshes existing incorrect values instead of skipping complete dates', async () => {
     const { withDatabase } = await import('#infra/database/prisma.js');
     const { withStagingContext } = await import('#infra/coordination/staging-input.js');
     return withStagingContext(
@@ -344,8 +377,17 @@ describe('repair index prerequisites against migrated SQLite', () => {
       },
       () =>
         withDatabase(prisma, async () => {
-          await runRepairMaintenance(tradeDates[0], tradeDates[1]);
+          await runRepairMaintenance({ startDate: tradeDates[0], endDate: tradeDates[1] });
+          await prisma.daily.updateMany({ data: { close: 99 } });
+          requests.length = 0;
+
+          await runRepairMaintenance({ startDate: tradeDates[0], endDate: tradeDates[1] });
           expect(await prisma.daily.count()).toBe(2);
+          expect(await prisma.daily.findMany({ select: { close: true } })).toEqual([
+            { close: 10 },
+            { close: 10 },
+          ]);
+          expect(requests.filter((request) => request.api === 'daily')).toHaveLength(2);
           expect(
             await prisma.maintenanceRun.findFirst({ where: { kind: 'repair' } }),
           ).toMatchObject({
@@ -353,6 +395,74 @@ describe('repair index prerequisites against migrated SQLite', () => {
           });
         }),
     );
+  });
+
+  it('loads new commodity bars and ranked holdings beyond the previous coverage without a refresh flag', async () => {
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+    const holdings = await import('#market/commodity/holding-sync.js');
+    const actualHoldings = await vi.importActual<typeof holdings>(
+      '#market/commodity/holding-sync.js',
+    );
+    const { loadCommodityHoldingRepresentatives } =
+      await import('#market/commodity/commodity-holding-positions.js');
+    tradeDates = ['20260910'];
+    vi.mocked(holdings.refreshCommodityHoldingPositions).mockImplementationOnce(
+      actualHoldings.refreshCommodityHoldingPositions,
+    );
+    await prisma.futureContract.create({
+      data: {
+        tsCode: 'AU2612.SHF',
+        symbol: 'AU2612',
+        productCode: 'AU',
+        name: 'Gold',
+        exchange: 'SHFE',
+        listDate: '20260101',
+        delistDate: '20261231',
+      },
+    });
+    await prisma.futureDaily.create({
+      data: {
+        tsCode: 'AU2612.SHF',
+        tradeDate: '20260909',
+        settle: 9,
+        openInterest: 900,
+        volume: 100,
+      },
+    });
+    await expect(
+      loadCommodityHoldingRepresentatives('20260910', '20260910', prisma),
+    ).rejects.toThrow('requires commodity FutureDaily open interest');
+
+    await withStagingContext(
+      {
+        id: 'CASE',
+        directory: resolve(directory, 'maintenance-staging', 'CASE'),
+        formalUrl: 'file:' + resolve(directory, 'formal.db'),
+        timestamp: '2026-10-20T07:37:59.339Z',
+        date: '20261020',
+        upperBound: '20261019',
+        requirements: { active: [], versioned: [] },
+      },
+      () =>
+        withDatabase(prisma, () =>
+          runRepairMaintenance({ startDate: '20260910', endDate: '20260910' }),
+        ),
+    );
+
+    expect(await loadCommodityHoldingRepresentatives('20260910', '20260910', prisma)).toHaveLength(
+      3,
+    );
+    expect(await prisma.commodityHoldingPosition.count({ where: { tradeDate: '20260910' } })).toBe(
+      3,
+    );
+    expect(await prisma.futureDaily.count({ where: { tradeDate: '20260910' } })).toBe(4);
+    expect(await prisma.futureDaily.findFirst({ where: { tradeDate: '20260909' } })).toMatchObject({
+      settle: 9,
+      openInterest: 900,
+    });
+    expect(requests.filter((request) => request.api === 'fut_daily')).toHaveLength(4);
+    expect(requests.filter((request) => request.api === 'fut_basic')).toHaveLength(3);
   });
 
   it.each(['empty', 'future', 'failure'] as const)(
@@ -373,7 +483,9 @@ describe('repair index prerequisites against migrated SQLite', () => {
         () =>
           withDatabase(prisma, async () => {
             providerMode = mode;
-            await expect(runRepairMaintenance(tradeDates[0], tradeDates[1], true)).rejects.toThrow(
+            await expect(
+              runRepairMaintenance({ startDate: tradeDates[0], endDate: tradeDates[1] }),
+            ).rejects.toThrow(
               mode === 'failure' ? 'Fixture provider failed' : 'no fresh as-of snapshot',
             );
             expect(requests.some((request) => request.api === 'daily')).toBe(false);
@@ -421,9 +533,9 @@ describe('repair index prerequisites against migrated SQLite', () => {
           });
           vi.stubEnv('MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS', '5');
           try {
-            await expect(runRepairMaintenance(tradeDates[0], tradeDates[1], true)).rejects.toThrow(
-              'no fresh as-of snapshot',
-            );
+            await expect(
+              runRepairMaintenance({ startDate: tradeDates[0], endDate: tradeDates[1] }),
+            ).rejects.toThrow('no fresh as-of snapshot');
             expect(requests.some((request) => request.api === 'daily')).toBe(false);
           } finally {
             delete process.env.MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS;
