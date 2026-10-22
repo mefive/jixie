@@ -1,7 +1,7 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 export async function loadIndexSeries(tsCode: string, start: string, end: string) {
-  const rows = await prisma.indexDaily.findMany({
+  const rows = await getDatabase().indexDaily.findMany({
     where: { tsCode: tsCode, tradeDate: { gte: start, lte: end } },
     select: { tradeDate: true, close: true },
     orderBy: { tradeDate: 'asc' },

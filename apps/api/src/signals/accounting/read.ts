@@ -1,5 +1,5 @@
 import { completedSignalRunIds } from '../runs/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type {
   SignalExecution,
   StrategyAccountPoint,
@@ -17,7 +17,7 @@ export async function getStrategyExecutionOverview(
   userId: string,
   deploymentId: string,
 ): Promise<StrategyExecutionOverview> {
-  const deployment = await prisma.strategyDeployment.findFirst({
+  const deployment = await getDatabase().strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
     select: { id: true, accountingVersion: true },
   });
@@ -31,16 +31,16 @@ export async function getStrategyExecutionOverview(
 
   const completedIds = await completedSignalRunIds({ deploymentId });
   const [runs, snapshots, executions] = await Promise.all([
-    prisma.signalRun.findMany({
+    getDatabase().signalRun.findMany({
       where: { deploymentId, id: { in: completedIds }, modelEquity: { not: null } },
       orderBy: { tradeDate: 'asc' },
       select: { tradeDate: true, modelEquity: true },
     }),
-    prisma.strategyAccountSnapshot.findMany({
+    getDatabase().strategyAccountSnapshot.findMany({
       where: { deploymentId },
       orderBy: [{ tradeDate: 'asc' }, { kind: 'asc' }],
     }),
-    prisma.signalExecution.findMany({
+    getDatabase().signalExecution.findMany({
       where: { signalRun: { deploymentId } },
       select: {
         action: true,

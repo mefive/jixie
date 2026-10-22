@@ -6,14 +6,23 @@ const database = vi.hoisted(() => ({
   industries: vi.fn(),
   weights: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    marketIndicator: { findMany: database.market },
-    indexIndicator: { count: database.indices },
-    industryIndicator: { count: database.industries },
-    indexWeight: { groupBy: database.weights },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      marketIndicator: { findMany: database.market },
+      indexIndicator: { count: database.indices },
+      industryIndicator: { count: database.industries },
+      indexWeight: { groupBy: database.weights },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 const dates = ['20260917', '20260918'];
 beforeEach(() => {
   vi.resetAllMocks();

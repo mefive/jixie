@@ -27,7 +27,23 @@ export const manifestSchema = z.object({
   ),
   completedActions: z.array(z.string()),
   publishedRevision: z.number().optional(),
+  failure: z
+    .object({ kind: z.enum(['source', 'other']), message: z.string(), at: z.iso.datetime() })
+    .optional(),
+  replacementId: z
+    .string()
+    .regex(/^[A-Z0-9]+$/)
+    .optional(),
+  cleanup: z
+    .object({
+      state: z.enum(['pending', 'complete']),
+      reason: z.string(),
+      at: z.iso.datetime(),
+      bytes: z.number().nonnegative().optional(),
+    })
+    .optional(),
   timings: z.record(z.string(), z.number().nonnegative()).optional(),
+  progress: z.json().optional(),
   result: z.json().optional(),
   audit: z.json().optional(),
 });

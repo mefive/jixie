@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
@@ -14,7 +14,7 @@ export async function syncIndexMembershipHistory(
   startDate: string,
   endDate: string,
 ): Promise<string | null> {
-  const indexBefore = await prisma.indexWeight.findMany({
+  const indexBefore = await getDatabase().indexWeight.findMany({
     where: {
       indexCode: { in: MARKET_WEATHER_INDICATOR_INDEX_CODES },
       tradeDate: { gte: startDate, lte: endDate },
@@ -24,7 +24,7 @@ export async function syncIndexMembershipHistory(
   for (const indexCode of MARKET_WEATHER_INDICATOR_INDEX_CODES) {
     await syncIndexWeight(client, indexCode, startDate as TradeDate, endDate as TradeDate);
   }
-  const indexAfter = await prisma.indexWeight.findMany({
+  const indexAfter = await getDatabase().indexWeight.findMany({
     where: {
       indexCode: { in: MARKET_WEATHER_INDICATOR_INDEX_CODES },
       tradeDate: { gte: startDate, lte: endDate },
@@ -45,11 +45,11 @@ export async function syncIndexMembershipHistory(
  * Synchronize industry membership history and detect revisions.
  */
 export async function syncIndustryMembershipHistory(client: TushareClient): Promise<string | null> {
-  const industryBefore = await prisma.swIndustryMember.findMany({
+  const industryBefore = await getDatabase().swIndustryMember.findMany({
     orderBy: [{ tsCode: 'asc' }, { l1Code: 'asc' }, { inDate: 'asc' }],
   });
   await syncSwIndustry(client);
-  const industryAfter = await prisma.swIndustryMember.findMany({
+  const industryAfter = await getDatabase().swIndustryMember.findMany({
     orderBy: [{ tsCode: 'asc' }, { l1Code: 'asc' }, { inDate: 'asc' }],
   });
   return earliestChangedDate(

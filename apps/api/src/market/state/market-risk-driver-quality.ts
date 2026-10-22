@@ -1,5 +1,5 @@
 import { MARKET_RISK_FACTOR_KEYS_V1, type MarketRiskFactorKeyV1 } from '@jixie/shared';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import {
   loadMarketRiskDriverHistory,
   type MarketRiskDriverHistoryV1,
@@ -38,7 +38,7 @@ export interface MarketRiskDriverQualitySummary {
 
 export async function inspectMarketRiskDrivers(
   options: { startDate: string; endDate: string },
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<MarketRiskDriverQualitySummary> {
   const eligibleStart =
     options.startDate > MARKET_RISK_EARLIEST_DATE ? options.startDate : MARKET_RISK_EARLIEST_DATE;

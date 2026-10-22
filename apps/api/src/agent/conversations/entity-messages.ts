@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { ChatMessage, Locale } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { t } from '#i18n/index.js';
 import type { TurnEntity } from '../turns/run.js';
 import { readCodeProposalHistory } from './code-proposals.js';
@@ -18,7 +18,7 @@ export async function readMessages(
   locale: Locale,
 ): Promise<unknown[]> {
   if (entity.kind === 'research' || entity.kind === 'factor-question') {
-    const conversation = await prisma.agentConversation.findFirst({
+    const conversation = await getDatabase().agentConversation.findFirst({
       where: {
         id: entity.id,
         userId,
@@ -58,10 +58,10 @@ export async function readMessages(
   let row: { messages: Prisma.JsonValue } | null;
   switch (entity.kind) {
     case 'strategy':
-      row = await prisma.strategy.findFirst({ where, select: { messages: true } });
+      row = await getDatabase().strategy.findFirst({ where, select: { messages: true } });
       break;
     case 'factor':
-      row = await prisma.factor.findFirst({ where, select: { messages: true } });
+      row = await getDatabase().factor.findFirst({ where, select: { messages: true } });
       break;
   }
 
@@ -69,7 +69,7 @@ export async function readMessages(
     throw new Error(t(locale, 'turnHostGone'));
   }
   return Array.isArray(row.messages)
-    ? readCodeProposalHistory(prisma, userId, entity.kind, entity.id, row.messages)
+    ? readCodeProposalHistory(getDatabase(), userId, entity.kind, entity.id, row.messages)
     : [];
 }
 
@@ -86,12 +86,12 @@ export async function writeMessages(entity: TurnEntity, messages: ChatMessage[])
 
   switch (entity.kind) {
     case 'strategy':
-      await prisma.strategy.update({ where: { id: entity.id }, data });
+      await getDatabase().strategy.update({ where: { id: entity.id }, data });
       break;
     case 'factor':
       if (
         (
-          await prisma.factor.updateMany({
+          await getDatabase().factor.updateMany({
             where: { id: entity.id, status: 'draft' },
             data,
           })

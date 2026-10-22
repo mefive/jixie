@@ -1,3 +1,4 @@
+import { withDatabase, type Prisma } from '#infra/database/prisma.js';
 import { researchSandboxPool } from '../research-sandbox-pool.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -37,17 +38,21 @@ describe('Research FactorReport Python runtime bridge', () => {
   });
 
   it('loads a report through results.factor_report without exposing write operations', async () => {
-    const execution = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'factor-report',
-          source:
-            'factor_report = results.factor_report("report-a")\nfactor_report["report"]["ic_mean"]',
-        },
-      }),
-    );
+    return withDatabase(testDatabase, async () => {
+      const execution = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'factor-report',
+            source:
+              'factor_report = results.factor_report("report-a")\nfactor_report["report"]["ic_mean"]',
+          },
+        }),
+      );
 
-    expect(mocks.loadFactorReport).toHaveBeenCalledWith(DOCUMENT_ID, 'report-a');
-    expect(execution.outputs).toEqual([{ type: 'value', value: 0.05 }]);
+      expect(mocks.loadFactorReport).toHaveBeenCalledWith(DOCUMENT_ID, 'report-a');
+      expect(execution.outputs).toEqual([{ type: 'value', value: 0.05 }]);
+    });
   }, 30_000);
 });
+
+const testDatabase = { maintenanceState: { findUnique: async () => null } } as unknown as Prisma;

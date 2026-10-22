@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
 import { factorRuntimeVersion } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -20,7 +20,7 @@ export async function createFactorDraft(userId: string, input: CreateFactorDraft
 
   if (
     BUILTIN_KEYS.has(key) ||
-    (await prisma.factorComposite.findFirst({
+    (await getDatabase().factorComposite.findFirst({
       where: { userId, key },
       select: { id: true },
     }))
@@ -40,7 +40,7 @@ export async function createFactorDraft(userId: string, input: CreateFactorDraft
   const id = ulid();
 
   try {
-    await prisma.factor.create({
+    await getDatabase().factor.create({
       data: {
         id,
         userId,
@@ -88,7 +88,7 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
     throw new FactorError('preset_factor_readonly_edit');
   }
 
-  const existing = await prisma.factor.findFirst({
+  const existing = await getDatabase().factor.findFirst({
     where: { id, userId },
     select: {
       name: true,
@@ -108,7 +108,7 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
   }
 
   if (code !== undefined && code !== existing.code) {
-    const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
+    const pinned = await getDatabase().factorWeatherPin.count({ where: { factorId: id } });
     if (pinned > 0) {
       throw new FactorError('pinned_factor_readonly_edit');
     }
@@ -148,7 +148,7 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
     data.name = name;
   }
 
-  const row = await prisma.factor.update({
+  const row = await getDatabase().factor.update({
     where: { id },
     data,
     select: { id: true, name: true },
@@ -167,7 +167,10 @@ export async function deleteFactorDraft(userId: string, id: string) {
     throw new FactorError('preset_factor_readonly_delete');
   }
 
-  const factor = await prisma.factor.findFirst({ where: { id, userId }, select: { status: true } });
+  const factor = await getDatabase().factor.findFirst({
+    where: { id, userId },
+    select: { status: true },
+  });
 
   if (!factor) {
     throw new FactorError('factor_not_found');
@@ -177,13 +180,13 @@ export async function deleteFactorDraft(userId: string, id: string) {
     throw new FactorError('published_factor_cannot_delete');
   }
 
-  const pinned = await prisma.factorWeatherPin.count({ where: { factorId: id } });
+  const pinned = await getDatabase().factorWeatherPin.count({ where: { factorId: id } });
 
   if (pinned > 0) {
     throw new FactorError('pinned_factor_readonly_delete');
   }
 
-  await prisma.factor.deleteMany({ where: { id, userId } });
+  await getDatabase().factor.deleteMany({ where: { id, userId } });
 
   return { ok: true };
 }
@@ -194,7 +197,7 @@ export async function deleteFactorDraft(userId: string, id: string) {
  * Create an independent factor draft from an accessible source with provenance.
  */
 export async function copyFactorDraft(userId: string, factorId: string) {
-  const source = await prisma.factor.findFirst({
+  const source = await getDatabase().factor.findFirst({
     where: {
       id: factorId,
       OR: [
@@ -220,12 +223,12 @@ export async function copyFactorDraft(userId: string, factorId: string) {
     throw new FactorError('factor_not_found');
   }
 
-  const { key, version } = await nextCopyKey(prisma, userId, source.key);
+  const { key, version } = await nextCopyKey(getDatabase(), userId, source.key);
   const nameBase = source.name.replace(/\s+v\d+$/i, '');
   const name = `${nameBase} v${version}`.slice(0, 40);
   const id = ulid();
 
-  await prisma.factor.create({
+  await getDatabase().factor.create({
     data: {
       id,
       userId,

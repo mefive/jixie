@@ -16,9 +16,18 @@ const mocks = vi.hoisted(() => ({
   publish: vi.fn(),
   calendarSync: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: { tradeCal: { findFirst: mocks.calendar, findUnique: vi.fn() } },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: { tradeCal: { findFirst: mocks.calendar, findUnique: vi.fn() } },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('#market/calendar/read.js', () => ({
   getOpenDatesAfter: mocks.dates,
   getExplicitOpenDate: vi.fn(),

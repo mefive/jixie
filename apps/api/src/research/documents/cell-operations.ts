@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchCellKindV1, ResearchDocumentV1 } from '@jixie/shared';
 import { analyzeAndPersist, analyzeResearchCellSources } from '../dependencies/analyze.js';
 import { ResearchError } from '../errors.js';
@@ -27,7 +27,7 @@ export async function addResearchCell(
   kind: ResearchCellKindV1,
   source = '',
 ): Promise<ResearchDocumentV1> {
-  const document = await prisma.researchDocument.findFirst({
+  const document = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
@@ -38,14 +38,14 @@ export async function addResearchCell(
     throw new ResearchError('document_not_found');
   }
   await assertNoOpenCellChangeReview(documentId);
-  await prisma.$transaction([
-    prisma.researchCell.create({
+  await getDatabase().$transaction([
+    getDatabase().researchCell.create({
       data: {
         ...cellCreate({ kind, source }, (document.cells[0]?.position ?? -1) + 1),
         documentId,
       },
     }),
-    prisma.researchDocument.update({
+    getDatabase().researchDocument.update({
       where: { id: documentId },
       data: { updatedAt: new Date(), contentRevision: { increment: 1 } },
     }),
@@ -64,7 +64,7 @@ export async function updateResearchCell(
   cellId: string,
   patch: UpdateResearchCellInput,
 ): Promise<ResearchDocumentV1> {
-  const cell = await prisma.researchCell.findFirst({
+  const cell = await getDatabase().researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: {
       id: true,
@@ -99,7 +99,7 @@ export async function updateResearchCell(
   if (!contentChanged) {
     return getResearchDocument(userId, cell.documentId);
   }
-  const documentCells = await prisma.researchCell.findMany({
+  const documentCells = await getDatabase().researchCell.findMany({
     where: { documentId: cell.documentId },
     select: {
       id: true,
@@ -127,7 +127,7 @@ export async function updateResearchCell(
         definitions: jsonStringArray(candidate.definitions),
         references: jsonStringArray(candidate.references),
       }));
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     const result = await transaction.researchCell.updateMany({
       where: { id: cell.id, revision: patch.expectedRevision },
       data: {
@@ -199,7 +199,7 @@ export async function deleteResearchCell(
   userId: string,
   cellId: string,
 ): Promise<ResearchDocumentV1> {
-  const cell = await prisma.researchCell.findFirst({
+  const cell = await getDatabase().researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },
     select: {
       id: true,
@@ -226,7 +226,7 @@ export async function deleteResearchCell(
     beforeAnalyses,
   );
 
-  await prisma.researchCell.delete({ where: { id: cell.id } });
+  await getDatabase().researchCell.delete({ where: { id: cell.id } });
   const analyses = await analyzeAndPersist(cell.documentId);
   await appendDeletedResearchCellDependencyIssues(
     cell.documentId,
@@ -241,7 +241,7 @@ export async function deleteResearchCell(
     missingDefinitionsByCellId,
   );
   await reconcileResearchCellDependencyIssues(cell.documentId, analyses);
-  await prisma.researchDocument.update({
+  await getDatabase().researchDocument.update({
     where: { id: cell.documentId },
     data: { updatedAt: new Date(), contentRevision: { increment: 1 } },
   });

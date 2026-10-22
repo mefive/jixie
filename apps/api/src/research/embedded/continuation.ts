@@ -1,6 +1,6 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -23,7 +23,7 @@ export async function continueEmbeddedResearch(
   runId: string,
   locale: Locale,
 ) {
-  const documentId = await prisma.$transaction(async (transaction) => {
+  const documentId = await getDatabase().$transaction(async (transaction) => {
     const run = await transaction.researchExecution.findFirst({
       where: { id: runId, embeddedVersion: { analysisId, analysis: { userId } } },
       include: { embeddedVersion: { include: { analysis: true } }, inputs: true },
@@ -111,7 +111,7 @@ export async function changeEmbeddedInputMode(
   documentId: string,
   input: ResearchEmbeddedInputModeInput,
 ) {
-  const owned = await prisma.researchDocument.findFirst({
+  const owned = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null, conversation: { archivedAt: null } },
     select: { id: true },
   });
@@ -121,7 +121,7 @@ export async function changeEmbeddedInputMode(
   const control = startResearchDocumentRun(documentId);
   try {
     await assertNoOpenCellChangeReview(documentId);
-    const changed = await prisma.$transaction(async (transaction) => {
+    const changed = await getDatabase().$transaction(async (transaction) => {
       const document = await transaction.researchDocument.findFirst({
         where: {
           id: documentId,

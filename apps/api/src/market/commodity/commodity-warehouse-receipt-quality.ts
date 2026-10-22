@@ -1,5 +1,5 @@
 import { addDays } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { COMMODITY_FUTURE_SPECS, type CommodityFutureProductCode } from './commodity-futures.js';
 import { isAuditedAuKilogramMislabelDate } from './commodity-warehouse-receipts.js';
 
@@ -76,7 +76,7 @@ const MAXIMUM_INVALID_ROW_DETAILS = 8;
  */
 export async function auditCommodityWarehouseReceipts(
   options: CommodityWarehouseReceiptQualityOptions,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<CommodityWarehouseReceiptQualitySummary> {
   assertOptions(options);
   const calendarEnd = addDays(options.endDate, 14);

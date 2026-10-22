@@ -1,5 +1,5 @@
 import type { FactorResearchSpecV1 } from '@jixie/shared';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 
 /**
  * 解析宏观版本、状态与目标资产的共同可用截止日。
@@ -8,7 +8,7 @@ import { prisma, type Prisma } from '#infra/database/prisma.js';
  */
 export async function resolveMacroRegimeDataCutoff(
   researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'macro_regime' }>,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<string | null> {
   const [latestMacro, latestAssets] = await Promise.all([
     database.macroObservation.aggregate({ _max: { vintageDate: true } }),

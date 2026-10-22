@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
 import { messageText, normalizeChatMessage, type ChatMessage } from '@jixie/shared';
 import { z } from 'zod';
@@ -85,7 +85,7 @@ export async function refreshFactorMetadata(input: {
   code: string;
   messages: ChatMessage[];
 }): Promise<void> {
-  const existing = await prisma.factor.findFirst({
+  const existing = await getDatabase().factor.findFirst({
     where: { id: input.factorId, userId: input.userId },
     select: {
       name: true,
@@ -110,7 +110,7 @@ export async function refreshFactorMetadata(input: {
         ? existing.analysisKind
         : 'cross_sectional',
   });
-  await prisma.factor.update({
+  await getDatabase().factor.update({
     where: { id: input.factorId },
     data: {
       name: metadata.nameZh,
@@ -127,7 +127,7 @@ export async function refreshFactorMetadata(input: {
  */
 export async function refreshOwnedFactorMetadata(userId: string, input: FactorMetadataInput) {
   const { id, code } = input;
-  const factor = await prisma.factor.findFirst({
+  const factor = await getDatabase().factor.findFirst({
     where: { id, userId: userId },
     select: { messages: true, status: true },
   });

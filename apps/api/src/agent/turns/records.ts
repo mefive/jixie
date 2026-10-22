@@ -14,7 +14,7 @@ import {
 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { codeProposalView, type CodeProposalContext } from '../conversations/code-proposals.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { persistResearchCellChangePart } from '#research/proposals/change-records.js';
 import { persistResearchClarificationPart } from '#research/proposals/clarification-records.js';
 import type { TurnEntity } from './run.js';
@@ -43,7 +43,7 @@ export async function startPersistentTurn(args: {
 }): Promise<PersistentTurn> {
   const conversation = await findOrCreateConversation(args);
 
-  return prisma.$transaction((transaction) =>
+  return getDatabase().$transaction((transaction) =>
     createPersistentTurnInput(transaction, {
       turnId: args.turnId,
       conversationId: conversation.id,
@@ -112,7 +112,7 @@ export async function finishPersistentTurn(args: {
   trace: AgentTurnTrace;
   codeChange?: CodeProposalContext & { afterCode: string };
 }): Promise<MessagePart[] | undefined> {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const turn = await transaction.agentTurn.findUnique({
       where: { id: args.turnId },
       select: {
@@ -234,7 +234,7 @@ export async function finishPersistentTurn(args: {
  * Save the exact run before the tool waits for Python or the model generates its explanation.
  */
 export async function persistEmbeddedAnalysisPart(turnId: string, part: EmbeddedAnalysisPart) {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const turn = await transaction.agentTurn.findUnique({
       where: { id: turnId },
       include: { conversation: true },
@@ -303,7 +303,7 @@ function mergeEmbeddedParts(parts: MessagePart[], saved: MessagePart[]): Message
 }
 
 export async function markRunningAgentTurnsInterrupted(): Promise<number> {
-  const turns = await prisma.agentTurn.findMany({
+  const turns = await getDatabase().agentTurn.findMany({
     where: { status: 'running' },
     select: { id: true },
   });
@@ -319,7 +319,7 @@ export async function markRunningAgentTurnsInterrupted(): Promise<number> {
       throw error;
     }
     try {
-      const result = await prisma.agentTurn.updateMany({
+      const result = await getDatabase().agentTurn.updateMany({
         where: { id: turn.id, status: 'running' },
         data: {
           status: 'interrupted',

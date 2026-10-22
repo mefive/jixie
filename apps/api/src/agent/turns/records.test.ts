@@ -6,12 +6,21 @@ const mocks = vi.hoisted(() => ({
   findConversation: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    $transaction: mocks.transaction,
-    agentConversation: { findFirst: mocks.findConversation },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      $transaction: mocks.transaction,
+      agentConversation: { findFirst: mocks.findConversation },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { finishPersistentTurn, startPersistentTurn } from './records.js';
 import { resolveResearchClarificationAnswer } from '#research/proposals/clarification-records.js';

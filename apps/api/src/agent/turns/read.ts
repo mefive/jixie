@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { AgentTurnDetail } from '@jixie/shared';
 import { AgentError } from '../errors.js';
 
@@ -8,7 +8,7 @@ import { AgentError } from '../errors.js';
  * Authorize a turn and return its input, trace and persisted state.
  */
 export async function getTurnDetail(userId: string, turnId: string) {
-  const row = await prisma.agentTurn.findFirst({
+  const row = await getDatabase().agentTurn.findFirst({
     where: { id: turnId, conversation: { userId: userId } },
   });
   if (!row) {

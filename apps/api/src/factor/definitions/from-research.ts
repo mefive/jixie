@@ -7,7 +7,7 @@ import type {
   ResearchFactorHandoffV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { BUILTIN_KEYS } from './builtin-factors.js';
 
 /**
@@ -31,7 +31,7 @@ export async function findResearchFactorDraft(
   userId: string,
   executionId: string,
 ): Promise<ResearchFactorDraftResultV1 | null> {
-  const existing = await prisma.factor.findFirst({
+  const existing = await getDatabase().factor.findFirst({
     where: { userId, sourceResearchExecutionId: executionId },
     select: {
       id: true,
@@ -58,14 +58,14 @@ export async function createFactorDraftFromResearch(
   for (let attempt = 0; attempt < 100; attempt++) {
     const key = factorKeyCandidate(input.factorKeyBase, attempt);
     const [factorWithKey, compositeWithKey] = await Promise.all([
-      prisma.factor.findFirst({ where: { userId, key }, select: { id: true } }),
-      prisma.factorComposite.findFirst({ where: { userId, key }, select: { id: true } }),
+      getDatabase().factor.findFirst({ where: { userId, key }, select: { id: true } }),
+      getDatabase().factorComposite.findFirst({ where: { userId, key }, select: { id: true } }),
     ]);
     if (factorWithKey || compositeWithKey || BUILTIN_KEYS.has(key)) {
       continue;
     }
     try {
-      const factor = await prisma.factor.create({
+      const factor = await getDatabase().factor.create({
         data: {
           id: ulid(),
           userId,

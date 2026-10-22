@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 记录当日证券数据覆盖，供股票发布校验。
@@ -33,7 +33,7 @@ export interface StockDateQuality {
  * Validate one day's stock prices, valuations and trading constraints before publication.
  */
 export async function validateStockDate(tradeDate: string): Promise<StockDateQuality> {
-  const coverageRows = await prisma.$queryRaw<CoverageRow[]>`
+  const coverageRows = await getDatabase().$queryRaw<CoverageRow[]>`
       SELECT
         COUNT(*) AS daily,
         SUM(CASE WHEN a.tsCode IS NOT NULL THEN 1 ELSE 0 END) AS adjustmentMatches,

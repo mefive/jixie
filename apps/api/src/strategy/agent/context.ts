@@ -1,8 +1,8 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { KNOWN_INDICES } from '../sandbox/typescript/codegen-prompt.js';
 
 export async function syncedIndexContext(): Promise<string> {
-  const present = await prisma.indexWeight.findMany({
+  const present = await getDatabase().indexWeight.findMany({
     select: { indexCode: true },
     distinct: ['indexCode'],
   });
@@ -19,11 +19,11 @@ export async function syncedIndexContext(): Promise<string> {
  */
 export async function publishedFactorContext(userId: string): Promise<string> {
   const [factors, composites] = await Promise.all([
-    prisma.factor.findMany({
+    getDatabase().factor.findMany({
       where: { userId, status: 'published' },
       select: { key: true, name: true, analysisKind: true, publishedAt: true },
     }),
-    prisma.factorComposite.findMany({
+    getDatabase().factorComposite.findMany({
       where: { userId, status: 'published', key: { not: null } },
       select: { key: true, name: true, publishedAt: true },
     }),

@@ -1,6 +1,6 @@
 import { strategyScanReportState } from '#strategy/scans/state.js';
 import { factorWeatherMethodology } from '#factor/weather/refresh.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 const MAX_STRATEGY_SCAN_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
@@ -24,8 +24,8 @@ type ResearchJsonValue =
  */
 export async function loadResearchStrategyScanReportResult(documentId: string, reportId: string) {
   const userId = await researchDocumentUserId(documentId);
-  const row = await prisma.strategyScanReport
-    .findFirst({
+  const row = await getDatabase()
+    .strategyScanReport.findFirst({
       where: { id: reportId, userId },
       select: {
         legacyError: true,
@@ -79,7 +79,7 @@ export async function loadResearchStrategyScanReportResult(documentId: string, r
  */
 export async function loadResearchFactorWeatherResult(documentId: string, factorId: string) {
   const userId = await researchDocumentUserId(documentId);
-  const pin = await prisma.factorWeatherPin.findFirst({
+  const pin = await getDatabase().factorWeatherPin.findFirst({
     where: { userId, factorId },
     select: {
       factorId: true,
@@ -136,7 +136,7 @@ export async function loadResearchFactorWeatherResult(documentId: string, factor
 }
 
 async function researchDocumentUserId(documentId: string): Promise<string> {
-  const document = await prisma.agentConversation.findFirst({
+  const document = await getDatabase().agentConversation.findFirst({
     where: { id: documentId, surface: 'research', archivedAt: null },
     select: { userId: true, researchDocument: { select: { id: true } } },
   });

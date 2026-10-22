@@ -1,5 +1,5 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
 import { affectedResearchCellRunPlan } from '../dependencies/run-plan.js';
@@ -21,7 +21,7 @@ export async function runAffectedResearchCells(
   cellId: string,
 ): Promise<ResearchDocumentRunResultV1> {
   return withMarketAccess(async () => {
-    const cell = await prisma.researchCell.findFirst({
+    const cell = await getDatabase().researchCell.findFirst({
       where: { id: cellId, document: { userId, embeddedVersion: null } },
       select: { id: true, documentId: true },
     });
@@ -40,7 +40,7 @@ export async function runAffectedResearchCells(
 
       const downstreamCellIds = plan.cellIds.filter((affectedCellId) => affectedCellId !== cell.id);
       if (downstreamCellIds.length > 0) {
-        await prisma.researchCell.updateMany({
+        await getDatabase().researchCell.updateMany({
           where: {
             documentId: cell.documentId,
             id: { in: downstreamCellIds },

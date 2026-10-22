@@ -5,7 +5,7 @@ import type {
   PortfolioRiskAnalysisV1,
 } from '@jixie/shared';
 import { addDays } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import type { BacktestResult } from '../backtests/result.js';
 import {
   alignAlphaPeriodReturnsToRiskAvailability,
@@ -109,7 +109,7 @@ export function buildBacktestRiskAnalysis(
  */
 export async function attachBacktestRiskAnalysis(
   result: BacktestResult,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<void> {
   const nav = allocationNav(result);
   if (

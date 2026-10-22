@@ -4,7 +4,7 @@ import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { COMMODITY_FUTURE_SPECS } from '#market/commodity/commodity-futures.js';
 import { isAuditedAuKilogramMislabelDate } from '#market/commodity/commodity-warehouse-receipts.js';
 import { addDays, daysBetween } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 import type { EtfTrendDailyRow } from './etf-trend-observations.js';
 import { COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD } from '../definitions/fields.js';
@@ -66,7 +66,7 @@ export async function loadCommodityWarehouseReceiptTimeSeriesObservations(
   );
   const upperBound = researchSpec.dataPolicy.dataCutoff ?? undefined;
   const [bars, adjustments, warehouseReceiptPoints, metadata] = await Promise.all([
-    prisma.etfDaily.findMany({
+    getDatabase().etfDaily.findMany({
       where: {
         tsCode: { in: researchSpec.assets },
         tradeDate: { gte: historyStart, ...(upperBound ? { lte: upperBound } : {}) },
@@ -75,14 +75,14 @@ export async function loadCommodityWarehouseReceiptTimeSeriesObservations(
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
-    prisma.etfAdjFactor.findMany({
+    getDatabase().etfAdjFactor.findMany({
       where: {
         tsCode: { in: researchSpec.assets },
         tradeDate: { gte: historyStart, ...(upperBound ? { lte: upperBound } : {}) },
       },
       select: { tsCode: true, tradeDate: true, adjFactor: true },
     }),
-    prisma.commodityWarehouseReceipt.findMany({
+    getDatabase().commodityWarehouseReceipt.findMany({
       where: {
         productCode: { in: mappings.map((mapping) => mapping.productCode) },
         availableDate: {
@@ -103,7 +103,7 @@ export async function loadCommodityWarehouseReceiptTimeSeriesObservations(
       },
       orderBy: [{ productCode: 'asc' }, { availableDate: 'asc' }, { unit: 'asc' }],
     }),
-    prisma.etfBasic.findMany({
+    getDatabase().etfBasic.findMany({
       where: { tsCode: { in: researchSpec.assets } },
       select: { tsCode: true },
     }),

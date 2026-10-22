@@ -6,14 +6,23 @@ const mocks = vi.hoisted(() => ({
   runtimeClose: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    agentConversation: {
-      findFirst: mocks.conversationFindFirst,
-      update: mocks.conversationUpdate,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      agentConversation: {
+        findFirst: mocks.conversationFindFirst,
+        update: mocks.conversationUpdate,
+      },
     },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 vi.mock('../sandbox/research-sandbox-pool.js', () => ({
   researchSandboxPool: { close: mocks.runtimeClose },

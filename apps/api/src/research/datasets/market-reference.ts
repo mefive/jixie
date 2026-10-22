@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 指定受控参考数据的身份和日期范围。
@@ -17,7 +17,7 @@ export interface ResearchReferenceDatasetRequestV1 {
  * ETF shares are gated by the first later China-market session on which the source row is usable.
  */
 export async function loadResearchEtfShares(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await prisma.etfShareSize.findMany({
+  const rows = await getDatabase().etfShareSize.findMany({
     where: {
       tsCode: request.identifier,
       availableDate: { gte: request.start, lte: request.end },
@@ -41,7 +41,7 @@ export async function loadResearchEtfShares(request: ResearchReferenceDatasetReq
  * Preserve the provider's official index-level methodology instead of reconstructing valuations.
  */
 export async function loadResearchIndexValuation(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await prisma.indexDailyBasic.findMany({
+  const rows = await getDatabase().indexDailyBasic.findMany({
     where: {
       tsCode: request.identifier,
       tradeDate: { gte: request.start, lte: request.end },
@@ -69,7 +69,7 @@ export async function loadResearchIndexValuation(request: ResearchReferenceDatas
  * Load one governed Shenwan level-1 industry by either its stable code or exact name.
  */
 export async function loadResearchIndustryState(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await prisma.industryIndicator.findMany({
+  const rows = await getDatabase().industryIndicator.findMany({
     where: {
       OR: [{ l1Code: request.identifier }, { l1Name: request.identifier }],
       tradeDate: { gte: request.start, lte: request.end },
@@ -98,7 +98,7 @@ export async function loadResearchIndustryState(request: ResearchReferenceDatase
  * Load exchange settlement parameters only for an actual delivery contract.
  */
 export async function loadResearchFuturesSettlement(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await prisma.futureSettlement.findMany({
+  const rows = await getDatabase().futureSettlement.findMany({
     where: {
       tsCode: request.identifier,
       tradeDate: { gte: request.start, lte: request.end },

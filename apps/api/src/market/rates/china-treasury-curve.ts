@@ -1,4 +1,6 @@
-import { prisma } from '#infra/database/prisma.js';
+import { HttpStatusError } from '../errors.js';
+import { fetchMarketSource, readMarketSourceText } from '../providers/source-fetch.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   CHINA_TREASURY_CURVE_SOURCE,
   CHINA_TREASURY_CURVE_CODE,
@@ -81,7 +83,7 @@ export class MinistryOfFinanceCurveClient implements ChinaTreasuryCurveClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const response = await this.fetchImpl(`${SOURCE_ENDPOINT}?${parameters}`, {
+      const response = await fetchMarketSource(this.fetchImpl, `${SOURCE_ENDPOINT}?${parameters}`, {
         method: 'POST',
         headers: {
           accept: 'application/json',
@@ -90,9 +92,16 @@ export class MinistryOfFinanceCurveClient implements ChinaTreasuryCurveClient {
         signal: controller.signal,
       });
       if (!response.ok) {
-        throw new Error(`China treasury curve source returned HTTP ${response.status}`);
+        throw new HttpStatusError(
+          response.status,
+          `China treasury curve source returned HTTP ${response.status}`,
+        );
       }
-      return parseChinaTreasuryCurveResponse(await response.json(), startDate, endDate);
+      return parseChinaTreasuryCurveResponse(
+        JSON.parse(await readMarketSourceText(response)),
+        startDate,
+        endDate,
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -181,7 +190,7 @@ export async function syncChinaTreasuryYieldCurve(
       onLog(`China treasury curve ${range.startDate}..${range.endDate}: no observations`);
       continue;
     }
-    const openDates = await prisma.tradeCal.findMany({
+    const openDates = await getDatabase().tradeCal.findMany({
       where: {
         exchange: 'SSE',
         isOpen: 1,
@@ -195,8 +204,8 @@ export async function syncChinaTreasuryYieldCurve(
       openDates.map((row) => row.calDate),
     );
     const retrievedAt = new Date();
-    await prisma.$transaction([
-      prisma.yieldCurvePoint.deleteMany({
+    await getDatabase().$transaction([
+      getDatabase().yieldCurvePoint.deleteMany({
         where: {
           source: CHINA_TREASURY_CURVE_SOURCE,
           curveCode: CHINA_TREASURY_CURVE_CODE,
@@ -204,7 +213,7 @@ export async function syncChinaTreasuryYieldCurve(
           tradeDate: { gte: range.startDate, lte: range.endDate },
         },
       }),
-      prisma.yieldCurvePoint.createMany({
+      getDatabase().yieldCurvePoint.createMany({
         data: available.map((point) => ({
           source: CHINA_TREASURY_CURVE_SOURCE,
           curveCode: CHINA_TREASURY_CURVE_CODE,

@@ -1,7 +1,7 @@
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import { backtestReportState } from '#strategy/backtests/state.js';
 import { inspectStrategyMetadata } from '#strategy/sandbox/inspect-definition.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { FactorHost } from '#strategy/simulation/factor-host.js';
 
 import { codeConfigSchema } from '@jixie/shared/api/strategy';
@@ -22,8 +22,8 @@ export async function deployBacktestReport(
   reportId: string,
   locale: Locale,
 ): Promise<StrategyDeployment> {
-  const report = await prisma.backtestReport
-    .findFirst({ include: { job: true }, where: { id: reportId, userId } })
+  const report = await getDatabase()
+    .backtestReport.findFirst({ include: { job: true }, where: { id: reportId, userId } })
     .then((row) => (row ? backtestReportState(row) : row));
   if (!report) {
     throw new SignalsError('report_not_found');
@@ -37,7 +37,7 @@ export async function deployBacktestReport(
     throw new SignalsError('report_not_ready');
   }
 
-  const existing = await prisma.strategyDeployment.findFirst({
+  const existing = await getDatabase().strategyDeployment.findFirst({
     where: { activeReportId: reportId, userId },
   });
   if (existing) {
@@ -93,8 +93,8 @@ export async function deployBacktestReport(
     locale,
   };
   // A unique nullable key makes concurrent requests idempotent without pausing other reports.
-  const row = await prisma.strategyDeployment
-    .upsert({
+  const row = await getDatabase()
+    .strategyDeployment.upsert({
       where: { activeReportId: report.id },
       create,
       update: {},
@@ -106,7 +106,7 @@ export async function deployBacktestReport(
         'code' in error &&
         error.code === 'P2002'
       ) {
-        const winner = await prisma.strategyDeployment.findFirst({
+        const winner = await getDatabase().strategyDeployment.findFirst({
           where: { activeReportId: report.id, userId },
         });
         if (winner) {
@@ -128,7 +128,7 @@ export async function pauseDeployment(
   userId: string,
   deploymentId: string,
 ): Promise<StrategyDeployment> {
-  const deployment = await prisma.strategyDeployment.findFirst({
+  const deployment = await getDatabase().strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
   });
   if (!deployment) {
@@ -137,7 +137,7 @@ export async function pauseDeployment(
   if (deployment.status === 'paused') {
     return deploymentWire(deployment);
   }
-  const updated = await prisma.strategyDeployment.update({
+  const updated = await getDatabase().strategyDeployment.update({
     where: { id: deployment.id },
     data: { status: 'paused', activeReportId: null, stoppedAt: new Date() },
   });

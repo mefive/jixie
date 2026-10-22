@@ -23,6 +23,10 @@ beforeAll(async () => {
   await mkdir(join(directory, 'maintenance-staging', 'TEST'), { recursive: true });
   databaseUrl = `file:${join(directory, 'maintenance-staging', 'TEST', 'candidate.db')}`;
   await writeFile(join(directory, 'formal.db'), '');
+  await writeFile(
+    join(directory, 'maintenance-staging', 'TEST', 'requirements.json'),
+    JSON.stringify({ active: [], versioned: [] }),
+  );
   await writeFile(join(directory, 'maintenance-staging', 'TEST', 'candidate.db'), '');
   await executeFile(
     process.execPath,
@@ -72,14 +76,31 @@ async function runWorker(callback: string, compiled: boolean) {
       'market/fundamentals/reference-worker-process.' + (compiled ? 'js' : 'ts'),
     ),
   ).href;
+  const moduleUrl = (name: string) =>
+    pathToFileURL(
+      join(apiDirectory, compiled ? 'dist/src' : 'src', `${name}.${compiled ? 'js' : 'ts'}`),
+    ).href;
+  const context = {
+    id: 'TEST',
+    directory: join(directory, 'maintenance-staging', 'TEST'),
+    formalUrl: `file:${join(directory, 'formal.db')}`,
+    timestamp: '2026-10-21T00:00:00Z',
+    date: '20261021',
+    upperBound: '20261020',
+    requirements: { active: [], versioned: [] },
+  };
   await writeFile(
     runner,
     `import { runReferenceWorkerProcess } from '${entry}';
+     import { withStagingContext } from '${moduleUrl('infra/coordination/staging-input')}';
+     import { withMaintenanceLock } from '${moduleUrl('infra/coordination/market-access')}';
+     await withStagingContext(${JSON.stringify(context)}, () => withMaintenanceLock(async () => {
      const completed = [];
      const summary = await runReferenceWorkerProcess('dividends', ['000001.SZ', '600000.SH'], {
        onItemComplete: async item => { ${callback} }
      });
-     console.log(JSON.stringify({ completed, summary }));`,
+     console.log(JSON.stringify({ completed, summary }));
+     }));`,
   );
   return executeFile(
     process.execPath,
@@ -90,10 +111,7 @@ async function runWorker(callback: string, compiled: boolean) {
         ...process.env,
         NODE_OPTIONS: '',
         NODE_ENV: 'test',
-        DATABASE_URL: databaseUrl,
-        JIXIE_STAGING_DATABASE: databaseUrl,
-        JIXIE_FORMAL_DATABASE_URL: `file:${join(directory, 'formal.db')}`,
-        JIXIE_MAINTENANCE_CANDIDATE: 'TEST',
+        DATABASE_URL: `file:${join(directory, 'formal.db')}`,
         TUSHARE_TOKEN: 'fixture',
         TUSHARE_BASE_URL: providerUrl,
       },

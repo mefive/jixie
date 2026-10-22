@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { MAJOR_INDEX_DAILY_BASIC_CODES } from '../registry/index-presets.js';
 import { buildIndexValuationSeries } from './compute.js';
 
@@ -8,7 +8,7 @@ import { buildIndexValuationSeries } from './compute.js';
  * Load available index valuation identities and coverage for selection.
  */
 export async function loadIndexValuationCatalog() {
-  const coverage = await prisma.indexDailyBasic.groupBy({
+  const coverage = await getDatabase().indexDailyBasic.groupBy({
     by: ['tsCode'],
     where: { tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
     _min: { tradeDate: true },
@@ -44,7 +44,7 @@ export async function loadIndexValuation(tsCode: string) {
   }
 
   const [basicRows, closeRows] = await Promise.all([
-    prisma.indexDailyBasic.findMany({
+    getDatabase().indexDailyBasic.findMany({
       where: { tsCode },
       select: {
         tsCode: true,
@@ -56,7 +56,7 @@ export async function loadIndexValuation(tsCode: string) {
       },
       orderBy: { tradeDate: 'asc' },
     }),
-    prisma.indexDaily.findMany({
+    getDatabase().indexDaily.findMany({
       where: { tsCode },
       select: { tradeDate: true, close: true },
       orderBy: { tradeDate: 'asc' },

@@ -11,7 +11,7 @@ import {
   type ResolvedFinancialStatement,
 } from '#market/fundamentals/resolver.js';
 import { canonicalStockCode } from '#market/instruments/stock-identity.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { normalizeFinancialFields, validateFinancialReportRange } from './financial.js';
 
 /**
@@ -35,7 +35,7 @@ export interface ResearchFinancialValuesRequestV1 {
  */
 export async function loadResearchFinancialValues(
   request: ResearchFinancialValuesRequestV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ) {
   const identifiers =
     typeof request.identifiers === 'string' ? [request.identifiers] : request.identifiers;

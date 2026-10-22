@@ -3,7 +3,7 @@ import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
 import { startFactorAnalysis } from '#factor/evaluations/start.js';
 import { factorResearchIntentV1Schema } from '@jixie/shared/api/factor';
 import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   timeSeriesAggregateMetrics,
   type FactorHoldoutPolicyV1,
@@ -105,7 +105,7 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
       }
 
       const [factor, policy] = await Promise.all([
-        prisma.factor.findFirst({
+        getDatabase().factor.findFirst({
           where: {
             id: context.factorId,
             userId: context.userId,

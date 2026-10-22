@@ -6,13 +6,22 @@ const mocks = vi.hoisted(() => ({
   create: vi.fn(),
   update: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    maintenanceRun: mocks,
-    $transaction: async (operation: (transaction: unknown) => unknown) =>
-      operation({ maintenanceRun: mocks }),
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      maintenanceRun: mocks,
+      $transaction: async (operation: (transaction: unknown) => unknown) =>
+        operation({ maintenanceRun: mocks }),
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 const { recordDailySourceWait, getPendingDailyRun } = await import('./state.js');
 beforeEach(() => vi.resetAllMocks());
 

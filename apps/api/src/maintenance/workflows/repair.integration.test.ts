@@ -90,11 +90,6 @@ beforeAll(async () => {
   await writeFile(resolve(directory, 'formal.db'), '');
   await writeFile(resolve(candidateDirectory, 'candidate.db'), '');
   vi.stubEnv('DATABASE_URL', candidateUrl);
-  vi.stubEnv('JIXIE_STAGING_DATABASE', candidateUrl);
-  vi.stubEnv('JIXIE_FORMAL_DATABASE_URL', `file:${resolve(directory, 'formal.db')}`);
-  vi.stubEnv('JIXIE_MAINTENANCE_CANDIDATE', 'CASE');
-  vi.stubEnv('JIXIE_MAINTENANCE_TIME', '2026-10-20T07:37:59.339Z');
-  vi.stubEnv('JIXIE_MAINTENANCE_DATE', '20261020');
   execFileSync(process.execPath, ['node_modules/prisma/build/index.js', 'migrate', 'deploy'], {
     cwd: apiDirectory,
     env: process.env,
@@ -279,110 +274,220 @@ function providerRows(api: string, parameters: Record<string, unknown>): Tushare
 
 describe('repair index prerequisites against migrated SQLite', () => {
   it('fills the missing 24 universes before real refresh/daily validation and preserves the publication watermark', async () => {
-    await expect(validateIndexWeightDate(tradeDates[0])).rejects.toThrow(
-      'no point-in-time snapshot',
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+    return withStagingContext(
+      {
+        id: 'CASE',
+        directory: resolve(directory, 'maintenance-staging', 'CASE'),
+        formalUrl: 'file:' + resolve(directory, 'formal.db'),
+        timestamp: '2026-10-20T07:37:59.339Z',
+        date: '20261020',
+        upperBound: '20261019',
+        requirements: { active: [], versioned: [] },
+      },
+      () =>
+        withDatabase(prisma, async () => {
+          await expect(validateIndexWeightDate(tradeDates[0])).rejects.toThrow(
+            'no point-in-time snapshot',
+          );
+          await runRepairMaintenance(tradeDates[0], tradeDates[1], true);
+          expect(await prisma.indexWeight.groupBy({ by: ['indexCode'] })).toHaveLength(
+            MARKET_WEATHER_INDICATOR_INDEX_CODES.length,
+          );
+          expect(await prisma.daily.count()).toBe(2);
+          expect(await prisma.stockBasic.count({ where: { listStatus: 'D' } })).toBe(1);
+          expect(
+            await prisma.stockNameHistory.count({ where: { tsCode: '000001.SZ' } }),
+          ).toBeGreaterThan(0);
+          expect(
+            await prisma.maintenanceRun.findMany({ select: { kind: true, status: true } }),
+          ).toEqual(
+            expect.arrayContaining([
+              { kind: 'repair', status: 'done' },
+              { kind: 'daily', status: 'done' },
+            ]),
+          );
+          expect(
+            await prisma.maintenanceRun.count({ where: { kind: 'daily', status: 'done' } }),
+          ).toBe(2);
+          expect(
+            await prisma.maintenanceState.findUnique({ where: { key: 'global' } }),
+          ).toMatchObject({
+            dailyPublishedThrough: '20260730',
+          });
+          const lastMembership = requests.map((request) => request.api).lastIndexOf('index_weight');
+          expect(lastMembership).toBeLessThan(
+            requests.findIndex((request) => request.api === 'daily'),
+          );
+          expect(
+            requests
+              .filter((request) => request.api === 'index_weight')
+              .some((request) => String(request.parameters.start_date) < tradeDates[0]),
+          ).toBe(true);
+        }),
     );
-    await runRepairMaintenance(tradeDates[0], tradeDates[1], true);
-    expect(await prisma.indexWeight.groupBy({ by: ['indexCode'] })).toHaveLength(
-      MARKET_WEATHER_INDICATOR_INDEX_CODES.length,
-    );
-    expect(await prisma.daily.count()).toBe(2);
-    expect(await prisma.stockBasic.count({ where: { listStatus: 'D' } })).toBe(1);
-    expect(await prisma.stockNameHistory.count({ where: { tsCode: '000001.SZ' } })).toBeGreaterThan(
-      0,
-    );
-    expect(await prisma.maintenanceRun.findMany({ select: { kind: true, status: true } })).toEqual(
-      expect.arrayContaining([
-        { kind: 'repair', status: 'done' },
-        { kind: 'daily', status: 'done' },
-      ]),
-    );
-    expect(await prisma.maintenanceRun.count({ where: { kind: 'daily', status: 'done' } })).toBe(2);
-    expect(await prisma.maintenanceState.findUnique({ where: { key: 'global' } })).toMatchObject({
-      dailyPublishedThrough: '20260730',
-    });
-    const lastMembership = requests.map((request) => request.api).lastIndexOf('index_weight');
-    expect(lastMembership).toBeLessThan(requests.findIndex((request) => request.api === 'daily'));
-    expect(
-      requests
-        .filter((request) => request.api === 'index_weight')
-        .some((request) => String(request.parameters.start_date) < tradeDates[0]),
-    ).toBe(true);
   });
 
   it('prepares the same prerequisites for gap-only repair', async () => {
-    await runRepairMaintenance(tradeDates[0], tradeDates[1]);
-    expect(await prisma.daily.count()).toBe(2);
-    expect(await prisma.maintenanceRun.findFirst({ where: { kind: 'repair' } })).toMatchObject({
-      status: 'done',
-    });
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+    return withStagingContext(
+      {
+        id: 'CASE',
+        directory: resolve(directory, 'maintenance-staging', 'CASE'),
+        formalUrl: 'file:' + resolve(directory, 'formal.db'),
+        timestamp: '2026-10-20T07:37:59.339Z',
+        date: '20261020',
+        upperBound: '20261019',
+        requirements: { active: [], versioned: [] },
+      },
+      () =>
+        withDatabase(prisma, async () => {
+          await runRepairMaintenance(tradeDates[0], tradeDates[1]);
+          expect(await prisma.daily.count()).toBe(2);
+          expect(
+            await prisma.maintenanceRun.findFirst({ where: { kind: 'repair' } }),
+          ).toMatchObject({
+            status: 'done',
+          });
+        }),
+    );
   });
 
   it.each(['empty', 'future', 'failure'] as const)(
     'rejects %s provider data before daily downloads',
     async (mode) => {
-      providerMode = mode;
-      await expect(runRepairMaintenance(tradeDates[0], tradeDates[1], true)).rejects.toThrow(
-        mode === 'failure' ? 'Fixture provider failed' : 'no fresh as-of snapshot',
+      const { withDatabase } = await import('#infra/database/prisma.js');
+      const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+      return withStagingContext(
+        {
+          id: 'CASE',
+          directory: resolve(directory, 'maintenance-staging', 'CASE'),
+          formalUrl: 'file:' + resolve(directory, 'formal.db'),
+          timestamp: '2026-10-20T07:37:59.339Z',
+          date: '20261020',
+          upperBound: '20261019',
+          requirements: { active: [], versioned: [] },
+        },
+        () =>
+          withDatabase(prisma, async () => {
+            providerMode = mode;
+            await expect(runRepairMaintenance(tradeDates[0], tradeDates[1], true)).rejects.toThrow(
+              mode === 'failure' ? 'Fixture provider failed' : 'no fresh as-of snapshot',
+            );
+            expect(requests.some((request) => request.api === 'daily')).toBe(false);
+            expect(
+              await prisma.maintenanceRun.findFirst({ where: { kind: 'repair' } }),
+            ).toMatchObject({
+              status: 'error',
+            });
+            expect(
+              await prisma.maintenanceState.findUnique({ where: { key: 'global' } }),
+            ).toMatchObject({
+              dataRevision: 3,
+              dailyPublishedThrough: '20260730',
+            });
+          }),
       );
-      expect(requests.some((request) => request.api === 'daily')).toBe(false);
-      expect(await prisma.maintenanceRun.findFirst({ where: { kind: 'repair' } })).toMatchObject({
-        status: 'error',
-      });
-      expect(await prisma.maintenanceState.findUnique({ where: { key: 'global' } })).toMatchObject({
-        dataRevision: 3,
-        dailyPublishedThrough: '20260730',
-      });
     },
   );
 
   it('rejects stale snapshots using the configured publication policy', async () => {
-    providerMode = 'empty';
-    await prisma.indexWeight.createMany({
-      data: MARKET_WEATHER_INDICATOR_INDEX_CODES.filter(
-        (indexCode) => !oldCodes.includes(indexCode),
-      ).map((indexCode) => ({
-        indexCode,
-        conCode: '000001.SZ',
-        tradeDate: '20260731',
-        weight: 100,
-      })),
-    });
-    vi.stubEnv('MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS', '5');
-    try {
-      await expect(runRepairMaintenance(tradeDates[0], tradeDates[1], true)).rejects.toThrow(
-        'no fresh as-of snapshot',
-      );
-      expect(requests.some((request) => request.api === 'daily')).toBe(false);
-    } finally {
-      delete process.env.MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS;
-    }
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+    return withStagingContext(
+      {
+        id: 'CASE',
+        directory: resolve(directory, 'maintenance-staging', 'CASE'),
+        formalUrl: 'file:' + resolve(directory, 'formal.db'),
+        timestamp: '2026-10-20T07:37:59.339Z',
+        date: '20261020',
+        upperBound: '20261019',
+        requirements: { active: [], versioned: [] },
+      },
+      () =>
+        withDatabase(prisma, async () => {
+          providerMode = 'empty';
+          await prisma.indexWeight.createMany({
+            data: MARKET_WEATHER_INDICATOR_INDEX_CODES.filter(
+              (indexCode) => !oldCodes.includes(indexCode),
+            ).map((indexCode) => ({
+              indexCode,
+              conCode: '000001.SZ',
+              tradeDate: '20260731',
+              weight: 100,
+            })),
+          });
+          vi.stubEnv('MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS', '5');
+          try {
+            await expect(runRepairMaintenance(tradeDates[0], tradeDates[1], true)).rejects.toThrow(
+              'no fresh as-of snapshot',
+            );
+            expect(requests.some((request) => request.api === 'daily')).toBe(false);
+          } finally {
+            delete process.env.MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS;
+          }
+        }),
+    );
   });
 
   it('audits a short requested range against sixty real preceding sessions', async () => {
-    const calendar = Array.from(
-      { length: 100 },
-      (_, index) => new Date(Date.UTC(2026, 7, 14 - (99 - index))),
-    )
-      .filter((date) => date.getUTCDay() !== 0 && date.getUTCDay() !== 6)
-      .slice(-61)
-      .map((date) => date.toISOString().slice(0, 10).replaceAll('-', ''));
-    await prisma.tradeCal.createMany({
-      data: calendar.map((calDate) => ({ exchange: 'SSE', calDate, isOpen: 1 })),
-    });
-    await prisma.daily.createMany({
-      data: calendar.map((tradeDate) => ({ tsCode: '000001.SZ', tradeDate, close: 10 })),
-    });
-    const finding = await auditWindowCoverage(prisma, ['20260814'], 60, 1);
-    expect(finding.status).toBe('pass');
-    expect(finding.details[0]).toContain('n=1');
-    expect(finding.details[0]).toContain(`${calendar[1]}..20260814`);
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+    return withStagingContext(
+      {
+        id: 'CASE',
+        directory: resolve(directory, 'maintenance-staging', 'CASE'),
+        formalUrl: 'file:' + resolve(directory, 'formal.db'),
+        timestamp: '2026-10-20T07:37:59.339Z',
+        date: '20261020',
+        upperBound: '20261019',
+        requirements: { active: [], versioned: [] },
+      },
+      () =>
+        withDatabase(prisma, async () => {
+          const calendar = Array.from(
+            { length: 100 },
+            (_, index) => new Date(Date.UTC(2026, 7, 14 - (99 - index))),
+          )
+            .filter((date) => date.getUTCDay() !== 0 && date.getUTCDay() !== 6)
+            .slice(-61)
+            .map((date) => date.toISOString().slice(0, 10).replaceAll('-', ''));
+          await prisma.tradeCal.createMany({
+            data: calendar.map((calDate) => ({ exchange: 'SSE', calDate, isOpen: 1 })),
+          });
+          await prisma.daily.createMany({
+            data: calendar.map((tradeDate) => ({ tsCode: '000001.SZ', tradeDate, close: 10 })),
+          });
+          const finding = await auditWindowCoverage(prisma, ['20260814'], 60, 1);
+          expect(finding.status).toBe('pass');
+          expect(finding.details[0]).toContain('n=1');
+          expect(finding.details[0]).toContain(`${calendar[1]}..20260814`);
+        }),
+    );
   });
 
   it('keeps the window audit failing when sixty sessions really are unavailable', async () => {
-    await prisma.tradeCal.createMany({
-      data: tradeDates.map((calDate) => ({ exchange: 'SSE', calDate, isOpen: 1 })),
-    });
-    expect((await auditWindowCoverage(prisma, tradeDates, 60, 1)).status).toBe('error');
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+    return withStagingContext(
+      {
+        id: 'CASE',
+        directory: resolve(directory, 'maintenance-staging', 'CASE'),
+        formalUrl: 'file:' + resolve(directory, 'formal.db'),
+        timestamp: '2026-10-20T07:37:59.339Z',
+        date: '20261020',
+        upperBound: '20261019',
+        requirements: { active: [], versioned: [] },
+      },
+      () =>
+        withDatabase(prisma, async () => {
+          await prisma.tradeCal.createMany({
+            data: tradeDates.map((calDate) => ({ exchange: 'SSE', calDate, isOpen: 1 })),
+          });
+          expect((await auditWindowCoverage(prisma, tradeDates, 60, 1)).status).toBe('error');
+        }),
+    );
   });
 });

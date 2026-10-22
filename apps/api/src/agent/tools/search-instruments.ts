@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { resolveInstruments } from '#market/instruments/instrument-resolver.js';
 import { etfResearchMembership } from '#market/registry/etf-research-registry.js';
 import type { AgentTool } from './types.js';
@@ -38,11 +38,11 @@ export const searchInstruments: AgentTool = {
     const codes = (await resolveInstruments(parsed.data.query)).slice(0, MAX_MATCHES);
     const [stocks, etfs, etfCoverage] = codes.length
       ? await Promise.all([
-          prisma.stockBasic.findMany({
+          getDatabase().stockBasic.findMany({
             where: { tsCode: { in: codes } },
             select: { tsCode: true, name: true, industry: true },
           }),
-          prisma.etfBasic.findMany({
+          getDatabase().etfBasic.findMany({
             where: { tsCode: { in: codes } },
             select: {
               tsCode: true,
@@ -55,7 +55,7 @@ export const searchInstruments: AgentTool = {
               delistDate: true,
             },
           }),
-          prisma.etfDaily.groupBy({
+          getDatabase().etfDaily.groupBy({
             by: ['tsCode'],
             where: { tsCode: { in: codes } },
             _count: { _all: true },

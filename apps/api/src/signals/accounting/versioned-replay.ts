@@ -3,7 +3,7 @@ import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
 import type { BacktestConfig, SignalAccounts } from '@jixie/shared';
 import { signalAccountsSchema, signalFillSchema } from '@jixie/shared/api/signals';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { DEFAULT_COST } from '#backtesting/cost.js';
 import { completedSignalRunIds } from '../runs/state.js';
 import { SignalsError } from '../errors.js';
@@ -31,10 +31,10 @@ export async function rebuildVersionedAccount(
   kind: 'simulation' | 'actual',
   throughDate: string,
 ): Promise<void> {
-  let deployment = await prisma.strategyDeployment.findUniqueOrThrow({
+  let deployment = await getDatabase().strategyDeployment.findUniqueOrThrow({
     where: { id: deploymentId },
   });
-  const runs = await prisma.signalRun.findMany({
+  const runs = await getDatabase().signalRun.findMany({
     where: {
       deploymentId,
       resultVersion: 2,
@@ -49,11 +49,13 @@ export async function rebuildVersionedAccount(
     return;
   }
 
-  deployment = await prisma.strategyDeployment.findUniqueOrThrow({ where: { id: deploymentId } });
+  deployment = await getDatabase().strategyDeployment.findUniqueOrThrow({
+    where: { id: deploymentId },
+  });
   const publishedGeneration =
     kind === 'simulation' ? deployment.simulationGeneration : deployment.actualGeneration;
   const published = publishedGeneration
-    ? await prisma.signalAccountState.findFirst({
+    ? await getDatabase().signalAccountState.findFirst({
         where: { deploymentId, kind, generation: publishedGeneration },
         orderBy: { tradeDate: 'desc' },
       })
@@ -62,15 +64,15 @@ export async function rebuildVersionedAccount(
   const revision = deployment.accountInputRevision;
   const baseline = await readVersionedBaseline(deploymentId, kind);
   let state = baseline;
-  const dates = await prisma.tradeCal.findMany({
+  const dates = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gt: baseline.date, lte: throughDate } },
     orderBy: { calDate: 'asc' },
   });
-  const tasks = await prisma.signalExecution.findMany({
+  const tasks = await getDatabase().signalExecution.findMany({
     where: { deploymentId, version: 2 },
     orderBy: { taskKey: 'asc' },
   });
-  const fills = await prisma.signalFill.findMany({
+  const fills = await getDatabase().signalFill.findMany({
     where: { deploymentId },
     orderBy: { createdAt: 'asc' },
   });
@@ -192,7 +194,7 @@ export async function rebuildVersionedAccount(
           execDate: date,
           cost,
         });
-        const task = await createExecutionTask(prisma, {
+        const task = await createExecutionTask(getDatabase(), {
           deploymentId,
           userId: deployment.userId,
           execDate: date,
@@ -239,7 +241,7 @@ export async function rebuildVersionedAccount(
       }
       await freezeSignalMarketInput(deploymentId, market);
       const payload = state as Prisma.InputJsonValue;
-      await prisma.$transaction(async (transaction) => {
+      await getDatabase().$transaction(async (transaction) => {
         const current = await transaction.strategyDeployment.findUniqueOrThrow({
           where: { id: deploymentId },
         });
@@ -320,7 +322,7 @@ export async function rebuildVersionedAccount(
         }
       });
     }
-    await prisma.$transaction(async (transaction) => {
+    await getDatabase().$transaction(async (transaction) => {
       const changed = await transaction.strategyDeployment.updateMany({
         where: {
           id: deploymentId,
@@ -351,7 +353,7 @@ export async function rebuildVersionedAccount(
       }
     });
   } catch (error) {
-    await prisma.strategyDeployment.updateMany({
+    await getDatabase().strategyDeployment.updateMany({
       where: {
         id: deploymentId,
         accountInputRevision: revision,
@@ -386,13 +388,13 @@ export async function readPublishedAccount(
   deploymentId: string,
   kind: 'simulation' | 'actual',
 ): Promise<SignalAccounts> {
-  const deployment = await prisma.strategyDeployment.findUniqueOrThrow({
+  const deployment = await getDatabase().strategyDeployment.findUniqueOrThrow({
     where: { id: deploymentId },
   });
   const generation =
     kind === 'simulation' ? deployment.simulationGeneration : deployment.actualGeneration;
   const row = generation
-    ? await prisma.signalAccountState.findFirst({
+    ? await getDatabase().signalAccountState.findFirst({
         where: { deploymentId, kind, generation },
         orderBy: { tradeDate: 'desc' },
       })

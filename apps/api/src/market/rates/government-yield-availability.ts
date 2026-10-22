@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,
@@ -26,7 +26,7 @@ export async function loadGovernmentYieldAvailability(
 ): Promise<GovernmentYieldAvailability[]> {
   const observations = await Promise.all(
     requiredTerms.map((termYears) =>
-      prisma.yieldCurvePoint.findFirst({
+      getDatabase().yieldCurvePoint.findFirst({
         where: {
           source: CHINA_TREASURY_CURVE_SOURCE,
           curveCode: CHINA_TREASURY_CURVE_CODE,

@@ -1,6 +1,6 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import type { ResearchAffectedRunPlan } from '../dependencies/run-plan.js';
 import { assertResearchCellIdsRunnable } from '../dependencies/runnable.js';
@@ -30,7 +30,7 @@ export async function runResearchCellChangeAttemptPlan(
   },
 ): Promise<ResearchDocumentRunResultV1> {
   return withMarketAccess(async () => {
-    const document = await prisma.researchDocument.findFirst({
+    const document = await getDatabase().researchDocument.findFirst({
       where: { id: documentId, userId, embeddedVersion: null },
       select: { id: true },
     });
@@ -44,7 +44,7 @@ export async function runResearchCellChangeAttemptPlan(
       if (args.clean) {
         await researchSandboxPool.reset(documentId);
         if (!control.interrupted) {
-          await prisma.researchCell.updateMany({
+          await getDatabase().researchCell.updateMany({
             where: {
               documentId,
               kind: 'python',
@@ -59,7 +59,7 @@ export async function runResearchCellChangeAttemptPlan(
       const executedCellIds = await executeAffectedResearchCellPlan(
         plan,
         async (cellId) => {
-          const current = await prisma.researchDocument.findUnique({
+          const current = await getDatabase().researchDocument.findUnique({
             where: { id: documentId },
             select: { contentRevision: true },
           });
@@ -75,7 +75,7 @@ export async function runResearchCellChangeAttemptPlan(
         },
         () => control.interrupted,
       );
-      const finalDocument = await prisma.researchDocument.findUnique({
+      const finalDocument = await getDatabase().researchDocument.findUnique({
         where: { id: documentId },
         select: { contentRevision: true },
       });

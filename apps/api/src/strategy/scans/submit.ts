@@ -1,6 +1,6 @@
 import type { StrategyScanJobPayload } from './job-payload.js';
 import { inspectStrategyParameters } from './inspect-parameters.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { UserCodeError } from '#infra/errors.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
@@ -71,13 +71,13 @@ export async function submitStrategyScan(
   const reportId = ulid();
   const jobId = ulid();
   const dataCutoff = (
-    await prisma.daily.findFirst({
+    await getDatabase().daily.findFirst({
       where: { tradeDate: { lte: config.end } },
       orderBy: { tradeDate: 'desc' },
       select: { tradeDate: true },
     })
   )?.tradeDate;
-  const created = await prisma.$transaction(async (transaction) => {
+  const created = await getDatabase().$transaction(async (transaction) => {
     const strategy = await transaction.strategy.findFirst({
       where: { id: strategyId, userId },
       select: { id: true, name: true },
@@ -166,11 +166,11 @@ async function resolveRanges(config: BacktestConfig, spec: StrategyScanSpec) {
   }
 
   const [splitDay, nextDay] = await Promise.all([
-    prisma.tradeCal.findFirst({
+    getDatabase().tradeCal.findFirst({
       where: { calDate: spec.splitDate, isOpen: 1 },
       select: { calDate: true },
     }),
-    prisma.tradeCal.findFirst({
+    getDatabase().tradeCal.findFirst({
       where: { calDate: { gt: spec.splitDate, lte: config.end }, isOpen: 1 },
       orderBy: { calDate: 'asc' },
       select: { calDate: true },

@@ -2,7 +2,7 @@ import { DEFAULT_CROSS_SECTIONAL_MINIMUM_WINDOW_COVERAGE } from '../contract.js'
 import { FactorSandbox } from '../../sandbox/factor-sandbox.js';
 import type { FactorBatchItem } from '../../sandbox/contract.js';
 import { t } from '#i18n/messages.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { UserLogSink } from '#infra/sandbox/console.js';
 import type { FactorBar } from '@jixie/shared';
 import { DEFAULT_LOCALE, type FactorLanguage, type Locale } from '@jixie/shared';
@@ -92,7 +92,7 @@ export async function computeFactorSeries(
 
   const currentFactor = factorCodeSnapshot
     ? null
-    : await prisma.factor.findUnique({
+    : await getDatabase().factor.findUnique({
         where: { id: factorKey },
         select: { code: true, language: true },
       });
@@ -137,7 +137,7 @@ export async function computeFactorSeries(
   const marketCloseByDate = needsMarketCloseHistory
     ? new Map(
         (
-          await prisma.indexDaily.findMany({
+          await getDatabase().indexDaily.findMany({
             where: { tsCode: '000985.CSI' },
             select: { tradeDate: true, close: true },
           })
@@ -160,7 +160,7 @@ export async function computeFactorSeries(
    */
   const loadBars = async (date: string): Promise<Map<string, FactorBar>> => {
     const [basicRows, flowRows] = await Promise.all([
-      prisma.dailyBasic.findMany({
+      getDatabase().dailyBasic.findMany({
         where: { tradeDate: date },
         select: {
           tsCode: true,
@@ -176,7 +176,7 @@ export async function computeFactorSeries(
           turnoverRate: true,
         },
       }),
-      prisma.moneyflow.findMany({
+      getDatabase().moneyflow.findMany({
         where: { tradeDate: date },
         select: { tsCode: true, netMain: true, netTotal: true },
       }),
@@ -247,7 +247,7 @@ export async function computeFactorSeries(
     }
     const rebalanceSet = new Set(dates);
     const marketDates = (
-      await prisma.tradeCal.findMany({
+      await getDatabase().tradeCal.findMany({
         where: { exchange: 'SSE', isOpen: 1, calDate: { lte: dates.at(-1) ?? '00000000' } },
         select: { calDate: true },
         orderBy: { calDate: 'asc' },
@@ -261,10 +261,9 @@ export async function computeFactorSeries(
     }
 
     const listDateMap = new Map(
-      (await prisma.stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map((s) => [
-        s.tsCode,
-        s.listDate,
-      ]),
+      (await getDatabase().stockBasic.findMany({ select: { tsCode: true, listDate: true } })).map(
+        (s) => [s.tsCode, s.listDate],
+      ),
     );
     // Stock universe = tsCodes already found quoted on some rebalance date by loadSnapshots.
     // A stock absent from every snapshot can never survive the snapDate/snapNextDate lookup below
@@ -284,18 +283,18 @@ export async function computeFactorSeries(
         onLog(t(locale, 'factorComputeProgress', { done, total: tsCodes.size }));
       }
       const [priceRows, adjRows, basicRows] = await Promise.all([
-        prisma.daily.findMany({
+        getDatabase().daily.findMany({
           where: { tsCode },
           select: { tradeDate: true, close: true, amount: true },
           orderBy: { tradeDate: 'asc' },
         }),
-        prisma.adjFactor.findMany({
+        getDatabase().adjFactor.findMany({
           where: { tsCode },
           select: { tradeDate: true, adjFactor: true },
           orderBy: { tradeDate: 'asc' },
         }),
         needsTurnoverRateFHistory
-          ? prisma.dailyBasic.findMany({
+          ? getDatabase().dailyBasic.findMany({
               where: { tsCode },
               select: { tradeDate: true, turnoverRateF: true },
               orderBy: { tradeDate: 'asc' },

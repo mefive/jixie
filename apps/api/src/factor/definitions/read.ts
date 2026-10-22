@@ -1,5 +1,5 @@
 import { type Locale } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { readCodeProposalHistory } from '#agent/conversations/code-proposals.js';
 import { FactorError } from '../errors.js';
 import { inspectFactorTargetAssetClasses } from '../sandbox/inspect-definition.js';
@@ -10,7 +10,7 @@ import { timeSeriesTemplateResource } from './templates/time-series.js';
 import { strategyKey } from './views.js';
 
 export async function listOwnedFactors(userId: string) {
-  const rows = await prisma.factor.findMany({
+  const rows = await getDatabase().factor.findMany({
     where: { userId },
     select: {
       id: true,
@@ -55,7 +55,7 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
     return macroRegimeTemplate;
   }
 
-  const row = await prisma.factor.findFirst({
+  const row = await getDatabase().factor.findFirst({
     where: {
       id: factorId,
       OR: [
@@ -108,7 +108,7 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
     messages:
       ownerId === userId
         ? Array.isArray(row.messages)
-          ? await readCodeProposalHistory(prisma, userId, 'factor', factorId, row.messages)
+          ? await readCodeProposalHistory(getDatabase(), userId, 'factor', factorId, row.messages)
           : row.messages
         : null,
     researchHandoff: ownerId === userId ? row.researchHandoff : null,

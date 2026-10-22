@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type {
   ResearchCellChangeConflictV1,
   ResearchCellChangeOperationV1,
@@ -116,7 +116,7 @@ export async function prepareResearchCellChangeProposal(
     );
   }
 
-  const document = await prisma.researchDocument.findFirst({
+  const document = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
@@ -282,7 +282,7 @@ export async function applyResearchCellChangeProposal(
   userId: string,
   proposalId: string,
 ): Promise<ResearchCellChangeResolutionResultV1> {
-  const transactionResult = await prisma.$transaction(
+  const transactionResult = await getDatabase().$transaction(
     async (transaction): Promise<ApplyTransactionResult> => {
       const proposal = await transaction.researchCellChangeProposal.findFirst({
         where: { id: proposalId, document: { userId, embeddedVersion: null } },
@@ -394,7 +394,7 @@ export async function rejectResearchCellChangeProposal(
   userId: string,
   proposalId: string,
 ): Promise<ResearchCellChangeResolutionResultV1> {
-  const transactionResult = await prisma.$transaction(async (transaction) => {
+  const transactionResult = await getDatabase().$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
     });
@@ -432,7 +432,7 @@ export async function acceptResearchCellChangeReview(
   proposalId: string,
   expectedContentRevision: number,
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
-  const documentId = await prisma.$transaction(async (transaction) => {
+  const documentId = await getDatabase().$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
       include: { document: { select: { id: true, contentRevision: true } } },
@@ -493,7 +493,7 @@ export async function revertResearchCellChangeReview(
   proposalId: string,
   expectedContentRevision: number,
 ): Promise<ResearchCellChangeReviewResolutionResultV1> {
-  const transactionResult = await prisma.$transaction(async (transaction) => {
+  const transactionResult = await getDatabase().$transaction(async (transaction) => {
     const proposal = await transaction.researchCellChangeProposal.findFirst({
       where: { id: proposalId, document: { userId, embeddedVersion: null } },
       include: {

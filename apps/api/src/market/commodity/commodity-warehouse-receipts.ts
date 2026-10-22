@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { addDays, day } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import {
   futureWarehouseReceipts,
   type FutureWarehouseReceiptRow,
@@ -249,7 +249,7 @@ export async function syncCommodityWarehouseReceipts(
   client: TushareClient,
   start: TradeDate,
   end: TradeDate,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
   onLog: (line: string) => void = console.log,
 ): Promise<number> {
   assertDateRange(start, end);

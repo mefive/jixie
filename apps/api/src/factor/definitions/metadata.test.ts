@@ -2,9 +2,18 @@ import type { LlmCall } from '#infra/llm/deepseek.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), update: vi.fn(), chatJson: vi.fn() }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: { factor: { findFirst: mocks.findFirst, update: mocks.update } },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: { factor: { findFirst: mocks.findFirst, update: mocks.update } },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('#infra/llm/deepseek.js', () => ({ chatJson: mocks.chatJson }));
 
 import { t } from '#i18n/index.js';

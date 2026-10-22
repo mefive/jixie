@@ -1,4 +1,5 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getStagingContext } from '#infra/coordination/staging-input.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   getExplicitOpenDate,
   getOpenDates,
@@ -153,11 +154,11 @@ export async function runDailyMaintenance(
   const latestAvailableCutoff = await latestCompletedTradeDate();
   const scheduledDate = options.targetDate
     ? null
-    : await prisma.tradeCal.findFirst({
+    : await getDatabase().tradeCal.findFirst({
         where: {
           exchange: 'SSE',
           isOpen: 1,
-          calDate: { lte: process.env.JIXIE_MAINTENANCE_UPPER_BOUND ?? scheduledDailyUpperBound() },
+          calDate: { lte: getStagingContext()?.upperBound ?? scheduledDailyUpperBound() },
         },
         orderBy: { calDate: 'desc' },
         select: { calDate: true },
@@ -194,7 +195,7 @@ export async function runDailyMaintenance(
     : await getOpenDatesAfter(state.dailyPublishedThrough!, cutoff);
 
   if (!options.targetDate && !pending && trigger === 'timer') {
-    const todayCalendar = await prisma.tradeCal.findUnique({
+    const todayCalendar = await getDatabase().tradeCal.findUnique({
       where: { exchange_calDate: { exchange: 'SSE', calDate: today } },
       select: { isOpen: true },
     });
@@ -521,7 +522,7 @@ async function initializePublishedBaseline(
   onLog: (line: string) => void,
   deferPublication = false,
 ): Promise<Awaited<ReturnType<typeof getMaintenanceState>>> {
-  const latest = await prisma.daily.findFirst({
+  const latest = await getDatabase().daily.findFirst({
     where: { tradeDate: { lte: cutoff } },
     orderBy: { tradeDate: 'desc' },
     select: { tradeDate: true },
@@ -578,7 +579,7 @@ async function initializePublishedBaseline(
     await updateMaintenanceRun(run.id, 'validating_raw', summary);
     await validateRawMarketDate(tradeDate);
     if (!deferPublication) {
-      const marketIndicator = await prisma.marketIndicator.findUnique({
+      const marketIndicator = await getDatabase().marketIndicator.findUnique({
         where: { tradeDate },
         select: { tradeDate: true },
       });
@@ -785,7 +786,7 @@ async function refreshCommodityWarehouseReceipts(
   onLog: (line: string) => void,
 ): Promise<CommodityWarehouseReceiptMaintenanceSummary> {
   await updateMaintenanceRun(runId, 'commodity_warehouse_receipts', summary);
-  return maintainCommodityWarehouseReceipts(client, cutoff as TradeDate, prisma, onLog, {
+  return maintainCommodityWarehouseReceipts(client, cutoff as TradeDate, getDatabase(), onLog, {
     lookbackTradingDays: positiveInteger(
       process.env.MAINTENANCE_WAREHOUSE_RECEIPT_LOOKBACK_DAYS,
       20,
@@ -821,7 +822,7 @@ async function refreshCommodityContinuousReturns(
     client,
     addCalendarDays(cutoff, -45),
     cutoff,
-    prisma,
+    getDatabase(),
     onLog,
   );
 }
@@ -874,8 +875,9 @@ function createClient(): TushareClient {
 }
 
 function shanghaiToday(): string {
-  if (process.env.JIXIE_MAINTENANCE_DATE) {
-    return process.env.JIXIE_MAINTENANCE_DATE;
+  const date = getStagingContext()?.date;
+  if (date) {
+    return date;
   }
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',

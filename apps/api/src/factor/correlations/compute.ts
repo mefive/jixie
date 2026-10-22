@@ -1,6 +1,6 @@
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import type { FactorCorrelation, FactorFreq } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { UserLogSink } from '#infra/sandbox/console.js';
 import { t } from '#i18n/messages.js';
 import * as st from '#math/stats.js';
@@ -124,7 +124,10 @@ export async function computeFactorCorrelation(
       locale,
     );
     lookups.push(toLookup(series));
-    const row = await prisma.factor.findUnique({ where: { id: key }, select: { name: true } });
+    const row = await getDatabase().factor.findUnique({
+      where: { id: key },
+      select: { name: true },
+    });
     labels.push(row?.name ?? key);
   }
   lookups.push(sizeSeries(snaps));

@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
 import { ResearchSandbox } from './research-sandbox.js';
@@ -134,7 +134,7 @@ export class ResearchSandboxPool {
     documentId: string,
     signal?: AbortSignal,
   ): Promise<ResearchSandboxEntry> {
-    const state = await prisma.maintenanceState.findUnique({
+    const state = await getDatabase().maintenanceState.findUnique({
       where: { key: 'global' },
       select: { dataRevision: true },
     });

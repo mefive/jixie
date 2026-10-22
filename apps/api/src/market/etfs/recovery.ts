@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import { createHash } from 'node:crypto';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
@@ -29,7 +29,7 @@ export async function recoverEtfRegistry(
   options: EtfRecoveryOptions = {},
 ): Promise<void> {
   const codes = [...ETF_RESEARCH_CODES].sort();
-  const products = await prisma.etfBasic.findMany({
+  const products = await getDatabase().etfBasic.findMany({
     where: { tsCode: { in: codes } },
     select: { tsCode: true, listDate: true, delistDate: true },
     orderBy: { tsCode: 'asc' },
@@ -37,7 +37,7 @@ export async function recoverEtfRegistry(
   if (products.length !== codes.length || products.some((product) => !product.listDate)) {
     throw new Error('ETF registry metadata is incomplete; refresh metadata before recovery');
   }
-  const calendar = await prisma.tradeCal.findMany({
+  const calendar = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gte: ETF_HISTORY_START, lte: through } },
     select: { calDate: true },
     orderBy: { calDate: 'asc' },
@@ -52,7 +52,7 @@ export async function recoverEtfRegistry(
   // Bound memory and queries to one year, but inspect all dates and all three datasets.
   for (const year of new Set(calendar.map((row) => row.calDate.slice(0, 4)))) {
     const dates = calendar.filter((row) => row.calDate.startsWith(year)).map((row) => row.calDate);
-    const gaps = await inspectEtfHistoryCoverage(prisma, products, dates);
+    const gaps = await inspectEtfHistoryCoverage(getDatabase(), products, dates);
     for (const gap of gaps) {
       // Cache only explicitly observed source absences within this run. A new weekly retries
       // these observations; no annual completion marker can conceal a newly deleted row.

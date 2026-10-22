@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { addDays } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { futureMapping, type FutureMappingRow } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
@@ -86,7 +86,7 @@ export async function syncCommodityMainContractMappings(
   client: TushareClient,
   startDate: string,
   endDate: string,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
   onLog: (line: string) => void = console.log,
 ): Promise<number> {
   assertDateRange(startDate, endDate);
@@ -295,7 +295,7 @@ export function buildCommodityContinuousReturns(
 export async function computeCommodityContinuousReturns(
   startDate: string,
   endDate: string,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<CommodityContinuousReturnPointV1[]> {
   assertDateRange(startDate, endDate);
   const contextStart = addDays(startDate, -CONTEXT_CALENDAR_DAYS);
@@ -358,7 +358,7 @@ export async function computeCommodityContinuousReturns(
 export async function rebuildCommodityContinuousReturns(
   startDate: string,
   endDate: string,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<CommodityContinuousReturnSyncSummary> {
   const points = await computeCommodityContinuousReturns(startDate, endDate, database);
   const retrievedAt = new Date();
@@ -381,7 +381,7 @@ export async function syncCommodityContinuousReturns(
   client: TushareClient,
   startDate: string,
   endDate: string,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
   onLog: (line: string) => void = console.log,
 ): Promise<CommodityContinuousReturnSyncSummary> {
   assertDateRange(startDate, endDate);

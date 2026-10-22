@@ -1,9 +1,9 @@
+import { getStagingContext } from '#infra/coordination/staging-input.js';
 import { DatabaseSync } from 'node:sqlite';
 import { readFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { z } from 'zod';
-import { prisma } from '#infra/database/prisma.js';
-import { databaseFilename } from '#infra/coordination/market-access.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { getOpenDates } from '#market/calendar/read.js';
 import { syncMarketIndicators } from '#market/state/sync.js';
 import { validateDerivedMarketRange } from '#market/state/quality.js';
@@ -19,12 +19,16 @@ import { saveJson } from './snapshot.js';
  * Compute, validate derived outputs, then audit frozen inputs without clipping repairs to the watermark.
  */
 export async function finalizeCandidate(): Promise<void> {
-  const directory = dirname(databaseFilename());
+  const context = getStagingContext();
+  if (!context) {
+    throw new Error('Finalization requires a candidate execution scope');
+  }
+  const directory = context.directory;
   const manifest = manifestSchema.parse(
     JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8')),
   );
   if (manifest.command === 'sync') {
-    const state = await prisma.maintenanceState.findUnique({ where: { key: 'global' } });
+    const state = await getDatabase().maintenanceState.findUnique({ where: { key: 'global' } });
     // 未建立发布基线的分项导入仍由后续初始化完成整体验证。
     // Standalone imports before baseline publication are validated by subsequent initialization.
     if (!state?.dailyPublishedThrough) {
@@ -33,9 +37,12 @@ export async function finalizeCandidate(): Promise<void> {
   }
 
   const [bounds, derivedBounds, run] = await Promise.all([
-    prisma.daily.aggregate({ _min: { tradeDate: true }, _max: { tradeDate: true } }),
-    prisma.marketIndicator.aggregate({ _min: { tradeDate: true }, _max: { tradeDate: true } }),
-    prisma.maintenanceRun.findFirst({
+    getDatabase().daily.aggregate({ _min: { tradeDate: true }, _max: { tradeDate: true } }),
+    getDatabase().marketIndicator.aggregate({
+      _min: { tradeDate: true },
+      _max: { tradeDate: true },
+    }),
+    getDatabase().maintenanceRun.findFirst({
       where: { kind: manifest.command },
       orderBy: { startedAt: 'desc' },
     }),
@@ -68,7 +75,7 @@ export async function finalizeCandidate(): Promise<void> {
       targetEnd = dateValue(summary.readyThrough);
       // 首次初始化后可能另建 signals-only 日记录，不能因此丢失基线输出要求。
       // A later signal-only run must not hide the baseline initialized in this candidate.
-      const baseline = await prisma.maintenanceRun.findFirst({
+      const baseline = await getDatabase().maintenanceRun.findFirst({
         where: { kind: 'daily', targetKey: { startsWith: 'baseline:' }, status: 'done' },
         orderBy: { startedAt: 'desc' },
         select: { startDate: true, endDate: true },
@@ -145,7 +152,7 @@ export async function finalizeCandidate(): Promise<void> {
     const audits: DataQualityAuditReport[] = [];
     const auditStart = targetStart ?? ranges[0]?.startDate ?? last;
     const auditEnd = targetEnd ?? ranges.at(-1)?.endDate ?? last;
-    const audit = await runDataQualityAudit(prisma, {
+    const audit = await runDataQualityAudit(getDatabase(), {
       startDate: auditStart,
       endDate: auditEnd,
       windowTradingDays: 60,
@@ -164,7 +171,7 @@ export async function finalizeCandidate(): Promise<void> {
         );
         if (historyDates.length) {
           audits.push(
-            await runDataQualityAudit(prisma, {
+            await runDataQualityAudit(getDatabase(), {
               startDate: historyDates[0],
               endDate: historyDates.at(-1)!,
             }),
@@ -177,7 +184,7 @@ export async function finalizeCandidate(): Promise<void> {
         );
         if (historyDates.length) {
           audits.push(
-            await runDataQualityAudit(prisma, {
+            await runDataQualityAudit(getDatabase(), {
               startDate: historyDates[0],
               endDate: historyDates.at(-1)!,
             }),
@@ -191,7 +198,7 @@ export async function finalizeCandidate(): Promise<void> {
       derivedRanges: ranges,
     });
     if (run) {
-      await prisma.maintenanceRun.update({
+      await getDatabase().maintenanceRun.update({
         where: { id: run.id },
         data: {
           summary: {
@@ -232,7 +239,7 @@ export async function finalizeCandidate(): Promise<void> {
     }
   }
 
-  const inspector = new DatabaseSync(databaseFilename(), { readOnly: true });
+  const inspector = new DatabaseSync(resolve(directory, 'candidate.db'), { readOnly: true });
   try {
     if (inspector.prepare('PRAGMA foreign_key_check').all().length) {
       throw new Error('Candidate has foreign-key violations');

@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
   auditCommodityWarehouseReceipts,
@@ -42,7 +42,7 @@ const DEFAULT_MAXIMUM_LAG_TRADING_DAYS = 3;
 export async function maintainCommodityWarehouseReceipts(
   client: TushareClient,
   endDate: TradeDate,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
   onLog: (line: string) => void = console.log,
   options: CommodityWarehouseReceiptMaintenanceOptions = {},
 ): Promise<CommodityWarehouseReceiptMaintenanceSummary> {

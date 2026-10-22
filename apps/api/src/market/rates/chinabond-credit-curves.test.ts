@@ -1,5 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
+import { isMarketSourceFailure, MarketSourceDownloadError } from '../errors.js';
 import {
   ChinaBondPublicCurveClient,
   parseChinaBondCurveWorkbook,
@@ -117,6 +118,71 @@ describe('ChinaBond public credit curves', () => {
       'ChinaBond public curve source returned HTTP 403: Access Denied',
     );
     expect(requests).toBe(1);
+  });
+
+  it.each(['connect', 'body'] as const)(
+    'preserves source identity and the original cause after exhausted %s retries',
+    async (failurePoint) => {
+      const cause = new TypeError('fetch failed', {
+        cause: Object.assign(new Error('Connect Timeout Error'), {
+          code: 'UND_ERR_CONNECT_TIMEOUT',
+        }),
+      });
+      let requests = 0;
+      const client = new ChinaBondPublicCurveClient(
+        60_000,
+        async () => {
+          requests += 1;
+          if (failurePoint === 'connect') {
+            throw cause;
+          }
+
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(cause);
+              },
+            }),
+          );
+        },
+        () => {},
+        async () => {},
+      );
+
+      const failure = await client
+        .fetchRange('20260731', '20260731')
+        .catch((error: unknown) => error);
+
+      expect(requests).toBe(3);
+      expect(failure).toBeInstanceOf(MarketSourceDownloadError);
+      expect(isMarketSourceFailure(failure)).toBe(true);
+      expect(failure).toMatchObject({
+        message:
+          'ChinaBond public curve request failed: fetch failed (UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error)',
+        cause: { cause },
+      });
+    },
+  );
+
+  it('does not retain a malformed workbook as a download failure', async () => {
+    let requests = 0;
+    const client = new ChinaBondPublicCurveClient(
+      60_000,
+      async () => {
+        requests += 1;
+        return new Response('invalid workbook');
+      },
+      () => {},
+      async () => {},
+    );
+
+    const failure = await client
+      .fetchRange('20260731', '20260731')
+      .catch((error: unknown) => error);
+
+    expect(requests).toBe(1);
+    expect(failure).toBeInstanceOf(Error);
+    expect(isMarketSourceFailure(failure)).toBe(false);
   });
 });
 

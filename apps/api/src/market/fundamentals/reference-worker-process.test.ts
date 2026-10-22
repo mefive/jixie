@@ -10,6 +10,19 @@ import {
 const dependencies = vi.hoisted(() => ({ fork: vi.fn() }));
 vi.mock('node:child_process', () => ({ fork: dependencies.fork }));
 
+vi.mock('#infra/coordination/market-access.js', () => ({ maintenanceLockDescriptor: () => 19 }));
+vi.mock('#infra/coordination/staging-input.js', () => ({
+  getStagingContext: () => ({
+    id: 'TEST',
+    directory: '/unused',
+    formalUrl: 'file:/unused/formal.db',
+    timestamp: '2026-10-21T00:00:00Z',
+    date: '20261021',
+    upperBound: '20261020',
+    requirements: { active: [], versioned: [] },
+  }),
+}));
+
 class Child extends EventEmitter {
   send = vi.fn((_message: unknown, callback: (error: Error | null) => void) => callback(null));
   kill = vi.fn(() => {
@@ -132,5 +145,21 @@ describe('reference worker process', () => {
     child.emit('message', { type: 'reference-worker-summary', summary: {} });
     await rejected;
     expect(persist).not.toHaveBeenCalled();
+  });
+  it('inherits M through stdio and retains source classification over IPC', async () => {
+    const { MarketSourceDownloadError } = await import('../errors.js');
+    const result = runReferenceWorkerProcess('financials', ['20260630']);
+    const rejected = expect(result).rejects.toBeInstanceOf(MarketSourceDownloadError);
+    expect(dependencies.fork.mock.calls[0][2]).toMatchObject({
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc', 19],
+      env: { JIXIE_MAINTENANCE_LOCK_FD: '4' },
+    });
+    child.emit('message', {
+      type: 'reference-worker-error',
+      message: 'offline',
+      sourceFailure: true,
+    });
+    child.emit('close', 1, null);
+    await rejected;
   });
 });

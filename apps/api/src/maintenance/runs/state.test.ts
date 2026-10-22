@@ -14,18 +14,27 @@ const checkpointDeleteMany = vi.fn();
 const findState = vi.fn();
 const runTransaction = vi.fn(async (input) => Promise.all(input));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    $transaction: runTransaction,
-    maintenanceRun: { findFirst, updateMany, update: updateRun },
-    maintenanceCheckpoint: {
-      findMany: checkpointFindMany,
-      upsert: checkpointUpsert,
-      deleteMany: checkpointDeleteMany,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      $transaction: runTransaction,
+      maintenanceRun: { findFirst, updateMany, update: updateRun },
+      maintenanceCheckpoint: {
+        findMany: checkpointFindMany,
+        upsert: checkpointUpsert,
+        deleteMany: checkpointDeleteMany,
+      },
+      maintenanceState: { findUnique: findState },
     },
-    maintenanceState: { findUnique: findState },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 const {
   completeMaintenanceItem,

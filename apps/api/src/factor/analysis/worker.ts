@@ -1,6 +1,6 @@
 import { factorAnalysisWorkerInputSchema } from './worker-input.js';
 import type { FactorAnalysisWorkerMessage } from './worker-protocol.js';
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 import type { LogLevel, LogLine } from '@jixie/shared';
 import { parentPort, workerData } from 'node:worker_threads';
 import { runFactorEvaluation } from './evaluate.js';
@@ -17,20 +17,22 @@ const emit = (entry: LogLine) => send({ type: 'log', entry });
 const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', text });
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
-try {
-  const { reportId, factor, source, spec, locale } =
-    factorAnalysisWorkerInputSchema.parse(workerData);
-  await runFactorEvaluation({
-    factor,
-    source,
-    spec,
-    locale,
-    onSystemLog,
-    onUserLog,
-    onResult: (result) => send({ type: 'done', reportId, payload: JSON.stringify(result) }),
-  });
-} catch (e) {
-  send({ type: 'error', message: e instanceof Error ? e.message : String(e) });
-} finally {
-  await prisma.$disconnect();
-}
+await withDatabase(prisma, async () => {
+  try {
+    const { reportId, factor, source, spec, locale } =
+      factorAnalysisWorkerInputSchema.parse(workerData);
+    await runFactorEvaluation({
+      factor,
+      source,
+      spec,
+      locale,
+      onSystemLog,
+      onUserLog,
+      onResult: (result) => send({ type: 'done', reportId, payload: JSON.stringify(result) }),
+    });
+  } catch (e) {
+    send({ type: 'error', message: e instanceof Error ? e.message : String(e) });
+  } finally {
+    await closeDatabase(prisma);
+  }
+});

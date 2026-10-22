@@ -1,5 +1,5 @@
 import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorWeatherDirection, FactorWeatherPinStatus, Locale } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
@@ -23,7 +23,7 @@ const builtinDirections = new Map(
  * List owned factor-weather pins and their latest refresh state.
  */
 export async function listFactorWeatherPins(userId: string, locale: Locale) {
-  const pins = await prisma.factorWeatherPin.findMany({
+  const pins = await getDatabase().factorWeatherPin.findMany({
     where: { userId },
     include: { points: { orderBy: { periodEndDate: 'asc' } } },
     orderBy: { createdAt: 'asc' },
@@ -62,7 +62,7 @@ export async function listFactorWeatherPins(userId: string, locale: Locale) {
  */
 export async function createFactorWeatherPin(userId: string, input: CreateFactorWeatherPinInput) {
   const { factorId, direction: requestedDirection } = input;
-  const factor = await prisma.factor.findFirst({
+  const factor = await getDatabase().factor.findFirst({
     where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] } },
     select: {
       id: true,
@@ -92,12 +92,12 @@ export async function createFactorWeatherPin(userId: string, input: CreateFactor
     throw new FactorError('factor_weather_direction_required');
   }
 
-  const existing = await prisma.factorWeatherPin.findUnique({
+  const existing = await getDatabase().factorWeatherPin.findUnique({
     where: { userId_factorId: { userId, factorId } },
   });
   const pin =
     existing ??
-    (await prisma.factorWeatherPin.create({
+    (await getDatabase().factorWeatherPin.create({
       data: {
         id: ulid(),
         userId,
@@ -125,7 +125,7 @@ export async function createFactorWeatherPin(userId: string, input: CreateFactor
 }
 
 export async function requestFactorWeatherRefresh(userId: string, pinId: string) {
-  const pin = await prisma.factorWeatherPin.findFirst({
+  const pin = await getDatabase().factorWeatherPin.findFirst({
     where: { id: pinId, userId },
     select: { id: true },
   });
@@ -147,7 +147,7 @@ export async function requestFactorWeatherRefresh(userId: string, pinId: string)
  * Authorize and remove a factor-weather pin.
  */
 export async function deleteFactorWeatherPin(userId: string, pinId: string) {
-  const pin = await prisma.factorWeatherPin.findFirst({
+  const pin = await getDatabase().factorWeatherPin.findFirst({
     where: { id: pinId, userId },
     select: { id: true, status: true },
   });
@@ -160,7 +160,7 @@ export async function deleteFactorWeatherPin(userId: string, pinId: string) {
     throw new FactorError('factor_weather_running_cannot_unpin');
   }
 
-  await prisma.factorWeatherPin.delete({ where: { id: pin.id } });
+  await getDatabase().factorWeatherPin.delete({ where: { id: pin.id } });
 
   return { ok: true };
 }

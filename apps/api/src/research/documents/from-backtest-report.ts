@@ -1,5 +1,5 @@
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentV1 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -15,7 +15,7 @@ export async function createResearchDocumentFromBacktestReport(
   userId: string,
   reportId: string,
 ): Promise<ResearchDocumentV1> {
-  const report = await prisma.backtestReport.findFirst({
+  const report = await getDatabase().backtestReport.findFirst({
     where: {
       id: reportId,
       userId,
@@ -41,7 +41,7 @@ export async function createResearchDocumentFromBacktestReport(
     },
   ] as const;
 
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     await transaction.agentConversation.create({
       data: { id: documentId, userId, surface: 'research', title },
     });

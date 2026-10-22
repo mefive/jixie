@@ -1,5 +1,5 @@
 import { addDays } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { COMMODITY_HOLDING_SPECS } from './commodity-futures.js';
 import {
   COMMODITY_HOLDING_POSITION_VERSION,
@@ -81,7 +81,7 @@ export interface CommodityHoldingQualitySummary {
  */
 export async function auditCommodityHoldingPositions(
   options: { startDate: string; endDate: string },
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<CommodityHoldingQualitySummary> {
   const [rows, representatives, calendarRows] = await Promise.all([
     database.commodityHoldingPosition.findMany({

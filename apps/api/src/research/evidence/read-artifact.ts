@@ -1,8 +1,8 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { ResearchError } from '../errors.js';
 
 export async function readResearchArtifact(userId: string, artifactId: string) {
-  const artifact = await prisma.researchArtifact.findFirst({
+  const artifact = await getDatabase().researchArtifact.findFirst({
     where: {
       id: artifactId,
       document: { userId },

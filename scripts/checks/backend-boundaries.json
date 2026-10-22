@@ -27,6 +27,20 @@
       "to": "apps/api/src/factor/definitions/fields.ts",
       "kind": "type",
       "reason": "因子输入字段类型移到端口契约后继续复用同一纯字段注册表，不引入运行时业务依赖。"
+    },
+    {
+      "rule": "http-storage",
+      "from": "apps/api/src/server.ts",
+      "to": "apps/api/src/infra/database/prisma.ts",
+      "kind": "runtime",
+      "reason": "应用装配入口仅注入数据库执行作用域，不执行数据库查询；HTTP 业务仍经领域操作访问存储。"
+    },
+    {
+      "rule": "http-storage",
+      "from": "apps/api/src/bootstrap.ts",
+      "to": "apps/api/src/infra/database/prisma.ts",
+      "kind": "runtime",
+      "reason": "应用装配入口仅注入数据库执行作用域，不执行数据库查询；HTTP 业务仍经领域操作访问存储。"
     }
   ],
   "cycles": []

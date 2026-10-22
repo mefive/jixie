@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   CHINA_TREASURY_CURVE_CODE,
   CHINA_TREASURY_CURVE_SOURCE,
@@ -12,7 +12,7 @@ import type { BarsRows, EngineDataPort } from '../data/data-port.js';
  * a whole-universe, full-history findMany would overflow the query engine's result marshaling). */
 export const prismaDataPort: EngineDataPort = {
   async openDates(start, end) {
-    const rows = await prisma.tradeCal.findMany({
+    const rows = await getDatabase().tradeCal.findMany({
       where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: end } },
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
@@ -21,7 +21,7 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async stockBasics() {
-    return prisma.stockBasic.findMany({
+    return getDatabase().stockBasic.findMany({
       select: {
         tsCode: true,
         listDate: true,
@@ -32,21 +32,21 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async industryMemberships() {
-    return prisma.swIndustryMember.findMany({
+    return getDatabase().swIndustryMember.findMany({
       select: { tsCode: true, l1Name: true, inDate: true, outDate: true },
       orderBy: [{ tsCode: 'asc' }, { inDate: 'asc' }],
     });
   },
 
   async stockNameHistory() {
-    return prisma.stockNameHistory.findMany({
+    return getDatabase().stockNameHistory.findMany({
       select: { tsCode: true, name: true, startDate: true, endDate: true },
       orderBy: [{ tsCode: 'asc' }, { startDate: 'asc' }],
     });
   },
 
   async etfBasics() {
-    return prisma.etfBasic.findMany({
+    return getDatabase().etfBasic.findMany({
       select: {
         tsCode: true,
         listDate: true,
@@ -58,28 +58,28 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async topListRange(start, end) {
-    return prisma.topList.findMany({
+    return getDatabase().topList.findMany({
       where: { tradeDate: { gte: start, lte: end } },
       select: { tsCode: true, tradeDate: true, netAmount: true },
     });
   },
 
   async indexDailyAll() {
-    return prisma.indexDaily.findMany({
+    return getDatabase().indexDaily.findMany({
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     });
   },
 
   async indexDailyBasicAll() {
-    return prisma.indexDailyBasic.findMany({
+    return getDatabase().indexDailyBasic.findMany({
       select: { tsCode: true, tradeDate: true, pe: true, peTtm: true, pb: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     });
   },
 
   async yieldCurvePoints(end) {
-    return prisma.yieldCurvePoint.findMany({
+    return getDatabase().yieldCurvePoint.findMany({
       where: {
         source: CHINA_TREASURY_CURVE_SOURCE,
         curveCode: CHINA_TREASURY_CURVE_CODE,
@@ -92,7 +92,7 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async moneyflowRange(start, end) {
-    return prisma.moneyflow.findMany({
+    return getDatabase().moneyflow.findMany({
       where: { tradeDate: { gte: start, lte: end } },
       select: { tsCode: true, tradeDate: true, netMain: true, netTotal: true },
     });
@@ -106,7 +106,7 @@ export const prismaDataPort: EngineDataPort = {
   async crossSectionRows(date, codes) {
     const where = codes ? { tradeDate: date, tsCode: { in: codes } } : { tradeDate: date };
     const [price, adj, basic] = await Promise.all([
-      prisma.daily.findMany({
+      getDatabase().daily.findMany({
         where,
         select: {
           tsCode: true,
@@ -118,8 +118,8 @@ export const prismaDataPort: EngineDataPort = {
           amount: true,
         },
       }),
-      prisma.adjFactor.findMany({ where, select: { tsCode: true, adjFactor: true } }),
-      prisma.dailyBasic.findMany({
+      getDatabase().adjFactor.findMany({ where, select: { tsCode: true, adjFactor: true } }),
+      getDatabase().dailyBasic.findMany({
         where,
         // Only the valuation columns BarRow exposes. Fetching the full row roughly doubled the
         // per-day cost — Prisma row deserialization dominates (measured 171ms→87ms full-market).
@@ -142,7 +142,7 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async finaIndicators() {
-    const rows = await prisma.finaIndicator.findMany({
+    const rows = await getDatabase().finaIndicator.findMany({
       where: { annDate: { not: null } }, // only reports with a public date can be used point-in-time
       select: {
         tsCode: true,
@@ -159,7 +159,7 @@ export const prismaDataPort: EngineDataPort = {
   },
 
   async indexWeights(indexCode) {
-    return prisma.indexWeight.findMany({
+    return getDatabase().indexWeight.findMany({
       where: { indexCode },
       select: { conCode: true, tradeDate: true },
       orderBy: { tradeDate: 'asc' },
@@ -178,7 +178,7 @@ export const prismaDataPort: EngineDataPort = {
       const batch = codes.slice(off, off + CHUNK);
       const range = { gte: start, lte: end };
       const [px, etfPx, adj, etfAdj, limits, turnoverRatesF] = await Promise.all([
-        prisma.daily.findMany({
+        getDatabase().daily.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: {
             tsCode: true,
@@ -192,7 +192,7 @@ export const prismaDataPort: EngineDataPort = {
           },
           orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
         }),
-        prisma.etfDaily.findMany({
+        getDatabase().etfDaily.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: {
             tsCode: true,
@@ -206,20 +206,20 @@ export const prismaDataPort: EngineDataPort = {
           },
           orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
         }),
-        prisma.adjFactor.findMany({
+        getDatabase().adjFactor.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, adjFactor: true },
         }),
-        prisma.etfAdjFactor.findMany({
+        getDatabase().etfAdjFactor.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, adjFactor: true },
         }),
-        prisma.stkLimit.findMany({
+        getDatabase().stkLimit.findMany({
           where: { tsCode: { in: batch }, tradeDate: range },
           select: { tsCode: true, tradeDate: true, upLimit: true, downLimit: true },
         }),
         options?.includeTurnoverRateF
-          ? prisma.dailyBasic.findMany({
+          ? getDatabase().dailyBasic.findMany({
               where: { tsCode: { in: batch }, tradeDate: range },
               select: { tsCode: true, tradeDate: true, turnoverRateF: true },
             })
@@ -242,7 +242,7 @@ export const prismaDataPort: EngineDataPort = {
    */
   async futuresRange(start, end) {
     const range = { gte: start, lte: end };
-    const contracts = await prisma.futureContract.findMany({
+    const contracts = await getDatabase().futureContract.findMany({
       where: {
         productCode: { in: ['IF', 'IH', 'IC', 'IM'] },
         multiplier: { not: null },
@@ -259,7 +259,7 @@ export const prismaDataPort: EngineDataPort = {
     });
     const contractCodes = contracts.map((contract) => contract.tsCode);
     const [daily, mappings, settlements] = await Promise.all([
-      prisma.futureDaily.findMany({
+      getDatabase().futureDaily.findMany({
         where: { tsCode: { in: contractCodes }, tradeDate: range },
         select: {
           tsCode: true,
@@ -275,7 +275,7 @@ export const prismaDataPort: EngineDataPort = {
         },
         orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
       }),
-      prisma.futureMapping.findMany({
+      getDatabase().futureMapping.findMany({
         where: {
           continuousCode: { in: ['IF.CFX', 'IH.CFX', 'IC.CFX', 'IM.CFX'] },
           tradeDate: range,
@@ -283,7 +283,7 @@ export const prismaDataPort: EngineDataPort = {
         select: { continuousCode: true, tradeDate: true, mappedTsCode: true },
         orderBy: [{ continuousCode: 'asc' }, { tradeDate: 'asc' }],
       }),
-      prisma.futureSettlement.findMany({
+      getDatabase().futureSettlement.findMany({
         where: { tsCode: { in: contractCodes }, tradeDate: range },
         select: { tsCode: true, tradeDate: true, longMarginRate: true, shortMarginRate: true },
         orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],

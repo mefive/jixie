@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { ResearchError } from '../errors.js';
 import { researchCellDependencyIssues } from './cell-values.js';
 
@@ -6,7 +6,7 @@ export async function assertResearchCellIdsRunnable(
   documentId: string,
   cellIds: string[],
 ): Promise<void> {
-  const cells = await prisma.researchCell.findMany({
+  const cells = await getDatabase().researchCell.findMany({
     where: { documentId, id: { in: cellIds } },
     select: { id: true, dependencyIssues: true },
   });

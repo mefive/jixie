@@ -4,7 +4,7 @@ import type {
   FactorResearchCounts,
   FactorResearchIntentV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 export function parseResearchIntent(value: string | null): FactorResearchIntentV1 | undefined {
   if (!value) {
@@ -34,7 +34,7 @@ export function parseHoldoutPolicy(value: string | null): FactorHoldoutPolicyV1 
  * Read the frozen holdout policy shared by submission and reveal operations.
  */
 export async function getHoldoutPolicy(): Promise<FactorHoldoutPolicyV1 | null> {
-  const latest = await prisma.daily.findFirst({
+  const latest = await getDatabase().daily.findFirst({
     orderBy: { tradeDate: 'desc' },
     select: { tradeDate: true },
   });
@@ -43,13 +43,13 @@ export async function getHoldoutPolicy(): Promise<FactorHoldoutPolicyV1 | null> 
   }
 
   const cutoffDate = dayjs(latest.tradeDate, 'YYYYMMDD').subtract(18, 'month').format('YYYYMMDD');
-  const explore = await prisma.daily.findFirst({
+  const explore = await getDatabase().daily.findFirst({
     where: { tradeDate: { lte: cutoffDate } },
     orderBy: { tradeDate: 'desc' },
     select: { tradeDate: true },
   });
   const holdout = explore
-    ? await prisma.daily.findFirst({
+    ? await getDatabase().daily.findFirst({
         where: { tradeDate: { gt: explore.tradeDate } },
         orderBy: { tradeDate: 'asc' },
         select: { tradeDate: true },

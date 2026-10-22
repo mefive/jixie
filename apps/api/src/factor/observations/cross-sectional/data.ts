@@ -1,6 +1,6 @@
 import type { EquityStyleControlExposureV1 } from '../contract.js';
 import { sameMonth, sameWeek } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorAnalysisSpecV6, FactorFreq } from '@jixie/shared';
 
 // Rebalance days within [start,end]: the last open day of each month (or ISO week).
@@ -15,7 +15,7 @@ export async function getRebalanceDates(
   start: string,
   end: string,
 ): Promise<string[]> {
-  const cal = await prisma.tradeCal.findMany({
+  const cal = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: end } },
     select: { calDate: true },
     orderBy: { calDate: 'asc' },
@@ -45,18 +45,18 @@ export async function loadSnapshots(
   dates: string[],
   withMktcap = false,
 ): Promise<Map<string, Snap>> {
-  const px = await prisma.daily.findMany({
+  const px = await getDatabase().daily.findMany({
     where: { tradeDate: { in: dates } },
     select: { tsCode: true, tradeDate: true, close: true, amount: true },
   });
-  const adj = await prisma.adjFactor.findMany({
+  const adj = await getDatabase().adjFactor.findMany({
     where: { tradeDate: { in: dates } },
     select: { tsCode: true, tradeDate: true, adjFactor: true },
   });
   const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
   let mvMap = new Map<string, number>();
   if (withMktcap) {
-    const basic = await prisma.dailyBasic.findMany({
+    const basic = await getDatabase().dailyBasic.findMany({
       where: { tradeDate: { in: dates } },
       select: { tsCode: true, tradeDate: true, totalMv: true },
     });
@@ -108,7 +108,7 @@ export type FinaIndex = Map<string, FinaReport[]>; // code -> reports ascending 
  * read fina the same way.
  */
 export async function loadFinaIndex(): Promise<FinaIndex> {
-  const rows = await prisma.finaIndicator.findMany({
+  const rows = await getDatabase().finaIndicator.findMany({
     where: { annDate: { not: null } },
     select: {
       tsCode: true,
@@ -178,7 +178,7 @@ export async function loadEquityStyleControls(
   finaIndex: FinaIndex,
 ): Promise<EquityStyleControlsByDate> {
   const calendar = (
-    await prisma.tradeCal.findMany({
+    await getDatabase().tradeCal.findMany({
       where: { exchange: 'SSE', isOpen: 1, calDate: { lte: dates.at(-1) ?? spec.end } },
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
@@ -201,7 +201,7 @@ export async function loadEquityStyleControls(
   }
   const [momentumSnaps, basicRows] = await Promise.all([
     loadSnapshots([...momentumDates]),
-    prisma.dailyBasic.findMany({
+    getDatabase().dailyBasic.findMany({
       where: { tradeDate: { in: dates } },
       select: { tsCode: true, tradeDate: true, pb: true },
     }),
@@ -265,7 +265,7 @@ export type IndustrySpell = { inDate: string; outDate: string | null; l1Name: st
  * point-in-time (stock → industry) lookup for industry-neutralization.
  */
 export async function loadIndustryLookup(): Promise<Map<string, IndustrySpell[]>> {
-  const rows = await prisma.swIndustryMember.findMany({
+  const rows = await getDatabase().swIndustryMember.findMany({
     select: { tsCode: true, l1Name: true, inDate: true, outDate: true },
     orderBy: { inDate: 'asc' },
   });

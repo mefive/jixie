@@ -1,5 +1,5 @@
 import type { SignalWorkerMessage } from './worker-protocol.js';
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 import type { LogLevel, LogLine } from '@jixie/shared';
 import { runSignal } from './compute.js';
 
@@ -13,12 +13,14 @@ const emit = (entry: LogLine) => send({ type: 'log', entry });
 const systemLog = (text: string) => emit({ source: 'system', level: 'info', text });
 const userLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
-try {
-  const output = await runSignal(runId, systemLog, userLog);
-  send({ type: 'done', output });
-} catch (error) {
-  send({ type: 'error', message: error instanceof Error ? error.message : String(error) });
-} finally {
-  await prisma.$disconnect();
-  process.disconnect();
-}
+await withDatabase(prisma, async () => {
+  try {
+    const output = await runSignal(runId, systemLog, userLog);
+    send({ type: 'done', output });
+  } catch (error) {
+    send({ type: 'error', message: error instanceof Error ? error.message : String(error) });
+  } finally {
+    await closeDatabase(prisma);
+    process.disconnect();
+  }
+});

@@ -20,14 +20,14 @@ vi.mock('../providers/tushare/api.js', () => ({
   dividend: mocks.dividendApi,
 }));
 
-vi.mock('#infra/database/prisma.js', () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const transactionClient = {
     finaIndicator: {
       createMany: mocks.finaCreateMany,
       update: mocks.finaUpdate,
     },
   };
-  return {
+  const mocked = {
     prisma: {
       finaIndicator: {
         findMany: mocks.finaFindMany,
@@ -46,6 +46,13 @@ vi.mock('#infra/database/prisma.js', () => {
         typeof input === 'function' ? input(transactionClient) : Promise.all(input),
       ),
     },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
   };
 });
 

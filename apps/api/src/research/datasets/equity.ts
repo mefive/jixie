@@ -5,7 +5,7 @@ import type {
   ResearchUniverseRunResultV1,
   UniverseSpecV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { researchUniverseMeasures } from '../catalog/capabilities.js';
 import { executeUniverseSpec } from './universe.js';
 import { universeSpecV1Schema } from '@jixie/shared/api/research';
@@ -126,7 +126,7 @@ export interface ResearchEquityDatasetResultV1 {
  */
 export async function loadResearchCrossSection(
   request: ResearchCrossSectionRequestV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
   limits: ResearchEquityDatasetLimits = {},
 ): Promise<ResearchEquityDatasetResultV1> {
   validateDatasetRequest(request);
@@ -148,7 +148,7 @@ export async function loadResearchCrossSection(
  */
 export async function loadResearchPanel(
   request: ResearchPanelRequestV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
   limits: ResearchEquityDatasetLimits = {},
 ): Promise<ResearchEquityDatasetResultV1> {
   validateDatasetRequest(request);

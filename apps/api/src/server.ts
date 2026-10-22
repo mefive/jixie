@@ -1,3 +1,4 @@
+import { prisma, withDatabase, type Prisma } from '#infra/database/prisma.js';
 import { agentRoute } from '#agent/routes/index.js';
 import { maintenanceGate } from '#maintenance/middleware.js';
 import { maintenanceRoute } from '#maintenance/routes.js';
@@ -18,9 +19,10 @@ import { logger } from 'hono/logger';
  *
  * Construct the HTTP app and mount middleware and routes without starting recovery or dispatch.
  */
-export function buildApp() {
+export function buildApp(database: Prisma = prisma) {
   const app = new Hono();
   app.onError(handleApiError);
+  app.use('*', (_context, next) => withDatabase(database, next));
   app.use('*', logger());
 
   app.get('/', (c) => c.text('jixie api ok'));

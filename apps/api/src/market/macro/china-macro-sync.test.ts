@@ -11,15 +11,24 @@ const database = vi.hoisted(() => ({
   observation: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    $transaction: database.transaction,
-    tradeCal: { findMany: database.calendar },
-    macroSeries: { upsert: database.series },
-    macroReleaseSchedule: { upsert: database.schedule },
-    macroObservation: { findMany: database.observations, upsert: database.observation },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      $transaction: database.transaction,
+      tradeCal: { findMany: database.calendar },
+      macroSeries: { upsert: database.series },
+      macroReleaseSchedule: { upsert: database.schedule },
+      macroObservation: { findMany: database.observations, upsert: database.observation },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 const sourceRows: TushareValue[][] = [
   ['202609', 50.1],

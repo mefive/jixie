@@ -14,7 +14,16 @@ vi.mock('#infra/database/prisma.js', async () => {
   fixture.directory = mkdtempSync('/tmp/jixie-job-contract-');
   const databasePath = `${fixture.directory}/jobs.db`;
   writeFileSync(databasePath, '');
-  return { prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }) };
+  const mocked = {
+    prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${databasePath}` }),
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
 });
 const execution = vi.hoisted(() => ({
   worker: vi.fn(),
@@ -176,11 +185,12 @@ async function complete(kind: Kind, status: 'done' | 'error') {
       execution.worker.mockRejectedValueOnce(new Error('job failure'));
     }
   }
-  return JobService.execute(ids[kind]);
+  return executeFixtureJob(ids[kind]);
 }
 
 describe('durable job and business lifecycle transactions', () => {
   beforeAll(() => {
+    vi.stubEnv('DATABASE_URL', `file:${join(fixture.directory, 'jobs.db')}`);
     const require = createRequire(import.meta.url);
     execFileSync(
       process.execPath,
@@ -318,7 +328,7 @@ describe('durable job and business lifecycle transactions', () => {
         execution.worker.mockRejectedValueOnce(new Error('worker failed'));
       }
 
-      await JobService.execute(ids.backtest);
+      await executeFixtureJob(ids.backtest);
 
       expect(execution.worker).toHaveBeenCalledOnce();
       expect(execution.rename).not.toHaveBeenCalled();
@@ -365,6 +375,7 @@ describe('durable job and business lifecycle transactions', () => {
   });
   afterAll(async () => {
     await prisma.$disconnect();
+    vi.unstubAllEnvs();
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
@@ -528,7 +539,7 @@ describe('durable job and business lifecycle transactions', () => {
         },
       },
     });
-    await JobService.execute(ids['factor-analysis']);
+    await executeFixtureJob(ids['factor-analysis']);
     expect(execution.worker).not.toHaveBeenCalled();
     expect(await entityStatus('factor-analysis')).toBe('error');
     expect(await prisma.factorCorrelation.count()).toBe(0);
@@ -599,6 +610,8 @@ describe('durable job and business lifecycle transactions', () => {
         researchCuratorRunId: ids['research-curator'],
       },
     });
+    await prisma.job.update({ where: { id: 'broken' }, data: { status: 'queued' } });
+    expect(await JobService.claim('broken')).toBe(true);
     await prisma.$executeRawUnsafe(
       "CREATE TRIGGER reject_curator_update BEFORE UPDATE ON Job BEGIN SELECT RAISE(ABORT, 'fixture failure'); END",
     );
@@ -610,12 +623,13 @@ describe('durable job and business lifecycle transactions', () => {
       expect(await entityStatus(kind)).toBe('running');
     }
     await prisma.$executeRawUnsafe('DROP TRIGGER reject_curator_update');
-    await JobService.execute('broken');
+    await executeFixtureJob('broken');
     for (const kind of kinds) {
       expect(await entityStatus(kind)).toBe('error');
     }
     expect(execution.worker).not.toHaveBeenCalled();
-    await expect(JobService.execute('missing')).resolves.toBeUndefined();
+    expect(await JobService.claim('missing')).toBe(false);
+    await expect(JobService.execute('missing')).rejects.toThrow('locally owned claim');
   });
 
   it.each([null, [], { task: 'invalid' }])(
@@ -625,7 +639,7 @@ describe('durable job and business lifecycle transactions', () => {
         where: { id: ids.backtest },
         data: { payload: raw === null ? prismaValues.DbNull : raw },
       });
-      await JobService.execute(ids.backtest);
+      await executeFixtureJob(ids.backtest);
       expect(execution.worker).not.toHaveBeenCalled();
       expect(await entityStatus('backtest')).toBe('error');
     },
@@ -633,7 +647,7 @@ describe('durable job and business lifecycle transactions', () => {
 
   it('does not resolve prototype properties as registered task kinds', async () => {
     await prisma.job.update({ where: { id: ids.backtest }, data: { kind: 'toString' } });
-    await JobService.execute(ids.backtest);
+    await executeFixtureJob(ids.backtest);
     expect((await prisma.job.findUniqueOrThrow({ where: { id: ids.backtest } })).error).toBe(
       'Unsupported queued job kind: toString',
     );
@@ -753,7 +767,7 @@ describe('durable job and business lifecycle transactions', () => {
         );
       }
       execution.worker.mockResolvedValueOnce('{"correlation":0.5}');
-      await JobService.execute('correlation-job');
+      await executeFixtureJob('correlation-job');
       const cache = await prisma.factorCorrelation.findUnique({
         where: { id: 'correlation-cache' },
       });
@@ -777,7 +791,8 @@ describe('durable job and business lifecycle transactions', () => {
 
   it('does not execute completed jobs again or overwrite their result', async () => {
     await complete('backtest', 'done');
-    await complete('backtest', 'done');
+    expect(await JobService.claim(ids.backtest)).toBe(false);
+    await expect(JobService.execute(ids.backtest)).rejects.toThrow('locally owned claim');
     expect(execution.worker).toHaveBeenCalledOnce();
     expect(await entityStatus('backtest')).toBe('done');
   });
@@ -806,7 +821,7 @@ describe('durable job and business lifecycle transactions', () => {
       where: { id: ids.signal },
       data: { payload: { task: 'signal', runId: 'wrong-run', locale: 'en' } },
     });
-    await JobService.execute(ids.signal);
+    await executeFixtureJob(ids.signal);
     expect(execution.worker).not.toHaveBeenCalled();
     expect(execution.notify).not.toHaveBeenCalled();
     expect(await entityStatus('signal')).toBe('error');
@@ -832,6 +847,8 @@ describe('durable job and business lifecycle transactions', () => {
       JobService.claim(ids['factor-analysis']),
     ]);
     expect(claims.filter(Boolean)).toHaveLength(1);
+    execution.worker.mockResolvedValueOnce('{"score":1}');
+    await JobService.execute(ids['factor-analysis']);
   });
   it('allows repeated identical registration but rejects replacing an active contract', () => {
     expect(() => registerJobLifecycles()).not.toThrow();
@@ -850,7 +867,7 @@ describe('durable job and business lifecycle transactions', () => {
     const execute = vi.spyOn(strategyBacktestLifecycle, 'onExecute').mockResolvedValueOnce(result);
     const success = vi.spyOn(strategyBacktestLifecycle, 'onSuccess');
     try {
-      await JobService.execute(ids.backtest);
+      await executeFixtureJob(ids.backtest);
       expect(success).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ id: ids.backtest }),
@@ -904,7 +921,7 @@ describe('durable job and business lifecycle transactions', () => {
         factorInputs: [],
       };
     });
-    await JobService.execute(old.id);
+    await executeFixtureJob(old.id);
     expect(await prisma.job.findUnique({ where: { id: old.id } })).toMatchObject({
       status: 'error',
     });
@@ -920,3 +937,15 @@ describe('durable job and business lifecycle transactions', () => {
 });
 
 registerJobLifecycles();
+
+/**
+ * 旧运行态 fixture 同时用于恢复测试；执行前显式重新入队并取得真实所有权。
+ *
+ * Running fixtures also cover recovery; explicitly enqueue and claim before execution.
+ */
+async function executeFixtureJob(jobId: string): Promise<void> {
+  await prisma.job.update({ where: { id: jobId }, data: { status: 'queued' } });
+  expect(await JobService.claim(jobId)).toBe(true);
+
+  await JobService.execute(jobId);
+}

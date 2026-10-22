@@ -40,12 +40,21 @@ vi.mock('./self-heal.js', () => dependencies);
 vi.mock('./daily.js', () => dependencies);
 vi.mock('../publication/audit.js', () => dependencies);
 vi.mock('../publication/watermark.js', () => dependencies);
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    tradeCal: { findMany: dependencies.dates },
-    maintenanceState: { findUnique: dependencies.state, updateMany: vi.fn() },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      tradeCal: { findMany: dependencies.dates },
+      maintenanceState: { findUnique: dependencies.state, updateMany: vi.fn() },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 import { runRepairMaintenance } from './repair.js';
 
 beforeEach(() => {

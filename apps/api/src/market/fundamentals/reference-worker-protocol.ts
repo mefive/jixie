@@ -8,6 +8,7 @@ export type ReferenceWorkerStage = 'financial_statements' | 'financials' | 'divi
  * Discriminate worker progress, completion and error frames for host persistence.
  */
 export type ReferenceWorkerMessage =
+  | { type: 'reference-worker-error'; message: string; sourceFailure: boolean }
   | { type: 'reference-worker-item'; item: string }
   | { type: 'reference-worker-summary'; summary: ReferenceSyncSummary };
 
@@ -31,6 +32,9 @@ export function isReferenceWorkerMessage(message: unknown): message is Reference
     return false;
   }
   const candidate = message as Partial<ReferenceWorkerMessage>;
+  if (candidate.type === 'reference-worker-error') {
+    return typeof candidate.message === 'string' && typeof candidate.sourceFailure === 'boolean';
+  }
   if (candidate.type === 'reference-worker-item') {
     return typeof candidate.item === 'string';
   }

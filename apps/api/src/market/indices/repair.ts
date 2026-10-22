@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
@@ -65,15 +65,15 @@ export function buildIndexDateRepairPlan(row: IndexDateCounts): {
 export async function inspectIndexDates(tradeDates: string[]): Promise<IndexDateCounts[]> {
   const where = { tradeDate: { in: tradeDates } };
   const [daily, basic, industry] = await Promise.all([
-    prisma.indexDaily.findMany({
+    getDatabase().indexDaily.findMany({
       where: { ...where, tsCode: { in: DAILY_MAINTAINED_INDEX_CODES } },
       select: { tradeDate: true, tsCode: true },
     }),
-    prisma.indexDailyBasic.findMany({
+    getDatabase().indexDailyBasic.findMany({
       where: { ...where, tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
       select: { tradeDate: true, tsCode: true },
     }),
-    prisma.swIndexDaily.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
+    getDatabase().swIndexDaily.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
   ]);
   const codesByDate = (rows: Array<{ tradeDate: string; tsCode: string }>) => {
     const result = new Map<string, string[]>();

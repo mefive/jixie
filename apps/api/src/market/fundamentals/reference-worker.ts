@@ -1,5 +1,14 @@
-import { isStagingDatabase } from '#infra/coordination/market-access.js';
-import { prisma, closeStagingIPC } from '#infra/database/prisma.js';
+import {
+  isStagingDatabase,
+  databaseFilename,
+  withMaintenanceLock,
+} from '#infra/coordination/market-access.js';
+import { withStagingContext, requirementsSchema } from '#infra/coordination/staging-input.js';
+import { resolve, dirname } from 'node:path';
+import { realpath, readFile } from 'node:fs/promises';
+import { z } from 'zod';
+import { isMarketSourceFailure } from '../errors.js';
+import { createDatabase, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 import { pathToFileURL } from 'node:url';
 import { TushareClient } from '../providers/tushare/tushare-client.js';
 import { loadTushareConfig } from '../providers/tushare/config.js';
@@ -113,20 +122,71 @@ async function reportCompletedItem(item: string): Promise<void> {
   });
 }
 
+/** 校验启动身份，创建并绑定候选连接及共享 M 描述符。 / Validate identity and bind a candidate client plus the shared M descriptor. */
+async function runIsolatedWorker(): Promise<void> {
+  const context = z
+    .object({
+      id: z.string().regex(/^[A-Z0-9]+$/),
+      directory: z.string(),
+      formalUrl: z.string(),
+      timestamp: z.iso.datetime(),
+      date: z.string().regex(/^\d{8}$/),
+      upperBound: z.string().regex(/^\d{8}$/),
+      requirements: requirementsSchema,
+    })
+    .parse(JSON.parse(process.env.JIXIE_STAGING_CONTEXT ?? 'null'));
+  const expected = resolve(
+    dirname(databaseFilename(context.formalUrl)),
+    'maintenance-staging',
+    context.id,
+  );
+  if ((await realpath(context.directory)) !== expected) {
+    throw new Error('Invalid candidate worker directory');
+  }
+  const persisted = requirementsSchema.parse(
+    JSON.parse(await readFile(resolve(expected, 'requirements.json'), 'utf8')),
+  );
+  if (JSON.stringify(persisted) !== JSON.stringify(context.requirements)) {
+    throw new Error('Candidate requirements changed');
+  }
+
+  await withStagingContext(context, () =>
+    withMaintenanceLock(async () => {
+      const database = createDatabase(`file:${resolve(expected, 'candidate.db')}`);
+      try {
+        await withDatabase(database, main);
+      } finally {
+        await closeDatabase(database);
+      }
+    }),
+  );
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const parentDisconnected = () => process.exit(1);
   process.once('disconnect', parentDisconnected);
-  main()
-    .catch((error: unknown) => {
-      console.error(
-        '[maintenance:reference-worker] failed:',
-        error instanceof Error ? error.message : String(error),
-      );
+  await runIsolatedWorker()
+    .catch(async (error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[maintenance:reference-worker] failed:', message);
+      if (process.connected) {
+        await new Promise<void>((done) =>
+          process.send!(
+            {
+              type: 'reference-worker-error',
+              message,
+              sourceFailure: isMarketSourceFailure(error),
+            },
+            () => done(),
+          ),
+        );
+      }
       process.exitCode = 1;
     })
-    .finally(async () => {
+    .finally(() => {
       process.off('disconnect', parentDisconnected);
-      await prisma.$disconnect();
-      closeStagingIPC();
+      if (process.connected) {
+        process.disconnect();
+      }
     });
 }

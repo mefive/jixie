@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { syncStockDailyData } from './daily-sync.js';
@@ -81,11 +81,11 @@ export function buildStockDateRepairPlan(counts: StockDateCounts[]): StockDateRe
 export async function inspectStockDates(tradeDates: string[]): Promise<StockDateCounts[]> {
   const where = { tradeDate: { in: tradeDates } };
   const rows = await Promise.all([
-    prisma.daily.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
-    prisma.adjFactor.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
-    prisma.dailyBasic.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
-    prisma.stkLimit.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
-    prisma.moneyflow.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
+    getDatabase().daily.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
+    getDatabase().adjFactor.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
+    getDatabase().dailyBasic.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
+    getDatabase().stkLimit.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
+    getDatabase().moneyflow.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
   ]);
   const [daily, adjustment, basic, limits, moneyflow] = rows.map(
     (dataset) => new Map(dataset.map((row) => [row.tradeDate, row._count._all])),

@@ -1,5 +1,5 @@
 import { signalWorkerMessageSchema, type SignalWorkerOutput } from './worker-protocol.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { fork } from 'node:child_process';
 import { signalsRunJobPayloadSchema } from './job-payload.js';
 import type { JobLifecycle } from '#jobs/lifecycle.js';
@@ -74,7 +74,7 @@ export const signalsRunLifecycle = {
     if (!parsed.success || parsed.data.runId !== job.signalRunId) {
       return;
     }
-    const current = await prisma.job.findFirst({
+    const current = await getDatabase().job.findFirst({
       where: { signalRunId: parsed.data.runId },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: { id: true },

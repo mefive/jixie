@@ -1,3 +1,5 @@
+import { fetchMarketSource, readMarketSourceText } from '../source-fetch.js';
+import { HttpStatusError } from '../../errors.js';
 import { warn } from '#infra/logging.js';
 import { TushareError } from '../../errors.js';
 
@@ -147,7 +149,7 @@ export class TushareClient {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
-      const res = await fetch(this.baseUrl, {
+      const res = await fetchMarketSource(fetch, this.baseUrl, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -159,9 +161,9 @@ export class TushareClient {
         signal: controller.signal,
       });
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        throw new HttpStatusError(res.status, `HTTP ${res.status} ${res.statusText}`);
       }
-      const body = (await res.json()) as TushareResponse;
+      const body = JSON.parse(await readMarketSourceText(res)) as TushareResponse;
       if (body.code !== 0) {
         throw new TushareError(apiName, body.code, body.msg ?? 'unknown error');
       }

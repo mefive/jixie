@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { StrategyError } from '../errors.js';
 import { StrategyFactor } from '../factors/strategy-factor.js';
 import { codeConfigSchema, type StrategyVisibilityInput } from '@jixie/shared/api/strategy';
@@ -13,7 +13,7 @@ export async function setStrategyVisibility(
   strategyId: string,
   input: StrategyVisibilityInput,
 ) {
-  const strategy = await prisma.strategy.findFirst({
+  const strategy = await getDatabase().strategy.findFirst({
     where: { id: strategyId, userId: userId },
     select: { id: true, config: true },
   });
@@ -32,7 +32,7 @@ export async function setStrategyVisibility(
     }
   }
 
-  const updated = await prisma.strategy.update({
+  const updated = await getDatabase().strategy.update({
     where: { id: strategy.id },
     data: { visibility },
     select: { id: true, visibility: true },

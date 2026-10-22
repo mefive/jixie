@@ -10,13 +10,22 @@ const dependencies = vi.hoisted(() => ({
   worker: vi.fn<(stage: ReferenceWorkerStage, items: string[]) => Promise<ReferenceSyncSummary>>(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    daily: { findFirst: dependencies.earliestDaily },
-    dividend: { findMany: dependencies.existingDividends },
-    $disconnect: dependencies.disconnect,
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      daily: { findFirst: dependencies.earliestDaily },
+      dividend: { findMany: dependencies.existingDividends },
+      $disconnect: dependencies.disconnect,
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('../stocks/read.js', () => ({
   stockCodesWithDailyData: dependencies.stockCodesWithDailyData,
 }));

@@ -7,7 +7,7 @@ import type {
   ResearchCellChangeAttemptV1,
   ResearchCellKindV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 
 export const researchCellChangeAttemptInclude = {
@@ -25,7 +25,7 @@ export async function listResearchCellChangeAttempts(
   userId: string,
   documentId: string,
 ): Promise<ResearchCellChangeAttemptV1[]> {
-  const attempts = await prisma.researchCellChangeAttempt.findMany({
+  const attempts = await getDatabase().researchCellChangeAttempt.findMany({
     where: { documentId, document: { userId, embeddedVersion: null } },
     orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
     take: 20,

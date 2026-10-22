@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobLogs } from '#jobs/job-logs.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ResearchError } from '../errors.js';
@@ -14,7 +14,7 @@ import { runSummaryView } from './views.js';
  */
 export async function cancelEmbeddedRun(userId: string, analysisId: string, runId: string) {
   let terminalLogs: string | undefined;
-  const result = await prisma.$transaction(async (transaction) => {
+  const result = await getDatabase().$transaction(async (transaction) => {
     const run = await transaction.researchExecution.findFirst({
       where: { id: runId, embeddedVersion: { analysisId, analysis: { userId } } },
       include: { job: true, embeddedVersion: true },

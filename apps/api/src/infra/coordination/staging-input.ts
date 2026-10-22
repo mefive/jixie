@@ -1,7 +1,7 @@
-import { openSync, writeSync, fsyncSync, closeSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { openSync, writeSync, fsyncSync, closeSync } from 'node:fs';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { resolve } from 'node:path';
 import { z } from 'zod';
-import { databaseFilename, isStagingDatabase } from './market-access.js';
 
 export const requirementsSchema = z.object({
   active: z.array(z.object({ config: z.unknown(), factorDependencies: z.unknown() })),
@@ -13,26 +13,55 @@ export type StagingRequirements = z.output<typeof requirementsSchema>;
 export type MaintenanceAction = { kind: 'signals'; tradeDate: string } | { kind: 'weather' };
 
 /**
- * 暂存进程只接收冻结需求参数，不复制用户表或隐式回读正式库。
+ * 候选执行的冻结输入和进度能力，不包含正式数据库连接。
  *
- * Supply frozen dependency inputs without copying user tables or querying the formal database.
+ * Frozen candidate inputs and progress capabilities without a formal database client.
  */
-export function stagingRequirements(): StagingRequirements | null {
-  if (!isStagingDatabase()) {
-    return null;
-  }
-  const directory = dirname(databaseFilename());
+export interface StagingContext {
+  id: string;
+  directory: string;
+  formalUrl: string;
+  timestamp: string;
+  date: string;
+  upperBound: string;
+  requirements: StagingRequirements;
+  reportProgress?: (stage: string, summary?: unknown) => Promise<void>;
+}
+const contexts = new AsyncLocalStorage<{ value: StagingContext; active: boolean }>();
 
-  return requirementsSchema.parse(
-    JSON.parse(readFileSync(resolve(directory, 'requirements.json'), 'utf8')),
-  );
+/** 候选范围结束后拒绝遗留异步任务。 / Reject delayed work after its candidate scope completes. */
+export async function withStagingContext<Result>(
+  context: StagingContext,
+  operation: () => Promise<Result>,
+): Promise<Result> {
+  const scope = { value: context, active: true };
+  try {
+    return await contexts.run(scope, operation);
+  } finally {
+    scope.active = false;
+  }
+}
+
+export function getStagingContext(): StagingContext | undefined {
+  const scope = contexts.getStore();
+  if (scope && !scope.active) {
+    throw new Error('Candidate execution scope has ended');
+  }
+
+  return scope?.value;
+}
+
+/** 冻结需求不回读正式用户表。 / Frozen requirements never query formal user tables. */
+export function stagingRequirements(): StagingRequirements | null {
+  return getStagingContext()?.requirements ?? null;
 }
 
 export function deferMaintenanceAction(action: MaintenanceAction): boolean {
-  if (!isStagingDatabase()) {
+  const context = getStagingContext();
+  if (!context) {
     return false;
   }
-  const descriptor = openSync(resolve(dirname(databaseFilename()), 'actions.jsonl'), 'a', 0o600);
+  const descriptor = openSync(resolve(context.directory, 'actions.jsonl'), 'a', 0o600);
   try {
     writeSync(descriptor, `${JSON.stringify(action)}\n`);
     fsyncSync(descriptor);
@@ -45,9 +74,5 @@ export function deferMaintenanceAction(action: MaintenanceAction): boolean {
 
 /** 默认日期绑定本轮目标，重试跨日也不扩大范围。 / Bind default dates to the original attempt across retries. */
 export function stagingNow(): Date {
-  if (!isStagingDatabase()) {
-    return new Date();
-  }
-  const timestamp = z.iso.datetime().parse(process.env.JIXIE_MAINTENANCE_TIME);
-  return new Date(timestamp);
+  return new Date(getStagingContext()?.timestamp ?? Date.now());
 }

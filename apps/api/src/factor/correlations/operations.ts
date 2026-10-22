@@ -1,5 +1,5 @@
 import type { FactorCorrelationJobPayload } from './job-payload.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { FactorCorrelation, Locale } from '@jixie/shared';
@@ -36,7 +36,7 @@ async function resolveCorrelationKeys(userId: string, raw: string[]): Promise<{ 
     if (BUILTIN_KEYS.has(key)) {
       continue;
     }
-    const custom = await prisma.factor.findFirst({
+    const custom = await getDatabase().factor.findFirst({
       where: { id: key, userId },
       select: { id: true },
     });
@@ -52,7 +52,7 @@ export async function readFactorCorrelation(userId: string, input: FactorCorrela
   const { keys, freq, start, end } = input;
   const resolved = await resolveCorrelationKeys(userId, keys);
 
-  const cached = await prisma.factorCorrelation.findUnique({
+  const cached = await getDatabase().factorCorrelation.findUnique({
     where: { id: correlationId(userId, resolved.keys, freq, start, end) },
   });
 
@@ -98,7 +98,7 @@ export async function submitFactorCorrelation(
   const id = correlationId(userId, resolved.keys, freq, start, end);
 
   if (!refresh) {
-    const cached = await prisma.factorCorrelation.findUnique({ where: { id } });
+    const cached = await getDatabase().factorCorrelation.findUnique({ where: { id } });
     if (cached) {
       return { done: true, report: JSON.parse(cached.payload) as FactorCorrelation };
     }
@@ -153,7 +153,7 @@ export async function readFactorCorrelationJob(
 }
 
 async function findActiveCorrelationJobId(userId: string, key: string) {
-  const job = await prisma.job.findFirst({
+  const job = await getDatabase().job.findFirst({
     where: {
       userId,
       kind: 'factor-correlation',

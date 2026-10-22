@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
@@ -32,22 +32,22 @@ export async function validateIndexDate(
 ): Promise<IndexDateQuality> {
   const [indexCodes, indexBasicCodes, swIndexRows, activeIndustries, indexSnapshots] =
     await Promise.all([
-      prisma.indexDaily.findMany({
+      getDatabase().indexDaily.findMany({
         where: {
           tradeDate,
           tsCode: { in: DAILY_MAINTAINED_INDEX_CODES },
         },
         select: { tsCode: true },
       }),
-      prisma.indexDailyBasic.findMany({
+      getDatabase().indexDailyBasic.findMany({
         where: { tradeDate, tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
         select: { tsCode: true },
       }),
-      prisma.swIndexDaily.findMany({
+      getDatabase().swIndexDaily.findMany({
         where: { tradeDate },
         select: { tsCode: true },
       }),
-      prisma.swIndustryMember.groupBy({
+      getDatabase().swIndustryMember.groupBy({
         by: ['l1Code'],
         where: {
           inDate: { lte: tradeDate },
@@ -121,7 +121,7 @@ export async function validateIndexWeightDate(
 function readIndexWeightSnapshots(tradeDate: string): Promise<({ tradeDate: string } | null)[]> {
   return Promise.all(
     MARKET_WEATHER_INDICATOR_INDEX_CODES.map((indexCode) =>
-      prisma.indexWeight.findFirst({
+      getDatabase().indexWeight.findFirst({
         where: { indexCode, tradeDate: { lte: tradeDate } },
         orderBy: { tradeDate: 'desc' },
         select: { tradeDate: true },

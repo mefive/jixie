@@ -16,11 +16,20 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: mocks.wake } }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    $transaction: mocks.transaction,
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      $transaction: mocks.transaction,
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { sha256 } from '../sources/fingerprint.js';
 import { factorAnalysisSourceHash } from '../sources/snapshot.js';

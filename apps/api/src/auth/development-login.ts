@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { ulid } from 'ulid';
 import { AuthError } from './errors.js';
 import { createSession } from './session.js';
@@ -11,9 +11,9 @@ import { createSession } from './session.js';
  * Resolve a user and create a session under development-login guards.
  */
 export async function developmentLogin(email: string) {
-  let user = await prisma.user.findUnique({ where: { email } });
+  let user = await getDatabase().user.findUnique({ where: { email } });
   if (!user) {
-    user = await prisma.user.create({ data: { id: ulid(), email } });
+    user = await getDatabase().user.create({ data: { id: ulid(), email } });
   }
   if (user.status !== 'active') {
     throw new AuthError('account_disabled');

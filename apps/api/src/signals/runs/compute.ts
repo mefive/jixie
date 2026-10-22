@@ -4,7 +4,7 @@ import { DEFAULT_COST } from '#backtesting/cost.js';
 import { projectSignals } from './projection.js';
 import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
 import { t } from '#i18n/messages.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import { StrategySimulation } from '#strategy/simulation/strategy-simulation.js';
 import type { BacktestingFinalState } from '#backtesting/result.js';
@@ -26,7 +26,7 @@ export async function runSignal(
 ) {
   let locale: Locale = 'zh';
   try {
-    const run = await prisma.signalRun.findUnique({
+    const run = await getDatabase().signalRun.findUnique({
       where: { id: runId },
       include: { deployment: true },
     });
@@ -87,11 +87,11 @@ export async function runSignal(
       ]),
     ];
     const [stocks, etfs] = await Promise.all([
-      prisma.stockBasic.findMany({
+      getDatabase().stockBasic.findMany({
         where: { tsCode: { in: codes } },
         select: { tsCode: true, name: true },
       }),
-      prisma.etfBasic.findMany({
+      getDatabase().etfBasic.findMany({
         where: { tsCode: { in: codes } },
         select: { tsCode: true, name: true },
       }),

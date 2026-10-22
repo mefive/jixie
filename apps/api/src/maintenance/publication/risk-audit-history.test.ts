@@ -3,7 +3,16 @@ import type { Prisma } from '#infra/database/prisma.js';
 import type { MarketRiskDriverQualitySummary } from '#market/state/market-risk-driver-quality.js';
 
 const fixture = vi.hoisted(() => ({ inspect: vi.fn(), calendar: vi.fn() }));
-vi.mock('#infra/database/prisma.js', () => ({ prisma: {} }));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = { prisma: {} };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('#market/state/market-risk-driver-quality.js', async (original) => ({
   ...(await original<typeof import('#market/state/market-risk-driver-quality.js')>()),
   inspectMarketRiskDrivers: fixture.inspect,

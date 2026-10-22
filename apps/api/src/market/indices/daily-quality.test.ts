@@ -11,15 +11,24 @@ const database = vi.hoisted(() => ({
   members: vi.fn(),
   weight: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    indexDaily: { findMany: database.daily },
-    indexDailyBasic: { findMany: database.basic },
-    swIndexDaily: { findMany: database.industry },
-    swIndustryMember: { groupBy: database.members },
-    indexWeight: { findFirst: database.weight },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      indexDaily: { findMany: database.daily },
+      indexDailyBasic: { findMany: database.basic },
+      swIndexDaily: { findMany: database.industry },
+      swIndustryMember: { groupBy: database.members },
+      indexWeight: { findFirst: database.weight },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 beforeEach(() => {
   vi.resetAllMocks();

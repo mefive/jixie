@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import type { FinancialAvailabilityQuality, FinancialStatementKind } from './source-contract.js';
 
@@ -229,7 +229,7 @@ const QUALITY_PRIORITY: Record<FinancialAvailabilityQuality, number> = {
  */
 export async function resolveFinancialState(
   input: { tsCode: string; asOfDate: string; purpose?: 'metrics' | 'statements' },
-  database: FinancialResolverDatabase = prisma,
+  database: FinancialResolverDatabase = getDatabase(),
 ): Promise<ResolvedFinancialState> {
   assertTsCode(input.tsCode);
   assertDate(input.asOfDate, 'asOfDate');
@@ -292,7 +292,7 @@ export async function resolveFinancialStates(
     reportStart?: string;
     reportEnd?: string;
   },
-  database: FinancialResolverDatabase = prisma,
+  database: FinancialResolverDatabase = getDatabase(),
 ): Promise<ResolvedFinancialState[]> {
   assertDate(input.asOfDate, 'asOfDate');
   const tsCodes = sortedUnique(

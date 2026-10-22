@@ -12,7 +12,16 @@ const database = vi.hoisted(() => ({
   indexDaily: { findMany: vi.fn() },
   indexDailyBasic: { groupBy: vi.fn(), findMany: vi.fn() },
 }));
-vi.mock('#infra/database/prisma.js', () => ({ prisma: database }));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = { prisma: database };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 const app = new Hono().onError(handleApiError).route('/api/app/market', marketRoute);
 const request = (url: string) => app.request(`/api/app/market${url}`);

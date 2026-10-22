@@ -17,7 +17,7 @@ import {
   type SignalFillRevisionInput,
   type SignalResolutionInput,
 } from '@jixie/shared/api/signals';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   applyFutureFill,
   resolveFutureLegs,
@@ -28,7 +28,7 @@ import { parseTaskIntent } from './versioned.js';
 import { rebuildVersionedAccount } from './versioned-replay.js';
 
 async function ownedTask(userId: string, executionId: string) {
-  const task = await prisma.signalExecution.findFirst({
+  const task = await getDatabase().signalExecution.findFirst({
     where: { id: executionId, userId, version: 2 },
     include: { deployment: true },
   });
@@ -55,7 +55,7 @@ export async function resolveActualSignal(
 ) {
   const task = await ownedTask(userId, executionId);
   const requestKey = `${userId}:${input.clientRequestId}`;
-  const existing = await prisma.signalResolution.findUnique({ where: { requestKey } });
+  const existing = await getDatabase().signalResolution.findUnique({ where: { requestKey } });
   if (existing) {
     if (
       existing.executionId !== executionId ||
@@ -73,7 +73,7 @@ export async function resolveActualSignal(
   ) {
     throw new SignalsError('execution_unavailable');
   }
-  const prior = await prisma.signalAccountState.findFirst({
+  const prior = await getDatabase().signalAccountState.findFirst({
     where: {
       deploymentId: task.deploymentId,
       kind: 'actual',
@@ -84,7 +84,7 @@ export async function resolveActualSignal(
   });
   const baseline =
     prior ??
-    (await prisma.signalAccountState.findFirst({
+    (await getDatabase().signalAccountState.findFirst({
       where: {
         deploymentId: task.deploymentId,
         kind: 'actual',
@@ -110,7 +110,9 @@ export async function resolveActualSignal(
   if (asOfDate !== task.execDate || Date.parse(input.exposureAsOf) > Date.now()) {
     throw new SignalsError('invalid_date');
   }
-  const recorded = await prisma.signalFill.findMany({ where: { deploymentId: task.deploymentId } });
+  const recorded = await getDatabase().signalFill.findMany({
+    where: { deploymentId: task.deploymentId },
+  });
   const superseded = new Set(recorded.flatMap((row) => (row.replacesId ? [row.replacesId] : [])));
   const basisFills = recorded
     .filter(
@@ -128,14 +130,14 @@ export async function resolveActualSignal(
         left.fill.sequence - right.fill.sequence,
     );
   for (const { fill, row } of basisFills) {
-    const sourceTask = await prisma.signalExecution.findUniqueOrThrow({
+    const sourceTask = await getDatabase().signalExecution.findUniqueOrThrow({
       where: { id: row.executionId },
     });
     const sourceIntent = parseTaskIntent(sourceTask.intent);
     if (sourceIntent.assetType !== 'future') {
       continue;
     }
-    const contract = await prisma.futureContract.findUniqueOrThrow({
+    const contract = await getDatabase().futureContract.findUniqueOrThrow({
       where: { tsCode: fill.actualCode },
     });
     if (!contract.multiplier) {
@@ -181,7 +183,7 @@ export async function resolveActualSignal(
     positions: state.futures.positions,
   });
 
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const current = await transaction.strategyDeployment.findUniqueOrThrow({
       where: { id: task.deploymentId },
     });
@@ -221,7 +223,7 @@ export async function recordSignalFill(
 ) {
   const task = await ownedTask(userId, executionId);
   const requestKey = `${userId}:${input.clientRequestId}`;
-  const existing = await prisma.signalFill.findUnique({ where: { requestKey } });
+  const existing = await getDatabase().signalFill.findUnique({ where: { requestKey } });
   if (existing) {
     if (
       existing.executionId !== executionId ||
@@ -232,7 +234,7 @@ export async function recordSignalFill(
     return { id: existing.id, replay: task.deployment.actualAccountStatus };
   }
   await validateFill(task, input);
-  const row = await prisma.$transaction(async (transaction) => {
+  const row = await getDatabase().$transaction(async (transaction) => {
     const changed = await transaction.strategyDeployment.updateMany({
       where: { id: task.deploymentId, userId, accountInputRevision: input.expectedRevision },
       data: {
@@ -275,7 +277,7 @@ async function validateFill(
   replacesId?: string,
 ) {
   const intent = parseTaskIntent(task.intent);
-  const baseline = await prisma.signalAccountState.findFirst({
+  const baseline = await getDatabase().signalAccountState.findFirst({
     where: { deploymentId: task.deploymentId, generation: 'baseline' },
   });
   const dateParts = new Intl.DateTimeFormat('en-CA', {
@@ -286,7 +288,7 @@ async function validateFill(
   })
     .format(new Date(input.executedAt))
     .replaceAll('-', '');
-  const calendar = await prisma.tradeCal.findUnique({
+  const calendar = await getDatabase().tradeCal.findUnique({
     where: { exchange_calDate: { exchange: 'SSE', calDate: input.tradeDate } },
   });
   if (
@@ -300,10 +302,10 @@ async function validateFill(
     throw new SignalsError('invalid_date');
   }
   if (intent.assetType === 'future') {
-    const contract = await prisma.futureContract.findUnique({
+    const contract = await getDatabase().futureContract.findUnique({
       where: { tsCode: input.actualCode },
     });
-    const reference = await prisma.futureContract.findUnique({
+    const reference = await getDatabase().futureContract.findUnique({
       where: { tsCode: intent.actualCode },
     });
     if (
@@ -322,7 +324,7 @@ async function validateFill(
   }
   if (intent.assetType === 'future') {
     const currentState = signalAccountsSchema.parse(baseline.payload);
-    const recorded = await prisma.signalFill.findMany({
+    const recorded = await getDatabase().signalFill.findMany({
       where: { deploymentId: task.deploymentId },
       include: { execution: true },
     });
@@ -364,7 +366,7 @@ async function validateFill(
     }
   }
   if (input.resolutionId) {
-    const resolution = await prisma.signalResolution.findFirst({
+    const resolution = await getDatabase().signalResolution.findFirst({
       where: {
         id: input.resolutionId,
         executionId: task.id,
@@ -401,7 +403,7 @@ export async function reviseSignalFill(
   fillId: string,
   input: SignalFillRevisionInput,
 ) {
-  const previous = await prisma.signalFill.findUnique({ where: { id: fillId } });
+  const previous = await getDatabase().signalFill.findUnique({ where: { id: fillId } });
   if (!previous) {
     throw new SignalsError('execution_not_found');
   }
@@ -414,7 +416,7 @@ export async function reviseSignalFill(
         clientRequestId: input.clientRequestId,
       })
     : signalFillSchema.parse(previous.payload);
-  const duplicate = await prisma.signalFill.findUnique({ where: { requestKey } });
+  const duplicate = await getDatabase().signalFill.findUnique({ where: { requestKey } });
   if (duplicate) {
     if (
       duplicate.replacesId !== fillId ||
@@ -425,13 +427,16 @@ export async function reviseSignalFill(
     }
     return { id: duplicate.id, replay: task.deployment.actualAccountStatus };
   }
-  if (previous.voided || (await prisma.signalFill.findUnique({ where: { replacesId: fillId } }))) {
+  if (
+    previous.voided ||
+    (await getDatabase().signalFill.findUnique({ where: { replacesId: fillId } }))
+  ) {
     throw new SignalsError('execution_unavailable');
   }
   if (!input.void) {
     await validateFill(task, payload, fillId);
   }
-  const row = await prisma.$transaction(async (transaction) => {
+  const row = await getDatabase().$transaction(async (transaction) => {
     const changed = await transaction.strategyDeployment.updateMany({
       where: { id: task.deploymentId, userId, accountInputRevision: input.expectedRevision },
       data: {
@@ -471,7 +476,7 @@ export async function reviseSignalFill(
  * Replay the actual account after fill changes and retain retryable failures.
  */
 async function replayActualAfterFill(deploymentId: string): Promise<string> {
-  const latest = await prisma.signalAccountMarketInput.findFirst({
+  const latest = await getDatabase().signalAccountMarketInput.findFirst({
     where: { deploymentId },
     orderBy: { tradeDate: 'desc' },
   });
@@ -480,7 +485,7 @@ async function replayActualAfterFill(deploymentId: string): Promise<string> {
   }
   try {
     await rebuildVersionedAccount(deploymentId, 'actual', latest.tradeDate);
-    const deployment = await prisma.strategyDeployment.findUniqueOrThrow({
+    const deployment = await getDatabase().strategyDeployment.findUniqueOrThrow({
       where: { id: deploymentId },
     });
     return deployment.actualAccountStatus;
@@ -498,14 +503,14 @@ export async function getSignalAccountHistory(
   userId: string,
   deploymentId: string,
 ): Promise<SignalAccountHistory> {
-  const deployment = await prisma.strategyDeployment.findFirst({
+  const deployment = await getDatabase().strategyDeployment.findFirst({
     where: { id: deploymentId, userId, accountingVersion: 2 },
   });
   if (!deployment) {
     throw new SignalsError('deployment_not_found');
   }
   const [states, tasks] = await Promise.all([
-    prisma.signalAccountState.findMany({
+    getDatabase().signalAccountState.findMany({
       where: {
         deploymentId,
         OR: [
@@ -516,7 +521,7 @@ export async function getSignalAccountHistory(
       },
       orderBy: { tradeDate: 'asc' },
     }),
-    prisma.signalExecution.findMany({
+    getDatabase().signalExecution.findMany({
       where: { deploymentId, userId, version: 2 },
       orderBy: { execDate: 'desc' },
       include: {
@@ -588,7 +593,7 @@ export async function getSignalAccountHistory(
  */
 export async function retrySignalAccounts(userId: string, deploymentId: string) {
   await getSignalAccountHistory(userId, deploymentId);
-  const dates = await prisma.tradeCal.findMany({
+  const dates = await getDatabase().tradeCal.findMany({
     where: {
       exchange: 'SSE',
       isOpen: 1,
@@ -631,7 +636,7 @@ export async function setSignalTaskDecision(
   input: SignalTaskDecisionInput,
 ) {
   const task = await ownedTask(userId, executionId);
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     const changed = await transaction.strategyDeployment.updateMany({
       where: { id: task.deploymentId, userId, accountInputRevision: input.expectedRevision },
       data: { accountInputRevision: { increment: 1 } },
@@ -665,7 +670,7 @@ export async function reviseSignalMarketInput(
   input: SignalMarketRevisionInput,
 ) {
   const history = await getSignalAccountHistory(userId, deploymentId);
-  const saved = await prisma.signalAccountMarketInput.findFirst({
+  const saved = await getDatabase().signalAccountMarketInput.findFirst({
     where: { deploymentId, tradeDate: input.tradeDate },
     orderBy: { revision: 'desc' },
   });
@@ -692,7 +697,7 @@ export async function reviseSignalMarketInput(
     'simulation',
     true,
   );
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     const current = await transaction.strategyDeployment.findUniqueOrThrow({
       where: { id: deploymentId },
     });

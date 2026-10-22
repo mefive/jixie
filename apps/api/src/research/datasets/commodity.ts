@@ -2,7 +2,7 @@ import type {
   ResearchCommodityHoldingProductCodeV1,
   ResearchCommodityProductCodeV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 限定商品研究数据的产品、日期和公开字段请求。
@@ -23,7 +23,7 @@ export interface ResearchCommodityDatasetRequestV1<TProduct extends string> {
 export async function loadResearchCommodityReturns(
   request: ResearchCommodityDatasetRequestV1<ResearchCommodityProductCodeV1>,
 ) {
-  const rows = await prisma.commodityContinuousReturn.findMany({
+  const rows = await getDatabase().commodityContinuousReturn.findMany({
     where: {
       productCode: request.product,
       availableDate: { gte: request.start, lte: request.end },
@@ -66,7 +66,7 @@ export async function loadResearchCommodityReturns(
 export async function loadResearchCommodityWarehouseReceipts(
   request: ResearchCommodityDatasetRequestV1<ResearchCommodityProductCodeV1>,
 ) {
-  const rows = await prisma.commodityWarehouseReceipt.findMany({
+  const rows = await getDatabase().commodityWarehouseReceipt.findMany({
     where: {
       productCode: request.product,
       availableDate: { gte: request.start, lte: request.end },
@@ -101,7 +101,7 @@ export async function loadResearchCommodityWarehouseReceipts(
 export async function loadResearchCommodityHoldings(
   request: ResearchCommodityDatasetRequestV1<ResearchCommodityHoldingProductCodeV1>,
 ) {
-  const rows = await prisma.commodityHoldingPosition.findMany({
+  const rows = await getDatabase().commodityHoldingPosition.findMany({
     where: {
       productCode: request.product,
       availableDate: { gte: request.start, lte: request.end },

@@ -1,5 +1,5 @@
 import { addDays } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import {
   US_NOMINAL_CURVE_SOURCE,
@@ -292,7 +292,7 @@ export async function syncExternalMarketDrivers(
           ),
         ),
       ),
-      prisma.tradeCal.findMany({
+      getDatabase().tradeCal.findMany({
         where: {
           exchange: 'SSE',
           isOpen: 1,
@@ -341,11 +341,11 @@ export async function syncExternalMarketDrivers(
       const code = EXTERNAL_FX_CODES[index]!;
       const fx = fxByCode[index]!;
       if (fx.length > 0) {
-        await prisma.$transaction([
-          prisma.fxDaily.deleteMany({
+        await getDatabase().$transaction([
+          getDatabase().fxDaily.deleteMany({
             where: { tsCode: code, tradeDate: { gte: range.startDate, lte: range.endDate } },
           }),
-          prisma.fxDaily.createMany({ data: fx.map((bar) => ({ ...bar, retrievedAt })) }),
+          getDatabase().fxDaily.createMany({ data: fx.map((bar) => ({ ...bar, retrievedAt })) }),
         ]);
       }
       summary.fxBars += fx.length;
@@ -376,8 +376,8 @@ async function replaceCurveRange(
   if (points.length === 0) {
     return;
   }
-  await prisma.$transaction([
-    prisma.yieldCurvePoint.deleteMany({
+  await getDatabase().$transaction([
+    getDatabase().yieldCurvePoint.deleteMany({
       where: {
         source: US_NOMINAL_CURVE_SOURCE,
         curveCode,
@@ -385,7 +385,7 @@ async function replaceCurveRange(
         tradeDate: { gte: startDate, lte: endDate },
       },
     }),
-    prisma.yieldCurvePoint.createMany({
+    getDatabase().yieldCurvePoint.createMany({
       data: points.map((point) => ({
         source: US_NOMINAL_CURVE_SOURCE,
         curveCode,

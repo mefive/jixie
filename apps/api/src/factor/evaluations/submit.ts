@@ -1,5 +1,5 @@
 import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorReportSummary, FactorResearchSpecV1, Locale } from '@jixie/shared';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
 import { resolveMacroRegimeTemplateSource } from '../definitions/templates/macro-regime.js';
@@ -135,7 +135,7 @@ export async function submitFactorAnalysis(
   }
 
   if (parentReportId) {
-    const parent = await prisma.factorReport.findFirst({
+    const parent = await getDatabase().factorReport.findFirst({
       where: { id: parentReportId, userId, factor },
       select: { id: true },
     });

@@ -5,11 +5,20 @@ const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    factor: { findFirst: mocks.findFirst },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      factor: { findFirst: mocks.findFirst },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { runFactorAnalysisTool } from './run-factor-analysis.js';
 

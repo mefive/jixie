@@ -1,6 +1,6 @@
 import { futureSignalSchema, signalAccountsSchema } from '@jixie/shared/api/signals';
 import { signalRunState, currentSignalJob } from './state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobService } from '#jobs/job-service.js';
 import type {
   FactorInputSummary,
@@ -17,7 +17,7 @@ import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 export async function listDeploymentLatestRuns(
   userId: string,
 ): Promise<Array<{ deployment: StrategyDeployment; run: SignalRun | null }>> {
-  const rows = await prisma.strategyDeployment.findMany({
+  const rows = await getDatabase().strategyDeployment.findMany({
     where: { userId },
     orderBy: [{ status: 'asc' }, { deployedAt: 'desc' }, { id: 'desc' }],
     include: {
@@ -44,14 +44,14 @@ export async function listSignalRuns(
   deploymentId: string,
   limit: number,
 ): Promise<SignalRun[]> {
-  const deployment = await prisma.strategyDeployment.findFirst({
+  const deployment = await getDatabase().strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
     select: { id: true, strategyName: true },
   });
   if (!deployment) {
     throw new SignalsError('deployment_not_found');
   }
-  const rows = await prisma.signalRun.findMany({
+  const rows = await getDatabase().signalRun.findMany({
     where: { deploymentId, userId },
     orderBy: { tradeDate: 'desc' },
     take: limit,
@@ -64,7 +64,7 @@ export async function listSignalRuns(
 }
 
 export async function getSignalRun(userId: string, runId: string): Promise<SignalRun> {
-  const row = await prisma.signalRun.findFirst({
+  const row = await getDatabase().signalRun.findFirst({
     where: { id: runId, userId },
     include: {
       deployment: { select: { strategyName: true } },
@@ -84,7 +84,7 @@ export async function getSignalRun(userId: string, runId: string): Promise<Signa
  * Authorize a signal job and return state and logs.
  */
 export async function getSignalRunJob(userId: string, jobId: string, since = 0) {
-  const job = await prisma.job.findFirst({
+  const job = await getDatabase().job.findFirst({
     where: { id: jobId, userId, kind: 'signal' },
     select: { id: true },
   });

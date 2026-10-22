@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 在 SQLite 侧分组读取所有有行情证券，包含退市证券，避免客户端 distinct 的内存开销。
@@ -7,7 +7,7 @@ import { prisma } from '#infra/database/prisma.js';
  * client-side distinct can materialize the multi-million-row Daily code column in Node.
  */
 export async function stockCodesWithDailyData(): Promise<string[]> {
-  const rows = await prisma.daily.groupBy({
+  const rows = await getDatabase().daily.groupBy({
     by: ['tsCode'],
     orderBy: { tsCode: 'asc' },
   });

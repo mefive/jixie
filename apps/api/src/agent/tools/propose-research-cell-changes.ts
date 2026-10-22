@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { prepareResearchCellChangeProposal } from '#research/proposals/cell-changes.js';
 import type { ResearchCatalogTurnEvidence } from './search-research-catalog.js';
 import type { AgentTool } from './types.js';
@@ -74,7 +74,7 @@ export function createProposeResearchCellChangesTool(args: {
           `Complete source was not included for Cells ${unavailableCellIds.join(', ')}; do not propose replacing truncated source.`,
         );
       }
-      const pendingClarification = await prisma.researchClarification.findFirst({
+      const pendingClarification = await getDatabase().researchClarification.findFirst({
         where: { documentId: args.documentId, status: 'pending' },
         select: { id: true },
       });

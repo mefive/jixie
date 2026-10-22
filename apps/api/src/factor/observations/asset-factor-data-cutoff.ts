@@ -3,7 +3,7 @@ import {
   commodityFutureProductCodesForEtfs,
   commodityWarehouseReceiptProductCodesForEtfs,
 } from '#market/commodity/commodity-futures.js';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 
 /**
  * 声明资产因子所需市场数据，供共同截止日计算。
@@ -23,7 +23,7 @@ export interface AssetFactorDataRequirements {
 export async function resolveAssetFactorDataCutoff(
   researchSpec: Extract<FactorResearchSpecV1, { analysisKind: 'time_series' | 'panel' }>,
   requirements: AssetFactorDataRequirements = {},
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<string | null> {
   const assets =
     researchSpec.analysisKind === 'panel'
@@ -58,7 +58,7 @@ export async function resolveAssetFactorDataCutoff(
 
 export async function resolveEtfCommonLatest(
   assets: string[],
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<string | null> {
   const latestRows = await database.etfDaily.groupBy({
     by: ['tsCode'],

@@ -1,5 +1,5 @@
 import { signalRunState, currentSignalJob } from '../runs/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ActualExecutionUpdate } from '@jixie/shared';
 import { SignalsError } from '../errors.js';
 import { rebuildDeploymentAccount } from './settlement.js';
@@ -14,7 +14,7 @@ export async function updateActualExecution(
   executionId: string,
   input: ActualExecutionUpdate,
 ): Promise<{ runId: string }> {
-  const execution = await prisma.signalExecution.findFirst({
+  const execution = await getDatabase().signalExecution.findFirst({
     where: { id: executionId, userId },
     include: {
       signalRun: {
@@ -78,9 +78,9 @@ export async function updateActualExecution(
             actualNote: null,
             actualRecordedAt: null,
           };
-  await prisma.signalExecution.update({ where: { id: execution.id }, data });
+  await getDatabase().signalExecution.update({ where: { id: execution.id }, data });
 
-  const latestSimulation = await prisma.strategyAccountSnapshot.findFirst({
+  const latestSimulation = await getDatabase().strategyAccountSnapshot.findFirst({
     where: {
       deploymentId: execution.signalRun.deploymentId,
       kind: 'simulation',

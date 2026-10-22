@@ -8,15 +8,24 @@ const mocks = vi.hoisted(() => ({
   factorUpdateMany: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    factor: {
-      findFirst: mocks.factorFindFirst,
-      updateMany: mocks.factorUpdateMany,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      factor: {
+        findFirst: mocks.factorFindFirst,
+        updateMany: mocks.factorUpdateMany,
+      },
+      factorReport: { findFirst: mocks.reportFindFirst },
     },
-    factorReport: { findFirst: mocks.reportFindFirst },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { FactorError } from '../errors.js';
 import { publishFactor } from './factor.js';

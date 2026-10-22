@@ -11,11 +11,21 @@ describe('workflow isolation', () => {
     await expect(waitForRunningWork(vi.fn())).rejects.toThrow('publication coordinator');
   });
   it('allows isolated preparation without waiting for formal users', async () => {
-    vi.stubEnv('DATABASE_URL', 'file:/tmp/jixie-isolation/maintenance-staging/TEST/candidate.db');
-    vi.stubEnv('JIXIE_STAGING_DATABASE', process.env.DATABASE_URL!);
-    vi.stubEnv('JIXIE_FORMAL_DATABASE_URL', 'file:/tmp/jixie-isolation/formal.db');
-    vi.stubEnv('JIXIE_MAINTENANCE_CANDIDATE', 'TEST');
-    expect(assertProductionLock).not.toThrow();
-    await waitForRunningWork(vi.fn());
+    const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+    await withStagingContext(
+      {
+        id: 'TEST',
+        directory: '/tmp/unused',
+        formalUrl: 'file:/tmp/unused/formal.db',
+        timestamp: '2026-10-21T00:00:00Z',
+        date: '20261021',
+        upperBound: '20261020',
+        requirements: { active: [], versioned: [] },
+      },
+      async () => {
+        expect(assertProductionLock).not.toThrow();
+        await waitForRunningWork(vi.fn());
+      },
+    );
   });
 });

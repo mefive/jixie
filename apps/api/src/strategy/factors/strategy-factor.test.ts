@@ -15,16 +15,23 @@ vi.mock('#factor/sandbox/factor-sandbox.js', () => ({
   FactorSandbox: { start: mocks.runtimeStart },
 }));
 
-vi.mock('#infra/database/prisma.js', () => {
+vi.mock('#infra/database/prisma.js', async () => {
   if (!mocks.preparationAllowed) {
     throw new Error('Source-only factor operations must not load the database');
   }
-  return {
+  const mocked = {
     prisma: {
       factor: { findMany: mocks.factorFindMany },
       factorComposite: { findMany: mocks.compositeFindMany },
       factorReport: { findMany: mocks.reportFindMany },
     },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
   };
 });
 

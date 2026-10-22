@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { AcceptCodeChangeInput } from '@jixie/shared/api/factor';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { AgentError } from '#agent/errors.js';
 import {
   acceptCodeProposalRecord,
@@ -30,7 +30,7 @@ export function factorCodeIdentity(factor: {
 }
 
 export async function getFactorCodeProposal(userId: string, factorId: string, proposalId: string) {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     await ownedFactor(transaction, userId, factorId);
 
     return codeProposalView(
@@ -50,7 +50,7 @@ export async function acceptFactorCodeProposal(
   proposalId: string,
   input: AcceptCodeChangeInput,
 ) {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const factor = await ownedFactor(transaction, userId, factorId);
     const proposal = await readCodeProposal(transaction, userId, 'factor', factorId, proposalId);
     if (proposal.status === 'accepted') {

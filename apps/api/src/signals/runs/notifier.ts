@@ -3,7 +3,7 @@ import { signalRunState, currentSignalJob, signalAttemptWhere } from '#signals/r
 import type { Prisma } from '@prisma/client';
 import type { Locale, SignalItem, FutureSignalItem } from '@jixie/shared';
 import { isEmailConfigured, sendEmail } from '#infra/email/email.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { t } from '#i18n/messages.js';
 
 /**
@@ -29,8 +29,8 @@ export async function notifySignalRun(
   runId: string,
   notifier: Notifier = emailNotifier,
 ): Promise<void> {
-  const run = await prisma.signalRun
-    .findUnique({
+  const run = await getDatabase()
+    .signalRun.findUnique({
       where: { id: runId },
       include: {
         jobs: currentSignalJob,
@@ -68,7 +68,7 @@ export async function notifySignalRun(
   });
   try {
     await notifier.send({ to: run.user.email, ...message });
-    await prisma.signalRun.updateMany({
+    await getDatabase().signalRun.updateMany({
       where: { id: run.id, ...attempt },
       data: { notifiedAt: new Date(), notificationError: null },
     });
@@ -198,8 +198,11 @@ async function recordNotificationError(
   message: string,
   attempt: Prisma.SignalRunWhereInput,
 ): Promise<void> {
-  await prisma.signalRun
-    .updateMany({ where: { id: runId, ...attempt }, data: { notificationError: message } })
+  await getDatabase()
+    .signalRun.updateMany({
+      where: { id: runId, ...attempt },
+      data: { notificationError: message },
+    })
     .catch(() => {});
 }
 

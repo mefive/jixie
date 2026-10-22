@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { BacktestConfig } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -11,16 +11,16 @@ import { uniqueStrategyName } from './naming.js';
  * Copy an accessible public strategy into an independent owned draft.
  */
 export async function copyPublicStrategy(userId: string, strategyId: string) {
-  const source = await prisma.strategy.findFirst({
+  const source = await getDatabase().strategy.findFirst({
     where: { id: strategyId, visibility: 'public' },
     select: { name: true, config: true },
   });
   if (!source) {
     throw new StrategyError('strategy_not_found');
   }
-  const name = await uniqueStrategyName(prisma, userId, source.name);
+  const name = await uniqueStrategyName(getDatabase(), userId, source.name);
   const config = { ...(source.config as unknown as BacktestConfig), name };
-  const copied = await prisma.strategy.create({
+  const copied = await getDatabase().strategy.create({
     data: {
       id: ulid(),
       userId: userId,

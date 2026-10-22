@@ -2,7 +2,7 @@ import type { TimeSeriesEvaluationObservation } from './contract.js';
 import type { TimeSeriesFactorSandbox } from '../sandbox/contract.js';
 import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 import { factorV2YieldTerm, type FactorV2FieldKey } from '../definitions/fields.js';
 
@@ -55,7 +55,7 @@ export async function loadEtfTimeSeriesObservations(
     .map(factorV2YieldTerm)
     .filter((term): term is number => term !== null);
   const [bars, adjustments, curvePoints, assets] = await Promise.all([
-    prisma.etfDaily.findMany({
+    getDatabase().etfDaily.findMany({
       where: {
         tsCode: { in: researchSpec.assets },
         tradeDate: { gte: historyStart, ...(upperBound ? { lte: upperBound } : {}) },
@@ -64,7 +64,7 @@ export async function loadEtfTimeSeriesObservations(
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
-    prisma.etfAdjFactor.findMany({
+    getDatabase().etfAdjFactor.findMany({
       where: {
         tsCode: { in: researchSpec.assets },
         tradeDate: { gte: historyStart, ...(upperBound ? { lte: upperBound } : {}) },
@@ -73,7 +73,7 @@ export async function loadEtfTimeSeriesObservations(
     }),
     yieldTerms.length === 0
       ? Promise.resolve([])
-      : prisma.yieldCurvePoint.findMany({
+      : getDatabase().yieldCurvePoint.findMany({
           where: {
             source: CHINA_TREASURY_CURVE_SOURCE,
             curveCode: CHINA_TREASURY_CURVE_CODE,
@@ -94,7 +94,7 @@ export async function loadEtfTimeSeriesObservations(
         }),
     yieldTerms.length === 0
       ? Promise.resolve([])
-      : prisma.etfBasic.findMany({
+      : getDatabase().etfBasic.findMany({
           where: { tsCode: { in: researchSpec.assets } },
           select: { tsCode: true, fundType: true },
         }),

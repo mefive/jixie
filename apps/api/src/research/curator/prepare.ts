@@ -12,7 +12,7 @@ import type {
 } from '@jixie/shared';
 import { z } from 'zod';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { chatJson, type LlmCall } from '#infra/llm/deepseek.js';
 import { SQL_TABLE_DOCS } from '#agent/tools/sql/read-only-sql.js';
 import { TUSHARE_CAPABILITIES } from '#market/providers/tushare/capability-catalog.js';
@@ -71,7 +71,7 @@ export async function extractResearchCuratorEvidence(
   userId: string,
   cursorFrom: Date | null,
   cursorTo: Date,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchCuratorEvidenceV1[]> {
   const after = cursorFrom ? { gt: cursorFrom } : undefined;
   const [messages, turns] = await Promise.all([
@@ -166,7 +166,7 @@ export async function prepareResearchCuratorRun(
   runId: string,
   options: { database?: PrismaClient; llm?: LlmCall } = {},
 ): Promise<PreparedResearchCuratorRun> {
-  const database = options.database ?? prisma;
+  const database = options.database ?? getDatabase();
   const llm = options.llm ?? chatJson;
   const run = await database.researchCuratorRun
     .findUniqueOrThrow({ include: { job: true }, where: { id: runId } })

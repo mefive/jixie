@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { allMarketIndicatorScope, type DerivedMarketScope } from './scope.js';
 
 /**
@@ -26,7 +26,7 @@ export async function validateDerivedMarketRange(
   scope: DerivedMarketScope = allMarketIndicatorScope(),
 ): Promise<DerivedRangeQuality> {
   const [marketRows, indexRows, industryRows, indexWeightCoverage] = await Promise.all([
-    prisma.marketIndicator.findMany({
+    getDatabase().marketIndicator.findMany({
       where: { tradeDate: { gte: startDate, lte: endDate } },
       select: {
         tradeDate: true,
@@ -35,11 +35,13 @@ export async function validateDerivedMarketRange(
         aboveMa60Ratio: true,
       },
     }),
-    prisma.indexIndicator.count({
+    getDatabase().indexIndicator.count({
       where: { indexCode: { in: scope.indexCodes }, tradeDate: { gte: startDate, lte: endDate } },
     }),
-    prisma.industryIndicator.count({ where: { tradeDate: { gte: startDate, lte: endDate } } }),
-    prisma.indexWeight.groupBy({
+    getDatabase().industryIndicator.count({
+      where: { tradeDate: { gte: startDate, lte: endDate } },
+    }),
+    getDatabase().indexWeight.groupBy({
       by: ['indexCode'],
       where: { indexCode: { in: scope.indexCodes } },
       _min: { tradeDate: true },

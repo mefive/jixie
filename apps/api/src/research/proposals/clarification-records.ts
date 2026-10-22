@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type {
   MessagePart,
   ResearchClarificationAnswerV1,
@@ -90,7 +90,7 @@ export async function resolveResearchClarificationAnswer(
   clarificationId: string,
   selections: ResearchClarificationSelectionV1[],
 ): Promise<ResearchClarificationV1> {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const clarification = await transaction.researchClarification.findFirst({
       where: { id: clarificationId, document: { userId, conversationId, embeddedVersion: null } },
     });

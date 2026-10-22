@@ -1,6 +1,6 @@
 import { backtestWorkerInputSchema } from './job-payload.js';
 import type { BacktestWorkerMessage } from './worker-protocol.js';
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 import { errorMessage } from '#infra/errors.js';
 import type { Locale, LogLevel, LogLine } from '@jixie/shared';
 import { parentPort, workerData } from 'node:worker_threads';
@@ -29,15 +29,17 @@ const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', te
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
 let locale: Locale = 'zh';
-try {
-  const input = backtestWorkerInputSchema.parse(workerData);
-  const { config, userId } = input;
-  locale = input.locale;
-  const result = await runBacktest(config, userId, locale, onSystemLog, onUserLog);
-  send({ type: 'done', payload: result });
-} catch (e) {
-  console.error('[backtest-worker] run failed', e);
-  send({ type: 'error', message: errorMessage(e, locale) });
-} finally {
-  await prisma.$disconnect();
-}
+await withDatabase(prisma, async () => {
+  try {
+    const input = backtestWorkerInputSchema.parse(workerData);
+    const { config, userId } = input;
+    locale = input.locale;
+    const result = await runBacktest(config, userId, locale, onSystemLog, onUserLog);
+    send({ type: 'done', payload: result });
+  } catch (e) {
+    console.error('[backtest-worker] run failed', e);
+    send({ type: 'error', message: errorMessage(e, locale) });
+  } finally {
+    await closeDatabase(prisma);
+  }
+});

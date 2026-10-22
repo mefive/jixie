@@ -1,5 +1,5 @@
 import { addDays } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 import { assignExternalAvailableDates } from './external-drivers.js';
 import {
@@ -129,7 +129,7 @@ export async function syncCrossMarketBenchmarks(
   await seedCrossMarketBenchmarks();
   const summary: CrossMarketBenchmarkSyncSummary = { benchmarkRows: {} };
   for (const range of fiveYearRanges(startDate, endDate)) {
-    const calendarRows = await prisma.tradeCal.findMany({
+    const calendarRows = await getDatabase().tradeCal.findMany({
       where: {
         exchange: 'SSE',
         isOpen: 1,
@@ -161,14 +161,14 @@ export async function syncCrossMarketBenchmarks(
           : assignExternalAvailableDates(parsed, openDates);
       const retrievedAt = new Date();
       if (normalized.length > 0) {
-        await prisma.$transaction([
-          prisma.marketBenchmarkDaily.deleteMany({
+        await getDatabase().$transaction([
+          getDatabase().marketBenchmarkDaily.deleteMany({
             where: {
               benchmarkId: definition.id,
               tradeDate: { gte: range.startDate, lte: range.endDate },
             },
           }),
-          prisma.marketBenchmarkDaily.createMany({
+          getDatabase().marketBenchmarkDaily.createMany({
             data: normalized.map((row) => ({ ...row, retrievedAt })),
           }),
         ]);
@@ -184,9 +184,9 @@ export async function syncCrossMarketBenchmarks(
 }
 
 export async function seedCrossMarketBenchmarks(): Promise<void> {
-  await prisma.$transaction(
+  await getDatabase().$transaction(
     CROSS_MARKET_BENCHMARKS.map((benchmark) =>
-      prisma.marketBenchmark.upsert({
+      getDatabase().marketBenchmark.upsert({
         where: { id: benchmark.id },
         create: benchmarkReferenceRow(benchmark),
         update: benchmarkReferenceRow(benchmark),

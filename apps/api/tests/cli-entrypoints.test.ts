@@ -16,7 +16,7 @@ async function packageScripts(directory: string): Promise<Record<string, string>
 }
 
 describe('application CLI entry contracts', () => {
-  it('registers every module CLI and preserves the stock price wrapper arguments', async () => {
+  it('registers every module CLI and keeps import under one maintenance coordinator', async () => {
     const scripts = await packageScripts(apiDirectory);
     const rootScripts = await packageScripts(repositoryDirectory);
     expect(rootScripts.sync).toBe('pnpm --filter api sync');
@@ -50,8 +50,14 @@ describe('application CLI entry contracts', () => {
       join(repositoryDirectory, 'scripts/maintenance/import-market-data.sh'),
       'utf8',
     );
-    expect(importer).toContain('pnpm --filter api sync stock-prices "$slice_start" "$slice_end"');
-    expect(importer).toContain('stock-bars-$year');
+    expect(importer).toContain(
+      'exec pnpm --filter api maintenance import "$START_DATE" "$END_DATE"',
+    );
+    for (const command of syncCommands) {
+      expect(
+        await readFile(join(apiDirectory, command.entry.replace(/\.js$/, '.ts')), 'utf8'),
+      ).toContain('export async function runSyncTask(');
+    }
     expect(Object.values(scripts).some((command) => /scripts\/maintenance\//.test(command))).toBe(
       false,
     );
@@ -79,8 +85,10 @@ describe('application CLI entry contracts', () => {
       new URL('../../../scripts/bootstrap.sh', import.meta.url),
       'utf8',
     );
-    expect(importer).toContain('pnpm data:audit data "$START_DATE" "$END_DATE" --strict');
-    expect(importer).toContain('pnpm --filter api probe tushare');
+    expect(importer).toContain(
+      'dist/src/maintenance/cli/run-maintenance.js" import "$START_DATE" "$END_DATE"',
+    );
+    expect(importer).not.toContain('pnpm data:audit');
     expect(bootstrap).toContain('pnpm --filter api probe asset-allocation');
     expect(bootstrap).toContain('--persist-if-stale');
     const scripts = JSON.parse(
@@ -106,7 +114,8 @@ describe('application CLI entry contracts', () => {
       expect(service).toContain(
         ` /opt/jixie/apps/api/dist/src/maintenance/cli/run-maintenance.js ${command}`,
       );
-      expect(service).toContain('/usr/bin/flock -n -E 75 /var/lib/jixie/maintenance.lock');
+      expect(service).toContain('ExecStart=/usr/bin/node ');
+      expect(service).not.toContain('/usr/bin/flock');
     }
     expect(scripts.backup).toBe('node scripts/backup-db.mjs');
     const backupService = await readFile(
@@ -119,14 +128,10 @@ describe('application CLI entry contracts', () => {
   });
 
   it.each([
+    ['src/maintenance/cli/run-maintenance.ts', ['baseline', 'invalid'], 'Usage: pnpm maintenance'],
     [
-      'src/maintenance/cli/run-maintenance.ts',
-      ['baseline', 'invalid'],
-      'Baseline date must use YYYYMMDD',
-    ],
-    [
-      'src/market/cli/sync-fina.ts',
-      ['--repair-code', 'invalid'],
+      'scripts/sync/index.ts',
+      ['fina', '--repair-code', 'invalid'],
       '--repair-code must be an A-share ts_code',
     ],
   ])(

@@ -10,8 +10,15 @@ vi.mock('#infra/database/prisma.js', async () => {
   const { default: packageExports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-market-boundary-');
   writeFileSync(`${fixture.directory}/test.db`, '');
-  return {
+  const mocked = {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
   };
 });
 

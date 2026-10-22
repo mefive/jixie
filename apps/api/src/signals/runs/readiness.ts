@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { isCompletedShanghaiDate } from '#market/calendar/sse-close.js';
 
 /**
@@ -14,13 +14,13 @@ export async function resolveSignalExecutionDate(
   if (!/^\d{8}$/.test(tradeDate) || !isCompletedShanghaiDate(tradeDate)) {
     return { kind: 'invalid_date' };
   }
-  const row = await prisma.tradeCal.findUnique({
+  const row = await getDatabase().tradeCal.findUnique({
     where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
   });
   if (!row || row.isOpen !== 1) {
     return { kind: 'invalid_date' };
   }
-  const next = await prisma.tradeCal.findFirst({
+  const next = await getDatabase().tradeCal.findFirst({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gt: tradeDate } },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },
@@ -30,10 +30,10 @@ export async function resolveSignalExecutionDate(
 
 export async function isSignalDataReady(tradeDate: string): Promise<boolean> {
   const [daily, adjustment, basic, limits] = await Promise.all([
-    prisma.daily.count({ where: { tradeDate } }),
-    prisma.adjFactor.count({ where: { tradeDate } }),
-    prisma.dailyBasic.count({ where: { tradeDate } }),
-    prisma.stkLimit.count({ where: { tradeDate } }),
+    getDatabase().daily.count({ where: { tradeDate } }),
+    getDatabase().adjFactor.count({ where: { tradeDate } }),
+    getDatabase().dailyBasic.count({ where: { tradeDate } }),
+    getDatabase().stkLimit.count({ where: { tradeDate } }),
   ]);
   return daily > 0 && adjustment > 0 && basic > 0 && limits > 0;
 }

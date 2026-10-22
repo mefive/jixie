@@ -1,5 +1,5 @@
 import { strategyScanReportState, strategyScanReportStatusWhere } from '#strategy/scans/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type {
   BacktestConfig,
@@ -13,8 +13,8 @@ import { StrategyError } from '../errors.js';
 import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '@jixie/shared/api/strategy';
 
 export async function listStrategyScanReports(userId: string, query: StrategyScanIdentityQuery) {
-  const rows = await prisma.strategyScanReport
-    .findMany({
+  const rows = await getDatabase()
+    .strategyScanReport.findMany({
       include: { job: true },
       where: { userId: userId, strategyId: query.strategyId },
       orderBy: { createdAt: 'desc' },
@@ -26,7 +26,7 @@ export async function listStrategyScanReports(userId: string, query: StrategySca
 }
 
 export async function findActiveStrategyScanJob(userId: string, query: StrategyScanIdentityQuery) {
-  const row = await prisma.strategyScanReport.findFirst({
+  const row = await getDatabase().strategyScanReport.findFirst({
     where: {
       userId: userId,
       strategyId: query.strategyId,
@@ -50,7 +50,7 @@ export async function readStrategyScanJob(
   jobId: string,
   query: StrategyScanJobQuery,
 ) {
-  const ownedJob = await prisma.job.findFirst({
+  const ownedJob = await getDatabase().job.findFirst({
     where: { id: jobId, userId, kind: 'strategy-scan' },
     select: { id: true },
   });
@@ -69,8 +69,8 @@ export async function readStrategyScanJob(
 }
 
 export async function readStrategyScanReport(userId: string, reportId: string) {
-  const row = await prisma.strategyScanReport
-    .findFirst({
+  const row = await getDatabase()
+    .strategyScanReport.findFirst({
       where: { id: reportId, userId: userId },
       include: { job: true },
     })

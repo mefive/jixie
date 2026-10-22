@@ -10,15 +10,24 @@ const mocks = vi.hoisted(() => ({
   generateResearchStrategyDraft: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    strategy: {
-      findFirst: mocks.strategyFindFirst,
-      findUnique: mocks.strategyFindUnique,
-      create: mocks.strategyCreate,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      strategy: {
+        findFirst: mocks.strategyFindFirst,
+        findUnique: mocks.strategyFindUnique,
+        create: mocks.strategyCreate,
+      },
     },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 vi.mock('../evidence/execution-records.js', () => ({
   getResearchExecution: mocks.getResearchExecution,

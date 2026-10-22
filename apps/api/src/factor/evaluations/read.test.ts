@@ -2,9 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ reportFindFirst: vi.fn() }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: { factorReport: { findFirst: mocks.reportFindFirst } },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: { factorReport: { findFirst: mocks.reportFindFirst } },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { readFactorAnalysisResult } from './read.js';
 

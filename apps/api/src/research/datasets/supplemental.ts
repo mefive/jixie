@@ -1,7 +1,7 @@
 import type { ResearchMarketStateScopeV1 } from '@jixie/shared';
 import { buildMarketStatePoints } from '#market/state/compute.js';
 import { addDays } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 指定带日期稳定对象标识的数据查询。
@@ -34,11 +34,11 @@ export async function loadResearchMarketState(request: ResearchMarketStateReques
   const warmStart = addDays(request.start, -45);
   const rows =
     request.scope === 'all'
-      ? await prisma.marketIndicator.findMany({
+      ? await getDatabase().marketIndicator.findMany({
           where: { tradeDate: { gte: warmStart, lte: request.end } },
           orderBy: { tradeDate: 'asc' },
         })
-      : await prisma.indexIndicator.findMany({
+      : await getDatabase().indexIndicator.findMany({
           where: {
             indexCode: request.scope,
             tradeDate: { gte: warmStart, lte: request.end },
@@ -70,7 +70,7 @@ export async function loadResearchMarketState(request: ResearchMarketStateReques
  * Load financial indicators only from their announcement date onward.
  */
 export async function loadResearchEquityFundamentals(request: ResearchDatedIdentifierRequestV1) {
-  const rows = await prisma.finaIndicator.findMany({
+  const rows = await getDatabase().finaIndicator.findMany({
     where: {
       tsCode: request.identifier,
       annDate: { not: null, gte: request.start, lte: request.end },
@@ -99,14 +99,14 @@ export async function loadResearchEquityFundamentals(request: ResearchDatedIdent
  */
 export async function loadResearchEquityFlows(request: ResearchDatedIdentifierRequestV1) {
   const [moneyflow, topList] = await Promise.all([
-    prisma.moneyflow.findMany({
+    getDatabase().moneyflow.findMany({
       where: {
         tsCode: request.identifier,
         tradeDate: { gte: request.start, lte: request.end },
       },
       orderBy: { tradeDate: 'asc' },
     }),
-    prisma.topList.findMany({
+    getDatabase().topList.findMany({
       where: {
         tsCode: request.identifier,
         tradeDate: { gte: request.start, lte: request.end },
@@ -149,7 +149,7 @@ export async function loadResearchEquityFlows(request: ResearchDatedIdentifierRe
  * Load only implemented distributions, using the ex-date as the availability gate.
  */
 export async function loadResearchEquityDividends(request: ResearchDatedIdentifierRequestV1) {
-  const rows = await prisma.dividend.findMany({
+  const rows = await getDatabase().dividend.findMany({
     where: {
       tsCode: request.identifier,
       divProc: '实施',

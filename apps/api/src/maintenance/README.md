@@ -1,11 +1,12 @@
 # Maintenance 后端阅读入口
 
-维护分为不阻塞正式库的候选准备、短暂关闭共享准入的原子发布，以及独立重试的发布后处理。数据规则沿用 [Market](../market/README.md)，具体设计见 [暂存发布](../../../../docs/design/maintenance-staging-publication.md) 和 [锁协议](../../../../docs/design/maintenance-locking.md)。
+维护分为不阻塞正式库的候选准备、短暂关闭共享准入的原子发布，以及独立重试的发布后处理。数据规则沿用 [Market](../market/README.md)，具体设计见 [暂存发布](../../../../docs/design/maintenance-staging-publication.md) 、[数据库作用域与清理](../../../../docs/design/maintenance-database-scope-and-cleanup.md) 和 [锁协议](../../../../docs/design/maintenance-locking.md)。
 
 | 入口／文件 | 职责 |
 | --- | --- |
 | [cli/run-maintenance.ts](cli/run-maintenance.ts) | daily、weekly、repair；内部 sync/import/代码归一转交；参数、进程和数据库收尾 |
 | [staging/coordinator.ts](staging/coordinator.ts) | M 所有权、固定目标、候选恢复、P/R 发布、正式事务凭据、后续动作及清理 |
+| [staging/cleanup.ts](staging/cleanup.ts) | 自动／手动候选回收，诊断保留与 owner 遗留扫描 |
 | [staging/tables.ts](staging/tables.ts) | 显式市场白名单、依赖和稳定业务键；不包含用户数据 |
 | [staging/snapshot.ts](staging/snapshot.ts) | 同一正式读快照，复用迁移后的 schema，仅复制声明的市场数据 |
 | [staging/tracking.ts](staging/tracking.ts) | 候选私有触及键表、事务性增删改捕获及恢复时设施核验 |
@@ -22,7 +23,7 @@
 
 正式库的 protocol=2 控制行使用 `candidate:ID`；running/error 不构成封站依据。数据维护的 active 来自实际发布意图锁；首次未初始化、数据库技术故障和旧协议遗留错误分别处理。旧错误不能仅靠升级自动解封，完整候选审计通过并正式发布后才可标记 revalidated。
 
-准备失败保留候选和断点，不写正式市场表。代码、schema、基线或依赖变化时废弃旧候选并重建同一目标；默认日期绑定原尝试时间。所有候选写进程持有独立所有权引用，IPC 父进程失踪即退出，恢复不能仅信 running、PID 或文件存在。
+准备在候选数据库作用域中执行，不写正式市场表；有效下载失败断点及 ready 发布重试保留，计算／审计／未知中断保存诊断后清理。代码、schema、基线或依赖变化时清理旧候选并重建同一目标；默认日期绑定原尝试时间。仅财务批次保留子进程，继承同一 M 描述符，最后写者退出才释放 M；取消候选 owner 锁。
 
 daily 与 repair 在逐日处理前共用指数成员准备：按月查询目标区间，只写目标区间快照及首日确有需要的最近前置锚点，保留来源原始日期。`MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS`（默认 190 个自然日）是新鲜度／锚点查找上限，不是历史回填写入范围。空月响应可复用有效本地快照；没有合格锚点、过期、无效快照或来源错误仍失败。现有 tradeDate as-of 口径不等于已证明资料的历史公开时点。
 
@@ -34,7 +35,7 @@ CLI 候选流程统一在 finalize 完成一次计算、派生完整性检查、
 
 发布按 M→P 排他→R 排他，停止新准入后等待完整业务结束；queued 不持 R。HTTP、Job、Agent、Research 和 Factor Weather 持 R 到结果写入完成。超时／事务回滚后释放本次门禁，正式凭据与市场增删改、水位、dataRevision、待处理动作一次提交。用户、账户、成交及研究数据不从候选回填。
 
-信号／账户结算和因子气象在释放 M/P/R 后按当前正式数据取得独立 R；各工作还持跨进程所有权，启动恢复跳过其他进程的活任务。后续动作失败保持发布成功事实，不封站；后续维护调用补执行。Research 空闲 Python 会话按 dataRevision 失效。成功候选清理、当前失败候选保留，废弃候选保留 7 天；锁文件始终保留原 inode。
+信号／账户结算和因子气象在释放 M/P/R 后按当前正式数据取得独立 R；各工作还持跨进程所有权，启动恢复跳过其他进程的活任务。后续动作失败保持发布成功事实，不封站；后续维护调用补执行。Research 空闲 Python 会话按 dataRevision 失效。已发布候选按正式凭据清理，后处理失败仍可独立恢复；活跃后处理持有 owner 时暂缓回收。`pnpm maintenance cleanup` 预览，`--apply` 执行。M/P/R 文件保留，空闲 owner 文件经排他持锁和 inode 复核后删除；首次启用需先停止全部旧版本进程。
 
 原始股票／指数、ETF、财报 PIT、商品及派生质量阈值保持。财报子进程仍在逐项持久化后 ACK；weekly 仍保留源缺失观察与 derived-invalidation 断点。原始修复已完成而派生尚未完成时，最终差量比较仍能找出影响起点，避免重试漏算。
 

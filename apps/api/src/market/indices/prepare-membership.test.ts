@@ -13,16 +13,25 @@ vi.mock('../registry/index-presets.js', () => ({
 vi.mock('../providers/tushare/api.js', () => ({ indexWeight: fixture.source }));
 vi.mock('../instruments/stock-identity.js', () => ({ canonicalStockCode: (code: string) => code }));
 vi.mock('./daily-quality.js', () => ({ validateIndexWeightDate: fixture.validate }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    indexWeight: {
-      findFirst: fixture.latest,
-      deleteMany: fixture.remove,
-      createMany: fixture.insert,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      indexWeight: {
+        findFirst: fixture.latest,
+        deleteMany: fixture.remove,
+        createMany: fixture.insert,
+      },
+      $transaction: fixture.transaction,
     },
-    $transaction: fixture.transaction,
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 import { prepareIndexMembership } from './prepare-membership.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 const client = {} as TushareClient;

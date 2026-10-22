@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchCuratorDispositionV1, ResearchCuratorFindingV1 } from '@jixie/shared';
 import type { PrismaClient } from '@prisma/client';
 import { ResearchError } from '../errors.js';
@@ -15,7 +15,7 @@ export async function setResearchCuratorFindingDisposition(
   findingId: string,
   disposition: ResearchCuratorDispositionV1,
   note: string | undefined,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchCuratorFindingV1> {
   const existing = await database.researchCuratorFinding.findFirst({
     where: { id: findingId, userId },
@@ -47,7 +47,7 @@ export async function updateResearchCuratorFindingFeedback(
   userId: string,
   findingId: string,
   input: ResearchCuratorFindingUpdateInput,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchCuratorFindingV1> {
   const existing = await database.researchCuratorFinding.findFirst({
     where: { id: findingId, userId },

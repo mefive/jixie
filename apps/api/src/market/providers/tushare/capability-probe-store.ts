@@ -1,6 +1,6 @@
 import { type PrismaClient } from '@prisma/client';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { AssetAllocationProbeResult } from './asset-allocation-probe.js';
 
 /**
@@ -36,7 +36,7 @@ export async function persistTushareCapabilityProbes(
   results: AssetAllocationProbeResult[],
   probeDate: string,
   probedAt: Date = new Date(),
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<number> {
   const persisted = await database.tushareCapabilityProbe.createMany({
     data: results.map((result) => ({
@@ -67,7 +67,7 @@ export async function persistTushareCapabilityProbes(
  */
 export async function latestTushareCapabilityProbes(
   apiNames: string[],
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<Map<string, StoredTushareCapabilityProbe>> {
   if (apiNames.length === 0) {
     return new Map();
@@ -125,7 +125,7 @@ export async function tushareCapabilityProbesAreFresh(
   apiNames: string[],
   maxAgeDays: number,
   now: Date = new Date(),
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<boolean> {
   const latest = await latestTushareCapabilityProbes(apiNames, database);
   const cutoff = now.getTime() - maxAgeDays * 24 * 60 * 60 * 1_000;

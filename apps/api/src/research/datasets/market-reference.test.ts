@@ -7,14 +7,23 @@ const mocks = vi.hoisted(() => ({
   futuresSettlement: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    etfShareSize: { findMany: mocks.etfShares },
-    indexDailyBasic: { findMany: mocks.indexValuation },
-    industryIndicator: { findMany: mocks.industryState },
-    futureSettlement: { findMany: mocks.futuresSettlement },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      etfShareSize: { findMany: mocks.etfShares },
+      indexDailyBasic: { findMany: mocks.indexValuation },
+      industryIndicator: { findMany: mocks.industryState },
+      futureSettlement: { findMany: mocks.futuresSettlement },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import {
   loadResearchEtfShares,

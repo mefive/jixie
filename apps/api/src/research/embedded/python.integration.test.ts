@@ -13,8 +13,15 @@ vi.mock('#infra/database/prisma.js', async () => {
   const { default: packageExports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-embedded-python-');
   writeFileSync(`${fixture.directory}/test.db`, '');
-  return {
+  const mocked = {
     prisma: new packageExports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: vi.fn() } }));

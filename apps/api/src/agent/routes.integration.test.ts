@@ -16,7 +16,14 @@ vi.mock('#infra/database/prisma.js', async () => {
   fixture.directory = mkdtempSync('/tmp/jixie-agent-http-');
   const database = `${fixture.directory}/agent.db`;
   writeFileSync(database, '');
-  return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
+  const mocked = { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: resources.llm }));
 vi.mock('./tools/sql/read-only-sql.js', async (importOriginal) => ({
@@ -307,7 +314,7 @@ describe('Agent HTTP and durable turn boundaries', () => {
     });
     expect(
       await prisma.agentTurn.findUniqueOrThrow({ where: { id: 'interrupted' } }),
-    ).toMatchObject({ status: 'interrupted', error: 'API process restarted' });
+    ).toMatchObject({ status: 'interrupted', error: 'Owning Agent process exited' });
   });
 
   it('rolls back a reply and turn completion when a Research artifact targets a Strategy conversation', async () => {

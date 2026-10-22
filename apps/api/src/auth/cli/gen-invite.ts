@@ -7,7 +7,7 @@
 //
 // Output: one invite code per line, easy to copy and forward. No Resend, no email sent — just INSERTs into the DB.
 
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase, getDatabase } from '#infra/database/prisma.js';
 import { generateInviteCode } from '../invite-code.js';
 
 /**
@@ -21,8 +21,7 @@ async function main(): Promise<void> {
   const note = args[1] ?? null;
 
   if (!Number.isInteger(count) || count < 1 || count > 100) {
-    console.error('count must be an integer between 1 and 100');
-    process.exit(1);
+    throw new Error('count must be an integer between 1 and 100');
   }
 
   const codes: string[] = [];
@@ -30,7 +29,7 @@ async function main(): Promise<void> {
     codes.push(generateInviteCode());
   }
 
-  await prisma.inviteCode.createMany({
+  await getDatabase().inviteCode.createMany({
     data: codes.map((code) => ({ code, note })),
   });
 
@@ -39,9 +38,9 @@ async function main(): Promise<void> {
   }
 }
 
-main()
+await withDatabase(prisma, main)
   .catch((err) => {
     console.error(err);
-    process.exit(1);
+    process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => closeDatabase(prisma));

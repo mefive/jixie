@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentInterruptResultV1, ResearchDocumentV1 } from '@jixie/shared';
 import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
@@ -16,7 +16,7 @@ export async function interruptResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentInterruptResultV1> {
-  const owner = await prisma.researchDocument.findFirst({
+  const owner = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
@@ -52,7 +52,7 @@ export async function resetResearchDocumentSandbox(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentV1> {
-  const owner = await prisma.researchDocument.findFirst({
+  const owner = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
@@ -61,7 +61,7 @@ export async function resetResearchDocumentSandbox(
   }
   await assertNoOpenCellChangeReview(documentId);
   await researchSandboxPool.reset(documentId);
-  await prisma.researchCell.updateMany({
+  await getDatabase().researchCell.updateMany({
     where: {
       documentId,
       kind: 'python',

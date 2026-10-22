@@ -9,7 +9,7 @@ import {
 } from '#market/commodity/commodity-carry.js';
 import { COMMODITY_FUTURE_SPECS } from '#market/commodity/commodity-futures.js';
 import { addDays, daysBetween } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 import { COMMODITY_CARRY_FIELD } from '../definitions/fields.js';
 
@@ -65,7 +65,7 @@ export async function loadCommodityCarryPanelObservations(
     ? minimumDate(researchSpec.dataPolicy.dataCutoff, targetEnd)
     : targetEnd;
   const [bars, adjustments, calendar, metadata, carryPoints] = await Promise.all([
-    prisma.etfDaily.findMany({
+    getDatabase().etfDaily.findMany({
       where: {
         tsCode: { in: assetIds },
         tradeDate: { gte: historyStart, lte: upperBound },
@@ -74,11 +74,11 @@ export async function loadCommodityCarryPanelObservations(
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
-    prisma.etfAdjFactor.findMany({
+    getDatabase().etfAdjFactor.findMany({
       where: { tsCode: { in: assetIds }, tradeDate: { gte: historyStart, lte: upperBound } },
       select: { tsCode: true, tradeDate: true, adjFactor: true },
     }),
-    prisma.tradeCal.findMany({
+    getDatabase().tradeCal.findMany({
       where: {
         exchange: 'SSE',
         isOpen: 1,
@@ -87,7 +87,7 @@ export async function loadCommodityCarryPanelObservations(
       select: { calDate: true },
       orderBy: { calDate: 'asc' },
     }),
-    prisma.etfBasic.findMany({
+    getDatabase().etfBasic.findMany({
       where: { tsCode: { in: assetIds } },
       select: {
         tsCode: true,

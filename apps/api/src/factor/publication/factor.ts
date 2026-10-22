@@ -1,6 +1,6 @@
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { FactorSandbox } from '../sandbox/factor-sandbox.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
 import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
@@ -19,7 +19,7 @@ export async function publishFactor(
   factorId: string,
   approvedReportId: string,
 ): Promise<PublishedFactor> {
-  const factor = await prisma.factor.findFirst({
+  const factor = await getDatabase().factor.findFirst({
     where: { id: factorId, userId },
     select: {
       id: true,
@@ -39,7 +39,7 @@ export async function publishFactor(
     throw new FactorError('publication_not_draft');
   }
 
-  const report = await prisma.factorReport.findFirst({
+  const report = await getDatabase().factorReport.findFirst({
     where: {
       id: approvedReportId,
       userId,
@@ -90,7 +90,7 @@ export async function publishFactor(
   }
 
   const publishedAt = new Date();
-  const updated = await prisma.factor.updateMany({
+  const updated = await getDatabase().factor.updateMany({
     where: { id: factorId, userId, status: 'draft' },
     data: {
       status: 'published',
@@ -163,14 +163,14 @@ function macroReportIsPointInTime(report: {
 
 export async function archiveFactor(userId: string, factorId: string): Promise<PublishedFactor> {
   const archivedAt = new Date();
-  const updated = await prisma.factor.updateMany({
+  const updated = await getDatabase().factor.updateMany({
     where: { id: factorId, userId, status: 'published' },
     data: { status: 'archived', visibility: 'private', archivedAt },
   });
   if (updated.count === 0) {
     throw new FactorError('factor_not_found');
   }
-  const factor = await prisma.factor.findUniqueOrThrow({ where: { id: factorId } });
+  const factor = await getDatabase().factor.findUniqueOrThrow({ where: { id: factorId } });
   return publishedFactorResource(factor);
 }
 

@@ -2,7 +2,7 @@ import type { TradeDate, TsCode } from '@jixie/shared';
 import { ulid } from 'ulid';
 
 import { addDays } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import {
@@ -66,7 +66,7 @@ export interface FinancialStatementStockSyncOptions {
 export async function storeFinancialCorrectionEvidence(
   evidence: readonly FinancialCorrectionEvidence[],
   observedAt = new Date(),
-  database: CorrectionEvidenceDatabase = prisma,
+  database: CorrectionEvidenceDatabase = getDatabase(),
 ): Promise<number> {
   if (!Number.isFinite(observedAt.getTime())) {
     throw new Error('Financial correction evidence has invalid observedAt');
@@ -183,7 +183,7 @@ export async function syncFinancialStatementsVip(
   client: TushareClient,
   periods: string[],
   options: { onPeriodComplete?: (period: string) => Promise<void> | void } = {},
-  database: FinancialStatementDatabase = prisma,
+  database: FinancialStatementDatabase = getDatabase(),
 ): Promise<FinancialStatementSyncSummary> {
   const summary = emptyFinancialStatementSyncSummary(periods.length);
 
@@ -214,7 +214,7 @@ export async function syncFinancialStatementsByStock(
   client: TushareClient,
   codes: string[],
   options: FinancialStatementStockSyncOptions,
-  database: FinancialStatementDatabase = prisma,
+  database: FinancialStatementDatabase = getDatabase(),
 ): Promise<FinancialStatementSyncSummary> {
   assertDate(options.startDate, 'startDate');
   assertDate(options.endDate, 'endDate');

@@ -4,7 +4,7 @@ import { signalRunState, currentSignalJob, signalAttemptWhere } from '#signals/r
 import { ulid } from 'ulid';
 import type { ModelPositionSnapshot, SignalItem } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 在信号运行完成后建立可查询执行任务及模型、实际两个账户基线。
@@ -12,8 +12,8 @@ import { prisma } from '#infra/database/prisma.js';
  * Create queryable execution rows and the two account baselines after a signal run finishes.
  */
 export async function initializeSignalAccounting(runId: string): Promise<void> {
-  const run = await prisma.signalRun
-    .findUnique({
+  const run = await getDatabase()
+    .signalRun.findUnique({
       where: { id: runId },
       include: {
         jobs: currentSignalJob,
@@ -27,7 +27,7 @@ export async function initializeSignalAccounting(runId: string): Promise<void> {
       await initializeVersionedAccounting(runId);
     } catch (error) {
       const message = errorMessage(error, run.deployment.locale === 'en' ? 'en' : 'zh');
-      await prisma.strategyDeployment.update({
+      await getDatabase().strategyDeployment.update({
         where: { id: run.deploymentId },
         data: {
           simulationStatus: 'failed',
@@ -53,7 +53,7 @@ export async function initializeSignalAccounting(runId: string): Promise<void> {
 
   const signals = run.signals as unknown as SignalItem[];
   const positions = run.modelPositions as unknown as ModelPositionSnapshot[];
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     const current = await transaction.signalRun.findFirst({
       where: { id: run.id, ...signalAttemptWhere(run.jobs[0]) },
       select: { id: true },

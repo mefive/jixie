@@ -1,3 +1,4 @@
+import { prisma, withDatabase, type Prisma } from '#infra/database/prisma.js';
 import { serve } from '@hono/node-server';
 import { buildApp } from './server.js';
 import { registerJobLifecycles } from '#jobs/register.js';
@@ -12,30 +13,34 @@ import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
  *
  * Recover application state and initialize dispatch before starting HTTP with shutdown cleanup.
  */
-export async function startServer(port: number) {
-  const app = buildApp();
-  registerJobLifecycles();
+export async function startServer(port: number, database: Prisma = prisma) {
+  return withDatabase(database, async () => {
+    const app = buildApp(database);
+    registerJobLifecycles();
 
-  // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
-  const [staleJobs, interruptedTurns, interruptedWeather] = await Promise.all([
-    JobService.recoverInterrupted(),
-    markRunningAgentTurnsInterrupted(),
-    resetInterruptedFactorWeatherRefreshes(),
-  ]);
-  if (staleJobs) {
-    console.log(`[jixie] marked ${staleJobs} orphaned job(s) as stale`);
-  }
-  if (interruptedTurns) {
-    console.log(`[jixie] marked ${interruptedTurns} orphaned Agent turn(s) as interrupted`);
-  }
-  if (interruptedWeather) {
-    console.log(`[jixie] reset ${interruptedWeather} interrupted factor weather run(s) to pending`);
-  }
+    // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
+    const [staleJobs, interruptedTurns, interruptedWeather] = await Promise.all([
+      JobService.recoverInterrupted(),
+      markRunningAgentTurnsInterrupted(),
+      resetInterruptedFactorWeatherRefreshes(),
+    ]);
+    if (staleJobs) {
+      console.log(`[jixie] marked ${staleJobs} orphaned job(s) as stale`);
+    }
+    if (interruptedTurns) {
+      console.log(`[jixie] marked ${interruptedTurns} orphaned Agent turn(s) as interrupted`);
+    }
+    if (interruptedWeather) {
+      console.log(
+        `[jixie] reset ${interruptedWeather} interrupted factor weather run(s) to pending`,
+      );
+    }
 
-  // Materialize the built-in preset factors (idempotent; repo is the source of truth).
-  void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
-  JobScheduler.initialize(JobService.execute);
-  JobScheduler.wake();
-  serve({ fetch: app.fetch, port });
-  return app;
+    // Materialize the built-in preset factors (idempotent; repo is the source of truth).
+    void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
+    JobScheduler.initialize(JobService.execute);
+    JobScheduler.wake();
+    serve({ fetch: app.fetch, port });
+    return app;
+  });
 }

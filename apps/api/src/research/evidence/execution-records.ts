@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type {
   ResearchCellKindV1,
   ResearchCellOutputBlockV1,
@@ -80,7 +80,7 @@ export async function createResearchExecution(args: {
     dagSnapshot,
   });
 
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const latest = await transaction.researchExecution.findFirst({
       where: { documentId: args.documentId },
       orderBy: { sequence: 'desc' },
@@ -114,7 +114,7 @@ export async function finishResearchExecution(args: {
   executedCellIds: string[];
   error?: string;
 }): Promise<ResearchExecutionSummaryV1> {
-  const cellExecutions = await prisma.researchCellExecution.findMany({
+  const cellExecutions = await getDatabase().researchCellExecution.findMany({
     where: { researchExecutionId: args.executionId },
     orderBy: { startedAt: 'asc' },
     select: {
@@ -135,7 +135,7 @@ export async function finishResearchExecution(args: {
       environmentFingerprint: execution.environmentFingerprint,
     })),
   });
-  const execution = await prisma.researchExecution.update({
+  const execution = await getDatabase().researchExecution.update({
     where: { id: args.executionId },
     data: {
       status: args.status,
@@ -156,14 +156,14 @@ export async function listResearchExecutions(
   userId: string,
   documentId: string,
 ): Promise<ResearchExecutionSummaryV1[]> {
-  const document = await prisma.researchDocument.findFirst({
+  const document = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
   if (!document) {
     throw new ResearchError('document_not_found');
   }
-  const executions = await prisma.researchExecution.findMany({
+  const executions = await getDatabase().researchExecution.findMany({
     where: { documentId },
     orderBy: { sequence: 'desc' },
   });
@@ -174,7 +174,7 @@ export async function getResearchExecution(
   userId: string,
   executionId: string,
 ): Promise<ResearchExecutionV1> {
-  const execution = await prisma.researchExecution.findFirst({
+  const execution = await getDatabase().researchExecution.findFirst({
     where: { id: executionId, document: { userId, embeddedVersion: null } },
     include: { cellExecutions: { orderBy: { startedAt: 'asc' } } },
   });
@@ -194,7 +194,7 @@ export async function promoteResearchExecution(
   executionId: string,
   input: ResearchExecutionPromotionInputV1,
 ): Promise<ResearchExecutionSummaryV1> {
-  const execution = await prisma.researchExecution.findFirst({
+  const execution = await getDatabase().researchExecution.findFirst({
     where: { id: executionId, document: { userId, embeddedVersion: null } },
   });
   if (!execution) {
@@ -203,7 +203,7 @@ export async function promoteResearchExecution(
   if (execution.status !== 'success') {
     throw new ResearchError('execution_promotion_unavailable');
   }
-  const updated = await prisma.researchExecution.update({
+  const updated = await getDatabase().researchExecution.update({
     where: { id: execution.id },
     data: {
       displayName: input.displayName.trim(),

@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentAnalysisV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ResearchError } from '../errors.js';
@@ -12,7 +12,7 @@ export async function analyzeResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentAnalysisV1> {
-  const owner = await prisma.researchDocument.findFirst({
+  const owner = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: { id: true },
   });
@@ -29,15 +29,15 @@ export async function analyzeResearchDocument(
  * Analyze all document cells, persist definitions and references and reconcile dependencies.
  */
 export async function analyzeAndPersist(documentId: string): Promise<ResearchPythonAnalysis[]> {
-  const cells = await prisma.researchCell.findMany({
+  const cells = await getDatabase().researchCell.findMany({
     where: { documentId },
     select: { id: true, kind: true, source: true },
     orderBy: { position: 'asc' },
   });
   const analyses = await analyzeResearchCellSources(documentId, cells);
-  await prisma.$transaction(
+  await getDatabase().$transaction(
     analyses.map((analysis) =>
-      prisma.researchCell.update({
+      getDatabase().researchCell.update({
         where: { id: analysis.cellId },
         data: {
           definitions: analysis.definitions as unknown as Prisma.InputJsonValue,

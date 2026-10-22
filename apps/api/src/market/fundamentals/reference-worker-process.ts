@@ -1,3 +1,6 @@
+import { getStagingContext } from '#infra/coordination/staging-input.js';
+import { maintenanceLockDescriptor } from '#infra/coordination/market-access.js';
+import { MarketSourceDownloadError } from '../errors.js';
 import { fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { ReferenceSyncSummary } from './reference-sync.js';
@@ -29,13 +32,33 @@ export async function runReferenceWorkerProcess(
     return emptyReferenceSyncSummary();
   }
 
+  const context = getStagingContext();
+  if (!context) {
+    throw new Error('Financial worker requires a candidate execution scope');
+  }
+  const descriptor = maintenanceLockDescriptor();
   const workerPath = referenceWorkerPath();
   return new Promise((resolve, reject) => {
     const child = fork(workerPath, [stage, ...codes], {
-      env: process.env,
+      env: {
+        ...process.env,
+        JIXIE_MAINTENANCE_LOCK_FD: '4',
+        JIXIE_STAGING_CONTEXT: JSON.stringify(context),
+        JIXIE_MARKET_ACCESS_LOCK_FD: undefined,
+        JIXIE_MARKET_PUBLISH_LOCK_FD: undefined,
+      },
       execArgv: workerPath.endsWith('.ts') ? process.execArgv : [],
-      stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
+      stdio: ['inherit', 'inherit', 'inherit', 'ipc', descriptor],
     });
+    let terminationTimer: ReturnType<typeof setTimeout> | undefined;
+    const terminate = () => {
+      failure ??= new Error('Financial worker interrupted');
+      child.kill('SIGTERM');
+      terminationTimer ??= setTimeout(() => child.kill('SIGKILL'), 5000);
+      terminationTimer.unref();
+    };
+    process.once('SIGINT', terminate);
+    process.once('SIGTERM', terminate);
     let summary: ReferenceSyncSummary | null = null;
     let failure: Error | null = null;
     let pending = Promise.resolve();
@@ -49,6 +72,12 @@ export async function runReferenceWorkerProcess(
           }
           if (!isReferenceWorkerMessage(message)) {
             throw new Error('Invalid reference worker message');
+          }
+          if (message.type === 'reference-worker-error') {
+            failure = message.sourceFailure
+              ? new MarketSourceDownloadError(message.message)
+              : new Error(message.message);
+            return;
           }
           if (message.type === 'reference-worker-summary') {
             summary = message.summary;
@@ -71,13 +100,16 @@ export async function runReferenceWorkerProcess(
         })
         .catch((error: unknown) => {
           failure = error instanceof Error ? error : new Error(String(error));
-          child.kill();
+          terminate();
         });
     });
     child.once('error', (error) => {
       failure ??= error;
     });
     child.once('close', (code, signal) => {
+      clearTimeout(terminationTimer);
+      process.off('SIGINT', terminate);
+      process.off('SIGTERM', terminate);
       void pending.then(() => {
         if (failure) {
           reject(failure);

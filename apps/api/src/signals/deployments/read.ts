@@ -1,12 +1,12 @@
 import type { BacktestConfig, StrategyDeployment } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 
 export async function listStrategyDeployments(
   userId: string,
   strategyId: string,
 ): Promise<StrategyDeployment[]> {
-  const rows = await prisma.strategyDeployment.findMany({
+  const rows = await getDatabase().strategyDeployment.findMany({
     where: { userId, strategyId },
     orderBy: [{ deployedAt: 'desc' }, { id: 'desc' }],
   });

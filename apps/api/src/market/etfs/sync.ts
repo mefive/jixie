@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { MarketSourcePendingError } from '../errors.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import {
   etfShareSize,
@@ -62,7 +62,7 @@ export async function fillEtfHistoryGap(
 
   // The maintenance lock serializes writers. Recheck missing keys inside the transaction so
   // a retry cannot delete or overwrite existing observations with a partial source response.
-  await prisma.$transaction(async (database) => {
+  await getDatabase().$transaction(async (database) => {
     const existingDaily = new Set(
       (
         await database.etfDaily.findMany({
@@ -360,7 +360,7 @@ export async function syncEtfShareSizeDate(
   if (options.strictCoverage !== false) {
     assertCompleteCoverage(activeCodes, rows, 'etf_share_size', tradeDate);
   }
-  await prisma.$transaction(async (database) => {
+  await getDatabase().$transaction(async (database) => {
     await database.etfShareSize.deleteMany({
       where: { tsCode: { in: activeCodes }, tradeDate },
     });
@@ -392,7 +392,7 @@ export async function syncEtfShareSizeRange(
   requestedCodes: readonly string[],
   options: { refresh?: boolean } = {},
 ): Promise<EtfShareSizeRangeSyncSummary> {
-  const dates = await prisma.tradeCal.findMany({
+  const dates = await getDatabase().tradeCal.findMany({
     where: {
       exchange: 'SSE',
       isOpen: 1,
@@ -415,7 +415,7 @@ export async function syncEtfShareSizeRange(
     const tradeDate = row.calDate as TradeDate;
     const activeCodes = await activeEtfCodesOnDate(requestedCodes, tradeDate);
     if (!options.refresh) {
-      const existingRows = await prisma.etfShareSize.count({
+      const existingRows = await getDatabase().etfShareSize.count({
         where: { tsCode: { in: activeCodes }, tradeDate },
       });
       if (existingRows > 0 || activeCodes.length === 0) {
@@ -496,7 +496,7 @@ async function publishEtfMarketDate(
   adjustmentRows: FundAdjRow[],
   shareSizeRows: EtfShareSizeRow[],
 ): Promise<void> {
-  await prisma.$transaction(async (database) => {
+  await getDatabase().$transaction(async (database) => {
     await database.etfDaily.deleteMany({
       where: { tsCode: { in: activeCodes }, tradeDate },
     });
@@ -538,7 +538,7 @@ async function activeEtfCodesOnDate(
   tradeDate: TradeDate,
 ): Promise<string[]> {
   const uniqueCodes = [...new Set(requestedCodes)].sort();
-  const metadata = await prisma.etfBasic.findMany({
+  const metadata = await getDatabase().etfBasic.findMany({
     where: { tsCode: { in: uniqueCodes } },
     select: { tsCode: true, listDate: true, delistDate: true },
   });
@@ -559,7 +559,7 @@ async function activeEtfCodesOnDate(
 }
 
 async function nextSseTradingDate(tradeDate: TradeDate): Promise<TradeDate> {
-  const row = await prisma.tradeCal.findFirst({
+  const row = await getDatabase().tradeCal.findFirst({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gt: tradeDate } },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },
@@ -660,15 +660,15 @@ async function loadEtfRevisionSnapshot(
 ): Promise<Map<string, string>> {
   const codes = [...new Set(requestedCodes)];
   const [dailyRows, adjustmentRows, shareSizeRows] = await Promise.all([
-    prisma.etfDaily.findMany({
+    getDatabase().etfDaily.findMany({
       where: { tsCode: { in: codes }, tradeDate: { gte: startDate, lte: endDate } },
       orderBy: [{ tradeDate: 'asc' }, { tsCode: 'asc' }],
     }),
-    prisma.etfAdjFactor.findMany({
+    getDatabase().etfAdjFactor.findMany({
       where: { tsCode: { in: codes }, tradeDate: { gte: startDate, lte: endDate } },
       orderBy: [{ tradeDate: 'asc' }, { tsCode: 'asc' }],
     }),
-    prisma.etfShareSize.findMany({
+    getDatabase().etfShareSize.findMany({
       where: { tsCode: { in: codes }, tradeDate: { gte: startDate, lte: endDate } },
       orderBy: [{ tradeDate: 'asc' }, { tsCode: 'asc' }],
       select: {

@@ -1,5 +1,6 @@
+import { fetchMarketSource, readMarketSourceText } from '../providers/source-fetch.js';
 import { addDays } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { HttpStatusError } from '../errors.js';
 import { macroVintageKind, type PreparedMacroObservation } from './china-macro.js';
 
@@ -182,7 +183,10 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
       const rows = await this.loadFredRows(seriesId);
       return rows.filter((row) => Number(row.year) >= startYear && Number(row.year) <= endYear);
     } catch (error) {
-      throw new Error(
+      throw new AggregateError(
+        [this.getApiFailure, this.postApiFailure, this.bulkFailure, this.oecdFailure, error].filter(
+          (failure) => failure != null,
+        ),
         `BLS CPI retrieval failed: GET API: ${this.getApiFailure?.message ?? 'not attempted'}; POST API: ${this.postApiFailure?.message ?? 'not attempted'}; bulk: ${this.bulkFailure?.message ?? 'not attempted'}; OECD: ${this.oecdFailure?.message ?? 'not attempted'}; FRED: ${asError(error).message}`,
       );
     }
@@ -196,14 +200,14 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     const url = new URL(`${BLS_PUBLIC_API_URL}${encodeURIComponent(seriesId)}`);
     url.searchParams.set('startyear', String(startYear));
     url.searchParams.set('endyear', String(endYear));
-    const response = await this.fetchImpl(url, {
+    const response = await fetchMarketSource(this.fetchImpl, url, {
       headers: BLS_REQUEST_HEADERS,
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) {
-      throw new Error(`returned HTTP ${response.status}`);
+      throw new HttpStatusError(response.status, `returned HTTP ${response.status}`);
     }
-    return parseBlsResponse(await response.json(), seriesId);
+    return parseBlsResponse(JSON.parse(await readMarketSourceText(response)), seriesId);
   }
 
   private async loadPostApiSeries(
@@ -211,7 +215,7 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     startYear: number,
     endYear: number,
   ): Promise<BlsObservationRow[]> {
-    const response = await this.fetchImpl(BLS_PUBLIC_API_URL, {
+    const response = await fetchMarketSource(this.fetchImpl, BLS_PUBLIC_API_URL, {
       method: 'POST',
       headers: { ...BLS_REQUEST_HEADERS, 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -222,20 +226,23 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
       signal: AbortSignal.timeout(30_000),
     });
     if (!response.ok) {
-      throw new Error(`returned HTTP ${response.status}`);
+      throw new HttpStatusError(response.status, `returned HTTP ${response.status}`);
     }
-    return parseBlsResponse(await response.json(), seriesId);
+    return parseBlsResponse(JSON.parse(await readMarketSourceText(response)), seriesId);
   }
 
   private loadBulkRows(seriesId: string): Promise<BlsObservationRow[]> {
-    this.bulkTextPromise ??= this.fetchImpl(BLS_ALL_ITEMS_BULK_URL, {
+    this.bulkTextPromise ??= fetchMarketSource(this.fetchImpl, BLS_ALL_ITEMS_BULK_URL, {
       headers: BLS_REQUEST_HEADERS,
       signal: AbortSignal.timeout(60_000),
     }).then(async (response) => {
       if (!response.ok) {
-        throw new Error(`official All Items file returned HTTP ${response.status}`);
+        throw new HttpStatusError(
+          response.status,
+          `official All Items file returned HTTP ${response.status}`,
+        );
       }
-      return response.text();
+      return await readMarketSourceText(response);
     });
     return this.bulkTextPromise.then((value) => parseBlsBulkFile(value, seriesId));
   }
@@ -270,7 +277,7 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
     let lastError: Error | null = null;
     for (let attempt = 1; attempt <= OECD_MAX_ATTEMPTS; attempt += 1) {
       try {
-        const response = await this.fetchImpl(OECD_US_CPI_URL, {
+        const response = await fetchMarketSource(this.fetchImpl, OECD_US_CPI_URL, {
           headers: {
             accept: 'text/csv',
             // Avoid OECD edge nodes that reject Undici's default `Accept-Language: *`.
@@ -280,9 +287,9 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
           signal: AbortSignal.timeout(60_000),
         });
         if (response.ok) {
-          return response.text();
+          return await readMarketSourceText(response);
         }
-        const detail = await response.text();
+        const detail = await readMarketSourceText(response);
         const statusError = new HttpStatusError(
           response.status,
           `official SDMX endpoint returned HTTP ${response.status}${httpBodySuffix(detail)}`,
@@ -321,7 +328,7 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
         new Error(`FRED fallback does not represent the requested BLS series ${seriesId}`),
       );
     }
-    this.fredRowsPromise ??= this.fetchImpl(FRED_US_CPI_GRAPH_URL, {
+    this.fredRowsPromise ??= fetchMarketSource(this.fetchImpl, FRED_US_CPI_GRAPH_URL, {
       headers: {
         accept: 'text/csv',
         'user-agent': BLS_REQUEST_HEADERS['user-agent'],
@@ -329,9 +336,15 @@ export class BlsPublicDataClient implements BlsPublicDataClientLike {
       signal: AbortSignal.timeout(60_000),
     }).then(async (response) => {
       if (!response.ok) {
-        throw new Error(`graph CSV endpoint returned HTTP ${response.status}`);
+        throw new HttpStatusError(
+          response.status,
+          `graph CSV endpoint returned HTTP ${response.status}`,
+        );
       }
-      const rows = parseFredUsCpiCsv(await response.text(), minimumRecentCpiPeriod(this.now()));
+      const rows = parseFredUsCpiCsv(
+        await readMarketSourceText(response),
+        minimumRecentCpiPeriod(this.now()),
+      );
       if (!rows.some((row) => row.year === '2005' && row.period === 'M01')) {
         throw new Error('graph CSV series did not contain the required period 2005-01');
       }
@@ -733,12 +746,12 @@ export async function syncUsHeadlineCpiData(
   const vintageDate = shanghaiDate(retrievedAt);
   const ready = prepared.filter((observation) => observation.availableDate <= vintageDate);
 
-  await prisma.macroSeries.upsert({
+  await getDatabase().macroSeries.upsert({
     where: { seriesKey: US_HEADLINE_CPI_SERIES_KEY },
     create: US_HEADLINE_CPI_SERIES,
     update: US_HEADLINE_CPI_SERIES,
   });
-  const existing = await prisma.macroObservation.findMany({
+  const existing = await getDatabase().macroObservation.findMany({
     where: { seriesKey: US_HEADLINE_CPI_SERIES_KEY },
     orderBy: [{ period: 'asc' }, { vintageDate: 'desc' }],
   });
@@ -754,9 +767,9 @@ export async function syncUsHeadlineCpiData(
   });
   for (let offset = 0; offset < changed.length; offset += 500) {
     const batch = changed.slice(offset, offset + 500);
-    await prisma.$transaction(
+    await getDatabase().$transaction(
       batch.map((observation) =>
-        prisma.macroObservation.upsert({
+        getDatabase().macroObservation.upsert({
           where: {
             seriesKey_period_vintageDate: {
               seriesKey: observation.seriesKey,
@@ -839,7 +852,7 @@ function asError(value: unknown): Error {
 }
 
 async function loadOpenDates(startMonth: string, endMonth: string): Promise<string[]> {
-  const rows = await prisma.tradeCal.findMany({
+  const rows = await getDatabase().tradeCal.findMany({
     where: {
       exchange: 'SSE',
       isOpen: 1,

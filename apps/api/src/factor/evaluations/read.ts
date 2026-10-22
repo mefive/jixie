@@ -1,5 +1,5 @@
 import { factorReportState } from '#factor/evaluations/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorReport } from '@jixie/shared';
 import { FactorError } from '../errors.js';
 import { readOwnedFactorJob } from '../jobs/read.js';
@@ -21,13 +21,13 @@ import { getHoldoutPolicy, parseResearchIntent, researchCounts } from './researc
 export async function listFactorReports(userId: string, input: FactorReportListQuery) {
   const { factor, limit, cursor } = input;
   const cursorReport = cursor
-    ? await prisma.factorReport.findFirst({
+    ? await getDatabase().factorReport.findFirst({
         where: { id: cursor, userId, factor },
         select: { id: true, createdAt: true },
       })
     : null;
-  const rows = await prisma.factorReport
-    .findMany({
+  const rows = await getDatabase()
+    .factorReport.findMany({
       where: {
         userId,
         factor,
@@ -57,8 +57,8 @@ export async function listFactorReports(userId: string, input: FactorReportListQ
  * Authorize a report and its reveal state before returning the full result.
  */
 export async function readFactorReport(userId: string, reportId: string) {
-  const row = await prisma.factorReport
-    .findFirst({
+  const row = await getDatabase()
+    .factorReport.findFirst({
       where: { id: reportId, userId },
       include: { job: true },
     })
@@ -111,7 +111,7 @@ export async function readFactorAnalysisJob(
   }
 
   if (job.factorReportId) {
-    const report = await prisma.factorReport.findFirst({
+    const report = await getDatabase().factorReport.findFirst({
       where: { id: job.factorReportId, userId },
       select: { phase: true, revealedAt: true },
     });
@@ -135,8 +135,8 @@ export async function readFactorResearchWindow() {
 
 export async function readFactorResearchSummary(userId: string, input: FactorResearchSummaryQuery) {
   const { factor } = input;
-  const rows = await prisma.factorReport
-    .findMany({
+  const rows = await getDatabase()
+    .factorReport.findMany({
       where: { userId },
       select: {
         failureMessage: true,
@@ -169,8 +169,8 @@ export async function readFactorAnalysisResult(
   error?: string;
   payload?: FactorReport;
 } | null> {
-  const row = await prisma.factorReport
-    .findFirst({
+  const row = await getDatabase()
+    .factorReport.findFirst({
       where: { id: reportId, userId, phase: 'explore' },
       select: { job: true, legacyStatus: true, failureMessage: true, payload: true },
     })

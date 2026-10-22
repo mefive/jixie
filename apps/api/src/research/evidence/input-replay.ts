@@ -1,7 +1,7 @@
 import type { ResearchInputRequest, ResearchInputResponse } from './input-contract.js';
 import { createHash } from 'node:crypto';
 import type { ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { researchPayloadHash } from './fingerprints.js';
 
 /**
@@ -13,7 +13,7 @@ export async function replayResearchInput(
   documentId: string,
   request: ResearchInputRequest,
 ): Promise<ResearchInputResponse | undefined> {
-  const document = await prisma.researchDocument.findUnique({
+  const document = await getDatabase().researchDocument.findUnique({
     where: { id: documentId },
     select: { userId: true, embeddedSource: true },
   });
@@ -21,7 +21,7 @@ export async function replayResearchInput(
   if (!source || source.inputMode === 'current') {
     return undefined;
   }
-  const run = await prisma.researchExecution.findFirst({
+  const run = await getDatabase().researchExecution.findFirst({
     where: {
       id: source.runId,
       embeddedVersionId: source.versionId,

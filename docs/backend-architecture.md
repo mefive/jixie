@@ -116,7 +116,7 @@ Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化�
 | Worker / IPC 子进程 | 各业务任务、工具或维护入口按需创建 | 主线程接收结果并处理退出；具体入口和取消语义见 [运行入口清单](backend-runtime-entries.md) |
 | Research Python 会话 | `research/sandbox/python/session.ts` 由普通文档、嵌入分析和依赖分析共用，按文档 ID 复用；公共 session 负责传输 | 中断、reset、归档和执行收尾按业务规则关闭；普通文档锁归 `document-runs/run-state.ts`，嵌入分析保留独立取消/超时流程 |
 | Factor / Strategy isolate 和 Python 连接 | 各领域 runtime 创建，Infra 提供底层能力 | 调用方在完成/失败时释放；长计算超时策略在各自业务，不由公共传输统一决定 |
-| Prisma | `infra/database/prisma.ts` 的进程内单例；子进程有独立实例 | CLI/子进程在收尾断开；API 整体关闭仍依赖进程退出和上级进程管理 |
+| Prisma | `infra/database/prisma.ts` 提供通用执行作用域；主客户端按进程复用，候选及财务子进程独立创建客户端 | API/Job/CLI/Worker 在入口绑定；业务执行时 getDatabase()，无绑定拒绝。客户端由创建者收尾断开；API 整体关闭仍由进程管理负责 |
 | Agent bus / trace / 日志 | `agent/turns` 与 `jobs/job-logs.ts` | DB 保存持久记录，内存事件与日志缓存各有清理规则；重启不重放历史增量事件 |
 | Pyright | `research/language/research-python-language-service.ts` 按需管理语言服务 | 文档和协议生命周期由服务管理；其 package/stub 路径须独立检查 |
 | sandboxd 与 runner | 独立 `apps/sandboxd`，API 通过 Unix socket 请求会话 | daemon 处理 SIGINT/SIGTERM、关闭 server 与会话；本地模式和生产隔离模式不可混作同一种验收 |

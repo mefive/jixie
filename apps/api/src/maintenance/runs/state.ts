@@ -1,8 +1,9 @@
+import { getStagingContext } from '#infra/coordination/staging-input.js';
 import {
   isMarketPublicationActive,
   isMaintenanceOwnerActive,
 } from '#infra/coordination/market-access.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { getMaintenanceState } from '../publication/watermark.js';
@@ -70,7 +71,7 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
  * A retry owns its original range even after the wall clock advances.
  */
 export async function getPendingDailyRun(publishedThrough: string | null) {
-  return prisma.maintenanceRun.findFirst({
+  return getDatabase().maintenanceRun.findFirst({
     where: {
       kind: 'daily',
       status: { in: ['error', 'waiting'] },
@@ -92,7 +93,7 @@ export async function recordDailySourceWait(input: {
   trigger: MaintenanceTrigger;
   error: string;
 }): Promise<void> {
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     const existing = await transaction.maintenanceRun.findUnique({
       where: { kind_targetKey: { kind: 'daily', targetKey: input.endDate } },
     });
@@ -136,7 +137,7 @@ export async function beginMaintenanceRun(input: {
   trigger: MaintenanceTrigger;
   force?: boolean;
 }): Promise<MaintenanceRunHandle> {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const existing = await transaction.maintenanceRun.findUnique({
       where: { kind_targetKey: { kind: input.kind, targetKey: input.targetKey } },
     });
@@ -187,11 +188,9 @@ export async function updateMaintenanceRun(
   stage: string,
   summary?: unknown,
 ): Promise<void> {
-  if (process.env.JIXIE_STAGING_DATABASE && process.send) {
-    process.send({ type: 'maintenance-progress', stage, summary });
-  }
+  await getStagingContext()?.reportProgress?.(stage, summary);
 
-  await prisma.maintenanceRun.update({
+  await getDatabase().maintenanceRun.update({
     where: { id: runId },
     data: {
       stage,
@@ -211,7 +210,7 @@ export async function finishMaintenanceRun(
   status: 'done' | 'error',
   options: { summary?: unknown; error?: string } = {},
 ): Promise<void> {
-  const finish = prisma.maintenanceRun.update({
+  const finish = getDatabase().maintenanceRun.update({
     where: { id: runId },
     data: {
       status,
@@ -223,9 +222,9 @@ export async function finishMaintenanceRun(
     },
   });
   if (status === 'done') {
-    await prisma.$transaction([
+    await getDatabase().$transaction([
       finish,
-      prisma.maintenanceCheckpoint.deleteMany({ where: { runId } }),
+      getDatabase().maintenanceCheckpoint.deleteMany({ where: { runId } }),
     ]);
     return;
   }
@@ -237,7 +236,7 @@ export async function completedMaintenanceItems(
   runId: string,
   stage: string,
 ): Promise<Set<string>> {
-  const rows = await prisma.maintenanceCheckpoint.findMany({
+  const rows = await getDatabase().maintenanceCheckpoint.findMany({
     where: { runId, stage },
     select: { itemKey: true },
   });
@@ -249,7 +248,7 @@ export async function completeMaintenanceItem(
   stage: string,
   itemKey: string,
 ): Promise<void> {
-  await prisma.maintenanceCheckpoint.upsert({
+  await getDatabase().maintenanceCheckpoint.upsert({
     where: { runId_stage_itemKey: { runId, stage, itemKey } },
     create: { runId, stage, itemKey },
     update: { completedAt: new Date() },
@@ -264,19 +263,19 @@ export async function completeMaintenanceItem(
 export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
   const [running, latestDailyError, latestWeekly, latestRepairError, state, waiting] =
     await Promise.all([
-      prisma.maintenanceRun.findFirst({
+      getDatabase().maintenanceRun.findFirst({
         where: { status: 'running', NOT: { targetKey: { startsWith: 'candidate:' } } },
         orderBy: { startedAt: 'desc' },
       }),
-      prisma.maintenanceRun.findFirst({
+      getDatabase().maintenanceRun.findFirst({
         where: { kind: 'daily', status: 'error', NOT: { targetKey: { startsWith: 'candidate:' } } },
         orderBy: { startedAt: 'desc' },
       }),
-      prisma.maintenanceRun.findFirst({
+      getDatabase().maintenanceRun.findFirst({
         where: { kind: 'weekly', NOT: { targetKey: { startsWith: 'candidate:' } } },
         orderBy: { startedAt: 'desc' },
       }),
-      prisma.maintenanceRun.findFirst({
+      getDatabase().maintenanceRun.findFirst({
         where: {
           kind: 'repair',
           status: 'error',
@@ -285,7 +284,7 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
         orderBy: { startedAt: 'desc' },
       }),
       getMaintenanceState(),
-      prisma.maintenanceRun.findFirst({
+      getDatabase().maintenanceRun.findFirst({
         where: { kind: 'daily', status: 'waiting' },
         orderBy: { startedAt: 'asc' },
       }),
@@ -308,7 +307,7 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
     waiting.endDate > state.dailyPublishedThrough
       ? waiting
       : null);
-  const candidate = await prisma.maintenanceRun.findFirst({
+  const candidate = await getDatabase().maintenanceRun.findFirst({
     where: { targetKey: { startsWith: 'candidate:' } },
     orderBy: { startedAt: 'desc' },
   });
@@ -365,7 +364,7 @@ export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
  */
 export async function recoverInterruptedMaintenanceRuns(): Promise<number> {
   const now = new Date();
-  const result = await prisma.maintenanceRun.updateMany({
+  const result = await getDatabase().maintenanceRun.updateMany({
     where: { status: 'running' },
     data: {
       status: 'error',
@@ -389,8 +388,8 @@ export function startMaintenanceHeartbeat(runId: string): () => Promise<void> {
     if (pending) {
       return;
     }
-    pending = prisma.maintenanceRun
-      .updateMany({
+    pending = getDatabase()
+      .maintenanceRun.updateMany({
         where: { id: runId, status: 'running' },
         data: { heartbeatAt: new Date() },
       })

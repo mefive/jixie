@@ -1,7 +1,7 @@
 import type { ResearchCuratorJobPayload } from './job-payload.js';
 import { researchCuratorRunStatusWhere } from './state.js';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { getResearchCuratorRun } from './read.js';
 
@@ -11,7 +11,7 @@ import { getResearchCuratorRun } from './read.js';
  * Freeze curation scope and evidence inputs and create a background curator job.
  */
 export async function submitResearchCuratorRun(userId: string) {
-  const submitted = await prisma.$transaction(async (transaction) => {
+  const submitted = await getDatabase().$transaction(async (transaction) => {
     const active = await transaction.researchCuratorRun.findFirst({
       where: { userId, AND: [researchCuratorRunStatusWhere(['queued', 'running'])] },
       orderBy: { createdAt: 'desc' },

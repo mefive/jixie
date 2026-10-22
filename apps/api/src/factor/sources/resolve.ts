@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { BUILTIN_FACTORS } from '../definitions/builtin-factors.js';
 import { factorCompositeDefinitionV1Schema } from '@jixie/shared/api/factor';
 import { type FactorAnalysisSource } from './snapshot.js';
@@ -59,7 +59,7 @@ export async function resolveFactorSource(
       runtimeVersion: 'ts-v1',
     };
   }
-  const custom = await prisma.factor.findFirst({
+  const custom = await getDatabase().factor.findFirst({
     where: { id: factorId, userId },
     select: {
       code: true,
@@ -79,7 +79,7 @@ export async function resolveFactorSource(
       runtimeVersion: custom.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
     };
   }
-  const composite = await prisma.factorComposite.findFirst({
+  const composite = await getDatabase().factorComposite.findFirst({
     where: { id: factorId, userId },
     select: { name: true, definition: true },
   });
@@ -119,7 +119,7 @@ export async function resolveCustomTimeSeriesFactorSource(
   userId: string,
   factorId: string,
 ): Promise<FactorAnalysisSource | null> {
-  const custom = await prisma.factor.findFirst({
+  const custom = await getDatabase().factor.findFirst({
     where: { id: factorId, userId, analysisKind: 'time_series' },
     select: { code: true, name: true, language: true, runtimeVersion: true },
   });

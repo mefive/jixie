@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const TABLE_LABELS = {
@@ -58,49 +58,49 @@ async function tableCoverage(table: TableKey): Promise<Coverage> {
   };
   switch (table) {
     case 'daily':
-      aggregate = await prisma.daily.aggregate(aggregateArgs);
+      aggregate = await getDatabase().daily.aggregate(aggregateArgs);
       break;
     case 'adjFactor':
-      aggregate = await prisma.adjFactor.aggregate(aggregateArgs);
+      aggregate = await getDatabase().adjFactor.aggregate(aggregateArgs);
       break;
     case 'etfDaily':
-      aggregate = await prisma.etfDaily.aggregate(aggregateArgs);
+      aggregate = await getDatabase().etfDaily.aggregate(aggregateArgs);
       break;
     case 'etfAdjFactor':
-      aggregate = await prisma.etfAdjFactor.aggregate(aggregateArgs);
+      aggregate = await getDatabase().etfAdjFactor.aggregate(aggregateArgs);
       break;
     case 'dailyBasic':
-      aggregate = await prisma.dailyBasic.aggregate(aggregateArgs);
+      aggregate = await getDatabase().dailyBasic.aggregate(aggregateArgs);
       break;
     case 'moneyflow':
-      aggregate = await prisma.moneyflow.aggregate(aggregateArgs);
+      aggregate = await getDatabase().moneyflow.aggregate(aggregateArgs);
       break;
     case 'stkLimit':
-      aggregate = await prisma.stkLimit.aggregate(aggregateArgs);
+      aggregate = await getDatabase().stkLimit.aggregate(aggregateArgs);
       break;
     case 'topList':
-      aggregate = await prisma.topList.aggregate(aggregateArgs);
+      aggregate = await getDatabase().topList.aggregate(aggregateArgs);
       break;
     case 'indexDaily':
-      aggregate = await prisma.indexDaily.aggregate(aggregateArgs);
+      aggregate = await getDatabase().indexDaily.aggregate(aggregateArgs);
       break;
     case 'futureDaily':
-      aggregate = await prisma.futureDaily.aggregate(aggregateArgs);
+      aggregate = await getDatabase().futureDaily.aggregate(aggregateArgs);
       break;
     case 'futureMapping':
-      aggregate = await prisma.futureMapping.aggregate(aggregateArgs);
+      aggregate = await getDatabase().futureMapping.aggregate(aggregateArgs);
       break;
     case 'futureSettlement':
-      aggregate = await prisma.futureSettlement.aggregate(aggregateArgs);
+      aggregate = await getDatabase().futureSettlement.aggregate(aggregateArgs);
       break;
     case 'commodityWarehouseReceipt':
-      aggregate = await prisma.commodityWarehouseReceipt.aggregate(aggregateArgs);
+      aggregate = await getDatabase().commodityWarehouseReceipt.aggregate(aggregateArgs);
       break;
     case 'commodityHoldingPosition':
-      aggregate = await prisma.commodityHoldingPosition.aggregate(aggregateArgs);
+      aggregate = await getDatabase().commodityHoldingPosition.aggregate(aggregateArgs);
       break;
     case 'commodityContinuousReturn':
-      aggregate = await prisma.commodityContinuousReturn.aggregate(aggregateArgs);
+      aggregate = await getDatabase().commodityContinuousReturn.aggregate(aggregateArgs);
       break;
   }
   return {

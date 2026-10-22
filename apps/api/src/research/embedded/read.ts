@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type {
   ResearchCellOutputBlockV1,
   ResearchEmbeddedContextV1,
@@ -27,7 +27,7 @@ function page<T extends { id: string }, View>(
 }
 
 export async function listEmbeddedAnalyses(userId: string, input: ResearchEmbeddedListQuery) {
-  const rows = await prisma.researchEmbeddedAnalysis.findMany({
+  const rows = await getDatabase().researchEmbeddedAnalysis.findMany({
     where: {
       userId,
       hostType: input.hostType,
@@ -41,11 +41,11 @@ export async function listEmbeddedAnalyses(userId: string, input: ResearchEmbedd
 }
 
 export async function getEmbeddedAnalysis(userId: string, analysisId: string) {
-  return analysisView(await ownedAnalysis(prisma, userId, analysisId));
+  return analysisView(await ownedAnalysis(getDatabase(), userId, analysisId));
 }
 
 export async function getEmbeddedVersion(userId: string, analysisId: string, versionId: string) {
-  const row = await prisma.researchEmbeddedAnalysisVersion.findFirst({
+  const row = await getDatabase().researchEmbeddedAnalysisVersion.findFirst({
     where: { id: versionId, analysisId, analysis: { userId } },
   });
   if (!row) {
@@ -59,8 +59,8 @@ export async function listEmbeddedRuns(
   analysisId: string,
   input: ResearchEmbeddedPageQuery,
 ) {
-  await ownedAnalysis(prisma, userId, analysisId);
-  const rows = await prisma.researchExecution.findMany({
+  await ownedAnalysis(getDatabase(), userId, analysisId);
+  const rows = await getDatabase().researchExecution.findMany({
     where: {
       embeddedVersion: { analysisId },
       ...(input.cursor ? { id: { lt: input.cursor } } : {}),
@@ -82,7 +82,7 @@ export async function getEmbeddedRun(
   analysisId: string,
   runId: string,
 ): Promise<ResearchEmbeddedRunV1> {
-  const row = await prisma.researchExecution.findFirst({
+  const row = await getDatabase().researchExecution.findFirst({
     where: { id: runId, embeddedVersion: { analysisId, analysis: { userId } } },
     include: {
       embeddedVersion: true,
@@ -114,7 +114,7 @@ export async function getEmbeddedRun(
     embedded: { source: string; inputScope: string; limits: ResearchEmbeddedRunV1['limits'] };
     cells: Array<{ source: string }>;
   };
-  const continuation = await prisma.researchDocument.findUnique({
+  const continuation = await getDatabase().researchDocument.findUnique({
     where: { embeddedRunKey: `${userId}:${runId}` },
     select: { id: true },
   });
@@ -158,7 +158,7 @@ export async function getEmbeddedInput(
   runId: string,
   inputId: string,
 ) {
-  const input = await prisma.researchExecutionInput.findFirst({
+  const input = await getDatabase().researchExecutionInput.findFirst({
     where: {
       id: inputId,
       executionId: runId,

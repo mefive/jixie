@@ -6,13 +6,22 @@ const mocks = vi.hoisted(() => ({
   holdingsFindMany: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    commodityContinuousReturn: { findMany: mocks.returnsFindMany },
-    commodityWarehouseReceipt: { findMany: mocks.receiptsFindMany },
-    commodityHoldingPosition: { findMany: mocks.holdingsFindMany },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      commodityContinuousReturn: { findMany: mocks.returnsFindMany },
+      commodityWarehouseReceipt: { findMany: mocks.receiptsFindMany },
+      commodityHoldingPosition: { findMany: mocks.holdingsFindMany },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import {
   loadResearchCommodityHoldings,

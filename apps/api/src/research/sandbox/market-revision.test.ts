@@ -1,8 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const fixture = vi.hoisted(() => ({ revision: 7, start: vi.fn() }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: { maintenanceState: { findUnique: async () => ({ dataRevision: fixture.revision }) } },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: { maintenanceState: { findUnique: async () => ({ dataRevision: fixture.revision }) } },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('#infra/coordination/market-access.js', () => ({
   withMarketAccess: async (operation: () => Promise<unknown>) => operation(),
 }));

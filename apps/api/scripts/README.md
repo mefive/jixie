@@ -6,7 +6,7 @@
 
 | 目录 / 文件 | 用途 | 入口数 | 主要调用方 |
 | --- | --- | --- | --- |
-| [Market CLI](../src/market/cli/) | 市场数据同步（含财报历史导入）、派生计算和证券代码修复 | 25 | 批量导入、bootstrap、手动补数 |
+| [Market 同步函数](../src/market/sync/) | 由统一 sync CLI 调用，包含财报历史导入和派生计算 | 24 | 批量导入、bootstrap、手动补数 |
 | [Maintenance CLI](../src/maintenance/cli/) | 整轮维护和基线修复 | 1 | systemd、根级维护命令、批量导入 |
 | [Signals CLI](../src/signals/cli/) | 交易日信号周期 | 1 | 管理员 |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
@@ -37,30 +37,30 @@
 
 | 命令 | 文件 | 参数 | 内容 |
 | --- | --- | --- | --- |
-| `sync stock-prices` | [sync-stock-prices.ts](../src/market/cli/sync-stock-prices.ts) | `[start] [end]` | 股票基础信息、交易日历、日行情与复权 |
-| `sync stock-history` | [sync-stock-history.ts](../src/market/cli/sync-stock-history.ts) | `[start] [end]` | 完整股票名录、历史名称及代码变更资料 |
-| `sync basic` | [sync-basic.ts](../src/market/cli/sync-basic.ts) | `[start] [end]` | 股票每日估值指标；不是基础名录 |
-| `sync fina` | [sync-fina.ts](../src/market/cli/sync-fina.ts) | 无参数全量；单股修复见文件中的 `--repair-code` | 原始财报版本、财务指标、分红历史，分批子进程执行 |
-| `sync limit` | [sync-limit.ts](../src/market/cli/sync-limit.ts) | `[start] [end]` | 每日涨跌停价格 |
-| `sync moneyflow` | [sync-moneyflow.ts](../src/market/cli/sync-moneyflow.ts) | `[start] [end]` | 个股资金流 |
-| `sync toplist` | [sync-toplist.ts](../src/market/cli/sync-toplist.ts) | `[start] [end]` | 龙虎榜 |
-| `sync sw-industry` | [sync-sw-industry.ts](../src/market/cli/sync-sw-industry.ts) | 无 | 申万行业成员及历史归属 |
-| `sync etf` | [sync-etf.ts](../src/market/cli/sync-etf.ts) | `[start] [end] [selector] [refresh]` | ETF 元数据、行情、复权和份额；selector 为 `registry`、`major` 或逗号分隔代码 |
-| `sync index` | [sync-index.ts](../src/market/cli/sync-index.ts) | `[selector] [start] [end]` | 成分权重及行情；selector 为 `market-state` 或逗号分隔代码 |
-| `sync index-daily` | [sync-index-daily.ts](../src/market/cli/sync-index-daily.ts) | `[start] [end] [selector]` | 只补指数行情；selector 为 `major` 或逗号分隔代码 |
-| `sync index-basic` | [sync-index-basic.ts](../src/market/cli/sync-index-basic.ts) | `[start] [end] [selector]` | 指数每日估值；selector 为 `major` 或逗号分隔代码 |
-| `sync market-reference` | [sync-market-reference.ts](../src/market/cli/sync-market-reference.ts) | `[start] [end]` | 指数目录、看板指数和申万行业行情 |
-| `sync market-state` | [sync-market-state.ts](../src/market/cli/sync-market-state.ts) | `[start] [end]` | 本地预计算市场、指数与行业状态 |
-| `sync futures` | [sync-futures.ts](../src/market/cli/sync-futures.ts) | `[start] [end]` | 股指期货合约、行情、主力映射和结算参数 |
-| `sync commodity-futures` | [sync-commodity-futures.ts](../src/market/cli/sync-commodity-futures.ts) | `[start] [end]` | 商品期货实际合约及行情 |
-| `sync commodity-continuous` | [sync-commodity-continuous-returns.ts](../src/market/cli/sync-commodity-continuous-returns.ts) | `[start] [end]` | 主力映射及经审计的商品连续收益 |
-| `sync commodity-holdings` | [sync-commodity-holdings.ts](../src/market/cli/sync-commodity-holdings.ts) | `[start] [end]` | 商品期货会员持仓排名汇总 |
-| `sync commodity-warehouse-receipts` | [sync-commodity-warehouse-receipts.ts](../src/market/cli/sync-commodity-warehouse-receipts.ts) | `[start] [end]` | 商品交易所仓单 |
-| `sync rates` | [sync-rates.ts](../src/market/cli/sync-rates.ts) | `[start] [end]` | 中国国债收益率曲线 |
-| `sync credit-curves` | [sync-credit-curves.ts](../src/market/cli/sync-credit-curves.ts) | `[start] [end]` | 信用债收益率曲线 |
-| `sync external-market` | [sync-external-market.ts](../src/market/cli/sync-external-market.ts) | `[start] [end]` | 美国利率、汇率等外部市场数据 |
-| `sync cross-market-benchmarks` | [sync-cross-market-benchmarks.ts](../src/market/cli/sync-cross-market-benchmarks.ts) | `[start] [end]` | 跨市场基准序列 |
-| `sync macro` | [sync-macro.ts](../src/market/cli/sync-macro.ts) | `[startMonth] [endMonth]` | 中国宏观和美国 CPI |
+| `sync stock-prices` | [stock-prices.ts](../src/market/sync/stock-prices.ts) | `[start] [end]` | 股票基础信息、交易日历、日行情与复权 |
+| `sync stock-history` | [stock-history.ts](../src/market/sync/stock-history.ts) | `[start] [end]` | 完整股票名录、历史名称及代码变更资料 |
+| `sync basic` | [basic.ts](../src/market/sync/basic.ts) | `[start] [end]` | 股票每日估值指标；不是基础名录 |
+| `sync fina` | [fina.ts](../src/market/sync/fina.ts) | 无参数全量；单股修复见文件中的 `--repair-code` | 原始财报版本、财务指标、分红历史，分批子进程执行 |
+| `sync limit` | [limit.ts](../src/market/sync/limit.ts) | `[start] [end]` | 每日涨跌停价格 |
+| `sync moneyflow` | [moneyflow.ts](../src/market/sync/moneyflow.ts) | `[start] [end]` | 个股资金流 |
+| `sync toplist` | [toplist.ts](../src/market/sync/toplist.ts) | `[start] [end]` | 龙虎榜 |
+| `sync sw-industry` | [sw-industry.ts](../src/market/sync/sw-industry.ts) | 无 | 申万行业成员及历史归属 |
+| `sync etf` | [etf.ts](../src/market/sync/etf.ts) | `[start] [end] [selector] [refresh]` | ETF 元数据、行情、复权和份额；selector 为 `registry`、`major` 或逗号分隔代码 |
+| `sync index` | [index.ts](../src/market/sync/index.ts) | `[selector] [start] [end]` | 成分权重及行情；selector 为 `market-state` 或逗号分隔代码 |
+| `sync index-daily` | [index-daily.ts](../src/market/sync/index-daily.ts) | `[start] [end] [selector]` | 只补指数行情；selector 为 `major` 或逗号分隔代码 |
+| `sync index-basic` | [index-basic.ts](../src/market/sync/index-basic.ts) | `[start] [end] [selector]` | 指数每日估值；selector 为 `major` 或逗号分隔代码 |
+| `sync market-reference` | [market-reference.ts](../src/market/sync/market-reference.ts) | `[start] [end]` | 指数目录、看板指数和申万行业行情 |
+| `sync market-state` | [market-state.ts](../src/market/sync/market-state.ts) | `[start] [end]` | 本地预计算市场、指数与行业状态 |
+| `sync futures` | [futures.ts](../src/market/sync/futures.ts) | `[start] [end]` | 股指期货合约、行情、主力映射和结算参数 |
+| `sync commodity-futures` | [commodity-futures.ts](../src/market/sync/commodity-futures.ts) | `[start] [end]` | 商品期货实际合约及行情 |
+| `sync commodity-continuous` | [commodity-continuous-returns.ts](../src/market/sync/commodity-continuous-returns.ts) | `[start] [end]` | 主力映射及经审计的商品连续收益 |
+| `sync commodity-holdings` | [commodity-holdings.ts](../src/market/sync/commodity-holdings.ts) | `[start] [end]` | 商品期货会员持仓排名汇总 |
+| `sync commodity-warehouse-receipts` | [commodity-warehouse-receipts.ts](../src/market/sync/commodity-warehouse-receipts.ts) | `[start] [end]` | 商品交易所仓单 |
+| `sync rates` | [rates.ts](../src/market/sync/rates.ts) | `[start] [end]` | 中国国债收益率曲线 |
+| `sync credit-curves` | [credit-curves.ts](../src/market/sync/credit-curves.ts) | `[start] [end]` | 信用债收益率曲线 |
+| `sync external-market` | [external-market.ts](../src/market/sync/external-market.ts) | `[start] [end]` | 美国利率、汇率等外部市场数据 |
+| `sync cross-market-benchmarks` | [cross-market-benchmarks.ts](../src/market/sync/cross-market-benchmarks.ts) | `[start] [end]` | 跨市场基准序列 |
+| `sync macro` | [macro.ts](../src/market/sync/macro.ts) | `[startMonth] [endMonth]` | 中国宏观和美国 CPI |
 
 ## 审计与查看
 
@@ -91,6 +91,7 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
 | `maintenance` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair [start end] [--refresh]`、`daily --initialize-only`、`daily --resume-only` | 先在独立候选中准备，再一次性事务发布；准备失败不阻塞主库 |
+| `maintenance cleanup [--apply]` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | 默认预览；显式 `--apply` 删除 | 按凭据和恢复条件回收候选及空闲 owner 文件，不下载或发布 |
 | `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
 | `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/maintenance/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
 | `gen:invite` | [gen-invite.ts](../src/auth/cli/gen-invite.ts) | `[count] [note]` | 创建邀请码，写数据库，不发送邮件 |
@@ -147,3 +148,7 @@ audit/probe 参数和注册覆盖测试分别归入各目录的 `commands.test.t
 Gate 2 静态检查：API `tsc --noEmit`、改动 TypeScript 的 ESLint / Prettier、后端边界静态扫描（0 违规）、引用与 diff 检查通过。人工代码审查已通过。
 
 审查后验证：审计参数、CLI 执行边界与应用入口契约共 3 个测试文件、34 项测试全部通过，API 构建通过。测试进程均已退出；未执行真实数据同步、付费模型调用或启动常驻服务。
+
+### 数据库作用域与回收（2026-10-22，待代码审阅）
+
+`pnpm sync` 保留全部 24 个命令及参数；业务实现移至 `src/market/sync` 的可调用函数，不再自执行 CLI。维护准备、最终计算与审计在候选数据库作用域中执行；仅财务批次保留子进程。详细边界、升级约束及验证计划见 [设计](../../../docs/design/maintenance-database-scope-and-cleanup.md)。尚未运行本次行为验证。

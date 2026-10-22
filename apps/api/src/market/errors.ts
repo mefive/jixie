@@ -70,3 +70,26 @@ export class MarketSourcePendingError extends Error {
     this.name = 'MarketSourcePendingError';
   }
 }
+
+/** 数据获取的传输失败，与字段映射或计算错误分开。 / A source transport failure, distinct from mapping or computation errors. */
+export class MarketSourceDownloadError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = 'MarketSourceDownloadError';
+  }
+}
+
+/** 只按已知错误类型保留下载断点，不匹配错误文案。 / Retain download checkpoints by known error types, never message matching. */
+export function isMarketSourceFailure(error: unknown): boolean {
+  if (error instanceof AggregateError) {
+    return error.errors.length > 0 && error.errors.every(isMarketSourceFailure);
+  }
+
+  return (
+    error instanceof MarketSourceDownloadError ||
+    error instanceof MarketSourcePendingError ||
+    error instanceof TushareError ||
+    error instanceof HttpStatusError ||
+    error instanceof ChinaBondHttpStatusError
+  );
+}

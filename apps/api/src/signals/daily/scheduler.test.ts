@@ -13,17 +13,26 @@ const mocks = vi.hoisted(() => ({
   claim: vi.fn(),
   execute: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    tradeCal: { findUnique: async () => ({ isOpen: 1 }) },
-    strategyDeployment: {
-      findMany: async () => [
-        { id: 'first', userId: 'owner', strategyName: 'First' },
-        { id: 'second', userId: 'owner', strategyName: 'Second' },
-      ],
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      tradeCal: { findUnique: async () => ({ isOpen: 1 }) },
+      strategyDeployment: {
+        findMany: async () => [
+          { id: 'first', userId: 'owner', strategyName: 'First' },
+          { id: 'second', userId: 'owner', strategyName: 'Second' },
+        ],
+      },
     },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('#jobs/job-service.js', () => ({
   JobService: { claim: mocks.claim, execute: mocks.execute },
 }));

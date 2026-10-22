@@ -14,8 +14,15 @@ vi.mock('#infra/database/prisma.js', async () => {
   const { default: exports } = await import('@prisma/client');
   fixture.directory = mkdtempSync('/tmp/jixie-factor-questions-');
   writeFileSync(`${fixture.directory}/test.db`, '');
-  return {
+  const mocked = {
     prisma: new exports.PrismaClient({ datasourceUrl: `file:${fixture.directory}/test.db` }),
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
   };
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: fixture.llm }));

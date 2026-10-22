@@ -4,11 +4,20 @@ const mocks = vi.hoisted(() => ({
   conversationFindMany: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    agentConversation: { findMany: mocks.conversationFindMany },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      agentConversation: { findMany: mocks.conversationFindMany },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { listResearchDocuments } from './read.js';
 

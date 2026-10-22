@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import {
@@ -61,7 +61,7 @@ export async function syncIndexWeight(
       end_date: effectiveEnd,
     });
     if (rows.length === 0) {
-      const existingRows = await prisma.indexWeight.count({
+      const existingRows = await getDatabase().indexWeight.count({
         where: { indexCode, tradeDate: { gte: effectiveStart, lte: effectiveEnd } },
       });
       if (existingRows > 0) {
@@ -82,11 +82,11 @@ export async function syncIndexWeight(
         );
       }
     }
-    await prisma.$transaction([
-      prisma.indexWeight.deleteMany({
+    await getDatabase().$transaction([
+      getDatabase().indexWeight.deleteMany({
         where: { indexCode, tradeDate: { gte: effectiveStart, lte: effectiveEnd } },
       }),
-      prisma.indexWeight.createMany({
+      getDatabase().indexWeight.createMany({
         data: rows.map((r) => ({
           indexCode: r.index_code,
           conCode: canonicalStockCode(r.con_code),
@@ -143,9 +143,9 @@ export async function syncSwIndustry(client: TushareClient): Promise<number> {
     log(`  ${industry.industry_name}: 累计 ${rows.length} 行`);
   }
 
-  await prisma.$transaction([
-    prisma.swIndustryMember.deleteMany({}),
-    prisma.swIndustryMember.createMany({ data: rows }),
+  await getDatabase().$transaction([
+    getDatabase().swIndustryMember.deleteMany({}),
+    getDatabase().swIndustryMember.createMany({ data: rows }),
   ]);
   log(`syncSwIndustry 完成，共 ${rows.length} 行`);
   return rows.length;
@@ -159,9 +159,9 @@ export async function syncSwIndustry(client: TushareClient): Promise<number> {
 export async function syncIndexBenchmarks(client: TushareClient): Promise<number> {
   const rows = await indexBenchmark(client);
 
-  await prisma.$transaction([
-    prisma.indexBenchmark.deleteMany({}),
-    prisma.indexBenchmark.createMany({
+  await getDatabase().$transaction([
+    getDatabase().indexBenchmark.deleteMany({}),
+    getDatabase().indexBenchmark.createMany({
       data: rows.map((row) => ({
         tsCode: row.ts_code,
         symbol: row.symbol,
@@ -207,11 +207,11 @@ export async function syncSwIndexDaily(
     }
   }
 
-  await prisma.$transaction([
-    prisma.swIndexDaily.deleteMany({
+  await getDatabase().$transaction([
+    getDatabase().swIndexDaily.deleteMany({
       where: { tradeDate: { gte: start, lte: end }, tsCode: { in: [...allowedCodes] } },
     }),
-    prisma.swIndexDaily.createMany({
+    getDatabase().swIndexDaily.createMany({
       data: rows.map((row) => ({
         tsCode: row.ts_code,
         tradeDate: row.trade_date,
@@ -261,11 +261,11 @@ export async function syncIndexDaily(
       end_date: windowEnd,
     });
 
-    await prisma.$transaction([
-      prisma.indexDaily.deleteMany({
+    await getDatabase().$transaction([
+      getDatabase().indexDaily.deleteMany({
         where: { tsCode: indexCode, tradeDate: { gte: windowStart, lte: windowEnd } },
       }),
-      prisma.indexDaily.createMany({
+      getDatabase().indexDaily.createMany({
         data: rows.map((row) => ({
           tsCode: row.ts_code,
           tradeDate: row.trade_date,
@@ -305,14 +305,14 @@ export async function syncIndexDailyBasic(
         start_date: windowStart,
         end_date: windowEnd,
       });
-      await prisma.$transaction([
-        prisma.indexDailyBasic.deleteMany({
+      await getDatabase().$transaction([
+        getDatabase().indexDailyBasic.deleteMany({
           where: {
             tsCode: indexCode,
             tradeDate: { gte: windowStart, lte: windowEnd },
           },
         }),
-        prisma.indexDailyBasic.createMany({
+        getDatabase().indexDailyBasic.createMany({
           data: rows.map((row) => ({
             tsCode: row.ts_code,
             tradeDate: row.trade_date,

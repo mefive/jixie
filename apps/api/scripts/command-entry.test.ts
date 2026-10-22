@@ -14,7 +14,17 @@ const loader = require.resolve('tsx');
 async function createFixture(directory: string, compiled: boolean): Promise<string> {
   const outputDirectory = compiled ? join(directory, 'dist') : directory;
   await mkdir(join(outputDirectory, 'scripts'), { recursive: true });
-  await writeFile(join(directory, 'package.json'), '{"type":"module"}');
+  await writeFile(
+    join(directory, 'package.json'),
+    JSON.stringify({
+      type: 'module',
+      imports: {
+        '#infra/*': './' + (compiled ? 'dist/' : '') + 'src/infra/*',
+        '#market/*': './' + (compiled ? 'dist/' : '') + 'src/market/*',
+        '#maintenance/*': './' + (compiled ? 'dist/' : '') + 'src/maintenance/*',
+      },
+    }),
+  );
   for (const name of [
     'sync/index',
     'sync/arguments',
@@ -35,6 +45,22 @@ async function createFixture(directory: string, compiled: boolean): Promise<stri
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, output);
   }
+  for (const name of ['infra/cli/arguments', 'market/sync/arguments', 'market/sync/commands']) {
+    const source = await readFile(new URL(`../src/${name}.ts`, import.meta.url), 'utf8');
+    const output = compiled
+      ? ts.transpileModule(source, {
+          compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+        }).outputText
+      : source;
+    const outputPath = join(outputDirectory, 'src', `${name}.${compiled ? 'js' : 'ts'}`);
+    await mkdir(dirname(outputPath), { recursive: true });
+    await writeFile(outputPath, output);
+  }
+  await mkdir(join(outputDirectory, 'src/infra/database'), { recursive: true });
+  await writeFile(
+    join(outputDirectory, `src/infra/database/prisma.${compiled ? 'js' : 'ts'}`),
+    'export const prisma = {}; export const withDatabase = async (_database, operation) => operation(); export const closeDatabase = async () => {};',
+  );
   return outputDirectory;
 }
 
@@ -43,7 +69,7 @@ const commandCases = [
     entry: 'sync/index',
     family: 'sync',
     task: 'stock-prices',
-    target: 'src/market/cli/sync-stock-prices',
+    target: 'src/maintenance/staging/coordinator',
     args: ['20250101', '20251231'],
   },
   {
@@ -110,7 +136,9 @@ describe('API command executable boundary', () => {
         await writeFile(join(directory, '.env'), 'JIXIE_COMMAND_FIXTURE=from-api-env\n');
         await writeFile(
           join(outputDirectory, `${command.target}.${extension}`),
-          `
+          command.family === 'sync'
+            ? `export async function runStagedMaintenance(command, args) { if (command !== 'sync') throw new Error('Wrong command'); console.log(JSON.stringify({ cwd: process.cwd(), args: args.slice(1), value: process.env.JIXIE_COMMAND_FIXTURE })); process.exitCode = 7; }`
+            : `
 console.log(JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2), value: process.env.JIXIE_COMMAND_FIXTURE }));
 process.exitCode = 7;
 `,

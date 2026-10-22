@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { futureMarketSchema } from './snapshot.js';
 
 const products = ['IF', 'IH', 'IC', 'IM'];
@@ -10,10 +10,10 @@ const products = ['IF', 'IH', 'IC', 'IM'];
  * Validate all live contracts before publishing an immutable daily input set.
  */
 export async function publishFutureMarketDate(tradeDate: string): Promise<void> {
-  if (await prisma.futureMarketPublication.findUnique({ where: { tradeDate } })) {
+  if (await getDatabase().futureMarketPublication.findUnique({ where: { tradeDate } })) {
     return;
   }
-  const contracts = await prisma.futureContract.findMany({
+  const contracts = await getDatabase().futureContract.findMany({
     where: {
       productCode: { in: products },
       listDate: { lte: tradeDate },
@@ -24,7 +24,7 @@ export async function publishFutureMarketDate(tradeDate: string): Promise<void> 
   });
   const codes = contracts.map((row) => row.tsCode);
   const [daily, mappings, settlements] = await Promise.all([
-    prisma.futureDaily.findMany({
+    getDatabase().futureDaily.findMany({
       where: { tradeDate, tsCode: { in: codes } },
       select: {
         tsCode: true,
@@ -40,12 +40,12 @@ export async function publishFutureMarketDate(tradeDate: string): Promise<void> 
       },
       orderBy: { tsCode: 'asc' },
     }),
-    prisma.futureMapping.findMany({
+    getDatabase().futureMapping.findMany({
       where: { tradeDate, continuousCode: { in: products.map((product) => `${product}.CFX`) } },
       select: { continuousCode: true, tradeDate: true, mappedTsCode: true },
       orderBy: { continuousCode: 'asc' },
     }),
-    prisma.futureSettlement.findMany({
+    getDatabase().futureSettlement.findMany({
       where: { tradeDate, tsCode: { in: codes } },
       select: { tsCode: true, tradeDate: true, longMarginRate: true, shortMarginRate: true },
       orderBy: { tsCode: 'asc' },
@@ -71,15 +71,17 @@ export async function publishFutureMarketDate(tradeDate: string): Promise<void> 
     }
   }
   if (!contracts.length) {
-    const listed = await prisma.futureContract.count({
+    const listed = await getDatabase().futureContract.count({
       where: { productCode: { in: products }, listDate: { lte: tradeDate } },
     });
-    const known = await prisma.futureContract.count({ where: { productCode: { in: products } } });
+    const known = await getDatabase().futureContract.count({
+      where: { productCode: { in: products } },
+    });
     if (listed || !known) {
       throw new Error(`Missing futures contracts on ${tradeDate}`);
     }
   }
-  await prisma.futureMarketPublication.upsert({
+  await getDatabase().futureMarketPublication.upsert({
     where: { tradeDate },
     update: {},
     create: {
@@ -96,7 +98,7 @@ export async function publishFutureMarketDate(tradeDate: string): Promise<void> 
  * Read runtime futures rows from the published input set.
  */
 export async function publishedFutureRows(start: string, end: string) {
-  const publications = await prisma.futureMarketPublication.findMany({
+  const publications = await getDatabase().futureMarketPublication.findMany({
     where: { tradeDate: { gte: start, lte: end } },
     orderBy: { tradeDate: 'asc' },
   });

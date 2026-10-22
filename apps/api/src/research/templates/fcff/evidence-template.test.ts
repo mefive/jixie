@@ -1,3 +1,4 @@
+import { withDatabase, type Prisma } from '#infra/database/prisma.js';
 import { researchSandboxPool } from '../../sandbox/research-sandbox-pool.js';
 import { EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE } from './classification-template.js';
 import { equityFcffClassificationSource } from './classification-evidence.js';
@@ -28,11 +29,12 @@ describe('FCFF research evidence', { timeout: 60_000 }, () => {
   });
 
   it('separates growth duration, terminal reinvestment, and the unchanged-path roll', async () => {
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'financial-evidence',
-          source: `
+    return withDatabase(testDatabase, async () => {
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'financial-evidence',
+            source: `
 valuation_base = {"nopat_margin": 0.2}
 valuation_base_inputs = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.2}])
 valuation_bridge_inputs = pd.DataFrame([{"bridge_adjustment": 0.0, "issued_shares": 10.0, "operating_cash_required": 1.0}])
@@ -56,21 +58,23 @@ ${EQUITY_FCFF_ROLL_FORWARD_SOURCE}
 assert abs(frozen_remaining_enterprise_value - 200.0) < 1e-10
 assert abs(frozen_roll_return - 0.1) < 1e-12
 pd.DataFrame([{"passed": True}])`,
-        },
-      }),
-    );
-    expect(result.outputs[0]).toMatchObject({ type: 'table', rows: [{ passed: true }] });
+          },
+        }),
+      );
+      expect(result.outputs[0]).toMatchObject({ type: 'table', rows: [{ passed: true }] });
+    });
   });
 
   it('does not relabel a short or gapped market history as a completed validation window', async () => {
-    const functionsOnly = EQUITY_FCFF_MARKET_REVIEW_SOURCE.split(
-      '\nmarket_observations = aligned_market_observations(',
-    )[0];
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'market-evidence',
-          source: `
+    return withDatabase(testDatabase, async () => {
+      const functionsOnly = EQUITY_FCFF_MARKET_REVIEW_SOURCE.split(
+        '\nmarket_observations = aligned_market_observations(',
+      )[0];
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'market-evidence',
+            source: `
 ${functionsOnly}
 dates = pd.to_datetime(["2025-01-02", "2025-02-03", "2025-04-02", "2025-07-02"])
 stock = pd.DataFrame({"date": dates, "value": [100.0, 80.0, 110.0, 120.0]})
@@ -88,17 +92,19 @@ for bad in [benchmark.iloc[1:], benchmark.drop(index=1), pd.concat([benchmark, b
     except ValueError:
         pass
 pd.DataFrame([{"passed": True}])`,
-        },
-      }),
-    );
-    expect(result.outputs[0]).toMatchObject({ type: 'table', rows: [{ passed: true }] });
+          },
+        }),
+      );
+      expect(result.outputs[0]).toMatchObject({ type: 'table', rows: [{ passed: true }] });
+    });
   });
   it('reconciles annual classification without doubling maturing products or current leases', async () => {
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'classification-evidence',
-          source: `
+    return withDatabase(testDatabase, async () => {
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'classification-evidence',
+            source: `
 valuation_identifier = "000333.SZ"
 ${equityFcffClassificationSource('000333.SZ')}
 ${EQUITY_FCFF_CLASSIFICATION_METHODS_SOURCE}
@@ -135,9 +141,12 @@ try:
 except ValueError:
     pass
 pd.DataFrame([{"passed": True}])`,
-        },
-      }),
-    );
-    expect(result.outputs[0]).toMatchObject({ type: 'table', rows: [{ passed: true }] });
+          },
+        }),
+      );
+      expect(result.outputs[0]).toMatchObject({ type: 'table', rows: [{ passed: true }] });
+    });
   });
 });
+
+const testDatabase = { maintenanceState: { findUnique: async () => null } } as unknown as Prisma;

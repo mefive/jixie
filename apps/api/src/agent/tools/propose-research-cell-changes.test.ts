@@ -8,11 +8,20 @@ const mocks = vi.hoisted(() => ({
 vi.mock('#research/proposals/cell-changes.js', () => ({
   prepareResearchCellChangeProposal: mocks.prepare,
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    researchClarification: { findFirst: mocks.pendingClarification },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      researchClarification: { findFirst: mocks.pendingClarification },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { createProposeResearchCellChangesTool } from './propose-research-cell-changes.js';
 

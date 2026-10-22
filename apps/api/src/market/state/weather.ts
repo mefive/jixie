@@ -4,7 +4,7 @@ import type {
   MarketWeatherFrequency,
   MarketWeatherSeries,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   MARKET_WEATHER_INDEX_BENCHMARKS,
   MARKET_WEATHER_INDEX_GROUPS,
@@ -48,16 +48,16 @@ export async function loadMarketWeather(
   ];
   const closeCodes = [...new Set([...codes, ...referenceCodes])];
   const [closeCoverage, indicatorCoverage, basicCoverage] = await Promise.all([
-    prisma.indexDaily.aggregate({
+    getDatabase().indexDaily.aggregate({
       where: { tsCode: { in: codes } },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.indexIndicator.aggregate({
+    getDatabase().indexIndicator.aggregate({
       where: { indexCode: { in: codes } },
       _max: { tradeDate: true },
     }),
-    prisma.indexDailyBasic.aggregate({
+    getDatabase().indexDailyBasic.aggregate({
       where: { tsCode: { in: codes } },
       _max: { tradeDate: true },
     }),
@@ -75,12 +75,12 @@ export async function loadMarketWeather(
   }
 
   const [closeRows, indicatorRows, officialBasicRows, benchmarkMetadataRows] = await Promise.all([
-    prisma.indexDaily.findMany({
+    getDatabase().indexDaily.findMany({
       where: { tsCode: { in: closeCodes } },
       select: { tsCode: true, tradeDate: true, close: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
-    prisma.indexIndicator.findMany({
+    getDatabase().indexIndicator.findMany({
       where: { indexCode: { in: codes } },
       select: {
         indexCode: true,
@@ -95,12 +95,12 @@ export async function loadMarketWeather(
       },
       orderBy: [{ indexCode: 'asc' }, { tradeDate: 'asc' }],
     }) as Promise<IndexWeatherIndicatorRow[]>,
-    prisma.indexDailyBasic.findMany({
+    getDatabase().indexDailyBasic.findMany({
       where: { tsCode: { in: codes } },
       select: { tsCode: true, tradeDate: true, peTtm: true, pb: true },
       orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
     }),
-    prisma.indexBenchmark.findMany({
+    getDatabase().indexBenchmark.findMany({
       where: { tsCode: { in: closeCodes } },
       select: { tsCode: true, name: true },
     }),
@@ -188,11 +188,11 @@ export async function loadIndustryWeatherSeries(
   frequency: MarketWeatherFrequency,
 ): Promise<IndustryWeatherSeries | null> {
   const [industryCoverage, swCoverage] = await Promise.all([
-    prisma.industryIndicator.aggregate({
+    getDatabase().industryIndicator.aggregate({
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.swIndexDaily.aggregate({
+    getDatabase().swIndexDaily.aggregate({
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
@@ -206,7 +206,7 @@ export async function loadIndustryWeatherSeries(
   const coverageKey = `${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
   if (!industryWeatherRawCache || industryWeatherRawCache.coverageKey !== coverageKey) {
     const [industryRows, swIndexRows] = await Promise.all([
-      prisma.industryIndicator.findMany({
+      getDatabase().industryIndicator.findMany({
         select: {
           l1Code: true,
           l1Name: true,
@@ -223,7 +223,7 @@ export async function loadIndustryWeatherSeries(
         },
         orderBy: [{ tradeDate: 'asc' }, { l1Code: 'asc' }],
       }),
-      prisma.swIndexDaily.findMany({
+      getDatabase().swIndexDaily.findMany({
         select: { tsCode: true, tradeDate: true, close: true, pe: true, pb: true },
         orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
       }),

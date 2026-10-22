@@ -1,7 +1,7 @@
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type { FactorHoldoutEligibility } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { enoughHoldoutPeriods, getHoldoutPolicy, parseResearchIntent } from './research-policy.js';
 import { resolveEtfCommonLatest } from '../observations/asset-factor-data-cutoff.js';
 import { reportResearchSpec } from './report-spec.js';
@@ -55,7 +55,7 @@ export async function holdoutEligibility(
   if (!frequency || !enoughHoldoutPeriods(frequency, policy.holdoutStart, policy.holdoutEnd)) {
     return { eligible: false, reason: 'insufficient_periods', window: policy };
   }
-  const existing = await prisma.factorReport.findFirst({
+  const existing = await getDatabase().factorReport.findFirst({
     where: {
       userId: row.userId,
       parentReportId: row.id,
@@ -74,7 +74,7 @@ export async function holdoutEligibility(
     };
   }
   const observed = row.factorCodeHash
-    ? await prisma.factorReport.findFirst({
+    ? await getDatabase().factorReport.findFirst({
         where: {
           userId: row.userId,
           id: { not: row.id },

@@ -9,11 +9,20 @@ import {
 } from '@jixie/shared';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn() }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    strategy: { findFirst: mocks.findFirst, findUnique: mocks.findUnique, create: mocks.create },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      strategy: { findFirst: mocks.findFirst, findUnique: mocks.findUnique, create: mocks.create },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import {
   createStrategyDraftFromResearch,

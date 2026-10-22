@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { ChatMessage } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TurnEntity } from '../turns/run.js';
 
 /**
@@ -16,7 +16,7 @@ export async function findOrCreateConversation(args: {
   message: string;
 }): Promise<{ id: string }> {
   if (args.entity.kind === 'factor-question') {
-    const conversation = await prisma.agentConversation.findFirst({
+    const conversation = await getDatabase().agentConversation.findFirst({
       where: { id: args.entity.id, userId: args.userId, surface: 'factor-question' },
       select: { id: true },
     });
@@ -26,7 +26,7 @@ export async function findOrCreateConversation(args: {
     return conversation;
   }
   if (args.entity.kind === 'research') {
-    const conversation = await prisma.agentConversation.findFirst({
+    const conversation = await getDatabase().agentConversation.findFirst({
       where: {
         id: args.entity.id,
         userId: args.userId,
@@ -43,7 +43,7 @@ export async function findOrCreateConversation(args: {
   }
   const relation =
     args.entity.kind === 'strategy' ? { strategyId: args.entity.id } : { factorId: args.entity.id };
-  const existing = await prisma.agentConversation.findFirst({
+  const existing = await getDatabase().agentConversation.findFirst({
     where: { userId: args.userId, surface: args.entity.kind, ...relation, archivedAt: null },
     select: { id: true },
     orderBy: { updatedAt: 'desc' },
@@ -53,7 +53,7 @@ export async function findOrCreateConversation(args: {
   }
 
   const id = ulid();
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     await transaction.agentConversation.create({
       data: {
         id,

@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { EngineDataPort } from '#backtesting/data/data-port.js';
 import { EngineData } from '#backtesting/data/engine-data.js';
 import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
@@ -103,7 +103,7 @@ export async function loadSignalMarketInput(
   kind: 'simulation' | 'actual' = 'simulation',
   refresh = false,
 ): Promise<SignalMarketInput> {
-  const saved = await prisma.signalAccountMarketInput.findFirst({
+  const saved = await getDatabase().signalAccountMarketInput.findFirst({
     where: { deploymentId, tradeDate: date },
     orderBy: { revision: 'desc' },
   });
@@ -121,11 +121,11 @@ export async function loadSignalMarketInput(
   }
 
   const [previous, next] = await Promise.all([
-    prisma.tradeCal.findFirst({
+    getDatabase().tradeCal.findFirst({
       where: { exchange: 'SSE', isOpen: 1, calDate: { lt: date } },
       orderBy: { calDate: 'desc' },
     }),
-    prisma.tradeCal.findFirst({
+    getDatabase().tradeCal.findFirst({
       where: { exchange: 'SSE', isOpen: 1, calDate: { gt: date } },
       orderBy: { calDate: 'asc' },
     }),
@@ -159,7 +159,7 @@ export async function loadSignalMarketInput(
  * Freeze the market input used by an execution so subsequent replay is reproducible.
  */
 export async function freezeSignalMarketInput(deploymentId: string, input: SignalMarketInput) {
-  const saved = await prisma.signalAccountMarketInput.findFirst({
+  const saved = await getDatabase().signalAccountMarketInput.findFirst({
     where: { deploymentId, tradeDate: input.date },
     orderBy: { revision: 'desc' },
   });
@@ -170,7 +170,7 @@ export async function freezeSignalMarketInput(deploymentId: string, input: Signa
     }
     return;
   }
-  const frozen = await prisma.signalAccountMarketInput.upsert({
+  const frozen = await getDatabase().signalAccountMarketInput.upsert({
     where: {
       deploymentId_tradeDate_revision: { deploymentId, tradeDate: input.date, revision: 0 },
     },

@@ -11,15 +11,24 @@ const database = vi.hoisted(() => ({
   weights: vi.fn(),
   industries: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    daily: { findMany: database.daily },
-    adjFactor: { findMany: database.factors },
-    indexDaily: { findMany: database.prices },
-    indexWeight: { groupBy: database.weights },
-    swIndustryMember: { findMany: database.industries },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      daily: { findMany: database.daily },
+      adjFactor: { findMany: database.factors },
+      indexDaily: { findMany: database.prices },
+      indexWeight: { groupBy: database.weights },
+      swIndustryMember: { findMany: database.industries },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 import { affectsIndicators, planDerivedImpact, rollingEnd } from './impact.js';
 let directory: string;
 beforeEach(async () => {

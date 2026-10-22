@@ -4,7 +4,7 @@ import {
   type MacroRiskAxisKeyV1,
   type RiskDataLineageV1,
 } from '@jixie/shared';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import {
   loadMacroVintagesThrough,
   selectMacroObservationsAsOf,
@@ -307,7 +307,7 @@ export async function loadMacroRiskAxisHistory(
     revisionPolicy: MacroRevisionPolicy;
     dataCutoff?: string | null;
   },
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<MacroRiskAxisHistoryV1> {
   assertDate(options.startDate, 'macro-risk start');
   assertDate(options.endDate, 'macro-risk end');

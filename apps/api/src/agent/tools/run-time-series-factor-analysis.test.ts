@@ -7,9 +7,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn() }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: { factor: { findFirst: mocks.findFirst } },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: { factor: { findFirst: mocks.findFirst } },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { runTimeSeriesFactorAnalysisTool } from './run-time-series-factor-analysis.js';
 

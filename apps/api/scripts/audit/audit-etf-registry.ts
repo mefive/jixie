@@ -1,6 +1,6 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { auditEtfResearchRegistry } from '#market/etfs/registry-audit.js';
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 
 /**
  * 执行 ETF 注册清单审计，输出结果并关闭数据库连接。
@@ -58,11 +58,11 @@ async function main(): Promise<void> {
   }
 }
 
-await withMarketAccess(main)
+await withDatabase(prisma, () => withMarketAccess(main))
   .catch((error: unknown) => {
     console.error('ETF registry audit failed:', error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await closeDatabase(prisma);
   });

@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 
 /**
@@ -11,7 +11,7 @@ export async function getOpenDates(
   end: TradeDate,
   exchange = 'SSE',
 ): Promise<TradeDate[]> {
-  const rows = await prisma.tradeCal.findMany({
+  const rows = await getDatabase().tradeCal.findMany({
     where: { exchange, isOpen: 1, calDate: { gte: start, lte: end } },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },
@@ -23,7 +23,7 @@ export async function getRecentOpenDates(
   through: string,
   lookbackTradingDays: number,
 ): Promise<string[]> {
-  const rows = await prisma.tradeCal.findMany({
+  const rows = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { lte: through } },
     orderBy: { calDate: 'desc' },
     take: lookbackTradingDays,
@@ -33,7 +33,7 @@ export async function getRecentOpenDates(
 }
 
 export async function getOpenDatesAfter(afterDate: string, cutoff: string): Promise<string[]> {
-  const rows = await prisma.tradeCal.findMany({
+  const rows = await getDatabase().tradeCal.findMany({
     where: {
       exchange: 'SSE',
       isOpen: 1,
@@ -46,7 +46,7 @@ export async function getOpenDatesAfter(afterDate: string, cutoff: string): Prom
 }
 
 export async function getExplicitOpenDate(tradeDate: string): Promise<string[]> {
-  const row = await prisma.tradeCal.findUnique({
+  const row = await getDatabase().tradeCal.findUnique({
     where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
     select: { isOpen: true },
   });
@@ -57,7 +57,7 @@ export async function getExplicitOpenDate(tradeDate: string): Promise<string[]> 
 }
 
 export async function isNextOpenDate(afterDate: string, tradeDate: string): Promise<boolean> {
-  const next = await prisma.tradeCal.findFirst({
+  const next = await getDatabase().tradeCal.findFirst({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gt: afterDate } },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },

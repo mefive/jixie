@@ -1,5 +1,5 @@
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type {
   BacktestConfig,
@@ -18,7 +18,7 @@ export async function findActiveStrategyBacktestJob(
   userId: string,
   query: StrategyBacktestIdentityQuery,
 ) {
-  const job = await prisma.job.findFirst({
+  const job = await getDatabase().job.findFirst({
     where: {
       userId,
       kind: 'backtest',
@@ -42,7 +42,7 @@ export async function listStrategyBacktestReports(
   userId: string,
   query: StrategyBacktestIdentityQuery,
 ) {
-  const reports = await prisma.backtestReport.findMany({
+  const reports = await getDatabase().backtestReport.findMany({
     where: {
       userId: userId,
       strategyId: query.strategyId,
@@ -70,7 +70,7 @@ export async function listStrategyBacktestReports(
  * Authorize access and read a report's frozen results and configuration.
  */
 export async function readStrategyBacktestReport(userId: string, reportId: string) {
-  const report = await prisma.backtestReport.findFirst({
+  const report = await getDatabase().backtestReport.findFirst({
     where: {
       id: reportId,
       userId: userId,
@@ -116,7 +116,7 @@ export async function readStrategyBacktestJob(
   jobId: string,
   query: StrategyBacktestJobQuery,
 ) {
-  const ownedJob = await prisma.job.findFirst({
+  const ownedJob = await getDatabase().job.findFirst({
     where: { id: jobId, userId, kind: 'backtest' },
     select: { id: true },
   });

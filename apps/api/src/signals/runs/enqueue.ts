@@ -1,6 +1,6 @@
 import type { SignalsRunJobPayload } from './job-payload.js';
 import { signalRunState, currentSignalJob } from '#signals/runs/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { JobService } from '#jobs/job-service.js';
 import type { Prisma } from '@prisma/client';
@@ -32,7 +32,7 @@ export async function enqueueSignalRun(
   deploymentId: string,
   tradeDate: string,
 ): Promise<EnqueuedSignalRun> {
-  const deployment = await prisma.strategyDeployment.findFirst({
+  const deployment = await getDatabase().strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
     select: { id: true, status: true, locale: true, factorDependencies: true },
   });
@@ -56,7 +56,7 @@ export async function enqueueSignalRun(
     throw new SignalsError('data_not_ready', { params: { date: tradeDate } });
   }
 
-  const start = await prisma.$transaction(async (transaction) => {
+  const start = await getDatabase().$transaction(async (transaction) => {
     // Recheck after readiness work so a completed pause cannot admit a new run.
     const currentDeployment = await transaction.strategyDeployment.findUnique({
       where: { id: deploymentId },

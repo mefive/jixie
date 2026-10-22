@@ -1,5 +1,5 @@
 import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { Locale } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -29,12 +29,12 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
   }
 
   const name = await uniqueStrategyName(
-    prisma,
+    getDatabase(),
     userId,
     proposedName || t(locale, 'unnamedStrategy'),
   );
   const config = { ...candidate, name };
-  const row = await prisma.strategy.create({
+  const row = await getDatabase().strategy.create({
     data: {
       id: ulid(),
       userId,
@@ -54,12 +54,12 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
  * Authorize strategy deletion and validate dependent state.
  */
 export async function deleteStrategy(userId: string, strategyId: string) {
-  const r = await prisma.strategy.deleteMany({
+  const r = await getDatabase().strategy.deleteMany({
     where: { id: strategyId, userId, deployments: { none: {} } },
   });
 
   if (r.count === 0) {
-    const retained = await prisma.strategy.findFirst({
+    const retained = await getDatabase().strategy.findFirst({
       where: { id: strategyId, userId },
       select: { id: true },
     });

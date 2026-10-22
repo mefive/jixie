@@ -1,5 +1,5 @@
 import { factorReportStatusWhere, factorReportState } from '#factor/evaluations/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import {
@@ -51,7 +51,7 @@ export async function startFactorAnalysis(options: {
   const reportColumns = reportCompatibilityColumns(researchSpec);
   const reportId = ulid();
   const jobId = ulid();
-  const created = await prisma.$transaction(async (transaction) => {
+  const created = await getDatabase().$transaction(async (transaction) => {
     const running = await transaction.factorReport
       .findFirst({
         where: {

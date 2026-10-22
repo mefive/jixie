@@ -1,6 +1,6 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchCellOutputBlockV1, ResearchDocumentV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -87,7 +87,7 @@ export async function executeResearchCell(
 
     const executionId = ulid();
     const startedAt = new Date();
-    await prisma.$transaction(async (transaction) => {
+    await getDatabase().$transaction(async (transaction) => {
       const current = await transaction.researchCell.findUnique({
         where: { id: cell.id },
         select: { id: true, revision: true, source: true },
@@ -145,7 +145,7 @@ export async function executeResearchCell(
           result.environmentFingerprint,
         );
       }
-      await prisma.$transaction(async (transaction) => {
+      await getDatabase().$transaction(async (transaction) => {
         for (const artifact of persisted.artifacts) {
           await transaction.researchArtifact.create({ data: artifact });
         }
@@ -188,8 +188,8 @@ export async function executeResearchCell(
         ...failure.outputs,
         { type: 'text', text: failure.message, level: 'error' },
       ];
-      await prisma.$transaction([
-        prisma.researchCell.updateMany({
+      await getDatabase().$transaction([
+        getDatabase().researchCell.updateMany({
           where: { id: cell.id, revision: cell.revision, source: cell.source },
           data: {
             status: 'error',
@@ -199,7 +199,7 @@ export async function executeResearchCell(
             lastExecutedAt: new Date(),
           },
         }),
-        prisma.researchCellExecution.update({
+        getDatabase().researchCellExecution.update({
           where: { id: executionId },
           data: {
             status: 'error',
@@ -211,7 +211,7 @@ export async function executeResearchCell(
             finishedAt: new Date(),
           },
         }),
-        prisma.researchDocument.update({
+        getDatabase().researchDocument.update({
           where: { id: cell.documentId },
           data: { updatedAt: new Date() },
         }),
@@ -231,12 +231,12 @@ async function persistInterruptedResearchCell(
   executionId: string,
   environmentFingerprint = researchPayloadHash({ runtime: 'research-py-v1', interrupted: true }),
 ): Promise<void> {
-  await prisma.$transaction([
-    prisma.researchCell.updateMany({
+  await getDatabase().$transaction([
+    getDatabase().researchCell.updateMany({
       where: { id: cell.id, revision: cell.revision, source: cell.source },
       data: { status: cell.lastExecutedRevision == null ? 'idle' : 'stale' },
     }),
-    prisma.researchCellExecution.update({
+    getDatabase().researchCellExecution.update({
       where: { id: executionId },
       data: {
         status: 'cancelled',
@@ -245,7 +245,7 @@ async function persistInterruptedResearchCell(
         finishedAt: new Date(),
       },
     }),
-    prisma.researchDocument.update({
+    getDatabase().researchDocument.update({
       where: { id: cell.documentId },
       data: { updatedAt: new Date() },
     }),

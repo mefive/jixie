@@ -4,7 +4,7 @@ import { ulid } from 'ulid';
 import type { BacktestConfig } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { DEFAULT_COST } from '#backtesting/cost.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   replayAccountDay,
   type AccountKind,
@@ -23,7 +23,7 @@ export async function settleStrategyAccounts(
   throughDate: string,
   onLog: (line: string) => void = console.log,
 ): Promise<{ deployments: number }> {
-  const versioned = await prisma.strategyDeployment.findMany({
+  const versioned = await getDatabase().strategyDeployment.findMany({
     where: { accountingVersion: 2 },
     select: { id: true },
   });
@@ -38,7 +38,7 @@ export async function settleStrategyAccounts(
       }
     }
   }
-  const runs = await prisma.signalRun.findMany({
+  const runs = await getDatabase().signalRun.findMany({
     where: {
       deployment: { accountingVersion: 1 },
       id: { in: await completedSignalRunIds({ throughDate }) },
@@ -68,7 +68,7 @@ export async function rebuildDeploymentAccount(
   throughDate: string,
   fullReplay: boolean,
 ): Promise<void> {
-  const deployment = await prisma.strategyDeployment.findUnique({
+  const deployment = await getDatabase().strategyDeployment.findUnique({
     where: { id: deploymentId },
     select: { config: true, accountingVersion: true },
   });
@@ -76,7 +76,7 @@ export async function rebuildDeploymentAccount(
     await rebuildVersionedAccount(deploymentId, kind, throughDate);
     return;
   }
-  const baseline = await prisma.strategyAccountSnapshot.findFirst({
+  const baseline = await getDatabase().strategyAccountSnapshot.findFirst({
     where: { deploymentId, kind, isBaseline: true },
     orderBy: { tradeDate: 'asc' },
   });
@@ -85,17 +85,17 @@ export async function rebuildDeploymentAccount(
   }
 
   if (fullReplay) {
-    await prisma.strategyAccountSnapshot.deleteMany({
+    await getDatabase().strategyAccountSnapshot.deleteMany({
       where: { deploymentId, kind, isBaseline: false },
     });
   }
   const latest = fullReplay
     ? baseline
-    : ((await prisma.strategyAccountSnapshot.findFirst({
+    : ((await getDatabase().strategyAccountSnapshot.findFirst({
         where: { deploymentId, kind, tradeDate: { lte: throughDate } },
         orderBy: { tradeDate: 'desc' },
       })) ?? baseline);
-  const runs = await prisma.signalRun.findMany({
+  const runs = await getDatabase().signalRun.findMany({
     where: {
       deploymentId,
       id: {
@@ -141,7 +141,7 @@ export async function rebuildDeploymentAccount(
       (sum, position) => sum + position.shares * position.markPrice,
       0,
     );
-    await prisma.$transaction(async (transaction) => {
+    await getDatabase().$transaction(async (transaction) => {
       if (kind === 'simulation') {
         for (const update of replay.simulationUpdates) {
           await transaction.signalExecution.update({

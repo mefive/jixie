@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
@@ -17,7 +17,7 @@ export async function archiveResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<boolean> {
-  const conversation = await prisma.agentConversation.findFirst({
+  const conversation = await getDatabase().agentConversation.findFirst({
     where: {
       id: documentId,
       userId,
@@ -30,7 +30,7 @@ export async function archiveResearchDocument(
     throw new ResearchError('document_not_found');
   }
   if (!conversation.archivedAt) {
-    await prisma.agentConversation.update({
+    await getDatabase().agentConversation.update({
       where: { id: conversation.id },
       data: { archivedAt: new Date() },
     });
@@ -48,7 +48,7 @@ export async function restoreResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<boolean> {
-  const conversation = await prisma.agentConversation.findFirst({
+  const conversation = await getDatabase().agentConversation.findFirst({
     where: {
       id: documentId,
       userId,
@@ -61,7 +61,7 @@ export async function restoreResearchDocument(
     throw new ResearchError('document_not_found');
   }
   if (conversation.archivedAt) {
-    await prisma.agentConversation.update({
+    await getDatabase().agentConversation.update({
       where: { id: conversation.id },
       data: { archivedAt: null },
     });
@@ -75,7 +75,7 @@ export async function createResearchDocument(
 ): Promise<ResearchDocumentV1> {
   const id = ulid();
   const definition = templateDefinition(template);
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     await transaction.agentConversation.create({
       data: { id, userId, surface: 'research', title: definition.title },
     });
@@ -94,7 +94,7 @@ export async function createResearchDocument(
 }
 
 export async function renameResearchDocument(userId: string, documentId: string, title: string) {
-  const updated = await prisma.agentConversation.updateMany({
+  const updated = await getDatabase().agentConversation.updateMany({
     where: {
       id: documentId,
       userId,
@@ -116,7 +116,7 @@ export async function renameResearchDocument(userId: string, documentId: string,
  * Validate deletion eligibility and remove document resources safely around active runs.
  */
 export async function deleteResearchDocument(userId: string, documentId: string) {
-  const deleted = await prisma.agentConversation.deleteMany({
+  const deleted = await getDatabase().agentConversation.deleteMany({
     where: {
       id: documentId,
       userId,

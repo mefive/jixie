@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { etfBasic, fundAdj, fundBasic, fundDaily } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
@@ -56,7 +56,10 @@ export async function syncEtfBasic(client: TushareClient): Promise<number> {
     };
   });
 
-  await prisma.$transaction([prisma.etfBasic.deleteMany({}), prisma.etfBasic.createMany({ data })]);
+  await getDatabase().$transaction([
+    getDatabase().etfBasic.deleteMany({}),
+    getDatabase().etfBasic.createMany({ data }),
+  ]);
   log(`etf_basic stored ${data.length} instruments (all listing statuses)`);
   return data.length;
 }
@@ -101,7 +104,7 @@ export async function syncEtfDaily(
   options: { refresh?: boolean; validateCoverage?: boolean } = {},
 ): Promise<{ daily: number; adj: number; skippedSlices: number }> {
   const uniqueCodes = [...new Set(codes)].sort();
-  const known = await prisma.etfBasic.findMany({
+  const known = await getDatabase().etfBasic.findMany({
     where: { tsCode: { in: uniqueCodes } },
     select: { tsCode: true },
   });
@@ -119,13 +122,13 @@ export async function syncEtfDaily(
   for (const code of uniqueCodes) {
     for (const slice of slices) {
       const expectedDates = options.validateCoverage
-        ? await prisma.tradeCal.findMany({
+        ? await getDatabase().tradeCal.findMany({
             where: { exchange: 'SSE', isOpen: 1, calDate: { gte: slice.start, lte: slice.end } },
             select: { calDate: true },
           })
         : [];
       if (!options.refresh) {
-        const completed = await prisma.etfSyncSlice.findUnique({
+        const completed = await getDatabase().etfSyncSlice.findUnique({
           where: {
             tsCode_startDate_endDate: {
               tsCode: code,
@@ -137,7 +140,7 @@ export async function syncEtfDaily(
         });
         const storedAdjustmentCount =
           completed && options.validateCoverage
-            ? await prisma.etfAdjFactor.count({
+            ? await getDatabase().etfAdjFactor.count({
                 where: {
                   tsCode: code,
                   tradeDate: { in: expectedDates.map((date) => date.calDate) },
@@ -146,7 +149,7 @@ export async function syncEtfDaily(
             : null;
         const storedDailyCount =
           completed && options.validateCoverage
-            ? await prisma.etfDaily.count({
+            ? await getDatabase().etfDaily.count({
                 where: { tsCode: code, tradeDate: { gte: slice.start, lte: slice.end } },
               })
             : null;
@@ -193,11 +196,11 @@ export async function syncEtfDaily(
           );
         }
       }
-      await prisma.$transaction([
-        prisma.etfDaily.deleteMany({
+      await getDatabase().$transaction([
+        getDatabase().etfDaily.deleteMany({
           where: { tsCode: code, tradeDate: { gte: slice.start, lte: slice.end } },
         }),
-        prisma.etfDaily.createMany({
+        getDatabase().etfDaily.createMany({
           data: dailyRows.map((row) => ({
             tsCode: row.ts_code,
             tradeDate: row.trade_date,
@@ -211,17 +214,17 @@ export async function syncEtfDaily(
             amount: row.amount,
           })),
         }),
-        prisma.etfAdjFactor.deleteMany({
+        getDatabase().etfAdjFactor.deleteMany({
           where: { tsCode: code, tradeDate: { gte: slice.start, lte: slice.end } },
         }),
-        prisma.etfAdjFactor.createMany({
+        getDatabase().etfAdjFactor.createMany({
           data: adjRows.map((row) => ({
             tsCode: row.ts_code,
             tradeDate: row.trade_date,
             adjFactor: row.adj_factor,
           })),
         }),
-        prisma.etfSyncSlice.upsert({
+        getDatabase().etfSyncSlice.upsert({
           where: {
             tsCode_startDate_endDate: {
               tsCode: code,

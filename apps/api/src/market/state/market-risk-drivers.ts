@@ -5,7 +5,7 @@ import {
   type RiskDataLineageV1,
 } from '@jixie/shared';
 import { addDays } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { COMMODITY_MAIN_CONTRACT_SPECS } from '../commodity/commodity-futures.js';
 import { CHINA_TREASURY_CURVE_CODE, US_REAL_CURVE_CODE } from '../registry/yield-curves.js';
 import { CHINABOND_PUBLIC_CURVES } from '../rates/chinabond-credit-curves.js';
@@ -331,7 +331,7 @@ export function buildMarketRiskDriverHistory(
  */
 export async function loadMarketRiskDriverHistory(
   options: { startDate: string; endDate: string },
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<MarketRiskDriverHistoryV1> {
   assertDate(options.startDate, 'market-risk start');
   assertDate(options.endDate, 'market-risk end');

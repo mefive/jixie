@@ -1,5 +1,5 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 import {
   runDataQualityAudit,
   type DataQualityAuditOptions,
@@ -112,11 +112,11 @@ function printFinding(finding: AuditFinding): void {
   console.log('');
 }
 
-await withMarketAccess(main)
+await withDatabase(prisma, () => withMarketAccess(main))
   .catch((error: unknown) => {
     console.error('\nData audit failed:', error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await closeDatabase(prisma);
   });

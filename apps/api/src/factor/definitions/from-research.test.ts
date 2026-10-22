@@ -6,12 +6,21 @@ const mocks = vi.hoisted(() => ({
   findComposite: vi.fn(),
   create: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    factor: { findFirst: mocks.findFactor, create: mocks.create },
-    factorComposite: { findFirst: mocks.findComposite },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      factor: { findFirst: mocks.findFactor, create: mocks.create },
+      factorComposite: { findFirst: mocks.findComposite },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import {
   createFactorDraftFromResearch,

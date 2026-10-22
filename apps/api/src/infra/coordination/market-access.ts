@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { open, realpath } from 'node:fs/promises';
-import { fstatSync, realpathSync } from 'node:fs';
+import { open, realpath, lstat, unlink, readdir } from 'node:fs/promises';
+import { constants, fstatSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isMainThread } from 'node:worker_threads';
+import { getStagingContext } from './staging-input.js';
 import { BusinessError } from '../errors.js';
 
 /**
@@ -23,6 +24,7 @@ export class MarketAccessBusyError extends BusinessError {
 }
 
 export interface MarketLock {
+  readonly descriptor?: number;
   assertHeld(): void;
   release(): Promise<void>;
 }
@@ -52,24 +54,7 @@ const readers = new AsyncLocalStorage<ReaderScope>();
 const owners = new AsyncLocalStorage<MarketLock>();
 
 export function isStagingDatabase(): boolean {
-  const staging = process.env.JIXIE_STAGING_DATABASE;
-  const formal = process.env.JIXIE_FORMAL_DATABASE_URL;
-  const id = process.env.JIXIE_MAINTENANCE_CANDIDATE;
-  if (!staging && !formal && !id) {
-    return false;
-  }
-  if (
-    !staging ||
-    !formal ||
-    !id ||
-    !/^[A-Z0-9]+$/.test(id) ||
-    staging !== process.env.DATABASE_URL ||
-    databaseFilename(staging) !==
-      resolve(dirname(databaseFilename(formal)), 'maintenance-staging', id, 'candidate.db')
-  ) {
-    throw new Error('Invalid isolated maintenance connection identity');
-  }
-  return true;
+  return getStagingContext() !== undefined;
 }
 
 /**
@@ -101,7 +86,7 @@ export function databaseFilename(url = process.env.DATABASE_URL): string {
 
 export async function marketLockDirectory(): Promise<string> {
   return realpath(
-    dirname(databaseFilename(process.env.JIXIE_FORMAL_DATABASE_URL ?? process.env.DATABASE_URL)),
+    dirname(databaseFilename(getStagingContext()?.formalUrl ?? process.env.DATABASE_URL)),
   );
 }
 
@@ -120,49 +105,152 @@ export async function acquireMarketLock(
   }
   const directory = await marketLockDirectory();
   const fsExt = await flockBinding();
-  const handle = await open(resolve(directory, `${name}.lock`), 'a+', 0o600);
+  const filename = resolve(directory, `${name}.lock`);
+  const ownerFile = name.startsWith('owner-');
   const deadline = performance.now() + timeout;
-  let active = false;
-  try {
-    for (;;) {
-      try {
-        fsExt.flockSync(handle.fd, shared ? 'shnb' : 'exnb');
-        active = true;
-        break;
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (!['EAGAIN', 'EWOULDBLOCK', 'EACCES'].includes(code ?? '')) {
-          throw error;
+  let attempts = 0;
+  for (;;) {
+    const handle = await open(
+      filename,
+      constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW,
+      0o600,
+    );
+    let active = false;
+    try {
+      for (;;) {
+        try {
+          fsExt.flockSync(handle.fd, shared ? 'shnb' : 'exnb');
+          active = true;
+          break;
+        } catch (error) {
+          if (!isLockBusy(error)) {
+            throw error;
+          }
+          if (performance.now() >= deadline) {
+            throw new MarketAccessBusyError();
+          }
+          await delay(25);
         }
-        if (performance.now() >= deadline) {
+      }
+      // 等待者可能打开了已经被回收的旧文件，持锁后必须重新核对路径。
+      // Waiters may hold a reclaimed inode; verify the pathname after locking.
+      if (ownerFile && !(await matchesLockFile(filename, handle.fd))) {
+        if (++attempts >= 16) {
           throw new MarketAccessBusyError();
         }
-        await delay(25);
+        await handle.close();
+        continue;
       }
+    } catch (error) {
+      await handle.close();
+      throw error;
     }
-  } catch (error) {
-    await handle.close();
+
+    return {
+      descriptor: handle.fd,
+      assertHeld() {
+        if (!active) {
+          throw new Error('Coordination scope has already released its lock');
+        }
+      },
+      async release() {
+        if (!active) {
+          return;
+        }
+        active = false;
+        try {
+          // M 由父子进程共享同一描述符，close 而非 unlock 保留后代保护。
+          // M shares an open-file description with children; close preserves descendant ownership.
+          if (name === 'maintenance') {
+            return;
+          }
+          fsExt.flockSync(handle.fd, 'un');
+          if (ownerFile) {
+            try {
+              fsExt.flockSync(handle.fd, 'exnb');
+              if (await matchesLockFile(filename, handle.fd)) {
+                await unlink(filename);
+              }
+            } catch (error) {
+              if (!isLockBusy(error) && (error as NodeJS.ErrnoException).code !== 'ENOENT') {
+                console.warn('[ownership] cleanup deferred', filename, error);
+              }
+            }
+          }
+        } finally {
+          await handle.close();
+        }
+      },
+    };
+  }
+}
+
+function isLockBusy(error: unknown): boolean {
+  return ['EAGAIN', 'EWOULDBLOCK', 'EACCES'].includes((error as NodeJS.ErrnoException).code ?? '');
+}
+
+async function matchesLockFile(filename: string, descriptor: number): Promise<boolean> {
+  const expected = await lstat(filename).catch((error: NodeJS.ErrnoException) => {
+    if (error.code === 'ENOENT') {
+      return null;
+    }
     throw error;
+  });
+  const actual = fstatSync(descriptor);
+
+  return Boolean(expected?.isFile() && expected.dev === actual.dev && expected.ino === actual.ino);
+}
+
+/** 只回收无人持有且路径身份一致的 owner 文件。 / Reclaim only idle owner files with matching path identity. */
+export async function cleanupOwnerLocks(
+  apply: boolean,
+): Promise<Array<{ file: string; result: string }>> {
+  const directory = await marketLockDirectory();
+  const fsExt = await flockBinding();
+  const results: Array<{ file: string; result: string }> = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (!/^owner-[a-zA-Z0-9]+\.lock$/.test(entry.name)) {
+      continue;
+    }
+    if (!entry.isFile()) {
+      results.push({ file: entry.name, result: 'unknown-file' });
+      continue;
+    }
+    const filename = resolve(directory, entry.name);
+    let handle;
+    try {
+      handle = await open(filename, constants.O_RDWR | constants.O_NOFOLLOW);
+      fsExt.flockSync(handle.fd, 'exnb');
+      if (!(await matchesLockFile(filename, handle.fd))) {
+        results.push({ file: entry.name, result: 'replaced' });
+        continue;
+      }
+      if (apply) {
+        await unlink(filename);
+      }
+      results.push({ file: entry.name, result: apply ? 'removed' : 'removable' });
+    } catch (error) {
+      results.push({
+        file: entry.name,
+        result: isLockBusy(error) ? 'active' : (error as Error).message,
+      });
+    } finally {
+      await handle?.close();
+    }
   }
 
-  return {
-    assertHeld() {
-      if (!active) {
-        throw new Error('Coordination scope has already released its lock');
-      }
-    },
-    async release() {
-      if (!active) {
-        return;
-      }
-      active = false;
-      try {
-        fsExt.flockSync(handle.fd, 'un');
-      } finally {
-        await handle.close();
-      }
-    },
-  };
+  return results;
+}
+
+/** 仅将已验证的 M 描述符传给本轮子进程。 / Pass only the verified M descriptor to this run's children. */
+export function maintenanceLockDescriptor(): number {
+  const owner = owners.getStore();
+  owner?.assertHeld();
+  if (owner?.descriptor === undefined) {
+    throw new Error('Maintenance descriptor is unavailable');
+  }
+
+  return owner.descriptor;
 }
 
 /**
@@ -240,6 +328,7 @@ async function acquireInheritedOwner(name: LockName, variable: string): Promise<
   let active = true;
 
   return {
+    descriptor,
     assertHeld() {
       if (!active) {
         throw new Error('Inherited maintenance scope is closed');

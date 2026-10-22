@@ -20,11 +20,20 @@ import * as curator from './prepare.js';
 import * as referenceSearch from './reference-search.js';
 
 const fixtureDatabase = vi.hoisted(() => ({ current: null as PrismaClient | null }));
-vi.mock('#infra/database/prisma.js', () => ({
-  get prisma() {
-    return fixtureDatabase.current;
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    get prisma() {
+      return fixtureDatabase.current;
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 const originalPrepare = curator.prepareResearchCuratorRun;
 const { PrismaClient: RuntimePrismaClient } = prismaPackage;
@@ -40,6 +49,7 @@ describe('research curator', () => {
     const databaseUrl = `file:${databasePath}`;
     database = new RuntimePrismaClient({ datasourceUrl: databaseUrl });
     fixtureDatabase.current = database;
+    vi.stubEnv('DATABASE_URL', databaseUrl);
     createFixtureSchema(databaseUrl);
     await seedUserConversation(database, 'user-a', 'a@example.com', 'conversation-a');
     await seedUserConversation(database, 'user-b', 'b@example.com', 'conversation-b');
@@ -67,6 +77,7 @@ describe('research curator', () => {
 
   afterEach(async () => {
     await database.$disconnect();
+    vi.unstubAllEnvs();
     await rm(temporaryDirectory, { recursive: true, force: true });
   });
 
@@ -481,7 +492,7 @@ async function prepareAndCompleteCuratorRun(
       payload: { runId },
       kind: 'research-curator',
       key: runId,
-      status: 'running',
+      status: 'queued',
       error: null,
       logs: null,
       factorReportId: null,
@@ -497,6 +508,7 @@ async function prepareAndCompleteCuratorRun(
     } satisfies Job;
     await options.database.job.create({ data: { ...job, payload: { runId } } });
     JobService.register('research-curator', researchCuratorLifecycle);
+    expect(await JobService.claim(job.id)).toBe(true);
     await JobService.execute(job.id);
     return (await getResearchCuratorRun(run.userId, runId, options.database))!;
   } finally {

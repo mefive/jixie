@@ -2,7 +2,7 @@ import { ulid } from 'ulid';
 import type { BacktestConfig, Locale } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { chatText } from '#infra/llm/deepseek.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { strategyRunKey, type StrategyDatabase } from './config.js';
 
 /**
@@ -96,7 +96,7 @@ export async function refreshStrategyName(input: {
     return false;
   }
 
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const current = await transaction.strategy.findFirst({
       where: { id: input.id, userId: input.userId },
       select: { config: true, name: true },

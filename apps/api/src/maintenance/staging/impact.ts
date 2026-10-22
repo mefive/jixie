@@ -1,7 +1,7 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { resolve } from 'node:path';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { addDays } from '#date';
 import { allMarketIndicatorScope, type DerivedMarketScope } from '#market/state/scope.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '#market/registry/index-presets.js';
@@ -199,11 +199,11 @@ export async function planDerivedImpact(
       continue;
     }
     const [bars, factors] = await Promise.all([
-      prisma.daily.findMany({
+      getDatabase().daily.findMany({
         where: { tsCode: code, tradeDate: { gte: start, lte: last } },
         select: { tradeDate: true, close: true },
       }),
-      prisma.adjFactor.findMany({
+      getDatabase().adjFactor.findMany({
         where: { tsCode: code, tradeDate: { gte: start, lte: last } },
         select: { tradeDate: true },
       }),
@@ -243,7 +243,7 @@ export async function planDerivedImpact(
 
   for (const [code, group] of indexPrices) {
     const changedDates = group.map((change) => String(change.row.tradeDate)).sort();
-    const rows = await prisma.indexDaily.findMany({
+    const rows = await getDatabase().indexDaily.findMany({
       where: { tsCode: code, tradeDate: { gte: changedDates[0], lte: last } },
       select: { tradeDate: true },
     });
@@ -267,7 +267,7 @@ export async function planDerivedImpact(
   }
 
   for (const [code, changedDates] of memberships) {
-    const snapshots = await prisma.indexWeight.groupBy({
+    const snapshots = await getDatabase().indexWeight.groupBy({
       where: { indexCode: code },
       by: ['tradeDate'],
       orderBy: { tradeDate: 'asc' },
@@ -283,7 +283,7 @@ export async function planDerivedImpact(
   }
 
   for (const [code, group] of industries) {
-    const after = await prisma.swIndustryMember.findMany({
+    const after = await getDatabase().swIndustryMember.findMany({
       where: { tsCode: code },
       select: { tsCode: true, l1Code: true, l1Name: true, inDate: true, outDate: true },
     });

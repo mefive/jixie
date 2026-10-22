@@ -1,6 +1,6 @@
 import * as turnBus from '#agent/turns/bus.js';
 import { entityKey } from '#agent/turns/run.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { isResearchDocumentRunActive } from '../document-runs/run-state.js';
 import { ResearchError } from '../errors.js';
 import { archiveResearchDocument } from './document-operations.js';
@@ -11,7 +11,7 @@ import { archiveResearchDocument } from './document-operations.js';
  * Archive an idle document without racing active work.
  */
 export async function archiveIdleResearchDocument(userId: string, documentId: string) {
-  const owner = await prisma.agentConversation.findFirst({
+  const owner = await getDatabase().agentConversation.findFirst({
     where: { id: documentId, userId, surface: 'research' },
     select: { id: true },
   });

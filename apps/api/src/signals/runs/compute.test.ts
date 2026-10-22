@@ -12,13 +12,22 @@ const mocks = vi.hoisted(() => ({
   collectFinalState: vi.fn(),
   close: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    signalRun: { findUnique: mocks.findRun },
-    stockBasic: { findMany: mocks.stocks },
-    etfBasic: { findMany: mocks.etfs },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      signalRun: { findUnique: mocks.findRun },
+      stockBasic: { findMany: mocks.stocks },
+      etfBasic: { findMany: mocks.etfs },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('#backtesting/adapters/prisma-port.js', () => ({ prismaDataPort: {} }));
 vi.mock('#strategy/simulation/strategy-simulation.js', () => ({
   StrategySimulation: { create: mocks.create },

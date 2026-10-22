@@ -1,5 +1,5 @@
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { PublishedFactor } from '@jixie/shared';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
@@ -18,7 +18,7 @@ export async function publishPanelComposite(
   compositeId: string,
   approvedReportId: string,
 ): Promise<PublishedFactor> {
-  const composite = await prisma.factorComposite.findFirst({
+  const composite = await getDatabase().factorComposite.findFirst({
     where: { id: compositeId, userId },
   });
   if (!composite) {
@@ -32,7 +32,7 @@ export async function publishPanelComposite(
     throw new FactorError('publication_report_invalid');
   }
 
-  const report = await prisma.factorReport.findFirst({
+  const report = await getDatabase().factorReport.findFirst({
     where: {
       id: approvedReportId,
       userId,
@@ -72,7 +72,7 @@ export async function publishPanelComposite(
   }
 
   const publishedAt = new Date();
-  const updated = await prisma.factorComposite.updateMany({
+  const updated = await getDatabase().factorComposite.updateMany({
     where: { id: compositeId, userId, status: 'draft' },
     data: {
       status: 'published',
@@ -111,14 +111,16 @@ export async function archivePanelComposite(
   compositeId: string,
 ): Promise<PublishedFactor> {
   const archivedAt = new Date();
-  const updated = await prisma.factorComposite.updateMany({
+  const updated = await getDatabase().factorComposite.updateMany({
     where: { id: compositeId, userId, status: 'published' },
     data: { status: 'archived', visibility: 'private', archivedAt },
   });
   if (updated.count === 0) {
     throw new FactorError('factor_not_found');
   }
-  const composite = await prisma.factorComposite.findUniqueOrThrow({ where: { id: compositeId } });
+  const composite = await getDatabase().factorComposite.findUniqueOrThrow({
+    where: { id: compositeId },
+  });
   if (!composite.key || !composite.codeHash || !composite.publishedAt) {
     throw new FactorError('publication_not_draft');
   }
@@ -138,7 +140,7 @@ export async function archivePanelComposite(
 }
 
 async function assertPublishedComponents(userId: string, factorIds: string[]): Promise<void> {
-  const rows = await prisma.factor.findMany({
+  const rows = await getDatabase().factor.findMany({
     where: {
       id: { in: factorIds },
       userId: { in: [userId, BUILTIN_USER_ID] },

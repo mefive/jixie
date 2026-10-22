@@ -1,6 +1,11 @@
-import { prisma } from '#infra/database/prisma.js';
+import {
+  fetchMarketSource,
+  readMarketSourceBytes,
+  readMarketSourceText,
+} from '../providers/source-fetch.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { strFromU8, unzipSync } from 'fflate';
-import { ChinaBondHttpStatusError } from '../errors.js';
+import { ChinaBondHttpStatusError, MarketSourceDownloadError } from '../errors.js';
 import { assignCurveAvailableDates } from './china-treasury-curve.js';
 
 export const CHINABOND_PUBLIC_CURVE_SOURCE = 'chinabond_pbc_public';
@@ -97,7 +102,7 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
       try {
-        const response = await this.fetchImpl(url, {
+        const response = await fetchMarketSource(this.fetchImpl, url, {
           headers: {
             accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'user-agent': 'jixie-research/1.0 (source attribution: ChinaBond)',
@@ -105,9 +110,9 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
           signal: controller.signal,
         });
         if (response.ok) {
-          return new Uint8Array(await response.arrayBuffer());
+          return new Uint8Array(await readMarketSourceBytes(response));
         }
-        const detail = await response.text();
+        const detail = await readMarketSourceText(response);
         const statusError = new ChinaBondHttpStatusError(
           response.status,
           `ChinaBond public curve source returned HTTP ${response.status}${httpBodySuffix(detail)}`,
@@ -261,7 +266,7 @@ export async function syncChinaBondCreditCurves(
       onLog(`ChinaBond public curves ${range.startDate}..${range.endDate}: no observations`);
       continue;
     }
-    const calendarRows = await prisma.tradeCal.findMany({
+    const calendarRows = await getDatabase().tradeCal.findMany({
       where: {
         exchange: 'SSE',
         isOpen: 1,
@@ -275,8 +280,8 @@ export async function syncChinaBondCreditCurves(
       calendarRows.map((row) => row.calDate),
     );
     const retrievedAt = new Date();
-    await prisma.$transaction([
-      prisma.yieldCurvePoint.deleteMany({
+    await getDatabase().$transaction([
+      getDatabase().yieldCurvePoint.deleteMany({
         where: {
           source: CHINABOND_PUBLIC_CURVE_SOURCE,
           curveCode: { in: CHINABOND_PUBLIC_CURVES.map((curve) => curve.curveCode) },
@@ -284,7 +289,7 @@ export async function syncChinaBondCreditCurves(
           tradeDate: { gte: range.startDate, lte: range.endDate },
         },
       }),
-      prisma.yieldCurvePoint.createMany({
+      getDatabase().yieldCurvePoint.createMany({
         data: available.map((point) => ({
           source: CHINABOND_PUBLIC_CURVE_SOURCE,
           curveType: CHINABOND_PUBLIC_CURVE_TYPE,
@@ -398,23 +403,24 @@ function addCalendarDays(date: string, days: number): string {
 }
 
 /**
- * 为来源工作簿解析失败构造带上下文的诊断错误。
+ * 为传输失败补充诊断，保留下载类型和底层原因；不包装工作簿解析。
  *
- * Build a contextual diagnostic for source-workbook parsing failures.
+ * Add transport diagnostics while preserving download identity and causes; exclude workbook parsing.
  */
 function diagnosticError(error: unknown): Error {
-  const failure = error instanceof Error ? error : new Error(String(error));
+  const underlying = error instanceof MarketSourceDownloadError ? error.cause : error;
+  const failure = underlying instanceof Error ? underlying : new Error(String(underlying));
   const cause = failure.cause;
-  if (cause == null) {
-    return new Error(`ChinaBond public curve request failed: ${failure.message}`);
-  }
   const causeRecord = typeof cause === 'object' ? (cause as Record<string, unknown>) : null;
   const causeCode = typeof causeRecord?.code === 'string' ? causeRecord.code : null;
-  const causeMessage = cause instanceof Error ? cause.message : String(cause);
+  const causeMessage =
+    cause == null ? null : cause instanceof Error ? cause.message : String(cause);
   const causeDetail = [causeCode, causeMessage].filter((value) => value != null).join(': ');
-  return new Error(
-    `ChinaBond public curve request failed: ${failure.message}${causeDetail === '' ? '' : ` (${causeDetail})`}`,
-  );
+  const message = `ChinaBond public curve request failed: ${failure.message}${causeDetail === '' ? '' : ` (${causeDetail})`}`;
+
+  return error instanceof MarketSourceDownloadError
+    ? new MarketSourceDownloadError(message, { cause: error })
+    : new Error(message, { cause: error });
 }
 
 function httpBodySuffix(value: string): string {

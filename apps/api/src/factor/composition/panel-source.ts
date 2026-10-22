@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import { resolvePanelTemplateSource } from '../definitions/templates/panel.js';
 import { factorPanelCompositeDefinitionV2Schema } from '@jixie/shared/api/factor';
@@ -18,7 +18,7 @@ export async function resolvePanelFactorSource(
     return single;
   }
 
-  const composite = await prisma.factorComposite.findFirst({
+  const composite = await getDatabase().factorComposite.findFirst({
     where: { id: factorId, userId },
     select: { name: true, definition: true },
   });
@@ -63,7 +63,7 @@ async function resolveCustomPanelSource(
   userId: string,
   factorId: string,
 ): Promise<Extract<FactorAnalysisSource, { kind: 'panel' }> | null> {
-  const custom = await prisma.factor.findFirst({
+  const custom = await getDatabase().factor.findFirst({
     where: { id: factorId, userId, analysisKind: 'panel' },
     select: { code: true, name: true, language: true, runtimeVersion: true },
   });

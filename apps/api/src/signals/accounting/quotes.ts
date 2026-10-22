@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { MarketQuote } from './replay.js';
 
 /**
@@ -11,15 +11,15 @@ export async function loadMarketQuotes(
   codes: string[],
 ): Promise<Map<string, MarketQuote>> {
   const [stocks, etfs, limits] = await Promise.all([
-    prisma.daily.findMany({
+    getDatabase().daily.findMany({
       where: { tradeDate, tsCode: { in: codes } },
       select: { tsCode: true, open: true, close: true, amount: true },
     }),
-    prisma.etfDaily.findMany({
+    getDatabase().etfDaily.findMany({
       where: { tradeDate, tsCode: { in: codes } },
       select: { tsCode: true, open: true, close: true, amount: true },
     }),
-    prisma.stkLimit.findMany({
+    getDatabase().stkLimit.findMany({
       where: { tradeDate, tsCode: { in: codes } },
       select: { tsCode: true, upLimit: true, downLimit: true },
     }),
@@ -43,7 +43,7 @@ export async function loadMarketQuotes(
 }
 
 export async function nextTradingDate(tradeDate: string): Promise<string | null> {
-  const next = await prisma.tradeCal.findFirst({
+  const next = await getDatabase().tradeCal.findFirst({
     where: { exchange: 'SSE', isOpen: 1, calDate: { gt: tradeDate } },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },

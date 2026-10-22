@@ -25,7 +25,14 @@ vi.mock('#infra/database/prisma.js', async () => {
   fixture.directory = mkdtempSync('/tmp/jixie-signals-http-');
   const database = `${fixture.directory}/signals.db`;
   writeFileSync(database, '');
-  return { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
+  const mocked = { prisma: new exports.PrismaClient({ datasourceUrl: `file:${database}` }) };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
 });
 vi.mock('#strategy/sandbox/inspect-definition.js', () => ({
   inspectStrategyMetadata: resources.metadata,

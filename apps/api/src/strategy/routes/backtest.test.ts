@@ -17,15 +17,24 @@ const mocks = vi.hoisted(() => ({
   refreshStrategyName: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    $transaction: mocks.transaction,
-    backtestReport: {
-      findMany: mocks.backtestReportFindMany,
-      findFirst: mocks.backtestReportFindFirst,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      $transaction: mocks.transaction,
+      backtestReport: {
+        findMany: mocks.backtestReportFindMany,
+        findFirst: mocks.backtestReportFindFirst,
+      },
     },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('../definitions/config.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../definitions/config.js')>()),
   commitStrategyConfig: mocks.commitStrategyConfig,

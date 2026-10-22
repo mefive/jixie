@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { TushareRow } from '../providers/tushare/tushare-client.js';
 
 export type MacroAvailabilityKind = 'official_schedule' | 'published_intraday' | 'conservative_lag';
@@ -329,9 +329,9 @@ export async function syncChinaMacroData(
   const vintageDate = chinaDate(retrievedAt);
   const ready = prepared.filter((observation) => observation.availableDate <= vintageDate);
 
-  await prisma.$transaction(
+  await getDatabase().$transaction(
     CHINA_MACRO_SERIES.map((definition) =>
-      prisma.macroSeries.upsert({
+      getDatabase().macroSeries.upsert({
         where: { seriesKey: definition.seriesKey },
         create: catalogData(definition),
         update: catalogData(definition),
@@ -339,9 +339,9 @@ export async function syncChinaMacroData(
     ),
   );
   if (schedules.length > 0) {
-    await prisma.$transaction(
+    await getDatabase().$transaction(
       schedules.map((schedule) =>
-        prisma.macroReleaseSchedule.upsert({
+        getDatabase().macroReleaseSchedule.upsert({
           where: {
             publishDate_title: {
               publishDate: schedule.publishDate,
@@ -355,7 +355,7 @@ export async function syncChinaMacroData(
     );
   }
 
-  const existing = await prisma.macroObservation.findMany({
+  const existing = await getDatabase().macroObservation.findMany({
     where: { seriesKey: { in: CHINA_MACRO_SERIES.map((definition) => definition.seriesKey) } },
     orderBy: [{ seriesKey: 'asc' }, { period: 'asc' }, { vintageDate: 'desc' }],
   });
@@ -373,9 +373,9 @@ export async function syncChinaMacroData(
   });
   for (let offset = 0; offset < changed.length; offset += 500) {
     const batch = changed.slice(offset, offset + 500);
-    await prisma.$transaction(
+    await getDatabase().$transaction(
       batch.map((observation) =>
-        prisma.macroObservation.upsert({
+        getDatabase().macroObservation.upsert({
           where: {
             seriesKey_period_vintageDate: {
               seriesKey: observation.seriesKey,
@@ -623,7 +623,7 @@ function mergeSourceRequestBatches(
 }
 
 async function loadOpenDates(startMonth: string, endMonth: string): Promise<string[]> {
-  const rows = await prisma.tradeCal.findMany({
+  const rows = await getDatabase().tradeCal.findMany({
     where: {
       exchange: 'SSE',
       isOpen: 1,

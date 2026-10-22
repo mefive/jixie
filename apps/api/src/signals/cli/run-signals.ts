@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 import { generateDailySignals } from '../daily/scheduler.js';
 import { runStagedMaintenance } from '#maintenance/staging/coordinator.js';
 import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
@@ -20,11 +20,11 @@ async function main(): Promise<void> {
   }
 }
 
-main()
+await withDatabase(prisma, main)
   .catch((error) => {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await closeDatabase(prisma);
   });

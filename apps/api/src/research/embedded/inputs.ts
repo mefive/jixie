@@ -1,5 +1,5 @@
 import type { ResearchInputResponse } from '../evidence/input-contract.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { RESEARCH_EMBEDDED_LIMITS, type ResearchEmbeddedLimitsV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { createHash } from 'node:crypto';
@@ -38,7 +38,7 @@ export function embeddedInputRecorder(
         throw new ResearchError('embedded_input_limit');
       }
       const id = ulid();
-      await prisma.$transaction(async (transaction) => {
+      await getDatabase().$transaction(async (transaction) => {
         await assertActiveRun(transaction, runId, signal);
         await transaction.researchExecutionInput.create({
           data: {
@@ -76,7 +76,7 @@ export function embeddedInputRecorder(
           ? response.result.rows.length
           : null;
       const inputId = pending.id;
-      await prisma.$transaction(async (transaction) => {
+      await getDatabase().$transaction(async (transaction) => {
         await assertActiveRun(transaction, runId, signal);
         await transaction.researchExecutionInput.update({
           where: { id: inputId, status: 'loading' },

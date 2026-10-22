@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { day, daysBetween } from '#date';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import {
   STOCK_CODE_CHANGES,
@@ -25,9 +25,9 @@ export async function syncStockBasic(client: TushareClient): Promise<number> {
   const byCode = new Map(batches.flat().map((row) => [row.ts_code, row]));
   const rows = [...byCode.values()];
 
-  await prisma.$transaction([
-    prisma.stockBasic.deleteMany({}),
-    prisma.stockBasic.createMany({
+  await getDatabase().$transaction([
+    getDatabase().stockBasic.deleteMany({}),
+    getDatabase().stockBasic.createMany({
       data: rows.map((r) => ({
         tsCode: r.ts_code,
         symbol: r.symbol,
@@ -55,9 +55,9 @@ export async function syncStockBasic(client: TushareClient): Promise<number> {
  * Seed the small, exchange-confirmed code-succession registry idempotently.
  */
 export async function seedStockCodeChanges(): Promise<number> {
-  await prisma.$transaction(
+  await getDatabase().$transaction(
     STOCK_CODE_CHANGES.map((change) =>
-      prisma.stockCodeChange.upsert({
+      getDatabase().stockCodeChange.upsert({
         where: { oldTsCode: change.oldTsCode },
         create: change,
         update: {
@@ -120,7 +120,7 @@ export async function syncStockNameHistory(
     changeReason: row.change_reason,
   }));
   const data = normalizeStockNameSpells(fetchedSpells);
-  const currentStocks = await prisma.stockBasic.findMany({
+  const currentStocks = await getDatabase().stockBasic.findMany({
     where: { listStatus: 'L' },
     select: { tsCode: true, name: true, listDate: true },
   });
@@ -159,9 +159,9 @@ export async function syncStockNameHistory(
     spellsByCode.set(tsCode, spells);
   }
 
-  await prisma.$transaction([
-    prisma.stockNameHistory.deleteMany({}),
-    prisma.stockNameHistory.createMany({ data }),
+  await getDatabase().$transaction([
+    getDatabase().stockNameHistory.deleteMany({}),
+    getDatabase().stockNameHistory.createMany({ data }),
   ]);
   log(`stock name history stored ${data.length} spells`);
   return data.length;

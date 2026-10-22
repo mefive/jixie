@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import {
   COMMODITY_CONTINUOUS_RETURN_METHOD,
   COMMODITY_CONTINUOUS_RETURN_SOURCE,
@@ -50,7 +50,7 @@ export interface CommodityContinuousReturnQualitySummary {
  */
 export async function auditCommodityContinuousReturns(
   options: { startDate: string; endDate: string },
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<CommodityContinuousReturnQualitySummary> {
   const continuousCodes = COMMODITY_MAIN_CONTRACT_SPECS.map(
     (specification) => specification.continuousCode,

@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { FactorError } from '../errors.js';
 import type { FactorVisibilityInput } from '@jixie/shared/api/factor';
 
@@ -13,7 +13,7 @@ export async function setFactorVisibility(
   input: FactorVisibilityInput,
 ) {
   const visibility = input.visibility;
-  const factor = await prisma.factor.findFirst({
+  const factor = await getDatabase().factor.findFirst({
     where: { id: factorId, userId },
     select: { id: true, status: true },
   });
@@ -26,7 +26,7 @@ export async function setFactorVisibility(
     throw new FactorError('asset_must_be_published_before_sharing');
   }
 
-  return await prisma.factor.update({
+  return await getDatabase().factor.update({
     where: { id: factor.id },
     data: { visibility },
     select: { id: true, visibility: true },
@@ -44,7 +44,7 @@ export async function setCompositeVisibility(
   input: FactorVisibilityInput,
 ) {
   const visibility = input.visibility;
-  const composite = await prisma.factorComposite.findFirst({
+  const composite = await getDatabase().factorComposite.findFirst({
     where: { id: compositeId, userId },
     select: { id: true, status: true },
   });
@@ -57,7 +57,7 @@ export async function setCompositeVisibility(
     throw new FactorError('asset_must_be_published_before_sharing');
   }
 
-  return await prisma.factorComposite.update({
+  return await getDatabase().factorComposite.update({
     where: { id: composite.id },
     data: { visibility },
     select: { id: true, visibility: true },

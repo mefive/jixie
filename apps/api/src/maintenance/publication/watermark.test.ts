@@ -6,18 +6,27 @@ const database = vi.hoisted(() => ({
   updateState: vi.fn(),
 }));
 const { findState, createState, updateState } = database;
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    $transaction: async (operation: (transaction: unknown) => Promise<unknown>) =>
-      operation({
-        maintenanceState: {
-          findUnique: database.findState,
-          create: database.createState,
-          update: database.updateState,
-        },
-      }),
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      $transaction: async (operation: (transaction: unknown) => Promise<unknown>) =>
+        operation({
+          maintenanceState: {
+            findUnique: database.findState,
+            create: database.createState,
+            update: database.updateState,
+          },
+        }),
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 beforeEach(() => vi.resetAllMocks());
 describe('publication watermark initialization', () => {

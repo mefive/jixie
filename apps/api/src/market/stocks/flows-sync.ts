@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { moneyflow, topList } from '../providers/tushare/api.js';
@@ -26,7 +26,7 @@ export async function syncTopList(
     dates = await getOpenDates(start, end);
   }
   // No per-day marker table (TopList only has rows for listed stocks), so resume off distinct dates seen.
-  const existing = await prisma.topList.findMany({
+  const existing = await getDatabase().topList.findMany({
     where: { tradeDate: { gte: start, lte: end } },
     distinct: ['tradeDate'],
     select: { tradeDate: true },
@@ -46,9 +46,9 @@ export async function syncTopList(
       const tsCode = canonicalStockCode(r.ts_code);
       netByCode.set(tsCode, (netByCode.get(tsCode) ?? 0) + r.net_amount);
     }
-    await prisma.$transaction([
-      prisma.topList.deleteMany({ where: { tradeDate: d } }),
-      prisma.topList.createMany({
+    await getDatabase().$transaction([
+      getDatabase().topList.deleteMany({ where: { tradeDate: d } }),
+      getDatabase().topList.createMany({
         data: [...netByCode].map(([tsCode, netAmount]) => ({ tsCode, tradeDate: d, netAmount })),
       }),
     ]);
@@ -78,7 +78,7 @@ export async function syncMoneyflow(
     await syncTradeCal(client, start, end);
     dates = await getOpenDates(start, end);
   }
-  const existing = await prisma.moneyflow.findMany({
+  const existing = await getDatabase().moneyflow.findMany({
     where: { tradeDate: { gte: start, lte: end } },
     distinct: ['tradeDate'],
     select: { tradeDate: true },
@@ -101,9 +101,9 @@ export async function syncMoneyflow(
         (r.sell_elg_amount ?? 0),
       netTotal: r.net_mf_amount ?? null,
     }));
-    await prisma.$transaction([
-      prisma.moneyflow.deleteMany({ where: { tradeDate: d } }),
-      prisma.moneyflow.createMany({ data }),
+    await getDatabase().$transaction([
+      getDatabase().moneyflow.deleteMany({ where: { tradeDate: d } }),
+      getDatabase().moneyflow.createMany({ data }),
     ]);
     done++;
     if (done % 10 === 0 || done === todo.length) {

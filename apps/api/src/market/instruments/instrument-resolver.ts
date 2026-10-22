@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 const CODE_RE = /^(\d{6})(\.(SH|SZ|BJ))?$/i;
 const NAME_TOKEN_RE = /^[一-龥A-Za-z]{2,8}$/;
@@ -20,8 +20,8 @@ export async function resolveInstruments(text: string): Promise<string[]> {
     const symbol = codeMatch[1];
     const normalizedCode = codeMatch[2] ? `${symbol}.${codeMatch[3].toUpperCase()}` : undefined;
     const [stocks, etfs] = await Promise.all([
-      prisma.stockBasic.findMany({ where: { symbol }, select: { tsCode: true } }),
-      prisma.etfBasic.findMany({
+      getDatabase().stockBasic.findMany({ where: { symbol }, select: { tsCode: true } }),
+      getDatabase().etfBasic.findMany({
         where: normalizedCode
           ? { tsCode: normalizedCode }
           : { tsCode: { startsWith: `${symbol}.` } },
@@ -32,8 +32,8 @@ export async function resolveInstruments(text: string): Promise<string[]> {
   }
 
   const [exactStocks, exactEtfs] = await Promise.all([
-    prisma.stockBasic.findMany({ where: { name: value }, select: { tsCode: true } }),
-    prisma.etfBasic.findMany({
+    getDatabase().stockBasic.findMany({ where: { name: value }, select: { tsCode: true } }),
+    getDatabase().etfBasic.findMany({
       where: { OR: [{ name: value }, { fullName: value }] },
       select: { tsCode: true },
     }),
@@ -46,13 +46,13 @@ export async function resolveInstruments(text: string): Promise<string[]> {
     return [];
   }
   const [stocks, etfs] = await Promise.all([
-    prisma.stockBasic.findMany({
+    getDatabase().stockBasic.findMany({
       where: { name: { contains: value } },
       select: { tsCode: true },
       orderBy: { tsCode: 'asc' },
       take: MAX_HITS,
     }),
-    prisma.etfBasic.findMany({
+    getDatabase().etfBasic.findMany({
       where: { OR: [{ name: { contains: value } }, { fullName: { contains: value } }] },
       select: { tsCode: true },
       orderBy: { tsCode: 'asc' },

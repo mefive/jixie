@@ -1,5 +1,5 @@
 import type { ResearchAssetTypeV1, StockSeries } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 /**
  * 为已验证对象身份加载可绘图日序列。
@@ -50,13 +50,13 @@ function dateRange(start?: string, end?: string): TradeDateRange {
  */
 async function etfSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [basic, prices, factors] = await Promise.all([
-    prisma.etfBasic.findUnique({ where: { tsCode }, select: { name: true } }),
-    prisma.etfDaily.findMany({
+    getDatabase().etfBasic.findUnique({ where: { tsCode }, select: { name: true } }),
+    getDatabase().etfDaily.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, open: true, high: true, low: true, close: true, vol: true },
       orderBy: { tradeDate: 'asc' },
     }),
-    prisma.etfAdjFactor.findMany({
+    getDatabase().etfAdjFactor.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, adjFactor: true },
     }),
@@ -85,20 +85,20 @@ async function etfSeries(tsCode: string, tradeDate: TradeDateRange): Promise<Sto
  */
 async function stockSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [prices, valuations, factors, basic] = await Promise.all([
-    prisma.daily.findMany({
+    getDatabase().daily.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, open: true, high: true, low: true, close: true, vol: true },
       orderBy: { tradeDate: 'asc' },
     }),
-    prisma.dailyBasic.findMany({
+    getDatabase().dailyBasic.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, pe: true },
     }),
-    prisma.adjFactor.findMany({
+    getDatabase().adjFactor.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, adjFactor: true },
     }),
-    prisma.stockBasic.findUnique({ where: { tsCode }, select: { name: true } }),
+    getDatabase().stockBasic.findUnique({ where: { tsCode }, select: { name: true } }),
   ]);
   const peByDate = new Map(valuations.map((row) => [row.tradeDate, row.pe]));
   const factorByDate = new Map(factors.map((row) => [row.tradeDate, row.adjFactor]));
@@ -125,13 +125,13 @@ async function stockSeries(tsCode: string, tradeDate: TradeDateRange): Promise<S
  */
 async function indexSeries(tsCode: string, tradeDate: TradeDateRange): Promise<StockSeries> {
   const [basic, prices, valuations] = await Promise.all([
-    prisma.indexBenchmark.findUnique({ where: { tsCode }, select: { name: true } }),
-    prisma.indexDaily.findMany({
+    getDatabase().indexBenchmark.findUnique({ where: { tsCode }, select: { name: true } }),
+    getDatabase().indexDaily.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, close: true },
       orderBy: { tradeDate: 'asc' },
     }),
-    prisma.indexDailyBasic.findMany({
+    getDatabase().indexDailyBasic.findMany({
       where: { tsCode, tradeDate },
       select: { tradeDate: true, pe: true },
     }),
@@ -161,7 +161,7 @@ async function indexSeries(tsCode: string, tradeDate: TradeDateRange): Promise<S
 async function futureSeries(tsCode: string, start?: string, end?: string): Promise<StockSeries> {
   const lower = start ?? '20150101';
   const upper = end ?? '20991231';
-  const mappings = await prisma.futureMapping.findMany({
+  const mappings = await getDatabase().futureMapping.findMany({
     where: { continuousCode: tsCode, tradeDate: { gte: lower, lte: upper } },
     select: { tradeDate: true, mappedTsCode: true },
     orderBy: { tradeDate: 'asc' },
@@ -170,7 +170,7 @@ async function futureSeries(tsCode: string, start?: string, end?: string): Promi
     ? [...new Set(mappings.map((row) => row.mappedTsCode))]
     : [tsCode];
   const [prices, contract] = await Promise.all([
-    prisma.futureDaily.findMany({
+    getDatabase().futureDaily.findMany({
       where: { tsCode: { in: actualCodes }, tradeDate: { gte: lower, lte: upper } },
       select: {
         tsCode: true,
@@ -183,7 +183,7 @@ async function futureSeries(tsCode: string, start?: string, end?: string): Promi
       },
       orderBy: { tradeDate: 'asc' },
     }),
-    prisma.futureContract.findUnique({ where: { tsCode }, select: { name: true } }),
+    getDatabase().futureContract.findUnique({ where: { tsCode }, select: { name: true } }),
   ]);
   const byKey = new Map(prices.map((row) => [`${row.tsCode}|${row.tradeDate}`, row]));
   const selected = mappings.length

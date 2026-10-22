@@ -1,7 +1,7 @@
 import type { FactorAnalysisJobPayload } from './job-payload.js';
 import { factorReportState, factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import type { FactorResearchSpecV1, Locale, RunFactorAnalysisResponse } from '@jixie/shared';
 import { ulid } from 'ulid';
@@ -25,8 +25,8 @@ import { parseResearchIntent } from './research-policy.js';
  * Freeze an eligible holdout evaluation without prematurely revealing its result.
  */
 export async function submitFactorHoldout(userId: string, parentReportId: string, locale: Locale) {
-  const parent = await prisma.factorReport
-    .findFirst({ include: { job: true }, where: { id: parentReportId, userId } })
+  const parent = await getDatabase()
+    .factorReport.findFirst({ include: { job: true }, where: { id: parentReportId, userId } })
     .then((row) => (row ? factorReportState(row) : row));
 
   if (!parent) {
@@ -37,8 +37,8 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
 
   if (!eligibility.eligible) {
     if (eligibility.existingReportId) {
-      const existing = await prisma.factorReport
-        .findUnique({
+      const existing = await getDatabase()
+        .factorReport.findUnique({
           where: { id: eligibility.existingReportId },
           include: { job: true },
         })
@@ -125,7 +125,7 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
   const reportId = ulid();
   const jobId = ulid();
   // Recheck inside the transaction and persist the report and queued job together.
-  const created = await prisma.$transaction(async (transaction) => {
+  const created = await getDatabase().$transaction(async (transaction) => {
     const existing = await transaction.factorReport
       .findFirst({
         where: {
@@ -200,8 +200,8 @@ export async function submitFactorHoldout(userId: string, parentReportId: string
  * Reveal an authorized frozen holdout result and record the reveal transition.
  */
 export async function revealFactorHoldout(userId: string, reportId: string) {
-  const report = await prisma.factorReport
-    .findFirst({ include: { job: true }, where: { id: reportId, userId } })
+  const report = await getDatabase()
+    .factorReport.findFirst({ include: { job: true }, where: { id: reportId, userId } })
     .then((row) => (row ? factorReportState(row) : row));
 
   if (!report) {
@@ -212,14 +212,14 @@ export async function revealFactorHoldout(userId: string, reportId: string) {
   }
 
   if (!report.revealedAt) {
-    await prisma.factorReport.updateMany({
+    await getDatabase().factorReport.updateMany({
       where: { id: reportId, userId, revealedAt: null },
       data: { revealedAt: new Date() },
     });
   }
 
-  const revealed = await prisma.factorReport
-    .findUniqueOrThrow({
+  const revealed = await getDatabase()
+    .factorReport.findUniqueOrThrow({
       where: { id: reportId },
       include: { job: true },
     })

@@ -1,6 +1,6 @@
-import { fork } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { prisma } from '#infra/database/prisma.js';
+import { getStagingContext } from '#infra/coordination/staging-input.js';
+import { executeMarketSync } from '#market/sync/dispatch.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalizeStockCodes } from '#market/instruments/canonicalize-stock-codes.js';
 import { getRecentOpenDates } from '#market/calendar/read.js';
 import { runRepairMaintenance } from './repair.js';
@@ -16,9 +16,13 @@ export async function importMarketData(args: string[]): Promise<void> {
   if (args.length !== 2 || !/^\d{8}$/.test(start) || !/^\d{8}$/.test(end) || start > end) {
     throw new Error('Usage: maintenance import START END');
   }
-  const runId = process.env.JIXIE_MAINTENANCE_CANDIDATE!;
+  const context = getStagingContext();
+  if (!context) {
+    throw new Error('Import requires a candidate execution scope');
+  }
+  const runId = context.id;
   const completed = new Set(
-    (await prisma.maintenanceCheckpoint.findMany({ where: { runId, stage: 'import' } })).map(
+    (await getDatabase().maintenanceCheckpoint.findMany({ where: { runId, stage: 'import' } })).map(
       (row) => row.itemKey,
     ),
   );
@@ -26,20 +30,16 @@ export async function importMarketData(args: string[]): Promise<void> {
     if (completed.has(key)) {
       return;
     }
-    process.send?.({
-      type: 'maintenance-progress',
-      stage: 'importing',
-      summary: { currentStage: key },
-    });
+    await context.reportProgress?.('importing', { currentStage: key });
     await operation();
-    await prisma.maintenanceCheckpoint.upsert({
+    await getDatabase().maintenanceCheckpoint.upsert({
       where: { runId_stage_itemKey: { runId, stage: 'import', itemKey: key } },
       create: { runId, stage: 'import', itemKey: key },
       update: { completedAt: new Date() },
     });
   };
   const sync = async (key: string, ...parameters: string[]) =>
-    stage(key, () => syncChild(parameters));
+    stage(key, () => executeMarketSync(parameters));
   await sync('stock-history', 'stock-history', '19900101', end);
   for (let year = Number(start.slice(0, 4)); year <= Number(end.slice(0, 4)); year++) {
     const first = start > `${year}0101` ? start : `${year}0101`;
@@ -85,25 +85,4 @@ export async function importMarketData(args: string[]): Promise<void> {
   await stage('initialize', () =>
     runDailyMaintenance({ initializeOnly: true, deferPublication: true }),
   );
-}
-
-async function syncChild(args: string[]): Promise<void> {
-  const entry = new URL('../../../scripts/sync/index.js', import.meta.url);
-  const filename = fileURLToPath(entry).replace(
-    /\.js$/,
-    import.meta.url.endsWith('.ts') ? '.ts' : '.js',
-  );
-  await new Promise<void>((resolveDone, reject) => {
-    const child = fork(filename, args, {
-      env: process.env,
-      execArgv: filename.endsWith('.ts') ? process.execArgv : [],
-      stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
-    });
-    child.once('error', reject);
-    child.once('close', (code, signal) =>
-      code === 0
-        ? resolveDone()
-        : reject(new Error(`Import sync ${args[0]} failed (${signal ?? code})`)),
-    );
-  });
 }

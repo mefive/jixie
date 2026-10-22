@@ -11,16 +11,25 @@ const mocks = vi.hoisted(() => ({
   resolveSource: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    factorComposite: {
-      findFirst: mocks.compositeFindFirst,
-      updateMany: mocks.compositeUpdateMany,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      factorComposite: {
+        findFirst: mocks.compositeFindFirst,
+        updateMany: mocks.compositeUpdateMany,
+      },
+      factorReport: { findFirst: mocks.reportFindFirst },
+      factor: { findMany: mocks.factorFindMany },
     },
-    factorReport: { findFirst: mocks.reportFindFirst },
-    factor: { findMany: mocks.factorFindMany },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 vi.mock('../composition/panel-source.js', () => ({
   resolvePanelFactorSource: mocks.resolveSource,

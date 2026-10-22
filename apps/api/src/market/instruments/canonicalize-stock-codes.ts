@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { STOCK_CODE_CHANGES } from './stock-identity.js';
 import { seedStockCodeChanges } from '../stocks/basic-sync.js';
 
@@ -130,7 +130,7 @@ export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizatio
     if (affectedDate && (!earliestMarketDate || affectedDate < earliestMarketDate)) {
       earliestMarketDate = affectedDate;
     }
-    const migrated = await prisma.$transaction(
+    const migrated = await getDatabase().$transaction(
       async (transaction) => {
         let count = 0;
         const dailyOld = await transaction.daily.findMany({ where: { tsCode: oldTsCode } });
@@ -342,27 +342,27 @@ export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizatio
  */
 async function earliestMarketInputDate(oldTsCode: string): Promise<string | null> {
   const [daily, adjustment, basic, limits, membership, weight] = await Promise.all([
-    prisma.daily.aggregate({
+    getDatabase().daily.aggregate({
       where: { tsCode: oldTsCode },
       _min: { tradeDate: true },
     }),
-    prisma.adjFactor.aggregate({
+    getDatabase().adjFactor.aggregate({
       where: { tsCode: oldTsCode },
       _min: { tradeDate: true },
     }),
-    prisma.dailyBasic.aggregate({
+    getDatabase().dailyBasic.aggregate({
       where: { tsCode: oldTsCode },
       _min: { tradeDate: true },
     }),
-    prisma.stkLimit.aggregate({
+    getDatabase().stkLimit.aggregate({
       where: { tsCode: oldTsCode },
       _min: { tradeDate: true },
     }),
-    prisma.swIndustryMember.aggregate({
+    getDatabase().swIndustryMember.aggregate({
       where: { tsCode: oldTsCode },
       _min: { inDate: true },
     }),
-    prisma.indexWeight.aggregate({
+    getDatabase().indexWeight.aggregate({
       where: { conCode: oldTsCode },
       _min: { tradeDate: true },
     }),

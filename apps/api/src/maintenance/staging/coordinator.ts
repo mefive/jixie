@@ -1,17 +1,24 @@
-import { fork } from 'node:child_process';
+import { requirements, fingerprint, rulesFingerprint, stagingDirectory } from './identity.js';
+import { cleanupMaintenanceArtifacts } from './cleanup.js';
+import { isMarketSourceFailure } from '#market/errors.js';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { access, readFile, readdir, rm, stat, statfs } from 'node:fs/promises';
+import { access, readFile, stat, statfs, lstat, realpath } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { ulid } from 'ulid';
-import pkg from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { prisma } from '#infra/database/prisma.js';
 import {
-  acquireMarketLock,
+  getDatabase,
+  createDatabase,
+  withDatabase,
+  closeDatabase,
+} from '#infra/database/prisma.js';
+import { withStagingContext } from '#infra/coordination/staging-input.js';
+import { executeMaintenanceWorkflow } from '../workflows/execute.js';
+import { finalizeCandidate } from './finalize.js';
+import {
   acquireWorkOwner,
   databaseFilename,
   MarketAccessBusyError,
@@ -19,7 +26,7 @@ import {
   withMarketAccess,
   withMarketPublication,
 } from '#infra/coordination/market-access.js';
-import { requirementsSchema, type StagingRequirements } from '#infra/coordination/staging-input.js';
+import { requirementsSchema } from '#infra/coordination/staging-input.js';
 import { generateDailySignals } from '#signals/daily/scheduler.js';
 import { refreshAllFactorWeatherPins } from '#factor/weather/refresh.js';
 import { scheduledDailyUpperBound } from '../workflows/daily-schedule.js';
@@ -34,80 +41,13 @@ function payload(manifest: StagingManifest): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(manifest)) as Prisma.InputJsonValue;
 }
 
-async function requirements(): Promise<StagingRequirements> {
-  return prisma.$transaction(async (transaction) => {
-    const active = await transaction.strategyDeployment.findMany({
-      where: { status: 'active' },
-      orderBy: { id: 'asc' },
-      select: { config: true, factorDependencies: true },
-    });
-    const versioned = await transaction.strategyDeployment.findMany({
-      where: { accountingVersion: 2 },
-      orderBy: { id: 'asc' },
-      select: { config: true, status: true, accountStates: { take: 1, select: { id: true } } },
-    });
-
-    return {
-      active,
-      versioned: versioned.map((entry) => ({
-        config: entry.config,
-        status: entry.status,
-        hasAccounts: entry.accountStates.length > 0,
-      })),
-    };
-  });
-}
-
-function fingerprint(input: unknown): string {
-  return createHash('sha256').update(JSON.stringify(input)).digest('hex');
-}
-
-/** 代码变化使旧断点失效，开发环境也不依赖 Git HEAD。 / Invalidate checkpoints on code changes, including uncommitted development edits. */
-async function rulesFingerprint(): Promise<string> {
-  const root = fileURLToPath(new URL('../../', import.meta.url));
-  const digest = createHash('sha256');
-  const visit = async (directory: string): Promise<void> => {
-    const entries = await readdir(directory, { withFileTypes: true });
-    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-      const filename = resolve(directory, entry.name);
-      if (entry.isDirectory()) {
-        await visit(filename);
-      } else if (/\.(ts|js|mjs|py|json)$/.test(entry.name) && !/\.test\./.test(entry.name)) {
-        digest.update(filename.slice(root.length)).update(await readFile(filename));
-      }
-    }
-  };
-  await visit(root);
-  await visit(fileURLToPath(new URL('../../../scripts/', import.meta.url)));
-  const sharedDirectory = fileURLToPath(
-    new URL(
-      import.meta.url.includes('/dist/')
-        ? '../../../../../../packages/shared/'
-        : '../../../../../packages/shared/',
-      import.meta.url,
-    ),
-  );
-  await visit(sharedDirectory + (import.meta.url.endsWith('.ts') ? 'src' : 'dist'));
-  digest.update(process.versions.node).update(process.env.JIXIE_APP_REVISION ?? 'development');
-
-  return digest.digest('hex');
-}
-
-function stagingDirectory(id: string): string {
-  if (!/^[A-Z0-9]+$/.test(id)) {
-    throw new Error('Invalid staging identity');
-  }
-
-  return resolve(dirname(databaseFilename()), 'maintenance-staging', id);
-}
-
 /** 记录阶段耗时和正式控制进度，不改变市场数据。 / Record stage timings and control progress without changing market data. */
 async function measureStage<Result>(
   manifest: StagingManifest,
   stage: string,
   operation: () => Promise<Result>,
 ): Promise<Result> {
-  await prisma.maintenanceRun.update({
+  await getDatabase().maintenanceRun.update({
     where: { id: manifest.id },
     data: { stage, heartbeatAt: new Date() },
   });
@@ -127,86 +67,50 @@ async function prepareWorkflow(
   directory: string,
   finalize = false,
 ): Promise<void> {
-  const entry = fileURLToPath(new URL('../cli/run-maintenance.js', import.meta.url));
-  const source = import.meta.url.endsWith('.ts') ? entry.replace(/\.js$/, '.ts') : entry;
-  const environment: NodeJS.ProcessEnv = {
-    ...process.env,
-    DATABASE_URL: `file:${resolve(directory, 'candidate.db')}`,
-    JIXIE_STAGING_DATABASE: `file:${resolve(directory, 'candidate.db')}`,
-    JIXIE_FORMAL_DATABASE_URL: `file:${databaseFilename()}`,
-    JIXIE_MAINTENANCE_CANDIDATE: manifest.id,
-    JIXIE_MAINTENANCE_TIME: manifest.timestamp,
-    JIXIE_MAINTENANCE_DATE: manifest.date,
-    JIXIE_MAINTENANCE_UPPER_BOUND: manifest.upperBound,
-  };
-  delete environment.JIXIE_MAINTENANCE_LOCK_FD;
-  delete environment.JIXIE_MARKET_PUBLISH_LOCK_FD;
-  delete environment.JIXIE_MARKET_ACCESS_LOCK_FD;
-  const args = finalize
-    ? ['finalize', manifest.command]
-    : [manifest.command, ...manifest.args.filter((argument) => argument !== '--resume-only')];
-  const child = fork(source, args, {
-    env: environment,
-    execArgv: source.endsWith('.ts') ? process.execArgv : [],
-    stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
-  });
-  let progress = Promise.resolve();
-  let failure: unknown;
-  const terminate = () => {
-    child.kill('SIGTERM');
-  };
-  process.once('SIGINT', terminate);
-  process.once('SIGTERM', terminate);
-  child.on('message', (message: unknown) => {
-    const value = z
-      .object({
-        type: z.literal('maintenance-progress'),
-        stage: z.string(),
-        summary: z.unknown().optional(),
-      })
-      .safeParse(message);
-    if (!value.success) {
-      failure = new Error('Invalid candidate progress message');
-      child.kill();
-      return;
-    }
-    progress = progress
-      .then(async () => {
-        await prisma.maintenanceRun.update({
-          where: { id: manifest.id },
-          data: {
-            stage: value.data.stage,
-            heartbeatAt: new Date(),
-            summary: {
-              ...(payload(manifest) as object),
-              progress: JSON.parse(JSON.stringify(value.data.summary ?? null)),
-            },
-          },
-        });
-      })
-      .catch((error: unknown) => {
-        failure = error;
-        child.kill();
-      });
-  });
+  const formal = getDatabase();
+  const candidate = createDatabase(`file:${resolve(directory, 'candidate.db')}`);
+  const requirements = requirementsSchema.parse(
+    JSON.parse(await readFile(resolve(directory, 'requirements.json'), 'utf8')),
+  );
   try {
-    await new Promise<void>((resolveDone, reject) => {
-      child.once('error', reject);
-      child.once('close', (code, signal) => {
-        void progress.then(() => {
-          if (failure) {
-            reject(failure);
-          } else if (code === 0) {
-            resolveDone();
+    await withStagingContext(
+      {
+        id: manifest.id,
+        directory,
+        formalUrl: `file:${databaseFilename()}`,
+        timestamp: manifest.timestamp,
+        date: manifest.date,
+        upperBound: manifest.upperBound,
+        requirements,
+        reportProgress: async (stage, summary) => {
+          manifest.progress = JSON.parse(JSON.stringify(summary ?? null));
+          await formal.maintenanceRun.update({
+            where: { id: manifest.id },
+            data: {
+              stage,
+              heartbeatAt: new Date(),
+              summary: {
+                ...(payload(manifest) as object),
+                progress: JSON.parse(JSON.stringify(summary ?? null)),
+              },
+            },
+          });
+        },
+      },
+      () =>
+        withDatabase(candidate, async () => {
+          if (finalize) {
+            await finalizeCandidate();
           } else {
-            reject(new Error(`Candidate preparation failed (${signal ?? code})`));
+            await executeMaintenanceWorkflow(
+              manifest.command,
+              manifest.args.filter((argument) => argument !== '--resume-only'),
+            );
           }
-        }, reject);
-      });
-    });
+        }),
+    );
   } finally {
-    process.removeListener('SIGINT', terminate);
-    process.removeListener('SIGTERM', terminate);
+    await closeDatabase(candidate);
   }
 }
 
@@ -300,7 +204,7 @@ async function publish(manifest: StagingManifest, directory: string): Promise<vo
     } finally {
       inspector.close();
     }
-    const publisher = new pkg.PrismaClient();
+    const publisher = createDatabase(`file:${databaseFilename()}`);
     try {
       await publisher.$queryRawUnsafe('PRAGMA busy_timeout=5000');
       await publisher.$transaction(
@@ -389,7 +293,7 @@ async function publish(manifest: StagingManifest, directory: string): Promise<vo
       // 释放 R/P 前关闭专用引擎，避免未知提交结果留下仍能继续写入的连接。
       // Close the dedicated engine before releasing R/P, including indeterminate transaction outcomes.
       try {
-        await publisher.$disconnect();
+        await closeDatabase(publisher);
       } catch (error) {
         console.error(
           '[maintenance] publication connection shutdown is uncertain; terminating the coordinator',
@@ -400,7 +304,9 @@ async function publish(manifest: StagingManifest, directory: string): Promise<vo
     }
     // 正式凭据是唯一发布事实，内存状态不能先于事务提交。
     // Update in-memory state only from the committed formal receipt.
-    const receipt = await prisma.maintenanceRun.findUniqueOrThrow({ where: { id: manifest.id } });
+    const receipt = await getDatabase().maintenanceRun.findUniqueOrThrow({
+      where: { id: manifest.id },
+    });
     Object.assign(manifest, manifestSchema.parse(receipt.summary));
   });
 }
@@ -416,7 +322,7 @@ async function postprocess(runId: string): Promise<void> {
     throw error;
   }
   try {
-    const row = await prisma.maintenanceRun.findUniqueOrThrow({ where: { id: runId } });
+    const row = await getDatabase().maintenanceRun.findUniqueOrThrow({ where: { id: runId } });
     const manifest = manifestSchema.parse(row.summary);
     if (manifest.publishedRevision === undefined) {
       throw new Error('Postprocessing requires a committed publication receipt');
@@ -438,18 +344,18 @@ async function postprocess(runId: string): Promise<void> {
           }
         });
         manifest.completedActions.push(key);
-        await prisma.maintenanceRun.update({
+        await getDatabase().maintenanceRun.update({
           where: { id: runId },
           data: { summary: payload(manifest), stage: 'postprocessing', error: null },
         });
       }
       manifest.phase = 'done';
-      await prisma.maintenanceRun.update({
+      await getDatabase().maintenanceRun.update({
         where: { id: runId },
         data: { summary: payload(manifest), stage: 'complete', error: null },
       });
     } catch (error) {
-      await prisma.maintenanceRun.update({
+      await getDatabase().maintenanceRun.update({
         where: { id: runId },
         data: {
           stage: 'postprocess_error',
@@ -461,49 +367,6 @@ async function postprocess(runId: string): Promise<void> {
   } finally {
     await owner.release();
   }
-}
-
-/** 只清理有正式完成凭据的私有目录，清理失败不影响已发布数据。 / Clean only receipted private directories; cleanup never changes publication success. */
-async function cleanupCompleted(): Promise<void> {
-  await withMaintenanceLock(async () => {
-    const rows = await prisma.maintenanceRun.findMany({
-      where: {
-        targetKey: { startsWith: 'candidate:' },
-        OR: [
-          { status: 'done', stage: 'complete' },
-          { stage: 'abandoned', updatedAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60_000) } },
-        ],
-      },
-    });
-    for (const row of rows) {
-      const parsed = manifestSchema.safeParse(row.summary);
-      const abandonedExpired =
-        parsed.success &&
-        parsed.data.phase === 'abandoned' &&
-        Date.now() - row.updatedAt.getTime() > 7 * 24 * 60 * 60_000;
-      if (!parsed.success || (parsed.data.phase !== 'done' && !abandonedExpired)) {
-        continue;
-      }
-      let owner;
-      try {
-        owner = await acquireMarketLock(`owner-${parsed.data.id}`);
-      } catch (error) {
-        if (error instanceof MarketAccessBusyError) {
-          continue;
-        }
-        throw error;
-      }
-      try {
-        await rm(stagingDirectory(parsed.data.id), { recursive: true, force: true });
-        await prisma.maintenanceRun.update({
-          where: { id: row.id },
-          data: { stage: abandonedExpired ? 'cleaned_abandoned' : 'cleaned' },
-        });
-      } finally {
-        await owner.release();
-      }
-    }
-  });
 }
 
 async function candidateIsCurrent(
@@ -530,6 +393,17 @@ async function candidateIsCurrent(
   }
   try {
     const directory = stagingDirectory(manifest.id);
+    const entry = await lstat(directory);
+    const candidateEntry = await lstat(resolve(directory, 'candidate.db'));
+    const formalEntry = await lstat(databaseFilename());
+    if (
+      !entry.isDirectory() ||
+      (await realpath(directory)) !== directory ||
+      !candidateEntry.isFile() ||
+      (candidateEntry.dev === formalEntry.dev && candidateEntry.ino === formalEntry.ino)
+    ) {
+      return false;
+    }
     await access(resolve(directory, 'candidate.db'));
     const input = requirementsSchema.parse(
       JSON.parse(await readFile(resolve(directory, 'requirements.json'), 'utf8')),
@@ -537,7 +411,16 @@ async function candidateIsCurrent(
     if (fingerprint(input) !== manifest.requirementsHash) {
       return false;
     }
-    manifestSchema.parse(JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8')));
+    const frozen = manifestSchema.parse(
+      JSON.parse(await readFile(resolve(directory, 'manifest.json'), 'utf8')),
+    );
+    if (
+      frozen.id !== manifest.id ||
+      frozen.rulesHash !== manifest.rulesHash ||
+      frozen.requirementsHash !== manifest.requirementsHash
+    ) {
+      return false;
+    }
     if (manifest.phase === 'ready') {
       for (const changes of manifest.changes) {
         if (!manifest.snapshot.tables.includes(changes.table)) {
@@ -571,207 +454,219 @@ async function candidateIsCurrent(
   }
 }
 
+/** 在同一 M 所有权内准备、发布并回收候选，再独立重试后处理。 / Prepare, publish and reclaim under one M scope, then retry postprocessing independently. */
 export async function runStagedMaintenance(
   command: MaintenanceCommand,
   args: string[],
 ): Promise<void> {
   await retryPublishedActions();
   await withMaintenanceLock(async () => {
-    await cleanupCompleted();
-    const rows = await prisma.maintenanceRun.findMany({
-      where: {
-        targetKey: { startsWith: 'candidate:' },
-        status: { in: ['running', 'error'] },
-        NOT: { stage: { in: ['abandoned', 'cleaned_abandoned'] } },
-      },
-      orderBy: { startedAt: 'asc' },
-    });
-    const pending = rows
-      .map((row) => manifestSchema.safeParse(row.summary))
-      .find(
-        (entry) =>
-          entry.success &&
-          ['preparing', 'ready'].includes(entry.data.phase) &&
-          entry.data.command === command &&
-          (args.includes('--resume-only')
-            ? !entry.data.args.includes('--initialize-only')
-            : JSON.stringify(entry.data.args) === JSON.stringify(args)),
-      );
-    let manifest = pending?.success ? pending.data : undefined;
-    if (!manifest && args.includes('--resume-only')) {
-      return;
-    }
-    const inputs = await withMarketAccess(requirements);
-    const rulesHash = await rulesFingerprint();
-    const requirementsHash = fingerprint(inputs);
-    const original = manifest;
-    if (manifest) {
-      const previousWriter = await acquireMarketLock(`owner-${manifest.id}`);
-      try {
-        if (!(await candidateIsCurrent(manifest, rulesHash, requirementsHash))) {
+    try {
+      await reclaimArtifacts(false);
+      const rows = await getDatabase().maintenanceRun.findMany({
+        where: {
+          targetKey: { startsWith: 'candidate:' },
+          status: { in: ['running', 'error'] },
+          NOT: { stage: 'abandoned' },
+        },
+        orderBy: { startedAt: 'asc' },
+      });
+      const pending = rows
+        .map((row) => manifestSchema.safeParse(row.summary))
+        .find(
+          (entry) =>
+            entry.success &&
+            ['preparing', 'ready', 'abandoned'].includes(entry.data.phase) &&
+            !entry.data.replacementId &&
+            entry.data.command === command &&
+            (args.includes('--resume-only')
+              ? !entry.data.args.includes('--initialize-only')
+              : JSON.stringify(entry.data.args) === JSON.stringify(args)),
+        );
+      let manifest = pending?.success ? pending.data : undefined;
+      if (!manifest && args.includes('--resume-only')) {
+        return;
+      }
+      const inputs = await withMarketAccess(requirements);
+      const rulesHash = await rulesFingerprint();
+      const requirementsHash = fingerprint(inputs);
+      const original = manifest;
+      if (manifest) {
+        if (
+          manifest.phase === 'abandoned' ||
+          !(await candidateIsCurrent(manifest, rulesHash, requirementsHash))
+        ) {
           manifest.phase = 'abandoned';
-          await prisma.maintenanceRun.update({
+          await getDatabase().maintenanceRun.update({
             where: { id: manifest.id },
             data: {
               summary: payload(manifest),
               status: 'error',
-              stage: 'abandoned',
               error: 'Candidate inputs changed; rebuilding the same target',
             },
           });
           manifest = undefined;
         }
-      } finally {
-        await previousWriter.release();
       }
-    }
-    if (!manifest) {
-      const id = ulid();
-      const now = original ? new Date(original.timestamp) : new Date();
-      const date =
-        original?.date ??
-        new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'Asia/Shanghai',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        })
-          .format(now)
-          .replaceAll('-', '');
-      const directory = stagingDirectory(id);
-      const free = await statfs(dirname(databaseFilename()));
-      const sourceSize = (await stat(databaseFilename())).size;
-      if (free.bavail * free.bsize < sourceSize * 2 + 256 * 1024 * 1024) {
-        throw new Error('Insufficient space for an isolated maintenance candidate');
-      }
-      manifest = {
-        protocol: 2,
-        id,
-        command,
-        args: original?.args ?? args,
-        date,
-        timestamp: now.toISOString(),
-        upperBound: original?.upperBound ?? scheduledDailyUpperBound(now),
-        phase: 'preparing',
-        rulesHash,
-        requirementsHash,
-        snapshot: {
-          schemaHash: '',
-          baseRevision: -1,
-          tables: maintenanceTables(command, original?.args ?? args).map((table) => table.name),
-        },
-        changes: [],
-        actions: [],
-        completedActions: [],
-      };
-      await prisma.maintenanceRun.create({
-        data: {
+      if (!manifest) {
+        const id = ulid();
+        const now = original ? new Date(original.timestamp) : new Date();
+        const date =
+          original?.date ??
+          new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Shanghai',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          })
+            .format(now)
+            .replaceAll('-', '');
+        const directory = stagingDirectory(id);
+        const free = await statfs(dirname(databaseFilename()));
+        const sourceSize = (await stat(databaseFilename())).size;
+        if (free.bavail * free.bsize < sourceSize * 2 + 256 * 1024 * 1024) {
+          throw new Error('Insufficient space for an isolated maintenance candidate');
+        }
+        manifest = {
+          protocol: 2,
           id,
-          kind: ['sync', 'canonicalize', 'import'].includes(command) ? 'repair' : command,
-          targetKey: `candidate:${id}`,
-          trigger: process.env.INVOCATION_ID ? 'timer' : 'manual',
-          status: 'running',
-          stage: 'preparing',
-          summary: payload(manifest),
-        },
-      });
+          command,
+          args: original?.args ?? args,
+          date,
+          timestamp: now.toISOString(),
+          upperBound: original?.upperBound ?? scheduledDailyUpperBound(now),
+          phase: 'preparing',
+          rulesHash,
+          requirementsHash,
+          snapshot: {
+            schemaHash: '',
+            baseRevision: -1,
+            tables: maintenanceTables(command, original?.args ?? args).map((table) => table.name),
+          },
+          changes: [],
+          actions: [],
+          completedActions: [],
+        };
+        const createdManifest = manifest;
+        await getDatabase().$transaction(async (transaction) => {
+          await transaction.maintenanceRun.create({
+            data: {
+              id,
+              kind: ['sync', 'canonicalize', 'import'].includes(command) ? 'repair' : command,
+              targetKey: `candidate:${id}`,
+              trigger: process.env.INVOCATION_ID ? 'timer' : 'manual',
+              status: 'running',
+              stage: 'preparing',
+              summary: payload(createdManifest),
+            },
+          });
+          if (original) {
+            original.replacementId = id;
+            await transaction.maintenanceRun.update({
+              where: { id: original.id },
+              data: { summary: payload(original) },
+            });
+          }
+        });
+        try {
+          manifest.snapshot = await measureStage(manifest, 'snapshot', () =>
+            createStagingSnapshot(
+              databaseFilename(),
+              directory,
+              maintenanceTables(command, manifest!.args),
+            ),
+          );
+          await saveJson(resolve(directory, 'requirements.json'), inputs);
+          await saveJson(resolve(directory, 'manifest.json'), manifest);
+          await getDatabase().maintenanceRun.update({
+            where: { id },
+            data: { summary: payload(manifest) },
+          });
+        } catch (error) {
+          await getDatabase().maintenanceRun.update({
+            where: { id },
+            data: {
+              status: 'error',
+              stage: 'snapshot_error',
+              error: error instanceof Error ? error.message : String(error),
+            },
+          });
+          throw error;
+        }
+      }
+      const directory = stagingDirectory(manifest.id);
       try {
-        manifest.snapshot = await measureStage(manifest, 'snapshot', () =>
-          createStagingSnapshot(
-            databaseFilename(),
-            directory,
-            maintenanceTables(command, manifest!.args),
-          ),
-        );
-        await saveJson(resolve(directory, 'requirements.json'), inputs);
-        await saveJson(resolve(directory, 'manifest.json'), manifest);
-        await prisma.maintenanceRun.update({ where: { id }, data: { summary: payload(manifest) } });
-      } catch (error) {
-        await prisma.maintenanceRun.update({
-          where: { id },
-          data: {
-            status: 'error',
-            stage: 'snapshot_error',
-            error: error instanceof Error ? error.message : String(error),
-          },
-        });
-        throw error;
-      }
-    }
-    const directory = stagingDirectory(manifest.id);
-    try {
-      await prisma.maintenanceRun.update({
-        where: { id: manifest.id },
-        data: {
-          status: 'running',
-          stage: manifest.phase,
-          error: null,
-          attempts: { increment: original ? 1 : 0 },
-        },
-      });
-      if (manifest.phase === 'preparing') {
-        await measureStage(manifest, 'preparation', () => prepareWorkflow(manifest!, directory));
-        const finishedWriters = await acquireMarketLock(`owner-${manifest.id}`);
-        try {
-          await measureStage(manifest, 'input_changes', () => freezeChanges(manifest!, directory));
-        } finally {
-          await finishedWriters.release();
-        }
-        // 先检测实际变化，再在候选中重算影响范围并做最终审计。
-        // Detect actual changes before recomputing affected outputs and auditing the candidate.
-        await saveJson(resolve(directory, 'manifest.json'), manifest);
-        await measureStage(manifest, 'finalization', () =>
-          prepareWorkflow(manifest!, directory, true),
-        );
-        const frozen = await acquireMarketLock(`owner-${manifest.id}`);
-        try {
-          await measureStage(manifest, 'final_changes', () => freezeChanges(manifest!, directory));
-        } finally {
-          await frozen.release();
-        }
-        manifest.phase = 'ready';
-        await saveJson(resolve(directory, 'manifest.json'), manifest);
-        await prisma.maintenanceRun.update({
-          where: { id: manifest.id },
-          data: { summary: payload(manifest), stage: 'ready' },
-        });
-      }
-      await measureStage(manifest, 'publication', () => publish(manifest!, directory));
-      await prisma.maintenanceRun.update({
-        where: { id: manifest.id },
-        data: { summary: payload(manifest) },
-      });
-    } catch (error) {
-      const receipt = await prisma.maintenanceRun.findUniqueOrThrow({ where: { id: manifest.id } });
-      const persisted = manifestSchema.parse(receipt.summary);
-      if (persisted.publishedRevision !== undefined) {
-        Object.assign(manifest, persisted);
-      } else {
-        await prisma.maintenanceRun.update({
+        delete manifest.failure;
+        await getDatabase().maintenanceRun.update({
           where: { id: manifest.id },
           data: {
-            status: 'error',
-            stage: 'candidate_error',
+            status: 'running',
+            stage: manifest.phase,
             summary: payload(manifest),
-            error: error instanceof Error ? error.message : String(error),
-            heartbeatAt: new Date(),
+            error: null,
+            attempts: { increment: original ? 1 : 0 },
           },
         });
-        throw error;
+        if (manifest.phase === 'preparing') {
+          await measureStage(manifest, 'preparation', () => prepareWorkflow(manifest!, directory));
+          await measureStage(manifest, 'input_changes', () => freezeChanges(manifest!, directory));
+          // 先检测实际变化，再在候选中重算影响范围并做最终审计。
+          // Detect actual changes before recomputing affected outputs and auditing the candidate.
+          await saveJson(resolve(directory, 'manifest.json'), manifest);
+          await measureStage(manifest, 'finalization', () =>
+            prepareWorkflow(manifest!, directory, true),
+          );
+          await measureStage(manifest, 'final_changes', () => freezeChanges(manifest!, directory));
+          manifest.phase = 'ready';
+          await saveJson(resolve(directory, 'manifest.json'), manifest);
+          await getDatabase().maintenanceRun.update({
+            where: { id: manifest.id },
+            data: { summary: payload(manifest), stage: 'ready' },
+          });
+        }
+        await measureStage(manifest, 'publication', () => publish(manifest!, directory));
+        await getDatabase().maintenanceRun.update({
+          where: { id: manifest.id },
+          data: { summary: payload(manifest) },
+        });
+      } catch (error) {
+        const receipt = await getDatabase().maintenanceRun.findUniqueOrThrow({
+          where: { id: manifest.id },
+        });
+        const persisted = manifestSchema.parse(receipt.summary);
+        if (persisted.publishedRevision !== undefined) {
+          Object.assign(manifest, persisted);
+        } else {
+          manifest.failure = {
+            kind: isMarketSourceFailure(error) ? 'source' : 'other',
+            message: error instanceof Error ? error.message : String(error),
+            at: new Date().toISOString(),
+          };
+          await getDatabase().maintenanceRun.update({
+            where: { id: manifest.id },
+            data: {
+              status: 'error',
+              stage: 'candidate_error',
+              summary: payload(manifest),
+              error: error instanceof Error ? error.message : String(error),
+              heartbeatAt: new Date(),
+            },
+          });
+          throw error;
+        }
       }
+    } finally {
+      await reclaimArtifacts();
     }
   });
   if (await retryPublishedActions()) {
     process.exitCode = 1;
   }
-  await cleanupCompleted().catch((error: unknown) =>
-    console.warn('[maintenance] cleanup deferred', error),
-  );
 }
 
 async function retryPublishedActions(): Promise<number> {
   let failures = 0;
-  const rows = await prisma.maintenanceRun.findMany({
+  const rows = await getDatabase().maintenanceRun.findMany({
     where: {
       targetKey: { startsWith: 'candidate:' },
       status: 'done',
@@ -793,4 +688,17 @@ async function retryPublishedActions(): Promise<number> {
   }
 
   return failures;
+}
+
+async function reclaimArtifacts(owners = true): Promise<void> {
+  try {
+    const result = await cleanupMaintenanceArtifacts({ apply: true, owners });
+    for (const candidate of result.candidates) {
+      if (candidate.error) {
+        console.warn('[maintenance] cleanup deferred', candidate.id, candidate.error);
+      }
+    }
+  } catch (error) {
+    console.warn('[maintenance] cleanup deferred', error);
+  }
 }

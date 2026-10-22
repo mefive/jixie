@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { stockCodesWithDailyData } from '../stocks/read.js';
 import { financialHistoryStart, quarterlyReportPeriods } from './reference-periods.js';
 import type { ReferenceSyncSummary } from './reference-sync.js';
@@ -43,7 +43,7 @@ export async function importFinancialReferenceHistory(
 ): Promise<FinancialReferenceImportSummary> {
   const onLog = options.onLog ?? ((line: string) => console.log(line));
   const allCodes = await stockCodesWithDailyData();
-  const earliestMarketRow = await prisma.daily.findFirst({
+  const earliestMarketRow = await getDatabase().daily.findFirst({
     orderBy: { tradeDate: 'asc' },
     select: { tradeDate: true },
   });
@@ -54,7 +54,7 @@ export async function importFinancialReferenceHistory(
     financialHistoryStart(earliestMarketRow.tradeDate),
     options.throughDate,
   );
-  const dividendRows = await prisma.dividend.findMany({
+  const dividendRows = await getDatabase().dividend.findMany({
     distinct: ['tsCode'],
     select: { tsCode: true },
   });

@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -16,13 +16,13 @@ export interface CreatedSession {
 export async function createSession(userId: string): Promise<CreatedSession> {
   const id = ulid();
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await prisma.session.create({ data: { id, userId, expiresAt } });
+  await getDatabase().session.create({ data: { id, userId, expiresAt } });
   return { id, expiresAt };
 }
 
 export async function destroySession(sessionId: string): Promise<void> {
   // deleteMany rather than delete: a missing sid does not throw, so logout is idempotent
-  await prisma.session.deleteMany({ where: { id: sessionId } });
+  await getDatabase().session.deleteMany({ where: { id: sessionId } });
 }
 
 /**
@@ -55,7 +55,7 @@ export async function resolveSession(sessionId: string | undefined): Promise<Ses
     return { kind: 'missing' };
   }
 
-  const session = await prisma.session.findUnique({
+  const session = await getDatabase().session.findUnique({
     where: { id: sessionId },
     include: { user: { select: { id: true, email: true, name: true, status: true } } },
   });

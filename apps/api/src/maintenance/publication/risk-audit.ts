@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import type { MacroRiskAxisHistoryV1 } from '#market/macro/risk-axes.js';
 import {
   inspectMacroRiskAxes,
@@ -21,7 +21,7 @@ import { MARKET_RISK_LOOKBACK_OBSERVATIONS } from '#strategy/risk/market-risk-mo
 
 export async function auditMarketRiskDrivers(
   options: { startDate: string; endDate: string },
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ) {
   let startDate = options.startDate;
   let quality = await inspectMarketRiskDrivers(options, database);
@@ -55,7 +55,7 @@ export async function auditMarketRiskDrivers(
 
 export async function auditMacroRiskAxes(
   options: { startDate: string; endDate: string },
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ) {
   const startDate = selectMacroRiskAuditStart(options.startDate, options.endDate);
   return macroAuditSummary(await inspectMacroRiskAxes({ ...options, startDate }, database));

@@ -4,7 +4,7 @@ import { buildCodegenPrompt, KNOWN_INDICES } from '#strategy/sandbox/typescript/
 
 import { buildPythonCodegenPrompt } from '#strategy/sandbox/python/codegen-prompt.js';
 
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { buildAgentMode, TOOLS_HINT, type AgentProfile } from '../core.js';
 import { defaultTools } from '../tools/index.js';
 
@@ -33,13 +33,16 @@ async function assertKnownInstruments(code: string): Promise<void> {
   }
 
   const [stocks, etfs, indices] = await Promise.all([
-    prisma.stockBasic.findMany({ where: { tsCode: { in: candidates } }, select: { tsCode: true } }),
-    prisma.etfDaily.findMany({
+    getDatabase().stockBasic.findMany({
+      where: { tsCode: { in: candidates } },
+      select: { tsCode: true },
+    }),
+    getDatabase().etfDaily.findMany({
       where: { tsCode: { in: candidates } },
       select: { tsCode: true },
       distinct: ['tsCode'],
     }),
-    prisma.indexDaily.findMany({
+    getDatabase().indexDaily.findMany({
       where: { tsCode: { in: candidates } },
       select: { tsCode: true },
       distinct: ['tsCode'],

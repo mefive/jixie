@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { COMMODITY_FUTURE_PRODUCT_CODES } from './commodity-futures.js';
 
 export const COMMODITY_CARRY_VERSION = 1 as const;
@@ -65,7 +65,7 @@ export interface LoadCommodityCarryOptions {
  */
 export async function loadCommodityCarryHistory(
   options: LoadCommodityCarryOptions,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<CommodityCarryPointV1[]> {
   assertDateRange(options.start, options.end);
   const productCodes = options.productCodes ?? COMMODITY_FUTURE_PRODUCT_CODES;

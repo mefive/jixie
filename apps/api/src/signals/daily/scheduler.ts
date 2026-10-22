@@ -2,7 +2,7 @@ import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { deferMaintenanceAction } from '#infra/coordination/staging-input.js';
 import { JobService } from '#jobs/job-service.js';
 import { registerJobLifecycles } from '#jobs/register.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { settleStrategyAccounts } from '../accounting/settlement.js';
 import { SignalsError } from '../errors.js';
 import { enqueueSignalRun } from '../runs/enqueue.js';
@@ -22,7 +22,7 @@ export async function generateDailySignals(
 
   return withMarketAccess(async () => {
     registerJobLifecycles();
-    const open = await prisma.tradeCal.findUnique({
+    const open = await getDatabase().tradeCal.findUnique({
       where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
       select: { isOpen: true },
     });
@@ -31,7 +31,7 @@ export async function generateDailySignals(
     }
 
     await settleStrategyAccounts(tradeDate, onLog);
-    const deployments = await prisma.strategyDeployment.findMany({
+    const deployments = await getDatabase().strategyDeployment.findMany({
       where: { status: 'active' },
       orderBy: { deployedAt: 'asc' },
       select: { id: true, userId: true, strategyName: true },

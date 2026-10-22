@@ -16,15 +16,24 @@ const fixture = vi.hoisted(() => ({
   findUnique: vi.fn(),
   updateMany: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    job: {
-      findFirst: fixture.findFirst,
-      findUnique: fixture.findUnique,
-      updateMany: fixture.updateMany,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      job: {
+        findFirst: fixture.findFirst,
+        findUnique: fixture.findUnique,
+        updateMany: fixture.updateMany,
+      },
     },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 let release: Map<string, (error?: Error) => void>;
 let run: ReturnType<typeof vi.fn>;

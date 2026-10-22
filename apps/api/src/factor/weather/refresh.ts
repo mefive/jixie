@@ -10,7 +10,7 @@ import { runWorker } from '#jobs/worker.js';
 import { factorAnalysisWorkerMessageSchema } from '../analysis/worker-protocol.js';
 import { Worker } from 'node:worker_threads';
 import type { FactorReport, FactorWeatherPoint } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { createDefaultFactorAnalysisSpecV3 } from '../analysis/spec.js';
 import { canonicalJson, sha256 } from '../sources/fingerprint.js';
 
@@ -87,7 +87,7 @@ export function refreshFactorWeatherPin(
  * On API boot, reset only work without a live cross-process owner.
  */
 export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> {
-  const pins = await prisma.factorWeatherPin.findMany({
+  const pins = await getDatabase().factorWeatherPin.findMany({
     where: { status: 'running' },
     select: { id: true },
   });
@@ -103,7 +103,7 @@ export async function resetInterruptedFactorWeatherRefreshes(): Promise<number> 
       throw error;
     }
     try {
-      const result = await prisma.factorWeatherPin.updateMany({
+      const result = await getDatabase().factorWeatherPin.updateMany({
         where: { id: pin.id, status: 'running' },
         data: { status: 'pending', error: null },
       });
@@ -130,7 +130,7 @@ export async function refreshAllFactorWeatherPins(
     return [];
   }
 
-  const pins = await prisma.factorWeatherPin.findMany({
+  const pins = await getDatabase().factorWeatherPin.findMany({
     orderBy: { createdAt: 'asc' },
     select: { id: true, factorName: true },
   });
@@ -162,12 +162,12 @@ async function performRefresh(
   pinId: string,
   options: { force?: boolean },
 ): Promise<FactorWeatherRefreshResult> {
-  const pin = await prisma.factorWeatherPin.findUnique({ where: { id: pinId } });
+  const pin = await getDatabase().factorWeatherPin.findUnique({ where: { id: pinId } });
   if (!pin) {
     return { pinId, computedThrough: null, pointsWritten: 0, skipped: true };
   }
 
-  const state = await prisma.maintenanceState.findUnique({
+  const state = await getDatabase().maintenanceState.findUnique({
     where: { key: 'global' },
     select: { dataRevision: true },
   });
@@ -179,7 +179,7 @@ async function performRefresh(
   );
   const completedThrough = await latestCompletedMonthEnd();
   if (!completedThrough) {
-    await prisma.factorWeatherPin.update({
+    await getDatabase().factorWeatherPin.update({
       where: { id: pinId },
       data: { status: 'error', error: 'No completed monthly market period is available.' },
     });
@@ -191,7 +191,7 @@ async function performRefresh(
     return { pinId, computedThrough: completedThrough, pointsWritten: 0, skipped: true };
   }
 
-  await prisma.factorWeatherPin.update({
+  await getDatabase().factorWeatherPin.update({
     where: { id: pinId },
     data: { status: 'running', error: null },
   });
@@ -232,7 +232,7 @@ async function performRefresh(
       sampleCoverage: observation.sampleCoverage,
     }));
 
-    await prisma.$transaction(async (transaction) => {
+    await getDatabase().$transaction(async (transaction) => {
       if (requiresFullRefresh) {
         await transaction.factorWeatherPoint.deleteMany({ where: { pinId } });
       } else {
@@ -257,7 +257,7 @@ async function performRefresh(
     return { pinId, computedThrough: completedThrough, pointsWritten: data.length, skipped: false };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await prisma.factorWeatherPin.updateMany({
+    await getDatabase().factorWeatherPin.updateMany({
       where: { id: pinId },
       data: { status: 'error', error: message },
     });
@@ -272,14 +272,14 @@ async function performRefresh(
  */
 async function latestCompletedMonthEnd(): Promise<string | null> {
   const currentMonthStart = shanghaiToday().slice(0, 6) + '01';
-  const published = await prisma.maintenanceState.findUnique({
+  const published = await getDatabase().maintenanceState.findUnique({
     where: { key: 'global' },
     select: { dailyPublishedThrough: true },
   });
   const marketCutoff =
     published?.dailyPublishedThrough ??
     (
-      await prisma.daily.findFirst({
+      await getDatabase().daily.findFirst({
         orderBy: { tradeDate: 'desc' },
         select: { tradeDate: true },
       })
@@ -288,7 +288,7 @@ async function latestCompletedMonthEnd(): Promise<string | null> {
     return null;
   }
 
-  const row = await prisma.tradeCal.findFirst({
+  const row = await getDatabase().tradeCal.findFirst({
     where: {
       exchange: 'SSE',
       isOpen: 1,
@@ -301,7 +301,7 @@ async function latestCompletedMonthEnd(): Promise<string | null> {
 }
 
 async function weatherHistoryStart(end: string): Promise<string> {
-  const firstDaily = await prisma.daily.findFirst({
+  const firstDaily = await getDatabase().daily.findFirst({
     where: { tradeDate: { gte: HISTORY_START, lte: end } },
     orderBy: { tradeDate: 'asc' },
     select: { tradeDate: true },
@@ -318,7 +318,7 @@ async function weatherHistoryStart(end: string): Promise<string> {
  * Resolve the incremental recalculation start from stored results and lookback needs.
  */
 async function incrementalStart(computedThrough: string): Promise<string> {
-  const rows = await prisma.tradeCal.findMany({
+  const rows = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { lte: computedThrough } },
     orderBy: { calDate: 'desc' },
     select: { calDate: true },

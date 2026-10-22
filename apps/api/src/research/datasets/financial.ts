@@ -17,7 +17,7 @@ import {
   type ResolvedFinancialState,
   type ResolvedFinancialStatement,
 } from '#market/fundamentals/resolver.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   loadResearchCrossSection,
   loadResearchPanel,
@@ -123,7 +123,7 @@ export interface ResearchFinancialMetricRowV1 {
  */
 export async function loadResearchFinancialStatements(
   request: ResearchFinancialStatementRequestV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchFinancialStatementRowV1[]> {
   const selectedFields = normalizeFinancialFields(request.fields);
   validateFinancialReportRange(request.as_of);
@@ -158,7 +158,7 @@ export async function loadResearchFinancialStatements(
  */
 export async function loadResearchFinancialMetrics(
   request: ResearchSingleFinancialRequestV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchFinancialMetricRowV1[]> {
   const [state, historicalName] = await Promise.all([
     resolveFinancialState({ tsCode: request.identifier, asOfDate: request.as_of }, database),
@@ -189,7 +189,7 @@ export async function loadResearchFinancialMetrics(
  */
 export async function loadResearchFinancialCrossSection(
   request: ResearchFinancialCrossSectionRequestV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchFinancialMetricRowV1[]> {
   const metrics = normalizeSelectedMetrics(request.metrics);
   const dataset = await loadResearchCrossSection(request, database);
@@ -209,7 +209,7 @@ export async function loadResearchFinancialCrossSection(
  */
 export async function loadResearchFinancialPanel(
   request: ResearchFinancialPanelRequestV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchFinancialMetricRowV1[]> {
   const metrics = normalizeSelectedMetrics(request.metrics);
   const dataset = await loadResearchPanel(request, database, {

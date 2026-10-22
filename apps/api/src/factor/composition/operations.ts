@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorCompositeDefinition } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
@@ -12,7 +12,7 @@ import {
 
 async function validateCompositeComponents(userId: string, definition: FactorCompositeDefinition) {
   const factorIds = definition.components.map((component) => component.factor);
-  const owned = await prisma.factor.findMany({
+  const owned = await getDatabase().factor.findMany({
     where: { userId: { in: [userId, BUILTIN_USER_ID] }, id: { in: factorIds } },
     select: { id: true, analysisKind: true },
   });
@@ -69,7 +69,7 @@ function compositeResource(row: {
 }
 
 export async function readFactorComposite(userId: string, compositeId: string) {
-  const row = await prisma.factorComposite.findFirst({
+  const row = await getDatabase().factorComposite.findFirst({
     where: {
       id: compositeId,
       OR: [{ userId }, { visibility: 'public', status: 'published' }],
@@ -98,11 +98,11 @@ export async function createFactorComposite(userId: string, input: FactorComposi
   if (definition.version === 2) {
     const unavailable =
       BUILTIN_KEYS.has(definition.key) ||
-      (await prisma.factor.findFirst({
+      (await getDatabase().factor.findFirst({
         where: { key: definition.key, userId: { in: [userId, BUILTIN_USER_ID] } },
         select: { id: true },
       })) ||
-      (await prisma.factorComposite.findFirst({
+      (await getDatabase().factorComposite.findFirst({
         where: { key: definition.key, userId },
         select: { id: true },
       }));
@@ -112,7 +112,7 @@ export async function createFactorComposite(userId: string, input: FactorComposi
   }
 
   try {
-    const row = await prisma.factorComposite.create({
+    const row = await getDatabase().factorComposite.create({
       data: {
         id: ulid(),
         userId,
@@ -153,7 +153,7 @@ export async function updateFactorComposite(
     throw new FactorError('unknown_factor', { params: { factor: invalid } });
   }
 
-  const existing = await prisma.factorComposite.findFirst({
+  const existing = await getDatabase().factorComposite.findFirst({
     where: { id: compositeId, userId },
     select: { key: true, status: true },
   });
@@ -170,7 +170,7 @@ export async function updateFactorComposite(
     throw new FactorError('factor_key_unavailable');
   }
 
-  const updated = await prisma.factorComposite.updateMany({
+  const updated = await getDatabase().factorComposite.updateMany({
     where: { id: compositeId, userId, status: 'draft' },
     data: {
       name: definition.name,
@@ -182,7 +182,7 @@ export async function updateFactorComposite(
     throw new FactorError('factor_not_found');
   }
 
-  const row = await prisma.factorComposite.findUniqueOrThrow({
+  const row = await getDatabase().factorComposite.findUniqueOrThrow({
     where: { id: compositeId },
   });
 
@@ -190,7 +190,7 @@ export async function updateFactorComposite(
 }
 
 export async function deleteFactorComposite(userId: string, compositeId: string) {
-  const deleted = await prisma.factorComposite.deleteMany({
+  const deleted = await getDatabase().factorComposite.deleteMany({
     where: { id: compositeId, userId, status: 'draft' },
   });
 
@@ -207,7 +207,7 @@ export async function deleteFactorComposite(userId: string, compositeId: string)
  * Copy an accessible composite and its component references into an owned draft.
  */
 export async function copyFactorComposite(userId: string, compositeId: string) {
-  const source = await prisma.factorComposite.findFirst({
+  const source = await getDatabase().factorComposite.findFirst({
     where: {
       id: compositeId,
       OR: [{ userId }, { visibility: 'public', status: 'published' }],
@@ -226,7 +226,7 @@ export async function copyFactorComposite(userId: string, compositeId: string) {
 
   if (source.userId !== userId) {
     const factorIds = definition.data.components.map((component) => component.factor);
-    const components = await prisma.factor.findMany({
+    const components = await getDatabase().factor.findMany({
       where: {
         id: { in: factorIds },
         userId: { in: [source.userId, BUILTIN_USER_ID] },
@@ -239,7 +239,7 @@ export async function copyFactorComposite(userId: string, compositeId: string) {
     const byId = new Map(components.map((component) => [component.id, component]));
     // A foreign public composite becomes an owned draft with independent component copies.
     // Keep all copies in one transaction so a failed composite insert leaves no orphan drafts.
-    const row = await prisma.$transaction(async (transaction) => {
+    const row = await getDatabase().$transaction(async (transaction) => {
       const copiedIds = new Map<string, string>();
       for (const factorId of factorIds) {
         const component = byId.get(factorId)!;
@@ -293,11 +293,11 @@ export async function copyFactorComposite(userId: string, compositeId: string) {
     return compositeResource(row);
   }
 
-  const { key, version } = await nextCopyKey(prisma, userId, source.key);
+  const { key, version } = await nextCopyKey(getDatabase(), userId, source.key);
   const nameBase = source.name.replace(/\s+v\d+$/i, '');
   const name = `${nameBase} v${version}`.slice(0, 80);
   const copiedDefinition = { ...definition.data, key, name };
-  const row = await prisma.factorComposite.create({
+  const row = await getDatabase().factorComposite.create({
     data: {
       id: ulid(),
       userId,

@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { indexWeight, type IndexWeightRow } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
@@ -25,7 +25,7 @@ export async function prepareIndexMembership(
   const oldest = shiftDays(first, -maximumAgeDays);
 
   for (const indexCode of MARKET_WEATHER_INDICATOR_INDEX_CODES) {
-    const existing = await prisma.indexWeight.findFirst({
+    const existing = await getDatabase().indexWeight.findFirst({
       where: { indexCode, tradeDate: { lte: first } },
       orderBy: { tradeDate: 'desc' },
       select: { tradeDate: true },
@@ -93,9 +93,9 @@ export async function prepareIndexMembership(
       if (members.size !== rows.length || !Number.isFinite(total) || total < 95 || total > 105) {
         throw new Error(`Invalid or incomplete IndexWeight snapshot ${indexCode} ${date}`);
       }
-      await prisma.$transaction([
-        prisma.indexWeight.deleteMany({ where: { indexCode, tradeDate: date } }),
-        prisma.indexWeight.createMany({
+      await getDatabase().$transaction([
+        getDatabase().indexWeight.deleteMany({ where: { indexCode, tradeDate: date } }),
+        getDatabase().indexWeight.createMany({
           data: rows.map((row) => ({
             indexCode,
             conCode: canonicalStockCode(row.con_code),

@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import {
@@ -61,21 +61,21 @@ export async function syncStockDailyData(
     priorMedianDaily,
   });
 
-  await prisma.$transaction([
-    prisma.daily.deleteMany({ where: { tradeDate } }),
-    prisma.daily.createMany({ data: prices.map(toDaily) }),
-    prisma.adjFactor.deleteMany({ where: { tradeDate } }),
-    prisma.adjFactor.createMany({
+  await getDatabase().$transaction([
+    getDatabase().daily.deleteMany({ where: { tradeDate } }),
+    getDatabase().daily.createMany({ data: prices.map(toDaily) }),
+    getDatabase().adjFactor.deleteMany({ where: { tradeDate } }),
+    getDatabase().adjFactor.createMany({
       data: adjustments.map((row) => ({
         tsCode: canonicalStockCode(row.ts_code),
         tradeDate: row.trade_date,
         adjFactor: row.adj_factor,
       })),
     }),
-    prisma.dailyBasic.deleteMany({ where: { tradeDate } }),
-    prisma.dailyBasic.createMany({ data: basics.map(toDailyBasic) }),
-    prisma.stkLimit.deleteMany({ where: { tradeDate } }),
-    prisma.stkLimit.createMany({ data: limits.map(toStkLimit) }),
+    getDatabase().dailyBasic.deleteMany({ where: { tradeDate } }),
+    getDatabase().dailyBasic.createMany({ data: basics.map(toDailyBasic) }),
+    getDatabase().stkLimit.deleteMany({ where: { tradeDate } }),
+    getDatabase().stkLimit.createMany({ data: limits.map(toStkLimit) }),
   ]);
 
   return {
@@ -118,7 +118,7 @@ function canonicalizeCandidateRows<Row extends { ts_code: string; trade_date: st
  * Compute a recent daily row-count median for coverage validation.
  */
 async function recentDailyCountMedian(tradeDate: string): Promise<number | null> {
-  const rows = await prisma.daily.groupBy({
+  const rows = await getDatabase().daily.groupBy({
     by: ['tradeDate'],
     where: { tradeDate: { lt: tradeDate } },
     _count: { _all: true },
@@ -216,7 +216,7 @@ export async function syncDaily(
   // transaction, so any data for a day means it's considered complete).
   // Rerunning the same range after an interruption only fills the gaps; it can resume even if
   // interrupted again.
-  const existing = await prisma.daily.findMany({
+  const existing = await getDatabase().daily.findMany({
     where: { tradeDate: { gte: start, lte: end } },
     distinct: ['tradeDate'],
     select: { tradeDate: true },
@@ -229,11 +229,11 @@ export async function syncDaily(
   for (const d of todo) {
     const px = await daily(client, { trade_date: d });
     const adj = await adjFactor(client, { trade_date: d });
-    await prisma.$transaction([
-      prisma.daily.deleteMany({ where: { tradeDate: d } }),
-      prisma.daily.createMany({ data: px.map(toDaily) }),
-      prisma.adjFactor.deleteMany({ where: { tradeDate: d } }),
-      prisma.adjFactor.createMany({
+    await getDatabase().$transaction([
+      getDatabase().daily.deleteMany({ where: { tradeDate: d } }),
+      getDatabase().daily.createMany({ data: px.map(toDaily) }),
+      getDatabase().adjFactor.deleteMany({ where: { tradeDate: d } }),
+      getDatabase().adjFactor.createMany({
         data: adj.map((r) => ({
           tsCode: canonicalStockCode(r.ts_code),
           tradeDate: r.trade_date,
@@ -265,7 +265,7 @@ export async function syncDailyBasic(
     await syncTradeCal(client, start, end);
     dates = await getOpenDates(start, end);
   }
-  const existing = await prisma.dailyBasic.findMany({
+  const existing = await getDatabase().dailyBasic.findMany({
     where: { tradeDate: { gte: start, lte: end }, turnoverRateF: { not: null } },
     distinct: ['tradeDate'],
     select: { tradeDate: true },
@@ -277,9 +277,9 @@ export async function syncDailyBasic(
   let done = 0;
   for (const d of todo) {
     const rows = await dailyBasic(client, { trade_date: d });
-    await prisma.$transaction([
-      prisma.dailyBasic.deleteMany({ where: { tradeDate: d } }),
-      prisma.dailyBasic.createMany({
+    await getDatabase().$transaction([
+      getDatabase().dailyBasic.deleteMany({ where: { tradeDate: d } }),
+      getDatabase().dailyBasic.createMany({
         data: rows.map(toDailyBasic),
       }),
     ]);
@@ -307,7 +307,7 @@ export async function syncStkLimit(
     await syncTradeCal(client, start, end);
     dates = await getOpenDates(start, end);
   }
-  const existing = await prisma.stkLimit.findMany({
+  const existing = await getDatabase().stkLimit.findMany({
     where: { tradeDate: { gte: start, lte: end } },
     distinct: ['tradeDate'],
     select: { tradeDate: true },
@@ -319,9 +319,9 @@ export async function syncStkLimit(
   let done = 0;
   for (const d of todo) {
     const rows = await stkLimit(client, { trade_date: d });
-    await prisma.$transaction([
-      prisma.stkLimit.deleteMany({ where: { tradeDate: d } }),
-      prisma.stkLimit.createMany({
+    await getDatabase().$transaction([
+      getDatabase().stkLimit.deleteMany({ where: { tradeDate: d } }),
+      getDatabase().stkLimit.createMany({
         data: rows.map(toStkLimit),
       }),
     ]);

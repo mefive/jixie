@@ -2,7 +2,7 @@ import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { factorProfile } from '#agent/profiles/factor.js';
 import * as turnBus from '#agent/turns/bus.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
 import type { Locale } from '@jixie/shared';
@@ -22,7 +22,7 @@ export async function startFactorAgentTurn(
   locale: Locale,
 ) {
   const { id, message, code } = input;
-  const factor = await prisma.factor.findFirst({
+  const factor = await getDatabase().factor.findFirst({
     where: { id, userId },
     select: {
       id: true,
@@ -51,7 +51,7 @@ export async function startFactorAgentTurn(
   const turnId = ulid();
 
   const embeddedSource = await captureEmbeddedContext(
-    prisma,
+    getDatabase(),
     userId,
     { type: 'factor', id },
     input.reportId,

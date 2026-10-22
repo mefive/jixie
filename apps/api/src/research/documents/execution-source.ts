@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchExecutionSourceCellSnapshot } from '../evidence/execution-records.js';
 import type { ResearchCellKindV1 } from '@jixie/shared';
 import { jsonStringArray } from '../dependencies/cell-values.js';
@@ -35,7 +35,7 @@ export interface ExecutableResearchCellRow {
  * Load and freeze executable document sources and revisions for reproducible execution.
  */
 export async function loadResearchExecutionSeed(userId: string, documentId: string) {
-  const document = await prisma.researchDocument.findFirst({
+  const document = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: {
       id: true,
@@ -95,7 +95,7 @@ export async function loadExecutableResearchCell(
   userId: string,
   cellId: string,
 ): Promise<ExecutableResearchCellRow | null> {
-  return prisma.researchCell.findFirst({
+  return getDatabase().researchCell.findFirst({
     where: { id: cellId, document: { userId, embeddedVersion: null } },
     include: { document: { include: { conversation: true } } },
   });

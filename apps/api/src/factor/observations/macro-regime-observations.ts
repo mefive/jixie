@@ -1,6 +1,6 @@
 import type { MacroRegimeFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
-import { prisma, type Prisma } from '#infra/database/prisma.js';
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import {
   loadMacroRegimeScoreHistory,
   type MacroRegimeHistoryV1,
@@ -65,7 +65,7 @@ export interface MacroRegimeEvaluationData {
  */
 export async function loadMacroRegimeObservations(
   researchSpec: MacroRegimeFactorResearchSpecV1,
-  database: Prisma = prisma,
+  database: Prisma = getDatabase(),
 ): Promise<MacroRegimeEvaluationData> {
   assertSupportedProtocol(researchSpec);
   const targetEnd = addDays(researchSpec.end, (researchSpec.target.horizon + 10) * 3);

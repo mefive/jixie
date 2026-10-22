@@ -1,6 +1,6 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
 import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
@@ -32,7 +32,7 @@ export async function runResearchDocument(
   clean: boolean,
 ): Promise<ResearchDocumentRunResultV1> {
   return withMarketAccess(async () => {
-    const owner = await prisma.researchDocument.findFirst({
+    const owner = await getDatabase().researchDocument.findFirst({
       where: { id: documentId, userId, embeddedVersion: null },
       select: { id: true },
     });
@@ -60,7 +60,7 @@ export async function runResearchDocument(
         researchExecutionId = researchExecution.id;
         await researchSandboxPool.reset(documentId);
         if (!control.interrupted) {
-          await prisma.researchCell.updateMany({
+          await getDatabase().researchCell.updateMany({
             where: {
               documentId,
               kind: 'python',
@@ -122,12 +122,12 @@ export async function runResearchDocument(
       return buildResearchDocumentRunResult(userId, documentId, executedCellIds, false);
     } catch (error) {
       if (researchExecutionId) {
-        const active = await prisma.researchExecution.findUnique({
+        const active = await getDatabase().researchExecution.findUnique({
           where: { id: researchExecutionId },
           select: { status: true },
         });
         if (active?.status === 'running') {
-          const completedCells = await prisma.researchCellExecution.findMany({
+          const completedCells = await getDatabase().researchCellExecution.findMany({
             where: { researchExecutionId, status: { not: 'cancelled' } },
             orderBy: { startedAt: 'asc' },
             select: { sourceCellId: true, cellId: true },

@@ -4,7 +4,7 @@ import {
   RESEARCH_PYTHON_RUNTIME_CATALOG_QUERY_V1,
   searchResearchSdkAgentCatalog,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { researchCapabilityCatalog } from '#research/catalog/capabilities.js';
 import { resolveResearchConceptBindings } from '#research/catalog/concept-binding-resolver.js';
 import {
@@ -215,14 +215,14 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
       ] = await Promise.all([
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.stockBasic.findMany({
+          : getDatabase().stockBasic.findMany({
               where: { OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name'])) },
               select: { tsCode: true, name: true, industry: true },
               take: 30,
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.etfBasic.findMany({
+          : getDatabase().etfBasic.findMany({
               where: {
                 OR: terms.flatMap((term) =>
                   textSearch(term, ['tsCode', 'name', 'fundType', 'indexName']),
@@ -233,7 +233,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.indexBenchmark.findMany({
+          : getDatabase().indexBenchmark.findMany({
               where: {
                 OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name', 'fullName'])),
               },
@@ -242,7 +242,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.marketBenchmark.findMany({
+          : getDatabase().marketBenchmark.findMany({
               where: {
                 OR: terms.flatMap((term) =>
                   textSearch(term, ['id', 'providerCode', 'nameZh', 'nameEn']),
@@ -264,7 +264,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.indexDaily.findMany({
+          : getDatabase().indexDaily.findMany({
               where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
               select: { tsCode: true },
               distinct: ['tsCode'],
@@ -272,7 +272,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.futureMapping.findMany({
+          : getDatabase().futureMapping.findMany({
               where: { OR: terms.map((term) => ({ continuousCode: { contains: term } })) },
               select: { continuousCode: true },
               distinct: ['continuousCode'],
@@ -280,7 +280,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.futureContract.findMany({
+          : getDatabase().futureContract.findMany({
               where: {
                 OR: terms.flatMap((term) =>
                   textSearch(term, ['tsCode', 'name', 'productCode', 'exchange']),
@@ -291,7 +291,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.macroSeries.findMany({
+          : getDatabase().macroSeries.findMany({
               where: {
                 OR: terms.flatMap((term) => textSearch(term, ['seriesKey', 'nameZh', 'nameEn'])),
               },
@@ -307,7 +307,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.yieldCurvePoint.findMany({
+          : getDatabase().yieldCurvePoint.findMany({
               where: {
                 AND: [
                   { OR: terms.flatMap((term) => textSearch(term, ['curveCode', 'curveName'])) },
@@ -320,7 +320,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : prisma.fxDaily.findMany({
+          : getDatabase().fxDaily.findMany({
               where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
               select: { tsCode: true, exchange: true },
               distinct: ['tsCode'],
@@ -331,7 +331,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
       const etfCoverage =
         etfs.length === 0
           ? []
-          : await prisma.etfDaily.groupBy({
+          : await getDatabase().etfDaily.groupBy({
               by: ['tsCode'],
               where: { tsCode: { in: etfs.map((item) => item.tsCode) } },
               _count: { _all: true },

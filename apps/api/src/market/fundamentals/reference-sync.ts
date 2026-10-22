@@ -1,6 +1,6 @@
 import type { TradeDate } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { dividend, finaIndicator, finaIndicatorVip } from '../providers/tushare/api.js';
@@ -29,7 +29,7 @@ export async function syncFinaIndicator(
   const all = codes ?? (await stockCodesWithDailyData());
   const existing = opts.refreshExisting
     ? []
-    : await prisma.finaIndicator.findMany({
+    : await getDatabase().finaIndicator.findMany({
         ...(opts.refresh ? { where: { debtToAssets: { not: null } } } : {}),
         distinct: ['tsCode'],
         select: { tsCode: true },
@@ -108,7 +108,7 @@ export async function syncDividend(
   const all = codes ?? (await stockCodesWithDailyData());
   const existing = options.refreshExisting
     ? []
-    : await prisma.dividend.findMany({
+    : await getDatabase().dividend.findMany({
         distinct: ['tsCode'],
         select: { tsCode: true },
       });
@@ -257,7 +257,7 @@ async function reconcileFinaIndicatorPeriod(
   period: string,
   source: ReturnType<typeof toFinaIndicatorData>[],
 ): Promise<{ changed: number; created: number; updated: number }> {
-  const existing = await prisma.finaIndicator.findMany({ where: { endDate: period } });
+  const existing = await getDatabase().finaIndicator.findMany({ where: { endDate: period } });
   const existingByCode = new Map(existing.map((row) => [row.tsCode, row]));
   const created = source.filter((row) => !existingByCode.has(row.tsCode));
   const updated = source.filter((row) => {
@@ -268,7 +268,7 @@ async function reconcileFinaIndicatorPeriod(
     return { changed: 0, created: 0, updated: 0 };
   }
 
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     if (created.length > 0) {
       await transaction.finaIndicator.createMany({ data: created });
     }
@@ -308,7 +308,7 @@ async function reconcileFinaIndicator(
     ocfToProfit: number | null;
   }>,
 ): Promise<{ created: number; updated: number }> {
-  const existing = await prisma.finaIndicator.findMany({ where: { tsCode } });
+  const existing = await getDatabase().finaIndicator.findMany({ where: { tsCode } });
   const existingByPeriod = new Map(existing.map((row) => [row.endDate, row]));
   const created = source.filter((row) => !existingByPeriod.has(row.endDate));
   const updated = source.filter((row) => {
@@ -319,7 +319,7 @@ async function reconcileFinaIndicator(
     return { created: 0, updated: 0 };
   }
 
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     if (created.length > 0) {
       await transaction.finaIndicator.createMany({ data: created });
     }
@@ -395,7 +395,7 @@ async function reconcileDividend(
     cashDivTax: number | null;
   }>,
 ): Promise<{ created: number; deleted: number }> {
-  const existing = await prisma.dividend.findMany({
+  const existing = await getDatabase().dividend.findMany({
     where: { tsCode },
     select: {
       tsCode: true,
@@ -415,9 +415,9 @@ async function reconcileDividend(
     return { created: 0, deleted: 0 };
   }
 
-  await prisma.$transaction([
-    prisma.dividend.deleteMany({ where: { tsCode } }),
-    prisma.dividend.createMany({
+  await getDatabase().$transaction([
+    getDatabase().dividend.deleteMany({ where: { tsCode } }),
+    getDatabase().dividend.createMany({
       data: source.map((row) => ({ id: ulid(), ...row })),
     }),
   ]);

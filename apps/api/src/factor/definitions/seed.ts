@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { sha256 } from '../sources/fingerprint.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from './builtin-factors.js';
 import { TIME_SERIES_TEMPLATES } from './templates/time-series.js';
@@ -13,13 +13,13 @@ import { PANEL_TEMPLATES } from './templates/panel.js';
  */
 export async function seedBuiltinFactors(): Promise<void> {
   for (const def of BUILTIN_FACTORS) {
-    const existing = await prisma.factor.findUnique({
+    const existing = await getDatabase().factor.findUnique({
       where: { id: def.key },
       select: { key: true, code: true, name: true, status: true, codeHash: true },
     });
 
     if (!existing) {
-      await prisma.factor.create({
+      await getDatabase().factor.create({
         data: {
           id: def.key,
           userId: BUILTIN_USER_ID,
@@ -40,7 +40,7 @@ export async function seedBuiltinFactors(): Promise<void> {
       existing.status !== 'published' ||
       existing.codeHash !== sha256(def.code)
     ) {
-      await prisma.factor.update({
+      await getDatabase().factor.update({
         where: { id: def.key },
         data: {
           key: def.key,
@@ -55,7 +55,7 @@ export async function seedBuiltinFactors(): Promise<void> {
     }
   }
   for (const template of TIME_SERIES_TEMPLATES) {
-    const existing = await prisma.factor.findUnique({
+    const existing = await getDatabase().factor.findUnique({
       where: { id: template.key },
       select: {
         key: true,
@@ -69,7 +69,7 @@ export async function seedBuiltinFactors(): Promise<void> {
     const name = template.label.zh;
     const codeHash = sha256(template.code);
     if (!existing) {
-      await prisma.factor.create({
+      await getDatabase().factor.create({
         data: {
           id: template.key,
           userId: BUILTIN_USER_ID,
@@ -92,7 +92,7 @@ export async function seedBuiltinFactors(): Promise<void> {
       existing.codeHash !== codeHash ||
       existing.analysisKind !== 'time_series'
     ) {
-      await prisma.factor.update({
+      await getDatabase().factor.update({
         where: { id: template.key },
         data: {
           key: template.key,
@@ -108,7 +108,7 @@ export async function seedBuiltinFactors(): Promise<void> {
     }
   }
   for (const template of PANEL_TEMPLATES) {
-    const existing = await prisma.factor.findUnique({
+    const existing = await getDatabase().factor.findUnique({
       where: { id: template.key },
       select: {
         key: true,
@@ -122,7 +122,7 @@ export async function seedBuiltinFactors(): Promise<void> {
     const name = template.label.zh;
     const codeHash = sha256(template.code);
     if (!existing) {
-      await prisma.factor.create({
+      await getDatabase().factor.create({
         data: {
           id: template.key,
           userId: BUILTIN_USER_ID,
@@ -145,7 +145,7 @@ export async function seedBuiltinFactors(): Promise<void> {
       existing.codeHash !== codeHash ||
       existing.analysisKind !== 'panel'
     ) {
-      await prisma.factor.update({
+      await getDatabase().factor.update({
         where: { id: template.key },
         data: {
           key: template.key,

@@ -7,7 +7,7 @@ import {
 } from '#infra/coordination/market-access.js';
 import { ulid } from 'ulid';
 import type { Job, Prisma } from '@prisma/client';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobLogs } from './job-logs.js';
 import type { JobLifecycle } from './lifecycle.js';
 
@@ -79,7 +79,7 @@ export class JobService {
     payload: Prisma.InputJsonValue,
   ): Promise<string> {
     const id = ulid();
-    await prisma.job.create({ data: { id, userId, kind, key, status: 'queued', payload } });
+    await getDatabase().job.create({ data: { id, userId, kind, key, status: 'queued', payload } });
     return id;
   }
 
@@ -89,14 +89,14 @@ export class JobService {
    * Read a job and its business association for status and lifecycle handling.
    */
   static async get(userId: string, jobId: string, since = 0) {
-    const job = await prisma.job.findFirst({ where: { id: jobId, userId } });
+    const job = await getDatabase().job.findFirst({ where: { id: jobId, userId } });
     if (!job) {
       return null;
     }
     const logs = JobLogs.read(jobId, job.logs);
     const queuePosition =
       job.status === 'queued'
-        ? await prisma.job.count({
+        ? await getDatabase().job.count({
             where: {
               status: 'queued',
               OR: [
@@ -130,7 +130,7 @@ export class JobService {
         }
         throw error;
       }
-      const { count } = await prisma.job.updateMany({
+      const { count } = await getDatabase().job.updateMany({
         where: { id: jobId, status: 'queued' },
         data: { status: 'running', startedAt: new Date(), error: null },
       });
@@ -159,7 +159,10 @@ export class JobService {
     jobId: string,
   ): Promise<Extract<JobStatus, 'done' | 'error' | 'stale'>> {
     for (;;) {
-      const job = await prisma.job.findUnique({ where: { id: jobId }, select: { status: true } });
+      const job = await getDatabase().job.findUnique({
+        where: { id: jobId },
+        select: { status: true },
+      });
       if (!job || job.status === 'error' || job.status === 'stale') {
         return job?.status === 'stale' ? 'stale' : 'error';
       }
@@ -193,7 +196,7 @@ export class JobService {
   }
 
   private static async executeOwned(jobId: string): Promise<void> {
-    const job = await prisma.job.findUnique({ where: { id: jobId } });
+    const job = await getDatabase().job.findUnique({ where: { id: jobId } });
     if (!job || job.status !== 'running') {
       return;
     }
@@ -226,7 +229,7 @@ export class JobService {
   }
 
   static async recoverInterrupted(): Promise<number> {
-    const jobs = await prisma.job.findMany({ where: { status: 'running' } });
+    const jobs = await getDatabase().job.findMany({ where: { status: 'running' } });
     let count = 0;
     for (const job of jobs) {
       let owner: MarketLock;
@@ -239,7 +242,7 @@ export class JobService {
         throw error;
       }
       try {
-        count += await prisma.$transaction(async (transaction) => {
+        count += await getDatabase().$transaction(async (transaction) => {
           const claimed = await transaction.job.updateMany({
             where: { id: job.id, status: 'running' },
             data: { status: 'stale', finishedAt: new Date() },
@@ -265,7 +268,7 @@ export class JobService {
     result: unknown,
   ): Promise<boolean> {
     const logs = JobLogs.snapshot(job.id);
-    const committed = await prisma.$transaction(async (transaction) => {
+    const committed = await getDatabase().$transaction(async (transaction) => {
       const claimed = await transaction.job.updateMany({
         where: { id: job.id, status: 'running' },
         data: { status: 'done', error: null, finishedAt: new Date(), logs },
@@ -290,7 +293,7 @@ export class JobService {
   private static async fail(job: Job, error: unknown): Promise<boolean> {
     const logs = JobLogs.snapshot(job.id);
     const message = error instanceof Error ? error.message : String(error);
-    const committed = await prisma.$transaction(async (transaction) => {
+    const committed = await getDatabase().$transaction(async (transaction) => {
       const claimed = await transaction.job.updateMany({
         where: { id: job.id, status: 'running' },
         data: { status: 'error', error: message, finishedAt: new Date(), logs },

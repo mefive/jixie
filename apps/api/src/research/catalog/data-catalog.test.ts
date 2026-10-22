@@ -40,47 +40,56 @@ const mocks = vi.hoisted(() => ({
   strategyScanReportFindMany: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    stockBasic: { findMany: mocks.stockFindMany },
-    etfBasic: { findMany: mocks.etfFindMany },
-    indexBenchmark: { findMany: mocks.indexFindMany },
-    marketBenchmark: { findMany: mocks.marketBenchmarkFindMany },
-    daily: { findFirst: mocks.dailyFindFirst, groupBy: mocks.dailyGroupBy },
-    dailyBasic: { findFirst: mocks.dailyBasicFindFirst },
-    indexWeight: { groupBy: mocks.indexWeightGroupBy },
-    yieldCurvePoint: { groupBy: mocks.yieldCurveGroupBy },
-    macroSeries: { findMany: mocks.macroSeriesFindMany },
-    macroObservation: { groupBy: mocks.macroObservationGroupBy },
-    fxDaily: { groupBy: mocks.fxDailyGroupBy },
-    commodityContinuousReturn: { groupBy: mocks.commodityContinuousReturnGroupBy },
-    commodityWarehouseReceipt: { groupBy: mocks.commodityWarehouseReceiptGroupBy },
-    commodityHoldingPosition: { groupBy: mocks.commodityHoldingPositionGroupBy },
-    marketIndicator: { aggregate: mocks.marketIndicatorAggregate },
-    indexIndicator: { groupBy: mocks.indexIndicatorGroupBy },
-    etfShareSize: { groupBy: mocks.etfShareSizeGroupBy },
-    indexDailyBasic: { groupBy: mocks.indexDailyBasicGroupBy },
-    industryIndicator: { groupBy: mocks.industryIndicatorGroupBy },
-    futureSettlement: { groupBy: mocks.futureSettlementGroupBy },
-    etfDaily: { groupBy: mocks.etfDailyGroupBy },
-    indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
-    marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
-    futureMapping: {
-      findMany: mocks.futureMappingFindMany,
-      groupBy: mocks.futureMappingGroupBy,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      stockBasic: { findMany: mocks.stockFindMany },
+      etfBasic: { findMany: mocks.etfFindMany },
+      indexBenchmark: { findMany: mocks.indexFindMany },
+      marketBenchmark: { findMany: mocks.marketBenchmarkFindMany },
+      daily: { findFirst: mocks.dailyFindFirst, groupBy: mocks.dailyGroupBy },
+      dailyBasic: { findFirst: mocks.dailyBasicFindFirst },
+      indexWeight: { groupBy: mocks.indexWeightGroupBy },
+      yieldCurvePoint: { groupBy: mocks.yieldCurveGroupBy },
+      macroSeries: { findMany: mocks.macroSeriesFindMany },
+      macroObservation: { groupBy: mocks.macroObservationGroupBy },
+      fxDaily: { groupBy: mocks.fxDailyGroupBy },
+      commodityContinuousReturn: { groupBy: mocks.commodityContinuousReturnGroupBy },
+      commodityWarehouseReceipt: { groupBy: mocks.commodityWarehouseReceiptGroupBy },
+      commodityHoldingPosition: { groupBy: mocks.commodityHoldingPositionGroupBy },
+      marketIndicator: { aggregate: mocks.marketIndicatorAggregate },
+      indexIndicator: { groupBy: mocks.indexIndicatorGroupBy },
+      etfShareSize: { groupBy: mocks.etfShareSizeGroupBy },
+      indexDailyBasic: { groupBy: mocks.indexDailyBasicGroupBy },
+      industryIndicator: { groupBy: mocks.industryIndicatorGroupBy },
+      futureSettlement: { groupBy: mocks.futureSettlementGroupBy },
+      etfDaily: { groupBy: mocks.etfDailyGroupBy },
+      indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
+      marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
+      futureMapping: {
+        findMany: mocks.futureMappingFindMany,
+        groupBy: mocks.futureMappingGroupBy,
+      },
+      futureContract: { findMany: mocks.futureFindMany },
+      futureDaily: { groupBy: mocks.futureDailyGroupBy },
+      financialIncomeStatement: { aggregate: mocks.financialIncomeAggregate },
+      financialBalanceSheet: { aggregate: mocks.financialBalanceAggregate },
+      financialCashFlowStatement: { aggregate: mocks.financialCashFlowAggregate },
+      factor: { findMany: mocks.factorFindMany },
+      factorReport: { findMany: mocks.factorReportFindMany },
+      factorWeatherPin: { findMany: mocks.factorWeatherFindMany },
+      backtestReport: { findMany: mocks.backtestReportFindMany },
+      strategyScanReport: { findMany: mocks.strategyScanReportFindMany },
     },
-    futureContract: { findMany: mocks.futureFindMany },
-    futureDaily: { groupBy: mocks.futureDailyGroupBy },
-    financialIncomeStatement: { aggregate: mocks.financialIncomeAggregate },
-    financialBalanceSheet: { aggregate: mocks.financialBalanceAggregate },
-    financialCashFlowStatement: { aggregate: mocks.financialCashFlowAggregate },
-    factor: { findMany: mocks.factorFindMany },
-    factorReport: { findMany: mocks.factorReportFindMany },
-    factorWeatherPin: { findMany: mocks.factorWeatherFindMany },
-    backtestReport: { findMany: mocks.backtestReportFindMany },
-    strategyScanReport: { findMany: mocks.strategyScanReportFindMany },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { searchResearchDataCatalog } from './data-catalog.js';
 

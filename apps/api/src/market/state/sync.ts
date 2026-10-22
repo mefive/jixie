@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { allMarketIndicatorScope, type DerivedMarketScope } from './scope.js';
 import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
@@ -53,7 +53,7 @@ async function syncSlice(
   const indexCodesSql = scope.indexCodes.map((code) => `'${code}'`).join(', ') || 'NULL';
   log(`syncMarketIndicators ${slice.start}~${slice.end} (panel from ${panelStart})`);
 
-  await prisma.$transaction(
+  await getDatabase().$transaction(
     async (transaction) => {
       await transaction.$executeRawUnsafe('DROP TABLE IF EXISTS market_state_panel');
       await transaction.$executeRawUnsafe('DROP TABLE IF EXISTS market_state_market_ranked');
@@ -575,18 +575,18 @@ async function syncSlice(
 
   const [marketRows, indexRows, industryRows] = await Promise.all([
     scope.market
-      ? prisma.marketIndicator.count({
+      ? getDatabase().marketIndicator.count({
           where: { tradeDate: { gte: slice.start, lte: slice.end } },
         })
       : 0,
-    prisma.indexIndicator.count({
+    getDatabase().indexIndicator.count({
       where: {
         indexCode: { in: scope.indexCodes },
         tradeDate: { gte: slice.start, lte: slice.end },
       },
     }),
     scope.industries
-      ? prisma.industryIndicator.count({
+      ? getDatabase().industryIndicator.count({
           where: { tradeDate: { gte: slice.start, lte: slice.end } },
         })
       : 0,
@@ -597,7 +597,7 @@ async function syncSlice(
 }
 
 async function paddedStart(start: string, observations: number): Promise<string> {
-  const previousDates = await prisma.tradeCal.findMany({
+  const previousDates = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1, calDate: { lt: start } },
     orderBy: { calDate: 'desc' },
     take: observations,

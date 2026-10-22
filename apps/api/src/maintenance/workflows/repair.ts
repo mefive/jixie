@@ -1,4 +1,5 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getStagingContext } from '#infra/coordination/staging-input.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { syncTradeCal } from '#market/calendar/sync.js';
 import {
   maintainCommodityWarehouseReceipts,
@@ -49,7 +50,9 @@ export async function runRepairMaintenance(
     throw new Error('No repair trading dates are available');
   }
   assertRange(startDate, endDate);
-  const originalState = await prisma.maintenanceState.findUnique({ where: { key: 'global' } });
+  const originalState = await getDatabase().maintenanceState.findUnique({
+    where: { key: 'global' },
+  });
   const run = await beginMaintenanceRun({
     kind: 'repair',
     targetKey: `${startDate}:${endDate}`,
@@ -78,7 +81,7 @@ export async function runRepairMaintenance(
     });
     await updateMaintenanceRun(run.id, 'calendar', summary);
     await syncTradeCal(client, startDate as TradeDate, addCalendarDays(endDate, 14) as TradeDate);
-    const dates = await prisma.tradeCal.findMany({
+    const dates = await getDatabase().tradeCal.findMany({
       where: {
         exchange: 'SSE',
         isOpen: 1,
@@ -96,7 +99,7 @@ export async function runRepairMaintenance(
     await syncStockNameHistory(
       client,
       '19900101' as TradeDate,
-      (process.env.JIXIE_MAINTENANCE_DATE ?? endDate) as TradeDate,
+      (getStagingContext()?.date ?? endDate) as TradeDate,
     );
 
     await updateMaintenanceRun(run.id, 'index_membership', summary);
@@ -132,14 +135,14 @@ export async function runRepairMaintenance(
     summary.warehouseReceipts = await maintainCommodityWarehouseReceipts(
       client,
       endDate as TradeDate,
-      prisma,
+      getDatabase(),
     );
 
     // 候选收尾根据最终原始变更计算一次，再检查派生和审计；直接调用仍完成本地验证。
     // The coordinator finalizes frozen inputs once; direct workflow callers still validate locally.
     if (!deferPublication) {
       await syncMarketIndicators(startDate, endDate);
-      const expected = await prisma.tradeCal.findMany({
+      const expected = await getDatabase().tradeCal.findMany({
         where: { exchange: 'SSE', isOpen: 1, calDate: { gte: startDate, lte: endDate } },
         orderBy: { calDate: 'asc' },
         select: { calDate: true },
@@ -151,7 +154,7 @@ export async function runRepairMaintenance(
       );
 
       await updateMaintenanceRun(run.id, 'auditing', summary);
-      const audit = await runDataQualityAudit(prisma, {
+      const audit = await runDataQualityAudit(getDatabase(), {
         startDate,
         endDate,
         windowTradingDays: 60,
@@ -167,7 +170,7 @@ export async function runRepairMaintenance(
     }
     // 修复不建立或推进连续日水位，初始化仍由独立选项负责。
     // Repair never initializes or advances the continuous daily watermark.
-    await prisma.maintenanceState.updateMany({
+    await getDatabase().maintenanceState.updateMany({
       where: { key: 'global' },
       data: { dailyPublishedThrough: originalState?.dailyPublishedThrough ?? null },
     });

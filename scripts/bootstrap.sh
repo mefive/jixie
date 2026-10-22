@@ -1358,7 +1358,7 @@ if [[ -n "${JIXIE_MARKET_ACCESS_LOCK_FD:-}" ]]; then
   flock -u 11
   flock -u 10
 fi
-flock -u 9
+exec 9>&-
 unset JIXIE_MAINTENANCE_LOCK_FD JIXIE_MARKET_ACCESS_LOCK_FD JIXIE_MARKET_PUBLISH_LOCK_FD
 if [[ -z "$CURRENT_WATERMARK" ]]; then
   "$JIXIE_DIR/scripts/deploy/activate-maintenance.sh"

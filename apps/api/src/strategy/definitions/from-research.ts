@@ -10,7 +10,7 @@ import {
   type ResearchStrategyHandoffV1,
 } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { uniqueStrategyName } from './naming.js';
 
 /**
@@ -30,7 +30,7 @@ export async function findResearchStrategyDraft(
   userId: string,
   executionId: string,
 ): Promise<ResearchStrategyDraftResultV1 | null> {
-  const existing = await prisma.strategy.findFirst({
+  const existing = await getDatabase().strategy.findFirst({
     where: { userId, sourceResearchExecutionId: executionId },
     select: { id: true, name: true, config: true, researchHandoff: true },
   });
@@ -48,7 +48,7 @@ export async function createStrategyDraftFromResearch(
   input: StrategyDraftFromResearchInput,
 ): Promise<ResearchStrategyDraftResultV1> {
   for (let attempt = 0; attempt < 50; attempt++) {
-    const name = await uniqueStrategyName(prisma, userId, input.strategyName);
+    const name = await uniqueStrategyName(getDatabase(), userId, input.strategyName);
     const config: BacktestConfig = {
       name,
       start: DEFAULT_BACKTEST_START,
@@ -60,7 +60,7 @@ export async function createStrategyDraftFromResearch(
       code: input.code,
     };
     try {
-      const strategy = await prisma.strategy.create({
+      const strategy = await getDatabase().strategy.create({
         data: {
           id: ulid(),
           userId,

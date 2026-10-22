@@ -1,7 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateStockDate } from './daily-quality.js';
 const query = vi.hoisted(() => vi.fn());
-vi.mock('#infra/database/prisma.js', () => ({ prisma: { $queryRaw: query } }));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = { prisma: { $queryRaw: query } };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 const row = {
   daily: 1000n,
   adjustmentMatches: 980n,

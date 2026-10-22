@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type {
   ResearchEmbeddedContextV1,
   ResearchEmbeddedDraftInputV1,
@@ -27,7 +27,7 @@ export async function createEmbeddedAnalysis(
   input: ResearchEmbeddedCreateInput,
   capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const analysis = await transaction.researchEmbeddedAnalysis.create({
       data: {
         id: ulid(),
@@ -60,7 +60,7 @@ export async function deriveEmbeddedVersion(
   input: ResearchEmbeddedDeriveInput,
   capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const parent = await transaction.researchEmbeddedAnalysisVersion.findFirst({
       where: { id: input.parentVersionId, analysisId },
@@ -97,7 +97,7 @@ export async function updateEmbeddedVersion(
   input: ResearchEmbeddedUpdateInput,
   capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  return prisma.$transaction(async (transaction) => {
+  return getDatabase().$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const version = await transaction.researchEmbeddedAnalysisVersion.findFirst({
       where: { id: versionId, analysisId },

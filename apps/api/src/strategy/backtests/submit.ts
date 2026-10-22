@@ -1,5 +1,5 @@
 import type { BacktestJobPayload } from './job-payload.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { BacktestConfig, Locale } from '@jixie/shared';
@@ -33,7 +33,7 @@ export async function submitStrategyBacktest(
     throw new StrategyError('start_after_end', { details: { field: 'start' } });
   }
 
-  const start = await prisma.$transaction(async (transaction) => {
+  const start = await getDatabase().$transaction(async (transaction) => {
     const strategy = await transaction.strategy.findFirst({
       where: { id: strategyId, userId },
       select: { id: true },

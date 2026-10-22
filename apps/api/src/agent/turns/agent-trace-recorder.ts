@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { AgentTraceStep, AgentTurnTrace } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 export class AgentTraceRecorder {
   public readonly trace: AgentTurnTrace = { version: 1, steps: [], truncated: false };
@@ -79,7 +79,7 @@ export class AgentTraceRecorder {
   private queueCheckpoint(): void {
     this.checkpoint = this.checkpoint
       .then(() =>
-        prisma.agentTurn.updateMany({
+        getDatabase().agentTurn.updateMany({
           where: { id: this.turnId, status: 'running' },
           data: { trace: this.trace as unknown as Prisma.InputJsonValue },
         }),

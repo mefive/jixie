@@ -29,7 +29,7 @@ import {
   type ResearchMeasureDefinitionV1,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   etfResearchMembership,
   type EtfResearchMembership,
@@ -172,7 +172,7 @@ export async function searchResearchDataCatalog(
   const [stocks, etfs, indexes, marketBenchmarks, indexCodes, futureMappings, futures] =
     await Promise.all([
       assetTypes.includes('stock')
-        ? prisma.stockBasic.findMany({
+        ? getDatabase().stockBasic.findMany({
             where: {
               OR: [
                 { tsCode: { contains: query } },
@@ -185,7 +185,7 @@ export async function searchResearchDataCatalog(
           })
         : Promise.resolve([]),
       assetTypes.includes('etf')
-        ? prisma.etfBasic.findMany({
+        ? getDatabase().etfBasic.findMany({
             where: {
               OR: [
                 { tsCode: { contains: query } },
@@ -205,7 +205,7 @@ export async function searchResearchDataCatalog(
           })
         : Promise.resolve([]),
       assetTypes.includes('index')
-        ? prisma.indexBenchmark.findMany({
+        ? getDatabase().indexBenchmark.findMany({
             where: {
               OR: [
                 { tsCode: { contains: query } },
@@ -219,7 +219,7 @@ export async function searchResearchDataCatalog(
           })
         : Promise.resolve([]),
       assetTypes.includes('index')
-        ? prisma.marketBenchmark.findMany({
+        ? getDatabase().marketBenchmark.findMany({
             where: {
               OR: [
                 { id: { contains: query } },
@@ -240,7 +240,7 @@ export async function searchResearchDataCatalog(
           })
         : Promise.resolve([]),
       assetTypes.includes('index')
-        ? prisma.indexDaily.findMany({
+        ? getDatabase().indexDaily.findMany({
             where: { tsCode: { contains: query } },
             select: { tsCode: true },
             distinct: ['tsCode'],
@@ -248,7 +248,7 @@ export async function searchResearchDataCatalog(
           })
         : Promise.resolve([]),
       assetTypes.includes('future')
-        ? prisma.futureMapping.findMany({
+        ? getDatabase().futureMapping.findMany({
             where: { continuousCode: { contains: query } },
             select: { continuousCode: true },
             distinct: ['continuousCode'],
@@ -256,7 +256,7 @@ export async function searchResearchDataCatalog(
           })
         : Promise.resolve([]),
       assetTypes.includes('future')
-        ? prisma.futureContract.findMany({
+        ? getDatabase().futureContract.findMany({
             where: {
               OR: [
                 { tsCode: { contains: query } },
@@ -427,23 +427,29 @@ async function searchDatasets(
     financialBalanceCoverage,
     financialCashFlowCoverage,
   ] = await Promise.all([
-    prisma.daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
-    prisma.daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
-    prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
-    prisma.dailyBasic.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
-    prisma.indexWeight.groupBy({
+    getDatabase().daily.findFirst({ orderBy: { tradeDate: 'asc' }, select: { tradeDate: true } }),
+    getDatabase().daily.findFirst({ orderBy: { tradeDate: 'desc' }, select: { tradeDate: true } }),
+    getDatabase().dailyBasic.findFirst({
+      orderBy: { tradeDate: 'asc' },
+      select: { tradeDate: true },
+    }),
+    getDatabase().dailyBasic.findFirst({
+      orderBy: { tradeDate: 'desc' },
+      select: { tradeDate: true },
+    }),
+    getDatabase().indexWeight.groupBy({
       by: ['indexCode'],
       where: { indexCode: { in: indexCodes } },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.yieldCurvePoint.groupBy({
+    getDatabase().yieldCurvePoint.groupBy({
       by: ['curveCode', 'termYears'],
       where: { curveCode: { in: [...RESEARCH_YIELD_CURVE_CODES_V1] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.macroSeries.findMany({
+    getDatabase().macroSeries.findMany({
       where: { seriesKey: { in: [...RESEARCH_MACRO_SERIES_KEYS_V1] } },
       select: {
         seriesKey: true,
@@ -454,41 +460,41 @@ async function searchDatasets(
         unit: true,
       },
     }),
-    prisma.macroObservation.groupBy({
+    getDatabase().macroObservation.groupBy({
       by: ['seriesKey'],
       where: { seriesKey: { in: [...RESEARCH_MACRO_SERIES_KEYS_V1] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.fxDaily.groupBy({
+    getDatabase().fxDaily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: ['USDCNH.FXCM', 'USDHKD.FXCM'] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.commodityContinuousReturn.groupBy({
+    getDatabase().commodityContinuousReturn.groupBy({
       by: ['productCode'],
       where: { productCode: { in: [...RESEARCH_COMMODITY_PRODUCT_CODES_V1] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.commodityWarehouseReceipt.groupBy({
+    getDatabase().commodityWarehouseReceipt.groupBy({
       by: ['productCode'],
       where: { productCode: { in: [...RESEARCH_COMMODITY_PRODUCT_CODES_V1] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.commodityHoldingPosition.groupBy({
+    getDatabase().commodityHoldingPosition.groupBy({
       by: ['productCode'],
       where: { productCode: { in: [...RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1] } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.marketIndicator.aggregate({
+    getDatabase().marketIndicator.aggregate({
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.indexIndicator.groupBy({
+    getDatabase().indexIndicator.groupBy({
       by: ['indexCode'],
       where: {
         indexCode: {
@@ -498,46 +504,46 @@ async function searchDatasets(
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.etfShareSize.groupBy({
+    getDatabase().etfShareSize.groupBy({
       by: ['tsCode'],
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.etfBasic.findMany({
+    getDatabase().etfBasic.findMany({
       select: { tsCode: true, name: true, fundType: true, indexName: true },
     }),
-    prisma.indexDailyBasic.groupBy({
+    getDatabase().indexDailyBasic.groupBy({
       by: ['tsCode'],
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.indexBenchmark.findMany({
+    getDatabase().indexBenchmark.findMany({
       select: { tsCode: true, name: true, indexType: true },
     }),
-    prisma.industryIndicator.groupBy({
+    getDatabase().industryIndicator.groupBy({
       by: ['l1Code', 'l1Name'],
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.futureSettlement.groupBy({
+    getDatabase().futureSettlement.groupBy({
       by: ['tsCode'],
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.futureContract.findMany({
+    getDatabase().futureContract.findMany({
       select: { tsCode: true, name: true, productCode: true, exchange: true },
     }),
-    prisma.financialIncomeStatement.aggregate({
+    getDatabase().financialIncomeStatement.aggregate({
       where: { availabilityQuality: { not: 'reconstructed' } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.financialBalanceSheet.aggregate({
+    getDatabase().financialBalanceSheet.aggregate({
       where: { availabilityQuality: { not: 'reconstructed' } },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.financialCashFlowStatement.aggregate({
+    getDatabase().financialCashFlowStatement.aggregate({
       where: { availabilityQuality: { not: 'reconstructed' } },
       _min: { availableDate: true },
       _max: { availableDate: true },
@@ -1287,7 +1293,7 @@ async function searchBacktestReports(
   query: string,
   limit: number,
 ): Promise<ResearchDataCatalogBacktestReportV1[]> {
-  const reports = await prisma.backtestReport.findMany({
+  const reports = await getDatabase().backtestReport.findMany({
     where: {
       userId,
       AND: [backtestReportStatusWhere(['done'])],
@@ -1343,7 +1349,7 @@ async function searchStrategyScanReports(
   query: string,
   limit: number,
 ): Promise<ResearchDataCatalogStrategyScanReportV1[]> {
-  const reports = await prisma.strategyScanReport.findMany({
+  const reports = await getDatabase().strategyScanReport.findMany({
     where: {
       userId,
       AND: [strategyScanReportStatusWhere(['done'])],
@@ -1405,7 +1411,7 @@ async function searchFactorReports(
   query: string,
   limit: number,
 ): Promise<ResearchDataCatalogFactorReportV1[]> {
-  const factors = await prisma.factor.findMany({
+  const factors = await getDatabase().factor.findMany({
     where: { userId: { in: ['builtin', userId] } },
     select: { key: true, name: true },
   });
@@ -1418,7 +1424,7 @@ async function searchFactorReports(
         )
         .map((factor) => factor.key)
     : [];
-  const reports = await prisma.factorReport.findMany({
+  const reports = await getDatabase().factorReport.findMany({
     where: {
       userId,
       AND: [factorReportStatusWhere(['done'])],
@@ -1472,7 +1478,7 @@ async function searchFactorWeather(
   query: string,
   limit: number,
 ): Promise<ResearchDataCatalogFactorWeatherV1[]> {
-  const pins = await prisma.factorWeatherPin.findMany({
+  const pins = await getDatabase().factorWeatherPin.findMany({
     where: {
       userId,
       status: 'ready',
@@ -1555,42 +1561,42 @@ async function attachLocalDataCoverage(
     .filter((instrument) => instrument.assetType === 'future' && !instrument.continuous)
     .map((instrument) => instrument.identifier);
   const [stocks, etfs, indexes, benchmarks, continuousFutures, futures] = await Promise.all([
-    prisma.daily.groupBy({
+    getDatabase().daily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: stockCodes } },
       _count: { _all: true },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.etfDaily.groupBy({
+    getDatabase().etfDaily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: etfCodes } },
       _count: { _all: true },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.indexDaily.groupBy({
+    getDatabase().indexDaily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: indexCodes } },
       _count: { _all: true },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.marketBenchmarkDaily.groupBy({
+    getDatabase().marketBenchmarkDaily.groupBy({
       by: ['benchmarkId'],
       where: { benchmarkId: { in: benchmarkIds } },
       _count: { _all: true },
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    prisma.futureMapping.groupBy({
+    getDatabase().futureMapping.groupBy({
       by: ['continuousCode'],
       where: { continuousCode: { in: continuousFutureCodes } },
       _count: { _all: true },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
     }),
-    prisma.futureDaily.groupBy({
+    getDatabase().futureDaily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: futureCodes } },
       _count: { _all: true },

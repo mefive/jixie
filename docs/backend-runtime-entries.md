@@ -38,7 +38,7 @@ Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续
 显式任务清单的 `.js` 路径相对 API 源码/编译根解析；源码由 tsx 映射到 `.ts`，编译形式定位 `dist` 下的目标。
 公共 `scripts/command-entry.ts` 中的非字面量动态导入由清单覆盖测试与源码/编译隔离分派测试验证。
 参数校验后才切换至 `apps/api`、加载其 `.env`、设置原 CLI 的 `process.argv` 并导入选中入口；
-不会预加载全部业务模块，帮助和非法参数不加载业务配置。各原 CLI 保留自己的异步任务及资源收尾，财报子进程沿用既有执行器。
+不会预加载全部业务模块，帮助和非法参数不加载业务配置。审计／探针入口保留自己的异步任务及资源收尾。同步入口将显式参数交给维护协调器，由 `market/sync/dispatch.ts` 调用同步函数，不修改进程参数或重复导入自执行模块。财务批次仍使用独立进程。
 `maintenance` / `import:data` 继续负责锁和整轮任务编排；新入口不替代它们。
 
 ## Factor Job kind 旧库恢复
@@ -94,9 +94,9 @@ Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |
 | Curator 仓库检索 | `research/curator/reference-search.ts` 仍使用约定的 API 工作目录定位项目资料；不是外部任意文件读取服务 |
-| API CLI | 28 个应用入口位于 `apps/api/src/{market,maintenance,signals,auth}/cli/`；审计和探针入口保留在 `apps/api/scripts/{audit,probes}`，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/src/maintenance/cli/run-maintenance.js` |
+| API CLI | 维护、信号与邀请应用入口位于 `apps/api/src/{maintenance,signals,auth}/cli/`；24 个同步任务由 `scripts/sync/index.ts` 统一进入候选协调器，内部实现位于 `market/sync/`；审计和探针入口保留在 `apps/api/scripts/{audit,probes}`，见 [脚本索引](../apps/api/scripts/README.md)；TS 入口源码 tsx，生产编译 `.js`，各自负责 Prisma 收尾。备份直接执行 `scripts/backup-db.mjs`，默认数据库路径仍锚定 API 的 `prisma/dev.db`；systemd 维护入口为 `dist/src/maintenance/cli/run-maintenance.js` |
 
-Market 业务归属整理保留 CLI 名称与参数；`sync fina` 入口迁至 `market/cli/sync-fina.ts`，参考 Worker 迁至 `market/fundamentals` 并使用逐项完成确认协议，见 [整理记录](design/maintenance-business-boundaries.md)。CLI 和 Maintenance 分别调用 stocks、etfs、indices、futures、calendar、cross-market、state 等业务入口；Signals 每日需求编排仍在 Signals。涉及迁移的 CLI 须以隔离数据库和本地 provider 替身验证调用、输出及退出；不以导入成功代替执行。
+Market 业务归属整理保留 CLI 名称与参数；`sync fina` 入口迁至 `market/sync/fina.ts`，参考 Worker 迁至 `market/fundamentals` 并使用逐项完成确认协议，见 [整理记录](design/maintenance-business-boundaries.md)。CLI 和 Maintenance 分别调用 stocks、etfs、indices、futures、calendar、cross-market、state 等业务入口；Signals 每日需求编排仍在 Signals。涉及迁移的 CLI 须以隔离数据库和本地 provider 替身验证调用、输出及退出；不以导入成功代替执行。
 
 ## Commit 12 本轮验证（2026-09-09）
 
@@ -140,3 +140,9 @@ StrategySimulation 在宿主创建一次性 `Simulation`，`run()` 返回模拟�
 - TS 的 `infra/coordination/market-access` 加载 fs-ext 原生绑定。HTTP／Job／Agent／Research／Weather 的结果写入完成前保留 R；queued 调度必须脱离唤醒它的 HTTP AsyncLocalStorage 上下文后重新准入。空闲会话和 SSE 不持 R。
 - bootstrap 使用真实 M/P/R FD，迁移和停服前排空活读者。仅升级缺少新协议的旧 API 时使用旧计数兜底，计入 Research Cell 和 Weather；数据库 running 不作为新协议持锁证明。
 - 验证资源：`market-lock.fixture.ts`（真实进程退出／争用）、`staging/coordinator.integration.test.ts`（隔离正式／候选库、提交／回滚／后续恢复）、`reference-worker.integration.test.ts`（源码及编译 IPC）、`maintenance-fallback.mjs`（中英 UI 与截图）。人工代码审阅前均不执行行为验证。
+
+## 数据库执行绑定（2026-10-22）
+
+`buildApp(database)` 为每个请求绑定数据库；bootstrap 为恢复、初始化及调度器绑定应用客户端。Job 在该作用域内启动，独立 Worker／CLI 在自身入口绑定并负责关闭连接。业务调用 `getDatabase()`，无绑定即失败。Maintenance 准备与 finalize 在候选作用域内执行；正式控制回调用显式正式连接。财务 worker 解析候选上下文、验证共享 M 的实际 fd，再创建自身候选连接；IPC 不传 Prisma 实例。
+
+这些改动的行为验证尚待人工代码审阅，以上是实现契约，不替代验证结果。

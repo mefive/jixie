@@ -5,12 +5,21 @@ const mocks = vi.hoisted(() => ({
   backtestReportFindFirst: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    agentConversation: { findFirst: mocks.conversationFindFirst },
-    backtestReport: { findFirst: mocks.backtestReportFindFirst },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      agentConversation: { findFirst: mocks.conversationFindFirst },
+      backtestReport: { findFirst: mocks.backtestReportFindFirst },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { loadResearchBacktestReportResult } from './backtest-report.js';
 

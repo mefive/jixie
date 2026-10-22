@@ -1,5 +1,5 @@
 import { researchCuratorRunState } from '#research/curator/state.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchCuratorQualityMetricsV1, ResearchCuratorRunV1 } from '@jixie/shared';
 import type { PrismaClient } from '@prisma/client';
 import { ResearchError } from '../errors.js';
@@ -10,7 +10,7 @@ const MINIMUM_VERIFICATION_ASSESSMENTS = 20;
 
 export async function getLatestResearchCuratorRun(
   userId: string,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchCuratorRunV1 | null> {
   const run = await database.researchCuratorRun
     .findFirst({
@@ -25,7 +25,7 @@ export async function getLatestResearchCuratorRun(
 export async function getResearchCuratorRun(
   userId: string,
   runId: string,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchCuratorRunV1> {
   const run = await database.researchCuratorRun
     .findFirst({
@@ -46,7 +46,7 @@ export async function getResearchCuratorRun(
  */
 export async function researchCuratorQuality(
   userId: string,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
 ): Promise<ResearchCuratorQualityMetricsV1> {
   const [findings, runTotals] = await Promise.all([
     database.researchCuratorFinding.findMany({

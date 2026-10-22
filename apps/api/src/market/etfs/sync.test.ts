@@ -21,7 +21,7 @@ vi.mock('../providers/tushare/api.js', () => ({
   fundDaily: mocks.fundDaily,
 }));
 
-vi.mock('#infra/database/prisma.js', () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const database = {
     etfBasic: { findMany: mocks.etfBasicFindMany },
     tradeCal: { findFirst: mocks.tradeCalFindFirst },
@@ -41,11 +41,18 @@ vi.mock('#infra/database/prisma.js', () => {
       createMany: mocks.shareSizeCreateMany,
     },
   };
-  return {
+  const mocked = {
     prisma: {
       ...database,
       $transaction: vi.fn(async (operation) => operation(database)),
     },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
   };
 });
 

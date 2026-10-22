@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { StrategyFactor } from '#strategy/factors/strategy-factor.js';
 import type { BacktestConfig, SharingCatalog } from '@jixie/shared';
 
@@ -19,7 +19,7 @@ export async function listSharingCatalog(
     ownFactors,
     ownComposites,
   ] = await Promise.all([
-    prisma.strategy.findMany({
+    getDatabase().strategy.findMany({
       where: { visibility: 'public' },
       select: {
         id: true,
@@ -32,7 +32,7 @@ export async function listSharingCatalog(
       orderBy: { updatedAt: 'desc' },
       take: 100,
     }),
-    prisma.factor.findMany({
+    getDatabase().factor.findMany({
       where: { visibility: 'public', status: 'published' },
       select: {
         id: true,
@@ -47,7 +47,7 @@ export async function listSharingCatalog(
       orderBy: { updatedAt: 'desc' },
       take: 100,
     }),
-    prisma.factorComposite.findMany({
+    getDatabase().factorComposite.findMany({
       where: { visibility: 'public', status: 'published', key: { not: null } },
       select: {
         id: true,
@@ -60,12 +60,12 @@ export async function listSharingCatalog(
       orderBy: { updatedAt: 'desc' },
       take: 100,
     }),
-    prisma.strategy.findMany({
+    getDatabase().strategy.findMany({
       where: { userId },
       select: { id: true, name: true, config: true, visibility: true, updatedAt: true },
       orderBy: { updatedAt: 'desc' },
     }),
-    prisma.factor.findMany({
+    getDatabase().factor.findMany({
       where: { userId, status: 'published' },
       select: {
         id: true,
@@ -78,7 +78,7 @@ export async function listSharingCatalog(
       },
       orderBy: { updatedAt: 'desc' },
     }),
-    prisma.factorComposite.findMany({
+    getDatabase().factorComposite.findMany({
       where: { userId, status: 'published', key: { not: null } },
       select: { id: true, key: true, name: true, visibility: true, updatedAt: true },
       orderBy: { updatedAt: 'desc' },
@@ -88,7 +88,7 @@ export async function listSharingCatalog(
   const factorOwnerIds = [
     ...new Set([...publicFactors, ...publicComposites].map((asset) => asset.userId)),
   ];
-  const owners = await prisma.user.findMany({
+  const owners = await getDatabase().user.findMany({
     where: { id: { in: factorOwnerIds } },
     select: { id: true, name: true, email: true },
   });

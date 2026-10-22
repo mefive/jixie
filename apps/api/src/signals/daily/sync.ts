@@ -10,7 +10,7 @@ import { inspectStrategyMetadata } from '#strategy/sandbox/inspect-definition.js
 import type { TradeDate } from '@jixie/shared';
 import { loadTushareConfig } from '#market/providers/tushare/config.js';
 
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   MinistryOfFinanceCurveClient,
   syncChinaTreasuryYieldCurve,
@@ -40,7 +40,7 @@ export async function prepareSignalEtfMarketDate(
 ): Promise<PreparedEtfMarketDate> {
   const deployments =
     stagingRequirements()?.active ??
-    (await prisma.strategyDeployment.findMany({
+    (await getDatabase().strategyDeployment.findMany({
       where: { status: 'active' },
       select: { config: true },
     }));
@@ -50,7 +50,7 @@ export async function prepareSignalEtfMarketDate(
       return typeof code === 'string' ? inspectStrategyMetadata(code) : { watch: [] };
     }),
   );
-  const watchedEtfs = await prisma.etfBasic.findMany({
+  const watchedEtfs = await getDatabase().etfBasic.findMany({
     where: { tsCode: { in: [...new Set(definitions.flatMap((definition) => definition.watch))] } },
     select: { tsCode: true },
   });
@@ -82,7 +82,7 @@ export async function syncSignalMarketData(
   });
   const deployments =
     stagingRequirements()?.active ??
-    (await prisma.strategyDeployment.findMany({
+    (await getDatabase().strategyDeployment.findMany({
       where: { status: 'active' },
       select: { config: true, factorDependencies: true },
     }));
@@ -99,7 +99,7 @@ export async function syncSignalMarketData(
   if (!options.coreAlreadyPublished) {
     await syncTradeCal(client, tradeDate, addCalendarDays(tradeDate, 14));
   }
-  const calendar = await prisma.tradeCal.findUnique({
+  const calendar = await getDatabase().tradeCal.findUnique({
     where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
     select: { isOpen: true },
   });
@@ -144,7 +144,7 @@ export async function syncSignalMarketData(
   }
 
   const watchedCodes = [...new Set(definitions.flatMap((definition) => definition.watch))];
-  const watchedEtfs = await prisma.etfBasic.findMany({
+  const watchedEtfs = await getDatabase().etfBasic.findMany({
     where: { tsCode: { in: watchedCodes } },
     select: { tsCode: true },
   });
@@ -170,7 +170,7 @@ export async function syncSignalMarketData(
       status: entry.status,
       accountStates: entry.hasAccounts ? [{ id: 'frozen' }] : [],
     })) ??
-    (await prisma.strategyDeployment.findMany({
+    (await getDatabase().strategyDeployment.findMany({
       where: { accountingVersion: 2 },
       select: { config: true, status: true, accountStates: { take: 1, select: { id: true } } },
     }));
@@ -182,12 +182,12 @@ export async function syncSignalMarketData(
       const start = needed
         .map((deployment) => (deployment.config as { start: string }).start)
         .sort()[0]!;
-      const dates = await prisma.tradeCal.findMany({
+      const dates = await getDatabase().tradeCal.findMany({
         where: { exchange: 'SSE', isOpen: 1, calDate: { gte: start, lte: tradeDate } },
         orderBy: { calDate: 'asc' },
       });
       const published = new Set(
-        (await prisma.futureMarketPublication.findMany({ select: { tradeDate: true } })).map(
+        (await getDatabase().futureMarketPublication.findMany({ select: { tradeDate: true } })).map(
           (row) => row.tradeDate,
         ),
       );

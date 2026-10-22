@@ -9,16 +9,25 @@ const mocks = vi.hoisted(() => ({
   dividendFindMany: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    marketIndicator: { findMany: mocks.marketFindMany },
-    indexIndicator: { findMany: mocks.indexFindMany },
-    finaIndicator: { findMany: mocks.finaFindMany },
-    moneyflow: { findMany: mocks.moneyflowFindMany },
-    topList: { findMany: mocks.topListFindMany },
-    dividend: { findMany: mocks.dividendFindMany },
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      marketIndicator: { findMany: mocks.marketFindMany },
+      indexIndicator: { findMany: mocks.indexFindMany },
+      finaIndicator: { findMany: mocks.finaFindMany },
+      moneyflow: { findMany: mocks.moneyflowFindMany },
+      topList: { findMany: mocks.topListFindMany },
+      dividend: { findMany: mocks.dividendFindMany },
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import {
   loadResearchEquityDividends,

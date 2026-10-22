@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { researchCapabilityCatalog } from './capabilities.js';
 import {
   researchConceptBindingSdkCall,
@@ -111,11 +111,11 @@ async function resolveInstrumentBinding(
   const { assetType, id } = source;
   if (assetType === 'stock') {
     const [metadata, aggregate] = await Promise.all([
-      prisma.stockBasic.findUnique({
+      getDatabase().stockBasic.findUnique({
         where: { tsCode: id },
         select: { name: true, industry: true },
       }),
-      prisma.daily.aggregate({
+      getDatabase().daily.aggregate({
         where: { tsCode: id },
         _count: { _all: true },
         _min: { tradeDate: true },
@@ -135,11 +135,11 @@ async function resolveInstrumentBinding(
   }
   if (assetType === 'etf') {
     const [metadata, aggregate] = await Promise.all([
-      prisma.etfBasic.findUnique({
+      getDatabase().etfBasic.findUnique({
         where: { tsCode: id },
         select: { name: true, fundType: true, indexName: true, exchange: true },
       }),
-      prisma.etfDaily.aggregate({
+      getDatabase().etfDaily.aggregate({
         where: { tsCode: id },
         _count: { _all: true },
         _min: { tradeDate: true },
@@ -159,7 +159,7 @@ async function resolveInstrumentBinding(
   }
   if (assetType === 'index') {
     const [benchmark, benchmarkCoverage] = await Promise.all([
-      prisma.marketBenchmark.findUnique({
+      getDatabase().marketBenchmark.findUnique({
         where: { id },
         select: {
           nameZh: true,
@@ -173,7 +173,7 @@ async function resolveInstrumentBinding(
           tradableProxyKind: true,
         },
       }),
-      prisma.marketBenchmarkDaily.aggregate({
+      getDatabase().marketBenchmarkDaily.aggregate({
         where: { benchmarkId: id },
         _count: { _all: true },
         _min: { availableDate: true },
@@ -200,11 +200,11 @@ async function resolveInstrumentBinding(
       );
     }
     const [metadata, aggregate] = await Promise.all([
-      prisma.indexBenchmark.findUnique({
+      getDatabase().indexBenchmark.findUnique({
         where: { tsCode: id },
         select: { name: true, fullName: true, indexType: true },
       }),
-      prisma.indexDaily.aggregate({
+      getDatabase().indexDaily.aggregate({
         where: { tsCode: id },
         _count: { _all: true },
         _min: { tradeDate: true },
@@ -223,7 +223,7 @@ async function resolveInstrumentBinding(
     );
   }
 
-  const continuous = await prisma.futureMapping.aggregate({
+  const continuous = await getDatabase().futureMapping.aggregate({
     where: { continuousCode: id },
     _count: { _all: true },
     _min: { tradeDate: true },
@@ -242,11 +242,11 @@ async function resolveInstrumentBinding(
     );
   }
   const [metadata, aggregate] = await Promise.all([
-    prisma.futureContract.findUnique({
+    getDatabase().futureContract.findUnique({
       where: { tsCode: id },
       select: { name: true, productCode: true, exchange: true },
     }),
-    prisma.futureDaily.aggregate({
+    getDatabase().futureDaily.aggregate({
       where: { tsCode: id },
       _count: { _all: true },
       _min: { tradeDate: true },
@@ -276,7 +276,7 @@ async function resolveMacroBinding(
 ): Promise<ResolvedResearchConceptBinding> {
   const { seriesKey } = source;
   const [metadata, aggregate] = await Promise.all([
-    prisma.macroSeries.findUnique({
+    getDatabase().macroSeries.findUnique({
       where: { seriesKey },
       select: {
         seriesKey: true,
@@ -287,7 +287,7 @@ async function resolveMacroBinding(
         revisionPolicy: true,
       },
     }),
-    prisma.macroObservation.aggregate({
+    getDatabase().macroObservation.aggregate({
       where: { seriesKey },
       _count: { _all: true },
       _min: { availableDate: true },
@@ -320,11 +320,11 @@ async function resolveYieldBinding(
 ): Promise<ResolvedResearchConceptBinding> {
   const { curveCode, curveType, termYears } = source;
   const [metadata, aggregate] = await Promise.all([
-    prisma.yieldCurvePoint.findFirst({
+    getDatabase().yieldCurvePoint.findFirst({
       where: { curveCode, curveType, termYears },
       select: { curveName: true },
     }),
-    prisma.yieldCurvePoint.aggregate({
+    getDatabase().yieldCurvePoint.aggregate({
       where: { curveCode, curveType, termYears },
       _count: { _all: true },
       _min: { availableDate: true },
@@ -359,11 +359,11 @@ async function resolveFxBinding(
   source: Extract<ResearchConceptBindingV1['source'], { kind: 'fx' }>,
 ): Promise<ResolvedResearchConceptBinding> {
   const [metadata, aggregate] = await Promise.all([
-    prisma.fxDaily.findFirst({
+    getDatabase().fxDaily.findFirst({
       where: { tsCode: source.id },
       select: { exchange: true },
     }),
-    prisma.fxDaily.aggregate({
+    getDatabase().fxDaily.aggregate({
       where: { tsCode: source.id },
       _count: { _all: true },
       _min: { availableDate: true },

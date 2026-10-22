@@ -1,5 +1,5 @@
 import { normalizeChatMessage } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type {
   ChatMessage,
   ResearchCellKindV1,
@@ -36,7 +36,7 @@ export async function listResearchDocuments(
   userId: string,
   state: ResearchDocumentListStateV1 = 'active',
 ): Promise<ResearchDocumentSummaryV1[]> {
-  const conversations = await prisma.agentConversation.findMany({
+  const conversations = await getDatabase().agentConversation.findMany({
     where: {
       userId,
       surface: 'research',
@@ -79,7 +79,7 @@ export async function getResearchDocument(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentV1> {
-  const owner = await prisma.agentConversation.findFirst({
+  const owner = await getDatabase().agentConversation.findFirst({
     where: {
       id: documentId,
       userId,
@@ -94,7 +94,7 @@ export async function getResearchDocument(
   }
   if (!owner.researchDocument) {
     const definition = legacyDefinition(owner.title ?? '');
-    await prisma.researchDocument.create({
+    await getDatabase().researchDocument.create({
       data: {
         id: owner.id,
         userId,
@@ -117,7 +117,7 @@ async function loadDocumentRow(
   userId: string,
   documentId: string,
 ): Promise<ResearchDocumentRow | null> {
-  return prisma.researchDocument.findFirst({
+  return getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     include: {
       conversation: {

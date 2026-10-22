@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { tradeCal } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
@@ -16,9 +16,9 @@ export async function syncTradeCal(
   exchange = 'SSE',
 ): Promise<number> {
   const rows = await tradeCal(client, { exchange, start_date: start, end_date: end });
-  await prisma.$transaction([
-    prisma.tradeCal.deleteMany({ where: { exchange, calDate: { gte: start, lte: end } } }),
-    prisma.tradeCal.createMany({
+  await getDatabase().$transaction([
+    getDatabase().tradeCal.deleteMany({ where: { exchange, calDate: { gte: start, lte: end } } }),
+    getDatabase().tradeCal.createMany({
       data: rows.map((r) => ({
         exchange: r.exchange,
         calDate: r.cal_date,

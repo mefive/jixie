@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
 import { jsonStringArray, researchCellDependencyIssues } from './cell-values.js';
 import {
@@ -27,7 +27,7 @@ export async function reconcileResearchCellChanges(
   documentId: string,
   seeds: ResearchCellChangeDependencySeed[],
 ): Promise<void> {
-  const cells = await prisma.researchCell.findMany({
+  const cells = await getDatabase().researchCell.findMany({
     where: { documentId, kind: 'python' },
     orderBy: { position: 'asc' },
     select: { id: true, definitions: true, references: true },
@@ -90,7 +90,7 @@ export async function appendDeletedResearchCellDependencyIssues(
   if (missingDefinitionsByCellId.size === 0) {
     return;
   }
-  const cells = await prisma.researchCell.findMany({
+  const cells = await getDatabase().researchCell.findMany({
     where: { documentId, id: { in: [...missingDefinitionsByCellId.keys()] } },
     select: { id: true, dependencyIssues: true },
   });
@@ -106,7 +106,7 @@ export async function appendDeletedResearchCellDependencyIssues(
       { ...issue, missingDefinitions },
     ];
     return [
-      prisma.researchCell.update({
+      getDatabase().researchCell.update({
         where: { id: cell.id },
         data: {
           status: 'blocked',
@@ -116,7 +116,7 @@ export async function appendDeletedResearchCellDependencyIssues(
     ];
   });
   if (updates.length > 0) {
-    await prisma.$transaction(updates);
+    await getDatabase().$transaction(updates);
   }
 }
 
@@ -129,7 +129,7 @@ export async function reconcileResearchCellDependencyIssues(
   documentId: string,
   analyses: ResearchPythonAnalysis[],
 ): Promise<void> {
-  const cells = await prisma.researchCell.findMany({
+  const cells = await getDatabase().researchCell.findMany({
     where: { documentId },
     select: {
       id: true,
@@ -193,7 +193,7 @@ export async function reconcileResearchCellDependencyIssues(
       return [];
     }
     return [
-      prisma.researchCell.update({
+      getDatabase().researchCell.update({
         where: { id: cell.id },
         data: {
           status,
@@ -203,7 +203,7 @@ export async function reconcileResearchCellDependencyIssues(
     ];
   });
   if (updates.length > 0) {
-    await prisma.$transaction(updates);
+    await getDatabase().$transaction(updates);
   }
 }
 
@@ -217,7 +217,7 @@ export async function markDownstreamStale(
   if (stale.length === 0) {
     return;
   }
-  await prisma.researchCell.updateMany({
+  await getDatabase().researchCell.updateMany({
     where: {
       documentId,
       id: { in: stale },

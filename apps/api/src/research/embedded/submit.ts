@@ -1,5 +1,5 @@
 import type { ResearchEmbeddedAnalysisJobPayload } from './job-payload.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
 import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -22,7 +22,7 @@ export async function submitEmbeddedRun(
   versionId: string,
   input: ResearchEmbeddedRunInput,
 ) {
-  const result = await prisma.$transaction(async (transaction) => {
+  const result = await getDatabase().$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
     const version = await transaction.researchEmbeddedAnalysisVersion.findFirst({
       where: { id: versionId, analysisId },

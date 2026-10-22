@@ -26,10 +26,10 @@ vi.mock('#market/indices/sync.js', () => ({
   syncIndexDailyBasic: vi.fn(),
   syncSwIndexDaily: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => {
+vi.mock('#infra/database/prisma.js', async () => {
   const counts = async ({ where }: { where: { tradeDate: { in: string[] } } }) =>
     where.tradeDate.in.map((tradeDate) => ({ tradeDate, _count: { _all: 5500 } }));
-  return {
+  const mocked = {
     prisma: {
       daily: { groupBy: counts },
       adjFactor: { groupBy: counts },
@@ -52,6 +52,13 @@ vi.mock('#infra/database/prisma.js', () => {
           ),
       },
     },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
   };
 });
 

@@ -234,7 +234,8 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
       import { registerJobLifecycles } from '#jobs/register.js';
       import { JobScheduler } from '#jobs/job-scheduler.js';
       import { JobService } from '#jobs/job-service.js';
-      import { prisma } from '#infra/database/prisma.js';
+      import { prisma, withDatabase } from '#infra/database/prisma.js';
+      await withDatabase(prisma, async () => {
       assert.equal((await prisma.job.findUniqueOrThrow({ where: { id: ${JSON.stringify(queued)} } })).status, 'queued');
       registerJobLifecycles();
       await JobService.recoverInterrupted();
@@ -243,6 +244,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
       JobScheduler.wake();
       try { assert.equal(await JobService.waitForCompletion(${JSON.stringify(queued)}), 'error'); }
       finally { await prisma.$disconnect(); }
+      });
     `,
       ],
       { cwd: apiDirectory, env: environment, timeout: 20_000 },

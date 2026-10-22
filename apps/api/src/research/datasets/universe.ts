@@ -6,7 +6,7 @@ import type {
   ResearchUniverseStageV1,
   UniverseSpecV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { researchUniverseMeasureById } from '../catalog/capabilities.js';
 import { validateUniverseSpec } from './spec.js';
 
@@ -30,7 +30,7 @@ export interface ExecuteUniverseSpecOptions {
  */
 export async function executeUniverseSpec(
   spec: UniverseSpecV1,
-  database: PrismaClient = prisma,
+  database: PrismaClient = getDatabase(),
   options: ExecuteUniverseSpecOptions = {},
 ): Promise<ResearchUniverseRunResultV1> {
   validateUniverseSpec(spec);

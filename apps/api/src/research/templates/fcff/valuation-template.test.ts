@@ -1,3 +1,4 @@
+import { withDatabase, type Prisma } from '#infra/database/prisma.js';
 import { researchSandboxPool } from '../../sandbox/research-sandbox-pool.js';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -32,52 +33,57 @@ describe('equity FCFF valuation Research template', { timeout: 30_000 }, () => {
   });
 
   it('keeps the full valuation workflow visible in editable Markdown and Python Cells', () => {
-    const template = equityFcffValuationTemplate();
-    const source = template.cells.map((cell) => cell.source).join('\n');
+    return withDatabase(testDatabase, async () => {
+      const template = equityFcffValuationTemplate();
+      const source = template.cells.map((cell) => cell.source).join('\n');
 
-    expect(template.title).toContain('FCFF');
-    expect(template.cells).toHaveLength(29);
-    expect(template.cells.filter((cell) => cell.kind === 'python')).toHaveLength(24);
-    expect(source).toContain('data.equity_financial_metrics');
-    expect(source).toContain('data.equity_financial_statements');
-    expect(source).toContain('data.yield_curve');
-    expect(source).toContain('valuation.fcff_scenarios');
-    expect(source).toContain('valuation.implied_revenue_growth');
-    expect(source).not.toContain('def value_fcff_scenario');
-    expect(source).not.toContain('def solve_single_parameter');
-    expect(source).toContain('unsupported_financial_company');
-    expect(source).toContain('narrative_review');
-    expect(source).toContain('不代表平台目标价或买卖建议');
+      expect(template.title).toContain('FCFF');
+      expect(template.cells).toHaveLength(29);
+      expect(template.cells.filter((cell) => cell.kind === 'python')).toHaveLength(24);
+      expect(source).toContain('data.equity_financial_metrics');
+      expect(source).toContain('data.equity_financial_statements');
+      expect(source).toContain('data.yield_curve');
+      expect(source).toContain('valuation.fcff_scenarios');
+      expect(source).toContain('valuation.implied_revenue_growth');
+      expect(source).not.toContain('def value_fcff_scenario');
+      expect(source).not.toContain('def solve_single_parameter');
+      expect(source).toContain('unsupported_financial_company');
+      expect(source).toContain('narrative_review');
+      expect(source).toContain('不代表平台目标价或买卖建议');
+    });
   });
 
   it('makes parameter changes propagate through the valuation outputs', async () => {
-    const pythonCells = equityFcffValuationTemplate()
-      .cells.filter((cell) => cell.kind === 'python')
-      .map((cell, index) => ({ id: `python-${index}`, source: cell.source }));
-    const analysis = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.analyze(pythonCells),
-    );
-    const dependencyCells = analysis.map((cell) => ({
-      id: cell.cellId,
-      definitions: cell.definitions,
-      references: cell.references,
-    }));
-    const downstream = researchDownstreamDependencyCellIds(dependencyCells, ['python-0']);
+    return withDatabase(testDatabase, async () => {
+      const pythonCells = equityFcffValuationTemplate()
+        .cells.filter((cell) => cell.kind === 'python')
+        .map((cell, index) => ({ id: `python-${index}`, source: cell.source }));
+      const analysis = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.analyze(pythonCells),
+      );
+      const dependencyCells = analysis.map((cell) => ({
+        id: cell.cellId,
+        definitions: cell.definitions,
+        references: cell.references,
+      }));
+      const downstream = researchDownstreamDependencyCellIds(dependencyCells, ['python-0']);
 
-    expect(analysis[0]?.definitions).toContain('valuation_date');
-    expect(analysis[1]?.references).toContain('valuation_date');
-    expect(downstream).toContain('python-1');
-    expect(downstream).toContain('python-6');
-    expect(downstream).toContain('python-9');
-    expect(downstream).toContain('python-11');
+      expect(analysis[0]?.definitions).toContain('valuation_date');
+      expect(analysis[1]?.references).toContain('valuation_date');
+      expect(downstream).toContain('python-1');
+      expect(downstream).toContain('python-6');
+      expect(downstream).toContain('python-9');
+      expect(downstream).toContain('python-11');
+    });
   });
 
   it('matches hand calculations, monotonic checks, and reverse-solver diagnostics', async () => {
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'golden',
-          source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.20}])
+    return withDatabase(testDatabase, async () => {
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'golden',
+            source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.20}])
 bridge = pd.DataFrame([{
     "bridge_adjustment": 0.0,
     "issued_shares": 10.0,
@@ -157,37 +163,39 @@ pd.DataFrame([{
     "weak_identification": weakly_identified["status"],
     "invalid_diagnostic": invalid_diagnostic,
 }])`,
-        },
-      }),
-    );
+          },
+        }),
+      );
 
-    const output = result.outputs[0];
-    expect(output?.type).toBe('table');
-    if (output?.type !== 'table') {
-      throw new Error('Expected a table output');
-    }
-    expect(output.rows).toEqual([
-      {
-        index: 0,
-        forward_columns_match: true,
-        reverse_columns_match: true,
-        hand_value_ok: true,
-        wacc_monotonic: true,
-        fcff_monotonic: true,
-        reverse_recovered: true,
-        no_solution: 'no_solution',
-        weak_identification: 'weakly_identified',
-        invalid_diagnostic: 'terminal_growth_must_be_less_than_wacc',
-      },
-    ]);
+      const output = result.outputs[0];
+      expect(output?.type).toBe('table');
+      if (output?.type !== 'table') {
+        throw new Error('Expected a table output');
+      }
+      expect(output.rows).toEqual([
+        {
+          index: 0,
+          forward_columns_match: true,
+          reverse_columns_match: true,
+          hand_value_ok: true,
+          wacc_monotonic: true,
+          fcff_monotonic: true,
+          reverse_recovered: true,
+          no_solution: 'no_solution',
+          weak_identification: 'weakly_identified',
+          invalid_diagnostic: 'terminal_growth_must_be_less_than_wacc',
+        },
+      ]);
+    });
   });
 
   it('detects nearby reverse roots, tangent roots, and invalid public inputs', async () => {
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'solver-boundaries',
-          source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.8}])
+    return withDatabase(testDatabase, async () => {
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'solver-boundaries',
+            source: `base = pd.DataFrame([{"revenue": 100.0, "nopat_margin": 0.8}])
 bridge = pd.DataFrame([{"bridge_adjustment": 5.0, "issued_shares": 10.0, "operating_cash_required": 1.0}])
 scenario = pd.DataFrame([{
     "scenario": "quadratic", "revenue_growth": -0.5001, "target_nopat_margin": 0.2,
@@ -237,40 +245,42 @@ pd.DataFrame([{
     "bridge_ok": abs(target["equity_value"] - (target["enterprise_value"] - 5.0)) < 1e-10,
     "formula_version": target["formula_version"],
 }])`,
-        },
-      }),
-    );
-    const output = result.outputs[0];
-    if (output?.type !== 'table') {
-      throw new Error('Expected a table output');
-    }
-    expect(output.rows[0]).toMatchObject({
-      non_finite: 'non_finite_scan',
-      zero_ev_share_missing: true,
-      multiple: 'multiple_solutions',
-      tangent: 'solved',
-      rejected_count: 5,
-      inputs_unchanged: true,
-      bridge_ok: true,
-      formula_version: 'fcff-scenarios-v1',
+          },
+        }),
+      );
+      const output = result.outputs[0];
+      if (output?.type !== 'table') {
+        throw new Error('Expected a table output');
+      }
+      expect(output.rows[0]).toMatchObject({
+        non_finite: 'non_finite_scan',
+        zero_ev_share_missing: true,
+        multiple: 'multiple_solutions',
+        tangent: 'solved',
+        rejected_count: 5,
+        inputs_unchanged: true,
+        bridge_ok: true,
+        formula_version: 'fcff-scenarios-v1',
+      });
+      expect(Number(output.rows[0]?.tangent_value)).toBeCloseTo(-0.5, 7);
     });
-    expect(Number(output.rows[0]?.tangent_value)).toBeCloseTo(-0.5, 7);
   });
 
   it('independently recalculates every WACC and terminal-growth sensitivity value', async () => {
-    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'parameters',
-          source: EQUITY_FCFF_PARAMETER_SOURCE,
-        },
-      }),
-    );
-    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'fixture',
-          source: `valuation_base = {"revenue": 100.0, "nopat_margin": 0.20}
+    return withDatabase(testDatabase, async () => {
+      await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'parameters',
+            source: EQUITY_FCFF_PARAMETER_SOURCE,
+          },
+        }),
+      );
+      await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'fixture',
+            source: `valuation_base = {"revenue": 100.0, "nopat_margin": 0.20}
 valuation_bridge = {
     "bridge_adjustment": 5.0,
     "issued_shares": 10.0,
@@ -287,30 +297,30 @@ valuation_scenarios = pd.DataFrame([{
     "terminal_growth": 0.02,
     "terminal_roic": 0.16,
 }])`,
-        },
-      }),
-    );
-    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'model',
-          source: EQUITY_FCFF_MODEL_SOURCE,
-        },
-      }),
-    );
-    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'sensitivity',
-          source: EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE,
-        },
-      }),
-    );
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'independent-check',
-          source: `independent_differences = []
+          },
+        }),
+      );
+      await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'model',
+            source: EQUITY_FCFF_MODEL_SOURCE,
+          },
+        }),
+      );
+      await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'sensitivity',
+            source: EQUITY_FCFF_SENSITIVITY_TABLE_SOURCE,
+          },
+        }),
+      );
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'independent-check',
+            source: `independent_differences = []
 for sensitivity_row in sensitivity_table.to_dict("records"):
     independent_wacc = sensitivity_row["wacc_pct"] / 100
     independent_growth = sensitivity_row["terminal_growth_pct"] / 100
@@ -350,36 +360,38 @@ pd.DataFrame([{
     "maximum_absolute_difference": max(independent_differences),
     "all_match": max(independent_differences) < 1e-10,
 }])`,
-        },
-      }),
-    );
+          },
+        }),
+      );
 
-    const output = result.outputs[0];
-    expect(output?.type).toBe('table');
-    if (output?.type !== 'table') {
-      throw new Error('Expected a table output');
-    }
-    expect(output.rows[0]).toMatchObject({
-      cell_count: 25,
-      all_match: true,
+      const output = result.outputs[0];
+      expect(output?.type).toBe('table');
+      if (output?.type !== 'table') {
+        throw new Error('Expected a table output');
+      }
+      expect(output.rows[0]).toMatchObject({
+        cell_count: 25,
+        all_match: true,
+      });
+      expect(Number(output.rows[0]?.maximum_absolute_difference)).toBeLessThan(1e-10);
     });
-    expect(Number(output.rows[0]?.maximum_absolute_difference)).toBeLessThan(1e-10);
   });
 
   it('stops with explicit diagnostics for financial companies and missing bridges', async () => {
-    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'selection',
-          source: EQUITY_FCFF_SELECTION_SOURCE,
-        },
-      }),
-    );
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'invalid-inputs',
-          source: `financial_company_metrics = pd.DataFrame([{
+    return withDatabase(testDatabase, async () => {
+      await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'selection',
+            source: EQUITY_FCFF_SELECTION_SOURCE,
+          },
+        }),
+      );
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'invalid-inputs',
+            source: `financial_company_metrics = pd.DataFrame([{
     "report_period": pd.NaT,
     "metric": "revenue",
     "value": np.nan,
@@ -428,37 +440,39 @@ pd.DataFrame([{
     "financial_company": financial_company_diagnostic,
     "missing_bridge": missing_bridge_diagnostic,
 }])`,
-        },
-      }),
-    );
+          },
+        }),
+      );
 
-    const output = result.outputs[0];
-    expect(output?.type).toBe('table');
-    if (output?.type !== 'table') {
-      throw new Error('Expected a table output');
-    }
-    expect(output.rows[0]).toEqual({
-      index: 0,
-      financial_company: 'unsupported_financial_company',
-      missing_bridge:
-        'metric_unavailable:enterpriseValue:2024-12-31 00:00:00:daily_basic_unavailable',
+      const output = result.outputs[0];
+      expect(output?.type).toBe('table');
+      if (output?.type !== 'table') {
+        throw new Error('Expected a table output');
+      }
+      expect(output.rows[0]).toEqual({
+        index: 0,
+        financial_company: 'unsupported_financial_company',
+        missing_bridge:
+          'metric_unavailable:enterpriseValue:2024-12-31 00:00:00:daily_basic_unavailable',
+      });
     });
   });
 
   it('does not silently fall back to an older annual report when the latest one is quarantined', async () => {
-    await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'selection',
-          source: EQUITY_FCFF_SELECTION_SOURCE,
-        },
-      }),
-    );
-    const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.execute({
-        cell: {
-          id: 'quarantined-latest',
-          source: `candidate_metrics = pd.DataFrame([
+    return withDatabase(testDatabase, async () => {
+      await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'selection',
+            source: EQUITY_FCFF_SELECTION_SOURCE,
+          },
+        }),
+      );
+      const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+        sandbox.execute({
+          cell: {
+            id: 'quarantined-latest',
+            source: `candidate_metrics = pd.DataFrame([
     {"report_period": pd.Timestamp("2023-12-31"), "metric": "revenue", "value": 100.0, "status": "ok", "missing_reason": None},
     {"report_period": pd.Timestamp("2024-12-31"), "metric": "revenue", "value": np.nan, "status": "invalid", "missing_reason": "accounting_review_required:test"},
 ])
@@ -468,14 +482,17 @@ try:
 except ValueError as error:
     rejection = str(error)
 pd.DataFrame([{"rejection": rejection}])`,
-        },
-      }),
-    );
-    const output = result.outputs[0];
-    expect(output?.type).toBe('table');
-    if (output?.type !== 'table') {
-      throw new Error('Expected table');
-    }
-    expect(output.rows[0]?.rejection).toContain('accounting_review_required:test');
+          },
+        }),
+      );
+      const output = result.outputs[0];
+      expect(output?.type).toBe('table');
+      if (output?.type !== 'table') {
+        throw new Error('Expected table');
+      }
+      expect(output.rows[0]?.rejection).toContain('accounting_review_required:test');
+    });
   });
 });
+
+const testDatabase = { maintenanceState: { findUnique: async () => null } } as unknown as Prisma;

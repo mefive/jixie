@@ -17,16 +17,29 @@ vi.mock('../providers/tushare/api.js', () => ({
   fundBasic: vi.fn(),
   etfBasic: vi.fn(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    etfBasic: { findMany: vi.fn(async () => [{ tsCode: '510300.SH' }]) },
-    tradeCal: { findMany: vi.fn(async () => [{ calDate: '20260908' }, { calDate: '20260909' }]) },
-    etfSyncSlice: { findUnique: mocks.marker, upsert: vi.fn() },
-    etfDaily: { count: vi.fn(async () => 1), deleteMany: mocks.deleteDaily, createMany: vi.fn() },
-    etfAdjFactor: { count: vi.fn(async () => 1), deleteMany: mocks.deleteAdj, createMany: vi.fn() },
-    $transaction: mocks.transaction,
-  },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      etfBasic: { findMany: vi.fn(async () => [{ tsCode: '510300.SH' }]) },
+      tradeCal: { findMany: vi.fn(async () => [{ calDate: '20260908' }, { calDate: '20260909' }]) },
+      etfSyncSlice: { findUnique: mocks.marker, upsert: vi.fn() },
+      etfDaily: { count: vi.fn(async () => 1), deleteMany: mocks.deleteDaily, createMany: vi.fn() },
+      etfAdjFactor: {
+        count: vi.fn(async () => 1),
+        deleteMany: mocks.deleteAdj,
+        createMany: vi.fn(),
+      },
+      $transaction: mocks.transaction,
+    },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 import { syncEtfDaily } from './history-sync.js';
 
 const recover = () =>

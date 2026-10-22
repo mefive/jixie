@@ -1,5 +1,5 @@
 import type { TradeDate } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import {
   COMMODITY_FUTURE_EXCHANGES,
@@ -119,11 +119,11 @@ async function syncFutureDailyForProducts(
       start_date: rangeStart,
       end_date: rangeEnd,
     });
-    await prisma.$transaction([
-      prisma.futureDaily.deleteMany({
+    await getDatabase().$transaction([
+      getDatabase().futureDaily.deleteMany({
         where: { tsCode: contract.tsCode, tradeDate: { gte: rangeStart, lte: rangeEnd } },
       }),
-      prisma.futureDaily.createMany({
+      getDatabase().futureDaily.createMany({
         data: rows.map((row) => ({
           tsCode: row.ts_code,
           tradeDate: row.trade_date,
@@ -170,11 +170,11 @@ export async function syncFutureMappings(
       start_date: start,
       end_date: end,
     });
-    await prisma.$transaction([
-      prisma.futureMapping.deleteMany({
+    await getDatabase().$transaction([
+      getDatabase().futureMapping.deleteMany({
         where: { continuousCode, tradeDate: { gte: start, lte: end } },
       }),
-      prisma.futureMapping.createMany({
+      getDatabase().futureMapping.createMany({
         data: rows.map((row) => ({
           continuousCode: row.ts_code,
           tradeDate: row.trade_date,
@@ -214,11 +214,11 @@ export async function syncFutureSettlements(
       start_date: rangeStart,
       end_date: rangeEnd,
     });
-    await prisma.$transaction([
-      prisma.futureSettlement.deleteMany({
+    await getDatabase().$transaction([
+      getDatabase().futureSettlement.deleteMany({
         where: { tsCode: contract.tsCode, tradeDate: { gte: rangeStart, lte: rangeEnd } },
       }),
-      prisma.futureSettlement.createMany({
+      getDatabase().futureSettlement.createMany({
         data: rows.map((row) => ({
           tsCode: row.ts_code,
           tradeDate: row.trade_date,
@@ -249,7 +249,7 @@ async function overlappingFutureContracts(
   productCodes: readonly string[],
   label: string,
 ) {
-  const contracts = await prisma.futureContract.findMany({
+  const contracts = await getDatabase().futureContract.findMany({
     where: {
       productCode: { in: [...productCodes] },
       listDate: { lte: end },
@@ -273,9 +273,9 @@ async function replaceFutureContracts(
   productCodes: readonly string[],
   rows: Awaited<ReturnType<typeof futureContracts>>,
 ): Promise<void> {
-  await prisma.$transaction([
-    prisma.futureContract.deleteMany({ where: { productCode: { in: [...productCodes] } } }),
-    prisma.futureContract.createMany({
+  await getDatabase().$transaction([
+    getDatabase().futureContract.deleteMany({ where: { productCode: { in: [...productCodes] } } }),
+    getDatabase().futureContract.createMany({
       data: rows.map((row) => ({
         tsCode: row.ts_code,
         symbol: row.symbol,

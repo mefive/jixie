@@ -1,3 +1,4 @@
+import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -29,12 +30,16 @@ vi.mock('#factor/weather/refresh.js', () => ({
 }));
 vi.mock('#factor/definitions/seed.js', () => ({ seedBuiltinFactors: mocks.seed }));
 import { startServer } from './bootstrap.js';
+const database = {} as Prisma;
 
 describe('API bootstrap composition', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset());
     mocks.buildApp.mockReturnValue({ fetch: vi.fn() });
-    mocks.recovery.mockResolvedValue(0);
+    mocks.recovery.mockImplementation(async () => {
+      expect(getDatabase()).toBe(database);
+      return 0;
+    });
     mocks.agentRecovery.mockResolvedValue(0);
     mocks.weatherRecovery.mockResolvedValue(0);
     mocks.seed.mockResolvedValue(undefined);
@@ -58,7 +63,7 @@ describe('API bootstrap composition', () => {
       }),
     );
     mocks.seed.mockReturnValue(new Promise(() => {}));
-    const pending = startServer(3101);
+    const pending = startServer(3101, database);
     await vi.waitFor(() => expect(mocks.agentRecovery).toHaveBeenCalledOnce());
     expect(mocks.startQueue).not.toHaveBeenCalled();
     expect(mocks.serve).not.toHaveBeenCalled();
@@ -79,7 +84,7 @@ describe('API bootstrap composition', () => {
 
   it('does not start after recovery failure', async () => {
     mocks.recovery.mockRejectedValue(new Error('recovery failed'));
-    await expect(startServer(3101)).rejects.toThrow('recovery failed');
+    await expect(startServer(3101, database)).rejects.toThrow('recovery failed');
     expect(mocks.startQueue).not.toHaveBeenCalled();
     expect(mocks.serve).not.toHaveBeenCalled();
     expect(mocks.seed).not.toHaveBeenCalled();
@@ -89,7 +94,7 @@ describe('API bootstrap composition', () => {
     const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       mocks.seed.mockRejectedValue(new Error('seed failed'));
-      await startServer(3101);
+      await startServer(3101, database);
       expect(mocks.serve).toHaveBeenCalledOnce();
       expect(logged).toHaveBeenCalledWith('[jixie] preset factor seed failed', expect.any(Error));
     } finally {

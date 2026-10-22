@@ -36,9 +36,18 @@ vi.mock('#infra/coordination/market-access.js', async (original) => ({
   ...(await original<typeof import('#infra/coordination/market-access.js')>()),
   withMarketAccess: async (operation: () => Promise<unknown>) => operation(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: { maintenanceState: { findUnique: async () => ({ dataRevision: 0 }) } },
-}));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: { maintenanceState: { findUnique: async () => ({ dataRevision: 0 }) } },
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 const DOCUMENT_ID = 'research-runtime-test';
 let previousLocal: string | undefined;

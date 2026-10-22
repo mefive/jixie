@@ -1,6 +1,7 @@
+import { getStagingContext } from '#infra/coordination/staging-input.js';
 import { addDays } from '#date';
 import { refreshAllFactorWeatherPins } from '#factor/weather/refresh.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { getRecentOpenDates } from '#market/calendar/read.js';
 import { syncEtfBasic } from '#market/etfs/history-sync.js';
 import { recoverEtfRegistry } from '#market/etfs/recovery.js';
@@ -109,7 +110,7 @@ export async function runWeeklyMaintenance(
   const onLog = options.onLog ?? ((line: string) => console.log(`[maintenance:weekly] ${line}`));
   const today = shanghaiToday();
   const trigger = options.trigger ?? (process.env.INVOCATION_ID ? 'timer' : 'manual');
-  const latestWeekly = await prisma.maintenanceRun.findFirst({
+  const latestWeekly = await getDatabase().maintenanceRun.findFirst({
     where: { kind: 'weekly' },
     orderBy: { startedAt: 'desc' },
     select: { status: true, targetKey: true },
@@ -164,7 +165,7 @@ export async function runWeeklyMaintenance(
     summary.auditStart = await rollingAuditStart(summary.auditEnd);
     // Write-ahead invalidation survives a crash after historical writes but before summary updates.
     // Recompute the published range even when a retry observes no further source changes.
-    const earliestPublished = await prisma.daily.findFirst({
+    const earliestPublished = await getDatabase().daily.findFirst({
       where: { tradeDate: { lte: state.dailyPublishedThrough } },
       orderBy: { tradeDate: 'asc' },
       select: { tradeDate: true },
@@ -178,7 +179,7 @@ export async function runWeeklyMaintenance(
     await syncStockNameHistory(standardClient, '19900101' as TradeDate, today as TradeDate);
 
     const allCodes = await stockCodesWithDailyData();
-    const earliestMarketRow = await prisma.daily.findFirst({
+    const earliestMarketRow = await getDatabase().daily.findFirst({
       orderBy: { tradeDate: 'asc' },
       select: { tradeDate: true },
     });
@@ -326,7 +327,7 @@ export async function runWeeklyMaintenance(
       }
 
       await updateMaintenanceRun(run.id, 'auditing', summary);
-      const audit = await runDataQualityAudit(prisma, {
+      const audit = await runDataQualityAudit(getDatabase(), {
         startDate: summary.auditStart,
         endDate: summary.auditEnd,
         windowTradingDays: 60,
@@ -414,7 +415,7 @@ async function runReferenceStage(
 }
 
 async function checkpointSqliteWal(): Promise<void> {
-  await prisma.$queryRawUnsafe('PRAGMA wal_checkpoint(PASSIVE);');
+  await getDatabase().$queryRawUnsafe('PRAGMA wal_checkpoint(PASSIVE);');
 }
 
 async function rollingAuditStart(endDate: string): Promise<string> {
@@ -432,8 +433,9 @@ function positiveInteger(value: string | undefined, fallback: number): number {
 }
 
 function shanghaiToday(): string {
-  if (process.env.JIXIE_MAINTENANCE_DATE) {
-    return process.env.JIXIE_MAINTENANCE_DATE;
+  const date = getStagingContext()?.date;
+  if (date) {
+    return date;
   }
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',

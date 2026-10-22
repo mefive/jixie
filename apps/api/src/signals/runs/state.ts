@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import prismaPackage from '@prisma/client';
 const { Prisma: sqlPrisma } = prismaPackage;
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 export const currentSignalJob = {
   orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -78,7 +78,7 @@ export async function completedSignalRunIds(input: {
   throughDate?: string;
   afterDate?: string;
 }): Promise<string[]> {
-  const rows = await prisma.$queryRaw<Array<{ id: string }>>(sqlPrisma.sql`
+  const rows = await getDatabase().$queryRaw<Array<{ id: string }>>(sqlPrisma.sql`
     SELECT run.id FROM SignalRun AS run
     WHERE ${input.deploymentId === undefined ? sqlPrisma.sql`1 = 1` : sqlPrisma.sql`run.deploymentId = ${input.deploymentId}`}
       AND ${input.throughDate === undefined ? sqlPrisma.sql`1 = 1` : sqlPrisma.sql`run.execDate <= ${input.throughDate}`}

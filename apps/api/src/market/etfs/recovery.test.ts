@@ -9,18 +9,27 @@ const mocks = vi.hoisted(() => ({
   revision: vi.fn(),
   completed: new Set<string>(),
 }));
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    etfBasic: { findMany: mocks.metadata },
-    tradeCal: {
-      findMany: async () => [
-        { calDate: '20150105' },
-        { calDate: '20260908' },
-        { calDate: '20260909' },
-      ],
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      etfBasic: { findMany: mocks.metadata },
+      tradeCal: {
+        findMany: async () => [
+          { calDate: '20150105' },
+          { calDate: '20260908' },
+          { calDate: '20260909' },
+        ],
+      },
     },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 vi.mock('../registry/etf-research-registry.js', () => ({ ETF_RESEARCH_CODES: ['510300.SH'] }));
 vi.mock('./history-coverage.js', () => ({
   ETF_HISTORY_START: '20150101',

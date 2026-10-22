@@ -3,7 +3,7 @@ import type { FactorCorrelationWorkerMessage } from './worker-protocol.js';
 import { parentPort, workerData } from 'node:worker_threads';
 import type { LogLine, LogLevel } from '@jixie/shared';
 import { computeFactorCorrelation } from './compute.js';
-import { prisma } from '#infra/database/prisma.js';
+import { prisma, withDatabase, closeDatabase } from '#infra/database/prisma.js';
 
 /**
  * Factor-correlation worker thread. Mirrors execution/worker: computeFactorCorrelation loads whole-market
@@ -22,21 +22,23 @@ const emit = (entry: LogLine) => send({ type: 'log', entry });
 const onSystemLog = (text: string) => emit({ source: 'system', level: 'info', text });
 const onUserLog = (level: LogLevel, text: string) => emit({ source: 'user', level, text });
 
-try {
-  const { keys, freq, start, end, locale } = factorCorrelationJobPayloadSchema.parse(workerData);
-  const report = await computeFactorCorrelation(
-    keys,
-    freq,
-    start,
-    end,
-    onSystemLog,
-    onUserLog,
-    locale,
-  );
-  const payload = JSON.stringify(report);
-  send({ type: 'done', payload });
-} catch (e) {
-  send({ type: 'error', message: e instanceof Error ? e.message : String(e) });
-} finally {
-  await prisma.$disconnect();
-}
+await withDatabase(prisma, async () => {
+  try {
+    const { keys, freq, start, end, locale } = factorCorrelationJobPayloadSchema.parse(workerData);
+    const report = await computeFactorCorrelation(
+      keys,
+      freq,
+      start,
+      end,
+      onSystemLog,
+      onUserLog,
+      locale,
+    );
+    const payload = JSON.stringify(report);
+    send({ type: 'done', payload });
+  } catch (e) {
+    send({ type: 'error', message: e instanceof Error ? e.message : String(e) });
+  } finally {
+    await closeDatabase(prisma);
+  }
+});

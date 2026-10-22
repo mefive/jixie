@@ -2,7 +2,7 @@ import { withEmbeddedAnalysis } from '#agent/profiles/embedded.js';
 import { strategyProfile } from '#agent/profiles/strategy.js';
 import * as turnBus from '#agent/turns/bus.js';
 import { enqueueAgentTurn, entityKey } from '#agent/turns/run.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { embeddedUserParts } from '#research/embedded/data-references.js';
 import type { Locale } from '@jixie/shared';
@@ -23,7 +23,7 @@ export async function startStrategyAgentTurn(
   locale: Locale,
 ) {
   const { id, message, code, language = 'typescript' } = input;
-  const strategy = await prisma.strategy.findFirst({
+  const strategy = await getDatabase().strategy.findFirst({
     where: { id, userId },
     select: { id: true, config: true },
   });
@@ -42,7 +42,7 @@ export async function startStrategyAgentTurn(
   const turnId = ulid();
 
   const embeddedSource = await captureEmbeddedContext(
-    prisma,
+    getDatabase(),
     userId,
     { type: 'strategy', id },
     input.reportId,

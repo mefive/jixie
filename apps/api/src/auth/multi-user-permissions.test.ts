@@ -17,28 +17,37 @@ const mocks = vi.hoisted(() => ({
   userFindMany: vi.fn(),
 }));
 
-vi.mock('#infra/database/prisma.js', () => ({
-  prisma: {
-    strategy: {
-      findFirst: mocks.strategyFindFirst,
-      findMany: mocks.strategyFindMany,
-      findUnique: mocks.strategyFindUnique,
-      create: mocks.strategyCreate,
-      update: mocks.strategyUpdate,
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = {
+    prisma: {
+      strategy: {
+        findFirst: mocks.strategyFindFirst,
+        findMany: mocks.strategyFindMany,
+        findUnique: mocks.strategyFindUnique,
+        create: mocks.strategyCreate,
+        update: mocks.strategyUpdate,
+      },
+      factor: {
+        findFirst: mocks.factorFindFirst,
+        findMany: mocks.factorFindMany,
+        create: mocks.factorCreate,
+        update: mocks.factorUpdate,
+      },
+      factorComposite: {
+        findFirst: mocks.compositeFindFirst,
+        findMany: mocks.compositeFindMany,
+      },
+      user: { findMany: mocks.userFindMany },
     },
-    factor: {
-      findFirst: mocks.factorFindFirst,
-      findMany: mocks.factorFindMany,
-      create: mocks.factorCreate,
-      update: mocks.factorUpdate,
-    },
-    factorComposite: {
-      findFirst: mocks.compositeFindFirst,
-      findMany: mocks.compositeFindMany,
-    },
-    user: { findMany: mocks.userFindMany },
-  },
-}));
+  };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 import { factorRoute } from '#factor/routes/index.js';
 import { sharingRoute } from '#sharing/routes.js';

@@ -150,7 +150,17 @@ async function freeze(table: string, changes: MarketChange[]) {
 }
 async function finalize() {
   await writeFile(resolve(directory, 'manifest.json'), JSON.stringify(manifest));
-  await finalizeCandidate();
+  const { withDatabase } = await import('#infra/database/prisma.js');
+  const { withStagingContext } = await import('#infra/coordination/staging-input.js');
+  await withStagingContext(
+    {
+      ...manifest,
+      directory,
+      formalUrl: process.env.DATABASE_URL!,
+      requirements: { active: [], versioned: [] },
+    },
+    () => withDatabase(prisma, finalizeCandidate),
+  );
 }
 
 describe('candidate finalization on migrated SQLite', () => {

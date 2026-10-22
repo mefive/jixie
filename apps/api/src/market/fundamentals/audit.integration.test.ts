@@ -9,7 +9,16 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { auditFinancialStatementAccounting, auditFinancialStatementVersions } from './audit.js';
 
 // The production singleton must never open the developer database in this fixture.
-vi.mock('#infra/database/prisma.js', () => ({ prisma: {} }));
+vi.mock('#infra/database/prisma.js', async () => {
+  const mocked = { prisma: {} };
+  return {
+    ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(
+      '#infra/database/prisma.js',
+    )),
+    ...mocked,
+    getDatabase: () => mocked.prisma,
+  };
+});
 
 const require = createRequire(import.meta.url);
 let fixture: InstanceType<typeof pkg.PrismaClient>;

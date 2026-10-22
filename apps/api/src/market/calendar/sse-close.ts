@@ -1,9 +1,10 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getStagingContext } from '#infra/coordination/staging-input.js';
+import { getDatabase } from '#infra/database/prisma.js';
 
 export async function latestCompletedTradeDate(): Promise<string | null> {
   const { today, hour } = shanghaiClock();
   const upperBound = hour >= 16 ? today : previousCalendarDate(today);
-  const row = await prisma.tradeCal.findFirst({
+  const row = await getDatabase().tradeCal.findFirst({
     where: { exchange: 'SSE', isOpen: 1, calDate: { lte: upperBound } },
     orderBy: { calDate: 'desc' },
     select: { calDate: true },
@@ -24,7 +25,7 @@ function shanghaiClock(): { today: string; hour: number } {
     day: '2-digit',
     hour: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date(process.env.JIXIE_MAINTENANCE_TIME ?? Date.now()));
+  }).formatToParts(new Date(getStagingContext()?.timestamp ?? Date.now()));
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return {
     today: `${value.year}${value.month}${value.day}`,

@@ -1,5 +1,5 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   type ResearchCellOutputBlockV1,
   type ResearchEmbeddedErrorCodeV1,
@@ -55,7 +55,7 @@ export async function executeEmbeddedRun(
   let poll: ReturnType<typeof setInterval> | undefined;
   let abortListener: (() => void) | undefined;
   try {
-    const run = await prisma.$transaction(async (transaction) => {
+    const run = await getDatabase().$transaction(async (transaction) => {
       const row = await transaction.researchExecution.findFirst({
         where: {
           id: runId,
@@ -97,8 +97,8 @@ export async function executeEmbeddedRun(
         return;
       }
       polling = true;
-      void prisma.researchExecution
-        .findUnique({ where: { id: runId }, select: { status: true } })
+      void getDatabase()
+        .researchExecution.findUnique({ where: { id: runId }, select: { status: true } })
         .then((current) => {
           if (!signal.aborted && current?.status !== 'running') {
             controller.abort(new ResearchError('embedded_cancelled'));
@@ -137,7 +137,7 @@ export async function executeEmbeddedRun(
                 signal,
                 observer: embeddedInputRecorder(runId, signal, limits),
                 async captureEnvironment(environment) {
-                  await prisma.$transaction(async (transaction) => {
+                  await getDatabase().$transaction(async (transaction) => {
                     await assertActiveRun(transaction, runId, signal);
                     await transaction.researchExecution.update({
                       where: { id: runId, status: 'running' },

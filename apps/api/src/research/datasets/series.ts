@@ -4,7 +4,7 @@ import type {
   ResearchSeriesInputSpecV1,
   ResearchTransformV1,
 } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import {
   CROSS_MARKET_BENCHMARK_BY_ID,
   HKD_CNH_DERIVED_CODE,
@@ -231,7 +231,7 @@ async function loadInstrumentSeries(
         `market.cny_close requires a registered cross-market benchmark; received ${id}`,
       );
     }
-    const rows = await prisma.indexDaily.findMany({
+    const rows = await getDatabase().indexDaily.findMany({
       where: { tsCode: id, tradeDate: { gte: start, lte: end } },
       select: { tradeDate: true, close: true },
       orderBy: { tradeDate: 'asc' },
@@ -248,23 +248,23 @@ async function loadInstrumentSeries(
   const isEtf = assetType === 'etf';
   const [prices, adjustments] = isEtf
     ? await Promise.all([
-        prisma.etfDaily.findMany({
+        getDatabase().etfDaily.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, close: true },
           orderBy: { tradeDate: 'asc' },
         }),
-        prisma.etfAdjFactor.findMany({
+        getDatabase().etfAdjFactor.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, adjFactor: true },
         }),
       ])
     : await Promise.all([
-        prisma.daily.findMany({
+        getDatabase().daily.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, close: true },
           orderBy: { tradeDate: 'asc' },
         }),
-        prisma.adjFactor.findMany({
+        getDatabase().adjFactor.findMany({
           where: { tsCode: id, tradeDate: { gte: start, lte: end } },
           select: { tradeDate: true, adjFactor: true },
         }),
@@ -305,7 +305,7 @@ async function loadCrossMarketBenchmarkSeries(
   start: string,
   end: string,
 ): Promise<LoadedResearchSeries> {
-  const rows = await prisma.marketBenchmarkDaily.findMany({
+  const rows = await getDatabase().marketBenchmarkDaily.findMany({
     where: { benchmarkId: benchmark.id, availableDate: { gte: start, lte: end } },
     select: { availableDate: true, close: true },
     orderBy: { availableDate: 'asc' },
@@ -325,7 +325,7 @@ async function loadCrossMarketBenchmarkSeries(
   const fxRows =
     benchmark.currency === 'CNY'
       ? []
-      : await prisma.fxDaily.findMany({
+      : await getDatabase().fxDaily.findMany({
           where: {
             tsCode: { in: [...EXTERNAL_FX_CODES] },
             availableDate: { gte: shiftCalendarDays(start, -14), lte: end },
@@ -384,7 +384,7 @@ async function loadFutureSeries(
   start: string,
   end: string,
 ): Promise<LoadedResearchSeries> {
-  const mappings = await prisma.futureMapping.findMany({
+  const mappings = await getDatabase().futureMapping.findMany({
     where: { continuousCode: id, tradeDate: { gte: start, lte: end } },
     select: { tradeDate: true, mappedTsCode: true },
     orderBy: { tradeDate: 'asc' },
@@ -392,7 +392,7 @@ async function loadFutureSeries(
   const actualCodes = mappings.length
     ? [...new Set(mappings.map((row) => row.mappedTsCode))]
     : [id];
-  const rows = await prisma.futureDaily.findMany({
+  const rows = await getDatabase().futureDaily.findMany({
     where: { tsCode: { in: actualCodes }, tradeDate: { gte: start, lte: end } },
     select: { tsCode: true, tradeDate: true, close: true },
     orderBy: { tradeDate: 'asc' },
@@ -417,7 +417,7 @@ async function loadMacroSeries(
   start: string,
   end: string,
 ): Promise<LoadedResearchSeries> {
-  const rows = await prisma.macroObservation.findMany({
+  const rows = await getDatabase().macroObservation.findMany({
     where: { seriesKey, availableDate: { lte: end } },
     select: {
       period: true,
@@ -485,7 +485,7 @@ async function loadYieldCurveSeries(
   start: string,
   end: string,
 ): Promise<LoadedResearchSeries> {
-  const rows = await prisma.yieldCurvePoint.findMany({
+  const rows = await getDatabase().yieldCurvePoint.findMany({
     where: {
       curveCode: source.curveCode,
       curveType: source.curveType,
@@ -508,7 +508,7 @@ async function loadYieldCurveSeries(
  */
 async function loadFxSeries(id: string, start: string, end: string): Promise<LoadedResearchSeries> {
   if (id === HKD_CNH_DERIVED_CODE) {
-    const rows = await prisma.fxDaily.findMany({
+    const rows = await getDatabase().fxDaily.findMany({
       where: {
         tsCode: { in: [...EXTERNAL_FX_CODES] },
         availableDate: { gte: shiftCalendarDays(start, -14), lte: end },
@@ -535,7 +535,7 @@ async function loadFxSeries(id: string, start: string, end: string): Promise<Loa
       ],
     };
   }
-  const rows = await prisma.fxDaily.findMany({
+  const rows = await getDatabase().fxDaily.findMany({
     where: { tsCode: id, availableDate: { gte: start, lte: end } },
     select: { availableDate: true, bidClose: true, askClose: true },
     orderBy: { availableDate: 'asc' },

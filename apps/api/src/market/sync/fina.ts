@@ -1,0 +1,106 @@
+import { stagingNow } from '#infra/coordination/staging-input.js';
+import { isStagingDatabase } from '#infra/coordination/market-access.js';
+import { getDatabase } from '#infra/database/prisma.js';
+import { importFinancialReferenceHistory } from '../fundamentals/financial-history-import.js';
+import {
+  syncFinancialStatementsByStock,
+  type FinancialStatementSyncSummary,
+} from '../fundamentals/sync.js';
+import { TushareClient } from '../providers/tushare/tushare-client.js';
+import { loadTushareConfig } from '../providers/tushare/config.js';
+
+/**
+ * 同步原始财报版本、财务指标与分红历史，保留可恢复进度。
+ *
+ * Sync raw statement versions, fina_indicator, and dividend history into the local store. The two
+ * all-market financial sources use VIP report-period pagination. Dividend history remains per-stock.
+ * Every full-history stage runs in bounded child processes.
+ */
+export async function runSyncTask(args: string[]): Promise<void> {
+  if (!isStagingDatabase()) {
+    throw new Error('Use pnpm sync to prepare and publish market data safely');
+  }
+  const cfg = loadTushareConfig();
+  const interval = Math.max(cfg.minIntervalMs, 800);
+  const repairCode = argumentValue(args, '--repair-code');
+  if (repairCode) {
+    await repairFinancialStatements(repairCode, cfg, args);
+    return;
+  }
+  const financialChunkSize = positiveInteger(
+    process.env.MAINTENANCE_WEEKLY_FINANCIAL_PERIODS_PER_PROCESS,
+    1,
+  );
+  const dividendChunkSize = positiveInteger(
+    process.env.MAINTENANCE_WEEKLY_DIVIDEND_CODES_PER_PROCESS,
+    200,
+  );
+
+  console.log(
+    `Syncing financials (statement versions + indicators by VIP period, per-stock dividend, rate limit ${interval}ms/call)\n`,
+  );
+  await importFinancialReferenceHistory({
+    throughDate: shanghaiToday(),
+    financialPeriodsPerProcess: financialChunkSize,
+    dividendCodesPerProcess: dividendChunkSize,
+  });
+
+  console.log('\nStored row counts:');
+  console.table({
+    financial_income_statement: await getDatabase().financialIncomeStatement.count(),
+    financial_balance_sheet: await getDatabase().financialBalanceSheet.count(),
+    financial_cash_flow_statement: await getDatabase().financialCashFlowStatement.count(),
+    fina_indicator: await getDatabase().finaIndicator.count(),
+    dividend: await getDatabase().dividend.count(),
+  });
+  console.log('✅ Financial sync complete');
+}
+
+/**
+ * 按选定证券与公告窗口修复原始财报，留存同步摘要。
+ *
+ * Repair source statements over declared stocks and announcement windows.
+ */
+async function repairFinancialStatements(
+  code: string,
+  config: ReturnType<typeof loadTushareConfig>,
+  args: string[],
+): Promise<FinancialStatementSyncSummary> {
+  if (!/^\d{6}\.(?:SH|SZ|BJ)$/.test(code)) {
+    throw new Error('--repair-code must be an A-share ts_code');
+  }
+  const startDate = argumentValue(args, '--start');
+  const endDate = argumentValue(args, '--end') ?? shanghaiToday();
+  if (!startDate) {
+    throw new Error('--repair-code requires --start YYYYMMDD');
+  }
+  const client = new TushareClient({
+    token: config.token,
+    baseUrl: config.baseUrl,
+    minIntervalMs: Math.max(config.minIntervalMs, 800),
+  });
+  const summary = await syncFinancialStatementsByStock(client, [code], { startDate, endDate });
+  console.table(summary);
+  return summary;
+}
+
+function shanghaiToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+    .format(stagingNow())
+    .replaceAll('-', '');
+}
+
+function positiveInteger(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function argumentValue(args: string[], name: string): string | undefined {
+  const index = args.indexOf(name);
+  return index >= 0 ? args[index + 1] : undefined;
+}

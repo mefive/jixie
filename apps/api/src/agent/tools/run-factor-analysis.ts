@@ -12,7 +12,7 @@ import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
 import { createDefaultFactorAnalysisSpecV6 } from '#factor/analysis/spec.js';
 import { factorResearchIntentV1Schema } from '@jixie/shared/api/factor';
 import { t } from '#i18n/index.js';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
 
 const REPORT_WAIT_TIMEOUT_MS = 15 * 60_000;
@@ -83,7 +83,7 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
       }
 
       const [factor, policy] = await Promise.all([
-        prisma.factor.findFirst({
+        getDatabase().factor.findFirst({
           where: { id: context.factorId, userId: context.userId },
           select: { id: true, name: true },
         }),

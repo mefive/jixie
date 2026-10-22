@@ -61,7 +61,7 @@ afterAll(async () => {
 describe.each(process.env.JIXIE_TEST_COMPILED === '1' ? [false, true] : [false])(
   'real maintenance CLI publication (compiled=%s)',
   (compiled) => {
-    it('prepares with real child processes and publishes only the resulting changes', async () => {
+    it('prepares through callable sync operations and publishes only the resulting changes', async () => {
       requests.length = 0;
       const filename = resolve(directory, compiled ? 'compiled.db' : 'source.db');
       await writeFile(filename, '');

@@ -1,5 +1,5 @@
 import { factorRuntimeVersion, type Locale } from '@jixie/shared';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { builtinCatalog } from './builtin-factors.js';
 import { factorCompositeDefinitionSchema } from '@jixie/shared/api/factor';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';
@@ -14,7 +14,7 @@ import { strategyKey, factorLanguage } from './views.js';
  */
 export async function listFactorCatalog(userId: string, locale: Locale) {
   // Preset factors (registry identity; code lives on their seeded rows) + this user's custom factors.
-  const custom = await prisma.factor.findMany({
+  const custom = await getDatabase().factor.findMany({
     where: { userId: userId },
     select: {
       id: true,
@@ -58,7 +58,7 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
         ? (['equity', 'fixed_income', 'commodity'] as const)
         : (['equity'] as const),
   }));
-  const composites = await prisma.factorComposite.findMany({
+  const composites = await getDatabase().factorComposite.findMany({
     where: { userId: userId },
     orderBy: { updatedAt: 'desc' },
   });

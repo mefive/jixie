@@ -91,9 +91,10 @@ export class StrategyFactor {
       return [];
     }
 
-    // Loading Prisma opens SQLite connections; source-only operations must not import it.
-    const { prisma } = await import('#infra/database/prisma.js');
-    const factorRows = await prisma.factor.findMany({
+    // 纯源码操作不加载数据库模块；查询在当前执行作用域解析连接。
+    // Source-only operations do not load storage; queries resolve the current execution client.
+    const { getDatabase } = await import('#infra/database/prisma.js');
+    const factorRows = await getDatabase().factor.findMany({
       where: {
         key: { in: keys },
         userId: { in: [userId, BUILTIN_USER_ID] },
@@ -112,7 +113,7 @@ export class StrategyFactor {
         userId: true,
       },
     });
-    const compositeRows = await prisma.factorComposite.findMany({
+    const compositeRows = await getDatabase().factorComposite.findMany({
       where: {
         key: { in: keys },
         userId,
@@ -131,7 +132,7 @@ export class StrategyFactor {
       ...factorRows.flatMap((row) => (row.approvedReportId ? [row.approvedReportId] : [])),
       ...compositeRows.flatMap((row) => (row.approvedReportId ? [row.approvedReportId] : [])),
     ];
-    const approvedReports = await prisma.factorReport.findMany({
+    const approvedReports = await getDatabase().factorReport.findMany({
       where: { id: { in: approvedReportIds } },
       select: { id: true, factorCodeSnapshot: true, specJson: true },
     });

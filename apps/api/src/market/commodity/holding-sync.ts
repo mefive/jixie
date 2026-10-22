@@ -1,4 +1,4 @@
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { syncCommodityFutureContracts, syncCommodityFutureDaily } from '../futures/sync.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import {
@@ -14,5 +14,5 @@ export async function refreshCommodityHoldingPositions(
 ): Promise<CommodityHoldingSyncSummary> {
   await syncCommodityFutureContracts(client);
   await syncCommodityFutureDaily(client, startDate, endDate);
-  return syncCommodityHoldingPositions(client, startDate, endDate, prisma, onLog);
+  return syncCommodityHoldingPositions(client, startDate, endDate, getDatabase(), onLog);
 }

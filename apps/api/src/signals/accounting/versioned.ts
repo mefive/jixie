@@ -2,7 +2,7 @@ import { ulid } from 'ulid';
 import type { Prisma } from '@prisma/client';
 import type { FutureSignalItem, SignalAccounts, SignalItem } from '@jixie/shared';
 import { futureSignalSchema, signalAccountsSchema } from '@jixie/shared/api/signals';
-import { prisma } from '#infra/database/prisma.js';
+import { getDatabase } from '#infra/database/prisma.js';
 import { signalItemSchema } from '../runs/result-schema.js';
 import { signalRunState, currentSignalJob } from '../runs/state.js';
 import { SignalsError } from '../errors.js';
@@ -26,7 +26,7 @@ export function parseTaskIntent(value: unknown): SignalItem | FutureSignalItem {
  * Initialize versioned account baselines and execution associations for later replay.
  */
 export async function initializeVersionedAccounting(runId: string): Promise<void> {
-  const row = await prisma.signalRun.findUnique({
+  const row = await getDatabase().signalRun.findUnique({
     where: { id: runId },
     include: { jobs: currentSignalJob },
   });
@@ -43,7 +43,7 @@ export async function initializeVersionedAccounting(runId: string): Promise<void
     ...signalItemSchema.array().parse(row.signals),
     ...futureSignalSchema.array().parse(row.intentSnapshot),
   ];
-  await prisma.$transaction(async (transaction) => {
+  await getDatabase().$transaction(async (transaction) => {
     const current = await transaction.job.findFirst({
       where: { signalRunId: runId },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -181,7 +181,7 @@ export async function readVersionedBaseline(
   deploymentId: string,
   kind: string,
 ): Promise<SignalAccounts> {
-  const row = await prisma.signalAccountState.findFirst({
+  const row = await getDatabase().signalAccountState.findFirst({
     where: { deploymentId, kind, generation: 'baseline' },
     orderBy: { tradeDate: 'asc' },
   });

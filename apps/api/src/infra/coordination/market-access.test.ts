@@ -16,6 +16,10 @@ import {
   withMarketPublication,
 } from './market-access.js';
 
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('node:fs/promises')>()),
+}));
+
 let directory: string;
 const children: ChildProcess[] = [];
 beforeEach(async () => {
@@ -141,4 +145,85 @@ describe('cross-process market coordination', () => {
     vi.stubEnv('JIXIE_MAINTENANCE_LOCK_FD', '2');
     await expect(withMaintenanceLock(async () => {})).rejects.toThrow('Invalid inherited');
   });
+});
+
+describe('reclaimable owners and inherited maintenance ownership', () => {
+  it('keeps shared owners until the last release and reclaims idle files without removing fixed locks', async () => {
+    const { acquireMarketLock, cleanupOwnerLocks } = await import('./market-access.js');
+    const { readdir, writeFile } = await import('node:fs/promises');
+    const first = await acquireMarketLock('owner-SHARED', true);
+    const second = await acquireMarketLock('owner-SHARED', true);
+    await first.release();
+    expect(await cleanupOwnerLocks(true)).toContainEqual({
+      file: 'owner-SHARED.lock',
+      result: 'active',
+    });
+    await second.release();
+    expect(await readdir(directory)).not.toContain('owner-SHARED.lock');
+    await writeFile(resolve(directory, 'owner-STALE.lock'), '');
+    await writeFile(resolve(directory, 'maintenance.lock'), '');
+    await symlink(resolve(directory, 'maintenance.lock'), resolve(directory, 'owner-ALIAS.lock'));
+    const result = await cleanupOwnerLocks(true);
+    expect(result).toContainEqual({ file: 'owner-STALE.lock', result: 'removed' });
+    expect(result).toContainEqual({ file: 'owner-ALIAS.lock', result: 'unknown-file' });
+    expect(await readdir(directory)).toContain('maintenance.lock');
+  });
+
+  it('reopens an owner whose pathname was replaced after opening', async () => {
+    const filesystem = await import('node:fs/promises');
+    const { acquireMarketLock } = await import('./market-access.js');
+    const original = filesystem.open;
+    const filename = resolve(await filesystem.realpath(directory), 'owner-RACE.lock');
+    let replaced = false;
+    const opened = vi.spyOn(filesystem, 'open').mockImplementation(async (...args) => {
+      const handle = await original(...args);
+      if (args[0] === filename && !replaced) {
+        replaced = true;
+        await filesystem.unlink(filename);
+        await filesystem.writeFile(filename, 'replacement');
+      }
+      return handle;
+    });
+    try {
+      const owner = await acquireMarketLock('owner-RACE');
+      expect(opened.mock.calls.filter(([path]) => path === filename)).toHaveLength(2);
+      await owner.release();
+      await expect(filesystem.stat(filename)).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      opened.mockRestore();
+    }
+  });
+
+  it('keeps M while an inherited writer survives SIGKILL of its parent', async () => {
+    const parent = fork(
+      fileURLToPath(new URL('./market-inherited-lock.fixture.ts', import.meta.url)),
+      [],
+      {
+        execArgv: ['--conditions=development', '--import', 'tsx'],
+        env: process.env,
+        stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+      },
+    );
+    children.push(parent);
+    const descendant = await new Promise<number>((done, reject) => {
+      parent.once('message', (message) => done((message as { pid: number }).pid));
+      parent.once('error', reject);
+      parent.once('exit', () =>
+        reject(new Error('Parent exited before inherited writer was ready')),
+      );
+    });
+    try {
+      const closed = new Promise<void>((done) => parent.once('close', () => done()));
+      parent.kill('SIGKILL');
+      await closed;
+      await expect(withMaintenanceLock(async () => {})).rejects.toBeInstanceOf(
+        MarketAccessBusyError,
+      );
+    } finally {
+      process.kill(descendant, 'SIGKILL');
+    }
+    const { acquireMarketLock } = await import('./market-access.js');
+    const released = await acquireMarketLock('maintenance', false, 3000);
+    await released.release();
+  }, 10_000);
 });
