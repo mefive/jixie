@@ -170,6 +170,23 @@ describe('Signals HTTP and persistence boundaries', () => {
     await prisma.tradeCal.createMany({
       data: dates.map((calDate) => ({ exchange: 'SSE', calDate, isOpen: 1 })),
     });
+    await prisma.datasetSyncPartition.createMany({
+      data: [
+        'calendar',
+        'stock-prices',
+        'stock-adjustments',
+        'stock-valuations',
+        'stock-limits',
+      ].map((dataset) => ({
+        id: `fixture-${dataset}`,
+        dataset,
+        scope: dataset === 'calendar' ? 'SSE' : 'all',
+        startDate: dates[0],
+        endDate: dates.at(-1)!,
+        status: 'complete',
+        policyVersion: 'sync-v1',
+      })),
+    });
     await prisma.daily.createMany({
       data: dates.map((tradeDate) => ({
         tsCode: '000001.SZ',
@@ -204,6 +221,7 @@ describe('Signals HTTP and persistence boundaries', () => {
     await prisma.adjFactor.deleteMany();
     await prisma.dailyBasic.deleteMany();
     await prisma.stkLimit.deleteMany();
+    await prisma.datasetSyncPartition.deleteMany();
   });
   afterAll(async () => {
     await prisma.$disconnect();
@@ -324,13 +342,12 @@ describe('Signals HTTP and persistence boundaries', () => {
       tradeDate: '20240104',
       reason: 'Deliberately incomplete source correction',
     });
-    expect(revisedMarket.status).toBe(200);
-    const failedHistory = await revisedMarket.json();
-    expect(failedHistory.status).toBe('failed');
+    expect(revisedMarket.status).toBe(503);
     const failed = await prisma.strategyDeployment.findUniqueOrThrow({
       where: { id: deployment.id },
     });
     expect(failed.actualGeneration).toBe(published.actualGeneration);
+    expect(failed.accountInputRevision).toBe(published.accountInputRevision);
     expect(
       (await prisma.signalAccountMarketInput.findUniqueOrThrow({ where: { id: frozen.id } }))
         .inputHash,
@@ -679,6 +696,10 @@ describe('Signals HTTP and persistence boundaries', () => {
       reason: 'data_not_ready',
     });
     await prisma.dailyBasic.deleteMany({ where: { tradeDate: '20240103' } });
+    await prisma.datasetSyncPartition.update({
+      where: { id: 'fixture-stock-valuations' },
+      data: { status: 'partial' },
+    });
     const response = await request(`/deployments/${deployment.id}/runs`, { tradeDate: '20240103' });
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({

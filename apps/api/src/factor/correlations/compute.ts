@@ -26,7 +26,7 @@ function sizeSeries(snaps: Map<string, Snap>): Map<string, Map<string, number>> 
   for (const [date, snap] of snaps) {
     const col = new Map<string, number>();
     for (const [tsCode, quote] of snap) {
-      if (quote.mktcap > 0) {
+      if (quote.mktcap != null && quote.mktcap > 0) {
         col.set(tsCode, Math.log(quote.mktcap));
       }
     }
@@ -38,7 +38,8 @@ function sizeSeries(snaps: Map<string, Snap>): Map<string, Map<string, number>> 
 /**
  * 将日期到观测列表转换为逐日证券查找，供相关性快速求交集。
  *
- * Turn a factor's Series (date → [{tsCode,value}]) into per-date lookup maps for fast pair intersection.
+ * Turn a factor's Series (date → [{tsCode,value}]) into per-date lookup maps for fast pair
+ * intersection.
  */
 function toLookup(series: Series): Map<string, Map<string, number>> {
   const byDate = new Map<string, Map<string, number>>();
@@ -55,7 +56,8 @@ function toLookup(series: Series): Map<string, Map<string, number>> {
 /**
  * 逐调仓日对共同证券计算 Spearman，再汇总跨期均值。
  *
- * Mean cross-sectional Spearman between two factor columns across the rebalance dates: on each date,
+ * Mean cross-sectional Spearman between two factor columns across the rebalance dates: on each
+ * date,
  * rank both on the stocks they share and correlate; average over dates with enough overlap.
  */
 function meanPairwiseSpearman(

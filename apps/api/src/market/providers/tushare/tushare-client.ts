@@ -1,7 +1,7 @@
 import { fetchMarketSource, readMarketSourceText } from '../source-fetch.js';
 import { HttpStatusError } from '../../errors.js';
 import { warn } from '#infra/logging.js';
-import { TushareError } from '../../errors.js';
+import { MarketSyncBudgetError, TushareError } from '../../errors.js';
 
 /**
  * 限定列式来源单元值，供响应解码。
@@ -120,7 +120,11 @@ export class TushareClient {
       } catch (e) {
         this.lastCallAt = Date.now();
         // Don't retry business errors (param / permission / credit issues yield the same result)
-        if (e instanceof TushareError) {
+        if (
+          e instanceof TushareError ||
+          e instanceof MarketSyncBudgetError ||
+          (e instanceof HttpStatusError && e.status < 500 && e.status !== 429)
+        ) {
           throw e;
         }
         if (attempt >= this.maxRetries) {
@@ -187,7 +191,11 @@ function toRows(data: TushareResponse['data']): TushareRow[] {
   return items.map((item) => {
     const row: TushareRow = {};
     for (let i = 0; i < fields.length; i++) {
-      row[fields[i]] = item[i] ?? null;
+      // 短行没有返回该字段，不能伪造成权威 null。
+      // A short row omitted the field; do not invent an authoritative null.
+      if (i < item.length) {
+        row[fields[i]] = item[i];
+      }
     }
     return row;
   });

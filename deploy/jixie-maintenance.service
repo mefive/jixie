@@ -1,5 +1,5 @@
 [Unit]
-Description=jixie daily market-data maintenance
+Description=jixie date-targeted data synchronization
 After=network-online.target jixie-api.service
 Wants=network-online.target
 StartLimitIntervalSec=0
@@ -12,8 +12,8 @@ User=jixie
 Group=jixie
 WorkingDirectory=/opt/jixie/apps/api
 EnvironmentFile=/opt/jixie/apps/api/.env.production
-ExecStart=/usr/bin/node /opt/jixie/apps/api/dist/src/maintenance/cli/run-maintenance.js daily
-TimeoutStartSec=6h
+ExecStart=/usr/bin/node /opt/jixie/apps/api/dist/src/maintenance/cli/data.js sync
+TimeoutStartSec=35m
 Nice=10
 NoNewPrivileges=true
 PrivateTmp=true

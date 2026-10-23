@@ -1,9 +1,8 @@
 import { withMarketAccess } from '#infra/coordination/market-access.js';
-import { deferMaintenanceAction } from '#infra/coordination/staging-input.js';
 import { JobService } from '#jobs/job-service.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { getDatabase } from '#infra/database/prisma.js';
-import { settleStrategyAccounts } from '../accounting/settlement.js';
+import { settleStrategyAccounts, type AccountSettlementResult } from '../accounting/settlement.js';
 import { SignalsError } from '../errors.js';
 import { enqueueSignalRun } from '../runs/enqueue.js';
 
@@ -15,22 +14,35 @@ import { enqueueSignalRun } from '../runs/enqueue.js';
 export async function generateDailySignals(
   tradeDate: string,
   onLog: (line: string) => void = console.log,
-): Promise<{ deployments: number; done: number; errors: number }> {
-  if (deferMaintenanceAction({ kind: 'signals', tradeDate })) {
-    return { deployments: 0, done: 0, errors: 0 };
-  }
-
+  signal: AbortSignal = AbortSignal.timeout(30 * 60_000),
+): Promise<{
+  deployments: number;
+  done: number;
+  waiting: number;
+  errors: number;
+  accounts: AccountSettlementResult;
+}> {
   return withMarketAccess(async () => {
     registerJobLifecycles();
+    signal.throwIfAborted();
+    await JobService.recoverInterrupted('signal', signal);
+    signal.throwIfAborted();
     const open = await getDatabase().tradeCal.findUnique({
       where: { exchange_calDate: { exchange: 'SSE', calDate: tradeDate } },
       select: { isOpen: true },
     });
     if (!open || open.isOpen !== 1) {
-      return { deployments: 0, done: 0, errors: 0 };
+      return {
+        deployments: 0,
+        done: 0,
+        waiting: 0,
+        errors: 0,
+        accounts: { deployments: 0, done: 0, waiting: 0, errors: 0, gaps: [], failures: [] },
+      };
     }
 
-    await settleStrategyAccounts(tradeDate, onLog);
+    const accounts = await settleStrategyAccounts(tradeDate, onLog, signal);
+
     const deployments = await getDatabase().strategyDeployment.findMany({
       where: { status: 'active' },
       orderBy: { deployedAt: 'asc' },
@@ -38,31 +50,46 @@ export async function generateDailySignals(
     });
     let done = 0;
     let errors = 0;
+    let waiting = 0;
+
     for (const deployment of deployments) {
+      if (signal.aborted) {
+        waiting += deployments.length - done - errors - waiting;
+        break;
+      }
       onLog(`Generating ${deployment.strategyName} (${deployment.id})`);
       let run;
       try {
-        run = await enqueueSignalRun(deployment.userId, deployment.id, tradeDate);
+        run = await enqueueSignalRun(deployment.userId, deployment.id, tradeDate, signal);
       } catch (error) {
-        if (!(error instanceof SignalsError)) {
-          throw error;
+        if (
+          error instanceof SignalsError &&
+          ['data_not_ready', 'next_date_missing'].includes(error.reason)
+        ) {
+          waiting++;
+        } else {
+          errors++;
         }
-        errors++;
-        onLog(`Skipped ${deployment.strategyName}: ${error.reason}`);
+        onLog(
+          `Skipped ${deployment.strategyName}: ${error instanceof SignalsError ? error.reason : String(error)}`,
+        );
         continue;
       }
-      // CLI execution is serial and independent of the API scheduler's concurrency limits.
-      // A failed claim means another consumer owns or has already completed this attempt.
+      // 仅执行本地持有的任务；其他活跃消费者不被抢占，等待受本轮取消约束。
+      // Execute only locally owned work; respect active owners and the run's cancellation budget.
       if (run.jobId && (await JobService.claim(run.jobId))) {
-        await JobService.execute(run.jobId);
+        await JobService.execute(run.jobId, signal);
       }
       const status = await run.completion;
       if (status === 'done') {
         done++;
       } else if (status === 'error') {
         errors++;
+      } else {
+        waiting++;
       }
     }
-    return { deployments: deployments.length, done, errors };
+
+    return { deployments: deployments.length, done, waiting, errors, accounts };
   });
 }

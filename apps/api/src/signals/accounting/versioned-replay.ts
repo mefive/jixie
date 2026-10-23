@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 import type { BacktestConfig, SignalAccounts } from '@jixie/shared';
 import { signalAccountsSchema, signalFillSchema } from '@jixie/shared/api/signals';
 import { getDatabase } from '#infra/database/prisma.js';
+import { MarketError, MarketSourcePendingError } from '#market/errors.js';
 import { DEFAULT_COST } from '#backtesting/cost.js';
 import { completedSignalRunIds } from '../runs/state.js';
 import { SignalsError } from '../errors.js';
@@ -30,6 +31,7 @@ export async function rebuildVersionedAccount(
   deploymentId: string,
   kind: 'simulation' | 'actual',
   throughDate: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   let deployment = await getDatabase().strategyDeployment.findUniqueOrThrow({
     where: { id: deploymentId },
@@ -43,6 +45,7 @@ export async function rebuildVersionedAccount(
     orderBy: { tradeDate: 'asc' },
   });
   for (const run of runs) {
+    signal?.throwIfAborted();
     await initializeVersionedAccounting(run.id);
   }
   if (!runs.length) {
@@ -60,6 +63,14 @@ export async function rebuildVersionedAccount(
         orderBy: { tradeDate: 'desc' },
       })
     : null;
+  if (
+    published &&
+    published.accountRevision === deployment.accountInputRevision &&
+    published.tradeDate >= throughDate
+  ) {
+    return;
+  }
+
   throughDate = published && published.tradeDate > throughDate ? published.tradeDate : throughDate;
   const revision = deployment.accountInputRevision;
   const baseline = await readVersionedBaseline(deploymentId, kind);
@@ -87,6 +98,7 @@ export async function rebuildVersionedAccount(
       .sort()[0] ?? null;
   try {
     for (const { calDate: date } of dates) {
+      signal?.throwIfAborted();
       const codes = [
         ...new Set([
           ...state.positions.map((position) => position.code),
@@ -353,6 +365,15 @@ export async function rebuildVersionedAccount(
       }
     });
   } catch (error) {
+    if (signal?.aborted) {
+      throw error;
+    }
+    const pending =
+      error instanceof MarketSourcePendingError ||
+      (error instanceof MarketError && error.reason === 'inputs_not_ready') ||
+      (error instanceof SignalsError &&
+        ['data_not_ready', 'next_date_missing'].includes(error.reason));
+    const status = pending ? 'pending' : 'failed';
     await getDatabase().strategyDeployment.updateMany({
       where: {
         id: deploymentId,
@@ -362,15 +383,15 @@ export async function rebuildVersionedAccount(
           : { actualGeneration: publishedGeneration }),
       },
       data: {
-        replayStatus: 'failed',
+        replayStatus: status,
         replayError: errorMessage(error, deployment.locale === 'en' ? 'en' : 'zh'),
         ...(kind === 'simulation'
           ? {
-              simulationStatus: 'failed',
+              simulationStatus: status,
               simulationError: errorMessage(error, deployment.locale === 'en' ? 'en' : 'zh'),
             }
           : {
-              actualAccountStatus: 'failed',
+              actualAccountStatus: status,
               actualAccountError: errorMessage(error, deployment.locale === 'en' ? 'en' : 'zh'),
             }),
       },

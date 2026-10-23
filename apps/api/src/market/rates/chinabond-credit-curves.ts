@@ -5,7 +5,11 @@ import {
 } from '../providers/source-fetch.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { strFromU8, unzipSync } from 'fflate';
-import { ChinaBondHttpStatusError, MarketSourceDownloadError } from '../errors.js';
+import {
+  MarketSyncBudgetError,
+  ChinaBondHttpStatusError,
+  MarketSourceDownloadError,
+} from '../errors.js';
 import { assignCurveAvailableDates } from './china-treasury-curve.js';
 
 export const CHINABOND_PUBLIC_CURVE_SOURCE = 'chinabond_pbc_public';
@@ -63,7 +67,12 @@ export interface ChinaBondCreditCurvePoint {
  * Abstract ChinaBond workbook access for yearly synchronization.
  */
 export interface ChinaBondCreditCurveClient {
-  fetchRange(startDate: string, endDate: string): Promise<ChinaBondCreditCurvePoint[]>;
+  fetchRange(
+    startDate: string,
+    endDate: string,
+    allowPartial?: boolean,
+    onRejected?: (message: string) => void,
+  ): Promise<ChinaBondCreditCurvePoint[]>;
 }
 
 /** Official ChinaBond public history download used by the PBC-hosted yield-curve page. */
@@ -78,6 +87,8 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
   public async fetchRange(
     startDate: string,
     endDate: string,
+    allowPartial = false,
+    onRejected?: (message: string) => void,
   ): Promise<ChinaBondCreditCurvePoint[]> {
     assertDateRange(startDate, endDate);
     const parameters = new URLSearchParams({
@@ -88,7 +99,7 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
       locale: 'cn_ZH',
     });
     const workbook = await this.fetchWorkbook(`${HISTORY_ENDPOINT}?${parameters}`);
-    return parseChinaBondCurveWorkbook(workbook, startDate, endDate);
+    return parseChinaBondCurveWorkbook(workbook, startDate, endDate, allowPartial, onRejected);
   }
 
   /**
@@ -122,6 +133,9 @@ export class ChinaBondPublicCurveClient implements ChinaBondCreditCurveClient {
         }
         lastError = statusError;
       } catch (error) {
+        if (error instanceof MarketSyncBudgetError) {
+          throw error;
+        }
         if (
           error instanceof ChinaBondHttpStatusError &&
           !RETRYABLE_HTTP_STATUSES.has(error.status)
@@ -155,6 +169,8 @@ export function parseChinaBondCurveWorkbook(
   workbook: Uint8Array,
   startDate: string,
   endDate: string,
+  allowPartial = false,
+  onRejected?: (message: string) => void,
 ): ChinaBondCreditCurvePoint[] {
   assertDateRange(startDate, endDate);
   if (workbook.byteLength > 20_000_000) {
@@ -182,11 +198,19 @@ export function parseChinaBondCurveWorkbook(
     }
   }
   if (termsByColumn.size !== TERM_BY_HEADER.size) {
-    throw new Error(
-      `ChinaBond public curve workbook has ${termsByColumn.size}/${TERM_BY_HEADER.size} expected terms`,
-    );
+    const message = `ChinaBond public curve workbook has ${termsByColumn.size}/${TERM_BY_HEADER.size} expected terms`;
+    if (!allowPartial) {
+      throw new Error(message);
+    }
+    onRejected?.(message);
   }
 
+  const reject = (message: string) => {
+    if (!allowPartial) {
+      throw new Error(message);
+    }
+    onRejected?.(message);
+  };
   const identities = new Set<string>();
   const points: ChinaBondCreditCurvePoint[] = [];
   for (const row of rows.slice(1)) {
@@ -195,9 +219,16 @@ export function parseChinaBondCurveWorkbook(
     if (!curveCode) {
       continue;
     }
-    const tradeDate = normalizeSourceDate(row.B);
+    let tradeDate: string;
+    try {
+      tradeDate = normalizeSourceDate(row.B);
+    } catch (error) {
+      reject(error instanceof Error ? error.message : String(error));
+      continue;
+    }
     if (tradeDate < startDate || tradeDate > endDate) {
-      throw new Error(`ChinaBond public curve source returned out-of-range date ${tradeDate}`);
+      reject(`ChinaBond public curve source returned out-of-range date ${tradeDate}`);
+      continue;
     }
     for (const [column, termYears] of termsByColumn) {
       const rawYield = row[column]?.trim();
@@ -206,13 +237,24 @@ export function parseChinaBondCurveWorkbook(
       }
       const yieldPct = Number(rawYield);
       if (!Number.isFinite(yieldPct) || yieldPct <= -10 || yieldPct >= 30) {
-        throw new Error(
+        reject(
           `ChinaBond public curve source returned invalid ${termYears}Y yield on ${tradeDate}`,
         );
+        continue;
       }
       const identity = `${curveCode}|${tradeDate}|${termYears}`;
       if (identities.has(identity)) {
-        throw new Error(`ChinaBond public curve source returned duplicate point ${identity}`);
+        reject(`ChinaBond public curve source returned duplicate point ${identity}`);
+        const previous = points.findIndex(
+          (point) =>
+            point.curveCode === curveCode &&
+            point.tradeDate === tradeDate &&
+            point.termYears === termYears,
+        );
+        if (previous >= 0) {
+          points.splice(previous, 1);
+        }
+        continue;
       }
       identities.add(identity);
       points.push({
@@ -233,7 +275,7 @@ export function parseChinaBondCurveWorkbook(
       (curve) => !observedCurves.has(curve.curveCode),
     );
     if (missingCurves.length > 0) {
-      throw new Error(
+      reject(
         `ChinaBond public curve workbook omitted required curves: ${missingCurves.map((curve) => curve.curveCode).join(', ')}`,
       );
     }
@@ -405,7 +447,8 @@ function addCalendarDays(date: string, days: number): string {
 /**
  * 为传输失败补充诊断，保留下载类型和底层原因；不包装工作簿解析。
  *
- * Add transport diagnostics while preserving download identity and causes; exclude workbook parsing.
+ * Add transport diagnostics while preserving download identity and causes; exclude workbook
+ * parsing.
  */
 function diagnosticError(error: unknown): Error {
   const underlying = error instanceof MarketSourceDownloadError ? error.cause : error;

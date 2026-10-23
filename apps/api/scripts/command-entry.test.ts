@@ -26,9 +26,6 @@ async function createFixture(directory: string, compiled: boolean): Promise<stri
     }),
   );
   for (const name of [
-    'sync/index',
-    'sync/arguments',
-    'sync/commands',
     'command-entry',
     'audit/index',
     'audit/commands',
@@ -45,7 +42,7 @@ async function createFixture(directory: string, compiled: boolean): Promise<stri
     await mkdir(dirname(outputPath), { recursive: true });
     await writeFile(outputPath, output);
   }
-  for (const name of ['infra/cli/arguments', 'market/sync/arguments', 'market/sync/commands']) {
+  for (const name of ['infra/cli/arguments']) {
     const source = await readFile(new URL(`../src/${name}.ts`, import.meta.url), 'utf8');
     const output = compiled
       ? ts.transpileModule(source, {
@@ -65,13 +62,6 @@ async function createFixture(directory: string, compiled: boolean): Promise<stri
 }
 
 const commandCases = [
-  {
-    entry: 'sync/index',
-    family: 'sync',
-    task: 'stock-prices',
-    target: 'src/maintenance/staging/coordinator',
-    args: ['20250101', '20251231'],
-  },
   {
     entry: 'audit/index',
     family: 'data:audit',
@@ -136,9 +126,7 @@ describe('API command executable boundary', () => {
         await writeFile(join(directory, '.env'), 'JIXIE_COMMAND_FIXTURE=from-api-env\n');
         await writeFile(
           join(outputDirectory, `${command.target}.${extension}`),
-          command.family === 'sync'
-            ? `export async function runStagedMaintenance(command, args) { if (command !== 'sync') throw new Error('Wrong command'); console.log(JSON.stringify({ cwd: process.cwd(), args: args.slice(1), value: process.env.JIXIE_COMMAND_FIXTURE })); process.exitCode = 7; }`
-            : `
+          `
 console.log(JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2), value: process.env.JIXIE_COMMAND_FIXTURE }));
 process.exitCode = 7;
 `,

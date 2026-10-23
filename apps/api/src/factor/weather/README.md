@@ -11,3 +11,5 @@
 改方法和版本冻结先看 `factorWeatherMethodology` 与 pins；改恢复／并发／观察点先看 refresh 和 [refresh.test.ts](refresh.test.ts)。权限与忙碌拒绝看 [路由集成测试](../routes/index.integration.test.ts)，背景见 [天气设计](../../../../../docs/design/factor-weather.md)。
 
 [返回 Factor 总览](../README.md)
+
+统一同步通过 `invalidation.ts` 按真实输入变化设置最早 dirtyFrom；无关参考元数据和全局 revision 增长不会触发全历史重跑。公式/审计版本变化可以全量重算。dirtyFrom 之后的旧点在重新合格前不显示；新点与状态一起提交并核对输入修订。旧 FactorReport 和封存 Research 不在此刷新范围。

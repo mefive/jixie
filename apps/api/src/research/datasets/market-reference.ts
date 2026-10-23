@@ -1,4 +1,5 @@
 import { getDatabase } from '#infra/database/prisma.js';
+import { currentDerivedRows } from '#market/state/current.js';
 
 /**
  * 指定受控参考数据的身份和日期范围。
@@ -76,7 +77,9 @@ export async function loadResearchIndustryState(request: ResearchReferenceDatase
     },
     orderBy: { tradeDate: 'asc' },
   });
-  return rows.map((row) => ({
+  const current = await currentDerivedRows(rows);
+
+  return current.map((row) => ({
     date: row.tradeDate,
     industry_code: row.l1Code,
     industry_name: row.l1Name,

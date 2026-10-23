@@ -205,7 +205,7 @@ export function buildCommodityHoldingFetchRanges(
  * Fetch every page for one representative-contract spell and detect ignored offset pagination.
  */
 export async function fetchCommodityHoldingRange(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   range: CommodityHoldingFetchRange,
 ): Promise<FutureHoldingRow[]> {
   const rows: FutureHoldingRow[] = [];
@@ -397,7 +397,7 @@ export function buildCommodityHoldingPositions(
  * Sync daily aggregates for AU/CU/M; SC is deliberately excluded until Tushare returns INE rows.
  */
 export async function syncCommodityHoldingPositions(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   startDate: string,
   endDate: string,
   database: Prisma = getDatabase(),

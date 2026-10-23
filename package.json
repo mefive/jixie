@@ -20,8 +20,6 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "maintenance": "pnpm --filter api maintenance",
-    "import:data": "./scripts/maintenance/import-market-data.sh",
     "signals:run": "pnpm --filter api signals:run",
     "loc": "node scripts/tools/loc.mjs",
     "prepare": "simple-git-hooks",
@@ -29,10 +27,10 @@
     "check:commit-message": "node --test scripts/checks/check-commit-message.test.mjs && node scripts/checks/check-commit-message.mjs",
     "e2e": "node scripts/e2e/run.mjs",
     "docs:images": "node scripts/e2e/docs-images.mjs",
-    "sync": "pnpm --filter api sync",
     "data:audit": "pnpm --filter api data:audit",
     "probe": "pnpm --filter api probe",
-    "setup:sandbox": "node --import tsx scripts/sandbox/setup.ts"
+    "setup:sandbox": "node --import tsx scripts/sandbox/setup.ts",
+    "data": "pnpm --filter api data"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",

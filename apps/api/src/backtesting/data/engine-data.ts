@@ -199,7 +199,8 @@ export class EngineData {
   /**
    * 返回预载的指数收盘序列，供调用方按净值日期对齐后计算超额收益与信息比率。
    *
-   * Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller aligns to nav).
+   * Index daily close series (sync, from the preload) — the excess-return/IR benchmark (caller
+   * aligns to nav).
    */
   indexCloses(code: string): { date: string; close: number }[] {
     const s = this.indexByCode.get(code);
@@ -269,7 +270,8 @@ export class EngineData {
   /**
    * 读取不晚于指定日期的最近指数收盘，未同步或尚无数据时返回 null。
    *
-   * Index close as-of `date` (latest index date ≤ date); null if the index isn't synced / no data yet.
+   * Index close as-of `date` (latest index date ≤ date); null if the index isn't synced / no data
+   * yet.
    * Powers ctx.index(code).close — point-in-time, no forward data.
    */
   indexCloseAsOf(code: string, date: string): number | null {
@@ -365,7 +367,8 @@ export class EngineData {
   /**
    * 按需求预载交易日历、证券身份、行情及辅助数据，并建立同步读取索引与缓存。
    *
-   * Preload calendars, instrument identities, prices and requested auxiliary data, then build synchronous lookup indexes and caches.
+   * Preload calendars, instrument identities, prices and requested auxiliary data, then build
+   * synchronous lookup indexes and caches.
    */
   async load(): Promise<void> {
     // Price reads stay strictly inside [start, end]. The small calendar-only lookahead lets the last
@@ -537,7 +540,7 @@ export class EngineData {
       };
       const mf = await this.options.dataPort.moneyflowRange(this.options.start, this.options.end);
       for (const r of mf) {
-        if (mfKeys.includes('mf_net_main')) {
+        if (mfKeys.includes('mf_net_main') && r.netMain != null) {
           put('mf_net_main', r.tradeDate, r.tsCode, r.netMain);
         }
         if (mfKeys.includes('mf_net_total') && r.netTotal != null) {
@@ -793,7 +796,8 @@ export class EngineData {
   /**
    * 读取指定日龙虎榜净买入金额，单位为元；当日未上榜返回 null，不沿用前值。
    *
-   * Today's Dragon-Tiger List net buy amount (yuan) for `code`, or null if it wasn't on the Dragon-Tiger List that exact day (not carried forward).
+   * Today's Dragon-Tiger List net buy amount (yuan) for `code`, or null if it wasn't on the
+   * Dragon-Tiger List that exact day (not carried forward).
    */
   lhbNet(code: string, date: string): number | null {
     return this.lhbByDate.get(date)?.get(code) ?? null;
@@ -802,10 +806,12 @@ export class EngineData {
   /**
    * 按交易日惰性构建并缓存可交易截面，要求同日具备行情、复权和估值数据。
    *
-   * Tradable cross-section for `date` (lazy + cached). A code is included only if it has a daily bar, an
+   * Tradable cross-section for `date` (lazy + cached). A code is included only if it has a daily
+   * bar, an
    * adjustment factor, and a valuation row that day (i.e. it actually traded with valuation).
    *
-   * Pass `indexCode` to restrict to that index's point-in-time constituents — the restriction is **pushed
+   * Pass `indexCode` to restrict to that index's point-in-time constituents — the restriction is
+   * **pushed
    * into the DB query** (only those rows are read), not filtered in memory afterwards. This is the engine's
    * "universe selection" data gate (cf. LEAN coarse/fine): CSI 300 reads ~300 rows not 5370 (~15×), CSI 2000
    * ~2000 (~2×). Index-scoped panels cache under `indexCode|date`; a full panel under `date`.
@@ -892,7 +898,8 @@ export class EngineData {
   /**
    * 按因子声明的时间语义读取历史值；流量只取当日值，状态值遵守各自可得规则。
    *
-   * Stored factor value for `date`, honoring the factor's DECLARED time semantics (engine-factors.ts):
+   * Stored factor value for `date`, honoring the factor's DECLARED time semantics
+   * (engine-factors.ts):
    * flow = exact day only (yesterday's inflow is not today's — same rule as lhbNet); level = as-of
    * (latest value ≤ date) capped by the data's frequency, so a stale value can't ride forever.
    */
@@ -1158,7 +1165,8 @@ export class EngineData {
   /**
    * 读取精确日期的原始成交额，单位为千元，供滑点与市场冲击流动性约束使用。
    *
-   * Raw turnover (thousand yuan) on exactly `date` (null if the stock didn't trade that day) — the day's turnover,
+   * Raw turnover (thousand yuan) on exactly `date` (null if the stock didn't trade that day) — the
+   * day's turnover,
    * the liquidity gate for the slippage/impact model (a big order in a thin name pays more).
    */
   turnoverOn(code: string, date: string): number | null {
@@ -1203,7 +1211,8 @@ export class EngineData {
   /**
    * 读取精确日期的原始涨跌停价，供撮合拒绝受限成交。
    *
-   * Raw up/down-limit price on exactly `date` (null if the day's limit wasn't synced) — to block fills at the limit.
+   * Raw up/down-limit price on exactly `date` (null if the day's limit wasn't synced) — to block
+   * fills at the limit.
    */
   priceLimitsOn(code: string, date: string): { up: number | null; down: number | null } | null {
     const b = this.barsCache.get(code);
@@ -1315,7 +1324,8 @@ export class EngineData {
   /**
    * 读取已完成的 ISO 周或自然月行情；聚合缓存按运行复用，可见性按查询日筛选。
    *
-   * Last n completed ISO-week or natural-month bars as-of `date` (empty if daily bars aren't loaded).
+   * Last n completed ISO-week or natural-month bars as-of `date` (empty if daily bars aren't
+   * loaded).
    * The aggregate is cached once per code/timeframe for this EngineData run; visibility is sliced
    * point-in-time on every call. Volume/amount are period sums, while turnoverRateF is the mean of
    * available daily observations.

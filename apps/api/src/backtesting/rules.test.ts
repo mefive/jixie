@@ -37,7 +37,7 @@ function run(
     end: D[D.length - 1],
     initialCash: cash,
     strategy,
-    dataPort: fixturePort(spec),
+    dataPort: fixturePort({ stockPriceLimits: { up: 1000000, down: 0.0001 }, ...spec }),
     // Zero slippage keeps price assertions exact; the slippage test overrides this.
     cost: { slippageBps: 0, impactCoef: 0 },
   }).run();
@@ -231,7 +231,11 @@ describe('A 股规则:停牌与滑点', () => {
         '20240101': (ctx) => ctx.stock.orderAdjustedShares('A', 100),
         '20240102': (ctx) => ctx.stock.closePosition('A'),
       }),
-      dataPort: fixturePort({ dates: D, stocks: [flatStock()] }),
+      dataPort: fixturePort({
+        stockPriceLimits: { up: 1000000, down: 0.0001 },
+        dates: D,
+        stocks: [flatStock()],
+      }),
       cost: { slippageBps: 20, impactCoef: 0 }, // 0.2% base, no impact term
     }).run();
     const [buy, sell] = result.tradeLog;

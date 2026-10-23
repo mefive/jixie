@@ -86,6 +86,7 @@ _MARKET_STATE_COLUMNS = [
 ]
 
 _EQUITY_FUNDAMENTAL_COLUMNS = [
+    "announcement_date", "availability_quality", "observed_at",
     "date",
     "report_period",
     "roe_pct",
@@ -147,6 +148,7 @@ _EQUITY_FLOW_COLUMNS = [
 ]
 
 _EQUITY_DIVIDEND_COLUMNS = [
+    "ex_date", "availability_quality", "observed_at",
     "date",
     "report_period",
     "announcement_date",
@@ -401,7 +403,7 @@ class _DataApi:
             {"identifier": identifier, "start": start, "end": end},
         )
         return self._dataset_frame(
-            result, _EQUITY_FUNDAMENTAL_COLUMNS, ["date", "report_period"]
+            result, _EQUITY_FUNDAMENTAL_COLUMNS, ["date", "announcement_date", "report_period"]
         )
 
     def equity_financial_values(
@@ -509,7 +511,7 @@ class _DataApi:
             {"identifier": identifier, "start": start, "end": end},
         )
         return self._dataset_frame(
-            result, _EQUITY_DIVIDEND_COLUMNS, ["date", "report_period"]
+            result, _EQUITY_DIVIDEND_COLUMNS, ["date", "ex_date", "report_period"]
         )
 
     def etf_shares(self, identifier: str, *, start: str, end: str) -> Any:

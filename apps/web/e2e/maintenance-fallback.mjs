@@ -29,7 +29,7 @@ await context.route('**/api/maintenance/status', (route) => {
     phase: maintenancePhase,
     active: maintenancePhase === 'publishing',
     stage: maintenancePhase === 'publishing' ? 'publishing' : null,
-    kind: maintenancePhase === 'idle' ? null : 'daily',
+    kind: maintenancePhase === 'idle' ? null : 'sync',
   });
 });
 await context.route('**/api/maintenance/version', (route) =>
@@ -70,6 +70,7 @@ try {
     throw new Error(`unexpected page errors: ${pageErrors.join('; ')}`);
   }
 
+  await page.getByText('等待完整输入', { exact: true }).waitFor();
   maintenancePhase = 'preparing';
   await page.getByText('数据准备中', { exact: true }).waitFor({ timeout: 10_000 });
   if (await page.locator('.jx-maintenanceGate').count()) {
@@ -119,11 +120,19 @@ function inactiveMaintenanceStatus() {
     active: false,
     runId: null,
     kind: null,
-    startDate: null,
-    endDate: null,
-    completedDates: 0,
-    totalDates: 0,
-    lastSuccessfulDailyDate: '20260805',
+    targetDate: '20260805',
+    running: false,
+    revision: 7,
+    coverage: [
+      {
+        dataset: 'stock-prices',
+        scope: 'all',
+        maxObservedDate: '20260805',
+        verifiedThrough: null,
+        pending: 1,
+        errors: 0,
+      },
+    ],
     stage: null,
     startedAt: null,
     heartbeatAt: null,
@@ -153,14 +162,14 @@ function marketWeatherSeries() {
             benchmarkCode: null,
             benchmarkName: null,
             relativeReturn: null,
-            heatScore: 61,
-            heatChange: 4,
-            activityScore: 58,
-            breadthScore: 65,
+            heatScore: null,
+            heatChange: null,
+            activityScore: null,
+            breadthScore: null,
             valuationPercentile: 32,
             valuationSource: 'official',
-            state: 'warming',
-            coverage: 'full',
+            state: 'waiting',
+            coverage: 'partial',
           },
         ],
       },

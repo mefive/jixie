@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   settle: vi.fn(),
   claim: vi.fn(),
   execute: vi.fn(),
+  recover: vi.fn(),
 }));
 vi.mock('#infra/database/prisma.js', async () => {
   const mocked = {
@@ -34,15 +35,24 @@ vi.mock('#infra/database/prisma.js', async () => {
   };
 });
 vi.mock('#jobs/job-service.js', () => ({
-  JobService: { claim: mocks.claim, execute: mocks.execute },
+  JobService: { claim: mocks.claim, execute: mocks.execute, recoverInterrupted: mocks.recover },
 }));
 vi.mock('#jobs/register.js', () => ({ registerJobLifecycles: vi.fn() }));
 vi.mock('../runs/enqueue.js', () => ({ enqueueSignalRun: mocks.enqueue }));
 vi.mock('../accounting/settlement.js', () => ({ settleStrategyAccounts: mocks.settle }));
-vi.mock('./sync.js', () => ({ syncSignalMarketData: vi.fn() }));
 
 describe('Daily signal rejection handling', () => {
-  beforeEach(() => vi.resetAllMocks());
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.settle.mockResolvedValue({
+      deployments: 0,
+      done: 0,
+      waiting: 0,
+      errors: 0,
+      gaps: [],
+      failures: [],
+    });
+  });
 
   it('counts a business rejection and continues to the next deployment', async () => {
     mocks.enqueue
@@ -51,18 +61,36 @@ describe('Daily signal rejection handling', () => {
     const log = vi.fn();
     await expect(generateDailySignals('20260917', log)).resolves.toEqual({
       deployments: 2,
+      accounts: { deployments: 0, done: 0, waiting: 0, errors: 0, gaps: [], failures: [] },
       done: 1,
+      waiting: 0,
       errors: 1,
     });
-    expect(mocks.enqueue).toHaveBeenNthCalledWith(2, 'owner', 'second', '20260917');
+    expect(mocks.enqueue).toHaveBeenNthCalledWith(
+      2,
+      'owner',
+      'second',
+      '20260917',
+      expect.any(AbortSignal),
+    );
     expect(log).toHaveBeenCalledWith('Skipped First: paused');
   });
 
-  it('propagates infrastructure failures without misreporting them as a skipped deployment', async () => {
-    const failure = new Error('Database unavailable');
-    mocks.enqueue.mockRejectedValueOnce(failure);
-    await expect(generateDailySignals('20260917', vi.fn())).rejects.toBe(failure);
-    expect(mocks.enqueue).toHaveBeenCalledOnce();
+  it('records infrastructure failures as errors while preserving independent deployments', async () => {
+    mocks.enqueue
+      .mockRejectedValueOnce(new Error('Database unavailable'))
+      .mockResolvedValueOnce({ completion: Promise.resolve('done') });
+    const log = vi.fn();
+    await expect(generateDailySignals('20260917', log)).resolves.toEqual({
+      deployments: 2,
+      accounts: { deployments: 0, done: 0, waiting: 0, errors: 0, gaps: [], failures: [] },
+      done: 1,
+      waiting: 0,
+      errors: 1,
+    });
+    expect(log).toHaveBeenCalledWith('Skipped First: Error: Database unavailable');
+    expect(mocks.enqueue).toHaveBeenCalledTimes(2);
+    expect(mocks.recover).toHaveBeenCalledWith('signal', expect.any(AbortSignal));
   });
   it('claims and executes each CLI job serially without starting the API scheduler', async () => {
     const order: string[] = [];
@@ -79,7 +107,9 @@ describe('Daily signal rejection handling', () => {
     });
     await expect(generateDailySignals('20260917', vi.fn())).resolves.toEqual({
       deployments: 2,
+      accounts: { deployments: 0, done: 0, waiting: 0, errors: 0, gaps: [], failures: [] },
       done: 2,
+      waiting: 0,
       errors: 0,
     });
     expect(order).toEqual(['claim:first', 'execute:first', 'claim:second', 'execute:second']);
@@ -92,7 +122,9 @@ describe('Daily signal rejection handling', () => {
     mocks.claim.mockResolvedValue(false);
     await expect(generateDailySignals('20260917', vi.fn())).resolves.toEqual({
       deployments: 2,
+      accounts: { deployments: 0, done: 0, waiting: 0, errors: 0, gaps: [], failures: [] },
       done: 1,
+      waiting: 0,
       errors: 1,
     });
     expect(mocks.claim).toHaveBeenCalledExactlyOnceWith('owned');

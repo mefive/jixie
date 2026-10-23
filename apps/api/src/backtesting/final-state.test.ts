@@ -17,6 +17,7 @@ function config(): BacktestingConfig {
       },
     },
     dataPort: fixturePort({
+      stockPriceLimits: { up: 1000000, down: 0.0001 },
       dates: ['20240101', '20240102'],
       stocks: [
         {

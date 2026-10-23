@@ -12,6 +12,8 @@
 
 `coreAlreadyPublished`、`extensionsAlreadyPublished` 是上游已完成同步时的跳过标记，`refresh` 传给扩展数据同步。日期、PIT 可得性和各数据集事务仍按 [Market](../../market/README.md) 的契约；调度不把整个同步串联变成原子发布。
 
-[CLI](../cli/run-signals.ts) 负责参数、退出码和 Prisma 收尾，用法以 [脚本入口说明](../../../scripts/README.md) 为准。改编排先对照 [Maintenance daily](../../maintenance/workflows/daily.ts) 的直接调用及 [runs](../runs/README.md)、[accounting](../accounting/README.md) 的集成测试；基础数据门槛与依赖期限分别看 runs/readiness 和 [rates.test.ts](../factor-inputs/rates.test.ts)。
+[CLI](../cli/run-signals.ts) 负责参数、退出码和 Prisma 收尾，用法以 [脚本入口说明](../../../scripts/README.md) 为准。改编排先对照 [统一同步消费者](../../maintenance/consumers.ts) 的直接调用及 [runs](../runs/README.md)、[accounting](../accounting/README.md) 的集成测试；基础数据门槛与依赖期限分别看 runs/readiness 和 [rates.test.ts](../factor-inputs/rates.test.ts)。
 
 [返回 Signals 总览](../README.md)
+
+统一同步仅把已核验输入交给本消费者，Signals CLI 本身不下载数据。各部署按自己的 ETF/股票/期货、历史和因子依赖判断资格；正常等待单列，实际失败保留错误。已完成信号及已冻结账户输入不因市场修订自动覆盖，账户输入 revision 和日期均未前进时不发布重复账户代次。

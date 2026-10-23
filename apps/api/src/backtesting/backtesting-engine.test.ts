@@ -8,7 +8,11 @@ function config(): BacktestingConfig {
     start: '20240102',
     end: '20240103',
     initialCash: 10000,
-    dataPort: fixturePort({ dates: ['20240102', '20240103'], stocks: [] }),
+    dataPort: fixturePort({
+      stockPriceLimits: { up: 1000000, down: 0.0001 },
+      dates: ['20240102', '20240103'],
+      stocks: [],
+    }),
     strategy: { name: 'lifecycle', onBar: vi.fn() },
   };
 }
@@ -127,6 +131,7 @@ describe('cash-account attribution without factors', () => {
   it('attributes stock trades without factor metadata and marks their class as other', async () => {
     const input = config();
     input.dataPort = fixturePort({
+      stockPriceLimits: { up: 1000000, down: 0.0001 },
       dates: ['20240102', '20240103'],
       stocks: [
         {

@@ -6,7 +6,6 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isMainThread } from 'node:worker_threads';
-import { getStagingContext } from './staging-input.js';
 import { BusinessError } from '../errors.js';
 
 /**
@@ -53,10 +52,6 @@ export interface MarketReaderScope extends MarketLock {
 const readers = new AsyncLocalStorage<ReaderScope>();
 const owners = new AsyncLocalStorage<MarketLock>();
 
-export function isStagingDatabase(): boolean {
-  return getStagingContext() !== undefined;
-}
-
 /**
  * 按源代码或编译布局解析 Prisma 相对路径，正式身份不随暂存库改变。
  *
@@ -85,9 +80,7 @@ export function databaseFilename(url = process.env.DATABASE_URL): string {
 }
 
 export async function marketLockDirectory(): Promise<string> {
-  return realpath(
-    dirname(databaseFilename(getStagingContext()?.formalUrl ?? process.env.DATABASE_URL)),
-  );
+  return realpath(dirname(databaseFilename(process.env.DATABASE_URL)));
 }
 
 /**
@@ -201,7 +194,11 @@ async function matchesLockFile(filename: string, descriptor: number): Promise<bo
   return Boolean(expected?.isFile() && expected.dev === actual.dev && expected.ino === actual.ino);
 }
 
-/** 只回收无人持有且路径身份一致的 owner 文件。 / Reclaim only idle owner files with matching path identity. */
+/**
+ * 只回收无人持有且路径身份一致的 owner 文件。
+ *
+ * Reclaim only idle owner files with matching path identity.
+ */
 export async function cleanupOwnerLocks(
   apply: boolean,
 ): Promise<Array<{ file: string; result: string }>> {
@@ -242,7 +239,11 @@ export async function cleanupOwnerLocks(
   return results;
 }
 
-/** 仅将已验证的 M 描述符传给本轮子进程。 / Pass only the verified M descriptor to this run's children. */
+/**
+ * 仅将已验证的 M 描述符传给本轮子进程。
+ *
+ * Pass only the verified M descriptor to this run's children.
+ */
 export function maintenanceLockDescriptor(): number {
   const owner = owners.getStore();
   owner?.assertHeld();
@@ -284,7 +285,7 @@ export async function acquireMarketReader(): Promise<MarketLock> {
 }
 
 export async function withMarketAccess<Result>(operation: () => Promise<Result>): Promise<Result> {
-  if (readers.getStore()?.active || isStagingDatabase()) {
+  if (readers.getStore()?.active) {
     return operation();
   }
   const scope = await acquireMarketScope();
@@ -417,9 +418,7 @@ export async function acquireMarketScope(): Promise<MarketReaderScope> {
     : {
         active: true,
         references: 0,
-        lock: isStagingDatabase()
-          ? { assertHeld() {}, async release() {} }
-          : await acquireMarketReader(),
+        lock: await acquireMarketReader(),
       };
   scope.references++;
   let retained = true;
@@ -460,7 +459,11 @@ export async function withRetainedMarketAccess<Result>(
   }
 }
 
-/** 跨进程工作所有权使用稳定摘要，兼容业务 ID。 / Hash business IDs into stable cross-process ownership names. */
+/**
+ * 跨进程工作所有权使用稳定摘要，兼容业务 ID。
+ *
+ * Hash business IDs into stable cross-process ownership names.
+ */
 export async function acquireWorkOwner(kind: string, id: string): Promise<MarketLock> {
   return acquireMarketLock(`owner-${createHash('sha256').update(`${kind}:${id}`).digest('hex')}`);
 }

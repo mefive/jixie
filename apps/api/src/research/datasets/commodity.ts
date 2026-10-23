@@ -1,3 +1,4 @@
+import { currentCommodityRows } from '#market/state/current.js';
 import type {
   ResearchCommodityHoldingProductCodeV1,
   ResearchCommodityProductCodeV1,
@@ -43,7 +44,7 @@ export async function loadResearchCommodityReturns(
     },
     orderBy: { availableDate: 'asc' },
   });
-  return rows.map((row) => ({
+  return (await currentCommodityRows(rows)).map((row) => ({
     date: row.availableDate,
     trade_date: row.tradeDate,
     product: row.productCode,

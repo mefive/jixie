@@ -11,7 +11,8 @@ export type MarketWeatherState =
   | 'overheated'
   | 'crowded'
   | 'cooling'
-  | 'balanced';
+  | 'balanced'
+  | 'waiting';
 
 /**
  * 呈现市场或指数气象的指标与分类，供看板卡片。
@@ -25,7 +26,7 @@ export interface MarketWeatherItem {
   benchmarkCode: string | null;
   benchmarkName: string | null;
   relativeReturn: number | null;
-  heatScore: number;
+  heatScore: number | null;
   heatChange: number | null;
   activityScore: number | null;
   breadthScore: number | null;
@@ -79,7 +80,8 @@ export type IndustryWeatherState =
   | 'overheated'
   | 'crowded'
   | 'cooling'
-  | 'balanced';
+  | 'balanced'
+  | 'waiting';
 
 /**
  * 保留行业指标、表现和气象分类。
@@ -90,10 +92,10 @@ export interface IndustryWeatherItem {
   l1Code: string;
   l1Name: string;
   periodReturn: number | null;
-  heatScore: number;
+  heatScore: number | null;
   heatChange: number | null;
-  activityScore: number;
-  breadthScore: number;
+  activityScore: number | null;
+  breadthScore: number | null;
   valuationPercentile: number | null;
   state: IndustryWeatherState;
 }
@@ -152,7 +154,7 @@ export interface MarketStatePoint {
   aboveMa60Ratio: number | null;
   totalAmount: number | null;
   extremeMoveRatio: number | null;
-  limitUpCount: number;
-  limitDownCount: number;
+  limitUpCount: number | null;
+  limitDownCount: number | null;
   tradedCount: number;
 }

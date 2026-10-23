@@ -13,7 +13,7 @@ describe('native API imports', () => {
       import('tsx/esm/api').then(async ({ register }) => {
         register();
         const date = await import('#date');
-        const maintenance = await import('#maintenance/workflows/daily-schedule.js');
+        const maintenance = await import('#maintenance/cli/data.js');
         parentPort.postMessage({ date: Object.keys(date).sort(), maintenance: Object.keys(maintenance).sort() });
       });
     `;
@@ -28,7 +28,7 @@ describe('native API imports', () => {
         `
           import { Worker } from 'node:worker_threads';
           import * as date from '#date';
-          import * as maintenance from '#maintenance/workflows/daily-schedule.js';
+          import * as maintenance from '#maintenance/cli/data.js';
           const worker = new Worker(${JSON.stringify(workerCode)}, {
             eval: true,
             execArgv: ['--conditions=development'],
@@ -43,7 +43,7 @@ describe('native API imports', () => {
     );
     const result = JSON.parse(stdout);
     expect(result.main.date.length).toBeGreaterThan(0);
-    expect(result.main.maintenance).toContain('shouldSkipScheduledClosedDay');
+    expect(result.main.maintenance).toContain('parseDataArguments');
     expect(result.worker).toEqual(result.main);
   });
 
@@ -56,7 +56,7 @@ describe('native API imports', () => {
         `console.log(JSON.stringify([
           import.meta.resolve('#date'),
           import.meta.resolve('#jobs/job-service.js'),
-          import.meta.resolve('#maintenance/workflows/daily-schedule.js'),
+          import.meta.resolve('#maintenance/cli/data.js'),
         ]));`,
       ],
       { cwd: apiDirectory, env: { ...process.env, NODE_OPTIONS: '' }, timeout: 15_000 },
@@ -64,7 +64,7 @@ describe('native API imports', () => {
     expect(JSON.parse(stdout)).toEqual([
       new URL('../dist/src/date.js', import.meta.url).href,
       new URL('../dist/src/jobs/job-service.js', import.meta.url).href,
-      new URL('../dist/src/maintenance/workflows/daily-schedule.js', import.meta.url).href,
+      new URL('../dist/src/maintenance/cli/data.js', import.meta.url).href,
     ]);
   });
 

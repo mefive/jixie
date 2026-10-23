@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { installMarketWeatherFixture } from './fixtures/market-weather.mjs';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
@@ -7,8 +8,13 @@ mkdirSync(SHOTS, { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+if (process.env.E2E_MARKET_FIXTURE === '1') {
+  await installMarketWeatherFixture(context);
+}
+
 const page = await context.newPage();
-page.on('pageerror', (error) => console.log('[pageerror]', error.message));
+const pageErrors = [];
+page.on('pageerror', (error) => pageErrors.push(error.message));
 
 try {
   await page.goto(BASE, { waitUntil: 'networkidle' });
@@ -77,6 +83,10 @@ try {
     throw new Error(`expected no mobile horizontal overflow, got ${mobileOverflow}px`);
   }
   await page.screenshot({ path: `${SHOTS}market-weather-mobile.png`, fullPage: true });
+
+  if (pageErrors.length > 0) {
+    throw new Error(`unexpected page errors: ${pageErrors.join('; ')}`);
+  }
 
   console.log(
     '[market-state-e2e] four card dimensions, timeline, drawer, and mobile layout passed',

@@ -1,7 +1,11 @@
-import { withMarketAccess, MarketAccessBusyError } from '#infra/coordination/market-access.js';
+import {
+  withMarketAccess,
+  MarketAccessBusyError,
+  isMarketPublicationActive,
+} from '#infra/coordination/market-access.js';
 import type { MiddlewareHandler } from 'hono';
 import { MaintenanceError } from './errors.js';
-import { getMaintenanceStatus } from './runs/state.js';
+import { getMaintenanceStatus } from './status.js';
 
 export const maintenanceGate: MiddlewareHandler = async (context, next) => {
   // 订阅和取消不读取市场快照，发布等待期间仍允许释放在途任务。
@@ -11,8 +15,7 @@ export const maintenanceGate: MiddlewareHandler = async (context, next) => {
     await next();
     return;
   }
-  const status = await getMaintenanceStatus();
-  if (!status.active) {
+  if (!(await isMarketPublicationActive())) {
     try {
       await withMarketAccess(next);
       return;
@@ -25,6 +28,6 @@ export const maintenanceGate: MiddlewareHandler = async (context, next) => {
     }
   }
 
-  context.header('Retry-After', String(status.retryAfterSeconds));
-  throw new MaintenanceError('in_progress', { details: status });
+  context.header('Retry-After', '5');
+  throw new MaintenanceError('in_progress', { details: await getMaintenanceStatus() });
 };

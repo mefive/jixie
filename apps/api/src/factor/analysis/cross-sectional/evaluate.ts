@@ -64,7 +64,8 @@ const NEUTRAL_MIN_GROUP = 5; // industries smaller than this are merged into the
 /**
  * 将样本数不足的行业组并入最大组，避免小组中性化退化。
  *
- * Relabel members of any group smaller than NEUTRAL_MIN_GROUP into the largest group, so a handful of
+ * Relabel members of any group smaller than NEUTRAL_MIN_GROUP into the largest group, so a handful
+ * of
  * lone-industry stocks don't each form their own (degenerate, residual-zero) demeaning bucket.
  */
 function mergeSmallGroups(groups: string[]): string[] {
@@ -84,7 +85,8 @@ function mergeSmallGroups(groups: string[]): string[] {
 /**
  * 按调仓日原位替换为规模或行业中性化残差，保持评估使用同一处理后序列。
  *
- * Replace each rebalance date's factor values with their neutralized residuals (in place on the map).
+ * Replace each rebalance date's factor values with their neutralized residuals (in place on the
+ * map).
  * 'size' regresses out log(total market cap); 'size_industry' additionally removes SW level-1 industry
  * means (FWL — see stats.residualize). Stocks without a positive market cap that day are dropped (can't
  * be size-neutralized); with industry mode, stocks with no known industry go to an 'unknown' bucket that
@@ -151,7 +153,8 @@ function neutralizeCandidates<T extends { tsCode: string; value: number; mktcap:
 /**
  * 按冻结的频率和日期范围计算截面分组、Rank IC、多空收益、成本及稳健推断。
  *
- * Analyze one factor over a (freq, start, end) window: monthly/weekly cross-sectional deciles + Rank IC
+ * Analyze one factor over a (freq, start, end) window: monthly/weekly cross-sectional deciles +
+ * Rank IC
  * + long-short. Values are computed on the fly and held only for this call — the caller persists the
  * returned report, not the values.
  */
@@ -287,7 +290,7 @@ export async function analyzeFactor(
     }
   }
   onLog(t(locale, 'factorLoadingDecaySnapshots', { count: forwardDates.size }));
-  const forwardSnaps = await loadSnapshots([...forwardDates]);
+  const forwardSnaps = await loadSnapshots([...forwardDates], false, 'forward');
   const decaySeries: number[][] = IC_DECAY_HORIZONS.map(() => []);
 
   // List date per stock, to enforce the configured minimum listing age. Missing metadata fails open.
@@ -379,7 +382,7 @@ export async function analyzeFactor(
     for (const { tsCode, value } of factorValues) {
       const a = snapDate.get(tsCode);
       const b = snapNextDate.get(tsCode);
-      if (!a || !b) {
+      if (!a || !b || a.amount == null || a.mktcap == null) {
         continue;
       }
       candidates.push({
@@ -642,7 +645,7 @@ export async function analyzeFactor(
         for (let i = 0; i < candidates.length; i++) {
           const a = snapDate.get(candidates[i].tsCode);
           const b = snapForward.get(candidates[i].tsCode);
-          if (!a || !b) {
+          if (!a || !b || a.amount == null || a.mktcap == null) {
             continue;
           }
           const ret = b.adjClose / a.adjClose - 1;

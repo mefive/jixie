@@ -77,7 +77,11 @@ describe('market points and weather', () => {
     expect(februaryElectronics?.periodReturn).toBeCloseTo(0.2);
     expect(februaryBank?.periodReturn).toBeCloseTo(-0.1);
     expect(februaryElectronics?.heatScore).toBeGreaterThan(februaryBank?.heatScore ?? 0);
-    expect(februaryElectronics?.heatChange).not.toBeNull();
+    expect(februaryElectronics?.heatChange).toBeNull();
+    expect(
+      monthly?.periods[2].industries.find((industry) => industry.l1Code === '801080.SI')
+        ?.heatChange,
+    ).not.toBeNull();
   });
 
   it('builds fixed grouped cards and exposes partial index metric coverage', () => {

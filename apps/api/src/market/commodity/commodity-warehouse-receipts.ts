@@ -202,7 +202,7 @@ export function buildCommodityWarehouseReceiptDaily(
  * Fetches all pages for one product slice and fails if the provider ignores offset pagination.
  */
 export async function fetchCommodityWarehouseReceiptRange(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   productCode: CommodityFutureProductCode,
   start: TradeDate,
   end: TradeDate,
@@ -246,7 +246,7 @@ export async function fetchCommodityWarehouseReceiptRange(
  * Synchronizes research-only daily warehouse-receipt aggregates in bounded monthly slices.
  */
 export async function syncCommodityWarehouseReceipts(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   start: TradeDate,
   end: TradeDate,
   database: Prisma = getDatabase(),

@@ -5,10 +5,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('#infra/coordination/market-access.js', async (original) => ({
   ...(await original<typeof import('#infra/coordination/market-access.js')>()),
   withMarketAccess: async (operation: () => Promise<unknown>) => operation(),
+  isMarketPublicationActive: mocks.publicationActive,
 }));
 
-const mocks = vi.hoisted(() => ({ getMaintenanceStatus: vi.fn(), protectedHandler: vi.fn() }));
-vi.mock('./runs/state.js', () => ({ getMaintenanceStatus: mocks.getMaintenanceStatus }));
+const mocks = vi.hoisted(() => ({
+  getMaintenanceStatus: vi.fn(),
+  protectedHandler: vi.fn(),
+  publicationActive: vi.fn(),
+}));
+vi.mock('./status.js', () => ({ getMaintenanceStatus: mocks.getMaintenanceStatus }));
 
 import { maintenanceGate } from './middleware.js';
 import { maintenanceRoute } from './routes.js';
@@ -24,6 +29,7 @@ app.get('/api/app/resource', (context) => {
 describe('maintenance HTTP entry', () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    mocks.publicationActive.mockResolvedValue(false);
   });
 
   it('keeps maintenance status publicly readable while maintenance is active', async () => {
@@ -37,7 +43,8 @@ describe('maintenance HTTP entry', () => {
     expect(mocks.protectedHandler).not.toHaveBeenCalled();
   });
 
-  it('blocks protected handlers and exposes the retry interval during maintenance', async () => {
+  it('blocks protected handlers and exposes the retry interval during live publication', async () => {
+    mocks.publicationActive.mockResolvedValue(true);
     const status = { active: true, runId: 'maintenance-run', retryAfterSeconds: 5 };
     mocks.getMaintenanceStatus.mockResolvedValue(status);
 
@@ -60,5 +67,15 @@ describe('maintenance HTTP entry', () => {
     expect(await response.json()).toEqual({ ok: true });
     expect(response.headers.get('Retry-After')).toBeNull();
     expect(mocks.protectedHandler).toHaveBeenCalledOnce();
+  });
+
+  it('R08/A12 keeps access open for old status records when no publication lock is held', async () => {
+    mocks.getMaintenanceStatus.mockResolvedValue({ active: true, retryAfterSeconds: 5 });
+    mocks.publicationActive.mockResolvedValue(false);
+    const response = await app.request('/api/app/resource');
+
+    expect(response.status).toBe(200);
+    expect(mocks.protectedHandler).toHaveBeenCalledOnce();
+    expect(mocks.getMaintenanceStatus).not.toHaveBeenCalled();
   });
 });

@@ -492,3 +492,15 @@
     @apply hidden;
   }
 }
+
+.jx-industryWeather-card--state-waiting {
+  @apply opacity-60;
+}
+
+.jx-industryWeather-historyCell--unknown {
+  @apply bg-gray-100;
+}
+
+.jx-industryWeather-card--unknown {
+  @apply bg-gray-100;
+}

@@ -49,7 +49,9 @@ export async function listFactorWeatherPins(userId: string, locale: Locale) {
       error: pin.error ? t(locale, 'factorWeatherComputeFailed') : undefined,
       computedThrough: pin.computedThrough ?? undefined,
       codeHash: pin.factorCodeHash,
-      points: pin.points.map(toFactorWeatherPoint),
+      points: pin.points
+        .filter((point) => !pin.dirtyFrom || point.periodEndDate < pin.dirtyFrom)
+        .map(toFactorWeatherPoint),
       createdAt: pin.createdAt.toISOString(),
     })),
   };

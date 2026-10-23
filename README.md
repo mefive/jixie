@@ -73,7 +73,7 @@ packages/shared/                   # 共享类型(TsCode、TradeDate)
 
 后端当前结构与调用链见 [架构阅读地图](docs/backend-architecture.md)，运行资源见 [入口清单](docs/backend-runtime-entries.md)，开发门禁见 [依赖边界](docs/backend-boundaries.md)。分轮进度与验收结果见 [开发计划](docs/design/backend-architecture-refactor.md)。
 
-后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。行情、领域数据与同步见 [Market](apps/api/src/market/README.md)，维护编排与发布水位见 [Maintenance](apps/api/src/maintenance/README.md)。
+后端 Research 的文档、依赖、执行、证据与提案入口见 [Research 后端阅读入口](apps/api/src/research/README.md)。行情、领域数据与同步见 [Market](apps/api/src/market/README.md)，同步编排、分区覆盖与局部发布见 [Maintenance](apps/api/src/maintenance/README.md)。
 
 ## 快速开始
 
@@ -81,7 +81,7 @@ packages/shared/                   # 共享类型(TsCode、TradeDate)
 pnpm install
 # 配置 apps/api/.env：DATABASE_URL 已默认，填 TUSHARE_TOKEN
 pnpm --filter api db:migrate
-pnpm import:data                 # 首次完整导入，可续传
+pnpm data sync                   # 统一同步；首次回补也由有限批次持续推进
 pnpm setup:sandbox               # 按需准备沙盒 SDK 声明、依赖清单与本地 Python 环境
 pnpm dev                         # 同时启动 sandboxd、API 和 Web
 ```
@@ -94,9 +94,7 @@ API 与 sandboxd 测试默认使用本机 `.venv/research-py-v1`，先运行 `pn
 和固定依赖。测试启动时校验环境，缺失或不兼容就报错，不回退到系统 Python；
 `JIXIE_PYTHON_EXECUTABLE` 可覆盖解释器路径，但仍须通过相同校验。详见[测试 Python 说明](scripts/README.md#测试使用的-python)。
 
-日常数据补齐统一运行 `pnpm maintenance`；它会按连续发布水位自动判断缺失交易日。底层
-`pnpm sync <任务>` 提供定向补数；审计命令用于检查数据。部署会按需调用同步入口，但生产机器首次安装和升级的统一操作入口仍是
-`./scripts/bootstrap.sh`，详见 [`docs/deployment.md`](./docs/deployment.md)。
+数据补齐统一运行 `pnpm data sync [--to YYYYMMDD]`；目标在启动时固定，来源各自按日历与可得时间推进。合法部分数据可用，缺项留待后续批次，历史回补无需独立 import。只读审计继续保留。生产安装与升级使用 `./scripts/bootstrap.sh`，详见 [`docs/deployment.md`](./docs/deployment.md)。
 
 开发任务统一入口：
 
@@ -105,8 +103,8 @@ pnpm e2e --list                       # 浏览器验收与回归检查清单
 pnpm e2e research-autosave            # 单项执行
 pnpm e2e --group research --list      # 只查看分组；移除 --list 才执行
 pnpm docs:images --list               # 帮助图片采集及标注
-pnpm sync --list                      # 数据同步任务清单
-pnpm sync etf --help                  # 单项参数说明，不连接数据库
+pnpm data sync --help                # 统一数据同步帮助
+pnpm data sync --to 20260915          # 固定目标日期；不删除更晚的现有数据
 pnpm data:audit --list                # 数据质量与覆盖审计
 pnpm probe --list                     # 外部数据源连通性及能力探测
 ```

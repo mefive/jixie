@@ -44,6 +44,7 @@ async function data(missingSettlement = false, roll = false) {
     end: dates[2]!,
     strictFutures: true,
     dataPort: fixturePort({
+      stockPriceLimits: { up: 1000000, down: 0.0001 },
       dates,
       stocks: [
         { code: 'A', bars: dates.map((date) => ({ date, open: 10, high: 11, low: 9, close: 10 })) },

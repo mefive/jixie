@@ -1,3 +1,6 @@
+import { localDate } from '#market/synchronization/date.js';
+import { currentDerivedRows } from '#market/state/current.js';
+import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
 import type { ResearchMarketStateScopeV1 } from '@jixie/shared';
 import { buildMarketStatePoints } from '#market/state/compute.js';
 import { addDays } from '#date';
@@ -45,7 +48,7 @@ export async function loadResearchMarketState(request: ResearchMarketStateReques
           },
           orderBy: { tradeDate: 'asc' },
         });
-  return buildMarketStatePoints(rows)
+  return buildMarketStatePoints(await currentDerivedRows(rows))
     .filter((row) => row.date >= request.start)
     .map((row) => ({
       date: row.date,
@@ -65,20 +68,21 @@ export async function loadResearchMarketState(request: ResearchMarketStateReques
 }
 
 /**
- * 财务指标只从其公告日期起进入研究可见范围。
+ * 财务指标按当前版本可得日进入研究可见范围。
  *
- * Load financial indicators only from their announcement date onward.
+ * Load financial indicators only from the availability of the actual retained version onward.
  */
 export async function loadResearchEquityFundamentals(request: ResearchDatedIdentifierRequestV1) {
-  const rows = await getDatabase().finaIndicator.findMany({
-    where: {
-      tsCode: request.identifier,
-      annDate: { not: null, gte: request.start, lte: request.end },
-    },
-    orderBy: [{ annDate: 'asc' }, { endDate: 'asc' }],
+  const rows = await loadIndicatorVersions({
+    tsCode: request.identifier,
+    startDate: request.start,
+    endDate: request.end,
   });
   return rows.map((row) => ({
-    date: row.annDate!,
+    date: row.availableDate,
+    announcement_date: row.annDate,
+    availability_quality: row.availabilityQuality,
+    observed_at: row.observedAt.toISOString(),
     report_period: row.endDate,
     roe_pct: row.roe,
     roe_waa_pct: row.roeWaa,
@@ -144,24 +148,56 @@ export async function loadResearchEquityFlows(request: ResearchDatedIdentifierRe
 }
 
 /**
- * 仅读取已实施分红，以除权日为可得性边界。
+ * 读取已实施分红，经济除权日与当前版本捕获可得日分开。
  *
- * Load only implemented distributions, using the ex-date as the availability gate.
+ * Load implemented distributions with separate economic ex-dates and actual captured-version
+ * availability.
  */
 export async function loadResearchEquityDividends(request: ResearchDatedIdentifierRequestV1) {
   const rows = await getDatabase().dividend.findMany({
     where: {
       tsCode: request.identifier,
       divProc: '实施',
-      exDate: { not: null, gte: request.start, lte: request.end },
+      exDate: { not: null, lte: request.end },
     },
     orderBy: [{ exDate: 'asc' }, { endDate: 'asc' }],
   });
-  return rows.map((row) => ({
-    date: row.exDate!,
-    report_period: row.endDate,
-    announcement_date: row.annDate,
-    cash_dividend_pre_tax: row.cashDiv,
-    cash_dividend_tax_basis: row.cashDivTax,
-  }));
+  const evidence = await getDatabase().marketRecordEvidence.findMany({
+    where: {
+      tableName: 'Dividend',
+      businessKey: { in: rows.map((row) => JSON.stringify([row.id])) },
+    },
+  });
+  const byKey = new Map(evidence.map((entry) => [entry.businessKey, entry]));
+  const sessions = await getDatabase().tradeCal.findMany({
+    where: { exchange: 'SSE', isOpen: 1 },
+    orderBy: { calDate: 'asc' },
+    select: { calDate: true },
+  });
+
+  return rows.flatMap((row) => {
+    const provenance = byKey.get(JSON.stringify([row.id]));
+    if (!provenance) {
+      return [];
+    }
+    const captureDate = localDate(provenance.firstObservedAt);
+    const availableDate = sessions.find((session) => session.calDate > captureDate)?.calDate;
+    const date = availableDate && availableDate > row.exDate! ? availableDate : row.exDate!;
+    if (!availableDate || date < request.start || date > request.end) {
+      return [];
+    }
+
+    return [
+      {
+        date,
+        ex_date: row.exDate!,
+        availability_quality: provenance.availabilityQuality,
+        observed_at: provenance.firstObservedAt.toISOString(),
+        report_period: row.endDate,
+        announcement_date: row.annDate,
+        cash_dividend_pre_tax: row.cashDiv,
+        cash_dividend_tax_basis: row.cashDivTax,
+      },
+    ];
+  });
 }

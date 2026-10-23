@@ -25,8 +25,8 @@ export interface MarketIndicatorRow {
   floatWeightedTurnoverRate: number | null;
   topFivePercentAmountShare: number | null;
   extremeMoveRatio: number | null;
-  limitUpCount: number;
-  limitDownCount: number;
+  limitUpCount: number | null;
+  limitDownCount: number | null;
   membershipDate?: string;
 }
 
@@ -237,18 +237,26 @@ export function buildIndustryWeatherSeries(
      */
     const industries = snapshotRows.map((row): IndustryWeatherItem => {
       const periodReturn = periodReturnsByCode.get(row.l1Code) ?? null;
-      const trendScore = scorePercentile(trendValues, periodReturn) ?? 0;
-      const breadthScore = (industryBreadth(row) ?? 0) * 100;
+      const trendScore = scorePercentile(trendValues, periodReturn);
+      const rawBreadth = industryBreadth(row);
+      const breadthScore = rawBreadth == null ? null : rawBreadth * 100;
       const lookupKey = `${row.l1Code}:${boundary.snapshotDate}`;
-      const activityScore = (activityPercentiles.get(lookupKey) ?? 0) * 100;
+      const rawActivity = activityPercentiles.get(lookupKey);
+      const activityScore = rawActivity == null ? null : rawActivity * 100;
       const valuationPercentile = average([
         pePercentiles.get(lookupKey) ?? null,
         pbPercentiles.get(lookupKey) ?? null,
       ]);
-      const heatScore = average([trendScore, breadthScore, activityScore]) ?? 0;
+      const heatScore =
+        trendScore == null || breadthScore == null || activityScore == null
+          ? null
+          : average([trendScore, breadthScore, activityScore]);
       const previousHeat = previousHeatByCode.get(row.l1Code);
-      const heatChange = previousHeat == null ? null : heatScore - previousHeat;
-      previousHeatByCode.set(row.l1Code, heatScore);
+      const heatChange =
+        previousHeat == null || heatScore == null ? null : heatScore - previousHeat;
+      if (heatScore != null) {
+        previousHeatByCode.set(row.l1Code, heatScore);
+      }
 
       return {
         l1Code: row.l1Code,
@@ -270,7 +278,9 @@ export function buildIndustryWeatherSeries(
       };
     });
 
-    industries.sort((left, right) => right.heatScore - left.heatScore);
+    industries.sort(
+      (left, right) => (right.heatScore ?? -Infinity) - (left.heatScore ?? -Infinity),
+    );
     return { ...boundary, industries };
   });
 
@@ -316,7 +326,7 @@ export function industryWeatherToMarketWeather(
         valuationPercentile: industry.valuationPercentile,
         valuationSource: industry.valuationPercentile == null ? null : 'official',
         state: industry.state,
-        coverage: 'full',
+        coverage: industry.heatScore == null ? 'partial' : 'full',
       })),
     })),
   };
@@ -457,10 +467,16 @@ export function buildIndexWeatherSeries(
       const activityScore = activityPercentile == null ? null : activityPercentile * 100;
       const normalizedBreadth = breadthScore == null ? null : breadthScore * 100;
       const normalizedValuation = valuationPercentile == null ? null : valuationPercentile * 100;
-      const heatScore = average([trendScore, normalizedBreadth, activityScore]) ?? 0;
+      const heatScore =
+        trendScore == null || normalizedBreadth == null || activityScore == null
+          ? null
+          : average([trendScore, normalizedBreadth, activityScore]);
       const previousHeat = previousHeatByCode.get(code);
-      const heatChange = previousHeat == null ? null : heatScore - previousHeat;
-      previousHeatByCode.set(code, heatScore);
+      const heatChange =
+        previousHeat == null || heatScore == null ? null : heatScore - previousHeat;
+      if (heatScore != null) {
+        previousHeatByCode.set(code, heatScore);
+      }
       const item = {
         code,
         name: metadataByCode.get(code)?.name ?? code,
@@ -531,6 +547,9 @@ function classifyMarketWeather(
     | 'valuationPercentile'
   >,
 ): MarketWeatherState {
+  if (item.heatScore == null) {
+    return 'waiting';
+  }
   if (
     item.periodReturn != null &&
     item.periodReturn < 0 &&

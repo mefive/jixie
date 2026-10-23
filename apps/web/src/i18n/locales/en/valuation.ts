@@ -87,6 +87,7 @@ export const enValuation: typeof zhValuation = {
         },
       },
       states: {
+        waiting: 'Waiting for inputs',
         undervalued: 'Undervalued base',
         warming: 'Warming',
         expanding: 'Broad strength',
@@ -236,6 +237,7 @@ export const enValuation: typeof zhValuation = {
       rankChange20Day: 'Monthly move',
       concentration: 'Top-5 share',
       states: {
+        waiting: 'Waiting for inputs',
         overheated: 'Overheated',
         leading: 'Broad leader',
         activeLagging: 'Active laggard',

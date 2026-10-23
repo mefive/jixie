@@ -1,3 +1,5 @@
+import { marketRevision } from '../synchronization/readiness.js';
+import { currentDerivedRows } from './current.js';
 import type {
   IndustryWeatherSeries,
   MarketWeatherDimension,
@@ -65,6 +67,7 @@ export async function loadMarketWeather(
   const cacheKey = [
     dimension,
     frequency,
+    await marketRevision(),
     closeCoverage._max.tradeDate,
     indicatorCoverage._max.tradeDate,
     basicCoverage._max.tradeDate,
@@ -105,7 +108,8 @@ export async function loadMarketWeather(
       select: { tsCode: true, name: true },
     }),
   ]);
-  const basicRows = mergeIndexWeatherValuations(officialBasicRows, indicatorRows);
+  const qualifiedRows = await currentDerivedRows(indicatorRows);
+  const basicRows = mergeIndexWeatherValuations(officialBasicRows, qualifiedRows);
   const benchmarkMetadataByCode = new Map(benchmarkMetadataRows.map((row) => [row.tsCode, row]));
   const metadataRows = closeCodes.map((tsCode) => ({
     tsCode,
@@ -115,7 +119,7 @@ export async function loadMarketWeather(
     dimension,
     groups,
     closeRows,
-    indicatorRows,
+    qualifiedRows,
     basicRows,
     metadataRows,
     frequency,
@@ -197,13 +201,14 @@ export async function loadIndustryWeatherSeries(
       _max: { tradeDate: true },
     }),
   ]);
-  const cacheKey = `${frequency}:${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
+  const revision = await marketRevision();
+  const cacheKey = `${frequency}:${revision}:${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
   const cached = industryWeatherCache.get(cacheKey);
   if (cached) {
     return cached;
   }
 
-  const coverageKey = `${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
+  const coverageKey = `${revision}:${industryCoverage._max.tradeDate}:${swCoverage._max.tradeDate}`;
   if (!industryWeatherRawCache || industryWeatherRawCache.coverageKey !== coverageKey) {
     const [industryRows, swIndexRows] = await Promise.all([
       getDatabase().industryIndicator.findMany({
@@ -228,7 +233,11 @@ export async function loadIndustryWeatherSeries(
         orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
       }),
     ]);
-    industryWeatherRawCache = { coverageKey, industryRows, swIndexRows };
+    industryWeatherRawCache = {
+      coverageKey,
+      industryRows: await currentDerivedRows(industryRows),
+      swIndexRows,
+    };
     industryWeatherCache.clear();
   }
   const { industryRows, swIndexRows } = industryWeatherRawCache;

@@ -20,6 +20,7 @@ export type WorkerMessage<Result> =
  */
 type WorkerRunOptions<Result> = {
   start(): Worker | ChildProcess;
+  signal?: AbortSignal;
   onLog: LogWriter;
   readMessage(message: unknown): WorkerMessage<Result> | undefined;
   exitedMessage(code: number | null): string;
@@ -48,6 +49,10 @@ class WorkerRun<Result> {
       this.resource.on('message', this.onMessage);
       this.resource.on('error', this.onError);
       this.resource.once('exit', this.onExit);
+      this.options.signal?.addEventListener('abort', this.onAbort, { once: true });
+      if (this.options.signal?.aborted) {
+        this.onAbort();
+      }
       if (!('terminate' in this.resource)) {
         this.resource.once('close', this.onClose);
       }
@@ -55,6 +60,7 @@ class WorkerRun<Result> {
   }
 
   private cleanup(): void {
+    this.options.signal?.removeEventListener('abort', this.onAbort);
     this.resource.removeListener('message', this.onMessage);
     this.resource.removeListener('error', this.onError);
     this.resource.removeListener('exit', this.onExit);
@@ -83,6 +89,10 @@ class WorkerRun<Result> {
       this.resource.kill('SIGKILL');
     }
   }
+
+  private readonly onAbort = (): void => {
+    this.stop(this.options.signal?.reason ?? new Error('Worker interrupted'));
+  };
 
   // Stable callbacks retain this instance and can be removed during cleanup.
   private readonly onMessage = (raw: unknown): void => {

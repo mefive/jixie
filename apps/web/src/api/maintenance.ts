@@ -1,35 +1,7 @@
 import { request } from './client';
 
-/**
- * 提供维护可用性与执行状态，供应用门禁。
- *
- * Describe maintenance availability and execution state for app gating.
- */
-export interface MaintenanceStatus {
-  active: boolean;
-  phase?:
-    | 'preparing'
-    | 'publishing'
-    | 'postprocessing'
-    | 'error'
-    | 'legacy'
-    | 'idle'
-    | 'uninitialized';
-  running?: boolean;
-  dataReady?: boolean;
-  runId: string | null;
-  kind: 'daily' | 'weekly' | 'repair' | 'deploy' | null;
-  startDate: string | null;
-  endDate: string | null;
-  completedDates: number;
-  totalDates: number;
-  lastSuccessfulDailyDate: string | null;
-  stage: string | null;
-  startedAt: string | null;
-  heartbeatAt: string | null;
-  error: string | null;
-  retryAfterSeconds: number;
-}
+import type { MaintenanceStatus } from '@jixie/shared/api/maintenance';
+export type { MaintenanceStatus } from '@jixie/shared/api/maintenance';
 
 export function fetchMaintenanceStatus(): Promise<MaintenanceStatus> {
   return request('/api/maintenance/status');

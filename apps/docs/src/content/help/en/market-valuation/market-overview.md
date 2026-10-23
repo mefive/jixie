@@ -85,3 +85,8 @@ Week, month, quarter, and year use different observation windows. A short-term r
 - [Replay history and inspect card details](/docs/help/market-valuation/weather-playback)
 - [Interpret historical percentiles correctly](/docs/help/market-valuation/percentiles)
 - [View index valuation](/docs/help/market-valuation/index-valuation)
+
+
+## Waiting inputs and revisions
+
+A synchronization target is a request bound, not a common completion date. Valid prices can appear while adjustments, valuations, price limits, or complete constituents are missing. Dependent measures remain unavailable and combined weather shows “Waiting for inputs”; missing values are never treated as zero or a balanced state. Revisions can invalidate current cards until recalculation. Previously sealed research reports remain unchanged.

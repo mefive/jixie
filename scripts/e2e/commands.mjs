@@ -321,6 +321,8 @@ export const e2eCommands = [
     name: 'market-state',
     file: 'apps/web/e2e/market-state.mjs',
     group: 'market',
+    notes:
+      'E2E_MARKET_FIXTURE=1 uses isolated HTTP fixtures; build API first for weather aggregation.',
   },
   {
     name: 'factor-weather',

@@ -210,3 +210,26 @@ export class StockNameLookup {
     return classifyStockName(match.name);
   }
 }
+
+/**
+ * 规范存储身份与历史显示代码不同；按接续生效日还原当时代码。
+ *
+ * Canonical storage identity differs from historical code; resolve the latter by effective
+ * succession dates.
+ */
+export function stockCodeAt(tsCode: string, observationDate: string): string {
+  let current = canonicalStockCode(tsCode);
+  const visited = new Set<string>();
+  while (!visited.has(current)) {
+    visited.add(current);
+    const previous = STOCK_CODE_CHANGES.find(
+      (change) => change.newTsCode === current && observationDate < change.effectiveDate,
+    );
+    if (!previous) {
+      return current;
+    }
+    current = previous.oldTsCode;
+  }
+
+  throw new Error('Cyclic historical security identity');
+}

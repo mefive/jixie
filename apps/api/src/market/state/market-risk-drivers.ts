@@ -1,3 +1,4 @@
+import { currentCommodityRows } from './current.js';
 import {
   MARKET_RISK_FACTOR_KEYS_V1,
   type MarketRiskFactorDefinitionV1,
@@ -430,7 +431,7 @@ export async function loadMarketRiskDriverHistory(
     indexRows,
     curveRows,
     fxRows,
-    commodityRows,
+    commodityRows: await currentCommodityRows(commodityRows),
   });
   return {
     ...history,

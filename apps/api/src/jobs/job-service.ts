@@ -10,6 +10,7 @@ import type { Job, Prisma } from '@prisma/client';
 import { getDatabase } from '#infra/database/prisma.js';
 import { JobLogs } from './job-logs.js';
 import type { JobLifecycle } from './lifecycle.js';
+import { setTimeout as delay } from 'node:timers/promises';
 
 /**
  * 限定已注册任务的业务种类，供生命周期分派。
@@ -151,14 +152,18 @@ export class JobService {
   }
 
   /**
-   * 观察任务直到终态；不会派发工作或恢复其他消费者的任务。
+   * 观察任务直到终态或取消；不会派发工作或恢复其他消费者的任务。
    *
-   * This observer does not dispatch work or recover another consumer's tasks.
+   * Observe until completion or cancellation without dispatching or recovering another owner's work.
    */
   static async waitForCompletion(
     jobId: string,
-  ): Promise<Extract<JobStatus, 'done' | 'error' | 'stale'>> {
+    signal: AbortSignal = AbortSignal.timeout(30 * 60_000),
+  ): Promise<Extract<JobStatus, 'done' | 'error' | 'stale' | 'running'>> {
     for (;;) {
+      if (signal.aborted) {
+        return 'running';
+      }
       const job = await getDatabase().job.findUnique({
         where: { id: jobId },
         select: { status: true },
@@ -169,22 +174,30 @@ export class JobService {
       if (job.status === 'done') {
         return 'done';
       }
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      try {
+        await delay(250, undefined, { signal });
+      } catch (error) {
+        if (!signal.aborted) {
+          throw error;
+        }
+        return 'running';
+      }
     }
   }
 
   /**
    * 在统一生命周期内执行计算，并通过终态事务写入业务结果及任务状态。
    *
-   * Run job computation and commit business results and terminal job state through the lifecycle transaction.
+   * Run job computation and commit business results and terminal job state through the lifecycle
+   * transaction.
    */
-  static async execute(jobId: string): Promise<void> {
+  static async execute(jobId: string, signal?: AbortSignal): Promise<void> {
     const claim = JobService.claims.get(jobId);
     if (!claim) {
       throw new Error('Job execution requires a locally owned claim');
     }
     try {
-      await claim.reader.run(() => JobService.executeOwned(jobId));
+      await claim.reader.run(() => JobService.executeOwned(jobId, signal));
     } finally {
       JobService.claims.delete(jobId);
       try {
@@ -195,7 +208,7 @@ export class JobService {
     }
   }
 
-  private static async executeOwned(jobId: string): Promise<void> {
+  private static async executeOwned(jobId: string, signal?: AbortSignal): Promise<void> {
     const job = await getDatabase().job.findUnique({ where: { id: jobId } });
     if (!job || job.status !== 'running') {
       return;
@@ -207,9 +220,19 @@ export class JobService {
       if (!lifecycle) {
         throw new Error(`Unsupported queued job kind: ${job.kind}`);
       }
-      const result = await lifecycle.onExecute(job, (entry) => JobLogs.append(job.id, entry));
+      signal?.throwIfAborted();
+      const result = await lifecycle.onExecute(
+        job,
+        (entry) => JobLogs.append(job.id, entry),
+        signal,
+      );
+      signal?.throwIfAborted();
       committed = await JobService.complete(job, lifecycle, result);
     } catch (error) {
+      if (signal?.aborted) {
+        await JobService.interruptOwned(job);
+        return;
+      }
       try {
         committed = await JobService.fail(job, error);
       } catch (failureError) {
@@ -228,10 +251,15 @@ export class JobService {
     }
   }
 
-  static async recoverInterrupted(): Promise<number> {
-    const jobs = await getDatabase().job.findMany({ where: { status: 'running' } });
+  static async recoverInterrupted(kind?: JobKind, signal?: AbortSignal): Promise<number> {
+    const jobs = await getDatabase().job.findMany({
+      where: { status: 'running', ...(kind ? { kind } : {}) },
+    });
     let count = 0;
     for (const job of jobs) {
+      if (signal?.aborted) {
+        break;
+      }
       let owner: MarketLock;
       try {
         owner = await acquireWorkOwner('job', job.id);
@@ -242,24 +270,34 @@ export class JobService {
         throw error;
       }
       try {
-        count += await getDatabase().$transaction(async (transaction) => {
-          const claimed = await transaction.job.updateMany({
-            where: { id: job.id, status: 'running' },
-            data: { status: 'stale', finishedAt: new Date() },
-          });
-          if (!claimed.count) {
-            return 0;
-          }
-          for (const lifecycle of JobService.relatedLifecycles(job)) {
-            await lifecycle.onInterrupted?.(transaction, job);
-          }
-          return 1;
-        });
+        count += await JobService.interruptOwned(job);
       } finally {
         await owner.release();
       }
     }
     return count;
+  }
+
+  /**
+   * 持有真实 owner 时记录中断，保留重试且不发送错误或完成通知。
+   *
+   * Record interruption only while owning the real lock; retry without terminal notifications.
+   */
+  private static async interruptOwned(job: Job): Promise<number> {
+    return getDatabase().$transaction(async (transaction) => {
+      const claimed = await transaction.job.updateMany({
+        where: { id: job.id, status: 'running' },
+        data: { status: 'stale', finishedAt: new Date() },
+      });
+      if (!claimed.count) {
+        return 0;
+      }
+      for (const lifecycle of JobService.relatedLifecycles(job)) {
+        await lifecycle.onInterrupted?.(transaction, job);
+      }
+
+      return 1;
+    });
   }
 
   private static async complete(

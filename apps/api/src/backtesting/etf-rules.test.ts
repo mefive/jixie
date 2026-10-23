@@ -31,7 +31,11 @@ function roundTripStrategy(): EngineStrategy {
 
 describe('ETF daily execution', () => {
   it('trades adjusted ETF bars, records ETF asset type, and excludes ETFs from stock universe', async () => {
-    const dataPort = fixturePort({ dates: DATES, stocks: [instrument('etf')] });
+    const dataPort = fixturePort({
+      stockPriceLimits: { up: 1000000, down: 0.0001 },
+      dates: DATES,
+      stocks: [instrument('etf')],
+    });
     expect(await dataPort.crossSectionRows(DATES[0])).toEqual({
       price: [],
       adj: [],
@@ -67,7 +71,11 @@ describe('ETF daily execution', () => {
       end: DATES.at(-1)!,
       initialCash: 100_000,
       strategy: roundTripStrategy(),
-      dataPort: fixturePort({ dates: DATES, stocks: [instrument('etf')] }),
+      dataPort: fixturePort({
+        stockPriceLimits: { up: 1000000, down: 0.0001 },
+        dates: DATES,
+        stocks: [instrument('etf')],
+      }),
       cost,
     }).run();
     const stock = await new BacktestingEngine({
@@ -75,7 +83,11 @@ describe('ETF daily execution', () => {
       end: DATES.at(-1)!,
       initialCash: 100_000,
       strategy: roundTripStrategy(),
-      dataPort: fixturePort({ dates: DATES, stocks: [instrument('stock')] }),
+      dataPort: fixturePort({
+        stockPriceLimits: { up: 1000000, down: 0.0001 },
+        dates: DATES,
+        stocks: [instrument('stock')],
+      }),
       cost,
     }).run();
 

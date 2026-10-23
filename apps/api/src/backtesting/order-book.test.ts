@@ -12,7 +12,11 @@ describe('OrderBook decision ownership', () => {
     const engineData = new EngineData({
       start: '20240102',
       end: '20240104',
-      dataPort: fixturePort({ dates: [], stocks: [] }),
+      dataPort: fixturePort({
+        stockPriceLimits: { up: 1000000, down: 0.0001 },
+        dates: [],
+        stocks: [],
+      }),
     });
     const orders = new OrderBook({
       engineData,
@@ -56,6 +60,7 @@ async function executionFixture(onRebalance: (date: string) => void = () => {}) 
     start: dates[0],
     end: dates.at(-1)!,
     dataPort: fixturePort({
+      stockPriceLimits: { up: 1000000, down: 0.0001 },
       dates,
       stocks: ['A', 'B'].map((code) => ({
         code,
@@ -81,6 +86,19 @@ async function executionFixture(onRebalance: (date: string) => void = () => {}) 
 }
 
 describe('OrderBook execution boundaries', () => {
+  it('keeps a stock order unfilled when exact execution-date limits are missing', async () => {
+    const { engineData, orders, cashPortfolio } = await executionFixture();
+    vi.spyOn(engineData, 'priceLimitsOn').mockReturnValue(null);
+    orders.beginDecision('20240102');
+    orders.orderStockAdjustedShares('A', 100);
+    orders.commitDecision();
+
+    await orders.executeOrders('20240103', '20240102');
+
+    expect(cashPortfolio.positions.size).toBe(0);
+    expect(cashPortfolio.cash).toBe(10000);
+  });
+
   it('distinguishes no rebalance from an explicit empty target and records the original dates', async () => {
     const notifications: string[] = [];
     const { orders, cashPortfolio, allocationTracker } = await executionFixture((date) =>

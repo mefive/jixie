@@ -103,7 +103,7 @@ export interface YieldCurvePointDataRow {
 export interface MoneyflowRow {
   tsCode: string;
   tradeDate: string;
-  netMain: number;
+  netMain: number | null;
   netTotal: number | null;
 }
 
@@ -263,7 +263,8 @@ export interface BarsRowsOptions {
 /**
  * 隔离引擎与宿主存储的行情读取契约，由适配器提供原始数据而由引擎控制时点可见性。
  *
- * Separate simulation market reads from host storage; adapters supply raw rows and the engine controls point-in-time visibility.
+ * Separate simulation market reads from host storage; adapters supply raw rows and the engine
+ * controls point-in-time visibility.
  */
 export interface EngineDataPort {
   /** Open trading days (SSE) within [start, end], ascending. */

@@ -5,6 +5,10 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  marketInputsNotReady: {
+    zh: '所需市场数据尚未核验完整，请稍后重试。',
+    en: 'Required market inputs are not fully verified yet. Please retry later.',
+  },
   codeProposalNotFound: {
     zh: '待审修改不存在或无权访问。',
     en: 'The proposed change was not found or is not accessible.',

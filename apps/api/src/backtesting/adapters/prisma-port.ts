@@ -1,3 +1,7 @@
+import { MarketError } from '#market/errors.js';
+import { readyFutureDates } from '#market/futures/publication.js';
+import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
+import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
   CHINA_TREASURY_CURVE_CODE,
@@ -101,9 +105,18 @@ export const prismaDataPort: EngineDataPort = {
   /**
    * 为模拟引擎批量读取指定日期的行情、复权和估值原始截面，时点筛选由 EngineData 负责。
    *
-   * Load raw daily price, adjustment and valuation rows for the simulation data port; EngineData applies visibility rules.
+   * Load raw daily price, adjustment and valuation rows for the simulation data port; EngineData
+   * applies visibility rules.
    */
   async crossSectionRows(date, codes) {
+    await assertDatasetInputReadiness(
+      ['stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
+        dataset,
+        scope: 'all',
+        startDate: date,
+        endDate: date,
+      })),
+    );
     const where = codes ? { tradeDate: date, tsCode: { in: codes } } : { tradeDate: date };
     const [price, adj, basic] = await Promise.all([
       getDatabase().daily.findMany({
@@ -138,24 +151,25 @@ export const prismaDataPort: EngineDataPort = {
         },
       }),
     ]);
+    const adjustments = new Map(adj.map((row) => [row.tsCode, row.adjFactor]));
+    const valuations = new Set(basic.map((row) => row.tsCode));
+    if (
+      price.some(
+        (row) =>
+          row.close != null &&
+          (!(Number(adjustments.get(row.tsCode)) > 0) || !valuations.has(row.tsCode)),
+      )
+    ) {
+      throw new MarketError('inputs_not_ready');
+    }
+
     return { price, adj, basic };
   },
 
   async finaIndicators() {
-    const rows = await getDatabase().finaIndicator.findMany({
-      where: { annDate: { not: null } }, // only reports with a public date can be used point-in-time
-      select: {
-        tsCode: true,
-        annDate: true,
-        roe: true,
-        roeWaa: true,
-        roa: true,
-        grossprofitMargin: true,
-        debtToAssets: true,
-      },
-      orderBy: [{ tsCode: 'asc' }, { annDate: 'asc' }],
-    });
-    return rows.map((row) => ({ ...row, annDate: row.annDate! }));
+    const rows = await loadIndicatorVersions();
+
+    return rows.map((row) => ({ ...row, annDate: row.availableDate }));
   },
 
   async indexWeights(indexCode) {
@@ -169,7 +183,8 @@ export const prismaDataPort: EngineDataPort = {
   /**
    * 按代码和日期范围准备原始行情及所需辅助历史，供引擎批量建立价格缓存。
    *
-   * Fetch raw bars and requested auxiliary histories so the engine can populate its per-instrument caches.
+   * Fetch raw bars and requested auxiliary histories so the engine can populate its per-instrument
+   * caches.
    */
   async barsRows(codes, start, end, options) {
     const out: BarsRows = { px: [], adj: [], limits: [], turnoverRatesF: [] };
@@ -225,6 +240,18 @@ export const prismaDataPort: EngineDataPort = {
             })
           : Promise.resolve([]),
       ]);
+      const adjustments = new Map(
+        [...adj, ...etfAdj].map((row) => [`${row.tsCode}|${row.tradeDate}`, row.adjFactor]),
+      );
+      if (
+        [...px, ...etfPx].some(
+          (row) =>
+            row.close != null && !(Number(adjustments.get(`${row.tsCode}|${row.tradeDate}`)) > 0),
+        )
+      ) {
+        throw new MarketError('inputs_not_ready');
+      }
+
       // concat, not push-spread — spreading a chunk of hundreds of thousands of rows as call
       // arguments overflows the call stack.
       out.px = out.px.concat(px, etfPx);
@@ -241,7 +268,7 @@ export const prismaDataPort: EngineDataPort = {
    * Assemble futures contracts, bars, mappings and settlements for the simulation range.
    */
   async futuresRange(start, end) {
-    const range = { gte: start, lte: end };
+    const range = { in: await readyFutureDates(start, end) };
     const contracts = await getDatabase().futureContract.findMany({
       where: {
         productCode: { in: ['IF', 'IH', 'IC', 'IM'] },

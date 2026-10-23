@@ -55,7 +55,12 @@ export interface AvailableChinaTreasuryCurvePoint extends ChinaTreasuryCurvePoin
  * Abstract official government-curve fetching for synchronization.
  */
 export interface ChinaTreasuryCurveClient {
-  fetchRange(startDate: string, endDate: string): Promise<ChinaTreasuryCurvePoint[]>;
+  fetchRange(
+    startDate: string,
+    endDate: string,
+    allowPartial?: boolean,
+    onRejected?: (message: string) => void,
+  ): Promise<ChinaTreasuryCurvePoint[]>;
 }
 
 /** Official Ministry of Finance curve source exposed by the ChinaBond-hosted public page. */
@@ -70,7 +75,12 @@ export class MinistryOfFinanceCurveClient implements ChinaTreasuryCurveClient {
    *
    * Fetch official government curves over a bounded date range.
    */
-  public async fetchRange(startDate: string, endDate: string): Promise<ChinaTreasuryCurvePoint[]> {
+  public async fetchRange(
+    startDate: string,
+    endDate: string,
+    allowPartial = false,
+    onRejected?: (message: string) => void,
+  ): Promise<ChinaTreasuryCurvePoint[]> {
     assertDateRange(startDate, endDate);
     const parameters = new URLSearchParams({
       zblx: 'yz',
@@ -101,6 +111,8 @@ export class MinistryOfFinanceCurveClient implements ChinaTreasuryCurveClient {
         JSON.parse(await readMarketSourceText(response)),
         startDate,
         endDate,
+        allowPartial,
+        onRejected,
       );
     } finally {
       clearTimeout(timeout);
@@ -117,20 +129,30 @@ export function parseChinaTreasuryCurveResponse(
   value: unknown,
   startDate: string,
   endDate: string,
+  allowPartial = false,
+  onRejected?: (message: string) => void,
 ): ChinaTreasuryCurvePoint[] {
   if (!Array.isArray(value)) {
     throw new Error('China treasury curve source returned a non-array payload');
   }
+  const reject = (message: string) => {
+    if (!allowPartial) {
+      throw new Error(message);
+    }
+    onRejected?.(message);
+  };
   const terms = new Set<number>(CHINA_TREASURY_TERMS);
-  const points: ChinaTreasuryCurvePoint[] = [];
-  const identities = new Set<string>();
+  const points = new Map<string, ChinaTreasuryCurvePoint>();
+  const rejectedKeys = new Set<string>();
   for (const rawSeries of value) {
     const series = rawSeries as Partial<ChinaTreasuryCurveSeries>;
-    if (!Number.isFinite(series.dcq) || !terms.has(series.dcq!)) {
-      throw new Error('China treasury curve source returned an unknown maturity');
+    if (!Number.isFinite(series?.dcq) || !terms.has(series.dcq!)) {
+      reject('China treasury curve source returned an unknown maturity');
+      continue;
     }
     if (!Array.isArray(series.seriesData)) {
-      throw new Error(`China treasury curve source omitted series data for ${series.dcq}Y`);
+      reject(`China treasury curve source omitted series data for ${series.dcq}Y`);
+      continue;
     }
     for (const observation of series.seriesData) {
       if (
@@ -140,21 +162,26 @@ export function parseChinaTreasuryCurveResponse(
         observation[1] <= 0 ||
         observation[1] >= 20
       ) {
-        throw new Error(`China treasury curve source returned an invalid ${series.dcq}Y point`);
+        reject(`China treasury curve source returned an invalid ${series.dcq}Y point`);
+        continue;
       }
       const tradeDate = chinaCalendarDate(observation[0]);
       if (tradeDate < startDate || tradeDate > endDate) {
-        throw new Error(`China treasury curve source returned out-of-range date ${tradeDate}`);
+        reject(`China treasury curve source returned out-of-range date ${tradeDate}`);
+        continue;
       }
       const identity = `${tradeDate}:${series.dcq}`;
-      if (identities.has(identity)) {
-        throw new Error(`China treasury curve source returned duplicate point ${identity}`);
+      if (points.has(identity) || rejectedKeys.has(identity)) {
+        points.delete(identity);
+        rejectedKeys.add(identity);
+        reject(`China treasury curve source returned duplicate point ${identity}`);
+        continue;
       }
-      identities.add(identity);
-      points.push({ tradeDate, termYears: series.dcq!, yieldPct: observation[1] });
+      points.set(identity, { tradeDate, termYears: series.dcq!, yieldPct: observation[1] });
     }
   }
-  return validateCompleteDates(points);
+
+  return allowPartial ? [...points.values()] : validateCompleteDates([...points.values()]);
 }
 
 export function assignCurveAvailableDates<T extends ChinaTreasuryCurvePoint>(

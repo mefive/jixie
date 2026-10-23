@@ -1,4 +1,3 @@
-import { getStagingContext } from '#infra/coordination/staging-input.js';
 import { getDatabase } from '#infra/database/prisma.js';
 
 export async function latestCompletedTradeDate(): Promise<string | null> {
@@ -25,7 +24,7 @@ function shanghaiClock(): { today: string; hour: number } {
     day: '2-digit',
     hour: '2-digit',
     hourCycle: 'h23',
-  }).formatToParts(new Date(getStagingContext()?.timestamp ?? Date.now()));
+  }).formatToParts(new Date());
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return {
     today: `${value.year}${value.month}${value.day}`,

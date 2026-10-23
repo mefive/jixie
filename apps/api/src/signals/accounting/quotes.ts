@@ -1,3 +1,4 @@
+import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import type { MarketQuote } from './replay.js';
 
@@ -10,6 +11,29 @@ export async function loadMarketQuotes(
   tradeDate: string,
   codes: string[],
 ): Promise<Map<string, MarketQuote>> {
+  const knownEtfs = await getDatabase().etfBasic.findMany({
+    where: { tsCode: { in: codes } },
+    select: { tsCode: true },
+  });
+  const etfCodes = new Set(knownEtfs.map((etf) => etf.tsCode));
+  const requirements = knownEtfs.map((etf) => ({
+    dataset: 'etf-prices',
+    scope: etf.tsCode,
+    startDate: tradeDate,
+    endDate: tradeDate,
+  }));
+  if (codes.some((code) => !etfCodes.has(code))) {
+    requirements.push(
+      ...['stock-prices', 'stock-limits'].map((dataset) => ({
+        dataset,
+        scope: 'all',
+        startDate: tradeDate,
+        endDate: tradeDate,
+      })),
+    );
+  }
+  await assertDatasetInputReadiness(requirements);
+
   const [stocks, etfs, limits] = await Promise.all([
     getDatabase().daily.findMany({
       where: { tradeDate, tsCode: { in: codes } },

@@ -1,0 +1,686 @@
+import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
+import { withSyncDatabase } from '../../tests/sync-database.js';
+import { calendarDay } from '#market/synchronization/date.js';
+import { qualifyMarketPartition } from '#market/synchronization/qualify.js';
+import { acceptMarketPartition } from '#market/synchronization/records.js';
+import { prepareStockPartition } from '#market/stocks/sync-partition.js';
+import { prepareIndexPartition } from '#market/indices/sync-partition.js';
+import {
+  marketMetricReadiness,
+  qualifyMarketOutputs,
+  MARKET_AUDIT_VERSION,
+  MARKET_CALCULATION_VERSION,
+} from '#market/state/eligibility.js';
+import { loadResearchIndustryState } from '#research/datasets/market-reference.js';
+import { planSyncPartitions } from './partitions.js';
+import { withMaintenanceLock } from '#infra/coordination/market-access.js';
+import { invalidateMarketCalculations, refreshMarketCalculations } from './calculations.js';
+
+const tradeDate = '20260915';
+const fetchedAt = new Date('2026-09-16T10:00:00Z');
+
+async function calendar(
+  database: Parameters<Parameters<typeof withSyncDatabase>[0]>[0],
+  start: string,
+  end: string,
+  open: string[],
+) {
+  const rows = [];
+  for (let date = start; date <= end; date = calendarDay(date, 1)) {
+    rows.push({ exchange: 'SSE', calDate: date, isOpen: open.includes(date) ? 1 : 0 });
+  }
+  for (let offset = 0; offset < rows.length; offset += 200) {
+    await database.tradeCal.createMany({ data: rows.slice(offset, offset + 200) });
+  }
+  await database.datasetSyncPartition.create({
+    data: {
+      id: `calendar-${start}-${end}`,
+      dataset: 'calendar',
+      scope: 'SSE',
+      startDate: start,
+      endDate: end,
+      status: 'complete',
+      policyVersion: 'sync-v1',
+    },
+  });
+}
+
+describe('unified sync review regressions', () => {
+  it('R01/A06 replaces a complete atomic snapshot independently while retaining an invalid one', async () =>
+    withSyncDatabase(async (database) => {
+      await database.indexWeight.createMany({
+        data: [
+          { indexCode: '000300.SH', conCode: '600000.SH', tradeDate, weight: 80 },
+          { indexCode: '000300.SH', conCode: '600001.SH', tradeDate, weight: 20 },
+          { indexCode: '000300.SH', conCode: '600000.SH', tradeDate: '20260914', weight: 100 },
+        ],
+      });
+      const partition = {
+        dataset: 'index-weights',
+        scope: '000300.SH',
+        startDate: '20260901',
+        endDate: '20260930',
+      };
+      const response = await qualifyMarketPartition(
+        partition,
+        await prepareIndexPartition(
+          {
+            call: async () => [
+              {
+                index_code: '000300.SH',
+                con_code: '000001.SZ',
+                trade_date: tradeDate,
+                weight: 100,
+              },
+              {
+                index_code: '000300.SH',
+                con_code: '000001.SZ',
+                trade_date: '20260914',
+                weight: 10,
+              },
+            ],
+          },
+          partition,
+        ),
+      );
+      expect(response.status).toBe('error');
+      await database.$transaction((transaction) =>
+        acceptMarketPartition(transaction, response, partition.dataset, fetchedAt),
+      );
+      expect(await database.indexWeight.findMany({ where: { tradeDate } })).toMatchObject([
+        { conCode: '000001.SZ', weight: 100 },
+      ]);
+      expect(
+        await database.indexWeight.findMany({ where: { tradeDate: '20260914' } }),
+      ).toMatchObject([{ conCode: '600000.SH', weight: 100 }]);
+    }));
+
+  it('R01/A05 merges actual short stock responses without deleting known prices or moneyflow', async () =>
+    withSyncDatabase(async (database) => {
+      await calendar(database, tradeDate, tradeDate, [tradeDate]);
+      await database.stockBasic.createMany({
+        data: ['600000.SH', '000001.SZ'].map((tsCode) => ({
+          tsCode,
+          symbol: tsCode.slice(0, 6),
+          name: tsCode,
+          listDate: '20100101',
+          listStatus: 'L',
+        })),
+      });
+      await database.datasetSyncPartition.createMany({
+        data: ['L', 'D', 'P', 'G'].map((scope) => ({
+          id: `master-${scope}`,
+          dataset: 'stock-master',
+          scope,
+          startDate: tradeDate,
+          endDate: tradeDate,
+          status: 'complete',
+          policyVersion: 'sync-v1',
+        })),
+      });
+      await database.daily.createMany({
+        data: ['600000.SH', '000001.SZ'].map((tsCode) => ({ tsCode, tradeDate, close: 10 })),
+      });
+      await database.moneyflow.createMany({
+        data: ['600000.SH', '000001.SZ'].map((tsCode) => ({
+          tsCode,
+          tradeDate,
+          netMain: 12,
+          netTotal: 10,
+        })),
+      });
+      const source = {
+        call: async (api: string) =>
+          api === 'suspend_d'
+            ? []
+            : [{ ts_code: '600000.SH', trade_date: tradeDate, close: 11, net_mf_amount: 20 }],
+      };
+      const pricePartition = {
+        dataset: 'stock-prices',
+        scope: 'all',
+        startDate: tradeDate,
+        endDate: tradeDate,
+      };
+      const prices = await qualifyMarketPartition(
+        pricePartition,
+        await prepareStockPartition(source, pricePartition),
+      );
+      expect(prices.evidence.terminalPage).toBe(true);
+      expect(prices.status).toBe('partial');
+      expect(prices.tables[0].replacement).toBeUndefined();
+      await database.$transaction((transaction) =>
+        acceptMarketPartition(transaction, prices, 'stock-prices', fetchedAt),
+      );
+      expect(await database.daily.findMany({ orderBy: { tsCode: 'asc' } })).toMatchObject([
+        { tsCode: '000001.SZ', close: 10 },
+        { tsCode: '600000.SH', close: 11 },
+      ]);
+
+      await database.datasetSyncPartition.create({
+        data: {
+          id: 'prices-proof',
+          ...pricePartition,
+          status: 'complete',
+          policyVersion: 'sync-v1',
+        },
+      });
+      const flowPartition = { ...pricePartition, dataset: 'stock-moneyflow' };
+      const flow = await qualifyMarketPartition(
+        flowPartition,
+        await prepareStockPartition(source, flowPartition),
+      );
+      expect(flow.status).toBe('partial');
+      await database.$transaction((transaction) =>
+        acceptMarketPartition(transaction, flow, 'stock-moneyflow', fetchedAt),
+      );
+      expect(
+        await database.moneyflow.findUniqueOrThrow({
+          where: { tsCode_tradeDate: { tsCode: '000001.SZ', tradeDate } },
+        }),
+      ).toMatchObject({ netMain: 12, netTotal: 10 });
+
+      const authoritativeSource = {
+        call: async (api: string) =>
+          api === 'suspend_d'
+            ? [
+                {
+                  ts_code: '000001.SZ',
+                  trade_date: tradeDate,
+                  suspend_type: 'S',
+                  suspend_timing: null,
+                },
+              ]
+            : [{ ts_code: '600000.SH', trade_date: tradeDate, close: 12 }],
+      };
+      const correction = await qualifyMarketPartition(
+        pricePartition,
+        await prepareStockPartition(authoritativeSource, pricePartition),
+      );
+      expect(correction.status).toBe('complete');
+      expect(correction.tables[0].replacement?.basis).toContain('suspension');
+      const accepted = await database.$transaction((transaction) =>
+        acceptMarketPartition(transaction, correction, 'stock-prices', fetchedAt),
+      );
+      expect(accepted.deleted).toBe(1);
+      expect(await database.daily.findMany()).toMatchObject([{ tsCode: '600000.SH', close: 12 }]);
+    }));
+
+  it('R01/A06 preserves authoritative empty-event deletion through the actual adapter chain', async () =>
+    withSyncDatabase(async (database) => {
+      await database.topList.createMany({
+        data: [
+          { tsCode: '600000.SH', tradeDate, netAmount: 5 },
+          { tsCode: '600000.SH', tradeDate: '20260914', netAmount: 7 },
+        ],
+      });
+      const partition = {
+        dataset: 'stock-toplist',
+        scope: 'all',
+        startDate: tradeDate,
+        endDate: tradeDate,
+      };
+      const response = await prepareStockPartition({ call: async () => [] }, partition);
+      expect(response.tables[0].replacement).toBeUndefined();
+      const qualified = await qualifyMarketPartition(partition, response);
+      expect(qualified.status).toBe('complete');
+      expect(qualified.tables[0].replacement?.basis).toBeTruthy();
+      const accepted = await database.$transaction((transaction) =>
+        acceptMarketPartition(transaction, qualified, partition.dataset, fetchedAt),
+      );
+      expect(accepted.deleted).toBe(1);
+      expect(await database.topList.findMany()).toMatchObject([
+        { tradeDate: '20260914', netAmount: 7 },
+      ]);
+    }));
+
+  it(
+    'R02/A02/A04 holds historical cursors across calendar gaps and later plans every historical session',
+    async () =>
+      withSyncDatabase(async (database) => {
+        await calendar(database, '20260101', '20261231', [tradeDate]);
+        const input = {
+          targetDate: tradeDate,
+          startedAt: fetchedAt,
+          requirements: { etfCodes: [] },
+          budget: 240,
+        };
+        const first = await planSyncPartitions(input);
+        expect(first.partitions).toContainEqual(
+          expect.objectContaining({ dataset: 'stock-prices', startDate: tradeDate }),
+        );
+        expect(
+          await database.datasetSyncState.findUniqueOrThrow({
+            where: { dataset_scope: { dataset: 'stock-prices', scope: 'all' } },
+          }),
+        ).toMatchObject({ backfillCursor: '20150101' });
+
+        const expected = Array.from({ length: 11 }, (_, index) => `${2015 + index}0105`);
+        await calendar(database, '20150101', '20251231', expected);
+        const seen = new Set(first.partitions.map((partition) => partition.id));
+        const dates = new Set<string>();
+        for (let round = 0; round < 12; round++) {
+          const next = await planSyncPartitions({ ...input, excludeIds: seen });
+          for (const partition of next.partitions) {
+            seen.add(partition.id);
+            if (partition.dataset === 'stock-prices') {
+              dates.add(partition.startDate);
+            }
+          }
+        }
+        expect(expected.every((date) => dates.has(date))).toBe(true);
+        expect([...dates].filter((date) => date < '20260101').sort()).toEqual(expected);
+      }),
+    60_000,
+  );
+
+  it(
+    'R05/A10 hides stale Research values after a real source correction until calculation publication',
+    async () =>
+      withSyncDatabase(async (database) => {
+        await calendar(database, tradeDate, tradeDate, [tradeDate]);
+        await database.marketDataState.create({ data: { key: 'global', revision: 1 } });
+        await database.daily.create({
+          data: { tsCode: '600000.SH', tradeDate, close: 10, pctChg: 1, amount: 100 },
+        });
+        await database.dailyBasic.create({
+          data: { tsCode: '600000.SH', tradeDate, circMv: 100, turnoverRate: 1.5 },
+        });
+        await database.adjFactor.create({ data: { tsCode: '600000.SH', tradeDate, adjFactor: 1 } });
+        await database.swIndustryMember.create({
+          data: { tsCode: '600000.SH', l1Code: '801010.SI', l1Name: 'Fixture', inDate: '20100101' },
+        });
+        await database.datasetSyncPartition.createMany({
+          data: ['stock-prices', 'stock-valuations', 'industry-members'].map((dataset) => ({
+            id: dataset,
+            dataset,
+            scope: dataset === 'industry-members' ? '801010.SI' : 'all',
+            startDate: tradeDate,
+            endDate: tradeDate,
+            status: 'complete',
+            policyVersion: 'sync-v1',
+          })),
+        });
+        await database.industryIndicator.create({
+          data: {
+            l1Code: '801010.SI',
+            l1Name: 'Fixture',
+            tradeDate,
+            tradedCount: 1,
+            return20: 0.1,
+            aboveMa20Ratio: 0.5,
+            floatWeightedTurnoverRate: 1.5,
+          },
+        });
+        await database.marketCalculationState.create({
+          data: {
+            kind: 'market-state',
+            scope: 'all',
+            date: tradeDate,
+            status: 'ready',
+            generation: 1,
+            readyGeneration: 1,
+            dirtyScopes: [],
+            inputVersions: { qualifiedScopes: ['industry:801010.SI'] },
+            calculationVersion: MARKET_CALCULATION_VERSION,
+            auditVersion: MARKET_AUDIT_VERSION,
+          },
+        });
+        const request = { identifier: '801010.SI', start: tradeDate, end: tradeDate };
+        expect((await loadResearchIndustryState(request))[0].float_weighted_turnover_rate_pct).toBe(
+          1.5,
+        );
+
+        await withMaintenanceLock(async () => {
+          const partition = {
+            dataset: 'stock-valuations',
+            scope: 'all',
+            startDate: tradeDate,
+            endDate: tradeDate,
+          };
+          const corrected = await qualifyMarketPartition(
+            partition,
+            await prepareStockPartition(
+              {
+                call: async () => [
+                  { ts_code: '600000.SH', trade_date: tradeDate, circ_mv: 100, turnover_rate: 2.5 },
+                ],
+              },
+              partition,
+            ),
+          );
+          await database.$transaction(async (transaction) => {
+            const accepted = await acceptMarketPartition(
+              transaction,
+              corrected,
+              partition.dataset,
+              fetchedAt,
+            );
+            await invalidateMarketCalculations(transaction, accepted.changes);
+            await transaction.marketDataState.update({
+              where: { key: 'global' },
+              data: { revision: { increment: 1 } },
+            });
+          });
+          expect((await loadResearchIndustryState(request))[0]).toMatchObject({
+            traded_count: 1,
+            return_20d: null,
+            above_ma20_ratio: null,
+            float_weighted_turnover_rate_pct: null,
+          });
+          await refreshMarketCalculations({ targetDate: tradeDate, limit: 1 });
+        });
+        expect((await loadResearchIndustryState(request))[0]).toMatchObject({
+          traded_count: 1,
+          return_20d: null,
+          float_weighted_turnover_rate_pct: 2.5,
+        });
+      }),
+    30_000,
+  );
+
+  it.each(['capitalization', 'turnover'] as const)(
+    'R06/A08 masks incomplete %s fields in market, index and industry outputs',
+    async (missing) =>
+      withSyncDatabase(async (database) => {
+        await calendar(database, tradeDate, tradeDate, [tradeDate]);
+        const codes = ['600000.SH', '000001.SZ'];
+        await database.daily.createMany({
+          data: codes.map((tsCode) => ({ tsCode, tradeDate, close: 10, amount: 100, pctChg: 1 })),
+        });
+        await database.dailyBasic.createMany({
+          data: codes.map((tsCode, index) => ({
+            tsCode,
+            tradeDate,
+            circMv: index && missing === 'capitalization' ? null : 100,
+            turnoverRate: index && missing === 'turnover' ? null : 1,
+            turnoverRateF: null,
+          })),
+        });
+        await database.datasetSyncPartition.createMany({
+          data: ['stock-prices', 'stock-valuations', 'index-weights', 'industry-members'].map(
+            (dataset) => ({
+              id: dataset,
+              dataset,
+              scope:
+                dataset === 'index-weights'
+                  ? '000300.SH'
+                  : dataset === 'industry-members'
+                    ? '801010.SI'
+                    : 'all',
+              startDate: tradeDate,
+              endDate: tradeDate,
+              status: 'complete',
+              policyVersion: 'sync-v1',
+            }),
+          ),
+        });
+        await database.indexWeight.createMany({
+          data: codes.map((conCode) => ({
+            indexCode: '000300.SH',
+            conCode,
+            tradeDate,
+            weight: 50,
+          })),
+        });
+        await database.swIndustryMember.createMany({
+          data: codes.map((tsCode) => ({
+            tsCode,
+            l1Code: '801010.SI',
+            l1Name: 'Fixture',
+            inDate: '20100101',
+          })),
+        });
+        const market = await database.marketIndicator.create({
+          data: { tradeDate, tradedCount: 2, floatWeightedTurnoverRate: 1, totalAmount: 200 },
+        });
+        const index = await database.indexIndicator.create({
+          data: {
+            indexCode: '000300.SH',
+            tradeDate,
+            membershipDate: tradeDate,
+            tradedCount: 2,
+            floatWeightedTurnoverRate: 1,
+          },
+        });
+        const industry = await database.industryIndicator.create({
+          data: {
+            l1Code: '801010.SI',
+            l1Name: 'Fixture',
+            tradeDate,
+            tradedCount: 2,
+            floatWeightedTurnoverRate: 1,
+          },
+        });
+        const groups = await marketMetricReadiness(tradeDate);
+        expect(groups.activity).toEqual([expect.stringContaining('1/2 traded securities')]);
+        const prepared = await qualifyMarketOutputs(
+          { market, indices: [index], industries: [industry] },
+          { market: true, industries: true, indexCodes: ['000300.SH'] },
+          groups,
+        );
+        expect(prepared.outputs.market).toMatchObject({
+          floatWeightedTurnoverRate: null,
+          totalAmount: 200,
+        });
+        expect(prepared.outputs.indices[0].floatWeightedTurnoverRate).toBeNull();
+        expect(prepared.outputs.industries[0].floatWeightedTurnoverRate).toBeNull();
+        expect(prepared.gaps).toContainEqual(expect.stringContaining('activity:'));
+      }),
+  );
+});
+
+it('R09/A06 rejects a canonical identity collision before replacing a constituent snapshot', async () =>
+  withSyncDatabase(async (database) => {
+    const partition = {
+      dataset: 'index-weights',
+      scope: '000300.SH',
+      startDate: tradeDate,
+      endDate: tradeDate,
+    };
+    const original = { indexCode: partition.scope, conCode: '600000.SH', tradeDate, weight: 100 };
+    await database.indexWeight.create({ data: original });
+    const response = await qualifyMarketPartition(
+      partition,
+      await prepareIndexPartition(
+        {
+          call: async () =>
+            ['000022.SZ', '001872.SZ'].map((con_code) => ({
+              index_code: partition.scope,
+              con_code,
+              trade_date: tradeDate,
+              weight: 50,
+            })),
+        },
+        partition,
+      ),
+    );
+    expect(response.status).toBe('error');
+    expect(response.errors).toContain(
+      `Incomplete or invalid constituent snapshot ${partition.scope}/${tradeDate}`,
+    );
+    await database.$transaction((transaction) =>
+      acceptMarketPartition(transaction, response, partition.dataset, fetchedAt),
+    );
+    expect(await database.indexWeight.findMany()).toEqual([original]);
+
+    const duplicate = { values: { ...original, conCode: '001872.SZ', weight: 50 } };
+    const accepted = await database.$transaction((transaction) =>
+      acceptMarketPartition(
+        transaction,
+        {
+          tables: [
+            {
+              table: 'IndexWeight',
+              atomic: true,
+              records: [duplicate, duplicate],
+              replacement: {
+                where: { indexCode: partition.scope, tradeDate },
+                authoritative: true,
+                independent: true,
+                basis: 'Controlled atomic snapshot fixture',
+              },
+            },
+          ],
+          status: 'complete',
+          evidence: {},
+          gaps: [],
+          errors: [],
+          observedDates: [tradeDate],
+        },
+        partition.dataset,
+        fetchedAt,
+      ),
+    );
+    expect(accepted.errors).toHaveLength(1);
+    expect(accepted.inserted + accepted.updated + accepted.deleted).toBe(0);
+    expect(await database.indexWeight.findMany()).toEqual([original]);
+  }));
+
+it(
+  'R10/A08 computes index returns over exact calendar sessions and retains independent metrics',
+  async () =>
+    withSyncDatabase(async (database) => {
+      const dates = Array.from({ length: 62 }, (_, index) => calendarDay('20260701', index));
+      const end = dates.at(-1)!;
+      const missingDate = dates.at(-10)!;
+      const indexCode = '000300.SH';
+      await calendar(database, dates[0], end, dates);
+      await database.daily.createMany({
+        data: dates.map((tradeDate) => ({
+          tsCode: '600000.SH',
+          tradeDate,
+          close: 10,
+          pctChg: 1,
+          amount: 100,
+        })),
+      });
+      await database.adjFactor.createMany({
+        data: dates.map((tradeDate) => ({ tsCode: '600000.SH', tradeDate, adjFactor: 1 })),
+      });
+      await database.indexDaily.createMany({
+        data: dates.flatMap((tradeDate, index) =>
+          tradeDate === missingDate ? [] : [{ tsCode: indexCode, tradeDate, close: 100 + index }],
+        ),
+      });
+      await database.indexWeight.create({
+        data: { indexCode, conCode: '600000.SH', tradeDate: dates[0], weight: 100 },
+      });
+      await database.datasetSyncPartition.createMany({
+        data: ['stock-prices', 'stock-adjustments', 'index-prices', 'index-weights'].map(
+          (dataset) => ({
+            id: dataset,
+            dataset,
+            scope: dataset.startsWith('index-') ? indexCode : 'all',
+            startDate: dates[0],
+            endDate: end,
+            status: 'complete',
+            policyVersion: 'sync-v1',
+          }),
+        ),
+      });
+      const scope = { market: true, industries: false, indexCodes: [indexCode] };
+      const { syncMarketIndicators } = await import('#market/state/sync.js');
+      await syncMarketIndicators(end, end, scope);
+      const outputs = {
+        market: await database.marketIndicator.findUniqueOrThrow({ where: { tradeDate: end } }),
+        indices: await database.indexIndicator.findMany({ where: { tradeDate: end } }),
+        industries: [],
+      };
+      expect(outputs.indices[0].return20).toBeNull();
+      const qualified = await qualifyMarketOutputs(
+        outputs,
+        scope,
+        await marketMetricReadiness(end),
+      );
+      expect(qualified.gaps).toContain(
+        `index:${indexCode}/return20: Missing valid index price on ${missingDate}`,
+      );
+      expect(qualified.outputs.indices[0]).toMatchObject({
+        return20: null,
+        aboveMa20Ratio: 0,
+        totalAmount: 100,
+      });
+      expect(qualified.outputs.market?.totalAmount).toBe(100);
+
+      await database.indexDaily.create({
+        data: {
+          tsCode: indexCode,
+          tradeDate: missingDate,
+          close: 100 + dates.indexOf(missingDate),
+        },
+      });
+      await syncMarketIndicators(end, end, scope);
+      const repaired = await qualifyMarketOutputs(
+        {
+          ...outputs,
+          indices: await database.indexIndicator.findMany({ where: { tradeDate: end } }),
+        },
+        scope,
+        await marketMetricReadiness(end),
+      );
+      expect(repaired.outputs.indices[0].return20).toBeCloseTo(161 / 141 - 1);
+      expect(repaired.gaps.some((gap) => gap.includes('/return20:'))).toBe(false);
+    }),
+  30_000,
+);
+
+it(
+  'R11/A04 advances recent rechecks across repeated plans, cooldowns and an excluded date',
+  async () =>
+    withSyncDatabase(async (database) => {
+      const startDate = '20260901';
+      const dates = Array.from({ length: 15 }, (_, index) => calendarDay(startDate, index));
+      await calendar(database, startDate, tradeDate, dates);
+      await database.datasetSyncState.create({
+        data: {
+          dataset: 'stock-prices',
+          scope: 'all',
+          historyStart: startDate,
+          backfillCursor: tradeDate,
+          recheckCursor: startDate,
+          policyVersion: 'sync-v1',
+        },
+      });
+      const selectedDates = new Set<string>();
+      const excluded = new Set<string>();
+      for (let round = 0; round < 6; round++) {
+        if (round === 1) {
+          const date = calendarDay(startDate, 1);
+          excluded.add(
+            createHash('sha256')
+              .update(JSON.stringify(['stock-prices', 'all', date, date]))
+              .digest('hex'),
+          );
+        }
+
+        const plan = await planSyncPartitions({
+          targetDate: tradeDate,
+          startedAt: fetchedAt,
+          requirements: { etfCodes: [] },
+          budget: 240,
+          excludeIds: excluded,
+        });
+        for (const partition of plan.partitions) {
+          excluded.add(partition.id);
+          if (partition.dataset === 'stock-prices' && partition.startDate < tradeDate) {
+            selectedDates.add(partition.startDate);
+            await database.datasetSyncPartition.update({
+              where: { id: partition.id },
+              data: {
+                status: 'complete',
+                nextAttemptAt: new Date('2099-01-01T00:00:00Z'),
+              },
+            });
+          }
+        }
+        // 每轮保留最早日期的冷却，重新启动的计划也必须继续扫描其他日期。
+        // Retain the earliest date's cooldown while restarted planning reaches later dates.
+        excluded.clear();
+      }
+      expect(selectedDates.has(startDate)).toBe(true);
+      expect(selectedDates.size).toBeGreaterThanOrEqual(6);
+      expect([...selectedDates].some((date) => date > calendarDay(startDate, 3))).toBe(true);
+    }),
+  30_000,
+);

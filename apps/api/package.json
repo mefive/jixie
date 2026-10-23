@@ -12,13 +12,11 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "backup": "node scripts/backup-db.mjs",
-    "maintenance": "tsx --conditions=development --env-file=.env src/maintenance/cli/run-maintenance.ts",
     "signals:run": "tsx --conditions=development --env-file=.env src/signals/cli/run-signals.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
-    "canonicalize:stock-codes": "tsx --conditions=development --env-file=.env src/maintenance/cli/canonicalize-stock-codes.ts",
-    "sync": "node --conditions=development --import tsx scripts/sync/index.ts",
     "data:audit": "node --conditions=development --import tsx scripts/audit/index.ts",
-    "probe": "node --conditions=development --import tsx scripts/probes/index.ts"
+    "probe": "node --conditions=development --import tsx scripts/probes/index.ts",
+    "data": "node --conditions=development --import tsx src/maintenance/cli/data.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",

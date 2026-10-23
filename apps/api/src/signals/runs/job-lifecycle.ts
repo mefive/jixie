@@ -18,12 +18,13 @@ export const signalsRunLifecycle = {
    *
    * Compute signals from frozen deployment inputs for terminal persistence.
    */
-  async onExecute(job, log) {
+  async onExecute(job, log, signal) {
     const input = signalsRunJobPayloadSchema.parse(job.payload);
     if (input.runId !== job.signalRunId) {
       throw new Error('Signal payload does not match its persisted run');
     }
     const output = await runWorker<SignalWorkerOutput>({
+      signal,
       onLog: log,
       start: () =>
         fork(workerUrl, [input.runId], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] }),

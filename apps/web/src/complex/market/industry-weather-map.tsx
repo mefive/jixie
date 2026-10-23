@@ -494,7 +494,10 @@ function formatWeatherMetric(
  *
  * Classify weather measures into heat bands for consistent coloring.
  */
-function weatherHeatBand(score: number): WeatherHeatBand {
+function weatherHeatBand(score: number | null): WeatherHeatBand {
+  if (score == null) {
+    return 'unknown';
+  }
   if (score >= 85) {
     return 'extreme';
   }
@@ -601,7 +604,7 @@ function formatPeriodLabel(
   }
 }
 
-type WeatherHeatBand = 'cold' | 'mild' | 'warm' | 'hot' | 'extreme';
+type WeatherHeatBand = 'unknown' | 'cold' | 'mild' | 'warm' | 'hot' | 'extreme';
 
 const WEATHER_FREQUENCIES: MarketWeatherFrequency[] = ['week', 'month', 'quarter', 'year'];
 const WEATHER_DIMENSIONS: MarketWeatherDimension[] = ['industry', 'scale', 'board', 'style'];

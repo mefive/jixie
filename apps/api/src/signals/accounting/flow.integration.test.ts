@@ -1,16 +1,13 @@
-import { prisma } from '#infra/database/prisma.js';
 import { describe, expect, it } from 'vitest';
+import { withSyncDatabase } from '../../../tests/sync-database.js';
 import { updateActualExecution } from './executions.js';
 import { initializeSignalAccounting } from './initialize.js';
 import { getStrategyExecutionOverview } from './read.js';
 import { settleStrategyAccounts } from './settlement.js';
 
-const integration = describe.runIf(process.env.ACCOUNTING_INTEGRATION === '1');
-
-integration('strategy execution accounting database flow', () => {
+describe('strategy execution accounting database flow', () => {
   it('initializes, settles, records an actual fill, and rebuilds both account curves', async () => {
-    const { withDatabase } = await import('#infra/database/prisma.js');
-    return withDatabase(prisma, async () => {
+    return withSyncDatabase(async (prisma) => {
       const userId = 'accounting-test-user';
       const strategyId = 'accounting-test-strategy';
       const deploymentId = 'accounting-test-deployment';
@@ -76,6 +73,17 @@ integration('strategy execution accounting database flow', () => {
           downLimit: 9,
         },
       });
+      await prisma.datasetSyncPartition.createMany({
+        data: ['calendar', 'stock-prices', 'stock-limits'].map((dataset) => ({
+          id: dataset,
+          dataset,
+          scope: dataset === 'calendar' ? 'SSE' : 'all',
+          startDate: dataset === 'calendar' ? '20240101' : '20240102',
+          endDate: dataset === 'calendar' ? '20240103' : '20240102',
+          status: 'complete',
+          policyVersion: 'sync-v1',
+        })),
+      });
       await prisma.signalRun.create({
         data: {
           id: runId,
@@ -105,7 +113,13 @@ integration('strategy execution accounting database flow', () => {
       });
 
       await initializeSignalAccounting(runId);
-      await settleStrategyAccounts('20240102', () => {});
+      const settlement = await settleStrategyAccounts('20240102', () => {});
+
+      expect(settlement, settlement.gaps.join('; ')).toMatchObject({
+        done: 2,
+        waiting: 0,
+        errors: 0,
+      });
       const execution = await prisma.signalExecution.findFirstOrThrow({
         where: { signalRunId: runId },
       });

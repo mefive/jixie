@@ -1276,7 +1276,7 @@ const marketStateColumns = [
     ['traded_count', '纳入计算的交易股票数量。', 'Number of traded stocks included.'],
   ].map(([name, descriptionZh, descriptionEn]) => ({
     name,
-    wireType: name.endsWith('_count') ? ('number' as const) : ('nullable_number' as const),
+    wireType: name === 'traded_count' ? ('number' as const) : ('nullable_number' as const),
     pythonType: 'float64',
     descriptionZh,
     descriptionEn,
@@ -1285,11 +1285,33 @@ const marketStateColumns = [
 
 const equityFundamentalColumns = [
   {
+    name: 'announcement_date',
+    wireType: 'nullable_trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '来源公告日期，不等同于当前版本可得日。',
+    descriptionEn: 'Source announcement date, distinct from current-version availability.',
+  },
+  {
+    name: 'availability_quality',
+    wireType: 'string',
+    pythonType: 'string',
+    descriptionZh: '当前版本可得性证据；latest_only 不证明捕获前的历史值。',
+    descriptionEn: 'Availability evidence; latest_only does not prove values before capture.',
+  },
+  {
+    name: 'observed_at',
+    wireType: 'string',
+    pythonType: 'string',
+    descriptionZh: '此版本实际首次观察时间，ISO 8601。',
+    descriptionEn: 'Actual first observation time of this version, ISO 8601.',
+  },
+  {
     name: 'date',
     wireType: 'trade_date',
     pythonType: 'datetime64[ns]',
-    descriptionZh: '财务指标公告日，即研究可得日。',
-    descriptionEn: 'The financial-indicator announcement date and research availability date.',
+    descriptionZh: '当前指标版本可用于研究的日期；未知历史版本按实际捕获时间门控。',
+    descriptionEn:
+      'Availability of the current indicator version; unproven historical versions are gated by actual capture time.',
   },
   {
     name: 'report_period',
@@ -1608,11 +1630,34 @@ const equityFlowColumns = [
 
 const equityDividendColumns = [
   {
+    name: 'ex_date',
+    wireType: 'trade_date',
+    pythonType: 'datetime64[ns]',
+    descriptionZh: '经济除权日期，不证明当前版本历史可得。',
+    descriptionEn:
+      'Economic ex-dividend date, not proof of historical availability of the current version.',
+  },
+  {
+    name: 'availability_quality',
+    wireType: 'string',
+    pythonType: 'string',
+    descriptionZh: '来源版本可得性证据。',
+    descriptionEn: 'Availability evidence for the source version.',
+  },
+  {
+    name: 'observed_at',
+    wireType: 'string',
+    pythonType: 'string',
+    descriptionZh: '当前值首次实际捕获时间。',
+    descriptionEn: 'Actual first capture of the current value.',
+  },
+  {
     name: 'date',
     wireType: 'trade_date',
     pythonType: 'datetime64[ns]',
-    descriptionZh: '实施分红的除权除息日。',
-    descriptionEn: 'The ex-dividend date of the implemented distribution.',
+    descriptionZh: '实施分红当前版本的可得日，不早于经济除权日和实际捕获。',
+    descriptionEn:
+      'Availability of the retained distribution version, no earlier than its ex-date and actual capture.',
   },
   {
     name: 'report_period',
@@ -2666,7 +2711,7 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
     datedIdentifierDatasetFunction(
       'equity_fundamentals',
       '按公告日读取单只股票的财务指标历史。',
-      'Load one stock financial-indicator history by announcement date.',
+      'Load retained stock financial-indicator versions by actual availability date.',
       equityFundamentalColumns,
     ),
     datedIdentifierDatasetFunction(
@@ -2678,7 +2723,7 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
     datedIdentifierDatasetFunction(
       'equity_dividends',
       '按除权除息日读取单只股票已实施的现金分红。',
-      'Load implemented cash dividends for one stock by ex-dividend date.',
+      'Load captured implemented dividends by version availability, retaining economic ex-dates.',
       equityDividendColumns,
     ),
     {

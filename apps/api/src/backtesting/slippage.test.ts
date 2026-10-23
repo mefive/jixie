@@ -10,6 +10,7 @@ async function roundTrip(amountThousand: number | undefined, shares: number) {
     end: dates.at(-1)!,
     initialCash: 100_000_000,
     dataPort: fixturePort({
+      stockPriceLimits: { up: 1000000, down: 0.0001 },
       dates,
       stocks: [
         {

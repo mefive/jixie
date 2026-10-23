@@ -38,7 +38,7 @@ vi.mock('#infra/coordination/market-access.js', async (original) => ({
 }));
 vi.mock('#infra/database/prisma.js', async () => {
   const mocked = {
-    prisma: { maintenanceState: { findUnique: async () => ({ dataRevision: 0 }) } },
+    prisma: { marketDataState: { findUnique: async () => ({ revision: 0 }) } },
   };
   return {
     ...(await vi.importActual<typeof import('#infra/database/prisma.js')>(

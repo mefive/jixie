@@ -1,3 +1,4 @@
+import { codeConfigSchema } from '@jixie/shared/api/strategy';
 import type { SignalsRunJobPayload } from './job-payload.js';
 import { signalRunState, currentSignalJob } from '#signals/runs/state.js';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -25,16 +26,18 @@ export interface EnqueuedSignalRun {
 /**
  * 为部署与信号日期创建运行和后台任务，保持重复提交与状态关联一致。
  *
- * Create a signal run and background job for a deployment and date with consistent submission state.
+ * Create a signal run and background job for a deployment and date with consistent submission
+ * state.
  */
 export async function enqueueSignalRun(
   userId: string,
   deploymentId: string,
   tradeDate: string,
+  signal?: AbortSignal,
 ): Promise<EnqueuedSignalRun> {
   const deployment = await getDatabase().strategyDeployment.findFirst({
     where: { id: deploymentId, userId },
-    select: { id: true, status: true, locale: true, factorDependencies: true },
+    select: { id: true, status: true, locale: true, config: true, factorDependencies: true },
   });
   if (!deployment) {
     throw new SignalsError('deployment_not_found');
@@ -47,7 +50,7 @@ export async function enqueueSignalRun(
   if (calendar.kind !== 'ready') {
     throw new SignalsError(calendar.kind);
   }
-  if (!(await isSignalDataReady(tradeDate))) {
+  if (!(await isSignalDataReady(tradeDate, codeConfigSchema.parse(deployment.config)))) {
     throw new SignalsError('data_not_ready', { params: { date: tradeDate } });
   }
   const factorDependencies =
@@ -154,8 +157,12 @@ export async function enqueueSignalRun(
 
   if (start.kind === 'existing') {
     const completion = start.jobId
-      ? JobService.waitForCompletion(start.jobId).then((status) =>
-          status === 'done' ? ('done' as const) : ('error' as const),
+      ? JobService.waitForCompletion(start.jobId, signal).then((status) =>
+          status === 'done'
+            ? ('done' as const)
+            : status === 'running'
+              ? ('running' as const)
+              : ('error' as const),
         )
       : Promise.resolve(start.status);
     return {
@@ -167,8 +174,12 @@ export async function enqueueSignalRun(
   }
 
   JobScheduler.wake();
-  const completion = JobService.waitForCompletion(start.jobId).then((status) =>
-    status === 'done' ? ('done' as const) : ('error' as const),
+  const completion = JobService.waitForCompletion(start.jobId, signal).then((status) =>
+    status === 'done'
+      ? ('done' as const)
+      : status === 'running'
+        ? ('running' as const)
+        : ('error' as const),
   );
   return {
     runId: start.runId,

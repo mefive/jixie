@@ -311,7 +311,7 @@ model TopList {
 model Moneyflow {
   tsCode    String
   tradeDate String
-  netMain   Float // main-force net amount = (large + extra-large orders) buy − sell, 10k yuan
+  netMain   Float? // main-force net amount = (large + extra-large orders) buy − sell, 10k yuan
   netTotal  Float? // net amount across all order sizes (net_mf_amount), 10k yuan — source may omit it
 
   @@id([tsCode, tradeDate])
@@ -677,8 +677,8 @@ model MarketIndicator {
   floatWeightedTurnoverRate Float?
   topFivePercentAmountShare Float?
   extremeMoveRatio          Float?
-  limitUpCount              Int
-  limitDownCount            Int
+  limitUpCount              Int?
+  limitDownCount            Int?
 }
 
 /// Precomputed point-in-time index-universe state. Each trading day uses the latest constituent
@@ -701,8 +701,8 @@ model IndexIndicator {
   valuationCoverage         Float?
   topFivePercentAmountShare Float?
   extremeMoveRatio          Float?
-  limitUpCount              Int
-  limitDownCount            Int
+  limitUpCount              Int?
+  limitDownCount            Int?
 
   @@id([indexCode, tradeDate])
   @@index([tradeDate])
@@ -945,6 +945,139 @@ model MaintenanceState {
   weeklySyncedThrough   String?
   dataRevision          Int      @default(0)
   updatedAt             DateTime @updatedAt
+}
+
+
+/// 一次固定目标的有限同步尝试；不是覆盖完整性证明。
+/// One bounded synchronization attempt with a frozen target, not proof of complete coverage.
+model DataSyncRun {
+  id          String    @id
+  targetDate  String
+  status      String
+  stage       String
+  summary     Json?
+  error       String?
+  startedAt   DateTime  @default(now())
+  heartbeatAt DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([startedAt])
+}
+
+/// 数据集计划与巡检游标；最大观察日期与连续核验范围分开。
+/// Dataset planning and recheck cursors separate maximum observations from verified coverage.
+model DatasetSyncState {
+  dataset         String
+  scope           String
+  policyVersion   String
+  historyStart    String
+  backfillCursor  String
+  plannedThrough  String?
+  recheckCursor   String?
+  maxObservedDate String?
+  verifiedThrough String?
+  revision        Int      @default(0)
+  lastCheckedAt   DateTime?
+  lastBackfillAt  DateTime?
+
+  @@id([dataset, scope])
+}
+
+/// 固定边界的来源分区及未完成工作，不按原始记录创建任务。
+/// A fixed source partition and its unfinished work, never a job per raw record.
+model DatasetSyncPartition {
+  id            String    @id
+  dataset       String
+  scope         String
+  startDate     String
+  endDate       String
+  policyVersion String
+  status        String
+  evidence      Json?
+  gaps          Json?
+  error         String?
+  attempts      Int       @default(0)
+  lastRunId     String?
+  lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
+  checkedAt     DateTime?
+
+  @@unique([dataset, scope, startDate, endDate])
+  @@index([status, nextAttemptAt])
+  @@index([dataset, scope, startDate])
+}
+
+/// 当前派生输出的输入、失效代次与版本；不修改已封存用户结果。
+/// Inputs, invalidation generation and versions for current outputs, excluding sealed user results.
+model MarketCalculationState {
+  kind               String
+  scope              String
+  date               String
+  status             String
+  generation         Int       @default(1)
+  readyGeneration    Int?
+  inputRevision      Int?
+  inputVersions      Json?
+  dirtyScopes        Json?
+  nextAttemptAt      DateTime?
+  calculationVersion String
+  auditVersion       String
+  gaps               Json?
+  error              String?
+  checkedAt          DateTime?
+
+  @@id([kind, scope, date])
+  @@index([status, date])
+}
+
+/// 可见输入修订号不是所有来源共同的完成日期。
+/// The visible input revision is not a common completion date for all sources.
+model MarketDataState {
+  key          String   @id
+  revision     Int      @default(0)
+  updatedAt    DateTime @updatedAt
+}
+
+/// 当前值的来源证据；仅有指纹不表示保留了历史可回放值。
+/// Provenance of the current value; a fingerprint alone does not retain replayable old values.
+model MarketRecordEvidence {
+  tableName           String
+  businessKey         String
+  dataset             String
+  fingerprint         String
+  fieldEvidence       Json
+  publicationDate     String?
+  availableDate       String?
+  availabilityQuality String
+  firstObservedAt     DateTime
+  lastFetchedAt       DateTime
+
+  @@id([tableName, businessKey])
+  @@index([dataset])
+}
+
+/// 追加式财务指标版本；未知历史公开时间不能仅凭公告日期推断。
+/// Append-only indicator versions; an announcement date alone cannot prove historical availability.
+model FinaIndicatorVersion {
+  id                  String   @id
+  tsCode              String
+  endDate             String
+  annDate             String?
+  availableDate       String
+  availabilityQuality String
+  sourceFingerprint   String   @unique
+  observedAt          DateTime
+  roe                 Float?
+  roeWaa              Float?
+  roa                 Float?
+  grossprofitMargin   Float?
+  netprofitMargin     Float?
+  debtToAssets        Float?
+  orYoy               Float?
+  netprofitYoy        Float?
+  ocfToProfit         Float?
+
+  @@index([tsCode, availableDate])
 }
 
 // ============================================================================
@@ -1402,6 +1535,8 @@ model FactorWeatherPin {
   status          String               @default("pending") // 'pending' | 'running' | 'ready' | 'error'
   error           String?
   computedThrough String?
+  dirtyFrom       String?
+  inputRevision   Int?
   points          FactorWeatherPoint[]
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
@@ -1995,4 +2130,17 @@ model AgentCodeChangeProposal {
 
   @@unique([sourceTurnId])
   @@index([userId, surface, entityId, createdAt])
+}
+
+/// 当前计算可选择的新期货输入版本；旧发布与账户冻结输入保持不变。
+/// New futures input versions for current computations; legacy publications and frozen account inputs remain intact.
+model FutureMarketRevision {
+  tradeDate    String
+  inputHash    String
+  dataRevision Int
+  payload      Json
+  createdAt    DateTime @default(now())
+
+  @@id([tradeDate, inputHash])
+  @@index([tradeDate, dataRevision])
 }

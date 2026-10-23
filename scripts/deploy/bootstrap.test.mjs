@@ -11,9 +11,12 @@ test('deployment checks the gate but never starts or restarts a daily/weekly ser
   assert.match(bootstrap, /check_blocking_maintenance/);
 });
 
-test('activation validates only the imported baseline and upgrades the legacy retry drop-in', async () => {
+test('activation enables unified synchronization and upgrades the legacy retry drop-in', async () => {
   const activation = await readFile(new URL('./activate-maintenance.sh', import.meta.url), 'utf8');
-  assert.match(activation, /maintenance daily --initialize-only/);
+  assert.doesNotMatch(activation, /maintenance daily|initialize-only|prisma|data sync/);
+  assert.match(activation, /dist\/src\/maintenance\/cli\/data\.js/);
+  assert.match(activation, /disable --now jixie-maintenance-weekly\.timer/);
+  assert.match(activation, /enable --now jixie-maintenance\.timer/);
   assert.doesNotMatch(activation, /systemctl start jixie-maintenance.service/);
   assert.match(bootstrap, /jixie-maintenance-retry.conf/);
   assert.match(bootstrap, /jixie-maintenance.service.d\/retry.conf/);

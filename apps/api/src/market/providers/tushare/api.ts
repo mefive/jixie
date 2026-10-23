@@ -28,7 +28,7 @@ export interface StockBasicRow {
  * Stock list. By default only fetches instruments with list status 'L' (listed).
  */
 export async function stockBasic(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { exchange?: string; list_status?: string; market?: string } = {},
 ): Promise<StockBasicRow[]> {
   const rows = await client.call(
@@ -59,7 +59,7 @@ export interface NameChangeRow {
  * Historical name spells. `start_date` / `end_date` inputs filter the announcement date.
  */
 export async function nameChange(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code?: TsCode; start_date?: TradeDate; end_date?: TradeDate } = {},
 ): Promise<NameChangeRow[]> {
   const rows = await client.call(
@@ -88,7 +88,7 @@ export interface TradeCalRow {
  * Trading calendar. Defaults to the Shanghai exchange (SSE).
  */
 export async function tradeCal(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     exchange?: string;
     start_date?: TradeDate;
@@ -129,7 +129,7 @@ export interface DailyRow {
  * Daily quotes (**unadjusted**). Backtests must apply adjustment via adj_factor.
  */
 export async function daily(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -159,7 +159,7 @@ export interface AdjFactorRow {
  * price, eliminating false gaps caused by ex-rights/ex-dividend.
  */
 export async function adjFactor(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -199,7 +199,7 @@ export interface EtfBasicRow {
  * Domestic ETF metadata, including QDII ETFs and delisted instruments when no status is passed.
  */
 export async function etfBasic(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     index_code?: string;
@@ -237,7 +237,7 @@ export interface FundBasicRow {
  * Exchange-traded public-fund metadata. Used to enrich ETF rows with fund category/delist date.
  */
 export async function fundBasic(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { market?: 'E' | 'O'; status?: string } = {},
 ): Promise<FundBasicRow[]> {
   const rows = await client.call(
@@ -273,7 +273,7 @@ export interface FundDailyRow {
  * ETF daily quotes (unadjusted).
  */
 export async function fundDaily(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -306,7 +306,7 @@ export interface FundAdjRow {
  * ETF adjustment factors.
  */
 export async function fundAdj(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -342,7 +342,7 @@ export interface EtfShareSizeRow {
  * ETF units, fund size, NAV, and exchange close as published after the source trade date.
  */
 export async function etfShareSize(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -377,7 +377,7 @@ export interface IndexDailyRow {
  * Callers must split ranges that may exceed the upstream response limit.
  */
 export async function indexDaily(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },
 ): Promise<IndexDailyRow[]> {
   const rows = await client.call('index_daily', params, 'ts_code,trade_date,close');
@@ -425,7 +425,9 @@ export interface IndexBenchmarkRow {
  *
  * Official public-fund benchmark catalog with index type and compiler provenance.
  */
-export async function indexBenchmark(client: TushareClient): Promise<IndexBenchmarkRow[]> {
+export async function indexBenchmark(
+  client: Pick<TushareClient, 'call'>,
+): Promise<IndexBenchmarkRow[]> {
   const rows = await client.call(
     'mkt_idx_bmk',
     {},
@@ -441,7 +443,7 @@ export async function indexBenchmark(client: TushareClient): Promise<IndexBenchm
  * indices and returns provider-computed PE/PB values rather than constituent-level approximations.
  */
 export async function indexDailyBasic(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },
 ): Promise<IndexDailyBasicRow[]> {
   const rows = await client.call(
@@ -485,7 +487,7 @@ export type FutureExchange = 'CFFEX' | 'SHFE' | 'DCE' | 'CZCE' | 'INE' | 'GFEX';
  * actual delivery-month products before persistence.
  */
 export async function futureContracts(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     exchange: FutureExchange;
     fut_type?: string;
@@ -531,7 +533,7 @@ export interface FutureDailyRow {
  * Raw daily bars for one actual futures contract.
  */
 export async function futureDaily(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code: TsCode; start_date: TradeDate; end_date: TradeDate },
 ): Promise<FutureDailyRow[]> {
   const rows = await client.call(
@@ -559,7 +561,7 @@ export interface FutureMappingRow {
  * Daily mapping from a logical main/continuous futures symbol to the actual delivery contract.
  */
 export async function futureMapping(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code: TsCode; start_date: TradeDate; end_date: TradeDate },
 ): Promise<FutureMappingRow[]> {
   const rows = await client.call('fut_mapping', params, 'ts_code,trade_date,mapping_ts_code');
@@ -592,7 +594,7 @@ export interface FutureSettlementRow {
  * Historical exchange settlement parameters for one actual futures contract.
  */
 export async function futureSettlement(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code: TsCode; start_date: TradeDate; end_date: TradeDate },
 ): Promise<FutureSettlementRow[]> {
   const rows = await client.call(
@@ -635,7 +637,7 @@ export interface FutureWarehouseReceiptRow {
  * subtotal rows, and preserve the provider's product-specific unit before aggregation.
  */
 export async function futureWarehouseReceipts(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     trade_date?: TradeDate;
     symbol?: string;
@@ -679,7 +681,7 @@ export interface FutureHoldingRow {
  * (SHFE) means that member was not present in that metric's ranking on the date.
  */
 export async function futureHoldings(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     trade_date?: TradeDate;
     symbol?: string;
@@ -718,7 +720,7 @@ export interface StkLimitRow {
  * BSE ±30) — Tushare returns the actual price.
  */
 export async function stkLimit(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -749,7 +751,7 @@ export interface TopListRow {
  * attention / hot-money signal.
  */
 export async function topList(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { trade_date?: TradeDate; ts_code?: TsCode } = {},
 ): Promise<TopListRow[]> {
   const rows = await client.call('top_list', params, 'ts_code,trade_date,net_amount');
@@ -779,7 +781,7 @@ export interface MoneyflowRow {
  * across all order sizes.
  */
 export async function moneyflow(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -823,7 +825,7 @@ export interface DailyBasicRow {
  * pe_ttm etc. from financials known as of that day), so they're safe to use directly per trade date.
  */
 export async function dailyBasic(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -867,7 +869,7 @@ export interface FinaIndicatorRow {
  * with possible duplicate periods from restatements). Rate-limited at 80/min on lower tiers.
  */
 export async function finaIndicator(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code: TsCode; start_date?: TradeDate; end_date?: TradeDate },
 ): Promise<FinaIndicatorRow[]> {
   const rows = await client.call(
@@ -885,7 +887,7 @@ export async function finaIndicator(
  * and currently caps one response at 10,000 rows.
  */
 export async function finaIndicatorVip(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   period: TradeDate,
 ): Promise<FinaIndicatorRow[]> {
   const pageSize = 10_000;
@@ -1011,28 +1013,28 @@ export interface CashFlowStatementRow extends FinancialStatementBaseRow {
 }
 
 export function incomeStatement(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: FinancialStatementStockParams,
 ): Promise<IncomeStatementRow[]> {
   return financialStatementByStock(client, 'income', 'income', params);
 }
 
 export function balanceSheet(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: FinancialStatementStockParams,
 ): Promise<BalanceSheetRow[]> {
   return financialStatementByStock(client, 'balancesheet', 'balance_sheet', params);
 }
 
 export function cashFlowStatement(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: FinancialStatementStockParams,
 ): Promise<CashFlowStatementRow[]> {
   return financialStatementByStock(client, 'cashflow', 'cash_flow', params);
 }
 
 export function incomeStatementVip(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   period: TradeDate,
   reportType: FinancialStatementReportType,
 ): Promise<IncomeStatementRow[]> {
@@ -1040,7 +1042,7 @@ export function incomeStatementVip(
 }
 
 export function balanceSheetVip(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   period: TradeDate,
   reportType: FinancialStatementReportType,
 ): Promise<BalanceSheetRow[]> {
@@ -1048,7 +1050,7 @@ export function balanceSheetVip(
 }
 
 export function cashFlowStatementVip(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   period: TradeDate,
   reportType: FinancialStatementReportType,
 ): Promise<CashFlowStatementRow[]> {
@@ -1068,7 +1070,7 @@ interface FinancialStatementStockParams {
 }
 
 async function financialStatementByStock<Row extends FinancialStatementBaseRow>(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   apiName: 'income' | 'balancesheet' | 'cashflow',
   statementKind: FinancialStatementKind,
   params: FinancialStatementStockParams,
@@ -1087,7 +1089,7 @@ async function financialStatementByStock<Row extends FinancialStatementBaseRow>(
  * Build and execute an explicitly typed VIP statement request.
  */
 async function financialStatementVip<Row extends FinancialStatementBaseRow>(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   apiName: 'income_vip' | 'balancesheet_vip' | 'cashflow_vip',
   statementKind: FinancialStatementKind,
   period: TradeDate,
@@ -1129,7 +1131,7 @@ export interface DividendRow {
  * Dividend distributions. Pulled per ts_code; a period yields several rows across stages.
  */
 export async function dividend(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { ts_code: TsCode },
 ): Promise<DividendRow[]> {
   const rows = await client.call(
@@ -1159,7 +1161,7 @@ export interface IndexWeightRow {
  * cap, so callers should fetch in chunks (e.g. by quarter).
  */
 export async function indexWeight(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { index_code: string; start_date: TradeDate; end_date: TradeDate },
 ): Promise<IndexWeightRow[]> {
   const rows = await client.call('index_weight', params, 'index_code,con_code,trade_date,weight');
@@ -1206,7 +1208,7 @@ export interface SwDailyRow {
  * Shenwan index daily bars. Callers must whitelist SW2021 level-1 codes via index_classify.
  */
 export async function swDaily(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: {
     ts_code?: TsCode;
     trade_date?: TradeDate;
@@ -1228,7 +1230,7 @@ export async function swDaily(
  * Shenwan industry classification list. Defaults to SW2021 level-1 (the 31 top-level industries).
  */
 export async function indexClassify(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { level?: string; src?: string } = {},
 ): Promise<IndexClassifyRow[]> {
   const rows = await client.call(
@@ -1260,7 +1262,7 @@ export interface IndexMemberRow {
  * membership — to build the full point-in-time history, callers fetch both and union.
  */
 export async function indexMemberAll(
-  client: TushareClient,
+  client: Pick<TushareClient, 'call'>,
   params: { l1_code: string; is_new?: string },
 ): Promise<IndexMemberRow[]> {
   const rows = await client.call(

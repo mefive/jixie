@@ -1,48 +1,32 @@
-# Maintenance 后端阅读入口
+# 统一数据同步
 
-维护分为不阻塞正式库的候选准备、短暂关闭共享准入的原子发布，以及独立重试的发布后处理。数据规则沿用 [Market](../market/README.md)，具体设计见 [暂存发布](../../../../docs/design/maintenance-staging-publication.md) 、[数据库作用域与清理](../../../../docs/design/maintenance-database-scope-and-cleanup.md) 和 [锁协议](../../../../docs/design/maintenance-locking.md)。
+唯一市场写流程为仓库根目录 `pnpm data sync [--to YYYYMMDD]`。省略目标时，在启动时固定上海自然日；帮助和非法参数不加载环境、Prisma 或来源。源码入口为 `cli/data.ts`，编译入口为 `dist/src/maintenance/cli/data.js`。`signals:run` 只消费现有数据。
 
-| 入口／文件 | 职责 |
+| 阅读入口 | 职责 |
 | --- | --- |
-| [cli/run-maintenance.ts](cli/run-maintenance.ts) | daily、weekly、repair；内部 sync/import/代码归一转交；参数、进程和数据库收尾 |
-| [staging/coordinator.ts](staging/coordinator.ts) | M 所有权、固定目标、候选恢复、P/R 发布、正式事务凭据、后续动作及清理 |
-| [staging/cleanup.ts](staging/cleanup.ts) | 自动／手动候选回收，诊断保留与 owner 遗留扫描 |
-| [staging/tables.ts](staging/tables.ts) | 显式市场白名单、依赖和稳定业务键；不包含用户数据 |
-| [staging/snapshot.ts](staging/snapshot.ts) | 同一正式读快照，复用迁移后的 schema，仅复制声明的市场数据 |
-| [staging/tracking.ts](staging/tracking.ts) | 候选私有触及键表、事务性增删改捕获及恢复时设施核验 |
-| [staging/changes.ts](staging/changes.ts) | 按触及键提取净变化、内容哈希、财报版本／不可变期货规则、Prisma 差量回填 |
-| [staging/impact.ts](staging/impact.ts) | 按实际输入字段、变更前后记录及滚动依赖确定输出日期和指标类别 |
-| [staging/finalize.ts](staging/finalize.ts) | 统一计算受影响输出、检查派生完整性，再执行综合审计 |
-| [workflows/daily.ts](workflows/daily.ts) | 候选内日更、最近 5 日自愈、首次初始化、既有质量与水位规则 |
-| [workflows/weekly.ts](workflows/weekly.ts) | 低频参考、财报／ETF 断点、自愈、派生计算和整体审计 |
-| [workflows/repair.ts](workflows/repair.ts) | 默认最近 20 个已完成交易日，或指定区间；统一重新获取区间数据，不再接受 --refresh |
-| [workflows/import.ts](workflows/import.ts) | 同一候选内按年份／数据域导入，保存阶段断点并初始化基线 |
-| [runs/state.ts](runs/state.ts) | 控制记录、心跳、checkpoint；状态展示与正式发布事实分开 |
-| [middleware.ts](middleware.ts) | HTTP 真实共享准入；SSE／取消不持市场读锁 |
-| [infra/coordination](../infra/coordination/market-access.ts) | TS＋fs-ext 跨进程 M/P/R、读作用域和工作所有权 |
+| `cli/data.ts` / `cli/execute.ts` | 纯参数解析、环境、摘要、退出及进程资源收尾 |
+| `sync.ts` | M 所有权、运行恢复、有限来源批次、事务发布和消费者编排 |
+| `partitions.ts` | 数据对象、来源日历、增量/回补/重查游标及公平预算 |
+| `market/synchronization/policies.ts` | 每个数据集的历史边界、时区、可完成时间与刷新周期 |
+| `market/*/sync-partition.ts` | 各领域请求、原始映射、完整范围与原子经济对象证明 |
+| `market/synchronization/records.ts` | 白名单市场记录合并、字段证据及精确删除授权 |
+| `calculations.ts` / `market/state/eligibility.ts` | 有界失效、分组资格、私有计算和输出提交 |
+| `status.ts` / `routes.ts` | 现有 `/api/maintenance/status`：运行、局部覆盖及真实发布争用 |
+| `consumers.ts` | Factor 气象和 Signals 自身范围内的资格/重试 |
+| `resources.ts` | 有归属凭据且无活跃所有者的退役资源回收 |
 
-正式库的 protocol=2 控制行使用 `candidate:ID`；running/error 不构成封站依据。数据维护的 active 来自实际发布意图锁；首次未初始化、数据库技术故障和旧协议遗留错误分别处理。旧错误不能仅靠升级自动解封，完整候选审计通过并正式发布后才可标记 revalidated。
+每轮最多 240 个来源分区、600 次实际 HTTP 请求（含内部重试）、120 个派生计算和 30 分钟。新近需求、待办、回补、旧分区巡检分别保留约 50%/25%/15%/10% 份额。来源请求分页有限，重复页和来源错误不表示完成。预算耗尽保留待办；请求错误保留退避，下一轮仍从相同固定边界继续。
 
-准备在候选数据库作用域中执行，不写正式市场表；有效下载失败断点及 ready 发布重试保留，计算／审计／未知中断保存诊断后清理。代码、schema、基线或依赖变化时清理旧候选并重建同一目标；默认日期绑定原尝试时间。仅财务批次保留子进程，继承同一 M 描述符，最后写者退出才释放 M；取消候选 owner 锁。
+运行摘要的 `calculations.attempted` 只记录本轮计算尝试；`ready` 是本轮成功数，`waiting`、`errors`、`stale` 则汇总全部持久未解决计算，包括较早目标修订影响的已有更晚结果。冷却和预算跳过不会被解释为问题已解决。账户结算按模拟/实际账户分别返回成功、等待和失败，真实异常进入同步错误，正常输入等待进入缺口；独立信号仍可完成。
 
-daily 与 repair 在逐日处理前共用指数成员准备：按月查询目标区间，只写目标区间快照及首日确有需要的最近前置锚点，保留来源原始日期。`MAINTENANCE_INDEX_WEIGHT_MAX_AGE_DAYS`（默认 190 个自然日）是新鲜度／锚点查找上限，不是历史回填写入范围。空月响应可复用有效本地快照；没有合格锚点、过期、无效快照或来源错误仍失败。现有 tradeDate as-of 口径不等于已证明资料的历史公开时点。
+`DatasetSyncPartition` 保存完成证据、缺项与下次尝试；`DatasetSyncState` 的 `maxObservedDate` 与 `verifiedThrough` 含义不同。只有从 `historyStart` 连续证明的分区/交易观察能推进后者；计划游标不是覆盖。独立合法记录可以在 partial/error 分区中保存，未知字段保留已知值，明确授权的 null 可清除旧值。只有完整权威范围允许精确删除；完整空事件集与未知空连续序列分开处理。
 
-repair 同时更新股票主表和名称历史，避免新增行情缺少证券身份。短区间审计仍从本地真实历史读取完整 60 日价格窗口；市场风险审计按实际完整向量数向前扩展，保持 252 个观测要求和 PIT 约束。历史确实不足时仍报错。完整审计报告保存在候选 repair 记录的 `summary.audit` 中，不能将单日完成日志等同于整轮发布成功。
+原始记录、来源证据、覆盖、revision 和失效在同一事务提交。网络下载不持 P 或排他 R；M 串行化写者。短发布取得 P 和排他 R，用户业务计算全程持共享 R。市场 SQL 在私有只读输入副本中计算，提交时比较失效代次和输入 revision，输出与 ready 同事务。历史修订不受较早目标截断；它可使已存在的更晚输出失效。Index 成分/行情修订只重算对应指数族，行业归属修订不改无关指数。
 
-普通 daily 计算本轮待处理交易日，repair 计算指定区间；真实历史输入变化再按依赖扩展到已有输出。StockBasic、StockNameHistory、StockCodeChange 不是指标 SQL 输入，不触发历史重算。股票收盘价／复权因子按变更前后有效序列传播至后续最多 59 条观察，指数价格传播至后续 20 条；成员快照影响到下一快照前，行业成员按变更前后实际命中的有效成员比较。指数或行业资料单独变化时，只替换对应指标类别，不能顺带重建其他指数。
+缺复权、估值或涨跌停不阻止合法价格保存。派生指标按自己的必要输入显示 null/等待；原始最大日期和非零行数不能证明正式截面完整。财务指标追加实际捕获版本，公告日期不能替代当前值的可得日期；分红经济除权日与当前值捕获时间分开。旧 FactorReport、封存 Research、信号、成交与账户冻结输入不被市场修订覆盖。
 
-CLI 候选流程统一在 finalize 完成一次计算、派生完整性检查、综合审计，逐日步骤保留原始数据校验；repair 审计终点不再被旧水位截断。预热历史只作为计算或审计输入，不自动成为输出范围。未引入全历史指数价格补齐；真正受影响历史仍须通过派生检查，缺少必要价格会失败，不忽略。repair 仍保留原日水位，正式发布以凭据、修订与实际区间覆盖核对。
+旧 maintenance daily/weekly/repair、import:data、sync 子任务、canonicalize 公开入口和整轮候选协议已退役。旧 Maintenance* 表保留历史及部署门禁用途，不作为新同步完成事实。旧候选只在数据库与磁盘协议凭据一致、文件范围已知且无活跃 owner 时回收；未知资源保留并报告，不自动恢复旧流程。
 
-发布按 M→P 排他→R 排他，停止新准入后等待完整业务结束；queued 不持 R。HTTP、Job、Agent、Research 和 Factor Weather 持 R 到结果写入完成。超时／事务回滚后释放本次门禁，正式凭据与市场增删改、水位、dataRevision、待处理动作一次提交。用户、账户、成交及研究数据不从候选回填。
+生产保留一个 `jixie-maintenance.timer`，上海时间每两小时的 :15 调用统一 sync；旧 weekly timer 在升级时停用。部署先完成迁移/重启并释放 P/R，再执行一轮有限同步；空库或来源缺口不影响应用准入。状态 `active` 只表示真实发布互斥，错误/待办不会封站。
 
-信号／账户结算和因子气象在释放 M/P/R 后按当前正式数据取得独立 R；各工作还持跨进程所有权，启动恢复跳过其他进程的活任务。后续动作失败保持发布成功事实，不封站；后续维护调用补执行。Research 空闲 Python 会话按 dataRevision 失效。已发布候选按正式凭据清理，后处理失败仍可独立恢复；活跃后处理持有 owner 时暂缓回收。`pnpm maintenance cleanup` 预览，`--apply` 执行。M/P/R 文件保留，空闲 owner 文件经排他持锁和 inode 复核后删除；首次启用需先停止全部旧版本进程。
-
-原始股票／指数、ETF、财报 PIT、商品及派生质量阈值保持。财报子进程仍在逐项持久化后 ACK；weekly 仍保留源缺失观察与 derived-invalidation 断点。原始修复已完成而派生尚未完成时，最终差量比较仍能找出影响起点，避免重试漏算。
-
-本轮无新 timer、HTTP 写入口、用户表或 migration。范围修复已完成人工审阅、696 项相关回归和工作区构建，并真实发布 20260731～20260909 的 29 个 SSE 交易日：正式修订 5，审计 0 错误／6 警告，日水位按 repair 契约保留 20260730。发布前后的区间外三类历史派生表指纹一致；运行及验证证据见设计记录末节。
-
-当前性能修改已完成人工审阅和验证：完整市场快照改为 SQLite 内批量复制，初始复制后才启用候选私有触及键记录。计算前后只按记录键比较正式基线和候选，不再两遍全表比较；记录整轮保留并与业务事务一起回滚。恢复时校验精确触发器和记录表定义，不匹配拒绝续用。阶段与逐表耗时、触及／净变化数进入日志，阶段毫秒数保存到正式清单 `timings`。本次不改正式 Prisma schema、API、审计门槛或清理策略。新版 161 项相关用例及工作区构建通过，已真实刷新并发布 20260731～20260813 的 10 个交易日：修订 7，审计 0 错误／5 警告，日水位仍为 20260730，区间外指标指纹未变。两次差异提取合计 7.511 秒，发布 0.369 秒；完整快照扣除已确认休眠约 221 秒。运行反复遭遇系统休眠，总时长不能作为连续性能基准；具体原始计时、休眠证据和微基准见设计记录第 14 节。
-
-2026-10-22 repair 统一刷新改动及验收状态见 [设计记录](../../../../docs/design/maintenance-repair-refresh.md)。repair 使用自己的区间编排和单日共用刷新函数，不再逐日启动 daily；商品、仓单、跨市场数据和利率曲线按区间准备，旧 --refresh 在创建候选前报错。
-
-统一区间刷新已完成人工审阅和验证：540 项相关回归通过，真实 `repair 20260910 20260910` 发布到修订 9，综合审计 0 错误／4 类警告，三类区间外历史指标指纹不变。日水位保留 20260730，候选和 owner 产物清理完成。
+实现设计、迁移审阅顺序和 A01–A14 验收见 [统一同步设计](../../../../docs/design/unified-data-sync.md)。本轮行为测试和迁移 SQL 生成等待 Gate 2，尚未执行。

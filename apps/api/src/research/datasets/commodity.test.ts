@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   returnsFindMany: vi.fn(),
   receiptsFindMany: vi.fn(),
   holdingsFindMany: vi.fn(),
+  calculationStates: vi.fn(),
 }));
 
 vi.mock('#infra/database/prisma.js', async () => {
@@ -12,6 +13,7 @@ vi.mock('#infra/database/prisma.js', async () => {
       commodityContinuousReturn: { findMany: mocks.returnsFindMany },
       commodityWarehouseReceipt: { findMany: mocks.receiptsFindMany },
       commodityHoldingPosition: { findMany: mocks.holdingsFindMany },
+      marketCalculationState: { findMany: mocks.calculationStates },
     },
   };
   return {
@@ -35,6 +37,15 @@ describe('Research commodity datasets', () => {
   });
 
   it('loads continuous returns by availability date and emits stable snake-case columns', async () => {
+    mocks.calculationStates.mockResolvedValue([
+      {
+        date: '20260701',
+        status: 'ready',
+        generation: 1,
+        readyGeneration: 1,
+        inputVersions: { readyProducts: ['AU'] },
+      },
+    ]);
     mocks.returnsFindMany.mockResolvedValue([
       {
         availableDate: '20260702',

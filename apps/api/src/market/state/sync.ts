@@ -103,7 +103,7 @@ async function syncSlice(
               ORDER BY d."tradeDate"
             ) AS "adjustedClose20"
           FROM "Daily" d
-          JOIN "AdjFactor" a
+          LEFT JOIN "AdjFactor" a
             ON a."tsCode" = d."tsCode"
             AND a."tradeDate" = d."tradeDate"
           LEFT JOIN "DailyBasic" db
@@ -172,24 +172,29 @@ async function syncSlice(
 
       await transaction.$executeRawUnsafe(`
         CREATE TEMP TABLE market_state_index_close AS
-        WITH close_window AS (
+        WITH session_prices AS (
           SELECT
-            "tsCode" AS "indexCode",
-            "tradeDate",
-            "close",
-            LAG("close", 20) OVER (
-              PARTITION BY "tsCode"
-              ORDER BY "tradeDate"
-            ) AS "close20"
-          FROM "IndexDaily"
-          WHERE "tsCode" IN (${indexCodesSql})
-            AND "tradeDate" BETWEEN '${panelStart}' AND '${slice.end}'
+            indices."indexCode", calendar."calDate" AS "tradeDate", prices."close"
+          FROM "TradeCal" calendar
+          CROSS JOIN (SELECT DISTINCT "indexCode" FROM market_state_index_members) indices
+          LEFT JOIN "IndexDaily" prices ON prices."tsCode" = indices."indexCode"
+            AND prices."tradeDate" = calendar."calDate"
+          WHERE calendar."exchange" = 'SSE' AND calendar."isOpen" = 1
+            AND calendar."calDate" BETWEEN '${panelStart}' AND '${slice.end}'
+        ), close_window AS (
+          SELECT *,
+            LAG("close", 20) OVER session_window AS "close20",
+            SUM(CASE WHEN "close" > 0 THEN 1 ELSE 0 END) OVER (
+              session_window ROWS BETWEEN 20 PRECEDING AND CURRENT ROW
+            ) AS "validSessions"
+          FROM session_prices
+          WINDOW session_window AS (PARTITION BY "indexCode" ORDER BY "tradeDate")
         )
         SELECT
           "indexCode",
           "tradeDate",
           CASE
-            WHEN "close20" > 0 THEN "close" / "close20" - 1
+            WHEN "validSessions" = 21 AND "close20" > 0 THEN "close" / "close20" - 1
             ELSE NULL
           END AS "return20"
         FROM close_window

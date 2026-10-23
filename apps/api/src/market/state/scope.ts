@@ -14,3 +14,22 @@ export interface DerivedMarketScope {
 export function allMarketIndicatorScope(): DerivedMarketScope {
   return { market: true, industries: true, indexCodes: [...MARKET_WEATHER_INDICATOR_INDEX_CODES] };
 }
+
+export function dirtyMarketIndicatorScope(dirtyScopes: unknown): DerivedMarketScope {
+  const dirty =
+    Array.isArray(dirtyScopes) && dirtyScopes.length
+      ? dirtyScopes.filter((value): value is string => typeof value === 'string')
+      : ['all'];
+  if (dirty.includes('all')) {
+    return allMarketIndicatorScope();
+  }
+
+  return {
+    market: dirty.includes('market'),
+    industries: dirty.includes('industries'),
+    indexCodes: dirty
+      .filter((value) => value.startsWith('index:'))
+      .map((value) => value.slice(6))
+      .filter((code) => allMarketIndicatorScope().indexCodes.includes(code)),
+  };
+}

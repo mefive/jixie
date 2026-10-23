@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { maintenanceRoute } from '../routes.js';
 import { getDeploymentVersion } from './deployment-version.js';
 
-vi.mock('../runs/state.js', () => ({ getMaintenanceStatus: vi.fn() }));
+vi.mock('../status.js', () => ({ getMaintenanceStatus: vi.fn() }));
 
 describe('successful deployment version', () => {
   let directory: string;

@@ -71,4 +71,4 @@ function row(id: string, peTtm: number | null, marketCap: number | null): Resear
   };
 }
 
-const testDatabase = { maintenanceState: { findUnique: async () => null } } as unknown as Prisma;
+const testDatabase = { marketDataState: { findUnique: async () => null } } as unknown as Prisma;

@@ -150,3 +150,8 @@ For a bounded calculation on an existing report or selected data, use an [embedd
 - [Load US Treasury yield curves](/docs/help/research/yield-curves)
 - [Use the Research Python runtime](/docs/help/research/python-runtime)
 - [Read research outputs](/docs/help/research/outputs)
+
+
+### Coverage and financial versions
+
+The target, actual observation dates, and continuous verified coverage are separate facts. A source gap does not block the Research page. Formal cross-sections require their own price, adjustment, and valuation coverage; a nonempty partial sample is not a complete universe. Provider financial indicators use retained captured versions: `date` is version availability, `announcement_date` is the source announcement, and `availability_quality`/`observed_at` explain evidence. latest_only backfills cannot prove pre-capture values. Dividends similarly separate economic `ex_date` from current-value availability `date`.

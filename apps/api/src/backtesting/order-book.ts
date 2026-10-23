@@ -55,8 +55,10 @@ export class OrderBook {
   /**
    * 为下一次策略回调重置决策缓冲并记录决策日，保留待执行订单和有效条件单。
    *
-   * Starts a fresh instruction buffer for the strategy's next onBar call and records its decision date.
-   * Clears previously collected instructions, leaving pending orders and active conditional orders intact.
+   * Starts a fresh instruction buffer for the strategy's next onBar call and records its decision
+   * date.
+   * Clears previously collected instructions, leaving pending orders and active conditional orders
+   * intact.
    * Subsequent strategy order calls write to this buffer; commitDecision submits it for execution.
    */
   beginDecision(date: string): void {
@@ -650,7 +652,8 @@ export class OrderBook {
   /**
    * 将目标权重转换为可执行的现金资产调整，按持仓与买入预算处理调仓。
    *
-   * Translate target weights into cash-asset adjustments using holdings and available purchase budgets.
+   * Translate target weights into cash-asset adjustments using holdings and available purchase
+   * budgets.
    */
   private rebalance(date: string): void {
     const { cashPortfolio, engineData } = this;
@@ -855,8 +858,13 @@ export class OrderBook {
   ): boolean {
     const limit = this.engineData.priceLimitsOn(code, date);
     const adjustmentFactor = this.engineData.adjustmentFactorOn(code, date);
-    if (!limit || !adjustmentFactor || adjustmentFactor <= 0) {
-      return false;
+    if (
+      !limit ||
+      !adjustmentFactor ||
+      adjustmentFactor <= 0 ||
+      (side === 'buy' ? limit.up : limit.down) == null
+    ) {
+      return this.engineData.assetType(code) === 'stock';
     }
     const epsilon = 1e-3;
 
@@ -925,12 +933,12 @@ export class OrderBook {
     adjustedPrice: number,
   ): boolean {
     const limits = this.engineData.priceLimitsOn(code, date);
-    if (!limits) {
-      return false;
+    if (!limits || (side === 'buy' ? limits.up : limits.down) == null) {
+      return this.engineData.assetType(code) === 'stock';
     }
     const adjustmentFactor = this.engineData.adjustmentFactorOn(code, date);
     if (adjustmentFactor == null || adjustmentFactor <= 0) {
-      return false;
+      return true;
     }
     const rawOpen = adjustedPrice / adjustmentFactor;
     const epsilon = 1e-3;

@@ -5,6 +5,7 @@ import {
 } from '#infra/errors.js';
 
 const definitions = {
+  inputs_not_ready: { category: 'unavailable', messageKey: 'marketInputsNotReady' },
   no_data: {
     category: 'missing',
     messageKey: 'noDataInRange',
@@ -71,7 +72,11 @@ export class MarketSourcePendingError extends Error {
   }
 }
 
-/** 数据获取的传输失败，与字段映射或计算错误分开。 / A source transport failure, distinct from mapping or computation errors. */
+/**
+ * 数据获取的传输失败，与字段映射或计算错误分开。
+ *
+ * A source transport failure, distinct from mapping or computation errors.
+ */
 export class MarketSourceDownloadError extends Error {
   constructor(message: string, options?: ErrorOptions) {
     super(message, options);
@@ -79,7 +84,11 @@ export class MarketSourceDownloadError extends Error {
   }
 }
 
-/** 只按已知错误类型保留下载断点，不匹配错误文案。 / Retain download checkpoints by known error types, never message matching. */
+/**
+ * 只按已知错误类型保留下载断点，不匹配错误文案。
+ *
+ * Retain download checkpoints by known error types, never message matching.
+ */
 export function isMarketSourceFailure(error: unknown): boolean {
   if (error instanceof AggregateError) {
     return error.errors.length > 0 && error.errors.every(isMarketSourceFailure);
@@ -92,4 +101,16 @@ export function isMarketSourceFailure(error: unknown): boolean {
     error instanceof HttpStatusError ||
     error instanceof ChinaBondHttpStatusError
   );
+}
+
+/**
+ * 有限同步预算耗尽应保留待办，不能作为永久来源失败。
+ *
+ * Exhausted synchronization budgets defer durable work rather than imply permanent source failure.
+ */
+export class MarketSyncBudgetError extends Error {
+  constructor(message = 'Finite synchronization request/time budget reached') {
+    super(message);
+    this.name = 'MarketSyncBudgetError';
+  }
 }

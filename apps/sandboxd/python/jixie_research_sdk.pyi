@@ -161,10 +161,10 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
-    # Load one stock financial-indicator history by announcement date.
+    # Load retained stock financial-indicator versions by actual availability date.
     # Note: identifier uses the platform stock code; start/end always constrain availability.
     # Example: data.equity_fundamentals("600519.SH", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], report_period: datetime64[ns], roe_pct: float64, roe_waa_pct: float64, roa_pct: float64, gross_profit_margin_pct: float64, net_profit_margin_pct: float64, debt_to_assets_pct: float64, revenue_yoy_pct: float64, net_profit_yoy_pct: float64, operating_cash_flow_to_profit: float64
+    # DataFrame columns: announcement_date: datetime64[ns], availability_quality: string, observed_at: string, date: datetime64[ns], report_period: datetime64[ns], roe_pct: float64, roe_waa_pct: float64, roa_pct: float64, gross_profit_margin_pct: float64, net_profit_margin_pct: float64, debt_to_assets_pct: float64, revenue_yoy_pct: float64, net_profit_yoy_pct: float64, operating_cash_flow_to_profit: float64
     def equity_fundamentals(
         self,
         identifier: str,
@@ -185,10 +185,10 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
-    # Load implemented cash dividends for one stock by ex-dividend date.
+    # Load captured implemented dividends by version availability, retaining economic ex-dates.
     # Note: identifier uses the platform stock code; start/end always constrain availability.
     # Example: data.equity_dividends("600519.SH", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], report_period: datetime64[ns], announcement_date: str | None, cash_dividend_pre_tax: float64, cash_dividend_tax_basis: float64
+    # DataFrame columns: ex_date: datetime64[ns], availability_quality: string, observed_at: string, date: datetime64[ns], report_period: datetime64[ns], announcement_date: str | None, cash_dividend_pre_tax: float64, cash_dividend_tax_basis: float64
     def equity_dividends(
         self,
         identifier: str,

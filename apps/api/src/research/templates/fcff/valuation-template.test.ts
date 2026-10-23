@@ -495,4 +495,4 @@ pd.DataFrame([{"rejection": rejection}])`,
   });
 });
 
-const testDatabase = { maintenanceState: { findUnique: async () => null } } as unknown as Prisma;
+const testDatabase = { marketDataState: { findUnique: async () => null } } as unknown as Prisma;

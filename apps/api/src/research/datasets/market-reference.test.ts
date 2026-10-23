@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   etfShares: vi.fn(),
   indexValuation: vi.fn(),
   industryState: vi.fn(),
+  calculationStates: vi.fn(),
   futuresSettlement: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ vi.mock('#infra/database/prisma.js', async () => {
       etfShareSize: { findMany: mocks.etfShares },
       indexDailyBasic: { findMany: mocks.indexValuation },
       industryIndicator: { findMany: mocks.industryState },
+      marketCalculationState: { findMany: mocks.calculationStates },
       futureSettlement: { findMany: mocks.futuresSettlement },
     },
   };
@@ -102,7 +104,20 @@ describe('Research market reference datasets', () => {
       },
     ]);
 
-    await loadResearchIndustryState({ ...request, identifier: '食品饮料' });
+    mocks.calculationStates.mockResolvedValue([
+      {
+        date: '20260105',
+        generation: 1,
+        readyGeneration: 1,
+        auditVersion: 'market-eligibility-v3',
+        calculationVersion: 'market-state-sync-v2',
+        dirtyScopes: [],
+        inputVersions: { qualifiedScopes: ['industry:801120.SI'] },
+      },
+    ]);
+    await expect(
+      loadResearchIndustryState({ ...request, identifier: '食品饮料' }),
+    ).resolves.toMatchObject([{ return_20d: 0.03, float_weighted_turnover_rate_pct: 1.1 }]);
     expect(mocks.industryState).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ OR: [{ l1Code: '食品饮料' }, { l1Name: '食品饮料' }] }),

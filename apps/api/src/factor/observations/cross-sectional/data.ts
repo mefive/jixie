@@ -1,3 +1,7 @@
+import { MarketError } from '#market/errors.js';
+import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
+import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
+import { latestCompletedTradeDate } from '#market/calendar/sse-close.js';
 import type { EquityStyleControlExposureV1 } from '../contract.js';
 import { sameMonth, sameWeek } from '#date';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -33,35 +37,72 @@ export async function getRebalanceDates(
   return out;
 }
 
-export type Snap = Map<string, { adjClose: number; amount: number; mktcap: number }>; // tsCode -> quote
+export type Snap = Map<string, { adjClose: number; amount: number | null; mktcap: number | null }>; // tsCode -> quote
 
 /**
  * 按调仓日加载复权收盘、换手和可选总市值快照，供收益与加权计算。
  *
- * Load a "hfq close + turnover (+ total market cap for cap-weighting)" snapshot for each day. `withMktcap` only
+ * Load a "hfq close + turnover (+ total market cap for cap-weighting)" snapshot for each day.
+ * `withMktcap` only
  * for rebalance (formation) dates — forward snapshots weight by the formation-date cap, so they skip it.
  */
 export async function loadSnapshots(
   dates: string[],
   withMktcap = false,
+  purpose: 'required' | 'forward' = 'required',
 ): Promise<Map<string, Snap>> {
+  let observable = dates;
+  if (purpose === 'forward') {
+    const completed = await latestCompletedTradeDate();
+    const latest = completed
+      ? await getDatabase().daily.findFirst({
+          where: { tradeDate: { lte: completed } },
+          orderBy: { tradeDate: 'desc' },
+          select: { tradeDate: true },
+        })
+      : null;
+
+    // 日历前瞻不代表远期收益已经实现；已成熟范围内仍执行严格输入校验。
+    // Calendar lookahead is not a realized return; observable dates still require complete inputs.
+    observable = dates.filter((date) => latest && date <= latest.tradeDate);
+  }
+
+  for (const date of observable) {
+    await assertDatasetInputReadiness(
+      ['stock-prices', 'stock-adjustments', ...(withMktcap ? ['stock-valuations'] : [])].map(
+        (dataset) => ({ dataset, scope: 'all', startDate: date, endDate: date }),
+      ),
+    );
+  }
+
   const px = await getDatabase().daily.findMany({
-    where: { tradeDate: { in: dates } },
+    where: { tradeDate: { in: observable } },
     select: { tsCode: true, tradeDate: true, close: true, amount: true },
   });
   const adj = await getDatabase().adjFactor.findMany({
-    where: { tradeDate: { in: dates } },
+    where: { tradeDate: { in: observable } },
     select: { tsCode: true, tradeDate: true, adjFactor: true },
   });
   const adjMap = new Map(adj.map((a) => [`${a.tsCode}|${a.tradeDate}`, a.adjFactor]));
-  let mvMap = new Map<string, number>();
+  let mvMap = new Map<string, number | null>();
   if (withMktcap) {
     const basic = await getDatabase().dailyBasic.findMany({
-      where: { tradeDate: { in: dates } },
+      where: { tradeDate: { in: observable } },
       select: { tsCode: true, tradeDate: true, totalMv: true },
     });
-    mvMap = new Map(basic.map((b) => [`${b.tsCode}|${b.tradeDate}`, b.totalMv ?? 0]));
+    mvMap = new Map(basic.map((b) => [`${b.tsCode}|${b.tradeDate}`, b.totalMv]));
   }
+  if (
+    px.some(
+      (row) =>
+        row.close != null &&
+        (!(Number(adjMap.get(`${row.tsCode}|${row.tradeDate}`)) > 0) ||
+          (withMktcap && !mvMap.has(`${row.tsCode}|${row.tradeDate}`))),
+    )
+  ) {
+    throw new MarketError('inputs_not_ready');
+  }
+
   const snaps = new Map<string, Snap>();
   for (const d of dates) {
     snaps.set(d, new Map());
@@ -76,8 +117,8 @@ export async function loadSnapshots(
     } // skip the rare cases missing an adjustment factor
     snaps.get(r.tradeDate)!.set(r.tsCode, {
       adjClose: r.close * f,
-      amount: r.amount ?? 0,
-      mktcap: mvMap.get(`${r.tsCode}|${r.tradeDate}`) ?? 0,
+      amount: r.amount,
+      mktcap: mvMap.get(`${r.tsCode}|${r.tradeDate}`) ?? null,
     });
   }
   return snaps;
@@ -102,24 +143,14 @@ export type FinaIndex = Map<string, FinaReport[]>; // code -> reports ascending 
 /**
  * 一次加载财务报告并按证券和公告日索引，供因子时点读取。
  *
- * Load all financial reports once, grouped by code ascending by annDate — the point-in-time source for
+ * Load all financial reports once, grouped by code ascending by annDate — the point-in-time source
+ * for
  * the FactorBar fundamentals (ROE / ROA / gross margin / debt ratio). Rows without an annDate are
  * skipped (they can't be PIT-gated). Mirrors EngineData.ensureFina so the factor and backtest sides
  * read fina the same way.
  */
 export async function loadFinaIndex(): Promise<FinaIndex> {
-  const rows = await getDatabase().finaIndicator.findMany({
-    where: { annDate: { not: null } },
-    select: {
-      tsCode: true,
-      annDate: true,
-      roe: true,
-      roa: true,
-      grossprofitMargin: true,
-      debtToAssets: true,
-    },
-    orderBy: { annDate: 'asc' },
-  });
+  const rows = await loadIndicatorVersions();
   const index: FinaIndex = new Map();
   for (const r of rows) {
     let list = index.get(r.tsCode);
@@ -127,7 +158,7 @@ export async function loadFinaIndex(): Promise<FinaIndex> {
       index.set(r.tsCode, (list = []));
     }
     list.push({
-      annDate: r.annDate!,
+      annDate: r.availableDate,
       roe: r.roe,
       roa: r.roa,
       grossprofitMargin: r.grossprofitMargin,
@@ -140,7 +171,8 @@ export async function loadFinaIndex(): Promise<FinaIndex> {
 /**
  * 用二分搜索读取公告日不晚于指定日期的最近财务报告。
  *
- * The latest report public as-of `date` for `code` (largest annDate ≤ date), or null — binary search
+ * The latest report public as-of `date` for `code` (largest annDate ≤ date), or null — binary
+ * search
  * over the ascending list. Same PIT rule as EngineData.roeAsOf: no report visible before its annDate.
  */
 export function finaAsOf(index: FinaIndex, code: string, date: string): FinaReport | null {
@@ -228,6 +260,7 @@ export async function loadEquityStyleControls(
       const value = bookToPrice.get(`${date}|${tsCode}`);
       const quality = finaAsOf(finaIndex, tsCode, date)?.roe;
       if (
+        snap.mktcap == null ||
         snap.mktcap <= 0 ||
         !pastQuote ||
         !recentQuote ||
@@ -281,7 +314,8 @@ export async function loadIndustryLookup(): Promise<Map<string, IndustrySpell[]>
 /**
  * 选择覆盖 [inDate, outDate) 的申万一级行业，无覆盖时返回 null。
  *
- * The stock's SW level-1 industry on `date`: the spell covering [inDate, outDate) — or null if none.
+ * The stock's SW level-1 industry on `date`: the spell covering [inDate, outDate) — or null if
+ * none.
  */
 export function industryOn(spells: IndustrySpell[] | undefined, date: string): string | null {
   if (!spells) {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MARKET_AUDIT_VERSION, MARKET_CALCULATION_VERSION } from '#market/state/eligibility.js';
 
 const mocks = vi.hoisted(() => ({
   marketFindMany: vi.fn(),
@@ -7,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   moneyflowFindMany: vi.fn(),
   topListFindMany: vi.fn(),
   dividendFindMany: vi.fn(),
+  calculationStates: vi.fn(),
+  recordEvidence: vi.fn(),
+  sessions: vi.fn(),
 }));
 
 vi.mock('#infra/database/prisma.js', async () => {
@@ -14,10 +18,13 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: {
       marketIndicator: { findMany: mocks.marketFindMany },
       indexIndicator: { findMany: mocks.indexFindMany },
-      finaIndicator: { findMany: mocks.finaFindMany },
+      finaIndicatorVersion: { findMany: mocks.finaFindMany },
       moneyflow: { findMany: mocks.moneyflowFindMany },
       topList: { findMany: mocks.topListFindMany },
       dividend: { findMany: mocks.dividendFindMany },
+      marketCalculationState: { findMany: mocks.calculationStates },
+      marketRecordEvidence: { findMany: mocks.recordEvidence },
+      tradeCal: { findMany: mocks.sessions },
     },
   };
   return {
@@ -42,6 +49,16 @@ describe('Research supplemental datasets', () => {
   });
 
   it('loads market state with a warm-up window and stable components', async () => {
+    mocks.calculationStates.mockResolvedValue(
+      Array.from({ length: 20 }, (_, index) => ({
+        date: `202601${String(index + 1).padStart(2, '0')}`,
+        auditVersion: MARKET_AUDIT_VERSION,
+        calculationVersion: MARKET_CALCULATION_VERSION,
+        generation: 1,
+        readyGeneration: 1,
+        inputVersions: { qualifiedScopes: ['market'] },
+      })),
+    );
     mocks.marketFindMany.mockResolvedValue(
       Array.from({ length: 20 }, (_, index) => ({
         tradeDate: `202601${String(index + 1).padStart(2, '0')}`,
@@ -81,12 +98,15 @@ describe('Research supplemental datasets', () => {
     ]);
   });
 
-  it('gates fundamentals by announcement date', async () => {
+  it('gates fundamentals by captured-version availability and retains the announcement date', async () => {
     mocks.finaFindMany.mockResolvedValue([
       {
         tsCode: '600519.SH',
         endDate: '20251231',
         annDate: '20260330',
+        availableDate: '20260402',
+        availabilityQuality: 'observed',
+        observedAt: new Date('2026-04-01T02:00:00Z'),
         roe: 30,
         roeWaa: 29,
         roa: 20,
@@ -109,12 +129,16 @@ describe('Research supplemental datasets', () => {
       expect.objectContaining({
         where: {
           tsCode: '600519.SH',
-          annDate: { not: null, gte: '20260101', lte: '20261231' },
+          availabilityQuality: { not: 'unknown' },
+          availableDate: { gte: '20260101', lte: '20261231' },
         },
       }),
     );
     expect(rows[0]).toMatchObject({
-      date: '20260330',
+      date: '20260402',
+      announcement_date: '20260330',
+      availability_quality: 'observed',
+      observed_at: '2026-04-01T02:00:00.000Z',
       report_period: '20251231',
       roe_pct: 30,
       revenue_yoy_pct: 10,
@@ -149,9 +173,10 @@ describe('Research supplemental datasets', () => {
     ]);
   });
 
-  it('returns implemented dividends by ex-date only', async () => {
+  it('keeps the dividend ex-date separate from its later captured-version availability', async () => {
     mocks.dividendFindMany.mockResolvedValue([
       {
+        id: 'dividend-fixture',
         endDate: '20251231',
         annDate: '20260330',
         exDate: '20260615',
@@ -159,6 +184,14 @@ describe('Research supplemental datasets', () => {
         cashDivTax: 2.5,
       },
     ]);
+    mocks.recordEvidence.mockResolvedValue([
+      {
+        businessKey: JSON.stringify(['dividend-fixture']),
+        firstObservedAt: new Date('2026-06-16T02:00:00Z'),
+        availabilityQuality: 'observed',
+      },
+    ]);
+    mocks.sessions.mockResolvedValue([{ calDate: '20260616' }, { calDate: '20260617' }]);
 
     const rows = await loadResearchEquityDividends({
       identifier: '600519.SH',
@@ -171,6 +204,12 @@ describe('Research supplemental datasets', () => {
         where: expect.objectContaining({ divProc: '实施', exDate: expect.any(Object) }),
       }),
     );
-    expect(rows[0]).toMatchObject({ date: '20260615', cash_dividend_pre_tax: 2.5 });
+    expect(rows[0]).toMatchObject({
+      date: '20260617',
+      ex_date: '20260615',
+      cash_dividend_pre_tax: 2.5,
+      observed_at: '2026-06-16T02:00:00.000Z',
+      availability_quality: 'observed',
+    });
   });
 });

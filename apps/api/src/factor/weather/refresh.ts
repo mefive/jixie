@@ -1,4 +1,4 @@
-import { deferMaintenanceAction } from '#infra/coordination/staging-input.js';
+import { datasetInputReadiness, marketRevision } from '#market/synchronization/readiness.js';
 import {
   withRetainedMarketAccess,
   acquireWorkOwner,
@@ -62,7 +62,7 @@ export function factorWeatherMethodology() {
 
 export function refreshFactorWeatherPin(
   pinId: string,
-  options: { force?: boolean } = {},
+  options: { force?: boolean; signal?: AbortSignal } = {},
 ): Promise<FactorWeatherRefreshResult> {
   const active = activeRefreshes.get(pinId);
   if (active) {
@@ -126,10 +126,6 @@ export async function refreshAllFactorWeatherPins(
     strict?: boolean;
   } = {},
 ): Promise<FactorWeatherRefreshResult[]> {
-  if (deferMaintenanceAction({ kind: 'weather' })) {
-    return [];
-  }
-
   const pins = await getDatabase().factorWeatherPin.findMany({
     orderBy: { createdAt: 'asc' },
     select: { id: true, factorName: true },
@@ -160,34 +156,36 @@ export async function refreshAllFactorWeatherPins(
  */
 async function performRefresh(
   pinId: string,
-  options: { force?: boolean },
+  options: { force?: boolean; signal?: AbortSignal },
 ): Promise<FactorWeatherRefreshResult> {
   const pin = await getDatabase().factorWeatherPin.findUnique({ where: { id: pinId } });
   if (!pin) {
     return { pinId, computedThrough: null, pointsWritten: 0, skipped: true };
   }
 
-  const state = await getDatabase().maintenanceState.findUnique({
-    where: { key: 'global' },
-    select: { dataRevision: true },
-  });
-  const methodologyHash = sha256(
-    canonicalJson({
-      methodology: FACTOR_WEATHER_METHODOLOGY_HASH,
-      dataRevision: state?.dataRevision ?? 0,
-    }),
-  );
+  const inputRevision = await marketRevision();
+  const methodologyHash = FACTOR_WEATHER_METHODOLOGY_HASH;
   const completedThrough = await latestCompletedMonthEnd();
   if (!completedThrough) {
     await getDatabase().factorWeatherPin.update({
       where: { id: pinId },
-      data: { status: 'error', error: 'No completed monthly market period is available.' },
+      data: { status: 'pending', error: null },
     });
     return { pinId, computedThrough: null, pointsWritten: 0, skipped: true };
   }
   const requiresFullRefresh =
     Boolean(options.force) || !pin.computedThrough || pin.methodologyHash !== methodologyHash;
-  if (!requiresFullRefresh && pin.status === 'ready' && pin.computedThrough === completedThrough) {
+  if (
+    !requiresFullRefresh &&
+    !pin.dirtyFrom &&
+    pin.status === 'ready' &&
+    pin.computedThrough === completedThrough
+  ) {
+    await getDatabase().factorWeatherPin.update({
+      where: { id: pinId },
+      data: { updatedAt: new Date() },
+    });
+
     return { pinId, computedThrough: completedThrough, pointsWritten: 0, skipped: true };
   }
 
@@ -199,7 +197,11 @@ async function performRefresh(
   try {
     const start = requiresFullRefresh
       ? await weatherHistoryStart(completedThrough)
-      : await incrementalStart(pin.computedThrough!);
+      : await incrementalStart(
+          pin.dirtyFrom && pin.dirtyFrom < pin.computedThrough!
+            ? pin.dirtyFrom
+            : pin.computedThrough!,
+        );
     const spec = createDefaultFactorAnalysisSpecV3({
       freq: 'month',
       start,
@@ -213,11 +215,16 @@ async function performRefresh(
       pin.language === 'python' ? 'python' : 'typescript',
       pin.runtimeVersion,
       spec,
+      options.signal,
     );
     const observations = report.periodObservations ?? [];
     const newObservations = requiresFullRefresh
       ? observations
-      : observations.filter((observation) => observation.periodEndDate > pin.computedThrough!);
+      : observations.filter((observation) =>
+          pin.dirtyFrom
+            ? observation.periodEndDate >= pin.dirtyFrom
+            : observation.periodEndDate > pin.computedThrough!,
+        );
     const data = newObservations.map((observation) => ({
       pinId,
       formationDate: observation.formationDate,
@@ -233,11 +240,20 @@ async function performRefresh(
     }));
 
     await getDatabase().$transaction(async (transaction) => {
+      const currentRevision = await transaction.marketDataState.findUnique({
+        where: { key: 'global' },
+      });
+      if ((currentRevision?.revision ?? 0) !== inputRevision) {
+        throw new Error('Stale factor-weather input revision');
+      }
       if (requiresFullRefresh) {
         await transaction.factorWeatherPoint.deleteMany({ where: { pinId } });
       } else {
         await transaction.factorWeatherPoint.deleteMany({
-          where: { pinId, periodEndDate: { gt: pin.computedThrough! } },
+          where: {
+            pinId,
+            periodEndDate: pin.dirtyFrom ? { gte: pin.dirtyFrom } : { gt: pin.computedThrough! },
+          },
         });
       }
       if (data.length > 0) {
@@ -250,6 +266,8 @@ async function performRefresh(
           error: null,
           computedThrough: completedThrough,
           methodologyHash,
+          dirtyFrom: null,
+          inputRevision,
         },
       });
     });
@@ -272,32 +290,33 @@ async function performRefresh(
  */
 async function latestCompletedMonthEnd(): Promise<string | null> {
   const currentMonthStart = shanghaiToday().slice(0, 6) + '01';
-  const published = await getDatabase().maintenanceState.findUnique({
-    where: { key: 'global' },
-    select: { dailyPublishedThrough: true },
-  });
-  const marketCutoff =
-    published?.dailyPublishedThrough ??
-    (
-      await getDatabase().daily.findFirst({
-        orderBy: { tradeDate: 'desc' },
-        select: { tradeDate: true },
-      })
-    )?.tradeDate;
-  if (!marketCutoff) {
-    return null;
-  }
-
-  const row = await getDatabase().tradeCal.findFirst({
-    where: {
-      exchange: 'SSE',
-      isOpen: 1,
-      calDate: { lt: currentMonthStart, lte: marketCutoff },
-    },
+  const candidates = await getDatabase().tradeCal.findMany({
+    where: { exchange: 'SSE', isOpen: 1, calDate: { lt: currentMonthStart } },
     orderBy: { calDate: 'desc' },
+    take: 260,
     select: { calDate: true },
   });
-  return row?.calDate ?? null;
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    const month = candidate.calDate.slice(0, 6);
+    if (seen.has(month)) {
+      continue;
+    }
+    seen.add(month);
+    const readiness = await datasetInputReadiness(
+      ['stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
+        dataset,
+        scope: 'all',
+        startDate: `${month}01`,
+        endDate: candidate.calDate,
+      })),
+    );
+    if (readiness.ready) {
+      return candidate.calDate;
+    }
+  }
+
+  return null;
 }
 
 async function weatherHistoryStart(end: string): Promise<string> {
@@ -350,8 +369,10 @@ async function runWeatherWorker(
   language: 'typescript' | 'python',
   runtimeVersion: string,
   spec: ReturnType<typeof createDefaultFactorAnalysisSpecV3>,
+  signal?: AbortSignal,
 ): Promise<FactorReport> {
   const payload = await runWorker({
+    signal,
     start: () =>
       new Worker(workerUrl, {
         workerData: factorAnalysisWorkerInputSchema.parse({

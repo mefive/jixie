@@ -6,7 +6,7 @@
 
 | 目录 / 文件 | 用途 | 入口数 | 主要调用方 |
 | --- | --- | --- | --- |
-| [Market 同步函数](../src/market/sync/) | 由统一 sync CLI 调用，包含财报历史导入和派生计算 | 24 | 批量导入、bootstrap、手动补数 |
+| [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
 | [Maintenance CLI](../src/maintenance/cli/) | 整轮维护和基线修复 | 1 | systemd、根级维护命令、批量导入 |
 | [Signals CLI](../src/signals/cli/) | 交易日信号周期 | 1 | 管理员 |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
@@ -20,9 +20,8 @@
 
 - `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
 - 下表 `start` / `end` / `date` 使用 `YYYYMMDD`，宏观月份使用 `YYYYMM`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
-- 日常维护优先从仓库根目录运行 `pnpm maintenance ...`，它由 TS 协调器直接获取并校验系统文件锁；批量导入使用根级 `pnpm import:data`。
-- `pnpm maintenance daily --resume-only` 仅恢复旧目标，`daily --initialize-only` 仅验证已导入基线；两者不能与显式日期或 `--force` 混用。部署不再隐式运行普通 daily。
-- 同步会写市场数据；维护和研究命令可能写任务、信号或用户研究数据。只读审计不等于完全无文件输出，具体见下表。
+- 数据写入只使用 `pnpm data sync [--to YYYYMMDD]`；只读审计与显式探针保留。
+- `maintenance`、`import:data`、`sync <任务>` 和代码归一 CLI 均已退役，不设置兼容转发。
 
 ## 已退役的数据转换
 
@@ -31,36 +30,9 @@
 
 ## 数据同步
 
-旧 `sync:<任务>` 注册已移除，改用 `sync <任务>`，位置参数顺序和省略参数的原有默认值保持。未知选项、额外位置参数、非法日期/选择器在执行前报错；`fina` 的 `--start` / `--end` 仅可与 `--repair-code` 一起使用，避免误触全量导入。`maintenance` / `import:data` 继续负责锁、恢复和整轮编排。
+唯一写流程是 `pnpm data sync [--to YYYYMMDD]`，由 `src/maintenance/cli/data.ts` 进入协调器；生产使用相同编译入口。无参数或 `--help` 显示帮助，未知参数、额外选择器和不存在的日期在环境/数据库加载前失败。退出码：完整/合法 partial 为 0，实际错误为 1，参数错误为 2，写锁争用为 75。
 
-除 `sync market-state` 只使用本地数据计算外，本组会访问外部数据源并写数据库。每日维护负责日常更新，这些入口仍用于初始化、定向补数和修复。
-
-| 命令 | 文件 | 参数 | 内容 |
-| --- | --- | --- | --- |
-| `sync stock-prices` | [stock-prices.ts](../src/market/sync/stock-prices.ts) | `[start] [end]` | 股票基础信息、交易日历、日行情与复权 |
-| `sync stock-history` | [stock-history.ts](../src/market/sync/stock-history.ts) | `[start] [end]` | 完整股票名录、历史名称及代码变更资料 |
-| `sync basic` | [basic.ts](../src/market/sync/basic.ts) | `[start] [end]` | 股票每日估值指标；不是基础名录 |
-| `sync fina` | [fina.ts](../src/market/sync/fina.ts) | 无参数全量；单股修复见文件中的 `--repair-code` | 原始财报版本、财务指标、分红历史，分批子进程执行 |
-| `sync limit` | [limit.ts](../src/market/sync/limit.ts) | `[start] [end]` | 每日涨跌停价格 |
-| `sync moneyflow` | [moneyflow.ts](../src/market/sync/moneyflow.ts) | `[start] [end]` | 个股资金流 |
-| `sync toplist` | [toplist.ts](../src/market/sync/toplist.ts) | `[start] [end]` | 龙虎榜 |
-| `sync sw-industry` | [sw-industry.ts](../src/market/sync/sw-industry.ts) | 无 | 申万行业成员及历史归属 |
-| `sync etf` | [etf.ts](../src/market/sync/etf.ts) | `[start] [end] [selector] [refresh]` | ETF 元数据、行情、复权和份额；selector 为 `registry`、`major` 或逗号分隔代码 |
-| `sync index` | [index.ts](../src/market/sync/index.ts) | `[selector] [start] [end]` | 成分权重及行情；selector 为 `market-state` 或逗号分隔代码 |
-| `sync index-daily` | [index-daily.ts](../src/market/sync/index-daily.ts) | `[start] [end] [selector]` | 只补指数行情；selector 为 `major` 或逗号分隔代码 |
-| `sync index-basic` | [index-basic.ts](../src/market/sync/index-basic.ts) | `[start] [end] [selector]` | 指数每日估值；selector 为 `major` 或逗号分隔代码 |
-| `sync market-reference` | [market-reference.ts](../src/market/sync/market-reference.ts) | `[start] [end]` | 指数目录、看板指数和申万行业行情 |
-| `sync market-state` | [market-state.ts](../src/market/sync/market-state.ts) | `[start] [end]` | 本地预计算市场、指数与行业状态 |
-| `sync futures` | [futures.ts](../src/market/sync/futures.ts) | `[start] [end]` | 股指期货合约、行情、主力映射和结算参数 |
-| `sync commodity-futures` | [commodity-futures.ts](../src/market/sync/commodity-futures.ts) | `[start] [end]` | 商品期货实际合约及行情 |
-| `sync commodity-continuous` | [commodity-continuous-returns.ts](../src/market/sync/commodity-continuous-returns.ts) | `[start] [end]` | 主力映射及经审计的商品连续收益 |
-| `sync commodity-holdings` | [commodity-holdings.ts](../src/market/sync/commodity-holdings.ts) | `[start] [end]` | 商品期货会员持仓排名汇总 |
-| `sync commodity-warehouse-receipts` | [commodity-warehouse-receipts.ts](../src/market/sync/commodity-warehouse-receipts.ts) | `[start] [end]` | 商品交易所仓单 |
-| `sync rates` | [rates.ts](../src/market/sync/rates.ts) | `[start] [end]` | 中国国债收益率曲线 |
-| `sync credit-curves` | [credit-curves.ts](../src/market/sync/credit-curves.ts) | `[start] [end]` | 信用债收益率曲线 |
-| `sync external-market` | [external-market.ts](../src/market/sync/external-market.ts) | `[start] [end]` | 美国利率、汇率等外部市场数据 |
-| `sync cross-market-benchmarks` | [cross-market-benchmarks.ts](../src/market/sync/cross-market-benchmarks.ts) | `[start] [end]` | 跨市场基准序列 |
-| `sync macro` | [macro.ts](../src/market/sync/macro.ts) | `[startMonth] [endMonth]` | 中国宏观和美国 CPI |
+旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs、fundamentals、futures、commodity、rates、cross-market、macro 和 state 领域；日常补齐与首次回补使用同一持久分区计划，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [设计](../../../docs/design/unified-data-sync.md)。
 
 ## 审计与查看
 
@@ -90,18 +62,10 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
-| `maintenance` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | `daily [date] [--force]`、`weekly [--force]`、`repair [start end]`、`daily --initialize-only`、`daily --resume-only` | 先在独立候选中准备，再一次性事务发布；准备失败不阻塞主库 |
-| `maintenance cleanup [--apply]` | [run-maintenance.ts](../src/maintenance/cli/run-maintenance.ts) | 默认预览；显式 `--apply` 删除 | 按凭据和恢复条件回收候选及空闲 owner 文件，不下载或发布 |
-| `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[date]` | 执行交易日信号周期，写相关运行记录 |
-| `canonicalize:stock-codes` | [canonicalize-stock-codes.ts](../src/maintenance/cli/canonicalize-stock-codes.ts) | 无 | 统一已有股票代码；导入流程调用，写数据库 |
-| `gen:invite` | [gen-invite.ts](../src/auth/cli/gen-invite.ts) | `[count] [note]` | 创建邀请码，写数据库，不发送邮件 |
-| `backup` | [backup-db.mjs](backup-db.mjs) | 环境变量见下文 | SQLite 在线备份、校验和文件轮换 |
+| `data sync [--to YYYYMMDD]` | [data.ts](../src/maintenance/cli/data.ts) | 统一目标日期；无数据集/模式选择器 | 分区覆盖与有限批次，自动继续未完成工作 |
+| `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[tradeDate]` | 只消费已核验市场数据，不隐式下载 |
 
-备份只依赖 Node 内置模块及 `sqlite3` CLI，无需 tsx 或编译。`JIXIE_DB_PATH` 默认指向 `apps/api/prisma/dev.db`，`JIXIE_BACKUP_DIR` 默认 `~/jixie-backups`，`JIXIE_BACKUP_KEEP` 默认 5。它创建备份文件并删除超出保留数量的旧备份，不修改源数据库业务记录。
-
-Linux 正式配置为 [jixie-backup.service](../../../deploy/jixie-backup.service) / [jixie-backup.timer](../../../deploy/jixie-backup.timer)，由 bootstrap 安装。每日、每周维护服务调用编译入口 `apps/api/dist/src/maintenance/cli/run-maintenance.js`。macOS 本地备份配置为 [com.jixie.backup.plist](../../../deploy/com.jixie.backup.plist)，手动安装方式见文件注释。本目录不再维护 systemd 兼容副本。
-
-部署本次路径调整时，需要通过 bootstrap 构建 API 并重新安装、加载 systemd 配置；仅拉取源码不会更新服务器上已安装的 unit。本次未修改可部署 workspace 或跨包构建依赖，现有 `deploy/component-impact.json` 已将 `deploy/` 和根级 `scripts/` 的变更归为全量部署，无需修改映射。
+生产 timer 为 `deploy/jixie-maintenance.timer`，每两小时上海时间 :15 执行；旧 weekly timer 升级时停用。备份继续使用 `deploy/jixie-backup.*` 和零 npm 依赖 `scripts/backup-db.mjs`。
 
 ## 已移除的研究脚本
 
@@ -152,3 +116,5 @@ Gate 2 静态检查：API `tsc --noEmit`、改动 TypeScript 的 ESLint / Pretti
 ### 数据库作用域与回收（2026-10-22，待代码审阅）
 
 `pnpm sync` 保留全部 24 个命令及参数；业务实现移至 `src/market/sync` 的可调用函数，不再自执行 CLI。维护准备、最终计算与审计在候选数据库作用域中执行；仅财务批次保留子进程。详细边界、升级约束及验证计划见 [设计](../../../docs/design/maintenance-database-scope-and-cleanup.md)。尚未运行本次行为验证。
+
+历史记录中保留当时命令与路径；当前唯一写入口以上述统一同步说明为准。2026-10-22 候选协议已由统一同步替代，不再作为当前运行方式。

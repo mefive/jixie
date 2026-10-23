@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { getDeploymentVersion } from './publication/deployment-version.js';
-import { getMaintenanceStatus } from './runs/state.js';
+import { getMaintenanceStatus } from './status.js';
 
 export const maintenanceRoute = new Hono();
 

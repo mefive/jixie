@@ -53,11 +53,13 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   TopList:
     'tsCode, tradeDate, netAmount(元) — Dragon-Tiger List net buy amount, sparse event table (no appearance that day = no row)',
   Moneyflow:
-    'tsCode, tradeDate, netMain(万元), netTotal(万元) — per-stock moneyflow, sparse, exact per day, not forward-filled',
+    'tsCode, tradeDate, netMain(nullable, 万元; null when components are missing, never implicit zero), netTotal(万元) — per-stock moneyflow, sparse, exact per day, not forward-filled',
   DailyBasic:
     'tsCode, tradeDate, pe, peTtm, pb, ps, psTtm, dvRatio(%), dvTtm, totalMv(万元), circMv(万元), turnoverRate(%), turnoverRateF(% free-float) — daily valuation snapshot',
   FinaIndicator:
-    'tsCode, endDate(reporting period), annDate(announcement date), roe(%), roeWaa(%), roa(%), grossprofitMargin(%), netprofitMargin(%), debtToAssets(%), orYoy(revenue YoY, %), netprofitYoy(net profit attributable to parent, YoY, %), ocfToProfit(operating cash flow / operating profit) — financial indicators; PIT rule: values are only visible after annDate, so time-series analysis must gate on annDate to avoid look-ahead; column-expansion backfill in progress as of 2026-07, new columns may be partially NULL',
+    'tsCode, endDate, annDate, roe/roeWaa/roa/grossprofitMargin/netprofitMargin/debtToAssets/orYoy/netprofitYoy(percent), ocfToProfit(ratio) — current provider snapshot only; annDate does NOT prove historical availability of the current value. Formal PIT readers use FinaIndicatorVersion.',
+  FinaIndicatorVersion:
+    'id, tsCode, endDate(report period), annDate(source announcement), availableDate(mandatory actual-version gate), availabilityQuality(latest_only or captured), sourceFingerprint(unique retained content), observedAt(actual first capture), roe/roeWaa/roa/grossprofitMargin/netprofitMargin/debtToAssets/orYoy/netprofitYoy(percent), ocfToProfit(ratio) — append-only captured provider indicator versions; latest_only backfills never prove pre-capture history; gate by availableDate<=decision date, and preserve the selected version in sealed research evidence.',
   FinancialIncomeStatement:
     'id, source, contractVersion, tsCode, annDate, fAnnDate(actual announcement), endDate(reporting period), reportType(1 current consolidated / 4 adjusted comparative / 5 pre-adjustment comparative), compType(1 industrial), updateFlag(provider metadata only), observedAt, sourceRowFingerprint, announcementDate, availableDate(first strictly later SSE session), availabilityQuality(exact/conservative/reconstructed), evidenceSource, evidenceId, totalRevenue/revenue/operCost/operateProfit/totalProfit/incomeTax/nIncome/nIncomeAttrP/ebit/rdExp/finExpIntExp(CNY, cumulative YTD) — append-only statement versions; always gate on availableDate and exclude reconstructed rows for strict PIT research',
   FinancialBalanceSheet:
@@ -67,7 +69,7 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   FinancialCorrectionEvidence:
     'id, source, sourceId, tsCode, publishedAt, publishedDate, title, documentUrl, affectedPeriods(JSON), sourceFingerprint, observedAt — cached public announcement evidence for a verified financial correction; search-title matches without PDF-verified affectedPeriods are not stored as exact evidence',
   Dividend:
-    'id, tsCode, endDate, annDate, exDate(ex-dividend date), divProc, cashDiv(pre-tax per share), cashDivTax — dividend details; only divProc=「实施」(the "implemented" status) is an actual payout, exDate is the PIT gate',
+    'id, tsCode, endDate, annDate, exDate(ex-dividend date), divProc, cashDiv(pre-tax per share), cashDivTax — dividend details; only divProc=「实施」(the "implemented" status) is an actual payout, exDate is the economic event date; current provider rows do not prove a historical vintage, and the Research SDK gates newly captured current values by actual capture availability',
   IndexWeight:
     'indexCode, conCode, tradeDate, weight — monthly index constituent snapshot (e.g. 000852.SH CSI 1000)',
   IndexDaily: 'tsCode, tradeDate, close — index daily bars (e.g. 000300.SH CSI 300)',
@@ -82,13 +84,15 @@ export const SQL_TABLE_DOCS: Record<string, string> = {
   SwIndexDaily:
     'tsCode, tradeDate, name, open, low, high, close, change, pctChange(%), volume(10k shares), amount(10k CNY), pe, pb, floatMv(10k CNY), totalMv(10k CNY) — official Shenwan SW2021 level-1 industry index daily bars only; calculate valuation percentiles within the same industry over history',
   MarketIndicator:
-    'tradeDate, tradedCount, return20(decimal), advanceRatio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), totalAmount(thousand CNY), floatWeightedTurnoverRate(%), topFivePercentAmountShare(0..1), extremeMoveRatio(0..1), limitUpCount, limitDownCount — precomputed descriptive whole-market state',
+    'tradeDate, tradedCount, return20(decimal), advanceRatio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), totalAmount(thousand CNY), floatWeightedTurnoverRate(%), topFivePercentAmountShare(0..1), extremeMoveRatio(0..1), limitUpCount(nullable when limits are unqualified), limitDownCount(nullable) — precomputed descriptive whole-market state',
   IndexIndicator:
-    'indexCode, tradeDate, membershipDate(latest point-in-time constituent snapshot on or before tradeDate), tradedCount, return20(decimal official-index 20-day close return), advanceRatio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), totalAmount(thousand CNY), floatWeightedTurnoverRate(% weighted by official constituent weights), peTtm/pb(constituent-derived harmonic valuation proxies, not official index metrics), valuationCoverage(0..1 share of constituent weight with usable valuation), topFivePercentAmountShare(0..1 within index universe), extremeMoveRatio(0..1), limitUpCount, limitDownCount — precomputed descriptive state for historical index constituents',
+    'indexCode, tradeDate, membershipDate(latest point-in-time constituent snapshot on or before tradeDate), tradedCount, return20(decimal official-index 20-day close return), advanceRatio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), totalAmount(thousand CNY), floatWeightedTurnoverRate(% weighted by official constituent weights), peTtm/pb(constituent-derived harmonic valuation proxies, not official index metrics), valuationCoverage(0..1 share of constituent weight with usable valuation), topFivePercentAmountShare(0..1 within index universe), extremeMoveRatio(0..1), limitUpCount(nullable when limits are unqualified), limitDownCount(nullable) — precomputed descriptive state for historical index constituents',
   IndustryIndicator:
     'l1Code, l1Name, tradeDate, tradedCount, return20(decimal), excessReturn20(decimal vs whole-market equal-weight return), positiveReturn20Ratio(0..1), aboveMa20Ratio(0..1), aboveMa60Ratio(0..1), floatWeightedTurnoverRate(%), amountShare(0..1 of whole market), topFiveAmountShare(0..1 within industry) — point-in-time Shenwan level-1 state',
   FutureMarketPublication:
     'tradeDate (YYYYMMDD, primary key), payload (validated IF/IH/IC/IM contract/bar/mapping/margin JSON; prices in points, multiplier in CNY per point), inputHash (SHA-256), publishedAt (capture timestamp, NOT historical availability). No user data. Frozen inputs do not prove provider vintage before first capture.',
+  FutureMarketRevision:
+    'tradeDate, inputHash(SHA-256 content identity), dataRevision, payload(validated IF/IH/IC/IM contract/bar/mapping/margin JSON), createdAt — captured market input versions; new computations use the latest revision while frozen account inputs and legacy publications remain intact. Capture time is not historical provider availability.',
   FutureContract:
     'tsCode(actual contract, e.g. IF2509.CFX or AU2512.SHF), symbol, productCode, name, exchange, multiplier(contract multiplier; may be NULL when the provider omits it for research-only commodities), tradeUnit, perUnit, quoteUnit, quoteUnitDesc, deliveryMode, listDate, delistDate, deliveryMonth, lastDeliveryDate, tradeTimeDesc — actual delivery-month futures metadata; only IF/IH/IC/IM with a valid multiplier are trading-enabled, configured commodity products are research-only, and continuous symbols are not actual contracts',
   FutureDaily:

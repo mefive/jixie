@@ -52,6 +52,12 @@ export interface FixtureStock {
 export interface FixtureSpec {
   dates: string[]; // open trading days, ascending
   stocks: FixtureStock[];
+  /**
+   * 成交类测试可显式提供已知价格限制；省略时仍表示输入缺失。
+   *
+   * Execution fixtures may supply known price limits; omission still means missing inputs.
+   */
+  stockPriceLimits?: { up: number; down: number };
   indexDaily?: IndexDailyRow[];
   indexDailyBasic?: IndexDailyBasicDataRow[];
   indexWeights?: Record<string, IndexWeightRow[]>;
@@ -229,12 +235,14 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
               turnoverRateF: bar.turnoverRateF ?? null,
             });
           }
-          if (bar.up != null && bar.down != null) {
+          const up = bar.up ?? spec.stockPriceLimits?.up;
+          const down = bar.down ?? spec.stockPriceLimits?.down;
+          if (up != null && down != null) {
             out.limits.push({
               tsCode: stock.code,
               tradeDate: bar.date,
-              upLimit: bar.up,
-              downLimit: bar.down,
+              upLimit: up,
+              downLimit: down,
             });
           }
         }

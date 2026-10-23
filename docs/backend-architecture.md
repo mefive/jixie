@@ -17,7 +17,7 @@
 | Signals | 按报告独立部署、每日运行、模拟/人工成交和账户对账 | [Signals](../apps/api/src/signals/README.md) |
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
 | Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、跨资产查询与跨市场流程 | [Market](../apps/api/src/market/README.md) |
-| Maintenance | 整轮数据维护、质量门禁、发布水位、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
+| Maintenance | 统一目标同步、分区覆盖、局部资格、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
 | Sharing | 公开库目录，策略复制委托 Strategy | [Sharing](../apps/api/src/sharing/README.md) |
 | Auth | 登录、验证码、邀请码、Session 与 Cookie 适配 | [Auth](../apps/api/src/auth/README.md) |
 | Infra | 数据库、HTTP 辅助、任务执行器、Python/TS 运行设施、模型/邮件传输和日志 | [Jobs](../apps/api/src/jobs/README.md)、[Runtime](../apps/api/src/infra/sandbox/README.md) |
@@ -209,7 +209,7 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 
 数据的同步、修复、质量阈值和 PIT 检查由 Market 对应子域实现；Maintenance 组合各业务能力，拥有运行恢复、更新顺序、发布门禁和水位。
 `maintenance/publication/audit.ts` 汇总报告，具体审计位于 stocks、instruments、indices、fundamentals、macro、cross-market、rates、etfs、commodity；共享结果契约和覆盖摘要在 market/quality，不依赖 Maintenance。
-财报 Worker 通过逐项完成消息和父进程确认隔离数据执行与维护 checkpoint；ETF recovery 使用调用方恢复回调。`maintenance/runs/coordination.ts` 提供锁检查与任务安静窗口，其他流程不再从 daily 导入公共协调能力。
+统一同步从 `maintenance/cli/data.ts` 进入 `maintenance/sync.ts`，领域准备位于 `market/*/sync-partition.ts`；原始接纳与覆盖/失效同事务提交，模型资格不承担全局入库门禁。原候选子进程和 checkpoint 协议退役；M/P/R 与用户稳定读取复用 `infra/coordination/market-access.ts`。
 详见 [Maintenance 阅读入口](../apps/api/src/maintenance/README.md) 和 [变更记录](design/maintenance-business-boundaries.md)。
 
 ## Strategy SDK 与 Engine 契约

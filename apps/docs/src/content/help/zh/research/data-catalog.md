@@ -147,3 +147,8 @@ ETF 还要检查产品上市日和目录中的本地覆盖起点；不要把同�
 - [读取美国国债收益率曲线](/docs/help/research/yield-curves)
 - [使用 Python 研究运行环境](/docs/help/research/python-runtime)
 - [查看研究输出](/docs/help/research/outputs)
+
+
+### 同步覆盖与财务版本
+
+目标日期、实际观察日期和连续核验覆盖分别记录。局部来源缺口不封锁研究页面；正式截面计算要求其需要的价格、复权与估值覆盖，不能把一个非空部分截面当作完整证券池。供应商财务指标采用实际捕获版本，`date` 是当前版本可得日，`announcement_date` 是来源公告日，`availability_quality` 与 `observed_at` 说明证据。latest_only 回填不能证明捕获前的历史值。分红同样分别返回经济 `ex_date` 和当前值实际可得 `date`。

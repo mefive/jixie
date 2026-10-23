@@ -69,7 +69,7 @@ function run(spec: FixtureSpec, scriptedStrategy: EngineStrategy, initialCash = 
     end: DATES.at(-1)!,
     initialCash,
     strategy: scriptedStrategy,
-    dataPort: fixturePort(spec),
+    dataPort: fixturePort({ stockPriceLimits: { up: 1000000, down: 0.0001 }, ...spec }),
     cost: {
       commission: 0,
       minCommission: 0,

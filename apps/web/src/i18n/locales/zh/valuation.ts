@@ -81,6 +81,7 @@ export const zhValuation = {
         },
       },
       states: {
+        waiting: '等待完整输入',
         undervalued: '低估潜伏',
         warming: '开始升温',
         expanding: '强势扩散',
@@ -225,6 +226,7 @@ export const zhValuation = {
       rankChange20Day: '月升降',
       concentration: '前5集中度',
       states: {
+        waiting: '等待完整输入',
         overheated: '交投过热',
         leading: '强势扩散',
         activeLagging: '活跃滞涨',

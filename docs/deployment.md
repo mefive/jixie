@@ -112,10 +112,7 @@ Factor Job kind 的一次性转换已在生产完成，bootstrap 不再执行 `d
 恢复转换前的旧备份或升级尚未转换的开发库，必须在启动 API 前从 Git 历史执行一次性转换，见
 [旧库恢复说明](backend-runtime-entries.md#factor-job-kind-旧库恢复)。
 
-代码更新不会重复同步常规行情，行情增量仍由 maintenance timer 负责。`bootstrap.sh` 会单独检查官方
-指数分类、34个市场气象指数、历史成分权重、派生指标和申万一级行业行情的历史覆盖；已有行情库升级后
-缺少这组参考数据时，会按 `IndustryIndicator` 的可用区间自动执行参考数据、历史权重回填和市场状态
-重算，覆盖完整后再次部署会跳过。
+API 更新后在部署发布锁释放之后运行一轮 `data sync`。该流程使用持久分区推进新数据、历史缺口和修订巡检；空库和历史不完整不影响服务启动。来源错误会在同步运行/分区与 journal 中保留，后续 timer 继续尝试。
 
 Nginx 主配置会 include 仓库中的 `/opt/jixie/deploy/nginx-docs-app.conf`，把独立构建的
 `apps/docs/dist/docs` 挂载到 `/docs/` 并处理深链。脚本不会覆盖 Certbot 已写入的 TLS 配置。
@@ -152,51 +149,27 @@ sudo nginx -t && sudo systemctl reload nginx
 > 曾启用这些选项并出现 `invalid internal status` / `cannot clone`，移除选项后停止 sandboxd，执行
 > `podman system migrate`，再启动 sandboxd。
 
-## 4. 行情数据初始化
+## 4. 统一数据同步
 
-bootstrap 检测到 `Daily` 为空时，会创建持久化的 `full-import.required` 标记并自动运行全量导入。导入
-按年和阶段记录断点；任何阶段失败都会让 bootstrap 非零退出，重新执行 bootstrap 会继续，而不会把
-部分数据发布为生产水位。
-
-排障时可单独观察或重跑底层导入：
+配置 API 环境并应用 Prisma migration 后执行：
 
 ```bash
-cd /opt/jixie
-pnpm import:data
+pnpm data sync
+pnpm data sync --to 20260915
 ```
 
-默认导入 2015 年至今的 A 股日线/复权、每日估值、涨跌停、资金流、龙虎榜、财务与分红、申万行业、
-官方指数分类、风格指数与申万一级行业行情、主要 ETF、指数和股指期货。所有阶段在同一个独立候选库内执行，补齐宏观、跨市场和商品研究依赖后，统一 repair、计算市场状态、审计并初始化水位；正式库只接受一次事务发布。财务和分红阶段内部按股票分批启动短生命周期子进程，避免首次
-导入也积累 Node/Prisma 原生内存；这不会增加新的部署命令。
+首次初始化、增量、回补、重查使用同一命令；没有模式或数据集选择器。省略目标时固定进程启动时的上海自然日。较早目标不会截断已有更晚数据，也不会忽略其后受影响的派生输出。
 
-> **研究史(用户、策略、因子、回测记录)不会生成或迁移**——Tushare 只提供市场数据，prod 从空库开始积累自己的研究。
+一轮有分区、请求和时间预算。合法部分数据会保存，缺少某一来源只让依赖它的指标等待；运行成功不代表长历史全部补齐。查看 `GET /api/maintenance/status` 的逐数据集覆盖、待办与错误，不能把最大观察日期当作连续覆盖。
 
-### 之后：systemd 每日维护
-
-`bootstrap.sh` 会安装三个 timer，并在 daily 成功建立或确认发布水位后启用：
+`jixie-maintenance.timer` 按上海时间每两小时 :15 调用 `dist/src/maintenance/cli/data.js sync`；升级时停用旧 weekly timer。运行锁争用退出 75，实际错误退出 1，非法参数退出 2，完整或合法 partial 退出 0。systemd 在失败后退避 30 分钟，持久分区另记录自己的下一次尝试。
 
 ```bash
-systemctl list-timers 'jixie-*'
 sudo systemctl start jixie-maintenance.service
 journalctl -u jixie-maintenance.service -n 200 --no-pager
 ```
 
-`jixie-maintenance.timer` 在工作日上海时间 23:00 尝试一次流水线。systemd 不识别交易所节假日，
-因此休市工作日仍会唤醒 service；已有发布水位时，coordinator 刷新 SSE 交易日历后若没有历史缺口，
-会在进入正常 daily 维护流程前成功退出，若有缺口则照常补齐。停机数日后由 coordinator 从连续水位
-补齐所有缺失交易日，并在每次运行中回查水位前最近 5 个交易日。周任务回查
-最近 252 个交易日；允许列表内的量价、复权、估值、涨跌停、资金流和主要指数缺口会自动重拉、复检并
-按需重算 market-state。财务通过 VIP 按全部报告期核对，分红按全部股票核对，并用持久化 checkpoint
-支持 OOM 或重启后续传；财务默认每 1 个报告期、分红默认每 200 只股票启动独立子进程，批次结束即释放
-Node/Prisma 原生内存。不要再安装旧 cron，也不要在 API 内启动第二个 scheduler。
-daily 失败后由 systemd 每 30 分钟退避重试，不再因三次启动耗尽而停止跨夜恢复；bootstrap 同步更新旧的
-`jixie-maintenance.service.d/retry.conf`。weekly 仍保留六小时最多三次的原策略。
-daily 优先恢复原目标，不因日期变化扩展任务；新目标在上海 23:00 前最多取上一已开市日期。
-第一阶段的下载、历史修复和审计都在独立候选中执行，失败继续使用旧水位；只有第二阶段持有发布锁时暂停新业务。旧协议遗留错误必须先通过完整校验，不能直接清状态解封。
-weekly 还会在市场派生数据完成后增量计算所有已钉住因子的月度气象点。首次钉住会由 API worker 回填
-历史，部署本身不需要额外执行 factor sync；相关表由 Prisma migration 自动创建。
-完整顺序、锁、维护 Gate 和手动修复见
-[`production-maintenance.md`](./design/production-maintenance.md)。
+网络获取不持部署发布锁。M 串行化市场写者，P/R 只在局部提交时短暂阻止新业务计算；既有业务全程保留共享 R。旧 running 记录、来源待更新和空库均不作为封站理由。旧控制表保留历史及部署用途，不能据其旧日水位推断新系统覆盖。
 
 ## 5. 数据库备份
 
@@ -224,13 +197,7 @@ cd /opt/jixie
 ./scripts/bootstrap.sh
 ```
 
-脚本检查已有资源并跳过不需要的安装，拉取最新代码、按上次成功部署版本判断受影响组件、按需迁移和
-构建，同时收敛 systemd/nginx、确认行情水位和 timer，再执行健康检查。健康检查后若 App 仍被失败的
-daily / weekly maintenance 阻塞，bootstrap 只报告状态并失败退出，不启动或扩展数据任务；
-需要恢复时在仓库根目录运行 `pnpm maintenance daily --resume-only`，无待恢复任务则不做同步。
-首次初始化用 `daily --initialize-only` 验证已导入基线，不继续 catch-up。纯 ETF 来源等待不阻塞部署，
-由既有定时／退避机制重试。若 bootstrap 自身在 pull 中
-被更新，它会自动重新执行新版本脚本，用户无需再次运行。
+脚本检查已有资源、拉取代码、按影响组件构建和迁移、收敛 systemd/nginx、释放部署发布锁，再推进一轮有限同步和健康检查。历史缺口、ETF 待更新和某个来源的失败不会使部署回退为全历史导入。若 bootstrap 自身在 pull 中更新，会重新执行新版本脚本。
 
 ## 7. 排障
 

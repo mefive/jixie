@@ -1007,231 +1007,8 @@ if [[ "$DEPLOY_SANDBOXD" == "1" ]]; then
     "$JIXIE_DIR"
 fi
 
-IMPORT_REQUIRED_MARKER="$JIXIE_DATA_DIR/full-import.required"
-DAILY_ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
-if [[ "${DAILY_ROWS:-0}" -eq 0 ]]; then
-  touch "$IMPORT_REQUIRED_MARKER"
-fi
-if [[ -f "$IMPORT_REQUIRED_MARKER" ]]; then
-  log "行情库尚未完成初始化,执行可断点续传的全量导入"
-  "$JIXIE_DIR/scripts/maintenance/import-market-data.sh"
-  rm -f "$IMPORT_REQUIRED_MARKER"
-else
-  read -r MARKET_REFERENCE_START MARKET_REFERENCE_END < <(
-    sqlite3 -separator ' ' "$DB_FILE" '
-      SELECT
-        coalesce(
-          (SELECT min("tradeDate") FROM "IndustryIndicator"),
-          (SELECT min("tradeDate") FROM "Daily")
-        ),
-        coalesce(
-          (SELECT max("tradeDate") FROM "IndustryIndicator"),
-          (SELECT max("tradeDate") FROM "Daily")
-        );
-    '
-  )
-  [[ "$MARKET_REFERENCE_START" =~ ^[0-9]{8}$ && "$MARKET_REFERENCE_END" =~ ^[0-9]{8}$ ]] ||
-    die "无法确定官方市场参考数据的回填区间"
-
-  read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
-    market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
-  )
-  if [[ "$INDEX_BENCHMARK_ROWS" -eq 0 || "$SW_HISTORICAL_CODES" -ne 31 || "$WEATHER_HISTORICAL_CODES" -ne 34 ]]; then
-    log "补全官方指数分类、市场气象指数和申万一级行业历史行情: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
-    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync market-reference "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
-
-    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
-      market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
-    )
-    [[ "$INDEX_BENCHMARK_ROWS" -gt 0 && "$SW_HISTORICAL_CODES" -eq 31 && "$WEATHER_HISTORICAL_CODES" -eq 34 ]] ||
-      die "官方市场参考数据回填后仍不完整"
-  else
-    log "官方市场参考数据历史覆盖完整,跳过回填"
-  fi
-
-  if [[ "$WEATHER_WEIGHT_CODES" -ne 34 ]]; then
-    log "补全34个市场气象指数的历史成分权重: $MARKET_REFERENCE_START ~ $MARKET_REFERENCE_END"
-    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync index market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
-  fi
-  if [[ "$WEATHER_WEIGHT_CODES" -ne 34 || "$WEATHER_INDICATOR_CODES" -ne 34 ]]; then
-    log "按时点成分重算市场气象广度、活跃度和估值"
-    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync market-state "$MARKET_REFERENCE_START" "$MARKET_REFERENCE_END"
-
-    read -r INDEX_BENCHMARK_ROWS SW_HISTORICAL_CODES WEATHER_HISTORICAL_CODES WEATHER_WEIGHT_CODES WEATHER_INDICATOR_CODES < <(
-      market_reference_coverage "$DB_FILE" "$MARKET_REFERENCE_START"
-    )
-    [[ "$WEATHER_WEIGHT_CODES" -eq 34 && "$WEATHER_INDICATOR_CODES" -eq 34 ]] ||
-      die "市场气象成分权重或派生指标回填后仍不完整"
-  else
-    log "市场气象成分权重与派生指标覆盖完整,跳过重算"
-  fi
-
-  COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
-  if [[ "$COMMODITY_ETF_COMPLETE" -ne 3 ]]; then
-    log "补全豆粕、有色金属和能源化工 ETF 历史行情: 20191201 ~ $MARKET_REFERENCE_END"
-    node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync etf 20191201 "$MARKET_REFERENCE_END" \
-      159985.SZ,159980.SZ,159981.SZ refresh
-    COMMODITY_ETF_COMPLETE="$(commodity_etf_coverage "$DB_FILE" "$MARKET_REFERENCE_END")"
-    [[ "$COMMODITY_ETF_COMPLETE" -eq 3 ]] || die "商品 ETF 日线或复权历史回填后仍不完整"
-  else
-    log "商品 ETF 日线与复权历史覆盖完整,跳过回填"
-  fi
-fi
-
-MACRO_SYNC_END="$(
-  sqlite3 "$DB_FILE" 'SELECT substr(max("tradeDate"), 1, 6) FROM "Daily";' 2>/dev/null || true
-)"
-[[ "$MACRO_SYNC_END" =~ ^[0-9]{6}$ ]] || die "无法确定宏观数据同步截止月份"
-MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
-if [[ "$MACRO_SERIES_COMPLETE" -ne 14 ]]; then
-  log "补全中美通胀、增长、货币、信用和 Shibor 宏观 PIT 底座: 200501 ~ $MACRO_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync macro 200501 "$MACRO_SYNC_END"
-  MACRO_SERIES_COMPLETE="$(macro_series_coverage "$DB_FILE")"
-  [[ "$MACRO_SERIES_COMPLETE" -eq 14 ]] || die "宏观系列回填后仍不完整"
-else
-  log "宏观系列历史覆盖完整,跳过回填"
-fi
-
-EXTERNAL_MARKET_SYNC_END="$(
-  sqlite3 "$DB_FILE" 'SELECT max("tradeDate") FROM "Daily";' 2>/dev/null || true
-)"
-[[ "$EXTERNAL_MARKET_SYNC_END" =~ ^[0-9]{8}$ ]] || die "无法确定外部市场数据同步截止日"
-CROSS_MARKET_PROXY_COMPLETE="$(
-  cross_market_proxy_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$CROSS_MARKET_PROXY_COMPLETE" -ne 3 ]]; then
-  log "补全沪深300、恒生和标普500可交易 ETF 代理: 20120501 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync etf 20120501 "$EXTERNAL_MARKET_SYNC_END" \
-    510300.SH,159920.SZ,513500.SH refresh
-  CROSS_MARKET_PROXY_COMPLETE="$(
-    cross_market_proxy_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$CROSS_MARKET_PROXY_COMPLETE" -eq 3 ]] || die "跨市场可交易 ETF 代理回填后仍不完整"
-else
-  log "跨市场可交易 ETF 代理历史覆盖完整,跳过回填"
-fi
-
-EXTERNAL_MARKET_COMPLETE="$(
-  external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$EXTERNAL_MARKET_COMPLETE" -ne 4 ]]; then
-  log "补全美国名义/实际国债曲线和 USD/CNH、USD/HKD: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync external-market 20050101 "$EXTERNAL_MARKET_SYNC_END"
-  EXTERNAL_MARKET_COMPLETE="$(
-    external_market_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$EXTERNAL_MARKET_COMPLETE" -eq 4 ]] || die "外部市场驱动回填后仍不完整"
-else
-  log "外部市场驱动历史覆盖完整,跳过回填"
-fi
-
-CHINA_TREASURY_CURVE_COMPLETE="$(
-  china_treasury_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$CHINA_TREASURY_CURVE_COMPLETE" -ne 1 ]]; then
-  log "补全财政部中国国债收益率曲线: 20060301 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync rates 20060301 "$EXTERNAL_MARKET_SYNC_END"
-  CHINA_TREASURY_CURVE_COMPLETE="$(
-    china_treasury_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$CHINA_TREASURY_CURVE_COMPLETE" -eq 1 ]] || die "中国国债收益率曲线回填后仍不完整"
-else
-  log "中国国债收益率曲线历史覆盖完整,跳过回填"
-fi
-
-CROSS_MARKET_BENCHMARK_COMPLETE="$(
-  cross_market_benchmark_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$CROSS_MARKET_BENCHMARK_COMPLETE" -ne 3 ]]; then
-  log "补全沪深300、恒生和标普500价格指数基准: 20050101 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync cross-market-benchmarks 20050101 "$EXTERNAL_MARKET_SYNC_END"
-  CROSS_MARKET_BENCHMARK_COMPLETE="$(
-    cross_market_benchmark_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$CROSS_MARKET_BENCHMARK_COMPLETE" -eq 3 ]] || die "跨市场价格指数基准回填后仍不完整"
-else
-  log "跨市场价格指数基准历史覆盖完整,跳过回填"
-fi
-
-CREDIT_CURVE_COMPLETE="$(
-  credit_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$CREDIT_CURVE_COMPLETE" -ne 3 ]]; then
-  log "补全中债国债、商业银行 AAA 和中短票 AAA 收益率曲线: 20060101 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync credit-curves 20060101 "$EXTERNAL_MARKET_SYNC_END"
-  CREDIT_CURVE_COMPLETE="$(
-    credit_curve_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$CREDIT_CURVE_COMPLETE" -eq 3 ]] || die "中债信用曲线回填后仍不完整"
-else
-  log "中债信用曲线历史覆盖完整,跳过回填"
-fi
-
-COMMODITY_FUTURE_COMPLETE="$(
-  commodity_future_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$COMMODITY_FUTURE_COMPLETE" -ne 4 ]]; then
-  log "补全 AU/CU/SC/M 实际月合约与日线: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-futures 20150105 "$EXTERNAL_MARKET_SYNC_END"
-  COMMODITY_FUTURE_COMPLETE="$(
-    commodity_future_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$COMMODITY_FUTURE_COMPLETE" -eq 4 ]] || die "商品期货实际合约日线回填后仍不完整"
-else
-  log "商品期货实际合约日线覆盖完整,跳过回填"
-fi
-
-COMMODITY_HOLDING_COMPLETE="$(
-  commodity_holding_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$COMMODITY_HOLDING_COMPLETE" -ne 3 ]]; then
-  log "补全 AU/CU/M 主导实际合约的会员持仓排名: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-holdings 20150105 "$EXTERNAL_MARKET_SYNC_END"
-  COMMODITY_HOLDING_COMPLETE="$(
-    commodity_holding_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$COMMODITY_HOLDING_COMPLETE" -eq 3 ]] || die "商品会员持仓排名回填后仍不完整"
-else
-  log "商品会员持仓排名历史覆盖完整,跳过回填"
-fi
-
-COMMODITY_CONTINUOUS_COMPLETE="$(
-  commodity_continuous_return_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-)"
-if [[ "$COMMODITY_CONTINUOUS_COMPLETE" -ne 4 ]]; then
-  log "补全 AU/CU/SC/M 主力映射、连续收益与换月台账: 20150105 ~ $EXTERNAL_MARKET_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-continuous 20150105 "$EXTERNAL_MARKET_SYNC_END"
-  COMMODITY_CONTINUOUS_COMPLETE="$(
-    commodity_continuous_return_coverage "$DB_FILE" "$EXTERNAL_MARKET_SYNC_END"
-  )"
-  [[ "$COMMODITY_CONTINUOUS_COMPLETE" -eq 4 ]] || die "商品主力连续收益回填后仍不完整"
-else
-  log "商品主力连续收益与换月台账覆盖完整,跳过回填"
-fi
-
-WAREHOUSE_RECEIPT_SYNC_END="$(
-  sqlite3 "$DB_FILE" 'SELECT max("tradeDate") FROM "Daily";' 2>/dev/null || true
-)"
-[[ "$WAREHOUSE_RECEIPT_SYNC_END" =~ ^[0-9]{8}$ ]] || die "无法确定商品仓单同步截止日"
-WAREHOUSE_RECEIPT_COMPLETE="$(
-  commodity_warehouse_receipt_coverage "$DB_FILE" "$WAREHOUSE_RECEIPT_SYNC_END"
-)"
-if [[ "$WAREHOUSE_RECEIPT_COMPLETE" -ne 4 ]]; then
-  log "补全 AU/CU/SC/M 商品仓单研究底座: 20150101 ~ $WAREHOUSE_RECEIPT_SYNC_END"
-  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/run-maintenance.js" sync commodity-warehouse-receipts 20150101 "$WAREHOUSE_RECEIPT_SYNC_END"
-  WAREHOUSE_RECEIPT_COMPLETE="$(
-    commodity_warehouse_receipt_coverage "$DB_FILE" "$WAREHOUSE_RECEIPT_SYNC_END"
-  )"
-  [[ "$WAREHOUSE_RECEIPT_COMPLETE" -eq 4 ]] || die "商品仓单历史回填后仍不完整"
-else
-  log "商品仓单历史覆盖完整,跳过回填"
-fi
-
-log "复核版本化 Tushare 能力目录（7 天内已有完整观测则跳过）"
-pnpm --filter api probe asset-allocation \
-  --date "$EXTERNAL_MARKET_SYNC_END" \
-  --persist-if-stale \
-  --max-age-days 7 || warn "Tushare 能力目录探测失败,不阻塞本次部署"
+# 数据补齐由统一有限同步流程处理；部署成功不以市场历史齐全为条件。
+# The bounded unified flow owns data acquisition; deployment does not require complete market history.
 
 INVITE_COUNT="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "InviteCode";' 2>/dev/null || echo 0)"
 if [[ "$JIXIE_INVITES_EXPLICIT" -ne 1 && "${INVITE_COUNT:-0}" -gt 0 ]]; then
@@ -1283,12 +1060,10 @@ else
   log "API 未受本次变更影响,保持运行"
 fi
 
-log "安装 daily / weekly / backup timers"
+log "安装统一同步和备份 timers"
 for unit in \
   jixie-maintenance.service \
   jixie-maintenance.timer \
-  jixie-maintenance-weekly.service \
-  jixie-maintenance-weekly.timer \
   jixie-backup.service \
   jixie-backup.timer; do
   sed -e "s#/opt/jixie#$JIXIE_DIR#g" \
@@ -1304,21 +1079,10 @@ sudo install -m 644 "$JIXIE_DIR/deploy/jixie-maintenance-retry.conf" \
   /etc/systemd/system/jixie-maintenance.service.d/retry.conf
 sudo systemctl daemon-reload
 sudo systemctl enable --now jixie-backup.timer
-CURRENT_WATERMARK="$(
-  sqlite3 "$DB_FILE" \
-    "SELECT dailyPublishedThrough FROM \"MaintenanceState\" WHERE key = 'global';" \
-    2>/dev/null ||
-    true
-)"
-if [[ -n "$CURRENT_WATERMARK" ]]; then
-  sudo systemctl enable --now \
-    jixie-maintenance.timer \
-    jixie-maintenance-weekly.timer
-else
-  sudo systemctl disable --now \
-    jixie-maintenance.timer \
-    jixie-maintenance-weekly.timer
-fi
+# 升级时停用旧周任务；旧 unit 即便仍在系统目录也不会再启动。
+# Disable retired weekly units during upgrades even if installed files remain.
+sudo systemctl disable --now jixie-maintenance-weekly.timer 2>/dev/null || true
+sudo systemctl enable --now jixie-maintenance.timer
 
 # ─────────────────────────────── 7. nginx vhost ───────────────────────────────
 NGINX_DST="/etc/nginx/sites-available/$JIXIE_DOMAIN"
@@ -1360,8 +1124,12 @@ if [[ -n "${JIXIE_MARKET_ACCESS_LOCK_FD:-}" ]]; then
 fi
 exec 9>&-
 unset JIXIE_MAINTENANCE_LOCK_FD JIXIE_MARKET_ACCESS_LOCK_FD JIXIE_MARKET_PUBLISH_LOCK_FD
-if [[ -z "$CURRENT_WATERMARK" ]]; then
-  "$JIXIE_DIR/scripts/deploy/activate-maintenance.sh"
+# 发布锁释放之后再下载，避免网络延迟封站。
+# Acquire source data only after releasing deployment publication locks.
+if [[ "$DEPLOY_API" == "1" ]]; then
+  log "执行一轮统一数据同步；未完成分区由 timer 继续推进"
+  node --env-file="$ENV_PROD" "$JIXIE_DIR/apps/api/dist/src/maintenance/cli/data.js" sync ||
+    warn "本轮同步存在来源错误或锁争用，查看 DataSyncRun 与分区状态；部署继续"
 fi
 
 log "冒烟测试"
@@ -1374,11 +1142,6 @@ echo "  /api/health: ${HEALTH:-<无响应>}"
 [[ "$HEALTH" == *'"ok":true'* ]] || warn "健康检查未过,查日志: journalctl -u $JIXIE_SERVICE -e"
 
 check_blocking_maintenance
-
-ROWS="$(sqlite3 "$DB_FILE" 'SELECT count(*) FROM "Daily";' 2>/dev/null || echo 0)"
-WATERMARK="$(sqlite3 "$DB_FILE" 'SELECT dailyPublishedThrough FROM "MaintenanceState" WHERE key = "global";' 2>/dev/null || true)"
-[[ "${ROWS:-0}" -gt 0 && -n "$WATERMARK" ]] ||
-  die "行情数据或连续发布水位未准备完成"
 
 REVISION_TEMP_FILE="$SUCCESSFUL_REVISION_FILE.tmp.$$"
 printf '%s\n' "$CURRENT_REVISION" >"$REVISION_TEMP_FILE"

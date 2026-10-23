@@ -63,7 +63,7 @@ test('deployment infrastructure selects every application', () => {
     '.dockerignore',
     'scripts/bootstrap.sh',
     'scripts/deploy/deployment-gate.mjs',
-    'scripts/maintenance/import-market-data.sh',
+    'deploy/jixie-maintenance.timer',
     'scripts/sandbox/setup.ts',
     'scripts/e2e/run.mjs',
     'scripts/e2e/commands.mjs',

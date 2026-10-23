@@ -1,3 +1,5 @@
+import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
+import { MarketError } from '#market/errors.js';
 import type { PrismaClient } from '@prisma/client';
 import type {
   ResearchDiagnosticV1,
@@ -47,6 +49,23 @@ export async function executeUniverseSpec(
     throw new Error('No DailyBasic snapshot is available at the requested time');
   }
   const asOfDate = snapshot.tradeDate;
+  if (requestedAsOfDate && requestedAsOfDate !== asOfDate) {
+    const requestedSession = await database.tradeCal.findUnique({
+      where: { exchange_calDate: { exchange: 'SSE', calDate: requestedAsOfDate } },
+    });
+    if (!requestedSession || requestedSession.isOpen === 1) {
+      throw new MarketError('inputs_not_ready');
+    }
+  }
+  await assertDatasetInputReadiness(
+    ['stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
+      dataset,
+      scope: 'all',
+      startDate: asOfDate,
+      endDate: asOfDate,
+    })),
+    database,
+  );
   const diagnostics: ResearchDiagnosticV1[] = [];
   if (requestedAsOfDate && requestedAsOfDate !== asOfDate) {
     diagnostics.push({
@@ -99,9 +118,9 @@ export async function executeUniverseSpec(
       select: { tsCode: true, l1Name: true, inDate: true },
       orderBy: { inDate: 'desc' },
     }),
-    database.maintenanceState.findUnique({
+    database.marketDataState.findUnique({
       where: { key: 'global' },
-      select: { dataRevision: true },
+      select: { revision: true },
     }),
   ]);
   const dailyByCode = new Map(daily.map((row) => [row.tsCode, row]));
@@ -197,7 +216,7 @@ export async function executeUniverseSpec(
     requestedAsOfDate,
     asOfDate,
     membershipAsOfDate: source.membershipAsOfDate,
-    dataRevision: state?.dataRevision ?? 0,
+    dataRevision: state?.revision ?? 0,
     total: applied.total,
     rows: applied.rows.map((row) => ({
       ...row,
@@ -297,6 +316,17 @@ async function resolveSource(
   if (!membership) {
     throw new Error(`No index membership snapshot for ${spec.source.indexCode} by ${asOfDate}`);
   }
+  await assertDatasetInputReadiness(
+    [
+      {
+        dataset: 'index-weights',
+        scope: spec.source.indexCode,
+        startDate: membership.tradeDate,
+        endDate: membership.tradeDate,
+      },
+    ],
+    database,
+  );
   const members = await database.indexWeight.findMany({
     where: { indexCode: spec.source.indexCode, tradeDate: membership.tradeDate },
     select: { conCode: true },

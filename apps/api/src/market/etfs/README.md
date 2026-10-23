@@ -1,22 +1,7 @@
-# ETF 按日发布、历史回填与质量
+# ETF 数据
 
-ETF 研究身份由 [registry](../registry/README.md) 维护；本能力负责元数据、行情／复权／规模的实际同步和覆盖审计。
+统一写流程通过 `sync-partition.ts` 独立准备 ETF 元数据、日价格、复权和份额。对象来自研究 registry 和活跃部署 watch，实际历史边界结合上市/退市日期与项目固定基线。元数据完整性不以当日价格最大日期替代；缺失基金补充字段不能清除已知信息。
 
-| 文件 / 入口 | 使用方式 |
-| --- | --- |
-| [history-sync.ts](history-sync.ts) `syncEtfBasic` | 合并 etf_basic/fund_basic，在事务中替换全状态 ETF 名录并计算现有交易属性 |
-| 同文件 `syncEtfDaily` | ETF CLI 等历史回填；按代码／年份原子保存行情、复权和完成标记，refresh 重取，validateCoverage 额外检查覆盖 |
-| [sync.ts](sync.ts) `syncEtfMarketDate` | Signals、Maintenance 和 CLI；按日筛选当日有效产品，拉取行情／复权／份额并发布 |
-| 同文件 `fillEtfHistoryGap`、`refreshEtfRegistryRevisions` | 缺口回填及有界修订刷新，向维护调用方报告覆盖或最早语义变化 |
-| 同文件 `syncEtfShareSizeDate`、`syncEtfShareSizeRange` | 只替换份额日期切片；范围回填可容忍并报告缺项，不能套用日发布的严格门槛 |
-| [history-coverage.ts](history-coverage.ts) `inspectEtfHistoryCoverage`、[registry-audit.ts](registry-audit.ts) `auditEtfResearchRegistry` | 读取基础质量，不自行同步或发布 Maintenance 水位 |
+各来源分区保存自己的覆盖和待办，未完成价格/复权不撤销已经取得的另一类合法数据。连续序列需要日历与实际观察范围证明；份额使用严格下一 SSE 交易日的 availableDate。未知空响应不删除已有历史；只有完整权威范围允许精确替换。维护协调、有限预算与消费者资格见 [Maintenance](../../maintenance/README.md)。
 
-日发布先确定 activeCodes，查询下一 SSE 交易日作为 availableDate；复权和份额须完整，行情允许实现限定的缺口，再把三类切片放入一个事务。历史回填则先校验证券存在，以代码／年标记恢复，不能仅因某日有行情就认定整年完成。
-
-份额范围回填在未 refresh 时遇到已有行即跳过该日期；它的断点判断并非完整覆盖证明。修改时应分别看 [sync.test.ts](sync.test.ts)、[history-sync.test.ts](history-sync.test.ts)、[history-coverage.test.ts](history-coverage.test.ts)，而非合并两条流程。Research 公开列映射见 [datasets](../../research/datasets/README.md)。
-
-[返回 Market 总览](../README.md)
-
-## 维护调用的数据能力
-
-[recovery.ts](recovery.ts) 负责按上市／退市范围重查全历史并补齐，再处理近期修订；调用方通过 loadCompleted / onItemComplete / onProgress 提供恢复上下文。模块不接收 Maintenance runId，不读写维护表；同轮来源缺失缓存、scope 指纹与 key 保持。每次重试仍查实际数据，完成标记不能遮蔽新缺口。[audit.ts](audit.ts) 将已有 registry 审计转成领域 finding。
+原 `history-sync.ts`、`sync.ts`、`recovery.ts` 的低层映射/审计测试保留用于业务口径对照，不再公开独立 CLI 或维护工作流。`history-coverage.ts`、`registry-audit.ts` 与 `audit.ts` 继续提供只读审计；它们不是新分区覆盖的替代证据。
