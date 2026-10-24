@@ -87,6 +87,8 @@ pnpm dev                         # 同时启动 sandboxd、API 和 Web
 ```
 
 `pnpm dev` 使用临时 Unix socket 和本机 Python 启动开发模式 sandboxd；退出时会一起清理三个服务。
+按 Ctrl+C 后会显示停止进度；子服务先正常退出，超过 3 秒仍未退出则强制回收。终端输入由启动器保留，
+组合启动时不提供 Vite / tsx 的交互快捷键，连续按 Ctrl+C 也会等待清理完成。
 仅调试不涉及 Python 执行的单个进程时，仍可分别运行 `pnpm dev:api` 或 `pnpm dev:web`；需要 Python
 Research、Factor 或 Strategy 时使用完整的 `pnpm dev`。
 

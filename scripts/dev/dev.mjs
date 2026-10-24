@@ -32,7 +32,9 @@ function startService(name, filter) {
   const child = spawn('pnpm', ['--filter', filter, 'dev'], {
     cwd: projectDirectory,
     env: environment,
-    stdio: 'inherit',
+    // 终端输入由启动器保留，避免多个 CLI 的按键处理吞掉 Ctrl+C。
+    // Keep terminal input with the launcher so competing CLI handlers cannot consume Ctrl+C.
+    stdio: ['ignore', 'inherit', 'inherit'],
     detached: process.platform !== 'win32',
   });
   children.set(name, child);
@@ -60,6 +62,9 @@ function startService(name, filter) {
 async function waitForSocket(child) {
   const deadline = Date.now() + 10_000;
   while (Date.now() < deadline) {
+    if (stopping) {
+      return;
+    }
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error('sandboxd exited before its socket became ready');
     }
@@ -96,6 +101,8 @@ async function shutdown(exitCode) {
     return;
   }
   stopping = true;
+  console.log('[dev] stopping services...');
+
   const gracefulSignal = exitCode === 0 ? 'SIGINT' : 'SIGTERM';
   for (const child of children.values()) {
     stopService(child, gracefulSignal);
@@ -111,23 +118,35 @@ async function shutdown(exitCode) {
     }
   });
   process.exitCode = exitCode;
+  console.log('[dev] services stopped');
   finishDevelopment();
 }
 
-process.once('SIGINT', () => void shutdown(0));
-process.once('SIGTERM', () => void shutdown(0));
+// 清理期间重复按 Ctrl+C 仍保留处理器，避免启动器先退出并遗留独立子进程组。
+// Retain handlers during cleanup so repeated Ctrl+C cannot orphan detached service groups.
+process.on('SIGINT', () => void shutdown(0));
+process.on('SIGTERM', () => void shutdown(0));
 
 try {
   await verifyResearchPythonRuntime();
-  console.log(`[dev] starting sandboxd at ${socketPath}`);
-  const sandboxd = startService('sandboxd', 'sandboxd');
-  await waitForSocket(sandboxd);
-  console.log('[dev] Python runtime ready; starting API and Web');
-  startService('api', 'api');
-  startService('web', 'web');
+  if (!stopping) {
+    console.log(`[dev] starting sandboxd at ${socketPath}`);
+    const sandboxd = startService('sandboxd', 'sandboxd');
+    await waitForSocket(sandboxd);
+
+    if (!stopping) {
+      console.log('[dev] Python runtime ready; starting API and Web');
+      startService('api', 'api');
+      startService('web', 'web');
+    }
+  }
 } catch (error) {
-  console.error(`[dev] startup failed: ${error instanceof Error ? error.message : String(error)}`);
-  await shutdown(1);
+  if (!stopping) {
+    console.error(
+      `[dev] startup failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    await shutdown(1);
+  }
 }
 
 await developmentFinished;
@@ -174,12 +193,19 @@ async function verifyResearchPythonRuntime() {
     '        raise RuntimeError(f"{distribution}=={actual}; expected {expected}")',
   ].join('\n');
 
+  if (stopping) {
+    return;
+  }
+
   await new Promise((resolveReady, rejectReady) => {
     const child = spawn(pythonExecutable, ['-I', '-c', validationScript], {
       cwd: projectDirectory,
       env: process.env,
       stdio: ['ignore', 'ignore', 'pipe'],
+      detached: process.platform !== 'win32',
     });
+    children.set('python verification', child);
+
     let stderr = '';
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk) => {
