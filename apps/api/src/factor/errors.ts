@@ -59,7 +59,7 @@ const definitions = {
   },
   evaluation_not_found: {
     category: 'missing',
-    messageKey: 'windowNotComputed',
+    messageKey: 'factorReportNotFound',
   },
   start_after_end: {
     category: 'invalid',

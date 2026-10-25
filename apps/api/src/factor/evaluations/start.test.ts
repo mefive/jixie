@@ -8,10 +8,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   transaction: vi.fn(),
+  prune: vi.fn(),
   wake: vi.fn(),
   reportFindFirst: vi.fn(),
   reportCreate: vi.fn(),
 }));
+
+vi.mock('./retention.js', () => ({ pruneFactorReports: mocks.prune }));
 
 vi.mock('#jobs/job-scheduler.js', () => ({ JobScheduler: { wake: mocks.wake } }));
 
@@ -63,6 +66,7 @@ const spec: FactorAnalysisSpecV3 = {
 describe('startFactorAnalysis', () => {
   beforeEach(() => {
     mocks.transaction.mockReset();
+    mocks.prune.mockReset().mockResolvedValue(0);
     mocks.reportFindFirst.mockReset();
     mocks.reportCreate.mockReset();
     mocks.wake.mockReset();
@@ -120,6 +124,10 @@ describe('startFactorAnalysis', () => {
       factorVariantKey(spec, sha256('factor candidate'), null),
     );
     expect(mocks.wake).toHaveBeenCalledOnce();
+    expect(mocks.prune).toHaveBeenCalledWith(expect.anything(), {
+      userId: 'user-1',
+      factor: 'factor-1',
+    });
     expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
       reportId: response.reportId,
       source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
@@ -336,6 +344,7 @@ describe('startFactorAnalysis', () => {
     });
     expect(mocks.reportCreate).not.toHaveBeenCalled();
     expect(mocks.wake).not.toHaveBeenCalled();
+    expect(mocks.prune).not.toHaveBeenCalled();
   });
 
   it('freezes the full source bundle for a composite report', async () => {

@@ -26,7 +26,7 @@ try {
   await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
   await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
   await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
-  await page.locator('.jx-factor-historyTrigger').waitFor({ timeout: 15000 });
+  await page.locator('.jx-factor-paramSummary').waitFor({ timeout: 15000 });
   await page.locator('.jx-factor-paramActions button').last().click();
 
   const popover = page.locator('.jx-factor-paramPopover:visible');

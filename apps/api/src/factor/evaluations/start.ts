@@ -20,6 +20,7 @@ import {
 } from '../sources/snapshot.js';
 import { factorVariantKey } from './identity.js';
 import type { FactorAnalysisJobPayload } from './job-payload.js';
+import { pruneFactorReports } from './retention.js';
 import { reportCompatibilityColumns } from './report-spec.js';
 
 /**
@@ -99,6 +100,8 @@ export async function startFactorAnalysis(options: {
         },
       },
     });
+
+    await pruneFactorReports(transaction, { userId: options.userId, factor: options.factor });
 
     return { reportId, jobId, reusedRunning: false };
   });

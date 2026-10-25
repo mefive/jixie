@@ -9,7 +9,7 @@
 
 单因子发布要求本人 draft 和本人已完成报告，分析类型、语言、runtimeVersion、冻结源码和哈希匹配。宏观报告另检查 as_available 和 PIT 资格，资产因子编译检查受控研究输入，编译失败按报告无效处理。编译对象在 finally 释放。
 
-发布先查询／验证，再以 draft 条件更新状态，并未用一个事务包住所有查询和编译。不得将它写成已具备全链路锁定。发布不开放跨用户访问；归档仅更新状态和归档时间。已有消费者能否使用 archived，由 [Strategy 因子准备](../../strategy/factors/README.md) 按场景判断。
+发布先在事务外读取与编译验证，再在同一事务内确认报告仍存在，并以 draft 与原源码／定义条件更新状态；不把编译放进数据库事务。报告清理事务保护发布绑定，即使归档也保留。发布不开放跨用户访问；归档仅更新状态和归档时间。已有消费者能否使用 archived，由 [Strategy 因子准备](../../strategy/factors/README.md) 按场景判断。
 
 Panel 组合证据检查先读 panel-composite，再读 [composition/panel-source.ts](../composition/panel-source.ts)；不要直接复用单因子源码相等判断。共用错误类型 `FactorPublicationError` 在 [errors.ts](../errors.ts)，HTTP 映射在 routes，纯语言／类型映射在 definitions/views。
 

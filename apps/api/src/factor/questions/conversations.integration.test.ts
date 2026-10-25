@@ -1,3 +1,4 @@
+import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import { handleApiError } from '#infra/http/errors.js';
 import type { AgentLlm, AgentLlmReply } from '#infra/llm/agent-llm.js';
 import type { FactorQuestionHistoryV1, FactorQuestionTurnV1 } from '@jixie/shared';
@@ -355,6 +356,7 @@ describe('private durable Factor questions', () => {
   });
 
   it('supports seeded presets, code templates and composites with stable identities', async () => {
+    await seedBuiltinFactors();
     await prisma.factorComposite.create({
       data: {
         id: 'composite',

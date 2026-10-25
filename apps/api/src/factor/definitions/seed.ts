@@ -5,159 +5,47 @@ import { TIME_SERIES_TEMPLATES } from './templates/time-series.js';
 import { PANEL_TEMPLATES } from './templates/panel.js';
 
 /**
- * 幂等地将预置代码物化为只读因子记录，启动时保持来源版本一致。
+ * 只初始化缺失的内置版本；已有代码、状态和发布关联永不由启动覆盖。
  *
- * Idempotent seed: materialize every preset into its read-only Factor row (called on server boot).
- * A code change updates only the current preset row. Historical reports retain the exact source used
- * for their run.
+ * Initialize missing builtin versions only; startup never overwrites saved source, status or publication links.
  */
 export async function seedBuiltinFactors(): Promise<void> {
-  for (const def of BUILTIN_FACTORS) {
-    const existing = await getDatabase().factor.findUnique({
-      where: { id: def.key },
-      select: { key: true, code: true, name: true, status: true, codeHash: true },
-    });
+  const definitions = [
+    ...BUILTIN_FACTORS.map((definition) => ({
+      key: definition.key,
+      name: definition.label,
+      code: definition.code,
+      analysisKind: 'cross_sectional',
+    })),
+    ...TIME_SERIES_TEMPLATES.map((definition) => ({
+      key: definition.key,
+      name: definition.label.zh,
+      code: definition.code,
+      analysisKind: 'time_series',
+    })),
+    ...PANEL_TEMPLATES.map((definition) => ({
+      key: definition.key,
+      name: definition.label.zh,
+      code: definition.code,
+      analysisKind: 'panel',
+    })),
+  ];
 
-    if (!existing) {
-      await getDatabase().factor.create({
-        data: {
-          id: def.key,
-          userId: BUILTIN_USER_ID,
-          key: def.key,
-          name: def.label,
-          code: def.code,
-          status: 'published',
-          codeHash: sha256(def.code),
-          publishedAt: new Date(),
-        },
-      });
-      continue;
-    }
-    if (
-      existing.key !== def.key ||
-      existing.code !== def.code ||
-      existing.name !== def.label ||
-      existing.status !== 'published' ||
-      existing.codeHash !== sha256(def.code)
-    ) {
-      await getDatabase().factor.update({
-        where: { id: def.key },
-        data: {
-          key: def.key,
-          name: def.label,
-          code: def.code,
-          status: 'published',
-          codeHash: sha256(def.code),
-          publishedAt: new Date(),
-          archivedAt: null,
-        },
-      });
-    }
-  }
-  for (const template of TIME_SERIES_TEMPLATES) {
-    const existing = await getDatabase().factor.findUnique({
-      where: { id: template.key },
-      select: {
-        key: true,
-        code: true,
-        name: true,
-        status: true,
-        codeHash: true,
-        analysisKind: true,
+  for (const definition of definitions) {
+    await getDatabase().factor.upsert({
+      where: { id: definition.key },
+      update: {},
+      create: {
+        id: definition.key,
+        userId: BUILTIN_USER_ID,
+        key: definition.key,
+        name: definition.name,
+        code: definition.code,
+        analysisKind: definition.analysisKind,
+        status: 'published',
+        codeHash: sha256(definition.code),
+        publishedAt: new Date(),
       },
     });
-    const name = template.label.zh;
-    const codeHash = sha256(template.code);
-    if (!existing) {
-      await getDatabase().factor.create({
-        data: {
-          id: template.key,
-          userId: BUILTIN_USER_ID,
-          key: template.key,
-          name,
-          code: template.code,
-          analysisKind: 'time_series',
-          status: 'published',
-          codeHash,
-          publishedAt: new Date(),
-        },
-      });
-      continue;
-    }
-    if (
-      existing.key !== template.key ||
-      existing.code !== template.code ||
-      existing.name !== name ||
-      existing.status !== 'published' ||
-      existing.codeHash !== codeHash ||
-      existing.analysisKind !== 'time_series'
-    ) {
-      await getDatabase().factor.update({
-        where: { id: template.key },
-        data: {
-          key: template.key,
-          name,
-          code: template.code,
-          analysisKind: 'time_series',
-          status: 'published',
-          codeHash,
-          publishedAt: new Date(),
-          archivedAt: null,
-        },
-      });
-    }
-  }
-  for (const template of PANEL_TEMPLATES) {
-    const existing = await getDatabase().factor.findUnique({
-      where: { id: template.key },
-      select: {
-        key: true,
-        code: true,
-        name: true,
-        status: true,
-        codeHash: true,
-        analysisKind: true,
-      },
-    });
-    const name = template.label.zh;
-    const codeHash = sha256(template.code);
-    if (!existing) {
-      await getDatabase().factor.create({
-        data: {
-          id: template.key,
-          userId: BUILTIN_USER_ID,
-          key: template.key,
-          name,
-          code: template.code,
-          analysisKind: 'panel',
-          status: 'published',
-          codeHash,
-          publishedAt: new Date(),
-        },
-      });
-      continue;
-    }
-    if (
-      existing.key !== template.key ||
-      existing.code !== template.code ||
-      existing.name !== name ||
-      existing.status !== 'published' ||
-      existing.codeHash !== codeHash ||
-      existing.analysisKind !== 'panel'
-    ) {
-      await getDatabase().factor.update({
-        where: { id: template.key },
-        data: {
-          key: template.key,
-          name,
-          code: template.code,
-          analysisKind: 'panel',
-          status: 'published',
-          codeHash,
-          publishedAt: new Date(),
-          archivedAt: null,
-        },
-      });
-    }
   }
 }

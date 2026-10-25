@@ -2586,11 +2586,13 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
         '返回顶层字段包括 report_id、factor、analysis_kind、research_spec、lineage 与 report。',
         'report 与 research_spec 的字段使用 snake_case；原报告快照不会被修改或重新运行。',
         '仅可读取当前研究文档所属用户已完成的报告。',
+        '每个因子保留最近分析及发布绑定报告；旧的普通报告会被清理，失效 ID 明确报错。',
       ],
       notesEn: [
         'Top-level keys include report_id, factor, analysis_kind, research_spec, lineage, and report.',
         'The report and research_spec fields use snake_case; the frozen report is neither mutated nor rerun.',
         'Only completed reports owned by the current Research document user are readable.',
+        'Each factor retains the latest analysis and publication-bound reports; removed ordinary report IDs fail explicitly.',
       ],
       parameters: [
         {
@@ -2599,8 +2601,8 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
           required: true,
           keywordOnly: false,
           maximumLength: 512,
-          descriptionZh: 'Factor 页面报告历史或报告链接中的稳定报告 ID。',
-          descriptionEn: 'The stable report ID from Factor history or a Factor report link.',
+          descriptionZh: 'Factor 当前报告或保留报告链接中的稳定报告 ID。',
+          descriptionEn: 'The stable report ID from a current or retained Factor report link.',
         },
       ],
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },

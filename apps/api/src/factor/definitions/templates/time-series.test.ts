@@ -2,10 +2,9 @@ import { FactorSandbox } from '../../sandbox/factor-sandbox.js';
 import { describe, expect, it } from 'vitest';
 
 import {
-  resolveTimeSeriesTemplateSource,
+  TIME_SERIES_TEMPLATES,
   timeSeriesTemplateAssetPolicy,
   timeSeriesTemplateCatalog,
-  timeSeriesTemplateResource,
   unsupportedTimeSeriesTemplateAssets,
 } from './time-series.js';
 
@@ -39,10 +38,11 @@ describe('ETF time-series templates', () => {
       ]),
       defaultAssets: expect.arrayContaining(['510300.SH', '511010.SH', '518880.SH']),
     });
-    expect(timeSeriesTemplateResource('etf_trend_20', 'zh')).toMatchObject({
+    expect(
+      timeSeriesTemplateCatalog('zh').find((entry) => entry.key === 'etf_trend_20'),
+    ).toMatchObject({
       key: 'etf_trend_20',
       strategyKey: 'etf_trend_20',
-      status: 'published',
       builtin: true,
     });
   });
@@ -79,9 +79,13 @@ describe('ETF time-series templates', () => {
       targetAssetClasses: ['commodity'],
     });
     expect(
-      timeSeriesTemplateResource('commodity_futures_carry_time_series_v1', 'zh'),
+      timeSeriesTemplateCatalog('zh').find(
+        (entry) => entry.key === 'commodity_futures_carry_time_series_v1',
+      ),
     ).not.toHaveProperty('strategyKey');
-    const source = resolveTimeSeriesTemplateSource('commodity_futures_carry_time_series_v1');
+    const source = TIME_SERIES_TEMPLATES.find(
+      (entry) => entry.key === 'commodity_futures_carry_time_series_v1',
+    );
     const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
@@ -117,9 +121,11 @@ describe('ETF time-series templates', () => {
         '159981.SZ': expect.stringContaining('吨和桶'),
       },
     });
-    expect(timeSeriesTemplateResource('commodity_warehouse_pressure_20', 'zh')).not.toHaveProperty(
-      'strategyKey',
-    );
+    expect(
+      timeSeriesTemplateCatalog('zh').find(
+        (entry) => entry.key === 'commodity_warehouse_pressure_20',
+      ),
+    ).not.toHaveProperty('strategyKey');
     expect(
       unsupportedTimeSeriesTemplateAssets('commodity_warehouse_pressure_20', [
         '518880.SH',
@@ -127,7 +133,9 @@ describe('ETF time-series templates', () => {
       ]),
     ).toEqual(['159981.SZ']);
 
-    const source = resolveTimeSeriesTemplateSource('commodity_warehouse_pressure_20');
+    const source = TIME_SERIES_TEMPLATES.find(
+      (entry) => entry.key === 'commodity_warehouse_pressure_20',
+    );
     const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
@@ -160,7 +168,7 @@ describe('ETF time-series templates', () => {
       kind: 'rates',
       targetAssetClasses: ['fixed_income'],
     });
-    const slope = resolveTimeSeriesTemplateSource('cgb_curve_slope_10y_2y');
+    const slope = TIME_SERIES_TEMPLATES.find((entry) => entry.key === 'cgb_curve_slope_10y_2y');
     const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'time_series',
@@ -176,11 +184,10 @@ describe('ETF time-series templates', () => {
     }
   });
 
-  it('resolves controlled templates to executable frozen Factor V2 sources', async () => {
-    const source = resolveTimeSeriesTemplateSource('etf_trend_60');
+  it('provides executable initial Factor V2 sources', async () => {
+    const source = TIME_SERIES_TEMPLATES.find((entry) => entry.key === 'etf_trend_60');
     expect(source).toMatchObject({
-      kind: 'time_series',
-      label: 'ETF 60-day trend',
+      label: { en: 'ETF 60-day trend' },
     });
     expect(source?.code).toContain("ctx.lag('etf.adjustedClose', 60)");
     const sandbox = await FactorSandbox.start({
@@ -197,6 +204,8 @@ describe('ETF time-series templates', () => {
     } finally {
       sandbox.close();
     }
-    expect(resolveTimeSeriesTemplateSource('user_supplied_code')).toBeNull();
+    expect(
+      TIME_SERIES_TEMPLATES.find((entry) => entry.key === 'user_supplied_code'),
+    ).toBeUndefined();
   });
 });

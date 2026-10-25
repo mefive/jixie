@@ -1,5 +1,4 @@
 import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
-import type { FactorAnalysisSource } from '../../sources/snapshot.js';
 
 /**
  * 定义 Panel 因子模板的协议和源码，供草稿初始化。
@@ -131,34 +130,4 @@ export function panelTemplateCatalog(locale: Locale): FactorMeta[] {
     analysisKind: 'panel',
     targetAssetClasses: template.targetAssetClasses,
   }));
-}
-
-export function resolvePanelTemplateSource(
-  key: string,
-): Extract<FactorAnalysisSource, { kind: 'panel' }> | null {
-  const template = PANEL_TEMPLATES.find((candidate) => candidate.key === key);
-  return template ? { kind: 'panel', label: template.label.en, code: template.code } : null;
-}
-
-/**
- * 将 Panel 模板映射为可创建资源，补齐公开元数据。
- *
- * Map a panel template into a creation resource with public metadata.
- */
-export function panelTemplateResource(key: string, locale: Locale) {
-  const template = PANEL_TEMPLATES.find((candidate) => candidate.key === key);
-  return template
-    ? {
-        id: template.key,
-        key: template.key,
-        name: template.label[locale],
-        description: template.description[locale],
-        code: template.code,
-        builtin: true as const,
-        status: 'published' as const,
-        ...(template.strategyEligible ? { strategyKey: template.key } : {}),
-        analysisKind: 'panel' as const,
-        targetAssetClasses: template.targetAssetClasses,
-      }
-    : null;
 }

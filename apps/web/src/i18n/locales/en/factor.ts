@@ -465,8 +465,8 @@ export const enFactor: typeof zhFactor = {
   rerunShort: 'Run again',
   running: 'Running',
   rerun: 'Run again with these parameters',
-  historyButton: 'History',
-  historyTitle: 'Report history',
+  historyButton: 'Retained reports',
+  historyTitle: 'Retained reports',
   historyEmpty: 'No reports yet',
   historyRankIc: 'Rank IC {{value}}',
   status: {
@@ -504,6 +504,8 @@ export const enFactor: typeof zhFactor = {
     archived: 'Factor archived',
     archiveFailed: 'Archive failed',
     useInStrategy: 'Use in strategy',
+    boundReport: 'Publication report',
+    boundReportRef: 'Publication report {{id}}',
     reportRef: 'Report {{id}}',
     codeRef: 'Code {{hash}}',
     outdated:

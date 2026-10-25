@@ -268,15 +268,9 @@ export function refreshFactorMetadata(id: string, code: string): Promise<{ ok: t
 }
 
 // Immutable report history. Full payloads and frozen source only come from the detail endpoint.
-export function getFactorReports(
-  factor: string,
-  limit = 50,
-  cursor?: string,
-): Promise<FactorReportListResponse> {
+export function getFactorReports(factor: string): Promise<FactorReportListResponse> {
   const query = serializeQuery({
     factor,
-    limit: String(limit),
-    ...(cursor ? { cursor } : {}),
   } satisfies FactorReportListRequestQuery);
   return request(`/api/app/factors/analysis-reports?${query}`);
 }

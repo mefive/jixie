@@ -65,15 +65,32 @@ export async function publishPanelComposite(
   }
 
   const publishedAt = new Date();
-  const updated = await getDatabase().factorComposite.updateMany({
-    where: { id: compositeId, userId, status: 'draft' },
-    data: {
-      status: 'published',
-      approvedReportId: report.id,
-      codeHash: currentHash,
-      publishedAt,
-      archivedAt: null,
-    },
+  const updated = await getDatabase().$transaction(async (transaction) => {
+    const retainedReport = await transaction.factorReport.findFirst({
+      where: {
+        id: report.id,
+        userId,
+        factor: compositeId,
+        factorCodeHash: currentHash,
+        factorCodeSnapshot: currentSnapshot,
+        AND: [factorReportStatusWhere(['done'])],
+      },
+      select: { id: true },
+    });
+    if (!retainedReport) {
+      throw new FactorError('publication_report_invalid');
+    }
+
+    return transaction.factorComposite.updateMany({
+      where: { id: compositeId, userId, status: 'draft', updatedAt: composite.updatedAt },
+      data: {
+        status: 'published',
+        approvedReportId: report.id,
+        codeHash: currentHash,
+        publishedAt,
+        archivedAt: null,
+      },
+    });
   });
   if (updated.count !== 1) {
     throw new FactorError('publication_not_draft');

@@ -6,6 +6,8 @@ import type { JobLifecycle } from '#jobs/lifecycle.js';
 import { FactorWorkerError } from '../errors.js';
 import { runWorker } from '#jobs/worker.js';
 import { Worker } from 'node:worker_threads';
+import { pruneFactorReports } from './retention.js';
+import type { Job, Prisma } from '@prisma/client';
 
 const workerUrl = import.meta.url.endsWith('.ts')
   ? new URL('../analysis/worker.boot.mjs', import.meta.url)
@@ -49,6 +51,8 @@ export const factorAnalysisLifecycle = {
       where: { id: reportId, userId: job.userId },
       data: { payload: output, computedAt: new Date() },
     });
+
+    await pruneJobReports(transaction, job);
   },
   async onFailure(transaction, job, error) {
     if (error instanceof FactorWorkerError && job.factorReportId) {
@@ -57,5 +61,28 @@ export const factorAnalysisLifecycle = {
         data: { failureMessage: error.failureMessage, computedAt: null },
       });
     }
+
+    await pruneJobReports(transaction, job);
+  },
+  async onInterrupted(transaction, job) {
+    await pruneJobReports(transaction, job);
   },
 } satisfies JobLifecycle<{ reportId: string; output: string }>;
+
+/**
+ * 从持久化关联取得范围，兼容没有新版 payload 的历史任务。
+ *
+ * Resolve retention scope from persisted ownership, including historical jobs without modern payloads.
+ */
+async function pruneJobReports(transaction: Prisma.TransactionClient, job: Job): Promise<void> {
+  if (!job.factorReportId) {
+    return;
+  }
+  const report = await transaction.factorReport.findFirst({
+    where: { id: job.factorReportId, userId: job.userId },
+    select: { factor: true },
+  });
+  if (report) {
+    await pruneFactorReports(transaction, { userId: job.userId, factor: report.factor });
+  }
+}

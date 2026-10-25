@@ -15,7 +15,7 @@
 | 跨资产 Panel | 共同日期的跨资产分数是否有可比较的排序信息 | [Panel 研究](/docs/help/factors/panel-research) |
 | 宏观状态 | 不同增长、通胀状态下资产表现有何差异 | [宏观状态](/docs/help/factors/macro-regime) |
 
-新建自定义 Factor 默认使用 Python；已有 TypeScript 定义继续兼容。对已有报告提问或做嵌入计算不等于启动新的正式报告，见[报告历史](/docs/help/factors/report-history)。
+新建自定义 Factor 默认使用 Python；已有 TypeScript 定义继续兼容。对已有报告提问或做嵌入计算不等于启动新的正式报告，见[保留报告](/docs/help/factors/report-history)。
 
 ## 用盈利收益率理解因子
 

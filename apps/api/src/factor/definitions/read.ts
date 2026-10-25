@@ -5,8 +5,8 @@ import { FactorError } from '../errors.js';
 import { inspectFactorTargetAssetClasses } from '../sandbox/inspect-definition.js';
 import { BUILTIN_USER_ID } from './builtin-factors.js';
 import { macroRegimeTemplateResource } from './templates/macro-regime.js';
-import { panelTemplateResource } from './templates/panel.js';
-import { timeSeriesTemplateResource } from './templates/time-series.js';
+import { panelTemplateCatalog } from './templates/panel.js';
+import { timeSeriesTemplateCatalog } from './templates/time-series.js';
 import { strategyKey } from './views.js';
 
 export async function listOwnedFactors(userId: string) {
@@ -34,26 +34,6 @@ export async function listOwnedFactors(userId: string) {
  * Read an authorized factor definition and its related state.
  */
 export async function readFactorDefinition(userId: string, factorId: string, locale: Locale) {
-  // Own factors are editable; builtin (preset) rows are readable by anyone — the UI shows their
-  // code read-only with a "copy as custom" affordance.
-  const timeSeriesTemplate = timeSeriesTemplateResource(factorId, locale);
-
-  if (timeSeriesTemplate) {
-    return timeSeriesTemplate;
-  }
-
-  const panelTemplate = panelTemplateResource(factorId, locale);
-
-  if (panelTemplate) {
-    return panelTemplate;
-  }
-
-  const macroRegimeTemplate = macroRegimeTemplateResource(factorId, locale);
-
-  if (macroRegimeTemplate) {
-    return macroRegimeTemplate;
-  }
-
   const row = await getDatabase().factor.findFirst({
     where: {
       id: factorId,
@@ -91,15 +71,33 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
   });
 
   if (!row) {
+    const macroTemplate = macroRegimeTemplateResource(factorId, locale);
+    if (macroTemplate) {
+      return macroTemplate;
+    }
     throw new FactorError('factor_not_found');
   }
 
   const { userId: ownerId, ...rest } = row;
-  const targetAssetClasses = await inspectFactorTargetAssetClasses(rest);
+  const preset =
+    ownerId === BUILTIN_USER_ID
+      ? [...timeSeriesTemplateCatalog(locale), ...panelTemplateCatalog(locale)].find(
+          (item) => item.key === factorId,
+        )
+      : undefined;
+  const targetAssetClasses =
+    preset?.targetAssetClasses ?? (await inspectFactorTargetAssetClasses(rest));
 
   return {
     ...rest,
     targetAssetClasses,
+    ...(preset
+      ? {
+          allowedAssets: preset.allowedAssets,
+          defaultAssets: preset.defaultAssets,
+          unavailableAssetReasons: preset.unavailableAssetReasons,
+        }
+      : {}),
     messages:
       ownerId === userId
         ? Array.isArray(row.messages)
@@ -114,8 +112,8 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
             promotedAt: row.sourceResearchExecution.promotedAt?.toISOString() ?? null,
           }
         : null,
-    description: locale === 'en' ? row.descriptionEn : row.descriptionZh,
-    strategyKey: strategyKey(row.key, row.status),
+    description: preset?.description ?? (locale === 'en' ? row.descriptionEn : row.descriptionZh),
+    strategyKey: preset && !preset.strategyKey ? undefined : strategyKey(row.key, row.status),
     builtin: ownerId === BUILTIN_USER_ID,
     owned: ownerId === userId,
   };

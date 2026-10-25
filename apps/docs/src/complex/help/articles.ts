@@ -1239,8 +1239,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'factors/report-history',
     group: 'factorResearch',
     title: {
-      zh: '报告历史和结果已过期',
-      en: 'Report history and outdated results',
+      zh: '保留报告和结果已过期',
+      en: 'Retained reports and outdated results',
     },
     summary: {
       zh: '读取本人的报告，恢复当时参数，处理过期提示并理解版本发布。',

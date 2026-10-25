@@ -38,7 +38,7 @@ export type RequestContractAssertions = [
   Assert<Equal<ResearchAgentTurnInput['contextCellIds'], string[]>>,
   Assert<Equal<FactorCorrelationRequestQuery['keys'], string>>,
   Assert<Equal<FactorCorrelationQuery['keys'], string[]>>,
-  Assert<Equal<FactorReportListRequestQuery['limit'], string | undefined>>,
+  Assert<Equal<keyof FactorReportListRequestQuery, 'factor'>>,
   Assert<Equal<ResearchEmbeddedPageRequestQuery['limit'], string | undefined>>,
   Assert<Equal<unknown extends FactorCompositeRequest['definition'] ? true : false, false>>,
 ];

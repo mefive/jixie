@@ -46,13 +46,11 @@ async function openRawEarningsYieldReport() {
   await page.locator('.jx-factor-paramSummary').waitFor({ timeout: 20_000 });
 
   const rawReportId = await page.evaluate(async () => {
-    const response = await fetch('/api/app/factors/analysis-reports?factor=ep&limit=100');
+    const response = await fetch('/api/app/factors/analysis-reports?factor=ep');
     const reports = await response.json();
     return (
-      reports.items.find(
-        (report) =>
-          report.status === 'done' && report.phase === 'explore' && report.spec?.neutral === 'none',
-      )?.id ?? null
+      reports.items.find((report) => report.status === 'done' && report.spec?.neutral === 'none')
+        ?.id ?? null
     );
   });
   if (rawReportId) {
@@ -170,21 +168,6 @@ async function runNeutralizedAnalysis() {
     { locator: page.locator('.jx-factor-paramSummary'), number: 1 },
     { locator: page.locator('.jx-factor-resultHead'), number: 2 },
     { locator: page.locator('.jx-factor-chart').first(), number: 3 },
-  ]);
-
-  await page.locator('.jx-factor-historyTrigger').click();
-  const history = page.locator('.jx-factor-historyModal');
-  await history.waitFor();
-  const raw = history.locator('.jx-factor-historyItem').filter({ hasText: '无' }).first();
-  const neutralized = history
-    .locator('.jx-factor-historyItem')
-    .filter({ hasText: '市值+行业' })
-    .first();
-  await raw.scrollIntoViewIfNeeded();
-  await neutralized.scrollIntoViewIfNeeded();
-  await annotatedScreenshot(page, `${OUTPUT}factor-neutralization-history-01.png`, [
-    { locator: neutralized, number: 1 },
-    { locator: raw, number: 2 },
   ]);
 }
 

@@ -10,7 +10,7 @@
 
 ## 核对结果
 
-1. 从报告历史打开 Agent 返回的报告。
+1. 从保留报告打开 Agent 返回的报告。
 2. 核对代码、日期、数据截止日、样本和成本。
 3. 查看 IC、分组、换手和费后结果。
 4. 如果 Agent 同时提出新代码，确认报告实际计算了哪个候选。
@@ -22,5 +22,5 @@ Agent 可以分析，但发布版本仍由用户在页面明确发起。一份�
 ## 相关内容
 
 - [创建和编辑自定义因子](/docs/help/factors/create-custom-factor)
-- [报告历史和结果已过期](/docs/help/factors/report-history)
+- [保留报告和结果已过期](/docs/help/factors/report-history)
 - [发布因子版本](/docs/help/factors/publish-factor)

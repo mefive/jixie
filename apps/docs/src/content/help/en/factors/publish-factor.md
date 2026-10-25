@@ -26,5 +26,5 @@ A published version cannot be edited or overwritten. Copy it to a new draft, cha
 
 ## Related articles
 
-- [Report history and outdated results](/docs/help/factors/report-history)
+- [Retained reports and outdated results](/docs/help/factors/report-history)
 - [Use a factor in a strategy](/docs/help/factors/factor-in-strategy)

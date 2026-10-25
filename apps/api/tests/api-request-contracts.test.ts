@@ -47,10 +47,9 @@ describe('shared HTTP request contracts', () => {
       start: '20150101',
       end: '20261231',
     });
-    expect(factorReportListQuerySchema.parse({ factor: 'size', limit: '7' }).limit).toBe(7);
-    expect(factorReportListQuerySchema.safeParse({ factor: 'size', limit: '101' }).success).toBe(
-      false,
-    );
+    expect(factorReportListQuerySchema.parse({ factor: 'size', limit: '7' })).toEqual({
+      factor: 'size',
+    });
     expect(promoteExecutionSchema.parse({ displayName: '  Experiment  ' })).toEqual({
       displayName: 'Experiment',
       tags: [],

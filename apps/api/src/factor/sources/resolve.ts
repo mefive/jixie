@@ -1,5 +1,5 @@
 import { getDatabase } from '#infra/database/prisma.js';
-import { BUILTIN_FACTORS } from '../definitions/builtin-factors.js';
+import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { factorCompositeDefinitionV1Schema } from '@jixie/shared/api/factor';
 import { type FactorAnalysisSource } from './snapshot.js';
 import {
@@ -49,18 +49,8 @@ export async function resolveFactorSource(
   userId: string,
   factorId: string,
 ): Promise<FactorAnalysisSource | null> {
-  const builtin = BUILTIN_FACTORS.find((factor) => factor.key === factorId);
-  if (builtin) {
-    return {
-      kind: 'single',
-      code: builtin.code,
-      label: builtin.label,
-      language: 'typescript',
-      runtimeVersion: 'ts-v1',
-    };
-  }
   const custom = await getDatabase().factor.findFirst({
-    where: { id: factorId, userId },
+    where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] } },
     select: {
       code: true,
       name: true,
@@ -80,7 +70,7 @@ export async function resolveFactorSource(
     };
   }
   const composite = await getDatabase().factorComposite.findFirst({
-    where: { id: factorId, userId },
+    where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] } },
     select: { name: true, definition: true },
   });
   if (!composite) {
@@ -111,16 +101,16 @@ export async function resolveFactorSource(
 }
 
 /**
- * 解析可访问的作者时间序列因子，校验其冻结协议和数据需求。
+ * 读取可访问的已保存时间序列因子来源。
  *
- * Resolve an accessible authored time-series factor under its frozen protocol.
+ * Read an accessible saved time-series factor source.
  */
-export async function resolveCustomTimeSeriesFactorSource(
+export async function resolveTimeSeriesFactorSource(
   userId: string,
   factorId: string,
 ): Promise<FactorAnalysisSource | null> {
   const custom = await getDatabase().factor.findFirst({
-    where: { id: factorId, userId, analysisKind: 'time_series' },
+    where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] }, analysisKind: 'time_series' },
     select: { code: true, name: true, language: true, runtimeVersion: true },
   });
   return custom

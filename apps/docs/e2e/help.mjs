@@ -751,8 +751,8 @@ try {
     throw new Error('neutralization formulas did not render with KaTeX');
   }
 
-  await page.getByRole('link', { name: '报告历史和结果已过期', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '报告历史和结果已过期' }).waitFor();
+  await page.getByRole('link', { name: '保留报告和结果已过期', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '保留报告和结果已过期' }).waitFor();
   const reportHistoryImages = await page
     .locator('.jx-help-figure img')
     .evaluateAll((images) => images.map((image) => new URL(image.src).pathname));

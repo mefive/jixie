@@ -4,6 +4,7 @@ import { buildApp } from './server.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { JobService } from '#jobs/job-service.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
+import { pruneFactorReports } from '#factor/evaluations/retention.js';
 import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.js';
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
@@ -36,8 +37,10 @@ export async function startServer(port: number, database: Prisma = prisma) {
       );
     }
 
-    // Materialize the built-in preset factors (idempotent; repo is the source of truth).
-    void seedBuiltinFactors().catch((e) => console.error('[jixie] preset factor seed failed', e));
+    // 先准备缺失内置版本和报告保留规则，再接收请求或启动排队任务。
+    // Prepare missing builtin versions and report retention before serving or dispatching queued work.
+    await seedBuiltinFactors();
+    await database.$transaction((transaction) => pruneFactorReports(transaction));
     JobScheduler.initialize(JobService.execute);
     JobScheduler.wake();
     serve({ fetch: app.fetch, port });

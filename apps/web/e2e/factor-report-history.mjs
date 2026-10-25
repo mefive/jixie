@@ -23,174 +23,146 @@ try {
     throw new Error(`dev login failed: ${loginStatus}`);
   }
 
-  // Build a baseline report instead of relying on a developer's existing research history.
-  await page.evaluate(async () => {
-    const response = await fetch('/api/app/factors/analyses', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        factor: 'ep',
-        spec: { version: 1, freq: 'month', start: '20240101', end: '20241231', neutral: 'none' },
-      }),
-    });
-    const submitted = await response.json();
-    if (!response.ok || !submitted.reportId) {
-      throw new Error(`baseline report submission failed: ${JSON.stringify(submitted)}`);
-    }
-    const deadline = Date.now() + 180_000;
-    while (Date.now() < deadline) {
-      const detail = await fetch(`/api/app/factors/analysis-reports/${submitted.reportId}`).then(
-        (reportResponse) => reportResponse.json(),
-      );
-      if (detail.status === 'done') {
-        return;
-      }
-      if (detail.status === 'error' || detail.status === 'stale') {
-        throw new Error(`baseline report failed: ${JSON.stringify(detail)}`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    }
-    throw new Error('baseline report timed out');
-  });
-
-  await page.goto(`${BASE}/factors`, { waitUntil: 'domcontentloaded' });
-  await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
-  await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
-  await page.locator('.jx-factor-historyTrigger').waitFor({ timeout: 15000 });
-  await page.waitForFunction(() => new URL(location.href).searchParams.has('report'));
-
-  // A real API run proves identical in-flight inputs reuse one report/job, and the UI can restore the
-  // running report after refresh and after switching factors. Keep the range short so the E2E remains cheap.
-  const runningFixture = await page.evaluate(async () => {
-    const body = {
-      factor: 'ep',
-      spec: {
-        version: 2,
-        freq: 'month',
-        start: '20200101',
-        end: '20241231',
-        neutral: 'none',
-        universe: {
-          minimumListingDays: 365,
-          liquidityDropFraction: 0.25,
-          minimumCandidates: 100,
-        },
-        missing: { minimumWindowCoverage: 2 / 3 },
-        outliers: {
-          factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
-          forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
-        },
-        costs: {
-          commissionPerSide: 0.00025,
-          stampDutySellSide: 0.0005,
-          slippagePerSide: 0.001,
-        },
+  const api = (path, body) =>
+    page.evaluate(
+      async ({ path, body }) => {
+        const response = await fetch(
+          `/api/app/factors/${path}`,
+          body === undefined
+            ? undefined
+            : {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify(body),
+              },
+        );
+        return { status: response.status, body: await response.json() };
       },
-    };
-    const run = () =>
-      fetch('/api/app/factors/analyses', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      }).then((response) => response.json());
-    const [first, second] = await Promise.all([run(), run()]);
-    return { first, second };
-  });
-  if (
-    runningFixture.first.reportId !== runningFixture.second.reportId ||
-    runningFixture.first.jobId !== runningFixture.second.jobId
-  ) {
-    throw new Error(
-      `identical running variants were not reused: ${JSON.stringify(runningFixture)}`,
+      { path, body },
     );
+  const waitForReport = (id) =>
+    page.evaluate(async (reportId) => {
+      const deadline = Date.now() + 180_000;
+      while (Date.now() < deadline) {
+        const response = await fetch(`/api/app/factors/analysis-reports/${reportId}`);
+        const detail = await response.json();
+        if (detail.status === 'done') {
+          return detail;
+        }
+        if (!response.ok || ['error', 'stale'].includes(detail.status)) {
+          throw new Error(`report failed: ${JSON.stringify(detail)}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+      throw new Error(`report ${reportId} timed out`);
+    }, id);
+  const copied = await api('ep/copy', {});
+  if (copied.status !== 200) {
+    throw new Error(`copy failed: ${JSON.stringify(copied)}`);
   }
-  await page.goto(
-    `${BASE}/factors?factor=ep&report=${encodeURIComponent(runningFixture.first.reportId)}`,
-    { waitUntil: 'domcontentloaded' },
-  );
-  await page.locator('.jx-factor-historyTrigger').waitFor({ timeout: 15000 });
-  await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(
-    (reportId) => new URL(location.href).searchParams.get('report') === reportId,
-    runningFixture.first.reportId,
-  );
-  await page.locator('.jx-factor-agent').getByRole('tab', { name: '因子库' }).click();
-  await page.locator('.jx-factor-libItem', { hasText: '账面市值比' }).click();
-  await page.locator('.jx-factor-libItem', { hasText: '盈利收益率' }).click();
-  await page.waitForFunction(
-    (reportId) => new URL(location.href).searchParams.get('report') === reportId,
-    runningFixture.first.reportId,
-  );
-  await page.screenshot({ path: `${SHOTS}7m-factor-running-resume.png` });
-  await page.waitForFunction(
-    async (jobId) => {
-      const job = await fetch(`/api/app/factors/analysis-jobs/${jobId}`).then((response) =>
-        response.json(),
-      );
-      return job.status !== 'running';
+  const factorId = copied.body.id;
+  const spec = {
+    version: 2,
+    freq: 'month',
+    start: '20230101',
+    end: '20241231',
+    neutral: 'none',
+    universe: { minimumListingDays: 365, liquidityDropFraction: 0.25, minimumCandidates: 100 },
+    missing: { minimumWindowCoverage: 2 / 3 },
+    outliers: {
+      factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+      forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
     },
-    runningFixture.first.jobId,
-    { timeout: 180000 },
-  );
-  const firstReportId = new URL(page.url()).searchParams.get('report');
-  const selectedDetail = await page.evaluate(async (reportId) => {
-    const deadline = Date.now() + 180000;
-    while (Date.now() < deadline) {
-      const detail = await fetch(`/api/app/factors/analysis-reports/${reportId}`, {
-        cache: 'no-store',
-      }).then((response) => response.json());
-      if (detail.status === 'done' && detail.payload?.methodology) {
-        return detail;
-      }
-      if (detail.status === 'error' || detail.status === 'stale') {
-        return detail;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 400));
+    costs: { commissionPerSide: 0.00025, stampDutySellSide: 0.0005, slippagePerSide: 0.001 },
+  };
+  const run = async () => {
+    const submitted = await api('analyses', { factor: factorId, spec });
+    if (submitted.status !== 200) {
+      throw new Error(`submit failed: ${JSON.stringify(submitted)}`);
     }
-    throw new Error(`report ${reportId} timed out`);
-  }, firstReportId);
-  if (selectedDetail.factor !== 'ep' || selectedDetail.id !== firstReportId) {
-    throw new Error('default report did not restore by stable id');
-  }
+    return waitForReport(submitted.body.reportId);
+  };
+  const obsolete = await run();
+  const bound = await run();
+  const retainedDraft = await api(`analysis-reports?factor=${factorId}`);
   if (
-    selectedDetail.spec.version !== 2 ||
-    !selectedDetail.payload?.methodology ||
-    selectedDetail.payload.methodology.stages.length !== 4
+    retainedDraft.body.items.length !== 1 ||
+    retainedDraft.body.items[0].id !== bound.id ||
+    (await api(`analysis-reports/${obsolete.id}`)).status !== 404
   ) {
-    throw new Error(
-      `V2 report did not retain its methodology audit: ${JSON.stringify({
-        status: selectedDetail.status,
-        version: selectedDetail.spec?.version,
-        hasPayload: !!selectedDetail.payload,
-        hasMethodology: !!selectedDetail.payload?.methodology,
-        stages: selectedDetail.payload?.methodology?.stages?.length,
-      })}`,
-    );
+    throw new Error(`draft retention failed: ${JSON.stringify(retainedDraft)}`);
   }
+
+  await page.goto(`${BASE}/factors?factor=${factorId}&report=${obsolete.id}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page
+    .getByText(/报告不存在或已被清理|Report not found or already removed/)
+    .first()
+    .waitFor();
+  if (new URL(page.url()).searchParams.get('report') !== obsolete.id) {
+    throw new Error('a removed report link silently selected a different report');
+  }
+  await page.screenshot({ path: `${SHOTS}7g-factor-report-removed.png` });
+  await page.goto(`${BASE}/factors?factor=${factorId}&report=${bound.id}`, {
+    waitUntil: 'domcontentloaded',
+  });
+  await page.locator('.jx-factor-methodology').waitFor();
+  if (await page.locator('.jx-factor-historyTrigger').count()) {
+    throw new Error('one retained draft report should not show a report selector');
+  }
+
+  const published = await api(`${factorId}/publish`, { approvedReportId: bound.id });
+  if (published.status !== 200) {
+    throw new Error(`publish failed: ${JSON.stringify(published)}`);
+  }
+  const latest = await run();
+  if (
+    latest.factorCodeHash !== bound.factorCodeHash ||
+    latest.factorCodeSnapshot !== bound.factorCodeSnapshot
+  ) {
+    throw new Error('a published rerun changed the saved implementation');
+  }
+  const retained = await api(`analysis-reports?factor=${factorId}`);
+  if (
+    retained.body.items.length !== 2 ||
+    !(await api(`analysis-reports/${bound.id}`)).body.payload
+  ) {
+    throw new Error(`publication report was not retained: ${JSON.stringify(retained)}`);
+  }
+  const firstReportId = latest.id;
+  await page.goto(`${BASE}/factors?factor=${factorId}&report=${firstReportId}`, {
+    waitUntil: 'domcontentloaded',
+  });
   await page.locator('.jx-factor-methodology').waitFor();
   await page.screenshot({ path: `${SHOTS}7o-factor-methodology.png` });
   await page.screenshot({ path: `${SHOTS}7g-factor-history-button.png` });
   await page.locator('.jx-factor-historyTrigger').click();
   await page.locator('.jx-factor-historyModal').waitFor();
+  await page.locator('.jx-factor-historyModal').getByText('发布绑定', { exact: true }).waitFor();
+  await page
+    .locator('.jx-factor-publicationLineage')
+    .getByText(`发布绑定报告 ${bound.id.slice(-8)}`, { exact: true })
+    .waitFor();
   const historyItems = page.locator('.jx-factor-historyItem');
   const optionCount = await historyItems.count();
-  if (optionCount < 2) {
-    throw new Error(`expected at least two historical reports, got ${optionCount}`);
+  if (optionCount !== 2) {
+    throw new Error(`expected two retained reports, got ${optionCount}`);
   }
-  await page.waitForTimeout(300);
-  await page.screenshot({ path: `${SHOTS}7g-factor-history-desktop.png` });
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: `${SHOTS}7g-factor-history-desktop.png`, animations: 'disabled' });
   await historyItems.nth(1).click();
-  await page.waitForFunction(
-    (previous) => new URL(location.href).searchParams.get('report') !== previous,
-    firstReportId,
-  );
-  const secondReportId = new URL(page.url()).searchParams.get('report');
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  const secondReportId = bound.id;
   await page.waitForFunction(
     (expected) => new URL(location.href).searchParams.get('report') === expected,
     secondReportId,
   );
-  await page.locator('.jx-factor-historyTrigger').waitFor({ timeout: 15000 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.locator('.jx-factor-methodology').waitFor();
+  await page.waitForFunction(
+    (expected) => new URL(location.href).searchParams.get('report') === expected,
+    secondReportId,
+  );
 
   await page.locator('.jx-factor-paramActions button').last().click();
   await page
@@ -204,7 +176,8 @@ try {
   await page.locator('.jx-factor-reportWarning').waitFor();
   await page.screenshot({ path: `${SHOTS}7i-factor-report-outdated.png` });
 
-  // A historical report would replace the edited parameter draft, so it needs a strong confirmation.
+  // 打开保留报告会恢复参数，因此未保存参数需要确认。
+  // Opening a retained report restores its settings and requires confirmation for edited settings.
   await page.locator('.jx-factor-paramActions button').last().click();
   await page.locator('.jx-factor-paramPopover').waitFor({ state: 'hidden' });
   await page.locator('.jx-factor-historyTrigger').click();

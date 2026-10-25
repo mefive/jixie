@@ -23,7 +23,11 @@ vi.mock('#infra/database/prisma.js', async () => {
       '#infra/database/prisma.js',
     )),
     ...mocked,
-    getDatabase: () => mocked.prisma,
+    getDatabase: () => ({
+      ...mocked.prisma,
+      $transaction: (run: (transaction: typeof mocked.prisma) => Promise<unknown>) =>
+        run(mocked.prisma),
+    }),
   };
 });
 
@@ -77,7 +81,17 @@ describe('immutable Factor publication', () => {
     const published = await publishFactor('user-1', 'factor-1', 'report-1');
 
     expect(mocks.factorUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'factor-1', userId: 'user-1', status: 'draft' },
+      where: {
+        id: 'factor-1',
+        userId: 'user-1',
+        status: 'draft',
+        code: CODE,
+        key: 'book_to_market',
+        name: 'Book to market',
+        analysisKind: 'cross_sectional',
+        language: undefined,
+        runtimeVersion: undefined,
+      },
       data: expect.objectContaining({
         status: 'published',
         approvedReportId: 'report-1',
@@ -142,6 +156,25 @@ describe('immutable Factor publication', () => {
       runtimeVersion: 'py-v1',
       codeHash: factorAnalysisSourceHash(pythonCode, 'python'),
     });
+  });
+
+  it('rejects a report removed before the publication transaction', async () => {
+    mocks.reportFindFirst
+      .mockResolvedValueOnce(await mocks.reportFindFirst())
+      .mockResolvedValueOnce(null);
+
+    await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
+      new FactorError('publication_report_invalid'),
+    );
+    expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a draft changed before the publication update', async () => {
+    mocks.factorUpdateMany.mockResolvedValue({ count: 0 });
+
+    await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
+      new FactorError('publication_not_draft'),
+    );
   });
 
   it('rejects an outdated report snapshot', async () => {

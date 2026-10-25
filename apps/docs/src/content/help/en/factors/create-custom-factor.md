@@ -22,7 +22,7 @@ No derivation is needed here. Calculate the reciprocal only when price-to-book i
 
 ## Open a new factor
 
-Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in report history.
+Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in retained reports.
 
 1. Open **Factor Research**.
 2. Select **New** on the left.
@@ -89,12 +89,12 @@ For gross-margin stability, state the window and missing-data rule first. For ex
 
 1. Check the frequency, date range, and neutralization setting at the top right.
 2. Select **Run analysis**.
-3. Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in report history.
+3. Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in retained reports.
 5. Wait for the methodology, grouped returns, and metrics on the right.
 
 The Factor is persisted when the creation dialog is confirmed, and draft edits autosave. Analysis waits for the current code to save; after completion, refresh the page and confirm that the name, key, code, and report remain available.
 
-Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in report history.
+Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in retained reports.
 
 The numbered areas are:
 

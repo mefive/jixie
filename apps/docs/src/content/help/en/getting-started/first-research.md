@@ -27,7 +27,7 @@ Manage studies in the **Current** and **Archived** lists, with search over title
 
 ## Read an existing FactorReport
 
-Copy a report ID from Factor report history or a report link, then load its immutable result read-only in a Python cell:
+Copy a report ID from the current Factor result or a retained report link, then load it read-only in a Python cell. Reruns remove older ordinary reports; publication-bound reports remain:
 
 ```python
 factor_report = results.factor_report("report ID")
@@ -87,5 +87,5 @@ upstream revision changes the disclosed data revision.
 - [Collaborate with Research Agent](/docs/help/research/agent-collaboration)
 - [Answer a research-definition clarification](/docs/help/research/clarifications)
 - [Load US Treasury yield curves](/docs/help/research/yield-curves)
-- [Understand Factor report history](/docs/help/factors/report-history)
+- [Understand Factor retained reports](/docs/help/factors/report-history)
 - [Hand research to Factor or Strategy](/docs/help/research/handoff)

@@ -92,6 +92,7 @@ export interface FactorMeta {
   strategyKey?: string; // immutable Factor.key; absent for drafts and archived factors
   factorKey?: string; // immutable user-facing key even while a draft is not strategy-referencable
   status?: FactorStatus;
+  approvedReportId?: string | null;
   kind: FactorKind;
   builtin?: boolean; // true = preset (a read-only code row in the library, can be copied into a custom factor)
   expectedDirection?: Exclude<FactorExpectedDirection, 'unknown'>;
@@ -649,7 +650,6 @@ export interface FactorReportDetail extends FactorReportSummary {
  */
 export interface FactorReportListResponse {
   items: FactorReportSummary[];
-  nextCursor?: string;
 }
 
 export type RunFactorAnalysisRequest = SubmitFactorAnalysisRequest;

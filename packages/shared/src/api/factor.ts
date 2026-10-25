@@ -366,8 +366,6 @@ export type FactorJobLogsQuery = z.output<typeof factorJobLogsQuerySchema>;
 // Reports.
 export const factorReportListQuerySchema = z.object({
   factor: z.string().min(1),
-  limit: z.coerce.number<string>().int().min(1).max(100).default(50),
-  cursor: z.string().min(1).optional(),
 });
 
 export type FactorReportListQuery = z.output<typeof factorReportListQuerySchema>;

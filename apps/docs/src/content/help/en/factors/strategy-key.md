@@ -67,4 +67,4 @@ No. Strategy code uses the Factor key, not the display name.
 
 - [Create and edit a custom factor](/docs/help/factors/create-custom-factor)
 - [Use a custom factor in a strategy](/docs/help/factors/factor-in-strategy)
-- [Report history and outdated results](/docs/help/factors/report-history)
+- [Retained reports and outdated results](/docs/help/factors/report-history)

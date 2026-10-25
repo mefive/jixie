@@ -27,7 +27,11 @@ vi.mock('#infra/database/prisma.js', async () => {
       '#infra/database/prisma.js',
     )),
     ...mocked,
-    getDatabase: () => mocked.prisma,
+    getDatabase: () => ({
+      ...mocked.prisma,
+      $transaction: (run: (transaction: typeof mocked.prisma) => Promise<unknown>) =>
+        run(mocked.prisma),
+    }),
   };
 });
 
@@ -79,6 +83,7 @@ describe('immutable panel composite publication', () => {
       name: DEFINITION.name,
       definition: DEFINITION,
       status: 'draft',
+      updatedAt: new Date('2026-10-01'),
     });
     mocks.reportFindFirst.mockReset().mockResolvedValue({
       legacyStatus: 'done',
@@ -109,7 +114,12 @@ describe('immutable panel composite publication', () => {
       }),
     );
     expect(mocks.compositeUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'composite-1', userId: 'user-1', status: 'draft' },
+      where: {
+        id: 'composite-1',
+        userId: 'user-1',
+        status: 'draft',
+        updatedAt: new Date('2026-10-01'),
+      },
       data: expect.objectContaining({
         status: 'published',
         approvedReportId: 'report-1',
@@ -123,6 +133,25 @@ describe('immutable panel composite publication', () => {
       status: 'published',
       approvedReportId: 'report-1',
     });
+  });
+
+  it('rejects a report removed before the publication transaction', async () => {
+    mocks.reportFindFirst
+      .mockResolvedValueOnce(await mocks.reportFindFirst())
+      .mockResolvedValueOnce(null);
+
+    await expect(publishPanelComposite('user-1', 'composite-1', 'report-1')).rejects.toEqual(
+      new FactorError('publication_report_invalid'),
+    );
+    expect(mocks.compositeUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('rejects a draft changed before the publication update', async () => {
+    mocks.compositeUpdateMany.mockResolvedValue({ count: 0 });
+
+    await expect(publishPanelComposite('user-1', 'composite-1', 'report-1')).rejects.toEqual(
+      new FactorError('publication_not_draft'),
+    );
   });
 
   it('rejects a report after any component code changes', async () => {

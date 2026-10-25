@@ -87,15 +87,42 @@ export async function publishFactor(
   }
 
   const publishedAt = new Date();
-  const updated = await getDatabase().factor.updateMany({
-    where: { id: factorId, userId, status: 'draft' },
-    data: {
-      status: 'published',
-      approvedReportId: report.id,
-      codeHash: currentHash,
-      publishedAt,
-      archivedAt: null,
-    },
+  const updated = await getDatabase().$transaction(async (transaction) => {
+    const retainedReport = await transaction.factorReport.findFirst({
+      where: {
+        id: report.id,
+        userId,
+        factor: factorId,
+        factorCodeHash: currentHash,
+        factorCodeSnapshot: factor.code,
+        AND: [factorReportStatusWhere(['done'])],
+      },
+      select: { id: true },
+    });
+    if (!retainedReport) {
+      throw new FactorError('publication_report_invalid');
+    }
+
+    return transaction.factor.updateMany({
+      where: {
+        id: factorId,
+        userId,
+        status: 'draft',
+        code: factor.code,
+        key: factor.key,
+        name: factor.name,
+        analysisKind: factor.analysisKind,
+        language: factor.language,
+        runtimeVersion: factor.runtimeVersion,
+      },
+      data: {
+        status: 'published',
+        approvedReportId: report.id,
+        codeHash: currentHash,
+        publishedAt,
+        archivedAt: null,
+      },
+    });
   });
   if (updated.count !== 1) {
     throw new FactorError('publication_not_draft');

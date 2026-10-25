@@ -14,9 +14,7 @@ export type InvalidRequestAssertions = [
       ? true
       : false
   >,
-  AssertRejected<
-    { factor: string; limit: boolean } extends FactorReportListRequestQuery ? true : false
-  >,
+  AssertRejected<{ factor: boolean } extends FactorReportListRequestQuery ? true : false>,
   AssertRejected<
     { source: string } extends Parameters<typeof updateResearchCell>[1] ? true : false
   >,

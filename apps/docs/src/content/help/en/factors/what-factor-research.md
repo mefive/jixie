@@ -15,7 +15,7 @@ This page uses a stock cross-section to explain the basics. Other methods are al
 | Cross-asset Panel | Do comparable scores across assets contain ranking information at common dates? | [Panel research](/docs/help/factors/panel-research) |
 | Macro regimes | How do asset outcomes differ across growth and inflation states? | [Macro regimes](/docs/help/factors/macro-regime) |
 
-New custom Factors default to Python; existing TypeScript definitions remain compatible. Asking about a report or running an embedded calculation does not create a new formal report. See [Report history](/docs/help/factors/report-history).
+New custom Factors default to Python; existing TypeScript definitions remain compatible. Asking about a report or running an embedded calculation does not create a new formal report. See [Retained reports](/docs/help/factors/report-history).
 
 ## Understand a factor through earnings yield
 

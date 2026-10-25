@@ -65,7 +65,7 @@ Adding a component can therefore reduce the sample. Always inspect component cov
 
 - Use the edit action in the definition panel to change the name, standardization, components, or directions.
 - Changes affect only future analyses. Existing reports keep their frozen definition and component code.
-- Deleting a composite does not delete its historical reports, but it prevents new runs from that definition.
+- Deleting a composite does not immediately delete its retained reports, but it prevents new runs from that definition.
 
 ## Important limits
 

@@ -1305,7 +1305,8 @@ model StrategyScanReport {
 /// compiler for the immutable definition protocol. Two kinds of rows share this table:
 ///   - user factors: id = ULID, userId = the owner;
 ///   - built-in presets: id = stable slug (ep/mom/…), userId = 'builtin' sentinel — seeded from
-///     factor/builtin-factors.ts (git is the source of truth), read-only via the routes.
+///     注册表只初始化缺失版本；已保存版本只读，源码升级须使用新的 key。
+///     Registries initialize missing versions only; saved versions are read-only and upgrades use a new key.
 /// Plain userId (no relation), like FactorReport.
 model Factor {
   id                        String              @id // ULID, or a preset slug for builtin rows

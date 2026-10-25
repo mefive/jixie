@@ -6,8 +6,6 @@ import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from '../evidence/fingerprints.js';
 
 import { macroRegimeTemplateResource } from '#factor/definitions/templates/macro-regime.js';
-import { panelTemplateResource } from '#factor/definitions/templates/panel.js';
-import { timeSeriesTemplateResource } from '#factor/definitions/templates/time-series.js';
 
 /**
  * 由服务端解析业务身份，宿主实体之后消失也不影响快照读取。
@@ -25,10 +23,7 @@ export async function captureEmbeddedContext(
   let language: string;
   switch (host.type) {
     case 'factor': {
-      const template =
-        timeSeriesTemplateResource(host.id, 'en') ??
-        panelTemplateResource(host.id, 'en') ??
-        macroRegimeTemplateResource(host.id, 'en');
+      const template = macroRegimeTemplateResource(host.id, 'en');
       if (template) {
         ({ name, code } = template);
         language = 'typescript';

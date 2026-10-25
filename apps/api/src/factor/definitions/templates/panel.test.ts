@@ -1,11 +1,7 @@
 import { FactorSandbox } from '../../sandbox/factor-sandbox.js';
 import { describe, expect, it } from 'vitest';
 
-import {
-  panelTemplateCatalog,
-  panelTemplateResource,
-  resolvePanelTemplateSource,
-} from './panel.js';
+import { PANEL_TEMPLATES, panelTemplateCatalog } from './panel.js';
 
 describe('multi-asset panel templates', () => {
   it('publishes an explicit panel method in the localized catalog', () => {
@@ -31,10 +27,11 @@ describe('multi-asset panel templates', () => {
         }),
       ]),
     );
-    expect(panelTemplateResource('cross_asset_momentum_120', 'zh')).toMatchObject({
+    expect(
+      panelTemplateCatalog('zh').find((entry) => entry.key === 'cross_asset_momentum_120'),
+    ).toMatchObject({
       key: 'cross_asset_momentum_120',
       strategyKey: 'cross_asset_momentum_120',
-      status: 'published',
       builtin: true,
     });
     expect(panelTemplateCatalog('zh')).toEqual(
@@ -49,14 +46,14 @@ describe('multi-asset panel templates', () => {
         }),
       ]),
     );
-    expect(panelTemplateResource('commodity_futures_carry_v1', 'zh')).not.toHaveProperty(
-      'strategyKey',
-    );
+    expect(
+      panelTemplateCatalog('zh').find((entry) => entry.key === 'commodity_futures_carry_v1'),
+    ).not.toHaveProperty('strategyKey');
   });
 
-  it('resolves to an executable frozen Factor V2 panel source', async () => {
-    const source = resolvePanelTemplateSource('cross_asset_momentum_120');
-    expect(source).toMatchObject({ kind: 'panel', label: 'Cross-asset momentum (120d)' });
+  it('provides an executable initial Factor V2 panel source', async () => {
+    const source = PANEL_TEMPLATES.find((entry) => entry.key === 'cross_asset_momentum_120');
+    expect(source).toMatchObject({ label: { en: 'Cross-asset momentum (120d)' } });
     const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'panel',
@@ -74,7 +71,7 @@ describe('multi-asset panel templates', () => {
   });
 
   it('compiles the commodity Carry template against the controlled field catalog', async () => {
-    const source = resolvePanelTemplateSource('commodity_futures_carry_v1');
+    const source = PANEL_TEMPLATES.find((entry) => entry.key === 'commodity_futures_carry_v1');
     const sandbox = await FactorSandbox.start({
       language: 'typescript',
       analysisKind: 'panel',

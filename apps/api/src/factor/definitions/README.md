@@ -1,6 +1,6 @@
 # 因子定义与草稿
 
-这里拥有可编辑因子的身份、源码、展示元数据及内置定义。分析记录归 [evaluations](../evaluations/README.md)，发布状态转换归 [publication](../publication/README.md)，定义删除不删除历史报告。
+这里拥有可编辑因子的身份、源码、展示元数据及内置定义。分析记录归 [evaluations](../evaluations/README.md)，发布状态转换归 [publication](../publication/README.md)，定义删除不立即删除保留报告。
 
 ## 调用入口
 
@@ -11,7 +11,7 @@
 | [metadata.ts](metadata.ts) `refreshOwnedFactorMetadata` | 定义路由显式刷新 | 检查所有者和 draft，缺失／非草稿报业务错误；调用模型并更新展示元数据 |
 | 同文件 `refreshFactorMetadata`、`generateFactorMetadata` | Factor Agent 完成回调；生成器供刷新复用 | 低层刷新遇到不存在／非草稿直接返回；生成器返回元数据、不保存定义。模型调用与写入不在一个总事务内 |
 | [from-research.ts](from-research.ts) `findResearchFactorDraft`、`createFactorDraftFromResearch` | Research handoff 先查复用，再传入生成结果 | 按用户和 sourceExecutionId 复用；创建接收代码、messages、来源元数据，返回目标信息及 reused，不调用生成器 |
-| [seed.ts](seed.ts) `seedBuiltinFactors` | bootstrap 后台初始化 | 写入／更新内置当前定义，保留历史报告冻结代码；不是查询目录时的自动动作 |
+| [seed.ts](seed.ts) `seedBuiltinFactors` | bootstrap 启动时等待初始化 | 仅补缺失内置版本，已有代码、状态及发布关联不变；不是查询目录时的自动动作 |
 
 ## 文件与规则
 
@@ -28,3 +28,5 @@ Research 创建负责最多 100 次 key 尝试、32 字符限制与 `_2` 后缀�
 - 元数据或 Research 交接：[metadata.test.ts](metadata.test.ts)、[from-research.test.ts](from-research.test.ts)，并读 [Research handoff](../../research/handoff/README.md)。
 
 [返回 Factor 总览](../README.md)
+
+内置源码升级使用新 key；目录、定义、分析与 Agent 上下文均读取数据库保存的版本，静态模板仅供初始化。

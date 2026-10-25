@@ -4,12 +4,13 @@ import { PANEL_TEMPLATES } from './templates/panel.js';
 
 /**
  * Built-in preset factors as CODE (design: factor-to-strategy.md Step 1b — code-first carried through on the factor side).
- * The source of truth is this file (git); seed.ts materializes each preset into a
- * read-only Factor row so analysis runs presets and user factors through ONE compile+compute path.
+ * 此注册表只初始化缺失的只读 Factor 版本；实际执行读取保存的源码，升级使用新 key。
+ * This registry initializes missing read-only Factor versions. Execution uses saved source;
+ * upgrades use a new key. Presets and user factors share one compile-and-compute path.
  * Pinned invariants:
  *   - keys are stable slugs (ep/mom/…) — FactorReport history and ?factor= URLs depend on them;
  *   - preset rows use the BUILTIN_USER_ID sentinel (no real user) and are rejected by edit/delete;
- *   - seeding is idempotent; historical reports retain their frozen code when a preset changes.
+ *   - seeding initializes missing versions only; upgrades require a new key instead of changing saved source.
  * Price presets duplicate a small date-gap helper in each module — factor code is import-free by
  * design (the sandbox has no require), so self-containment beats sharing.
  */

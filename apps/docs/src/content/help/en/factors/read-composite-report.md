@@ -10,7 +10,7 @@ A composite uses the pipeline for its selected research method. Verify frozen co
 2. Select **Run analysis**.
 3. Analyze the selected dates and review samples, costs and results. Publication remains an explicit user action in the workbench.
 4. Wait for the report to finish.
-5. Reopen the immutable result later from report history.
+5. Reopen the immutable result later from retained reports.
 
 The numbered areas show:
 
@@ -50,9 +50,9 @@ If a higher return also comes with materially higher turnover, drawdown, or samp
 
 ## Editing does not overwrite history
 
-Every report stores the composite definition and code snapshot of every component. Later edits do not change old reports; another run creates another report.
+Every report stores the composite definition and code snapshot of every component. Later edits do not change old reports; another run replaces an older ordinary report, while publication-bound reports remain.
 
-Use report history to compare variants rather than relying on the currently edited definition.
+Compare published versions and their bound reports, checking each definition and sample.
 
 ## Analyze and publish
 

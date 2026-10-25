@@ -20,7 +20,6 @@ import {
   type FactorReport,
   type FactorReportDetail,
   type FactorReportListResponse,
-  type FactorReportSummary,
   type FactorAnalysisSpec,
   type FactorAnalysisKind,
   type FactorLanguage,
@@ -266,6 +265,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public nlText = ''; // the Agent chat draft
   public factorKey = ''; // immutable Factor.key used by strategies
   public factorStatus: FactorStatus = 'draft';
+  public approvedReportId: string | null = null;
   public description = ''; // localized catalog summary generated from the current context
   public researchHandoff: ResearchFactorHandoffV1 | null = null;
   public sourceResearchExecution: SourceResearchExecution | null = null;
@@ -322,6 +322,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       nlText: observable.ref,
       factorKey: observable.ref,
       factorStatus: observable.ref,
+      approvedReportId: observable.ref,
       description: observable.ref,
       researchHandoff: observable.ref,
       sourceResearchExecution: observable.ref,
@@ -936,6 +937,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.nlText = '';
       this.factorKey = meta?.factorKey ?? meta?.strategyKey ?? '';
       this.factorStatus = meta?.status ?? 'draft';
+      this.approvedReportId = meta?.approvedReportId ?? null;
       this.description = meta?.description ?? '';
       this.researchHandoff = null;
       this.sourceResearchExecution = null;
@@ -951,9 +953,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       if (selection !== this.chatSelection) {
         return;
       }
-      const target = preferredReportId
-        ? reports.items.find((report) => report.id === preferredReportId)
-        : reports.items[0];
+      if (preferredReportId) {
+        await this.openReport(preferredReportId).catch(() => {});
+        return;
+      }
+      const target = reports.items[0];
       if (target && (await this.openReport(target.id))) {
         return;
       }
@@ -986,6 +990,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
             : [];
         this.factorKey = factor.key;
         this.factorStatus = factor.status ?? (factor.builtin ? 'published' : 'draft');
+        this.approvedReportId = factor.approvedReportId ?? null;
         this.description = factor.description ?? '';
         this.researchHandoff = isCustom ? (factor.researchHandoff ?? null) : null;
         this.sourceResearchExecution = isCustom ? (factor.sourceResearchExecution ?? null) : null;
@@ -1008,13 +1013,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       return;
     }
     if (preferredReportId) {
-      try {
-        if (await this.openReport(preferredReportId)) {
-          return;
-        }
-      } catch {
-        this.reportLoader.reset();
-      }
+      await this.openReport(preferredReportId).catch(() => {});
+      return;
     }
     const target = reports.items[0];
     if (target) {
@@ -1527,6 +1527,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.chatMessages = [];
         this.factorKey = '';
         this.factorStatus = 'draft';
+        this.approvedReportId = null;
         this.description = '';
       });
       this.reportLoader.reset();
@@ -1768,32 +1769,11 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       const researchSpec = this.researchSpec;
       const spec = assetResearch ? researchSpec : protocol;
       const response = await runFactorAnalysis(this.selectedKey, spec);
-      const summary: FactorReportSummary = {
-        id: response.reportId,
-        factor: this.selectedKey,
-        analysisKind: this.isMacroRegime
-          ? 'macro_regime'
-          : this.isPanel
-            ? 'panel'
-            : this.isTimeSeries
-              ? 'time_series'
-              : 'cross_sectional',
-        status: 'running',
-        ...(assetResearch ? {} : { spec: protocol }),
-        researchSpec,
-        jobId: response.jobId,
-        createdAt: new Date().toISOString(),
-      };
       runInAction(() => {
-        const current = this.reportsLoader.result ?? { items: [] };
-        const historyItem = current.items.find((report) => report.id === summary.id) ?? summary;
-        this.reportsLoader.result = {
-          ...current,
-          items: [historyItem, ...current.items.filter((report) => report.id !== summary.id)],
-        };
         this.selectedReportId = response.reportId;
       });
       await this.reportLoader.run(response.reportId);
+      await this.reportsLoader.run();
       this.startPolling(response.jobId, response.reportId);
     } catch (e) {
       await this.reportLoader.run(Promise.reject(e)).catch(() => {});
@@ -1821,6 +1801,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
     runInAction(() => {
       this.factorStatus = factor.status;
+      this.approvedReportId = factor.approvedReportId;
       this.factorKey = factor.key;
     });
     await this.catalogLoader.run();
@@ -1862,6 +1843,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         }
         this.factorKey = factor.key;
         this.factorStatus = factor.status ?? 'draft';
+        this.approvedReportId = factor.approvedReportId ?? null;
         this.description = factor.description ?? '';
         this.targetAssetClasses = factor.targetAssetClasses ?? this.targetAssetClasses;
       });

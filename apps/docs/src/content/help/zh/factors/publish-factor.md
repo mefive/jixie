@@ -26,5 +26,5 @@
 
 ## 相关内容
 
-- [报告历史和结果已过期](/docs/help/factors/report-history)
+- [保留报告和结果已过期](/docs/help/factors/report-history)
 - [在策略中使用因子](/docs/help/factors/factor-in-strategy)

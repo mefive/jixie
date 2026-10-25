@@ -402,7 +402,16 @@ describe('Factor HTTP business boundaries', () => {
     expect(repeated.reportId).not.toBe(first.reportId);
     expect(repeated.reusedRunning).toBe(false);
     expect(resources.wake).toHaveBeenCalledTimes(2);
-    expect(await prisma.factorReport.count()).toBe(2);
+    expect(await prisma.factorReport.count()).toBe(1);
+    expect(await prisma.job.findUnique({ where: { id: first.jobId } })).toBeNull();
+    expect(
+      (await request(`/factors/analysis-reports/${first.reportId}`, undefined, 'owner', 'GET'))
+        .status,
+    ).toBe(404);
+    expect(
+      (await request(`/factors/analysis-reports/${repeated.reportId}`, undefined, 'owner', 'GET'))
+        .status,
+    ).toBe(200);
   });
 
   it('returns owned report results and logs without a reveal step', async () => {

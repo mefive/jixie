@@ -1,3 +1,4 @@
+import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import type { ResearchSandbox } from '../sandbox/research-sandbox.js';
 import type { ResearchCellRunResult, ResearchCellInput } from '../sandbox/contract.js';
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
@@ -430,6 +431,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
   });
 
   it('accepts code-backed preset identities and rejects a report from another Factor', async () => {
+    await seedBuiltinFactors();
     const preset = await createEmbeddedAnalysis('owner', {
       ...input,
       host: { type: 'factor', id: 'etf_trend_20' },
@@ -439,7 +441,10 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       language: 'typescript',
     });
     expect(preset.version.context.code.length).toBeGreaterThan(0);
-    expect(await prisma.factor.findUnique({ where: { id: 'etf_trend_20' } })).toBeNull();
+    expect(await prisma.factor.findUnique({ where: { id: 'etf_trend_20' } })).toMatchObject({
+      userId: 'builtin',
+      status: 'published',
+    });
     await prisma.factorReport.create({
       data: {
         id: 'unrelated',

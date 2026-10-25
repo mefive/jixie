@@ -3,8 +3,6 @@ import type { FactorQuestionContextV1, Locale } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { macroRegimeTemplateResource } from '../definitions/templates/macro-regime.js';
-import { panelTemplateResource } from '../definitions/templates/panel.js';
-import { timeSeriesTemplateResource } from '../definitions/templates/time-series.js';
 import { FactorError } from '../errors.js';
 import { reportSummary } from '../evaluations/report-views.js';
 import { sha256 } from '../sources/fingerprint.js';
@@ -21,10 +19,7 @@ export async function captureFactorQuestionContext(
   reportId: string | undefined,
   locale: Locale,
 ): Promise<FactorQuestionContextV1> {
-  const template =
-    timeSeriesTemplateResource(factorKey, locale) ??
-    panelTemplateResource(factorKey, locale) ??
-    macroRegimeTemplateResource(factorKey, locale);
+  const template = macroRegimeTemplateResource(factorKey, locale);
   let factor: FactorQuestionContextV1['factor'];
   if (template) {
     factor = {

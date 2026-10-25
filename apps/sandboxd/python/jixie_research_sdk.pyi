@@ -331,6 +331,7 @@ class _ResultsApi:
     # Note: Top-level keys include report_id, factor, analysis_kind, research_spec, lineage, and report.
     # Note: The report and research_spec fields use snake_case; the frozen report is neither mutated nor rerun.
     # Note: Only completed reports owned by the current Research document user are readable.
+    # Note: Each factor retains the latest analysis and publication-bound reports; removed ordinary report IDs fail explicitly.
     # Example: report = results.factor_report("01K5EXAMPLEFACTORREPORT")
     # Example: rank_ic_mean = report["report"]["ic_mean"]
     def factor_report(

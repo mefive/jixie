@@ -10,7 +10,7 @@ The system does not reserve a protected date range or require a analysis setting
 
 ## Check the result
 
-1. Open the report returned by the Agent from report history.
+1. Open the report returned by the Agent from retained reports.
 2. Check source, dates, data cutoff, sample and costs.
 3. Read IC, grouped returns, turnover and net results.
 4. If the Agent also proposes code, confirm which candidate the report actually evaluated.
@@ -22,5 +22,5 @@ Use [embedded analysis](/docs/help/research/embedded-analysis) for additional ca
 ## Related articles
 
 - [Create and edit a custom factor](/docs/help/factors/create-custom-factor)
-- [Report history and outdated results](/docs/help/factors/report-history)
+- [Retained reports and outdated results](/docs/help/factors/report-history)
 - [Publish a factor version](/docs/help/factors/publish-factor)

@@ -1,6 +1,5 @@
 import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
 import { MAJOR_ETF_CODES } from '#market/registry/etf-presets.js';
-import type { FactorAnalysisSource } from '../../sources/snapshot.js';
 
 /**
  * 定义单资产时间序列模板，供草稿目录与创建入口复用。
@@ -310,54 +309,6 @@ export function unsupportedTimeSeriesTemplateAssets(key: string, assets: string[
   return policy ? assets.filter((asset) => !policy.allowedAssets.includes(asset)) : [];
 }
 
-export function resolveTimeSeriesTemplateSource(
-  key: string,
-): Extract<FactorAnalysisSource, { kind: 'time_series' }> | null {
-  const template = TIME_SERIES_TEMPLATES.find((candidate) => candidate.key === key);
-  return template
-    ? {
-        kind: 'time_series',
-        label: template.label.en,
-        code: template.code,
-      }
-    : null;
-}
-
 export function isTimeSeriesTemplateKey(key: string): boolean {
   return TIME_SERIES_TEMPLATES.some((template) => template.key === key);
-}
-
-/**
- * 将选定时间序列模板转换为可创建因子的资源。
- *
- * Render a selected time-series template as a factor creation resource.
- */
-export function timeSeriesTemplateResource(key: string, locale: Locale) {
-  const template = TIME_SERIES_TEMPLATES.find((candidate) => candidate.key === key);
-  return template
-    ? {
-        id: template.key,
-        key: template.key,
-        name: template.label[locale],
-        description: template.description[locale],
-        code: template.code,
-        builtin: true as const,
-        status: 'published' as const,
-        ...(template.strategyEligible ? { strategyKey: template.key } : {}),
-        analysisKind: 'time_series' as const,
-        targetAssetClasses: template.targetAssetClasses,
-        allowedAssets: [...template.allowedAssets],
-        defaultAssets: [...template.defaultAssets],
-        ...(template.unavailableAssetReasons
-          ? {
-              unavailableAssetReasons: Object.fromEntries(
-                Object.entries(template.unavailableAssetReasons).map(([assetId, reason]) => [
-                  assetId,
-                  reason[locale],
-                ]),
-              ),
-            }
-          : {}),
-      }
-    : null;
 }

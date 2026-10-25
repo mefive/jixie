@@ -67,4 +67,4 @@ help_book_to_market
 
 - [新建和编辑自定义因子](/docs/help/factors/create-custom-factor)
 - [在策略中使用自定义因子](/docs/help/factors/factor-in-strategy)
-- [报告历史和结果已过期](/docs/help/factors/report-history)
+- [保留报告和结果已过期](/docs/help/factors/report-history)

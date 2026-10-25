@@ -345,6 +345,7 @@ const MESSAGES = {
     zh: '该窗口尚未计算,请先运行',
     en: 'This window has not been computed yet; run it first',
   },
+  factorReportNotFound: { zh: '报告不存在或已被清理', en: 'Report not found or already removed' },
   factorJobNotFound: { zh: '任务不存在或已过期', en: 'Job not found or expired' },
   factorAnalysisFailed: {
     zh: '因子分析失败，请查看任务日志后重试',

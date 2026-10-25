@@ -4,11 +4,11 @@
 
 | 文件 | 消费入口与职责 |
 | --- | --- |
-| [time-series.ts](time-series.ts) | `timeSeriesTemplateCatalog` / `timeSeriesTemplateResource` 供目录和详情；`resolveTimeSeriesTemplateSource` 供评估来源解析；`timeSeriesTemplateAssetPolicy` / `unsupportedTimeSeriesTemplateAssets` 限制模板资产 |
-| [panel.ts](panel.ts) | `panelTemplateCatalog` / `panelTemplateResource` 展示 Panel 模板；`resolvePanelTemplateSource` 由 composition 的来源解析使用 |
+| [time-series.ts](time-series.ts) | `TIME_SERIES_TEMPLATES` 提供初始代码，`timeSeriesTemplateCatalog` 提供展示元数据；`timeSeriesTemplateAssetPolicy` / `unsupportedTimeSeriesTemplateAssets` 限制模板资产 |
+| [panel.ts](panel.ts) | `PANEL_TEMPLATES` 提供初始代码，`panelTemplateCatalog` 提供展示元数据；执行来源从已保存 Factor 行读取 |
 | [macro-regime.ts](macro-regime.ts) | `macroRegimeTemplateCatalog` / `macroRegimeTemplateResource` 展示宏观模板；`resolveMacroRegimeTemplateSource` 返回对应冻结来源 |
 
-这些入口接收稳定 key 或 locale，返回目录元数据、资源或代码来源；未知 key 的处理以对应解析入口为准，不启动 Worker 或落库。源码、字段和资产政策共同组成模板可用范围，不能只改展示名称或放宽通用草稿校验来开放受控输入。
+股票、时间序列和 Panel 模板源码只供 seed 初始化缺失版本；读取、分析、问答和嵌入上下文使用保存的源码，宏观研究模板暂沿用静态来源。这些入口接收稳定 key 或 locale，返回目录元数据或宏观来源；未知 key 的处理以对应解析入口为准，不启动 Worker 或落库。源码、字段和资产政策共同组成模板可用范围，不能只改展示名称或放宽通用草稿校验来开放受控输入。
 
 评估提交由 [evaluations](../../evaluations/README.md) 解析模板并决定截止日；[observations](../../observations/README.md) 准备真实输入。[seed.ts](../seed.ts) 需要的模板定义也来自这里，种子写入职责仍在上层。
 

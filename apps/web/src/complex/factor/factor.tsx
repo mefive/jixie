@@ -2271,12 +2271,10 @@ const ResearchRunButton = complex.component(
   'ResearchRunButton',
 );
 
-// A quiet secondary action opens immutable reports in a modal list.
-
 /**
- * 展示不可变报告历史和任务状态，允许切换到明确报告身份。
+ * 展示仍保留的报告和任务状态，允许切换到明确报告身份。
  *
- * Present immutable report history and job state for identity-based selection.
+ * Present retained reports and job state for identity-based selection.
  */
 const ReportHistory = complex.component(() => {
   const store = complex.useStore();
@@ -2284,7 +2282,7 @@ const ReportHistory = complex.component(() => {
   const { modal } = App.useApp();
   const [open, setOpen] = useState(false);
   const reports = store.reportsLoader.result?.items ?? [];
-  if (!reports.length) {
+  if (reports.length <= 1) {
     return null;
   }
   return (
@@ -2346,6 +2344,9 @@ const ReportHistory = complex.component(() => {
                       {t(`status.${report.status}`)}
                     </span>
 
+                    {report.id === store.approvedReportId && (
+                      <Tag>{t('publication.boundReport')}</Tag>
+                    )}
                     {active && <FontAwesomeIcon icon={faCheck} />}
                   </span>
                   <span className="jx-factor-historyParams">{reportParamsLabel(report, t)}</span>
@@ -3329,7 +3330,11 @@ const FactorPublicationCard = complex.component(() => {
       <div className="jx-factor-publicationLineage">
         <code>{store.factorKey}</code>
         <span>←</span>
-        <code>{t('publication.reportRef', { id: detail.id.slice(-8) })}</code>
+        <code>
+          {t(store.approvedReportId ? 'publication.boundReportRef' : 'publication.reportRef', {
+            id: (store.approvedReportId ?? detail.id).slice(-8),
+          })}
+        </code>
         <span>·</span>
         <code>{t('publication.codeRef', { hash: detail.factorCodeHash?.slice(0, 12) })}</code>
       </div>

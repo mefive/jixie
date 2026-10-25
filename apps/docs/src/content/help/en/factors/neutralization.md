@@ -100,7 +100,7 @@ Neutralization changes factor values and stock rankings. Rank IC, decile returns
 
 ## Compare reports correctly
 
-Open **Report history** and compare the **None** and **Size + industry** reports. The numbered items are:
+The screenshot below preserves an older comparison interface. Current runs do not accumulate a full history. To retain a comparison, publish each matching version and successful report, then compare consistent settings. The numbered items are:
 
 1. Size + industry report.
 2. Non-neutralized report.

@@ -1,6 +1,6 @@
 import { getDatabase } from '#infra/database/prisma.js';
 import type { FactorAnalysisSource } from '../sources/snapshot.js';
-import { resolvePanelTemplateSource } from '../definitions/templates/panel.js';
+import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { factorPanelCompositeDefinitionV2Schema } from '@jixie/shared/api/factor';
 
 /**
@@ -12,8 +12,7 @@ export async function resolvePanelFactorSource(
   userId: string,
   factorId: string,
 ): Promise<FactorAnalysisSource | null> {
-  const single =
-    resolvePanelTemplateSource(factorId) ?? (await resolveCustomPanelSource(userId, factorId));
+  const single = await resolveStoredPanelSource(userId, factorId);
   if (single) {
     return single;
   }
@@ -31,9 +30,7 @@ export async function resolvePanelFactorSource(
   }
   const components: Extract<FactorAnalysisSource, { kind: 'panel_composite' }>['components'] = [];
   for (const component of definition.data.components) {
-    const source =
-      resolvePanelTemplateSource(component.factor) ??
-      (await resolveCustomPanelSource(userId, component.factor));
+    const source = await resolveStoredPanelSource(userId, component.factor);
     if (!source) {
       return null;
     }
@@ -55,16 +52,16 @@ export async function resolvePanelFactorSource(
 }
 
 /**
- * 解析作者 Panel 因子来源，校验协议与用户归属。
+ * 读取已保存的 Panel 因子来源，校验协议与访问权限。
  *
- * Resolve an authored panel source and validate its protocol and ownership.
+ * Read a saved panel source and validate its protocol and access.
  */
-async function resolveCustomPanelSource(
+async function resolveStoredPanelSource(
   userId: string,
   factorId: string,
 ): Promise<Extract<FactorAnalysisSource, { kind: 'panel' }> | null> {
   const custom = await getDatabase().factor.findFirst({
-    where: { id: factorId, userId, analysisKind: 'panel' },
+    where: { id: factorId, userId: { in: [userId, BUILTIN_USER_ID] }, analysisKind: 'panel' },
     select: { code: true, name: true, language: true, runtimeVersion: true },
   });
   return custom

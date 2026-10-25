@@ -1,11 +1,11 @@
 import { factorRuntimeVersion, type Locale } from '@jixie/shared';
 import { getDatabase } from '#infra/database/prisma.js';
-import { builtinCatalog } from './builtin-factors.js';
+import { builtinCatalog, BUILTIN_USER_ID } from './builtin-factors.js';
 import { factorCompositeDefinitionSchema } from '@jixie/shared/api/factor';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';
 import { panelTemplateCatalog } from './templates/panel.js';
 import { macroRegimeTemplateCatalog } from './templates/macro-regime.js';
-import { strategyKey, factorLanguage } from './views.js';
+import { strategyKey, factorLanguage, normalizeAnalysisKind } from './views.js';
 
 /**
  * 组合预置、作者及组合因子目录，按用户访问范围返回。
@@ -24,6 +24,7 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
       language: true,
       runtimeVersion: true,
       status: true,
+      approvedReportId: true,
       descriptionZh: true,
       descriptionEn: true,
     },
@@ -40,6 +41,7 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
     label: factor.name,
     description: locale === 'en' ? factor.descriptionEn : factor.descriptionZh,
     strategyKey: strategyKey(factor.key, factor.status),
+    approvedReportId: factor.approvedReportId,
     status:
       factor.status === 'published' || factor.status === 'archived'
         ? factor.status
@@ -76,6 +78,7 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
       kind: 'composite' as const,
       composite: definition,
       factorKey: composite.key ?? undefined,
+      approvedReportId: composite.approvedReportId,
       strategyKey: strategyKey(composite.key ?? '', composite.status),
       status:
         composite.status === 'published' || composite.status === 'archived'
@@ -89,12 +92,34 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
     };
   });
 
-  return [
-    ...builtinCatalog(),
-    ...timeSeriesTemplateCatalog(locale),
-    ...panelTemplateCatalog(locale),
-    ...macroRegimeTemplateCatalog(locale),
-    ...customMeta,
-    ...compositeMeta,
-  ];
+  const storedPresets = await getDatabase().factor.findMany({
+    where: { userId: BUILTIN_USER_ID },
+    orderBy: { createdAt: 'asc' },
+  });
+  const presetMetadata = new Map(
+    [
+      ...builtinCatalog(),
+      ...timeSeriesTemplateCatalog(locale),
+      ...panelTemplateCatalog(locale),
+    ].map((metadata) => [metadata.key, metadata]),
+  );
+  const presets = storedPresets.map((row) => {
+    const metadata = presetMetadata.get(row.id);
+    const language = factorLanguage(row.language);
+
+    return {
+      ...(metadata ?? { kind: 'custom' as const, label: row.name }),
+      key: row.id,
+      builtin: true,
+      approvedReportId: row.approvedReportId,
+      analysisKind: normalizeAnalysisKind(row.analysisKind),
+      language,
+      runtimeVersion: factorRuntimeVersion(language),
+      status:
+        row.status === 'published' || row.status === 'archived' ? row.status : ('draft' as const),
+      strategyKey: !metadata || metadata.strategyKey ? strategyKey(row.key, row.status) : undefined,
+    };
+  });
+
+  return [...presets, ...macroRegimeTemplateCatalog(locale), ...customMeta, ...compositeMeta];
 }

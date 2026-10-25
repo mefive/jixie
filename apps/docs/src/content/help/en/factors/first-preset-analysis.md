@@ -28,7 +28,7 @@ If the factor has previous reports, the latest one appears on the right. A facto
 
 After submission, the page displays **Running** and a computing message. The numbered areas are:
 
-1. Analysis summary, report history, and run status.
+1. Analysis summary, retained reports, and run status.
 2. Computation status.
 3. Run logs.
 
@@ -38,10 +38,10 @@ While it is running:
 
 1. Do not submit the same run repeatedly.
 2. Use the middle log area to inspect rebalance dates, data loading, and computation progress.
-3. You may refresh the page. The report is already available through **Report history**.
+3. You may refresh the page; the workbench restores the current task.
 4. Wait for the methodology card, group chart, and metrics to appear on the right.
 
-The completed report remains in **Report history**. After changing dates, frequency, neutralization, or another setting, run the analysis again before reading the result as if it reflects that change.
+The latest submitted analysis remains available; another run replaces an older ordinary report. After changing dates, frequency, neutralization, or another setting, run the analysis again before reading the result as if it reflects that change.
 
 ## If the run does not complete
 

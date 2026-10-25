@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   agentRecovery: vi.fn(),
   weatherRecovery: vi.fn(),
   seed: vi.fn(),
+  prune: vi.fn(),
+  transaction: vi.fn(),
 }));
 vi.mock('./server.js', () => ({ buildApp: mocks.buildApp }));
 vi.mock('@hono/node-server', () => ({ serve: mocks.serve }));
@@ -29,8 +31,9 @@ vi.mock('#factor/weather/refresh.js', () => ({
   resetInterruptedFactorWeatherRefreshes: mocks.weatherRecovery,
 }));
 vi.mock('#factor/definitions/seed.js', () => ({ seedBuiltinFactors: mocks.seed }));
+vi.mock('#factor/evaluations/retention.js', () => ({ pruneFactorReports: mocks.prune }));
 import { startServer } from './bootstrap.js';
-const database = {} as Prisma;
+const database = { $transaction: mocks.transaction } as unknown as Prisma;
 
 describe('API bootstrap composition', () => {
   beforeEach(() => {
@@ -43,6 +46,8 @@ describe('API bootstrap composition', () => {
     mocks.agentRecovery.mockResolvedValue(0);
     mocks.weatherRecovery.mockResolvedValue(0);
     mocks.seed.mockResolvedValue(undefined);
+    mocks.prune.mockResolvedValue(0);
+    mocks.transaction.mockImplementation((run) => run(database));
   });
 
   it('does not schedule, recover or listen on module import', async () => {
@@ -55,19 +60,38 @@ describe('API bootstrap composition', () => {
     expect(mocks.initialize).not.toHaveBeenCalled();
   });
 
-  it('waits for recovery before queue startup and HTTP, without awaiting seeding', async () => {
+  it('waits for recovery, seed and report cleanup before queue startup and HTTP', async () => {
     let finish!: (count: number) => void;
     mocks.recovery.mockReturnValue(
       new Promise<number>((resolve) => {
         finish = resolve;
       }),
     );
-    mocks.seed.mockReturnValue(new Promise(() => {}));
+    let finishSeed!: () => void;
+    mocks.seed.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSeed = resolve;
+      }),
+    );
+    let finishPrune!: (count: number) => void;
+    mocks.prune.mockReturnValue(
+      new Promise<number>((resolve) => {
+        finishPrune = resolve;
+      }),
+    );
     const pending = startServer(3101, database);
     await vi.waitFor(() => expect(mocks.agentRecovery).toHaveBeenCalledOnce());
     expect(mocks.startQueue).not.toHaveBeenCalled();
     expect(mocks.serve).not.toHaveBeenCalled();
     finish(0);
+    await vi.waitFor(() => expect(mocks.seed).toHaveBeenCalledOnce());
+    expect(mocks.prune).not.toHaveBeenCalled();
+    expect(mocks.serve).not.toHaveBeenCalled();
+    finishSeed();
+    await vi.waitFor(() => expect(mocks.prune).toHaveBeenCalledWith(database));
+    expect(mocks.startQueue).not.toHaveBeenCalled();
+    expect(mocks.serve).not.toHaveBeenCalled();
+    finishPrune(0);
     const app = await pending;
     expect(mocks.register.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.recovery.mock.invocationCallOrder[0],
@@ -90,15 +114,10 @@ describe('API bootstrap composition', () => {
     expect(mocks.seed).not.toHaveBeenCalled();
   });
 
-  it('reports seed failures without blocking startup', async () => {
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      mocks.seed.mockRejectedValue(new Error('seed failed'));
-      await startServer(3101, database);
-      expect(mocks.serve).toHaveBeenCalledOnce();
-      expect(logged).toHaveBeenCalledWith('[jixie] preset factor seed failed', expect.any(Error));
-    } finally {
-      logged.mockRestore();
-    }
+  it.each(['seed', 'prune'] as const)('does not serve after %s failure', async (step) => {
+    mocks[step].mockRejectedValue(new Error(`${step} failed`));
+    await expect(startServer(3101, database)).rejects.toThrow(`${step} failed`);
+    expect(mocks.startQueue).not.toHaveBeenCalled();
+    expect(mocks.serve).not.toHaveBeenCalled();
   });
 });

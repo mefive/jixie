@@ -13,36 +13,13 @@ import { parseResearchPayload, reportSummary } from './report-views.js';
  * List authorized factor reports and execution state with their selected parameters.
  */
 export async function listFactorReports(userId: string, input: FactorReportListQuery) {
-  const { factor, limit, cursor } = input;
-  const cursorReport = cursor
-    ? await getDatabase().factorReport.findFirst({
-        where: { id: cursor, userId, factor },
-        select: { id: true, createdAt: true },
-      })
-    : null;
-  const rows = await getDatabase()
-    .factorReport.findMany({
-      where: {
-        userId,
-        factor,
-        ...(cursorReport
-          ? {
-              OR: [
-                { createdAt: { lt: cursorReport.createdAt } },
-                { createdAt: cursorReport.createdAt, id: { lt: cursorReport.id } },
-              ],
-            }
-          : {}),
-      },
-      include: { job: true },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: limit + 1,
-    })
-    .then((rows) => rows.map(factorReportState));
-  const hasMore = rows.length > limit;
-  const items = rows.slice(0, limit).map(reportSummary);
+  const rows = await getDatabase().factorReport.findMany({
+    where: { userId, factor: input.factor },
+    include: { job: true },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+  });
 
-  return { items, nextCursor: hasMore ? items.at(-1)?.id : undefined };
+  return { items: rows.map(factorReportState).map(reportSummary) };
 }
 
 /**

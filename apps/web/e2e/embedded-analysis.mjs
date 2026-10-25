@@ -220,6 +220,12 @@ try {
       await page.goto(
         `${base}/strategy?id=embeddedstrategy${locale}&report=embedded-backtest-${locale}`,
       );
+      // 等待页面绑定报告，输入框可能先于异步报告加载变为可编辑。
+      // Wait for the page's report binding; the composer can become editable before the report loads.
+      await page
+        .getByTestId('embedded-analysis-toolbar')
+        .getByText(new RegExp(`embedded-backtest-${locale}`))
+        .waitFor();
       await page.locator('.jx-strategy-chatBox').fill(copy.strategy);
       await page.locator('.jx-strategy-chatBox').press('Enter');
       await card.getByTestId('research-table-output').getByText('0.1', { exact: true }).waitFor();
