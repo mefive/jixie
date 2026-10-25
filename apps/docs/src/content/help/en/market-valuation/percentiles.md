@@ -101,4 +101,3 @@ A percentile provides historical context. It is not a standalone buy or sell but
 - [View index valuation](/docs/help/market-valuation/index-valuation)
 - [Understand Market Weather cards](/docs/help/market-valuation/market-metrics)
 - [Replay history and inspect card details](/docs/help/market-valuation/weather-playback)
-- [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)

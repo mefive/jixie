@@ -1,5 +1,6 @@
 # 沪深 300 价值因子：排序、IC、分层与样本外
 
+> 历史案例：文中的研究卡、Holdout、预注册准入及揭示记录属于旧版本，不再是当前操作。当前可自行选择日期运行普通分析，发布只固定匹配的代码与成功报告。原有数值与截图仅用于解释研究方法。
 > 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
 
 > 学习路径 · 预计 75～105 分钟 · 建议先完成一次预设因子分析；本练习只使用现有预设和报告，不需要写代码。
@@ -49,7 +50,6 @@ Holdout 的 Rank IC 达到预设门槛，但 95% 区间跨 0、正向月份只�
 ## 开始前先补齐前置知识
 
 - 如果还没有运行过 Factor，先完成[第一次运行预设因子分析](/help/factors/first-preset-analysis)。
-- 先读[因子研究能回答什么](/help/factors/what-factor-research)和[运行前研究卡](/help/factors/research-card)。
 - 不熟悉排名相关时，先读[Rank IC、ICIR 和 IC 衰减](/help/factors/rank-ic-icir)。
 - 本练习需要一次不可逆的正式保留段揭示。已经在平台内或其他工具中看过相同数据时，不能把它重新称为未观察样本。
 
@@ -281,5 +281,4 @@ D10−D1 是研究诊断，未验证普通账户融券、容量和真实成交�
 - [设置 Factor 研究范围](/help/factors/evaluation-scope)
 - [阅读稳健截面推断](/help/factors/robust-inference)
 - [市值和行业中性化](/help/factors/neutralization)
-- [正式保留段和样本外结果](/help/factors/holdout-results)
 - [换手、交易成本和费后收益](/help/factors/turnover-costs)

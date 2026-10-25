@@ -9,7 +9,7 @@ Panel research ranks several ETFs at each common month-end and compares those ra
 1. Open Factor research.
 2. Select a preset under Panel cross-sectional factors, or create one with that method.
 3. Verify the fixed research universe, holding horizon, and date range.
-4. Click Run analysis and complete the research card.
+4. Check assets, dates, forward horizon and costs, then run an analysis directly. Diagnostics add context without changing the original scores.
 5. Wait for the Panel report.
 
 The universe covers domestic and overseas equity, several government-bond durations, gold, and commodity ETFs. Each ETF enters only after listing and after sufficient history exists.
@@ -36,7 +36,7 @@ Within-class Rank IC compares ETFs inside an asset class. Between-class evidence
 
 ![Historical Chinese UI example: Panel ranking, class decomposition, and listing coverage](/docs/images/help/zh/factors/panel-research-02.png)
 
-These are diagnostics. They do not rewrite the Factor score or replace the pre-registered holdout criterion.
+Check assets, dates, forward horizon and costs, then run an analysis directly. Diagnostics add context without changing the original scores.
 
 ## Check coverage
 
@@ -47,7 +47,7 @@ Asset coverage lists each ETF's observations and first and last valid month-end.
 1. Click New composite.
 2. Choose Panel cross-sectional as the research method.
 3. Select two to five components, directions, and Rank or Z-score standardization.
-4. Keep the fixed equal-weight rule through exploration and holdout.
+4. Check assets, dates, forward horizon and costs, then run an analysis directly. Diagnostics add context without changing the original scores.
 5. Before publishing, confirm every component is itself published.
 
 A published Panel composite can enter Strategy. Its allocation attribution is separate from the research long-short result.

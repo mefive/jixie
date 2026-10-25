@@ -74,11 +74,7 @@ try {
     throw new Error(`dev login failed: ${login.status}`);
   }
 
-  const researchWindow = await api('/api/app/factors/research/window');
-  if (researchWindow.status !== 200 || !researchWindow.body.exploreEnd) {
-    throw new Error(`research window unavailable: ${JSON.stringify(researchWindow)}`);
-  }
-  const exploreEnd = researchWindow.body.exploreEnd;
+  const analysisEnd = process.env.E2E_FACTOR_END ?? '20250127';
 
   const run = await api('/api/app/factors/analyses', {
     method: 'POST',
@@ -89,14 +85,14 @@ try {
         version: 1,
         analysisKind: 'panel',
         start: '20200101',
-        end: exploreEnd,
+        end: analysisEnd,
         observationFrequency: 'monthly',
         assets: PANEL_ASSETS,
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
         dataPolicy: {
           pointInTime: true,
           revisionPolicy: 'as_available',
-          dataCutoff: exploreEnd,
+          dataCutoff: analysisEnd,
         },
         rankingScope: 'cross_asset',
         volatilityScaling: 'none',
@@ -106,14 +102,6 @@ try {
           bottomFraction: 0.25,
           transactionCostPerSide: 0.001,
         },
-      },
-      parentReportId: null,
-      researchIntent: {
-        version: 1,
-        mode: 'hypothesis',
-        hypothesis: 'Higher cross-asset momentum predicts higher next-period ETF returns.',
-        expectedDirection: 'positive',
-        primaryCriterion: { metric: 'panel_rank_ic_mean', operator: 'gt', value: 0 },
       },
     }),
   });
@@ -163,7 +151,6 @@ try {
     !Number.isFinite(normalization?.betweenClassRankIcMean) ||
     !Number.isFinite(normalization?.betweenClassLongShortNetAnnualized) ||
     !Number.isFinite(normalization?.betweenClassAverageOneWayTurnover) ||
-    detail.holdout?.eligible !== true ||
     !Number.isFinite(report?.rankIcMean) ||
     !Number.isFinite(report?.longShortNetAnnualized)
   ) {
@@ -189,88 +176,6 @@ try {
   const commodityCoverageCard = page.getByText('能源化工期货 ETF', { exact: true });
   await commodityCoverageCard.scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${SHOTS}factor-panel-commodity-coverage.png` });
-
-  await page.getByRole('button', { name: '验证保留段', exact: true }).click();
-  const holdoutConfirm = page.locator('.ant-modal-confirm:visible');
-  await holdoutConfirm.locator('.ant-modal-confirm-title').waitFor();
-  const holdoutResponsePromise = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'POST' &&
-      /\/api\/app\/factors\/reports\/[^/]+\/holdout$/.test(new URL(response.url()).pathname),
-  );
-  await holdoutConfirm.getByRole('button', { name: '验证保留段', exact: true }).click();
-  const holdoutResponse = await holdoutResponsePromise;
-  const holdoutRun = await holdoutResponse.json();
-  if (holdoutResponse.status() !== 200 || !holdoutRun.reportId || !holdoutRun.jobId) {
-    throw new Error(`holdout failed to start: ${JSON.stringify(holdoutRun)}`);
-  }
-  const sealed = await waitForReport(holdoutRun.reportId);
-  const sealedJob = await api(`/api/app/factors/analysis-jobs/${holdoutRun.jobId}`);
-  if (
-    sealed.status !== 'done' ||
-    sealed.phase !== 'holdout' ||
-    sealed.sealed !== true ||
-    sealed.canReveal !== true ||
-    sealed.researchPayload != null ||
-    sealed.payload != null ||
-    sealed.metrics != null ||
-    sealedJob.status !== 200 ||
-    sealedJob.body.logs?.length !== 0
-  ) {
-    throw new Error(
-      `sealed panel holdout leaked evidence: ${JSON.stringify({ sealed, sealedJob })}`,
-    );
-  }
-  await page.goto(
-    `${BASE}/factors?factor=cross_asset_momentum_120&report=${encodeURIComponent(holdoutRun.reportId)}`,
-    { waitUntil: 'domcontentloaded' },
-  );
-  await page.getByText('Holdout 已计算完成，结果仍封存。揭示后不能恢复为未观察状态。').waitFor({
-    timeout: 30_000,
-  });
-  await page.getByRole('button', { name: '揭示结果', exact: true }).waitFor();
-  await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
-  await page.screenshot({ path: `${SHOTS}factor-panel-holdout-sealed.png`, fullPage: true });
-
-  await page.getByRole('button', { name: '揭示结果', exact: true }).click();
-  const revealConfirm = page.locator('.ant-modal-confirm:visible');
-  await revealConfirm.locator('.ant-modal-confirm-title').waitFor();
-  const revealResponsePromise = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'POST' &&
-      /\/api\/app\/factors\/reports\/[^/]+\/reveal$/.test(new URL(response.url()).pathname),
-  );
-  await revealConfirm.getByRole('button', { name: '揭示结果', exact: true }).click();
-  const revealResponse = await revealResponsePromise;
-  const revealed = await revealResponse.json();
-  const holdoutReport = revealed.researchPayload?.report;
-  if (
-    revealResponse.status() !== 200 ||
-    revealed.sealed ||
-    !revealed.revealedAt ||
-    revealed.analysisKind !== 'panel' ||
-    revealed.researchPayload?.analysisKind !== 'panel' ||
-    !Number.isFinite(holdoutReport?.rankIcMean)
-  ) {
-    throw new Error(`invalid revealed panel holdout: ${JSON.stringify(revealed)}`);
-  }
-  const revealedAgain = await api(
-    `/api/app/factors/analysis-reports/${holdoutRun.reportId}/reveal`,
-    {
-      method: 'POST',
-    },
-  );
-  if (revealedAgain.status !== 200 || revealedAgain.body.revealedAt !== revealed.revealedAt) {
-    throw new Error(`panel holdout reveal was not idempotent: ${JSON.stringify(revealedAgain)}`);
-  }
-  const criterionPassed = holdoutReport.rankIcMean > 0;
-  const holdoutResult = page.getByTestId('panel-holdout-result');
-  await holdoutResult.waitFor({ timeout: 30_000 });
-  await holdoutResult
-    .getByText(criterionPassed ? '已达到预设主要标准' : '未达到预设主要标准', { exact: false })
-    .waitFor();
-  await page.getByTestId('panel-report').waitFor();
-  await page.screenshot({ path: `${SHOTS}factor-panel-holdout-revealed.png`, fullPage: true });
 
   await page.getByTestId('factor-use-in-strategy').click();
   await page.waitForURL(/\/strategy\?new=1&factorKey=cross_asset_momentum_120/, {
@@ -315,7 +220,7 @@ try {
   const config = {
     name: '跨资产 ETF 月度轮动',
     start: '20230101',
-    end: exploreEnd,
+    end: analysisEnd,
     initialCash: 1_000_000,
     code: strategyCode,
   };
@@ -382,7 +287,7 @@ try {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
   console.log(
-    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} observations=${report.observations} medianAssets=${report.coverage.medianAssets} rankIc=${report.rankIcMean.toFixed(4)} withinClassRankIc=${normalization.withinClassRankIcMean.toFixed(4)} betweenClassRankIc=${normalization.betweenClassRankIcMean.toFixed(4)} betweenClassNet=${normalization.betweenClassLongShortNetAnnualized.toFixed(4)} holdout=${holdoutRun.reportId} holdoutRankIc=${holdoutReport.rankIcMean.toFixed(4)} criterion=${criterionPassed ? 'passed' : 'missed'} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=7`,
+    `[factor-panel-e2e] explore=${run.body.reportId} periods=${report.periods} observations=${report.observations} medianAssets=${report.coverage.medianAssets} rankIc=${report.rankIcMean.toFixed(4)} withinClassRankIc=${normalization.withinClassRankIcMean.toFixed(4)} betweenClassRankIc=${normalization.betweenClassRankIcMean.toFixed(4)} betweenClassNet=${normalization.betweenClassLongShortNetAnnualized.toFixed(4)} strategy=${strategyId} trades=${result.trades} return=${result.totalReturn.toFixed(4)} screenshots=5`,
   );
 } finally {
   if (strategyId) {

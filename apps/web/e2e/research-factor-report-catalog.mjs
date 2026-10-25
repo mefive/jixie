@@ -16,8 +16,8 @@ const ownerEmail = `e2e-research-report-catalog-${suffix}@test.com`;
 const title = 'Factor 报告目录验收';
 const factorId = `e2e-report-catalog-factor-${suffix}`;
 const factorKey = `e2e_value_quality_${suffix}`;
-const exploreReportId = `e2e-report-catalog-explore-${suffix}`;
-const holdoutReportId = `e2e-report-catalog-holdout-${suffix}`;
+const firstReportId = `e2e-report-catalog-first-${suffix}`;
+const secondReportId = `e2e-report-catalog-second-${suffix}`;
 const weatherPinId = `e2e-report-catalog-weather-${suffix}`;
 const database = new PrismaClient({ datasourceUrl: databaseUrl });
 const browser = await chromium.launch({ headless: true });
@@ -64,32 +64,25 @@ try {
     name: '搜索 Factor 名称、Key 或报告 ID',
   });
   await reportSearch.fill('价值质量');
-  const exploreReport = page.getByTestId(`research-data-catalog-report-${exploreReportId}`);
-  const holdoutReport = page.getByTestId(`research-data-catalog-report-${holdoutReportId}`);
-  await exploreReport.waitFor({ timeout: 15_000 });
-  await holdoutReport.waitFor({ timeout: 15_000 });
+  const firstReport = page.getByTestId(`research-data-catalog-report-${firstReportId}`);
+  const secondReport = page.getByTestId(`research-data-catalog-report-${secondReportId}`);
+  await firstReport.waitFor({ timeout: 15_000 });
+  await secondReport.waitFor({ timeout: 15_000 });
 
-  await holdoutReport.click();
+  await secondReport.click();
   const reportConfig = page.getByTestId('research-data-catalog-report-config');
   await reportConfig.waitFor();
-  if (!(await reportConfig.innerText()).includes('Holdout 尚未揭示')) {
-    throw new Error('The sealed Holdout explanation was not shown.');
-  }
   const insert = page.getByTestId('research-data-catalog-insert');
-  if (await insert.isEnabled()) {
-    throw new Error('An unrevealed Holdout report must not be insertable.');
+  if (!(await insert.isEnabled())) {
+    throw new Error('An owned completed report must be insertable immediately.');
   }
-  await reportConfig.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
-  await drawer.screenshot({ path: `${SHOTS}research-factor-report-catalog-sealed.png` });
-
-  await exploreReport.click();
-  await reportConfig.getByText(exploreReportId, { exact: true }).waitFor();
+  await firstReport.click();
+  await reportConfig.getByText(firstReportId, { exact: true }).waitFor();
   if (!(await reportConfig.innerText()).includes('results.factor_report')) {
     throw new Error('The selected report did not generate an SDK call preview.');
   }
   if (!(await insert.isEnabled())) {
-    throw new Error('A revealed completed report must be insertable.');
+    throw new Error('An owned completed report must be insertable.');
   }
   await reportConfig.scrollIntoViewIfNeeded();
   await page.waitForTimeout(200);
@@ -106,13 +99,13 @@ try {
   await weatherConfig.scrollIntoViewIfNeeded();
   await drawer.screenshot({ path: `${SHOTS}research-factor-weather-catalog.png` });
 
-  await exploreReport.click();
-  await reportConfig.getByText(exploreReportId, { exact: true }).waitFor();
+  await firstReport.click();
+  await reportConfig.getByText(firstReportId, { exact: true }).waitFor();
 
   await insert.click();
   await drawer.waitFor({ state: 'detached' });
   await page.getByTestId('research-document').click({ position: { x: 8, y: 8 } });
-  const insertedCall = `results.factor_report("${exploreReportId}")`;
+  const insertedCall = `results.factor_report("${firstReportId}")`;
   let savedPythonCell;
   for (let attempt = 0; attempt < 10; attempt += 1) {
     await page.waitForTimeout(500);
@@ -146,7 +139,7 @@ try {
       .catch(() => {});
   }
   await database.factorReport.deleteMany({
-    where: { id: { in: [exploreReportId, holdoutReportId] } },
+    where: { id: { in: [firstReportId, secondReportId] } },
   });
   await database.factorWeatherPin.deleteMany({ where: { id: weatherPinId } });
   await database.factor.deleteMany({ where: { id: factorId } });
@@ -186,16 +179,12 @@ async function seedReports(ownerId) {
     data: [
       {
         ...base,
-        id: exploreReportId,
-        phase: 'explore',
-        revealedAt: now,
+        id: firstReportId,
         createdAt: now,
       },
       {
         ...base,
-        id: holdoutReportId,
-        phase: 'holdout',
-        revealedAt: null,
+        id: secondReportId,
         createdAt: new Date(now.getTime() - 60_000),
       },
     ],

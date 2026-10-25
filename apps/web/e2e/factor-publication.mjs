@@ -92,8 +92,6 @@ try {
           diagnostics: [],
         },
       },
-      parentReportId: null,
-      researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
     }),
   });
   if (!run.ok) {

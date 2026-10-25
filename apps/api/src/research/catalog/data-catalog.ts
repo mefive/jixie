@@ -1402,9 +1402,9 @@ async function searchStrategyScanReports(
 }
 
 /**
- * 只搜索可见因子报告，防止未揭示保留段通过目录泄露。
+ * 仅搜索当前用户已完成的因子报告。
  *
- * Search visible factor reports without exposing sealed holdout results.
+ * Search completed factor reports owned by the current user.
  */
 async function searchFactorReports(
   userId: string,
@@ -1443,8 +1443,6 @@ async function searchFactorReports(
       id: true,
       factor: true,
       analysisKind: true,
-      phase: true,
-      revealedAt: true,
       createdAt: true,
       computedAt: true,
     },
@@ -1453,15 +1451,12 @@ async function searchFactorReports(
   });
 
   return reports.map((report) => {
-    const phase = factorReportPhase(report.phase);
     return {
       kind: 'factor_report',
       id: report.id,
       factor: report.factor,
       factorName: factorNames.get(report.factor) ?? report.factor,
       analysisKind: factorAnalysisKind(report.analysisKind),
-      phase,
-      sealed: phase === 'holdout' && report.revealedAt === null,
       createdAt: report.createdAt.toISOString(),
       computedAt: report.computedAt?.toISOString() ?? null,
     };
@@ -1508,10 +1503,6 @@ async function searchFactorWeather(
     pointCount: pin._count.points,
     createdAt: pin.createdAt.toISOString(),
   }));
-}
-
-function factorReportPhase(value: string): ResearchDataCatalogFactorReportV1['phase'] {
-  return value === 'explore' || value === 'holdout' ? value : 'legacy';
 }
 
 /**

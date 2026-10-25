@@ -50,4 +50,3 @@ Verify that the universe, point-in-time membership, ranking scope, neutralizatio
 
 - [Set analysis scope and sample handling](/docs/help/factors/analysis-settings)
 - [Rank IC, ICIR, and IC decay](/docs/help/factors/rank-ic-icir)
-- [Research card, exploration, and holdout](/docs/help/factors/research-card)

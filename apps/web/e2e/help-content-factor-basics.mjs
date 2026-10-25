@@ -89,23 +89,12 @@ async function captureSettings() {
 
 async function runAndCapture() {
   const runButton = page.locator('.jx-factor-runButton');
-  await runButton.click();
-  const modal = page.locator('.jx-factor-researchModal');
-  await modal.waitFor();
-  await modal.getByText('纯探索', { exact: true }).click();
-  await modal.getByText('本次结果标记为纯探索', { exact: false }).waitFor();
-  await annotatedScreenshot(page, `${OUTPUT}factor-research-card-01.png`, [
-    { locator: modal.getByRole('radiogroup'), number: 1 },
-    { locator: modal.locator('.ant-alert'), number: 2 },
-    { locator: modal.getByRole('button', { name: '冻结研究卡并运行' }), number: 3 },
-  ]);
-
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
       new URL(response.url()).pathname === '/api/app/factors/analyses',
   );
-  await modal.getByRole('button', { name: '冻结研究卡并运行' }).click();
+  await runButton.click();
   const response = await submission;
   if (response.status() !== 200) {
     throw new Error(`factor submission failed: ${response.status()} ${await response.text()}`);

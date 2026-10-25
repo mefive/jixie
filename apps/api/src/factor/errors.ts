@@ -17,10 +17,6 @@ const definitions = {
     category: 'conflict',
     messageKey: 'windowNotComputed',
   },
-  holdout_unavailable: {
-    category: 'conflict',
-    messageKey: 'windowNotComputed',
-  },
   question_refresh_required: {
     category: 'invalid',
     messageKey: 'factorQuestionRefreshRequired',
@@ -100,10 +96,6 @@ const definitions = {
   name_failed: {
     category: 'unavailable',
     messageKey: 'nameFailed',
-  },
-  factor_criterion_unsupported: {
-    category: 'invalid',
-    messageKey: 'factorCriterionUnsupported',
   },
   factor_unavailable: {
     category: 'missing',

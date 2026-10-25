@@ -1,16 +1,8 @@
-import type {
-  FactorHoldoutPolicyV1,
-  FactorReport,
-  FactorResearchIntentV1,
-  Locale,
-  RunFactorAnalysisResponse,
-} from '@jixie/shared';
+import type { FactorReport, Locale, RunFactorAnalysisResponse } from '@jixie/shared';
 import { z } from 'zod';
 import { startFactorAnalysis } from '#factor/evaluations/start.js';
 import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
-import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
 import { createDefaultFactorAnalysisSpecV6 } from '#factor/analysis/spec.js';
-import { factorResearchIntentV1Schema } from '@jixie/shared/api/factor';
 import { t } from '#i18n/index.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import type { AgentTool } from './types.js';
@@ -30,7 +22,6 @@ const argsSchema = z.object({
     .array(z.enum(['industry', 'size_bucket', 'liquidity_bucket']))
     .max(3)
     .default([]),
-  researchIntent: factorResearchIntentV1Schema,
 });
 
 type FactorAnalysisResult = NonNullable<Awaited<ReturnType<typeof readFactorAnalysisResult>>>;
@@ -45,7 +36,6 @@ interface FactorResearchContext {
   factorId: string;
   currentCode: string;
   locale: Locale;
-  getPolicy?: () => Promise<FactorHoldoutPolicyV1 | null>;
   start?: (
     options: Parameters<typeof startFactorAnalysis>[0],
   ) => Promise<RunFactorAnalysisResponse>;
@@ -53,15 +43,14 @@ interface FactorResearchContext {
 }
 
 /**
- * 创建只允许冻结探索报告的因子工具，不开放 holdout 揭示、发布或策略部署。
+ * 创建因子分析工具，发布与策略部署由用户显式发起。
  *
- * Create the custom-factor research tool. It can only freeze an explore report; holdout creation,
- * reveal, Factor publication, and strategy deployment remain explicit user actions outside Agent.
+ * Create the custom-factor analysis tool; publication and strategy deployment remain explicit user actions.
  */
 export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool {
   return {
     name: 'runFactorAnalysis',
-    description: `Run one disciplined EXPLORE analysis for the current custom factor or a candidate full factor module. You must declare the research card before seeing metrics: mode, hypothesis, expected direction, and primary criterion. Use exploratory mode only when no directional hypothesis exists; exploratory reports are not holdout-eligible. Choose the formal universe explicitly when it matters; use within_industry ranking to test stock selection inside point-in-time SW L1 industries, not as a cosmetic report filter. The end date must not cross the returned holdout boundary. Results are immutable FactorReports. This tool cannot start or reveal holdout, publish a Factor, deploy a strategy, or alter the saved factor code. Normally compare at most two materially different candidates in one turn.`,
+    description: `Run an analysis for the current custom factor or a candidate full factor module. Choose the formal universe explicitly when it matters; use within_industry ranking to test stock selection inside point-in-time SW L1 industries, not as a cosmetic report filter. Results are immutable FactorReports. This tool cannot publish a Factor, deploy a strategy, or alter the saved factor code.`,
     parameters: z.toJSONSchema(argsSchema),
 
     /**
@@ -82,23 +71,12 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
         throw new Error('start must be earlier than end.');
       }
 
-      const [factor, policy] = await Promise.all([
-        getDatabase().factor.findFirst({
-          where: { id: context.factorId, userId: context.userId },
-          select: { id: true, name: true },
-        }),
-        (context.getPolicy ?? getHoldoutPolicy)(),
-      ]);
+      const factor = await getDatabase().factor.findFirst({
+        where: { id: context.factorId, userId: context.userId },
+        select: { id: true, name: true },
+      });
       if (!factor) {
         throw new Error('Factor no longer exists.');
-      }
-      if (!policy) {
-        throw new Error('The explore/holdout research window cannot be computed from local data.');
-      }
-      if (parsed.data.end > policy.exploreEnd) {
-        throw new Error(
-          `The requested end date crosses the sealed holdout. Use an end date on or before ${policy.exploreEnd}.`,
-        );
       }
 
       const commonSpec = {
@@ -130,7 +108,6 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
           label: factor.name,
         },
         spec,
-        researchIntent: parsed.data.researchIntent as FactorResearchIntentV1,
         locale: context.locale,
         failedMessage: t(context.locale, 'factorAnalysisFailed'),
       });
@@ -143,17 +120,10 @@ export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool
       return {
         observation: JSON.stringify({
           researchOnly: true,
-          phase: 'explore',
           reportId: started.reportId,
           status: result.status,
           reusedRunning: started.reusedRunning,
-          researchIntent: parsed.data.researchIntent,
           spec,
-          holdoutBoundary: {
-            exploreEnd: policy.exploreEnd,
-            holdoutStart: policy.holdoutStart,
-            holdoutEnd: policy.holdoutEnd,
-          },
           metrics: result.payload ? compactFactorMetrics(result.payload) : undefined,
         }),
         rows: result.payload ? 1 : 0,

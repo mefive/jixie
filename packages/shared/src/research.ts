@@ -403,8 +403,6 @@ export interface ResearchDataCatalogFactorReportV1 {
   factor: string;
   factorName: string;
   analysisKind: FactorAnalysisKind;
-  phase: 'legacy' | 'explore' | 'holdout';
-  sealed: boolean;
   createdAt: string;
   computedAt: string | null;
 }

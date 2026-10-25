@@ -56,7 +56,7 @@ Missing controls affect only the complete-case auxiliary regression. They do not
 - Agreement among main direction, bucket monotonicity, net returns, and robust inference is more complete evidence.
 - Strong raw Rank IC but a near-zero controlled coefficient can indicate repeated size, value, momentum, or quality exposure.
 - A large t statistic with few periods, unstable coverage, or no result after costs is not sufficient on its own.
-- These statistics do not replace Holdout and do not establish causality.
+- These statistics establish neither causality nor performance in another sample period.
 
 ## Common questions
 
@@ -72,5 +72,4 @@ Frozen historical reports are not backfilled. Run a new report under the current
 
 - [Read your first factor analysis result](/docs/help/factors/results-overview)
 - [Rank IC and ICIR](/docs/help/factors/rank-ic-icir)
-- [Formal holdout results](/docs/help/factors/holdout-results)
 

@@ -1,5 +1,6 @@
 # Commodity carry: term structure, proxy error, and holdout evidence
 
+> Historical case: research cards, Holdout admission, preregistration and reveal records below describe the retired workflow. Current analyses use user-selected dates; publication fixes matching source and a successful report. Original values and captures illustrate research methods only.
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
 
 This path studies a familiar claim that is often stated too casually: **do commodities earn higher future returns when their
@@ -209,8 +210,6 @@ with a new prior criterion and genuinely unseen data, not retune this window.
 
 - [Run cross-asset Panel research](/help/factors/panel-research)
 - [Run ETF time-series research](/help/factors/time-series-research)
-- [Research card and exploratory variants](/help/factors/research-card)
-- [Formal holdout and out-of-sample results](/help/factors/holdout-results)
 - [Turnover, transaction costs, and net returns](/help/factors/turnover-costs)
 - [Backtest stock-index futures](/help/backtesting/index-futures)
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)

@@ -57,6 +57,9 @@ try {
     'strategy-orchestration',
     'mixed-futures',
     ...(selected?.includes('python-strategy') ? ['python-strategy'] : []),
+    ...['factor-publication', 'python-factor', 'strategy-factor-dependency'].filter((name) =>
+      selected?.includes(name),
+    ),
     'strategy-parameter-scan',
     'factor-report-history',
     'factor-correlation',
@@ -86,19 +89,18 @@ try {
       });
       assert.equal(login.status(), 200);
       await page.goto(`${ready.base}/factors?factor=ep`);
-      await page.locator('.jx-factor-runButton').click();
-      const card = page.locator('.jx-factor-researchModal');
-      await card.getByText('纯探索', { exact: true }).click();
       const submitted = page.waitForResponse(
         (response) =>
           response.request().method() === 'POST' &&
           new URL(response.url()).pathname === '/api/app/factors/analyses',
       );
-      await card.getByRole('button', { name: '冻结研究卡并运行', exact: true }).click();
+      await page.locator('.jx-factor-runButton').click();
       const response = await submitted;
       assert.equal(response.status(), 200);
       const reference = await response.json();
       assert.ok(reference.jobId && reference.reportId);
+      assert.equal(await page.locator('.jx-factor-researchModal').count(), 0);
+      assert.equal(await page.locator('.jx-factor-researchBar').count(), 0);
       await page.locator('.jx-factor-methodology').waitFor({ timeout: 120_000 });
       const result = await (
         await context.request.get(
@@ -106,6 +108,10 @@ try {
         )
       ).json();
       assert.equal(result.status, 'done', JSON.stringify(result.error));
+      assert.equal(result.spec.end, '20261231');
+      for (const field of ['phase', 'sealed', 'researchIntent', 'holdout', 'canReveal']) {
+        assert.equal(Object.hasOwn(result, field), false, field);
+      }
       assert.ok(result.payload?.periods > 0);
       const job = await (
         await context.request.get(`${ready.base}/api/app/factors/analysis-jobs/${reference.jobId}`)
@@ -119,9 +125,23 @@ try {
       await page.reload();
       await page.locator('.jx-factor-methodology').waitFor();
       assert.equal(new URL(page.url()).searchParams.get('report'), reference.reportId);
+      await page.evaluate(() => localStorage.setItem('jx-locale', 'en'));
+      await page.reload();
+      await page.locator('.jx-factor-methodology').waitFor();
+      await page
+        .locator('.jx-factor-runButton')
+        .getByText(/Run analysis|Rerun/)
+        .waitFor();
+      assert.equal(await page.locator('.jx-factor-researchModal').count(), 0);
+      assert.equal(await page.locator('.jx-factor-researchBar').count(), 0);
+      await page.locator('.jx-factor-code .monaco-editor').waitFor({ timeout: 30_000 });
+      await page.screenshot({
+        path: `${screenshots}/job-system-factor-analysis-en.png`,
+        fullPage: true,
+      });
       assert.deepEqual(errors, []);
       console.log(
-        '[job-system] factor-analysis: UI research card, real Worker, logs, report and reload passed',
+        '[job-system] factor-analysis: direct UI analysis, real Worker, logs, report and reload passed',
       );
     } catch (error) {
       await page

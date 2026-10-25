@@ -1,6 +1,5 @@
 import type {
   FactorAnalysisSpecV3,
-  FactorResearchIntentV1,
   MacroRegimeFactorResearchSpecV1,
   PanelFactorResearchSpecV1,
   TimeSeriesFactorResearchSpecV1,
@@ -61,14 +60,6 @@ const spec: FactorAnalysisSpecV3 = {
   },
 };
 
-const researchIntent: FactorResearchIntentV1 = {
-  version: 1,
-  mode: 'hypothesis',
-  hypothesis: 'Quality should predict returns.',
-  expectedDirection: 'positive',
-  primaryCriterion: { metric: 'rank_ic_mean', operator: 'gt', value: 0.02 },
-};
-
 describe('startFactorAnalysis', () => {
   beforeEach(() => {
     mocks.transaction.mockReset();
@@ -93,7 +84,6 @@ describe('startFactorAnalysis', () => {
       factor: 'factor-1',
       source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
       spec,
-      researchIntent,
       locale: 'en',
       failedMessage: 'failed',
     });
@@ -110,14 +100,12 @@ describe('startFactorAnalysis', () => {
           ],
         },
       ],
-      testKey: expect.any(String),
     });
     expect(mocks.reportCreate).toHaveBeenCalledOnce();
     expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
       userId: 'user-1',
       factor: 'factor-1',
       legacyStatus: null,
-      phase: 'explore',
       factorCodeSnapshot: 'factor candidate',
       analysisKind: 'cross_sectional',
       freq: 'month',
@@ -125,7 +113,6 @@ describe('startFactorAnalysis', () => {
       start: '20200101',
       end: '20250101',
       specJson: JSON.stringify({ version: 1, analysisKind: 'cross_sectional', protocol: spec }),
-      researchIntentJson: JSON.stringify(researchIntent),
       job: { create: { userId: 'user-1', kind: 'factor-analysis', status: 'queued' } },
     });
     expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).not.toHaveProperty('task');
@@ -154,7 +141,6 @@ describe('startFactorAnalysis', () => {
       factor: 'factor-py',
       source,
       spec,
-      researchIntent,
       locale: 'en',
       failedMessage: 'failed',
     });
@@ -192,11 +178,6 @@ describe('startFactorAnalysis', () => {
       factor: 'etf_trend_20',
       source,
       spec: timeSeriesSpec,
-      researchIntent: {
-        version: 1,
-        mode: 'exploratory',
-        expectedDirection: 'positive',
-      },
       locale: 'en',
       failedMessage: 'failed',
     });
@@ -254,12 +235,6 @@ describe('startFactorAnalysis', () => {
       factor: 'cross_asset_momentum_120',
       source,
       spec: panelSpec,
-      researchIntent: {
-        version: 1,
-        mode: 'hypothesis',
-        expectedDirection: 'positive',
-        primaryCriterion: { metric: 'panel_rank_ic_mean', operator: 'gt', value: 0 },
-      },
       locale: 'en',
       failedMessage: 'failed',
     });
@@ -315,11 +290,6 @@ describe('startFactorAnalysis', () => {
         factor: 'china_growth_inflation_regime_v1',
         source,
         spec: macroRegimeSpec,
-        researchIntent: {
-          version: 1,
-          mode: 'exploratory',
-          expectedDirection: 'unknown',
-        },
         locale: 'en',
         failedMessage: 'failed',
       });
@@ -354,7 +324,6 @@ describe('startFactorAnalysis', () => {
       factor: 'factor-1',
       source: { kind: 'single', code: 'factor candidate', label: 'Quality' },
       spec,
-      researchIntent,
       locale: 'en',
       failedMessage: 'failed',
     });
@@ -398,7 +367,6 @@ describe('startFactorAnalysis', () => {
       factor: 'composite-1',
       source,
       spec: compositeSpec,
-      researchIntent,
       locale: 'en',
       failedMessage: 'failed',
     });

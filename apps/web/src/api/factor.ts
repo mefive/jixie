@@ -11,7 +11,6 @@ import type {
   SubmitFactorCorrelationRequest,
   FactorJobRequestQuery,
   FactorReportListRequestQuery,
-  FactorResearchSummaryRequestQuery,
   CreateFactorWeatherPinRequest,
   FactorAgentRequest,
   FactorAgentRequestParams,
@@ -34,9 +33,6 @@ import type {
   FactorCorrelation,
   FactorCompositeDefinition,
   FactorCompositeResource,
-  FactorHoldoutPolicyV1,
-  FactorResearchIntentV1,
-  FactorResearchSummary,
   FactorStatus,
   PublishedFactor,
   RunFactorAnalysisResponse,
@@ -293,41 +289,13 @@ export function getFactorReport(reportId: string): Promise<FactorReportDetail> {
 export function runFactorAnalysis(
   factor: string,
   spec: FactorAnalysisSpec | FactorResearchSpecV1,
-  researchIntent: FactorResearchIntentV1,
-  parentReportId?: string | null,
 ): Promise<RunFactorAnalysisResponse> {
   return request('/api/app/factors/analyses', {
     method: 'POST',
     body: JSON.stringify({
       factor,
       spec,
-      parentReportId: parentReportId ?? null,
-      researchIntent,
     } satisfies SubmitFactorAnalysisRequest),
-  });
-}
-
-export function getFactorResearchWindow(): Promise<FactorHoldoutPolicyV1> {
-  return request('/api/app/factors/research/window');
-}
-
-export function getFactorResearchSummary(factor?: string): Promise<FactorResearchSummary> {
-  const parameters = serializeQuery({
-    ...(factor ? { factor } : {}),
-  } satisfies FactorResearchSummaryRequestQuery);
-  const query = parameters ? `?${parameters}` : '';
-  return request(`/api/app/factors/research/summary${query}`);
-}
-
-export function runFactorHoldout(reportId: string): Promise<RunFactorAnalysisResponse> {
-  return request(`/api/app/factors/analysis-reports/${encodeURIComponent(reportId)}/holdout`, {
-    method: 'POST',
-  });
-}
-
-export function revealFactorHoldout(reportId: string): Promise<FactorReportDetail> {
-  return request(`/api/app/factors/analysis-reports/${encodeURIComponent(reportId)}/reveal`, {
-    method: 'POST',
   });
 }
 

@@ -598,73 +598,7 @@ export interface FactorMethodologyAudit {
 }
 
 export type FactorReportStatus = 'running' | 'done' | 'error' | 'stale';
-export type FactorReportPhase = 'legacy' | 'explore' | 'holdout';
-
-export type FactorResearchMode = 'hypothesis' | 'exploratory';
 export type FactorExpectedDirection = 'positive' | 'negative' | 'unknown';
-export type FactorResearchMetric =
-  | 'rank_ic_mean'
-  | 'rank_icir_annual'
-  | 'net_long_short_annualized'
-  | 'time_series_median_newey_west_t'
-  | 'time_series_mean_direction_hit_rate'
-  | 'panel_rank_ic_mean'
-  | 'panel_net_long_short_annualized';
-
-/**
- * 保存研究假设、方向与预注册门槛，供探索和保留段准入。
- *
- * Retain hypotheses, directions and criteria for exploration and holdout admission.
- */
-export interface FactorResearchIntentV1 {
-  version: 1;
-  mode: FactorResearchMode;
-  hypothesis?: string;
-  rationale?: string;
-  expectedDirection: FactorExpectedDirection;
-  primaryCriterion?: {
-    metric: FactorResearchMetric;
-    operator: 'gt' | 'lt';
-    value: number;
-  };
-}
-
-/**
- * 冻结保留段日期、门槛和揭示约束。
- *
- * Freeze holdout dates, criteria and reveal constraints.
- */
-export interface FactorHoldoutPolicyV1 {
-  version: 1;
-  months: 18;
-  latestDate: string;
-  exploreEnd: string;
-  holdoutStart: string;
-  holdoutEnd: string;
-  checkedAt: string;
-}
-
-export type FactorHoldoutIneligibleReason =
-  | 'not_explore'
-  | 'not_done'
-  | 'missing_hypothesis'
-  | 'outside_explore_window'
-  | 'insufficient_periods'
-  | 'already_observed'
-  | 'already_exists';
-
-/**
- * 返回保留段是否准入及不可准入原因。
- *
- * Describe holdout eligibility and rejection reasons.
- */
-export interface FactorHoldoutEligibility {
-  eligible: boolean;
-  reason?: FactorHoldoutIneligibleReason;
-  existingReportId?: string;
-  window?: FactorHoldoutPolicyV1;
-}
-
 /**
  * 提供报告身份、范围和状态摘要，供历史列表。
  *
@@ -675,7 +609,6 @@ export interface FactorReportSummary {
   factor: string;
   analysisKind: FactorAnalysisKind;
   status: FactorReportStatus;
-  phase: FactorReportPhase;
   language?: FactorLanguage;
   runtimeVersion?: FactorRuntimeVersion;
   /** Legacy cross-sectional protocol. New analysis kinds use researchSpec only. */
@@ -686,9 +619,6 @@ export interface FactorReportSummary {
   createdAt: string;
   computedAt?: string;
   error?: string;
-  sealed?: boolean;
-  revealedAt?: string;
-  researchIntent?: FactorResearchIntentV1;
   metrics?: {
     ic?: number;
     rankIc?: number;
@@ -710,9 +640,6 @@ export interface FactorReportDetail extends FactorReportSummary {
   factorCodeSnapshot?: string;
   factorCodeHash?: string;
   dataRevision?: string;
-  parentReportId?: string;
-  holdout?: FactorHoldoutEligibility;
-  canReveal?: boolean;
 }
 
 /**
@@ -726,30 +653,6 @@ export interface FactorReportListResponse {
 }
 
 export type RunFactorAnalysisRequest = SubmitFactorAnalysisRequest;
-
-/**
- * 汇总探索、保留段和揭示次数，供研究纪律展示。
- *
- * Summarize exploration, holdout and reveal counts for research discipline.
- */
-export interface FactorResearchCounts {
-  exploreRunCount: number;
-  exploreTestCount: number;
-  legacyRunCount: number;
-  holdoutCount: number;
-  revealedHoldoutCount: number;
-  expectedFalsePositivesAtFivePercent: number;
-}
-
-/**
- * 组合研究记录计数、准入与最近报告信息。
- *
- * Collect research counts, eligibility and recent report metadata.
- */
-export interface FactorResearchSummary {
-  global: FactorResearchCounts;
-  factor?: FactorResearchCounts;
-}
 
 /**
  * 返回分析入队后的报告与 Job 身份。

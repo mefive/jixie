@@ -140,23 +140,8 @@ export const e2eCommands = [
     group: 'learning',
   },
   {
-    name: 'learning-value-factor',
-    file: 'apps/web/e2e/learning-value-factor-case.mjs',
-    group: 'learning',
-  },
-  {
     name: 'learning-stock-bond-allocation',
     file: 'apps/web/e2e/learning-stock-bond-allocation-case.mjs',
-    group: 'learning',
-  },
-  {
-    name: 'learning-commodity-carry',
-    file: 'apps/web/e2e/learning-commodity-carry-case.mjs',
-    group: 'learning',
-  },
-  {
-    name: 'learning-sales-yield-positive',
-    file: 'apps/web/e2e/learning-sales-yield-positive-case.mjs',
     group: 'learning',
   },
   {
@@ -399,11 +384,6 @@ export const imageCommands = [
   {
     name: 'factor-metrics',
     file: 'apps/web/e2e/help-content-factor-metrics.mjs',
-    group: 'capture',
-  },
-  {
-    name: 'factor-discipline',
-    file: 'apps/web/e2e/help-content-factor-discipline.mjs',
     group: 'capture',
   },
   {

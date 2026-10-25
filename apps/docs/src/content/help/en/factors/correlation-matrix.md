@@ -86,7 +86,7 @@ Do not apply one fixed cutoff and mechanically remove factors. Use this sequence
 2. Check whether it remains similar in other ranges and frequencies.
 3. Review both factors' economic meaning and data source.
 4. Compare size- and industry-neutralized reports.
-5. Check costs, turnover, and formal holdout evidence.
+5. Check net returns, turnover and performance in other sample periods.
 
 If two factors stay strongly positively correlated and also have similar meaning and inputs, they may repeat similar information. Combining them does not automatically create diversification.
 
@@ -116,5 +116,3 @@ The matrix screens for repeated information. Keeping a factor still requires a h
 
 - [Size and industry neutralization](/help/factors/neutralization)
 - [Rank IC, ICIR, and IC decay](/help/factors/rank-ic-icir)
-- [Pre-run research cards and variants](/help/factors/research-card)
-- [Formal holdout and out-of-sample results](/help/factors/holdout-results)

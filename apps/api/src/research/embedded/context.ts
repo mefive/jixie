@@ -81,7 +81,6 @@ export async function captureEmbeddedContext(
           userId,
           factor: host.id,
           AND: [factorReportStatusWhere(['done'])],
-          OR: [{ phase: { not: 'holdout' } }, { revealedAt: { not: null } }],
         },
         select: { id: true, payload: true },
       });

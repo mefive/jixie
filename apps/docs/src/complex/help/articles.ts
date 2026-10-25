@@ -87,8 +87,6 @@ import factorWeatherReadCardsEn from '@src/content/help/en/factor-weather/read-c
 import factorWeatherReadCardsZh from '@src/content/help/zh/factor-weather/read-cards.md?raw';
 import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-analysis.md?raw';
 import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
-import holdoutResultsEn from '@src/content/help/en/factors/holdout-results.md?raw';
-import holdoutResultsZh from '@src/content/help/zh/factors/holdout-results.md?raw';
 import neutralizationEn from '@src/content/help/en/factors/neutralization.md?raw';
 import neutralizationZh from '@src/content/help/zh/factors/neutralization.md?raw';
 import macroRegimeEn from '@src/content/help/en/factors/macro-regime.md?raw';
@@ -107,8 +105,6 @@ import reportHistoryEn from '@src/content/help/en/factors/report-history.md?raw'
 import reportHistoryZh from '@src/content/help/zh/factors/report-history.md?raw';
 import robustInferenceEn from '@src/content/help/en/factors/robust-inference.md?raw';
 import robustInferenceZh from '@src/content/help/zh/factors/robust-inference.md?raw';
-import researchCardEn from '@src/content/help/en/factors/research-card.md?raw';
-import researchCardZh from '@src/content/help/zh/factors/research-card.md?raw';
 import strategyKeyEn from '@src/content/help/en/factors/strategy-key.md?raw';
 import strategyKeyZh from '@src/content/help/zh/factors/strategy-key.md?raw';
 import factorResultsOverviewEn from '@src/content/help/en/factors/results-overview.md?raw';
@@ -1247,44 +1243,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Report history and outdated results',
     },
     summary: {
-      zh: '打开不可变历史报告，恢复当时参数，并正确处理代码或设置已修改的提示。',
-      en: 'Open immutable reports, restore saved settings, and handle code or setting changes.',
+      zh: '读取本人的报告，恢复当时参数，处理过期提示并理解版本发布。',
+      en: 'Read owned reports, restore settings, handle outdated results and publish fixed versions.',
     },
     content: {
       zh: reportHistoryZh,
       en: reportHistoryEn,
-    },
-  },
-  {
-    slug: 'factors/research-card',
-    group: 'factorResearch',
-    title: {
-      zh: '运行前研究卡和探索变体',
-      en: 'Pre-run research cards and variants',
-    },
-    summary: {
-      zh: '在看结果前写下假设、方向和主要标准，并理解探索变体与假阳性提示。',
-      en: 'Record a hypothesis, direction, and criterion before reading the result.',
-    },
-    content: {
-      zh: researchCardZh,
-      en: researchCardEn,
-    },
-  },
-  {
-    slug: 'factors/holdout-results',
-    group: 'factorResearch',
-    title: {
-      zh: '正式保留段和样本外结果',
-      en: 'Formal holdout and out-of-sample results',
-    },
-    summary: {
-      zh: '使用冻结代码验证预留数据，理解结果封存、不可逆揭示和主要标准判定。',
-      en: 'Validate reserved data with frozen code and understand sealing and reveal.',
-    },
-    content: {
-      zh: holdoutResultsZh,
-      en: holdoutResultsEn,
     },
   },
   {

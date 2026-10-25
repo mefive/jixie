@@ -63,7 +63,7 @@ Unpinning is not a hide action. Pinning it again later regenerates the history u
 
 - Factor Weather is not a real-time stock screener.
 - It shows completed months only and does not display a partial current month.
-- A single red or green month cannot replace research logic, holdout evidence, and cost checks.
+- A single month’s color cannot replace research reasoning, cost checks and analysis over other sample periods.
 - Cards use one method, but their factors can still have different economic meanings.
 
 ## Related articles
@@ -71,4 +71,3 @@ Unpinning is not a hide action. Pinning it again later regenerates the history u
 - [Read Factor Weather cards](/docs/help/factor-weather/read-cards)
 - [What factor research can answer](/docs/help/factors/what-factor-research)
 - [Set a Factor key](/docs/help/factors/strategy-key)
-- [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)

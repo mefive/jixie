@@ -22,11 +22,7 @@ No derivation is needed here. Calculate the reciprocal only when price-to-book i
 
 ## Open a new factor
 
-If Research already has a promoted successful version with one explicit point-in-time signal, you can create the draft from
-that snapshot instead. An LLM rewrites the free-form study into constrained Factor SDK code, and the Factor compiler rejects
-invalid definitions. A source card on the left shows the originating research version, distilled summary, and remaining
-checks; its icon opens the exact source snapshot. You must still review the code and complete FactorReport, holdout, cost, and
-capacity validation.
+Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in report history.
 
 1. Open **Factor Research**.
 2. Select **New** on the left.
@@ -93,13 +89,12 @@ For gross-margin stability, state the window and missing-data rule first. For ex
 
 1. Check the frequency, date range, and neutralization setting at the top right.
 2. Select **Run analysis**.
-3. Choose **Exploratory** in the pre-run research card, or record a hypothesis before the run.
-4. Select **Freeze research card and run**.
+3. Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in report history.
 5. Wait for the methodology, grouped returns, and metrics on the right.
 
 The Factor is persisted when the creation dialog is confirmed, and draft edits autosave. Analysis waits for the current code to save; after completion, refresh the page and confirm that the name, key, code, and report remain available.
 
-You can also ask the Agent to run exploratory analysis for one explicit candidate. It creates the same immutable report but cannot start or reveal a formal holdout. See [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis).
+Check code, dates and parameters, then select **Run analysis** and wait for the result. You can also ask the Agent to analyze an explicit candidate, then inspect its actual code in report history.
 
 The numbered areas are:
 

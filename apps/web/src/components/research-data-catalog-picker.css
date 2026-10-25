@@ -167,10 +167,6 @@
   box-shadow: 0 0 0 1px #64748b;
 }
 
-.jx-researchDataCatalog-result--sealed {
-  background: #fffbeb;
-}
-
 .jx-researchDataCatalog-resultIcon {
   @apply flex items-center justify-center rounded-md bg-chip text-muted;
   width: 32px;
@@ -248,11 +244,6 @@
   @apply m-0 text-muted;
   font-size: 9px;
   line-height: 1.5;
-}
-
-.jx-researchDataCatalog-selectedMeta .jx-researchDataCatalog-sealedNotice {
-  @apply flex items-start gap-2;
-  color: #92400e;
 }
 
 .jx-researchDataCatalog-config > label,

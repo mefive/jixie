@@ -75,8 +75,8 @@ V1 只提供等权。这样做是为了先建立简单、可复查的基准，�
 ## 需要知道
 
 - 股票横截面合成当前只用于因子研究，不能直接作为策略代码中的一个 Factor key。
-- Panel 合成完成 Holdout 且全部成分均已发布后，可以发布并进入策略工作台；发布后定义不可修改。
-- 合成结果仍需要研究卡、探索样本、保留段和成本检查。
+- Panel 合成发布要求全部成分已发布，并有匹配当前定义的成功报告；发布后不可修改。分析仍需检查样本和成本。
+- Panel 合成发布要求全部成分已发布，并有匹配当前定义的成功报告；发布后不可修改。分析仍需检查样本和成本。
 - 成分越多不代表结果越好。
 - 低相关不等于一定互补，等权也不等于已经完成组合优化。
 
@@ -84,6 +84,5 @@ V1 只提供等权。这样做是为了先建立简单、可复查的基准，�
 
 - [因子相关性矩阵](/docs/help/factors/correlation-matrix)
 - [查看多因子合成报告](/docs/help/factors/read-composite-report)
-- [运行前研究卡和探索变体](/docs/help/factors/research-card)
 - [运行跨资产 Panel 研究](/docs/help/factors/panel-research)
 - [发布 Factor 并用于策略](/docs/help/factors/publish-factor)

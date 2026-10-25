@@ -326,13 +326,6 @@ export const zhResearch = {
     factor: 'Factor',
     analysis: '分析方式',
     reportDate: '完成时间',
-    sealed: '密封',
-    sealedHint: 'Holdout 尚未揭示，当前不能插入或读取结果。',
-    reportPhase: {
-      legacy: '历史',
-      explore: '探索',
-      holdout: 'Holdout',
-    },
     analysisKind: {
       cross_sectional: '横截面',
       time_series: '时间序列',

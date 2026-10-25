@@ -1,5 +1,6 @@
 # CSI 300 value factor: ranking, IC, portfolios, and holdout
 
+> Historical case: research cards, Holdout admission, preregistration and reveal records below describe the retired workflow. Current analyses use user-selected dates; publication fixes matching source and a successful report. Original values and captures illustrate research methods only.
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
 
 > Learning path · About 75–105 minutes · Run one preset Factor analysis first. This exercise uses an existing preset and its reports,
@@ -52,7 +53,6 @@ You should be able to:
 ## Prerequisites
 
 - If you have not run a Factor before, first [run your first preset Factor analysis](/help/factors/first-preset-analysis).
-- Read [What Factor research can answer](/help/factors/what-factor-research) and [Pre-run research cards](/help/factors/research-card).
 - If rank correlation is unfamiliar, read [Rank IC, ICIR, and IC decay](/help/factors/rank-ic-icir).
 - This exercise includes one irreversible holdout reveal. Data already viewed here or elsewhere cannot become unobserved again.
 
@@ -305,5 +305,4 @@ stock recommendation.
 - [Set the Factor research scope](/help/factors/evaluation-scope)
 - [Read robust cross-sectional inference](/help/factors/robust-inference)
 - [Market-cap and industry neutralization](/help/factors/neutralization)
-- [Formal holdout and out-of-sample results](/help/factors/holdout-results)
 - [Turnover, trading costs, and net returns](/help/factors/turnover-costs)

@@ -139,7 +139,6 @@ describe('private durable Factor questions', () => {
           id: 'report-a',
           userId: 'owner',
           factor: 'factor',
-          phase: 'explore',
           legacyStatus: 'done',
           freq: 'month',
           start: '20200101',
@@ -151,7 +150,6 @@ describe('private durable Factor questions', () => {
           id: 'report-b',
           userId: 'owner',
           factor: 'factor',
-          phase: 'explore',
           legacyStatus: 'done',
           freq: 'month',
           start: '20240101',
@@ -159,10 +157,9 @@ describe('private durable Factor questions', () => {
           payload: '{"icMean":0.03}',
         },
         {
-          id: 'sealed',
+          id: 'completed',
           userId: 'owner',
           factor: 'factor',
-          phase: 'holdout',
           legacyStatus: 'done',
           freq: 'month',
           start: '20240101',
@@ -311,7 +308,7 @@ describe('private durable Factor questions', () => {
     expect((await history()).messages).toHaveLength(2);
   });
 
-  it('rejects wrong, foreign, unfinished and sealed reports before saving any question', async () => {
+  it('rejects wrong, foreign and unfinished reports before saving any question', async () => {
     await prisma.factorReport.create({
       data: {
         id: 'wrong',
@@ -344,7 +341,7 @@ describe('private durable Factor questions', () => {
         end: '20231231',
       },
     });
-    for (const reportId of ['wrong', 'foreign', 'pending', 'sealed']) {
+    for (const reportId of ['wrong', 'foreign', 'pending']) {
       expect(
         (await request('/factors/questions', { factorKey: 'factor', reportId, message: 'Explain' }))
           .status,
@@ -353,8 +350,7 @@ describe('private durable Factor questions', () => {
     expect(await prisma.agentConversation.count()).toBe(0);
     expect(await prisma.agentMessage.count()).toBe(0);
     expect(fixture.llm).not.toHaveBeenCalled();
-    await prisma.factorReport.update({ where: { id: 'sealed' }, data: { revealedAt: new Date() } });
-    const accepted = await submit('sealed');
+    const accepted = await submit('completed');
     await finished(accepted.turnId);
   });
 

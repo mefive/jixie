@@ -86,8 +86,6 @@ describe('immutable panel composite publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'panel',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: SNAPSHOT,
       factorCodeHash: sha256(SNAPSHOT),
     });
@@ -143,24 +141,6 @@ describe('immutable panel composite publication', () => {
 
   it('rejects a composite whose component is still a draft', async () => {
     mocks.factorFindMany.mockResolvedValue([{ id: 'momentum-1' }]);
-
-    await expect(publishPanelComposite('user-1', 'composite-1', 'report-1')).rejects.toEqual(
-      new FactorError('publication_report_invalid'),
-    );
-  });
-
-  it('rejects a sealed holdout report', async () => {
-    mocks.reportFindFirst.mockResolvedValue({
-      legacyStatus: 'done',
-      failureMessage: null,
-      job: null,
-      id: 'report-1',
-      analysisKind: 'panel',
-      phase: 'holdout',
-      revealedAt: null,
-      factorCodeSnapshot: SNAPSHOT,
-      factorCodeHash: sha256(SNAPSHOT),
-    });
 
     await expect(publishPanelComposite('user-1', 'composite-1', 'report-1')).rejects.toEqual(
       new FactorError('publication_report_invalid'),

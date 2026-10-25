@@ -282,57 +282,6 @@ export const factorResearchSpecV1Schema = z.discriminatedUnion('analysisKind', [
   }),
 ]);
 
-const primaryCriterionSchema = z.object({
-  metric: z.enum([
-    'rank_ic_mean',
-    'rank_icir_annual',
-    'net_long_short_annualized',
-    'time_series_median_newey_west_t',
-    'time_series_mean_direction_hit_rate',
-    'panel_rank_ic_mean',
-    'panel_net_long_short_annualized',
-  ]),
-  operator: z.enum(['gt', 'lt']),
-  value: z.number().finite(),
-});
-
-/**
- * 按分析种类组合研究意图 schema，统一默认值与请求边界校验。
- *
- * Build kind-specific research intent validation with shared defaults and input constraints.
- */
-export const factorResearchIntentV1Schema = z
-  .object({
-    version: z.literal(1),
-    mode: z.enum(['hypothesis', 'exploratory']),
-    hypothesis: z.string().trim().max(500).optional(),
-    rationale: z.string().trim().max(1000).optional(),
-    expectedDirection: z.enum(['positive', 'negative', 'unknown']),
-    primaryCriterion: primaryCriterionSchema.optional(),
-  })
-  .superRefine((intent, context) => {
-    if (intent.mode !== 'hypothesis') {
-      return;
-    }
-    if (!intent.hypothesis) {
-      context.addIssue({ code: 'custom', path: ['hypothesis'], message: 'Hypothesis is required' });
-    }
-    if (intent.expectedDirection === 'unknown') {
-      context.addIssue({
-        code: 'custom',
-        path: ['expectedDirection'],
-        message: 'Direction is required',
-      });
-    }
-    if (!intent.primaryCriterion) {
-      context.addIssue({
-        code: 'custom',
-        path: ['primaryCriterion'],
-        message: 'Criterion is required',
-      });
-    }
-  });
-
 // Definitions.
 const FACTOR_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 
@@ -379,8 +328,6 @@ export type FactorCompositeInput = z.output<typeof factorCompositeInputSchema>;
 export const submitFactorAnalysisSchema = z.object({
   factor: z.string().min(1),
   spec: z.union([factorAnalysisSpecSchema, factorResearchSpecV1Schema]),
-  parentReportId: z.string().min(1).nullable().optional(),
-  researchIntent: factorResearchIntentV1Schema,
 });
 
 export type SubmitFactorAnalysisInput = z.output<typeof submitFactorAnalysisSchema>;
@@ -424,10 +371,6 @@ export const factorReportListQuerySchema = z.object({
 });
 
 export type FactorReportListQuery = z.output<typeof factorReportListQuerySchema>;
-
-export const factorResearchSummaryQuerySchema = z.object({ factor: z.string().min(1).optional() });
-
-export type FactorResearchSummaryQuery = z.output<typeof factorResearchSummaryQuerySchema>;
 
 // Weather.
 export const createFactorWeatherPinSchema = z.object({
@@ -476,7 +419,6 @@ export type FactorCorrelationRequestQuery = z.input<typeof factorCorrelationQuer
 export type SubmitFactorCorrelationRequest = z.input<typeof submitFactorCorrelationSchema>;
 export type FactorJobRequestQuery = z.input<typeof factorJobLogsQuerySchema>;
 export type FactorReportListRequestQuery = z.input<typeof factorReportListQuerySchema>;
-export type FactorResearchSummaryRequestQuery = z.input<typeof factorResearchSummaryQuerySchema>;
 export type CreateFactorWeatherPinRequest = z.input<typeof createFactorWeatherPinSchema>;
 export type FactorAgentRequest = z.input<typeof factorAgentBodySchema>;
 export type FactorAgentRequestParams = z.input<typeof factorAgentParamsSchema>;

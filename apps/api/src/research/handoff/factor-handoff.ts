@@ -258,11 +258,11 @@ function withRequiredValidationItems(items: string[], locale: Locale): string[] 
     locale === 'en'
       ? [
           'The candidate has not passed a formal FactorReport for direction, stability, and redundancy.',
-          'Holdout, turnover, transaction-cost, and capacity validation remain incomplete.',
+          'Turnover, transaction-cost, and capacity validation remain incomplete.',
         ]
       : [
           '候选尚未通过正式 FactorReport 验证方向、稳定性与冗余性。',
-          'Holdout、换手、交易成本与容量验证尚未完成。',
+          '换手、交易成本与容量验证尚未完成。',
         ];
   return [...new Set([...items, ...required])].slice(0, 10);
 }

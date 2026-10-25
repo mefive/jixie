@@ -67,8 +67,6 @@ describe('immutable Factor publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'cross_sectional',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: CODE,
       factorCodeHash: sha256(CODE),
     });
@@ -94,6 +92,25 @@ describe('immutable Factor publication', () => {
     });
   });
 
+  it('publishes a matching completed analysis even with negative results', async () => {
+    mocks.reportFindFirst.mockResolvedValue({
+      id: 'report-negative',
+      analysisKind: 'cross_sectional',
+      factorCodeSnapshot: CODE,
+      factorCodeHash: sha256(CODE),
+      payload: JSON.stringify({ icMean: -0.1, longShortNet: { annReturn: -0.2 } }),
+    });
+
+    const published = await publishFactor('user-1', 'factor-1', 'report-negative');
+
+    expect(published.approvedReportId).toBe('report-negative');
+    expect(mocks.reportFindFirst.mock.calls[0][0].where).toMatchObject({
+      id: 'report-negative',
+      userId: 'user-1',
+      factor: 'factor-1',
+    });
+  });
+
   it('publishes Python lineage only from a matching py-v1 report', async () => {
     const pythonCode = `from jixie import Factor\nfactor = Factor.cross_sectional(name="value")\n@factor.compute\ndef compute(bar, ctx):\n    return bar.pb\n`;
     mocks.factorFindFirst.mockResolvedValue({
@@ -114,8 +131,6 @@ describe('immutable Factor publication', () => {
       analysisKind: 'cross_sectional',
       language: 'python',
       runtimeVersion: 'py-v1',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: pythonCode,
       factorCodeHash: factorAnalysisSourceHash(pythonCode, 'python'),
     });
@@ -136,8 +151,6 @@ describe('immutable Factor publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'cross_sectional',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: `${CODE}\n`,
       factorCodeHash: sha256(`${CODE}\n`),
     });
@@ -162,24 +175,6 @@ describe('immutable Factor publication', () => {
     );
   });
 
-  it('rejects a sealed holdout report', async () => {
-    mocks.reportFindFirst.mockResolvedValue({
-      legacyStatus: 'done',
-      failureMessage: null,
-      job: null,
-      id: 'report-1',
-      analysisKind: 'cross_sectional',
-      phase: 'holdout',
-      revealedAt: null,
-      factorCodeSnapshot: CODE,
-      factorCodeHash: sha256(CODE),
-    });
-
-    await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
-      new FactorError('publication_report_invalid'),
-    );
-  });
-
   it('keeps the controlled commodity-carry template research-only', async () => {
     mocks.factorFindFirst.mockResolvedValue({
       id: 'factor-1',
@@ -195,8 +190,6 @@ describe('immutable Factor publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'panel',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: COMMODITY_CARRY_CODE,
       factorCodeHash: sha256(COMMODITY_CARRY_CODE),
     });
@@ -222,8 +215,6 @@ describe('immutable Factor publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'time_series',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: COMMODITY_CARRY_TIME_SERIES_CODE,
       factorCodeHash: sha256(COMMODITY_CARRY_TIME_SERIES_CODE),
     });
@@ -249,8 +240,6 @@ describe('immutable Factor publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'time_series',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_CODE,
       factorCodeHash: sha256(COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES_CODE),
     });
@@ -276,8 +265,6 @@ describe('immutable Factor publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'macro_regime',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: CODE,
       factorCodeHash: sha256(CODE),
       specJson: JSON.stringify({
@@ -319,8 +306,6 @@ describe('immutable Factor publication', () => {
       job: null,
       id: 'report-1',
       analysisKind: 'macro_regime',
-      phase: 'explore',
-      revealedAt: null,
       factorCodeSnapshot: CODE,
       factorCodeHash: sha256(CODE),
       specJson: JSON.stringify({

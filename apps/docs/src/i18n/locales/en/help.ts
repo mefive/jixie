@@ -14,7 +14,7 @@ export const enHelp: typeof zhHelp = {
       'Learning paths connect concepts, real examples, reproducible exercises, and completion checks. The page manual still documents every product workflow.',
     guidedTitle: 'Practice along seven learning paths',
     guidedDescription:
-      'Move from trustworthy research, strategy, and Factor evidence into signal governance, multi-asset attribution, commodity term structure, and holdout adjudication while retaining failures.',
+      'Study research, strategies, factor analysis, multi-asset attribution and historical commodity evidence while retaining unfavorable results.',
     guidedAction: 'Start with descriptive research',
     manualTitle: 'Look up a product page',
     manualDescription:
@@ -89,13 +89,13 @@ export const enHelp: typeof zhHelp = {
         eyebrow: 'Path three · Factor research',
         title: 'CSI 300 value factor',
         description:
-          'Freeze a CSI 300 stock-cross-section question with the earnings-yield preset, then adjudicate Rank IC, deciles, neutralization, and one formal holdout reveal.',
+          'Read the historical CSI 300 earnings-yield case to understand Rank IC, deciles, neutralization and dated samples.',
         start: 'Start Factor research',
         stepsTitle: 'How the path progresses',
         steps: {
           hypothesis: {
-            title: 'Preregister the hypothesis',
-            description: 'Freeze the positive prior, primary criterion, and sole diagnostic.',
+            title: 'Define the question',
+            description: 'State the expected direction and metrics to inspect.',
           },
           scope: {
             title: 'Freeze the scope',
@@ -105,9 +105,9 @@ export const enHelp: typeof zhHelp = {
             title: 'Read ranking evidence',
             description: 'Separate Rank IC, decile returns, and the long-short construction.',
           },
-          holdout: {
-            title: 'Reveal the holdout',
-            description: 'Verify the frozen protocol and make one irreversible reveal.',
+          samples: {
+            title: 'Compare dated samples',
+            description: 'Check historical report dates and methods before comparing samples.',
           },
           verdict: {
             title: 'Adjudicate evidence',
@@ -152,9 +152,9 @@ export const enHelp: typeof zhHelp = {
       },
       commodity: {
         eyebrow: 'Path five · Commodity research',
-        title: 'Commodity carry and holdout evidence',
+        title: 'Historical commodity carry evidence',
         description:
-          'Freeze Panel and time-series tests on actual gold, copper, crude-oil, and soybean-meal contracts, then audit term structure, proxy error, multiple testing, and two failed holdouts.',
+          'Read historical gold, copper, crude-oil and soybean-meal reports to understand term structure, proxy error and unstable findings.',
         start: 'Start commodity research',
         stepsTitle: 'How the path progresses',
         steps: {
@@ -166,13 +166,13 @@ export const enHelp: typeof zhHelp = {
             title: 'Audit proxy error',
             description: 'Verify differences between actual futures and four mapped ETFs.',
           },
-          preregister: {
-            title: 'Freeze two tests',
-            description: 'Register cross-sectional ranking and per-product time-series criteria.',
+          design: {
+            title: 'Read two analyses',
+            description: 'Compare cross-sectional and per-product time-series questions.',
           },
-          holdout: {
-            title: 'Seal before reveal',
-            description: 'Read the first holdout only after both reports are sealed.',
+          samples: {
+            title: 'Inspect dated samples',
+            description: 'Compare dates and statistical definitions in historical reports.',
           },
           verdict: {
             title: 'Retain the failure',
@@ -184,7 +184,7 @@ export const enHelp: typeof zhHelp = {
         eyebrow: 'Path six · Positive admission',
         title: 'Sales yield and Factor admission',
         description:
-          'Read the original sales-yield exploration, redundancy gate, and sole formal holdout, reconcile frozen code lineage, and learn to make a limited but genuinely positive advancement decision.',
+          'Read the original historical sales-yield reports and inspect source, redundancy, costs and sample sensitivity.',
         start: 'Start positive Factor research',
         stepsTitle: 'How the path progresses',
         steps: {
@@ -193,16 +193,17 @@ export const enHelp: typeof zhHelp = {
             description: 'Define 1/PS_TTM, direction, missing values, and the data boundary.',
           },
           gates: {
-            title: 'Set three admission gates',
-            description: 'Freeze Rank IC, redundancy, costs, and supporting evidence.',
+            title: 'Inspect three evidence groups',
+            description: 'Interpret Rank IC, redundancy, costs and supporting evidence together.',
           },
           explore: {
             title: 'Read exploration and redundancy',
             description: 'Confirm direction, then reject an EP, BP, or size relabeling.',
           },
-          holdout: {
-            title: 'Audit the original holdout',
-            description: 'Read the first reveal without rebranding inspection as new evidence.',
+          samples: {
+            title: 'Inspect another dated sample',
+            description:
+              'Read existing results without claiming that another inspection is a new sample.',
           },
           advance: {
             title: 'Advance without skipping stages',

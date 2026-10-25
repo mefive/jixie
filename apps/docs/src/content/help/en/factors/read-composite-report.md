@@ -8,7 +8,7 @@ A composite uses the pipeline for its selected research method. Verify frozen co
 
 1. Select a factor composite in the library.
 2. Select **Run analysis**.
-3. Complete the research card before seeing metrics.
+3. Analyze the selected dates and review samples, costs and results. Publication remains an explicit user action in the workbench.
 4. Wait for the report to finish.
 5. Reopen the immutable result later from report history.
 
@@ -54,11 +54,9 @@ Every report stores the composite definition and code snapshot of every componen
 
 Use report history to compare variants rather than relying on the currently edited definition.
 
-## Holdout remains a user decision
+## Analyze and publish
 
-An exploratory composite does not automatically start or reveal a holdout. Consider one formal holdout only when the hypothesis, direction, and primary criterion were recorded before exploration and the definition has not been repeatedly tuned.
-
-The Agent cannot start or reveal a holdout, or deploy the composite as a strategy.
+Analyze the selected dates and review samples, costs and results. Publication remains an explicit user action in the workbench.
 
 A Panel report also requires class-level evidence and each ETF's listing coverage. Its Top/Bottom diagnostic portfolio is not the executed long-only ETF strategy in Strategy.
 
@@ -72,7 +70,6 @@ A Panel report also requires class-level evidence and each ETF's listing coverag
 ## Related articles
 
 - [Create and edit a factor composite](/docs/help/factors/create-composite)
-- [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)
 - [Turnover, trading costs, and net returns](/docs/help/factors/turnover-costs)
 - [Run cross-asset Panel research](/docs/help/factors/panel-research)
 - [Read multi-asset allocation attribution](/docs/help/backtesting/allocation-attribution)

@@ -328,9 +328,9 @@ class _DataApi:
 
 class _ResultsApi:
     # Load one completed, visible, immutable FactorReport result owned by the current user.
-    # Note: Top-level keys include report_id, factor, analysis_kind, phase, research_spec, research_intent, lineage, and report.
+    # Note: Top-level keys include report_id, factor, analysis_kind, research_spec, lineage, and report.
     # Note: The report and research_spec fields use snake_case; the frozen report is neither mutated nor rerun.
-    # Note: Unrevealed holdout reports remain sealed, and reports owned by other users are not visible.
+    # Note: Only completed reports owned by the current Research document user are readable.
     # Example: report = results.factor_report("01K5EXAMPLEFACTORREPORT")
     # Example: rank_ic_mean = report["report"]["ic_mean"]
     def factor_report(

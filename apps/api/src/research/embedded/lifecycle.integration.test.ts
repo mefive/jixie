@@ -397,16 +397,16 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     ).rejects.toMatchObject({ reason: 'embedded_not_found' });
   });
 
-  it('rejects foreign sources and sealed report context without creating orphan documents', async () => {
+  it('rejects foreign sources and unfinished report context without creating orphan documents', async () => {
     await expect(createEmbeddedAnalysis('other', input)).rejects.toMatchObject({
       reason: 'embedded_not_found',
     });
     await prisma.factorReport.create({
       data: {
-        id: 'sealed',
+        id: 'incomplete',
+        legacyStatus: 'error',
         userId: 'owner',
         factor: 'fixture',
-        phase: 'holdout',
         freq: 'month',
         start: '20200101',
         end: '20251231',
@@ -414,7 +414,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       },
     });
     await expect(
-      createEmbeddedAnalysis('owner', { ...input, reportId: 'sealed' }),
+      createEmbeddedAnalysis('owner', { ...input, reportId: 'incomplete' }),
     ).rejects.toMatchObject({ reason: 'embedded_invalid_report', embeddedCode: 'invalid_report' });
     expect(await prisma.researchDocument.count()).toBe(0);
     const builtin = await createEmbeddedAnalysis('other', {
@@ -456,13 +456,13 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     ).rejects.toMatchObject({ reason: 'embedded_invalid_report', embeddedCode: 'invalid_report' });
   });
 
-  it('preserves Holdout enforcement inside Python SDK requests', async () => {
+  it('preserves report ownership inside Python SDK requests', async () => {
     await prisma.factorReport.create({
       data: {
-        id: 'sealed',
-        userId: 'owner',
+        id: 'foreign-report',
+        legacyStatus: 'done',
+        userId: 'other',
         factor: 'fixture',
-        phase: 'holdout',
         freq: 'month',
         start: '20200101',
         end: '20251231',
@@ -478,12 +478,12 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
           type: 'request',
           id: 1,
           method: 'research_factor_report',
-          arguments: { report_id: 'sealed' },
+          arguments: { report_id: 'foreign-report' },
         },
         options?.observer,
       );
       await send(response);
-      expect(send.mock.calls[0][0]).toMatchObject({ error: expect.stringContaining('sealed') });
+      expect(send.mock.calls[0][0]).toMatchObject({ error: expect.stringContaining('not found') });
       expect(JSON.stringify(send.mock.calls)).not.toContain('secret');
       return capture();
     });

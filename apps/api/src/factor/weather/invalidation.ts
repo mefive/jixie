@@ -19,7 +19,7 @@ const INPUTS = new Set([
 /**
  * 当前气象从最早受影响期增量重算；固定报告和无关参考元数据不受影响。
  *
- * Recompute current weather from the earliest affected period, excluding sealed reports and
+ * Recompute current weather from the earliest affected period, without changing saved reports or
  * unrelated reference metadata.
  */
 export async function invalidateFactorWeather(

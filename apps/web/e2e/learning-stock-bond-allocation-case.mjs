@@ -162,10 +162,7 @@ try {
     throw new Error(`stock-bond Panel metadata was not restored: ${JSON.stringify(resource)}`);
   }
 
-  const researchWindow = await api(page, '/api/app/factors/research/window');
-  if (!researchWindow.exploreEnd) {
-    throw new Error(`Panel research window is unavailable: ${JSON.stringify(researchWindow)}`);
-  }
+  const analysisEnd = process.env.E2E_FACTOR_END ?? '20250127';
   const factorRun = await api(page, '/api/app/factors/analyses', {
     method: 'POST',
     body: JSON.stringify({
@@ -174,14 +171,14 @@ try {
         version: 1,
         analysisKind: 'panel',
         start: START,
-        end: researchWindow.exploreEnd,
+        end: analysisEnd,
         observationFrequency: 'monthly',
         assets: FACTOR_ASSETS,
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
         dataPolicy: {
           pointInTime: true,
           revisionPolicy: 'as_available',
-          dataCutoff: researchWindow.exploreEnd,
+          dataCutoff: analysisEnd,
         },
         rankingScope: 'cross_asset',
         volatilityScaling: 'none',
@@ -191,15 +188,6 @@ try {
           bottomFraction: 0.25,
           transactionCostPerSide: 0.001,
         },
-      },
-      researchIntent: {
-        version: 1,
-        mode: 'hypothesis',
-        hypothesis: '在股票与国债 ETF 之间，120日动量较高的资产，其下一持有期收益排名倾向更高。',
-        rationale:
-          '趋势延续可能跨股债存在，但资产类别差异、期限暴露和市场状态切换都可能使排序不稳定。',
-        expectedDirection: 'positive',
-        primaryCriterion: { metric: 'panel_rank_ic_mean', operator: 'gt', value: 0 },
       },
     }),
   });

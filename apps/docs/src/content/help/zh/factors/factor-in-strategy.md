@@ -115,7 +115,7 @@ key 必须在两处完全一致。编辑器输入 `ctx.factor(` 时会建议当�
 - 没有因子值的股票是否被正确排除；
 - 股票池、调仓频率和持仓数量是否符合预期；
 - 交易成本、换手和回撤是否可以接受；
-- 不同历史区间和正式保留段结果是否稳定。
+- 检查不同历史区间的结果是否稳定。
 
 ## 常见问题
 
@@ -144,6 +144,5 @@ key 必须在两处完全一致。编辑器输入 `ctx.factor(` 时会建议当�
 - [设置 Factor key](/docs/help/factors/strategy-key)
 - [设置回测参数](/docs/help/backtesting/run-settings)
 - [查看回测结果概览](/docs/help/backtesting/results-overview)
-- [正式保留段和样本外结果](/docs/help/factors/holdout-results)
 - [发布 Factor 并用于策略](/docs/help/factors/publish-factor)
 - [运行跨资产 Panel 研究](/docs/help/factors/panel-research)

@@ -128,7 +128,7 @@ const LEARNING_PATHS = [
   {
     key: 'factor',
     slug: 'learning/csi300-value-factor',
-    steps: ['hypothesis', 'scope', 'rank', 'holdout', 'verdict'],
+    steps: ['hypothesis', 'scope', 'rank', 'samples', 'verdict'],
   },
   {
     key: 'allocation',
@@ -138,12 +138,12 @@ const LEARNING_PATHS = [
   {
     key: 'commodity',
     slug: 'learning/commodity-carry-holdout',
-    steps: ['semantics', 'proxies', 'preregister', 'holdout', 'verdict'],
+    steps: ['semantics', 'proxies', 'design', 'samples', 'verdict'],
   },
   {
     key: 'positiveFactor',
     slug: 'learning/sales-yield-positive',
-    steps: ['definition', 'gates', 'explore', 'holdout', 'advance'],
+    steps: ['definition', 'gates', 'explore', 'samples', 'advance'],
   },
 ] as const;
 

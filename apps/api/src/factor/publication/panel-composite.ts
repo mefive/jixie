@@ -42,18 +42,11 @@ export async function publishPanelComposite(
     select: {
       id: true,
       analysisKind: true,
-      phase: true,
-      revealedAt: true,
       factorCodeSnapshot: true,
       factorCodeHash: true,
     },
   });
-  if (
-    !report?.factorCodeSnapshot ||
-    !report.factorCodeHash ||
-    report.analysisKind !== 'panel' ||
-    (report.phase === 'holdout' && !report.revealedAt)
-  ) {
+  if (!report?.factorCodeSnapshot || !report.factorCodeHash || report.analysisKind !== 'panel') {
     throw new FactorError('publication_report_invalid');
   }
 

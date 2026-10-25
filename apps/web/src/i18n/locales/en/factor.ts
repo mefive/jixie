@@ -131,7 +131,7 @@ export const enFactor: typeof zhFactor = {
     horizonOption: '{{value}}d',
     dailyFrequency: 'Observation frequency: daily',
     neweyWestAuto: 'Inference: Newey–West (automatic lag)',
-    disciplinedResearch: 'Research mode: research card / holdout',
+    disciplinedResearch: 'Choose analysis dates and parameters',
     reportNotice:
       'This is a signal evidence report, not a strategy backtest. Trading rules, rebalancing and costs must be tested in a strategy.',
     commodityCarryChatEmpty:
@@ -300,8 +300,6 @@ export const enFactor: typeof zhFactor = {
     monthlyFrequency: 'Observation frequency: month end',
     fourStateModel: 'Model: growth strong/weak × inflation high/low',
     exploratoryMode: 'Research mode: exploratory only for now',
-    researchCardNotice:
-      'Macro Regime V1 is exploratory only: inspect conditional returns and state stability before defining a directional hypothesis or admission threshold.',
     reportNotice:
       'This is a macro conditional-return report, not an asset-allocation strategy backtest. State-to-weight mapping, rebalancing, and risk constraints still belong in a strategy.',
     pointInTimeEligible:
@@ -325,7 +323,7 @@ export const enFactor: typeof zhFactor = {
     positiveRate: 'Positive-return rate',
     laggedMeanReturn: 'Lagged-state mean',
     stateEvidenceCap:
-      'Concurrent and one-period-lagged states are shown together to expose timing sensitivity. Return differences are candidate allocation hypotheses pending holdout and strategy backtests.',
+      'Concurrent and one-period-lagged states are shown together to expose timing sensitivity. Return differences are candidate allocation hypotheses pending analysis on other dates and strategy backtests.',
     historyParams: 'Macro regime · {{assets}} ETFs · {{horizon}}d forward · {{start}} – {{end}}',
     states: {
       growth_strong_inflation_high: 'Strong growth · high inflation',
@@ -471,12 +469,6 @@ export const enFactor: typeof zhFactor = {
   historyTitle: 'Report history',
   historyEmpty: 'No reports yet',
   historyRankIc: 'Rank IC {{value}}',
-  phase: {
-    explore: 'Explore',
-    legacy: 'Legacy',
-    holdoutSealed: 'Holdout · sealed',
-    holdoutRevealed: 'Holdout · revealed',
-  },
   status: {
     running: 'Running',
     done: 'Completed',
@@ -486,53 +478,6 @@ export const enFactor: typeof zhFactor = {
   unitWeek: 'week',
   unitMonth: 'month',
 
-  researchSummary:
-    '{{tests}} explore variants · {{reports}} completed reports · about {{falsePositives}} random false positives at 5%',
-  researchSummaryHelp:
-    'Re-running the same code, parameters, and criterion counts as one variant; failed/interrupted jobs and holdouts are excluded. The false-positive figure is a risk reminder, not a statistical correction.',
-  researchCardTitle: 'Pre-run research card',
-  researchModeHypothesis: 'Test a hypothesis',
-  researchModeExploratory: 'Pure exploration',
-  hypothesisPlaceholder: 'State the hypothesis before seeing the result',
-  rationalePlaceholder: 'Economic or behavioral rationale (optional)',
-  directionPositive: 'Expected positive',
-  directionNegative: 'Expected negative',
-  criterionRankIc: 'Mean Rank IC',
-  criterionIcir: 'Annualized ICIR',
-  criterionNetLs: 'Net long-short annualized',
-  criterionTimeSeriesMedianT: 'Median Newey–West t across assets',
-  criterionTimeSeriesMeanHitRate: 'Mean direction hit rate across assets',
-  criterionPanelRankIc: 'Mean cross-asset Rank IC',
-  criterionPanelNetLs: 'Net cross-asset long-short annualized',
-  exploratoryNotice:
-    'This run is labeled pure exploration and cannot later be presented as a prior hypothesis.',
-  confirmRun: 'Freeze card and run',
-  holdoutConfirmTitle: 'Validate on the formal holdout?',
-  holdoutConfirmContent:
-    'The frozen code and parameters will be tested from {{start}} to {{end}}. The result stays sealed after computation.',
-  runHoldout: 'Validate holdout',
-  holdoutFrozenCode: 'Frozen code {{hash}}',
-  holdoutPreset: 'Pre-registered: {{direction}} · {{criterion}}',
-  holdoutCodeChanged:
-    'The editor code has changed: this validates the code snapshot frozen in the report, not the current code.',
-  holdoutReason: {
-    not_explore: 'Only explore reports can start a holdout validation',
-    not_done: 'The report must finish before starting a holdout validation',
-    missing_hypothesis: 'Holdout unavailable: the research card is not in hypothesis mode',
-    outside_explore_window:
-      'Holdout unavailable: the explore range crosses into the holdout period',
-    insufficient_periods: 'Holdout unavailable: not enough rebalance periods in the holdout',
-    already_observed: 'Holdout unavailable: this code has already observed the holdout data',
-    already_exists: 'This report already has a formal holdout',
-  },
-  holdoutSealed:
-    'The holdout computation is complete and still sealed. Revealing it cannot restore an unobserved state.',
-  revealHoldout: 'Reveal result',
-  revealConfirmTitle: 'Reveal the holdout result?',
-  revealConfirmContent:
-    'Revealing records an irreversible first-view time. This data will no longer be unobserved.',
-  holdoutCriterionPassed: 'Primary criterion met · first revealed {{time}}',
-  holdoutCriterionMissed: 'Primary criterion not met · first revealed {{time}}',
   historyMedianT: 'median t {{value}}',
 
   computing:

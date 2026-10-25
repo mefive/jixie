@@ -6,7 +6,7 @@
 | --- | --- |
 | [resolve.ts](resolve.ts) `resolveFactorSource`、`resolveCustomTimeSeriesFactorSource` | 评估提交传 userId 与 factor 标识；查询可读定义／组合并返回来源或 null，包含权限判断 |
 | 同文件 `factorAnalysisSourceDataRequirements`、`factorCodeDataRequirements` | 评估截止日准备解析所需数据；它们与查库解析同文件，不能仅凭函数纯度把整个模块当成纯依赖 |
-| [snapshot.ts](snapshot.ts) `factorAnalysisSourceSnapshot`、`parseFactorAnalysisSourceSnapshot`、`parseAssetFactorAnalysisSourceSnapshot` | 正式评估冻结、holdout／发布及 Strategy 解码来源；处理各来源形状和历史快照 |
+| [snapshot.ts](snapshot.ts) `factorAnalysisSourceSnapshot`、`parseFactorAnalysisSourceSnapshot`、`parseAssetFactorAnalysisSourceSnapshot` | 正式评估冻结、版本发布及 Strategy 解码来源；处理各来源形状和历史快照 |
 | 同文件 `factorAnalysisSourceLanguage`、`factorAnalysisSourceHash` | 语言默认值和语言相关哈希；语言缺省仍按 TypeScript，不能在文档中承诺自动识别 Python |
 | [fingerprint.ts](fingerprint.ts) `canonicalJson`、`sha256` | 通用规范化 JSON 和内容指纹；纯入口，无数据库或任务生命周期依赖 |
 

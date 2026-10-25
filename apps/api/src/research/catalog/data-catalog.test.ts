@@ -504,7 +504,7 @@ describe('research data catalog', () => {
     expect(result.instruments.map((item) => item.identifier)).toEqual(['000300.SH', '510300.SH']);
   });
 
-  it('searches completed user FactorReports by factor name and keeps holdout reports sealed', async () => {
+  it('searches completed owned FactorReports by factor name', async () => {
     mocks.factorFindMany.mockResolvedValue([
       { key: 'value_quality', name: '价值质量' },
       { key: 'momentum', name: '动量' },
@@ -514,17 +514,13 @@ describe('research data catalog', () => {
         id: 'report-explore',
         factor: 'value_quality',
         analysisKind: 'cross_sectional',
-        phase: 'explore',
-        revealedAt: null,
         createdAt: new Date('2026-08-20T08:00:00.000Z'),
         computedAt: new Date('2026-08-20T08:01:00.000Z'),
       },
       {
-        id: 'report-holdout',
+        id: 'report-panel',
         factor: 'value_quality',
         analysisKind: 'panel',
-        phase: 'holdout',
-        revealedAt: null,
         createdAt: new Date('2026-08-19T08:00:00.000Z'),
         computedAt: null,
       },
@@ -562,14 +558,11 @@ describe('research data catalog', () => {
       expect.objectContaining({
         id: 'report-explore',
         factorName: '价值质量',
-        phase: 'explore',
-        sealed: false,
       }),
       expect.objectContaining({
-        id: 'report-holdout',
+        id: 'report-panel',
         factorName: '价值质量',
         analysisKind: 'panel',
-        sealed: true,
       }),
     ]);
     expect(mocks.stockFindMany).not.toHaveBeenCalled();

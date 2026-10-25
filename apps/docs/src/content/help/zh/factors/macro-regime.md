@@ -48,5 +48,4 @@
 ## 相关内容
 
 - [为什么回测不等于未来收益](/docs/help/basics/backtest-limitations)
-- [研究卡、探索分析和正式保留段](/docs/help/factors/research-card)
 - [查看多资产配置归因](/docs/help/backtesting/allocation-attribution)

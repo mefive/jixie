@@ -63,7 +63,7 @@
 
 - 因子气象不是实时选股器。
 - 页面只展示已经结束的完整月份，不展示本月半成品。
-- 单月变红或变绿不能替代研究逻辑、保留段和成本检查。
+- 单月颜色不能替代研究逻辑、成本检查和其他样本区间的分析。
 - 卡片之间采用统一方法，但因子经济含义仍然不同。
 
 ## 相关内容
@@ -71,4 +71,3 @@
 - [阅读因子气象卡片](/docs/help/factor-weather/read-cards)
 - [因子研究能回答什么](/docs/help/factors/what-factor-research)
 - [设置 Factor key](/docs/help/factors/strategy-key)
-- [正式保留和样本外结果](/docs/help/factors/holdout-results)

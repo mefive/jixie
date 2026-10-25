@@ -2,7 +2,7 @@
 
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
-This article runs **Earnings yield (1/PE_TTM)** with the default settings and an exploratory research card. The purpose is to learn the workflow, not to make a trading decision from one result.
+Use the default settings for a first analysis. The aim is to learn the workflow, without making a trading decision from one result.
 
 ## Open the preset
 
@@ -18,17 +18,11 @@ The middle code shows how the preset is calculated. You do not need to edit it f
 
 If the factor has previous reports, the latest one appears on the right. A factor that has never been run shows the prompt to set the frequency and dates and then run the analysis.
 
-## Submit the first analysis
+## Submit an analysis
 
-1. Check the summary at the top. For the first run, use monthly frequency and no neutralization.
-2. Select **Run analysis**.
-3. In the pre-run research card, select **Exploratory**.
-4. Read the notice that an exploratory result cannot later be presented as a pre-registered hypothesis.
-5. Select **Freeze research card and run**.
-
-![Historical Chinese UI example: Select exploratory mode in the pre-run research card](/docs/images/help/zh/factors/factor-research-card-01.png)
-
-Exploratory mode is appropriate for your first look at a factor. Hypothesis mode asks you to write the hypothesis, expected direction, and criterion before seeing the result.
+1. Check dates, frequency and neutralization; monthly observations without neutralization are a suitable first comparison.
+2. Select **Run analysis** to submit directly.
+3. Wait for completion, then inspect the actual sample, data definitions and results.
 
 ## Wait for completion
 

@@ -1,6 +1,5 @@
 import { t } from '#i18n/index.js';
-import { getDatabase } from '#infra/database/prisma.js';
-import type { FactorReportSummary, FactorResearchSpecV1, Locale } from '@jixie/shared';
+import type { Locale } from '@jixie/shared';
 import { resolvePanelFactorSource } from '../composition/panel-source.js';
 import { resolveMacroRegimeTemplateSource } from '../definitions/templates/macro-regime.js';
 import {
@@ -30,12 +29,8 @@ export async function submitFactorAnalysis(
   input: SubmitFactorAnalysisInput,
   locale: Locale,
 ) {
-  const { factor, parentReportId, researchIntent } = input;
+  const { factor } = input;
   let researchSpec = normalizeFactorResearchSpec(input.spec);
-
-  if (!criterionMatchesAnalysisKind(researchSpec, researchIntent)) {
-    throw new FactorError('factor_criterion_unsupported');
-  }
 
   let source: FactorAnalysisSource | null = null;
 
@@ -134,50 +129,14 @@ export async function submitFactorAnalysis(
     throw new FactorError('start_after_end');
   }
 
-  if (parentReportId) {
-    const parent = await getDatabase().factorReport.findFirst({
-      where: { id: parentReportId, userId, factor },
-      select: { id: true },
-    });
-    if (!parent) {
-      throw new FactorError('evaluation_not_found');
-    }
-  }
-
   const response = await startFactorAnalysis({
     userId,
     factor,
     source,
     spec: researchSpec,
-    researchIntent,
-    parentReportId,
     locale: locale,
     failedMessage: t(locale, 'factorAnalysisFailed'),
   });
 
   return response;
-}
-
-/**
- * 检查预注册门槛与分析种类是否兼容，避免错误统计量进入准入。
- *
- * Check preregistered criteria against the selected analysis kind.
- */
-function criterionMatchesAnalysisKind(
-  spec: FactorResearchSpecV1,
-  intent: NonNullable<FactorReportSummary['researchIntent']>,
-): boolean {
-  const metric = intent.primaryCriterion?.metric;
-
-  if (!metric) {
-    return true;
-  }
-
-  const metricKind = metric.startsWith('time_series_')
-    ? 'time_series'
-    : metric.startsWith('panel_')
-      ? 'panel'
-      : 'cross_sectional';
-
-  return spec.analysisKind === metricKind;
 }

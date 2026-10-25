@@ -85,11 +85,7 @@ try {
   });
   await page.keyboard.press('Escape');
 
-  const researchWindow = await api('/api/app/factors/research/window');
-  const exploreEnd = researchWindow.body.exploreEnd;
-  if (researchWindow.status !== 200 || !exploreEnd) {
-    throw new Error(`research window unavailable: ${JSON.stringify(researchWindow)}`);
-  }
+  const analysisEnd = process.env.E2E_FACTOR_END ?? '20250127';
 
   const invalidResponse = await page.request.post(`${BASE}/api/app/factors/analyses`, {
     data: {
@@ -98,19 +94,17 @@ try {
         version: 1,
         analysisKind: 'time_series',
         start: '20150105',
-        end: exploreEnd,
+        end: analysisEnd,
         observationFrequency: 'daily',
         assets: [...ASSETS, '159981.SZ'],
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
         dataPolicy: {
           pointInTime: true,
           revisionPolicy: 'as_available',
-          dataCutoff: exploreEnd,
+          dataCutoff: analysisEnd,
         },
         inference: { standardError: 'newey_west', lag: 'automatic' },
       },
-      parentReportId: null,
-      researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
     },
   });
   const invalidRun = { status: invalidResponse.status(), body: await invalidResponse.json() };
@@ -127,19 +121,17 @@ try {
         version: 1,
         analysisKind: 'time_series',
         start: '20150105',
-        end: exploreEnd,
+        end: analysisEnd,
         observationFrequency: 'daily',
         assets: ASSETS,
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
         dataPolicy: {
           pointInTime: true,
           revisionPolicy: 'as_available',
-          dataCutoff: exploreEnd,
+          dataCutoff: analysisEnd,
         },
         inference: { standardError: 'newey_west', lag: 'automatic' },
       },
-      parentReportId: null,
-      researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
     }),
   });
   if (run.status !== 200) {
@@ -153,7 +145,7 @@ try {
     detail.status !== 'done' ||
     detail.analysisKind !== 'time_series' ||
     detail.researchPayload?.analysisKind !== 'time_series' ||
-    detail.researchSpec?.dataPolicy?.dataCutoff !== exploreEnd ||
+    detail.researchSpec?.dataPolicy?.dataCutoff !== analysisEnd ||
     !detail.factorCodeSnapshot?.includes('commodity.warehouseReceipt.volume') ||
     report?.assets?.length !== ASSETS.length ||
     report?.periods < 1000 ||
@@ -199,7 +191,7 @@ try {
     JSON.stringify(
       {
         reportId: run.body.reportId,
-        exploreEnd,
+        analysisEnd,
         periods: report.periods,
         observations: report.observations,
         byAsset: report.byAsset,

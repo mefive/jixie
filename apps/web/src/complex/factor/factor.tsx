@@ -35,8 +35,6 @@ import type {
   FactorMeta,
   FactorReport,
   FactorReportSummary,
-  FactorResearchIntentV1,
-  FactorResearchMetric,
   IcDecayPoint,
   FactorWeight,
   FactorOutlierMethod,
@@ -50,13 +48,12 @@ import type {
   ResearchFactorReportSuggestionV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
-import { factorResearchCriterionPassed } from '@jixie/shared';
 import {
   faSpinner,
   faPlay,
+  faLock,
   faPlus,
   faTrash,
-  faLock,
   faCopy,
   faEllipsis,
   faClockRotateLeft,
@@ -1643,7 +1640,7 @@ const ResultColumn = complex.component(() => {
         <ParamsBar />
       </div>
       <ReportOutdatedWarning />
-      <ResearchDisciplineBar />
+
       <div className="jx-factor-result">
         <FactorResult />
       </div>
@@ -2240,106 +2237,9 @@ function outlierOptions(t: TFunction<'factor'>) {
 }
 
 /**
- * 展示探索、预注册和保留段纪律，连接对应状态操作。
+ * 使用当前日期和参数直接提交分析。
  *
- * Present exploration, preregistration and holdout discipline with state-specific actions.
- */
-const ResearchDisciplineBar = complex.component(() => {
-  const store = complex.useStore();
-  const { t } = useTranslation('factor');
-  const counts = store.researchSummaryLoader.result?.factor;
-  const detail = store.reportDetail;
-  const holdout = detail?.holdout;
-  // Only completed explore reports surface an ineligibility reason; other phases are natural states.
-  const ineligibleReason =
-    !store.isMacroRegime &&
-    detail?.phase === 'explore' &&
-    detail.status === 'done' &&
-    holdout &&
-    !holdout.eligible
-      ? holdout.reason
-      : undefined;
-  if (!counts && !holdout?.eligible && !ineligibleReason) {
-    return null;
-  }
-  const intent = detail?.researchIntent;
-  const criterion = intent?.primaryCriterion;
-  const editorCodeChanged =
-    !!detail?.factorCodeSnapshot && !!store.code && store.code !== detail.factorCodeSnapshot;
-
-  return (
-    <div className="jx-factor-researchBar">
-      {counts && (
-        <Tooltip title={t('researchSummaryHelp')}>
-          <span className="jx-factor-researchHint">
-            {t('researchSummary', {
-              tests: counts.exploreTestCount,
-              reports: counts.exploreRunCount,
-              falsePositives: counts.expectedFalsePositivesAtFivePercent.toFixed(2),
-            })}
-          </span>
-        </Tooltip>
-      )}
-      {holdout?.eligible && (
-        <Button
-          size="small"
-          onClick={() =>
-            Modal.confirm({
-              title: t('holdoutConfirmTitle'),
-              content: (
-                <div className="jx-factor-holdoutConfirm">
-                  <div>
-                    {t('holdoutConfirmContent', {
-                      start: formatTradeDate(holdout.window!.holdoutStart),
-                      end: formatTradeDate(holdout.window!.holdoutEnd),
-                    })}
-                  </div>
-                  <div className="jx-factor-holdoutMeta">
-                    {detail?.factorCodeHash && (
-                      <span>
-                        {t('holdoutFrozenCode', { hash: detail.factorCodeHash.slice(0, 12) })}
-                      </span>
-                    )}
-                    {criterion && (
-                      <span>
-                        {t('holdoutPreset', {
-                          direction: t(
-                            intent!.expectedDirection === 'positive'
-                              ? 'directionPositive'
-                              : 'directionNegative',
-                          ),
-                          criterion: `${criterionMetricLabel(t, criterion.metric)} ${
-                            criterion.operator === 'gt' ? '>' : '<'
-                          } ${criterion.value}`,
-                        })}
-                      </span>
-                    )}
-                  </div>
-                  {editorCodeChanged && (
-                    <Alert type="warning" showIcon title={t('holdoutCodeChanged')} />
-                  )}
-                </div>
-              ),
-              okText: t('runHoldout'),
-              cancelText: t('cancel'),
-              onOk: () => store.runHoldout(),
-            })
-          }
-        >
-          {t('runHoldout')}
-        </Button>
-      )}
-      {ineligibleReason && (
-        <span className="jx-factor-researchReason">{t(`holdoutReason.${ineligibleReason}`)}</span>
-      )}
-    </div>
-  );
-}, 'ResearchDisciplineBar');
-
-/**
- * 按研究种类与状态校验运行条件，并处理探索或保留段提交。
- *
- * Validate run eligibility by research kind and state and submit exploration or holdout actions.
+ * Submit an analysis using the current dates and parameters.
  */
 const ResearchRunButton = complex.component(
   ({
@@ -2354,207 +2254,18 @@ const ResearchRunButton = complex.component(
     disabled?: boolean;
   }) => {
     const store = complex.useStore();
-    const { t } = useTranslation('factor');
-    const previous = store.reportDetail?.researchIntent;
-    const suggestion = previous ? undefined : store.researchHandoff?.suggestedReport;
-    const [open, setOpen] = useState(false);
-    const [mode, setMode] = useState<'hypothesis' | 'exploratory'>(
-      store.isMacroRegime ? 'exploratory' : (previous?.mode ?? 'hypothesis'),
-    );
-    const [hypothesis, setHypothesis] = useState(
-      previous?.hypothesis ?? suggestion?.hypothesis ?? '',
-    );
-    const [rationale, setRationale] = useState(previous?.rationale ?? '');
-    const [direction, setDirection] = useState<'positive' | 'negative' | 'unknown'>(
-      previous?.expectedDirection ?? suggestion?.expectedDirection ?? 'positive',
-    );
-    const [metric, setMetric] = useState<FactorResearchMetric>(
-      previous?.primaryCriterion?.metric ??
-        (store.isPanel
-          ? 'panel_rank_ic_mean'
-          : store.isTimeSeries
-            ? 'time_series_median_newey_west_t'
-            : 'rank_ic_mean'),
-    );
-    const [operator, setOperator] = useState<'gt' | 'lt'>(
-      previous?.primaryCriterion?.operator ?? 'gt',
-    );
-    const [value, setValue] = useState(
-      previous?.primaryCriterion?.value ?? (store.isTimeSeries ? 1.96 : 0.02),
-    );
-    const researchKind = store.isMacroRegime
-      ? 'macro_regime'
-      : store.isPanel
-        ? 'panel'
-        : store.isTimeSeries
-          ? 'time_series'
-          : 'cross_sectional';
-    useEffect(() => {
-      setMode(store.isMacroRegime ? 'exploratory' : (previous?.mode ?? 'hypothesis'));
-      setHypothesis(previous?.hypothesis ?? suggestion?.hypothesis ?? '');
-      setRationale(previous?.rationale ?? '');
-      setDirection(previous?.expectedDirection ?? suggestion?.expectedDirection ?? 'positive');
-    }, [previous, store.isMacroRegime, store.selectedKey, suggestion]);
-    useEffect(() => {
-      if (researchKind === 'macro_regime') {
-        setMode('exploratory');
-        return;
-      }
-      const metricKind = metric.startsWith('time_series_')
-        ? 'time_series'
-        : metric.startsWith('panel_')
-          ? 'panel'
-          : 'cross_sectional';
-      if (metricKind === researchKind) {
-        return;
-      }
-      setMetric(
-        researchKind === 'panel'
-          ? 'panel_rank_ic_mean'
-          : researchKind === 'time_series'
-            ? 'time_series_median_newey_west_t'
-            : 'rank_ic_mean',
-      );
-      setValue(researchKind === 'time_series' ? 1.96 : 0.02);
-    }, [metric, researchKind]);
-    const metricOptions: Array<{ value: FactorResearchMetric; label: string }> =
-      researchKind === 'time_series'
-        ? [
-            {
-              value: 'time_series_median_newey_west_t',
-              label: t('criterionTimeSeriesMedianT'),
-            },
-            {
-              value: 'time_series_mean_direction_hit_rate',
-              label: t('criterionTimeSeriesMeanHitRate'),
-            },
-          ]
-        : researchKind === 'panel'
-          ? [
-              { value: 'panel_rank_ic_mean', label: t('criterionPanelRankIc') },
-              {
-                value: 'panel_net_long_short_annualized',
-                label: t('criterionPanelNetLs'),
-              },
-            ]
-          : [
-              { value: 'rank_ic_mean', label: t('criterionRankIc') },
-              { value: 'rank_icir_annual', label: t('criterionIcir') },
-              { value: 'net_long_short_annualized', label: t('criterionNetLs') },
-            ];
-    const effectiveMode = researchKind === 'macro_regime' ? 'exploratory' : mode;
-    const valid =
-      effectiveMode === 'exploratory' ||
-      (!!hypothesis.trim() && direction !== 'unknown' && Number.isFinite(value));
-    const submit = async () => {
-      const intent: FactorResearchIntentV1 =
-        effectiveMode === 'exploratory'
-          ? { version: 1, mode: effectiveMode, expectedDirection: 'unknown' }
-          : {
-              version: 1,
-              mode: effectiveMode,
-              hypothesis: hypothesis.trim(),
-              rationale: rationale.trim() || undefined,
-              expectedDirection: direction,
-              primaryCriterion: { metric, operator, value },
-            };
-      setOpen(false);
-      await store.runAnalysis(intent);
-    };
 
     return (
-      <>
-        <Button
-          className={className}
-          type="primary"
-          size={size}
-          disabled={disabled}
-          loading={store.reportLoader.loading}
-          onClick={() => setOpen(true)}
-        >
-          {children}
-        </Button>
-        <Modal
-          className="jx-factor-researchModal"
-          open={open}
-          title={t('researchCardTitle')}
-          okText={t('confirmRun')}
-          cancelText={t('cancel')}
-          okButtonProps={{ disabled: !valid }}
-          onOk={submit}
-          onCancel={() => setOpen(false)}
-        >
-          <div className="jx-factor-researchForm">
-            {researchKind === 'macro_regime' ? (
-              <Alert type="info" showIcon title={t('macroRegime.researchCardNotice')} />
-            ) : (
-              <Radio.Group value={mode} onChange={(event) => setMode(event.target.value)}>
-                <Radio.Button value="hypothesis">{t('researchModeHypothesis')}</Radio.Button>
-                <Radio.Button value="exploratory">{t('researchModeExploratory')}</Radio.Button>
-              </Radio.Group>
-            )}
-            {effectiveMode === 'hypothesis' ? (
-              <>
-                <Input.TextArea
-                  value={hypothesis}
-                  maxLength={500}
-                  showCount
-                  placeholder={t('hypothesisPlaceholder')}
-                  onChange={(event) => setHypothesis(event.target.value)}
-                />
-                <Input.TextArea
-                  value={rationale}
-                  maxLength={1000}
-                  placeholder={t('rationalePlaceholder')}
-                  onChange={(event) => setRationale(event.target.value)}
-                />
-                <div className="jx-factor-researchRow">
-                  <Select
-                    value={direction}
-                    onChange={(next) => {
-                      setDirection(next);
-                      setOperator(next === 'negative' ? 'lt' : 'gt');
-                    }}
-                    options={[
-                      { value: 'positive', label: t('directionPositive') },
-                      { value: 'negative', label: t('directionNegative') },
-                    ]}
-                  />
-                  <Select
-                    value={metric}
-                    onChange={(next) => {
-                      setMetric(next);
-                      setValue(
-                        next === 'time_series_median_newey_west_t'
-                          ? 1.96
-                          : next === 'time_series_mean_direction_hit_rate'
-                            ? 0.55
-                            : next === 'panel_net_long_short_annualized'
-                              ? 0.03
-                              : next === 'rank_icir_annual'
-                                ? 0.5
-                                : 0.02,
-                      );
-                    }}
-                    options={metricOptions}
-                  />
-                  <Select
-                    value={operator}
-                    onChange={setOperator}
-                    options={[
-                      { value: 'gt', label: '>' },
-                      { value: 'lt', label: '<' },
-                    ]}
-                  />
-                  <InputNumber value={value} step={0.01} onChange={(next) => setValue(next ?? 0)} />
-                </div>
-              </>
-            ) : (
-              <Alert type="info" showIcon title={t('exploratoryNotice')} />
-            )}
-          </div>
-        </Modal>
-      </>
+      <Button
+        className={className}
+        type="primary"
+        size={size}
+        disabled={disabled}
+        loading={store.reportLoader.loading}
+        onClick={() => void store.runAnalysis()}
+      >
+        {children}
+      </Button>
     );
   },
   'ResearchRunButton',
@@ -2634,11 +2345,7 @@ const ReportHistory = complex.component(() => {
                     >
                       {t(`status.${report.status}`)}
                     </span>
-                    <span className="jx-factor-historyPhase">
-                      {t(
-                        `phase.${report.phase}${report.phase === 'holdout' ? (report.sealed ? 'Sealed' : 'Revealed') : ''}`,
-                      )}
-                    </span>
+
                     {active && <FontAwesomeIcon icon={faCheck} />}
                   </span>
                   <span className="jx-factor-historyParams">{reportParamsLabel(report, t)}</span>
@@ -2700,25 +2407,6 @@ const FactorResult = complex.component(() => {
   const runPrompt = () => <Placeholder icon={faPlay} text={t('runPrompt')} />;
   if (loader.initial) {
     return runPrompt();
-  }
-  if (detail?.sealed) {
-    return (
-      <div className="jx-factor-sealed">
-        <Placeholder icon={faLock} text={t('holdoutSealed')} />
-        {detail.canReveal && (
-          <Button
-            type="primary"
-            onClick={() =>
-              modalConfirmReveal(t, () => {
-                void store.revealHoldout();
-              })
-            }
-          >
-            {t('revealHoldout')}
-          </Button>
-        )}
-      </div>
-    );
   }
   return (
     <LoadingArea loader={loader} empty={runPrompt}>
@@ -2874,30 +2562,6 @@ const TimeSeriesReportBody = complex.component(() => {
   }
   return (
     <div className="jx-factor-timeReport" data-testid="time-series-report">
-      {store.reportDetail?.phase === 'holdout' && store.reportDetail.revealedAt && (
-        <Alert
-          type={
-            store.reportDetail.researchPayload &&
-            factorResearchCriterionPassed(
-              store.reportDetail.researchPayload,
-              store.reportDetail.researchIntent,
-            )
-              ? 'success'
-              : 'warning'
-          }
-          showIcon
-          title={t(
-            store.reportDetail.researchPayload &&
-              factorResearchCriterionPassed(
-                store.reportDetail.researchPayload,
-                store.reportDetail.researchIntent,
-              )
-              ? 'holdoutCriterionPassed'
-              : 'holdoutCriterionMissed',
-            { time: dayjs(store.reportDetail.revealedAt).format('YYYY-MM-DD HH:mm') },
-          )}
-        />
-      )}
       <Alert
         type="info"
         showIcon
@@ -2990,15 +2654,6 @@ const PanelReportBody = complex.component(() => {
   const researchSpec = store.reportDetail?.researchSpec;
   const spec =
     researchSpec?.analysisKind === 'panel' ? (researchSpec as PanelFactorResearchSpecV1) : null;
-  const revealedHoldout =
-    store.reportDetail?.phase === 'holdout' && !!store.reportDetail.revealedAt;
-  const holdoutCriterionPassed =
-    revealedHoldout && !!store.reportDetail?.researchPayload
-      ? factorResearchCriterionPassed(
-          store.reportDetail.researchPayload,
-          store.reportDetail.researchIntent,
-        )
-      : false;
   const isCommodityCarry =
     store.reportDetail?.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry') ??
     false;
@@ -3007,16 +2662,6 @@ const PanelReportBody = complex.component(() => {
   }
   return (
     <div className="jx-factor-timeReport" data-testid="panel-report">
-      {revealedHoldout && (
-        <Alert
-          data-testid="panel-holdout-result"
-          type={holdoutCriterionPassed ? 'success' : 'warning'}
-          showIcon
-          title={t(holdoutCriterionPassed ? 'holdoutCriterionPassed' : 'holdoutCriterionMissed', {
-            time: dayjs(store.reportDetail.revealedAt).format('YYYY-MM-DD HH:mm'),
-          })}
-        />
-      )}
       <Alert
         type="info"
         showIcon
@@ -3182,18 +2827,6 @@ const ReportBody = complex.component(() => {
   const longShort = useMktcap ? r.longShortMktcap! : r.longShort;
   return (
     <>
-      {store.reportDetail?.phase === 'holdout' && store.reportDetail.revealedAt && (
-        <Alert
-          type={criterionPassed(r, store.reportDetail.researchIntent) ? 'success' : 'warning'}
-          showIcon
-          title={t(
-            criterionPassed(r, store.reportDetail.researchIntent)
-              ? 'holdoutCriterionPassed'
-              : 'holdoutCriterionMissed',
-            { time: dayjs(store.reportDetail.revealedAt).format('YYYY-MM-DD HH:mm') },
-          )}
-        />
-      )}
       <div className="jx-factor-resultHead">
         <span className="jx-factor-sample">
           {t('sample', {
@@ -3924,52 +3557,6 @@ function factorDisplayName(factor: FactorMeta): string {
 
 function formatTradeDate(value: string): string {
   return dayjs(value, 'YYYYMMDD').format('YYYY-MM-DD');
-}
-
-function modalConfirmReveal(t: TFunction<'factor'>, onOk: () => void): void {
-  Modal.confirm({
-    title: t('revealConfirmTitle'),
-    content: t('revealConfirmContent'),
-    okText: t('revealHoldout'),
-    cancelText: t('cancel'),
-    onOk,
-  });
-}
-
-/**
- * 读取当前报告指标并按预注册阈值判断显示状态。
- *
- * Evaluate the report metric against its preregistered threshold.
- */
-function criterionPassed(report: FactorReport, intent?: FactorResearchIntentV1): boolean {
-  const criterion = intent?.primaryCriterion;
-  if (!criterion) {
-    return false;
-  }
-  const metric = {
-    rank_ic_mean: report.icMean,
-    rank_icir_annual: report.icirAnnual,
-    net_long_short_annualized: report.longShortNet?.annReturn ?? Number.NaN,
-    time_series_median_newey_west_t: Number.NaN,
-    time_series_mean_direction_hit_rate: Number.NaN,
-    panel_rank_ic_mean: Number.NaN,
-    panel_net_long_short_annualized: Number.NaN,
-  }[criterion.metric];
-  return criterion.operator === 'gt' ? metric > criterion.value : metric < criterion.value;
-}
-
-function criterionMetricLabel(t: TFunction, metric: FactorResearchMetric): string {
-  const labelKey: Record<FactorResearchMetric, string> = {
-    rank_ic_mean: 'criterionRankIc',
-    rank_icir_annual: 'criterionIcir',
-    net_long_short_annualized: 'criterionNetLs',
-    time_series_median_newey_west_t: 'criterionTimeSeriesMedianT',
-    time_series_mean_direction_hit_rate: 'criterionTimeSeriesMeanHitRate',
-    panel_rank_ic_mean: 'criterionPanelRankIc',
-    panel_net_long_short_annualized: 'criterionPanelNetLs',
-  };
-
-  return t(labelKey[metric]);
 }
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;

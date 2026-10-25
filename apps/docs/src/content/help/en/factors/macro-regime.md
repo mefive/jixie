@@ -38,5 +38,4 @@ The current model does not expose publication or Use in strategy. State labels a
 ## Related articles
 
 - [Why a backtest is not a forecast](/docs/help/basics/backtest-limitations)
-- [Research card, exploration, and holdout](/docs/help/factors/research-card)
 - [Read multi-asset allocation attribution](/docs/help/backtesting/allocation-attribution)

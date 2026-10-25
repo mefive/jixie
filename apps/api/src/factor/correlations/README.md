@@ -8,7 +8,7 @@
 
 [job-lifecycle.ts](job-lifecycle.ts) 的 `factorCorrelationLifecycle` 注册为 factor-correlation，校验 payload 用户且不得关联 FactorReport。[worker.ts](worker.ts) 调用 [compute.ts](compute.ts) 的 `computeFactorCorrelation`，只复用 [横截面数据与序列](../observations/cross-sectional/README.md)，最后断开 Prisma。主线程通过 onSuccess 在终态事务中 upsert 缓存；失败／恢复保留上次成功缓存，由 jobs/service 更新 Job。
 
-任务读取经 [jobs](../jobs/README.md) 校验用户、独立 kind 和无报告关联，不能用它读取 holdout 日志。源码／编译 Worker 路径见 [运行清单](../../../../../docs/backend-runtime-entries.md)。
+任务读取经 [jobs](../jobs/README.md) 校验用户、独立 kind 和无报告关联，不能用它读取分析报告的日志。源码／编译 Worker 路径见 [运行清单](../../../../../docs/backend-runtime-entries.md)。
 
 修改键规范化、缓存优先和任务复用看 [路由集成测试](../routes/index.integration.test.ts)；完成／恢复看 [Job 集成测试](../../../tests/job-lifecycle.integration.test.ts)；因子序列规则看 [series.test.ts](../observations/cross-sectional/series.test.ts)。
 

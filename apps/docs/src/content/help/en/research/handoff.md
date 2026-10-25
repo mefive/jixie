@@ -28,7 +28,7 @@ When the snapshot contains a clear point-in-time signal supported by platform da
 4. Check the source card for the originating version, extracted summary, and remaining validation items.
 5. Configure and explicitly run FactorReport. Publish only from an approved report matching the current definition.
 
-Supported universe, dates, frequency, filters, and prespecified direction can become suggested parameters. The handoff does not run a report, reveal Holdout, or publish the Factor automatically.
+Handoff may suggest a universe, dates, frequency and filters, but does not run or publish automatically. Review the code and a matching successful report before explicitly publishing a version.
 
 Conversion can be rejected when a study describes only a relationship and no signal computable at each decision time. Return to the document and specify the inputs and rule.
 
@@ -47,7 +47,7 @@ A predictive relationship without portfolio and trading rules belongs in Factor 
 
 - The source snapshot does not change with later draft edits.
 - The Factor or Strategy draft is an independent object and does not write back to the snapshot.
-- Exploratory charts and Agent explanations are not formal evidence. FactorReport, Holdout, costs, capacity, and backtests remain separate checks.
+- Handoff may suggest a universe, dates, frequency and filters, but does not run or publish automatically. Review the code and a matching successful report before explicitly publishing a version.
 - Historical success does not guarantee future returns or constitute trading advice.
 
 ## Related articles

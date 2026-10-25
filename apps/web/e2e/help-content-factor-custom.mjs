@@ -134,16 +134,12 @@ async function captureNewFactorFlow() {
 
 async function runCustomFactorAnalysis() {
   const runButton = page.locator('.jx-factor-runButton');
-  await runButton.click();
-  const modal = page.locator('.jx-factor-researchModal');
-  await modal.waitFor();
-  await modal.getByText('纯探索', { exact: true }).click();
   const submission = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
       new URL(response.url()).pathname === '/api/app/factors/analyses',
   );
-  await modal.getByRole('button', { name: '冻结研究卡并运行' }).click();
+  await runButton.click();
   const response = await submission;
   if (response.status() !== 200) {
     throw new Error(

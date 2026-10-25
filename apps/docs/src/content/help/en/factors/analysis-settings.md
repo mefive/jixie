@@ -79,7 +79,7 @@ Do not set all costs to zero and treat the gross result as achievable.
 ## Finish the settings
 
 1. Select **Run analysis** at the bottom of the panel, or close the panel and use the action at the top.
-2. Complete the pre-run research card.
+2. Confirm the dates and parameters, submit directly, and wait for the completed report.
 3. Wait for the new report.
 4. Recheck frequency, dates, and neutralization at the top.
 5. Verify the universe, outlier, and cost definitions in the methodology card.

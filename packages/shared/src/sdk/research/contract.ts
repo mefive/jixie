@@ -2583,14 +2583,14 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
         'rank_ic_mean = report["report"]["ic_mean"]',
       ],
       notesZh: [
-        '返回顶层字段包括 report_id、factor、analysis_kind、phase、research_spec、research_intent、lineage 与 report。',
+        '返回顶层字段包括 report_id、factor、analysis_kind、research_spec、lineage 与 report。',
         'report 与 research_spec 的字段使用 snake_case；原报告快照不会被修改或重新运行。',
-        '未揭示的 holdout 报告保持封存，其他用户的报告不可见。',
+        '仅可读取当前研究文档所属用户已完成的报告。',
       ],
       notesEn: [
-        'Top-level keys include report_id, factor, analysis_kind, phase, research_spec, research_intent, lineage, and report.',
+        'Top-level keys include report_id, factor, analysis_kind, research_spec, lineage, and report.',
         'The report and research_spec fields use snake_case; the frozen report is neither mutated nor rerun.',
-        'Unrevealed holdout reports remain sealed, and reports owned by other users are not visible.',
+        'Only completed reports owned by the current Research document user are readable.',
       ],
       parameters: [
         {

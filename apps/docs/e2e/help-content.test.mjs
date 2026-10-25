@@ -54,7 +54,7 @@ function editManifest(root, transform) {
 test('accepts the bilingual corpus without rewriting the inventory', () => {
   const before = readFileSync(resolve(ROOT, MANIFEST), 'utf8');
   const { summary } = checkHelpContent();
-  assert.equal(summary.articlesPerLocale, 90);
+  assert.equal(summary.articlesPerLocale, 88);
   assert.equal(summary.learningEvidence, 25);
   assert.equal(readFileSync(resolve(ROOT, MANIFEST), 'utf8'), before);
 });

@@ -11,19 +11,17 @@ import type {
 } from '@jixie/shared';
 import { timeSeriesAggregateMetrics } from '@jixie/shared';
 import { reportResearchSpec } from './report-spec.js';
-import { parseResearchIntent } from './research-policy.js';
 
 /**
- * 提取报告摘要并屏蔽不应公开的保留段结果。
+ * 提取报告身份、参数与结果摘要。
  *
- * Build report summary metadata without exposing sealed holdout results.
+ * Build report identity, parameters and result summaries.
  */
 export function reportSummary(
   row: FactorReportRow & { status: string; error: string | null } & { job?: { id: string } | null },
 ): FactorReportSummary {
-  const sealed = row.phase === 'holdout' && row.revealedAt === null;
   const researchSpec = reportResearchSpec(row);
-  const researchPayload = sealed ? undefined : parseResearchPayload(row.payload, researchSpec);
+  const researchPayload = parseResearchPayload(row.payload, researchSpec);
   const crossSectionalPayload =
     researchPayload?.analysisKind === 'cross_sectional' ? researchPayload.report : undefined;
   const timeSeriesMetrics =
@@ -45,7 +43,6 @@ export function reportSummary(
     language: row.language === 'python' ? 'python' : 'typescript',
     runtimeVersion: row.language === 'python' ? 'py-v1' : 'ts-v1',
     status: reportStatus(row.status),
-    phase: row.phase === 'explore' || row.phase === 'holdout' ? row.phase : 'legacy',
     spec: researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : undefined,
     researchSpec,
     variantKey: row.variantKey ?? undefined,
@@ -53,9 +50,6 @@ export function reportSummary(
     createdAt: row.createdAt.toISOString(),
     computedAt: row.computedAt?.toISOString(),
     error: row.error ?? undefined,
-    sealed,
-    revealedAt: row.revealedAt?.toISOString(),
-    researchIntent: parseResearchIntent(row.researchIntentJson),
     metrics: crossSectionalPayload
       ? { rankIc: crossSectionalPayload.icMean }
       : timeSeriesMetrics

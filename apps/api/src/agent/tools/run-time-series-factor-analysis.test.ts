@@ -1,8 +1,4 @@
-import type {
-  FactorHoldoutPolicyV1,
-  FactorTimeSeriesReportV1,
-  RunFactorAnalysisResponse,
-} from '@jixie/shared';
+import type { FactorTimeSeriesReportV1, RunFactorAnalysisResponse } from '@jixie/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ findFirst: vi.fn() }));
@@ -21,16 +17,6 @@ vi.mock('#infra/database/prisma.js', async () => {
 });
 
 import { runTimeSeriesFactorAnalysisTool } from './run-time-series-factor-analysis.js';
-
-const policy: FactorHoldoutPolicyV1 = {
-  version: 1,
-  months: 18,
-  latestDate: '20260730',
-  exploreEnd: '20260130',
-  holdoutStart: '20260202',
-  holdoutEnd: '20260730',
-  checkedAt: '2026-07-31T00:00:00.000Z',
-};
 
 const report: FactorTimeSeriesReportV1 = {
   assets: ['511010.SH', '518880.SH'],
@@ -62,18 +48,6 @@ const report: FactorTimeSeriesReportV1 = {
   ],
 };
 
-const intent = {
-  version: 1 as const,
-  mode: 'hypothesis' as const,
-  hypothesis: 'Positive ETF trend should predict positive forward returns.',
-  expectedDirection: 'positive' as const,
-  primaryCriterion: {
-    metric: 'time_series_median_newey_west_t' as const,
-    operator: 'gt' as const,
-    value: 1.96,
-  },
-};
-
 describe('runTimeSeriesFactorAnalysisTool', () => {
   beforeEach(() => {
     mocks.findFirst.mockReset();
@@ -94,7 +68,6 @@ describe('runTimeSeriesFactorAnalysisTool', () => {
       factorId: 'factor-1',
       currentCode: 'current Definition V2',
       locale: 'zh',
-      getPolicy: async () => policy,
       start,
       wait,
     });
@@ -102,10 +75,9 @@ describe('runTimeSeriesFactorAnalysisTool', () => {
     const result = await tool.run({
       code: 'candidate Definition V2',
       start: '20200101',
-      end: '20260130',
+      end: '20260730',
       assets: ['511010.SH', '518880.SH'],
       horizon: 20,
-      researchIntent: intent,
     });
 
     expect(start.mock.calls[0][0]).toMatchObject({
@@ -120,10 +92,9 @@ describe('runTimeSeriesFactorAnalysisTool', () => {
         observationFrequency: 'daily',
         assets: ['511010.SH', '518880.SH'],
         target: { horizon: 20, horizonUnit: 'trade_day' },
-        dataPolicy: { pointInTime: true, dataCutoff: '20260130' },
+        dataPolicy: { pointInTime: true, dataCutoff: '20260730' },
         inference: { standardError: 'newey_west', lag: 'automatic' },
       },
-      researchIntent: intent,
     });
     expect(JSON.parse(result.observation)).toMatchObject({
       analysisKind: 'time_series',
@@ -139,52 +110,5 @@ describe('runTimeSeriesFactorAnalysisTool', () => {
       },
     });
     expect(result.rows).toBe(2);
-  });
-
-  it('rejects a stock cross-sectional primary criterion', async () => {
-    const tool = runTimeSeriesFactorAnalysisTool({
-      userId: 'user-1',
-      factorId: 'factor-1',
-      currentCode: 'current Definition V2',
-      locale: 'zh',
-    });
-
-    await expect(
-      tool.run({
-        start: '20200101',
-        end: '20260130',
-        assets: ['511010.SH'],
-        horizon: 20,
-        researchIntent: {
-          ...intent,
-          primaryCriterion: { metric: 'rank_ic_mean', operator: 'gt', value: 0.02 },
-        },
-      }),
-    ).rejects.toThrow('Time-series research requires a time-series primary criterion');
-  });
-
-  it('rejects a sample that crosses the sealed holdout', async () => {
-    const start = vi.fn(async () => {
-      throw new Error('should not run');
-    });
-    const tool = runTimeSeriesFactorAnalysisTool({
-      userId: 'user-1',
-      factorId: 'factor-1',
-      currentCode: 'current Definition V2',
-      locale: 'zh',
-      getPolicy: async () => policy,
-      start,
-    });
-
-    await expect(
-      tool.run({
-        start: '20200101',
-        end: '20260202',
-        assets: ['511010.SH'],
-        horizon: 20,
-        researchIntent: intent,
-      }),
-    ).rejects.toThrow('crosses the sealed holdout');
-    expect(start).not.toHaveBeenCalled();
   });
 });

@@ -686,8 +686,10 @@ try {
 
   await page.getByRole('link', { name: '第一次运行预设因子分析', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '第一次运行预设因子分析' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 3) {
-    throw new Error('first preset factor article does not render all three screenshots');
+  if ((await page.locator('.jx-help-figure').count()) !== 2) {
+    throw new Error(
+      'first preset factor article does not render its workspace and progress screenshots',
+    );
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
@@ -755,33 +757,20 @@ try {
     .locator('.jx-help-figure img')
     .evaluateAll((images) => images.map((image) => new URL(image.src).pathname));
   const expectedReportHistoryImages = [
-    '/docs/images/help/zh/factors/factor-holdout-history-01.png',
     '/docs/images/help/zh/factors/factor-report-outdated-01.png',
     '/docs/images/help/zh/factors/report-question.png',
   ];
   if (JSON.stringify(reportHistoryImages) !== JSON.stringify(expectedReportHistoryImages)) {
-    throw new Error('factor report-history article must render history, outdated, and Q&A images');
+    throw new Error('factor report-history article must render outdated and Q&A images');
   }
 
-  await page.getByRole('link', { name: '运行前研究卡和探索变体', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '运行前研究卡和探索变体' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('factor research-card article does not render both screenshots');
+  if (await page.getByRole('link', { name: '运行前研究卡和探索变体', exact: true }).count()) {
+    throw new Error('retired research-card guide remains discoverable');
   }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 2) {
-    throw new Error('factor research-card formulas did not render with KaTeX');
+  if (await page.getByRole('link', { name: '正式保留段和样本外结果', exact: true }).count()) {
+    throw new Error('retired holdout guide remains discoverable');
   }
-
-  await page.getByRole('link', { name: '正式保留段和样本外结果', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '正式保留段和样本外结果' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 5) {
-    throw new Error('factor holdout article does not render all five screenshots');
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(100);
-  await page.screenshot({
-    path: `${SHOTS}12c-help-factor-holdout.png`,
-  });
+  await page.screenshot({ path: `${SHOTS}12c-help-factor-report-history.png` });
 
   await page.getByRole('link', { name: '因子相关性矩阵', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '因子相关性矩阵' }).waitFor();
@@ -830,8 +819,8 @@ try {
   }
 
   await page.getByRole('link', { name: '让因子 Agent 运行探索分析', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '让因子 Agent 运行探索分析' }).waitFor();
-  await page.getByRole('heading', { level: 2, name: 'Agent 不能做什么' }).waitFor();
+  await page.getByRole('heading', { level: 1, name: '让因子 Agent 运行分析' }).waitFor();
+  await page.getByRole('heading', { level: 2, name: '核对结果' }).waitFor();
 
   await page.getByRole('link', { name: '设置 Factor key', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '设置 Factor key' }).waitFor();
@@ -977,7 +966,7 @@ try {
   await page
     .getByRole('heading', {
       level: 1,
-      name: 'Publish a Factor and use it in a strategy',
+      name: 'Publish a factor version',
       exact: true,
     })
     .waitFor();
@@ -986,7 +975,7 @@ try {
       (image) => image.complete && image.naturalWidth > 0,
     ),
   );
-  await page.locator('.jx-help-figure').last().scrollIntoViewIfNeeded();
+  await page.locator('.jx-help-markdown').scrollIntoViewIfNeeded();
   assert.equal(
     await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1),
     false,
@@ -1042,8 +1031,8 @@ async function checkCurrentWorkflow(slug, locale) {
       link: 'research/embedded-analysis',
     },
     'factors/publish-factor': {
-      heading: { zh: '从报告进入策略工作台', en: 'Continue to Strategy' },
-      text: { zh: '此时尚未生成策略代码', en: 'Strategy code has not yet been generated' },
+      heading: { zh: '操作', en: 'Steps' },
+      text: { zh: '不代表系统认可其投资价值', en: 'does not certify investment quality' },
       link: 'factors/factor-in-strategy',
     },
   };
@@ -1060,7 +1049,7 @@ async function checkCurrentWorkflow(slug, locale) {
   );
   await page.locator(`.jx-help-markdown a[href="/docs/help/${expected.link}"]`).first().waitFor();
   if (slug === 'factors/publish-factor') {
-    await page.locator('.jx-help-figure').last().scrollIntoViewIfNeeded();
+    await page.locator('.jx-help-markdown').scrollIntoViewIfNeeded();
     await page.screenshot({ path: `${SHOTS}18-help-current-workflow-${locale}.png` });
   }
   await page.locator(`.jx-help-markdown a[href="/docs/help/${expected.link}"]`).first().click();

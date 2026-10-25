@@ -173,6 +173,15 @@ async function seedMarket() {
       startDate: '20000101',
     })),
   });
+  await prisma.indexWeight.createMany({
+    data: stocks.map((stock) => ({
+      indexCode: '000300.SH',
+      conCode: stock.tsCode,
+      tradeDate: '20230102',
+      weight: 100 / stocks.length,
+    })),
+  });
+
   await prisma.etfBasic.create({
     data: {
       tsCode: '510300.SH',
@@ -214,7 +223,7 @@ async function seedMarket() {
     })),
   });
   // Each short batch keeps fixture memory bounded. Later single-asset observations establish a
-  // realistic holdout boundary and support historical backtest dates.
+  // coverage for recent analyses and historical backtest dates.
   for (let offset = 0; offset < dates.length; offset += 20) {
     const rows = dates.slice(offset, offset + 20).flatMap((tradeDate, day) =>
       (tradeDate < '20250101' ? stocks : stocks.slice(0, 1)).map((stock, index) => {

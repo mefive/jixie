@@ -1,114 +1,28 @@
 # Report history and outdated results
 
-> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+Each analysis saves the submitted code, dates and parameters together with its eventual result. A completed rerun creates a new report; an identical queued or running analysis reuses that task.
 
-Each factor analysis creates a separate report. Report history keeps the factor code, analysis settings, status, and result used at that time, so you can reopen and compare them later.
+## Open a report
 
-It is not a temporary cache of the latest result. Running the same settings again after the previous report finishes creates another record instead of replacing the old one.
+1. Select a factor in the workbench.
+2. Open **Report history** and choose a report.
+3. Check dates, frequency, analysis kind, source and data cutoff.
+4. Inspect results and logs. Save the page address to reopen the same report.
 
-## Open report history
+Reports are private to their owner. Completed results can be read directly without a reveal step.
 
-1. Find **History** at the upper right of the factor page.
-2. Open the report list.
-3. Find the creation time and settings you need.
-4. Select the record. The page restores that report's settings and result.
+## Handle outdated results
 
-A report can have one of these statuses:
+Editing code or settings does not recalculate an old report. When the page marks results as outdated, run again with the current settings or restore the report's saved settings. Compare consistent data definitions, costs and samples, and retain unfavorable findings too.
 
-- **Running**: computation is still in progress. You can refresh and return through the same record.
-- **Done**: the result is available.
-- **Failed**: computation did not finish, but the failed record remains.
-- **Interrupted**: the original task cannot continue after a restart or abnormal exit. You can run the same settings again.
+## Ask about a report
 
-Records are also labeled Explore, Holdout · sealed, Holdout · revealed, or Historical. A holdout is a reserved period that was not used to adjust the factor. See [Formal holdout and out-of-sample results](/help/factors/holdout-results).
+Attach an owned completed report to a question, or ask about the definition only. The Agent receives a summary; use [embedded analysis](/docs/help/research/embedded-analysis) for additional calculations. Missing information must be stated explicitly, and an explanation is not a new factor test.
 
-The numbered areas below are:
+![Historical Chinese UI example: Changed code or settings require a rerun](/docs/images/help/zh/factors/factor-report-outdated-01.png)
 
-1. A completed formal holdout whose result is still sealed.
-2. The explore report that produced it.
+![Report questions](/docs/images/help/en/factors/report-question.png)
 
-![Historical Chinese UI example: Explore and sealed holdout reports in report history](/docs/images/help/zh/factors/factor-holdout-history-01.png)
+## Publish a version
 
-The date range, neutralization setting, and Rank IC in the list help identify a report. Open it and verify the full methodology before comparing results.
-
-## What opening a historical report restores
-
-The page restores the saved analysis settings, including:
-
-- Monthly or weekly frequency.
-- Start and end dates.
-- No neutralization, size neutralization, or size and industry neutralization.
-- Versioned universe, missing-data, outlier, and cost settings.
-- The factor-code snapshot used for that run.
-
-The code SHA-256 shown in a report is a content fingerprint. Different fingerprints mean the calculation code was different.
-
-A historical report preserves its saved inputs and output, but a complete market-data revision identifier is not yet connected. Do not assume that a later recomputation must reproduce every digit after underlying market data is corrected.
-
-## Why the page says the report uses old settings
-
-If you change analysis settings without running again, the page continues to show the old report and displays a yellow warning.
-
-The numbered areas below are:
-
-1. The current draft now uses size neutralization.
-2. **Run again** will create a report from the new draft.
-3. The warning says that the visible result still comes from the old settings.
-
-![Historical Chinese UI example: An existing report marked outdated after settings change](/docs/images/help/zh/factors/factor-report-outdated-01.png)
-
-“Outdated” does not mean the historical report is invalid or deleted. It means:
-
-> The current editor or analysis settings no longer match the report on screen.
-
-You can:
-
-1. Keep the change and select **Run again** to create a new report.
-2. Discard the change by reopening the current historical report.
-3. Run the new settings, then compare both records from history.
-
-Editing custom factor code produces the same type of warning. The old report keeps its code snapshot and does not disappear when the editor changes.
-
-## Compare two reports correctly
-
-Confirm that only the intended item changed. When comparing neutralization, for example, keep these inputs the same:
-
-- Factor code.
-- Frequency and date range.
-- Universe and sample treatment.
-- Trading costs.
-- Expected direction and primary criterion in the research card.
-
-Then compare decile ordering, Rank IC, ICIR, turnover, net-of-cost results, and maximum drawdown. A single higher number is not meaningful if several inputs also changed.
-
-Repeating the same settings adds reports but may not add research variants. See [Pre-run research cards and variants](/help/factors/research-card).
-
-## Ask about the selected report
-
-For presets, composites, and published or other read-only factors, the conversation is saved as your private history. Return to the same factor or refresh to restore it. Publishing the factor does not publish your questions, and this history is separate from draft authoring messages and other users' conversations.
-
-Before asking, choose **Use selected report** or **Definition only** when a report is open. Selected report uses the report on screen, including an older report whose settings differ from your current draft. It does not silently choose the latest result. Definition only is for formulas and methods, without measured-performance evidence.
-
-Expand **Question source** on a question to inspect the saved definition, code fingerprint, report ID and summary, report code when available, and capture time. Selecting another report keeps earlier questions tied to their original context and shows the difference. The saved definition can also differ from the code used by the report.
-
-The default question context contains a report summary, not all observations. Use **Reference data** and [embedded analysis](/docs/help/research/embedded-analysis) to read saved reports or calculate further, then inspect the inputs actually fetched in the card. The Agent should identify missing metrics or details. Neither an explanation nor an embedded calculation is a new factor evaluation. Use the Factor workbench to reevaluate a definition, create a FactorReport, or handle formal Holdout. Unfinished, unauthorized, or sealed Holdout reports cannot be attached. Choose Definition only, or handle the report in the workbench first.
-
-Refreshing does not cancel the answer. If the connection ends, choose **Refresh history / reconnect**. Failed, cancelled, and interrupted attempts remain under the question; asking again creates a new record. Use **Load earlier questions** for longer histories. Only questions saved after this upgrade can be restored: earlier browser-only messages cannot be recovered. Refresh an old page if it reports that the question interface has changed.
-
-**1** selects report questions or definition-only questions, **2** references data or opens analysis history, and **3** identifies publication and report information.
-
-![Current interface and controls](/docs/images/help/en/factors/report-question.png)
-
-## Things to know
-
-- Report history is a research record, not a trading recommendation.
-- Failed and interrupted records do not become successful reports automatically.
-- There is no action for deleting one individual report.
-- Running again adds a report instead of overwriting the selected record.
-- Dates and figures in an old report can differ from the latest report.
-
-## Related articles
-
-- [Size and industry neutralization](/help/factors/neutralization)
-- [Pre-run research cards and variants](/help/factors/research-card)
-- [Formal holdout and out-of-sample results](/help/factors/holdout-results)
+Publication fixes the current code and a matching successful report. Published versions cannot be edited; copy one to a new draft to make changes. Existing strategies keep their original version key. See [Publish a factor version](/docs/help/factors/publish-factor).

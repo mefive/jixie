@@ -10,7 +10,7 @@
 | `maintenance.ts` | 维护状态及最近成功部署版本的类型和查询 |
 | `agent.ts` | 通用 turn 查询、取消、SSE 订阅与解析；旧图表重算请求已移除 |
 | `strategy.ts` | 策略定义、回测报告与任务、参数扫描、策略 Agent |
-| `factor.ts` | 因子与组合、发布、分析报告、holdout、相关性、天气、因子 Agent/问答 |
+| `factor.ts` | 因子与组合、发布、分析报告、相关性、天气、因子 Agent/问答 |
 | `market.ts` | 证券和指数序列、名称、估值、市场状态与天气 |
 | `research.ts` | 文档/Cell、执行与交接、提案、研究 Agent、数据查询与语言服务 |
 | `research-embedded.ts` | 嵌入式分析、版本、草稿、运行、保留输入和继续研究 |

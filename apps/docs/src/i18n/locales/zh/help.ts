@@ -82,13 +82,13 @@ export const zhHelp = {
         eyebrow: '第三条 · 因子研究',
         title: '沪深 300 价值因子',
         description:
-          '用盈利收益率预设冻结沪深 300 股票横截面问题，结合 Rank IC、十组收益、中性化和一次正式保留段揭示裁决证据。',
+          '阅读沪深 300 盈利收益率历史案例，理解 Rank IC、十组收益、中性化和不同样本区间。',
         start: '开始因子研究',
         stepsTitle: '这条路径怎样推进',
         steps: {
           hypothesis: {
-            title: '预注册假设',
-            description: '固定正向预期、主要标准和唯一诊断。',
+            title: '明确研究问题',
+            description: '说明预期方向和需要观察的指标。',
           },
           scope: {
             title: '冻结范围',
@@ -98,9 +98,9 @@ export const zhHelp = {
             title: '阅读排序证据',
             description: '区分 Rank IC、十组收益和多空研究构造。',
           },
-          holdout: {
-            title: '揭示保留段',
-            description: '核对冻结协议，只进行一次不可逆揭示。',
+          samples: {
+            title: '比较样本区间',
+            description: '核对历史报告的日期和方法，理解各区间差异。',
           },
           verdict: {
             title: '裁决证据',
@@ -140,9 +140,8 @@ export const zhHelp = {
       },
       commodity: {
         eyebrow: '第五条 · 商品研究',
-        title: '商品 Carry 与样本外',
-        description:
-          '用黄金、铜、原油和豆粕真实月合约冻结 Panel 与时间序列检验，核对期限结构、代理误差、多重检验和两份失败 Holdout。',
+        title: '商品 Carry 历史案例',
+        description: '阅读黄金、铜、原油和豆粕历史报告，理解期限结构、代理误差及不稳定结果。',
         start: '开始商品研究',
         stepsTitle: '这条路径怎样推进',
         steps: {
@@ -154,13 +153,13 @@ export const zhHelp = {
             title: '审计代理误差',
             description: '核对实际期货品种与四只映射 ETF 的差异。',
           },
-          preregister: {
-            title: '冻结两项测试',
-            description: '分别登记横截面排序和逐商品时间序列标准。',
+          design: {
+            title: '阅读两种分析',
+            description: '比较横截面排序和逐商品时间序列的研究问题。',
           },
-          holdout: {
-            title: '先密封再揭示',
-            description: '两份报告同时密封后才查看首次保留段。',
+          samples: {
+            title: '核对历史样本',
+            description: '比较历史报告的日期范围与不同统计口径。',
           },
           verdict: {
             title: '保留失败裁决',
@@ -171,8 +170,7 @@ export const zhHelp = {
       positiveFactor: {
         eyebrow: '第六条 · 正面准入',
         title: '销售收益率与因子准入',
-        description:
-          '读取销售收益率原始探索、去冗余和唯一正式 Holdout，核对冻结代码血缘，并学习如何给出有限但真正正面的晋级裁决。',
+        description: '阅读销售收益率原始历史报告，核对代码、冗余、成本和样本敏感性。',
         start: '开始正面因子研究',
         stepsTitle: '这条路径怎样推进',
         steps: {
@@ -181,16 +179,16 @@ export const zhHelp = {
             description: '定义 1/PS_TTM、方向、缺失规则和数据边界。',
           },
           gates: {
-            title: '设置三道准入门',
-            description: '固定 Rank IC、去冗余、成本和辅助证据。',
+            title: '检查三类证据',
+            description: '结合 Rank IC、冗余、成本和辅助证据解释结果。',
           },
           explore: {
             title: '读取探索与冗余',
             description: '先确认方向，再排除 EP、BP 和规模换皮。',
           },
-          holdout: {
-            title: '核对原始 Holdout',
-            description: '只读取首次揭示，不把复查冒充新样本外。',
+          samples: {
+            title: '核对另一段样本',
+            description: '阅读既有结果，不把重复检查称为新样本。',
           },
           advance: {
             title: '晋级但不跳级',

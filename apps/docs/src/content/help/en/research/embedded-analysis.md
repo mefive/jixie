@@ -58,9 +58,7 @@ Legacy chat charts have been retired. Reopening an older conversation preserves 
 
 ## Move to formal validation
 
-An analysis card explains a calculation on existing samples. It does not create a new factor evaluation, launch a backtest, reveal a holdout, publish a factor or operate an account.
-
-Use the factor workbench and research card to validate a candidate. Existing Agent-driven factor exploration reports retain their research-card and holdout rules. Explicitly run the strategy in the strategy workbench to validate trading rules. Research's existing promotion and handoff workflow can also create Factor or Strategy drafts.
+Embedded analysis explains existing samples; it does not automatically create a FactorReport or publish a version. To evaluate a factor, choose dates and parameters in the factor workbench. Run trading-rule backtests explicitly in the strategy workbench.
 
 - [Use the research data catalog](/docs/help/research/data-catalog)
 - [Research documents and run records](/docs/help/research/records)

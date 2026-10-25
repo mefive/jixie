@@ -35,10 +35,10 @@ The current focus is learning, research, and historical validation. Cross-market
 6. [Run your first backtest](/help/getting-started/first-backtest).
 7. Follow [CSI 300 trend strategy](/help/learning/csi300-trend-strategy) to audit parameters, costs, and out-of-sample evidence.
 8. [Run your first preset Factor analysis](/help/factors/first-preset-analysis) to learn the report surface.
-9. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to preregister a cross-sectional hypothesis and reveal one formal holdout.
+9. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to understand cross-sectional ranking and compare dated samples.
 11. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to separate asset allocation, timing, and costs with four actual runs before reconciling complete risk.
-12. Follow [Commodity carry](/help/learning/commodity-carry-holdout) to audit term structure, proxy error, and formal holdouts with two preregistered tests.
-13. Follow [Sales yield](/help/learning/sales-yield-positive) to audit the first positive Factor case that passed exploration, redundancy, and its formal holdout.
+12. Follow [Commodity carry](/help/learning/commodity-carry-holdout) to read historical term-structure, proxy-error and dated-sample evidence.
+13. Follow [Sales yield](/help/learning/sales-yield-positive) to read historical sales-yield results and their limits.
 14. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 
 ## What the product cannot decide for you

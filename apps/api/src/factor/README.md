@@ -2,7 +2,7 @@
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
 
-Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观察。Research 可交接草稿或读取结果，Strategy 消费可用因子，通用 Agent 执行对话；因子的所有权、状态和准入由本模块决定。
+Factor 拥有因子定义、组合、正式评估、发布和持续观察。Research 可交接草稿或读取结果，Strategy 消费可用因子，通用 Agent 执行对话；因子的所有权、状态和准入由本模块决定。
 
 ## 按业务问题进入
 
@@ -12,7 +12,7 @@ Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观
 | 组合定义和组件如何协作 | [composition](composition/README.md)：组合读写、复制及组合计算／来源 |
 | 何时允许发布、归档或公开 | [publication](publication/README.md)：报告证据、源码和状态核对 |
 | 输入数据从哪里来、何时可得 | [observations](observations/README.md)：各资产与 PIT 观察值、截止日；[横截面数据与序列](observations/cross-sectional/README.md) 也供相关性复用 |
-| 提交分析、读报告、holdout 与统计 | [evaluations](evaluations/README.md)：冻结正式报告和 Job 生命周期 |
+| 提交分析与读报告 | [evaluations](evaluations/README.md)：冻结正式报告和 Job 生命周期 |
 | 计算如何被评估和天气复用 | [analysis](analysis/README.md)：四类评估算法、共享计算与 Worker；[cross-sectional](analysis/cross-sectional/README.md)：政策、统计及推断 |
 | 因子间相关性如何缓存 | [correlations](correlations/README.md)：独立任务与缓存，不创建正式报告 |
 | 来源、快照和哈希在哪里定义 | [sources](sources/README.md)：纯来源与指纹、需要查库的来源解析 |
@@ -26,7 +26,7 @@ Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观
 
 普通分析由 evaluations 接收来源与研究配置，冻结报告并入队；其 Job 调用 analysis，后者通过 observations 和 runtime 计算，结果回到评估生命周期保存。相关性只复用横截面数据／序列；天气复用计算 Worker，各自持有产物和状态。
 
-探索报告可进入 holdout，完成后需揭示才能读取封存内容；publication 核对证据与当前代码／运行时后发布。Strategy 的 [因子准备](../strategy/factors/README.md) 消费已批准来源，草稿编辑不会让旧报告自动证明新代码。
+已完成报告可由本人直接读取；publication 核对成功报告与当前代码／运行时后发布。Strategy 的 [因子准备](../strategy/factors/README.md) 消费已批准来源，草稿编辑不会让旧报告自动证明新代码。
 
 编辑 Agent 使用本人草稿上下文并在完成后刷新元数据；只读 questions 建立独立私有会话。Research [handoff](../research/handoff/README.md) 负责证据准入与生成，definitions 负责目标草稿复用、命名和持久化。
 
@@ -34,7 +34,7 @@ Factor 拥有因子定义、组合、正式评估、holdout、发布和持续观
 
 [routes/index.ts](routes/index.ts) 具名导出 `factorRoute`，组合 definition / composite / agent / analysis / correlation / weather 六组路由，挂载 `/api/app/factors`。路由处理参数、用户／locale 和 HTTP 映射；[共享请求契约](../../../../packages/shared/src/api/factor.ts) 定义输入结构与通用校验，[schema.ts](schema.ts) 组合 Agent / 问答的后端 SDK 引用校验，[errors.ts](errors.ts) 定义共用业务拒绝，具名函数及主要调用方见子能力说明。完整 HTTP 路径见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
-定义、冻结报告、后台 Job、相关性缓存和天气 pin 是不同对象。访问控制在相应业务入口完成；低层计算／来源函数不能替代授权。公开读取不能泄露作者私有消息或研究来源；holdout 的报告与日志封存由 evaluations 统一处理。
+定义、冻结报告、后台 Job、相关性缓存和天气 pin 是不同对象。访问控制在相应业务入口完成；低层计算／来源函数不能替代授权。公开读取不能泄露作者私有消息或研究来源；报告与日志的归属由 evaluations 统一校验。
 
 各生命周期保持自己的事务和收尾，提交后才唤醒相应队列；天气刷新不属于通用 Job。Worker、isolate 和 Python 路径以 [运行清单](../../../../docs/backend-runtime-entries.md) 为准。整体 HTTP 回归定位在 [routes/index.integration.test.ts](routes/index.integration.test.ts)，能力算法／状态测试见各 README。
 

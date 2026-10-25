@@ -108,7 +108,7 @@ See the [Research SDK reference](/docs/sdk?runtime=research) for signatures, enu
 
 ## Read existing reports and observations
 
-- Select your completed visible report under **Factor reports** to insert `results.factor_report()`. This does not unseal an unrevealed Holdout.
+- Under **Factor reports**, select an owned completed report and insert `results.factor_report()` to read it directly.
 - Select a report under **Backtests** to insert `results.backtest_report()` and read frozen settings, equity, trades, and factor lineage without rerunning the strategy.
 - Use `results.strategy_scan_report()` with a stable scan report ID to read per-combination metrics.
 - Use `results.factor_weather()` for a pinned factor to read stored monthly observations without triggering a refresh.

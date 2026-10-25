@@ -115,7 +115,7 @@ Trades show that the strategy read the factor and selected stocks. They do not e
 - Stocks without valid values are excluded.
 - The universe, rebalance frequency, and number of holdings are correct.
 - Trading costs, turnover, and drawdown are acceptable.
-- Results remain stable across other periods and a formal holdout.
+- Check whether results remain stable across different historical periods.
 
 ## Common questions
 
@@ -144,6 +144,5 @@ A published Factor is immutable. Use **Copy** to create an independent draft, an
 - [Set a Factor key](/docs/help/factors/strategy-key)
 - [Set backtest run parameters](/docs/help/backtesting/run-settings)
 - [Read the backtest result summary](/docs/help/backtesting/results-overview)
-- [Formal holdout and out-of-sample results](/docs/help/factors/holdout-results)
 - [Publish a Factor and use it in a strategy](/docs/help/factors/publish-factor)
 - [Run cross-asset Panel research](/docs/help/factors/panel-research)

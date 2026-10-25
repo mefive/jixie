@@ -48,7 +48,6 @@ describe('Research FactorReport result bridge', () => {
       factor: 'value',
       analysis_kind: 'cross_sectional',
       status: 'done',
-      phase: 'explore',
       language: 'python',
       runtime_version: 'py-v1',
       research_spec: {
@@ -56,11 +55,9 @@ describe('Research FactorReport result bridge', () => {
         analysis_kind: 'cross_sectional',
         protocol: { freq: 'month', start: '20200101', end: '20251231' },
       },
-      research_intent: { expected_direction: 'positive' },
       lineage: {
         factor_code_hash: 'code-hash',
         data_revision: 'data-revision',
-        parent_report_id: null,
       },
       report: { ic_mean: 0.05, robust_inference: { newey_west_t_stat: 2.1 } },
     });
@@ -76,16 +73,6 @@ describe('Research FactorReport result bridge', () => {
       expect.objectContaining({ where: { id: 'report-b', userId: 'user-a' } }),
     );
   });
-
-  it('keeps an unrevealed holdout sealed', async () => {
-    mocks.factorReportFindFirst.mockResolvedValue(
-      factorReportRow({ phase: 'holdout', revealedAt: null }),
-    );
-
-    await expect(loadResearchFactorReportResult('document-a', 'report-a')).rejects.toThrow(
-      'Factor holdout report is sealed',
-    );
-  });
 });
 
 function factorReportRow(overrides: Record<string, unknown> = {}) {
@@ -95,7 +82,6 @@ function factorReportRow(overrides: Record<string, unknown> = {}) {
     legacyStatus: null,
     failureMessage: null,
     job: { status: overrides.status ?? 'done', error: null },
-    phase: 'explore',
     language: 'python',
     freq: 'month',
     neutral: 'none',
@@ -114,13 +100,6 @@ function factorReportRow(overrides: Record<string, unknown> = {}) {
     }),
     factorCodeHash: 'code-hash',
     dataRevision: 'data-revision',
-    parentReportId: null,
-    researchIntentJson: JSON.stringify({
-      version: 1,
-      mode: 'hypothesis',
-      expectedDirection: 'positive',
-    }),
-    revealedAt: new Date('2026-08-31T08:00:00Z'),
     createdAt: new Date('2026-08-30T08:00:00Z'),
     computedAt: new Date('2026-08-30T08:05:00Z'),
     ...overrides,

@@ -70,11 +70,7 @@ try {
     throw new Error(`invalid commodity carry catalog entry: ${JSON.stringify(template)}`);
   }
 
-  const researchWindow = await api('/api/app/factors/research/window');
-  const exploreEnd = researchWindow.body.exploreEnd;
-  if (researchWindow.status !== 200 || !exploreEnd) {
-    throw new Error(`research window unavailable: ${JSON.stringify(researchWindow)}`);
-  }
+  const analysisEnd = process.env.E2E_FACTOR_END ?? '20250127';
   const run = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -84,14 +80,14 @@ try {
         version: 1,
         analysisKind: 'panel',
         start: '20150101',
-        end: exploreEnd,
+        end: analysisEnd,
         observationFrequency: 'monthly',
         assets: ASSETS,
         target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
         dataPolicy: {
           pointInTime: true,
           revisionPolicy: 'as_available',
-          dataCutoff: exploreEnd,
+          dataCutoff: analysisEnd,
         },
         rankingScope: 'cross_asset',
         volatilityScaling: 'none',
@@ -102,8 +98,6 @@ try {
           transactionCostPerSide: 0.001,
         },
       },
-      parentReportId: null,
-      researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
     }),
   });
   if (run.status !== 200) {

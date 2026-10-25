@@ -217,8 +217,8 @@ const MESSAGES = {
     en: 'This request ID belongs to another draft revision; use a new request ID',
   },
   researchEmbeddedInvalidReport: {
-    zh: '所选报告不可用、尚未完成或尚未揭示',
-    en: 'The selected report is unavailable, incomplete, or still sealed',
+    zh: '所选报告不可用或尚未完成',
+    en: 'The selected report is unavailable or incomplete',
   },
   researchEmbeddedInputLimit: {
     zh: '输入数据超过留存上限，请缩小范围后重新分析',
@@ -353,10 +353,6 @@ const MESSAGES = {
   factorAnalysisKindUnsupported: {
     zh: '研究类型 {kind} 的评估器尚未启用',
     en: 'The evaluator for analysis kind {kind} is not enabled yet',
-  },
-  factorCriterionUnsupported: {
-    zh: '主判据与当前研究方法不匹配',
-    en: 'The primary criterion does not match the selected research method',
   },
   factorTimeSeriesLoading: {
     zh: '正在加载 {count} 个 ETF 的复权历史…',

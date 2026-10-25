@@ -34,10 +34,10 @@
 6. 按照[第一次运行回测](/help/getting-started/first-backtest)完成一次历史检验。
 7. 按照[沪深 300 趋势策略学习路径](/help/learning/csi300-trend-strategy)，审查参数、成本和样本外结果。
 8. 按照[第一次运行预设因子分析](/help/factors/first-preset-analysis)熟悉 Factor 报告。
-9. 按照[沪深 300 价值因子学习路径](/help/learning/csi300-value-factor)，预注册横截面假设并揭示一次正式保留段。
+9. 按照[沪深 300 价值因子学习路径](/help/learning/csi300-value-factor)，理解横截面排名与不同日期区间的结果。
 11. 按照[股债配置与风险归因学习路径](/help/learning/stock-bond-allocation-risk)，通过四组实跑拆分资产配置、择时和成本，再对账完整风险。
-12. 按照[商品 Carry 学习路径](/help/learning/commodity-carry-holdout)，用两项事前测试核对期限结构、代理误差与正式 Holdout。
-13. 按照[销售收益率学习路径](/help/learning/sales-yield-positive)，核对第一个通过探索、去冗余和正式 Holdout 的正面因子准入案例。
+12. 按照[商品 Carry 学习路径](/help/learning/commodity-carry-holdout)，阅读期限结构、代理误差与历史样本比较案例。
+13. 按照[销售收益率学习路径](/help/learning/sales-yield-positive)，阅读销售收益率的历史分析与局限。
 14. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
 
 ## 产品不能替你完成什么

@@ -54,4 +54,3 @@
 
 - [设置分析范围和样本处理](/docs/help/factors/analysis-settings)
 - [Rank IC、ICIR 和 IC 衰减](/docs/help/factors/rank-ic-icir)
-- [研究卡、探索分析和正式保留段](/docs/help/factors/research-card)

@@ -83,8 +83,7 @@ try {
   }
   compositeId = composite.key;
 
-  const researchWindow = await api('/api/app/factors/research/window');
-  const exploreEnd = researchWindow.body.exploreEnd;
+  const analysisEnd = process.env.E2E_FACTOR_END ?? '20250127';
   const run = await api('/api/app/factors/analyses', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -94,7 +93,7 @@ try {
         version: 1,
         analysisKind: 'panel',
         start: '20200101',
-        end: exploreEnd,
+        end: analysisEnd,
         observationFrequency: 'monthly',
         assets: [
           { assetId: '510300.SH', assetClass: 'cn_equity' },
@@ -111,7 +110,7 @@ try {
         dataPolicy: {
           pointInTime: true,
           revisionPolicy: 'as_available',
-          dataCutoff: exploreEnd,
+          dataCutoff: analysisEnd,
         },
         rankingScope: 'cross_asset',
         volatilityScaling: 'none',
@@ -121,14 +120,6 @@ try {
           bottomFraction: 0.25,
           transactionCostPerSide: 0.001,
         },
-      },
-      parentReportId: null,
-      researchIntent: {
-        version: 1,
-        mode: 'hypothesis',
-        hypothesis: 'Momentum with a low-volatility overlay improves cross-asset ETF ranking.',
-        expectedDirection: 'positive',
-        primaryCriterion: { metric: 'panel_rank_ic_mean', operator: 'gt', value: 0 },
       },
     }),
   });
@@ -164,23 +155,6 @@ try {
   await workspace.getByText('负向（越小越好）', { exact: true }).waitFor();
   await page.getByTestId('panel-report').waitFor({ timeout: 30_000 });
   await page.screenshot({ path: `${SHOTS}factor-panel-composite.png`, fullPage: true });
-
-  const holdout = await api(`/api/app/factors/analysis-reports/${run.body.reportId}/holdout`, {
-    method: 'POST',
-  });
-  if (holdout.status !== 200) {
-    throw new Error(`panel composite holdout failed: ${JSON.stringify(holdout)}`);
-  }
-  const sealed = await waitForReport(holdout.body.reportId);
-  if (
-    sealed.status !== 'done' ||
-    sealed.phase !== 'holdout' ||
-    sealed.sealed !== true ||
-    sealed.researchPayload != null ||
-    sealed.factorCodeSnapshot !== detail.factorCodeSnapshot
-  ) {
-    throw new Error(`panel composite holdout snapshot drifted: ${JSON.stringify(sealed)}`);
-  }
 
   const publicationCard = page.getByTestId('factor-publication-card');
   await publicationCard.getByTestId('factor-publish').click();
@@ -249,7 +223,7 @@ try {
   const strategyConfig = {
     name: '已发布 Panel 组合轮动',
     start: '20200101',
-    end: exploreEnd,
+    end: analysisEnd,
     initialCash: 1_000_000,
     code: strategyCode,
   };

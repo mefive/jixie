@@ -32,11 +32,8 @@ import {
   type FactorCompositeResource,
   type FactorFreq,
   type FactorCorrelation,
-  type FactorResearchIntentV1,
-  type FactorResearchSummary,
   type FactorStatus,
   type PublishedFactor,
-  type FactorHoldoutPolicyV1,
   type FactorResearchSpecV1,
   type ResearchFactorHandoffV1,
   type FactorTimeSeriesReportV1,
@@ -70,10 +67,6 @@ import {
   runFactorCorrelation,
   getFactorCorrelation,
   findActiveFactorCorrelationJob,
-  getFactorResearchSummary,
-  getFactorResearchWindow,
-  runFactorHoldout,
-  revealFactorHoldout,
   createFactorComposite,
   updateFactorComposite,
   deleteFactorComposite,
@@ -248,8 +241,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public codeChangeLoader = new LoaderModel<CodeChangeProposalV1>();
   public saveLoader = new LoaderModel<{ id: string; name: string }>();
   public analysisPoller = new PollingModel();
-  public researchSummaryLoader = new LoaderModel<FactorResearchSummary>();
-  public researchWindowLoader = new LoaderModel<FactorHoldoutPolicyV1>();
   public publishLoader = new LoaderModel<PublishedFactor>();
   public archiveLoader = new LoaderModel<PublishedFactor>();
 
@@ -426,10 +417,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     });
     this.reportLoader.setup({ request: (reportId: string) => getFactorReport(reportId) });
     this.analysisPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
-    this.researchSummaryLoader.setup({
-      request: () => getFactorResearchSummary(this.selectedKey || undefined),
-    });
-    this.researchWindowLoader.setup({ request: () => getFactorResearchWindow() });
     this.publishLoader.setup({
       request: (reportId: string) =>
         this.mode === 'composite'
@@ -459,20 +446,12 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     });
     this.registCleaner(() => this.reportLoader.cleanup());
     this.registCleaner(() => this.analysisPoller.cleanup());
-    this.registCleaner(() => this.researchSummaryLoader.cleanup());
-    this.registCleaner(() => this.researchWindowLoader.cleanup());
     this.registCleaner(() => this.publishLoader.cleanup());
     this.registCleaner(() => this.archiveLoader.cleanup());
     this.registCleaner(() => this.correlationLoader.cleanup());
     this.registCleaner(() => this.correlationPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.catalogLoader.run();
-    void this.researchWindowLoader.run().then((window) => {
-      if (!this.selectedReportId && this.end === DEFAULT_END) {
-        runInAction(() => (this.end = window.exploreEnd));
-      }
-    });
-    void this.researchSummaryLoader.run();
 
     // Preselect synchronously so the first paint shows the workbench while detail/history load.
     if (params.factor) {
@@ -969,7 +948,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (isComposite) {
       void this.restoreQuestions();
       const reports = await this.reportsLoader.run();
-      void this.researchSummaryLoader.run();
       if (selection !== this.chatSelection) {
         return;
       }
@@ -1026,7 +1004,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       void this.restoreQuestions();
     }
     const reports = await this.reportsLoader.run();
-    void this.researchSummaryLoader.run();
     if (selection !== this.chatSelection) {
       return;
     }
@@ -1736,7 +1713,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
    *
    * Commit custom code, create a new immutable report, then stream its one-to-one Job.
    */
-  public async runAnalysis(researchIntent: FactorResearchIntentV1) {
+  public async runAnalysis() {
     if (this.mode === 'custom') {
       if (!this.selectedKey) {
         return;
@@ -1790,12 +1767,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       const protocol = this.analysisSpec;
       const researchSpec = this.researchSpec;
       const spec = assetResearch ? researchSpec : protocol;
-      const response = await runFactorAnalysis(
-        this.selectedKey,
-        spec,
-        researchIntent,
-        this.selectedReportId || null,
-      );
+      const response = await runFactorAnalysis(this.selectedKey, spec);
       const summary: FactorReportSummary = {
         id: response.reportId,
         factor: this.selectedKey,
@@ -1807,7 +1779,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
               ? 'time_series'
               : 'cross_sectional',
         status: 'running',
-        phase: 'explore',
         ...(assetResearch ? {} : { spec: protocol }),
         researchSpec,
         jobId: response.jobId,
@@ -1828,30 +1799,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       await this.reportLoader.run(Promise.reject(e)).catch(() => {});
       this.finishJob();
     }
-  }
-
-  public async runHoldout() {
-    if (!this.selectedReportId) {
-      return;
-    }
-    const response = await runFactorHoldout(this.selectedReportId);
-    runInAction(() => {
-      this.selectedReportId = response.reportId;
-      this.jobRunning = true;
-    });
-    await this.reportLoader.run(response.reportId);
-    void this.reportsLoader.run();
-    this.startPolling(response.jobId, response.reportId);
-  }
-
-  public async revealHoldout() {
-    if (!this.selectedReportId) {
-      return;
-    }
-    const detail = await revealFactorHoldout(this.selectedReportId);
-    runInAction(() => (this.reportLoader.result = detail));
-    void this.reportsLoader.run();
-    void this.researchSummaryLoader.run();
   }
 
   /**
@@ -1961,7 +1908,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       if (job.status === 'done' || job.status === 'error' || job.status === 'stale') {
         await this.reportLoader.run(reportId);
         void this.reportsLoader.run();
-        void this.researchSummaryLoader.run();
         this.finishJob();
         return false;
       }

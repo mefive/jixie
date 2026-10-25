@@ -1,5 +1,6 @@
 # 销售收益率：从正面 Holdout 到因子准入
 
+> 历史案例：文中的研究卡、Holdout、预注册准入及揭示记录属于旧版本，不再是当前操作。当前可自行选择日期运行普通分析，发布只固定匹配的代码与成功报告。原有数值与截图仅用于解释研究方法。
 > 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
 
 > 学习路径 · 预计 75～105 分钟 · 建议先完成一次预设因子分析。
@@ -176,9 +177,7 @@ IC 正值比例分别为 70.00% 和 64.71%，方向一致。
 ## 继续阅读
 
 - [第一次运行预设因子分析](/help/factors/first-preset-analysis)
-- [运行前研究卡](/help/factors/research-card)
 - [Rank IC、ICIR 和 IC 衰减](/help/factors/rank-ic-icir)
 - [中性化与暴露诊断](/help/factors/neutralization)
-- [正式保留段和样本外结果](/help/factors/holdout-results)
 - [换手、交易成本和容量](/help/factors/turnover-costs)
 - [沪深 300 价值因子：排序、IC、分层与样本外](/help/learning/csi300-value-factor)

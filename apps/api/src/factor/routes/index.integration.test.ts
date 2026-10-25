@@ -57,7 +57,6 @@ import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { captureFactorQuestionContext } from '../questions/context.js';
 import { prisma } from '#infra/database/prisma.js';
 import { copyFactorComposite } from '../composition/operations.js';
-import { submitFactorHoldout } from '../evaluations/holdout.js';
 import { sha256 } from '../sources/fingerprint.js';
 import { factorRoute } from './index.js';
 
@@ -78,21 +77,13 @@ function request(path: string, body?: unknown, userId = 'owner', method = 'POST'
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
 }
-const intent = {
-  version: 1,
-  mode: 'hypothesis',
-  hypothesis: 'The frozen signal predicts returns.',
-  expectedDirection: 'positive',
-  primaryCriterion: { metric: 'rank_ic_mean', operator: 'gt', value: 0 },
-} as const;
 const frozenCode = 'export default defineFactor({ name: "Frozen", compute: () => 1 });';
-async function seedReport(phase = 'explore') {
+async function seedReport() {
   return prisma.factorReport.create({
     data: {
       id: 'report',
       userId: 'owner',
       factor: 'draft',
-      phase,
       legacyStatus: 'done',
       freq: 'month',
       start: '20200101',
@@ -100,8 +91,6 @@ async function seedReport(phase = 'explore') {
       factorCodeSnapshot: frozenCode,
       factorCodeHash: sha256(frozenCode),
       dataRevision: 'fixture-vintage',
-      researchIntentJson: JSON.stringify(intent),
-      testKey: 'frozen-test',
       payload: JSON.stringify({ label: 'Frozen', icMean: 0.125 }),
     },
   });
@@ -335,7 +324,7 @@ describe('Factor HTTP business boundaries', () => {
   ])(
     'reads legacy parameter columns when specJson is $specJson',
     async ({ specJson, freq, neutral, expectedFreq, expectedNeutral }) => {
-      await seedReport('legacy');
+      await seedReport();
       await prisma.factorReport.update({
         where: { id: 'report' },
         data: { specJson, freq, neutral },
@@ -376,9 +365,49 @@ describe('Factor HTTP business boundaries', () => {
     },
   );
 
-  it('keeps holdout metrics, payload and job logs sealed until owner reveal', async () => {
-    await seedReport('holdout');
-    const logs = [{ at: '2025-06-30T00:00:00Z', message: 'Secret metric: 0.125' }];
+  it('accepts explicit recent dates without a card and permits a new run after completion', async () => {
+    const input = {
+      factor: 'draft',
+      spec: { version: 1, freq: 'month', neutral: 'none', start: '20240101', end: '20250630' },
+    };
+    const firstResponse = await request('/factors/analyses', input);
+    expect(firstResponse.status).toBe(200);
+    const first = await firstResponse.json();
+    expect(first).toMatchObject({ status: 'running', reusedRunning: false });
+    const report = await prisma.factorReport.findUniqueOrThrow({
+      where: { id: first.reportId },
+      include: { job: true },
+    });
+    expect(report).toMatchObject({
+      start: '20240101',
+      end: '20250630',
+      factorCodeSnapshot: frozenCode,
+      job: { id: first.jobId, status: 'queued' },
+    });
+
+    const reused = await (await request('/factors/analyses', input)).json();
+    expect(reused).toMatchObject({
+      reportId: first.reportId,
+      jobId: first.jobId,
+      reusedRunning: true,
+    });
+    expect(resources.wake).toHaveBeenCalledTimes(1);
+
+    await prisma.job.update({ where: { id: first.jobId }, data: { status: 'done' } });
+    await prisma.factorReport.update({
+      where: { id: first.reportId },
+      data: { payload: JSON.stringify({ icMean: -0.1 }) },
+    });
+    const repeated = await (await request('/factors/analyses', input)).json();
+    expect(repeated.reportId).not.toBe(first.reportId);
+    expect(repeated.reusedRunning).toBe(false);
+    expect(resources.wake).toHaveBeenCalledTimes(2);
+    expect(await prisma.factorReport.count()).toBe(2);
+  });
+
+  it('returns owned report results and logs without a reveal step', async () => {
+    await seedReport();
+    const logs = [{ source: 'system', level: 'info', text: 'Rank IC: 0.125' }];
     await prisma.job.create({
       data: {
         id: 'job',
@@ -390,102 +419,51 @@ describe('Factor HTTP business boundaries', () => {
         logs: JSON.stringify(logs),
       },
     });
+
     const list = await (
       await request('/factors/analysis-reports?factor=draft', undefined, 'owner', 'GET')
     ).json();
-    expect(list.items[0]).toMatchObject({ sealed: true });
-    expect(list.items[0]).not.toHaveProperty('metrics');
+    expect(list.items[0]).toMatchObject({ metrics: { rankIc: 0.125 } });
     const detail = await (
       await request('/factors/analysis-reports/report', undefined, 'owner', 'GET')
     ).json();
-    expect(detail).toMatchObject({ sealed: true, canReveal: true });
-    expect(detail).not.toHaveProperty('payload');
-    expect(detail).not.toHaveProperty('researchPayload');
-    expect(
-      await (await request('/factors/analysis-jobs/job', undefined, 'owner', 'GET')).json(),
-    ).toMatchObject({ logs: [] });
-    expect((await request('/factors/correlation-jobs/job', undefined, 'owner', 'GET')).status).toBe(
-      404,
-    );
-    expect(
-      (await request('/factors/analysis-reports/report', undefined, 'other', 'GET')).status,
-    ).toBe(404);
-    expect((await request('/factors/analysis-jobs/job', undefined, 'other', 'GET')).status).toBe(
-      404,
-    );
-    expect(
-      (await request('/factors/analysis-reports/report/reveal', undefined, 'other')).status,
-    ).toBe(404);
-    const revealed = await (await request('/factors/analysis-reports/report/reveal')).json();
-    expect(revealed).toMatchObject({
-      sealed: false,
-      canReveal: false,
-      metrics: { rankIc: 0.125 },
+    expect(detail).toMatchObject({
       payload: { icMean: 0.125 },
+      researchPayload: { analysisKind: 'cross_sectional' },
     });
-    const second = await (await request('/factors/analysis-reports/report/reveal')).json();
-    expect(second.revealedAt).toBe(revealed.revealedAt);
+    for (const key of [
+      'phase',
+      'sealed',
+      'canReveal',
+      'researchIntent',
+      'holdout',
+      'parentReportId',
+    ]) {
+      expect(detail).not.toHaveProperty(key);
+    }
     expect(
       await (await request('/factors/analysis-jobs/job', undefined, 'owner', 'GET')).json(),
     ).toMatchObject({ logs });
+
+    for (const resource of ['analysis-reports/report', 'analysis-jobs/job']) {
+      expect((await request(`/factors/${resource}`, undefined, 'other', 'GET')).status).toBe(404);
+    }
+    expect((await request('/factors/correlation-jobs/job', undefined, 'owner', 'GET')).status).toBe(
+      404,
+    );
   });
 
-  it('submits a frozen holdout snapshot and reuses its job without waking twice', async () => {
-    const parent = await seedReport();
-    await prisma.factor.update({
-      where: { id: 'draft' },
-      data: { code: 'different current code' },
-    });
-    expect(
-      (await request('/factors/analysis-reports/report/holdout', undefined, 'other')).status,
-    ).toBe(404);
-    const response = await request('/factors/analysis-reports/report/holdout');
-    expect(response.status).toBe(200);
-    const result = await response.json();
-    const report = await prisma.factorReport.findUniqueOrThrow({
-      where: { id: result.reportId },
-      include: { job: true },
-    });
-    expect(report).toMatchObject({
-      phase: 'holdout',
-      start: '20240102',
-      end: '20250630',
-      factorCodeSnapshot: frozenCode,
-      factorCodeHash: parent.factorCodeHash,
-      parentReportId: parent.id,
-      dataRevision: parent.dataRevision,
-      testKey: parent.testKey,
-      job: { id: result.jobId, kind: 'factor-analysis', status: 'queued' },
-    });
-    expect(report.job?.payload).toMatchObject({ source: { code: frozenCode }, locale: 'en' });
-    expect(report.job?.payload).not.toHaveProperty('task');
-    expect(await (await request('/factors/analysis-reports/report/holdout')).json()).toMatchObject({
-      reportId: result.reportId,
-      jobId: result.jobId,
-      reusedRunning: true,
-    });
-    expect(resources.wake).toHaveBeenCalledTimes(1);
-    expect(resources.logs).not.toHaveBeenCalled();
-  });
-
-  it('rolls back holdout report creation when its job cannot be inserted', async () => {
+  it('retires research windows, trial counts, holdout submission and reveal APIs', async () => {
     await seedReport();
-    await prisma.job.create({
-      data: {
-        id: 'existing-job',
-        userId: 'owner',
-        kind: 'factor-analysis',
-        key: 'fixture',
-        status: 'done',
-      },
-    });
-    resources.id.mockReturnValueOnce('new-report').mockReturnValueOnce('existing-job');
-    await expect(submitFactorHoldout('owner', 'report', 'en')).rejects.toMatchObject({
-      code: 'P2002',
-    });
-    expect(await prisma.factorReport.count({ where: { phase: 'holdout' } })).toBe(0);
-    expect(resources.logs).not.toHaveBeenCalled();
-    expect(resources.wake).not.toHaveBeenCalled();
+
+    for (const [path, method] of [
+      ['research/window', 'GET'],
+      ['research/summary', 'GET'],
+      ['analysis-reports/report/holdout', 'POST'],
+      ['analysis-reports/report/reveal', 'POST'],
+    ]) {
+      expect((await request(`/factors/${path}`, undefined, 'owner', method)).status).toBe(404);
+    }
   });
 
   it('reserves collection paths and requires PATCH for factor and composite edits', async () => {
@@ -546,8 +524,8 @@ describe('Factor HTTP business boundaries', () => {
     },
   );
 
-  it('rejects foreign report relations and prevents correlation polling from bypassing holdout sealing', async () => {
-    await seedReport('holdout');
+  it('rejects foreign report relations and analysis jobs passed to correlation polling', async () => {
+    await seedReport();
     await prisma.job.create({
       data: {
         id: 'job',
@@ -668,7 +646,7 @@ describe('Factor HTTP business boundaries', () => {
         ).json(),
       ).toEqual(reference);
 
-      await seedReport('holdout');
+      await seedReport();
       await prisma.job.update({ where: { id: job.id }, data: { factorReportId: 'report' } });
       expect(
         (await request(`/factors/correlation-jobs/${job.id}`, undefined, 'owner', 'GET')).status,

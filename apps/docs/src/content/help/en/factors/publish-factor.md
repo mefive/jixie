@@ -1,62 +1,30 @@
-# Publish a Factor and use it in a strategy
+# Publish a factor version
 
-> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+Publication fixes the current factor code and a matching successful analysis report as an immutable version that strategies reference by a stable key. The report's parameters, sample range and results are retained with it.
 
-Publication locks a researched Factor into an immutable definition that strategies can reference. It is not merely saving a draft, and it does not prove future performance.
+## Requirements
 
-## Check before publishing
+- The current definition is an owned draft.
+- The selected successful report belongs to the same user and factor.
+- Code, analysis kind, language and runtime match the report.
+- Inputs meet the current analysis kind's data requirements; controlled commodity research templates remain ineligible for publication.
 
-Confirm that the selected report belongs to the Factor, completed successfully, and matches the current code and settings. Verify the key, research card, holdout, primary criterion, data cutoff, scope, direction, and cost assumptions.
+Positive returns or statistical significance are not required. Publication records a version; it does not certify investment quality.
 
-If code or settings changed, the page marks the report as outdated. Run a new report before publication.
+## Steps
 
-## Publish
+1. Review the source, choose dates and parameters, and run an analysis.
+2. Read the report and confirm it represents the current code.
+3. Select **Publish version**, check the key and report, and confirm.
+4. Reference that exact factor key in a strategy.
 
-1. Open the report you intend to approve.
-2. Scroll to Publication and strategy reference.
-3. Verify the report reference and code hash.
-4. Click Publish.
-5. Check the Factor key in the confirmation dialog and confirm.
+Publication fixes the source and report in one action, with no separate sealing step.
 
-The numbered areas are:
+## Changes and archive
 
-1. Publication status and explanation.
-2. Report reference and code hash.
-3. Publish action.
-
-![Historical Chinese UI example: Publication and strategy reference in a Factor report](/docs/images/help/zh/factors/publish-factor-01.png)
-
-## What becomes immutable
-
-After publication, the Factor name, key, code, research type, and approved report cannot change. A strategy freezes the Factor ID, key, code hash, and approved report so historical runs remain traceable.
-
-Use Copy to create an independent draft when the definition must change. The suggested `_v2` or `_v3` key is new; publication status, approved reports, and strategy references are not inherited.
-
-## Continue to Strategy
-
-1. Click Use in strategy.
-2. Wait for the strategy workbench.
-3. Check the prefilled request in the prompt input, including the Factor key, research assets, and rebalance rule. Strategy code has not yet been generated.
-4. Add your trading rules and send the request to the Agent, or write the code yourself. Check the resulting code, dates, capital, and costs.
-5. Explicitly select Run backtest.
-6. Check Factors used by this backtest for the frozen Factor ID and code hash.
-
-The locked `ep` preset illustrates the entry points: **1** shows publication and report information; **2** is Use in strategy.
-
-![Publication and strategy entry points](/docs/images/help/en/factors/publication-current.png)
-
-In Strategy, **1** is still a prefilled request and **2** sends it. No strategy code or new backtest result has been generated yet.
-
-![Prefilled request after Use in strategy](/docs/images/help/en/factors/strategy-prefill-current.png)
-
-The research long-short diagnostic is not the strategy return. A strategy also includes actual holdings, cash, fills, costs, and rebalance rules.
-
-## Archive
-
-A published Factor cannot be deleted. Archiving removes it from new strategy completion while preserving historical backtests.
+A published version cannot be edited or overwritten. Copy it to a new draft, change and analyze it, then publish under a new key. A new version does not replace references in existing strategies. Archiving prevents new use without rewriting the saved code and report.
 
 ## Related articles
 
-- [Set a Factor key](/docs/help/factors/strategy-key)
-- [Holdout and out-of-sample results](/docs/help/factors/holdout-results)
-- [Use a custom factor in a strategy](/docs/help/factors/factor-in-strategy)
+- [Report history and outdated results](/docs/help/factors/report-history)
+- [Use a factor in a strategy](/docs/help/factors/factor-in-strategy)

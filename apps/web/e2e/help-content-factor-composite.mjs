@@ -143,12 +143,6 @@ async function runCompositeAnalysis() {
             },
             composite,
           },
-          parentReportId: null,
-          researchIntent: {
-            version: 1,
-            mode: 'exploratory',
-            expectedDirection: 'unknown',
-          },
         }),
       });
       return { status: response.status, body: await response.json() };

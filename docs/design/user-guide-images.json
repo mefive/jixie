@@ -830,10 +830,10 @@
     },
     {
       "path": "zh/factors/factor-research-card-01.png",
-      "articles": ["en/factors/first-preset-analysis.md", "zh/factors/first-preset-analysis.md"],
+      "articles": [],
       "originalSha256": "eaf6abe4d76585357e397b6e90c79ddc13cccdd6b9710a22e8df80171313af8d",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 860],
       "sha256": "ca07d1cb8a9c5e732a981885945a94987a161bdd0517d88218fcf145910fed6b"
     },
@@ -848,51 +848,46 @@
     },
     {
       "path": "zh/factors/factor-holdout-confirm-01.png",
-      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "articles": [],
       "originalSha256": "67ec2373d759f9a16b585f99d2fd7ae1d105159580a38f56942ed2f4e246eb7b",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "6de4254b0ab1b59dfe120d66351468b800deb115f046d77b61db35a84a107708"
     },
     {
       "path": "zh/factors/factor-holdout-sealed-01.png",
-      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "articles": [],
       "originalSha256": "89f6e9916542209135a9c8b81b679a65ccf8524b81d2776b1a3f73f965168af9",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "77cf4d50918a63d1bc582dea273b671ec314f7e26b4ed1631cdb277d39491d77"
     },
     {
       "path": "zh/factors/factor-holdout-history-01.png",
-      "articles": [
-        "en/factors/holdout-results.md",
-        "en/factors/report-history.md",
-        "zh/factors/holdout-results.md",
-        "zh/factors/report-history.md"
-      ],
+      "articles": [],
       "originalSha256": "88854c27fcdaa82d5f63118746c8aa70bec090b104a742b230cb7465513b3ea7",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "43bd804075e5a4da6c0ce5dcedc74f75274e9965bc45d4e55af5c3df34be08cf"
     },
     {
       "path": "zh/factors/factor-reveal-confirm-01.png",
-      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "articles": [],
       "originalSha256": "db0e4e0e80d2f627a7df58ea98a37de5e11760118d63ea2533e8d9b1f3ad02f1",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "5f6cf43cb9bda3b55509454a79b878c25477f98c46a4b8540b632c27b4f17598"
     },
     {
       "path": "zh/factors/factor-holdout-revealed-01.png",
-      "articles": ["en/factors/holdout-results.md", "zh/factors/holdout-results.md"],
+      "articles": [],
       "originalSha256": "3d716a4d565cdfcbc35c902dfa7ce33c62978f1f610b39a584180932ae2a1d90",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "2a055c752ca9c8f9bff0b2879f64861ee5e290fd3101552ea9461bc11812c3a4"
     },
@@ -930,28 +925,28 @@
     },
     {
       "path": "zh/factors/factor-research-hypothesis-01.png",
-      "articles": ["en/factors/research-card.md", "zh/factors/research-card.md"],
+      "articles": [],
       "originalSha256": "e9149533a8d34a8329f77590c21ce064fc86e96c199466ebef90e857c06cfbf0",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "eaf74941c34d093d7d289e77e87d762010cda9e3de4aa4c7f7d389d9f9244036"
     },
     {
       "path": "zh/factors/factor-research-summary-01.png",
-      "articles": ["en/factors/research-card.md", "zh/factors/research-card.md"],
+      "articles": [],
       "originalSha256": "85747c0751dd2d6fb2e6d31f5e0620dec803dadf9ee1526a0b45e4323a1b1632",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "7e420059ab87197ddfdd045d3768461b99c86c0ea1066e91fcff773ad9857b8b"
     },
     {
       "path": "zh/factors/publish-factor-01.png",
-      "articles": ["en/factors/publish-factor.md", "zh/factors/publish-factor.md"],
+      "articles": [],
       "originalSha256": "a40f4acc7d61a6578fd0cdc1ee58cdaa9df2ad1e22ef2b28af25a4ef8c843302",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
       "crop": [0, 40, 1440, 960],
       "sha256": "21e11c56afb625cd515e747abdcb3a9d329a60576a9a8e2c7eac808413c557a0"
     },
@@ -1458,16 +1453,16 @@
     },
     {
       "path": "zh/factors/publication-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["zh/factors/publish-factor.md"],
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
+      "articles": [],
       "sha256": "4b66aad3a1210bba023ec79cf0d13d7f233102dd943b9ff319f8596439b172b5"
     },
     {
       "path": "en/factors/publication-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["en/factors/publish-factor.md"],
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
+      "articles": [],
       "sha256": "4be660c5d676d38e648f94852270dce379608402a917d93b205a70ff913baae7"
     },
     {
@@ -1486,16 +1481,16 @@
     },
     {
       "path": "zh/factors/strategy-prefill-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["zh/factors/publish-factor.md"],
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
+      "articles": [],
       "sha256": "cb9453bb786ea6c91344bc50012c15a2f10243450a38b34ad6ddde41b1c8cdd3"
     },
     {
       "path": "en/factors/strategy-prefill-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["en/factors/publish-factor.md"],
+      "disposition": "retired",
+      "reason": "The research-card and holdout workflow or its obsolete operational illustration has been removed.",
+      "articles": [],
       "sha256": "2b7bed7964827f3c548543821a3acd96bd4aac8b17f72110454567d3fd7848c1"
     },
     {

@@ -1,7 +1,6 @@
 import { factorReportState } from '#factor/evaluations/state.js';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
 import { getDatabase } from '#infra/database/prisma.js';
-import { parseResearchIntent } from '#factor/evaluations/research-policy.js';
 import { normalizeFactorResearchSpec } from '#factor/analysis/spec.js';
 
 const MAX_FACTOR_REPORT_PAYLOAD_BYTES = 4 * 1024 * 1024;
@@ -30,25 +29,22 @@ export interface ResearchFactorReportResultV1 extends Record<string, unknown> {
   factor: string;
   analysis_kind: FactorResearchSpecV1['analysisKind'];
   status: 'done';
-  phase: 'legacy' | 'explore' | 'holdout';
   language: 'typescript' | 'python';
   runtime_version: 'ts-v1' | 'py-v1';
   created_at: string;
   computed_at: string | null;
   research_spec: ResearchJsonValue;
-  research_intent: ResearchJsonValue;
   lineage: {
     factor_code_hash: string | null;
     data_revision: string | null;
-    parent_report_id: string | null;
   };
   report: ResearchJsonValue;
 }
 
 /**
- * 校验因子报告可见性与揭示状态，再输出冻结研究结果。
+ * 校验因子报告归属与完成状态，再输出冻结研究结果。
  *
- * Authorize factor report visibility and reveal state before returning frozen evidence.
+ * Authorize factor report ownership and completion state before returning frozen evidence.
  */
 export async function loadResearchFactorReportResult(
   documentId: string,
@@ -71,7 +67,6 @@ export async function loadResearchFactorReportResult(
         id: true,
         factor: true,
         legacyStatus: true,
-        phase: true,
         language: true,
         freq: true,
         neutral: true,
@@ -81,9 +76,6 @@ export async function loadResearchFactorReportResult(
         payload: true,
         factorCodeHash: true,
         dataRevision: true,
-        parentReportId: true,
-        researchIntentJson: true,
-        revealedAt: true,
         createdAt: true,
         computedAt: true,
       },
@@ -91,9 +83,6 @@ export async function loadResearchFactorReportResult(
     .then((row) => (row ? factorReportState(row) : row));
   if (!row) {
     throw new Error('Factor report was not found.');
-  }
-  if (row.phase === 'holdout' && row.revealedAt === null) {
-    throw new Error('Factor holdout report is sealed until it is explicitly revealed.');
   }
   if (row.status !== 'done') {
     throw new Error(`Factor report is not complete: ${row.status}.`);
@@ -106,7 +95,6 @@ export async function loadResearchFactorReportResult(
   }
 
   const researchSpec = factorReportResearchSpec(row);
-  const researchIntent = parseResearchIntent(row.researchIntentJson) ?? null;
   const report = parseJsonObject(row.payload, 'Factor report payload');
 
   return {
@@ -115,17 +103,14 @@ export async function loadResearchFactorReportResult(
     factor: row.factor,
     analysis_kind: researchSpec.analysisKind,
     status: 'done',
-    phase: row.phase === 'explore' || row.phase === 'holdout' ? row.phase : 'legacy',
     language: row.language === 'python' ? 'python' : 'typescript',
     runtime_version: row.language === 'python' ? 'py-v1' : 'ts-v1',
     created_at: row.createdAt.toISOString(),
     computed_at: row.computedAt?.toISOString() ?? null,
     research_spec: snakeCaseJson(researchSpec),
-    research_intent: snakeCaseJson(researchIntent),
     lineage: {
       factor_code_hash: row.factorCodeHash,
       data_revision: row.dataRevision,
-      parent_report_id: row.parentReportId,
     },
     report: snakeCaseJson(report),
   };

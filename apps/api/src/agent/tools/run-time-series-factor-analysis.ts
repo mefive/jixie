@@ -1,13 +1,9 @@
 import { readFactorAnalysisResult } from '#factor/evaluations/read.js';
-import { getHoldoutPolicy } from '#factor/evaluations/research-policy.js';
 import { startFactorAnalysis } from '#factor/evaluations/start.js';
-import { factorResearchIntentV1Schema } from '@jixie/shared/api/factor';
 import { t } from '#i18n/index.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
   timeSeriesAggregateMetrics,
-  type FactorHoldoutPolicyV1,
-  type FactorResearchIntentV1,
   type FactorTimeSeriesReportV1,
   type Locale,
   type RunFactorAnalysisResponse,
@@ -26,19 +22,10 @@ const argsSchema = z
     end: z.string().regex(/^\d{8}$/),
     assets: z.array(assetSchema).min(1).max(5),
     horizon: z.union([z.literal(5), z.literal(20), z.literal(60)]),
-    researchIntent: factorResearchIntentV1Schema,
   })
   .superRefine((input, context) => {
     if (new Set(input.assets).size !== input.assets.length) {
       context.addIssue({ code: 'custom', path: ['assets'], message: 'Assets must be unique' });
-    }
-    const metric = input.researchIntent.primaryCriterion?.metric;
-    if (metric && !metric.startsWith('time_series_')) {
-      context.addIssue({
-        code: 'custom',
-        path: ['researchIntent', 'primaryCriterion', 'metric'],
-        message: 'Time-series research requires a time-series primary criterion',
-      });
     }
   });
 
@@ -63,7 +50,6 @@ interface TimeSeriesResearchContext {
   factorId: string;
   currentCode: string;
   locale: Locale;
-  getPolicy?: () => Promise<FactorHoldoutPolicyV1 | null>;
   start?: (
     options: Parameters<typeof startFactorAnalysis>[0],
   ) => Promise<RunFactorAnalysisResponse>;
@@ -75,7 +61,7 @@ interface TimeSeriesResearchContext {
 }
 
 /**
- * 创建仅用于 ETF 时间序列探索的因子工具，不接受股票池、中性化和正式保留段操作。
+ * 创建仅用于 ETF 时间序列探索的因子工具，不接受股票池、中性化。
  *
  * The time-series counterpart of runFactorAnalysis. It freezes an ETF-only explore report and
  * deliberately omits stock-universe, neutralization and rebalance-frequency arguments.
@@ -83,7 +69,7 @@ interface TimeSeriesResearchContext {
 export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchContext): AgentTool {
   return {
     name: 'runTimeSeriesFactorAnalysis',
-    description: `Run one disciplined EXPLORE time-series study for the current custom Factor Definition V2 or a candidate full definition. Freeze the candidate code, ETF assets, forward-return horizon, sample dates, hypothesis/direction, and a time-series primary criterion before seeing metrics. Current assets are 511010.SH (5Y Treasury Bond ETF), 511260.SH (10Y Treasury Bond ETF), 511090.SH (30Y Treasury Bond ETF), 518880.SH (Gold ETF), and 510300.SH (CSI 300 ETF); government-curve inputs only support the fixed-income ETFs. Horizon is 5, 20, or 60 trading days. The observation frequency is daily, prices are adjusted, inference is Newey–West with automatic lag, and data cutoff is the requested end date. This tool cannot reveal holdout, publish, deploy, place orders, or claim strategy performance. Normally compare at most two materially different candidates in one turn.`,
+    description: `Run a time-series study for the current custom Factor Definition V2 or a candidate full definition. Freeze the candidate code, ETF assets, forward-return horizon, and sample dates before seeing metrics. Current assets are 511010.SH (5Y Treasury Bond ETF), 511260.SH (10Y Treasury Bond ETF), 511090.SH (30Y Treasury Bond ETF), 518880.SH (Gold ETF), and 510300.SH (CSI 300 ETF); government-curve inputs only support the fixed-income ETFs. Horizon is 5, 20, or 60 trading days. The observation frequency is daily, prices are adjusted, inference is Newey–West with automatic lag, and data cutoff is the requested end date. This tool cannot publish, deploy, place orders, or claim strategy performance.`,
     parameters: z.toJSONSchema(argsSchema),
 
     /**
@@ -104,27 +90,16 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
         throw new Error('start must be earlier than end.');
       }
 
-      const [factor, policy] = await Promise.all([
-        getDatabase().factor.findFirst({
-          where: {
-            id: context.factorId,
-            userId: context.userId,
-            analysisKind: 'time_series',
-          },
-          select: { id: true, name: true },
-        }),
-        (context.getPolicy ?? getHoldoutPolicy)(),
-      ]);
+      const factor = await getDatabase().factor.findFirst({
+        where: {
+          id: context.factorId,
+          userId: context.userId,
+          analysisKind: 'time_series',
+        },
+        select: { id: true, name: true },
+      });
       if (!factor) {
         throw new Error('Time-series factor no longer exists.');
-      }
-      if (!policy) {
-        throw new Error('The explore/holdout research window cannot be computed from local data.');
-      }
-      if (parsed.data.end > policy.exploreEnd) {
-        throw new Error(
-          `The requested end date crosses the sealed holdout. Use an end date on or before ${policy.exploreEnd}.`,
-        );
       }
 
       const spec = {
@@ -156,7 +131,6 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
           label: factor.name,
         },
         spec,
-        researchIntent: parsed.data.researchIntent as FactorResearchIntentV1,
         locale: context.locale,
         failedMessage: t(context.locale, 'factorAnalysisFailed'),
       });
@@ -169,18 +143,11 @@ export function runTimeSeriesFactorAnalysisTool(context: TimeSeriesResearchConte
       return {
         observation: JSON.stringify({
           researchOnly: true,
-          phase: 'explore',
           analysisKind: 'time_series',
           reportId: started.reportId,
           status: result.status,
           reusedRunning: started.reusedRunning,
-          researchIntent: parsed.data.researchIntent,
           spec,
-          holdoutBoundary: {
-            exploreEnd: policy.exploreEnd,
-            holdoutStart: policy.holdoutStart,
-            holdoutEnd: policy.holdoutEnd,
-          },
           metrics: result.payload ? compactTimeSeriesMetrics(result.payload) : undefined,
         }),
         rows: result.payload ? result.payload.byAsset.length : 0,

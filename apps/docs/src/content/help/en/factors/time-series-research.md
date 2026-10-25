@@ -10,7 +10,7 @@ Time-series research compares one asset across its own historical states. It ask
 2. Select ETF time-series signal, or create a Factor with that research method.
 3. For a custom study, enter its name and immutable Factor key.
 4. Choose research assets, forward horizon, and dates.
-5. Click Run analysis and complete the research card.
+5. Choose assets, dates and forward horizon, then run directly. Publication requires a successful report matching the source; controlled carry and warehouse-receipt templates remain unavailable for publication or strategy use.
 
 The numbered areas are the research method, assets, horizon and dates, and run action.
 
@@ -41,10 +41,8 @@ The displayed slope is \(\beta\). A larger absolute t-statistic indicates a clea
 
 ## From exploration to publication
 
-An eligible time-series Factor still needs a research card, exploration, and a sealed holdout. Publication is available only when the page exposes the action and the report passes its gates. Controlled Carry and warehouse-receipt templates cannot currently be published or used in strategies.
+Choose assets, dates and forward horizon, then run directly. Publication requires a successful report matching the source; controlled carry and warehouse-receipt templates remain unavailable for publication or strategy use.
 
 ## Related articles
 
-- [Research card, exploration, and holdout](/docs/help/factors/research-card)
-- [Holdout and out-of-sample results](/docs/help/factors/holdout-results)
 - [Publish a Factor and use it in a strategy](/docs/help/factors/publish-factor)

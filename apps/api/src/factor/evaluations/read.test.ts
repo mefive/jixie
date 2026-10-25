@@ -29,7 +29,7 @@ describe('readFactorAnalysisResult', () => {
     const result = await readFactorAnalysisResult('user-1', 'report-1');
 
     expect(mocks.reportFindFirst).toHaveBeenCalledWith({
-      where: { id: 'report-1', userId: 'user-1', phase: 'explore' },
+      where: { id: 'report-1', userId: 'user-1' },
       select: { legacyStatus: true, failureMessage: true, job: true, payload: true },
     });
     expect(result).toMatchObject({ status: 'done', payload: { icMean: 0.03 } });

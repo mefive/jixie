@@ -4,7 +4,6 @@ import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import {
   type FactorAnalysisSpec,
-  type FactorResearchIntentV1,
   type FactorResearchSpecV1,
   type Locale,
   type RunFactorAnalysisResponse,
@@ -19,7 +18,7 @@ import {
   factorAnalysisSourceLanguage,
   factorAnalysisSourceSnapshot,
 } from '../sources/snapshot.js';
-import { factorTestKey, factorVariantKey } from './identity.js';
+import { factorVariantKey } from './identity.js';
 import type { FactorAnalysisJobPayload } from './job-payload.js';
 import { reportCompatibilityColumns } from './report-spec.js';
 
@@ -33,8 +32,6 @@ export async function startFactorAnalysis(options: {
   factor: string;
   source: FactorAnalysisSource;
   spec: FactorAnalysisSpec | FactorResearchSpecV1;
-  researchIntent: FactorResearchIntentV1;
-  parentReportId?: string | null;
   locale: Locale;
   failedMessage: string;
 }): Promise<RunFactorAnalysisResponse> {
@@ -47,7 +44,6 @@ export async function startFactorAnalysis(options: {
   const identitySpec =
     researchSpec.analysisKind === 'cross_sectional' ? researchSpec.protocol : researchSpec;
   const variantKey = factorVariantKey(identitySpec, factorCodeHash, dataRevision);
-  const testKey = factorTestKey(identitySpec, factorCodeHash, options.researchIntent);
   const reportColumns = reportCompatibilityColumns(researchSpec);
   const reportId = ulid();
   const jobId = ulid();
@@ -58,7 +54,6 @@ export async function startFactorAnalysis(options: {
           userId: options.userId,
           factor: options.factor,
           variantKey,
-          testKey,
           AND: [factorReportStatusWhere(['running'])],
         },
         include: { job: true },
@@ -76,7 +71,6 @@ export async function startFactorAnalysis(options: {
         factor: options.factor,
         legacyStatus: null,
         failureMessage: null,
-        phase: 'explore',
         ...reportColumns,
         analysisKind: researchSpec.analysisKind,
         specJson: JSON.stringify(researchSpec),
@@ -86,9 +80,6 @@ export async function startFactorAnalysis(options: {
         language,
         runtimeVersion,
         dataRevision,
-        parentReportId: options.parentReportId ?? null,
-        testKey,
-        researchIntentJson: JSON.stringify(options.researchIntent),
         job: {
           create: {
             id: jobId,

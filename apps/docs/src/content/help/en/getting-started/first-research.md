@@ -34,8 +34,7 @@ factor_report = results.factor_report("report ID")
 rank_ic_mean = factor_report["report"]["ic_mean"]
 ```
 
-Report and parameter fields use snake_case. This method neither changes nor reruns a report. Reports owned by other users are
-not visible, and an unrevealed holdout report remains sealed.
+Report and parameter fields use snake_case. This method neither changes nor reruns a report. Only owned completed reports can be read.
 
 ## Work with the Research Agent
 
@@ -55,7 +54,7 @@ When a promoted successful version contains one explicit point-in-time signal su
 Python Factor draft. An LLM first checks semantic convertibility, then the Factor compiler and `py-v1` runtime validate the
 code. The Factor retains its exact source snapshot, distilled summary, unresolved items, and backlink. Supported universe,
 date, frequency, filter, and prespecified-direction choices become suggested FactorReport parameters. The user must confirm
-them and run the report explicitly; the handoff does not reveal the holdout, publish the Factor, or turn exploratory findings
+them and run the report explicitly; the handoff does not publish the Factor, or turn exploratory findings
 into formal evidence.
 
 When the research also defines instruments or a point-in-time universe, signal direction, rebalance or entry/exit conditions,

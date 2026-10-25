@@ -50,7 +50,7 @@ Check in this order:
 3. Whether twelve-month mean IC changed in the same way.
 4. Whether coverage and sample size remained stable.
 5. Whether turnover rose materially.
-6. Return to the immutable factor report for long-run groups, drawdown, and holdout evidence.
+6. Return to the factor report to review long-run groups, drawdown, costs and other sample periods.
 
 A short unfavorable phase does not automatically mean permanent factor failure. A run of favorable months also does not prove future effectiveness. Crowding, style rotation, data changes, and random variation can all contribute.
 
@@ -61,7 +61,7 @@ A short unfavorable phase does not automatically mean permanent factor failure. 
 | One fixed monthly method | Explicit user-selected frequency, dates, and method |
 | Adds complete months over time | Immutable after the report is saved |
 | Monitors recent state | Tests a definition and research hypothesis |
-| Does not create out-of-sample evidence | Can freeze and reveal a formal holdout |
+| Does not establish unseen-sample validity | Compares user-selected date ranges |
 
 Recent strong weather cannot turn those same months into data that was not involved in factor selection.
 

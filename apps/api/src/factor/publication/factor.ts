@@ -49,8 +49,6 @@ export async function publishFactor(
     select: {
       id: true,
       analysisKind: true,
-      phase: true,
-      revealedAt: true,
       factorCodeSnapshot: true,
       factorCodeHash: true,
       language: true,
@@ -62,7 +60,6 @@ export async function publishFactor(
   if (
     !report?.factorCodeSnapshot ||
     !report.factorCodeHash ||
-    (report.phase === 'holdout' && !report.revealedAt) ||
     normalizeAnalysisKind(report.analysisKind) !== normalizeAnalysisKind(factor.analysisKind) ||
     factorLanguage(report.language) !== factorLanguage(factor.language) ||
     report.runtimeVersion !== factor.runtimeVersion

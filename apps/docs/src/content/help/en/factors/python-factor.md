@@ -75,7 +75,7 @@ Scores must have comparable scale and direction across assets. Raw price levels 
 
 1. Wait until code is saved.
 2. Resolve editor errors in fields, types, and return values.
-3. Configure dates, frequency, universe or asset pool, horizon, and research card.
+3. After validating the code, choose dates and parameters and run an analysis. Publication requires a successful report matching the current source; it fixes a version without a profitability or significance threshold.
 4. Select **Run analysis**, then inspect logs and the full report.
 5. Rerun after source changes; an old report still describes old code.
 6. Publish only from an approved report matching the current name, key, source, research kind, and protocol.
@@ -94,7 +94,7 @@ The code entry point must match the kind chosen at creation. Use `Factor.time_se
 
 ### The Python runs. Why can it not be published?
 
-Executable code is only the first gate. Publication also requires an approved report matching the current definition and any required research card, Holdout, or other gates.
+After validating the code, choose dates and parameters and run an analysis. Publication requires a successful report matching the current source; it fixes a version without a profitability or significance threshold.
 
 ## Related articles
 

@@ -117,28 +117,6 @@ await context.route('**/api/**', async (route) => {
       { key: 'draft', label: 'Draft fixture', kind: 'custom', status: 'draft' },
     ]);
   }
-  if (path === '/api/app/factors/research/window') {
-    return json(route, {
-      version: 1,
-      months: 18,
-      latestDate: '20260901',
-      exploreEnd: '20250301',
-      holdoutStart: '20250302',
-      holdoutEnd: '20260901',
-      checkedAt: createdAt,
-    });
-  }
-  if (path === '/api/app/factors/research/summary') {
-    const counts = {
-      exploreRunCount: 2,
-      exploreTestCount: 2,
-      legacyRunCount: 0,
-      holdoutCount: 0,
-      revealedHoldoutCount: 0,
-      expectedFalsePositivesAtFivePercent: 0.1,
-    };
-    return json(route, { global: counts, factor: counts });
-  }
   if (path === '/api/app/factors/analysis-reports') {
     return json(route, { items: url.searchParams.get('factor') === 'ep' ? reports : [] });
   }

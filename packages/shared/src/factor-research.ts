@@ -1,10 +1,4 @@
-import type {
-  FactorAnalysisKind,
-  FactorAnalysisSpec,
-  FactorReport,
-  FactorResearchIntentV1,
-  FactorResearchMetric,
-} from './factor.js';
+import type { FactorAnalysisKind, FactorAnalysisSpec, FactorReport } from './factor.js';
 import type { FactorSignalHorizonUnit } from './factor-dependency.js';
 
 export type FactorObservationFrequency = 'daily' | 'weekly' | 'monthly';
@@ -341,9 +335,9 @@ export type FactorResearchReportPayloadV1 =
   | { version: 1; analysisKind: 'macro_regime'; report: FactorMacroRegimeReportV1 };
 
 /**
- * 汇总时间序列研究的可比较指标，供预注册判断。
+ * 汇总时间序列研究的可比较指标，供报告摘要显示。
  *
- * Collect comparable time-series metrics for preregistered criteria.
+ * Collect comparable time-series metrics for report summaries.
  */
 export interface FactorTimeSeriesAggregateMetricsV1 {
   medianNeweyWestT: number;
@@ -351,9 +345,9 @@ export interface FactorTimeSeriesAggregateMetricsV1 {
 }
 
 /**
- * 从时间序列研究结果提取聚合指标，供门槛比较。
+ * 从时间序列研究结果提取聚合指标，供报告摘要显示。
  *
- * Extract aggregate time-series metrics for criterion evaluation.
+ * Extract aggregate time-series metrics for report summaries.
  */
 export function timeSeriesAggregateMetrics(
   report: FactorTimeSeriesReportV1,
@@ -377,61 +371,6 @@ export function timeSeriesAggregateMetrics(
         ? Number.NaN
         : hitRates.reduce((sum, value) => sum + value, 0) / hitRates.length,
   };
-}
-
-/**
- * 按研究种类读取指定指标，保留不适用或缺失语义。
- *
- * Resolve a metric by research kind while preserving unavailable or inapplicable values.
- */
-export function factorResearchMetricValue(
-  payload: FactorResearchReportPayloadV1,
-  metric: FactorResearchMetric,
-): number {
-  if (payload.analysisKind === 'cross_sectional') {
-    const values = {
-      rank_ic_mean: payload.report.icMean,
-      rank_icir_annual: payload.report.icirAnnual,
-      net_long_short_annualized: payload.report.longShortNet?.annReturn ?? Number.NaN,
-    } as Partial<Record<FactorResearchMetric, number>>;
-    return values[metric] ?? Number.NaN;
-  }
-  if (payload.analysisKind === 'time_series') {
-    const aggregate = timeSeriesAggregateMetrics(payload.report);
-    const values = {
-      time_series_median_newey_west_t: aggregate.medianNeweyWestT,
-      time_series_mean_direction_hit_rate: aggregate.meanDirectionHitRate,
-    } as Partial<Record<FactorResearchMetric, number>>;
-    return values[metric] ?? Number.NaN;
-  }
-  if (payload.analysisKind === 'panel') {
-    const values = {
-      panel_rank_ic_mean: payload.report.rankIcMean,
-      panel_net_long_short_annualized: payload.report.longShortNetAnnualized,
-    } as Partial<Record<FactorResearchMetric, number>>;
-    return values[metric] ?? Number.NaN;
-  }
-  return Number.NaN;
-}
-
-/**
- * 按预注册比较方向与阈值判断指标是否通过，缺失值不能视为通过。
- *
- * Evaluate a metric against its preregistered direction and threshold without passing missing values.
- */
-export function factorResearchCriterionPassed(
-  payload: FactorResearchReportPayloadV1,
-  intent?: FactorResearchIntentV1,
-): boolean {
-  const criterion = intent?.primaryCriterion;
-  if (!criterion) {
-    return false;
-  }
-  const value = factorResearchMetricValue(payload, criterion.metric);
-  if (!Number.isFinite(value)) {
-    return false;
-  }
-  return criterion.operator === 'gt' ? value > criterion.value : value < criterion.value;
 }
 
 export function researchAnalysisKind(spec: FactorResearchSpecV1): FactorAnalysisKind {

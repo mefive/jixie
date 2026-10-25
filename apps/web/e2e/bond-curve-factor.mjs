@@ -55,9 +55,6 @@ try {
   });
 
   await page.getByRole('button', { name: '运行分析' }).last().click();
-  const researchCard = page.getByRole('dialog', { name: '运行前研究卡' });
-  await researchCard.getByText('纯探索', { exact: true }).click();
-  await researchCard.getByRole('button', { name: '冻结研究卡并运行' }).click();
   await page.waitForURL(/\/factors\?factor=cgb_yield_decline_20&report=/, { timeout: 30_000 });
 
   await page.getByText('逐资产信号表现', { exact: true }).waitFor({ timeout: 180_000 });

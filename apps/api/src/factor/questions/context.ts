@@ -83,12 +83,7 @@ export async function captureFactorQuestionContext(
     const row = await database.factorReport
       .findFirst({ include: { job: true }, where: { id: reportId, userId, factor: factorKey } })
       .then((row) => (row ? factorReportState(row) : row));
-    if (
-      !row ||
-      row.status !== 'done' ||
-      !row.payload ||
-      (row.phase === 'holdout' && !row.revealedAt)
-    ) {
+    if (!row || row.status !== 'done' || !row.payload) {
       throw new FactorError('factor_question_report_unavailable');
     }
     report = {

@@ -137,7 +137,7 @@ The template has 29 Cells, including 24 Python Cells. It adds 3/5/10-year durati
 
 The 3/6/12-month retrospective windows compare the stock with the CSI 300 ETF (510300.SH), including adjusted return, return difference and maximum drawdown. Both use close times adjustment factor, without adding dividends again. Missing paired dates, duplicates or missing endpoints fail explicitly. An unfinished window stays unobserved. Raw close and provider market capitalization divided by reported shares are separate; share changes and A/H scope can make them differ.
 
-A common market cutoff updates the available financial inputs and displays next-year revenue, margin and FCFF thresholds. The three selected companies and overlapping windows are retrospective examples, not independent holdout evidence.
+These companies and overlapping windows are retrospective teaching samples; they do not establish independent out-of-sample validity.
 
 ## Partial classification from annual notes
 

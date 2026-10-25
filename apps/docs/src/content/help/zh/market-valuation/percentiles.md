@@ -101,4 +101,3 @@ $$
 - [查看指数估值](/docs/help/market-valuation/index-valuation)
 - [理解市场气象卡片](/docs/help/market-valuation/market-metrics)
 - [回放历史并查看卡片详情](/docs/help/market-valuation/weather-playback)
-- [正式保留段和样本外结果](/docs/help/factors/holdout-results)

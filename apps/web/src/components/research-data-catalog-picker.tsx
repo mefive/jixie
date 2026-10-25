@@ -45,7 +45,6 @@ import {
   faFileLines,
   faGaugeHigh,
   faLayerGroup,
-  faLock,
   faMagnifyingGlass,
   faPercent,
   faTableColumns,
@@ -190,7 +189,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
         : view === 'factor_reports'
           ? selectedFactorWeather
             ? researchFactorWeatherSelection(selectedFactorWeather)
-            : selectedReport && !selectedReport.sealed
+            : selectedReport
               ? researchFactorReportSelection(selectedReport)
               : null
           : view === 'datasets'
@@ -838,7 +837,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                         type="button"
                         className={classNames('jx-researchDataCatalog-result', {
                           'jx-researchDataCatalog-result--active': selectedReport?.id === report.id,
-                          'jx-researchDataCatalog-result--sealed': report.sealed,
                         })}
                         data-testid={`research-data-catalog-report-${report.id}`}
                         onClick={() => {
@@ -847,7 +845,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                         }}
                       >
                         <span className="jx-researchDataCatalog-resultIcon">
-                          <FontAwesomeIcon icon={report.sealed ? faLock : faFileLines} />
+                          <FontAwesomeIcon icon={faFileLines} />
                         </span>
                         <span className="jx-researchDataCatalog-resultText">
                           <strong>{report.factorName}</strong>
@@ -857,9 +855,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                           </span>
                         </span>
                         <span className="jx-researchDataCatalog-resultTags">
-                          <Tag>{t(`dataCatalog.reportPhase.${report.phase}`)}</Tag>
                           <Tag>{t(`dataCatalog.analysisKind.${report.analysisKind}`)}</Tag>
-                          {report.sealed && <Tag color="gold">{t('dataCatalog.sealed')}</Tag>}
                         </span>
                       </button>
                     ))}
@@ -893,10 +889,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                   </div>
                   <div>
                     <span>{t('dataCatalog.analysis')}</span>
-                    <strong>
-                      {t(`dataCatalog.analysisKind.${selectedReport.analysisKind}`)} ·{' '}
-                      {t(`dataCatalog.reportPhase.${selectedReport.phase}`)}
-                    </strong>
+                    <strong>{t(`dataCatalog.analysisKind.${selectedReport.analysisKind}`)}</strong>
                   </div>
                   <div>
                     <span>{t('dataCatalog.reportDate')}</span>
@@ -906,15 +899,8 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                       )}
                     </strong>
                   </div>
-                  {selectedReport.sealed && (
-                    <p className="jx-researchDataCatalog-sealedNotice">
-                      <FontAwesomeIcon icon={faLock} /> {t('dataCatalog.sealedHint')}
-                    </p>
-                  )}
                 </div>
-                {!selectedReport.sealed && (
-                  <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
-                )}
+                <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
               </section>
             )}
 

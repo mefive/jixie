@@ -75,7 +75,7 @@ This is not simply subtracting the industry average. Size and industry are consi
 2. Choose **None**, **Size**, or **Size + industry** under Neutralization.
 3. Keep all other settings unchanged for the first comparison.
 4. Select **Run again**.
-5. Complete the research card and wait for the report.
+5. Wait for the new report and verify its neutralization settings.
 
 The numbered areas are:
 

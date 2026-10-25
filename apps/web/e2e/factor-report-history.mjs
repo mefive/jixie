@@ -31,7 +31,6 @@ try {
       body: JSON.stringify({
         factor: 'ep',
         spec: { version: 1, freq: 'month', start: '20240101', end: '20241231', neutral: 'none' },
-        researchIntent: { version: 1, mode: 'exploratory', expectedDirection: 'unknown' },
       }),
     });
     const submitted = await response.json();
@@ -63,15 +62,13 @@ try {
   // A real API run proves identical in-flight inputs reuse one report/job, and the UI can restore the
   // running report after refresh and after switching factors. Keep the range short so the E2E remains cheap.
   const runningFixture = await page.evaluate(async () => {
-    const windowResponse = await fetch('/api/app/factors/research/window');
-    const window = await windowResponse.json();
     const body = {
       factor: 'ep',
       spec: {
         version: 2,
         freq: 'month',
         start: '20200101',
-        end: window.exploreEnd,
+        end: '20241231',
         neutral: 'none',
         universe: {
           minimumListingDays: 365,
@@ -88,12 +85,6 @@ try {
           stampDutySellSide: 0.0005,
           slippagePerSide: 0.001,
         },
-      },
-      parentReportId: null,
-      researchIntent: {
-        version: 1,
-        mode: 'exploratory',
-        expectedDirection: 'unknown',
       },
     };
     const run = () =>
@@ -177,8 +168,6 @@ try {
     );
   }
   await page.locator('.jx-factor-methodology').waitFor();
-  // An exploratory (non-hypothesis) done report must show why the formal holdout is unavailable.
-  await page.locator('.jx-factor-researchReason').waitFor();
   await page.screenshot({ path: `${SHOTS}7o-factor-methodology.png` });
   await page.screenshot({ path: `${SHOTS}7g-factor-history-button.png` });
   await page.locator('.jx-factor-historyTrigger').click();
@@ -257,7 +246,6 @@ try {
     id: 'e2e-report',
     factor: 'e2e-factor',
     status: 'error',
-    phase: 'explore',
     spec: fixtureSpec,
     createdAt: '2026-07-14T08:00:00.000Z',
     error: 'E2E fixture',
@@ -296,10 +284,6 @@ try {
   });
   const editor = guardPage.locator('.jx-factor-code .monaco-editor');
   await editor.waitFor({ timeout: 15000 });
-  await guardPage.locator('.jx-factor-runButton').click();
-  await guardPage.getByText('运行前研究卡').waitFor();
-  await guardPage.screenshot({ path: `${SHOTS}7n-factor-research-card.png` });
-  await guardPage.locator('.jx-factor-researchModal .ant-modal-close').click();
   await editor.click();
   await guardPage.keyboard.press('Meta+ArrowDown');
   const draftSaveRequest = guardPage.waitForRequest(
@@ -334,122 +318,8 @@ try {
   }
   await guardPage.close();
 
-  // Real API lifecycle for the new discipline layer: hypothesis explore → sealed holdout → reveal.
-  const holdoutLifecycle = await page.evaluate(async () => {
-    const json = async (path, init) => {
-      const response = await fetch(path, init);
-      const body = await response.json();
-      if (!response.ok) {
-        throw new Error(`${path}: ${JSON.stringify(body)}`);
-      }
-      return body;
-    };
-    const waitForJob = async (jobId) => {
-      const deadline = Date.now() + 180000;
-      while (Date.now() < deadline) {
-        const job = await json(`/api/app/factors/analysis-jobs/${jobId}`);
-        if (job.status !== 'running') {
-          if (job.status !== 'done') {
-            throw new Error(`job ${jobId} ended as ${job.status}`);
-          }
-          return job;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 400));
-      }
-      throw new Error(`job ${jobId} timed out`);
-    };
-    const window = await json('/api/app/factors/research/window');
-    const nonce = Date.now();
-    const code = `export default defineFactor({
-  name: 'E2E holdout ${nonce}',
-  compute: (bar) => (bar.close ? bar.close + ${nonce % 97} : null),
-});\n`;
-    const factor = await json('/api/app/factors', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ key: `e2e_holdout_${nonce}`, name: `E2E holdout ${nonce}`, code }),
-    });
-    const explore = await json('/api/app/factors/analyses', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        factor: factor.id,
-        spec: {
-          version: 2,
-          freq: 'month',
-          start: '20220101',
-          end: window.exploreEnd,
-          neutral: 'none',
-          universe: {
-            minimumListingDays: 365,
-            liquidityDropFraction: 0.25,
-            minimumCandidates: 100,
-          },
-          missing: { minimumWindowCoverage: 2 / 3 },
-          outliers: {
-            factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
-            forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
-          },
-          costs: {
-            commissionPerSide: 0.00025,
-            stampDutySellSide: 0.0005,
-            slippagePerSide: 0.001,
-          },
-        },
-        researchIntent: {
-          version: 1,
-          mode: 'hypothesis',
-          hypothesis: 'Higher close ranks predict higher next-month returns.',
-          expectedDirection: 'positive',
-          primaryCriterion: { metric: 'rank_ic_mean', operator: 'gt', value: 0 },
-        },
-      }),
-    });
-    await waitForJob(explore.jobId);
-    const exploreDetail = await json(`/api/app/factors/analysis-reports/${explore.reportId}`);
-    if (
-      exploreDetail.spec.version !== 2 ||
-      !exploreDetail.payload?.methodology ||
-      exploreDetail.payload.methodology.dataCutoff > window.exploreEnd
-    ) {
-      throw new Error('V2 explore report is missing its reproducibility snapshot');
-    }
-    if (!exploreDetail.holdout?.eligible) {
-      throw new Error(`explore was not holdout eligible: ${JSON.stringify(exploreDetail.holdout)}`);
-    }
-    const holdout = await json(`/api/app/factors/analysis-reports/${explore.reportId}/holdout`, {
-      method: 'POST',
-    });
-    await waitForJob(holdout.jobId);
-    const sealed = await json(`/api/app/factors/analysis-reports/${holdout.reportId}`);
-    const sealedJob = await json(`/api/app/factors/analysis-jobs/${holdout.jobId}`);
-    if (!sealed.sealed || sealed.payload || sealed.metrics || sealedJob.logs.length) {
-      throw new Error('sealed holdout leaked result data');
-    }
-    const revealed = await json(`/api/app/factors/analysis-reports/${holdout.reportId}/reveal`, {
-      method: 'POST',
-    });
-    if (!revealed.payload || !revealed.revealedAt || revealed.sealed) {
-      throw new Error('revealed holdout did not return its result');
-    }
-    const revealedAgain = await json(
-      `/api/app/factors/analysis-reports/${holdout.reportId}/reveal`,
-      {
-        method: 'POST',
-      },
-    );
-    if (revealedAgain.revealedAt !== revealed.revealedAt) {
-      throw new Error('reveal was not idempotent');
-    }
-    await json(`/api/app/factors/${factor.id}`, { method: 'DELETE' });
-    const retained = await json(`/api/app/factors/analysis-reports/${holdout.reportId}`);
-    if (!retained.payload) {
-      throw new Error('deleting a custom factor erased its research audit trail');
-    }
-    return { exploreReportId: explore.reportId, holdoutReportId: holdout.reportId };
-  });
   console.log(
-    `[factor-history-e2e] restored=${firstReportId} switched=${secondReportId} options=${optionCount} holdout=${holdoutLifecycle.holdoutReportId} guards=ok`,
+    `[factor-history-e2e] restored=${firstReportId} switched=${secondReportId} options=${optionCount} guards=ok`,
   );
 } finally {
   await context.close();

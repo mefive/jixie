@@ -343,13 +343,6 @@ export const enResearch: typeof zhResearch = {
     factor: 'Factor',
     analysis: 'Analysis',
     reportDate: 'Completed',
-    sealed: 'Sealed',
-    sealedHint: 'This holdout is unrevealed, so its result cannot be inserted or loaded yet.',
-    reportPhase: {
-      legacy: 'Legacy',
-      explore: 'Explore',
-      holdout: 'Holdout',
-    },
     analysisKind: {
       cross_sectional: 'Cross-sectional',
       time_series: 'Time series',

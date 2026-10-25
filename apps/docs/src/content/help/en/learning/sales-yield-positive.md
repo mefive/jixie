@@ -1,5 +1,6 @@
 # Sales yield: from a positive holdout to Factor admission
 
+> Historical case: research cards, Holdout admission, preregistration and reveal records below describe the retired workflow. Current analyses use user-selected dates; publication fixes matching source and a successful report. Original values and captures illustrate research methods only.
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
 
 > Learning path · 75–105 minutes · Run one preset Factor analysis first.
@@ -186,9 +187,7 @@ Do not extrapolate a 0.66% diagnostic return into a forecast or tune the known h
 ## Continue reading
 
 - [Run your first preset Factor analysis](/help/factors/first-preset-analysis)
-- [The preregistration card](/help/factors/research-card)
 - [Rank IC, ICIR, and IC decay](/help/factors/rank-ic-icir)
 - [Neutralization and exposure diagnostics](/help/factors/neutralization)
-- [Formal holdouts and out-of-sample results](/help/factors/holdout-results)
 - [Turnover, costs, and capacity](/help/factors/turnover-costs)
 - [CSI 300 value Factor: ranking, IC, portfolios, and holdout](/help/learning/csi300-value-factor)

@@ -29,23 +29,16 @@ test('help and list never select execution; unknown input is rejected', () => {
   }
 });
 
-test('learning group retains its original sequence and separate image tasks', () => {
+test('learning group omits retired research-gate journeys and keeps image tasks separate', () => {
   assert.deepEqual(
     selectCommands(['--group', 'learning'], e2eCommands).commands.map((command) => command.name),
-    [
-      'learning-cross-market',
-      'learning-trend-strategy',
-      'learning-value-factor',
-      'learning-stock-bond-allocation',
-      'learning-commodity-carry',
-      'learning-sales-yield-positive',
-    ],
+    ['learning-cross-market', 'learning-trend-strategy', 'learning-stock-bond-allocation'],
   );
   assert.equal(
     e2eCommands.some((command) => command.file.includes('help-content')),
     false,
   );
-  assert.equal(imageCommands.length, 17);
+  assert.equal(imageCommands.length, 16);
   assert.deepEqual(e2eCommands.find((command) => command.name === 'research-fcff-reuse').nodeArgs, [
     '--import',
     'tsx',
