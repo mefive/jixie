@@ -370,11 +370,6 @@ export const publishFactorBodySchema = z.object({
   approvedReportId: z.string().trim().min(1).max(80),
 });
 
-// Visibility.
-export const factorVisibilitySchema = z.object({ visibility: z.enum(['private', 'public']) });
-
-export type FactorVisibilityInput = z.output<typeof factorVisibilitySchema>;
-
 // Composites.
 export const factorCompositeInputSchema = z.object({ definition: factorCompositeDefinitionSchema });
 
@@ -475,7 +470,6 @@ export type CreateFactorDraftRequest = z.input<typeof createFactorDraftSchema>;
 export type UpdateFactorDraftRequest = z.input<typeof updateFactorDraftSchema>;
 export type FactorMetadataRequest = z.input<typeof factorMetadataBodySchema>;
 export type PublishFactorRequest = z.input<typeof publishFactorBodySchema>;
-export type FactorVisibilityRequest = z.input<typeof factorVisibilitySchema>;
 export type FactorCompositeRequest = z.input<typeof factorCompositeInputSchema>;
 export type SubmitFactorAnalysisRequest = z.input<typeof submitFactorAnalysisSchema>;
 export type FactorCorrelationRequestQuery = z.input<typeof factorCorrelationQuerySchema>;

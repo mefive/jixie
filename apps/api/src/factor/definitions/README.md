@@ -19,11 +19,11 @@
 
 Research 创建负责最多 100 次 key 尝试、32 字符限制与 `_2` 后缀，同时避开 Factor、Composite 和内置 key；P2002 后发现相同源执行的并发胜者则返回 reused，其他冲突继续尝试，未知数据库错误抛出。普通复制使用 [copy-key.ts](copy-key.ts) 的 `nextCopyKey`，保留 `_v2` 规则，不能拿交接命名规则替换。
 
-元数据 HTTP 入口和低层刷新各做一次前置检查，不能把它描述为模型调用后再次校验源码／状态的原子更新。公开详情与复制不应向外部用户带出原作者 messages 或 Research 来源信息。
+元数据 HTTP 入口和低层刷新各做一次前置检查，不能把它描述为模型调用后再次校验源码／状态的原子更新。定义读取和复制仅允许本人及内置因子，内置因子的作者上下文不对外提供。
 
 ## 修改定位
 
-- 草稿权限、复制与公开投影：drafts/read 与 [路由集成测试](../routes/index.integration.test.ts)。
+- 草稿权限、复制与归属校验：drafts/read 与 [路由集成测试](../routes/index.integration.test.ts)。
 - 内置定义及种子：[builtin-factors.test.ts](builtin-factors.test.ts)、[seed.integration.test.ts](seed.integration.test.ts)。
 - 元数据或 Research 交接：[metadata.test.ts](metadata.test.ts)、[from-research.test.ts](from-research.test.ts)，并读 [Research handoff](../../research/handoff/README.md)。
 

@@ -53,6 +53,8 @@ vi.mock('../weather/refresh.js', async (importOriginal) => ({
 }));
 
 import { t } from '#i18n/index.js';
+import { captureEmbeddedContext } from '#research/embedded/context.js';
+import { captureFactorQuestionContext } from '../questions/context.js';
 import { prisma } from '#infra/database/prisma.js';
 import { copyFactorComposite } from '../composition/operations.js';
 import { submitFactorHoldout } from '../evaluations/holdout.js';
@@ -120,7 +122,7 @@ async function seedPin(status = 'ready') {
     },
   });
 }
-async function seedPublicComposite() {
+async function seedForeignComposite() {
   await prisma.factor.createMany({
     data: ['component_a', 'component_b'].map((id) => ({
       id,
@@ -137,8 +139,8 @@ async function seedPublicComposite() {
   });
   const definition: FactorPanelCompositeDefinitionV2 = {
     version: 2,
-    key: 'public_panel',
-    name: 'Public panel',
+    key: 'owned_panel',
+    name: 'Owned panel',
     analysisKind: 'panel',
     standardization: 'rank',
     weighting: 'equal',
@@ -155,7 +157,6 @@ async function seedPublicComposite() {
       userId: 'other',
       definition: definition as unknown as Prisma.InputJsonValue,
       status: 'published',
-      visibility: 'public',
     },
   });
 }
@@ -238,11 +239,10 @@ describe('Factor HTTP business boundaries', () => {
     expect(await prisma.factorReport.findUnique({ where: { id: 'report' } })).not.toBeNull();
   });
 
-  it('allows public published copies without exposing private authoring context', async () => {
+  it('rejects foreign published factor reads and copies while preserving own copies', async () => {
     await prisma.factor.update({
       where: { id: 'draft' },
       data: {
-        visibility: 'public',
         status: 'published',
         messages: [{ role: 'user', content: 'Private' }],
         researchHandoff: { private: true },
@@ -250,72 +250,64 @@ describe('Factor HTTP business boundaries', () => {
         runtimeVersion: 'py-v1',
       },
     });
-    const read = await request('/factors/draft', undefined, 'other', 'GET');
-    expect(read.status).toBe(200);
-    expect(await read.json()).toMatchObject({
-      messages: null,
-      researchHandoff: null,
-      sourceResearchExecution: null,
-    });
-    const copied = await request('/factors/draft/copy', undefined, 'other');
+    expect((await request('/factors/draft', undefined, 'other', 'GET')).status).toBe(404);
+    expect((await request('/factors/draft/copy', undefined, 'other')).status).toBe(404);
+    await expect(
+      captureFactorQuestionContext(prisma, 'other', 'draft', undefined, 'en'),
+    ).rejects.toMatchObject({ reason: 'factor_not_found' });
+    await expect(
+      captureEmbeddedContext(prisma, 'other', { type: 'factor', id: 'draft' }),
+    ).rejects.toMatchObject({ reason: 'embedded_not_found' });
+    const source = await prisma.factor.findUniqueOrThrow({ where: { id: 'draft' } });
+    const copied = await request('/factors/draft/copy');
     expect(copied.status).toBe(200);
     const { id } = await copied.json();
-    expect(await prisma.factor.findUnique({ where: { id } })).toMatchObject({
-      userId: 'other',
+    expect(await prisma.factor.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      userId: 'owner',
       status: 'draft',
-      visibility: 'private',
       code: frozenCode,
       language: 'python',
       runtimeVersion: 'py-v1',
-      messages: null,
+      messages: source.messages,
       researchHandoff: null,
     });
-    await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'archived' } });
-    expect((await request('/factors/draft/copy', undefined, 'other')).status).toBe(404);
+    expect(await prisma.factor.findUniqueOrThrow({ where: { id: 'draft' } })).toEqual(source);
   });
 
-  it('copies public panel components into independent drafts with their original runtime', async () => {
-    await seedPublicComposite();
-    const response = await request('/factors/composites/composite/copy');
-    expect(response.status).toBe(200);
-    const copy = await response.json();
-    expect(copy).toMatchObject({ status: 'draft', visibility: 'private' });
-    const definition = copy.definition as FactorPanelCompositeDefinitionV2;
-    expect(definition.components.map((component) => component.factor)).not.toEqual([
-      'component_a',
-      'component_b',
-    ]);
-    const components = await prisma.factor.findMany({
-      where: { id: { in: definition.components.map((component) => component.factor) } },
-      orderBy: { key: 'asc' },
-    });
-    expect(components).toHaveLength(2);
-    for (const component of components) {
-      expect(component).toMatchObject({
-        userId: 'owner',
-        status: 'draft',
-        language: 'python',
-        runtimeVersion: 'py-v1',
-        messages: null,
-      });
-    }
-    expect(components.map((component) => component.code)).toEqual([
-      '# component_a frozen',
-      '# component_b frozen',
-    ]);
+  it('rejects reading and copying a foreign published composite', async () => {
+    await seedForeignComposite();
+    const before = await prisma.factor.findMany({ orderBy: { id: 'asc' } });
+    expect((await request('/factors/composites/composite', undefined, 'owner', 'GET')).status).toBe(
+      404,
+    );
+    expect((await request('/factors/composites/composite/copy')).status).toBe(404);
+    await expect(
+      captureFactorQuestionContext(prisma, 'owner', 'composite', undefined, 'en'),
+    ).rejects.toMatchObject({ reason: 'factor_not_found' });
+    await expect(
+      captureEmbeddedContext(prisma, 'owner', { type: 'factor', id: 'composite' }),
+    ).rejects.toMatchObject({ reason: 'embedded_not_found' });
+    expect(await prisma.factor.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+    expect(await prisma.factorComposite.count()).toBe(1);
   });
 
-  it('rolls back copied components if the final composite insert fails', async () => {
-    await seedPublicComposite();
-    resources.id
-      .mockReturnValueOnce('new-a')
-      .mockReturnValueOnce('new-b')
-      .mockReturnValueOnce('composite');
-    await expect(copyFactorComposite('owner', 'composite')).rejects.toMatchObject({
-      code: 'P2002',
+  it('copies an owned published composite without copying its components', async () => {
+    await seedForeignComposite();
+    await prisma.factor.updateMany({
+      where: { id: { in: ['component_a', 'component_b'] } },
+      data: { userId: 'owner' },
     });
-    expect(await prisma.factor.count({ where: { userId: 'owner' } })).toBe(1);
-    expect(await prisma.factorComposite.count({ where: { userId: 'owner' } })).toBe(0);
+    await prisma.factorComposite.update({ where: { id: 'composite' }, data: { userId: 'owner' } });
+    const source = await prisma.factorComposite.findUniqueOrThrow({ where: { id: 'composite' } });
+    const copy = await copyFactorComposite('owner', 'composite');
+    expect(copy).toMatchObject({ status: 'draft', key: 'owned_panel_v2' });
+    expect((copy.definition as FactorPanelCompositeDefinitionV2).components).toEqual(
+      (source.definition as unknown as FactorPanelCompositeDefinitionV2).components,
+    );
+    expect(await prisma.factor.count()).toBe(3);
+    expect(await prisma.factorComposite.findUniqueOrThrow({ where: { id: 'composite' } })).toEqual(
+      source,
+    );
   });
 
   it.each([
@@ -510,7 +502,7 @@ describe('Factor HTTP business boundaries', () => {
     expect(
       (await request('/factors/draft/visibility', { visibility: 'private' }, 'owner', 'PATCH'))
         .status,
-    ).toBe(200);
+    ).toBe(404);
     expect((await request('/factors/custom/draft', undefined, 'owner', 'GET')).status).toBe(404);
   });
 

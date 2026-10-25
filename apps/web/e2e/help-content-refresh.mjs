@@ -229,12 +229,6 @@ try {
         ],
       },
       {
-        name: 'library/library-current',
-        route: '/library',
-        ready: '.jx-library-hero',
-        marks: ['.jx-library-hero', '.jx-library-sections'],
-      },
-      {
         name: 'backtesting/strategy-description-01',
         route: '/strategy?new=1',
         ready: '.jx-strategy-heroInput',

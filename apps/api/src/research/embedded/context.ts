@@ -37,16 +37,13 @@ export async function captureEmbeddedContext(
       const factor = await transaction.factor.findFirst({
         where: {
           id: host.id,
-          OR: [
-            { userId: { in: [userId, 'builtin'] } },
-            { visibility: 'public', status: 'published' },
-          ],
+          userId: { in: [userId, 'builtin'] },
         },
         select: { name: true, code: true, language: true },
       });
       if (!factor) {
         const composite = await transaction.factorComposite.findFirst({
-          where: { id: host.id, OR: [{ userId }, { visibility: 'public', status: 'published' }] },
+          where: { id: host.id, userId },
           select: { name: true, definition: true },
         });
         if (!composite) {

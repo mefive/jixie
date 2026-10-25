@@ -7,7 +7,6 @@ import { zhFactor } from './factor';
 import { zhFactorWeather } from './factor-weather';
 import { zhStock } from './stock';
 import { zhValuation } from './valuation';
-import { zhLibrary } from './library';
 import { zhResearch } from './research';
 
 // Chinese resource bundle, keyed by namespace. Add a namespace here when a page is internationalized.
@@ -21,6 +20,5 @@ export const zhResources = {
   factorWeather: zhFactorWeather,
   stock: zhStock,
   valuation: zhValuation,
-  library: zhLibrary,
   research: zhResearch,
 };

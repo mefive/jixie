@@ -8,7 +8,6 @@ export const zhCommon = {
     market: '市场',
     factorWeather: '因子气象',
     valuation: '估值',
-    library: '公共资产库',
     help: '使用帮助',
     menu: '页面导航',
   },

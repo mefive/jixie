@@ -13,7 +13,7 @@ Prepare these states through normal application operations in the disposable dat
 - A blank Research document named `归档示例 / Archive example`, archived through the document menu.
 - The `ep` preset and a real saved Factor report accessible to the capture account.
 - At least two independent report deployments. Pause one, preserving an active instance, to demonstrate separate lifecycle and account state. Do not generate signals for these entry-point captures.
-- Locally available market/valuation/stock data. An empty catalog or public library must remain visibly empty; do not add fake rows to make the image look populated.
+- Locally available market/valuation/stock data. An empty catalog must remain visibly empty; do not add fake rows to make the image look populated.
 
 Store account information and record IDs in a private JSON file outside the repository:
 

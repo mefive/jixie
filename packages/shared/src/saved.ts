@@ -1,6 +1,5 @@
 import type { BacktestConfig, BacktestSummary } from './backtest.js';
 import type { ChatMessage } from './chat.js';
-import type { AssetVisibility } from './sharing.js';
 import type { ResearchStrategyHandoffV1 } from './research.js';
 
 /**
@@ -27,7 +26,6 @@ export interface SavedMeta {
  * the Agent-panel conversation that authored it (restored into the chat on reopen).
  */
 export interface SavedStrategy extends SavedMeta {
-  visibility: AssetVisibility;
   config: BacktestConfig;
   lastResult?: BacktestSummary | null;
   messages?: ChatMessage[] | null;
@@ -49,7 +47,6 @@ export interface SavedStrategy extends SavedMeta {
  * thumbnail + headline metrics, without shipping the whole result).
  */
 export interface StrategyCard extends SavedMeta {
-  visibility: AssetVisibility;
   snapshot?: {
     totalReturn: number;
     sharpe: number;

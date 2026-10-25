@@ -142,7 +142,6 @@ describe('Strategy HTTP business boundaries', () => {
         name: config.name,
         config,
         lastResult: { marker: 'old result' },
-        visibility: 'public',
       },
     });
     await prisma.tradeCal.createMany({
@@ -385,35 +384,27 @@ describe('Strategy HTTP business boundaries', () => {
     }
   });
 
-  it('makes factor-dependent drafts private and rejects republishing them', async () => {
+  it('runs owned factor-dependent drafts and retires visibility changes', async () => {
     const dependent = {
       ...config,
       code: "export default defineStrategy({ factors: ['owner_factor'] });",
     };
     expect((await request('/strategies/strategy/backtests', dependent)).status).toBe(200);
-    expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toMatchObject({
-      visibility: 'private',
-    });
-    const response = await request(
-      '/strategies/strategy/visibility',
-      { visibility: 'public' },
-      'owner',
-      'PATCH',
-    );
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({
-      error: { message: t('en', 'publicStrategyMustBeSelfContained') },
-    });
     expect(
-      (
-        await request(
-          '/strategies/strategy/visibility',
-          { visibility: 'private' },
-          'other',
-          'PATCH',
-        )
-      ).status,
-    ).toBe(404);
+      (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).config,
+    ).toMatchObject({ code: dependent.code });
+    for (const userId of ['owner', 'other']) {
+      expect(
+        (
+          await request(
+            '/strategies/strategy/visibility',
+            { visibility: 'public' },
+            userId,
+            'PATCH',
+          )
+        ).status,
+      ).toBe(404);
+    }
   });
 
   it('resolves collection operations before strategy identities and retires direct edits', async () => {
@@ -639,7 +630,6 @@ describe('Strategy HTTP business boundaries', () => {
           name: 'Foreign',
           userId: 'other',
           status: 'published',
-          visibility: 'public',
         },
       ],
     });

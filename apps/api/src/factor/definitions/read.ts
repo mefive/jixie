@@ -20,7 +20,6 @@ export async function listOwnedFactors(userId: string) {
       language: true,
       runtimeVersion: true,
       status: true,
-      visibility: true,
       updatedAt: true,
     },
     orderBy: { updatedAt: 'desc' },
@@ -58,10 +57,7 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
   const row = await getDatabase().factor.findFirst({
     where: {
       id: factorId,
-      OR: [
-        { userId: { in: [userId, BUILTIN_USER_ID] } },
-        { visibility: 'public', status: 'published' },
-      ],
+      userId: { in: [userId, BUILTIN_USER_ID] },
     },
     select: {
       id: true,
@@ -91,7 +87,6 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
         },
       },
       userId: true,
-      visibility: true,
     },
   });
 

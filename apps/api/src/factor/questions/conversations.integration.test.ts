@@ -121,7 +121,6 @@ describe('private durable Factor questions', () => {
           code: 'saved source',
           key: 'factor',
           status: 'published',
-          visibility: 'public',
           messages: [{ role: 'user', content: 'Authoring history' }],
         },
         {
@@ -293,11 +292,23 @@ describe('private durable Factor questions', () => {
     const first = await submit();
     await finished(first.turnId);
     expect(await prisma.factor.findUniqueOrThrow({ where: { id: 'factor' } })).toEqual(original);
-    expect((await history('factor', '', 'other')).messages).toEqual([]);
+    expect((await request('/factors/factor/questions', undefined, 'other')).status).toBe(404);
     expect((await request(`/agent/turns/${first.turnId}`, undefined, 'other')).status).toBe(404);
-    const second = await submit(undefined, 'factor', 'other');
-    await finished(second.turnId);
-    expect(second.conversationId).not.toBe(first.conversationId);
+    expect(
+      (
+        await request(
+          '/factors/questions',
+          { factorKey: 'factor', message: 'Explain this result.' },
+          'other',
+        )
+      ).status,
+    ).toBe(404);
+    expect(
+      await prisma.agentConversation.count({
+        where: { userId: 'other', questionFactorKey: 'factor' },
+      }),
+    ).toBe(0);
+    expect((await history()).messages).toHaveLength(2);
   });
 
   it('rejects wrong, foreign, unfinished and sealed reports before saving any question', async () => {

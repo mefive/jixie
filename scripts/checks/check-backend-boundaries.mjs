@@ -22,6 +22,7 @@ const retiredDirectories = new Set([
   'commodity',
   'risk',
   'library',
+  'sharing',
 ]);
 const startupFiles = new Set(['index.ts', 'bootstrap.ts', 'server.ts']);
 

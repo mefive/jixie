@@ -17,7 +17,6 @@
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
 | Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、跨资产查询与跨市场流程 | [Market](../apps/api/src/market/README.md) |
 | Maintenance | 统一目标同步、分区覆盖、局部资格、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
-| Sharing | 公开库目录，策略复制委托 Strategy | [Sharing](../apps/api/src/sharing/README.md) |
 | Auth | 登录、验证码、邀请码、Session 与 Cookie 适配 | [Auth](../apps/api/src/auth/README.md) |
 | Infra | 数据库、HTTP 辅助、任务执行器、Python/TS 运行设施、模型/邮件传输和日志 | [Jobs](../apps/api/src/jobs/README.md)、[Runtime](../apps/api/src/infra/sandbox/README.md) |
 | Math / date.ts / i18n | 共用数值计算、日期和翻译目录；无业务对象或持久化状态 | [math](../apps/api/src/math/)、[date.ts](../apps/api/src/date.ts)、[i18n](../apps/api/src/i18n/) |
@@ -39,7 +38,6 @@
 | `/api/app/strategies` | `strategy/routes/index.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
 | `/api/app/agent` | `agent/routes/index.ts` 组合 turn 路由，提供执行详情、历史、SSE 和取消 |
 | `/api/app/market` | `market/routes/index.ts` 直接组合 instrument / valuation / state 路由 |
-| `/api/app/library` | `sharing/routes.ts`；URL 保留公开库原契约 |
 
 路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。路由对象使用业务/职责明确的具名导出，如 `authRoute`、`strategyRoute` 和 `factorRoute`；server 和外部路由消费者只从所属模块的路由总入口 同名导入。单组路由可以在入口直接实现，Strategy 的 `routes/index.ts` 直接组合 `routes/definition.ts`、`routes/agent.ts`、`routes/backtest.ts` 和 `routes/scan.ts`；Factor 的 `routes/index.ts` 直接组合 `routes/definition.ts`、`routes/composite.ts`、`routes/agent.ts`、`routes/analysis.ts`、`routes/correlation.ts` 和 `routes/weather.ts`。处理器按业务职责分文件实现。完整路径与迁移说明见 [路由设计](design/api-route-naming.md)。组合文件直接导入子路由实现，不反向导入统一出口。
 
@@ -47,13 +45,13 @@ Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，�
 
 多组路由统一放在业务模块的 `routes/` 中，由 `routes/index.ts` 组合并对外导出，外部显式导入 `routes/index.js`。实现文件名省略 `-routes` 后缀。业务错误统一放在模块根级 `errors.ts`，公共 HTTP 映射由
 `infra/http/errors.ts` 提供，在 `server.ts` 注册 `onError`；公共请求 schema 位于 shared/api；模块根级 `schema.ts` 仅承载后端专属组合和内部输入。
-五个核心业务模块的整体接口测试与专属路由测试均放在 `routes/`；其他模块保持现有测试布局。Auth、Sharing、Maintenance
+核心业务模块的整体接口测试与专属路由测试均放在 `routes/`；其他模块保持现有测试布局。Auth、Maintenance
 只有单文件路由，直接使用根级 `routes.ts`。HTTP 路径、注册顺序及业务行为保持原契约，整理与验证记录见
 [路由目录整理](design/api-route-directories.md)。
 
 ## 错误的归属和调用方式
 
-九个业务模块（Strategy、Factor、Research、Market、Agent、Auth、Sharing、Maintenance）
+七个业务模块（Strategy、Factor、Research、Market、Agent、Auth、Maintenance）
 统一在根级 `errors.ts` 定义错误。业务调用点直接抛出模块错误，例如
 `throw new StrategyError('strategy_not_found')`；成功直接返回数据，不以 `null`、`false` 或 `{ error }`
 表达操作失败。合法的可选查询、幂等取消结果和任务状态保留数据语义。

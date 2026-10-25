@@ -37,10 +37,6 @@ const definitions = {
     category: 'conflict',
     messageKey: 'strategyBacktestInProgress',
   },
-  public_strategy_must_be_self_contained: {
-    category: 'invalid',
-    messageKey: 'publicStrategyMustBeSelfContained',
-  },
   strategy_python_scan_unsupported: {
     category: 'invalid',
     messageKey: 'strategyPythonScanUnsupported',

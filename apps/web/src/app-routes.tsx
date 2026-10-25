@@ -18,7 +18,6 @@ import factorEntry from '@src/complex/factor';
 import marketEntry from '@src/complex/market';
 import factorWeatherEntry from '@src/complex/factor-weather';
 import valuationEntry from '@src/complex/valuation';
-import libraryEntry from '@src/complex/library';
 import researchEntry from '@src/complex/research';
 import { TopNav } from '@src/components/top-nav';
 import { authStore } from '@src/store';
@@ -195,7 +194,6 @@ const router = createBrowserRouter(
         />
         <Route path="/objects/:assetType/:id" element={<ObjectRoute />} />
         <Route path="/trades" element={<TradePage />} />
-        <Route path="/library" element={<ComplexRoute key="library" entry={libraryEntry} />} />
       </Route>
       <Route path="/learn" element={<ExternalRedirect to="/docs/help" />} />
       <Route path="/help/*" element={<LegacyHelpRedirect />} />

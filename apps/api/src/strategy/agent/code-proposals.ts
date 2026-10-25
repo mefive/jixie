@@ -9,7 +9,6 @@ import {
   readCodeProposal,
 } from '#agent/conversations/code-proposals.js';
 import { StrategyError } from '../errors.js';
-import { StrategyFactor } from '../factors/strategy-factor.js';
 
 const { Prisma: PrismaNamespace } = pkg;
 
@@ -89,9 +88,6 @@ export async function acceptStrategyCodeProposal(
       data: {
         config,
         lastResult: PrismaNamespace.DbNull,
-        ...(StrategyFactor.extractKeys(proposal.afterCode).length > 0
-          ? { visibility: 'private' }
-          : {}),
       },
     });
 

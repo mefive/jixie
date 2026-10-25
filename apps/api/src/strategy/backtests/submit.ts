@@ -9,7 +9,6 @@ import { ulid } from 'ulid';
 import { refreshStrategyName } from '../definitions/naming.js';
 import { commitStrategyConfig, strategyRunKey } from '../definitions/config.js';
 import { StrategyError } from '../errors.js';
-import { StrategyFactor } from '../factors/strategy-factor.js';
 import type {
   StrategyBacktestIdentityQuery,
   StrategyCodeConfigInput,
@@ -52,9 +51,7 @@ export async function submitStrategyBacktest(
       return { kind: 'running' as const };
     }
 
-    const committed = await commitStrategyConfig(transaction, userId, strategyId, config, {
-      forcePrivate: StrategyFactor.extractKeys(config.code).length > 0,
-    });
+    const committed = await commitStrategyConfig(transaction, userId, strategyId, config);
     const committedConfig = { ...config, name: committed!.name };
     const reportId = ulid();
     const jobId = ulid();

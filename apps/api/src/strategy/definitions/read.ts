@@ -9,7 +9,6 @@ export async function listStrategies(userId: string) {
     select: {
       id: true,
       name: true,
-      visibility: true,
       createdAt: true,
       updatedAt: true,
       lastResult: true,
@@ -19,7 +18,6 @@ export async function listStrategies(userId: string) {
   const cards: StrategyCard[] = rows.map((r) => ({
     id: r.id,
     name: r.name,
-    visibility: r.visibility === 'public' ? 'public' : 'private',
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     snapshot: strategyCardSnapshot(r.lastResult),
@@ -86,6 +84,5 @@ export async function readStrategy(userId: string, strategyId: string) {
           promotedAt: row.sourceResearchExecution.promotedAt?.toISOString() ?? null,
         }
       : null,
-    visibility: row.visibility === 'public' ? 'public' : 'private',
   };
 }

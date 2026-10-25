@@ -116,6 +116,7 @@ try {
   // 成功回测后仍无部署入口；已登录访问退役 API 也必须返回 404。
   // Successful backtests expose no deployment controls; retired APIs return 404 after login too.
   assert.equal(await page.locator('.jx-topnav a[href="/signals"]').count(), 0);
+  assert.equal(await page.locator('.jx-topnav a[href="/library"]').count(), 0);
   assert.equal(await page.getByRole('button', { name: '部署上线', exact: true }).count(), 0);
   for (const [path, method] of [
     ['/deployments', 'GET'],
@@ -129,6 +130,22 @@ try {
     const response = await context.request.fetch(`${BASE}/api/app/signals${path}`, {
       method,
       data: method === 'GET' ? undefined : {},
+    });
+    assert.equal(response.status(), 404, `retired API ${method} ${path}`);
+  }
+
+  // 公开目录、跨用户复制和可见范围写入口均已退役。
+  // Public discovery, cross-user copying and visibility mutations are retired.
+  for (const [path, method] of [
+    ['/api/app/library', 'GET'],
+    [`/api/app/library/strategies/${strategyId}/copy`, 'POST'],
+    [`/api/app/strategies/${strategyId}/visibility`, 'PATCH'],
+    ['/api/app/factors/missing/visibility', 'PATCH'],
+    ['/api/app/factors/composites/missing/visibility', 'PATCH'],
+  ]) {
+    const response = await context.request.fetch(`${BASE}${path}`, {
+      method,
+      data: method === 'GET' ? undefined : { visibility: 'public' },
     });
     assert.equal(response.status(), 404, `retired API ${method} ${path}`);
   }

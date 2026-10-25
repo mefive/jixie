@@ -3,7 +3,6 @@ import type { CodeChangeProposalV1 } from '@jixie/shared';
 import type {
   StrategyCodeConfigRequest,
   CreateStrategyRequest,
-  StrategyVisibilityRequest,
   StrategyBacktestRequestParams,
   StrategyBacktestJobRequestQuery,
   StrategyScanRequestParams,
@@ -22,7 +21,6 @@ import type {
   StrategyScanReportSummary,
   StrategyScanSpec,
   StrategyParamValue,
-  AssetVisibility,
   SavedMeta,
   SavedStrategy,
   StrategyCard,
@@ -161,16 +159,6 @@ export function createStrategy(config: BacktestConfig, prompt?: string): Promise
 
 export function deleteStrategy(id: string): Promise<{ ok: true }> {
   return request(`/api/app/strategies/${id}`, { method: 'DELETE' });
-}
-
-export function setStrategyVisibility(
-  id: string,
-  visibility: AssetVisibility,
-): Promise<{ id: string; visibility: AssetVisibility }> {
-  return request(`/api/app/strategies/${encodeURIComponent(id)}/visibility`, {
-    method: 'PATCH',
-    body: JSON.stringify({ visibility } satisfies StrategyVisibilityRequest),
-  });
 }
 
 export function acceptStrategyCodeChange(

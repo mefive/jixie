@@ -1228,10 +1228,10 @@
     },
     {
       "path": "zh/library/share-copy-01.png",
-      "articles": ["en/library/share-copy.md", "zh/library/share-copy.md"],
+      "articles": [],
       "originalSha256": "89bb800edc2f9405f06b9aecdabde9df57b790ea36ed242d319794e7bf17b22c",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "The public library and resource sharing were removed in the system simplification.",
       "crop": [0, 40, 1280, 760],
       "sha256": "bd1353453c6ba31150e78674f6c595df10248aaf730e0b955c5d5959561714e0"
     },
@@ -1507,16 +1507,16 @@
     },
     {
       "path": "zh/library/library-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["zh/library/share-copy.md"],
+      "disposition": "retired",
+      "reason": "The public library and resource sharing were removed in the system simplification.",
+      "articles": [],
       "sha256": "615a21ca38e7f4f9e0003b5eeb1bb7414b14100f5fa64f8a6a86c7d289a73806"
     },
     {
       "path": "en/library/library-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["en/library/share-copy.md"],
+      "disposition": "retired",
+      "reason": "The public library and resource sharing were removed in the system simplification.",
+      "articles": [],
       "sha256": "5397382bbd628c8f2b7873bceedb959e68f031b528c129aafcbd8063919d1b84"
     },
     {

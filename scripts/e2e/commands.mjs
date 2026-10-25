@@ -277,11 +277,6 @@ export const e2eCommands = [
     group: 'strategy',
   },
   {
-    name: 'public-library',
-    file: 'apps/web/e2e/public-library.mjs',
-    group: 'platform',
-  },
-  {
     name: 'strategy-python',
     file: 'apps/web/e2e/python-strategy.mjs',
     group: 'strategy',

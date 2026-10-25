@@ -8,7 +8,6 @@ import { factorRoute } from '#factor/routes/index.js';
 import { handleApiError } from '#infra/http/errors.js';
 import { marketRoute } from '#market/routes/index.js';
 import { researchRoute } from '#research/routes/index.js';
-import { sharingRoute } from '#sharing/routes.js';
 import { strategyRoute } from '#strategy/routes/index.js';
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
@@ -42,7 +41,6 @@ export function buildApp(database: Prisma = prisma) {
   app.route('/api/app/market', marketRoute);
   app.route('/api/app/strategies', strategyRoute);
   app.route('/api/app/factors', factorRoute);
-  app.route('/api/app/library', sharingRoute);
   app.route('/api/app/research', researchRoute);
 
   return app;

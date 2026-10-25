@@ -55,9 +55,9 @@ export async function resolvePanelFactorSource(
 }
 
 /**
- * 解析作者 Panel 因子来源，校验协议与公开范围。
+ * 解析作者 Panel 因子来源，校验协议与用户归属。
  *
- * Resolve an authored panel source and validate its protocol and visibility.
+ * Resolve an authored panel source and validate its protocol and ownership.
  */
 async function resolveCustomPanelSource(
   userId: string,

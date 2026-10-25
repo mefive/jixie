@@ -4,7 +4,7 @@
 
 | 入口 | 消费者 | 职责 |
 | --- | --- | --- |
-| `StrategyFactor.extractKeys(source)` | definitions/visibility、backtests/submit、Sharing、fromStrategySource | 只扫描 ctx.factor 调用与 factors 声明中的字面量，过滤内置键并按顺序去重；不执行代码、不查库、不编译，不识别动态表达式 |
+| `StrategyFactor.extractKeys(source)` | fromStrategySource | 只扫描 ctx.factor 调用与 factors 声明中的字面量，过滤内置键并按顺序去重；不执行代码、不查库、不编译，不识别动态表达式 |
 | `StrategyFactor.fromStrategySource(source, userId)` | 回测、扫描 | 查询授权来源、校验发布状态及批准快照、编译 TS 或保留 Python 源码，返回 `StrategyFactor[]`；不启动 runtime |
 | `StrategyFactor.validateSandboxMetadata(factors, definitions)` | StrategySimulation | 检查运行定义是否完整及是否包含 research-only 输入；不修改或复制因子 |
 | `factor` 只读属性 / `factor.toDependency(definition?)` | 执行与报告 | FactorHost 直接读取因子对象，报告仅输出来源快照，传入运行定义时附加实际 inputs；Engine 不接收源码 |
@@ -13,7 +13,7 @@
 
 回测和扫描可使用已发布或已归档的固定版本。
 
-自定义单因子只查询本人及内置用户，组合只查询本人；公开别人的因子不等于可直接作为自己的运行依赖。缺少请求键即拒绝。Panel 单因子保留批准报告资产范围，组合校验批准快照、哈希和研究范围，不改用当前可编辑组合。返回顺序与引用键顺序对应。
+自定义单因子只查询本人及内置用户，组合只查询本人；缺少请求键即拒绝。Panel 单因子保留批准报告资产范围，组合校验批准快照、哈希和研究范围，不改用当前可编辑组合。返回顺序与引用键顺序对应。
 
 数据库仅在 fromStrategySource 确实需要查库时加载，编译器仅在准备 TS 源码时加载。导入类或提取引用均不因此启动数据库或加载编译器。准备中的源码转换、组合解码、资产范围解析及快照规范化都为类的私有方法，不保留旧函数的转发文件。
 

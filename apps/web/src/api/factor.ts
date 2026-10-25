@@ -5,7 +5,6 @@ import type {
   UpdateFactorDraftRequest,
   FactorMetadataRequest,
   PublishFactorRequest,
-  FactorVisibilityRequest,
   FactorCompositeRequest,
   SubmitFactorAnalysisRequest,
   FactorCorrelationRequestQuery,
@@ -22,7 +21,6 @@ import type {
 import type {
   ChatMessage,
   LogLine,
-  AssetVisibility,
   ResearchFactorHandoffV1,
   FactorAnalysisKind,
   FactorMeta,
@@ -116,19 +114,6 @@ export function copyFactorComposite(id: string): Promise<FactorCompositeResource
   });
 }
 
-export function setFactorVisibility(
-  id: string,
-  kind: 'factor' | 'composite',
-  visibility: AssetVisibility,
-): Promise<{ id: string; visibility: AssetVisibility }> {
-  const path =
-    kind === 'composite' ? `composites/${encodeURIComponent(id)}` : encodeURIComponent(id);
-  return request(`/api/app/factors/${path}/visibility`, {
-    method: 'PATCH',
-    body: JSON.stringify({ visibility } satisfies FactorVisibilityRequest),
-  });
-}
-
 // —— Custom factors (code-first, Agent-authored) —— created on the first Agent prompt, then updated by
 // id: messages in real time, code/name on an analysis run. Mirrors the strategy workbench.
 
@@ -180,7 +165,6 @@ export function getCustomFactor(id: string): Promise<{
   } | null;
   builtin?: boolean; // preset rows are readable (readonly) through the same endpoint
   owned?: boolean;
-  visibility?: AssetVisibility;
 }> {
   return request(`/api/app/factors/${id}`);
 }

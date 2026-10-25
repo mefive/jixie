@@ -1578,9 +1578,9 @@ const CompositeWorkspace = complex.component(() => {
 }, 'CompositeWorkspace');
 
 /**
- * 展示当前因子身份、状态与可见范围，供工作台定位。
+ * 展示当前因子身份与状态，供工作台定位。
  *
- * Present the selected factor's identity, status and visibility.
+ * Present the selected factor's identity and status.
  */
 const FactorIdentityBar = complex.component(() => {
   const store = complex.useStore();

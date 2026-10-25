@@ -617,7 +617,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     expect(record).toMatchObject({ status: 'interrupted', responseJson: null });
   });
 
-  it('retains analysis evidence when the host is deleted and never exposes it through public Factor data', async () => {
+  it('retains analysis evidence when the host is deleted and keeps it private to its owner', async () => {
     const { run, analysis } = await fixtureRun();
     const completed = await execute(run);
     await prisma.factor.delete({ where: { id: input.host.id } });

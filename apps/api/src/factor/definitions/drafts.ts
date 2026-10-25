@@ -200,10 +200,7 @@ export async function copyFactorDraft(userId: string, factorId: string) {
   const source = await getDatabase().factor.findFirst({
     where: {
       id: factorId,
-      OR: [
-        { userId: { in: [userId, BUILTIN_USER_ID] } },
-        { visibility: 'public', status: 'published' },
-      ],
+      userId: { in: [userId, BUILTIN_USER_ID] },
     },
     select: {
       key: true,

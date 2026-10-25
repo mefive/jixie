@@ -46,7 +46,6 @@ export async function commitStrategyConfig(
   userId: string,
   id: string,
   config: BacktestConfig,
-  options?: { forcePrivate?: boolean },
 ) {
   const existing = await database.strategy.findFirst({
     where: { id, userId },
@@ -70,7 +69,6 @@ export async function commitStrategyConfig(
   const data: Prisma.StrategyUpdateInput = {
     name,
     config: nextConfig as unknown as Prisma.InputJsonValue,
-    ...(options?.forcePrivate ? { visibility: 'private' } : {}),
   };
   if (strategyRunKey(existing.config) !== strategyRunKey(nextConfig)) {
     data.lastResult = PrismaNs.DbNull;

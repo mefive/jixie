@@ -9,12 +9,7 @@ import {
   updateFactorComposite,
 } from '../composition/operations.js';
 import { archivePanelComposite, publishPanelComposite } from '../publication/panel-composite.js';
-import { setCompositeVisibility } from '../publication/visibility.js';
-import {
-  factorCompositeInputSchema,
-  factorVisibilitySchema,
-  publishFactorBodySchema,
-} from '@jixie/shared/api/factor';
+import { factorCompositeInputSchema, publishFactorBodySchema } from '@jixie/shared/api/factor';
 
 export const factorCompositeRoute = new Hono();
 
@@ -36,16 +31,6 @@ factorCompositeRoute.post('/composites/:compositeId/archive', async (c) => {
   const composite = await archivePanelComposite(c.var.userId, c.req.param('compositeId'));
   return c.json(composite);
 });
-
-factorCompositeRoute.patch(
-  '/composites/:compositeId/visibility',
-  validateJson(factorVisibilitySchema),
-  async (c) => {
-    return c.json(
-      await setCompositeVisibility(c.var.userId, c.req.param('compositeId'), c.req.valid('json')),
-    );
-  },
-);
 
 factorCompositeRoute.get('/composites/:compositeId', async (c) => {
   return c.json(await readFactorComposite(c.var.userId, c.req.param('compositeId')));

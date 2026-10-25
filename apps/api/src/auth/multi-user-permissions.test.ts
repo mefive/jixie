@@ -50,7 +50,6 @@ vi.mock('#infra/database/prisma.js', async () => {
 });
 
 import { factorRoute } from '#factor/routes/index.js';
-import { sharingRoute } from '#sharing/routes.js';
 import { strategyRoute } from '#strategy/routes/index.js';
 
 const app = new Hono().onError(handleApiError);
@@ -61,7 +60,6 @@ app.use('*', async (c, next) => {
 });
 app.route('/strategies', strategyRoute);
 app.route('/factors', factorRoute);
-app.route('/library', sharingRoute);
 
 describe('multi-user asset permissions', () => {
   beforeEach(() => {
@@ -105,7 +103,6 @@ describe('multi-user asset permissions', () => {
         sequence: 1,
         promotedAt: new Date('2026-08-19T09:00:00Z'),
       },
-      visibility: 'private',
     });
 
     const response = await app.request('/strategies/strategy-b');
@@ -129,32 +126,6 @@ describe('multi-user asset permissions', () => {
     );
   });
 
-  it('copies a public strategy into an independent private asset owned by the reader', async () => {
-    mocks.strategyFindFirst.mockResolvedValue({
-      name: 'Public strategy',
-      config: {
-        name: 'Public strategy',
-        start: '20240101',
-        end: '20241231',
-        initialCash: 1_000_000,
-        code: 'export default defineStrategy({ onBar() {} });',
-      },
-    });
-    mocks.strategyFindUnique.mockResolvedValue(null);
-    mocks.strategyCreate.mockResolvedValue({ id: 'copy-b', name: 'Public strategy' });
-
-    const response = await app.request('/library/strategies/public-a/copy', { method: 'POST' });
-
-    expect(response.status).toBe(200);
-    expect(mocks.strategyFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'public-a', visibility: 'public' } }),
-    );
-    expect(mocks.strategyCreate).toHaveBeenCalledWith({
-      data: expect.objectContaining({ userId: 'user-b', visibility: 'private' }),
-      select: { id: true, name: true },
-    });
-  });
-
   it("does not let a reader mutate another user's factor", async () => {
     mocks.factorFindFirst.mockResolvedValue(null);
 
@@ -170,71 +141,42 @@ describe('multi-user asset permissions', () => {
     );
   });
 
-  it('allows a reader to inspect a published public factor without granting ownership', async () => {
-    mocks.factorFindFirst.mockResolvedValue({
-      id: 'factor-a',
-      key: 'quality',
-      name: 'Quality',
-      analysisKind: 'cross_sectional',
-      status: 'published',
-      approvedReportId: 'report-a',
-      codeHash: 'hash',
-      publishedAt: new Date('2026-08-01T00:00:00Z'),
-      archivedAt: null,
-      descriptionZh: '质量',
-      descriptionEn: 'Quality',
-      code: 'export default defineFactor({ compute: () => 1 });',
-      messages: null,
-      researchHandoff: { version: 1, sourceExecutionId: 'private-execution-a' },
-      sourceResearchExecution: {
-        id: 'private-execution-a',
-        documentId: 'private-document-a',
-        title: 'Private research',
-        displayName: 'Private version',
-        sequence: 1,
-        promotedAt: new Date('2026-07-31T00:00:00Z'),
-      },
-      userId: 'user-a',
-      visibility: 'public',
-    });
+  it('keeps published factor reads owner-scoped while allowing builtins', async () => {
+    mocks.factorFindFirst.mockResolvedValue(null);
 
-    const response = await app.request('/factors/factor-a');
-    const body = await response.json();
-
-    expect(response.status).toBe(200);
-    expect(body).toMatchObject({
-      id: 'factor-a',
-      owned: false,
-      visibility: 'public',
-      messages: null,
-      researchHandoff: null,
-      sourceResearchExecution: null,
-    });
-    expect(mocks.factorFindFirst.mock.calls[0][0].where.OR).toContainEqual({
-      visibility: 'public',
-      status: 'published',
-    });
+    expect((await app.request('/factors/factor-a')).status).toBe(404);
+    expect(mocks.factorFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'factor-a', userId: { in: ['user-b', 'builtin'] } },
+      }),
+    );
   });
 
-  it('copies a public factor as a private draft under the reader', async () => {
+  it('copies a builtin factor into an owned draft without authoring history', async () => {
     mocks.factorFindFirst
       .mockResolvedValueOnce({
         key: 'quality',
         name: 'Quality',
         code: 'export default defineFactor({ compute: () => 1 });',
         analysisKind: 'cross_sectional',
+        language: 'typescript',
+        runtimeVersion: 'ts-v1',
         descriptionZh: '质量',
         descriptionEn: 'Quality',
         messages: null,
-        userId: 'user-a',
+        userId: 'builtin',
       })
       .mockResolvedValueOnce(null);
     mocks.compositeFindFirst.mockResolvedValue(null);
     mocks.factorCreate.mockResolvedValue({ id: 'copy-factor-b' });
 
-    const response = await app.request('/factors/factor-a/copy', { method: 'POST' });
+    const response = await app.request('/factors/builtin-factor/copy', { method: 'POST' });
 
     expect(response.status).toBe(200);
+    expect(mocks.factorFindFirst.mock.calls[0][0].where).toEqual({
+      id: 'builtin-factor',
+      userId: { in: ['user-b', 'builtin'] },
+    });
     const data = mocks.factorCreate.mock.calls[0][0].data;
     expect(data).toMatchObject({ userId: 'user-b', key: 'quality_v2' });
     expect(data).not.toHaveProperty('status');

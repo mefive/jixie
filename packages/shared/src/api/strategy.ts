@@ -40,11 +40,6 @@ export const createStrategySchema = codeConfigSchema.extend({
 
 export type CreateStrategyInput = z.output<typeof createStrategySchema>;
 
-// Visibility.
-export const strategyVisibilitySchema = z.object({ visibility: z.enum(['private', 'public']) });
-
-export type StrategyVisibilityInput = z.output<typeof strategyVisibilitySchema>;
-
 // Backtests.
 export const backtestStrategyIdentitySchema = z.object({ strategyId: z.string().min(1) });
 
@@ -129,7 +124,6 @@ export const strategyAgentParamsSchema = z.object({
 // HTTP input types describe values before defaults and transformations.
 export type StrategyCodeConfigRequest = z.input<typeof codeConfigSchema>;
 export type CreateStrategyRequest = z.input<typeof createStrategySchema>;
-export type StrategyVisibilityRequest = z.input<typeof strategyVisibilitySchema>;
 export type StrategyBacktestRequestParams = z.input<typeof backtestStrategyIdentitySchema>;
 export type StrategyBacktestJobRequestQuery = z.input<typeof backtestJobQuerySchema>;
 export type StrategyScanRequestParams = z.input<typeof scanStrategyIdentitySchema>;

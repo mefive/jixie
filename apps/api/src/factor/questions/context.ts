@@ -40,10 +40,7 @@ export async function captureFactorQuestionContext(
     const row = await database.factor.findFirst({
       where: {
         id: factorKey,
-        OR: [
-          { userId: { in: [userId, BUILTIN_USER_ID] } },
-          { visibility: 'public', status: 'published' },
-        ],
+        userId: { in: [userId, BUILTIN_USER_ID] },
       },
       select: { name: true, code: true, language: true, analysisKind: true },
     });
@@ -59,7 +56,7 @@ export async function captureFactorQuestionContext(
       };
     } else {
       const composite = await database.factorComposite.findFirst({
-        where: { id: factorKey, OR: [{ userId }, { visibility: 'public', status: 'published' }] },
+        where: { id: factorKey, userId },
         select: { name: true, definition: true },
       });
       if (!composite) {

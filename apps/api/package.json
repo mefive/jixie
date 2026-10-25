@@ -82,10 +82,6 @@
       "development": "./src/research/*",
       "default": "./dist/src/research/*"
     },
-    "#sharing/*": {
-      "development": "./src/sharing/*",
-      "default": "./dist/src/sharing/*"
-    },
     "#strategy/*": {
       "development": "./src/strategy/*",
       "default": "./dist/src/strategy/*"

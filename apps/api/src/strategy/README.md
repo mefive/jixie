@@ -8,7 +8,7 @@ Strategy 拥有策略定义、对话启动、冻结回测与扫描报告，以�
 
 | 要找什么 | 子能力与责任 |
 | --- | --- |
-| 策略草稿、命名、公开范围、Research 交接 | [definitions](definitions/README.md)：配置保存、缓存失效和目标持久化 |
+| 策略草稿、命名、Research 交接 | [definitions](definitions/README.md)：配置保存、缓存失效和目标持久化 |
 | 提交回测、读历史报告、找任务 | [backtests](backtests/README.md)：正式回测冻结、Job 和双语言完整编排 |
 | 参数／仓位／资金规模比较 | [scans](scans/README.md)：扫描规格、独立报告、Worker 内串行模拟 |
 | 提取因子键或准备可运行因子 | [factors](factors/README.md)：纯 references 与有权限／语言／血缘检查的 prepare |
@@ -33,7 +33,7 @@ Agent 构造策略、指数和因子上下文后交给通用执行器；用户�
 
 [routes/index.ts](routes/index.ts) 导出 `strategyRoute`，组合 definition / agent / backtest / scan，挂载 `/api/app/strategies`；[共享请求契约](../../../../packages/shared/src/api/strategy.ts) 定义策略配置与 HTTP 输入；[schema.ts](schema.ts) 组合 Agent 的后端 SDK 引用校验。完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#策略)，具体函数、输入输出与调用方见子能力说明。
 
-Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日志。消费者用 jobId 轮询、reportId 读取结果；lastResult 只作当前缓存。自定义因子引用约束可见性，运行可使用已发布或已归档的固定因子版本。低层 runtime 不负责数据库归属检查。
+Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日志。消费者用 jobId 轮询、reportId 读取结果；lastResult 只作当前缓存。自定义因子引用仅允许本人或内置因子，运行可使用已发布或已归档的固定因子版本。低层 runtime 不负责数据库归属检查。
 
 风险数据事实归 Market，模型历史要求归 Strategy；后处理异常按现有规则记录而不阻断主回测。进程／资源路径见 [运行清单](../../../../docs/backend-runtime-entries.md)，整体权限与事务用例在 [routes/index.integration.test.ts](routes/index.integration.test.ts)，算法和运行时测试就近链接。
 

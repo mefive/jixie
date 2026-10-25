@@ -10,7 +10,6 @@ export const enCommon: typeof zhCommon = {
     market: 'Market',
     factorWeather: 'Factor Weather',
     valuation: 'Valuation',
-    library: 'Library',
     help: 'Help',
     menu: 'Page navigation',
   },

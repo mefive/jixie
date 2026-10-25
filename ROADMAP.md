@@ -7,7 +7,7 @@
 ## 当前裁剪决定
 
 2026-10-25 已收口的产品范围见 [系统功能裁剪计划](docs/design/system-simplification-plan.md)，按
-review-gated-development 工作流实施中：Signals 已通过人工 review、测试、构建及浏览器验收，其余裁剪尚未实施。因子采用“编辑草稿 → 分析 → 发布版本”，发布时固定代码和关联
+review-gated-development 工作流实施中：Signals、Sharing 已通过人工 review、测试、构建及浏览器验收，其余裁剪尚未实施。因子采用“编辑草稿 → 分析 → 发布版本”，发布时固定代码和关联
 分析结果；封存和发布合并，holdout 产品流程整体删除。下文已有能力和旧路线条目中的 holdout 要求属于
 裁剪前设计，不作为新实现的准入条件；其他受影响条目随对应实现提交更新。
 

@@ -153,16 +153,6 @@ const jobs = [
     ],
   },
   {
-    source: 'public-library.png',
-    crop: '1280x800+0+0',
-    output: 'library/share-copy-01.png',
-    redact: [[1050, 9, 1275, 43]],
-    marks: [
-      [1, 115, 119, 1165, 200],
-      [2, 115, 231, 1165, 620],
-    ],
-  },
-  {
     source: 'technical-indicators-e2e.png',
     output: 'backtesting/technical-indicators-01.png',
     redact: [[1035, 9, 1180, 43]],

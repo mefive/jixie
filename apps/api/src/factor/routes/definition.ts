@@ -12,11 +12,9 @@ import {
 import { refreshOwnedFactorMetadata } from '../definitions/metadata.js';
 import { listOwnedFactors, readFactorDefinition } from '../definitions/read.js';
 import { archiveFactor, publishFactor } from '../publication/factor.js';
-import { setFactorVisibility } from '../publication/visibility.js';
 import {
   createFactorDraftSchema,
   factorMetadataBodySchema,
-  factorVisibilitySchema,
   publishFactorBodySchema,
   updateFactorDraftSchema,
 } from '@jixie/shared/api/factor';
@@ -53,16 +51,6 @@ factorDefinitionRoute.post('/:factorId/archive', async (c) => {
   const factor = await archiveFactor(c.var.userId, c.req.param('factorId'));
   return c.json(factor);
 });
-
-factorDefinitionRoute.patch(
-  '/:factorId/visibility',
-  validateJson(factorVisibilitySchema),
-  async (c) => {
-    return c.json(
-      await setFactorVisibility(c.var.userId, c.req.param('factorId'), c.req.valid('json')),
-    );
-  },
-);
 
 factorDefinitionRoute.get('/:factorId', async (c) => {
   return c.json(

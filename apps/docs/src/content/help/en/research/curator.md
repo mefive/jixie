@@ -34,7 +34,6 @@ Candidate acceptance, repetition, and verification-error rates describe curation
 ## Privacy and action boundaries
 
 - Curation reads only research records available to the current account.
-- It does not publish private research to the Public Library.
 - It does not execute document Cells or create FactorReports or backtests.
 - A candidate summary does not replace its source evidence; return to the document and snapshot for decisions.
 

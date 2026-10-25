@@ -113,7 +113,7 @@ export async function archivePanelComposite(
   const archivedAt = new Date();
   const updated = await getDatabase().factorComposite.updateMany({
     where: { id: compositeId, userId, status: 'published' },
-    data: { status: 'archived', visibility: 'private', archivedAt },
+    data: { status: 'archived', archivedAt },
   });
   if (updated.count === 0) {
     throw new FactorError('factor_not_found');

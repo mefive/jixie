@@ -33,9 +33,9 @@ async function validateCompositeComponents(userId: string, definition: FactorCom
 }
 
 /**
- * 将组合因子及其组件配置整理为对外资源。
+ * 整理当前用户的组合因子及其组件配置。
  *
- * Render a composite factor and its component configuration as a public resource.
+ * Render an owned composite factor and its component configuration.
  */
 function compositeResource(row: {
   id: string;
@@ -43,7 +43,6 @@ function compositeResource(row: {
   name: string;
   definition: Prisma.JsonValue;
   status: string;
-  visibility: string;
   approvedReportId: string | null;
   codeHash: string | null;
   publishedAt: Date | null;
@@ -58,7 +57,6 @@ function compositeResource(row: {
     definition: row.definition as unknown as FactorCompositeDefinition,
     status:
       row.status === 'published' || row.status === 'archived' ? row.status : ('draft' as const),
-    visibility: row.visibility === 'public' ? ('public' as const) : ('private' as const),
     approvedReportId: row.approvedReportId,
     codeHash: row.codeHash,
     publishedAt: row.publishedAt?.toISOString() ?? null,
@@ -72,7 +70,7 @@ export async function readFactorComposite(userId: string, compositeId: string) {
   const row = await getDatabase().factorComposite.findFirst({
     where: {
       id: compositeId,
-      OR: [{ userId }, { visibility: 'public', status: 'published' }],
+      userId,
     },
   });
 
@@ -210,7 +208,7 @@ export async function copyFactorComposite(userId: string, compositeId: string) {
   const source = await getDatabase().factorComposite.findFirst({
     where: {
       id: compositeId,
-      OR: [{ userId }, { visibility: 'public', status: 'published' }],
+      userId,
     },
   });
 
@@ -222,75 +220,6 @@ export async function copyFactorComposite(userId: string, compositeId: string) {
 
   if (!definition.success || !source.key) {
     throw new FactorError('factor_analysis_kind_unsupported', { params: { kind: 'composite' } });
-  }
-
-  if (source.userId !== userId) {
-    const factorIds = definition.data.components.map((component) => component.factor);
-    const components = await getDatabase().factor.findMany({
-      where: {
-        id: { in: factorIds },
-        userId: { in: [source.userId, BUILTIN_USER_ID] },
-        status: 'published',
-      },
-    });
-    if (components.length !== factorIds.length) {
-      throw new FactorError('factor_publish_report_invalid');
-    }
-    const byId = new Map(components.map((component) => [component.id, component]));
-    // A foreign public composite becomes an owned draft with independent component copies.
-    // Keep all copies in one transaction so a failed composite insert leaves no orphan drafts.
-    const row = await getDatabase().$transaction(async (transaction) => {
-      const copiedIds = new Map<string, string>();
-      for (const factorId of factorIds) {
-        const component = byId.get(factorId)!;
-        if (component.userId === BUILTIN_USER_ID) {
-          copiedIds.set(factorId, factorId);
-          continue;
-        }
-        const { key: componentKey, version: componentVersion } = await nextCopyKey(
-          transaction,
-          userId,
-          component.key,
-        );
-        const componentId = ulid();
-        await transaction.factor.create({
-          data: {
-            id: componentId,
-            userId,
-            key: componentKey,
-            name: `${component.name.replace(/\s+v\d+$/i, '')} v${componentVersion}`.slice(0, 40),
-            code: component.code,
-            analysisKind: component.analysisKind,
-            language: component.language,
-            runtimeVersion: component.runtimeVersion,
-            descriptionZh: component.descriptionZh,
-            descriptionEn: component.descriptionEn,
-          },
-        });
-        copiedIds.set(factorId, componentId);
-      }
-      const { key, version } = await nextCopyKey(transaction, userId, source.key!);
-      const name = `${source.name.replace(/\s+v\d+$/i, '')} v${version}`.slice(0, 80);
-      const copiedDefinition = {
-        ...definition.data,
-        key,
-        name,
-        components: definition.data.components.map((component) => ({
-          ...component,
-          factor: copiedIds.get(component.factor)!,
-        })),
-      };
-      return transaction.factorComposite.create({
-        data: {
-          id: ulid(),
-          userId,
-          key,
-          name,
-          definition: copiedDefinition as unknown as Prisma.InputJsonValue,
-        },
-      });
-    });
-    return compositeResource(row);
   }
 
   const { key, version } = await nextCopyKey(getDatabase(), userId, source.key);

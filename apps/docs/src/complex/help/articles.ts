@@ -163,8 +163,6 @@ import researchRunControlEn from '@src/content/help/en/research/run-control.md?r
 import researchRunControlZh from '@src/content/help/zh/research/run-control.md?raw';
 import researchYieldCurvesEn from '@src/content/help/en/research/yield-curves.md?raw';
 import researchYieldCurvesZh from '@src/content/help/zh/research/yield-curves.md?raw';
-import libraryShareCopyEn from '@src/content/help/en/library/share-copy.md?raw';
-import libraryShareCopyZh from '@src/content/help/zh/library/share-copy.md?raw';
 import adjustmentsScaleEn from '@src/content/help/en/stock-detail/adjustments-scale.md?raw';
 import adjustmentsScaleZh from '@src/content/help/zh/stock-detail/adjustments-scale.md?raw';
 import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?raw';
@@ -189,7 +187,6 @@ export const HELP_GROUPS = [
   'gettingStarted',
   'basics',
   'research',
-  'publicLibrary',
   'stockDetail',
   'backtesting',
   'factorResearch',
@@ -715,16 +712,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
       zh: researchRecordsZh,
       en: researchRecordsEn,
     },
-  },
-  {
-    slug: 'library/share-copy',
-    group: 'publicLibrary',
-    title: { zh: '分享和复制公共资产', en: 'Share and copy public assets' },
-    summary: {
-      zh: '公开或设为私有，并把他人的策略或已发布 Factor 复制成独立私有副本。',
-      en: 'Publish or privatize an asset, and copy another strategy or published Factor into an independent private asset.',
-    },
-    content: { zh: libraryShareCopyZh, en: libraryShareCopyEn },
   },
   {
     slug: 'stock-detail/read-chart',

@@ -147,7 +147,7 @@ try {
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
     (await page.locator('.jx-help-homePath').count()) !== 6 ||
     (await page.locator('.jx-help-homeStep').count()) !== 30 ||
-    (await page.locator('.jx-help-homeManualCard').count()) !== 9
+    (await page.locator('.jx-help-homeManualCard').count()) !== 8
   ) {
     throw new Error(
       'help landing does not render both entry modes, learning paths, and page groups',

@@ -113,10 +113,6 @@ const definitions = {
     category: 'invalid',
     messageKey: 'factorResearchAssetsUnsupported',
   },
-  asset_must_be_published_before_sharing: {
-    category: 'conflict',
-    messageKey: 'assetMustBePublishedBeforeSharing',
-  },
   factor_question_report_unavailable: {
     category: 'invalid',
     messageKey: 'factorQuestionReportUnavailable',

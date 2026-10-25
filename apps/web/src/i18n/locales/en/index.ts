@@ -7,7 +7,6 @@ import { enFactor } from './factor';
 import { enFactorWeather } from './factor-weather';
 import { enStock } from './stock';
 import { enValuation } from './valuation';
-import { enLibrary } from './library';
 import { enResearch } from './research';
 
 // English resource bundle, keyed by namespace. Must mirror the zh bundle's namespaces/keys.
@@ -21,6 +20,5 @@ export const enResources = {
   factorWeather: enFactorWeather,
   stock: enStock,
   valuation: enValuation,
-  library: enLibrary,
   research: enResearch,
 };
