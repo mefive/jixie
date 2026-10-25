@@ -8,7 +8,6 @@
 | --- | --- | --- | --- |
 | [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
 | [Maintenance CLI](../src/maintenance/cli/) | 整轮维护和基线修复 | 1 | systemd、根级维护命令、批量导入 |
-| [Signals CLI](../src/signals/cli/) | 交易日信号周期 | 1 | 管理员 |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖 | 2 | 导入后的质量检查、研究核验 |
@@ -63,7 +62,6 @@ M0 财报来源与 M5 主营业务探针已完成研究使命，`probe:fundament
 | 命令 | 文件 | 参数 | 用途与副作用 |
 | --- | --- | --- | --- |
 | `data sync [--to YYYYMMDD]` | [data.ts](../src/maintenance/cli/data.ts) | 统一目标日期；无数据集/模式选择器 | 分区覆盖与有限批次，自动继续未完成工作 |
-| `signals:run` | [run-signals.ts](../src/signals/cli/run-signals.ts) | `[tradeDate]` | 只消费已核验市场数据，不隐式下载 |
 
 生产 timer 为 `deploy/jixie-maintenance.timer`，每两小时上海时间 :15 执行；旧 weekly timer 升级时停用。备份继续使用 `deploy/jixie-backup.*` 和零 npm 依赖 `scripts/backup-db.mjs`。
 

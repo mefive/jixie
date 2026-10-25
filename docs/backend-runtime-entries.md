@@ -12,7 +12,6 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `strategy/scans/job-lifecycle.ts` | `strategy/scans/worker.boot.mjs` → `.ts` | `strategy/scans/worker.js` | 参数扫描线程；同一线程串行调用共享模拟并汇总，异常使用通用 Worker.terminate |
 | `factor/evaluations/job-lifecycle.ts`、`factor/weather/refresh.ts` | `factor/analysis/worker.boot.mjs` → `.ts` | `factor/analysis/worker.js` | 因子分析与天气刷新线程；任务/天气调用方分别拥有最终持久化 |
 | `factor/correlations/job-lifecycle.ts` | `factor/correlations/worker.boot.mjs` → `.ts` | `factor/correlations/worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
-| `signals/runs/job-lifecycle.ts` | `signals/runs/worker.boot.mjs` → `.ts` | `signals/runs/worker.js` | IPC 子进程；结果交给主线程，子进程断开 Prisma 和 IPC |
 | `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
 | `strategy/sandbox/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → strategy-runner.ts/strategy-adapter.ts → SDK Context、账户、选股、周期与指标 | 同目录 `entry.js` → strategy-runner.js/strategy-adapter.js → 对应 SDK .js | esbuild neutral bundle，Runner 绑定能力并显式构造 SDK Context；不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
@@ -21,11 +20,11 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `factor/sandbox/typescript/runtime-benchmark.test-worker.mjs` | 性能验证子进程；固定读取 `4464a616` 的 TS Factor 工厂／SDK bundler，和当前 FactorSandbox 比较横截面、窗口、资产序列及日志负载 | 不作为生产入口 | 仅测试；临时旧模块 finally 删除，记录结果哈希、耗时、逻辑载荷字节及新 transport 实测帧字节 |
 | `strategy/sandbox/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `2c58693b` 的本次重构前 Sandbox/StrategySandbox/Bridge/prepare/消息循环/诊断辅助，与当前 runtime 分进程比较 watch/dynamic | 不作为生产入口 | 仅测试；历史宿主与沙箱源码一并冻结，两边使用同一当前 Engine 与 fixture；断言 NAV/成交哈希、通信计数及协议变化后的精确字节差值；非字面量 import 指向生成的基线模块，finally 删除临时目录 |
 
-7 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
+6 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
 
 Worker 内的业务计算入口分别是 `factor/analysis/evaluate.ts` 的 `runFactorEvaluation`、
 `strategy/backtests/compute.ts` 的 `runBacktest`、`strategy/scans/compute.ts` 的
-`runStrategyScan` 和 `signals/runs/compute.ts` 的 `runSignal`。文件名表达评估或计算职责，
+`runStrategyScan`。文件名表达评估或计算职责，
 Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续不经过通用 Job。
 
 2026-09-10 已移除 Agent 快速回测工具及其 Worker，当前运行入口以上表为准；下方 Commit 12 验证保留当时的历史事实。决策与退役验证见 [Agent 研究闭环](design/agent-research-loop.md)。
@@ -89,7 +88,7 @@ Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
 | Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |
 | Curator 仓库检索 | `research/curator/reference-search.ts` 仍使用约定的 API 工作目录定位项目资料；不是外部任意文件读取服务 |
-| API CLI | `maintenance/cli/data.ts` / `dist/src/maintenance/cli/data.js` 为唯一市场写入口；`signals/cli/run-signals.ts` 只消费数据；邀请、审计、探针和零 npm 依赖备份分别保留自身入口与资源收尾，见 [脚本索引](../apps/api/scripts/README.md) |
+| API CLI | `maintenance/cli/data.ts` / `dist/src/maintenance/cli/data.js` 为唯一市场写入口；邀请、审计、探针和零 npm 依赖备份分别保留自身入口与资源收尾，见 [脚本索引](../apps/api/scripts/README.md) |
 
 统一协调器调用各 Market 领域的 `sync-partition.ts`，有限分区准备结果在短事务中与覆盖和失效一起提交；财报以完整版本行接纳。私有派生计算文件仅复制明确市场输入，不包含用户表，finally 关闭 Prisma 并删除文件。业务仍通过 `getDatabase()` 使用显式执行绑定。
 
@@ -104,7 +103,6 @@ Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续
 | Job / 启动恢复 | 源码与干净编译的真实 index→bootstrap 启动均将 running fixture Job 恢复为 stale；Worker harness 另验证业务报告与 Job 的完成、失败、恢复 |
 | Research / Python / Pyright | 源码和编译 Pyright 真实子进程补全通过；Research 文档执行、冻结、封存和删除草稿后证据保留 E2E 通过；真实 Python TS/策略结果一致性通过 |
 | Factor / Strategy | 两种产物的 Factor 分析与相关性 Worker、TS/Python 回测、参数扫描线程与 cell 子进程通过；因子发布/历史/holdout、回测历史与三种扫描 E2E 通过 |
-| Signals | 初次源码/编译 IPC 验证通过；报告部署业务提交 `3c55fd2f` 后再次通过两种入口、启动恢复及 report-deployments/daily-signals 浏览器完整流程 |
 | Agent 工具 | 源码/编译 SQL、计算图表 isolate、快速回测 Worker、只读约束、超时重建/取消通过；Cell 上下文和提案审阅 E2E 使用受控 HTTP/SSE fixture |
 | Market / Maintenance | 两种产物分别完成 52 次本地 provider 请求、4 个参考数据/CLI 子进程、SQLite 回滚/幂等、SQL 派生和 9 个路由对照；Market 四种维度、历史抽屉和移动布局 E2E 通过 |
 

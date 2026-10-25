@@ -1,7 +1,7 @@
 # What the product does
 
 Jixie helps you observe market conditions, complete quantitative studies in reactive documents, research factors, test trading
-rules, and review current signals. After sign-in, the product opens Market Weather by default. On a first visit, start with the
+rules. After sign-in, the product opens Market Weather by default. On a first visit, start with the
 current market, then complete one Markdown/Python study and one backtest.
 
 ## Main areas
@@ -14,7 +14,6 @@ current market, then complete one Markdown/Python study and one backtest.
 | Factors | Research stock cross-sections, ETF time series, cross-asset Panels, and macro regimes, then publish eligible Factors |
 | Factor Weather | Monitor recent return, IC, coverage, and turnover for published Factors under one monthly method |
 | Valuation | Review index PE, PB, turnover, and historical percentiles |
-| Signals | Review orders, Factor inputs, and run history for deployed strategies |
 | Public Library | Share your strategy or published Factor and copy an independent version of another public asset |
 
 The pages can be used together. For example, use Research to inspect an equity universe, then use Strategy to test a trading rule.
@@ -24,9 +23,8 @@ The pages can be used together. For example, use Research to inspect an equity u
 - **Open research or company financial analysis:** select data and confirm definitions in Research, then review and run Markdown/Python Cells. [Analyze financial data](/docs/help/research/financial-data) directly or use the optional [FCFF template](/docs/help/research/fcff-valuation).
 - **Understand existing results:** reference a selected Factor or Strategy report in chat and use [embedded analysis](/docs/help/research/embedded-analysis) to inspect data. Continue in Research when the calculation needs to grow.
 - **Validate a signal or trading rule:** [hand off a research version](/docs/help/research/handoff) to a draft, then run a Factor report or strategy backtest. Exploratory output does not become formal validation automatically.
-- **Observe daily instructions:** [deploy an eligible successful backtest report](/docs/help/signals/deploy-strategy) and inspect that deployment in Signals. Saving a strategy or editing a draft does not update a deployment.
 
-The current focus is learning, research, and historical validation. Cross-market research data does not imply trading backtests for every market. Signals do not connect to a broker or place orders automatically.
+The current focus is learning, research, and historical validation. Cross-market research data does not imply trading backtests for every market.
 
 ## Recommended first steps
 
@@ -39,7 +37,6 @@ The current focus is learning, research, and historical validation. Cross-market
 7. Follow [CSI 300 trend strategy](/help/learning/csi300-trend-strategy) to audit parameters, costs, and out-of-sample evidence.
 8. [Run your first preset Factor analysis](/help/factors/first-preset-analysis) to learn the report surface.
 9. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to preregister a cross-sectional hypothesis and reveal one formal holdout.
-10. Follow [From the CGB curve to a daily signal](/help/learning/cgb-curve-daily-signal) to audit Factor evidence, a costed backtest, deployment lineage, and a specified-date signal.
 11. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to separate asset allocation, timing, and costs with four actual runs before reconciling complete risk.
 12. Follow [Commodity carry](/help/learning/commodity-carry-holdout) to audit term structure, proxy error, and formal holdouts with two preregistered tests.
 13. Follow [Sales yield](/help/learning/sales-yield-positive) to audit the first positive Factor case that passed exploration, redundancy, and its formal holdout.
@@ -49,7 +46,6 @@ The current focus is learning, research, and historical validation. Cross-market
 
 - A Universe result only shows which objects match frozen conditions. It does not say they will rise.
 - A backtest uses historical data and is not a promise of future returns.
-- Signals come from strategy rules and are not personal investment recommendations.
 - The displayed data date determines the latest available information.
 
 Before making a trade, check the data date, trading costs, whether an order could be filled, and the risk you can accept.
@@ -65,7 +61,6 @@ Before making a trade, check the data date, trading costs, whether an order coul
 - [Trustworthy cross-market research: returns, FX, and correlation](/help/learning/trusted-cross-market-research)
 - [CSI 300 trend strategy: parameters, costs, and out-of-sample evidence](/help/learning/csi300-trend-strategy)
 - [CSI 300 value factor: ranking, IC, portfolios, and holdout](/help/learning/csi300-value-factor)
-- [From the CGB curve to a daily signal: evidence, backtest, and deployment](/help/learning/cgb-curve-daily-signal)
 - [Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios](/help/learning/stock-bond-allocation-risk)
 - [Commodity carry: term structure, proxy error, and holdout evidence](/help/learning/commodity-carry-holdout)
 - [Sales yield: from a positive holdout to Factor admission](/help/learning/sales-yield-positive)

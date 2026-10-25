@@ -7,7 +7,6 @@ import { enFactor } from './factor';
 import { enFactorWeather } from './factor-weather';
 import { enStock } from './stock';
 import { enValuation } from './valuation';
-import { enSignals } from './signals';
 import { enLibrary } from './library';
 import { enResearch } from './research';
 
@@ -22,7 +21,6 @@ export const enResources = {
   factorWeather: enFactorWeather,
   stock: enStock,
   valuation: enValuation,
-  signals: enSignals,
   library: enLibrary,
   research: enResearch,
 };

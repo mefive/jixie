@@ -48,7 +48,6 @@ export const TopNav = observer(() => {
     { key: 'research', label: <NavLink to="/research">{t('nav.research')}</NavLink> },
     { key: 'factor', label: <NavLink to="/factors">{t('nav.factor')}</NavLink> },
     { key: 'valuation', label: <NavLink to="/valuation">{t('nav.valuation')}</NavLink> },
-    { key: 'signals', label: <NavLink to="/signals">{t('nav.signals')}</NavLink> },
     { key: 'library', label: <NavLink to="/library">{t('nav.library')}</NavLink> },
     {
       key: 'help',
@@ -136,7 +135,6 @@ const NAVIGATION_LABEL_KEYS = {
   market: 'market',
   factorWeather: 'factorWeather',
   valuation: 'valuation',
-  signals: 'signals',
   library: 'library',
   help: 'help',
 } as const;
@@ -163,9 +161,6 @@ function navigationKey(pathname: string): NavigationKey | undefined {
   }
   if (pathname.startsWith('/valuation')) {
     return 'valuation';
-  }
-  if (pathname.startsWith('/signals')) {
-    return 'signals';
   }
   if (pathname.startsWith('/library')) {
     return 'library';

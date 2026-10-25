@@ -91,7 +91,6 @@ export interface EngineDataRequirements {
 export interface EngineDataOptions {
   start: string;
   end: string;
-  strictFutures?: boolean;
   dataPort: EngineDataPort;
   factorKeys?: string[];
   onLog?: (line: string) => void;
@@ -183,7 +182,6 @@ export class EngineData {
   constructor(options: EngineDataOptions) {
     this.options = {
       ...options,
-      strictFutures: options.strictFutures ?? false,
       factorKeys: options.factorKeys ?? [],
       onLog: options.onLog ?? (() => {}),
       locale: options.locale ?? DEFAULT_LOCALE,
@@ -575,24 +573,6 @@ export class EngineData {
     return this.nextDayOf.get(date) ?? date;
   }
 
-  /**
-   * 验证期货执行所需行情和映射已具备，避免在不完整数据上成交。
-   *
-   * Require the futures market data and mappings needed for execution.
-   */
-  assertFutureExecution(code: string, knownDate: string, executionDate: string, closingActualCode?: string): void {
-    if (!this.options.strictFutures) { return; }
-    const actualCode = closingActualCode ?? this.futureExecutionCode(code, knownDate, executionDate);
-    const mapping = this.futureMappingByCode.get(code);
-    if (!actualCode || (!closingActualCode && mapping && !mapping.dates.includes(knownDate))) {
-      throw new Error(`Missing futures mapping for ${code} on ${knownDate}`);
-    }
-    const bar = this.futureActualBar(actualCode, executionDate);
-    if (!bar?.open || !bar.settle || !bar.close) {
-      throw new Error(`Missing futures prices for ${actualCode} on ${executionDate}`);
-    }
-  }
-
   snapshotFutures(date: string): import('./data-port.js').FutureMarketRows {
     return {
       contracts: [...this.futureContractByCode].map(([tsCode, contract]) => ({ tsCode, ...contract })),
@@ -673,17 +653,12 @@ export class EngineData {
   futureBar(code: string, date: string): FutureBar | null {
     const actualCode = this.futureActualCode(code, date);
     if (!actualCode) {
-      if (this.options.strictFutures) { throw new Error(`Missing futures mapping for ${code} on ${date}`); }
       return null;
     }
     const row = this.futureDailyByCode.get(actualCode)?.get(date);
     const contract = this.futureContractByCode.get(actualCode);
     if (!row || !contract) {
-      if (this.options.strictFutures) { throw new Error(`Missing futures data for ${code} on ${date}`); }
       return null;
-    }
-    if (this.options.strictFutures && [row.open, row.high, row.low, row.close, row.settle].some((value) => value == null || value <= 0)) {
-      throw new Error(`Incomplete futures prices for ${code} on ${date}`);
     }
 
     return {
@@ -1197,7 +1172,7 @@ export class EngineData {
    * 读取不晚于指定日期的最近复权因子，支持停牌日末将模型持仓转换为实际股数。
    *
    * Most recent adjustment factor on or before `date`, used to translate an end-of-day model
-   * position into real shares even when the instrument is suspended on the signal date.
+   * position into real shares even when the instrument is suspended on the inspected date.
    */
   adjustmentFactorAsOf(code: string, date: string): number | null {
     const bars = this.barsCache.get(code);

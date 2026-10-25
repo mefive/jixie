@@ -203,7 +203,7 @@ export function checkHelpContent(root = ROOT) {
       );
     }
   }
-  assert.equal(evidenceCount, 29, 'the 29 original learning evidence images must remain tracked');
+  assert.equal(evidenceCount, 25, 'the 25 retained learning evidence images must remain tracked');
   return {
     articles,
     summary: {

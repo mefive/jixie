@@ -12,7 +12,13 @@ describe('unified data executable boundary', () => {
     for (const location of ['../package.json', '../../../package.json']) {
       const { scripts } = JSON.parse(await readFile(new URL(location, import.meta.url), 'utf8'));
       expect(scripts.data).toBeDefined();
-      for (const retired of ['maintenance', 'import:data', 'sync', 'canonicalize:stock-codes']) {
+      for (const retired of [
+        'maintenance',
+        'import:data',
+        'sync',
+        'canonicalize:stock-codes',
+        'signals:run',
+      ]) {
         expect(scripts[retired]).toBeUndefined();
       }
     }

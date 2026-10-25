@@ -12,7 +12,6 @@ const annotationFont = [
 
 mkdirSync(`${DOCS_IMAGES}backtesting`, { recursive: true });
 mkdirSync(`${DOCS_IMAGES}factors`, { recursive: true });
-mkdirSync(`${DOCS_IMAGES}signals`, { recursive: true });
 
 const jobs = [
   {
@@ -156,17 +155,6 @@ const jobs = [
       [1, 2, 2, 470, 162],
       [2, 2, 198, 470, 751],
       [3, 2, 938, 470, 1734],
-    ],
-  },
-  {
-    source: '12b-cgb-signal-factor-inputs.png',
-    crop: '1000x620+390+370',
-    output: 'signals/factor-inputs-01.png',
-    marks: [
-      [1, 12, 430, 990, 615],
-      [2, 365, 510, 535, 610],
-      [3, 535, 510, 705, 610],
-      [4, 705, 510, 990, 610],
     ],
   },
 ];

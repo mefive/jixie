@@ -113,6 +113,26 @@ try {
     fail(`committed strategy/result mismatch: ${JSON.stringify(saved)}`);
   }
 
+  // 成功回测后仍无部署入口；已登录访问退役 API 也必须返回 404。
+  // Successful backtests expose no deployment controls; retired APIs return 404 after login too.
+  assert.equal(await page.locator('.jx-topnav a[href="/signals"]').count(), 0);
+  assert.equal(await page.getByRole('button', { name: '部署上线', exact: true }).count(), 0);
+  for (const [path, method] of [
+    ['/deployments', 'GET'],
+    ['/deployments', 'POST'],
+    ['/deployments/missing/runs', 'POST'],
+    ['/deployments/missing/pause', 'POST'],
+    ['/deployments/latest-runs', 'GET'],
+    ['/run-jobs/missing', 'GET'],
+    ['/executions/missing', 'PATCH'],
+  ]) {
+    const response = await context.request.fetch(`${BASE}/api/app/signals${path}`, {
+      method,
+      data: method === 'GET' ? undefined : {},
+    });
+    assert.equal(response.status(), 404, `retired API ${method} ${path}`);
+  }
+
   // Reproduce completion between active lookup and the first poll without relying on worker timing.
   await page.route(
     `**/api/app/strategies/${strategyId}/backtest-jobs/active`,

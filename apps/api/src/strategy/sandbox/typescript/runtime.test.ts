@@ -1,4 +1,3 @@
-import { projectSignals } from '#signals/runs/projection.js';
 import type { BacktestingConfig } from '#backtesting/contract.js';
 import {
   StrategySimulation,
@@ -13,7 +12,7 @@ import { BacktestingEngine } from '#backtesting/backtesting-engine.js';
 import { compileStrategy } from './testing/compile.js';
 import { fixturePort, type FixtureSpec } from '#backtesting/testing/fixture-port.js';
 
-/** Native repository fixtures and isolated user callbacks must agree on NAV, fills and signals. */
+/** Native repository fixtures and isolated user callbacks must agree on NAV, fills and final orders. */
 
 const D = ['20240101', '20240102', '20240103', '20240104', '20240105', '20240108'];
 
@@ -177,10 +176,10 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     expect(logs.some((line) => line.includes('process-type:undefined'))).toBe(true);
   });
 
-  it('末日目标仓位信号按真实价和真实股数捕获，且双车道一致', { timeout: 60_000 }, async () => {
+  it('末日目标仓位与双车道回测一致', { timeout: 60_000 }, async () => {
     const code = `
       export default defineStrategy({
-        name: 'signal-capture',
+        name: 'final-targets',
         watch: ['AAA', 'BBB'],
         onBar(ctx) {
           if (ctx.date === '${D[0]}') ctx.stock.setTargetWeights({ AAA: 0.5 });
@@ -188,14 +187,14 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runWithProjection({
+    const direct = await runWithFinalState({
       start: D[0],
       end: D.at(-1)!,
       initialCash: 100_000,
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runSignalCaptureFixture(
+    const walled = await runFinalStateFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
@@ -203,17 +202,7 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
     expect(walled.capture).toEqual(direct.capture);
     expect(walled.result.nav).toEqual(direct.result.nav);
     expect(walled.capture.tradeDate).toBe(D.at(-1));
-    expect(walled.capture.signals).toEqual([
-      expect.objectContaining({ code: 'AAA', action: 'sell', source: 'target' }),
-      expect.objectContaining({
-        code: 'BBB',
-        action: 'buy',
-        source: 'target',
-        shares: expect.any(Number),
-        refPrice: 44.5,
-      }),
-    ]);
-    expect(walled.capture.signals.every((signal) => signal.shares > 0)).toBe(true);
+    expect(walled.capture.pendingTargets).toEqual([['BBB', 0.4]]);
   });
 
   it('条件单撮合与末日存续意图在双车道一致', { timeout: 60_000 }, async () => {
@@ -227,27 +216,22 @@ describe('双车道防漂移(直跑 vs 进墙,同一 fixture)', () => {
         },
       });
     `;
-    const direct = await runWithProjection({
+    const direct = await runWithFinalState({
       start: D[0],
       end: D.at(-1)!,
       initialCash: 100_000,
       strategy: await compileStrategy(code),
       dataPort: fixturePort(SPEC),
     });
-    const walled = await runSignalCaptureFixture(
+    const walled = await runFinalStateFixture(
       { code, start: D[0], end: D.at(-1)!, initialCash: 100_000 },
       fixturePort(SPEC),
     );
 
     expect(walled.result.tradeLog).toEqual(direct.result.tradeLog);
     expect(walled.capture).toEqual(direct.capture);
-    expect(walled.capture.signals).toEqual([
-      expect.objectContaining({
-        code: 'AAA',
-        source: 'conditional',
-        orderType: 'trailing_stop',
-        action: 'sell',
-      }),
+    expect(walled.capture.conditionalOrders).toEqual([
+      ['trailing_stop:AAA', expect.objectContaining({ kind: 'trailing_stop', code: 'AAA' })],
     ]);
   });
 
@@ -480,7 +464,7 @@ async function runBacktestFixture(
   }
 }
 
-async function runSignalCaptureFixture(
+async function runFinalStateFixture(
   config: SimulationFixtureConfig,
   dataPort: EngineDataPort,
   onLog?: (line: string) => void,
@@ -489,14 +473,14 @@ async function runSignalCaptureFixture(
   const simulation = await StrategySimulation.create({ ...config, dataPort, onLog, onUserLog });
   try {
     const result = await simulation.run(config);
-    return { result, capture: projectSignals(await simulation.collectFinalState()) };
+    return { result, capture: await simulation.collectFinalState() };
   } finally {
     simulation.close();
   }
 }
 
-async function runWithProjection(config: BacktestingConfig) {
+async function runWithFinalState(config: BacktestingConfig) {
   const engine = new BacktestingEngine(config);
   const result = await engine.run();
-  return { result, capture: projectSignals(await engine.collectFinalState()) };
+  return { result, capture: await engine.collectFinalState() };
 }

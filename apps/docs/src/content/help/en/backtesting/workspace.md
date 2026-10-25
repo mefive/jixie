@@ -44,16 +44,15 @@ If the rules differ from your description, request the required change before ru
 
 After changing code or run settings, run the backtest again. The previous result does not represent changes that have not been run.
 
-## Distinguish the draft, report, and deployment
+## Distinguish the draft and report
 
 The editor and top run settings belong to the current strategy draft. The results belong to the run selected in **Backtest report history**. Selecting a historical report updates the result and benchmark curves; **it does not restore that report's code or settings into the editor**. The draft dates at the top may therefore differ from the selected report's dates.
 
 - To calculate the current draft, check its code and settings and select **Run backtest**.
 - To inspect an old result, select it in **Backtest report history**. Select **Compare** and a second report to compare results.
 - To study a report further, select **Review in Research** to create a document reading that report in a new tab.
-- To deploy, select an eligible successful report and choose **Deploy**. A deployment fixes that report; later draft changes do not alter it or automatically pause other deployments.
 
-See [Read backtest results](/docs/help/backtesting/results-overview) and [Deploy a backtest report](/docs/help/signals/deploy-strategy).
+See [Read backtest results](/docs/help/backtesting/results-overview).
 
 ## Check data in the conversation
 

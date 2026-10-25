@@ -245,10 +245,6 @@
   flex: none;
 }
 
-.jx-strategy-deploymentError {
-  @apply max-w-36 truncate text-xs text-red-600;
-}
-
 .jx-strategy-runEditBtn {
   flex: none;
   width: 28px;

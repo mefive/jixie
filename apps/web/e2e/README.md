@@ -38,7 +38,6 @@ E2E 从具体用户任务出发，验证用户通过界面完成任务及其结�
 - `docs`：`docs-help` 通过 Web 的 `/docs` 代理验证导航及登录；`research-financial-help` 直接访问 `E2E_DOCS_BASE`（默认 5174）。
 - `isolated`：`factor-questions`、`embedded-analysis`、`job-system` 自行启动隔离 API/模型夹具，需要先构建 shared 和 Web；嵌入式分析还需要 Research Python runtime。
 - `browser`：只需 Web 服务，使用 HTTP/SSE 夹具；这是前端回归检查，不替代完整业务链路验收。
-- `report-deployments` 必须使用可丢弃的 API 数据库并设置 `E2E_ISOLATED_DB=1`，会保留报告/部署历史。
 - `factor-sdk` 需要 Vite 开发服务和 API，验证三类 TS 因子的双语声明/提示与编辑器自动保存；创建的测试草稿在结束时删除。
   `factor-python` 验证 Python 默认创建、补全与真实分析报告，需要足够的历史股票数据；建议使用可丢弃数据库。
 
@@ -87,7 +86,7 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" pnpm e2e embedde
 ```
 
 `job-system` 复用 `strategy-orchestration`、`mixed-futures`、`strategy-parameter-scan`、`factor-report-history`、
-`factor-correlation`、`daily-signals`、`backtest-report-history`，另执行因子研究卡和 Curator 页面流程。
+`factor-correlation`、`backtest-report-history`，另执行因子研究卡和 Curator 页面流程。
 历史回测报告由夹具预置；回测与因子相关性重连场景只注入活动任务查询竞态，因子历史用例中的
 未保存草稿拦截使用 HTTP 替身。这些局部前端断言与其余真实任务计算分开看待。
 
@@ -146,10 +145,9 @@ node --import tsx --test apps/web/src/complex/strategy/recents.test.ts
 
 ## Futures Signals（代码审查后执行）
 
-`JIXIE_JOB_E2E_ONLY=futures-signals,daily-signals pnpm e2e job-system` 使用临时迁移 SQLite、合成行情、真实 HTTP/Worker 和编译后的前端。`daily-signals` 显式保留 version=1 兼容用例，`futures-signals` 覆盖纯期货、混合 hedge、人工解析、多笔部分成交、三条账户曲线及中英/窄屏截图。两个脚本均要求隔离标记，不能指向开发库；父 harness 负责停止进程并关闭数据库。新增迁移必须在审查后生成并应用，脚本尚未运行。
 
 ### Futures Signals source and compiled verification
 
-`JIXIE_JOB_E2E_ONLY=daily-signals,futures-signals pnpm e2e job-system` checks legacy cash execution plus version 2 pure-futures and mixed accounts in a freshly migrated disposable database. The futures journey resolves a hedge using confirmed exposure, records partial fills through HTTP and the actual UI, verifies idempotency and daily account states, and captures Chinese/English desktop and English narrow-screen results. No provider, email or broker is contacted.
 
-After `pnpm build`, use `JIXIE_TEST_COMPILED=1 JIXIE_JOB_E2E_ONLY=futures-signals pnpm e2e job-system` to run the same journey through compiled API, scheduler and Worker entries. Both modes close the browser and fixture services and verify their ports are no longer listening.
+
+Signals 已退役。`JIXIE_JOB_E2E_ONLY=strategy-orchestration pnpm e2e job-system` 在隔离库验证保留的回测链、无部署按钮和导航，以及已登录访问旧 Signals API 返回 404；登录邮件能力独立保留。

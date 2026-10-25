@@ -10,7 +10,6 @@ const context = await browser.newContext({ viewport: { width: 1440, height: 1000
 const page = await context.newPage();
 const pageErrors = [];
 let strategyId = null;
-let deploymentId = null;
 page.on('pageerror', (error) => pageErrors.push(error.message));
 
 const api = async (path, init) =>
@@ -182,16 +181,6 @@ try {
     throw new Error(`backtest did not freeze Factor lineage: ${JSON.stringify(completed)}`);
   }
 
-  const deployment = await api('/api/app/signals/deployments', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ reportId: backtest.body.reportId }),
-  });
-  if (!deployment.ok || deployment.body.factorDependencies?.[0]?.factorId !== factor.body.id) {
-    throw new Error(`deployment did not freeze Factor lineage: ${JSON.stringify(deployment)}`);
-  }
-  deploymentId = deployment.body.id;
-
   await page.goto(`${BASE}/strategy?id=${strategyId}`, { waitUntil: 'domcontentloaded' });
   await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   const dependencyPanel = page.getByTestId('strategy-factor-dependencies');
@@ -228,11 +217,6 @@ try {
     `[strategy-factor-dependency-e2e] strategy=${strategyId} factor=${factor.body.key} trades=${completed.lastResult.trades} screenshots=2`,
   );
 } finally {
-  if (deploymentId) {
-    await api(`/api/app/signals/deployments/${deploymentId}/pause`, { method: 'POST' }).catch(
-      () => {},
-    );
-  }
   if (strategyId) {
     await api(`/api/app/strategies/${strategyId}`, { method: 'DELETE' }).catch(() => {});
   }

@@ -45,7 +45,7 @@ TS 的 `StrategyContext` 构造独立且完整校验的对象，公开方法保�
 
 内部 EngineContext 同样按 portfolio / stock / futures 分组，Context 将操作交给带账户及单位名称的
 OrderBook 方法。runtime 以 stock.* / futures.* 命令逐条提交并确认，并按账户发送临时 bar frame；
-这些 IPC 数据不改变 Signals 持久化快照。SDK 复用账户基础能力并添加 stock 仓位辅助，
+SDK 复用账户基础能力并添加 stock 仓位辅助，
 仍由独立公开契约检查完整签名。
 
 

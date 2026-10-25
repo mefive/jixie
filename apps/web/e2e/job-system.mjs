@@ -60,8 +60,6 @@ try {
     'strategy-parameter-scan',
     'factor-report-history',
     'factor-correlation',
-    'daily-signals',
-    'futures-signals',
     'backtest-report-history',
   ]) {
     if (selected && !selected.includes(name)) {
@@ -70,6 +68,11 @@ try {
     const code = await executeCommand({ name, file: `apps/web/e2e/${name}.mjs` });
     assert.equal(code, 0, `${name} failed`);
     console.log(`[job-system] ${name}: passed`);
+  }
+  if (selected?.includes('docs-help')) {
+    const code = await executeCommand({ name: 'docs-help', file: 'apps/docs/e2e/help.mjs' });
+    assert.equal(code, 0, 'docs-help failed');
+    console.log('[job-system] docs-help: passed');
   }
   if (!selected || selected.includes('factor-analysis')) {
     browser = await chromium.launch({ headless: true });

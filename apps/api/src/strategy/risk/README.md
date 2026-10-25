@@ -13,7 +13,7 @@
 
 市场审计要求完整 252 条历史窗口，模型最小拟合样本为另一门槛；宏观准入检查 36 条完整 exploratory 观察，strict PIT 不足保留警告语义。不要把拟合下限、审计完整窗口和可展示条件互换。缺失输入不补零，结果保留数据日期与血缘。
 
-正式回测捕获风险后处理异常并记录日志，主回测仍可成功；扫描及 Signals 不调用这一完整后处理。组合持仓、成本和交易循环累计仍归 Engine。
+正式回测捕获风险后处理异常并记录日志，主回测仍可成功；扫描 不调用这一完整后处理。组合持仓、成本和交易循环累计仍归 Engine。
 
 修改分析先读各同名测试：[backtest-risk-analysis.test.ts](backtest-risk-analysis.test.ts)、[market-risk-model.test.ts](market-risk-model.test.ts)、[macro-risk-model.test.ts](macro-risk-model.test.ts)、[alpha-risk-overlap.test.ts](alpha-risk-overlap.test.ts)、[risk-scenarios.test.ts](risk-scenarios.test.ts)。模型／数据边界看 [risk-research-contract.test.ts](risk-research-contract.test.ts) 和 [Maintenance 风险审计实现](../../maintenance/publication/risk-audit.ts)。
 

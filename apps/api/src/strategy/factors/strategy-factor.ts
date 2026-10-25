@@ -13,13 +13,6 @@ import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot
 import { StrategyError } from '../errors.js';
 
 /**
- * 记录策略对因子的引用方式与所需历史，供依赖准备。
- *
- * Describe factor usage and history requirements discovered in strategy source.
- */
-export type FactorUsage = 'research' | 'deployment' | 'signal';
-
-/**
  * 提供解析及准备策略因子所需的用户、源码和冻结依赖。
  *
  * Supply ownership, strategy source and frozen dependencies for factor preparation.
@@ -81,11 +74,7 @@ export class StrategyFactor {
    *
    * Load authorized published sources without starting a factor runtime.
    */
-  static async fromStrategySource(
-    source: string,
-    userId: string,
-    usage: FactorUsage = 'research',
-  ): Promise<StrategyFactor[]> {
+  static async fromStrategySource(source: string, userId: string): Promise<StrategyFactor[]> {
     const keys = StrategyFactor.extractKeys(source);
     if (keys.length === 0) {
       return [];
@@ -98,7 +87,7 @@ export class StrategyFactor {
       where: {
         key: { in: keys },
         userId: { in: [userId, BUILTIN_USER_ID] },
-        status: { in: usage === 'deployment' ? ['published'] : ['published', 'archived'] },
+        status: { in: ['published', 'archived'] },
       },
       select: {
         id: true,
@@ -117,7 +106,7 @@ export class StrategyFactor {
       where: {
         key: { in: keys },
         userId,
-        status: { in: usage === 'deployment' ? ['published'] : ['published', 'archived'] },
+        status: { in: ['published', 'archived'] },
       },
       select: {
         id: true,
@@ -186,51 +175,6 @@ export class StrategyFactor {
         });
       }),
     );
-  }
-
-  /**
-   * 校验并解析 Prisma JSON 中的不可变依赖快照。
-   *
-   * Parse the immutable dependency snapshot stored in Prisma JSON.
-   */
-  static dependenciesFromJson(value: unknown): FactorDependency[] | null {
-    if (value == null) {
-      return null;
-    }
-    if (!Array.isArray(value)) {
-      throw new Error('Invalid factor dependency snapshot');
-    }
-    return value.map((item) => {
-      if (
-        !StrategyFactor.isRecord(item) ||
-        !StrategyFactor.isNonEmptyString(item.factorId) ||
-        !StrategyFactor.isNonEmptyString(item.key) ||
-        !StrategyFactor.isNonEmptyString(item.name) ||
-        !StrategyFactor.isNonEmptyString(item.analysisKind) ||
-        !StrategyFactor.isNonEmptyString(item.codeHash) ||
-        (item.approvedReportId != null &&
-          !StrategyFactor.isNonEmptyString(item.approvedReportId)) ||
-        (item.inputs != null &&
-          (!Array.isArray(item.inputs) || !item.inputs.every(StrategyFactor.isNonEmptyString)))
-      ) {
-        throw new Error('Invalid factor dependency snapshot');
-      }
-      return item as unknown as FactorDependency;
-    });
-  }
-
-  /**
-   * 当持久化血缘与当前运行依赖不一致时拒绝执行。
-   *
-   * Fail closed if persisted lineage and current runtime dependencies diverge.
-   */
-  static assertDependencies(expected: FactorDependency[] | null, actual: FactorDependency[]): void {
-    if (expected == null) {
-      return;
-    }
-    if (StrategyFactor.canonicalJson(expected) !== StrategyFactor.canonicalJson(actual)) {
-      throw new Error('Factor dependency snapshot mismatch');
-    }
   }
 
   /**
@@ -528,32 +472,5 @@ export class StrategyFactor {
       throw new Error(`${subject} has an invalid approved research universe`);
     }
     return parsed.data.assets.map((asset) => ({ ...asset }));
-  }
-
-  private static canonicalJson(dependencies: FactorDependency[]): string {
-    return JSON.stringify(
-      [...dependencies]
-        .sort((left, right) => left.factorId.localeCompare(right.factorId))
-        .map((dependency) => ({
-          factorId: dependency.factorId,
-          key: dependency.key,
-          name: dependency.name,
-          analysisKind: dependency.analysisKind,
-          language: dependency.language ?? 'typescript',
-          runtimeVersion:
-            dependency.runtimeVersion ?? (dependency.language === 'python' ? 'py-v1' : 'ts-v1'),
-          codeHash: dependency.codeHash,
-          approvedReportId: dependency.approvedReportId ?? null,
-          inputs: dependency.inputs ? [...dependency.inputs].sort() : null,
-        })),
-    );
-  }
-
-  private static isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
-  }
-
-  private static isNonEmptyString(value: unknown): value is string {
-    return typeof value === 'string' && value.length > 0;
   }
 }

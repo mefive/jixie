@@ -122,60 +122,71 @@ try {
     });
   });
   process.env.DEEPSEEK_BASE_URL = await listen(model);
-  const { prisma } = await import('#infra/database/prisma.js');
+  const { prisma, withDatabase } = await import('#infra/database/prisma.js');
   database = prisma;
-  const { seedBuiltinFactors } = await import('#factor/definitions/seed.js');
-  await seedBuiltinFactors();
-  await seedMarket();
-  await prisma.user.create({
-    data: { id: 'curator-reader', email: 'jobs-curator@example.invalid' },
-  });
-  await prisma.agentConversation.create({
-    data: {
-      id: 'curator-evidence',
-      userId: 'curator-reader',
-      surface: 'research',
-      title: '复权收益研究',
-      messages: {
-        create: {
-          id: 'curator-question',
-          role: 'user',
-          sequence: 1,
-          parts: [{ type: 'text', text: '如何复用复权收盘价，计算月收益与滚动相关？' }],
+  await withDatabase(prisma, async () => {
+    const { seedBuiltinFactors } = await import('#factor/definitions/seed.js');
+    await seedBuiltinFactors();
+    await seedMarket();
+    await prisma.user.create({
+      data: { id: 'curator-reader', email: 'jobs-curator@example.invalid' },
+    });
+    await prisma.agentConversation.create({
+      data: {
+        id: 'curator-evidence',
+        userId: 'curator-reader',
+        surface: 'research',
+        title: '复权收益研究',
+        messages: {
+          create: {
+            id: 'curator-question',
+            role: 'user',
+            sequence: 1,
+            parts: [{ type: 'text', text: '如何复用复权收盘价，计算月收益与滚动相关？' }],
+          },
         },
       },
-    },
-  });
-  const { registerJobLifecycles } = await import('#jobs/register.js');
-  const { JobScheduler } = await import('#jobs/job-scheduler.js');
-  const { JobService } = await import('#jobs/job-service.js');
-  registerJobLifecycles();
-  await JobService.recoverInterrupted();
-  JobScheduler.initialize(async (jobId) => {
-    const execution = JobService.execute(jobId);
-    executions.add(execution);
-    try {
-      await execution;
-    } finally {
-      executions.delete(execution);
+    });
+    const { registerJobLifecycles } = await import('#jobs/register.js');
+    const { JobScheduler } = await import('#jobs/job-scheduler.js');
+    const { JobService } = await import('#jobs/job-service.js');
+    registerJobLifecycles();
+    await JobService.recoverInterrupted();
+    JobScheduler.initialize(async (jobId) => {
+      const execution = JobService.execute(jobId);
+      executions.add(execution);
+      try {
+        await execution;
+      } finally {
+        executions.delete(execution);
+      }
+    });
+    JobScheduler.wake();
+    const { buildApp } = await import('../src/server.js');
+    const app = buildApp();
+    const webDist = resolve('../web/dist');
+    const index = await readFile(join(webDist, 'index.html'), 'utf8');
+    if (process.env.JIXIE_JOB_E2E_ONLY?.split(',').includes('docs-help')) {
+      const docsDist = resolve('../docs/dist');
+      const docsIndex = await readFile(join(docsDist, 'docs/index.html'), 'utf8');
+      app.use('/docs/*', serveStatic({ root: docsDist }));
+      app.get('/docs/*', (context) => context.html(docsIndex));
+      for (const path of ['/learn', '/help/*', '/sdk']) {
+        app.get(path, (context) => context.html(index));
+      }
     }
-  });
-  JobScheduler.wake();
-  const { buildApp } = await import('../src/server.js');
-  const app = buildApp();
-  const webDist = resolve('../web/dist');
-  const index = await readFile(join(webDist, 'index.html'), 'utf8');
-  app.use('/assets/*', serveStatic({ root: webDist }));
-  for (const path of ['/', '/strategy', '/factors', '/research', '/signals']) {
-    app.get(path, (context) => context.html(index));
-  }
-  app.use('/*', serveStatic({ root: webDist }));
-  const base = await listen(app);
-  process.send!({
-    type: 'ready',
-    base,
-    modelBase: process.env.DEEPSEEK_BASE_URL,
-    databaseUrl: process.env.DATABASE_URL,
+    app.use('/assets/*', serveStatic({ root: webDist }));
+    for (const path of ['/', '/strategy', '/factors', '/research']) {
+      app.get(path, (context) => context.html(index));
+    }
+    app.use('/*', serveStatic({ root: webDist }));
+    const base = await listen(app);
+    process.send!({
+      type: 'ready',
+      base,
+      modelBase: process.env.DEEPSEEK_BASE_URL,
+      databaseUrl: process.env.DATABASE_URL,
+    });
   });
 } catch (error) {
   console.error(error);
@@ -229,8 +240,20 @@ async function seedMarket() {
       pretradeDate: dates[index - 1],
     })),
   });
+  const { DATASET_POLICIES } = await import('#market/synchronization/policies.js');
+  await prisma.datasetSyncPartition.createMany({
+    data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
+      id: `fixture:${dataset}`,
+      dataset,
+      scope: dataset === 'calendar' ? 'SSE' : 'all',
+      startDate: dates[0]!,
+      endDate: dates.at(-1)!,
+      policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === dataset)!.version,
+      status: 'complete',
+    })),
+  });
   // Each short batch keeps fixture memory bounded. Later single-asset observations establish a
-  // realistic holdout boundary and support the Signals journey's fixed trading dates.
+  // realistic holdout boundary and support historical backtest dates.
   for (let offset = 0; offset < dates.length; offset += 20) {
     const rows = dates.slice(offset, offset + 20).flatMap((tradeDate, day) =>
       (tradeDate < '20250101' ? stocks : stocks.slice(0, 1)).map((stock, index) => {
@@ -331,6 +354,33 @@ async function seedMarket() {
       continuousCode: 'IF.CFX',
       tradeDate,
       mappedTsCode: 'IF2607.CFX',
+    })),
+  });
+  await prisma.futureSettlement.createMany({
+    data: futureDates.map((tradeDate) => ({
+      tsCode: 'IF2607.CFX',
+      tradeDate,
+      longMarginRate: 0.12,
+      shortMarginRate: 0.12,
+    })),
+  });
+  await prisma.datasetSyncPartition.createMany({
+    data: [
+      ...['IF', 'IH', 'IC', 'IM'].map((product) => ({
+        dataset: 'future-contracts',
+        scope: `CFFEX|${product}`,
+      })),
+      { dataset: 'future-prices', scope: 'IF2607.CFX' },
+      { dataset: 'future-settlements', scope: 'IF2607.CFX' },
+      { dataset: 'future-mappings', scope: 'IF.CFX' },
+    ].map(({ dataset, scope }) => ({
+      id: `fixture:${dataset}:${scope}`,
+      dataset,
+      scope,
+      startDate: futureDates[0]!,
+      endDate: futureDates.at(-1)!,
+      policyVersion: 'sync-v1',
+      status: 'complete',
     })),
   });
   const { publishFutureMarketDate } = await import('#market/futures/publication.js');

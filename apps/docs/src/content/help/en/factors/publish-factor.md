@@ -53,7 +53,7 @@ The research long-short diagnostic is not the strategy return. A strategy also i
 
 ## Archive
 
-A published Factor cannot be deleted. Archiving removes it from new strategy completion while preserving historical backtests and deployments.
+A published Factor cannot be deleted. Archiving removes it from new strategy completion while preserving historical backtests.
 
 ## Related articles
 

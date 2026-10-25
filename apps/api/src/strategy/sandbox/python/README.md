@@ -18,7 +18,7 @@ run_strategy 为当前沙箱会话创建唯一 StrategyRunner，完成 start 后
 
 账户操作通过阻塞 command request/response 逐条提交，StrategyBridge.executeCommand 先校验命令，再调用 EngineContext，成功返回空结果，拒绝返回 error 并由 Runner 在调用处抛出 RuntimeError。作者可捕获命令错误并继续；本地 JSON 无法编码的值可能直接抛出 ValueError。done 只表示回调结束，不收集或回放命令。ready 声明 command_mode=synchronous，API 与 Python 镜像须配套更新。
 
-每日 bar_updates、按需完整历史加载、截面中的声明因子值、账户快照与撮合时序保持；确认只表示宿主接受决策，后续错误不自动撤销此前接受的命令。协议和字段映射仍由公共 protocol/bridge 校验；Python 没有新增期货操作、参数扫描或 Signals 准入。
+每日 bar_updates、按需完整历史加载、截面中的声明因子值、账户快照与撮合时序保持；确认只表示宿主接受决策，后续错误不自动撤销此前接受的命令。协议和字段映射仍由公共 protocol/bridge 校验；Python 没有新增期货操作或参数扫描。
 
 SDK、runner、adapter 及公共 SdkAdapter Protocol 均显式列入 Dockerfile.python、.dockerignore 和部署影响清单，变更 Python 源码同时影响 API/sandboxd；宿主 bridge.ts 只影响 API。路径与资源验证见 [运行入口清单](../../../../../../docs/backend-runtime-entries.md)。
 

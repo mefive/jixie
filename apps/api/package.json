@@ -12,7 +12,6 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "backup": "node scripts/backup-db.mjs",
-    "signals:run": "tsx --conditions=development --env-file=.env src/signals/cli/run-signals.ts",
     "gen:invite": "tsx --conditions=development --env-file=.env src/auth/cli/gen-invite.ts",
     "data:audit": "node --conditions=development --import tsx scripts/audit/index.ts",
     "probe": "node --conditions=development --import tsx scripts/probes/index.ts",
@@ -86,10 +85,6 @@
     "#sharing/*": {
       "development": "./src/sharing/*",
       "default": "./dist/src/sharing/*"
-    },
-    "#signals/*": {
-      "development": "./src/signals/*",
-      "default": "./dist/src/signals/*"
     },
     "#strategy/*": {
       "development": "./src/strategy/*",

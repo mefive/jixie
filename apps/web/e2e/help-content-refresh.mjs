@@ -206,19 +206,6 @@ try {
         ],
       },
       {
-        name: 'signals/deployments-current',
-        route: '/signals',
-        ready: '.jx-signals-actions',
-        prepare: async () => {
-          await page
-            .locator('.jx-signals-deploymentCard')
-            .filter({ hasText: pick(locale, '运行中', 'Active') })
-            .first()
-            .click();
-        },
-        marks: ['.jx-signals-sidebar', '.jx-signals-actions'],
-      },
-      {
         name: 'market-valuation/valuation-overview-01',
         route: '/valuation',
         ready: '.jx-valuation-summary',
@@ -321,15 +308,6 @@ try {
           await selector('.jx-valuation-indexSelect').click();
         },
         marks: ['.jx-valuation-indexSelect', '.ant-select-dropdown'],
-      },
-      {
-        name: 'signals/paused-current',
-        route: '/signals',
-        ready: '.jx-signals-actions',
-        prepare: async () => {
-          await page.locator(`[data-deployment-id="${config.pausedDeployment}"]`).click();
-        },
-        marks: ['.jx-signals-sidebar', '.jx-signals-signalHeader', '.jx-signals-actions'],
       },
     ];
     const filter = process.env.HELP_CAPTURE_SCENES?.split(',');

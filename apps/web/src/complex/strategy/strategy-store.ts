@@ -25,7 +25,6 @@ import {
   type ResearchStrategyHandoffV1,
   type SavedStrategy,
   type StrategyCard,
-  type StrategyDeployment,
   type StrategyScanReport,
   type StrategyScanReportSummary,
   type StrategyScanSpec,
@@ -54,11 +53,6 @@ import {
   submitStrategyScan,
 } from '@src/api/strategy';
 import {
-  deployBacktestReport,
-  listStrategyDeployments,
-  pauseStrategyDeployment,
-} from '@src/api/signals';
-import {
   getFactorComposite,
   getCustomFactor,
   getFactorCatalog,
@@ -76,15 +70,6 @@ import { PANEL_ASSET_IDS } from '../factor/panel-universe';
  * Configure saved strategy identity and initial route state.
  */
 type StrategySetupParams = { id?: string; report?: string; isNew?: boolean; factorKey?: string };
-
-/**
- * 区分部署与暂停动作，供统一异步变更。
- *
- * Discriminate deployment and pause actions for async mutations.
- */
-type DeploymentAction =
-  | { type: 'deploy'; reportId: string }
-  | { type: 'pause'; deploymentId: string };
 
 /**
  * 策略工作台保留编辑状态；Agent 建议独立持久化，用户接受时才保存源码。
@@ -123,8 +108,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   public scanLogLines: LogLine[] = [];
   public scanError: string | null = null;
   public scanQueuePosition: number | null = null;
-  public deployments: StrategyDeployment[] = [];
-  public deploymentError: string | null = null;
 
   private chatSelection = 0;
   private jobId: string | null = null; // polling cursor for the current backtest
@@ -144,8 +127,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   public scanParametersLoader = new LoaderModel<Record<string, StrategyParamValue>>();
   public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
   public scanReportLoader = new LoaderModel<StrategyScanReport>();
-  public deploymentLoader = new LoaderModel<StrategyDeployment[]>();
-  public deploymentActionLoader = new LoaderModel<StrategyDeployment>();
   public factorLoader = new LoaderModel<{ factor: FactorMeta; assets: string[] } | null>();
 
   /**
@@ -181,10 +162,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       scanLogLines: observable.ref,
       scanError: observable.ref,
       scanQueuePosition: observable.ref,
-      deployments: observable.ref,
-      deployment: computed,
-      canDeployReport: computed,
-      deploymentError: observable.ref,
       config: computed,
       dirty: computed,
       edited: computed,
@@ -194,9 +171,9 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   }
 
   /**
-   * 配置策略、报告比较、扫描、部署与 Agent 流状态，注册所有清理。
+   * 配置策略、报告比较、扫描与 Agent 流状态，注册所有清理。
    *
-   * Initialize strategy, report comparison, scan, deployment and agent state with cleanup.
+   * Initialize strategy, report comparison, scan and agent state with cleanup.
    */
   public setup(params: StrategySetupParams) {
     super.setup(params);
@@ -237,15 +214,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       request: (strategyId: string) => listStrategyScanReports(strategyId),
     });
     this.scanReportLoader.setup({ request: (reportId: string) => getStrategyScanReport(reportId) });
-    this.deploymentLoader.setup({
-      request: (strategyId: string) => listStrategyDeployments(strategyId),
-    });
-    this.deploymentActionLoader.setup({
-      request: (action: DeploymentAction) =>
-        action.type === 'deploy'
-          ? deployBacktestReport(action.reportId)
-          : pauseStrategyDeployment(action.deploymentId),
-    });
     this.factorLoader.setup({
       /**
        * 读取已发布因子及批准报告，为策略引用补全提供可用资产范围。
@@ -287,8 +255,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.registCleaner(() => this.scanParametersLoader.cleanup());
     this.registCleaner(() => this.scanHistoryLoader.cleanup());
     this.registCleaner(() => this.scanReportLoader.cleanup());
-    this.registCleaner(() => this.deploymentLoader.cleanup());
-    this.registCleaner(() => this.deploymentActionLoader.cleanup());
     this.registCleaner(() => this.factorLoader.cleanup());
     this.registCleaner(() => {
       this.chatSelection += 1;
@@ -379,29 +345,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
    */
   public get edited(): boolean {
     return this.configKey() !== this.persistedConfig;
-  }
-
-  /**
-   * 依据不可变报告身份选择部署，忽略当前可变编辑状态。
-   *
-   * Report identity governs deployment; mutable editor state is irrelevant.
-   */
-  public get deployment(): StrategyDeployment | null {
-    return (
-      this.deployments.find(
-        (deployment) =>
-          deployment.backtestReportId === this.activeBacktestReportId &&
-          deployment.backtestReportId !== null &&
-          deployment.status === 'active',
-      ) ?? null
-    );
-  }
-
-  public get canDeployReport(): boolean {
-    const report = this.backtestHistoryLoader.result?.find(
-      (candidate) => candidate.id === this.activeBacktestReportId,
-    );
-    return !!report && report.language === 'typescript';
   }
 
   /**
@@ -737,8 +680,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       this.scanReport = null;
       this.scanLogLines = [];
       this.scanError = null;
-      this.deployments = [];
-      this.deploymentError = null;
       this.savedId = null;
       this.savedConfig = ''; // never run → dirty (runnable)
       this.persistedConfig = this.configKey(); // pristine skeleton → not edited (no leave guard)
@@ -751,84 +692,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.backtestComparisonLoader.reset();
     this.scanHistoryLoader.reset();
     this.scanReportLoader.reset();
-    this.deploymentLoader.reset();
-    this.deploymentActionLoader.reset();
-  }
-
-  /**
-   * 将当前不可变报告提交为信号部署并刷新关联状态。
-   *
-   * Deploy the selected immutable report and refresh deployment state.
-   */
-  public async deploy() {
-    if (
-      !this.savedId ||
-      !this.activeBacktestReportId ||
-      !this.canDeployReport ||
-      this.deploymentActionLoader.loading
-    ) {
-      return;
-    }
-    const strategyId = this.savedId;
-    try {
-      const deployment = await this.deploymentActionLoader.run({
-        type: 'deploy',
-        reportId: this.activeBacktestReportId,
-      });
-      if (this.savedId !== strategyId) {
-        return;
-      }
-      runInAction(() => {
-        this.deployments = [
-          deployment,
-          ...this.deployments.filter((candidate) => candidate.id !== deployment.id),
-        ];
-        this.deploymentError = null;
-      });
-    } catch (error) {
-      if (this.savedId !== strategyId) {
-        return;
-      }
-      runInAction(() => {
-        this.deploymentError =
-          error instanceof Error ? error.message : i18n.t('strategy:deploymentFailed');
-      });
-    }
-  }
-
-  /**
-   * 暂停已选部署并刷新状态，保持当前报告关联。
-   *
-   * Pause the selected deployment and refresh its state.
-   */
-  public async pauseDeployment() {
-    if (!this.deployment || this.deploymentActionLoader.loading) {
-      return;
-    }
-    const strategyId = this.savedId;
-    try {
-      const paused = await this.deploymentActionLoader.run({
-        type: 'pause',
-        deploymentId: this.deployment.id,
-      });
-      if (this.savedId !== strategyId) {
-        return;
-      }
-      runInAction(() => {
-        this.deployments = this.deployments.map((deployment) =>
-          deployment.id === paused.id ? paused : deployment,
-        );
-        this.deploymentError = null;
-      });
-    } catch (error) {
-      if (this.savedId !== strategyId) {
-        return;
-      }
-      runInAction(() => {
-        this.deploymentError =
-          error instanceof Error ? error.message : i18n.t('strategy:deploymentPauseFailed');
-      });
-    }
   }
 
   /**
@@ -965,7 +828,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     runInAction(() => {
       this.sending = false;
     });
-    this.deploymentActionLoader.reset();
     this.backtestHistoryLoader.abort();
     this.backtestHistoryLoader.reset();
     this.backtestReportLoader.reset();
@@ -997,8 +859,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       this.scanLogLines = [];
       this.scanError = null;
       this.scanQueuePosition = null;
-      this.deployments = [];
-      this.deploymentError = null;
     });
     this.loadBenchmarks(this.result);
     pushRecent(id); // record the visit → hero Recent-visits + auto-open on next entry
@@ -1022,14 +882,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     void this.scanHistoryLoader.run(id).then((reports) => {
       if (reports[0] && !this.scanReport) {
         void this.loadScanReport(reports[0].id);
-      }
-    });
-    void this.deploymentLoader.run(id).then((deployments) => {
-      if (this.savedId === id) {
-        runInAction(() => {
-          this.deployments = deployments;
-          this.deploymentError = null;
-        });
       }
     });
     // Re-attach to a still-running backtest (found server-side by strategyId — no localStorage, works
@@ -1203,7 +1055,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
     runInAction(() => {
       this.activeBacktestReportId = detail.id;
-      this.deploymentError = null;
       this.result = detail.result;
       this.error = null;
     });

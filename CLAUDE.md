@@ -4,7 +4,7 @@
 
 ## 项目定位与当前优先级
 
-- **当前第一目标是系统学习量化投资并构造分析工具**，不是尽快接入实盘。研究、回测、信号与账户能力都为理解和验证服务；模拟盘、实盘和券商执行保留为长期阶段，不能挤占当前学习与研究主线。
+- **当前第一目标是系统学习量化投资并构造分析工具**，不是尽快接入实盘。研究与回测能力都为理解和验证服务；模拟盘、实盘和券商执行保留为长期阶段，不能挤占当前学习与研究主线。
 - **研究范围是多市场、多资产**：目标覆盖中国内地、香港、美国的股票、债券和商品。现有 A 股 / ETF / 股指期货能力是已经落地的第一块，不是产品永久边界。
 - **量化证据优先**：结论必须来自明确假设、可追溯数据、可复现计算和恰当统计检验，不把宏观叙事、图形直觉或 LLM 判断直接当成投资结论。
 - **长期目标是可执行的风险调整收益**：寻找并验证能在真实成本和严格样本外约束下保持费后正收益、且 Sharpe / Calmar 良好的策略组合；不能把样本内最大化 Sharpe / Calmar 当成成功标准。
@@ -19,7 +19,7 @@
   建设一套与 Research 平行的 Notebook 产品。统计方法和公式写进可读文档，实际计算写进 Python；上游变化
   必须使下游输出显式 stale，固化须在干净环境完整执行。
 - **验证层**：FactorReport、代码快照、PIT、holdout、稳健统计、真实成本和数据截止日负责把探索结论变成可复查证据。
-- **执行层**：策略回测、每日信号和账户对账保留窄而稳定；当前不以扩券商、自动下单或实盘运营为建设重点。
+- **执行层**：策略回测保留窄而稳定；当前不以扩券商、自动下单或实盘运营为建设重点。
 
 Factor / Strategy 对话的嵌入式分析实现与验收记录见
 `docs/design/embedded-python-analysis.md`。它复用 Research Python 能力，保留每次运行记录，首次成功后固定该版本；
@@ -183,7 +183,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 
 - **执行职责按业务组织**：无状态业务编排优先使用具名函数，不为单一 `run` 方法创建 Runner 类，不强制各模块采用同一目录或签名。Worker 负责输入/消息/进程收尾，语言 runtime 负责代码加载与执行，不规划报告、扫描或文档运行。类用于确实持有资源或可变状态的 runtime、会话池和进程执行器；共享模拟/计算放在明确的业务能力目录，避免混入语言 runtime。具体调整见 `docs/design/execution-naming-and-ownership.md`。
 
-- **业务计算入口按动作命名**：因子评估使用 `factor/analysis/evaluate.ts`，回测、扫描和信号结果计算分别使用 `strategy/backtests/compute.ts`、`strategy/scans/compute.ts`、`signals/runs/compute.ts`；允许取数、沙盒装配和结果后处理。Worker 调用不决定入口叫 `run`，Job 生命周期仍归 `job-lifecycle.ts`。Agent 完整后台对话流程、Research 的 `run-cell.ts` / `run-document.ts` 等具名运行入口、SignalRun 路由、CLI、工具及对象的 `run()` 保留各自语义；已有 `runBacktest` 等明确业务对象的函数名保留。
+- **业务计算入口按动作命名**：因子评估使用 `factor/analysis/evaluate.ts`，回测和扫描结果计算分别使用 `strategy/backtests/compute.ts`、`strategy/scans/compute.ts`；允许取数、沙盒装配和结果后处理。Worker 调用不决定入口叫 `run`，Job 生命周期仍归 `job-lifecycle.ts`。Agent 完整后台对话流程、Research 的 `run-cell.ts` / `run-document.ts` 等具名运行入口、CLI、工具及对象的 `run()` 保留各自语义；已有 `runBacktest` 等明确业务对象的函数名保留。
 
 - 测试按职责归属：模块测试与源码同目录，不要求存在同名源码文件；API 包级配置及跨模块应用契约测试放在 `apps/api/tests`。具有明确模块归属的 integration 测试仍留在模块内，不按文件后缀统一搬迁。`tests` 仅供测试使用，生产代码不能导入；该目录仍纳入 TypeScript 与后端边界检查。
 
@@ -192,15 +192,14 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - `apps/api/src/auth` — 登录与会话业务；根级 `routes.ts` 负责登录 HTTP，`cookies.ts` 负责 Cookie，`middleware.ts` 负责鉴权中间件与 Hono 用户上下文；`session.ts` 保留会话业务。
 - `apps/api/src/infra` — 数据库、HTTP 辅助、LLM 与邮件传输；`math` 为共用数值计算，`date.ts` 为日期辅助，`i18n` 保留纯翻译。
 - `apps/api/src/infra/sandbox` — 公共 Python 通信、TS isolate 与沙盒日志；业务协议归 Strategy/Factor/Research 各自的 runtime，公共运行设施不导入业务模块。
-- `apps/api/src/jobs` — 通用任务存储、日志、事件调度和 Worker 回收；register.ts 显式注册七类 JobLifecycle 对象；JobService 统一存储、执行、终态事务与恢复。onExecute 在事务外计算，onSuccess/onFailure/onInterrupted 在终态事务中更新业务，onCommitted 在提交后执行。bootstrap 等待恢复后启动单消费调度器；buildApp 只构建 HTTP。报告运行状态来自 Job，无 Job 历史终态回读 legacy 字段；ResearchExecution 保留领域结果状态。
+- `apps/api/src/jobs` — 通用任务存储、日志、事件调度和 Worker 回收；register.ts 显式注册六类 JobLifecycle 对象；JobService 统一存储、执行、终态事务与恢复。onExecute 在事务外计算，onSuccess/onFailure/onInterrupted 在终态事务中更新业务，onCommitted 在提交后执行。bootstrap 等待恢复后启动单消费调度器；buildApp 只构建 HTTP。报告运行状态来自 Job，无 Job 历史终态回读 legacy 字段；ResearchExecution 保留领域结果状态。
 - `apps/api/src/research` — 文档/Cell 编辑归 documents，依赖与失效归 dependencies，文档运行/控制归 document-runs，共用 Python 会话归 sandbox，嵌入式分析的版本/运行/冻结归 embedded，快照与产物归 evidence，Agent 修改/审阅/尝试归 proposals；研究数据归 datasets，语义检索归 catalog，Python 作者 API 归 sdk/python，宿主校验/分派归 sandbox/host，留存输入回放归 evidence，语言服务归 language，模板归 templates，因子/策略交接归 handoff，整理归 curator。`routes/index.ts` 直接组合并导出 `researchRoute`，挂载到 `/api/app/research`；文档/Cell、执行控制、证据/交接、提案、Agent、Curator、数据查询、Python 语言服务分别由 `routes/document.ts`、`routes/execution.ts`、`routes/evidence.ts`、`routes/proposal.ts`、`routes/agent.ts`、`routes/curator.ts`、`routes/data.ts`、`routes/language.ts` 适配请求，`agent/turn.ts` 编排 Research 对话启动；入口与调用链见 `src/research/README.md`。
 - `apps/api/src/factor` — 定义与草稿归 definitions，观察数据与截止日归 observations，正式评估/报告/holdout 归 evaluations，相关性任务与缓存归 correlations，共享评估计算及 Worker 归 analysis，来源解析/快照/指纹归 sources，Factor Job 归属查询归 jobs，发布/归档归 publication，组合归 composition，作者 SDK 实现归 sdk，语言适配归 sandbox，天气固定/刷新归 weather；`routes/index.ts` 直接组合并导出 `factorRoute`，统一挂载到 `/api/app/factors`；定义、组合、Agent、分析、相关性、天气分别由 `routes/definition.ts`、`routes/composite.ts`、`routes/agent.ts`、`routes/analysis.ts`、`routes/correlation.ts`、`routes/weather.ts` 适配请求；报告位于 `/analysis-reports`，普通分析和相关性任务分别使用 `/analysis-jobs` 与 `/correlation-jobs`，`evaluations/job-lifecycle.ts`、`correlations/job-lifecycle.ts` 导出生命周期对象，在 jobs/register 分别注册为 `factor-analysis` / `factor-correlation`，旧 kind 的一次性生产转换已完成，旧库恢复见 `docs/backend-runtime-entries.md`，bootstrap 不再重复转换。入口与调用链见 `src/factor/README.md`。
 - `apps/api/src/strategy` — 定义/命名/配置归 definitions，回测提交、报告、语言编排及 Worker 归 backtests，参数扫描及线程内串行模拟归 scans，策略因子对象、准备与引用归 factors，策略 SDK 辅助实现归 sdk，TS/Python 适配归 sandbox，报告风险分析与模型就绪要求归 risk。`routes/index.ts` 直接组合并导出 `strategyRoute`，统一挂载到 `/api/app/strategies`；`routes/agent.ts` 处理 Agent，`routes/definition.ts` 处理列表、创建、删除和公开范围，`routes/backtest.ts` / `routes/scan.ts` 分别处理提交、报告与任务查询；自动命名仅保留内部能力；`backtests/job-lifecycle.ts`、`scans/job-lifecycle.ts` 保留具名任务入口；调用链见 `src/strategy/README.md`。
-- `apps/api/src/signals` — 部署冻结/暂停归 deployments，运行入队/查询/就绪检查与 IPC Worker 归 runs，成交录入/初始化/结算/纯重放归 accounting，因子依赖血缘、输入摘要与利率准入归 factor-inputs，共用日期判断调用 Market calendar；routes/index.ts 直接组合 routes/deployment.ts、routes/run.ts、routes/execution.ts，统一挂载 `/api/app/signals`；最新运行归 `/deployments/latest-runs`，运行提交/列表归 `/deployments/:deploymentId/runs`，任务归 `/run-jobs/:jobId`。`runs/job-lifecycle.ts` 导出生命周期对象，`runs/notifier.ts` 负责运行通知，`daily/scheduler.ts` 与 `daily/sync.ts` 负责每日运行与数据准备。入口与事务边界见 `src/signals/README.md`。
 - `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools/sql 归组只读查询工具和 Worker。Strategy Agent 负责依据 SDK 和上下文生成代码及必要校验，回测由用户在工作台显式发起；Research 通过封存研究生成 Strategy 草稿，不提供后台回测工具。routes/index.ts 组合 routes/turn.ts，适配 `/api/app/agent` HTTP/SSE；消息归 conversations，执行详情/订阅/取消归 turns；旧图表重查接口已移除。入口和消息顺序见 `src/agent/README.md`。
 - `apps/api/src/sharing` — 根级 routes.ts 适配公开库 HTTP，catalog.ts 聚合公开资源列表；策略复制调用 `strategy/definitions/copy-public.ts`，不直接修改他域生命周期。见 `src/sharing/README.md`。
 - `apps/api/src/backtesting` — 根级 BacktestingEngine/OrderBook/BacktestingContext 分别持有运行、订单与当日上下文，CashPortfolio/FuturesPortfolio 负责账户；data 为必填 DataPort/EngineData，factors 的 FactorEvaluator 为引擎内因子求值；adapters 为宿主 Prisma，TS/Python FactorHost 归 strategy/simulation，testing 为共用 fixture。因子源码只在各自沙箱执行，Engine 经独立 FactorExecutionPort 使用计算结果。模拟核心不导入宿主适配器；TS/Python 策略经共享 bridge 使用宿主 Engine，TS bundle 只包含 SDK 与沙箱适配。见 `src/backtesting/README.md`。
-- `apps/api/src/market` — stocks/etfs/indices/futures 按数据领域聚合同步与读取，ETF 基础质量归 etfs；calendar 负责同步/读取及上海 16:00 的 SSE 日期规则，cross-market 负责基准同步/换算与美债/外汇联合获取，queries 保留跨资产统一序列；state 聚合指标落库、计算/读取、天气与风险驱动基础质量，valuation 保留估值计算/读取。fundamentals/rates/macro/commodity 承接财报、利率、宏观和商品，rates 只提供逐期限利率可得日期，Signals 自行决定准入。providers/tushare 是数据通道，registry 是纯静态清单，instruments 负责证券身份及历史代码合并。routes/index.ts 直接组合 routes/instrument.ts、routes/valuation.ts、routes/state.ts，适配 `/api/app/market` 的 instruments、index-valuations、indices 序列和 weather。入口见 `src/market/README.md`。Market 不反向导入 Strategy、Signals、Research、Agent 或 Maintenance。
+- `apps/api/src/market` — stocks/etfs/indices/futures 按数据领域聚合同步与读取，ETF 基础质量归 etfs；calendar 负责同步/读取及上海 16:00 的 SSE 日期规则，cross-market 负责基准同步/换算与美债/外汇联合获取，queries 保留跨资产统一序列；state 聚合指标落库、计算/读取、天气与风险驱动基础质量，valuation 保留估值计算/读取。fundamentals/rates/macro/commodity 承接财报、利率、宏观和商品，rates 提供逐期限利率可得日期。providers/tushare 是数据通道，registry 是纯静态清单，instruments 负责证券身份及历史代码合并。routes/index.ts 直接组合 routes/instrument.ts、routes/valuation.ts、routes/state.ts，适配 `/api/app/market` 的 instruments、index-valuations、indices 序列和 weather。入口见 `src/market/README.md`。Market 不反向导入 Strategy、Research、Agent 或 Maintenance。
 - `apps/api/src/maintenance` — 统一 `data sync` 目标、持久分区计划、有限预算、恢复和短发布编排；来源身份、映射与原始质量归 Market，各消费者判断自己的正式输入资格。`sync.ts` 组合 Market 分区准备和事务接纳；`calculations.ts` 处理有界失效与派生输出 CAS；`status.ts` 展示覆盖与真实发布锁，`routes.ts` 保留既有状态接口。旧 daily/weekly/repair/import、整轮候选及财报候选子进程协议已退役，历史控制表只保留历史与部署用途。流程见 `apps/api/src/maintenance/README.md`。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 模块内应用命令(`src/*/cli/`)及审计/探针/研究脚本(`scripts/`)
 - `apps/web` — 登录与工作台前端
@@ -208,7 +207,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - `packages/shared` — 共享类型、公开 SDK Contract 和 HTTP 请求契约；依赖方向 `apps/* → packages/*`，反向禁止。HTTP schema 通过 `@jixie/shared/api/<业务>` 子路径导入，不进入根级运行时 barrel；前端只使用 `import type` 引用请求类型。
 - `packages/shared` 编译到 `dist`，实际运行／构建前需 `pnpm --filter @jixie/shared build`（install 时 `prepare` 也会自动构建）。根级 `pnpm typecheck` 在内存中生成最新 shared 声明再检查各应用，不运行构建、不写文件、不依赖旧 dist；各应用保持自己的 TypeScript 配置。
 
-应用 CLI 放在所属模块的 `cli/`，负责参数、配置、调用、输出、退出与进程资源收尾，允许简单同步组合和只为输出服务的查询；可复用业务不导入 CLI，不为每个命令新增转发 service。Market / Maintenance / Signals / Auth 的入口统一登记在 `apps/api/scripts/README.md`。独立备份工具 `apps/api/scripts/backup-db.mjs` 保留 Node 内置模块 + sqlite3 CLI 的零 npm 依赖契约，不要求应用构建。
+应用 CLI 放在所属模块的 `cli/`，负责参数、配置、调用、输出、退出与进程资源收尾，允许简单同步组合和只为输出服务的查询；可复用业务不导入 CLI，不为每个命令新增转发 service。Market / Maintenance / Auth 的入口统一登记在 `apps/api/scripts/README.md`。独立备份工具 `apps/api/scripts/backup-db.mjs` 保留 Node 内置模块 + sqlite3 CLI 的零 npm 依赖契约，不要求应用构建。
 
 ## 架构阅读与边界门禁
 
@@ -224,7 +223,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - 跨包用包名 `@jixie/shared`;`@prisma/client` 是 CJS,用 `import pkg from '@prisma/client'; const { PrismaClient } = pkg;`(见 `src/infra/database/prisma.ts`)
 - ID 用 ULID,应用层生成;zod 做入参校验
 - **业务入口使用具名输入类型**：已有业务 schema 对应的对象参数，在 schema 所属文件中导出派生类型（公共 HTTP 契约在 shared/api，后端专属组合在业务 `schema.ts`），业务文件使用 `import type` 引用，不在导出的业务函数签名中内联 `z.input`、`z.output` 或 `z.infer` 推导表达式。HTTP、Agent 工具、SDK 适配等入口解析外部参数，业务操作接收 `z.output`，保留权限、状态和业务规则检查；持久化 JSON、Job/Worker 消息、LLM 输出仍须在各自读取边界校验。前端请求 `*Request` / `*RequestQuery` / `*RequestParams` 使用 `z.input`，与后端业务 `z.output` 区分；查询字符串在序列化处接受共享类型检查，coerce 必须显式声明字符串输入类型。未知数据解码器可接收 `unknown`；类型名的 `Input` 表示业务入参，不决定选哪一种。保持现有共享契约与独立业务类型；局部推导、协议/Job/工具类型按实际归属保留，不为没有类型消费者的 schema 批量添加别名，不新增集中式 `types.ts`。详见 `docs/design/api-input-types.md` 与 `docs/design/api-request-contracts.md`。
-- **业务错误统一约定**：Strategy、Factor、Research、Signals、Market、Agent、Auth、Maintenance 的业务错误在各自根级 `errors.ts` 定义，继承 `infra/errors.ts` 的 `BusinessError`；调用点直接 `throw new XxxError(reason, options)`，不增加只负责抛出的 `failXxx` 函数。成功返回数据，预期拒绝抛异常；合法的空查询和运行状态仍是数据。错误定义只含稳定 reason、分类、i18n key/参数、可公开 details 与内部 cause，不依赖 HTTP、数据库或业务执行。自定义技术异常也放所属模块根级 `errors.ts`，保留取消、重试和诊断语义，不冒充业务拒绝。HTTP 统一映射：输入 400、缺失 404、状态冲突 409、认证 401、权限 403、暂不可用/维护 503；未知异常记录原始错误并返回安全双语 500。不得按文案识别错误或 catch 所有异常后转 400。非 HTTP 输出在消费边界用 `errorMessage(error, locale)` 翻译。详见 `docs/design/api-errors.md`。
+- **业务错误统一约定**：Strategy、Factor、Research、Market、Agent、Auth、Maintenance 的业务错误在各自根级 `errors.ts` 定义，继承 `infra/errors.ts` 的 `BusinessError`；调用点直接 `throw new XxxError(reason, options)`，不增加只负责抛出的 `failXxx` 函数。成功返回数据，预期拒绝抛异常；合法的空查询和运行状态仍是数据。错误定义只含稳定 reason、分类、i18n key/参数、可公开 details 与内部 cause，不依赖 HTTP、数据库或业务执行。自定义技术异常也放所属模块根级 `errors.ts`，保留取消、重试和诊断语义，不冒充业务拒绝。HTTP 统一映射：输入 400、缺失 404、状态冲突 409、认证 401、权限 403、暂不可用/维护 503；未知异常记录原始错误并返回安全双语 500。不得按文案识别错误或 catch 所有异常后转 400。非 HTTP 输出在消费边界用 `errorMessage(error, locale)` 翻译。详见 `docs/design/api-errors.md`。
 - **代码注释使用中英文双语**(inline `//`、块注释、JSDoc、Prisma `///`、CSS `/* */`)——用途、复杂流程、计算口径与关键约束均提供语义一致的中文和英文说明；优先在声明上使用双语 JSDoc，中文说明不加语言前缀，JSDoc 的中英文说明之间保留一个空段，供 Markdown hover 分段；Python 使用相邻双语注释，避免仅为补注释改变运行时 docstring。保留标准英文财经术语，不机械解释显而易见的代码。**LLM prompt / 工具 description / few-shot 仍一律英文**(见下「多语言」条)。**面向用户的 UI/报错文案走 i18n**(英文 key,zh+en 值),不再硬编码——详见 `docs/design/i18n.md` 与下「多语言」条
 - 格式化:prettier(`semi`、`singleQuote`、`printWidth 100`、`trailingComma all`)+ eslint `curly: all`(控制语句强制大括号,`if (x) return;` 会被拆成带 `{}` 的多行)。**pre-commit hook**(simple-git-hooks + lint-staged)提交时自动对暂存文件跑 `eslint --fix` + `prettier --write`,机械格式无需手动维护;`.prettierignore` 里 `*.md` 等文档不受 prettier 摆布
 - **空行分段(工具做不到,唯一靠人/agent 的格式)**:函数体内按逻辑段落用**单空行**分组 —— 入参校验 → 数据准备 → 主循环 → 收尾/return;注释引导的新段落,注释前空一行。函数首行前 / 末行后不空;紧密相关的连续单行不硬插;不留连续空行(prettier 会压成一行)。写的时候主动分段,别挤成一坨
@@ -264,7 +263,7 @@ A 股回测必须内置以下规则(写回测时别漏):
 
 ## 回测与后台计算
 
-回测已由 `strategy/backtests/job-lifecycle.ts` 派发到 `strategy/backtests/worker`，参数扫描位于 `strategy/scans`，Factor 与 Signals 也有各自的线程/子进程入口。HTTP 主线程负责提交与结果事务，Engine 负责模拟；长任务沿用「同步写库 → 返 jobId → 后台计算 → 查询/订阅进度」。具体入口和资源收尾见 `docs/backend-runtime-entries.md`。
+回测已由 `strategy/backtests/job-lifecycle.ts` 派发到 `strategy/backtests/worker`，参数扫描位于 `strategy/scans`，Factor 也有自己的线程/子进程入口。HTTP 主线程负责提交与结果事务，Engine 负责模拟；长任务沿用「同步写库 → 返 jobId → 后台计算 → 查询/订阅进度」。具体入口和资源收尾见 `docs/backend-runtime-entries.md`。
 
 ## Commit message policy
 

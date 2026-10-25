@@ -20,7 +20,6 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "signals:run": "pnpm --filter api signals:run",
     "loc": "node scripts/tools/loc.mjs",
     "prepare": "simple-git-hooks",
     "check:backend-boundaries": "node --test scripts/checks/check-backend-boundaries.test.mjs && node scripts/checks/check-backend-boundaries.mjs",

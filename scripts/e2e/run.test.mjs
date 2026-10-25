@@ -36,7 +36,6 @@ test('learning group retains its original sequence and separate image tasks', ()
       'learning-cross-market',
       'learning-trend-strategy',
       'learning-value-factor',
-      'learning-cgb-signal',
       'learning-stock-bond-allocation',
       'learning-commodity-carry',
       'learning-sales-yield-positive',
@@ -46,7 +45,7 @@ test('learning group retains its original sequence and separate image tasks', ()
     e2eCommands.some((command) => command.file.includes('help-content')),
     false,
   );
-  assert.equal(imageCommands.length, 18);
+  assert.equal(imageCommands.length, 17);
   assert.deepEqual(e2eCommands.find((command) => command.name === 'research-fcff-reuse').nodeArgs, [
     '--import',
     'tsx',

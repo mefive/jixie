@@ -7,7 +7,6 @@ import { BusinessError, errorMessage } from '#infra/errors.js';
 import { handleApiError, validateJson } from '#infra/http/errors.js';
 import { MarketError, TushareError } from '#market/errors.js';
 import { ResearchError } from '#research/errors.js';
-import { SignalsError } from '#signals/errors.js';
 import { StrategyError } from '#strategy/errors.js';
 import { Hono } from 'hono';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +19,6 @@ describe('Business errors at the HTTP boundary', () => {
     [new StrategyError('strategy_not_found'), 404, 'NOT_FOUND'],
     [new FactorError('factor_turn_in_progress'), 409, 'CONFLICT'],
     [new ResearchError('document_run_in_progress'), 409, 'CONFLICT'],
-    [new SignalsError('paused'), 409, 'CONFLICT'],
     [new MarketError('start_after_end'), 400, 'VALIDATION_FAILED'],
     [new AgentError('sql_select_required'), 400, 'VALIDATION_FAILED'],
     [new AuthError('login_required'), 401, 'UNAUTHORIZED'],
@@ -66,8 +64,8 @@ describe('Business errors at the HTTP boundary', () => {
   });
 
   it('formats parameters at the caller boundary and preserves embedded protocol codes', () => {
-    const error = new SignalsError('data_not_ready', { params: { date: '20260917' } });
-    expect(errorMessage(error, 'zh')).toBe(t('zh', 'signalDataNotReady', { date: '20260917' }));
+    const error = new StrategyError('custom_factor_missing', { params: { keys: 'value' } });
+    expect(errorMessage(error, 'zh')).toBe(t('zh', 'customFactorMissing', { keys: 'value' }));
     const embedded = new ResearchError('embedded_cancelled');
     expect(embedded).toBeInstanceOf(BusinessError);
     expect(embedded.embeddedCode).toBe('cancelled');

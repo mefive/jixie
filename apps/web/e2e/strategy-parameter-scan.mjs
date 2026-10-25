@@ -114,12 +114,10 @@ try {
   await page.locator('.jx-strategy-code .monaco-editor').waitFor({ timeout: 30_000 });
   const runAction = page.getByRole('button', { name: '运行回测' });
   const scanAction = page.getByRole('button', { name: '参数扫描' }).first();
-  const deployAction = page.getByRole('button', { name: '部署上线' });
   const editAction = page.getByRole('button', { name: '编辑启动参数' });
   for (const [label, action] of [
     ['run', runAction],
     ['scan', scanAction],
-    ['deploy', deployAction],
     ['edit', editAction],
   ]) {
     if ((await action.textContent()).trim()) {

@@ -506,7 +506,6 @@ test('permits shared workspace contracts when resolution points inside the repos
 test('allows neutral jobs dependencies and only explicit startup business assembly', (context) => {
   const root = fixture(context, {
     [src + 'bootstrap.ts']: "import './jobs/register.js';",
-    [src + 'signals/daily/scheduler.ts']: "import '../../jobs/register.js';",
     [src + 'jobs/register.ts']: "import '../strategy/task.js'; import './job-scheduler.js';",
     [src + 'strategy/task.ts']: "import '../jobs/job-service.js';",
     [src + 'jobs/job-scheduler.ts']: "import './job-service.js';",

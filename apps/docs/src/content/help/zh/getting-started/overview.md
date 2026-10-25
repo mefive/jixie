@@ -1,6 +1,6 @@
 # 产品可以做什么
 
-机械交易系用于观察市场状态、在响应式文档中完成量化研究、研究因子、检验交易规则和查看最新信号。登录后默认
+机械交易系用于观察市场状态、在响应式文档中完成量化研究、研究因子、检验交易规则。登录后默认
 进入市场气象页。第一次使用时，可以先了解当前市场，再完成一份 Markdown/Python 研究和一次回测。
 
 ## 主要功能
@@ -13,7 +13,6 @@
 | 因子研究 | 研究股票横截面、ETF 时间序列、跨资产 Panel 和宏观状态，并发布合格 Factor |
 | 因子气象 | 用统一月频方法持续观察已发布 Factor 的近期收益、IC、覆盖率和换手 |
 | 估值 | 查看指数的市盈率、市净率、换手率及历史百分位 |
-| 今日信号 | 查看已部署策略在最新交易日生成的买卖信号、Factor 输入和运行记录 |
 | 公共资产库 | 公开自己的策略或已发布 Factor，并复制其他用户公开的独立副本 |
 
 页面之间可以配合使用。例如，先在“研究”中确认股票范围，再在“策略”中检验一套买卖规则。
@@ -23,9 +22,8 @@
 - **自由研究或公司财报分析**：在“研究”中选择数据、确认口径，审查并运行 Markdown/Python Cell。可以直接[分析财报](/docs/help/research/financial-data)，也可以使用可选的 [FCFF 模板](/docs/help/research/fcff-valuation)。
 - **理解已有结果**：在 Factor 或 Strategy 对话中引用所选报告，使用[嵌入式分析](/docs/help/research/embedded-analysis)检查数据；需要继续扩展时进入 Research。
 - **验证信号或交易规则**：通过[研究交接](/docs/help/research/handoff)创建草稿，再分别运行 Factor 报告或策略回测。探索输出不会自动成为正式验证。
-- **观察每日指令**：选择一份符合要求的成功回测报告[部署上线](/docs/help/signals/deploy-strategy)，在“今日信号”核对具体部署。保存策略或修改草稿都不会自动更新部署。
 
-产品目前以学习、研究和历史验证为主。跨市场数据研究不代表所有市场都支持交易回测；今日信号也不连接券商或自动下单。
+产品目前以学习、研究和历史验证为主。跨市场数据研究不代表所有市场都支持交易回测。
 
 ## 建议的第一次使用顺序
 
@@ -38,7 +36,6 @@
 7. 按照[沪深 300 趋势策略学习路径](/help/learning/csi300-trend-strategy)，审查参数、成本和样本外结果。
 8. 按照[第一次运行预设因子分析](/help/factors/first-preset-analysis)熟悉 Factor 报告。
 9. 按照[沪深 300 价值因子学习路径](/help/learning/csi300-value-factor)，预注册横截面假设并揭示一次正式保留段。
-10. 按照[国债曲线到每日信号学习路径](/help/learning/cgb-curve-daily-signal)，核对 Factor 证据、费后回测、部署快照和指定日期信号。
 11. 按照[股债配置与风险归因学习路径](/help/learning/stock-bond-allocation-risk)，通过四组实跑拆分资产配置、择时和成本，再对账完整风险。
 12. 按照[商品 Carry 学习路径](/help/learning/commodity-carry-holdout)，用两项事前测试核对期限结构、代理误差与正式 Holdout。
 13. 按照[销售收益率学习路径](/help/learning/sales-yield-positive)，核对第一个通过探索、去冗余和正式 Holdout 的正面因子准入案例。
@@ -50,7 +47,6 @@
 
 - Universe 结果只表示对象符合冻结条件，不表示它们之后一定上涨。
 - 回测使用历史数据，不是未来收益承诺。
-- 今日信号来自策略规则，不是针对个人情况提供的证券推荐。
 - 数据更新日期决定当前能看到的最新范围。最新交易日之后的数据不会提前出现。
 
 做出交易决定前，应核对数据日期、交易成本、可成交性和自身能够承担的风险。
@@ -66,7 +62,6 @@
 - [可信跨市场研究：收益、汇率与相关性](/help/learning/trusted-cross-market-research)
 - [沪深 300 趋势策略：参数、成本与样本外](/help/learning/csi300-trend-strategy)
 - [沪深 300 价值因子：排序、IC、分层与样本外](/help/learning/csi300-value-factor)
-- [国债曲线到每日信号：证据、回测与部署](/help/learning/cgb-curve-daily-signal)
 - [股债配置与风险归因：贡献、相关性与压力情景](/help/learning/stock-bond-allocation-risk)
 - [商品 Carry：期限结构、代理误差与样本外](/help/learning/commodity-carry-holdout)
 - [销售收益率：从正面 Holdout 到因子准入](/help/learning/sales-yield-positive)

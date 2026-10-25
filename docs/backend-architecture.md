@@ -14,7 +14,6 @@
 | Factor | 因子定义/组合、分析报告、holdout、发布、持续观察 | [Factor](../apps/api/src/factor/README.md) |
 | Strategy | 策略定义、回测报告、参数扫描、报告风险分析 | [Strategy](../apps/api/src/strategy/README.md) |
 | Backtesting | 交易日循环、行情读取端口、成交/持仓和因子求值；供回测和信号计算使用 | [Backtesting](../apps/api/src/backtesting/README.md) |
-| Signals | 按报告独立部署、每日运行、模拟/人工成交和账户对账 | [Signals](../apps/api/src/signals/README.md) |
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
 | Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、跨资产查询与跨市场流程 | [Market](../apps/api/src/market/README.md) |
 | Maintenance | 统一目标同步、分区覆盖、局部资格、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
@@ -38,7 +37,6 @@
 | `/api/app/research` | `research/routes/index.ts` 直接组合 document / execution / evidence / proposal / agent / curator / data / language / embedded 路由 |
 | `/api/app/factors` | `factor/routes/index.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
 | `/api/app/strategies` | `strategy/routes/index.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
-| `/api/app/signals` | `signals/routes/index.ts` 直接组合 deployment / run / execution 路由 |
 | `/api/app/agent` | `agent/routes/index.ts` 组合 turn 路由，提供执行详情、历史、SSE 和取消 |
 | `/api/app/market` | `market/routes/index.ts` 直接组合 instrument / valuation / state 路由 |
 | `/api/app/library` | `sharing/routes.ts`；URL 保留公开库原契约 |
@@ -55,7 +53,7 @@ Agent 服务于 Research、Factor 和 Strategy。用户发起业务对话时，�
 
 ## 错误的归属和调用方式
 
-九个业务模块（Strategy、Factor、Research、Signals、Market、Agent、Auth、Sharing、Maintenance）
+九个业务模块（Strategy、Factor、Research、Market、Agent、Auth、Sharing、Maintenance）
 统一在根级 `errors.ts` 定义错误。业务调用点直接抛出模块错误，例如
 `throw new StrategyError('strategy_not_found')`；成功直接返回数据，不以 `null`、`false` 或 `{ error }`
 表达操作失败。合法的可选查询、幂等取消结果和任务状态保留数据语义。
@@ -105,7 +103,7 @@ flowchart TD
   Q --> H["serve：监听 HTTP"]
 ```
 
-Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化事件调度器并监听 HTTP。register 显式登记生命周期对象；Signals/Maintenance 每日批处理条件 claim 后直接执行同一入口，不依赖 API 在线，串行名额独立于 API scheduler。通用调度与存储不反向依赖业务。
+Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化事件调度器并监听 HTTP。register 显式登记生命周期对象；Maintenance 后处理条件 claim 后直接执行同一入口，不依赖 API 在线，串行名额独立于 API scheduler。通用调度与存储不反向依赖业务。
 
 实际顺序是：构建应用和执行器 → 并行等待 Job、Agent turn、天气刷新恢复 → 发起内置因子种子初始化 → 启动队列 → 监听 HTTP。种子初始化是后台 Promise，不是启动的阻塞步骤；开发环境监听后再异步探测 Python runtime。`buildApp()` 会加载模块、建立模块内对象，不能据此理解为“零对象创建”，但不会开始领取 Job 或监听服务。
 
@@ -145,15 +143,11 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 参数扫描使用独立的 `scans/job-lifecycle.ts` 和扫描 Worker。`scans/compute.ts` 在同一线程内循环，为每个参数及区间创建 `StrategySimulation`，调用 run 并在 finally 中 close，比较冻结范围内的结果；因子源码准备一次，每次模拟单独初始化并关闭 runtime，不经过正式回测的风险后处理。没有 cell 子进程或专用执行器；任务通过通用 Worker 生命周期退出。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
 
-### 3. 维护发布数据并生成每日信号
+### 3. 维护市场数据
 
-1. Maintenance CLI 通过已有锁进入 daily/weekly/repair；调用 Market calendar 刷新日历并按上海 16:00 / SSE 规则确定截止日，按各分支处理补齐、修复或重试。
-2. Market 的具体同步函数获取候选数据，按原覆盖规则校验并写库。股票四表、ETF 三表等保留各自的替换事务。
-3. 原始质量通过后重算派生指标，再检查派生质量；Maintenance 才推进发布水位或 dataRevision。单项同步成功不等于整轮维护已发布。
-4. Signals 读取冻结部署、已发布截止日和因子血缘，创建 SignalRun + Job；其子进程调用 Strategy/Engine 生成下一交易日指令。
-5. `runs/job-lifecycle.ts` 在完成事务里保存 SignalRun 与 Job，提交后才初始化账户并通知。记账失败会阻止通知；目前没有 outbox 或持久化提交后操作重试。
-
-Market 的同步/读取/基础质量归入所属数据领域，具体入口见模块 README。Signals 的利率依赖解析和 14 天新鲜度政策归 `signals/factor-inputs/rates.ts`；Market 的 `rates/government-yield-availability.ts` 只返回所需期限在交易日已可得的最新日期。日历事实由 `market/calendar` 供 Maintenance 与 Signals 共用，信号下一交易日要求仍归 Signals。
+Maintenance 使用统一 `pnpm data sync` 入口准备并接纳 Market 分区，再推进派生计算和 Factor 天气。
+Signals 的策略部署、每日任务、通知和账户结算已移除；数据同步不再触发这些业务。
+当前维护边界见 [Maintenance](../apps/api/src/maintenance/README.md)。
 
 ## 状态与事务归属
 
@@ -165,7 +159,6 @@ Market 的同步/读取/基础质量归入所属数据领域，具体入口见�
 | Strategy / BacktestReport / StrategyScanReport | Strategy 保存可编辑草稿和不可混淆的报告快照；提交时冻结配置和数据范围 |
 | Job | Infra 拥有 queued → running → done/error/stale；业务任务定义拥有关联业务记录的完成/失败/恢复 |
 | AgentTurn / Conversation | Agent 管理对话和消息记录；业务负责上下文。消息完成持久化后才发布 done，多个阶段不是一个总事务 |
-| StrategyDeployment / SignalRun / 账户记录 | Signals 从成功 BacktestReport 创建独立部署，拥有运行、人工成交和重放；不同报告可同时运行，后续草稿编辑不改已有部署 |
 | MaintenanceRun / MaintenanceState | Maintenance 拥有运行、checkpoint、水位、版本和失败门禁 |
 
 每个业务的 `<业务模块>-<任务名>-lifecycle.ts` 导出满足 JobLifecycle 契约的普通对象：onExecute 解析输入并计算，onSuccess 在 JobService 的终态事务中保存结果；可选 onFailure/onInterrupted 处理领域收尾，onCommitted 处理提交后操作。
@@ -183,7 +176,6 @@ Research 的冻结研究交接负责证据准入与生成，Factor/Strategy 负�
 | 改 Cell 失效规则 | [Research dependencies](../apps/api/src/research/dependencies/README.md) |
 | 改因子发布准入 | [Factor publication](../apps/api/src/factor/publication/README.md)、[evaluations](../apps/api/src/factor/evaluations/README.md) |
 | 找回测报告冻结时点 | [Strategy backtests](../apps/api/src/strategy/backtests/README.md) |
-| 找每日信号失败收尾 | [Signals runs](../apps/api/src/signals/runs/README.md)、[账户重放](../apps/api/src/signals/accounting/README.md) |
 | Python 请求财报经过哪里 | [Research 宿主分派](../apps/api/src/research/sandbox/host/README.md) → [datasets](../apps/api/src/research/datasets/README.md) → [Market fundamentals](../apps/api/src/market/fundamentals/README.md) |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
 | 改整体审计规则 | `maintenance/publication/audit.ts`；模型历史要求由 `strategy/risk` 提供 |

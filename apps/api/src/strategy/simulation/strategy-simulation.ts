@@ -37,7 +37,6 @@ export interface StrategySimulationOptions {
   end: string;
   initialCash: number;
   cost?: Partial<CostModel>;
-  strictFutures?: boolean;
 }
 
 /** Owns the strategy and factor resources for exactly one engine run. */
@@ -107,7 +106,6 @@ export class StrategySimulation {
     this.started = true;
 
     const backtestingConfig = {
-      strictFutures: options.strictFutures,
       start: options.start,
       end: options.end,
       initialCash: options.initialCash,

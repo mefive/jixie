@@ -11,7 +11,7 @@ export const e2eCommands = [
     file: 'apps/web/e2e/job-system.mjs',
     group: 'isolated',
     notes:
-      'Build shared and Web. Real scheduler and Workers against synthetic market data, a local model and a disposable database. Run embedded-analysis separately for the seventh lifecycle.',
+      'Build shared and Web. Real scheduler and Workers against synthetic market data, a local model and a disposable database. Run embedded-analysis separately for the sixth lifecycle.',
   },
   {
     name: 'research-curator',
@@ -150,11 +150,6 @@ export const e2eCommands = [
     group: 'learning',
   },
   {
-    name: 'learning-cgb-signal',
-    file: 'apps/web/e2e/learning-cgb-signal-case.mjs',
-    group: 'learning',
-  },
-  {
     name: 'learning-stock-bond-allocation',
     file: 'apps/web/e2e/learning-stock-bond-allocation-case.mjs',
     group: 'learning',
@@ -242,11 +237,6 @@ export const e2eCommands = [
     group: 'factor',
   },
   {
-    name: 'bond-curve-signal',
-    file: 'apps/web/e2e/bond-curve-signal.mjs',
-    group: 'signals',
-  },
-  {
     name: 'factor-panel',
     file: 'apps/web/e2e/factor-panel.mjs',
     group: 'factor',
@@ -300,17 +290,6 @@ export const e2eCommands = [
     name: 'strategy-scan',
     file: 'apps/web/e2e/strategy-parameter-scan.mjs',
     group: 'strategy',
-  },
-  {
-    name: 'signals',
-    file: 'apps/web/e2e/daily-signals.mjs',
-    group: 'signals',
-  },
-  {
-    name: 'futures-signals',
-    file: 'apps/web/e2e/futures-signals.mjs',
-    group: 'signals',
-    notes: 'Requires the isolated job-system harness; use JIXIE_JOB_E2E_ONLY=futures-signals.',
   },
   {
     name: 'etf',
@@ -381,12 +360,6 @@ export const e2eCommands = [
     file: 'apps/web/e2e/mixed-futures.mjs',
     group: 'market',
     notes: 'Running Web/API and futures data; executes real backtests.',
-  },
-  {
-    name: 'report-deployments',
-    file: 'apps/web/e2e/report-deployments.mjs',
-    group: 'signals',
-    notes: 'Disposable API database required; set E2E_ISOLATED_DB=1. Retains deployment history.',
   },
 ];
 
@@ -476,11 +449,6 @@ export const imageCommands = [
   {
     name: 'market-valuation',
     file: 'apps/web/e2e/help-content-market-valuation.mjs',
-    group: 'capture',
-  },
-  {
-    name: 'signals',
-    file: 'apps/web/e2e/help-content-signals.mjs',
     group: 'capture',
   },
 ];

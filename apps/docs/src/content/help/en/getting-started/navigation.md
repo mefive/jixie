@@ -14,7 +14,6 @@ The top navigation contains these entries:
 | Research | Use platform data, charts, and the Agent in Markdown/Python documents, then retain immutable snapshots |
 | Factors | Review grouped factor performance, returns, and saved research reports |
 | Valuation | Review index valuation levels and their historical positions |
-| Signals | Review signals, run history, and accounts for independent deployments of frozen reports |
 | Public Library | Browse user-shared strategies and published Factors, or copy them into private assets you own |
 | Help | Read product instructions and introductory quantitative-trading material |
 

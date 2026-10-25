@@ -36,7 +36,7 @@ try {
     } else if (/\/(backtest-jobs|scan-jobs)\/active$/.test(pathname)) {
       body = null;
     } else if (
-      /\/(backtest-reports|scan-reports|deployments)$/.test(pathname) ||
+      /\/(backtest-reports|scan-reports)$/.test(pathname) ||
       pathname === '/api/app/factors/catalog'
     ) {
       body = [];

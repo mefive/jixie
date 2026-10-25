@@ -283,77 +283,6 @@ describe('strategy factor state isolation', () => {
   });
 });
 
-describe('strategy factor lineage', () => {
-  const dependency = {
-    factorId: 'factor-1',
-    key: 'ep',
-    name: 'EP',
-    analysisKind: 'cross_sectional' as const,
-    codeHash: 'abc123',
-    approvedReportId: 'report-1',
-  };
-
-  it('parses valid dependency snapshots and preserves null rows', () => {
-    expect(StrategyFactor.dependenciesFromJson([dependency])).toEqual([dependency]);
-    expect(StrategyFactor.dependenciesFromJson(null)).toBeNull();
-  });
-
-  it('rejects malformed snapshots', () => {
-    expect(() => StrategyFactor.dependenciesFromJson({ ...dependency })).toThrow(
-      'Invalid factor dependency snapshot',
-    );
-    expect(() => StrategyFactor.dependenciesFromJson([{ ...dependency, key: '' }])).toThrow(
-      'Invalid factor dependency snapshot',
-    );
-    expect(() => StrategyFactor.dependenciesFromJson([{ ...dependency, inputs: [''] }])).toThrow(
-      'Invalid factor dependency snapshot',
-    );
-  });
-
-  it('detects dependency drift independent of source order', () => {
-    expect(() => StrategyFactor.assertDependencies([dependency], [dependency])).not.toThrow();
-    expect(() =>
-      StrategyFactor.assertDependencies([dependency], [{ ...dependency, codeHash: 'changed' }]),
-    ).toThrow('Factor dependency snapshot mismatch');
-    expect(() => StrategyFactor.assertDependencies(null, [dependency])).not.toThrow();
-  });
-
-  it('normalizes legacy TypeScript metadata but rejects language or runtime drift', () => {
-    expect(() =>
-      StrategyFactor.assertDependencies(
-        [dependency],
-        [{ ...dependency, language: 'typescript', runtimeVersion: 'ts-v1' }],
-      ),
-    ).not.toThrow();
-    expect(() =>
-      StrategyFactor.assertDependencies(
-        [dependency],
-        [{ ...dependency, language: 'python', runtimeVersion: 'py-v1' }],
-      ),
-    ).toThrow('Factor dependency snapshot mismatch');
-  });
-
-  it('freezes Definition V2 inputs independent of declaration order', () => {
-    const expected = {
-      ...dependency,
-      analysisKind: 'time_series' as const,
-      inputs: ['rates.cgb.yield.10y', 'rates.cgb.yield.2y'],
-    };
-    expect(() =>
-      StrategyFactor.assertDependencies(
-        [expected],
-        [{ ...expected, inputs: ['rates.cgb.yield.2y', 'rates.cgb.yield.10y'] }],
-      ),
-    ).not.toThrow();
-    expect(() =>
-      StrategyFactor.assertDependencies(
-        [expected],
-        [{ ...expected, inputs: ['rates.cgb.yield.10y'] }],
-      ),
-    ).toThrow('Factor dependency snapshot mismatch');
-  });
-});
-
 const SOURCE = `export default defineFactor({ compute: (bar) => bar.pb });`;
 
 function factorRow(overrides: Record<string, unknown> = {}) {
@@ -717,48 +646,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
         approvedReportId: 'report-1',
       }),
     ]);
-  });
-
-  it('resolves deployment source while leaving inputs for admission inspection', async () => {
-    mocks.factorFindMany.mockResolvedValue([
-      factorRow({
-        key: 'etf_trend_20',
-        analysisKind: 'time_series',
-        code: `export default defineFactorV2({
-          version: 2,
-          name: 'ETF trend',
-          analysisKind: 'time_series',
-          outputScope: 'asset',
-          frequency: 'daily',
-          inputs: ['etf.adjustedClose'],
-          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-          window: 21,
-          compute(ctx) { return ctx.value('etf.adjustedClose'); },
-        });`,
-      }),
-    ]);
-    await expect(
-      StrategyFactor.fromStrategySource(
-        `ctx.factor('etf_trend_20', '510300.SH')`,
-        'user-1',
-        'deployment',
-      ),
-    ).resolves.toMatchObject([{ key: 'etf_trend_20' }]);
-  });
-
-  it('allows an archived dependency for an existing signal run', async () => {
-    await expect(
-      StrategyFactor.fromStrategySource(
-        `ctx.factor('book_to_market', '000001.SZ')`,
-        'user-1',
-        'signal',
-      ),
-    ).resolves.toMatchObject([{ key: 'book_to_market' }]);
-    expect(mocks.factorFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ status: { in: ['published', 'archived'] } }),
-      }),
-    );
   });
 
   it('fails closed for missing or unpublished factors', async () => {

@@ -29,8 +29,6 @@ const execution = vi.hoisted(() => ({
   worker: vi.fn(),
   rename: vi.fn(),
   curator: vi.fn(),
-  notify: vi.fn(),
-  accounting: vi.fn(),
 }));
 vi.mock('../src/server.js', () => ({ buildApp: vi.fn() }));
 vi.mock('#jobs/worker.js', () => ({ runWorker: execution.worker }));
@@ -38,26 +36,15 @@ vi.mock('#strategy/definitions/naming.js', () => ({
   refreshStrategyName: execution.rename,
 }));
 vi.mock('#research/curator/prepare.js', () => ({ prepareResearchCuratorRun: execution.curator }));
-vi.mock('#signals/runs/notifier.js', () => ({ notifySignalRun: execution.notify }));
-vi.mock('#signals/accounting/initialize.js', () => ({
-  initializeSignalAccounting: execution.accounting,
-}));
 
 import { prisma } from '#infra/database/prisma.js';
-import { completedSignalRunIds } from '#signals/runs/state.js';
 import type { PreparedResearchCuratorRun } from '#research/curator/prepare.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { strategyBacktestLifecycle } from '#strategy/backtests/job-lifecycle.js';
 import { JobLogs } from '#jobs/job-logs.js';
 import { JobService } from '#jobs/job-service.js';
 
-const kinds = [
-  'backtest',
-  'factor-analysis',
-  'strategy-scan',
-  'signal',
-  'research-curator',
-] as const;
+const kinds = ['backtest', 'factor-analysis', 'strategy-scan', 'research-curator'] as const;
 type Kind = (typeof kinds)[number];
 const summary: BacktestSummary = {
   name: 'Fixture',
@@ -81,7 +68,6 @@ const links = {
   backtest: 'backtestReportId',
   'factor-analysis': 'factorReportId',
   'strategy-scan': 'strategyScanReportId',
-  signal: 'signalRunId',
   'research-curator': 'researchCuratorRunId',
 };
 
@@ -142,8 +128,6 @@ function payload(kind: Kind): Prisma.InputJsonValue {
         parameters: {},
         ranges: { full: { start: '20240101', end: '20240102' } },
       };
-    case 'signal':
-      return { task: 'signal', runId: ids.signal, locale: 'en' };
     case 'research-curator':
       return { runId: ids['research-curator'] };
   }
@@ -214,16 +198,9 @@ describe('durable job and business lifecycle transactions', () => {
       ...summary,
       cells: [],
       dataCutoff: '20240101',
-      modelEquity: 101,
-      modelCash: 50,
-      modelPositions: [],
-      signals: [],
-      factorInputs: [],
     });
     execution.rename.mockReset().mockResolvedValue(false);
     execution.curator.mockReset().mockImplementation(async (runId) => preparedCuratorRun(runId));
-    execution.notify.mockReset().mockResolvedValue(undefined);
-    execution.accounting.mockReset().mockResolvedValue(undefined);
     sequence += 1;
     ids = Object.fromEntries(kinds.map((kind) => [kind, `${kind}-${sequence}`])) as Record<
       Kind,
@@ -236,18 +213,6 @@ describe('durable job and business lifecycle transactions', () => {
     await prisma.user.create({ data: { id: 'owner', email: 'owner@example.com' } });
     await prisma.strategy.create({
       data: { id: 'strategy', userId: 'owner', name: 'Fixture', config: {} },
-    });
-    await prisma.strategyDeployment.create({
-      data: {
-        id: 'deployment',
-        userId: 'owner',
-        strategyId: 'strategy',
-        strategyName: 'Fixture',
-        status: 'active',
-        config: {},
-        codeHash: 'hash',
-        locale: 'en',
-      },
     });
     await prisma.backtestReport.create({
       data: {
@@ -280,17 +245,6 @@ describe('durable job and business lifecycle transactions', () => {
         config: {},
         spec: {},
         codeHash: 'hash',
-      },
-    });
-    await prisma.signalRun.create({
-      data: {
-        id: ids.signal,
-        userId: 'owner',
-        deploymentId: 'deployment',
-        strategyId: 'strategy',
-        tradeDate: '20240101',
-        execDate: '20240102',
-        legacyStatus: 'running',
       },
     });
     await prisma.researchCuratorRun.create({
@@ -337,37 +291,6 @@ describe('durable job and business lifecycle transactions', () => {
       );
     },
   );
-
-  it('filters completed Signals by latest timestamp/id before pagination and counts', async () => {
-    const createdAt = new Date('2026-09-01T00:00:00Z');
-    await prisma.job.update({ where: { id: ids.signal }, data: { status: 'done', createdAt } });
-    expect(await completedSignalRunIds({ deploymentId: 'deployment' })).toEqual([ids.signal]);
-    const latestId = `zz-${sequence}`;
-    await prisma.job.create({
-      data: {
-        id: latestId,
-        userId: 'owner',
-        kind: 'signal',
-        key: 'retry',
-        status: 'error',
-        signalRunId: ids.signal,
-        createdAt,
-      },
-    });
-    expect(await completedSignalRunIds({ deploymentId: 'deployment' })).toEqual([]);
-    await prisma.job.update({ where: { id: latestId }, data: { status: 'queued' } });
-    expect(await completedSignalRunIds({})).toEqual([]);
-    await prisma.job.update({ where: { id: latestId }, data: { status: 'done' } });
-    expect(await completedSignalRunIds({ afterDate: '20240102' })).toEqual([]);
-    expect(await completedSignalRunIds({ throughDate: '20240101' })).toEqual([]);
-    expect(await completedSignalRunIds({ deploymentId: 'other' })).toEqual([]);
-    expect(await completedSignalRunIds({ throughDate: '20240102' })).toEqual([ids.signal]);
-    await prisma.job.deleteMany({ where: { signalRunId: ids.signal } });
-    await prisma.signalRun.update({ where: { id: ids.signal }, data: { legacyStatus: 'done' } });
-    expect(await completedSignalRunIds({})).toEqual([ids.signal]);
-    await prisma.signalRun.update({ where: { id: ids.signal }, data: { legacyStatus: 'error' } });
-    expect(await completedSignalRunIds({})).toEqual([]);
-  });
   afterEach(async () => {
     vi.useRealTimers();
     await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS reject_job_terminal');
@@ -379,7 +302,7 @@ describe('durable job and business lifecycle transactions', () => {
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
-  it.each(['backtest', 'factor-analysis', 'strategy-scan', 'signal'] as const)(
+  it.each(['backtest', 'factor-analysis', 'strategy-scan'] as const)(
     'commits %s result and logs with its Job',
     async (kind) => {
       await complete(kind, 'done');
@@ -401,7 +324,7 @@ describe('durable job and business lifecycle transactions', () => {
     },
   );
 
-  it.each(['backtest', 'factor-analysis', 'strategy-scan', 'signal'] as const)(
+  it.each(['backtest', 'factor-analysis', 'strategy-scan'] as const)(
     'rolls back %s business writes when both completion and failure commits fail',
     async (kind) => {
       await prisma.$executeRawUnsafe(
@@ -419,7 +342,7 @@ describe('durable job and business lifecycle transactions', () => {
     },
   );
 
-  it.each(['backtest', 'factor-analysis', 'strategy-scan', 'signal'] as const)(
+  it.each(['backtest', 'factor-analysis', 'strategy-scan'] as const)(
     'records %s execution failure without writing a success payload',
     async (kind) => {
       await complete(kind, 'error');
@@ -566,20 +489,20 @@ describe('durable job and business lifecycle transactions', () => {
   });
 
   it('recovers running links atomically, preserving queued jobs and completed entities', async () => {
-    await prisma.job.update({ where: { id: ids.signal }, data: { status: 'queued' } });
+    await prisma.job.update({ where: { id: ids['strategy-scan'] }, data: { status: 'queued' } });
     await prisma.backtestReport.update({
       where: { id: ids.backtest },
       data: { legacyStatus: 'done' },
     });
-    expect(await JobService.recoverInterrupted()).toBe(4);
+    expect(await JobService.recoverInterrupted()).toBe(kinds.length - 1);
     expect(await entityStatus('backtest')).toBe('stale');
-    expect(await entityStatus('signal')).toBe('running');
-    for (const kind of ['factor-analysis', 'strategy-scan', 'research-curator'] as const) {
+    expect(await entityStatus('strategy-scan')).toBe('running');
+    for (const kind of ['factor-analysis', 'research-curator'] as const) {
       expect(await entityStatus(kind)).toBe('stale');
     }
-    expect((await prisma.job.findUniqueOrThrow({ where: { id: ids.signal } })).status).toBe(
-      'queued',
-    );
+    expect(
+      (await prisma.job.findUniqueOrThrow({ where: { id: ids['strategy-scan'] } })).status,
+    ).toBe('queued');
     expect(await JobService.recoverInterrupted()).toBe(0);
   });
 
@@ -591,7 +514,36 @@ describe('durable job and business lifecycle transactions', () => {
     for (const kind of kinds) {
       expect(await entityStatus(kind)).toBe('running');
     }
-    expect(await prisma.job.count({ where: { status: 'running' } })).toBe(5);
+    expect(await prisma.job.count({ where: { status: 'running' } })).toBe(kinds.length);
+  });
+
+  it('rejects a retired queued signal without invoking a Worker or changing other jobs', async () => {
+    const before = await prisma.job.findMany({ orderBy: { id: 'asc' } });
+    await prisma.job.create({
+      data: {
+        id: 'retired-signal',
+        userId: 'owner',
+        kind: 'signal',
+        key: 'old-run',
+        status: 'queued',
+        payload: { task: 'signal', runId: 'old-run' },
+      },
+    });
+
+    await executeFixtureJob('retired-signal');
+
+    expect(await prisma.job.findUniqueOrThrow({ where: { id: 'retired-signal' } })).toMatchObject({
+      status: 'error',
+      error: 'Unsupported queued job kind: signal',
+      finishedAt: expect.any(Date),
+    });
+    expect(execution.worker).not.toHaveBeenCalled();
+    expect(
+      await prisma.job.findMany({
+        where: { id: { not: 'retired-signal' } },
+        orderBy: { id: 'asc' },
+      }),
+    ).toEqual(before);
   });
 
   it('fails every persisted link atomically even with corrupt kind and payload', async () => {
@@ -606,7 +558,6 @@ describe('durable job and business lifecycle transactions', () => {
         factorReportId: ids['factor-analysis'],
         backtestReportId: ids.backtest,
         strategyScanReportId: ids['strategy-scan'],
-        signalRunId: ids.signal,
         researchCuratorRunId: ids['research-curator'],
       },
     });
@@ -797,36 +748,6 @@ describe('durable job and business lifecycle transactions', () => {
     expect(await entityStatus('backtest')).toBe('done');
   });
 
-  it('keeps post-commit failure separate from the successful task state', async () => {
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      execution.accounting.mockRejectedValueOnce(new Error('accounting failed'));
-      await complete('signal', 'done');
-      expect(await entityStatus('signal')).toBe('done');
-      expect((await prisma.job.findUniqueOrThrow({ where: { id: ids.signal } })).status).toBe(
-        'done',
-      );
-      expect(execution.notify).not.toHaveBeenCalled();
-      expect(logged).toHaveBeenCalledWith(
-        '[jixie] job post-commit action failed',
-        expect.objectContaining({ jobId: ids.signal }),
-      );
-    } finally {
-      logged.mockRestore();
-    }
-  });
-
-  it('does not notify a payload run that differs from the persisted link', async () => {
-    await prisma.job.update({
-      where: { id: ids.signal },
-      data: { payload: { task: 'signal', runId: 'wrong-run', locale: 'en' } },
-    });
-    await executeFixtureJob(ids.signal);
-    expect(execution.worker).not.toHaveBeenCalled();
-    expect(execution.notify).not.toHaveBeenCalled();
-    expect(await entityStatus('signal')).toBe('error');
-  });
-
   it('persists logs and reads them after eviction while enforcing ownership', async () => {
     const id = ids['factor-analysis'];
     expect(await JobService.get('other-owner', id)).toBeNull();
@@ -895,44 +816,6 @@ describe('durable job and business lifecycle transactions', () => {
     const before = await JobService.get('owner', ids.backtest);
     JobLogs.append(ids.backtest, { source: 'system', level: 'error', text: 'late' });
     expect(await JobService.get('owner', ids.backtest)).toEqual(before);
-  });
-
-  it('rejects an older Signals attempt after a same-time retry with a greater id', async () => {
-    const old = await prisma.job.findUniqueOrThrow({ where: { id: ids.signal } });
-    execution.worker.mockImplementationOnce(async () => {
-      await prisma.job.create({
-        data: {
-          id: old.id + '-new',
-          userId: 'owner',
-          kind: 'signal',
-          key: old.key,
-          status: 'queued',
-          signalRunId: ids.signal,
-          createdAt: old.createdAt,
-          payload: { task: 'signal', runId: ids.signal, locale: 'en' },
-        },
-      });
-      return {
-        dataCutoff: '20240101',
-        modelEquity: 100,
-        modelCash: 100,
-        modelPositions: [],
-        signals: [],
-        factorInputs: [],
-      };
-    });
-    await executeFixtureJob(old.id);
-    expect(await prisma.job.findUnique({ where: { id: old.id } })).toMatchObject({
-      status: 'error',
-    });
-    expect(await prisma.job.findUnique({ where: { id: old.id + '-new' } })).toMatchObject({
-      status: 'queued',
-    });
-    expect(await prisma.signalRun.findUnique({ where: { id: ids.signal } })).toMatchObject({
-      modelEquity: null,
-    });
-    expect(execution.accounting).not.toHaveBeenCalled();
-    expect(execution.notify).not.toHaveBeenCalled();
   });
 });
 

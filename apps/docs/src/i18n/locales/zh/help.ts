@@ -108,38 +108,8 @@ export const zhHelp = {
           },
         },
       },
-      signal: {
-        eyebrow: '第四条 · 信号治理',
-        title: '国债曲线到每日信号',
-        description:
-          '用国债收益率曲线 Factor 串联正式保留段、费后回测、部署和指定日期信号，区分系统运行正确与策略证据合格。',
-        start: '开始信号治理',
-        stepsTitle: '这条路径怎样推进',
-        steps: {
-          evidence: {
-            title: '设置证据门槛',
-            description: '先冻结国债曲线假设和稳健 t 值标准。',
-          },
-          lineage: {
-            title: '保留失败证据',
-            description: '一次揭示正式 Holdout，并接受方向反转。',
-          },
-          backtest: {
-            title: '核对费后回测',
-            description: '追踪 Factor key、代码 hash、费用与实际成交。',
-          },
-          deploy: {
-            title: '冻结部署快照',
-            description: '确认策略和曲线输入进入不可变运行版本。',
-          },
-          audit: {
-            title: '审计每日信号',
-            description: '区分指令、模拟成交和实际执行，并暂停失败候选。',
-          },
-        },
-      },
       allocation: {
-        eyebrow: '第五条 · 配置归因',
+        eyebrow: '第四条 · 配置归因',
         title: '股债配置与风险归因',
         description:
           '用不含黄金和商品的股债 Panel Factor 运行月度轮动，通过股票、静态股债、零成本与真实成本四组实跑拆分配置、择时和成本。',
@@ -169,7 +139,7 @@ export const zhHelp = {
         },
       },
       commodity: {
-        eyebrow: '第六条 · 商品研究',
+        eyebrow: '第五条 · 商品研究',
         title: '商品 Carry 与样本外',
         description:
           '用黄金、铜、原油和豆粕真实月合约冻结 Panel 与时间序列检验，核对期限结构、代理误差、多重检验和两份失败 Holdout。',
@@ -199,7 +169,7 @@ export const zhHelp = {
         },
       },
       positiveFactor: {
-        eyebrow: '第七条 · 正面准入',
+        eyebrow: '第六条 · 正面准入',
         title: '销售收益率与因子准入',
         description:
           '读取销售收益率原始探索、去冗余和唯一正式 Holdout，核对冻结代码血缘，并学习如何给出有限但真正正面的晋级裁决。',
@@ -242,7 +212,6 @@ export const zhHelp = {
       factorResearch: '因子定义、报告、稳健推断和发布。',
       factorWeather: '持续观察预置和已发布自定义单因子的近期状态。',
       marketValuation: '市场气象、估值和历史回放。',
-      signals: '部署、信号、条件单和执行记录。',
     },
   },
   groups: {
@@ -256,6 +225,5 @@ export const zhHelp = {
     factorResearch: '因子研究',
     factorWeather: '因子气象',
     marketValuation: '市场与估值',
-    signals: '今日信号',
   },
 };

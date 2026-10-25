@@ -41,7 +41,7 @@ When the snapshot also defines instruments or universe, signal direction, rebala
 3. Verify dates, initial capital, costs, instruments, and position rules.
 4. Explicitly select **Run backtest**, then inspect results and logs.
 
-A predictive relationship without portfolio and trading rules belongs in Factor first. A Strategy draft does not run automatically and is not automatically deployed to Today Signals.
+A predictive relationship without portfolio and trading rules belongs in Factor first. A Strategy draft does not run automatically.
 
 ## Boundaries that remain after handoff
 

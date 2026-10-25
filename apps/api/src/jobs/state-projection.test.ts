@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { backtestReportState } from '#strategy/backtests/state.js';
 import { factorReportState } from '#factor/evaluations/state.js';
-import { signalRunState } from '#signals/runs/state.js';
 import { researchCuratorRunState } from '#research/curator/state.js';
 
 describe('authoritative execution status', () => {
@@ -40,14 +39,5 @@ describe('authoritative execution status', () => {
     const row = { legacyStatus: null, legacyError: null, job: { status: 'queued', error: null } };
     expect(backtestReportState(row).status).toBe('running');
     expect(researchCuratorRunState(row).status).toBe('queued');
-  });
-  it('uses the selected current Signals attempt instead of old mirrors', () => {
-    expect(
-      signalRunState({
-        legacyStatus: 'done',
-        legacyError: 'old',
-        jobs: [{ id: 'latest', status: 'queued', error: null }],
-      }),
-    ).toMatchObject({ status: 'running', error: null });
   });
 });

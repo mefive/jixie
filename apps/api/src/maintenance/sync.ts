@@ -11,11 +11,7 @@ import { STOCK_CODE_CHANGES } from '#market/instruments/stock-identity.js';
 import { ulid } from 'ulid';
 import type { DataSyncResult } from '@jixie/shared/api/maintenance';
 import { getDatabase } from '#infra/database/prisma.js';
-import {
-  withMaintenanceLock,
-  withMarketAccess,
-  withMarketPublication,
-} from '#infra/coordination/market-access.js';
+import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
 import { acceptMarketPartition } from '#market/synchronization/records.js';
 import { prepareMarketPartition, type SyncProviders } from '#market/synchronization/prepare.js';
 import { DATASET_POLICIES } from '#market/synchronization/policies.js';
@@ -33,7 +29,7 @@ import {
   refreshMarketCalculations,
   readMarketCalculationBacklog,
 } from './calculations.js';
-import { loadSyncRequirements, runSyncConsumers } from './consumers.js';
+import { runSyncConsumers } from './consumers.js';
 import { cleanRetiredSyncResources } from './resources.js';
 
 export interface DataSyncInput {
@@ -43,9 +39,9 @@ export interface DataSyncInput {
   signal?: AbortSignal;
   onLog?: (line: string) => void;
   /**
-   * 测试可固定部署需求，不执行任意用户代码。
+   * 测试可固定额外 ETF 同步对象。
    *
-   * Tests can freeze deployment requirements without executing user code.
+   * Tests can specify additional ETF synchronization objects.
    */
   requirements?: SyncRequirements;
   clock?: () => Date;
@@ -149,7 +145,7 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
           signal: input.signal,
         });
         await database.dataSyncRun.update({ where: { id: runId }, data: { stage: 'consumers' } });
-        const consumers = await runSyncConsumers(input.targetDate, input.signal);
+        const consumers = await runSyncConsumers(input.signal);
         result.gaps.push(...consumers.gaps);
         result.errors.push(...consumers.errors);
         result.gaps.push(...(await cleanRetiredSyncResources()));
@@ -190,7 +186,7 @@ async function acquireSyncPartitions(
       return input.providers.source.call(...args);
     },
   };
-  const requirements = input.requirements ?? (await withMarketAccess(loadSyncRequirements));
+  const requirements = input.requirements ?? { etfCodes: [] };
   // 参考资料提交后重新读取对象清单，因此空库同一流程能够开始后续数据域。
   // Re-read inventories after reference commits so an empty database can start dependent domains in the same flow.
   for (let wave = 0; wave < 3 && result.partitions < SYNC_LIMITS.partitions; wave++) {

@@ -61,15 +61,6 @@ export const enStrategy: typeof zhStrategy = {
   unitWan: 'w',
   runBacktest: 'Run backtest',
   runDisabledHint: 'Change the strategy to re-run',
-  deploymentAction: 'Deploy',
-  deploymentActionHint:
-    'Deploy the selected backtest report; later edits do not change this deployment',
-  deploymentActive: 'The selected report is deployed',
-  deploymentPauseHint: 'Pause this report’s deployment and retain its signals and accounts',
-  deploymentPause: 'Pause',
-  deploymentNeedsResult: 'Select a successful TypeScript backtest report',
-  deploymentFailed: 'Failed to deploy the strategy',
-  deploymentPauseFailed: 'Failed to pause the deployment',
   backtestHistory: {
     label: 'Backtest report history',
     empty: 'No report history',

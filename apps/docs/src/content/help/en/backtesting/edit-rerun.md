@@ -51,7 +51,7 @@ Changes that have not been run may also be lost when the page is refreshed or cl
 
 ## Migrate the old account API
 
-The strategy SDK now groups operations by account. The old flat API is removed. Saved source and frozen deployments are not rewritten automatically. Historical reports remain viewable. Migrate source before rerunning a backtest, scan, or signal generation; create a new deployment from a backtest of the migrated strategy.
+The strategy SDK now groups operations by account. The old flat API is removed. Saved source is not rewritten automatically. Historical reports remain viewable. Migrate source before rerunning a backtest or scan.
 
 | Old call | New call |
 | --- | --- |

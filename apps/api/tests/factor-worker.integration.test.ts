@@ -1,5 +1,4 @@
-import { execFile, fork } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { execFile } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -9,15 +8,11 @@ import { promisify } from 'node:util';
 import { Worker } from 'node:worker_threads';
 import pkg from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type {
-  BacktestConfig,
-  FactorLanguage,
-  FactorDependency,
-  StrategyScanPayload,
-} from '@jixie/shared';
+import type { BacktestConfig, FactorLanguage, StrategyScanPayload } from '@jixie/shared';
 import type { BacktestResult } from '#strategy/backtests/result.js';
 import { runWorker } from '#jobs/worker.js';
 import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
+import { DATASET_POLICIES } from '#market/synchronization/policies.js';
 
 const executeFile = promisify(execFile);
 const apiDirectory = fileURLToPath(new URL('../', import.meta.url));
@@ -182,11 +177,33 @@ beforeAll(async () => {
   await database.dailyBasic.createMany({
     data: dates.map((tradeDate) => ({ tsCode: stock, tradeDate, peTtm: 10 })),
   });
+  await database.stkLimit.createMany({
+    data: dates.map((tradeDate, index) => ({
+      tsCode: stock,
+      tradeDate,
+      upLimit: (10 + index) * 1.1,
+      downLimit: (10 + index) * 0.9,
+    })),
+  });
   await database.indexDaily.createMany({
     data: dates.map((tradeDate, index) => ({
       tsCode: 'H00300.CSI',
       tradeDate,
       close: 4_000 + index * 10,
+    })),
+  });
+
+  // 合成行情也要携带当前维护契约要求的覆盖证明。
+  // Synthetic observations also carry the coverage proof required by the current maintenance contract.
+  await database.datasetSyncPartition.createMany({
+    data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({
+      id: `fixture:${dataset}`,
+      dataset,
+      scope: dataset === 'calendar' ? 'SSE' : 'all',
+      startDate: dates[0],
+      endDate: dates.at(-1)!,
+      policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === dataset)!.version,
+      status: 'complete',
     })),
   });
   for (const language of ['typescript', 'python'] as const) {
@@ -388,73 +405,4 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
       }
     }
   }, 30_000);
-
-  it.each<FactorLanguage>(['typescript', 'python'])(
-    'signal worker captures %s factor observations and exits',
-    async (language) => {
-      const strategyId = `strategy-${language}`;
-      const deploymentId = `deployment-${language}`;
-      const runId = `signal-${language}`;
-      const strategyConfig = config('typescript', language);
-      const dependencies: FactorDependency[] = [
-        {
-          factorId: `factor-${language}`,
-          key: `worker_${language}`,
-          name: 'value',
-          analysisKind: 'cross_sectional',
-          codeHash: createHash('sha256').update(factorSources[language]).digest('hex'),
-          approvedReportId: null,
-          language,
-          runtimeVersion: language === 'typescript' ? 'ts-v1' : 'py-v1',
-        },
-      ];
-      await database.strategy.create({
-        data: {
-          id: strategyId,
-          userId,
-          name: strategyId,
-          config: strategyConfig as unknown as pkg.Prisma.InputJsonValue,
-        },
-      });
-      await database.strategyDeployment.create({
-        data: {
-          id: deploymentId,
-          userId,
-          strategyId,
-          strategyName: strategyId,
-          status: 'active',
-          locale: 'en',
-          config: strategyConfig as unknown as pkg.Prisma.InputJsonValue,
-          codeHash: 'fixture',
-          factorDependencies: dependencies as unknown as pkg.Prisma.InputJsonValue,
-        },
-      });
-      await database.signalRun.create({
-        data: {
-          id: runId,
-          userId,
-          deploymentId,
-          strategyId,
-          tradeDate: dates.at(-1)!,
-          execDate: '20240108',
-          legacyStatus: 'running',
-          factorDependencies: dependencies as unknown as pkg.Prisma.InputJsonValue,
-        },
-      });
-      const child = fork(entry('signals/runs/worker'), [runId], {
-        cwd: apiDirectory,
-        env: environment,
-        execArgv,
-        silent: true,
-      });
-      const completion = await waitForExit(child, () => {
-        child.kill('SIGKILL');
-      });
-      expect(completion.output?.dataCutoff).toBe(dates.at(-1));
-      expect(completion.output?.factorInputs).toEqual([
-        expect.objectContaining({ key: `worker_${language}`, validAssets: 1, meanValue: 20 }),
-      ]);
-    },
-    30_000,
-  );
 });

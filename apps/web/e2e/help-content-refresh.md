@@ -37,7 +37,7 @@ E2E_BASE=http://127.0.0.1:5173 \
 pnpm docs:images refresh
 ```
 
-Optionally set `HELP_CAPTURE_SCENES=research/document-cells-02,signals/paused-current` to capture a comma-separated subset. The script closes its browsers on success or failure. Stop the dedicated API/Web services afterward and release/delete the owned temporary database and private config.
+Optionally set `HELP_CAPTURE_SCENES=research/document-cells-02,backtesting/report-controls` to capture a comma-separated subset. The script closes its browsers on success or failure. Stop the dedicated API/Web services afterward and release/delete the owned temporary database and private config.
 
 ## Outputs and editorial review
 

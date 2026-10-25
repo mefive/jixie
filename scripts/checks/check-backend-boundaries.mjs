@@ -447,16 +447,8 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
     ) {
       report('infra-direction', edge, 'Generic sandbox/jobs cannot import business modules');
     }
-    if (
-      target === 'jobs/register.ts' &&
-      local !== 'bootstrap.ts' &&
-      local !== 'signals/daily/scheduler.ts'
-    ) {
-      report(
-        'jobs-assembly-direction',
-        edge,
-        'Only bootstrap and daily signal execution may import job assembly',
-      );
+    if (target === 'jobs/register.ts' && local !== 'bootstrap.ts') {
+      report('jobs-assembly-direction', edge, 'Only bootstrap may import job assembly');
     }
     if (
       isPure(edge.from) &&

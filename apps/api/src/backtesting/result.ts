@@ -1,4 +1,4 @@
-import type { AllocationAnalysis, FutureAccountSnapshot } from '@jixie/shared';
+import type { AllocationAnalysis } from '@jixie/shared';
 import type { Position } from './cash-portfolio.js';
 import type { CostModel } from './cost.js';
 import type { TradeRecord } from './trade.js';
@@ -75,9 +75,9 @@ export interface CashFinalStateView extends CashOrderSnapshot {
 }
 
 /**
- * 冻结末日账户、价格和待执行订单，供信号与后续重放读取。
+ * 返回末日账户、价格和待执行订单，供回测诊断与一致性检查。
  *
- * Snapshot final accounts, prices and pending orders for signals and subsequent replay.
+ * Snapshot final accounts, prices and pending orders for backtest diagnostics and consistency checks.
  */
 export interface BacktestingFinalState extends Omit<
   CashFinalStateView,
@@ -147,4 +147,23 @@ export interface SleeveNavPoint {
   stockGrossExposure: number;
   futureNotional: number;
   netExposure: number;
+}
+
+/**
+ * 回测期货账户的独立状态。
+ *
+ * Detached futures-account state owned by the backtesting engine.
+ */
+export interface FutureAccountSnapshot {
+  equity: number;
+  margin: number;
+  availableCash: number;
+  positions: Array<{
+    code: string;
+    actualCode: string;
+    contracts: number;
+    referencePrice: number;
+    multiplier: number;
+    margin: number;
+  }>;
 }

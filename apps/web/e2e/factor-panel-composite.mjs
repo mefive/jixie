@@ -12,7 +12,6 @@ const browserErrors = [];
 let compositeId = null;
 let strategyId = null;
 let copyId = null;
-let deploymentId = null;
 
 page.on('pageerror', (error) => browserErrors.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
@@ -466,79 +465,6 @@ try {
     fullPage: true,
   });
 
-  const deployButton = page.getByRole('button', { name: '部署上线' });
-  await deployButton.waitFor({ timeout: 30_000 });
-  const deploymentResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === 'POST' &&
-      new URL(response.url()).pathname === '/api/app/signals/deployments',
-  );
-  await deployButton.click();
-  const deploymentHttp = await deploymentResponse;
-  const deployment = await deploymentHttp.json();
-  if (!deploymentHttp.ok() || !deployment.id) {
-    throw new Error(
-      `panel composite deployment failed: ${deploymentHttp.status()} ${JSON.stringify(deployment)}`,
-    );
-  }
-  deploymentId = deployment.id;
-  if (
-    deployment.factorDependencies?.length !== 1 ||
-    deployment.factorDependencies[0]?.factorId !== compositeId ||
-    deployment.factorDependencies[0]?.codeHash !== published.body.codeHash
-  ) {
-    throw new Error(`panel composite deployment lineage failed: ${JSON.stringify(deployment)}`);
-  }
-
-  const signal = await api(`/api/app/signals/deployments/${deploymentId}/runs`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ tradeDate: '20260730' }),
-  });
-  if (signal.status !== 200) {
-    throw new Error(`panel composite signal failed to start: ${JSON.stringify(signal)}`);
-  }
-  if (signal.body.jobId) {
-    await page.evaluate(async (jobId) => {
-      const deadline = Date.now() + 180_000;
-      while (Date.now() < deadline) {
-        const job = await fetch(`/api/app/signals/run-jobs/${jobId}`, { cache: 'no-store' }).then(
-          (response) => response.json(),
-        );
-        if (job.status === 'done') {
-          return;
-        }
-        if (job.status === 'error' || job.status === 'stale') {
-          throw new Error(`panel composite signal ${job.status}: ${job.error ?? ''}`);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-      throw new Error(`panel composite signal ${jobId} timed out`);
-    }, signal.body.jobId);
-  }
-  const today = await api('/api/app/signals/deployments/latest-runs');
-  const signalEntry = today.body.find((item) => item.deployment.id === deploymentId);
-  const factorInput = signalEntry?.run?.factorInputs?.[0];
-  if (
-    signalEntry?.run?.status !== 'done' ||
-    signalEntry.run.factorDependencies?.length !== 1 ||
-    signalEntry.run.factorDependencies[0]?.factorId !== compositeId ||
-    factorInput?.key !== 'momentum_low_vol_panel' ||
-    factorInput?.observedAssets !== assets.length ||
-    factorInput?.validAssets !== assets.length ||
-    !factorInput.decisionObservations?.every((item) => Number.isFinite(item.value))
-  ) {
-    throw new Error(`invalid durable panel composite signal: ${JSON.stringify(signalEntry)}`);
-  }
-  await page.goto(`${BASE}/signals`, { waitUntil: 'domcontentloaded' });
-  await page.getByRole('heading', { name: '已发布 Panel 组合轮动' }).waitFor({ timeout: 30_000 });
-  const factorInputsPanel = page.getByTestId('signal-factor-inputs');
-  await factorInputsPanel.getByText('momentum_low_vol_panel', { exact: true }).waitFor();
-  await factorInputsPanel.scrollIntoViewIfNeeded();
-  await factorInputsPanel.screenshot({
-    path: `${SHOTS}factor-panel-composite-signal.png`,
-  });
-
   const copied = await api(`/api/app/factors/composites/${compositeId}/copy`, {
     method: 'POST',
   });
@@ -561,11 +487,6 @@ try {
     `[factor-panel-composite-e2e] PASS composite=${compositeId} report=${run.body.reportId} periods=${report.periods} observations=${report.observations} strategy=${strategyId} trades=${completed.lastResult.trades} correlationPairs=${sixtyDayCorrelation.series.length} rateStates=${rateRegimes.states.length} screenshots=7`,
   );
 } finally {
-  if (deploymentId) {
-    await api(`/api/app/signals/deployments/${deploymentId}/pause`, { method: 'POST' }).catch(
-      () => {},
-    );
-  }
   if (copyId) {
     await api(`/api/app/factors/composites/${copyId}`, { method: 'DELETE' }).catch(() => {});
   }

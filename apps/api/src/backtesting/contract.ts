@@ -150,7 +150,6 @@ export interface EngineStrategy {
  * Configure a simulation's dates, capital, data ports, prepared decision callback and initial state.
  */
 export interface BacktestingConfig {
-  strictFutures?: boolean;
   start: string; // YYYYMMDD
   end: string;
   initialCash: number;

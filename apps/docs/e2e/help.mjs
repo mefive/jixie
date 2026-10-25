@@ -145,9 +145,9 @@ try {
   await page.getByRole('heading', { level: 1, name: '从学习路径开始，也可以按页面查找' }).waitFor();
   if (
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
-    (await page.locator('.jx-help-homePath').count()) !== 7 ||
-    (await page.locator('.jx-help-homeStep').count()) !== 35 ||
-    (await page.locator('.jx-help-homeManualCard').count()) !== 10
+    (await page.locator('.jx-help-homePath').count()) !== 6 ||
+    (await page.locator('.jx-help-homeStep').count()) !== 30 ||
+    (await page.locator('.jx-help-homeManualCard').count()) !== 9
   ) {
     throw new Error(
       'help landing does not render both entry modes, learning paths, and page groups',
@@ -235,36 +235,6 @@ try {
     .getByRole('heading', {
       level: 1,
       name: 'CSI 300 value factor: ranking, IC, portfolios, and holdout',
-    })
-    .waitFor();
-  await page.getByText('中文', { exact: true }).last().click();
-
-  await page.goto(`${BASE}/docs/help/learning/cgb-curve-daily-signal`, {
-    waitUntil: 'domcontentloaded',
-  });
-  await page
-    .getByRole('heading', { level: 1, name: '国债曲线到每日信号：证据、回测与部署' })
-    .waitFor();
-  if (
-    (await page.locator('.jx-help-codeBlock').count()) < 3 ||
-    (await page.locator('.jx-help-markdown table').count()) < 3 ||
-    (await page.locator('.jx-help-figure').count()) !== 4 ||
-    (await page.getByText('-1.918', { exact: true }).count()) < 1 ||
-    (await page.getByRole('heading', { level: 2, name: '完成检查' }).count()) !== 1 ||
-    (await page.locator('.jx-help-nav .jx-help-navLink--active').textContent()) !==
-      '国债曲线到每日信号：证据、回测与部署'
-  ) {
-    throw new Error(
-      'CGB daily-signal learning path is missing evidence, screenshots, completion, or navigation',
-    );
-  }
-  await page.screenshot({ path: `${SHOTS}17e-help-signal-learning-path.png`, fullPage: true });
-
-  await page.getByText('EN', { exact: true }).last().click();
-  await page
-    .getByRole('heading', {
-      level: 1,
-      name: 'From the CGB curve to a daily signal: evidence, backtest, and deployment',
     })
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
@@ -949,71 +919,6 @@ try {
     path: `${SHOTS}15b-help-market-weather.png`,
   });
 
-  await page.getByRole('link', { name: '部署回测报告', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '部署回测报告' }).waitFor();
-  if (
-    (await page.getByRole('heading', { level: 2, name: '选择报告并部署' }).count()) !== 1 ||
-    (await page.getByRole('heading', { level: 2, name: '报告、草稿与部署的关系' }).count()) !== 1 ||
-    !(await page.locator('.jx-help-markdown').textContent()).includes(
-      '同一报告最多有一个运行中的部署',
-    )
-  ) {
-    throw new Error('deployment guide is missing report selection or independent deployment rules');
-  }
-
-  await page.getByRole('link', { name: '生成今日信号', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '生成今日信号' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('signal generation article does not render both screenshots');
-  }
-
-  await page.getByRole('link', { name: '查看信号指令', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '查看信号指令' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('signal instruction article does not render both screenshots');
-  }
-
-  await page.getByRole('link', { name: '记录实际成交并比较执行偏差', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '记录实际成交并比较执行偏差' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 3) {
-    throw new Error('execution-record article does not render all three screenshots');
-  }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
-    throw new Error('execution-rate formula did not render with KaTeX');
-  }
-
-  await page.getByRole('link', { name: '使用和记录条件单', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '使用和记录条件单' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('conditional-order article does not render its screenshot');
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(100);
-  await page.screenshot({ path: `${SHOTS}14b-help-signal-execution.png` });
-
-  await page.getByRole('link', { name: '查看历史并暂停上线', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '查看历史并暂停上线' }).waitFor();
-  if (
-    (await page.getByRole('heading', { level: 2, name: '暂停部署' }).count()) !== 1 ||
-    (await page.getByRole('heading', { level: 2, name: '再次部署' }).count()) !== 1 ||
-    !(await page.locator('.jx-help-markdown').textContent()).includes(
-      '同一报告再次部署会创建新部署和账户',
-    )
-  ) {
-    throw new Error('signal history guide is missing pause or independent redeployment rules');
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(100);
-  await page.screenshot({
-    path: `${SHOTS}13b-help-signals.png`,
-  });
-  await page.getByText('EN', { exact: true }).last().click();
-  await page
-    .getByRole('heading', { level: 1, name: 'View history and pause a deployment' })
-    .waitFor();
-  await page.getByText('中文', { exact: true }).last().click();
-  await page.getByRole('heading', { level: 1, name: '查看历史并暂停上线' }).waitFor();
-
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '页面导航' }).waitFor();
 
@@ -1105,17 +1010,6 @@ try {
     fullPage: true,
   });
 
-  await page.goto(`${BASE}/docs/help/signals/read-signals`, {
-    waitUntil: 'domcontentloaded',
-  });
-  await page.getByRole('heading', { level: 1, name: 'Read signal instructions' }).waitFor();
-  const signalPageOverflow = await page.evaluate(
-    () => document.documentElement.scrollWidth > window.innerWidth + 1,
-  );
-  if (signalPageOverflow) {
-    throw new Error('signal instruction page has horizontal overflow at 390px');
-  }
-
   console.log(
     '[help-e2e] public docs, same-tab docs nav, product popup, bilingual corpus, current workflows, formulas, and narrow layout ok',
   );
@@ -1128,14 +1022,14 @@ async function checkCurrentWorkflow(slug, locale) {
   const workflows = {
     'backtesting/workspace': {
       heading: {
-        zh: '区分草稿、回测报告和部署',
-        en: 'Distinguish the draft, report, and deployment',
+        zh: '区分草稿和回测报告',
+        en: 'Distinguish the draft and report',
       },
       text: {
         zh: '不会把旧报告的代码或参数还原到编辑器',
         en: "it does not restore that report's code or settings into the editor",
       },
-      link: 'signals/deploy-strategy',
+      link: 'backtesting/results-overview',
     },
     'research/records': {
       heading: { zh: '搜索、归档和恢复', en: 'Search, archive, and restore' },
@@ -1151,16 +1045,6 @@ async function checkCurrentWorkflow(slug, locale) {
       heading: { zh: '从报告进入策略工作台', en: 'Continue to Strategy' },
       text: { zh: '此时尚未生成策略代码', en: 'Strategy code has not yet been generated' },
       link: 'factors/factor-in-strategy',
-    },
-    'signals/deploy-strategy': {
-      heading: { zh: '报告、草稿与部署的关系', en: 'Reports, drafts, and deployments' },
-      text: { zh: '独立', en: 'separate signals and accounts' },
-      link: 'signals/history-pause',
-    },
-    'signals/history-pause': {
-      heading: { zh: '再次部署', en: 'Deploy again' },
-      text: { zh: '新部署', en: 'new deployment' },
-      link: 'signals/deploy-strategy',
     },
   };
   const expected = workflows[slug];

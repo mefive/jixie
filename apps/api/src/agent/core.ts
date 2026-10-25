@@ -201,7 +201,7 @@ Use the available read-only tools to look up instruments, check data coverage, r
 
 export const RESEARCH_TOOLS_HINT = `
 # Research execution discipline
-When you use a research runner, freeze the complete candidate and the test intent in its arguments before seeing metrics. Do not mechanically optimize against repeated runs, do not claim that an explore result is production validation, and never imply that holdout, deployment, signals, or orders happened unless an explicit tool observation says so. After a completed result, explain the evidence and limitations; only emit candidate code that still passes the normal artifact validator.`;
+When you use a research runner, freeze the complete candidate and the test intent in its arguments before seeing metrics. Do not mechanically optimize against repeated runs, do not claim that an explore result is production validation, and never imply that holdout or orders happened unless an explicit tool observation says so. After a completed result, explain the evidence and limitations; only emit candidate code that still passes the normal artifact validator.`;
 
 /**
  * 提取回答中的围栏产物，无围栏时保留纯回答语义。

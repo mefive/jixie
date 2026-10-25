@@ -131,11 +131,6 @@ const LEARNING_PATHS = [
     steps: ['hypothesis', 'scope', 'rank', 'holdout', 'verdict'],
   },
   {
-    key: 'signal',
-    slug: 'learning/cgb-curve-daily-signal',
-    steps: ['evidence', 'lineage', 'backtest', 'deploy', 'audit'],
-  },
-  {
     key: 'allocation',
     slug: 'learning/stock-bond-allocation-risk',
     steps: ['universe', 'baseline', 'attribution', 'correlation', 'stress'],

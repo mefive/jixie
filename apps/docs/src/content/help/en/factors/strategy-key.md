@@ -57,7 +57,7 @@ Check that the name and key are present, the key uses allowed characters, the fi
 
 ### Can I delete a Factor after creation?
 
-Drafts can be deleted. A published Factor cannot be deleted, only archived. Archived Factors are removed from new-strategy completion, while existing deployments continue using their frozen dependency.
+Drafts can be deleted. A published Factor cannot be deleted, only archived. Archived Factors are removed from new-strategy completion, while existing strategies can still reference their fixed version.
 
 ### Does changing the display name affect a strategy?
 

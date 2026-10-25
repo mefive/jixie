@@ -120,6 +120,7 @@ describe('embedded analysis with the real Research Python runtime', () => {
     await prisma.factorReport.deleteMany();
     await prisma.indexDaily.deleteMany();
     await prisma.finaIndicator.deleteMany();
+    await prisma.finaIndicatorVersion.deleteMany();
     await prisma.user.deleteMany();
   });
   afterAll(async () => {
@@ -212,11 +213,22 @@ describe('embedded analysis with the real Research Python runtime', () => {
         }),
       });
     }
-    await prisma.finaIndicator.createMany({
+    // 按真实历史可得时间构造版本，当前值表不再充当 PIT 历史。
+    // Seed genuinely historical versions; the current-value table no longer substitutes for PIT history.
+    await prisma.finaIndicatorVersion.createMany({
       data: [
         { tsCode: '600519.SH', endDate: '20221231', annDate: '20230330', roe: 20 },
         { tsCode: '600519.SH', endDate: '20231231', annDate: '20240330', roe: 99 },
-      ],
+      ].map((row) => ({
+        ...row,
+        id: row.endDate,
+        sourceFingerprint: row.endDate,
+        availableDate: row.annDate,
+        availabilityQuality: 'exact',
+        observedAt: new Date(
+          `${row.annDate.slice(0, 4)}-${row.annDate.slice(4, 6)}-${row.annDate.slice(6)}T00:00:00Z`,
+        ),
+      })),
     });
     const { run } = await create(`import numpy as np
 import pandas as pd

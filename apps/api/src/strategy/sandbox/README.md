@@ -17,7 +17,7 @@
 
 公共返回类型不暴露语言专属诊断。metrics 归 TypeScriptTransport；隔离测试和性能工具通过 [testing/sandbox.ts](typescript/testing/sandbox.ts) 装配同一 StrategySandbox 并单独获取 transport 指标，生产代码不导入测试设施，Python 不增加无业务意义的 metrics。
 
-策略资源装配与 Engine 调用归 [StrategySimulation](../simulation/strategy-simulation.ts)，由回测、扫描和 Signals 创建模拟对象，并负责关闭外部资源。本目录负责策略沙箱会话和协议，不规划完整业务流程。
+策略资源装配与 Engine 调用归 [StrategySimulation](../simulation/strategy-simulation.ts)，由回测和扫描 创建模拟对象，并负责关闭外部资源。本目录负责策略沙箱会话和协议，不规划完整业务流程。
 
 `StrategyDecisionInput` 只携带当前 EngineContext，用于一次 onBar 策略决策；`StrategySimulationInput` 包含完整模拟配置。决策阶段的帧校验使用 strategyDecisionFrameSchema，作者 onBar 和沙箱 execute 的方法名保持。
 

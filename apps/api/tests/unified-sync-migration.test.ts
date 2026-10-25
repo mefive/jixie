@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { createRequire } from 'node:module';
-import { mkdtemp, cp, rm, readFile, writeFile, stat } from 'node:fs/promises';
+import { mkdtemp, cp, rm, readFile, writeFile, stat, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -151,6 +151,13 @@ it.each(['upgrade', 'empty'] as const)(
       await cp(join(prismaDirectory, 'migrations'), join(directory, 'migrations'), {
         recursive: true,
       });
+      // 本用例只验证统一同步迁移；后续退役迁移由各自用例覆盖。
+      // This fixture isolates unified synchronization; later retirements have their own tests.
+      for (const name of await readdir(join(directory, 'migrations'))) {
+        if (name !== 'migration_lock.toml' && name > migration) {
+          await rm(join(directory, 'migrations', name), { recursive: true });
+        }
+      }
       await writeFile(
         join(directory, 'schema.prisma'),
         await readFile(join(prismaDirectory, 'schema.prisma')),

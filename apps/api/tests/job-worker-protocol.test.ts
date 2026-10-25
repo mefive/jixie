@@ -1,25 +1,13 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import type { BacktestResult } from '#strategy/backtests/result.js';
 import type { z } from 'zod';
-import type {
-  BacktestSummary,
-  StrategyScanPayload,
-  SignalItem,
-  ModelPositionSnapshot,
-  FactorInputSummary,
-} from '@jixie/shared';
+import type { BacktestSummary, StrategyScanPayload } from '@jixie/shared';
 import { backtestSummarySchema, backtestResultSchema } from '#strategy/backtests/result-schema.js';
 import { backtestWorkerMessageSchema } from '#strategy/backtests/worker-protocol.js';
 import { strategyScanPayloadSchema } from '#strategy/scans/result-schema.js';
 import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
 import { factorAnalysisWorkerMessageSchema } from '#factor/analysis/worker-protocol.js';
 import { factorCorrelationWorkerMessageSchema } from '#factor/correlations/worker-protocol.js';
-import { signalWorkerMessageSchema } from '#signals/runs/worker-protocol.js';
-import {
-  signalItemSchema,
-  modelPositionSnapshotSchema,
-  factorInputSummarySchema,
-} from '#signals/runs/result-schema.js';
 
 // Expand shared intersection aliases before comparing the complete nested wire shape.
 type DataShape<Value> = Value extends object
@@ -51,11 +39,6 @@ describe('shared Worker wire contracts', () => {
       DataShape<BacktestResult>
     >();
     expectTypeOf<z.infer<typeof strategyScanPayloadSchema>>().toEqualTypeOf<StrategyScanPayload>();
-    expectTypeOf<z.infer<typeof signalItemSchema>>().toEqualTypeOf<SignalItem>();
-    expectTypeOf<
-      z.infer<typeof modelPositionSnapshotSchema>
-    >().toEqualTypeOf<ModelPositionSnapshot>();
-    expectTypeOf<z.infer<typeof factorInputSummarySchema>>().toEqualTypeOf<FactorInputSummary>();
   });
 
   it.each([
@@ -63,7 +46,6 @@ describe('shared Worker wire contracts', () => {
     strategyScanWorkerMessageSchema,
     factorAnalysisWorkerMessageSchema,
     factorCorrelationWorkerMessageSchema,
-    signalWorkerMessageSchema,
   ])('uses the same validated log and error envelope', (schema) => {
     const log = { type: 'log', entry: { source: 'system', level: 'info', text: 'progress' } };
     expect(schema.parse(log)).toEqual(log);
@@ -186,64 +168,6 @@ describe('shared Worker wire contracts', () => {
       strategyScanWorkerMessageSchema.safeParse({
         type: 'done',
         payload: { parameters: { flag: true }, cells: [] },
-      }).success,
-    ).toBe(false);
-  });
-
-  it('retains Signals conditional orders and T+1 frozen quantities', () => {
-    const output = {
-      dataCutoff: '20240102',
-      modelEquity: 100,
-      modelCash: 50,
-      modelPositions: [
-        {
-          code: 'stock',
-          name: 'Stock',
-          assetType: 'stock',
-          shares: 100,
-          markPrice: 1,
-          sellableFrom: '20240103',
-          frozenShares: 50,
-        },
-      ],
-      signals: [
-        {
-          code: 'stock',
-          name: 'Stock',
-          assetType: 'stock',
-          action: 'sell',
-          shares: 50,
-          refPrice: 1,
-          refAmount: 50,
-          source: 'conditional',
-          orderType: 'trailing_stop',
-          triggerPrice: 0.9,
-          trailingPct: 0.1,
-          targetWeight: 0,
-        },
-      ],
-      factorInputs: [
-        {
-          factorId: 'factor',
-          key: 'value',
-          asOfDate: '20240102',
-          observedAssets: 1,
-          validAssets: 0,
-          minValue: null,
-          maxValue: null,
-          meanValue: null,
-          decisionObservations: [{ assetId: 'stock', value: null }],
-        },
-      ],
-    };
-    expect(signalWorkerMessageSchema.parse({ type: 'done', output })).toEqual({
-      type: 'done',
-      output: { ...output, resultVersion: 1, modelAccounts: null, futureSignals: [] },
-    });
-    expect(
-      signalWorkerMessageSchema.safeParse({
-        type: 'done',
-        output: { ...output, signals: [{ ...output.signals[0], triggerPrice: 'bad' }] },
       }).success,
     ).toBe(false);
   });

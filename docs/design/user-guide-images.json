@@ -27,15 +27,6 @@
       "sha256": "67a4c73ffa98de560da7eb3e2c4616333b770ca8674f6a9c0ad0938b2854540f"
     },
     {
-      "path": "zh/research/agent-collaboration-01.png",
-      "articles": ["en/research/agent-collaboration.md", "zh/research/agent-collaboration.md"],
-      "originalSha256": "39cc09a8b3c0de6ef7037ebb63caf9b424ada635c7a5fbd46f2dc0df79bea7fe",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
-      "crop": [0, 40, 1600, 960],
-      "sha256": "38651a17bf20d59e5c77b5e2c2b5883f2c7a59960acdc89012ebdfb1637270f1"
-    },
-    {
       "path": "zh/research/agent-collaboration-02.png",
       "articles": ["en/research/agent-collaboration.md", "zh/research/agent-collaboration.md"],
       "originalSha256": "7e6f36939ece70f8ec14d5ecfae917a82d795d88265f222dd66e1cb1cfe0493d",
@@ -723,46 +714,34 @@
     },
     {
       "path": "zh/learning/cgb-signal-factor-explore-result.png",
-      "articles": [
-        "en/learning/cgb-curve-daily-signal.md",
-        "zh/learning/cgb-curve-daily-signal.md"
-      ],
+      "articles": [],
       "originalSha256": "8ef7d46b5298c58c1347e7f88ac09d558ec849ae222f6217b4b95336d2c3ebea",
-      "disposition": "historical-evidence",
-      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "sha256": "8ef7d46b5298c58c1347e7f88ac09d558ec849ae222f6217b4b95336d2c3ebea"
     },
     {
       "path": "zh/learning/cgb-signal-factor-holdout-result.png",
-      "articles": [
-        "en/learning/cgb-curve-daily-signal.md",
-        "zh/learning/cgb-curve-daily-signal.md"
-      ],
+      "articles": [],
       "originalSha256": "b0625042ae77b0cc4b657f886586de8d9e868f931b1d04f267f3bcca263c7edb",
-      "disposition": "historical-evidence",
-      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "sha256": "b0625042ae77b0cc4b657f886586de8d9e868f931b1d04f267f3bcca263c7edb"
     },
     {
       "path": "zh/learning/cgb-signal-backtest-result.png",
-      "articles": [
-        "en/learning/cgb-curve-daily-signal.md",
-        "zh/learning/cgb-curve-daily-signal.md"
-      ],
+      "articles": [],
       "originalSha256": "befcf78de0b0df8e4d3a4b3ef17686b794c4e75705ed017daec6715b2ef0626e",
-      "disposition": "historical-evidence",
-      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "sha256": "befcf78de0b0df8e4d3a4b3ef17686b794c4e75705ed017daec6715b2ef0626e"
     },
     {
       "path": "zh/learning/cgb-signal-daily-result.png",
-      "articles": [
-        "en/learning/cgb-curve-daily-signal.md",
-        "zh/learning/cgb-curve-daily-signal.md"
-      ],
+      "articles": [],
       "originalSha256": "4126b2139e7e0d13e67eacd2e6d05281b60d891b2235c16eb15a06d30c348987",
-      "disposition": "historical-evidence",
-      "reason": "Keep original numerical evidence and pixels; label as historical Chinese UI.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "sha256": "4126b2139e7e0d13e67eacd2e6d05281b60d891b2235c16eb15a06d30c348987"
     },
     {
@@ -770,75 +749,75 @@
       "articles": [],
       "originalSha256": "928626f85d4061436d75d61706dd1448e659381f8fa7ecef2e773411f25a3b0a",
       "disposition": "retired",
-      "reason": "Replaced by a current, bilingual entry-point figure."
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification."
     },
     {
       "path": "zh/signals/signal-no-action-01.png",
-      "articles": ["en/signals/generate-signals.md", "zh/signals/generate-signals.md"],
+      "articles": [],
       "originalSha256": "39c7c162ffa0c4d1d4b04c6fc3e4b98d6a29ea50a1fa27a2a10338cab61f6ebe",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "crop": [0, 40, 1440, 920],
       "sha256": "f670932a3603ed13c46efc987c53db2d1dd7a03ef5bfc1d7240324132adae972"
     },
     {
       "path": "zh/signals/signal-result-01.png",
-      "articles": ["en/signals/read-signals.md", "zh/signals/read-signals.md"],
+      "articles": [],
       "originalSha256": "323eb179aaa194eb3f7df82c8d7f6b33156404c945afa0d9be0c443326982b3b",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "crop": [0, 40, 1440, 920],
       "sha256": "f233ea5a97f431a5593c0f8cd5fb5d3c19f21303a31b7f9eaae2b3e5bef958a3"
     },
     {
       "path": "zh/signals/signal-history-01.png",
-      "articles": ["en/signals/read-signals.md", "zh/signals/read-signals.md"],
+      "articles": [],
       "originalSha256": "62619e54f57144d9d494f68f2ef14524d96e3390f76714646cea2c61b24e37f1",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "crop": [0, 40, 1440, 920],
       "sha256": "47a741996611e0b9d9f841823a14bce90a27f800a2c465773baaaa6e88a45a1d"
     },
     {
       "path": "zh/signals/factor-inputs-01.png",
-      "articles": ["en/signals/factor-inputs.md", "zh/signals/factor-inputs.md"],
+      "articles": [],
       "originalSha256": "df4aacbb5f9fc2be87b2da7f5148750f6cea00968101dab5aa77cf7dbce36d4f",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "sha256": "df4aacbb5f9fc2be87b2da7f5148750f6cea00968101dab5aa77cf7dbce36d4f"
     },
     {
       "path": "zh/signals/signal-conditional-01.png",
-      "articles": ["en/signals/conditional-orders.md", "zh/signals/conditional-orders.md"],
+      "articles": [],
       "originalSha256": "566e7225fb8bfa1d05f842329f0b4f0a748fd03433a8981960bd0a76dd33dac5",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "crop": [0, 40, 1440, 920],
       "sha256": "edcfab732e3fe982b79a1cef491a3175c1c541bb4366ac5267f698e520b1d4ea"
     },
     {
       "path": "zh/signals/signal-execution-overview-01.png",
-      "articles": ["en/signals/record-execution.md", "zh/signals/record-execution.md"],
+      "articles": [],
       "originalSha256": "70c08cd448fece7db76a7f97d0b1a9092cc8f866d08bbb07fae3d820ed225b74",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "sha256": "70c08cd448fece7db76a7f97d0b1a9092cc8f866d08bbb07fae3d820ed225b74"
     },
     {
       "path": "zh/signals/signal-execution-record-01.png",
-      "articles": ["en/signals/record-execution.md", "zh/signals/record-execution.md"],
+      "articles": [],
       "originalSha256": "34965969e5e89ae7d0a9615511b3f813f6c3ca20072da3203e4c00f6d2167b8c",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "crop": [0, 40, 1440, 920],
       "sha256": "efe0e55b6e79c3b25f93de290e10bfe71cbe41518e8eccc39db8d5006edc40e2"
     },
     {
       "path": "zh/signals/signal-execution-complete-01.png",
-      "articles": ["en/signals/record-execution.md", "zh/signals/record-execution.md"],
+      "articles": [],
       "originalSha256": "e2b892490de01ee8778a0f6ffdeae06074a553b4c4809aa1575d2b9397707348",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
       "sha256": "e2b892490de01ee8778a0f6ffdeae06074a553b4c4809aa1575d2b9397707348"
     },
     {
@@ -1693,30 +1672,30 @@
     },
     {
       "path": "zh/signals/deployments-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["zh/signals/deploy-strategy.md", "zh/signals/generate-signals.md"],
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
+      "articles": [],
       "sha256": "fc10b366aaa491bcb0864e53b6a7d7f1c46e8b157a9f3ec273324abbaa67731e"
     },
     {
       "path": "en/signals/deployments-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["en/signals/deploy-strategy.md", "en/signals/generate-signals.md"],
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
+      "articles": [],
       "sha256": "28876ec314008fece24aaf20476a16a3c6c51ebcc188273a76fb1792005be10d"
     },
     {
       "path": "zh/signals/paused-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["zh/signals/history-pause.md"],
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
+      "articles": [],
       "sha256": "3285ff780805008827129ec574b75e8f3133d8b34c5e700cd82fffa73f2b8c6e"
     },
     {
       "path": "en/signals/paused-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["en/signals/history-pause.md"],
+      "disposition": "retired",
+      "reason": "Signals and its daily-signal learning path were removed in the system simplification.",
+      "articles": [],
       "sha256": "a31933422a06cd3917cbdbf0713e321b8e2f0a5c70109237cd9d75a8e1fc291e"
     },
     {

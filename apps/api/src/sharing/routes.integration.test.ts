@@ -212,7 +212,6 @@ describe('Sharing catalog boundaries', () => {
       messages: null,
     });
     expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'public' } })).toEqual(source);
-    expect(await prisma.strategyDeployment.count()).toBe(0);
     expect(await prisma.backtestReport.count()).toBe(0);
     const second = await copyPublicStrategy('owner', 'public');
     expect(second?.name).toBe(`${config.name} 3`);

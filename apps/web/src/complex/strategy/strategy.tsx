@@ -41,11 +41,8 @@ import {
   faPen,
   faPlay,
   faPlus,
-  faRocket,
-  faPause,
   faFlask,
   faSpinner,
-  faTriangleExclamation,
   faUpRightFromSquare,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
@@ -623,45 +620,6 @@ const RunConfig = complex.component(() => {
         />
       </Tooltip>
       {store.language === 'typescript' && <ParameterScanButton />}
-      {store.deployment ? (
-        <Tooltip title={t('deploymentPauseHint')}>
-          <Button
-            type="text"
-            size="small"
-            danger
-            loading={store.deploymentActionLoader.loading}
-            disabled={store.backtestReportLoader.loading}
-            icon={<FontAwesomeIcon icon={faPause} />}
-            onClick={() => void store.pauseDeployment()}
-            aria-label={t('deploymentPause')}
-          />
-        </Tooltip>
-      ) : (
-        <Tooltip
-          title={store.canDeployReport ? t('deploymentActionHint') : t('deploymentNeedsResult')}
-        >
-          <Button
-            type="text"
-            size="small"
-            loading={store.deploymentActionLoader.loading}
-            disabled={
-              !store.canDeployReport ||
-              store.deploymentLoader.loading ||
-              store.backtestReportLoader.loading
-            }
-            icon={<FontAwesomeIcon icon={faRocket} />}
-            onClick={() => void store.deploy()}
-            aria-label={t('deploymentAction')}
-            data-report-id={store.activeBacktestReportId}
-          />
-        </Tooltip>
-      )}
-      {store.deploymentError && (
-        <span className="jx-strategy-deploymentError" title={store.deploymentError}>
-          <FontAwesomeIcon icon={faTriangleExclamation} />
-          {store.deploymentError}
-        </span>
-      )}
       <Popover
         placement="bottomRight"
         trigger="click"

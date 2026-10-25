@@ -499,7 +499,6 @@ async function prepareAndCompleteCuratorRun(
       researchExecutionId: null,
       backtestReportId: null,
       strategyScanReportId: null,
-      signalRunId: null,
       queuedAt: new Date(0),
       startedAt: new Date(0),
       finishedAt: null,

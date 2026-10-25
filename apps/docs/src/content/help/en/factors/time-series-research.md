@@ -41,7 +41,7 @@ The displayed slope is \(\beta\). A larger absolute t-statistic indicates a clea
 
 ## From exploration to publication
 
-An eligible time-series Factor still needs a research card, exploration, and a sealed holdout. Publication is available only when the page exposes the action and the report passes its gates. Controlled Carry and warehouse-receipt templates cannot currently be published, deployed, or used in Today signals.
+An eligible time-series Factor still needs a research card, exploration, and a sealed holdout. Publication is available only when the page exposes the action and the report passes its gates. Controlled Carry and warehouse-receipt templates cannot currently be published or used in strategies.
 
 ## Related articles
 

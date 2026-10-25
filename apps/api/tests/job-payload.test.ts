@@ -21,10 +21,6 @@ import {
   type FactorCorrelationJobPayload,
 } from '#factor/correlations/job-payload.js';
 import {
-  signalsRunJobPayloadSchema,
-  type SignalsRunJobPayload,
-} from '#signals/runs/job-payload.js';
-import {
   researchEmbeddedAnalysisJobPayloadSchema,
   type ResearchEmbeddedAnalysisJobPayload,
 } from '#research/embedded/job-payload.js';
@@ -85,7 +81,6 @@ const correlation = {
   end: '20241231',
   locale: 'en',
 } satisfies FactorCorrelationJobPayload;
-const signal = { task: 'signal', runId: 'signal', locale: 'en' } satisfies SignalsRunJobPayload;
 const embedded = { runId: 'embedded' } satisfies ResearchEmbeddedAnalysisJobPayload;
 const curator = { runId: 'curator' } satisfies ResearchCuratorJobPayload;
 
@@ -95,7 +90,6 @@ describe('durable Job payload and Worker input contracts', () => {
     ['scan', strategyScanJobPayloadSchema, scan],
     ['analysis', factorAnalysisJobPayloadSchema, analysis],
     ['correlation', factorCorrelationJobPayloadSchema, correlation],
-    ['signal', signalsRunJobPayloadSchema, signal],
     ['embedded', researchEmbeddedAnalysisJobPayloadSchema, embedded],
     ['curator', researchCuratorJobPayloadSchema, curator],
   ] as const)(
@@ -162,8 +156,6 @@ describe('durable Job payload and Worker input contracts', () => {
   });
 
   it('rejects malformed identifiers and preserves strict Research payloads', () => {
-    expect(signalsRunJobPayloadSchema.safeParse({ ...signal, runId: '' }).success).toBe(false);
-    expect(signalsRunJobPayloadSchema.safeParse({ ...signal, locale: 'fr' }).success).toBe(false);
     expect(
       factorCorrelationJobPayloadSchema.safeParse({ ...correlation, keys: ['value'] }).success,
     ).toBe(false);

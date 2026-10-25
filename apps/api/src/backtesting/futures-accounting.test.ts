@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  applyFutureFill,
-  settleFuturePosition,
-  resolveFutureTarget,
-  resolveFutureLegs,
-} from './futures-accounting.js';
+import { applyFutureFill, settleFuturePosition } from './futures-accounting.js';
 
 const position = {
   code: 'IF.CFX',
@@ -38,52 +33,5 @@ describe('shared futures accounting', () => {
     const reversed = applyFutureFill({ ...fill, position, delta: 5, price: 3900 });
     expect(reversed.equityChange).toBe(89990);
     expect(reversed.position).toMatchObject({ contracts: 2, referencePrice: 3900 });
-  });
-
-  it('resolves notional again at execution and uses each account exposure for hedges', () => {
-    const input = {
-      current: 0,
-      multiplier: 300,
-      cashExposure: 0,
-      intent: { kind: 'notional' as const, value: 2400000 },
-    };
-    expect(resolveFutureTarget({ ...input, price: 4000 })).toBe(2);
-    expect(resolveFutureTarget({ ...input, price: 4100 })).toBe(1);
-    expect(
-      [3600000, 2400000, 1200000].map((cashExposure) =>
-        resolveFutureTarget({
-          ...input,
-          intent: { kind: 'hedge', value: 1 },
-          price: 4000,
-          cashExposure,
-        }),
-      ),
-    ).toEqual([-3, -2, -1]);
-  });
-
-  it('keeps old delivery contracts as separate closing legs and retains an empty target', () => {
-    const positions = [position, { ...position, actualCode: 'IF2409.CFX', contracts: -1 }];
-    const legs = resolveFutureLegs({
-      code: 'IF.CFX',
-      actualCode: 'IF2412.CFX',
-      multiplier: 300,
-      target: -4,
-      positions,
-    });
-    expect(legs.map(({ effect, contracts }) => [effect, contracts])).toEqual([
-      ['close', 3],
-      ['close', 1],
-      ['open', 4],
-    ]);
-    expect(legs[2]?.dependsOnLegId).toBe(legs[1]?.id);
-    expect(
-      resolveFutureLegs({
-        code: 'IF.CFX',
-        actualCode: 'IF2412.CFX',
-        multiplier: 300,
-        target: 0,
-        positions: [],
-      }),
-    ).toEqual([]);
   });
 });

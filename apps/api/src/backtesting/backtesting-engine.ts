@@ -153,7 +153,6 @@ export class BacktestingEngine {
       onLog: log,
       locale,
       dataPort: config.dataPort,
-      strictFutures: config.strictFutures,
       requirements: {
         ...dataRequirements,
         governmentYieldCurve:

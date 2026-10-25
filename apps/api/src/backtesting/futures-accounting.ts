@@ -1,4 +1,4 @@
-import type { FutureAccountSnapshot, SignalExecutionLeg, SignalFutureIntent } from '@jixie/shared';
+import type { FutureAccountSnapshot } from './result.js';
 
 export type FutureLedgerPosition = FutureAccountSnapshot['positions'][number];
 
@@ -105,93 +105,6 @@ export function settleFuturePosition(
       margin: Math.abs(position.contracts) * price * position.multiplier * marginRate,
     },
   };
-}
-
-/**
- * 将期货目标转换为当前合约持仓需要的调整量。
- *
- * Resolve a futures target against current positions to determine required changes.
- */
-export function resolveFutureTarget(input: {
-  intent: SignalFutureIntent;
-  current: number;
-  price: number;
-  multiplier: number;
-  cashExposure: number;
-}): number {
-  const { intent, current, price, multiplier, cashExposure } = input;
-  let target: number;
-  switch (intent.kind) {
-    case 'delta':
-      target = Math.trunc(current + intent.value);
-      break;
-    case 'contracts':
-      target = Math.trunc(intent.value);
-      break;
-    case 'roll':
-      target = current;
-      break;
-    case 'notional':
-      target = Math.trunc(intent.value / (price * multiplier));
-      break;
-    case 'hedge':
-      target = Math.trunc((-intent.value * cashExposure) / (price * multiplier));
-      break;
-  }
-
-  return target === 0 ? 0 : target;
-}
-
-/**
- * 将期货目标拆为独立平仓和开仓腿，保留多个旧交割合约。
- *
- * Preserve separate close/open legs, including multiple old delivery contracts.
- */
-export function resolveFutureLegs(input: {
-  code: string;
-  actualCode: string;
-  multiplier: number;
-  target: number;
-  positions: FutureLedgerPosition[];
-}): SignalExecutionLeg[] {
-  const legs: SignalExecutionLeg[] = [];
-  let remaining = input.target;
-  for (const position of input.positions.filter((value) => value.code === input.code)) {
-    const retained =
-      position.actualCode === input.actualCode && position.contracts * remaining > 0
-        ? Math.sign(remaining) * Math.min(Math.abs(position.contracts), Math.abs(remaining))
-        : 0;
-    const close = position.contracts - retained;
-    remaining -= retained;
-    if (close) {
-      legs.push({
-        id: `${input.code}:${legs.length}`,
-        code: input.code,
-        actualCode: position.actualCode,
-        action: close > 0 ? 'sell' : 'buy',
-        effect: 'close',
-        positionSide: close > 0 ? 'long' : 'short',
-        contracts: Math.abs(close),
-        multiplier: position.multiplier,
-        dependsOnLegId: null,
-      });
-    }
-  }
-  if (remaining) {
-    legs.push({
-      id: `${input.code}:${legs.length}`,
-      code: input.code,
-      actualCode: input.actualCode,
-      action: remaining > 0 ? 'buy' : 'sell',
-      effect: 'open',
-      positionSide: remaining > 0 ? 'long' : 'short',
-      contracts: Math.abs(remaining),
-      multiplier: input.multiplier,
-      dependsOnLegId: legs.at(-1)?.id ?? null,
-    });
-  }
-
-  return legs;
 }
 
 export function normalizeFutureMargin(source: number | null, fallback: number): number {

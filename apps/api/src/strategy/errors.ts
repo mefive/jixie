@@ -37,10 +37,6 @@ const definitions = {
     category: 'conflict',
     messageKey: 'strategyBacktestInProgress',
   },
-  strategy_has_deployments: {
-    category: 'conflict',
-    messageKey: 'strategyHasDeployments',
-  },
   public_strategy_must_be_self_contained: {
     category: 'invalid',
     messageKey: 'publicStrategyMustBeSelfContained',

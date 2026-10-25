@@ -115,39 +115,8 @@ export const enHelp: typeof zhHelp = {
           },
         },
       },
-      signal: {
-        eyebrow: 'Path four · Signal governance',
-        title: 'From the CGB curve to a daily signal',
-        description:
-          'Connect a government-yield Factor to a formal holdout, costed backtest, deployment, and specified-date signal while separating correct execution from admissible evidence.',
-        start: 'Start signal governance',
-        stepsTitle: 'How the path progresses',
-        steps: {
-          evidence: {
-            title: 'Set an evidence gate',
-            description: 'Freeze the curve hypothesis and robust-t criterion first.',
-          },
-          lineage: {
-            title: 'Retain failed evidence',
-            description: 'Reveal one formal holdout and accept its sign reversal.',
-          },
-          backtest: {
-            title: 'Audit the costed backtest',
-            description: 'Trace Factor key, code hash, costs, and actual simulated fills.',
-          },
-          deploy: {
-            title: 'Freeze the deployment',
-            description: 'Verify that strategy and curve input enter an immutable run version.',
-          },
-          audit: {
-            title: 'Audit the daily signal',
-            description:
-              'Separate instructions, model fills, and actual execution, then pause a failed candidate.',
-          },
-        },
-      },
       allocation: {
-        eyebrow: 'Path five · Allocation attribution',
+        eyebrow: 'Path four · Allocation attribution',
         title: 'Stock-bond allocation and risk attribution',
         description:
           'Run a monthly stock-bond rotation with a Panel Factor that excludes gold and commodities, then separate allocation, timing, and costs with four actual equity, static, zero-cost, and realistic-cost controls.',
@@ -182,7 +151,7 @@ export const enHelp: typeof zhHelp = {
         },
       },
       commodity: {
-        eyebrow: 'Path six · Commodity research',
+        eyebrow: 'Path five · Commodity research',
         title: 'Commodity carry and holdout evidence',
         description:
           'Freeze Panel and time-series tests on actual gold, copper, crude-oil, and soybean-meal contracts, then audit term structure, proxy error, multiple testing, and two failed holdouts.',
@@ -212,7 +181,7 @@ export const enHelp: typeof zhHelp = {
         },
       },
       positiveFactor: {
-        eyebrow: 'Path seven · Positive admission',
+        eyebrow: 'Path six · Positive admission',
         title: 'Sales yield and Factor admission',
         description:
           'Read the original sales-yield exploration, redundancy gate, and sole formal holdout, reconcile frozen code lineage, and learn to make a limited but genuinely positive advancement decision.',
@@ -257,7 +226,6 @@ export const enHelp: typeof zhHelp = {
       factorResearch: 'Factor definitions, reports, robust inference, and publication.',
       factorWeather: 'Monitor preset and published custom single Factors.',
       marketValuation: 'Market weather, valuation, and historical playback.',
-      signals: 'Deployments, signals, conditional orders, and execution records.',
     },
   },
   groups: {
@@ -271,6 +239,5 @@ export const enHelp: typeof zhHelp = {
     factorResearch: 'Factor research',
     factorWeather: 'Factor weather',
     marketValuation: 'Market and valuation',
-    signals: 'Today signals',
   },
 };

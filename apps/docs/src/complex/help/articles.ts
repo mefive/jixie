@@ -165,20 +165,6 @@ import researchYieldCurvesEn from '@src/content/help/en/research/yield-curves.md
 import researchYieldCurvesZh from '@src/content/help/zh/research/yield-curves.md?raw';
 import libraryShareCopyEn from '@src/content/help/en/library/share-copy.md?raw';
 import libraryShareCopyZh from '@src/content/help/zh/library/share-copy.md?raw';
-import deployStrategyEn from '@src/content/help/en/signals/deploy-strategy.md?raw';
-import deployStrategyZh from '@src/content/help/zh/signals/deploy-strategy.md?raw';
-import generateSignalsEn from '@src/content/help/en/signals/generate-signals.md?raw';
-import generateSignalsZh from '@src/content/help/zh/signals/generate-signals.md?raw';
-import historyPauseEn from '@src/content/help/en/signals/history-pause.md?raw';
-import historyPauseZh from '@src/content/help/zh/signals/history-pause.md?raw';
-import factorInputsEn from '@src/content/help/en/signals/factor-inputs.md?raw';
-import factorInputsZh from '@src/content/help/zh/signals/factor-inputs.md?raw';
-import readSignalsEn from '@src/content/help/en/signals/read-signals.md?raw';
-import readSignalsZh from '@src/content/help/zh/signals/read-signals.md?raw';
-import recordExecutionEn from '@src/content/help/en/signals/record-execution.md?raw';
-import recordExecutionZh from '@src/content/help/zh/signals/record-execution.md?raw';
-import conditionalOrdersEn from '@src/content/help/en/signals/conditional-orders.md?raw';
-import conditionalOrdersZh from '@src/content/help/zh/signals/conditional-orders.md?raw';
 import adjustmentsScaleEn from '@src/content/help/en/stock-detail/adjustments-scale.md?raw';
 import adjustmentsScaleZh from '@src/content/help/zh/stock-detail/adjustments-scale.md?raw';
 import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?raw';
@@ -189,8 +175,6 @@ import csi300TrendStrategyEn from '@src/content/help/en/learning/csi300-trend-st
 import csi300TrendStrategyZh from '@src/content/help/zh/learning/csi300-trend-strategy.md?raw';
 import csi300ValueFactorEn from '@src/content/help/en/learning/csi300-value-factor.md?raw';
 import csi300ValueFactorZh from '@src/content/help/zh/learning/csi300-value-factor.md?raw';
-import cgbCurveDailySignalEn from '@src/content/help/en/learning/cgb-curve-daily-signal.md?raw';
-import cgbCurveDailySignalZh from '@src/content/help/zh/learning/cgb-curve-daily-signal.md?raw';
 import commodityCarryHoldoutEn from '@src/content/help/en/learning/commodity-carry-holdout.md?raw';
 import commodityCarryHoldoutZh from '@src/content/help/zh/learning/commodity-carry-holdout.md?raw';
 import salesYieldPositiveEn from '@src/content/help/en/learning/sales-yield-positive.md?raw';
@@ -211,7 +195,6 @@ export const HELP_GROUPS = [
   'factorResearch',
   'factorWeather',
   'marketValuation',
-  'signals',
 ] as const;
 export type HelpGroup = (typeof HELP_GROUPS)[number];
 
@@ -275,22 +258,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: csi300ValueFactorZh,
       en: csi300ValueFactorEn,
-    },
-  },
-  {
-    slug: 'learning/cgb-curve-daily-signal',
-    group: 'learningPaths',
-    title: {
-      zh: '国债曲线到每日信号：证据、回测与部署',
-      en: 'From the CGB curve to a daily signal: evidence, backtest, and deployment',
-    },
-    summary: {
-      zh: '用国债收益率曲线 Factor 串联正式保留段、费后回测、部署和指定日期信号，并区分工程通过与证据失败。',
-      en: 'Connect a CGB-yield Factor to a formal holdout, costed backtest, deployment, and specified-date signal while separating operational success from evidence failure.',
-    },
-    content: {
-      zh: cgbCurveDailySignalZh,
-      en: cgbCurveDailySignalEn,
     },
   },
   {
@@ -815,8 +782,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Understand the Strategy workbench',
     },
     summary: {
-      zh: '认识工作台，区分策略草稿、历史报告、对话分析和报告部署。',
-      en: 'Learn the workbench and distinguish drafts, historical reports, chat analysis, and deployment.',
+      zh: '认识工作台，区分策略草稿、历史报告和对话分析。',
+      en: 'Learn the workbench and distinguish drafts, historical reports, and chat analysis.',
     },
     content: {
       zh: workspaceZh,
@@ -1619,118 +1586,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: percentilesZh,
       en: percentilesEn,
-    },
-  },
-  {
-    slug: 'signals/deploy-strategy',
-    group: 'signals',
-    title: {
-      zh: '部署回测报告',
-      en: 'Deploy a backtest report',
-    },
-    summary: {
-      zh: '按成功回测报告独立部署，区分报告来源、编辑草稿与各自的运行账户。',
-      en: 'Deploy successful reports independently with traceable sources and separate accounts.',
-    },
-    content: {
-      zh: deployStrategyZh,
-      en: deployStrategyEn,
-    },
-  },
-  {
-    slug: 'signals/generate-signals',
-    group: 'signals',
-    title: {
-      zh: '生成今日信号',
-      en: "Generate today's signals",
-    },
-    summary: {
-      zh: '打开已上线策略，生成收盘信号，并正确处理今日无操作和数据未准备状态。',
-      en: 'Generate close-based signals and handle no-action and data-not-ready states.',
-    },
-    content: {
-      zh: generateSignalsZh,
-      en: generateSignalsEn,
-    },
-  },
-  {
-    slug: 'signals/read-signals',
-    group: 'signals',
-    title: {
-      zh: '查看信号指令',
-      en: 'Read signal instructions',
-    },
-    summary: {
-      zh: '核对日期、模型权益、指令、模拟成交、实际执行和待挂条件。',
-      en: 'Read dates, model equity, instructions, simulated fills, actual status, and conditions.',
-    },
-    content: {
-      zh: readSignalsZh,
-      en: readSignalsEn,
-    },
-  },
-  {
-    slug: 'signals/record-execution',
-    group: 'signals',
-    title: {
-      zh: '记录实际成交并比较执行偏差',
-      en: 'Record actual fills and compare execution',
-    },
-    summary: {
-      zh: '回填已执行或未执行，比较模型、模拟和实际账户、执行率与成交偏差。',
-      en: 'Record decisions and compare model, simulated, and actual accounts.',
-    },
-    content: {
-      zh: recordExecutionZh,
-      en: recordExecutionEn,
-    },
-  },
-  {
-    slug: 'signals/factor-inputs',
-    group: 'signals',
-    title: {
-      zh: '核对今日信号使用的 Factor',
-      en: 'Verify the Factors used by a signal',
-    },
-    summary: {
-      zh: '查看信号日实际读取的 Factor、覆盖数、均值和决策标的值。',
-      en: 'Inspect the Factor, coverage, mean, and decision-asset values actually read.',
-    },
-    content: {
-      zh: factorInputsZh,
-      en: factorInputsEn,
-    },
-  },
-  {
-    slug: 'signals/conditional-orders',
-    group: 'signals',
-    title: {
-      zh: '使用和记录条件单',
-      en: 'Use and record conditional orders',
-    },
-    summary: {
-      zh: '核对止损、跟踪止损、限价买入和止盈，并在券商端正确操作。',
-      en: 'Review stops, limit buys, and take profit, then recreate them at the broker.',
-    },
-    content: {
-      zh: conditionalOrdersZh,
-      en: conditionalOrdersEn,
-    },
-  },
-  {
-    slug: 'signals/history-pause',
-    group: 'signals',
-    title: {
-      zh: '查看历史并暂停上线',
-      en: 'View history and pause a deployment',
-    },
-    summary: {
-      zh: '查看完成、失败和中断记录，暂停后续运行，并保留已有信号历史。',
-      en: 'Review completed, failed, and interrupted runs, then pause future generation.',
-    },
-    content: {
-      zh: historyPauseZh,
-      en: historyPauseEn,
     },
   },
 ];

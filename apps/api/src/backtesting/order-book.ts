@@ -149,36 +149,6 @@ export class OrderBook {
   }
 
   /**
-   * 装载前推模拟的执行状态，不触发策略决策收集。
-   *
-   * Replaces execution state for forward simulation, without collecting a strategy decision.
-   */
-  loadExecutionOrders({ cashOrders, cashDeltas = [], futuresOrders }: ExecutionOrdersInput): void {
-    const cashSnapshot = structuredClone(cashOrders);
-    let shareOrders = cashSnapshot.pendingOrders;
-    for (const { code, shares } of cashDeltas) {
-      shareOrders = collectShareDelta(shareOrders, code, shares);
-    }
-
-    let futureIntents: Map<string, FutureIntent> | null = null;
-    for (const { code, intent } of futuresOrders) {
-      futureIntents = collectFutureIntent(futureIntents, code, intent);
-    }
-
-    // Forward cash instructions have no target-rebalance attribution decision.
-    this.pending.decisionDate = null;
-    this.pending.targets = cashSnapshot.pendingTargets;
-    this.pending.shareOrders = shareOrders;
-    this.pending.lotOrders = cashSnapshot.pendingLotOrders;
-    this.pending.futureIntents = futureIntents;
-
-    this.conditionalOrders.clear();
-    for (const [key, order] of cashSnapshot.conditionalOrders) {
-      this.conditionalOrders.set(key, order);
-    }
-  }
-
-  /**
    * 在每日结算前执行待成交订单和盘中条件单模拟。
    *
    * Executes pending orders and intraday conditional simulations before daily settlement.
@@ -188,16 +158,6 @@ export class OrderBook {
     const heldBeforeExecution = new Set(cashPortfolio.positions.keys());
 
     if (previousDate) {
-      for (const code of new Set([
-        ...futuresPortfolio.positions.keys(),
-        ...(this.pending.futureIntents?.keys() ?? []),
-      ])) {
-        const intent = this.pending.futureIntents?.get(code);
-        const held = futuresPortfolio.positions.get(code);
-        const closingActualCode =
-          intent?.kind === 'contracts' && intent.value === 0 ? held?.actualCode : undefined;
-        engineData.assertFutureExecution(code, previousDate, date, closingActualCode);
-      }
       futuresPortfolio.roll(
         engineData,
         date,
@@ -996,26 +956,15 @@ export type FutureIntent =
   | { kind: 'hedge'; value: number };
 
 /**
- * 冻结现金待执行订单与条件单状态，供末日快照和信号前推复用。
+ * 冻结现金待执行订单与条件单状态，供末日状态检查。
  *
- * Snapshot pending cash orders and conditional exits for final state and signal projection.
+ * Snapshot pending cash orders and conditional exits for final-state inspection.
  */
 export interface CashOrderSnapshot {
   pendingTargets: Map<string, number> | null;
   pendingOrders: Map<string, number> | null;
   pendingLotOrders: Map<string, number> | null;
   conditionalOrders: Map<string, ConditionalOrder>;
-}
-
-/**
- * 提供待执行订单状态，供信号前推恢复订单簿。
- *
- * Supply pending execution state when restoring an order book for signal projection.
- */
-interface ExecutionOrdersInput {
-  cashDeltas?: ReadonlyArray<{ code: string; shares: number }>;
-  cashOrders: CashOrderSnapshot;
-  futuresOrders: ReadonlyArray<{ code: string; intent: FutureIntent }>;
 }
 
 /**
@@ -1204,9 +1153,9 @@ function collectFutureIntent(
 }
 
 /**
- * 规范化并累积复权数量变化，供策略决策和信号重放共用。
+ * 规范化并累积复权数量变化，供策略决策使用。
  *
- * Normalize and accumulate adjusted-share deltas from strategy decisions or signal replay.
+ * Normalize and accumulate adjusted-share deltas from strategy decisions.
  */
 function collectShareDelta(
   orders: Map<string, number> | null,

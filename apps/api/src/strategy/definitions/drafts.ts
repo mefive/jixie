@@ -49,23 +49,16 @@ export async function createStrategy(userId: string, input: CreateStrategyInput,
 }
 
 /**
- * 校验策略归属及依赖状态后删除并清理关联。
+ * 按用户归属删除策略并清理关联。
  *
- * Authorize strategy deletion and validate dependent state.
+ * Delete an owned strategy and its dependent records.
  */
 export async function deleteStrategy(userId: string, strategyId: string) {
   const r = await getDatabase().strategy.deleteMany({
-    where: { id: strategyId, userId, deployments: { none: {} } },
+    where: { id: strategyId, userId },
   });
 
   if (r.count === 0) {
-    const retained = await getDatabase().strategy.findFirst({
-      where: { id: strategyId, userId },
-      select: { id: true },
-    });
-    if (retained) {
-      throw new StrategyError('strategy_has_deployments');
-    }
     throw new StrategyError('strategy_not_found');
   }
 

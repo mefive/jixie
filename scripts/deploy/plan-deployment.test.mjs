@@ -142,7 +142,7 @@ test('business TypeScript SDK and host runtime changes still select only API', (
     'apps/api/src/strategy/simulation/factor-host.ts',
     'apps/api/src/strategy/backtests/compute.ts',
     'apps/api/src/strategy/scans/compute.ts',
-    'apps/api/src/signals/runs/compute.ts',
+    'apps/api/src/strategy/backtests/worker.ts',
     'apps/api/src/factor/sdk/typescript.ts',
     'apps/api/src/research/sandbox/research-sandbox.ts',
     'apps/api/src/research/sandbox/research-bridge.ts',

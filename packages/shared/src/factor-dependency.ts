@@ -7,9 +7,9 @@ export type FactorTargetAssetClass = 'equity' | 'fixed_income' | 'commodity' | '
 export type FactorSignalHorizonUnit = 'trade_day' | 'calendar_day' | 'month';
 
 /**
- * 冻结回测、部署或信号所引用的已发布因子身份。
+ * 冻结回测所引用的已发布因子身份。
  *
- * Immutable published factor identity frozen into a backtest, deployment, or signal run.
+ * Immutable published factor identity frozen into a backtest.
  */
 export interface FactorDependency {
   factorId: string;
