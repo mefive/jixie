@@ -24,10 +24,6 @@ import {
   researchEmbeddedAnalysisJobPayloadSchema,
   type ResearchEmbeddedAnalysisJobPayload,
 } from '#research/embedded/job-payload.js';
-import {
-  researchCuratorJobPayloadSchema,
-  type ResearchCuratorJobPayload,
-} from '#research/curator/job-payload.js';
 import { submitStrategyScanSchema } from '@jixie/shared/api/strategy';
 import { createDefaultFactorAnalysisSpecV3 } from '#factor/analysis/spec.js';
 
@@ -82,7 +78,6 @@ const correlation = {
   locale: 'en',
 } satisfies FactorCorrelationJobPayload;
 const embedded = { runId: 'embedded' } satisfies ResearchEmbeddedAnalysisJobPayload;
-const curator = { runId: 'curator' } satisfies ResearchCuratorJobPayload;
 
 describe('durable Job payload and Worker input contracts', () => {
   it.each([
@@ -91,7 +86,6 @@ describe('durable Job payload and Worker input contracts', () => {
     ['analysis', factorAnalysisJobPayloadSchema, analysis],
     ['correlation', factorCorrelationJobPayloadSchema, correlation],
     ['embedded', researchEmbeddedAnalysisJobPayloadSchema, embedded],
-    ['curator', researchCuratorJobPayloadSchema, curator],
   ] as const)(
     'preserves the typed %s submission through JSON storage',
     (_name, schema, payload) => {
@@ -161,9 +155,6 @@ describe('durable Job payload and Worker input contracts', () => {
     ).toBe(false);
     expect(
       researchEmbeddedAnalysisJobPayloadSchema.safeParse({ ...embedded, unexpected: true }).success,
-    ).toBe(false);
-    expect(
-      researchCuratorJobPayloadSchema.safeParse({ ...curator, unexpected: true }).success,
     ).toBe(false);
   });
 });

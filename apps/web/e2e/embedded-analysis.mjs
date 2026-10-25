@@ -155,6 +155,25 @@ try {
       await detail.getByRole('button', { name: copy.continue, exact: true }).click();
       await page.waitForURL('**/research?document=*');
       await page.getByTestId('embedded-research-source').waitFor();
+      assert.equal(
+        await page
+          .getByRole('button', {
+            name: english ? 'Curate research records' : '整理研究记录',
+            exact: true,
+          })
+          .count(),
+        0,
+        'Research no longer exposes curation',
+      );
+      for (const [method, path] of [
+        ['POST', '/curator/runs'],
+        ['GET', '/curator/runs/latest'],
+        ['GET', '/curator/runs/old-run'],
+        ['PATCH', '/curator/findings/old-finding'],
+      ]) {
+        const retired = await context.request.fetch(`${base}/api/app/research${path}`, { method });
+        assert.equal(retired.status(), 404, `retired Curator API ${method} ${path}`);
+      }
       await page.getByTestId('research-run-all').click();
       await page
         .locator('.jx-research-document')

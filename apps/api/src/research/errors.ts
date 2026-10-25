@@ -10,10 +10,6 @@ import type {
 } from '@jixie/shared';
 
 const definitions = {
-  curator_disposition_invalid: {
-    category: 'invalid',
-    messageKey: 'researchCuratorDispositionInvalid',
-  },
   language_position_invalid: {
     category: 'invalid',
     messageKey: 'researchLanguagePositionInvalid',
@@ -61,14 +57,6 @@ const definitions = {
   attempt_not_found: {
     category: 'missing',
     messageKey: 'researchCellChangeAttemptNotFound',
-  },
-  curator_run_not_found: {
-    category: 'missing',
-    messageKey: 'researchCuratorRunNotFound',
-  },
-  curator_finding_not_found: {
-    category: 'missing',
-    messageKey: 'researchCuratorFindingNotFound',
   },
   document_run_in_progress: {
     category: 'conflict',

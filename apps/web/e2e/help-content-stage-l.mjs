@@ -109,16 +109,6 @@ const jobs = [
     ],
   },
   {
-    source: 'research-curator-summary-zh.png',
-    crop: '720x960+720+0',
-    output: 'research/curator-01.png',
-    marks: [
-      [1, 8, 8, 702, 52],
-      [2, 103, 172, 697, 286],
-      [3, 103, 482, 697, 950],
-    ],
-  },
-  {
     source: 'research-execution-history.png',
     crop: '1600x700+0+0',
     output: 'research/records-01.png',

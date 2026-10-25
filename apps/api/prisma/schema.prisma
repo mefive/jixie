@@ -900,7 +900,8 @@ model FutureSettlement {
 // ============================================================================
 // Production maintenance coordination. The operating-system flock is the strong cross-process lock;
 // these rows provide durable progress, retry semantics, publication watermarks, and the App gate.
-// They are operational metadata and must never be exposed through the Agent read-only SQL tool.
+// 这些运行元数据不属于研究数据接口。
+// Operational metadata is not exposed through research data interfaces.
 // ============================================================================
 
 /// One idempotent daily, weekly, repair, or deployment maintenance run.
@@ -1095,18 +1096,16 @@ model User {
   status    String   @default("active") // 'active' | 'disabled' (disabling does not delete the account)
   createdAt DateTime @default(now())
 
-  sessions                Session[]
-  strategies              Strategy[]
-  backtestReports         BacktestReport[]
-  strategyScanReports     StrategyScanReport[]
-  agentConversations      AgentConversation[]
-  embeddedAnalyses        ResearchEmbeddedAnalysis[]
-  researchDocuments       ResearchDocument[]
-  researchCuratorRuns     ResearchCuratorRun[]
-  researchCuratorFindings ResearchCuratorFinding[]
-  factorComposites        FactorComposite[]
-  factorWeatherPins       FactorWeatherPin[]
-  jobs                    Job[]
+  sessions            Session[]
+  strategies          Strategy[]
+  backtestReports     BacktestReport[]
+  strategyScanReports StrategyScanReport[]
+  agentConversations  AgentConversation[]
+  embeddedAnalyses    ResearchEmbeddedAnalysis[]
+  researchDocuments   ResearchDocument[]
+  factorComposites    FactorComposite[]
+  factorWeatherPins   FactorWeatherPin[]
+  jobs                Job[]
 }
 
 /// Login session. id = session token (stored in sid cookie). 30-day TTL; expiry enforced by filtering on expiresAt at query time.
@@ -1196,7 +1195,7 @@ model FactorCorrelation {
 model Job {
   id                   String              @id // ULID
   userId               String
-  kind                 String // 'backtest' | 'factor-analysis' | 'factor-correlation' | 'strategy-scan' | 'research-curator' | 'research-embedded-analysis'
+  kind                 String // 'backtest' | 'factor-analysis' | 'factor-correlation' | 'strategy-scan' | 'research-embedded-analysis'
   key                  String // dedupe/lookup key (see model doc)
   status               String // 'queued' | 'running' | 'done' | 'error' | 'stale'
   payload              Json? // Frozen runner input; required for queued jobs to survive an API restart
@@ -1210,8 +1209,6 @@ model Job {
   strategyScanReport   StrategyScanReport? @relation(fields: [strategyScanReportId], references: [id], onDelete: Cascade)
   researchExecutionId  String?             @unique
   researchExecution    ResearchExecution?  @relation(fields: [researchExecutionId], references: [id], onDelete: Cascade)
-  researchCuratorRunId String?             @unique
-  researchCuratorRun   ResearchCuratorRun? @relation(fields: [researchCuratorRunId], references: [id], onDelete: Cascade)
   user                 User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   queuedAt             DateTime            @default(now())
   startedAt            DateTime?
@@ -1730,62 +1727,8 @@ model ResearchCellChangeAttempt {
   @@index([proposalId, startedAt])
 }
 
-/// One manually or periodically triggered, owner-scoped Curator pass. The successful cursor only
-/// advances through completed rows, so failed jobs never skip conversations.
-model ResearchCuratorRun {
-  id                String                   @id // ULID
-  userId            String
-  user              User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  legacyStatus      String?                  @map("status") // Historical state used only without a Job.
-  trigger           String                   @default("manual") // 'manual' | 'scheduled'
-  cursorFrom        DateTime?
-  cursorTo          DateTime
-  evidenceCount     Int                      @default(0)
-  findingsCreated   Int                      @default(0)
-  duplicatesSkipped Int                      @default(0)
-  legacyError       String?                  @map("error")
-  job               Job?
-  findings          ResearchCuratorFinding[]
-  createdAt         DateTime                 @default(now())
-  updatedAt         DateTime                 @updatedAt
-
-  @@index([userId, createdAt])
-  @@index([userId, legacyStatus, createdAt])
-}
-
-/// One evidence-backed Curator suggestion. Fingerprints suppress repeats across runs; disposition
-/// is explicit human feedback and never triggers schema, data synchronization, or ROADMAP writes.
-model ResearchCuratorFinding {
-  id                     String             @id // ULID
-  userId                 String
-  user                   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  runId                  String
-  run                    ResearchCuratorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  category               String
-  title                  String
-  summary                String
-  evidence               Json
-  verification           Json
-  confidence             Float
-  expectedValue          String
-  changeSurface          Json
-  suggestedAction        String
-  fingerprint            String
-  disposition            String             @default("pending") // 'pending' | 'accepted' | 'rejected' | 'deferred' | 'duplicate'
-  dispositionNote        String?
-  disposedAt             DateTime?
-  verificationAssessment String? // 'correct' | 'incorrect'
-  verificationAssessedAt DateTime?
-  createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
-
-  @@unique([userId, fingerprint])
-  @@index([userId, disposition, createdAt])
-  @@index([runId, createdAt])
-}
-
 /// A bounded, read-only observation of one versioned Tushare capability. Samples are deliberately
-/// excluded: Curator only needs availability, schema, permission and observed history metadata.
+/// excluded: probes retain only availability, schema, permission and observed history metadata.
 model TushareCapabilityProbe {
   id             String   @id // ULID
   catalogVersion Int

@@ -22,7 +22,6 @@ export type JobKind =
   | 'factor-analysis'
   | 'factor-correlation'
   | 'strategy-scan'
-  | 'research-curator'
   | 'research-embedded-analysis';
 
 /**

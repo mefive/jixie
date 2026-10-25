@@ -79,24 +79,19 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
           legacyError: `detail:${status}`,
         },
       });
-      await database.researchCuratorRun.create({
-        data: {
-          id: `curator:${status}`,
-          userId: 'owner',
-          cursorTo: new Date(0),
-          legacyStatus: status,
-          legacyError: `detail:${status}`,
-        },
-      });
+      await database.$executeRaw`
+        INSERT INTO ResearchCuratorRun (id, userId, cursorTo, status, error, updatedAt)
+        VALUES (${`curator:${status}`}, 'owner', ${new Date(0)}, ${status}, ${`detail:${status}`}, ${new Date(0)})
+      `;
     }
     const before = await Promise.all([
       database.backtestReport.findMany(),
       database.factorReport.findMany(),
       database.strategyScanReport.findMany(),
-      database.researchCuratorRun.findMany(),
+      database.$queryRaw`SELECT * FROM ResearchCuratorRun ORDER BY id`,
     ]);
     for (const name of names) {
-      if (name >= migration && name !== 'migration_lock.toml') {
+      if (name === migration) {
         await cp(resolve('prisma/migrations', name), join(migrations, name), { recursive: true });
       }
     }
@@ -105,7 +100,7 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
       database.backtestReport.findMany(),
       database.factorReport.findMany(),
       database.strategyScanReport.findMany(),
-      database.researchCuratorRun.findMany(),
+      database.$queryRaw`SELECT * FROM ResearchCuratorRun ORDER BY id`,
     ]);
     expect(after).toEqual(before);
     expect(await database.job.count()).toBe(0);

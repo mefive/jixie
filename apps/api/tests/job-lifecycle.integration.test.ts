@@ -28,23 +28,20 @@ vi.mock('#infra/database/prisma.js', async () => {
 const execution = vi.hoisted(() => ({
   worker: vi.fn(),
   rename: vi.fn(),
-  curator: vi.fn(),
 }));
 vi.mock('../src/server.js', () => ({ buildApp: vi.fn() }));
 vi.mock('#jobs/worker.js', () => ({ runWorker: execution.worker }));
 vi.mock('#strategy/definitions/naming.js', () => ({
   refreshStrategyName: execution.rename,
 }));
-vi.mock('#research/curator/prepare.js', () => ({ prepareResearchCuratorRun: execution.curator }));
 
 import { prisma } from '#infra/database/prisma.js';
-import type { PreparedResearchCuratorRun } from '#research/curator/prepare.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { strategyBacktestLifecycle } from '#strategy/backtests/job-lifecycle.js';
 import { JobLogs } from '#jobs/job-logs.js';
 import { JobService } from '#jobs/job-service.js';
 
-const kinds = ['backtest', 'factor-analysis', 'strategy-scan', 'research-curator'] as const;
+const kinds = ['backtest', 'factor-analysis', 'strategy-scan'] as const;
 type Kind = (typeof kinds)[number];
 const summary: BacktestSummary = {
   name: 'Fixture',
@@ -68,7 +65,6 @@ const links = {
   backtest: 'backtestReportId',
   'factor-analysis': 'factorReportId',
   'strategy-scan': 'strategyScanReportId',
-  'research-curator': 'researchCuratorRunId',
 };
 
 async function entityStatus(kind: Kind): Promise<string> {
@@ -128,31 +124,7 @@ function payload(kind: Kind): Prisma.InputJsonValue {
         parameters: {},
         ranges: { full: { start: '20240101', end: '20240102' } },
       };
-    case 'research-curator':
-      return { runId: ids['research-curator'] };
   }
-}
-function preparedCuratorRun(runId: string): PreparedResearchCuratorRun {
-  return {
-    runId,
-    userId: 'owner',
-    evidenceCount: 4,
-    findings: ['a', 'b', 'c'].map((key) => ({
-      id: `${runId}-${key}`,
-      userId: 'owner',
-      runId,
-      category: 'documentation_gap',
-      title: `Finding ${key}`,
-      summary: 'Fixture',
-      evidence: [],
-      verification: {},
-      confidence: 0.8,
-      expectedValue: 'Fixture',
-      changeSurface: [],
-      suggestedAction: 'Review',
-      fingerprint: `finding-${key}`,
-    })),
-  };
 }
 
 async function complete(kind: Kind, status: 'done' | 'error') {
@@ -163,11 +135,7 @@ async function complete(kind: Kind, status: 'done' | 'error') {
     execution.worker.mockResolvedValueOnce('{"score":1}');
   }
   if (status === 'error') {
-    if (kind === 'research-curator') {
-      execution.curator.mockRejectedValueOnce(new Error('job failure'));
-    } else {
-      execution.worker.mockRejectedValueOnce(new Error('job failure'));
-    }
+    execution.worker.mockRejectedValueOnce(new Error('job failure'));
   }
   return executeFixtureJob(ids[kind]);
 }
@@ -200,7 +168,6 @@ describe('durable job and business lifecycle transactions', () => {
       dataCutoff: '20240101',
     });
     execution.rename.mockReset().mockResolvedValue(false);
-    execution.curator.mockReset().mockImplementation(async (runId) => preparedCuratorRun(runId));
     sequence += 1;
     ids = Object.fromEntries(kinds.map((kind) => [kind, `${kind}-${sequence}`])) as Record<
       Kind,
@@ -247,14 +214,6 @@ describe('durable job and business lifecycle transactions', () => {
         codeHash: 'hash',
       },
     });
-    await prisma.researchCuratorRun.create({
-      data: {
-        id: ids['research-curator'],
-        userId: 'owner',
-        cursorTo: new Date(),
-        legacyStatus: 'running',
-      },
-    });
 
     for (const kind of kinds) {
       await prisma.job.create({
@@ -294,7 +253,7 @@ describe('durable job and business lifecycle transactions', () => {
   afterEach(async () => {
     vi.useRealTimers();
     await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS reject_job_terminal');
-    await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS reject_curator_update');
+    await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS reject_job_update');
   });
   afterAll(async () => {
     await prisma.$disconnect();
@@ -497,9 +456,7 @@ describe('durable job and business lifecycle transactions', () => {
     expect(await JobService.recoverInterrupted()).toBe(kinds.length - 1);
     expect(await entityStatus('backtest')).toBe('stale');
     expect(await entityStatus('strategy-scan')).toBe('running');
-    for (const kind of ['factor-analysis', 'research-curator'] as const) {
-      expect(await entityStatus(kind)).toBe('stale');
-    }
+    expect(await entityStatus('factor-analysis')).toBe('stale');
     expect(
       (await prisma.job.findUniqueOrThrow({ where: { id: ids['strategy-scan'] } })).status,
     ).toBe('queued');
@@ -508,7 +465,7 @@ describe('durable job and business lifecycle transactions', () => {
 
   it('rolls back earlier recovery updates if a later entity update fails', async () => {
     await prisma.$executeRawUnsafe(
-      "CREATE TRIGGER reject_curator_update BEFORE UPDATE ON Job BEGIN SELECT RAISE(ABORT, 'fixture failure'); END",
+      "CREATE TRIGGER reject_job_update BEFORE UPDATE ON Job BEGIN SELECT RAISE(ABORT, 'fixture failure'); END",
     );
     await expect(JobService.recoverInterrupted()).rejects.toThrow();
     for (const kind of kinds) {
@@ -517,34 +474,39 @@ describe('durable job and business lifecycle transactions', () => {
     expect(await prisma.job.count({ where: { status: 'running' } })).toBe(kinds.length);
   });
 
-  it('rejects a retired queued signal without invoking a Worker or changing other jobs', async () => {
-    const before = await prisma.job.findMany({ orderBy: { id: 'asc' } });
-    await prisma.job.create({
-      data: {
-        id: 'retired-signal',
-        userId: 'owner',
-        kind: 'signal',
-        key: 'old-run',
-        status: 'queued',
-        payload: { task: 'signal', runId: 'old-run' },
-      },
-    });
+  it.each(['signal', 'research-curator'])(
+    'rejects a retired queued %s without invoking a Worker or changing other jobs',
+    async (kind) => {
+      const before = await prisma.job.findMany({ orderBy: { id: 'asc' } });
+      await prisma.job.create({
+        data: {
+          id: 'retired-signal',
+          userId: 'owner',
+          kind,
+          key: 'old-run',
+          status: 'queued',
+          payload: { task: 'signal', runId: 'old-run' },
+        },
+      });
 
-    await executeFixtureJob('retired-signal');
+      await executeFixtureJob('retired-signal');
 
-    expect(await prisma.job.findUniqueOrThrow({ where: { id: 'retired-signal' } })).toMatchObject({
-      status: 'error',
-      error: 'Unsupported queued job kind: signal',
-      finishedAt: expect.any(Date),
-    });
-    expect(execution.worker).not.toHaveBeenCalled();
-    expect(
-      await prisma.job.findMany({
-        where: { id: { not: 'retired-signal' } },
-        orderBy: { id: 'asc' },
-      }),
-    ).toEqual(before);
-  });
+      expect(await prisma.job.findUniqueOrThrow({ where: { id: 'retired-signal' } })).toMatchObject(
+        {
+          status: 'error',
+          error: `Unsupported queued job kind: ${kind}`,
+          finishedAt: expect.any(Date),
+        },
+      );
+      expect(execution.worker).not.toHaveBeenCalled();
+      expect(
+        await prisma.job.findMany({
+          where: { id: { not: 'retired-signal' } },
+          orderBy: { id: 'asc' },
+        }),
+      ).toEqual(before);
+    },
+  );
 
   it('fails every persisted link atomically even with corrupt kind and payload', async () => {
     await prisma.job.deleteMany();
@@ -558,13 +520,12 @@ describe('durable job and business lifecycle transactions', () => {
         factorReportId: ids['factor-analysis'],
         backtestReportId: ids.backtest,
         strategyScanReportId: ids['strategy-scan'],
-        researchCuratorRunId: ids['research-curator'],
       },
     });
     await prisma.job.update({ where: { id: 'broken' }, data: { status: 'queued' } });
     expect(await JobService.claim('broken')).toBe(true);
     await prisma.$executeRawUnsafe(
-      "CREATE TRIGGER reject_curator_update BEFORE UPDATE ON Job BEGIN SELECT RAISE(ABORT, 'fixture failure'); END",
+      "CREATE TRIGGER reject_job_update BEFORE UPDATE ON Job BEGIN SELECT RAISE(ABORT, 'fixture failure'); END",
     );
     await expect(JobService.execute('broken')).rejects.toThrow();
     expect((await prisma.job.findUniqueOrThrow({ where: { id: 'broken' } })).status).toBe(
@@ -573,7 +534,7 @@ describe('durable job and business lifecycle transactions', () => {
     for (const kind of kinds) {
       expect(await entityStatus(kind)).toBe('running');
     }
-    await prisma.$executeRawUnsafe('DROP TRIGGER reject_curator_update');
+    await prisma.$executeRawUnsafe('DROP TRIGGER reject_job_update');
     await executeFixtureJob('broken');
     for (const kind of kinds) {
       expect(await entityStatus(kind)).toBe('error');
@@ -603,81 +564,6 @@ describe('durable job and business lifecycle transactions', () => {
       'Unsupported queued job kind: toString',
     );
     expect(await entityStatus('backtest')).toBe('error');
-  });
-
-  it('commits Curator findings, statistics, run and Job together', async () => {
-    await complete('research-curator', 'done');
-    expect(await prisma.researchCuratorFinding.count()).toBe(3);
-    expect(
-      await prisma.researchCuratorRun.findUnique({ where: { id: ids['research-curator'] } }),
-    ).toMatchObject({
-      legacyStatus: 'running',
-      evidenceCount: 4,
-      findingsCreated: 3,
-      duplicatesSkipped: 0,
-    });
-    expect(await prisma.job.findUnique({ where: { id: ids['research-curator'] } })).toMatchObject({
-      status: 'done',
-    });
-  });
-
-  it('rolls back every Curator finding and statistic when Job completion fails', async () => {
-    await prisma.$executeRawUnsafe(
-      "CREATE TRIGGER reject_job_terminal BEFORE UPDATE OF status ON Job WHEN NEW.status = 'done' BEGIN SELECT RAISE(ABORT, 'completion rejected'); END",
-    );
-    await complete('research-curator', 'done');
-    expect(await prisma.researchCuratorFinding.count()).toBe(0);
-    expect(
-      await prisma.researchCuratorRun.findUnique({ where: { id: ids['research-curator'] } }),
-    ).toMatchObject({
-      legacyStatus: 'running',
-      evidenceCount: 0,
-      findingsCreated: 0,
-      duplicatesSkipped: 0,
-    });
-    expect(await prisma.job.findUnique({ where: { id: ids['research-curator'] } })).toMatchObject({
-      status: 'error',
-    });
-  });
-
-  it('rechecks persisted fingerprints at commit time and deduplicates within the candidate batch', async () => {
-    await prisma.researchCuratorRun.create({
-      data: { id: 'earlier-run', userId: 'owner', legacyStatus: 'done', cursorTo: new Date() },
-    });
-    execution.curator.mockImplementationOnce(async (runId) => {
-      const prepared = preparedCuratorRun(runId);
-      // Simulate another publication after candidate preparation, before this completion transaction.
-      await prisma.researchCuratorFinding.create({
-        data: { ...prepared.findings[0]!, id: 'earlier-finding', runId: 'earlier-run' },
-      });
-      prepared.findings.push({ ...prepared.findings[1]!, id: 'duplicate-in-batch' });
-      return prepared;
-    });
-    await complete('research-curator', 'done');
-    expect(
-      await prisma.researchCuratorRun.findUnique({ where: { id: ids['research-curator'] } }),
-    ).toMatchObject({ legacyStatus: 'running', findingsCreated: 2, duplicatesSkipped: 2 });
-    expect(await prisma.researchCuratorFinding.count()).toBe(3);
-    expect(
-      await prisma.researchCuratorFinding.findUnique({ where: { id: 'earlier-finding' } }),
-    ).toMatchObject({ runId: 'earlier-run' });
-  });
-
-  it('does not publish Curator candidates if the final run update fails', async () => {
-    await prisma.$executeRawUnsafe(
-      "CREATE TRIGGER reject_curator_update BEFORE UPDATE ON ResearchCuratorRun WHEN NEW.findingsCreated > 0 BEGIN SELECT RAISE(ABORT, 'run completion rejected'); END",
-    );
-    await complete('research-curator', 'done');
-    expect(await prisma.researchCuratorFinding.count()).toBe(0);
-    expect(await entityStatus('research-curator')).toBe('error');
-  });
-
-  it('finalizes active Curator failure and Job logs in one failure transaction', async () => {
-    await complete('research-curator', 'error');
-    expect(await entityStatus('research-curator')).toBe('error');
-    const job = await prisma.job.findUniqueOrThrow({ where: { id: ids['research-curator'] } });
-    expect(job).toMatchObject({ status: 'error', error: 'job failure' });
-    expect(JSON.parse(job.logs!).length).toBeGreaterThan(0);
   });
 
   it.each(['success', 'failed-create', 'failed-overwrite'] as const)(

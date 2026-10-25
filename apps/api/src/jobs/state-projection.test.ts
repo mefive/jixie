@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { backtestReportState } from '#strategy/backtests/state.js';
 import { factorReportState } from '#factor/evaluations/state.js';
-import { researchCuratorRunState } from '#research/curator/state.js';
 
 describe('authoritative execution status', () => {
   it('ignores a legacy success mirror when a linked Job fails', () => {
@@ -38,6 +37,5 @@ describe('authoritative execution status', () => {
   it('projects queue vocabulary per existing public contract', () => {
     const row = { legacyStatus: null, legacyError: null, job: { status: 'queued', error: null } };
     expect(backtestReportState(row).status).toBe('running');
-    expect(researchCuratorRunState(row).status).toBe('queued');
   });
 });

@@ -7,7 +7,7 @@
 ## 当前裁剪决定
 
 2026-10-25 已收口的产品范围见 [系统功能裁剪计划](docs/design/system-simplification-plan.md)，按
-review-gated-development 工作流实施中：Signals、Sharing 已通过人工 review、测试、构建及浏览器验收，其余裁剪尚未实施。因子采用“编辑草稿 → 分析 → 发布版本”，发布时固定代码和关联
+review-gated-development 工作流实施中：Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review、测试、构建及浏览器验收，其余裁剪尚未实施。因子采用“编辑草稿 → 分析 → 发布版本”，发布时固定代码和关联
 分析结果；封存和发布合并，holdout 产品流程整体删除。下文已有能力和旧路线条目中的 holdout 要求属于
 裁剪前设计，不作为新实现的准入条件；其他受影响条目随对应实现提交更新。
 
@@ -78,9 +78,9 @@ Sharpe 与 Calmar 是结果指标，不是允许反复拟合历史的优化目�
 ### C. 对话式数据分析基础 ✅
 
 - 统一 Agent、多轮持久化与流式续接；
-- 白名单只读 SQL，以及 Factor / Strategy 内可留存输入的嵌入式 Python 分析；
+- 证券检索、数据覆盖、股票池，以及 Factor / Strategy 内可留存输入的嵌入式 Python 分析；
 - Strategy Agent 生成和校验代码，由用户在工作台显式回测；Factor Agent 保留受约束的正式探索段因子分析；
-- 新分析保留实际输入和输出；历史 SQL/计算图卡片保持重查兼容并明确提示当前数据，原始大数据不进入模型上下文。
+- 新分析保留实际输入和输出；旧 SQL／计算图不再执行或重查，历史消息保留，原始大数据不进入模型上下文。
 
 依据：`docs/design/unified-agent.md`、`docs/design/agent-code-tool.md`、
 `docs/design/computed-chart.md`、`docs/design/agent-research-loop.md`。
@@ -147,26 +147,9 @@ Agent 工具与共享类型中删除。Research 不再要求用户把问题套�
 `ResearchDocument` 当前态与不可变 `ResearchExecution` 完整运行快照；用户需要复查时重新干净运行全文，
 分别查看快照，不建设隐藏的结果层。
 
-### 1.3 研究整理 Agent（Research Curator） ✅
+### 1.3 研究整理 Agent（Research Curator，已退役）
 
-单独的后台 Agent 增量梳理聊天和 turn trace，发现重复研究模式、临时计算、数据缺口、概念文档缺口和工具
-问题，并用本地 schema、数据能力目录、Tushare 能力目录、代码、帮助和 ROADMAP 做只读核验。
-
-它采用“确定性提取 → LLM 归纳 → 工具核验 → 人工分流”的闭环，不自动改库、抓取全量数据、修改 ROADMAP
-或发布功能。先提供手动触发，经过建议接受率、重复率和核验错误率评估后，再增加默认每周增量摘要；每日运行
-仅作为达到新对话阈值时的可配置选项。
-
-**完成定义**：每条发现都给出原始证据、核验结果、重复情况、置信度和建议动作；用户可接受、拒绝、延后或
-标记重复。权限严格限于当前用户，跨用户聚合必须匿名化并由管理员显式开启。
-
-手动闭环已落地：按完成游标增量读取当前用户的研究消息和失败工具 trace，经严格 JSON
-归纳后，用登记的 Research 能力、只读本地数据目录、版本化 Tushare 能力目录及其持久化探测结果做确定性核验，
-并只读检索代码、帮助、ROADMAP 和设计文档。运行、原始证据、支持/限制核验依据、候选、跨运行指纹去重、人工
-分流和独立的核验正确性反馈均持久化，并复用可恢复后台 Job。界面持续统计接受率、重复率和核验错误率，在至少
-20 项已审候选和 20 项人工核验前只显示“积累样本”，不对质量作武断结论。
-
-每周调度不是手动版遗留开发项：只有真实样本达到上述规模并完成质量复盘后才另行评估是否启用。每日触发保持
-关闭，也不进入当前默认行为。Curator 始终不提供自动改库、全量同步、ROADMAP 修改、发布或转因子动作。
+已确认整体删除研究整理入口、建议生成、核验、人工反馈与专用后台任务／数据。人工 review、迁移及回归验证通过；历史设计保留在 git 和设计记录中。普通研究文档、Agent、数据目录与 Python 分析继续保留。
 
 ### 1.4 研究语义目录持续维护（长期 TODO）
 
@@ -176,8 +159,7 @@ Agent 工具与共享类型中删除。Research 不再要求用户把问题套�
 
 **持续完成定义**：新增或实质改变一个研究数据域时，同一变更必须判断其公开语义，并补齐稳定 ID、单位、频率、
 PIT/vintage/revision、确定性 loader、适用对象/变换、中英文说明和真实 fixture。纯存储优化不新增语义项；语义变化
-即使不改表也必须升级版本。Research Curator 持续发现本地已有但目录不可达的数据缺口，人工确认后进入正常
-开发流程。
+即使不改表也必须升级版本。发现本地已有但目录不可达的数据缺口时，由人工确认并进入正常开发流程。
 
 已建立无向量的语义解析基础：版本化 `ResearchConceptRegistry` 管理概念、别名与不可替代关系；
 `ResearchPlaybookRegistry` 通过 Tool 按需向 LLM 提供领域研究策略，它不是 Agent 框架 Skill；
@@ -366,8 +348,7 @@ Rank IC 在探索和唯一正式 Holdout 分别为 0.03775 和 0.03469，均通�
 
 已落地版本化 DataContract / SourceDecision / Fixture 注册表：稳定身份、生命周期、时区与 DST、交易日归属、
 跨市场可得顺序、币种与 FX、公司行动、total return、宏观 vintage、修订和 `availableDate` 均为显式字段。
-现有 Concept Binding 从同一注册表派生契约，Research Catalog 向 Agent 暴露集成/计划边界，Research Curator
-也用同一矩阵核验后续数据建议。`000001.SZ`、`00001.HK`、`AAPL`、中债 10 年国债曲线和 `AU.SHF`
+现有 Concept Binding 从同一注册表派生契约，Research Catalog 向 Agent 暴露集成/计划边界。`000001.SZ`、`00001.HK`、`AAPL`、中债 10 年国债曲线和 `AU.SHF`
 fixture 已验证真实市场差异；港美股来源只登记为已核验官方能力的候选，正式权限、退市/PIT 完整性与再分发权
 未通过前不会被标成可执行本地能力。设计与当期官方证据见
 [跨市场数据契约与数据源矩阵](docs/design/cross-market-data-contracts.md)。
@@ -564,7 +545,7 @@ TypeScript / Python 边界使用十进制字符串与明确 scale，不通过 JS
 |---|---|---|---|
 | 1 | 1.5 M0–M3 响应式研究文档 | ✅ | Markdown / Python、Agent、运行与快照主闭环已完成 |
 | 2 | 1.5 M4 Factor / Strategy 血缘交接 | ✅ | Python Factor / Strategy 草稿与来源快照交接已闭环 |
-| 3 | 1.3 Research Curator 手动版 | ✅ | 已能发现并核验可沉淀的方法、数据和文档缺口 |
+| 3 | 1.3 Research Curator 退役 | ✅ | 整体删除并通过人工 review、隔离库升级与浏览器验证 |
 | 4 | 1.4 研究语义目录持续维护 | 🚧 | A 股截面、月末 Panel 与 ETF 代表池已完成，后续仍由真实研究问题触发 |
 | 5 | 3.1 跨市场数据契约与数据源矩阵 | ✅ | 中港美股债商扩展的共同前置，先防语义债 |
 | 6 | 2.1 双语学习路径的第一批内容 | 🚧 | 七条路径已覆盖描述性研究、策略、股票因子、信号、配置、商品 Carry 和首个正面准入，后续按真实练习补齐其他主题 |

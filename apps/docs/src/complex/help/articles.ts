@@ -147,8 +147,6 @@ import researchAgentCollaborationEn from '@src/content/help/en/research/agent-co
 import researchAgentCollaborationZh from '@src/content/help/zh/research/agent-collaboration.md?raw';
 import researchClarificationsEn from '@src/content/help/en/research/clarifications.md?raw';
 import researchClarificationsZh from '@src/content/help/zh/research/clarifications.md?raw';
-import researchCuratorEn from '@src/content/help/en/research/curator.md?raw';
-import researchCuratorZh from '@src/content/help/zh/research/curator.md?raw';
 import researchDataCatalogEn from '@src/content/help/en/research/data-catalog.md?raw';
 import researchDataCatalogZh from '@src/content/help/zh/research/data-catalog.md?raw';
 import researchDocumentCellsEn from '@src/content/help/en/research/document-cells.md?raw';
@@ -670,16 +668,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Promote a successful snapshot and generate a Python Factor or Strategy draft for validation.',
     },
     content: { zh: researchHandoffZh, en: researchHandoffEn },
-  },
-  {
-    slug: 'research/curator',
-    group: 'research',
-    title: { zh: '使用研究整理', en: 'Use Research curation' },
-    summary: {
-      zh: '查看重复研究候选、系统能力匹配和人工反馈，不把整理写成自动实施。',
-      en: 'Review recurring candidates, capability matches, and human feedback without treating curation as automatic implementation.',
-    },
-    content: { zh: researchCuratorZh, en: researchCuratorEn },
   },
   {
     slug: 'research/universe',

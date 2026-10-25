@@ -23,7 +23,6 @@ Research 提供带 Markdown / Python Cell 的研究文档、可回看的执行�
 | 新文档示例内容 | [templates](templates/README.md)：模板选择；[FCFF](templates/fcff/README.md)：分类证据和回放案例 |
 | 固化研究生成因子／策略草稿 | [handoff](handoff/README.md)：证据准入、生成与目标模块协作 |
 | Research 对话启动 | [agent](agent/README.md)：文档上下文、澄清和 attempt 解释 |
-| 整理已有研究发现及人工反馈 | [curator](curator/README.md)：候选准备、后台发布和反馈查询 |
 
 ## 主要协作流程
 
@@ -31,11 +30,11 @@ Research 提供带 Markdown / Python Cell 的研究文档、可回看的执行�
 
 Agent 提案通过 proposals 审阅；接受不会自动运行，用户明确发起 attempt 后才走执行计划。attempt 是尝试记录，不替代完整证据。handoff 先查询已有目标草稿，未命中才校验证据并生成，目标模块保存结果。
 
-embedded Job 独立管理版本、取消、预算和输入留存，复用 sandbox／SDK／产物；接续生成普通文档后可用原输入重放。Curator 是另一类 Job，事务外生成候选，完成事务内查重发布发现；两者不改变普通文档直接等待执行结果的方式。
+embedded Job 独立管理版本、取消、预算和输入留存，复用 sandbox／SDK／产物；接续生成普通文档后可用原输入重放。普通文档继续直接等待执行结果。
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 导出 `researchRoute`，组合 document / execution / evidence / proposal / agent / curator / data / language / embedded 九组，挂载 `/api/app/research`。[共享请求契约](../../../../packages/shared/src/api/research.ts) 定义 HTTP 结构与通用校验，[schema.ts](schema.ts) 保留 SDK 引用校验，[errors.ts](errors.ts) 定义执行／审阅业务错误和运行时技术异常，公共 HTTP 边界负责映射；具体业务函数和直接调用方见各子文档。路由迁移范围见 [设计记录](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)，嵌入入口见其能力说明。
+[routes/index.ts](routes/index.ts) 导出 `researchRoute`，组合 document / execution / evidence / proposal / agent / data / language / embedded 八组，挂载 `/api/app/research`。[共享请求契约](../../../../packages/shared/src/api/research.ts) 定义 HTTP 结构与通用校验，[schema.ts](schema.ts) 保留 SDK 引用校验，[errors.ts](errors.ts) 定义执行／审阅业务错误和运行时技术异常，公共 HTTP 边界负责映射；具体业务函数和直接调用方见各子文档。路由迁移范围见 [设计记录](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)，嵌入入口见其能力说明。
 
 普通文档与嵌入内部文档共用部分存储和 runtime，但授权及生命周期分开；普通固化／交接不能读内部嵌入文档。修订号防止旧结果覆盖新内容，冻结快照不随编辑改变。单进程运行锁、数据库事务、Python 通信队列是不同机制，不能互相替代。
 

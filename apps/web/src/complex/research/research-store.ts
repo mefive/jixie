@@ -19,10 +19,6 @@ import {
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
   type ResearchDataCatalogScopeV1,
-  type ResearchCuratorDispositionV1,
-  type ResearchCuratorFindingV1,
-  type ResearchCuratorRunV1,
-  type ResearchCuratorVerificationAssessmentV1,
   type ResearchDocumentInterruptResultV1,
   type ResearchDocumentRunResultV1,
   type ResearchDocumentSummaryV1,
@@ -34,7 +30,7 @@ import {
   type ResearchFactorDraftResultV1,
   type ResearchStrategyDraftResultV1,
 } from '@jixie/shared';
-import { BaseStore, LoaderModel, PollingModel } from '@src/lib';
+import { BaseStore, LoaderModel } from '@src/lib';
 import { ApiError } from '@src/api/client';
 import {
   answerResearchClarification,
@@ -48,9 +44,7 @@ import {
   createResearchStrategyDraft,
   deleteResearchCell,
   deleteResearchDocument,
-  getLatestResearchCuratorRun,
   getResearchExecution,
-  getResearchCuratorRun,
   getResearchDocument,
   interruptResearchDocument,
   listResearchDocuments,
@@ -67,9 +61,7 @@ import {
   runResearchDocument,
   sendResearchAgent,
   searchResearchDataCatalog,
-  startResearchCurator,
   updateResearchCell,
-  updateResearchCuratorFinding,
 } from '@src/api/research';
 import { AgentTurnStream, type AgentTurnHandlers } from '@src/components/agent-turn-stream';
 import i18n from '@src/i18n';
@@ -132,24 +124,6 @@ type ResearchDocumentManagementMutation =
   | { kind: 'restore'; documentId: string }
   | { kind: 'delete'; documentId: string };
 
-/**
- * 区分整理启动和反馈更新，供 Curator 请求。
- *
- * Discriminate curator starts and feedback changes.
- */
-type ResearchCuratorMutation =
-  | { kind: 'start' }
-  | {
-      kind: 'disposition';
-      findingId: string;
-      disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>;
-    }
-  | {
-      kind: 'verification';
-      findingId: string;
-      assessment: ResearchCuratorVerificationAssessmentV1;
-    };
-
 type ResearchCellChangeResolution = {
   kind: 'apply' | 'reject';
   proposalId: string;
@@ -165,8 +139,6 @@ type ResearchCellChangeReviewResolution = {
   proposalId: string;
   expectedContentRevision: number;
 };
-
-const CURATOR_POLL_INTERVAL_MS = 1_000;
 const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 8;
 
 /** Domain state for the reactive research document and its attached Agent conversation. */
@@ -208,9 +180,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     new LoaderModel<ResearchCellChangeReviewResolutionResultV1>();
   public cellChangeRunLoader = new LoaderModel<ResearchCellChangeRunResultV1>();
   public dataCatalogLoader = new LoaderModel<ResearchDataCatalogResultV1>();
-  public curatorLoader = new LoaderModel<ResearchCuratorRunV1 | null>();
-  public curatorMutationLoader = new LoaderModel<ResearchCuratorRunV1 | ResearchCuratorFindingV1>();
-  public curatorPoller = new PollingModel();
   private autosaveTimer: number | null = null;
   private saveChain: Promise<void> = Promise.resolve();
   private queuedCellSaves = new Map<string, Promise<boolean>>();
@@ -249,9 +218,9 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   }
 
   /**
-   * 配置文档、Cell、对话、提案和整理 Loader，并注册轮询与订阅清理。
+   * 配置文档、Cell、对话和提案 Loader，并注册请求与订阅清理。
    *
-   * Initialize document, cell, conversation, proposal and curator loaders with polling and subscription cleanup.
+   * Initialize document, cell, conversation and proposal loaders with request and subscription cleanup.
    */
   public setup(params: ResearchSetupParams) {
     super.setup(params);
@@ -398,37 +367,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       request: ({ query, assetType, scope }: ResearchDataCatalogQuery, signal) =>
         searchResearchDataCatalog(query, assetType, signal, scope),
     });
-    this.curatorLoader.setup({
-      request: (runId?: string) =>
-        runId ? getResearchCuratorRun(runId) : getLatestResearchCuratorRun(),
-    });
-    this.curatorMutationLoader.setup({
-      preserveResult: false,
-
-      /**
-       * 按整理启动或反馈动作分派 Curator 请求。
-       *
-       * Dispatch curator starts and finding feedback mutations.
-       */
-      request: (mutation: ResearchCuratorMutation) => {
-        switch (mutation.kind) {
-          case 'start':
-            return startResearchCurator();
-          case 'disposition':
-            return updateResearchCuratorFinding(mutation.findingId, {
-              disposition: mutation.disposition,
-            });
-          case 'verification':
-            return updateResearchCuratorFinding(mutation.findingId, {
-              verificationAssessment: mutation.assessment,
-            });
-        }
-      },
-    });
-    this.curatorPoller.setup({
-      interval: CURATOR_POLL_INTERVAL_MS,
-      request: () => this.pollCurator(),
-    });
     this.registCleaner(() => this.documentsLoader.cleanup());
     this.registCleaner(() => this.archivedDocumentsLoader.cleanup());
     this.registCleaner(() => this.documentLoader.cleanup());
@@ -447,9 +385,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.cellChangeReviewResolutionLoader.cleanup());
     this.registCleaner(() => this.cellChangeRunLoader.cleanup());
     this.registCleaner(() => this.dataCatalogLoader.cleanup());
-    this.registCleaner(() => this.curatorLoader.cleanup());
-    this.registCleaner(() => this.curatorMutationLoader.cleanup());
-    this.registCleaner(() => this.curatorPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach());
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
       if (this.hasUnsavedDrafts) {
@@ -460,7 +395,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => window.removeEventListener('beforeunload', warnBeforeUnload));
     this.registCleaner(() => this.stopAutosaveTimer());
     void this.documentsLoader.run();
-    void this.loadCurator().catch(() => {});
     if (params.document) {
       void this.openDocument(params.document).catch(() => {});
     } else if (params.backtestReport) {
@@ -1158,39 +1092,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     await this.archivedDocumentsLoader.run();
   }
 
-  public async startCurator() {
-    const result = await this.curatorMutationLoader.run({ kind: 'start' });
-    if (!('findings' in result)) {
-      return;
-    }
-    const run = await this.curatorLoader.run(result.id);
-    if (run && isCuratorActive(run)) {
-      this.curatorPoller.start();
-    }
-  }
-
-  public async setCuratorDisposition(
-    findingId: string,
-    disposition: Exclude<ResearchCuratorDispositionV1, 'pending'>,
-  ) {
-    await this.curatorMutationLoader.run({ kind: 'disposition', findingId, disposition });
-    const runId = this.curatorLoader.result?.id;
-    if (runId) {
-      await this.curatorLoader.run(runId);
-    }
-  }
-
-  public async assessCuratorVerification(
-    findingId: string,
-    assessment: ResearchCuratorVerificationAssessmentV1,
-  ) {
-    await this.curatorMutationLoader.run({ kind: 'verification', findingId, assessment });
-    const runId = this.curatorLoader.result?.id;
-    if (runId) {
-      await this.curatorLoader.run(runId);
-    }
-  }
-
   private clearCurrentDocument() {
     this.documentSwitchGeneration += 1;
     this.turnStream.detach();
@@ -1495,31 +1396,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       },
     };
   }
-
-  private async loadCurator() {
-    const run = await this.curatorLoader.run();
-    if (run && isCuratorActive(run)) {
-      this.curatorPoller.start();
-    }
-  }
-
-  /**
-   * 轮询整理任务并在完成时读取发现，停止无效或终态轮询。
-   *
-   * Poll curation and load completed findings while stopping terminal or invalid polling.
-   */
-  private async pollCurator(): Promise<false | void> {
-    const runId = this.curatorLoader.result?.id;
-    if (!runId) {
-      return false;
-    }
-    try {
-      const run = await this.curatorLoader.run(runId);
-      return isCuratorActive(run) ? undefined : false;
-    } catch {
-      return false;
-    }
-  }
 }
 
 function replaceResearchClarification(
@@ -1564,10 +1440,6 @@ function clarificationAnswerLabel(clarification: ResearchClarificationV1): strin
       })
       .join(useChinese ? '；' : '; ') ?? ''
   );
-}
-
-function isCuratorActive(run: ResearchCuratorRunV1 | null): boolean {
-  return run?.status === 'queued' || run?.status === 'running';
 }
 
 function defaultCellSource(kind: ResearchCellKindV1): string {

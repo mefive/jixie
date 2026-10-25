@@ -20,7 +20,7 @@ describe('Business errors at the HTTP boundary', () => {
     [new FactorError('factor_turn_in_progress'), 409, 'CONFLICT'],
     [new ResearchError('document_run_in_progress'), 409, 'CONFLICT'],
     [new MarketError('start_after_end'), 400, 'VALIDATION_FAILED'],
-    [new AgentError('sql_select_required'), 400, 'VALIDATION_FAILED'],
+    [new AgentError('only_get_subscribe'), 400, 'VALIDATION_FAILED'],
     [new AuthError('login_required'), 401, 'UNAUTHORIZED'],
     [new AuthError('account_disabled'), 403, 'FORBIDDEN'],
     [new AuthError('email_send_failed'), 503, 'SERVICE_UNAVAILABLE'],

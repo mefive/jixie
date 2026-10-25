@@ -137,9 +137,6 @@ try {
   await page.route('**/api/app/research/documents/e2e-affected/executions', (route) =>
     route.fulfill({ json: [] }),
   );
-  await page.route('**/api/app/research/curator/runs/latest', (route) =>
-    route.fulfill({ json: null }),
-  );
   await page.route('**/api/app/agent/turns/active**', (route) =>
     route.fulfill({ json: { turnId: null } }),
   );

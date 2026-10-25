@@ -29,7 +29,7 @@ jixie 的定位已经从境内股票研究工具演进为**个人多市场量化
 
 ## 当前边界
 
-- **不另造一套 Notebook 产品**：现有 Agent 对话、只读 SQL、沙盒计算和计算图卡片已经具备 notebook-like
+- **不另造一套 Notebook 产品**：现有 Agent 对话、Research Python Cell 和嵌入式分析已经具备 notebook-like
   探索能力。下一步优先把对话中的数据、代码、图表和结论冻结成可复现研究记录；只有出现真实交互缺口时，
   才评估单元格、文件式 notebook 或外部 Jupyter 集成。
 - **Python 是正式研究语言之一**：Python 策略适配层已经落地，后续更重要的价值是 NumPy、pandas、

@@ -13,9 +13,9 @@ For example: “Plot the ten groups in this factor report and calculate the high
 
 **Selecting a reference does not fetch data.** In Research, the catalog inserts an SDK call. In chat, it saves the requested source and scope so the Agent can write an explicit Python call. Only **Data actually used** in the run record proves what reached the calculation.
 
-When a material choice is unresolved—currency, adjustment, sample period or a proxy—the Agent should explain the alternatives and ask you to choose. Simple facts and small aggregates can still be queried and answered directly.
+When a material choice is unresolved—currency, adjustment, sample period or a proxy—the Agent should explain the alternatives and ask you to choose. Instrument lookup, data coverage and stock-universe selection use their dedicated tools.
 
-Python reads through SDK methods in the data catalog, not arbitrary SQL query results. The Agent can still query simple facts outside the catalog. If a calculation needs a data interface that is not available, it should explain the gap rather than copy chat-visible rows and present them as complete retained inputs.
+Other facts, calculations and charts use Python SDK methods found in the data catalog. Arbitrary SQL queries are unavailable. If the required data interface is missing, the Agent should explain the gap rather than invent a query or copy chat-visible rows and present them as complete retained inputs.
 
 Current source selection: **1** is the chat toolbar and **2** shows the four source categories. This image shows requested sources, not a successful calculation or retained actual inputs.
 

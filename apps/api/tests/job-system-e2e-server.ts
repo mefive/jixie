@@ -4,7 +4,6 @@ import { createRequire } from 'node:module';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import type { Server } from 'node:http';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
@@ -95,28 +94,9 @@ try {
   model.post('/chat/completions', async (context) => {
     const body = await context.req.json<{ messages: Array<{ content: string }> }>();
     const system = body.messages[0].content;
-    let content: string;
-    if (system.includes('research-product curator')) {
-      const input = JSON.parse(body.messages[1].content) as { evidence: Array<{ id: string }> };
-      await delay(500);
-      content = JSON.stringify({
-        findings: [
-          {
-            category: 'method_candidate',
-            title: '复权收益与滚动相关研究模板',
-            summary: '将已有复权收盘价与滚动相关研究整理为可复现模板。',
-            evidenceIds: input.evidence.map((item) => item.id),
-            confidence: 0.9,
-            expectedValue: '复用已有数据与计算方法。',
-            changeSurface: ['研究方法模板'],
-            suggestedAction: '人工审阅后整理模板。',
-          },
-        ],
-      });
-    } else {
-      assert.ok(system.startsWith('You name A-share strategies.'), 'Unexpected model request');
-      content = system.match(/currently called "([^"]+)"/)?.[1] ?? '每月定投策略';
-    }
+    assert.ok(system.startsWith('You name A-share strategies.'), 'Unexpected model request');
+    const content = system.match(/currently called "([^"]+)"/)?.[1] ?? '每月定投策略';
+
     return context.json({
       choices: [{ message: { role: 'assistant', content }, finish_reason: 'stop' }],
     });
@@ -128,25 +108,6 @@ try {
     const { seedBuiltinFactors } = await import('#factor/definitions/seed.js');
     await seedBuiltinFactors();
     await seedMarket();
-    await prisma.user.create({
-      data: { id: 'curator-reader', email: 'jobs-curator@example.invalid' },
-    });
-    await prisma.agentConversation.create({
-      data: {
-        id: 'curator-evidence',
-        userId: 'curator-reader',
-        surface: 'research',
-        title: '复权收益研究',
-        messages: {
-          create: {
-            id: 'curator-question',
-            role: 'user',
-            sequence: 1,
-            parts: [{ type: 'text', text: '如何复用复权收盘价，计算月收益与滚动相关？' }],
-          },
-        },
-      },
-    });
     const { registerJobLifecycles } = await import('#jobs/register.js');
     const { JobScheduler } = await import('#jobs/job-scheduler.js');
     const { JobService } = await import('#jobs/job-service.js');

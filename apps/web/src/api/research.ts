@@ -1,6 +1,5 @@
 import type {
   ResearchUniverseRequest,
-  ResearchCuratorFindingRequest,
   ResearchDocumentListRequestQuery,
   CreateResearchDocumentRequest,
   CreateResearchCellRequest,
@@ -33,8 +32,6 @@ import type {
   ResearchDataCatalogScopeV1,
   ResearchAssetTypeV1,
   ResearchLanguageResultV1,
-  ResearchCuratorFindingV1,
-  ResearchCuratorRunV1,
   ResearchUniverseRunResultV1,
   UniverseSpecV1,
 } from '@jixie/shared';
@@ -309,28 +306,6 @@ export function renameResearchDocument(documentId: string, title: string): Promi
 export function deleteResearchDocument(documentId: string): Promise<{ ok: true }> {
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}`, {
     method: 'DELETE',
-  });
-}
-
-export function startResearchCurator(): Promise<ResearchCuratorRunV1> {
-  return request('/api/app/research/curator/runs', { method: 'POST' });
-}
-
-export function getLatestResearchCuratorRun(): Promise<ResearchCuratorRunV1 | null> {
-  return request('/api/app/research/curator/runs/latest');
-}
-
-export function getResearchCuratorRun(runId: string): Promise<ResearchCuratorRunV1> {
-  return request(`/api/app/research/curator/runs/${encodeURIComponent(runId)}`);
-}
-
-export function updateResearchCuratorFinding(
-  findingId: string,
-  input: ResearchCuratorFindingRequest,
-): Promise<ResearchCuratorFindingV1> {
-  return request(`/api/app/research/curator/findings/${encodeURIComponent(findingId)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(input satisfies ResearchCuratorFindingRequest),
   });
 }
 

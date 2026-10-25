@@ -34,7 +34,6 @@ describe('calculation tool boundaries', () => {
       'searchInstruments',
       'dataCoverage',
       'runUniverse',
-      'sqlQuery',
     ]);
     const pageProfile = withEmbeddedAnalysis(profile, {
       userId: 'owner',
@@ -55,7 +54,12 @@ describe('calculation tool boundaries', () => {
       'readEmbeddedAnalysis',
     ]);
     expect(new Set(names).size).toBe(names.length);
-    for (const retired of ['analyzeData', 'renderChart', 'renderComputedChart']) {
+    expect(profile.system).toContain('Arbitrary SQL querying is unavailable');
+    expect(pageProfile.system).toContain(
+      'If no SDK method supplies the required data, explain the gap',
+    );
+
+    for (const retired of ['sqlQuery', 'analyzeData', 'renderChart', 'renderComputedChart']) {
       expect(pageProfile.system).not.toContain(retired);
       expect(profile.system).not.toContain(retired);
     }

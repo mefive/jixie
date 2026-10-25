@@ -71,7 +71,6 @@ vi.mock('#jobs/job-logs.js', async (importOriginal) => {
 
 import { t } from '#i18n/index.js';
 import { prisma } from '#infra/database/prisma.js';
-import { submitResearchCuratorRun } from '../curator/submit.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from '../document-runs/run-state.js';
 import { researchRoute } from './index.js';
 
@@ -725,139 +724,17 @@ describe('Research HTTP business boundaries', () => {
     ).toBe(404);
   });
 
-  it('submits a durable Curator job from the last successful cursor and reuses an active run', async () => {
-    const cursor = new Date('2026-09-01T00:00:00Z');
-    await prisma.researchCuratorRun.createMany({
-      data: [
-        { id: 'previous', userId: 'owner', cursorTo: cursor, legacyStatus: 'done' },
-        {
-          id: 'failed',
-          userId: 'owner',
-          cursorTo: new Date('2026-09-02T00:00:00Z'),
-          legacyStatus: 'error',
-        },
-        { id: 'foreign', userId: 'other', cursorTo: new Date(), legacyStatus: 'running' },
-      ],
-    });
-    const response = await request('/curator/runs');
-    expect(response.status).toBe(200);
-    const run = await response.json();
-    expect(await prisma.researchCuratorRun.findUnique({ where: { id: run.id } })).toMatchObject({
-      userId: 'owner',
-      cursorFrom: cursor,
-      legacyStatus: null,
-    });
-    const job = await prisma.job.findFirstOrThrow({ where: { researchCuratorRunId: run.id } });
-    expect(job).toMatchObject({
-      userId: 'owner',
-      status: 'queued',
-      kind: 'research-curator',
-      payload: { runId: run.id },
-    });
-    expect(resources.logs).not.toHaveBeenCalled();
-    expect(resources.wake).toHaveBeenCalledOnce();
-    expect(await (await request('/curator/runs')).json()).toMatchObject({ id: run.id });
-    expect(await prisma.job.count()).toBe(1);
-    expect(resources.wake).toHaveBeenCalledOnce();
-  });
+  it.each([
+    ['POST', '/curator/runs'],
+    ['GET', '/curator/runs/latest'],
+    ['GET', '/curator/runs/old-run'],
+    ['PATCH', '/curator/findings/old-finding'],
+  ])('retires Curator %s %s without changing research data', async (method, path) => {
+    const before = await prisma.researchDocument.findMany();
+    const response = await request(path, undefined, 'owner', method);
 
-  it('scopes Curator reads and feedback by owner and shares the persisted finding view', async () => {
-    expect(
-      await (await request('/curator/runs/latest', undefined, 'owner', 'GET')).json(),
-    ).toBeNull();
-    await prisma.researchCuratorRun.create({
-      data: {
-        id: 'curator-run',
-        userId: 'owner',
-        cursorTo: new Date('2026-09-01T00:00:00Z'),
-        legacyStatus: 'done',
-        evidenceCount: 1,
-        findingsCreated: 1,
-        findings: {
-          create: {
-            id: 'curator-finding',
-            userId: 'owner',
-            category: 'documentation_gap',
-            title: 'Explain adjusted close',
-            summary: 'Clarify the research input.',
-            evidence: [],
-            verification: {},
-            confidence: 0.8,
-            expectedValue: 'Reduce repeated questions.',
-            changeSurface: ['help'],
-            suggestedAction: 'Review a concept article.',
-            fingerprint: 'fixture-finding',
-          },
-        },
-      },
-    });
-    expect(
-      await (await request('/curator/runs/latest', undefined, 'other', 'GET')).json(),
-    ).toBeNull();
-    expect((await request('/curator/runs/curator-run', undefined, 'other', 'GET')).status).toBe(
-      404,
-    );
-    expect(
-      await (await request('/curator/runs/latest', undefined, 'owner', 'GET')).json(),
-    ).toMatchObject({
-      id: 'curator-run',
-      status: 'done',
-      findings: [
-        {
-          id: 'curator-finding',
-          disposition: 'pending',
-          verification: { status: 'unverified', matches: [], notes: [], evidence: [] },
-        },
-      ],
-    });
-
-    const feedbackPath = '/curator/findings/curator-finding';
-    const assessment = { verificationAssessment: 'correct' };
-    expect((await request(feedbackPath, assessment, 'other', 'PATCH')).status).toBe(404);
-    const assessed = await request(feedbackPath, assessment, 'owner', 'PATCH');
-    expect(assessed.status).toBe(200);
-    expect(await assessed.json()).toMatchObject({
-      disposition: 'pending',
-      verificationAssessment: 'correct',
-    });
-    const accepted = await request(
-      feedbackPath,
-      { disposition: 'accepted', note: 'Plan this.' },
-      'owner',
-      'PATCH',
-    );
-    expect(accepted.status).toBe(200);
-    const finding = await accepted.json();
-    expect(finding).toMatchObject({
-      disposition: 'accepted',
-      dispositionNote: 'Plan this.',
-      verificationAssessment: 'correct',
-    });
-    const result = await request('/curator/runs/curator-run', undefined, 'owner', 'GET');
-    expect(result.status).toBe(200);
-    expect(await result.json()).toMatchObject({
-      findings: [finding],
-      quality: { reviewed: 1, accepted: 1, verificationAssessments: 1, verificationErrors: 0 },
-    });
+    expect(response.status).toBe(404);
+    expect(await prisma.researchDocument.findMany()).toEqual(before);
     expect(await prisma.job.count()).toBe(0);
-    expect(resources.wake).not.toHaveBeenCalled();
-  });
-
-  it('rolls back the Curator run when its job cannot be inserted and does not wake the queue', async () => {
-    await prisma.job.create({
-      data: {
-        id: 'existing-job',
-        userId: 'owner',
-        kind: 'research-curator',
-        key: 'default',
-        status: 'queued',
-        payload: {},
-      },
-    });
-    resources.id.mockReturnValueOnce('new-run').mockReturnValueOnce('existing-job');
-    await expect(submitResearchCuratorRun('owner')).rejects.toMatchObject({ code: 'P2002' });
-    expect(await prisma.researchCuratorRun.count()).toBe(0);
-    expect(resources.logs).not.toHaveBeenCalled();
-    expect(resources.wake).not.toHaveBeenCalled();
   });
 });

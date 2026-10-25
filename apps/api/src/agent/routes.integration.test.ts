@@ -9,7 +9,7 @@ import { resolve } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fixture = vi.hoisted(() => ({ directory: '' }));
-const resources = vi.hoisted(() => ({ llm: vi.fn<AgentLlm>(), sql: vi.fn() }));
+const resources = vi.hoisted(() => ({ llm: vi.fn<AgentLlm>() }));
 vi.mock('#infra/database/prisma.js', async () => {
   const { mkdtempSync, writeFileSync } = await import('node:fs');
   const { default: exports } = await import('@prisma/client');
@@ -26,10 +26,6 @@ vi.mock('#infra/database/prisma.js', async () => {
   };
 });
 vi.mock('#infra/llm/deepseek.js', () => ({ chatTools: resources.llm }));
-vi.mock('./tools/sql/read-only-sql.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./tools/sql/read-only-sql.js')>()),
-  runReadOnlySql: resources.sql,
-}));
 
 import { prisma } from '#infra/database/prisma.js';
 import { agentRoute } from './routes/index.js';
@@ -122,7 +118,6 @@ describe('Agent HTTP and durable turn boundaries', () => {
   }, 30_000);
   beforeEach(async () => {
     resources.llm.mockReset().mockResolvedValue({ text: 'Fixture answer.' });
-    resources.sql.mockReset();
     await prisma.user.createMany({
       data: [
         { id: 'owner', email: 'agent-owner@fixture.invalid' },
@@ -367,7 +362,6 @@ describe('Agent HTTP and durable turn boundaries', () => {
       ).toBe(404);
       expect(await prisma.agentConversation.count()).toBe(1);
       expect(await prisma.agentMessage.count()).toBe(1);
-      expect(resources.sql).not.toHaveBeenCalled();
     },
   );
 

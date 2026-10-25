@@ -43,7 +43,6 @@ Embedded 即使 kind/payload 损坏，仍按 researchExecutionId 清理 activeRu
 - `factor/evaluations/job-lifecycle.ts`：分析结果；onFailure 仅为 Worker 错误保存本地化 failureMessage。
 - `factor/correlations/job-lifecycle.ts`：成功 upsert 缓存；失败保留上次成功缓存。
 - `research/embedded/job-lifecycle.ts`：领域结果、证据与首次成功冻结；失败/中断按持久化关系清理。
-- `research/curator/job-lifecycle.ts`：提交时重查 owner/fingerprint，findings 与统计整体保存。
 
 有 Job 的报告从 Job 投影状态；历史无 Job 终态回读 nullable legacyStatus/legacyError。
 Factor 保留 failureMessage。ResearchExecution/CellExecution 为领域结果，Job.done 与 execution.error 可以同时成立。
@@ -73,7 +72,7 @@ WorkerRun 是每次 runWorker 的资源所有者，不参与业务注册。
 回测与扫描的完整结果校验位于各自 result-schema.ts，和 shared/engine 类型做完整结构检查。
 扫描 cell 子进程也共享结果协议；非法消息终止子进程并等待 close 后再失败。
 Factor execution 的协议同时供正式评估和 Weather 使用，仍传输 JSON 字符串结果。
-Embedded 和 Curator 直接调用领域执行函数，没有新增 Worker 协议层。
+Embedded 直接调用领域执行函数，没有新增 Worker 协议层。
 
 ## Job 与 Worker 输入契约
 

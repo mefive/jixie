@@ -54,10 +54,10 @@
     },
     {
       "path": "zh/research/curator-01.png",
-      "articles": ["en/research/curator.md", "zh/research/curator.md"],
+      "articles": [],
       "originalSha256": "ea20d98d9220caf474ca3ea7b2afa7b35648e2da3e336013e08a619abdf47287",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Research Curator was removed in the system simplification.",
       "sha256": "ea20d98d9220caf474ca3ea7b2afa7b35648e2da3e336013e08a619abdf47287"
     },
     {

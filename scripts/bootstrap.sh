@@ -696,7 +696,8 @@ if ((${#PKGS[@]})); then
 fi
 
 # Node 22+:缺失或主版本 <22 则走 NodeSource 装 22.x
-# (node:sqlite 的只读 SQL worker 需要 ≥22.13;Node 20 已于 2026-04 EOL)
+# node:sqlite 数据库维护需要 ≥22.13；Node 20 已于 2026-04 EOL。
+# Database administration uses node:sqlite (≥22.13); Node 20 reached EOL in April 2026.
 NODE_OK=0
 if have node; then
   NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"

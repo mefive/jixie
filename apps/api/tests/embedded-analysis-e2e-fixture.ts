@@ -38,7 +38,9 @@ export async function embeddedModelResponse(context: Context) {
     assert.ok(body.tools?.some((tool) => tool.function.name === 'runEmbeddedAnalysis'));
     assert.ok(
       !body.tools?.some((tool) =>
-        ['analyzeData', 'renderChart', 'renderComputedChart'].includes(tool.function.name),
+        ['sqlQuery', 'analyzeData', 'renderChart', 'renderComputedChart'].includes(
+          tool.function.name,
+        ),
       ),
     );
     calls = ['runtime.python', reportMethod, 'outputs'].map((text, index) => ({

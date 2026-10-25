@@ -1,5 +1,5 @@
-/** Node ≥22.13 的 SQLite 管理与只读查询类型，补充当前 Node 20 类型包。
- * SQLite administration and read-only types for Node ≥22.13, supplementing Node 20 declarations. */
+/** Node ≥22.13 的 SQLite 数据库管理类型，补充当前 Node 20 类型包。
+ * SQLite database administration types for Node ≥22.13, supplementing Node 20 declarations. */
 declare module 'node:sqlite' {
   export type SQLInputValue = null | number | bigint | string | NodeJS.ArrayBufferView;
 

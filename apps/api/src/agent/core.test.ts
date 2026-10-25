@@ -145,7 +145,6 @@ describe('agentTurn(strategyProfile)', () => {
           'searchInstruments',
           'dataCoverage',
           'runUniverse',
-          'sqlQuery',
         ]);
       });
     },
@@ -172,7 +171,7 @@ describe('agentTurn(strategyProfile)', () => {
     });
   });
 
-  it.each(['analyzeData', 'renderChart', 'renderComputedChart'])(
+  it.each(['sqlQuery', 'analyzeData', 'renderChart', 'renderComputedChart'])(
     'rejects a stale %s call without executing it or changing the artifact',
     async (name) => {
       return withDatabase(testDatabase, async () => {
@@ -414,7 +413,7 @@ describe('agentTurn tool loop', () => {
 
   it('repairs plain-text tool protocol before publishing or returning a final reply', async () => {
     return withDatabase(testDatabase, async () => {
-      const leaked = '< | DSML | tool_calls> < | DSML | invoke name="sqlQuery">SELECT * FROM Daily';
+      const leaked = '< | DSML | tool_calls> < | DSML | invoke name="searchInstruments">510300';
       const replies = [leaked, '查询调用失败，暂时无法得出可靠结论。'];
       let call = 0;
       const llm = vi.fn<AgentLlm>(async (_messages, _tools, opts) => {
@@ -438,25 +437,22 @@ describe('agentTurn tool loop', () => {
 
   it('recovers fullwidth DSML requests as whitelisted tool calls', async () => {
     return withDatabase(testDatabase, async () => {
-      const tool = fakeTool('sqlQuery', async (args) => ({
+      const tool = fakeTool('searchInstruments', async (args) => ({
         observation: JSON.stringify({ args }),
         rows: 1,
       }));
       const leaked =
         '先查询两只 ETF。<｜｜DSML｜｜tool_calls>' +
-        '<｜｜DSML｜｜invoke name="sqlQuery"><｜｜DSML｜｜parameter name="sql" string="true">SELECT close FROM etfDaily WHERE ticker = \'510300.SH\'' +
-        '<｜｜DSML｜｜invoke name="sqlQuery"><｜｜DSML｜｜parameter name="sql" string="true">SELECT close FROM etfDaily WHERE ticker = \'518880.SH\'';
-      const llm = scriptedLlm([
-        { text: leaked },
-        { text: '沪深300ETF 与黄金ETF 的近一年表现已经完成比较。' },
-      ]);
+        '<｜｜DSML｜｜invoke name="searchInstruments"><｜｜DSML｜｜parameter name="query" string="true">510300.SH' +
+        '<｜｜DSML｜｜invoke name="searchInstruments"><｜｜DSML｜｜parameter name="query" string="true">518880.SH';
+      const llm = scriptedLlm([{ text: leaked }, { text: '已找到沪深300ETF 与黄金ETF。' }]);
       const onDelta = vi.fn();
 
       const result = await agentTurn(toolProfile([tool], false), [], '查询 ETF', '', llm, {
         hooks: { onDelta },
       });
 
-      expect(result.reply).toContain('已经完成比较');
+      expect(result.reply).toContain('已找到');
       expect(result.attempts).toBe(2);
       expect(result.toolTrace).toHaveLength(2);
       const recoveredRequest = llm.mock.calls[1][0].find(
@@ -466,31 +462,31 @@ describe('agentTurn tool loop', () => {
       if (recoveredRequest?.role === 'assistant') {
         expect(recoveredRequest.content).toBeNull();
         expect(recoveredRequest.toolCalls?.map((call) => JSON.parse(call.args))).toEqual([
-          { sql: "SELECT close FROM etfDaily WHERE ticker = '510300.SH'" },
-          { sql: "SELECT close FROM etfDaily WHERE ticker = '518880.SH'" },
+          { query: '510300.SH' },
+          { query: '518880.SH' },
         ]);
       }
       expect(llm.mock.calls[1][0].filter((message) => message.role === 'tool')).toHaveLength(2);
       expect(onDelta).toHaveBeenCalledOnce();
-      expect(onDelta).toHaveBeenCalledWith('沪深300ETF 与黄金ETF 的近一年表现已经完成比较。');
+      expect(onDelta).toHaveBeenCalledWith('已找到沪深300ETF 与黄金ETF。');
     });
   });
 
   it('asks for a structured retry when serialized protocol cannot be parsed', async () => {
     return withDatabase(testDatabase, async () => {
-      const tool = fakeTool('sqlQuery', async () => ({
-        observation: '{"rows":[{"close":4.7}]}',
+      const tool = fakeTool('searchInstruments', async () => ({
+        observation: '{"rows":[{"tsCode":"510300.SH"}]}',
         rows: 1,
       }));
       const llm = scriptedLlm([
         { text: '<｜｜DSML｜｜tool_calls>' },
-        { toolCalls: [{ id: 'c1', name: 'sqlQuery', args: '{"sql":"SELECT close"}' }] },
-        { text: '沪深300ETF 最新收盘价为 4.7。' },
+        { toolCalls: [{ id: 'c1', name: 'searchInstruments', args: '{"query":"510300"}' }] },
+        { text: '沪深300ETF 的代码为 510300.SH。' },
       ]);
 
       const result = await agentTurn(toolProfile([tool], false), [], '查询 ETF', '', llm);
 
-      expect(result.reply).toContain('4.7');
+      expect(result.reply).toContain('510300.SH');
       expect(result.attempts).toBe(3);
       expect(
         llm.mock.calls[1][0].some(
@@ -503,7 +499,7 @@ describe('agentTurn tool loop', () => {
 
   it('fails the turn when tool protocol still leaks after repair', async () => {
     return withDatabase(testDatabase, async () => {
-      const leaked = '<tool_calls><invoke name="sqlQuery"><parameter name="sql">SELECT 1';
+      const leaked = '<tool_calls><invoke name="searchInstruments"><parameter name="query">510300';
       const llm = scriptedLlm([{ text: leaked }]);
       const onDelta = vi.fn();
 

@@ -109,7 +109,6 @@ describe('research Strategy handoff', () => {
       'searchInstruments',
       'dataCoverage',
       'runUniverse',
-      'sqlQuery',
     ]);
     expect(codegen.mock.calls[0][0][0].content).toContain('Do not run a backtest');
   });

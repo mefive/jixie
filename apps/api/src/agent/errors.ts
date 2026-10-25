@@ -7,38 +7,6 @@ import {
 const definitions = {
   code_proposal_not_found: { category: 'missing', messageKey: 'codeProposalNotFound' },
   code_proposal_conflict: { category: 'conflict', messageKey: 'codeProposalConflict' },
-  sql_single_statement: {
-    category: 'invalid',
-    messageKey: 'sqlSingleStatement',
-  },
-  sql_select_required: {
-    category: 'invalid',
-    messageKey: 'sqlSelectRequired',
-  },
-  sql_forbidden_keyword: {
-    category: 'invalid',
-    messageKey: 'sqlForbiddenKeyword',
-  },
-  sql_forbidden_table: {
-    category: 'invalid',
-    messageKey: 'sqlForbiddenTable',
-  },
-  sql_table_not_allowed: {
-    category: 'invalid',
-    messageKey: 'sqlTableNotAllowed',
-  },
-  sql_limit_exceeded: {
-    category: 'invalid',
-    messageKey: 'sqlLimitExceeded',
-  },
-  sql_execution_invalid: {
-    category: 'invalid',
-    messageKey: 'sqlExecutionInvalid',
-  },
-  sql_timeout: {
-    category: 'invalid',
-    messageKey: 'sqlTimeout',
-  },
   turn_not_found: {
     category: 'missing',
     messageKey: 'turnNotFound',

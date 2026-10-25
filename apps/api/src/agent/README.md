@@ -33,8 +33,7 @@ Strategy 基础 profile 提供查询和代码产物校验；页面单独添加�
 | [conversations/manage.ts](conversations/manage.ts) | 查找/创建实体关联的对话，首次导入既有历史；Research 只复用有效对话 |
 | [conversations/entity-messages.ts](conversations/entity-messages.ts) | 读取实体历史及保留 Strategy/Factor 的 messages 镜像；已发布因子的镜像不可写 |
 | [共享请求契约](../../../../packages/shared/src/api/agent.ts) | 任务及 parts 消息入参校验；退役提示只接受标题 |
-| `tools/sql/` | Agent 只读查询的 SQL 白名单、限额/超时、Worker 和 Node SQLite 类型声明；不提供历史图表 HTTP 接口 |
-| `tools/` 其余具名文件 | 已有数据查询、研究提案、因子分析等工具；工具注册仍由 `tools/index.ts` 组织 |
+| `tools/` 具名文件 | 已有数据查询、研究提案、因子分析等工具；工具注册仍由 `tools/index.ts` 组织 |
 
 ## 读懂一次持久化 turn
 
@@ -57,7 +56,7 @@ Research 继续使用 Cell 修改提案；新提案不再自动应用，只有�
 
 ## Worker 与验证
 
-SQL Worker 使用 Node `DatabaseSync` 的只读连接；主线程负责超时和重建。相对 `DATABASE_URL` 必须继续相对 `apps/api/prisma` 解析，迁移目录时已同步这一资源路径。SQL Worker 保留源码 `.boot.mjs` 与编译 `.js` 入口。
+Agent 只读 SQL 工具、白名单、校验、超时和专用 Worker 已整体退役；旧工具调用由通用白名单返回 Unknown tool，历史轨迹保留。当前查询通过证券检索、数据覆盖、股票池或 Research SDK 完成；缺少接口时明确报告缺口。数据库维护所需的 Node SQLite 类型归 `infra/database/node-sqlite.d.ts`。
 
 2026-09-10 已删除快速回测工具、专用 Worker 和对应测试，旧工具名会被通用工具白名单拒绝；不迁移或删除历史对话轨迹。决策与本次验证记录见 [Agent 研究闭环](../../../../docs/design/agent-research-loop.md)。以下 Commit 10 记录反映退役前的迁移验收。
 
@@ -65,7 +64,7 @@ Commit 10 迁移时保留 core、profile、bus、Research 产物持久化、SQL�
 
 Commit 10 已通过人工 review、201 个文件/1083 项全量 API 测试、Shared/API 构建及 Web 类型检查；源码/编译的真实 SQL、计算图表和快速回测 Worker 验证通过，结果一致且线程/数据库连接已释放。完整记录见 [开发计划](../../../../docs/design/backend-architecture-refactor.md#710-commit-10-实现记录2026-09-09)。
 
-SQL 调用方超时门槛为 10 秒；正在执行原生 SQLite 查询时，Worker terminate 可能延迟到原生调用返回，不能把接口超时理解为 CPU/线程已立即回收。本次保留既有行为，验证中已确认受控慢查询的原线程最终退出，后续查询能重建线程。
+历史 SQL 调用方超时门槛为 10 秒；正在执行原生 SQLite 查询时，Worker terminate 可能延迟到原生调用返回，不能把接口超时理解为 CPU/线程已立即回收。当时保留既有行为，验证中已确认受控慢查询的原线程最终退出，后续查询能重建线程。
 
 
 ## HTTP 路由整理（2026-09-11）

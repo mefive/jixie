@@ -25,10 +25,6 @@ const MESSAGES = {
     zh: '相关性分析需要 2 到 8 个不同因子',
     en: 'Correlation analysis requires 2 to 8 distinct factors.',
   },
-  researchCuratorDispositionInvalid: {
-    zh: '请选择一个明确的处置结果。',
-    en: 'Choose a resolved disposition.',
-  },
   researchLanguagePositionInvalid: {
     zh: '请求的位置超出文档范围',
     en: 'The requested Research Cell position is outside the virtual document.',
@@ -36,31 +32,6 @@ const MESSAGES = {
   researchLanguageRenameInvalid: {
     zh: '重命名必须提供新的符号名称',
     en: 'A new symbol name is required for rename.',
-  },
-
-  sqlSingleStatement: {
-    zh: '只允许一条 SQL 语句（不允许分号）',
-    en: 'Only a single statement is allowed (no semicolons)',
-  },
-  sqlSelectRequired: {
-    zh: '只允许 SELECT 查询（支持 WITH 公共表表达式）',
-    en: 'Only SELECT queries are allowed (a WITH-prefixed CTE is fine)',
-  },
-  sqlForbiddenKeyword: {
-    zh: '只读查询包含禁止使用的关键字：{keyword}',
-    en: 'Query contains a forbidden keyword (read-only): {keyword}',
-  },
-  sqlForbiddenTable: {
-    zh: '不允许访问 {table}，可查询的市场数据表：{tables}',
-    en: 'Access to {table} is not allowed (only market/financial data tables are exposed: {tables})',
-  },
-  sqlTableNotAllowed: {
-    zh: '表 {table} 不在白名单中。可查询：{tables}',
-    en: 'Table {table} is not in the whitelist. Queryable: {tables}',
-  },
-  sqlLimitExceeded: {
-    zh: 'LIMIT 最大为 {limit}，请缩小查询范围或先聚合',
-    en: 'LIMIT max is {limit}; reduce it or aggregate first',
   },
   universeUnknownMeasure: {
     zh: '股票池包含未知指标：{measures}',
@@ -73,14 +44,6 @@ const MESSAGES = {
   universeNumericPredicate: {
     zh: '股票池 V1 的指标条件必须使用数值',
     en: 'Invalid universe spec: V1 universe measures require numeric predicate values',
-  },
-  sqlExecutionInvalid: {
-    zh: 'SQL 无法执行：{diagnostic}',
-    en: 'SQL execution failed: {diagnostic}',
-  },
-  sqlTimeout: {
-    zh: '查询超过 {seconds} 秒，请按日期或证券代码缩小范围',
-    en: 'Query exceeded the {seconds}s timeout; add conditions to narrow the range (filter large tables by tradeDate/tsCode)',
   },
   codeDiagnostics: {
     zh: '代码校验失败：{diagnostic}',
@@ -204,11 +167,6 @@ const MESSAGES = {
   researchCellRevisionConflict: {
     zh: '该 Cell 已在别处更新，请先处理保存冲突',
     en: 'This Cell changed elsewhere; resolve the save conflict before continuing',
-  },
-  researchCuratorRunNotFound: { zh: '研究整理记录不存在', en: 'Research curation run not found' },
-  researchCuratorFindingNotFound: {
-    zh: '研究整理候选不存在',
-    en: 'Research curation finding not found',
   },
   researchLanguageServiceUnavailable: {
     zh: 'Python 语言服务暂不可用，请稍后重试',

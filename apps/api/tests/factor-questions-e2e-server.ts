@@ -66,6 +66,16 @@ async function stop() {
     return;
   }
   stopping = true;
+
+  if (database) {
+    const { withDatabase } = await import('#infra/database/prisma.js');
+    await withDatabase(database, closeFixture);
+  } else {
+    await closeFixture();
+  }
+}
+
+async function closeFixture() {
   if (database) {
     const { cancel } = await import('#agent/turns/bus.js');
     const active = await database.agentTurn.findMany({
@@ -235,7 +245,7 @@ try {
   process.env.DEEPSEEK_BASE_URL = localModel.base;
 
   // Imports occur only after the private DB and local provider are configured; no .env is loaded.
-  const { prisma } = await import('#infra/database/prisma.js');
+  const { prisma, withDatabase } = await import('#infra/database/prisma.js');
   database = prisma;
   const { BUILTIN_FACTORS } = await import('#factor/definitions/builtin-factors.js');
   const factor = BUILTIN_FACTORS.find((item) => item.key === 'ep')!;
@@ -293,7 +303,7 @@ try {
   }
 
   if (embeddedJourney) {
-    await seedEmbeddedStrategies();
+    await withDatabase(prisma, seedEmbeddedStrategies);
   }
   const { buildApp } = await import('../src/server.js');
   const app = buildApp();

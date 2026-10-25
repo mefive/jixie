@@ -12,7 +12,6 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `strategy/scans/job-lifecycle.ts` | `strategy/scans/worker.boot.mjs` → `.ts` | `strategy/scans/worker.js` | 参数扫描线程；同一线程串行调用共享模拟并汇总，异常使用通用 Worker.terminate |
 | `factor/evaluations/job-lifecycle.ts`、`factor/weather/refresh.ts` | `factor/analysis/worker.boot.mjs` → `.ts` | `factor/analysis/worker.js` | 因子分析与天气刷新线程；任务/天气调用方分别拥有最终持久化 |
 | `factor/correlations/job-lifecycle.ts` | `factor/correlations/worker.boot.mjs` → `.ts` | `factor/correlations/worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
-| `agent/tools/sql/read-only-sql.ts` | 同目录 `sql-worker.boot.mjs` → `.ts` | 同目录 `sql-worker.js` | Node SQLite 只读线程，按需创建/重建；原生查询可能使 terminate 延后到查询返回 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
 | `strategy/sandbox/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → strategy-runner.ts/strategy-adapter.ts → SDK Context、账户、选股、周期与指标 | 同目录 `entry.js` → strategy-runner.js/strategy-adapter.js → 对应 SDK .js | esbuild neutral bundle，Runner 绑定能力并显式构造 SDK Context；不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `strategy/simulation/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；StrategySimulation 统一关闭因子与策略沙盒，初始化失败也清理已建立实例 |
@@ -20,7 +19,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `factor/sandbox/typescript/runtime-benchmark.test-worker.mjs` | 性能验证子进程；固定读取 `4464a616` 的 TS Factor 工厂／SDK bundler，和当前 FactorSandbox 比较横截面、窗口、资产序列及日志负载 | 不作为生产入口 | 仅测试；临时旧模块 finally 删除，记录结果哈希、耗时、逻辑载荷字节及新 transport 实测帧字节 |
 | `strategy/sandbox/typescript/runtime-benchmark.test-worker.mjs` | 显式性能验证子进程；固定读取 `2c58693b` 的本次重构前 Sandbox/StrategySandbox/Bridge/prepare/消息循环/诊断辅助，与当前 runtime 分进程比较 watch/dynamic | 不作为生产入口 | 仅测试；历史宿主与沙箱源码一并冻结，两边使用同一当前 Engine 与 fixture；断言 NAV/成交哈希、通信计数及协议变化后的精确字节差值；非字面量 import 指向生成的基线模块，finally 删除临时目录 |
 
-6 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
+4 个开发 `.boot.mjs` 都先注册 tsx，再通过 `import(new URL(...).href)` 加载源文件。它们在边界检查中显示为非字面量导入，需要核对本表；检查器不声称推断任意表达式的运行时路径。
 
 Worker 内的业务计算入口分别是 `factor/analysis/evaluate.ts` 的 `runFactorEvaluation`、
 `strategy/backtests/compute.ts` 的 `runBacktest`、`strategy/scans/compute.ts` 的
@@ -86,8 +85,6 @@ Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续
 | Research 宿主协议 | `research/sandbox/host/` 拥有参数/帧校验与分派；留存输入回放归 research/evidence/input-replay.ts；`sandbox/research-sandbox.ts` 调用它，SDK Python 不反向导入宿主 |
 | 公开 Python stub | `apps/sandboxd/python/jixie_research_sdk.pyi`、`jixie_factor_sdk.pyi` 由 shared Contract 生成；路径移动不得手工改生成结果 |
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |
-| Agent SQL databasePath | `agent/tools/sql/read-only-sql.ts` 将相对数据库 URL 按上述 Prisma 目录转换；与工具目录深度绑定，不能按 cwd 猜测 |
-| Curator 仓库检索 | `research/curator/reference-search.ts` 仍使用约定的 API 工作目录定位项目资料；不是外部任意文件读取服务 |
 | API CLI | `maintenance/cli/data.ts` / `dist/src/maintenance/cli/data.js` 为唯一市场写入口；邀请、审计、探针和零 npm 依赖备份分别保留自身入口与资源收尾，见 [脚本索引](../apps/api/scripts/README.md) |
 
 统一协调器调用各 Market 领域的 `sync-partition.ts`，有限分区准备结果在短事务中与覆盖和失效一起提交；财报以完整版本行接纳。私有派生计算文件仅复制明确市场输入，不包含用户表，finally 关闭 Prisma 并删除文件。业务仍通过 `getDatabase()` 使用显式执行绑定。
@@ -124,7 +121,7 @@ StrategySimulation 在宿主创建一次性 `Simulation`，`run()` 返回模拟�
 
 2026-09-28 命名修订：当前宿主入口为 `backtesting/backtesting-engine.ts` 的 BacktestingEngine，调用方使用 `#backtesting/*`；原 simulation 目录展开到模块根。上述历史旧入口和 benchmark 固定版本路径仅作迁移记录。
 
-旧 Agent 聊天图表 JS 执行器、重查路由和统计库注入已整体移除；历史消息只投影为停用提示。Research Python 图表使用其执行产物；只读 SQL Worker 与 TS Factor/Strategy Transport 继续使用。详见 [退役记录](design/legacy-chat-chart-retirement.md)。
+旧 Agent 聊天图表 JS 执行器、重查路由和统计库注入已整体移除；历史消息只投影为停用提示。Research Python 图表使用其执行产物；只读 SQL Worker 已退役，TS Factor/Strategy Transport 继续使用。详见 [退役记录](design/legacy-chat-chart-retirement.md)。
 
 ## 统一同步与原生锁（本轮待行为验证）
 

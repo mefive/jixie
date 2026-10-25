@@ -584,7 +584,6 @@ describe('Strategy HTTP business boundaries', () => {
         'searchInstruments',
         'dataCoverage',
         'runUniverse',
-        'sqlQuery',
         'searchResearchCatalog',
         'runEmbeddedAnalysis',
         'readEmbeddedAnalysis',

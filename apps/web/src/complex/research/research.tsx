@@ -48,7 +48,6 @@ import {
   faFileLines,
   faFlask,
   faGripVertical,
-  faListCheck,
   faEllipsisVertical,
   faMagnifyingGlass,
   faPaperPlane,
@@ -69,7 +68,6 @@ import { MessageParts } from '@src/components/message-parts';
 import { Markdown } from '@src/components/markdown';
 import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
-import { ResearchCuratorDrawer } from './research-curator-drawer';
 import { ResearchDataCatalogDrawer } from './research-data-catalog-drawer';
 import { ResearchExecutionDrawer } from './research-execution-drawer';
 import { ResearchOutputs } from './research-outputs';
@@ -94,7 +92,6 @@ export const Research = complex.component(() => {
   const { t } = useTranslation('research');
   const navigate = useNavigate();
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [curatorOpen, setCuratorOpen] = useState(false);
   const [dataCatalogOpen, setDataCatalogOpen] = useState(false);
   const [executionHistoryOpen, setExecutionHistoryOpen] = useState(
     Boolean(store.requestedExecutionId),
@@ -195,11 +192,7 @@ export const Research = complex.component(() => {
   };
   return (
     <main className="jx-research">
-      <ResearchSidebar
-        mobileOpen={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        onOpenCurator={() => setCuratorOpen(true)}
-      />
+      <ResearchSidebar mobileOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
       {historyOpen && (
         <button
           className="jx-research-sidebarBackdrop"
@@ -240,7 +233,6 @@ export const Research = complex.component(() => {
           </Splitter.Panel>
         )}
       </Splitter>
-      <ResearchCuratorDrawer open={curatorOpen} onClose={() => setCuratorOpen(false)} />
       <ResearchDataCatalogDrawer open={dataCatalogOpen} onClose={() => setDataCatalogOpen(false)} />
       <ResearchExecutionDrawer
         open={executionHistoryOpen}
@@ -265,15 +257,7 @@ export const Research = complex.component(() => {
  * Present active and archived documents with creation, opening and management actions.
  */
 const ResearchSidebar = complex.component(
-  ({
-    mobileOpen,
-    onClose,
-    onOpenCurator,
-  }: {
-    mobileOpen: boolean;
-    onClose: () => void;
-    onOpenCurator: () => void;
-  }) => {
+  ({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) => {
     const store = complex.useStore();
     const { t } = useTranslation('research');
     const [listState, setListState] = useState<ResearchDocumentListStateV1>('active');
@@ -310,18 +294,6 @@ const ResearchSidebar = complex.component(
                   aria-label={t('workbench.newDocument')}
                   onClick={() => {
                     void store.newDocument();
-                    onClose();
-                  }}
-                />
-              </Tooltip>
-              <Tooltip title={t('curator.open')}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<FontAwesomeIcon icon={faListCheck} />}
-                  aria-label={t('curator.open')}
-                  onClick={() => {
-                    onOpenCurator();
                     onClose();
                   }}
                 />

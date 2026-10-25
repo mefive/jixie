@@ -14,11 +14,6 @@ export const e2eCommands = [
       'Build shared and Web. Real scheduler and Workers against synthetic market data, a local model and a disposable database. Run embedded-analysis separately for the sixth lifecycle.',
   },
   {
-    name: 'research-curator',
-    file: 'apps/web/e2e/research-curator.mjs',
-    group: 'research',
-  },
-  {
     name: 'research-affected',
     file: 'apps/web/e2e/research-affected-run.mjs',
     group: 'research',

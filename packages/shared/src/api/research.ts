@@ -148,19 +148,6 @@ export function createEmbeddedDataReferencesSchema(
 
 export const embeddedDataReferencesSchema = createEmbeddedDataReferencesSchema();
 
-// Curator.
-export const curatorFindingUpdateSchema = z
-  .strictObject({
-    disposition: z.enum(['accepted', 'rejected', 'deferred', 'duplicate']).optional(),
-    note: z.string().trim().max(500).optional(),
-    verificationAssessment: z.enum(['correct', 'incorrect']).optional(),
-  })
-  .refine((input) => input.disposition || input.verificationAssessment, {
-    message: 'disposition or verificationAssessment is required',
-  });
-
-export type ResearchCuratorFindingUpdateInput = z.output<typeof curatorFindingUpdateSchema>;
-
 // Documents and cells.
 export const documentListQuerySchema = z.strictObject({
   state: z.enum(['active', 'archived']).default('active'),
@@ -357,7 +344,6 @@ export type DeriveResearchEmbeddedRequest = z.input<typeof embeddedDeriveSchema>
 export type RunResearchEmbeddedRequest = z.input<typeof embeddedRunSchema>;
 export type ResearchEmbeddedPageRequestQuery = z.input<typeof embeddedPageSchema>;
 export type ResearchEmbeddedListRequestQuery = z.input<typeof embeddedListSchema>;
-export type ResearchCuratorFindingRequest = z.input<typeof curatorFindingUpdateSchema>;
 export type ResearchDocumentListRequestQuery = z.input<typeof documentListQuerySchema>;
 export type CreateResearchDocumentRequest = z.input<typeof createDocumentSchema>;
 export type CreateResearchCellRequest = z.input<typeof createCellSchema>;
