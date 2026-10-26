@@ -63,9 +63,12 @@ try {
       method: 'POST',
       body: JSON.stringify({ clean: true }),
     });
-    if (run.execution?.status !== 'success' || run.execution.executedCellCount !== 29) {
+    if (
+      run.executedCellIds.length !== 29 ||
+      run.document.cells.some((cell) => cell.status !== 'success')
+    ) {
       throw new Error(
-        `${replayCase.companyName} clean run failed: ${JSON.stringify(run.execution)}`,
+        `${replayCase.companyName} clean run failed: ${JSON.stringify(run.document)}`,
       );
     }
 
@@ -131,7 +134,7 @@ try {
       ),
       ...replayCase,
       documentId: document.id,
-      executionId: run.execution.id,
+      contentRevision: run.document.contentRevision,
       scenarioCellId: scenarioCell.id,
       reviewCellId: reviewCell.id,
       scenarioOutput,
@@ -186,7 +189,7 @@ try {
       results.map((result) => ({
         company: result.companyName,
         identifier: result.identifier,
-        executionId: result.executionId,
+        contentRevision: result.contentRevision,
         scenarios: result.scenarioOutput.rows.map((row) => ({
           name: row.scenario,
           perShareValueCny: row.per_share_value_cny,

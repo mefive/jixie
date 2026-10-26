@@ -1,66 +1,30 @@
-# Inspect data in Factor and Strategy conversations
+# Inspect data in Factor and Strategy chats
 
-In Factor Research or the strategy workbench, ask the Agent for a bounded calculation on existing data. An embedded analysis card keeps the table, chart or value in the conversation. Open **Code, sources and history** to inspect its Python, parameters, actual inputs and errors.
+Ask the Agent for a bounded Python calculation on an existing report or selected data. The chat card shows tables, charts, values or errors. Select **Code and results** to inspect current Python and parameters.
 
-For example: “Plot the ten groups in this factor report and calculate the highest group minus the lowest.” For repeated method changes or a document combining tables and conclusions, continue from the card into Research.
+## Reference data
 
-## Start from a question
+Select a completed report in Factor or Strategy, or use **Reference data** to choose objects, dates, frequency and fields. Each turn accepts up to eight references. A selection describes a request; Python SDK calls fetch the actual data. Deleted reports and changed permissions make those reads fail.
 
-- Open a preset, custom or composite factor to discuss its definition or an existing report. Custom factor authoring continues to use the main code editor.
-- Open a strategy and a completed backtest report to inspect saved equity, returns or trades. This analysis does not rerun the strategy.
-- A selected completed report is referenced by default. Clear **Use selected report** to omit that automatic reference for the next question. Earlier questions retain their original sources.
-- Select **Reference data** beside the composer for other inputs. It uses the same catalog as Research: choose an instrument, dates, frequency, fields or a specific report. A question can reference up to eight requests.
+![Data reference entry](/docs/images/help/en/research/embedded-reference.png)
 
-**Selecting a reference does not fetch data.** In Research, the catalog inserts an SDK call. In chat, it saves the requested source and scope so the Agent can write an explicit Python call. Only **Data actually used** in the run record proves what reached the calculation.
+Security search, coverage and universe screening use dedicated tools. Other calculations use Python SDK methods from the catalog. Arbitrary SQL is unavailable. The Agent should explain missing interfaces rather than invent data.
 
-When a material choice is unresolved—currency, adjustment, sample period or a proxy—the Agent should explain the alternatives and ask you to choose. Instrument lookup, data coverage and stock-universe selection use their dedicated tools.
+## Inspect and edit
 
-Other facts, calculations and charts use Python SDK methods found in the data catalog. Arbitrary SQL queries are unavailable. If the required data interface is missing, the Agent should explain the gap rather than invent a query or copy chat-visible rows and present them as complete retained inputs.
+Check the sample, date alignment, missing values, units and method before interpreting numbers. Successful execution does not establish methodological validity.
 
-Current source selection: **1** is the chat toolbar and **2** shows the four source categories. This image shows requested sources, not a successful calculation or retained actual inputs.
+Successful drafts remain editable. Select **Edit code**, then save and run. Rerunning fetches current data and replaces the draft’s previous ordinary run and Job. Code is current; differing revisions mark output as needing a rerun. Removed run links explicitly fail without substituting another result.
 
-![Current interface and controls](/docs/images/help/en/research/embedded-reference.png)
-
-## Read the evidence
-
-Check the sample and processing method before relying on the value. Details include:
-
-1. The code, parameters, time and status of this exact run.
-2. The host's saved definition, selected report ID and source fingerprint. This is not a snapshot of unsaved editor changes.
-3. Actual SDK arguments, dates, fields, row counts or structured responses, diagnostics and input fingerprints. **View retained input** previews the original response, up to 20,000 characters; its fingerprint covers the full stored response.
-4. Date alignment, missing values, empty samples, constant series, units and costs. These choices belong in readable code and output. A successful execution does not establish a valid method.
-
-An embedded run allows 16 SDK requests, 32 MiB of cumulative input and a 30-second execution budget; queue time is separate. Individual SDK methods and outputs have additional limits. Missing data, limits and execution failures should produce explicit feedback rather than a zero statistic. If no SDK input is recorded, inspect constants or generated data in the code.
-
-The run is saved before the Agent's final explanation. Cards survive reloads. If the answer fails, stops or disconnects, **Analysis history** can recover submitted runs.
-
-## Fixed versions and changes
-
-The first successful run fixes that version's code, parameters and context. Earlier failed or cancelled runs remain available. An unsuccessful version can be edited and retried.
-
-After success, select **Edit as a new version**, change Python or parameters, and run. The new version retains its parent; the original message keeps its original run. Selecting another history entry does not rewrite an earlier answer.
-
-**Run with current data** creates another run and reads currently available data. It preserves the old result. Rerunning an old draft whose source has since changed creates a version from that run's source. To calculate with the original retained inputs, continue in Research.
+Each calculation allows 16 SDK calls, 32 MiB of cumulative responses and 30 seconds of execution, excluding queue time. Limits, cancellation, missing data and calculation errors remain explicit. SDK responses and environment fingerprints are not retained for replay.
 
 ## Continue in Research
 
-Select a successful run with complete retained inputs and choose **Continue in Research**. The editable document contains an explanation, parameters and the original Python. Repeated clicks open the same copy.
+**Continue in Research** copies current code and parameters into an editable document; repeated clicks open the same copy. Successful, failed and cancelled analyses can be copied. Running the copy fetches current data. There is no retained/current input mode and no copy of old inputs or outputs.
 
-The default is **Use retained inputs**. Change the algorithm or add calculations over those inputs; SDK requests must match the original retained requests. New requests or changed arguments fail explicitly instead of silently fetching current data.
+Start formal factor analysis or strategy backtests explicitly in their workbenches. Embedded analysis does not automatically create or publish a Factor or Strategy.
 
-Choose **Fetch current data** when you want new data. Changing modes makes existing Python outputs stale and clears interpreter state, so rerun the document. Full-run history records the input mode and original run ID. The original analysis stays fixed, even if you delete its Research copy.
+Legacy chat charts show their title and retirement notice. Rebuild their calculations in Research when needed.
 
-Retained inputs support recomputation; they do not guarantee bitwise identical results across runtime environments. Ordinary Research documents retain their editing, dependency and execution-history rules.
-
-## Charts in older conversations
-
-Legacy chat charts have been retired. Reopening an older conversation preserves chart titles and shows a retirement notice instead of redrawing the charts. Use Research to build a new calculation when you want to continue the analysis. New embedded analyses retain each run’s outputs and sources and are unaffected by this retirement.
-
-## Move to formal validation
-
-Embedded analysis explains existing samples; it does not automatically create a FactorReport or publish a version. To evaluate a factor, choose dates and parameters in the factor workbench. Run trading-rule backtests explicitly in the strategy workbench.
-
+- [Research documents and current output](/docs/help/research/records)
 - [Use the research data catalog](/docs/help/research/data-catalog)
-- [Research documents and run records](/docs/help/research/records)
-- [Ask the factor Agent to run exploratory analysis](/docs/help/factors/agent-explore-analysis)
-- [Hand research to Factor or Strategy](/docs/help/research/handoff)

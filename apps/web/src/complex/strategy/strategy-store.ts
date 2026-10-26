@@ -22,8 +22,6 @@ import {
   type CostConfig,
   type FactorMeta,
   type LogLine,
-  type ResearchStrategyHandoffV1,
-  type SavedStrategy,
   type StrategyCard,
   type StrategyScanReport,
   type StrategyScanReportSummary,
@@ -86,8 +84,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   public cost: CostConfig = { ...DEFAULT_BACKTEST_COST };
   public code = DEFAULT_CODE;
   public language: StrategyLanguage = 'typescript';
-  public researchHandoff: ResearchStrategyHandoffV1 | null = null;
-  public sourceResearchExecution: SavedStrategy['sourceResearchExecution'] = null;
 
   public nlText = ''; // the Agent chat draft / hero prompt
 
@@ -144,8 +140,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       cost: observable.ref,
       code: observable.ref,
       language: observable.ref,
-      researchHandoff: observable.ref,
-      sourceResearchExecution: observable.ref,
       nlText: observable.ref,
       chatMessages: observable.ref,
       sending: observable.ref,
@@ -668,8 +662,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       this.name = '';
       this.language = language;
       this.code = language === 'python' ? DEFAULT_PYTHON_CODE : DEFAULT_CODE;
-      this.researchHandoff = null;
-      this.sourceResearchExecution = null;
       this.cost = { ...DEFAULT_BACKTEST_COST };
       this.nlText = '';
       this.chatMessages = [];
@@ -846,8 +838,6 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       this.result = s.lastResult ?? null;
       this.activeBacktestReportId = null;
       this.chatMessages = (s.messages ?? []).map(normalizeChatMessage); // restore (upgrades legacy rows)
-      this.researchHandoff = s.researchHandoff ?? null;
-      this.sourceResearchExecution = s.sourceResearchExecution ?? null;
       this.error = null;
       this.savedId = id;
       // A strategy with a result → its config IS the last-run config (not dirty); one never run stays

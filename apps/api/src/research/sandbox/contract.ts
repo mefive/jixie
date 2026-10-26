@@ -1,7 +1,6 @@
 import type { ResearchCellOutputBlockV1, ResearchEmbeddedParametersV1 } from '@jixie/shared';
 import type { SandboxBridge } from '#infra/sandbox/sandbox-bridge.js';
 import type { ResearchPythonAnalysis } from './host/analysis-types.js';
-import type { ResearchRequestObserver } from './host/dispatch.js';
 
 /**
  * 提供 Python Cell 身份与源码，供静态分析。
@@ -30,8 +29,7 @@ export interface ResearchCellRunInput {
  */
 export interface ResearchCellRunOptions {
   signal?: AbortSignal;
-  observer?: ResearchRequestObserver;
-  captureEnvironment?(environment: Record<string, unknown>): Promise<void>;
+  limits?: { sdkRequests: number; inputBytes: number };
 }
 
 /**
@@ -43,7 +41,6 @@ export interface ResearchCellRunResult {
   outputs: ResearchCellOutputBlockV1[];
   definitions: string[];
   references: string[];
-  environmentFingerprint: string;
 }
 
 /**

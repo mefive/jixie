@@ -31,9 +31,6 @@
   max-height: 360px;
   overflow-wrap: anywhere;
 }
-.jx-embedded-input {
-  @apply my-3 border-l-2 border-line pl-3;
-}
 .jx-embedded-editor {
   @apply rounded border border-line p-3;
 }

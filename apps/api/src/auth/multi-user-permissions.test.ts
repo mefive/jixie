@@ -77,7 +77,7 @@ describe('multi-user asset permissions', () => {
     );
   });
 
-  it('returns research handoff metadata only through an owner-scoped Strategy read', async () => {
+  it('returns owned Strategy source without retired research handoff metadata', async () => {
     mocks.strategyFindFirst.mockResolvedValue({
       id: 'strategy-b',
       name: 'Research strategy',
@@ -111,17 +111,13 @@ describe('multi-user asset permissions', () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
       id: 'strategy-b',
-      researchHandoff: { sourceExecutionId: 'execution-b', language: 'python' },
-      sourceResearchExecution: {
-        id: 'execution-b',
-        documentId: 'document-b',
-        promotedAt: '2026-08-19T09:00:00.000Z',
-      },
+      config: { code: 'from jixie import Strategy', language: 'python' },
     });
+    expect(body).not.toHaveProperty('researchHandoff');
+    expect(body).not.toHaveProperty('sourceResearchExecution');
     expect(mocks.strategyFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'strategy-b', userId: 'user-b' },
-        include: expect.objectContaining({ sourceResearchExecution: expect.any(Object) }),
       }),
     );
   });

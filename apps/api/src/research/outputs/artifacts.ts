@@ -13,7 +13,6 @@ export const MAX_PERSISTED_INLINE_RESEARCH_OUTPUT_BYTES = 2 * 1024 * 1024;
 export interface ResearchArtifactCreateInput {
   id: string;
   documentId: string;
-  executionId: string;
   kind: 'image';
   mimeType: 'image/png' | 'image/svg+xml';
   data: Uint8Array<ArrayBuffer>;
@@ -41,7 +40,6 @@ export interface MaterializedResearchOutputs {
 export function materializeResearchOutputArtifacts(
   outputs: ResearchCellOutputBlockV1[],
   documentId: string,
-  executionId: string,
 ): MaterializedResearchOutputs {
   const artifacts: ResearchArtifactCreateInput[] = [];
 
@@ -71,7 +69,6 @@ export function materializeResearchOutputArtifacts(
     artifacts.push({
       id,
       documentId,
-      executionId,
       kind: 'image',
       mimeType: output.mimeType,
       data: Uint8Array.from(data),

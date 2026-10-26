@@ -6,7 +6,6 @@ const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
 mkdirSync(SHOTS, { recursive: true });
 
 const title = '五粮液 FCFF 估值闭环示例';
-const promotedName = '五粮液 FCFF 估值闭环 · 2025 基准版';
 const ownerEmail = `e2e-research-fcff-${Date.now()}@test.com`;
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1600, height: 1400 } });
@@ -48,12 +47,8 @@ try {
     method: 'POST',
     body: JSON.stringify({ clean: true }),
   });
-  if (
-    run.execution?.status !== 'success' ||
-    run.execution.cellCount !== 29 ||
-    run.execution.executedCellCount !== 29
-  ) {
-    throw new Error(`FCFF clean run failed: ${JSON.stringify(run.execution)}`);
+  if (run.document.cells.some((cell) => cell.status !== 'success') || 'execution' in run) {
+    throw new Error(`FCFF current output run failed: ${JSON.stringify(run)}`);
   }
 
   const scenarioCell = findCell(run.document.cells, 'scenario_valuation["scenario_range_low_cny"]');
@@ -114,22 +109,6 @@ try {
   await reviewElement.scrollIntoViewIfNeeded();
   await reviewElement.screenshot({ path: `${SHOTS}research-fcff-narrative-review.png` });
 
-  await page.getByTestId('research-open-execution-history').click();
-  const drawer = page.getByTestId('research-execution-drawer');
-  await drawer.waitFor({ timeout: 30_000 });
-  await drawer.getByTestId('research-execution-item').first().click();
-  const detail = page.getByTestId('research-execution-detail');
-  await detail.waitFor({ timeout: 30_000 });
-  await detail.getByRole('button', { name: '封存为研究版本' }).click();
-  const modal = page.locator('.ant-modal').filter({ hasText: '封存研究版本' });
-  await modal.waitFor();
-  await modal.locator('input').nth(0).fill(promotedName);
-  await modal.locator('input').nth(1).fill('基本面, FCFF, 叙事复查');
-  await modal.locator('textarea').fill('M4 真实纵向案例：保留初始估值与下一年报复查。');
-  await modal.locator('.ant-modal-footer .ant-btn-primary').click();
-  await detail.getByText(promotedName, { exact: true }).waitFor();
-  await modal.waitFor({ state: 'hidden' });
-
   const updated = await api(page, `/api/app/research/cells/${parameterCell.id}`, {
     method: 'PATCH',
     body: JSON.stringify({
@@ -150,28 +129,14 @@ try {
     }
   }
 
-  const frozen = await api(page, `/api/app/research/executions/${run.execution.id}`);
-  const promotedParameterCell = frozen.cells.find((cell) => cell.cellId === parameterCell.id);
-  if (
-    !frozen.promotedAt ||
-    frozen.displayName !== promotedName ||
-    !promotedParameterCell?.source.includes('forecast_years = 5') ||
-    promotedParameterCell.source.includes('forecast_years = 6')
-  ) {
-    throw new Error('FCFF promoted execution did not remain immutable after the draft edit');
-  }
-
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await page.getByTestId('research-open-execution-history').click();
-  const refreshedDrawer = page.getByTestId('research-execution-drawer');
-  await refreshedDrawer.getByTestId('research-execution-item').first().click();
-  const refreshedDetail = page.getByTestId('research-execution-detail');
-  await refreshedDetail.getByText('这是历史运行的只读快照；当前研究草稿已经发生变化。').waitFor();
-  await refreshedDetail.locator('.monaco-editor .view-lines').first().waitFor({ state: 'visible' });
-  await page.screenshot({ path: `${SHOTS}research-fcff-promoted-snapshot.png` });
-
+  await page.getByTestId('research-document').waitFor();
+  if (await page.getByTestId('research-open-execution-history').count()) {
+    throw new Error('Retired history entry remains');
+  }
+  await page.screenshot({ path: `${SHOTS}research-fcff-current-stale.png` });
   console.log(
-    `[research-fcff-valuation-e2e] execution=${run.execution.id} cells=29 scenarios=3 reverse=solved review=4 stale=true promoted=true screenshots=5`,
+    '[research-fcff-valuation-e2e] cells=29 scenarios=3 reverse=solved review=4 stale=true history=removed screenshots=5',
   );
   console.log(
     `[research-fcff-valuation-e2e] result=${JSON.stringify({

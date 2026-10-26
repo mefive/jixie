@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { researchDocumentRoute } from './document.js';
 import { researchExecutionRoute } from './execution.js';
-import { researchEvidenceRoute } from './evidence.js';
+import { researchArtifactRoute } from './artifacts.js';
 import { researchProposalRoute } from './proposal.js';
 import { researchAgentRoute } from './agent.js';
 import { researchDataRoute } from './data.js';
@@ -14,7 +14,7 @@ researchRoute.route('/embedded-analyses', researchEmbeddedRoute);
 
 researchRoute.route('/', researchDocumentRoute);
 researchRoute.route('/', researchExecutionRoute);
-researchRoute.route('/', researchEvidenceRoute);
+researchRoute.route('/', researchArtifactRoute);
 researchRoute.route('/', researchProposalRoute);
 researchRoute.route('/', researchAgentRoute);
 researchRoute.route('/', researchDataRoute);

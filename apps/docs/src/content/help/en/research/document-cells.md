@@ -58,7 +58,7 @@ Markdown does not execute code. A calculation needs a rerun when Python source o
 
 ### Does deleting a Cell delete old results?
 
-It removes that Cell and its output from the editable document. Earlier successful full-run snapshots remain immutable in Full run history.
+It removes that Cell and its output from the editable document. Full-run snapshots and the history drawer are retired. Copy any analysis you need to keep into another document first.
 
 ## Related articles
 

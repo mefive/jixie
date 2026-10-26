@@ -95,8 +95,7 @@ Python 报错会标出 `strategy.py` 的行号。先定位第一条错误，不�
 
 `py-v1` 当前支持股票和 ETF、日线历史窗口、常用指标、预置因子、目标仓位、股数订单和条件单。
 
-从已封存研究版本生成的 Python Strategy 会在代码编辑器上方显示“来自研究版本”。这里可以查看提炼摘要、
-仍待验证事项，并精确回到当时的只读研究快照。该标记只说明代码来源，不表示策略已经回测或通过样本外验证。
+在策略工作台手动创建并审查 Python 草稿；Research 自动交接与来源卡片已移除。
 
 Python 策略也可以按 key 引用自己有权使用的已发布自定义 Factor，因子源码可以是 TypeScript 或 Python。先在 `Strategy(factors=["factor_key"])` 声明依赖，再用 `ctx.factor("factor_key", code)` 读取数值并处理 `None`；Factor 的发布、冻结血缘和数据要求仍然适用。策略语言不等于因子语言，两种 SDK 的代码也不能直接混用。
 

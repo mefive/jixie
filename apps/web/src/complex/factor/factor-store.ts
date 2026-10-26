@@ -34,7 +34,6 @@ import {
   type FactorStatus,
   type PublishedFactor,
   type FactorResearchSpecV1,
-  type ResearchFactorHandoffV1,
   type FactorTimeSeriesReportV1,
   type FactorPanelReportV1,
   type FactorMacroRegimeReportV1,
@@ -113,14 +112,6 @@ type FactorUniverseChoice = 'cn_a' | FactorEquityIndexCode;
  *
  * Retain the frozen research execution behind a factor draft.
  */
-type SourceResearchExecution = {
-  id: string;
-  documentId: string;
-  title: string;
-  displayName: string | null;
-  sequence: number;
-  promotedAt: string | null;
-};
 
 type FactorMethodologyParams = Pick<
   FactorAnalysisSpecV3,
@@ -266,9 +257,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public factorKey = ''; // immutable Factor.key used by strategies
   public factorStatus: FactorStatus = 'draft';
   public approvedReportId: string | null = null;
-  public description = ''; // localized catalog summary generated from the current context
-  public researchHandoff: ResearchFactorHandoffV1 | null = null;
-  public sourceResearchExecution: SourceResearchExecution | null = null;
+  public description = '';
 
   public freq: FactorFreq = 'month';
   public neutral: Neutral = 'none'; // cross-sectional neutralization in the draft analysis spec
@@ -324,8 +313,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       factorStatus: observable.ref,
       approvedReportId: observable.ref,
       description: observable.ref,
-      researchHandoff: observable.ref,
-      sourceResearchExecution: observable.ref,
       freq: observable.ref,
       neutral: observable.ref,
       start: observable.ref,
@@ -939,8 +926,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.factorStatus = meta?.status ?? 'draft';
       this.approvedReportId = meta?.approvedReportId ?? null;
       this.description = meta?.description ?? '';
-      this.researchHandoff = null;
-      this.sourceResearchExecution = null;
       if (!isCustom) {
         this.code = '';
         this.persistedCode = '';
@@ -965,7 +950,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.reportLoader.reset();
       return;
     }
-    let loadedResearchHandoff: ResearchFactorHandoffV1 | null = null;
     try {
       // Presets are code rows too (seeded, readonly) — the same endpoint serves both kinds.
       const factor = await getCustomFactor(key);
@@ -992,10 +976,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.factorStatus = factor.status ?? (factor.builtin ? 'published' : 'draft');
         this.approvedReportId = factor.approvedReportId ?? null;
         this.description = factor.description ?? '';
-        this.researchHandoff = isCustom ? (factor.researchHandoff ?? null) : null;
-        this.sourceResearchExecution = isCustom ? (factor.sourceResearchExecution ?? null) : null;
       });
-      loadedResearchHandoff = isCustom ? (factor.researchHandoff ?? null) : null;
       if (isCustom && !this.qaMode) {
         void this.reattachTurn(); // a live agent turn for this factor? re-subscribe (snapshot replays)
       }
@@ -1022,76 +1003,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     } else {
       runInAction(() => (this.selectedReportId = ''));
       this.reportLoader.reset();
-      this.applyResearchReportSuggestion(loadedResearchHandoff);
     }
-  }
-
-  /**
-   * 将研究交接建议应用到草稿参数，保持方法与来源匹配。
-   *
-   * Apply research handoff suggestions to draft parameters under their method and source constraints.
-   */
-  private applyResearchReportSuggestion(handoff: ResearchFactorHandoffV1 | null) {
-    const suggestion = handoff?.suggestedReport;
-    if (!suggestion || suggestion.analysisKind !== this.definitionAnalysisKind) {
-      return;
-    }
-
-    runInAction(() => {
-      if (suggestion.start) {
-        this.start = suggestion.start;
-      }
-      if (suggestion.end) {
-        this.end = suggestion.end;
-      }
-
-      switch (suggestion.analysisKind) {
-        case 'cross_sectional': {
-          this.specVersion = 6;
-          if (suggestion.observationFrequency === 'monthly') {
-            this.freq = 'month';
-          } else if (suggestion.observationFrequency === 'weekly') {
-            this.freq = 'week';
-          }
-          if (suggestion.equityUniverse) {
-            this.evaluationScope = {
-              ...this.evaluationScope,
-              universe:
-                suggestion.equityUniverse === 'cn_a'
-                  ? { kind: 'market', market: 'cn_a' }
-                  : { kind: 'index', indexCode: suggestion.equityUniverse },
-            };
-          }
-          this.methodology = {
-            ...this.methodology,
-            universe: {
-              ...this.methodology.universe,
-              ...(suggestion.minimumListingDays !== undefined
-                ? { minimumListingDays: suggestion.minimumListingDays }
-                : {}),
-              ...(suggestion.excludeRiskWarnings !== undefined
-                ? { excludeRiskWarnings: suggestion.excludeRiskWarnings }
-                : {}),
-            },
-          };
-          break;
-        }
-        case 'time_series': {
-          if (suggestion.assets?.length) {
-            const allowed = new Set(this.timeSeriesAllowedAssets);
-            const assets = suggestion.assets.filter(
-              (asset): asset is TimeSeriesAsset => isTimeSeriesAsset(asset) && allowed.has(asset),
-            );
-            if (assets.length) {
-              this.timeSeriesAssets = [...new Set(assets)];
-            }
-          }
-          break;
-        }
-        case 'panel':
-          break;
-      }
-    });
   }
 
   /**

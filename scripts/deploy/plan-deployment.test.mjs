@@ -158,8 +158,8 @@ test('business TypeScript SDK and host runtime changes still select only API', (
     'apps/api/src/factor/observations/contract.ts',
     'apps/api/src/factor/observations/cross-sectional/series.ts',
     'apps/api/src/research/sandbox/host/dispatch.ts',
-    'apps/api/src/research/evidence/input-replay.ts',
-    'apps/api/src/research/evidence/input-contract.ts',
+    'apps/api/src/research/outputs/read-artifact.ts',
+    'apps/api/src/research/embedded/job-payload.ts',
   ]) {
     const result = classifyChangedPaths([changedPath], manifest);
     assert.equal(result.api, true);

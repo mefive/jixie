@@ -4,27 +4,19 @@ import { getDatabase } from '#infra/database/prisma.js';
 import type { ResearchDocumentRunResultV1 } from '@jixie/shared';
 import { analyzeAndPersist } from '../dependencies/analyze.js';
 import { assertResearchCellsRunnable } from '../dependencies/runnable.js';
-import {
-  loadResearchExecutionSeed,
-  researchExecutionSourceCellSnapshot,
-} from '../documents/execution-source.js';
+import { loadResearchRunInput } from '../documents/execution-source.js';
 import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
-import { createResearchExecution, finishResearchExecution } from '../evidence/execution-records.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 
-import {
-  type ResearchCellExecutionOutcome,
-  executeResearchCell,
-  executeResearchCellById,
-} from './run-cell.js';
+import { executeResearchCell, executeResearchCellById } from './run-cell.js';
 import { buildResearchDocumentRunResult } from './run-result.js';
 import { finishResearchDocumentRun, startResearchDocumentRun } from './run-state.js';
 
 /**
- * 协调归属与提案审阅约束，按文档顺序执行 Cell；干净运行重置会话并保存不可变执行证据。
+ * 协调归属与提案审阅约束，按文档顺序执行 Cell；干净运行重置会话，运行输入只在本次调用中保存。
  *
- * Coordinate ownership and review guards and run ordered cells; clean runs reset the session and retain immutable execution evidence.
+ * Coordinate ownership and review guards and run ordered cells; clean runs reset the session and keep their input only for the current call.
  */
 export async function runResearchDocument(
   userId: string,
@@ -41,23 +33,14 @@ export async function runResearchDocument(
     }
     await assertNoOpenCellChangeReview(documentId);
     const control = startResearchDocumentRun(documentId);
-    let researchExecutionId: string | undefined;
     try {
       if (clean) {
         await analyzeAndPersist(documentId);
-        const frozen = await loadResearchExecutionSeed(userId, documentId);
-        if (!frozen) {
+        const input = await loadResearchRunInput(userId, documentId);
+        if (!input) {
           throw new ResearchError('document_not_found');
         }
-        assertResearchCellsRunnable(frozen.cells);
-        const researchExecution = await createResearchExecution({
-          documentId,
-          title: frozen.title,
-          contentRevision: frozen.contentRevision,
-          runtimeVersion: frozen.runtimeVersion,
-          cells: frozen.cells.map(researchExecutionSourceCellSnapshot),
-        });
-        researchExecutionId = researchExecution.id;
+        assertResearchCellsRunnable(input.cells);
         await researchSandboxPool.reset(documentId);
         if (!control.interrupted) {
           await getDatabase().researchCell.updateMany({
@@ -72,32 +55,19 @@ export async function runResearchDocument(
         }
 
         const executedCellIds: string[] = [];
-        let finalOutcome: ResearchCellExecutionOutcome = 'success';
-        for (const cell of frozen.cells) {
+        for (const cell of input.cells) {
           if (control.interrupted) {
-            finalOutcome = 'interrupted';
             break;
           }
-          const outcome = await executeResearchCell(cell, control, undefined, researchExecution.id);
+          const outcome = await executeResearchCell(cell, control);
           if (outcome !== 'interrupted') {
             executedCellIds.push(cell.id);
           }
           if (outcome === 'error' || outcome === 'interrupted') {
-            finalOutcome = outcome;
             break;
           }
         }
-        const execution = await finishResearchExecution({
-          executionId: researchExecution.id,
-          status:
-            finalOutcome === 'success'
-              ? 'success'
-              : finalOutcome === 'interrupted'
-                ? 'cancelled'
-                : 'error',
-          executedCellIds,
-        });
-        return buildResearchDocumentRunResult(userId, documentId, executedCellIds, true, execution);
+        return buildResearchDocumentRunResult(userId, documentId, executedCellIds, true);
       }
 
       const document = await getResearchDocument(userId, documentId);
@@ -120,30 +90,6 @@ export async function runResearchDocument(
         }
       }
       return buildResearchDocumentRunResult(userId, documentId, executedCellIds, false);
-    } catch (error) {
-      if (researchExecutionId) {
-        const active = await getDatabase().researchExecution.findUnique({
-          where: { id: researchExecutionId },
-          select: { status: true },
-        });
-        if (active?.status === 'running') {
-          const completedCells = await getDatabase().researchCellExecution.findMany({
-            where: { researchExecutionId, status: { not: 'cancelled' } },
-            orderBy: { startedAt: 'asc' },
-            select: { sourceCellId: true, cellId: true },
-          });
-          await finishResearchExecution({
-            executionId: researchExecutionId,
-            status: control.interrupted ? 'cancelled' : 'error',
-            executedCellIds: completedCells.flatMap((cellExecution) => {
-              const cellId = cellExecution.sourceCellId ?? cellExecution.cellId;
-              return cellId ? [cellId] : [];
-            }),
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-      throw error;
     } finally {
       finishResearchDocumentRun(control);
     }

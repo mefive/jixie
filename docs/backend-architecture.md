@@ -33,7 +33,7 @@
 | --- | --- |
 | `/api/maintenance` | `maintenance/routes.ts` 导出 `maintenanceRoute` |
 | `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
-| `/api/app/research` | `research/routes/index.ts` 直接组合 document / execution / evidence / proposal / agent / data / language / embedded 路由 |
+| `/api/app/research` | `research/routes/index.ts` 直接组合 document / execution / artifacts / proposal / agent / data / language / embedded 路由 |
 | `/api/app/factors` | `factor/routes/index.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
 | `/api/app/strategies` | `strategy/routes/index.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
 | `/api/app/agent` | `agent/routes/index.ts` 组合 turn 路由，提供执行详情、历史、SSE 和取消 |
@@ -127,7 +127,7 @@ Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化�
 2. `dependencies/analyze.ts` / `invalidation.ts` 更新变量关系和下游 stale/blocked；接受 Agent 修改也进入这套业务规则。
 3. 用户请求执行后，`document-runs/run-cell.ts`、`run-document.ts` 或 `run-affected.ts` 取得文档运行锁，选择执行计划，通过 `sandbox/research-sandbox-pool.ts` 复用 Python 会话。嵌入分析共用此会话管理器，保留独立的运行和冻结流程。
 4. Python 通过 `sandbox/host/validation.ts` / `dispatch.ts` 请求平台数据，`datasets` 做公开字段/PIT 映射，再查询 Market 或用户报告数据。
-5. 执行结果写回 Cell；干净全文执行由 `evidence` 保存 ResearchExecution、快照、产物和哈希，作为后续固化与交接证据。
+5. 执行结果写回 Cell；干净全文执行在内存固定本次输入，图片由 `outputs` 保存，不创建正式证据或交接。
 
 Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job。“业务模块直接连接 Python”和“Job Worker 使用 Python”是已有的两条执行路径。接受提案不自动执行，修改源代码也不会改写已冻结证据。
 
@@ -152,7 +152,7 @@ Signals 的策略部署、每日任务、通知和账户结算已移除；数据
 | 对象 | 谁拥有状态、关键约束 |
 | --- | --- |
 | ResearchDocument / Cell | Research 控制修订、失效、阻塞与执行互斥；提交旧修订的结果不能覆盖新源代码 |
-| ResearchExecution | Evidence 保存干净完整运行的冻结快照，固化和交接读取证据 |
+| ResearchExecution | Embedded 保存最近运行状态、幂等键和 Job 关联，不保存源码、环境或输入快照 |
 | Factor / FactorComposite | Factor 控制定义、分析、holdout、发布与归档；Strategy 消费符合已有发布规则的因子 |
 | Strategy / BacktestReport / StrategyScanReport | Strategy 保存可编辑草稿和不可混淆的报告快照；提交时冻结配置和数据范围 |
 | Job | Infra 拥有 queued → running → done/error/stale；业务任务定义拥有关联业务记录的完成/失败/恢复 |
@@ -165,7 +165,7 @@ Signals 的策略部署、每日任务、通知和账户结算已移除；数据
 
 并非所有对象共享一个事务：会话创建、模型调用、消息镜像、提交后操作、邮件通知都各有边界。具体事务说明优先看所属模块，不把“用了 Prisma”理解成“整个调用链天然原子”。
 
-Research 的冻结研究交接负责证据准入与生成，Factor/Strategy 负责目标复用、命名和写入；模型调用不进入目标保存事务。具体顺序、重试差异和调用入口维护在 [Research handoff](../apps/api/src/research/handoff/README.md)，再由它链接到目标 definitions。
+Research 不再自动交接 Factor／Strategy 草稿；用户在对应工作台手动创建并审查代码。嵌入分析更新、排队、终态与输入清理见 [embedded](../apps/api/src/research/embedded/README.md)。
 
 ## 修改定位与守护规则
 
@@ -224,7 +224,7 @@ Research 作者 API 的真实实现归 `research/sdk/python`：data/results 通�
 valuation 保留原数值算法，charts 生成公开图表结果。shared 的公开契约、Python signature/stub、Agent catalog
 集中在 `packages/shared/src/sdk/research`，保留根级导出和生成 `.pyi` 路径。
 
-`research/sandbox/host` 负责帧/参数校验与请求分派，留存输入回放归 research/evidence/input-replay.ts；数据授权和 PIT 映射仍由 datasets 处理。
+`research/sandbox/host` 负责帧/参数校验与请求分派，所有取数均查询当前可用数据，不留存输入回放；数据授权和 PIT 映射仍由 datasets 处理。
 `research/sandbox/python/session.ts` 在 API 宿主管理连接，Python runner 组合 SDK 并管理 Cell namespace、
 AST 分析、环境捕获和输出序列化。sandboxd 通用入口只分派，镜像按显式清单包含三业务的 Python 实现。
 SDK 不反向导入 runtime，Engine 不参与 Research Cell 执行。完整职责和验收见 [统一 SDK 计划](design/business-sdk-organization.md)。

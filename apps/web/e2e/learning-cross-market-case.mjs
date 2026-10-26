@@ -219,17 +219,15 @@ try {
     body: JSON.stringify({ clean: true }),
   });
   if (
-    run.execution?.status !== 'success' ||
-    run.execution.cellCount !== 4 ||
-    run.execution.executedCellCount !== 4
+    run.executedCellIds.length !== 4 ||
+    run.document.cells.some((cell) => cell.status !== 'success')
   ) {
-    throw new Error(`cross-market Research execution failed: ${JSON.stringify(run.execution)}`);
+    throw new Error(`Current Research run failed: ${JSON.stringify(run.document)}`);
   }
-
-  const frozen = await api(page, `/api/app/research/executions/${run.execution.id}`);
-  const auditOutput = tableOutput(frozen, auditCellId);
-  const resultOutput = tableOutput(frozen, resultCellId);
-  const chartOutput = outputOfType(frozen, rollingCellId, 'chart');
+  const current = run.document;
+  const auditOutput = tableOutput(current, auditCellId);
+  const resultOutput = tableOutput(current, resultCellId);
+  const chartOutput = outputOfType(current, rollingCellId, 'chart');
   const audit = auditOutput.rows[0];
   if (
     auditOutput.rowCount !== 1 ||
@@ -293,7 +291,7 @@ try {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);
   }
   console.log(
-    `[learning-cross-market] PASS execution=${run.execution.id} observations=${audit.observations} ` +
+    `[learning-cross-market] PASS revision=${run.document.contentRevision} observations=${audit.observations} ` +
       `results=${JSON.stringify(resultOutput.rows)}`,
   );
 } finally {
@@ -315,7 +313,7 @@ function tableOutput(execution, cellId) {
 }
 
 function outputOfType(execution, cellId, type) {
-  const cell = execution.cells.find((candidate) => candidate.cellId === cellId);
+  const cell = execution.cells.find((candidate) => candidate.id === cellId);
   const output = cell?.outputs.find((candidate) => candidate.type === type);
   if (!output) {
     throw new Error(`missing ${type} output for Research Cell ${cellId}`);

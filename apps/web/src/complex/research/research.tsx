@@ -1,4 +1,3 @@
-import { EmbeddedResearchSource } from '@src/components/embedded-analysis/embedded-research-source';
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import {
@@ -69,7 +68,6 @@ import { Markdown } from '@src/components/markdown';
 import { LoadingArea } from '@src/components/loading-area';
 import { complex } from './complex';
 import { ResearchDataCatalogDrawer } from './research-data-catalog-drawer';
-import { ResearchExecutionDrawer } from './research-execution-drawer';
 import { ResearchOutputs } from './research-outputs';
 import type { ResearchCellSaveStatus } from './research-autosave';
 import './research.css';
@@ -93,9 +91,6 @@ export const Research = complex.component(() => {
   const navigate = useNavigate();
   const [historyOpen, setHistoryOpen] = useState(false);
   const [dataCatalogOpen, setDataCatalogOpen] = useState(false);
-  const [executionHistoryOpen, setExecutionHistoryOpen] = useState(
-    Boolean(store.requestedExecutionId),
-  );
   const [agentOpen, setAgentOpen] = useState(defaultAgentOpen);
   const [highlightedCellId, setHighlightedCellId] = useState<string | null>(null);
   const [contextSnapshotCell, setContextSnapshotCell] = useState<ResearchCellContextCellV1 | null>(
@@ -209,7 +204,6 @@ export const Research = complex.component(() => {
                 highlightedCellId={highlightedCellId}
                 onOpenHistory={openHistory}
                 onOpenDataCatalog={() => setDataCatalogOpen(true)}
-                onOpenExecutionHistory={() => setExecutionHistoryOpen(true)}
                 onOpenAgent={() => setAgentOpen(true)}
                 onToggleAgent={() => setAgentOpen((value) => !value)}
               />
@@ -234,11 +228,6 @@ export const Research = complex.component(() => {
         )}
       </Splitter>
       <ResearchDataCatalogDrawer open={dataCatalogOpen} onClose={() => setDataCatalogOpen(false)} />
-      <ResearchExecutionDrawer
-        open={executionHistoryOpen}
-        initialExecutionId={store.requestedExecutionId}
-        onClose={() => setExecutionHistoryOpen(false)}
-      />
       <ResearchCellContextSnapshotModal
         cell={contextSnapshotCell}
         currentCell={store.document?.cells.find((cell) => cell.id === contextSnapshotCell?.cellId)}
@@ -642,7 +631,6 @@ const ResearchWorkspace = complex.component(
     highlightedCellId,
     onOpenHistory,
     onOpenDataCatalog,
-    onOpenExecutionHistory,
     onOpenAgent,
     onToggleAgent,
   }: {
@@ -650,7 +638,6 @@ const ResearchWorkspace = complex.component(
     highlightedCellId: string | null;
     onOpenHistory: () => void;
     onOpenDataCatalog: () => void;
-    onOpenExecutionHistory: () => void;
     onOpenAgent: () => void;
     onToggleAgent: () => void;
   }) => {
@@ -659,7 +646,6 @@ const ResearchWorkspace = complex.component(
     const [editingTitle, setEditingTitle] = useState(false);
     const [title, setTitle] = useState('');
     const document = store.document!;
-    const latestExecution = store.executionListLoader.result?.[0];
     const staleCount = document.cells.filter((cell) => cell.status === 'stale').length;
     const blockedCount = document.cells.filter((cell) => cell.status === 'blocked').length;
     const commitTitle = () => {
@@ -681,11 +667,6 @@ const ResearchWorkspace = complex.component(
           key: 'data_catalog',
           icon: <FontAwesomeIcon icon={faDatabase} />,
           label: t('dataCatalog.open'),
-        },
-        {
-          key: 'execution_history',
-          icon: <FontAwesomeIcon icon={faClockRotateLeft} />,
-          label: t('workbench.execution.historyTitle'),
         },
         {
           key: 'reset_runtime',
@@ -714,9 +695,6 @@ const ResearchWorkspace = complex.component(
         switch (key) {
           case 'data_catalog':
             onOpenDataCatalog();
-            break;
-          case 'execution_history':
-            onOpenExecutionHistory();
             break;
           case 'reset_runtime':
             void store.resetRuntime();
@@ -772,11 +750,6 @@ const ResearchWorkspace = complex.component(
               {t('workbench.runtime')} · {document.cells.length} {t('workbench.cells')}
               {staleCount > 0 && ` · ${t('workbench.staleSummary', { count: staleCount })}`}
               {blockedCount > 0 && ` · ${t('workbench.blockedSummary', { count: blockedCount })}`}
-              {latestExecution &&
-                ` · ${t('workbench.execution.latest', {
-                  sequence: latestExecution.sequence,
-                  status: t(`workbench.execution.status.${latestExecution.status}`),
-                })}`}
             </span>
           </div>
           <div className="jx-research-toolbar">
@@ -798,16 +771,6 @@ const ResearchWorkspace = complex.component(
                 aria-label={t('dataCatalog.open')}
                 data-testid="research-open-data-catalog"
                 onClick={onOpenDataCatalog}
-              />
-            </Tooltip>
-            <Tooltip title={t('workbench.execution.historyTitle')}>
-              <Button
-                type="text"
-                size="small"
-                icon={<FontAwesomeIcon icon={faClockRotateLeft} />}
-                aria-label={t('workbench.execution.historyTitle')}
-                data-testid="research-open-execution-history"
-                onClick={onOpenExecutionHistory}
               />
             </Tooltip>
             <Tooltip title={t('workbench.resetHint')}>
@@ -864,19 +827,6 @@ const ResearchWorkspace = complex.component(
             </Tooltip>
           </div>
         </header>
-        {document.embeddedSource && (
-          <EmbeddedResearchSource
-            key={document.id}
-            source={document.embeddedSource}
-            disabled={
-              store.hasActiveRun ||
-              store.hasOpenCellChangeReview ||
-              store.documentMutationLoader.loading ||
-              store.sending
-            }
-            onChangeMode={(mode) => void store.changeEmbeddedInputMode(mode)}
-          />
-        )}
         {(store.documentMutationLoader.error ||
           store.documentRunLoader.error ||
           store.affectedRunLoader.error ||

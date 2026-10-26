@@ -94,9 +94,7 @@ Python errors retain the `strategy.py` line number. Start with the first error r
 
 `py-v1` currently supports stocks and ETFs, daily history, common indicators, built-in factors, target weights, share orders, and conditional orders.
 
-A Python Strategy generated from a promoted research version shows **From research version** above the editor. Use it to review
-the distilled summary and unresolved items or return to the exact read-only research snapshot. Provenance does not mean the
-strategy has been backtested or validated out of sample.
+Create and review Python drafts manually in Strategy. Automatic Research handoff and its source card are retired.
 
 Python strategies can reference eligible published custom Factors by key, whether the Factor source is TypeScript or Python. Declare the dependency with `Strategy(factors=["factor_key"])`, then read it with `ctx.factor("factor_key", code)` and handle `None`. Ownership, publication, frozen lineage, and data requirements still apply. Strategy language and Factor language are separate; their SDK source is not interchangeable.
 

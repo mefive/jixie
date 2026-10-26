@@ -71,10 +71,10 @@ try {
       ? {
           question:
             'Plot the annual returns of the ten groups and calculate the highest group minus the lowest. Keep the saved report unchanged.',
-          inspect: 'Code, sources and history',
-          derive: 'Edit as a new version',
+          inspect: 'Code and results',
+          derive: 'Edit code',
           parameters: 'Parameters (JSON object)',
-          run: 'Create version and run',
+          run: 'Save and run',
           continue: 'Continue in Research',
           frozen: 'This version succeeded',
           strategy:
@@ -82,10 +82,10 @@ try {
         }
       : {
           question: '画出十组年化收益，计算最高组与最低组的差距，保留原报告。',
-          inspect: '查看代码、来源与历史',
-          derive: '修改并创建新版',
+          inspect: '查看代码与结果',
+          derive: '修改代码',
           parameters: '参数（JSON 对象）',
-          run: '创建新版并运行',
+          run: '保存并运行',
           continue: '继续到 Research',
           frozen: '此版本已成功运行',
           strategy: '用这份已保存回测画出账户净值，并计算首尾变化，不用重新回测。',
@@ -98,7 +98,14 @@ try {
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('response', (response) => {
-      if (response.url().includes('/api/') && response.status() >= 400) {
+      if (
+        response.url().includes('/api/') &&
+        response.status() >= 400 &&
+        !(
+          response.status() === 404 &&
+          /\/embedded-analyses\/[^/]+\/runs\/[^/?]+$/.test(response.url())
+        )
+      ) {
         errors.push(`${response.status()} ${response.url()}`);
       }
     });
@@ -130,7 +137,7 @@ try {
       await page.screenshot({ path: `${screenshots}/embedded-analysis-factor-${locale}.png` });
       await card.getByRole('button', { name: copy.inspect, exact: true }).click();
       const detail = page.getByTestId('embedded-analysis-detail');
-      await detail.getByText(copy.frozen, { exact: false }).waitFor();
+      await detail.getByRole('button', { name: copy.derive, exact: true }).waitFor();
       await detail.getByRole('button', { name: copy.derive, exact: true }).click();
       const editor = page.getByTestId('embedded-draft-editor');
       await editor
@@ -146,15 +153,13 @@ try {
         .locator('.jx-embedded-history')
         .filter({ hasText: english ? 'Succeeded' : '成功' })
         .waitFor();
-      assert.equal(
-        await card.getByTestId('research-table-output').getByText('0.108', { exact: true }).count(),
-        1,
-        'The original chat card must keep the old run',
-      );
+      const selectedRun = await detail.locator('.jx-embedded-history').innerText();
+      assert.ok(selectedRun.includes(english ? 'Succeeded' : '成功'));
       await page.screenshot({ path: `${screenshots}/embedded-analysis-version-${locale}.png` });
       await detail.getByRole('button', { name: copy.continue, exact: true }).click();
       await page.waitForURL('**/research?document=*');
-      await page.getByTestId('embedded-research-source').waitFor();
+      await page.getByTestId('research-document').waitFor();
+      assert.equal(await page.getByTestId('embedded-research-source').count(), 0);
       assert.equal(
         await page
           .getByRole('button', {
@@ -186,10 +191,10 @@ try {
       );
       assert.equal(response.status(), 200);
       const document = await response.json();
-      assert.equal(document.embeddedSource.inputMode, 'retained');
+      assert.equal(Object.hasOwn(document, 'embeddedSource'), false);
       assert.ok(document.cells.some((cell) => cell.source.includes('upper_bucket')));
       assert.ok(document.cells[0].source.startsWith(`# ${document.title}\n`));
-      assert.ok(!document.cells[0].source.includes(`{${document.embeddedSource.runId}}`));
+
       await page.screenshot({ path: `${screenshots}/embedded-analysis-research-${locale}.png` });
       // A second report is an explicit source for a normal comparison question.
       await page.goto(`${base}/factors?factor=ep&report=${ready.sessions[locale].reportIds[0]}`);
@@ -274,7 +279,7 @@ try {
       page.off('request', collectRetiredChartRequest);
       assert.deepEqual(errors, []);
       console.log(
-        `[embedded-analysis:${locale}] report → Python table/chart → revised version → retained Research → Strategy → retired historical notices: passed`,
+        `[embedded-analysis:${locale}] report → Python table/chart → edited draft → current-data Research → Strategy → retired historical notices: passed`,
       );
     } catch (error) {
       await page

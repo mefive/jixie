@@ -186,11 +186,6 @@ export const renameDocumentSchema = z.strictObject({ title: z.string().trim().mi
 export const runDocumentSchema = z.strictObject({ clean: z.boolean().default(true) });
 
 // Evidence.
-export const promoteExecutionSchema = z.strictObject({
-  displayName: z.string().trim().min(1).max(160),
-  tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]),
-  userNote: z.string().trim().max(2_000).optional(),
-});
 
 // Proposals.
 export const cellChangeReviewSchema = z.strictObject({
@@ -329,14 +324,6 @@ export const pythonLanguageRequestSchema = z
     }
   });
 
-// Embedded input mode.
-export const embeddedInputModeSchema = z.strictObject({
-  inputMode: z.enum(['retained', 'current']),
-  expectedRevision: z.number().int().positive(),
-});
-
-export type ResearchEmbeddedInputModeInput = z.output<typeof embeddedInputModeSchema>;
-
 // HTTP input types describe values before defaults and transformations.
 export type ResearchUniverseRequest = z.input<typeof universeSpecV1Schema>;
 export type UpdateResearchEmbeddedRequest = z.input<typeof embeddedUpdateSchema>;
@@ -350,9 +337,7 @@ export type CreateResearchCellRequest = z.input<typeof createCellSchema>;
 export type UpdateResearchCellRequest = z.input<typeof updateCellSchema>;
 export type RenameResearchDocumentRequest = z.input<typeof renameDocumentSchema>;
 export type RunResearchDocumentRequest = z.input<typeof runDocumentSchema>;
-export type PromoteResearchExecutionRequest = z.input<typeof promoteExecutionSchema>;
 export type ResearchCellChangeReviewRequest = z.input<typeof cellChangeReviewSchema>;
 export type ResearchAgentRequest = z.input<typeof researchAgentInputSchema>;
 export type ResearchDataCatalogRequestQuery = z.input<typeof dataCatalogQuerySchema>;
 export type ResearchLanguageRequest = z.input<typeof pythonLanguageRequestSchema>;
-export type ResearchEmbeddedInputModeRequest = z.input<typeof embeddedInputModeSchema>;

@@ -113,8 +113,11 @@ try {
     method: 'POST',
     body: JSON.stringify({ clean: true }),
   });
-  if (run.execution?.status !== 'success' || run.execution.executedCellCount !== 6) {
-    throw new Error(`Financial Research clean run failed: ${JSON.stringify(run.execution)}`);
+  if (
+    run.executedCellIds.length !== 6 ||
+    run.document.cells.some((cell) => cell.status !== 'success')
+  ) {
+    throw new Error(`Financial Research clean run failed: ${JSON.stringify(run.document)}`);
   }
   const rowCounts = cellIds.map((cellId) => {
     const cell = run.document.cells.find((candidate) => candidate.id === cellId);

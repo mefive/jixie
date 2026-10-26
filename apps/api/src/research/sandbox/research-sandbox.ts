@@ -1,6 +1,5 @@
 import { Sandbox } from '#infra/sandbox/sandbox.js';
 import { ResearchPythonInterruptionError } from '../errors.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
 import type { ResearchPythonAnalysis } from './host/analysis-types.js';
 import { ResearchBridge } from './research-bridge.js';
 import type {
@@ -53,7 +52,7 @@ export class ResearchSandbox extends Sandbox<
       return await this.bridge.execute(input, options);
     } catch (error) {
       if (this.interrupted) {
-        throw new ResearchPythonInterruptionError(researchPayloadHash(this.metadata.environment));
+        throw new ResearchPythonInterruptionError();
       }
       throw error;
     } finally {

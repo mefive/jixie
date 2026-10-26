@@ -375,11 +375,11 @@ export function inspectBackendBoundaries(dependencies, policy = { edges: [], cyc
         'Factor observations own their data contracts and cannot depend on evaluation algorithms',
       );
     }
-    if (local?.startsWith('research/evidence/') && target?.startsWith('research/sandbox/')) {
+    if (local?.startsWith('research/outputs/') && target?.startsWith('research/sandbox/')) {
       report(
-        'research-evidence-direction',
+        'research-output-direction',
         edge,
-        'Research evidence cannot depend on sandbox protocol or session implementations',
+        'Research outputs cannot depend on sandbox protocol or session implementations',
       );
     }
     if (local && !local.includes('/') && edge.form === 're-export') {

@@ -179,7 +179,7 @@ export default function ResearchCodeEditor({
 /**
  * 只读展示冻结 Research Execution 中的不可变源码。
  *
- * Immutable source viewer for one frozen Research Execution snapshot.
+ * Read-only viewer for supplied Research Python code.
  */
 export function ResearchReadOnlyCodeEditor({
   executionId,

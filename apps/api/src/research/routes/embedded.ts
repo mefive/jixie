@@ -3,7 +3,6 @@ import { localeFromRequest } from '#infra/http/locale.js';
 import { Hono } from 'hono';
 import {
   embeddedDeriveSchema,
-  embeddedInputModeSchema,
   embeddedListSchema,
   embeddedPageSchema,
   embeddedRunSchema,
@@ -11,10 +10,9 @@ import {
 } from '@jixie/shared/api/research';
 
 import { cancelEmbeddedRun } from '../embedded/cancel.js';
-import { changeEmbeddedInputMode, continueEmbeddedResearch } from '../embedded/continuation.js';
+import { continueEmbeddedResearch } from '../embedded/continuation.js';
 import {
   getEmbeddedAnalysis,
-  getEmbeddedInput,
   getEmbeddedRun,
   getEmbeddedVersion,
   listEmbeddedAnalyses,
@@ -89,24 +87,6 @@ researchEmbeddedRoute.post('/:analysisId/runs/:runId/continue-research', async (
     ),
   ),
 );
-researchEmbeddedRoute.patch(
-  '/documents/:documentId/input-mode',
-  validateJson(embeddedInputModeSchema),
-  async (c) =>
-    c.json(
-      await changeEmbeddedInputMode(c.var.userId, c.req.param('documentId'), c.req.valid('json')),
-    ),
-);
 researchEmbeddedRoute.post('/:analysisId/runs/:runId/cancel', async (c) =>
   c.json(await cancelEmbeddedRun(c.var.userId, c.req.param('analysisId'), c.req.param('runId'))),
-);
-researchEmbeddedRoute.get('/:analysisId/runs/:runId/inputs/:inputId', async (c) =>
-  c.json(
-    await getEmbeddedInput(
-      c.var.userId,
-      c.req.param('analysisId'),
-      c.req.param('runId'),
-      c.req.param('inputId'),
-    ),
-  ),
 );

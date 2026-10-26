@@ -1234,21 +1234,18 @@ model EmailLoginChallenge {
 /// A saved backtest strategy (holds a BacktestConfig as JSON). Created before its first Agent turn or
 /// backtest, then its runnable config is committed by id whenever a backtest starts.
 model Strategy {
-  id                        String               @id // ULID
-  userId                    String
-  user                      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name                      String
-  config                    Json // BacktestConfig
-  lastResult                Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
-  messages                  Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
-  sourceResearchExecutionId String?              @unique
-  sourceResearchExecution   ResearchExecution?   @relation("StrategySourceResearchExecution", fields: [sourceResearchExecutionId], references: [id], onDelete: SetNull)
-  researchHandoff           Json? // ResearchStrategyHandoffV1; source meaning and unresolved backtest decisions
-  conversations             AgentConversation[]
-  backtestReports           BacktestReport[]
-  scanReports               StrategyScanReport[]
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
+  id              String               @id // ULID
+  userId          String
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  config          Json // BacktestConfig
+  lastResult      Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
+  messages        Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
+  conversations   AgentConversation[]
+  backtestReports BacktestReport[]
+  scanReports     StrategyScanReport[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   @@unique([userId, name]) // name = identity within a user → enables upsert-by-name
   @@index([userId, updatedAt]) // list a user's strategies, newest first
@@ -1309,30 +1306,27 @@ model StrategyScanReport {
 ///     Registries initialize missing versions only; saved versions are read-only and upgrades use a new key.
 /// Plain userId (no relation), like FactorReport.
 model Factor {
-  id                        String              @id // ULID, or a preset slug for builtin rows
-  userId                    String
-  key                       String // immutable strategy handle, unique per owner
-  name                      String // localized display name; not a program identity
-  analysisKind              String              @default("cross_sectional") // immutable definition protocol
-  language                  String              @default("typescript") // 'typescript' | 'python'
-  runtimeVersion            String              @default("ts-v1") // 'ts-v1' | 'py-v1'
-  descriptionZh             String              @default("")
-  descriptionEn             String              @default("")
-  code                      String // TypeScript defineFactor source or Python Factor source
-  messages                  Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
-  status                    String              @default("draft") // 'draft' | 'published' | 'archived'
-  approvedReportId          String?             @unique
-  approvedReport            FactorReport?       @relation(fields: [approvedReportId], references: [id], onDelete: Restrict)
-  sourceResearchExecutionId String?             @unique
-  sourceResearchExecution   ResearchExecution?  @relation("FactorSourceResearchExecution", fields: [sourceResearchExecutionId], references: [id], onDelete: SetNull)
-  researchHandoff           Json? // ResearchFactorHandoffV1; source meaning and unresolved validation items
-  codeHash                  String?
-  publishedAt               DateTime?
-  archivedAt                DateTime?
-  conversations             AgentConversation[]
-  weatherPins               FactorWeatherPin[]
-  createdAt                 DateTime            @default(now())
-  updatedAt                 DateTime            @updatedAt
+  id               String              @id // ULID, or a preset slug for builtin rows
+  userId           String
+  key              String // immutable strategy handle, unique per owner
+  name             String // localized display name; not a program identity
+  analysisKind     String              @default("cross_sectional") // immutable definition protocol
+  language         String              @default("typescript") // 'typescript' | 'python'
+  runtimeVersion   String              @default("ts-v1") // 'ts-v1' | 'py-v1'
+  descriptionZh    String              @default("")
+  descriptionEn    String              @default("")
+  code             String // TypeScript defineFactor source or Python Factor source
+  messages         Json? // ChatMessage[] — the Agent-panel conversation that authored this factor (per-factor)
+  status           String              @default("draft") // 'draft' | 'published' | 'archived'
+  approvedReportId String?             @unique
+  approvedReport   FactorReport?       @relation(fields: [approvedReportId], references: [id], onDelete: Restrict)
+  codeHash         String?
+  publishedAt      DateTime?
+  archivedAt       DateTime?
+  conversations    AgentConversation[]
+  weatherPins      FactorWeatherPin[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   @@unique([userId, key]) // user-factor keys are unique per owner; builtin keys are additionally reserved in the allocator
   @@index([userId, updatedAt]) // list a user's factors, newest first
@@ -1489,7 +1483,6 @@ model ResearchDocument {
   conversation    AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   runtimeVersion  String            @default("research-py-v1")
   contentRevision Int               @default(1)
-  embeddedSource  Json?
   embeddedRunKey  String?           @unique
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -1533,34 +1526,29 @@ model ResearchCell {
   @@index([documentId, updatedAt])
 }
 
-/// One immutable cell execution snapshot. Clean document runs create the same snapshots after a
-/// fresh interpreter start.
+/// Cell 的当前运行诊断或提案尝试输出，不留存源码、环境或输入响应。
+/// Current cell diagnostics or proposal attempt outputs; no source, environment or input-response archive.
 model ResearchCellExecution {
-  id                     String                     @id // ULID
-  documentId             String
-  document               ResearchDocument           @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  cellId                 String?
-  cell                   ResearchCell?              @relation(fields: [cellId], references: [id], onDelete: SetNull)
-  sourceCellId           String?
-  sourcePosition         Int?
-  sourceKind             String?
-  revision               Int
-  source                 String
-  status                 String // 'running' | 'success' | 'error' | 'cancelled'; embedded runs may also be 'queued'
-  output                 Json?
-  error                  String?
-  definitions            Json
-  references             Json
-  environmentFingerprint String
-  inputSnapshot          Json?
-  startedAt              DateTime                   @default(now())
-  finishedAt             DateTime?
-  cellChangeAttemptId    String?
-  cellChangeAttempt      ResearchCellChangeAttempt? @relation(fields: [cellChangeAttemptId], references: [id], onDelete: SetNull)
-  researchExecutionId    String?
-  researchExecution      ResearchExecution?         @relation(fields: [researchExecutionId], references: [id], onDelete: SetNull)
-
-  artifacts ResearchArtifact[]
+  id                  String                     @id // ULID
+  documentId          String
+  document            ResearchDocument           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  cellId              String?
+  cell                ResearchCell?              @relation(fields: [cellId], references: [id], onDelete: SetNull)
+  sourceCellId        String?
+  sourcePosition      Int?
+  sourceKind          String?
+  revision            Int
+  status              String // 'running' | 'success' | 'error' | 'cancelled'; embedded runs may also be 'queued'
+  output              Json?
+  error               String?
+  definitions         Json
+  references          Json
+  startedAt           DateTime                   @default(now())
+  finishedAt          DateTime?
+  cellChangeAttemptId String?
+  cellChangeAttempt   ResearchCellChangeAttempt? @relation(fields: [cellChangeAttemptId], references: [id], onDelete: SetNull)
+  researchExecutionId String?
+  researchExecution   ResearchExecution?         @relation(fields: [researchExecutionId], references: [id], onDelete: SetNull)
 
   @@index([documentId, startedAt])
   @@index([cellId, startedAt])
@@ -1569,71 +1557,49 @@ model ResearchCellExecution {
   @@index([researchExecutionId, startedAt])
 }
 
-/// One immutable clean execution of a frozen Research Document revision. Editable promotion
-/// metadata is kept outside the hashed source and DAG snapshots so curation never rewrites evidence.
-/// Embedded attempts reuse these records but their version relation excludes them from promotion.
+/// 嵌入式分析的排队、幂等和当前结果状态；普通文档不再创建此记录。
+/// Queue, idempotency and current result state for embedded analyses; ordinary documents do not create these rows.
 model ResearchExecution {
-  id                     String           @id // ULID
-  documentId             String
-  document               ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  sequence               Int
-  title                  String
-  contentRevision        Int
-  runtimeVersion         String
-  status                 String           @default("running") // 'running' | 'success' | 'error' | 'cancelled'; embedded executions may also be 'queued'
-  sourceHash             String
-  sourceSnapshot         Json
-  dagSnapshot            Json
-  executedCellIds        Json
-  environmentFingerprint String?
-  error                  String?
-  displayName            String?
-  tags                   Json?
-  userNote               String?
-  promotedAt             DateTime?
-  startedAt              DateTime         @default(now())
-  finishedAt             DateTime?
+  id              String           @id // ULID
+  documentId      String
+  document        ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sequence        Int
+  contentRevision Int
+  status          String           @default("running") // 'running' | 'success' | 'error' | 'cancelled'; embedded executions may also be 'queued'
+  error           String?
+  startedAt       DateTime         @default(now())
+  finishedAt      DateTime?
 
-  embeddedVersionId   String?
-  embeddedVersion     ResearchEmbeddedAnalysisVersion? @relation(fields: [embeddedVersionId], references: [id], onDelete: Restrict)
-  requestId           String?
-  parametersSnapshot  Json?
-  contextSnapshot     Json?
-  environmentSnapshot Json?
-  errorCode           String?
-  inputs              ResearchExecutionInput[]
-  job                 Job?
+  embeddedVersionId String?
+  embeddedVersion   ResearchEmbeddedAnalysisVersion? @relation(fields: [embeddedVersionId], references: [id], onDelete: Restrict)
+  requestId         String?
+  errorCode         String?
+  job               Job?
 
-  cellExecutions      ResearchCellExecution[]
-  sourceFactorDraft   Factor?                 @relation("FactorSourceResearchExecution")
-  sourceStrategyDraft Strategy?               @relation("StrategySourceResearchExecution")
+  cellExecutions ResearchCellExecution[]
 
   @@unique([embeddedVersionId, requestId])
   @@unique([documentId, sequence])
   @@index([embeddedVersionId, startedAt])
   @@index([documentId, startedAt])
-  @@index([documentId, promotedAt])
 }
 
-/// One immutable binary output owned by a Research Cell execution. Cell JSON stores only the
-/// artifact id and display metadata; authenticated reads stream the bytes lazily.
+/// 归属于文档的图片，独立于执行诊断记录保留，并通过鉴权接口读取。
+/// Document-owned images survive execution diagnostics deletion and require authenticated reads.
 model ResearchArtifact {
-  id          String                @id // ULID
-  documentId  String
-  document    ResearchDocument      @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  executionId String
-  execution   ResearchCellExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
-  kind        String // 'image'
-  mimeType    String // 'image/png' | 'image/svg+xml'
-  data        Bytes
-  byteSize    Int
-  sha256      String
-  width       Int?
-  height      Int?
-  createdAt   DateTime              @default(now())
+  id         String           @id // ULID
+  documentId String
+  document   ResearchDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  kind       String // 'image'
+  mimeType   String // 'image/png' | 'image/svg+xml'
+  data       Bytes
+  byteSize   Int
+  sha256     String
+  width      Int?
+  height     Int?
+  createdAt  DateTime         @default(now())
 
   @@index([documentId, createdAt])
-  @@index([executionId])
   @@index([sha256])
 }
 
@@ -1761,8 +1727,8 @@ model ResearchEmbeddedAnalysis {
   @@index([userId, hostType, hostId, updatedAt])
 }
 
-/// An editable single-cell draft until its first successful run commits. The internal document
-/// cannot be deleted while this version exists; ordinary document workflows exclude it entirely.
+/// 可编辑的嵌入式 Python 草稿，保留宿主及可选报告 ID，不因成功运行冻结。
+/// Editable embedded Python draft with a host and optional report ID; successful runs do not freeze it.
 model ResearchEmbeddedAnalysisVersion {
   id              String                            @id
   analysisId      String
@@ -1776,36 +1742,13 @@ model ResearchEmbeddedAnalysisVersion {
   source          String
   parameters      Json
   inputScope      String
-  contextSnapshot Json
+  reportId        String?
   revision        Int                               @default(1)
-  frozenAt        DateTime?
   executions      ResearchExecution[]
   createdAt       DateTime                          @default(now())
   updatedAt       DateTime                          @updatedAt
 
   @@unique([analysisId, number])
-}
-
-/// One SDK request and the exact bounded response offered to Python. Loading requests survive
-/// failures; responses are persisted before delivery and never overwritten after completion.
-model ResearchExecutionInput {
-  id           String            @id
-  executionId  String
-  execution    ResearchExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
-  sequence     Int
-  method       String
-  arguments    Json
-  status       String
-  responseJson String?
-  metadata     Json?
-  sha256       String?
-  byteSize     Int               @default(0)
-  rowCount     Int?
-  error        String?
-  requestedAt  DateTime          @default(now())
-  capturedAt   DateTime?
-
-  @@unique([executionId, sequence])
 }
 
 /// Validated immutable futures inputs for one published trading day.

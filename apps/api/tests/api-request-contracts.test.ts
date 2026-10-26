@@ -11,7 +11,6 @@ import {
 import {
   embeddedDraftSchema,
   embeddedDataReferencesSchema as referenceWireSchema,
-  promoteExecutionSchema,
   updateCellSchema,
 } from '@jixie/shared/api/research';
 import { createStrategySchema } from '@jixie/shared/api/strategy';
@@ -49,10 +48,6 @@ describe('shared HTTP request contracts', () => {
     });
     expect(factorReportListQuerySchema.parse({ factor: 'size', limit: '7' })).toEqual({
       factor: 'size',
-    });
-    expect(promoteExecutionSchema.parse({ displayName: '  Experiment  ' })).toEqual({
-      displayName: 'Experiment',
-      tags: [],
     });
   });
 

@@ -1,12 +1,5 @@
-import type { z } from 'zod';
-import type { promoteExecutionSchema } from './api/research.js';
 import type { TradeDate } from './types.js';
-import type {
-  FactorAnalysisKind,
-  FactorEquityIndexCode,
-  FactorExpectedDirection,
-  FactorLanguage,
-} from './factor.js';
+import type { FactorAnalysisKind } from './factor.js';
 import type { StrategyLanguage } from './backtest.js';
 import type {
   ResearchFxSeriesIdV1,
@@ -718,17 +711,14 @@ export interface ResearchCellChangeReviewV1 {
  * Describe one cell's execution and output in a change attempt.
  */
 export interface ResearchCellChangeAttemptCellV1 {
-  inputSnapshot?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   executionId: string;
   cellId: string;
   position: number;
   kind: ResearchCellKindV1;
   revision: number;
   status: ResearchCellChangeAttemptStatusV1;
-  sourceHash: string;
   outputHash?: string;
   outputTypes: ResearchCellOutputBlockV1['type'][];
-  environmentFingerprint: string;
   error?: string;
 }
 
@@ -743,13 +733,12 @@ export interface ResearchCellChangeAttemptComparisonV1 {
   sourceChangedCellIds: string[];
   outputChangedCellIds: string[];
   statusChanged: boolean;
-  environmentChanged: boolean;
 }
 
 /**
  * 关联提案、范围、终态及不可变执行证据。
  *
- * Describe proposal attempt scope, state and immutable execution evidence.
+ * Describe proposal attempt scope, state, revisions and outputs.
  */
 export interface ResearchCellChangeAttemptV1 {
   version: 1;
@@ -997,7 +986,6 @@ export type ResearchDocumentListStateV1 = 'active' | 'archived';
  * Return document content, cells, conversation and run state for workspace restoration.
  */
 export interface ResearchDocumentV1 {
-  embeddedSource?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
   version: 1;
   id: string;
   conversationId: string;
@@ -1074,194 +1062,16 @@ export interface ResearchDocumentAnalysisV1 {
  */
 export type ResearchDocumentTemplateV1 = 'blank' | 'index_relationship' | 'equity_fcff_valuation';
 
-export type ResearchExecutionStatusV1 = 'running' | 'success' | 'error' | 'cancelled';
-
-/**
- * 冻结执行 DAG 中单 Cell 的上下游关系。
- *
- * Snapshot one cell's upstream and downstream execution relationships.
- */
-export interface ResearchExecutionDagNodeV1 {
-  cellId: string;
-  dependsOnCellIds: string[];
-}
-
-/**
- * 保存不可变执行 Cell 的源码、状态及输出。
- *
- * Describe immutable execution cell source, state and output.
- */
-export interface ResearchExecutionCellV1 {
-  inputSnapshot?: import('./research-embedded.js').ResearchEmbeddedDocumentSourceV1;
-  version: 1;
-  cellId: string;
-  position: number;
-  kind: ResearchCellKindV1;
-  source: string;
-  config?: Record<string, unknown>;
-  revision: number;
-  definitions: string[];
-  references: string[];
-  status: ResearchExecutionStatusV1 | 'not_run';
-  outputs: ResearchCellOutputBlockV1[];
-  error?: string;
-  environmentFingerprint?: string;
-  startedAt?: string;
-  finishedAt?: string;
-}
-
-/**
- * 提供研究执行身份、结果与时间摘要。
- *
- * Describe execution identity, outcome and timing summaries.
- */
-export interface ResearchExecutionSummaryV1 {
-  version: 1;
-  id: string;
-  documentId: string;
-  sequence: number;
-  title: string;
-  contentRevision: number;
-  runtimeVersion: 'research-py-v1';
-  status: ResearchExecutionStatusV1;
-  sourceHash: string;
-  environmentFingerprint?: string;
-  cellCount: number;
-  executedCellCount: number;
-  error?: string;
-  displayName?: string;
-  tags: string[];
-  userNote?: string;
-  promotedAt?: string;
-  startedAt: string;
-  finishedAt?: string;
-}
-
-/**
- * 组合冻结源码、DAG、Cell 与证据，供复现及交接。
- *
- * Collect frozen source, DAG, cells and evidence for reproducibility and handoff.
- */
-export interface ResearchExecutionV1 extends ResearchExecutionSummaryV1 {
-  cells: ResearchExecutionCellV1[];
-  dag: ResearchExecutionDagNodeV1[];
-}
-
-export type ResearchExecutionPromotionInputV1 = z.output<typeof promoteExecutionSchema>;
-
-export type ResearchFactorDraftAnalysisKindV1 = Extract<
-  FactorAnalysisKind,
-  'cross_sectional' | 'time_series' | 'panel'
->;
-
-/**
- * 从冻结版本恢复已支持的报告输入，缺失字段仍需用户补齐。
- *
- * Supported FactorReport inputs recovered from a frozen Research version. Missing fields retain the
- * Factor workbench defaults and remain explicit review work; this suggestion never starts a run.
- */
-export interface ResearchFactorReportSuggestionV1 {
-  version: 1;
-  analysisKind: ResearchFactorDraftAnalysisKindV1;
-  start?: string;
-  end?: string;
-  observationFrequency?: 'daily' | 'weekly' | 'monthly';
-  equityUniverse?: 'cn_a' | FactorEquityIndexCode;
-  minimumListingDays?: number;
-  excludeRiskWarnings?: boolean;
-  assets?: string[];
-  hypothesis?: string;
-  expectedDirection?: FactorExpectedDirection;
-}
-
-/**
- * 保存从冻结研究到因子草稿的可人工审阅交接。
- *
- * The durable, human-reviewable handoff from one frozen research version into a Factor draft.
- */
-export interface ResearchFactorHandoffV1 {
-  version: 1;
-  sourceExecutionId: string;
-  sourceDocumentId: string;
-  sourceContentRevision: number;
-  sourceHash: string;
-  sourceDisplayName: string;
-  analysisKind: ResearchFactorDraftAnalysisKindV1;
-  /** Absent on TypeScript handoffs created before Factor Python support. */
-  language?: FactorLanguage;
-  summary: string;
-  unresolvedItems: string[];
-  suggestedReport?: ResearchFactorReportSuggestionV1;
-  generatedAt: string;
-  models: {
-    classifier: string;
-    codegen: string;
-  };
-}
-
-/**
- * 返回新因子草稿身份及其研究来源。
- *
- * Return a created factor draft and its research provenance.
- */
-export interface ResearchFactorDraftResultV1 {
-  version: 1;
-  factorId: string;
-  factorKey: string;
-  factorName: string;
-  analysisKind: ResearchFactorDraftAnalysisKindV1;
-  language?: FactorLanguage;
-  handoff: ResearchFactorHandoffV1;
-  reused: boolean;
-}
-
-/**
- * 保存从冻结研究到策略草稿的可人工审阅交接。
- *
- * The durable, human-reviewable handoff from one frozen research version into a Strategy draft.
- */
-export interface ResearchStrategyHandoffV1 {
-  version: 1;
-  sourceExecutionId: string;
-  sourceDocumentId: string;
-  sourceContentRevision: number;
-  sourceHash: string;
-  sourceDisplayName: string;
-  language: StrategyLanguage;
-  summary: string;
-  unresolvedItems: string[];
-  generatedAt: string;
-  models: {
-    classifier: string;
-    codegen: string;
-  };
-}
-
-/**
- * 返回新策略草稿身份及其研究来源。
- *
- * Return a created strategy draft and its research provenance.
- */
-export interface ResearchStrategyDraftResultV1 {
-  version: 1;
-  strategyId: string;
-  strategyName: string;
-  language: StrategyLanguage;
-  handoff: ResearchStrategyHandoffV1;
-  reused: boolean;
-}
-
 /**
  * 汇总整文档执行的 Cell、终态与冻结证据。
  *
- * Describe document-run cells, terminal state and frozen evidence.
+ * Describe current document-run cells and execution progress.
  */
 export interface ResearchDocumentRunResultV1 {
   version: 1;
   document: ResearchDocumentV1;
   executedCellIds: string[];
   clean: boolean;
-  execution?: ResearchExecutionSummaryV1;
 }
 
 /**

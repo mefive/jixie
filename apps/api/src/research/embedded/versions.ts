@@ -1,9 +1,5 @@
 import { getDatabase } from '#infra/database/prisma.js';
-import type {
-  ResearchEmbeddedContextV1,
-  ResearchEmbeddedDraftInputV1,
-  ResearchEmbeddedHostV1,
-} from '@jixie/shared';
+import type { ResearchEmbeddedDraftInputV1, ResearchEmbeddedHostV1 } from '@jixie/shared';
 import type { Prisma, ResearchEmbeddedAnalysis } from '@prisma/client';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
@@ -22,11 +18,7 @@ import { analysisView, versionView } from './views.js';
  *
  * Create embedded analysis and its initial version for an authorized host entity.
  */
-export async function createEmbeddedAnalysis(
-  userId: string,
-  input: ResearchEmbeddedCreateInput,
-  capturedContext?: ResearchEmbeddedContextV1,
-) {
+export async function createEmbeddedAnalysis(userId: string, input: ResearchEmbeddedCreateInput) {
   return getDatabase().$transaction(async (transaction) => {
     const analysis = await transaction.researchEmbeddedAnalysis.create({
       data: {
@@ -37,14 +29,7 @@ export async function createEmbeddedAnalysis(
         title: input.title,
       },
     });
-    const version = await createVersion(
-      transaction,
-      analysis,
-      input,
-      undefined,
-      undefined,
-      capturedContext,
-    );
+    const version = await createVersion(transaction, analysis, input);
     return { analysis: analysisView(analysis), version: versionView(version) };
   });
 }
@@ -58,7 +43,6 @@ export async function deriveEmbeddedVersion(
   userId: string,
   analysisId: string,
   input: ResearchEmbeddedDeriveInput,
-  capturedContext?: ResearchEmbeddedContextV1,
 ) {
   return getDatabase().$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
@@ -76,26 +60,24 @@ export async function deriveEmbeddedVersion(
           source: parent.source,
           parameters: parent.parameters,
           inputScope: parent.inputScope,
+          reportId: parent.reportId ?? undefined,
         }),
       parent.id,
-      input.draft ? undefined : parent.contextSnapshot,
-      capturedContext,
     );
     return versionView(version);
   });
 }
 
 /**
- * 只更新仍可编辑的分析版本，成功冻结后要求派生新版本。
+ * 更新可编辑的分析代码，活动运行期间拒绝修改，已有输出标记为过期。
  *
- * Update only editable analysis versions and require derivation after successful freezing.
+ * Update editable analysis code outside active runs and mark existing output stale.
  */
 export async function updateEmbeddedVersion(
   userId: string,
   analysisId: string,
   versionId: string,
   input: ResearchEmbeddedUpdateInput,
-  capturedContext?: ResearchEmbeddedContextV1,
 ) {
   return getDatabase().$transaction(async (transaction) => {
     const analysis = await ownedAnalysis(transaction, userId, analysisId);
@@ -104,9 +86,6 @@ export async function updateEmbeddedVersion(
     });
     if (!version) {
       throw new ResearchError('embedded_not_found');
-    }
-    if (version.frozenAt) {
-      throw new ResearchError('embedded_frozen');
     }
     if (analysis.activeRunId) {
       throw new ResearchError('embedded_run_in_progress');
@@ -121,12 +100,12 @@ export async function updateEmbeddedVersion(
       input.reportId,
     );
     const updated = await transaction.researchEmbeddedAnalysisVersion.update({
-      where: { id: versionId, revision: input.expectedRevision, frozenAt: null },
+      where: { id: versionId, revision: input.expectedRevision },
       data: {
         source: input.source,
         parameters: input.parameters,
         inputScope: input.inputScope,
-        contextSnapshot: (capturedContext ?? context) as unknown as Prisma.InputJsonValue,
+        reportId: context.report?.id ?? null,
         revision: { increment: 1 },
       },
     });
@@ -136,7 +115,7 @@ export async function updateEmbeddedVersion(
         source: input.source,
         config: { parameters: input.parameters },
         revision: updated.revision,
-        status: 'idle',
+        status: 'stale',
       },
     });
     await transaction.researchDocument.update({
@@ -175,17 +154,13 @@ async function createVersion(
   analysis: ResearchEmbeddedAnalysis,
   input: ResearchEmbeddedDraftInputV1,
   parentVersionId?: string,
-  inheritedContext?: Prisma.JsonValue,
-  capturedContext?: ResearchEmbeddedContextV1,
 ) {
-  const context =
-    inheritedContext ??
-    (await captureEmbeddedContext(
-      transaction,
-      analysis.userId,
-      { type: analysis.hostType as ResearchEmbeddedHostV1['type'], id: analysis.hostId },
-      input.reportId,
-    ));
+  const context = await captureEmbeddedContext(
+    transaction,
+    analysis.userId,
+    { type: analysis.hostType as ResearchEmbeddedHostV1['type'], id: analysis.hostId },
+    input.reportId,
+  );
   const allocated = await transaction.researchEmbeddedAnalysis.update({
     where: { id: analysis.id },
     data: { nextVersion: { increment: 1 } },
@@ -222,7 +197,7 @@ async function createVersion(
       source: input.source,
       parameters: input.parameters,
       inputScope: input.inputScope,
-      contextSnapshot: (capturedContext ?? context) as unknown as Prisma.InputJsonValue,
+      reportId: context.report?.id ?? null,
     },
   });
 }

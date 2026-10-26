@@ -1,3 +1,5 @@
+> 2026-10-26：执行证据、输入留存／回放、成功后冻结和 retained/current 接续已按 [系统简化计划 §17](system-simplification-plan.md) 删除。当前行为见 [embedded README](../../apps/api/src/research/embedded/README.md)；下文为历史设计与验收记录。
+
 # Factor / Strategy 嵌入式 Python 分析
 
 > 后续变更（2026-10-09）：旧聊天图表执行链按用户确认整体移除，旧消息只显示标题和双语停用提示；[本轮退役记录](legacy-chat-chart-retirement.md)维护审查与验证状态。下文既有实现及验收保留为历史记录。

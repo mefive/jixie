@@ -11,8 +11,7 @@ yourself or ask the Research Agent to select data, generate code, and explain re
 4. Use `data.series()` in a Python cell for one object's time series, or `data.cross_section()` / `data.panel()` for PIT equity
    snapshots and month-end panels. Calculations may use pandas, NumPy, SciPy, and statsmodels.
 5. Use `charts.*` for native interactive charts or Matplotlib for static figures.
-6. Run one cell, its affected branch, or the full document in a clean runtime. A complete run creates an immutable
-   `ResearchExecution` that can be reviewed in the document history and explicitly promoted to a named research version.
+6. Run one cell, its affected branch, or the full document in a clean runtime. Inspect current output in the document; edit and rerun when needed.
 
 Document-level autosave protects cell source and shows unsaved, saving, or saved state. Editing upstream source marks dependent
 outputs stale; expensive calculations do not rerun silently in the background.
@@ -21,7 +20,7 @@ outputs stale; expensive calculations do not rerun silently in the background.
 
 Open **Data catalog** to select an instrument, dates, frequency, and fields and insert an SDK call without memorizing method names. For company research, start with [Analyze financial data](/docs/help/research/financial-data). FCFF is an optional landing-page template, not a required step for all financial analysis.
 
-If you already completed an [embedded analysis](/docs/help/research/embedded-analysis) in a Factor or Strategy conversation, select **Continue in Research** from its successful card. That copy defaults to the retained inputs; explicitly decide whether to fetch current data before changing the request scope.
+If you already created an [embedded analysis](/docs/help/research/embedded-analysis) in a Factor or Strategy conversation, select **Continue in Research** when its task ends. The copy contains current code and parameters and fetches current data when run.
 
 Manage studies in the **Current** and **Archived** lists, with search over titles or recent content. See [Research documents and run history](/docs/help/research/records) for archive, restore, and permanent deletion.
 
@@ -50,17 +49,7 @@ equivalent to the original object.
 
 ## Send research to formal validation
 
-When a promoted successful version contains one explicit point-in-time signal supported by platform data, it can create a
-Python Factor draft. An LLM first checks semantic convertibility, then the Factor compiler and `py-v1` runtime validate the
-code. The Factor retains its exact source snapshot, distilled summary, unresolved items, and backlink. Supported universe,
-date, frequency, filter, and prespecified-direction choices become suggested FactorReport parameters. The user must confirm
-them and run the report explicitly; the handoff does not publish the Factor, or turn exploratory findings
-into formal evidence.
-
-When the research also defines instruments or a point-in-time universe, signal direction, rebalance or entry/exit conditions,
-and a sizing rule, the same snapshot can create a Python Strategy draft. The draft defaults to `py-v1` and never runs a backtest
-automatically. Review its code, range, capital, and costs in Strategy before running it. Research that contains only a
-predictive relationship is routed to Factor first.
+Create a draft manually in Factor or Strategy, extract the algorithm and review the code, then explicitly run analysis or a backtest. Research no longer promotes executions or automatically generates drafts.
 
 ## Study an equity universe
 

@@ -15,8 +15,7 @@ import {
   ResearchPythonExecutionError,
   ResearchPythonInterruptionError,
 } from '../errors.js';
-import { materializeResearchOutputArtifacts } from '../evidence/artifacts.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
+import { materializeResearchOutputArtifacts } from '../outputs/artifacts.js';
 import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
 
 import {
@@ -60,13 +59,12 @@ export async function executeResearchCellById(
   cellId: string,
   control: ResearchDocumentRunControl,
   cellChangeAttemptId?: string,
-  researchExecutionId?: string,
 ): Promise<ResearchCellExecutionOutcome | null> {
   if (control.interrupted) {
     return 'interrupted';
   }
   const cell = await loadExecutableResearchCell(userId, cellId);
-  return cell ? executeResearchCell(cell, control, cellChangeAttemptId, researchExecutionId) : null;
+  return cell ? executeResearchCell(cell, control, cellChangeAttemptId) : null;
 }
 
 /**
@@ -78,7 +76,6 @@ export async function executeResearchCell(
   cell: ExecutableResearchCellRow,
   control: ResearchDocumentRunControl,
   cellChangeAttemptId?: string,
-  researchExecutionId?: string,
 ): Promise<ResearchCellExecutionOutcome> {
   return withMarketAccess(async () => {
     if (control.interrupted) {
@@ -98,6 +95,15 @@ export async function executeResearchCell(
           data: { status: 'running' },
         });
       }
+      await transaction.researchCellExecution.deleteMany({
+        where: {
+          cellId: cell.id,
+          cellChangeAttemptId: null,
+          researchExecutionId: null,
+          status: { notIn: ['queued', 'running'] },
+        },
+      });
+
       await transaction.researchCellExecution.create({
         data: {
           id: executionId,
@@ -107,17 +113,11 @@ export async function executeResearchCell(
           sourcePosition: cell.position,
           sourceKind: cell.kind,
           revision: cell.revision,
-          source: cell.source,
           status: 'running',
           definitions: cell.definitions as Prisma.InputJsonValue,
           references: cell.references as Prisma.InputJsonValue,
-          environmentFingerprint: 'pending',
-          ...(cell.document.embeddedSource
-            ? { inputSnapshot: cell.document.embeddedSource as Prisma.InputJsonValue }
-            : {}),
           startedAt,
           ...(cellChangeAttemptId ? { cellChangeAttemptId } : {}),
-          ...(researchExecutionId ? { researchExecutionId } : {}),
         },
       });
     });
@@ -131,18 +131,13 @@ export async function executeResearchCell(
       const result = await executeCell(cell);
       let persisted;
       try {
-        persisted = materializeResearchOutputArtifacts(
-          result.outputs,
-          cell.documentId,
-          executionId,
-        );
+        persisted = materializeResearchOutputArtifacts(result.outputs, cell.documentId);
       } catch (error) {
         throw new ResearchPythonExecutionError(
           error instanceof Error ? error.message : String(error),
           [],
           result.definitions,
           result.references,
-          result.environmentFingerprint,
         );
       }
       await getDatabase().$transaction(async (transaction) => {
@@ -167,7 +162,6 @@ export async function executeResearchCell(
             output: persisted.outputs as unknown as Prisma.InputJsonValue,
             definitions: result.definitions as unknown as Prisma.InputJsonValue,
             references: result.references as unknown as Prisma.InputJsonValue,
-            environmentFingerprint: result.environmentFingerprint,
             finishedAt: new Date(),
           },
         });
@@ -179,7 +173,7 @@ export async function executeResearchCell(
       return 'success';
     } catch (error) {
       if (error instanceof ResearchPythonInterruptionError) {
-        await persistInterruptedResearchCell(cell, executionId, error.environmentFingerprint);
+        await persistInterruptedResearchCell(cell, executionId);
         return 'interrupted';
       }
 
@@ -207,7 +201,6 @@ export async function executeResearchCell(
             error: failure.message.slice(0, 8_000),
             definitions: failure.definitions as unknown as Prisma.InputJsonValue,
             references: failure.references as unknown as Prisma.InputJsonValue,
-            environmentFingerprint: failure.environmentFingerprint,
             finishedAt: new Date(),
           },
         }),
@@ -229,7 +222,6 @@ export async function executeResearchCell(
 async function persistInterruptedResearchCell(
   cell: ExecutableResearchCellRow,
   executionId: string,
-  environmentFingerprint = researchPayloadHash({ runtime: 'research-py-v1', interrupted: true }),
 ): Promise<void> {
   await getDatabase().$transaction([
     getDatabase().researchCell.updateMany({
@@ -241,7 +233,6 @@ async function persistInterruptedResearchCell(
       data: {
         status: 'cancelled',
         error: 'Research cell execution was interrupted',
-        environmentFingerprint,
         finishedAt: new Date(),
       },
     }),
@@ -265,7 +256,6 @@ async function executeCell(cell: {
         outputs: [] as ResearchCellOutputBlockV1[],
         definitions: [] as string[],
         references: [] as string[],
-        environmentFingerprint: researchPayloadHash({ renderer: 'markdown-v1' }),
       };
     case 'python':
       return researchSandboxPool.withSandbox(cell.documentId, (sandbox) =>
@@ -288,7 +278,6 @@ function executionFailure(error: unknown) {
       outputs: error.outputs,
       definitions: error.definitions,
       references: error.references,
-      environmentFingerprint: error.environmentFingerprint,
     };
   }
   return {
@@ -296,6 +285,5 @@ function executionFailure(error: unknown) {
     outputs: [] as ResearchCellOutputBlockV1[],
     definitions: [] as string[],
     references: [] as string[],
-    environmentFingerprint: researchPayloadHash({ runtime: 'unknown' }),
   };
 }

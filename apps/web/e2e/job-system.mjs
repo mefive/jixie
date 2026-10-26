@@ -54,6 +54,9 @@ try {
   // Selection supports rerunning a failing journey against a newly migrated, disposable database.
   const selected = process.env.JIXIE_JOB_E2E_ONLY?.split(',');
   for (const name of [
+    'research-executions',
+    'research-mobile',
+    'research-autosave',
     'strategy-orchestration',
     'mixed-futures',
     ...(selected?.includes('python-strategy') ? ['python-strategy'] : []),
@@ -68,7 +71,8 @@ try {
     if (selected && !selected.includes(name)) {
       continue;
     }
-    const code = await executeCommand({ name, file: `apps/web/e2e/${name}.mjs` });
+    const file = name === 'research-executions' ? 'research-execution' : name;
+    const code = await executeCommand({ name, file: `apps/web/e2e/${file}.mjs` });
     assert.equal(code, 0, `${name} failed`);
     console.log(`[job-system] ${name}: passed`);
   }

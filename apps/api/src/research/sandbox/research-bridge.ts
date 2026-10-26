@@ -5,8 +5,7 @@ import type { SandboxTransport } from '#infra/sandbox/transport.js';
 import type { RuntimeLogFrame } from '#infra/sandbox/protocol.js';
 import type { SandboxBridgeInitializationOptions } from '#infra/sandbox/sandbox-bridge.js';
 import type { ResearchCellOutputBlockV1 } from '@jixie/shared';
-import { ResearchPythonExecutionError } from '../errors.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
+import { ResearchError, ResearchPythonExecutionError } from '../errors.js';
 import type { ResearchPythonAnalysis } from './host/analysis-types.js';
 import { dispatchResearchRequest } from './host/dispatch.js';
 import {
@@ -207,10 +206,11 @@ export class ResearchBridge
       );
     }
 
-    await options.captureEnvironment?.(this.metadata.environment);
     options.signal?.throwIfAborted();
 
     const logs: ResearchCellRunLogs = { outputs: [], bytes: 0 };
+    let requests = 0;
+    let inputBytes = 0;
 
     return this.exchange({
       command: {
@@ -223,8 +223,19 @@ export class ResearchBridge
       operation: 'executing a research cell',
       signal: options.signal,
       onLog: (frame) => this.recordLog(frame, logs),
-      onRequest: (frame) =>
-        dispatchResearchRequest(this.options.documentId, frame, options.observer),
+      onRequest: async (frame) => {
+        requests += 1;
+        if (options.limits && requests > options.limits.sdkRequests) {
+          throw new ResearchError('embedded_request_limit');
+        }
+        const response = await dispatchResearchRequest(this.options.documentId, frame);
+        inputBytes += Buffer.byteLength(JSON.stringify(response), 'utf8');
+        if (options.limits && inputBytes > options.limits.inputBytes) {
+          throw new ResearchError('embedded_input_limit');
+        }
+
+        return response;
+      },
       result: (frame) => this.readCellRunResult(frame, logs.outputs),
     });
   }
@@ -252,7 +263,6 @@ export class ResearchBridge
         [],
         [],
         [],
-        researchPayloadHash(this.metadata.environment),
       );
     }
 
@@ -286,7 +296,6 @@ export class ResearchBridge
             [{ type: 'text', text: message, level: 'warning' }],
             frame.definitions,
             frame.references,
-            researchPayloadHash(this.metadata.environment),
           );
         }
 
@@ -294,7 +303,6 @@ export class ResearchBridge
           outputs,
           definitions: frame.definitions,
           references: frame.references,
-          environmentFingerprint: researchPayloadHash(this.metadata.environment),
         };
       }
       case 'research_error': {
@@ -303,7 +311,6 @@ export class ResearchBridge
           logOutputs,
           frame.definitions,
           frame.references,
-          researchPayloadHash(this.metadata.environment),
         );
       }
     }

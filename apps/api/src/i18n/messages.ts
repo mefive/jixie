@@ -51,10 +51,6 @@ const MESSAGES = {
   },
   loginRequired: { zh: '请先登录', en: 'Login required' },
   sessionExpired: { zh: '登录已过期，请重新登录', en: 'Session expired. Please sign in again.' },
-  researchHandoffRejected: {
-    zh: '无法生成草稿：{reason}',
-    en: 'Cannot generate a draft: {reason}',
-  },
   internalError: {
     zh: '服务内部错误，请稍后重试',
     en: 'An internal error occurred. Please try again later.',
@@ -87,19 +83,6 @@ const MESSAGES = {
   screenNotFound: { zh: '选股不存在', en: 'Screen not found' },
   conversationNotFound: { zh: '会话不存在', en: 'Conversation not found' },
   researchArtifactNotFound: { zh: '研究产物不存在', en: 'Research artifact not found' },
-  researchExecutionNotFound: { zh: '研究运行记录不存在', en: 'Research execution not found' },
-  researchExecutionPromotionUnavailable: {
-    zh: '只有成功的完整运行才能封存为研究版本',
-    en: 'Only a successful complete execution can be promoted to a research version',
-  },
-  researchFactorDraftUnavailable: {
-    zh: '只有已封存且成功的研究版本才能生成 Factor 草稿',
-    en: 'Only a sealed, successful research version can create a Factor draft',
-  },
-  researchStrategyDraftUnavailable: {
-    zh: '只有已封存且成功的研究版本才能生成 Strategy 草稿',
-    en: 'Only a sealed, successful research version can create a Strategy draft',
-  },
   researchCellChangeProposalNotFound: {
     zh: '研究 Cell 变更提案不存在',
     en: 'Research Cell change proposal not found',
@@ -192,17 +175,9 @@ const MESSAGES = {
     zh: '找不到该分析、版本、运行或来源',
     en: 'The analysis, version, run, or source was not found',
   },
-  researchEmbeddedIncompleteRun: {
-    zh: '只有成功且输入留存完整的运行才能继续到 Research。',
-    en: 'Continue to Research requires a successful run with complete retained inputs.',
-  },
   researchEmbeddedContinuationNote: {
-    zh: '# {title}\n\n从嵌入式分析继续研究。原运行：{runId}。\n\n分析范围：{scope}\n\n默认使用原运行留存的输入；修改方法不会改写原结果。需要新的取数范围时，请显式切换为“重新获取数据”，再运行。原结果可从页面的来源入口查看。',
-    en: '# {title}\n\nContinue an embedded analysis. Original run: {runId}.\n\nScope: {scope}\n\nThis document initially uses the retained inputs. Editing the method leaves the original result unchanged. To query a new range, explicitly select current data before running. Open the source on this page to inspect the original result.',
-  },
-  researchEmbeddedFrozen: {
-    zh: '该版本已成功运行，请复制为新版本后修改',
-    en: 'This version has succeeded; derive a new version to make changes',
+    zh: '# {title}\n\n从嵌入式分析继续研究。原运行：{runId}。\n\n分析范围：{scope}\n\n本副本包含接续时的当前代码和参数，运行时重新读取当前可用数据。原输入和执行快照不再留存。',
+    en: '# {title}\n\nContinue an embedded analysis. Original run: {runId}.\n\nScope: {scope}\n\nThis copy contains the current code and parameters at continuation. Running fetches currently available data. Original inputs and execution snapshots are not retained.',
   },
   researchEmbeddedRevisionConflict: {
     zh: '草稿已发生变化，请刷新后重试',
@@ -221,8 +196,8 @@ const MESSAGES = {
     en: 'The selected report is unavailable or incomplete',
   },
   researchEmbeddedInputLimit: {
-    zh: '输入数据超过留存上限，请缩小范围后重新分析',
-    en: 'Input data exceeds the retention limit; reduce the scope and try again',
+    zh: '输入数据超过执行预算，请缩小范围后重新分析',
+    en: 'Input data exceeds the execution budget; reduce the scope and try again',
   },
   researchEmbeddedRequestLimit: {
     zh: '数据请求次数超过上限，请减少请求后重新分析',

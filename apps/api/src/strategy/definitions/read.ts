@@ -49,18 +49,6 @@ function strategyCardSnapshot(lastResult: unknown): StrategyCard['snapshot'] {
 export async function readStrategy(userId: string, strategyId: string) {
   const row = await getDatabase().strategy.findFirst({
     where: { id: strategyId, userId: userId },
-    include: {
-      sourceResearchExecution: {
-        select: {
-          id: true,
-          documentId: true,
-          title: true,
-          displayName: true,
-          sequence: true,
-          promotedAt: true,
-        },
-      },
-    },
   });
 
   if (!row) {
@@ -77,12 +65,5 @@ export async function readStrategy(userId: string, strategyId: string) {
     messages: Array.isArray(row.messages)
       ? await readCodeProposalHistory(getDatabase(), userId, 'strategy', strategyId, row.messages)
       : row.messages,
-    researchHandoff: row.researchHandoff,
-    sourceResearchExecution: row.sourceResearchExecution
-      ? {
-          ...row.sourceResearchExecution,
-          promotedAt: row.sourceResearchExecution.promotedAt?.toISOString() ?? null,
-        }
-      : null,
   };
 }

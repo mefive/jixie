@@ -71,7 +71,9 @@ try {
   await page.getByTestId('research-mobile-actions').click();
   const actionMenu = page.locator('.ant-dropdown-menu');
   await actionMenu.getByText('打开数据目录', { exact: true }).waitFor();
-  await actionMenu.getByText('完整运行历史', { exact: true }).waitFor();
+  if (await actionMenu.getByText('完整运行历史', { exact: true }).count()) {
+    throw new Error('Retired execution history is still visible');
+  }
   await actionMenu.getByText('重置环境', { exact: true }).waitFor();
   await actionMenu.getByText('干净运行全文', { exact: true }).waitFor();
   await page.screenshot({ path: `${SHOTS}research-mobile-actions.png` });
@@ -80,10 +82,6 @@ try {
   const dataCatalog = page.getByRole('dialog', { name: '数据目录' });
   await dataCatalog.waitFor();
   await dataCatalog.getByRole('button', { name: '关闭' }).click();
-
-  await page.getByTestId('research-mobile-actions').click();
-  await actionMenu.getByText('完整运行历史', { exact: true }).click();
-  await page.getByTestId('research-execution-drawer').waitFor();
 
   console.log(
     '[research-mobile-e2e] default=document agent=full-width context=navigable actions=accessible screenshots=4',

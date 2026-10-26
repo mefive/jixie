@@ -3,7 +3,7 @@ import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import type { ResearchEmbeddedContextV1, ResearchEmbeddedHostV1 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { ResearchError } from '../errors.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
+import { researchPayloadHash } from '../outputs/fingerprints.js';
 
 import { macroRegimeTemplateResource } from '#factor/definitions/templates/macro-regime.js';
 

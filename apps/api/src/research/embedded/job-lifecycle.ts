@@ -5,7 +5,7 @@ import { completeEmbeddedRun, failEmbeddedRun } from './finish.js';
 
 export const researchEmbeddedAnalysisLifecycle = {
   /**
-   * 执行排队的嵌入式运行，尊重任务取消与冻结版本。
+   * 执行排队的嵌入式运行，尊重任务取消与修订约束。
    *
    * Execute a queued embedded run under cancellation and version guards.
    */
@@ -20,7 +20,7 @@ export const researchEmbeddedAnalysisLifecycle = {
       level: 'info',
       text: `Running embedded analysis ${job.key}, run ${input.runId}`,
     });
-    const output = await executeEmbeddedRun(input.runId, job.userId);
+    const output = await executeEmbeddedRun(input.runId, job.userId, input);
     log({
       source: 'system',
       level: output.status === 'success' ? 'info' : 'error',

@@ -1,11 +1,15 @@
+import pkg from '@prisma/client';
 import type { Prisma } from '@prisma/client';
+
 import type { ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
 import type { EmbeddedExecutionResult } from './execute.js';
 
+const { Prisma: PrismaValues } = pkg;
+
 /**
- * 原子保存成功运行与版本冻结状态，供结果和会话读取。
+ * 原子保存当前运行输出并释放占用，终态清除 Job 中的临时执行输入。
  *
- * Persist successful run completion and version freezing consistently.
+ * Persist current run output, release its claim and clear temporary Job input at completion.
  */
 export async function completeEmbeddedRun(
   transaction: Prisma.TransactionClient,
@@ -23,21 +27,6 @@ export async function completeEmbeddedRun(
     throw new Error('Embedded completion does not match its active version and cell');
   }
   const finishedAt = new Date();
-  if (result.status === 'success') {
-    const incomplete = await transaction.researchExecutionInput.count({
-      where: { executionId: run.id, status: { in: ['loading', 'interrupted'] } },
-    });
-    if (
-      incomplete ||
-      !run.environmentSnapshot ||
-      !result.environmentFingerprint ||
-      run.environmentFingerprint !== result.environmentFingerprint
-    ) {
-      throw new Error(
-        'Embedded execution cannot succeed with incomplete input or environment evidence',
-      );
-    }
-  }
   if (result.materialized.artifacts.length) {
     await transaction.researchArtifact.createMany({ data: result.materialized.artifacts });
   }
@@ -49,8 +38,6 @@ export async function completeEmbeddedRun(
       error: result.error,
       definitions: result.definitions,
       references: result.references,
-      environmentFingerprint:
-        result.environmentFingerprint ?? run.environmentFingerprint ?? 'unavailable',
       finishedAt,
     },
   });
@@ -60,27 +47,24 @@ export async function completeEmbeddedRun(
       status: result.status,
       errorCode: result.errorCode,
       error: result.error,
-      environmentFingerprint: result.environmentFingerprint ?? run.environmentFingerprint,
-      executedCellIds: [run.cellExecutions[0].sourceCellId!],
       finishedAt,
     },
   });
-  if (result.status === 'success') {
-    if (run.embeddedVersion.revision !== run.contentRevision) {
-      throw new Error('Embedded source changed during execution');
-    }
-    await transaction.researchEmbeddedAnalysisVersion.updateMany({
-      where: { id: run.embeddedVersion.id, frozenAt: null, revision: run.contentRevision },
-      data: { frozenAt: finishedAt },
-    });
-  } else {
-    await interruptPendingInputs(
-      transaction,
-      run.id,
-      result.error ?? 'Execution failed',
-      finishedAt,
-    );
-  }
+  await transaction.researchCell.updateMany({
+    where: { documentId: run.documentId, revision: run.contentRevision },
+    data: {
+      status: result.status,
+      output: result.materialized.outputs as unknown as Prisma.InputJsonValue,
+      definitions: result.definitions,
+      references: result.references,
+      lastExecutedRevision: run.contentRevision,
+      lastExecutedAt: finishedAt,
+    },
+  });
+  await transaction.job.updateMany({
+    where: { researchExecutionId: run.id },
+    data: { payload: PrismaValues.DbNull },
+  });
   const released = await transaction.researchEmbeddedAnalysis.updateMany({
     where: { id: run.embeddedVersion.analysisId, activeRunId: run.id },
     data: { activeRunId: null },
@@ -122,21 +106,12 @@ export async function failEmbeddedRun(
     where: { researchExecutionId: runId, status: { in: ['queued', 'running'] } },
     data: { status, error: detail, finishedAt },
   });
-  await interruptPendingInputs(transaction, runId, detail, finishedAt);
+  await transaction.job.updateMany({
+    where: { researchExecutionId: runId },
+    data: { payload: PrismaValues.DbNull },
+  });
   await transaction.researchEmbeddedAnalysis.updateMany({
     where: { id: run.embeddedVersion.analysisId, activeRunId: runId },
     data: { activeRunId: null },
-  });
-}
-
-async function interruptPendingInputs(
-  transaction: Prisma.TransactionClient,
-  runId: string,
-  error: string,
-  finishedAt: Date,
-) {
-  await transaction.researchExecutionInput.updateMany({
-    where: { executionId: runId, status: 'loading' },
-    data: { status: 'interrupted', error, capturedAt: finishedAt },
   });
 }

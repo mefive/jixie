@@ -50,6 +50,9 @@ export default reactUtils.observer(function EmbeddedAnalysisCard({
             {t('version', { number: detail.version.number })} ·{' '}
             {t('revision', { number: detail.run.revision })} · {detail.run.inputScope}
           </p>
+          {detail.run.revision !== detail.version.revision && (
+            <Alert type="info" title={t('earlierDraft')} />
+          )}
           <ResearchOutputs outputs={detail.run.outputs} compact />
           {detail.run.errorCode && (
             <Alert type="error" title={t(`error.${detail.run.errorCode}`)} />
@@ -90,9 +93,9 @@ export const EmbeddedAnalysisInspector = reactUtils.observer(function EmbeddedAn
 }, 'EmbeddedAnalysisInspector');
 
 /**
- * 展示版本、代码、输出及留存输入，连接继续研究和重试操作。
+ * 展示可编辑版本、当前代码与输出，连接继续研究和重试操作。
  *
- * Present versions, source, output and retained inputs with continuation and retry actions.
+ * Present editable versions, current source and output with continuation and retry actions.
  */
 const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDetail({
   part,
@@ -158,7 +161,7 @@ const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDeta
         <span>{new Date(run.queuedAt).toLocaleString()}</span>
       </div>
       <p>{run.inputScope}</p>
-      <p className="jx-embedded-note">{version.frozenAt ? t('frozen') : t('draft')}</p>
+      <p className="jx-embedded-note">{t('editNote')}</p>
       {run.revision !== version.revision && <Alert type="info" title={t('earlierDraft')} />}
       <ResearchOutputs outputs={run.outputs} />
       {!run.outputs.length && <Empty description={t('noOutput')} />}
@@ -171,7 +174,7 @@ const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDeta
       )}
       <div className="jx-embedded-actions">
         <Button disabled={busy} onClick={() => setEditing(!editing)}>
-          {version.frozenAt ? t('derive') : t('edit')}
+          {t('edit')}
         </Button>
         <Button
           disabled={busy}
@@ -185,7 +188,7 @@ const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDeta
         )}
         <Button
           type="primary"
-          disabled={run.status !== 'success' || model.action.loading}
+          disabled={busy}
           onClick={async () => {
             const result = await model.act({ type: 'continue' });
             if (result?.documentId) {
@@ -224,78 +227,6 @@ const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDeta
         <pre className="jx-embedded-json">{JSON.stringify(run.parameters, null, 2)}</pre>
       </details>
       <details>
-        <summary>{t('source')}</summary>
-        <p>
-          {run.context.name} · {t('savedHost')}
-        </p>
-        <p>{run.context.report ? `${t('report')}: ${run.context.report.id}` : t('noReport')}</p>
-        {run.context.report && (
-          <>
-            <p>
-              {t('reportFingerprint')}: <code>{run.context.report.contentHash}</code>
-            </p>
-            <Button
-              size="small"
-              onClick={() =>
-                navigate(
-                  run.context.host.type === 'factor'
-                    ? `/factors?factor=${encodeURIComponent(run.context.host.id)}&report=${encodeURIComponent(run.context.report!.id)}`
-                    : `/strategy?id=${encodeURIComponent(run.context.host.id)}&report=${encodeURIComponent(run.context.report!.id)}`,
-                )
-              }
-            >
-              {t('openReport')}
-            </Button>
-          </>
-        )}
-        <p>
-          {t('sourceTime')}: {run.context.capturedAt}
-        </p>
-        <code>{run.context.codeHash}</code>
-        <pre className="jx-embedded-json">{run.context.code}</pre>
-      </details>
-      <details open>
-        <summary>{t('usedInputs')}</summary>
-        {!run.inputs.length && <p>{t('noInputs')}</p>}
-        {run.inputs.map((input) => (
-          <section className="jx-embedded-input" key={input.id}>
-            <strong>{input.method.replace(/^research_/, '')}</strong>
-            <p>
-              {input.rowCount == null ? t('structuredInput') : t('rows', { count: input.rowCount })}{' '}
-              · {input.capturedAt ?? input.requestedAt}
-            </p>
-            <pre className="jx-embedded-json">{JSON.stringify(input.arguments, null, 2)}</pre>
-            {Object.keys(input.metadata).length > 0 && (
-              <details>
-                <summary>{t('diagnostics')}</summary>
-                <pre className="jx-embedded-json">{JSON.stringify(input.metadata, null, 2)}</pre>
-              </details>
-            )}
-            {input.error && <Alert type="warning" title={input.error} />}
-            <details>
-              <summary>{t('inputFingerprint')}</summary>
-              <code>{input.sha256 ?? t('notCaptured')}</code>
-            </details>
-            <Button
-              size="small"
-              disabled={!input.sha256 || model.action.loading}
-              onClick={() => void model.act({ type: 'input', inputId: input.id })}
-            >
-              {t('viewInput')}
-            </Button>
-          </section>
-        ))}
-      </details>
-      {model.action.result?.input && (
-        <details open>
-          <summary>{t('inputPreview')}</summary>
-          <pre className="jx-embedded-json">
-            {JSON.stringify(model.action.result.input, null, 2).slice(0, 20_000)}
-          </pre>
-          <p className="jx-embedded-note">{t('previewLimit')}</p>
-        </details>
-      )}
-      <details>
         <summary>{t('limits')}</summary>
         <p>
           {t('budget', {
@@ -305,17 +236,15 @@ const EmbeddedAnalysisDetail = reactUtils.observer(function EmbeddedAnalysisDeta
           })}
         </p>
         <p>{t('exploratory')}</p>
-        <pre className="jx-embedded-json">{JSON.stringify(run.environment, null, 2)}</pre>
-        <code>{run.sourceHash}</code>
       </details>
     </div>
   );
 }, 'EmbeddedAnalysisDetail');
 
 /**
- * 编辑尚未冻结分析版本的源码与说明。
+ * 编辑分析草稿的源码与说明。
  *
- * Edit source and description for an unfrozen embedded analysis version.
+ * Edit source and description for an embedded analysis draft.
  */
 const EmbeddedDraftEditor = reactUtils.observer(function EmbeddedDraftEditor({
   model,
@@ -338,7 +267,7 @@ const EmbeddedDraftEditor = reactUtils.observer(function EmbeddedDraftEditor({
   };
   return (
     <section className="jx-embedded-editor" data-testid="embedded-draft-editor">
-      <p>{version.frozenAt ? t('deriveNote') : t('editNote')}</p>
+      <p>{t('editNote')}</p>
       <label>
         {t('scope')}
         <Input.TextArea
@@ -374,7 +303,7 @@ const EmbeddedDraftEditor = reactUtils.observer(function EmbeddedDraftEditor({
         />
       </label>
       <Button type="primary" loading={model.action.loading} onClick={() => void submit()}>
-        {version.frozenAt ? t('deriveRun') : t('saveRun')}
+        {t('saveRun')}
       </Button>
     </section>
   );

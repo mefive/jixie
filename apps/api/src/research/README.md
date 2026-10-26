@@ -12,21 +12,20 @@ Research 提供带 Markdown / Python Cell 的研究文档、可回看的执行�
 | 变量依赖、下游 stale 和删除阻塞 | [dependencies](dependencies/README.md)：AST 分析、失效协调与纯运行计划 |
 | 单 Cell、全文、受影响分支、取消／重置 | [document-runs](document-runs/README.md)：普通同步执行、文档锁与结果回写 |
 | Python 会话如何复用和释放 | [sandbox](sandbox/README.md)：会话管理、串行通信、能力协商 |
-| 宿主中的分析版本、Job、输入留存和接续 | [embedded](embedded/README.md)：独立生命周期及 retained/current 模式 |
-| 冻结完整执行、固化和私有图片 | [evidence](evidence/README.md)：快照、哈希、产物和归属读取 |
+| 宿主中的可编辑分析、Job 和接续 | [embedded](embedded/README.md)：可编辑草稿、最近结果及重新取数 |
+| 当前图片输出与内容比较 | [outputs](outputs/README.md)：图片、哈希和归属读取 |
 | Agent 修改如何审阅、接受／撤回、尝试 | [proposals](proposals/README.md)：修订绑定、消息同步、尝试与澄清 |
 | Python 读取市场数据／私人报告 | [datasets](datasets/README.md)：字段和 PIT 切片；[results](datasets/results/README.md)：业务结果授权与独立映射 |
-| SDK 请求怎样校验、取数、重放 | [sandbox/host](sandbox/host/README.md)：纯参数解析与有副作用的分派、留存输入回放 |
+| SDK 请求怎样校验和取数 | [sandbox/host](sandbox/host/README.md)：纯参数解析与有副作用的分派 |
 | Cell 中 data/results/valuation/charts 在哪里实现 | [sdk](sdk/README.md)：Python 作者接口、注入宿主能力；公开契约归 shared/sdk/research |
 | 找数据、概念、支持的方法和来源 | [catalog](catalog/README.md)：可发现能力、语义绑定与来源决策 |
 | 编辑器补全、诊断和跨 Cell 符号 | [language](language/README.md)：Pyright、虚拟文档和 stub |
 | 新文档示例内容 | [templates](templates/README.md)：模板选择；[FCFF](templates/fcff/README.md)：分类证据和回放案例 |
-| 固化研究生成因子／策略草稿 | [handoff](handoff/README.md)：证据准入、生成与目标模块协作 |
 | Research 对话启动 | [agent](agent/README.md)：文档上下文、澄清和 attempt 解释 |
 
 ## 主要协作流程
 
-编辑经 documents 保存修订，再由 dependencies 更新关系、stale/blocked。document-runs 取得进程内文档锁，通过 sandbox 执行；Python SDK 请求交给 sandbox/host，再由 datasets 读取市场或私有报告。干净全文运行冻结开始时的源码和 DAG，evidence 保存完整结果，成功后可固化并交接。
+编辑经 documents 保存修订，再由 dependencies 更新关系、stale/blocked。document-runs 取得进程内文档锁，通过 sandbox 执行；Python SDK 请求交给 sandbox/host，再由 datasets 读取市场或私有报告。干净全文运行在内存中读取本次代码，重置解释器并更新当前 Cell 输出，不生成正式证据或交接草稿。
 
 Agent 提案通过 proposals 审阅；接受不会自动运行，用户明确发起 attempt 后才走执行计划。attempt 是尝试记录，不替代完整证据。handoff 先查询已有目标草稿，未命中才校验证据并生成，目标模块保存结果。
 
@@ -34,9 +33,9 @@ embedded Job 独立管理版本、取消、预算和输入留存，复用 sandbo
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 导出 `researchRoute`，组合 document / execution / evidence / proposal / agent / data / language / embedded 八组，挂载 `/api/app/research`。[共享请求契约](../../../../packages/shared/src/api/research.ts) 定义 HTTP 结构与通用校验，[schema.ts](schema.ts) 保留 SDK 引用校验，[errors.ts](errors.ts) 定义执行／审阅业务错误和运行时技术异常，公共 HTTP 边界负责映射；具体业务函数和直接调用方见各子文档。路由迁移范围见 [设计记录](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)，嵌入入口见其能力说明。
+[routes/index.ts](routes/index.ts) 导出 `researchRoute`，组合 document / execution / artifacts / proposal / agent / data / language / embedded 八组，挂载 `/api/app/research`。[共享请求契约](../../../../packages/shared/src/api/research.ts) 定义 HTTP 结构与通用校验，[schema.ts](schema.ts) 保留 SDK 引用校验，[errors.ts](errors.ts) 定义执行／审阅业务错误和运行时技术异常，公共 HTTP 边界负责映射；具体业务函数和直接调用方见各子文档。路由迁移范围见 [设计记录](../../../../docs/design/api-route-naming.md#research-路由职责整理2026-09-11)，嵌入入口见其能力说明。
 
-普通文档与嵌入内部文档共用部分存储和 runtime，但授权及生命周期分开；普通固化／交接不能读内部嵌入文档。修订号防止旧结果覆盖新内容，冻结快照不随编辑改变。单进程运行锁、数据库事务、Python 通信队列是不同机制，不能互相替代。
+普通文档与嵌入内部文档共用部分存储和 runtime，但授权及生命周期分开；普通接口不能读内部嵌入文档。修订号防止旧结果覆盖新内容，已有输出在编辑后显式过期。单进程运行锁、数据库事务、Python 通信队列是不同机制，不能互相替代。
 
 SDK 的参数错误、数据查询失败和输入回放失败有不同边界；公开 Contract 来自 shared，不复制 ORM 字段作为协议。各调用链的事务、取消和资源收尾以子能力说明为准，运行路径见 [运行清单](../../../../docs/backend-runtime-entries.md)。整体权限／HTTP 场景在 [routes/index.integration.test.ts](routes/index.integration.test.ts)。
 

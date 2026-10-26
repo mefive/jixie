@@ -1022,7 +1022,7 @@ async function checkCurrentWorkflow(slug, locale) {
     },
     'research/records': {
       heading: { zh: '搜索、归档和恢复', en: 'Search, archive, and restore' },
-      text: { zh: '归档与“封存为研究版本”不同', en: 'They serve different purposes' },
+      text: { zh: '没有完整运行历史抽屉', en: 'the run-history drawer are retired' },
       link: 'research/run-control',
     },
     'research/data-catalog': {

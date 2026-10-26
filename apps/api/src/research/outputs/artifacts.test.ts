@@ -22,13 +22,11 @@ describe('Research workbench artifacts', () => {
         },
       ],
       'document-1',
-      'execution-1',
     );
 
     expect(result.artifacts).toHaveLength(1);
     expect(result.artifacts[0]).toMatchObject({
       documentId: 'document-1',
-      executionId: 'execution-1',
       kind: 'image',
       mimeType: 'image/png',
       byteSize: data.byteLength,
@@ -55,7 +53,7 @@ describe('Research workbench artifacts', () => {
       artifactId: 'artifact-1',
       byteSize: 42,
     };
-    const result = materializeResearchOutputArtifacts([output], 'document-1', 'execution-1');
+    const result = materializeResearchOutputArtifacts([output], 'document-1');
 
     expect(result.outputs).toEqual([output]);
     expect(result.artifacts).toEqual([]);
@@ -72,7 +70,6 @@ describe('Research workbench artifacts', () => {
           },
         ],
         'document-1',
-        'execution-1',
       ),
     ).toThrow('invalid image data URL');
 
@@ -85,7 +82,6 @@ describe('Research workbench artifacts', () => {
           },
         ],
         'document-1',
-        'execution-1',
       ),
     ).toThrow('persisted inline limit');
   });

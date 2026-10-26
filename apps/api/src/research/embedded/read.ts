@@ -1,11 +1,10 @@
 import { getDatabase } from '#infra/database/prisma.js';
-import type {
-  ResearchCellOutputBlockV1,
-  ResearchEmbeddedContextV1,
-  ResearchEmbeddedInputV1,
-  ResearchEmbeddedPageV1,
-  ResearchEmbeddedParametersV1,
-  ResearchEmbeddedRunV1,
+import {
+  type ResearchCellOutputBlockV1,
+  type ResearchEmbeddedPageV1,
+  type ResearchEmbeddedParametersV1,
+  type ResearchEmbeddedRunV1,
+  RESEARCH_EMBEDDED_LIMITS,
 } from '@jixie/shared';
 import { ResearchError } from '../errors.js';
 import type {
@@ -73,9 +72,9 @@ export async function listEmbeddedRuns(
 }
 
 /**
- * 校验运行访问权限并读取冻结版本、输出与输入证据。
+ * 校验运行访问权限并读取当前分析代码、输出及修订状态。
  *
- * Authorize an embedded run and read its frozen version, outputs and retained inputs.
+ * Authorize an embedded run and read current analysis code, outputs and revision state.
  */
 export async function getEmbeddedRun(
   userId: string,
@@ -88,90 +87,27 @@ export async function getEmbeddedRun(
       embeddedVersion: true,
       job: true,
       cellExecutions: { orderBy: { startedAt: 'asc' } },
-      inputs: {
-        orderBy: { sequence: 'asc' },
-        select: {
-          id: true,
-          sequence: true,
-          method: true,
-          arguments: true,
-          status: true,
-          sha256: true,
-          byteSize: true,
-          rowCount: true,
-          metadata: true,
-          error: true,
-          requestedAt: true,
-          capturedAt: true,
-        },
-      },
     },
   });
   if (!row) {
     throw new ResearchError('embedded_not_found');
   }
-  const snapshot = row.sourceSnapshot as unknown as {
-    embedded: { source: string; inputScope: string; limits: ResearchEmbeddedRunV1['limits'] };
-    cells: Array<{ source: string }>;
-  };
   const continuation = await getDatabase().researchDocument.findUnique({
     where: { embeddedRunKey: `${userId}:${runId}` },
     select: { id: true },
   });
   return {
     ...runSummaryView(row),
+    currentRevision: row.embeddedVersion!.revision,
     ...(continuation ? { researchDocumentId: continuation.id } : {}),
-    source: snapshot.embedded.source,
-    executedSource: snapshot.cells[0].source,
-    inputScope: snapshot.embedded.inputScope,
-    parameters: row.parametersSnapshot as ResearchEmbeddedParametersV1,
-    context: row.contextSnapshot as unknown as ResearchEmbeddedContextV1,
-    environment: row.environmentSnapshot as Record<string, unknown> | null,
-    environmentFingerprint: row.environmentFingerprint,
+    source: row.embeddedVersion!.source,
+    inputScope: row.embeddedVersion!.inputScope,
+    parameters: row.embeddedVersion!.parameters as ResearchEmbeddedParametersV1,
     outputs: row.cellExecutions.flatMap((execution) =>
       Array.isArray(execution.output)
         ? (execution.output as unknown as ResearchCellOutputBlockV1[])
         : [],
     ),
-    inputs: row.inputs.map(
-      (input): ResearchEmbeddedInputV1 => ({
-        ...input,
-        arguments: input.arguments as Record<string, unknown>,
-        metadata: (input.metadata as Record<string, unknown> | null) ?? {},
-        status: input.status as ResearchEmbeddedInputV1['status'],
-        requestedAt: input.requestedAt.toISOString(),
-        capturedAt: input.capturedAt?.toISOString() ?? null,
-      }),
-    ),
-    limits: snapshot.embedded.limits,
-  };
-}
-
-/**
- * 验证运行与输入归属后读取留存请求响应。
- *
- * Authorize and read a retained input request and response.
- */
-export async function getEmbeddedInput(
-  userId: string,
-  analysisId: string,
-  runId: string,
-  inputId: string,
-) {
-  const input = await getDatabase().researchExecutionInput.findFirst({
-    where: {
-      id: inputId,
-      executionId: runId,
-      execution: { embeddedVersion: { analysisId, analysis: { userId } } },
-    },
-    select: { responseJson: true, sha256: true, byteSize: true },
-  });
-  if (!input) {
-    throw new ResearchError('embedded_not_found');
-  }
-  return {
-    response: input.responseJson ? (JSON.parse(input.responseJson) as unknown) : null,
-    sha256: input.sha256,
-    byteSize: input.byteSize,
+    limits: RESEARCH_EMBEDDED_LIMITS,
   };
 }

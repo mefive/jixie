@@ -233,7 +233,7 @@ Research 和 Strategy 删除正式冻结后，旧结果不能与当前编辑代�
 ## 11 当前代码核对入口
 
 - [市场数据与范围](../../apps/api/src/market/README.md)、[同步数据集](../../apps/api/src/market/synchronization/policies.ts)、[对象选择](../../apps/api/src/maintenance/partitions.ts)。
-- [Research 证据](../../apps/api/src/research/evidence/README.md)、[嵌入分析](../../apps/api/src/research/embedded/README.md)、[数据目录](../../apps/api/src/research/catalog/README.md)。
+- [Research 输出](../../apps/api/src/research/outputs/README.md)、[嵌入分析](../../apps/api/src/research/embedded/README.md)、[数据目录](../../apps/api/src/research/catalog/README.md)。
 - [因子评估](../../apps/api/src/factor/evaluations/README.md)、[因子发布](../../apps/api/src/factor/publication/README.md)、[回测报告](../../apps/api/src/strategy/backtests/README.md)。
 - [Agent 工具](../../apps/api/src/agent/tools/index.ts)、[数据模型](../../apps/api/prisma/schema.prisma)、[Maintenance](../../apps/api/src/maintenance/README.md)。
 
@@ -369,16 +369,57 @@ Prisma 生成迁移 `20261025150000_remove_factor_research_gates`，仅删除 Fa
 
 清理结果：浏览器夹具均正常退出并校验监听端口释放；进程复查无测试服务，临时库目录无残留，无新增空目录。保留原先三个未跟踪文档，不推送。
 
-## 17 下一项实施提案：Research 证据与输入回放裁剪（待范围确认，未实施）
+## 17 Research 证据与输入回放裁剪（review 与验证通过）
 
 拟提交消息：`feat(research)!: remove evidence freezing and retained input replay`。
 
 本项完成第 2.2 节的 Research 及嵌入分析部分。普通文档仍可编辑 Markdown／Python Cell、依赖执行和显示当前表格／图片；Factor／Strategy 内仍可做嵌入式 Python 分析。移除固化入口、正式执行证据目录、永久源码／环境快照、输入响应留存与回放、retained/current 模式、成功后锁定和冻结研究自动交接。接续到 Research 改为复制当前代码及参数，之后重新取数运行；不带原输入副本或伪造复现保证。
 
-主要代码位置为 `research/evidence`、`embedded`、`document-runs`、`sandbox/host`、`handoff`、相关路由、Agent 工具与上下文；前端为 Research 与嵌入分析组件，公共契约为 `packages/shared/src/research*`、Research SDK 说明和生成 stub。只保留当前代码、输出、权限和必要任务状态；执行期间仍固定提交时输入，编辑后标记旧输出需要重跑，取消／失败仍正确收尾。图片与表格产物保留私有读取能力，不按 evidence 目录整体删除。
+主要代码位置为 `research/outputs`、`embedded`、`document-runs`、`sandbox/host`、相关路由、Agent 工具与上下文；前端为 Research 与嵌入分析组件，公共契约为 `packages/shared/src/research*`。原 `evidence` 仅保留输出所需部分并改名为 `outputs`，`handoff` 删除。Research SDK 取数签名未变，不需要改生成 stub。只保留当前代码、输出、权限和必要任务状态；执行期间仍使用提交时输入，编辑后标记旧输出需要重跑，取消／失败仍正确收尾。
 
 清理不再需要的 Prisma 专用表／列及因子和策略的 Research 证据来源关联，由 Prisma 生成新迁移。保留已有普通文档／Cell、因子和策略源码、当前可显示输出以及因子发布版本与报告绑定；旧证据、旧输入和退役接口不提供兼容读取。若旧产物依赖即将删除的关联，先迁接到保留的文档／输出归属再清理，不能因级联删除误删仍需展示的图片。迁移只在隔离库验证，开发和生产库不执行。
 
 同步更新目录、Agent 生成指引、双语帮助、SDK、运行入口和部署输入清单，删除专用测试与空目录。Strategy 正式回测冻结、天气、期货、行情范围和 Maintenance 的后续裁剪不在本项扩展。
 
-确认后先实现并运行格式、lint、typecheck、契约生成一致性、Prisma schema 和边界静态检查，停在人工代码 review。review 通过后验证隔离库存量升级／权限／图片保留，普通 Cell 编辑运行／依赖失效、嵌入 Python 的修改重跑／取消／接续、退役接口拒绝、中英帮助，再构建、浏览器验收、清理并提交。若发现移除证据必须改变当前输出归属或执行互斥的既定语义，先报告并调整方案，不另建替代证据平台。
+### 实现决定与升级影响
+
+- 普通文档的代码只作为本次调用的内存输入，运行后更新当前 Cell 输出；不再创建正式 ResearchExecution。Cell 仅保留当前诊断和提案尝试所需的修订／状态／输出，不保留执行源码和环境。
+- 嵌入分析保留可编辑草稿，成功后直接更新同一草稿。每个草稿新提交时清理先前终态运行及其 Job／日志；活动任务仍受 activeRunId 约束。旧运行 ID 和旧聊天卡片可能返回不存在，不替换成新结果。
+- 本次代码、参数、revision 暂存于 Job payload；成功、失败、取消及启动回收时清空。SDK 请求次数和响应字节限制只在内存检查，不再存请求或响应。
+- 运行接口区分本次运行 revision 与当前草稿 currentRevision；代码为当前可编辑内容，修订不同则明确提示输出需要重跑，Agent 不能把当前代码归因给旧输出。
+- 接续 Research 复制当前代码及参数，重新取数；重复接续打开同一副本。报告只保留可选 ID，不保存整份宿主／报告快照。私有图片只与文档关联，删除执行诊断不再级联删除图片；删除文档仍清理其图片。
+- Prisma 生成迁移为 `20261026010000_remove_research_evidence`，删除输入表和证据字段、Factor／Strategy 来源关系，并解除图片的执行外键。已有文档、Cell、因子／策略源码和 Factor 发布报告绑定保留。证据及留存输入的删除不可恢复，部署前由操作者备份；本次没有操作开发或生产数据库。
+- 升级前排队的旧嵌入 Job 没有新的临时输入结构，会明确失败并释放占用，需要重新提交；不从历史证据复原输入。历史报告及已删除数据接口对应的源码不保证可运行。
+
+### Review 前静态检查与后续验证
+
+2026-10-26：格式与 ESLint（零警告）、5 个 workspace 的 typecheck、后端边界扫描（零违规）、SDK 生成物一致性、Prisma schema、浏览器脚本语法及 diff 空白检查通过。双语帮助静态清单为每语言 88 篇、703 处内部链接、157 张引用图片、25 张原始学习证据图。删除封存专用帮助截图，保留历史学习数据；清理本次删除遗留的空目录。
+
+已准备但尚未运行：隔离库迁移验证文档／源码／发布报告绑定／图片保留及外键；普通 Cell 编辑、依赖、干净执行、取消与提案；嵌入分析编辑重跑、替换旧运行、Job 输入清理、旧 payload 拒绝、归属、超时、取消和当前数据接续；真实 Python 表格／图片；退役接口 404；中英帮助、移动端与浏览器流程。review 通过后运行相关测试、构建和浏览器验收，清理临时资源并按上述消息提交。
+
+### Review 后实际验证（2026-10-26）
+
+用户确认 review 通过后执行验证。首轮发现 6 个测试断言仍依赖退役输入回放／交接／提示词，或对跨语言浮点结果使用精确相等；已按当前契约修正测试，没有修改已审查的产品行为。浏览器夹具修正单复数脚本名映射、当前帮助说明断言和截图编辑器等待。
+
+- API 全量：288 个文件、1929 项通过；2 项性能基准按配置跳过。覆盖隔离库存量迁移、Factor 发布报告绑定、源码与图片保留、外键完整性、用户归属、临时 Job 输入清理、旧 payload 拒绝、取消与恢复、普通依赖运行及真实 Python 当前数据接续。
+- 根级构建：Shared、API、Web、Docs、sandboxd 全部通过；保留既有 Web／Docs bundle 大小提示。
+- 沙箱通信及容器生命周期：8 项通过。后端边界、部署影响和帮助检查器：59 项通过。最终 typecheck、SDK 生成一致性、格式、lint 和 diff 检查通过。Prisma 原始生成 SQL 自带末尾空行，按项目要求保留原字节；仅该文件的 whitespace 检查排除 blank-at-eof，其余文件使用默认规则。
+- 中英嵌入分析浏览器：报告目录选择、真实 Python 表格／图片、成功后编辑同一草稿、参数重跑、Research 当前数据接续、Strategy 报告分析及旧聊天图表停用提示通过。
+- 普通 Research 浏览器：干净运行、当前源码／图片、修改后状态、退役 API 404、移动端、自动保存和修订冲突通过。编译版 API 同样完成真实 Python 运行和私有图片读取。
+- 中英帮助浏览器：每语言 88 篇、703 处内部链接、157 张引用图片、25 张历史学习证据图通过；公开访问、语言切换、工作台帮助和窄屏通过。已查看当前 Research 与嵌入分析截图。
+
+清理：浏览器夹具退出并验证监听端口释放；进程复查无测试／浏览器／Python／Pyright 残留。中断重跑留下的一份隔离库已在确认无连接后删除，临时测试目录和空目录复查无残留。保留原先三个未跟踪文档；开发／生产数据库未操作，不推送。
+
+## 18 下一项实施提案：Strategy 最近结果与执行输入简化（待范围确认，未实施）
+
+拟提交消息：`feat(strategy)!: keep latest results without permanent code snapshots`。
+
+当前 Research 裁剪已完成；下一项落实第 2.2 节的 Strategy 部分。用户仍能编辑并运行 TS／Python 策略、查看最近回测和参数扫描结果、通过 Agent／Python 分析现存结果；删除永久策略源码快照、正式证明身份、旧报告历史选择与比较入口。回测和扫描各保留该用户／策略最近一次提交及活动任务，旧报告及级联 Job／日志清理，旧 ID 明确返回不存在，新失败不恢复旧结果。
+
+提交时确定的源码、配置和必要因子执行输入只作为临时 Job／Worker 输入，终态清除；结果保留实际运行参数、统计、交易、状态和错误，不把当前编辑代码拼到旧结果中。编辑后明确提示重跑，现存报告 SDK 和嵌入分析仍校验归属与存在性。保留已发布 Factor 的稳定版本引用，不复制一套永久因子源码到策略报告。
+
+主要涉及 `strategy/backtests`、`strategy/scans`、`strategy/factors`、Job 生命周期／启动清理、Research 私有报告 loader、Agent 上下文、Shared HTTP／SDK 类型、策略工作台、报告组件与双语帮助。清理 BacktestReport／StrategyScanReport 的专用快照字段及重复存储，由 Prisma 生成新迁移；公开 SDK 返回结构变化时同步 Contract、Python 适配和生成声明。保留策略源码与当前结果所需数据；存量历史删除不可恢复，部署前备份，仅在隔离库验证。
+
+本项不继续删除期货、天气、多因子或行情，不改交易撮合、费用、Factor 发布语义或 Maintenance 架构。若发现保留结果必须扩大到额外历史留存或改变交易计算规则，先报告范围变化。
+
+确认后实现完整范围，先跑格式、lint、typecheck、SDK／Prisma／边界静态检查，再停在人工 review。review 通过后验证隔离迁移、旧记录清理、失败／取消／恢复、权限与旧 ID、TS／Python 有成交回测、扫描及私有报告读取，构建并完成中英浏览器验收，清理后提交。当前仅形成提案，未实施。

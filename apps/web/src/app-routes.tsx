@@ -50,13 +50,12 @@ function FactorRoute() {
   return <ComplexRoute entry={factorEntry} setupParams={setupParams} />;
 }
 
-// Research workbench: a Factor handoff can deep-link back to the exact frozen execution that produced
-// the draft. Capture the params once so later in-workbench navigation does not recreate the store.
+// 研究工作台按文档 ID 打开当前内容。
+// Open current Research content by document ID.
 function ResearchRoute() {
   const [searchParams] = useSearchParams();
   const setupParams = useRef({
     document: searchParams.get('document') || undefined,
-    execution: searchParams.get('execution') || undefined,
     backtestReport: searchParams.get('backtestReport') || undefined,
   }).current;
   return <ComplexRoute entry={researchEntry} setupParams={setupParams} />;

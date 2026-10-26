@@ -6,7 +6,6 @@ import type {
   UpdateResearchCellRequest,
   RenameResearchDocumentRequest,
   RunResearchDocumentRequest,
-  PromoteResearchExecutionRequest,
   ResearchCellChangeReviewRequest,
   ResearchAgentRequest,
   ResearchDataCatalogRequestQuery,
@@ -24,10 +23,6 @@ import type {
   ResearchDocumentSummaryV1,
   ResearchDocumentTemplateV1,
   ResearchDocumentV1,
-  ResearchExecutionSummaryV1,
-  ResearchExecutionV1,
-  ResearchFactorDraftResultV1,
-  ResearchStrategyDraftResultV1,
   ResearchDataCatalogResultV1,
   ResearchDataCatalogScopeV1,
   ResearchAssetTypeV1,
@@ -128,40 +123,6 @@ export function runResearchDocument(
   return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/run`, {
     method: 'POST',
     body: JSON.stringify({ clean } satisfies RunResearchDocumentRequest),
-  });
-}
-
-export function listResearchExecutions(documentId: string): Promise<ResearchExecutionSummaryV1[]> {
-  return request(`/api/app/research/documents/${encodeURIComponent(documentId)}/executions`);
-}
-
-export function getResearchExecution(executionId: string): Promise<ResearchExecutionV1> {
-  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}`);
-}
-
-export function promoteResearchExecution(
-  executionId: string,
-  input: PromoteResearchExecutionRequest,
-): Promise<ResearchExecutionSummaryV1> {
-  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/promote`, {
-    method: 'POST',
-    body: JSON.stringify(input satisfies PromoteResearchExecutionRequest),
-  });
-}
-
-export function createResearchFactorDraft(
-  executionId: string,
-): Promise<ResearchFactorDraftResultV1> {
-  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/factor-draft`, {
-    method: 'POST',
-  });
-}
-
-export function createResearchStrategyDraft(
-  executionId: string,
-): Promise<ResearchStrategyDraftResultV1> {
-  return request(`/api/app/research/executions/${encodeURIComponent(executionId)}/strategy-draft`, {
-    method: 'POST',
   });
 }
 

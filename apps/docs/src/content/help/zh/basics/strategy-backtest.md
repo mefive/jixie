@@ -59,7 +59,7 @@
 
 ## 对话中的嵌入式分析
 
-对已有报告或选定数据做小范围计算，可以使用[嵌入式分析卡片](/docs/help/research/embedded-analysis)。它保留 Python、输入和结果，首次成功固定版本，并支持继续到 Research。Research 副本默认回放这次分析留存的输入；普通文档的历史记录规则不变。
+对已有报告或选定数据做小范围计算，可以使用[嵌入式分析卡片](/docs/help/research/embedded-analysis)。成功后仍可修改重跑；接续 Research 会复制当前代码和参数，运行时重新取数。
 
 ## 审阅策略代码建议
 

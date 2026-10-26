@@ -1,20 +1,14 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { getDatabase } from '#infra/database/prisma.js';
-import {
-  type ResearchCellOutputBlockV1,
-  type ResearchEmbeddedErrorCodeV1,
-  type ResearchEmbeddedLimitsV1,
-  type ResearchEmbeddedParametersV1,
-} from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import { type ResearchCellOutputBlockV1, type ResearchEmbeddedErrorCodeV1 } from '@jixie/shared';
 import { ResearchError, ResearchPythonExecutionError } from '../errors.js';
 import {
   materializeResearchOutputArtifacts,
   type MaterializedResearchOutputs,
-} from '../evidence/artifacts.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
+} from '../outputs/artifacts.js';
 
-import { assertActiveRun, embeddedInputRecorder } from './inputs.js';
+import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
+import type { ResearchEmbeddedAnalysisJobPayload } from './job-payload.js';
 
 const activeControllers = new Map<string, AbortController>();
 export function abortEmbeddedRuntime(runId: string) {
@@ -22,9 +16,9 @@ export function abortEmbeddedRuntime(runId: string) {
 }
 
 /**
- * 返回嵌入式运行的终态与证据引用。
+ * 返回嵌入式运行的终态与输出。
  *
- * Return embedded execution status and evidence references.
+ * Return embedded execution status and outputs.
  */
 export interface EmbeddedExecutionResult {
   runId: string;
@@ -32,20 +26,20 @@ export interface EmbeddedExecutionResult {
   status: 'success' | 'error';
   errorCode: ResearchEmbeddedErrorCodeV1 | null;
   error: string | null;
-  environmentFingerprint: string | null;
   definitions: string[];
   references: string[];
   materialized: MaterializedResearchOutputs;
 }
 
 /**
- * 执行冻结嵌入式版本并记录输入和输出，首次成功后固定版本。
+ * 执行 Job 中的临时代码和参数，返回当前输出并在结束后关闭会话。
  *
- * Execute a frozen embedded version with retained inputs and outputs and freeze it after the first success.
+ * Execute temporary Job code and parameters, return current output and close the session at completion.
  */
 export async function executeEmbeddedRun(
   runId: string,
   userId: string,
+  input: ResearchEmbeddedAnalysisJobPayload,
 ): Promise<EmbeddedExecutionResult> {
   const controller = new AbortController();
   activeControllers.set(runId, controller);
@@ -79,11 +73,12 @@ export async function executeEmbeddedRun(
       });
       return row;
     });
+    if (run.contentRevision !== input.revision) {
+      throw new Error('Embedded input revision does not match the queued run');
+    }
     documentId = run.documentId;
     const cell = run.cellExecutions[0];
-    const {
-      embedded: { limits },
-    } = run.sourceSnapshot as unknown as { embedded: { limits: ResearchEmbeddedLimitsV1 } };
+    const limits = RESEARCH_EMBEDDED_LIMITS;
     researchSandboxPool.close(documentId);
     timeout = setTimeout(
       () => controller.abort(new ResearchError('embedded_timeout')),
@@ -120,7 +115,6 @@ export async function executeEmbeddedRun(
     let outputs: ResearchCellOutputBlockV1[] = [];
     let definitions: string[] = [];
     let references: string[] = [];
-    let environmentFingerprint: string | null = null;
     let errorCode: ResearchEmbeddedErrorCodeV1 | null = null;
     let error: string | null = null;
     try {
@@ -130,24 +124,12 @@ export async function executeEmbeddedRun(
           (sandbox) =>
             sandbox.execute(
               {
-                cell: { id: cell.sourceCellId!, source: cell.source },
-                parameters: run.parametersSnapshot as ResearchEmbeddedParametersV1,
+                cell: { id: cell.sourceCellId!, source: input.source },
+                parameters: input.parameters,
               },
               {
                 signal,
-                observer: embeddedInputRecorder(runId, signal, limits),
-                async captureEnvironment(environment) {
-                  await getDatabase().$transaction(async (transaction) => {
-                    await assertActiveRun(transaction, runId, signal);
-                    await transaction.researchExecution.update({
-                      where: { id: runId, status: 'running' },
-                      data: {
-                        environmentSnapshot: environment as Prisma.InputJsonValue,
-                        environmentFingerprint: researchPayloadHash(environment),
-                      },
-                    });
-                  });
-                },
+                limits,
               },
             ),
           { signal },
@@ -155,7 +137,7 @@ export async function executeEmbeddedRun(
         aborted,
       ]);
       signal.throwIfAborted();
-      ({ outputs, definitions, references, environmentFingerprint } = executed);
+      ({ outputs, definitions, references } = executed);
     } catch (caught) {
       const cause: unknown = signal.aborted ? signal.reason : caught;
       errorCode =
@@ -164,12 +146,12 @@ export async function executeEmbeddedRun(
           : 'execution_failed';
       error = (cause instanceof Error ? cause.message : String(cause)).slice(0, 8_000);
       if (caught instanceof ResearchPythonExecutionError) {
-        ({ outputs, definitions, references, environmentFingerprint } = caught);
+        ({ outputs, definitions, references } = caught);
       }
     }
     let materialized: MaterializedResearchOutputs;
     try {
-      materialized = materializeResearchOutputArtifacts(outputs, documentId, cell.id);
+      materialized = materializeResearchOutputArtifacts(outputs, documentId);
     } catch (caught) {
       errorCode = 'execution_failed';
       error = (caught instanceof Error ? caught.message : String(caught)).slice(0, 8_000);
@@ -181,7 +163,6 @@ export async function executeEmbeddedRun(
       status: errorCode ? 'error' : 'success',
       errorCode,
       error,
-      environmentFingerprint,
       definitions,
       references,
       materialized,

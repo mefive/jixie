@@ -1,20 +1,9 @@
 import type { zhEmbedded } from '../zh/embedded';
 export const enEmbedded: typeof zhEmbedded = {
-  retainedMode: 'Use retained inputs',
-  currentMode: 'Fetch current data',
-  sourceRun: 'Source run: {{id}}',
-  continuedFrom: 'Continue research from “{{title}}”',
-  retainedHint:
-    'Use the original retained inputs while editing calculations. New or changed data requests require “Fetch current data”. Changing modes makes existing outputs stale.',
-  currentHint:
-    'Requests fetch current data, so results may differ from the original analysis. Rerun after changing modes; the original run remains available.',
-  originalRun: 'View original analysis',
   revision: 'Revision {{number}}',
   earlierDraft:
-    'This run used an earlier draft revision. Details show its original code; editing starts from that code.',
-  reportFingerprint: 'Report content fingerprint',
-  openReport: 'Open this report',
-  inspect: 'Code, sources and history',
+    'Code or parameters changed. Rerun to update the output; the code below is the current draft.',
+  inspect: 'Code and results',
   loadFailed: 'Could not load analysis',
   historyFailed: 'Could not load history',
   retry: 'Retry',
@@ -24,48 +13,26 @@ export const enEmbedded: typeof zhEmbedded = {
   history: 'Run history',
   viewingAnotherRun:
     'Viewing another run. The original message still references its original result.',
-  frozen:
-    'This version succeeded and is fixed. Editing code or parameters creates a new version and preserves the original result.',
-  draft: 'This version has not succeeded. Edit and retry; failed attempts remain available.',
   exploratory:
     'Exploratory analysis depends on the sample and method. It does not replace formal factor evaluation or a strategy backtest.',
   noOutput: 'No output yet',
-  derive: 'Edit as a new version',
-  edit: 'Edit draft',
+  edit: 'Edit code',
   cancel: 'Cancel run',
   runCurrent: 'Run with current data',
   runCurrentNote:
-    'Rerunning fetches current data and adds a record. Continue in Research to calculate with the retained inputs.',
+    'Rerunning fetches current data and replaces the previous result. Continuing in Research copies current code and parameters and fetches data again.',
   continueResearch: 'Continue in Research',
   openResearch: 'Open Research copy',
   actionFailed: 'Action did not complete',
-  code: 'Python and parameters used in this run',
-  source: 'Factor / Strategy and report source',
-  savedHost: 'Saved definition captured for this analysis',
+  code: 'Current Python and parameters',
   report: 'Report',
-  noReport: 'No selected report reference',
-  sourceTime: 'Source captured at',
-  usedInputs: 'Data actually used',
-  noInputs:
-    'No data was requested through the Research SDK. Inspect constants or generated data in the code.',
-  structuredInput: 'Structured response',
-  rows: '{{count}} rows',
-  diagnostics: 'Data semantics and diagnostics',
-  inputFingerprint: 'Input fingerprint',
-  notCaptured: 'Not captured yet',
-  viewInput: 'View retained input',
-  inputPreview: 'Retained input preview',
-  previewLimit:
-    'Preview limited to 20,000 characters. The fingerprint covers the complete retained input.',
-  limits: 'Limits and runtime',
+  limits: 'Execution limits',
   budget:
     'Execution budget: {{seconds}} seconds, {{requests}} SDK requests and {{mib}} MiB of total inputs. Tables and charts have additional output limits.',
-  deriveNote:
-    'Edit and run a copy to create a new version. Original code and results remain unchanged.',
-  editNote: 'Save changes and rerun. The previous failed code and error remain inspectable.',
+  editNote:
+    'Code and parameters remain editable after success. Save and rerun with current data; older ordinary runs are removed.',
   scope: 'Scope and processing method',
   parameters: 'Parameters (JSON object)',
-  deriveRun: 'Create version and run',
   saveRun: 'Save and run',
   attachData: 'Reference data',
   attachIntro:
@@ -76,13 +43,6 @@ export const enEmbedded: typeof zhEmbedded = {
   selectedReport: 'Use selected report',
   selectedData: 'Data referenced by this question',
   referencesLimit: 'A question can reference at most 8 data requests',
-  researchSource: 'From an embedded analysis',
-  retained: 'Use retained inputs',
-  current: 'Fetch current data',
-  inputMode: 'Research data mode',
-  modeNote:
-    'Changing mode makes existing outputs stale. Run again. Retained mode never silently fetches current data; explicitly switch modes for new data requests.',
-  original: 'View original analysis',
   status: {
     queued: 'Queued',
     running: 'Running',
@@ -92,7 +52,6 @@ export const enEmbedded: typeof zhEmbedded = {
   },
   error: {
     not_found: 'Analysis or source unavailable',
-    frozen: 'A fixed version cannot be edited',
     revision_conflict: 'The draft changed. Refresh and retry',
     run_in_progress: 'An analysis is already running',
     request_conflict: 'Repeated request differs from the original run',
@@ -102,7 +61,6 @@ export const enEmbedded: typeof zhEmbedded = {
     timeout: 'Execution timed out. Reduce the sample or simplify the calculation',
     cancelled: 'Run cancelled',
     interrupted: 'Run interrupted. Inspect the record before retrying',
-    incomplete_run: 'Continuing requires a successful run with complete inputs',
     execution_failed: 'Python execution failed. Inspect the error, edit the draft and retry',
   },
 };

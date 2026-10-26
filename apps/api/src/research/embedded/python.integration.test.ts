@@ -36,17 +36,16 @@ import { prisma } from '#infra/database/prisma.js';
 import { JobService } from '#jobs/job-service.js';
 import { runResearchDocument } from '../document-runs/run-document.js';
 import { getResearchDocument } from '../documents/read.js';
-import { getResearchExecution } from '../evidence/execution-records.js';
 
-import { replayResearchInput } from '../evidence/input-replay.js';
 import { cancelEmbeddedRun } from './cancel.js';
 import { captureEmbeddedContext } from './context.js';
-import { changeEmbeddedInputMode, continueEmbeddedResearch } from './continuation.js';
+import { continueEmbeddedResearch } from './continuation.js';
 import { executeEmbeddedRun } from './execute.js';
+import { researchEmbeddedAnalysisJobPayloadSchema } from './job-payload.js';
 import { completeEmbeddedRun } from './finish.js';
 import { getEmbeddedRun, getEmbeddedVersion } from './read.js';
 import { submitEmbeddedRun } from './submit.js';
-import { createEmbeddedAnalysis } from './versions.js';
+import { createEmbeddedAnalysis, updateEmbeddedVersion } from './versions.js';
 
 let previousLocal: string | undefined;
 const base = {
@@ -66,7 +65,13 @@ async function create(source: string) {
 }
 async function execute(run: ResearchEmbeddedRunSummaryV1) {
   await JobService.claim(run.jobId);
-  const output = await executeEmbeddedRun(run.runId, 'owner');
+  const output = await executeEmbeddedRun(
+    run.runId,
+    'owner',
+    researchEmbeddedAnalysisJobPayloadSchema.parse(
+      (await prisma.job.findUniqueOrThrow({ where: { id: run.jobId } })).payload,
+    ),
+  );
   await prisma.$transaction(async (transaction) => {
     await completeEmbeddedRun(transaction, output);
     await transaction.job.update({
@@ -134,13 +139,15 @@ describe('embedded analysis with the real Research Python runtime', () => {
     );
     const first = await execute(run);
     expect(first).toMatchObject({ status: 'success', outputs: [{ type: 'value', value: 7 }] });
-    expect(first.environment).toMatchObject({ runtime: 'research-py-v1' });
+    expect(first).not.toHaveProperty('environment');
     const second = await submitEmbeddedRun('owner', analysis.id, version.id, {
       requestId: 'rerun',
       expectedRevision: 1,
     });
     expect((await execute(second)).outputs).toEqual(first.outputs);
-    expect(await getEmbeddedRun('owner', analysis.id, run.runId)).toEqual(first);
+    await expect(getEmbeddedRun('owner', analysis.id, run.runId)).rejects.toMatchObject({
+      reason: 'embedded_not_found',
+    });
   }, 30_000);
 
   it('retains an invalid Python attempt without freezing it', async () => {
@@ -150,7 +157,9 @@ describe('embedded analysis with the real Research Python runtime', () => {
       errorCode: 'execution_failed',
       source: 'if',
     });
-    expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
+    expect(await getEmbeddedVersion('owner', analysis.id, version.id)).not.toHaveProperty(
+      'frozenAt',
+    );
   }, 30_000);
 
   it('captures report inputs and materializes a table and figure using existing output contracts', async () => {
@@ -171,10 +180,7 @@ describe('embedded analysis with the real Research Python runtime', () => {
     );
     const completed = await execute(run);
     expect(completed.status, completed.error ?? undefined).toBe('success');
-    expect(completed.inputs[0]).toMatchObject({
-      method: 'research_factor_report',
-      status: 'received',
-    });
+    expect(completed).not.toHaveProperty('inputs');
     expect(completed.outputs.some((output) => output.type === 'table')).toBe(true);
     const image = completed.outputs.find((output) => output.type === 'image');
     expect(image).toMatchObject({ type: 'image', artifactId: expect.any(String) });
@@ -277,23 +283,24 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
     expect(summary.quantile_25).toBeCloseTo(quantile(returns, 0.25), 12);
     expect(summary.roe_pct).toBe(20);
     expect(completed.outputs.some((output) => output.type === 'chart')).toBe(true);
-    expect(completed.inputs.map((input) => [input.method, input.status])).toEqual([
-      ['research_series', 'received'],
-      ['research_series', 'received'],
-      ['research_equity_fundamentals', 'received'],
-    ]);
+    expect(completed).not.toHaveProperty('inputs');
   }, 30_000);
 
   it('stops an active Python session on cancellation and retains the submitted source', async () => {
     const { run, analysis, version } = await create('while True:\n    pass');
     await JobService.claim(run.jobId);
-    const running = executeEmbeddedRun(run.runId, 'owner');
+    const running = executeEmbeddedRun(
+      run.runId,
+      'owner',
+      researchEmbeddedAnalysisJobPayloadSchema.parse(
+        (await prisma.job.findUniqueOrThrow({ where: { id: run.jobId } })).payload,
+      ),
+    );
     await vi.waitFor(
       async () => {
         expect(
-          (await prisma.researchExecution.findUniqueOrThrow({ where: { id: run.runId } }))
-            .environmentSnapshot,
-        ).not.toBeNull();
+          (await prisma.researchExecution.findUniqueOrThrow({ where: { id: run.runId } })).status,
+        ).toBe('running');
       },
       { timeout: 20_000 },
     );
@@ -303,9 +310,11 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
       status: 'cancelled',
       source: 'while True:\n    pass',
     });
-    expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
+    expect(await getEmbeddedVersion('owner', analysis.id, version.id)).not.toHaveProperty(
+      'frozenAt',
+    );
   }, 30_000);
-  it('continues with retained inputs, requires explicit current-data mode and preserves execution provenance', async () => {
+  it('continues with current code and parameters and fetches current data', async () => {
     await prisma.factorReport.create({
       data: {
         id: 'report',
@@ -318,73 +327,42 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
         payload: '{"observations":[1,2,null,4]}',
       },
     });
-    const { run, analysis } = await create(
-      'import pandas as pd\nreport = results.factor_report("report")\nsample = pd.Series(report["report"]["observations"], dtype=float)\nfloat(sample.dropna().mean())',
+    const { run, analysis, version } = await create(
+      'import pandas as pd\nreport = results.factor_report("report")\nfloat(pd.Series(report["report"]["observations"],dtype=float).mean())',
     );
     const original = await execute(run);
     expect(original.status, original.error ?? undefined).toBe('success');
+    await updateEmbeddedVersion('owner', analysis.id, version.id, {
+      source: version.source + ' * parameters["value"]',
+      parameters: base.parameters,
+      inputScope: base.inputScope,
+      expectedRevision: 1,
+    });
     const copy = await continueEmbeddedResearch('owner', analysis.id, run.runId, 'en');
     expect(await continueEmbeddedResearch('owner', analysis.id, run.runId, 'en')).toEqual(copy);
     await expect(
       continueEmbeddedResearch('other', analysis.id, run.runId, 'en'),
     ).rejects.toMatchObject({ reason: 'embedded_not_found' });
+    const document = await getResearchDocument('owner', copy.documentId);
+    expect(document).not.toHaveProperty('embeddedSource');
+    expect(document?.cells.at(-1)?.source).toContain('* parameters["value"]');
     await prisma.factorReport.update({
       where: { id: 'report' },
       data: { payload: '{"observations":[10,20,null,40]}' },
     });
-    const retained = await runResearchDocument('owner', copy.documentId, true);
-    expect(retained?.execution?.status).toBe('success');
-    expect(retained?.document.cells.at(-1)?.outputs).toEqual(original.outputs);
-    expect(
-      (await getResearchExecution('owner', retained!.execution!.id))?.cells.at(-1)?.inputSnapshot,
-    ).toMatchObject({ runId: run.runId, inputMode: 'retained' });
-    const changed = await changeEmbeddedInputMode('owner', copy.documentId, {
-      inputMode: 'current',
-      expectedRevision: retained!.document.contentRevision,
-    });
-    expect(
-      changed?.cells
-        .filter((cell) => cell.kind === 'python')
-        .every((cell) => cell.status === 'stale'),
-    ).toBe(true);
     const current = await runResearchDocument('owner', copy.documentId, true);
-    expect(current?.execution?.status).toBe('success');
-    expect(current?.document.cells.at(-1)?.outputs).not.toEqual(original.outputs);
-    expect(
-      (await getResearchExecution('owner', current!.execution!.id))?.cells.at(-1)?.inputSnapshot,
-    ).toMatchObject({ runId: run.runId, inputMode: 'current' });
-    expect(current?.execution?.sourceHash).not.toBe(retained?.execution?.sourceHash);
-    await changeEmbeddedInputMode('owner', copy.documentId, {
-      inputMode: 'retained',
-      expectedRevision: current!.document.contentRevision,
+    expect(current?.document.cells.at(-1)).toMatchObject({
+      status: 'success',
+      outputs: [{ type: 'value' }],
     });
+    const value = current.document.cells.at(-1)!.outputs[0];
+    expect(value.type === 'value' ? value.value : null).toBeCloseTo(((10 + 20 + 40) / 3) * 7, 10);
+    expect(current).not.toHaveProperty('execution');
     await prisma.factorReport.delete({ where: { id: 'report' } });
     expect(
-      (await runResearchDocument('owner', copy.documentId, true))?.document.cells.at(-1)?.outputs,
-    ).toEqual(original.outputs);
-    expect(
-      await replayResearchInput(copy.documentId, {
-        method: 'research_factor_report',
-        arguments: { report_id: 'different-report' },
-      }),
-    ).toMatchObject({ error: expect.stringContaining('no unambiguous retained response') });
-    const input = await prisma.researchExecutionInput.findFirstOrThrow({
-      where: { executionId: run.runId },
-    });
-    await prisma.researchExecutionInput.update({
-      where: { id: input.id },
-      data: { responseJson: '{}' },
-    });
-    await expect(
-      replayResearchInput(copy.documentId, {
-        method: 'research_factor_report',
-        arguments: input.arguments,
-      }),
-    ).rejects.toThrow('checksum mismatch');
-    expect((await getResearchDocument('owner', copy.documentId))?.embeddedSource?.runId).toBe(
-      run.runId,
-    );
-  }, 60_000);
+      (await runResearchDocument('owner', copy.documentId, true))?.document.cells.at(-1)?.status,
+    ).toBe('error');
+  }, 60000);
 
   it('saves the tool run before the model answer and keeps it through cancellation', async () => {
     await startPersistentTurn({
@@ -449,12 +427,12 @@ charts.line(rolling, x="date", y="correlation", title="Three-observation return 
     ).rejects.toThrow('different Factor or Strategy');
   }, 30_000);
 
-  it('refuses to continue a failed attempt and merges an early card with one final answer', async () => {
+  it('continues a failed attempt and merges an early card with one final answer', async () => {
     const { run, analysis } = await create('raise ValueError("bad sample")');
     await execute(run);
-    await expect(
-      continueEmbeddedResearch('owner', analysis.id, run.runId, 'en'),
-    ).rejects.toMatchObject({ reason: 'embedded_incomplete_run', embeddedCode: 'incomplete_run' });
+    expect(await continueEmbeddedResearch('owner', analysis.id, run.runId, 'en')).toMatchObject({
+      documentId: expect.any(String),
+    });
     await startPersistentTurn({
       turnId: 'merge-turn',
       userId: 'owner',

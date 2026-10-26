@@ -77,7 +77,12 @@ const correlation = {
   end: '20241231',
   locale: 'en',
 } satisfies FactorCorrelationJobPayload;
-const embedded = { runId: 'embedded' } satisfies ResearchEmbeddedAnalysisJobPayload;
+const embedded = {
+  runId: 'embedded',
+  source: '1',
+  parameters: {},
+  revision: 1,
+} satisfies ResearchEmbeddedAnalysisJobPayload;
 
 describe('durable Job payload and Worker input contracts', () => {
   it.each([

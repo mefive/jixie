@@ -5,7 +5,7 @@ import {
   type ChatMessage,
   type ResearchCellContextPart,
 } from '@jixie/shared';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
+import { researchPayloadHash } from '../outputs/fingerprints.js';
 
 const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 100;
 const MAX_RESEARCH_AGENT_SOURCE_CHARACTERS = 48_000;
@@ -43,7 +43,6 @@ interface ResearchAgentDocumentCell {
  * Describe the document snapshot used to build bounded agent context.
  */
 interface ResearchAgentDocument {
-  embeddedSource?: unknown;
   id: string;
   updatedAt: Date;
   contentRevision: number;
@@ -247,13 +246,6 @@ export function researchAgentDocumentContext(
     context: JSON.stringify({
       version: 2,
       documentId: document.id,
-      ...(document.embeddedSource
-        ? {
-            embeddedSource: document.embeddedSource,
-            embeddedInputPolicy:
-              'In retained mode, SDK calls must match the original retained requests. Only the user can switch the document to current data; do not work around missing retained inputs. Document cells remain editable.',
-          }
-        : {}),
       updatedAt: document.updatedAt.toISOString(),
       contentRevision: document.contentRevision,
       runtime: 'research-py-v1',

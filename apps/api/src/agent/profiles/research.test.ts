@@ -56,7 +56,7 @@ describe('researchProfile', () => {
     expect(system).toContain('wait for explicit user confirmation');
     expect(system).toContain('The current date is');
     expect(system).toContain('Never claim a Cell ran');
-    expect(system).toContain('ResearchExecution');
+    expect(system).toContain('Editing code or parameters requires rerunning');
     expect(system).toContain('Correlation is not causation');
   });
 
@@ -65,8 +65,8 @@ describe('researchProfile', () => {
 
     expect(system).toContain('Keep exploratory statistical calculations visible');
     expect(system).toContain('Do not run hidden strategy backtests');
-    expect(system).toContain('seal a successful ResearchExecution');
-    expect(system).toContain('use the existing Strategy draft handoff');
+    expect(system).toContain('guide the user to open the Strategy workbench');
+    expect(system).toContain('There is no sealed Research execution or automatic draft handoff');
     expect(system).toContain('explicitly runs the backtest in the Strategy workbench');
     expect(system).toContain(
       'Descriptive studies and statistical relationships do not need to become strategies',

@@ -144,8 +144,7 @@ Agent 工具与共享类型中删除。Research 不再要求用户把问题套�
 ### 1.2 旧固定流程运行记录（已撤销）
 
 `ResearchStudy`、`ResearchRun`、`ResearchAttempt` 及父子重跑/专用比较已经删除。现在的可复现边界是
-`ResearchDocument` 当前态与不可变 `ResearchExecution` 完整运行快照；用户需要复查时重新干净运行全文，
-分别查看快照，不建设隐藏的结果层。
+`ResearchDocument` 的当前代码、修订和输出；用户需要复查时重新干净运行全文，不保留正式执行快照或输入回放。
 
 ### 1.3 研究整理 Agent（Research Curator，已退役）
 
@@ -200,30 +199,23 @@ IC、分层、衰减与换手继续归 FactorReport，不能在 Research 复制�
 ### 1.5 响应式量化研究文档 ✅
 
 在现有 Research 页面内只提供 Markdown / Python Cell，以 Python AST 的变量定义与引用形成依赖 DAG。上游变化
-将下游标记 `stale`；默认 lazy，不自动触发昂贵请求；只有干净 runtime 完整执行成功后才能显式封存不可变
-`ResearchExecution` 快照。不引入 Jupyter，也不维护与 Research 平行的 Notebook 产品。
+将下游标记 `stale`；默认 lazy，不自动触发昂贵请求；干净 runtime 完整执行更新当前输出，不再生成封存快照。
+不引入 Jupyter，也不维护与 Research 平行的 Notebook 产品。
 
 **M0–M3 已完成**：持久化文档、文档级自动保存、修订冲突保护、独立 Python runtime、Pyright 跨 Cell 语言
 服务、平台 `data.series`、静态 SDK Contract、受控大表、Matplotlib artifact、原生 ECharts、依赖运行、中断、
-Agent 开放变更会话、受控尝试、精确输出解释、干净全文运行、不可变快照、文档内历史和显式封存均已落地。
+Agent 开放变更会话、受控尝试、精确输出解释与干净全文运行均已落地；不可变快照、文档内历史及显式封存已退役。
 2026-08-19 进一步删除 Validation Cell、四个固定流程、专用报告和旧 Study/Run/Attempt 表；统计方法现在由
 Markdown 公式/假设与 Python 成熟库实现共同表达。
 
 **当前完成定义**：基础 Python 用户可以在 jixie 内完成平台取数、中等规模分析、静态与交互图、Agent 协作、
-stale 依赖提示和干净环境固化。完整运行只证明这份源码在该环境产生了这些输出，不自动证明方法正确或结论可投资。
+stale 依赖提示和干净环境运行。当前输出不自动证明方法正确或结论可投资。
 
-M4 第 1 项已经完成：成功封存的 `ResearchExecution` 可经 LLM 语义门和现有 Factor 编译器生成唯一的 Factor
-草稿；草稿保留来源快照、revision/hash、提炼摘要和未解决限制，并可精确回跳来源。描述性研究、未来信息、
-不受支持的数据或不能形成逐资产时点信号的研究会被拒绝；交接不会自动运行 FactorReport 或发布。
-研究中明确且受支持的股票池、日期、频率、过滤条件、标的与事前方向同时形成 FactorReport 建议参数：Factor 公式
-保持可复用，工作台只在草稿尚无报告时预填并要求用户确认；不能表达的范围进入未解决项，不静默使用默认股票池。
-
-M4 第 2 项已经完成：成功封存的 ResearchExecution 可经 LLM 语义门生成唯一、可审查的 Strategy 草稿，默认
-使用 Python `py-v1`；草稿必须通过编译与受限运行时校验，保留来源快照、revision/hash、摘要、待验证项和精确
-回链，但不会自动运行回测，用户仍须在 Strategy 中确认参数并显式回测。
+M4 第 1、2 项的冻结研究自动交接已按系统简化计划删除。用户在 Factor／Strategy 工作台手动创建并审查草稿，
+再明确发起分析或回测；已有代码保留。
 
 M4 第 3 项已经完成：Factor 已增加 Python SDK、`py-v1` 受限运行时、FactorReport / 发布 / Strategy 消费链路和
-Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新的 Factor 以及 Research → Factor 草稿默认 Python。
+Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新建 Factor 默认 Python。
 实现已按契约与持久化、横截面运行时、时序/Panel 下游闭环、编辑器与 E2E 四个切片落地。
 
 Research 对派生结果的只读分析已经落地：`results.factor_report()` 与 `results.backtest_report()` 按报告 ID

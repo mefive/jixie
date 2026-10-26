@@ -70,12 +70,8 @@ describe('Research runtime parameter capability negotiation', () => {
       const session = sessionFixture(['explicit_parameters']);
       const source = 'from __future__ import annotations\nparameters["window"]';
       const parameters = { window: 12, enabled: true, absent: null };
-      const captureEnvironment = vi.fn();
       await researchSandboxPool.withSandbox(documentId, (sandbox) =>
-        sandbox.execute(
-          { cell: { id: 'cell', source }, parameters: parameters },
-          { captureEnvironment },
-        ),
+        sandbox.execute({ cell: { id: 'cell', source }, parameters: parameters }, {}),
       );
       expect(session.send).toHaveBeenCalledWith({
         type: 'research_execute',
@@ -83,9 +79,6 @@ describe('Research runtime parameter capability negotiation', () => {
         source,
         parameters,
       });
-      expect(captureEnvironment).toHaveBeenCalledWith(
-        expect.objectContaining({ capabilities: ['explicit_parameters'] }),
-      );
     });
   });
 });

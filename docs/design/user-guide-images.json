@@ -87,10 +87,10 @@
     },
     {
       "path": "zh/research/handoff-01.png",
-      "articles": ["en/research/handoff.md", "zh/research/handoff.md"],
+      "articles": [],
       "originalSha256": "ff899126df47a303dae8d52f03415970136bafe34207b9ec58a0a53afa0d63a1",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "disposition": "retired",
+      "reason": "Research execution promotion and history were retired; no current workflow uses this screenshot.",
       "sha256": "ff899126df47a303dae8d52f03415970136bafe34207b9ec58a0a53afa0d63a1"
     },
     {
@@ -131,10 +131,10 @@
     },
     {
       "path": "zh/research/records-01.png",
-      "articles": ["en/research/records.md", "zh/research/records.md"],
+      "articles": [],
       "originalSha256": "9383acfa3c967b4d674e957f2b90a03d03e7fa829a7582a117c79fa4c65070cd",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
+      "disposition": "retired",
+      "reason": "Research execution promotion and history were retired; no current workflow uses this screenshot.",
       "sha256": "9383acfa3c967b4d674e957f2b90a03d03e7fa829a7582a117c79fa4c65070cd"
     },
     {

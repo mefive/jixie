@@ -253,11 +253,7 @@ try {
         name: 'research/run-controls-current',
         route: research,
         ready: '[data-testid="research-cell-python"]',
-        marks: [
-          '[data-testid="research-run-affected"]',
-          '[data-testid="research-run-all"]',
-          '[data-testid="research-open-execution-history"]',
-        ],
+        marks: ['[data-testid="research-run-affected"]', '[data-testid="research-run-all"]'],
       },
       {
         name: 'factors/create-current',

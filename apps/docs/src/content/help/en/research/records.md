@@ -1,4 +1,4 @@
-# Research documents and run history
+# Research documents and current output
 
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
@@ -11,17 +11,17 @@ been rerun remains stale instead of being presented as current evidence.
 - The title and cell source remain editable and are protected by document-level autosave.
 - Single-cell, affected-branch, and Agent-authorized runs are exploratory operations that update current cell output.
 - Agent changes have durable review records; refresh does not lose pending, accepted, reverted, or conflicted state.
-- Deleting a document removes its cells, conversation, and run history. It does not delete market data or independently created
+- Deleting a document removes its cells, conversation, and run diagnostics. It does not delete market data or independently created
   Factors and Strategies.
 
 ## Search, archive, and restore
 
 1. Select **Current** or **Archived** on the left.
 2. Enter keywords in **Search titles or recent content**. Search matches titles and content previews in that list, not the full text of every historical output.
-3. For a study you do not currently need, open its item menu and select **Archive**. Source, outputs, conversations, and run history are retained.
+3. For a study you do not currently need, open its item menu and select **Archive**. Source, outputs, conversations, and run diagnostics are retained.
 4. To continue, switch to **Archived**, select **Restore** in the item menu, then open it from **Current**.
 
-Wait for an active Agent turn or document run to finish before archiving. Archiving organizes the document list; **Promote as research version** marks a successful immutable run. They serve different purposes.
+Wait for an active Agent turn or document run to finish before archiving.
 
 **1** searches titles or recent content in the current list; **2** opens the document menu.
 
@@ -29,39 +29,21 @@ Wait for an active Agent turn or document run to finish before archiving. Archiv
 
 ## Permanently delete
 
-Only archived items offer **Permanently delete**. Review the confirmation first: the study's Cells, outputs, Agent history, and full-run history are removed and cannot be recovered. Independently created Factors and Strategies remain, but their original research source may no longer open. Use Archive when you only want to organize the list.
+Only archived items offer **Permanently delete**. Review the confirmation first: the study's Cells, outputs, Agent history, and full-run diagnostics are removed and cannot be recovered. Independently created Factors and Strategies remain, but their original research source may no longer open. Use Archive when you only want to organize the list.
 
 **1** switches to Archived; **2** offers Restore and Permanently delete. The capture only opens the menu; nothing is deleted.
 
 ![Current interface and controls](/docs/images/help/en/research/document-list-archived.png)
 
-## Complete runs and promoted versions
+## Current output and clean runs
 
-**Run full document in a clean environment** freezes the current document revision, cell order and source, dependency DAG,
-runtime version, and outputs as an immutable `ResearchExecution`. Editing the live document while that run is active does not
-change the snapshot.
+**Run full document in a clean environment** resets Python, executes current code in dependency order and updates Cell output. Editing marks mismatched output stale until rerun.
 
-Every complete run appears in the document's run history. A successful run can be explicitly promoted with a version name,
-tags, and notes. Promotion names an existing snapshot; it does not rerun or rewrite results. A Factor or Strategy created from
-that snapshot retains its provenance and backlink.
+Complete execution snapshots, formal research evidence, promoted versions and the run-history drawer are retired. Rerunning after data changes reads current data; original inputs cannot be restored.
 
-Use this sequence:
+## Embedded chat analysis
 
-1. Select the history icon at the top to open **Full run history**.
-2. Verify the status, document revision, Cell count, and completion time.
-3. Open an entry to inspect its read-only source and outputs.
-4. When a successful run should become a downstream baseline, select **Promote as research version**.
-5. Enter a version name, tags, and notes, then confirm.
-
-![Historical Chinese UI example: Full run history and promotion entry](/docs/images/help/zh/research/records-01.png)
-
-A complete run proves that this source produced these outputs in that environment; it does not prove that the method is correct
-or investable. The snapshot does not copy the underlying market database. If data is revised later, run the document cleanly
-again to create a separate snapshot and review the two records independently.
-
-## Embedded analysis in chat
-
-For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.
+[Embedded analysis](/docs/help/research/embedded-analysis) remains editable after success and keeps only the latest run per draft. Continuing in Research copies current code and parameters and fetches current data when run.
 
 ## Related articles
 

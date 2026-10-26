@@ -15,10 +15,8 @@ import {
   listEmbeddedRuns,
   runEmbeddedDraft,
   updateEmbeddedDraft,
-  deriveEmbeddedDraft,
   continueEmbeddedResearch,
   stopEmbeddedRun,
-  readEmbeddedInput,
 } from '@src/api/research-embedded';
 
 /**
@@ -44,19 +42,16 @@ export interface EmbeddedDraftForm {
 }
 
 /**
- * 区分继续、输入、取消、编辑及运行操作，供卡片分派。
+ * 区分继续、取消、编辑及运行操作，供卡片分派。
  *
- * Discriminate continuation, input, cancellation, editing and execution actions.
+ * Discriminate continuation, cancellation, editing and execution actions.
  */
-type Action =
-  | { type: 'run' | 'cancel' | 'continue' }
-  | { type: 'edit'; draft: EmbeddedDraftForm }
-  | { type: 'input'; inputId: string };
+type Action = { type: 'run' | 'cancel' | 'continue' } | { type: 'edit'; draft: EmbeddedDraftForm };
 
 export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPart }> {
   public detail = new LoaderModel<Detail>();
   public history = new LoaderModel<ResearchEmbeddedPageV1<ResearchEmbeddedRunSummaryV1>>();
-  public action = new LoaderModel<{ documentId?: string; input?: unknown }>();
+  public action = new LoaderModel<{ documentId?: string }>();
   public polling = new PollingModel();
   public runId = '';
   public historyItems: ResearchEmbeddedRunSummaryV1[] = [];
@@ -213,18 +208,16 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
   }
 
   /**
-   * 按继续研究、读取输入、取消、编辑或运行动作分派并协调版本状态。
+   * 按继续研究、取消、编辑或运行动作分派并协调版本状态。
    *
-   * Dispatch continuation, input reads, cancellation, editing and execution with version-state coordination.
+   * Dispatch continuation, cancellation, editing and execution with version-state coordination.
    */
-  private async perform(action: Action): Promise<{ documentId?: string; input?: unknown }> {
+  private async perform(action: Action): Promise<{ documentId?: string }> {
     const { run, version, analysis } = this.detail.result;
     const analysisId = analysis.id;
     switch (action.type) {
       case 'continue':
         return continueEmbeddedResearch(analysisId, run.runId);
-      case 'input':
-        return { input: await readEmbeddedInput(analysisId, run.runId, action.inputId) };
       case 'cancel':
         await stopEmbeddedRun(analysisId, run.runId);
         await this.refresh();
@@ -237,27 +230,17 @@ export class EmbeddedAnalysisModel extends BaseModel<{ part: EmbeddedAnalysisPar
             : `${version.id}:${version.revision}`;
         if (!this.pendingSubmission || this.pendingSubmission.draftKey !== draftKey) {
           let next = version;
-          if (action.type === 'run' && run.revision !== version.revision) {
-            next = await deriveEmbeddedDraft(analysisId, version.id, {
-              source: run.source,
-              parameters: run.parameters,
-              inputScope: run.inputScope,
-              reportId: run.context.report?.id,
-            });
-          }
           if (action.type === 'edit') {
             const draft = {
               source: action.draft.source,
               parameters: JSON.parse(action.draft.parameters),
               inputScope: action.draft.inputScope,
-              reportId: run.context.report?.id,
+              reportId: version.reportId ?? undefined,
             };
-            next = version.frozenAt
-              ? await deriveEmbeddedDraft(analysisId, version.id, draft)
-              : await updateEmbeddedDraft(analysisId, version.id, {
-                  ...draft,
-                  expectedRevision: version.revision,
-                });
+            next = await updateEmbeddedDraft(analysisId, version.id, {
+              ...draft,
+              expectedRevision: version.revision,
+            });
           }
           this.pendingSubmission = {
             versionId: next.id,

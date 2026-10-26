@@ -7,7 +7,6 @@ import type {
   ResearchEmbeddedAnalysisV1,
   ResearchEmbeddedVersionV1,
   ResearchEmbeddedRunSummaryV1,
-  ResearchEmbeddedContextV1,
   ResearchEmbeddedParametersV1,
 } from '@jixie/shared';
 
@@ -32,9 +31,8 @@ export function versionView(row: ResearchEmbeddedAnalysisVersion): ResearchEmbed
     source: row.source,
     parameters: row.parameters as ResearchEmbeddedParametersV1,
     inputScope: row.inputScope,
-    context: row.contextSnapshot as unknown as ResearchEmbeddedContextV1,
     revision: row.revision,
-    frozenAt: row.frozenAt?.toISOString() ?? null,
+    reportId: row.reportId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -56,7 +54,6 @@ export function runSummaryView(row: EmbeddedRunRow): ResearchEmbeddedRunSummaryV
     revision: row.contentRevision,
     jobId: row.job.id,
     status: row.status as ResearchEmbeddedRunSummaryV1['status'],
-    sourceHash: row.sourceHash,
     errorCode: row.errorCode as ResearchEmbeddedRunSummaryV1['errorCode'],
     error: row.error,
     queuedAt: row.job.queuedAt.toISOString(),

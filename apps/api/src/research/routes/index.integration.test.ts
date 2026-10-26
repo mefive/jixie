@@ -663,6 +663,13 @@ describe('Research HTTP business boundaries', () => {
 
   it.each([
     ['GET', '/conversations'],
+    ['GET', '/documents/document/executions'],
+    ['GET', '/executions/removed'],
+    ['POST', '/executions/removed/promote'],
+    ['POST', '/executions/removed/factor-draft'],
+    ['POST', '/executions/removed/strategy-draft'],
+    ['PATCH', '/documents/document/embedded-input-mode'],
+    ['GET', '/embedded-analyses/missing/runs/missing/inputs/missing'],
     ['PATCH', '/conversations/document'],
     ['DELETE', '/conversations/document'],
     ['POST', '/documents/from-backtest-report/report'],
@@ -689,18 +696,15 @@ describe('Research HTTP business boundaries', () => {
         id: 'execution',
         documentId: 'document',
         revision: 1,
-        source: '',
         status: 'success',
         definitions: [],
         references: [],
-        environmentFingerprint: 'fixture',
       },
     });
     await prisma.researchArtifact.create({
       data: {
         id: 'artifact',
         documentId: 'document',
-        executionId: 'execution',
         kind: 'image',
         mimeType: 'image/png',
         data: Buffer.from('image'),
@@ -708,6 +712,8 @@ describe('Research HTTP business boundaries', () => {
         sha256: 'fixture-sha',
       },
     });
+    await prisma.researchCellExecution.deleteMany();
+
     const first = await request('/artifacts/artifact', undefined, 'owner', 'GET');
     expect(first.status).toBe(200);
     expect(await first.text()).toBe('image');

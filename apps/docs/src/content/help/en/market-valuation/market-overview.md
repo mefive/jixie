@@ -89,4 +89,4 @@ Week, month, quarter, and year use different observation windows. A short-term r
 
 ## Waiting inputs and revisions
 
-A synchronization target is a request bound, not a common completion date. Valid prices can appear while adjustments, valuations, price limits, or complete constituents are missing. Dependent measures remain unavailable and combined weather shows “Waiting for inputs”; missing values are never treated as zero or a balanced state. Revisions can invalidate current cards until recalculation. Previously sealed research reports remain unchanged.
+A synchronization target is a request bound, not a common completion date. Valid prices can appear while adjustments, valuations, price limits, or complete constituents are missing. Dependent measures remain unavailable and combined weather shows “Waiting for inputs”; missing values are never treated as zero or a balanced state. Revisions can invalidate current cards until recalculation. Rerun Research to update current output after data revisions.

@@ -1,4 +1,3 @@
-import { changeEmbeddedInputMode } from '@src/api/research-embedded';
 import { action, makeObservable, observable, runInAction } from 'mobx';
 import {
   normalizeChatMessage,
@@ -24,11 +23,6 @@ import {
   type ResearchDocumentSummaryV1,
   type ResearchDocumentTemplateV1,
   type ResearchDocumentV1,
-  type ResearchExecutionPromotionInputV1,
-  type ResearchExecutionSummaryV1,
-  type ResearchExecutionV1,
-  type ResearchFactorDraftResultV1,
-  type ResearchStrategyDraftResultV1,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
 import { ApiError } from '@src/api/client';
@@ -40,16 +34,11 @@ import {
   archiveResearchDocument,
   createResearchDocument,
   createResearchDocumentFromBacktestReport,
-  createResearchFactorDraft,
-  createResearchStrategyDraft,
   deleteResearchCell,
   deleteResearchDocument,
-  getResearchExecution,
   getResearchDocument,
   interruptResearchDocument,
   listResearchDocuments,
-  listResearchExecutions,
-  promoteResearchExecution,
   renameResearchDocument,
   rejectResearchCellChangeProposal,
   revertResearchCellChangeReview,
@@ -80,7 +69,6 @@ import {
  */
 type ResearchSetupParams = {
   document?: string;
-  execution?: string;
   backtestReport?: string;
 };
 
@@ -101,12 +89,6 @@ interface ResearchDataCatalogQuery {
  * Discriminate document and cell mutations for the shared loader.
  */
 type ResearchDocumentMutation =
-  | {
-      kind: 'embedded-input-mode';
-      documentId: string;
-      inputMode: 'retained' | 'current';
-      expectedRevision: number;
-    }
   | { kind: 'create'; template: ResearchDocumentTemplateV1 }
   | { kind: 'add'; documentId: string; cellKind: ResearchCellKindV1; source?: string }
   | { kind: 'update'; cellId: string; source: string; expectedRevision: number }
@@ -144,7 +126,6 @@ const MAX_RESEARCH_AGENT_CONTEXT_CELLS = 8;
 /** Domain state for the reactive research document and its attached Agent conversation. */
 export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public document: ResearchDocumentV1 | null = null;
-  public requestedExecutionId: string | null = null;
   public requestedBacktestReportId: string | null = null;
   public chatMessages: ChatMessage[] = [];
   public sending = false;
@@ -168,11 +149,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public backtestDocumentLoader = new LoaderModel<ResearchDocumentV1>();
   public documentManagementLoader = new LoaderModel<{ ok: true }>();
   public documentRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
-  public executionListLoader = new LoaderModel<ResearchExecutionSummaryV1[]>();
-  public executionLoader = new LoaderModel<ResearchExecutionV1>();
-  public executionPromotionLoader = new LoaderModel<ResearchExecutionSummaryV1>();
-  public researchFactorDraftLoader = new LoaderModel<ResearchFactorDraftResultV1>();
-  public researchStrategyDraftLoader = new LoaderModel<ResearchStrategyDraftResultV1>();
   public affectedRunLoader = new LoaderModel<ResearchDocumentRunResultV1>();
   public interruptLoader = new LoaderModel<ResearchDocumentInterruptResultV1>();
   public cellChangeResolutionLoader = new LoaderModel<ResearchCellChangeResolutionResultV1>();
@@ -194,7 +170,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     super(parentStore);
     makeObservable(this, {
       document: observable.ref,
-      requestedExecutionId: observable.ref,
       requestedBacktestReportId: observable.ref,
       chatMessages: observable.ref,
       sending: observable.ref,
@@ -225,7 +200,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
   public setup(params: ResearchSetupParams) {
     super.setup(params);
     runInAction(() => {
-      this.requestedExecutionId = params.execution ?? null;
       this.requestedBacktestReportId = params.backtestReport ?? null;
     });
     this.documentsLoader.setup({ request: () => listResearchDocuments('active') });
@@ -241,12 +215,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
        */
       request: (mutation: ResearchDocumentMutation) => {
         switch (mutation.kind) {
-          case 'embedded-input-mode':
-            return changeEmbeddedInputMode(
-              mutation.documentId,
-              mutation.inputMode,
-              mutation.expectedRevision,
-            );
           case 'create':
             return createResearchDocument(mutation.template);
           case 'add':
@@ -296,30 +264,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       preserveResult: false,
       request: ({ documentId, clean }: { documentId: string; clean: boolean }) =>
         runResearchDocument(documentId, clean),
-    });
-    this.executionListLoader.setup({
-      request: (documentId: string) => listResearchExecutions(documentId),
-    });
-    this.executionLoader.setup({
-      request: (executionId: string) => getResearchExecution(executionId),
-    });
-    this.executionPromotionLoader.setup({
-      preserveResult: false,
-      request: ({
-        executionId,
-        input,
-      }: {
-        executionId: string;
-        input: ResearchExecutionPromotionInputV1;
-      }) => promoteResearchExecution(executionId, input),
-    });
-    this.researchFactorDraftLoader.setup({
-      preserveResult: false,
-      request: (executionId: string) => createResearchFactorDraft(executionId),
-    });
-    this.researchStrategyDraftLoader.setup({
-      preserveResult: false,
-      request: (executionId: string) => createResearchStrategyDraft(executionId),
     });
     this.affectedRunLoader.setup({
       preserveResult: false,
@@ -374,11 +318,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     this.registCleaner(() => this.backtestDocumentLoader.cleanup());
     this.registCleaner(() => this.documentManagementLoader.cleanup());
     this.registCleaner(() => this.documentRunLoader.cleanup());
-    this.registCleaner(() => this.executionListLoader.cleanup());
-    this.registCleaner(() => this.executionLoader.cleanup());
-    this.registCleaner(() => this.executionPromotionLoader.cleanup());
-    this.registCleaner(() => this.researchFactorDraftLoader.cleanup());
-    this.registCleaner(() => this.researchStrategyDraftLoader.cleanup());
     this.registCleaner(() => this.affectedRunLoader.cleanup());
     this.registCleaner(() => this.interruptLoader.cleanup());
     this.registCleaner(() => this.cellChangeResolutionLoader.cleanup());
@@ -553,7 +492,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.runInterrupted = false;
       this.explainingAttemptId = null;
     });
-    void this.executionListLoader.run(document.id).catch(() => {});
     void this.documentsLoader.run();
     await this.runAgentTurn(text, document.conversationId);
   }
@@ -586,7 +524,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.runInterrupted = false;
       this.explainingAttemptId = null;
     });
-    void this.executionListLoader.run(document.id).catch(() => {});
     void this.documentsLoader.run();
   }
 
@@ -604,7 +541,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       this.agentContextCellIds = [];
       this.runInterrupted = false;
     });
-    void this.executionListLoader.run(document.id).catch(() => {});
     void this.documentsLoader.run();
   }
 
@@ -635,7 +571,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     if (runningTurnId) {
       void this.turnStream.attach(runningTurnId, this.turnHandlers());
     }
-    void this.executionListLoader.run(id).catch(() => {});
   }
 
   public flushCellDraft(cellId: string): Promise<boolean> {
@@ -644,37 +579,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
 
   public flushPendingChanges(): Promise<boolean> {
     return this.flushAllCellDrafts();
-  }
-
-  /**
-   * 提交嵌入式输入模式修订并刷新当前文档。
-   *
-   * Submit an embedded input-mode revision and refresh the document.
-   */
-  public async changeEmbeddedInputMode(inputMode: 'retained' | 'current') {
-    if (
-      !this.document?.embeddedSource ||
-      this.hasActiveRun ||
-      this.hasOpenCellChangeReview ||
-      this.documentMutationLoader.loading ||
-      !(await this.flushAllCellDrafts())
-    ) {
-      return;
-    }
-    const documentId = this.documentId;
-    try {
-      const document = await this.documentMutationLoader.run({
-        kind: 'embedded-input-mode',
-        documentId,
-        inputMode,
-        expectedRevision: this.document.contentRevision,
-      });
-      if (this.documentId === documentId) {
-        this.acceptDocument(document, false);
-      }
-    } catch {
-      /* The workspace displays the mutation error. */
-    }
   }
 
   public async addCell(kind: ResearchCellKindV1) {
@@ -756,7 +660,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     try {
       const result = await this.documentRunLoader.run({ documentId: this.documentId, clean });
       this.acceptDocument(result.document, false);
-      await this.executionListLoader.run(this.documentId);
       void this.documentsLoader.run();
     } finally {
       runInAction(() => {
@@ -778,7 +681,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       runInAction(() => {
         this.runInterrupted = result.interrupted;
       });
-      await this.executionListLoader.run(this.documentId);
       void this.documentsLoader.run();
     } finally {
       runInAction(() => {
@@ -846,38 +748,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     scope: ResearchDataCatalogScopeV1 = 'instruments',
   ) {
     return this.dataCatalogLoader.run({ query, assetType, scope });
-  }
-
-  public loadExecutionHistory() {
-    return this.documentId ? this.executionListLoader.run(this.documentId) : Promise.resolve([]);
-  }
-
-  public viewResearchExecution(executionId: string) {
-    return this.executionLoader.run(executionId);
-  }
-
-  /**
-   * 提升当前执行证据并刷新可交接状态。
-   *
-   * Promote execution evidence and refresh handoff eligibility.
-   */
-  public async promoteExecution(executionId: string, input: ResearchExecutionPromotionInputV1) {
-    const result = await this.executionPromotionLoader.run({ executionId, input });
-    if (this.documentId) {
-      await this.executionListLoader.run(this.documentId);
-    }
-    if (this.executionLoader.result?.id === executionId) {
-      await this.executionLoader.run(executionId);
-    }
-    return result;
-  }
-
-  public createFactorDraft(executionId: string) {
-    return this.researchFactorDraftLoader.run(executionId);
-  }
-
-  public createStrategyDraft(executionId: string) {
-    return this.researchStrategyDraftLoader.run(executionId);
   }
 
   /**

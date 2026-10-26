@@ -234,7 +234,6 @@ describe('Factor HTTP business boundaries', () => {
       data: {
         status: 'published',
         messages: [{ role: 'user', content: 'Private' }],
-        researchHandoff: { private: true },
         language: 'python',
         runtimeVersion: 'py-v1',
       },
@@ -258,7 +257,6 @@ describe('Factor HTTP business boundaries', () => {
       language: 'python',
       runtimeVersion: 'py-v1',
       messages: source.messages,
-      researchHandoff: null,
     });
     expect(await prisma.factor.findUniqueOrThrow({ where: { id: 'draft' } })).toEqual(source);
   });

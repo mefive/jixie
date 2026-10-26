@@ -10,15 +10,10 @@ import type {
 import {
   embeddedDraftSchema,
   embeddedCreateSchema,
-  embeddedDeriveSchema,
   embeddedUpdateSchema,
   embeddedRunSchema,
 } from '@jixie/shared/api/research';
-import {
-  createEmbeddedAnalysis,
-  deriveEmbeddedVersion,
-  updateEmbeddedVersion,
-} from '#research/embedded/versions.js';
+import { createEmbeddedAnalysis, updateEmbeddedVersion } from '#research/embedded/versions.js';
 import {
   getEmbeddedAnalysis,
   getEmbeddedVersion,
@@ -52,7 +47,7 @@ const readSchema = z.strictObject({ analysisId: z.string().min(1), runId: z.stri
 /**
  * 为已授权实体构造嵌入式分析工具，复用研究执行和证据留存能力。
  *
- * Construct authorized embedded-analysis tools using research execution and evidence persistence.
+ * Construct authorized embedded-analysis tools using editable drafts and current results.
  */
 export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): AgentTool[] {
   let attempts = 0;
@@ -70,7 +65,7 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
     {
       name: 'runEmbeddedAnalysis',
       description:
-        'Execute one self-contained Research Python analysis for the current Factor or Strategy. Query runtime.python and the exact SDK methods with searchResearchCatalog first. Source and parameters are retained; each attempt is recorded. A first success freezes the version. To repair a failed draft or change a frozen version, pass its exact parent reference and expectedRevision from readEmbeddedAnalysis. A frozen parent creates a new version. Use explicit results.factor_report/backtest_report calls for the selected report; no report or previous Python variables are injected. Use print(...) for text. Only the last expression is captured as a table, value or charts.* result. Newly created Matplotlib figures are captured automatically at the end of the Cell; keep them open. No Jupyter/IPython display() function is provided. This is exploratory analysis of existing data: no formal evaluation, backtest, publication or account actions. At most four submissions per conversation turn. The resulting card is saved before waiting for execution.',
+        'Execute one self-contained Research Python analysis for the current Factor or Strategy. Query runtime.python and the exact SDK methods with searchResearchCatalog first. Analysis code remains editable after success. Pass the exact parent reference and expectedRevision from readEmbeddedAnalysis to change it. A new run replaces the previous result for that draft; old run IDs can become unavailable. Inputs and environment evidence are not retained. Continuation copies current code and fetches current data. Use explicit results.factor_report/backtest_report calls for the selected report; no report or previous Python variables are injected. Use print(...) for text. Only the last expression is captured as a table, value or charts.* result. Newly created Matplotlib figures are captured automatically at the end of the Cell; keep them open. No Jupyter/IPython display() function is provided. This is exploratory analysis of existing data: no formal evaluation, backtest, publication or account actions. At most four submissions per conversation turn. The resulting card is saved before waiting for execution.',
       parameters: z.toJSONSchema(runSchema),
 
       /**
@@ -111,20 +106,12 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
             throw new Error('The draft changed; read its current revision before retrying');
           }
           analysisId = parent.analysisId;
-          version = previous.frozenAt
-            ? await deriveEmbeddedVersion(
-                context.userId,
-                analysisId,
-                embeddedDeriveSchema.parse({ parentVersionId: previous.id, draft }),
-                context.source,
-              )
-            : await updateEmbeddedVersion(
-                context.userId,
-                analysisId,
-                previous.id,
-                embeddedUpdateSchema.parse({ ...draft, expectedRevision: previous.revision }),
-                context.source,
-              );
+          version = await updateEmbeddedVersion(
+            context.userId,
+            analysisId,
+            previous.id,
+            embeddedUpdateSchema.parse({ ...draft, expectedRevision: previous.revision }),
+          );
         } else {
           const created = await createEmbeddedAnalysis(
             context.userId,
@@ -133,7 +120,6 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
               title: input.title,
               host: context.source.host,
             }),
-            context.source,
           );
           analysisId = created.analysis.id;
           version = created.version;
@@ -178,7 +164,7 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
     {
       name: 'readEmbeddedAnalysis',
       description:
-        'Read the exact prior embedded run named in a conversation card. Returns code, parameters, input diagnostics, status and bounded outputs; never reads a mutable latest run. Use this before changing a previous analysis or discussing its computed result.',
+        'Read a still-retained embedded run named in a conversation card. Returns current editable code and parameters, run revision, status and bounded outputs. If currentRevision differs from the run revision, the result is stale and must be rerun; do not present current code as the source of an older output. Use this before changing a previous analysis or discussing its computed result.',
       parameters: z.toJSONSchema(readSchema),
 
       /**
@@ -192,12 +178,7 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
         const run = await getEmbeddedRun(context.userId, input.analysisId, input.runId);
         const version = await getEmbeddedVersion(context.userId, input.analysisId, run.versionId);
         return {
-          observation: embeddedObservation(
-            run,
-            version.number,
-            version.revision,
-            !!version.frozenAt,
-          ),
+          observation: embeddedObservation(run, version.number, version.revision),
         };
       },
     },
@@ -212,8 +193,7 @@ export function embeddedAnalysisTools(context: EmbeddedAnalysisToolContext): Age
 function embeddedObservation(
   run: ResearchEmbeddedRunV1,
   versionNumber: number,
-  currentRevision = run.revision,
-  frozen = run.status === 'success',
+  currentRevision = run.currentRevision,
 ) {
   const outputs = run.outputs.map((output) => {
     if (output.type === 'image') {
@@ -230,12 +210,11 @@ function embeddedObservation(
     runId: run.runId,
     versionNumber,
     currentRevision,
-    frozen,
+    revision: run.revision,
     status: run.status,
     source: run.source,
     parameters: run.parameters,
     inputScope: run.inputScope,
-    inputs: run.inputs,
     limits: run.limits,
     errorCode: run.errorCode,
     error: run.error,
@@ -249,17 +228,16 @@ function embeddedObservation(
       runId: run.runId,
       versionNumber,
       currentRevision,
-      frozen,
+      revision: run.revision,
       status: run.status,
       limits: run.limits,
       errorCode: run.errorCode,
       error: run.error?.slice(0, 2_000),
       sourcePreview: run.source.slice(0, 4_000),
       inputScopePreview: run.inputScope.slice(0, 1_000),
-      inputs: run.inputs.map(({ method, rowCount, status }) => ({ method, rowCount, status })),
       outputPreview: JSON.stringify(outputs).slice(0, 6_000),
       previewTruncated: true,
-      note: 'The full code, parameters, inputs and outputs remain in the card. This preview omits content; do not infer omitted values.',
+      note: 'Current code, parameters and retained outputs are available in the card. This preview omits content; do not infer omitted values.',
     };
     while (JSON.stringify(preview).length > 24_000) {
       preview.sourcePreview = preview.sourcePreview.slice(

@@ -1,21 +1,14 @@
-import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { t } from '#i18n/index.js';
 import { getDatabase } from '#infra/database/prisma.js';
-import type { Locale, ResearchEmbeddedDocumentSourceV1 } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
+import type { Locale } from '@jixie/shared';
 import { ulid } from 'ulid';
-import { finishResearchDocumentRun, startResearchDocumentRun } from '../document-runs/run-state.js';
 import { cellCreate } from '../documents/cell-seed.js';
-import { getResearchDocument } from '../documents/read.js';
 import { ResearchError } from '../errors.js';
-import { assertNoOpenCellChangeReview } from '../proposals/review-state.js';
-
-import type { ResearchEmbeddedInputModeInput } from '@jixie/shared/api/research';
 
 /**
- * 每个留存运行只创建一个可编辑副本，重复操作返回同一文档。
+ * 复制当前分析代码及参数到普通文档；重复操作返回同一文档，运行时重新取数。
  *
- * One editable copy per retained run. Repeated clicks return the same document.
+ * Copy current code and parameters into an ordinary document; repeated clicks reuse the document and runs fetch current data.
  */
 export async function continueEmbeddedResearch(
   userId: string,
@@ -26,13 +19,10 @@ export async function continueEmbeddedResearch(
   const documentId = await getDatabase().$transaction(async (transaction) => {
     const run = await transaction.researchExecution.findFirst({
       where: { id: runId, embeddedVersion: { analysisId, analysis: { userId } } },
-      include: { embeddedVersion: { include: { analysis: true } }, inputs: true },
+      include: { embeddedVersion: { include: { analysis: true } } },
     });
     if (!run?.embeddedVersion) {
       throw new ResearchError('embedded_not_found');
-    }
-    if (run.status !== 'success' || run.inputs.some((input) => !input.responseJson)) {
-      throw new ResearchError('embedded_incomplete_run');
     }
     const embeddedRunKey = `${userId}:${runId}`;
     const existing = await transaction.researchDocument.findUnique({ where: { embeddedRunKey } });
@@ -43,19 +33,9 @@ export async function continueEmbeddedResearch(
       });
       return existing.id;
     }
-    const source: ResearchEmbeddedDocumentSourceV1 = {
-      analysisId,
-      versionId: run.embeddedVersionId!,
-      runId,
-      title: run.title,
-      inputMode: 'retained',
-    };
-    const snapshot = run.sourceSnapshot as unknown as {
-      embedded: { source: string; inputScope: string };
-    };
     const id = ulid();
     await transaction.agentConversation.create({
-      data: { id, userId, surface: 'research', title: run.title },
+      data: { id, userId, surface: 'research', title: run.embeddedVersion.analysis.title },
     });
     await transaction.researchDocument.create({
       data: {
@@ -63,15 +43,14 @@ export async function continueEmbeddedResearch(
         userId,
         conversationId: id,
         embeddedRunKey,
-        embeddedSource: source as unknown as Prisma.InputJsonValue,
         cells: {
           create: [
             cellCreate(
               {
                 kind: 'markdown',
                 source: t(locale, 'researchEmbeddedContinuationNote', {
-                  title: run.title,
-                  scope: snapshot.embedded.inputScope,
+                  title: run.embeddedVersion.analysis.title,
+                  scope: run.embeddedVersion.inputScope,
                   runId,
                 }),
               },
@@ -81,7 +60,7 @@ export async function continueEmbeddedResearch(
               {
                 kind: 'python',
                 source: `parameters = {${Object.entries(
-                  (run.parametersSnapshot as Record<string, unknown>) ?? {},
+                  (run.embeddedVersion.parameters as Record<string, unknown>) ?? {},
                 )
                   .map(
                     ([key, value]) =>
@@ -91,7 +70,7 @@ export async function continueEmbeddedResearch(
               },
               1,
             ),
-            cellCreate({ kind: 'python', source: snapshot.embedded.source }, 2),
+            cellCreate({ kind: 'python', source: run.embeddedVersion.source }, 2),
           ],
         },
       },
@@ -99,65 +78,4 @@ export async function continueEmbeddedResearch(
     return id;
   });
   return { documentId };
-}
-
-/**
- * 切换嵌入式输入模式并保留版本约束，明确留存输入与实时读取区别。
- *
- * Change embedded input mode under version guards with explicit retained-versus-live semantics.
- */
-export async function changeEmbeddedInputMode(
-  userId: string,
-  documentId: string,
-  input: ResearchEmbeddedInputModeInput,
-) {
-  const owned = await getDatabase().researchDocument.findFirst({
-    where: { id: documentId, userId, embeddedVersion: null, conversation: { archivedAt: null } },
-    select: { id: true },
-  });
-  if (!owned) {
-    throw new ResearchError('embedded_not_found');
-  }
-  const control = startResearchDocumentRun(documentId);
-  try {
-    await assertNoOpenCellChangeReview(documentId);
-    const changed = await getDatabase().$transaction(async (transaction) => {
-      const document = await transaction.researchDocument.findFirst({
-        where: {
-          id: documentId,
-          userId,
-          embeddedVersion: null,
-          conversation: { archivedAt: null },
-        },
-      });
-      if (!document?.embeddedSource) {
-        throw new ResearchError('embedded_not_found');
-      }
-      if (document.contentRevision !== input.expectedRevision) {
-        throw new ResearchError('embedded_revision_conflict');
-      }
-      const source = document.embeddedSource as unknown as ResearchEmbeddedDocumentSourceV1;
-      if (source.inputMode === input.inputMode) {
-        return false;
-      }
-      await transaction.researchDocument.update({
-        where: { id: documentId },
-        data: {
-          embeddedSource: { ...source, inputMode: input.inputMode },
-          contentRevision: { increment: 1 },
-        },
-      });
-      await transaction.researchCell.updateMany({
-        where: { documentId, kind: 'python' },
-        data: { status: 'stale', revision: { increment: 1 } },
-      });
-      return true;
-    });
-    if (changed) {
-      researchSandboxPool.close(documentId);
-    }
-    return getResearchDocument(userId, documentId);
-  } finally {
-    finishResearchDocumentRun(control);
-  }
 }

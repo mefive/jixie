@@ -1,6 +1,5 @@
 import type { BacktestConfig, BacktestSummary } from './backtest.js';
 import type { ChatMessage } from './chat.js';
-import type { ResearchStrategyHandoffV1 } from './research.js';
 
 /**
  * Saved strategy work. Research conversations and their typed artifacts persist through the unified
@@ -29,15 +28,6 @@ export interface SavedStrategy extends SavedMeta {
   config: BacktestConfig;
   lastResult?: BacktestSummary | null;
   messages?: ChatMessage[] | null;
-  researchHandoff?: ResearchStrategyHandoffV1 | null;
-  sourceResearchExecution?: {
-    id: string;
-    documentId: string;
-    title: string;
-    displayName: string | null;
-    sequence: number;
-    promotedAt: string | null;
-  } | null;
 }
 
 /**

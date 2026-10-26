@@ -3,10 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SandboxTransport } from '#infra/sandbox/transport.js';
 import { MAX_LOG_CHARACTERS } from '#infra/sandbox/protocol.js';
 import { ResearchPythonExecutionError } from '../errors.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { ResearchBridge } from './research-bridge.js';
 import type { ResearchBridgeContract } from './contract.js';
-import { dispatchResearchRequest, type ResearchRequestObserver } from './host/dispatch.js';
+import { dispatchResearchRequest } from './host/dispatch.js';
 
 vi.mock('./host/dispatch.js', () => ({ dispatchResearchRequest: vi.fn() }));
 
@@ -56,26 +55,19 @@ function fixture(...frames: unknown[]) {
 
 afterEach(() => vi.resetAllMocks());
 
-describe('Research bridge protocol and evidence boundaries', () => {
-  it('negotiates capabilities and returns the environment used for execution fingerprints', async () => {
+describe('Research bridge protocol and current data boundaries', () => {
+  it('negotiates capabilities and negotiates runtime metadata without persisted fingerprints', async () => {
     const { bridge, transport, host } = fixture(ready, executed, { type: 'research_reset_done' });
     const metadata = await bridge.initialize();
     expect(metadata).toEqual({
       environment: { ...environment, capabilities: ['explicit_parameters'] },
       capabilities: ['explicit_parameters'],
     });
-    const captureEnvironment = vi.fn(async (captured: Record<string, unknown>) => {
-      expect(captured).toBe(metadata.environment);
-      expect(transport.send).toHaveBeenCalledOnce();
-    });
 
-    await expect(
-      bridge.execute({ cell, parameters: { window: 3 } }, { captureEnvironment }),
-    ).resolves.toEqual({
+    await expect(bridge.execute({ cell, parameters: { window: 3 } })).resolves.toEqual({
       outputs: [],
       definitions: ['value'],
       references: [],
-      environmentFingerprint: researchPayloadHash(metadata.environment),
     });
     await bridge.reset();
     expect(vi.mocked(transport.send).mock.calls.map(([frame]) => frame)).toEqual([
@@ -93,12 +85,8 @@ describe('Research bridge protocol and evidence boundaries', () => {
   it('keeps old sandboxes usable without parameters and rejects explicit parameters before capture', async () => {
     const { bridge, transport } = fixture({ type: 'research_ready', environment }, executed);
     expect((await bridge.initialize()).capabilities).toEqual([]);
-    const captureEnvironment = vi.fn();
 
-    await expect(bridge.execute({ cell, parameters: {} }, { captureEnvironment })).rejects.toThrow(
-      'must be updated',
-    );
-    expect(captureEnvironment).not.toHaveBeenCalled();
+    await expect(bridge.execute({ cell, parameters: {} })).rejects.toThrow('must be updated');
     expect(transport.send).toHaveBeenCalledOnce();
     await expect(bridge.execute({ cell })).resolves.toMatchObject({ definitions: ['value'] });
     expect(transport.send).toHaveBeenLastCalledWith({
@@ -107,49 +95,19 @@ describe('Research bridge protocol and evidence boundaries', () => {
       source: 'value = 1',
     });
   });
-
-  it('does not send startup or source after cancellation at their respective boundaries', async () => {
+  it('does not send startup or source after cancellation', async () => {
     const cancelled = new Error('cancelled');
-    const beforeStartup = fixture(ready);
-    await expect(
-      beforeStartup.bridge.initialize({ signal: AbortSignal.abort(cancelled) }),
-    ).rejects.toBe(cancelled);
-    expect(beforeStartup.transport.send).not.toHaveBeenCalled();
-
+    const first = fixture(ready);
+    await expect(first.bridge.initialize({ signal: AbortSignal.abort(cancelled) })).rejects.toBe(
+      cancelled,
+    );
+    expect(first.transport.send).not.toHaveBeenCalled();
     const { bridge, transport } = fixture(ready);
     await bridge.initialize();
-    const controller = new AbortController();
-    await expect(
-      bridge.execute(
-        { cell },
-        {
-          signal: controller.signal,
-          captureEnvironment: async () => {
-            controller.abort(cancelled);
-          },
-        },
-      ),
-    ).rejects.toBe(cancelled);
+    await expect(bridge.execute({ cell }, { signal: AbortSignal.abort(cancelled) })).rejects.toBe(
+      cancelled,
+    );
     expect(transport.send).toHaveBeenCalledOnce();
-  });
-
-  it('propagates environment persistence failures before sending source', async () => {
-    const { bridge, transport, host } = fixture(ready);
-    await bridge.initialize();
-    const failure = new Error('environment evidence unavailable');
-
-    await expect(
-      bridge.execute(
-        { cell },
-        {
-          captureEnvironment: async () => {
-            throw failure;
-          },
-        },
-      ),
-    ).rejects.toBe(failure);
-    expect(transport.send).toHaveBeenCalledOnce();
-    expect(host.close).not.toHaveBeenCalled();
   });
 
   it('maps analysis fields and omits empty optional request lists', async () => {
@@ -209,52 +167,43 @@ describe('Research bridge protocol and evidence boundaries', () => {
     ]);
     expect(transport.send).toHaveBeenLastCalledWith({ type: 'research_analyze', cells });
   });
-
-  it('waits for request evidence before sending the matching response', async () => {
+  it('dispatches current requests and sends their matching response', async () => {
     const { bridge, transport } = fixture(ready, request, executed);
     await bridge.initialize();
-    let release!: () => void;
-    let entered!: () => void;
-    const recording = new Promise<void>((resolve) => {
-      entered = resolve;
+    vi.mocked(dispatchResearchRequest).mockResolvedValueOnce({
+      type: 'response',
+      id: 7,
+      result: { rows: [] },
     });
-    const retained = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    const observer: ResearchRequestObserver = {
-      beforeRequest: vi.fn(async () => {}),
-      captureResponse: vi.fn(async () => {
-        entered();
-        await retained;
-      }),
-    };
-    const response = { result: { rows: [] } };
-    vi.mocked(dispatchResearchRequest).mockImplementationOnce(
-      async (documentId, frame, observed) => {
-        expect(documentId).toBe('document');
-        expect(observed).toBe(observer);
-        await observed?.beforeRequest(frame);
-        await observed?.captureResponse(frame, response);
-
-        return { type: 'response', id: frame.id, ...response };
-      },
-    );
-    const execution = bridge.execute({ cell }, { observer });
-    await recording;
-    expect(transport.send).toHaveBeenCalledTimes(2);
-    release();
-
-    await execution;
-    expect(observer.beforeRequest).toHaveBeenCalledExactlyOnceWith(request);
-    expect(observer.captureResponse).toHaveBeenCalledExactlyOnceWith(request, response);
+    await bridge.execute({ cell });
+    expect(dispatchResearchRequest).toHaveBeenCalledExactlyOnceWith('document', request);
     expect(transport.send).toHaveBeenLastCalledWith({
       type: 'response',
       id: 7,
       result: { rows: [] },
     });
   });
+  it('enforces transient request and response byte budgets before delivery', async () => {
+    const first = fixture(ready, request, { ...request, id: 8 }, executed);
+    await first.bridge.initialize();
+    vi.mocked(dispatchResearchRequest).mockResolvedValue({
+      type: 'response',
+      id: 7,
+      result: { rows: [] },
+    });
+    await expect(
+      first.bridge.execute({ cell }, { limits: { sdkRequests: 1, inputBytes: 1000 } }),
+    ).rejects.toMatchObject({ reason: 'embedded_request_limit' });
+    expect(dispatchResearchRequest).toHaveBeenCalledOnce();
+    const second = fixture(ready, request);
+    await second.bridge.initialize();
+    await expect(
+      second.bridge.execute({ cell }, { limits: { sdkRequests: 1, inputBytes: 1 } }),
+    ).rejects.toMatchObject({ reason: 'embedded_input_limit' });
+    expect(second.transport.send).toHaveBeenCalledTimes(2);
+  });
 
-  it('propagates request persistence failures without creating a catchable Python response', async () => {
+  it('propagates request dispatch failures without creating a catchable Python response', async () => {
     const { bridge, transport, host } = fixture(ready, request);
     await bridge.initialize();
     const failure = new Error('request evidence unavailable');
@@ -277,14 +226,13 @@ describe('Research bridge protocol and evidence boundaries', () => {
       },
       executed,
     );
-    const metadata = await bridge.initialize();
+    await bridge.initialize();
     await expect(bridge.execute({ cell })).rejects.toMatchObject({
       name: 'ResearchPythonExecutionError',
       message: 'user failure',
       outputs: [{ type: 'text', level: 'warning', text: 'before failure' }],
       definitions: ['partial'],
       references: ['input'],
-      environmentFingerprint: researchPayloadHash(metadata.environment),
     });
     expect(host.close).not.toHaveBeenCalled();
 

@@ -42,7 +42,7 @@ Excess return is strategy return minus benchmark return. Positive excess return 
 
 ## Embedded analysis in chat
 
-For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). It retains Python, inputs and outputs, fixes a version on first success, and can continue in Research. That copy defaults to replaying the retained inputs; ordinary document history rules remain unchanged.
+For a bounded calculation on an existing report or selected data, use an [embedded analysis card](/docs/help/research/embedded-analysis). Successful drafts remain editable. Continuing in Research copies current code and parameters and fetches current data when run.
 
 ## Review strategy code suggestions
 

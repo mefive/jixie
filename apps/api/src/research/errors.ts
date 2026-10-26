@@ -42,10 +42,6 @@ const definitions = {
     category: 'missing',
     messageKey: 'backtestReportNotFound',
   },
-  execution_not_found: {
-    category: 'missing',
-    messageKey: 'researchExecutionNotFound',
-  },
   artifact_not_found: {
     category: 'missing',
     messageKey: 'researchArtifactNotFound',
@@ -65,26 +61,6 @@ const definitions = {
   cell_change_review_open: {
     category: 'conflict',
     messageKey: 'researchCellChangeReviewMustResolve',
-  },
-  execution_promotion_unavailable: {
-    category: 'conflict',
-    messageKey: 'researchExecutionPromotionUnavailable',
-  },
-  factor_draft_unavailable: {
-    category: 'conflict',
-    messageKey: 'researchFactorDraftUnavailable',
-  },
-  strategy_draft_unavailable: {
-    category: 'conflict',
-    messageKey: 'researchStrategyDraftUnavailable',
-  },
-  factor_handoff_rejected: {
-    category: 'invalid',
-    messageKey: 'researchHandoffRejected',
-  },
-  strategy_handoff_rejected: {
-    category: 'invalid',
-    messageKey: 'researchHandoffRejected',
   },
   cell_revision_conflict: {
     category: 'conflict',
@@ -204,13 +180,7 @@ const definitions = {
       reason: 'not_found',
     },
   },
-  embedded_frozen: {
-    category: 'conflict',
-    messageKey: 'researchEmbeddedFrozen',
-    details: {
-      reason: 'frozen',
-    },
-  },
+
   embedded_revision_conflict: {
     category: 'conflict',
     messageKey: 'researchEmbeddedRevisionConflict',
@@ -281,13 +251,6 @@ const definitions = {
       reason: 'execution_failed',
     },
   },
-  embedded_incomplete_run: {
-    category: 'conflict',
-    messageKey: 'researchEmbeddedIncompleteRun',
-    details: {
-      reason: 'incomplete_run',
-    },
-  },
 } as const satisfies Record<string, BusinessErrorDefinition>;
 
 export type ResearchErrorReason = keyof typeof definitions;
@@ -320,7 +283,6 @@ type ResearchErrorOptions<Reason extends ResearchErrorReason> = Omit<
 
 const embeddedCodes: Partial<Record<ResearchErrorReason, ResearchEmbeddedErrorCodeV1>> = {
   embedded_not_found: 'not_found',
-  embedded_frozen: 'frozen',
   embedded_revision_conflict: 'revision_conflict',
   embedded_run_in_progress: 'run_in_progress',
   embedded_request_conflict: 'request_conflict',
@@ -331,7 +293,6 @@ const embeddedCodes: Partial<Record<ResearchErrorReason, ResearchEmbeddedErrorCo
   embedded_cancelled: 'cancelled',
   embedded_interrupted: 'interrupted',
   embedded_execution_failed: 'execution_failed',
-  embedded_incomplete_run: 'incomplete_run',
 };
 
 export class ResearchError<
@@ -360,7 +321,6 @@ export class ResearchPythonExecutionError extends Error {
     public readonly outputs: ResearchCellOutputBlockV1[],
     public readonly definitions: string[],
     public readonly references: string[],
-    public readonly environmentFingerprint: string,
   ) {
     super(message);
     this.name = 'ResearchPythonExecutionError';
@@ -368,7 +328,7 @@ export class ResearchPythonExecutionError extends Error {
 }
 
 export class ResearchPythonInterruptionError extends Error {
-  public constructor(public readonly environmentFingerprint: string) {
+  public constructor() {
     super('Research cell execution was interrupted');
     this.name = 'ResearchPythonInterruptionError';
   }

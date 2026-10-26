@@ -51,13 +51,11 @@ vi.mock('#agent/turns/run.js', async (original) => ({
 import { prisma } from '#infra/database/prisma.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { JobService } from '#jobs/job-service.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
 import { researchRoute } from '../routes/index.js';
 
 import { dispatchResearchRequest } from '../sandbox/host/dispatch.js';
 import { cancelEmbeddedRun } from './cancel.js';
-import { embeddedInputRecorder } from './inputs.js';
-import { getEmbeddedInput, getEmbeddedRun, getEmbeddedVersion } from './read.js';
+import { getEmbeddedRun, getEmbeddedVersion } from './read.js';
 import { submitEmbeddedRun } from './submit.js';
 import {
   createEmbeddedAnalysis,
@@ -79,7 +77,6 @@ const input = {
   inputScope: 'Three observations',
 };
 const draft = { source: input.source, parameters: input.parameters, inputScope: input.inputScope };
-const environment = { runtime: 'research-py-v1', python: 'fixture' };
 let executeSpy: Mock<
   (
     documentId: string,
@@ -106,15 +103,14 @@ async function fixtureRun(source = input.source) {
 async function execute(run: ResearchEmbeddedRunSummaryV1) {
   expect(await JobService.claim(run.jobId)).toBe(true);
   await JobService.execute(run.jobId);
+  expect((await prisma.job.findUniqueOrThrow({ where: { id: run.jobId } })).payload).toBeNull();
   return getEmbeddedRun('owner', run.analysisId, run.runId);
 }
-async function capture(options?: ResearchCellRunOptions) {
-  await options?.captureEnvironment?.(environment);
+async function capture() {
   return {
     outputs: [{ type: 'value' as const, value: 3 }],
     definitions: ['parameters'],
     references: [],
-    environmentFingerprint: researchPayloadHash(environment),
   };
 }
 function deferred<T>() {
@@ -167,7 +163,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
           options?: ResearchCellRunOptions,
         ) => Promise<ResearchCellRunResult>
       >()
-      .mockImplementation(async (_documentId, _cell, options) => capture(options));
+      .mockImplementation(async (_documentId, _cell, _options) => capture());
     vi.spyOn(researchSandboxPool, 'withSandbox').mockImplementation(async (documentId, operation) =>
       operation({
         execute: ({ cell }, options) => executeSpy(documentId, cell, options),
@@ -278,44 +274,42 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     ).rejects.toMatchObject({ reason: 'embedded_run_in_progress' });
     expect(await prisma.researchExecution.count()).toBe(1);
   });
-
-  it('freezes only after successful output persistence and preserves earlier cards on rerun/derivation', async () => {
+  it('edits successful drafts and replaces only their previous terminal run', async () => {
     const { analysis, version, run } = await fixtureRun();
-    const first = await execute(run);
-    expect(first).toMatchObject({
+    expect(await execute(run)).toMatchObject({
       status: 'success',
       outputs: [{ type: 'value', value: 3 }],
-      environment,
     });
-    expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).not.toBeNull();
-    await expect(
-      updateEmbeddedVersion('owner', analysis.id, version.id, {
-        ...draft,
-        source: '2',
-        expectedRevision: 1,
-      }),
-    ).rejects.toMatchObject({ reason: 'embedded_frozen' });
-    const second = await submitEmbeddedRun('owner', analysis.id, version.id, {
-      requestId: 'second',
-      expectedRevision: 1,
-    });
-    await execute(second);
-    expect(second.runId).not.toBe(first.runId);
-    const derived = await deriveEmbeddedVersion('owner', analysis.id, {
-      parentVersionId: version.id,
-    });
-    expect(derived).toMatchObject({
-      number: 2,
-      parentVersionId: version.id,
-      frozenAt: null,
-      source: input.source,
-    });
-    await updateEmbeddedVersion('owner', analysis.id, derived.id, {
+    expect((await prisma.job.findUniqueOrThrow({ where: { id: run.jobId } })).payload).toBeNull();
+    const edited = await updateEmbeddedVersion('owner', analysis.id, version.id, {
       ...draft,
       source: '99',
       expectedRevision: 1,
     });
-    expect(await getEmbeddedRun('owner', analysis.id, run.runId)).toEqual(first);
+    expect(edited).toMatchObject({ revision: 2, source: '99' });
+    expect(await getEmbeddedRun('owner', analysis.id, run.runId)).toMatchObject({
+      revision: 1,
+      source: '99',
+    });
+    const second = await submitEmbeddedRun('owner', analysis.id, version.id, {
+      requestId: 'second',
+      expectedRevision: 2,
+    });
+    await expect(getEmbeddedRun('owner', analysis.id, run.runId)).rejects.toMatchObject({
+      reason: 'embedded_not_found',
+    });
+    expect(await prisma.job.findUnique({ where: { id: run.jobId } })).toBeNull();
+    expect(
+      (await prisma.job.findUniqueOrThrow({ where: { id: second.jobId } })).payload,
+    ).toMatchObject({ source: '99', parameters: input.parameters, revision: 2 });
+    await execute(second);
+    const derived = await deriveEmbeddedVersion('owner', analysis.id, {
+      parentVersionId: version.id,
+    });
+    expect(derived).toMatchObject({ number: 2, parentVersionId: version.id, source: '99' });
+    expect(await getEmbeddedRun('owner', analysis.id, second.runId)).toMatchObject({
+      status: 'success',
+    });
   });
 
   it('retains failed source and permits repair without creating another version', async () => {
@@ -327,7 +321,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       ...draft,
       expectedRevision: 1,
     });
-    expect(repaired).toMatchObject({ revision: 2, frozenAt: null });
+    expect(repaired).toMatchObject({ revision: 2 });
     await expect(
       updateEmbeddedVersion('owner', analysis.id, version.id, { ...draft, expectedRevision: 1 }),
     ).rejects.toMatchObject({ reason: 'embedded_revision_conflict' });
@@ -336,10 +330,11 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       expectedRevision: 2,
     });
     expect((await execute(rerun)).status).toBe('success');
-    expect(await getEmbeddedRun('owner', analysis.id, run.runId)).toEqual(failed);
+    await expect(getEmbeddedRun('owner', analysis.id, run.runId)).rejects.toMatchObject({
+      reason: 'embedded_not_found',
+    });
   });
-
-  it('stores actual responses before delivery and retains them after the report is deleted', async () => {
+  it('reads current SDK responses without storing input replay data', async () => {
     await prisma.factorReport.create({
       data: {
         id: 'report',
@@ -352,50 +347,27 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
         payload: '{"icMean":0.05}',
       },
     });
-    executeSpy.mockImplementationOnce(async (documentId, _cell, options) => {
-      await options?.captureEnvironment?.(environment);
-      const send = vi.fn(async (_response: unknown) => {
-        const saved = await prisma.researchExecutionInput.findFirstOrThrow();
-        expect(saved.status).toBe('received');
-        expect(JSON.parse(saved.responseJson!)).toMatchObject({
-          result: { report_id: 'report', report: { ic_mean: 0.05 } },
-        });
+    executeSpy.mockImplementationOnce(async (documentId) => {
+      const frame = {
+        type: 'request' as const,
+        id: 1,
+        method: 'research_factor_report' as const,
+        arguments: { report_id: 'report' },
+      };
+      expect(await dispatchResearchRequest(documentId, frame)).toMatchObject({
+        result: { report: { ic_mean: 0.05 } },
       });
-      const response = await dispatchResearchRequest(
-        documentId,
-        {
-          type: 'request',
-          id: 1,
-          method: 'research_factor_report',
-          arguments: { report_id: 'report' },
-        },
-        options?.observer,
-      );
-      await send(response);
+      await prisma.factorReport.delete({ where: { id: 'report' } });
+      expect(await dispatchResearchRequest(documentId, frame)).toMatchObject({
+        error: expect.stringContaining('not found'),
+      });
       return capture();
     });
-    const { run, analysis } = await fixtureRun();
+    const { run } = await fixtureRun();
     const completed = await execute(run);
-    expect(completed.inputs).toHaveLength(1);
-    expect(completed.inputs[0]).toMatchObject({
-      method: 'research_factor_report',
-      status: 'received',
-      rowCount: null,
-    });
-    expect(completed.inputs[0].metadata).toMatchObject({ report_id: 'report' });
-    expect(completed.inputs[0]).not.toHaveProperty('responseJson');
-    await prisma.factorReport.delete({ where: { id: 'report' } });
-    const retained = await getEmbeddedInput(
-      'owner',
-      analysis.id,
-      run.runId,
-      completed.inputs[0].id,
-    );
-    expect(retained.response).toMatchObject({ result: { report: { ic_mean: 0.05 } } });
-    expect(retained.sha256).toMatch(/^[0-9a-f]{64}$/);
-    await expect(
-      getEmbeddedInput('other', analysis.id, run.runId, completed.inputs[0].id),
-    ).rejects.toMatchObject({ reason: 'embedded_not_found' });
+    for (const field of ['inputs', 'environment', 'context', 'sourceHash']) {
+      expect(completed).not.toHaveProperty(field);
+    }
   });
 
   it('rejects foreign sources and unfinished report context without creating orphan documents', async () => {
@@ -436,11 +408,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       ...input,
       host: { type: 'factor', id: 'etf_trend_20' },
     });
-    expect(preset.version.context).toMatchObject({
-      host: { type: 'factor', id: 'etf_trend_20' },
-      language: 'typescript',
-    });
-    expect(preset.version.context.code.length).toBeGreaterThan(0);
+    expect(preset.version).not.toHaveProperty('context');
     expect(await prisma.factor.findUnique({ where: { id: 'etf_trend_20' } })).toMatchObject({
       userId: 'builtin',
       status: 'published',
@@ -474,26 +442,21 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
         payload: '{"secret":42}',
       },
     });
-    executeSpy.mockImplementationOnce(async (documentId, _cell, options) => {
-      await options?.captureEnvironment?.(environment);
+    executeSpy.mockImplementationOnce(async (documentId, _cell, _options) => {
       const send = vi.fn();
-      const response = await dispatchResearchRequest(
-        documentId,
-        {
-          type: 'request',
-          id: 1,
-          method: 'research_factor_report',
-          arguments: { report_id: 'foreign-report' },
-        },
-        options?.observer,
-      );
+      const response = await dispatchResearchRequest(documentId, {
+        type: 'request',
+        id: 1,
+        method: 'research_factor_report',
+        arguments: { report_id: 'foreign-report' },
+      });
       await send(response);
       expect(send.mock.calls[0][0]).toMatchObject({ error: expect.stringContaining('not found') });
       expect(JSON.stringify(send.mock.calls)).not.toContain('secret');
       return capture();
     });
     const { run } = await fixtureRun();
-    expect((await execute(run)).inputs[0].status).toBe('error');
+    expect((await execute(run)).status).toBe('success');
   });
 
   it('cancels queued jobs idempotently and never starts their Python', async () => {
@@ -503,14 +466,15 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     expect(await cancelEmbeddedRun('owner', analysis.id, run.runId)).toEqual(cancelled);
     expect(await JobService.claim(run.jobId)).toBe(false);
     expect(executeSpy).not.toHaveBeenCalled();
-    expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
+    expect(await getEmbeddedVersion('owner', analysis.id, version.id)).not.toHaveProperty(
+      'frozenAt',
+    );
   });
 
   it('cancels active work and rejects late output without freezing or overwriting the record', async () => {
     const started = deferred<void>();
     const late = deferred<ResearchCellRunResult>();
-    executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => {
-      await options?.captureEnvironment?.(environment);
+    executeSpy.mockImplementationOnce(async (_documentId, _cell, _options) => {
       started.resolve();
       return late.promise;
     });
@@ -523,7 +487,19 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     late.resolve(await capture());
     await Promise.resolve();
     expect(await getEmbeddedRun('owner', analysis.id, run.runId)).toEqual(cancelled);
-    expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
+    expect(await getEmbeddedVersion('owner', analysis.id, version.id)).not.toHaveProperty(
+      'frozenAt',
+    );
+  });
+
+  it('fails a legacy queued payload explicitly and clears its claim and temporary input', async () => {
+    const { analysis, run } = await fixtureRun();
+    await prisma.job.update({ where: { id: run.jobId }, data: { payload: { runId: run.runId } } });
+    expect(await execute(run)).toMatchObject({ status: 'error', errorCode: 'execution_failed' });
+    expect(executeSpy).not.toHaveBeenCalled();
+    expect(
+      await prisma.researchEmbeddedAnalysis.findUniqueOrThrow({ where: { id: analysis.id } }),
+    ).toMatchObject({ activeRunId: null });
   });
 
   it('recovers interrupted jobs while leaving queued submissions available after restart', async () => {
@@ -581,8 +557,7 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
   it('ends the execution deadline even if a dataset request never settles', async () => {
     const started = deferred<void>();
     const late = deferred<ResearchCellRunResult>();
-    executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => {
-      await options?.captureEnvironment?.(environment);
+    executeSpy.mockImplementationOnce(async (_documentId, _cell, _options) => {
       started.resolve();
       return late.promise;
     });
@@ -594,32 +569,9 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     vi.useRealTimers();
     expect(await running).toMatchObject({ status: 'error', errorCode: 'timeout' });
     late.resolve(await capture());
-    expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
-  });
-
-  it('does not accept SDK evidence that arrives after cancellation', async () => {
-    const { run, analysis } = await fixtureRun();
-    await JobService.claim(run.jobId);
-    await prisma.researchExecution.update({
-      where: { id: run.runId },
-      data: { status: 'running' },
-    });
-    const recorder = embeddedInputRecorder(run.runId, new AbortController().signal);
-    const frame = {
-      type: 'request' as const,
-      id: 1,
-      method: 'research_factor_report' as const,
-      arguments: { report_id: 'report' },
-    };
-    await recorder.beforeRequest(frame);
-    await cancelEmbeddedRun('owner', analysis.id, run.runId);
-    await expect(
-      recorder.captureResponse(frame, { result: { rows: [1, 2, 3] } }),
-    ).rejects.toMatchObject({ reason: 'embedded_cancelled' });
-    const record = await prisma.researchExecutionInput.findFirstOrThrow({
-      where: { executionId: run.runId },
-    });
-    expect(record).toMatchObject({ status: 'interrupted', responseJson: null });
+    expect(await getEmbeddedVersion('owner', analysis.id, version.id)).not.toHaveProperty(
+      'frozenAt',
+    );
   });
 
   it('retains analysis evidence when the host is deleted and keeps it private to its owner', async () => {
@@ -650,54 +602,16 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
     );
   });
 
-  it('rejects cumulative input and request limits without silently truncating evidence', async () => {
-    const { run } = await fixtureRun();
-    await JobService.claim(run.jobId);
-    await prisma.researchExecution.update({
-      where: { id: run.runId },
-      data: { status: 'running' },
-    });
-    const recorder = embeddedInputRecorder(run.runId, new AbortController().signal);
-    const frame = {
-      type: 'request' as const,
-      id: 1,
-      method: 'research_factor_report' as const,
-      arguments: { report_id: 'report' },
-    };
-    for (let index = 0; index < RESEARCH_EMBEDDED_LIMITS.sdkRequests; index++) {
-      await recorder.beforeRequest({ ...frame, id: index + 1 });
-      await recorder.captureResponse({ ...frame, id: index + 1 }, { result: { rows: [] } });
-    }
-    await expect(recorder.beforeRequest({ ...frame, id: 17 })).rejects.toMatchObject({
-      reason: 'embedded_request_limit',
-      embeddedCode: 'request_limit',
-    });
-    expect(await prisma.researchExecutionInput.count()).toBe(16);
-    const oversized = await fixtureRun();
-    executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => {
-      await options?.captureEnvironment?.(environment);
-      await options?.observer?.beforeRequest(frame);
-      await options?.observer?.captureResponse(frame, {
-        result: { value: 'x'.repeat(RESEARCH_EMBEDDED_LIMITS.inputBytes) },
-      });
-      return capture();
-    });
-    const failed = await execute(oversized.run);
-    expect(failed).toMatchObject({ status: 'error', errorCode: 'input_limit' });
-    expect(failed.inputs[0]).toMatchObject({ status: 'interrupted', byteSize: 0 });
-    expect(
-      (await getEmbeddedVersion('owner', oversized.analysis.id, oversized.version.id)).frozenAt,
-    ).toBeNull();
-  });
-
   it('does not freeze if output materialization fails', async () => {
-    executeSpy.mockImplementationOnce(async (_documentId, _cell, options) => ({
-      ...(await capture(options)),
+    executeSpy.mockImplementationOnce(async (_documentId, _cell, _options) => ({
+      ...(await capture()),
       outputs: [{ type: 'text', text: 'x'.repeat(2 * 1024 * 1024 + 1) }],
     }));
     const { analysis, version, run } = await fixtureRun();
     expect((await execute(run)).status).toBe('error');
-    expect((await getEmbeddedVersion('owner', analysis.id, version.id)).frozenAt).toBeNull();
+    expect(await getEmbeddedVersion('owner', analysis.id, version.id)).not.toHaveProperty(
+      'frozenAt',
+    );
     expect(
       (await prisma.researchEmbeddedAnalysis.findUniqueOrThrow({ where: { id: analysis.id } }))
         .activeRunId,
@@ -764,10 +678,8 @@ describe('embedded analysis storage, queue and HTTP lifecycle', () => {
       'owner',
       'zh',
     );
-    expect(conflict.status).toBe(409);
-    expect(await conflict.json()).toMatchObject({
-      error: { details: { reason: 'frozen' }, message: expect.stringContaining('新版本') },
-    });
+    expect(conflict.status).toBe(200);
+    expect(await conflict.json()).toMatchObject({ revision: 2 });
     const saved = (await (
       await request(`/embedded-analyses/${analysis.id}/runs/${run.runId}`)
     ).json()) as ResearchEmbeddedRunV1;

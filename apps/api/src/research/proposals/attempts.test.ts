@@ -9,16 +9,14 @@ describe('Research Cell change attempts', () => {
     const previous = attemptRow({
       id: 'attempt-1',
       status: 'error',
-      source: 'value = 1',
+      revision: 1,
       output: [{ type: 'value', value: 1 }],
-      environmentFingerprint: 'environment-a',
     });
     const current = attemptRow({
       id: 'attempt-2',
       status: 'success',
-      source: 'value = 2',
+      revision: 2,
       output: [{ type: 'value', value: 2 }],
-      environmentFingerprint: 'environment-b',
     });
 
     const view = researchCellChangeAttemptView(current, previous);
@@ -29,7 +27,6 @@ describe('Research Cell change attempts', () => {
       sourceChangedCellIds: ['cell-a'],
       outputChangedCellIds: ['cell-a'],
       statusChanged: true,
-      environmentChanged: true,
     });
   });
 });
@@ -37,9 +34,8 @@ describe('Research Cell change attempts', () => {
 function attemptRow(args: {
   id: string;
   status: string;
-  source: string;
+  revision: number;
   output: unknown;
-  environmentFingerprint: string;
 }): ResearchCellChangeAttemptRow {
   const startedAt = new Date('2026-08-18T10:00:00.000Z');
   return {
@@ -63,15 +59,12 @@ function attemptRow(args: {
         sourceCellId: 'cell-a',
         sourcePosition: 1,
         sourceKind: 'python',
-        revision: 2,
-        source: args.source,
-        inputSnapshot: null,
+        revision: args.revision,
         status: args.status,
         output: args.output,
         error: null,
         definitions: ['value'],
         references: [],
-        environmentFingerprint: args.environmentFingerprint,
         startedAt,
         finishedAt: startedAt,
         cellChangeAttemptId: args.id,

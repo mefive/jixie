@@ -579,29 +579,28 @@ test('keeps Factor observation data independent of evaluation algorithms and the
   ]);
 });
 
-test('keeps Research evidence independent of sandbox implementations and protocol types', (context) => {
+test('keeps Research outputs independent of sandbox implementations and protocol types', (context) => {
   const root = fixture(context, {
-    [src + 'research/evidence/input-replay.ts']:
-      "import { read } from '../sandbox/host/protocol.js';",
-    [src + 'research/evidence/input-contract.ts']:
+    [src + 'research/outputs/artifacts.ts']: "import { read } from '../sandbox/host/protocol.js';",
+    [src + 'research/outputs/read-artifact.ts']:
       "import type { Frame } from '../sandbox/host/protocol.js';",
     [src + 'research/sandbox/host/protocol.ts']:
       'export const read = () => {}; export interface Frame {}',
   });
   assert.deepEqual(rules(checkBackendBoundaries(root, emptyPolicy)), [
-    'research-evidence-direction',
-    'research-evidence-direction',
+    'research-output-direction',
+    'research-output-direction',
   ]);
 });
 
-test('permits evaluators to consume observations and sandbox hosts to request retained evidence', (context) => {
+test('permits evaluators to consume observations and sandbox hosts to load current data', (context) => {
   const root = fixture(context, {
     [src + 'factor/analysis/evaluator.ts']:
       "import type { Observation } from '../observations/contract.js';",
     [src + 'factor/observations/contract.ts']: 'export interface Observation {}',
     [src + 'research/sandbox/host/dispatch.ts']:
-      "import { replay } from '../../evidence/input-replay.js';",
-    [src + 'research/evidence/input-replay.ts']: 'export const replay = () => {};',
+      "import { load } from '../../datasets/results.js';",
+    [src + 'research/datasets/results.ts']: 'export const load = () => {};',
   });
   assert.deepEqual(checkBackendBoundaries(root, emptyPolicy).diagnostics, []);
 });

@@ -1,8 +1,5 @@
 import type { Prisma } from '@prisma/client';
 import { getDatabase } from '#infra/database/prisma.js';
-import type { ResearchExecutionSourceCellSnapshot } from '../evidence/execution-records.js';
-import type { ResearchCellKindV1 } from '@jixie/shared';
-import { jsonStringArray } from '../dependencies/cell-values.js';
 
 /**
  * 保留可执行 Cell 的源码、修订和依赖字段。
@@ -23,18 +20,17 @@ export interface ExecutableResearchCellRow {
   dependencyIssues: Prisma.JsonValue;
   lastExecutedRevision: number | null;
   document: {
-    embeddedSource?: Prisma.JsonValue | null;
     conversationId: string;
     conversation: { title: string | null; userId: string };
   };
 }
 
 /**
- * 读取并冻结待执行文档源码与修订身份，供可复现执行快照。
+ * 读取待执行文档代码与修订，作为本次调用的内存输入。
  *
- * Load and freeze executable document sources and revisions for reproducible execution.
+ * Load document code and revisions as in-memory input for this call.
  */
-export async function loadResearchExecutionSeed(userId: string, documentId: string) {
+export async function loadResearchRunInput(userId: string, documentId: string) {
   const document = await getDatabase().researchDocument.findFirst({
     where: { id: documentId, userId, embeddedVersion: null },
     select: {
@@ -42,7 +38,6 @@ export async function loadResearchExecutionSeed(userId: string, documentId: stri
       conversationId: true,
       runtimeVersion: true,
       contentRevision: true,
-      embeddedSource: true,
       conversation: { select: { title: true, userId: true } },
       cells: { orderBy: { position: 'asc' } },
     },
@@ -51,7 +46,6 @@ export async function loadResearchExecutionSeed(userId: string, documentId: stri
     return null;
   }
   const documentContext = {
-    embeddedSource: document.embeddedSource,
     conversationId: document.conversationId,
     conversation: document.conversation,
   };
@@ -65,29 +59,6 @@ export async function loadResearchExecutionSeed(userId: string, documentId: stri
         document: documentContext,
       }),
     ),
-  };
-}
-
-/**
- * 将可执行 Cell 转换为独立源码快照，供不可变执行。
- *
- * Map an executable cell into a detached execution source snapshot.
- */
-export function researchExecutionSourceCellSnapshot(
-  cell: ExecutableResearchCellRow,
-): ResearchExecutionSourceCellSnapshot {
-  return {
-    id: cell.id,
-    position: cell.position,
-    kind: cell.kind as ResearchCellKindV1,
-    source: cell.source,
-    ...(cell.config ? { config: cell.config as Record<string, unknown> } : {}),
-    revision: cell.revision,
-    definitions: jsonStringArray(cell.definitions),
-    references: jsonStringArray(cell.references),
-    ...(cell.document.embeddedSource
-      ? { inputSnapshot: cell.document.embeddedSource as Record<string, unknown> }
-      : {}),
   };
 }
 

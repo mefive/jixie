@@ -548,7 +548,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
     summary: {
       zh: '查看可追溯的 Python、表格与图表，保留版本，并继续到 Research。',
-      en: 'Inspect Python, tables, charts and retained inputs; keep versions and continue in Research.',
+      en: 'Inspect current Python and outputs, edit and rerun, or copy into Research.',
     },
     content: { zh: embeddedAnalysisZh, en: embeddedAnalysisEn },
   },
@@ -658,10 +658,13 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: 'research/handoff',
     group: 'research',
-    title: { zh: '将研究交给 Factor 或 Strategy', en: 'Hand research to Factor or Strategy' },
+    title: {
+      zh: '在 Factor 或 Strategy 中继续验证',
+      en: 'Continue validation in Factor or Strategy',
+    },
     summary: {
-      zh: '从成功快照封存版本，并生成待验证的 Python Factor 或 Strategy 草稿。',
-      en: 'Promote a successful snapshot and generate a Python Factor or Strategy draft for validation.',
+      zh: '手动创建并审查因子或策略草稿，明确发起正式分析或回测。',
+      en: 'Create and review drafts manually, then explicitly start factor analysis or a strategy backtest.',
     },
     content: { zh: researchHandoffZh, en: researchHandoffEn },
   },
@@ -685,12 +688,12 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'research/records',
     group: 'research',
     title: {
-      zh: '研究文档与运行记录',
-      en: 'Research documents and run history',
+      zh: '研究文档与当前输出',
+      en: 'Research documents and current output',
     },
     summary: {
-      zh: '搜索、归档和恢复研究，区分当前文档、完整运行和封存版本。',
-      en: 'Search, archive, and restore studies; distinguish documents, full runs, and promoted versions.',
+      zh: '搜索、归档和恢复研究，理解当前输出、修订和重新运行。',
+      en: 'Search, archive and restore studies; understand current output, revisions and reruns.',
     },
     content: {
       zh: researchRecordsZh,

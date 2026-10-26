@@ -55,7 +55,6 @@ import {
 } from '../documents/cell-operations.js';
 import { getResearchDocument } from '../documents/read.js';
 
-import { getResearchExecution, promoteResearchExecution } from '../evidence/execution-records.js';
 import { runResearchCellChangeProposalAttempt } from '../proposals/attempts.js';
 import {
   acceptResearchCellChangeReview,
@@ -87,7 +86,6 @@ function executionResult(source = 'value = 1'): ResearchCellRunResult {
   return {
     outputs: [{ type: 'text', text: source, level: 'info' }],
     ...sourceAnalysis[source],
-    environmentFingerprint: 'fixture-python',
   };
 }
 function deferred<Value>() {
@@ -273,9 +271,8 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     });
     expect(sandbox.execute).not.toHaveBeenCalled();
     const result = await runResearchDocument(ownerId, documentId, true);
-    await expect(getResearchExecution('other', result!.execution!.id)).rejects.toMatchObject({
-      reason: 'execution_not_found',
-    });
+    expect(result).not.toHaveProperty('execution');
+    expect(await prisma.researchExecution.count()).toBe(0);
   });
 
   it('invalidates only executed dependents and rejects an obsolete revision', async () => {
@@ -316,7 +313,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
     ).toEqual(['blocked', 'stale']);
   });
 
-  it('retains the frozen source when a cell is edited during a clean run', async () => {
+  it('executes the submitted source when a cell is edited during a clean run', async () => {
     const started = deferred<void>();
     const release = deferred<ResearchCellRunResult>();
     sandbox.execute.mockImplementationOnce(() => {
@@ -329,25 +326,15 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
       await updateResearchCell(ownerId, 'input', { source: 'value = 2', expectedRevision: 1 });
       release.resolve(executionResult());
       const result = await running;
-      expect(result?.execution).toMatchObject({ status: 'success', contentRevision: 1 });
-      const evidence = await getResearchExecution(ownerId, result!.execution!.id);
-      expect(evidence?.cells[0]).toMatchObject({
-        source: 'value = 1',
-        revision: 1,
-        status: 'success',
-      });
+      expect(result).not.toHaveProperty('execution');
+      expect(sandbox.execute.mock.calls[0][1]).toMatchObject({ source: 'value = 1' });
+      expect(await prisma.researchExecution.count()).toBe(0);
       expect(result?.document.cells[0]).toMatchObject({
         source: 'value = 2',
         revision: 2,
         status: 'idle',
       });
       expect(sandbox.reset).toHaveBeenCalledWith(documentId);
-      expect(
-        await promoteResearchExecution(ownerId, result!.execution!.id, {
-          displayName: 'Frozen run',
-          tags: [],
-        }),
-      ).toMatchObject({ displayName: 'Frozen run' });
     } finally {
       release.resolve(executionResult());
       await running.catch(() => {});
@@ -362,7 +349,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
       return release.promise;
     });
     sandbox.interrupt.mockImplementationOnce(() =>
-      release.reject(new ResearchPythonInterruptionError('fixture-interrupted')),
+      release.reject(new ResearchPythonInterruptionError()),
     );
     const running = runResearchDocument(ownerId, documentId, true);
     try {
@@ -375,7 +362,7 @@ describe('Research editing, execution evidence and proposal lifecycle', () => {
       const interrupted = await interruptResearchDocument(ownerId, documentId);
       const result = await running;
       expect(interrupted?.interrupted).toBe(true);
-      expect(result?.execution?.status).toBe('cancelled');
+      expect(result).not.toHaveProperty('execution');
       expect(isResearchDocumentRunActive(documentId)).toBe(false);
       expect(await prisma.researchCellExecution.findFirst()).toMatchObject({
         status: 'cancelled',

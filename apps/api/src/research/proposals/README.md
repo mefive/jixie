@@ -1,6 +1,6 @@
 # Cell 提案、审阅与尝试
 
-Agent 先生成绑定修订的提案，用户在只读 diff 中明确接受后才更新 Cell，再选择运行。接受提案不自动执行，attempt 也不等价于成功固化的全文 ResearchExecution。
+Agent 先生成绑定修订的提案，用户在只读 diff 中明确接受后才更新 Cell，再选择运行。接受提案不自动执行。
 
 | 文件 / 入口 | 主要调用方与职责 |
 | --- | --- |
@@ -12,7 +12,7 @@ Agent 先生成绑定修订的提案，用户在只读 diff 中明确接受后�
 
 新提案生成后独立留存，不自动应用或打开弹窗；前端点击卡片查看只读 diff，接受后才写 Cell。旧版已应用的开放审阅继续通过接受／恢复接口处理；新流程不再创建开放审阅或撤回记录。
 
-尝试区分 affected 和 clean_document，保存各 Cell 源码／输入模式快照，结果用于比较与 Agent 解释。[attempt-records.ts](attempt-records.ts) 查询和映射尝试；[attempt-context.ts](attempt-context.ts) 生成有界解释上下文。接受后何时执行以及完整证据准入分别看 [document-runs](../document-runs/README.md)、[evidence](../evidence/README.md)。
+尝试区分 affected 和 clean_document，保存各 Cell 修订、状态和输出，结果用于比较与 Agent 解释。[attempt-records.ts](attempt-records.ts) 查询和映射尝试；[attempt-context.ts](attempt-context.ts) 生成有界解释上下文。接受后何时执行见 [document-runs](../document-runs/README.md)。
 
 [change-records.ts](change-records.ts) 持久化提案并同步原 Agent 消息视图；[clarification-records.ts](clarification-records.ts) 的 `resolveResearchClarificationAnswer` 在事务中核对归属／答案及状态并更新消息，`clarification-message.ts` 生成后续提问文本。[series-validation.ts](series-validation.ts) 的 `validateResearchSeriesProposal` 检查允许导入及字面量数据身份／口径，依赖 catalog；它约束 Agent 拟议代码，不替代 SDK 运行校验。
 

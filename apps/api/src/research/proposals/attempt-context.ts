@@ -23,12 +23,9 @@ export function researchAgentCellChangeAttemptContext(attempt: {
     sourcePosition: number | null;
     sourceKind: string | null;
     revision: number;
-    source: string;
     status: string;
     output: unknown;
     error: string | null;
-    environmentFingerprint: string;
-    inputSnapshot?: unknown;
     cell: { kind: string; position: number } | null;
   }>;
 }): string {
@@ -37,13 +34,9 @@ export function researchAgentCellChangeAttemptContext(attempt: {
   /**
    * 在共享字数预算内裁剪尝试源码与输出，供 Agent 修复上下文。
    *
-   * Bound attempted source and output under a shared context character budget.
+   * Bound attempt output under a shared context character budget.
    */
   const executions = attempt.executions.map((execution) => {
-    const sourceCharacters = Math.min(4_000, remainingCharacters, execution.source.length);
-    const source = execution.source.slice(0, sourceCharacters);
-    remainingCharacters -= sourceCharacters;
-
     const serializedOutput = JSON.stringify(execution.output ?? null);
     const outputCharacters = Math.min(6_000, remainingCharacters, serializedOutput.length);
     const outputText = serializedOutput.slice(0, outputCharacters);
@@ -55,15 +48,11 @@ export function researchAgentCellChangeAttemptContext(attempt: {
       kind: execution.sourceKind ?? execution.cell?.kind,
       revision: execution.revision,
       status: execution.status,
-      source,
-      sourceTruncated: source.length !== execution.source.length,
       output:
         outputText.length === serializedOutput.length
           ? JSON.parse(outputText)
           : { jsonPrefix: outputText, truncated: true },
       ...(execution.error ? { error: execution.error } : {}),
-      environmentFingerprint: execution.environmentFingerprint,
-      ...(execution.inputSnapshot ? { inputSnapshot: execution.inputSnapshot } : {}),
     };
   });
   return JSON.stringify({

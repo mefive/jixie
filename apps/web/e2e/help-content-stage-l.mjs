@@ -100,25 +100,6 @@ const jobs = [
     ],
   },
   {
-    source: 'research-execution-promoted.png',
-    crop: '1600x900+0+0',
-    output: 'research/handoff-01.png',
-    marks: [
-      [1, 838, 0, 1598, 899],
-      [2, 859, 94, 1580, 334],
-    ],
-  },
-  {
-    source: 'research-execution-history.png',
-    crop: '1600x700+0+0',
-    output: 'research/records-01.png',
-    redact: [[1220, 9, 1510, 43]],
-    marks: [
-      [1, 877, 1, 1598, 698],
-      [2, 898, 78, 1580, 160],
-    ],
-  },
-  {
     source: '13a-python-factor-sdk.png',
     output: 'factors/python-factor-01.png',
     redact: [[1260, 9, 1510, 43]],

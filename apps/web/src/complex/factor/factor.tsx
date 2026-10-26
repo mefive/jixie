@@ -3,7 +3,7 @@ import { EmbeddedAnalysisToolbar } from '@src/components/embedded-analysis/embed
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 import type { TFunction } from 'i18next';
-import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
+import { useBlocker, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import classNames from 'classnames';
 import dayjs from 'dayjs';
@@ -45,7 +45,6 @@ import type {
   FactorTimeSeriesReportV1,
   MacroRegimeFactorResearchSpecV1,
   PanelFactorResearchSpecV1,
-  ResearchFactorReportSuggestionV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
 import {
@@ -60,8 +59,6 @@ import {
   faCheck,
   faLayerGroup,
   faPen,
-  faArrowUpRightFromSquare,
-  faFlask,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -365,7 +362,6 @@ const NewFactorModal = complex.component(
 const AgentChat = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
-  const navigate = useNavigate();
   const qa = store.qaMode;
   const [includeReport, setIncludeReport] = useState(true);
   const [references, setReferences] = useState<ResearchDataReferenceV1[]>([]);
@@ -392,56 +388,6 @@ const AgentChat = complex.component(() => {
         </div>
         {store.description && <div className="jx-factor-agentDescription">{store.description}</div>}
       </div>
-      {store.researchHandoff && (
-        <section className="jx-factor-researchHandoff" data-testid="factor-research-handoff">
-          <div className="jx-factor-researchHandoffHead">
-            <FontAwesomeIcon icon={faFlask} />
-            <div className="jx-factor-researchHandoffSource">
-              <span>{t('researchHandoff.title')}</span>
-              <strong>
-                {store.sourceResearchExecution?.displayName ??
-                  store.researchHandoff.sourceDisplayName}
-              </strong>
-            </div>
-            {store.sourceResearchExecution && (
-              <Tooltip title={t('researchHandoff.openSource')}>
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<FontAwesomeIcon icon={faArrowUpRightFromSquare} />}
-                  aria-label={t('researchHandoff.openSource')}
-                  onClick={() =>
-                    navigate(
-                      `/research?document=${encodeURIComponent(store.researchHandoff!.sourceDocumentId)}&execution=${encodeURIComponent(store.researchHandoff!.sourceExecutionId)}`,
-                    )
-                  }
-                />
-              </Tooltip>
-            )}
-            {!store.sourceResearchExecution && (
-              <span className="jx-factor-researchHandoffUnavailable">
-                {t('researchHandoff.sourceUnavailable')}
-              </span>
-            )}
-          </div>
-          <p>{store.researchHandoff.summary}</p>
-          {store.researchHandoff.suggestedReport && (
-            <ResearchReportSuggestion suggestion={store.researchHandoff.suggestedReport} />
-          )}
-          <details>
-            <summary>
-              {t('researchHandoff.unresolved', {
-                count: store.researchHandoff.unresolvedItems.length,
-              })}
-            </summary>
-            <ul>
-              {store.researchHandoff.unresolvedItems.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </details>
-        </section>
-      )}
       {qa && (
         <div className="jx-factorQuestion-toolbar">
           <span>{t('questions.privateHistory')}</span>
@@ -570,69 +516,6 @@ const AgentChat = complex.component(() => {
     </div>
   );
 }, 'AgentChat');
-
-/**
- * 展示研究交接附带的报告建议，允许用户明确采用参数。
- *
- * Present research handoff report suggestions for explicit parameter adoption.
- */
-function ResearchReportSuggestion({
-  suggestion,
-}: {
-  suggestion: ResearchFactorReportSuggestionV1;
-}) {
-  const { t } = useTranslation('factor');
-  const tags: string[] = [];
-  if (suggestion.start || suggestion.end) {
-    tags.push(
-      t('researchHandoff.range', {
-        start: suggestion.start ? dayjs(suggestion.start, 'YYYYMMDD').format('YYYY-MM-DD') : '—',
-        end: suggestion.end ? dayjs(suggestion.end, 'YYYYMMDD').format('YYYY-MM-DD') : '—',
-      }),
-    );
-  }
-  if (suggestion.observationFrequency) {
-    tags.push(t(`researchHandoff.frequency.${suggestion.observationFrequency}`));
-  }
-  if (suggestion.equityUniverse) {
-    tags.push(t(`evaluationUniverse.${suggestion.equityUniverse}`));
-  }
-  if (suggestion.minimumListingDays !== undefined) {
-    tags.push(t('researchHandoff.minimumListingDays', { days: suggestion.minimumListingDays }));
-  }
-  if (suggestion.excludeRiskWarnings !== undefined) {
-    tags.push(
-      t(
-        suggestion.excludeRiskWarnings
-          ? 'researchHandoff.excludeRiskWarnings'
-          : 'researchHandoff.includeRiskWarnings',
-      ),
-    );
-  }
-  if (suggestion.assets?.length) {
-    tags.push(t('researchHandoff.assets', { count: suggestion.assets.length }));
-  }
-  if (suggestion.expectedDirection) {
-    tags.push(t(`researchHandoff.direction.${suggestion.expectedDirection}`));
-  }
-
-  return (
-    <div
-      className="jx-factor-researchHandoffSuggestion"
-      data-testid="factor-research-suggested-report"
-    >
-      <strong>{t('researchHandoff.suggestedReport')}</strong>
-      <span>{t('researchHandoff.confirmReport')}</span>
-      {tags.length > 0 && (
-        <div className="jx-factor-researchHandoffTags">
-          {tags.map((tag) => (
-            <Tag key={tag}>{tag}</Tag>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // Chat bubbles, auto-scrolled to the latest; a thinking row while an Agent turn is in flight.
 

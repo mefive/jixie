@@ -28,7 +28,7 @@ Factor 拥有因子定义、组合、正式评估、发布和持续观察。Rese
 
 已完成报告可由本人直接读取；publication 核对成功报告与当前代码／运行时后发布。Strategy 的 [因子准备](../strategy/factors/README.md) 消费已批准来源，草稿编辑不会让旧报告自动证明新代码。
 
-编辑 Agent 使用本人草稿上下文并在完成后刷新元数据；只读 questions 建立独立私有会话。Research [handoff](../research/handoff/README.md) 负责证据准入与生成，definitions 负责目标草稿复用、命名和持久化。
+编辑 Agent 使用本人草稿上下文并在完成后刷新元数据；只读 questions 建立独立私有会话。Research 探索后由用户在对应工作台手动建立草稿并运行。
 
 ## 模块入口与共同约束
 

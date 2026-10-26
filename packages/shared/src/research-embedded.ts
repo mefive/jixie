@@ -3,7 +3,7 @@ import type { embeddedDraftSchema } from './api/research.js';
 import type { ResearchCellOutputBlockV1 } from './research.js';
 
 /**
- * 冻结嵌入式分析的输入、输出及运行大小限制。
+ * 约束嵌入式分析的输入、输出及运行大小。
  *
  * Define bounded input, output and runtime sizes for embedded analysis.
  */
@@ -28,7 +28,6 @@ export type ResearchEmbeddedParametersV1 = Record<string, string | number | bool
 export type ResearchEmbeddedRunStatusV1 = 'queued' | 'running' | 'success' | 'error' | 'cancelled';
 export type ResearchEmbeddedErrorCodeV1 =
   | 'not_found'
-  | 'frozen'
   | 'revision_conflict'
   | 'run_in_progress'
   | 'request_conflict'
@@ -38,15 +37,14 @@ export type ResearchEmbeddedErrorCodeV1 =
   | 'timeout'
   | 'cancelled'
   | 'interrupted'
-  | 'incomplete_run'
   | 'execution_failed';
 
 export type ResearchEmbeddedDraftInputV1 = z.input<typeof embeddedDraftSchema>;
 
 /**
- * 冻结分析宿主身份和上下文，即使原实体消失仍可追溯。
+ * 为当前 Agent 请求读取分析宿主身份和上下文，不作为执行存档。
  *
- * Snapshot analysis host identity and context for durable provenance.
+ * Read host identity and context for the current Agent request, without an execution archive.
  */
 export interface ResearchEmbeddedContextV1 {
   host: ResearchEmbeddedHostV1;
@@ -59,9 +57,9 @@ export interface ResearchEmbeddedContextV1 {
 }
 
 /**
- * 保存分析版本源码、状态和血缘，首次成功后不可编辑。
+ * 保存可编辑分析版本源码、修订和复制关系。
  *
- * Describe analysis source, state and lineage with freezing after first success.
+ * Describe editable analysis source, revisions and copy lineage.
  */
 export interface ResearchEmbeddedVersionV1 {
   id: string;
@@ -71,9 +69,8 @@ export interface ResearchEmbeddedVersionV1 {
   source: string;
   parameters: ResearchEmbeddedParametersV1;
   inputScope: string;
-  context: ResearchEmbeddedContextV1;
+  reportId: string | null;
   revision: number;
-  frozenAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -116,16 +113,6 @@ export interface ResearchDataReferenceV1 {
 }
 
 /**
- * 记录继续研究文档的嵌入式来源与输入模式。
- *
- * Describe embedded provenance and input mode in a continuation document.
- */
-export interface ResearchEmbeddedDocumentSourceV1 extends ResearchEmbeddedRunReferenceV1 {
-  title: string;
-  inputMode: 'retained' | 'current';
-}
-
-/**
  * 提供嵌入式运行身份、状态和时间，供历史列表。
  *
  * Describe embedded run identity, state and timing for history.
@@ -135,7 +122,6 @@ export interface ResearchEmbeddedRunSummaryV1 extends ResearchEmbeddedRunReferen
   revision: number;
   jobId: string;
   status: ResearchEmbeddedRunStatusV1;
-  sourceHash: string;
   errorCode: ResearchEmbeddedErrorCodeV1 | null;
   /** Technical diagnostics; UI explains errorCode in the user's language. */
   error: string | null;
@@ -145,42 +131,18 @@ export interface ResearchEmbeddedRunSummaryV1 extends ResearchEmbeddedRunReferen
 }
 
 /**
- * 返回完整冻结运行的源码、输出与错误诊断。
+ * 返回当前草稿代码、参数、最近运行输出及错误；修订不同表示输出过期。
  *
- * Describe a frozen embedded run's source, outputs and diagnostics.
+ * Return current draft code and parameters with latest outputs and errors; differing revisions indicate stale output.
  */
 export interface ResearchEmbeddedRunV1 extends ResearchEmbeddedRunSummaryV1 {
   researchDocumentId?: string;
+  currentRevision: number;
   source: string;
-  executedSource: string;
   parameters: ResearchEmbeddedParametersV1;
   inputScope: string;
-  context: ResearchEmbeddedContextV1;
-  environment: Record<string, unknown> | null;
-  environmentFingerprint: string | null;
   outputs: ResearchCellOutputBlockV1[];
-  inputs: ResearchEmbeddedInputV1[];
   limits: ResearchEmbeddedLimitsV1;
-}
-
-/**
- * 保存运行实际消费的请求、响应与元数据，供回放。
- *
- * Retain requests, responses and metadata actually consumed by a run.
- */
-export interface ResearchEmbeddedInputV1 {
-  id: string;
-  sequence: number;
-  method: string;
-  arguments: Record<string, unknown>;
-  status: 'loading' | 'received' | 'error' | 'interrupted';
-  sha256: string | null;
-  byteSize: number;
-  rowCount: number | null;
-  metadata: Record<string, unknown>;
-  error: string | null;
-  requestedAt: string;
-  capturedAt: string | null;
 }
 
 /**

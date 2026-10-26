@@ -1,20 +1,17 @@
 import type { ResearchEmbeddedAnalysisJobPayload } from './job-payload.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
-import { RESEARCH_EMBEDDED_LIMITS } from '@jixie/shared';
-import type { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
 import type { ResearchEmbeddedRunInput } from '@jixie/shared/api/research';
 import { ownedAnalysis } from './versions.js';
 
 import { runSummaryView } from './views.js';
 
 /**
- * 校验实体归属、版本状态和输入模式后创建嵌入式运行。
+ * 校验实体归属与修订，保存临时 Job 输入并替换该版本的旧终态运行。
  *
- * Authorize the host entity and validate version and input mode before creating an embedded run.
+ * Authorize the host and revision, save temporary Job input and replace this version’s previous terminal run.
  */
 export async function submitEmbeddedRun(
   userId: string,
@@ -23,7 +20,7 @@ export async function submitEmbeddedRun(
   input: ResearchEmbeddedRunInput,
 ) {
   const result = await getDatabase().$transaction(async (transaction) => {
-    const analysis = await ownedAnalysis(transaction, userId, analysisId);
+    await ownedAnalysis(transaction, userId, analysisId);
     const version = await transaction.researchEmbeddedAnalysisVersion.findFirst({
       where: { id: versionId, analysisId },
       include: { document: { include: { cells: true } } },
@@ -63,27 +60,16 @@ export async function submitEmbeddedRun(
       orderBy: { sequence: 'desc' },
       select: { sequence: true },
     });
-    const sourceSnapshot = {
-      version: 1,
-      embedded: {
-        source: version.source,
-        inputScope: version.inputScope,
-        limits: RESEARCH_EMBEDDED_LIMITS,
-      },
-      cells: [
-        {
-          id: cell.id,
-          position: 0,
-          kind: 'python',
-          source: cell.source,
-          config: cell.config,
-          revision: version.revision,
-          definitions: [],
-          references: [],
-        },
-      ],
-    };
-    const dagSnapshot = { version: 1, nodes: [{ cellId: cell.id, dependsOnCellIds: [] }] };
+    const previousRuns = await transaction.researchExecution.findMany({
+      where: { embeddedVersionId: versionId, status: { notIn: ['queued', 'running'] } },
+      select: { id: true },
+    });
+    const previousIds = previousRuns.map((run) => run.id);
+    await transaction.researchCellExecution.deleteMany({
+      where: { researchExecutionId: { in: previousIds } },
+    });
+    await transaction.researchExecution.deleteMany({ where: { id: { in: previousIds } } });
+
     const run = await transaction.researchExecution.create({
       data: {
         id: runId,
@@ -91,22 +77,8 @@ export async function submitEmbeddedRun(
         embeddedVersionId: versionId,
         requestId: input.requestId,
         sequence: (latest?.sequence ?? 0) + 1,
-        title: analysis.title,
         contentRevision: version.revision,
-        runtimeVersion: version.document.runtimeVersion,
         status: 'queued',
-        sourceSnapshot: sourceSnapshot as Prisma.InputJsonValue,
-        dagSnapshot,
-        executedCellIds: [],
-        parametersSnapshot: version.parameters as Prisma.InputJsonValue,
-        contextSnapshot: version.contextSnapshot as Prisma.InputJsonValue,
-        sourceHash: researchPayloadHash({
-          sourceSnapshot,
-          dagSnapshot,
-          parameters: version.parameters,
-          context: version.contextSnapshot,
-          runtimeVersion: version.document.runtimeVersion,
-        }),
         cellExecutions: {
           create: {
             id: ulid(),
@@ -116,11 +88,9 @@ export async function submitEmbeddedRun(
             sourcePosition: 0,
             sourceKind: 'python',
             revision: version.revision,
-            source: cell.source,
             status: 'queued',
             definitions: [],
             references: [],
-            environmentFingerprint: 'pending',
           },
         },
         job: {
@@ -130,7 +100,12 @@ export async function submitEmbeddedRun(
             kind: 'research-embedded-analysis',
             key: analysisId,
             status: 'queued',
-            payload: { runId } satisfies ResearchEmbeddedAnalysisJobPayload,
+            payload: {
+              runId,
+              source: version.source,
+              parameters: version.parameters as ResearchEmbeddedAnalysisJobPayload['parameters'],
+              revision: version.revision,
+            } satisfies ResearchEmbeddedAnalysisJobPayload,
           },
         },
       },

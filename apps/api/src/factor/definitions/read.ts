@@ -55,17 +55,6 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
       descriptionEn: true,
       code: true,
       messages: true,
-      researchHandoff: true,
-      sourceResearchExecution: {
-        select: {
-          id: true,
-          documentId: true,
-          title: true,
-          displayName: true,
-          sequence: true,
-          promotedAt: true,
-        },
-      },
       userId: true,
     },
   });
@@ -103,14 +92,6 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
         ? Array.isArray(row.messages)
           ? await readCodeProposalHistory(getDatabase(), userId, 'factor', factorId, row.messages)
           : row.messages
-        : null,
-    researchHandoff: ownerId === userId ? row.researchHandoff : null,
-    sourceResearchExecution:
-      ownerId === userId && row.sourceResearchExecution
-        ? {
-            ...row.sourceResearchExecution,
-            promotedAt: row.sourceResearchExecution.promotedAt?.toISOString() ?? null,
-          }
         : null,
     description: preset?.description ?? (locale === 'en' ? row.descriptionEn : row.descriptionZh),
     strategyKey: preset && !preset.strategyKey ? undefined : strategyKey(row.key, row.status),

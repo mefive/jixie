@@ -4,10 +4,8 @@ import type {
   RunResearchEmbeddedRequest,
   ResearchEmbeddedPageRequestQuery,
   ResearchEmbeddedListRequestQuery,
-  ResearchEmbeddedInputModeRequest,
 } from '@jixie/shared/api/research';
 import type {
-  ResearchDocumentV1,
   ResearchEmbeddedAnalysisV1,
   ResearchEmbeddedVersionV1,
   ResearchEmbeddedRunV1,
@@ -120,30 +118,6 @@ export function continueEmbeddedResearch(
   return request(
     `${embeddedApi}/${encodeURIComponent(analysisId)}/runs/${encodeURIComponent(runId)}/continue-research`,
     { method: 'POST' },
-  );
-}
-
-export function changeEmbeddedInputMode(
-  documentId: string,
-  inputMode: 'retained' | 'current',
-  expectedRevision: number,
-): Promise<ResearchDocumentV1> {
-  return request(`${embeddedApi}/documents/${encodeURIComponent(documentId)}/input-mode`, {
-    method: 'PATCH',
-    body: JSON.stringify({
-      inputMode,
-      expectedRevision,
-    } satisfies ResearchEmbeddedInputModeRequest),
-  });
-}
-
-export function readEmbeddedInput(
-  analysisId: string,
-  runId: string,
-  inputId: string,
-): Promise<{ response: unknown; sha256: string | null; byteSize: number }> {
-  return request(
-    `${embeddedApi}/${encodeURIComponent(analysisId)}/runs/${encodeURIComponent(runId)}/inputs/${encodeURIComponent(inputId)}`,
   );
 }
 

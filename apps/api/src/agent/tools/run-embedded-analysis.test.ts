@@ -35,7 +35,7 @@ const source: ResearchEmbeddedContextV1 = {
   capturedAt: '2026-09-17T00:00:00.000Z',
 };
 const draft = { source: 'print(1)', parameters: {}, inputScope: '  Test data  ' };
-const version = { id: 'version', number: 1, revision: 2, frozenAt: null };
+const version = { id: 'version', number: 1, revision: 2 };
 
 function runTool(context = source) {
   return embeddedAnalysisTools({ userId: 'owner', source: context }).find(
@@ -61,7 +61,6 @@ describe('embedded analysis tool input boundary', () => {
       source: draft.source,
       parameters: {},
       inputScope: 'Test data',
-      inputs: [],
       outputs: [],
     });
   });
@@ -76,17 +75,13 @@ describe('embedded analysis tool input boundary', () => {
 
     await runTool(context).run({ ...draft, title: '  Inspect data  ' }, { onEmbeddedAnalysis });
 
-    expect(operations.create).toHaveBeenCalledExactlyOnceWith(
-      'owner',
-      {
-        ...draft,
-        title: 'Inspect data',
-        inputScope: 'Test data',
-        reportId: 'report',
-        host: source.host,
-      },
-      context,
-    );
+    expect(operations.create).toHaveBeenCalledExactlyOnceWith('owner', {
+      ...draft,
+      title: 'Inspect data',
+      inputScope: 'Test data',
+      reportId: 'report',
+      host: source.host,
+    });
     expect(operations.submit).toHaveBeenCalledExactlyOnceWith('owner', 'analysis', 'version', {
       requestId: expect.any(String),
       expectedRevision: 2,
@@ -94,45 +89,27 @@ describe('embedded analysis tool input boundary', () => {
     expect(onEmbeddedAnalysis).toHaveBeenCalledOnce();
   });
 
-  it.each([false, true])(
-    'validates composed input when repairing or deriving (frozen=%s)',
-    async (frozen) => {
-      operations.version.mockResolvedValue({ ...version, frozenAt: frozen ? 'frozen' : null });
-      const context = {
-        ...source,
-        report: { type: 'factor' as const, id: '  report  ', contentHash: 'hash' },
-      };
-
-      await runTool(context).run(
-        {
-          ...draft,
-          title: 'Inspect',
-          parent: { analysisId: 'analysis', versionId: 'version', expectedRevision: 2 },
-        },
-        { onEmbeddedAnalysis: vi.fn() },
-      );
-
-      const normalized = { ...draft, inputScope: 'Test data', reportId: 'report' };
-      if (frozen) {
-        expect(operations.derive).toHaveBeenCalledExactlyOnceWith(
-          'owner',
-          'analysis',
-          { parentVersionId: 'version', draft: normalized },
-          context,
-        );
-        expect(operations.update).not.toHaveBeenCalled();
-      } else {
-        expect(operations.update).toHaveBeenCalledExactlyOnceWith(
-          'owner',
-          'analysis',
-          'version',
-          { ...normalized, expectedRevision: 2 },
-          context,
-        );
-        expect(operations.derive).not.toHaveBeenCalled();
-      }
-    },
-  );
+  it('updates the current draft without deriving a frozen version', async () => {
+    const context = {
+      ...source,
+      report: { type: 'factor' as const, id: '  report  ', contentHash: 'hash' },
+    };
+    await runTool(context).run(
+      {
+        ...draft,
+        title: 'Inspect',
+        parent: { analysisId: 'analysis', versionId: 'version', expectedRevision: 2 },
+      },
+      { onEmbeddedAnalysis: vi.fn() },
+    );
+    expect(operations.update).toHaveBeenCalledExactlyOnceWith('owner', 'analysis', 'version', {
+      ...draft,
+      inputScope: 'Test data',
+      reportId: 'report',
+      expectedRevision: 2,
+    });
+    expect(operations.derive).not.toHaveBeenCalled();
+  });
 
   it('rejects malformed model input and invalid assembled context before writes', async () => {
     await expect(

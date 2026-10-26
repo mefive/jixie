@@ -6,9 +6,9 @@ export function researchPayloadHash(value: unknown): string {
 }
 
 /**
- * 递归规范 JSON 键序，供研究证据稳定指纹。
+ * 递归规范 JSON 键序，供内容比较与图片缓存。
  *
- * Canonicalize JSON keys recursively for stable evidence fingerprints.
+ * Canonicalize JSON keys recursively for content comparison and image caching.
  */
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) {

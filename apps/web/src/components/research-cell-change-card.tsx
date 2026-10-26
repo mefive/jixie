@@ -347,7 +347,6 @@ function CellChangeAttemptSummary({
 }) {
   const { t } = useTranslation('research');
   const comparison = attempt.comparisonToPrevious;
-  const inputSource = attempt.cells.find((cell) => cell.inputSnapshot)?.inputSnapshot;
   return (
     <div
       className={`jx-researchCellChange-attempt jx-researchCellChange-attempt--${attempt.status}`}
@@ -369,11 +368,6 @@ function CellChangeAttemptSummary({
           })}
         </span>
       </div>
-      {inputSource && (
-        <span>
-          {t(`embedded:${inputSource.inputMode === 'retained' ? 'retainedMode' : 'currentMode'}`)}
-        </span>
-      )}
       {comparison && (
         <div className="jx-researchCellChange-comparison">
           <span>
@@ -385,11 +379,6 @@ function CellChangeAttemptSummary({
             {t('workbench.cellChange.outputChanges', {
               count: comparison.outputChangedCellIds.length,
             })}
-          </span>
-          <span>
-            {comparison.environmentChanged
-              ? t('workbench.cellChange.environmentChanged')
-              : t('workbench.cellChange.environmentUnchanged')}
           </span>
         </div>
       )}

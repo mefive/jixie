@@ -27,12 +27,11 @@ Select **Clean full run** at the top to:
 
 1. start a clean Python environment;
 2. execute all runnable Cells in document and dependency order;
-3. freeze the source, dependencies, runtime, and outputs;
-4. create an immutable entry in **Full run history** after success.
+3. update current output with revision and stale indicators.
 
-Use a clean full run before comparison, promotion, or Factor/Strategy handoff. Success in the current interactive state alone does not prove the document runs from zero.
+Use a clean run to check that calculations work from scratch. It does not create immutable execution snapshots or promoted versions.
 
-Controls on a current, unrun template: **1** runs the Cell and affected downstream Cells, **2** runs the full document cleanly, and **3** opens full-run history.
+The following historical image includes the removed history button. Branch and full-document execution remain available.
 
 ![Current run controls](/docs/images/help/en/research/run-controls-current.png)
 
@@ -59,10 +58,6 @@ Reset when:
 ### I see old output and Stale
 
 This is a safeguard, not a failed automatic rerun. It tells you the source and output differ. Choose the appropriate run scope.
-
-### Can I promote an interrupted run?
-
-An incomplete full run cannot become a successful promoted version. Correct or reduce the calculation and run the full document cleanly again.
 
 ## Related articles
 

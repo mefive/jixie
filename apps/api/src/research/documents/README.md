@@ -12,7 +12,7 @@
 | [cell-operations.ts](cell-operations.ts) `addResearchCell`、`updateResearchCell`、`deleteResearchCell` | document 路由；处理排序、修订冲突和内容事务，再协调依赖失效／删除阻塞 |
 | [from-backtest-report.ts](from-backtest-report.ts) `createResearchDocumentFromBacktestReport` | 检查本人成功且有结果的报告，事务创建带报告来源的研究文档，不重跑回测 |
 
-HTTP 创建支持互斥的 template 或 backtest-report source，空对象仍建 blank；输入 schema 位于模块根。[cell-seed.ts](cell-seed.ts) 是模板与旧会话补建共用的创建映射。[execution-source.ts](execution-source.ts) 的 `loadResearchExecutionSeed`、`loadExecutableResearchCell` 供运行层读取有归属条件的源码；前者提供全文冻结所需快照，不把当前可编辑 Cell 当作历史证据。
+HTTP 创建支持互斥的 template 或 backtest-report source，空对象仍建 blank；输入 schema 位于模块根。[cell-seed.ts](cell-seed.ts) 是模板与旧会话补建共用的创建映射。[execution-source.ts](execution-source.ts) 的 `loadResearchRunInput`、`loadExecutableResearchCell` 供运行层读取有归属条件的源码；前者只提供本次全文运行的内存输入，不生成历史证据。
 
 改读取兼容看 [read.test.ts](read.test.ts)；改生命周期看 [document-operations.test.ts](document-operations.test.ts) 与 [路由集成测试](../routes/index.integration.test.ts)；改报告导入看 [from-backtest-report.test.ts](from-backtest-report.test.ts)。编辑后状态规则见 [dependencies](../dependencies/README.md)。
 

@@ -3,7 +3,7 @@
 FCFF is an optional research template. You can query statements, compare fields, or write your own calculations. The platform is responsible for data handling and formula implementation; you choose methods, assumptions, and conclusions. Market confirmation is not a prerequisite for using the tools. See [Analyze financial data](/docs/help/research/financial-data).
 
 The “FCFF company valuation template” on the Research landing page creates a Markdown/Python
-document that can be inspected, edited, clean-run, and promoted. It starts with Wuliangye as a real
+document that can be inspected, edited and clean-run. It starts with Wuliangye as a real
 example, but its example inputs are not platform forecasts, price targets, or trading advice.
 
 ## What the template separates
@@ -31,7 +31,7 @@ Python Cells. The helpers do not forecast. Editing parameters marks dependent re
 4. Select “Clean run all.”
 5. Inspect history, assumptions, three valuations, sensitivity, reverse valuation, and the next-report
    review.
-6. To retain the evidence, open the successful run under “Complete run history” and promote it.
+6. Inspect current output; after editing code, rerun the full document cleanly.
 
 Reassess model applicability after changing the stock. Banks, insurers, and brokers are not passed
 through the industrial-company FCFF model.

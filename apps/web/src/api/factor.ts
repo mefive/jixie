@@ -20,7 +20,6 @@ import type {
 import type {
   ChatMessage,
   LogLine,
-  ResearchFactorHandoffV1,
   FactorAnalysisKind,
   FactorMeta,
   FactorAnalysisSpec,
@@ -150,15 +149,6 @@ export function getCustomFactor(id: string): Promise<{
   description?: string;
   code: string;
   messages?: ChatMessage[] | null;
-  researchHandoff?: ResearchFactorHandoffV1 | null;
-  sourceResearchExecution?: {
-    id: string;
-    documentId: string;
-    title: string;
-    displayName: string | null;
-    sequence: number;
-    promotedAt: string | null;
-  } | null;
   builtin?: boolean; // preset rows are readable (readonly) through the same endpoint
   owned?: boolean;
 }> {

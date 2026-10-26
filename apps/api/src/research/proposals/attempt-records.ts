@@ -8,7 +8,7 @@ import type {
   ResearchCellKindV1,
 } from '@jixie/shared';
 import { getDatabase } from '#infra/database/prisma.js';
-import { researchPayloadHash } from '../evidence/fingerprints.js';
+import { researchPayloadHash } from '../outputs/fingerprints.js';
 
 export const researchCellChangeAttemptInclude = {
   executions: {
@@ -87,21 +87,12 @@ function researchCellChangeAttemptCellView(
     kind: (execution.sourceKind ?? execution.cell?.kind ?? 'python') as ResearchCellKindV1,
     revision: execution.revision,
     status: execution.status as ResearchCellChangeAttemptCellV1['status'],
-    sourceHash: researchPayloadHash(execution.source),
     ...(execution.output != null ? { outputHash: researchPayloadHash(execution.output) } : {}),
     outputTypes: outputs
       .map((output) =>
         output && typeof output === 'object' && 'type' in output ? String(output.type) : '',
       )
       .filter(Boolean) as ResearchCellChangeAttemptCellV1['outputTypes'],
-    ...(execution.inputSnapshot
-      ? {
-          inputSnapshot: execution.inputSnapshot as unknown as NonNullable<
-            ResearchCellChangeAttemptCellV1['inputSnapshot']
-          >,
-        }
-      : {}),
-    environmentFingerprint: execution.environmentFingerprint,
     ...(execution.error ? { error: execution.error } : {}),
   };
 }
@@ -121,17 +112,11 @@ function compareCellChangeAttempts(
   const previousByCellId = new Map(previousCells.map((cell) => [cell.cellId, cell]));
   const cellIds = new Set([...currentByCellId.keys(), ...previousByCellId.keys()]);
   const sourceChangedCellIds = [...cellIds].filter(
-    (cellId) =>
-      currentByCellId.get(cellId)?.sourceHash !== previousByCellId.get(cellId)?.sourceHash,
+    (cellId) => currentByCellId.get(cellId)?.revision !== previousByCellId.get(cellId)?.revision,
   );
   const outputChangedCellIds = [...cellIds].filter(
     (cellId) =>
       currentByCellId.get(cellId)?.outputHash !== previousByCellId.get(cellId)?.outputHash,
-  );
-  const environmentChanged = [...cellIds].some(
-    (cellId) =>
-      currentByCellId.get(cellId)?.environmentFingerprint !==
-      previousByCellId.get(cellId)?.environmentFingerprint,
   );
   return {
     version: 1,
@@ -139,7 +124,6 @@ function compareCellChangeAttempts(
     sourceChangedCellIds,
     outputChangedCellIds,
     statusChanged: attempt.status !== previous.status,
-    environmentChanged,
   };
 }
 

@@ -233,7 +233,7 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
     expect(result.outputs).toEqual([{ type: 'value', value: 0.019999999999999997 }]);
     expect(result.definitions).toEqual(['cumulative']);
     expect(result.references).toContain('returns');
-    expect(result.environmentFingerprint).toMatch(/^[a-f0-9]{64}$/);
+    expect(result).not.toHaveProperty('environmentFingerprint');
   });
 
   it('returns a bounded table preview for record rows', async () => {
