@@ -59,9 +59,13 @@ export default defineStrategy({
 
 ## 查看扫描结果
 
+当前控制区的 **1** 用于开始新扫描，**2** 选择对比指标，**3** 显示结果实际使用的日期与资金。历史扫描选择已移除。
+
+![当前参数扫描控制区](/docs/images/help/zh/backtesting/parameter-scan-controls.png)
+
 下图中的标记分别是：
 
-1. 历史扫描，可以重新打开以前完成的扫描。
+1. 旧图中的历史扫描入口已移除；当前只保留最近提交的扫描。
 2. 对比指标，例如年化收益或 Sharpe。
 3. 参数组合图。
 4. 每组参数的明细表。
@@ -70,8 +74,8 @@ export default defineStrategy({
 
 查看结果时：
 
-1. 先确认历史扫描的完成时间。
-2. 检查页面显示的组合数量、代码标识和数据截止日期。
+1. 先确认当前扫描的运行参数、状态和数据截止日。
+2. 检查页面显示的组合数量和数据截止日期。
 3. 选择要比较的指标。
 4. 在图表中观察相邻参数的结果是否接近。
 5. 在表格中核对每一组具体数值。
@@ -116,7 +120,7 @@ params: { sizing: 'atr', riskPct: 0.01, fixedLots: 10 }
 
 ![历史中文界面示例：填写仓位方案对比](/docs/images/help/zh/backtesting/sizing-scan-settings-01.png)
 
-结果页中的标记分别是历史报告、归一净值对比和逐方案指标：
+结果页中的标记分别是旧图中的历史入口（已移除）、归一净值对比和逐方案指标：
 
 ![历史中文界面示例：仓位方案净值和指标对比](/docs/images/help/zh/backtesting/sizing-scan-results-01.png)
 
@@ -136,7 +140,7 @@ params: { sizing: 'atr', riskPct: 0.01, fixedLots: 10 }
 
 ![历史中文界面示例：填写策略容量资金档位](/docs/images/help/zh/backtesting/capacity-scan-settings-01.png)
 
-容量结果中的标记分别是历史报告、收益与滑点曲线、三个阈值提示和逐档明细：
+容量结果中的标记分别是旧图中的历史入口（已移除）、收益与滑点曲线、三个阈值提示和逐档明细：
 
 ![历史中文界面示例：策略容量收益衰减和滑点损耗](/docs/images/help/zh/backtesting/capacity-scan-results-01.png)
 
@@ -145,3 +149,7 @@ params: { sizing: 'atr', riskPct: 0.01, fixedLots: 10 }
 - [为什么回测不等于未来收益](/help/basics/backtest-limitations)
 - [查看回测结果](/help/backtesting/results-overview)
 - [查看净值、回撤和月度收益](/help/backtesting/equity-drawdown)
+
+## 结果保留
+
+每个策略仅保留最近提交的扫描及活动任务，回测结果单独保留。再次提交会清理旧扫描及日志；失败也不会恢复旧结果。结果保存实际参数和各组合指标，不保存策略源码。代码或参数修改后请重新扫描；旧扫描 ID 被清理后，Research 读取会报错。

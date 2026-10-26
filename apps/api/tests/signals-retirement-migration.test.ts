@@ -59,9 +59,10 @@ it('removes populated Signals tables while preserving users, research, backtests
         userId: 'owner',
         strategyId: 'strategy',
         strategyName: 'Kept',
-        config: {},
+        settings: {},
         payload: { kept: true },
       },
+      select: { id: true },
     });
     await database.agentConversation.create({
       data: {
@@ -104,7 +105,7 @@ it('removes populated Signals tables while preserving users, research, backtests
       Promise.all([
         database.user.findMany(),
         database.strategy.findMany(),
-        database.backtestReport.findMany(),
+        database.$queryRaw`SELECT * FROM BacktestReport ORDER BY id`,
         database.researchDocument.findMany(),
         database.job.findMany({ orderBy: { id: 'asc' } }),
       ]);

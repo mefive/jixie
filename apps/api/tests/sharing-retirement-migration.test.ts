@@ -109,19 +109,20 @@ it('removes visibility without changing resource owners, code, versions, reports
           userId,
           name: 'Kept strategy',
           config: { code: 'kept strategy source' },
-          lastResult: { trades: 2 },
           messages: [{ role: 'user', content: 'Kept strategy history' }],
         },
       });
+      await database.$executeRaw`UPDATE Strategy SET lastResult = '{"trades":2}' WHERE id = ${strategyId}`;
       await database.backtestReport.create({
         data: {
           id: `backtest:${visibility}`,
           userId,
           strategyId,
           strategyName: 'Kept strategy',
-          config: { code: 'kept strategy source' },
+          settings: { code: 'kept strategy source' },
           payload: { trades: 2 },
         },
+        select: { id: true },
       });
       await database.agentConversation.create({
         data: {
@@ -143,11 +144,23 @@ it('removes visibility without changing resource owners, code, versions, reports
     const snapshot = () =>
       Promise.all([
         database.user.findMany({ orderBy: { id: 'asc' } }),
-        database.strategy.findMany({ orderBy: { id: 'asc' } }),
+        database.$queryRaw`SELECT id, userId, name, config, lastResult, messages, createdAt, updatedAt FROM Strategy ORDER BY id`,
         database.factor.findMany({ orderBy: { id: 'asc' } }),
         database.factorComposite.findMany({ orderBy: { id: 'asc' } }),
         database.factorReport.findMany({ orderBy: { id: 'asc' } }),
-        database.backtestReport.findMany({ orderBy: { id: 'asc' } }),
+        database.backtestReport.findMany({
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            userId: true,
+            strategyId: true,
+            strategyName: true,
+            settings: true,
+            payload: true,
+            legacyStatus: true,
+            legacyError: true,
+          },
+        }),
         database.agentConversation.findMany({ orderBy: { id: 'asc' } }),
       ]);
     const before = await snapshot();
@@ -175,7 +188,10 @@ it('removes visibility without changing resource owners, code, versions, reports
 
     await database.strategy.delete({ where: { id: 'strategy:public' } });
     expect(
-      await database.backtestReport.findUnique({ where: { id: 'backtest:public' } }),
+      await database.backtestReport.findUnique({
+        where: { id: 'backtest:public' },
+        select: { id: true },
+      }),
     ).toBeNull();
     expect(await database.factor.findUnique({ where: { id: 'factor:private' } })).not.toBeNull();
   } finally {

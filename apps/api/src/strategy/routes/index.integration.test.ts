@@ -141,7 +141,6 @@ describe('Strategy HTTP business boundaries', () => {
         userId: 'owner',
         name: config.name,
         config,
-        lastResult: { marker: 'old result' },
       },
     });
     await prisma.tradeCal.createMany({
@@ -199,7 +198,7 @@ describe('Strategy HTTP business boundaries', () => {
     expect(resources.namingOperations).toHaveLength(0);
   });
 
-  it('freezes committed config and name in report/job and hides foreign reports', async () => {
+  it('keeps source only in the active job and detects later edits and hides foreign reports', async () => {
     await prisma.strategy.create({
       data: { id: 'collision', userId: 'owner', name: 'Taken', config },
     });
@@ -213,7 +212,7 @@ describe('Strategy HTTP business boundaries', () => {
       include: { job: true },
     });
     expect(report).toMatchObject({
-      config: frozenConfig,
+      settings: (({ code: _code, ...settings }) => settings)(frozenConfig),
       strategyName: config.name,
       legacyStatus: null,
       job: { id: jobId, status: 'queued', payload: { config: frozenConfig, locale: 'en' } },
@@ -231,7 +230,7 @@ describe('Strategy HTTP business boundaries', () => {
     });
     await prisma.strategy.update({
       where: { id: 'strategy' },
-      data: { config: { ...config, code: 'later code' }, lastResult: { marker: 'later result' } },
+      data: { config: { ...config, code: 'later code' } },
     });
     const detail = await request(
       `/strategies/backtest-reports/${reportId}`,
@@ -240,7 +239,8 @@ describe('Strategy HTTP business boundaries', () => {
       'GET',
     );
     expect(await detail.json()).toMatchObject({
-      config: frozenConfig,
+      settings: (({ code: _code, ...settings }) => settings)(frozenConfig),
+      needsRerun: true,
       result: { marker: 'frozen result' },
     });
     expect(
@@ -293,14 +293,13 @@ describe('Strategy HTTP business boundaries', () => {
     expect(await prisma.backtestReport.count()).toBe(0);
     expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toMatchObject({
       config,
-      lastResult: { marker: 'old result' },
     });
     expect(resources.logs).not.toHaveBeenCalled();
     expect(resources.wake).not.toHaveBeenCalled();
     expect(resources.namingOperations).toHaveLength(0);
   });
 
-  it('freezes scan parameters, split ranges and data cutoff without changing the draft', async () => {
+  it('retains source-free scan parameters, split ranges and data cutoff without changing the draft', async () => {
     const input = {
       config: { ...config, code: 'scan snapshot' },
       spec: { dimensions: [{ key: 'lookback', values: [10, 30] }], splitDate: '20240103' },
@@ -313,7 +312,7 @@ describe('Strategy HTTP business boundaries', () => {
       include: { job: true },
     });
     expect(report).toMatchObject({
-      config: input.config,
+      settings: (({ code: _code, ...settings }) => settings)(input.config),
       dataCutoff: '20240104',
       job: {
         id: jobId,
@@ -590,7 +589,6 @@ describe('Strategy HTTP business boundaries', () => {
       ]);
       expect(await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).toMatchObject({
         config,
-        lastResult: { marker: 'old result' },
       });
       expect(await prisma.job.count()).toBe(0);
       expect(await prisma.backtestReport.count()).toBe(0);

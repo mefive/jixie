@@ -219,9 +219,7 @@ Monaco/Pyright 支持；现有 TypeScript Factor 保持兼容，新建 Factor �
 实现已按契约与持久化、横截面运行时、时序/Panel 下游闭环、编辑器与 E2E 四个切片落地。
 
 Research 对派生结果的只读分析已经落地：`results.factor_report()` 与 `results.backtest_report()` 按报告 ID
-读取当前用户的已完成报告。普通回测每次创建不可变 `BacktestReport`，保存配置、代码/
-结果 hash、完成时间及结果；`Strategy.lastResult` 仅作为最新结果缓存。Strategy 已可从选中报告新建 Research
-文档。完整持仓历史仍须由引擎真实产出后再开放；全局档案、全平台数据副本及自动归因不属于本次已完成能力。
+读取当前用户的现存已完成报告。Strategy 回测与扫描各保留最近提交及活动任务；旧结果与 Job／日志清理，新失败不恢复旧结果。报告保存实际运行参数和结果，不留存源码或正式证明 hash。wire `lastResult` 从最近报告派生，数据库不另存缓存；当前保留结果可新建 Research 文档，旧 ID 被清理后读取会报错。完整持仓历史仍须由引擎真实产出后再开放；全局档案、全平台数据副本及自动归因不属于本次已完成能力。
 
 2026-08-20 已用真实 PIT 股票 Panel 研究完成首版封板验收：同一文档覆盖 Markdown 假设、Python 数据与统计、
 静态/交互图、stale 依赖、Agent 查询 SDK 后修改 Cell、可编辑审核、重新运行、干净全文执行、不可变快照、显式

@@ -1284,9 +1284,9 @@ function missingDatasetCoverage(): ResearchDataCatalogDatasetCoverageV1 {
 }
 
 /**
- * 按用户权限搜索冻结回测报告，返回可用于 Research 的稳定引用。
+ * 按用户权限搜索保留回测结果，返回可用于 Research 的稳定引用。
  *
- * Search authorized frozen backtest reports and return stable research references.
+ * Search authorized retained backtest reports and return stable research references.
  */
 async function searchBacktestReports(
   userId: string,
@@ -1312,7 +1312,7 @@ async function searchBacktestReports(
       id: true,
       strategyId: true,
       strategyName: true,
-      config: true,
+      settings: true,
       createdAt: true,
       computedAt: true,
     },
@@ -1322,8 +1322,8 @@ async function searchBacktestReports(
 
   return reports.map((report) => {
     const config =
-      report.config && typeof report.config === 'object' && !Array.isArray(report.config)
-        ? (report.config as Record<string, unknown>)
+      report.settings && typeof report.settings === 'object' && !Array.isArray(report.settings)
+        ? (report.settings as Record<string, unknown>)
         : {};
     return {
       kind: 'backtest_report',

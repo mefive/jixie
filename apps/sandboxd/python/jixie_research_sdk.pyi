@@ -339,9 +339,9 @@ class _ResultsApi:
         report_id: str,
     ) -> Mapping[str, Any]: ...
 
-    # Load one completed, immutable BacktestReport result owned by the current user.
-    # Note: Top-level keys include report_id, strategy_id, strategy_name, backtest_spec, lineage, and report.
-    # Note: The report and backtest_spec fields use snake_case; the frozen report is neither mutated nor rerun.
+    # Load one completed retained BacktestReport result owned by the current user.
+    # Note: Top-level keys include report_id, strategy_id, strategy_name, backtest_spec and report.
+    # Note: The report and backtest_spec fields use snake_case; only the latest result is retained; resubmission invalidates old IDs. Source is not returned.
     # Note: Only completed reports with results owned by the current user can be loaded.
     # Example: report = results.backtest_report("01K5EXAMPLEBACKTESTREPORT")
     # Example: sharpe = report["report"]["sharpe"]
@@ -350,8 +350,8 @@ class _ResultsApi:
         report_id: str,
     ) -> Mapping[str, Any]: ...
 
-    # Load one completed immutable strategy parameter-scan result owned by the current user.
-    # Note: Returns the frozen config, spec, per-combination metrics, and data cutoff without rerunning the scan.
+    # Load one completed retained strategy parameter-scan result owned by the current user.
+    # Note: Returns settings without source, spec, per-combination metrics and data cutoff. Only the latest scan is retained; resubmission invalidates old IDs.
     # Example: scan = results.strategy_scan_report("01K5EXAMPLESCANREPORT")
     def strategy_scan_report(
         self,

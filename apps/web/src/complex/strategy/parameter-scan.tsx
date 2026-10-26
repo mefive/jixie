@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { lazy, Suspense, useState } from 'react';
 import type {
   BacktestMetricSummary,
@@ -18,7 +19,6 @@ import {
   Table,
   Tooltip,
 } from 'antd';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
 import { LogView } from '@src/components/log-view';
 import { complex } from './complex';
@@ -277,24 +277,11 @@ export const ParameterScanPanel = complex.component(() => {
   const { t } = useTranslation('strategy');
   const [metric, setMetric] = useState<ScanMetric>('annReturn');
   const report = store.scanReport;
-  const history = store.scanHistoryLoader.result ?? [];
-  const historyOptions = history.map((item) => ({
-    value: item.id,
-    label: `${dayjs(item.createdAt).format('YYYY-MM-DD HH:mm')} · ${t(`scanStatus.${item.status}`)}`,
-  }));
 
   return (
     <div className="jx-parameterScan">
       <div className="jx-parameterScan-toolbar">
         <ParameterScanButton />
-        <Select
-          className="jx-parameterScan-history"
-          placeholder={t('scanHistory')}
-          options={historyOptions}
-          value={report?.id}
-          allowClear={false}
-          onChange={(reportId) => void store.loadScanReport(reportId)}
-        />
         {report?.spec.view !== 'sizing' && report?.spec.view !== 'capacity' ? (
           <Select
             className="jx-parameterScan-metric"
@@ -308,6 +295,9 @@ export const ParameterScanPanel = complex.component(() => {
         ) : null}
       </div>
 
+      {store.scanNeedsRerun ? (
+        <div className="jx-parameterScan-meta">{t('scanNeedsRerun')}</div>
+      ) : null}
       {store.scanError ? <div className="jx-parameterScan-error">{store.scanError}</div> : null}
       {store.scanPoller.running ? (
         <div className="jx-parameterScan-progress">
@@ -329,8 +319,14 @@ export const ParameterScanPanel = complex.component(() => {
           <div className="jx-parameterScan-meta">
             {t('scanMeta', {
               count: report.payload.cells.length,
-              hash: report.codeHash.slice(0, 10),
               cutoff: report.dataCutoff ?? '—',
+            })}
+          </div>
+          <div className="jx-parameterScan-meta">
+            {t('resultSettings', {
+              start: report.settings.start,
+              end: report.settings.end,
+              capital: report.settings.initialCash.toLocaleString(),
             })}
           </div>
           <Suspense fallback={<div className="jx-parameterScan-chart" />}>

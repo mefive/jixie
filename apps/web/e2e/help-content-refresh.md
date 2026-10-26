@@ -12,7 +12,6 @@ Prepare these states through normal application operations in the disposable dat
 - A saved Research `index_relationship` template with Markdown and Python Cells. Leave it unrun: these scenes demonstrate editing and controls, not results.
 - A blank Research document named `归档示例 / Archive example`, archived through the document menu.
 - The `ep` preset and a real saved Factor report accessible to the capture account.
-- At least two independent report deployments. Pause one, preserving an active instance, to demonstrate separate lifecycle and account state. Do not generate signals for these entry-point captures.
 - Locally available market/valuation/stock data. An empty catalog must remain visibly empty; do not add fake rows to make the image look populated.
 
 Store account information and record IDs in a private JSON file outside the repository:
@@ -23,8 +22,7 @@ Store account information and record IDs in a private JSON file outside the repo
   "strategy": "saved-strategy-id",
   "document": "saved-template-document-id",
   "archivedDocument": "archived-document-id",
-  "factor": "ep",
-  "pausedDeployment": "paused-deployment-id"
+  "factor": "ep"
 }
 ```
 
@@ -47,4 +45,4 @@ Optionally set `HELP_CAPTURE_SCENES=research/document-cells-02,backtesting/repor
 
 Inspect both languages at full resolution, ensure every number matches the adjoining prose, and update the manifest after changing a figure or its references. A successful capture only means that an artifact was produced. It does not verify financial calculations, background jobs or the rendered help site; those checks belong to the approved post-review verification.
 
-The 2026-09-21 inventory distinguishes recaptured controls, retained login controls, historical illustrations, unchanged learning evidence and retired images. Historical screenshots have explicit Chinese-UI captions in both languages. Cropping removes only the obsolete 40-pixel navigation text strip from full-page historical illustrations; frames with overlapping annotations or drawer headers remain intact. Cropping never changes chart values or fills missing results. The 29 learning figures remain byte-for-byte unchanged. Existing `help-content-*` scripts describe earlier capture campaigns; do not run them over these assets without auditing their routes, data mutations and captions first.
+The 2026-09-21 inventory distinguishes recaptured controls, retained login controls, historical illustrations, unchanged learning evidence and retired images. Historical screenshots have explicit Chinese-UI captions in both languages. Cropping removes only the obsolete 40-pixel navigation text strip from full-page historical illustrations; frames with overlapping annotations or drawer headers remain intact. Cropping never changes chart values or fills missing results. The 25 learning figures remain byte-for-byte unchanged. Existing `help-content-*` scripts describe earlier capture campaigns; do not run them over these assets without auditing their routes, data mutations and captions first.

@@ -44,15 +44,19 @@ If the rules differ from your description, request the required change before ru
 
 After changing code or run settings, run the backtest again. The previous result does not represent changes that have not been run.
 
-## Distinguish the draft and report
+## Current draft and latest result
 
-The editor and top run settings belong to the current strategy draft. The results belong to the run selected in **Backtest report history**. Selecting a historical report updates the result and benchmark curves; **it does not restore that report's code or settings into the editor**. The draft dates at the top may therefore differ from the selected report's dates.
+The editor and top run settings belong to the current strategy draft. Results show the latest submitted backtest. Changing code, dates, capital or costs prompts a rerun; the displayed result retains its actual period and capital. Results do not store recoverable old source.
 
-- To calculate the current draft, check its code and settings and select **Run backtest**.
-- To inspect an old result, select it in **Backtest report history**. Select **Compare** and a second report to compare results.
-- To study a report further, select **Review in Research** to create a document reading that report in a new tab.
+Each strategy retains its latest submitted backtest and scan separately, plus active jobs. Resubmission removes older results and logs, including when the new run fails. Old report links become unavailable. There is no history selector or report comparison.
+
+Select **Analyze result in Research** to create a document reading the retained result. Python and the Agent can analyze metrics, NAV, trades and published Factor version references. Calculations referencing an old report fail after resubmission.
 
 See [Read backtest results](/docs/help/backtesting/results-overview).
+
+**1** is the current draft configuration, **2** the result's actual run settings, and **3** opens Research analysis.
+
+![Current draft, result settings and Research entry](/docs/images/help/en/backtesting/report-controls.png)
 
 ## Check data in the conversation
 
@@ -73,10 +77,6 @@ The code or settings have changed but have not been used in a completed backtest
 ### The code is unfamiliar
 
 Start by checking the name, security code, direction, quantity, and frequency. You do not need to understand every line for the first run. See the [Strategy SDK](/docs/sdk) when you are ready to edit code directly.
-
-**1** is the current draft configuration, **2** selects a report, **3** compares reports, and **4** opens Research review. This strategy has only one report, so Compare is disabled.
-
-![Current interface and controls](/docs/images/help/en/backtesting/report-controls.png)
 
 ## Related articles
 

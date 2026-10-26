@@ -66,7 +66,8 @@ try {
     'strategy-parameter-scan',
     'factor-report-history',
     'factor-correlation',
-    'backtest-report-history',
+    'backtest-latest-result',
+    'research-backtest-report-catalog',
   ]) {
     if (selected && !selected.includes(name)) {
       continue;

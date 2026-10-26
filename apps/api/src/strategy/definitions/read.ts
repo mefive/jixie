@@ -1,3 +1,6 @@
+import type { Prisma } from '@prisma/client';
+import { strategyInputSignature } from './config.js';
+import { backtestReportState } from '../backtests/state.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { readCodeProposalHistory } from '#agent/conversations/code-proposals.js';
 import { type BacktestSummary, type StrategyCard } from '@jixie/shared';
@@ -11,34 +14,40 @@ export async function listStrategies(userId: string) {
       name: true,
       createdAt: true,
       updatedAt: true,
-      lastResult: true,
+      backtestReports: {
+        take: 1,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        include: { job: { select: { status: true, error: true } } },
+      },
     },
     orderBy: { updatedAt: 'desc' },
   });
-  const cards: StrategyCard[] = rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-    snapshot: strategyCardSnapshot(r.lastResult),
+  const cards: StrategyCard[] = rows.map((strategy) => ({
+    id: strategy.id,
+    name: strategy.name,
+    createdAt: strategy.createdAt.toISOString(),
+    updatedAt: strategy.updatedAt.toISOString(),
+    snapshot: strategyCardSnapshot(
+      latestBacktest(strategy.backtestReports[0], undefined).lastResult,
+    ),
   }));
 
   return cards;
 }
 
 function strategyCardSnapshot(lastResult: unknown): StrategyCard['snapshot'] {
-  const r = lastResult as BacktestSummary | null;
+  const result = lastResult as BacktestSummary | null;
 
-  if (!r || !Array.isArray(r.nav) || r.nav.length === 0) {
+  if (!result || !Array.isArray(result.nav) || result.nav.length === 0) {
     return undefined;
   }
 
-  const vals = r.nav.map((n) => n.value);
-  const N = 48;
-  const step = Math.max(1, Math.floor(vals.length / N));
-  const spark = vals.filter((_, i) => i % step === 0);
+  const values = result.nav.map((point) => point.value);
+  const maximumPoints = 48;
+  const step = Math.max(1, Math.floor(values.length / maximumPoints));
+  const spark = values.filter((_, index) => index % step === 0);
 
-  return { totalReturn: r.totalReturn, sharpe: r.sharpe, trades: r.trades, spark };
+  return { totalReturn: result.totalReturn, sharpe: result.sharpe, trades: result.trades, spark };
 }
 
 /**
@@ -49,6 +58,13 @@ function strategyCardSnapshot(lastResult: unknown): StrategyCard['snapshot'] {
 export async function readStrategy(userId: string, strategyId: string) {
   const row = await getDatabase().strategy.findFirst({
     where: { id: strategyId, userId: userId },
+    include: {
+      backtestReports: {
+        take: 1,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        include: { job: { select: { status: true, error: true } } },
+      },
+    },
   });
 
   if (!row) {
@@ -61,9 +77,44 @@ export async function readStrategy(userId: string, strategyId: string) {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     config: row.config,
-    lastResult: row.lastResult,
+    ...latestBacktest(row.backtestReports[0], row.config),
     messages: Array.isArray(row.messages)
       ? await readCodeProposalHistory(getDatabase(), userId, 'strategy', strategyId, row.messages)
       : row.messages,
+  };
+}
+
+/**
+ * 最近提交失败或仍在运行时不回退旧结果；当前代码只用于过期检测。
+ *
+ * Never fall back to an older result after a pending or failed submission; current code only detects staleness.
+ */
+function latestBacktest(
+  row:
+    | {
+        id: string;
+        inputSignature: string | null;
+        payload: Prisma.JsonValue | null;
+        legacyStatus: string | null;
+        legacyError: string | null;
+        job: { status: string; error: string | null } | null;
+      }
+    | undefined,
+  config: unknown,
+) {
+  if (!row) {
+    return { lastResult: null, lastBacktest: null };
+  }
+
+  const state = backtestReportState(row);
+
+  return {
+    lastResult: state.status === 'done' ? (row.payload as unknown as BacktestSummary) : null,
+    lastBacktest: {
+      id: row.id,
+      status: state.status,
+      needsRerun: row.inputSignature !== strategyInputSignature(config),
+      error: state.error,
+    },
   };
 }

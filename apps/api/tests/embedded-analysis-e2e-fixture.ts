@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { strategyInputSignature, strategyResultSettings } from '#strategy/definitions/config.js';
 import type { Context } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { DEFAULT_BACKTEST_COST, type ResearchEmbeddedContextV1 } from '@jixie/shared';
@@ -220,7 +221,7 @@ export async function seedEmbeddedStrategies() {
       monthly: [],
     };
     await prisma.strategy.create({
-      data: { id, userId: `question-reader-${locale}`, name, config, lastResult: payload },
+      data: { id, userId: `question-reader-${locale}`, name, config },
     });
     await prisma.backtestReport.create({
       data: {
@@ -229,7 +230,8 @@ export async function seedEmbeddedStrategies() {
         strategyId: id,
         strategyName: name,
         legacyStatus: 'done',
-        config,
+        settings: strategyResultSettings(config),
+        inputSignature: strategyInputSignature(config),
         payload,
       },
     });

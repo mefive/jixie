@@ -4,7 +4,7 @@ import { Worker } from 'node:worker_threads';
 import type { BacktestSummary } from '@jixie/shared';
 import type { JobLifecycle } from '#jobs/lifecycle.js';
 import { runWorker } from '#jobs/worker.js';
-import { createHash } from 'node:crypto';
+import { finishStrategyJob } from '../results/retention.js';
 import type { Prisma } from '@prisma/client';
 import { t } from '#i18n/messages.js';
 
@@ -20,7 +20,11 @@ export const strategyBacktestLifecycle = {
    */
   async onExecute(job, log) {
     const input = backtestJobPayloadSchema.parse(job.payload);
-    if (input.reportId !== job.backtestReportId || input.userId !== job.userId) {
+    if (
+      input.reportId !== job.backtestReportId ||
+      input.userId !== job.userId ||
+      input.strategyId !== job.key
+    ) {
       throw new Error('Backtest job payload does not match its persisted owner or report');
     }
 
@@ -40,23 +44,20 @@ export const strategyBacktestLifecycle = {
     });
 
     const payload = JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue;
-    const resultHash = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 
-    return { reportId: input.reportId, strategyId: input.strategyId, payload, resultHash };
+    return { reportId: input.reportId, strategyId: input.strategyId, payload };
   },
-  async onSuccess(transaction, job, { reportId, strategyId, payload, resultHash }) {
+  async onSuccess(transaction, job, { reportId, payload }) {
     await transaction.backtestReport.update({
       where: { id: reportId, userId: job.userId },
-      data: { payload, resultHash, computedAt: new Date() },
+      data: { payload, computedAt: new Date() },
     });
-    await transaction.strategy.updateMany({
-      where: { id: strategyId, userId: job.userId },
-      data: { lastResult: payload },
-    });
+    await finishStrategyJob(transaction, job);
   },
+  onFailure: finishStrategyJob,
+  onInterrupted: finishStrategyJob,
 } satisfies JobLifecycle<{
   reportId: string;
   strategyId: string;
   payload: Prisma.InputJsonValue;
-  resultHash: string;
 }>;

@@ -16,7 +16,6 @@ import {
   DEFAULT_BACKTEST_START,
   type BacktestConfig,
   type BacktestReportDetail,
-  type BacktestReportSummary,
   type BacktestSummary,
   type ChatMessage,
   type CostConfig,
@@ -42,7 +41,6 @@ import {
   getStrategyScanReport,
   inspectStrategyParameters,
   listStrategyScanReports,
-  listBacktestReports,
   listStrategies,
   pollBacktest,
   pollStrategyScan,
@@ -101,6 +99,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   public persistedConfig = ''; // run-relevant config as PERSISTED in the DB (create/run/open) — baseline for `edited`
   public initializing = false; // opening the initial strategy on mount — render a neutral loader, not the hero
   public scanReport: StrategyScanReport | null = null;
+  public scanConfig = '';
   public scanLogLines: LogLine[] = [];
   public scanError: string | null = null;
   public scanQueuePosition: number | null = null;
@@ -116,12 +115,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   public scanPoller = new PollingModel();
   public codeChangeLoader = new LoaderModel<CodeChangeProposalV1>();
   public savedLoader = new LoaderModel<StrategyCard[]>(); // My strategies / History cards
-  public backtestHistoryLoader = new LoaderModel<BacktestReportSummary[]>();
   public backtestReportLoader = new LoaderModel<BacktestReportDetail>();
-  public backtestComparisonLoader = new LoaderModel<BacktestReportDetail>();
   public benchmarkLoader = new LoaderModel<BenchmarkSeries>();
   public scanParametersLoader = new LoaderModel<Record<string, StrategyParamValue>>();
-  public scanHistoryLoader = new LoaderModel<StrategyScanReportSummary[]>();
+  public latestScanLoader = new LoaderModel<StrategyScanReportSummary[]>();
   public scanReportLoader = new LoaderModel<StrategyScanReport>();
   public factorLoader = new LoaderModel<{ factor: FactorMeta; assets: string[] } | null>();
 
@@ -153,6 +150,8 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       persistedConfig: observable.ref,
       initializing: observable.ref,
       scanReport: observable.ref,
+      scanConfig: observable.ref,
+      scanNeedsRerun: computed,
       scanLogLines: observable.ref,
       scanError: observable.ref,
       scanQueuePosition: observable.ref,
@@ -160,14 +159,13 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       dirty: computed,
       edited: computed,
       isFresh: computed,
-      viewingLatestBacktest: computed,
     });
   }
 
   /**
-   * 配置策略、报告比较、扫描与 Agent 流状态，注册所有清理。
+   * 配置策略、最近结果、扫描与 Agent 流状态，注册所有清理。
    *
-   * Initialize strategy, report comparison, scan and agent state with cleanup.
+   * Initialize strategy, latest result, scan and agent state with cleanup.
    */
   public setup(params: StrategySetupParams) {
     super.setup(params);
@@ -180,14 +178,8 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.backtestPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.scanPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollScanOnce() });
     this.savedLoader.setup({ request: () => listStrategies() });
-    this.backtestHistoryLoader.setup({
-      request: (strategyId: string) => listBacktestReports(strategyId),
-    });
     this.backtestReportLoader.setup({
       preserveResult: false,
-      request: (reportId: string) => getBacktestReport(reportId),
-    });
-    this.backtestComparisonLoader.setup({
       request: (reportId: string) => getBacktestReport(reportId),
     });
     this.benchmarkLoader.setup({
@@ -204,7 +196,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.scanParametersLoader.setup({
       request: async (code: string) => (await inspectStrategyParameters(code)).parameters,
     });
-    this.scanHistoryLoader.setup({
+    this.latestScanLoader.setup({
       request: (strategyId: string) => listStrategyScanReports(strategyId),
     });
     this.scanReportLoader.setup({ request: (reportId: string) => getStrategyScanReport(reportId) });
@@ -242,12 +234,10 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.registCleaner(() => this.backtestPoller.cleanup());
     this.registCleaner(() => this.scanPoller.cleanup());
     this.registCleaner(() => this.savedLoader.cleanup());
-    this.registCleaner(() => this.backtestHistoryLoader.cleanup());
     this.registCleaner(() => this.backtestReportLoader.cleanup());
-    this.registCleaner(() => this.backtestComparisonLoader.cleanup());
     this.registCleaner(() => this.benchmarkLoader.cleanup());
     this.registCleaner(() => this.scanParametersLoader.cleanup());
-    this.registCleaner(() => this.scanHistoryLoader.cleanup());
+    this.registCleaner(() => this.latestScanLoader.cleanup());
     this.registCleaner(() => this.scanReportLoader.cleanup());
     this.registCleaner(() => this.factorLoader.cleanup());
     this.registCleaner(() => {
@@ -342,13 +332,12 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   }
 
   /**
-   * 判断是否正在查看最近回测，保持独立成交页与最近运行关联。
+   * 当前编辑输入与扫描输入不同时提示重新运行。
    *
-   * The standalone trade page remains tied to the latest run.
+   * Mark scan results for rerun when the editor differs from the scan inputs.
    */
-  public get viewingLatestBacktest(): boolean {
-    const latestReportId = this.backtestHistoryLoader.result?.[0]?.id;
-    return !latestReportId || this.activeBacktestReportId === latestReportId;
+  public get scanNeedsRerun(): boolean {
+    return !!this.scanReport && this.configKey() !== this.scanConfig;
   }
 
   /**
@@ -393,14 +382,16 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     }
 
     try {
+      const submittedConfig = this.configKey();
       const { reportId, jobId } = await submitStrategyScan(this.savedId, this.config, spec);
       runInAction(() => {
         this.scanReport = null;
+        this.scanConfig = submittedConfig;
         this.scanLogLines = [];
         this.scanError = null;
       });
       this.startScanPolling(jobId, reportId);
-      void this.scanHistoryLoader.run(this.savedId);
+      void this.latestScanLoader.run(this.savedId);
     } catch (error) {
       runInAction(() => {
         this.scanError =
@@ -411,9 +402,17 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
 
   public async loadScanReport(reportId: string) {
     try {
+      const strategyId = this.savedId;
       const report = await this.scanReportLoader.run(reportId);
+      if (strategyId !== this.savedId || report.strategyId !== strategyId) {
+        return;
+      }
+
       runInAction(() => {
         this.scanReport = report;
+        if (!this.scanConfig) {
+          this.scanConfig = report.needsRerun ? '' : this.configKey();
+        }
         this.scanError =
           report.error ?? (report.status === 'stale' ? i18n.t('strategy:scanInterrupted') : null);
       });
@@ -670,6 +669,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       this.error = null;
       this.logLines = [];
       this.scanReport = null;
+      this.scanConfig = '';
       this.scanLogLines = [];
       this.scanError = null;
       this.savedId = null;
@@ -679,10 +679,8 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.resetBenchmarks();
     this.scanPoller.stop();
     this.scanParametersLoader.reset();
-    this.backtestHistoryLoader.reset();
     this.backtestReportLoader.reset();
-    this.backtestComparisonLoader.reset();
-    this.scanHistoryLoader.reset();
+    this.latestScanLoader.reset();
     this.scanReportLoader.reset();
   }
 
@@ -698,6 +696,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       runInAction(() => (this.error = i18n.t('strategy:storeSaveFailedNoBacktest')));
       return;
     }
+    const submittedConfig = this.configKey();
     let jobId: string;
     let reportId: string;
     try {
@@ -709,7 +708,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       return;
     }
     // The response confirms that the server committed this config and created its Job atomically.
-    this.markSaved();
+    this.markSaved(submittedConfig);
     runInAction(() => {
       this.result = null;
       this.activeBacktestReportId = reportId;
@@ -802,9 +801,9 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
    *
    * A run committed the current config: it's both the new run baseline (dirty) and persisted (edited).
    */
-  private markSaved() {
+  private markSaved(submittedConfig: string) {
     runInAction(() => {
-      this.savedConfig = this.persistedConfig = this.configKey();
+      this.savedConfig = this.persistedConfig = submittedConfig;
     });
   }
 
@@ -820,10 +819,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     runInAction(() => {
       this.sending = false;
     });
-    this.backtestHistoryLoader.abort();
-    this.backtestHistoryLoader.reset();
     this.backtestReportLoader.reset();
-    this.backtestComparisonLoader.reset();
     let s;
     try {
       s = await getStrategy(id);
@@ -836,16 +832,16 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.applyConfig(s.config);
     runInAction(() => {
       this.result = s.lastResult ?? null;
-      this.activeBacktestReportId = null;
+      this.activeBacktestReportId = s.lastBacktest?.id ?? null;
       this.chatMessages = (s.messages ?? []).map(normalizeChatMessage); // restore (upgrades legacy rows)
-      this.error = null;
+      this.error =
+        s.lastBacktest?.error ??
+        (s.lastBacktest?.status === 'stale' ? i18n.t('strategy:storeBacktestInterrupted') : null);
       this.savedId = id;
-      // A strategy with a result → its config IS the last-run config (not dirty); one never run stays
-      // dirty (empty run-baseline) so Run-backtest is enabled. Either way the loaded config IS what's in the
-      // DB → not edited (opening it doesn't false-warn the leave guard).
-      this.savedConfig = s.lastResult ? this.configKey() : '';
+      this.savedConfig = s.lastBacktest && !s.lastBacktest.needsRerun ? this.configKey() : '';
       this.persistedConfig = this.configKey();
       this.scanReport = null;
+      this.scanConfig = '';
       this.scanLogLines = [];
       this.scanError = null;
       this.scanQueuePosition = null;
@@ -853,24 +849,14 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
     this.loadBenchmarks(this.result);
     pushRecent(id); // record the visit → hero Recent-visits + auto-open on next entry
     void this.reattachTurn(); // a live agent turn for this strategy? re-subscribe (snapshot replays)
-    void this.backtestHistoryLoader.run(id).then((reports) => {
-      if (this.savedId === id) {
-        runInAction(() => {
-          this.activeBacktestReportId = reports[0]?.id ?? null;
-        });
-        const selectedReportId =
-          reports.find((report) => report.id === reportId)?.id ?? reports[0]?.id;
-        if (selectedReportId && (reportId || !this.result)) {
-          // Draft saves may clear lastResult, but their historical reports remain deployable.
-          runInAction(() => {
-            this.activeBacktestReportId = null;
-          });
-          void this.viewBacktestReport(selectedReportId);
-        }
+    if (reportId) {
+      await this.viewBacktestReport(reportId);
+      if (!this.result) {
+        return;
       }
-    });
-    void this.scanHistoryLoader.run(id).then((reports) => {
-      if (reports[0] && !this.scanReport) {
+    }
+    void this.latestScanLoader.run(id).then((reports) => {
+      if (this.savedId === id && reports[0] && !this.scanReport) {
         void this.loadScanReport(reports[0].id);
       }
     });
@@ -945,7 +931,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
       if (job.status === 'done') {
         await this.loadScanReport(this.scanReportId!);
         if (this.savedId) {
-          void this.scanHistoryLoader.run(this.savedId);
+          void this.latestScanLoader.run(this.savedId);
         }
         return false;
       }
@@ -980,28 +966,21 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
         this.since = job.nextSince;
       }
       if (job.status === 'done') {
-        // The immutable report is complete; Strategy.lastResult mirrors it for the existing Strategy UI.
-        let result: BacktestSummary | null = null;
-        let name = this.name;
+        const reportId = job.backtestReportId;
+        if (reportId) {
+          await this.viewBacktestReport(reportId, false);
+        }
         if (this.savedId) {
-          try {
-            const s = await getStrategy(this.savedId);
-            result = (s.lastResult as BacktestSummary) ?? null;
-            name = s.name;
-          } catch {
-            /* strategy fetch failed — leave the last shown result */
+          const strategyId = this.savedId;
+          const strategy = await getStrategy(strategyId);
+          if (this.savedId === strategyId) {
+            runInAction(() => {
+              this.name = strategy.name;
+            });
           }
         }
-        runInAction(() => {
-          this.result = result;
-          this.name = name;
-          this.activeBacktestReportId = job.backtestReportId ?? this.activeBacktestReportId;
-        });
-        this.loadBenchmarks(result);
         void this.savedLoader.run();
-        if (this.savedId) {
-          void this.backtestHistoryLoader.run(this.savedId);
-        }
+
         return false;
       }
       if (job.status === 'error' || job.status === 'stale') {
@@ -1031,48 +1010,43 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
   }
 
   /**
-   * 读取明确历史报告并更新查看身份，不覆盖当前编辑配置。
+   * 读取明确的保留结果；被清理的旧链接报错，不回退到其他结果。
    *
-   * Load an explicit historical report and update viewed identity independently of editing.
+   * Read the requested retained result; a deleted link fails without falling back.
    */
-  public async viewBacktestReport(reportId: string) {
-    if (reportId === this.activeBacktestReportId || !this.savedId) {
+  public async viewBacktestReport(reportId: string, updateBaseline = true) {
+    if (!this.savedId) {
       return;
-    }
-    const detail = await this.backtestReportLoader.run(reportId);
-    if (detail.strategyId !== this.savedId) {
-      return;
-    }
-    runInAction(() => {
-      this.activeBacktestReportId = detail.id;
-      this.result = detail.result;
-      this.error = null;
-    });
-    this.loadBenchmarks(detail.result);
-  }
-
-  /**
-   * 加载比较报告并校验当前选择，避免旧请求覆盖新比较。
-   *
-   * Load a comparison report under selection guards against stale requests.
-   */
-  public async loadBacktestComparison(reportId: string) {
-    if (!this.savedId || reportId === this.activeBacktestReportId) {
-      return null;
     }
     const strategyId = this.savedId;
-    const detail = await this.backtestComparisonLoader.run(reportId);
-    if (detail.strategyId !== strategyId || this.savedId !== strategyId) {
-      this.resetBacktestComparison();
-      return null;
+    const editorInputs = this.configKey();
+    try {
+      const detail = await this.backtestReportLoader.run(reportId);
+      if (detail.strategyId !== strategyId || this.savedId !== strategyId) {
+        return;
+      }
+
+      runInAction(() => {
+        this.activeBacktestReportId = detail.id;
+        this.result = detail.result;
+        if (detail.needsRerun || updateBaseline) {
+          this.savedConfig = detail.needsRerun ? '' : editorInputs;
+        }
+        this.error = null;
+      });
+      this.loadBenchmarks(detail.result);
+    } catch (error) {
+      if (this.savedId !== strategyId) {
+        return;
+      }
+      runInAction(() => {
+        this.activeBacktestReportId = null;
+        this.result = null;
+        this.error =
+          error instanceof Error ? error.message : i18n.t('strategy:storeBacktestFailed');
+      });
+      this.resetBenchmarks();
     }
-
-    return detail;
-  }
-
-  public resetBacktestComparison() {
-    this.backtestComparisonLoader.abort();
-    this.backtestComparisonLoader.reset();
   }
 
   private resetBenchmarks() {

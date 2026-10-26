@@ -86,7 +86,7 @@ JIXIE_PYTHON_EXECUTABLE="$PWD/.venv/research-py-v1/bin/python3" pnpm e2e embedde
 ```
 
 `job-system` 复用 `strategy-orchestration`、`mixed-futures`、`strategy-parameter-scan`、`factor-report-history`、
-`factor-correlation`、`backtest-report-history`，另执行因子研究卡页面流程。
+`factor-correlation`、`backtest-latest-result`，另执行因子研究卡页面流程。
 历史回测报告由夹具预置；回测与因子相关性重连场景只注入活动任务查询竞态，因子历史用例中的
 未保存草稿拦截使用 HTTP 替身。这些局部前端断言与其余真实任务计算分开看待。
 

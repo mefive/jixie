@@ -188,7 +188,7 @@ describe('durable job and business lifecycle transactions', () => {
         strategyId: 'strategy',
         strategyName: 'Fixture',
         legacyStatus: 'running',
-        config: {},
+        settings: {},
       },
     });
     await prisma.factorReport.create({
@@ -209,9 +209,8 @@ describe('durable job and business lifecycle transactions', () => {
         strategyId: 'strategy',
         strategyName: 'Fixture',
         legacyStatus: 'running',
-        config: {},
+        settings: {},
         spec: {},
-        codeHash: 'hash',
       },
     });
 
@@ -221,7 +220,7 @@ describe('durable job and business lifecycle transactions', () => {
           id: ids[kind],
           userId: 'owner',
           kind,
-          key: 'fixture',
+          key: kind === 'factor-analysis' ? 'fixture' : 'strategy',
           status: 'running',
           payload: payload(kind),
           [links[kind]]: ids[kind],
@@ -271,14 +270,18 @@ describe('durable job and business lifecycle transactions', () => {
       expect(JSON.parse(job.logs!)).toEqual([
         { source: 'system', level: 'info', text: 'fixture log' },
       ]);
+      if (kind !== 'factor-analysis') {
+        expect(job.payload).toBeNull();
+      }
       if (kind === 'backtest') {
         expect(execution.rename).not.toHaveBeenCalled();
         expect(
-          (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
+          (await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids.backtest } })).payload,
         ).toEqual(summary);
+        expect(job.payload).toBeNull();
         expect(
-          (await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids[kind] } })).resultHash,
-        ).toMatch(/^[a-f0-9]{64}$/);
+          await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids[kind] } }),
+        ).not.toHaveProperty('resultHash');
       }
     },
   );
@@ -295,7 +298,7 @@ describe('durable job and business lifecycle transactions', () => {
         'running',
       );
       expect(
-        (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
+        (await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids.backtest } })).payload,
       ).toBeNull();
       expect(JobLogs.getLive(ids[kind])).toHaveLength(1);
     },
@@ -309,6 +312,11 @@ describe('durable job and business lifecycle transactions', () => {
       expect((await prisma.job.findUniqueOrThrow({ where: { id: ids[kind] } })).error).toBe(
         'job failure',
       );
+      if (kind !== 'factor-analysis') {
+        expect(
+          (await prisma.job.findUniqueOrThrow({ where: { id: ids[kind] } })).payload,
+        ).toBeNull();
+      }
       if (kind === 'factor-analysis') {
         expect(
           (await prisma.factorReport.findUniqueOrThrow({ where: { id: ids[kind] } }))
@@ -320,7 +328,7 @@ describe('durable job and business lifecycle transactions', () => {
           (await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids[kind] } })).payload,
         ).toBeNull();
         expect(
-          (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
+          (await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids.backtest } })).payload,
         ).toBeNull();
       }
     },
@@ -436,11 +444,10 @@ describe('durable job and business lifecycle transactions', () => {
     expect(report).toMatchObject({
       legacyStatus: 'running',
       payload: null,
-      resultHash: null,
       computedAt: null,
     });
     expect(
-      (await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } })).lastResult,
+      (await prisma.backtestReport.findUniqueOrThrow({ where: { id: ids.backtest } })).payload,
     ).toBeNull();
     expect((await prisma.job.findUniqueOrThrow({ where: { id: ids.backtest } })).status).toBe(
       'error',
@@ -669,7 +676,6 @@ describe('durable job and business lifecycle transactions', () => {
       reportId: ids.backtest,
       strategyId: 'strategy',
       payload: {},
-      resultHash: 'hash',
     };
     const execute = vi.spyOn(strategyBacktestLifecycle, 'onExecute').mockResolvedValueOnce(result);
     const success = vi.spyOn(strategyBacktestLifecycle, 'onSuccess');
@@ -687,7 +693,6 @@ describe('durable job and business lifecycle transactions', () => {
       expect(await prisma.backtestReport.findUnique({ where: { id: ids.backtest } })).toMatchObject(
         {
           payload: result.payload,
-          resultHash: result.resultHash,
           computedAt: expect.any(Date),
         },
       );

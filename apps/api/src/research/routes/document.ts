@@ -1,5 +1,6 @@
 import { validateJson, validateQuery } from '#infra/http/errors.js';
 import { Hono } from 'hono';
+import { localeFromRequest } from '#infra/http/locale.js';
 import { archiveIdleResearchDocument } from '../documents/archive-idle-document.js';
 import {
   addResearchCell,
@@ -34,6 +35,7 @@ researchDocumentRoute.post('/documents', validateJson(createDocumentSchema), asy
     const document = await createResearchDocumentFromBacktestReport(
       c.var.userId,
       input.source.reportId,
+      localeFromRequest(c),
     );
     return c.json(document);
   }

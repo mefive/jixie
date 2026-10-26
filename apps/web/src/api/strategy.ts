@@ -15,7 +15,6 @@ import type {
 import type {
   BacktestConfig,
   BacktestReportDetail,
-  BacktestReportSummary,
   LogLine,
   StrategyScanReport,
   StrategyScanReportSummary,
@@ -28,7 +27,8 @@ import type {
 import { serializeQuery, request } from './client';
 
 // A backtest Job (runs in a worker). Poll carries the log lines after `since` + `nextSince`. Status
-// only — the result lands on BacktestReport and mirrors to Strategy.lastResult as the latest cache.
+// 结果从最近 BacktestReport 读取，不再保存第二份缓存。
+// Results are read from the latest BacktestReport without a duplicate cache.
 // 'stale' = the run's process died.
 // Logs are tagged LogLine (system progress vs the strategy's own console.*).
 
@@ -46,7 +46,7 @@ export interface BacktestJob {
   error?: string | null;
 }
 
-// Commit a saved strategy's runnable config and start its immutable report atomically.
+// Commit a saved strategy's runnable config and start its latest report atomically.
 export function submitBacktest(
   config: BacktestConfig,
   strategyId: StrategyBacktestRequestParams['strategyId'],
@@ -68,12 +68,6 @@ export function findActiveBacktestJob(
   strategyId: StrategyBacktestRequestParams['strategyId'],
 ): Promise<{ jobId: string; reportId: string } | null> {
   return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtest-jobs/active`);
-}
-
-export function listBacktestReports(
-  strategyId: StrategyBacktestRequestParams['strategyId'],
-): Promise<BacktestReportSummary[]> {
-  return request(`/api/app/strategies/${encodeURIComponent(strategyId)}/backtest-reports`);
 }
 
 export function getBacktestReport(reportId: string): Promise<BacktestReportDetail> {

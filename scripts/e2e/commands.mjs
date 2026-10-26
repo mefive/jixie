@@ -247,8 +247,8 @@ export const e2eCommands = [
     group: 'strategy',
   },
   {
-    name: 'backtest-report-history',
-    file: 'apps/web/e2e/backtest-report-history.mjs',
+    name: 'backtest-latest-result',
+    file: 'apps/web/e2e/backtest-latest-result.mjs',
     group: 'strategy',
   },
   {

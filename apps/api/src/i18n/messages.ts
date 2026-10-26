@@ -394,6 +394,14 @@ const MESSAGES = {
     zh: '回测任务不存在或已过期',
     en: 'Backtest job not found or expired',
   },
+  researchBacktestTitle: {
+    zh: '{name} · 回测复核',
+    en: '{name} · Backtest review',
+  },
+  researchBacktestIntroduction: {
+    zh: '# 回测报告复核\n\n本研究引用当前保留的 BacktestReport `{reportId}`。先明确需要复核的指标、比较基准和判断标准，再运行 Python Cell 读取结果。策略重新提交后此报告可能清理，旧 ID 会报错。',
+    en: '# Backtest review\n\nThis document reads the retained BacktestReport `{reportId}`. Specify the metrics, benchmark and criteria before running the Python Cell. Resubmission may remove this report; reads of an old ID will fail.',
+  },
   backtestReportNotFound: {
     zh: '回测报告不存在或无权访问',
     en: 'Backtest report not found or access denied',

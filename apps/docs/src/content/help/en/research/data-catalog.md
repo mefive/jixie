@@ -109,7 +109,7 @@ See the [Research SDK reference](/docs/sdk?runtime=research) for signatures, enu
 ## Read existing reports and observations
 
 - Under **Factor reports**, select an owned completed report and insert `results.factor_report()` to read it directly.
-- Select a report under **Backtests** to insert `results.backtest_report()` and read frozen settings, equity, trades, and factor lineage without rerunning the strategy.
+- Select a report under **Backtests** to insert `results.backtest_report()` and read actual settings, equity, trades and Factor version references without source or rerunning the strategy. Each strategy retains only its latest submission; removed report IDs fail.
 - Use `results.strategy_scan_report()` with a stable scan report ID to read per-combination metrics.
 - Use `results.factor_weather()` for a pinned factor to read stored monthly observations without triggering a refresh.
 
@@ -120,7 +120,7 @@ Report IDs, strategy IDs, and Factor keys are different identifiers. In Factor/S
 - Cross-sections and Panels use information available at the time. Dedicated financial methods select versions by
   `available_date` and exclude `reconstructed` versions whose historical availability cannot be proven.
 - Historical membership, names, and industries use historical records where supported.
-- A rerun may read later data revisions. Use a clean full run to preserve an immutable result.
+- A rerun may read later data revisions. Use a clean full run to check the current document; it does not preserve immutable execution snapshots.
 - Ad hoc IC, sorts, or regressions are exploratory. Validate a candidate signal again through FactorReport.
 
 ## Use editor assistance

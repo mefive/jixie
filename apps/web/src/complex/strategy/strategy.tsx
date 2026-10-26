@@ -6,7 +6,6 @@ import type {
   AllocationAnalysis,
   AllocationCorrelationAnalysis,
   AllocationRateRegimeAnalysis,
-  BacktestSummary,
   ChatMessage,
   MacroRiskAxisKeyV1,
   MarketRiskFactorKeyV1,
@@ -35,8 +34,6 @@ import {
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import {
-  faClockRotateLeft,
-  faCodeCompare,
   faPaperPlane,
   faPen,
   faPlay,
@@ -44,7 +41,6 @@ import {
   faFlask,
   faSpinner,
   faUpRightFromSquare,
-  faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { LoaderButton } from '@src/components/loader-button';
@@ -62,42 +58,6 @@ import { StrategyCardView } from './strategy-card';
 import { readRecents } from './recents';
 import './strategy.css';
 
-/**
- * 提供历史报告列表及选择回调，供不可变报告切换。
- *
- * Supply report history and selection callbacks to the history picker.
- */
-interface BacktestHistoryPickerProps {
-  comparing: boolean;
-  comparisonReportId: string | null;
-  onStartComparison: () => void;
-  onStopComparison: () => void;
-  onSelectComparison: (reportId: string) => void;
-}
-
-/**
- * 绑定两个冻结报告与比较加载状态，供结果比较。
- *
- * Supply two frozen reports and loading state for comparison.
- */
-interface BacktestComparisonPanelProps {
-  primary: BacktestSummary;
-  secondary: BacktestSummary;
-}
-
-/**
- * 定义比较指标的标签、单位与取值，供一致差异展示。
- *
- * Define comparison metric labels, units and accessors.
- */
-interface BacktestComparisonMetric {
-  label: string;
-  primary: string;
-  secondary: string;
-  difference: string;
-  tone?: 'up' | 'down';
-}
-
 // Our dates are 'YYYYMMDD' strings; enable dayjs to parse that format for the DatePicker.
 dayjs.extend(customParseFormat);
 const ymd = (s: string) => (s ? dayjs(s, 'YYYYMMDD') : null);
@@ -110,9 +70,9 @@ const TradeDetail = lazy(() => import('./trade-detail'));
 const AllocationCorrelationCharts = lazy(() => import('./allocation-correlation-charts'));
 
 /**
- * 组合策略编辑、Agent、回测配置及不可变报告，形成策略研究工作台。
+ * 组合策略编辑、Agent、回测配置及最近结果，形成策略研究工作台。
  *
- * Compose strategy editing, agent conversation, backtest settings and immutable reports.
+ * Compose strategy editing, agent conversation, backtest settings and latest results.
  */
 export const Strategy = complex.component(() => {
   const store = complex.useStore();
@@ -925,20 +885,14 @@ const StrategyCode = complex.component(() => {
   );
 }, 'StrategyCode');
 
-/**
- * 展示封存研究来源与交接限制，供核对策略草稿血缘。
- *
- * Present frozen research provenance and handoff limits for strategy drafts.
- */
-
 // Results overview — metrics + equity curve + monthly returns. Logs and Trade-detail live in the dock below (ResultDock), so this
 // panel no longer swaps to a log view while running; it shows a running placeholder and lets the log
 // stream in the dock.
 
 /**
- * 组织冻结回测报告的绩效、净值、交易和风险结果。
+ * 组织最近回测的绩效、净值、交易和风险结果。
  *
- * Organize immutable backtest performance, NAV, fills and risk results.
+ * Organize the latest backtest performance, NAV, fills and risk results.
  */
 const ResultPanel = complex.component(() => {
   const store = complex.useStore();
@@ -968,23 +922,6 @@ const ResultPanel = complex.component(() => {
     }
     return <div className="jx-strategy-placeholder">{t('resultEmpty')}</div>;
   }
-  if (store.backtestComparisonLoader.loading) {
-    return (
-      <div className="jx-strategy-placeholder">
-        <FontAwesomeIcon icon={faSpinner} spin />
-        {t('backtestHistory.comparisonLoading')}
-      </div>
-    );
-  }
-  if (store.backtestComparisonLoader.result) {
-    return (
-      <BacktestComparisonPanel
-        primary={r}
-        secondary={store.backtestComparisonLoader.result.result}
-      />
-    );
-  }
-
   const up = r.totalReturn >= 0;
   const optPct = (v?: number) => (v == null ? '—' : pct(v));
   const optNum = (v?: number) => (v == null ? '—' : v.toFixed(2));
@@ -1051,6 +988,14 @@ const ResultPanel = complex.component(() => {
 
   return (
     <>
+      {store.dirty ? <Alert type="warning" showIcon title={t('resultNeedsRerun')} /> : null}
+      <div className="jx-strategy-resultSettings">
+        {t('resultSettings', {
+          start: formatYmd(r.start),
+          end: formatYmd(r.end),
+          capital: r.initialCash.toLocaleString(),
+        })}
+      </div>
       {hasPanelFactor ? (
         <Alert
           className="jx-strategy-panelExecutionNotice"
@@ -1116,92 +1061,6 @@ const ResultPanel = complex.component(() => {
     </>
   );
 }, 'ResultPanel');
-
-/**
- * 按选定不可变报告比较绩效与收益路径。
- *
- * Compare performance and return paths across selected immutable reports.
- */
-const BacktestComparisonPanel = ({ primary, secondary }: BacktestComparisonPanelProps) => {
-  const { t } = useTranslation('strategy');
-  const signed = (value: number, digits = 2) => `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
-  const percentagePointDifference = (value: number) =>
-    t('backtestHistory.percentagePointDifference', { value: signed(value * 100) });
-  const tone = (value: number): BacktestComparisonMetric['tone'] =>
-    value > 0 ? 'up' : value < 0 ? 'down' : undefined;
-  const metrics: BacktestComparisonMetric[] = [
-    {
-      label: t('metricTotalReturn'),
-      primary: pct(primary.totalReturn),
-      secondary: pct(secondary.totalReturn),
-      difference: percentagePointDifference(secondary.totalReturn - primary.totalReturn),
-      tone: tone(secondary.totalReturn - primary.totalReturn),
-    },
-    {
-      label: 'Sharpe',
-      primary: primary.sharpe.toFixed(2),
-      secondary: secondary.sharpe.toFixed(2),
-      difference: signed(secondary.sharpe - primary.sharpe),
-      tone: tone(secondary.sharpe - primary.sharpe),
-    },
-    {
-      label: t('metricMaxDrawdown'),
-      primary: pct(primary.maxDrawdown),
-      secondary: pct(secondary.maxDrawdown),
-      difference: percentagePointDifference(secondary.maxDrawdown - primary.maxDrawdown),
-      tone: tone(secondary.maxDrawdown - primary.maxDrawdown),
-    },
-    {
-      label: t('metricTrades'),
-      primary: primary.trades.toLocaleString(),
-      secondary: secondary.trades.toLocaleString(),
-      difference: signed(secondary.trades - primary.trades, 0),
-    },
-  ];
-
-  return (
-    <>
-      <section className="jx-strategy-comparison" data-testid="backtest-report-comparison">
-        <div className="jx-strategy-comparisonHead">
-          <strong>{t('backtestHistory.comparisonTitle')}</strong>
-          <span>{t('backtestHistory.comparisonDifference')}</span>
-        </div>
-        <div className="jx-strategy-comparisonMetrics">
-          {metrics.map((metric) => (
-            <div className="jx-strategy-comparisonMetric" key={metric.label}>
-              <span className="jx-strategy-comparisonMetricLabel">{metric.label}</span>
-              <div className="jx-strategy-comparisonMetricValue">
-                <span>{t('backtestHistory.reportA')}</span>
-                <b>{metric.primary}</b>
-              </div>
-              <div className="jx-strategy-comparisonMetricValue">
-                <span>{t('backtestHistory.reportB')}</span>
-                <b>{metric.secondary}</b>
-              </div>
-              <div
-                className={classNames('jx-strategy-comparisonMetricDifference', {
-                  'jx-strategy-comparisonMetricDifference--up': metric.tone === 'up',
-                  'jx-strategy-comparisonMetricDifference--down': metric.tone === 'down',
-                })}
-              >
-                {metric.difference}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-      <Suspense fallback={<div className="jx-strategy-placeholder">{t('loadingChart')}</div>}>
-        <NavChart
-          nav={primary.nav}
-          up={primary.totalReturn >= 0}
-          comparisonNav={secondary.nav}
-          benchmarks={{}}
-          benchmarksLoading={false}
-        />
-      </Suspense>
-    </>
-  );
-};
 
 /**
  * 展示配置资产贡献、调仓与费用，解释组合收益来源。
@@ -2014,48 +1873,16 @@ const LogDock = complex.component(() => {
 // execution detail as tabs. Trade-detail appears only once a run has trades.
 
 /**
- * 在绩效、净值、执行和风险视图之间切换冻结报告结果。
+ * 在绩效、净值、执行和风险视图之间切换最近回测结果。
  *
- * Switch immutable report results among performance, NAV, execution and risk views.
+ * Switch the latest backtest results among performance, NAV, execution and risk views.
  */
 const ResultTabs = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('strategy');
   const [active, setActive] = useState('overview');
-  const [comparing, setComparing] = useState(false);
-  const [comparisonReportId, setComparisonReportId] = useState<string | null>(null);
   const result = store.result;
   const hasTrades = (result?.tradeLog?.length ?? 0) > 0;
-
-  useEffect(() => {
-    setComparing(false);
-    setComparisonReportId(null);
-    store.resetBacktestComparison();
-  }, [store, store.savedId]);
-
-  useEffect(() => {
-    if (comparisonReportId && comparisonReportId === store.activeBacktestReportId) {
-      setComparisonReportId(null);
-      store.resetBacktestComparison();
-    }
-  }, [comparisonReportId, store, store.activeBacktestReportId]);
-
-  const stopComparison = () => {
-    setComparing(false);
-    setComparisonReportId(null);
-    store.resetBacktestComparison();
-  };
-
-  const selectComparison = (reportId: string) => {
-    void store
-      .loadBacktestComparison(reportId)
-      .then((report) => {
-        if (report) {
-          setComparisonReportId(report.id);
-        }
-      })
-      .catch(() => {});
-  };
 
   const items = [
     {
@@ -2098,14 +1925,24 @@ const ResultTabs = complex.component(() => {
   return (
     <div className="jx-strategy-resultTabs">
       <RunConfig />
-      {store.savedId ? (
-        <BacktestHistoryPicker
-          comparing={comparing}
-          comparisonReportId={comparisonReportId}
-          onStartComparison={() => setComparing(true)}
-          onStopComparison={stopComparison}
-          onSelectComparison={selectComparison}
-        />
+      {store.activeBacktestReportId && store.result ? (
+        <div className="jx-strategy-currentResult">
+          <Button
+            type="text"
+            size="small"
+            data-testid="backtest-report-open-research"
+            disabled={store.running}
+            icon={<FontAwesomeIcon icon={faFlask} />}
+            onClick={() =>
+              window.open(
+                `/research?backtestReport=${encodeURIComponent(store.activeBacktestReportId!)}`,
+                '_blank',
+              )
+            }
+          >
+            {t('openResultResearch')}
+          </Button>
+        </div>
       ) : null}
       <Tabs
         className="jx-strategy-resultTabsInner"
@@ -2114,7 +1951,7 @@ const ResultTabs = complex.component(() => {
         onChange={setActive}
         items={items}
         tabBarExtraContent={
-          hasTrades && store.savedId && store.viewingLatestBacktest ? (
+          hasTrades && store.savedId ? (
             <Button
               size="small"
               type="text"
@@ -2129,117 +1966,6 @@ const ResultTabs = complex.component(() => {
     </div>
   );
 }, 'ResultTabs');
-
-/**
- * 读取并选择策略历史报告，区分当前查看与最近运行。
- *
- * Select historical strategy reports with explicit viewed-versus-latest state.
- */
-const BacktestHistoryPicker = complex.component(
-  ({
-    comparing,
-    comparisonReportId,
-    onStartComparison,
-    onStopComparison,
-    onSelectComparison,
-  }: BacktestHistoryPickerProps) => {
-    const store = complex.useStore();
-    const { t } = useTranslation('strategy');
-    const reports = store.backtestHistoryLoader.result ?? [];
-    const activeReportId = reports.some((report) => report.id === store.activeBacktestReportId)
-      ? store.activeBacktestReportId
-      : undefined;
-    const options = reports.map((report, index) => ({
-      value: report.id,
-      label: `${index === 0 ? t('backtestHistory.latest') : t('backtestHistory.historical')} · ${dayjs(report.computedAt ?? report.createdAt).format('YYYY-MM-DD HH:mm')} · ${pct(report.totalReturn)}`,
-    }));
-
-    return (
-      <div className="jx-strategy-reportPicker">
-        <div className="jx-strategy-reportRow">
-          {comparing ? (
-            <span className="jx-strategy-reportBadge">{t('backtestHistory.reportA')}</span>
-          ) : (
-            <FontAwesomeIcon icon={faClockRotateLeft} />
-          )}
-          <Select
-            size="small"
-            className="jx-strategy-reportSelect"
-            data-testid="backtest-report-history"
-            aria-label={t('backtestHistory.label')}
-            value={activeReportId}
-            loading={store.backtestHistoryLoader.loading || store.backtestReportLoader.loading}
-            disabled={
-              reports.length === 0 || store.running || store.backtestComparisonLoader.loading
-            }
-            placeholder={t('backtestHistory.empty')}
-            options={options}
-            onChange={(reportId) => void store.viewBacktestReport(reportId).catch(() => {})}
-          />
-          {!comparing ? (
-            <Button
-              type="text"
-              size="small"
-              data-testid="backtest-report-compare-toggle"
-              disabled={reports.length < 2 || store.running}
-              icon={<FontAwesomeIcon icon={faCodeCompare} />}
-              onClick={onStartComparison}
-            >
-              {t('backtestHistory.compare')}
-            </Button>
-          ) : null}
-          <Tooltip title={t('backtestHistory.openResearch')}>
-            <Button
-              type="text"
-              size="small"
-              data-testid="backtest-report-open-research"
-              aria-label={t('backtestHistory.openResearch')}
-              disabled={!store.activeBacktestReportId || store.running}
-              icon={<FontAwesomeIcon icon={faFlask} />}
-              onClick={() =>
-                window.open(
-                  `/research?backtestReport=${encodeURIComponent(store.activeBacktestReportId!)}`,
-                  '_blank',
-                )
-              }
-            />
-          </Tooltip>
-        </div>
-        {comparing ? (
-          <div className="jx-strategy-reportRow">
-            <span className="jx-strategy-reportBadge jx-strategy-reportBadge--secondary">
-              {t('backtestHistory.reportB')}
-            </span>
-            <Select
-              size="small"
-              className="jx-strategy-reportSelect"
-              data-testid="backtest-report-comparison-select"
-              aria-label={t('backtestHistory.chooseComparison')}
-              value={comparisonReportId ?? undefined}
-              loading={store.backtestComparisonLoader.loading}
-              disabled={store.running}
-              classNames={{ popup: { root: 'jx-strategy-comparisonReportPopup' } }}
-              placeholder={t('backtestHistory.chooseComparison')}
-              options={options.filter((option) => option.value !== activeReportId)}
-              onChange={onSelectComparison}
-            />
-            <Tooltip title={t('backtestHistory.exitComparison')}>
-              <Button
-                type="text"
-                size="small"
-                data-testid="backtest-report-compare-exit"
-                aria-label={t('backtestHistory.exitComparison')}
-                icon={<FontAwesomeIcon icon={faXmark} />}
-                onClick={onStopComparison}
-              />
-            </Tooltip>
-          </div>
-        ) : null}
-      </div>
-    );
-  },
-  'BacktestHistoryPicker',
-);
 
 // —— Helpers / config ——
 

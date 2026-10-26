@@ -32,7 +32,7 @@ describe('Research BacktestReport result bridge', () => {
     mocks.backtestReportFindFirst.mockReset().mockResolvedValue(backtestReportRow());
   });
 
-  it('maps one immutable owned report into the snake_case Research surface', async () => {
+  it('maps one retained owned report into the snake_case Research surface', async () => {
     const result = await loadResearchBacktestReportResult('document-a', 'report-a');
 
     expect(mocks.backtestReportFindFirst).toHaveBeenCalledWith(
@@ -51,7 +51,6 @@ describe('Research BacktestReport result bridge', () => {
         language: 'python',
         runtime_version: 'py-v1',
       },
-      lineage: { code_hash: 'code-hash', result_hash: 'result-hash' },
       report: {
         total_return: 0.32,
         sharpe: 1.2,
@@ -59,6 +58,8 @@ describe('Research BacktestReport result bridge', () => {
         nav: [{ date: '20200102', value: 1_000_000 }],
       },
     });
+    expect(result).not.toHaveProperty('lineage');
+    expect(result.backtest_spec).not.toHaveProperty('code');
   });
 
   it('does not resolve reports outside the Research document owner scope', async () => {
@@ -86,7 +87,7 @@ function backtestReportRow(overrides: Record<string, unknown> = {}) {
     legacyStatus: null,
     legacyError: null,
     job: { status: overrides.status ?? 'done', error: null },
-    config: {
+    settings: {
       name: '价值轮动',
       start: '20200101',
       end: '20251231',
@@ -95,8 +96,6 @@ function backtestReportRow(overrides: Record<string, unknown> = {}) {
       runtimeVersion: 'py-v1',
       code: 'class Strategy: pass',
     },
-    codeHash: 'code-hash',
-    resultHash: 'result-hash',
     payload: {
       totalReturn: 0.32,
       sharpe: 1.2,

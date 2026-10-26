@@ -49,10 +49,11 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
           userId: 'owner',
           strategyId: 'strategy',
           strategyName: 'Legacy',
-          config: {},
+          settings: {},
           legacyStatus: status,
           legacyError: `detail:${status}`,
         },
+        select: { id: true },
       });
       await database.factorReport.create({
         data: {
@@ -66,28 +67,19 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
           failureMessage: `detail:${status}`,
         },
       });
-      await database.strategyScanReport.create({
-        data: {
-          id: `scan:${status}`,
-          userId: 'owner',
-          strategyId: 'strategy',
-          strategyName: 'Legacy',
-          config: {},
-          spec: {},
-          codeHash: 'hash',
-          legacyStatus: status,
-          legacyError: `detail:${status}`,
-        },
-      });
+      await database.$executeRaw`
+        INSERT INTO StrategyScanReport (id,userId,strategyId,strategyName,config,spec,codeHash,status,error,updatedAt)
+        VALUES (${`scan:${status}`},'owner','strategy','Legacy','{}','{}','hash',${status},${`detail:${status}`},CURRENT_TIMESTAMP)
+      `;
       await database.$executeRaw`
         INSERT INTO ResearchCuratorRun (id, userId, cursorTo, status, error, updatedAt)
         VALUES (${`curator:${status}`}, 'owner', ${new Date(0)}, ${status}, ${`detail:${status}`}, ${new Date(0)})
       `;
     }
     const before = await Promise.all([
-      database.backtestReport.findMany(),
+      database.$queryRaw`SELECT * FROM BacktestReport ORDER BY id`,
       database.factorReport.findMany(),
-      database.strategyScanReport.findMany(),
+      database.$queryRaw`SELECT * FROM StrategyScanReport ORDER BY id`,
       database.$queryRaw`SELECT * FROM ResearchCuratorRun ORDER BY id`,
     ]);
     for (const name of names) {
@@ -97,9 +89,9 @@ it('upgrades existing terminal records without fabricating Jobs or changing phys
     }
     deploy();
     const after = await Promise.all([
-      database.backtestReport.findMany(),
+      database.$queryRaw`SELECT * FROM BacktestReport ORDER BY id`,
       database.factorReport.findMany(),
-      database.strategyScanReport.findMany(),
+      database.$queryRaw`SELECT * FROM StrategyScanReport ORDER BY id`,
       database.$queryRaw`SELECT * FROM ResearchCuratorRun ORDER BY id`,
     ]);
     expect(after).toEqual(before);

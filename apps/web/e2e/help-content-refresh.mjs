@@ -86,8 +86,7 @@ try {
         ready: '.jx-strategy-metrics',
         marks: [
           '.jx-strategy-runConfig',
-          '[data-testid="backtest-report-history"]',
-          '[data-testid="backtest-report-compare-toggle"]',
+          '.jx-strategy-resultSettings',
           '[data-testid="backtest-report-open-research"]',
         ],
       },

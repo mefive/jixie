@@ -1,5 +1,4 @@
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
@@ -8,7 +7,12 @@ const { PrismaClient } = require('@prisma/client');
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
-const databaseUrl = `file:${fileURLToPath(new URL('../../api/prisma/dev.db', import.meta.url))}`;
+const databaseUrl = process.env.DATABASE_URL;
+if (process.env.E2E_ISOLATED_DB !== '1' || !databaseUrl?.includes('jixie-jobs-browser-')) {
+  throw new Error(
+    'Run the Research report catalog journey through the isolated job-system fixture.',
+  );
+}
 mkdirSync(SHOTS, { recursive: true });
 
 const suffix = Date.now();
@@ -152,6 +156,7 @@ async function seedBacktestReport(ownerId) {
     runtimeVersion: 'py-v1',
     code: 'def strategy(context):\n    pass',
   };
+  const { code: _code, ...settings } = config;
   await database.strategy.create({
     data: { id: strategyId, userId: ownerId, name: strategyName, config },
   });
@@ -161,10 +166,8 @@ async function seedBacktestReport(ownerId) {
       userId: ownerId,
       strategyId,
       strategyName,
-      status: 'done',
-      config,
-      codeHash: 'e2e-code-hash',
-      resultHash: 'e2e-result-hash',
+      legacyStatus: 'done',
+      settings,
       payload: {
         metrics: { totalReturn: 0.24, annualizedReturn: 0.11, maxDrawdown: -0.08 },
         nav: [
@@ -183,13 +186,12 @@ async function seedBacktestReport(ownerId) {
       userId: ownerId,
       strategyId,
       strategyName,
-      status: 'done',
-      config,
+      legacyStatus: 'done',
+      settings,
       spec: {
         dimensions: [{ key: 'window', values: [10, 20, 30] }],
         splitDate: '20240101',
       },
-      codeHash: 'e2e-code-hash',
       dataCutoff: '20251231',
       payload: {
         parameters: { window: 20 },

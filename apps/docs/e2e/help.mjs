@@ -640,8 +640,10 @@ try {
 
   await page.getByRole('link', { name: '比较多组策略参数', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '比较多组策略参数' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 6) {
-    throw new Error('parameter scan article does not render all six screenshots');
+  if ((await page.locator('.jx-help-figure').count()) !== 7) {
+    throw new Error(
+      'parameter scan article must render six historical figures and the current control capture',
+    );
   }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
@@ -1011,12 +1013,12 @@ async function checkCurrentWorkflow(slug, locale) {
   const workflows = {
     'backtesting/workspace': {
       heading: {
-        zh: '区分草稿和回测报告',
-        en: 'Distinguish the draft and report',
+        zh: '当前草稿与最近结果',
+        en: 'Current draft and latest result',
       },
       text: {
-        zh: '不会把旧报告的代码或参数还原到编辑器',
-        en: "it does not restore that report's code or settings into the editor",
+        zh: '旧报告链接会失效',
+        en: 'Old report links become unavailable',
       },
       link: 'backtesting/results-overview',
     },

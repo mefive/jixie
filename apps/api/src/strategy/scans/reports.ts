@@ -2,7 +2,7 @@ import { strategyScanReportState, strategyScanReportStatusWhere } from '#strateg
 import { getDatabase } from '#infra/database/prisma.js';
 import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type {
-  BacktestConfig,
+  BacktestSettings,
   StrategyScanPayload,
   StrategyScanReport,
   StrategyScanReportSummary,
@@ -10,6 +10,7 @@ import type {
 } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { StrategyError } from '../errors.js';
+import { strategyResultSettings, strategyInputSignature } from '../definitions/config.js';
 import type { StrategyScanIdentityQuery, StrategyScanJobQuery } from '@jixie/shared/api/strategy';
 
 export async function listStrategyScanReports(userId: string, query: StrategyScanIdentityQuery) {
@@ -18,7 +19,7 @@ export async function listStrategyScanReports(userId: string, query: StrategySca
       include: { job: true },
       where: { userId: userId, strategyId: query.strategyId },
       orderBy: { createdAt: 'desc' },
-      take: 50,
+      take: 1,
     })
     .then((rows) => rows.map(strategyScanReportState));
 
@@ -72,7 +73,7 @@ export async function readStrategyScanReport(userId: string, reportId: string) {
   const row = await getDatabase()
     .strategyScanReport.findFirst({
       where: { id: reportId, userId: userId },
-      include: { job: true },
+      include: { job: true, strategy: { select: { config: true } } },
     })
     .then((row) => (row ? strategyScanReportState(row) : row));
 
@@ -115,9 +116,10 @@ function scanReportDetail(row: {
   strategyId: string;
   strategyName: string;
   status: string;
-  config: Prisma.JsonValue;
+  settings: Prisma.JsonValue;
+  strategy: { config: Prisma.JsonValue };
   spec: Prisma.JsonValue;
-  codeHash: string;
+  inputSignature: string | null;
   dataCutoff: string | null;
   payload: Prisma.JsonValue | null;
   error: string | null;
@@ -130,9 +132,9 @@ function scanReportDetail(row: {
     strategyId: row.strategyId,
     strategyName: row.strategyName,
     status: row.status as StrategyScanReport['status'],
-    config: row.config as unknown as BacktestConfig,
+    settings: strategyResultSettings(row.settings) as BacktestSettings,
     spec: row.spec as unknown as StrategyScanSpec,
-    codeHash: row.codeHash,
+    needsRerun: row.inputSignature !== strategyInputSignature(row.strategy.config),
     dataCutoff: row.dataCutoff,
     payload: (row.payload as unknown as StrategyScanPayload) ?? undefined,
     error: row.error ?? undefined,

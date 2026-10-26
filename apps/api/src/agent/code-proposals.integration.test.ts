@@ -328,19 +328,18 @@ describe('Durable code suggestions and explicit acceptance', () => {
     expect(await currentCode('strategy')).toBe(beforeCode);
   });
 
-  it('retains strategy parameters changed after generation and clears stale result cache on acceptance', async () => {
+  it('retains strategy parameters changed after generation without creating a result cache on acceptance', async () => {
     const proposal = await generate('strategy');
     await prisma.strategy.update({
       where: { id: 'strategy' },
       data: {
         config: { code: beforeCode, initialCash: 200000 },
-        lastResult: { stale: true },
       },
     });
     expect((await request('strategy', proposal.id)).status).toBe(200);
     const strategy = await prisma.strategy.findUniqueOrThrow({ where: { id: 'strategy' } });
     expect(strategy.config).toMatchObject({ code: afterCode, initialCash: 200000 });
-    expect(strategy.lastResult).toBeNull();
+    expect(strategy).not.toHaveProperty('lastResult');
   });
 
   it('refuses to modify a factor published while a proposal was pending', async () => {

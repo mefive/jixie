@@ -18,8 +18,8 @@ _FACTOR_WEATHER_COLUMNS = [
 ]
 
 
-# 读取授权冻结报告与气象结果，不重新执行研究计算。
-# English: Read authorized frozen reports and weather results without recomputing them.
+# 读取授权保留报告与气象结果，不重新执行研究计算。
+# English: Read authorized retained reports and weather results without recomputing them.
 class _ResultsApi:
     def __init__(self, capabilities: ResearchCapabilities, pandas_module: Any) -> None:
         self._capabilities = capabilities

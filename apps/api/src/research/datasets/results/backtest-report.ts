@@ -1,5 +1,5 @@
 import { backtestReportState } from '#strategy/backtests/state.js';
-import type { BacktestConfig } from '@jixie/shared';
+import { strategyResultSettings } from '#strategy/definitions/config.js';
 import { getDatabase } from '#infra/database/prisma.js';
 
 const MAX_BACKTEST_REPORT_PAYLOAD_BYTES = 8 * 1024 * 1024;
@@ -18,9 +18,9 @@ type ResearchJsonValue =
   | { [key: string]: ResearchJsonValue };
 
 /**
- * 封装已授权回测报告的冻结指标、净值与成交。
+ * 封装已授权回测报告的保留指标、净值与成交。
  *
- * Describe authorized frozen backtest metrics, NAV and fills.
+ * Describe authorized retained backtest metrics, NAV and fills.
  */
 export interface ResearchBacktestReportResultV1 extends Record<string, unknown> {
   version: 1;
@@ -31,14 +31,13 @@ export interface ResearchBacktestReportResultV1 extends Record<string, unknown> 
   created_at: string;
   computed_at: string | null;
   backtest_spec: ResearchJsonValue;
-  lineage: { code_hash: string | null; result_hash: string | null };
   report: ResearchJsonValue;
 }
 
 /**
- * 校验回测报告权限后映射冻结结果，供 Research 读取而非重新计算。
+ * 校验回测报告权限后映射保留结果，供 Research 读取而非重新计算。
  *
- * Authorize and map a frozen backtest report for research without rerunning it.
+ * Authorize and map a retained backtest report for research without rerunning it.
  */
 export async function loadResearchBacktestReportResult(
   documentId: string,
@@ -62,9 +61,7 @@ export async function loadResearchBacktestReportResult(
         strategyId: true,
         strategyName: true,
         legacyStatus: true,
-        config: true,
-        codeHash: true,
-        resultHash: true,
+        settings: true,
         payload: true,
         createdAt: true,
         computedAt: true,
@@ -85,7 +82,7 @@ export async function loadResearchBacktestReportResult(
     throw new Error('Backtest report exceeds the Research result transfer limit.');
   }
 
-  const config = row.config as unknown as BacktestConfig;
+  const config = strategyResultSettings(row.settings);
   return {
     version: 1,
     report_id: row.id,
@@ -102,7 +99,6 @@ export async function loadResearchBacktestReportResult(
       language: config.language ?? 'typescript',
       runtimeVersion: config.runtimeVersion ?? 'ts-v1',
     }),
-    lineage: { code_hash: row.codeHash, result_hash: row.resultHash },
     report: snakeCaseJson(row.payload),
   };
 }

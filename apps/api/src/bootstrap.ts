@@ -4,6 +4,7 @@ import { buildApp } from './server.js';
 import { registerJobLifecycles } from '#jobs/register.js';
 import { JobService } from '#jobs/job-service.js';
 import { JobScheduler } from '#jobs/job-scheduler.js';
+import { pruneStrategyResults } from '#strategy/results/retention.js';
 import { pruneFactorReports } from '#factor/evaluations/retention.js';
 import { seedBuiltinFactors } from '#factor/definitions/seed.js';
 import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.js';
@@ -41,6 +42,7 @@ export async function startServer(port: number, database: Prisma = prisma) {
     // Prepare missing builtin versions and report retention before serving or dispatching queued work.
     await seedBuiltinFactors();
     await database.$transaction((transaction) => pruneFactorReports(transaction));
+    await database.$transaction((transaction) => pruneStrategyResults(transaction));
     JobScheduler.initialize(JobService.execute);
     JobScheduler.wake();
     serve({ fetch: app.fetch, port });

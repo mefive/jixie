@@ -470,7 +470,7 @@ describe('Research HTTP business boundaries', () => {
           strategyId: 'strategy',
           strategyName: 'Fixture strategy',
           legacyStatus: 'done',
-          config: {},
+          settings: {},
           payload: {},
         },
         {
@@ -479,7 +479,7 @@ describe('Research HTTP business boundaries', () => {
           strategyId: 'strategy',
           strategyName: 'Fixture strategy',
           legacyStatus: 'error',
-          config: {},
+          settings: {},
         },
         {
           id: 'empty-report',
@@ -487,7 +487,7 @@ describe('Research HTTP business boundaries', () => {
           strategyId: 'strategy',
           strategyName: 'Fixture strategy',
           legacyStatus: 'done',
-          config: {},
+          settings: {},
         },
       ],
     });

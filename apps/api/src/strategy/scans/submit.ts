@@ -6,9 +6,10 @@ import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { BacktestConfig, Locale, StrategyParamValue, StrategyScanSpec } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { StrategyError } from '../errors.js';
+import { strategyResultSettings, strategyInputSignature } from '../definitions/config.js';
+import { pruneStrategyResults } from '../results/retention.js';
 
 import type {
   StrategyScanIdentityQuery,
@@ -101,6 +102,8 @@ export async function submitStrategyScan(
       return { kind: 'running' as const };
     }
 
+    await pruneStrategyResults(transaction, { userId, strategyId });
+
     await transaction.strategyScanReport.create({
       data: {
         id: reportId,
@@ -109,9 +112,9 @@ export async function submitStrategyScan(
         strategyName: strategy.name,
         legacyStatus: null,
         legacyError: null,
-        config: jsonValue(config),
+        settings: jsonValue(strategyResultSettings(config)),
         spec: jsonValue(spec),
-        codeHash: createHash('sha256').update(config.code).digest('hex'),
+        inputSignature: strategyInputSignature(config),
         dataCutoff,
         job: {
           create: {
@@ -134,6 +137,8 @@ export async function submitStrategyScan(
         },
       },
     });
+
+    await pruneStrategyResults(transaction, { userId, strategyId });
 
     return { kind: 'ready' as const };
   });

@@ -4,11 +4,16 @@ import { JobScheduler } from '#jobs/job-scheduler.js';
 import { ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type { BacktestConfig, Locale } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
-import { createHash } from 'node:crypto';
 import { ulid } from 'ulid';
 import { refreshStrategyName } from '../definitions/naming.js';
-import { commitStrategyConfig, strategyRunKey } from '../definitions/config.js';
+import {
+  commitStrategyConfig,
+  strategyRunKey,
+  strategyInputSignature,
+  strategyResultSettings,
+} from '../definitions/config.js';
 import { StrategyError } from '../errors.js';
+import { pruneStrategyResults } from '../results/retention.js';
 import type {
   StrategyBacktestIdentityQuery,
   StrategyCodeConfigInput,
@@ -51,6 +56,8 @@ export async function submitStrategyBacktest(
       return { kind: 'running' as const };
     }
 
+    await pruneStrategyResults(transaction, { userId, strategyId });
+
     const committed = await commitStrategyConfig(transaction, userId, strategyId, config);
     const committedConfig = { ...config, name: committed!.name };
     const reportId = ulid();
@@ -72,8 +79,8 @@ export async function submitStrategyBacktest(
         strategyName: committedConfig.name,
         legacyStatus: null,
         legacyError: null,
-        config: JSON.parse(JSON.stringify(committedConfig)) as Prisma.InputJsonValue,
-        codeHash: createHash('sha256').update(committedConfig.code).digest('hex'),
+        settings: strategyResultSettings(committedConfig) as unknown as Prisma.InputJsonValue,
+        inputSignature: strategyInputSignature(committedConfig),
         job: {
           create: {
             id: jobId,
@@ -86,6 +93,8 @@ export async function submitStrategyBacktest(
         },
       },
     });
+
+    await pruneStrategyResults(transaction, { userId, strategyId });
 
     return { kind: 'ready' as const, jobId, reportId, config: committedConfig };
   });

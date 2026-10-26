@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   initializeLogs: vi.fn(),
   wake: vi.fn(),
   refreshStrategyName: vi.fn(),
+  prune: vi.fn(),
 }));
 
 vi.mock('#infra/database/prisma.js', async () => {
@@ -35,6 +36,7 @@ vi.mock('#infra/database/prisma.js', async () => {
     getDatabase: () => mocked.prisma,
   };
 });
+vi.mock('../results/retention.js', () => ({ pruneStrategyResults: mocks.prune }));
 vi.mock('../definitions/config.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../definitions/config.js')>()),
   commitStrategyConfig: mocks.commitStrategyConfig,
@@ -82,7 +84,7 @@ describe('backtest report route', () => {
     );
   });
 
-  it('creates one immutable report linked to the queued backtest job', async () => {
+  it('creates source-free settings and a temporary source-bearing job linked to the queued backtest job', async () => {
     const config = {
       name: '提交前名称',
       start: '20200101',
@@ -108,8 +110,8 @@ describe('backtest report route', () => {
         strategyId: 'strategy-a',
         strategyName: '价值轮动',
         legacyStatus: null,
-        config: expect.objectContaining({ name: '价值轮动', code: config.code }),
-        codeHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        settings: expect.objectContaining({ name: '价值轮动', start: config.start }),
+        inputSignature: expect.stringMatching(/^[a-f0-9]{64}$/),
         job: {
           create: expect.objectContaining({
             id: body.jobId,
@@ -212,7 +214,7 @@ describe('backtest report route', () => {
     },
   );
 
-  it('lists compact completed report history within the strategy owner scope', async () => {
+  it('lists the compact latest completed result within the strategy owner scope', async () => {
     mocks.backtestReportFindMany.mockResolvedValue([reportRow()]);
 
     const response = await app.request('/strategies/strategy-a/backtest-reports');
@@ -234,11 +236,11 @@ describe('backtest report route', () => {
     ]);
   });
 
-  it('loads one full immutable report without using Strategy.lastResult', async () => {
+  it('loads one result with stale detection and no source snapshot', async () => {
     mocks.backtestReportFindFirst.mockResolvedValue({
       ...reportRow(),
-      codeHash: 'code-hash',
-      resultHash: 'result-hash',
+      inputSignature: null,
+      strategy: { config: { ...reportRow().settings, code: 'current source' } },
     });
 
     const response = await app.request('/strategies/backtest-reports/report-a');
@@ -252,11 +254,13 @@ describe('backtest report route', () => {
     );
     expect(body).toMatchObject({
       id: 'report-a',
-      config: { start: '20200101', end: '20251231' },
+      settings: { start: '20200101', end: '20251231' },
+      needsRerun: true,
       result: { totalReturn: 0.2, sharpe: 1.1 },
-      codeHash: 'code-hash',
-      resultHash: 'result-hash',
     });
+    expect(body.settings).not.toHaveProperty('code');
+    expect(body).not.toHaveProperty('codeHash');
+    expect(body).not.toHaveProperty('resultHash');
   });
 });
 
@@ -265,14 +269,13 @@ function reportRow() {
     id: 'report-a',
     strategyId: 'strategy-a',
     strategyName: '价值轮动',
-    config: {
+    settings: {
       name: '价值轮动',
       start: '20200101',
       end: '20251231',
       initialCash: 1_000_000,
       language: 'python',
       runtimeVersion: 'py-v1',
-      code: 'def strategy(context):\n    pass',
     },
     payload: {
       name: '价值轮动',
@@ -298,6 +301,10 @@ function submitBacktest(overrides: Record<string, unknown> = {}) {
   return app.request('/strategies/strategy-a/backtests', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'accept-language': 'en' },
-    body: JSON.stringify({ ...reportRow().config, ...overrides }),
+    body: JSON.stringify({
+      ...reportRow().settings,
+      code: 'export default defineStrategy({ onBar() {} });',
+      ...overrides,
+    }),
   });
 }

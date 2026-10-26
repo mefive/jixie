@@ -569,13 +569,13 @@ describe('research data catalog', () => {
     expect(mocks.indexFindMany).not.toHaveBeenCalled();
   });
 
-  it('searches completed user BacktestReports and maps their frozen config', async () => {
+  it('searches completed user BacktestReports and maps their actual settings', async () => {
     mocks.backtestReportFindMany.mockResolvedValue([
       {
         id: 'backtest-report-a',
         strategyId: 'strategy-a',
         strategyName: '价值轮动',
-        config: {
+        settings: {
           start: '20200101',
           end: '20251231',
           language: 'python',

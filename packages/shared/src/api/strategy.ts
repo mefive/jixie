@@ -31,6 +31,9 @@ export const codeConfigSchema = z.object({
 
 export type StrategyCodeConfigInput = z.output<typeof codeConfigSchema>;
 
+/** 结果只保存参数，不包含可执行代码。 / Results store settings without executable code. */
+export const backtestSettingsSchema = codeConfigSchema.omit({ code: true });
+
 // Definitions.
 export const createStrategySchema = codeConfigSchema.extend({
   name: z.string().min(1).max(100).optional(),

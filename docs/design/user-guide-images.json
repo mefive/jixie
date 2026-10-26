@@ -252,8 +252,9 @@
       "articles": ["zh/backtesting/workspace.md"],
       "originalSha256": "ab7e9d880e570159e9708e73afd10c6e4189a69985fc9d10457bebc63f7268af",
       "disposition": "recaptured",
-      "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
-      "sha256": "b284dca5f60633bfeeead15ca5df2ee877a780994eeb1bb4e89d75ee4ba702c6"
+      "reason": "Current bilingual controls; original stored backtest and actual benchmark data copied into an isolated capture database without recalculation.",
+      "sha256": "ce1089a5fee9248f5d8211de78a9605d11d404e8b69e7cb09b7f3220f1549420",
+      "capturedAt": "2026-10-26"
     },
     {
       "path": "zh/backtesting/mixed-results-01.png",
@@ -1384,16 +1385,18 @@
     {
       "path": "zh/backtesting/report-controls.png",
       "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "reason": "Current bilingual controls; original stored backtest and actual benchmark data copied into an isolated capture database without recalculation.",
       "articles": ["zh/backtesting/workspace.md"],
-      "sha256": "caf24e12c5b26a0dc3f2250d6a42c65353b1a23d0d737bcd4c514ef68480aab4"
+      "sha256": "e5f4ec5f8a38c5c3d0bd92d11c3f603a91ed7f881117481e00630b49d0e54bc8",
+      "capturedAt": "2026-10-26"
     },
     {
       "path": "en/backtesting/report-controls.png",
       "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "reason": "Current bilingual controls; original stored backtest and actual benchmark data copied into an isolated capture database without recalculation.",
       "articles": ["en/backtesting/workspace.md"],
-      "sha256": "f1e889abf1c90977a1e40b12a9433474df0cbbb3140f8810ffc1ad79c0f50ee4"
+      "sha256": "eb3b01953bd1a7c0767cff33f41beb179c6743ecd5c0c1d9553da848c1f025ba",
+      "capturedAt": "2026-10-26"
     },
     {
       "path": "en/backtesting/run-settings-01.png",
@@ -1412,9 +1415,10 @@
     {
       "path": "en/backtesting/workspace-01.png",
       "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
+      "reason": "Current bilingual controls; original stored backtest and actual benchmark data copied into an isolated capture database without recalculation.",
       "articles": ["en/backtesting/workspace.md"],
-      "sha256": "187257a68a896fc290e430c9aefc45d2fa90f0dadc658ce53c3f605d423b2dc0"
+      "sha256": "341750e3994066e0d1cc575915844bf7edfde41ec263fca4308066c9d84ef527",
+      "capturedAt": "2026-10-26"
     },
     {
       "path": "zh/factor-weather/pin-current.png",
@@ -1699,6 +1703,22 @@
       "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
       "articles": ["en/stock-detail/pe-volume-data.md", "en/stock-detail/read-chart.md"],
       "sha256": "4e63cface56cea1ea5798dab550975df8239d629d9ea5560c017545fc4c9036a"
+    },
+    {
+      "path": "zh/backtesting/parameter-scan-controls.png",
+      "disposition": "recaptured",
+      "reason": "Current scan controls only; historical result figures and values remain unchanged.",
+      "capturedAt": "2026-10-26",
+      "articles": ["zh/backtesting/parameter-scan.md"],
+      "sha256": "1f9eeea4d8cfaa278f242e0f9dffc741861b8b934e13703aa262b6ff4b129fc7"
+    },
+    {
+      "path": "en/backtesting/parameter-scan-controls.png",
+      "disposition": "recaptured",
+      "reason": "Current scan controls only; historical result figures and values remain unchanged.",
+      "capturedAt": "2026-10-26",
+      "articles": ["en/backtesting/parameter-scan.md"],
+      "sha256": "60ab0f59b86ccf4690b63a321e87eabd4d286c81978bfab5513f80b50159c430"
     }
   ]
 }

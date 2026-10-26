@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
@@ -15,11 +16,11 @@ const databaseUrl =
 mkdirSync(SHOTS, { recursive: true });
 
 const suffix = Date.now();
-const ownerEmail = `e2e-backtest-report-history-${suffix}@test.com`;
+const ownerEmail = `e2e-backtest-latest-result-${suffix}@test.com`;
 const strategyId = ulid();
 const latestReportId = ulid();
 const historicalReportId = ulid();
-const strategyName = `价值轮动历史验收 ${suffix}`;
+const strategyName = `最近结果验收 ${suffix}`;
 const database = new PrismaClient({ datasourceUrl: databaseUrl });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -45,32 +46,22 @@ try {
   await page.goto(`${BASE}/strategy?id=${encodeURIComponent(strategyId)}`, {
     waitUntil: 'domcontentloaded',
   });
-  const history = page.getByTestId('backtest-report-history');
-  await history.waitFor({ timeout: 30_000 });
-  await page.getByText('最新 · 2026-09-01 18:05 · 26.00%', { exact: true }).waitFor();
-
-  await history.click();
-  const historicalOption = page
-    .locator('.ant-select-dropdown:visible .ant-select-item-option')
-    .filter({ hasText: '历史 · 2026-08-01 18:05 · 8.00%' });
-  await historicalOption.click();
-  await page.getByText('8.00%', { exact: true }).first().waitFor({ timeout: 15_000 });
-
-  await page.getByTestId('backtest-report-compare-toggle').click();
-  const comparisonSelect = page.getByTestId('backtest-report-comparison-select');
-  await comparisonSelect.click();
+  await page.getByTestId('backtest-report-open-research').waitFor({ timeout: 30_000 });
+  await page.getByText('26.00%', { exact: true }).first().waitFor();
+  assert.equal(await page.getByTestId('backtest-report-history').count(), 0);
+  assert.equal(await page.getByTestId('backtest-report-compare-toggle').count(), 0);
+  const retained = await context.request.get(
+    `${BASE}/api/app/strategies/backtest-reports/${latestReportId}`,
+  );
+  const detail = await retained.json();
+  assert.equal(retained.status(), 200);
+  assert.equal('code' in detail.settings, false);
+  assert.equal('codeHash' in detail, false);
+  assert.equal('resultHash' in detail, false);
+  await page.locator('.jx-strategy-chart canvas').first().waitFor();
   await page
-    .locator('.jx-strategy-comparisonReportPopup:visible')
-    .locator('.ant-select-item-option')
-    .filter({ hasText: '最新 · 2026-09-01 18:05 · 26.00%' })
-    .click();
-  await comparisonSelect.getByText('最新 · 2026-09-01 18:05 · 26.00%', { exact: true }).waitFor();
-  const comparison = page.getByTestId('backtest-report-comparison');
-  await comparison.waitFor({ timeout: 15_000 });
-  await comparison.getByText('+18.00 个百分点', { exact: true }).waitFor();
-  await page.locator('.jx-strategy-resultTabs').screenshot({
-    path: `${SHOTS}backtest-report-comparison.png`,
-  });
+    .locator('.jx-strategy-resultTabs')
+    .screenshot({ path: `${SHOTS}backtest-latest-result-zh.png` });
 
   const popupPromise = page.waitForEvent('popup');
   await page.getByTestId('backtest-report-open-research').click();
@@ -89,20 +80,43 @@ try {
     include: { researchDocument: { include: { cells: { orderBy: { position: 'asc' } } } } },
   });
   const pythonCell = handoffDocument.researchDocument?.cells.find((cell) => cell.kind === 'python');
-  if (!pythonCell?.source.includes(`results.backtest_report("${historicalReportId}")`)) {
-    throw new Error('Research handoff did not preserve the selected historical report id.');
+  if (!pythonCell?.source.includes(`results.backtest_report("${latestReportId}")`)) {
+    throw new Error('Research handoff did not preserve the retained report id.');
   }
   await researchPage.screenshot({
     path: `${SHOTS}research-backtest-report-handoff.png`,
     fullPage: true,
   });
 
-  if (failures.length > 0) {
-    throw new Error(`Browser or API failures: ${failures.join('; ')}`);
-  }
+  await researchPage.close();
+  await page.evaluate(() => {
+    localStorage.setItem('jx-locale', 'en');
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByTestId('backtest-report-open-research').waitFor();
+  await page.locator('.jx-strategy-chart canvas').first().waitFor();
+  await page
+    .locator('.jx-strategy-resultTabs')
+    .screenshot({ path: `${SHOTS}backtest-latest-result-en.png` });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: `${SHOTS}backtest-latest-result-mobile.png`, fullPage: true });
 
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const missing = await context.request.get(
+    `${BASE}/api/app/strategies/backtest-reports/${historicalReportId}`,
+  );
+  assert.equal(missing.status(), 404);
+  await page.goto(
+    `${BASE}/strategy?id=${encodeURIComponent(strategyId)}&report=${historicalReportId}`,
+    { waitUntil: 'domcontentloaded' },
+  );
+  await page.locator('.jx-strategy-placeholder--error').waitFor();
+  assert.equal(await page.getByTestId('backtest-report-open-research').count(), 0);
+  assert.equal(await page.getByText('26.00%', { exact: true }).count(), 0);
+  const unexpected = failures.filter((failure) => !failure.includes(historicalReportId));
+  assert.deepEqual(unexpected, []);
   console.log(
-    '[backtest-report-history-e2e] history=pass comparison=pass research-handoff=pass screenshots=2',
+    '[backtest-latest-result-e2e] latest=pass source-absent=pass old-link-fails=pass research=pass screenshots=4',
   );
 } finally {
   await context.close();
@@ -132,34 +146,21 @@ async function seedReports(ownerId) {
       userId: ownerId,
       name: strategyName,
       config,
-      lastResult: latestResult,
     },
   });
-  await database.backtestReport.createMany({
-    data: [
-      {
-        id: latestReportId,
-        userId: ownerId,
-        strategyId,
-        strategyName,
-        legacyStatus: 'done',
-        config,
-        payload: latestResult,
-        createdAt: new Date('2026-09-01T10:00:00.000Z'),
-        computedAt: new Date('2026-09-01T10:05:00.000Z'),
-      },
-      {
-        id: historicalReportId,
-        userId: ownerId,
-        strategyId,
-        strategyName,
-        legacyStatus: 'done',
-        config: { ...config, start: '20210101', end: '20241231' },
-        payload: reportResult(0.08, 0.74, 1_080_000),
-        createdAt: new Date('2026-08-01T10:00:00.000Z'),
-        computedAt: new Date('2026-08-01T10:05:00.000Z'),
-      },
-    ],
+  const { code: _code, ...settings } = config;
+  await database.backtestReport.create({
+    data: {
+      id: latestReportId,
+      userId: ownerId,
+      strategyId,
+      strategyName,
+      legacyStatus: 'done',
+      settings,
+      payload: latestResult,
+      createdAt: new Date('2026-09-01T10:00:00Z'),
+      computedAt: new Date('2026-09-01T10:05:00Z'),
+    },
   });
 }
 

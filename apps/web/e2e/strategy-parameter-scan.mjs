@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
@@ -175,8 +176,27 @@ try {
   if (persisted.strategy.lastResult != null) {
     throw new Error('parameter scan overwrote Strategy.lastResult');
   }
+  if ('code' in persisted.detail.settings || 'codeHash' in persisted.detail) {
+    throw new Error('Scan retained source snapshot fields.');
+  }
   if (persisted.detail.status !== 'done' || persisted.detail.payload?.cells?.length !== 4) {
     throw new Error(`invalid persisted scan: ${JSON.stringify(persisted.detail)}`);
+  }
+
+  if (process.env.HELP_CAPTURE_STRATEGY_RESULTS === '1') {
+    for (const locale of ['zh', 'en']) {
+      await page.evaluate((language) => localStorage.setItem('jx-locale', language), locale);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page
+        .getByRole('tab', { name: locale === 'zh' ? '参数扫描' : 'Parameter scan', exact: true })
+        .click();
+      await page.locator('.jx-parameterScan-meta').last().waitFor();
+      await captureScanControls(locale);
+    }
+    await page.evaluate(() => localStorage.setItem('jx-locale', 'zh'));
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('tab', { name: '参数扫描', exact: true }).click();
+    await page.locator('.jx-parameterScan-chart canvas').first().waitFor();
   }
 
   // Reproduce completion between active lookup and the first poll without relying on worker timing.
@@ -211,6 +231,15 @@ try {
     .count();
   if (sizingRows !== 3) {
     throw new Error(`expected three sizing schemes, got ${sizingRows}`);
+  }
+  const replacedScan = await context.request.get(
+    `${BASE}/api/app/strategies/scan-reports/${scanReference.reportId}`,
+  );
+  if (replacedScan.status() !== 404) {
+    throw new Error('The earlier scan was not removed.');
+  }
+  if (await page.locator('.jx-parameterScan-history').count()) {
+    throw new Error('Scan history selector remains.');
   }
   const sizingReport = await page.evaluate(async (id) => {
     const reports = await (await fetch(`/api/app/strategies/${id}/scan-reports`)).json();
@@ -300,4 +329,77 @@ try {
       .catch(() => {});
   }
   await browser.close();
+}
+
+/**
+ * 只截取当前控制区，不覆盖历史图中的研究数值。
+ *
+ * Capture current controls without replacing historical research figures or values.
+ */
+async function captureScanControls(locale) {
+  const targets = [
+    page.locator('.jx-parameterScan-toolbar button').first(),
+    page.locator('.jx-parameterScan-metric'),
+    page.locator('.jx-parameterScan-meta').last(),
+  ];
+  const boxes = await Promise.all(targets.map((target) => target.boundingBox()));
+  if (boxes.some((box) => !box)) {
+    throw new Error('Missing current scan controls');
+  }
+  const panel = await page.locator('.jx-parameterScan').boundingBox();
+  const bottom = Math.max(...boxes.map((box) => box.y + box.height));
+  const path = new URL(
+    `../../docs/public/images/help/${locale}/backtesting/parameter-scan-controls.png`,
+    import.meta.url,
+  ).pathname;
+  mkdirSync(dirname(path), { recursive: true });
+  await page.evaluate((rectangles) => {
+    rectangles.forEach((rectangle, index) => {
+      const mark = document.createElement('div');
+      mark.dataset.scanHelpMark = 'true';
+      Object.assign(mark.style, {
+        position: 'fixed',
+        left: `${rectangle.x}px`,
+        top: `${rectangle.y}px`,
+        width: `${rectangle.width}px`,
+        height: `${rectangle.height}px`,
+        border: '2px solid #e8463b',
+        borderRadius: '4px',
+        zIndex: '99999',
+        pointerEvents: 'none',
+      });
+      const badge = document.createElement('b');
+      badge.textContent = String(index + 1);
+      Object.assign(badge.style, {
+        position: 'absolute',
+        left: '0',
+        top: '-12px',
+        background: '#e8463b',
+        color: '#fff',
+        font: 'bold 12px/20px Arial',
+        width: '20px',
+        height: '20px',
+        borderRadius: '50%',
+        textAlign: 'center',
+      });
+      mark.append(badge);
+      document.body.append(mark);
+    });
+  }, boxes);
+  try {
+    await page.screenshot({
+      path,
+      animations: 'disabled',
+      clip: {
+        x: Math.max(0, panel.x),
+        y: Math.max(0, panel.y - 12),
+        width: panel.width,
+        height: bottom - panel.y + 24,
+      },
+    });
+  } finally {
+    await page
+      .locator('[data-scan-help-mark]')
+      .evaluateAll((marks) => marks.forEach((mark) => mark.remove()));
+  }
 }

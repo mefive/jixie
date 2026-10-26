@@ -59,9 +59,13 @@ More combinations, longer date ranges, and strategies that process more instrume
 
 ## Read scan results
 
+In the current controls, **1** starts a new scan, **2** selects the comparison metric, and **3** shows the dates and capital actually used. The scan history selector has been removed.
+
+![Current parameter scan controls](/docs/images/help/en/backtesting/parameter-scan-controls.png)
+
 The numbered areas show:
 
-1. Scan history, used to reopen an earlier scan.
+1. The historical selector shown in the old figure has been removed; only the latest submitted scan is retained.
 2. The comparison metric, such as annualized return or Sharpe.
 3. The parameter combination chart.
 4. The table containing each combination.
@@ -70,8 +74,8 @@ The numbered areas show:
 
 Review the result in this order:
 
-1. Confirm the completion time in scan history.
-2. Check the combination count, code identifier, and data cutoff.
+1. Confirm the current scan settings, status and data cutoff.
+2. Check the combination count and data cutoff.
 3. Choose the metric to compare.
 4. Use the chart to see whether neighboring values have similar results.
 5. Verify every exact value in the table.
@@ -116,7 +120,7 @@ The next image marks the sizing-comparison mode, scheme input, and start action:
 
 ![Historical Chinese UI example: Enter sizing schemes for comparison](/docs/images/help/zh/backtesting/sizing-scan-settings-01.png)
 
-The result marks report history, rebased NAV comparison, and per-scheme metrics:
+The result marks the removed historical selector, rebased NAV comparison, and per-scheme metrics:
 
 ![Historical Chinese UI example: Sizing-scheme NAV and metric comparison](/docs/images/help/zh/backtesting/sizing-scan-results-01.png)
 
@@ -136,7 +140,7 @@ The next image shows where to enter three capital levels:
 
 ![Historical Chinese UI example: Enter capital levels for a capacity estimate](/docs/images/help/zh/backtesting/capacity-scan-settings-01.png)
 
-The result marks report history, return and slippage curves, three threshold notes, and level details:
+The result marks the removed historical selector, return and slippage curves, three threshold notes, and level details:
 
 ![Historical Chinese UI example: Capacity return decay and slippage drag](/docs/images/help/zh/backtesting/capacity-scan-results-01.png)
 
@@ -145,3 +149,7 @@ The result marks report history, return and slippage curves, three threshold not
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)
 - [Inspect backtest results](/help/backtesting/results-overview)
 - [Read equity, drawdown, and monthly returns](/help/backtesting/equity-drawdown)
+
+## Result retention
+
+Each strategy retains its latest submitted scan and active jobs, separately from its backtest. Resubmission removes older scans and logs even if the new scan fails. Results retain actual settings and per-combination metrics, without strategy source. Rerun after editing code or settings. Research reads fail after an old scan ID is removed.

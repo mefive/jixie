@@ -92,7 +92,7 @@ describe('multi-user asset permissions', () => {
         runtimeVersion: 'py-v1',
         code: 'from jixie import Strategy',
       },
-      lastResult: null,
+      backtestReports: [],
       messages: null,
       researchHandoff: { version: 1, sourceExecutionId: 'execution-b', language: 'python' },
       sourceResearchExecution: {

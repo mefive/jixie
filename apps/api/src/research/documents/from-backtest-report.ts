@@ -1,19 +1,21 @@
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
 import { getDatabase } from '#infra/database/prisma.js';
-import type { ResearchDocumentV1 } from '@jixie/shared';
+import { t } from '#i18n/messages.js';
+import type { Locale, ResearchDocumentV1 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
 import { getResearchDocument } from './read.js';
 
 /**
- * 从当前用户拥有的不可变回测报告创建研究文档。
+ * 从当前用户拥有的保留回测报告创建研究文档。
  *
- * Create a Research document that starts from one owned immutable BacktestReport.
+ * Create a Research document that starts from one owned retained BacktestReport.
  */
 export async function createResearchDocumentFromBacktestReport(
   userId: string,
   reportId: string,
+  locale: Locale,
 ): Promise<ResearchDocumentV1> {
   const report = await getDatabase().backtestReport.findFirst({
     where: {
@@ -29,11 +31,11 @@ export async function createResearchDocumentFromBacktestReport(
   }
 
   const documentId = ulid();
-  const title = `${report.strategyName} · 回测复核`;
+  const title = t(locale, 'researchBacktestTitle', { name: report.strategyName });
   const cells = [
     {
       kind: 'markdown',
-      source: `# 回测报告复核\n\n本研究引用不可变 BacktestReport \`${report.id}\`。先明确需要复核的指标、比较基准和判断标准，再运行 Python Cell 读取原始结果。`,
+      source: t(locale, 'researchBacktestIntroduction', { reportId: report.id }),
     },
     {
       kind: 'python',

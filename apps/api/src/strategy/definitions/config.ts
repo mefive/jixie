@@ -1,7 +1,7 @@
 import type { BacktestConfig } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
-import pkg from '@prisma/client';
-const { Prisma: PrismaNs } = pkg;
+import { createHash } from 'node:crypto';
+import { backtestSettingsSchema } from '@jixie/shared/api/strategy';
 export type StrategyDatabase = Pick<Prisma.TransactionClient, 'strategy'>;
 
 /**
@@ -37,9 +37,27 @@ export function strategyRunKey(config: unknown): string {
 }
 
 /**
- * 按用户归属提交可运行配置快照，并使旧输入产生的结果失效。
+ * 只为当前输出过期检测生成摘要，不保存或恢复源码。
  *
- * Commit the runnable snapshot by owner-scoped id and invalidate a result produced by older inputs.
+ * Hash inputs only to detect stale output, never to archive or restore source.
+ */
+export function strategyInputSignature(config: unknown): string {
+  return createHash('sha256').update(strategyRunKey(config)).digest('hex');
+}
+
+/**
+ * 保存运行参数并排除源码及未知字段。
+ *
+ * Retain run settings without source or unknown fields.
+ */
+export function strategyResultSettings(config: unknown) {
+  return backtestSettingsSchema.parse(config);
+}
+
+/**
+ * 按用户归属保存当前可编辑配置，不改写已有结果。
+ *
+ * Save the current editable configuration by owner-scoped ID without rewriting retained results.
  */
 export async function commitStrategyConfig(
   database: StrategyDatabase,
@@ -70,9 +88,6 @@ export async function commitStrategyConfig(
     name,
     config: nextConfig as unknown as Prisma.InputJsonValue,
   };
-  if (strategyRunKey(existing.config) !== strategyRunKey(nextConfig)) {
-    data.lastResult = PrismaNs.DbNull;
-  }
 
   return database.strategy.update({
     where: { id },

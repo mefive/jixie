@@ -17,7 +17,7 @@ The numbered areas are:
 
 ## Recommended reading order
 
-1. Confirm the strategy and selected entry in Backtest report history, then check that report's period and capital. The top run settings belong to the current draft and may differ from the historical report.
+1. Confirm the strategy and the actual period and capital shown with the latest result. The top run settings belong to the current draft and may have changed.
 2. Check the number of trades to verify that the rules actually triggered.
 3. Read total and annualized return.
 4. Read maximum drawdown and Sharpe.
@@ -57,19 +57,13 @@ A strong value in one metric does not make a strategy reliable. Always consider 
 
 Low costs may mean few trades or unrealistically low assumptions. Check the cost configuration saved with the selected report before drawing a conclusion. The top run settings may have changed and should not be used to explain an old report.
 
-## Open historical reports and continue research
+## Retain the latest result and continue research
 
-Select a run in **Backtest report history** above the results. Metrics, curves, and workbench trade details follow that report. The editor and run settings remain the current draft; selecting a report does not roll them back.
+Each strategy retains its latest submitted backtest and active jobs. Resubmission removes older results, Jobs and logs, even when the new run fails. Scans retain their own latest submission independently.
 
-Select **Review in Research** to create a document reading the selected report in a new tab. Alternatively, enable **Use selected report** in the left conversation and ask the Agent to explain or calculate from saved results. Inspect actual inputs and code in the [embedded analysis card](/docs/help/research/embedded-analysis). Neither action reruns the strategy.
+Select **Analyze result in Research** to create a document reading the retained result, or reference the current report in the conversation and ask the Agent to analyze its metrics, NAV or trades. These calculations neither rerun the strategy nor expose old strategy source. Python references fail explicitly after the report is removed.
 
-To test a changed version, edit the current draft and explicitly run it. Selecting an old report does not restore old code.
-
-## Compare two reports temporarily
-
-After saving at least two backtests, choose report A at the top of the results area, click **Compare**, and then choose report B. The page temporarily shows total return, Sharpe, maximum drawdown, trades, each B − A difference, and both equity curves rebased independently to 100.
-
-The comparison exists only on the current page. It creates no saved record and ends when you exit comparison or leave the page; the underlying reports remain immutable.
+The editor and run settings always describe the current draft. Rerun after changing code or settings. Current code is never substituted into a previous result. Published Factor version references remain available.
 
 ## Run again after a change
 

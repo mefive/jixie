@@ -45,9 +45,8 @@ describe('Research read-only result datasets', () => {
       legacyStatus: null,
       legacyError: null,
       job: { status: 'done', error: null },
-      config: { initialCash: 1_000_000 },
+      settings: { name: 'Rotation', start: '20200101', end: '20251231', initialCash: 1_000_000 },
       spec: { splitDate: '20240101' },
-      codeHash: 'code-hash',
       dataCutoff: '20260731',
       payload: { parameters: { windowSize: 20 }, cells: [] },
       createdAt: new Date('2026-08-01T00:00:00Z'),
@@ -62,7 +61,7 @@ describe('Research read-only result datasets', () => {
     expect(result).toMatchObject({
       report_id: 'scan-1',
       data_cutoff: '20260731',
-      config: { initial_cash: 1_000_000 },
+      settings: { initial_cash: 1_000_000 },
       report: { parameters: { window_size: 20 }, cells: [] },
     });
   });

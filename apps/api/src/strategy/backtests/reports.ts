@@ -2,13 +2,14 @@ import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { JobService, ACTIVE_JOB_STATUSES } from '#jobs/job-service.js';
 import type {
-  BacktestConfig,
+  BacktestSettings,
   BacktestReportDetail,
   BacktestReportSummary,
   BacktestSummary,
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { StrategyError } from '../errors.js';
+import { strategyResultSettings, strategyInputSignature } from '../definitions/config.js';
 import type {
   StrategyBacktestIdentityQuery,
   StrategyBacktestJobQuery,
@@ -34,9 +35,9 @@ export async function findActiveStrategyBacktestJob(
 }
 
 /**
- * 按用户与策略归属列出冻结回测报告，供历史结果选择。
+ * 按用户与策略归属列出保留回测结果，供最近结果查询。
  *
- * List frozen backtest reports within user and strategy ownership.
+ * List the retained backtest result within user and strategy ownership.
  */
 export async function listStrategyBacktestReports(
   userId: string,
@@ -53,21 +54,22 @@ export async function listStrategyBacktestReports(
       id: true,
       strategyId: true,
       strategyName: true,
-      config: true,
+      settings: true,
       payload: true,
       createdAt: true,
       computedAt: true,
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 1,
   });
 
   return reports.map(backtestReportSummary);
 }
 
 /**
- * 校验报告访问归属并读取其冻结结果及配置。
+ * 校验报告访问归属并读取其结果及实际运行参数。
  *
- * Authorize access and read a report's frozen results and configuration.
+ * Authorize access and read a report's results and actual run settings.
  */
 export async function readStrategyBacktestReport(userId: string, reportId: string) {
   const report = await getDatabase().backtestReport.findFirst({
@@ -81,9 +83,9 @@ export async function readStrategyBacktestReport(userId: string, reportId: strin
       id: true,
       strategyId: true,
       strategyName: true,
-      config: true,
-      codeHash: true,
-      resultHash: true,
+      settings: true,
+      inputSignature: true,
+      strategy: { select: { config: true } },
       payload: true,
       createdAt: true,
       computedAt: true,
@@ -97,10 +99,9 @@ export async function readStrategyBacktestReport(userId: string, reportId: strin
   const summary = backtestReportSummary(report);
   const detail: BacktestReportDetail = {
     ...summary,
-    config: report.config as unknown as BacktestConfig,
+    settings: strategyResultSettings(report.settings),
     result: report.payload as unknown as BacktestSummary,
-    codeHash: report.codeHash,
-    resultHash: report.resultHash,
+    needsRerun: report.inputSignature !== strategyInputSignature(report.strategy.config),
   };
 
   return detail;
@@ -143,12 +144,12 @@ function backtestReportSummary(report: {
   id: string;
   strategyId: string;
   strategyName: string;
-  config: unknown;
+  settings: unknown;
   payload: unknown;
   createdAt: Date;
   computedAt: Date | null;
 }): BacktestReportSummary {
-  const config = report.config as BacktestConfig;
+  const config: BacktestSettings = strategyResultSettings(report.settings);
   const result = report.payload as BacktestSummary;
 
   return {

@@ -95,9 +95,10 @@ it('removes research gates while retaining published versions, reports, Jobs and
         userId: 'owner',
         strategyId: 'strategy',
         strategyName: 'Kept strategy',
-        config: { code: 'source' },
+        settings: { code: 'source' },
         payload: { trades: 2 },
       },
+      select: { id: true },
     });
     await database.daily.create({ data: { tsCode: 'fixture', tradeDate: '20240102', close: 10 } });
     await database.tushareCapabilityProbe.create({
@@ -143,7 +144,7 @@ it('removes research gates while retaining published versions, reports, Jobs and
         database.factor.findMany(),
         database.factorReport.findMany(),
         database.strategy.findMany(),
-        database.backtestReport.findMany(),
+        database.$queryRaw`SELECT * FROM BacktestReport ORDER BY id`,
         database.daily.findMany(),
         database.tushareCapabilityProbe.findMany(),
         database.job.findMany({ orderBy: { id: 'asc' } }),

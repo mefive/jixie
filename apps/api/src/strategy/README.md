@@ -33,7 +33,7 @@ Agent 构造策略、指数和因子上下文后交给通用执行器；用户�
 
 [routes/index.ts](routes/index.ts) 导出 `strategyRoute`，组合 definition / agent / backtest / scan，挂载 `/api/app/strategies`；[共享请求契约](../../../../packages/shared/src/api/strategy.ts) 定义策略配置与 HTTP 输入；[schema.ts](schema.ts) 组合 Agent 的后端 SDK 引用校验。完整路径见 [路由设计](../../../../docs/design/api-route-naming.md#策略)，具体函数、输入输出与调用方见子能力说明。
 
-Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日志。消费者用 jobId 轮询、reportId 读取结果；lastResult 只作当前缓存。自定义因子引用仅允许本人或内置因子，运行可使用已发布或已归档的固定因子版本。低层 runtime 不负责数据库归属检查。
+Strategy 是当前可编辑定义，Report 保存最近结果，Job 保存执行状态与日志。回测和扫描各保留最近提交及活动任务，旧 Report／Job／日志会清理；新失败不恢复旧结果。消费者用 jobId 轮询、reportId 读取现存结果；wire lastResult 从最近 Report 派生，不另存缓存。执行源码只在活动 Job／Worker 中暂存，终态清除。自定义因子引用仅允许本人或内置因子，运行可使用已发布或已归档的固定因子版本。低层 runtime 不负责数据库归属检查。
 
 风险数据事实归 Market，模型历史要求归 Strategy；后处理异常按现有规则记录而不阻断主回测。进程／资源路径见 [运行清单](../../../../docs/backend-runtime-entries.md)，整体权限与事务用例在 [routes/index.integration.test.ts](routes/index.integration.test.ts)，算法和运行时测试就近链接。
 
@@ -42,3 +42,5 @@ Strategy 是可编辑定义，Report 是冻结证据，Job 是执行状态与日
 ## Engine 模拟边界
 
 StrategySimulation 创建并关闭语言 sandbox 与 FactorHost，每次执行创建一个 `BacktestingEngine`，由 run 直接返回回测结果。Engine 只处理模拟状态；报告的因子血缘和旧成交字段兼容归 `backtests/result.ts`。引擎不读取 StrategyFactor 源码，源码输入识别由 `factors/factor.ts` 负责。当前入口地图见 [Backtesting](../backtesting/README.md)。
+
+结果保留与旧配置清理见 [results](results/README.md)。

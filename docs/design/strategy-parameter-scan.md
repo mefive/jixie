@@ -1,5 +1,8 @@
 # 策略参数稳健性扫描与成本透明化
 
+> 2026-10-26 系统简化更新：下文为原设计记录。当前扫描只保留最近提交及活动任务，删除历史选择、永久策略源码和代码证明 hash；Report.settings 为实际无源码参数，完整输入仅留在活动 Job／Worker，终态清除。回测结果另保留最近提交，wire lastResult 从报告派生。旧 ID 被清理后报错。当前实现以 `docs/design/system-simplification-plan.md` 第 18 节及 `strategy/results/README.md` 为准。
+
+
 > 2026-07-28 制定并执行。对应原 ROADMAP 1.1 与 1.2，当前归入已完成基础 B。
 
 ## 目标

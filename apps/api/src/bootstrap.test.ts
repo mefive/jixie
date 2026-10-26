@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   weatherRecovery: vi.fn(),
   seed: vi.fn(),
   prune: vi.fn(),
+  pruneStrategy: vi.fn(),
   transaction: vi.fn(),
 }));
 vi.mock('./server.js', () => ({ buildApp: mocks.buildApp }));
@@ -32,6 +33,7 @@ vi.mock('#factor/weather/refresh.js', () => ({
 }));
 vi.mock('#factor/definitions/seed.js', () => ({ seedBuiltinFactors: mocks.seed }));
 vi.mock('#factor/evaluations/retention.js', () => ({ pruneFactorReports: mocks.prune }));
+vi.mock('#strategy/results/retention.js', () => ({ pruneStrategyResults: mocks.pruneStrategy }));
 import { startServer } from './bootstrap.js';
 const database = { $transaction: mocks.transaction } as unknown as Prisma;
 
@@ -47,6 +49,7 @@ describe('API bootstrap composition', () => {
     mocks.weatherRecovery.mockResolvedValue(0);
     mocks.seed.mockResolvedValue(undefined);
     mocks.prune.mockResolvedValue(0);
+    mocks.pruneStrategy.mockResolvedValue(undefined);
     mocks.transaction.mockImplementation((run) => run(database));
   });
 
@@ -96,6 +99,10 @@ describe('API bootstrap composition', () => {
     expect(mocks.register.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.recovery.mock.invocationCallOrder[0],
     );
+    expect(mocks.pruneStrategy).toHaveBeenCalledWith(database);
+    expect(mocks.pruneStrategy.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.startQueue.mock.invocationCallOrder[0],
+    );
     expect(mocks.initialize).toHaveBeenCalledWith(mocks.execute);
     expect(mocks.serve).toHaveBeenCalledWith({ fetch: app.fetch, port: 3101 });
     expect(mocks.seed.mock.invocationCallOrder[0]).toBeLessThan(
@@ -114,10 +121,13 @@ describe('API bootstrap composition', () => {
     expect(mocks.seed).not.toHaveBeenCalled();
   });
 
-  it.each(['seed', 'prune'] as const)('does not serve after %s failure', async (step) => {
-    mocks[step].mockRejectedValue(new Error(`${step} failed`));
-    await expect(startServer(3101, database)).rejects.toThrow(`${step} failed`);
-    expect(mocks.startQueue).not.toHaveBeenCalled();
-    expect(mocks.serve).not.toHaveBeenCalled();
-  });
+  it.each(['seed', 'prune', 'pruneStrategy'] as const)(
+    'does not serve after %s failure',
+    async (step) => {
+      mocks[step].mockRejectedValue(new Error(`${step} failed`));
+      await expect(startServer(3101, database)).rejects.toThrow(`${step} failed`);
+      expect(mocks.startQueue).not.toHaveBeenCalled();
+      expect(mocks.serve).not.toHaveBeenCalled();
+    },
+  );
 });

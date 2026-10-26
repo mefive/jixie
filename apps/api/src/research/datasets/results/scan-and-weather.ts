@@ -1,3 +1,4 @@
+import { strategyResultSettings } from '#strategy/definitions/config.js';
 import { strategyScanReportState } from '#strategy/scans/state.js';
 import { factorWeatherMethodology } from '#factor/weather/refresh.js';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -18,9 +19,9 @@ type ResearchJsonValue =
   | { [key: string]: ResearchJsonValue };
 
 /**
- * 读取已授权扫描报告的冻结组合结果，供 Python 研究分析。
+ * 读取已授权扫描报告的保留组合结果，供 Python 研究分析。
  *
- * Read authorized frozen scan combinations for Python research analysis.
+ * Read authorized retained scan combinations for Python research analysis.
  */
 export async function loadResearchStrategyScanReportResult(documentId: string, reportId: string) {
   const userId = await researchDocumentUserId(documentId);
@@ -34,9 +35,8 @@ export async function loadResearchStrategyScanReportResult(documentId: string, r
         strategyId: true,
         strategyName: true,
         legacyStatus: true,
-        config: true,
+        settings: true,
         spec: true,
-        codeHash: true,
         dataCutoff: true,
         payload: true,
         createdAt: true,
@@ -65,8 +65,7 @@ export async function loadResearchStrategyScanReportResult(documentId: string, r
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
     data_cutoff: row.dataCutoff,
-    lineage: { code_hash: row.codeHash },
-    config: snakeCaseJson(row.config),
+    settings: snakeCaseJson(strategyResultSettings(row.settings)),
     spec: snakeCaseJson(row.spec),
     report: snakeCaseJson(row.payload),
   };

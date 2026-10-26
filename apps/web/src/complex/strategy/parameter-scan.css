@@ -8,10 +8,6 @@
   @apply flex flex-wrap items-center gap-2;
 }
 
-.jx-parameterScan-history {
-  width: 260px;
-}
-
 .jx-parameterScan-metric {
   width: 160px;
 }

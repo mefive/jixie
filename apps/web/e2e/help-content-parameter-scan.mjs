@@ -56,7 +56,7 @@ try {
   }
 
   await annotatedScreenshot(page, `${OUTPUT}parameter-scan-results-01.png`, [
-    { locator: page.locator('.jx-parameterScan-history'), number: 1 },
+    { locator: page.locator('.jx-parameterScan-meta').last(), number: 1 },
     { locator: page.locator('.jx-parameterScan-metric'), number: 2 },
     { locator: page.locator('.jx-parameterScan-chart'), number: 3 },
     { locator: page.locator('.jx-parameterScan-table'), number: 4 },
@@ -83,7 +83,7 @@ try {
     throw new Error(`expected three sizing rows, got ${await sizingRows.count()}`);
   }
   await annotatedScreenshot(page, `${OUTPUT}sizing-scan-results-01.png`, [
-    { locator: page.locator('.jx-parameterScan-history'), number: 1 },
+    { locator: page.locator('.jx-parameterScan-meta').last(), number: 1 },
     { locator: page.locator('.jx-parameterScan-chart'), number: 2 },
     { locator: page.locator('.jx-parameterScan-table'), number: 3 },
   ]);
@@ -110,7 +110,7 @@ try {
     throw new Error('expected three capacity insights');
   }
   await annotatedScreenshot(page, `${OUTPUT}capacity-scan-results-01.png`, [
-    { locator: page.locator('.jx-parameterScan-history'), number: 1 },
+    { locator: page.locator('.jx-parameterScan-meta').last(), number: 1 },
     { locator: page.locator('.jx-parameterScan-chart'), number: 2 },
     { locator: page.locator('.jx-parameterScan-capacityInsights'), number: 3 },
     { locator: page.locator('.jx-parameterScan-table'), number: 4 },

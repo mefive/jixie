@@ -69,7 +69,7 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - Research 作者对象 `data/results/valuation/charts` 的实现归 `research/sdk/python`；Cell namespace、
   AST 分析、环境与输出序列化归 `research/sandbox/python`；`sandbox/research-sandbox.ts` 的宿主实例与
   `sandbox/research-sandbox-pool.ts` 的文档会话池只在 API 进程执行。
-  请求校验与分派归 `research/sandbox/host`，留存输入回放归 `research/evidence`，数据查询与业务授权仍归 datasets。
+  请求校验与分派归 `research/sandbox/host`，私有图片产物归 `research/outputs`，数据查询与业务授权仍归 datasets。
   SDK 只依赖自己声明的 Capabilities，不导入 runtime；ResearchAdapter 实现请求能力，ResearchRunner
   持有 namespace/Cell 状态，run_research 只启动并接入 handler。sandboxd 负责公共循环、通信和限制。
 - Research Python 辅助模块须逐项列入 Dockerfile、`.dockerignore` 和部署影响清单，同时影响 API/sandboxd；

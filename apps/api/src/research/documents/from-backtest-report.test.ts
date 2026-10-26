@@ -45,8 +45,8 @@ describe('BacktestReport to Research document handoff', () => {
     mocks.getResearchDocument.mockResolvedValue({ id: 'document-a' });
   });
 
-  it('creates a document with an exact immutable report lookup', async () => {
-    const result = await createResearchDocumentFromBacktestReport('user-a', 'report-a');
+  it('creates a document with an exact retained report lookup', async () => {
+    const result = await createResearchDocumentFromBacktestReport('user-a', 'report-a', 'zh');
 
     expect(result).toEqual({ id: 'document-a' });
     expect(mocks.backtestReportFindFirst).toHaveBeenCalledWith(
@@ -83,11 +83,22 @@ describe('BacktestReport to Research document handoff', () => {
     ]);
   });
 
+  it('describes retained-report expiry in English when requested', async () => {
+    await createResearchDocumentFromBacktestReport('user-a', 'report-a', 'en');
+
+    expect(mocks.agentConversationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ title: '价值轮动 · Backtest review' }),
+    });
+    const markdown = mocks.researchDocumentCreate.mock.calls[0][0].data.cells.create[0].source;
+    expect(markdown).toContain('old ID will fail');
+    expect(markdown).toContain('report-a');
+  });
+
   it('does not create a document for a report outside the owner scope', async () => {
     mocks.backtestReportFindFirst.mockResolvedValue(null);
 
     await expect(
-      createResearchDocumentFromBacktestReport('user-a', 'report-b'),
+      createResearchDocumentFromBacktestReport('user-a', 'report-b', 'en'),
     ).rejects.toMatchObject({ reason: 'backtest_report_not_found' });
     expect(mocks.transaction).not.toHaveBeenCalled();
   });

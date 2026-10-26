@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { BacktestConfig } from '@jixie/shared';
-import { commitStrategyConfig, strategyRunKey } from './config.js';
+import {
+  commitStrategyConfig,
+  strategyRunKey,
+  strategyInputSignature,
+  strategyResultSettings,
+} from './config.js';
 
 const BASE_CONFIG: BacktestConfig = {
   name: 'Breakout',
@@ -28,7 +33,7 @@ describe('strategyRunKey', () => {
 });
 
 describe('commitStrategyConfig', () => {
-  it('invalidates the prior result when a run input changes', async () => {
+  it('saves the editor without duplicating result storage', async () => {
     const update = vi.fn().mockResolvedValue({ id: 's1', name: BASE_CONFIG.name });
     const database = {
       strategy: {
@@ -43,7 +48,14 @@ describe('commitStrategyConfig', () => {
       cost: { commission: 0.0003 },
     });
 
-    expect(update.mock.calls[0][0].data.lastResult).toBeDefined();
+    expect(update.mock.calls[0][0].data).toEqual({
+      name: BASE_CONFIG.name,
+      config: { ...BASE_CONFIG, cost: { commission: 0.0003 } },
+    });
+    expect(strategyInputSignature({ ...BASE_CONFIG, code: 'changed' })).not.toBe(
+      strategyInputSignature(BASE_CONFIG),
+    );
+    expect(strategyResultSettings(BASE_CONFIG)).not.toHaveProperty('code');
   });
 
   it('does not invalidate the result for a name-only update', async () => {

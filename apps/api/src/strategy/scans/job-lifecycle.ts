@@ -1,4 +1,5 @@
 import { strategyScanWorkerMessageSchema } from './worker-protocol.js';
+import { finishStrategyJob } from '../results/retention.js';
 import { Worker } from 'node:worker_threads';
 import type { StrategyScanPayload } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
@@ -48,7 +49,10 @@ export const strategyScanLifecycle = {
       where: { id: reportId, userId: job.userId },
       data: { payload: output },
     });
+    await finishStrategyJob(transaction, job);
   },
+  onFailure: finishStrategyJob,
+  onInterrupted: finishStrategyJob,
 } satisfies JobLifecycle<{
   reportId: string;
   output: Prisma.InputJsonValue;

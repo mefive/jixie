@@ -331,9 +331,9 @@ export interface BacktestSummary {
 }
 
 /**
- * 提供不可变运行的紧凑元数据，供策略历史选择。
+ * 提供最近回测的紧凑元数据。
  *
- * Compact immutable-run metadata for the Strategy Lab history picker.
+ * Compact metadata for the latest Strategy backtest.
  */
 export interface BacktestReportSummary {
   id: string;
@@ -353,15 +353,16 @@ export interface BacktestReportSummary {
 }
 
 /**
- * 在选定历史报告后读取完整冻结配置与结果。
+ * 运行参数不包含可执行源码。
  *
- * Full immutable run loaded only after the user selects one history item.
+ * Run settings exclude executable source.
  */
+export type BacktestSettings = Omit<BacktestConfig, 'code'>;
+
 export interface BacktestReportDetail extends BacktestReportSummary {
-  config: BacktestConfig;
+  settings: BacktestSettings;
   result: BacktestSummary;
-  codeHash: string | null;
-  resultHash: string | null;
+  needsRerun: boolean;
 }
 
 /**
@@ -449,18 +450,18 @@ export interface StrategyScanPayload {
 export type StrategyScanStatus = 'running' | 'done' | 'error' | 'stale';
 
 /**
- * 关联扫描身份、状态与冻结结果，供详情读取。
+ * 关联扫描身份、状态与保留结果，供详情读取。
  *
- * Describe scan identity, state and frozen results.
+ * Describe scan identity, state and retained results.
  */
 export interface StrategyScanReport {
   id: string;
   strategyId: string;
   strategyName: string;
   status: StrategyScanStatus;
-  config: BacktestConfig;
+  settings: BacktestSettings;
   spec: StrategyScanSpec;
-  codeHash: string;
+  needsRerun: boolean;
   dataCutoff: TradeDate | null;
   payload?: StrategyScanPayload;
   error?: string;
@@ -470,9 +471,9 @@ export interface StrategyScanReport {
 }
 
 /**
- * 提供扫描报告紧凑摘要，供历史列表。
+ * 提供扫描报告紧凑摘要，供最近结果查询。
  *
- * Describe compact scan report metadata for history lists.
+ * Describe compact scan report metadata for latest-result queries.
  */
 export interface StrategyScanReportSummary {
   id: string;

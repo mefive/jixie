@@ -1,4 +1,4 @@
-import pkg, { type Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import type { AcceptCodeChangeInput } from '@jixie/shared/api/strategy';
 import { getDatabase } from '#infra/database/prisma.js';
 import { AgentError } from '#agent/errors.js';
@@ -9,8 +9,6 @@ import {
   readCodeProposal,
 } from '#agent/conversations/code-proposals.js';
 import { StrategyError } from '../errors.js';
-
-const { Prisma: PrismaNamespace } = pkg;
 
 /**
  * 对已保存源码及语言取身份，接受建议不覆盖用户的其他回测配置。
@@ -87,7 +85,6 @@ export async function acceptStrategyCodeProposal(
       where: { id: strategyId },
       data: {
         config,
-        lastResult: PrismaNamespace.DbNull,
       },
     });
 

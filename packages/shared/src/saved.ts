@@ -26,7 +26,9 @@ export interface SavedMeta {
  */
 export interface SavedStrategy extends SavedMeta {
   config: BacktestConfig;
+  /** 从最近报告派生，不另存缓存。 / Derived from the latest report without a duplicate cache. */
   lastResult?: BacktestSummary | null;
+  lastBacktest?: { id: string; status: string; needsRerun: boolean; error: string | null } | null;
   messages?: ChatMessage[] | null;
 }
 

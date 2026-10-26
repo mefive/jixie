@@ -2611,21 +2611,20 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       qualifiedName: 'results.backtest_report',
       namespace: 'results',
       name: 'backtest_report',
-      descriptionZh: '按报告 ID 读取当前用户已完成的不可变 BacktestReport 结果。',
-      descriptionEn:
-        'Load one completed, immutable BacktestReport result owned by the current user.',
+      descriptionZh: '按报告 ID 读取当前用户已完成的保留的 BacktestReport 结果。',
+      descriptionEn: 'Load one completed retained BacktestReport result owned by the current user.',
       examples: [
         'report = results.backtest_report("01K5EXAMPLEBACKTESTREPORT")',
         'sharpe = report["report"]["sharpe"]',
       ],
       notesZh: [
-        '返回顶层字段包括 report_id、strategy_id、strategy_name、backtest_spec、lineage 与 report。',
-        'report 与 backtest_spec 的字段使用 snake_case；原报告快照不会被修改或重新运行。',
+        '返回顶层字段包括 report_id、strategy_id、strategy_name、backtest_spec 与 report。',
+        'report 与 backtest_spec 的字段使用 snake_case；仅保留最近结果；再次提交后旧 ID 会失效。不返回源码。',
         '只允许读取当前用户已完成且带结果的报告。',
       ],
       notesEn: [
-        'Top-level keys include report_id, strategy_id, strategy_name, backtest_spec, lineage, and report.',
-        'The report and backtest_spec fields use snake_case; the frozen report is neither mutated nor rerun.',
+        'Top-level keys include report_id, strategy_id, strategy_name, backtest_spec and report.',
+        'The report and backtest_spec fields use snake_case; only the latest result is retained; resubmission invalidates old IDs. Source is not returned.',
         'Only completed reports with results owned by the current user can be loaded.',
       ],
       parameters: [
@@ -2635,8 +2634,8 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
           required: true,
           keywordOnly: false,
           maximumLength: 512,
-          descriptionZh: 'Research 数据目录中的稳定 BacktestReport ID。',
-          descriptionEn: 'The stable BacktestReport ID from the Research data catalog.',
+          descriptionZh: 'Research 数据目录中的当前保留的 BacktestReport ID。',
+          descriptionEn: 'The retained BacktestReport ID from the Research data catalog.',
         },
       ],
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
@@ -2732,13 +2731,15 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       qualifiedName: 'results.strategy_scan_report',
       namespace: 'results',
       name: 'strategy_scan_report',
-      descriptionZh: '按报告 ID 读取当前用户已完成的不可变策略参数扫描结果。',
+      descriptionZh: '按报告 ID 读取当前用户已完成的保留的策略参数扫描结果。',
       descriptionEn:
-        'Load one completed immutable strategy parameter-scan result owned by the current user.',
+        'Load one completed retained strategy parameter-scan result owned by the current user.',
       examples: ['scan = results.strategy_scan_report("01K5EXAMPLESCANREPORT")'],
-      notesZh: ['返回冻结的 config、spec、逐参数组合指标和数据截止日；不会重新运行扫描。'],
+      notesZh: [
+        '返回不含源码的 settings、spec、逐组合指标和数据截止日；仅保留最近扫描，再次提交后旧 ID 会失效。',
+      ],
       notesEn: [
-        'Returns the frozen config, spec, per-combination metrics, and data cutoff without rerunning the scan.',
+        'Returns settings without source, spec, per-combination metrics and data cutoff. Only the latest scan is retained; resubmission invalidates old IDs.',
       ],
       parameters: [
         {
@@ -2747,8 +2748,8 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
           required: true,
           keywordOnly: false,
           maximumLength: 512,
-          descriptionZh: '策略参数扫描历史中的稳定报告 ID。',
-          descriptionEn: 'The stable report ID from strategy parameter-scan history.',
+          descriptionZh: '策略最近扫描的报告 ID。',
+          descriptionEn: 'The retained report ID from the latest strategy scan.',
         },
       ],
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },

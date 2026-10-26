@@ -1239,7 +1239,6 @@ model Strategy {
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   name            String
   config          Json // BacktestConfig
-  lastResult      Json? // last BacktestSummary (metrics + nav + tradeLog) — shown on reopen, refreshed each run
   messages        Json? // ChatMessage[] — the Agent-panel conversation that authored this strategy (per-strategy)
   conversations   AgentConversation[]
   backtestReports BacktestReport[]
@@ -1251,48 +1250,47 @@ model Strategy {
   @@index([userId, updatedAt]) // list a user's strategies, newest first
 }
 
-/// One immutable ordinary backtest run. Strategy.lastResult remains the latest-result cache used by
-/// Strategy Lab, while this row preserves every frozen config and result for later Research access.
+/// 最近提交的回测结果及活动任务；不留存可执行源码。
+/// The latest submitted backtest result and active jobs, without retained executable source.
 model BacktestReport {
-  id           String    @id // ULID; migrated latest-result snapshots use a stable legacy: prefix
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  strategyId   String
-  strategy     Strategy  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
-  strategyName String
-  legacyStatus String?   @map("status") // Historical state used only without a Job.
-  config       Json // frozen BacktestConfig
-  codeHash     String?
-  resultHash   String?
-  payload      Json? // frozen BacktestSummary
-  legacyError  String?   @map("error")
-  job          Job?
-  createdAt    DateTime  @default(now())
-  computedAt   DateTime?
+  id             String    @id // ULID; migrated latest-result snapshots use a stable legacy: prefix
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId     String
+  strategy       Strategy  @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyName   String
+  legacyStatus   String?   @map("status") // Historical state used only without a Job.
+  settings       Json      @map("config") // 不含可执行源码的运行参数 / Run settings without executable source
+  inputSignature String? // 仅用于检测输出过期 / Only detects stale output
+  payload        Json? // 实际回测结果 / Actual BacktestSummary
+  legacyError    String?   @map("error")
+  job            Job?
+  createdAt      DateTime  @default(now())
+  computedAt     DateTime?
 
   @@index([userId, strategyId, createdAt])
   @@index([userId, legacyStatus, createdAt])
 }
 
-/// Immutable parameter-scan report. The strategy/config/spec snapshots make each explicit scan a
-/// durable research record; the payload stores compact per-combination metrics, not full trade logs.
+/// 最近提交的扫描及活动任务；只保存运行参数、规格和各组合指标。
+/// The latest submitted scan and active jobs retain settings, specs and per-combination metrics.
 model StrategyScanReport {
-  id           String   @id // ULID
-  userId       String
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  strategyId   String
-  strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
-  strategyName String
-  legacyStatus String?  @map("status") // Historical state used only without a Job.
-  config       Json // frozen BacktestConfig
-  spec         Json // StrategyScanSpec
-  codeHash     String
-  dataCutoff   String?
-  payload      Json? // StrategyScanPayload
-  legacyError  String?  @map("error")
-  job          Job?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id // ULID
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategyId     String
+  strategy       Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+  strategyName   String
+  legacyStatus   String?  @map("status") // Historical state used only without a Job.
+  settings       Json     @map("config") // 不含可执行源码的运行参数 / Run settings without executable source
+  spec           Json // StrategyScanSpec
+  inputSignature String? // 仅用于检测输出过期 / Only detects stale output
+  dataCutoff     String?
+  payload        Json? // StrategyScanPayload
+  legacyError    String?  @map("error")
+  job            Job?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([userId, strategyId, createdAt])
   @@index([userId, legacyStatus])
