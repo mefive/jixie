@@ -3,7 +3,6 @@ import type {
   ResearchDataCatalogBacktestReportV1,
   ResearchDataCatalogDatasetV1,
   ResearchDataCatalogFactorReportV1,
-  ResearchDataCatalogFactorWeatherV1,
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogStrategyScanReportV1,
   ResearchFinancialMetricV1,
@@ -136,15 +135,6 @@ export function researchFactorReportSelection(
     { report_id: report.id },
   );
 }
-export function researchFactorWeatherSelection(
-  weather: Pick<ResearchDataCatalogFactorWeatherV1, 'factorId' | 'factorName'>,
-) {
-  return catalogSelection(
-    'results.factor_weather',
-    `${identifier(weather.factorName) || 'factor'}_weather`,
-    { factor_id: weather.factorId },
-  );
-}
 export function researchSeriesVariableName(
   instrument: Pick<ResearchDataCatalogInstrumentV1, 'assetType' | 'identifier'>,
 ): string {
@@ -264,9 +254,6 @@ export const researchStrategyScanReportSnippet = (
 export const researchFactorReportSnippet = (
   report: Parameters<typeof researchFactorReportSelection>[0],
 ) => researchFactorReportSelection(report).snippet;
-export const researchFactorWeatherSnippet = (
-  weather: Parameters<typeof researchFactorWeatherSelection>[0],
-) => researchFactorWeatherSelection(weather).snippet;
 export const researchSeriesSnippet = (options: ResearchSeriesSnippetOptions) =>
   researchSeriesSelection(options).snippet;
 export const researchDatasetSnippet = (options: ResearchDatasetSnippetOptions) =>

@@ -7,7 +7,7 @@ Research 当前只有 Python 作者接口，不增加空的 TypeScript SDK。
 | 对象 | 实现 | 公开方法 |
 | --- | --- | --- |
 | `data` | [python/data.py](python/data.py) | `series`、`cross_section`、`panel`、`yield_curve`、`macro`、`fx`；商品收益/仓单/持仓；市场状态；股票基本面/财务值/报表/指标/财务截面与面板/资金流/分红；ETF 份额、指数估值、行业状态、期货结算 |
-| `results` | [python/results.py](python/results.py) | `factor_report`、`backtest_report`、`strategy_scan_report`、`factor_weather` |
+| `results` | [python/results.py](python/results.py) | `factor_report`、`backtest_report`、`strategy_scan_report` |
 | `valuation` | [python/valuation.py](python/valuation.py) | `fcff_scenarios`、`implied_revenue_growth` |
 | `charts` | [python/charts.py](python/charts.py) | `line`、`area`、`bar`、`scatter`、`event_path`、`histogram`、`boxplot`、`heatmap` |
 

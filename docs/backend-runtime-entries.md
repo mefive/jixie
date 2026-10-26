@@ -10,7 +10,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | --- | --- | --- | --- |
 | `strategy/backtests/job-lifecycle.ts` | `strategy/backtests/worker.boot.mjs` → `worker.ts` | `strategy/backtests/worker.js` | 回测线程；回传结果，主线程按 Job 契约完成事务 |
 | `strategy/scans/job-lifecycle.ts` | `strategy/scans/worker.boot.mjs` → `.ts` | `strategy/scans/worker.js` | 参数扫描线程；同一线程串行调用共享模拟并汇总，异常使用通用 Worker.terminate |
-| `factor/evaluations/job-lifecycle.ts`、`factor/weather/refresh.ts` | `factor/analysis/worker.boot.mjs` → `.ts` | `factor/analysis/worker.js` | 因子分析与天气刷新线程；任务/天气调用方分别拥有最终持久化 |
+| `factor/evaluations/job-lifecycle.ts` | `factor/analysis/worker.boot.mjs` → `.ts` | `factor/analysis/worker.js` | 因子分析线程；评估任务拥有最终持久化 |
 | `factor/correlations/job-lifecycle.ts` | `factor/correlations/worker.boot.mjs` → `.ts` | `factor/correlations/worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
 | `strategy/sandbox/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → strategy-runner.ts/strategy-adapter.ts → SDK Context、账户、选股、周期与指标 | 同目录 `entry.js` → strategy-runner.js/strategy-adapter.js → 对应 SDK .js | esbuild neutral bundle，Runner 绑定能力并显式构造 SDK Context；不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |

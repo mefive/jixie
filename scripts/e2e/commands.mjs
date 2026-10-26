@@ -279,11 +279,6 @@ export const e2eCommands = [
       'E2E_MARKET_FIXTURE=1 uses isolated HTTP fixtures; build API first for weather aggregation.',
   },
   {
-    name: 'factor-weather',
-    file: 'apps/web/e2e/factor-weather.mjs',
-    group: 'factor',
-  },
-  {
     name: 'login-error',
     file: 'apps/web/e2e/login-error.mjs',
     group: 'platform',
@@ -394,11 +389,6 @@ export const imageCommands = [
   {
     name: 'factor-composite',
     file: 'apps/web/e2e/help-content-factor-composite.mjs',
-    group: 'capture',
-  },
-  {
-    name: 'factor-weather',
-    file: 'apps/web/e2e/help-content-factor-weather.mjs',
     group: 'capture',
   },
   {

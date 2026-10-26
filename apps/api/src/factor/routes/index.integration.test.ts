@@ -15,7 +15,6 @@ const resources = vi.hoisted(() => ({
   running: vi.fn(),
   wake: vi.fn(),
   logs: vi.fn(),
-  refresh: vi.fn(),
 }));
 vi.mock('ulid', () => ({ ulid: resources.id }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -47,11 +46,6 @@ vi.mock('#jobs/job-logs.js', async (importOriginal) => {
   vi.spyOn(original.JobLogs, 'initialize').mockImplementation(resources.logs);
   return original;
 });
-vi.mock('../weather/refresh.js', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../weather/refresh.js')>()),
-  refreshFactorWeatherPin: resources.refresh,
-}));
-
 import { t } from '#i18n/index.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { captureFactorQuestionContext } from '../questions/context.js';
@@ -92,22 +86,6 @@ async function seedReport() {
       factorCodeHash: sha256(frozenCode),
       dataRevision: 'fixture-vintage',
       payload: JSON.stringify({ label: 'Frozen', icMean: 0.125 }),
-    },
-  });
-}
-async function seedPin(status = 'ready') {
-  return prisma.factorWeatherPin.create({
-    data: {
-      id: 'pin',
-      userId: 'owner',
-      factorId: 'draft',
-      factorName: 'Draft',
-      builtin: false,
-      direction: 'positive',
-      factorCode: frozenCode,
-      factorCodeHash: sha256(frozenCode),
-      methodologyHash: 'fixture',
-      status,
     },
   });
 }
@@ -172,7 +150,6 @@ describe('Factor HTTP business boundaries', () => {
     vi.clearAllMocks();
     resources.id.mockReset().mockImplementation(() => `generated-${++fixture.sequence}`);
     resources.running.mockReset().mockReturnValue(null);
-    resources.refresh.mockReset().mockResolvedValue(undefined);
     await prisma.user.createMany({
       data: [
         { id: 'owner', email: 'owner@fixture.invalid' },
@@ -208,16 +185,10 @@ describe('Factor HTTP business boundaries', () => {
     await rm(fixture.directory, { recursive: true, force: true });
   });
 
-  it('protects pinned and published definitions and retains history after draft deletion', async () => {
+  it('protects published definitions and retains reports after draft deletion', async () => {
     await seedReport();
-    await seedPin();
-    const pinned = await request('/factors/draft', { code: 'changed code' }, 'owner', 'PATCH');
-    expect(pinned.status).toBe(409);
-    expect(await pinned.json()).toEqual({
-      error: { code: 'CONFLICT', message: t('en', 'pinnedFactorReadonlyEdit') },
-    });
     expect((await request('/factors/draft', undefined, 'other', 'DELETE')).status).toBe(404);
-    await prisma.factorWeatherPin.deleteMany();
+
     await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
     expect((await request('/factors/draft', { name: 'Changed' }, 'owner', 'PATCH')).status).toBe(
       409,
@@ -821,45 +792,12 @@ describe('Factor HTTP business boundaries', () => {
     );
   });
 
-  it('keeps weather ownership, frozen snapshots, detached refresh and busy errors', async () => {
-    expect(
-      (await request('/factors/weather/pins', { factorId: 'draft', direction: 'positive' })).status,
-    ).toBe(409);
-    await prisma.factor.update({ where: { id: 'draft' }, data: { status: 'published' } });
-    expect(
-      (
-        await request(
-          '/factors/weather/pins',
-          { factorId: 'draft', direction: 'positive' },
-          'other',
-        )
-      ).status,
-    ).toBe(404);
-    const response = await request('/factors/weather/pins', {
-      factorId: 'draft',
-      direction: 'positive',
-    });
-    expect(response.status).toBe(200);
-    const pin = await response.json();
-    expect(await prisma.factorWeatherPin.findUnique({ where: { id: pin.id } })).toMatchObject({
-      factorCode: frozenCode,
-      direction: 'positive',
-      status: 'pending',
-    });
-    expect(resources.refresh).toHaveBeenCalledWith(pin.id);
-    const busy = await request(`/factors/weather/pins/${pin.id}`, undefined, 'owner', 'DELETE');
-    expect(busy.status).toBe(409);
-    expect(await busy.json()).toEqual({
-      error: { code: 'CONFLICT', message: t('en', 'factorWeatherRunningCannotUnpin') },
-    });
-    expect(
-      (await request(`/factors/weather/pins/${pin.id}/refresh`, undefined, 'other')).status,
-    ).toBe(404);
-    await request('/factors/weather', undefined, 'owner', 'GET');
-    expect(resources.refresh).toHaveBeenCalledTimes(2);
-    await prisma.factorWeatherPin.update({ where: { id: pin.id }, data: { status: 'ready' } });
-    expect(
-      (await request(`/factors/weather/pins/${pin.id}`, undefined, 'owner', 'DELETE')).status,
-    ).toBe(200);
+  it.each([
+    ['GET', '/factors/weather'],
+    ['POST', '/factors/weather/pins'],
+    ['POST', '/factors/weather/pins/removed/refresh'],
+    ['DELETE', '/factors/weather/pins/removed'],
+  ])('retires the %s %s endpoint', async (method, path) => {
+    expect((await request(path, undefined, 'owner', method)).status).toBe(404);
   });
 });

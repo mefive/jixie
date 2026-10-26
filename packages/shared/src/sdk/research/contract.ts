@@ -1689,43 +1689,6 @@ const equityDividendColumns = [
   },
 ] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
-const factorWeatherColumns = [
-  {
-    name: 'formation_date',
-    wireType: 'trade_date',
-    pythonType: 'datetime64[ns]',
-    descriptionZh: '形成因子分组的月末日期。',
-    descriptionEn: 'The month-end date on which factor groups were formed.',
-  },
-  {
-    name: 'period_end_date',
-    wireType: 'trade_date',
-    pythonType: 'datetime64[ns]',
-    descriptionZh: '实现收益的月末日期。',
-    descriptionEn: 'The month-end date on which returns were realized.',
-  },
-  ...[
-    ['rank_ic', '当月 Rank IC。', 'Monthly rank IC.'],
-    ['top_return', '头部组毛收益率。', 'Top-group gross return.'],
-    ['bottom_return', '尾部组毛收益率。', 'Bottom-group gross return.'],
-    ['long_short_gross_return', '多空组合毛收益率。', 'Long-short gross return.'],
-    [
-      'long_short_net_return',
-      '计入换手成本后的多空组合净收益率。',
-      'Long-short net return after turnover cost.',
-    ],
-    ['top_turnover', '头部组换手率。', 'Top-group turnover.'],
-    ['sample_size', '样本股票数量。', 'Number of stocks in the sample.'],
-    ['sample_coverage', '有效样本覆盖率。', 'Valid-sample coverage ratio.'],
-  ].map(([name, descriptionZh, descriptionEn]) => ({
-    name,
-    wireType: name === 'top_turnover' ? ('nullable_number' as const) : ('number' as const),
-    pythonType: 'float64',
-    descriptionZh,
-    descriptionEn,
-  })),
-] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
-
 const etfShareColumns = [
   {
     name: 'date',
@@ -2754,32 +2717,6 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       ],
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
     },
-    {
-      qualifiedName: 'results.factor_weather',
-      namespace: 'results',
-      name: 'factor_weather',
-      descriptionZh: '按因子 ID 读取当前用户已固定因子的月度气象观测。',
-      descriptionEn: 'Load monthly weather observations for a factor pinned by the current user.',
-      examples: ['weather = results.factor_weather("momentum-factor-id")'],
-      notesZh: [
-        '仅返回已计算并落库的观测，不触发刷新；方法论和因子代码哈希保存在 DataFrame attrs["jixie"]。',
-      ],
-      notesEn: [
-        'Returns only stored observations without triggering a refresh; methodology and factor code hash are in DataFrame attrs["jixie"].',
-      ],
-      parameters: [
-        {
-          name: 'factor_id',
-          type: 'string',
-          required: true,
-          keywordOnly: false,
-          maximumLength: 512,
-          descriptionZh: '因子气象中已固定的因子 ID。',
-          descriptionEn: 'The factor ID pinned in Factor Weather.',
-        },
-      ],
-      returns: { kind: 'dataframe', columns: factorWeatherColumns },
-    },
     referenceDatasetFunction(
       'etf_shares',
       '按研究可得日读取 ETF 份额、规模、净值与收盘价。',
@@ -3370,19 +3307,18 @@ export const RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRAC
 export const RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[13];
 export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[14];
 export const RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[15];
-export const RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[16];
-export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[17];
-export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
-export const RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[19];
-export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[20];
-export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[21];
-export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[22];
+export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[16];
+export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[17];
+export const RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
+export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[19];
+export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[20];
+export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[21];
 export const RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1 =
-  RESEARCH_SDK_CONTRACT_V1.functions[23];
-export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[24];
-export const RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[25];
+  RESEARCH_SDK_CONTRACT_V1.functions[22];
+export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[23];
+export const RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[24];
 export const RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1 =
-  RESEARCH_SDK_CONTRACT_V1.functions[26];
+  RESEARCH_SDK_CONTRACT_V1.functions[25];
 
 export const RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions.find(
   (method) => method.qualifiedName === 'data.equity_financial_values',

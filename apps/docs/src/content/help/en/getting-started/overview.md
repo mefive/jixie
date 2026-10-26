@@ -12,7 +12,6 @@ current market, then complete one Markdown/Python study and one backtest.
 | Research | Use Markdown, Python, platform data, and the Agent for free-form studies, charts, immutable snapshots, and downstream handoff |
 | Strategy | Build in plain language, TypeScript, or Python and inspect returns, trades, allocation attribution, and portfolio risk |
 | Factors | Research stock cross-sections, ETF time series, cross-asset Panels, and macro regimes, then publish eligible Factors |
-| Factor Weather | Monitor recent return, IC, coverage, and turnover for published Factors under one monthly method |
 | Valuation | Review index PE, PB, turnover, and historical percentiles |
 
 The pages can be used together. For example, use Research to inspect an equity universe, then use Strategy to test a trading rule.
@@ -66,6 +65,5 @@ Before making a trade, check the data date, trading costs, whether an order coul
 - [Stocks, ETFs, and indices](/help/basics/stocks-etfs-indices)
 - [Strategies and backtests](/help/basics/strategy-backtest)
 - [Return and risk metrics](/help/basics/performance-risk)
-- [Get started with Factor Weather](/help/factor-weather/getting-started)
 - [Write a strategy in Python](/help/backtesting/python-strategy)
 - [Run ETF time-series research](/help/factors/time-series-research)

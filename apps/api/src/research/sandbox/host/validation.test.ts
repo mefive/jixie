@@ -9,7 +9,6 @@ import {
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
-  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
@@ -41,7 +40,6 @@ import {
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
-  parseResearchFactorWeatherRuntimeRequest,
   parseResearchFinancialCrossSectionRuntimeRequest,
   parseResearchFinancialMetricsRuntimeRequest,
   parseResearchFinancialMetricsRuntimeRows,
@@ -365,17 +363,13 @@ describe('research workbench SDK contract', () => {
     });
   });
 
-  it('publishes owner-scoped strategy-scan and Factor Weather result bridges', () => {
+  it('publishes an owner-scoped strategy-scan result bridge', () => {
     expect(parseResearchStrategyScanReportRuntimeRequest({ report_id: 'scan-1' })).toEqual({
       report_id: 'scan-1',
-    });
-    expect(parseResearchFactorWeatherRuntimeRequest({ factor_id: 'factor-1' })).toEqual({
-      factor_id: 'factor-1',
     });
     expect(RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1.qualifiedName).toBe(
       'results.strategy_scan_report',
     );
-    expect(RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1.qualifiedName).toBe('results.factor_weather');
   });
 
   it('derives the Agent SDK catalog from the same public contract', () => {
@@ -384,6 +378,9 @@ describe('research workbench SDK contract', () => {
 
     expect(sdkCatalog.runtimeVersion).toBe(RESEARCH_SDK_CONTRACT_V1.runtimeVersion);
     expect(sdkCatalog.methods).toHaveLength(RESEARCH_SDK_CONTRACT_V1.functions.length);
+    expect(sdkCatalog.methods.map((method) => method.qualifiedName)).not.toContain(
+      'results.factor_weather',
+    );
     expect(panel?.signature).toContain('frequency: Literal["month_end"] = "month_end"');
     expect(panel?.returns).toBe(RESEARCH_PANEL_SDK_CONTRACT_V1.returns);
     expect(panel?.examples).toEqual(RESEARCH_PANEL_SDK_CONTRACT_V1.examples);

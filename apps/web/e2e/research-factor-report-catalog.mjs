@@ -8,7 +8,9 @@ const { PrismaClient } = require('@prisma/client');
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const SHOTS = new URL('../acceptance/', import.meta.url).pathname;
-const databaseUrl = `file:${fileURLToPath(new URL('../../api/prisma/dev.db', import.meta.url))}`;
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  `file:${fileURLToPath(new URL('../../api/prisma/dev.db', import.meta.url))}`;
 mkdirSync(SHOTS, { recursive: true });
 
 const suffix = Date.now();
@@ -18,7 +20,6 @@ const factorId = `e2e-report-catalog-factor-${suffix}`;
 const factorKey = `e2e_value_quality_${suffix}`;
 const firstReportId = `e2e-report-catalog-first-${suffix}`;
 const secondReportId = `e2e-report-catalog-second-${suffix}`;
-const weatherPinId = `e2e-report-catalog-weather-${suffix}`;
 const database = new PrismaClient({ datasourceUrl: databaseUrl });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
@@ -58,7 +59,9 @@ try {
   await drawer.waitFor();
   await drawer.getByText('Factor 报告', { exact: true }).click();
   await drawer.getByText('results.factor_report', { exact: true }).waitFor({ timeout: 15_000 });
-  await drawer.getByText('results.factor_weather', { exact: true }).waitFor({ timeout: 15_000 });
+  if (await drawer.getByText('results.factor_weather', { exact: true }).count()) {
+    throw new Error('Retired weather SDK methods must not appear in the catalog.');
+  }
 
   const reportSearch = drawer.getByRole('textbox', {
     name: '搜索 Factor 名称、Key 或报告 ID',
@@ -88,20 +91,9 @@ try {
   await page.waitForTimeout(200);
   await drawer.screenshot({ path: `${SHOTS}research-factor-report-catalog.png` });
 
-  const weather = page.getByTestId(`research-data-catalog-factor-weather-${factorId}`);
-  await weather.waitFor({ timeout: 15_000 });
-  await weather.click();
-  const weatherConfig = page.getByTestId('research-data-catalog-factor-weather-config');
-  await weatherConfig.waitFor();
-  if (!(await weatherConfig.innerText()).includes(`results.factor_weather("${factorId}")`)) {
-    throw new Error('The Factor Weather pin did not generate an SDK call preview.');
+  if (await page.locator('a[href="/factor-weather"]').count()) {
+    throw new Error('Factor Weather must not appear in navigation.');
   }
-  await weatherConfig.scrollIntoViewIfNeeded();
-  await drawer.screenshot({ path: `${SHOTS}research-factor-weather-catalog.png` });
-
-  await firstReport.click();
-  await reportConfig.getByText(firstReportId, { exact: true }).waitFor();
-
   await insert.click();
   await drawer.waitFor({ state: 'detached' });
   await page.getByTestId('research-document').click({ position: { x: 8, y: 8 } });
@@ -124,8 +116,20 @@ try {
     );
   }
 
+  await page.getByText('EN', { exact: true }).last().click();
+  await page.getByTestId('research-open-data-catalog').click();
+  const englishDrawer = page.getByRole('dialog', { name: 'Data catalog' });
+  await englishDrawer.waitFor();
+  await englishDrawer.getByText('Factor reports', { exact: true }).click();
+  await englishDrawer.getByText('results.factor_report', { exact: true }).waitFor();
+  if (await englishDrawer.getByText('results.factor_weather', { exact: true }).count()) {
+    throw new Error('Retired weather methods must not appear in the English catalog.');
+  }
+  await page.getByTestId(`research-data-catalog-report-${firstReportId}`).click();
+  await englishDrawer.screenshot({ path: `${SHOTS}research-factor-report-catalog-en.png` });
+
   console.log(
-    '[research-factor-report-catalog-e2e] search=pass sealed=pass weather=pass insert=pass screenshots=3',
+    '[research-factor-report-catalog-e2e] search=pass retained=pass weather-retired=pass insert=pass screenshots=2',
   );
 } finally {
   if (documentId) {
@@ -141,7 +145,6 @@ try {
   await database.factorReport.deleteMany({
     where: { id: { in: [firstReportId, secondReportId] } },
   });
-  await database.factorWeatherPin.deleteMany({ where: { id: weatherPinId } });
   await database.factor.deleteMany({ where: { id: factorId } });
   if (userId) {
     await database.session.deleteMany({ where: { userId } });
@@ -166,7 +169,7 @@ async function seedReports(ownerId) {
   const base = {
     userId: ownerId,
     factor: factorKey,
-    status: 'done',
+    legacyStatus: 'done',
     analysisKind: 'cross_sectional',
     freq: 'month',
     neutral: 'none',
@@ -188,35 +191,6 @@ async function seedReports(ownerId) {
         createdAt: new Date(now.getTime() - 60_000),
       },
     ],
-  });
-  await database.factorWeatherPin.create({
-    data: {
-      id: weatherPinId,
-      userId: ownerId,
-      factorId,
-      factorName: '价值质量因子',
-      builtin: false,
-      direction: 'positive',
-      factorCode: 'export default defineFactor({ key: "value-quality", compute: () => 1 })',
-      factorCodeHash: 'e2e-factor-hash',
-      methodologyHash: 'e2e-methodology-hash',
-      status: 'ready',
-      computedThrough: '20260731',
-      points: {
-        create: {
-          formationDate: '20260630',
-          periodEndDate: '20260731',
-          rankIc: 0.08,
-          topReturn: 0.04,
-          bottomReturn: -0.01,
-          longShortGrossReturn: 0.05,
-          longShortNetReturn: 0.045,
-          topTurnover: 0.2,
-          sampleSize: 300,
-          sampleCoverage: 0.95,
-        },
-      },
-    },
   });
 }
 

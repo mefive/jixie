@@ -142,11 +142,10 @@ async function waitForRunningWork(runId) {
     const jobs = Number(counts.jobs);
     const agentTurns = Number(counts.agentTurns);
     const researchCells = runningRowsIfPresent('ResearchCellExecution');
-    const weather = runningRowsIfPresent('FactorWeatherPin');
     const now = Date.now();
     heartbeat(runId);
 
-    if (jobs + agentTurns + researchCells + weather === 0) {
+    if (jobs + agentTurns + researchCells === 0) {
       quietSince ??= now;
       if (now - quietSince >= quietMilliseconds) {
         return;
@@ -154,7 +153,7 @@ async function waitForRunningWork(runId) {
     } else {
       quietSince = null;
       process.stderr.write(
-        `[deployment] Waiting for ${jobs} background jobs, ${agentTurns} Agent turns, ${researchCells} Research cells, and ${weather} weather refreshes\n`,
+        `[deployment] Waiting for ${jobs} background jobs, ${agentTurns} Agent turns, ${researchCells} Research cells\n`,
       );
     }
     if (now >= deadline) {
@@ -174,7 +173,7 @@ function runningRowsIfPresent(table) {
   if (!exists) {
     return 0;
   }
-  if (table !== 'ResearchCellExecution' && table !== 'FactorWeatherPin') {
+  if (table !== 'ResearchCellExecution') {
     throw new Error('Invalid legacy work table');
   }
   return Number(

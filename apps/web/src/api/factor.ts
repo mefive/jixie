@@ -11,7 +11,6 @@ import type {
   SubmitFactorCorrelationRequest,
   FactorJobRequestQuery,
   FactorReportListRequestQuery,
-  CreateFactorWeatherPinRequest,
   FactorAgentRequest,
   FactorAgentRequestParams,
   FactorQuestionRequest,
@@ -35,8 +34,6 @@ import type {
   FactorStatus,
   PublishedFactor,
   RunFactorAnalysisResponse,
-  FactorWeatherDirection,
-  FactorWeatherResponse,
   FactorQuestionTurnV1,
   FactorQuestionHistoryV1,
 } from '@jixie/shared';
@@ -356,32 +353,6 @@ export function findActiveFactorCorrelationJob(
 export function pollFactorCorrelationJob(jobId: string, since = 0): Promise<FactorJob> {
   const query = serializeQuery({ since: String(since) } satisfies FactorJobRequestQuery);
   return request(`/api/app/factors/correlation-jobs/${encodeURIComponent(jobId)}?${query}`);
-}
-
-// —— Factor weather: immutable pinned factors with offline monthly observations ——
-
-export function getFactorWeather(): Promise<FactorWeatherResponse> {
-  return request('/api/app/factors/weather');
-}
-
-export function pinFactorWeather(
-  factorId: string,
-  direction?: FactorWeatherDirection,
-): Promise<{ id: string; status: string }> {
-  return request('/api/app/factors/weather/pins', {
-    method: 'POST',
-    body: JSON.stringify({ factorId, direction } satisfies CreateFactorWeatherPinRequest),
-  });
-}
-
-export function refreshFactorWeatherPin(id: string): Promise<{ id: string; status: string }> {
-  return request(`/api/app/factors/weather/pins/${encodeURIComponent(id)}/refresh`, {
-    method: 'POST',
-  });
-}
-
-export function unpinFactorWeather(id: string): Promise<{ ok: true }> {
-  return request(`/api/app/factors/weather/pins/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 export function acceptFactorCodeChange(

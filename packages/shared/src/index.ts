@@ -10,7 +10,6 @@ export * from './sdk/factor/python.js';
 export { buildFactorSdkDts, renderFactorSdkContract } from './sdk/factor/reference.js';
 export * from './factor-research.js';
 export * from './factor-dependency.js';
-export * from './factor-weather.js';
 export * from './agent.js';
 export * from './sdk/strategy/reference.js';
 export * from './engine-factors.js';

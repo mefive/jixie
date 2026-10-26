@@ -95,15 +95,15 @@ flowchart TD
   B --> A["server.buildApp：路由与中间件"]
   B --> E["jobs/register：显式生命周期注册"]
   E --> R["恢复 running Job"]
-  B --> T["恢复 Agent turn / 天气刷新"]
+  B --> T["恢复 Agent turn"]
   R --> Q["恢复完成后启动 Job 队列"]
   T --> Q
   Q --> H["serve：监听 HTTP"]
 ```
 
-Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化事件调度器并监听 HTTP。register 显式登记生命周期对象；Maintenance 后处理条件 claim 后直接执行同一入口，不依赖 API 在线，串行名额独立于 API scheduler。通用调度与存储不反向依赖业务。
+Bootstrap 注册生命周期，等待 JobService 的原子恢复，再初始化事件调度器并监听 HTTP。register 显式登记生命周期对象。通用调度与存储不反向依赖业务。
 
-实际顺序是：构建应用和执行器 → 并行等待 Job、Agent turn、天气刷新恢复 → 发起内置因子种子初始化 → 启动队列 → 监听 HTTP。种子初始化是后台 Promise，不是启动的阻塞步骤；开发环境监听后再异步探测 Python runtime。`buildApp()` 会加载模块、建立模块内对象，不能据此理解为“零对象创建”，但不会开始领取 Job 或监听服务。
+实际顺序是：构建应用和执行器 → 并行等待 Job、Agent turn 恢复 → 等待内置因子初始化和报告清理 → 启动队列 → 监听 HTTP。种子初始化和保留规则清理完成后才启动队列；开发环境监听后再异步探测 Python runtime。`buildApp()` 会加载模块、建立模块内对象，不能据此理解为“零对象创建”，但不会开始领取 Job 或监听服务。
 
 | 资源 | 创建与持有者 | 收尾与当前限制 |
 | --- | --- | --- |
@@ -193,7 +193,7 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 
 ## Factor 内部职责
 
-正式报告与 Job、相关性缓存、天气 pin 分属三个生命周期，共享计算不拥有这些对象。入口及协作流程维护在 [Factor 总览](../apps/api/src/factor/README.md)，具体契约见 [evaluations](../apps/api/src/factor/evaluations/README.md)、[correlations](../apps/api/src/factor/correlations/README.md)、[weather](../apps/api/src/factor/weather/README.md) 和 [analysis](../apps/api/src/factor/analysis/README.md)。旧 Job kind 的部署转换与查询规则见 [jobs](../apps/api/src/factor/jobs/README.md)，背景和历史验证见 [内部结构整理](design/core-business-internal-structure.md)。
+正式报告与 Job、相关性缓存分属两个生命周期，共享计算不拥有这些对象。入口及协作流程维护在 [Factor 总览](../apps/api/src/factor/README.md)，具体契约见 [evaluations](../apps/api/src/factor/evaluations/README.md)、[correlations](../apps/api/src/factor/correlations/README.md) 和 [analysis](../apps/api/src/factor/analysis/README.md)。旧 Job kind 的部署转换与查询规则见 [jobs](../apps/api/src/factor/jobs/README.md)，背景和历史验证见 [内部结构整理](design/core-business-internal-structure.md)。
 
 ## Maintenance 与 Market 数据业务边界
 

@@ -270,15 +270,6 @@ try {
         marks: ['.jx-strategy-heroInput', '.jx-strategy-heroSend'],
       },
       {
-        name: 'factor-weather/pin-current',
-        route: '/factor-weather',
-        ready: '.jx-factorWeather-header',
-        prepare: async () => {
-          await button('钉住因子', 'Pin factor').click();
-        },
-        marks: ['.ant-modal'],
-      },
-      {
         name: 'market-valuation/market-weather-overview-01',
         route: '/market',
         ready: '.jx-industryWeather-groups',

@@ -111,7 +111,6 @@ See the [Research SDK reference](/docs/sdk?runtime=research) for signatures, enu
 - Under **Factor reports**, select an owned completed report and insert `results.factor_report()` to read it directly.
 - Select a report under **Backtests** to insert `results.backtest_report()` and read actual settings, equity, trades and Factor version references without source or rerunning the strategy. Each strategy retains only its latest submission; removed report IDs fail.
 - Use `results.strategy_scan_report()` with a stable scan report ID to read per-combination metrics.
-- Use `results.factor_weather()` for a pinned factor to read stored monthly observations without triggering a refresh.
 
 Report IDs, strategy IDs, and Factor keys are different identifiers. In Factor/Strategy conversations, **Reference data** reuses this catalog but saves only the source selection for the question. Inspect the [embedded analysis run](/docs/help/research/embedded-analysis) to verify actual data requests.
 

@@ -108,7 +108,6 @@ M2 的全部标准化指标。截面和 Panel 一次最多选择 8 个指标，�
 - 在“Factor 报告”中选择本人已完成的报告，插入 `results.factor_report()` 后可以直接读取结果。
 - 在“回测报告”中选择报告，插入 `results.backtest_report()`，读取其实际参数、净值、交易和因子版本引用；不返回源码，也不会重跑策略。每个策略只保留最近提交，旧报告清理后读取会报错。
 - 参数扫描结果使用 `results.strategy_scan_report()`，按稳定报告 ID 读取逐参数组合指标。
-- 已钉住因子的气象使用 `results.factor_weather()`，只读已经保存的月度观测，不触发刷新。
 
 报告 ID、策略 ID 和 Factor key 不是同一种标识，不能互相代替。在 Factor／Strategy 对话中，“引用数据”复用此目录，但保存的是本轮来源选择；实际取数须在[嵌入式分析运行](/docs/help/research/embedded-analysis)中核对。
 

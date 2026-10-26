@@ -207,7 +207,6 @@ export const zhHelp = {
       stockDetail: '价格、复权、估值和成交数据。',
       backtesting: '策略草稿、历史报告、结果比较与组合风险。',
       factorResearch: '因子定义、报告、稳健推断和发布。',
-      factorWeather: '持续观察预置和已发布自定义单因子的近期状态。',
       marketValuation: '市场气象、估值和历史回放。',
     },
   },
@@ -219,7 +218,6 @@ export const zhHelp = {
     stockDetail: '对象详情',
     backtesting: '策略工作台',
     factorResearch: '因子研究',
-    factorWeather: '因子气象',
     marketValuation: '市场与估值',
   },
 };

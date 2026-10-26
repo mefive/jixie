@@ -7,7 +7,6 @@ import { JobScheduler } from '#jobs/job-scheduler.js';
 import { pruneStrategyResults } from '#strategy/results/retention.js';
 import { pruneFactorReports } from '#factor/evaluations/retention.js';
 import { seedBuiltinFactors } from '#factor/definitions/seed.js';
-import { resetInterruptedFactorWeatherRefreshes } from '#factor/weather/refresh.js';
 import { markRunningAgentTurnsInterrupted } from '#agent/turns/records.js';
 
 /**
@@ -21,21 +20,15 @@ export async function startServer(port: number, database: Prisma = prisma) {
     registerJobLifecycles();
 
     // Any job left 'running' from a previous process is a zombie (its worker died) → mark stale.
-    const [staleJobs, interruptedTurns, interruptedWeather] = await Promise.all([
+    const [staleJobs, interruptedTurns] = await Promise.all([
       JobService.recoverInterrupted(),
       markRunningAgentTurnsInterrupted(),
-      resetInterruptedFactorWeatherRefreshes(),
     ]);
     if (staleJobs) {
       console.log(`[jixie] marked ${staleJobs} orphaned job(s) as stale`);
     }
     if (interruptedTurns) {
       console.log(`[jixie] marked ${interruptedTurns} orphaned Agent turn(s) as interrupted`);
-    }
-    if (interruptedWeather) {
-      console.log(
-        `[jixie] reset ${interruptedWeather} interrupted factor weather run(s) to pending`,
-      );
     }
 
     // 先准备缺失内置版本和报告保留规则，再接收请求或启动排队任务。

@@ -12,7 +12,6 @@
 | `market/synchronization/records.ts` | 白名单市场记录合并、字段证据及精确删除授权 |
 | `calculations.ts` / `market/state/eligibility.ts` | 有界失效、分组资格、私有计算和输出提交 |
 | `status.ts` / `routes.ts` | 现有 `/api/maintenance/status`：运行、局部覆盖及真实发布争用 |
-| `consumers.ts` | Factor 气象自身范围内的资格/重试 |
 | `resources.ts` | 有归属凭据且无活跃所有者的退役资源回收 |
 
 每轮最多 240 个来源分区、600 次实际 HTTP 请求（含内部重试）、120 个派生计算和 30 分钟。新近需求、待办、回补、旧分区巡检分别保留约 50%/25%/15%/10% 份额。来源请求分页有限，重复页和来源错误不表示完成。预算耗尽保留待办；请求错误保留退避，下一轮仍从相同固定边界继续。

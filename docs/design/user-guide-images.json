@@ -439,19 +439,19 @@
     },
     {
       "path": "zh/factor-weather/factor-weather-history-01.png",
-      "articles": ["en/factor-weather/read-cards.md", "zh/factor-weather/read-cards.md"],
+      "articles": [],
       "originalSha256": "4eee9e45a8175ad50839dde8fc07025d758dac03408f7f39fd61a81bf8301285",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Factor Weather and its help articles were removed; the historical inventory is retained.",
       "crop": [0, 40, 1440, 960],
       "sha256": "dad3f87f6ce3ce676c10ea59a9d0c2bc58a731dadad53cd1b1468a0da3a4fd0b"
     },
     {
       "path": "zh/factor-weather/factor-weather-overview-01.png",
-      "articles": ["en/factor-weather/getting-started.md", "zh/factor-weather/getting-started.md"],
+      "articles": [],
       "originalSha256": "9e4298625bca98b0c093885d616045acefb63959afdbba283825051248c753b7",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Factor Weather and its help articles were removed; the historical inventory is retained.",
       "crop": [0, 40, 1440, 960],
       "sha256": "4d2e0b6629060458f2b8b7d32f71ad57d0e4b541e4e6a8a4956cdccd3a1bd9bc"
     },
@@ -460,7 +460,7 @@
       "articles": [],
       "originalSha256": "f996b5fcf54c8197742eba0f3a62dc3bf4f645629a501c2a0f730020decfe68a",
       "disposition": "retired",
-      "reason": "Replaced by a current, bilingual entry-point figure."
+      "reason": "Factor Weather and its help articles were removed; the historical inventory is retained."
     },
     {
       "path": "zh/learning/csi300-trend-baseline-result.png",
@@ -1422,16 +1422,16 @@
     },
     {
       "path": "zh/factor-weather/pin-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["zh/factor-weather/getting-started.md"],
+      "disposition": "retired",
+      "reason": "Factor Weather and its help articles were removed; the historical inventory is retained.",
+      "articles": [],
       "sha256": "24072fde66f3f9499de13eac54ec5b01a3efd055f432b8e012e703aa900d0211"
     },
     {
       "path": "en/factor-weather/pin-current.png",
-      "disposition": "recaptured",
-      "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": ["en/factor-weather/getting-started.md"],
+      "disposition": "retired",
+      "reason": "Factor Weather and its help articles were removed; the historical inventory is retained.",
+      "articles": [],
       "sha256": "702a983ccb3f5d5cc5231cb5085a509f6d3391c59639b5162106830e959f5e71"
     },
     {

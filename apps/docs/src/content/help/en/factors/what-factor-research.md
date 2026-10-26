@@ -67,15 +67,8 @@ One attractive result does not establish that:
 
 Complete one preset analysis before learning custom factor code.
 
-## How Factor Weather differs
-
-Factor Research defines and tests a Factor under user-selected dates, frequency, sample treatment, and costs, then saves an immutable report. Factor Weather accepts preset single Factors and published custom single Factors and continuously adds complete months under one fixed monthly method to monitor favorable and unfavorable phases.
-
-Define and analyze a factor before monitoring its recent state. Months used to select or tune it cannot later be treated as unseen data.
-
 ## Related articles
 
 - [Run your first preset factor analysis](/help/factors/first-preset-analysis)
 - [Set the analysis range and sample treatment](/help/factors/analysis-settings)
 - [Read your first factor analysis result](/help/factors/results-overview)
-- [Get started with Factor Weather](/help/factor-weather/getting-started)

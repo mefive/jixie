@@ -40,10 +40,6 @@ export const TopNav = observer(() => {
   const selectedNavigationKeys = activeNavigationKey ? [activeNavigationKey] : [];
   const navigationItems: MenuProps['items'] = [
     { key: 'market', label: <NavLink to="/market">{t('nav.market')}</NavLink> },
-    {
-      key: 'factorWeather',
-      label: <NavLink to="/factor-weather">{t('nav.factorWeather')}</NavLink>,
-    },
     { key: 'strategy', label: <NavLink to="/strategy">{t('nav.strategy')}</NavLink> },
     { key: 'research', label: <NavLink to="/research">{t('nav.research')}</NavLink> },
     { key: 'factor', label: <NavLink to="/factors">{t('nav.factor')}</NavLink> },
@@ -132,7 +128,6 @@ const NAVIGATION_LABEL_KEYS = {
   research: 'research',
   factor: 'factor',
   market: 'market',
-  factorWeather: 'factorWeather',
   valuation: 'valuation',
   help: 'help',
 } as const;
@@ -150,9 +145,6 @@ function navigationKey(pathname: string): NavigationKey | undefined {
   }
   if (pathname.startsWith('/factors')) {
     return 'factor';
-  }
-  if (pathname.startsWith('/factor-weather')) {
-    return 'factorWeather';
   }
   if (pathname.startsWith('/market')) {
     return 'market';

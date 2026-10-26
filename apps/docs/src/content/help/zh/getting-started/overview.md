@@ -11,7 +11,6 @@
 | 研究 | 用 Markdown、Python、平台数据与 Agent 完成自由研究、图表、不可变快照和下游交接 |
 | 策略 | 用文字、TypeScript 或 Python 建立策略，查看历史收益、交易、多资产归因和组合风险 |
 | 因子研究 | 研究股票横截面、ETF 时间序列、跨资产 Panel 和宏观状态，并发布合格 Factor |
-| 因子气象 | 用统一月频方法持续观察已发布 Factor 的近期收益、IC、覆盖率和换手 |
 | 估值 | 查看指数的市盈率、市净率、换手率及历史百分位 |
 
 页面之间可以配合使用。例如，先在“研究”中确认股票范围，再在“策略”中检验一套买卖规则。
@@ -67,6 +66,5 @@
 - [股票、ETF 和指数](/help/basics/stocks-etfs-indices)
 - [策略和回测](/help/basics/strategy-backtest)
 - [收益和风险指标](/help/basics/performance-risk)
-- [开始使用因子气象](/help/factor-weather/getting-started)
 - [使用 Python 编写策略](/help/backtesting/python-strategy)
 - [运行 ETF 时间序列研究](/help/factors/time-series-research)

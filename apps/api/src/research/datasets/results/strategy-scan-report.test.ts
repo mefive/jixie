@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   conversationFindFirst: vi.fn(),
   scanFindFirst: vi.fn(),
-  weatherFindFirst: vi.fn(),
 }));
 
 vi.mock('#infra/database/prisma.js', async () => {
@@ -11,7 +10,6 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: {
       agentConversation: { findFirst: mocks.conversationFindFirst },
       strategyScanReport: { findFirst: mocks.scanFindFirst },
-      factorWeatherPin: { findFirst: mocks.weatherFindFirst },
     },
   };
   return {
@@ -23,10 +21,7 @@ vi.mock('#infra/database/prisma.js', async () => {
   };
 });
 
-import {
-  loadResearchFactorWeatherResult,
-  loadResearchStrategyScanReportResult,
-} from './scan-and-weather.js';
+import { loadResearchStrategyScanReportResult } from './strategy-scan-report.js';
 
 describe('Research read-only result datasets', () => {
   beforeEach(() => {
@@ -66,54 +61,15 @@ describe('Research read-only result datasets', () => {
     });
   });
 
-  it('returns stored owner-scoped factor weather observations and metadata', async () => {
-    mocks.weatherFindFirst.mockResolvedValue({
-      factorId: 'factor-1',
-      factorName: 'Momentum',
-      direction: 'positive',
-      status: 'ready',
-      computedThrough: '20260731',
-      factorCodeHash: 'factor-hash',
-      points: [
-        {
-          formationDate: '20260630',
-          periodEndDate: '20260731',
-          rankIc: 0.1,
-          topReturn: 0.03,
-          bottomReturn: -0.01,
-          longShortGrossReturn: 0.04,
-          longShortNetReturn: 0.035,
-          topTurnover: 0.2,
-          sampleSize: 300,
-          sampleCoverage: 0.95,
-        },
-      ],
-    });
-
-    const result = await loadResearchFactorWeatherResult('document', 'factor-1');
-
-    expect(mocks.weatherFindFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: 'owner', factorId: 'factor-1' } }),
-    );
-    expect(result.rows).toEqual([
-      expect.objectContaining({
-        formation_date: '20260630',
-        period_end_date: '20260731',
-        long_short_net_return: 0.035,
-      }),
-    ]);
-    expect(result.metadata).toMatchObject({ factor_id: 'factor-1', code_hash: 'factor-hash' });
-  });
-
   it('rejects incomplete or cross-user results', async () => {
     mocks.scanFindFirst.mockResolvedValue(null);
     await expect(loadResearchStrategyScanReportResult('document', 'other')).rejects.toThrow(
       'not found',
     );
 
-    mocks.weatherFindFirst.mockResolvedValue({ status: 'running' });
-    await expect(loadResearchFactorWeatherResult('document', 'factor-1')).rejects.toThrow(
-      'not ready',
+    mocks.scanFindFirst.mockResolvedValue({ job: { status: 'running' } });
+    await expect(loadResearchStrategyScanReportResult('document', 'scan-1')).rejects.toThrow(
+      'not complete',
     );
   });
 });

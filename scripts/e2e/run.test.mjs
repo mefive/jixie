@@ -38,7 +38,15 @@ test('learning group omits retired research-gate journeys and keeps image tasks 
     e2eCommands.some((command) => command.file.includes('help-content')),
     false,
   );
-  assert.equal(imageCommands.length, 16);
+  assert.equal(imageCommands.length, 15);
+  assert.equal(
+    imageCommands.some((command) => command.name === 'factor-weather'),
+    false,
+  );
+  assert.equal(
+    e2eCommands.some((command) => command.name === 'factor-weather'),
+    false,
+  );
   assert.deepEqual(e2eCommands.find((command) => command.name === 'research-fcff-reuse').nodeArgs, [
     '--import',
     'tsx',

@@ -1,6 +1,6 @@
 # 系统功能裁剪计划
 
-日期：2026-10-25。状态：功能范围已收口；Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review 与验证；研究卡与 holdout 删除、因子报告保留与内置版本保护、Research 正式证据删除及 Strategy 最近结果简化已通过人工 review 与验证；其余裁剪待实施。
+日期：2026-10-25。状态：功能范围已收口；Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review 与验证；研究卡与 holdout 删除、因子报告保留与内置版本保护、Research 正式证据删除、Strategy 最近结果简化及因子天气删除已通过人工 review 与验证；其余裁剪待实施。
 
 目标是把 jixie 收敛为维护者能够独立读懂、审查和修改的个人研究工具。优先删除不再需要的产品能力及其数据、状态和后台流程，再根据剩余需求简化实现。
 
@@ -449,14 +449,65 @@ Prisma 生成迁移 `20261025150000_remove_factor_research_gates`，仅删除 Fa
 
 最终清理已确认：无测试服务／Worker／浏览器／Python／Pyright 残留进程，浏览器父夹具确认临时端口拒绝连接；隔离库目录无残留，空目录无残留。原三个未跟踪文档及开发库文件 mtime 保持原值，不推送。
 
-## 19 下一项实施提案：因子天气整体删除（待范围确认，未实施）
+## 19 因子天气整体删除（review 与验证通过）
 
-拟提交消息：`feat(factor)!: remove factor weather tracking`。
+提交消息：`feat(factor)!: remove factor weather tracking`。
 
-当前 Strategy 最近结果简化已完成。下一项删除因子天气页面与导航、固定／刷新／读取接口、后台刷新和启动恢复、Maintenance 的天气消费者与失效调用，以及 `results.factor_weather()`、相关目录绑定、共享类型、双语帮助、专用预设／验收入口和存储。交付后普通因子编写、分析、发布与策略引用照常使用，天气入口和旧 SDK 调用直接报不支持／不存在；没有替代天气平台。
+当前 Strategy 最近结果简化已完成。本项删除因子天气页面与导航、固定／刷新／读取接口、后台刷新和启动恢复、Maintenance 的天气消费者与失效调用，以及 `results.factor_weather()`、相关目录绑定、共享类型、双语帮助、专用预设／验收入口和存储。交付后普通因子编写、分析、发布与策略引用照常使用，天气入口和旧 SDK 调用直接报不支持／不存在；没有替代天气平台。
 
 主要位置：`factor/weather`、`factor/routes/weather.ts`、`maintenance/consumers.ts`／相关失效调用、`bootstrap.ts`、Research 数据与结果映射、SDK Contract／Python／生成声明、Web `factor-weather`／导航及 Docs。由 Prisma 生成新迁移删除 `FactorWeatherPin`／`FactorWeatherPoint` 及关系，清除只为天气服务的状态／缓存，发布 Factor 的源码和关联分析结果不删除。历史固定项和观测删除不可恢复；不操作开发／生产库，仅隔离验证。
 
 边界：本项不删除多因子、市场天气、行情或重新设计 Maintenance，只清除因子天气的消费者。若发现公用计算必须扩大语义或改变普通因子／回测行为，先回报范围变化。部署和 Python 镜像输入有变化时同步影响清单与测试，空目录持续清理。
 
-范围确认后完整实现，再运行格式、零警告 lint、typecheck、SDK 生成一致性、Prisma 和依赖边界静态检查，停在人工代码 review。review 通过后验证隔离迁移、旧路由／SDK 明确失败、普通 Factor 发布和 TS／Python 策略消费、无后台天气运行、构建与中英浏览器／帮助，清理后提交。当前仅形成下一项提案，尚未实施。
+已按确认范围完成实现、静态检查、人工 review 与下述行为验证。数据库迁移只在隔离夹具中执行，不操作开发或生产库。
+
+### 19.1 实现与 review 入口（2026-10-26）
+
+- 删除 `factor/weather`、天气路由、Web complex／导航／语言资源、天气共享类型和请求 schema。草稿编辑／删除和 Agent 代码提案不再查询天气固定项；已发布 Factor 的只读限制、绑定报告与源码保持原契约。
+- `bootstrap.ts` 不再恢复天气刷新；`maintenance/sync.ts` 不再失效或刷新天气，天气专用 `consumers.ts` 删除。市场派生计算、发布锁和普通 Factor Worker 继续保留。部署门禁不再计数天气表；现有 bootstrap 仍先排空准入、停止旧 API，再执行迁移。
+- Research SDK Contract 删除 `results.factor_weather()`，同步 Python 作者对象、宿主协议／参数校验／分派、Agent 目录、前端选择器与生成 `.pyi`。历史研究源码保留，旧调用报错。混合结果 loader 改名 `datasets/results/strategy-scan-report.ts`，只保留扫描结果及归属校验。
+- Prisma 自动生成 `20261026160000_remove_factor_weather`，SQL 仅删除 `FactorWeatherPin`、`FactorWeatherPoint`。历史固定项与观测会永久删除，发布因子／报告不在迁移删除范围；生成时尚未执行迁移，隔离升级结果见第 19.4 节。
+- 删除两篇双语天气帮助和四个专用现存 PNG，图片清单将相关记录标为 retired；删除截图场景和旧 E2E 命令，保留历史记录及 25 张学习结果原图。当前帮助每种语言 86 篇，静态检查 683 个内部链接、280 次图片引用均有效。
+- Python 镜像输入文件没有增删，`results.py` 与 `bindings.py` 已在 Docker 输入和部署影响清单内；不改变包或构建依赖，不需要新部署映射。
+
+### 19.2 Review 前静态结果
+
+- 变更 TS／TSX／MJS／JSON 格式检查通过，ESLint `--max-warnings=0` 通过；Python runtime、绑定与生成声明 AST 解析通过。
+- `pnpm typecheck` 全部五个 workspace 通过；包含 SDK 生成物一致性检查和后端边界纯静态扫描（803 文件，0 违规）。未调用包含自测的边界聚合命令。
+- Prisma format／generate／validate 通过；旧 schema 到新 schema 重新生成 SQL，与提交候选迁移逐字节相同，生成 SQL 未手工修改。
+- `git diff --check` 通过；生成 SQL 保留 Prisma 自带末尾空行。清理六个天气空目录；未启动应用、后台 Worker、Python 服务或浏览器，没有产生临时数据库。
+- 开发库文件和原三个未跟踪文档的 mtime 均保持原值。未执行测试、构建、迁移、业务探针或浏览器验收，也未提交。
+
+### 19.3 已准备、待 review 通过后执行的验证
+
+- 新增隔离升级测试：迁移前包含 running 天气固定项及历史点，迁移后只删除天气对象，其余表结构、所有者、已发布源码、关联成功报告、策略引用和对话保持原值；检查外键。
+- HTTP 集成测试覆盖旧天气读取／固定／刷新／删除 404；保留普通因子发布只读与私有归属保护。Python 会话测试覆盖旧 `results.factor_weather()` 报错，宿主协议拒绝旧方法，目录不再返回天气字段或方法。
+- 扫描结果 loader 测试、原 Factor 评估／发布及 TS／Python 策略消费测试，Maintenance 同步／发布和部署门禁回归；先构建 Shared 后执行需要运行产物的验证。
+- 全 workspace 构建、真实 API 启动／后台恢复、Research 因子报告目录中英浏览器验收（保留搜索／插入、天气导航与方法消失）、双语帮助与窄屏检查。验收只使用隔离库；结束后关闭服务并检查端口、连接和空目录。
+
+
+### 19.4 Review 通过后的验证与收尾（2026-10-26）
+
+- API 全套通过：290 个文件、1942 项测试；原有 opt-in 性能基准 1 文件／2 项保持跳过。包括天气旧路由 404、Python 旧方法失败、宿主旧协议拒绝、目录字段删除、发布保护、Maintenance 同步和启动恢复。
+- 隔离存量升级通过：带 running 固定项及月度观测的旧库升级后，两张天气表删除，其余表结构、所有者、发布源码与绑定报告、策略配置和对话与迁移前完全相同；外键检查无错误。新空隔离库的完整迁移链也通过。
+- Shared、API、Web、Docs、sandboxd 五个 workspace 构建通过，只有既有前端 chunk 大小提示。编译产物 Worker 另跑 12 项通过，验证 TS／Python 策略和因子互相消费、扫描、启动恢复和进程退出；源码 Worker 已在 API 全套覆盖。
+- sandboxd 通信／资源回收 8 项、检查器／部署／E2E 调度／Python 环境 97 项、Research 前端契约与帮助检查 33 项全部通过。
+- 构建后的 API 与 sandboxd 在独立 SQLite 上启动：四条旧天气路径全部 404，旧 `results.factor_weather()` 保存为明确执行错误，普通 Python Cell 继续成功执行；运行和日志无天气恢复或缺表错误。
+- Research 因子报告目录中英文浏览器通过：搜索、切换、插入与自动保存保留，天气导航和方法消失。截图 `apps/web/acceptance/research-factor-report-catalog.png`、`research-factor-report-catalog-en.png` 已查看。
+- 帮助完整浏览器通过：每种语言 86 篇、683 个内部链接、155 张引用图、25 张原始学习证据；双语正文／公式／工作台跳转及 390px 窄屏通过，`apps/docs/acceptance/18-help-current-workflow-mobile.png` 已查看。
+- 验证中只修正测试设施：图片任务 16→15、帮助文章 88→86、首页手册组 8→7，以及临时 HTTP 脚本补传 Cell expectedRevision；SDK 边界测试使用正确的 `--import tsx` 入口。没有改变已 review 的产品逻辑。
+- 验收父进程确认全部服务进程组退出、三个临时端口拒绝连接、临时库删除；进程清单无 API／Vite／Python／Pyright 残留，源文件和帮助空目录检查通过。开发库与原三个未跟踪文档 mtime 保持原值；不推送。
+
+## 20 下一项实施提案：多因子平台删除（待范围确认，未实施）
+
+拟提交消息：`feat(factor)!: remove composite factors and correlation tasks`。
+
+下一项按既定第 3 节删除多因子平台整体：组合定义编辑、合成计算、组合分析／发布／归档、因子相关性任务与热图、相关性缓存、对应 HTTP 和 Job、策略组合引用、Research／Agent 中的组合入口和绑定，以及共享契约、双语帮助、专用预设与验收脚本。没有新的组合平台或兼容执行层。
+
+保留单个因子的编写、分析、发布版本与绑定报告，策略仍可同时声明和使用多个独立已发布因子。普通 IC、统计相关系数、单因子 Panel 计算和回测归因不因同名概念一并删除；行情／行业／宏观范围与 Maintenance 最终简化仍留给相应后续提交。
+
+主要位置：`factor/composition`、`factor/correlations`、`factor/routes/{composite,correlation}.ts`、`publication/panel-composite.ts`、来源解析／快照／报告读取与保留、`jobs/register.ts`，Strategy 因子准备与引擎组合输入，Web Factor 工作台、Research 目录／结果映射、SDK／Agent 提示与 Docs。删掉只服务组合的分支，不扩大成单因子评估重写；跨包构建／Python 镜像输入若有变更，同步部署影响清单与计划测试。
+
+Prisma 生成迁移删除 `FactorComposite`、`FactorCorrelation` 及关系，组合定义／发布信息和相关性缓存会永久删除。独立 Factor、发布源码和绑定报告保持；旧组合引用与旧组合报告不提供专用执行／读取链，通用旧任务沿用未知 kind 的终止规则。只在隔离库验证迁移，不修改用户旧源码，不创建向独立因子的自动转换。
+
+确认范围后完整实施，先运行格式、零警告 lint、全仓类型、SDK 一致性、Prisma 与边界静态检查，再停在人工代码 review。review 通过后验证隔离存量升级、旧组合和相关性接口／任务／引用明确失败、独立因子发布与多独立因子的 TS／Python 策略消费、扫描和最近报告、构建、中英工作台及帮助浏览器；清理空目录和验收资源后提交。若必须改变保留的单因子语义或进一步删除资产能力，先重新讨论范围。当前只有提案，没有开始实现。

@@ -47,9 +47,9 @@ export type FactorEvaluationResult =
   | FactorMacroRegimeReportV1;
 
 /**
- * 对冻结来源执行计算，不管理报告、任务或因子气象的持久化生命周期。
+ * 对冻结来源执行计算，不管理报告或任务的持久化生命周期。
  *
- * Compute a frozen source without owning a report, job, or weather persistence lifecycle.
+ * Compute a frozen source without owning a report or job persistence lifecycle.
  */
 export async function runFactorEvaluation({
   factor,

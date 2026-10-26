@@ -1,14 +1,13 @@
 import { strategyResultSettings } from '#strategy/definitions/config.js';
 import { strategyScanReportState } from '#strategy/scans/state.js';
-import { factorWeatherMethodology } from '#factor/weather/refresh.js';
 import { getDatabase } from '#infra/database/prisma.js';
 
 const MAX_STRATEGY_SCAN_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
 /**
- * 约束扫描与气象输出中的 JSON 值，供安全映射。
+ * 约束扫描输出中的 JSON 值，供安全映射。
  *
- * Constrain JSON values mapped from scan and weather results.
+ * Constrain JSON values mapped from scan results.
  */
 type ResearchJsonValue =
   | null
@@ -71,69 +70,6 @@ export async function loadResearchStrategyScanReportResult(documentId: string, r
   };
 }
 
-/**
- * 读取可访问因子气象的持久化结果，保留数据截止与版本信息。
- *
- * Read accessible persisted factor-weather results with cutoff and version metadata.
- */
-export async function loadResearchFactorWeatherResult(documentId: string, factorId: string) {
-  const userId = await researchDocumentUserId(documentId);
-  const pin = await getDatabase().factorWeatherPin.findFirst({
-    where: { userId, factorId },
-    select: {
-      factorId: true,
-      factorName: true,
-      direction: true,
-      status: true,
-      computedThrough: true,
-      factorCodeHash: true,
-      points: {
-        orderBy: { periodEndDate: 'asc' },
-        select: {
-          formationDate: true,
-          periodEndDate: true,
-          rankIc: true,
-          topReturn: true,
-          bottomReturn: true,
-          longShortGrossReturn: true,
-          longShortNetReturn: true,
-          topTurnover: true,
-          sampleSize: true,
-          sampleCoverage: true,
-        },
-      },
-    },
-  });
-  if (!pin) {
-    throw new Error('Factor Weather pin was not found.');
-  }
-  if (pin.status !== 'ready') {
-    throw new Error(`Factor Weather pin is not ready: ${pin.status}.`);
-  }
-  return {
-    rows: pin.points.map((point) => ({
-      formation_date: point.formationDate,
-      period_end_date: point.periodEndDate,
-      rank_ic: point.rankIc,
-      top_return: point.topReturn,
-      bottom_return: point.bottomReturn,
-      long_short_gross_return: point.longShortGrossReturn,
-      long_short_net_return: point.longShortNetReturn,
-      top_turnover: point.topTurnover,
-      sample_size: point.sampleSize,
-      sample_coverage: point.sampleCoverage,
-    })),
-    metadata: {
-      factor_id: pin.factorId,
-      factor_name: pin.factorName,
-      direction: pin.direction,
-      computed_through: pin.computedThrough,
-      code_hash: pin.factorCodeHash,
-      methodology: snakeCaseJson(factorWeatherMethodology()),
-    },
-  };
-}
-
 async function researchDocumentUserId(documentId: string): Promise<string> {
   const document = await getDatabase().agentConversation.findFirst({
     where: { id: documentId, surface: 'research', archivedAt: null },
@@ -146,9 +82,9 @@ async function researchDocumentUserId(documentId: string): Promise<string> {
 }
 
 /**
- * 递归转换扫描及气象结果键名，供 Python 作者统一读取。
+ * 递归转换扫描结果键名，供 Python 作者统一读取。
  *
- * Recursively convert scan and weather result keys for Python author access.
+ * Recursively convert scan result keys for Python author access.
  */
 function snakeCaseJson(value: unknown): ResearchJsonValue {
   if (value === null || typeof value === 'boolean' || typeof value === 'string') {

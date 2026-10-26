@@ -27,7 +27,6 @@ import type {
   ResearchDataCatalogBacktestReportV1,
   ResearchDataCatalogDatasetV1,
   ResearchDataCatalogFactorReportV1,
-  ResearchDataCatalogFactorWeatherV1,
   ResearchDataCatalogInstrumentV1,
   ResearchDataCatalogSdkMethodV1,
   ResearchDataCatalogStrategyScanReportV1,
@@ -57,7 +56,6 @@ import {
   researchBacktestReportSelection,
   researchDatasetSelection,
   researchFactorReportSelection,
-  researchFactorWeatherSelection,
   researchSeriesSelection,
   researchStrategyScanReportSelection,
   type ResearchCatalogSelection,
@@ -115,8 +113,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
     );
     const [selectedBacktestReport, setSelectedBacktestReport] =
       useState<ResearchDataCatalogBacktestReportV1 | null>(null);
-    const [selectedFactorWeather, setSelectedFactorWeather] =
-      useState<ResearchDataCatalogFactorWeatherV1 | null>(null);
     const [selectedStrategyScan, setSelectedStrategyScan] =
       useState<ResearchDataCatalogStrategyScanReportV1 | null>(null);
     const [selectedMethodName, setSelectedMethodName] = useState<string | null>(null);
@@ -187,11 +183,9 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
             ? researchBacktestReportSelection(selectedBacktestReport)
             : null
         : view === 'factor_reports'
-          ? selectedFactorWeather
-            ? researchFactorWeatherSelection(selectedFactorWeather)
-            : selectedReport
-              ? researchFactorReportSelection(selectedReport)
-              : null
+          ? selectedReport
+            ? researchFactorReportSelection(selectedReport)
+            : null
           : view === 'datasets'
             ? selectedDataset &&
               selectedDataset.localDataCoverage.status === 'ready' &&
@@ -289,7 +283,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
           : view === 'datasets' && selectedDataset
             ? localizedDatasetName(selectedDataset, i18n.language)
             : view === 'factor_reports'
-              ? (selectedReport?.factorName ?? selectedFactorWeather?.factorName)
+              ? selectedReport?.factorName
               : view === 'backtest_reports'
                 ? (selectedStrategyScan?.strategyName ?? selectedBacktestReport?.strategyName)
                 : undefined;
@@ -346,7 +340,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
             setSelectedDataset(null);
             setSelectedReport(null);
             setSelectedBacktestReport(null);
-            setSelectedFactorWeather(null);
             setSelectedStrategyScan(null);
             setSelectedMethodName(null);
           }}
@@ -433,7 +426,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
             setSelectedDataset(null);
             setSelectedReport(null);
             setSelectedBacktestReport(null);
-            setSelectedFactorWeather(null);
             setSelectedStrategyScan(null);
           }}
         />
@@ -841,7 +833,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                         data-testid={`research-data-catalog-report-${report.id}`}
                         onClick={() => {
                           setSelectedReport(report);
-                          setSelectedFactorWeather(null);
                         }}
                       >
                         <span className="jx-researchDataCatalog-resultIcon">
@@ -899,62 +890,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                       )}
                     </strong>
                   </div>
-                </div>
-                <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
-              </section>
-            )}
-
-            {(catalog?.factorWeather ?? []).length > 0 && (
-              <section className="jx-researchDataCatalog-section">
-                <div className="jx-researchDataCatalog-sectionHead">
-                  <strong>{t('dataCatalog.factorWeather')}</strong>
-                  <span>{t('dataCatalog.matches', { count: catalog?.factorWeather.length })}</span>
-                </div>
-                <div className="jx-researchDataCatalog-results">
-                  {(catalog?.factorWeather ?? []).map((weather) => (
-                    <button
-                      key={weather.factorId}
-                      type="button"
-                      className={classNames('jx-researchDataCatalog-result', {
-                        'jx-researchDataCatalog-result--active':
-                          selectedFactorWeather?.factorId === weather.factorId,
-                      })}
-                      data-testid={`research-data-catalog-factor-weather-${weather.factorId}`}
-                      onClick={() => {
-                        setSelectedFactorWeather(weather);
-                        setSelectedReport(null);
-                      }}
-                    >
-                      <span className="jx-researchDataCatalog-resultIcon">
-                        <FontAwesomeIcon icon={faChartLine} />
-                      </span>
-                      <span className="jx-researchDataCatalog-resultText">
-                        <strong>{weather.factorName}</strong>
-                        <code>{weather.factorId}</code>
-                        <span className="jx-researchDataCatalog-reportDate">
-                          {weather.computedThrough
-                            ? formatCatalogDate(weather.computedThrough)
-                            : t('dataCatalog.noComputedThrough')}
-                        </span>
-                      </span>
-                      <span className="jx-researchDataCatalog-resultTags">
-                        <Tag>{weather.direction}</Tag>
-                        <Tag>{t('dataCatalog.weatherPoints', { count: weather.pointCount })}</Tag>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {selectedFactorWeather && (
-              <section
-                className="jx-researchDataCatalog-config"
-                data-testid="research-data-catalog-factor-weather-config"
-              >
-                <div className="jx-researchDataCatalog-sectionHead">
-                  <strong>{t('dataCatalog.factorWeather')}</strong>
-                  <code>{selectedFactorWeather.factorId}</code>
                 </div>
                 <pre className="jx-researchDataCatalog-preview">{snippet}</pre>
               </section>

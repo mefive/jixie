@@ -18,7 +18,6 @@ import {
   parseResearchFinancialStatementsRuntimeRows,
   parseResearchFinancialMetricsRuntimeRows,
   parseResearchEquityDatasetRuntimeRows,
-  parseResearchFactorWeatherRuntimeRows,
 } from './validation.js';
 import { loadResearchFinancialValues } from '../../datasets/financial-values.js';
 import {
@@ -53,10 +52,7 @@ import {
 import { loadResearchCrossSection, loadResearchPanel } from '../../datasets/equity.js';
 import { loadResearchFactorReportResult } from '../../datasets/results/factor-report.js';
 import { loadResearchBacktestReportResult } from '../../datasets/results/backtest-report.js';
-import {
-  loadResearchStrategyScanReportResult,
-  loadResearchFactorWeatherResult,
-} from '../../datasets/results/scan-and-weather.js';
+import { loadResearchStrategyScanReportResult } from '../../datasets/results/strategy-scan-report.js';
 import type { ResearchSeriesInputSpecV1 } from '@jixie/shared';
 
 type ResearchInputResponse = { result?: Record<string, unknown>; error?: string };
@@ -313,14 +309,6 @@ async function answerResearchRequest(
       }
       case 'research_strategy_scan_report': {
         result = await loadResearchStrategyScanReportResult(documentId, frame.arguments.report_id);
-        break;
-      }
-      case 'research_factor_weather': {
-        const loaded = await loadResearchFactorWeatherResult(documentId, frame.arguments.factor_id);
-        result = {
-          rows: parseResearchFactorWeatherRuntimeRows(loaded.rows),
-          metadata: loaded.metadata,
-        };
         break;
       }
     }

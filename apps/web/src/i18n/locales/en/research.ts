@@ -269,10 +269,7 @@ export const enResearch: typeof zhResearch = {
     datasets: 'Available datasets',
     factorReports: 'Recent reports',
     backtestReports: 'Recent backtests',
-    factorWeather: 'Factor Weather',
     strategyScans: 'Parameter scans',
-    weatherPoints: '{{count}} months',
-    noComputedThrough: 'No computed-through date',
     matches: '{{count}} matches',
     assetType: {
       all: 'All',

@@ -2,7 +2,7 @@
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
 
-Factor 拥有因子定义、组合、正式评估、发布和持续观察。Research 可交接草稿或读取结果，Strategy 消费可用因子，通用 Agent 执行对话；因子的所有权、状态和准入由本模块决定。
+Factor 拥有因子定义、组合、正式评估和发布。Research 可交接草稿或读取结果，Strategy 消费可用因子，通用 Agent 执行对话；因子的所有权、状态和准入由本模块决定。
 
 ## 按业务问题进入
 
@@ -13,18 +13,17 @@ Factor 拥有因子定义、组合、正式评估、发布和持续观察。Rese
 | 何时允许发布、归档或公开 | [publication](publication/README.md)：报告证据、源码和状态核对 |
 | 输入数据从哪里来、何时可得 | [observations](observations/README.md)：各资产与 PIT 观察值、截止日；[横截面数据与序列](observations/cross-sectional/README.md) 也供相关性复用 |
 | 提交分析与读报告 | [evaluations](evaluations/README.md)：冻结正式报告和 Job 生命周期 |
-| 计算如何被评估和天气复用 | [analysis](analysis/README.md)：四类评估算法、共享计算与 Worker；[cross-sectional](analysis/cross-sectional/README.md)：政策、统计及推断 |
+| 正式评估如何计算 | [analysis](analysis/README.md)：四类评估算法、共享计算与 Worker；[cross-sectional](analysis/cross-sectional/README.md)：政策、统计及推断 |
 | 因子间相关性如何缓存 | [correlations](correlations/README.md)：独立任务与缓存，不创建正式报告 |
 | 来源、快照和哈希在哪里定义 | [sources](sources/README.md)：纯来源与指纹、需要查库的来源解析 |
 | 如何查询任务归属 | [jobs](jobs/README.md)：独立 kind 与报告关系，不拥有业务生命周期 |
 | 作者接口、上下文与声明从哪里来 | [sdk](sdk/README.md)：TS/Python SDK；公开契约与声明生成归 shared/sdk/factor |
 | 定义检查和双语言执行 | [sandbox](sandbox/README.md)：共享验证／提示词；[TypeScript](sandbox/typescript/README.md)、[Python](sandbox/python/README.md)：各自编译、协议与资源 |
-| 固定因子版本、持续观察 | [weather](weather/README.md)：pin、月度结果与独立刷新状态 |
 | 编辑对话和私有只读问答 | [agent](agent/README.md)：草稿 authoring；[questions](questions/README.md)：稳定因子身份、私有历史与上下文 |
 
 ## 主要协作流程
 
-普通分析由 evaluations 接收来源与研究配置，冻结报告并入队；其 Job 调用 analysis，后者通过 observations 和 runtime 计算，结果回到评估生命周期保存。相关性只复用横截面数据／序列；天气复用计算 Worker，各自持有产物和状态。
+普通分析由 evaluations 接收来源与研究配置，冻结报告并入队；其 Job 调用 analysis，后者通过 observations 和 runtime 计算，结果回到评估生命周期保存。相关性只复用横截面数据／序列，各自持有产物和状态。
 
 已完成报告可由本人直接读取；publication 核对成功报告与当前代码／运行时后发布。Strategy 的 [因子准备](../strategy/factors/README.md) 消费已批准来源，草稿编辑不会让旧报告自动证明新代码。
 
@@ -32,10 +31,10 @@ Factor 拥有因子定义、组合、正式评估、发布和持续观察。Rese
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 具名导出 `factorRoute`，组合 definition / composite / agent / analysis / correlation / weather 六组路由，挂载 `/api/app/factors`。路由处理参数、用户／locale 和 HTTP 映射；[共享请求契约](../../../../packages/shared/src/api/factor.ts) 定义输入结构与通用校验，[schema.ts](schema.ts) 组合 Agent / 问答的后端 SDK 引用校验，[errors.ts](errors.ts) 定义共用业务拒绝，具名函数及主要调用方见子能力说明。完整 HTTP 路径见 [路由设计](../../../../docs/design/api-route-naming.md)。
+[routes/index.ts](routes/index.ts) 具名导出 `factorRoute`，组合 definition / composite / agent / analysis / correlation 五组路由，挂载 `/api/app/factors`。路由处理参数、用户／locale 和 HTTP 映射；[共享请求契约](../../../../packages/shared/src/api/factor.ts) 定义输入结构与通用校验，[schema.ts](schema.ts) 组合 Agent / 问答的后端 SDK 引用校验，[errors.ts](errors.ts) 定义共用业务拒绝，具名函数及主要调用方见子能力说明。完整 HTTP 路径见 [路由设计](../../../../docs/design/api-route-naming.md)。
 
-定义、冻结报告、后台 Job、相关性缓存和天气 pin 是不同对象。访问控制在相应业务入口完成；低层计算／来源函数不能替代授权。公开读取不能泄露作者私有消息或研究来源；报告与日志的归属由 evaluations 统一校验。
+定义、冻结报告、后台 Job 和相关性缓存是不同对象。访问控制在相应业务入口完成；低层计算／来源函数不能替代授权。公开读取不能泄露作者私有消息或研究来源；报告与日志的归属由 evaluations 统一校验。
 
-各生命周期保持自己的事务和收尾，提交后才唤醒相应队列；天气刷新不属于通用 Job。Worker、isolate 和 Python 路径以 [运行清单](../../../../docs/backend-runtime-entries.md) 为准。整体 HTTP 回归定位在 [routes/index.integration.test.ts](routes/index.integration.test.ts)，能力算法／状态测试见各 README。
+各生命周期保持自己的事务和收尾，提交后才唤醒相应队列。Worker、isolate 和 Python 路径以 [运行清单](../../../../docs/backend-runtime-entries.md) 为准。整体 HTTP 回归定位在 [routes/index.integration.test.ts](routes/index.integration.test.ts)，能力算法／状态测试见各 README。
 
 跨模块规则见 [后端边界](../../../../docs/backend-boundaries.md)。背景与历史验收集中在 [架构重构记录](../../../../docs/design/backend-architecture-refactor.md#77-commit-7-实现与验证记录2026-09-08014899ba)、[内部结构设计](../../../../docs/design/core-business-internal-structure.md)、[服务边界设计](../../../../docs/design/core-business-service-boundaries.md) 和 [路由迁移记录](../../../../docs/design/api-route-naming.md#factor-路由职责整理2026-09-10)。

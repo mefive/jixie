@@ -1,5 +1,4 @@
 import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
-import { invalidateFactorWeather } from '#factor/weather/invalidation.js';
 import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
 import { MarketSyncBudgetError } from '#market/errors.js';
 import {
@@ -29,7 +28,6 @@ import {
   refreshMarketCalculations,
   readMarketCalculationBacklog,
 } from './calculations.js';
-import { runSyncConsumers } from './consumers.js';
 import { cleanRetiredSyncResources } from './resources.js';
 
 export interface DataSyncInput {
@@ -144,10 +142,6 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
           limit: SYNC_LIMITS.calculations,
           signal: input.signal,
         });
-        await database.dataSyncRun.update({ where: { id: runId }, data: { stage: 'consumers' } });
-        const consumers = await runSyncConsumers(input.signal);
-        result.gaps.push(...consumers.gaps);
-        result.errors.push(...consumers.errors);
         result.gaps.push(...(await cleanRetiredSyncResources()));
       } catch (error) {
         result.errors.push(error instanceof Error ? error.message : String(error));
@@ -344,7 +338,6 @@ async function publishSyncPartition(
           if (eligibilityChanged) {
             await invalidatePartitionCoverage(transaction, partition);
           }
-          await invalidateFactorWeather(transaction, accepted.changes);
         }
         await updateVerifiedCoverage(transaction, partition.dataset, partition.scope);
 
@@ -429,7 +422,6 @@ async function normalizeSyncIdentities(
                 data: { revision: { increment: 1 } },
               });
               await invalidateMarketCalculations(transaction, accepted.changes);
-              await invalidateFactorWeather(transaction, accepted.changes);
             }
             return accepted;
           },

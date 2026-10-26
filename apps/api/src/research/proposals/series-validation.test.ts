@@ -18,7 +18,6 @@ const catalog: ResearchDataCatalogResultV1 = {
   ],
   datasets: [],
   factorReports: [],
-  factorWeather: [],
   backtestReports: [],
   strategyScanReports: [],
   measures: [],

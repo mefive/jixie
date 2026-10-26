@@ -81,10 +81,6 @@ import evaluationScopeEn from '@src/content/help/en/factors/evaluation-scope.md?
 import evaluationScopeZh from '@src/content/help/zh/factors/evaluation-scope.md?raw';
 import factorInStrategyEn from '@src/content/help/en/factors/factor-in-strategy.md?raw';
 import factorInStrategyZh from '@src/content/help/zh/factors/factor-in-strategy.md?raw';
-import factorWeatherGettingStartedEn from '@src/content/help/en/factor-weather/getting-started.md?raw';
-import factorWeatherGettingStartedZh from '@src/content/help/zh/factor-weather/getting-started.md?raw';
-import factorWeatherReadCardsEn from '@src/content/help/en/factor-weather/read-cards.md?raw';
-import factorWeatherReadCardsZh from '@src/content/help/zh/factor-weather/read-cards.md?raw';
 import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-analysis.md?raw';
 import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
 import neutralizationEn from '@src/content/help/en/factors/neutralization.md?raw';
@@ -184,7 +180,6 @@ export const HELP_GROUPS = [
   'stockDetail',
   'backtesting',
   'factorResearch',
-  'factorWeather',
   'marketValuation',
 ] as const;
 export type HelpGroup = (typeof HELP_GROUPS)[number];
@@ -1416,38 +1411,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: factorInStrategyZh,
       en: factorInStrategyEn,
-    },
-  },
-  {
-    slug: 'factor-weather/getting-started',
-    group: 'factorWeather',
-    title: {
-      zh: '开始使用因子气象',
-      en: 'Get started with Factor Weather',
-    },
-    summary: {
-      zh: '钉住一个已定稿因子，理解固定月频方法，并等待首次历史回填。',
-      en: 'Pin a finalized factor, understand the fixed monthly method, and wait for its first backfill.',
-    },
-    content: {
-      zh: factorWeatherGettingStartedZh,
-      en: factorWeatherGettingStartedEn,
-    },
-  },
-  {
-    slug: 'factor-weather/read-cards',
-    group: 'factorWeather',
-    title: {
-      zh: '阅读因子气象卡片',
-      en: 'Read Factor Weather cards',
-    },
-    summary: {
-      zh: '阅读月度费后多空收益、近 3 月与近 12 月复合收益、IC、覆盖率和换手。',
-      en: 'Read monthly net long-short return, compound returns, IC, coverage, and turnover.',
-    },
-    content: {
-      zh: factorWeatherReadCardsZh,
-      en: factorWeatherReadCardsEn,
     },
   },
   {

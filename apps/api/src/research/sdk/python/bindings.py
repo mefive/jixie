@@ -16,6 +16,6 @@ def create_research_sdk(capabilities: ResearchCapabilities, pandas_module: Any) 
     return {
         "data": _DataApi(capabilities, pandas_module),
         "charts": _ChartsApi(),
-        "results": _ResultsApi(capabilities, pandas_module),
+        "results": _ResultsApi(capabilities),
         "valuation": _ValuationApi(pandas_module),
     }

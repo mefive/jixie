@@ -66,10 +66,6 @@ export async function acceptFactorCodeProposal(
       throw new AgentError('code_proposal_conflict');
     }
 
-    if (await transaction.factorWeatherPin.count({ where: { factorId } })) {
-      throw new FactorError('pinned_factor_readonly_edit');
-    }
-
     await transaction.factor.update({
       where: { id: factorId },
       data: { code: proposal.afterCode },

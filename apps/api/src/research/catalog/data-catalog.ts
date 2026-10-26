@@ -18,7 +18,6 @@ import {
   type ResearchDataCatalogDatasetCoverageV1,
   type ResearchDataCatalogDatasetV1,
   type ResearchDataCatalogFactorReportV1,
-  type ResearchDataCatalogFactorWeatherV1,
   type ResearchDataCatalogInstrumentV1,
   type ResearchDataCatalogRegistryV1,
   type ResearchDataCatalogResultV1,
@@ -98,12 +97,8 @@ export async function searchResearchDataCatalog(
     }));
 
   if (scope === 'factor_reports') {
-    const [factorReports, factorWeather] = input.userId
-      ? await Promise.all([
-          searchFactorReports(input.userId, query, limit),
-          searchFactorWeather(input.userId, query, limit),
-        ])
-      : [[], []];
+    const factorReports = input.userId ? await searchFactorReports(input.userId, query, limit) : [];
+
     return {
       version: 1,
       query,
@@ -111,7 +106,6 @@ export async function searchResearchDataCatalog(
       instruments: [],
       datasets: [],
       factorReports,
-      factorWeather,
       backtestReports: [],
       strategyScanReports: [],
       measures: [],
@@ -132,7 +126,6 @@ export async function searchResearchDataCatalog(
       instruments: [],
       datasets: [],
       factorReports: [],
-      factorWeather: [],
       backtestReports,
       strategyScanReports,
       measures: [],
@@ -147,7 +140,6 @@ export async function searchResearchDataCatalog(
       instruments: [],
       datasets: await searchDatasets(query, limit),
       factorReports: [],
-      factorWeather: [],
       backtestReports: [],
       strategyScanReports: [],
       measures: [],
@@ -162,7 +154,6 @@ export async function searchResearchDataCatalog(
       instruments: [],
       datasets: [],
       factorReports: [],
-      factorWeather: [],
       backtestReports: [],
       strategyScanReports: [],
       measures,
@@ -342,7 +333,6 @@ export async function searchResearchDataCatalog(
     instruments: await attachLocalDataCoverage(instruments),
     datasets: [],
     factorReports: [],
-    factorWeather: [],
     backtestReports: [],
     strategyScanReports: [],
     measures,
@@ -381,7 +371,7 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.futures_settlement',
       ];
     case 'factor_reports':
-      return ['results.factor_report', 'results.factor_weather'];
+      return ['results.factor_report'];
     case 'backtest_reports':
       return ['results.backtest_report', 'results.strategy_scan_report'];
     default:
@@ -1461,48 +1451,6 @@ async function searchFactorReports(
       computedAt: report.computedAt?.toISOString() ?? null,
     };
   });
-}
-
-/**
- * 搜索可访问因子气象及其刷新结果，供研究引用。
- *
- * Search accessible factor-weather results for research references.
- */
-async function searchFactorWeather(
-  userId: string,
-  query: string,
-  limit: number,
-): Promise<ResearchDataCatalogFactorWeatherV1[]> {
-  const pins = await getDatabase().factorWeatherPin.findMany({
-    where: {
-      userId,
-      status: 'ready',
-      ...(query
-        ? {
-            OR: [{ factorId: { contains: query } }, { factorName: { contains: query } }],
-          }
-        : {}),
-    },
-    select: {
-      factorId: true,
-      factorName: true,
-      direction: true,
-      computedThrough: true,
-      createdAt: true,
-      _count: { select: { points: true } },
-    },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: limit,
-  });
-  return pins.map((pin) => ({
-    kind: 'factor_weather',
-    factorId: pin.factorId,
-    factorName: pin.factorName,
-    direction: pin.direction === 'negative' ? 'negative' : 'positive',
-    computedThrough: pin.computedThrough,
-    pointCount: pin._count.points,
-    createdAt: pin.createdAt.toISOString(),
-  }));
 }
 
 /**

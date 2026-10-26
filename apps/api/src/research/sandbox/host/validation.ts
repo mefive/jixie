@@ -15,7 +15,6 @@ import {
   RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
-  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1,
   RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
@@ -240,15 +239,6 @@ export interface ResearchStrategyScanReportRuntimeRequestV1 {
   report_id: string;
 }
 
-/**
- * 传递因子气象身份，供归属校验后的结果读取。
- *
- * Identify factor weather for ownership-checked loading.
- */
-export interface ResearchFactorWeatherRuntimeRequestV1 {
-  factor_id: string;
-}
-
 const researchSeriesRequestSchema = z.strictObject(
   Object.fromEntries(
     RESEARCH_SERIES_SDK_CONTRACT_V1.parameters.map((parameter) => [
@@ -288,12 +278,6 @@ const researchBacktestReportRequestSchema = sdkRequestSchema(
 );
 const researchStrategyScanReportRequestSchema = sdkRequestSchema(
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1.parameters,
-);
-const researchFactorWeatherRequestSchema = sdkRequestSchema(
-  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1.parameters,
-);
-const researchFactorWeatherRowsSchema = sdkDataFrameRowsSchema(
-  RESEARCH_FACTOR_WEATHER_SDK_CONTRACT_V1.returns,
 );
 const researchCommodityReturnsRequestSchema = sdkRequestSchema(
   RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.parameters,
@@ -496,18 +480,6 @@ export function parseResearchStrategyScanReportRuntimeRequest(
   return researchStrategyScanReportRequestSchema.parse(
     value,
   ) as unknown as ResearchStrategyScanReportRuntimeRequestV1;
-}
-
-export function parseResearchFactorWeatherRuntimeRequest(
-  value: unknown,
-): ResearchFactorWeatherRuntimeRequestV1 {
-  return researchFactorWeatherRequestSchema.parse(
-    value,
-  ) as unknown as ResearchFactorWeatherRuntimeRequestV1;
-}
-
-export function parseResearchFactorWeatherRuntimeRows(value: unknown): unknown[] {
-  return researchFactorWeatherRowsSchema.parse(value);
 }
 
 export function parseResearchCommodityReturnsRuntimeRequest(

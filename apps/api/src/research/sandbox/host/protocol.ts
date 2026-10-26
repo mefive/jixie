@@ -238,7 +238,6 @@ export const researchCellRunFrameSchema = z.union([
       'research_equity_financial_cross_section',
       'research_equity_financial_panel',
       'research_strategy_scan_report',
-      'research_factor_weather',
       'research_cross_section',
       'research_panel',
       'research_factor_report',

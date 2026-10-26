@@ -5,7 +5,7 @@ import type { LogLevel, LogLine } from '@jixie/shared';
 import { parentPort, workerData } from 'node:worker_threads';
 import { runFactorEvaluation } from './evaluate.js';
 
-/** Shared computation transport for formal evaluations and weather refreshes. */
+/** 正式因子评估的计算传输。 / Computation transport for formal factor evaluations. */
 const port = parentPort;
 if (!port) {
   throw new Error('factor-worker must be spawned as a worker thread');

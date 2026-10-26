@@ -370,14 +370,6 @@ export const factorReportListQuerySchema = z.object({
 
 export type FactorReportListQuery = z.output<typeof factorReportListQuerySchema>;
 
-// Weather.
-export const createFactorWeatherPinSchema = z.object({
-  factorId: z.string().min(1),
-  direction: z.enum(['positive', 'negative']).optional(),
-});
-
-export type CreateFactorWeatherPinInput = z.output<typeof createFactorWeatherPinSchema>;
-
 // Agent.
 export const factorAgentInputSchema = z.object({
   id: z.string().min(1),
@@ -417,7 +409,6 @@ export type FactorCorrelationRequestQuery = z.input<typeof factorCorrelationQuer
 export type SubmitFactorCorrelationRequest = z.input<typeof submitFactorCorrelationSchema>;
 export type FactorJobRequestQuery = z.input<typeof factorJobLogsQuerySchema>;
 export type FactorReportListRequestQuery = z.input<typeof factorReportListQuerySchema>;
-export type CreateFactorWeatherPinRequest = z.input<typeof createFactorWeatherPinSchema>;
 export type FactorAgentRequest = z.input<typeof factorAgentBodySchema>;
 export type FactorAgentRequestParams = z.input<typeof factorAgentParamsSchema>;
 export type FactorQuestionRequest = z.input<typeof factorQuestionSchema>;

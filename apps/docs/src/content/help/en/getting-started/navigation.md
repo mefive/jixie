@@ -9,7 +9,6 @@ The top navigation contains these entries:
 | Page | What to use it for |
 | --- | --- |
 | Market | View industry, size, board, and style weather; the product root opens here after sign-in |
-| Factor Weather | Monitor monthly return, IC, coverage, and turnover for pinned factors |
 | Strategy | Write or generate a strategy, set backtest parameters, run it, and inspect the result |
 | Research | Use platform data, charts, and the Agent in Markdown/Python documents, then retain immutable snapshots |
 | Factors | Review grouped factor performance, returns, and saved research reports |

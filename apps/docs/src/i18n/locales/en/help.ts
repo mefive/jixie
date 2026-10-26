@@ -224,7 +224,6 @@ export const enHelp: typeof zhHelp = {
       stockDetail: 'Prices, adjustments, valuation, and trading data.',
       backtesting: 'Strategy drafts, report history, comparisons, and portfolio risk.',
       factorResearch: 'Factor definitions, reports, robust inference, and publication.',
-      factorWeather: 'Monitor preset and published custom single Factors.',
       marketValuation: 'Market weather, valuation, and historical playback.',
     },
   },
@@ -236,7 +235,6 @@ export const enHelp: typeof zhHelp = {
     stockDetail: 'Object detail',
     backtesting: 'Strategy workbench',
     factorResearch: 'Factor research',
-    factorWeather: 'Factor weather',
     marketValuation: 'Market and valuation',
   },
 };

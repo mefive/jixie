@@ -107,13 +107,6 @@ export async function updateFactorDraft(userId: string, id: string, input: Updat
     throw new FactorError('published_factor_readonly');
   }
 
-  if (code !== undefined && code !== existing.code) {
-    const pinned = await getDatabase().factorWeatherPin.count({ where: { factorId: id } });
-    if (pinned > 0) {
-      throw new FactorError('pinned_factor_readonly_edit');
-    }
-  }
-
   if (code !== undefined) {
     try {
       await validateFactorDefinition(
@@ -178,12 +171,6 @@ export async function deleteFactorDraft(userId: string, id: string) {
 
   if (factor.status !== 'draft') {
     throw new FactorError('published_factor_cannot_delete');
-  }
-
-  const pinned = await getDatabase().factorWeatherPin.count({ where: { factorId: id } });
-
-  if (pinned > 0) {
-    throw new FactorError('pinned_factor_readonly_delete');
   }
 
   await getDatabase().factor.deleteMany({ where: { id, userId } });

@@ -77,10 +77,6 @@ const definitions = {
     category: 'conflict',
     messageKey: 'presetFactorReadonlyEdit',
   },
-  pinned_factor_readonly_edit: {
-    category: 'conflict',
-    messageKey: 'pinnedFactorReadonlyEdit',
-  },
   preset_factor_readonly_delete: {
     category: 'conflict',
     messageKey: 'presetFactorReadonlyDelete',
@@ -88,10 +84,6 @@ const definitions = {
   published_factor_cannot_delete: {
     category: 'conflict',
     messageKey: 'publishedFactorCannotDelete',
-  },
-  pinned_factor_readonly_delete: {
-    category: 'conflict',
-    messageKey: 'pinnedFactorReadonlyDelete',
   },
   name_failed: {
     category: 'unavailable',
@@ -112,22 +104,6 @@ const definitions = {
   factor_question_context_too_large: {
     category: 'invalid',
     messageKey: 'factorQuestionContextTooLarge',
-  },
-  factor_weather_requires_finalized: {
-    category: 'conflict',
-    messageKey: 'factorWeatherRequiresFinalized',
-  },
-  factor_weather_direction_required: {
-    category: 'invalid',
-    messageKey: 'factorWeatherDirectionRequired',
-  },
-  factor_weather_pin_not_found: {
-    category: 'missing',
-    messageKey: 'factorWeatherPinNotFound',
-  },
-  factor_weather_running_cannot_unpin: {
-    category: 'conflict',
-    messageKey: 'factorWeatherRunningCannotUnpin',
   },
   publication_not_found: {
     category: 'missing',

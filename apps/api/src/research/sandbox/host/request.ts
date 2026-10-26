@@ -16,7 +16,6 @@ import {
   type ResearchFactorReportRuntimeRequestV1,
   type ResearchBacktestReportRuntimeRequestV1,
   type ResearchStrategyScanReportRuntimeRequestV1,
-  type ResearchFactorWeatherRuntimeRequestV1,
   parseResearchSeriesRuntimeRequest,
   parseResearchYieldCurveRuntimeRequest,
   parseResearchMacroRuntimeRequest,
@@ -42,7 +41,6 @@ import {
   parseResearchFactorReportRuntimeRequest,
   parseResearchBacktestReportRuntimeRequest,
   parseResearchStrategyScanReportRuntimeRequest,
-  parseResearchFactorWeatherRuntimeRequest,
 } from './validation.js';
 import { type ResearchFinancialValuesRequestV1 } from '../../datasets/financial-values.js';
 
@@ -130,10 +128,6 @@ export type ParsedResearchRequest =
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_strategy_scan_report';
       arguments: ResearchStrategyScanReportRuntimeRequestV1;
-    })
-  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method: 'research_factor_weather';
-      arguments: ResearchFactorWeatherRuntimeRequestV1;
     });
 
 /**
@@ -317,13 +311,6 @@ export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedRe
         id: frame.id,
         method: 'research_strategy_scan_report',
         arguments: parseResearchStrategyScanReportRuntimeRequest(frame.arguments),
-      };
-    case 'research_factor_weather':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_factor_weather',
-        arguments: parseResearchFactorWeatherRuntimeRequest(frame.arguments),
       };
   }
 }

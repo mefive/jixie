@@ -147,7 +147,7 @@ try {
     (await page.locator('.jx-help-homeChoice').count()) !== 2 ||
     (await page.locator('.jx-help-homePath').count()) !== 6 ||
     (await page.locator('.jx-help-homeStep').count()) !== 30 ||
-    (await page.locator('.jx-help-homeManualCard').count()) !== 8
+    (await page.locator('.jx-help-homeManualCard').count()) !== 7
   ) {
     throw new Error(
       'help landing does not render both entry modes, learning paths, and page groups',
@@ -843,28 +843,6 @@ try {
     .waitFor();
   await page.getByText('中文', { exact: true }).last().click();
   await page.getByRole('heading', { level: 1, name: '在策略中使用自定义因子' }).waitFor();
-
-  await page.getByRole('link', { name: '开始使用因子气象', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '开始使用因子气象' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('factor weather getting-started article does not render both screenshots');
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(100);
-  await page.screenshot({ path: `${SHOTS}15a-help-factor-weather.png` });
-
-  await page.getByRole('link', { name: '阅读因子气象卡片', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '阅读因子气象卡片' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('factor weather card article does not render its screenshot');
-  }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 2) {
-    throw new Error('factor weather compound-return formula did not render with KaTeX');
-  }
-  await page.getByText('EN', { exact: true }).last().click();
-  await page.getByRole('heading', { level: 1, name: 'Read Factor Weather cards' }).waitFor();
-  await page.getByText('中文', { exact: true }).last().click();
-  await page.getByRole('heading', { level: 1, name: '阅读因子气象卡片' }).waitFor();
 
   await page.getByRole('link', { name: '查看市场气象图', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '查看市场气象图' }).waitFor();

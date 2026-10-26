@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
   recovery: vi.fn(),
   agentRecovery: vi.fn(),
-  weatherRecovery: vi.fn(),
   seed: vi.fn(),
   prune: vi.fn(),
   pruneStrategy: vi.fn(),
@@ -28,9 +27,6 @@ vi.mock('#jobs/job-scheduler.js', () => ({
 vi.mock('#agent/turns/records.js', () => ({
   markRunningAgentTurnsInterrupted: mocks.agentRecovery,
 }));
-vi.mock('#factor/weather/refresh.js', () => ({
-  resetInterruptedFactorWeatherRefreshes: mocks.weatherRecovery,
-}));
 vi.mock('#factor/definitions/seed.js', () => ({ seedBuiltinFactors: mocks.seed }));
 vi.mock('#factor/evaluations/retention.js', () => ({ pruneFactorReports: mocks.prune }));
 vi.mock('#strategy/results/retention.js', () => ({ pruneStrategyResults: mocks.pruneStrategy }));
@@ -46,7 +42,6 @@ describe('API bootstrap composition', () => {
       return 0;
     });
     mocks.agentRecovery.mockResolvedValue(0);
-    mocks.weatherRecovery.mockResolvedValue(0);
     mocks.seed.mockResolvedValue(undefined);
     mocks.prune.mockResolvedValue(0);
     mocks.pruneStrategy.mockResolvedValue(undefined);

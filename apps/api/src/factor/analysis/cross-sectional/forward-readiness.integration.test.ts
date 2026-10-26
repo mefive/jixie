@@ -2,16 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { withSyncDatabase } from '../../../../tests/sync-database.js';
 import { calendarDay } from '#market/synchronization/date.js';
 import { loadSnapshots } from '../../observations/cross-sectional/data.js';
-import { refreshFactorWeatherPin, FACTOR_WEATHER_METHODOLOGY_HASH } from '../../weather/refresh.js';
 import { createDefaultFactorAnalysisSpecV3 } from '../spec.js';
-import { sha256 } from '../../sources/fingerprint.js';
 import { analyzeFactor } from './evaluate.js';
 
 const code = `export default defineFactor({ name: 'Fixture PB', compute(bar) { return bar.pb; } });`;
 
 describe('forward observation maturity', () => {
   it(
-    'R03/A03/A08/A13 evaluates realized periods and monthly weather with calendar lookahead beyond prices',
+    'R03/A03/A08/A13 evaluates realized periods with calendar lookahead beyond prices',
     async () =>
       withSyncDatabase(async (database) => {
         const through = '20240930';
@@ -112,37 +110,6 @@ describe('forward observation maturity', () => {
         await database.adjFactor.create({
           data: { tsCode: stocks[0].tsCode, tradeDate: through, adjFactor: 1 },
         });
-
-        await database.user.create({ data: { id: 'owner', email: 'fixture@example.invalid' } });
-        await database.factor.create({
-          data: { id: 'fixture', key: 'fixture', userId: 'owner', name: 'Fixture', code },
-        });
-        await database.factorWeatherPin.create({
-          data: {
-            id: 'weather',
-            userId: 'owner',
-            factorId: 'fixture',
-            factorName: 'Fixture',
-            builtin: false,
-            direction: 'positive',
-            factorCode: code,
-            factorCodeHash: sha256(code),
-            methodologyHash: FACTOR_WEATHER_METHODOLOGY_HASH,
-          },
-        });
-        const weather = await refreshFactorWeatherPin('weather', {
-          signal: AbortSignal.timeout(30_000),
-        });
-        expect(weather).toMatchObject({
-          computedThrough: through,
-          pointsWritten: 1,
-          skipped: false,
-        });
-        expect(
-          await database.factorWeatherPoint.findMany({ where: { pinId: 'weather' } }),
-        ).toMatchObject([
-          { formationDate: '20240830', periodEndDate: through, sampleSize: expect.any(Number) },
-        ]);
       }),
     60_000,
   );
