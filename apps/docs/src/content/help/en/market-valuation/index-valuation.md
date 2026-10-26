@@ -105,5 +105,4 @@ No. P/E can be temporarily low when earnings are near a cyclical peak. Also cons
 ## Related articles
 
 - [Interpret historical percentiles correctly](/docs/help/market-valuation/percentiles)
-- [View the Market page and change scope](/docs/help/market-valuation/market-overview)
 - [Stocks, ETFs, and indices](/docs/help/basics/stocks-etfs-indices)

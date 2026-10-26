@@ -235,43 +235,16 @@ test('inserts an audited commodity dataset call', () => {
   );
 });
 
-test('inserts a governed market-state dataset call', () => {
-  assert.match(
-    researchDatasetSnippet({
-      dataset: {
-        kind: 'dataset',
-        id: 'data.market_state:000300.SH',
-        method: 'data.market_state',
-        scope: '000300.SH',
-        nameZh: '沪深 300 市场状态',
-        nameEn: 'CSI 300 market state',
-        descriptionZh: '',
-        descriptionEn: '',
-        tags: [],
-        localDataCoverage: {
-          status: 'ready',
-          startDate: '20150130',
-          endDate: '20260731',
-          dateBasis: 'tradeDate',
-        },
-      },
-      start: '20210101',
-      end: '20260701',
-    }),
-    /market_state_000300_sh = data\.market_state\([\s\S]*"000300.SH"/,
-  );
-});
-
 test('inserts a governed identifier-based reference dataset call', () => {
   assert.match(
     researchDatasetSnippet({
       dataset: {
         kind: 'dataset',
-        id: 'data.industry_state:801120.SI',
-        method: 'data.industry_state',
-        identifier: '801120.SI',
-        nameZh: '食品饮料行业状态',
-        nameEn: 'Food and beverage industry state',
+        id: 'data.index_valuation:000300.SH',
+        method: 'data.index_valuation',
+        identifier: '000300.SH',
+        nameZh: '沪深300官方估值',
+        nameEn: 'CSI 300 official valuation',
         descriptionZh: '',
         descriptionEn: '',
         tags: [],
@@ -285,7 +258,7 @@ test('inserts a governed identifier-based reference dataset call', () => {
       start: '20210101',
       end: '20260701',
     }),
-    /data_801120_si_industry_state = data\.industry_state\([\s\S]*"801120.SI"/,
+    /data_000300_sh_index_valuation = data\.index_valuation\([\s\S]*"000300.SH"/,
   );
 });
 

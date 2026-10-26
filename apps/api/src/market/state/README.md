@@ -1,21 +1,11 @@
-# 市场状态、天气与风险输入
+# 风险输入与商品发布状态
 
 | 文件 / 入口 | 职责与使用方 |
 | --- | --- |
-| [sync.ts](sync.ts) `syncMarketIndicators(start, end)` | Maintenance／CLI；按自然年分片执行批量 SQL，构造市场／指数／行业派生指标；每片的临时表和替换在事务内 |
-| [compute.ts](compute.ts) `buildMarketStatePoints`、`buildIndustryWeatherSeries`、`buildIndexWeatherSeries` | Research 状态点序列与天气视图的纯计算，不查询数据库 |
-| [weather.ts](weather.ts) `loadMarketWeather`、`loadIndustryWeatherSeries` | weather 路由及其行业分派；按维度和频率装配序列、复用进程内缓存 |
 | [market-risk-drivers.ts](market-risk-drivers.ts) `loadMarketRiskDriverHistory`、`buildMarketRiskDriverHistory` | Strategy 风险与审计输入；前者查库，后者用已有输入构造风险轴收益 |
 | [market-risk-driver-quality.ts](market-risk-driver-quality.ts) `inspectMarketRiskDrivers`、`summarizeMarketRiskDriverQuality` | 基础覆盖／异常审计，分别为读取入口与摘要计算 |
+| [current.ts](current.ts) `currentCommodityRows` | Research 商品连续收益读取，仅返回独立合格产品 |
 
-天气缓存以维度、频率及相关数据覆盖日期为键；保持现有失效方式，不能宣称每次请求重新计算或内容哈希失效。行业通过统一 weather 入口继续使用独立行业计算。官方估值和成分派生估值按实现合并，缺失与覆盖率仍需保留。
-
-基础数据质量归这里，模型拟合历史长度／准入门槛归 [Strategy risk](../../strategy/risk/README.md)，整个维护批次水位归 Maintenance。状态读取不负责 Factor 天气的 Job 生命周期。
-
-改指标计算看 [compute.test.ts](compute.test.ts)，改风险输入看 [market-risk-drivers.test.ts](market-risk-drivers.test.ts)；HTTP 和缓存调用看 [routes/index.test.ts](../routes/index.test.ts)，模型审计还需对照 [Strategy 数据就绪](../../strategy/risk/data-readiness.ts)。
+市场天气、市场／指数／行业派生状态及其缓存和维护计算已退役。风险输入的原始来源仍由本域读取；模型拟合历史长度与准入门槛归 [Strategy risk](../../strategy/risk/README.md)。本目录不再生成天气指标。
 
 [返回 Market 总览](../README.md)
-
-## 维护调用的数据能力
-
-[quality.ts](quality.ts) 校验派生日期、指标比例范围及基于历史权重的行数要求。Maintenance 提供检查范围并决定是否发布；基础风险驱动质量继续由本域实现，Strategy 决定模型历史要求。

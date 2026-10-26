@@ -9,8 +9,8 @@ import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
 import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
-  MARKET_WEATHER_INDEX_CODES,
-  MARKET_WEATHER_INDUSTRY_GROUPS,
+  INDEX_MEMBERSHIP_CODES,
+  SHENWAN_LEVEL_ONE_INDUSTRY_CODES,
 } from '#market/registry/index-presets.js';
 import { CROSS_MARKET_BENCHMARKS } from '#market/registry/cross-market-benchmarks.js';
 import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
@@ -71,10 +71,7 @@ export async function datasetScopes(
     case 'stock-names':
       return scopes(policy, ['all']);
     case 'industry-members':
-      return scopes(
-        policy,
-        Object.values(MARKET_WEATHER_INDUSTRY_GROUPS).flatMap((group) => group.codes),
-      );
+      return scopes(policy, SHENWAN_LEVEL_ONE_INDUSTRY_CODES);
     case 'index-catalog':
     case 'etf-master':
       return scopes(policy, ['all']);
@@ -83,12 +80,9 @@ export async function datasetScopes(
     case 'index-valuations':
       return scopes(policy, MAJOR_INDEX_DAILY_BASIC_CODES);
     case 'index-weights':
-      return scopes(policy, MARKET_WEATHER_INDEX_CODES);
+      return scopes(policy, INDEX_MEMBERSHIP_CODES);
     case 'industry-prices':
-      return scopes(
-        policy,
-        Object.values(MARKET_WEATHER_INDUSTRY_GROUPS).flatMap((group) => group.codes),
-      );
+      return scopes(policy, SHENWAN_LEVEL_ONE_INDUSTRY_CODES);
     case 'etf-prices':
     case 'etf-adjustments':
     case 'etf-shares': {

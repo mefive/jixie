@@ -14,20 +14,10 @@ export const instrumentSeriesQuerySchema = z.object({
     .optional(),
 });
 
-const marketWeatherFrequencies = ['week', 'month', 'quarter', 'year'] as const;
-
-const marketWeatherDimensions = ['industry', 'scale', 'board', 'style'] as const;
-
-export const marketWeatherQuerySchema = z.object({
-  dimension: z.enum(marketWeatherDimensions).default('industry'),
-  frequency: z.enum(marketWeatherFrequencies).default('month'),
-});
-
 // Submission and lookup.
 export const instrumentNamesQuerySchema = z.object({ codes: z.string().min(1) });
 
 // HTTP input types describe values before defaults and transformations.
 export type InstrumentSeriesRequestQuery = z.input<typeof instrumentSeriesQuerySchema>;
 export type InstrumentAssetTypeRequestParam = z.input<typeof instrumentAssetTypeSchema>;
-export type MarketWeatherRequestQuery = z.input<typeof marketWeatherQuerySchema>;
 export type InstrumentNamesRequestQuery = z.input<typeof instrumentNamesQuerySchema>;

@@ -10,7 +10,7 @@
 | `market/synchronization/policies.ts` | 每个数据集的历史边界、时区、可完成时间与刷新周期 |
 | `market/*/sync-partition.ts` | 各领域请求、原始映射、完整范围与原子经济对象证明 |
 | `market/synchronization/records.ts` | 白名单市场记录合并、字段证据及精确删除授权 |
-| `calculations.ts` / `market/state/eligibility.ts` | 有界失效、分组资格、私有计算和输出提交 |
+| `calculations.ts` | 期货发布和商品连续收益的失效、准备及输出提交 |
 | `status.ts` / `routes.ts` | 现有 `/api/maintenance/status`：运行、局部覆盖及真实发布争用 |
 | `resources.ts` | 有归属凭据且无活跃所有者的退役资源回收 |
 

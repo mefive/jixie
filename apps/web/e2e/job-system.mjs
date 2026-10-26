@@ -60,9 +60,13 @@ try {
     'strategy-orchestration',
     'mixed-futures',
     ...(selected?.includes('python-strategy') ? ['python-strategy'] : []),
-    ...['factor-publication', 'python-factor', 'strategy-factor-dependency'].filter((name) =>
-      selected?.includes(name),
-    ),
+    ...[
+      'factor-publication',
+      'python-factor',
+      'strategy-factor-dependency',
+      'market-weather-retirement',
+      'maintenance-fallback',
+    ].filter((name) => selected?.includes(name)),
     'strategy-parameter-scan',
     'factor-report-history',
     'backtest-latest-result',

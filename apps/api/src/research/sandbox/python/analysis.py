@@ -167,7 +167,6 @@ class _NameAnalysis(ast.NodeVisitor):
                 "equity_dividends",
                 "etf_shares",
                 "index_valuation",
-                "industry_state",
                 "futures_settlement",
                 "equity_financial_values",
                 "equity_financial_statements",

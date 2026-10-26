@@ -6,7 +6,7 @@ import { refreshMarketCalculations } from './calculations.js';
 import type { PlannedPartition } from './partitions.js';
 import type { SyncProviders } from '#market/synchronization/prepare.js';
 import { datasetInputReadiness } from '#market/synchronization/readiness.js';
-import { MARKET_AUDIT_VERSION, MARKET_CALCULATION_VERSION } from '#market/state/eligibility.js';
+import { MARKET_AUDIT_VERSION, MARKET_CALCULATION_VERSION } from './calculations.js';
 import { withMaintenanceLock } from '#infra/coordination/market-access.js';
 import { calendarDay } from '#market/synchronization/date.js';
 
@@ -130,9 +130,32 @@ it(
   async () =>
     withSyncDatabase(async (database) => {
       await database.marketDataState.create({ data: { key: 'global', revision: 1 } });
+      await database.futureContract.create({
+        data: {
+          tsCode: 'IF2701.CFX',
+          symbol: 'IF2701',
+          name: 'Future fixture',
+          productCode: 'IF',
+          exchange: 'CFFEX',
+          listDate: '20270101',
+          delistDate: '20270131',
+        },
+      });
+      await database.datasetSyncPartition.createMany({
+        data: ['IF', 'IH', 'IC', 'IM'].map((product) => ({
+          id: `catalog:${product}`,
+          dataset: 'future-contracts',
+          scope: `CFFEX|${product}`,
+          startDate: '20260101',
+          endDate: '20270101',
+          status: 'complete',
+          policyVersion: 'sync-v1',
+        })),
+      });
+
       await database.marketCalculationState.createMany({
         data: Array.from({ length: 8 }, (_, index) => ({
-          kind: 'market-state',
+          kind: 'future-publication',
           scope: 'all',
           date: `2026090${index + 1}`,
           status: index < 3 ? 'error' : 'waiting',
@@ -152,7 +175,7 @@ it(
       });
       await database.marketCalculationState.createMany({
         data: laterDates.map((date) => ({
-          kind: 'market-state',
+          kind: 'future-publication',
           scope: 'all',
           date,
           status: 'stale',

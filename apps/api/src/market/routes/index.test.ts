@@ -66,8 +66,6 @@ describe('market HTTP reads', () => {
     '/instruments/bond/example/series',
     '/instruments/stock/600519.SH/series?start=20260101&end=20260101',
     '/instruments/stock/600519.SH/series?start=invalid',
-    '/weather?dimension=unknown',
-    '/weather?frequency=day',
   ])('rejects invalid input before reading data: %s', async (url) => {
     const response = await request(url);
     expect(response.status).toBe(400);
@@ -192,6 +190,8 @@ describe('market HTTP reads', () => {
     '/indices/valuation/catalog',
     '/indices/000300.SH/valuation',
     '/futures/IF.CFX/series',
+    '/weather?dimension=industry&frequency=month',
+    '/weather?dimension=unknown',
     '/industry-weather?frequency=month',
     '/state',
     '/state?scope=all',

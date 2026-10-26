@@ -3,8 +3,7 @@ import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
-  MARKET_WEATHER_INDEX_CODES,
-  MARKET_WEATHER_INDICATOR_INDEX_CODES,
+  INDEX_MEMBERSHIP_CODES,
 } from '../registry/index-presets.js';
 
 /**
@@ -15,7 +14,6 @@ import {
 export interface IndexDateQuality {
   indexDaily: number;
   indexDailyBasic: number;
-  weatherIndexDaily: number;
   swIndexDaily: number;
   oldestIndexWeightSnapshot: string;
   activeIndustries: number;
@@ -61,14 +59,6 @@ export async function validateIndexDate(
   if (missingIndexCodes.length > 0) {
     throw new Error(`IndexDaily is missing ${missingIndexCodes.join(', ')} for ${tradeDate}`);
   }
-  const missingWeatherCodes = MARKET_WEATHER_INDEX_CODES.filter(
-    (code) => !actualIndexCodes.has(code),
-  );
-  if (missingWeatherCodes.length > 0) {
-    throw new Error(
-      `Market weather IndexDaily is missing ${missingWeatherCodes.join(', ')} for ${tradeDate}`,
-    );
-  }
   const actualIndexBasicCodes = new Set(indexBasicCodes.map((row) => row.tsCode));
   const missingIndexBasicCodes = MAJOR_INDEX_DAILY_BASIC_CODES.filter(
     (code) => !actualIndexBasicCodes.has(code),
@@ -97,7 +87,6 @@ export async function validateIndexDate(
   return {
     indexDaily: actualIndexCodes.size,
     indexDailyBasic: actualIndexBasicCodes.size,
-    weatherIndexDaily: MARKET_WEATHER_INDEX_CODES.length,
     swIndexDaily: swIndexRows.length,
     oldestIndexWeightSnapshot,
     activeIndustries: activeIndustries.length,
@@ -120,7 +109,7 @@ export async function validateIndexWeightDate(
 
 function readIndexWeightSnapshots(tradeDate: string): Promise<({ tradeDate: string } | null)[]> {
   return Promise.all(
-    MARKET_WEATHER_INDICATOR_INDEX_CODES.map((indexCode) =>
+    INDEX_MEMBERSHIP_CODES.map((indexCode) =>
       getDatabase().indexWeight.findFirst({
         where: { indexCode, tradeDate: { lte: tradeDate } },
         orderBy: { tradeDate: 'desc' },
@@ -135,16 +124,14 @@ function assertIndexWeightSnapshots(
   maximumIndexWeightAgeDays: number,
   indexSnapshots: ({ tradeDate: string } | null)[],
 ): string {
-  const missingSnapshots = MARKET_WEATHER_INDICATOR_INDEX_CODES.filter(
-    (_, index) => !indexSnapshots[index],
-  );
+  const missingSnapshots = INDEX_MEMBERSHIP_CODES.filter((_, index) => !indexSnapshots[index]);
   if (missingSnapshots.length > 0) {
     throw new Error(
       `IndexWeight has no point-in-time snapshot for ${missingSnapshots.join(', ')} by ${tradeDate}`,
     );
   }
   const oldestAllowedSnapshot = addCalendarDays(tradeDate, -maximumIndexWeightAgeDays);
-  const staleSnapshots = MARKET_WEATHER_INDICATOR_INDEX_CODES.filter((_, index) => {
+  const staleSnapshots = INDEX_MEMBERSHIP_CODES.filter((_, index) => {
     const snapshotDate = indexSnapshots[index]?.tradeDate;
     return snapshotDate != null && snapshotDate < oldestAllowedSnapshot;
   });

@@ -1,7 +1,7 @@
 import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
-import { MARKET_WEATHER_INDICATOR_INDEX_CODES } from '../registry/index-presets.js';
+import { INDEX_MEMBERSHIP_CODES } from '../registry/index-presets.js';
 import { syncIndexWeight, syncSwIndustry } from './sync.js';
 
 /**
@@ -16,17 +16,17 @@ export async function syncIndexMembershipHistory(
 ): Promise<string | null> {
   const indexBefore = await getDatabase().indexWeight.findMany({
     where: {
-      indexCode: { in: MARKET_WEATHER_INDICATOR_INDEX_CODES },
+      indexCode: { in: INDEX_MEMBERSHIP_CODES },
       tradeDate: { gte: startDate, lte: endDate },
     },
     orderBy: [{ indexCode: 'asc' }, { tradeDate: 'asc' }, { conCode: 'asc' }],
   });
-  for (const indexCode of MARKET_WEATHER_INDICATOR_INDEX_CODES) {
+  for (const indexCode of INDEX_MEMBERSHIP_CODES) {
     await syncIndexWeight(client, indexCode, startDate as TradeDate, endDate as TradeDate);
   }
   const indexAfter = await getDatabase().indexWeight.findMany({
     where: {
-      indexCode: { in: MARKET_WEATHER_INDICATOR_INDEX_CODES },
+      indexCode: { in: INDEX_MEMBERSHIP_CODES },
       tradeDate: { gte: startDate, lte: endDate },
     },
     orderBy: [{ indexCode: 'asc' }, { tradeDate: 'asc' }, { conCode: 'asc' }],

@@ -19,7 +19,7 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 | 境外基准、币种换算、美债和 FX | [cross-market](cross-market/README.md)：共享身份之上的来源解析、可得日和写入 |
 | 质量结果契约与交易日覆盖摘要 | [quality](quality/README.md)：跨数据域共用的 finding 与统计，不含维护发布策略 |
 | 跨资产图表行情 | [queries](queries/README.md)：股票／ETF／指数／期货统一对象序列 |
-| 市场状态、天气、风险驱动基础数据 | [state](state/README.md)：派生同步、纯计算、读取／缓存和质量 |
+| 风险驱动基础数据与商品发布状态 | [state](state/README.md)：风险输入、基础质量和合格商品读取 |
 | 指数官方估值与历史展示 | [valuation](valuation/README.md)：覆盖目录、数据读取与纯计算 |
 | 财报来源、版本、PIT、财务指标与分红 | [fundamentals](fundamentals/README.md)：同步、版本选择、标准化和审计 |
 | 国债／信用曲线和期限可得日期 | [rates](rates/README.md)：曲线数据事实，不含消费者新鲜度政策 |
@@ -34,7 +34,7 @@ HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投�
 
 ## 模块入口与共同约束
 
-[routes/index.ts](routes/index.ts) 导出 `marketRoute`，组合 instrument / valuation / state，挂载 `/api/app/market`；[共享请求契约](../../../../packages/shared/src/api/market.ts) 校验查询输入。HTTP 映射数据／null／空序列，业务查询不依赖 Hono 或用户会话。完整路径及精简指数响应区别见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11) 和相应能力文档。
+[routes/index.ts](routes/index.ts) 导出 `marketRoute`，组合 instrument / valuation，挂载 `/api/app/market`；[共享请求契约](../../../../packages/shared/src/api/market.ts) 校验查询输入。HTTP 映射数据／null／空序列，业务查询不依赖 Hono 或用户会话。完整路径及精简指数响应区别见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11) 和相应能力文档。
 
 [cli](cli/) 负责参数、配置、输出、退出与 Prisma 收尾，命令用法统一维护在 [API 命令索引](../../scripts/README.md)。providers 只是组织目录，fundamentals/fixtures 由其父能力说明；不为纯目录层新增入口或导出。
 

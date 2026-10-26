@@ -153,51 +153,6 @@ set_env_var() {
   fi
 }
 
-market_reference_coverage() {
-  local database_file="$1"
-  local reference_start="$2"
-
-  sqlite3 -separator ' ' "$database_file" "
-    WITH weather_codes(code) AS (
-      VALUES
-        ('000985.CSI'), ('000016.SH'), ('930050.CSI'), ('000903.SH'), ('000300.SH'),
-        ('000510.SH'), ('000906.SH'), ('000905.SH'), ('000852.SH'), ('932000.CSI'),
-        ('000001.SH'), ('399001.SZ'), ('399006.SZ'), ('399102.SZ'), ('000680.SH'),
-        ('000688.SH'), ('931643.CSI'), ('899050.BJ'), ('000918.CSI'), ('000919.CSI'),
-        ('H30351.CSI'), ('H30352.CSI'), ('H30355.CSI'), ('H30356.CSI'), ('932392.CSI'),
-        ('932393.CSI'), ('399370.SZ'), ('399371.SZ'), ('000922.CSI'), ('000984.CSI'),
-        ('H30260.CSI'), ('930860.CSI'), ('930955.CSI'), ('980092.SZ')
-    )
-    SELECT
-      (SELECT count(*) FROM \"IndexBenchmark\"),
-      (SELECT count(*) FROM (
-        SELECT \"tsCode\"
-        FROM \"SwIndexDaily\"
-        GROUP BY \"tsCode\"
-        HAVING min(\"tradeDate\") <= '$reference_start'
-      )),
-      (SELECT count(*) FROM (
-        SELECT \"tsCode\"
-        FROM \"IndexDaily\"
-        WHERE \"tsCode\" IN (SELECT code FROM weather_codes)
-        GROUP BY \"tsCode\"
-        HAVING count(*) >= 120
-      )),
-      (SELECT count(*) FROM (
-        SELECT \"indexCode\"
-        FROM \"IndexWeight\"
-        WHERE \"indexCode\" IN (SELECT code FROM weather_codes)
-        GROUP BY \"indexCode\"
-      )),
-      (SELECT count(*) FROM (
-        SELECT \"indexCode\"
-        FROM \"IndexIndicator\"
-        WHERE \"indexCode\" IN (SELECT code FROM weather_codes)
-        GROUP BY \"indexCode\"
-      ));
-  "
-}
-
 commodity_etf_coverage() {
   local database_file="$1"
   local expected_end="$2"

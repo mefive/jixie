@@ -60,13 +60,28 @@ async function stop() {
     await closed;
   }
   // Disconnected clients can leave handlers initializing resources after their sockets close.
+  console.log(`[job-fixture] draining ${requests.size} requests and ${executions.size} executions`);
   await Promise.allSettled([...requests]);
   await Promise.allSettled([...executions]);
+
+  // reset 只清空变量；验收结束还需显式关闭文档池中的 Python 进程。
+  // Reset clears variables; fixture teardown must also close pooled document Python processes.
+  const { researchSandboxPool } = await import('#research/sandbox/research-sandbox-pool.js');
+  const documents = database
+    ? await database.researchDocument.findMany({ select: { id: true } })
+    : [];
+
+  for (const document of documents) {
+    researchSandboxPool.close(document.id);
+  }
+
   const { researchPythonLanguageService } =
     await import('#research/language/research-python-language-service.js');
   await researchPythonLanguageService.dispose();
+  console.log('[job-fixture] language service disposed');
   await database?.$disconnect();
   await rm(directory, { recursive: true, force: true });
+  console.log('[job-fixture] database disconnected and temporary files removed');
   process.disconnect?.();
 }
 process.once('SIGTERM', () => void stop());
@@ -124,7 +139,10 @@ try {
     });
     JobScheduler.wake();
     const { buildApp } = await import('../src/server.js');
-    const app = buildApp();
+    // 对齐反向代理：API 只接收 /api，首页及历史路由由 Web 提供。
+    // Mirror the reverse proxy: API handles /api; Web owns the homepage and history fallback.
+    const api = buildApp();
+    const app = new Hono();
     const webDist = resolve('../web/dist');
     const index = await readFile(join(webDist, 'index.html'), 'utf8');
     if (process.env.JIXIE_JOB_E2E_ONLY?.split(',').includes('docs-help')) {
@@ -137,10 +155,14 @@ try {
       }
     }
     app.use('/assets/*', serveStatic({ root: webDist }));
-    for (const path of ['/', '/strategy', '/factors', '/research']) {
+    for (const path of ['/', '/strategy', '/factors', '/research', '/market', '/valuation']) {
       app.get(path, (context) => context.html(index));
     }
     app.use('/*', serveStatic({ root: webDist }));
+    app.route('/', api);
+    app.get('/*', (context) =>
+      context.req.path.startsWith('/api/') ? context.notFound() : context.html(index),
+    );
     const base = await listen(app);
     process.send!({
       type: 'ready',
@@ -291,6 +313,24 @@ async function seedMarket() {
       close: 4000 + index,
     })),
   });
+
+  // 官方估值使用独立原始表，验收确认天气删除后仍可读取和绘图。
+  // Official valuation retains its raw tables and remains readable and chartable after retirement.
+  const valuationDates = dates.slice(-60);
+  for (const tsCode of ['000300.SH', '000905.SH']) {
+    await prisma.indexDaily.createMany({
+      data: valuationDates.map((tradeDate, index) => ({ tsCode, tradeDate, close: 4000 + index })),
+    });
+    await prisma.indexDailyBasic.createMany({
+      data: valuationDates.map((tradeDate, index) => ({
+        tsCode,
+        tradeDate,
+        pe: 11 + index / 100,
+        peTtm: 12 + index / 100,
+        pb: 1.2 + index / 1000,
+      })),
+    });
+  }
 
   const futureDates = dates.filter((date) => date >= '20260601' && date <= '20260630');
   await prisma.futureContract.create({

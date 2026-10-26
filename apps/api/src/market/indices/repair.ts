@@ -5,7 +5,6 @@ import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   MAJOR_INDEX_DAILY_CODES,
-  MARKET_WEATHER_INDEX_CODES,
 } from '../registry/index-presets.js';
 import { syncIndexDaily, syncIndexDailyBasic, syncSwIndexDaily } from './sync.js';
 
@@ -34,21 +33,13 @@ export function buildIndexDateRepairPlan(row: IndexDateCounts): {
   const dailyCodes = new Set(row.indexDailyCodes);
   const basicCodes = new Set(row.indexDailyBasicCodes);
   const missingDaily = MAJOR_INDEX_DAILY_CODES.filter((code) => !dailyCodes.has(code));
-  const missingWeather = MARKET_WEATHER_INDEX_CODES.filter((code) => !dailyCodes.has(code));
   const missingBasic = MAJOR_INDEX_DAILY_BASIC_CODES.filter((code) => !basicCodes.has(code));
-  const indices =
-    missingDaily.length > 0 ||
-    missingWeather.length > 0 ||
-    missingBasic.length > 0 ||
-    row.swIndexDaily < 31;
+  const indices = missingDaily.length > 0 || missingBasic.length > 0 || row.swIndexDaily < 31;
   if (missingDaily.length > 0) {
     reasons.push(`IndexDaily missing ${missingDaily.join(',')}`);
   }
   if (missingBasic.length > 0) {
     reasons.push(`IndexDailyBasic missing ${missingBasic.join(',')}`);
-  }
-  if (missingWeather.length > 0) {
-    reasons.push(`Market weather IndexDaily missing ${missingWeather.join(',')}`);
   }
   if (row.swIndexDaily < 31) {
     reasons.push(`SwIndexDaily has ${row.swIndexDaily}/31 level-1 industries`);

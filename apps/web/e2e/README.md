@@ -63,18 +63,18 @@ pnpm docs:images --group annotate --list
 
 `E2E_BASE` 可覆盖前端地址(默认 `http://localhost:5173`);`E2E_NL=1` 打开需要 DEEPSEEK_API_KEY 的真 LLM 步骤,`E2E_BT=1` 打开真回测步骤。
 
-市场气象可用受控 HTTP 夹具做浏览器回归，无需 API 或工作数据库。先构建 API 和 Web，夹具复用编译后的真实气象聚合函数及维度 registry，覆盖四种维度、周期、历史抽屉及移动端；它不替代后端覆盖资格、失效与 SQL 计算集成测试。启动 Web 预览后执行：
+Maintenance 故障恢复可用受控 HTTP 夹具验证 Research 页面，无需工作数据库。市场天气退役场景使用临时隔离 API，验证默认首页、旧书签、双语和移动导航，以及旧 SDK 拒绝。构建 Shared、API 和 Web 后执行：
 
 ```sh
-E2E_BASE=http://127.0.0.1:49173 E2E_MARKET_FIXTURE=1 pnpm e2e market-state
 E2E_BASE=http://127.0.0.1:49173 pnpm e2e maintenance-fallback
+JIXIE_JOB_E2E_ONLY=market-weather-retirement node apps/web/e2e/job-system.mjs
 ```
 
 ## Job 生命周期浏览器回归
 
 `job-system.mjs` 自行启动 `apps/api/tests/job-system-e2e-server.ts`，在临时 SQLite 上应用全部迁移，
 通过真实页面、HTTP、JobScheduler、生命周期、Worker 和结果事务完成回测、参数扫描、因子分析、
-因子相关性、每日信号及研究整理；嵌入式分析由已有 `embedded-analysis` 命令单独覆盖。
+以及 Research Cell 执行；嵌入式分析由已有 `embedded-analysis` 命令单独覆盖。
 不需要启动开发服务，不使用开发/生产数据库。行情、交易日历与外部命名/整理模型是受控夹具，
 邮件关闭；不验证真实行情质量、交易日制度或真实模型分析质量。
 

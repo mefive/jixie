@@ -231,12 +231,8 @@ export function researchDatasetSelection(
     case 'data.commodity_holdings':
       arguments_ = { product: dataset.product, ...dates };
       break;
-    case 'data.market_state':
-      arguments_ = { scope: dataset.scope, ...dates };
-      break;
     case 'data.etf_shares':
     case 'data.index_valuation':
-    case 'data.industry_state':
     case 'data.futures_settlement':
       arguments_ = { identifier: dataset.identifier, ...dates };
       break;
@@ -280,13 +276,10 @@ function researchDatasetVariableName(
       case 'data.commodity_warehouse_receipts':
       case 'data.commodity_holdings':
         return `${dataset.product}_${dataset.method.replace('data.commodity_', '')}`;
-      case 'data.market_state':
-        return `market_state_${dataset.scope}`;
       case 'data.equity_financial_values':
         return 'financial_values';
       case 'data.etf_shares':
       case 'data.index_valuation':
-      case 'data.industry_state':
       case 'data.futures_settlement':
       case 'data.equity_financial_statements':
       case 'data.equity_financial_metrics':

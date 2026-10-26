@@ -69,22 +69,6 @@ _COMMODITY_HOLDING_COLUMNS = [
     "source_correction_applied",
 ]
 
-_MARKET_STATE_COLUMNS = [
-    "date",
-    "activity",
-    "breadth",
-    "trend",
-    "crowding",
-    "advance_ratio",
-    "above_ma20_ratio",
-    "above_ma60_ratio",
-    "total_amount_cny_1k",
-    "extreme_move_ratio",
-    "limit_up_count",
-    "limit_down_count",
-    "traded_count",
-]
-
 _EQUITY_FUNDAMENTAL_COLUMNS = [
     "announcement_date", "availability_quality", "observed_at",
     "date",
@@ -178,21 +162,6 @@ _INDEX_VALUATION_COLUMNS = [
     "pe",
     "pe_ttm",
     "pb",
-]
-
-_INDUSTRY_STATE_COLUMNS = [
-    "date",
-    "industry_code",
-    "industry_name",
-    "traded_count",
-    "return_20d",
-    "excess_return_20d",
-    "positive_return_20d_ratio",
-    "above_ma20_ratio",
-    "above_ma60_ratio",
-    "float_weighted_turnover_rate_pct",
-    "amount_share",
-    "top_five_amount_share",
 ]
 
 _FUTURES_SETTLEMENT_COLUMNS = [
@@ -390,13 +359,6 @@ class _DataApi:
         )
         return self._dataset_frame(result, _COMMODITY_HOLDING_COLUMNS)
 
-    def market_state(self, scope: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_market_state",
-            {"scope": scope, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _MARKET_STATE_COLUMNS, ["date"])
-
     def equity_fundamentals(self, identifier: str, *, start: str, end: str) -> Any:
         result = self._capabilities.request(
             "research_equity_fundamentals",
@@ -527,13 +489,6 @@ class _DataApi:
             {"identifier": identifier, "start": start, "end": end},
         )
         return self._dataset_frame(result, _INDEX_VALUATION_COLUMNS, ["date"])
-
-    def industry_state(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_industry_state",
-            {"identifier": identifier, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _INDUSTRY_STATE_COLUMNS, ["date"])
 
     def futures_settlement(self, identifier: str, *, start: str, end: str) -> Any:
         result = self._capabilities.request(

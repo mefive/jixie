@@ -1,9 +1,5 @@
 import { localDate } from '#market/synchronization/date.js';
-import { currentDerivedRows } from '#market/state/current.js';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
-import type { ResearchMarketStateScopeV1 } from '@jixie/shared';
-import { buildMarketStatePoints } from '#market/state/compute.js';
-import { addDays } from '#date';
 import { getDatabase } from '#infra/database/prisma.js';
 
 /**
@@ -15,56 +11,6 @@ export interface ResearchDatedIdentifierRequestV1 {
   identifier: string;
   start: string;
   end: string;
-}
-
-/**
- * 指定描述性市场状态范围及指标。
- *
- * Request descriptive market-state scope and measures.
- */
-export interface ResearchMarketStateRequestV1 {
-  scope: ResearchMarketStateScopeV1;
-  start: string;
-  end: string;
-}
-
-/**
- * 读取描述性市场状态并预留活跃度计算预热历史。
- *
- * Load the full descriptive market-state series with enough history for activity warm-up.
- */
-export async function loadResearchMarketState(request: ResearchMarketStateRequestV1) {
-  const warmStart = addDays(request.start, -45);
-  const rows =
-    request.scope === 'all'
-      ? await getDatabase().marketIndicator.findMany({
-          where: { tradeDate: { gte: warmStart, lte: request.end } },
-          orderBy: { tradeDate: 'asc' },
-        })
-      : await getDatabase().indexIndicator.findMany({
-          where: {
-            indexCode: request.scope,
-            tradeDate: { gte: warmStart, lte: request.end },
-          },
-          orderBy: { tradeDate: 'asc' },
-        });
-  return buildMarketStatePoints(await currentDerivedRows(rows))
-    .filter((row) => row.date >= request.start)
-    .map((row) => ({
-      date: row.date,
-      activity: row.activity,
-      breadth: row.breadth,
-      trend: row.trend,
-      crowding: row.crowding,
-      advance_ratio: row.advanceRatio,
-      above_ma20_ratio: row.aboveMa20Ratio,
-      above_ma60_ratio: row.aboveMa60Ratio,
-      total_amount_cny_1k: row.totalAmount,
-      extreme_move_ratio: row.extremeMoveRatio,
-      limit_up_count: row.limitUpCount,
-      limit_down_count: row.limitDownCount,
-      traded_count: row.tradedCount,
-    }));
 }
 
 /**

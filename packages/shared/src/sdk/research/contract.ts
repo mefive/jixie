@@ -526,19 +526,6 @@ export const RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1 = ['AU', 'CU', 'M'] as 
 export type ResearchCommodityProductCodeV1 = (typeof RESEARCH_COMMODITY_PRODUCT_CODES_V1)[number];
 export type ResearchCommodityHoldingProductCodeV1 =
   (typeof RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1)[number];
-export const RESEARCH_MARKET_STATE_SCOPES_V1 = [
-  'all',
-  '000016.SH',
-  '000300.SH',
-  '000905.SH',
-  '000852.SH',
-  '932000.CSI',
-  '000510.SH',
-  '399006.SZ',
-  '000688.SH',
-  '000922.CSI',
-] as const;
-export type ResearchMarketStateScopeV1 = (typeof RESEARCH_MARKET_STATE_SCOPES_V1)[number];
 export const RESEARCH_PARTIAL_PERIOD_POLICIES_V1 = ['exclude', 'include'] as const;
 export const RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1 = [
   'cn_a',
@@ -1237,52 +1224,6 @@ function commodityDatasetFunction(
   };
 }
 
-const marketStateColumns = [
-  {
-    name: 'date',
-    wireType: 'trade_date',
-    pythonType: 'datetime64[ns]',
-    descriptionZh: '市场交易日。',
-    descriptionEn: 'The market trading date.',
-  },
-  ...[
-    ['activity', '20 日流通市值加权换手率均值。', '20-day average float-weighted turnover rate.'],
-    [
-      'breadth',
-      '站上 20 日和 60 日均线比例的均值。',
-      'Mean share above the 20-day and 60-day moving averages.',
-    ],
-    ['trend', '20 日市场或指数收益率。', '20-day market or index return.'],
-    [
-      'crowding',
-      '成交额最高 5% 股票的成交额占比。',
-      'Amount share of the top 5% most-traded stocks.',
-    ],
-    ['advance_ratio', '上涨股票占比。', 'Share of advancing stocks.'],
-    [
-      'above_ma20_ratio',
-      '站上 20 日均线的股票占比。',
-      'Share of stocks above the 20-day moving average.',
-    ],
-    [
-      'above_ma60_ratio',
-      '站上 60 日均线的股票占比。',
-      'Share of stocks above the 60-day moving average.',
-    ],
-    ['total_amount_cny_1k', '总成交额，千元人民币。', 'Total trading amount in CNY 1,000.'],
-    ['extreme_move_ratio', '极端涨跌股票占比。', 'Share of stocks with extreme price moves.'],
-    ['limit_up_count', '涨停股票数量。', 'Number of limit-up stocks.'],
-    ['limit_down_count', '跌停股票数量。', 'Number of limit-down stocks.'],
-    ['traded_count', '纳入计算的交易股票数量。', 'Number of traded stocks included.'],
-  ].map(([name, descriptionZh, descriptionEn]) => ({
-    name,
-    wireType: name === 'traded_count' ? ('number' as const) : ('nullable_number' as const),
-    pythonType: 'float64',
-    descriptionZh,
-    descriptionEn,
-  })),
-] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
-
 const equityFundamentalColumns = [
   {
     name: 'announcement_date',
@@ -1758,77 +1699,6 @@ const indexValuationColumns = [
   })),
 ] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
-const industryStateColumns = [
-  {
-    name: 'date',
-    wireType: 'trade_date',
-    pythonType: 'datetime64[ns]',
-    descriptionZh: '申万一级行业状态交易日。',
-    descriptionEn: 'Shenwan level-1 industry state trading date.',
-  },
-  {
-    name: 'industry_code',
-    wireType: 'string',
-    pythonType: 'string',
-    descriptionZh: '申万一级行业代码。',
-    descriptionEn: 'Shenwan level-1 industry code.',
-  },
-  {
-    name: 'industry_name',
-    wireType: 'string',
-    pythonType: 'string',
-    descriptionZh: '申万一级行业名称。',
-    descriptionEn: 'Shenwan level-1 industry name.',
-  },
-  {
-    name: 'traded_count',
-    wireType: 'number',
-    pythonType: 'int64',
-    descriptionZh: '纳入统计的股票数。',
-    descriptionEn: 'Number of stocks included in the observation.',
-  },
-  ...[
-    ['return_20d', '行业 20 日收益率。', 'Industry 20-day return.'],
-    [
-      'excess_return_20d',
-      '相对全市场等权口径的 20 日超额收益。',
-      '20-day excess return versus the equal-weight market.',
-    ],
-    [
-      'positive_return_20d_ratio',
-      '20 日收益为正的股票占比。',
-      'Share of stocks with a positive 20-day return.',
-    ],
-    [
-      'above_ma20_ratio',
-      '收盘价高于 20 日均线的股票占比。',
-      'Share of stocks above their 20-day moving average.',
-    ],
-    [
-      'above_ma60_ratio',
-      '收盘价高于 60 日均线的股票占比。',
-      'Share of stocks above their 60-day moving average.',
-    ],
-    [
-      'float_weighted_turnover_rate_pct',
-      '流通市值加权换手率，百分比。',
-      'Float-market-cap weighted turnover rate in percentage points.',
-    ],
-    ['amount_share', '行业成交额占全市场比例。', 'Industry share of whole-market trading amount.'],
-    [
-      'top_five_amount_share',
-      '行业内成交额前 5% 股票的成交额占比。',
-      'Trading-amount share of the top 5% most active stocks in the industry.',
-    ],
-  ].map(([name, descriptionZh, descriptionEn]) => ({
-    name,
-    wireType: 'nullable_number' as const,
-    pythonType: 'float64',
-    descriptionZh,
-    descriptionEn,
-  })),
-] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
-
 const futuresSettlementColumns = [
   {
     name: 'date',
@@ -1936,7 +1806,7 @@ function datedIdentifierDatasetFunction(
  * Construct market-reference method arguments, result columns and bilingual guidance.
  */
 function referenceDatasetFunction(
-  name: 'etf_shares' | 'index_valuation' | 'industry_state' | 'futures_settlement',
+  name: 'etf_shares' | 'index_valuation' | 'futures_settlement',
   descriptionZh: string,
   descriptionEn: string,
   exampleIdentifier: string,
@@ -2624,54 +2494,6 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
       RESEARCH_COMMODITY_HOLDING_COLUMNS_V1,
     ),
-    {
-      qualifiedName: 'data.market_state',
-      namespace: 'data',
-      name: 'market_state',
-      descriptionZh: '读取全市场或 PIT 指数成分范围的描述性市场状态时间序列。',
-      descriptionEn:
-        'Load descriptive market-state time series for the whole market or a point-in-time index universe.',
-      examples: [
-        'data.market_state("all", start="20200101", end="20251231")',
-        'data.market_state("000300.SH", start="20200101", end="20251231")',
-      ],
-      notesZh: [
-        '指标是描述性测量而非预测；指数范围使用当日可得的最近成分股快照。',
-        'date 是同一中国市场交易日；activity 需要 20 个观测的预热期。',
-      ],
-      notesEn: [
-        'Metrics are descriptive rather than forecasts; index scopes use the latest constituent snapshot available on each date.',
-        'date is the same China-market trading date; activity requires a 20-observation warm-up.',
-      ],
-      parameters: [
-        {
-          name: 'scope',
-          type: 'enum',
-          required: true,
-          keywordOnly: false,
-          values: RESEARCH_MARKET_STATE_SCOPES_V1,
-          descriptionZh: 'all 或平台支持的指数代码。',
-          descriptionEn: 'all or a supported index code.',
-        },
-        {
-          name: 'start',
-          type: 'date',
-          required: true,
-          keywordOnly: true,
-          descriptionZh: '起始交易日，格式 YYYYMMDD。',
-          descriptionEn: 'Inclusive trading-date start in YYYYMMDD format.',
-        },
-        {
-          name: 'end',
-          type: 'date',
-          required: true,
-          keywordOnly: true,
-          descriptionZh: '结束交易日，格式 YYYYMMDD。',
-          descriptionEn: 'Inclusive trading-date end in YYYYMMDD format.',
-        },
-      ],
-      returns: { kind: 'dataframe', columns: marketStateColumns },
-    },
     datedIdentifierDatasetFunction(
       'equity_fundamentals',
       '按公告日读取单只股票的财务指标历史。',
@@ -2738,17 +2560,6 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       '交易日',
       'trading date',
       indexValuationColumns,
-    ),
-    referenceDatasetFunction(
-      'industry_state',
-      '读取申万一级行业的趋势、广度与交易活跃度。',
-      'Load trend, breadth, and trading activity for a Shenwan level-1 industry.',
-      '801120.SI',
-      '使用申万一级行业代码或名称',
-      'uses a Shenwan level-1 industry code or name',
-      '交易日',
-      'trading date',
-      industryStateColumns,
     ),
     referenceDatasetFunction(
       'futures_settlement',
@@ -3302,23 +3113,21 @@ export const RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_
 export const RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1 =
   RESEARCH_SDK_CONTRACT_V1.functions[9];
 export const RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[10];
-export const RESEARCH_MARKET_STATE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[11];
-export const RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[12];
-export const RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[13];
-export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[14];
-export const RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[15];
-export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[16];
-export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[17];
-export const RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
-export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[19];
-export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[20];
-export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[21];
+export const RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[11];
+export const RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[12];
+export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[13];
+export const RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[14];
+export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[15];
+export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[16];
+export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[17];
+export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
+export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[19];
 export const RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1 =
-  RESEARCH_SDK_CONTRACT_V1.functions[22];
-export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[23];
-export const RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[24];
+  RESEARCH_SDK_CONTRACT_V1.functions[20];
+export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[21];
+export const RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[22];
 export const RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1 =
-  RESEARCH_SDK_CONTRACT_V1.functions[25];
+  RESEARCH_SDK_CONTRACT_V1.functions[23];
 
 export const RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions.find(
   (method) => method.qualifiedName === 'data.equity_financial_values',

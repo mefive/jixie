@@ -1,14 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MARKET_AUDIT_VERSION, MARKET_CALCULATION_VERSION } from '#market/state/eligibility.js';
 
 const mocks = vi.hoisted(() => ({
-  marketFindMany: vi.fn(),
-  indexFindMany: vi.fn(),
   finaFindMany: vi.fn(),
   moneyflowFindMany: vi.fn(),
   topListFindMany: vi.fn(),
   dividendFindMany: vi.fn(),
-  calculationStates: vi.fn(),
   recordEvidence: vi.fn(),
   sessions: vi.fn(),
 }));
@@ -16,13 +12,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock('#infra/database/prisma.js', async () => {
   const mocked = {
     prisma: {
-      marketIndicator: { findMany: mocks.marketFindMany },
-      indexIndicator: { findMany: mocks.indexFindMany },
       finaIndicatorVersion: { findMany: mocks.finaFindMany },
       moneyflow: { findMany: mocks.moneyflowFindMany },
       topList: { findMany: mocks.topListFindMany },
       dividend: { findMany: mocks.dividendFindMany },
-      marketCalculationState: { findMany: mocks.calculationStates },
       marketRecordEvidence: { findMany: mocks.recordEvidence },
       tradeCal: { findMany: mocks.sessions },
     },
@@ -40,62 +33,11 @@ import {
   loadResearchEquityDividends,
   loadResearchEquityFlows,
   loadResearchEquityFundamentals,
-  loadResearchMarketState,
 } from './supplemental.js';
 
 describe('Research supplemental datasets', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset().mockResolvedValue([]));
-  });
-
-  it('loads market state with a warm-up window and stable components', async () => {
-    mocks.calculationStates.mockResolvedValue(
-      Array.from({ length: 20 }, (_, index) => ({
-        date: `202601${String(index + 1).padStart(2, '0')}`,
-        auditVersion: MARKET_AUDIT_VERSION,
-        calculationVersion: MARKET_CALCULATION_VERSION,
-        generation: 1,
-        readyGeneration: 1,
-        inputVersions: { qualifiedScopes: ['market'] },
-      })),
-    );
-    mocks.marketFindMany.mockResolvedValue(
-      Array.from({ length: 20 }, (_, index) => ({
-        tradeDate: `202601${String(index + 1).padStart(2, '0')}`,
-        tradedCount: 100,
-        return20: 0.05,
-        advanceRatio: 0.6,
-        aboveMa20Ratio: 0.7,
-        aboveMa60Ratio: 0.5,
-        totalAmount: 1000,
-        floatWeightedTurnoverRate: 2,
-        topFivePercentAmountShare: 0.3,
-        extremeMoveRatio: 0.1,
-        limitUpCount: 5,
-        limitDownCount: 1,
-      })),
-    );
-
-    const rows = await loadResearchMarketState({
-      scope: 'all',
-      start: '20260120',
-      end: '20260131',
-    });
-
-    expect(mocks.marketFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { tradeDate: { gte: '20251206', lte: '20260131' } },
-      }),
-    );
-    expect(rows).toEqual([
-      expect.objectContaining({
-        date: '20260120',
-        activity: 2,
-        breadth: 0.6,
-        trend: 0.05,
-        crowding: 0.3,
-      }),
-    ]);
   });
 
   it('gates fundamentals by captured-version availability and retains the announcement date', async () => {

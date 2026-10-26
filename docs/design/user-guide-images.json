@@ -1307,47 +1307,34 @@
     },
     {
       "path": "zh/market-valuation/market-weather-playback-01.png",
-      "articles": [
-        "en/market-valuation/weather-playback.md",
-        "zh/market-valuation/weather-playback.md"
-      ],
+      "articles": [],
       "originalSha256": "c3491d4f4fbad08f55903f09784a4f6b7b96211c33db6510d5f8bd7f06c15dd7",
-      "disposition": "historical-illustration",
+      "disposition": "retired",
       "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
       "crop": [0, 40, 1440, 960],
       "sha256": "b1eeebde71925310a3ee2cd9553ef98251595a724ea1ad4a343b9c15c7f476e9"
     },
     {
       "path": "zh/market-valuation/market-weather-detail-01.png",
-      "articles": [
-        "en/market-valuation/weather-playback.md",
-        "zh/market-valuation/weather-playback.md"
-      ],
+      "articles": [],
       "originalSha256": "dd44d2b6f3b7fe0c3c17be03efc62949cba9c69bb169b563ab06996c76ba5a61",
-      "disposition": "historical-illustration",
+      "disposition": "retired",
       "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately. Full frame retained to avoid cutting a drawer header or numbered annotation.",
       "sha256": "dd44d2b6f3b7fe0c3c17be03efc62949cba9c69bb169b563ab06996c76ba5a61"
     },
     {
       "path": "zh/market-valuation/market-weather-overview-01.png",
-      "articles": [
-        "zh/market-valuation/market-metrics.md",
-        "zh/market-valuation/market-overview.md",
-        "zh/market-valuation/percentiles.md"
-      ],
+      "articles": [],
       "originalSha256": "0084848034d417f62a5c7dba97d4cbf99909ef4948899e70b230e6f6a2f0b44f",
-      "disposition": "recaptured",
+      "disposition": "retired",
       "reason": "Current interface; paired Chinese and English captures; historical report values are not recalculated.",
       "sha256": "abdc9319ba031dfcef6c236e02b67f622684d2c5295e43a073e30a0779fb308c"
     },
     {
       "path": "zh/market-valuation/market-weather-dimensions-01.png",
-      "articles": [
-        "en/market-valuation/market-overview.md",
-        "zh/market-valuation/market-overview.md"
-      ],
+      "articles": [],
       "originalSha256": "0ad0e9b5342e0e9b9ada6f2ca6833912aa4ff3658dd3e1e71e9de0e4c9a4b2ae",
-      "disposition": "historical-illustration",
+      "disposition": "retired",
       "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
       "crop": [0, 40, 1440, 960],
       "sha256": "0aa363097f7454777f085c268eccaae29defb1c24cda7f59edf2662de5d17fae"
@@ -1520,13 +1507,9 @@
     },
     {
       "path": "en/market-valuation/market-weather-overview-01.png",
-      "disposition": "recaptured",
+      "disposition": "retired",
       "reason": "Current interface captured in the indicated locale; raw masked source is kept under apps/web/acceptance/help-refresh.",
-      "articles": [
-        "en/market-valuation/market-metrics.md",
-        "en/market-valuation/market-overview.md",
-        "en/market-valuation/percentiles.md"
-      ],
+      "articles": [],
       "sha256": "180ee2c42e8d0b83f07381636eff681b859e55325671dc1a9723d7060d8c0c22"
     },
     {

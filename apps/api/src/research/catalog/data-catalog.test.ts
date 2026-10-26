@@ -19,11 +19,8 @@ const mocks = vi.hoisted(() => ({
   commodityContinuousReturnGroupBy: vi.fn(),
   commodityWarehouseReceiptGroupBy: vi.fn(),
   commodityHoldingPositionGroupBy: vi.fn(),
-  marketIndicatorAggregate: vi.fn(),
-  indexIndicatorGroupBy: vi.fn(),
   etfShareSizeGroupBy: vi.fn(),
   indexDailyBasicGroupBy: vi.fn(),
-  industryIndicatorGroupBy: vi.fn(),
   futureSettlementGroupBy: vi.fn(),
   etfDailyGroupBy: vi.fn(),
   indexDailyGroupBy: vi.fn(),
@@ -56,11 +53,8 @@ vi.mock('#infra/database/prisma.js', async () => {
       commodityContinuousReturn: { groupBy: mocks.commodityContinuousReturnGroupBy },
       commodityWarehouseReceipt: { groupBy: mocks.commodityWarehouseReceiptGroupBy },
       commodityHoldingPosition: { groupBy: mocks.commodityHoldingPositionGroupBy },
-      marketIndicator: { aggregate: mocks.marketIndicatorAggregate },
-      indexIndicator: { groupBy: mocks.indexIndicatorGroupBy },
       etfShareSize: { groupBy: mocks.etfShareSizeGroupBy },
       indexDailyBasic: { groupBy: mocks.indexDailyBasicGroupBy },
-      industryIndicator: { groupBy: mocks.industryIndicatorGroupBy },
       futureSettlement: { groupBy: mocks.futureSettlementGroupBy },
       etfDaily: { groupBy: mocks.etfDailyGroupBy },
       indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
@@ -94,10 +88,6 @@ import { searchResearchDataCatalog } from './data-catalog.js';
 describe('research data catalog', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset().mockResolvedValue([]));
-    mocks.marketIndicatorAggregate.mockResolvedValue({
-      _min: { tradeDate: null },
-      _max: { tradeDate: null },
-    });
     for (const aggregate of [
       mocks.financialIncomeAggregate,
       mocks.financialBalanceAggregate,
@@ -192,13 +182,11 @@ describe('research data catalog', () => {
       'data.commodity_returns',
       'data.commodity_warehouse_receipts',
       'data.commodity_holdings',
-      'data.market_state',
       'data.equity_fundamentals',
       'data.equity_flows',
       'data.equity_dividends',
       'data.etf_shares',
       'data.index_valuation',
-      'data.industry_state',
       'data.futures_settlement',
       'data.equity_financial_statements',
       'data.equity_financial_metrics',
@@ -328,33 +316,7 @@ describe('research data catalog', () => {
     );
   });
 
-  it('discovers whole-market and PIT index market-state datasets', async () => {
-    mocks.marketIndicatorAggregate.mockResolvedValue({
-      _min: { tradeDate: '20150105' },
-      _max: { tradeDate: '20260731' },
-    });
-    mocks.indexIndicatorGroupBy.mockResolvedValue([
-      {
-        indexCode: '000300.SH',
-        _min: { tradeDate: '20150130' },
-        _max: { tradeDate: '20260731' },
-      },
-    ]);
-
-    const result = await searchResearchDataCatalog({ query: '沪深 300', scope: 'datasets' });
-
-    expect(result.datasets).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          method: 'data.market_state',
-          scope: '000300.SH',
-          localDataCoverage: expect.objectContaining({ status: 'ready' }),
-        }),
-      ]),
-    );
-  });
-
-  it('discovers remaining ETF, index, industry, and futures reference datasets', async () => {
+  it('discovers remaining ETF, index, and futures reference datasets', async () => {
     mocks.etfFindMany.mockResolvedValue([
       { tsCode: '510300.SH', name: '沪深300ETF', fundType: '股票型', indexName: '沪深300' },
     ]);
@@ -372,14 +334,6 @@ describe('research data catalog', () => {
         _max: { tradeDate: '20260731' },
       },
     ]);
-    mocks.industryIndicatorGroupBy.mockResolvedValue([
-      {
-        l1Code: '801120.SI',
-        l1Name: '食品饮料',
-        _min: { tradeDate: '20150105' },
-        _max: { tradeDate: '20260731' },
-      },
-    ]);
     mocks.futureSettlementGroupBy.mockResolvedValue([
       {
         tsCode: 'IF2609.CFX',
@@ -391,7 +345,6 @@ describe('research data catalog', () => {
     const cases = [
       ['510300.SH', 'data.etf_shares', '510300.SH', 'availableDate'],
       ['000300.SH', 'data.index_valuation', '000300.SH', 'tradeDate'],
-      ['食品饮料', 'data.industry_state', '801120.SI', 'tradeDate'],
       ['IF2609.CFX', 'data.futures_settlement', 'IF2609.CFX', 'tradeDate'],
     ] as const;
     for (const [query, method, identifier, dateBasis] of cases) {

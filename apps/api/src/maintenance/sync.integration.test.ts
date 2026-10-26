@@ -245,47 +245,39 @@ describe('unified synchronization acceptance', () => {
     expect(price.tables[0].records[0].values.close).toBe(10);
   });
 
-  it('A10 invalidates bounded future outputs after an earlier correction, excluding unrelated metadata', async () =>
+  it('invalidates retained commodity returns without creating weather tasks for stock changes', async () =>
     withSyncDatabase(async (database) => {
-      await database.marketCalculationState.createMany({
-        data: ['20260914', '20260915', '20261001'].map((date) => ({
-          kind: 'market-state',
-          scope: 'all',
-          date,
-          status: 'ready',
-          generation: 1,
-          readyGeneration: 1,
-          calculationVersion: 'market-state-sync-v2',
-          auditVersion: 'market-eligibility-v1',
-        })),
-      });
-      await database.daily.createMany({
+      await database.futureMapping.createMany({
         data: ['20260914', '20260915'].map((tradeDate) => ({
-          tsCode: '600000.SH',
+          continuousCode: 'AU.SHF',
           tradeDate,
-          close: 10,
+          mappedTsCode: 'AU2610.SHF',
         })),
       });
       await database.$transaction((transaction) =>
         invalidateMarketCalculations(transaction, [
           {
+            table: 'FutureDaily',
+            before: { tsCode: 'AU2610.SHF', tradeDate: '20260914', settle: 9 },
+            after: { tsCode: 'AU2610.SHF', tradeDate: '20260914', settle: 10 },
+          },
+          {
             table: 'Daily',
             before: { tsCode: '600000.SH', tradeDate: '20260914', close: 9 },
             after: { tsCode: '600000.SH', tradeDate: '20260914', close: 10 },
           },
-          {
-            table: 'IndexBenchmark',
-            before: null,
-            after: { tsCode: '000300.SH', name: 'metadata only' },
-          },
         ]),
       );
+
       expect(
         await database.marketCalculationState.findMany({
-          where: { status: 'stale' },
+          select: { kind: true, date: true, status: true },
           orderBy: { date: 'asc' },
         }),
-      ).toMatchObject([{ date: '20260914' }, { date: '20260915' }]);
+      ).toEqual([
+        { kind: 'commodity-continuous', date: '20260914', status: 'stale' },
+        { kind: 'commodity-continuous', date: '20260915', status: 'stale' },
+      ]);
     }));
 
   it('A11 rolls back values, provenance and revision together at the publication boundary', async () =>
@@ -345,7 +337,7 @@ describe('unified synchronization acceptance', () => {
       await database.marketDataState.create({ data: { key: 'global' } });
       await database.marketCalculationState.create({
         data: {
-          kind: 'market-state',
+          kind: 'commodity-continuous',
           scope: 'all',
           date: '20260915',
           status: 'ready',

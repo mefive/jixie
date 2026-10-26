@@ -8,7 +8,7 @@ const fixture = vi.hoisted(() => ({
   validate: vi.fn(),
 }));
 vi.mock('../registry/index-presets.js', () => ({
-  MARKET_WEATHER_INDICATOR_INDEX_CODES: ['000300.SH'],
+  INDEX_MEMBERSHIP_CODES: ['000300.SH'],
 }));
 vi.mock('../providers/tushare/api.js', () => ({ indexWeight: fixture.source }));
 vi.mock('../instruments/stock-identity.js', () => ({ canonicalStockCode: (code: string) => code }));

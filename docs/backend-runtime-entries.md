@@ -23,7 +23,7 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 Worker 内的业务计算入口分别是 `factor/analysis/evaluate.ts` 的 `runFactorEvaluation`、
 `strategy/backtests/compute.ts` 的 `runBacktest`、`strategy/scans/compute.ts` 的
 `runStrategyScan`。文件名表达评估或计算职责，
-Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续不经过通用 Job。
+Worker 仍负责消息与进程收尾；因子天气和相关性任务已退役，Factor 只保留分析 Worker。
 
 2026-09-10 已移除 Agent 快速回测工具及其 Worker，当前运行入口以上表为准；下方 Commit 12 验证保留当时的历史事实。决策与退役验证见 [Agent 研究闭环](design/agent-research-loop.md)。
 

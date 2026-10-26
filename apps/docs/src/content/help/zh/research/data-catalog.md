@@ -96,7 +96,6 @@ M2 的全部标准化指标。截面和 Panel 一次最多选择 8 个指标，�
 | 宏观与短端利率 | `data.macro()` | 指标单位、可得日与修订限制；Shibor 与债券收益率曲线不是同一对象 |
 | 外汇 | `data.fx()` | 货币对方向、人民币研究可得日；汇率收益不等于资产收益 |
 | 商品连续收益、仓单、会员持仓 | `data.commodity_returns()`、`data.commodity_warehouse_receipts()`、`data.commodity_holdings()` | 品种覆盖、连续收益与换月分解；会员持仓不是全市场持仓 |
-| 市场与行业状态 | `data.market_state()`、`data.industry_state()` | 范围、历史成分和描述性指标，不是预测信号 |
 | 单股供应商指标、资金流与分红 | `data.equity_fundamentals()`、`data.equity_flows()`、`data.equity_dividends()` | 供应商口径与版本化财报不同；分红入口按除息日读取已实施现金分红 |
 | ETF 份额与指数估值 | `data.etf_shares()`、`data.index_valuation()` | 份额或估值日期、单位、来源与本地覆盖 |
 | 期货结算参考 | `data.futures_settlement()` | 实际交割合约的结算价、费用和保证金参数，不接受连续合约代码 |

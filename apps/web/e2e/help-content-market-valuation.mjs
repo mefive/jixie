@@ -14,9 +14,8 @@ const log = (...args) => console.log('[help-market-valuation-e2e]', ...args);
 
 try {
   await login();
-  await captureMarket();
   await captureValuation();
-  log('market and valuation screenshots completed');
+  log('valuation screenshots completed');
 } finally {
   await context.close();
   await browser.close();
@@ -36,124 +35,6 @@ async function login() {
     throw new Error(`dev login failed: ${status}`);
   }
   await page.evaluate(() => localStorage.setItem('jx-locale', 'zh'));
-}
-
-async function captureMarket() {
-  await page.goto(`${BASE}/market`, { waitUntil: 'networkidle' });
-  await assertWeatherDimension('申万行业', 'industry', 6, 31);
-  await page.waitForTimeout(400);
-
-  await annotatedScreenshot(page, `${OUTPUT}market-weather-overview-01.png`, [
-    { locator: page.locator('.jx-industryWeather-dimension'), number: 1 },
-    { locator: page.locator('.jx-industryWeather-frequency'), number: 2 },
-    { locator: page.locator('.jx-industryWeather-brief'), number: 3 },
-    { locator: page.locator('.jx-industryWeather-group').first(), number: 4 },
-  ]);
-
-  await switchWeatherDimension('规模宽基', 'scale', 4, 10);
-  await switchWeatherDimension('市场板块', 'board', 3, 8);
-  await switchWeatherDimension('风格策略', 'style', 7, 16);
-  await page.locator('.jx-industryWeather-head').scrollIntoViewIfNeeded();
-  await annotatedScreenshot(page, `${OUTPUT}market-weather-dimensions-01.png`, [
-    {
-      locator: page
-        .locator('.jx-industryWeather-dimension .ant-segmented-item')
-        .filter({ hasText: '申万行业' }),
-      number: 1,
-    },
-    {
-      locator: page
-        .locator('.jx-industryWeather-dimension .ant-segmented-item')
-        .filter({ hasText: '规模宽基' }),
-      number: 2,
-    },
-    {
-      locator: page
-        .locator('.jx-industryWeather-dimension .ant-segmented-item')
-        .filter({ hasText: '市场板块' }),
-      number: 3,
-    },
-    {
-      locator: page
-        .locator('.jx-industryWeather-dimension .ant-segmented-item')
-        .filter({ hasText: '风格策略' }),
-      number: 4,
-    },
-  ]);
-
-  const timeline = page.locator('.jx-industryWeather-timeline');
-  await timeline.scrollIntoViewIfNeeded();
-  await annotatedScreenshot(page, `${OUTPUT}market-weather-playback-01.png`, [
-    { locator: page.getByRole('button', { name: '上一个周期' }), number: 1 },
-    { locator: page.getByRole('button', { name: '播放' }), number: 2 },
-    { locator: page.getByRole('button', { name: '下一个周期' }), number: 3 },
-    { locator: page.locator('.jx-industryWeather-slider'), number: 4 },
-    { locator: page.locator('.jx-industryWeather-range'), number: 5 },
-  ]);
-
-  await switchWeatherDimension('申万行业', 'industry', 6, 31);
-  const bankCard = page.locator('.jx-industryWeather-card').filter({ hasText: '银行' });
-  await bankCard.scrollIntoViewIfNeeded();
-  await bankCard.click();
-  const drawer = page.getByRole('dialog', { name: '银行' });
-  await drawer.waitFor();
-  await page.waitForTimeout(500);
-  await annotatedScreenshot(page, `${OUTPUT}market-weather-detail-01.png`, [
-    { locator: drawer.locator('.jx-industryWeather-drawerState'), number: 1 },
-    { locator: drawer.locator('.jx-industryWeather-drawerMetrics'), number: 2 },
-    { locator: drawer.locator('.jx-industryWeather-historyStrip'), number: 3 },
-    { locator: drawer.locator('.jx-industryWeather-historyList'), number: 4 },
-  ]);
-  await page.getByRole('button', { name: '关闭' }).click();
-}
-
-async function switchWeatherDimension(label, dimension, groups, cards) {
-  await Promise.all([
-    page.waitForResponse((response) =>
-      response.url().includes(`/market/weather?dimension=${dimension}&frequency=month`),
-    ),
-    page.getByText(label, { exact: true }).click(),
-  ]);
-  await assertWeatherDimension(label, dimension, groups, cards);
-}
-
-async function assertWeatherDimension(label, dimension, expectedGroups, expectedConfiguredCards) {
-  const response = await page.request.get(
-    `${BASE}/api/app/market/weather?dimension=${dimension}&frequency=month`,
-  );
-  if (!response.ok()) {
-    throw new Error(`${label}: weather API failed with ${response.status()}`);
-  }
-  const series = await response.json();
-  const configuredCodes = series.groups.flatMap((group) => group.codes);
-  if (
-    series.dimension !== dimension ||
-    series.groups.length !== expectedGroups ||
-    configuredCodes.length !== expectedConfiguredCards
-  ) {
-    throw new Error(`${label}: unexpected weather configuration`);
-  }
-  const latestItems = new Map(series.periods.at(-1).items.map((item) => [item.code, item]));
-  const expectedNames = configuredCodes.flatMap((code) =>
-    latestItems.has(code) ? [latestItems.get(code).name] : [],
-  );
-  if (expectedNames.length === 0) {
-    throw new Error(`${label}: no cards are available in the latest period`);
-  }
-  // The market snapshot may have partial coverage; every returned card must still render in order.
-  await page.waitForFunction(
-    ({ groups, names }) => {
-      const displayedNames = [
-        ...document.querySelectorAll('.jx-industryWeather-cardTop strong'),
-      ].map((node) => node.textContent);
-      return (
-        document.querySelectorAll('.jx-industryWeather-group').length === groups &&
-        JSON.stringify(displayedNames) === JSON.stringify(names)
-      );
-    },
-    { groups: expectedGroups, names: expectedNames },
-    { timeout: 30_000 },
-  );
 }
 
 async function captureValuation() {

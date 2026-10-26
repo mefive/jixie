@@ -4,7 +4,6 @@ import type { StrategyLanguage } from './backtest.js';
 import type {
   ResearchFxSeriesIdV1,
   ResearchMacroSeriesKeyV1,
-  ResearchMarketStateScopeV1,
   ResearchCommodityHoldingProductCodeV1,
   ResearchCommodityProductCodeV1,
   ResearchYieldCurveCodeV1,
@@ -370,14 +369,9 @@ export type ResearchDataCatalogDatasetV1 =
       product: ResearchCommodityHoldingProductCodeV1;
     })
   | (ResearchDataCatalogDatasetBaseV1 & {
-      method: 'data.market_state';
-      scope: ResearchMarketStateScopeV1;
-    })
-  | (ResearchDataCatalogDatasetBaseV1 & {
       method:
         | 'data.etf_shares'
         | 'data.index_valuation'
-        | 'data.industry_state'
         | 'data.futures_settlement'
         | 'data.equity_financial_values'
         | 'data.equity_financial_statements'

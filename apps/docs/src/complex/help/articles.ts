@@ -117,14 +117,8 @@ import overviewEn from '@src/content/help/en/getting-started/overview.md?raw';
 import overviewZh from '@src/content/help/zh/getting-started/overview.md?raw';
 import indexValuationEn from '@src/content/help/en/market-valuation/index-valuation.md?raw';
 import indexValuationZh from '@src/content/help/zh/market-valuation/index-valuation.md?raw';
-import marketMetricsEn from '@src/content/help/en/market-valuation/market-metrics.md?raw';
-import marketMetricsZh from '@src/content/help/zh/market-valuation/market-metrics.md?raw';
-import marketOverviewEn from '@src/content/help/en/market-valuation/market-overview.md?raw';
-import marketOverviewZh from '@src/content/help/zh/market-valuation/market-overview.md?raw';
 import percentilesEn from '@src/content/help/en/market-valuation/percentiles.md?raw';
 import percentilesZh from '@src/content/help/zh/market-valuation/percentiles.md?raw';
-import weatherPlaybackEn from '@src/content/help/en/market-valuation/weather-playback.md?raw';
-import weatherPlaybackZh from '@src/content/help/zh/market-valuation/weather-playback.md?raw';
 import researchUniverseEn from '@src/content/help/en/research/universe.md?raw';
 import researchUniverseZh from '@src/content/help/zh/research/universe.md?raw';
 import researchRecordsEn from '@src/content/help/en/research/records.md?raw';
@@ -1360,54 +1354,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
-    slug: 'market-valuation/market-overview',
-    group: 'marketValuation',
-    title: {
-      zh: '查看市场气象图',
-      en: 'View the Market Weather map',
-    },
-    summary: {
-      zh: '从产品首页查看行业、规模、板块和风格气象，并切换周、月、季、年。',
-      en: 'View industry, size, board, and style weather, then change the weekly, monthly, quarterly, or yearly period.',
-    },
-    content: {
-      zh: marketOverviewZh,
-      en: marketOverviewEn,
-    },
-  },
-  {
-    slug: 'market-valuation/market-metrics',
-    group: 'marketValuation',
-    title: {
-      zh: '理解市场气象卡片',
-      en: 'Understand Market Weather cards',
-    },
-    summary: {
-      zh: '理解周期收益、热度、活跃、广度、估值角标和七种页面状态。',
-      en: 'Understand period return, heat, activity, breadth, valuation badges, and the seven page states.',
-    },
-    content: {
-      zh: marketMetricsZh,
-      en: marketMetricsEn,
-    },
-  },
-  {
-    slug: 'market-valuation/weather-playback',
-    group: 'marketValuation',
-    title: {
-      zh: '回放历史并查看卡片详情',
-      en: 'Replay history and inspect card details',
-    },
-    summary: {
-      zh: '使用时间轴逐期回放，在固定卡片位置观察变化，并打开最近历史详情。',
-      en: 'Replay periods on the timeline, compare cards in fixed positions, and inspect recent history.',
-    },
-    content: {
-      zh: weatherPlaybackZh,
-      en: weatherPlaybackEn,
-    },
-  },
-  {
     slug: 'market-valuation/index-valuation',
     group: 'marketValuation',
     title: {
@@ -1431,8 +1377,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Interpret historical percentiles correctly',
     },
     summary: {
-      zh: '理解市场活跃度、估值角标、近十年和全历史百分位，不把它们当作涨跌概率。',
-      en: 'Interpret activity, valuation badges, ten-year, and all-history percentiles without treating them as forecasts.',
+      zh: '理解官方指数估值的近十年和全历史百分位，不把它们当作涨跌概率。',
+      en: 'Interpret official index valuation percentiles over ten years and all history without treating them as forecasts.',
     },
     content: {
       zh: percentilesZh,

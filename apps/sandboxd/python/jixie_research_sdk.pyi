@@ -147,20 +147,6 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
-    # Load descriptive market-state time series for the whole market or a point-in-time index universe.
-    # Note: Metrics are descriptive rather than forecasts; index scopes use the latest constituent snapshot available on each date.
-    # Note: date is the same China-market trading date; activity requires a 20-observation warm-up.
-    # Example: data.market_state("all", start="20200101", end="20251231")
-    # Example: data.market_state("000300.SH", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], activity: float64, breadth: float64, trend: float64, crowding: float64, advance_ratio: float64, above_ma20_ratio: float64, above_ma60_ratio: float64, total_amount_cny_1k: float64, extreme_move_ratio: float64, limit_up_count: float64, limit_down_count: float64, traded_count: float64
-    def market_state(
-        self,
-        scope: Literal["all", "000016.SH", "000300.SH", "000905.SH", "000852.SH", "932000.CSI", "000510.SH", "399006.SZ", "000688.SH", "000922.CSI"],
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
     # Load retained stock financial-indicator versions by actual availability date.
     # Note: identifier uses the platform stock code; start/end always constrain availability.
     # Example: data.equity_fundamentals("600519.SH", start="20200101", end="20251231")
@@ -214,18 +200,6 @@ class _DataApi:
     # Example: data.index_valuation("000300.SH", start="20200101", end="20251231")
     # DataFrame columns: date: datetime64[ns], total_mv_cny: float64, float_mv_cny: float64, total_share: float64, float_share: float64, free_share: float64, turnover_rate_pct: float64, turnover_rate_free_float_pct: float64, pe: float64, pe_ttm: float64, pb: float64
     def index_valuation(
-        self,
-        identifier: str,
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
-    # Load trend, breadth, and trading activity for a Shenwan level-1 industry.
-    # Note: identifier uses a Shenwan level-1 industry code or name; start/end constrain trading date.
-    # Example: data.industry_state("801120.SI", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], industry_code: string, industry_name: string, traded_count: int64, return_20d: float64, excess_return_20d: float64, positive_return_20d_ratio: float64, above_ma20_ratio: float64, above_ma60_ratio: float64, float_weighted_turnover_rate_pct: float64, amount_share: float64, top_five_amount_share: float64
-    def industry_state(
         self,
         identifier: str,
         *,

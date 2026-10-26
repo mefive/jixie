@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   etfShares: vi.fn(),
   indexValuation: vi.fn(),
-  industryState: vi.fn(),
-  calculationStates: vi.fn(),
   futuresSettlement: vi.fn(),
 }));
 
@@ -13,8 +11,6 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: {
       etfShareSize: { findMany: mocks.etfShares },
       indexDailyBasic: { findMany: mocks.indexValuation },
-      industryIndicator: { findMany: mocks.industryState },
-      marketCalculationState: { findMany: mocks.calculationStates },
       futureSettlement: { findMany: mocks.futuresSettlement },
     },
   };
@@ -31,7 +27,6 @@ import {
   loadResearchEtfShares,
   loadResearchFuturesSettlement,
   loadResearchIndexValuation,
-  loadResearchIndustryState,
 } from './market-reference.js';
 
 const request = { identifier: 'TEST', start: '20260101', end: '20261231' };
@@ -84,45 +79,6 @@ describe('Research market reference datasets', () => {
     await expect(loadResearchIndexValuation(request)).resolves.toEqual([
       expect.objectContaining({ date: '20260105', pe_ttm: 11, total_mv_cny: 100 }),
     ]);
-  });
-
-  it('accepts an exact industry code or name', async () => {
-    mocks.industryState.mockResolvedValue([
-      {
-        tradeDate: '20260105',
-        l1Code: '801120.SI',
-        l1Name: '食品饮料',
-        tradedCount: 100,
-        return20: 0.03,
-        excessReturn20: 0.01,
-        positiveReturn20Ratio: 0.6,
-        aboveMa20Ratio: 0.55,
-        aboveMa60Ratio: 0.5,
-        floatWeightedTurnoverRate: 1.1,
-        amountShare: 0.04,
-        topFiveAmountShare: 0.2,
-      },
-    ]);
-
-    mocks.calculationStates.mockResolvedValue([
-      {
-        date: '20260105',
-        generation: 1,
-        readyGeneration: 1,
-        auditVersion: 'market-eligibility-v3',
-        calculationVersion: 'market-state-sync-v2',
-        dirtyScopes: [],
-        inputVersions: { qualifiedScopes: ['industry:801120.SI'] },
-      },
-    ]);
-    await expect(
-      loadResearchIndustryState({ ...request, identifier: '食品饮料' }),
-    ).resolves.toMatchObject([{ return_20d: 0.03, float_weighted_turnover_rate_pct: 1.1 }]);
-    expect(mocks.industryState).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ OR: [{ l1Code: '食品饮料' }, { l1Name: '食品饮料' }] }),
-      }),
-    );
   });
 
   it('preserves exchange margin rates as provider percentage points', async () => {

@@ -6,13 +6,11 @@ import {
   parseResearchCommodityReturnsRuntimeRows,
   parseResearchCommodityWarehouseReceiptsRuntimeRows,
   parseResearchCommodityHoldingsRuntimeRows,
-  parseResearchMarketStateRuntimeRows,
   parseResearchEquityFundamentalsRuntimeRows,
   parseResearchEquityFlowsRuntimeRows,
   parseResearchEquityDividendsRuntimeRows,
   parseResearchEtfSharesRuntimeRows,
   parseResearchIndexValuationRuntimeRows,
-  parseResearchIndustryStateRuntimeRows,
   parseResearchFuturesSettlementRuntimeRows,
   parseResearchFinancialValuesRuntimeRows,
   parseResearchFinancialStatementsRuntimeRows,
@@ -32,7 +30,6 @@ import {
   loadResearchCommodityHoldings,
 } from '../../datasets/commodity.js';
 import {
-  loadResearchMarketState,
   loadResearchEquityFundamentals,
   loadResearchEquityFlows,
   loadResearchEquityDividends,
@@ -40,7 +37,6 @@ import {
 import {
   loadResearchEtfShares,
   loadResearchIndexValuation,
-  loadResearchIndustryState,
   loadResearchFuturesSettlement,
 } from '../../datasets/market-reference.js';
 import {
@@ -183,12 +179,6 @@ async function answerResearchRequest(
         };
         break;
       }
-      case 'research_market_state': {
-        result = {
-          rows: parseResearchMarketStateRuntimeRows(await loadResearchMarketState(frame.arguments)),
-        };
-        break;
-      }
       case 'research_equity_fundamentals': {
         result = {
           rows: parseResearchEquityFundamentalsRuntimeRows(
@@ -221,14 +211,6 @@ async function answerResearchRequest(
         result = {
           rows: parseResearchIndexValuationRuntimeRows(
             await loadResearchIndexValuation(frame.arguments),
-          ),
-        };
-        break;
-      }
-      case 'research_industry_state': {
-        result = {
-          rows: parseResearchIndustryStateRuntimeRows(
-            await loadResearchIndustryState(frame.arguments),
           ),
         };
         break;

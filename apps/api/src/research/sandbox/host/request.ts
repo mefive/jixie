@@ -6,7 +6,6 @@ import {
   type ResearchFxRuntimeRequestV1,
   type ResearchCommodityRuntimeRequestV1,
   type ResearchCommodityHoldingRuntimeRequestV1,
-  type ResearchMarketStateRuntimeRequestV1,
   type ResearchDatedIdentifierRuntimeRequestV1,
   type ResearchSingleFinancialRuntimeRequestV1,
   type ResearchFinancialCrossSectionRuntimeRequestV1,
@@ -23,13 +22,11 @@ import {
   parseResearchCommodityReturnsRuntimeRequest,
   parseResearchCommodityWarehouseReceiptsRuntimeRequest,
   parseResearchCommodityHoldingsRuntimeRequest,
-  parseResearchMarketStateRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchEquityFlowsRuntimeRequest,
   parseResearchEquityDividendsRuntimeRequest,
   parseResearchEtfSharesRuntimeRequest,
   parseResearchIndexValuationRuntimeRequest,
-  parseResearchIndustryStateRuntimeRequest,
   parseResearchFuturesSettlementRuntimeRequest,
   parseResearchFinancialValuesRuntimeRequest,
   parseResearchFinancialStatementsRuntimeRequest,
@@ -75,10 +72,6 @@ export type ParsedResearchRequest =
       arguments: ResearchCommodityHoldingRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method: 'research_market_state';
-      arguments: ResearchMarketStateRuntimeRequestV1;
-    })
-  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method:
         | 'research_equity_fundamentals'
         | 'research_equity_flows'
@@ -86,11 +79,7 @@ export type ParsedResearchRequest =
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method:
-        | 'research_etf_shares'
-        | 'research_index_valuation'
-        | 'research_industry_state'
-        | 'research_futures_settlement';
+      method: 'research_etf_shares' | 'research_index_valuation' | 'research_futures_settlement';
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
@@ -186,13 +175,6 @@ export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedRe
         method: 'research_commodity_holdings',
         arguments: parseResearchCommodityHoldingsRuntimeRequest(frame.arguments),
       };
-    case 'research_market_state':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_market_state',
-        arguments: parseResearchMarketStateRuntimeRequest(frame.arguments),
-      };
     case 'research_equity_fundamentals':
       return {
         type: frame.type,
@@ -227,13 +209,6 @@ export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedRe
         id: frame.id,
         method: 'research_index_valuation',
         arguments: parseResearchIndexValuationRuntimeRequest(frame.arguments),
-      };
-    case 'research_industry_state':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_industry_state',
-        arguments: parseResearchIndustryStateRuntimeRequest(frame.arguments),
       };
     case 'research_futures_settlement':
       return {

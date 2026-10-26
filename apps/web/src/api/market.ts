@@ -1,17 +1,9 @@
 import type {
   InstrumentSeriesRequestQuery,
   InstrumentAssetTypeRequestParam,
-  MarketWeatherRequestQuery,
   InstrumentNamesRequestQuery,
 } from '@jixie/shared/api/market';
-import type {
-  IndexValuationCatalog,
-  IndexValuationSeries,
-  MarketWeatherDimension,
-  MarketWeatherFrequency,
-  MarketWeatherSeries,
-  StockSeries,
-} from '@jixie/shared';
+import type { IndexValuationCatalog, IndexValuationSeries, StockSeries } from '@jixie/shared';
 import { serializeQuery, request } from './client';
 
 // A verified object's chartable daily series.
@@ -63,13 +55,4 @@ export function fetchIndexValuationSeries(
   signal?: AbortSignal,
 ): Promise<IndexValuationSeries> {
   return request(`/api/app/market/index-valuations/${encodeURIComponent(code)}`, { signal });
-}
-
-export function fetchMarketWeather(
-  dimension: MarketWeatherDimension,
-  frequency: MarketWeatherFrequency,
-  signal?: AbortSignal,
-): Promise<MarketWeatherSeries> {
-  const query = serializeQuery({ dimension, frequency } satisfies MarketWeatherRequestQuery);
-  return request(`/api/app/market/weather?${query}`, { signal });
 }

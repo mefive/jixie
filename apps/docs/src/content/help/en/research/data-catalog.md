@@ -99,7 +99,6 @@ Search by name under **Datasets** and check local coverage. These have dedicated
 | Macro and short-term rates | `data.macro()` | Units, availability, and revision limits; Shibor is not a bond yield curve |
 | FX | `data.fx()` | Pair direction and availability for CNY research; FX return is not asset return |
 | Commodity continuous returns, warehouse receipts, member holdings | `data.commodity_returns()`, `data.commodity_warehouse_receipts()`, `data.commodity_holdings()` | Product coverage and roll decomposition; ranked-member holdings are not whole-market holdings |
-| Market and industry states | `data.market_state()`, `data.industry_state()` | Universe, historical constituents, and descriptive scope, not a prediction |
 | Equity provider ratios, flows, and dividends | `data.equity_fundamentals()`, `data.equity_flows()`, `data.equity_dividends()` | Provider definitions differ from versioned financial statements; dividends are implemented cash distributions selected by ex-dividend date |
 | ETF shares and index valuation | `data.etf_shares()`, `data.index_valuation()` | Observation date, units, source, and local coverage |
 | Futures settlement reference | `data.futures_settlement()` | Settlement, fees, and margin for an actual delivery contract; continuous symbols are not accepted |

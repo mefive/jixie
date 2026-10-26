@@ -1,14 +1,13 @@
 # What the product does
 
 Jixie helps you observe market conditions, complete quantitative studies in reactive documents, research factors, test trading
-rules. After sign-in, the product opens Market Weather by default. On a first visit, start with the
+rules. After sign-in, the product opens Research by default. On a first visit, start with the
 current market, then complete one Markdown/Python study and one backtest.
 
 ## Main areas
 
 | Page | What you can do |
 | --- | --- |
-| Market | View industry, size, board, and style weather by week, month, quarter, or year and replay its history |
 | Research | Use Markdown, Python, platform data, and the Agent for free-form studies, charts, immutable snapshots, and downstream handoff |
 | Strategy | Build in plain language, TypeScript, or Python and inspect returns, trades, allocation attribution, and portfolio risk |
 | Factors | Research stock cross-sections, ETF time series, cross-asset Panels, and macro regimes, then publish eligible Factors |
@@ -27,18 +26,17 @@ The current focus is learning, research, and historical validation. Cross-market
 ## Recommended first steps
 
 1. [Sign in](/help/getting-started/login).
-2. Read [View the Market Weather map](/help/market-valuation/market-overview).
-3. Read [Page navigation](/help/getting-started/navigation).
-4. [Complete your first quantitative study](/help/getting-started/first-research) to learn documents, Python, and full-run snapshots.
-5. Follow [Trustworthy cross-market research](/help/learning/trusted-cross-market-research) from a prior hypothesis to an auditable conclusion.
-6. [Run your first backtest](/help/getting-started/first-backtest).
-7. Follow [CSI 300 trend strategy](/help/learning/csi300-trend-strategy) to audit parameters, costs, and out-of-sample evidence.
-8. [Run your first preset Factor analysis](/help/factors/first-preset-analysis) to learn the report surface.
-9. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to understand cross-sectional ranking and compare dated samples.
-11. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to separate asset allocation, timing, and costs with four actual runs before reconciling complete risk.
-12. Follow [Commodity carry](/help/learning/commodity-carry-holdout) to read historical term-structure, proxy-error and dated-sample evidence.
-13. Follow [Sales yield](/help/learning/sales-yield-positive) to read historical sales-yield results and their limits.
-14. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
+2. Read [Page navigation](/help/getting-started/navigation).
+3. [Complete your first quantitative study](/help/getting-started/first-research) to learn documents, Python, and full-run snapshots.
+4. Follow [Trustworthy cross-market research](/help/learning/trusted-cross-market-research) from a prior hypothesis to an auditable conclusion.
+5. [Run your first backtest](/help/getting-started/first-backtest).
+6. Follow [CSI 300 trend strategy](/help/learning/csi300-trend-strategy) to audit parameters, costs, and out-of-sample evidence.
+7. [Run your first preset Factor analysis](/help/factors/first-preset-analysis) to learn the report surface.
+8. Follow [CSI 300 value factor](/help/learning/csi300-value-factor) to understand cross-sectional ranking and compare dated samples.
+9. Follow [Stock-bond allocation and risk attribution](/help/learning/stock-bond-allocation-risk) to separate asset allocation, timing, and costs with four actual runs before reconciling complete risk.
+10. Follow [Commodity carry](/help/learning/commodity-carry-holdout) to read historical term-structure, proxy-error and dated-sample evidence.
+11. Follow [Sales yield](/help/learning/sales-yield-positive) to read historical sales-yield results and their limits.
+12. Read [Why a backtest is not a forecast](/help/basics/backtest-limitations).
 
 ## What the product cannot decide for you
 

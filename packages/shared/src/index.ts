@@ -14,7 +14,6 @@ export * from './agent.js';
 export * from './sdk/strategy/reference.js';
 export * from './engine-factors.js';
 export * from './index-valuation.js';
-export * from './market-state.js';
 export * from './risk-research.js';
 export * from './research.js';
 export * from './sdk/research/contract.js';

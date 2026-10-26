@@ -105,5 +105,4 @@ PB 把市场价格与账面净资产比较。金融、周期、轻资产行业�
 ## 相关内容
 
 - [正确理解历史百分位](/docs/help/market-valuation/percentiles)
-- [查看市场页面和切换范围](/docs/help/market-valuation/market-overview)
 - [股票、ETF 和指数有什么区别](/docs/help/basics/stocks-etfs-indices)

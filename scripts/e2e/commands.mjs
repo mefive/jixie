@@ -257,16 +257,16 @@ export const e2eCommands = [
     group: 'market',
   },
   {
-    name: 'market-state',
-    file: 'apps/web/e2e/market-state.mjs',
-    group: 'market',
-    notes:
-      'E2E_MARKET_FIXTURE=1 uses isolated HTTP fixtures; build API first for weather aggregation.',
-  },
-  {
     name: 'login-error',
     file: 'apps/web/e2e/login-error.mjs',
     group: 'platform',
+  },
+  {
+    name: 'market-weather-retirement',
+    file: 'apps/web/e2e/market-weather-retirement.mjs',
+    group: 'platform',
+    notes:
+      'Disposable fixture; Research homepage, retired weather HTTP and Python SDK, bilingual and mobile navigation.',
   },
   {
     name: 'maintenance-fallback',

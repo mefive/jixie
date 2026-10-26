@@ -135,22 +135,9 @@ try {
   await drawer
     .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
     .fill('沪深 300');
-  const marketStateResult = page.getByTestId(
-    'research-data-catalog-dataset-data.market_state:000300.SH',
-  );
-  await marketStateResult.waitFor({ timeout: 30_000 });
-  await marketStateResult.click();
-  await config.waitFor();
-  await config.scrollIntoViewIfNeeded();
-  if (!(await config.innerText()).includes('data.market_state(')) {
-    throw new Error('The selected market-state dataset did not generate an SDK call preview.');
-  }
-  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-market-state.png` });
-
   for (const { query, method, identifier } of [
     { query: '510300.SH', method: 'etf_shares', identifier: '510300.SH' },
     { query: '000300.SH', method: 'index_valuation', identifier: '000300.SH' },
-    { query: '食品饮料', method: 'industry_state', identifier: '801120.SI' },
     { query: 'IF2609.CFX', method: 'futures_settlement', identifier: 'IF2609.CFX' },
   ]) {
     await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill(query);

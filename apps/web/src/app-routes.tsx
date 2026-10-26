@@ -15,7 +15,6 @@ import loginEntry from '@src/complex/login';
 import strategyEntry from '@src/complex/strategy';
 import stockEntry from '@src/complex/stock';
 import factorEntry from '@src/complex/factor';
-import marketEntry from '@src/complex/market';
 import valuationEntry from '@src/complex/valuation';
 import researchEntry from '@src/complex/research';
 import { TopNav } from '@src/components/top-nav';
@@ -172,13 +171,13 @@ const router = createBrowserRouter(
     <>
       <Route path="/lab" element={<LegacyLabRedirect />} />
       <Route path="/login" element={<ComplexRoute entry={loginEntry} />} />
-      {/* Market is the product homepage; each workbench keeps its own stable route. */}
-      <Route path="/" element={<Navigate to="/market" replace />} />
+      {/* Research 是默认首页，各工作台保留独立路由。
+          Research is the default homepage; each workbench retains its own route. */}
+      <Route path="/" element={<Navigate to="/research" replace />} />
       {/* Shared layout for the TopNav pages: TopNav is rendered ONCE here and persists across
           navigations (react-router only swaps <Outlet/> below it) — so switching pages no longer
           unmounts/remounts the nav and flashes it. */}
       <Route element={<AuthedLayout />}>
-        <Route path="/market" element={<ComplexRoute key="market" entry={marketEntry} />} />
         <Route path="/strategy" element={<StrategyRoute />} />
         <Route path="/research" element={<ResearchRoute />} />
         <Route path="/factors" element={<FactorRoute />} />
@@ -191,7 +190,7 @@ const router = createBrowserRouter(
       </Route>
       <Route path="/learn" element={<ExternalRedirect to="/docs/help" />} />
       <Route path="/help/*" element={<LegacyHelpRedirect />} />
-      <Route path="*" element={<Navigate to="/market" replace />} />
+      <Route path="*" element={<Navigate to="/research" replace />} />
     </>,
   ),
 );

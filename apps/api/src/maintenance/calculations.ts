@@ -1,21 +1,18 @@
 import { COMMODITY_MAIN_CONTRACT_SPECS } from '#market/commodity/commodity-futures.js';
 import { datasetInputReadiness } from '#market/synchronization/readiness.js';
-import { allMarketIndicatorScope, dirtyMarketIndicatorScope } from '#market/state/scope.js';
 import { MarketSourcePendingError } from '#market/errors.js';
 import type { Prisma, MarketCalculationState } from '@prisma/client';
 import { getDatabase } from '#infra/database/prisma.js';
 import { withMarketAccess, withMarketPublication } from '#infra/coordination/market-access.js';
 import type { AcceptedMarketChange, MarketPartition } from '#market/synchronization/partition.js';
 import { marketRevision } from '#market/synchronization/readiness.js';
-import { prepareMarketIndicators, publishMarketIndicators } from '#market/state/prepare.js';
 import { computeCommodityContinuousReturns } from '#market/commodity/commodity-continuous-returns.js';
 import { publishFutureMarketDate } from '#market/futures/publication.js';
 
-import {
-  MARKET_CALCULATION_VERSION,
-  MARKET_AUDIT_VERSION,
-  MARKET_INDICATOR_INPUT_FIELDS,
-} from '#market/state/eligibility.js';
+// 保持其他派生任务的已有版本身份，避免天气删除触发无关重算。
+// Preserve existing version identities for the remaining derived tasks.
+export const MARKET_CALCULATION_VERSION = 'market-state-sync-v2';
+export const MARKET_AUDIT_VERSION = 'market-eligibility-v3';
 
 function materiallyChanged(change: AcceptedMarketChange, fields: readonly string[]): boolean {
   return (
@@ -35,39 +32,10 @@ export async function invalidateMarketCalculations(
   transaction: Prisma.TransactionClient,
   changes: AcceptedMarketChange[],
 ): Promise<void> {
-  const dates = new Set<string>();
-  const scopeByDate = new Map<string, Set<string>>();
-  let changedScope = 'all';
-  const addDate = (date: string) => {
-    dates.add(date);
-    const scopes = scopeByDate.get(date) ?? new Set<string>();
-    scopes.add(changedScope);
-    scopeByDate.set(date, scopes);
-  };
   const commodityDates = new Set<string>();
   const futureDates = new Set<string>();
-  const stored = await transaction.marketCalculationState.findMany({
-    where: { kind: 'market-state' },
-    select: { date: true },
-  });
-  const outputDates = [...new Set(stored.map((state) => state.date))].sort();
-  const addRange = (start: string, end: string) => {
-    addDate(start);
-    for (const date of outputDates) {
-      if (date >= start && date <= end) {
-        addDate(date);
-      }
-    }
-  };
+
   for (const change of changes) {
-    changedScope =
-      change.table === 'IndexWeight'
-        ? `index:${String((change.after ?? change.before!).indexCode)}`
-        : change.table === 'IndexDaily'
-          ? `index:${String((change.after ?? change.before!).tsCode)}`
-          : change.table === 'SwIndustryMember'
-            ? 'industries'
-            : 'all';
     const row = change.after ?? change.before!;
     const date =
       typeof row.tradeDate === 'string'
@@ -117,77 +85,9 @@ export async function invalidateMarketCalculations(
         commodityDates.add(next.tradeDate);
       }
     }
-    if (
-      change.table === 'IndexDaily' &&
-      !allMarketIndicatorScope().indexCodes.includes(String(row.tsCode))
-    ) {
-      continue;
-    }
-    const fields = MARKET_INDICATOR_INPUT_FIELDS[change.table];
-    if (!fields || !materiallyChanged(change, fields)) {
-      continue;
-    }
-    if (change.table === 'SwIndustryMember') {
-      const start = [change.before?.inDate, change.after?.inDate]
-        .filter((value): value is string => typeof value === 'string')
-        .sort()[0];
-      const end = [change.before?.outDate, change.after?.outDate].some((value) => value == null)
-        ? (outputDates.at(-1) ?? start)
-        : [String(change.before?.outDate ?? ''), String(change.after?.outDate ?? '')]
-            .sort()
-            .at(-1)!;
-      addRange(start, end);
-      continue;
-    }
-    if (
-      change.table === 'TradeCal' &&
-      (!date ||
-        (row.isOpen !== 1 && change.before?.isOpen !== 1) ||
-        (!outputDates.includes(date) &&
-          !(await transaction.daily.count({ where: { tradeDate: date } }))))
-    ) {
-      continue;
-    }
-    if (!date || (change.table === 'TradeCal' && row.exchange !== 'SSE')) {
-      continue;
-    }
-    if (change.table === 'IndexWeight') {
-      const next = await transaction.indexWeight.findFirst({
-        where: { indexCode: String(row.indexCode), tradeDate: { gt: date } },
-        orderBy: { tradeDate: 'asc' },
-        select: { tradeDate: true },
-      });
-      addRange(date, next?.tradeDate ?? outputDates.at(-1) ?? date);
-      continue;
-    }
-    if (
-      ['Daily', 'AdjFactor', 'IndexDaily', 'TradeCal'].includes(change.table) &&
-      outputDates.some((output) => output > date)
-    ) {
-      const following = change.table === 'IndexDaily' ? 20 : 59;
-      const sessions =
-        change.table === 'IndexDaily' || change.table === 'TradeCal'
-          ? (
-              await transaction.tradeCal.findMany({
-                where: { exchange: 'SSE', isOpen: 1, calDate: { gt: date } },
-                orderBy: { calDate: 'asc' },
-                take: change.table === 'IndexDaily' ? following : 60,
-                select: { calDate: true },
-              })
-            ).map((entry) => ({ tradeDate: entry.calDate }))
-          : await transaction.daily.findMany({
-              where: { tsCode: String(row.tsCode), tradeDate: { gt: date } },
-              orderBy: { tradeDate: 'asc' },
-              take: following,
-              select: { tradeDate: true },
-            });
-      addRange(date, sessions.at(-1)?.tradeDate ?? date);
-    } else {
-      addDate(date);
-    }
   }
+
   for (const [kind, affected] of [
-    ['market-state', dates],
     ['commodity-continuous', commodityDates],
     ['future-publication', futureDates],
   ] as const) {
@@ -200,7 +100,7 @@ export async function invalidateMarketCalculations(
           ...(Array.isArray(previous?.dirtyScopes)
             ? previous.dirtyScopes.filter((value): value is string => typeof value === 'string')
             : []),
-          ...(scopeByDate.get(date) ?? ['all']),
+          'all',
         ]),
       ];
       await transaction.marketCalculationState.upsert({
@@ -227,58 +127,30 @@ export async function invalidateMarketCalculations(
 }
 
 /**
- * 覆盖资格变化也能使旧输出失效；指数延伸二十个交易日，SSE 日历覆盖六十日窗口。
+ * 覆盖资格变化使仍保留的期货发布与商品收益失效。
  *
- * Proof changes invalidate unchanged values too: twenty following index sessions and the sixty-session
- * window that depends on SSE calendar proof.
+ * Proof changes invalidate the remaining futures publication and commodity-return outputs.
  */
 export async function invalidatePartitionCoverage(
   transaction: Prisma.TransactionClient,
   partition: MarketPartition,
 ): Promise<void> {
-  const stock = ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].includes(
-    partition.dataset,
-  );
-  const indexPrices = partition.dataset === 'index-prices';
-  const calendar = partition.dataset === 'calendar' && partition.scope === 'SSE';
-  const market =
-    stock ||
-    calendar ||
-    ['index-prices', 'index-weights', 'industry-members'].includes(partition.dataset);
-  const kind = market
-    ? 'market-state'
-    : partition.dataset.startsWith('future-')
-      ? 'future-publication'
-      : ['commodity-prices', 'commodity-mappings'].includes(partition.dataset)
-        ? 'commodity-continuous'
-        : null;
+  const kind = partition.dataset.startsWith('future-')
+    ? 'future-publication'
+    : ['commodity-prices', 'commodity-mappings'].includes(partition.dataset)
+      ? 'commodity-continuous'
+      : null;
   if (!kind) {
     return;
   }
 
-  const following =
-    stock || indexPrices || calendar
-      ? await transaction.tradeCal.findMany({
-          where: { exchange: 'SSE', isOpen: 1, calDate: { gt: partition.endDate } },
-          orderBy: { calDate: 'asc' },
-          take: indexPrices ? 20 : calendar ? 59 : 60,
-          select: { calDate: true },
-        })
-      : [];
   const dates = await transaction.marketCalculationState.findMany({
     where: {
       kind,
-      date: { gte: partition.startDate, lte: following.at(-1)?.calDate ?? partition.endDate },
+      date: { gte: partition.startDate, lte: partition.endDate },
     },
     select: { date: true },
   });
-  if (
-    stock &&
-    partition.startDate === partition.endDate &&
-    !dates.some((state) => state.date === partition.startDate)
-  ) {
-    dates.push({ date: partition.startDate });
-  }
 
   for (const { date } of dates) {
     const previous = await transaction.marketCalculationState.findUnique({
@@ -289,7 +161,7 @@ export async function invalidatePartitionCoverage(
         ...(Array.isArray(previous?.dirtyScopes)
           ? previous.dirtyScopes.filter((value): value is string => typeof value === 'string')
           : []),
-        indexPrices ? `index:${partition.scope}` : 'all',
+        'all',
       ]),
     ];
 
@@ -321,10 +193,9 @@ export interface RefreshMarketCalculationsInput {
 }
 
 /**
- * 新输入和版本变化使当前看板失效，不修改持久用户报告或自动重跑用户策略。
+ * 刷新保留的期货发布和商品收益任务，不自动重跑用户策略。
  *
- * New inputs and versions invalidate current dashboards, never persisted user reports or arbitrary
- * strategies.
+ * Refresh remaining futures publication and commodity-return tasks without rerunning user strategies.
  */
 export async function refreshMarketCalculations(input: RefreshMarketCalculationsInput) {
   const database = getDatabase();
@@ -353,9 +224,6 @@ export async function refreshMarketCalculations(input: RefreshMarketCalculations
           break;
         case 'commodity-continuous':
           status = await refreshCommodityCalculation(state, revision, input.signal);
-          break;
-        case 'market-state':
-          status = await refreshIndicatorCalculation(state, revision, input.signal);
           break;
         default:
           throw new Error(`Unknown market calculation kind ${state.kind}`);
@@ -396,6 +264,7 @@ export async function readMarketCalculationBacklog() {
   const states = await getDatabase().marketCalculationState.groupBy({
     by: ['status'],
     where: {
+      kind: { not: 'market-state' },
       status: { in: ['waiting', 'error', 'stale'] },
     },
     _count: true,
@@ -412,6 +281,10 @@ async function prepareCalculationTasks(limit: number): Promise<void> {
   const database = getDatabase();
   await withMarketPublication(() =>
     database.$transaction(async (transaction) => {
+      // 清理已退役天气任务，避免旧状态进入维护重试。
+      // Retire weather tasks before the remaining maintenance calculations are prepared.
+      await transaction.marketCalculationState.deleteMany({ where: { kind: 'market-state' } });
+
       const invalidated = await transaction.marketCalculationState.updateMany({
         where: {
           OR: [
@@ -436,31 +309,7 @@ async function prepareCalculationTasks(limit: number): Promise<void> {
       }
     }),
   );
-  const existingDates = await database.marketCalculationState.findMany({
-    where: { kind: 'market-state' },
-    select: { date: true },
-  });
-  const legacy = await database.marketIndicator.findMany({
-    where: { tradeDate: { notIn: existingDates.map((state) => state.date) } },
-    orderBy: { tradeDate: 'desc' },
-    take: limit,
-    select: { tradeDate: true },
-  });
-  for (const row of legacy) {
-    await database.marketCalculationState.upsert({
-      where: { kind_scope_date: { kind: 'market-state', scope: 'all', date: row.tradeDate } },
-      create: {
-        kind: 'market-state',
-        scope: 'all',
-        date: row.tradeDate,
-        status: 'stale',
-        dirtyScopes: ['all'],
-        calculationVersion: MARKET_CALCULATION_VERSION,
-        auditVersion: MARKET_AUDIT_VERSION,
-      },
-      update: {},
-    });
-  }
+
   for (const kind of ['commodity-continuous', 'future-publication']) {
     const stored = await database.marketCalculationState.findMany({
       where: { kind },
@@ -649,44 +498,6 @@ async function refreshCommodityCalculation(
       status: missingProducts.length ? 'waiting' : 'ready',
       inputVersions: { readyProducts: points.map((point) => point.productCode) },
       gaps: missingProducts.map((product) => `${product}: missing qualified settlement pair`),
-    };
-  });
-}
-
-async function refreshIndicatorCalculation(
-  state: MarketCalculationState,
-  revision: number,
-  signal?: AbortSignal,
-) {
-  const scope = dirtyMarketIndicatorScope(state.dirtyScopes);
-  const prepared = await withMarketAccess(() => prepareMarketIndicators(state.date, scope));
-  signal?.throwIfAborted();
-  const previous =
-    state.inputVersions &&
-    typeof state.inputVersions === 'object' &&
-    !Array.isArray(state.inputVersions)
-      ? state.inputVersions
-      : null;
-  const retained = Array.isArray(previous?.qualifiedScopes)
-    ? previous.qualifiedScopes.filter(
-        (value): value is string =>
-          typeof value === 'string' &&
-          !(value === 'market' && scope.market) &&
-          !(value.startsWith('industry:') && scope.industries) &&
-          !(value.startsWith('index:') && scope.indexCodes.includes(value.slice(6))),
-      )
-    : [];
-
-  return publishCalculation(state, revision, async (transaction) => {
-    await publishMarketIndicators(transaction, state.date, scope, prepared.outputs);
-
-    return {
-      status: prepared.gaps.length ? 'waiting' : 'ready',
-      gaps: prepared.gaps,
-      inputVersions: {
-        groups: prepared.groups,
-        qualifiedScopes: [...new Set([...retained, ...prepared.qualifiedScopes])],
-      },
     };
   });
 }

@@ -270,17 +270,6 @@ try {
         marks: ['.jx-strategy-heroInput', '.jx-strategy-heroSend'],
       },
       {
-        name: 'market-valuation/market-weather-overview-01',
-        route: '/market',
-        ready: '.jx-industryWeather-groups',
-        marks: [
-          '.jx-industryWeather-dimension',
-          '.jx-industryWeather-frequency',
-          '.jx-industryWeather-brief',
-          '.jx-industryWeather-groups',
-        ],
-      },
-      {
         name: 'market-valuation/valuation-index-01',
         route: '/valuation',
         ready: '.jx-valuation-summary',

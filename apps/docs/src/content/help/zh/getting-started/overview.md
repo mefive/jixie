@@ -1,13 +1,11 @@
 # 产品可以做什么
 
-机械交易系用于观察市场状态、在响应式文档中完成量化研究、研究因子、检验交易规则。登录后默认
-进入市场气象页。第一次使用时，可以先了解当前市场，再完成一份 Markdown/Python 研究和一次回测。
+机械交易系用于在响应式文档中完成量化研究、研究因子和检验交易规则。登录后默认进入研究页。第一次使用时，可以先完成一份 Markdown/Python 研究和一次回测。
 
 ## 主要功能
 
 | 页面 | 可以完成的事情 |
 | --- | --- |
-| 市场 | 按行业、规模、板块和风格查看周、月、季、年气象，并回放历史变化 |
 | 研究 | 用 Markdown、Python、平台数据与 Agent 完成自由研究、图表、不可变快照和下游交接 |
 | 策略 | 用文字、TypeScript 或 Python 建立策略，查看历史收益、交易、多资产归因和组合风险 |
 | 因子研究 | 研究股票横截面、ETF 时间序列、跨资产 Panel 和宏观状态，并发布合格 Factor |
@@ -26,18 +24,17 @@
 ## 建议的第一次使用顺序
 
 1. 按照[登录](/help/getting-started/login)完成登录。
-2. 阅读[查看市场气象图](/help/market-valuation/market-overview)，认识默认首页。
-3. 阅读[页面导航](/help/getting-started/navigation)，认识顶部入口。
-4. 按照[第一次完成量化研究](/help/getting-started/first-research)熟悉文档、Python 和完整快照。
-5. 按照[可信跨市场研究学习路径](/help/learning/trusted-cross-market-research)，从事前假设做到可复查结论。
-6. 按照[第一次运行回测](/help/getting-started/first-backtest)完成一次历史检验。
-7. 按照[沪深 300 趋势策略学习路径](/help/learning/csi300-trend-strategy)，审查参数、成本和样本外结果。
-8. 按照[第一次运行预设因子分析](/help/factors/first-preset-analysis)熟悉 Factor 报告。
-9. 按照[沪深 300 价值因子学习路径](/help/learning/csi300-value-factor)，理解横截面排名与不同日期区间的结果。
-11. 按照[股债配置与风险归因学习路径](/help/learning/stock-bond-allocation-risk)，通过四组实跑拆分资产配置、择时和成本，再对账完整风险。
-12. 按照[商品 Carry 学习路径](/help/learning/commodity-carry-holdout)，阅读期限结构、代理误差与历史样本比较案例。
-13. 按照[销售收益率学习路径](/help/learning/sales-yield-positive)，阅读销售收益率的历史分析与局限。
-14. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
+2. 阅读[页面导航](/help/getting-started/navigation)，认识顶部入口。
+3. 按照[第一次完成量化研究](/help/getting-started/first-research)熟悉文档、Python 和完整快照。
+4. 按照[可信跨市场研究学习路径](/help/learning/trusted-cross-market-research)，从事前假设做到可复查结论。
+5. 按照[第一次运行回测](/help/getting-started/first-backtest)完成一次历史检验。
+6. 按照[沪深 300 趋势策略学习路径](/help/learning/csi300-trend-strategy)，审查参数、成本和样本外结果。
+7. 按照[第一次运行预设因子分析](/help/factors/first-preset-analysis)熟悉 Factor 报告。
+8. 按照[沪深 300 价值因子学习路径](/help/learning/csi300-value-factor)，理解横截面排名与不同日期区间的结果。
+9. 按照[股债配置与风险归因学习路径](/help/learning/stock-bond-allocation-risk)，通过四组实跑拆分资产配置、择时和成本，再对账完整风险。
+10. 按照[商品 Carry 学习路径](/help/learning/commodity-carry-holdout)，阅读期限结构、代理误差与历史样本比较案例。
+11. 按照[销售收益率学习路径](/help/learning/sales-yield-positive)，阅读销售收益率的历史分析与局限。
+12. 阅读[为什么回测不等于未来收益](/help/basics/backtest-limitations)。
 
 ## 产品不能替你完成什么
 

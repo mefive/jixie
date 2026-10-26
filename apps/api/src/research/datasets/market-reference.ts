@@ -1,5 +1,4 @@
 import { getDatabase } from '#infra/database/prisma.js';
-import { currentDerivedRows } from '#market/state/current.js';
 
 /**
  * 指定受控参考数据的身份和日期范围。
@@ -61,37 +60,6 @@ export async function loadResearchIndexValuation(request: ResearchReferenceDatas
     pe: row.pe,
     pe_ttm: row.peTtm,
     pb: row.pb,
-  }));
-}
-
-/**
- * 按稳定代码或精确名称解析受治理申万一级行业后读取状态。
- *
- * Load one governed Shenwan level-1 industry by either its stable code or exact name.
- */
-export async function loadResearchIndustryState(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await getDatabase().industryIndicator.findMany({
-    where: {
-      OR: [{ l1Code: request.identifier }, { l1Name: request.identifier }],
-      tradeDate: { gte: request.start, lte: request.end },
-    },
-    orderBy: { tradeDate: 'asc' },
-  });
-  const current = await currentDerivedRows(rows);
-
-  return current.map((row) => ({
-    date: row.tradeDate,
-    industry_code: row.l1Code,
-    industry_name: row.l1Name,
-    traded_count: row.tradedCount,
-    return_20d: row.return20,
-    excess_return_20d: row.excessReturn20,
-    positive_return_20d_ratio: row.positiveReturn20Ratio,
-    above_ma20_ratio: row.aboveMa20Ratio,
-    above_ma60_ratio: row.aboveMa60Ratio,
-    float_weighted_turnover_rate_pct: row.floatWeightedTurnoverRate,
-    amount_share: row.amountShare,
-    top_five_amount_share: row.topFiveAmountShare,
   }));
 }
 

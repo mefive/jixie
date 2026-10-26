@@ -2,16 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { researchCellRunFrameSchema } from './protocol.js';
 
 describe('research Python protocol', () => {
-  it('rejects the retired factor-weather request', () => {
-    expect(() =>
-      researchCellRunFrameSchema.parse({
-        type: 'request',
-        id: 1,
-        method: 'research_factor_weather',
-        arguments: { factor_id: 'removed' },
-      }),
-    ).toThrow();
-  });
+  it.each(['research_factor_weather', 'research_market_state', 'research_industry_state'])(
+    'rejects retired request %s',
+    (method) => {
+      expect(() =>
+        researchCellRunFrameSchema.parse({
+          type: 'request',
+          id: 1,
+          method,
+          arguments: { factor_id: 'removed' },
+        }),
+      ).toThrow();
+    },
+  );
 
   it('rejects unrecognized Research output fields and request methods', () => {
     expect(() =>

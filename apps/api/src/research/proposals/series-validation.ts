@@ -126,26 +126,6 @@ export async function validateResearchSeriesProposal(
           `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} must use a literal identifier value so the Research catalog can validate it.`,
         );
       }
-      if (request.method === 'industry_state') {
-        const catalog = await searchCatalog({
-          query: request.identifier,
-          scope: 'datasets',
-          limit: 50,
-        });
-        if (
-          catalog.datasets.some(
-            (candidate) =>
-              candidate.method === 'data.industry_state' &&
-              (candidate.identifier === request.identifier ||
-                candidate.tags.includes(request.identifier!)),
-          )
-        ) {
-          continue;
-        }
-        throw new Error(
-          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} references industry ${request.identifier}, which is not in the Research catalog.`,
-        );
-      }
       const assetType = identifierRequestAssetType(request.method);
       const catalog = await searchCatalog({ query: request.identifier, assetType, limit: 50 });
       if (

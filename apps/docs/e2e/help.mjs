@@ -813,27 +813,6 @@ try {
   await page.getByText('中文', { exact: true }).last().click();
   await page.getByRole('heading', { level: 1, name: '在策略中使用自定义因子' }).waitFor();
 
-  await page.getByRole('link', { name: '查看市场气象图', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '查看市场气象图' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('market weather overview article does not render both screenshots');
-  }
-
-  await page.getByRole('link', { name: '理解市场气象卡片', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '理解市场气象卡片' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('market weather card article does not render its screenshot');
-  }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
-    throw new Error('market weather heat formula did not render with KaTeX');
-  }
-
-  await page.getByRole('link', { name: '回放历史并查看卡片详情', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '回放历史并查看卡片详情' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('market weather playback article does not render both screenshots');
-  }
-
   await page.getByRole('link', { name: '查看指数估值', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '查看指数估值' }).waitFor();
   if ((await page.locator('.jx-help-figure').count()) !== 3) {
@@ -845,8 +824,8 @@ try {
 
   await page.getByRole('link', { name: '正确理解历史百分位', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '正确理解历史百分位' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('percentile article does not render both screenshots');
+  if ((await page.locator('.jx-help-figure').count()) !== 1) {
+    throw new Error('percentile article does not render its valuation screenshot');
   }
   if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
     throw new Error('percentile formula did not render with KaTeX');
@@ -854,7 +833,7 @@ try {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(100);
   await page.screenshot({
-    path: `${SHOTS}15b-help-market-weather.png`,
+    path: `${SHOTS}15b-help-valuation-percentiles.png`,
   });
 
   await page.getByRole('link', { name: '页面导航', exact: true }).first().click();

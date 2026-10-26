@@ -20,9 +20,7 @@ import {
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
-  RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
-  RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
@@ -199,14 +197,14 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
         {
           id: 'references',
           source:
-            'shares = data.etf_shares("510300.SH", start="20200101", end="20251231")\nindustry = data.industry_state(identifier="食品饮料", start="20200101", end="20251231")\nsettlement = data.futures_settlement("IF2609.CFX", start="20260101", end="20261231")',
+            'shares = data.etf_shares("510300.SH", start="20200101", end="20251231")\nvaluation = data.index_valuation(identifier="000300.SH", start="20200101", end="20251231")\nsettlement = data.futures_settlement("IF2609.CFX", start="20260101", end="20261231")',
         },
       ]),
     );
 
     expect(analysis?.equityRequests).toEqual([
       { line: 1, method: 'etf_shares', identifier: '510300.SH' },
-      { line: 2, method: 'industry_state', identifier: '食品饮料' },
+      { line: 2, method: 'index_valuation', identifier: '000300.SH' },
       { line: 3, method: 'futures_settlement', identifier: 'IF2609.CFX' },
     ]);
   });
@@ -325,13 +323,33 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
     );
   });
 
+  it.each(['market_state', 'industry_state'])(
+    'rejects retired Python data.%s calls',
+    async (method) => {
+      await expect(
+        researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+          sandbox.execute({
+            cell: {
+              id: 'retired-market-state',
+              source: `data.${method}("removed", start="20200101", end="20251231")`,
+            },
+          }),
+        ),
+      ).rejects.toEqual(
+        expect.objectContaining<Partial<ResearchPythonExecutionError>>({
+          message: expect.stringContaining(method),
+        }),
+      );
+    },
+  );
+
   it('keeps the Python data API signature aligned with the public SDK contract', async () => {
     const result = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
       sandbox.execute({
         cell: {
           id: 'signature',
           source:
-            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.market_state, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.etf_shares, data.index_valuation, data.industry_state, data.futures_settlement, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel, valuation.fcff_scenarios, valuation.implied_revenue_growth])',
+            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.etf_shares, data.index_valuation, data.futures_settlement, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel, valuation.fcff_scenarios, valuation.implied_revenue_growth])',
         },
       }),
     );
@@ -349,7 +367,6 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
           RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
           RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
           RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
-          RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
           RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
           RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
           RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
@@ -358,7 +375,6 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
           RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
           RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
           RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
-          RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1,
           RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1,

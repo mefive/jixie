@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { expect, it } from 'vitest';
 import { closeDatabase, createDatabase, withDatabase } from '#infra/database/prisma.js';
-import { currentDerivedRows } from '#market/state/current.js';
 import { synchronizeData } from '#maintenance/sync.js';
 
 const execute = promisify(execFile);
@@ -331,9 +330,6 @@ it.each(['upgrade', 'empty'] as const)(
         const client = createDatabase(url);
         try {
           await withDatabase(client, async () => {
-            expect(
-              (await currentDerivedRows(await client.marketIndicator.findMany()))[0].return20,
-            ).toBeNull();
             const controller = new AbortController();
             controller.abort(new Error('Controlled bootstrap budget'));
             await synchronizeData({
@@ -359,9 +355,6 @@ it.each(['upgrade', 'empty'] as const)(
             expect(await client.datasetSyncPartition.count({ where: { status: 'complete' } })).toBe(
               0,
             );
-            expect(
-              (await currentDerivedRows(await client.marketIndicator.findMany()))[0].return20,
-            ).toBeNull();
           });
         } finally {
           await closeDatabase(client);

@@ -35,14 +35,14 @@ await context.route('**/api/maintenance/status', (route) => {
 await context.route('**/api/maintenance/version', (route) =>
   json(route, { revision: 'maintenance-review' }),
 );
-await context.route('**/api/app/market/weather**', (route) => json(route, marketWeatherSeries()));
+await context.route('**/api/app/research/documents**', (route) => json(route, []));
 
 const page = await context.newPage();
 const pageErrors = [];
 page.on('pageerror', (error) => pageErrors.push(error.message));
 
 try {
-  await page.goto(`${BASE}/market?from=maintenance`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}/research?from=maintenance`, { waitUntil: 'domcontentloaded' });
   await page.getByRole('heading', { name: '服务暂时不可用', exact: true }).waitFor();
   await page.getByText('系统可能正在更新或重启，我们会持续尝试连接。', { exact: true }).waitFor();
   await page.getByText('等待服务恢复', { exact: true }).waitFor();
@@ -56,7 +56,7 @@ try {
   serviceAvailable = true;
   await recoveryNavigation;
   await page.locator('.jx-maintenanceGate').waitFor({ state: 'detached' });
-  await page.locator('.jx-market').waitFor();
+  await page.locator('.jx-research').waitFor();
   await assertCurrentRoute(page);
 
   if ((await page.locator('.jx-login').count()) !== 0) {
@@ -70,7 +70,6 @@ try {
     throw new Error(`unexpected page errors: ${pageErrors.join('; ')}`);
   }
 
-  await page.getByText('等待完整输入', { exact: true }).waitFor();
   maintenancePhase = 'preparing';
   await page.getByText('数据准备中', { exact: true }).waitFor({ timeout: 10_000 });
   if (await page.locator('.jx-maintenanceGate').count()) {
@@ -141,45 +140,9 @@ function inactiveMaintenanceStatus() {
   };
 }
 
-function marketWeatherSeries() {
-  return {
-    dimension: 'industry',
-    frequency: 'month',
-    startDate: '20260801',
-    endDate: '20260805',
-    groups: [{ key: 'financial', codes: ['801780.SI'] }],
-    periods: [
-      {
-        key: '2026-08',
-        startDate: '20260801',
-        endDate: '20260805',
-        snapshotDate: '20260805',
-        items: [
-          {
-            code: '801780.SI',
-            name: '银行',
-            periodReturn: 0.012,
-            benchmarkCode: null,
-            benchmarkName: null,
-            relativeReturn: null,
-            heatScore: null,
-            heatChange: null,
-            activityScore: null,
-            breadthScore: null,
-            valuationPercentile: 32,
-            valuationSource: 'official',
-            state: 'waiting',
-            coverage: 'partial',
-          },
-        ],
-      },
-    ],
-  };
-}
-
 async function assertCurrentRoute(page) {
   const current = new URL(page.url());
-  if (current.pathname !== '/market' || current.search !== '?from=maintenance') {
+  if (current.pathname !== '/research' || current.search !== '?from=maintenance') {
     throw new Error(
       `expected the protected route to be preserved, got ${current.pathname}${current.search}`,
     );

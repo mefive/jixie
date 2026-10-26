@@ -18,9 +18,7 @@ import {
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
-  RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
-  RESEARCH_MARKET_STATE_SDK_CONTRACT_V1,
   RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
@@ -48,9 +46,7 @@ import {
   parseResearchFxRuntimeRequest,
   parseResearchFuturesSettlementRuntimeRequest,
   parseResearchIndexValuationRuntimeRequest,
-  parseResearchIndustryStateRuntimeRequest,
   parseResearchMacroRuntimeRequest,
-  parseResearchMarketStateRuntimeRequest,
   parseResearchPanelRuntimeRequest,
   parseResearchSeriesRuntimeRequest,
   parseResearchStrategyScanReportRuntimeRequest,
@@ -152,19 +148,11 @@ describe('research workbench SDK contract', () => {
     );
   });
 
-  it('drives market-state and stock supplemental dataset bridges', () => {
-    expect(
-      parseResearchMarketStateRuntimeRequest({
-        scope: '000300.SH',
-        start: '20200101',
-        end: '20251231',
-      }),
-    ).toMatchObject({ scope: '000300.SH' });
+  it('drives stock supplemental dataset bridges', () => {
     const stockRequest = { identifier: '600519.SH', start: '20200101', end: '20251231' };
     expect(parseResearchEquityFundamentalsRuntimeRequest(stockRequest)).toEqual(stockRequest);
     expect(parseResearchEquityFlowsRuntimeRequest(stockRequest)).toEqual(stockRequest);
     expect(parseResearchEquityDividendsRuntimeRequest(stockRequest)).toEqual(stockRequest);
-    expect(RESEARCH_MARKET_STATE_SDK_CONTRACT_V1.qualifiedName).toBe('data.market_state');
     expect(RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.qualifiedName).toBe(
       'data.equity_fundamentals',
     );
@@ -172,15 +160,13 @@ describe('research workbench SDK contract', () => {
     expect(RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_dividends');
   });
 
-  it('drives ETF, index, industry, and futures reference dataset bridges', () => {
+  it('drives ETF, index, and futures reference dataset bridges', () => {
     const request = { identifier: 'TEST', start: '20200101', end: '20251231' };
     expect(parseResearchEtfSharesRuntimeRequest(request)).toEqual(request);
     expect(parseResearchIndexValuationRuntimeRequest(request)).toEqual(request);
-    expect(parseResearchIndustryStateRuntimeRequest(request)).toEqual(request);
     expect(parseResearchFuturesSettlementRuntimeRequest(request)).toEqual(request);
     expect(RESEARCH_ETF_SHARES_SDK_CONTRACT_V1.qualifiedName).toBe('data.etf_shares');
     expect(RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.qualifiedName).toBe('data.index_valuation');
-    expect(RESEARCH_INDUSTRY_STATE_SDK_CONTRACT_V1.qualifiedName).toBe('data.industry_state');
     expect(RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.qualifiedName).toBe(
       'data.futures_settlement',
     );

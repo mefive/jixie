@@ -34,10 +34,10 @@
 | `/api/maintenance` | `maintenance/routes.ts` 导出 `maintenanceRoute` |
 | `/api/auth` | `auth/routes.ts`；`auth/middleware.ts` 提供鉴权，`auth/cookies.ts` 处理 Cookie |
 | `/api/app/research` | `research/routes/index.ts` 直接组合 document / execution / artifacts / proposal / agent / data / language / embedded 路由 |
-| `/api/app/factors` | `factor/routes/index.ts` 直接组合定义、组合、Agent、分析、相关性和天气，导出 `factorRoute` |
+| `/api/app/factors` | `factor/routes/index.ts` 直接组合定义、Agent 和分析，导出 `factorRoute` |
 | `/api/app/strategies` | `strategy/routes/index.ts` 直接组合定义、Agent、回测和扫描，导出 `strategyRoute` |
 | `/api/app/agent` | `agent/routes/index.ts` 组合 turn 路由，提供执行详情、历史、SSE 和取消 |
-| `/api/app/market` | `market/routes/index.ts` 直接组合 instrument / valuation / state 路由 |
+| `/api/app/market` | `market/routes/index.ts` 直接组合 instrument / valuation 路由 |
 
 路由负责入参、用户/语言上下文、HTTP 状态和响应。具体查询与修改在所属模块中；不存在导出整个后端实现的总 service 或 barrel。路由对象使用业务/职责明确的具名导出，如 `authRoute`、`strategyRoute` 和 `factorRoute`；server 和外部路由消费者只从所属模块的路由总入口 同名导入。单组路由可以在入口直接实现，Strategy 的 `routes/index.ts` 直接组合 `routes/definition.ts`、`routes/agent.ts`、`routes/backtest.ts` 和 `routes/scan.ts`；Factor 的 `routes/index.ts` 直接组合 `routes/definition.ts`、`routes/composite.ts`、`routes/agent.ts`、`routes/analysis.ts`、`routes/correlation.ts` 和 `routes/weather.ts`。处理器按业务职责分文件实现。完整路径与迁移说明见 [路由设计](design/api-route-naming.md)。组合文件直接导入子路由实现，不反向导入统一出口。
 
@@ -143,7 +143,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 
 ### 3. 维护市场数据
 
-Maintenance 使用统一 `pnpm data sync` 入口准备并接纳 Market 分区，再推进派生计算和 Factor 天气。
+Maintenance 使用统一 `pnpm data sync` 入口准备并接纳 Market 分区，再推进保留的期货发布与商品收益派生计算。
 Signals 的策略部署、每日任务、通知和账户结算已移除；数据同步不再触发这些业务。
 当前维护边界见 [Maintenance](../apps/api/src/maintenance/README.md)。
 
