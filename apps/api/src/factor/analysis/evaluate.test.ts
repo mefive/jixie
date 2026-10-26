@@ -5,7 +5,6 @@ import type {
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import type { MacroRegimeEvaluationData } from '../observations/macro-regime-observations.js';
 
 const mocks = vi.hoisted(() => ({
@@ -247,81 +246,7 @@ describe('shared factor evaluation', () => {
     },
   );
 
-  const composite: FactorAnalysisSource = {
-    kind: 'panel_composite',
-    label: 'Composite',
-    definition: {
-      version: 2,
-      key: 'composite',
-      analysisKind: 'panel',
-      name: 'Composite',
-      standardization: 'rank',
-      weighting: 'equal',
-      components: [
-        { factor: 'first', direction: 'positive' },
-        { factor: 'second', direction: 'positive' },
-      ],
-    },
-    components: [
-      {
-        factor: 'first',
-        direction: 'positive',
-        label: 'First',
-        code: 'first code',
-        language: 'typescript',
-      },
-      {
-        factor: 'second',
-        direction: 'positive',
-        label: 'Second',
-        code: 'second code',
-        language: 'python',
-      },
-    ],
-  };
-
-  it('combines mixed-language panel components and closes every runtime', async () => {
-    const first = { close: vi.fn() },
-      second = { close: vi.fn() };
-    mocks.start.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
-    const result = await runFactorEvaluation({ ...options, source: composite, spec: panelSpec });
-
-    expect(mocks.start.mock.calls).toEqual([
-      [
-        {
-          language: 'typescript',
-          analysisKind: 'panel',
-          code: 'first code',
-          onUserLog: logs.onUserLog,
-        },
-      ],
-      [
-        {
-          language: 'python',
-          analysisKind: 'panel',
-          code: 'second code',
-          onUserLog: logs.onUserLog,
-        },
-      ],
-    ]);
-    expect(result).toMatchObject({ periods: 3, observations: 12, rankIcMean: 1 });
-    expect(mocks.panel).toHaveBeenNthCalledWith(1, panelSpec, first);
-    expect(mocks.panel).toHaveBeenNthCalledWith(2, panelSpec, second);
-    expect(first.close).toHaveBeenCalledOnce();
-    expect(second.close).toHaveBeenCalledOnce();
-  });
-
-  it('releases started components if a later component fails to start', async () => {
-    const first = { close: vi.fn() };
-    mocks.start.mockResolvedValueOnce(first).mockRejectedValueOnce(new Error('invalid component'));
-    await expect(
-      runFactorEvaluation({ ...options, source: composite, spec: panelSpec }),
-    ).rejects.toThrow('invalid component');
-    expect(first.close).toHaveBeenCalledOnce();
-    expect(mocks.panel).not.toHaveBeenCalled();
-  });
-
-  it('normalizes the legacy weather protocol without requiring a report identifier', async () => {
+  it('normalizes a legacy single-factor protocol without requiring a report identifier', async () => {
     const spec = createDefaultFactorAnalysisSpecV3({
       freq: 'month',
       start: '20200101',

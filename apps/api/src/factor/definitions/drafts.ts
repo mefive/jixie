@@ -18,13 +18,7 @@ import { factorLanguage } from './views.js';
 export async function createFactorDraft(userId: string, input: CreateFactorDraftInput) {
   const { key, name, code, analysisKind, language, messages } = input;
 
-  if (
-    BUILTIN_KEYS.has(key) ||
-    (await getDatabase().factorComposite.findFirst({
-      where: { userId, key },
-      select: { id: true },
-    }))
-  ) {
+  if (BUILTIN_KEYS.has(key)) {
     throw new FactorError('factor_key_unavailable');
   }
 

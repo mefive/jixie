@@ -7,7 +7,6 @@ import { backtestWorkerMessageSchema } from '#strategy/backtests/worker-protocol
 import { strategyScanPayloadSchema } from '#strategy/scans/result-schema.js';
 import { strategyScanWorkerMessageSchema } from '#strategy/scans/worker-protocol.js';
 import { factorAnalysisWorkerMessageSchema } from '#factor/analysis/worker-protocol.js';
-import { factorCorrelationWorkerMessageSchema } from '#factor/correlations/worker-protocol.js';
 
 // Expand shared intersection aliases before comparing the complete nested wire shape.
 type DataShape<Value> = Value extends object
@@ -45,7 +44,6 @@ describe('shared Worker wire contracts', () => {
     backtestWorkerMessageSchema,
     strategyScanWorkerMessageSchema,
     factorAnalysisWorkerMessageSchema,
-    factorCorrelationWorkerMessageSchema,
   ])('uses the same validated log and error envelope', (schema) => {
     const log = { type: 'log', entry: { source: 'system', level: 'info', text: 'progress' } };
     expect(schema.parse(log)).toEqual(log);
@@ -172,16 +170,12 @@ describe('shared Worker wire contracts', () => {
     ).toBe(false);
   });
 
-  it('preserves the distinct analysis and correlation payload envelopes', () => {
+  it('requires the analysis report identity in its payload envelope', () => {
     expect(
       factorAnalysisWorkerMessageSchema.parse({ type: 'done', reportId: 'report', payload: '{}' }),
     ).toEqual({ type: 'done', reportId: 'report', payload: '{}' });
     expect(
       factorAnalysisWorkerMessageSchema.safeParse({ type: 'done', payload: '{}' }).success,
     ).toBe(false);
-    expect(factorCorrelationWorkerMessageSchema.parse({ type: 'done', payload: '{}' })).toEqual({
-      type: 'done',
-      payload: '{}',
-    });
   });
 });

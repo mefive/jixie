@@ -5,10 +5,7 @@ import type {
   CreateFactorDraftInput,
   FactorAgentRequest,
   FactorQuestionRequest,
-  FactorCorrelationRequestQuery,
-  FactorCorrelationQuery,
   FactorReportListRequestQuery,
-  FactorCompositeRequest,
 } from '@jixie/shared/api/factor';
 import type {
   ResearchAgentRequest,
@@ -36,9 +33,6 @@ export type RequestContractAssertions = [
   Assert<Equal<CreateFactorDraftInput['language'], 'typescript' | 'python'>>,
   Assert<Equal<ResearchAgentRequest['contextCellIds'], string[] | undefined>>,
   Assert<Equal<ResearchAgentTurnInput['contextCellIds'], string[]>>,
-  Assert<Equal<FactorCorrelationRequestQuery['keys'], string>>,
-  Assert<Equal<FactorCorrelationQuery['keys'], string[]>>,
   Assert<Equal<keyof FactorReportListRequestQuery, 'factor'>>,
   Assert<Equal<ResearchEmbeddedPageRequestQuery['limit'], string | undefined>>,
-  Assert<Equal<unknown extends FactorCompositeRequest['definition'] ? true : false, false>>,
 ];

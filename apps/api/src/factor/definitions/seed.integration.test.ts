@@ -25,7 +25,7 @@ import { prisma } from '#infra/database/prisma.js';
 import { sha256 } from '../sources/fingerprint.js';
 import { BUILTIN_FACTORS, BUILTIN_USER_ID } from './builtin-factors.js';
 import { resolveFactorSource, resolveTimeSeriesFactorSource } from '../sources/resolve.js';
-import { resolvePanelFactorSource } from '../composition/panel-source.js';
+import { resolvePanelFactorSource } from '../sources/resolve.js';
 import { captureFactorQuestionContext } from '../questions/context.js';
 import { captureEmbeddedContext } from '#research/embedded/context.js';
 import { readFactorDefinition } from './read.js';

@@ -174,7 +174,6 @@ describe('durable job and business lifecycle transactions', () => {
       string
     >;
     await prisma.job.deleteMany();
-    await prisma.factorCorrelation.deleteMany();
     await prisma.user.deleteMany();
     await prisma.factorReport.deleteMany();
     await prisma.user.create({ data: { id: 'owner', email: 'owner@example.com' } });
@@ -346,94 +345,13 @@ describe('durable job and business lifecycle transactions', () => {
           payload: hasTask ? { ...analysisPayload, task: 'analysis' } : analysisPayload,
         },
       });
-      await prisma.job.create({
-        data: {
-          id: 'legacy-correlation',
-          userId: 'owner',
-          kind: 'factor-correlation',
-          key: 'correlation',
-          status: 'queued',
-          payload: {
-            task: 'correlation',
-            id: 'cache',
-            userId: 'owner',
-            keys: ['ep', 'bp'],
-            freq: 'month',
-            start: '20200101',
-            end: '20231229',
-            locale: 'en',
-          },
-        },
-      });
-
       await JobService.recoverInterrupted();
       expect(await JobService.claim(ids['factor-analysis'])).toBe(true);
       execution.worker.mockResolvedValueOnce('{"score":1}');
       await JobService.execute(ids['factor-analysis']);
       expect(await entityStatus('factor-analysis')).toBe('done');
-      expect(await JobService.claim('legacy-correlation')).toBe(true);
-      execution.worker.mockResolvedValueOnce('{"correlation":0.5}');
-      await JobService.execute('legacy-correlation');
-      expect(await prisma.factorCorrelation.findUnique({ where: { id: 'cache' } })).toMatchObject({
-        payload: '{"correlation":0.5}',
-      });
-      expect(await prisma.job.findUnique({ where: { id: 'legacy-correlation' } })).toMatchObject({
-        kind: 'factor-correlation',
-        status: 'done',
-      });
     },
   );
-
-  it('recovers current running kinds with historical payloads without overwriting a successful correlation cache', async () => {
-    await prisma.job.update({
-      where: { id: ids['factor-analysis'] },
-      data: { kind: 'factor-analysis' },
-    });
-    const cache = await prisma.factorCorrelation.create({
-      data: { id: 'cache', userId: 'owner', payload: 'previous', computedAt: new Date() },
-    });
-    await prisma.job.create({
-      data: {
-        id: 'legacy-correlation',
-        userId: 'owner',
-        kind: 'factor-correlation',
-        key: 'fixture',
-        status: 'running',
-        payload: { task: 'correlation' },
-      },
-    });
-
-    await JobService.recoverInterrupted();
-    expect(await entityStatus('factor-analysis')).toBe('stale');
-    expect(await prisma.job.findUnique({ where: { id: 'legacy-correlation' } })).toMatchObject({
-      kind: 'factor-correlation',
-      status: 'stale',
-    });
-    expect(await prisma.factorCorrelation.findUnique({ where: { id: 'cache' } })).toEqual(cache);
-    expect(execution.worker).not.toHaveBeenCalled();
-  });
-
-  it('rejects a correlation job linked to an analysis report before executing a worker', async () => {
-    await prisma.job.update({
-      where: { id: ids['factor-analysis'] },
-      data: {
-        kind: 'factor-correlation',
-        payload: {
-          id: 'cache',
-          userId: 'owner',
-          keys: ['ep', 'bp'],
-          freq: 'month',
-          start: '20200101',
-          end: '20231229',
-          locale: 'en',
-        },
-      },
-    });
-    await executeFixtureJob(ids['factor-analysis']);
-    expect(execution.worker).not.toHaveBeenCalled();
-    expect(await entityStatus('factor-analysis')).toBe('error');
-    expect(await prisma.factorCorrelation.count()).toBe(0);
-  });
 
   it('rolls back a successful result before recording completion failure', async () => {
     await prisma.$executeRawUnsafe(
@@ -481,7 +399,24 @@ describe('durable job and business lifecycle transactions', () => {
     expect(await prisma.job.count({ where: { status: 'running' } })).toBe(kinds.length);
   });
 
-  it.each(['signal', 'research-curator'])(
+  it('rejects a queued analysis containing a retired composite source before starting its Worker', async () => {
+    await prisma.job.update({
+      where: { id: ids['factor-analysis'] },
+      data: {
+        payload: {
+          ...(payload('factor-analysis') as Prisma.InputJsonObject),
+          source: { kind: 'composite', components: [] },
+        },
+      },
+    });
+
+    await executeFixtureJob(ids['factor-analysis']);
+
+    expect(execution.worker).not.toHaveBeenCalled();
+    expect(await entityStatus('factor-analysis')).toBe('error');
+  });
+
+  it.each(['signal', 'research-curator', 'factor-correlation'])(
     'rejects a retired queued %s without invoking a Worker or changing other jobs',
     async (kind) => {
       const before = await prisma.job.findMany({ orderBy: { id: 'asc' } });
@@ -572,66 +507,6 @@ describe('durable job and business lifecycle transactions', () => {
     );
     expect(await entityStatus('backtest')).toBe('error');
   });
-
-  it.each(['success', 'failed-create', 'failed-overwrite'] as const)(
-    'commits correlation cache with its Job: %s',
-    async (scenario) => {
-      await prisma.job.create({
-        data: {
-          id: 'correlation-job',
-          userId: 'owner',
-          kind: 'factor-correlation',
-          key: 'correlation',
-          status: 'running',
-          payload: {
-            id: 'correlation-cache',
-            userId: 'owner',
-            keys: ['a', 'b'],
-            freq: 'month',
-            start: '20240101',
-            end: '20240201',
-            locale: 'en',
-          },
-        },
-      });
-      const previousTime = new Date('2024-01-01T00:00:00Z');
-      if (scenario === 'failed-overwrite') {
-        await prisma.factorCorrelation.create({
-          data: {
-            id: 'correlation-cache',
-            userId: 'owner',
-            payload: 'previous',
-            computedAt: previousTime,
-          },
-        });
-      }
-      if (scenario !== 'success') {
-        await prisma.$executeRawUnsafe(
-          "CREATE TRIGGER reject_job_terminal BEFORE UPDATE OF status ON Job WHEN NEW.status = 'done' BEGIN SELECT RAISE(ABORT, 'completion rejected'); END",
-        );
-      }
-      execution.worker.mockResolvedValueOnce('{"correlation":0.5}');
-      await executeFixtureJob('correlation-job');
-      const cache = await prisma.factorCorrelation.findUnique({
-        where: { id: 'correlation-cache' },
-      });
-      switch (scenario) {
-        case 'success':
-          expect(cache?.payload).toBe('{"correlation":0.5}');
-          break;
-        case 'failed-create':
-          expect(cache).toBeNull();
-          break;
-        case 'failed-overwrite':
-          expect(cache).toMatchObject({ payload: 'previous', computedAt: previousTime });
-          break;
-      }
-      expect(await prisma.job.findUnique({ where: { id: 'correlation-job' } })).toMatchObject({
-        status: scenario === 'success' ? 'done' : 'error',
-      });
-      expect(await entityStatus('factor-analysis')).toBe('running');
-    },
-  );
 
   it('does not execute completed jobs again or overwrite their result', async () => {
     await complete('backtest', 'done');

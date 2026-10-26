@@ -36,11 +36,6 @@ export function describeFactors(definitions: FactorDefinition[]): FactorDescript
           field.startsWith('rates.cgb.yield.'),
         );
         break;
-      case 'panel_composite':
-        requirements.governmentYieldCurve ||= definition.components.some((component) =>
-          component.definition.meta.inputs.some((field) => field.startsWith('rates.cgb.yield.')),
-        );
-        break;
     }
   }
 

@@ -3,11 +3,7 @@ import { emailLoginRequestSchema } from '#auth/schema.js';
 import { embeddedDataReferencesSchema } from '#research/schema.js';
 import { factorAgentBodySchema, factorQuestionSchema } from '#factor/schema.js';
 import { strategyAgentBodySchema } from '#strategy/schema.js';
-import {
-  createFactorDraftSchema,
-  factorCorrelationQuerySchema,
-  factorReportListQuerySchema,
-} from '@jixie/shared/api/factor';
+import { createFactorDraftSchema, factorReportListQuerySchema } from '@jixie/shared/api/factor';
 import {
   embeddedDraftSchema,
   embeddedDataReferencesSchema as referenceWireSchema,
@@ -40,12 +36,6 @@ describe('shared HTTP request contracts', () => {
     expect(
       createFactorDraftSchema.parse({ key: 'momentum', name: 'Momentum', code: 'code' }),
     ).toMatchObject({ language: 'typescript', analysisKind: 'cross_sectional' });
-    expect(factorCorrelationQuerySchema.parse({ keys: 'size,value' })).toEqual({
-      keys: ['size', 'value'],
-      freq: 'month',
-      start: '20150101',
-      end: '20261231',
-    });
     expect(factorReportListQuerySchema.parse({ factor: 'size', limit: '7' })).toEqual({
       factor: 'size',
     });

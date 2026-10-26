@@ -1,17 +1,20 @@
-import { type FactorLanguage, factorRuntimeVersion } from '@jixie/shared';
+import { type FactorLanguage } from '@jixie/shared';
 import { z } from 'zod';
-import { canonicalJson, sha256 } from './fingerprint.js';
-import {
-  factorCompositeDefinitionV1Schema,
-  factorPanelCompositeDefinitionV2Schema,
-} from '@jixie/shared/api/factor';
-import type { FactorAnalysisRuntimeSource } from '../composition/composite.js';
+import { sha256 } from './fingerprint.js';
 
 /**
  * 冻结评估所需因子来源、协议与代码身份，供复现运行。
  *
  * Freeze factor source, protocol and code identity for reproducible evaluation.
  */
+export interface FactorAnalysisRuntimeSource {
+  kind: 'single';
+  code: string;
+  label: string;
+  language?: FactorLanguage;
+  runtimeVersion?: 'ts-v1' | 'py-v1';
+}
+
 export type FactorAnalysisSource =
   | FactorAnalysisRuntimeSource
   | {
@@ -57,101 +60,10 @@ export const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
     label: z.string().min(1),
     code: z.string().min(1),
   }),
-  z.object({
-    kind: z.literal('panel_composite'),
-    label: z.string().min(1),
-    definition: factorPanelCompositeDefinitionV2Schema,
-    components: z
-      .array(
-        z.object({
-          factor: z.string().min(1),
-          code: z.string().min(1),
-          label: z.string().min(1),
-          direction: z.enum(['positive', 'negative']),
-          language: z.enum(['typescript', 'python']).optional(),
-          runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
-        }),
-      )
-      .min(2)
-      .max(5),
-  }),
-  z.object({
-    kind: z.literal('composite'),
-    label: z.string().min(1),
-    definition: factorCompositeDefinitionV1Schema,
-    components: z
-      .array(
-        z.object({
-          factor: z.string().min(1),
-          code: z.string().min(1),
-          label: z.string().min(1),
-          direction: z.enum(['positive', 'negative']),
-          language: z.enum(['typescript', 'python']).optional(),
-          runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
-        }),
-      )
-      .min(2)
-      .max(5),
-  }),
 ]);
 
 export function factorAnalysisSourceSnapshot(source: FactorAnalysisSource): string {
-  return source.kind === 'single' ||
-    source.kind === 'time_series' ||
-    source.kind === 'panel' ||
-    source.kind === 'macro_regime'
-    ? source.code
-    : canonicalJson(source);
-}
-
-export function parseFactorAnalysisSourceSnapshot(
-  snapshot: string,
-  label: string,
-  composite: boolean,
-  language: FactorLanguage = 'typescript',
-): FactorAnalysisSource {
-  if (!composite) {
-    return {
-      kind: 'single',
-      code: snapshot,
-      label,
-      language,
-      runtimeVersion: factorRuntimeVersion(language),
-    };
-  }
-  return factorAnalysisRuntimeSourceSchema.parse(JSON.parse(snapshot));
-}
-
-/**
- * 校验持久化资产因子来源快照，供复现计算与报告读取。
- *
- * Validate a persisted asset-factor source snapshot for reproducible evaluation.
- */
-export function parseAssetFactorAnalysisSourceSnapshot(
-  snapshot: string,
-  label: string,
-  analysisKind: 'time_series' | 'panel' | 'macro_regime',
-  language: FactorLanguage = 'typescript',
-): FactorAnalysisSource {
-  if (analysisKind === 'panel') {
-    try {
-      const parsed = factorAnalysisRuntimeSourceSchema.parse(JSON.parse(snapshot));
-      if (parsed.kind === 'panel_composite') {
-        return parsed;
-      }
-    } catch {
-      // Plain Factor V2 code is not JSON and remains the compatibility path.
-    }
-  }
-  return analysisKind === 'macro_regime'
-    ? { kind: analysisKind, code: snapshot, label }
-    : {
-        kind: analysisKind,
-        code: snapshot,
-        label,
-        language,
-        runtimeVersion: factorRuntimeVersion(language),
-      };
+  return source.code;
 }
 
 export function factorAnalysisSourceHash(snapshot: string, language: FactorLanguage): string {

@@ -73,27 +73,13 @@ describe('factor evaluation identity', () => {
     expect(factorVariantKey(base, 'hash')).not.toEqual(factorVariantKey(diagnostic, 'hash'));
   });
 
-  it('freezes robust inference and an optional composite in V6 identity', () => {
+  it('freezes robust inference in V6 identity', () => {
     const base = createDefaultFactorAnalysisSpecV6({
       freq: 'month',
       start: '20200101',
       end: '20250101',
       neutral: 'none',
     });
-    const composite = createDefaultFactorAnalysisSpecV6({
-      ...base,
-      composite: {
-        version: 1,
-        name: 'Quality + value',
-        standardization: 'rank',
-        weighting: 'equal',
-        components: [
-          { factor: 'roe', direction: 'positive' },
-          { factor: 'bp', direction: 'positive' },
-        ],
-      },
-    });
-
     expect(normalizeFactorAnalysisSpec(base)).toEqual(base);
     expect(base.inference.famaMacbeth).toMatchObject({
       controlSet: 'cn_equity_style_v1',
@@ -102,7 +88,6 @@ describe('factor evaluation identity', () => {
       momentumLookbackTradingDays: 252,
       momentumSkipTradingDays: 21,
     });
-    expect(factorVariantKey(base, 'hash')).not.toEqual(factorVariantKey(composite, 'hash'));
   });
 
   it('includes every V2 methodology choice in variant identity', () => {

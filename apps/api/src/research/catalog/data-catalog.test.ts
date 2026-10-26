@@ -110,6 +110,33 @@ describe('research data catalog', () => {
     }
   });
 
+  it('continues past retired reports so they do not hide an available independent factor', async () => {
+    const report = {
+      factor: 'independent',
+      analysisKind: 'cross_sectional',
+      createdAt: new Date('2026-01-01'),
+      computedAt: null,
+      factorCodeSnapshot: null,
+    };
+    mocks.factorReportFindMany
+      .mockResolvedValueOnce([
+        { ...report, id: 'retired', specJson: JSON.stringify({ version: 4, composite: {} }) },
+      ])
+      .mockResolvedValueOnce([{ ...report, id: 'independent', specJson: null }]);
+
+    const result = await searchResearchDataCatalog({
+      userId: 'owner',
+      scope: 'factor_reports',
+      limit: 1,
+    });
+
+    expect(result.factorReports.map((item) => item.id)).toEqual(['independent']);
+    expect(mocks.factorReportFindMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ cursor: { id: 'retired' }, skip: 1 }),
+    );
+  });
+
   it('returns only series-compatible measures before a user enters a query', async () => {
     const result = await searchResearchDataCatalog({ assetType: 'index' });
 

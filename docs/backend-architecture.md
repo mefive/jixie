@@ -153,7 +153,7 @@ Signals 的策略部署、每日任务、通知和账户结算已移除；数据
 | --- | --- |
 | ResearchDocument / Cell | Research 控制修订、失效、阻塞与执行互斥；提交旧修订的结果不能覆盖新源代码 |
 | ResearchExecution | Embedded 保存最近运行状态、幂等键和 Job 关联，不保存源码、环境或输入快照 |
-| Factor / FactorComposite | Factor 控制定义、分析、holdout、发布与归档；Strategy 消费符合已有发布规则的因子 |
+| Factor | Factor 控制定义、分析、holdout、发布与归档；Strategy 消费符合已有发布规则的因子 |
 | Strategy / BacktestReport / StrategyScanReport | Strategy 保存可编辑草稿和不可混淆的报告快照；提交时冻结配置和数据范围 |
 | Job | Infra 拥有 queued → running → done/error/stale；业务任务定义拥有关联业务记录的完成/失败/恢复 |
 | AgentTurn / Conversation | Agent 管理对话和消息记录；业务负责上下文。消息完成持久化后才发布 done，多个阶段不是一个总事务 |
@@ -193,7 +193,7 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 
 ## Factor 内部职责
 
-正式报告与 Job、相关性缓存分属两个生命周期，共享计算不拥有这些对象。入口及协作流程维护在 [Factor 总览](../apps/api/src/factor/README.md)，具体契约见 [evaluations](../apps/api/src/factor/evaluations/README.md)、[correlations](../apps/api/src/factor/correlations/README.md) 和 [analysis](../apps/api/src/factor/analysis/README.md)。旧 Job kind 的部署转换与查询规则见 [jobs](../apps/api/src/factor/jobs/README.md)，背景和历史验证见 [内部结构整理](design/core-business-internal-structure.md)。
+正式报告与 Job 的生命周期归评估模块，计算层不拥有这些对象。入口及协作流程维护在 [Factor 总览](../apps/api/src/factor/README.md)，具体契约见 [evaluations](../apps/api/src/factor/evaluations/README.md) 和 [analysis](../apps/api/src/factor/analysis/README.md)。旧 Job kind 的部署转换与查询规则见 [jobs](../apps/api/src/factor/jobs/README.md)，背景和历史验证见 [内部结构整理](design/core-business-internal-structure.md)。
 
 ## Maintenance 与 Market 数据业务边界
 

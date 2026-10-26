@@ -2,10 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createStrategySchema } from '@jixie/shared/api/strategy';
-import {
-  factorCorrelationQuerySchema,
-  factorQuestionHistorySchema,
-} from '@jixie/shared/api/factor';
+import { factorQuestionHistorySchema } from '@jixie/shared/api/factor';
 import { dataCatalogQuerySchema, embeddedListSchema } from '@jixie/shared/api/research';
 import { strategyAgentBodySchema } from '#strategy/schema.js';
 
@@ -109,18 +106,6 @@ describe('Web requests consume the shared HTTP contracts', () => {
     expect(strategyAgentBodySchema.parse(sent.body)).toMatchObject({
       message: 'Explain',
       dataReferences: [],
-    });
-  });
-
-  it('serializes comma-separated correlation keys before server conversion', async () => {
-    await client.getFactorCorrelation(['size', 'value'], 'month', '20200101', '20261231');
-    const { url } = sentRequest();
-    expect(url.searchParams.get('keys')).toBe('size,value');
-    expect(factorCorrelationQuerySchema.parse(Object.fromEntries(url.searchParams))).toEqual({
-      keys: ['size', 'value'],
-      freq: 'month',
-      start: '20200101',
-      end: '20261231',
     });
   });
 

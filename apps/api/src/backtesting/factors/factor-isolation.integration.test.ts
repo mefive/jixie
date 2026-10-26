@@ -268,73 +268,6 @@ def on_bar(ctx):
       ),
     ).rejects.toThrow('is not prepared');
   });
-
-  it('combines TS and Python panel values over one frozen universe', async () => {
-    enablePython();
-    const fixture: FixtureSpec = {
-      dates,
-      stocks: ['A', 'B'].map((code, index) => ({
-        code,
-        assetType: 'etf',
-        bars: dates.map((date) => ({ date, open: 10 + index, close: 10 + index })),
-      })),
-    };
-    const components: FactorFixtureSource[] = [
-      {
-        key: 'ts_component',
-        analysisKind: 'panel',
-        assetSeries: { window: 2, inputs: ['etf.adjustedClose'] },
-        js: `module.exports = defineFactorV2({ name: 'panel', version: 2, analysisKind: 'panel',
-          outputScope: 'asset', frequency: 'daily', window: 2, inputs: ['etf.adjustedClose'],
-          targetAssetClasses: ['equity'], compute(ctx) { return ctx.value('etf.adjustedClose'); }
-        });`,
-      },
-      {
-        key: 'py_component',
-        language: 'python',
-        runtimeVersion: 'py-v1',
-        analysisKind: 'panel',
-        assetSeries: { window: 2, inputs: ['etf.adjustedClose'] },
-        code: `
-from jixie import Factor
-factor = Factor.panel(name="panel", inputs=["etf.adjustedClose"], target_asset_classes=["equity"], window=2)
-@factor.compute
-def compute(ctx):
-    return ctx.value("etf.adjustedClose")
-`,
-      },
-    ];
-    const composite: FactorFixtureSource = {
-      key: 'composite',
-      analysisKind: 'panel',
-      panelComposite: {
-        standardization: 'rank',
-        assetUniverse: [
-          { assetId: 'A', assetClass: 'cn_equity' },
-          { assetId: 'B', assetClass: 'cn_equity' },
-        ],
-        components: components.map((module) => ({ direction: 'positive', module })),
-      },
-    };
-    const seen: Array<Array<number | null>> = [];
-    await runWithFactors(
-      {
-        name: 'mixed panel',
-        watch: ['A', 'B'],
-        factors: ['composite'],
-        onBar(context) {
-          seen.push(['A', 'B'].map((code) => context.factor('composite', code)));
-        },
-      },
-      [composite],
-      fixture,
-    );
-    expect(seen).toEqual([
-      [null, null],
-      [-0.5, 0.5],
-      [-0.5, 0.5],
-    ]);
-  });
 });
 
 type SimulationFixtureConfig = Omit<StrategySimulationInput, 'dataPort'> & {
@@ -363,34 +296,18 @@ async function runBacktestFixture(
 
 type FactorFixtureSource = Omit<
   StrategyFactorInput,
-  'factorId' | 'name' | 'codeHash' | 'analysisKind' | 'panelComposite'
+  'factorId' | 'name' | 'codeHash' | 'analysisKind'
 > & {
   analysisKind?: StrategyFactorInput['analysisKind'];
-  panelComposite?: {
-    standardization: 'rank' | 'zscore';
-    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
-    components: Array<{ direction: 'positive' | 'negative'; module: FactorFixtureSource }>;
-  };
 };
 
 function factorFixture(source: FactorFixtureSource): StrategyFactor {
-  const { panelComposite, ...input } = source;
+  const input = source;
   return new StrategyFactor({
     ...input,
     factorId: source.key,
     name: source.key,
     codeHash: 'fixture',
     analysisKind: source.analysisKind ?? 'cross_sectional',
-    ...(panelComposite
-      ? {
-          panelComposite: {
-            ...panelComposite,
-            components: panelComposite.components.map(({ direction, module }) => ({
-              direction,
-              factor: factorFixture(module),
-            })),
-          },
-        }
-      : {}),
   });
 }

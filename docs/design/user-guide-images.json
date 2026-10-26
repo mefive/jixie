@@ -1092,10 +1092,10 @@
     },
     {
       "path": "zh/factors/factor-composite-report-01.png",
-      "articles": ["en/factors/read-composite-report.md", "zh/factors/read-composite-report.md"],
+      "articles": [],
       "originalSha256": "098dbbf2116cf14e5a400f84953ecfbbf829266a3e233b636bcdb5166102bc64",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Composite-factor research and correlation tasks were removed; retain the historical inventory.",
       "crop": [0, 40, 1440, 920],
       "sha256": "ac81a2de54afc80cebddd3abf44fa5869ca0e0b8c7da64b2973d5a788831716d"
     },
@@ -1135,28 +1135,28 @@
     },
     {
       "path": "zh/factors/factor-correlation-settings-01.png",
-      "articles": ["en/factors/correlation-matrix.md", "zh/factors/correlation-matrix.md"],
+      "articles": [],
       "originalSha256": "f05698240b9e6c5582d3c7ab05eaa3fcf88a9e20ba7a8b1336b7ea30382db326",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Composite-factor research and correlation tasks were removed; retain the historical inventory.",
       "crop": [0, 40, 1440, 960],
       "sha256": "6890b73e13d9e7e340cecae4fa54b7e9543ff65e52e3a07851efed1469e3325f"
     },
     {
       "path": "zh/factors/factor-correlation-result-01.png",
-      "articles": ["en/factors/correlation-matrix.md", "zh/factors/correlation-matrix.md"],
+      "articles": [],
       "originalSha256": "fa3659bd5aa2c3b29382cc583d18673c5e2ea46c4d9791181ac444fd35757837",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Composite-factor research and correlation tasks were removed; retain the historical inventory.",
       "crop": [0, 40, 1440, 960],
       "sha256": "a62f0c668b5f4cd6705179c2dfbf7f2c63c80069d4902dea458c153bb4dc48de"
     },
     {
       "path": "zh/factors/factor-composite-definition-01.png",
-      "articles": ["en/factors/create-composite.md", "zh/factors/create-composite.md"],
+      "articles": [],
       "originalSha256": "a9c7f90222a43b41ba5b535d4b1417786cc95af6154b5b9ada3eb2c71cf4f4f3",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Composite-factor research and correlation tasks were removed; retain the historical inventory.",
       "crop": [0, 40, 1440, 920],
       "sha256": "d8037ab4baf9b5c3096d00e9cf719d603878d15de3d89b023163f2ff24d12fe4"
     },

@@ -12,8 +12,6 @@ const mocks = vi.hoisted(() => ({
   factorFindMany: vi.fn(),
   factorCreate: vi.fn(),
   factorUpdate: vi.fn(),
-  compositeFindFirst: vi.fn(),
-  compositeFindMany: vi.fn(),
   userFindMany: vi.fn(),
 }));
 
@@ -32,10 +30,6 @@ vi.mock('#infra/database/prisma.js', async () => {
         findMany: mocks.factorFindMany,
         create: mocks.factorCreate,
         update: mocks.factorUpdate,
-      },
-      factorComposite: {
-        findFirst: mocks.compositeFindFirst,
-        findMany: mocks.compositeFindMany,
       },
       user: { findMany: mocks.userFindMany },
     },
@@ -163,7 +157,6 @@ describe('multi-user asset permissions', () => {
         userId: 'builtin',
       })
       .mockResolvedValueOnce(null);
-    mocks.compositeFindFirst.mockResolvedValue(null);
     mocks.factorCreate.mockResolvedValue({ id: 'copy-factor-b' });
 
     const response = await app.request('/factors/builtin-factor/copy', { method: 'POST' });

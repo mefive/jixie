@@ -1,3 +1,4 @@
+import { isRetiredCompositeReport } from '#factor/evaluations/report-spec.js';
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { strategyScanReportStatusWhere } from '#strategy/scans/state.js';
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
@@ -1414,43 +1415,62 @@ async function searchFactorReports(
         )
         .map((factor) => factor.key)
     : [];
-  const reports = await getDatabase().factorReport.findMany({
-    where: {
-      userId,
-      AND: [factorReportStatusWhere(['done'])],
-      payload: { not: null },
-      ...(query
-        ? {
-            OR: [
-              { id: { contains: query } },
-              { factor: { contains: query } },
-              ...(matchingFactorKeys.length ? [{ factor: { in: matchingFactorKeys } }] : []),
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      factor: true,
-      analysisKind: true,
-      createdAt: true,
-      computedAt: true,
-    },
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    take: limit,
-  });
+  const reports: ResearchDataCatalogFactorReportV1[] = [];
+  let cursor: string | undefined;
 
-  return reports.map((report) => {
-    return {
-      kind: 'factor_report',
-      id: report.id,
-      factor: report.factor,
-      factorName: factorNames.get(report.factor) ?? report.factor,
-      analysisKind: factorAnalysisKind(report.analysisKind),
-      createdAt: report.createdAt.toISOString(),
-      computedAt: report.computedAt?.toISOString() ?? null,
-    };
-  });
+  while (reports.length < limit) {
+    const batch = await getDatabase().factorReport.findMany({
+      where: {
+        userId,
+        AND: [factorReportStatusWhere(['done'])],
+        payload: { not: null },
+        ...(query
+          ? {
+              OR: [
+                { id: { contains: query } },
+                { factor: { contains: query } },
+                ...(matchingFactorKeys.length ? [{ factor: { in: matchingFactorKeys } }] : []),
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        factor: true,
+        analysisKind: true,
+        specJson: true,
+        factorCodeSnapshot: true,
+        createdAt: true,
+        computedAt: true,
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+
+    reports.push(
+      ...batch
+        .filter((report) => !isRetiredCompositeReport(report))
+        .map<ResearchDataCatalogFactorReportV1>((report) => {
+          return {
+            kind: 'factor_report',
+            id: report.id,
+            factor: report.factor,
+            factorName: factorNames.get(report.factor) ?? report.factor,
+            analysisKind: factorAnalysisKind(report.analysisKind),
+            createdAt: report.createdAt.toISOString(),
+            computedAt: report.computedAt?.toISOString() ?? null,
+          };
+        }),
+    );
+
+    if (batch.length < limit) {
+      break;
+    }
+    cursor = batch.at(-1)!.id;
+  }
+
+  return reports.slice(0, limit);
 }
 
 /**

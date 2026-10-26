@@ -18,20 +18,12 @@ export async function syncedIndexContext(): Promise<string> {
  * Describe available published factors and their contracts for strategy authoring.
  */
 export async function publishedFactorContext(userId: string): Promise<string> {
-  const [factors, composites] = await Promise.all([
-    getDatabase().factor.findMany({
-      where: { userId, status: 'published' },
-      select: { key: true, name: true, analysisKind: true, publishedAt: true },
-    }),
-    getDatabase().factorComposite.findMany({
-      where: { userId, status: 'published', key: { not: null } },
-      select: { key: true, name: true, publishedAt: true },
-    }),
-  ]);
-  const rows = [
-    ...factors,
-    ...composites.map((row) => ({ ...row, key: row.key!, analysisKind: 'panel' })),
-  ].sort((left, right) => (right.publishedAt?.getTime() ?? 0) - (left.publishedAt?.getTime() ?? 0));
+  const rows = await getDatabase().factor.findMany({
+    where: { userId, status: 'published' },
+    select: { key: true, name: true, analysisKind: true, publishedAt: true },
+    orderBy: { publishedAt: 'desc' },
+  });
+
   return rows.length
     ? rows
         .map((row) => {

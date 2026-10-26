@@ -13,13 +13,6 @@ describe('factor description', () => {
         meta: { window: 2, inputs: ['rates.cgb.yield.10y'] },
         assetUniverse: [{ assetId: 'BOND', assetClass: 'fixed_income' }],
       },
-      {
-        id: 'composite',
-        kind: 'panel_composite',
-        standardization: 'rank',
-        components: [],
-        assetUniverse: [{ assetId: 'BOND', assetClass: 'fixed_income' }],
-      },
     ]);
 
     expect(description.preloadCodes).toEqual(['BOND']);
@@ -38,25 +31,6 @@ describe('factor description', () => {
         governmentYieldCurve: false,
       },
     });
-  });
-
-  it('takes the approved panel universe as the authoritative asset taxonomy', () => {
-    const modules: FactorDefinition[] = [
-      {
-        id: 'allocation_panel',
-        kind: 'panel_composite',
-        standardization: 'rank',
-        assetUniverse: [
-          { assetId: 'EQUITY', assetClass: 'cn_equity' },
-          { assetId: 'BOND', assetClass: 'fixed_income' },
-        ],
-        components: [],
-      },
-    ];
-    expect([...describeFactors(modules).assetClassByCode]).toEqual([
-      ['EQUITY', 'cn_equity'],
-      ['BOND', 'fixed_income'],
-    ]);
   });
 
   it('retains the approved asset taxonomy for a single panel factor', () => {
@@ -86,9 +60,9 @@ describe('factor description', () => {
 function panelDefinition(key: string, assetClass: 'cn_equity' | 'fixed_income'): FactorDefinition {
   return {
     id: key,
-    kind: 'panel_composite',
-    standardization: 'rank',
+    kind: 'asset_series',
+    analysisKind: 'panel',
+    meta: { window: 2, inputs: ['etf.adjustedClose'] },
     assetUniverse: [{ assetId: 'ETF', assetClass }],
-    components: [],
   };
 }

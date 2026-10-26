@@ -67,14 +67,10 @@ import analysisSettingsEn from '@src/content/help/en/factors/analysis-settings.m
 import analysisSettingsZh from '@src/content/help/zh/factors/analysis-settings.md?raw';
 import agentExploreAnalysisEn from '@src/content/help/en/factors/agent-explore-analysis.md?raw';
 import agentExploreAnalysisZh from '@src/content/help/zh/factors/agent-explore-analysis.md?raw';
-import correlationMatrixEn from '@src/content/help/en/factors/correlation-matrix.md?raw';
-import correlationMatrixZh from '@src/content/help/zh/factors/correlation-matrix.md?raw';
 import copyPresetFactorEn from '@src/content/help/en/factors/copy-preset-factor.md?raw';
 import copyPresetFactorZh from '@src/content/help/zh/factors/copy-preset-factor.md?raw';
 import createCustomFactorEn from '@src/content/help/en/factors/create-custom-factor.md?raw';
 import createCustomFactorZh from '@src/content/help/zh/factors/create-custom-factor.md?raw';
-import createCompositeEn from '@src/content/help/en/factors/create-composite.md?raw';
-import createCompositeZh from '@src/content/help/zh/factors/create-composite.md?raw';
 import decileReturnsEn from '@src/content/help/en/factors/decile-returns.md?raw';
 import decileReturnsZh from '@src/content/help/zh/factors/decile-returns.md?raw';
 import evaluationScopeEn from '@src/content/help/en/factors/evaluation-scope.md?raw';
@@ -95,8 +91,6 @@ import pythonFactorEn from '@src/content/help/en/factors/python-factor.md?raw';
 import pythonFactorZh from '@src/content/help/zh/factors/python-factor.md?raw';
 import rankIcIcirEn from '@src/content/help/en/factors/rank-ic-icir.md?raw';
 import rankIcIcirZh from '@src/content/help/zh/factors/rank-ic-icir.md?raw';
-import readCompositeReportEn from '@src/content/help/en/factors/read-composite-report.md?raw';
-import readCompositeReportZh from '@src/content/help/zh/factors/read-composite-report.md?raw';
 import reportHistoryEn from '@src/content/help/en/factors/report-history.md?raw';
 import reportHistoryZh from '@src/content/help/zh/factors/report-history.md?raw';
 import robustInferenceEn from '@src/content/help/en/factors/robust-inference.md?raw';
@@ -1247,54 +1241,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: reportHistoryZh,
       en: reportHistoryEn,
-    },
-  },
-  {
-    slug: 'factors/correlation-matrix',
-    group: 'factorResearch',
-    title: {
-      zh: '因子相关性矩阵',
-      en: 'Factor correlation matrix',
-    },
-    summary: {
-      zh: '计算多个因子的平均排名相关性，识别重复信息和市值暴露。',
-      en: 'Calculate average rank correlations and identify repeated information and size exposure.',
-    },
-    content: {
-      zh: correlationMatrixZh,
-      en: correlationMatrixEn,
-    },
-  },
-  {
-    slug: 'factors/create-composite',
-    group: 'factorResearch',
-    title: {
-      zh: '新建和编辑多因子合成',
-      en: 'Create and edit a factor composite',
-    },
-    summary: {
-      zh: '选择 2～5 个成分、方向和标准化方法，建立等权多因子研究对象。',
-      en: 'Choose components, directions, and standardization for an equal-weight composite.',
-    },
-    content: {
-      zh: createCompositeZh,
-      en: createCompositeEn,
-    },
-  },
-  {
-    slug: 'factors/read-composite-report',
-    group: 'factorResearch',
-    title: {
-      zh: '查看多因子合成报告',
-      en: 'Read a factor-composite report',
-    },
-    summary: {
-      zh: '核对冻结成分和共同股票池，并与单因子正确比较。',
-      en: 'Verify frozen components and the common universe, then compare components.',
-    },
-    content: {
-      zh: readCompositeReportZh,
-      en: readCompositeReportEn,
     },
   },
   {

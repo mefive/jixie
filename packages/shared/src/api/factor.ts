@@ -1,13 +1,8 @@
 import { z } from 'zod';
-import type {
-  FactorCompositeDefinition,
-  FactorCompositeDefinitionV1,
-  FactorPanelCompositeDefinitionV2,
-} from '../factor.js';
 import { chatMessagesSchema } from './agent.js';
 import { embeddedDataReferencesSchema } from './research.js';
 
-// Research and composite configuration.
+// 研究配置。 / Research configuration.
 const factorAnalysisSpecV1Schema = z.object({
   version: z.literal(1),
   freq: z.enum(['month', 'week']),
@@ -55,78 +50,6 @@ const factorAnalysisSpecV3Schema = factorAnalysisSpecV2Schema.extend({
   }),
 });
 
-export const factorCompositeDefinitionV1Schema = z
-  .object({
-    version: z.literal(1),
-    name: z.string().trim().min(1).max(80),
-    standardization: z.enum(['rank', 'zscore']),
-    weighting: z.literal('equal'),
-    components: z
-      .array(
-        z.object({
-          factor: z.string().trim().min(1).max(80),
-          direction: z.enum(['positive', 'negative']),
-        }),
-      )
-      .min(2)
-      .max(5),
-  })
-  .superRefine((definition, context) => {
-    const seen = new Set<string>();
-    definition.components.forEach((component, index) => {
-      if (seen.has(component.factor)) {
-        context.addIssue({
-          code: 'custom',
-          path: ['components', index, 'factor'],
-          message: 'Composite factors must be distinct',
-        });
-      }
-      seen.add(component.factor);
-    });
-  }) satisfies z.ZodType<FactorCompositeDefinitionV1>;
-
-export const factorPanelCompositeDefinitionV2Schema = z
-  .object({
-    version: z.literal(2),
-    key: z.string().regex(/^[a-z][a-z0-9_]{0,31}$/),
-    name: z.string().trim().min(1).max(80),
-    analysisKind: z.literal('panel'),
-    standardization: z.enum(['rank', 'zscore']),
-    weighting: z.literal('equal'),
-    components: z
-      .array(
-        z.object({
-          factor: z.string().trim().min(1).max(80),
-          direction: z.enum(['positive', 'negative']),
-        }),
-      )
-      .min(2)
-      .max(5),
-  })
-  .superRefine((definition, context) => {
-    const seen = new Set<string>();
-    definition.components.forEach((component, index) => {
-      if (seen.has(component.factor)) {
-        context.addIssue({
-          code: 'custom',
-          path: ['components', index, 'factor'],
-          message: 'Composite factors must be distinct',
-        });
-      }
-      seen.add(component.factor);
-    });
-  }) satisfies z.ZodType<FactorPanelCompositeDefinitionV2>;
-
-export const factorCompositeDefinitionSchema = z.union([
-  factorCompositeDefinitionV1Schema,
-  factorPanelCompositeDefinitionV2Schema,
-]) satisfies z.ZodType<FactorCompositeDefinition>;
-
-const factorAnalysisSpecV4Schema = factorAnalysisSpecV3Schema.extend({
-  version: z.literal(4),
-  composite: factorCompositeDefinitionV1Schema,
-});
-
 const factorEvaluationScopeV1Schema = z.object({
   version: z.literal(1),
   universe: z.discriminatedUnion('kind', [
@@ -168,14 +91,14 @@ const factorAnalysisSpecV6Schema = factorAnalysisSpecV3Schema.extend({
   version: z.literal(6),
   evaluationScope: factorEvaluationScopeV1Schema,
   inference: factorCrossSectionalInferenceSpecV1Schema,
-  composite: factorCompositeDefinitionV1Schema.optional(),
+  // 拒绝旧组合参数，避免静默退化为单因子计算。 / Reject retired composites instead of silently running a single factor.
+  composite: z.never().optional(),
 });
 
 export const factorAnalysisSpecSchema = z.discriminatedUnion('version', [
   factorAnalysisSpecV1Schema,
   factorAnalysisSpecV2Schema,
   factorAnalysisSpecV3Schema,
-  factorAnalysisSpecV4Schema,
   factorAnalysisSpecV5Schema,
   factorAnalysisSpecV6Schema,
 ]);
@@ -319,11 +242,6 @@ export const publishFactorBodySchema = z.object({
   approvedReportId: z.string().trim().min(1).max(80),
 });
 
-// Composites.
-export const factorCompositeInputSchema = z.object({ definition: factorCompositeDefinitionSchema });
-
-export type FactorCompositeInput = z.output<typeof factorCompositeInputSchema>;
-
 // Analysis.
 export const submitFactorAnalysisSchema = z.object({
   factor: z.string().min(1),
@@ -331,32 +249,6 @@ export const submitFactorAnalysisSchema = z.object({
 });
 
 export type SubmitFactorAnalysisInput = z.output<typeof submitFactorAnalysisSchema>;
-
-// Correlation.
-export const factorCorrelationQuerySchema = z.object({
-  keys: z
-    .string()
-    .min(1)
-    .transform((value) => value.split(',')),
-  freq: z.enum(['month', 'week']).default('month'),
-  start: z
-    .string()
-    .regex(/^\d{8}$/)
-    .default('20150101'),
-  end: z
-    .string()
-    .regex(/^\d{8}$/)
-    .default('20261231'),
-});
-
-export type FactorCorrelationQuery = z.output<typeof factorCorrelationQuerySchema>;
-
-export const submitFactorCorrelationSchema = factorCorrelationQuerySchema.extend({
-  keys: z.array(z.string()).min(1),
-  refresh: z.boolean().default(false),
-});
-
-export type SubmitFactorCorrelationInput = z.output<typeof submitFactorCorrelationSchema>;
 
 // Jobs.
 export const factorJobLogsQuerySchema = z.object({ since: z.string().regex(/^\d+$/).optional() });
@@ -403,10 +295,7 @@ export type CreateFactorDraftRequest = z.input<typeof createFactorDraftSchema>;
 export type UpdateFactorDraftRequest = z.input<typeof updateFactorDraftSchema>;
 export type FactorMetadataRequest = z.input<typeof factorMetadataBodySchema>;
 export type PublishFactorRequest = z.input<typeof publishFactorBodySchema>;
-export type FactorCompositeRequest = z.input<typeof factorCompositeInputSchema>;
 export type SubmitFactorAnalysisRequest = z.input<typeof submitFactorAnalysisSchema>;
-export type FactorCorrelationRequestQuery = z.input<typeof factorCorrelationQuerySchema>;
-export type SubmitFactorCorrelationRequest = z.input<typeof submitFactorCorrelationSchema>;
 export type FactorJobRequestQuery = z.input<typeof factorJobLogsQuerySchema>;
 export type FactorReportListRequestQuery = z.input<typeof factorReportListQuerySchema>;
 export type FactorAgentRequest = z.input<typeof factorAgentBodySchema>;

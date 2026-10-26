@@ -21,10 +21,6 @@ const MESSAGES = {
     zh: '同一次决策不能混用目标仓位与增量订单（账户：{account}，标的：{code}）。清仓后也不能追加增量订单。',
     en: 'A decision cannot mix position targets and incremental orders (account: {account}, instrument: {code}). Incremental orders after closePosition are also rejected.',
   },
-  correlationKeyCount: {
-    zh: '相关性分析需要 2 到 8 个不同因子',
-    en: 'Correlation analysis requires 2 to 8 distinct factors.',
-  },
   researchLanguagePositionInvalid: {
     zh: '请求的位置超出文档范围',
     en: 'The requested Research Cell position is outside the virtual document.',

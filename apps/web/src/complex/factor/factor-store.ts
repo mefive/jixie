@@ -27,10 +27,7 @@ import {
   type FactorAnalysisSpecV6,
   type FactorEvaluationScopeV1,
   type FactorEquityIndexCode,
-  type FactorCompositeDefinition,
-  type FactorCompositeResource,
   type FactorFreq,
-  type FactorCorrelation,
   type FactorStatus,
   type PublishedFactor,
   type FactorResearchSpecV1,
@@ -52,7 +49,6 @@ import {
   getFactorReport,
   runFactorAnalysis,
   pollFactorAnalysisJob,
-  pollFactorCorrelationJob,
   getCustomFactor,
   createFactor,
   updateFactor,
@@ -62,17 +58,8 @@ import {
   factorQa,
   getFactorQuestions,
   refreshFactorMetadata,
-  runFactorCorrelation,
-  getFactorCorrelation,
-  findActiveFactorCorrelationJob,
-  createFactorComposite,
-  updateFactorComposite,
-  deleteFactorComposite,
-  copyFactorComposite,
   publishFactor,
   archiveFactor,
-  publishFactorComposite,
-  archiveFactorComposite,
 } from '@src/api/factor';
 import { panelAssetsFor } from './panel-universe';
 import {
@@ -236,12 +223,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
-  public mode: 'preset' | 'custom' | 'composite' | 'time_series' | 'panel' | 'macro_regime' =
-    'preset';
+  public mode: 'preset' | 'custom' | 'time_series' | 'panel' | 'macro_regime' = 'preset';
   public definitionAnalysisKind: EditableFactorAnalysisKind = 'cross_sectional';
   public targetAssetClasses: FactorMeta['targetAssetClasses'] = undefined;
   public language: FactorLanguage = 'python';
-  public compositeDefinition: FactorCompositeDefinition | null = null;
   public code = ''; // the custom factor's defineFactor source (empty for presets)
   public persistedCode = ''; // code as persisted in the DB — baseline for `edited`
   public chatMessages: ChatMessage[] = [];
@@ -278,15 +263,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   private since = 0;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // —— Correlation matrix (its own params: a factor multi-select over the shared freq/range) ——
-  public correlationLoader = new LoaderModel<FactorCorrelation>();
-  public correlationPoller = new PollingModel();
-  public corrKeys: string[] = []; // 2–8 selected factor keys
-  public corrLogs: LogLine[] = [];
-  public corrRunning = false;
-  private corrJobId: string | null = null;
-  private corrSince = 0;
-
   /**
    * 登记因子页面可观察状态与计算属性，供 UI 一致响应。
    *
@@ -301,7 +277,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       definitionAnalysisKind: observable.ref,
       targetAssetClasses: observable.ref,
       language: observable.ref,
-      compositeDefinition: observable.ref,
       code: observable.ref,
       persistedCode: observable.ref,
       chatMessages: observable.ref,
@@ -326,9 +301,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       logs: observable.ref,
       jobRunning: observable.ref,
       queuePosition: observable.ref,
-      corrKeys: observable.ref,
-      corrLogs: observable.ref,
-      corrRunning: observable.ref,
       selected: computed,
       report: computed,
       timeSeriesReport: computed,
@@ -339,7 +311,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       isMacroRegime: computed,
       timeSeriesAllowedAssets: computed,
       reportDetail: computed,
-      correlation: computed,
       paramsModified: computed,
       analysisSpec: computed,
       researchSpec: computed,
@@ -364,7 +335,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setTimeSeriesAssets: action,
       setTimeSeriesHorizon: action,
       setMacroRevisionPolicy: action,
-      setCorrKeys: action,
     });
   }
 
@@ -406,23 +376,10 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.reportLoader.setup({ request: (reportId: string) => getFactorReport(reportId) });
     this.analysisPoller.setup({ interval: POLL_INTERVAL_MS, request: () => this.pollOnce() });
     this.publishLoader.setup({
-      request: (reportId: string) =>
-        this.mode === 'composite'
-          ? publishFactorComposite(this.selectedKey, reportId)
-          : publishFactor(this.selectedKey, reportId),
+      request: (reportId: string) => publishFactor(this.selectedKey, reportId),
     });
     this.archiveLoader.setup({
-      request: () =>
-        this.mode === 'composite'
-          ? archiveFactorComposite(this.selectedKey)
-          : archiveFactor(this.selectedKey),
-    });
-    this.correlationLoader.setup({
-      request: () => getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end),
-    });
-    this.correlationPoller.setup({
-      interval: POLL_INTERVAL_MS,
-      request: () => this.pollCorrelationOnce(),
+      request: () => archiveFactor(this.selectedKey),
     });
     this.registCleaner(() => this.catalogLoader.cleanup());
     this.registCleaner(() => this.reportsLoader.cleanup());
@@ -436,8 +393,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.registCleaner(() => this.analysisPoller.cleanup());
     this.registCleaner(() => this.publishLoader.cleanup());
     this.registCleaner(() => this.archiveLoader.cleanup());
-    this.registCleaner(() => this.correlationLoader.cleanup());
-    this.registCleaner(() => this.correlationPoller.cleanup());
     this.registCleaner(() => this.turnStream.detach()); // drop the SSE subscription; the turn keeps running
     void this.catalogLoader.run();
 
@@ -488,9 +443,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public get isPanel(): boolean {
     return (
-      this.mode === 'panel' ||
-      (this.mode === 'custom' && this.definitionAnalysisKind === 'panel') ||
-      (this.mode === 'composite' && this.compositeDefinition?.version === 2)
+      this.mode === 'panel' || (this.mode === 'custom' && this.definitionAnalysisKind === 'panel')
     );
   }
 
@@ -576,14 +529,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         costs: this.methodology.costs,
       };
     }
-    if (this.specVersion === 4 && this.compositeDefinition?.version === 1) {
-      return {
-        version: 4,
-        ...common,
-        ...this.methodology,
-        composite: structuredClone(this.compositeDefinition),
-      };
-    }
     if (this.specVersion === 5) {
       return {
         version: 5,
@@ -599,9 +544,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         ...this.methodology,
         evaluationScope: structuredClone(this.evaluationScope),
         inference: structuredClone(DEFAULT_CROSS_SECTIONAL_INFERENCE),
-        ...(this.mode === 'composite' && this.compositeDefinition?.version === 1
-          ? { composite: structuredClone(this.compositeDefinition) }
-          : {}),
       };
     }
     return { version: 3, ...common, ...this.methodology };
@@ -690,12 +632,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
    * The editor source no longer matches the immutable source that produced the selected report.
    */
   public get codeModifiedSinceReport(): boolean {
-    if (
-      this.mode === 'composite' ||
-      this.mode === 'time_series' ||
-      this.mode === 'panel' ||
-      this.mode === 'macro_regime'
-    ) {
+    if (this.mode === 'time_series' || this.mode === 'panel' || this.mode === 'macro_regime') {
       return false;
     }
     const snapshot = this.reportDetail?.factorCodeSnapshot;
@@ -737,7 +674,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public get qaMode(): boolean {
     return (
       (this.mode === 'preset' ||
-        this.mode === 'composite' ||
         this.mode === 'time_series' ||
         this.mode === 'panel' ||
         this.mode === 'macro_regime' ||
@@ -880,7 +816,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     }
     const meta = catalog.find((factor) => factor.key === key);
     const isCustom = meta?.kind === 'custom';
-    const isComposite = meta?.kind === 'composite';
     const isTimeSeries = meta?.analysisKind === 'time_series';
     const isPanel = meta?.analysisKind === 'panel';
     const isMacroRegime = meta?.analysisKind === 'macro_regime';
@@ -893,15 +828,13 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.selectedReportId = preferredReportId ?? '';
       this.mode = isCustom
         ? 'custom'
-        : isComposite
-          ? 'composite'
-          : isTimeSeries
-            ? 'time_series'
-            : isPanel
-              ? 'panel'
-              : isMacroRegime
-                ? 'macro_regime'
-                : 'preset';
+        : isTimeSeries
+          ? 'time_series'
+          : isPanel
+            ? 'panel'
+            : isMacroRegime
+              ? 'macro_regime'
+              : 'preset';
       this.definitionAnalysisKind = isTimeSeries
         ? 'time_series'
         : isPanel
@@ -909,7 +842,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           : 'cross_sectional';
       this.targetAssetClasses = meta?.targetAssetClasses;
       this.language = meta?.language === 'python' ? 'python' : 'typescript';
-      this.compositeDefinition = isComposite ? structuredClone(meta?.composite ?? null) : null;
       this.specVersion = 6;
       this.evaluationScope = defaultEvaluationScope();
       this.timeSeriesAssets = defaultTimeSeriesAssetsFor(meta);
@@ -932,24 +864,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         this.chatMessages = [];
       }
     });
-    if (isComposite) {
-      void this.restoreQuestions();
-      const reports = await this.reportsLoader.run();
-      if (selection !== this.chatSelection) {
-        return;
-      }
-      if (preferredReportId) {
-        await this.openReport(preferredReportId).catch(() => {});
-        return;
-      }
-      const target = reports.items[0];
-      if (target && (await this.openReport(target.id))) {
-        return;
-      }
-      runInAction(() => (this.selectedReportId = ''));
-      this.reportLoader.reset();
-      return;
-    }
     try {
       // Presets are code rows too (seeded, readonly) — the same endpoint serves both kinds.
       const factor = await getCustomFactor(key);
@@ -1015,10 +929,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (!sourceId) {
       return;
     }
-    const copy =
-      this.selected?.kind === 'composite'
-        ? await copyFactorComposite(sourceId)
-        : await copyFactor(sourceId);
+    const copy = await copyFactor(sourceId);
     await this.catalogLoader.run();
     await this.selectFactor(copy.id);
   }
@@ -1449,39 +1360,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   /**
-   * 保存组合草稿后刷新目录及选择状态。
-   *
-   * Save a composite draft and refresh catalog and selection.
-   */
-  public async saveComposite(
-    definition: FactorCompositeDefinition,
-    id?: string,
-  ): Promise<FactorCompositeResource> {
-    const saved = id
-      ? await updateFactorComposite(id, definition)
-      : await createFactorComposite(definition);
-    await this.catalogLoader.run();
-    await this.selectFactor(saved.id);
-    return saved;
-  }
-
-  public async removeComposite(id: string) {
-    await deleteFactorComposite(id);
-    if (this.selectedKey === id) {
-      runInAction(() => {
-        this.selectedKey = '';
-        this.selectedReportId = '';
-        this.mode = 'preset';
-        this.compositeDefinition = null;
-        this.logs = [];
-      });
-      this.reportLoader.reset();
-      this.reportsLoader.reset();
-    }
-    await this.catalogLoader.run();
-  }
-
-  /**
    * 打开不可变报告、恢复参数，并在需要时重连其活动任务。
    *
    * Open an immutable report, restore its parameters, and reattach its live Job when needed.
@@ -1529,12 +1407,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (detail.analysisKind === 'panel' && detail.researchSpec.analysisKind === 'panel') {
       const spec = detail.researchSpec;
       runInAction(() => {
-        this.mode =
-          this.selected?.kind === 'custom'
-            ? 'custom'
-            : this.selected?.kind === 'composite'
-              ? 'composite'
-              : 'panel';
+        this.mode = this.selected?.kind === 'custom' ? 'custom' : 'panel';
         this.definitionAnalysisKind = 'panel';
         if (this.mode === 'panel' && detail.factorCodeSnapshot?.includes('defineFactorV2')) {
           this.code = detail.factorCodeSnapshot;
@@ -1589,12 +1462,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
         spec.version === 5 || spec.version === 6
           ? structuredClone(spec.evaluationScope)
           : defaultEvaluationScope();
-      this.compositeDefinition =
-        spec.version === 4 || (spec.version === 6 && spec.composite)
-          ? structuredClone(spec.composite)
-          : this.mode === 'composite'
-            ? this.compositeDefinition
-            : null;
       this.methodology =
         spec.version !== 1
           ? {
@@ -1818,128 +1685,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.pollingReportId = null;
       this.queuePosition = null;
     });
-  }
-
-  // —— Correlation matrix ——
-
-  public setCorrKeys(keys: string[]) {
-    runInAction(() => (this.corrKeys = keys.slice(0, 8))); // API caps at 8
-  }
-
-  /**
-   * 只返回与当前因子选择匹配的相关性报告。
-   *
-   * The current correlation report, guarded to the current selection (avoids a stale render).
-   */
-  public get correlation(): FactorCorrelation | null {
-    const r = this.correlationLoader.result;
-    if (!r) {
-      return null;
-    }
-    const want = [...this.corrKeys].sort().join(',');
-    const got = [...r.keys.filter((k) => k !== 'size')].sort().join(',');
-    return want === got ? r : null;
-  }
-
-  /**
-   * 按所选因子及共同频率范围提交或读取缓存相关性矩阵。
-   *
-   * Run (or view, if cached) the correlation matrix over the selected factors + the shared freq/range.
-   */
-  public async runCorrelation(refresh = false) {
-    if (this.corrKeys.length < 2) {
-      return;
-    }
-    runInAction(() => {
-      this.corrLogs = [];
-      this.corrRunning = true;
-    });
-    try {
-      const res = await runFactorCorrelation(
-        this.corrKeys,
-        this.freq,
-        this.start,
-        this.end,
-        refresh,
-      );
-      if ('report' in res) {
-        await this.correlationLoader.run(Promise.resolve(res.report));
-        this.finishCorr();
-      } else {
-        this.startCorrPolling(res.jobId);
-      }
-    } catch (e) {
-      await this.correlationLoader.run(Promise.reject(e)).catch(() => {});
-      this.finishCorr();
-    }
-  }
-
-  private startCorrPolling(jobId: string) {
-    this.corrJobId = jobId;
-    this.corrSince = 0;
-    runInAction(() => (this.corrRunning = true));
-    this.correlationPoller.start();
-  }
-
-  /**
-   * 读取相关性任务进度，终态后保存矩阵并停止轮询。
-   *
-   * Poll correlation progress and load the matrix at completion.
-   */
-  private async pollCorrelationOnce(): Promise<false | void> {
-    try {
-      const job = await pollFactorCorrelationJob(this.corrJobId!, this.corrSince);
-      if (job.logs.length) {
-        runInAction(() => (this.corrLogs = [...this.corrLogs, ...job.logs]));
-        this.corrSince = job.nextSince;
-      }
-      if (job.status === 'done') {
-        const report = await getFactorCorrelation(this.corrKeys, this.freq, this.start, this.end);
-        await this.correlationLoader.run(Promise.resolve(report));
-        this.finishCorr();
-        return false;
-      }
-      if (job.status === 'error' || job.status === 'stale') {
-        const msg =
-          job.status === 'stale'
-            ? i18n.t('factor:analysisInterrupted')
-            : job.error || i18n.t('factor:analysisFailed');
-        await this.correlationLoader.run(Promise.reject(new Error(msg))).catch(() => {});
-        this.finishCorr();
-        return false;
-      }
-    } catch {
-      this.finishCorr();
-      return false;
-    }
-  }
-
-  private finishCorr() {
-    runInAction(() => (this.corrRunning = false));
-  }
-
-  /**
-   * 打开相关性界面时重连活动任务，支持刷新后恢复。
-   *
-   * On opening the correlation modal, re-attach to a still-running job (survives a refresh).
-   */
-  public async reattachCorrelation() {
-    if (this.corrKeys.length < 2) {
-      return;
-    }
-    try {
-      const activeJob = await findActiveFactorCorrelationJob(
-        this.corrKeys,
-        this.freq,
-        this.start,
-        this.end,
-      );
-      if (activeJob) {
-        this.startCorrPolling(activeJob.jobId);
-      }
-    } catch {
-      /* no live job */
-    }
   }
 }
 

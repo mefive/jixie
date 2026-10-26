@@ -2,10 +2,8 @@ import type {
   FactorAnalysisSpec,
   FactorAnalysisSpecV2,
   FactorAnalysisSpecV3,
-  FactorAnalysisSpecV4,
   FactorAnalysisSpecV5,
   FactorAnalysisSpecV6,
-  FactorCompositeDefinitionV1,
   FactorResearchSpecV1,
 } from '@jixie/shared';
 import { factorAnalysisSpecSchema, factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
@@ -73,13 +71,7 @@ export const DEFAULT_FACTOR_CROSS_SECTIONAL_INFERENCE_V1: FactorAnalysisSpecV6['
 export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec {
   const spec = factorAnalysisSpecSchema.parse(input);
 
-  if (
-    spec.version === 2 ||
-    spec.version === 3 ||
-    spec.version === 4 ||
-    spec.version === 5 ||
-    spec.version === 6
-  ) {
+  if (spec.version === 2 || spec.version === 3 || spec.version === 5 || spec.version === 6) {
     return spec;
   }
 
@@ -143,21 +135,6 @@ export function createDefaultFactorAnalysisSpecV3(input: {
   };
 }
 
-export function createDefaultFactorAnalysisSpecV4(input: {
-  freq: FactorAnalysisSpecV4['freq'];
-  start: string;
-  end: string;
-  neutral: FactorAnalysisSpecV4['neutral'];
-  composite: FactorCompositeDefinitionV1;
-}): FactorAnalysisSpecV4 {
-  return {
-    ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3,
-    ...input,
-    version: 4,
-    universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
-  };
-}
-
 export function createDefaultFactorAnalysisSpecV5(input: {
   freq: FactorAnalysisSpecV5['freq'];
   start: string;
@@ -180,7 +157,6 @@ export function createDefaultFactorAnalysisSpecV6(input: {
   end: string;
   neutral: FactorAnalysisSpecV6['neutral'];
   evaluationScope?: FactorAnalysisSpecV6['evaluationScope'];
-  composite?: FactorAnalysisSpecV6['composite'];
 }): FactorAnalysisSpecV6 {
   return {
     ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3,
@@ -189,6 +165,5 @@ export function createDefaultFactorAnalysisSpecV6(input: {
     universe: { ...DEFAULT_FACTOR_ANALYSIS_SPEC_V3.universe },
     evaluationScope: structuredClone(input.evaluationScope ?? DEFAULT_FACTOR_EVALUATION_SCOPE_V1),
     inference: structuredClone(DEFAULT_FACTOR_CROSS_SECTIONAL_INFERENCE_V1),
-    ...(input.composite ? { composite: structuredClone(input.composite) } : {}),
   };
 }

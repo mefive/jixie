@@ -230,6 +230,47 @@ afterAll(async () => {
 });
 
 describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
+  it.each<FactorLanguage>(['typescript', 'python'])(
+    '%s strategy consumes independent TS and Python factor versions together',
+    async (language) => {
+      const configuration = config(language, 'typescript');
+      configuration.code =
+        language === 'typescript'
+          ? `export default defineStrategy({ name: 'independent factors', factors: ['worker_typescript', 'worker_python'], watch: ['${stock}'], async onBar(ctx) {
+          await ctx.universe();
+          for (const key of ['worker_typescript', 'worker_python']) {
+            if (ctx.factor(key, '${stock}') !== 20) throw new Error('wrong independent factor value');
+          }
+          ctx.stock.setTargetWeight('${stock}', 0.5);
+        } });`
+          : `from jixie import Strategy
+strategy = Strategy(name="independent factors", factors=["worker_typescript", "worker_python"], watch=["${stock}"])
+@strategy.on_bar
+def on_bar(ctx):
+    ctx.universe()
+    for key in ["worker_typescript", "worker_python"]:
+        assert ctx.factor(key, "${stock}") == 20
+    ctx.stock.set_target_weight("${stock}", 0.5)
+`;
+      const worker = new Worker(entry('strategy/backtests/worker'), {
+        workerData: { config: configuration, userId, strategyId: 'fixture', locale: 'en' },
+        env: environment,
+        execArgv,
+      });
+
+      const completion = await waitForExit(worker, () => {
+        void worker.terminate();
+      });
+
+      expect(completion.payload?.trades).toBeGreaterThan(0);
+      expect(completion.payload?.factorDependencies?.map((factor) => factor.key)).toEqual([
+        'worker_typescript',
+        'worker_python',
+      ]);
+    },
+    30_000,
+  );
+
   it('imports without consuming, recovers before startup, and drains queued jobs', async () => {
     const running = `startup-running-${compiled}`;
     const queued = `startup-queued-${compiled}`;
@@ -271,12 +312,7 @@ describe(`factor worker entries (${compiled ? 'compiled' : 'source'})`, () => {
     );
   }, 25_000);
 
-  it.each([
-    'strategy/backtests/worker',
-    'factor/analysis/worker',
-    'factor/correlations/worker',
-    'strategy/scans/worker',
-  ])(
+  it.each(['strategy/backtests/worker', 'factor/analysis/worker', 'strategy/scans/worker'])(
     '%s loads its dependencies, reports invalid input, and exits',
     async (path) => {
       const worker = new Worker(entry(path), { workerData: {}, env: environment, execArgv });

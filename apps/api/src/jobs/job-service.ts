@@ -20,7 +20,6 @@ import { setTimeout as delay } from 'node:timers/promises';
 export type JobKind =
   | 'backtest'
   | 'factor-analysis'
-  | 'factor-correlation'
   | 'strategy-scan'
   | 'research-embedded-analysis';
 

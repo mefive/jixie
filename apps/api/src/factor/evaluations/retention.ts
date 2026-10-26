@@ -27,14 +27,6 @@ export async function pruneFactorReports(
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
   });
-  const composites = await transaction.factorComposite.findMany({
-    where: {
-      ...(scope ? { userId: scope.userId, id: scope.factor } : {}),
-      approvedReportId: { not: null },
-    },
-    select: { approvedReportId: true },
-  });
-  const approved = new Set(composites.map((row) => row.approvedReportId));
   const seen = new Map<string, Set<string>>();
   const obsolete: string[] = [];
 
@@ -47,7 +39,6 @@ export async function pruneFactorReports(
     if (
       latest ||
       row.approvedFactor ||
-      approved.has(row.id) ||
       (row.job && ACTIVE_JOB_STATUSES.includes(row.job.status as 'queued' | 'running'))
     ) {
       continue;

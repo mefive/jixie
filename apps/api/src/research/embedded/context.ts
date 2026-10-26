@@ -37,17 +37,7 @@ export async function captureEmbeddedContext(
         select: { name: true, code: true, language: true },
       });
       if (!factor) {
-        const composite = await transaction.factorComposite.findFirst({
-          where: { id: host.id, userId },
-          select: { name: true, definition: true },
-        });
-        if (!composite) {
-          throw new ResearchError('embedded_not_found');
-        }
-        name = composite.name;
-        code = JSON.stringify(composite.definition);
-        language = 'json';
-        break;
+        throw new ResearchError('embedded_not_found');
       }
       ({ name, code, language } = factor);
       break;

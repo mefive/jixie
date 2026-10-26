@@ -14,10 +14,7 @@ import type {
   Neutral,
 } from '@jixie/shared';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
-import {
-  combineFactorSeries,
-  type FactorAnalysisRuntimeSource,
-} from '../../composition/composite.js';
+import { type FactorAnalysisRuntimeSource } from '../../sources/snapshot.js';
 import {
   filterEvaluationUniverse,
   isIndexMembershipFresh,
@@ -40,12 +37,7 @@ import {
   type FamaMacbethPeriodAttemptV1,
 } from './inference.js';
 import { analysisPolicy, applyOutlierPolicy } from './policy.js';
-import {
-  computeFactorSeries,
-  mergeFactorSeriesAudits,
-  type FactorSeriesResult,
-  type Series,
-} from '../../observations/cross-sectional/series.js';
+import { computeFactorSeries, type Series } from '../../observations/cross-sectional/series.js';
 
 const N_BUCKETS = 10; // deciles
 const IC_DECAY_HORIZONS = [1, 5, 10, 20, 60]; // forward horizons (trading days) for the IC-decay curve
@@ -190,50 +182,19 @@ export async function analyzeFactor(
   const snaps = await loadSnapshots(rebalanceDates, true); // rebalance snaps carry total market cap for cap-weighting
   const preloadedFinaIndex = spec.version === 6 ? await loadFinaIndex() : undefined;
   onLog(t(locale, 'factorComputingValues', { factor: factorKey }));
-  let computed: FactorSeriesResult;
-  if (source?.kind === 'composite') {
-    const results: Array<{ factor: string; result: FactorSeriesResult }> = [];
-    for (const component of source.components) {
-      onLog(t(locale, 'factorComputingValues', { factor: component.label }));
-      const result = await computeFactorSeries(
-        component.factor,
-        rebalanceDates,
-        snaps,
-        onLog,
-        onUserLog,
-        locale,
-        component.code,
-        policy.minimumWindowCoverage,
-        preloadedFinaIndex,
-        component.language,
-      );
-      transformSeriesOutliers(result.series, policy.factorExposure);
-      results.push({ factor: component.factor, result });
-    }
-    computed = {
-      series: combineFactorSeries(
-        results.map(({ factor, result }) => ({ factor, series: result.series })),
-        source.definition,
-      ),
-      audit: mergeFactorSeriesAudits(results.map(({ result }) => result.audit)),
-    };
-  } else if (!source || source.kind === 'single') {
-    computed = await computeFactorSeries(
-      factorKey,
-      rebalanceDates,
-      snaps,
-      onLog,
-      onUserLog,
-      locale,
-      source?.code,
-      policy.minimumWindowCoverage,
-      preloadedFinaIndex,
-      source?.language,
-    );
-    transformSeriesOutliers(computed.series, policy.factorExposure);
-  } else {
-    throw new Error('Cross-sectional analysis received an asset-scope factor source.');
-  }
+  const computed = await computeFactorSeries(
+    factorKey,
+    rebalanceDates,
+    snaps,
+    onLog,
+    onUserLog,
+    locale,
+    source?.code,
+    policy.minimumWindowCoverage,
+    preloadedFinaIndex,
+    source?.language,
+  );
+  transformSeriesOutliers(computed.series, policy.factorExposure);
   const byDate = computed.series;
   const equityStyleControls =
     spec.version === 6
@@ -255,7 +216,7 @@ export async function analyzeFactor(
 
   // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
   // Scope-aware protocols defer this step until after the formal universe and eligibility filters, so
-  // neutralization is estimated inside the declared research population. V1–V4 retain their evaluator.
+  // neutralization is estimated inside the declared research population. V1–V3 retain their evaluator.
   if (neutral !== 'none') {
     onLog(t(locale, 'factorNeutralizing', { mode: neutral }));
     if (!scopeAware) {

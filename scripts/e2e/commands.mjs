@@ -150,16 +150,6 @@ export const e2eCommands = [
     group: 'factor',
   },
   {
-    name: 'factor-correlation',
-    file: 'apps/web/e2e/factor-correlation.mjs',
-    group: 'factor',
-  },
-  {
-    name: 'factor-composite',
-    file: 'apps/web/e2e/factor-composite.mjs',
-    group: 'factor',
-  },
-  {
     name: 'factor-scope',
     file: 'apps/web/e2e/factor-evaluation-scope.mjs',
     group: 'factor',
@@ -234,11 +224,6 @@ export const e2eCommands = [
   {
     name: 'commodity-warehouse-receipt',
     file: 'apps/web/e2e/commodity-warehouse-receipt-time-series.mjs',
-    group: 'factor',
-  },
-  {
-    name: 'factor-panel-composite',
-    file: 'apps/web/e2e/factor-panel-composite.mjs',
     group: 'factor',
   },
   {
@@ -384,11 +369,6 @@ export const imageCommands = [
   {
     name: 'factor-custom',
     file: 'apps/web/e2e/help-content-factor-custom.mjs',
-    group: 'capture',
-  },
-  {
-    name: 'factor-composite',
-    file: 'apps/web/e2e/help-content-factor-composite.mjs',
     group: 'capture',
   },
   {

@@ -44,13 +44,10 @@ export const zhFactor = {
   noneSelected: '未选择因子',
 
   placeholderQa: '问问这个预设因子 —— 如「IC 0.03 算强吗」「适合什么周期」—— 回车发送',
-  placeholderCompositeQa: '问问这个多因子合成 —— 如「成分是否冗余」「如何解读合成 IC」—— 回车发送',
   placeholderAuthor: '描述你想要的因子,如「盈利收益率 1/PE」「小市值」;或继续对话调整 —— 回车发送',
 
   chatEmptyQa:
     '这是预置因子(只读代码,见中间编辑器)。有关它 / 因子分析的问题都可以问 —— Agent 只答疑,不改代码;想改参数出变体,点编辑器上方「复制为自定义」。',
-  chatEmptyComposite:
-    '这是多因子合成（见中间定义）。可以询问成分方向、相关性和报告解读；Agent 只答疑，不会暗中修改合成规则。',
   chatEmptyAuthor:
     '跟 Agent 说你想要的因子(估值 / 规模 / 流动性 / 资金流 / 价格动量波动类),它写成代码进中间编辑器。财报明细类(ROE 增速等)暂缺数据。',
 
@@ -297,37 +294,6 @@ export const zhFactor = {
   },
   customGroup: '自定义因子',
   customEmpty: '还没有,用 Agent 写一个',
-  compositeGroup: '多因子合成',
-  compositeEmpty: '还没有合成因子',
-  compositeCreate: '新建多因子合成',
-  compositeCreateTitle: '新建多因子合成',
-  compositeEditTitle: '编辑多因子合成',
-  compositeName: '名称',
-  compositeNamePlaceholder: '例如：质量 + 价值',
-  compositeStrategyKey: '策略代码',
-  compositeStrategyKeyPlaceholder: '例如：momentum_low_vol_panel',
-  compositeResearchMethod: '研究方式',
-  compositeResearchMethodEquity: '股票横截面',
-  compositeResearchMethodPanel: 'Panel 横截面',
-  compositeStandardizationLabel: '截面标准化',
-  compositeStandardization: { rank: 'Rank 排名', zscore: 'Z-score' },
-  compositeComponents: '成分因子（2–5 个）',
-  compositeCount: '{{count}} / 5',
-  compositeFactorPlaceholder: '选择因子',
-  compositeDirection: { positive: '正向（越大越好）', negative: '负向（越小越好）' },
-  compositeAddFactor: '添加成分',
-  compositeEqualWeight: '等权',
-  compositeEqualOnlyHint:
-    '首版固定等权：先在共同截面上标准化各成分，再对齐方向并平均，避免用同一探索样本估权造成过拟合。',
-  compositeMethodHint: '每期只保留所有成分都有值的股票；成分代码、方向和合成规则会随报告一起冻结。',
-  compositePanelMethodHint:
-    '每个月末在共同 ETF 截面内分别标准化成分，再按方向等权合成；成分源码和合成规则会随报告一起冻结。',
-  compositeMethodologySpec: '{{count}} 个成分 · {{standardization}} · 等权',
-  compositeCreated: '多因子合成已创建',
-  compositeUpdated: '多因子合成已更新',
-  compositeDeleteTitle: '删除多因子合成？',
-  compositeDeleteContent: '确定删除「{{name}}」吗？历史报告仍会保留。',
-  kindComposite: '合成',
   edit: '编辑',
   save: '保存',
   deleteTitle: '删除',
@@ -407,16 +373,6 @@ export const zhFactor = {
   historyDiscardTitle: '恢复历史报告参数？',
   historyDiscardContent: '当前分析参数已修改，打开历史报告会恢复该报告的参数。',
   historyDiscardOk: '打开历史报告',
-
-  corrTrigger: '相关性矩阵',
-  corrTitle: '因子相关性矩阵',
-  corrSelectPlaceholder: '选 2~8 个因子',
-  corrRun: '计算',
-  corrHint:
-    '两两截面 Spearman 按{{per}}取均值,区间 {{startYear}}–{{endYear}}(跟随右侧参数条)。含固定「市值」列查换皮',
-  corrRunning: '计算中……(含窗口因子会慢,实时进度略)',
-  corrCap: '{{periods}} 个{{per}}均值 · 红=正相关(冗余)· 蓝=负相关 · 对角线=1',
-  corrEmpty: '选至少 2 个因子后点「计算」',
   run: '运行分析',
   rerunShort: '重新运行',
   running: '运行中',

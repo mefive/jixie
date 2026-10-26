@@ -105,7 +105,6 @@ describe('factor report retention', () => {
 
   afterEach(async () => {
     await prisma.factor.deleteMany();
-    await prisma.factorComposite.deleteMany();
     await prisma.factorReport.deleteMany();
     await prisma.user.deleteMany();
   });
@@ -162,28 +161,6 @@ describe('factor report retention', () => {
     expect(await ids()).toEqual(['bound', 'latest']);
     expect(await prisma.factor.findUniqueOrThrow({ where: { id: 'factor' } })).toEqual(definition);
     expect((await readFactorReport('owner', 'bound')).factorCodeSnapshot).toBe(definition.code);
-  });
-
-  it('protects scalar composite publication references while that feature remains', async () => {
-    await report('composite-bound', '2026-01-01', { factor: 'composite' });
-    await report('composite-latest', '2026-01-02', { factor: 'composite' });
-    await prisma.factorComposite.create({
-      data: {
-        id: 'composite',
-        userId: 'owner',
-        name: 'Composite',
-        definition: {},
-        status: 'archived',
-        approvedReportId: 'composite-bound',
-      },
-    });
-
-    expect(
-      await prisma.$transaction((transaction) =>
-        pruneFactorReports(transaction, { userId: 'owner', factor: 'composite' }),
-      ),
-    ).toBe(0);
-    expect(await ids()).toEqual(['composite-bound', 'composite-latest']);
   });
 
   it.each(['done', 'error', 'stale'] as const)(

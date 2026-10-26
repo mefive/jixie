@@ -30,7 +30,14 @@ describe('readFactorAnalysisResult', () => {
 
     expect(mocks.reportFindFirst).toHaveBeenCalledWith({
       where: { id: 'report-1', userId: 'user-1' },
-      select: { legacyStatus: true, failureMessage: true, job: true, payload: true },
+      select: {
+        legacyStatus: true,
+        failureMessage: true,
+        job: true,
+        payload: true,
+        specJson: true,
+        factorCodeSnapshot: true,
+      },
     });
     expect(result).toMatchObject({ status: 'done', payload: { icMean: 0.03 } });
   });

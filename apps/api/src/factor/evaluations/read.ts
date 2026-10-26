@@ -4,7 +4,7 @@ import type { FactorReport } from '@jixie/shared';
 import { FactorError } from '../errors.js';
 import { readOwnedFactorJob } from '../jobs/read.js';
 import type { FactorJobLogsQuery, FactorReportListQuery } from '@jixie/shared/api/factor';
-import { reportResearchSpec } from './report-spec.js';
+import { reportResearchSpec, isRetiredCompositeReport } from './report-spec.js';
 import { parseResearchPayload, reportSummary } from './report-views.js';
 
 /**
@@ -19,7 +19,12 @@ export async function listFactorReports(userId: string, input: FactorReportListQ
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
   });
 
-  return { items: rows.map(factorReportState).map(reportSummary) };
+  return {
+    items: rows
+      .filter((row) => !isRetiredCompositeReport(row))
+      .map(factorReportState)
+      .map(reportSummary),
+  };
 }
 
 /**
@@ -95,10 +100,17 @@ export async function readFactorAnalysisResult(
   const row = await getDatabase()
     .factorReport.findFirst({
       where: { id: reportId, userId },
-      select: { job: true, legacyStatus: true, failureMessage: true, payload: true },
+      select: {
+        job: true,
+        legacyStatus: true,
+        failureMessage: true,
+        payload: true,
+        specJson: true,
+        factorCodeSnapshot: true,
+      },
     })
     .then((row) => (row ? factorReportState(row) : row));
-  if (!row) {
+  if (!row || isRetiredCompositeReport(row)) {
     return null;
   }
 

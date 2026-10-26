@@ -9,7 +9,7 @@ import { JobService, type JobKind } from '#jobs/job-service.js';
 export async function readOwnedFactorJob(
   userId: string,
   jobId: string,
-  kind: Extract<JobKind, 'factor-analysis' | 'factor-correlation'>,
+  kind: Extract<JobKind, 'factor-analysis'>,
   since: number,
 ) {
   const job = await getDatabase().job.findFirst({

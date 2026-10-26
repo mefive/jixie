@@ -59,20 +59,6 @@ export class FactorEvaluator {
     const { definitions, ...options } = input;
     this.input = { ...options, locale: options.locale ?? DEFAULT_LOCALE };
     this.definitions = new Map(definitions.map((definition) => [definition.id, definition]));
-
-    for (const [key, factor] of this.definitions) {
-      if (
-        factor.kind === 'panel_composite' &&
-        !sameAssetUniverse(
-          factor.assetUniverse.map((asset) => asset.assetId),
-          this.input.assetUniverse,
-        )
-      ) {
-        throw new Error(
-          `factor ${key} requires strategy.watch to match its approved research universe`,
-        );
-      }
-    }
   }
 
   has(key: string): boolean {
@@ -145,13 +131,6 @@ export class FactorEvaluator {
     codes: string[],
     crossByCode: Map<string, BarRow> | null,
   ): Promise<void> {
-    if (factor.kind === 'panel_composite') {
-      for (const component of factor.components) {
-        await this.prepareFactor(component.definition, date, this.input.assetUniverse, null);
-      }
-      this.preparePanelComposite(factor);
-      return;
-    }
     if (factor.kind === 'cross_sectional') {
       const pending = codes
         .map((code) => {
@@ -280,45 +259,6 @@ export class FactorEvaluator {
   }
 
   /**
-   * 准备 Panel 组合因子的依赖与横截面输入，供组合求值使用。
-   *
-   * Prepare dependency values and panel inputs for composite evaluation.
-   */
-  private preparePanelComposite(
-    factor: Extract<FactorDefinition, { kind: 'panel_composite' }>,
-  ): void {
-    const componentValues = factor.components.map((component) => ({
-      component,
-      values: this.input.assetUniverse.map(
-        (assetId) => this.cache.get(this.cacheKey(component.definition.id, assetId))!.value,
-      ),
-    }));
-    const input = JSON.stringify(componentValues.map(({ values }) => values));
-    const eligibleIndexes = this.input.assetUniverse
-      .map((_, index) => index)
-      .filter((index) => componentValues.every((component) => component.values[index] != null));
-    const standardized = componentValues.map((component) => {
-      const raw = eligibleIndexes.map((index) => component.values[index]!);
-      return factor.standardization === 'rank' ? centeredRanks(raw) : standardScores(raw);
-    });
-    for (let index = 0; index < this.input.assetUniverse.length; index++) {
-      const assetId = this.input.assetUniverse[index];
-      if (!this.needsCompute(factor.id, assetId, input)) {
-        continue;
-      }
-      const position = eligibleIndexes.indexOf(index);
-      const value =
-        position < 0
-          ? null
-          : componentValues.reduce((sum, { component }, componentIndex) => {
-              const direction = component.direction === 'positive' ? 1 : -1;
-              return sum + standardized[componentIndex][position] * direction;
-            }, 0) / componentValues.length;
-      this.cache.set(this.cacheKey(factor.id, assetId), { input, value, read: false });
-    }
-  }
-
-  /**
    * 从引擎截面组装当日因子行情；资金流仅在声明后按其流量语义提供。
    *
    * The factor-side bar for (code, today), assembled from the engine's cross-section row. Moneyflow
@@ -345,50 +285,4 @@ export class FactorEvaluator {
       debtToAssets: crossBar?.debtToAssets ?? null,
     };
   }
-}
-
-/**
- * 将截面数值转换为中心化排名，供按相对排序组合因子。
- *
- * Convert cross-sectional values to centered ranks for rank-based factor composition.
- */
-function centeredRanks(values: number[]): number[] {
-  if (values.length === 1) {
-    return [0];
-  }
-  const order = values
-    .map((value, index) => ({ value, index }))
-    .sort((left, right) => left.value - right.value);
-  const ranks = new Array<number>(values.length).fill(0);
-  let cursor = 0;
-  while (cursor < order.length) {
-    let last = cursor;
-    while (last + 1 < order.length && order[last + 1].value === order[cursor].value) {
-      last++;
-    }
-    const averageRank = (cursor + last) / 2;
-    for (let index = cursor; index <= last; index++) {
-      ranks[order[index].index] = averageRank;
-    }
-    cursor = last + 1;
-  }
-  return ranks.map((rank) => rank / (values.length - 1) - 0.5);
-}
-
-function standardScores(values: number[]): number[] {
-  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const variance = values.reduce((sum, value) => sum + (value - average) ** 2, 0) / values.length;
-  const standardDeviation = Math.sqrt(variance);
-  return standardDeviation === 0
-    ? values.map(() => 0)
-    : values.map((value) => (value - average) / standardDeviation);
-}
-
-function sameAssetUniverse(expected: string[], actual: string[]): boolean {
-  if (expected.length !== actual.length) {
-    return false;
-  }
-  const expectedSorted = [...expected].sort();
-  const actualSorted = [...actual].sort();
-  return expectedSorted.every((assetId, index) => assetId === actualSorted[index]);
 }

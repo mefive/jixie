@@ -41,7 +41,6 @@ Embedded 即使 kind/payload 损坏，仍按 researchExecutionId 清理 activeRu
 - `strategy/backtests/job-lifecycle.ts`：回测结果及 Strategy.lastResult。
 - `strategy/scans/job-lifecycle.ts`：扫描结果；同一 Worker 线程串行运行各组合，不创建 cell 子进程。
 - `factor/evaluations/job-lifecycle.ts`：分析结果；onFailure 仅为 Worker 错误保存本地化 failureMessage。
-- `factor/correlations/job-lifecycle.ts`：成功 upsert 缓存；失败保留上次成功缓存。
 - `research/embedded/job-lifecycle.ts`：领域结果、证据与首次成功冻结；失败/中断按持久化关系清理。
 
 有 Job 的报告从 Job 投影状态；历史无 Job 终态回读 nullable legacyStatus/legacyError。

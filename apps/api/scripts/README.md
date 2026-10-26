@@ -25,7 +25,7 @@
 ## 已退役的数据转换
 
 生产已完成旧 `factor` Job 到 `factor-analysis` / `factor-correlation` 的转换，`db:migrate:factor-job-kinds`、转换脚本及 bootstrap 调用已移除。新安装和当前数据库不需要此步骤；Prisma 历史 schema migrations 保留。
-恢复转换前的旧备份或升级尚未转换的开发库时，需要先完成旧数据转换，再启动当前 API，见 [旧库恢复说明](../../../docs/backend-runtime-entries.md#factor-job-kind-旧库恢复)。
+当前只保留 `factor-analysis`；`factor-correlation` 已退役，旧任务不会启动 Worker。恢复转换前的旧备份或升级尚未转换的开发库时，需要先完成旧数据转换，再启动当前 API，见 [旧库恢复说明](../../../docs/backend-runtime-entries.md#factor-job-kind-旧库恢复)。
 
 ## 数据同步
 

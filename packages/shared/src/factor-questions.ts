@@ -14,7 +14,7 @@ export interface FactorQuestionContextV1 {
   factor: {
     key: string;
     name: string;
-    kind: 'factor' | 'composite' | 'template';
+    kind: 'factor' | 'template';
     analysisKind: string;
     language: string;
     source: string;

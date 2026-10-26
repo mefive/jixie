@@ -1,3 +1,4 @@
+import { FactorError } from '../errors.js';
 import type { FactorReport as FactorReportRow } from '@prisma/client';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
 import { normalizeFactorResearchSpec } from '../analysis/spec.js';
@@ -7,7 +8,15 @@ import { normalizeFactorResearchSpec } from '../analysis/spec.js';
  *
  * Recover the frozen research specification stored in a report.
  */
-export function reportResearchSpec(row: FactorReportRow) {
+export function reportResearchSpec(
+  row: Pick<FactorReportRow, 'specJson' | 'freq' | 'neutral' | 'start' | 'end'> & {
+    factorCodeSnapshot?: string | null;
+  },
+) {
+  if (isRetiredCompositeReport(row)) {
+    throw new FactorError('evaluation_not_found');
+  }
+
   if (row.specJson) {
     try {
       return normalizeFactorResearchSpec(JSON.parse(row.specJson));
@@ -41,4 +50,50 @@ export function reportCompatibilityColumns(spec: FactorResearchSpecV1) {
     start: spec.start,
     end: spec.end,
   };
+}
+
+/**
+ * 识别已退役的组合报告，避免以普通单因子规格回退读取。
+ *
+ * Identify retired composite reports so they cannot fall back to ordinary single-factor settings.
+ */
+export function isRetiredCompositeReport(row: {
+  specJson: string | null;
+  factorCodeSnapshot?: string | null;
+}): boolean {
+  for (const text of [row.specJson, row.factorCodeSnapshot]) {
+    if (!text) {
+      continue;
+    }
+
+    let value: unknown;
+    try {
+      value = JSON.parse(text);
+    } catch {
+      continue;
+    }
+
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      continue;
+    }
+
+    const record = value as Record<string, unknown>;
+    const protocol =
+      record.protocol && typeof record.protocol === 'object'
+        ? (record.protocol as Record<string, unknown>)
+        : undefined;
+
+    if (
+      record.kind === 'composite' ||
+      record.kind === 'panel_composite' ||
+      record.version === 4 ||
+      'composite' in record ||
+      protocol?.version === 4 ||
+      (protocol && 'composite' in protocol)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }

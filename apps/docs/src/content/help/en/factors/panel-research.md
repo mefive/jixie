@@ -42,19 +42,7 @@ Check assets, dates, forward horizon and costs, then run an analysis directly. D
 
 Asset coverage lists each ETF's observations and first and last valid month-end. The report also shows minimum, median, and maximum assets per period. Late listings remain visibly shorter.
 
-## Create a Panel composite
-
-1. Click New composite.
-2. Choose Panel cross-sectional as the research method.
-3. Select two to five components, directions, and Rank or Z-score standardization.
-4. Check assets, dates, forward horizon and costs, then run an analysis directly. Diagnostics add context without changing the original scores.
-5. Before publishing, confirm every component is itself published.
-
-A published Panel composite can enter Strategy. Its allocation attribution is separate from the research long-short result.
-
 ## Related articles
 
-- [Create a multi-factor composite](/docs/help/factors/create-composite)
-- [Read a composite report](/docs/help/factors/read-composite-report)
 - [Publish a Factor and use it in a strategy](/docs/help/factors/publish-factor)
 - [Read multi-asset allocation attribution](/docs/help/backtesting/allocation-attribution)

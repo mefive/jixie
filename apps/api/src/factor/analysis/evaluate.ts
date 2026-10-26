@@ -1,5 +1,4 @@
 import { FactorSandbox } from '../sandbox/factor-sandbox.js';
-import type { PanelFactorSandbox } from '../sandbox/contract.js';
 import { t } from '#i18n/index.js';
 import type {
   FactorAnalysisSpec,
@@ -11,7 +10,6 @@ import type {
   Locale,
   LogLevel,
 } from '@jixie/shared';
-import { combinePanelFactorObservations } from '../composition/composite.js';
 import {
   loadCommodityCarryPanelObservations,
   panelFactorUsesCommodityCarry,
@@ -27,7 +25,6 @@ import {
 import { loadEtfTimeSeriesObservations } from '../observations/etf-trend-observations.js';
 import { loadMacroRegimeObservations } from '../observations/macro-regime-observations.js';
 import { loadPanelEtfObservations } from '../observations/panel-observations.js';
-
 import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import { factorEvaluatorFor } from './cross-sectional/cross-sectional-evaluator.js';
 import { MacroRegimeEvaluator } from './macro-regime-evaluator.js';
@@ -76,7 +73,7 @@ export async function runFactorEvaluation({
   const researchSpec = normalizeFactorResearchSpec(spec);
   switch (researchSpec.analysisKind) {
     case 'cross_sectional': {
-      if (source.kind !== 'single' && source.kind !== 'composite') {
+      if (source.kind !== 'single') {
         throw new Error('Asset-scope Factor V2 source cannot run with a cross-sectional protocol.');
       }
       const evaluator = factorEvaluatorFor(researchSpec);
@@ -128,62 +125,25 @@ export async function runFactorEvaluation({
       }
     }
     case 'panel': {
-      if (source.kind !== 'panel' && source.kind !== 'panel_composite') {
+      if (source.kind !== 'panel') {
         throw new Error('Panel evaluator requires a panel Factor V2 source.');
       }
-      if (source.kind === 'panel') {
-        const sandbox = await FactorSandbox.start({
-          language: source.language ?? 'typescript',
-          analysisKind: 'panel',
-          code: source.code,
-          onUserLog: onUserLog,
-        });
-        try {
-          onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
-          const observations = panelFactorUsesCommodityCarry(sandbox)
-            ? await loadCommodityCarryPanelObservations(researchSpec, sandbox)
-            : await loadPanelEtfObservations(researchSpec, sandbox);
-          onSystemLog(t(locale, 'factorPanelEvaluating', { count: observations.length }));
-          const report = new PanelEvaluator().evaluate(researchSpec, observations);
-          return complete(report);
-        } finally {
-          sandbox.close();
-        }
-      }
-
-      const componentSandboxes: Array<PanelFactorSandbox> = [];
+      const sandbox = await FactorSandbox.start({
+        language: source.language ?? 'typescript',
+        analysisKind: 'panel',
+        code: source.code,
+        onUserLog: onUserLog,
+      });
       try {
-        for (const component of source.components) {
-          componentSandboxes.push(
-            await FactorSandbox.start({
-              language: component.language ?? 'typescript',
-              analysisKind: 'panel',
-              code: component.code,
-              onUserLog: onUserLog,
-            }),
-          );
-        }
         onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
-        const componentObservations = await Promise.all(
-          componentSandboxes.map((sandbox, index) =>
-            (panelFactorUsesCommodityCarry(sandbox)
-              ? loadCommodityCarryPanelObservations(researchSpec, sandbox)
-              : loadPanelEtfObservations(researchSpec, sandbox)
-            ).then((observations) => ({
-              factor: source.components[index].factor,
-              observations,
-            })),
-          ),
-        );
-        const observations = combinePanelFactorObservations(
-          componentObservations,
-          source.definition,
-        );
+        const observations = panelFactorUsesCommodityCarry(sandbox)
+          ? await loadCommodityCarryPanelObservations(researchSpec, sandbox)
+          : await loadPanelEtfObservations(researchSpec, sandbox);
         onSystemLog(t(locale, 'factorPanelEvaluating', { count: observations.length }));
         const report = new PanelEvaluator().evaluate(researchSpec, observations);
         return complete(report);
       } finally {
-        componentSandboxes.forEach((sandbox) => sandbox.close());
+        sandbox.close();
       }
     }
     case 'macro_regime': {

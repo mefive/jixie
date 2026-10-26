@@ -17,10 +17,6 @@ import {
 } from '#factor/evaluations/job-payload.js';
 import { factorAnalysisWorkerInputSchema } from '#factor/analysis/worker-input.js';
 import {
-  factorCorrelationJobPayloadSchema,
-  type FactorCorrelationJobPayload,
-} from '#factor/correlations/job-payload.js';
-import {
   researchEmbeddedAnalysisJobPayloadSchema,
   type ResearchEmbeddedAnalysisJobPayload,
 } from '#research/embedded/job-payload.js';
@@ -68,15 +64,6 @@ const analysis = {
   locale: 'en',
   failedMessage: 'Analysis failed',
 } satisfies FactorAnalysisJobPayload;
-const correlation = {
-  id: 'correlation',
-  userId: 'owner',
-  keys: ['value', 'quality'],
-  freq: 'month',
-  start: '20240101',
-  end: '20241231',
-  locale: 'en',
-} satisfies FactorCorrelationJobPayload;
 const embedded = {
   runId: 'embedded',
   source: '1',
@@ -89,7 +76,6 @@ describe('durable Job payload and Worker input contracts', () => {
     ['backtest', backtestJobPayloadSchema, backtest],
     ['scan', strategyScanJobPayloadSchema, scan],
     ['analysis', factorAnalysisJobPayloadSchema, analysis],
-    ['correlation', factorCorrelationJobPayloadSchema, correlation],
     ['embedded', researchEmbeddedAnalysisJobPayloadSchema, embedded],
   ] as const)(
     'preserves the typed %s submission through JSON storage',
@@ -136,28 +122,25 @@ describe('durable Job payload and Worker input contracts', () => {
     ]);
   });
 
-  it('accepts formal and weather inputs without requiring Job-only fields in the Worker', () => {
+  it('accepts current and legacy protocols without requiring Job-only fields in the Worker', () => {
     const { failedMessage: _failureMessage, ...formal } = analysis;
-    const weather = { ...formal, reportId: 'weather:value', spec: protocol };
+    const legacy = { ...formal, reportId: 'legacy:value', spec: protocol };
     expect(factorAnalysisWorkerInputSchema.parse(formal)).toEqual(formal);
-    expect(factorAnalysisWorkerInputSchema.parse(weather)).toEqual(weather);
+    expect(factorAnalysisWorkerInputSchema.parse(legacy)).toEqual(legacy);
     expect(
-      factorAnalysisJobPayloadSchema.parse({ ...weather, failedMessage: analysis.failedMessage })
+      factorAnalysisJobPayloadSchema.parse({ ...legacy, failedMessage: analysis.failedMessage })
         .spec,
     ).toEqual(analysis.spec);
-    expect(factorAnalysisJobPayloadSchema.safeParse(weather).success).toBe(false);
+    expect(factorAnalysisJobPayloadSchema.safeParse(legacy).success).toBe(false);
     expect(
       factorAnalysisWorkerInputSchema.safeParse({
-        ...weather,
+        ...legacy,
         source: { kind: 'single', label: 'Value' },
       }).success,
     ).toBe(false);
   });
 
   it('rejects malformed identifiers and preserves strict Research payloads', () => {
-    expect(
-      factorCorrelationJobPayloadSchema.safeParse({ ...correlation, keys: ['value'] }).success,
-    ).toBe(false);
     expect(
       researchEmbeddedAnalysisJobPayloadSchema.safeParse({ ...embedded, unexpected: true }).success,
     ).toBe(false);

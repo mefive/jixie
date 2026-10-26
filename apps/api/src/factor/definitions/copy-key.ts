@@ -8,7 +8,7 @@ import { BUILTIN_KEYS } from './builtin-factors.js';
  * Choose a nonconflicting copy key within the user's factor namespace.
  */
 export async function nextCopyKey(
-  database: Pick<Prisma.TransactionClient, 'factor' | 'factorComposite'>,
+  database: Pick<Prisma.TransactionClient, 'factor'>,
   userId: string,
   sourceKey: string,
 ): Promise<{ key: string; version: number }> {
@@ -18,11 +18,11 @@ export async function nextCopyKey(
   for (let version = startingVersion; version <= startingVersion + 100; version++) {
     const suffix = `_v${version}`;
     const key = `${base.slice(0, 32 - suffix.length).replace(/_+$/g, '')}${suffix}`;
-    const [factorTaken, compositeTaken] = await Promise.all([
-      database.factor.findFirst({ where: { userId, key }, select: { id: true } }),
-      database.factorComposite.findFirst({ where: { userId, key }, select: { id: true } }),
-    ]);
-    if (!factorTaken && !compositeTaken && !BUILTIN_KEYS.has(key)) {
+    const factorTaken = await database.factor.findFirst({
+      where: { userId, key },
+      select: { id: true },
+    });
+    if (!factorTaken && !BUILTIN_KEYS.has(key)) {
       return { key, version };
     }
   }

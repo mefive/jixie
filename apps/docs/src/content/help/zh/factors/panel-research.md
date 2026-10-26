@@ -46,21 +46,7 @@ $$
 
 在“资产覆盖与上市历史”中核对每只 ETF 的观察数、首个有效月末和最后有效月末。报告顶部的最少、中位数和最多覆盖用于判断每个月实际有多少资产参加排名。
 
-## 创建 Panel 合成
-
-需要合成多个 Panel Factor 时：
-
-1. 点击“新建多因子合成”。
-2. 研究方式选择“Panel 横截面”。
-3. 选择 2–5 个同类成分、方向和 Rank 或 Z-score 标准化。
-4. 核对资产、日期、预测周期和成本后直接运行分析。诊断只补充解释，不改变原始分数。
-5. 发布前确认每个成分本身已经发布。
-
-Panel 合成发布后可以进入策略工作台。回测结果会单独显示实际配置归因，不能把 Panel 报告的多空收益当作回测净值。
-
 ## 相关内容
 
-- [创建多因子合成](/docs/help/factors/create-composite)
-- [阅读多因子报告](/docs/help/factors/read-composite-report)
 - [发布 Factor 并用于策略](/docs/help/factors/publish-factor)
 - [查看多资产配置归因](/docs/help/backtesting/allocation-attribution)

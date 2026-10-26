@@ -70,8 +70,7 @@ export type FactorKind =
   | 'rates'
   | 'commodity'
   | 'macro'
-  | 'custom'
-  | 'composite';
+  | 'custom';
 
 /**
  * 承载宿主构造的可变市场行，供公开只读因子行情映射。
@@ -106,7 +105,6 @@ export interface FactorMeta {
   defaultAssets?: string[];
   /** Localized explanations for visible but unsupported research assets. */
   unavailableAssetReasons?: Record<string, string>;
-  composite?: FactorCompositeDefinition;
 }
 
 /**
@@ -293,24 +291,6 @@ export interface FactorReport {
 }
 
 /**
- * 保存跨调仓日平均的共同样本 Spearman 因子相关性。
- *
- * A factor-correlation report: mean cross-sectional Spearman (Rank IC-style) between each pair of the
- * selected factors, averaged over the rebalance dates. `keys`/`labels` include a fixed trailing pseudo-
- * factor 'size' (log total market cap) so every factor's entanglement with size is always visible. The
- * matrix is symmetric with 1 on the diagonal; cells are null when a pair never had enough overlap.
- */
-export interface FactorCorrelation {
-  keys: string[]; // factor keys in matrix order, last = 'size' (the log-market-cap pseudo-factor)
-  labels: string[]; // display labels, parallel to keys
-  freq: FactorFreq;
-  start: string;
-  end: string;
-  periods: number; // rebalance dates that contributed (min across pairs)
-  matrix: (number | null)[][]; // NxN symmetric, mean per-date Spearman; null = insufficient overlap
-}
-
-/**
  * 冻结创建分析报告时规范化的版本输入。
  *
  * Versioned, normalized inputs frozen when a factor-analysis report is created.
@@ -379,82 +359,6 @@ export interface FactorAnalysisSpecV3 extends Omit<FactorAnalysisSpecV2, 'versio
   };
 }
 
-export type FactorCompositeStandardization = 'rank' | 'zscore';
-export type FactorCompositeDirection = 'positive' | 'negative';
-
-/**
- * 冻结组合组件、方向、权重和标准化方式。
- *
- * Freeze composite components, directions, weights and standardization.
- */
-export interface FactorCompositeDefinitionV1 {
-  version: 1;
-  name: string;
-  standardization: FactorCompositeStandardization;
-  weighting: 'equal';
-  components: Array<{
-    factor: string;
-    direction: FactorCompositeDirection;
-  }>;
-}
-
-/**
- * 定义跨资产 Panel 组合，组件由因子目录解析并冻结。
- *
- * Cross-asset panel composite. Components are resolved against the factor catalog and frozen with
- * their executable sources in every report, while this reusable definition keeps stable identities.
- */
-export interface FactorPanelCompositeDefinitionV2 {
-  version: 2;
-  key: string;
-  name: string;
-  analysisKind: 'panel';
-  standardization: FactorCompositeStandardization;
-  weighting: 'equal';
-  components: Array<{
-    factor: string;
-    direction: FactorCompositeDirection;
-  }>;
-}
-
-/**
- * 区分不同研究协议的组合定义，供计算分派。
- *
- * Discriminate protocol-specific composite definitions for evaluation.
- */
-export type FactorCompositeDefinition =
-  | FactorCompositeDefinitionV1
-  | FactorPanelCompositeDefinitionV2;
-
-/**
- * 组合公开组合身份、定义与状态，供目录和编辑器。
- *
- * Describe composite identity, definition and state for catalogs and editors.
- */
-export interface FactorCompositeResource {
-  id: string;
-  key?: string | null;
-  name: string;
-  definition: FactorCompositeDefinition;
-  status?: FactorStatus;
-  approvedReportId?: string | null;
-  codeHash?: string | null;
-  publishedAt?: string | null;
-  archivedAt?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
- * 保留该版本冻结分析规格，供历史报告读取。
- *
- * Retain versioned frozen analysis settings for historical reports.
- */
-export interface FactorAnalysisSpecV4 extends Omit<FactorAnalysisSpecV3, 'version'> {
-  version: 4;
-  composite: FactorCompositeDefinitionV1;
-}
-
 export type FactorEquityIndexCode = '000300.SH' | '000905.SH' | '000852.SH';
 
 /**
@@ -507,13 +411,11 @@ export interface FactorCrossSectionalInferenceSpecV1 {
  * 在 V5 主样本和指标不变的基础上增加稳健推断。
  *
  * Cross-sectional V6 adds robust inference without changing V5's primary analysis population.
- * Composite is optional because single and composite factors now share one current protocol.
  */
 export interface FactorAnalysisSpecV6 extends Omit<FactorAnalysisSpecV3, 'version'> {
   version: 6;
   evaluationScope: FactorEvaluationScopeV1;
   inference: FactorCrossSectionalInferenceSpecV1;
-  composite?: FactorCompositeDefinitionV1;
 }
 
 /**
@@ -525,7 +427,6 @@ export type FactorAnalysisSpec =
   | FactorAnalysisSpecV1
   | FactorAnalysisSpecV2
   | FactorAnalysisSpecV3
-  | FactorAnalysisSpecV4
   | FactorAnalysisSpecV5
   | FactorAnalysisSpecV6;
 
@@ -644,9 +545,9 @@ export interface FactorReportDetail extends FactorReportSummary {
 }
 
 /**
- * 组合因子报告分页列表与状态信息。
+ * 汇集因子报告列表与状态信息。
  *
- * Collect paginated factor reports and state metadata.
+ * Collect factor reports and state metadata.
  */
 export interface FactorReportListResponse {
   items: FactorReportSummary[];

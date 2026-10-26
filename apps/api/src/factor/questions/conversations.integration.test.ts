@@ -193,7 +193,6 @@ describe('private durable Factor questions', () => {
     turnBus._resetForTest();
     // Factor sources and reports use plain owner IDs, so deleting a User does not remove them.
     await prisma.factorReport.deleteMany();
-    await prisma.factorComposite.deleteMany();
     await prisma.factor.deleteMany();
     await prisma.user.deleteMany();
     vi.unstubAllEnvs();
@@ -355,17 +354,9 @@ describe('private durable Factor questions', () => {
     await finished(accepted.turnId);
   });
 
-  it('supports seeded presets, code templates and composites with stable identities', async () => {
+  it('supports seeded presets and code templates with stable identities', async () => {
     await seedBuiltinFactors();
-    await prisma.factorComposite.create({
-      data: {
-        id: 'composite',
-        userId: 'owner',
-        name: 'Composite',
-        definition: { version: 1, components: [] },
-      },
-    });
-    for (const key of ['preset', 'etf_trend_20', 'composite']) {
+    for (const key of ['preset', 'etf_trend_20']) {
       const submitted = await submit(undefined, key);
       await finished(submitted.turnId);
       expect(submitted.message.contextSnapshot?.factor.key).toBe(key);

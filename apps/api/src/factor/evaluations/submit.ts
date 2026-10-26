@@ -1,6 +1,5 @@
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { resolvePanelFactorSource } from '../composition/panel-source.js';
 import { resolveMacroRegimeTemplateSource } from '../definitions/templates/macro-regime.js';
 import { unsupportedTimeSeriesTemplateAssets } from '../definitions/templates/time-series.js';
 import { FactorError } from '../errors.js';
@@ -11,6 +10,7 @@ import type { SubmitFactorAnalysisInput } from '@jixie/shared/api/factor';
 import {
   factorAnalysisSourceDataRequirements,
   resolveTimeSeriesFactorSource,
+  resolvePanelFactorSource,
   resolveFactorSource,
 } from '../sources/resolve.js';
 import { type FactorAnalysisSource } from '../sources/snapshot.js';
@@ -32,20 +32,10 @@ export async function submitFactorAnalysis(
   let source: FactorAnalysisSource | null = null;
 
   if (researchSpec.analysisKind === 'cross_sectional') {
-    let protocol = researchSpec.protocol;
     source = await resolveFactorSource(userId, factor);
     if (!source) {
       throw new FactorError('factor_unavailable', { params: { factor } });
     }
-    if (source.kind === 'composite') {
-      if (protocol.version !== 4 && protocol.version !== 6) {
-        throw new FactorError('source_protocol_invalid');
-      }
-      protocol = { ...protocol, composite: source.definition };
-    } else if (protocol.version === 4 || (protocol.version === 6 && protocol.composite)) {
-      throw new FactorError('source_protocol_invalid');
-    }
-    researchSpec = { ...researchSpec, protocol };
   } else if (researchSpec.analysisKind === 'time_series') {
     source = await resolveTimeSeriesFactorSource(userId, factor);
     if (!source) {

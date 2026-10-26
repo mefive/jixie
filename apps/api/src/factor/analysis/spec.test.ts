@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest';
-import { factorPanelCompositeDefinitionV2Schema } from '@jixie/shared/api/factor';
 import {
   createDefaultFactorAnalysisSpecV2,
   createDefaultFactorAnalysisSpecV3,
-  createDefaultFactorAnalysisSpecV4,
   createDefaultFactorAnalysisSpecV5,
+  createDefaultFactorAnalysisSpecV6,
   crossSectionalProtocol,
   normalizeFactorAnalysisSpec,
   normalizeFactorResearchSpec,
 } from './spec.js';
 describe('factor evaluation specs', () => {
+  it('rejects retired composite protocols instead of stripping their composition', () => {
+    const spec = createDefaultFactorAnalysisSpecV6({
+      freq: 'month',
+      start: '20200101',
+      end: '20241231',
+      neutral: 'none',
+    });
+
+    expect(() => normalizeFactorAnalysisSpec({ ...spec, composite: {} })).toThrow();
+    expect(() => normalizeFactorAnalysisSpec({ ...spec, version: 4, composite: {} })).toThrow();
+    expect(normalizeFactorAnalysisSpec(spec)).toEqual(spec);
+  });
+
   it('defaults new reports to PIT historical-risk exclusions in V3', () => {
     const spec = createDefaultFactorAnalysisSpecV3({
       freq: 'month',
@@ -99,66 +111,6 @@ describe('factor evaluation specs', () => {
     expect(macro.dataPolicy.revisionPolicy).toBe('latest_vintage');
     expect(() => crossSectionalProtocol(panel)).toThrow(/panel/);
     expect(() => crossSectionalProtocol(macro)).toThrow(/macro_regime/);
-  });
-
-  it('validates and freezes a V4 equal-weight composite definition', () => {
-    const spec = createDefaultFactorAnalysisSpecV4({
-      freq: 'month',
-      start: '20200101',
-      end: '20241231',
-      neutral: 'size_industry',
-      composite: {
-        version: 1,
-        name: 'Quality + value',
-        standardization: 'rank',
-        weighting: 'equal',
-        components: [
-          { factor: 'roe_ttm', direction: 'positive' },
-          { factor: 'ep_ttm', direction: 'positive' },
-        ],
-      },
-    });
-
-    expect(normalizeFactorAnalysisSpec(spec)).toEqual(spec);
-    expect(spec.version).toBe(4);
-  });
-
-  it('validates a distinct V2 cross-asset panel composite definition', () => {
-    expect(
-      factorPanelCompositeDefinitionV2Schema.parse({
-        version: 2,
-        key: 'momentum_low_vol',
-        name: 'Momentum and low volatility',
-        analysisKind: 'panel',
-        standardization: 'rank',
-        weighting: 'equal',
-        components: [
-          { factor: 'cross_asset_momentum_120', direction: 'positive' },
-          { factor: 'cross_asset_volatility_60', direction: 'negative' },
-        ],
-      }),
-    ).toMatchObject({ version: 2, analysisKind: 'panel' });
-  });
-
-  it('rejects duplicate factors in a V4 composite', () => {
-    const spec = createDefaultFactorAnalysisSpecV4({
-      freq: 'month',
-      start: '20200101',
-      end: '20241231',
-      neutral: 'none',
-      composite: {
-        version: 1,
-        name: 'Duplicate',
-        standardization: 'zscore',
-        weighting: 'equal',
-        components: [
-          { factor: 'roe_ttm', direction: 'positive' },
-          { factor: 'roe_ttm', direction: 'negative' },
-        ],
-      },
-    });
-
-    expect(() => normalizeFactorAnalysisSpec(spec)).toThrow(/distinct/);
   });
 
   it('normalizes defaults and preserves the versioned shape', () => {

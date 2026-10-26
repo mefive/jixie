@@ -5,10 +5,6 @@ import {
 } from '#infra/errors.js';
 
 const definitions = {
-  correlation_key_count: {
-    category: 'invalid',
-    messageKey: 'correlationKeyCount',
-  },
   source_protocol_invalid: {
     category: 'invalid',
     messageKey: 'windowNotComputed',

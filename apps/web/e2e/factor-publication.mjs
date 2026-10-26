@@ -108,6 +108,15 @@ try {
   );
   const card = page.getByTestId('factor-publication-card');
   await card.waitFor({ timeout: 30_000 });
+  await page.getByRole('tab', { name: '因子库', exact: true }).click();
+  await assertRetiredControlsAbsent();
+  await page.screenshot({ path: `${SHOTS}factor-single-library-zh.png`, fullPage: true });
+  await page.getByText('EN', { exact: true }).last().click();
+  await page.getByRole('tab', { name: 'Library', exact: true }).waitFor();
+  await assertRetiredControlsAbsent();
+  await page.screenshot({ path: `${SHOTS}factor-single-library-en.png`, fullPage: true });
+  await page.getByText('中', { exact: true }).last().click();
+  await page.getByRole('tab', { name: '因子库', exact: true }).waitFor();
   await card.getByTestId('factor-publish').click();
   const publishModal = page.locator('.ant-modal-confirm:visible');
   await publishModal.getByText('ep_v2', { exact: false }).waitFor();
@@ -173,4 +182,11 @@ try {
 } finally {
   await context.close();
   await browser.close();
+}
+
+async function assertRetiredControlsAbsent() {
+  await page.locator('.jx-factor-library').waitFor();
+  if (await page.locator('.jx-factor-corrTrigger, .jx-factor-compositeTrigger').count()) {
+    throw new Error('Retired composite and correlation controls remain in the factor library.');
+  }
 }

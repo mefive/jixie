@@ -4,7 +4,7 @@
 
 After a custom factor has completed an analysis and is published with an approved report, a backtest can read its values, rank stocks, and select holdings.
 
-A stock cross-sectional composite remains a research object and cannot be referenced as one Factor key. A published Panel composite can enter a multi-asset strategy through its own immutable key; the publication action prefills its universe and code.
+A strategy can declare several independently published factor keys, each referencing its own fixed version.
 
 ## Before you start
 

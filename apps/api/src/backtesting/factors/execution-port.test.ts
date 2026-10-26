@@ -87,39 +87,22 @@ describe('engine factor execution port', () => {
     expect(fina).toHaveBeenCalled();
   });
 
-  it.each(['single', 'composite'] as const)(
-    'loads yield inputs from %s factor metadata',
-    async (kind) => {
-      const dataPort = dataFixture();
-      const yields = vi.spyOn(dataPort, 'yieldCurvePoints');
-      const definition: Extract<FactorDefinition, { kind: 'asset_series' }> = {
-        id: 'rates',
-        kind: 'asset_series',
-        analysisKind: 'panel',
-        meta: { window: 2, inputs: ['rates.cgb.yield.10y'] },
-      };
-      const definitions: FactorDefinition[] =
-        kind === 'single'
-          ? [definition]
-          : [
-              {
-                id: 'composite',
-                kind: 'panel_composite',
-                standardization: 'rank',
-                assetUniverse: [],
-                components: [
-                  { direction: 'positive', definition },
-                  { direction: 'negative', definition: { ...definition, id: 'rates-other' } },
-                ],
-              },
-            ];
-      await new BacktestingEngine({
-        ...config,
-        dataPort,
-        factorExecution: port(definitions),
-        strategy: { name: 'rates metadata', onBar() {} },
-      }).run();
-      expect(yields).toHaveBeenCalledWith(config.end);
-    },
-  );
+  it('loads yield inputs from single factor metadata', async () => {
+    const dataPort = dataFixture();
+    const yields = vi.spyOn(dataPort, 'yieldCurvePoints');
+    const definition: Extract<FactorDefinition, { kind: 'asset_series' }> = {
+      id: 'rates',
+      kind: 'asset_series',
+      analysisKind: 'panel',
+      meta: { window: 2, inputs: ['rates.cgb.yield.10y'] },
+    };
+    const definitions: FactorDefinition[] = [definition];
+    await new BacktestingEngine({
+      ...config,
+      dataPort,
+      factorExecution: port(definitions),
+      strategy: { name: 'rates metadata', onBar() {} },
+    }).run();
+    expect(yields).toHaveBeenCalledWith(config.end);
+  });
 });

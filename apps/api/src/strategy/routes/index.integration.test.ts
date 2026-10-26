@@ -155,7 +155,6 @@ describe('Strategy HTTP business boundaries', () => {
   afterEach(async () => {
     await Promise.allSettled(resources.namingOperations.splice(0));
     await prisma.user.deleteMany();
-    await prisma.factorComposite.deleteMany();
     await prisma.factor.deleteMany();
     await prisma.tradeCal.deleteMany();
     await prisma.daily.deleteMany();

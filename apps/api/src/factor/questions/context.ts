@@ -50,26 +50,7 @@ export async function captureFactorQuestionContext(
         sourceHash: sha256(row.code),
       };
     } else {
-      const composite = await database.factorComposite.findFirst({
-        where: { id: factorKey, userId },
-        select: { name: true, definition: true },
-      });
-      if (!composite) {
-        throw new FactorError('factor_not_found');
-      }
-      const source = JSON.stringify(composite.definition);
-      factor = {
-        key: factorKey,
-        name: composite.name,
-        kind: 'composite',
-        analysisKind:
-          (composite.definition as { version?: number }).version === 2
-            ? 'panel'
-            : 'cross_sectional',
-        language: 'json',
-        source,
-        sourceHash: sha256(source),
-      };
+      throw new FactorError('factor_not_found');
     }
   }
 

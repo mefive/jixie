@@ -11,7 +11,6 @@ API 的原生包内别名由 `apps/api/package.json#imports` 定义：`developme
 | `strategy/backtests/job-lifecycle.ts` | `strategy/backtests/worker.boot.mjs` → `worker.ts` | `strategy/backtests/worker.js` | 回测线程；回传结果，主线程按 Job 契约完成事务 |
 | `strategy/scans/job-lifecycle.ts` | `strategy/scans/worker.boot.mjs` → `.ts` | `strategy/scans/worker.js` | 参数扫描线程；同一线程串行调用共享模拟并汇总，异常使用通用 Worker.terminate |
 | `factor/evaluations/job-lifecycle.ts` | `factor/analysis/worker.boot.mjs` → `.ts` | `factor/analysis/worker.js` | 因子分析线程；评估任务拥有最终持久化 |
-| `factor/correlations/job-lifecycle.ts` | `factor/correlations/worker.boot.mjs` → `.ts` | `factor/correlations/worker.js` | 只返回相关性结果；缓存写入在主线程 complete 事务 |
 | `market/fundamentals/reference-worker-process.ts` | 同目录 `reference-worker.ts`，继承 tsx execArgv | 同目录 `reference-worker.js`，不继承源码 execArgv | financial_statements / financials / dividends 分批子进程；逐项报告完成，父进程等待调用方回调持久化后确认；收到完整 summary、所有确认且进程关闭后才完成；回调失败终止并回收子进程 |
 | `strategy/sandbox/typescript/sandbox-bundle.ts` | 同目录 `entry.ts` → strategy-runner.ts/strategy-adapter.ts → SDK Context、账户、选股、周期与指标 | 同目录 `entry.js` → strategy-runner.js/strategy-adapter.js → 对应 SDK .js | esbuild neutral bundle，Runner 绑定能力并显式构造 SDK Context；不含 Engine 或宿主 Prisma/Node 导入；进程内缓存 bundle |
 | `strategy/simulation/factor-host.ts` | TS/Python 因子均由一次运行内的 FactorHost 管理 | 对应 `factor-host.js` | Engine 通过独立 FactorExecutionPort 使用；StrategySimulation 统一关闭因子与策略沙盒，初始化失败也清理已建立实例 |
@@ -38,7 +37,7 @@ Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续
 
 2026-09-18 用户确认生产后端已完成部署与旧 Job 转换。本次退役 `db:migrate:factor-job-kinds`、
 其转换脚本和专属迁移测试，以及 bootstrap 中的调用和专属失败标记；新安装数据库、当前已升级数据库不再执行该步骤。
-当前业务直接创建 `factor-analysis` / `factor-correlation`。历史 payload 中的 `task` 字段仍可读取、执行和恢复，
+当前业务直接创建 `factor-analysis`。历史 payload 中的 `task` 字段仍可读取、执行和恢复，
 相关业务回归继续保留。此清理不删除或修改 `apps/api/prisma/migrations/` 中的 schema 迁移历史。
 
 若恢复转换前的旧备份，或使用尚未转换的开发库：
@@ -55,6 +54,7 @@ Worker 仍负责消息与进程收尾；天气复用因子评估 Worker，继续
 4. 确认 `Job` 中 `kind = 'factor'` 的行数为 0，再启动当前 API，并移除临时提取的脚本。
 
 历史脚本按 `payload.task === 'correlation'` 选择新 kind，其余转为 `factor-analysis`；保留 payload、状态、关联和日志。
+因子相关性已退役，转换出的 `factor-correlation` 任务不会启动 Worker，排队旧任务按未知 kind 结束。
 转换失败时保持停服，排查后可重跑。当前 bootstrap 不再替旧库自动完成此转换。旧代码回退也不能只回退二进制，
 需要匹配其数据库 kind 和 payload 约定。
 

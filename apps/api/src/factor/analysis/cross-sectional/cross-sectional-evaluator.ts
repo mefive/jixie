@@ -6,7 +6,7 @@ import type {
 } from '@jixie/shared';
 import type { UserLogSink } from '#infra/sandbox/console.js';
 import { analyzeFactor } from './evaluate.js';
-import type { FactorAnalysisRuntimeSource } from '../../composition/composite.js';
+import type { FactorAnalysisRuntimeSource } from '../../sources/snapshot.js';
 
 /**
  * 描述单次截面求值的因子来源、日期和输入，供统一求值器。

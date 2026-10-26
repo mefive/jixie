@@ -346,45 +346,4 @@ describe('startFactorAnalysis', () => {
     expect(mocks.wake).not.toHaveBeenCalled();
     expect(mocks.prune).not.toHaveBeenCalled();
   });
-
-  it('freezes the full source bundle for a composite report', async () => {
-    mocks.reportFindFirst.mockResolvedValue(null);
-
-    const definition = {
-      version: 1 as const,
-      name: 'Quality + value',
-      standardization: 'rank' as const,
-      weighting: 'equal' as const,
-      components: [
-        { factor: 'roe_ttm', direction: 'positive' as const },
-        { factor: 'ep_ttm', direction: 'positive' as const },
-      ],
-    };
-    const source = {
-      kind: 'composite' as const,
-      label: definition.name,
-      definition,
-      components: [
-        { factor: 'roe_ttm', label: 'ROE', code: 'roe code', direction: 'positive' as const },
-        { factor: 'ep_ttm', label: 'EP', code: 'ep code', direction: 'positive' as const },
-      ],
-    };
-    const compositeSpec = { ...spec, version: 4 as const, composite: definition };
-
-    await startFactorAnalysis({
-      userId: 'user-1',
-      factor: 'composite-1',
-      source,
-      spec: compositeSpec,
-      locale: 'en',
-      failedMessage: 'failed',
-    });
-
-    const snapshot = mocks.reportCreate.mock.calls[0][0].data.factorCodeSnapshot;
-    expect(JSON.parse(snapshot)).toEqual(source);
-    expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
-      source,
-      spec: { version: 1, analysisKind: 'cross_sectional', protocol: compositeSpec },
-    });
-  });
 });

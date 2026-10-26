@@ -65,7 +65,6 @@ try {
     ),
     'strategy-parameter-scan',
     'factor-report-history',
-    'factor-correlation',
     'backtest-latest-result',
     'research-backtest-report-catalog',
   ]) {

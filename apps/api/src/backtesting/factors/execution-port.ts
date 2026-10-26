@@ -37,16 +37,6 @@ export type FactorDefinition =
       analysisKind: 'time_series' | 'panel';
       meta: FactorInputRequirements;
       assetUniverse?: Array<{ assetId: string; assetClass: MultiAssetClass }>;
-    }
-  | {
-      id: string;
-      kind: 'panel_composite';
-      standardization: 'rank' | 'zscore';
-      assetUniverse: Array<{ assetId: string; assetClass: MultiAssetClass }>;
-      components: Array<{
-        direction: 'positive' | 'negative';
-        definition: Extract<FactorDefinition, { kind: 'asset_series' }>;
-      }>;
     };
 
 /**
@@ -75,7 +65,7 @@ export type FactorComputeRequest =
   | { factorId: string; kind: 'asset_series'; fields: Record<string, number[]>; indexes: number[] };
 
 /**
- * 组合因子定义、依赖与所需输入的描述，供引擎规划预载。
+ * 汇集因子定义、依赖与所需输入的描述，供引擎规划预载。
  *
  * Describe registered factors and their input requirements for engine preloading.
  */

@@ -32,17 +32,6 @@ export interface FactorSeriesResult {
   audit: FactorSeriesAudit;
 }
 
-export function mergeFactorSeriesAudits(audits: FactorSeriesAudit[]): FactorSeriesAudit {
-  return {
-    declaredWindowDays:
-      Math.max(0, ...audits.map((audit) => audit.declaredWindowDays ?? 0)) || undefined,
-    minimumCoverage: Math.min(...audits.map((audit) => audit.minimumCoverage)),
-    coverageSum: audits.reduce((sum, audit) => sum + audit.coverageSum, 0),
-    observations: audits.reduce((sum, audit) => sum + audit.observations, 0),
-    droppedForCoverage: audits.reduce((sum, audit) => sum + audit.droppedForCoverage, 0),
-  };
-}
-
 export type Series = Map<string, { tsCode: string; value: number }[]>; // rebalance date -> [{tsCode, value}]
 
 /**

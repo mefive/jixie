@@ -774,37 +774,6 @@ try {
   }
   await page.screenshot({ path: `${SHOTS}12c-help-factor-report-history.png` });
 
-  await page.getByRole('link', { name: '因子相关性矩阵', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '因子相关性矩阵' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('factor correlation article does not render both screenshots');
-  }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 4) {
-    throw new Error('factor correlation formulas did not render with KaTeX');
-  }
-  await page.getByText('EN', { exact: true }).last().click();
-  await page.getByRole('heading', { level: 1, name: 'Factor correlation matrix' }).waitFor();
-  await page.getByText('中文', { exact: true }).last().click();
-  await page.getByRole('heading', { level: 1, name: '因子相关性矩阵' }).waitFor();
-
-  await page.getByRole('link', { name: '新建和编辑多因子合成', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '新建和编辑多因子合成' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('factor-composite definition article does not render its screenshot');
-  }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 1) {
-    throw new Error('factor-composite formula did not render with KaTeX');
-  }
-
-  await page.getByRole('link', { name: '查看多因子合成报告', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '查看多因子合成报告' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('factor-composite report article does not render its screenshot');
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(100);
-  await page.screenshot({ path: `${SHOTS}14a-help-factor-composite.png` });
-
   await page.getByRole('link', { name: '复制预设因子', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '复制预设因子' }).waitFor();
   if ((await page.locator('.jx-help-figure').count()) !== 2) {

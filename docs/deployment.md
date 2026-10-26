@@ -108,7 +108,7 @@ bootstrap 将记录文件的绝对路径写入 API 环境变量 `JIXIE_DEPLOYED_
 已关闭，4179 端口已释放。本轮未运行生产 bootstrap、访问生产数据库或执行线上部署。
 
 Factor Job kind 的一次性转换已在生产完成，bootstrap 不再执行 `db:migrate:factor-job-kinds`。
-新安装和当前数据库直接使用 `factor-analysis` / `factor-correlation`；Prisma schema migrations 保留并照常执行。
+当前只保留 `factor-analysis`；`factor-correlation` 已退役，旧任务不再启动 Worker。Prisma schema migrations 保留并照常执行。
 恢复转换前的旧备份或升级尚未转换的开发库，必须在启动 API 前从 Git 历史执行一次性转换，见
 [旧库恢复说明](backend-runtime-entries.md#factor-job-kind-旧库恢复)。
 

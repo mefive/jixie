@@ -48,12 +48,7 @@ import {
   submitBacktest,
   submitStrategyScan,
 } from '@src/api/strategy';
-import {
-  getFactorComposite,
-  getCustomFactor,
-  getFactorCatalog,
-  getFactorReport,
-} from '@src/api/factor';
+import { getCustomFactor, getFactorCatalog, getFactorReport } from '@src/api/factor';
 import { fetchIndexSeries } from '@src/api/market';
 import { DEFAULT_CODE, DEFAULT_PYTHON_CODE } from './default-strategy';
 import { BENCHMARKS, type BenchmarkSeries } from './benchmarks';
@@ -213,10 +208,7 @@ export class StrategyStore extends BaseStore<StrategySetupParams> {
         if (!factor) {
           return null;
         }
-        const detail =
-          factor.kind === 'composite'
-            ? await getFactorComposite(factor.key)
-            : await getCustomFactor(factor.key);
+        const detail = await getCustomFactor(factor.key);
         const report = detail.approvedReportId
           ? await getFactorReport(detail.approvedReportId)
           : null;

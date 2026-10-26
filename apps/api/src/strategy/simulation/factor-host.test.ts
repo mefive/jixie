@@ -175,35 +175,19 @@ describe('FactorHost', () => {
 
 type FactorFixtureSource = Omit<
   StrategyFactorInput,
-  'factorId' | 'name' | 'codeHash' | 'analysisKind' | 'panelComposite'
+  'factorId' | 'name' | 'codeHash' | 'analysisKind'
 > & {
   analysisKind?: StrategyFactorInput['analysisKind'];
-  panelComposite?: {
-    standardization: 'rank' | 'zscore';
-    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
-    components: Array<{ direction: 'positive' | 'negative'; module: FactorFixtureSource }>;
-  };
 };
 
 function factorFixture(source: FactorFixtureSource): StrategyFactor {
-  const { panelComposite, ...input } = source;
+  const input = source;
   return new StrategyFactor({
     ...input,
     factorId: source.key,
     name: source.key,
     codeHash: 'fixture',
     analysisKind: source.analysisKind ?? 'cross_sectional',
-    ...(panelComposite
-      ? {
-          panelComposite: {
-            ...panelComposite,
-            components: panelComposite.components.map(({ direction, module }) => ({
-              direction,
-              factor: factorFixture(module),
-            })),
-          },
-        }
-      : {}),
   });
 }
 

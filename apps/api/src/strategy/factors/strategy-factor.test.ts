@@ -1,5 +1,3 @@
-import type { FactorDefinition } from '#backtesting/factors/execution-port.js';
-import { canonicalJson, sha256 } from '#factor/sources/fingerprint.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StrategyFactor, type StrategyFactorInput } from './strategy-factor.js';
 
@@ -7,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   preparationAllowed: false,
   runtimeStart: vi.fn(),
   factorFindMany: vi.fn(),
-  compositeFindMany: vi.fn(),
   reportFindMany: vi.fn(),
 }));
 
@@ -22,7 +19,6 @@ vi.mock('#infra/database/prisma.js', async () => {
   const mocked = {
     prisma: {
       factor: { findMany: mocks.factorFindMany },
-      factorComposite: { findMany: mocks.compositeFindMany },
       factorReport: { findMany: mocks.reportFindMany },
     },
   };
@@ -158,71 +154,6 @@ const dependency = {
 };
 
 describe('strategy factor metadata', () => {
-  it('derives composite lineage inputs without modifying source factors', () => {
-    const definition: FactorDefinition = {
-      id: 'trend',
-      kind: 'panel_composite',
-      standardization: 'rank',
-      assetUniverse: [],
-      components: [
-        {
-          direction: 'positive',
-          definition: {
-            id: 'a',
-            kind: 'asset_series',
-            analysisKind: 'panel',
-            meta: { window: 21, inputs: ['etf.adjustedClose'] },
-          },
-        },
-        {
-          direction: 'negative',
-          definition: {
-            id: 'b',
-            kind: 'asset_series',
-            analysisKind: 'panel',
-            meta: { window: 61, inputs: ['etf.adjustedClose', 'rates.cgb.yield.10y'] },
-          },
-        },
-      ],
-    };
-    const factor = new StrategyFactor(dependency);
-    StrategyFactor.validateSandboxMetadata([factor], [definition]);
-    expect(factor.toDependency(definition)).toEqual({
-      ...dependency,
-      inputs: ['etf.adjustedClose', 'rates.cgb.yield.10y'],
-    });
-    expect(factor.assetSeries).toBeUndefined();
-    expect(factor.toDependency()).not.toHaveProperty('inputs');
-    expect(dependency).not.toHaveProperty('inputs');
-  });
-
-  it('rejects research-only fields inside composite components', () => {
-    expect(() =>
-      StrategyFactor.validateSandboxMetadata(
-        [new StrategyFactor(dependency)],
-        [
-          {
-            id: 'trend',
-            kind: 'panel_composite',
-            standardization: 'rank',
-            assetUniverse: [],
-            components: [
-              {
-                direction: 'positive',
-                definition: {
-                  id: 'a',
-                  kind: 'asset_series',
-                  analysisKind: 'panel',
-                  meta: { window: 21, inputs: ['commodity.warehouseReceipt.volume'] },
-                },
-              },
-            ],
-          },
-        ],
-      ),
-    ).toThrow(expect.objectContaining({ reason: 'research_only_inputs_unavailable' }));
-  });
-
   it('fails closed when a dependency has no runtime definition', () => {
     expect(() =>
       StrategyFactor.validateSandboxMetadata([new StrategyFactor(dependency)], []),
@@ -251,31 +182,6 @@ describe('strategy factor state isolation', () => {
     expect(second.inputs).toEqual(['rates.cgb.yield.10y']);
   });
 
-  it('keeps composite child instances and freezes the surrounding input collections', () => {
-    const child = new StrategyFactor({ ...input, analysisKind: 'panel' });
-    const composite = {
-      standardization: 'rank' as const,
-      assetUniverse: [{ assetId: 'A', assetClass: 'cn_equity' as const }],
-      components: [{ direction: 'positive' as const, factor: child }],
-    };
-    const parent = new StrategyFactor({
-      ...input,
-      analysisKind: 'panel',
-      panelComposite: composite,
-    });
-    composite.components.length = 0;
-    composite.assetUniverse[0].assetId = 'changed';
-    const first = parent.panelComposite!;
-    expect(first.components[0].factor).toBe(child);
-    expect(first.components[0].factor).toBeInstanceOf(StrategyFactor);
-    first.assetUniverse[0].assetId = 'changed again';
-    first.components.length = 0;
-    expect(parent.panelComposite!.components).toHaveLength(1);
-    expect(parent.panelComposite!.assetUniverse[0].assetId).toBe('A');
-    expect(parent.toDependency()).not.toHaveProperty('panelComposite');
-    expect(parent.toDependency()).not.toHaveProperty('js');
-  });
-
   it('rejects metadata belonging to a different factor', () => {
     expect(() =>
       factor.toDependency({ id: 'other', kind: 'cross_sectional', historyFields: [] }),
@@ -300,13 +206,54 @@ function factorRow(overrides: Record<string, unknown> = {}) {
 }
 
 describe('published factor preparation', () => {
+  it('loads several independent versions in declared order without a composite definition', async () => {
+    mocks.factorFindMany.mockResolvedValue([
+      factorRow({
+        id: 'quality-id',
+        key: 'quality',
+        approvedReportId: 'quality-report',
+        codeHash: 'quality-hash',
+      }),
+      factorRow({
+        id: 'value-id',
+        key: 'value',
+        approvedReportId: 'value-report',
+        codeHash: 'value-hash',
+      }),
+    ]);
+
+    const factors = await StrategyFactor.fromStrategySource(
+      "factors: ['value', 'quality']",
+      'user-1',
+    );
+
+    expect(factors.map((factor) => factor.toDependency())).toMatchObject([
+      {
+        key: 'value',
+        factorId: 'value-id',
+        approvedReportId: 'value-report',
+        codeHash: 'value-hash',
+      },
+      {
+        key: 'quality',
+        factorId: 'quality-id',
+        approvedReportId: 'quality-report',
+        codeHash: 'quality-hash',
+      },
+    ]);
+    expect(mocks.factorFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: { in: ['published', 'archived'] } }),
+      }),
+    );
+  });
+
   beforeEach(() => {
     mocks.preparationAllowed = true;
     mocks.runtimeStart
       .mockReset()
       .mockRejectedValue(new Error('Preparation must not start a runtime'));
     mocks.factorFindMany.mockReset().mockResolvedValue([factorRow()]);
-    mocks.compositeFindMany.mockReset().mockResolvedValue([]);
     mocks.reportFindMany.mockReset().mockResolvedValue([]);
   });
 
@@ -523,129 +470,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
       key: 'cross_asset_momentum_120',
       analysisKind: 'panel',
     });
-  });
-
-  it('compiles a published panel composite from its frozen approved report bundle', async () => {
-    const componentCode = (name: string, periods: number) => `export default defineFactorV2({
-      version: 2,
-      name: '${name}',
-      analysisKind: 'panel',
-      outputScope: 'asset',
-      frequency: 'daily',
-      inputs: ['etf.adjustedClose'],
-      targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-      window: ${periods + 1},
-      compute(ctx) {
-        const current = ctx.value('etf.adjustedClose');
-        const previous = ctx.lag('etf.adjustedClose', ${periods});
-        return current != null && previous != null ? current / previous - 1 : null;
-      },
-    });`;
-    const source = canonicalJson({
-      kind: 'panel_composite',
-      label: 'Momentum and reversal',
-      definition: {
-        version: 2,
-        key: 'momentum_reversal_panel',
-        name: 'Momentum and reversal',
-        analysisKind: 'panel',
-        standardization: 'rank',
-        weighting: 'equal',
-        components: [
-          { factor: 'component-1', direction: 'positive' },
-          { factor: 'component-2', direction: 'negative' },
-        ],
-      },
-      components: [
-        {
-          factor: 'component-1',
-          label: 'Momentum',
-          direction: 'positive',
-          code: componentCode('Momentum', 20),
-        },
-        {
-          factor: 'component-2',
-          label: 'Reversal',
-          direction: 'negative',
-          code: componentCode('Reversal', 60),
-        },
-      ],
-    });
-    mocks.factorFindMany.mockResolvedValue([]);
-    mocks.compositeFindMany.mockResolvedValue([
-      {
-        id: 'composite-1',
-        key: 'momentum_reversal_panel',
-        name: 'Momentum and reversal',
-        status: 'published',
-        codeHash: sha256(source),
-        approvedReportId: 'report-1',
-      },
-    ]);
-    mocks.reportFindMany.mockResolvedValue([
-      {
-        id: 'report-1',
-        factorCodeSnapshot: source,
-        specJson: JSON.stringify({
-          version: 1,
-          analysisKind: 'panel',
-          start: '20200101',
-          end: '20241231',
-          observationFrequency: 'monthly',
-          assets: [
-            { assetId: '510300.SH', assetClass: 'cn_equity' },
-            { assetId: '511010.SH', assetClass: 'fixed_income' },
-            { assetId: '518880.SH', assetClass: 'gold' },
-          ],
-          target: {
-            kind: 'forward_total_return',
-            horizon: 20,
-            horizonUnit: 'trade_day',
-          },
-          dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: null },
-          rankingScope: 'cross_asset',
-          volatilityScaling: 'none',
-          minimumAssetsPerPeriod: 3,
-          portfolio: {
-            topFraction: 0.25,
-            bottomFraction: 0.25,
-            transactionCostPerSide: 0.001,
-          },
-        }),
-      },
-    ]);
-
-    const prepared = await StrategyFactor.fromStrategySource(
-      `ctx.factor('momentum_reversal_panel', '510300.SH')`,
-      'user-1',
-    );
-
-    expect(prepared[0].assetSeries).toBeUndefined();
-    expect(prepared[0]).toMatchObject({
-      key: 'momentum_reversal_panel',
-      analysisKind: 'panel',
-      panelComposite: {
-        standardization: 'rank',
-        assetUniverse: [
-          { assetId: '510300.SH', assetClass: 'cn_equity' },
-          { assetId: '511010.SH', assetClass: 'fixed_income' },
-          { assetId: '518880.SH', assetClass: 'gold' },
-        ],
-        components: [
-          { direction: 'positive', factor: { analysisKind: 'panel' } },
-          { direction: 'negative', factor: { analysisKind: 'panel' } },
-        ],
-      },
-    });
-    expect(prepared.map((factor) => factor.toDependency())).toEqual([
-      expect.objectContaining({
-        factorId: 'composite-1',
-        key: 'momentum_reversal_panel',
-        analysisKind: 'panel',
-        codeHash: sha256(source),
-        approvedReportId: 'report-1',
-      }),
-    ]);
   });
 
   it('fails closed for missing or unpublished factors', async () => {

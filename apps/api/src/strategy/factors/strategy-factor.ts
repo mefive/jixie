@@ -9,7 +9,6 @@ import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
 import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
 import { normalizeAnalysisKind } from '#factor/definitions/views.js';
 import { sha256 } from '#factor/sources/fingerprint.js';
-import { parseAssetFactorAnalysisSourceSnapshot } from '#factor/sources/snapshot.js';
 import { StrategyError } from '../errors.js';
 
 /**
@@ -24,11 +23,6 @@ export interface StrategyFactorInput extends Omit<FactorDependency, 'inputs'> {
   crossSectional?: { window?: number };
   assetSeries?: FactorInputRequirements;
   assetUniverse?: Array<{ assetId: string; assetClass: import('@jixie/shared').MultiAssetClass }>;
-  panelComposite?: {
-    standardization: 'rank' | 'zscore';
-    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
-    components: Array<{ direction: 'positive' | 'negative'; factor: StrategyFactor }>;
-  };
 }
 
 /** Strategy-side factor preparation, source identity and runtime metadata. */
@@ -38,11 +32,7 @@ export class StrategyFactor {
   private readonly input: StrategyFactorInput;
 
   constructor(input: StrategyFactorInput) {
-    const { panelComposite, ...source } = input;
-    this.input = {
-      ...structuredClone(source),
-      ...(panelComposite ? { panelComposite: StrategyFactor.copyComposite(panelComposite) } : {}),
-    };
+    this.input = structuredClone(input);
   }
 
   get key(): string {
@@ -102,76 +92,38 @@ export class StrategyFactor {
         userId: true,
       },
     });
-    const compositeRows = await getDatabase().factorComposite.findMany({
-      where: {
-        key: { in: keys },
-        userId,
-        status: { in: ['published', 'archived'] },
-      },
-      select: {
-        id: true,
-        key: true,
-        name: true,
-        status: true,
-        codeHash: true,
-        approvedReportId: true,
-      },
-    });
-    const approvedReportIds = [
-      ...factorRows.flatMap((row) => (row.approvedReportId ? [row.approvedReportId] : [])),
-      ...compositeRows.flatMap((row) => (row.approvedReportId ? [row.approvedReportId] : [])),
-    ];
+    const approvedReportIds = factorRows.flatMap((row) =>
+      row.approvedReportId ? [row.approvedReportId] : [],
+    );
     const approvedReports = await getDatabase().factorReport.findMany({
       where: { id: { in: approvedReportIds } },
-      select: { id: true, factorCodeSnapshot: true, specJson: true },
+      select: { id: true, specJson: true },
     });
     const approvedReportById = new Map(
-      approvedReports.map((report) => [
-        report.id,
-        { snapshot: report.factorCodeSnapshot, spec: report.specJson },
-      ]),
+      approvedReports.map((report) => [report.id, report.specJson]),
     );
-    const byKey = new Map<
-      string,
-      | { kind: 'factor'; row: (typeof factorRows)[number] }
-      | { kind: 'composite'; row: (typeof compositeRows)[number] }
-    >();
-    factorRows.forEach((row) => byKey.set(row.key, { kind: 'factor', row }));
-    compositeRows.forEach((row) => {
-      if (row.key) {
-        byKey.set(row.key, { kind: 'composite', row });
-      }
-    });
+    const byKey = new Map(factorRows.map((row) => [row.key, row]));
     const missing = keys.filter((key) => !byKey.has(key));
     if (missing.length > 0) {
       throw new StrategyError('custom_factor_missing', { params: { keys: missing.join(', ') } });
     }
 
-    const ordered = keys.map((key) => byKey.get(key)!);
     return Promise.all(
-      ordered.map(async (item): Promise<StrategyFactor> => {
-        const row = item.row;
+      keys.map(async (key) => {
+        const row = byKey.get(key)!;
         const report = row.approvedReportId ? approvedReportById.get(row.approvedReportId) : null;
-        const source =
-          item.kind === 'factor'
-            ? await StrategyFactor.prepareSource(item.row, report?.spec)
-            : await StrategyFactor.prepareComposite(item.row, report?.snapshot, report?.spec);
+        const source = await StrategyFactor.prepareSource(row, report);
+
         return new StrategyFactor({
           ...source,
           factorId: row.id,
-          key: row.key!,
+          key: row.key,
           name: row.name,
-          analysisKind:
-            item.kind === 'factor' ? normalizeAnalysisKind(item.row.analysisKind) : 'panel',
-          codeHash:
-            item.kind === 'factor'
-              ? (item.row.codeHash ?? sha256(item.row.code))
-              : item.row.codeHash!,
+          analysisKind: normalizeAnalysisKind(row.analysisKind),
+          codeHash: row.codeHash ?? sha256(row.code),
           approvedReportId: row.approvedReportId,
-          language:
-            item.kind === 'factor' && item.row.language === 'python' ? 'python' : 'typescript',
-          runtimeVersion:
-            item.kind === 'factor' && item.row.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
+          language: row.language === 'python' ? 'python' : 'typescript',
+          runtimeVersion: row.runtimeVersion === 'py-v1' ? 'py-v1' : 'ts-v1',
         });
       }),
     );
@@ -216,12 +168,6 @@ export class StrategyFactor {
         return undefined;
       case 'asset_series':
         return [...definition.meta.inputs];
-      case 'panel_composite':
-        return [
-          ...new Set(
-            definition.components.flatMap((component) => component.definition.meta.inputs),
-          ),
-        ];
     }
   }
 
@@ -254,20 +200,6 @@ export class StrategyFactor {
   }
   get assetUniverse() {
     return structuredClone(this.input.assetUniverse);
-  }
-  get panelComposite() {
-    return this.input.panelComposite
-      ? StrategyFactor.copyComposite(this.input.panelComposite)
-      : undefined;
-  }
-
-  private static copyComposite(composite: NonNullable<StrategyFactorInput['panelComposite']>) {
-    return {
-      standardization: composite.standardization,
-      assetUniverse: structuredClone(composite.assetUniverse),
-      // Child factors are immutable instances; copy only the mutable collection and descriptors.
-      components: composite.components.map(({ direction, factor }) => ({ direction, factor })),
-    };
   }
 
   /**
@@ -368,65 +300,6 @@ export class StrategyFactor {
             ),
           }
         : {}),
-    };
-  }
-
-  /**
-   * 解析组合因子的子依赖和计算配置，供策略运行统一加载。
-   *
-   * Prepare a composite factor's dependencies and configuration for strategy execution.
-   */
-  private static async prepareComposite(
-    row: {
-      id: string;
-      key: string | null;
-      codeHash: string | null;
-    },
-    snapshot: string | null | undefined,
-    reportSpec: unknown,
-  ): Promise<Omit<StrategyFactorInput, 'factorId' | 'name' | 'codeHash'>> {
-    if (!row.key || !row.codeHash || !snapshot || sha256(snapshot) !== row.codeHash) {
-      throw new Error(`panel composite ${row.key ?? row.id} has invalid publication lineage`);
-    }
-    const source = parseAssetFactorAnalysisSourceSnapshot(snapshot, row.key, 'panel');
-    if (
-      source.kind !== 'panel_composite' ||
-      source.definition.key !== row.key ||
-      source.components.length !== source.definition.components.length
-    ) {
-      throw new Error(`panel composite ${row.key} has an invalid frozen source`);
-    }
-    const assetUniverse = StrategyFactor.parseApprovedPanelUniverse(
-      `panel composite ${row.key}`,
-      reportSpec,
-    );
-    const components = await Promise.all(
-      source.components.map(async (component) => ({
-        direction: component.direction,
-        factor: new StrategyFactor({
-          ...(await StrategyFactor.prepareSource({
-            key: component.factor,
-            code: component.code,
-            analysisKind: 'panel',
-            language: component.language,
-            runtimeVersion: component.runtimeVersion,
-          })),
-          // Components are frozen within the parent publication, not independently reloaded.
-          factorId: component.factor,
-          name: component.label,
-          codeHash: sha256(component.code),
-        }),
-      })),
-    );
-    return {
-      key: row.key,
-      analysisKind: 'panel',
-      assetUniverse: assetUniverse.map((asset) => ({ ...asset })),
-      panelComposite: {
-        standardization: source.definition.standardization,
-        assetUniverse: assetUniverse.map((asset) => ({ ...asset })),
-        components,
-      },
     };
   }
 

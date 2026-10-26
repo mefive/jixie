@@ -5,10 +5,7 @@ import type {
   UpdateFactorDraftRequest,
   FactorMetadataRequest,
   PublishFactorRequest,
-  FactorCompositeRequest,
   SubmitFactorAnalysisRequest,
-  FactorCorrelationRequestQuery,
-  SubmitFactorCorrelationRequest,
   FactorJobRequestQuery,
   FactorReportListRequestQuery,
   FactorAgentRequest,
@@ -25,12 +22,8 @@ import type {
   FactorResearchSpecV1,
   FactorReportDetail,
   FactorReportListResponse,
-  FactorFreq,
   FactorLanguage,
   FactorRuntimeVersion,
-  FactorCorrelation,
-  FactorCompositeDefinition,
-  FactorCompositeResource,
   FactorStatus,
   PublishedFactor,
   RunFactorAnalysisResponse,
@@ -53,55 +46,6 @@ export function publishFactor(id: string, approvedReportId: string): Promise<Pub
 
 export function archiveFactor(id: string): Promise<PublishedFactor> {
   return request(`/api/app/factors/${encodeURIComponent(id)}/archive`, {
-    method: 'POST',
-  });
-}
-
-export function publishFactorComposite(
-  id: string,
-  approvedReportId: string,
-): Promise<PublishedFactor> {
-  return request(`/api/app/factors/composites/${encodeURIComponent(id)}/publish`, {
-    method: 'POST',
-    body: JSON.stringify({ approvedReportId } satisfies PublishFactorRequest),
-  });
-}
-
-export function archiveFactorComposite(id: string): Promise<PublishedFactor> {
-  return request(`/api/app/factors/composites/${encodeURIComponent(id)}/archive`, {
-    method: 'POST',
-  });
-}
-
-export function createFactorComposite(
-  definition: FactorCompositeDefinition,
-): Promise<FactorCompositeResource> {
-  return request('/api/app/factors/composites', {
-    method: 'POST',
-    body: JSON.stringify({ definition } satisfies FactorCompositeRequest),
-  });
-}
-
-export function getFactorComposite(id: string): Promise<FactorCompositeResource> {
-  return request(`/api/app/factors/composites/${encodeURIComponent(id)}`);
-}
-
-export function updateFactorComposite(
-  id: string,
-  definition: FactorCompositeDefinition,
-): Promise<FactorCompositeResource> {
-  return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ definition } satisfies FactorCompositeRequest),
-  });
-}
-
-export function deleteFactorComposite(id: string): Promise<{ ok: true }> {
-  return request(`/api/app/factors/composites/${encodeURIComponent(id)}`, { method: 'DELETE' });
-}
-
-export function copyFactorComposite(id: string): Promise<FactorCompositeResource> {
-  return request(`/api/app/factors/composites/${encodeURIComponent(id)}/copy`, {
     method: 'POST',
   });
 }
@@ -297,62 +241,6 @@ export interface FactorJob {
 export function pollFactorAnalysisJob(jobId: string, since = 0): Promise<FactorJob> {
   const query = serializeQuery({ since: String(since) } satisfies FactorJobRequestQuery);
   return request(`/api/app/factors/analysis-jobs/${encodeURIComponent(jobId)}?${query}`);
-}
-
-// —— Correlation matrix (3.4): 2–8 factors × a fixed size column ——
-
-export function getFactorCorrelation(
-  keys: string[],
-  freq: FactorFreq,
-  start: string,
-  end: string,
-): Promise<FactorCorrelation> {
-  const query = serializeQuery({
-    keys: keys.join(','),
-    freq,
-    start,
-    end,
-  } satisfies FactorCorrelationRequestQuery);
-  return request(`/api/app/factors/correlations?${query}`);
-}
-
-export function runFactorCorrelation(
-  keys: string[],
-  freq: FactorFreq,
-  start: string,
-  end: string,
-  refresh = false,
-): Promise<{ done: true; report: FactorCorrelation } | { jobId: string }> {
-  return request('/api/app/factors/correlations', {
-    method: 'POST',
-    body: JSON.stringify({
-      keys,
-      freq,
-      start,
-      end,
-      refresh,
-    } satisfies SubmitFactorCorrelationRequest),
-  });
-}
-
-export function findActiveFactorCorrelationJob(
-  keys: string[],
-  freq: FactorFreq,
-  start: string,
-  end: string,
-): Promise<{ jobId: string } | null> {
-  const query = serializeQuery({
-    keys: keys.join(','),
-    freq,
-    start,
-    end,
-  } satisfies FactorCorrelationRequestQuery);
-  return request(`/api/app/factors/correlation-jobs/active?${query}`);
-}
-
-export function pollFactorCorrelationJob(jobId: string, since = 0): Promise<FactorJob> {
-  const query = serializeQuery({ since: String(since) } satisfies FactorJobRequestQuery);
-  return request(`/api/app/factors/correlation-jobs/${encodeURIComponent(jobId)}?${query}`);
 }
 
 export function acceptFactorCodeChange(

@@ -229,27 +229,6 @@ export class FactorHost implements FactorExecutionPort {
       throw new Error(`Duplicate factor dependency ${id}`);
     }
     this.identifiers.add(id);
-    const composite = factor.panelComposite;
-    if (composite) {
-      if (factor.analysisKind !== 'panel' || composite.components.length < 2) {
-        throw new Error(`factor ${factor.key} has an invalid panel composite contract`);
-      }
-      const components: Extract<FactorDefinition, { kind: 'panel_composite' }>['components'] = [];
-      for (const [index, component] of composite.components.entries()) {
-        const definition = await this.define(component.factor, `${id}:component:${index}`);
-        if (definition.kind !== 'asset_series' || definition.analysisKind !== 'panel') {
-          throw new Error(`factor ${factor.key} panel composite components must be panel factors`);
-        }
-        components.push({ direction: component.direction, definition });
-      }
-      return {
-        id,
-        kind: 'panel_composite',
-        standardization: composite.standardization,
-        assetUniverse: composite.assetUniverse,
-        components,
-      };
-    }
     const language = factor.language;
     const version = factor.runtimeVersion;
     if (

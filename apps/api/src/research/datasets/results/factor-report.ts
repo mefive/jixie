@@ -1,7 +1,7 @@
+import { reportResearchSpec } from '#factor/evaluations/report-spec.js';
 import { factorReportState } from '#factor/evaluations/state.js';
 import type { FactorResearchSpecV1 } from '@jixie/shared';
 import { getDatabase } from '#infra/database/prisma.js';
-import { normalizeFactorResearchSpec } from '#factor/analysis/spec.js';
 
 const MAX_FACTOR_REPORT_PAYLOAD_BYTES = 4 * 1024 * 1024;
 
@@ -75,6 +75,7 @@ export async function loadResearchFactorReportResult(
         specJson: true,
         payload: true,
         factorCodeHash: true,
+        factorCodeSnapshot: true,
         dataRevision: true,
         createdAt: true,
         computedAt: true,
@@ -94,7 +95,7 @@ export async function loadResearchFactorReportResult(
     throw new Error('Factor report exceeds the Research result transfer limit.');
   }
 
-  const researchSpec = factorReportResearchSpec(row);
+  const researchSpec = reportResearchSpec(row);
   const report = parseJsonObject(row.payload, 'Factor report payload');
 
   return {
@@ -114,42 +115,6 @@ export async function loadResearchFactorReportResult(
     },
     report: snakeCaseJson(report),
   };
-}
-
-/**
- * 提供恢复报告研究规格所需的持久化字段。
- *
- * Supply persisted fields needed to recover a report specification.
- */
-interface FactorReportSpecRow {
-  specJson: string | null;
-  freq: string;
-  start: string;
-  end: string;
-  neutral: string;
-}
-
-/**
- * 恢复报告冻结的研究规格，供 Python 结果携带可解释上下文。
- *
- * Recover frozen report specifications for interpretable Python result metadata.
- */
-function factorReportResearchSpec(row: FactorReportSpecRow): FactorResearchSpecV1 {
-  if (row.specJson) {
-    try {
-      return normalizeFactorResearchSpec(JSON.parse(row.specJson));
-    } catch {
-      // Legacy rows retain enough normalized columns for a safe compatibility view.
-    }
-  }
-
-  return normalizeFactorResearchSpec({
-    version: 1,
-    freq: row.freq === 'week' ? 'week' : 'month',
-    start: row.start,
-    end: row.end,
-    neutral: row.neutral === 'size' || row.neutral === 'size_industry' ? row.neutral : 'none',
-  });
 }
 
 function parseJsonObject(value: string, label: string): Record<string, unknown> {

@@ -5,14 +5,11 @@
 | 文件 / 入口 | 调用方式与结果 |
 | --- | --- |
 | [factor.ts](factor.ts) `publishFactor`、`archiveFactor` | definition 路由传 userId、factorId；发布还传 approvedReportId，返回发布资源或业务拒绝；归档找不到可转状态对象时返回 null |
-| [panel-composite.ts](panel-composite.ts) `publishPanelComposite`、`archivePanelComposite` | composite 路由；校验组合与证据后更新组合状态 |
 
 单因子发布要求本人 draft 和本人已完成报告，分析类型、语言、runtimeVersion、冻结源码和哈希匹配。宏观报告另检查 as_available 和 PIT 资格，资产因子编译检查受控研究输入，编译失败按报告无效处理。编译对象在 finally 释放。
 
 发布先在事务外读取与编译验证，再在同一事务内确认报告仍存在，并以 draft 与原源码／定义条件更新状态；不把编译放进数据库事务。报告清理事务保护发布绑定，即使归档也保留。发布不开放跨用户访问；归档仅更新状态和归档时间。已有消费者能否使用 archived，由 [Strategy 因子准备](../../strategy/factors/README.md) 按场景判断。
 
-Panel 组合证据检查先读 panel-composite，再读 [composition/panel-source.ts](../composition/panel-source.ts)；不要直接复用单因子源码相等判断。共用错误类型 `FactorPublicationError` 在 [errors.ts](../errors.ts)，HTTP 映射在 routes，纯语言／类型映射在 definitions/views。
 
-修改准入先看 [factor.test.ts](factor.test.ts)、[panel-composite.test.ts](panel-composite.test.ts) 与 [路由集成测试](../routes/index.integration.test.ts)。方法背景见 [因子研究纪律](../../../../../docs/design/factor-research-discipline.md)、[Factor 到 Strategy](../../../../../docs/design/factor-to-strategy.md)。
 
 [返回 Factor 总览](../README.md)

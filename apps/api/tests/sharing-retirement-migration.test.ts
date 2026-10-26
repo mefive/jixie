@@ -90,18 +90,10 @@ it('removes visibility without changing resource owners, code, versions, reports
           payload: JSON.stringify({ componentIds: [factorId] }),
         },
       });
-      await database.factorComposite.create({
-        data: {
-          id: `composite:${visibility}`,
-          userId,
-          key: 'fixed_composite',
-          name: 'Kept composite',
-          status: 'published',
-          definition: { version: 2, components: [{ factor: factorId }] },
-          approvedReportId: compositeReportId,
-          codeHash: 'composite-hash',
-        },
-      });
+      const definition = JSON.stringify({ version: 2, components: [{ factor: factorId }] });
+      await database.$executeRaw`INSERT INTO FactorComposite
+        (id,userId,key,name,status,definition,approvedReportId,codeHash,updatedAt)
+        VALUES (${'composite:' + visibility},${userId},'fixed_composite','Kept composite','published',${definition},${compositeReportId},'composite-hash',CURRENT_TIMESTAMP)`;
 
       await database.strategy.create({
         data: {
@@ -146,7 +138,7 @@ it('removes visibility without changing resource owners, code, versions, reports
         database.user.findMany({ orderBy: { id: 'asc' } }),
         database.$queryRaw`SELECT id, userId, name, config, lastResult, messages, createdAt, updatedAt FROM Strategy ORDER BY id`,
         database.factor.findMany({ orderBy: { id: 'asc' } }),
-        database.factorComposite.findMany({ orderBy: { id: 'asc' } }),
+        database.$queryRaw`SELECT id,userId,key,name,definition,status,approvedReportId,codeHash,publishedAt,archivedAt,createdAt,updatedAt FROM FactorComposite ORDER BY id`,
         database.factorReport.findMany({ orderBy: { id: 'asc' } }),
         database.backtestReport.findMany({
           orderBy: { id: 'asc' },

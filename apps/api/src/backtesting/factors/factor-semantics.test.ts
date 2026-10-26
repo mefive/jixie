@@ -399,123 +399,6 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     delete process.env.JIXIE_PYTHON_LOCAL;
   });
 
-  it('standardizes a frozen panel composite across the explicit strategy watch universe', async () => {
-    const factorKey = 'momentum_reversal_panel';
-    const assetCodes = ['ETF_A', 'ETF_B', 'ETF_C'];
-    const panelSpec: FixtureSpec = {
-      dates: D,
-      stocks: assetCodes.map((code, assetIndex) => ({
-        code,
-        assetType: 'etf' as const,
-        bars: D.map((date, dateIndex) => {
-          const first = [30, 20, 10][assetIndex];
-          const later = [10, 20, 30][assetIndex];
-          const close = dateIndex === 0 ? first : later;
-          return { date, open: close, close };
-        }),
-      })),
-    };
-    const panelModule = async (key: string, body: string) => ({
-      key,
-      js: await toCommonJs(
-        `export default defineFactorV2({
-          version: 2,
-          name: '${key}',
-          analysisKind: 'panel',
-          outputScope: 'asset',
-          frequency: 'daily',
-          inputs: ['etf.adjustedClose'],
-          targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-          window: 2,
-          compute(ctx) { ${body} },
-        });`,
-        'panel component code',
-      ),
-      analysisKind: 'panel' as const,
-      assetSeries: { window: 2, inputs: ['etf.adjustedClose' as const] },
-    });
-    const compositeModule = {
-      key: factorKey,
-      analysisKind: 'panel' as const,
-      assetSeries: { window: 2, inputs: ['etf.adjustedClose' as const] },
-      panelComposite: {
-        standardization: 'rank' as const,
-        assetUniverse: [
-          { assetId: 'ETF_A', assetClass: 'cn_equity' as const },
-          { assetId: 'ETF_B', assetClass: 'fixed_income' as const },
-          { assetId: 'ETF_C', assetClass: 'commodity' as const },
-        ],
-        components: [
-          {
-            direction: 'positive' as const,
-            module: await panelModule('current_price', `return ctx.value('etf.adjustedClose');`),
-          },
-          {
-            direction: 'negative' as const,
-            module: await panelModule('previous_price', `return ctx.lag('etf.adjustedClose', 1);`),
-          },
-        ],
-      },
-    };
-    const seen: Record<string, Record<string, number | null>> = {};
-    const strategy: EngineStrategy = {
-      name: 'rank panel composite',
-      watch: assetCodes,
-      factors: [factorKey],
-      onBar(ctx) {
-        seen[ctx.date] = Object.fromEntries(
-          assetCodes.map((code) => [code, ctx.factor(factorKey, code)]),
-        );
-      },
-    };
-
-    await runStrategy({
-      start: D[0],
-      end: D[4],
-      initialCash: 100_000,
-      strategy,
-      dataPort: fixturePort(panelSpec),
-      factorSources: [compositeModule],
-    });
-
-    expect(seen[D[0]]).toEqual({ ETF_A: null, ETF_B: null, ETF_C: null });
-    expect(seen[D[1]]).toEqual({ ETF_A: -0.5, ETF_B: 0, ETF_C: 0.5 });
-
-    const logged: string[] = [];
-    await runBacktestFixture(
-      {
-        code: `export default defineStrategy({
-          name: 'walled panel composite',
-          watch: ['ETF_A', 'ETF_B', 'ETF_C'],
-          factors: ['${factorKey}'],
-          onBar(ctx) {
-            console.log(ctx.date + '=' + ['ETF_A', 'ETF_B', 'ETF_C']
-              .map((code) => String(ctx.factor('${factorKey}', code))).join(','));
-          },
-        });`,
-        start: D[0],
-        end: D[4],
-        initialCash: 100_000,
-        factorSources: [compositeModule],
-      },
-      fixturePort(panelSpec),
-      undefined,
-      (_level, text) => logged.push(text),
-    );
-    expect(logged).toContain(`${D[1]}=-0.5,0,0.5`);
-
-    await expect(
-      runStrategy({
-        start: D[0],
-        end: D[4],
-        initialCash: 100_000,
-        strategy: { ...strategy, watch: ['ETF_A', 'ETF_B'] },
-        dataPort: fixturePort(panelSpec),
-        factorSources: [compositeModule],
-      }),
-    ).rejects.toThrow('approved research universe');
-  });
-
   it('executes an official yield-curve Factor using only values available by the decision date', async () => {
     const factorKey = 'cgb_yield_decline_1';
     const etfCode = '511010.SH';
@@ -1005,34 +888,18 @@ async function runBacktestFixture(
 
 type FactorFixtureSource = Omit<
   StrategyFactorInput,
-  'factorId' | 'name' | 'codeHash' | 'analysisKind' | 'panelComposite'
+  'factorId' | 'name' | 'codeHash' | 'analysisKind'
 > & {
   analysisKind?: StrategyFactorInput['analysisKind'];
-  panelComposite?: {
-    standardization: 'rank' | 'zscore';
-    assetUniverse: NonNullable<StrategyFactorInput['assetUniverse']>;
-    components: Array<{ direction: 'positive' | 'negative'; module: FactorFixtureSource }>;
-  };
 };
 
 function factorFixture(source: FactorFixtureSource): StrategyFactor {
-  const { panelComposite, ...input } = source;
+  const input = source;
   return new StrategyFactor({
     ...input,
     factorId: source.key,
     name: source.key,
     codeHash: 'fixture',
     analysisKind: source.analysisKind ?? 'cross_sectional',
-    ...(panelComposite
-      ? {
-          panelComposite: {
-            ...panelComposite,
-            components: panelComposite.components.map(({ direction, module }) => ({
-              direction,
-              factor: factorFixture(module),
-            })),
-          },
-        }
-      : {}),
   });
 }
