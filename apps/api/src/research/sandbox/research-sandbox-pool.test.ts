@@ -10,7 +10,6 @@ import {
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
-  RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
@@ -18,7 +17,6 @@ import {
   RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1,
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
-  RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
@@ -349,7 +347,7 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
         cell: {
           id: 'signature',
           source:
-            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.etf_shares, data.index_valuation, data.futures_settlement, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel, valuation.fcff_scenarios, valuation.implied_revenue_growth])',
+            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.commodity_returns, data.commodity_warehouse_receipts, data.commodity_holdings, data.equity_fundamentals, data.equity_flows, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.etf_shares, data.index_valuation, data.futures_settlement, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel])',
         },
       }),
     );
@@ -381,8 +379,6 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
           RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
-          RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1,
-          RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1,
         ]
           .map((contract) => contract.parameters.map((parameter) => parameter.name).join(','))
           .join('|'),
@@ -616,6 +612,22 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
       }
     }
   });
+  it.each(['fcff_scenarios', 'implied_revenue_growth'])(
+    'rejects the retired valuation.%s namespace',
+    async (method) => {
+      await expect(
+        researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
+          sandbox.execute({
+            cell: { id: 'retired-valuation', source: `valuation.${method}(None, None, None)` },
+          }),
+        ),
+      ).rejects.toEqual(
+        expect.objectContaining<Partial<ResearchPythonExecutionError>>({
+          message: expect.stringContaining("name 'valuation' is not defined"),
+        }),
+      );
+    },
+  );
 });
 
 async function waitForActiveExecution(

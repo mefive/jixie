@@ -1,10 +1,10 @@
 import { researchSandboxPool } from '../sandbox/research-sandbox-pool.js';
 import { getDatabase } from '#infra/database/prisma.js';
-import type { ResearchDocumentTemplateV1, ResearchDocumentV1 } from '@jixie/shared';
+import type { ResearchDocumentV1 } from '@jixie/shared';
 import { ulid } from 'ulid';
 import { ResearchError } from '../errors.js';
 
-import { templateDefinition } from '../templates/document-templates.js';
+import { blankDefinition } from './initial-content.js';
 import { cellCreate } from './cell-seed.js';
 import { getResearchDocument } from './read.js';
 
@@ -69,12 +69,9 @@ export async function restoreResearchDocument(
   return true;
 }
 
-export async function createResearchDocument(
-  userId: string,
-  template: ResearchDocumentTemplateV1,
-): Promise<ResearchDocumentV1> {
+export async function createResearchDocument(userId: string): Promise<ResearchDocumentV1> {
   const id = ulid();
-  const definition = templateDefinition(template);
+  const definition = blankDefinition();
   await getDatabase().$transaction(async (transaction) => {
     await transaction.agentConversation.create({
       data: { id, userId, surface: 'research', title: definition.title },

@@ -39,7 +39,7 @@ researchDocumentRoute.post('/documents', validateJson(createDocumentSchema), asy
     );
     return c.json(document);
   }
-  return c.json(await createResearchDocument(c.var.userId, input.template));
+  return c.json(await createResearchDocument(c.var.userId));
 });
 
 researchDocumentRoute.get('/documents/:documentId', async (c) => {

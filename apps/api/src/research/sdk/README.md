@@ -1,35 +1,20 @@
 # Research 作者 SDK
 
-Cell 可直接使用 `data`、`results`、`valuation`、`charts`。实际实现位于 `python/`，由
-[sandbox/python/research_runner.py](../sandbox/python/research_runner.py) 通过 [bindings.py](python/bindings.py) 创建对象并注入 Cell namespace；reset 重建这些对象。
-Research 当前只有 Python 作者接口，不增加空的 TypeScript SDK。
+Cell 可直接使用 `data`、`results`、`charts`。实现位于 `python/`，由
+[sandbox/python/research_runner.py](../sandbox/python/research_runner.py) 通过 [bindings.py](python/bindings.py) 创建对象并注入 namespace；reset 重建对象和 Cell 变量。Research 当前只有 Python 作者接口。
 
 | 对象 | 实现 | 公开方法 |
 | --- | --- | --- |
-| `data` | [python/data.py](python/data.py) | `series`、`cross_section`、`panel`、`yield_curve`、`macro`、`fx`；商品收益/仓单/持仓；市场状态；股票基本面/财务值/报表/指标/财务截面与面板/资金流/分红；ETF 份额、指数估值、行业状态、期货结算 |
+| `data` | [python/data.py](python/data.py) | 市场序列、横截面、Panel、财报与财务指标，以及当前保留的数据查询 |
 | `results` | [python/results.py](python/results.py) | `factor_report`、`backtest_report`、`strategy_scan_report` |
-| `valuation` | [python/valuation.py](python/valuation.py) | `fcff_scenarios`、`implied_revenue_growth` |
 | `charts` | [python/charts.py](python/charts.py) | `line`、`area`、`bar`、`scatter`、`event_path`、`histogram`、`boxplot`、`heatmap` |
 
-`data/results` 接收 [ResearchCapabilities](python/capabilities.py) 的 `request(method, arguments)` 能力和 pandas 对象；
-SDK 负责调用参数组装、公开列映射及 DataFrame 转换，宿主 runtime 负责消息帧、查询、权限和输入回放。
-`valuation` 接收 pandas，保留既有 NumPy/SciPy 数值实现；`charts` 生成 `_ChartResult`，纯标量转换归
-[scalars.py](python/scalars.py)。SDK 不导入 runtime，不管理会话、信号计时器、Cell 变量或图像输出。
+`data/results` 接收 [ResearchCapabilities](python/capabilities.py) 的 `request(method, arguments)` 能力。SDK 负责参数组装、公开列映射及 DataFrame 转换；宿主负责消息帧、查询与权限。`charts` 生成 `_ChartResult`，标量转换归 [scalars.py](python/scalars.py)。SDK 不管理会话、计时器、Cell 变量或图片输出。
 
-公开签名、枚举、返回列和双语说明的真相源为
-[shared/sdk/research/contract.ts](../../../../../packages/shared/src/sdk/research/contract.ts)。同目录的
-`python-signature.ts`、`python-stub.ts`、`agent-catalog.ts` 服务 Pyright、文档与 Agent。
-`pnpm setup:sandbox` 继续生成原路径 `apps/sandboxd/python/jixie_research_sdk.pyi`，生成物不承担实现。
-当前内部类名保留 `_DataApi` 等；作者使用的是注入对象，不需要自行构造这些类或修改已有 Cell。
+公开签名、返回列和双语说明来自 [shared/sdk/research/contract.ts](../../../../../packages/shared/src/sdk/research/contract.ts)。Python signature/stub、Agent catalog、编辑器和 SDK 文档共同消费此契约。`pnpm setup:sandbox` 生成 `apps/sandboxd/python/jixie_research_sdk.pyi`，不从 Prisma 推断公开接口。
 
-验收入口：[独立 SDK 注入测试](python/sdk.test.ts)、[Python 会话回归](../sandbox/research-sandbox-pool.test.ts)、
-[FCFF 数值回归](../templates/fcff/valuation-template.test.ts)、[镜像输入打包测试](../sandbox/python/packaging.test.ts)。
-打包测试不能替代真实 Docker 验收；Python 源文件须同步 Dockerfile、`.dockerignore` 和部署影响清单。
+创建绑定使用 `create_research_sdk(capabilities, pandas_module)`，ResearchAdapter 提供请求能力。财务分析方法由用户在普通 Python 中编写；没有专用文档模板或内置估值模型。
+
+验收入口：[SDK 注入测试](python/sdk.test.ts)、[Python 会话回归](../sandbox/research-sandbox-pool.test.ts)、[镜像输入打包测试](../sandbox/python/packaging.test.ts)。打包测试不替代真实镜像验收，Python 文件变更须同步 Dockerfile、`.dockerignore` 和部署影响清单。
 
 [宿主协议与分派](../sandbox/host/README.md) · [运行时](../sandbox/README.md) · [返回 Research 总览](../README.md)
-
-
-SDK 绑定入口为 create_research_sdk(capabilities, pandas_module)，返回 data/charts/results/valuation，
-保持原 namespace 成员和插入顺序；np/pd、Cell 变量与 reset 仍归 runner。ResearchAdapter.bind(input) 提供请求能力，
-不把帧、请求编号、暂停计时器或会话状态放入 SDK。valuation/charts 继续是本地辅助实现。
-统一规范见 [SDK 能力与适配器](../../../../../docs/design/sdk-capability-adapters.md)。

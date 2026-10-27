@@ -1,7 +1,7 @@
 # Analyze financial data
 
 Research supplies data and reproducible calculations. You choose the question, fields, formulas, and interpretation.
-FCFF is an optional template. Comparing revenue, assets, or cash flow requires neither a valuation model nor a profitable strategy.
+Comparing revenue, assets, or cash flow requires neither a valuation model nor a profitable strategy. Keep methods and assumptions in ordinary Python and Markdown Cells.
 
 ## Start in the data catalog
 

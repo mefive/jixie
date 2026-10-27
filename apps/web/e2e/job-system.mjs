@@ -65,6 +65,8 @@ try {
       'python-factor',
       'strategy-factor-dependency',
       'market-weather-retirement',
+      'research-extension-retirement',
+      'research-financial-help',
       'maintenance-fallback',
     ].filter((name) => selected?.includes(name)),
     'strategy-parameter-scan',

@@ -9,7 +9,7 @@ Use a dedicated local API database with the current schema. Never point this cap
 Prepare these states through normal application operations in the disposable database:
 
 - An existing TypeScript strategy with a successful, real stock/ETF backtest report. The report and draft are separate; use a strategy whose displayed name agrees with its code.
-- A saved Research `index_relationship` template with Markdown and Python Cells. Leave it unrun: these scenes demonstrate editing and controls, not results.
+- A saved Research document with ordinary Markdown and Python Cells. Leave it unrun: these scenes demonstrate editing and controls, not results.
 - A blank Research document named `归档示例 / Archive example`, archived through the document menu.
 - The `ep` preset and a real saved Factor report accessible to the capture account.
 - Locally available market/valuation/stock data. An empty catalog must remain visibly empty; do not add fake rows to make the image look populated.
@@ -20,7 +20,7 @@ Store account information and record IDs in a private JSON file outside the repo
 {
   "email": "reader@example.com",
   "strategy": "saved-strategy-id",
-  "document": "saved-template-document-id",
+  "document": "saved-research-document-id",
   "archivedDocument": "archived-document-id",
   "factor": "ep"
 }

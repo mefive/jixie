@@ -5,7 +5,7 @@ import builtins
 from dataclasses import dataclass
 from typing import Any
 
-_RUNTIME_NAMES = {"charts", "data", "np", "pd", "results", "valuation"}
+_RUNTIME_NAMES = {"charts", "data", "np", "pd", "results"}
 
 
 # 返回 Cell 的定义、读取和静态诊断，供依赖图。

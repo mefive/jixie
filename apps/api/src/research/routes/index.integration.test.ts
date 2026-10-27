@@ -425,24 +425,41 @@ describe('Research HTTP business boundaries', () => {
     expect(await prisma.researchCell.count()).toBe(0);
   });
 
-  it.each([
-    {},
-    { template: 'blank' },
-    { template: 'index_relationship' },
-    { template: 'equity_fcff_valuation' },
-  ])('creates an owned document from template input %j', async (input) => {
-    const response = await request('/documents', input);
+  it('preserves saved legacy template code when reading its document', async () => {
+    const source = 'valuation.fcff_scenarios(base, scenarios, bridge)';
+    await prisma.researchCell.update({ where: { id: 'input' }, data: { source } });
+
+    const response = await request('/documents/document', undefined, 'owner', 'GET');
     expect(response.status).toBe(200);
-    const document = await response.json();
-    expect(document).toMatchObject({ version: 1, conversationId: document.id });
-    expect(await prisma.researchDocument.findUnique({ where: { id: document.id } })).toMatchObject({
-      userId: 'owner',
-    });
-    expect(document.cells.length).toBeGreaterThan(0);
+    expect((await response.json()).cells[0].source).toBe(source);
+    expect((await prisma.researchCell.findUniqueOrThrow({ where: { id: 'input' } })).source).toBe(
+      source,
+    );
   });
+
+  it.each([{}, { template: 'blank' }])(
+    'creates an owned document from template input %j',
+    async (input) => {
+      const response = await request('/documents', input);
+      expect(response.status).toBe(200);
+      const document = await response.json();
+      expect(document).toMatchObject({ version: 1, conversationId: document.id });
+      expect(
+        await prisma.researchDocument.findUnique({ where: { id: document.id } }),
+      ).toMatchObject({
+        userId: 'owner',
+      });
+      expect(document.cells.map((cell: { kind: string }) => cell.kind)).toEqual([
+        'markdown',
+        'python',
+      ]);
+    },
+  );
 
   it.each([
     { template: 'unknown' },
+    { template: 'index_relationship' },
+    { template: 'equity_fcff_valuation' },
     { source: { type: 'backtest-report', reportId: '' } },
     { source: { type: 'backtest-report', reportId: '   ' } },
     { source: { type: 'factor-report', reportId: 'report' } },

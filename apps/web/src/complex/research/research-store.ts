@@ -21,7 +21,6 @@ import {
   type ResearchDocumentInterruptResultV1,
   type ResearchDocumentRunResultV1,
   type ResearchDocumentSummaryV1,
-  type ResearchDocumentTemplateV1,
   type ResearchDocumentV1,
 } from '@jixie/shared';
 import { BaseStore, LoaderModel } from '@src/lib';
@@ -89,7 +88,7 @@ interface ResearchDataCatalogQuery {
  * Discriminate document and cell mutations for the shared loader.
  */
 type ResearchDocumentMutation =
-  | { kind: 'create'; template: ResearchDocumentTemplateV1 }
+  | { kind: 'create' }
   | { kind: 'add'; documentId: string; cellKind: ResearchCellKindV1; source?: string }
   | { kind: 'update'; cellId: string; source: string; expectedRevision: number }
   | { kind: 'delete'; cellId: string }
@@ -216,7 +215,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
       request: (mutation: ResearchDocumentMutation) => {
         switch (mutation.kind) {
           case 'create':
-            return createResearchDocument(mutation.template);
+            return createResearchDocument();
           case 'add':
             return addResearchCell(
               mutation.documentId,
@@ -472,7 +471,7 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     }
     let document: ResearchDocumentV1;
     try {
-      document = await this.documentMutationLoader.run({ kind: 'create', template: 'blank' });
+      document = await this.documentMutationLoader.run({ kind: 'create' });
     } catch {
       return;
     }
@@ -494,37 +493,6 @@ export class ResearchStore extends BaseStore<ResearchSetupParams> {
     });
     void this.documentsLoader.run();
     await this.runAgentTurn(text, document.conversationId);
-  }
-
-  /**
-   * 从选定模板创建文档并切换到其工作区。
-   *
-   * Create a document from a selected template and open its workspace.
-   */
-  public async createDocumentFromTemplate(template: ResearchDocumentTemplateV1) {
-    if (this.documentMutationLoader.loading || this.sending) {
-      return;
-    }
-    let document: ResearchDocumentV1;
-    try {
-      document = await this.documentMutationLoader.run({ kind: 'create', template });
-    } catch {
-      return;
-    }
-    this.documentSwitchGeneration += 1;
-    this.turnStream.detach();
-    runInAction(() => {
-      this.document = document;
-      this.cellDrafts.clear();
-      this.reconcileCellDrafts(document);
-      this.chatMessages = document.messages.map(normalizeChatMessage);
-      this.sending = false;
-      this.prompt = '';
-      this.agentContextCellIds = [];
-      this.runInterrupted = false;
-      this.explainingAttemptId = null;
-    });
-    void this.documentsLoader.run();
   }
 
   private async openBacktestReportDocument(reportId: string) {

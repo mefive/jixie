@@ -28,7 +28,6 @@ COPY apps/api/src/research/sdk/python/capabilities.py /opt/jixie/apps/api/src/re
 COPY apps/api/src/research/sdk/python/bindings.py /opt/jixie/apps/api/src/research/sdk/python/bindings.py
 COPY apps/api/src/research/sdk/python/results.py /opt/jixie/apps/api/src/research/sdk/python/results.py
 COPY apps/api/src/research/sdk/python/scalars.py /opt/jixie/apps/api/src/research/sdk/python/scalars.py
-COPY apps/api/src/research/sdk/python/valuation.py /opt/jixie/apps/api/src/research/sdk/python/valuation.py
 
 
 USER 65532:65532

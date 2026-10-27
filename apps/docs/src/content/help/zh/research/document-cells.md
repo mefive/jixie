@@ -6,7 +6,6 @@
 
 1. 打开顶部“研究”。
 2. 在输入框写下要验证的问题并提交。系统会建立包含 Markdown 和 Python Cell 的研究文档。
-   研究一般工商业公司的 FCFF 估值时，也可以直接点击首页的“FCFF 公司估值模板”。
 3. 已经打开文档时，点击左侧“新建研究”可回到问题输入页。
 4. 在左侧“当前”列表中切换已有文档；可以按标题或最近内容搜索。已归档文档需先在“已归档”中恢复。
 5. 点击标题旁的编辑图标可以改名。
@@ -27,7 +26,7 @@
 
 ![包含 Markdown 和 Python Cell 的研究文档](/docs/images/help/zh/research/document-cells-02.png)
 
-图中 **1** 是 Markdown，**2** 是 Python，**3** 是文档工具栏。“已保存”表示源码已保存；模板尚未运行，没有计算结果。
+图中 **1** 是 Markdown，**2** 是 Python，**3** 是文档工具栏。“已保存”表示源码已保存；示例文档尚未运行，没有计算结果。
 
 ## 看懂保存状态
 
@@ -62,6 +61,5 @@ Markdown 不会执行代码。只有 Python 源码或其依赖发生变化时，
 ## 相关内容
 
 - [运行、停止和重置研究](/docs/help/research/run-control)
-- [用 FCFF 模板研究公司估值](/docs/help/research/fcff-valuation)
 - [回答研究口径确认](/docs/help/research/clarifications)
 - [研究文档与运行记录](/docs/help/research/records)

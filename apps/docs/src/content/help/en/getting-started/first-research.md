@@ -18,7 +18,7 @@ outputs stale; expensive calculations do not rerun silently in the background.
 
 ## Choose data and a starting point
 
-Open **Data catalog** to select an instrument, dates, frequency, and fields and insert an SDK call without memorizing method names. For company research, start with [Analyze financial data](/docs/help/research/financial-data). FCFF is an optional landing-page template, not a required step for all financial analysis.
+Open **Data catalog** to select an instrument, dates, frequency, and fields and insert an SDK call without memorizing method names. For company research, start with [Analyze financial data](/docs/help/research/financial-data). Then write the analysis in ordinary Cells.
 
 If you already created an [embedded analysis](/docs/help/research/embedded-analysis) in a Factor or Strategy conversation, select **Continue in Research** when its task ends. The copy contains current code and parameters and fetches current data when run.
 

@@ -2,8 +2,6 @@ import embeddedAnalysisZh from '@src/content/help/zh/research/embedded-analysis.
 import embeddedAnalysisEn from '@src/content/help/en/research/embedded-analysis.md?raw';
 import financialDataZh from '@src/content/help/zh/research/financial-data.md?raw';
 import financialDataEn from '@src/content/help/en/research/financial-data.md?raw';
-import fcffValuationZh from '@src/content/help/zh/research/fcff-valuation.md?raw';
-import fcffValuationEn from '@src/content/help/en/research/fcff-valuation.md?raw';
 import type { Locale } from '@jixie/shared';
 import backtestLimitationsEn from '@src/content/help/en/basics/backtest-limitations.md?raw';
 import backtestLimitationsZh from '@src/content/help/zh/basics/backtest-limitations.md?raw';
@@ -567,16 +565,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Select statement fields, reporting periods, availability, and period basis to write your own analysis.',
     },
     content: { zh: financialDataZh, en: financialDataEn },
-  },
-  {
-    slug: 'research/fcff-valuation',
-    group: 'research',
-    title: { zh: '用 FCFF 模板研究公司估值', en: 'Research company valuation with FCFF' },
-    summary: {
-      zh: '使用可编辑的情景和假设进行正向与反向估值。',
-      en: 'Use editable scenarios and assumptions for forward and reverse valuation.',
-    },
-    content: { zh: fcffValuationZh, en: fcffValuationEn },
   },
   {
     slug: 'research/outputs',

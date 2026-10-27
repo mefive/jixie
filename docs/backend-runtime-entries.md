@@ -81,7 +81,7 @@ Worker 仍负责消息与进程收尾；因子天气和相关性任务已退役�
 | Python Factor SDK/runtime | `apps/api/src/factor/sdk/python.py` / `apps/api/src/factor/sandbox/python/factor_runner.py`；与 Strategy 使用相同业务目录导入和镜像显式打包方式，同时影响 API/sandboxd；run_factor 创建会话 FactorRunner 并将 handler 交给通用 _receive_commands，与 Strategy 共用外围循环；三种分析类型的打包回归见 `factor/sandbox/python/packaging.test.ts` |
 | TS Factor SDK bundle | `factor/sandbox/typescript/sandbox-bundle.ts` 从同目录 `entry.ts`（开发）或 `.js`（编译后）打包外围入口、`factor-runner.ts` / `.js` 协议执行、SDK 工厂、Context 实现及纯 `infra/sandbox/sandbox-log-buffer`；宿主缓存源码，每个 isolate 独立执行；验收须分别检查源码及 dist 两种路径 |
 | Factor 公开契约 | `packages/shared/src/sdk/factor/reference.ts` → `contract.ts`，TS 编辑器和 API 共用签名来源；`python.ts` 生成原路径 Factor `.pyi`，Pyright/Agent 的既有 shared 导出保持兼容 |
-| Research Python SDK / runner | `apps/api/src/research/sdk/python/` 的 data/results/valuation/charts 与 `sandbox/python/` 的 runner/analysis/adapter/environment/outputs 通过通用 runner 加载；Docker 逐项 COPY 所有 Python 输入，同目录 TS 文件不进入镜像；源码变更同时影响 API/sandboxd |
+| Research Python SDK / runner | `apps/api/src/research/sdk/python/` 的 data/results/charts 与 `sandbox/python/` 的 runner/analysis/adapter/environment/outputs 通过通用 runner 加载；Docker 逐项 COPY 所有 Python 输入，同目录 TS 文件不进入镜像；源码变更同时影响 API/sandboxd |
 | Research 宿主协议 | `research/sandbox/host/` 拥有参数/帧校验与分派；所有取数均查询当前可用数据，不留存输入回放；`sandbox/research-sandbox.ts` 调用它，SDK Python 不反向导入宿主 |
 | 公开 Python stub | `apps/sandboxd/python/jixie_research_sdk.pyi`、`jixie_factor_sdk.pyi` 由 shared Contract 生成；路径移动不得手工改生成结果 |
 | API Prisma | `DATABASE_URL` 的相对 file 路径按 `apps/api/prisma/schema.prisma` 所在目录解析 |

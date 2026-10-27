@@ -21,7 +21,6 @@ import type {
   ResearchDocumentListStateV1,
   ResearchDocumentRunResultV1,
   ResearchDocumentSummaryV1,
-  ResearchDocumentTemplateV1,
   ResearchDocumentV1,
   ResearchDataCatalogResultV1,
   ResearchDataCatalogScopeV1,
@@ -41,12 +40,10 @@ export function listResearchDocuments(
   return request(`/api/app/research/documents?${query}`);
 }
 
-export function createResearchDocument(
-  template: ResearchDocumentTemplateV1,
-): Promise<ResearchDocumentV1> {
+export function createResearchDocument(): Promise<ResearchDocumentV1> {
   return request('/api/app/research/documents', {
     method: 'POST',
-    body: JSON.stringify({ template } satisfies CreateResearchDocumentRequest),
+    body: JSON.stringify({ template: 'blank' } satisfies CreateResearchDocumentRequest),
   });
 }
 

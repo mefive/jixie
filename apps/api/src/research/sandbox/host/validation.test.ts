@@ -13,13 +13,11 @@ import {
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
-  RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1,
   RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
-  RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
@@ -310,23 +308,6 @@ describe('research workbench SDK contract', () => {
     ).toEqual(['line', 'area', 'bar', 'scatter', 'event_path', 'histogram', 'boxplot', 'heatmap']);
   });
 
-  it('publishes both governed FCFF calculation methods without adding a dataset bridge', () => {
-    expect([
-      RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1.qualifiedName,
-      RESEARCH_IMPLIED_REVENUE_GROWTH_SDK_CONTRACT_V1.qualifiedName,
-    ]).toEqual(['valuation.fcff_scenarios', 'valuation.implied_revenue_growth']);
-    expect(RESEARCH_FCFF_SCENARIOS_SDK_CONTRACT_V1.parameters).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'terminal_value_warning_threshold', type: 'number' }),
-      ]),
-    );
-    expect(
-      RESEARCH_SDK_CONTRACT_V1.functions.some(
-        (contract) => contract.qualifiedName === 'data.equity_business_segments',
-      ),
-    ).toBe(false);
-  });
-
   it('publishes the owner-scoped FactorReport result bridge', () => {
     expect(parseResearchFactorReportRuntimeRequest({ report_id: 'report-1' })).toEqual({
       report_id: 'report-1',
@@ -372,4 +353,13 @@ describe('research workbench SDK contract', () => {
     expect(panel?.examples).toEqual(RESEARCH_PANEL_SDK_CONTRACT_V1.examples);
     expect(panel?.notesEn).toEqual(RESEARCH_PANEL_SDK_CONTRACT_V1.notesEn);
   });
+});
+
+it('omits retired valuation helpers from the public SDK and Agent catalog', () => {
+  expect(
+    RESEARCH_SDK_CONTRACT_V1.functions.some((contract) => contract.namespace === 'valuation'),
+  ).toBe(false);
+  const catalog = createResearchSdkAgentCatalog();
+  expect(JSON.stringify(catalog)).not.toContain('valuation.fcff_scenarios');
+  expect(JSON.stringify(catalog)).not.toContain('valuation.implied_revenue_growth');
 });

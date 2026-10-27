@@ -155,7 +155,7 @@ export const documentListQuerySchema = z.strictObject({
 
 export const createDocumentSchema = z.union([
   z.strictObject({
-    template: z.enum(['blank', 'index_relationship', 'equity_fcff_valuation']).default('blank'),
+    template: z.literal('blank').default('blank'),
   }),
   z.strictObject({
     source: z.strictObject({

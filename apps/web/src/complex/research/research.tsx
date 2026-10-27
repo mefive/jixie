@@ -35,7 +35,6 @@ import {
   faBolt,
   faArrowLeft,
   faCheck,
-  faChartLine,
   faCircleExclamation,
   faClockRotateLeft,
   faCode,
@@ -535,9 +534,9 @@ function formatResearchDocumentDate(value: string, language: string): string {
 // —— Landing ——
 
 /**
- * 提供问题或模板起始入口，创建可编辑研究文档。
+ * 提供问题起始入口，创建可编辑研究文档。
  *
- * Provide prompt and template entry points for editable research documents.
+ * Provide the prompt entry point for editable research documents.
  */
 const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: () => void }) => {
   const store = complex.useStore();
@@ -587,24 +586,6 @@ const ResearchLanding = complex.component(({ onOpenHistory }: { onOpenHistory: (
           aria-label={t('workbench.startResearch')}
           onClick={submit}
         />
-      </div>
-      <div className="jx-research-templateStarter">
-        <span className="jx-research-templateIcon">
-          <FontAwesomeIcon icon={faChartLine} />
-        </span>
-        <span className="jx-research-templateText">
-          <strong>{t('valuationTemplate.title')}</strong>
-          <span>{t('valuationTemplate.description')}</span>
-        </span>
-        <Button
-          size="small"
-          loading={store.documentMutationLoader.loading}
-          disabled={starting}
-          data-testid="research-create-fcff-valuation"
-          onClick={() => void store.createDocumentFromTemplate('equity_fcff_valuation')}
-        >
-          {t('valuationTemplate.open')}
-        </Button>
       </div>
       {store.documentMutationLoader.error && (
         <Alert

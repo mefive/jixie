@@ -109,10 +109,18 @@ test('every packaged API Python source selects both API and the sandbox image', 
     'apps/api/src/factor/sandbox/python/factor_adapter.py',
     'apps/api/src/research/sdk/python/bindings.py',
     'apps/api/src/research/sdk/python/data.py',
+    'apps/api/src/research/sdk/python/results.py',
+    'apps/api/src/research/sdk/python/charts.py',
     'apps/api/src/research/sandbox/python/research_runner.py',
   ]) {
     assert.ok(apiSources.includes(requiredEntry), `missing Docker input: ${requiredEntry}`);
   }
+  assert.equal(apiSources.includes('apps/api/src/research/sdk/python/valuation.py'), false);
+  assert.equal(
+    manifest.components.sandboxd.includes('apps/api/src/research/sdk/python/valuation.py'),
+    false,
+  );
+
   for (const changedPath of apiSources) {
     assert.deepEqual(classifyChangedPaths([changedPath], manifest), {
       api: true,

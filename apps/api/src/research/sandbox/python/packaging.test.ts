@@ -57,7 +57,7 @@ chart
         type: 'research_execute',
         cell_id: 'cell-3',
         source:
-          'all(name in globals() for name in ["data", "results", "valuation", "charts"]) and "frame" not in globals() and "parameters" not in globals()',
+          'all(name in globals() for name in ["data", "results", "charts"]) and "frame" not in globals() and "parameters" not in globals() and "valuation" not in globals()',
       },
       {
         type: 'research_execute',

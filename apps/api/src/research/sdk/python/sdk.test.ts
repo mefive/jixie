@@ -18,7 +18,6 @@ from research.sdk.python.charts import _ChartResult
 from research.sdk.python.bindings import create_research_sdk
 from research.sdk.python.data import _DataApi
 from research.sdk.python.results import _ResultsApi
-from research.sdk.python.valuation import _ValuationApi
 
 class Host:
     def __init__(self):
@@ -31,11 +30,12 @@ class Host:
 
 host = Host()
 sdk = create_research_sdk(host, None)
-assert list(sdk) == ["data", "charts", "results", "valuation"]
+assert list(sdk) == ["data", "charts", "results"]
 rows = sdk["data"].series("index", "000300.SH", start="20260101", end="20260131")
 report = sdk["results"].factor_report("report-1")
 chart = sdk["charts"].line(rows, x="date", y="value")
 assert isinstance(chart, _ChartResult)
+assert "research.sdk.python.valuation" not in sys.modules
 assert not any(name.startswith("research.runtime") for name in sys.modules)
 print(json.dumps({"rows": rows, "report": report, "chart": chart.spec, "requests": host.requests}))
 `,

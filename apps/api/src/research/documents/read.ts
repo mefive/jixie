@@ -14,7 +14,7 @@ import { jsonStringArray, researchCellDependencyIssues } from '../dependencies/c
 import { ResearchError } from '../errors.js';
 import { listResearchCellChangeAttempts } from '../proposals/attempt-records.js';
 import { researchCellChangeReviewView } from '../proposals/change-records.js';
-import { legacyDefinition } from '../templates/document-templates.js';
+import { legacyDefinition } from './initial-content.js';
 import { cellCreate } from './cell-seed.js';
 
 type ResearchDocumentRow = Prisma.ResearchDocumentGetPayload<{

@@ -40,7 +40,7 @@ export const ResearchSdk = complex.component(() => {
           <a className="jx-docs-navLink" href="/docs/sdk">
             {t('策略 SDK', 'Strategy SDK')}
           </a>
-          {['data', 'valuation', 'results', 'charts'].map((namespace) => (
+          {['data', 'results', 'charts'].map((namespace) => (
             <div className="jx-docs-navGroup" key={namespace}>
               <div className="jx-docs-navGroupTitle">{namespace}</div>
               {RESEARCH_SDK_CONTRACT_V1.functions

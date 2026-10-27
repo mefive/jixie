@@ -17,7 +17,7 @@ The pages can be used together. For example, use Research to inspect an equity u
 
 ## Choose a workflow for your question
 
-- **Open research or company financial analysis:** select data and confirm definitions in Research, then review and run Markdown/Python Cells. [Analyze financial data](/docs/help/research/financial-data) directly or use the optional [FCFF template](/docs/help/research/fcff-valuation).
+- **Open research or company financial analysis:** select data and confirm definitions in Research, then review and run Markdown/Python Cells. [Analyze financial data](/docs/help/research/financial-data) and write your own calculations in ordinary Python.
 - **Understand existing results:** reference a selected Factor or Strategy report in chat and use [embedded analysis](/docs/help/research/embedded-analysis) to inspect data. Continue in Research when the calculation needs to grow.
 - **Validate a signal or trading rule:** [hand off a research version](/docs/help/research/handoff) to a draft, then run a Factor report or strategy backtest. Exploratory output does not become formal validation automatically.
 

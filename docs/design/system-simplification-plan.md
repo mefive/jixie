@@ -1,6 +1,6 @@
 # 系统功能裁剪计划
 
-日期：2026-10-25。状态：功能范围已收口；Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review 与验证；研究卡与 holdout 删除、因子报告保留与内置版本保护、Research 正式证据删除、Strategy 最近结果简化、因子天气、多因子平台及市场天气删除已通过人工 review 与验证；其余裁剪待实施。
+日期：2026-10-25。状态：功能范围已收口；Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review 与验证；研究卡与 holdout 删除、因子报告保留与内置版本保护、Research 正式证据删除、Strategy 最近结果简化、因子天气、多因子平台、市场天气及 Research 专用模板／内置估值删除已通过人工 review 与验证；其余裁剪待实施。
 
 目标是把 jixie 收敛为维护者能够独立读懂、审查和修改的个人研究工具。优先删除不再需要的产品能力及其数据、状态和后台流程，再根据剩余需求简化实现。
 
@@ -596,18 +596,65 @@ Prisma 生成迁移删除 `FactorComposite`、`FactorCorrelation` 及关系，�
 - 验证期间仅修正测试设施：Web 根地址和历史回退在隔离服务器由前端处理，未知 API 保留 404；补官方估值合成数据；测试收尾显式关闭池化 Research Python 会话，`reset` 仍保持产品既有的清空变量语义。修正后专项与完整浏览器进程均自然退出，父进程端口释放断言通过。产品代码未改动。
 - 已清理源文件／帮助空目录和 22 个退役源码遗留的编译文件；测试服务、连接、临时数据库与 socket 已释放。开发库及原三个未跟踪文档 mtime 保持原值，不纳入提交；不推送。
 
-## 22 Research 专用模板与内置估值删除（下一项 Gate 1，待范围确认）
+## 22 Research 专用模板与内置估值删除（人工 review 与验证通过）
 
 拟提交消息：`feat(research)!: remove specialized templates and built-in valuation`。
 
 市场天气项已完成人工 review 与验证；下一项落实第 3 节 Research 扩展中剩余的专用模板与 FCFF 内置估值。Curator、Research 转因子／策略草稿及正式证据入口已在之前提交删除，本项核对这些入口没有可执行残留，不重建替代交接流程。
 
-交付：Research 首页移除 FCFF 模板卡片，创建接口只接受空白文档；删除 `index_relationship`、`equity_fcff_valuation` 模板和 FCFF 分类／案例实现。删除 Python 作者对象 `valuation` 及 `valuation.fcff_scenarios()`、`valuation.implied_revenue_growth()` 的内置模型、SDK Contract、生成 stub、目录能力和 Agent 生成指引。保留空白文档、提问创建、Markdown／Python Cell、图表、Agent 编辑、数据与概念目录、普通财报与财务指标读取，以及独立指数估值页面。自由现金流等既有历史财务指标不因估值模型删除而改变口径。
+交付：Research 首页移除 FCFF 模板卡片，创建接口的模板参数只接受空白文档，已有回测报告接续研究入口继续保留；删除 `index_relationship`、`equity_fcff_valuation` 模板和 FCFF 分类／案例实现。删除 Python 作者对象 `valuation` 及 `valuation.fcff_scenarios()`、`valuation.implied_revenue_growth()` 的内置模型、SDK Contract、生成 stub、目录能力和 Agent 生成指引。保留空白文档、提问创建、Markdown／Python Cell、图表、Agent 编辑、数据与概念目录、普通财报与财务指标读取，以及独立指数估值页面。自由现金流等既有历史财务指标不因估值模型删除而改变口径。
 
 主要改动位置：`research/templates`、`documents/document-operations.ts` 与创建请求契约，Web `complex/research` 的模板入口和双语文案，`research/sdk/python/valuation.py`／`bindings.py`、沙箱 namespace／AST 分析、共享 Research SDK Contract 及生成 stub，Research Agent／目录／帮助和专用测试。删除 Python 镜像输入时同步 `.dockerignore`、`apps/sandboxd/Dockerfile.python`、`deploy/component-impact.json` 和部署计划测试；不新增依赖或通用模型框架。
 
-现有文档和 Cell 源码原样保留，不自动转成空白模板或重写公式；旧模板创建请求明确拒绝，旧 `valuation.*` 调用报不支持／未定义错误。只删除内置实现，不删除用户自行写在普通 Python 中的计算。当前核对没有模板专用持久化模型，预计无需数据库迁移；若发现必须删除其他持久化数据或改变财务取数含义，先重新讨论范围。
+现有文档和 Cell 源码原样保留，不自动转成空白模板或重写公式；旧模板创建请求明确拒绝，旧 `valuation.*` 调用报不支持／未定义错误。只删除内置实现，不删除用户自行写在普通 Python 中的计算。已确认没有模板专用持久化模型，本项没有 schema 或迁移变更；不操作开发或生产数据库，不改变财务取数口径。
 
 人工 review 前只运行受影响格式／lint、全仓类型／边界静态扫描、SDK 生成物一致性、Python AST 和 diff 检查。review 通过后验证旧模板及 SDK 拒绝、现有源码保留、空白文档／普通 Python／图表和 Agent 目录、财报及独立指数估值、相关 API 和沙箱测试、五个 workspace 构建、编译启动与中英及窄屏浏览器／帮助验收。使用隔离数据库，查看截图，关闭测试会话／服务／端口并清理空目录后按拟定消息提交；不推送。
+
+完整实现已通过人工代码 review 及下述验证。按既定消息提交，不推送；本项没有数据库迁移，隔离启动与存量文档检查均只在临时库执行。
+
+
+### 22.1 实现与审阅入口
+
+- 删除整个 `research/templates` 目录、FCFF 分类／案例与估值 Python 实现。`documents/initial-content.ts` 只保留空白文档及旧会话首次详情读取的初始内容，既有 Cell 源码不迁写。
+- HTTP 模板参数收敛为 `blank`，空对象仍创建空白文档；两种旧专用模板请求明确拒绝。删除 Web 模板卡片、样式、双语文案、store 模板流程与共享模板枚举；现有从回测报告创建普通研究文档的行为不变。
+- Python namespace 只注入 `data/charts/results`；同步移除 AST 内置名字、Pyright prelude、共享 SDK 方法／列定义和生成 stub。目录和 Agent 消费同一 Contract，不再生成内置估值调用。财报、财务指标、普通图表、用户自写计算及独立指数估值均保留。
+- 删除两篇 FCFF 专用帮助及旧浏览器脚本，更新文档创建、财报研究、首次使用和 SDK 导航；保留历史报告与原始学习证据。同步 Dockerfile、dockerignore、部署影响清单及部署计划测试，确保镜像不再引用已删除文件。
+
+### 22.2 Gate 2 静态检查（2026-10-26）
+
+- 受影响代码格式和 ESLint 零警告通过；全仓类型、SDK 生成物一致性和后端边界扫描通过：771 文件、2875 runtime 边、840 type 边、0 违规。生成 stub 使用既有同步函数，只渲染公开 Contract，没有准备或启动 Python 环境。
+- Python 源码与生成 stub 的 AST 语法、diff 检查通过；没有 Prisma schema／迁移变更。帮助静态审计通过：每种语言 79 篇、615 内部链接、146 引用图、25 原始学习证据。
+- `research/templates/fcff` 和 `research/templates` 空目录已清理；开发库与原三个未跟踪文档 mtime 保持原值。测试服务未启动，代码未提交。
+
+### 22.3 Review 后验证范围
+
+- API 回归覆盖空白文档、旧模板请求拒绝且不写数据、旧源码读取保持原值；保留回测报告接续、财报与财务指标、目录、Agent 及独立因子／策略。
+- Python runtime 和 Pyright 验证旧 `valuation.*` namespace 明确失败、补全不再公开旧 helper；SDK 注入、打包后的 Python 请求、reset 与普通图表继续工作。
+- 五个 workspace 构建、生产编译 Worker、真实 API／sandboxd 启动、部署计划及 E2E 调度回归；在隔离数据库检查现有文档保留，清理旧编译产物。
+- 新增 `research-extension-retirement` 浏览器场景，核验中英与 390px 首页无模板卡片、旧创建／SDK 拒绝、源码原样保存、普通 Python 与图表；继续验收财报帮助、SDK 文档、普通研究／因子／策略及双语帮助全篇。检查截图并清理会话、服务、端口、临时库与空目录后按拟定消息提交，不推送。
+
+### 22.4 Review 后实际验证（2026-10-27）
+
+- API 全套通过：284 个文件、1887 项测试；原有 opt-in 性能基准 1 文件／2 项保持跳过。覆盖空白创建、旧模板请求拒绝且不写数据、保存源码原样读取、旧估值 SDK 错误、Pyright 未定义提示、财报与财务指标、目录、Agent、普通因子／策略和维护。
+- Shared、API、Web、Docs、sandboxd 五个 workspace 构建通过，仅保留已有 chunk 大小提示。生产编译 Worker 13 项、工具／部署／E2E 调度／Python 环境 97 项、前端与帮助契约 33 项、sandboxd 8 项通过。全仓类型、SDK 生成物及后端边界静态检查再次通过。
+- 隔离库完整应用现有迁移链，启动真实编译 API 和 sandboxd。启动前保存的文档与 Cell 在启动后逐项相同，旧模板请求返回 400，旧估值调用为明确 NameError；普通 Python 经 sandboxd 运行，官方指数估值正常，外键检查无错误。本项没有 schema 或 migration 修改。
+- 编译 API 浏览器通过：中英与 390px 首页无模板入口，旧创建请求拒绝，旧源码不改写且旧 SDK 明确失败，普通 DataFrame／Python 折线图成功；财报帮助及 SDK 导航不再显示旧 helper。独立指数估值、因子发布与引用、策略参数扫描、报告切换、普通分析和刷新继续通过。
+- 双语帮助全篇浏览器验收通过：每种语言 79 篇、615 内部链接、146 引用图、25 原始学习证据；正文、公式、跳转与窄屏通过。已查看中英首页、窄屏、普通 Python 折线图和财报 SDK 截图。
+- 首轮 API 与构建并行时加载了旧 Shared 产物，导致三项契约断言失败；Shared 构建后按依赖顺序重跑，全套通过。仅调整运行顺序和测试图表夹具：用带类型的三点 DataFrame 展示可见折线，修正后退役专项再次通过。审查后未修改产品代码。
+- 已清理空目录和 18 个已删除模板源码留下的编译文件。浏览器 fixture 自然退出，父进程检查临时端口拒绝连接；实际 API／sandboxd 进程组、数据库、Python 会话与 socket 已释放。开发库与原三个未跟踪文档 mtime 保持原值，不纳入提交；不推送。
+
+## 23 股票资金流与龙虎榜整体删除（下一项 Gate 1，待范围确认）
+
+拟提交消息：`feat(market)!: remove stock moneyflow and event data`。
+
+本项落实第 3／4 节已确定的股票资金与事件裁剪，完整移除资金流与龙虎榜的数据及消费链。停止 Tushare 的 moneyflow／top_list 请求，删除 `stock-moneyflow`、`stock-toplist` 同步分区、CLI／修复／审计与质量规则，以及 Research `data.equity_flows()`、目录绑定、Agent 引导和相关 SDK。保留分红、财报、历史名称、上市退市、停牌与涨跌停，不把本项扩大为删除所有公司事件。
+
+同步裁剪 Factor 的 moneyflow 类型、`netMain/netTotal` 输入、`mf_net_main/mf_net_total` 内置定义及可选择目录，以及 Strategy／回测的龙虎榜读取、资金流列加载、SDK、上下文和生成提示词。TS／Python 的既有表面、前端选项与双语帮助一并收敛，旧调用／声明明确拒绝，不补零、不继续提供失去来源的计算。策略同时使用多个独立因子的能力继续保留。
+
+主要位置：Market `stocks/flows-sync.ts`、供应商 API、同步与维护目录；Research datasets／catalog／Python SDK／host 与 shared Contract；Factor definitions／observations／sandbox；Strategy SDK／sandbox／simulation 及 Backtesting data port／Prisma adapter。SDK 生成物、部署路径和测试按实际修改同步更新，不新增通用兼容层。
+
+由 Prisma 生成迁移，只删除 `Moneyflow`、`TopList` 两张原始数据表；清理退役数据集的分区与专属维护状态，保留其他同步状态及数据。应用迁移会永久删除这两类历史数据，开发和生产库不在本项直接操作范围。保留用户文档、因子和策略源码、已发布因子版本及绑定报告；不迁写旧代码，不用其他字段替代退役输入。从可新建／可选目录移除资金流预设，旧内容无法使用退役输入时明确报错。若发现必须迁写因子版本／报告或改变保留财务与价格口径，先重新讨论范围。
+
+人工 review 前只运行格式／lint、类型／边界静态检查、SDK 生成物一致性、Prisma schema 校验和生成 SQL 核对、Python AST 与 diff 检查。review 通过后在隔离旧库验证只删除两类数据、保留独立发布版本／报告和其他表数据，验证维护不再请求退役来源；覆盖旧 SDK／字段拒绝、普通财报／价格取数、单因子分析、股票／ETF 回测及参数扫描，再运行相关 API／沙箱／部署测试、五个 workspace 构建、实际编译启动和中英及窄屏浏览器／帮助验收。查看截图并关闭会话、服务、端口、临时库，清理空目录后提交，不推送。
 
 本节只准备下一项范围，尚未开始实施。按 review-gated-development 在范围确认后开发，静态检查通过后停在人工代码 review。

@@ -18,7 +18,7 @@ stale，不会在后台自动执行昂贵计算。
 
 ## 选择数据和起点
 
-点击“数据目录”可以选择对象、日期、频率和字段，并插入 SDK 调用，无需先记住方法名。研究公司财报时，先看[自主分析财报数据](/docs/help/research/financial-data)；FCFF 是首页可选模板，不是所有财务研究的必经步骤。
+点击“数据目录”可以选择对象、日期、频率和字段，并插入 SDK 调用，无需先记住方法名。研究公司财报时，先看[自主分析财报数据](/docs/help/research/financial-data)，再在普通 Cell 中编写分析。
 
 如果已经在 Factor 或 Strategy 对话中建立[嵌入式分析](/docs/help/research/embedded-analysis)，可在任务结束后“继续到 Research”。副本复制当前代码和参数，运行时重新取数。
 

@@ -99,15 +99,9 @@ export const e2eCommands = [
     group: 'research',
   },
   {
-    name: 'research-fcff-valuation',
-    file: 'apps/web/e2e/research-fcff-valuation.mjs',
+    name: 'research-extension-retirement',
+    file: 'apps/web/e2e/research-extension-retirement.mjs',
     group: 'research',
-  },
-  {
-    name: 'research-fcff-reuse',
-    file: 'apps/web/e2e/research-fcff-reuse.mjs',
-    group: 'research',
-    nodeArgs: ['--import', 'tsx'],
   },
   {
     name: 'research-documents',

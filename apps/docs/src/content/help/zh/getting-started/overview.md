@@ -15,7 +15,7 @@
 
 ## 按问题选择工作流
 
-- **自由研究或公司财报分析**：在“研究”中选择数据、确认口径，审查并运行 Markdown/Python Cell。可以直接[分析财报](/docs/help/research/financial-data)，也可以使用可选的 [FCFF 模板](/docs/help/research/fcff-valuation)。
+- **自由研究或公司财报分析**：在“研究”中选择数据、确认口径，审查并运行 Markdown/Python Cell。可以直接[分析财报](/docs/help/research/financial-data)，在普通 Python 中编写自己的计算。
 - **理解已有结果**：在 Factor 或 Strategy 对话中引用所选报告，使用[嵌入式分析](/docs/help/research/embedded-analysis)检查数据；需要继续扩展时进入 Research。
 - **验证信号或交易规则**：通过[研究交接](/docs/help/research/handoff)创建草稿，再分别运行 Factor 报告或策略回测。探索输出不会自动成为正式验证。
 

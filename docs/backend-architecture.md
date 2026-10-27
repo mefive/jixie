@@ -221,7 +221,7 @@ TS 的工厂与 `history/value/lag` 实现归 SDK，runtime 负责打包、isola
 ## Research SDK 与 Cell 执行
 
 Research 作者 API 的真实实现归 `research/sdk/python`：data/results 通过窄宿主接口读取数据，
-valuation 保留原数值算法，charts 生成公开图表结果。shared 的公开契约、Python signature/stub、Agent catalog
+charts 生成公开图表结果，财务分析方法由用户在普通 Python 中编写。shared 的公开契约、Python signature/stub、Agent catalog
 集中在 `packages/shared/src/sdk/research`，保留根级导出和生成 `.pyi` 路径。
 
 `research/sandbox/host` 负责帧/参数校验与请求分派，所有取数均查询当前可用数据，不留存输入回放；数据授权和 PIT 映射仍由 datasets 处理。

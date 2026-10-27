@@ -1034,13 +1034,6 @@ export interface ResearchDocumentAnalysisV1 {
 }
 
 /**
- * 声明文档模板的身份、说明与初始 Cell。
- *
- * Describe template identity, guidance and initial cells.
- */
-export type ResearchDocumentTemplateV1 = 'blank' | 'index_relationship' | 'equity_fcff_valuation';
-
-/**
  * 汇总整文档执行的 Cell、终态与冻结证据。
  *
  * Describe current document-run cells and execution progress.
