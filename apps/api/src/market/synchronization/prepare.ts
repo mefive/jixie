@@ -42,8 +42,6 @@ async function fetchMarketPartition(
     case 'stock-adjustments':
     case 'stock-valuations':
     case 'stock-limits':
-    case 'stock-moneyflow':
-    case 'stock-toplist':
       return prepareStockPartition(providers.source, partition);
     case 'industry-members':
     case 'index-catalog':

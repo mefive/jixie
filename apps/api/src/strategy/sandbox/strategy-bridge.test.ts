@@ -102,7 +102,6 @@ function contextFixture() {
     ),
     listDays: () => 100,
     industry: () => 'fixture',
-    lhbNet: () => null,
     factor: vi.fn(() => 3),
   };
   // Only the bridge's context surface is provided; missing calls must fail the test.

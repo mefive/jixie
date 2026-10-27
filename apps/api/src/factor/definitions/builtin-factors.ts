@@ -556,30 +556,6 @@ export default defineFactor({
 });
 `,
   },
-  {
-    key: 'mf_net_main',
-    label: '主力净额(万元)',
-    kind: 'moneyflow',
-    expectedDirection: 'positive',
-    code: `// Preset: main-force net amount — (large + extra-large orders) buy minus sell, in 10k yuan. Flow semantics: null when no data that day, never carried forward.
-export default defineFactor({
-  name: '主力净额(万元)',
-  compute: (bar) => bar.netMain,
-});
-`,
-  },
-  {
-    key: 'mf_net_total',
-    label: '总净额(万元)',
-    kind: 'moneyflow',
-    expectedDirection: 'positive',
-    code: `// Preset: total net amount — net inflow across all order sizes (net_mf_amount), in 10k yuan. Flow semantics: null when no data that day, never carried forward.
-export default defineFactor({
-  name: '总净额(万元)',
-  compute: (bar) => bar.netTotal,
-});
-`,
-  },
 ];
 
 export const BUILTIN_KEYS = new Set([

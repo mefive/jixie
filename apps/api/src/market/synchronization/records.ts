@@ -25,8 +25,6 @@ const KEYS: Readonly<Record<string, readonly string[]>> = {
   AdjFactor: ['tsCode', 'tradeDate'],
   DailyBasic: ['tsCode', 'tradeDate'],
   StkLimit: ['tsCode', 'tradeDate'],
-  Moneyflow: ['tsCode', 'tradeDate'],
-  TopList: ['tsCode', 'tradeDate'],
   EtfBasic: ['tsCode'],
   EtfDaily: ['tsCode', 'tradeDate'],
   EtfAdjFactor: ['tsCode', 'tradeDate'],

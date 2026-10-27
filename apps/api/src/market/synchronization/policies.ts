@@ -29,14 +29,9 @@ export const DATASET_POLICIES = [
   policy('calendar', '19900101', 'year', { closeHour: 0 }),
   policy('stock-master', '19900101', 'catalog', { closeHour: 0 }),
   policy('stock-names', '19900101', 'year', { refreshDays: 7, closeHour: 0 }),
-  ...[
-    'stock-prices',
-    'stock-adjustments',
-    'stock-valuations',
-    'stock-limits',
-    'stock-moneyflow',
-    'stock-toplist',
-  ].map((dataset) => policy(dataset, '20150101', 'day')),
+  ...['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].map((dataset) =>
+    policy(dataset, '20150101', 'day'),
+  ),
   policy('industry-members', '19900101', 'catalog', { refreshDays: 7, closeHour: 0 }),
   policy('index-catalog', '19900101', 'catalog', { closeHour: 0 }),
   policy('index-prices', '19900101', 'year'),

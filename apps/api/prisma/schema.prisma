@@ -295,29 +295,6 @@ model StkLimit {
   @@index([tradeDate])
 }
 
-/// Dragon-Tiger List: stocks with abnormal activity that day + their net buy. Sparse event data
-/// (only listed stocks have a row that day) — read exact-date via ctx.lhbNet, never carried forward.
-model TopList {
-  tsCode    String
-  tradeDate String
-  netAmount Float // Dragon-Tiger List net buy amount (yuan), summed across that day's listings
-
-  @@id([tsCode, tradeDate])
-  @@index([tradeDate])
-}
-
-/// Daily per-stock moneyflow (Tushare moneyflow). Raw fetched point-in-time data — read exact-date via
-/// ctx.moneyflow, never carried forward. Net amounts in 10k yuan (+ net inflow / − net outflow).
-model Moneyflow {
-  tsCode    String
-  tradeDate String
-  netMain   Float? // main-force net amount = (large + extra-large orders) buy − sell, 10k yuan
-  netTotal  Float? // net amount across all order sizes (net_mf_amount), 10k yuan — source may omit it
-
-  @@id([tsCode, tradeDate])
-  @@index([tradeDate])
-}
-
 /// Daily valuation metrics (point-in-time by construction). Unlocks value/dividend/size factors.
 model DailyBasic {
   tsCode        String

@@ -513,7 +513,6 @@ function snapshotBarRow(
     debt_to_assets: row.debtToAssets,
     list_days: context.listDays(row.code),
     industry: context.industry(row.code),
-    lhb_net: context.lhbNet(row.code),
     factors: Object.fromEntries(
       factors.map((factor) => [factor, context.factor(factor, row.code)]),
     ),

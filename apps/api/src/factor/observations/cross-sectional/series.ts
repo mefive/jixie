@@ -41,7 +41,7 @@ export type Series = Map<string, { tsCode: string; value: number }[]>; // rebala
  * single path (factor-to-strategy.md Step 1b): load the Factor row's code (preset rows are seeded
  * from builtin-factors.ts), compile into an isolated-vm sandbox, run compute cross-sectionally.
  * Two speeds by declaration:
- *  - no `window`: per rebalance date over the FactorBar cross-section (daily_basic + moneyflow),
+ *  - no `window`: per rebalance date over the FactorBar cross-section (daily_basic),
  *    ONE wall-crossing per date;
  *  - `window: n`: additionally walks each stock's hfq close series so ctx.history works (the
  *    expensive per-stock loop — declared, never implicitly detected), ONE crossing per stock.
@@ -137,10 +137,8 @@ export async function computeFactorSeries(
   // Preload all financial reports once (PIT-gated by annDate); loadBars picks each stock's as-of report.
   const finaIndex = preloadedFinaIndex ?? (await loadFinaIndex());
 
-  // One date's FactorBar cross-section: daily_basic valuation + moneyflow (flow semantics — exact
-  // date, absent = null, never carried forward) + as-of fundamentals (latest annDate ≤ date). Queried
-  // per-date (not batched with `in: dates`) — measured slower when batched, likely Prisma row-
-  // deserialization + IN-list planning overhead.
+  // 逐日读取估值截面，并按公告日连接财报。
+  // Load daily valuation cross-sections and join reports by announcement date.
 
   /**
    * 批量加载因子所需历史行情，供本轮观察序列计算。
@@ -148,28 +146,22 @@ export async function computeFactorSeries(
    * Batch-load historical bars required to compute factor observations.
    */
   const loadBars = async (date: string): Promise<Map<string, FactorBar>> => {
-    const [basicRows, flowRows] = await Promise.all([
-      getDatabase().dailyBasic.findMany({
-        where: { tradeDate: date },
-        select: {
-          tsCode: true,
-          pe: true,
-          peTtm: true,
-          pb: true,
-          ps: true,
-          psTtm: true,
-          dvRatio: true,
-          dvTtm: true,
-          totalMv: true,
-          circMv: true,
-          turnoverRate: true,
-        },
-      }),
-      getDatabase().moneyflow.findMany({
-        where: { tradeDate: date },
-        select: { tsCode: true, netMain: true, netTotal: true },
-      }),
-    ]);
+    const basicRows = await getDatabase().dailyBasic.findMany({
+      where: { tradeDate: date },
+      select: {
+        tsCode: true,
+        pe: true,
+        peTtm: true,
+        pb: true,
+        ps: true,
+        psTtm: true,
+        dvRatio: true,
+        dvTtm: true,
+        totalMv: true,
+        circMv: true,
+        turnoverRate: true,
+      },
+    });
 
     const bars = new Map<string, FactorBar>();
     for (const r of basicRows) {
@@ -185,28 +177,11 @@ export async function computeFactorSeries(
         totalMv: r.totalMv,
         circMv: r.circMv,
         turnoverRate: r.turnoverRate,
-        netMain: null,
-        netTotal: null,
         roe: null,
         roa: null,
         grossprofitMargin: null,
         debtToAssets: null,
       });
-    }
-    for (const flow of flowRows) {
-      const bar = bars.get(flow.tsCode);
-      if (bar) {
-        bar.netMain = flow.netMain;
-        bar.netTotal = flow.netTotal;
-      } else {
-        // Flow data but no daily_basic row that day — still a valid cross-section member.
-        bars.set(flow.tsCode, {
-          ...EMPTY_BAR,
-          code: flow.tsCode,
-          netMain: flow.netMain,
-          netTotal: flow.netTotal,
-        });
-      }
     }
     // As-of fundamentals: the latest report public on/before this date (no look-ahead).
     for (const [code, bar] of bars) {
@@ -435,7 +410,7 @@ export function calculateWindowCoverage(
   return expected > 0 ? Math.max(0, observed) / expected : 0;
 }
 
-/** All-null bar for stocks missing daily_basic that day (only code + moneyflow known). */
+/** 缺少当日估值的空截面。 Empty cross-section when daily valuation is absent. */
 const EMPTY_BAR: FactorBar = {
   code: '',
   pe: null,
@@ -448,8 +423,6 @@ const EMPTY_BAR: FactorBar = {
   totalMv: null,
   circMv: null,
   turnoverRate: null,
-  netMain: null,
-  netTotal: null,
   roe: null,
   roa: null,
   grossprofitMargin: null,

@@ -12,7 +12,6 @@ const readSchema = z.discriminatedUnion('method', [
   read('resampledBars', z.tuple([code, z.enum(['weekly', 'monthly']), window])),
   read('listDays', z.tuple([code])),
   read('industry', z.tuple([code])),
-  read('lhbNet', z.tuple([code])),
   read('price', z.tuple([code])),
   read('history', z.tuple([code, field, window])),
   read('factor', z.tuple([code, code])),
@@ -51,8 +50,6 @@ export function readStrategyContext(context: EngineContext, request: StrategyCon
       return context.listDays(...request.args);
     case 'industry':
       return context.industry(...request.args);
-    case 'lhbNet':
-      return context.lhbNet(...request.args);
     case 'price':
       return context.price(...request.args);
     case 'history':

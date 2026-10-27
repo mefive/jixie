@@ -159,18 +159,6 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
-    # Load exact-date money flow and Dragon-Tiger List net buying for one stock.
-    # Note: identifier uses the platform stock code; start/end always constrain availability.
-    # Example: data.equity_flows("600519.SH", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], net_main_cny_10k: float64, net_total_cny_10k: float64, dragon_tiger_net_cny: float64
-    def equity_flows(
-        self,
-        identifier: str,
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
     # Load captured implemented dividends by version availability, retaining economic ex-dates.
     # Note: identifier uses the platform stock code; start/end always constrain availability.
     # Example: data.equity_dividends("600519.SH", start="20200101", end="20251231")

@@ -380,8 +380,6 @@ function pythonFactorBar(bar: FactorBar): Record<string, unknown> {
     total_mv: bar.totalMv,
     circ_mv: bar.circMv,
     turnover_rate: bar.turnoverRate,
-    net_main: bar.netMain,
-    net_total: bar.netTotal,
     roe: bar.roe,
     roa: bar.roa,
     grossprofit_margin: bar.grossprofitMargin,

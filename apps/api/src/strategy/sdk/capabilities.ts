@@ -20,7 +20,6 @@ export interface StrategyCapabilities extends Pick<
   | 'ensureBars'
   | 'listDays'
   | 'industry'
-  | 'lhbNet'
   | 'price'
   | 'history'
   | 'factor'

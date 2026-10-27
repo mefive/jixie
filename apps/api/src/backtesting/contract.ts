@@ -40,14 +40,11 @@ export interface EngineContext {
   /** Point-in-time SW level-1 industry label for `code` as of today; null if unknown. For
    * sector-neutral / rotation / single-industry logic without classification lookahead. */
   industry(code: string): string | null;
-  /** Today's Dragon-Tiger List net buy amount (yuan); null on days not on the list (not carried forward) — attention / hot-money extreme signal. */
-  lhbNet(code: string): number | null;
   /** Today's adjusted close (carried forward if suspended) for held/already-loaded codes. */
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/already-loaded codes (price-window math on holdings). */
   history(code: string, field: 'open' | 'high' | 'low' | 'close', n: number): number[];
-  /** Preloaded moneyflow column lookup (only the keys the strategy declared in `factors`, e.g.
-   * 'mf_net_main'). The engine treats it as opaque preloaded data; as-of `date`, null if absent. */
+  /** 读取声明的已发布因子。 Read a declared published factor. */
   factor(name: string, code: string): number | null;
   /** Point-in-time constituents of an index (e.g. '000300.SH' CSI 300) as of today — the codes from the
    * latest monthly snapshot ≤ today. Async (lazily loads the index's snapshots on first use). */

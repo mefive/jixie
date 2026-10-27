@@ -5,7 +5,6 @@ import {
   RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
-  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
@@ -30,7 +29,6 @@ import {
   parseResearchCommodityReturnsRuntimeRequest,
   parseResearchCommodityWarehouseReceiptsRuntimeRequest,
   parseResearchEquityDividendsRuntimeRequest,
-  parseResearchEquityFlowsRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchEtfSharesRuntimeRequest,
   parseResearchBacktestReportRuntimeRequest,
@@ -149,12 +147,10 @@ describe('research workbench SDK contract', () => {
   it('drives stock supplemental dataset bridges', () => {
     const stockRequest = { identifier: '600519.SH', start: '20200101', end: '20251231' };
     expect(parseResearchEquityFundamentalsRuntimeRequest(stockRequest)).toEqual(stockRequest);
-    expect(parseResearchEquityFlowsRuntimeRequest(stockRequest)).toEqual(stockRequest);
     expect(parseResearchEquityDividendsRuntimeRequest(stockRequest)).toEqual(stockRequest);
     expect(RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.qualifiedName).toBe(
       'data.equity_fundamentals',
     );
-    expect(RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_flows');
     expect(RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_dividends');
   });
 

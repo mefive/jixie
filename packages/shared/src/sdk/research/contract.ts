@@ -1426,27 +1426,6 @@ export const RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 = [
   },
 ] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
-const equityFlowColumns = [
-  {
-    name: 'date',
-    wireType: 'trade_date',
-    pythonType: 'datetime64[ns]',
-    descriptionZh: '精确交易日；数据不会向前填充。',
-    descriptionEn: 'The exact trading date; values are never carried forward.',
-  },
-  ...[
-    ['net_main_cny_10k', '主力净流入，万元人民币。', 'Main-force net inflow in CNY 10,000.'],
-    ['net_total_cny_10k', '全口径净流入，万元人民币。', 'All-order-size net inflow in CNY 10,000.'],
-    ['dragon_tiger_net_cny', '龙虎榜当日净买入，元人民币。', 'Dragon-Tiger List net buy in CNY.'],
-  ].map(([name, descriptionZh, descriptionEn]) => ({
-    name,
-    wireType: 'nullable_number' as const,
-    pythonType: 'float64',
-    descriptionZh,
-    descriptionEn,
-  })),
-] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
-
 const equityDividendColumns = [
   {
     name: 'ex_date',
@@ -1633,7 +1612,7 @@ const futuresSettlementColumns = [
  * Construct a public SDK contract for a dated identifier dataset.
  */
 function datedIdentifierDatasetFunction(
-  name: 'equity_fundamentals' | 'equity_flows' | 'equity_dividends',
+  name: 'equity_fundamentals' | 'equity_dividends',
   descriptionZh: string,
   descriptionEn: string,
   columns: readonly ResearchSdkDataFrameColumnContractV1[],
@@ -2379,12 +2358,6 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       equityFundamentalColumns,
     ),
     datedIdentifierDatasetFunction(
-      'equity_flows',
-      '读取单只股票的精确日资金流与龙虎榜净买入。',
-      'Load exact-date money flow and Dragon-Tiger List net buying for one stock.',
-      equityFlowColumns,
-    ),
-    datedIdentifierDatasetFunction(
       'equity_dividends',
       '按除权除息日读取单只股票已实施的现金分红。',
       'Load captured implemented dividends by version availability, retaining economic ex-dates.',
@@ -2838,17 +2811,16 @@ export const RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1 =
   RESEARCH_SDK_CONTRACT_V1.functions[9];
 export const RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[10];
 export const RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[11];
-export const RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[12];
-export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[13];
-export const RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[14];
-export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[15];
-export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[16];
-export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[17];
-export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
-export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[19];
+export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[12];
+export const RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[13];
+export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[14];
+export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[15];
+export const RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[16];
+export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[17];
+export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[18];
 export const RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1 =
-  RESEARCH_SDK_CONTRACT_V1.functions[20];
-export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[21];
+  RESEARCH_SDK_CONTRACT_V1.functions[19];
+export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[20];
 
 export const RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions.find(
   (method) => method.qualifiedName === 'data.equity_financial_values',

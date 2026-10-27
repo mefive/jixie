@@ -49,7 +49,7 @@ export const zhFactor = {
   chatEmptyQa:
     '这是预置因子(只读代码,见中间编辑器)。有关它 / 因子分析的问题都可以问 —— Agent 只答疑,不改代码;想改参数出变体,点编辑器上方「复制为自定义」。',
   chatEmptyAuthor:
-    '跟 Agent 说你想要的因子(估值 / 规模 / 流动性 / 资金流 / 价格动量波动类),它写成代码进中间编辑器。财报明细类(ROE 增速等)暂缺数据。',
+    '跟 Agent 说你想要的因子(估值 / 规模 / 流动性 / 价格动量波动类),它写成代码进中间编辑器。财报明细类(ROE 增速等)暂缺数据。',
 
   presetGroup: '股票横截面因子',
   crossSectional: { methodBadge: '股票横截面' },
@@ -537,7 +537,6 @@ export const zhFactor = {
 
   kindPrice: '价格',
   kindFundamental: '基本面',
-  kindMoneyflow: '资金流',
   kindRates: '利率',
   kindCommodity: '商品',
   kindMacro: '宏观',
@@ -578,7 +577,5 @@ export const zhFactor = {
     size: '规模(ln总市值)',
     roe: 'ROE质量(%)',
     gross_margin: '毛利率(%)',
-    mf_net_main: '主力净额(万元)',
-    mf_net_total: '总净额(万元)',
   },
 };

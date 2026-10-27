@@ -54,7 +54,6 @@ async function loadedData(): Promise<EngineData> {
   const data = new EngineData({
     start: '20231227',
     end: '20240131',
-    factorKeys: [],
     onLog: () => {},
     locale: DEFAULT_LOCALE,
     dataPort: fixturePort(spec),
@@ -123,7 +122,6 @@ describe('daily bar resampling', () => {
     const data = new EngineData({
       start: '20231227',
       end: '20240131',
-      factorKeys: [],
       onLog: () => {},
       locale: DEFAULT_LOCALE,
       dataPort: fixturePort(spec),

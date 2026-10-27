@@ -222,10 +222,6 @@ class BoundStrategyCapabilities(StrategyCapabilities):
         row = self.bar(code)
         return row.industry if row else None
 
-    def lhb_net(self, code: str) -> float | None:
-        row = self.bar(code)
-        return row.lhb_net if row else None
-
     def factor(self, name: str, code: str) -> float | None:
         row = self.bar(code)
         return row.factors.get(name) if row else None

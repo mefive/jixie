@@ -4,7 +4,7 @@ import type { FactorLanguage } from '@jixie/shared';
  * 为自定义因子 Agent 构造遵守公开契约的系统提示。
  *
  * System prompt for the custom-factor Agent (mirrors the strategy codegen prompt). A custom factor is
- * a cross-sectional expression over one stock's point-in-time bar (valuation/size/liquidity/moneyflow), plus an
+ * a cross-sectional expression over one stock's point-in-time bar (valuation/size/liquidity), plus an
  * optional hfq-close history window via ctx.history when the factor declares `window`. The model
  * writes a `defineFactor` module; we compile it to validate. Kept in one place so the one-shot and
  * conversational paths share the same capability contract.
@@ -43,7 +43,7 @@ function buildPythonFactorCodegenPrompt(
 - Return a raw numeric score or None. Never negate a signal merely to force a preferred direction.
 
 # Typed SDK
-\`FactorBar\` fields: code, pe, pe_ttm, pb, ps, ps_ttm, dv_ratio, dv_ttm, total_mv, circ_mv, turnover_rate, net_main, net_total, roe, roa, grossprofit_margin, debt_to_assets. Every numeric field can be None.
+\`FactorBar\` fields: code, pe, pe_ttm, pb, ps, ps_ttm, dv_ratio, dv_ttm, total_mv, circ_mv, turnover_rate, roe, roa, grossprofit_margin, debt_to_assets. Every numeric field can be None.
 For history, declare window (1–505, including today), then call \`ctx.history(n)\` for adjusted closes or \`ctx.history(n, field)\` where field is date, amount, turnover_rate_f, roe, grossprofit_margin, or market_close. Insufficient history returns []. min_coverage may be 0.1–1.
 
 # Boundary
@@ -113,7 +113,6 @@ function buildCrossSectionalFactorCodegenPrompt(): string {
 - dvRatio / dvTtm: dividend yield % / dividend yield TTM %
 - totalMv / circMv: total market cap / circulating market cap (**in 10k CNY**)
 - turnoverRate: turnover rate %
-- netMain / netTotal: same-day moneyflow main net amount / total net amount (**in 10k CNY**; null when the day has no data, not forward-filled)
 - roe / roa / grossprofitMargin / debtToAssets: return on equity % / return on assets % / gross profit margin % / debt-to-assets ratio %, **point-in-time** (the latest report whose announcement date is on/before the current day; null until a report is published)
 
 # History window (momentum / reversal / volatility / turnover factors)
@@ -135,7 +134,7 @@ CANNOT: <one sentence stating what data is missing, and asking the user to rephr
 If you can satisfy it, output the code normally; **do not output both CANNOT and code**.
 
 # Unit conventions
-Market-cap / moneyflow fields are in **10k CNY** (100 million = 10000); history amount is in **thousand CNY**; dividend yield / turnover rate are percentages (3% written as 3). Cheap/undervalued usually means small pe or pb; high dividend means large dvRatio; small-cap means small totalMv.
+Market-cap fields are in **10k CNY** (100 million = 10000); history amount is in **thousand CNY**; dividend yield / turnover rate are percentages (3% written as 3). Cheap/undervalued usually means small pe or pb; high dividend means large dvRatio; small-cap means small totalMv.
 
 # Example: earnings yield (pure cross-sectional)
 export default defineFactor({

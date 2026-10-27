@@ -12,8 +12,6 @@ export interface FactorBar {
   /** Total market cap (10k yuan) */ readonly totalMv: number | null;
   /** Float market cap (10k yuan) */ readonly circMv: number | null;
   /** Turnover rate % */ readonly turnoverRate: number | null;
-  /** Main-force net inflow (10k yuan, exact for the day, null if missing) */ readonly netMain: number | null;
-  /** Total net inflow (10k yuan, exact for the day, null if missing) */ readonly netTotal: number | null;
   /** Return on equity % (latest report with annDate ≤ today, point-in-time; null if none published) */ readonly roe: number | null;
   /** Return on assets % (latest report with annDate ≤ today, point-in-time; null if none published) */ readonly roa: number | null;
   /** Gross profit margin % (as-of, point-in-time; null if none published) */ readonly grossprofitMargin: number | null;

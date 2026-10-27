@@ -83,8 +83,6 @@ const NULL_BAR: FactorBar = {
   totalMv: null,
   circMv: null,
   turnoverRate: null,
-  netMain: null,
-  netTotal: null,
   roe: null,
   roa: null,
   grossprofitMargin: null,
@@ -191,7 +189,7 @@ async function computeOne(key: string, bar: FactorBar): Promise<number | null> {
 
 describe('preset factor code compiles and has the right shape', () => {
   it('declares a usable expected direction for every preset', () => {
-    expect(BUILTIN_FACTORS).toHaveLength(20);
+    expect(BUILTIN_FACTORS).toHaveLength(18);
     for (const factor of BUILTIN_FACTORS) {
       expect(['positive', 'negative']).toContain(factor.expectedDirection);
     }
@@ -218,7 +216,6 @@ describe('preset factor code compiles and has the right shape', () => {
     expect((await startFactorSandbox('resid_vol20')).metadata.window).toBe(21);
     expect((await startFactorSandbox('maxret21')).metadata.window).toBe(22);
     expect((await startFactorSandbox('ep')).metadata.window).toBeUndefined();
-    expect((await startFactorSandbox('mf_net_main')).metadata.window).toBeUndefined();
   });
 
   it('accepts an explicit window coverage declaration', async () => {
@@ -306,9 +303,9 @@ describe('price presets match the legacy hardcoded formulas bit-for-bit', () => 
 
 describe('cross-sectional presets match the legacy hardcoded formulas', () => {
   const bars: Partial<FactorBar>[] = [
-    { peTtm: 12.5, pb: 1.6, dvRatio: 4.2, totalMv: 1_000_000, netMain: 1234.5, netTotal: -88 },
-    { peTtm: -8, pb: 0, dvRatio: null, totalMv: 0, netMain: null, netTotal: null },
-    { peTtm: null, pb: 7.7, dvRatio: 0, totalMv: 88_888, netMain: 0, netTotal: 5 },
+    { peTtm: 12.5, pb: 1.6, dvRatio: 4.2, totalMv: 1_000_000 },
+    { peTtm: -8, pb: 0, dvRatio: null, totalMv: 0 },
+    { peTtm: null, pb: 7.7, dvRatio: 0, totalMv: 88_888 },
   ];
   const make = (partial: Partial<FactorBar>): FactorBar => ({ ...NULL_BAR, ...partial });
 
@@ -325,12 +322,6 @@ describe('cross-sectional presets match the legacy hardcoded formulas', () => {
       expect(await computeOne('dv', bar)).toBe(bar.dvRatio);
       expect(await computeOne('size', bar)).toBe(legacySize);
     }
-  });
-
-  it('mf_net_main / mf_net_total read the bar moneyflow fields directly', async () => {
-    const bar = make({ netMain: 666, netTotal: -42 });
-    expect(await computeOne('mf_net_main', bar)).toBe(666);
-    expect(await computeOne('mf_net_total', bar)).toBe(-42);
   });
 
   it('roe / gross_margin read the as-of fundamentals directly (null when unpublished)', async () => {
@@ -686,3 +677,21 @@ describe('3.5 preset-menu additions', () => {
     expect(short).toBeNull();
   });
 });
+
+it.each(['netMain', 'netTotal'])(
+  'rejects retired TypeScript FactorBar.%s rather than returning nulls',
+  async (field) => {
+    const factor = await FactorSandbox.start({
+      language: 'typescript',
+      analysisKind: 'cross_sectional',
+      code: `export default defineFactor({ compute: bar => bar.${field} });`,
+    });
+    try {
+      await expect(factor.execute({ items: [{ bar: NULL_BAR }] })).rejects.toThrow(
+        `Unsupported FactorBar field: ${field}`,
+      );
+    } finally {
+      factor.close();
+    }
+  },
+);

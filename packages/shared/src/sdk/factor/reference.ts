@@ -13,14 +13,6 @@ const FACTOR_DOCS: Record<string, Record<Locale, string>> = {
   totalMv: { zh: '总市值(万元)', en: 'Total market cap (10k yuan)' },
   circMv: { zh: '流通市值(万元)', en: 'Float market cap (10k yuan)' },
   turnoverRate: { zh: '换手率 %', en: 'Turnover rate %' },
-  netMain: {
-    zh: '主力净额(万元,当日精确,缺则 null)',
-    en: 'Main-force net inflow (10k yuan, exact for the day, null if missing)',
-  },
-  netTotal: {
-    zh: '总净额(万元,当日精确,缺则 null)',
-    en: 'Total net inflow (10k yuan, exact for the day, null if missing)',
-  },
   roe: {
     zh: '净资产收益率 %(最近一份 annDate ≤ 当日的报告,PIT;未披露则 null)',
     en: 'Return on equity % (latest report with annDate ≤ today, point-in-time; null if none published)',
@@ -98,8 +90,6 @@ interface FactorBar {
   /** ${doc('totalMv')} */ readonly totalMv: number | null;
   /** ${doc('circMv')} */ readonly circMv: number | null;
   /** ${doc('turnoverRate')} */ readonly turnoverRate: number | null;
-  /** ${doc('netMain')} */ readonly netMain: number | null;
-  /** ${doc('netTotal')} */ readonly netTotal: number | null;
   /** ${doc('roe')} */ readonly roe: number | null;
   /** ${doc('roa')} */ readonly roa: number | null;
   /** ${doc('grossprofitMargin')} */ readonly grossprofitMargin: number | null;

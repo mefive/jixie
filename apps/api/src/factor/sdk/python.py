@@ -14,7 +14,7 @@ class _AttrDict(dict[str, Any]):
         try:
             return self[name]
         except KeyError as error:
-            raise AttributeError(name) from error
+            raise AttributeError(name, name=name, obj=self) from error
 
 
 # 公开单证券行情的属性接口，供作者因子读取。

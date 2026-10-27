@@ -202,36 +202,6 @@ export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizatio
           deleteOld: () => transaction.stkLimit.deleteMany({ where: { tsCode: oldTsCode } }),
         });
 
-        const moneyflowOld = await transaction.moneyflow.findMany({ where: { tsCode: oldTsCode } });
-        const moneyflowNew = await transaction.moneyflow.findMany({ where: { tsCode: newTsCode } });
-        count += await mergeRows({
-          table: 'Moneyflow',
-          oldCode: oldTsCode,
-          newCode: newTsCode,
-          oldRows: moneyflowOld,
-          newRows: moneyflowNew,
-          keyOf: (row) => String(row.tradeDate),
-          comparable: (row) => withoutCode(row, 'tsCode'),
-          rewrite: (row, code) => ({ ...row, tsCode: code }),
-          create: (rows) => transaction.moneyflow.createMany({ data: rows }),
-          deleteOld: () => transaction.moneyflow.deleteMany({ where: { tsCode: oldTsCode } }),
-        });
-
-        const topListOld = await transaction.topList.findMany({ where: { tsCode: oldTsCode } });
-        const topListNew = await transaction.topList.findMany({ where: { tsCode: newTsCode } });
-        count += await mergeRows({
-          table: 'TopList',
-          oldCode: oldTsCode,
-          newCode: newTsCode,
-          oldRows: topListOld,
-          newRows: topListNew,
-          keyOf: (row) => String(row.tradeDate),
-          comparable: (row) => withoutCode(row, 'tsCode'),
-          rewrite: (row, code) => ({ ...row, tsCode: code }),
-          create: (rows) => transaction.topList.createMany({ data: rows }),
-          deleteOld: () => transaction.topList.deleteMany({ where: { tsCode: oldTsCode } }),
-        });
-
         const finaOld = await transaction.finaIndicator.findMany({ where: { tsCode: oldTsCode } });
         const finaNew = await transaction.finaIndicator.findMany({ where: { tsCode: newTsCode } });
         count += await mergeRows({

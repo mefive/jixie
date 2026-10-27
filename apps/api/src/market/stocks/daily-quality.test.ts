@@ -16,7 +16,6 @@ const row = {
   adjustmentMatches: 980n,
   basicMatches: 850n,
   limitMatches: 850n,
-  moneyflowMatches: 700n,
   aliasedCodes: 0n,
 };
 beforeEach(() => {
@@ -30,10 +29,9 @@ describe('stock date quality', () => {
       adjustmentCoverage: 0.98,
       basicCoverage: 0.85,
       limitCoverage: 0.85,
-      moneyflowCoverage: 0.7,
     });
   });
-  it.each(['adjustmentMatches', 'basicMatches', 'limitMatches', 'moneyflowMatches'] as const)(
+  it.each(['adjustmentMatches', 'basicMatches', 'limitMatches'] as const)(
     'rejects insufficient %s coverage',
     async (column) => {
       query.mockResolvedValue([{ ...row, [column]: row[column] - 1n }]);

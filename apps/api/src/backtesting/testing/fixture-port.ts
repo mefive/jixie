@@ -12,10 +12,8 @@ import type {
   IndexDailyRow,
   IndexWeightRow,
   IndustryMembershipRow,
-  MoneyflowRow,
   StockBasicRow,
   StockNameHistoryRow,
-  TopListRow,
   YieldCurvePointDataRow,
 } from '../data/data-port.js';
 import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '#market/registry/index-presets.js';
@@ -63,8 +61,6 @@ export interface FixtureSpec {
   indexWeights?: Record<string, IndexWeightRow[]>;
   industryMemberships?: IndustryMembershipRow[];
   finaIndicators?: FinaIndicatorRow[];
-  topList?: TopListRow[];
-  moneyflow?: MoneyflowRow[];
   yieldCurvePoints?: YieldCurvePointDataRow[];
   futureContracts?: FutureContractRow[];
   futureDaily?: FutureDailyDataRow[];
@@ -126,10 +122,6 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
         }));
     },
 
-    async topListRange(start, end) {
-      return (spec.topList ?? []).filter((r) => inRange(r.tradeDate, start, end));
-    },
-
     async indexDailyAll() {
       const rows = [...(spec.indexDaily ?? [])];
       if (!rows.some((row) => row.tsCode === CSI_300_TOTAL_RETURN_INDEX_CODE)) {
@@ -150,10 +142,6 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
 
     async yieldCurvePoints(end) {
       return (spec.yieldCurvePoints ?? []).filter((row) => row.availableDate <= end);
-    },
-
-    async moneyflowRange(start, end) {
-      return (spec.moneyflow ?? []).filter((r) => inRange(r.tradeDate, start, end));
     },
 
     async crossSectionRows(date, codes) {

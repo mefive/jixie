@@ -148,12 +148,6 @@ export class BacktestingContext implements EngineContext {
     return engineData.industry(code, date);
   }
 
-  lhbNet(code: string): number | null {
-    const { date, engineData } = this.input;
-
-    return engineData.lhbNet(code, date);
-  }
-
   price(code: string): number | null {
     const { date, engineData } = this.input;
 
@@ -167,11 +161,13 @@ export class BacktestingContext implements EngineContext {
   }
 
   factor(name: string, code: string): number | null {
-    const { date, engineData, factorEvaluator, onFactorRead } = this.input;
+    const { date, factorEvaluator, onFactorRead } = this.input;
 
-    const value = factorEvaluator?.has(name)
-      ? factorEvaluator.read(name, date, code)
-      : engineData.factor(name, date, code);
+    if (!factorEvaluator?.has(name)) {
+      throw new Error(`Factor is not available: ${name}`);
+    }
+
+    const value = factorEvaluator.read(name, date, code);
     onFactorRead?.(name, code, value);
     return value;
   }

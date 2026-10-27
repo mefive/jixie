@@ -63,14 +63,7 @@ export interface QuantileHorizon {
  * How a factor's values are sourced — drives the compute path (and shown as a tag in the UI).
  * 'custom' = user-authored (defineFactor); its compute runs cross-sectionally over a FactorBar.
  */
-export type FactorKind =
-  | 'price'
-  | 'fundamental'
-  | 'moneyflow'
-  | 'rates'
-  | 'commodity'
-  | 'macro'
-  | 'custom';
+export type FactorKind = 'price' | 'fundamental' | 'rates' | 'commodity' | 'macro' | 'custom';
 
 /**
  * 承载宿主构造的可变市场行，供公开只读因子行情映射。
@@ -85,7 +78,7 @@ export type FactorBar = { -readonly [Field in keyof FactorSdkBar]: FactorSdkBar[
  * Catalog entry — one row in the factor list (no analysis, just identity).
  */
 export interface FactorMeta {
-  key: string; // preset = stable slug (mom / ep / mf_net_main …); custom = the Factor row's ULID
+  key: string; // preset = stable slug (mom / ep …); custom = the Factor row's ULID
   label: string; // Chinese
   description?: string; // optional catalog summary; surfaced by strategy-editor factor hovers when present
   strategyKey?: string; // immutable Factor.key; absent for drafts and archived factors

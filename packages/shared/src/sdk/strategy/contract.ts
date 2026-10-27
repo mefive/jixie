@@ -172,9 +172,7 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
   futureHistory(code: string, field: 'open' | 'high' | 'low' | 'close' | 'settle', n: number): number[];
   /** Point-in-time SW level-1 industry label effective on the decision date; null without a covering spell. For sector-neutral or rotation logic without classification lookahead. */
   industry(code: string): string | null;
-  /** Today's 龙虎榜 net buy amount (yuan); null if not listed that day (never carried forward). */
-  lhbNet(code: string): number | null;
-  /** Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). A published factor runs by its immutable key on the fly (windowed ones need ensureBars first). A time-series factor declaring etf.adjustedClose accepts ETF codes only. */
+  /** Read a declared published factor by its immutable key. Windowed factors need ensureBars first. Time-series factors declaring etf.adjustedClose accept ETF codes only. */
   factor(name: FactorKey, code: string): number | null;
   /** Today's adjusted (hfq) close (carried forward if suspended). */
   price(code: string): number | null;
@@ -285,7 +283,7 @@ export interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
   /** Scan defaults: inline object with finite numeric or non-blank string literals; no expressions, calls or spreads. See the parameter-scan help page. */
   params?: Params;
-  /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + published factor keys. */
+  /** Opt-in factor columns, read via ctx.factor(): published factor keys. */
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];

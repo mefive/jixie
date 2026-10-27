@@ -46,6 +46,7 @@ export type FactorRunnerCommandHandler = (frame: FactorRunnerCommand) => string;
 /** One instance owns one sandbox session and all state shared across its callbacks. */
 class FactorRunner {
   private readonly adapter = new FactorAdapter();
+  private unsupportedField: string | undefined;
   private factor!: CustomFactor | AssetFactorV2;
   private analysisKind!: ExecutableFactorKind;
   private declaredInputs!: Set<AssetFactorV2['inputs'][number]>;
@@ -91,7 +92,18 @@ class FactorRunner {
           const item = frame.items[index];
 
           return factor.compute(
-            item.bar,
+            // 未知字段必须失败，避免将已退役输入计算成有效空值。
+            // Unknown fields must fail rather than turn retired inputs into valid nulls.
+            new Proxy(item.bar, {
+              get: (bar, field, receiver) => {
+                if (typeof field === 'string' && field !== 'toJSON' && !(field in bar)) {
+                  this.unsupportedField = field;
+                  throw new Error(`Unsupported FactorBar field: ${field}`);
+                }
+
+                return Reflect.get(bar, field, receiver);
+              },
+            }),
             new CrossSectionalFactorContext(
               this.adapter.bind({ kind: 'cross_sectional', history: item }),
             ),
@@ -204,6 +216,7 @@ class FactorRunner {
 
   private computeValues(count: number, callback: (index: number) => number | null) {
     let firstError: string | null = null;
+    this.unsupportedField = undefined;
 
     /**
      * 逐项调用作者回调，将缺失或非有限值归为 null，并保留首个异常。
@@ -223,6 +236,10 @@ class FactorRunner {
         return null;
       }
     });
+
+    if (this.unsupportedField !== undefined) {
+      throw new Error(`Unsupported FactorBar field: ${this.unsupportedField}`);
+    }
 
     return { type: 'factor_values', values, first_error: firstError };
   }

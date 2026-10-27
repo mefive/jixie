@@ -241,7 +241,7 @@ describe('Research Agent series proposal validation', () => {
             references: [],
             equityRequests: [
               { line: 1, method: 'equity_fundamentals', identifier: '600519.SH' },
-              { line: 2, method: 'equity_flows', identifier: '600519.SH' },
+              { line: 2, method: 'equity_dividends', identifier: '600519.SH' },
               { line: 3, method: 'equity_dividends', identifier: '600519.SH' },
             ],
           },
@@ -258,7 +258,7 @@ describe('Research Agent series proposal validation', () => {
             cellId: 'invented-stock',
             definitions: [],
             references: [],
-            equityRequests: [{ line: 1, method: 'equity_flows', identifier: 'FAKE.SH' }],
+            equityRequests: [{ line: 1, method: 'equity_dividends', identifier: 'FAKE.SH' }],
           },
         ],
         vi.fn().mockResolvedValue({ ...stockCatalog, instruments: [] }),

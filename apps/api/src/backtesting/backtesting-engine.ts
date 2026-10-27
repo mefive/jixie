@@ -149,7 +149,6 @@ export class BacktestingEngine {
     this.engineData = new EngineData({
       start: config.start,
       end: config.end,
-      factorKeys: config.strategy.factors ?? [],
       onLog: log,
       locale,
       dataPort: config.dataPort,
@@ -189,11 +188,16 @@ export class BacktestingEngine {
    */
   private async loadFactorDescription(): Promise<void> {
     const { config, locale } = this;
-    const declaredKeys = (config.strategy.factors ?? []).filter(isComputedFactorKey);
+    const declaredKeys = config.strategy.factors ?? [];
+    for (const key of declaredKeys) {
+      if (!isComputedFactorKey(key)) {
+        throw new Error(`Invalid factor key: ${key}`);
+      }
+    }
 
     if (!config.factorExecution) {
       if (declaredKeys.length > 0) {
-        throw new Error(t(locale, 'customFactorExecutionUnavailable'));
+        throw new Error(t(locale, 'customFactorMissing', { keys: declaredKeys.join(', ') }));
       }
 
       this.factorDescription = describeFactors([]);

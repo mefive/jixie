@@ -509,8 +509,8 @@ const MESSAGES = {
     en: 'Computing daily cross-section…',
   },
   factorLoadingSections: {
-    zh: '加载估值/资金流截面({count} 日)…',
-    en: 'Loading valuation/money-flow cross-sections ({count} days)…',
+    zh: '加载估值截面({count} 日)…',
+    en: 'Loading valuation cross-sections ({count} days)…',
   },
   factorPerStockWindow: {
     zh: '逐股计算窗口因子(window={window},{count} 只)…',

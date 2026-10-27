@@ -5,7 +5,6 @@
 | [basic-sync.ts](basic-sync.ts) `syncStockBasic`、`seedStockCodeChanges`、`syncStockNameHistory` | CLI、Maintenance、代码规范化；名录、历史代码和名称写入，身份规则用 instruments |
 | [daily-sync.ts](daily-sync.ts) `syncStockDailyData` | 日维护／修复；某日 daily、adj_factor、daily_basic、stk_limit 候选校验后一次发布 |
 | 同文件 `syncDaily`、`syncDailyBasic`、`syncStkLimit` | 行情 CLI、历史范围同步；各自现有范围／写入规则，不等价于四表发布 |
-| [flows-sync.ts](flows-sync.ts) `syncTopList`、`syncMoneyflow` | 日维护、CLI；龙虎榜及资金流，可按 refresh 重取 |
 | [read.ts](read.ts) `stockCodesWithDailyData` | 已有行情证券集合的只读查询，不查询供应商 |
 
 `syncStockDailyData` 先并行获取四类候选（client 实际通道仍串行），统一历史代码并检查日期、重复及覆盖，所有检查成功后才在一个数据库事务中替换四表。任一候选无效不会先发布其中一表。该事务不包括网络请求，也不代表 Maintenance 水位已发布。
@@ -18,4 +17,4 @@
 
 ## 维护调用的数据能力
 
-[daily-quality.ts](daily-quality.ts) 检查股票日线关联覆盖及旧代码残留；[repair.ts](repair.ts) 查缺、制定修复建议并执行股票／资金流补齐。[audit.ts](audit.ts) 检查日历覆盖、空值、复权跳变、龙虎榜、历史可投资性及样本窗口；阈值与 PIT 语义保持。Maintenance 选择修复日期，执行前写失效记录，决定派生重算和发布。
+[daily-quality.ts](daily-quality.ts) 检查股票日线关联覆盖及旧代码残留；[repair.ts](repair.ts) 查缺、制定修复建议并执行股票数据补齐。[audit.ts](audit.ts) 检查日历覆盖、空值、复权跳变、历史可投资性及样本窗口；阈值与 PIT 语义保持。Maintenance 选择修复日期，执行前写失效记录，决定派生重算和发布。

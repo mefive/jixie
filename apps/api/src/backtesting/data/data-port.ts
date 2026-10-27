@@ -50,17 +50,6 @@ export interface EtfBasicDataRow {
 }
 
 /**
- * 提供龙虎榜原始日期及净买入，供精确日期因子读取。
- *
- * Supply dated Dragon-Tiger List values for exact-date factor reads.
- */
-export interface TopListRow {
-  tsCode: string;
-  tradeDate: string;
-  netAmount: number;
-}
-
-/**
  * 提供指数原始收盘历史，供基准与指数能力读取。
  *
  * Supply raw index closes for benchmark and index capabilities.
@@ -93,18 +82,6 @@ export interface YieldCurvePointDataRow {
   availableDate: string;
   termYears: number;
   yieldPct: number;
-}
-
-/**
- * 提供个股每日资金流，供按流量语义读取的因子使用。
- *
- * Supply dated stock money flows for flow-semantic factor reads.
- */
-export interface MoneyflowRow {
-  tsCode: string;
-  tradeDate: string;
-  netMain: number | null;
-  netTotal: number | null;
 }
 
 /**
@@ -277,16 +254,12 @@ export interface EngineDataPort {
   stockNameHistory(): Promise<StockNameHistoryRow[]>;
   /** ETF metadata needed by the daily execution lane. */
   etfBasics(): Promise<EtfBasicDataRow[]>;
-  /** Dragon-Tiger List rows within [start, end] (sparse event data). */
-  topListRange(start: string, end: string): Promise<TopListRow[]>;
   /** All synced index daily closes (tiny), ascending by (code, date). */
   indexDailyAll(): Promise<IndexDailyRow[]>;
   /** All synced broad-index valuation rows (tiny), ascending by (code, date). */
   indexDailyBasicAll(): Promise<IndexDailyBasicDataRow[]>;
   /** Official government yield-curve points available on or before `end`. */
   yieldCurvePoints(end: string): Promise<YieldCurvePointDataRow[]>;
-  /** Moneyflow rows within [start, end] (only fetched when a strategy declares mf factors). */
-  moneyflowRange(start: string, end: string): Promise<MoneyflowRow[]>;
   /** One day's cross-section panel rows; `codes` restricts the read (universe gate pushdown). */
   crossSectionRows(date: string, codes?: string[]): Promise<CrossSectionRows>;
   /** All financial-indicator reports that have a public annDate, ascending by (code, annDate). */

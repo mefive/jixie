@@ -250,7 +250,7 @@ def on_bar(ctx):
       locale: 'en',
     };
     await expect(new BacktestingEngine(config).run()).rejects.toThrow(
-      'Custom Factor execution is unavailable',
+      'Custom factor missing or deleted: value',
     );
   });
 

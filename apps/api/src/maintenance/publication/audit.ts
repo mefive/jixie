@@ -24,7 +24,6 @@ import {
   auditAdjustmentJumps,
   auditHistoricalInvestability,
   auditKeyNullRates,
-  auditSparseTopList,
   auditStockCalendarCoverage,
   auditWindowCoverage,
 } from '#market/stocks/audit.js';
@@ -120,7 +119,6 @@ export async function runDataQualityAudit(
   ];
 
   findings.push(
-    await auditSparseTopList(database, startDate, endDate),
     await auditKeyNullRates(database, startDate, endDate),
     await auditAdjustmentJumps(database, startDate, endDate),
     await auditStockUniverse(database),

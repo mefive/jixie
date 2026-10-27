@@ -20,8 +20,6 @@ class FactorBar:
     total_mv: float | None
     circ_mv: float | None
     turnover_rate: float | None
-    net_main: float | None
-    net_total: float | None
     roe: float | None
     roa: float | None
     grossprofit_margin: float | None

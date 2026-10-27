@@ -87,7 +87,7 @@ describe('unified sync review regressions', () => {
       ).toMatchObject([{ conCode: '600000.SH', weight: 100 }]);
     }));
 
-  it('R01/A05 merges actual short stock responses without deleting known prices or moneyflow', async () =>
+  it('R01/A05 merges actual short stock responses without deleting known prices', async () =>
     withSyncDatabase(async (database) => {
       await calendar(database, tradeDate, tradeDate, [tradeDate]);
       await database.stockBasic.createMany({
@@ -113,19 +113,9 @@ describe('unified sync review regressions', () => {
       await database.daily.createMany({
         data: ['600000.SH', '000001.SZ'].map((tsCode) => ({ tsCode, tradeDate, close: 10 })),
       });
-      await database.moneyflow.createMany({
-        data: ['600000.SH', '000001.SZ'].map((tsCode) => ({
-          tsCode,
-          tradeDate,
-          netMain: 12,
-          netTotal: 10,
-        })),
-      });
       const source = {
         call: async (api: string) =>
-          api === 'suspend_d'
-            ? []
-            : [{ ts_code: '600000.SH', trade_date: tradeDate, close: 11, net_mf_amount: 20 }],
+          api === 'suspend_d' ? [] : [{ ts_code: '600000.SH', trade_date: tradeDate, close: 11 }],
       };
       const pricePartition = {
         dataset: 'stock-prices',
@@ -156,21 +146,6 @@ describe('unified sync review regressions', () => {
           policyVersion: 'sync-v1',
         },
       });
-      const flowPartition = { ...pricePartition, dataset: 'stock-moneyflow' };
-      const flow = await qualifyMarketPartition(
-        flowPartition,
-        await prepareStockPartition(source, flowPartition),
-      );
-      expect(flow.status).toBe('partial');
-      await database.$transaction((transaction) =>
-        acceptMarketPartition(transaction, flow, 'stock-moneyflow', fetchedAt),
-      );
-      expect(
-        await database.moneyflow.findUniqueOrThrow({
-          where: { tsCode_tradeDate: { tsCode: '000001.SZ', tradeDate } },
-        }),
-      ).toMatchObject({ netMain: 12, netTotal: 10 });
-
       const authoritativeSource = {
         call: async (api: string) =>
           api === 'suspend_d'
@@ -195,34 +170,6 @@ describe('unified sync review regressions', () => {
       );
       expect(accepted.deleted).toBe(1);
       expect(await database.daily.findMany()).toMatchObject([{ tsCode: '600000.SH', close: 12 }]);
-    }));
-
-  it('R01/A06 preserves authoritative empty-event deletion through the actual adapter chain', async () =>
-    withSyncDatabase(async (database) => {
-      await database.topList.createMany({
-        data: [
-          { tsCode: '600000.SH', tradeDate, netAmount: 5 },
-          { tsCode: '600000.SH', tradeDate: '20260914', netAmount: 7 },
-        ],
-      });
-      const partition = {
-        dataset: 'stock-toplist',
-        scope: 'all',
-        startDate: tradeDate,
-        endDate: tradeDate,
-      };
-      const response = await prepareStockPartition({ call: async () => [] }, partition);
-      expect(response.tables[0].replacement).toBeUndefined();
-      const qualified = await qualifyMarketPartition(partition, response);
-      expect(qualified.status).toBe('complete');
-      expect(qualified.tables[0].replacement?.basis).toBeTruthy();
-      const accepted = await database.$transaction((transaction) =>
-        acceptMarketPartition(transaction, qualified, partition.dataset, fetchedAt),
-      );
-      expect(accepted.deleted).toBe(1);
-      expect(await database.topList.findMany()).toMatchObject([
-        { tradeDate: '20260914', netAmount: 7 },
-      ]);
     }));
 
   it(

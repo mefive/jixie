@@ -23,7 +23,6 @@ import {
   parseResearchCommodityWarehouseReceiptsRuntimeRequest,
   parseResearchCommodityHoldingsRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
-  parseResearchEquityFlowsRuntimeRequest,
   parseResearchEquityDividendsRuntimeRequest,
   parseResearchEtfSharesRuntimeRequest,
   parseResearchIndexValuationRuntimeRequest,
@@ -72,10 +71,7 @@ export type ParsedResearchRequest =
       arguments: ResearchCommodityHoldingRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method:
-        | 'research_equity_fundamentals'
-        | 'research_equity_flows'
-        | 'research_equity_dividends';
+      method: 'research_equity_fundamentals' | 'research_equity_dividends';
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
@@ -181,13 +177,6 @@ export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedRe
         id: frame.id,
         method: 'research_equity_fundamentals',
         arguments: parseResearchEquityFundamentalsRuntimeRequest(frame.arguments),
-      };
-    case 'research_equity_flows':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_equity_flows',
-        arguments: parseResearchEquityFlowsRuntimeRequest(frame.arguments),
       };
     case 'research_equity_dividends':
       return {

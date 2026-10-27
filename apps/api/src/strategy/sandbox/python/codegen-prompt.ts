@@ -25,7 +25,7 @@ def handle_bar(ctx):
 - State: ctx.date, ctx.portfolio.equity, ctx.stock.equity, ctx.stock.available_cash, ctx.params, ctx.stock.positions(), ctx.stock.adjusted_shares(code)
 - Scheduling: ctx.period("daily" | "weekly" | "monthly") returns a string period key, not a boolean. Compare it with persistent module state to run once when a new period begins; never use \`if ctx.period(...)\` and never claim this detects the last trading day.
 - Cross-section: ctx.universe(index_code=None), then .where(lambda bar, code: ...), .min_list_days(days), .rank_by(lambda bar, code: score, "desc" | "asc"), .top(n), .codes()
-- Data: ctx.bar(code), ctx.ensure_bars(codes), ctx.bars(code,n), ctx.history(code,field,n), ctx.price(code), ctx.list_days(code), ctx.industry(code), ctx.lhb_net(code), ctx.factor(name,code)
+- Data: ctx.bar(code), ctx.ensure_bars(codes), ctx.bars(code,n), ctx.history(code,field,n), ctx.price(code), ctx.list_days(code), ctx.industry(code), ctx.factor(name,code)
 - ctx.history field is "open" | "high" | "low" | "close" and always returns backward-adjusted prices; do not pass "adj_close".
 - Indicators: ctx.sma/ema/atr(code,n), ctx.highest/lowest(code,field,n), ctx.avg_amount/avg_vol(code,n),
   ctx.adx(code,period=14) -> {adx,positive_di,negative_di},

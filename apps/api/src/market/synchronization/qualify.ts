@@ -8,7 +8,6 @@ const SESSION_SERIES = new Set([
   'stock-adjustments',
   'stock-valuations',
   'stock-limits',
-  'stock-moneyflow',
   'index-prices',
   'index-valuations',
   'industry-prices',
@@ -92,13 +91,9 @@ export async function qualifyMarketPartition(
     }
   }
   if (
-    [
-      'stock-prices',
-      'stock-adjustments',
-      'stock-valuations',
-      'stock-limits',
-      'stock-moneyflow',
-    ].includes(partition.dataset) &&
+    ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].includes(
+      partition.dataset,
+    ) &&
     prepared.evidence.terminalPage === true &&
     prepared.evidence.sourceFailed === false &&
     prepared.evidence.invalidRows === 0 &&

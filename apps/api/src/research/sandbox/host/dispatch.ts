@@ -7,7 +7,6 @@ import {
   parseResearchCommodityWarehouseReceiptsRuntimeRows,
   parseResearchCommodityHoldingsRuntimeRows,
   parseResearchEquityFundamentalsRuntimeRows,
-  parseResearchEquityFlowsRuntimeRows,
   parseResearchEquityDividendsRuntimeRows,
   parseResearchEtfSharesRuntimeRows,
   parseResearchIndexValuationRuntimeRows,
@@ -31,7 +30,6 @@ import {
 } from '../../datasets/commodity.js';
 import {
   loadResearchEquityFundamentals,
-  loadResearchEquityFlows,
   loadResearchEquityDividends,
 } from '../../datasets/supplemental.js';
 import {
@@ -184,12 +182,6 @@ async function answerResearchRequest(
           rows: parseResearchEquityFundamentalsRuntimeRows(
             await loadResearchEquityFundamentals(frame.arguments),
           ),
-        };
-        break;
-      }
-      case 'research_equity_flows': {
-        result = {
-          rows: parseResearchEquityFlowsRuntimeRows(await loadResearchEquityFlows(frame.arguments)),
         };
         break;
       }

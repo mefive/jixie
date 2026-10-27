@@ -80,7 +80,6 @@ export class StrategyContext<
     this.ensureBars = this.ensureBars.bind(this);
     this.listDays = this.listDays.bind(this);
     this.industry = this.industry.bind(this);
-    this.lhbNet = this.lhbNet.bind(this);
     this.price = this.price.bind(this);
     this.history = this.history.bind(this);
     this.factor = this.factor.bind(this);
@@ -124,10 +123,6 @@ export class StrategyContext<
 
   industry(code: string): string | null {
     return this.#capabilities.industry(code);
-  }
-
-  lhbNet(code: string): number | null {
-    return this.#capabilities.lhbNet(code);
   }
 
   price(code: string): number | null {

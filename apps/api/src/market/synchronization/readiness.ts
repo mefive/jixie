@@ -44,8 +44,6 @@ export async function datasetInputReadiness(
       'stock-adjustments',
       'stock-valuations',
       'stock-limits',
-      'stock-moneyflow',
-      'stock-toplist',
       'etf-shares',
     ].includes(requirement.dataset);
     if (daily) {

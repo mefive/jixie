@@ -9,7 +9,6 @@ describe('historical stock status in BarRow', () => {
     const data = new EngineData({
       start: dates[0],
       end: dates[1],
-      factorKeys: [],
       onLog: () => {},
       locale: DEFAULT_LOCALE,
       dataPort: fixturePort({

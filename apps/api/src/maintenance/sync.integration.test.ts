@@ -11,7 +11,6 @@ import { withSyncDatabase } from '../../tests/sync-database.js';
 import { acceptMarketPartition } from '#market/synchronization/records.js';
 import { datasetInputReadiness, marketRevision } from '#market/synchronization/readiness.js';
 import { contiguousCoverage } from '#market/synchronization/coverage.js';
-import { prepareStockPartition } from '#market/stocks/sync-partition.js';
 import { prepareIndexPartition } from '#market/indices/sync-partition.js';
 import { getMaintenanceStatus } from './status.js';
 import { invalidateMarketCalculations, refreshMarketCalculations } from './calculations.js';
@@ -220,29 +219,6 @@ describe('unified synchronization acceptance', () => {
     });
     expect(partition.status).toBe('error');
     expect(partition.tables.flatMap((table) => table.records)).toHaveLength(0);
-  });
-
-  it('A08 treats missing money-flow components as unknown and retains an independent valid price', async () => {
-    const source = {
-      call: async (api: string) =>
-        api === 'moneyflow'
-          ? [{ ts_code: '600000.SH', trade_date: '20260915', buy_lg_amount: 10 }]
-          : [{ ts_code: '600000.SH', trade_date: '20260915', close: 10 }],
-    };
-    const flow = await prepareStockPartition(source, {
-      dataset: 'stock-moneyflow',
-      scope: 'all',
-      startDate: '20260915',
-      endDate: '20260915',
-    });
-    expect(flow.tables[0].records[0].values.netMain).toBeNull();
-    const price = await prepareStockPartition(source, {
-      dataset: 'stock-prices',
-      scope: 'all',
-      startDate: '20260915',
-      endDate: '20260915',
-    });
-    expect(price.tables[0].records[0].values.close).toBe(10);
   });
 
   it('invalidates retained commodity returns without creating weather tasks for stock changes', async () =>

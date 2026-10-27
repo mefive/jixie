@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   finaFindMany: vi.fn(),
-  moneyflowFindMany: vi.fn(),
-  topListFindMany: vi.fn(),
   dividendFindMany: vi.fn(),
   recordEvidence: vi.fn(),
   sessions: vi.fn(),
@@ -13,8 +11,6 @@ vi.mock('#infra/database/prisma.js', async () => {
   const mocked = {
     prisma: {
       finaIndicatorVersion: { findMany: mocks.finaFindMany },
-      moneyflow: { findMany: mocks.moneyflowFindMany },
-      topList: { findMany: mocks.topListFindMany },
       dividend: { findMany: mocks.dividendFindMany },
       marketRecordEvidence: { findMany: mocks.recordEvidence },
       tradeCal: { findMany: mocks.sessions },
@@ -29,11 +25,7 @@ vi.mock('#infra/database/prisma.js', async () => {
   };
 });
 
-import {
-  loadResearchEquityDividends,
-  loadResearchEquityFlows,
-  loadResearchEquityFundamentals,
-} from './supplemental.js';
+import { loadResearchEquityDividends, loadResearchEquityFundamentals } from './supplemental.js';
 
 describe('Research supplemental datasets', () => {
   beforeEach(() => {
@@ -85,34 +77,6 @@ describe('Research supplemental datasets', () => {
       roe_pct: 30,
       revenue_yoy_pct: 10,
     });
-  });
-
-  it('joins only exact-date flow and Dragon-Tiger List observations', async () => {
-    mocks.moneyflowFindMany.mockResolvedValue([
-      { tradeDate: '20260701', netMain: 12, netTotal: 8 },
-    ]);
-    mocks.topListFindMany.mockResolvedValue([{ tradeDate: '20260702', netAmount: 1_000_000 }]);
-
-    await expect(
-      loadResearchEquityFlows({
-        identifier: '600519.SH',
-        start: '20260701',
-        end: '20260731',
-      }),
-    ).resolves.toEqual([
-      {
-        date: '20260701',
-        net_main_cny_10k: 12,
-        net_total_cny_10k: 8,
-        dragon_tiger_net_cny: null,
-      },
-      {
-        date: '20260702',
-        net_main_cny_10k: null,
-        net_total_cny_10k: null,
-        dragon_tiger_net_cny: 1_000_000,
-      },
-    ]);
   });
 
   it('keeps the dividend ex-date separate from its later captured-version availability', async () => {

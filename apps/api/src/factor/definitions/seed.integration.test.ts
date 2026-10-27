@@ -178,3 +178,47 @@ it('seeds missing presets and preserves saved versions across initialization and
     codeHash: sha256(missing.code),
   });
 });
+
+it('hides retired flow presets while preserving saved source and published report bindings', async () => {
+  const ids = ['mf_net_main', 'mf_net_total'];
+  await prisma.factorReport.createMany({
+    data: ids.map((id) => ({
+      id: `historical-${id}-report`,
+      userId: BUILTIN_USER_ID,
+      factor: id,
+      legacyStatus: 'done',
+      freq: 'month',
+      start: '20200101',
+      end: '20231229',
+      factorCodeSnapshot: 'export default defineFactor({ compute: bar => bar.netMain });',
+      payload: '{"historical":true}',
+    })),
+  });
+  const reports = await prisma.factorReport.findMany({ orderBy: { id: 'asc' } });
+  await prisma.factor.createMany({
+    data: ids.map((id) => ({
+      id,
+      userId: BUILTIN_USER_ID,
+      key: id,
+      name: id,
+      status: 'published',
+      code: 'export default defineFactor({ compute: bar => bar.netMain });',
+      approvedReportId: `historical-${id}-report`,
+    })),
+  });
+  const before = await prisma.factor.findMany({
+    where: { id: { in: ids } },
+    orderBy: { id: 'asc' },
+  });
+
+  await seedBuiltinFactors();
+  for (const locale of ['zh', 'en'] as const) {
+    expect(
+      (await listFactorCatalog('fixture-owner', locale)).some((factor) => ids.includes(factor.key)),
+    ).toBe(false);
+  }
+  expect(
+    await prisma.factor.findMany({ where: { id: { in: ids } }, orderBy: { id: 'asc' } }),
+  ).toEqual(before);
+  expect(await prisma.factorReport.findMany({ orderBy: { id: 'asc' } })).toEqual(reports);
+});

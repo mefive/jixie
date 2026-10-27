@@ -11,8 +11,6 @@ const IDENTITY_TABLES = [
   'AdjFactor',
   'DailyBasic',
   'StkLimit',
-  'Moneyflow',
-  'TopList',
   'StockNameHistory',
   'SwIndustryMember',
   'FinaIndicator',

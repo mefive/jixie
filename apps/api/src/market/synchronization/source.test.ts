@@ -48,7 +48,7 @@ describe('bounded source evidence', () => {
     );
     const empty = completeResponse({
       pages,
-      table: 'TopList',
+      table: 'Dividend',
       extent: { basis: 'Daily event contract', deletion: 'Authoritative event withdrawal' },
       records: [],
       allowEmpty: true,

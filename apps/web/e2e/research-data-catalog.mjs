@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
@@ -53,13 +54,10 @@ try {
     'commodity_returns',
     'commodity_warehouse_receipts',
     'commodity_holdings',
-    'market_state',
     'equity_fundamentals',
-    'equity_flows',
     'equity_dividends',
     'etf_shares',
     'index_valuation',
-    'industry_state',
     'futures_settlement',
     'equity_financial_statements',
     'equity_financial_metrics',
@@ -69,6 +67,7 @@ try {
   ]) {
     await page.getByTestId(`research-data-catalog-method-${method}`).waitFor();
   }
+  assert.equal(await page.getByTestId('research-data-catalog-method-equity_flows').count(), 0);
   await page.getByTestId('research-data-catalog-method-panel').click();
   const methodDetail = page.getByTestId('research-data-catalog-method-detail');
   await methodDetail.waitFor();

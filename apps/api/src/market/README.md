@@ -12,7 +12,7 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 | 股票历史代码、名称和证券解析 | [instruments](instruments/README.md)：纯身份、查库解析与有写入的代码合并 |
 | Tushare 参数、限流、重试和能力探测 | [providers/tushare](providers/tushare/README.md)：通道与供应商映射 |
 | 开市日和上海收盘截止 | [calendar](calendar/README.md)：日历同步、读取和 SSE 已完成日 |
-| 股票名录、日行情、资金流、龙虎榜 | [stocks](stocks/README.md)：范围同步及核心四表发布 |
+| 股票名录、日行情、估值与交易限制 | [stocks](stocks/README.md)：范围同步及核心四表发布 |
 | ETF 行情、复权、份额、历史缺口 | [etfs](etfs/README.md)：按日发布／代码年份回填与覆盖质量 |
 | 指数、行业成员、精简收盘响应 | [indices](indices/README.md)：指数原始数据与专用读取 |
 | 股指与商品共用期货数据 | [futures](futures/README.md)：实际合约、行情、映射与结算 |

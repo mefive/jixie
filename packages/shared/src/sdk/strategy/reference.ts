@@ -10,7 +10,6 @@
  */
 
 import type { Locale } from '../../i18n.js';
-import { ENGINE_FACTORS, type EngineFactorDef } from '../../engine-factors.js';
 
 /**
  * 登记策略 SDK 成员签名和双语说明，供文档、Monaco 与实现契约同源。
@@ -219,7 +218,7 @@ interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   name?: string;
   /** Scan defaults: inline object with finite numeric or non-blank string literals; no expressions, calls or spreads. See the parameter-scan help page. */
   params?: Params;
-  /** Opt-in factor columns, read via ctx.factor(): moneyflow columns + published factor keys. */
+  /** Opt-in factor columns, read via ctx.factor(): published factor keys. */
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
@@ -254,16 +253,15 @@ const FACTOR_KEY_DOC: Record<Locale, string> = {
 };
 
 /**
- * 从引擎列因子及已发布研究因子目录构造 FactorKey ambient 类型。
+ * 从已发布研究因子目录构造 FactorKey ambient 类型。
  *
- * The FactorKey ambient type: engine column factors plus published research Factors from the catalog.
+ * The FactorKey ambient type contains published research Factors from the catalog.
  */
 function buildFactorKeyType(locale: Locale, factorOptions: DtsFactorOption[]): string {
-  const columnMembers = ENGINE_FACTORS.map((def) => `  | '${def.key}' // ${def[locale]}`);
   const customMembers = factorOptions.map((option) => `  | '${option.key}' // ${option.label}`);
   return `/** ${FACTOR_KEY_DOC[locale]} */
 type FactorKey =
-${[...columnMembers, ...customMembers].join('\n')};`;
+${customMembers.length ? customMembers.join('\n') : '  never'};`;
 }
 
 // Doc-section names referenced by generators below (other groups are only display labels).
@@ -394,19 +392,11 @@ export const SDK_ENTRIES = [
   },
   {
     iface: 'StrategyCtx',
-    name: 'lhbNet',
-    group: '数据 / 选股',
-    sig: 'lhbNet(code: string): number | null',
-    zh: '今日龙虎榜净买入额(元);未上榜当天返 null(不前向填充)。关注度/游资极端信号。',
-    en: "Today's 龙虎榜 net buy amount (yuan); null if not listed that day (never carried forward).",
-  },
-  {
-    iface: 'StrategyCtx',
     name: 'factor',
     group: '数据 / 选股',
     sig: 'factor(name: FactorKey, code: string): number | null',
-    zh: '可选因子列(需在 factors 声明)当日值。资金流(万元,+流入/−流出,精确当天):mf_net_main / mf_net_total；发布因子按不可变 key 现场计算(带 window 的需先 ensureBars)。声明 etf.adjustedClose 的时间序列因子只接受 ETF 代码。',
-    en: "Opt-in factor column for today (declare in `factors`). Moneyflow: 'mf_net_main' / 'mf_net_total' (万元, exact day). A published factor runs by its immutable key on the fly (windowed ones need ensureBars first). A time-series factor declaring etf.adjustedClose accepts ETF codes only.",
+    zh: '读取已在 factors 声明的发布因子当日值。发布因子按不可变 key 现场计算(带 window 的需先 ensureBars)。声明 etf.adjustedClose 的时间序列因子只接受 ETF 代码。',
+    en: 'Read a declared published factor by its immutable key. Windowed factors need ensureBars first. Time-series factors declaring etf.adjustedClose accept ETF codes only.',
   },
 
   // —— ctx: per-instrument price/series ——
@@ -1034,14 +1024,10 @@ export function buildPromptSections(): {
   indicators: string;
   universeChain: string;
   barRowFields: string;
-  factorColumns: string;
 } {
   const fragment = (entry: SdkEntry) => entry.prompt ?? entry.name;
   const entries = SDK_ENTRIES as readonly SdkEntry[];
   return {
-    factorColumns: (ENGINE_FACTORS as readonly EngineFactorDef[])
-      .map((def) => def.prompt ?? def.key)
-      .join('; '),
     indicators: entries
       .filter((entry) => entry.iface === 'StrategyCtx' && entry.group === INDICATOR_GROUP)
       .map(fragment)

@@ -256,10 +256,6 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
     return this.query('industry', [code]) as string | null;
   }
 
-  lhbNet(code: string): number | null {
-    return this.query('lhbNet', [code]) as number | null;
-  }
-
   factor(name: string, code: string): number | null {
     return this.query('factor', [name, code]) as number | null;
   }

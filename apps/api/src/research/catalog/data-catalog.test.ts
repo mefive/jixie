@@ -183,7 +183,6 @@ describe('research data catalog', () => {
       'data.commodity_warehouse_receipts',
       'data.commodity_holdings',
       'data.equity_fundamentals',
-      'data.equity_flows',
       'data.equity_dividends',
       'data.etf_shares',
       'data.index_valuation',

@@ -8,9 +8,7 @@ const TABLE_LABELS = {
   etfDaily: 'ETF daily bars',
   etfAdjFactor: 'ETF adjustment factor',
   dailyBasic: 'daily metrics (PE/PB/dividend yield/market cap/turnover)',
-  moneyflow: 'per-stock moneyflow',
   stkLimit: 'daily up/down price limits',
-  topList: 'Dragon-Tiger List',
   indexDaily: 'index daily bars',
   futureDaily: 'stock-index futures daily bars',
   futureMapping: 'stock-index and research-only commodity main-contract mapping',
@@ -72,14 +70,8 @@ async function tableCoverage(table: TableKey): Promise<Coverage> {
     case 'dailyBasic':
       aggregate = await getDatabase().dailyBasic.aggregate(aggregateArgs);
       break;
-    case 'moneyflow':
-      aggregate = await getDatabase().moneyflow.aggregate(aggregateArgs);
-      break;
     case 'stkLimit':
       aggregate = await getDatabase().stkLimit.aggregate(aggregateArgs);
-      break;
-    case 'topList':
-      aggregate = await getDatabase().topList.aggregate(aggregateArgs);
       break;
     case 'indexDaily':
       aggregate = await getDatabase().indexDaily.aggregate(aggregateArgs);

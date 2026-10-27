@@ -1,11 +1,7 @@
 import { canonicalStockCode, normalizeStockNameSpells } from '../instruments/stock-identity.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { isObservationDate } from '../synchronization/date.js';
-import type {
-  MarketPartition,
-  PreparedMarketPartition,
-  SourceRecord,
-} from '../synchronization/partition.js';
+import type { MarketPartition, PreparedMarketPartition } from '../synchronization/partition.js';
 import {
   completeResponse,
   fetchSourcePages,
@@ -45,9 +41,9 @@ const BASIC_COLUMNS = {
 };
 
 /**
- * 六种股票数据独立请求，估值或资金流失败不丢弃合法价格。
+ * 四种股票数据独立请求，辅助数据失败不丢弃合法价格。
  *
- * Fetch six stock datasets independently so auxiliary failures cannot discard prices.
+ * Fetch four stock datasets independently so auxiliary failures cannot discard prices.
  */
 export async function prepareStockPartition(
   source: SyncSource,
@@ -69,29 +65,6 @@ export async function prepareStockPartition(
         tradeDate: 'trade_date',
         upLimit: 'up_limit',
         downLimit: 'down_limit',
-      },
-    },
-    'stock-moneyflow': {
-      api: 'moneyflow',
-      table: 'Moneyflow',
-      columns: {
-        tsCode: 'ts_code',
-        tradeDate: 'trade_date',
-        buyLarge: 'buy_lg_amount',
-        buyExtraLarge: 'buy_elg_amount',
-        sellLarge: 'sell_lg_amount',
-        sellExtraLarge: 'sell_elg_amount',
-        netTotal: 'net_mf_amount',
-      },
-    },
-    'stock-toplist': {
-      api: 'top_list',
-      table: 'TopList',
-      columns: {
-        tsCode: 'ts_code',
-        tradeDate: 'trade_date',
-        netAmount: 'net_amount',
-        reason: 'reason',
       },
     },
   };
@@ -141,21 +114,6 @@ export async function prepareStockPartition(
     ) {
       throw new Error(`Invalid price limits ${code}`);
     }
-    if (definition.table === 'Moneyflow') {
-      const parts = [
-        values.buyLarge,
-        values.buyExtraLarge,
-        values.sellLarge,
-        values.sellExtraLarge,
-      ];
-      values.netMain = parts.every((value) => typeof value === 'number' && Number.isFinite(value))
-        ? Number(parts[0]) + Number(parts[1]) - Number(parts[2]) - Number(parts[3])
-        : null;
-      for (const name of ['buyLarge', 'buyExtraLarge', 'sellLarge', 'sellExtraLarge']) {
-        delete values[name];
-      }
-    }
-    delete values.reason;
 
     return {
       values,
@@ -167,40 +125,14 @@ export async function prepareStockPartition(
       availabilityQuality: 'source_contract',
     };
   });
-  // 龙虎榜多个原因必须在完整响应内聚合，否则半批会伪造最终净额。
-  // Aggregate multiple list reasons only after complete retrieval, never from a half response.
-  if (definition.table === 'TopList') {
-    const totals = new Map<string, SourceRecord>();
-    if (pages.complete && !mapped.errors.length && !pages.errors.length) {
-      for (const record of mapped.records) {
-        const key = String(record.values.tsCode);
-        const previous = totals.get(key);
-        if (typeof record.values.netAmount !== 'number') {
-          mapped.errors.push(`Unknown top-list amount ${key}`);
-          continue;
-        }
-        totals.set(key, {
-          ...record,
-          values: {
-            ...record.values,
-            netAmount: Number(previous?.values.netAmount ?? 0) + record.values.netAmount,
-          },
-        });
-      }
-    }
-    mapped.records = [...totals.values()];
-  }
 
   const prepared = completeResponse({
     pages,
     table: definition.table,
-    extent:
-      definition.table === 'TopList'
-        ? { basis: 'Filtered daily event contract', deletion: 'Complete daily top-list event set' }
-        : null,
+    extent: null,
     ...mapped,
     where: { tradeDate: partition.startDate },
-    allowEmpty: definition.table === 'TopList',
+    allowEmpty: false,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
 

@@ -61,13 +61,6 @@ export const prismaDataPort: EngineDataPort = {
     });
   },
 
-  async topListRange(start, end) {
-    return getDatabase().topList.findMany({
-      where: { tradeDate: { gte: start, lte: end } },
-      select: { tsCode: true, tradeDate: true, netAmount: true },
-    });
-  },
-
   async indexDailyAll() {
     return getDatabase().indexDaily.findMany({
       select: { tsCode: true, tradeDate: true, close: true },
@@ -92,13 +85,6 @@ export const prismaDataPort: EngineDataPort = {
       },
       select: { availableDate: true, termYears: true, yieldPct: true },
       orderBy: [{ termYears: 'asc' }, { availableDate: 'asc' }],
-    });
-  },
-
-  async moneyflowRange(start, end) {
-    return getDatabase().moneyflow.findMany({
-      where: { tradeDate: { gte: start, lte: end } },
-      select: { tsCode: true, tradeDate: true, netMain: true, netTotal: true },
     });
   },
 

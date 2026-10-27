@@ -38,8 +38,6 @@ const factorBarSchema = z.strictObject({
   totalMv: valueSchema,
   circMv: valueSchema,
   turnoverRate: valueSchema,
-  netMain: valueSchema,
-  netTotal: valueSchema,
   roe: valueSchema,
   roa: valueSchema,
   grossprofitMargin: valueSchema,

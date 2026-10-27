@@ -27,8 +27,6 @@ const bar: FactorBar = {
   totalMv: null,
   circMv: null,
   turnoverRate: null,
-  netMain: null,
-  netTotal: null,
   roe: null,
   roa: null,
   grossprofitMargin: null,

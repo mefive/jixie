@@ -238,9 +238,6 @@ class Context:
     def industry(self, code: str) -> str | None:
         return self._capabilities.industry(code)
 
-    def lhb_net(self, code: str) -> float | None:
-        return self._capabilities.lhb_net(code)
-
     def factor(self, name: str, code: str) -> float | None:
         return self._capabilities.factor(name, code)
 

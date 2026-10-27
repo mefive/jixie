@@ -66,7 +66,6 @@ export const DENSE_TABLES = [
   { id: 'daily', title: 'Daily bars' },
   { id: 'adj-factor', title: 'Adjustment factors' },
   { id: 'daily-basic', title: 'Daily valuation metrics' },
-  { id: 'moneyflow', title: 'Daily money flow' },
   { id: 'stk-limit', title: 'Daily price limits' },
 ] as const;
 
@@ -81,7 +80,7 @@ export async function loadDenseDateCounts(
   endDate: string,
 ): Promise<Record<(typeof DENSE_TABLES)[number]['id'], DateCount[]>> {
   const range = { gte: startDate, lte: endDate };
-  const [daily, adjFactor, dailyBasic, moneyflow, stkLimit] = await Promise.all([
+  const [daily, adjFactor, dailyBasic, stkLimit] = await Promise.all([
     database.daily.groupBy({
       by: ['tradeDate'],
       where: { tradeDate: range },
@@ -95,12 +94,6 @@ export async function loadDenseDateCounts(
       orderBy: { tradeDate: 'asc' },
     }),
     database.dailyBasic.groupBy({
-      by: ['tradeDate'],
-      where: { tradeDate: range },
-      _count: { _all: true },
-      orderBy: { tradeDate: 'asc' },
-    }),
-    database.moneyflow.groupBy({
       by: ['tradeDate'],
       where: { tradeDate: range },
       _count: { _all: true },
@@ -120,46 +113,7 @@ export async function loadDenseDateCounts(
     daily: normalize(daily),
     'adj-factor': normalize(adjFactor),
     'daily-basic': normalize(dailyBasic),
-    moneyflow: normalize(moneyflow),
     'stk-limit': normalize(stkLimit),
-  };
-}
-
-/**
- * 审计稀疏龙虎榜数据，不将合法无上榜日当作稠密缺口。
- *
- * Audit sparse Dragon-Tiger List data without treating legitimate empty dates as dense-data gaps.
- */
-export async function auditSparseTopList(
-  database: Prisma,
-  startDate: string,
-  endDate: string,
-): Promise<AuditFinding> {
-  const aggregate = await database.topList.aggregate({
-    where: { tradeDate: { gte: startDate, lte: endDate } },
-    _min: { tradeDate: true },
-    _max: { tradeDate: true },
-    _count: { _all: true },
-  });
-  const activeDates = await database.topList.groupBy({
-    by: ['tradeDate'],
-    where: { tradeDate: { gte: startDate, lte: endDate } },
-  });
-  const beginsLate = aggregate._min.tradeDate != null && aggregate._min.tradeDate > startDate;
-
-  return {
-    id: 'top-list-coverage',
-    title: 'Dragon-Tiger List: event coverage',
-    status: beginsLate ? 'warn' : 'pass',
-    summary: `${aggregate._count._all} events on ${activeDates.length} trading days`,
-    details: [
-      `Observed ${aggregate._min.tradeDate ?? 'n/a'}..${aggregate._max.tradeDate ?? 'n/a'}; empty dates are valid because this is a sparse event table.`,
-      ...(beginsLate
-        ? [
-            `History begins after the audit scope start ${startDate}; older event coverage is absent.`,
-          ]
-        : []),
-    ],
   };
 }
 

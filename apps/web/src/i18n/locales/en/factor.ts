@@ -57,7 +57,7 @@ export const enFactor: typeof zhFactor = {
   chatEmptyQa:
     'This is a preset factor (read-only code, see the middle editor). Ask anything about it or the analysis — the Agent only answers, it does not edit the code; to tweak parameters into a variant, click "Copy as custom" above the editor.',
   chatEmptyAuthor:
-    'Tell the Agent the factor you want (valuation / size / liquidity / money flow / price momentum & volatility) and it writes the code into the middle editor. Financial-statement detail (ROE growth, etc.) has no data yet.',
+    'Tell the Agent the factor you want (valuation / size / liquidity / price momentum & volatility) and it writes the code into the middle editor. Financial-statement detail (ROE growth, etc.) has no data yet.',
 
   presetGroup: 'Equity cross-sectional factors',
   crossSectional: { methodBadge: 'Equity cross-section' },
@@ -563,7 +563,6 @@ export const enFactor: typeof zhFactor = {
 
   kindPrice: 'Price',
   kindFundamental: 'Fundamental',
-  kindMoneyflow: 'Money flow',
   kindRates: 'Rates',
   kindCommodity: 'Commodity',
   kindMacro: 'Macro',
@@ -604,7 +603,5 @@ export const enFactor: typeof zhFactor = {
     size: 'Size (ln total market cap)',
     roe: 'ROE quality (%)',
     gross_margin: 'Gross margin (%)',
-    mf_net_main: 'Main-force net inflow (10k CNY)',
-    mf_net_total: 'Total net inflow (10k CNY)',
   },
 };

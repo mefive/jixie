@@ -14,8 +14,6 @@ const BAR: FactorBar = {
   totalMv: 1_000,
   circMv: 800,
   turnoverRate: 2,
-  netMain: 30,
-  netTotal: 40,
   roe: 12,
   roa: 6,
   grossprofitMargin: 20,
@@ -113,3 +111,27 @@ function enableTestRuntime(): void {
     process.env.JIXIE_PYTHON_LOCAL = '1';
   }
 }
+
+it.each(['net_main', 'net_total'])(
+  'rejects retired Python FactorBar.%s rather than returning nulls',
+  async (field) => {
+    enableTestRuntime();
+    const factor = await FactorSandbox.start({
+      language: 'python',
+      analysisKind: 'cross_sectional',
+      code: `
+from jixie import Factor
+factor = Factor.cross_sectional(name="retired field")
+@factor.compute
+def compute(bar, ctx):
+    return bar.${field}
+`,
+    });
+    try {
+      await expect(factor.execute({ items: [{ bar: BAR }] })).rejects.toThrow(field);
+    } finally {
+      factor.close();
+      delete process.env.JIXIE_PYTHON_LOCAL;
+    }
+  },
+);

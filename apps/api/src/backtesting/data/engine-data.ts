@@ -1,10 +1,4 @@
-import {
-  DEFAULT_LOCALE,
-  ENGINE_FACTORS,
-  isComputedFactorKey,
-  type EngineFactorDef,
-  type Locale,
-} from '@jixie/shared';
+import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { addDays, daysBetween, isoWeekKey } from '#date';
 import { t } from '#i18n/messages.js';
 import { StockNameLookup } from '#market/instruments/stock-identity.js';
@@ -62,16 +56,6 @@ export interface GovernmentYieldObservation {
   yieldPct: number;
 }
 
-// Stored ("column") factors the engine can preload, keyed for the semantics lookup in factor().
-const COLUMN_FACTOR_DEFS = new Map<string, EngineFactorDef>(
-  ENGINE_FACTORS.filter((def) => def.source === 'column').map((def) => [def.key, def]),
-);
-
-// How stale a `level` as-of read may be, per data frequency: long enough to bridge holidays and
-// report gaps, short enough that a dead series stops answering. (Calendar days.)
-const DAILY_ASOF_CAP_DAYS = 14;
-const MONTHLY_ASOF_CAP_DAYS = 35;
-
 /**
  * 声明因子与策略需要的预载数据能力，决定行情加载范围。
  *
@@ -83,6 +67,10 @@ export interface EngineDataRequirements {
   governmentYieldCurve: boolean;
 }
 
+// 官方日频利率允许跨越短假期，但不能无限沿用陈旧观测。
+// Daily official yields may bridge short holidays, but cannot remain valid indefinitely.
+const DAILY_ASOF_CAP_DAYS = 14;
+
 /**
  * 配置 EngineData 的数据端口、运行区间和按需预载要求。
  *
@@ -92,7 +80,6 @@ export interface EngineDataOptions {
   start: string;
   end: string;
   dataPort: EngineDataPort;
-  factorKeys?: string[];
   onLog?: (line: string) => void;
   locale?: Locale;
   requirements?: EngineDataRequirements;
@@ -108,9 +95,6 @@ export interface EngineDataOptions {
  *     rebalance days, so only those days are ever loaded (bounded memory, no whole-panel preload).
  *  3. Per-stock bar series — lazily loaded and cached per code; only stocks actually held/traded get
  *     loaded. Used for fills, daily marking, and price-window history on holdings.
- *
- * Optionally preloads named precomputed factor columns (FactorValue) when a strategy declares them;
- * these are exposed as-of (latest value ≤ the queried date). The engine attaches no meaning to them.
  */
 export class EngineData {
   timeline: string[] = [];
@@ -124,12 +108,9 @@ export class EngineData {
   private stockNames = new StockNameLookup([]);
   private etfCodes = new Set<string>();
   private sameDayTurnoverEtfCodes = new Set<string>();
-  private lhbByDate = new Map<string, Map<string, number>>(); // Dragon-Tiger List: date -> code -> net buy amount (yuan), exact day only
   private crossCache = new Map<string, CrossSection>();
   private barsCache = new Map<string, StockBars>();
   private resampledBarsCache = new Map<string, ResampledBars>();
-  private factorByKey = new Map<string, Map<string, number>>(); // `${factor}|${date}` -> code -> value
-  private factorDates = new Map<string, string[]>(); // factor -> ascending dates it has values on
   // Point-in-time fundamentals, loaded lazily on first cross-section build (cross-section work is
   // the only place they're read). code -> reports ascending by annDate.
   private finaByCode = new Map<
@@ -182,7 +163,6 @@ export class EngineData {
   constructor(options: EngineDataOptions) {
     this.options = {
       ...options,
-      factorKeys: options.factorKeys ?? [],
       onLog: options.onLog ?? (() => {}),
       locale: options.locale ?? DEFAULT_LOCALE,
       requirements: options.requirements ?? {
@@ -420,17 +400,6 @@ export class EngineData {
       this.industrySpellsByCode.set(membership.tsCode, spells);
     }
 
-    // Dragon-Tiger List: sparse event data (~tens/day) — preload the range into date->code->net buy amount for exact-day lookup
-    // (never carried forward). Tiny (~50k rows), so loaded for every run regardless of use.
-    const lhb = await this.options.dataPort.topListRange(this.options.start, this.options.end);
-    for (const r of lhb) {
-      let m = this.lhbByDate.get(r.tradeDate);
-      if (!m) {
-        this.lhbByDate.set(r.tradeDate, (m = new Map()));
-      }
-      m.set(r.tsCode, r.netAmount);
-    }
-
     // Index close + valuation (CSI 300 etc.) — preload all history (tiny) for benchmark statistics
     // and point-in-time ctx.index() timing/valuation filters.
     const [idx, indexBasics] = await Promise.all([
@@ -508,48 +477,6 @@ export class EngineData {
       this.futureMarginByKey.set(`${row.tsCode}|${row.tradeDate}`, row);
     }
 
-    // Declared factor keys must be real: a registry column factor or a published factor key —
-    // a typo'd key used to be a silent all-null column, which reads as "strategy places no trades".
-    for (const key of this.options.factorKeys) {
-      if (!COLUMN_FACTOR_DEFS.has(key) && !isComputedFactorKey(key)) {
-        throw new Error(
-          t(this.options.locale, 'unknownEngineFactor', {
-            key,
-            available: [...COLUMN_FACTOR_DEFS.keys()].join(' / '),
-          }),
-        );
-      }
-    }
-
-    // Optional moneyflow columns (opt-in via the strategy's `factors:[...]`). This is the only stored
-    // "factor" the engine reads: price-window factors are computed on the fly from the bar series
-    // (see strategies.ts), fundamentals come straight from bar() (daily_basic). No FactorValue.
-    const mfKeys = this.options.factorKeys.filter((k) => COLUMN_FACTOR_DEFS.has(k));
-    if (mfKeys.length) {
-      const dates = new Map<string, Set<string>>();
-      const put = (factor: string, tradeDate: string, code: string, value: number) => {
-        const key = `${factor}|${tradeDate}`;
-        let m = this.factorByKey.get(key);
-        if (!m) {
-          this.factorByKey.set(key, (m = new Map()));
-        }
-        m.set(code, value);
-        (dates.get(factor) ?? dates.set(factor, new Set()).get(factor)!).add(tradeDate);
-      };
-      const mf = await this.options.dataPort.moneyflowRange(this.options.start, this.options.end);
-      for (const r of mf) {
-        if (mfKeys.includes('mf_net_main') && r.netMain != null) {
-          put('mf_net_main', r.tradeDate, r.tsCode, r.netMain);
-        }
-        if (mfKeys.includes('mf_net_total') && r.netTotal != null) {
-          put('mf_net_total', r.tradeDate, r.tsCode, r.netTotal);
-        }
-      }
-      for (const [name, set] of dates) {
-        this.factorDates.set(name, [...set].sort());
-      }
-    }
-
     if (this.options.preloadCodes.length > 0) {
       await this.loadBars(this.options.preloadCodes);
     }
@@ -557,7 +484,6 @@ export class EngineData {
     if (this.options.requirements.fundamentalHistory) {
       await this.ensureFina();
     }
-
   }
 
   /**
@@ -575,11 +501,24 @@ export class EngineData {
 
   snapshotFutures(date: string): import('./data-port.js').FutureMarketRows {
     return {
-      contracts: [...this.futureContractByCode].map(([tsCode, contract]) => ({ tsCode, ...contract })),
-      daily: [...this.futureDailyByCode.values()].flatMap((rows) => [...rows.values()].filter((row) => row.tradeDate === date)),
+      contracts: [...this.futureContractByCode].map(([tsCode, contract]) => ({
+        tsCode,
+        ...contract,
+      })),
+      daily: [...this.futureDailyByCode.values()].flatMap((rows) =>
+        [...rows.values()].filter((row) => row.tradeDate === date),
+      ),
       mappings: [...this.futureMappingByCode].flatMap(([continuousCode, mapping]) => {
         const index = lastIndexAtOrBefore(mapping.dates, date);
-        return index < 0 ? [] : [{ continuousCode, tradeDate: mapping.dates[index]!, mappedTsCode: mapping.actualCodes[index]! }];
+        return index < 0
+          ? []
+          : [
+              {
+                continuousCode,
+                tradeDate: mapping.dates[index]!,
+                mappedTsCode: mapping.actualCodes[index]!,
+              },
+            ];
       }),
       settlements: [...this.futureMarginByKey].flatMap(([key, rates]) => {
         const [tsCode, tradeDate] = key.split('|');
@@ -769,16 +708,6 @@ export class EngineData {
   }
 
   /**
-   * 读取指定日龙虎榜净买入金额，单位为元；当日未上榜返回 null，不沿用前值。
-   *
-   * Today's Dragon-Tiger List net buy amount (yuan) for `code`, or null if it wasn't on the
-   * Dragon-Tiger List that exact day (not carried forward).
-   */
-  lhbNet(code: string, date: string): number | null {
-    return this.lhbByDate.get(date)?.get(code) ?? null;
-  }
-
-  /**
    * 按交易日惰性构建并缓存可交易截面，要求同日具备行情、复权和估值数据。
    *
    * Tradable cross-section for `date` (lazy + cached). A code is included only if it has a daily
@@ -868,35 +797,6 @@ export class EngineData {
     const cs: CrossSection = { codes, byCode };
     this.crossCache.set(cacheKey, cs);
     return cs;
-  }
-
-  /**
-   * 按因子声明的时间语义读取历史值；流量只取当日值，状态值遵守各自可得规则。
-   *
-   * Stored factor value for `date`, honoring the factor's DECLARED time semantics
-   * (engine-factors.ts):
-   * flow = exact day only (yesterday's inflow is not today's — same rule as lhbNet); level = as-of
-   * (latest value ≤ date) capped by the data's frequency, so a stale value can't ride forever.
-   */
-  factor(name: string, date: string, code: string): number | null {
-    const def = COLUMN_FACTOR_DEFS.get(name);
-    if (def?.kind === 'flow') {
-      return this.factorByKey.get(`${name}|${date}`)?.get(code) ?? null;
-    }
-
-    const dates = this.factorDates.get(name);
-    if (!dates) {
-      return null;
-    }
-    const j = lastIndexAtOrBefore(dates, date);
-    if (j < 0) {
-      return null;
-    }
-    const lookbackCap = def?.dataFreq === 'monthly' ? MONTHLY_ASOF_CAP_DAYS : DAILY_ASOF_CAP_DAYS;
-    if (daysBetween(dates[j], date) > lookbackCap) {
-      return null;
-    }
-    return this.factorByKey.get(`${name}|${dates[j]}`)?.get(code) ?? null;
   }
 
   /**

@@ -8,7 +8,6 @@ describe('index valuation data', () => {
     const data = new EngineData({
       start: '20200102',
       end: '20200106',
-      factorKeys: [],
       onLog: () => {},
       locale: DEFAULT_LOCALE,
       dataPort: fixturePort({

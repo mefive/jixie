@@ -163,7 +163,6 @@ class _NameAnalysis(ast.NodeVisitor):
             and node.func.attr
             in {
                 "equity_fundamentals",
-                "equity_flows",
                 "equity_dividends",
                 "etf_shares",
                 "index_valuation",

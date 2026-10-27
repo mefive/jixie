@@ -124,13 +124,6 @@ _FINANCIAL_METRIC_COLUMNS = [
     "input_versions_json",
 ]
 
-_EQUITY_FLOW_COLUMNS = [
-    "date",
-    "net_main_cny_10k",
-    "net_total_cny_10k",
-    "dragon_tiger_net_cny",
-]
-
 _EQUITY_DIVIDEND_COLUMNS = [
     "ex_date", "availability_quality", "observed_at",
     "date",
@@ -459,13 +452,6 @@ class _DataApi:
         return self._dataset_frame(
             result, _FINANCIAL_METRIC_COLUMNS, ["date", "report_period"]
         )
-
-    def equity_flows(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_equity_flows",
-            {"identifier": identifier, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _EQUITY_FLOW_COLUMNS, ["date"])
 
     def equity_dividends(self, identifier: str, *, start: str, end: str) -> Any:
         result = self._capabilities.request(

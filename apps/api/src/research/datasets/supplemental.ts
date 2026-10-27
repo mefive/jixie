@@ -43,57 +43,6 @@ export async function loadResearchEquityFundamentals(request: ResearchDatedIdent
 }
 
 /**
- * 只连接同日资金流与龙虎榜，不将任一事件序列前值结转。
- *
- * Join exact-date money flow and Dragon-Tiger List events without carrying either series forward.
- */
-export async function loadResearchEquityFlows(request: ResearchDatedIdentifierRequestV1) {
-  const [moneyflow, topList] = await Promise.all([
-    getDatabase().moneyflow.findMany({
-      where: {
-        tsCode: request.identifier,
-        tradeDate: { gte: request.start, lte: request.end },
-      },
-      orderBy: { tradeDate: 'asc' },
-    }),
-    getDatabase().topList.findMany({
-      where: {
-        tsCode: request.identifier,
-        tradeDate: { gte: request.start, lte: request.end },
-      },
-      orderBy: { tradeDate: 'asc' },
-    }),
-  ]);
-  const byDate = new Map<
-    string,
-    {
-      net_main_cny_10k: number | null;
-      net_total_cny_10k: number | null;
-      dragon_tiger_net_cny: number | null;
-    }
-  >();
-  for (const row of moneyflow) {
-    byDate.set(row.tradeDate, {
-      net_main_cny_10k: row.netMain,
-      net_total_cny_10k: row.netTotal,
-      dragon_tiger_net_cny: null,
-    });
-  }
-  for (const row of topList) {
-    const current = byDate.get(row.tradeDate) ?? {
-      net_main_cny_10k: null,
-      net_total_cny_10k: null,
-      dragon_tiger_net_cny: null,
-    };
-    current.dragon_tiger_net_cny = row.netAmount;
-    byDate.set(row.tradeDate, current);
-  }
-  return [...byDate.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([date, row]) => ({ date, ...row }));
-}
-
-/**
  * 读取已实施分红，经济除权日与当前版本捕获可得日分开。
  *
  * Load implemented distributions with separate economic ex-dates and actual captured-version

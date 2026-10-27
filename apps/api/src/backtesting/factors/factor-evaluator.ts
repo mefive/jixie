@@ -259,10 +259,9 @@ export class FactorEvaluator {
   }
 
   /**
-   * 从引擎截面组装当日因子行情；资金流仅在声明后按其流量语义提供。
+   * 从引擎截面组装当日估值与财务指标。
    *
-   * The factor-side bar for (code, today), assembled from the engine's cross-section row. Moneyflow
-   * columns come through the engine's own flow-semantics store when declared.
+   * Assemble daily valuation and financial indicators from the engine cross-section.
    */
   private assembleFactorBar(date: string, code: string, crossBar: BarRow | null): FactorBar {
     return {
@@ -277,8 +276,6 @@ export class FactorEvaluator {
       totalMv: crossBar?.totalMv ?? null,
       circMv: crossBar?.circMv ?? null,
       turnoverRate: crossBar?.turnoverRate ?? null,
-      netMain: this.input.engineData.factor('mf_net_main', date, code),
-      netTotal: this.input.engineData.factor('mf_net_total', date, code),
       roe: crossBar?.roe ?? null,
       roa: crossBar?.roa ?? null,
       grossprofitMargin: crossBar?.grossprofitMargin ?? null,

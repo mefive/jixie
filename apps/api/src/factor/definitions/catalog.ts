@@ -60,7 +60,7 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
         : (['equity'] as const),
   }));
   const storedPresets = await getDatabase().factor.findMany({
-    where: { userId: BUILTIN_USER_ID },
+    where: { userId: BUILTIN_USER_ID, id: { notIn: ['mf_net_main', 'mf_net_total'] } },
     orderBy: { createdAt: 'asc' },
   });
   const presetMetadata = new Map(

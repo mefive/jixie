@@ -2,7 +2,6 @@ import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { syncStockDailyData } from './daily-sync.js';
-import { syncMoneyflow, syncTopList } from './flows-sync.js';
 
 /**
  * 记录股票各数据集单日数量，供修复比较。
@@ -15,7 +14,6 @@ export interface StockDateCounts {
   adjustment: number;
   basic: number;
   limits: number;
-  moneyflow: number;
 }
 
 /**
@@ -26,7 +24,6 @@ export interface StockDateCounts {
 export interface StockDateRepair {
   tradeDate: string;
   core: boolean;
-  moneyflow: boolean;
   reasons: string[];
 }
 
@@ -49,7 +46,6 @@ export function buildStockDateRepairPlan(counts: StockDateCounts[]): StockDateRe
     const adjustmentCoverage = coverage(row.adjustment, row.daily);
     const basicCoverage = coverage(row.basic, row.daily);
     const limitCoverage = coverage(row.limits, row.daily);
-    const moneyflowCoverage = coverage(row.moneyflow, row.daily);
     const core =
       dailyCliff || adjustmentCoverage < 0.98 || basicCoverage < 0.85 || limitCoverage < 0.85;
 
@@ -68,13 +64,7 @@ export function buildStockDateRepairPlan(counts: StockDateCounts[]): StockDateRe
       reasons.push(`StkLimit coverage ${percent(limitCoverage)}`);
     }
 
-    // A core refresh can change the denominator and stock universe, so refresh the flow slice too.
-    const moneyflow = core || moneyflowCoverage < 0.7;
-    if (!core && moneyflowCoverage < 0.7) {
-      reasons.push(`Moneyflow coverage ${percent(moneyflowCoverage)}`);
-    }
-
-    return { tradeDate: row.tradeDate, core, moneyflow, reasons };
+    return { tradeDate: row.tradeDate, core, reasons };
   });
 }
 
@@ -85,9 +75,8 @@ export async function inspectStockDates(tradeDates: string[]): Promise<StockDate
     getDatabase().adjFactor.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
     getDatabase().dailyBasic.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
     getDatabase().stkLimit.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
-    getDatabase().moneyflow.groupBy({ by: ['tradeDate'], where, _count: { _all: true } }),
   ]);
-  const [daily, adjustment, basic, limits, moneyflow] = rows.map(
+  const [daily, adjustment, basic, limits] = rows.map(
     (dataset) => new Map(dataset.map((row) => [row.tradeDate, row._count._all])),
   );
   return tradeDates.map((tradeDate) => ({
@@ -96,7 +85,6 @@ export async function inspectStockDates(tradeDates: string[]): Promise<StockDate
     adjustment: adjustment.get(tradeDate) ?? 0,
     basic: basic.get(tradeDate) ?? 0,
     limits: limits.get(tradeDate) ?? 0,
-    moneyflow: moneyflow.get(tradeDate) ?? 0,
   }));
 }
 
@@ -112,12 +100,6 @@ export async function repairStockDate(
   const tradeDate = repair.tradeDate as TradeDate;
   if (repair.core) {
     await syncStockDailyData(client, tradeDate);
-  }
-  if (repair.moneyflow) {
-    await syncMoneyflow(client, tradeDate, tradeDate, { refresh: true });
-  }
-  if (repair.core || repair.moneyflow) {
-    await syncTopList(client, tradeDate, tradeDate, { refresh: true });
   }
 }
 

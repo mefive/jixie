@@ -16,6 +16,13 @@ try {
     data: { email: `research-retirement-${Date.now()}@fixture.invalid` },
   });
   assert.equal(login.status(), 200);
+  const catalogResponse = await context.request.get(`${base}/api/app/factors/catalog`);
+  assert.equal(catalogResponse.status(), 200);
+  const catalog = await catalogResponse.json();
+  assert.equal(
+    catalog.some((factor) => ['mf_net_main', 'mf_net_total'].includes(factor.key)),
+    false,
+  );
   await page.goto(`${base}/research`);
   await page.locator('.jx-research-landing').waitFor();
   await page.locator('.jx-research-sidebarSkeleton').waitFor({ state: 'detached' });
@@ -48,6 +55,7 @@ try {
   );
   const cellId = document.cells.find((cell) => cell.kind === 'python').id;
   for (const source of [
+    'data.equity_flows("600000.SH", start="20260101", end="20260107")',
     'valuation.fcff_scenarios(None, None, None)',
     'valuation.implied_revenue_growth(None, None, None)',
     [
@@ -71,12 +79,17 @@ try {
     const executed = document.cells.find((item) => item.id === cellId);
     assert.equal(
       executed.status,
-      source.startsWith('valuation.') ? 'error' : 'success',
+      source.startsWith('valuation.') || source.startsWith('data.equity_flows')
+        ? 'error'
+        : 'success',
       JSON.stringify(executed),
     );
     assert.equal(executed.source, source);
-    if (source.startsWith('valuation.')) {
-      assert.match(JSON.stringify(executed.outputs), /name 'valuation' is not defined/);
+    if (source.startsWith('valuation.') || source.startsWith('data.equity_flows')) {
+      assert.match(
+        JSON.stringify(executed.outputs),
+        source.startsWith('data.') ? /equity_flows/ : /name 'valuation' is not defined/,
+      );
     } else {
       assert.equal(
         executed.outputs.some((output) => output.type === 'chart' && output.kind === 'line'),
@@ -89,6 +102,15 @@ try {
   await page.getByTestId('research-document').waitFor();
   await page.getByTestId('research-interactive-chart').locator('canvas').first().waitFor();
   await page.waitForTimeout(400);
+  await page.getByTestId('research-open-data-catalog').click();
+  const dataCatalog = page.getByRole('dialog');
+  await dataCatalog.waitFor();
+  await dataCatalog.getByText('Datasets', { exact: true }).click();
+  await page.getByTestId('research-data-catalog-method-equity_financial_values').waitFor();
+  assert.equal(await page.getByTestId('research-data-catalog-method-equity_flows').count(), 0);
+  await dataCatalog.screenshot({ path: `${screenshots}/research-retained-data-catalog-en.png` });
+  await page.keyboard.press('Escape');
+  await dataCatalog.waitFor({ state: 'hidden' });
   await page.screenshot({ path: `${screenshots}/research-simple-chart-en.png`, fullPage: true });
   const archived = await context.request.post(
     `${base}/api/app/research/documents/${document.id}/archive`,

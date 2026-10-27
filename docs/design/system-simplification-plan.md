@@ -643,7 +643,7 @@ Prisma 生成迁移删除 `FactorComposite`、`FactorCorrelation` 及关系，�
 - 首轮 API 与构建并行时加载了旧 Shared 产物，导致三项契约断言失败；Shared 构建后按依赖顺序重跑，全套通过。仅调整运行顺序和测试图表夹具：用带类型的三点 DataFrame 展示可见折线，修正后退役专项再次通过。审查后未修改产品代码。
 - 已清理空目录和 18 个已删除模板源码留下的编译文件。浏览器 fixture 自然退出，父进程检查临时端口拒绝连接；实际 API／sandboxd 进程组、数据库、Python 会话与 socket 已释放。开发库与原三个未跟踪文档 mtime 保持原值，不纳入提交；不推送。
 
-## 23 股票资金流与龙虎榜整体删除（下一项 Gate 1，待范围确认）
+## 23 股票资金流与龙虎榜整体删除（review 与验证通过）
 
 拟提交消息：`feat(market)!: remove stock moneyflow and event data`。
 
@@ -657,4 +657,52 @@ Prisma 生成迁移删除 `FactorComposite`、`FactorCorrelation` 及关系，�
 
 人工 review 前只运行格式／lint、类型／边界静态检查、SDK 生成物一致性、Prisma schema 校验和生成 SQL 核对、Python AST 与 diff 检查。review 通过后在隔离旧库验证只删除两类数据、保留独立发布版本／报告和其他表数据，验证维护不再请求退役来源；覆盖旧 SDK／字段拒绝、普通财报／价格取数、单因子分析、股票／ETF 回测及参数扫描，再运行相关 API／沙箱／部署测试、五个 workspace 构建、实际编译启动和中英及窄屏浏览器／帮助验收。查看截图并关闭会话、服务、端口、临时库，清理空目录后提交，不推送。
 
-本节只准备下一项范围，尚未开始实施。按 review-gated-development 在范围确认后开发，静态检查通过后停在人工代码 review。
+范围与代码 review 已于 2026-10-27 通过，按工作流完成验证后提交。
+
+
+### 23.1 已实施范围
+
+- 删除 Tushare moneyflow／top_list API 与专用同步文件、分区策略、覆盖查询、修复、审计、证券代码归一化和原始数据写入白名单中的两类表。股票行情、复权、估值、涨跌停与停牌证据继续使用原有阈值和发布判断。
+- 由 Prisma diff 生成 `20261027090000_remove_stock_flows`，SQL 仅 DROP `TopList`、`Moneyflow`；没有修改历史迁移，没有对开发／生产库执行迁移。维护在既有 owner／publication 锁内事务删除两类分区、游标及两表内部来源记录；状态接口不再展示退役数据集，其他状态保留。
+- Research 删除 `data.equity_flows()` 的公开 Contract、Python 实现、AST 分析、host 校验／分派、目录和帮助说明；重新生成 stub。财报、财务指标、分红与其他数据接口保持。Agent 读取同一公开 Contract。
+- Factor 删除 moneyflow 类型、两项预设和 TS／Python 资金流字段及数据加载。目录只排除两个退役内置 ID，不删除已保存源码、发布版本与报告，也不影响同名用户自定义因子。TS 对未知 FactorBar 字段读取显式失败；Python 对 FactorBar 的 AttributeError 终止计算，避免旧字段变成一列有效 null。普通逐项计算异常沿用既有处理。
+- Strategy／Backtesting 删除龙虎榜上下文、SDK 与桥接，以及仅服务于资金流的存储因子注册和加载框架。已发布因子仍由 FactorHost 求值，可同时声明多个独立因子。同步移除 Agent 示例、前端资金流分类和双语提示；不迁写用户策略源码。
+- Python 源文件仅修改既有输入，没有增删文件；现有 Dockerfile／dockerignore／部署影响清单已覆盖这些路径，打包路径和组件依赖不变。迁移、API／沙箱回归和现有浏览器退役场景均已补充或调整，尚未运行。
+
+### 23.2 Gate 2 静态检查（2026-10-27）
+
+- 受影响代码格式及 ESLint 零警告通过；五个 workspace 类型、SDK 生成物一致性和后端边界静态检查通过：773 文件、2884 runtime 边、838 type 边、0 违规。
+- Prisma schema 校验及迁移 SQL 重新生成逐字核对通过；9 个 Python 源码／stub AST 语法、diff 检查通过。系统默认 Python 3.9 不支持已有 match 语法，AST 检查改用项目现有 Python 环境后通过，没有启动业务 runtime。
+- 帮助静态审计通过：每种语言 79 篇、615 内部链接、146 引用图、25 原始学习证据。SDK 生成仅调用既有静态同步函数，没有准备 Python 环境。
+- 没有运行单元、集成、E2E、构建或数据库业务流程；没有启动服务。开发库及原三个未跟踪文档保持原值；没有产生需删除的空源码目录，提交前继续清理过期编译产物与空目录。
+
+### 23.3 Review 后验证范围
+
+- 隔离库从旧迁移链升级，核对仅删除两张表；对其余表 schema 与每行数据做迁移前后快照比较，覆盖旧研究 Cell、独立及旧资金流因子源码、发布版本、报告绑定、策略与维护状态。检查完整性／外键，验证退役清理受锁约束、幂等且保留其他分区／来源记录。
+- 验证同步策略不再请求退役来源、旧数据集拒绝；旧 Research SDK、TS／Python FactorBar 与龙虎榜策略调用明确失败；两个退役内置 ID 从目录隐藏但源码和绑定仍保持。普通财报／价格、独立因子、股票／ETF 回测、多个独立因子与参数扫描继续工作。
+- 按依赖顺序运行 API／Python 沙箱／部署与边界检查、五个 workspace 构建、编译 Worker、实际 API／sandboxd 启动；构建后清理已删除文件的旧产物。
+- 现有 Research 退役浏览器场景加入旧 `data.equity_flows()` 报错与保存源码不改写、资金流预设不在目录；数据目录场景检查无旧方法。继续中英、390px、普通 Python／图表、财报帮助、独立因子发布引用、策略扫描与双语帮助全篇。查看并交付截图，关闭会话／服务／端口／临时库，清理空目录后按拟定消息提交，不推送。
+
+
+### 23.4 Review 后实际验证（2026-10-27）
+
+- API 全套按文件串行通过：286 文件、1891 项测试；原有 opt-in 性能基准 1 文件／2 项保持跳过。覆盖迁移前后其余表 schema／逐行快照一致、SQLite 完整性和外键、退役维护清理的锁与幂等、其他状态保留、TS／Python 旧字段与 SDK 拒绝、双独立因子、股票／ETF 回测和扫描。
+- 五个 workspace 构建通过，仅保留已有 chunk 大小提示。生产编译 Worker 13 项、工程／部署／Python／E2E 调度工具 102 项、前端与帮助契约 37 项、sandboxd 8 项通过。
+- 实际编译 API 与 sandboxd 在临时库启动；完整应用迁移链，确认两张原始表消失、已保存旧研究 Cell 和退役预设源码保持原值、目录隐藏两项旧预设、旧资金流 SDK 经 sandboxd 明确失败；普通 Python 和独立指数估值通过。退出后进程组消失、端口拒绝连接，数据库与 socket 已删除。
+- 编译 API 浏览器通过：中英首页与 390px、旧资金流／估值 SDK 错误且源码保存不变、普通 Python 图表、数据目录保留财务方法且无资金流入口；普通研究、独立因子发布／Python 因子／策略因子引用、策略参数扫描、最近报告与接续研究均通过。
+- 双语帮助全篇通过：每种语言 79 篇、615 内部链接、146 引用图、25 原始学习证据；正文、图表、公式、跳转和窄屏检查通过。已查看中文首页、390px、英文数据目录和普通 Python 折线图截图。
+- 审查后只修正测试／夹具：预设数量 20→18、每项发布绑定独立报告 ID、缺少因子宿主的错误断言、新迁移夹具的协调锁绑定临时目录。全套并行时仍有旧夹具共享协调目录产生争用，单独用例及完整串行全套通过；没有削弱断言或跳过失败。浏览器启动显式使用项目 Python，目录用例先切换到数据集视图。产品代码未再修改。
+- 最终类型、SDK、边界、格式与 lint 再次通过。Prisma 原样生成 SQL 的末尾空行仅在该文件的 diff 检查中豁免 blank-at-eof，生成结果逐字一致；其余 diff 检查通过。
+- 清理旧 `flows-sync` 与 `engine-factors` 的 4 个编译产物；清理空目录。浏览器 fixture 已排空请求、关闭 Python／语言服务、断开数据库并删除临时目录，父进程确认临时端口不再监听。开发库与原三个未跟踪文档保持原值，不纳入提交；不推送。
+
+## 24 申万行业及行业研究能力整体删除（下一项 Gate 1，待范围确认）
+
+拟提交消息：`feat(market)!: remove industry data and research capabilities`。
+
+本项落实第 3／4 节已确认的行业裁剪，交付完整删除行业数据及其消费链。停止申万目录、成员和行业行情请求，删除 industry-members／industry-prices 同步分区、注册表、CLI／修复／审计和专属维护状态；由 Prisma 生成迁移删除 `SwIndustryMember`、`SwIndexDaily` 和股票基础资料中的行业列，不操作开发／生产库。股票基础资料的其他字段、行情、财报、分红、ETF 与普通指数保留。
+
+Factor 删除 size_industry 中性化、行业内排名、行业筛选与行业诊断及对应报告新计算；保留 none／size、全市场或普通指数股票池、规模与流动性诊断和独立因子。Strategy／Backtesting 删除行业历史加载、ctx.industry／Python 对应方法和依赖行业的预设／示例；Research 移除行业返回列与相关查询约束。公开 SDK、Agent、Web 双语选项、帮助及维护同步裁剪。保留既有文档、因子／策略源码、发布版本和绑定报告，不重写旧请求口径；旧行业参数／调用明确拒绝，不静默改为全市场或无中性化。
+
+主要位置为 Market indices／registry／synchronization、Factor analysis／observations／reports、Strategy SDK／sandbox／Backtesting data port、Research datasets／catalog／shared Contract 和 Web 参数界面。Python 镜像输入或依赖路径发生变化时同步部署影响清单与部署计划测试。若必须改写已发布源码／历史报告，或删除行业之外的财务与估值语义，返回范围讨论。
+
+review 前完成格式／lint、全仓类型／边界、SDK 生成一致性、Prisma schema 和生成 SQL 核对、Python AST、帮助静态审计与 diff；停在人工代码 review。通过后以隔离旧库检查升级、仅删除行业数据和状态、用户内容保留与外键／完整性；验证旧接口／行业参数拒绝、保留的规模中性化和普通股票／ETF 回测与研究，运行相关 API／沙箱／部署、构建、实际编译启动及中英和窄屏浏览器／帮助验收，查看截图并清理资源和空目录后提交。尚未实施。

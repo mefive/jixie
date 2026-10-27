@@ -6,7 +6,6 @@ import {
   RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
   RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
-  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
@@ -286,9 +285,6 @@ const researchCommodityHoldingsRowsSchema = sdkDataFrameRowsSchema(
 const researchEquityFundamentalsRequestSchema = sdkRequestSchema(
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.parameters,
 );
-const researchEquityFlowsRequestSchema = sdkRequestSchema(
-  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1.parameters,
-);
 const researchEquityDividendsRequestSchema = sdkRequestSchema(
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.parameters,
 );
@@ -329,9 +325,6 @@ const researchFinancialPanelRequestSchema = sdkRequestSchema(
 );
 const researchEquityFundamentalsRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.returns,
-);
-const researchEquityFlowsRowsSchema = sdkDataFrameRowsSchema(
-  RESEARCH_EQUITY_FLOWS_SDK_CONTRACT_V1.returns,
 );
 const researchEquityDividendsRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.returns,
@@ -500,14 +493,6 @@ export function parseResearchEquityFundamentalsRuntimeRequest(
   ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
 }
 
-export function parseResearchEquityFlowsRuntimeRequest(
-  value: unknown,
-): ResearchDatedIdentifierRuntimeRequestV1 {
-  return researchEquityFlowsRequestSchema.parse(
-    value,
-  ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
-}
-
 export function parseResearchEquityDividendsRuntimeRequest(
   value: unknown,
 ): ResearchDatedIdentifierRuntimeRequestV1 {
@@ -542,10 +527,6 @@ export function parseResearchFuturesSettlementRuntimeRequest(
 
 export function parseResearchEquityFundamentalsRuntimeRows(value: unknown): unknown[] {
   return researchEquityFundamentalsRowsSchema.parse(value);
-}
-
-export function parseResearchEquityFlowsRuntimeRows(value: unknown): unknown[] {
-  return researchEquityFlowsRowsSchema.parse(value);
 }
 
 export function parseResearchEquityDividendsRuntimeRows(value: unknown): unknown[] {

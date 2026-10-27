@@ -2852,7 +2852,6 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
 const KIND_KEY: Record<FactorKind, string> = {
   price: 'kindPrice',
   fundamental: 'kindFundamental',
-  moneyflow: 'kindMoneyflow',
   rates: 'kindRates',
   commodity: 'kindCommodity',
   macro: 'kindMacro',

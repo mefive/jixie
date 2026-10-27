@@ -1,4 +1,4 @@
-import { ENGINE_FACTORS, FACTOR_KEY_PATTERN, type FactorDependency } from '@jixie/shared';
+import { FACTOR_KEY_PATTERN, type FactorDependency } from '@jixie/shared';
 import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 import type {
   FactorHistoryField,
@@ -27,8 +27,6 @@ export interface StrategyFactorInput extends Omit<FactorDependency, 'inputs'> {
 
 /** Strategy-side factor preparation, source identity and runtime metadata. */
 export class StrategyFactor {
-  private static readonly engineKeys = new Set<string>(ENGINE_FACTORS.map((factor) => factor.key));
-
   private readonly input: StrategyFactorInput;
 
   constructor(input: StrategyFactorInput) {
@@ -52,11 +50,7 @@ export class StrategyFactor {
       (declaration) => [...declaration[1].matchAll(/['"]([^'"]+)['"]/g)].map((match) => match[1]),
     );
     const keys = [...callKeys, ...declarationKeys];
-    return [
-      ...new Set(
-        keys.filter((key) => FACTOR_KEY_PATTERN.test(key) && !StrategyFactor.engineKeys.has(key)),
-      ),
-    ];
+    return [...new Set(keys.filter((key) => FACTOR_KEY_PATTERN.test(key)))];
   }
 
   /**

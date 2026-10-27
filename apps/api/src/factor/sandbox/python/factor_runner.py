@@ -212,7 +212,11 @@ class FactorRunner:
                     and math.isfinite(value)
                     else None
                 )
-            except Exception:
+            except Exception as error:
+                # 已移除的行情字段必须使计算失败，不能变成有效空值。
+                # Unsupported bar attributes must fail computation rather than become valid nulls.
+                if isinstance(error, AttributeError) and isinstance(error.obj, FactorBar):
+                    raise
                 if first_error is None:
                     first_error = traceback.format_exc(limit=20)
                 values.append(None)

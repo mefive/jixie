@@ -362,7 +362,6 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.equity_financial_metrics',
         'data.equity_financial_cross_section',
         'data.equity_financial_panel',
-        'data.equity_flows',
         'data.equity_dividends',
         'data.etf_shares',
         'data.index_valuation',

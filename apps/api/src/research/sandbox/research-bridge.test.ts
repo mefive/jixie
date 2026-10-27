@@ -138,7 +138,7 @@ describe('Research bridge protocol and current data boundaries', () => {
           macro_requests: [{ line: 3, series: 'cpi' }],
           fx_requests: [{ line: 4, pair: 'USDCNY' }],
           commodity_requests: [{ line: 5, method: 'commodity_returns', product: 'AU' }],
-          equity_requests: [{ line: 6, method: 'equity_flows', identifier: 'AAA' }],
+          equity_requests: [{ line: 6, method: 'equity_dividends', identifier: 'AAA' }],
           error: 'syntax error',
         },
       ],
@@ -161,7 +161,7 @@ describe('Research bridge protocol and current data boundaries', () => {
         macroRequests: [{ line: 3, series: 'cpi' }],
         fxRequests: [{ line: 4, pair: 'USDCNY' }],
         commodityRequests: [{ line: 5, method: 'commodity_returns', product: 'AU' }],
-        equityRequests: [{ line: 6, method: 'equity_flows', identifier: 'AAA' }],
+        equityRequests: [{ line: 6, method: 'equity_dividends', identifier: 'AAA' }],
         error: 'syntax error',
       },
     ]);

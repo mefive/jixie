@@ -13,12 +13,6 @@ import { toCommonJs } from '#infra/sandbox/typescript/compile.js';
 import type { EngineStrategy, BacktestingConfig } from '../contract.js';
 import { FactorHost } from '#strategy/simulation/factor-host.js';
 
-/**
- * ctx.factor() time semantics (factor-to-strategy.md Step 2): a `flow` factor (moneyflow) is an
- * exact-day quantity — yesterday's net inflow must NEVER be served as today's. Before 3.2 the
- * engine blanket-applied as-of forward filling to every stored factor; these tests pin the fix.
- */
-
 const D = ['20240101', '20240102', '20240103', '20240104', '20240105'];
 
 function spec(): FixtureSpec {
@@ -30,41 +24,12 @@ function spec(): FixtureSpec {
         bars: D.map((date) => ({ date, open: 10, close: 10, up: 11, down: 9 })),
       },
     ],
-    // Moneyflow exists ONLY on D2 — D3+ must read null, not D2's value carried forward.
-    moneyflow: [{ tsCode: 'A', tradeDate: D[1], netMain: 888, netTotal: 999 }],
   };
 }
 
-/** Record ctx.factor('mf_net_main') for stock A on every bar. */
-function recordingStrategy(seen: Record<string, number | null>): EngineStrategy {
-  return {
-    name: 'record mf',
-    factors: ['mf_net_main'],
-    onBar(ctx) {
-      seen[ctx.date] = ctx.factor('mf_net_main', 'A');
-    },
-  };
-}
-
-describe('flow factor semantics (mf_net_*)', () => {
-  it('serves the exact day and returns null after — no forward fill', async () => {
-    const seen: Record<string, number | null> = {};
-    await runStrategy({
-      start: D[0],
-      end: D[4],
-      initialCash: 100_000,
-      strategy: recordingStrategy(seen),
-      dataPort: fixturePort(spec()),
-    });
-
-    expect(seen[D[0]]).toBeNull(); // before any data
-    expect(seen[D[1]]).toBe(888); // the exact day
-    expect(seen[D[2]]).toBeNull(); // the old behavior forward-filled 888 here
-    expect(seen[D[4]]).toBeNull();
-  });
-
+describe('published factor validation', () => {
   it('rejects an unknown factor key at load instead of serving silent nulls', async () => {
-    const bogus: EngineStrategy = { name: 'bogus', factors: ['mf_net_mian'], onBar() {} };
+    const bogus: EngineStrategy = { name: 'bogus', factors: ['unknown_factor'], onBar() {} };
     await expect(
       runStrategy({
         start: D[0],
@@ -73,7 +38,7 @@ describe('flow factor semantics (mf_net_*)', () => {
         strategy: bogus,
         dataPort: fixturePort(spec()),
       }),
-    ).rejects.toThrow(/mf_net_mian/);
+    ).rejects.toThrow(/unknown_factor/);
   });
 
   it('a declared custom key without a prepared module fails loudly (deleted/foreign factor)', async () => {
@@ -673,14 +638,18 @@ describe('extractFactorKeys (host-side source scan)', () => {
   it('finds published factor keys in ctx.factor reads, deduped', async () => {
     const source = `
       export default defineStrategy({
-        factors: ['earnings_yield', 'mf_net_main'],
+        factors: ['earnings_yield', 'second_factor'],
         onBar(ctx) {
           ctx.factor('earnings_yield', 'A');
           ctx.factor('mom_12_1', 'A');
-          ctx.factor('mf_net_main', 'A');
+          ctx.factor('second_factor', 'A');
         },
       });`;
-    expect(StrategyFactor.extractKeys(source)).toEqual(['earnings_yield', 'mom_12_1']);
+    expect(StrategyFactor.extractKeys(source)).toEqual([
+      'earnings_yield',
+      'mom_12_1',
+      'second_factor',
+    ]);
   });
 });
 
@@ -903,3 +872,65 @@ function factorFixture(source: FactorFixtureSource): StrategyFactor {
     analysisKind: source.analysisKind ?? 'cross_sectional',
   });
 }
+
+it.each(['typescript', 'python'] as const)(
+  'rejects retired %s Dragon-Tiger SDK calls',
+  async (language) => {
+    if (language === 'python' && !process.env.JIXIE_SANDBOX_SOCKET) {
+      process.env.JIXIE_PYTHON_LOCAL = '1';
+    }
+    try {
+      await expect(
+        runBacktestFixture(
+          {
+            language,
+            code:
+              language === 'typescript'
+                ? 'export default defineStrategy({ onBar(ctx) { ctx.lhbNet("A"); } });'
+                : 'from jixie import Strategy\nstrategy = Strategy(name="retired")\n@strategy.on_bar\ndef on_bar(ctx):\n    ctx.lhb_net("A")',
+            start: D[0],
+            end: D[4],
+            initialCash: 100_000,
+          },
+          fixturePort(spec()),
+        ),
+      ).rejects.toThrow(language === 'typescript' ? /lhbNet/ : /lhb_net/);
+    } finally {
+      delete process.env.JIXIE_PYTHON_LOCAL;
+    }
+  },
+);
+
+it('computes multiple independent published factors without stored flow columns', async () => {
+  const market = spec();
+  market.stocks[0].basic = Object.fromEntries(D.map((date) => [date, { peTtm: 10, pb: 2 }]));
+  const values: Array<[number | null, number | null]> = [];
+  const factorSources = await Promise.all(
+    [
+      ['earnings_yield', '1 / bar.peTtm'],
+      ['book_yield', '1 / bar.pb'],
+    ].map(async ([key, expression]) => ({
+      key,
+      js: await toCommonJs(
+        `export default defineFactor({compute: bar => ${expression}});`,
+        'factor code',
+      ),
+    })),
+  );
+  await runStrategy({
+    start: D[0],
+    end: D[4],
+    initialCash: 100_000,
+    dataPort: fixturePort(market),
+    factorSources,
+    strategy: {
+      name: 'two independent factors',
+      factors: ['earnings_yield', 'book_yield'],
+      async onBar(ctx) {
+        await ctx.loadCrossSection();
+        values.push([ctx.factor('earnings_yield', 'A'), ctx.factor('book_yield', 'A')]);
+      },
+    },
+  });
+  expect(values).toEqual(D.map(() => [0.1, 0.5]));
+});
