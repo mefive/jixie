@@ -51,14 +51,10 @@ try {
     'yield_curve',
     'macro',
     'fx',
-    'commodity_returns',
-    'commodity_warehouse_receipts',
-    'commodity_holdings',
     'equity_fundamentals',
     'equity_dividends',
     'etf_shares',
     'index_valuation',
-    'futures_settlement',
     'equity_financial_statements',
     'equity_financial_metrics',
     'equity_financial_cross_section',
@@ -118,18 +114,14 @@ try {
   }
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-macro.png` });
 
-  await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill('黄金');
-  const commodityResult = page.getByTestId(
-    'research-data-catalog-dataset-data.commodity_returns:AU',
-  );
-  await commodityResult.waitFor({ timeout: 30_000 });
-  await commodityResult.click();
-  await config.waitFor();
-  await config.scrollIntoViewIfNeeded();
-  if (!(await config.innerText()).includes('data.commodity_returns(')) {
-    throw new Error('The selected commodity dataset did not generate an SDK call preview.');
+  for (const method of [
+    'commodity_returns',
+    'commodity_warehouse_receipts',
+    'commodity_holdings',
+    'futures_settlement',
+  ]) {
+    assert.equal(await page.getByTestId(`research-data-catalog-method-${method}`).count(), 0);
   }
-  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-commodity.png` });
 
   await drawer
     .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
@@ -137,7 +129,6 @@ try {
   for (const { query, method, identifier } of [
     { query: '510300.SH', method: 'etf_shares', identifier: '510300.SH' },
     { query: '000300.SH', method: 'index_valuation', identifier: '000300.SH' },
-    { query: 'IF2609.CFX', method: 'futures_settlement', identifier: 'IF2609.CFX' },
   ]) {
     await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill(query);
     const referenceResult = page.getByTestId(

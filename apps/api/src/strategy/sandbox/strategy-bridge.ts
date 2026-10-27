@@ -203,8 +203,6 @@ export class StrategyBridge extends SandboxBridgeBase<
       params: metadata.params,
       factors: metadata.factors,
       watch: metadata.watch,
-      futures: [],
-      accounts: metadata.accounts ?? undefined,
     };
   }
 
@@ -244,21 +242,6 @@ export class StrategyBridge extends SandboxBridgeBase<
     const command = strategyCommandSchema.parse(input);
 
     switch (command.operation) {
-      case 'futures.orderContracts':
-        context.futures.orderContracts(command.arguments.code, command.arguments.contracts);
-        break;
-      case 'futures.setTargetContracts':
-        context.futures.setTargetContracts(command.arguments.code, command.arguments.contracts);
-        break;
-      case 'futures.setTargetNotional':
-        context.futures.setTargetNotional(command.arguments.code, command.arguments.notional);
-        break;
-      case 'futures.hedgeStock':
-        context.futures.hedgeStock(command.arguments.code, command.arguments.beta);
-        break;
-      case 'futures.closePosition':
-        context.futures.closePosition(command.arguments.code);
-        break;
       case 'stock.setTargetWeight':
         context.stock.setTargetWeight(command.arguments.code, command.arguments.weight);
         break;
@@ -335,11 +318,6 @@ export class StrategyBridge extends SandboxBridgeBase<
         equity: context.stock.equity,
         availableCash: context.stock.availableCash,
         positions: context.stock.positions(),
-      },
-      futures: {
-        equity: context.futures.equity,
-        availableCash: context.futures.availableCash,
-        margin: context.futures.margin,
       },
       bar_updates: Object.fromEntries(
         [...updateCodes].flatMap((code) => {

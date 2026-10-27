@@ -258,25 +258,19 @@
     },
     {
       "path": "zh/backtesting/mixed-results-01.png",
-      "articles": [
-        "en/backtesting/mixed-stock-futures.md",
-        "zh/backtesting/mixed-stock-futures.md"
-      ],
+      "articles": [],
       "originalSha256": "6bc938a66b6e5e36579d60ca6a550de06c62e655751298b32933808dd3f2e43c",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Futures trading and the associated operational guides are retired.",
       "crop": [0, 40, 1440, 860],
       "sha256": "401dca6e090e2512ed5bc10ced5bb8e1c1ddffbb83f8ffc1c2f11d4a5490b920"
     },
     {
       "path": "zh/backtesting/mixed-trades-01.png",
-      "articles": [
-        "en/backtesting/mixed-stock-futures.md",
-        "zh/backtesting/mixed-stock-futures.md"
-      ],
+      "articles": [],
       "originalSha256": "8403b938ac6e2da2f407fb871307fa1502d0e9f3a8e5e6a642635ebb7efab09e",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Futures trading and the associated operational guides are retired.",
       "crop": [0, 40, 1440, 860],
       "sha256": "81db268dc60b14bda93fac5d153d4e3bf91e8e2a11606bed941e4d6ece77f7d7"
     },
@@ -291,10 +285,10 @@
     },
     {
       "path": "zh/backtesting/futures-trades-01.png",
-      "articles": ["en/backtesting/index-futures.md", "zh/backtesting/index-futures.md"],
+      "articles": [],
       "originalSha256": "51168326dbfbe9561d7e53cda70c566316e9c86b92ad86bb1f5b168ee4e282db",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
+      "disposition": "retired",
+      "reason": "Futures trading and the associated operational guides are retired.",
       "crop": [0, 40, 1440, 860],
       "sha256": "c88159d29834d58de8805795539125dec3ac192cfd207200bb394719c2750654"
     },

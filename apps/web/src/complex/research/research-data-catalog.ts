@@ -226,14 +226,8 @@ export function researchDatasetSelection(
     case 'data.fx':
       arguments_ = { pair: dataset.pair, ...dates, frequency: 'daily', transform: 'level' };
       break;
-    case 'data.commodity_returns':
-    case 'data.commodity_warehouse_receipts':
-    case 'data.commodity_holdings':
-      arguments_ = { product: dataset.product, ...dates };
-      break;
     case 'data.etf_shares':
     case 'data.index_valuation':
-    case 'data.futures_settlement':
       arguments_ = { identifier: dataset.identifier, ...dates };
       break;
   }
@@ -272,15 +266,10 @@ function researchDatasetVariableName(
         return dataset.series;
       case 'data.fx':
         return dataset.pair;
-      case 'data.commodity_returns':
-      case 'data.commodity_warehouse_receipts':
-      case 'data.commodity_holdings':
-        return `${dataset.product}_${dataset.method.replace('data.commodity_', '')}`;
       case 'data.equity_financial_values':
         return 'financial_values';
       case 'data.etf_shares':
       case 'data.index_valuation':
-      case 'data.futures_settlement':
       case 'data.equity_financial_statements':
       case 'data.equity_financial_metrics':
         return `${configuredIdentifier ?? dataset.identifier}_${dataset.method.replace('data.', '')}`;

@@ -32,10 +32,6 @@ const KEYS: Readonly<Record<string, readonly string[]>> = {
   IndexDaily: ['tsCode', 'tradeDate'],
   IndexDailyBasic: ['tsCode', 'tradeDate'],
   IndexBenchmark: ['tsCode'],
-  FutureContract: ['tsCode'],
-  FutureDaily: ['tsCode', 'tradeDate'],
-  FutureMapping: ['continuousCode', 'tradeDate'],
-  FutureSettlement: ['tsCode', 'tradeDate'],
   YieldCurvePoint: ['source', 'curveCode', 'curveType', 'tradeDate', 'termYears'],
   FxDaily: ['tsCode', 'tradeDate'],
   MarketBenchmark: ['id'],
@@ -49,9 +45,6 @@ const KEYS: Readonly<Record<string, readonly string[]>> = {
   MacroSeries: ['seriesKey'],
   MacroObservation: ['seriesKey', 'period', 'vintageDate'],
   MacroReleaseSchedule: ['publishDate', 'title'],
-  CommodityWarehouseReceipt: ['productCode', 'tradeDate', 'unit'],
-  CommodityHoldingPosition: ['productCode', 'tradeDate'],
-  CommodityContinuousReturn: ['productCode', 'tradeDate'],
 };
 
 interface MarketDelegate {

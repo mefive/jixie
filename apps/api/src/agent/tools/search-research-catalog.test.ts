@@ -136,10 +136,10 @@ describe('research catalog query interpretation', () => {
     expect(
       researchConceptDimensionMismatches(
         { instrumentForm: 'spot', quoteCurrency: 'USD' },
-        { instrumentForm: 'continuous_future', quoteCurrency: 'CNY', market: 'CN' },
+        { instrumentForm: 'etf', quoteCurrency: 'CNY', market: 'CN' },
       ),
     ).toEqual([
-      { dimension: 'instrumentForm', requested: 'spot', available: 'continuous_future' },
+      { dimension: 'instrumentForm', requested: 'spot', available: 'etf' },
       { dimension: 'quoteCurrency', requested: 'USD', available: 'CNY' },
     ]);
   });

@@ -26,10 +26,6 @@ export function strategyRunKey(config: unknown): string {
           transferFee: cost.transferFee,
           slippageBps: cost.slippageBps,
           impactCoef: cost.impactCoef,
-          futureCommissionRate: cost.futureCommissionRate,
-          futureCloseTodayRate: cost.futureCloseTodayRate,
-          futureSlippageTicks: cost.futureSlippageTicks,
-          futureMarginRate: cost.futureMarginRate,
         }
       : undefined,
     code: candidate?.code,

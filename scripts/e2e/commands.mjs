@@ -134,11 +134,6 @@ export const e2eCommands = [
     group: 'learning',
   },
   {
-    name: 'learning-stock-bond-allocation',
-    file: 'apps/web/e2e/learning-stock-bond-allocation-case.mjs',
-    group: 'learning',
-  },
-  {
     name: 'factor-history',
     file: 'apps/web/e2e/factor-report-history.mjs',
     group: 'factor',
@@ -203,21 +198,6 @@ export const e2eCommands = [
   {
     name: 'factor-panel',
     file: 'apps/web/e2e/factor-panel.mjs',
-    group: 'factor',
-  },
-  {
-    name: 'commodity-carry-panel',
-    file: 'apps/web/e2e/commodity-carry-panel.mjs',
-    group: 'factor',
-  },
-  {
-    name: 'commodity-carry-time-series',
-    file: 'apps/web/e2e/commodity-carry-time-series.mjs',
-    group: 'factor',
-  },
-  {
-    name: 'commodity-warehouse-receipt',
-    file: 'apps/web/e2e/commodity-warehouse-receipt-time-series.mjs',
     group: 'factor',
   },
   {
@@ -305,10 +285,10 @@ export const e2eCommands = [
     notes: 'Docs service at E2E_DOCS_BASE (default http://localhost:5174).',
   },
   {
-    name: 'mixed-futures',
-    file: 'apps/web/e2e/mixed-futures.mjs',
+    name: 'futures-retirement',
+    file: 'apps/web/e2e/futures-retirement.mjs',
     group: 'market',
-    notes: 'Running Web/API and futures data; executes real backtests.',
+    notes: 'Isolated Web/API; rejects retired futures and verifies stock/ETF cash backtests.',
   },
 ];
 
@@ -341,8 +321,8 @@ export const imageCommands = [
     group: 'capture',
   },
   {
-    name: 'etf-futures',
-    file: 'apps/web/e2e/help-content-etf-futures.mjs',
+    name: 'etf',
+    file: 'apps/web/e2e/help-content-etf.mjs',
     group: 'capture',
   },
   {

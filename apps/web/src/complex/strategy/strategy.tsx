@@ -8,9 +8,7 @@ import type {
   AllocationRateRegimeAnalysis,
   ChatMessage,
   MacroRiskAxisKeyV1,
-  MarketRiskFactorKeyV1,
   PortfolioRiskAnalysisV1,
-  PortfolioRiskScenarioResultV1,
   StrategyLanguage,
 } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -963,28 +961,7 @@ const ResultPanel = complex.component(() => {
       },
     );
   }
-  const finalSleeves = r.sleeveNav?.at(-1);
   const hasPanelFactor = r.factorDependencies?.some((factor) => factor.analysisKind === 'panel');
-  if (finalSleeves && finalSleeves.stockValue > 0 && finalSleeves.futureValue > 0) {
-    metrics.push(
-      {
-        label: t('metricStockSleeve'),
-        value: Math.round(finalSleeves.stockValue).toLocaleString(),
-      },
-      {
-        label: t('metricFutureSleeve'),
-        value: Math.round(finalSleeves.futureValue).toLocaleString(),
-      },
-      {
-        label: t('metricFutureMargin'),
-        value: Math.round(finalSleeves.futureMargin).toLocaleString(),
-      },
-      {
-        label: t('metricNetExposure'),
-        value: Math.round(finalSleeves.netExposure).toLocaleString(),
-      },
-    );
-  }
 
   return (
     <>
@@ -1231,7 +1208,7 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
                 },
               ]
             : []),
-          ...(analysis.risk
+          ...(analysis.risk?.macro
             ? [
                 {
                   key: 'risk',
@@ -1289,17 +1266,13 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
 };
 
 /**
- * 展示市场、宏观、情景及 Alpha 重合风险证据与限制。
+ * 展示月度宏观敏感度及数据限制。
  *
- * Present market, macro, scenario and Alpha-overlap risk evidence with limitations.
+ * Present monthly macro sensitivity with data limitations.
  */
 const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
   const { t } = useTranslation('strategy');
-  const market = data.market;
   const macro = data.macro;
-  const overlap = data.alphaRiskOverlap ?? [];
-  const scenarios = data.scenarios ?? [];
-  const factorLabel = (factor: MarketRiskFactorKeyV1) => t(`allocation.risk.factors.${factor}`);
 
   return (
     <div className="jx-strategy-risk" data-testid="allocation-risk-research">
@@ -1312,79 +1285,6 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
       <Tabs
         size="small"
         items={[
-          ...(market
-            ? [
-                {
-                  key: 'market',
-                  label: t('allocation.risk.marketTab'),
-                  children: (
-                    <div className="jx-strategy-riskSection">
-                      <div className="jx-strategy-riskSummary">
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.asOfDate')}
-                          value={formatYmd(market.asOfDate)}
-                        />
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.observations')}
-                          value={`${market.observations} / ${market.lookbackObservations}`}
-                        />
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.portfolioVolatility')}
-                          value={formatOptionalPercent(market.annualizedPortfolioVolatility)}
-                        />
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.explainedVariance')}
-                          value={formatOptionalPercent(market.explainedVariance)}
-                        />
-                      </div>
-                      <Table
-                        rowKey="factor"
-                        size="small"
-                        pagination={false}
-                        scroll={{ x: 540 }}
-                        dataSource={market.exposures}
-                        columns={[
-                          {
-                            title: t('allocation.risk.marketFactor'),
-                            dataIndex: 'factor',
-                            width: 180,
-                            render: factorLabel,
-                          },
-                          {
-                            title: t('allocation.risk.sensitivity'),
-                            key: 'sensitivity',
-                            width: 220,
-                            align: 'right',
-                            render: (_, row) =>
-                              row.coefficientUnit === 'return_per_basis_point'
-                                ? t('allocation.risk.perTenBp', {
-                                    value: signedPercent(row.coefficient * 10),
-                                  })
-                                : t('allocation.risk.beta', {
-                                    value: row.coefficient.toFixed(3),
-                                  }),
-                          },
-                          {
-                            title: t('allocation.risk.varianceContribution'),
-                            dataIndex: 'varianceContributionShare',
-                            width: 140,
-                            fixed: 'right',
-                            align: 'right',
-                            render: formatOptionalPercent,
-                          },
-                        ]}
-                      />
-                      <div className="jx-strategy-riskMeta">
-                        {t('allocation.risk.marketMeta', {
-                          halfLife: market.covarianceHalfLife,
-                          minimum: market.minimumObservations,
-                        })}
-                      </div>
-                    </div>
-                  ),
-                },
-              ]
-            : []),
           ...(macro
             ? [
                 {
@@ -1455,148 +1355,6 @@ const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
                           minimum: macro.minimumObservations,
                         })}
                       </div>
-                    </div>
-                  ),
-                },
-              ]
-            : []),
-          ...(overlap.length
-            ? [
-                {
-                  key: 'overlap',
-                  label: t('allocation.risk.overlapTab'),
-                  children: (
-                    <div className="jx-strategy-riskSection">
-                      <Alert
-                        type="info"
-                        showIcon
-                        title={t('allocation.risk.overlapTitle')}
-                        description={t('allocation.risk.overlapDescription')}
-                      />
-                      <Table
-                        rowKey={(row) => `${row.alphaFactorKey}-${row.marketFactor}`}
-                        size="small"
-                        pagination={overlap.length > 10 ? { pageSize: 10, size: 'small' } : false}
-                        scroll={{ x: 720 }}
-                        dataSource={overlap}
-                        columns={[
-                          {
-                            title: t('allocation.risk.alphaFactor'),
-                            dataIndex: 'alphaFactorKey',
-                          },
-                          {
-                            title: t('allocation.risk.alphaReturnKind'),
-                            dataIndex: 'alphaReturnKind',
-                            render: (value: string) => t(`allocation.risk.returnKinds.${value}`),
-                          },
-                          {
-                            title: t('allocation.risk.marketFactor'),
-                            dataIndex: 'marketFactor',
-                            render: factorLabel,
-                          },
-                          {
-                            title: t('allocation.risk.correlation'),
-                            dataIndex: 'correlation',
-                            align: 'right',
-                            render: (value: number) => value.toFixed(3),
-                          },
-                          {
-                            title: t('allocation.risk.classification'),
-                            dataIndex: 'classification',
-                            render: (value: string) => (
-                              <span
-                                className={`jx-strategy-riskOverlap jx-strategy-riskOverlap--${value}`}
-                              >
-                                {t(`allocation.risk.classifications.${value}`)}
-                              </span>
-                            ),
-                          },
-                          {
-                            title: t('allocation.risk.sample'),
-                            dataIndex: 'observations',
-                            align: 'right',
-                          },
-                        ]}
-                      />
-                    </div>
-                  ),
-                },
-              ]
-            : []),
-          ...(scenarios.length
-            ? [
-                {
-                  key: 'scenarios',
-                  label: t('allocation.risk.scenarioTab'),
-                  children: (
-                    <div className="jx-strategy-riskSection">
-                      <Alert
-                        type="warning"
-                        showIcon
-                        title={t('allocation.risk.scenarioTitle')}
-                        description={t('allocation.risk.scenarioDescription')}
-                      />
-                      <Table
-                        rowKey={(row) => `${row.kind}-${row.key}`}
-                        size="small"
-                        pagination={false}
-                        scroll={{ x: 1100 }}
-                        dataSource={scenarios}
-                        columns={[
-                          {
-                            title: t('allocation.risk.scenario'),
-                            dataIndex: 'key',
-                            width: 180,
-                            render: (key: string) => t(`allocation.risk.scenarios.${key}`),
-                          },
-                          {
-                            title: t('allocation.risk.scenarioKind'),
-                            dataIndex: 'kind',
-                            width: 100,
-                            render: (kind: PortfolioRiskScenarioResultV1['kind']) =>
-                              t(`allocation.risk.scenarioKinds.${kind}`),
-                          },
-                          {
-                            title: t('allocation.risk.historicalWindow'),
-                            key: 'historicalWindow',
-                            width: 210,
-                            render: (_, row) =>
-                              row.kind === 'historical'
-                                ? `${formatYmd(row.historicalWindow.startDate)} → ${formatYmd(row.historicalWindow.endDate)}`
-                                : '—',
-                          },
-                          {
-                            title: t('allocation.risk.shocks'),
-                            dataIndex: 'shocks',
-                            width: 480,
-                            render: (shocks: PortfolioRiskScenarioResultV1['shocks']) =>
-                              shocks
-                                .map((shock) =>
-                                  shock.unit === 'basis_point_change'
-                                    ? `${factorLabel(shock.factor)} ${signedBp(shock.shock)}`
-                                    : `${factorLabel(shock.factor)} ${signedPercent(shock.shock)}`,
-                                )
-                                .join(' · '),
-                          },
-                          {
-                            title: t('allocation.risk.estimatedImpact'),
-                            dataIndex: 'estimatedReturnImpact',
-                            width: 130,
-                            fixed: 'right',
-                            align: 'right',
-                            render: (value: number) => (
-                              <b
-                                className={classNames({
-                                  'text-up': value >= 0,
-                                  'text-down': value < 0,
-                                })}
-                              >
-                                {signedPercent(value)}
-                              </b>
-                            ),
-                          },
-                        ]}
-                      />
                     </div>
                   ),
                 },
@@ -1837,16 +1595,8 @@ function formatBp(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)} bp`;
 }
 
-function signedBp(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(0)} bp`;
-}
-
 function signedPercent(value: number): string {
   return `${value >= 0 ? '+' : ''}${pct(value)}`;
-}
-
-function formatOptionalPercent(value: number | null): string {
-  return value == null ? '—' : pct(value);
 }
 
 // The bottom dock — a collapsible IDE-style panel with streamed system + user console output.

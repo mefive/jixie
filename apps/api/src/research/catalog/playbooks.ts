@@ -56,7 +56,7 @@ const playbooks: Record<ResearchPlaybookId, ResearchPlaybookDefinitionV1> = {
         role: 'outcome',
         commonTransform: 'simple_return',
         rationale:
-          'The user must choose among materially different spot, continuous-future, and ETF proxies and currencies.',
+          'Only maintained ETF proxies are available. Explain their currency and product differences and report requests for spot or futures as unavailable.',
       },
       {
         conceptId: 'rates.us_treasury.real',
@@ -113,8 +113,7 @@ const playbooks: Record<ResearchPlaybookId, ResearchPlaybookDefinitionV1> = {
     rules: [
       'Do not replace DXY with USD/CNH or another bilateral USD pair.',
       'Do not replace US inflation with China CPI.',
-      'Do not replace USD-denominated spot gold with a CNY gold ETF or continuous future without explicit user approval.',
-      'Do not replace a continuous future with a single delivery-month contract.',
+      'Do not replace requested USD spot gold or futures with CNY ETF prices. Report the unavailable capability and let the user choose an available ETF explicitly.',
       'Prefer returns or changes for relationship tests unless a level relationship is explicitly justified.',
       'For a gold-yield relationship, use simple_return for the gold outcome and difference for the yield driver. rates.yield_pct does not register simple_return.',
     ],

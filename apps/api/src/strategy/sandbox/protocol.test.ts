@@ -16,8 +16,6 @@ describe('strategy sandbox protocol', () => {
           params: { lookback: 20, universe: '000300.SH' },
           factors: ['value'],
           watch: ['510300.SH'],
-          futures: [],
-          accounts: null,
         },
       }),
     ).toMatchObject({ type: 'ready' });
@@ -76,4 +74,17 @@ describe('strategy sandbox protocol', () => {
       false,
     );
   });
+});
+
+it.each([
+  'futures.orderContracts',
+  'futures.setTargetContracts',
+  'futures.setTargetNotional',
+  'futures.closePosition',
+  'futures.hedgeStock',
+])('rejects retired host command %s', (operation) => {
+  expect(
+    strategyCommandSchema.safeParse({ operation, arguments: { code: 'IF.CFX', contracts: 1 } })
+      .success,
+  ).toBe(false);
 });

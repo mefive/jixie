@@ -31,8 +31,6 @@ const ready = {
     params: { lookback: 7 },
     factors: [],
     watch: [],
-    futures: [],
-    accounts: null,
   },
 };
 

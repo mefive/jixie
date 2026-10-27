@@ -25,7 +25,6 @@ class Stock:
 class Capabilities:
     date = "20260105"
     portfolio = AttrDict(equity=1000)
-    futures = AttrDict(equity=0, available_cash=0, margin=0)
     def __init__(self): self.stock = Stock()
     def history(self, code, field, count): return [10, 12, 14]
     def load_cross_section(self, index_code=None): return []

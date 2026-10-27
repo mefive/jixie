@@ -19,9 +19,6 @@ export async function instrumentSeries(
   if (assetType === 'index') {
     return indexSeries(tsCode, tradeDate);
   }
-  if (assetType === 'future') {
-    return futureSeries(tsCode, start, end);
-  }
   return stockSeries(tsCode, tradeDate);
 }
 
@@ -148,61 +145,6 @@ async function indexSeries(tsCode: string, tradeDate: TradeDateRange): Promise<S
       close: row.close,
       vol: null,
       pe: peByDate.get(row.tradeDate) ?? null,
-      adjFactor: null,
-    })),
-  };
-}
-
-/**
- * 读取期货实际合约或研究序列，保留合约身份与数据限制。
- *
- * Load futures series while retaining contract identity and research-data limitations.
- */
-async function futureSeries(tsCode: string, start?: string, end?: string): Promise<StockSeries> {
-  const lower = start ?? '20150101';
-  const upper = end ?? '20991231';
-  const mappings = await getDatabase().futureMapping.findMany({
-    where: { continuousCode: tsCode, tradeDate: { gte: lower, lte: upper } },
-    select: { tradeDate: true, mappedTsCode: true },
-    orderBy: { tradeDate: 'asc' },
-  });
-  const actualCodes = mappings.length
-    ? [...new Set(mappings.map((row) => row.mappedTsCode))]
-    : [tsCode];
-  const [prices, contract] = await Promise.all([
-    getDatabase().futureDaily.findMany({
-      where: { tsCode: { in: actualCodes }, tradeDate: { gte: lower, lte: upper } },
-      select: {
-        tsCode: true,
-        tradeDate: true,
-        open: true,
-        high: true,
-        low: true,
-        close: true,
-        volume: true,
-      },
-      orderBy: { tradeDate: 'asc' },
-    }),
-    getDatabase().futureContract.findUnique({ where: { tsCode }, select: { name: true } }),
-  ]);
-  const byKey = new Map(prices.map((row) => [`${row.tsCode}|${row.tradeDate}`, row]));
-  const selected = mappings.length
-    ? mappings.flatMap((mapping) => {
-        const row = byKey.get(`${mapping.mappedTsCode}|${mapping.tradeDate}`);
-        return row ? [row] : [];
-      })
-    : prices;
-  return {
-    tsCode,
-    name: contract?.name ?? tsCode,
-    points: selected.map((row) => ({
-      date: row.tradeDate,
-      open: row.open,
-      high: row.high,
-      low: row.low,
-      close: row.close,
-      vol: row.volume,
-      pe: null,
       adjFactor: null,
     })),
   };

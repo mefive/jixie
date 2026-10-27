@@ -9,8 +9,8 @@ import {
 const definitions: AssetAllocationProbeDefinition[] = [
   { domain: 'rates', apiName: 'available', params: (date) => ({ date }) },
   { domain: 'rates', apiName: 'empty', params: () => ({}) },
-  { domain: 'commodity', apiName: 'forbidden', params: () => ({}) },
-  { domain: 'commodity', apiName: 'bad_request', params: () => ({}) },
+  { domain: 'rates', apiName: 'forbidden', params: () => ({}) },
+  { domain: 'rates', apiName: 'bad_request', params: () => ({}) },
   { domain: 'macro', apiName: 'offline', params: () => ({}) },
 ];
 
@@ -61,7 +61,7 @@ describe('asset-allocation Tushare probe', () => {
       },
       {
         catalogVersion: 1,
-        domain: 'commodity',
+        domain: 'rates',
         apiName: 'forbidden',
         status: 'permission_denied',
         rowCount: 0,
@@ -71,7 +71,7 @@ describe('asset-allocation Tushare probe', () => {
       },
       {
         catalogVersion: 1,
-        domain: 'commodity',
+        domain: 'rates',
         apiName: 'bad_request',
         status: 'request_error',
         rowCount: 0,

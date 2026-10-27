@@ -47,17 +47,6 @@ interface StrategyStockSnapshot {
 }
 
 /**
- * 冻结当前决策可见的期货账户视图，供 SDK 读取。
- *
- * Describe the futures-account snapshot visible to the current SDK decision.
- */
-interface StrategyFuturesSnapshot {
-  equity: number;
-  availableCash: number;
-  margin: number;
-}
-
-/**
  * 提供一次 SDK 能力绑定所需的决策快照、历史更新及宿主访问。
  *
  * Supply decision snapshots, history updates and host access for one SDK capability binding.
@@ -66,7 +55,6 @@ export interface StrategyAdapterInput {
   date: string;
   portfolio: { equity: number };
   stock: StrategyStockSnapshot;
-  futures: StrategyFuturesSnapshot;
   history_updates?: Record<string, HistoryUpdate>;
 }
 
@@ -164,7 +152,6 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
   readonly date: string;
   readonly portfolio: StrategyCapabilities['portfolio'];
   readonly stock: StrategyStockCapabilities;
-  readonly futures: StrategyCapabilities['futures'];
   private rows = new Map<string, BarRow | null>();
 
   /**
@@ -184,23 +171,6 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
       (method, args) => this.query(method, args),
       (operation, args) => this.command(operation, args),
     );
-    this.futures = {
-      equity: snapshot.futures.equity,
-      availableCash: snapshot.futures.availableCash,
-      margin: snapshot.futures.margin,
-      position: (code) =>
-        this.query('futures.position', [code]) as ReturnType<
-          StrategyCapabilities['futures']['position']
-        >,
-      orderContracts: (code, contracts) =>
-        this.command('futures.orderContracts', { code, contracts }),
-      setTargetContracts: (code, contracts) =>
-        this.command('futures.setTargetContracts', { code, contracts }),
-      setTargetNotional: (code, notional) =>
-        this.command('futures.setTargetNotional', { code, notional }),
-      hedgeStock: (code, beta = 1) => this.command('futures.hedgeStock', { code, beta }),
-      closePosition: (code) => this.command('futures.closePosition', { code }),
-    };
   }
 
   async loadCrossSection(indexCode?: string): Promise<string[]> {
@@ -279,18 +249,6 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
       percentile: (field, lookback) =>
         this.query('indexPercentile', [indexCode, field, lookback ?? null]) as number | null,
     };
-  }
-
-  future(code: string): ReturnType<StrategyCapabilities['future']> {
-    return this.query('future', [code]) as ReturnType<StrategyCapabilities['future']>;
-  }
-
-  futureHistory(
-    code: string,
-    field: Parameters<StrategyCapabilities['futureHistory']>[1],
-    count: number,
-  ): number[] {
-    return this.query('futureHistory', [code, field, count]) as number[];
   }
 
   private cachedBars(code: string, count: number): OhlcBar[] | undefined {

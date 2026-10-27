@@ -11,17 +11,13 @@ export const codeConfigSchema = z.object({
   end: z.string().regex(/^\d{8}$/),
   initialCash: z.number().positive(),
   cost: z
-    .object({
+    .strictObject({
       commission: z.number().min(0).optional(),
       minCommission: z.number().min(0).optional(),
       stampDuty: z.number().min(0).optional(),
       transferFee: z.number().min(0).optional(),
       slippageBps: z.number().min(0).max(10_000).optional(),
       impactCoef: z.number().min(0).max(10).optional(),
-      futureCommissionRate: z.number().min(0).optional(),
-      futureCloseTodayRate: z.number().min(0).optional(),
-      futureSlippageTicks: z.number().min(0).optional(),
-      futureMarginRate: z.number().positive().max(1).optional(),
     })
     .optional(),
   language: z.enum(['typescript', 'python']).optional(),

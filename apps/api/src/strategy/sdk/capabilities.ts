@@ -14,7 +14,6 @@ export interface StrategyCapabilities extends Pick<
   StrategyCtx,
   | 'date'
   | 'portfolio'
-  | 'futures'
   | 'bar'
   | 'bars'
   | 'ensureBars'
@@ -24,8 +23,6 @@ export interface StrategyCapabilities extends Pick<
   | 'factor'
   | 'indexMembers'
   | 'index'
-  | 'future'
-  | 'futureHistory'
 > {
   readonly stock: StrategyStockCapabilities;
   loadCrossSection(indexCode?: string): Promise<string[]>;

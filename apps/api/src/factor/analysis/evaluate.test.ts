@@ -10,13 +10,7 @@ import type { MacroRegimeEvaluationData } from '../observations/macro-regime-obs
 const mocks = vi.hoisted(() => ({
   start: vi.fn(),
   etf: vi.fn(),
-  carry: vi.fn(),
-  receipts: vi.fn(),
-  usesCarry: vi.fn(),
-  usesReceipts: vi.fn(),
   panel: vi.fn(),
-  panelCarry: vi.fn(),
-  panelUsesCarry: vi.fn(),
   macro: vi.fn(),
   crossSectional: vi.fn(),
 }));
@@ -25,20 +19,8 @@ vi.mock('../sandbox/factor-sandbox.js', () => ({ FactorSandbox: { start: mocks.s
 vi.mock('../observations/etf-trend-observations.js', () => ({
   loadEtfTimeSeriesObservations: mocks.etf,
 }));
-vi.mock('../observations/commodity-carry-time-series-observations.js', () => ({
-  loadCommodityCarryTimeSeriesObservations: mocks.carry,
-  timeSeriesFactorUsesCommodityCarry: mocks.usesCarry,
-}));
-vi.mock('../observations/commodity-warehouse-receipt-time-series-observations.js', () => ({
-  loadCommodityWarehouseReceiptTimeSeriesObservations: mocks.receipts,
-  timeSeriesFactorUsesCommodityWarehouseReceipts: mocks.usesReceipts,
-}));
 vi.mock('../observations/panel-observations.js', () => ({
   loadPanelEtfObservations: mocks.panel,
-}));
-vi.mock('../observations/commodity-carry-panel-observations.js', () => ({
-  loadCommodityCarryPanelObservations: mocks.panelCarry,
-  panelFactorUsesCommodityCarry: mocks.panelUsesCarry,
 }));
 vi.mock('../observations/macro-regime-observations.js', () => ({
   loadMacroRegimeObservations: mocks.macro,
@@ -125,10 +107,7 @@ const panelRows = [
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.etf.mockResolvedValue(rows);
-  mocks.carry.mockResolvedValue(rows);
-  mocks.receipts.mockResolvedValue(rows);
   mocks.panel.mockResolvedValue(panelRows);
-  mocks.panelCarry.mockResolvedValue(panelRows);
 });
 
 describe('shared factor evaluation', () => {
@@ -163,22 +142,6 @@ describe('shared factor evaluation', () => {
       expect(runtime.close).toHaveBeenCalledOnce();
     },
   );
-
-  it.each([
-    { carry: true, receipts: true, loader: 'carry' as const },
-    { carry: false, receipts: true, loader: 'receipts' as const },
-  ])('retains time-series loader precedence: $loader', async ({ carry, receipts, loader }) => {
-    const runtime = { close: vi.fn() };
-    mocks.start.mockResolvedValue(runtime);
-    mocks.usesCarry.mockReturnValue(carry);
-    mocks.usesReceipts.mockReturnValue(receipts);
-    await runFactorEvaluation({ ...options, source, spec: timeSeriesSpec });
-
-    expect(mocks[loader]).toHaveBeenCalledWith(timeSeriesSpec, runtime);
-    expect(mocks.etf).not.toHaveBeenCalled();
-    expect(mocks[loader === 'carry' ? 'receipts' : 'carry']).not.toHaveBeenCalled();
-    expect(runtime.close).toHaveBeenCalledOnce();
-  });
 
   it.each(['loading', 'evaluation', 'delivery', 'disposal'] as const)(
     'preserves %s failures and cleanup ordering',
@@ -216,7 +179,6 @@ describe('shared factor evaluation', () => {
     async (language) => {
       const runtime = { close: vi.fn() };
       mocks.start.mockResolvedValue(runtime);
-      mocks.panelUsesCarry.mockReturnValue(language === 'python');
       const result = await runFactorEvaluation({
         ...options,
         source: { kind: 'panel', code: 'panel code', label: 'Panel', language },
@@ -229,11 +191,7 @@ describe('shared factor evaluation', () => {
         code: 'panel code',
         onUserLog: logs.onUserLog,
       });
-      expect(language === 'python' ? mocks.panelCarry : mocks.panel).toHaveBeenCalledWith(
-        panelSpec,
-        runtime,
-      );
-      expect(language === 'python' ? mocks.panel : mocks.panelCarry).not.toHaveBeenCalled();
+      expect(mocks.panel).toHaveBeenCalledWith(panelSpec, runtime);
       expect(result).toMatchObject({
         periods: 3,
         observations: 12,

@@ -4,10 +4,6 @@ import type {
   EngineDataPort,
   EtfBasicDataRow,
   FinaIndicatorRow,
-  FutureContractRow,
-  FutureDailyDataRow,
-  FutureMappingDataRow,
-  FutureSettlementDataRow,
   IndexDailyBasicDataRow,
   IndexDailyRow,
   IndexWeightRow,
@@ -59,10 +55,6 @@ export interface FixtureSpec {
   indexWeights?: Record<string, IndexWeightRow[]>;
   finaIndicators?: FinaIndicatorRow[];
   yieldCurvePoints?: YieldCurvePointDataRow[];
-  futureContracts?: FutureContractRow[];
-  futureDaily?: FutureDailyDataRow[];
-  futureMappings?: FutureMappingDataRow[];
-  futureSettlements?: FutureSettlementDataRow[];
 }
 
 export function fixturePort(spec: FixtureSpec): EngineDataPort {
@@ -222,19 +214,6 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
         }
       }
       return out;
-    },
-
-    async futuresRange(start, end) {
-      return {
-        contracts: (spec.futureContracts ?? []).filter(
-          (row) => row.listDate <= end && row.delistDate >= start,
-        ),
-        daily: (spec.futureDaily ?? []).filter((row) => inRange(row.tradeDate, start, end)),
-        mappings: (spec.futureMappings ?? []).filter((row) => inRange(row.tradeDate, start, end)),
-        settlements: (spec.futureSettlements ?? []).filter((row) =>
-          inRange(row.tradeDate, start, end),
-        ),
-      };
     },
   };
 }

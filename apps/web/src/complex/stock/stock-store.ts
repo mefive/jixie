@@ -31,5 +31,5 @@ export class StockStore extends BaseStore<StockSetupParams> {
 }
 
 function isAssetType(value: string | undefined): value is ResearchAssetTypeV1 {
-  return value === 'stock' || value === 'etf' || value === 'index' || value === 'future';
+  return value === 'stock' || value === 'etf' || value === 'index';
 }

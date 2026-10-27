@@ -28,42 +28,7 @@ export async function seedResearchClarificationFixture() {
     documentId: fixture.documentId,
     title: '确认黄金价格口径',
     status: 'pending',
-    questions: [
-      {
-        id: fixture.questionId,
-        prompt: '平台没有美元现货黄金。本次研究使用哪个可执行口径？',
-        selectionMode: 'single',
-        allowCustom: true,
-        options: [
-          {
-            id: 'binding:commodity.gold.price.future.au_shf',
-            kind: 'binding',
-            referenceId: 'commodity.gold.price.future.au_shf',
-            labelZh: '沪金主力连续',
-            labelEn: 'SHFE gold continuous future',
-            descriptionZh: '人民币计价的连续期货代理，不等同于美元现货黄金。',
-            descriptionEn: 'A CNY continuous-future proxy; it is not USD spot gold.',
-          },
-          {
-            id: 'binding:commodity.gold.price.etf.518880_sh',
-            kind: 'binding',
-            referenceId: 'commodity.gold.price.etf.518880_sh',
-            labelZh: '黄金 ETF 518880.SH',
-            labelEn: 'Gold ETF 518880.SH',
-            descriptionZh: '人民币交易的 ETF 代理，费用和跟踪误差会影响结果。',
-            descriptionEn: 'A CNY-traded ETF proxy with fees and tracking error.',
-          },
-          {
-            id: 'keep_gap',
-            kind: 'keep_gap',
-            labelZh: '不使用代理',
-            labelEn: 'Do not substitute',
-            descriptionZh: '保留美元现货黄金定义，并记录当前平台数据缺口。',
-            descriptionEn: 'Keep the USD spot-gold definition and record the current data gap.',
-          },
-        ],
-      },
-    ],
+    questions: [],
     createdAt: createdAt.toISOString(),
   };
 

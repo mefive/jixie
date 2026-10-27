@@ -7,7 +7,7 @@ Publication fixes the current factor code and a matching successful analysis rep
 - The current definition is an owned draft.
 - The selected successful report belongs to the same user and factor.
 - Code, analysis kind, language and runtime match the report.
-- Inputs meet the current analysis kind's data requirements; controlled commodity research templates remain ineligible for publication.
+- Inputs meet the current analysis kind's data requirements; retired futures carry/warehouse fields and templates are unavailable.
 
 Positive returns or statistical significance are not required. Publication records a version; it does not certify investment quality.
 

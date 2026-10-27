@@ -97,17 +97,6 @@ describe('shared Worker wire contracts', () => {
         risk: {
           version: 1,
           separationPolicy: 'daily_market_risk_and_monthly_macro_sensitivity',
-          scenarios: [
-            {
-              key: 'historical',
-              kind: 'historical',
-              asOfDate: '20240102',
-              historicalWindow: { startDate: '20200101', endDate: '20201231' },
-              shocks: [{ factor: 'cn_equity', shock: -0.1, unit: 'decimal_return' }],
-              estimatedReturnImpact: -0.02,
-              methodology: 'linear_factor_shock',
-            },
-          ],
         },
       },
     };

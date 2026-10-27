@@ -353,55 +353,6 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     ],
   },
   {
-    id: 'tushare.cn_futures',
-    version: 1,
-    status: 'integrated',
-    provider: 'Tushare Pro',
-    dataset: 'China commodity futures reference, daily settlement, and continuous mapping',
-    nameZh: 'Tushare 中国商品期货数据',
-    nameEn: 'Tushare China commodity futures data',
-    keywords: ['商品期货', '沪金', 'AU.SHF', 'fut_basic', 'fut_daily', 'fut_mapping'],
-    markets: ['CN'],
-    assetClasses: ['commodity'],
-    exactInterfaces: ['fut_basic', 'fut_daily', 'fut_mapping', 'trade_cal'],
-    reviewedAt: '2026-08-15',
-    decision:
-      'Keep as the integrated private-research source. Actual-contract settlement, lifecycle, and mapping remain separate from continuous-return calculations.',
-    license: {
-      access: 'token_points',
-      localResearchUse: 'operational',
-      redistribution: 'prohibited_without_separate_authorization',
-      note: 'The current point tier is operational only for personal non-commercial research. Commercial use or redistribution requires separate authorization.',
-    },
-    coverage: {
-      historyDepth: 'Official permission catalog states futures daily history from 1996.',
-      delistedCoverage: 'included',
-      pointInTime: 'strong',
-    },
-    rateLimit: 'Point-tier dependent; requests are sliced by exchange and date.',
-    cost: 'Existing Tushare account and point tier.',
-    auditability: 'strong',
-    knownLimits: [
-      'A continuous code is a mapping, not a legal instrument or directly tradable price series.',
-      'Night-session observations must retain the exchange trading-date assignment.',
-    ],
-    evidence: [
-      TUSHARE_PERSONAL_USE_EVIDENCE,
-      {
-        kind: 'official_access',
-        url: 'https://tushare.pro/document/1?doc_id=108',
-        finding:
-          'The official catalog documents futures history, daily cadence, and permission tiers.',
-      },
-      {
-        kind: 'implementation',
-        url: 'apps/api/src/market/commodity/commodity-continuous-returns.ts',
-        finding:
-          'Local continuous returns preserve mapped-contract changes separately from roll gaps.',
-      },
-    ],
-  },
-  {
     id: 'tushare.cn_etf',
     version: 1,
     status: 'integrated',
@@ -908,60 +859,6 @@ const contracts: CrossMarketResearchDataContractV1[] = [
     ),
   },
   {
-    id: 'cn.commodity_future.continuous.daily',
-    version: 1,
-    status: 'integrated',
-    nameZh: '中国商品期货连续日线',
-    nameEn: 'China commodity futures continuous daily series',
-    keywords: ['商品期货', '连续合约', 'AU.SHF', '沪金'],
-    market: 'CN',
-    assetClass: 'commodity',
-    instrumentType: 'continuous_futures_mapping',
-    sourceDecisionId: 'tushare.cn_futures',
-    identity: {
-      canonicalIdPolicy:
-        'The continuous code identifies a versioned mapping rule; each observation also retains the actual mapped contract.',
-      lifecyclePolicy:
-        'Actual contracts retain listing, last-trade, delivery, and delisting fields; expired contracts remain in history.',
-      codeChangePolicy:
-        'A mapping switch is a roll event, not a code rename; preserve both contract identities and the roll gap.',
-    },
-    calendar: {
-      calendarId: 'CN_FUTURES_EXCHANGE',
-      timeZone: 'Asia/Shanghai',
-      observesDaylightSavingTime: false,
-      sessionDatePolicy:
-        'Use the exchange-assigned trading date, including night sessions that begin on the prior civil date.',
-      crossMarketAvailabilityPolicy:
-        'Settlement and mapping are usable only after the complete exchange trading session is published.',
-    },
-    currency: localCurrency('CNY', FX_SOURCE_DECISION_ID),
-    corporateActions: {
-      applicability: 'not_applicable',
-      adjustedPricePolicy:
-        'Do not apply equity adjustment factors; continuous returns use the mapped actual contract at both interval endpoints.',
-      totalReturnPolicy:
-        'A futures price return excludes collateral yield and must keep variation margin and roll attribution explicit.',
-    },
-    pointInTime: {
-      financialAnnouncementPolicy: 'Not applicable.',
-      macroVintagePolicy: 'Not applicable.',
-      revisionPolicy:
-        'Daily settlements and mappings are fingerprinted; later mapping changes are data revisions.',
-      availableDatePolicy:
-        'Use the exchange trading date only after settlement and mapping publication.',
-    },
-    binding: bindingContract(
-      'cn.commodity_future.continuous.daily',
-      'daily',
-      'quote_currency',
-      'CNY',
-      'Asia/Shanghai',
-      'available after the complete exchange trading session, settlement, and mapping are published',
-      'settlement or mapping revisions change the research data fingerprint',
-    ),
-  },
-  {
     id: 'cn.sovereign_yield.daily',
     version: 1,
     status: 'integrated',
@@ -1133,12 +1030,6 @@ const fixtures: CrossMarketContractFixtureV1[] = [
     'chinabond_cgb_ytm|10',
   ),
   fixture('cn-etf-csi300-share-size', 'cn.etf.share_size.daily', 'CN:SSE:510300.SH', '510300.SH'),
-  fixture(
-    'cn-commodity-au-continuous',
-    'cn.commodity_future.continuous.daily',
-    'CN:SHFE:AU:CONTINUOUS',
-    'AU.SHF',
-  ),
 ];
 
 export const crossMarketDataContractRegistry = {

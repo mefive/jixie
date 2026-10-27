@@ -1,8 +1,8 @@
+import { isFactorV2FieldKey } from '../definitions/fields.js';
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { FactorSandbox } from '../sandbox/factor-sandbox.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
-import { isResearchOnlyFactorV2Field } from '../definitions/fields.js';
 import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
 import { FactorError } from '../errors.js';
 
@@ -71,7 +71,7 @@ export async function publishFactor(
   }
   if (
     (factor.analysisKind === 'time_series' || factor.analysisKind === 'panel') &&
-    (await assetFactorCodeUsesResearchOnlyInput(
+    (await assetFactorCodeIsInvalid(
       factor.code,
       factor.analysisKind,
       factorLanguage(factor.language),
@@ -143,7 +143,7 @@ export async function publishFactor(
   };
 }
 
-async function assetFactorCodeUsesResearchOnlyInput(
+async function assetFactorCodeIsInvalid(
   code: string,
   analysisKind: 'time_series' | 'panel',
   language: FactorLanguage,
@@ -151,7 +151,7 @@ async function assetFactorCodeUsesResearchOnlyInput(
   try {
     const sandbox = await FactorSandbox.start({ language, analysisKind, code });
     try {
-      return sandbox.metadata.inputs.some(isResearchOnlyFactorV2Field);
+      return sandbox.metadata.inputs.some((input) => !isFactorV2FieldKey(input));
     } finally {
       sandbox.close();
     }

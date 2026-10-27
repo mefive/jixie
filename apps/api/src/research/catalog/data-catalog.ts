@@ -4,8 +4,6 @@ import { strategyScanReportStatusWhere } from '#strategy/scans/state.js';
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
 import {
   RESEARCH_EQUITY_UNIVERSE_SUGGESTIONS_V1,
-  RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
-  RESEARCH_COMMODITY_PRODUCT_CODES_V1,
   RESEARCH_FX_SERIES_IDS_V1,
   RESEARCH_MACRO_SERIES_KEYS_V1,
   RESEARCH_SDK_AGENT_CATALOG_V1,
@@ -67,7 +65,7 @@ export async function searchResearchDataCatalog(
   );
   const assetTypes = input.assetType
     ? ([input.assetType] as const)
-    : (['stock', 'etf', 'index', 'future'] as const);
+    : (['stock', 'etf', 'index'] as const);
   const measures = researchCapabilityCatalog.measures.filter(
     (measure) =>
       measure.sourceKinds.includes('instrument') &&
@@ -160,113 +158,84 @@ export async function searchResearchDataCatalog(
     };
   }
 
-  const [stocks, etfs, indexes, marketBenchmarks, indexCodes, futureMappings, futures] =
-    await Promise.all([
-      assetTypes.includes('stock')
-        ? getDatabase().stockBasic.findMany({
-            where: {
-              OR: [
-                { tsCode: { contains: query } },
-                { symbol: { contains: query } },
-                { name: { contains: query } },
-              ],
-            },
-            select: { tsCode: true, name: true, market: true },
-            take: limit,
-          })
-        : Promise.resolve([]),
-      assetTypes.includes('etf')
-        ? getDatabase().etfBasic.findMany({
-            where: {
-              OR: [
-                { tsCode: { contains: query } },
-                { name: { contains: query } },
-                { fullName: { contains: query } },
-                { indexName: { contains: query } },
-              ],
-            },
-            select: {
-              tsCode: true,
-              name: true,
-              fundType: true,
-              indexName: true,
-              exchange: true,
-            },
-            take: limit,
-          })
-        : Promise.resolve([]),
-      assetTypes.includes('index')
-        ? getDatabase().indexBenchmark.findMany({
-            where: {
-              OR: [
-                { tsCode: { contains: query } },
-                { symbol: { contains: query } },
-                { name: { contains: query } },
-                { fullName: { contains: query } },
-              ],
-            },
-            select: { tsCode: true, name: true, fullName: true, indexType: true },
-            take: limit,
-          })
-        : Promise.resolve([]),
-      assetTypes.includes('index')
-        ? getDatabase().marketBenchmark.findMany({
-            where: {
-              OR: [
-                { id: { contains: query } },
-                { providerCode: { contains: query } },
-                { nameZh: { contains: query } },
-                { nameEn: { contains: query } },
-              ],
-            },
-            select: {
-              id: true,
-              providerCode: true,
-              nameZh: true,
-              nameEn: true,
-              market: true,
-              currency: true,
-            },
-            take: limit,
-          })
-        : Promise.resolve([]),
-      assetTypes.includes('index')
-        ? getDatabase().indexDaily.findMany({
-            where: { tsCode: { contains: query } },
-            select: { tsCode: true },
-            distinct: ['tsCode'],
-            take: limit,
-          })
-        : Promise.resolve([]),
-      assetTypes.includes('future')
-        ? getDatabase().futureMapping.findMany({
-            where: { continuousCode: { contains: query } },
-            select: { continuousCode: true },
-            distinct: ['continuousCode'],
-            take: limit,
-          })
-        : Promise.resolve([]),
-      assetTypes.includes('future')
-        ? getDatabase().futureContract.findMany({
-            where: {
-              OR: [
-                { tsCode: { contains: query } },
-                { symbol: { contains: query } },
-                { name: { contains: query } },
-                { productCode: { contains: query } },
-              ],
-            },
-            select: {
-              tsCode: true,
-              name: true,
-              productCode: true,
-              exchange: true,
-              deliveryMonth: true,
-            },
-            take: limit,
-          })
-        : Promise.resolve([]),
-    ]);
+  const [stocks, etfs, indexes, marketBenchmarks, indexCodes] = await Promise.all([
+    assetTypes.includes('stock')
+      ? getDatabase().stockBasic.findMany({
+          where: {
+            OR: [
+              { tsCode: { contains: query } },
+              { symbol: { contains: query } },
+              { name: { contains: query } },
+            ],
+          },
+          select: { tsCode: true, name: true, market: true },
+          take: limit,
+        })
+      : Promise.resolve([]),
+    assetTypes.includes('etf')
+      ? getDatabase().etfBasic.findMany({
+          where: {
+            OR: [
+              { tsCode: { contains: query } },
+              { name: { contains: query } },
+              { fullName: { contains: query } },
+              { indexName: { contains: query } },
+            ],
+          },
+          select: {
+            tsCode: true,
+            name: true,
+            fundType: true,
+            indexName: true,
+            exchange: true,
+          },
+          take: limit,
+        })
+      : Promise.resolve([]),
+    assetTypes.includes('index')
+      ? getDatabase().indexBenchmark.findMany({
+          where: {
+            OR: [
+              { tsCode: { contains: query } },
+              { symbol: { contains: query } },
+              { name: { contains: query } },
+              { fullName: { contains: query } },
+            ],
+          },
+          select: { tsCode: true, name: true, fullName: true, indexType: true },
+          take: limit,
+        })
+      : Promise.resolve([]),
+    assetTypes.includes('index')
+      ? getDatabase().marketBenchmark.findMany({
+          where: {
+            OR: [
+              { id: { contains: query } },
+              { providerCode: { contains: query } },
+              { nameZh: { contains: query } },
+              { nameEn: { contains: query } },
+            ],
+          },
+          select: {
+            id: true,
+            providerCode: true,
+            nameZh: true,
+            nameEn: true,
+            market: true,
+            currency: true,
+          },
+          take: limit,
+        })
+      : Promise.resolve([]),
+    assetTypes.includes('index')
+      ? getDatabase().indexDaily.findMany({
+          where: { tsCode: { contains: query } },
+          select: { tsCode: true },
+          distinct: ['tsCode'],
+          take: limit,
+        })
+      : Promise.resolve([]),
+  ]);
 
   const knownIndexCodes = new Set(indexes.map((item) => item.tsCode));
   const candidates: ResearchDataCatalogInstrumentV1[] = [
@@ -307,21 +276,6 @@ export async function searchResearchDataCatalog(
     ...indexCodes
       .filter((item) => !knownIndexCodes.has(item.tsCode))
       .map((item) => instrument('index', item.tsCode, item.tsCode, measures)),
-    ...futureMappings.map((item) => ({
-      ...instrument('future', item.continuousCode, `${item.continuousCode} 主力连续`, measures, [
-        'continuous',
-      ]),
-      continuous: true,
-    })),
-    ...futures.map((item) =>
-      instrument(
-        'future',
-        item.tsCode,
-        item.name,
-        measures,
-        compact([item.productCode, item.exchange, item.deliveryMonth]),
-      ),
-    ),
   ];
 
   const instruments = uniqueRankedInstruments(candidates, query).slice(0, limit);
@@ -353,9 +307,6 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.yield_curve',
         'data.macro',
         'data.fx',
-        'data.commodity_returns',
-        'data.commodity_warehouse_receipts',
-        'data.commodity_holdings',
         'data.equity_fundamentals',
         'data.equity_financial_values',
         'data.equity_financial_statements',
@@ -365,7 +316,6 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.equity_dividends',
         'data.etf_shares',
         'data.index_valuation',
-        'data.futures_settlement',
       ];
     case 'factor_reports':
       return ['results.factor_report'];
@@ -398,15 +348,10 @@ async function searchDatasets(
     macroSeries,
     macroCoverageRows,
     fxCoverageRows,
-    commodityReturnCoverageRows,
-    commodityWarehouseReceiptCoverageRows,
-    commodityHoldingCoverageRows,
     etfShareCoverageRows,
     etfMetadataRows,
     indexValuationCoverageRows,
     indexMetadataRows,
-    futuresSettlementCoverageRows,
-    futuresMetadataRows,
     financialIncomeCoverage,
     financialBalanceCoverage,
     financialCashFlowCoverage,
@@ -456,24 +401,6 @@ async function searchDatasets(
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    getDatabase().commodityContinuousReturn.groupBy({
-      by: ['productCode'],
-      where: { productCode: { in: [...RESEARCH_COMMODITY_PRODUCT_CODES_V1] } },
-      _min: { availableDate: true },
-      _max: { availableDate: true },
-    }),
-    getDatabase().commodityWarehouseReceipt.groupBy({
-      by: ['productCode'],
-      where: { productCode: { in: [...RESEARCH_COMMODITY_PRODUCT_CODES_V1] } },
-      _min: { availableDate: true },
-      _max: { availableDate: true },
-    }),
-    getDatabase().commodityHoldingPosition.groupBy({
-      by: ['productCode'],
-      where: { productCode: { in: [...RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1] } },
-      _min: { availableDate: true },
-      _max: { availableDate: true },
-    }),
     getDatabase().etfShareSize.groupBy({
       by: ['tsCode'],
       _min: { availableDate: true },
@@ -489,14 +416,6 @@ async function searchDatasets(
     }),
     getDatabase().indexBenchmark.findMany({
       select: { tsCode: true, name: true, indexType: true },
-    }),
-    getDatabase().futureSettlement.groupBy({
-      by: ['tsCode'],
-      _min: { tradeDate: true },
-      _max: { tradeDate: true },
-    }),
-    getDatabase().futureContract.findMany({
-      select: { tsCode: true, name: true, productCode: true, exchange: true },
     }),
     getDatabase().financialIncomeStatement.aggregate({
       where: { availabilityQuality: { not: 'reconstructed' } },
@@ -657,65 +576,6 @@ async function searchDatasets(
       localDataCoverage,
     };
   });
-  const commodityReturnCoverage = datasetCoverageByProduct(commodityReturnCoverageRows);
-  const commodityWarehouseReceiptCoverage = datasetCoverageByProduct(
-    commodityWarehouseReceiptCoverageRows,
-  );
-  const commodityHoldingCoverage = datasetCoverageByProduct(commodityHoldingCoverageRows);
-
-  /**
-   * 构造商品研究数据集目录，明确实际合约和研究代理边界。
-   *
-   * Build commodity research catalog entries with actual-contract and proxy boundaries.
-   */
-  const commodityDatasets = RESEARCH_COMMODITY_PRODUCT_CODES_V1.flatMap((product) => {
-    const meta = commodityProductMeta(product);
-    const shared = {
-      kind: 'dataset' as const,
-      product,
-      nameZh: meta.nameZh,
-      nameEn: meta.nameEn,
-      tags: [...meta.tags, product, 'PIT'],
-    };
-    const rows: ResearchDataCatalogDatasetV1[] = [
-      {
-        ...shared,
-        id: `data.commodity_returns:${product}`,
-        method: 'data.commodity_returns',
-        nameZh: `${meta.nameZh}连续收益`,
-        nameEn: `${meta.nameEn} continuous returns`,
-        descriptionZh: '审计过的主力合约连续收益、映射合约与换月分解。',
-        descriptionEn: 'Audited main-contract continuous returns, mapping, and roll decomposition.',
-        localDataCoverage: commodityReturnCoverage.get(product) ?? missingDatasetCoverage(),
-      },
-      {
-        ...shared,
-        id: `data.commodity_warehouse_receipts:${product}`,
-        method: 'data.commodity_warehouse_receipts',
-        nameZh: `${meta.nameZh}仓单`,
-        nameEn: `${meta.nameEn} warehouse receipts`,
-        descriptionZh: '交易所仓单总量、变化与原始单位。',
-        descriptionEn: 'Exchange warehouse-receipt totals, changes, and source units.',
-        localDataCoverage:
-          commodityWarehouseReceiptCoverage.get(product) ?? missingDatasetCoverage(),
-      },
-    ];
-    if (RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1.includes(product as never)) {
-      rows.push({
-        ...shared,
-        product: product as (typeof RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1)[number],
-        id: `data.commodity_holdings:${product}`,
-        method: 'data.commodity_holdings',
-        nameZh: `${meta.nameZh}会员持仓`,
-        nameEn: `${meta.nameEn} member holdings`,
-        descriptionZh: '实际代表合约的排名会员多空持仓聚合。',
-        descriptionEn:
-          'Ranked-member long and short aggregates for the actual representative contract.',
-        localDataCoverage: commodityHoldingCoverage.get(product) ?? missingDatasetCoverage(),
-      });
-    }
-    return rows;
-  });
   const etfMetadata = new Map(etfMetadataRows.map((row) => [row.tsCode, row]));
   const etfShareDatasets: ResearchDataCatalogDatasetV1[] = etfShareCoverageRows.flatMap((row) => {
     const start = row._min.availableDate;
@@ -764,31 +624,6 @@ async function searchDatasets(
       ];
     },
   );
-  const futuresMetadata = new Map(futuresMetadataRows.map((row) => [row.tsCode, row]));
-  const futuresSettlementDatasets: ResearchDataCatalogDatasetV1[] =
-    futuresSettlementCoverageRows.flatMap((row) => {
-      const start = row._min.tradeDate;
-      const end = row._max.tradeDate;
-      if (!start || !end) {
-        return [];
-      }
-      const meta = futuresMetadata.get(row.tsCode);
-      return [
-        {
-          kind: 'dataset',
-          id: `data.futures_settlement:${row.tsCode}`,
-          method: 'data.futures_settlement',
-          identifier: row.tsCode,
-          nameZh: `${meta?.name ?? row.tsCode}期货结算参数`,
-          nameEn: `${meta?.name ?? row.tsCode} futures settlement parameters`,
-          descriptionZh: '实际交割合约的结算价、交易所手续费与保证金参数。',
-          descriptionEn:
-            'Settlement prices, exchange fees, and margin parameters for an actual delivery contract.',
-          tags: compact([row.tsCode, meta?.productCode, meta?.exchange, 'futures', 'settlement']),
-          localDataCoverage: readyDatasetCoverage(start, end, 'tradeDate'),
-        },
-      ];
-    });
   const financialCoverage = intersectDatasetCoverage(
     [
       [financialIncomeCoverage._min.availableDate, financialIncomeCoverage._max.availableDate],
@@ -902,11 +737,9 @@ async function searchDatasets(
     ...financialUniverseDatasets,
     ...macroDatasets,
     ...fxDatasets,
-    ...commodityDatasets,
     ...yieldDatasets,
     ...etfShareDatasets,
     ...indexValuationDatasets,
-    ...futuresSettlementDatasets,
   ];
   const normalizedQuery = query.toLocaleLowerCase();
   return datasets
@@ -1022,45 +855,6 @@ function fxSeriesMeta(pair: ResearchFxSeriesIdV1): {
   }
 }
 
-function datasetCoverageByProduct(
-  rows: Array<{
-    productCode: string;
-    _min: { availableDate: string | null };
-    _max: { availableDate: string | null };
-  }>,
-): Map<string, ResearchDataCatalogDatasetCoverageV1> {
-  return new Map(
-    rows.map((row) => [
-      row.productCode,
-      row._min.availableDate && row._max.availableDate
-        ? readyDatasetCoverage(row._min.availableDate, row._max.availableDate, 'availableDate')
-        : missingDatasetCoverage(),
-    ]),
-  );
-}
-
-/**
- * 整理已支持商品产品与研究数据覆盖。
- *
- * Describe supported commodity products and research-data coverage.
- */
-function commodityProductMeta(product: (typeof RESEARCH_COMMODITY_PRODUCT_CODES_V1)[number]): {
-  nameZh: string;
-  nameEn: string;
-  tags: string[];
-} {
-  switch (product) {
-    case 'AU':
-      return { nameZh: '黄金', nameEn: 'Gold', tags: ['贵金属', 'precious metal'] };
-    case 'CU':
-      return { nameZh: '铜', nameEn: 'Copper', tags: ['有色金属', 'base metal'] };
-    case 'SC':
-      return { nameZh: '原油', nameEn: 'Crude oil', tags: ['能源', 'energy'] };
-    case 'M':
-      return { nameZh: '豆粕', nameEn: 'Soybean meal', tags: ['农产品', 'agriculture'] };
-  }
-}
-
 /**
  * 将目录期限转换为年数，供匹配与排序。
  *
@@ -1109,13 +903,8 @@ function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
       return [dataset.series];
     case 'data.fx':
       return [dataset.pair];
-    case 'data.commodity_returns':
-    case 'data.commodity_warehouse_receipts':
-    case 'data.commodity_holdings':
-      return [dataset.product];
     case 'data.etf_shares':
     case 'data.index_valuation':
-    case 'data.futures_settlement':
     case 'data.equity_financial_values':
     case 'data.equity_financial_statements':
     case 'data.equity_financial_metrics':
@@ -1398,13 +1187,7 @@ async function attachLocalDataCoverage(
         !instrument.compatibleMeasureIds.includes('market.cny_close'),
     )
     .map((instrument) => instrument.identifier);
-  const continuousFutureCodes = instruments
-    .filter((instrument) => instrument.assetType === 'future' && instrument.continuous)
-    .map((instrument) => instrument.identifier);
-  const futureCodes = instruments
-    .filter((instrument) => instrument.assetType === 'future' && !instrument.continuous)
-    .map((instrument) => instrument.identifier);
-  const [stocks, etfs, indexes, benchmarks, continuousFutures, futures] = await Promise.all([
+  const [stocks, etfs, indexes, benchmarks] = await Promise.all([
     getDatabase().daily.groupBy({
       by: ['tsCode'],
       where: { tsCode: { in: stockCodes } },
@@ -1433,20 +1216,6 @@ async function attachLocalDataCoverage(
       _min: { availableDate: true },
       _max: { availableDate: true },
     }),
-    getDatabase().futureMapping.groupBy({
-      by: ['continuousCode'],
-      where: { continuousCode: { in: continuousFutureCodes } },
-      _count: { _all: true },
-      _min: { tradeDate: true },
-      _max: { tradeDate: true },
-    }),
-    getDatabase().futureDaily.groupBy({
-      by: ['tsCode'],
-      where: { tsCode: { in: futureCodes } },
-      _count: { _all: true },
-      _min: { tradeDate: true },
-      _max: { tradeDate: true },
-    }),
   ]);
   const coverageByInstrument = new Map<string, ResearchDataCatalogCoverageV1>();
   for (const row of stocks) {
@@ -1468,12 +1237,6 @@ async function attachLocalDataCoverage(
         dateBasis: 'availableDate',
       });
     }
-  }
-  for (const row of continuousFutures) {
-    setTradeDateCoverage(coverageByInstrument, `future:${row.continuousCode}`, row);
-  }
-  for (const row of futures) {
-    setTradeDateCoverage(coverageByInstrument, `future:${row.tsCode}`, row);
   }
 
   return instruments.map((instrument) => {

@@ -1,5 +1,7 @@
 # Commodity carry: term structure, proxy error, and holdout evidence
 
+> This is a historical learning record. Futures data, carry/warehouse templates, and dependent daily risk regression, Alpha overlap and stress scenarios are retired. The old steps cannot be rerun in the current system. Original values and screenshots remain for studying the method; use the workbench guides for current stock/ETF operations.
+
 > Historical case: research cards, Holdout admission, preregistration and reveal records below describe the retired workflow. Current analyses use user-selected dates; publication fixes matching source and a successful report. Original values and captures illustrate research methods only.
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
 
@@ -211,5 +213,4 @@ with a new prior criterion and genuinely unseen data, not retune this window.
 - [Run cross-asset Panel research](/help/factors/panel-research)
 - [Run ETF time-series research](/help/factors/time-series-research)
 - [Turnover, transaction costs, and net returns](/help/factors/turnover-costs)
-- [Backtest stock-index futures](/help/backtesting/index-futures)
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)

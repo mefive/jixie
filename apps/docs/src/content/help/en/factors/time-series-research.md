@@ -10,7 +10,7 @@ Time-series research compares one asset across its own historical states. It ask
 2. Select ETF time-series signal, or create a Factor with that research method.
 3. For a custom study, enter its name and immutable Factor key.
 4. Choose research assets, forward horizon, and dates.
-5. Choose assets, dates and forward horizon, then run directly. Publication requires a successful report matching the source; controlled carry and warehouse-receipt templates remain unavailable for publication or strategy use.
+5. Choose assets, dates and forward horizon, then run directly. Publication requires a successful report matching the source.
 
 The numbered areas are the research method, assets, horizon and dates, and run action.
 
@@ -35,13 +35,12 @@ The displayed slope is \(\beta\). A larger absolute t-statistic indicates a clea
 ## Input boundaries
 
 - Adjusted ETF closes and approved government-yield inputs can be used by controlled definitions; official curves become available on the next SSE trading day.
-- Commodity Carry is derived from actual monthly contracts while future returns come from mapped ETFs. Metals and energy-chemical ETFs are not one-to-one copper and crude-oil proxies.
-- Warehouse-receipt research currently allows gold, copper, and soybean meal. Crude oil is excluded because tonne and barrel series cannot be audited as one measure.
-- If Publication and strategy reference is absent, the template is research-only. Do not bypass the restriction by copying code.
+
+Futures carry and warehouse-receipt fields and templates are retired; rerunning old code fails. Adjusted-price research on commodity or gold ETFs remains available.
 
 ## From exploration to publication
 
-Choose assets, dates and forward horizon, then run directly. Publication requires a successful report matching the source; controlled carry and warehouse-receipt templates remain unavailable for publication or strategy use.
+Choose assets, dates and forward horizon, then run directly. Publication requires a successful report matching the source.
 
 ## Related articles
 

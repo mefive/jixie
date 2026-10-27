@@ -158,11 +158,6 @@ export class ResearchBridge
         line: request.line,
         pair: request.pair,
       }));
-      const commodityRequests = cell.commodity_requests.map((request) => ({
-        line: request.line,
-        method: request.method,
-        product: request.product,
-      }));
       const equityRequests = cell.equity_requests.map((request) => ({
         line: request.line,
         method: request.method,
@@ -183,7 +178,6 @@ export class ResearchBridge
         ...(yieldCurveRequests.length > 0 ? { yieldCurveRequests } : {}),
         ...(macroRequests.length > 0 ? { macroRequests } : {}),
         ...(fxRequests.length > 0 ? { fxRequests } : {}),
-        ...(commodityRequests.length > 0 ? { commodityRequests } : {}),
         ...(equityRequests.length > 0 ? { equityRequests } : {}),
         ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
       };

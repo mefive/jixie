@@ -16,10 +16,9 @@ export const RESEARCH_CONCEPT_IDS = [
 
 export type ResearchConceptId = (typeof RESEARCH_CONCEPT_IDS)[number];
 export type ResearchCatalogSourceKind = 'instrument' | 'macro' | 'yield_curve' | 'fx';
-export type ResearchCatalogAssetType = 'stock' | 'etf' | 'index' | 'future';
+export type ResearchCatalogAssetType = 'stock' | 'etf' | 'index';
 export const RESEARCH_CONCEPT_INSTRUMENT_FORMS = [
   'spot',
-  'continuous_future',
   'etf',
   'price_index',
   'yield_curve',
@@ -111,9 +110,9 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     family: 'commodity.gold.price',
     nameZh: '黄金价格',
     nameEn: 'Gold price',
-    descriptionZh: '黄金价格代理，包括现货、连续期货或黄金 ETF；币种和产品类型必须显式区分。',
+    descriptionZh: '黄金价格概念；当前仅提供已维护的黄金 ETF 行情，不能替代现货或期货。',
     descriptionEn:
-      'Gold-price proxies such as spot, continuous futures, or gold ETFs; currency and product type must remain explicit.',
+      'Gold-price concept; only maintained gold ETF prices are available, without substituting for spot or futures.',
     aliases: ['黄金', '沪金', 'gold', 'gold price', 'gold future', 'xau', 'comex gold'],
     selectionDimensions: ['instrumentForm', 'quoteCurrency', 'market'],
   },
@@ -123,8 +122,9 @@ const concepts: Record<ResearchConceptId, ResearchConceptDefinitionV1> = {
     family: 'commodity.silver.price',
     nameZh: '白银价格',
     nameEn: 'Silver price',
-    descriptionZh: '白银价格代理，包括现货、连续期货或白银 ETF。',
-    descriptionEn: 'Silver-price proxies such as spot, continuous futures, or silver ETFs.',
+    descriptionZh: '白银价格概念；仅在已维护的 ETF 范围内取数，现货和期货不可用。',
+    descriptionEn:
+      'Silver-price concept; reads are limited to maintained ETFs. Spot and futures are unavailable.',
     aliases: ['白银', '沪银', 'silver', 'silver price', 'xag'],
     selectionDimensions: ['instrumentForm', 'quoteCurrency', 'market'],
   },

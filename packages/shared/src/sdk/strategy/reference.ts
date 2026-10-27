@@ -17,7 +17,7 @@ import type { Locale } from '../../i18n.js';
  * Define canonical strategy member signatures and bilingual guidance for docs, Monaco and implementation types.
  */
 export interface SdkEntry {
-  iface: 'Universe' | 'StrategyCtx' | 'StockAccount' | 'FuturesAccount' | 'BarRow';
+  iface: 'Universe' | 'StrategyCtx' | 'StockAccount' | 'BarRow';
   name: string; // member name — also the doc anchor id and the openSdkDoc command arg
   sig: string; // exact TS signature line emitted into the .d.ts
   group: string; // doc section
@@ -180,31 +180,8 @@ interface TimeframeSeries {
 ${TIMEFRAME_METHODS.map((method) => `  /** ${method[locale]} */\n  ${method.sig};`).join('\n')}
 }
 
-interface FutureBar {
-  code: string;
-  actualCode: string;
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  close: number | null;
-  settle: number | null;
-  volume: number | null;
-  amount: number | null;
-  openInterest: number | null;
-  multiplier: number;
-}
 
-interface FuturePosition {
-  code: string;
-  actualCode: string;
-  contracts: number;
-  margin: number;
-}
 
-interface StrategyAccounts {
-  stock: { cashWeight: number };
-  futures: { cashWeight: number };
-}
 
 type Schedule = 'daily' | 'weekly' | 'monthly';`;
 
@@ -222,10 +199,6 @@ interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
-  /** @deprecated Ignored. Use accounts to allocate capital; futures data is available without a declaration. */
-  futures?: string[];
-  /** Initial stock/futures cash weights summing to 1. Defaults to stock 1, futures 0; no automatic transfers. */
-  accounts?: StrategyAccounts;
   onBar(ctx: StrategyCtx<Params>): void | Promise<void>;
 }
 
@@ -357,30 +330,6 @@ export const SDK_ENTRIES = [
     sig: "index(indexCode: string): { readonly close: number | null; readonly pe: number | null; readonly peTtm: number | null; readonly pb: number | null; sma(n: number): number | null; percentile(field: 'pe' | 'peTtm' | 'pb', lookback?: number): number | null }",
     zh: "大盘指数句柄(如 000300.SH 沪深300)时点只读:close/pe/peTtm/pb 均截至今天；percentile('pe', 2520) 计算约十个交易年的 PE 历史分位,返回 0~1,不传窗口则用全部已有历史；sma(n) 为指数 n 日均线。指数不可直接交易,未同步字段返 null。",
     en: "Read-only, point-in-time index handle: close/PE/PB are as-of today; percentile('pe', 2520) ranks today's PE within roughly ten trading years and returns 0..1 (all available history when omitted); sma(n) is the index close MA.",
-  },
-  {
-    iface: 'StrategyCtx',
-    name: 'future',
-    group: '股指期货',
-    sig: 'future(code: string): FutureBar | null',
-    zh: '读取真实月合约或主力连续代码(如 IF.CFX)今天的期货行情;连续代码按当日时点映射到真实合约。',
-    en: "Today's futures bar for an actual or main-continuous code; continuous codes resolve point-in-time to an actual contract.",
-  },
-  {
-    iface: 'StrategyCtx',
-    name: 'futureHistory',
-    group: '股指期货',
-    sig: "futureHistory(code: string, field: 'open' | 'high' | 'low' | 'close' | 'settle', n: number): number[]",
-    zh: '最近 n 个期货字段值,按每日时点主力映射拼接;从旧到新。',
-    en: 'Last n futures values, point-in-time mapped each day, oldest to newest.',
-  },
-  {
-    iface: 'FuturesAccount',
-    name: 'futures.position',
-    group: '股指期货',
-    sig: 'position(code: string): FuturePosition | null',
-    zh: '当前期货持仓;contracts 正数为多头、负数为空头。',
-    en: 'Current futures position; positive contracts are long and negative contracts are short.',
   },
   {
     iface: 'StrategyCtx',
@@ -694,46 +643,6 @@ export const SDK_ENTRIES = [
     zh: '撤销某标的指定类型的条件单；省略 kind 时撤销该标的全部条件单。',
     en: 'Cancel one conditional-order kind for a code, or all conditional orders for that code when kind is omitted.',
   },
-  {
-    iface: 'FuturesAccount',
-    name: 'futures.orderContracts',
-    group: '股指期货',
-    sig: 'orderContracts(code: string, contracts: number): void',
-    zh: '期货手数增量：截断为整数，同日同代码累加，不能与该代码目标混用。次开成交，需分配足够期货资金。',
-    en: 'Signed futures delta, truncated to whole contracts and accumulated per code; cannot mix with targets for that code. Filled next open, subject to futures funding.',
-  },
-  {
-    iface: 'FuturesAccount',
-    name: 'futures.setTargetContracts',
-    group: '股指期货',
-    sig: 'setTargetContracts(code: string, contracts: number): void',
-    zh: '设置次日开盘的期货目标手数;正数多头、负数空头。',
-    en: 'Set the signed futures contract target for the next open.',
-  },
-  {
-    iface: 'FuturesAccount',
-    name: 'futures.setTargetNotional',
-    group: '股指期货',
-    sig: 'setTargetNotional(code: string, notional: number): void',
-    zh: '设置次日开盘的期货目标名义敞口;负数为空头。',
-    en: 'Set the signed futures notional target for the next open.',
-  },
-  {
-    iface: 'FuturesAccount',
-    name: 'futures.hedgeStock',
-    group: '股指期货',
-    sig: 'hedgeStock(code: string, beta?: number): void',
-    zh: '按次日股票账户实际成交后的市值对冲;beta=1 为全额空头对冲。',
-    en: 'Hedge actual filled stock exposure at the next open; beta=1 requests a full short hedge.',
-  },
-  {
-    iface: 'FuturesAccount',
-    name: 'futures.closePosition',
-    group: '股指期货',
-    sig: 'closePosition(code: string): void',
-    zh: '零手数目标，覆盖该代码此前普通指令；后续增量报错，后续目标可覆盖。次开尝试平仓。',
-    en: 'Replace earlier ordinary instructions for this code with a zero-contract target. Later deltas fail; later targets replace it. Attempt closure next open.',
-  },
 
   // —— BarRow: the selection row (what universe()/bar() expose) ——
   {
@@ -993,12 +902,11 @@ export type SdkEntryName<I extends SdkEntry['iface']> = Extract<
 >['name'];
 
 // Read-only ctx properties (not callable members; emitted at the top of StrategyCtx, no doc anchor).
-export const CTX_PROP_NAMES = ['date', 'portfolio', 'stock', 'futures', 'params'] as const;
+export const CTX_PROP_NAMES = ['date', 'portfolio', 'stock', 'params'] as const;
 const CTX_PROP_TYPES: Record<(typeof CTX_PROP_NAMES)[number], string> = {
   date: 'string',
   portfolio: '{ readonly equity: number }',
   stock: 'StockAccount',
-  futures: 'FuturesAccount',
   params: 'Readonly<WidenStrategyParams<Params>>',
 };
 const CTX_PROPS = CTX_PROP_NAMES.map(
@@ -1112,18 +1020,9 @@ ${ofIface('StrategyCtx')}
 interface StockAccount {
   /** ${locale === 'zh' ? '该账户权益，不能跨账户自动挪用。' : 'Equity of this account; funds do not transfer automatically.'} */
   readonly equity: number;
-  /** ${locale === 'zh' ? '该账户可用现金；期货已扣除保证金。' : 'Spendable cash of this account, excluding reserved margin for futures.'} */
+  /** ${locale === 'zh' ? '现金账户可用余额。' : 'Spendable cash of this account.'} */
   readonly availableCash: number;
 ${ofIface('StockAccount')}
-}
-
-interface FuturesAccount {
-  /** ${locale === 'zh' ? '该账户权益，不能跨账户自动挪用。' : 'Equity of this account; funds do not transfer automatically.'} */
-  readonly equity: number;
-  /** ${locale === 'zh' ? '该账户可用现金；期货已扣除保证金。' : 'Spendable cash of this account, excluding reserved margin for futures.'} */
-  readonly availableCash: number;
-  readonly margin: number;
-${ofIface('FuturesAccount')}
 }
 
 ${POSTLUDE}

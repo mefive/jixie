@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 import {
@@ -72,9 +73,16 @@ try {
     `[research-autosave-e2e] dirty=immediate saved=timer revision=${savedCell.revision} contentRevision=${saved.contentRevision} conflict=protected`,
   );
 } finally {
-  await context.close();
-  await browser.close();
-  await cleanupResearchCellChangeFixture();
+  try {
+    const deleted = await context.request.delete(
+      `${BASE}/api/app/research/documents/${fixture.documentId}`,
+    );
+    assert.equal(deleted.status(), 200, 'Research fixture cleanup failed');
+  } finally {
+    await context.close();
+    await browser.close();
+    await cleanupResearchCellChangeFixture();
+  }
 }
 
 async function replaceEditorValue(page, editor, value) {

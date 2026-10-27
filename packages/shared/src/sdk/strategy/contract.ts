@@ -42,31 +42,8 @@ export interface TimeframeSeries {
   kdj(period?: number, kSmoothing?: number, dSmoothing?: number): { readonly k: number; readonly d: number; readonly j: number } | null;
 }
 
-export interface FutureBar {
-  code: string;
-  actualCode: string;
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  close: number | null;
-  settle: number | null;
-  volume: number | null;
-  amount: number | null;
-  openInterest: number | null;
-  multiplier: number;
-}
 
-export interface FuturePosition {
-  code: string;
-  actualCode: string;
-  contracts: number;
-  margin: number;
-}
 
-export interface StrategyAccounts {
-  stock: { cashWeight: number };
-  futures: { cashWeight: number };
-}
 
 export type Schedule = 'daily' | 'weekly' | 'monthly';
 
@@ -156,7 +133,6 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
   readonly date: string;
   readonly portfolio: { readonly equity: number };
   readonly stock: StockAccount;
-  readonly futures: FuturesAccount;
   readonly params: Readonly<WidenStrategyParams<Params>>;
   /** Today's tradable universe (chainable). Pass an index code to restrict to its point-in-time constituents. */
   universe(indexCode?: string): Promise<Universe>;
@@ -166,10 +142,6 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
   indexMembers(indexCode: string): Promise<string[]>;
   /** Read-only, point-in-time index handle: close/PE/PB are as-of today; percentile('pe', 2520) ranks today's PE within roughly ten trading years and returns 0..1 (all available history when omitted); sma(n) is the index close MA. */
   index(indexCode: string): { readonly close: number | null; readonly pe: number | null; readonly peTtm: number | null; readonly pb: number | null; sma(n: number): number | null; percentile(field: 'pe' | 'peTtm' | 'pb', lookback?: number): number | null };
-  /** Today's futures bar for an actual or main-continuous code; continuous codes resolve point-in-time to an actual contract. */
-  future(code: string): FutureBar | null;
-  /** Last n futures values, point-in-time mapped each day, oldest to newest. */
-  futureHistory(code: string, field: 'open' | 'high' | 'low' | 'close' | 'settle', n: number): number[];
   /** Read a declared published factor by its immutable key. Windowed factors need ensureBars first. Time-series factors declaring etf.adjustedClose accept ETF codes only. */
   factor(name: FactorKey, code: string): number | null;
   /** Today's adjusted (hfq) close (carried forward if suspended). */
@@ -217,7 +189,7 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
 export interface StockAccount {
   /** Equity of this account; funds do not transfer automatically. */
   readonly equity: number;
-  /** Spendable cash of this account, excluding reserved margin for futures. */
+  /** Spendable cash of this account. */
   readonly availableCash: number;
   /** Current adjusted shares held of a code (0 if none). */
   adjustedShares(code: string): number;
@@ -251,26 +223,6 @@ export interface StockAccount {
   cancelConditional(code: string, kind?: 'stop_loss' | 'trailing_stop' | 'limit_buy' | 'take_profit'): void;
 }
 
-export interface FuturesAccount {
-  /** Equity of this account; funds do not transfer automatically. */
-  readonly equity: number;
-  /** Spendable cash of this account, excluding reserved margin for futures. */
-  readonly availableCash: number;
-  readonly margin: number;
-  /** Current futures position; positive contracts are long and negative contracts are short. */
-  position(code: string): FuturePosition | null;
-  /** Signed futures delta, truncated to whole contracts and accumulated per code; cannot mix with targets for that code. Filled next open, subject to futures funding. */
-  orderContracts(code: string, contracts: number): void;
-  /** Set the signed futures contract target for the next open. */
-  setTargetContracts(code: string, contracts: number): void;
-  /** Set the signed futures notional target for the next open. */
-  setTargetNotional(code: string, notional: number): void;
-  /** Hedge actual filled stock exposure at the next open; beta=1 requests a full short hedge. */
-  hedgeStock(code: string, beta?: number): void;
-  /** Replace earlier ordinary instructions for this code with a zero-contract target. Later deltas fail; later targets replace it. Attempt closure next open. */
-  closePosition(code: string): void;
-}
-
 export type StrategyParamValue = number | string;
 export type StrategyParams = Record<string, StrategyParamValue>;
 export type WidenStrategyParams<Params extends StrategyParams> = {
@@ -285,10 +237,6 @@ export interface CodeStrategy<Params extends StrategyParams = StrategyParams> {
   factors?: FactorKey[];
   /** Instruments to preload bar series for up front (per-instrument systems). */
   watch?: string[];
-  /** @deprecated Ignored. Use accounts to allocate capital; futures data is available without a declaration. */
-  futures?: string[];
-  /** Initial stock/futures cash weights summing to 1. Defaults to stock 1, futures 0; no automatic transfers. */
-  accounts?: StrategyAccounts;
   onBar(ctx: StrategyCtx<Params>): void | Promise<void>;
 }
 

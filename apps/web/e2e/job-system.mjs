@@ -58,7 +58,7 @@ try {
     'research-mobile',
     'research-autosave',
     'strategy-orchestration',
-    'mixed-futures',
+    'futures-retirement',
     ...(selected?.includes('python-strategy') ? ['python-strategy'] : []),
     ...[
       'factor-publication',

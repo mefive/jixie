@@ -22,21 +22,12 @@ class StrategyStockSnapshot(TypedDict):
     positions: list[dict[str, Any]]
 
 
-# 冻结策略当前可见期货账户与保证金。
-# English: Describe futures account and margin visible to the current decision.
-class StrategyFuturesSnapshot(TypedDict):
-    equity: float
-    availableCash: float
-    margin: float
-
-
 # 绑定决策快照、历史更新和宿主访问能力。
 # English: Supply decision snapshots, history updates and host capabilities.
 class StrategyAdapterInput(TypedDict):
     date: str
     portfolio: dict[str, float]
     stock: StrategyStockSnapshot
-    futures: StrategyFuturesSnapshot
     bar_updates: NotRequired[dict[str, dict[str, Any]]]
 
 
@@ -148,11 +139,6 @@ class BoundStrategyCapabilities(StrategyCapabilities):
         self._cross: dict[str, AttrDict] = {}
         self._portfolio = AttrDict(equity=snapshot.portfolio.equity)
         self._stock = BoundStockAccountCapabilities(snapshot.stock, self._command)
-        self._futures = AttrDict(
-            equity=snapshot.futures.equity,
-            available_cash=snapshot.futures.availableCash,
-            margin=snapshot.futures.margin,
-        )
 
     @property
     def date(self) -> str:
@@ -166,9 +152,6 @@ class BoundStrategyCapabilities(StrategyCapabilities):
     def stock(self) -> StrategyStockCapabilities:
         return self._stock
 
-    @property
-    def futures(self) -> AttrDict:
-        return self._futures
 
     def load_cross_section(self, index_code: str | None = None) -> list[str]:
         payload = self._request("cross_section", {"index_code": index_code})

@@ -67,7 +67,7 @@ describe('crossMarketDataContractRegistry', () => {
     });
   });
 
-  it('validates one stock per target market, one bond series, and one commodity series', () => {
+  it('validates one stock per target market, one bond series, and ETF share size', () => {
     expect(crossMarketDataContractRegistry.fixtures).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -94,11 +94,6 @@ describe('crossMarketDataContractRegistry', () => {
           id: 'cn-etf-csi300-share-size',
           providerId: '510300.SH',
           expected: expect.objectContaining({ market: 'CN', quoteCurrency: 'CNY' }),
-        }),
-        expect.objectContaining({
-          id: 'cn-commodity-au-continuous',
-          providerId: 'AU.SHF',
-          expected: expect.objectContaining({ assetClass: 'commodity' }),
         }),
       ]),
     );

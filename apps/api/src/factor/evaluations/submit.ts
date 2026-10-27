@@ -8,7 +8,6 @@ import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-
 import { resolveMacroRegimeDataCutoff } from '../observations/macro-regime-data-cutoff.js';
 import type { SubmitFactorAnalysisInput } from '@jixie/shared/api/factor';
 import {
-  factorAnalysisSourceDataRequirements,
   resolveTimeSeriesFactorSource,
   resolvePanelFactorSource,
   resolveFactorSource,
@@ -54,10 +53,7 @@ export async function submitFactorAnalysis(
         dataCutoff: researchSpec.dataPolicy.dataCutoff ?? researchSpec.end,
       },
     };
-    const dataCutoff = await resolveAssetFactorDataCutoff(
-      cutoffSpec,
-      factorAnalysisSourceDataRequirements(source),
-    );
+    const dataCutoff = await resolveAssetFactorDataCutoff(cutoffSpec);
     if (!dataCutoff) {
       throw new FactorError('data_not_ready');
     }
@@ -77,10 +73,7 @@ export async function submitFactorAnalysis(
         dataCutoff: researchSpec.dataPolicy.dataCutoff ?? researchSpec.end,
       },
     };
-    const dataCutoff = await resolveAssetFactorDataCutoff(
-      cutoffSpec,
-      factorAnalysisSourceDataRequirements(source),
-    );
+    const dataCutoff = await resolveAssetFactorDataCutoff(cutoffSpec);
     if (!dataCutoff) {
       throw new FactorError('data_not_ready');
     }

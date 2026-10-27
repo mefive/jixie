@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fixturePort } from './testing/fixture-port.js';
-import type { BacktestingConfig, EngineContext } from './contract.js';
+import type { BacktestingConfig } from './contract.js';
 import { BacktestingEngine } from './backtesting-engine.js';
 
 function config(): BacktestingConfig {
@@ -91,33 +91,6 @@ describe('explicit final execution state', () => {
     expect(result.tradeLog).toEqual([]);
   });
 
-  it('ignores a legacy futures declaration for cash-only final state', async () => {
-    const input = config();
-    input.strategy.futures = ['UNKNOWN'];
-
-    const engine = new BacktestingEngine(input);
-    await engine.run();
-    const finalState = await engine.collectFinalState();
-    expect(finalState.positions.length).toBe(1);
-  });
-
-  it.each([
-    (context: EngineContext) => context.futures.orderContracts('IF.CFX', 1),
-    (context: EngineContext) => context.futures.setTargetContracts('IF.CFX', 1),
-    (context: EngineContext) => context.futures.setTargetNotional('IF.CFX', 1000),
-    (context: EngineContext) => context.futures.hedgeStock('IF.CFX'),
-    (context: EngineContext) => context.futures.closePosition('IF.CFX'),
-  ])('retains futures intents even with zero futures capital', async (action) => {
-    const input = config();
-    input.strategy.onBar = action;
-
-    const engine = new BacktestingEngine(input);
-    await engine.run();
-    const finalState = await engine.collectFinalState();
-    expect(finalState.futureOrders).toHaveLength(1);
-    expect(finalState.futureAccount?.equity).toBe(0);
-  });
-
   it('keeps simulation results identical and retains adjusted state only when requested', async () => {
     const normal = await new BacktestingEngine(config()).run();
     const engine = new BacktestingEngine(config());
@@ -137,25 +110,5 @@ describe('explicit final execution state', () => {
       expect.objectContaining({ kind: 'stop_loss', triggerPrice: 18 }),
     ]);
     expect(finalState).not.toHaveProperty('signals');
-  });
-
-  it('retains both funded accounts without changing the execution lifecycle', async () => {
-    const input = config();
-    const onBar = vi.fn();
-    const openDates = vi.spyOn(input.dataPort, 'openDates');
-    const engine = new BacktestingEngine({
-      ...input,
-      strategy: {
-        name: 'futures',
-        accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } },
-        onBar,
-      },
-    });
-    await engine.run();
-    const finalState = await engine.collectFinalState();
-    expect(finalState.futureAccount?.equity).toBe(5000);
-    expect(JSON.parse(JSON.stringify(finalState))).toEqual(finalState);
-    expect(openDates).toHaveBeenCalled();
-    expect(onBar).toHaveBeenCalledTimes(2);
   });
 });

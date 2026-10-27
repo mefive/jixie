@@ -60,21 +60,6 @@ const CROSS_ASSET_VOLATILITY_60 = `export default defineFactorV2({
 });
 `;
 
-const COMMODITY_FUTURES_CARRY = `export default defineFactorV2({
-  version: 2,
-  name: 'Commodity futures annualized carry',
-  analysisKind: 'panel',
-  outputScope: 'asset',
-  frequency: 'daily',
-  inputs: ['commodity.futures.annualizedLogCarry'],
-  targetAssetClasses: ['commodity'],
-  window: 2,
-  compute(ctx) {
-    return ctx.value('commodity.futures.annualizedLogCarry');
-  },
-});
-`;
-
 export const PANEL_TEMPLATES: PanelTemplate[] = [
   {
     key: 'cross_asset_momentum_120',
@@ -101,19 +86,6 @@ export const PANEL_TEMPLATES: PanelTemplate[] = [
     },
     code: CROSS_ASSET_VOLATILITY_60,
     strategyEligible: true,
-  },
-  {
-    key: 'commodity_futures_carry_v1',
-    kind: 'commodity',
-    expectedDirection: 'positive',
-    targetAssetClasses: ['commodity'],
-    label: { zh: '商品期货年化 Carry', en: 'Commodity futures annualized carry' },
-    description: {
-      zh: '在同一月末横向比较黄金、铜、原油和豆粕真实月合约的年化期限结构，并检验映射代理 ETF 的下一持有期收益。正值代表 backwardation；有色和能化代理存在类别基差。',
-      en: 'Ranks annualized term-structure carry from actual gold, copper, crude-oil, and soybean-meal contracts on common month ends, then tests the next holding-period returns of mapped proxy ETFs. Positive values mean backwardation; the non-ferrous and energy proxies carry category basis risk.',
-    },
-    code: COMMODITY_FUTURES_CARRY,
-    strategyEligible: false,
   },
 ];
 

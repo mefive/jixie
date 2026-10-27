@@ -49,11 +49,6 @@ class StrategyRunner:
         self._strategy = self._run_user_code(
             lambda: self._load_strategy(config["code"], config.get("param_overrides", {}))
         )
-        if (
-            self._strategy.accounts
-            and self._strategy.accounts.get("futures", {}).get("cashWeight", 0) > 0
-        ):
-            raise ValueError("py-v1 currently supports stock and ETF strategies only")
 
         self._send_frame(
             {"type": "ready", "command_mode": "synchronous", "metadata": self._metadata()}
@@ -90,6 +85,9 @@ class StrategyRunner:
             raise TypeError(
                 "strategy.py must define `strategy = Strategy(...)` and decorate one function with `@strategy.on_bar`"
             )
+        if hasattr(strategy, "accounts") or hasattr(strategy, "futures"):
+            raise ValueError("Futures accounts and declarations are retired")
+
         unknown = set(overrides) - set(strategy.params)
         if unknown:
             raise ValueError(f"unknown strategy parameter(s): {', '.join(sorted(unknown))}")
@@ -103,8 +101,6 @@ class StrategyRunner:
             "params": self._strategy.params,
             "factors": self._strategy.factors,
             "watch": self._strategy.watch,
-            "futures": [],
-            "accounts": self._strategy.accounts,
         }
 
     # 向宿主同步发送能力请求，等待对应响应或抛出宿主错误。

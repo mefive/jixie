@@ -61,18 +61,16 @@ describe('sdk-reference registry ↔ runtime SDK types stay in sync', () => {
     >().toEqualTypeOf<never>();
   });
 
-  it('documents both account surfaces and rejects the removed flat interface', () => {
+  it('documents the cash account and rejects the removed flat interface', () => {
     type StockNames = SdkEntryName<'StockAccount'> extends `stock.${infer Name}` ? Name : never;
-    type FuturesNames =
-      SdkEntryName<'FuturesAccount'> extends `futures.${infer Name}` ? Name : never;
     expectTypeOf<
       Exclude<keyof StrategyCtx['stock'], 'equity' | 'availableCash'>
     >().toEqualTypeOf<StockNames>();
     expectTypeOf<
-      Exclude<keyof StrategyCtx['futures'], 'equity' | 'availableCash' | 'margin'>
-    >().toEqualTypeOf<FuturesNames>();
-    expectTypeOf<
-      Extract<keyof StrategyCtx, 'cash' | 'value' | 'order' | 'exit' | 'orderFuture'>
+      Extract<
+        keyof StrategyCtx,
+        'cash' | 'value' | 'order' | 'exit' | 'orderFuture' | 'futures' | 'future' | 'futureHistory'
+      >
     >().toEqualTypeOf<never>();
   });
 

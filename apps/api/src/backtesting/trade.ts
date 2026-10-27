@@ -26,20 +26,8 @@ export interface CashTrade extends TradeFill {
 }
 
 /**
- * 记录期货成交的实际交割合约、合约数、乘数及费用。
+ * 现金账户成交记录，供绩效汇总使用。
  *
- * Represent a futures fill with its delivery contract, count, multiplier and costs.
+ * Cash-account fill record for performance aggregation.
  */
-export interface FuturesTrade extends TradeFill {
-  assetType: 'future';
-  actualCode: string;
-  contracts: number;
-  multiplier: number;
-}
-
-/**
- * 统一现金与期货成交联合类型，供绩效汇总按资产种类分派。
- *
- * Unify cash and futures fills so performance consumers can dispatch by asset type.
- */
-export type TradeRecord = CashTrade | FuturesTrade;
+export type TradeRecord = CashTrade;

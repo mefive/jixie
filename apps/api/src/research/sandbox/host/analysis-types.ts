@@ -12,7 +12,6 @@ export interface ResearchPythonAnalysis {
   yieldCurveRequests?: ResearchPythonYieldCurveRequest[];
   macroRequests?: ResearchPythonMacroRequest[];
   fxRequests?: ResearchPythonFxRequest[];
-  commodityRequests?: ResearchPythonCommodityRequest[];
   equityRequests?: ResearchPythonEquityRequest[];
   error?: string;
 }
@@ -61,17 +60,6 @@ export interface ResearchPythonFxRequest {
 }
 
 /**
- * 描述已解析的商品研究 SDK 参数。
- *
- * Describe validated commodity research SDK arguments.
- */
-export interface ResearchPythonCommodityRequest {
-  line: number;
-  method: 'commodity_returns' | 'commodity_warehouse_receipts' | 'commodity_holdings';
-  product: string | null;
-}
-
-/**
  * 描述已解析的股票研究 SDK 参数。
  *
  * Describe validated equity research SDK arguments.
@@ -83,7 +71,6 @@ export interface ResearchPythonEquityRequest {
     | 'equity_dividends'
     | 'etf_shares'
     | 'index_valuation'
-    | 'futures_settlement'
     | 'equity_financial_values'
     | 'equity_financial_statements'
     | 'equity_financial_metrics'

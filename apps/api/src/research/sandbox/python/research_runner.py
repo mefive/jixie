@@ -160,7 +160,6 @@ class ResearchRunner:
                     "yield_curve_requests": analysis.yield_curve_requests,
                     "macro_requests": analysis.macro_requests,
                     "fx_requests": analysis.fx_requests,
-                    "commodity_requests": analysis.commodity_requests,
                     "equity_requests": analysis.equity_requests,
                     **({"error": analysis.error} if analysis.error else {}),
                 }

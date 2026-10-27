@@ -6,8 +6,6 @@ const mocks = vi.hoisted(() => ({
   indexFindMany: vi.fn(),
   marketBenchmarkFindMany: vi.fn(),
   indexDailyFindMany: vi.fn(),
-  futureMappingFindMany: vi.fn(),
-  futureFindMany: vi.fn(),
   dailyFindFirst: vi.fn(),
   dailyGroupBy: vi.fn(),
   dailyBasicFindFirst: vi.fn(),
@@ -16,17 +14,11 @@ const mocks = vi.hoisted(() => ({
   macroSeriesFindMany: vi.fn(),
   macroObservationGroupBy: vi.fn(),
   fxDailyGroupBy: vi.fn(),
-  commodityContinuousReturnGroupBy: vi.fn(),
-  commodityWarehouseReceiptGroupBy: vi.fn(),
-  commodityHoldingPositionGroupBy: vi.fn(),
   etfShareSizeGroupBy: vi.fn(),
   indexDailyBasicGroupBy: vi.fn(),
-  futureSettlementGroupBy: vi.fn(),
   etfDailyGroupBy: vi.fn(),
   indexDailyGroupBy: vi.fn(),
   marketBenchmarkDailyGroupBy: vi.fn(),
-  futureMappingGroupBy: vi.fn(),
-  futureDailyGroupBy: vi.fn(),
   financialIncomeAggregate: vi.fn(),
   financialBalanceAggregate: vi.fn(),
   financialCashFlowAggregate: vi.fn(),
@@ -50,21 +42,11 @@ vi.mock('#infra/database/prisma.js', async () => {
       macroSeries: { findMany: mocks.macroSeriesFindMany },
       macroObservation: { groupBy: mocks.macroObservationGroupBy },
       fxDaily: { groupBy: mocks.fxDailyGroupBy },
-      commodityContinuousReturn: { groupBy: mocks.commodityContinuousReturnGroupBy },
-      commodityWarehouseReceipt: { groupBy: mocks.commodityWarehouseReceiptGroupBy },
-      commodityHoldingPosition: { groupBy: mocks.commodityHoldingPositionGroupBy },
       etfShareSize: { groupBy: mocks.etfShareSizeGroupBy },
       indexDailyBasic: { groupBy: mocks.indexDailyBasicGroupBy },
-      futureSettlement: { groupBy: mocks.futureSettlementGroupBy },
       etfDaily: { groupBy: mocks.etfDailyGroupBy },
       indexDaily: { findMany: mocks.indexDailyFindMany, groupBy: mocks.indexDailyGroupBy },
       marketBenchmarkDaily: { groupBy: mocks.marketBenchmarkDailyGroupBy },
-      futureMapping: {
-        findMany: mocks.futureMappingFindMany,
-        groupBy: mocks.futureMappingGroupBy,
-      },
-      futureContract: { findMany: mocks.futureFindMany },
-      futureDaily: { groupBy: mocks.futureDailyGroupBy },
       financialIncomeStatement: { aggregate: mocks.financialIncomeAggregate },
       financialBalanceSheet: { aggregate: mocks.financialBalanceAggregate },
       financialCashFlowStatement: { aggregate: mocks.financialCashFlowAggregate },
@@ -179,14 +161,10 @@ describe('research data catalog', () => {
       'data.yield_curve',
       'data.macro',
       'data.fx',
-      'data.commodity_returns',
-      'data.commodity_warehouse_receipts',
-      'data.commodity_holdings',
       'data.equity_fundamentals',
       'data.equity_dividends',
       'data.etf_shares',
       'data.index_valuation',
-      'data.futures_settlement',
       'data.equity_financial_statements',
       'data.equity_financial_metrics',
       'data.equity_financial_cross_section',
@@ -295,27 +273,7 @@ describe('research data catalog', () => {
     ]);
   });
 
-  it('discovers audited commodity datasets by product and available date', async () => {
-    const range = {
-      _min: { availableDate: '20150106' },
-      _max: { availableDate: '20260803' },
-    };
-    mocks.commodityContinuousReturnGroupBy.mockResolvedValue([{ productCode: 'AU', ...range }]);
-    mocks.commodityWarehouseReceiptGroupBy.mockResolvedValue([{ productCode: 'AU', ...range }]);
-    mocks.commodityHoldingPositionGroupBy.mockResolvedValue([{ productCode: 'AU', ...range }]);
-
-    const result = await searchResearchDataCatalog({ query: '黄金', scope: 'datasets' });
-
-    expect(result.datasets).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ method: 'data.commodity_returns', product: 'AU' }),
-        expect.objectContaining({ method: 'data.commodity_warehouse_receipts', product: 'AU' }),
-        expect.objectContaining({ method: 'data.commodity_holdings', product: 'AU' }),
-      ]),
-    );
-  });
-
-  it('discovers remaining ETF, index, and futures reference datasets', async () => {
+  it('discovers remaining ETF and index reference datasets', async () => {
     mocks.etfFindMany.mockResolvedValue([
       { tsCode: '510300.SH', name: '沪深300ETF', fundType: '股票型', indexName: '沪深300' },
     ]);
@@ -333,18 +291,10 @@ describe('research data catalog', () => {
         _max: { tradeDate: '20260731' },
       },
     ]);
-    mocks.futureSettlementGroupBy.mockResolvedValue([
-      {
-        tsCode: 'IF2609.CFX',
-        _min: { tradeDate: '20260420' },
-        _max: { tradeDate: '20260727' },
-      },
-    ]);
 
     const cases = [
       ['510300.SH', 'data.etf_shares', '510300.SH', 'availableDate'],
       ['000300.SH', 'data.index_valuation', '000300.SH', 'tradeDate'],
-      ['IF2609.CFX', 'data.futures_settlement', 'IF2609.CFX', 'tradeDate'],
     ] as const;
     for (const [query, method, identifier, dateBasis] of cases) {
       const result = await searchResearchDataCatalog({ query, scope: 'datasets' });
@@ -403,23 +353,6 @@ describe('research data catalog', () => {
         endDate: '20251231',
       },
       sdkAccess: { status: 'ready', method: 'data.series' },
-    });
-  });
-
-  it('marks continuous futures as a stable logical series', async () => {
-    mocks.futureMappingFindMany.mockResolvedValue([{ continuousCode: 'AU.SHF' }]);
-
-    const result = await searchResearchDataCatalog({
-      query: 'AU',
-      assetType: 'future',
-    });
-
-    expect(result.instruments[0]).toMatchObject({
-      identifier: 'AU.SHF',
-      assetType: 'future',
-      continuous: true,
-      localDataCoverage: { status: 'missing' },
-      sdkAccess: { status: 'not_ready' },
     });
   });
 

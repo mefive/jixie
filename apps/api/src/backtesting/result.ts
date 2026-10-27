@@ -55,9 +55,6 @@ export interface FactorObservation {
  * Detached stock/ETF state at the final close. Shares and triggers retain Engine adjusted units.
  */
 export interface CashFinalStateView extends CashOrderSnapshot {
-  futureAccount?: FutureAccountSnapshot;
-  futureOrders?: Array<{ code: string; intent: import('./order-book.js').FutureIntent }>;
-  futureMarket?: import('./data/data-port.js').FutureMarketRows;
   tradeDate: string;
   equity: number;
   cash: number;
@@ -142,28 +139,6 @@ export function cashFinalStateView(state: BacktestingFinalState): CashFinalState
 export interface SleeveNavPoint {
   date: string;
   stockValue: number;
-  futureValue: number;
-  futureMargin: number;
   stockGrossExposure: number;
-  futureNotional: number;
   netExposure: number;
-}
-
-/**
- * 回测期货账户的独立状态。
- *
- * Detached futures-account state owned by the backtesting engine.
- */
-export interface FutureAccountSnapshot {
-  equity: number;
-  margin: number;
-  availableCash: number;
-  positions: Array<{
-    code: string;
-    actualCode: string;
-    contracts: number;
-    referencePrice: number;
-    multiplier: number;
-    margin: number;
-  }>;
 }

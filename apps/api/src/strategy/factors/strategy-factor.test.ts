@@ -381,7 +381,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
     });
   });
 
-  it('defers research-only input validation to execution initialization', async () => {
+  it('preserves old source while deferring retired-input rejection to execution initialization', async () => {
     mocks.factorFindMany.mockResolvedValue([
       factorRow({
         key: 'warehouse_pressure_20_v1',

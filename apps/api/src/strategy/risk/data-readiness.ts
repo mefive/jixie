@@ -1,17 +1,8 @@
-import type { MarketRiskDriverQualitySummary } from '#market/state/market-risk-driver-quality.js';
 import type { MacroRiskAxisQualitySummary } from '#market/macro/risk-axis-quality.js';
-import { MARKET_RISK_LOOKBACK_OBSERVATIONS } from './market-risk-model.js';
 import { MACRO_RISK_MINIMUM_OBSERVATIONS } from './macro-risk-model.js';
 
 const MACRO_RISK_AUDIT_HISTORY_MONTHS = MACRO_RISK_MINIMUM_OBSERVATIONS + 12;
 const MACRO_RISK_EARLIEST_DATE = '20180326';
-
-// The audit requires a full market-model lookback, not merely the minimum fit sample.
-export function marketRiskDataReadiness(quality: MarketRiskDriverQualitySummary): string[] {
-  return quality.completeObservations < MARKET_RISK_LOOKBACK_OBSERVATIONS
-    ? [`only ${quality.completeObservations} complete observations are available`]
-    : [];
-}
 
 /**
  * 检查宏观风险模型所需数据覆盖，供回测和信号准入判断。

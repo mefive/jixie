@@ -40,7 +40,7 @@ def handle_bar(ctx: Context):
     assert ctx.portfolio.equity == 100_000
     assert ctx.stock.equity == 100_000
     assert ctx.stock.available_cash == 100_000
-    assert ctx.futures.equity == 0
+    assert not hasattr(ctx, "futures")
     assert not hasattr(ctx, "order")
     assert not hasattr(ctx, "cash")
     candidates: Universe = ctx.universe()
@@ -55,7 +55,6 @@ def handle_bar(ctx: Context):
           date: '20240102',
           portfolio: { equity: 100_000 },
           stock: { equity: 100_000, availableCash: 100_000, positions: [] },
-          futures: { equity: 0, availableCash: 0, margin: 0 },
         },
       },
       {

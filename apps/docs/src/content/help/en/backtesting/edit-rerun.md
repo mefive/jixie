@@ -51,26 +51,25 @@ Changes that have not been run may also be lost when the page is refreshed or cl
 
 ## Migrate the old account API
 
+Futures data, trading, and the `accounts` and `futures` declarations are retired. Old code fails explicitly; source is not rewritten and stock prices are not substituted. All initial capital belongs to the stock / ETF cash account.
+
 The strategy SDK now groups operations by account. The old flat API is removed. Saved source is not rewritten automatically. Historical reports remain viewable. Migrate source before rerunning a backtest or scan.
 
 | Old call | New call |
 | --- | --- |
 | `ctx.value` | `ctx.portfolio.equity` for reporting; `ctx.stock.equity` for stock sizing |
-| `ctx.cash` / `ctx.availableCash` | Choose `ctx.stock.availableCash` or `ctx.futures.availableCash`; funding is isolated |
+| `ctx.cash` / `ctx.availableCash` | `ctx.stock.availableCash` |
 | `ctx.order(code, shares)` | `ctx.stock.orderAdjustedShares(code, shares)` in adjusted shares |
 | `ctx.orderLots(code, lots)` | `ctx.stock.orderLots(code, lots)`, 100 real shares per lot |
 | `ctx.setHoldings(weights)` | `ctx.stock.setTargetWeights(weights)` |
 | `ctx.orderTargetPercent(code, weight)` | `ctx.stock.setTargetWeight(code, weight)` |
 | `ctx.positions()` / `ctx.shares(code)` | `ctx.stock.positions()` / `ctx.stock.adjustedShares(code)` |
 | `ctx.exit(code)` | `ctx.stock.closePosition(code)` |
-| `ctx.orderFuture(code, contracts)` | `ctx.futures.orderContracts(code, contracts)` |
-| `ctx.setFutureTargetContracts` / `ctx.setFutureTargetNotional` | `ctx.futures.setTargetContracts` / `ctx.futures.setTargetNotional` |
-| `ctx.hedgeFuture` / `ctx.exitFuture` / `ctx.futurePosition` | `ctx.futures.hedgeStock` / `ctx.futures.closePosition` / `ctx.futures.position` |
 | `ctx.equalWeight` / `ctx.atrUnits` / `ctx.volTargetWeights` | `ctx.stock.equalWeight` / `ctx.stock.atrAdjustedShares` / `ctx.stock.volTargetWeights` |
 | `ctx.stopLoss` / `ctx.limitBuy` | `ctx.stock.stopLossAtAdjustedPrice` / `ctx.stock.limitBuyAtAdjustedPrice` |
 | `ctx.trailingStop` / `ctx.takeProfit` / `ctx.cancelConditional` | `ctx.stock.trailingStopByFraction` / `ctx.stock.takeProfitByFraction` / `ctx.stock.cancelConditional` |
 
-Deltas accumulate within a decision; later targets replace earlier targets. Stock target books cover the entire account and liquidate omitted holdings, so they cannot mix with stock deltas. Futures conflicts are checked per code. `closePosition` replaces earlier ordinary orders for its code and rejects subsequent deltas. Suspensions, price limits, and sellable quantities still constrain closure. Persistent conditions follow their existing independent rules.
+Deltas accumulate within a decision; later targets replace earlier targets. Stock target books cover the entire account and liquidate omitted holdings, so they cannot mix with stock deltas. `closePosition` replaces earlier ordinary orders for its code and rejects subsequent deltas. Suspensions, price limits, and sellable quantities still constrain closure. Persistent conditions follow their existing independent rules.
 
 Python uses snake_case names such as `ctx.stock.order_adjusted_shares`, `set_target_weights`, `set_target_weight`, and `close_position`, with `ctx.portfolio.equity`, `ctx.stock.equity`, and `ctx.stock.available_cash`. Python continues to support stocks and ETFs only; this change adds no futures trading. See the [SDK reference](/sdk).
 

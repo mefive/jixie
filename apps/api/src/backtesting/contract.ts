@@ -1,9 +1,8 @@
 import type { Locale } from '@jixie/shared';
 import type { EngineDataPort } from './data/data-port.js';
-import type { BarRow, FutureBar, IndexHandle, OhlcBar, ResamplePeriod } from './data/market.js';
+import type { BarRow, IndexHandle, OhlcBar, ResamplePeriod } from './data/market.js';
 import type { FactorExecutionPort } from './factors/execution-port.js';
 import type { CostModel } from './cost.js';
-import type { FuturePositionView } from './futures-portfolio.js';
 import type { ConditionalOrderKind } from './order-book.js';
 
 /**
@@ -15,7 +14,6 @@ export interface EngineContext {
   readonly date: string;
   readonly portfolio: { readonly equity: number };
   readonly stock: EngineStockAccount;
-  readonly futures: EngineFuturesAccount;
 
   // Point-in-time market and factor reads.
   /** Load today's tradable cross-section (codes with a daily bar + adj factor + valuation) and return its
@@ -50,14 +48,6 @@ export interface EngineContext {
    * today, `sma(n)` uses index levels, and `percentile('pe', 2520)` ranks today's PE in roughly ten
    * trading years of history. The index isn't tradable; unsynced fields return null. */
   index(indexCode: string): IndexHandle;
-  /** Stock-index futures bar for an actual or logical continuous code as-of today. */
-  future(code: string): FutureBar | null;
-  /** Last n values from the point-in-time mapped futures series, oldest to newest. */
-  futureHistory(
-    code: string,
-    field: 'open' | 'high' | 'low' | 'close' | 'settle',
-    n: number,
-  ): number[];
 }
 
 /**
@@ -89,34 +79,6 @@ export interface EngineStockAccount {
 }
 
 /**
- * 定义期货账户原始操作，可用现金已扣除占用保证金。
- *
- * Futures-account primitives, including margin already reserved from available cash.
- */
-export interface EngineFuturesAccount {
-  readonly equity: number;
-  readonly availableCash: number;
-  readonly margin: number;
-  position(code: string): FuturePositionView | null;
-  orderContracts(code: string, contracts: number): void;
-  setTargetContracts(code: string, contracts: number): void;
-  setTargetNotional(code: string, notional: number): void;
-  /** Hedge cash-account exposure after its next-open and conditional fills. */
-  hedgeStock(code: string, beta?: number): void;
-  closePosition(code: string): void;
-}
-
-/**
- * 聚合现金和期货账户能力，供引擎决策上下文统一访问。
- *
- * Group cash and futures account primitives exposed through the engine decision context.
- */
-export interface EngineAccounts {
-  stock: { cashWeight: number };
-  futures: { cashWeight: number };
-}
-
-/**
  * 表示已准备的策略决策回调，不携带源码、语言运行时或持久化身份。
  *
  * A prepared decision callback. Contains no source, language runtime, user or saved-record identity.
@@ -130,11 +92,6 @@ export interface EngineStrategy {
   /** Instruments a per-instrument strategy trades — the engine preloads their bar series up front so
    * bars()/price() work every day without touching the cross-section. */
   watch?: string[];
-  /** @deprecated Accepted for source compatibility; ignored. Use accounts to allocate capital. */
-  futures?: string[];
-  /** Initial capital weights for isolated stock/futures accounts; defaults to stock 1, futures 0.
-   * Cash is not transferred automatically between accounts. */
-  accounts?: EngineAccounts;
   onBar(ctx: EngineContext): void | Promise<void>;
 }
 

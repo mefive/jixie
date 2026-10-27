@@ -23,10 +23,10 @@ Calmar 表现的策略组合，而不是在样本内直接优化漂亮指标。
 
 - [x] monorepo 骨架(pnpm,对齐 `~/Projects/marginalia`、`~/Tools/fangtu`)
 - [x] Tushare HTTP 数据通道 + 连通自测
-- [x] 行情与研究数据落库(Prisma + SQLite:A 股、指数、ETF、期货、利率曲线、商品与宏观)
+- [x] 行情与研究数据落库(Prisma + SQLite:A 股、指数、ETF、利率曲线与宏观)
 - [x] Factor V2 Phase 0–5(股票横截面、单资产时间序列、跨资产 Panel、宏观状态与组合风险研究)
 - [x] code-first 研究纪律(IC/IR、分层净值、中性化、费后、holdout、不可变报告与不可变发布)
-- [x] code-first 策略回测(股票 / ETF / 股指期货、参数扫描、成本与滑点、isolated-vm)
+- [x] code-first 策略回测(股票 / ETF、参数扫描、成本与滑点、isolated-vm)
 - [x] Web 研究工作台、统一 Agent 与中英文公开帮助
 - [x] Signals 已退役：移除每日信号、策略部署、通知与执行账户；简化方案见 [裁剪计划](docs/design/system-simplification-plan.md)
 - [x] 生产 bootstrap、增量维护、数据审计与备份编排(待目标机连续运行验收)
@@ -64,7 +64,7 @@ apps/api/                          # Hono + Prisma 后端
   src/i18n/                        # 纯消息目录和翻译函数
   src/date.ts                      # 日期辅助
   src/market/providers/tushare/     # Tushare client + 接口封装
-  src/market/stocks/                # 股票同步与读取；ETF、指数、期货各归所属领域
+  src/market/stocks/                # 股票同步与读取；ETF、指数各归所属领域
   src/market/calendar/              # 交易日历、SSE 已完成日
   src/market/cross-market/           # 跨市场基准与外部驱动
   scripts/                         # probes / audits / sync dispatcher

@@ -2,7 +2,6 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { t } from '#i18n/messages.js';
 import { EngineData } from './data/engine-data.js';
 import { CashPortfolio } from './cash-portfolio.js';
-import { FuturesPortfolio } from './futures-portfolio.js';
 import type { CostModel } from './cost.js';
 import type { AllocationAnalysisTracker } from './allocation-analysis-tracker.js';
 
@@ -15,7 +14,6 @@ interface OrderBookInput {
   locale?: Locale;
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
-  futuresPortfolio: FuturesPortfolio;
   cost: CostModel;
   allocationTracker: AllocationAnalysisTracker;
   onRebalance: (date: string) => void;
@@ -30,14 +28,12 @@ export class OrderBook {
     targets: null,
     shareOrders: null,
     lotOrders: null,
-    futureIntents: null,
   };
   private readonly conditionalOrders = new Map<string, ConditionalOrder>();
 
   private readonly locale: Locale;
   private readonly engineData: EngineData;
   private readonly cashPortfolio: CashPortfolio;
-  private readonly futuresPortfolio: FuturesPortfolio;
   private readonly cost: CostModel;
   private readonly allocationTracker: AllocationAnalysisTracker;
   private readonly onRebalance: (date: string) => void;
@@ -46,7 +42,6 @@ export class OrderBook {
     this.locale = input.locale ?? DEFAULT_LOCALE;
     this.engineData = input.engineData;
     this.cashPortfolio = input.cashPortfolio;
-    this.futuresPortfolio = input.futuresPortfolio;
     this.cost = input.cost;
     this.allocationTracker = input.allocationTracker;
     this.onRebalance = input.onRebalance;
@@ -67,7 +62,7 @@ export class OrderBook {
   }
 
   /**
-   * 将本次策略声明提交为后续执行状态，统一调仓、现金和期货指令的生效边界。
+   * 将本次策略声明提交为后续执行状态，统一调仓与现金指令的生效边界。
    *
    * Commit collected strategy instructions to pending execution state.
    */
@@ -91,7 +86,6 @@ export class OrderBook {
     this.pending.decisionDate = this.decision.targets ? this.decisionDate : null;
     this.pending.shareOrders = this.decision.shareOrders;
     this.pending.lotOrders = this.decision.lotOrders;
-    this.pending.futureIntents = this.decision.futureIntents;
 
     const book = this.conditionalOrders;
     const commands = this.decision.conditionalCommands;
@@ -142,29 +136,14 @@ export class OrderBook {
     });
   }
 
-  snapshotFuturesOrders(): Array<{ code: string; intent: FutureIntent }> {
-    return structuredClone(
-      [...(this.pending.futureIntents ?? [])].map(([code, intent]) => ({ code, intent })),
-    );
-  }
-
   /**
    * 在每日结算前执行待成交订单和盘中条件单模拟。
    *
    * Executes pending orders and intraday conditional simulations before daily settlement.
    */
-  async executeOrders(date: string, previousDate: string | undefined): Promise<void> {
-    const { engineData, cashPortfolio, futuresPortfolio } = this;
+  async executeOrders(date: string): Promise<void> {
+    const { cashPortfolio } = this;
     const heldBeforeExecution = new Set(cashPortfolio.positions.keys());
-
-    if (previousDate) {
-      futuresPortfolio.roll(
-        engineData,
-        date,
-        previousDate,
-        new Set(this.pending.futureIntents?.keys() ?? []),
-      );
-    }
 
     await this.executePendingRebalance(date);
 
@@ -173,10 +152,6 @@ export class OrderBook {
     this.removeConditionsForClosedPositions(heldBeforeExecution);
 
     await this.executeActiveConditionalOrders(date);
-
-    if (previousDate) {
-      this.executePendingFutureIntents(date, previousDate);
-    }
   }
 
   /**
@@ -555,60 +530,6 @@ export class OrderBook {
     this.decision.conditionalCommands.push({ action: 'cancel', code, kind });
   }
 
-  orderFuturesContracts(code: string, contracts: number): void {
-    validateFiniteOrderValue(contracts, 'Futures contracts');
-    if (!Math.trunc(contracts)) {
-      return;
-    }
-    this.validateFutureOrderMode(code, 'delta');
-
-    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
-      kind: 'delta',
-      value: contracts,
-    });
-  }
-
-  setFuturesTargetContracts(code: string, contracts: number): void {
-    validateFiniteOrderValue(contracts, 'Futures target contracts');
-    this.validateFutureOrderMode(code, 'target');
-
-    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
-      kind: 'contracts',
-      value: contracts,
-    });
-  }
-
-  setFuturesTargetNotional(code: string, notional: number): void {
-    validateFiniteOrderValue(notional, 'Futures target notional');
-    this.validateFutureOrderMode(code, 'target');
-
-    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
-      kind: 'notional',
-      value: notional,
-    });
-  }
-
-  hedgeStockWithFutures(code: string, beta = 1): void {
-    this.validateFutureOrderMode(code, 'target');
-
-    this.decision.futureIntents = collectFutureIntent(this.decision.futureIntents, code, {
-      kind: 'hedge',
-      value: beta,
-    });
-  }
-
-  closeFuturesPosition(code: string): void {
-    this.decision.futureIntents ??= new Map();
-    this.decision.futureIntents.set(code, { kind: 'contracts', value: 0 });
-  }
-
-  private validateFutureOrderMode(code: string, mode: 'target' | 'delta'): void {
-    const prior = this.decision.futureIntents?.get(code);
-    if (prior && (prior.kind === 'delta') !== (mode === 'delta')) {
-      throw new Error(t(this.locale, 'orderDecisionConflict', { account: 'futures', code }));
-    }
-  }
-
   /**
    * 将目标权重转换为可执行的现金资产调整，按持仓与买入预算处理调仓。
    *
@@ -691,100 +612,6 @@ export class OrderBook {
   }
 
   /**
-   * 依次执行累积期货意图，并解析目标仓位与换约所需的交易腿。
-   *
-   * Execute accumulated futures intents in order, resolving target positions and contract legs.
-   */
-  private executePendingFutureIntents(date: string, mappingDate: string): void {
-    const { futuresPortfolio, cashPortfolio, engineData } = this;
-    const intents = this.pending.futureIntents;
-    if (!intents) {
-      return;
-    }
-
-    const cashExposure = cashPortfolio.marketValue(
-      (code) => engineData.adjustedOpenOn(code, date) ?? engineData.adjustedCloseAsOf(code, date),
-    );
-
-    for (const [code, intent] of intents) {
-      const currentPosition = futuresPortfolio.position(code);
-      const current = currentPosition?.contracts ?? 0;
-      const target = this.resolveFutureTargetContracts(
-        intent,
-        code,
-        current,
-        cashExposure,
-        date,
-        mappingDate,
-      );
-      const desiredActualCode = engineData.futureExecutionCode(code, mappingDate, date);
-      if (
-        currentPosition &&
-        desiredActualCode &&
-        desiredActualCode !== currentPosition.actualCode
-      ) {
-        const closed = futuresPortfolio.executeOrder({
-          engineData,
-          code,
-          contractDelta: -current,
-          executionDate: date,
-          decisionDate: mappingDate,
-        });
-        if (!closed || target === 0) {
-          continue;
-        }
-        futuresPortfolio.executeOrder({
-          engineData,
-          code,
-          contractDelta: target,
-          executionDate: date,
-          decisionDate: mappingDate,
-        });
-        continue;
-      }
-      const delta = target - current;
-      if (delta !== 0) {
-        futuresPortfolio.executeOrder({
-          engineData,
-          code,
-          contractDelta: delta,
-          executionDate: date,
-          decisionDate: mappingDate,
-        });
-      }
-    }
-
-    this.pending.futureIntents = null;
-  }
-
-  /**
-   * 将期货目标敞口转换为合约数量，供订单执行使用。
-   *
-   * Convert a futures target exposure into the contract count used by execution.
-   */
-  private resolveFutureTargetContracts(
-    intent: FutureIntent,
-    code: string,
-    current: number,
-    cashExposure: number,
-    date: string,
-    mappingDate: string,
-  ): number {
-    switch (intent.kind) {
-      case 'delta':
-        return Math.trunc(current + intent.value);
-      case 'contracts':
-        return Math.trunc(intent.value);
-      case 'notional':
-        return Math.trunc(this.futureContractsForNotional(code, intent.value, date, mappingDate));
-      case 'hedge':
-        return Math.trunc(
-          this.futureContractsForNotional(code, -intent.value * cashExposure, date, mappingDate),
-        );
-    }
-  }
-
-  /**
    * 在仓位关闭后清理对应条件单，避免无持仓触发退出。
    *
    * Remove conditional exits associated with positions that are now closed.
@@ -831,29 +658,6 @@ export class OrderBook {
     return side === 'buy'
       ? limit.up != null && bar.low / adjustmentFactor >= limit.up - epsilon
       : limit.down != null && bar.high / adjustmentFactor <= limit.down + epsilon;
-  }
-
-  /**
-   * 将目标名义敞口按价格与乘数转换为整数合约数。
-   *
-   * Convert target notional into integer contracts using price and multiplier.
-   */
-  private futureContractsForNotional(
-    code: string,
-    notional: number,
-    date: string,
-    mappingDate: string,
-  ): number {
-    const actualCode = this.engineData.futureExecutionCode(code, mappingDate, date);
-    if (!actualCode) {
-      return 0;
-    }
-    const bar = this.engineData.futureActualBar(actualCode, date);
-    if (bar?.open == null || bar.open <= 0 || bar.multiplier <= 0) {
-      return 0;
-    }
-
-    return Math.round(notional / (bar.open * bar.multiplier));
   }
 
   private sellableFromFor(code: string, date: string): string {
@@ -945,17 +749,6 @@ export type ConditionalOrder =
 export type ConditionalOrderKind = ConditionalOrder['kind'];
 
 /**
- * 保存策略声明的期货目标或增量及其顺序，供后续执行。
- *
- * Retain an ordered futures target or quantity intent for subsequent execution.
- */
-export type FutureIntent =
-  | { kind: 'delta'; value: number }
-  | { kind: 'contracts'; value: number }
-  | { kind: 'notional'; value: number }
-  | { kind: 'hedge'; value: number };
-
-/**
  * 冻结现金待执行订单与条件单状态，供末日状态检查。
  *
  * Snapshot pending cash orders and conditional exits for final-state inspection.
@@ -984,9 +777,9 @@ type ConditionalCommand =
   | { action: 'cancel'; code: string; kind?: ConditionalOrderKind };
 
 /**
- * 汇总一次策略回调产生的调仓、现金、期货与条件指令。
+ * 汇总一次策略回调产生的调仓、现金与条件指令。
  *
- * Collect rebalance, cash, futures and conditional instructions from one strategy callback.
+ * Collect rebalance, cash and conditional instructions from one strategy callback.
  */
 interface OrderDecision {
   closePositions: Set<string>;
@@ -994,7 +787,6 @@ interface OrderDecision {
   shareOrders: Map<string, number> | null;
   lotOrders: Map<string, number> | null;
   conditionalCommands: ConditionalCommand[];
-  futureIntents: Map<string, FutureIntent> | null;
 }
 
 /**
@@ -1007,7 +799,6 @@ interface PendingOrders {
   targets: Map<string, number> | null;
   shareOrders: Map<string, number> | null;
   lotOrders: Map<string, number> | null;
-  futureIntents: Map<string, FutureIntent> | null;
 }
 
 /**
@@ -1027,7 +818,6 @@ function emptyDecision(): OrderDecision {
     shareOrders: null,
     lotOrders: null,
     conditionalCommands: [],
-    futureIntents: null,
   };
 }
 
@@ -1106,50 +896,6 @@ function validateFiniteOrderValue(value: number, label: string): void {
 
 function conditionalOrderKey(kind: ConditionalOrderKind, code: string): string {
   return `${kind}:${code}`;
-}
-
-/**
- * 对策略和恢复的期货指令采用相同校验并按序累积。
- *
- * Apply identical validation and ordered accumulation to strategy and loaded futures instructions.
- */
-function collectFutureIntent(
-  intents: Map<string, FutureIntent> | null,
-  code: string,
-  intent: FutureIntent,
-): Map<string, FutureIntent> | null {
-  let value = intent.value;
-  switch (intent.kind) {
-    case 'delta': {
-      validateFiniteOrderValue(value, 'Futures contracts');
-      value = Math.trunc(value);
-      if (!value) {
-        return intents;
-      }
-      const prior = intents?.get(code);
-      if (prior?.kind === 'delta') {
-        value += prior.value;
-      }
-      break;
-    }
-    case 'contracts':
-      validateFiniteOrderValue(value, 'Futures target contracts');
-      value = Math.trunc(value);
-      break;
-    case 'notional':
-      validateFiniteOrderValue(value, 'Futures target notional');
-      break;
-    case 'hedge':
-      if (!Number.isFinite(value) || value < 0) {
-        throw new Error('Futures hedge beta must be a finite non-negative number');
-      }
-      break;
-  }
-
-  const result = intents ?? new Map<string, FutureIntent>();
-  result.set(code, { kind: intent.kind, value });
-
-  return result;
 }
 
 /**

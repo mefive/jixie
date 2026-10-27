@@ -619,9 +619,7 @@ function cachedResearchDataCatalog(
 }
 
 function researchAssetType(value: string | undefined): ResearchAssetTypeV1 | undefined {
-  return value === 'stock' || value === 'etf' || value === 'index' || value === 'future'
-    ? value
-    : undefined;
+  return value === 'stock' || value === 'etf' || value === 'index' ? value : undefined;
 }
 
 function localizedCatalogName(value: { nameZh: string; nameEn?: string }): string {
@@ -632,7 +630,7 @@ function localizedAssetType(assetType: ResearchAssetTypeV1): string {
   if (localeStore.locale !== 'zh') {
     return assetType;
   }
-  return { stock: '股票', etf: 'ETF', index: '指数', future: '期货' }[assetType];
+  return { stock: '股票', etf: 'ETF', index: '指数' }[assetType];
 }
 
 function isResearchPythonModel(model: monaco.editor.ITextModel): boolean {

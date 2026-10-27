@@ -98,72 +98,6 @@ export interface IndexWeightRow {
 }
 
 /**
- * 提供实际交割合约规格与交易日期，供期货模拟。
- *
- * Supply delivery-contract specifications and dates for futures simulation.
- */
-export interface FutureContractRow {
-  tsCode: string;
-  productCode: string;
-  multiplier: number;
-  listDate: string;
-  delistDate: string;
-}
-
-/**
- * 提供实际期货合约日线，供撮合与历史查询。
- *
- * Supply actual-contract futures bars for execution and history reads.
- */
-export interface FutureDailyDataRow {
-  tsCode: string;
-  tradeDate: string;
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  close: number | null;
-  settle: number | null;
-  volume: number | null;
-  amount: number | null;
-  openInterest: number | null;
-}
-
-/**
- * 提供日期化主力映射，供引擎解析可执行交割合约。
- *
- * Supply dated main mappings for executable delivery-contract selection.
- */
-export interface FutureMappingDataRow {
-  continuousCode: string;
-  tradeDate: string;
-  mappedTsCode: string;
-}
-
-/**
- * 提供合约历史费用及保证金参数，供结算和执行。
- *
- * Supply historical contract fees and margin parameters for execution and settlement.
- */
-export interface FutureSettlementDataRow {
-  tsCode: string;
-  tradeDate: string;
-  longMarginRate: number | null;
-  shortMarginRate: number | null;
-}
-
-/**
- * 组合期货合约、行情、映射及结算输入，供一次模拟加载。
- *
- * Collect futures metadata, bars, mappings and settlements for simulation loading.
- */
-export interface FutureMarketRows {
-  contracts: FutureContractRow[];
-  daily: FutureDailyDataRow[];
-  mappings: FutureMappingDataRow[];
-  settlements: FutureSettlementDataRow[];
-}
-
-/**
  * 承载单个交易日的原始价格、复权及估值截面，可限定证券代码范围。
  *
  * One trading day's raw panel rows (price + adjustment + valuation), optionally code-restricted.
@@ -259,6 +193,4 @@ export interface EngineDataPort {
     end: string,
     options?: BarsRowsOptions,
   ): Promise<BarsRows>;
-  /** Stock-index futures metadata, actual-contract bars, main mappings, and margin params. */
-  futuresRange(start: string, end: string): Promise<FutureMarketRows>;
 }

@@ -23,12 +23,6 @@ import {
   type PlannedPartition,
 } from './partitions.js';
 import { readDatasetCoverage } from './status.js';
-import {
-  invalidatePartitionCoverage,
-  invalidateMarketCalculations,
-  refreshMarketCalculations,
-  readMarketCalculationBacklog,
-} from './calculations.js';
 import { cleanRetiredSyncResources } from './resources.js';
 
 export interface DataSyncInput {
@@ -84,7 +78,6 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
         status: 'complete',
         partitions: 0,
         accepted: { inserted: 0, updated: 0, deleted: 0, rejected: 0 },
-        calculations: { ready: 0, waiting: 0, stale: 0, errors: 0 },
         coverage: [],
         gaps: [],
         errors: [],
@@ -135,15 +128,6 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
         await retireDatasets();
         await acquireSyncPartitions(input, result, sourceBudget, clock, log);
         await normalizeSyncIdentities(result, clock, input.signal);
-        await database.dataSyncRun.update({
-          where: { id: runId },
-          data: { stage: 'calculations' },
-        });
-        result.calculations = await refreshMarketCalculations({
-          targetDate: input.targetDate,
-          limit: SYNC_LIMITS.calculations,
-          signal: input.signal,
-        });
         result.gaps.push(...(await cleanRetiredSyncResources()));
       } catch (error) {
         result.errors.push(error instanceof Error ? error.message : String(error));
@@ -336,10 +320,6 @@ async function publishSyncPartition(
             where: { key: 'global' },
             data: { revision: { increment: 1 } },
           });
-          await invalidateMarketCalculations(transaction, accepted.changes);
-          if (eligibilityChanged) {
-            await invalidatePartitionCoverage(transaction, partition);
-          }
         }
         await updateVerifiedCoverage(transaction, partition.dataset, partition.scope);
 
@@ -389,7 +369,6 @@ async function recordPartitionFailure(
           where: { key: 'global' },
           data: { revision: { increment: 1 } },
         });
-        await invalidatePartitionCoverage(transaction, partition);
         await updateVerifiedCoverage(transaction, partition.dataset, partition.scope);
       }
     }),
@@ -423,7 +402,6 @@ async function normalizeSyncIdentities(
                 where: { key: 'global' },
                 data: { revision: { increment: 1 } },
               });
-              await invalidateMarketCalculations(transaction, accepted.changes);
             }
             return accepted;
           },
@@ -445,11 +423,6 @@ async function finishSyncRun(result: DataSyncResult, clock: () => Date): Promise
   const database = getDatabase();
   const runId = result.runId;
 
-  Object.assign(result.calculations, await readMarketCalculationBacklog());
-  if (result.calculations.errors) {
-    result.errors.push(`${result.calculations.errors} unresolved market calculation failures`);
-  }
-
   result.coverage = await readDatasetCoverage();
   const unfinished = await database.datasetSyncPartition.count({
     where: {
@@ -469,12 +442,7 @@ async function finishSyncRun(result: DataSyncResult, clock: () => Date): Promise
   }
   result.errors = [...new Set(result.errors)];
   result.gaps = [...new Set(result.gaps)];
-  result.status =
-    result.errors.length || result.calculations.errors
-      ? 'error'
-      : result.gaps.length || result.calculations.waiting || result.calculations.stale
-        ? 'partial'
-        : 'complete';
+  result.status = result.errors.length ? 'error' : result.gaps.length ? 'partial' : 'complete';
   await database.dataSyncRun.update({
     where: { id: runId },
     data: {

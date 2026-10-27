@@ -1,5 +1,7 @@
 # 商品 Carry：期限结构、代理误差与样本外
 
+> 本文为历史学习记录。期货数据、Carry／仓单模板及其日频风险回归、Alpha 重合和压力情景已退役；文中旧操作不能在当前系统重跑。保留原始数值与截图用于理解方法，当前股票／ETF 操作以工作台帮助为准。
+
 > 历史案例：文中的研究卡、Holdout、预注册准入及揭示记录属于旧版本，不再是当前操作。当前可自行选择日期运行普通分析，发布只固定匹配的代码与成功报告。原有数值与截图仅用于解释研究方法。
 > 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
 
@@ -198,5 +200,4 @@ Panel Holdout 共 17 个有效月、68 条观测。平均 Rank IC 从 0.0186 变
 - [运行跨资产 Panel 研究](/help/factors/panel-research)
 - [运行 ETF 时间序列研究](/help/factors/time-series-research)
 - [换手、交易成本和费后收益](/help/factors/turnover-costs)
-- [回测股指期货](/help/backtesting/index-futures)
 - [为什么回测不等于未来收益](/help/basics/backtest-limitations)

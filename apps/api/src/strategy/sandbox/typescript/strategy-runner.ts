@@ -150,6 +150,9 @@ class StrategyRunner {
     if (!result || typeof result.onBar !== 'function') {
       throw new Error('strategy must `export default defineStrategy({ onBar(ctx) { … } })`');
     }
+    if ('accounts' in result || 'futures' in result) {
+      throw new Error('Futures accounts and declarations are retired');
+    }
     result.name ||= 'Untitled strategy';
 
     return result as StrategyDefinition;
@@ -161,8 +164,6 @@ class StrategyRunner {
       params: this.strategy.params ?? {},
       factors: this.strategy.factors ?? [],
       watch: this.strategy.watch ?? [],
-      futures: [],
-      accounts: this.strategy.accounts ?? null,
     };
   }
 

@@ -10,12 +10,6 @@ const TABLE_LABELS = {
   dailyBasic: 'daily metrics (PE/PB/dividend yield/market cap/turnover)',
   stkLimit: 'daily up/down price limits',
   indexDaily: 'index daily bars',
-  futureDaily: 'stock-index futures daily bars',
-  futureMapping: 'stock-index and research-only commodity main-contract mapping',
-  futureSettlement: 'stock-index futures settlement parameters',
-  commodityWarehouseReceipt: 'commodity warehouse-receipt aggregates',
-  commodityHoldingPosition: 'commodity ranked-member position aggregates',
-  commodityContinuousReturn: 'audited commodity main-contract return ledger',
 } as const;
 
 type TableKey = keyof typeof TABLE_LABELS;
@@ -75,24 +69,6 @@ async function tableCoverage(table: TableKey): Promise<Coverage> {
       break;
     case 'indexDaily':
       aggregate = await getDatabase().indexDaily.aggregate(aggregateArgs);
-      break;
-    case 'futureDaily':
-      aggregate = await getDatabase().futureDaily.aggregate(aggregateArgs);
-      break;
-    case 'futureMapping':
-      aggregate = await getDatabase().futureMapping.aggregate(aggregateArgs);
-      break;
-    case 'futureSettlement':
-      aggregate = await getDatabase().futureSettlement.aggregate(aggregateArgs);
-      break;
-    case 'commodityWarehouseReceipt':
-      aggregate = await getDatabase().commodityWarehouseReceipt.aggregate(aggregateArgs);
-      break;
-    case 'commodityHoldingPosition':
-      aggregate = await getDatabase().commodityHoldingPosition.aggregate(aggregateArgs);
-      break;
-    case 'commodityContinuousReturn':
-      aggregate = await getDatabase().commodityContinuousReturn.aggregate(aggregateArgs);
       break;
   }
   return {

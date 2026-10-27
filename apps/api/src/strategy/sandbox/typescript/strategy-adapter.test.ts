@@ -9,7 +9,6 @@ function snapshot(date: string, equity: number): StrategyAdapterInput {
     date,
     portfolio: { equity },
     stock: { equity, availableCash: equity, positions: [] },
-    futures: { equity: 0, availableCash: 0, margin: 0 },
   };
 }
 

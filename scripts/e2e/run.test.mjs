@@ -32,7 +32,7 @@ test('help and list never select execution; unknown input is rejected', () => {
 test('learning group omits retired research-gate journeys and keeps image tasks separate', () => {
   assert.deepEqual(
     selectCommands(['--group', 'learning'], e2eCommands).commands.map((command) => command.name),
-    ['learning-cross-market', 'learning-trend-strategy', 'learning-stock-bond-allocation'],
+    ['learning-cross-market', 'learning-trend-strategy'],
   );
   assert.equal(
     e2eCommands.some((command) => command.file.includes('help-content')),

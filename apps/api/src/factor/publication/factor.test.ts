@@ -208,7 +208,7 @@ describe('immutable Factor publication', () => {
     );
   });
 
-  it('keeps the controlled commodity-carry template research-only', async () => {
+  it('rejects the retired commodity-carry template', async () => {
     mocks.factorFindFirst.mockResolvedValue({
       id: 'factor-1',
       key: 'commodity_carry',
@@ -233,7 +233,7 @@ describe('immutable Factor publication', () => {
     expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('also keeps the commodity-carry time-series template research-only', async () => {
+  it('rejects the retired commodity-carry time-series template', async () => {
     mocks.factorFindFirst.mockResolvedValue({
       id: 'factor-1',
       key: 'commodity_carry_time_series',

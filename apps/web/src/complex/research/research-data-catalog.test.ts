@@ -208,33 +208,6 @@ test('inserts a governed yield-curve dataset call', () => {
   );
 });
 
-test('inserts an audited commodity dataset call', () => {
-  assert.match(
-    researchDatasetSnippet({
-      dataset: {
-        kind: 'dataset',
-        id: 'data.commodity_warehouse_receipts:AU',
-        method: 'data.commodity_warehouse_receipts',
-        product: 'AU',
-        nameZh: '黄金仓单',
-        nameEn: 'Gold warehouse receipts',
-        descriptionZh: '',
-        descriptionEn: '',
-        tags: [],
-        localDataCoverage: {
-          status: 'ready',
-          startDate: '20150106',
-          endDate: '20260803',
-          dateBasis: 'availableDate',
-        },
-      },
-      start: '20210101',
-      end: '20260701',
-    }),
-    /au_warehouse_receipts = data\.commodity_warehouse_receipts\([\s\S]*"AU"/,
-  );
-});
-
 test('inserts a governed identifier-based reference dataset call', () => {
   assert.match(
     researchDatasetSnippet({
@@ -259,6 +232,33 @@ test('inserts a governed identifier-based reference dataset call', () => {
       end: '20260701',
     }),
     /data_000300_sh_index_valuation = data\.index_valuation\([\s\S]*"000300.SH"/,
+  );
+});
+
+test('inserts the retained ETF share dataset call', () => {
+  assert.match(
+    researchDatasetSnippet({
+      dataset: {
+        kind: 'dataset',
+        id: 'data.etf_shares:510300.SH',
+        method: 'data.etf_shares',
+        identifier: '510300.SH',
+        nameZh: '沪深300 ETF 份额',
+        nameEn: 'CSI 300 ETF shares',
+        descriptionZh: '',
+        descriptionEn: '',
+        tags: [],
+        localDataCoverage: {
+          status: 'ready',
+          startDate: '20150105',
+          endDate: '20260731',
+          dateBasis: 'tradeDate',
+        },
+      },
+      start: '20210101',
+      end: '20260701',
+    }),
+    /data_510300_sh_etf_shares = data\.etf_shares\([\s\S]*"510300.SH"/,
   );
 });
 

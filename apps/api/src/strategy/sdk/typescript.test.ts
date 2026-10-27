@@ -32,7 +32,6 @@ function ctxOf(
       availableCash: 0,
       setTargetWeights: (weights: Record<string, number>) => (targetWeightsArg.value = weights),
     },
-    futures: { equity: 0, availableCash: 0, margin: 0 },
   } as unknown as EngineContext;
   return { ctx, targetWeightsArg };
 }
@@ -208,19 +207,15 @@ describe('periodKey', () => {
 });
 
 describe('public account scopes', () => {
-  it('exposes isolated funding and removes the old flat trading surface', () => {
+  it('exposes cash funding and removes the old flat trading surface', () => {
     const { ctx } = ctxOf({});
     Object.assign(ctx.portfolio, { equity: 100000 });
     Object.assign(ctx.stock, { equity: 70000, availableCash: 10000 });
-    Object.assign(ctx.futures, { equity: 30000, availableCash: 20000, margin: 10000 });
     const sdk = new StrategyContext(ctx);
 
     expect(sdk.portfolio.equity).toBe(100000);
     expect(sdk.stock.equity).toBe(70000);
     expect(sdk.stock.availableCash).toBe(10000);
-    expect(sdk.futures.equity).toBe(30000);
-    expect(sdk.futures.availableCash).toBe(20000);
-    expect(sdk.futures.margin).toBe(10000);
     for (const removed of [
       'value',
       'cash',
@@ -237,11 +232,9 @@ describe('public account scopes', () => {
     expect('equalWeight' in ctx.stock).toBe(false);
 
     Object.assign(ctx.stock, { equity: 71000, availableCash: 11000 });
-    Object.assign(ctx.futures, { equity: 31000 });
     Object.assign(ctx.portfolio, { equity: 102000 });
     expect(sdk.stock.equity).toBe(71000);
     expect(sdk.stock.availableCash).toBe(11000);
-    expect(sdk.futures.equity).toBe(31000);
     expect(sdk.portfolio.equity).toBe(102000);
   });
 });

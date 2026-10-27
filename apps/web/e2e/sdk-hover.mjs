@@ -47,7 +47,7 @@ try {
           endLineNumber: anchor.lineNumber,
           endColumn: 1,
         },
-        text: '    const names = ctx.universe();\n    ctx.stock.closePosition("AAA");\n    ctx.futures.closePosition("IF.CFX");\n',
+        text: '    const names = ctx.universe();\n    ctx.stock.closePosition("AAA");\n',
       },
     ]);
   });
@@ -92,10 +92,7 @@ try {
     throw new Error(`hover lost the doc link: ${JSON.stringify(universeHover)}`);
   }
 
-  for (const [scope, type] of [
-    ['stock', 'StockAccount'],
-    ['futures', 'FuturesAccount'],
-  ]) {
+  for (const [scope, type] of [['stock', 'StockAccount']]) {
     const accountHover = await hoverAt(`ctx.${scope}.closePosition`, `ctx.${scope}.`.length + 3);
     if (
       !accountHover.includes(type) ||

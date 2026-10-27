@@ -19,7 +19,6 @@ class _Analysis:
     yield_curve_requests: list[dict[str, Any]]
     macro_requests: list[dict[str, Any]]
     fx_requests: list[dict[str, Any]]
-    commodity_requests: list[dict[str, Any]]
     equity_requests: list[dict[str, Any]]
     error: str | None = None
 
@@ -35,7 +34,6 @@ class _NameAnalysis(ast.NodeVisitor):
         self.yield_curve_requests: list[dict[str, Any]] = []
         self.macro_requests: list[dict[str, Any]] = []
         self.fx_requests: list[dict[str, Any]] = []
-        self.commodity_requests: list[dict[str, Any]] = []
         self.equity_requests: list[dict[str, Any]] = []
 
     def visit_Name(self, node: ast.Name) -> None:
@@ -144,29 +142,11 @@ class _NameAnalysis(ast.NodeVisitor):
         if (
             isinstance(node.func, ast.Attribute)
             and node.func.attr
-            in {"commodity_returns", "commodity_warehouse_receipts", "commodity_holdings"}
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "data"
-        ):
-            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
-            self.commodity_requests.append(
-                {
-                    "line": node.lineno,
-                    "method": node.func.attr,
-                    "product": _literal_string(
-                        node.args[0] if len(node.args) > 0 else keywords.get("product")
-                    ),
-                }
-            )
-        if (
-            isinstance(node.func, ast.Attribute)
-            and node.func.attr
             in {
                 "equity_fundamentals",
                 "equity_dividends",
                 "etf_shares",
                 "index_valuation",
-                "futures_settlement",
                 "equity_financial_values",
                 "equity_financial_statements",
                 "equity_financial_metrics",
@@ -195,7 +175,7 @@ def _analyze(source: str) -> _Analysis:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     except SyntaxError as error:
         message = f"{error.msg} (line {error.lineno}, column {error.offset})"
-        return _Analysis([], [], [], [], [], [], [], [], [], message)
+        return _Analysis([], [], [], [], [], [], [], [], error=message)
     visitor = _NameAnalysis()
     visitor.visit(tree)
     ignored = set(dir(builtins)) | _RUNTIME_NAMES
@@ -207,7 +187,6 @@ def _analyze(source: str) -> _Analysis:
         visitor.yield_curve_requests,
         visitor.macro_requests,
         visitor.fx_requests,
-        visitor.commodity_requests,
         visitor.equity_requests,
     )
 

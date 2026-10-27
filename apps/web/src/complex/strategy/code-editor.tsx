@@ -228,7 +228,7 @@ function installSdk(m: Monaco) {
         return null;
       }
       const prefix = model.getLineContent(position.lineNumber).slice(0, word.startColumn - 1);
-      const account = prefix.match(/\b(stock|futures)\s*\.\s*$/)?.[1];
+      const account = prefix.match(/\b(stock)\s*\.\s*$/)?.[1];
       const anchor = account ? `${account}.${word.word}` : word.word;
       if (!sdkNames.has(anchor)) {
         return null;
@@ -338,7 +338,7 @@ function CodeEditor({
               pos && word
                 ? model?.getLineContent(pos.lineNumber).slice(0, word.startColumn - 1)
                 : '';
-            const account = prefix?.match(/\b(stock|futures)\s*\.\s*$/)?.[1];
+            const account = prefix?.match(/\b(stock)\s*\.\s*$/)?.[1];
             const anchor = word ? (account ? `${account}.${word.word}` : word.word) : undefined;
             window.open(anchor ? `/docs/sdk#${anchor}` : '/docs/sdk', '_blank');
           },

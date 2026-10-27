@@ -221,10 +221,6 @@ function result(parameter: number, start: string, end: string): BacktestResult {
       transferFee: 0,
       slippageBps: 0,
       impactCoef: 0,
-      futureCommissionRate: 0,
-      futureCloseTodayRate: 0,
-      futureSlippageTicks: 0,
-      futureMarginRate: 0.1,
     },
     monthly: [],
   };

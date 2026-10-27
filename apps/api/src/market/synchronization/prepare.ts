@@ -3,12 +3,10 @@ import { prepareCalendarPartition } from '../calendar/sync-partition.js';
 import { prepareStockPartition, prepareStockReference } from '../stocks/sync-partition.js';
 import { prepareIndexPartition } from '../indices/sync-partition.js';
 import { prepareEtfPartition } from '../etfs/sync-partition.js';
-import { prepareFuturePartition } from '../futures/sync-partition.js';
 import { prepareFinancialPartition } from '../fundamentals/sync-partition.js';
 import { prepareMacroPartition } from '../macro/sync-partition.js';
 import { prepareCurvePartition } from '../rates/sync-partition.js';
 import { prepareExternalPartition } from '../cross-market/sync-partition.js';
-import { prepareCommodityPartition } from '../commodity/sync-partition.js';
 import type { BlsPublicDataClientLike } from '../macro/us-headline-cpi.js';
 import type { ChinaTreasuryCurveClient } from '../rates/china-treasury-curve.js';
 import type { ChinaBondCreditCurveClient } from '../rates/chinabond-credit-curves.js';
@@ -53,14 +51,6 @@ async function fetchMarketPartition(
     case 'etf-adjustments':
     case 'etf-shares':
       return prepareEtfPartition(providers.source, partition);
-    case 'future-contracts':
-    case 'future-prices':
-    case 'future-mappings':
-    case 'future-settlements':
-    case 'commodity-contracts':
-    case 'commodity-prices':
-    case 'commodity-mappings':
-      return prepareFuturePartition(providers.source, partition);
     case 'financial-statements':
     case 'financial-indicators':
     case 'dividends':
@@ -75,9 +65,6 @@ async function fetchMarketPartition(
     case 'external-fx':
     case 'cross-market-benchmarks':
       return prepareExternalPartition(providers.source, partition, fetchedAt);
-    case 'commodity-holdings':
-    case 'commodity-receipts':
-      return prepareCommodityPartition(providers.source, partition, fetchedAt);
     default:
       throw new Error(`Undeclared synchronization dataset ${partition.dataset}`);
   }

@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
-  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
-  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
-  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
@@ -14,7 +11,6 @@ import {
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
   RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
-  RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
@@ -25,9 +21,6 @@ import {
 } from '@jixie/shared';
 import {
   parseResearchCrossSectionRuntimeRequest,
-  parseResearchCommodityHoldingsRuntimeRequest,
-  parseResearchCommodityReturnsRuntimeRequest,
-  parseResearchCommodityWarehouseReceiptsRuntimeRequest,
   parseResearchEquityDividendsRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchEtfSharesRuntimeRequest,
@@ -40,7 +33,6 @@ import {
   parseResearchFinancialPanelRuntimeRequest,
   parseResearchFinancialStatementsRuntimeRequest,
   parseResearchFxRuntimeRequest,
-  parseResearchFuturesSettlementRuntimeRequest,
   parseResearchIndexValuationRuntimeRequest,
   parseResearchMacroRuntimeRequest,
   parseResearchPanelRuntimeRequest,
@@ -127,23 +119,6 @@ describe('research workbench SDK contract', () => {
     expect(RESEARCH_FX_SDK_CONTRACT_V1.qualifiedName).toBe('data.fx');
   });
 
-  it('drives the three governed commodity dataset bridges', () => {
-    const request = { product: 'AU', start: '20200101', end: '20251231' };
-    expect(parseResearchCommodityReturnsRuntimeRequest(request)).toEqual(request);
-    expect(parseResearchCommodityWarehouseReceiptsRuntimeRequest(request)).toEqual(request);
-    expect(parseResearchCommodityHoldingsRuntimeRequest(request)).toEqual(request);
-    expect(() =>
-      parseResearchCommodityHoldingsRuntimeRequest({ ...request, product: 'SC' }),
-    ).toThrow();
-    expect(RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.qualifiedName).toBe('data.commodity_returns');
-    expect(RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1.qualifiedName).toBe(
-      'data.commodity_warehouse_receipts',
-    );
-    expect(RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.qualifiedName).toBe(
-      'data.commodity_holdings',
-    );
-  });
-
   it('drives stock supplemental dataset bridges', () => {
     const stockRequest = { identifier: '600519.SH', start: '20200101', end: '20251231' };
     expect(parseResearchEquityFundamentalsRuntimeRequest(stockRequest)).toEqual(stockRequest);
@@ -154,16 +129,12 @@ describe('research workbench SDK contract', () => {
     expect(RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_dividends');
   });
 
-  it('drives ETF, index, and futures reference dataset bridges', () => {
+  it('drives ETF and index reference dataset bridges', () => {
     const request = { identifier: 'TEST', start: '20200101', end: '20251231' };
     expect(parseResearchEtfSharesRuntimeRequest(request)).toEqual(request);
     expect(parseResearchIndexValuationRuntimeRequest(request)).toEqual(request);
-    expect(parseResearchFuturesSettlementRuntimeRequest(request)).toEqual(request);
     expect(RESEARCH_ETF_SHARES_SDK_CONTRACT_V1.qualifiedName).toBe('data.etf_shares');
     expect(RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.qualifiedName).toBe('data.index_valuation');
-    expect(RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.qualifiedName).toBe(
-      'data.futures_settlement',
-    );
   });
 
   it('drives both fixed-schema equity dataset bridge requests', () => {

@@ -10,18 +10,6 @@ import type {
   Locale,
   LogLevel,
 } from '@jixie/shared';
-import {
-  loadCommodityCarryPanelObservations,
-  panelFactorUsesCommodityCarry,
-} from '../observations/commodity-carry-panel-observations.js';
-import {
-  loadCommodityCarryTimeSeriesObservations,
-  timeSeriesFactorUsesCommodityCarry,
-} from '../observations/commodity-carry-time-series-observations.js';
-import {
-  loadCommodityWarehouseReceiptTimeSeriesObservations,
-  timeSeriesFactorUsesCommodityWarehouseReceipts,
-} from '../observations/commodity-warehouse-receipt-time-series-observations.js';
 import { loadEtfTimeSeriesObservations } from '../observations/etf-trend-observations.js';
 import { loadMacroRegimeObservations } from '../observations/macro-regime-observations.js';
 import { loadPanelEtfObservations } from '../observations/panel-observations.js';
@@ -98,25 +86,8 @@ export async function runFactorEvaluation({
         onUserLog: onUserLog,
       });
       try {
-        const usesCommodityCarry = timeSeriesFactorUsesCommodityCarry(sandbox);
-        const usesCommodityWarehouseReceipts =
-          timeSeriesFactorUsesCommodityWarehouseReceipts(sandbox);
-        onSystemLog(
-          t(
-            locale,
-            usesCommodityCarry
-              ? 'factorCommodityCarryTimeSeriesLoading'
-              : usesCommodityWarehouseReceipts
-                ? 'factorCommodityWarehouseReceiptTimeSeriesLoading'
-                : 'factorTimeSeriesLoading',
-            { count: researchSpec.assets.length },
-          ),
-        );
-        const observations = usesCommodityCarry
-          ? await loadCommodityCarryTimeSeriesObservations(researchSpec, sandbox)
-          : usesCommodityWarehouseReceipts
-            ? await loadCommodityWarehouseReceiptTimeSeriesObservations(researchSpec, sandbox)
-            : await loadEtfTimeSeriesObservations(researchSpec, sandbox);
+        onSystemLog(t(locale, 'factorTimeSeriesLoading', { count: researchSpec.assets.length }));
+        const observations = await loadEtfTimeSeriesObservations(researchSpec, sandbox);
         onSystemLog(t(locale, 'factorTimeSeriesEvaluating', { count: observations.length }));
         const report = new TimeSeriesEvaluator().evaluate(researchSpec, observations);
         return complete(report);
@@ -136,9 +107,7 @@ export async function runFactorEvaluation({
       });
       try {
         onSystemLog(t(locale, 'factorPanelLoading', { count: researchSpec.assets.length }));
-        const observations = panelFactorUsesCommodityCarry(sandbox)
-          ? await loadCommodityCarryPanelObservations(researchSpec, sandbox)
-          : await loadPanelEtfObservations(researchSpec, sandbox);
+        const observations = await loadPanelEtfObservations(researchSpec, sandbox);
         onSystemLog(t(locale, 'factorPanelEvaluating', { count: observations.length }));
         const report = new PanelEvaluator().evaluate(researchSpec, observations);
         return complete(report);

@@ -139,24 +139,6 @@ const jobs = [
       [4, 14, 1408, 489, 1848],
     ],
   },
-  {
-    source: 'phase5-market-risk.png',
-    output: 'backtesting/portfolio-risk-01.png',
-    marks: [
-      [1, 2, 2, 470, 143],
-      [2, 2, 188, 470, 711],
-    ],
-  },
-  {
-    sources: ['phase5-macro-risk-warning.png', 'phase5-risk-scenarios.png'],
-    append: true,
-    output: 'backtesting/portfolio-risk-02.png',
-    marks: [
-      [1, 2, 2, 470, 162],
-      [2, 2, 198, 470, 751],
-      [3, 2, 938, 470, 1734],
-    ],
-  },
 ];
 
 for (const job of jobs) {

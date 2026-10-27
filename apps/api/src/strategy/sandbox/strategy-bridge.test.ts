@@ -13,8 +13,6 @@ const metadata = {
   params: { lookback: 5 },
   factors: ['value'],
   watch: ['AAA', 'MISSING'],
-  futures: ['IF'],
-  accounts: { stock: { cashWeight: 0.6 }, futures: { cashWeight: 0.4 } },
 };
 const diagnostics = { language: 'Fixture', callback: 'onBar' };
 const history: OhlcBar = {
@@ -65,16 +63,6 @@ function contextFixture() {
       limitBuyAtAdjustedPrice: vi.fn(),
       takeProfitByFraction: vi.fn(),
       cancelConditional: vi.fn(),
-    },
-    futures: {
-      equity: 30,
-      availableCash: 10,
-      margin: 20,
-      orderContracts: vi.fn(),
-      setTargetContracts: vi.fn(),
-      setTargetNotional: vi.fn(),
-      hedgeStock: vi.fn(),
-      closePosition: vi.fn(),
     },
     bars: vi.fn((code: string) => (code === 'MISSING' ? [] : [history])),
     loadCrossSection: vi.fn(async () => ['AAA', 'MISSING']),
@@ -215,7 +203,7 @@ describe('shared strategy bridge', () => {
     const initialized = await strategy.initialize();
 
     const { context, spies } = contextFixture();
-    expect(initialized).toMatchObject({ ...metadata, futures: [] });
+    expect(initialized).toMatchObject({ ...metadata });
     await strategy.execute({ context });
     expect(onUserLog.mock.calls).toEqual([
       ['warn', 'startup'],
@@ -238,7 +226,6 @@ describe('shared strategy bridge', () => {
             availableCash: 40,
             positions: [{ code: 'BBB', shares: 100, avgCost: 9, marketValue: 1_100 }],
           },
-          futures: { equity: 30, availableCash: 10, margin: 20 },
           bar_updates: {
             AAA: {
               date: '20240102',
@@ -341,11 +328,6 @@ describe('shared strategy bridge', () => {
         },
         { operation: 'stock.takeProfitByFraction', arguments: { code: 'AAA', percentage: 0.2 } },
         { operation: 'stock.cancelConditional', arguments: { code: 'AAA', kind: null } },
-        { operation: 'futures.orderContracts', arguments: { code: 'IF', contracts: -2 } },
-        { operation: 'futures.setTargetContracts', arguments: { code: 'IF', contracts: 3 } },
-        { operation: 'futures.setTargetNotional', arguments: { code: 'IF', notional: -100000 } },
-        { operation: 'futures.hedgeStock', arguments: { code: 'IF', beta: 1 } },
-        { operation: 'futures.closePosition', arguments: { code: 'IF' } },
       ];
       const { session, sent, historyUpdates } = transport([
         ready,
@@ -390,11 +372,6 @@ describe('shared strategy bridge', () => {
         spies.stock.limitBuyAtAdjustedPrice,
         spies.stock.takeProfitByFraction,
         spies.stock.cancelConditional,
-        spies.futures.orderContracts,
-        spies.futures.setTargetContracts,
-        spies.futures.setTargetNotional,
-        spies.futures.hedgeStock,
-        spies.futures.closePosition,
       ];
       expect(calls.map((spy) => spy.mock.calls)).toEqual([
         [['AAA', 0.5]],
@@ -407,11 +384,6 @@ describe('shared strategy bridge', () => {
         [['AAA', 10, 200]],
         [['AAA', 0.2]],
         [['AAA', undefined]],
-        [['IF', -2]],
-        [['IF', 3]],
-        [['IF', -100000]],
-        [['IF', 1]],
-        [['IF']],
       ]);
       const order = calls.map((spy) => spy.mock.invocationCallOrder[0]);
       expect(order).toEqual([...order].sort((left, right) => left - right));
@@ -555,18 +527,14 @@ describe('shared strategy bridge', () => {
     );
   });
 
-  it('normalizes absent account allocation without inventing defaults', async () => {
-    const { session, historyUpdates } = transport([
-      { ...ready, metadata: { ...metadata, accounts: null } },
-    ]);
+  it('returns only retained startup metadata', async () => {
+    const { session, historyUpdates } = transport([{ ...ready, metadata: { ...metadata } }]);
     const strategy = new StrategyBridge(session, {
       startupCommand: { type: 'start' },
       historyUpdates,
       diagnostics,
     });
-    const initialized = await strategy.initialize();
-
-    expect(initialized.accounts).toBeUndefined();
+    expect(await strategy.initialize()).toEqual(metadata);
   });
 
   it('binds the current context only during execution and unbinds after sandbox failure', async () => {

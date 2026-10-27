@@ -36,20 +36,6 @@ async function execute(code: string, spec: FixtureSpec = fixture, start = spec.d
 }
 
 describe('TypeScript strategy isolation and compatibility', () => {
-  it('ignores obsolete declarations while preserving explicit account metadata', async () => {
-    const metadata = await inspectStrategyMetadata(`export default defineStrategy({
-      futures: ['UNKNOWN'],
-      accounts: { stock: { cashWeight: 0.25 }, futures: { cashWeight: 0.75 } },
-      onBar() {},
-    });`);
-
-    expect(metadata.futures).toEqual([]);
-    expect(metadata.accounts).toEqual({
-      stock: { cashWeight: 0.25 },
-      futures: { cashWeight: 0.75 },
-    });
-  });
-
   it('isolates top-level metadata inspection as well as onBar', async () => {
     const code = `
       if (typeof process !== 'undefined' || typeof require === 'undefined') throw new Error('invalid globals');
@@ -61,7 +47,6 @@ describe('TypeScript strategy isolation and compatibility', () => {
     await expect(inspectStrategyMetadata(code)).resolves.toEqual({
       watch: ['AAA'],
       factors: [],
-      futures: [],
     });
     await execute(code);
   });
@@ -209,4 +194,19 @@ describe('TypeScript strategy isolation and compatibility', () => {
       ),
     ).rejects.toThrow('cannot import');
   });
+});
+
+it.each([
+  'futures: ["IF.CFX"]',
+  'accounts: { stock: { cashWeight: 0.5 }, futures: { cashWeight: 0.5 } }',
+])('rejects retired definition metadata: %s', async (property) => {
+  await expect(
+    inspectStrategyMetadata(`export default defineStrategy({ ${property}, onBar() {} });`),
+  ).rejects.toThrow(/futures|accounts|retired/i);
+});
+
+it('rejects retired declarations on raw exports before metadata can discard them', async () => {
+  await expect(
+    inspectStrategyMetadata('export default { accounts: {}, onBar() {} };'),
+  ).rejects.toThrow(/retired/);
 });

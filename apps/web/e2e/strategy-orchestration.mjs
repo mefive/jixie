@@ -201,7 +201,7 @@ try {
   });
   await page.getByText('EN', { exact: true }).click();
   await allocationPanel.getByText('Reconciled to cash-account equity', { exact: true }).waitFor();
-  await allocationPanel.getByText(/excludes futures P&L/).waitFor();
+  await allocationPanel.getByText(/Monthly macro analysis uses the same account NAV/).waitFor();
   await allocationPanel.screenshot({
     path: new URL('../acceptance/allocation-cash-account-en.png', import.meta.url).pathname,
   });
@@ -222,7 +222,10 @@ try {
   });
   await allocationPanel.getByText('Reconciled to portfolio equity', { exact: true }).waitFor();
   await allocationPanel.getByText(/Historical report: preserves/).waitFor();
-  assert.equal(await allocationPanel.getByText(/excludes futures P&L/).count(), 0);
+  assert.equal(
+    await allocationPanel.getByText(/Monthly macro analysis uses the same account NAV/).count(),
+    0,
+  );
   await allocationPanel.screenshot({
     path: new URL('../acceptance/allocation-legacy-en.png', import.meta.url).pathname,
   });

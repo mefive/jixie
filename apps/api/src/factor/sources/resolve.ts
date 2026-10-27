@@ -1,31 +1,6 @@
 import { getDatabase } from '#infra/database/prisma.js';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
 import { type FactorAnalysisSource } from './snapshot.js';
-import {
-  COMMODITY_CARRY_FIELD,
-  COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD,
-} from '../definitions/fields.js';
-import { type AssetFactorDataRequirements } from '../observations/asset-factor-data-cutoff.js';
-
-/**
- * 从冻结来源协议推导实际数据需求，供截止日与预载使用。
- *
- * Resolve dataset requirements from the frozen source protocol.
- */
-export function factorAnalysisSourceDataRequirements(
-  source: FactorAnalysisSource,
-): AssetFactorDataRequirements {
-  return source.kind === 'time_series' || source.kind === 'panel'
-    ? factorCodeDataRequirements(source.code)
-    : {};
-}
-
-export function factorCodeDataRequirements(code: string): AssetFactorDataRequirements {
-  return {
-    commodityCarry: code.includes(COMMODITY_CARRY_FIELD),
-    commodityWarehouseReceipts: code.includes(COMMODITY_WAREHOUSE_RECEIPT_VOLUME_FIELD),
-  };
-}
 
 /**
  * 按来源种类解析因子定义与快照，并验证访问权限。

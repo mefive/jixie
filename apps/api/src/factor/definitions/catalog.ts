@@ -60,7 +60,18 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
         : (['equity'] as const),
   }));
   const storedPresets = await getDatabase().factor.findMany({
-    where: { userId: BUILTIN_USER_ID, id: { notIn: ['mf_net_main', 'mf_net_total'] } },
+    where: {
+      userId: BUILTIN_USER_ID,
+      id: {
+        notIn: [
+          'mf_net_main',
+          'mf_net_total',
+          'commodity_futures_carry_v1',
+          'commodity_futures_carry_time_series_v1',
+          'commodity_warehouse_pressure_20',
+        ],
+      },
+    },
     orderBy: { createdAt: 'asc' },
   });
   const presetMetadata = new Map(

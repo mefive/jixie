@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fixturePort } from './testing/fixture-port.js';
 import { BacktestingEngine } from './backtesting-engine.js';
-import type { BacktestingConfig, EngineContext } from './contract.js';
+import type { BacktestingConfig } from './contract.js';
 
 function config(): BacktestingConfig {
   return {
@@ -45,88 +45,6 @@ describe('BacktestingEngine lifecycle', () => {
   });
 });
 
-describe('initial account allocation', () => {
-  it('honors account weights without declaring futures', async () => {
-    const input = config();
-    input.strategy.accounts = { stock: { cashWeight: 0.2 }, futures: { cashWeight: 0.8 } };
-    input.strategy.onBar = (context) => {
-      expect(context.stock.equity).toBe(2000);
-      expect(context.futures.equity).toBe(8000);
-      expect(context.portfolio.equity).toBe(10000);
-    };
-
-    const result = await new BacktestingEngine(input).run();
-    expect(result.sleeveNav?.at(-1)).toMatchObject({ stockValue: 2000, futureValue: 8000 });
-  });
-
-  it.each([
-    { stock: { cashWeight: -0.1 }, futures: { cashWeight: 1.1 } },
-    { stock: { cashWeight: 0.2 }, futures: { cashWeight: 0.5 } },
-    { stock: { cashWeight: NaN }, futures: { cashWeight: 0 } },
-  ])('validates account weights without a futures declaration', async (accounts) => {
-    const input = config();
-    input.strategy.accounts = accounts;
-
-    await expect(new BacktestingEngine(input).run()).rejects.toThrow(/cash weights/);
-  });
-
-  it.each([undefined, [], ['UNKNOWN']])(
-    'defaults to cash regardless of legacy futures %j',
-    async (futures) => {
-      const input = config();
-      const futuresRange = vi.spyOn(input.dataPort, 'futuresRange');
-      const onBar = vi.fn((context: EngineContext) => {
-        expect(context.portfolio.equity).toBe(input.initialCash);
-        expect(context.stock.availableCash).toBe(input.initialCash);
-        expect(context.stock.equity).toBe(input.initialCash);
-        expect(context.futures.equity).toBe(0);
-        expect(context.futures.availableCash).toBe(0);
-        expect(context.futures.margin).toBe(0);
-        expect(context.future('IF.CFX')).toBeNull();
-        expect(context.futureHistory('IF.CFX', 'close', 2)).toEqual([]);
-        expect(context.futures.position('IF.CFX')).toBeNull();
-      });
-      input.strategy = {
-        name: 'default accounts',
-        futures,
-        onBar,
-      };
-
-      const result = await new BacktestingEngine(input).run();
-
-      expect(onBar).toHaveBeenCalledTimes(2);
-      expect(futuresRange).toHaveBeenCalledWith(input.start, input.end);
-      expect(result.sleeveNav?.map((point) => point.futureValue)).toEqual([0, 0]);
-      expect(result.finalValue).toBe(input.initialCash);
-      expect(result.tradeLog).toEqual([]);
-      expect(result.allocationAnalysis).toMatchObject({
-        scope: 'cash_account',
-        assets: [],
-        nav: result.nav,
-        reconciliation: { portfolioPnl: 0, reconciled: true },
-      });
-    },
-  );
-
-  it.each([
-    ['order', (context: EngineContext) => context.futures.orderContracts('IF.CFX', 1)],
-    ['contracts', (context: EngineContext) => context.futures.setTargetContracts('IF.CFX', 1)],
-    ['notional', (context: EngineContext) => context.futures.setTargetNotional('IF.CFX', 1000)],
-    ['hedge', (context: EngineContext) => context.futures.hedgeStock('IF.CFX')],
-    ['exit', (context: EngineContext) => context.futures.closePosition('IF.CFX')],
-  ] as const)(
-    'accepts %s instructions without a declaration and cannot fill without data or capital',
-    async (_name, action) => {
-      const input = config();
-      input.strategy.onBar = action;
-
-      const result = await new BacktestingEngine(input).run();
-      expect(result.tradeLog).toEqual([]);
-      expect(result.finalValue).toBe(input.initialCash);
-    },
-  );
-});
-
 describe('cash-account attribution without factors', () => {
   it('attributes stock trades without factor metadata and marks their class as other', async () => {
     const input = config();
@@ -168,4 +86,33 @@ describe('cash-account attribution without factors', () => {
     expect(analysis.correlations).toBeUndefined();
     expect(analysis.rateRegimes).toBeUndefined();
   });
+});
+
+it.each([{ accounts: { stock: { cashWeight: 1 }, futures: { cashWeight: 0 } } }, { futures: [] }])(
+  'rejects legacy declarations before reading market data: %j',
+  async (legacy) => {
+    const input = config();
+    Object.assign(input.strategy, legacy);
+    const load = vi.spyOn(input.dataPort, 'openDates');
+
+    await expect(new BacktestingEngine({ ...input, locale: 'en' }).run()).rejects.toThrow(
+      'retired',
+    );
+    expect(load).not.toHaveBeenCalled();
+    expect(input.strategy.onBar).not.toHaveBeenCalled();
+  },
+);
+
+it.each([
+  'futureCommissionRate',
+  'futureCloseTodayRate',
+  'futureSlippageTicks',
+  'futureMarginRate',
+])('rejects saved retired cost %s before market loading', async (field) => {
+  const input = config();
+  input.cost = { [field]: 0 };
+  const load = vi.spyOn(input.dataPort, 'openDates');
+
+  await expect(new BacktestingEngine({ ...input, locale: 'en' }).run()).rejects.toThrow('retired');
+  expect(load).not.toHaveBeenCalled();
 });

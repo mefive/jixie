@@ -1,5 +1,7 @@
 # 股债配置与风险归因：贡献、相关性与压力情景
 
+> 本文为历史学习记录。期货数据、Carry／仓单模板及其日频风险回归、Alpha 重合和压力情景已退役；文中旧操作不能在当前系统重跑。保留原始数值与截图用于理解方法，当前股票／ETF 操作以工作台帮助为准。
+
 > 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
 
 > 学习路径 · 预计 120～150 分钟 · 建议先完成一次 Panel 因子分析和一次多资产回测。

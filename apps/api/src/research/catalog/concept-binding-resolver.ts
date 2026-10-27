@@ -223,46 +223,7 @@ async function resolveInstrumentBinding(
     );
   }
 
-  const continuous = await getDatabase().futureMapping.aggregate({
-    where: { continuousCode: id },
-    _count: { _all: true },
-    _min: { tradeDate: true },
-    _max: { tradeDate: true },
-  });
-  if (continuous._count._all > 0) {
-    return bindingResult(
-      binding,
-      coverage(
-        continuous._count._all,
-        continuous._min.tradeDate,
-        continuous._max.tradeDate,
-        'tradeDate',
-      ),
-      { kind: 'instrument', assetType, id, name: binding.nameZh, continuous: true },
-    );
-  }
-  const [metadata, aggregate] = await Promise.all([
-    getDatabase().futureContract.findUnique({
-      where: { tsCode: id },
-      select: { name: true, productCode: true, exchange: true },
-    }),
-    getDatabase().futureDaily.aggregate({
-      where: { tsCode: id },
-      _count: { _all: true },
-      _min: { tradeDate: true },
-      _max: { tradeDate: true },
-    }),
-  ]);
-  return bindingResult(
-    binding,
-    coverage(
-      aggregate._count._all,
-      aggregate._min.tradeDate,
-      aggregate._max.tradeDate,
-      'tradeDate',
-    ),
-    { kind: 'instrument', assetType, id, name: metadata?.name ?? binding.nameZh, ...metadata },
-  );
+  throw new Error('Unsupported instrument type');
 }
 
 /**

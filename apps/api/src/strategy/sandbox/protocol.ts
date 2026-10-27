@@ -15,23 +15,11 @@ const strategyParameterStringSchema = z
   .max(100)
   .refine((value) => value.trim().length > 0, 'parameter must not be blank');
 
-const strategyAccountsSchema = z
-  .strictObject({
-    stock: z.strictObject({ cashWeight: finiteNumberSchema.min(0).max(1) }),
-    futures: z.strictObject({ cashWeight: finiteNumberSchema.min(0).max(1) }),
-  })
-  .refine(
-    (accounts) => Math.abs(accounts.stock.cashWeight + accounts.futures.cashWeight - 1) <= 1e-9,
-    'account cash weights must sum to 1',
-  );
-
 const strategyMetadataSchema = z.strictObject({
   name: runtimeNameSchema,
   params: boundedRecord(z.union([finiteNumberSchema, strategyParameterStringSchema]), 256),
   factors: uniqueIdentifierListSchema,
   watch: uniqueIdentifierListSchema,
-  futures: uniqueIdentifierListSchema,
-  accounts: strategyAccountsSchema.nullable(),
 });
 
 const strategyReadyFrameSchema = z.strictObject({
@@ -80,20 +68,6 @@ const strategyRequestFrameSchema = z.union([
 ]);
 
 export const strategyCommandSchema = z.discriminatedUnion('operation', [
-  commandSchema('futures.orderContracts', {
-    code: identifierSchema,
-    contracts: finiteNumberSchema,
-  }),
-  commandSchema('futures.setTargetContracts', {
-    code: identifierSchema,
-    contracts: finiteNumberSchema,
-  }),
-  commandSchema('futures.setTargetNotional', {
-    code: identifierSchema,
-    notional: finiteNumberSchema,
-  }),
-  commandSchema('futures.hedgeStock', { code: identifierSchema, beta: finiteNumberSchema }),
-  commandSchema('futures.closePosition', { code: identifierSchema }),
   commandSchema('stock.setTargetWeight', {
     code: identifierSchema,
     weight: finiteNumberSchema,

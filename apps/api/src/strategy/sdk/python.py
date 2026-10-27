@@ -112,16 +112,11 @@ class Strategy:
         params: dict[str, float | str] | None = None,
         factors: list[str] | None = None,
         watch: list[str] | None = None,
-        futures: list[str] | None = None,
-        accounts: dict[str, Any] | None = None,
     ) -> None:
         self.name = name
         self.params = dict(params or {})
         self.factors = list(factors or [])
         self.watch = list(watch or [])
-        # Retained only for source compatibility; capital allocation uses accounts.
-        self.futures: list[str] = []
-        self.accounts = accounts
         self._callback: Callable[[Context], None] | None = None
 
     def on_bar(self, callback: Callable[["Context"], None]) -> Callable[["Context"], None]:
@@ -195,7 +190,6 @@ class Context:
         self.params = AttrDict(params)
         self.portfolio = capabilities.portfolio
         self.stock = StockAccount(capabilities.stock)
-        self.futures = capabilities.futures
 
     @property
     def date(self) -> str:

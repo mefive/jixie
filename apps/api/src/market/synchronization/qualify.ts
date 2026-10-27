@@ -12,11 +12,6 @@ const SESSION_SERIES = new Set([
   'index-valuations',
   'etf-prices',
   'etf-adjustments',
-  'future-prices',
-  'future-mappings',
-  'future-settlements',
-  'commodity-prices',
-  'commodity-mappings',
 ]);
 
 /**
@@ -37,24 +32,7 @@ export async function qualifyMarketPartition(
         prepared.evidence.sourceFailed === false &&
         prepared.evidence.invalidRows === 0))
   ) {
-    const contract =
-      partition.dataset.includes('future') || partition.dataset.includes('commodity')
-        ? await getDatabase().futureContract.findUnique({
-            where: { tsCode: partition.scope },
-            select: { exchange: true },
-          })
-        : null;
-    const exchange =
-      contract?.exchange ??
-      (partition.scope.endsWith('.CFX')
-        ? 'CFFEX'
-        : partition.scope.endsWith('.SHF')
-          ? 'SHFE'
-          : partition.scope.endsWith('.INE')
-            ? 'INE'
-            : partition.scope.endsWith('.DCE')
-              ? 'DCE'
-              : 'SSE');
+    const exchange = 'SSE';
     const calendar = await getDatabase().datasetSyncPartition.findMany({
       where: {
         dataset: 'calendar',

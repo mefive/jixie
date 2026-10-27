@@ -8,7 +8,7 @@ const dateSchema = z.string().regex(/^\d{8}$/, 'must use YYYYMMDD');
 const objectIdSchema = z.string().trim().min(1).max(120);
 
 const entityRefSchema = z.strictObject({
-  assetType: z.enum(['stock', 'etf', 'index', 'future']),
+  assetType: z.enum(['stock', 'etf', 'index']),
   id: objectIdSchema,
 });
 
@@ -253,7 +253,7 @@ export type ResearchAgentTurnInput = z.output<typeof researchAgentInputSchema>;
 // Data catalog.
 export const dataCatalogQuerySchema = z.strictObject({
   q: z.string().trim().max(120).default(''),
-  assetType: z.enum(['stock', 'etf', 'index', 'future']).optional(),
+  assetType: z.enum(['stock', 'etf', 'index']).optional(),
   scope: z
     .enum(['instruments', 'datasets', 'factor_reports', 'backtest_reports'])
     .default('instruments'),

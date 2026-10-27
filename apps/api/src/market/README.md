@@ -15,16 +15,13 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 | 股票名录、日行情、估值与交易限制 | [stocks](stocks/README.md)：范围同步及核心四表发布 |
 | ETF 行情、复权、份额、历史缺口 | [etfs](etfs/README.md)：按日发布／代码年份回填与覆盖质量 |
 | 指数成员、精简收盘响应 | [indices](indices/README.md)：指数原始数据与专用读取 |
-| 股指与商品共用期货数据 | [futures](futures/README.md)：实际合约、行情、映射与结算 |
 | 境外基准、币种换算、美债和 FX | [cross-market](cross-market/README.md)：共享身份之上的来源解析、可得日和写入 |
 | 质量结果契约与交易日覆盖摘要 | [quality](quality/README.md)：跨数据域共用的 finding 与统计，不含维护发布策略 |
-| 跨资产图表行情 | [queries](queries/README.md)：股票／ETF／指数／期货统一对象序列 |
-| 风险驱动基础数据与商品发布状态 | [state](state/README.md)：风险输入、基础质量和合格商品读取 |
+| 跨资产图表行情 | [queries](queries/README.md)：股票／ETF／指数统一对象序列 |
 | 指数官方估值与历史展示 | [valuation](valuation/README.md)：覆盖目录、数据读取与纯计算 |
 | 财报来源、版本、PIT、财务指标与分红 | [fundamentals](fundamentals/README.md)：同步、版本选择、标准化和审计 |
 | 国债／信用曲线和期限可得日期 | [rates](rates/README.md)：曲线数据事实，不含消费者新鲜度政策 |
 | 宏观发布时间、vintage、状态与风险轴 | [macro](macro/README.md)：历史可得性与基础质量 |
-| 商品连续收益、carry、持仓和仓单 | [commodity](commodity/README.md)：研究数据、同步及质量规则 |
 
 ## 主要协作流程
 

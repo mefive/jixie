@@ -14,4 +14,4 @@
 
 [factor-host.ts](factor-host.ts) 接收 StrategyFactor[]，管理 TS/Python 运行实例与组合组件，按因子串行计算并检查输入输出；实现 Engine 的 FactorExecutionPort。describe 返回的定义包含运行 window / inputs、辅助历史字段及批准资产范围，不包含源码。EngineConfig 仅接收 factorExecution，不再另传 customFactors。运行资源归调用方关闭。测试见 [factor-host.test.ts](factor-host.test.ts)。
 
-Engine 不区分回测或扫描业务模式。快照保存复权口径的现金仓位、待执行指令、持续条件单、期货账户及意图、行情证据与末日因子观测。
+Engine 不区分回测或扫描业务模式。快照保存复权口径的现金仓位、待执行指令、持续条件单、行情证据与末日因子观测。

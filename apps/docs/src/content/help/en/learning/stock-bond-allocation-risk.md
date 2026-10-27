@@ -1,5 +1,7 @@
 # Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios
 
+> This is a historical learning record. Futures data, carry/warehouse templates, and dependent daily risk regression, Alpha overlap and stress scenarios are retired. The old steps cannot be rerun in the current system. Original values and screenshots remain for studying the method; use the workbench guides for current stock/ETF operations.
+
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
 
 > Learning path · About 120–150 minutes · Complete one Panel Factor analysis and one multi-asset backtest first.

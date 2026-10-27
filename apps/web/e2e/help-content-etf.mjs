@@ -9,16 +9,14 @@ mkdirSync(OUTPUT, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await context.newPage();
-const log = (...args) => console.log('[help-etf-futures-e2e]', ...args);
+const log = (...args) => console.log('[help-etf-e2e]', ...args);
 
 try {
   await login();
   await cleanup();
   await captureEtfEntry();
   await captureEtfTrades();
-  await captureFuturesTrades();
-  await captureMixedStrategy();
-  log('ETF and futures screenshots completed');
+  log('ETF screenshots completed');
 } finally {
   await cleanup().catch((error) => log('cleanup failed:', error.message));
   await context.close();
@@ -100,108 +98,6 @@ async function captureEtfTrades() {
     { locator: page.locator('.jx-strategy-tradesTab .jx-td-metrics'), number: 2 },
     { locator: page.locator('.jx-strategy-tradesTab .jx-td-filters'), number: 3 },
     { locator: page.locator('.jx-strategy-tradesTab .jx-td-list'), number: 4 },
-  ]);
-}
-
-async function captureFuturesTrades() {
-  const name = `${PREFIX}股指期货`;
-  const code = [
-    'let entered = false;',
-    'let exited = false;',
-    'export default defineStrategy({',
-    `  name: '${name}',`,
-    '  accounts: { stock: { cashWeight: 0 }, futures: { cashWeight: 1 } },',
-    '  onBar(ctx) {',
-    '    if (!entered) {',
-    "      ctx.futures.orderContracts('IF.CFX', 1);",
-    '      entered = true;',
-    "    } else if (!exited && ctx.date >= '20260624') {",
-    "      ctx.futures.closePosition('IF.CFX');",
-    '      exited = true;',
-    '    }',
-    '  },',
-    '});',
-  ].join('\n');
-  const strategyId = await seedStrategy({
-    name,
-    code,
-    start: '20260615',
-    end: '20260630',
-    initialCash: 5_000_000,
-  });
-  await openAndRun(strategyId);
-  const tradesTab = page.locator('.jx-strategy-resultTabs').getByRole('tab', { name: /交易明细/ });
-  await tradesTab.click();
-  const rows = page.locator('.jx-strategy-tradesTab .jx-td-row');
-  await rows.first().waitFor({ timeout: 15_000 });
-  const futuresBadges = page.locator('.jx-strategy-tradesTab .jx-td-instType', {
-    hasText: '期货',
-  });
-  if ((await futuresBadges.count()) < 2) {
-    throw new Error(`expected futures entry and exit fills, got ${await futuresBadges.count()}`);
-  }
-  await annotatedScreenshot(page, `${OUTPUT}futures-trades-01.png`, [
-    { locator: page.locator('.jx-strategy-code'), number: 1 },
-    { locator: page.locator('.jx-strategy-tradesTab .jx-td-metrics'), number: 2 },
-    { locator: page.locator('.jx-strategy-tradesTab .jx-td-head'), number: 3 },
-    { locator: rows, number: 4 },
-  ]);
-}
-
-async function captureMixedStrategy() {
-  const name = `${PREFIX}股票期货混合`;
-  const code = [
-    'export default defineStrategy({',
-    `  name: '${name}',`,
-    "  watch: ['600519.SH'],",
-    '  accounts: {',
-    '    stock: { cashWeight: 0.8 },',
-    '    futures: { cashWeight: 0.2 },',
-    '  },',
-    '  onBar(ctx) {',
-    "    if (ctx.date !== '20260615') return;",
-    "    ctx.stock.setTargetWeights({ '600519.SH': 1 });",
-    "    ctx.futures.hedgeStock('IF.CFX', 1);",
-    '  },',
-    '});',
-  ].join('\n');
-  const strategyId = await seedStrategy({
-    name,
-    code,
-    start: '20260615',
-    end: '20260630',
-    initialCash: 10_000_000,
-  });
-  await openAndRun(strategyId);
-  const metric = (label) => page.locator('.jx-strategy-metric', { hasText: label });
-  for (const label of ['股票账户权益', '期货账户权益', '期货保证金', '净敞口']) {
-    await metric(label).waitFor();
-  }
-  await page.locator('.jx-strategy-result canvas').first().waitFor({ timeout: 15_000 });
-  await annotatedScreenshot(page, `${OUTPUT}mixed-results-01.png`, [
-    { locator: metric('股票账户权益'), number: 1 },
-    { locator: metric('期货账户权益'), number: 2 },
-    { locator: metric('期货保证金'), number: 3 },
-    { locator: metric('净敞口'), number: 4 },
-  ]);
-
-  const tradesTab = page.locator('.jx-strategy-resultTabs').getByRole('tab', { name: /交易明细/ });
-  await tradesTab.click();
-  const rows = page.locator('.jx-strategy-tradesTab .jx-td-row');
-  await rows.first().waitFor({ timeout: 15_000 });
-  const stockRow = rows.filter({
-    has: page.locator('.jx-td-instType', { hasText: '股票' }),
-  });
-  const futuresRows = rows.filter({
-    has: page.locator('.jx-td-instType', { hasText: '期货' }),
-  });
-  await stockRow.first().waitFor();
-  await futuresRows.first().waitFor();
-  await annotatedScreenshot(page, `${OUTPUT}mixed-trades-01.png`, [
-    { locator: page.locator('.jx-strategy-tradesTab .jx-td-metrics'), number: 1 },
-    { locator: page.locator('.jx-strategy-tradesTab .jx-td-filters'), number: 2 },
-    { locator: stockRow, number: 3 },
-    { locator: futuresRows, number: 4 },
   ]);
 }
 

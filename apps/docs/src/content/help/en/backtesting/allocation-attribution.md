@@ -2,7 +2,7 @@
 
 > Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
 
-Every new backtest produces cash-account attribution, with no Factor requirement. It covers stock / ETF holdings and uninvested cash, excluding futures P&L; mixed strategies still analyze their cash account. A futures-only run with zero initial cash-account capital produces an empty, zero-P&L report without invalid return or risk ratios. Historical reports preserve their original scope.
+Every new backtest produces cash-account attribution, with no Factor requirement. It covers stock / ETF holdings and uninvested cash. All initial capital belongs to this account. Historical reports preserve their original scope.
 
 ## Open attribution
 

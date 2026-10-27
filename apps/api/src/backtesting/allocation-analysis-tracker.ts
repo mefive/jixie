@@ -133,7 +133,7 @@ export class AllocationAnalysisTracker {
       let slippage = 0;
 
       for (const trade of args.trades) {
-        if (trade.code !== code || trade.assetType === 'future') {
+        if (trade.code !== code) {
           continue;
         }
         const signedShares = trade.side === 'buy' ? trade.shares : -trade.shares;

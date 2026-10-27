@@ -6,12 +6,7 @@ import prismaPackage from '@prisma/client';
 import { expect, it } from 'vitest';
 import { withDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock } from '#infra/coordination/market-access.js';
-import {
-  MARKET_AUDIT_VERSION,
-  MARKET_CALCULATION_VERSION,
-  readMarketCalculationBacklog,
-  refreshMarketCalculations,
-} from '#maintenance/calculations.js';
+import { retireDatasets } from '#maintenance/retired-datasets.js';
 
 const retirement = '20261026190000_remove_market_weather';
 
@@ -94,13 +89,13 @@ it('drops weather history and retires its backlog while preserving raw data and 
     });
     await database.marketDataState.create({ data: { key: 'global' } });
     await database.marketCalculationState.createMany({
-      data: ['market-state', 'commodity-continuous'].map((kind) => ({
+      data: ['market-state', 'commodity-continuous', 'unrelated-history'].map((kind) => ({
         kind,
         scope: 'all',
         date: '20260915',
         status: kind === 'market-state' ? 'error' : 'ready',
-        calculationVersion: MARKET_CALCULATION_VERSION,
-        auditVersion: MARKET_AUDIT_VERSION,
+        calculationVersion: 'legacy',
+        auditVersion: 'legacy',
       })),
     });
 
@@ -136,15 +131,15 @@ it('drops weather history and retires its backlog while preserving raw data and 
     ).toEqual([]);
     expect(await database.$queryRaw`PRAGMA foreign_key_check`).toEqual([]);
     await withDatabase(database, async () => {
-      expect(await readMarketCalculationBacklog()).toEqual({ waiting: 0, errors: 0, stale: 0 });
       const retained = await database.marketCalculationState.findFirstOrThrow({
-        where: { kind: 'commodity-continuous' },
+        where: { kind: 'unrelated-history' },
       });
-      await withMaintenanceLock(() =>
-        refreshMarketCalculations({ targetDate: '20260915', limit: 0 }),
-      );
+      await expect(retireDatasets()).rejects.toThrow();
+      await withMaintenanceLock(retireDatasets);
       expect(
-        await database.marketCalculationState.findMany({ where: { kind: 'market-state' } }),
+        await database.marketCalculationState.findMany({
+          where: { kind: { in: ['market-state', 'commodity-continuous'] } },
+        }),
       ).toEqual([]);
       expect(await database.marketCalculationState.findFirstOrThrow()).toEqual(retained);
     });

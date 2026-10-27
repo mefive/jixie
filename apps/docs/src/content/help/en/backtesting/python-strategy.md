@@ -103,7 +103,7 @@ Python mode does not currently expose:
 - index futures or mixed stock/futures strategies;
 - parameter scans;
 
-These capabilities retain their own product restrictions. For parameter scans or index-futures backtests, switch to TypeScript and rewrite against its SDK.
+These capabilities retain their own product restrictions. For parameter scans, switch to TypeScript and rewrite against its SDK. Futures capabilities are unavailable in both languages.
 
 ## Related articles
 

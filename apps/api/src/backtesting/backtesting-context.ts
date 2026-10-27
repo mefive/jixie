@@ -1,7 +1,6 @@
 import type { EngineContext } from './contract.js';
 import type { EngineData, CrossSection } from './data/engine-data.js';
-import type { BarRow, OhlcBar, ResamplePeriod, IndexHandle, FutureBar } from './data/market.js';
-import type { FuturesPortfolio } from './futures-portfolio.js';
+import type { BarRow, OhlcBar, ResamplePeriod, IndexHandle } from './data/market.js';
 import type { CashPortfolio } from './cash-portfolio.js';
 import type { FactorEvaluator } from './factors/factor-evaluator.js';
 import type { OrderBook } from './order-book.js';
@@ -15,7 +14,6 @@ interface BacktestingContextInput {
   date: string;
   engineData: EngineData;
   cashPortfolio: CashPortfolio;
-  futuresPortfolio: FuturesPortfolio;
   factorEvaluator: FactorEvaluator | null;
   orderBook: OrderBook;
   onFactorRead?: (key: string, code: string, value: number | null) => void;
@@ -27,7 +25,6 @@ export class BacktestingContext implements EngineContext {
 
   readonly portfolio: EngineContext['portfolio'];
   readonly stock: EngineContext['stock'];
-  readonly futures: EngineContext['futures'];
 
   /**
    * 将当日行情、因子和账户绑定到引擎上下文，订单能力委托给订单簿。
@@ -35,13 +32,10 @@ export class BacktestingContext implements EngineContext {
    * Bind dated market, factor and account capabilities to the context and delegate orders to the book.
    */
   constructor(private readonly input: BacktestingContextInput) {
-    const { date, engineData, cashPortfolio, futuresPortfolio, orderBook } = input;
+    const { date, engineData, cashPortfolio, orderBook } = input;
     this.portfolio = {
       get equity() {
-        return (
-          cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date)) +
-          futuresPortfolio.cash
-        );
+        return cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date));
       },
     };
     this.stock = {
@@ -73,23 +67,6 @@ export class BacktestingContext implements EngineContext {
       takeProfitByFraction: (code, fraction) =>
         orderBook.setStockTakeProfitByFraction(code, fraction),
       cancelConditional: (code, kind) => orderBook.cancelStockConditional(code, kind),
-    };
-    this.futures = {
-      get equity() {
-        return futuresPortfolio.cash;
-      },
-      get availableCash() {
-        return futuresPortfolio.availableCash;
-      },
-      get margin() {
-        return futuresPortfolio.margin;
-      },
-      position: (code) => futuresPortfolio.position(code),
-      orderContracts: (code, contracts) => orderBook.orderFuturesContracts(code, contracts),
-      setTargetContracts: (code, contracts) => orderBook.setFuturesTargetContracts(code, contracts),
-      setTargetNotional: (code, notional) => orderBook.setFuturesTargetNotional(code, notional),
-      hedgeStock: (code, beta) => orderBook.hedgeStockWithFutures(code, beta),
-      closePosition: (code) => orderBook.closeFuturesPosition(code),
     };
   }
 
@@ -195,17 +172,5 @@ export class BacktestingContext implements EngineContext {
         return engineData.indexValuationPercentile(indexCode, date, field, lookback);
       },
     };
-  }
-
-  future(code: string): FutureBar | null {
-    return this.input.engineData.futureBar(code, this.input.date);
-  }
-
-  futureHistory(
-    code: string,
-    field: 'open' | 'high' | 'low' | 'close' | 'settle',
-    n: number,
-  ): number[] {
-    return this.input.engineData.futureHistory(code, this.input.date, field, n);
   }
 }

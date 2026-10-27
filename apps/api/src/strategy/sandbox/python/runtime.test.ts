@@ -53,31 +53,17 @@ def handle_bar(ctx):
 `;
 
 describe('Python strategy runtime', () => {
-  it('ignores legacy futures declarations while retaining the cash default', async () => {
-    enableTestRuntime();
-    const sandbox = await StrategySandbox.start({
-      language: 'python',
-      code: pythonCode.replace('watch=["AAA", "BBB"]', 'watch=["AAA", "BBB"], futures=["UNKNOWN"]'),
-    });
-    try {
-      expect(sandbox.metadata.futures).toEqual([]);
-      expect(sandbox.metadata.accounts).toBeUndefined();
-    } finally {
-      sandbox.close();
-    }
-  });
-
-  it('rejects futures capital without relying on a declaration', async () => {
+  it.each([
+    'futures=["UNKNOWN"]',
+    'accounts={"stock": {"cashWeight": 0.5}, "futures": {"cashWeight": 0.5}}',
+  ])('rejects retired Python declarations: %s', async (declaration) => {
     enableTestRuntime();
     await expect(
       StrategySandbox.start({
         language: 'python',
-        code: pythonCode.replace(
-          'watch=["AAA", "BBB"]',
-          'accounts={"stock": {"cashWeight": 0.5}, "futures": {"cashWeight": 0.5}}',
-        ),
+        code: pythonCode.replace('watch=["AAA", "BBB"]', declaration),
       }),
-    ).rejects.toThrow('supports stock and ETF strategies only');
+    ).rejects.toThrow(/unexpected keyword argument/);
   });
 
   afterEach(() => {
@@ -371,3 +357,10 @@ function enableTestRuntime(): void {
     process.env.JIXIE_PYTHON_LOCAL = '1';
   }
 }
+
+it('rejects a legacy account attribute before runner metadata can discard it', async () => {
+  enableTestRuntime();
+  await expect(
+    StrategySandbox.start({ language: 'python', code: pythonCode + '\nstrategy.accounts = {}\n' }),
+  ).rejects.toThrow(/retired/);
+});

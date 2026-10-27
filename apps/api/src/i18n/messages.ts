@@ -302,14 +302,6 @@ const MESSAGES = {
     zh: '正在加载 {count} 个 ETF 的复权历史…',
     en: 'Loading adjusted ETF history for {count} asset(s)…',
   },
-  factorCommodityCarryTimeSeriesLoading: {
-    zh: '正在加载 {count} 个商品的期货 Carry 与代理 ETF 复权历史…',
-    en: 'Loading futures carry and adjusted proxy-ETF history for {count} commodity asset(s)…',
-  },
-  factorCommodityWarehouseReceiptTimeSeriesLoading: {
-    zh: '正在加载 {count} 个商品的仓单与代理 ETF 复权历史…',
-    en: 'Loading warehouse receipts and adjusted proxy-ETF history for {count} commodity asset(s)…',
-  },
   factorTimeSeriesEvaluating: {
     zh: '正在评估 {count} 条时点观测…',
     en: 'Evaluating {count} point-in-time observation(s)…',
@@ -432,6 +424,10 @@ const MESSAGES = {
   },
 
   // —— Backtest engine progress logs (system-tagged, streamed to the job) ——
+  backtestFuturesRetired: {
+    zh: '期货账户、配置和交易已退役',
+    en: 'Futures accounts, configuration and trading are retired',
+  },
   backtestStart: {
     zh: '开始回测 · {start} ~ {end} · 初始资金 {cash}',
     en: 'Backtest started · {start} ~ {end} · initial cash {cash}',
@@ -468,9 +464,9 @@ const MESSAGES = {
     zh: '自定义因子不存在或已删除:{keys}(只能引用自己的因子)',
     en: 'Custom factor missing or deleted: {keys} (only your own factors can be referenced)',
   },
-  factorResearchOnlyInputsUnavailable: {
-    zh: '研究专用字段尚不能进入策略:{fields}',
-    en: 'Research-only fields are not yet available to strategies: {fields}',
+  factorInputsUnavailable: {
+    zh: '因子输入字段已退役或不可用:{fields}',
+    en: 'Factor input fields are retired or unavailable: {fields}',
   },
   factorResearchAssetsUnsupported: {
     zh: '该 Factor 不支持以下研究资产:{assets}',

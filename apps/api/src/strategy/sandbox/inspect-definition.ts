@@ -8,8 +8,6 @@ export async function inspectStrategyMetadata(
   try {
     return {
       watch: sandbox.metadata.watch ?? [],
-      futures: [],
-      accounts: sandbox.metadata.accounts,
       factors: sandbox.metadata.factors ?? [],
     };
   } finally {

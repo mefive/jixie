@@ -2,12 +2,9 @@ import { createHash } from 'node:crypto';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { synchronizeData } from './sync.js';
-import { refreshMarketCalculations } from './calculations.js';
 import type { PlannedPartition } from './partitions.js';
 import type { SyncProviders } from '#market/synchronization/prepare.js';
 import { datasetInputReadiness } from '#market/synchronization/readiness.js';
-import { MARKET_AUDIT_VERSION, MARKET_CALCULATION_VERSION } from './calculations.js';
-import { withMaintenanceLock } from '#infra/coordination/market-access.js';
 import { calendarDay } from '#market/synchronization/date.js';
 
 const planning = vi.hoisted(() => ({ plan: vi.fn() }));
@@ -121,107 +118,6 @@ it.each([true, false])(
         budget: 1000,
       });
       expect(due.partitions.some((candidate) => candidate.id === partition.id)).toBe(true);
-    }),
-  30_000,
-);
-
-it(
-  'R13/A07 retains cooling and over-budget calculation failures in the durable run summary',
-  async () =>
-    withSyncDatabase(async (database) => {
-      await database.marketDataState.create({ data: { key: 'global', revision: 1 } });
-      await database.futureContract.create({
-        data: {
-          tsCode: 'IF2701.CFX',
-          symbol: 'IF2701',
-          name: 'Future fixture',
-          productCode: 'IF',
-          exchange: 'CFFEX',
-          listDate: '20270101',
-          delistDate: '20270131',
-        },
-      });
-      await database.datasetSyncPartition.createMany({
-        data: ['IF', 'IH', 'IC', 'IM'].map((product) => ({
-          id: `catalog:${product}`,
-          dataset: 'future-contracts',
-          scope: `CFFEX|${product}`,
-          startDate: '20260101',
-          endDate: '20270101',
-          status: 'complete',
-          policyVersion: 'sync-v1',
-        })),
-      });
-
-      await database.marketCalculationState.createMany({
-        data: Array.from({ length: 8 }, (_, index) => ({
-          kind: 'future-publication',
-          scope: 'all',
-          date: `2026090${index + 1}`,
-          status: index < 3 ? 'error' : 'waiting',
-          nextAttemptAt: new Date('2099-01-01T00:00:00Z'),
-          error: index < 3 ? 'Controlled calculation failure' : null,
-          calculationVersion: MARKET_CALCULATION_VERSION,
-          auditVersion: MARKET_AUDIT_VERSION,
-        })),
-      });
-      const laterDates = ['20261001', '20261002', '20261003'];
-      await database.tradeCal.createMany({
-        data: laterDates.map((calDate) => ({
-          exchange: 'SSE',
-          calDate,
-          isOpen: 0,
-        })),
-      });
-      await database.marketCalculationState.createMany({
-        data: laterDates.map((date) => ({
-          kind: 'future-publication',
-          scope: 'all',
-          date,
-          status: 'stale',
-          calculationVersion: MARKET_CALCULATION_VERSION,
-          auditVersion: MARKET_AUDIT_VERSION,
-        })),
-      });
-
-      const refreshed = await withMaintenanceLock(() =>
-        refreshMarketCalculations({ targetDate: date, limit: 1 }),
-      );
-      expect(refreshed).toMatchObject({
-        errors: 3,
-        waiting: 5,
-        stale: 2,
-        attempted: { ready: 1, waiting: 0, errors: 0 },
-      });
-      const result = await synchronizeData({
-        targetDate: date,
-        startedAt,
-        requirements: { etfCodes: [] },
-        providers: providers(async () => []),
-        onLog: () => {},
-      });
-      expect(result.status).toBe('error');
-      expect(result.calculations).toMatchObject({ errors: 3, waiting: 5 });
-      expect(result.errors).toContain('3 unresolved market calculation failures');
-      expect(
-        (await database.dataSyncRun.findUniqueOrThrow({ where: { id: result.runId } })).summary,
-      ).toMatchObject({
-        status: 'error',
-        calculations: { errors: 3, waiting: 5 },
-      });
-      await database.marketCalculationState.updateMany({
-        where: { status: 'error' },
-        data: { status: 'ready' },
-      });
-      const waiting = await synchronizeData({
-        targetDate: date,
-        startedAt,
-        requirements: { etfCodes: [] },
-        providers: providers(async () => []),
-        onLog: () => {},
-      });
-      expect(waiting.status).toBe('partial');
-      expect(waiting.calculations).toMatchObject({ errors: 0, waiting: 5 });
     }),
   30_000,
 );

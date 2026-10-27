@@ -23,18 +23,6 @@ export interface DataSyncResult {
   status: 'complete' | 'partial' | 'error';
   partitions: number;
   accepted: { inserted: number; updated: number; deleted: number; rejected: number };
-  calculations: {
-    /**
-     * ready 为本轮成功数；waiting、stale、errors 为仍未解决的持久状态。
-     *
-     * Ready counts this run's successes; waiting, stale and errors count durable unresolved states.
-     */
-    ready: number;
-    waiting: number;
-    stale: number;
-    errors: number;
-    attempted?: { ready: number; waiting: number; errors: number };
-  };
   coverage: DatasetCoverage[];
   gaps: string[];
   errors: string[];

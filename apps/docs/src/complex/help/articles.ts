@@ -33,10 +33,6 @@ import editRerunEn from '@src/content/help/en/backtesting/edit-rerun.md?raw';
 import editRerunZh from '@src/content/help/zh/backtesting/edit-rerun.md?raw';
 import etfStrategyEn from '@src/content/help/en/backtesting/etf-strategy.md?raw';
 import etfStrategyZh from '@src/content/help/zh/backtesting/etf-strategy.md?raw';
-import indexFuturesEn from '@src/content/help/en/backtesting/index-futures.md?raw';
-import indexFuturesZh from '@src/content/help/zh/backtesting/index-futures.md?raw';
-import mixedStockFuturesEn from '@src/content/help/en/backtesting/mixed-stock-futures.md?raw';
-import mixedStockFuturesZh from '@src/content/help/zh/backtesting/mixed-stock-futures.md?raw';
 import multiTimeframeEn from '@src/content/help/en/backtesting/multi-timeframe.md?raw';
 import multiTimeframeZh from '@src/content/help/zh/backtesting/multi-timeframe.md?raw';
 import parameterScanEn from '@src/content/help/en/backtesting/parameter-scan.md?raw';
@@ -983,38 +979,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: etfStrategyZh,
       en: etfStrategyEn,
-    },
-  },
-  {
-    slug: 'backtesting/index-futures',
-    group: 'backtesting',
-    title: {
-      zh: '运行股指期货策略',
-      en: 'Run an index futures strategy',
-    },
-    summary: {
-      zh: '理解手数、名义金额、保证金和主力连续合约换月，并核对期货成交。',
-      en: 'Understand contracts, notional, margin, and continuous-contract rolls, and verify fills.',
-    },
-    content: {
-      zh: indexFuturesZh,
-      en: indexFuturesEn,
-    },
-  },
-  {
-    slug: 'backtesting/mixed-stock-futures',
-    group: 'backtesting',
-    title: {
-      zh: '运行股票与期货混合策略',
-      en: 'Run a mixed stock and futures strategy',
-    },
-    summary: {
-      zh: '查看股票和期货分账户权益、保证金、净敞口及两类资产成交。',
-      en: 'Read account equities, margin, net exposure, and fills for both asset types.',
-    },
-    content: {
-      zh: mixedStockFuturesZh,
-      en: mixedStockFuturesEn,
     },
   },
   {

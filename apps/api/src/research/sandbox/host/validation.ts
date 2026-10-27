@@ -1,10 +1,8 @@
 import type { ResearchFinancialValuesRequestV1 } from '../../datasets/financial-values.js';
 import { z } from 'zod';
+import type { RESEARCH_SDK_CONTRACT_V1 } from '@jixie/shared';
 import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
-  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1,
-  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1,
-  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
@@ -16,7 +14,6 @@ import {
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FX_SDK_CONTRACT_V1,
-  RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
   RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
@@ -24,8 +21,6 @@ import {
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
   RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
-  type ResearchCommodityHoldingProductCodeV1,
-  type ResearchCommodityProductCodeV1,
   type ResearchFrequencyV1,
   type ResearchFxSeriesIdV1,
   type ResearchFinancialMetricV1,
@@ -105,28 +100,6 @@ export interface ResearchFxRuntimeRequestV1 {
   frequency: ResearchFrequencyV1;
   transform: ResearchTransformV1;
   partial_period: 'exclude' | 'include';
-}
-
-/**
- * 限定商品收益或仓单请求的产品和日期。
- *
- * Bound commodity return or receipt requests by product and dates.
- */
-export interface ResearchCommodityRuntimeRequestV1 {
-  product: ResearchCommodityProductCodeV1;
-  start: string;
-  end: string;
-}
-
-/**
- * 限定会员排名聚合的产品和日期。
- *
- * Bound ranked-member holding requests by product and dates.
- */
-export interface ResearchCommodityHoldingRuntimeRequestV1 {
-  product: ResearchCommodityHoldingProductCodeV1;
-  start: string;
-  end: string;
 }
 
 /**
@@ -264,24 +237,6 @@ const researchBacktestReportRequestSchema = sdkRequestSchema(
 const researchStrategyScanReportRequestSchema = sdkRequestSchema(
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1.parameters,
 );
-const researchCommodityReturnsRequestSchema = sdkRequestSchema(
-  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.parameters,
-);
-const researchCommodityWarehouseReceiptsRequestSchema = sdkRequestSchema(
-  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1.parameters,
-);
-const researchCommodityHoldingsRequestSchema = sdkRequestSchema(
-  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.parameters,
-);
-const researchCommodityReturnsRowsSchema = sdkDataFrameRowsSchema(
-  RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1.returns,
-);
-const researchCommodityWarehouseReceiptsRowsSchema = sdkDataFrameRowsSchema(
-  RESEARCH_COMMODITY_WAREHOUSE_RECEIPTS_SDK_CONTRACT_V1.returns,
-);
-const researchCommodityHoldingsRowsSchema = sdkDataFrameRowsSchema(
-  RESEARCH_COMMODITY_HOLDINGS_SDK_CONTRACT_V1.returns,
-);
 const researchEquityFundamentalsRequestSchema = sdkRequestSchema(
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1.parameters,
 );
@@ -293,9 +248,6 @@ const researchEtfSharesRequestSchema = sdkRequestSchema(
 );
 const researchIndexValuationRequestSchema = sdkRequestSchema(
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.parameters,
-);
-const researchFuturesSettlementRequestSchema = sdkRequestSchema(
-  RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.parameters,
 );
 const researchFinancialValuesRequestSchema = sdkRequestSchema(
   RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1.parameters,
@@ -334,9 +286,6 @@ const researchEtfSharesRowsSchema = sdkDataFrameRowsSchema(
 );
 const researchIndexValuationRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.returns,
-);
-const researchFuturesSettlementRowsSchema = sdkDataFrameRowsSchema(
-  RESEARCH_FUTURES_SETTLEMENT_SDK_CONTRACT_V1.returns,
 );
 const researchFinancialStatementsRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1.returns,
@@ -449,42 +398,6 @@ export function parseResearchStrategyScanReportRuntimeRequest(
   ) as unknown as ResearchStrategyScanReportRuntimeRequestV1;
 }
 
-export function parseResearchCommodityReturnsRuntimeRequest(
-  value: unknown,
-): ResearchCommodityRuntimeRequestV1 {
-  return researchCommodityReturnsRequestSchema.parse(
-    value,
-  ) as unknown as ResearchCommodityRuntimeRequestV1;
-}
-
-export function parseResearchCommodityWarehouseReceiptsRuntimeRequest(
-  value: unknown,
-): ResearchCommodityRuntimeRequestV1 {
-  return researchCommodityWarehouseReceiptsRequestSchema.parse(
-    value,
-  ) as unknown as ResearchCommodityRuntimeRequestV1;
-}
-
-export function parseResearchCommodityHoldingsRuntimeRequest(
-  value: unknown,
-): ResearchCommodityHoldingRuntimeRequestV1 {
-  return researchCommodityHoldingsRequestSchema.parse(
-    value,
-  ) as unknown as ResearchCommodityHoldingRuntimeRequestV1;
-}
-
-export function parseResearchCommodityReturnsRuntimeRows(value: unknown): unknown[] {
-  return researchCommodityReturnsRowsSchema.parse(value);
-}
-
-export function parseResearchCommodityWarehouseReceiptsRuntimeRows(value: unknown): unknown[] {
-  return researchCommodityWarehouseReceiptsRowsSchema.parse(value);
-}
-
-export function parseResearchCommodityHoldingsRuntimeRows(value: unknown): unknown[] {
-  return researchCommodityHoldingsRowsSchema.parse(value);
-}
-
 export function parseResearchEquityFundamentalsRuntimeRequest(
   value: unknown,
 ): ResearchDatedIdentifierRuntimeRequestV1 {
@@ -517,14 +430,6 @@ export function parseResearchIndexValuationRuntimeRequest(
   ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
 }
 
-export function parseResearchFuturesSettlementRuntimeRequest(
-  value: unknown,
-): ResearchDatedIdentifierRuntimeRequestV1 {
-  return researchFuturesSettlementRequestSchema.parse(
-    value,
-  ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
-}
-
 export function parseResearchEquityFundamentalsRuntimeRows(value: unknown): unknown[] {
   return researchEquityFundamentalsRowsSchema.parse(value);
 }
@@ -539,10 +444,6 @@ export function parseResearchEtfSharesRuntimeRows(value: unknown): unknown[] {
 
 export function parseResearchIndexValuationRuntimeRows(value: unknown): unknown[] {
   return researchIndexValuationRowsSchema.parse(value);
-}
-
-export function parseResearchFuturesSettlementRuntimeRows(value: unknown): unknown[] {
-  return researchFuturesSettlementRowsSchema.parse(value);
 }
 
 export function parseResearchFinancialStatementsRuntimeRows(value: unknown): unknown[] {
@@ -576,7 +477,7 @@ function sdkRequestSchema(parameters: readonly ResearchSdkParameterContractV1[])
 }
 
 function sdkDataFrameRowsSchema(
-  returns: (typeof RESEARCH_COMMODITY_RETURNS_SDK_CONTRACT_V1)['returns'],
+  returns: (typeof RESEARCH_SDK_CONTRACT_V1)['functions'][number]['returns'],
 ): z.ZodType<unknown[]> {
   if (returns.kind !== 'dataframe') {
     throw new Error('Research SDK dataset contract must return a DataFrame');

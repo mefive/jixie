@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EngineData } from './engine-data.js';
 import { fixturePort } from '../testing/fixture-port.js';
 
@@ -33,3 +33,14 @@ describe('exact-date execution data and carried valuations', () => {
     expect(data.adjustedOpenOn('A', '20240104')).toBe(45);
   });
 });
+
+it.each(['IF.CFX', 'IF2609.CFX', 'AU.SHF', 'M2609.DCE', 'SC.INE', 'TA.CZC', 'SI.GFE'])(
+  'rejects retired futures %s without substituting cash prices', async (code) => {
+    const port = fixturePort({ dates: ['20240102'], stocks: [] });
+    const data = new EngineData({ start: '20240102', end: '20240102', dataPort: port, locale: 'en' });
+    const load = vi.spyOn(port, 'barsRows');
+
+    await expect(data.loadBars(['600519.SH', code])).rejects.toThrow('retired');
+    expect(load).not.toHaveBeenCalled();
+  },
+);

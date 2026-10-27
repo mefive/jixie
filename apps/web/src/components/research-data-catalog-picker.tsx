@@ -434,7 +434,7 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
             block
             className="jx-researchDataCatalog-assets"
             value={assetFilter}
-            options={(['all', 'stock', 'etf', 'index', 'future'] as const).map((value) => ({
+            options={(['all', 'stock', 'etf', 'index'] as const).map((value) => ({
               value,
               label: t(`dataCatalog.assetType.${value}`),
             }))}
@@ -1125,12 +1125,6 @@ function localizedDatasetName(dataset: ResearchDataCatalogDatasetV1, language: s
  */
 function datasetMethodTag(method: ResearchDataCatalogDatasetV1['method']): string {
   switch (method) {
-    case 'data.commodity_returns':
-      return 'returns';
-    case 'data.commodity_warehouse_receipts':
-      return 'receipts';
-    case 'data.commodity_holdings':
-      return 'holdings';
     default:
       return method.replace('data.', '');
   }

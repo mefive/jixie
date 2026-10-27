@@ -32,7 +32,7 @@ The full page is better for reviewing a table with many columns:
 - **Instrument**: name, security code, and asset type.
 - **Date**: simulated execution date.
 - **Direction**: buy or sell.
-- **Quantity / contracts**: quantity for stocks and ETFs, contracts for futures.
+- **Quantity**: filled quantity for stocks and ETFs.
 - **Price**: simulated execution price after slippage.
 - **Amount**: notional value of the fill.
 - **Fee**: commissions, stamp duty, and other explicit costs.
@@ -44,7 +44,7 @@ For a long ledger:
 
 1. Select one instrument.
 2. Show only buys or sells.
-3. Separate stocks, ETFs, and futures.
+3. Separate stocks and ETFs.
 4. Clear filters to restore all records.
 
 Filters change only the displayed rows. They do not rerun the backtest or change its result.

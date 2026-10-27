@@ -1,4 +1,4 @@
-import { MARKET_RISK_FACTOR_KEYS_V1, MACRO_RISK_AXIS_KEYS_V1 } from '@jixie/shared';
+import { MACRO_RISK_AXIS_KEYS_V1 } from '@jixie/shared';
 import { z } from 'zod';
 import type { BacktestResult } from './result.js';
 import type { BacktestSummary } from '@jixie/shared';
@@ -14,10 +14,7 @@ const tradeRecordSchema = z.object({
   slippageCost: z.number().optional(),
   realShares: z.number(),
   realPrice: z.number(),
-  assetType: z.enum(['stock', 'etf', 'future']).optional(),
-  actualCode: z.string().optional(),
-  contracts: z.number().optional(),
-  multiplier: z.number().optional(),
+  assetType: z.enum(['stock', 'etf']).optional(),
 });
 
 const factorAnalysisKindSchema = z.enum([
@@ -162,14 +159,6 @@ const allocationRateRegimeAnalysisSchema = z.object({
   states: z.array(allocationRateRegimeStateSchema),
 });
 
-const portfolioMarketRiskExposureV1Schema = z.object({
-  factor: z.enum(MARKET_RISK_FACTOR_KEYS_V1),
-  coefficient: z.number(),
-  coefficientUnit: z.enum(['return_per_return', 'return_per_basis_point']),
-  varianceContribution: z.number(),
-  varianceContributionShare: z.union([z.null(), z.number()]),
-});
-
 const riskDataLineageSeriesV1Schema = z.object({
   seriesKey: z.string(),
   availableThrough: z.string(),
@@ -181,21 +170,6 @@ const riskDataLineageV1Schema = z.object({
   pointInTimeEligible: z.boolean(),
   futureVintageRows: z.number(),
   series: z.array(riskDataLineageSeriesV1Schema),
-});
-
-const portfolioMarketRiskAnalysisV1Schema = z.object({
-  version: z.literal(1),
-  frequency: z.literal('daily'),
-  methodology: z.literal('rolling_multivariate_regression_ewma_covariance'),
-  asOfDate: z.string(),
-  lookbackObservations: z.number(),
-  minimumObservations: z.number(),
-  observations: z.number(),
-  covarianceHalfLife: z.number(),
-  annualizedPortfolioVolatility: z.union([z.null(), z.number()]),
-  explainedVariance: z.union([z.null(), z.number()]),
-  exposures: z.array(portfolioMarketRiskExposureV1Schema),
-  lineage: riskDataLineageV1Schema,
 });
 
 const portfolioMacroSensitivityV1Schema = z.object({
@@ -219,51 +193,10 @@ const portfolioMacroRiskAnalysisV1Schema = z.object({
   lineage: riskDataLineageV1Schema,
 });
 
-const alphaRiskOverlapV1Schema = z.object({
-  alphaFactorKey: z.string(),
-  alphaReturnKind: z.enum(['net_long_short', 'strategy_attributed']),
-  marketFactor: z.enum(MARKET_RISK_FACTOR_KEYS_V1),
-  observations: z.number(),
-  correlation: z.number(),
-  classification: z.enum(['low', 'material', 'dominant']),
-});
-
-const portfolioRiskScenarioShockV1Schema = z.object({
-  factor: z.enum(MARKET_RISK_FACTOR_KEYS_V1),
-  shock: z.number(),
-  unit: z.enum(['decimal_return', 'basis_point_change']),
-});
-
-const portfolioRiskScenarioResultV1Schema = z.union([
-  z.object({
-    key: z.string(),
-    asOfDate: z.string(),
-    shocks: z.array(portfolioRiskScenarioShockV1Schema),
-    estimatedReturnImpact: z.number(),
-    methodology: z.literal('linear_factor_shock'),
-    kind: z.literal('deterministic'),
-  }),
-  z.object({
-    key: z.string(),
-    asOfDate: z.string(),
-    shocks: z.array(portfolioRiskScenarioShockV1Schema),
-    estimatedReturnImpact: z.number(),
-    methodology: z.literal('linear_factor_shock'),
-    kind: z.literal('historical'),
-    historicalWindow: z.object({
-      startDate: z.string(),
-      endDate: z.string(),
-    }),
-  }),
-]);
-
 const portfolioRiskAnalysisV1Schema = z.object({
   version: z.literal(1),
   separationPolicy: z.literal('daily_market_risk_and_monthly_macro_sensitivity'),
-  market: portfolioMarketRiskAnalysisV1Schema.optional(),
   macro: portfolioMacroRiskAnalysisV1Schema.optional(),
-  alphaRiskOverlap: z.array(alphaRiskOverlapV1Schema).optional(),
-  scenarios: z.array(portfolioRiskScenarioResultV1Schema).optional(),
 });
 
 const allocationAnalysisSchema = z
@@ -322,10 +255,7 @@ export const backtestSummarySchema = z.object({
       z.object({
         date: z.string(),
         stockValue: z.number(),
-        futureValue: z.number(),
-        futureMargin: z.number(),
         stockGrossExposure: z.number(),
-        futureNotional: z.number(),
         netExposure: z.number(),
       }),
     )
@@ -347,10 +277,6 @@ export const backtestSummarySchema = z.object({
       transferFee: z.number(),
       slippageBps: z.number(),
       impactCoef: z.number(),
-      futureCommissionRate: z.number(),
-      futureCloseTodayRate: z.number(),
-      futureSlippageTicks: z.number(),
-      futureMarginRate: z.number(),
     })
     .optional(),
   monthly: z

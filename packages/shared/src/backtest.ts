@@ -16,11 +16,7 @@ export interface CostConfig {
   stampDuty?: number; // sell-side only (5 bps = 0.0005)
   transferFee?: number; // both sides
   slippageBps?: number; // base adverse half-spread, both sides, in basis points
-  impactCoef?: number; // linear impact per order-notional / daily-turnover ratio
-  futureCommissionRate?: number;
-  futureCloseTodayRate?: number;
-  futureSlippageTicks?: number;
-  futureMarginRate?: number;
+  impactCoef?: number;
 }
 
 /** Shared defaults for a newly created Strategy Lab draft; generation never asks the LLM to pick them. */
@@ -71,10 +67,7 @@ export interface TradeRecord {
   slippageCost?: number; // adverse fill-price loss versus the unslipped open, in yuan
   realShares: number; // real shares filled (buys are whole lots)
   realPrice: number; // unadjusted (raw) fill price — what you'd actually have paid
-  assetType?: 'stock' | 'etf' | 'future';
-  actualCode?: string;
-  contracts?: number;
-  multiplier?: number;
+  assetType?: 'stock' | 'etf';
 }
 
 export type AllocationAssetClass = MultiAssetClass | 'other';
@@ -306,10 +299,7 @@ export interface BacktestSummary {
   sleeveNav?: {
     date: string;
     stockValue: number;
-    futureValue: number;
-    futureMargin: number;
     stockGrossExposure: number;
-    futureNotional: number;
     netExposure: number;
   }[];
   // benchmark comparison + more performance metrics — optional: results cached before this was added won't carry them.

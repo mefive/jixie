@@ -2,8 +2,8 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { addDays, daysBetween, isoWeekKey } from '#date';
 import { t } from '#i18n/messages.js';
 import { StockNameLookup } from '#market/instruments/stock-identity.js';
-import type { EngineDataPort, FutureDailyDataRow } from './data-port.js';
-import type { BarRow, FutureBar, IndexValuationField, OhlcBar, ResamplePeriod } from './market.js';
+import type { EngineDataPort } from './data-port.js';
+import type { BarRow, IndexValuationField, OhlcBar, ResamplePeriod } from './market.js';
 
 /**
  * 表示一个交易日的全市场可用截面，用于策略选股与因子计算。
@@ -141,16 +141,6 @@ export class EngineData {
     }
   >();
   private governmentYieldByTerm = new Map<number, { dates: string[]; values: number[] }>();
-  private futureContractByCode = new Map<
-    string,
-    { productCode: string; multiplier: number; listDate: string; delistDate: string }
-  >();
-  private futureDailyByCode = new Map<string, Map<string, FutureDailyDataRow>>();
-  private futureMappingByCode = new Map<string, { dates: string[]; actualCodes: string[] }>();
-  private futureMarginByKey = new Map<
-    string,
-    { longMarginRate: number | null; shortMarginRate: number | null }
-  >();
 
   private warnedIndices = new Set<string>(); // log an index's coverage gap at most once
 
@@ -423,46 +413,6 @@ export class EngineData {
       }
     }
 
-    const futureRows = await this.options.dataPort.futuresRange(
-      this.options.start,
-      this.options.end,
-    );
-
-    for (const contract of futureRows.contracts) {
-      this.futureContractByCode.set(contract.tsCode, contract);
-    }
-
-    for (const row of futureRows.daily) {
-      let rowsByDate = this.futureDailyByCode.get(row.tsCode);
-      if (!rowsByDate) {
-        this.futureDailyByCode.set(row.tsCode, (rowsByDate = new Map()));
-      }
-      rowsByDate.set(row.tradeDate, row);
-    }
-
-    for (const row of futureRows.mappings) {
-      let mapping = this.futureMappingByCode.get(row.continuousCode);
-      if (!mapping) {
-        this.futureMappingByCode.set(
-          row.continuousCode,
-          (mapping = { dates: [], actualCodes: [] }),
-        );
-      }
-      mapping.dates.push(row.tradeDate);
-      mapping.actualCodes.push(row.mappedTsCode);
-    }
-    for (const mapping of this.futureMappingByCode.values()) {
-      const ordered = mapping.dates
-        .map((date, index) => ({ date, actualCode: mapping.actualCodes[index] }))
-        .sort((left, right) => left.date.localeCompare(right.date));
-      mapping.dates = ordered.map((entry) => entry.date);
-      mapping.actualCodes = ordered.map((entry) => entry.actualCode);
-    }
-
-    for (const row of futureRows.settlements) {
-      this.futureMarginByKey.set(`${row.tsCode}|${row.tradeDate}`, row);
-    }
-
     if (this.options.preloadCodes.length > 0) {
       await this.loadBars(this.options.preloadCodes);
     }
@@ -483,175 +433,6 @@ export class EngineData {
 
   nextDay(date: string): string {
     return this.nextDayOf.get(date) ?? date;
-  }
-
-  snapshotFutures(date: string): import('./data-port.js').FutureMarketRows {
-    return {
-      contracts: [...this.futureContractByCode].map(([tsCode, contract]) => ({
-        tsCode,
-        ...contract,
-      })),
-      daily: [...this.futureDailyByCode.values()].flatMap((rows) =>
-        [...rows.values()].filter((row) => row.tradeDate === date),
-      ),
-      mappings: [...this.futureMappingByCode].flatMap(([continuousCode, mapping]) => {
-        const index = lastIndexAtOrBefore(mapping.dates, date);
-        return index < 0
-          ? []
-          : [
-              {
-                continuousCode,
-                tradeDate: mapping.dates[index]!,
-                mappedTsCode: mapping.actualCodes[index]!,
-              },
-            ];
-      }),
-      settlements: [...this.futureMarginByKey].flatMap(([key, rates]) => {
-        const [tsCode, tradeDate] = key.split('|');
-        return tradeDate === date ? [{ tsCode: tsCode!, tradeDate, ...rates }] : [];
-      }),
-    };
-  }
-
-  /**
-   * 按指定日期的映射解析期货连续代码对应的实际交割合约。
-   *
-   * Resolve a continuous futures code to its mapped delivery contract on the requested date.
-   */
-  futureActualCode(code: string, date: string): string | null {
-    if (this.futureContractByCode.has(code)) {
-      return code;
-    }
-    const mapping = this.futureMappingByCode.get(code);
-    if (!mapping) {
-      return null;
-    }
-    const index = lastIndexAtOrBefore(mapping.dates, date);
-    return index >= 0 ? mapping.actualCodes[index] : null;
-  }
-
-  /**
-   * 仅用已知日可得的映射解析执行日合约；临近到期时遵循实现中的换约处理。
-   *
-   * Resolve the actual contract tradable at `executionDate` using information available on
-   * `knownDate`. If the vendor main mapping still points at a contract on its last trading day,
-   * proactively choose the active same-product contract with the highest known open interest.
-   */
-  futureExecutionCode(code: string, knownDate: string, executionDate: string): string | null {
-    const mappedCode = this.futureActualCode(code, knownDate);
-    if (!mappedCode) {
-      return null;
-    }
-    const mappedContract = this.futureContractByCode.get(mappedCode);
-    if (!mappedContract || mappedContract.delistDate > executionDate) {
-      return mappedCode;
-    }
-    if (this.futureContractByCode.has(code)) {
-      return null;
-    }
-
-    let selectedCode: string | null = null;
-    let selectedOpenInterest = -Infinity;
-    for (const [candidateCode, contract] of this.futureContractByCode) {
-      if (
-        contract.productCode !== mappedContract.productCode ||
-        candidateCode === mappedCode ||
-        contract.listDate > executionDate ||
-        contract.delistDate <= executionDate
-      ) {
-        continue;
-      }
-      const openInterest = this.futureDailyByCode.get(candidateCode)?.get(knownDate)?.openInterest;
-      if (openInterest != null && openInterest > selectedOpenInterest) {
-        selectedCode = candidateCode;
-        selectedOpenInterest = openInterest;
-      }
-    }
-    return selectedCode;
-  }
-
-  /**
-   * 读取实际期货合约在指定日期的行情，供成交与结算使用。
-   *
-   * Read an actual futures contract's dated bar for execution and settlement.
-   */
-  futureBar(code: string, date: string): FutureBar | null {
-    const actualCode = this.futureActualCode(code, date);
-    if (!actualCode) {
-      return null;
-    }
-    const row = this.futureDailyByCode.get(actualCode)?.get(date);
-    const contract = this.futureContractByCode.get(actualCode);
-    if (!row || !contract) {
-      return null;
-    }
-
-    return {
-      code,
-      actualCode,
-      open: row.open,
-      high: row.high,
-      low: row.low,
-      close: row.close,
-      settle: row.settle,
-      volume: row.volume,
-      amount: row.amount,
-      openInterest: row.openInterest,
-      multiplier: contract.multiplier,
-    };
-  }
-
-  futureActualBar(actualCode: string, date: string): FutureBar | null {
-    return this.futureBar(actualCode, date);
-  }
-
-  /**
-   * 读取截止日以前的期货历史窗口，供策略进行同步历史查询。
-   *
-   * Read a bounded futures history window ending at the requested date.
-   */
-  futureHistory(
-    code: string,
-    date: string,
-    field: 'open' | 'high' | 'low' | 'close' | 'settle',
-    n: number,
-  ): number[] {
-    const endIndex = lastIndexAtOrBefore(this.timeline, date);
-    if (endIndex < 0 || n <= 0) {
-      return [];
-    }
-    const values: number[] = [];
-    let previousActualCode: string | null = null;
-    for (let index = 0; index <= endIndex; index++) {
-      const currentDate = this.timeline[index];
-      const bar = this.futureBar(code, currentDate);
-      if (!bar) {
-        continue;
-      }
-      if (previousActualCode && previousActualCode !== bar.actualCode) {
-        const previousContractValue = this.futureActualBar(previousActualCode, currentDate)?.[
-          field
-        ];
-        const currentContractValue = bar[field];
-        if (previousContractValue != null && currentContractValue != null) {
-          const rollGap = currentContractValue - previousContractValue;
-          for (let valueIndex = 0; valueIndex < values.length; valueIndex++) {
-            values[valueIndex] += rollGap;
-          }
-        }
-      }
-      const value = bar[field];
-      if (value != null) {
-        values.push(value);
-      }
-      previousActualCode = bar.actualCode;
-    }
-    return values.slice(-n);
-  }
-
-  futureMarginRate(actualCode: string, date: string, side: 'long' | 'short'): number | null {
-    const row = this.futureMarginByKey.get(`${actualCode}|${date}`);
-    return side === 'long' ? (row?.longMarginRate ?? null) : (row?.shortMarginRate ?? null);
   }
 
   /**
@@ -894,6 +675,10 @@ export class EngineData {
    * it one crossing).
    */
   async loadBars(codes: string[]): Promise<void> {
+    if (codes.some((code) => /\.(?:CFX|SHF|DCE|CZC|INE|GFE)$/i.test(code))) {
+      throw new Error(t(this.options.locale, 'backtestFuturesRetired'));
+    }
+
     const missing = codes.filter((c) => !this.barsCache.has(c));
     if (missing.length === 0) {
       return;

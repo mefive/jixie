@@ -34,21 +34,14 @@ describe('multi-asset panel templates', () => {
       strategyKey: 'cross_asset_momentum_120',
       builtin: true,
     });
-    expect(panelTemplateCatalog('zh')).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: 'commodity_futures_carry_v1',
-          label: '商品期货年化 Carry',
-          kind: 'commodity',
-          expectedDirection: 'positive',
-          analysisKind: 'panel',
-          targetAssetClasses: ['commodity'],
-        }),
-      ]),
-    );
-    expect(
-      panelTemplateCatalog('zh').find((entry) => entry.key === 'commodity_futures_carry_v1'),
-    ).not.toHaveProperty('strategyKey');
+  });
+
+  it('omits the retired carry template in both locales', () => {
+    for (const locale of ['zh', 'en'] as const) {
+      expect(panelTemplateCatalog(locale).map((entry) => entry.key)).not.toContain(
+        'commodity_futures_carry_v1',
+      );
+    }
   });
 
   it('provides an executable initial Factor V2 panel source', async () => {
@@ -65,31 +58,6 @@ describe('multi-asset panel templates', () => {
         window: 121,
         inputs: ['etf.adjustedClose'],
       });
-    } finally {
-      sandbox.close();
-    }
-  });
-
-  it('compiles the commodity Carry template against the controlled field catalog', async () => {
-    const source = PANEL_TEMPLATES.find((entry) => entry.key === 'commodity_futures_carry_v1');
-    const sandbox = await FactorSandbox.start({
-      language: 'typescript',
-      analysisKind: 'panel',
-      code: source!.code,
-    });
-    try {
-      expect(sandbox.metadata).toMatchObject({
-        analysisKind: 'panel',
-        targetAssetClasses: ['commodity'],
-        window: 2,
-        inputs: ['commodity.futures.annualizedLogCarry'],
-      });
-      await expect(
-        sandbox.execute({
-          fields: { 'commodity.futures.annualizedLogCarry': [-0.1, 0.2] },
-          indexes: [1],
-        }),
-      ).resolves.toEqual([0.2]);
     } finally {
       sandbox.close();
     }

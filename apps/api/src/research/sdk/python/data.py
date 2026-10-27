@@ -23,50 +23,8 @@ _EQUITY_DATASET_COLUMNS = [
     "turnover_rate_pct",
 ]
 
-_COMMODITY_RETURN_COLUMNS = [
-    "date",
-    "trade_date",
-    "product",
-    "continuous_code",
-    "mapped_contract",
-    "continuous_return",
-    "continuous_log_return",
-    "mapped_log_return",
-    "roll_gap_log_return",
-    "roll_yield_proxy",
-    "mapping_changed",
-]
 
-_COMMODITY_WAREHOUSE_RECEIPT_COLUMNS = [
-    "date",
-    "trade_date",
-    "product",
-    "unit",
-    "volume",
-    "volume_change",
-    "unit_correction_applied",
-]
 
-_COMMODITY_HOLDING_COLUMNS = [
-    "date",
-    "trade_date",
-    "product",
-    "reference_contract",
-    "contract_open_interest",
-    "contract_volume",
-    "ranked_volume",
-    "ranked_volume_change",
-    "ranked_long_holding",
-    "ranked_long_change",
-    "ranked_short_holding",
-    "ranked_short_change",
-    "top_five_long_holding",
-    "top_five_short_holding",
-    "volume_member_count",
-    "long_member_count",
-    "short_member_count",
-    "source_correction_applied",
-]
 
 _EQUITY_FUNDAMENTAL_COLUMNS = [
     "announcement_date", "availability_quality", "observed_at",
@@ -154,19 +112,6 @@ _INDEX_VALUATION_COLUMNS = [
     "pb",
 ]
 
-_FUTURES_SETTLEMENT_COLUMNS = [
-    "date",
-    "settle",
-    "trading_fee_rate",
-    "trading_fee",
-    "delivery_fee",
-    "buy_hedge_margin_rate_pct",
-    "sell_hedge_margin_rate_pct",
-    "long_margin_rate_pct",
-    "short_margin_rate_pct",
-    "close_today_fee",
-    "exchange",
-]
 
 
 # 公开受控研究数据方法，负责参数转发与 DataFrame 映射。
@@ -328,26 +273,8 @@ class _DataApi:
         )
         return self._equity_frame(result)
 
-    def commodity_returns(self, product: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_commodity_returns",
-            {"product": product, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _COMMODITY_RETURN_COLUMNS)
 
-    def commodity_warehouse_receipts(self, product: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_commodity_warehouse_receipts",
-            {"product": product, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _COMMODITY_WAREHOUSE_RECEIPT_COLUMNS)
 
-    def commodity_holdings(self, product: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_commodity_holdings",
-            {"product": product, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _COMMODITY_HOLDING_COLUMNS)
 
     def equity_fundamentals(self, identifier: str, *, start: str, end: str) -> Any:
         result = self._capabilities.request(
@@ -473,12 +400,6 @@ class _DataApi:
         )
         return self._dataset_frame(result, _INDEX_VALUATION_COLUMNS, ["date"])
 
-    def futures_settlement(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_futures_settlement",
-            {"identifier": identifier, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _FUTURES_SETTLEMENT_COLUMNS, ["date"])
 
     # 将股票数据响应转成 DataFrame 并附加覆盖元数据。
     # English: Map equity responses into DataFrames with coverage metadata.

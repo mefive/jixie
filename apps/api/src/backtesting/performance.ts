@@ -2,7 +2,7 @@ import * as st from '#math/stats.js';
 import type { BacktestingConfig } from './contract.js';
 import type { CostModel } from './cost.js';
 import type { BacktestingResult, SleeveNavPoint } from './result.js';
-import type { CashTrade, FuturesTrade } from './trade.js';
+import type { CashTrade } from './trade.js';
 const PERIODS_PER_YEAR = 252;
 
 /**
@@ -56,10 +56,7 @@ export function summarizePerformance(
       : 0;
 
   // —— Trade level: win rate + profit factor (replay fills, pair closes at average cost for realized P&L) ——
-  const realized = [
-    ...stockTradePnl(tradeLog.filter((trade) => trade.assetType !== 'future')),
-    ...futuresTradePnl(tradeLog.filter((trade) => trade.assetType === 'future')),
-  ];
+  const realized = stockTradePnl(tradeLog);
   const { winRate, profitFactor } = realizedStats(realized);
 
   // —— Annualized turnover = one-side traded value / average equity / year ——
@@ -137,62 +134,6 @@ function stockTradePnl(tradeLog: CashTrade[]): number[] {
       }
     }
     book.set(trade.code, position);
-  }
-  return realized;
-}
-
-/**
- * 按实际期货合约匹配成交与平仓，提取已实现盈亏供成交绩效统计。
- *
- * Replay fills by actual futures contract and extract realized closing profit for trade statistics.
- */
-function futuresTradePnl(tradeLog: FuturesTrade[]): number[] {
-  const book = new Map<string, { contracts: number; averagePrice: number; entryFees: number }>();
-  const realized: number[] = [];
-  for (const trade of tradeLog) {
-    const delta = (trade.side === 'buy' ? 1 : -1) * trade.contracts;
-    const multiplier = trade.multiplier;
-    const position = book.get(trade.code) ?? {
-      contracts: 0,
-      averagePrice: trade.price,
-      entryFees: 0,
-    };
-    if (position.contracts === 0 || Math.sign(position.contracts) === Math.sign(delta)) {
-      const nextContracts = position.contracts + delta;
-      position.averagePrice =
-        (Math.abs(position.contracts) * position.averagePrice + Math.abs(delta) * trade.price) /
-        Math.abs(nextContracts);
-      position.contracts = nextContracts;
-      position.entryFees += trade.fee;
-      book.set(trade.code, position);
-      continue;
-    }
-
-    const closedContracts = Math.min(Math.abs(position.contracts), Math.abs(delta));
-    const closeFraction = closedContracts / Math.abs(delta);
-    const entryFeeShare = position.entryFees * (closedContracts / Math.abs(position.contracts));
-    realized.push(
-      closedContracts *
-        Math.sign(position.contracts) *
-        (trade.price - position.averagePrice) *
-        multiplier -
-        entryFeeShare -
-        trade.fee * closeFraction,
-    );
-    const nextContracts = position.contracts + delta;
-    if (nextContracts === 0) {
-      book.delete(trade.code);
-    } else if (Math.sign(nextContracts) === Math.sign(position.contracts)) {
-      position.contracts = nextContracts;
-      position.entryFees -= entryFeeShare;
-      book.set(trade.code, position);
-    } else {
-      book.set(trade.code, {
-        contracts: nextContracts,
-        averagePrice: trade.price,
-        entryFees: trade.fee * (1 - closeFraction),
-      });
-    }
   }
   return realized;
 }

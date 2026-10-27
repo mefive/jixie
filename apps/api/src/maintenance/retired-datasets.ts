@@ -4,11 +4,22 @@ import {
   withMarketPublication,
 } from '#infra/coordination/market-access.js';
 
+export const RETIRED_FUTURES_EXCHANGES = ['CFFEX', 'SHFE', 'DCE', 'CZCE', 'INE', 'GFEX'];
+
 export const RETIRED_DATASETS = [
   'stock-moneyflow',
   'stock-toplist',
   'industry-members',
   'industry-prices',
+  'future-contracts',
+  'future-prices',
+  'future-mappings',
+  'future-settlements',
+  'commodity-contracts',
+  'commodity-prices',
+  'commodity-mappings',
+  'commodity-holdings',
+  'commodity-receipts',
 ];
 
 /**
@@ -21,6 +32,24 @@ export async function retireDatasets(): Promise<void> {
 
   await withMarketPublication(() =>
     getDatabase().$transaction([
+      getDatabase().marketCalculationState.deleteMany({
+        where: { kind: { in: ['market-state', 'commodity-continuous', 'future-publication'] } },
+      }),
+      getDatabase().tradeCal.deleteMany({
+        where: { exchange: { in: RETIRED_FUTURES_EXCHANGES } },
+      }),
+      getDatabase().datasetSyncPartition.deleteMany({
+        where: {
+          dataset: 'calendar',
+          scope: { in: RETIRED_FUTURES_EXCHANGES },
+        },
+      }),
+      getDatabase().datasetSyncState.deleteMany({
+        where: {
+          dataset: 'calendar',
+          scope: { in: RETIRED_FUTURES_EXCHANGES },
+        },
+      }),
       getDatabase().datasetSyncPartition.deleteMany({
         where: { dataset: { in: RETIRED_DATASETS } },
       }),
@@ -28,7 +57,25 @@ export async function retireDatasets(): Promise<void> {
         where: { dataset: { in: RETIRED_DATASETS } },
       }),
       getDatabase().marketRecordEvidence.deleteMany({
-        where: { tableName: { in: ['Moneyflow', 'TopList', 'SwIndustryMember', 'SwIndexDaily'] } },
+        where: {
+          tableName: {
+            in: [
+              'Moneyflow',
+              'TopList',
+              'SwIndustryMember',
+              'SwIndexDaily',
+              'FutureContract',
+              'FutureDaily',
+              'FutureMapping',
+              'FutureSettlement',
+              'CommodityWarehouseReceipt',
+              'CommodityHoldingPosition',
+              'CommodityContinuousReturn',
+              'FutureMarketPublication',
+              'FutureMarketRevision',
+            ],
+          },
+        },
       }),
     ]),
   );

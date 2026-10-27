@@ -142,7 +142,7 @@ describe('simulation factor initialization', () => {
     }
   });
 
-  it('rejects research-only inputs before running the engine and closes the initialized factor', async () => {
+  it('rejects retired inputs before running the engine and closes the initialized factor', async () => {
     mocks.factorStart.mockResolvedValue({
       metadata: {
         analysisKind: 'time_series',
@@ -153,7 +153,7 @@ describe('simulation factor initialization', () => {
       close: mocks.factorClose,
     });
     await expect(runBacktestFixture(config, port)).rejects.toMatchObject({
-      reason: 'research_only_inputs_unavailable',
+      reason: 'factor_inputs_unavailable',
     });
     expect(mocks.engine).not.toHaveBeenCalled();
     expect(mocks.factorClose).toHaveBeenCalledTimes(1);

@@ -1,10 +1,5 @@
 import type { Prisma } from '#infra/database/prisma.js';
 import {
-  auditCommodityContinuousReturnPit,
-  auditCommodityHoldingPit,
-  auditCommodityWarehouseReceiptPit,
-} from '#market/commodity/audit.js';
-import {
   auditCrossMarketBenchmarkPit,
   auditExternalMarketPit,
 } from '#market/cross-market/audit.js';
@@ -16,7 +11,7 @@ import {
 } from '#market/fundamentals/audit.js';
 import { auditStockUniverse } from '#market/instruments/audit.js';
 import { auditMacroPit } from '#market/macro/audit.js';
-import { formatNumber, formatPercent } from '#market/quality/format.js';
+import { formatNumber } from '#market/quality/format.js';
 import type { AuditFinding } from '#market/quality/report.js';
 import { auditCreditCurvePit } from '#market/rates/audit.js';
 import {
@@ -26,7 +21,7 @@ import {
   auditStockCalendarCoverage,
   auditWindowCoverage,
 } from '#market/stocks/audit.js';
-import { auditMacroRiskAxes, auditMarketRiskDrivers } from './risk-audit.js';
+import { auditMacroRiskAxes } from './risk-audit.js';
 
 /**
  * 汇总维护发布前的数据质量检查结果，供审计与发布判断。
@@ -130,10 +125,6 @@ export async function runDataQualityAudit(
     await auditExternalMarketPit(database, endDate),
     await auditCrossMarketBenchmarkPit(database, endDate),
     await auditCreditCurvePit(database, endDate),
-    await auditCommodityWarehouseReceiptPit(database, startDate, endDate),
-    await auditCommodityHoldingPit(database, startDate, endDate),
-    await auditCommodityContinuousReturnPit(database, startDate, endDate),
-    await auditMarketRiskDriverPit(database, startDate, endDate),
     await auditMacroRiskAxisPit(database, startDate, endDate),
   );
 
@@ -146,29 +137,6 @@ export async function runDataQualityAudit(
       windowTradingDays,
     },
     findings,
-  };
-}
-
-export async function auditMarketRiskDriverPit(
-  database: Prisma,
-  startDate: string,
-  endDate: string,
-): Promise<AuditFinding> {
-  const summary = await auditMarketRiskDrivers({ startDate, endDate }, database);
-  return {
-    id: 'market-risk-driver-readiness',
-    title: 'Daily market-risk drivers: complete-vector PIT readiness',
-    status: summary.status,
-    summary: `${formatNumber(summary.completeObservations)}/${formatNumber(summary.expectedDates)} complete SSE sessions (${formatPercent(summary.completeCoverage)}); latest ${summary.latestCompleteDate ?? 'n/a'}`,
-    details: [
-      ...summary.factors.map(
-        (factor) =>
-          `${factor.factor}: ${formatNumber(factor.observations)} observations, latest ${factor.latestDate ?? 'n/a'}.`,
-      ),
-      ...summary.errors.map((error) => `Error: ${error}.`),
-      ...summary.warnings.map((warning) => `Warning: ${warning}.`),
-      'Daily market-risk vectors remain separate from monthly macro axes. Missing drivers remove the date from multivariate estimation; no factor is filled with zero.',
-    ],
   };
 }
 

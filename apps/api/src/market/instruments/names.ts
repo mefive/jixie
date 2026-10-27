@@ -6,7 +6,7 @@ import { getDatabase } from '#infra/database/prisma.js';
  * Load instrument display names in a batch for results and catalogs.
  */
 export async function loadInstrumentNames(codes: string[]) {
-  const [stocks, etfs, futures] = await Promise.all([
+  const [stocks, etfs] = await Promise.all([
     getDatabase().stockBasic.findMany({
       where: { tsCode: { in: codes } },
       select: { tsCode: true, name: true },
@@ -15,24 +15,9 @@ export async function loadInstrumentNames(codes: string[]) {
       where: { tsCode: { in: codes } },
       select: { tsCode: true, name: true },
     }),
-    getDatabase().futureContract.findMany({
-      where: { tsCode: { in: codes } },
-      select: { tsCode: true, name: true },
-    }),
   ]);
   const names: Record<string, string> = Object.fromEntries(
-    [...stocks, ...etfs, ...futures].map((row) => [row.tsCode, row.name]),
+    [...stocks, ...etfs].map((row) => [row.tsCode, row.name]),
   );
-  const continuousNames: Record<string, string> = {
-    'IF.CFX': '沪深300股指期货主力',
-    'IH.CFX': '上证50股指期货主力',
-    'IC.CFX': '中证500股指期货主力',
-    'IM.CFX': '中证1000股指期货主力',
-  };
-  for (const code of codes) {
-    if (continuousNames[code]) {
-      names[code] = continuousNames[code];
-    }
-  }
   return names;
 }

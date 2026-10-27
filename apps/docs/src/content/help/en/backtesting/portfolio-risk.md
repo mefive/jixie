@@ -1,50 +1,31 @@
 # Read portfolio risk diagnostics
 
-> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+Risk research retains independent monthly macro sensitivity using stock / ETF cash-account NAV. It describes contemporaneous relationships between macro changes and portfolio returns, without altering trades or forecasting the next return.
 
-Risk research explains which market drivers the completed multi-asset backtest was sensitive to, how macro conditions moved with returns, and whether Alpha may overlap known risk. It does not alter trades and is not a return forecast.
-
-New reports use cash-account NAV (stocks / ETFs and cash) for market risk, macro sensitivity, strategy-attributed overlap, and scenarios, excluding futures P&L. Factor-report Alpha overlap still uses its separate research returns. Historical reports preserve their original scope.
-
-## Market risk
-
-Market risk uses up to 252 complete daily observations in a multivariate regression and an EWMA factor covariance matrix. Drivers include China equity, government-curve level/slope/curvature, credit spread, USD/CNH, US real yield, gold, and commodities.
-
-$$
-r_{p,t}=\alpha+\sum_{k=1}^{9}\beta_k f_{k,t}+\varepsilon_t
-$$
-
-\(\beta_k\) is contemporaneous sensitivity to driver \(k\). Return factors display beta; rate and spread factors display estimated impact per 10bp. These are statistical exposures, not bond duration or proof of causality.
-
-![Historical Chinese UI example: Portfolio market exposures and variance contributions](/docs/images/help/zh/backtesting/portfolio-risk-01.png)
+Daily market risk, Alpha / Risk overlap and stress scenarios depended on retired futures data. Historical report content is retained; new reports no longer generate these sections.
 
 ## Macro sensitivity
 
-Growth, inflation, liquidity, credit, and external-pressure changes enter one monthly regression. The page shows coefficients and Newey–West t-statistics.
+Growth, inflation, liquidity, credit and external-pressure changes enter one monthly regression. The page shows coefficients, Newey–West t-statistics, effective observations, lag and the as-of date.
 
-Latest-value exploration means historical macro values include revisions collected later. It can describe a possible relationship but cannot be treated as future-data-free evidence. If qualified data is missing, the section is omitted; absence is not zero sensitivity.
+A coefficient describes historical return sensitivity per one-point change in a macro axis. It does not establish causality. Robust standard errors account for serial dependence; a larger t-statistic does not guarantee future validity.
 
-## Alpha / Risk overlap
+## Check the data policy
 
-The report correlates net Alpha returns or actual strategy attribution with each market driver at the same horizon. Low means no obvious linear overlap; material and dominant require closer inspection. Low correlation does not prove causal Alpha, and negative correlation can represent a meaningful hedge.
+1. Open Allocation attribution in a completed backtest, then Risk research.
+2. Check the as-of date and effective monthly observations.
+3. Check whether the data policy is Strict PIT or Latest-value exploration.
+4. Read coefficients together with t-statistics, sample size and limitations.
 
-## Stress scenarios
+Latest-value exploration includes revisions collected later and cannot represent information known at the historical decision time. Missing qualified data produces no macro result; absence is not zero sensitivity.
 
-Deterministic and historical scenarios apply current estimated exposures linearly:
+## Historical interface record
 
-$$
-\widehat{\Delta R}=\sum_k\beta_k\Delta f_k
-$$
+These figures preserve old results without recalculation. Their market-risk, Alpha-overlap and stress-scenario controls have been removed and cannot be followed as current instructions.
 
-Scenarios include an A-share drawdown, government-yield moves, wider credit spreads, RMB depreciation, higher US real yields, a commodity drawdown, and cross-asset risk-off.
+![Historical Chinese UI example: Retired daily market-risk interface](/docs/images/help/zh/backtesting/portfolio-risk-01.png)
 
-![Historical Chinese UI example: Macro warning, Alpha overlap, and stress scenarios](/docs/images/help/zh/backtesting/portfolio-risk-02.png)
-
-The estimate excludes changing exposures, liquidity shocks, nonlinear pricing, and actual execution paths. Historical replay means applying similar historical driver changes to today's exposures, not replaying the old portfolio return.
-
-## Reading order
-
-Check the as-of date, observations, and data policy; identify leading variance contributors; read macro coefficients with the revision warning; inspect Alpha overlap; then compare several stress scenarios rather than selecting the mildest one.
+![Historical Chinese UI example: Old macro warning and retired stress scenarios](/docs/images/help/zh/backtesting/portfolio-risk-02.png)
 
 ## Related articles
 

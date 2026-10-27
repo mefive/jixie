@@ -9,9 +9,9 @@ const definitions = {
     category: 'invalid',
     messageKey: 'customFactorMissing',
   },
-  research_only_inputs_unavailable: {
+  factor_inputs_unavailable: {
     category: 'invalid',
-    messageKey: 'factorResearchOnlyInputsUnavailable',
+    messageKey: 'factorInputsUnavailable',
   },
   strategy_not_found: {
     category: 'missing',

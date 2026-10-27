@@ -1,5 +1,4 @@
 import { MarketError } from '#market/errors.js';
-import { readyFutureDates } from '#market/futures/publication.js';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
 import { assertDatasetInputReadiness } from '#market/synchronization/readiness.js';
 import { getDatabase } from '#infra/database/prisma.js';
@@ -239,70 +238,5 @@ export const prismaDataPort: EngineDataPort = {
       out.turnoverRatesF = out.turnoverRatesF.concat(turnoverRatesF);
     }
     return out;
-  },
-
-  /**
-   * 按回测区间组合期货合约、行情、主力映射和结算数据，供引擎建立期货市场视图。
-   *
-   * Assemble futures contracts, bars, mappings and settlements for the simulation range.
-   */
-  async futuresRange(start, end) {
-    const range = { in: await readyFutureDates(start, end) };
-    const contracts = await getDatabase().futureContract.findMany({
-      where: {
-        productCode: { in: ['IF', 'IH', 'IC', 'IM'] },
-        multiplier: { not: null },
-        listDate: { lte: end },
-        delistDate: { gte: start },
-      },
-      select: {
-        tsCode: true,
-        productCode: true,
-        multiplier: true,
-        listDate: true,
-        delistDate: true,
-      },
-    });
-    const contractCodes = contracts.map((contract) => contract.tsCode);
-    const [daily, mappings, settlements] = await Promise.all([
-      getDatabase().futureDaily.findMany({
-        where: { tsCode: { in: contractCodes }, tradeDate: range },
-        select: {
-          tsCode: true,
-          tradeDate: true,
-          open: true,
-          high: true,
-          low: true,
-          close: true,
-          settle: true,
-          volume: true,
-          amount: true,
-          openInterest: true,
-        },
-        orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
-      }),
-      getDatabase().futureMapping.findMany({
-        where: {
-          continuousCode: { in: ['IF.CFX', 'IH.CFX', 'IC.CFX', 'IM.CFX'] },
-          tradeDate: range,
-        },
-        select: { continuousCode: true, tradeDate: true, mappedTsCode: true },
-        orderBy: [{ continuousCode: 'asc' }, { tradeDate: 'asc' }],
-      }),
-      getDatabase().futureSettlement.findMany({
-        where: { tsCode: { in: contractCodes }, tradeDate: range },
-        select: { tsCode: true, tradeDate: true, longMarginRate: true, shortMarginRate: true },
-        orderBy: [{ tsCode: 'asc' }, { tradeDate: 'asc' }],
-      }),
-    ]);
-    return {
-      contracts: contracts.map((contract) => ({
-        ...contract,
-        multiplier: contract.multiplier!,
-      })),
-      daily,
-      mappings,
-      settlements,
-    };
   },
 };

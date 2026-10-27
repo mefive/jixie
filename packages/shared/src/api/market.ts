@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Instruments.
-export const instrumentAssetTypeSchema = z.enum(['stock', 'etf', 'index', 'future']);
+export const instrumentAssetTypeSchema = z.enum(['stock', 'etf', 'index']);
 
 export const instrumentSeriesQuerySchema = z.object({
   start: z

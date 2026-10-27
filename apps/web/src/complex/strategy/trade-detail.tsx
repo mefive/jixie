@@ -142,7 +142,6 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
               options={[
                 { value: 'stock', label: t('assetStock') },
                 { value: 'etf', label: t('assetEtf') },
-                { value: 'future', label: t('assetFuture') },
               ]}
             />
             {filtersActive && (
@@ -174,10 +173,7 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
           </div>
           {filteredTrades.map((trade, index) => {
             const type = normalizedAssetType(trade);
-            const quantity =
-              type === 'future'
-                ? (trade.contracts ?? trade.realShares ?? trade.shares)
-                : (trade.realShares ?? trade.shares);
+            const quantity = trade.realShares ?? trade.shares;
 
             return (
               <div className="jx-td-row" key={`${trade.date}-${trade.code}-${index}`}>
@@ -186,11 +182,6 @@ export default function TradeDetail({ tradeLog }: { tradeLog: TradeRecord[] }) {
                   <span className="jx-td-instMeta">
                     <span className="jx-td-instCode">{trade.code}</span>
                     <span className="jx-td-instType">{t(assetTypeKey(type))}</span>
-                    {trade.actualCode && trade.actualCode !== trade.code && (
-                      <span className="jx-td-instActual">
-                        {t('tdActualContract', { code: trade.actualCode })}
-                      </span>
-                    )}
                   </span>
                 </span>
                 <span>{formatDate(trade.date)}</span>
@@ -223,14 +214,12 @@ function normalizedAssetType(trade: TradeRecord): AssetType {
  *
  * Map a fill's asset type to its localized label key.
  */
-function assetTypeKey(assetType: AssetType): 'assetStock' | 'assetEtf' | 'assetFuture' {
+function assetTypeKey(assetType: AssetType): 'assetStock' | 'assetEtf' {
   switch (assetType) {
     case 'stock':
       return 'assetStock';
     case 'etf':
       return 'assetEtf';
-    case 'future':
-      return 'assetFuture';
   }
 }
 

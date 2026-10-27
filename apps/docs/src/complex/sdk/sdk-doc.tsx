@@ -120,16 +120,16 @@ export const Sdk = complex.component(() => {
             <h2 className="jx-docs-h2">StrategyCtx</h2>
             <p className="jx-docs-p">
               {t(
-                'onBar(ctx) 里 ctx 的类型 —— 策略每个 bar 看到、操作的入口。行情和指标直接使用 ctx；账户和订单通过 ctx.stock / ctx.futures；ctx.portfolio.equity 为组合总权益。ctx 恒为「今天」,没有 date 参数。',
-                'The type of ctx in onBar(ctx) — the entry through which a strategy reads data and places orders each bar. Read market data through ctx, use ctx.stock / ctx.futures for accounts and orders, and ctx.portfolio.equity for combined equity; ctx is always bound to "today" (no date arg).',
+                'onBar(ctx) 里 ctx 的类型 —— 策略每个 bar 看到、操作的入口。行情和指标直接使用 ctx；账户和订单通过 ctx.stock；ctx.portfolio.equity 为现金账户总权益。ctx 恒为「今天」,没有 date 参数。',
+                'The type of ctx in onBar(ctx) — the entry through which a strategy reads data and places orders each bar. Read market data through ctx, use ctx.stock for accounts and orders, and ctx.portfolio.equity for cash-account equity; ctx is always bound to "today" (no date arg).',
               )}
             </p>
           </section>
 
           <p className="jx-docs-p">
             {t(
-              'stock.equity 为现金账户权益，stock.availableCash 为该账户可用现金；futures.equity 为期货结算权益，futures.availableCash 扣除保证金，futures.margin 为占用保证金。资金不能跨账户自动挪用。同日增量累加、目标以后者为准；现金账户目标表与增量不可混用，期货按代码检查。closePosition 覆盖该标的此前普通指令，后续增量会报错，持续条件单单独处理。旧版扁平接口已移除，已有策略源码须迁移后重新运行；历史报告不变。',
-              'stock.equity is cash-account equity and stock.availableCash is its spendable cash. futures.equity is settled equity; futures.availableCash excludes futures.margin. Cash never transfers automatically. Deltas accumulate and later targets replace earlier targets. Stock targets conflict with stock deltas; futures conflicts are checked per code. closePosition replaces earlier ordinary instructions for that code, rejects later deltas, and leaves persistent conditions separate. The old flat API has been removed: migrate saved source before rerunning. Historical reports are unchanged.',
+              'stock.equity 为现金账户权益，stock.availableCash 为可用现金；全部初始资金进入股票 / ETF 现金账户。同日增量累加、目标以后者为准，目标表与增量不可混用。closePosition 覆盖该标的此前普通指令，后续增量会报错，持续条件单单独处理。期货数据、交易及账户声明已退役，旧源码运行会报错；历史报告不变。',
+              'stock.equity is cash-account equity and stock.availableCash is its spendable cash. All initial capital belongs to this account. Deltas accumulate and later targets replace earlier targets; target books conflict with deltas. closePosition replaces earlier ordinary orders for its code and rejects later deltas. Persistent conditions remain separate. Futures data, trading and account declarations are retired; old source fails when rerun. Historical reports are unchanged.',
             )}
           </p>
 
@@ -148,9 +148,7 @@ export const Sdk = complex.component(() => {
                         ? 'ctx.'
                         : e.iface === 'StockAccount'
                           ? 'ctx.stock.'
-                          : e.iface === 'FuturesAccount'
-                            ? 'ctx.futures.'
-                            : ''
+                          : ''
                     }
                     sig={e.sig}
                   />

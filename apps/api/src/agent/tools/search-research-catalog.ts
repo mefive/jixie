@@ -39,7 +39,7 @@ const filtersSchema = z.strictObject({
     .max(4)
     .optional(),
   assetTypes: z
-    .array(z.enum(['stock', 'etf', 'index', 'future']))
+    .array(z.enum(['stock', 'etf', 'index']))
     .min(1)
     .max(4)
     .optional(),
@@ -110,7 +110,6 @@ interface CatalogCandidate {
   searchValues: string[];
   sourceKind: ResearchCatalogSourceKind | 'capability';
   assetType?: ResearchCatalogAssetType;
-  continuousFuture?: boolean;
 }
 
 const RESULT_CAP = 40;
@@ -156,17 +155,6 @@ const QUERY_STOP_WORDS = new Set([
   '曲线',
 ]);
 
-const CONTINUOUS_FUTURE_NAMES: Record<string, { zh: string; en: string }> = {
-  'AU.SHF': { zh: '沪金主力连续', en: 'SHFE gold continuous future' },
-  'CU.SHF': { zh: '沪铜主力连续', en: 'SHFE copper continuous future' },
-  'SC.INE': { zh: '原油主力连续', en: 'INE crude-oil continuous future' },
-  'M.DCE': { zh: '豆粕主力连续', en: 'DCE soybean-meal continuous future' },
-  'IF.CFX': { zh: '沪深 300 股指期货主力连续', en: 'CSI 300 futures continuous contract' },
-  'IH.CFX': { zh: '上证 50 股指期货主力连续', en: 'SSE 50 futures continuous contract' },
-  'IC.CFX': { zh: '中证 500 股指期货主力连续', en: 'CSI 500 futures continuous contract' },
-  'IM.CFX': { zh: '中证 1000 股指期货主力连续', en: 'CSI 1000 futures continuous contract' },
-};
-
 /**
  * 将结构化概念与命名对象解析为精确稳定的本地研究引用。
  *
@@ -206,8 +194,6 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
         indexes,
         marketBenchmarks,
         indexCodes,
-        continuousFutures,
-        futures,
         macro,
         curves,
         fx,
@@ -272,25 +258,6 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : getDatabase().futureMapping.findMany({
-              where: { OR: terms.map((term) => ({ continuousCode: { contains: term } })) },
-              select: { continuousCode: true },
-              distinct: ['continuousCode'],
-              take: 30,
-            }),
-        terms.length === 0
-          ? Promise.resolve([])
-          : getDatabase().futureContract.findMany({
-              where: {
-                OR: terms.flatMap((term) =>
-                  textSearch(term, ['tsCode', 'name', 'productCode', 'exchange']),
-                ),
-              },
-              select: { tsCode: true, name: true, productCode: true, exchange: true },
-              take: 30,
-            }),
-        terms.length === 0
-          ? Promise.resolve([])
           : getDatabase().macroSeries.findMany({
               where: {
                 OR: terms.flatMap((term) => textSearch(term, ['seriesKey', 'nameZh', 'nameEn'])),
@@ -342,22 +309,6 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
 
       const knownIndexCodes = new Set(indexes.map((item) => item.tsCode));
       const candidates: CatalogCandidate[] = [
-        ...rankByTerms(continuousFutures, terms, (item) => [item.continuousCode]).map((item) => {
-          const names = CONTINUOUS_FUTURE_NAMES[item.continuousCode] ?? {
-            zh: `${item.continuousCode} 主力连续`,
-            en: `${item.continuousCode} continuous future`,
-          };
-          return candidate(
-            instrumentMatch('future', item.continuousCode, names.zh, {
-              nameEn: names.en,
-              continuous: true,
-            }),
-            [item.continuousCode, names.zh, names.en],
-            'instrument',
-            'future',
-            true,
-          );
-        }),
         ...rankByTerms(etfs, terms, (item) => compactValues(item)).map((item) =>
           candidate(
             etfInstrumentMatch(item, etfCoverageByCode.get(item.tsCode)),
@@ -405,14 +356,6 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             compactValues(item),
             'instrument',
             'stock',
-          ),
-        ),
-        ...rankByTerms(futures, terms, (item) => compactValues(item)).map((item) =>
-          candidate(
-            instrumentMatch('future', item.tsCode, item.name, item),
-            compactValues(item),
-            'instrument',
-            'future',
           ),
         ),
         ...rankByTerms(macro, terms, (item) => compactValues(item)).map((item) =>
@@ -806,9 +749,8 @@ function candidate(
   searchValues: string[],
   sourceKind: CatalogCandidate['sourceKind'],
   assetType?: ResearchCatalogAssetType,
-  continuousFuture = false,
 ): CatalogCandidate {
-  return { match, searchValues, sourceKind, assetType, continuousFuture };
+  return { match, searchValues, sourceKind, assetType };
 }
 
 /**

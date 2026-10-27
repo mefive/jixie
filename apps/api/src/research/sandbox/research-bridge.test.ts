@@ -120,7 +120,6 @@ describe('Research bridge protocol and current data boundaries', () => {
       yield_curve_requests: [],
       macro_requests: [],
       fx_requests: [],
-      commodity_requests: [],
       equity_requests: [],
     };
     const { bridge, transport } = fixture(ready, {
@@ -137,7 +136,6 @@ describe('Research bridge protocol and current data boundaries', () => {
           yield_curve_requests: [{ line: 2, curve: 'treasury', tenor: '10Y' }],
           macro_requests: [{ line: 3, series: 'cpi' }],
           fx_requests: [{ line: 4, pair: 'USDCNY' }],
-          commodity_requests: [{ line: 5, method: 'commodity_returns', product: 'AU' }],
           equity_requests: [{ line: 6, method: 'equity_dividends', identifier: 'AAA' }],
           error: 'syntax error',
         },
@@ -160,7 +158,6 @@ describe('Research bridge protocol and current data boundaries', () => {
         yieldCurveRequests: [{ line: 2, curve: 'treasury', tenor: '10Y' }],
         macroRequests: [{ line: 3, series: 'cpi' }],
         fxRequests: [{ line: 4, pair: 'USDCNY' }],
-        commodityRequests: [{ line: 5, method: 'commodity_returns', product: 'AU' }],
         equityRequests: [{ line: 6, method: 'equity_dividends', identifier: 'AAA' }],
         error: 'syntax error',
       },

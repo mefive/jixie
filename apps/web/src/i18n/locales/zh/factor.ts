@@ -66,8 +66,6 @@ export const zhFactor = {
       cgbYield5y: '国债收益率 5Y',
       cgbYield10y: '国债收益率 10Y',
       cgbYield30y: '国债收益率 30Y',
-      commodityAnnualizedCarry: '商品期货年化 Carry',
-      commodityWarehouseReceiptVolume: '商品仓单总量',
       unknown: '未知字段',
     },
     windowAudit: '窗口：{{value}} 个交易日',
@@ -99,14 +97,6 @@ export const zhFactor = {
     neweyWestAuto: '推断：Newey–West（滞后阶数自动）',
     disciplinedResearch: '分析日期与参数由用户选择',
     reportNotice: '这是信号证据报告，不是策略回测；交易规则、调仓和成本需要在策略中另行验证。',
-    commodityCarryChatEmpty:
-      '这是受控的商品 Carry 时间序列模板。它逐个检验每种商品自身的真实月合约 Carry 与映射代理 ETF 未来收益的关系，不做商品间横向排名。',
-    commodityCarryReportNotice:
-      '期货真实月合约的期限结构只用于生成各商品自身的 Carry 特征，未来收益由映射代理 ETF 计算；有色和能化 ETF 与铜、原油并非一一对应，存在类别基差。这是逐商品时间序列信号证据，不是期货连续合约回测，也暂不可直接发布到策略。',
-    commodityWarehouseChatEmpty:
-      '这是受控的商品仓单压力时间序列模板。它逐个检验黄金、铜和豆粕仓单下降与各自代理 ETF 未来收益的关系；原油因吨/桶口径不可审计而排除。',
-    commodityWarehouseReportNotice:
-      '仓单总量按下一上交所交易日可得的 point-in-time 口径对齐，正分表示最近 20 个 ETF 交易观测内仓单下降。黄金、铜和豆粕分别连接代理 ETF；原油因吨/桶不可审计换算而排除。这是研究证据，不是商品期货回测，也不能直接进入策略。',
     curveSourceTitle: '国债曲线来源与可得时间',
     curveSourceDescription:
       '来源：财政部-中国国债收益率曲线（中债信息网承载）。曲线约在工作日 17:30 发布，研究从下一上交所交易日才允许使用；收益率单位为%，期限利差和变化量在定义中转换为 bp。',
@@ -173,8 +163,6 @@ export const zhFactor = {
     costRule: '成本：单边 10bp，报告展示成本后收益',
     reportNotice:
       '这是资产横截面排序证据报告，不是资产配置策略回测；仓位约束、现金管理和调仓执行仍需在策略中验证。',
-    commodityCarryReportNotice:
-      '期货真实月合约的期限结构只用于生成 Carry 特征，未来收益由映射代理 ETF 计算；其中有色和能化 ETF 与铜、原油并非一一对应，存在类别基差。这是商品横截面排序证据，不是期货连续合约回测，也暂不可直接发布到策略。',
     researchType: '研究方法',
     target: '预测目标',
     targetValue: '共同月末后未来 {{horizon}} 个交易日总收益',

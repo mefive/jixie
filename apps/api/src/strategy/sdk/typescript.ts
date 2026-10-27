@@ -37,12 +37,15 @@ import { smaValues, emaValues, atrBars, extremeValues, avgField } from './indica
 export function defineStrategy<const Params extends StrategyParams = Record<string, never>>(
   definition: CodeStrategy<Params>,
 ): StrategyDefinition {
+  if ('accounts' in definition || 'futures' in definition) {
+    throw new Error('Futures accounts and declarations are retired');
+  }
+
   return {
     name: definition.name ?? '未命名策略',
     params: normalizeStrategyParams(definition.params),
     factors: definition.factors,
     watch: definition.watch,
-    accounts: definition.accounts,
     // Preserve the author's callback receiver without constructing its context here.
     onBar: (context: StrategyCtx<Params>) => definition.onBar(context),
   };
@@ -57,7 +60,6 @@ export class StrategyContext<
   readonly params: StrategyCtx<Params>['params'];
   readonly portfolio: StrategyCtx<Params>['portfolio'];
   readonly stock: StrategyCtx<Params>['stock'];
-  readonly futures: StrategyCtx<Params>['futures'];
 
   /**
    * 将注入原始能力包装为公开策略上下文，集中实现指标与周期辅助。
@@ -72,7 +74,6 @@ export class StrategyContext<
 
     this.portfolio = capabilities.portfolio;
     this.stock = createStockAccount(capabilities);
-    this.futures = capabilities.futures;
 
     // Preserve the detached, enumerable methods of the previous object-based context.
     this.bar = this.bar.bind(this);
@@ -84,8 +85,6 @@ export class StrategyContext<
     this.factor = this.factor.bind(this);
     this.indexMembers = this.indexMembers.bind(this);
     this.index = this.index.bind(this);
-    this.future = this.future.bind(this);
-    this.futureHistory = this.futureHistory.bind(this);
     this.period = this.period.bind(this);
     this.universe = this.universe.bind(this);
     this.weekly = this.weekly.bind(this);
@@ -138,18 +137,6 @@ export class StrategyContext<
 
   index(indexCode: string): ReturnType<StrategyCapabilities['index']> {
     return this.#capabilities.index(indexCode);
-  }
-
-  future(code: string): ReturnType<StrategyCapabilities['future']> {
-    return this.#capabilities.future(code);
-  }
-
-  futureHistory(
-    code: string,
-    field: Parameters<StrategyCapabilities['futureHistory']>[1],
-    count: number,
-  ): number[] {
-    return this.#capabilities.futureHistory(code, field, count);
   }
 
   period(schedule: Schedule): string {

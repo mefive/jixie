@@ -49,12 +49,7 @@ describe('researchConceptBindingRegistry', () => {
   it('derives every binding contract from the cross-market registry', () => {
     expect(
       researchConceptBindings('commodity.gold.price').map((binding) => binding.contract.id),
-    ).toEqual(
-      expect.arrayContaining([
-        'cn.commodity_future.continuous.daily',
-        'cn.etf.adjusted_close.daily',
-      ]),
-    );
+    ).toEqual(expect.arrayContaining(['cn.etf.adjusted_close.daily']));
     expect(
       researchConceptBindings('rates.us_treasury.nominal').every(
         (binding) => binding.contract.id === 'us.sovereign_yield.daily',
@@ -89,10 +84,10 @@ describe('researchConceptBindingRegistry', () => {
     expect(researchConceptBindings('commodity.gold.price')).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          source: { kind: 'instrument', assetType: 'future', id: 'AU.SHF' },
+          source: { kind: 'instrument', assetType: 'etf', id: '518880.SH' },
           proxyKind: 'approved_proxy',
           dimensions: {
-            instrumentForm: 'continuous_future',
+            instrumentForm: 'etf',
             quoteCurrency: 'CNY',
             market: 'CN',
           },
@@ -109,13 +104,13 @@ describe('researchConceptBindingRegistry', () => {
   });
 
   it('distinguishes local bindings from bindings executable through the public Research SDK', () => {
-    const goldFuture = researchConceptBindings('commodity.gold.price')[0]!;
+    const goldEtf = researchConceptBindings('commodity.gold.price')[0]!;
     const realYield = researchConceptBindings('rates.us_treasury.real')[0]!;
 
-    expect(researchConceptBindingSdkCall(goldFuture)).toEqual({
+    expect(researchConceptBindingSdkCall(goldEtf)).toEqual({
       method: 'data.series',
-      assetType: 'future',
-      identifier: 'AU.SHF',
+      assetType: 'etf',
+      identifier: '518880.SH',
       measure: 'market.adjusted_close',
     });
     expect(researchConceptBindingSdkCall(realYield)).toEqual({

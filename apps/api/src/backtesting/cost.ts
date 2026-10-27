@@ -12,12 +12,7 @@ export interface CostModel {
   transferFee: number; // both sides, e.g. 0.00001
   // —— Slippage (implicit cost, applied to the fill price) ——
   slippageBps: number; // base half-spread, both sides, in bps — the cost even for a liquid large-cap
-  impactCoef: number; // linear price impact per (order notional / day turnover): a bigger order in a thinner
-  //                     (small-cap) name pays more — this is what makes small/mid-cap / high-turnover realistically costlier
-  futureCommissionRate: number; // per-side fraction of futures notional
-  futureCloseTodayRate: number; // reserved for intraday close support
-  futureSlippageTicks: number; // adverse ticks per futures fill
-  futureMarginRate: number; // fallback when a historical settlement row has no margin rate
+  impactCoef: number; // 线性冲击：订单金额 / 日成交额。 / Linear impact per order notional / daily turnover.
 }
 
 export const DEFAULT_COST: CostModel = {
@@ -26,9 +21,5 @@ export const DEFAULT_COST: CostModel = {
   stampDuty: 0.0005,
   transferFee: 0.00001,
   slippageBps: 2, // ~0.02% base half-spread
-  impactCoef: 0.1, // order = 1% of the day's turnover → +0.1% slip; = 5% → +0.5%
-  futureCommissionRate: 0.000023,
-  futureCloseTodayRate: 0.00023,
-  futureSlippageTicks: 1,
-  futureMarginRate: 0.12,
+  impactCoef: 0.1, // 订单占日成交额 1% → 额外 0.1% 滑点。 / A 1% participation adds 0.1% slippage.
 };

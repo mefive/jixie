@@ -13,16 +13,11 @@ import {
 } from '#market/registry/index-presets.js';
 import { CROSS_MARKET_BENCHMARKS } from '#market/registry/cross-market-benchmarks.js';
 import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
-import {
-  COMMODITY_FUTURE_SPECS,
-  COMMODITY_HOLDING_SPECS,
-} from '#market/commodity/commodity-futures.js';
 import { CHINA_MACRO_SERIES } from '#market/macro/china-macro.js';
 
 export const SYNC_LIMITS = {
   partitions: 240,
   requests: 600,
-  calculations: 120,
   milliseconds: 30 * 60_000,
 } as const;
 export interface DatasetScope {
@@ -64,7 +59,7 @@ export async function datasetScopes(
 ): Promise<DatasetScope[]> {
   switch (policy.dataset) {
     case 'calendar':
-      return scopes(policy, ['SSE', 'SZSE', 'CFFEX', 'SHFE', 'INE', 'DCE']);
+      return scopes(policy, ['SSE', 'SZSE']);
     case 'stock-master':
       return scopes(policy, ['L', 'D', 'P', 'G']);
     case 'stock-names':
@@ -120,72 +115,6 @@ export async function datasetScopes(
       }
       return [...starts].map(([scope, startDate]) => ({ scope, startDate }));
     }
-    case 'future-contracts':
-      return scopes(
-        policy,
-        ['IF', 'IH', 'IC', 'IM'].map((code) => `CFFEX|${code}`),
-      );
-    case 'commodity-contracts':
-      return scopes(
-        policy,
-        COMMODITY_FUTURE_SPECS.map((spec) => `${spec.exchange}|${spec.productCode}`),
-      );
-    case 'future-prices':
-    case 'future-settlements':
-    case 'commodity-prices': {
-      const commodity = policy.dataset === 'commodity-prices';
-      const rows = await getDatabase().futureContract.findMany({
-        where: {
-          productCode: {
-            in: commodity
-              ? COMMODITY_FUTURE_SPECS.map((spec) => spec.productCode)
-              : ['IF', 'IH', 'IC', 'IM'],
-          },
-        },
-      });
-      return rows.map((row) => ({
-        scope: row.tsCode,
-        startDate: [row.listDate, policy.startDate].sort().at(-1)!,
-        endDate: row.delistDate,
-        calendar: row.exchange,
-      }));
-    }
-    case 'future-mappings': {
-      const contracts = await getDatabase().futureContract.groupBy({
-        by: ['productCode'],
-        where: { productCode: { in: ['IF', 'IH', 'IC', 'IM'] } },
-        _min: { listDate: true },
-      });
-
-      return contracts.flatMap((contract) =>
-        contract._min.listDate
-          ? [
-              {
-                scope: `${contract.productCode}.CFX`,
-                startDate: [policy.startDate, contract._min.listDate].sort().at(-1)!,
-              },
-            ]
-          : [],
-      );
-    }
-    case 'commodity-mappings':
-      return COMMODITY_FUTURE_SPECS.map((spec) => ({
-        scope: `${spec.productCode}.${{ SHFE: 'SHF', INE: 'INE', DCE: 'DCE' }[spec.exchange]}`,
-        startDate: spec.productCode === 'SC' ? '20180326' : policy.startDate,
-        calendar: spec.exchange,
-      }));
-    case 'commodity-holdings':
-      return COMMODITY_HOLDING_SPECS.map((spec) => ({
-        scope: spec.productCode,
-        startDate: spec.startDate,
-        calendar: spec.exchange,
-      }));
-    case 'commodity-receipts':
-      return COMMODITY_FUTURE_SPECS.map((spec) => ({
-        scope: spec.productCode,
-        startDate: spec.warehouseReceipt.startDate,
-        calendar: spec.exchange,
-      }));
     case 'external-curves':
       return scopes(policy, ['nominal', 'real']);
     case 'external-fx':

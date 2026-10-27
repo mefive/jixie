@@ -256,7 +256,6 @@ export const zhResearch = {
       stock: '股票',
       etf: 'ETF',
       index: '指数',
-      future: '期货',
     },
     seriesConfig: '序列配置',
     datasetConfig: '数据集配置',

@@ -62,31 +62,3 @@ export async function loadResearchIndexValuation(request: ResearchReferenceDatas
     pb: row.pb,
   }));
 }
-
-/**
- * 只为实际交割合约读取交易所结算参数。
- *
- * Load exchange settlement parameters only for an actual delivery contract.
- */
-export async function loadResearchFuturesSettlement(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await getDatabase().futureSettlement.findMany({
-    where: {
-      tsCode: request.identifier,
-      tradeDate: { gte: request.start, lte: request.end },
-    },
-    orderBy: { tradeDate: 'asc' },
-  });
-  return rows.map((row) => ({
-    date: row.tradeDate,
-    settle: row.settle,
-    trading_fee_rate: row.tradingFeeRate,
-    trading_fee: row.tradingFee,
-    delivery_fee: row.deliveryFee,
-    buy_hedge_margin_rate_pct: row.buyHedgeMarginRate,
-    sell_hedge_margin_rate_pct: row.sellHedgeMarginRate,
-    long_margin_rate_pct: row.longMarginRate,
-    short_margin_rate_pct: row.shortMarginRate,
-    close_today_fee: row.closeTodayFee,
-    exchange: row.exchange,
-  }));
-}

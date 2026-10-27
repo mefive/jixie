@@ -663,21 +663,8 @@ try {
     throw new Error('ETF strategy article does not render both screenshots');
   }
 
-  await page.getByRole('link', { name: '运行股指期货策略', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '运行股指期货策略' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 1) {
-    throw new Error('index futures article does not render its screenshot');
-  }
-  await page.evaluate(() => window.scrollTo(0, 0));
-  await page.waitForTimeout(100);
-  await page.screenshot({
-    path: `${SHOTS}11c-help-index-futures-guide.png`,
-  });
-
-  await page.getByRole('link', { name: '运行股票与期货混合策略', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '运行股票与期货混合策略' }).waitFor();
-  if ((await page.locator('.jx-help-figure').count()) !== 2) {
-    throw new Error('mixed stock and futures article does not render both screenshots');
+  for (const slug of ['backtesting/index-futures', 'backtesting/mixed-stock-futures']) {
+    assert.equal(await page.locator(`a[href$="/help/${slug}"]`).count(), 0);
   }
 
   await page.getByRole('link', { name: '因子研究能回答什么', exact: true }).first().click();

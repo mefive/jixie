@@ -22,7 +22,7 @@
 内部行情可以携带因子准备需要的额外字段，不因此扩展公开 OHLC 字段；SDK 不更改数据可见时间。
 
 编辑器的 FactorKey 根据用户可用因子动态生成；供实现编译的 FactorKey 为 string，运行时仍按冻结依赖
-校验。两者共用同一签名渲染器，不维护平行的 SDK 方法清单。文档 URL 保持不变；订单文档锚点使用 stock.* / futures.* 区分账户。
+校验。两者共用同一签名渲染器，不维护平行的 SDK 方法清单。文档 URL 保持不变；订单文档锚点使用 stock.* 表达现金账户操作。
 
 Python 的 `Strategy`、`Context`、`Universe` 实现在 `apps/api/src/strategy/sdk/python.py`，
 方法改为 ctx.stock 下的 snake_case 命名，功能范围仍为股票和 ETF；`strategy/sandbox/python/strategy_runner.py` 处理协议与超时，`sandbox/python/strategy_adapter.py` 持有快照、缓存和命令；SDK Context 接收基础能力与参数，不导入 runtime。
@@ -34,17 +34,17 @@ Python 的 `Strategy`、`Context`、`Universe` 实现在 `apps/api/src/strategy/
 
 ## 账户与订单
 
-公开上下文只通过 `portfolio.equity` 提供组合权益；`stock` 和 `futures` 分别提供权益、可用现金及账户操作。
+公开上下文只通过 `portfolio.equity` 提供组合权益；`stock` 提供现金账户权益、可用现金及操作。
 TS 的 `StrategyContext` 构造独立且完整校验的对象，公开方法保留解构调用与自身可枚举属性；能力对象使用私有字段保存。现金手数与后复权股数
 显式命名；ATR 仓位辅助使用现金账户权益。Python 同步整理已有现金操作，不新增期货交易。
 
-新策略决策中，增量累加、重复目标覆盖。现金完整目标表不能与现金增量单混用；期货按代码检查。
+新策略决策中，增量累加、重复目标覆盖。现金完整目标表不能与现金增量单混用。
 清仓覆盖同标的先前普通指令，后续增量报错，后续目标可覆盖。持续条件单独立处理。
 旧扁平 SDK 已移除；数据库中的源码、冻结部署不自动重写。历史报告可读，重新执行前需迁移源码。
 见 [迁移说明](../../../../docs/src/content/help/zh/backtesting/edit-rerun.md)。
 
-内部 EngineContext 同样按 portfolio / stock / futures 分组，Context 将操作交给带账户及单位名称的
-OrderBook 方法。runtime 以 stock.* / futures.* 命令逐条提交并确认，并按账户发送临时 bar frame；
+内部 EngineContext 同样按 portfolio / stock 分组，Context 将操作交给带账户及单位名称的
+OrderBook 方法。runtime 以 stock.* 命令逐条提交并确认，并按账户发送临时 bar frame；
 SDK 复用账户基础能力并添加 stock 仓位辅助，
 仍由独立公开契约检查完整签名。
 

@@ -7,7 +7,6 @@ import { EngineData } from './data/engine-data.js';
 import { FactorEvaluator } from './factors/factor-evaluator.js';
 import { describeFactors } from './factors/description.js';
 import { CashPortfolio } from './cash-portfolio.js';
-import { FuturesPortfolio } from './futures-portfolio.js';
 import { OrderBook } from './order-book.js';
 import { BacktestingContext } from './backtesting-context.js';
 import { DEFAULT_COST } from './cost.js';
@@ -35,7 +34,6 @@ export class BacktestingEngine {
 
   private engineData!: EngineData;
   private cashPortfolio!: CashPortfolio;
-  private futuresPortfolio!: FuturesPortfolio;
   private orderBook!: OrderBook;
   private factorEvaluator: FactorEvaluator | null = null;
   private allocationTracker!: AllocationAnalysisTracker;
@@ -57,9 +55,9 @@ export class BacktestingEngine {
   }
 
   /**
-   * 推进完整交易日循环，按既定顺序执行订单、决策和结算，返回本次模拟结果。
+   * 推进完整交易日循环，按既定顺序执行现金订单与决策，返回本次模拟结果。
    *
-   * Run the simulation calendar through order execution, decisions and settlement, then collect the result.
+   * Run the simulation calendar through cash order execution and decisions, then collect the result.
    */
   async run(): Promise<BacktestingResult> {
     if (this.started) {
@@ -71,18 +69,15 @@ export class BacktestingEngine {
 
     await this.initialize();
 
-    const { engineData, futuresPortfolio, orderBook } = this;
+    const { engineData, orderBook } = this;
     const total = engineData.timeline.length;
 
     for (let index = 0; index < total; index++) {
       const date = engineData.timeline[index];
-      const previousDate = engineData.timeline[index - 1];
 
       this.assertNoDelistedPositions(date);
 
-      await orderBook.executeOrders(date, previousDate);
-
-      futuresPortfolio.settle(engineData, date);
+      await orderBook.executeOrders(date);
 
       this.recordEndOfDay(date);
 
@@ -112,6 +107,14 @@ export class BacktestingEngine {
       throw new Error('Initial cash must be a positive finite number');
     }
 
+    if (
+      'accounts' in config.strategy ||
+      'futures' in config.strategy ||
+      Object.keys(config.cost ?? {}).some((key) => key.startsWith('future'))
+    ) {
+      throw new Error(t(this.locale, 'backtestFuturesRetired'));
+    }
+
     for (const [key, value] of Object.entries(config.strategy.params ?? {})) {
       if (typeof value === 'number' && !Number.isFinite(value)) {
         throw new Error(`Strategy parameter ${key} must be finite`);
@@ -122,9 +125,6 @@ export class BacktestingEngine {
       if (!Number.isFinite(value) || value < 0) {
         throw new Error(`Cost setting ${key} must be a finite non-negative number`);
       }
-    }
-    if (cost.futureMarginRate <= 0 || cost.futureMarginRate > 1) {
-      throw new Error('Cost setting futureMarginRate must be between 0 and 1');
     }
   }
 
@@ -138,13 +138,9 @@ export class BacktestingEngine {
 
     await this.loadFactorDescription();
 
-    const cashWeights = this.resolveInitialCashWeights();
     const { dataRequirements, preloadCodes, assetClassByCode } = this.factorDescription;
 
-    this.allocationTracker = new AllocationAnalysisTracker(
-      config.initialCash * cashWeights.stock,
-      assetClassByCode,
-    );
+    this.allocationTracker = new AllocationAnalysisTracker(config.initialCash, assetClassByCode);
 
     this.engineData = new EngineData({
       start: config.start,
@@ -165,14 +161,12 @@ export class BacktestingEngine {
 
     this.initializeFactorEvaluator();
 
-    this.cashPortfolio = new CashPortfolio(config.initialCash * cashWeights.stock, cost);
-    this.futuresPortfolio = new FuturesPortfolio(config.initialCash * cashWeights.futures, cost);
+    this.cashPortfolio = new CashPortfolio(config.initialCash, cost);
 
     this.orderBook = new OrderBook({
       locale: this.locale,
       engineData: this.engineData,
       cashPortfolio: this.cashPortfolio,
-      futuresPortfolio: this.futuresPortfolio,
       allocationTracker: this.allocationTracker,
       onRebalance: (date) => this.logRebalance(date),
       cost,
@@ -219,31 +213,6 @@ export class BacktestingEngine {
     }
 
     this.factorDescription = description;
-  }
-
-  /**
-   * 解析初始现金资产权重，供模拟启动时建立配置对应的资产分配。
-   *
-   * Resolve initial cash-asset weights for the starting allocation.
-   */
-  private resolveInitialCashWeights(): { stock: number; futures: number } {
-    const { config } = this;
-
-    if (!config.strategy.accounts) {
-      return { stock: 1, futures: 0 };
-    }
-
-    const stock = config.strategy.accounts.stock.cashWeight;
-    const futures = config.strategy.accounts.futures.cashWeight;
-
-    if (!Number.isFinite(stock) || !Number.isFinite(futures) || stock < 0 || futures < 0) {
-      throw new Error('Account cash weights must be finite non-negative numbers');
-    }
-    if (Math.abs(stock + futures - 1) > 1e-9) {
-      throw new Error('Stock and futures account cash weights must sum to 1');
-    }
-
-    return { stock, futures };
   }
 
   /**
@@ -297,32 +266,24 @@ export class BacktestingEngine {
   /**
    * 在当日交易及结算完成后记录账户净值和归因观察，供绩效汇总使用。
    *
-   * Record end-of-day account values and allocation observations after execution and settlement.
+   * Record end-of-day account values and allocation observations after cash execution.
    */
   private recordEndOfDay(date: string): void {
-    const { engineData, cashPortfolio, futuresPortfolio } = this;
+    const { engineData, cashPortfolio } = this;
 
     const stockValue = cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, date));
-    const value = stockValue + futuresPortfolio.cash;
+    const value = stockValue;
 
     this.nav.push({ date, value });
 
     const stockGrossExposure = cashPortfolio.marketValue((code) =>
       engineData.adjustedCloseAsOf(code, date),
     );
-    const futureNotional = futuresPortfolio.notional((actualCode) => {
-      const bar = engineData.futureActualBar(actualCode, date);
-      return bar?.settle ?? bar?.close ?? null;
-    });
-
     this.sleeveNav.push({
       date,
       stockValue,
-      futureValue: futuresPortfolio.cash,
-      futureMargin: futuresPortfolio.margin,
       stockGrossExposure,
-      futureNotional,
-      netExposure: stockGrossExposure + futureNotional,
+      netExposure: stockGrossExposure,
     });
 
     this.allocationTracker.captureDay({
@@ -362,7 +323,6 @@ export class BacktestingEngine {
       date,
       engineData: this.engineData,
       cashPortfolio: this.cashPortfolio,
-      futuresPortfolio: this.futuresPortfolio,
       factorEvaluator: this.factorEvaluator,
       orderBook: this.orderBook,
       onFactorRead: observeFactors
@@ -389,11 +349,9 @@ export class BacktestingEngine {
    * Combine NAV, fills, costs and allocation observations into the backtest report.
    */
   private collectResult(): BacktestingResult {
-    const { config, engineData, cashPortfolio, futuresPortfolio } = this;
+    const { config, engineData, cashPortfolio } = this;
 
-    const trades = [...cashPortfolio.trades, ...futuresPortfolio.trades].sort((left, right) =>
-      left.date.localeCompare(right.date),
-    );
+    const trades = [...cashPortfolio.trades];
 
     const result = summarizePerformance(
       config,
@@ -446,14 +404,6 @@ export class BacktestingEngine {
 
     return serializeFinalState({
       ...snapshot,
-      futureAccount: {
-        equity: this.futuresPortfolio.cash,
-        margin: this.futuresPortfolio.margin,
-        availableCash: this.futuresPortfolio.availableCash,
-        positions: structuredClone([...this.futuresPortfolio.positions.values()]),
-      },
-      futureOrders: this.orderBook.snapshotFuturesOrders(),
-      futureMarket: this.engineData.snapshotFutures(tradeDate),
       tradeDate,
       equity: cashPortfolio.equity((code) => engineData.adjustedCloseAsOf(code, tradeDate)),
       cash: cashPortfolio.cash,

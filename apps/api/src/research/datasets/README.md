@@ -9,9 +9,8 @@
 | [universe.ts](universe.ts) `executeUniverseSpec`、`applyUniverseSpec`；[spec.ts](spec.ts) `validateUniverseSpec` | 前者接收 `UniverseSpecV1`、检查业务语义后查库筛选；apply 处理内存数据；validate 只检查字段、谓词等业务语义，不能互换副作用 |
 | [financial.ts](financial.ts) `loadResearchFinancialStatements`、`loadResearchFinancialMetrics`、`loadResearchFinancialCrossSection`、`loadResearchFinancialPanel` | 财报明细、派生指标及面板，保留报告期／可得性规则 |
 | [financial-values.ts](financial-values.ts) `loadResearchFinancialValues` | 使用财务版本和 normalized value，保留来源及空值语义 |
-| [commodity.ts](commodity.ts) `loadResearchCommodityReturns`、`loadResearchCommodityWarehouseReceipts`、`loadResearchCommodityHoldings` | 商品收益、仓单、持仓研究列；不把连续收益当可成交合约 |
 | [supplemental.ts](supplemental.ts) 的 loadResearchMarketState、loadResearchEquityFundamentals/Flows/Dividends | 市场状态、股票基本面／资金／分红切片 |
-| [market-reference.ts](market-reference.ts) 的 loadResearchEtfShares、loadResearchIndexValuation、loadResearchFuturesSettlement | ETF 份额、指数估值和期货结算参考数据 |
+| [market-reference.ts](market-reference.ts) 的 loadResearchEtfShares、loadResearchIndexValuation | ETF 份额和指数估值参考数据 |
 
 [cross-market-data-contracts.ts](cross-market-data-contracts.ts) 维护 Research 的来源决策和数据契约投影，不替代 Market registry 的共享身份。PIT 选择、availableDate 与原始观测日不能互换，缺失值不应因文档示例变成补零。每类取数上限和有效字段以 sdk/validation 与对应 loader 为准。
 

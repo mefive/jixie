@@ -6,7 +6,7 @@ import type {
   FactorDefinition,
 } from '#backtesting/factors/execution-port.js';
 import { BUILTIN_USER_ID } from '#factor/definitions/builtin-factors.js';
-import { isResearchOnlyFactorV2Field } from '#factor/definitions/fields.js';
+import { isFactorV2FieldKey } from '#factor/definitions/fields.js';
 import { normalizeAnalysisKind } from '#factor/definitions/views.js';
 import { sha256 } from '#factor/sources/fingerprint.js';
 import { StrategyError } from '../errors.js';
@@ -130,21 +130,21 @@ export class StrategyFactor {
    */
   static validateSandboxMetadata(factors: StrategyFactor[], definitions: FactorDefinition[]): void {
     const byId = new Map(definitions.map((definition) => [definition.id, definition]));
-    const researchOnlyInputs = new Set<string>();
+    const unsupportedInputs = new Set<string>();
     for (const factor of factors) {
       const definition = byId.get(factor.key);
       if (!definition) {
         throw new Error(`Missing factor metadata: ${factor.key}`);
       }
       for (const input of StrategyFactor.inputsFromDefinition(definition) ?? []) {
-        if (isResearchOnlyFactorV2Field(input)) {
-          researchOnlyInputs.add(input);
+        if (!isFactorV2FieldKey(input)) {
+          unsupportedInputs.add(input);
         }
       }
     }
-    if (researchOnlyInputs.size > 0) {
-      throw new StrategyError('research_only_inputs_unavailable', {
-        params: { fields: [...researchOnlyInputs].join(', ') },
+    if (unsupportedInputs.size > 0) {
+      throw new StrategyError('factor_inputs_unavailable', {
+        params: { fields: [...unsupportedInputs].join(', ') },
       });
     }
   }

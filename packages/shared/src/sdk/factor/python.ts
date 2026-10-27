@@ -14,8 +14,6 @@ export const FACTOR_PYTHON_V2_FIELD_KEYS = [
   'rates.cgb.yield.5y',
   'rates.cgb.yield.10y',
   'rates.cgb.yield.30y',
-  'commodity.futures.annualizedLogCarry',
-  'commodity.warehouseReceipt.volume',
 ] as const;
 
 export type FactorPythonV2FieldKey = (typeof FACTOR_PYTHON_V2_FIELD_KEYS)[number];

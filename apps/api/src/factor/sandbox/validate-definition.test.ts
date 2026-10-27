@@ -67,15 +67,15 @@ describe('validateFactorDefinition', () => {
     },
   );
 
-  it('keeps commodity carry confined to the controlled research template', async () => {
+  it('rejects retired commodity inputs', async () => {
     await expect(validateFactorDefinition(COMMODITY_CARRY_PANEL, 'panel')).rejects.toThrow(
-      /controlled template/,
+      /unknown input|invalid|not.*field/i,
     );
     await expect(
       validateFactorDefinition(COMMODITY_CARRY_TIME_SERIES, 'time_series'),
-    ).rejects.toThrow(/controlled template/);
+    ).rejects.toThrow(/unknown input|invalid|not.*field/i);
     await expect(
       validateFactorDefinition(COMMODITY_WAREHOUSE_RECEIPT_TIME_SERIES, 'time_series'),
-    ).rejects.toThrow(/controlled template/);
+    ).rejects.toThrow(/unknown input|invalid|not.*field/i);
   });
 });

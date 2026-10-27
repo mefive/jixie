@@ -1924,27 +1924,12 @@ const TimeSeriesReportBody = complex.component(() => {
     researchSpec?.analysisKind === 'time_series'
       ? (researchSpec as TimeSeriesFactorResearchSpecV1)
       : null;
-  const isCommodityCarry =
-    store.reportDetail?.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry') ??
-    false;
-  const isCommodityWarehouse =
-    store.reportDetail?.factorCodeSnapshot?.includes('commodity.warehouseReceipt.volume') ?? false;
   if (!report || !spec) {
     return <Placeholder icon={faPlay} text={t('runPrompt')} />;
   }
   return (
     <div className="jx-factor-timeReport" data-testid="time-series-report">
-      <Alert
-        type="info"
-        showIcon
-        title={t(
-          isCommodityCarry
-            ? 'timeSeries.commodityCarryReportNotice'
-            : isCommodityWarehouse
-              ? 'timeSeries.commodityWarehouseReportNotice'
-              : 'timeSeries.reportNotice',
-        )}
-      />
+      <Alert type="info" showIcon title={t('timeSeries.reportNotice')} />
       {store.reportDetail?.factorCodeSnapshot?.includes('rates.cgb.yield.') && (
         <Alert
           type="info"
@@ -2026,19 +2011,12 @@ const PanelReportBody = complex.component(() => {
   const researchSpec = store.reportDetail?.researchSpec;
   const spec =
     researchSpec?.analysisKind === 'panel' ? (researchSpec as PanelFactorResearchSpecV1) : null;
-  const isCommodityCarry =
-    store.reportDetail?.factorCodeSnapshot?.includes('commodity.futures.annualizedLogCarry') ??
-    false;
   if (!report || !spec) {
     return <Placeholder icon={faPlay} text={t('runPrompt')} />;
   }
   return (
     <div className="jx-factor-timeReport" data-testid="panel-report">
-      <Alert
-        type="info"
-        showIcon
-        title={t(isCommodityCarry ? 'panel.commodityCarryReportNotice' : 'panel.reportNotice')}
-      />
+      <Alert type="info" showIcon title={t('panel.reportNotice')} />
       <div className="jx-factor-timeAudit">
         <Metric label={t('panel.researchType')} value={t('panel.methodBadge')} />
         <Metric
@@ -2838,8 +2816,6 @@ function timeSeriesInputLabel(input: string, t: TFunction<'factor'>): string {
     'rates.cgb.yield.5y': 'timeSeries.inputFields.cgbYield5y',
     'rates.cgb.yield.10y': 'timeSeries.inputFields.cgbYield10y',
     'rates.cgb.yield.30y': 'timeSeries.inputFields.cgbYield30y',
-    'commodity.futures.annualizedLogCarry': 'timeSeries.inputFields.commodityAnnualizedCarry',
-    'commodity.warehouseReceipt.volume': 'timeSeries.inputFields.commodityWarehouseReceiptVolume',
   };
   return t(keys[input] ?? 'timeSeries.inputFields.unknown');
 }

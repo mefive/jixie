@@ -1,6 +1,6 @@
 # 系统功能裁剪计划
 
-日期：2026-10-25。状态：功能范围已收口；Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review 与验证；研究卡与 holdout 删除、因子报告保留与内置版本保护、Research 正式证据删除、Strategy 最近结果简化、因子天气、多因子平台、市场天气及 Research 专用模板／内置估值删除已通过人工 review 与验证；其余裁剪待实施。
+日期：2026-10-25。状态：功能范围已收口；Signals、Sharing、Agent 只读 SQL 与 Curator 已通过人工 review 与验证；研究卡与 holdout 删除、因子报告保留与内置版本保护、Research 正式证据删除、Strategy 最近结果简化、因子天气、多因子平台、市场天气及 Research 专用模板／内置估值、股票资金流／龙虎榜、申万行业和期货数据／交易删除已通过人工 review 与验证；其余裁剪待实施。
 
 目标是把 jixie 收敛为维护者能够独立读懂、审查和修改的个人研究工具。优先删除不再需要的产品能力及其数据、状态和后台流程，再根据剩余需求简化实现。
 
@@ -726,7 +726,7 @@ Prisma 生成迁移仅删除 `SwIndustryMember`、`SwIndexDaily` 和 `StockBasic
 - 审查后仅修正测试／夹具和帮助公式排版，业务代码未再修改：TTM 用例补齐前置季度并断言 360；范围场景改用完整股票样本区间，夹具按月提供历史指数成分快照，继续保留正式消费者的陈旧度限制。第一次浏览器进程曾出现 Prisma 原生引擎退出异常；补齐夹具后独立范围场景及后续完整验收通过，确认没有遗留进程，并删除已关闭的异常临时库。
 - 默认沙箱禁止本地端口／Unix socket，服务类检查出现 EPERM；在允许本地监听的执行环境重跑后全部通过。开发库与三个独立审阅文档保持原值。最终类型、边界、SDK、格式、lint、Prisma 生成 SQL 一致性、Python AST 与 diff 检查通过；仅对原样生成的迁移 SQL 豁免末尾空行。删除旧 audit 的两个编译产物，检查并清理空目录；测试服务、语言服务、沙箱进程、端口、连接和临时目录已收尾。不推送。
 
-## 25 期货数据与交易能力整体删除（下一项 Gate 1，待范围确认）
+## 25 期货数据与交易能力整体删除（人工 review 与验证通过）
 
 拟提交消息：`feat(market)!: remove futures data and trading capabilities`。
 
@@ -736,4 +736,52 @@ Strategy／Backtesting 删除保证金账户、期货持仓／订单／结算／
 
 主要位置为 market/futures／commodity／synchronization、backtesting、strategy/sdk／sandbox、factor/observations、research/datasets／catalog、shared Contract、Web／Docs，以及对应维护／部署入口。既有用户文档、因子／策略源码、发布版本和绑定报告原样保留；旧调用和参数明确报错，不转换成股票交易或伪造连续收益。若必须改变保留现金账户、ETF 交易规则或改写用户内容，则返回范围讨论。
 
-review 前只跑格式／lint、类型／边界、SDK 一致性、Prisma schema／生成迁移、Python AST、帮助与 diff 静态检查；通过后停在人工代码 review。review 通过后运行隔离旧库升级与内容保留、旧接口拒绝、股票／ETF 交易及研究回归、沙箱和部署测试、五个 workspace 构建、实际编译启动与中英浏览器验收，检查截图、清理测试资源和空目录后提交。本项尚未实施。
+review 前只跑格式／lint、类型／边界、SDK 一致性、Prisma schema／生成迁移、Python AST、帮助与 diff 静态检查；通过后停在人工代码 review。review 通过后运行隔离旧库升级与内容保留、旧接口拒绝、股票／ETF 交易及研究回归、沙箱和部署测试、五个 workspace 构建、实际编译启动与中英浏览器验收，检查截图、清理测试资源和空目录后提交。以下 25.1／25.2 为最初实现与静态检查记录，25.3 保留首轮问题经过；最终验证结果以 25.4 为准。
+
+
+### 25.1 本次交付与审阅入口（2026-10-27）
+
+- 期货／商品专用目录、九项同步策略、Tushare API、注册与审计、派生连续收益及期货发布链已删除。Maintenance 不再运行独立派生计算阶段；专属计算状态、期货交易所日历及对应维护／字段证据记录在维护锁与短发布事务内清理。状态查询提前排除退役数据集和期货日历，避免首次同步前仍显示历史错误。通用历史 `MarketCalculationState` 表保留，其余维护重设计另议。
+- Prisma 原样生成 `apps/api/prisma/migrations/20261027130000_remove_futures_data/migration.sql`，只 DROP `FutureContract`、`FutureDaily`、`FutureMapping`、`FutureSettlement`、`CommodityWarehouseReceipt`、`CommodityHoldingPosition`、`CommodityContinuousReturn`、`FutureMarketPublication`、`FutureMarketRevision` 九表。没有应用到开发或生产库。
+- 引擎、OrderBook、DataPort、TS／Python SDK 和桥接只保留股票／ETF 现金账户。全部初始资金进入该账户，既有复权、T+1、成本／滑点、条件单、参数扫描和独立因子语义保留。旧 `accounts`／`futures` 声明、原始导出或 Python 动态旧属性、期货代码与旧成本字段显式拒绝；不会忽略配置或代换成现金交易。审阅入口为 `apps/api/src/backtesting/backtesting-engine.ts`、`data/engine-data.ts`、`order-book.ts` 及 `strategy/sdk`／`strategy/sandbox`。
+- Research 的 commodity_returns／warehouse_receipts／holdings、futures_settlement、期货图表对象与目录绑定删除；保留黄金／商品 ETF 价格。Factor 删除 Carry／仓单字段、三个模板与专属观察数据，隐藏已有内置退役模板行，不删除用户保存内容或历史报告；旧输入在定义校验、运行或发布检查中拒绝。共享 Contract、生成 stub、编辑器、SDK 参考和 Agent 同步更新。
+- 依赖商品连续收益的日频市场风险回归、Alpha 风险重合与压力情景连同审计／UI 已删除；独立月度宏观模型保留原公式、窗口和 PIT 披露，仅装配自身数据区间，不再加载期货风险向量。入口 `strategy/risk/backtest-risk-analysis.ts`；既有 `macro-risk-model.ts` 的数学实现不改。历史 JSON 保留；当前 UI 不再提供已退役风险部分。
+- 删除两篇双语期货操作教程和三张专属操作插图；其余帮助与两篇历史学习案例更新退役说明。原有 25 张学习证据图及其原始校验和保持。旧股债风险案例的生成脚本及其公开 E2E 命令随退役风险链删除；保留原始学习结果，当前现金／ETF 交易与研究由独立验收覆盖。同步模块阅读地图和根说明，清理空目录。
+
+### 25.2 首次 Gate 2 静态检查与拟验证范围（历史记录）
+
+已完成全仓类型、后端 AST 边界、SDK 生成一致性、变更代码 lint／格式、Prisma schema 校验和九表生成迁移原文比较、变更 Python AST、Shell 语法、双语帮助链接／图片／校验和及 diff 静态检查。帮助每种语言 77 篇、601 个内部链接、143 个图片引用，仍为 25 条原始学习证据。批量清理曾误删数据目录测试外层，已恢复并核对所有保留测试；当前只删除期货专属正例，旧接口改为拒绝用例。
+
+已准备但未执行：`apps/api/tests/futures-retirement-migration.test.ts` 完整旧迁移升级／九表删除／其余 schema 和逐行数据／用户源码、发布与绑定报告不变，以及锁保护、日历与状态清理的幂等检查；TS／Python 旧配置、成本、命令、SDK 方法与 Research 类型拒绝；股票／ETF、条件单、因子、财报和宏观回归；全套 API／sandboxd／工具／部署测试及编译 Worker；五个 workspace 构建、隔离实际编译 API／sandboxd 启动，以及中英／窄屏浏览器。新的 `futures-retirement` 浏览器场景覆盖真实股票＋ETF 现金回测、初始资本和归因对账、退役路由／成本拒绝及双语界面；Research 数据目录验收同步核对删除方法不可见。
+
+本项未提交，等待人工代码 review。review 通过后才执行上述测试、构建与浏览器验收；通过后按既定消息提交，并清理临时进程、库、连接、端口、过期编译产物与空目录，不推送。
+
+
+### 25.3 Review 后首轮验证与两处修复（2026-10-27，已再次 review 通过）
+
+首轮 API 按文件串行：268 文件，261 通过／6 失败／1 原有 opt-in 跳过；1771 测试通过、7 失败、2 原有 opt-in 跳过。尚未完成最终验收，不能提交。五个 workspace 在修复前版本上构建通过；Vite 原有大 chunk 提示保留。sandboxd 8 项通过。工具首轮 101/102 项通过，修正已退役学习旅程的目录断言后，对应 E2E runner 8 项复测通过。
+
+首轮测试前遗漏 shared runtime 构建，导致旧 dist 契约仍含 futures，出现两条路由 500 与 SDK 枚举差异；完整构建刷新 shared 后，这些用例通过。测试夹具另有 Prisma PRAGMA 返回整数为 bigint（改用 Number 判断）、天气迁移测试导入已删除 calculations（改用当前退役清理并保留独立历史）、Proposal 查询次数旧断言。修正后对应 5 个 API 文件／35 项全通过，包括九表隔离旧库升级、其余 schema／逐行数据、用户文档／源码／发布／绑定报告原样保留、维护锁保护与专属日历／状态清理幂等。没有修改任何迁移 SQL。
+
+行为验证同时发现两处真实产品遗漏，已修复，需按工作流再次 review：
+
+1. `apps/web/src/complex/research/research-data-catalog.ts:231`：删除最后一个 futures_settlement case 时误删共享分支正文，ETF 份额／指数估值生成片段时 arguments 未赋值。现恢复 `{ identifier: dataset.identifier, ...dates }` 与 break；期货 case 仍删除。新增 ETF 份额片段回归，保留现有指数估值片段回归。
+2. `apps/api/src/research/sandbox/python/analysis.py:178`：删除 commodity_requests 字段后，语法错误分支仍多传一个空列表，使正常语法诊断变成构造参数异常并终止会话。现去掉多余参数并显式 `error=message`。打包回归同时覆盖 AST 语法诊断、Cell 语法错误及之后的执行／reset，保留完整真实 Python 输入和消息序列断言。
+
+两处产品修复之后仅运行静态检查：全仓类型／边界／SDK 一致性、lint／格式、Python AST 与 diff 通过；未重跑行为测试、构建或浏览器。首轮前端／帮助 35/36 项通过，唯一失败即上述片段赋值问题；Research 打包测试失败即上述语法错误分支问题，均待重新 review 后复测。
+
+已清理 107 个过期编译产物及空目录；测试进程、Python 与语言服务均已退出，没有遗留项目监听进程。开发库和三份独立审阅文档大小／mtime 保持原值。修复再次 review 后先重建刷新 shared，再完成 API、前端／帮助、编译 Worker、实际编译启动、浏览器中英与窄屏验收；检查截图、资源与空目录后才提交。拟提交消息仍为 `feat(market)!: remove futures data and trading capabilities`，当前未提交。
+
+
+### 25.4 再次 Review 后实际验证（2026-10-27）
+
+用户确认两处产品修复后，先完成全仓构建刷新 shared，再执行最终验证；以下结果覆盖 25.3 中的首次失败，产品代码没有在再次 review 后另行修改。
+
+- API 全套通过：267 文件、1779 项测试通过；原有 opt-in 性能基准仍为 1 文件／2 项跳过。九表存量迁移、其余 schema／逐行数据、用户文档／源码／发布版本／绑定报告保留、专属状态和日历清理、锁保护、幂等性、TS／Python 旧调用拒绝，以及现金／ETF／财报／因子／宏观回归均通过。迁移 SQL 与 Prisma 重新生成结果逐字节一致，没有手改迁移。
+- 前端／帮助契约 37 项、部署／工程／E2E runner／Python 环境和边界等工具 102 项、sandboxd 生命周期 8 项、实际编译 Worker 与启动恢复专项 13 项全部通过。Shared、API、Web、Docs、sandboxd 五个 workspace 构建通过；保留 Vite 已有大 chunk 提示。最终全仓类型／后端 AST 边界／SDK 生成一致性、变更 lint／格式、Prisma schema、Python AST、Shell 语法与 diff 检查通过。
+- 隔离实际编译 API／sandboxd 启动检查通过：全迁移后九表不存在，退役内置模板在目录隐藏但保存行不变，历史 Research 源码不变；旧商品／期货方法与 future 类型拒绝；Python 语法错误返回诊断，随后普通执行成功；指数估值与中英错误接口正常。进程组退出、端口拒绝连接，临时数据库和 socket 删除。
+- 隔离临时库上的编译版浏览器 16 场景全部通过：Research 当前输出／手机交互／自动保存、策略编排、期货退役与股票＋ETF 现金交易、Python Strategy、因子发布、Python Factor、策略引用固定因子版本、财报帮助、参数／仓位／资金规模扫描、因子报告历史、策略最近结果、Research 报告目录、双语帮助及 Factor 真实 Worker 分析／刷新。全部初始资金进入现金账户，真实成交包含股票和 ETF，归因与净值对账一致；旧期货路由及成本参数明确拒绝。研究目录无四个退役方法，指数估值片段含正确参数并可插入 Python Cell。
+- 双语帮助全篇通过：每种语言 77 篇、601 个内部链接、143 个图片引用，25 张原始学习证据及校验和保持。已查看中英现金回测、390px 策略页面与指数估值片段截图。Research 和帮助窄屏交互通过；策略工作台仍有既有三栏在 390px 下拥挤的限制，本项没有重新设计移动布局。
+- 最终浏览器验证前仅修正测试代码：英文断言改为实际现金账户对账文案；Research 索引片段增加真实插入验收；语义错误的 future 类型断言按字段路径匹配。两轮整组场景通过后，退出检查发现旧 autosave／最近结果夹具绕过业务接口直接删库，留下池化 Python 会话；改为先经 DELETE 文档接口关闭会话，再清理夹具行。两个场景专项及最终 16 场景整组重跑均以 exit 0 正常结束，没有放宽退出／端口断言或强制退出规避问题。
+
+已清理此前 107 个过期编译文件与空目录，并再次确认不存在删除源码对应的残留编译文件和空目录。最终测试服务器、Worker、Python、Pyright、数据库连接及临时目录全部收尾；夹具检查临时端口拒绝连接，进程复核无遗留项目服务。开发数据库与三个独立审阅文档的大小／mtime 保持会话原值，没有应用迁移到开发或生产库。不推送，按既定消息提交。

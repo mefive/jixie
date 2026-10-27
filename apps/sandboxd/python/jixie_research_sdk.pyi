@@ -16,7 +16,7 @@ class _DataApi:
     # DataFrame columns: date: datetime64[ns], value: float64
     def series(
         self,
-        asset_type: Literal["stock", "etf", "index", "future"],
+        asset_type: Literal["stock", "etf", "index"],
         identifier: str,
         *,
         start: str,
@@ -108,45 +108,6 @@ class _DataApi:
         partial_period: Literal["exclude", "include"] = "exclude",
     ) -> pd.DataFrame: ...
 
-    # Load audited commodity main-contract continuous returns and roll decomposition.
-    # Note: date is the research availability date and trade_date is the source-market date; queries are gated by date to prevent look-ahead.
-    # Note: These data are research-only and do not imply trading support for the commodity.
-    # Example: data.commodity_returns("AU", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], product: str, continuous_code: str, mapped_contract: str, continuous_return: float64, continuous_log_return: float64, mapped_log_return: float64, roll_gap_log_return: float64, roll_yield_proxy: float64, mapping_changed: bool
-    def commodity_returns(
-        self,
-        product: Literal["AU", "CU", "SC", "M"],
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
-    # Load exchange commodity warehouse-receipt totals and changes.
-    # Note: date is the research availability date and trade_date is the source-market date; queries are gated by date to prevent look-ahead.
-    # Note: These data are research-only and do not imply trading support for the commodity.
-    # Example: data.commodity_warehouse_receipts("AU", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], product: str, unit: str, volume: float64, volume_change: float64, unit_correction_applied: bool
-    def commodity_warehouse_receipts(
-        self,
-        product: Literal["AU", "CU", "SC", "M"],
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
-    # Load ranked-member holding aggregates for the actual representative contract.
-    # Note: date is the research availability date and trade_date is the source-market date; queries are gated by date to prevent look-ahead.
-    # Note: These data are research-only and do not imply trading support for the commodity.
-    # Example: data.commodity_holdings("AU", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], product: str, reference_contract: str, contract_open_interest: float64, contract_volume: float64, ranked_volume: float64, ranked_volume_change: float64, ranked_long_holding: float64, ranked_long_change: float64, ranked_short_holding: float64, ranked_short_change: float64, top_five_long_holding: float64, top_five_short_holding: float64, volume_member_count: float64, long_member_count: float64, short_member_count: float64, source_correction_applied: bool
-    def commodity_holdings(
-        self,
-        product: Literal["AU", "CU", "M"],
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
     # Load retained stock financial-indicator versions by actual availability date.
     # Note: identifier uses the platform stock code; start/end always constrain availability.
     # Example: data.equity_fundamentals("600519.SH", start="20200101", end="20251231")
@@ -188,18 +149,6 @@ class _DataApi:
     # Example: data.index_valuation("000300.SH", start="20200101", end="20251231")
     # DataFrame columns: date: datetime64[ns], total_mv_cny: float64, float_mv_cny: float64, total_share: float64, float_share: float64, free_share: float64, turnover_rate_pct: float64, turnover_rate_free_float_pct: float64, pe: float64, pe_ttm: float64, pb: float64
     def index_valuation(
-        self,
-        identifier: str,
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
-    # Load historical settlement prices, fees, and exchange margin parameters for an actual futures contract.
-    # Note: identifier uses an actual delivery-contract code; continuous symbols are not accepted; start/end constrain trading date.
-    # Example: data.futures_settlement("IF2609.CFX", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], settle: float64, trading_fee_rate: float64, trading_fee: float64, delivery_fee: float64, buy_hedge_margin_rate_pct: float64, sell_hedge_margin_rate_pct: float64, long_margin_rate_pct: float64, short_margin_rate_pct: float64, close_today_fee: float64, exchange: string
-    def futures_settlement(
         self,
         identifier: str,
         *,

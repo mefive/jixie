@@ -241,9 +241,6 @@ async function loadInstrumentSeries(
       diagnostics: [],
     };
   }
-  if (assetType === 'future') {
-    return loadFutureSeries(id, start, end);
-  }
 
   const isEtf = assetType === 'etf';
   const [prices, adjustments] = isEtf
@@ -371,44 +368,6 @@ async function loadCrossMarketBenchmarkSeries(
             },
           ]),
     ],
-  };
-}
-
-/**
- * 读取声明的期货研究序列，保留实际合约与连续收益的不同语义。
- *
- * Load declared futures research series with explicit actual-contract and continuous-return semantics.
- */
-async function loadFutureSeries(
-  id: string,
-  start: string,
-  end: string,
-): Promise<LoadedResearchSeries> {
-  const mappings = await getDatabase().futureMapping.findMany({
-    where: { continuousCode: id, tradeDate: { gte: start, lte: end } },
-    select: { tradeDate: true, mappedTsCode: true },
-    orderBy: { tradeDate: 'asc' },
-  });
-  const actualCodes = mappings.length
-    ? [...new Set(mappings.map((row) => row.mappedTsCode))]
-    : [id];
-  const rows = await getDatabase().futureDaily.findMany({
-    where: { tsCode: { in: actualCodes }, tradeDate: { gte: start, lte: end } },
-    select: { tsCode: true, tradeDate: true, close: true },
-    orderBy: { tradeDate: 'asc' },
-  });
-  const rowByKey = new Map(rows.map((row) => [`${row.tsCode}|${row.tradeDate}`, row]));
-  const selected = mappings.length
-    ? mappings.flatMap((mapping) => {
-        const row = rowByKey.get(`${mapping.mappedTsCode}|${mapping.tradeDate}`);
-        return row ? [row] : [];
-      })
-    : rows;
-  return {
-    points: selected.flatMap((row) =>
-      row.close == null ? [] : [{ date: row.tradeDate, value: row.close }],
-    ),
-    diagnostics: [],
   };
 }
 

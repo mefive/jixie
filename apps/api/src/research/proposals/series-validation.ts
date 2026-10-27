@@ -1,8 +1,6 @@
 import {
   RESEARCH_FX_SERIES_IDS_V1,
   RESEARCH_MACRO_SERIES_KEYS_V1,
-  RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1,
-  RESEARCH_COMMODITY_PRODUCT_CODES_V1,
   researchPythonAllowedImportRoots,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
@@ -104,22 +102,6 @@ export async function validateResearchSeriesProposal(
         );
       }
     }
-    for (const request of analysis.commodityRequests ?? []) {
-      if (!request.product) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} must use a literal product value so the Research catalog can validate it.`,
-        );
-      }
-      const products =
-        request.method === 'commodity_holdings'
-          ? RESEARCH_COMMODITY_HOLDING_PRODUCT_CODES_V1
-          : RESEARCH_COMMODITY_PRODUCT_CODES_V1;
-      if (!(products as readonly string[]).includes(request.product)) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.${request.method} call on line ${request.line} references unsupported product ${request.product}.`,
-        );
-      }
-    }
     for (const request of analysis.equityRequests ?? []) {
       if (!request.identifier) {
         throw new Error(
@@ -155,13 +137,11 @@ function identifierRequestAssetType(
       return 'etf';
     case 'index_valuation':
       return 'index';
-    case 'futures_settlement':
-      return 'future';
     default:
       return 'stock';
   }
 }
 
 function isResearchAssetType(value: string): value is ResearchAssetTypeV1 {
-  return value === 'stock' || value === 'etf' || value === 'index' || value === 'future';
+  return value === 'stock' || value === 'etf' || value === 'index';
 }

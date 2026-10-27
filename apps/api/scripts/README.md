@@ -31,7 +31,7 @@
 
 唯一写流程是 `pnpm data sync [--to YYYYMMDD]`，由 `src/maintenance/cli/data.ts` 进入协调器；生产使用相同编译入口。无参数或 `--help` 显示帮助，未知参数、额外选择器和不存在的日期在环境/数据库加载前失败。退出码：完整/合法 partial 为 0，实际错误为 1，参数错误为 2，写锁争用为 75。
 
-旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs、fundamentals、futures、commodity、rates、cross-market、macro 和 state 领域；日常补齐与首次回补使用同一持久分区计划，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [设计](../../../docs/design/unified-data-sync.md)。
+旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs、fundamentals、rates、cross-market和 macro 领域；日常补齐与首次回补使用同一持久分区计划，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [设计](../../../docs/design/unified-data-sync.md)。
 
 ## 审计与查看
 

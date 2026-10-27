@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   etfShares: vi.fn(),
   indexValuation: vi.fn(),
-  futuresSettlement: vi.fn(),
 }));
 
 vi.mock('#infra/database/prisma.js', async () => {
@@ -11,7 +10,6 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: {
       etfShareSize: { findMany: mocks.etfShares },
       indexDailyBasic: { findMany: mocks.indexValuation },
-      futureSettlement: { findMany: mocks.futuresSettlement },
     },
   };
   return {
@@ -23,11 +21,7 @@ vi.mock('#infra/database/prisma.js', async () => {
   };
 });
 
-import {
-  loadResearchEtfShares,
-  loadResearchFuturesSettlement,
-  loadResearchIndexValuation,
-} from './market-reference.js';
+import { loadResearchEtfShares, loadResearchIndexValuation } from './market-reference.js';
 
 const request = { identifier: 'TEST', start: '20260101', end: '20261231' };
 
@@ -78,28 +72,6 @@ describe('Research market reference datasets', () => {
 
     await expect(loadResearchIndexValuation(request)).resolves.toEqual([
       expect.objectContaining({ date: '20260105', pe_ttm: 11, total_mv_cny: 100 }),
-    ]);
-  });
-
-  it('preserves exchange margin rates as provider percentage points', async () => {
-    mocks.futuresSettlement.mockResolvedValue([
-      {
-        tradeDate: '20260105',
-        settle: 4000,
-        tradingFeeRate: 0.0001,
-        tradingFee: null,
-        deliveryFee: null,
-        buyHedgeMarginRate: 12,
-        sellHedgeMarginRate: 13,
-        longMarginRate: 14,
-        shortMarginRate: 15,
-        closeTodayFee: null,
-        exchange: 'CFX',
-      },
-    ]);
-
-    await expect(loadResearchFuturesSettlement(request)).resolves.toEqual([
-      expect.objectContaining({ buy_hedge_margin_rate_pct: 12, short_margin_rate_pct: 15 }),
     ]);
   });
 });

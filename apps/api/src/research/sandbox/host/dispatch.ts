@@ -3,14 +3,10 @@ import type { ResearchRequestFrame } from './protocol.js';
 import {
   type ResearchSeriesRuntimeRequestV1,
   parseResearchSeriesRuntimeRows,
-  parseResearchCommodityReturnsRuntimeRows,
-  parseResearchCommodityWarehouseReceiptsRuntimeRows,
-  parseResearchCommodityHoldingsRuntimeRows,
   parseResearchEquityFundamentalsRuntimeRows,
   parseResearchEquityDividendsRuntimeRows,
   parseResearchEtfSharesRuntimeRows,
   parseResearchIndexValuationRuntimeRows,
-  parseResearchFuturesSettlementRuntimeRows,
   parseResearchFinancialValuesRuntimeRows,
   parseResearchFinancialStatementsRuntimeRows,
   parseResearchFinancialMetricsRuntimeRows,
@@ -24,18 +20,12 @@ import {
 } from '../../datasets/series.js';
 import { researchYieldCurveSourceForSdkCall } from '../../catalog/concept-bindings.js';
 import {
-  loadResearchCommodityReturns,
-  loadResearchCommodityWarehouseReceipts,
-  loadResearchCommodityHoldings,
-} from '../../datasets/commodity.js';
-import {
   loadResearchEquityFundamentals,
   loadResearchEquityDividends,
 } from '../../datasets/supplemental.js';
 import {
   loadResearchEtfShares,
   loadResearchIndexValuation,
-  loadResearchFuturesSettlement,
 } from '../../datasets/market-reference.js';
 import {
   loadResearchFinancialStatements,
@@ -153,30 +143,6 @@ async function answerResearchRequest(
         });
         break;
       }
-      case 'research_commodity_returns': {
-        result = {
-          rows: parseResearchCommodityReturnsRuntimeRows(
-            await loadResearchCommodityReturns(frame.arguments),
-          ),
-        };
-        break;
-      }
-      case 'research_commodity_warehouse_receipts': {
-        result = {
-          rows: parseResearchCommodityWarehouseReceiptsRuntimeRows(
-            await loadResearchCommodityWarehouseReceipts(frame.arguments),
-          ),
-        };
-        break;
-      }
-      case 'research_commodity_holdings': {
-        result = {
-          rows: parseResearchCommodityHoldingsRuntimeRows(
-            await loadResearchCommodityHoldings(frame.arguments),
-          ),
-        };
-        break;
-      }
       case 'research_equity_fundamentals': {
         result = {
           rows: parseResearchEquityFundamentalsRuntimeRows(
@@ -203,14 +169,6 @@ async function answerResearchRequest(
         result = {
           rows: parseResearchIndexValuationRuntimeRows(
             await loadResearchIndexValuation(frame.arguments),
-          ),
-        };
-        break;
-      }
-      case 'research_futures_settlement': {
-        result = {
-          rows: parseResearchFuturesSettlementRuntimeRows(
-            await loadResearchFuturesSettlement(frame.arguments),
           ),
         };
         break;

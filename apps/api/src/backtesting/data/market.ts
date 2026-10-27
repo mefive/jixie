@@ -1,23 +1,3 @@
-
-/**
- * 提供实际期货合约的日线、结算和合约规格，供引擎撮合与估值。
- *
- * Describe an actual futures contract's daily market data, settlement and contract specifications for simulation.
- */
-export interface FutureBar {
-  code: string; // logical code requested by the strategy
-  actualCode: string; // actual delivery contract as-of the bar date
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  close: number | null;
-  settle: number | null;
-  volume: number | null;
-  amount: number | null;
-  openInterest: number | null;
-  multiplier: number;
-}
-
 /**
  * 表示单证券单日复权 OHLC；成交量和成交额保持原始口径，分别为手和千元。
  *

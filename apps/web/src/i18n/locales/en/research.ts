@@ -270,7 +270,6 @@ export const enResearch: typeof zhResearch = {
       stock: 'Stocks',
       etf: 'ETFs',
       index: 'Indexes',
-      future: 'Futures',
     },
     seriesConfig: 'Series configuration',
     datasetConfig: 'Dataset configuration',

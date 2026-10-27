@@ -17,8 +17,6 @@ const researchSpec: TimeSeriesFactorResearchSpecV1 = {
 
 function databaseWithCutoffs(input: {
   etfs: Array<{ tsCode: string; tradeDate: string | null }>;
-  futures?: Array<{ tsCode: string; productCode: string; tradeDate: string | null }>;
-  warehouseReceipts?: Array<{ productCode: string; availableDate: string | null }>;
 }): Prisma {
   return {
     etfDaily: {
@@ -27,30 +25,6 @@ function databaseWithCutoffs(input: {
         .mockResolvedValue(
           input.etfs.map((row) => ({ tsCode: row.tsCode, _max: { tradeDate: row.tradeDate } })),
         ),
-    },
-    futureContract: {
-      findMany: vi.fn().mockResolvedValue(
-        (input.futures ?? []).map((row) => ({
-          tsCode: row.tsCode,
-          productCode: row.productCode,
-        })),
-      ),
-    },
-    futureDaily: {
-      groupBy: vi.fn().mockResolvedValue(
-        (input.futures ?? []).map((row) => ({
-          tsCode: row.tsCode,
-          _max: { tradeDate: row.tradeDate },
-        })),
-      ),
-    },
-    commodityWarehouseReceipt: {
-      groupBy: vi.fn().mockResolvedValue(
-        (input.warehouseReceipts ?? []).map((row) => ({
-          productCode: row.productCode,
-          _max: { availableDate: row.availableDate },
-        })),
-      ),
     },
   } as unknown as Prisma;
 }
@@ -65,69 +39,32 @@ describe('asset-factor data cutoff', () => {
   it('uses the common latest ETF date for price-only factors', async () => {
     const database = databaseWithCutoffs({ etfs: ETF_CUTOFFS });
 
-    await expect(resolveAssetFactorDataCutoff(researchSpec, {}, database)).resolves.toBe(
-      '20260807',
-    );
+    await expect(resolveAssetFactorDataCutoff(researchSpec, database)).resolves.toBe('20260807');
   });
+});
 
-  it('includes every mapped commodity future when Carry is required', async () => {
-    const database = databaseWithCutoffs({
-      etfs: ETF_CUTOFFS,
-      futures: [
-        { tsCode: 'AU2608.SHF', productCode: 'AU', tradeDate: '20260806' },
-        { tsCode: 'CU2608.SHF', productCode: 'CU', tradeDate: '20260805' },
-        { tsCode: 'M2609.DCE', productCode: 'M', tradeDate: '20260804' },
-      ],
-    });
+it('rejects an incomplete ETF universe rather than choosing another asset cutoff', async () => {
+  const database = databaseWithCutoffs({ etfs: ETF_CUTOFFS.slice(0, 2) });
 
-    await expect(
-      resolveAssetFactorDataCutoff(researchSpec, { commodityCarry: true }, database),
-    ).resolves.toBe('20260804');
-  });
+  await expect(resolveAssetFactorDataCutoff(researchSpec, database)).resolves.toBeNull();
+});
 
-  it('freezes warehouse research at the earliest product available date', async () => {
-    const database = databaseWithCutoffs({
-      etfs: ETF_CUTOFFS.map((row) => ({ ...row, tradeDate: '20260810' })),
-      warehouseReceipts: [
-        { productCode: 'AU', availableDate: '20260810' },
-        { productCode: 'CU', availableDate: '20260809' },
-        { productCode: 'M', availableDate: '20260808' },
-      ],
-    });
+it.each(['20260808', '20260901'])(
+  'rejects requested cutoff %s beyond the common ETF history',
+  async (dataCutoff) => {
+    const spec = { ...researchSpec, dataPolicy: { ...researchSpec.dataPolicy, dataCutoff } };
+    const database = databaseWithCutoffs({ etfs: ETF_CUTOFFS });
 
-    await expect(
-      resolveAssetFactorDataCutoff(researchSpec, { commodityWarehouseReceipts: true }, database),
-    ).resolves.toBe('20260808');
-  });
+    await expect(resolveAssetFactorDataCutoff(spec, database)).resolves.toBeNull();
+  },
+);
 
-  it('fails closed for excluded SC, missing products, and future requested cutoffs', async () => {
-    const database = databaseWithCutoffs({
-      etfs: ETF_CUTOFFS,
-      warehouseReceipts: [
-        { productCode: 'AU', availableDate: '20260810' },
-        { productCode: 'CU', availableDate: '20260809' },
-      ],
-    });
+it('keeps an earlier explicit data cutoff', async () => {
+  const spec = {
+    ...researchSpec,
+    dataPolicy: { ...researchSpec.dataPolicy, dataCutoff: '20260801' },
+  };
+  const database = databaseWithCutoffs({ etfs: ETF_CUTOFFS });
 
-    await expect(
-      resolveAssetFactorDataCutoff(researchSpec, { commodityWarehouseReceipts: true }, database),
-    ).resolves.toBeNull();
-    await expect(
-      resolveAssetFactorDataCutoff(
-        { ...researchSpec, assets: ['159981.SZ'] },
-        { commodityWarehouseReceipts: true },
-        database,
-      ),
-    ).resolves.toBeNull();
-    await expect(
-      resolveAssetFactorDataCutoff(
-        {
-          ...researchSpec,
-          dataPolicy: { ...researchSpec.dataPolicy, dataCutoff: '20260811' },
-        },
-        {},
-        database,
-      ),
-    ).resolves.toBeNull();
-  });
+  await expect(resolveAssetFactorDataCutoff(spec, database)).resolves.toBe('20260801');
 });

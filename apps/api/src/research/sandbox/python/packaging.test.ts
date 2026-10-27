@@ -39,7 +39,13 @@ chart
         runtime_version: 'research-py-v1',
         request_capabilities: ['explicit_parameters'],
       },
-      { type: 'research_analyze', cells: [{ id: 'cell-1', source }] },
+      {
+        type: 'research_analyze',
+        cells: [
+          { id: 'cell-1', source },
+          { id: 'syntax-analysis', source: 'invalid (' },
+        ],
+      },
       { type: 'research_execute', cell_id: 'cell-1', source, parameters: { scale: 2 } },
       {
         type: 'response',
@@ -114,6 +120,13 @@ chart
           series_requests: [
             { asset_type: 'index', identifier: '000300.SH', measure: 'market.adjusted_close' },
           ],
+        },
+        {
+          cell_id: 'syntax-analysis',
+          definitions: [],
+          references: [],
+          series_requests: [],
+          error: expect.stringContaining('line 1'),
         },
       ],
     });

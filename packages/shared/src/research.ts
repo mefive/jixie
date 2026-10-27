@@ -4,13 +4,11 @@ import type { StrategyLanguage } from './backtest.js';
 import type {
   ResearchFxSeriesIdV1,
   ResearchMacroSeriesKeyV1,
-  ResearchCommodityHoldingProductCodeV1,
-  ResearchCommodityProductCodeV1,
   ResearchYieldCurveCodeV1,
   ResearchYieldTenorV1,
 } from './sdk/research/contract.js';
 
-export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index' | 'future';
+export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index';
 export type ResearchDataCatalogScopeV1 =
   | 'instruments'
   | 'datasets'
@@ -360,18 +358,9 @@ export type ResearchDataCatalogDatasetV1 =
       pair: ResearchFxSeriesIdV1;
     })
   | (ResearchDataCatalogDatasetBaseV1 & {
-      method: 'data.commodity_returns' | 'data.commodity_warehouse_receipts';
-      product: ResearchCommodityProductCodeV1;
-    })
-  | (ResearchDataCatalogDatasetBaseV1 & {
-      method: 'data.commodity_holdings';
-      product: ResearchCommodityHoldingProductCodeV1;
-    })
-  | (ResearchDataCatalogDatasetBaseV1 & {
       method:
         | 'data.etf_shares'
         | 'data.index_valuation'
-        | 'data.futures_settlement'
         | 'data.equity_financial_values'
         | 'data.equity_financial_statements'
         | 'data.equity_financial_metrics';

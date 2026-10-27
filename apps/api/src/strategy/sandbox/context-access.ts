@@ -14,12 +14,6 @@ const readSchema = z.discriminatedUnion('method', [
   read('price', z.tuple([code])),
   read('history', z.tuple([code, field, window])),
   read('factor', z.tuple([code, code])),
-  read('future', z.tuple([code])),
-  read(
-    'futureHistory',
-    z.tuple([code, z.enum(['open', 'high', 'low', 'close', 'settle']), window]),
-  ),
-  read('futures.position', z.tuple([code])),
   read('stock.adjustedShares', z.tuple([code])),
   read('indexValues', z.tuple([code])),
   read('indexSma', z.tuple([code, window])),
@@ -53,12 +47,6 @@ export function readStrategyContext(context: EngineContext, request: StrategyCon
       return context.history(...request.args);
     case 'factor':
       return context.factor(...request.args);
-    case 'future':
-      return context.future(...request.args);
-    case 'futureHistory':
-      return context.futureHistory(...request.args);
-    case 'futures.position':
-      return context.futures.position(...request.args);
     case 'stock.adjustedShares':
       return context.stock.adjustedShares(...request.args);
     case 'indexValues': {

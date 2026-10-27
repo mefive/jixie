@@ -119,13 +119,28 @@ try {
     '[backtest-latest-result-e2e] latest=pass source-absent=pass old-link-fails=pass research=pass screenshots=4',
   );
 } finally {
-  await context.close();
-  await browser.close();
-  if (userId) {
-    await database.session.deleteMany({ where: { userId } });
-    await database.user.deleteMany({ where: { id: userId } });
+  try {
+    if (userId) {
+      const documents = await database.researchDocument.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+      for (const document of documents) {
+        const deleted = await context.request.delete(
+          `${BASE}/api/app/research/documents/${document.id}`,
+        );
+        assert.equal(deleted.status(), 200, 'Research fixture cleanup failed');
+      }
+    }
+  } finally {
+    await context.close();
+    await browser.close();
+    if (userId) {
+      await database.session.deleteMany({ where: { userId } });
+      await database.user.deleteMany({ where: { id: userId } });
+    }
+    await database.$disconnect();
   }
-  await database.$disconnect();
 }
 
 async function seedReports(ownerId) {

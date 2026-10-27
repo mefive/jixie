@@ -188,34 +188,6 @@ describe('Research Agent series proposal validation', () => {
     ).rejects.toThrow('must use a literal pair');
   });
 
-  it('validates literal commodity products against each dataset contract', async () => {
-    await expect(
-      validateResearchSeriesProposal([
-        {
-          cellId: 'commodity',
-          definitions: [],
-          references: [],
-          commodityRequests: [
-            { line: 1, method: 'commodity_returns', product: 'SC' },
-            { line: 2, method: 'commodity_warehouse_receipts', product: 'SC' },
-            { line: 3, method: 'commodity_holdings', product: 'AU' },
-          ],
-        },
-      ]),
-    ).resolves.toBeUndefined();
-
-    await expect(
-      validateResearchSeriesProposal([
-        {
-          cellId: 'unsupported-holdings',
-          definitions: [],
-          references: [],
-          commodityRequests: [{ line: 1, method: 'commodity_holdings', product: 'SC' }],
-        },
-      ]),
-    ).rejects.toThrow('unsupported product SC');
-  });
-
   it('validates supplemental equity identifiers against the stock catalog', async () => {
     const stockCatalog: ResearchDataCatalogResultV1 = {
       ...catalog,
@@ -266,13 +238,12 @@ describe('Research Agent series proposal validation', () => {
     ).rejects.toThrow('not in the Research catalog');
   });
 
-  it('validates ETF, index, and actual-futures identifiers against the catalog', async () => {
+  it('validates ETF and index identifiers against the catalog', async () => {
     const referenceCatalog: ResearchDataCatalogResultV1 = {
       ...catalog,
       instruments: [
         { ...catalog.instruments[0]!, assetType: 'etf', identifier: '510300.SH' },
         { ...catalog.instruments[0]!, assetType: 'index', identifier: '000300.SH' },
-        { ...catalog.instruments[0]!, assetType: 'future', identifier: 'IF2609.CFX' },
       ],
       datasets: [],
     };
@@ -288,13 +259,12 @@ describe('Research Agent series proposal validation', () => {
             equityRequests: [
               { line: 1, method: 'etf_shares', identifier: '510300.SH' },
               { line: 2, method: 'index_valuation', identifier: '000300.SH' },
-              { line: 4, method: 'futures_settlement', identifier: 'IF2609.CFX' },
             ],
           },
         ],
         search,
       ),
     ).resolves.toBeUndefined();
-    expect(search).toHaveBeenCalledTimes(3);
+    expect(search).toHaveBeenCalledTimes(2);
   });
 });

@@ -42,9 +42,6 @@ export interface ResearchConceptBindingV1 {
 }
 
 const chinaEtfPriceContract = researchBindingDataContract('cn.etf.adjusted_close.daily');
-const chinaCommodityFutureContract = researchBindingDataContract(
-  'cn.commodity_future.continuous.daily',
-);
 const usYieldContract = researchBindingDataContract('us.sovereign_yield.daily');
 const chinaMacroContract = researchBindingDataContract('cn.macro.monthly.pit');
 const usBlsMacroContract = researchBindingDataContract('us.macro.cpi.monthly.pit');
@@ -97,18 +94,6 @@ const marketBenchmarkBindings: ResearchConceptBindingV1[] = [
 ];
 
 const goldInstrumentBindings: ResearchConceptBindingV1[] = [
-  instrumentBinding({
-    id: 'commodity.gold.price.future.au_shf',
-    conceptId: 'commodity.gold.price',
-    assetType: 'future',
-    sourceId: 'AU.SHF',
-    nameZh: '沪金主力连续',
-    nameEn: 'SHFE gold continuous future',
-    proxyKind: 'approved_proxy',
-    priority: 10,
-    noteZh: '人民币计价的连续期货代理，不等同于美元现货黄金。',
-    noteEn: 'A CNY continuous-future proxy; it is not USD spot gold.',
-  }),
   ...[
     ['518880.SH', '黄金 ETF 518880.SH'],
     ['159812.SZ', '黄金 ETF 159812.SZ'],
@@ -132,21 +117,6 @@ const goldInstrumentBindings: ResearchConceptBindingV1[] = [
         'A CNY-traded gold ETF proxy whose fees, tracking error, and trading hours may affect results.',
     }),
   ),
-];
-
-const silverInstrumentBindings: ResearchConceptBindingV1[] = [
-  instrumentBinding({
-    id: 'commodity.silver.price.future.ag_shf',
-    conceptId: 'commodity.silver.price',
-    assetType: 'future',
-    sourceId: 'AG.SHF',
-    nameZh: '沪银主力连续',
-    nameEn: 'SHFE silver continuous future',
-    proxyKind: 'approved_proxy',
-    priority: 10,
-    noteZh: '人民币计价的连续期货代理，不等同于美元现货白银。',
-    noteEn: 'A CNY continuous-future proxy; it is not USD spot silver.',
-  }),
 ];
 
 const nominalTreasuryBindings = [1 / 12, 2 / 12, 0.25, 0.5, 1, 2, 3, 5, 7, 10, 20, 30].map(
@@ -214,7 +184,6 @@ const macroBindings: ResearchConceptBindingV1[] = [
 const bindings: ResearchConceptBindingV1[] = [
   ...marketBenchmarkBindings,
   ...goldInstrumentBindings,
-  ...silverInstrumentBindings,
   ...nominalTreasuryBindings,
   ...realTreasuryBindings,
   ...macroBindings,
@@ -239,7 +208,7 @@ export function researchConceptBindings(conceptId: ResearchConceptId): ResearchC
 export type ResearchConceptBindingSdkCallV1 =
   | {
       method: 'data.series';
-      assetType: 'stock' | 'etf' | 'index' | 'future';
+      assetType: 'stock' | 'etf' | 'index';
       identifier: string;
       measure: string;
     }
@@ -399,7 +368,7 @@ function tenorYears(tenor: ResearchYieldTenorV1): number {
 function instrumentBinding(input: {
   id: string;
   conceptId: ResearchConceptId;
-  assetType: 'etf' | 'future';
+  assetType: 'etf';
   sourceId: string;
   nameZh: string;
   nameEn: string;
@@ -408,8 +377,7 @@ function instrumentBinding(input: {
   noteZh: string;
   noteEn: string;
 }): ResearchConceptBindingV1 {
-  const contract =
-    input.assetType === 'future' ? chinaCommodityFutureContract : chinaEtfPriceContract;
+  const contract = chinaEtfPriceContract;
   return {
     id: input.id,
     version: 1,
@@ -422,7 +390,7 @@ function instrumentBinding(input: {
     proxyKind: input.proxyKind,
     priority: input.priority,
     dimensions: {
-      instrumentForm: input.assetType === 'future' ? 'continuous_future' : 'etf',
+      instrumentForm: 'etf',
       quoteCurrency: 'CNY',
       market: 'CN',
     },
