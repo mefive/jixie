@@ -37,9 +37,6 @@ export interface EngineContext {
   ensureBars(codes: string[]): Promise<void>;
   /** Calendar days since listing as of today (point-in-time stock age); null if unknown. */
   listDays(code: string): number | null;
-  /** Point-in-time SW level-1 industry label for `code` as of today; null if unknown. For
-   * sector-neutral / rotation / single-industry logic without classification lookahead. */
-  industry(code: string): string | null;
   /** Today's adjusted close (carried forward if suspended) for held/already-loaded codes. */
   price(code: string): number | null;
   /** Last n adjusted prices up to today for held/already-loaded codes (price-window math on holdings). */

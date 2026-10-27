@@ -235,9 +235,6 @@ class Context:
     def list_days(self, code: str) -> int | None:
         return self._capabilities.list_days(code)
 
-    def industry(self, code: str) -> str | None:
-        return self._capabilities.industry(code)
-
     def factor(self, name: str, code: str) -> float | None:
         return self._capabilities.factor(name, code)
 

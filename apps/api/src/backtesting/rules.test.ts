@@ -310,26 +310,4 @@ describe('回测数据与统计口径', () => {
     expect(result.benchReturn).toBeCloseTo(0.1, 10);
     expect(result.excessReturn).toBeCloseTo(-0.1, 10);
   });
-
-  it('ctx.industry 只返回决策日覆盖的申万行业区间', async () => {
-    const observed = new Map<string, string | null>();
-    await run(
-      {
-        dates: D,
-        stocks: [flatStock()],
-        industryMemberships: [
-          { tsCode: 'A', l1Name: '食品饮料', inDate: '20200101', outDate: '20240103' },
-          { tsCode: 'A', l1Name: '银行', inDate: '20240103', outDate: null },
-        ],
-      },
-      scripted(
-        Object.fromEntries(
-          D.map((date) => [date, (ctx: EngineContext) => observed.set(date, ctx.industry('A'))]),
-        ),
-      ),
-    );
-
-    expect(observed.get('20240102')).toBe('食品饮料');
-    expect(observed.get('20240103')).toBe('银行');
-  });
 });

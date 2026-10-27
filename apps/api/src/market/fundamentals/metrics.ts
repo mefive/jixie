@@ -164,10 +164,6 @@ export const FINANCIAL_METRIC_DEFINITIONS: Record<
  */
 export function calculateFinancialMetrics(state: ResolvedFinancialState): FinancialMetricsResult {
   const diagnostics = [...state.diagnostics];
-  if (state.applicability === 'unsupported_financial') {
-    const result = baseResult(state, [], diagnostics);
-    return { ...result, resultFingerprint: fingerprintResult(result) };
-  }
 
   const accountingIssues = state.periods.flatMap(inspectFinancialAccounting);
   diagnostics.push(...accountingIssues.map((issue) => issue.diagnostic));

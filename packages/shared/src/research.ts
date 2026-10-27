@@ -128,7 +128,6 @@ export interface ResearchUniverseMeasureDefinitionV1 {
 export interface ResearchUniverseRowV1 {
   entity: ResearchEntityRefV1;
   name: string;
-  industry: string | null;
   values: Record<string, number | null>;
 }
 

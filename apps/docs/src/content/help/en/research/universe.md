@@ -14,4 +14,4 @@ retain one complete study result, run the full document cleanly and create an im
 revision requires another complete snapshot; review the two records independently because the product does not automatically
 attribute their differences.
 
-Names come from the historical name spell where available, and industry prefers point-in-time SW Level-1 membership. Select an object name to open unified object detail.
+Names come from the historical name spell where available. The industry column has been removed. Select an object name to open unified object detail.

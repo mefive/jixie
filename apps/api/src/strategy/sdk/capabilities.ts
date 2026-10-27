@@ -19,7 +19,6 @@ export interface StrategyCapabilities extends Pick<
   | 'bars'
   | 'ensureBars'
   | 'listDays'
-  | 'industry'
   | 'price'
   | 'history'
   | 'factor'

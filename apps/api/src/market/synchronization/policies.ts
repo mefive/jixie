@@ -32,12 +32,10 @@ export const DATASET_POLICIES = [
   ...['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].map((dataset) =>
     policy(dataset, '20150101', 'day'),
   ),
-  policy('industry-members', '19900101', 'catalog', { refreshDays: 7, closeHour: 0 }),
   policy('index-catalog', '19900101', 'catalog', { closeHour: 0 }),
   policy('index-prices', '19900101', 'year'),
   policy('index-valuations', '20040101', 'year'),
   policy('index-weights', '20150101', 'month', { refreshDays: 7, revisionDays: 190 }),
-  policy('industry-prices', '20150101', 'year'),
   policy('etf-master', '20150101', 'catalog', { closeHour: 0 }),
   policy('etf-prices', '20150101', 'year', { revisionDays: 366 }),
   policy('etf-adjustments', '20150101', 'year', { revisionDays: 366 }),

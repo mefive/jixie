@@ -1089,8 +1089,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
       en: 'Set the Factor evaluation scope',
     },
     summary: {
-      zh: '区分正式股票池、排序范围和行业、市值、流动性诊断切片。',
-      en: 'Separate the formal universe, ranking scope, and industry, size, and liquidity slices.',
+      zh: '设置正式股票池，理解全局排序和市值、流动性诊断切片。',
+      en: 'Set the formal universe and inspect global ranking with size and liquidity diagnostic slices.',
     },
     content: {
       zh: evaluationScopeZh,
@@ -1197,11 +1197,11 @@ export const HELP_ARTICLES: HelpArticle[] = [
     slug: 'factors/neutralization',
     group: 'factorResearch',
     title: {
-      zh: '市值和行业中性化',
-      en: 'Size and industry neutralization',
+      zh: '市值中性化',
+      en: 'Size neutralization',
     },
     summary: {
-      zh: '理解中性化残差，运行市值行业中性报告，并与原始报告正确比较。',
+      zh: '理解中性化残差，运行市值中性报告，并与原始报告正确比较。',
       en: 'Understand residuals, run a neutralized report, and compare it with the raw result.',
     },
     content: {

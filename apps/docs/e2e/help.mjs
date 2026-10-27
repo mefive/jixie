@@ -744,14 +744,25 @@ try {
     throw new Error('turnover and cost formulas did not render with KaTeX');
   }
 
-  await page.getByRole('link', { name: '市值和行业中性化', exact: true }).first().click();
-  await page.getByRole('heading', { level: 1, name: '市值和行业中性化' }).waitFor();
+  await page.getByRole('link', { name: '市值中性化', exact: true }).first().click();
+  await page.getByRole('heading', { level: 1, name: '市值中性化' }).waitFor();
   if ((await page.locator('.jx-help-figure').count()) !== 3) {
     throw new Error('neutralization article does not render all three screenshots');
   }
-  if ((await page.locator('.jx-help-markdown .katex').count()) < 10) {
-    throw new Error('neutralization formulas did not render with KaTeX');
+  await page.locator('.jx-help-markdown .katex').first().waitFor();
+  const neutralizationFormulas = (
+    await page.locator('.jx-help-markdown .katex').allTextContents()
+  ).map((formula) => formula.replace(/[\s\u200b]/g, '').replaceAll('−', '-'));
+  if (
+    (await page.locator('.jx-help-markdown .katex-error').count()) !== 0 ||
+    !neutralizationFormulas.some((formula) => formula.includes('ln(MV')) ||
+    !neutralizationFormulas.some((formula) => formula.includes('0.08-0.06=0.02'))
+  ) {
+    throw new Error(
+      `size regression or residual example did not render: ${JSON.stringify(neutralizationFormulas)}`,
+    );
   }
+  await page.screenshot({ path: `${SHOTS}industry-retirement-size-help-zh.png`, fullPage: true });
 
   await page.getByRole('link', { name: '保留报告和结果已过期', exact: true }).first().click();
   await page.getByRole('heading', { level: 1, name: '保留报告和结果已过期' }).waitFor();

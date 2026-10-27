@@ -217,7 +217,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
           ? Promise.resolve([])
           : getDatabase().stockBasic.findMany({
               where: { OR: terms.flatMap((term) => textSearch(term, ['tsCode', 'name'])) },
-              select: { tsCode: true, name: true, industry: true },
+              select: { tsCode: true, name: true },
               take: 30,
             }),
         terms.length === 0

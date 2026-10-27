@@ -56,7 +56,6 @@ export function auditValuationState(
   return {
     code: state.tsCode,
     applicability: state.applicability,
-    industryKnown: state.industry != null,
     periods: state.periods.length,
     completePeriods: completePeriods.length,
     consecutiveAnnualReports,

@@ -101,7 +101,6 @@ function contextFixture() {
           },
     ),
     listDays: () => 100,
-    industry: () => 'fixture',
     factor: vi.fn(() => 3),
   };
   // Only the bridge's context surface is provided; missing calls must fail the test.
@@ -582,7 +581,7 @@ describe('shared strategy bridge', () => {
     const values: unknown[] = [];
     session.send = async (frame) => {
       if (frame.type === 'bar') {
-        values.push(hostAccess?.({ type: 'read', request: { method: 'industry', args: ['AAA'] } }));
+        values.push(hostAccess?.({ type: 'read', request: { method: 'listDays', args: ['AAA'] } }));
       }
 
       await send(frame);
@@ -595,12 +594,12 @@ describe('shared strategy bridge', () => {
     expect(bindings).toEqual([]);
 
     const first = contextFixture().context;
-    const second = { ...first, industry: () => 'second context' };
+    const second = { ...first, listDays: () => 200 };
     await strategy.execute({ context: first });
     expect(hostAccess).toBeUndefined();
     await expect(strategy.execute({ context: second })).rejects.toThrow('bar failed');
     expect(hostAccess).toBeUndefined();
-    expect(values).toEqual(['fixture', 'second context']);
+    expect(values).toEqual([100, 200]);
     expect(bindings).toEqual([expect.any(Function), undefined, expect.any(Function), undefined]);
   });
 });

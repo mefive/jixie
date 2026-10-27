@@ -384,14 +384,6 @@ export const SDK_ENTRIES = [
   },
   {
     iface: 'StrategyCtx',
-    name: 'industry',
-    group: '数据 / 选股',
-    sig: 'industry(code: string): string | null',
-    zh: '决策日有效的申万一级行业标签，如银行／食品饮料；无覆盖区间时为 null。用于无行业分类前视的行业中性、轮动或行业限定。',
-    en: 'Point-in-time SW level-1 industry label effective on the decision date; null without a covering spell. For sector-neutral or rotation logic without classification lookahead.',
-  },
-  {
-    iface: 'StrategyCtx',
     name: 'factor',
     group: '数据 / 选股',
     sig: 'factor(name: FactorKey, code: string): number | null',

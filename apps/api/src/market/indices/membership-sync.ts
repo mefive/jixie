@@ -2,7 +2,7 @@ import { getDatabase } from '#infra/database/prisma.js';
 import type { TradeDate } from '@jixie/shared';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 import { INDEX_MEMBERSHIP_CODES } from '../registry/index-presets.js';
-import { syncIndexWeight, syncSwIndustry } from './sync.js';
+import { syncIndexWeight } from './sync.js';
 
 /**
  * 回填历史指数成分权重，供时点证券池查询。
@@ -36,27 +36,6 @@ export async function syncIndexMembershipHistory(
     indexAfter,
     (row) => `${row.indexCode}|${row.conCode}|${row.tradeDate}`,
     (row) => row.tradeDate,
-  );
-}
-
-/**
- * 同步行业成员历史并检测修订范围。
- *
- * Synchronize industry membership history and detect revisions.
- */
-export async function syncIndustryMembershipHistory(client: TushareClient): Promise<string | null> {
-  const industryBefore = await getDatabase().swIndustryMember.findMany({
-    orderBy: [{ tsCode: 'asc' }, { l1Code: 'asc' }, { inDate: 'asc' }],
-  });
-  await syncSwIndustry(client);
-  const industryAfter = await getDatabase().swIndustryMember.findMany({
-    orderBy: [{ tsCode: 'asc' }, { l1Code: 'asc' }, { inDate: 'asc' }],
-  });
-  return earliestChangedDate(
-    industryBefore,
-    industryAfter,
-    (row) => `${row.tsCode}|${row.l1Code}|${row.inDate}`,
-    (row) => row.inDate,
   );
 }
 

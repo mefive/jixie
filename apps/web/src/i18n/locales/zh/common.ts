@@ -59,7 +59,6 @@ export const zhCommon = {
       financials: '增量同步财务指标',
       dividends: '增量同步分红资料',
       index_membership: '同步指数成分',
-      industry_membership: '同步行业成员',
       metadata: '同步 ETF 与期货资料',
       canonicalizing_codes: '收敛证券代码',
       self_healing: '检查并修复已发布数据',

@@ -71,6 +71,6 @@ statements = data.equity_financial_statements(
 
 `status=ok` 表示取得并按所选口径转换了数据，不表示完成审计，也不表示适合某种估值模型。原始负值会保留；预定义指标仍有自己的会计异常检查。
 
-当前只接入一般工商业A股的映射字段，金融企业来源尚未接入。批量接口会返回 `financial_sector_source_not_integrated`；原始报表接口没有已接入记录时返回空表。金融企业的工业模型指标仍为 `not_applicable`。
+当前仅查询 `compType=1` 的非金融企业报表，保留原有 PIT、报告类型和公式约束。申万行业分类与行业列已移除，不再据此判断适用性。缺少已接入记录时，原始报表返回空表，批量取值返回 `no_statement_available_as_of`，指标返回 `missing`；不会用其他企业类型替代。
 
 严格历史查询排除 `reconstructed` 版本，但不据此保证供应商所有历史首次披露版本完整。附注、业务分部和一致预期也尚未接入本接口。

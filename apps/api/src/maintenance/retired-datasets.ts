@@ -4,26 +4,31 @@ import {
   withMarketPublication,
 } from '#infra/coordination/market-access.js';
 
-export const RETIRED_STOCK_DATASETS = ['stock-moneyflow', 'stock-toplist'];
+export const RETIRED_DATASETS = [
+  'stock-moneyflow',
+  'stock-toplist',
+  'industry-members',
+  'industry-prices',
+];
 
 /**
- * 持有维护锁时，仅清理已退役股票来源的维护记录。
+ * 持有维护锁时，仅清理已退役来源的维护记录。
  *
- * Remove maintenance records for retired stock sources while holding the maintenance lock.
+ * Remove maintenance records for retired sources while holding the maintenance lock.
  */
-export async function retireStockDatasets(): Promise<void> {
+export async function retireDatasets(): Promise<void> {
   assertMaintenanceOwner();
 
   await withMarketPublication(() =>
     getDatabase().$transaction([
       getDatabase().datasetSyncPartition.deleteMany({
-        where: { dataset: { in: RETIRED_STOCK_DATASETS } },
+        where: { dataset: { in: RETIRED_DATASETS } },
       }),
       getDatabase().datasetSyncState.deleteMany({
-        where: { dataset: { in: RETIRED_STOCK_DATASETS } },
+        where: { dataset: { in: RETIRED_DATASETS } },
       }),
       getDatabase().marketRecordEvidence.deleteMany({
-        where: { tableName: { in: ['Moneyflow', 'TopList'] } },
+        where: { tableName: { in: ['Moneyflow', 'TopList', 'SwIndustryMember', 'SwIndexDaily'] } },
       }),
     ]),
   );

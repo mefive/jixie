@@ -40,7 +40,7 @@ export const searchInstruments: AgentTool = {
       ? await Promise.all([
           getDatabase().stockBasic.findMany({
             where: { tsCode: { in: codes } },
-            select: { tsCode: true, name: true, industry: true },
+            select: { tsCode: true, name: true },
           }),
           getDatabase().etfBasic.findMany({
             where: { tsCode: { in: codes } },
@@ -73,7 +73,6 @@ export const searchInstruments: AgentTool = {
         const hasDailyData = coverage != null && coverage._count._all > 0;
         return {
           ...row,
-          industry: null,
           assetType: 'etf' as const,
           hasDailyData,
           localDataCoverage: hasDailyData

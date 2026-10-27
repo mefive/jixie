@@ -20,7 +20,6 @@ model StockBasic {
   symbol     String
   name       String
   area       String?
-  industry   String?
   market     String?
   listDate   String?
   delistDate String?
@@ -51,21 +50,6 @@ model StockNameHistory {
   @@id([tsCode, startDate])
   @@index([tsCode, endDate])
   @@index([announcementDate])
-}
-
-/// Shenwan (SW2021) level-1 industry membership, point-in-time. One row per (stock, industry, spell):
-/// the stock belonged to `l1Name` from `inDate` up to (but excluding) `outDate` (null = still a member).
-/// Used for industry-neutralization in factor analysis — pick the spell covering the rebalance date.
-/// A stock can have several spells (it moved industries) so the membership is keyed by inDate too.
-model SwIndustryMember {
-  tsCode  String
-  l1Code  String // SW level-1 industry index code, e.g. 801120.SI
-  l1Name  String // SW level-1 industry name, e.g. 食品饮料
-  inDate  String // date the stock entered this industry (YYYYMMDD)
-  outDate String? // date it left (YYYYMMDD); null = current member
-
-  @@id([tsCode, l1Code, inDate])
-  @@index([tsCode])
 }
 
 /// Trading calendar
@@ -614,29 +598,6 @@ model IndexBenchmark {
   bmkType   String
   bmkSource String
   indexType String
-}
-
-/// Official Shenwan index daily bars. Only SW2021 level-1 industries from index_classify are stored,
-/// so broad Shenwan indices and level-2/level-3 industries cannot leak into the industry dashboard.
-model SwIndexDaily {
-  tsCode    String
-  tradeDate String
-  name      String
-  open      Float?
-  low       Float?
-  high      Float?
-  close     Float?
-  change    Float?
-  pctChange Float? // percent
-  volume    Float? // 10k shares
-  amount    Float? // 10k CNY
-  pe        Float?
-  pb        Float?
-  floatMv   Float? // 10k CNY
-  totalMv   Float? // 10k CNY
-
-  @@id([tsCode, tradeDate])
-  @@index([tradeDate])
 }
 
 /// Actual delivery-month futures contracts. IF/IH/IC/IM are tradable by the engine; configured

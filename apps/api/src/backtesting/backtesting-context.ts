@@ -142,12 +142,6 @@ export class BacktestingContext implements EngineContext {
     return engineData.listDays(code, date);
   }
 
-  industry(code: string): string | null {
-    const { date, engineData } = this.input;
-
-    return engineData.industry(code, date);
-  }
-
   price(code: string): number | null {
     const { date, engineData } = this.input;
 

@@ -251,7 +251,7 @@ describe('shared factor evaluation', () => {
       freq: 'month',
       start: '20200101',
       end: '20241231',
-      neutral: 'size_industry',
+      neutral: 'size',
     });
     const frozenSource = { kind: 'single', code: 'weather code', label: 'Pinned' } as const;
     const report = { factor: 'frozen-factor', periods: 2, periodObservations: [] };

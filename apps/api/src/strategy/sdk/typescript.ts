@@ -79,7 +79,6 @@ export class StrategyContext<
     this.bars = this.bars.bind(this);
     this.ensureBars = this.ensureBars.bind(this);
     this.listDays = this.listDays.bind(this);
-    this.industry = this.industry.bind(this);
     this.price = this.price.bind(this);
     this.history = this.history.bind(this);
     this.factor = this.factor.bind(this);
@@ -119,10 +118,6 @@ export class StrategyContext<
 
   listDays(code: string): number | null {
     return this.#capabilities.listDays(code);
-  }
-
-  industry(code: string): string | null {
-    return this.#capabilities.industry(code);
   }
 
   price(code: string): number | null {

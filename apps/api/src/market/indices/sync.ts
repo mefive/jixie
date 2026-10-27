@@ -4,12 +4,9 @@ import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import {
   indexBenchmark,
-  indexClassify,
   indexDaily,
   indexDailyBasic,
-  indexMemberAll,
   indexWeight,
-  swDaily,
 } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
@@ -101,57 +98,6 @@ export async function syncIndexWeight(
 }
 
 /**
- * 同步申万一级行业历史归属，供时点行业映射。
- *
- * Sync Shenwan (SW2021) level-1 industry membership — the point-in-time (stock → industry) map used
- * for industry-neutralization in factor analysis. Fetches the 31 level-1 industries, then for each
- * pulls current ('Y') + historical ('N') members and unions them so every membership spell (with its
- * in/out dates) is captured. Full overwrite — small volume (~tens of thousands of rows total).
- */
-export async function syncSwIndustry(client: TushareClient): Promise<number> {
-  const industries = await indexClassify(client, { level: 'L1', src: 'SW2021' });
-  log(`syncSwIndustry: ${industries.length} 个申万一级行业`);
-
-  // De-dup by (tsCode, l1Code, inDate) — the 'Y' and 'N' fetches can both return a current spell.
-  const seen = new Set<string>();
-  const rows: {
-    tsCode: string;
-    l1Code: string;
-    l1Name: string;
-    inDate: string;
-    outDate: string | null;
-  }[] = [];
-  for (const industry of industries) {
-    for (const isNew of ['Y', 'N']) {
-      const members = await indexMemberAll(client, { l1_code: industry.index_code, is_new: isNew });
-      for (const member of members) {
-        const tsCode = canonicalStockCode(member.ts_code);
-        const key = `${tsCode}|${member.l1_code}|${member.in_date}`;
-        if (seen.has(key)) {
-          continue;
-        }
-        seen.add(key);
-        rows.push({
-          tsCode,
-          l1Code: member.l1_code,
-          l1Name: member.l1_name,
-          inDate: member.in_date,
-          outDate: member.out_date,
-        });
-      }
-    }
-    log(`  ${industry.industry_name}: 累计 ${rows.length} 行`);
-  }
-
-  await getDatabase().$transaction([
-    getDatabase().swIndustryMember.deleteMany({}),
-    getDatabase().swIndustryMember.createMany({ data: rows }),
-  ]);
-  log(`syncSwIndustry 完成，共 ${rows.length} 行`);
-  return rows.length;
-}
-
-/**
  * 替换用于审计指数分类的小型官方基准目录。
  *
  * Replace the small official benchmark catalog used to audit index classifications.
@@ -175,63 +121,6 @@ export async function syncIndexBenchmarks(client: TushareClient): Promise<number
     }),
   ]);
   log(`syncIndexBenchmarks complete: ${rows.length} rows`);
-  return rows.length;
-}
-
-/**
- * 同步 SW2021 一级行业行情；单日用一次请求，历史按范围分块。
- *
- * Sync official SW2021 level-1 industry bars. A single-date refresh uses one upstream call; range
- * backfills fetch one industry at a time to stay under the response cap.
- */
-export async function syncSwIndexDaily(
-  client: TushareClient,
-  start: TradeDate,
-  end: TradeDate,
-): Promise<number> {
-  const industries = await indexClassify(client, { level: 'L1', src: 'SW2021' });
-  const allowedCodes = new Set(industries.map((industry) => industry.index_code));
-  let rows = [] as Awaited<ReturnType<typeof swDaily>>;
-
-  if (start === end) {
-    const dateRows = await swDaily(client, { trade_date: start });
-    rows = dateRows.filter((row) => allowedCodes.has(row.ts_code));
-  } else {
-    for (const industry of industries) {
-      const industryRows = await swDaily(client, {
-        ts_code: industry.index_code,
-        start_date: start,
-        end_date: end,
-      });
-      rows.push(...industryRows);
-    }
-  }
-
-  await getDatabase().$transaction([
-    getDatabase().swIndexDaily.deleteMany({
-      where: { tradeDate: { gte: start, lte: end }, tsCode: { in: [...allowedCodes] } },
-    }),
-    getDatabase().swIndexDaily.createMany({
-      data: rows.map((row) => ({
-        tsCode: row.ts_code,
-        tradeDate: row.trade_date,
-        name: row.name,
-        open: row.open,
-        low: row.low,
-        high: row.high,
-        close: row.close,
-        change: row.change,
-        pctChange: row.pct_change,
-        volume: row.vol,
-        amount: row.amount,
-        pe: row.pe,
-        pb: row.pb,
-        floatMv: row.float_mv,
-        totalMv: row.total_mv,
-      })),
-    }),
-  ]);
-  log(`syncSwIndexDaily ${start}..${end}: ${rows.length} rows`);
   return rows.length;
 }
 

@@ -527,7 +527,7 @@ export default defineFactor({
     code: `// Preset: ROE quality — return on equity from the latest published report (point-in-time: the value
 // only becomes visible on its announcement date, no look-ahead). Classic profitability/quality factor
 // (Novy-Marx 2013 family); literature expects positive. Entangled with valuation and size in A-shares —
-// judge it size/industry-neutralized.
+// judge it size-neutralized.
 export default defineFactor({
   name: 'ROE质量(%)',
   compute: (bar) => bar.roe,
@@ -548,8 +548,7 @@ export default defineFactor({
     expectedDirection: 'positive',
     code: `// Preset: gross profit margin — from the latest published report (point-in-time via announcement
 // date). A "quality of earnings" proxy: harder to manipulate than net profit. Literature expects
-// positive; strongly industry-structured (banks have no gross margin), so the industry-neutralized
-// view is the honest read.
+// positive; missing gross margin remains missing. Compare the size-neutralized view.
 export default defineFactor({
   name: '毛利率(%)',
   compute: (bar) => bar.grossprofitMargin,

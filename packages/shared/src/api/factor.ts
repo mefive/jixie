@@ -8,7 +8,7 @@ const factorAnalysisSpecV1Schema = z.object({
   freq: z.enum(['month', 'week']),
   start: z.string().regex(/^\d{8}$/),
   end: z.string().regex(/^\d{8}$/),
-  neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
+  neutral: z.enum(['none', 'size']).default('none'),
 });
 
 const outlierSpecSchema = z.object({
@@ -22,7 +22,7 @@ const factorAnalysisSpecV2Schema = z.object({
   freq: z.enum(['month', 'week']),
   start: z.string().regex(/^\d{8}$/),
   end: z.string().regex(/^\d{8}$/),
-  neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
+  neutral: z.enum(['none', 'size']).default('none'),
   universe: z.object({
     minimumListingDays: z.number().int().min(0).max(3650),
     liquidityDropFraction: z.number().min(0).max(0.9),
@@ -60,10 +60,10 @@ const factorEvaluationScopeV1Schema = z.object({
     }),
   ]),
   membership: z.literal('point_in_time'),
-  rankingScope: z.enum(['global', 'within_industry']),
+  rankingScope: z.literal('global'),
   diagnostics: z
-    .array(z.enum(['industry', 'size_bucket', 'liquidity_bucket']))
-    .max(3)
+    .array(z.enum(['size_bucket', 'liquidity_bucket']))
+    .max(2)
     .refine((items) => new Set(items).size === items.length, 'Diagnostics must be unique.'),
 });
 

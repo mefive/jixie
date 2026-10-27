@@ -3,7 +3,7 @@ import type { BarRow, Universe as UniverseContract } from '@jixie/shared/sdk/str
 
 /** Today's universe as a chainable view over codes — filter, rank, take a slice. Each step returns a new
  * Universe (immutable); the terminal `top`/`codes` returns plain string[]. The candidate pool the engine
- * recomputes each bar (cf. industry "universe selection"): `(await ctx.universe('000300.SH'))
+ * recomputes each bar: `(await ctx.universe('000300.SH'))
  * .minListDays(365).rankBy(b => 1/b.peTtm!).top(0.1)`. The index restriction (if any) was pushed into the
  * data load; `where`/`rankBy`/etc. refine the loaded panel in memory. */
 export class Universe implements UniverseContract {

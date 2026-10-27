@@ -101,55 +101,6 @@ export async function prepareIndexPartition(
 
     return prepared;
   }
-  if (partition.dataset === 'industry-members') {
-    const current = await fetchSourcePages(
-      source,
-      'index_member_all',
-      { l1_code: partition.scope, is_new: 'Y' },
-      'l1_code,l1_name,ts_code,in_date,out_date,is_new',
-    );
-    const historic = await fetchSourcePages(
-      source,
-      'index_member_all',
-      { l1_code: partition.scope, is_new: 'N' },
-      'l1_code,l1_name,ts_code,in_date,out_date,is_new',
-    );
-    const pages = {
-      rows: [...current.rows, ...historic.rows],
-      complete: current.complete && historic.complete,
-      pages: current.pages + historic.pages,
-      errors: [...current.errors, ...historic.errors],
-    };
-    const mapped = mapSourceRecords(pages.rows, (row) => {
-      if (row.l1_code !== partition.scope) {
-        throw new Error('Industry membership scope mismatch');
-      }
-
-      return {
-        values: {
-          tsCode: canonicalStockCode(sourceString(row, 'ts_code')),
-          l1Code: sourceString(row, 'l1_code'),
-          l1Name: sourceString(row, 'l1_name'),
-          inDate: sourceString(row, 'in_date'),
-          outDate: row.out_date ?? null,
-        },
-        authoritativeNulls: Object.hasOwn(row, 'out_date') ? ['outDate'] : [],
-        availabilityQuality: 'latest_only',
-      };
-    });
-
-    return completeResponse({
-      pages,
-      table: 'SwIndustryMember',
-      extent: {
-        basis: 'Current and historical membership contracts',
-        deletion: 'Complete current and historical membership extent',
-      },
-      ...mapped,
-      where: { l1Code: partition.scope },
-    });
-  }
-
   const definitions = {
     'index-catalog': {
       api: 'mkt_idx_bmk',
@@ -186,27 +137,6 @@ export async function prepareIndexPartition(
         pe: 'pe',
         peTtm: 'pe_ttm',
         pb: 'pb',
-      },
-    },
-    'industry-prices': {
-      api: 'sw_daily',
-      table: 'SwIndexDaily',
-      columns: {
-        tsCode: 'ts_code',
-        tradeDate: 'trade_date',
-        name: 'name',
-        open: 'open',
-        high: 'high',
-        low: 'low',
-        close: 'close',
-        change: 'change',
-        pctChange: 'pct_change',
-        volume: 'vol',
-        amount: 'amount',
-        pe: 'pe',
-        pb: 'pb',
-        floatMv: 'float_mv',
-        totalMv: 'total_mv',
       },
     },
   };

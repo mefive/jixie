@@ -22,7 +22,6 @@ describe('Research equity datasets', () => {
           date: '20240131',
           code: 'AAA.SH',
           name: 'Alpha',
-          industry: 'Bank',
           close: 10,
           adjusted_close: 12,
           amount_cny_1k: 1_000,
@@ -113,13 +112,6 @@ async function seedFixture(database: PrismaClient): Promise<void> {
       { tsCode: 'CCC.SH', name: 'Gamma', startDate: '20200101' },
     ],
   });
-  await database.swIndustryMember.createMany({
-    data: [
-      industry('AAA.SH', 'Bank'),
-      industry('BBB.SH', 'Technology'),
-      industry('CCC.SH', 'Industrial'),
-    ],
-  });
   await database.indexWeight.createMany({
     data: [
       { indexCode: '000300.SH', conCode: 'AAA.SH', tradeDate: '20240131' },
@@ -186,10 +178,6 @@ function stock(tsCode: string, name: string) {
     listDate: '20100101',
     listStatus: 'L',
   };
-}
-
-function industry(tsCode: string, l1Name: string) {
-  return { tsCode, l1Code: `I-${tsCode}`, l1Name, inDate: '20200101' };
 }
 
 function dailyBasic(tsCode: string, tradeDate: string, peTtm: number, totalMv: number) {

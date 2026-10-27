@@ -113,7 +113,7 @@ async function resolveInstrumentBinding(
     const [metadata, aggregate] = await Promise.all([
       getDatabase().stockBasic.findUnique({
         where: { tsCode: id },
-        select: { name: true, industry: true },
+        select: { name: true },
       }),
       getDatabase().daily.aggregate({
         where: { tsCode: id },

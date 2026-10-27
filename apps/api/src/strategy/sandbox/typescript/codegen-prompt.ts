@@ -74,7 +74,6 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - ctx.date / ctx.stock.availableCash / ctx.portfolio.equity: today's date, cash, and total equity
 - ctx.period('daily'|'weekly'|'monthly'): today's period key (combine with \`let last\` to act "only once per month/week")
 - ctx.stock.adjustedShares(code): shares held; ctx.price(code): today's backward-adjusted close
-- ctx.industry(code): industry label (e.g. '银行'/'白酒'; current classification, not point-in-time; returns null if unknown) — industry-neutral / rotation / restrict to a given industry
 - ctx.history(code, 'open'|'high'|'low'|'close', n) / ctx.bars(code, n): the last n backward-adjusted prices / OHLC bars
 - ctx.weekly(code) / ctx.monthly(code): completed ISO-week / natural-month series with bars/history and
   sma/ema/atr/highest/lowest/avgAmount/avgVol/adx/bollingerBands/rsi/macd/kdj. The current partial period
@@ -139,7 +138,7 @@ ctx.price / history / bars / weekly / monthly / sma / atr… only work for instr
 If you filter a batch of stocks via universe and then compute moving averages/breakouts/ATR on them, you **must first \`await ctx.ensureBars(codes)\`**, otherwise everything returns null/empty and **not a single order is placed**.
 
 # ⛔ Capability boundary: if you can't do it, refuse — don't fabricate
-You may only use the fields, built-in indicators, synced ETFs, indices and stock-index futures on record, factor keys (the user's published factors listed above), industry (ctx.industry) listed above. If the user's request **depends on data/capabilities beyond these** — for example: revenue/profit growth, gross margin, ROA, institutional/northbound holdings, analyst ratings, concept/theme classification, commodity futures/options/convertible bonds, minute/tick data, Hong Kong or US stocks —
+You may only use the fields, built-in indicators, synced ETFs, indices and stock-index futures on record, factor keys (the user's published factors listed above) listed above. If the user's request **depends on data/capabilities beyond these** — for example: revenue/profit growth, gross margin, ROA, institutional/northbound holdings, analyst ratings, industry/concept/theme classification, commodity futures/options/convertible bonds, minute/tick data, Hong Kong or US stocks —
 **never force-fit it with other fields** (e.g. passing off the close price as ROE). In that case **output only one line**:
 CANNOT: <one sentence stating what data/capability is missing, how it might be approximated, or asking the user to revise the request>
 **The index must exactly match the on-record list**: if the index the user wants is not in that string above (e.g. 中证100, 上证180, 深证100, various industry/theme indices), **never substitute a similar index** (e.g. swapping 中证100 for 沪深300) — go straight to CANNOT, explain the index is not on record, and list the available ones.
@@ -192,28 +191,6 @@ export default defineStrategy({
       if (px > ma && ctx.stock.adjustedShares(code) === 0) ctx.stock.orderAdjustedShares(code, Math.floor((ctx.stock.equity * 0.1) / px)); // ~10% of equity each
       else if (px < ma && ctx.stock.adjustedShares(code) > 0) ctx.stock.closePosition(code);
     }
-  },
-});
-
-# Example 5: industry-neutral — each month take the 3 highest-EP stocks per industry, equal-weighted (group and cap via ctx.industry)
-let last = '';
-export default defineStrategy({
-  name: '行业中性·每行业EP前3',
-  async onBar(ctx) {
-    if (ctx.period('monthly') === last) return;
-    last = ctx.period('monthly');
-    const ranked = (await ctx.universe())
-      .minListDays(365)
-      .where(b => b.peTtm != null && b.peTtm > 0)
-      .rankBy(b => 1 / b.peTtm)             // EP descending
-      .codes();
-    const perInd = {}, picks = [];          // at most 3 per industry (in the already-ranked EP order)
-    for (const code of ranked) {
-      const ind = ctx.industry(code) ?? '其他';
-      perInd[ind] = (perInd[ind] ?? 0) + 1;
-      if (perInd[ind] <= 3) picks.push(code);
-    }
-    ctx.stock.equalWeight(picks);
   },
 });
 

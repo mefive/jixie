@@ -42,14 +42,6 @@ describe('forward observation maturity', () => {
           listStatus: 'L',
         }));
         await database.stockBasic.createMany({ data: stocks });
-        await database.swIndustryMember.createMany({
-          data: stocks.map((stock) => ({
-            tsCode: stock.tsCode,
-            l1Code: '801010.SI',
-            l1Name: 'Fixture',
-            inDate: '20100101',
-          })),
-        });
         for (const date of dates.filter((row) => row.isOpen && row.calDate <= through)) {
           const rows = stocks.map((stock, index) => ({
             tsCode: stock.tsCode,

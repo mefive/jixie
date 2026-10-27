@@ -11,7 +11,6 @@ import type {
   IndexDailyBasicDataRow,
   IndexDailyRow,
   IndexWeightRow,
-  IndustryMembershipRow,
   StockBasicRow,
   StockNameHistoryRow,
   YieldCurvePointDataRow,
@@ -39,7 +38,6 @@ export interface FixtureStock {
   listDate?: string; // default long ago (never "recently listed")
   delistDate?: string;
   listStatus?: string;
-  industry?: string;
   nameHistory?: Omit<StockNameHistoryRow, 'tsCode'>[];
   bars: FixtureBar[];
   /** Optional per-date valuation overrides (peTtm etc.); a basic row is emitted for every bar
@@ -59,7 +57,6 @@ export interface FixtureSpec {
   indexDaily?: IndexDailyRow[];
   indexDailyBasic?: IndexDailyBasicDataRow[];
   indexWeights?: Record<string, IndexWeightRow[]>;
-  industryMemberships?: IndustryMembershipRow[];
   finaIndicators?: FinaIndicatorRow[];
   yieldCurvePoints?: YieldCurvePointDataRow[];
   futureContracts?: FutureContractRow[];
@@ -91,17 +88,6 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
           delistDate: stock.delistDate ?? null,
           listStatus: stock.listStatus ?? (stock.delistDate ? 'D' : 'L'),
         }));
-    },
-
-    async industryMemberships(): Promise<IndustryMembershipRow[]> {
-      return (
-        spec.industryMemberships ??
-        spec.stocks.flatMap((stock) =>
-          stock.industry
-            ? [{ tsCode: stock.code, l1Name: stock.industry, inDate: '19000101', outDate: null }]
-            : [],
-        )
-      );
     },
 
     async stockNameHistory(): Promise<StockNameHistoryRow[]> {

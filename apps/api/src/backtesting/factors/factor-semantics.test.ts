@@ -934,3 +934,31 @@ it('computes multiple independent published factors without stored flow columns'
   });
   expect(values).toEqual(D.map(() => [0.1, 0.5]));
 });
+
+it.each(['typescript', 'python'] as const)(
+  'rejects retired %s industry reads',
+  async (language) => {
+    if (language === 'python' && !process.env.JIXIE_SANDBOX_SOCKET) {
+      process.env.JIXIE_PYTHON_LOCAL = '1';
+    }
+    try {
+      await expect(
+        runBacktestFixture(
+          {
+            language,
+            code:
+              language === 'typescript'
+                ? 'export default defineStrategy({ onBar(ctx) { ctx.industry("A"); } });'
+                : 'from jixie import Strategy\nstrategy = Strategy(name="retired industry")\n@strategy.on_bar\ndef on_bar(ctx):\n    ctx.industry("A")',
+            start: D[0],
+            end: D[4],
+            initialCash: 100_000,
+          },
+          fixturePort(spec()),
+        ),
+      ).rejects.toThrow(/industry/);
+    } finally {
+      delete process.env.JIXIE_PYTHON_LOCAL;
+    }
+  },
+);

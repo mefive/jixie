@@ -70,6 +70,6 @@ Read `value`, `unit`, `period_basis`, `status`, and `missing_reason`; preserve `
 
 `status=ok` means a value was retrieved and converted as requested. It is not an audit result or valuation-model approval. Negative source values remain visible; predefined metrics retain their separate accounting checks.
 
-Only mapped industrial-company A-share fields are integrated. Financial-sector sources are not integrated: the batch method returns `financial_sector_source_not_integrated`, while the original statement method returns an empty frame when no integrated statements exist. Industrial-model metrics remain `not_applicable` for financial companies.
+Queries retain the existing `compType=1` non-financial company restriction, PIT gates, report types and formulas. Shenwan classification and industry columns are removed and no longer determine applicability. Without integrated source rows, statements return an empty frame, selected values return `no_statement_available_as_of`, and metrics report `missing`; another company type is never substituted.
 
 Strict historical queries exclude `reconstructed` versions, but this does not establish that every original historical filing vintage exists. Notes, business segments, and analyst consensus are not available through this interface.

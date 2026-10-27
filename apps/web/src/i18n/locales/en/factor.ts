@@ -336,9 +336,7 @@ export const enFactor: typeof zhFactor = {
   neutralLabel: 'Neutralize',
   neutralNone: 'None',
   neutralSize: 'Size',
-  neutralSizeIndustry: 'Size + industry',
   neutralSizeTag: '·size-neut',
-  neutralSizeIndustryTag: '·size+ind-neut',
   paramsSummary: '{{frequency}} · {{start}} to {{end}} · {{universe}} · {{ranking}} · {{neutral}}',
   evaluationUniverseLabel: 'Research universe',
   evaluationUniverse: {
@@ -347,14 +345,11 @@ export const enFactor: typeof zhFactor = {
     '000905.SH': 'CSI 500',
     '000852.SH': 'CSI 1000',
   },
-  evaluationRankingLabel: 'Ranking scope',
   evaluationRanking: {
     global: 'Global ranking',
-    within_industry: 'Within SW L1 industries',
   },
   evaluationDiagnosticsLabel: 'Diagnostic slices (primary result unchanged)',
   evaluationDiagnostics: {
-    industry: 'Industry',
     size_bucket: 'Size bucket',
     liquidity_bucket: 'Liquidity bucket',
   },
@@ -456,9 +451,7 @@ export const enFactor: typeof zhFactor = {
   universeSpec:
     'Listed ≥{{days}} days · drop least-liquid {{liquidity}}% · ≥{{candidates}} names per period',
   evaluationUniverseSpec: 'Research universe: {{universe}} · historical constituents',
-  evaluationRankingSpec: 'Ranking method: {{ranking}} · point-in-time industry classifications',
-  evaluationRankingAudit:
-    'Ranking audit (period totals): {{groups}} industry-periods · {{missing}} missing classifications · {{small}} rows from groups below {{minimum}} excluded',
+  evaluationRankingSpec: 'Ranking method: {{ranking}}',
   diagnosticsTitle: 'Robustness diagnostics',
   diagnosticsSlice: 'Slice',
   diagnosticsPeriods: 'Periods',

@@ -7,8 +7,6 @@ import { validateIndexDate, validateIndexWeightDate } from './daily-quality.js';
 const database = vi.hoisted(() => ({
   daily: vi.fn(),
   basic: vi.fn(),
-  industry: vi.fn(),
-  members: vi.fn(),
   weight: vi.fn(),
 }));
 vi.mock('#infra/database/prisma.js', async () => {
@@ -16,8 +14,6 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: {
       indexDaily: { findMany: database.daily },
       indexDailyBasic: { findMany: database.basic },
-      swIndexDaily: { findMany: database.industry },
-      swIndustryMember: { groupBy: database.members },
       indexWeight: { findFirst: database.weight },
     },
   };
@@ -34,20 +30,12 @@ beforeEach(() => {
   vi.resetAllMocks();
   database.daily.mockResolvedValue(DAILY_MAINTAINED_INDEX_CODES.map((tsCode) => ({ tsCode })));
   database.basic.mockResolvedValue(MAJOR_INDEX_DAILY_BASIC_CODES.map((tsCode) => ({ tsCode })));
-  database.industry.mockResolvedValue(
-    Array.from({ length: 31 }, (_, index) => ({ tsCode: String(index) })),
-  );
-  database.members.mockResolvedValue(
-    Array.from({ length: 20 }, (_, index) => ({ l1Code: String(index) })),
-  );
   database.weight.mockResolvedValue({ tradeDate: '20260901' });
 });
 
 describe('index date quality', () => {
-  it('accepts complete point-in-time membership and industry coverage', async () => {
+  it('accepts complete point-in-time constituent and index coverage', async () => {
     expect(await validateIndexDate('20260918')).toMatchObject({
-      activeIndustries: 20,
-      swIndexDaily: 31,
       oldestIndexWeightSnapshot: '20260901',
     });
   });
@@ -57,11 +45,9 @@ describe('index date quality', () => {
       oldestIndexWeightSnapshot: '20260901',
     });
   });
-  it('rejects missing historical weights and incomplete industry coverage', async () => {
+  it('rejects missing historical weights', async () => {
     database.weight.mockResolvedValueOnce(null);
     await expect(validateIndexDate('20260918')).rejects.toThrow('no point-in-time snapshot');
-    database.industry.mockResolvedValue([]);
-    await expect(validateIndexDate('20260918')).rejects.toThrow('0/31');
   });
   it('validates constituent prerequisites without requiring daily bars', async () => {
     await expect(validateIndexWeightDate('20260918')).resolves.toBe('20260901');

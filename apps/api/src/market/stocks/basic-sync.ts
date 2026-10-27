@@ -33,7 +33,6 @@ export async function syncStockBasic(client: TushareClient): Promise<number> {
         symbol: r.symbol,
         name: r.name,
         area: r.area,
-        industry: r.industry,
         market: r.market,
         listDate: r.list_date,
         delistDate: r.delist_date,

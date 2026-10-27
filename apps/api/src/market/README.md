@@ -14,7 +14,7 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 | 开市日和上海收盘截止 | [calendar](calendar/README.md)：日历同步、读取和 SSE 已完成日 |
 | 股票名录、日行情、估值与交易限制 | [stocks](stocks/README.md)：范围同步及核心四表发布 |
 | ETF 行情、复权、份额、历史缺口 | [etfs](etfs/README.md)：按日发布／代码年份回填与覆盖质量 |
-| 指数、行业成员、精简收盘响应 | [indices](indices/README.md)：指数原始数据与专用读取 |
+| 指数成员、精简收盘响应 | [indices](indices/README.md)：指数原始数据与专用读取 |
 | 股指与商品共用期货数据 | [futures](futures/README.md)：实际合约、行情、映射与结算 |
 | 境外基准、币种换算、美债和 FX | [cross-market](cross-market/README.md)：共享身份之上的来源解析、可得日和写入 |
 | 质量结果契约与交易日覆盖摘要 | [quality](quality/README.md)：跨数据域共用的 finding 与统计，不含维护发布策略 |

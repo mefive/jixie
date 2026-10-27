@@ -63,7 +63,6 @@ function row(id: string, peTtm: number | null, marketCap: number | null): Resear
   return {
     entity: { assetType: 'stock', id },
     name: id,
-    industry: null,
     values: {
       'equity.pe_ttm': peTtm,
       'equity.total_market_cap_cny_10k': marketCap,

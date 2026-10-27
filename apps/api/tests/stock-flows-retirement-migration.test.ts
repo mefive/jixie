@@ -6,7 +6,7 @@ import prismaPackage from '@prisma/client';
 import { expect, it } from 'vitest';
 import { withDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock } from '#infra/coordination/market-access.js';
-import { retireStockDatasets } from '#maintenance/retired-datasets.js';
+import { retireDatasets } from '#maintenance/retired-datasets.js';
 import { readDatasetCoverage } from '#maintenance/status.js';
 
 const retirement = '20261027090000_remove_stock_flows';
@@ -175,14 +175,14 @@ it('drops only stock flow tables, preserves saved research, and retires only the
     expect(await database.$queryRaw`PRAGMA integrity_check`).toEqual([{ integrity_check: 'ok' }]);
     await withDatabase(database, async () => {
       expect((await readDatasetCoverage()).map((entry) => entry.dataset)).toEqual(['stock-prices']);
-      await expect(retireStockDatasets()).rejects.toThrow();
+      await expect(retireDatasets()).rejects.toThrow();
       const retained = await Promise.all([
         database.datasetSyncState.findMany({ where: { dataset: 'stock-prices' } }),
         database.datasetSyncPartition.findMany({ where: { dataset: 'stock-prices' } }),
         database.marketRecordEvidence.findMany({ where: { tableName: 'Daily' } }),
       ]);
-      await withMaintenanceLock(retireStockDatasets);
-      await withMaintenanceLock(retireStockDatasets);
+      await withMaintenanceLock(retireDatasets);
+      await withMaintenanceLock(retireDatasets);
       expect(
         await Promise.all([
           database.datasetSyncState.findMany(),

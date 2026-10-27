@@ -11,7 +11,6 @@ import type {
   FactorMethodologyAudit,
   FactorOutlierSpecV1,
   FactorReport,
-  Neutral,
 } from '@jixie/shared';
 import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 import { type FactorAnalysisRuntimeSource } from '../../sources/snapshot.js';
@@ -19,16 +18,12 @@ import {
   filterEvaluationUniverse,
   isIndexMembershipFresh,
   PointInTimeIndexMembership,
-  rankWithinGroups,
 } from '../evaluation-scope.js';
 import {
   getRebalanceDates,
-  industryOn,
   loadEquityStyleControls,
   loadFinaIndex,
-  loadIndustryLookup,
   loadSnapshots,
-  type IndustrySpell,
   type Snap,
 } from '../../observations/cross-sectional/data.js';
 import {
@@ -49,96 +44,36 @@ const LEGACY_EVALUATION_SCOPE: FactorEvaluationScopeV1 = {
   diagnostics: [],
 };
 
-// —— cross-sectional neutralization (3.4) ——
-
-const NEUTRAL_MIN_GROUP = 5; // industries smaller than this are merged into the largest one before demeaning
-
 /**
- * 将样本数不足的行业组并入最大组，避免小组中性化退化。
+ * 将截面数值替换为对数市值的一元 OLS 残差。
  *
- * Relabel members of any group smaller than NEUTRAL_MIN_GROUP into the largest group, so a handful
- * of
- * lone-industry stocks don't each form their own (degenerate, residual-zero) demeaning bucket.
+ * Replace cross-sectional values with OLS residuals against log market capitalization.
  */
-function mergeSmallGroups(groups: string[]): string[] {
-  const counts = new Map<string, number>();
-  for (const g of groups) {
-    counts.set(g, (counts.get(g) ?? 0) + 1);
-  }
-  let largest = groups[0];
-  for (const [key, count] of counts) {
-    if (count > (counts.get(largest) ?? 0)) {
-      largest = key;
-    }
-  }
-  return groups.map((g) => ((counts.get(g) ?? 0) < NEUTRAL_MIN_GROUP ? largest : g));
-}
-
-/**
- * 按调仓日原位替换为规模或行业中性化残差，保持评估使用同一处理后序列。
- *
- * Replace each rebalance date's factor values with their neutralized residuals (in place on the
- * map).
- * 'size' regresses out log(total market cap); 'size_industry' additionally removes SW level-1 industry
- * means (FWL — see stats.residualize). Stocks without a positive market cap that day are dropped (can't
- * be size-neutralized); with industry mode, stocks with no known industry go to an 'unknown' bucket that
- * mergeSmallGroups folds away if tiny.
- */
-function neutralizeSeries(
-  series: Series,
-  snaps: Map<string, Snap>,
-  industryByStock: Map<string, IndustrySpell[]>,
-  mode: Exclude<Neutral, 'none'>,
-): void {
+function neutralizeSeries(series: Series, snaps: Map<string, Snap>): void {
   for (const [date, rows] of series) {
     const snap = snaps.get(date);
-    const kept: { tsCode: string }[] = [];
-    const values: number[] = [];
-    const logCaps: number[] = [];
-    const groups: string[] = [];
-    for (const row of rows) {
-      const mktcap = snap?.get(row.tsCode)?.mktcap ?? 0;
-      if (mktcap <= 0) {
-        continue;
-      }
-      kept.push({ tsCode: row.tsCode });
-      values.push(row.value);
-      logCaps.push(Math.log(mktcap));
-      groups.push(
-        mode === 'size_industry'
-          ? (industryOn(industryByStock.get(row.tsCode), date) ?? 'unknown')
-          : '',
-      );
-    }
+    const kept = rows.filter((row) => (snap?.get(row.tsCode)?.mktcap ?? 0) > 0);
     const residuals = st.residualize(
-      values,
-      logCaps,
-      mode === 'size_industry' ? mergeSmallGroups(groups) : undefined,
+      kept.map((row) => row.value),
+      kept.map((row) => Math.log(snap!.get(row.tsCode)!.mktcap!)),
     );
+
     series.set(
       date,
-      kept.map((k, i) => ({ tsCode: k.tsCode, value: residuals[i] })),
+      kept.map((row, index) => ({ tsCode: row.tsCode, value: residuals[index] })),
     );
   }
 }
 
 function neutralizeCandidates<T extends { tsCode: string; value: number; mktcap: number }>(
   candidates: T[],
-  date: string,
-  industryByStock: Map<string, IndustrySpell[]>,
-  mode: Exclude<Neutral, 'none'>,
 ): T[] {
   const kept = candidates.filter((candidate) => candidate.mktcap > 0);
-  const groups = kept.map((candidate) =>
-    mode === 'size_industry'
-      ? (industryOn(industryByStock.get(candidate.tsCode), date) ?? 'unknown')
-      : '',
-  );
   const residuals = st.residualize(
     kept.map((candidate) => candidate.value),
     kept.map((candidate) => Math.log(candidate.mktcap)),
-    mode === 'size_industry' ? mergeSmallGroups(groups) : undefined,
   );
+
   return kept.map((candidate, index) => ({ ...candidate, value: residuals[index] }));
 }
 
@@ -200,27 +135,13 @@ export async function analyzeFactor(
     spec.version === 6
       ? await loadEquityStyleControls(spec, rebalanceDates, snaps, preloadedFinaIndex!)
       : undefined;
-  const needsIndustry =
-    neutral === 'size_industry' ||
-    evaluationScope.rankingScope === 'within_industry' ||
-    evaluationScope.diagnostics.includes('industry');
-  const industryByStock = needsIndustry
-    ? await loadIndustryLookup()
-    : new Map<string, IndustrySpell[]>();
-  if (evaluationScope.rankingScope === 'within_industry') {
-    if (industryByStock.size === 0) {
-      throw new Error(t(locale, 'factorIndustryHistoryMissing'));
-    }
-    onLog(t(locale, 'factorRankingWithinIndustry'));
-  }
-
   // Cross-sectional neutralization (3.4): replace raw values with residuals before IC / bucketing.
   // Scope-aware protocols defer this step until after the formal universe and eligibility filters, so
   // neutralization is estimated inside the declared research population. V1–V3 retain their evaluator.
   if (neutral !== 'none') {
     onLog(t(locale, 'factorNeutralizing', { mode: neutral }));
     if (!scopeAware) {
-      neutralizeSeries(byDate, snaps, industryByStock, neutral);
+      neutralizeSeries(byDate, snaps);
     }
   }
 
@@ -279,15 +200,10 @@ export async function analyzeFactor(
     pendingDelisting: { before: 0, after: 0 },
     liquidity: { before: 0, after: 0 },
   };
-  const rankingTotals = {
-    missingClassification: 0,
-    undersizedGroup: 0,
-    groupsEvaluated: 0,
-  };
   const diagnosticSeries = new Map<
     string,
     {
-      dimension: 'industry' | 'size_bucket' | 'liquidity_bucket';
+      dimension: 'size_bucket' | 'liquidity_bucket';
       key: string;
       ics: number[];
       observations: number;
@@ -418,19 +334,9 @@ export async function analyzeFactor(
     }
 
     if (scopeAware && neutral !== 'none') {
-      candidates = neutralizeCandidates(candidates, date, industryByStock, neutral);
+      candidates = neutralizeCandidates(candidates);
     }
     stageTotals.rankingScope.before += candidates.length;
-    if (evaluationScope.rankingScope === 'within_industry') {
-      const ranked = rankWithinGroups(
-        candidates,
-        candidates.map((candidate) => industryOn(industryByStock.get(candidate.tsCode), date)),
-      );
-      rankingTotals.missingClassification += ranked.missingGroup;
-      rankingTotals.undersizedGroup += ranked.smallGroup;
-      rankingTotals.groupsEvaluated += ranked.groups;
-      candidates = ranked.rows;
-    }
     stageTotals.rankingScope.after += candidates.length;
     if (spec.version !== 1 && candidates.length < policy.minimumCandidates) {
       continue;
@@ -473,7 +379,7 @@ export async function analyzeFactor(
        * Group diagnostic samples and compute slice statistics independently of the primary report.
        */
       const collect = (
-        dimension: 'industry' | 'size_bucket' | 'liquidity_bucket',
+        dimension: 'size_bucket' | 'liquidity_bucket',
         keys: Array<string | null>,
       ) => {
         const indexesByKey = new Map<string, number[]>();
@@ -507,12 +413,6 @@ export async function analyzeFactor(
           diagnosticSeries.set(id, accumulator);
         }
       };
-      if (evaluationScope.diagnostics.includes('industry')) {
-        collect(
-          'industry',
-          candidates.map((candidate) => industryOn(industryByStock.get(candidate.tsCode), date)),
-        );
-      }
       if (evaluationScope.diagnostics.includes('size_bucket')) {
         const sizeBuckets = st.quantileBuckets(
           candidates.map((candidate) => candidate.mktcap),
@@ -722,15 +622,7 @@ export async function analyzeFactor(
     ...(scopeAware ? { evaluationScope: spec.evaluationScope } : {}),
     ...(scopeAware
       ? {
-          ranking:
-            evaluationScope.rankingScope === 'global'
-              ? ({ kind: 'global' } as const)
-              : ({
-                  kind: 'within_industry_percentile',
-                  classification: 'sw_l1',
-                  minimumGroupSize: 5,
-                  ...rankingTotals,
-                } as const),
+          ranking: { kind: 'global' as const },
         }
       : {}),
     dataCutoff,

@@ -27,14 +27,14 @@ function bar(date: string, close: number): OhlcBar {
 }
 
 it('reuses session history while keeping dates, snapshots and returned data independent', () => {
-  const access = vi.fn(() => JSON.stringify({ result: 'banking' }));
+  const access = vi.fn(() => JSON.stringify({ result: 100 }));
   const adapter = new StrategyAdapter({ access, request: vi.fn() });
   const first = adapter.bind({
     ...snapshot('20260105', 1000),
     history_updates: { AAA: { reset: true, bars: [bar('20260105', 10)] } },
   });
-  expect(first.industry('AAA')).toBe('banking');
-  expect(first.industry('AAA')).toBe('banking');
+  expect(first.listDays('AAA')).toBe(100);
+  expect(first.listDays('AAA')).toBe(100);
   expect(access).toHaveBeenCalledTimes(1);
   const copy = first.bars('AAA', 1);
   copy[0].adjClose = -1;
@@ -47,7 +47,7 @@ it('reuses session history while keeping dates, snapshots and returned data inde
   expect(first.date).toBe('20260105');
   expect(first.stock.equity).toBe(1000);
   expect(second.stock.equity).toBe(1200);
-  second.industry('AAA');
+  second.listDays('AAA');
   expect(access).toHaveBeenCalledTimes(2);
 });
 

@@ -81,7 +81,7 @@ export async function executeUniverseSpec(
     where: { tradeDate: asOfDate, ...(source.codes ? { tsCode: { in: source.codes } } : {}) },
   });
   const candidateCodes = dailyBasics.map((row) => row.tsCode);
-  const [daily, adjustments, basics, names, industries, state] = await Promise.all([
+  const [daily, adjustments, basics, names, state] = await Promise.all([
     database.daily.findMany({
       where: { tradeDate: asOfDate, tsCode: { in: candidateCodes } },
       select: { tsCode: true, close: true, pctChg: true, vol: true, amount: true },
@@ -95,7 +95,6 @@ export async function executeUniverseSpec(
       select: {
         tsCode: true,
         name: true,
-        industry: true,
         listDate: true,
         delistDate: true,
       },
@@ -109,15 +108,6 @@ export async function executeUniverseSpec(
       select: { tsCode: true, name: true, startDate: true },
       orderBy: { startDate: 'desc' },
     }),
-    database.swIndustryMember.findMany({
-      where: {
-        tsCode: { in: candidateCodes },
-        inDate: { lte: asOfDate },
-        OR: [{ outDate: null }, { outDate: { gt: asOfDate } }],
-      },
-      select: { tsCode: true, l1Name: true, inDate: true },
-      orderBy: { inDate: 'desc' },
-    }),
     database.marketDataState.findUnique({
       where: { key: 'global' },
       select: { revision: true },
@@ -127,7 +117,6 @@ export async function executeUniverseSpec(
   const adjustmentByCode = new Map(adjustments.map((row) => [row.tsCode, row.adjFactor]));
   const basicByCode = new Map(basics.map((row) => [row.tsCode, row]));
   const nameByCode = firstByCode(names, (row) => row.tsCode);
-  const industryByCode = firstByCode(industries, (row) => row.tsCode);
   const requiresHistoricalMetadata = spec.asOf.kind === 'fixed';
   const missingHistoricalNames = requiresHistoricalMetadata
     ? candidateCodes.filter((code) => !nameByCode.has(code)).length
@@ -168,9 +157,6 @@ export async function executeUniverseSpec(
         name:
           nameByCode.get(row.tsCode)?.name ??
           (requiresHistoricalMetadata ? row.tsCode : basic.name),
-        industry:
-          industryByCode.get(row.tsCode)?.l1Name ??
-          (requiresHistoricalMetadata ? null : basic.industry),
         values: {
           'equity.close': price?.close ?? null,
           'equity.adjusted_close':

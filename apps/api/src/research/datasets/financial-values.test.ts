@@ -50,7 +50,6 @@ function database(
   income = history.map(([date, value]) => row(date, value)),
   balances: ReturnType<typeof row>[] = [],
   cash: ReturnType<typeof row>[] = [],
-  bank = false,
 ) {
   const table = (rows: ReturnType<typeof row>[]) => ({
     findMany: vi.fn(async ({ where }) =>
@@ -66,15 +65,10 @@ function database(
       ),
     ),
   });
-  const industry = { l1Code: bank ? '801780.SI' : '801120.SI', l1Name: bank ? '银行' : '食品饮料' };
   return {
     financialIncomeStatement: table(income),
     financialBalanceSheet: table(balances),
     financialCashFlowStatement: table(cash),
-    swIndustryMember: {
-      findMany: vi.fn(async () => [{ tsCode: '000858.SZ', ...industry }]),
-      findFirst: vi.fn(async () => industry),
-    },
     dailyBasic: { findFirst: vi.fn(async () => null) },
     stockNameHistory: { findFirst: vi.fn(async () => ({ name: 'Fixture' })) },
   };
@@ -117,7 +111,6 @@ describe('selected financial values', () => {
       db.financialIncomeStatement,
       db.financialBalanceSheet,
       db.financialCashFlowStatement,
-      db.swIndustryMember,
     ]) {
       expect(delegate.findMany).toHaveBeenCalledTimes(1);
     }
@@ -232,18 +225,18 @@ describe('selected financial values', () => {
     });
   });
 
-  it('separates unintegrated sector data from model applicability', async () => {
-    const emptyBank = database([], [], [], true);
+  it('reports missing source data and computes supported source rows without industry classification', async () => {
+    const missingSources = database([], [], []);
     expect(
       await loadResearchFinancialStatements(
         { identifier: '000858.SZ', as_of: request.as_of },
-        emptyBank as never,
+        missingSources as never,
       ),
     ).toEqual([]);
-    expect((await loadResearchFinancialValues(request, emptyBank as never))[0]).toMatchObject({
-      missing_reason: 'financial_sector_source_not_integrated',
+    expect((await loadResearchFinancialValues(request, missingSources as never))[0]).toMatchObject({
+      missing_reason: 'no_statement_available_as_of',
     });
-    const mapped = database([row('20240630', 120)], [], [], true);
+    const mapped = database([row('20240630', 120)], [], []);
     expect(
       (
         await loadResearchFinancialStatements(
@@ -252,14 +245,13 @@ describe('selected financial values', () => {
         )
       )[0].value,
     ).toBe(120);
+    const metrics = await loadResearchFinancialMetrics(
+      { identifier: '000858.SZ', as_of: request.as_of },
+      database() as never,
+    );
     expect(
-      (
-        await loadResearchFinancialMetrics(
-          { identifier: '000858.SZ', as_of: request.as_of },
-          mapped as never,
-        )
-      )[0].status,
-    ).toBe('not_applicable');
+      metrics.find((metric) => metric.metric === 'revenue' && metric.report_period === '20240630'),
+    ).toMatchObject({ value: 360, status: 'ok', applicability: 'industrial' });
   });
 
   it('filters original statements without changing unfiltered calls', async () => {

@@ -115,7 +115,6 @@ function capabilityFixture() {
     bars: () => [],
     ensureBars: async () => {},
     listDays: () => null,
-    industry: () => null,
     price: () => null,
     history: () => [10, 12, 14],
     factor: () => null,

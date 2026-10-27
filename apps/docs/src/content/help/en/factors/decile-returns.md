@@ -118,4 +118,4 @@ A historically high D10 return does not mean every current D10 stock will rise.
 
 - [Rank IC, ICIR, and IC decay](/help/factors/rank-ic-icir)
 - [Turnover, trading costs, and net returns](/help/factors/turnover-costs)
-- [Size and industry neutralization](/help/factors/neutralization)
+- [Size neutralization](/help/factors/neutralization)

@@ -131,10 +131,9 @@ describe('financial statement resolver', () => {
     expect(after.periods[0].income?.sourceRowFingerprint).toBe('corrected');
   });
 
-  it('rejects the industrial-company kernel for a PIT financial-industry member', async () => {
+  it('keeps the existing non-financial company-type constraint without industry data', async () => {
     const database = resolverDatabase({
-      income: [databaseStatement({})],
-      industry: { l1Code: '801780.SI', l1Name: '银行' },
+      income: [databaseStatement({ compType: '2' })],
     });
 
     const state = await resolveFinancialState(
@@ -142,22 +141,20 @@ describe('financial statement resolver', () => {
       database as never,
     );
 
-    expect(state.applicability).toBe('unsupported_financial');
+    expect(state.applicability).toBe('unknown');
     expect(state.periods).toEqual([]);
     expect(state.diagnostics).toEqual(
-      expect.arrayContaining([expect.objectContaining({ code: 'unsupported_financial_company' })]),
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'no_financial_statements_available' }),
+      ]),
     );
   });
 
-  it('resolves a stock set with one query per statement table plus one industry query', async () => {
+  it('resolves a stock set with one query per statement table without industry data', async () => {
     const database = resolverDatabase({
       income: [
         databaseStatement({ tsCode: '000858.SZ', sourceRowFingerprint: 'wly' }),
-        databaseStatement({ tsCode: '000001.SZ', sourceRowFingerprint: 'bank' }),
-      ],
-      industries: [
-        { tsCode: '000858.SZ', l1Code: '801120.SI', l1Name: '食品饮料' },
-        { tsCode: '000001.SZ', l1Code: '801780.SI', l1Name: '银行' },
+        databaseStatement({ tsCode: '000001.SZ', sourceRowFingerprint: 'bank', compType: '2' }),
       ],
     });
 
@@ -182,13 +179,12 @@ describe('financial statement resolver', () => {
       market: { marketCapitalization: 100 },
     });
     expect(states.find((state) => state.tsCode === '000001.SZ')).toMatchObject({
-      applicability: 'unsupported_financial',
+      applicability: 'unknown',
       periods: [],
     });
     expect(database.financialIncomeStatement.findMany).toHaveBeenCalledTimes(1);
     expect(database.financialBalanceSheet.findMany).toHaveBeenCalledTimes(1);
     expect(database.financialCashFlowStatement.findMany).toHaveBeenCalledTimes(1);
-    expect(database.swIndustryMember.findMany).toHaveBeenCalledTimes(1);
     expect(database.financialIncomeStatement.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ endDate: { gte: '20190501' } }),
@@ -260,23 +256,21 @@ function databaseStatement(overrides: Record<string, unknown>) {
 
 function resolverDatabase(options: {
   income?: Array<Record<string, unknown>>;
-  industry?: { l1Code: string; l1Name: string } | null;
-  industries?: Array<{ tsCode: string; l1Code: string; l1Name: string }>;
   marketCapitalizationWan?: number | null;
 }) {
   const delegate = (rows: Array<Record<string, unknown>>) => ({
     findMany: vi.fn(async (args) =>
-      rows.filter((row) => String(row.availableDate) <= args.where.availableDate.lte),
+      rows.filter(
+        (row) =>
+          String(row.availableDate) <= args.where.availableDate.lte &&
+          row.compType === args.where.compType,
+      ),
     ),
   });
   return {
     financialIncomeStatement: delegate(options.income ?? []),
     financialBalanceSheet: delegate([]),
     financialCashFlowStatement: delegate([]),
-    swIndustryMember: {
-      findFirst: vi.fn().mockResolvedValue(options.industry ?? null),
-      findMany: vi.fn().mockResolvedValue(options.industries ?? []),
-    },
     dailyBasic: {
       findFirst: vi
         .fn()

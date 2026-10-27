@@ -30,7 +30,7 @@ Frequency changes the rebalance dates, forward-return horizon, and turnover calc
 
 ## Formal universe and ranking scope
 
-Evaluation universe supports all A-shares, CSI 300, CSI 500, and CSI 1000 with historical membership. Ranking scope chooses global or within Shenwan Level-1 industry ranking. Industry, size, and liquidity diagnostics decompose the main result without changing publication criteria. See [Set the Factor evaluation scope](/docs/help/factors/evaluation-scope).
+Evaluation universe supports all A-shares, CSI 300, CSI 500, and CSI 1000 with historical membership. Ranking is global. Size and liquidity diagnostics decompose the main result without changing publication criteria. See [Set the Factor evaluation scope](/docs/help/factors/evaluation-scope).
 
 ## Date range
 
@@ -47,7 +47,7 @@ A short monthly range contains few observations, so one extreme month can have a
 
 - **None**: compare the raw factor values. Use this for the first run.
 - **Size**: reduce the effect of differences in market capitalization.
-- **Size + industry**: control for both market capitalization and industry.
+Industry neutralization, within-industry ranking and industry diagnostics are retired; old parameters fail explicitly.
 
 For example, a factor may favor small companies during a period when small companies generally perform well. Neutralization helps test whether the relationship remains after controlling for that shared size exposure.
 

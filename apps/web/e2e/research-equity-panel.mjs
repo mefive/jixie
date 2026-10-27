@@ -24,7 +24,7 @@ print(
     f"数据 revision {cross_audit['dataRevision']}"
 )
 cross_section[[
-    "date", "code", "name", "industry", "pe_ttm",
+    "date", "code", "name", "pe_ttm",
     "total_market_cap_cny_10k", "turnover_rate_pct",
 ]].sort_values("total_market_cap_cny_10k", ascending=False).head(12)`;
 const panelSource = `panel = data.panel(

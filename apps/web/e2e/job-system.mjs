@@ -62,6 +62,7 @@ try {
     ...(selected?.includes('python-strategy') ? ['python-strategy'] : []),
     ...[
       'factor-publication',
+      'factor-scope',
       'python-factor',
       'strategy-factor-dependency',
       'market-weather-retirement',
@@ -77,7 +78,10 @@ try {
     if (selected && !selected.includes(name)) {
       continue;
     }
-    const file = name === 'research-executions' ? 'research-execution' : name;
+    const file =
+      { 'research-executions': 'research-execution', 'factor-scope': 'factor-evaluation-scope' }[
+        name
+      ] ?? name;
     const code = await executeCommand({ name, file: `apps/web/e2e/${file}.mjs` });
     assert.equal(code, 0, `${name} failed`);
     console.log(`[job-system] ${name}: passed`);

@@ -195,15 +195,6 @@ async function seedMarket() {
       startDate: '20000101',
     })),
   });
-  await prisma.indexWeight.createMany({
-    data: stocks.map((stock) => ({
-      indexCode: '000300.SH',
-      conCode: stock.tsCode,
-      tradeDate: '20230102',
-      weight: 100 / stocks.length,
-    })),
-  });
-
   await prisma.etfBasic.create({
     data: {
       tsCode: '510300.SH',
@@ -232,6 +223,22 @@ async function seedMarket() {
       pretradeDate: dates[index - 1],
     })),
   });
+  // 指数范围验收需要持续更新的历史快照，不能把 2023 年成员沿用到后续年份。
+  // Scope-aware analyses need dated snapshots rather than stale 2023 memberships.
+  const membershipDates = dates.filter(
+    (date, index) => index === 0 || date.slice(0, 6) !== dates[index - 1]!.slice(0, 6),
+  );
+  await prisma.indexWeight.createMany({
+    data: membershipDates.flatMap((tradeDate) =>
+      stocks.map((stock) => ({
+        indexCode: '000300.SH',
+        conCode: stock.tsCode,
+        tradeDate,
+        weight: 100 / stocks.length,
+      })),
+    ),
+  });
+
   const { DATASET_POLICIES } = await import('#market/synchronization/policies.js');
   await prisma.datasetSyncPartition.createMany({
     data: ['calendar', 'stock-prices', 'stock-adjustments', 'stock-valuations'].map((dataset) => ({

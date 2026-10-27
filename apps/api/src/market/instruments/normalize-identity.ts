@@ -12,7 +12,6 @@ const IDENTITY_TABLES = [
   'DailyBasic',
   'StkLimit',
   'StockNameHistory',
-  'SwIndustryMember',
   'FinaIndicator',
   'FinaIndicatorVersion',
   'FinancialIncomeStatement',

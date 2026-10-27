@@ -11,7 +11,7 @@
 | [financial-values.ts](financial-values.ts) `loadResearchFinancialValues` | 使用财务版本和 normalized value，保留来源及空值语义 |
 | [commodity.ts](commodity.ts) `loadResearchCommodityReturns`、`loadResearchCommodityWarehouseReceipts`、`loadResearchCommodityHoldings` | 商品收益、仓单、持仓研究列；不把连续收益当可成交合约 |
 | [supplemental.ts](supplemental.ts) 的 loadResearchMarketState、loadResearchEquityFundamentals/Flows/Dividends | 市场状态、股票基本面／资金／分红切片 |
-| [market-reference.ts](market-reference.ts) 的 loadResearchEtfShares、loadResearchIndexValuation、loadResearchIndustryState、loadResearchFuturesSettlement | ETF 份额、指数估值、行业和期货结算参考数据 |
+| [market-reference.ts](market-reference.ts) 的 loadResearchEtfShares、loadResearchIndexValuation、loadResearchFuturesSettlement | ETF 份额、指数估值和期货结算参考数据 |
 
 [cross-market-data-contracts.ts](cross-market-data-contracts.ts) 维护 Research 的来源决策和数据契约投影，不替代 Market registry 的共享身份。PIT 选择、availableDate 与原始观测日不能互换，缺失值不应因文档示例变成补零。每类取数上限和有效字段以 sdk/validation 与对应 loader 为准。
 

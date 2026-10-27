@@ -35,13 +35,6 @@ export const prismaDataPort: EngineDataPort = {
     });
   },
 
-  async industryMemberships() {
-    return getDatabase().swIndustryMember.findMany({
-      select: { tsCode: true, l1Name: true, inDate: true, outDate: true },
-      orderBy: [{ tsCode: 'asc' }, { inDate: 'asc' }],
-    });
-  },
-
   async stockNameHistory() {
     return getDatabase().stockNameHistory.findMany({
       select: { tsCode: true, name: true, startDate: true, endDate: true },

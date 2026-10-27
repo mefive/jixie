@@ -257,26 +257,6 @@ export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizatio
           deleteOld: () => transaction.dividend.deleteMany({ where: { tsCode: oldTsCode } }),
         });
 
-        const industryOld = await transaction.swIndustryMember.findMany({
-          where: { tsCode: oldTsCode },
-        });
-        const industryNew = await transaction.swIndustryMember.findMany({
-          where: { tsCode: newTsCode },
-        });
-        count += await mergeRows({
-          table: 'SwIndustryMember',
-          oldCode: oldTsCode,
-          newCode: newTsCode,
-          oldRows: industryOld,
-          newRows: industryNew,
-          keyOf: (row) => `${row.l1Code}|${row.inDate}`,
-          comparable: (row) => withoutCode(row, 'tsCode'),
-          rewrite: (row, code) => ({ ...row, tsCode: code }),
-          create: (rows) => transaction.swIndustryMember.createMany({ data: rows }),
-          deleteOld: () =>
-            transaction.swIndustryMember.deleteMany({ where: { tsCode: oldTsCode } }),
-        });
-
         const weightOld = await transaction.indexWeight.findMany({ where: { conCode: oldTsCode } });
         const weightNew = await transaction.indexWeight.findMany({ where: { conCode: newTsCode } });
         count += await mergeRows({
@@ -311,7 +291,7 @@ export async function canonicalizeStockCodes(): Promise<StockCodeCanonicalizatio
  * Find the earliest market input affected by identity consolidation.
  */
 async function earliestMarketInputDate(oldTsCode: string): Promise<string | null> {
-  const [daily, adjustment, basic, limits, membership, weight] = await Promise.all([
+  const [daily, adjustment, basic, limits, weight] = await Promise.all([
     getDatabase().daily.aggregate({
       where: { tsCode: oldTsCode },
       _min: { tradeDate: true },
@@ -328,10 +308,6 @@ async function earliestMarketInputDate(oldTsCode: string): Promise<string | null
       where: { tsCode: oldTsCode },
       _min: { tradeDate: true },
     }),
-    getDatabase().swIndustryMember.aggregate({
-      where: { tsCode: oldTsCode },
-      _min: { inDate: true },
-    }),
     getDatabase().indexWeight.aggregate({
       where: { conCode: oldTsCode },
       _min: { tradeDate: true },
@@ -342,7 +318,6 @@ async function earliestMarketInputDate(oldTsCode: string): Promise<string | null
     adjustment._min.tradeDate,
     basic._min.tradeDate,
     limits._min.tradeDate,
-    membership._min.inDate,
     weight._min.tradeDate,
   ].filter((date): date is string => date != null);
   return dates.sort()[0] ?? null;

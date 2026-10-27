@@ -64,7 +64,6 @@ export interface ResearchEquityDatasetRowV1 {
   date: string;
   code: string;
   name: string;
-  industry: string | null;
   close: number | null;
   adjusted_close: number | null;
   daily_return_pct: number | null;
@@ -292,7 +291,6 @@ function equityDatasetRow(
     date,
     code: row.entity.id,
     name: row.name,
-    industry: row.industry,
     close: value('equity.close'),
     adjusted_close: value('equity.adjusted_close'),
     daily_return_pct: value('equity.daily_return_pct'),

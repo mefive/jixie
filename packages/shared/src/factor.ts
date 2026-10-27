@@ -28,14 +28,13 @@ export function factorRuntimeVersion(language: FactorLanguage): FactorRuntimeVer
 export type FactorAnalysisKind = 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime';
 
 /**
- * 规定 IC 和分组前的截面中性化方式，保留规模与行业区别。
+ * 规定 IC 和分组前的截面规模中性化方式。
  *
  * Cross-sectional neutralization applied to factor values before IC / bucketing (3.4). 'none' = raw
- * values; 'size' = residual after regressing on log(total market cap); 'size_industry' = additionally
- * orthogonal to Shenwan level-1 industry (removes the "new factor is just a small-cap / sector bet"
- * illusion). A different neutralization is a different report (it's part of the cache key).
+ * values; 'size' = residual after regressing on log(total market cap). A different neutralization
+ * is a different report and remains part of its identity.
  */
-export type Neutral = 'none' | 'size' | 'size_industry';
+export type Neutral = 'none' | 'size';
 
 /**
  * 规定分位收益等权或市值加权口径。
@@ -230,7 +229,7 @@ export interface IcDecayPoint {
   icir: number; // icMean / icStd across periods
 }
 
-export type FactorDiagnosticDimension = 'industry' | 'size_bucket' | 'liquidity_bucket';
+export type FactorDiagnosticDimension = 'size_bucket' | 'liquidity_bucket';
 
 /**
  * 仅用于稳健性诊断的样本切片，不改变主报告与发布标准。
@@ -355,9 +354,9 @@ export interface FactorAnalysisSpecV3 extends Omit<FactorAnalysisSpecV2, 'versio
 export type FactorEquityIndexCode = '000300.SH' | '000905.SH' | '000852.SH';
 
 /**
- * 冻结全市场或时点指数证券池及组内排名规则。
+ * 冻结全市场或时点指数证券池及全局排名规则。
  *
- * Freeze global or dated index universes and within-group ranking rules.
+ * Freeze global or dated index universes and global ranking rules.
  */
 export interface FactorEvaluationScopeV1 {
   version: 1;
@@ -365,15 +364,15 @@ export interface FactorEvaluationScopeV1 {
     | { kind: 'market'; market: 'cn_a' }
     | { kind: 'index'; indexCode: FactorEquityIndexCode };
   membership: 'point_in_time';
-  rankingScope: 'global' | 'within_industry';
-  diagnostics: Array<'industry' | 'size_bucket' | 'liquidity_bucket'>;
+  rankingScope: 'global';
+  diagnostics: Array<'size_bucket' | 'liquidity_bucket'>;
 }
 
 /**
  * 首次显式冻结评估证券范围，不从当前成员推断历史。
  *
- * First scope-aware cross-sectional spec. EvaluationScope V1 freezes global or point-in-time SW L1
- * within-industry ranking. Diagnostic choices remain part of report identity as they are enabled.
+ * First scope-aware cross-sectional spec. EvaluationScope V1 freezes the dated universe and global
+ * ranking. Size and liquidity diagnostics remain part of report identity.
  */
 export interface FactorAnalysisSpecV5 extends Omit<FactorAnalysisSpecV3, 'version'> {
   version: 5;
@@ -462,16 +461,9 @@ export interface FactorWindowCoverageAudit {
  *
  * Retain ranking scope and sample diagnostics.
  */
-export type FactorRankingAudit =
-  | { kind: 'global' }
-  | {
-      kind: 'within_industry_percentile';
-      classification: 'sw_l1';
-      minimumGroupSize: 5;
-      missingClassification: number;
-      undersizedGroup: number;
-      groupsEvaluated: number;
-    };
+export interface FactorRankingAudit {
+  kind: 'global';
+}
 
 /**
  * 组合采样、覆盖和处理证据，解释报告方法。

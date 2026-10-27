@@ -1,5 +1,8 @@
 # Sales yield: from a positive holdout to Factor admission
 
+> Current functionality: this article preserves original research evidence and values. Industry data and industry neutralization are retired. Industry diagnostics below are historical evidence and cannot be rerun using the old steps. New exercises can use None or Size and must record their own new results.
+
+
 > Historical case: research cards, Holdout admission, preregistration and reveal records below describe the retired workflow. Current analyses use user-selected dates; publication fixes matching source and a successful report. Original values and captures illustrate research methods only.
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
 

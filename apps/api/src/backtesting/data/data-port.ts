@@ -13,18 +13,6 @@ export interface StockBasicRow {
 }
 
 /**
- * 承载模拟存储端口读取的行业成员区间，供 EngineData 按决策日选择归属。
- *
- * Carry industry membership intervals for decision-date selection by EngineData.
- */
-export interface IndustryMembershipRow {
-  tsCode: string;
-  l1Name: string;
-  inDate: string;
-  outDate: string | null;
-}
-
-/**
  * 承载历史证券名称区间，供模拟恢复当时风险标记。
  *
  * Supply historical name spells for dated investability checks.
@@ -248,8 +236,6 @@ export interface EngineDataPort {
   openDates(start: string, end: string): Promise<string[]>;
   /** The full stock list, including historical delisting boundaries. */
   stockBasics(): Promise<StockBasicRow[]>;
-  /** Point-in-time SW level-1 industry membership spells. */
-  industryMemberships(): Promise<IndustryMembershipRow[]>;
   /** Point-in-time stock-name spells used to derive historical risk-warning states. */
   stockNameHistory(): Promise<StockNameHistoryRow[]>;
   /** ETF metadata needed by the daily execution lane. */

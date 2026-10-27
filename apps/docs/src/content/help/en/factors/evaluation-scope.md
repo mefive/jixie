@@ -1,52 +1,20 @@
-# Set the Factor evaluation scope
+# Factor evaluation scope
 
-> Figures labeled “Historical Chinese UI example” preserve the original result or state; their values have not been recalculated. Follow the article steps and current captures for today’s controls.
+Choose the formal research universe and diagnostic slices in **More settings**. Current universes are all A shares, CSI 300, CSI 500 and CSI 1000. Index universes use constituents available on each historical date, never today's membership across the whole history.
 
-A stock cross-sectional Factor has a formal universe, a ranking scope, and diagnostic slices. They answer different questions. A strong diagnostic slice is not automatically the conclusion of the full report.
+All eligible stocks are ranked globally. Industry data, within-industry ranking, industry filters and industry diagnostics have been removed; old parameters are rejected explicitly.
 
-## Open scope settings
+Size and liquidity slices diagnose whether a relationship is concentrated in a subset. They do not change the primary report or create separate publication eligibility. Keep universe, dates, size neutralization, outliers and costs fixed when comparing reports.
 
-1. Select a Stock cross-sectional factor in Factor research.
-2. Click More settings.
-3. Find Evaluation universe, Ranking scope, and Diagnostic slices.
-4. Run a new analysis after changing them.
+## Historical UI archive
 
-The numbered areas are:
-
-1. Evaluation universe.
-2. Ranking scope.
-3. Diagnostic slices.
+The following figures preserve earlier controls and results. Industry controls shown in them are retired; follow the current instructions above.
 
 ![Historical Chinese UI example: Evaluation universe, ranking scope, and diagnostics](/docs/images/help/zh/factors/evaluation-scope-01.png)
 
-## Evaluation universe
-
-The page supports all A-shares, CSI 300, CSI 500, and CSI 1000.
-
-An index universe uses membership as it existed on each historical date. It does not apply today's constituents to the entire past. This avoids admitting stocks before they actually joined the index.
-
-Changing the universe changes the research hypothesis, period samples, and attempt count. If a Factor is intended for a CSI 300 strategy, run a dedicated CSI 300 report instead of selecting CSI 300 rows from an all-market report.
-
-## Ranking scope
-
-- **Global ranking** compares all valid stocks in the period.
-- **Within Shenwan Level-1 industry** compares stocks inside their historical industries before combining the results.
-
-Within-industry ranking checks whether a Factor is merely favoring certain industries. It is not another name for size-and-industry neutralization. Ranking scope determines peers; neutralization controls common exposures.
-
-## Diagnostic slices
-
-Industry, size, and liquidity slices decompose the main result. They show sample size, coverage, Rank IC, and related evidence for each segment.
-
 ![Historical Chinese UI example: Formal scope and diagnostic slices in a Factor report](/docs/images/help/zh/factors/evaluation-scope-02.png)
 
-Slices do not change the main metrics or grant separate publication eligibility. If evidence only exists in one industry, pre-register that narrower scope and run it as a new study.
+## Related reading
 
-## Compare reports carefully
-
-Verify that the universe, point-in-time membership, ranking scope, neutralization, outlier handling, and costs match. Also check that slice differences have enough observations and are not driven by a few months.
-
-## Related articles
-
-- [Set analysis scope and sample handling](/docs/help/factors/analysis-settings)
-- [Rank IC, ICIR, and IC decay](/docs/help/factors/rank-ic-icir)
+- [Analysis settings](/docs/help/factors/analysis-settings)
+- [Rank IC and ICIR](/docs/help/factors/rank-ic-icir)

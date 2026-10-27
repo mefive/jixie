@@ -15,7 +15,6 @@ export interface StockBasicRow {
   symbol: string;
   name: string;
   area: string | null;
-  industry: string | null;
   market: string | null;
   list_date: TradeDate | null;
   delist_date: TradeDate | null;
@@ -34,7 +33,7 @@ export async function stockBasic(
   const rows = await client.call(
     'stock_basic',
     { list_status: 'L', ...params },
-    'ts_code,symbol,name,area,industry,market,list_date,delist_date,list_status',
+    'ts_code,symbol,name,area,market,list_date,delist_date,list_status',
   );
   return rows as unknown as StockBasicRow[];
 }
@@ -1101,109 +1100,4 @@ export async function indexWeight(
 ): Promise<IndexWeightRow[]> {
   const rows = await client.call('index_weight', params, 'index_code,con_code,trade_date,weight');
   return rows as unknown as IndexWeightRow[];
-}
-
-/**
- * 提供申万版本与行业层级，供行业代码白名单。
- *
- * Describe Shenwan versions and levels for an industry-code allowlist.
- */
-export interface IndexClassifyRow {
-  index_code: string; // SW industry index code, e.g. 801120.SI
-  industry_name: string;
-  level: string; // L1 / L2 / L3
-}
-
-/**
- * 提供申万行业指数日线，供行业状态聚合。
- *
- * Supply Shenwan index bars for industry-state aggregation.
- */
-export interface SwDailyRow {
-  ts_code: TsCode;
-  trade_date: TradeDate;
-  name: string;
-  open: number | null;
-  low: number | null;
-  high: number | null;
-  close: number | null;
-  change: number | null;
-  pct_change: number | null;
-  vol: number | null;
-  amount: number | null;
-  pe: number | null;
-  pb: number | null;
-  float_mv: number | null;
-  total_mv: number | null;
-}
-
-/**
- * 读取申万指数日线，调用方须先通过分类清单限定 SW2021 一级代码。
- *
- * Shenwan index daily bars. Callers must whitelist SW2021 level-1 codes via index_classify.
- */
-export async function swDaily(
-  client: Pick<TushareClient, 'call'>,
-  params: {
-    ts_code?: TsCode;
-    trade_date?: TradeDate;
-    start_date?: TradeDate;
-    end_date?: TradeDate;
-  },
-): Promise<SwDailyRow[]> {
-  const rows = await client.call(
-    'sw_daily',
-    params,
-    'ts_code,trade_date,name,open,low,high,close,change,pct_change,vol,amount,pe,pb,float_mv,total_mv',
-  );
-  return rows as unknown as SwDailyRow[];
-}
-
-/**
- * 读取申万行业分类清单，默认 SW2021 一级行业。
- *
- * Shenwan industry classification list. Defaults to SW2021 level-1 (the 31 top-level industries).
- */
-export async function indexClassify(
-  client: Pick<TushareClient, 'call'>,
-  params: { level?: string; src?: string } = {},
-): Promise<IndexClassifyRow[]> {
-  const rows = await client.call(
-    'index_classify',
-    { level: 'L1', src: 'SW2021', ...params },
-    'index_code,industry_name,level',
-  );
-  return rows as unknown as IndexClassifyRow[];
-}
-
-/**
- * 保留证券行业生效区间，供历史成员映射。
- *
- * Describe industry membership intervals for historical lookup.
- */
-export interface IndexMemberRow {
-  l1_code: string;
-  l1_name: string;
-  ts_code: TsCode;
-  in_date: TradeDate; // date the stock entered this industry
-  out_date: TradeDate | null; // date it left; null = current member
-  is_new: string; // Y = current membership, N = historical
-}
-
-/**
- * 读取申万行业成员，is_new 区分当前和历史归属。
- *
- * Shenwan industry members (by level-1 code). `is_new` selects current ('Y') vs historical ('N')
- * membership — to build the full point-in-time history, callers fetch both and union.
- */
-export async function indexMemberAll(
-  client: Pick<TushareClient, 'call'>,
-  params: { l1_code: string; is_new?: string },
-): Promise<IndexMemberRow[]> {
-  const rows = await client.call(
-    'index_member_all',
-    params,
-    'l1_code,l1_name,ts_code,in_date,out_date,is_new',
-  );
-  return rows as unknown as IndexMemberRow[];
 }

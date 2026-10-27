@@ -1,4 +1,4 @@
-import { isRetiredCompositeReport } from '#factor/evaluations/report-spec.js';
+import { isRetiredFactorReport } from '#factor/evaluations/report-spec.js';
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
 import { strategyScanReportStatusWhere } from '#strategy/scans/state.js';
 import { backtestReportStatusWhere } from '#strategy/backtests/state.js';
@@ -171,7 +171,7 @@ export async function searchResearchDataCatalog(
                 { name: { contains: query } },
               ],
             },
-            select: { tsCode: true, name: true, industry: true, market: true },
+            select: { tsCode: true, name: true, market: true },
             take: limit,
           })
         : Promise.resolve([]),
@@ -271,7 +271,7 @@ export async function searchResearchDataCatalog(
   const knownIndexCodes = new Set(indexes.map((item) => item.tsCode));
   const candidates: ResearchDataCatalogInstrumentV1[] = [
     ...stocks.map((item) =>
-      instrument('stock', item.tsCode, item.name, measures, compact([item.industry, item.market])),
+      instrument('stock', item.tsCode, item.name, measures, compact([item.market])),
     ),
     ...etfs.map((item) =>
       instrument(
@@ -1323,6 +1323,7 @@ async function searchFactorReports(
         factor: true,
         analysisKind: true,
         specJson: true,
+        neutral: true,
         factorCodeSnapshot: true,
         createdAt: true,
         computedAt: true,
@@ -1334,7 +1335,7 @@ async function searchFactorReports(
 
     reports.push(
       ...batch
-        .filter((report) => !isRetiredCompositeReport(report))
+        .filter((report) => !isRetiredFactorReport(report))
         .map<ResearchDataCatalogFactorReportV1>((report) => {
           return {
             kind: 'factor_report',

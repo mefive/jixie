@@ -170,8 +170,6 @@ export interface StrategyCtx<Params extends StrategyParams = StrategyParams> {
   future(code: string): FutureBar | null;
   /** Last n futures values, point-in-time mapped each day, oldest to newest. */
   futureHistory(code: string, field: 'open' | 'high' | 'low' | 'close' | 'settle', n: number): number[];
-  /** Point-in-time SW level-1 industry label effective on the decision date; null without a covering spell. For sector-neutral or rotation logic without classification lookahead. */
-  industry(code: string): string | null;
   /** Read a declared published factor by its immutable key. Windowed factors need ensureBars first. Time-series factors declaring etf.adjustedClose accept ETF codes only. */
   factor(name: FactorKey, code: string): number | null;
   /** Today's adjusted (hfq) close (carried forward if suspended). */

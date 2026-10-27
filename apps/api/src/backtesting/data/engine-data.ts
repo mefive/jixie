@@ -101,10 +101,6 @@ export class EngineData {
   private nextDayOf = new Map<string, string>();
   private listDateOf = new Map<string, string>();
   private delistDateOf = new Map<string, string>();
-  private industrySpellsByCode = new Map<
-    string,
-    { l1Name: string; inDate: string; outDate: string | null }[]
-  >();
   private stockNames = new StockNameLookup([]);
   private etfCodes = new Set<string>();
   private sameDayTurnoverEtfCodes = new Set<string>();
@@ -361,13 +357,12 @@ export class EngineData {
       this.nextDayOf.set(calendar[i], calendar[i + 1]);
     }
 
-    // Listing boundaries, point-in-time industry spells, and historical names are all metadata-only
-    // preloads. They prevent survivorship, classification, and delisting lookahead in daily reads.
-    const [sb, etfs, stockNameHistory, industryMemberships] = await Promise.all([
+    // Listing boundaries and historical names are all metadata-only
+    // preloads. They prevent survivorship and delisting lookahead in daily reads.
+    const [sb, etfs, stockNameHistory] = await Promise.all([
       this.options.dataPort.stockBasics(),
       this.options.dataPort.etfBasics(),
       this.options.dataPort.stockNameHistory(),
-      this.options.dataPort.industryMemberships(),
     ]);
     this.stockNames = new StockNameLookup(stockNameHistory);
     for (const s of sb) {
@@ -389,15 +384,6 @@ export class EngineData {
       if (etf.sameDayTurnover) {
         this.sameDayTurnoverEtfCodes.add(etf.tsCode);
       }
-    }
-    for (const membership of industryMemberships) {
-      const spells = this.industrySpellsByCode.get(membership.tsCode) ?? [];
-      spells.push({
-        l1Name: membership.l1Name,
-        inDate: membership.inDate,
-        outDate: membership.outDate,
-      });
-      this.industrySpellsByCode.set(membership.tsCode, spells);
     }
 
     // Index close + valuation (CSI 300 etc.) — preload all history (tiny) for benchmark statistics
@@ -676,25 +662,6 @@ export class EngineData {
   listDays(code: string, date: string): number | null {
     const ld = this.listDateOf.get(code);
     return ld ? daysBetween(ld, date) : null;
-  }
-
-  /**
-   * 读取覆盖指定日期的申万一级行业归属，无对应区间时返回 null。
-   *
-   * Point-in-time SW level-1 industry label covering `date`, or null if no spell covers it.
-   */
-  industry(code: string, date: string): string | null {
-    const spells = this.industrySpellsByCode.get(code);
-    if (!spells) {
-      return null;
-    }
-    for (let index = spells.length - 1; index >= 0; index--) {
-      const spell = spells[index];
-      if (spell.inDate <= date && (spell.outDate == null || date < spell.outDate)) {
-        return spell.l1Name;
-      }
-    }
-    return null;
   }
 
   /**

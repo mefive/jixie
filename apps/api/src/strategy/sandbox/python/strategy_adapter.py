@@ -218,10 +218,6 @@ class BoundStrategyCapabilities(StrategyCapabilities):
         row = self.bar(code)
         return row.list_days if row else None
 
-    def industry(self, code: str) -> str | None:
-        row = self.bar(code)
-        return row.industry if row else None
-
     def factor(self, name: str, code: str) -> float | None:
         row = self.bar(code)
         return row.factors.get(name) if row else None

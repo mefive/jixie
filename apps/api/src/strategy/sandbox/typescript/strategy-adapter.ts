@@ -252,10 +252,6 @@ class BoundStrategyCapabilities implements StrategyCapabilities {
     return this.query('listDays', [code]) as number | null;
   }
 
-  industry(code: string): string | null {
-    return this.query('industry', [code]) as string | null;
-  }
-
   factor(name: string, code: string): number | null {
     return this.query('factor', [name, code]) as number | null;
   }

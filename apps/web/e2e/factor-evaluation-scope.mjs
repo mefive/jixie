@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
@@ -43,9 +44,10 @@ try {
       .locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: option })
       .click();
   };
+  assert.equal(await popover.getByText('排序范围', { exact: true }).count(), 0);
+  assert.equal(await popover.getByRole('checkbox', { name: '行业', exact: true }).count(), 0);
   await selectSetting('研究范围', '沪深 300');
-  await selectSetting('排序范围', '申万一级行业内排序');
-  for (const label of ['行业', '市值分层', '流动性分层']) {
+  for (const label of ['市值分层', '流动性分层']) {
     await popover.getByRole('checkbox', { name: label }).check();
   }
   await page.keyboard.press('Escape');
@@ -53,7 +55,7 @@ try {
     await dropdown.waitFor({ state: 'hidden' });
   }
   await popover.locator('.jx-factor-diagnosticChoices').waitFor();
-  for (const expected of ['沪深 300', '申万一级行业内排序']) {
+  for (const expected of ['沪深 300']) {
     await page.locator('.jx-factor-paramSummary', { hasText: expected }).waitFor();
   }
   await page.screenshot({ path: `${SHOTS}7p-factor-evaluation-scope-settings.png` });
@@ -67,8 +69,8 @@ try {
         spec: {
           version: 5,
           freq: 'month',
-          start: '20250101',
-          end: '20250630',
+          start: '20240101',
+          end: '20240630',
           neutral: 'none',
           universe: {
             minimumListingDays: 365,
@@ -91,8 +93,8 @@ try {
             version: 1,
             universe: { kind: 'index', indexCode: '000300.SH' },
             membership: 'point_in_time',
-            rankingScope: 'within_industry',
-            diagnostics: ['industry', 'size_bucket', 'liquidity_bucket'],
+            rankingScope: 'global',
+            diagnostics: ['size_bucket', 'liquidity_bucket'],
           },
         },
       }),
@@ -101,6 +103,62 @@ try {
   });
   if (run.status !== 200) {
     throw new Error(`factor scope run failed: ${run.status} ${JSON.stringify(run.body)}`);
+  }
+
+  for (const unsupported of [
+    { neutral: 'size_industry' },
+    { rankingScope: 'within_industry' },
+    { diagnostics: ['industry'] },
+  ]) {
+    const rejected = await context.request.post(`${BASE}/api/app/factors/analyses`, {
+      data: {
+        factor: 'ep',
+        spec: {
+          version: 1,
+          freq: 'month',
+          start: '20240101',
+          end: '20240630',
+          neutral: unsupported.neutral ?? 'none',
+        },
+        ...(unsupported.rankingScope || unsupported.diagnostics
+          ? {
+              spec: {
+                version: 5,
+                freq: 'month',
+                start: '20240101',
+                end: '20240630',
+                neutral: 'none',
+                universe: {
+                  minimumListingDays: 365,
+                  liquidityDropFraction: 0.25,
+                  minimumCandidates: 100,
+                  excludeRiskWarnings: true,
+                  excludePendingDelisting: true,
+                },
+                missing: { minimumWindowCoverage: 2 / 3 },
+                outliers: {
+                  factorExposure: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+                  forwardReturn: { method: 'winsor', tailFraction: 0.01, madThreshold: 5 },
+                },
+                costs: {
+                  commissionPerSide: 0.00025,
+                  stampDutySellSide: 0.0005,
+                  slippagePerSide: 0.001,
+                },
+                evaluationScope: {
+                  version: 1,
+                  universe: { kind: 'index', indexCode: '000300.SH' },
+                  membership: 'point_in_time',
+                  rankingScope: 'global',
+                  diagnostics: [],
+                  ...unsupported,
+                },
+              },
+            }
+          : {}),
+      },
+    });
+    assert.equal(rejected.status(), 400);
   }
 
   const detail = await page.evaluate(async (reportId) => {
@@ -123,12 +181,13 @@ try {
     detail.researchSpec?.analysisKind !== 'cross_sectional' ||
     detail.researchSpec?.protocol?.version !== 5 ||
     detail.researchPayload?.analysisKind !== 'cross_sectional' ||
-    detail.payload?.methodology?.ranking?.kind !== 'within_industry_percentile' ||
-    !['industry', 'size_bucket', 'liquidity_bucket'].every((dimension) => dimensions.has(dimension))
+    detail.payload?.methodology?.ranking?.kind !== 'global' ||
+    !['size_bucket', 'liquidity_bucket'].every((dimension) => dimensions.has(dimension))
   ) {
     throw new Error(
       `invalid scope-aware report: ${JSON.stringify({
         status: detail.status,
+        error: detail.error,
         version: detail.spec?.version,
         researchSpec: detail.researchSpec,
         researchPayloadKind: detail.researchPayload?.analysisKind,
@@ -144,16 +203,20 @@ try {
   await page.locator('.jx-factor-methodology', { hasText: '沪深 300' }).waitFor({
     timeout: 30_000,
   });
-  await page.locator('.jx-factor-methodology', { hasText: '申万一级行业内排序' }).waitFor();
   const diagnostics = page.locator('.jx-factor-diagnostics');
   await diagnostics.waitFor();
-  for (const expected of ['行业', '市值分层', '流动性分层']) {
+  for (const expected of ['市值分层', '流动性分层']) {
     await diagnostics.getByText(expected, { exact: false }).first().waitFor();
   }
   await page.screenshot({
     path: `${SHOTS}7q-factor-evaluation-scope-report.png`,
     fullPage: true,
   });
+
+  await page.getByText('EN', { exact: true }).last().click();
+  await page.screenshot({ path: `${SHOTS}industry-retirement-factor-en.png`, fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: `${SHOTS}industry-retirement-factor-mobile.png`, fullPage: true });
 
   if (browserErrors.length > 0) {
     throw new Error(`browser errors: ${browserErrors.join('\n')}`);

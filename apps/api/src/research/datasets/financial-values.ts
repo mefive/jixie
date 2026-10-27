@@ -80,7 +80,6 @@ export async function loadResearchFinancialValues(
     {
       tsCodes: codes,
       asOfDate: request.as_of,
-      purpose: 'statements',
       reportStart: `${firstYear - 2}0101`,
       reportEnd: request.report_end,
     },
@@ -161,9 +160,7 @@ export async function loadResearchFinancialValues(
             : (standardized?.missingReason ??
               ambiguity?.code ??
               (!statement
-                ? state.applicability === 'unsupported_financial' && statements.length === 0
-                  ? 'financial_sector_source_not_integrated'
-                  : 'no_statement_available_as_of'
+                ? 'no_statement_available_as_of'
                 : converted
                   ? 'non_standard_report_period'
                   : 'missing_source_field'));
@@ -181,7 +178,6 @@ export async function loadResearchFinancialValues(
         return {
           as_of_date: request.as_of,
           code: state.tsCode,
-          industry: state.industry?.l1Name ?? null,
           applicability: state.applicability,
           report_period: date,
           statement_kind: definition.statementKind,

@@ -336,7 +336,6 @@ export const zhResearch = {
     rerun: '重新运行',
     runFailed: '股票池运行失败',
     entity: '对象',
-    industry: '行业',
     eligibility: '至少上市 {{days}} 天 · 排除停牌 · 风险警示{{risk}}',
     riskWarning: { include: '保留', exclude: '排除' },
     summary: '{{date}} · 匹配 {{total}} 个 · 显示 {{shown}} 个 · 数据版本 {{revision}}',

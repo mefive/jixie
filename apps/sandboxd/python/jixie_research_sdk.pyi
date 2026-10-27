@@ -31,7 +31,7 @@ class _DataApi:
     # Note: Index universes resolve historical membership available on the requested date; current membership is never backfilled into the past.
     # Note: When the requested date has no snapshot, the latest prior data date is returned and must be read from the date column.
     # Example: data.cross_section("index:000300.SH", date="20251231", minimum_listed_days=365, risk_warning="exclude")
-    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
     def cross_section(
         self,
         universe: str,
@@ -46,7 +46,7 @@ class _DataApi:
     # Note: V1 supports completed month ends only; an incomplete ending month is excluded.
     # Note: The fixed date-by-code long frame is exploratory; FactorReport remains the formal factor-evidence surface.
     # Example: data.panel("index:000300.SH", start="20200101", end="20251231", frequency="month_end", minimum_listed_days=365, risk_warning="exclude")
-    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, close: float64, adjusted_close: float64, daily_return_pct: float64, volume_lot: float64, amount_cny_1k: float64, pe: float64, pe_ttm: float64, pb: float64, ps: float64, dividend_yield_pct: float64, total_market_cap_cny_10k: float64, float_market_cap_cny_10k: float64, turnover_rate_pct: float64
     def panel(
         self,
         universe: str,
@@ -212,7 +212,7 @@ class _DataApi:
     # Note: Reading statements does not require FCFF applicability; financial-sector source mappings are not integrated and return an empty frame when no integrated statements exist.
     # Note: fields uses statement_kind.field; the returned field column keeps the unqualified field name. Omitted filters preserve existing calls.
     # Example: data.equity_financial_statements("000858.SZ", as_of="20240429")
-    # DataFrame columns: as_of_date: datetime64[ns], code: str, industry: str | None, applicability: str, report_period: datetime64[ns], statement_kind: str, field: str, value: float64, unit: str, announcement_date: datetime64[ns], available_date: datetime64[ns], availability_quality: str, report_type: str, source_row_fingerprint: str
+    # DataFrame columns: as_of_date: datetime64[ns], code: str, applicability: str, report_period: datetime64[ns], statement_kind: str, field: str, value: float64, unit: str, announcement_date: datetime64[ns], available_date: datetime64[ns], availability_quality: str, report_type: str, source_row_fingerprint: str
     def equity_financial_statements(
         self,
         identifier: str,
@@ -227,7 +227,7 @@ class _DataApi:
     # Note: Every row preserves formula, formula version, input versions, and missing reason; ratio 1 means 100%.
     # Note: Missing quarters or required fields remain missing/invalid without future revisions or shortcut substitutes.
     # Example: data.equity_financial_metrics("000858.SZ", as_of="20240429")
-    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
     def equity_financial_metrics(
         self,
         identifier: str,
@@ -236,10 +236,10 @@ class _DataApi:
     ) -> pd.DataFrame: ...
 
     # Batch-calculate the latest available financial metrics for every equity in one historical China A-share cross-section.
-    # Note: Universe, industry, market data, and statements all resolve point-in-time on the cross-section date; returns a date-by-code-by-metric long frame.
-    # Note: At most eight metrics and 50,000 rows are allowed; financial companies remain as not_applicable rows.
+    # Note: Universe, market data, and statements all resolve point-in-time on the cross-section date; returns a date-by-code-by-metric long frame.
+    # Note: At most eight metrics and 50,000 rows are allowed; missing integrated non-financial statements produce missing rows.
     # Example: data.equity_financial_cross_section("index:000300.SH", date="20240429", metrics=["revenue", "returnOnInvestedCapital"])
-    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
     def equity_financial_cross_section(
         self,
         universe: str,
@@ -254,7 +254,7 @@ class _DataApi:
     # Note: Every month end independently resolves its historical universe and statement versions; current constituents and latest statements never backfill history.
     # Note: At most eight metrics and 100,000 rows are allowed; narrow the universe, range, or metrics when exceeded.
     # Example: data.equity_financial_panel("index:000300.SH", start="20200101", end="20241231", frequency="month_end", metrics=["revenueGrowthYoY", "returnOnInvestedCapital"])
-    # DataFrame columns: date: datetime64[ns], code: str, name: str, industry: str | None, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
+    # DataFrame columns: date: datetime64[ns], code: str, name: str, applicability: str, report_period: datetime64[ns], metric: str, value: float64, unit: str, status: str, missing_reason: str | None, formula: str, formula_version: str, input_versions_json: str
     def equity_financial_panel(
         self,
         universe: str,
@@ -274,7 +274,7 @@ class _DataApi:
     # Note: Every input must be available by as_of. Reporting-period history at one fixed cutoff is not a historical month-end PIT panel.
     # Note: Preserves status, reasons, formulas, source versions, and availability. Unintegrated financial-sector data is distinct from industrial-model applicability.
     # Example: data.equity_financial_values(["000858.SZ", "600519.SH"], as_of="20260506", fields=["income.revenue", "balance_sheet.totalAssets"], report_start="20230101", report_end="20251231", period="annual")
-    # DataFrame columns: as_of_date: datetime64[ns], code: str, industry: str | None, applicability: str, statement_kind: str, field: str, value: float64, unit: str, report_period: datetime64[ns], available_date: datetime64[ns], period_basis: str, status: str, formula: str, formula_version: str, input_versions_json: str, missing_reason: str | None
+    # DataFrame columns: as_of_date: datetime64[ns], code: str, applicability: str, statement_kind: str, field: str, value: float64, unit: str, report_period: datetime64[ns], available_date: datetime64[ns], period_basis: str, status: str, formula: str, formula_version: str, input_versions_json: str, missing_reason: str | None
     def equity_financial_values(
         self,
         identifiers: str | list[str],

@@ -63,13 +63,6 @@ export function UniverseSpecCard({ part }: UniverseSpecCardProps) {
         </a>
       ),
     },
-    {
-      key: 'industry',
-      title: t('universe.industry'),
-      dataIndex: 'industry',
-      width: 120,
-      render: (value: string | null) => value ?? '—',
-    },
     ...(result?.measures.map((measure): ColumnsType<ResearchUniverseRowV1>[number] => ({
       key: measure.id,
       title: `${zh ? measure.nameZh : measure.nameEn} · ${measure.unit}`,

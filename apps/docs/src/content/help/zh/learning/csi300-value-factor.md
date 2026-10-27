@@ -1,5 +1,8 @@
 # 沪深 300 价值因子：排序、IC、分层与样本外
 
+> 当前功能说明：本文保留原始研究记录和数值。行业数据及行业中性化现已退役；下文涉及行业的诊断属于历史证据，不能按旧步骤重跑。新练习只可选择“无”或“市值”，并重新记录自己的结果。
+
+
 > 历史案例：文中的研究卡、Holdout、预注册准入及揭示记录属于旧版本，不再是当前操作。当前可自行选择日期运行普通分析，发布只固定匹配的代码与成功报告。原有数值与截图仅用于解释研究方法。
 > 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
 
@@ -280,5 +283,5 @@ D10−D1 是研究诊断，未验证普通账户融券、容量和真实成交�
 - [沪深 300 趋势策略：参数、成本与样本外](/help/learning/csi300-trend-strategy)
 - [设置 Factor 研究范围](/help/factors/evaluation-scope)
 - [阅读稳健截面推断](/help/factors/robust-inference)
-- [市值和行业中性化](/help/factors/neutralization)
+- [市值中性化](/help/factors/neutralization)
 - [换手、交易成本和费后收益](/help/factors/turnover-costs)

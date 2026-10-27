@@ -36,7 +36,7 @@ def request(method, arguments):
     if method == "command":
         return {}
     if method == "cross_section":
-        return {"codes": ["AAA"], "rows": [{"code": "AAA", "industry": "banking"}]}
+        return {"codes": ["AAA"], "rows": [{"code": "AAA", "list_days": 100}]}
     raise AssertionError("unexpected host request")
 
 def snapshot(date, equity, close):
@@ -58,7 +58,7 @@ second = strategy.bind(snapshot("20260106", 1200, 12))
 second_context = Context(second, {})
 assert first.date == "20260105" and first.stock.equity == 1000
 assert second.date == "20260106" and second.stock.equity == 1200
-assert first.industry("AAA") == "banking" and second.bar("AAA") is None
+assert first.list_days("AAA") == 100 and second.bar("AAA") is None
 assert second_context.history("AAA", "close", 2) == [10, 12]
 assert len(requests) == 2
 second_context.stock.equal_weight(["AAA", "BBB"])

@@ -1075,7 +1075,6 @@ const ParamsBar = complex.component(() => {
   const neutral = {
     none: t('neutralNone'),
     size: t('neutralSize'),
-    size_industry: t('neutralSizeIndustry'),
   }[store.neutral];
   const universe = t(`evaluationUniverse.${store.evaluationUniverse}`);
   const ranking = t(`evaluationRanking.${store.evaluationScope.rankingScope}`);
@@ -1202,7 +1201,6 @@ const ParamsPopover = complex.component(() => {
             options={[
               { value: 'none', label: t('neutralNone') },
               { value: 'size', label: t('neutralSize') },
-              { value: 'size_industry', label: t('neutralSizeIndustry') },
             ]}
           />
         </div>
@@ -1220,25 +1218,11 @@ const ParamsPopover = complex.component(() => {
             ]}
           />
         </div>
-        <div className="jx-factor-paramField">
-          <span className="jx-factor-paramLabel">{t('evaluationRankingLabel')}</span>
-          <Select
-            className="jx-factor-neutralSelect"
-            value={store.evaluationScope.rankingScope}
-            onChange={(value) => store.setEvaluationRankingScope(value)}
-            options={[
-              { value: 'global', label: t('evaluationRanking.global') },
-              {
-                value: 'within_industry',
-                label: t('evaluationRanking.within_industry'),
-              },
-            ]}
-          />
-        </div>
+
         <div className="jx-factor-paramField">
           <span className="jx-factor-paramLabel">{t('evaluationDiagnosticsLabel')}</span>
           <div className="jx-factor-diagnosticChoices">
-            {(['industry', 'size_bucket', 'liquidity_bucket'] as const).map((diagnostic) => (
+            {(['size_bucket', 'liquidity_bucket'] as const).map((diagnostic) => (
               <label key={diagnostic}>
                 <input
                   type="checkbox"
@@ -2533,16 +2517,6 @@ const MethodologyCard = complex.component(() => {
                   ranking: t(`evaluationRanking.${spec.evaluationScope.rankingScope}`),
                 })}
               </span>
-              {methodology.ranking?.kind === 'within_industry_percentile' && (
-                <span>
-                  {t('evaluationRankingAudit', {
-                    groups: methodology.ranking.groupsEvaluated,
-                    missing: methodology.ranking.missingClassification,
-                    small: methodology.ranking.undersizedGroup,
-                    minimum: methodology.ranking.minimumGroupSize,
-                  })}
-                </span>
-              )}
             </>
           )}
           <span>
@@ -2770,13 +2744,7 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
     return t('timeSeries.unsupportedReport');
   }
   const frequency = t(spec.freq === 'week' ? 'unitWeek' : 'unitMonth');
-  const neutral = t(
-    spec.neutral === 'size'
-      ? 'neutralSize'
-      : spec.neutral === 'size_industry'
-        ? 'neutralSizeIndustry'
-        : 'neutralNone',
-  );
+  const neutral = t(spec.neutral === 'size' ? 'neutralSize' : 'neutralNone');
   const universe =
     spec.version === 5 || spec.version === 6
       ? t(

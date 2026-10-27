@@ -80,7 +80,6 @@ export interface ResearchFinancialPanelRequestV1 extends ResearchPanelRequestV1 
 export interface ResearchFinancialStatementRowV1 {
   as_of_date: string;
   code: string;
-  industry: string | null;
   applicability: ResolvedFinancialState['applicability'];
   report_period: string;
   statement_kind: ResolvedFinancialStatement['statementKind'];
@@ -103,7 +102,6 @@ export interface ResearchFinancialMetricRowV1 {
   date: string;
   code: string;
   name: string;
-  industry: string | null;
   applicability: ResolvedFinancialState['applicability'];
   report_period: string | null;
   metric: ResearchFinancialMetricV1;
@@ -129,7 +127,7 @@ export async function loadResearchFinancialStatements(
   validateFinancialReportRange(request.as_of);
   validateFinancialReportRange(request.report_start, request.report_end);
   const state = await resolveFinancialState(
-    { tsCode: request.identifier, asOfDate: request.as_of, purpose: 'statements' },
+    { tsCode: request.identifier, asOfDate: request.as_of },
     database,
   );
   const rows = state.periods
@@ -269,7 +267,6 @@ function statementRows(
   return Object.entries(statement.values).map(([field, value]) => ({
     as_of_date: state.asOfDate,
     code: state.tsCode,
-    industry: state.industry?.l1Name ?? null,
     applicability: state.applicability,
     report_period: statement.endDate,
     statement_kind: statement.statementKind,
@@ -298,12 +295,9 @@ function metricRowsForState(
   const calculated = calculateFinancialMetrics(state);
   const periods = scope === 'latest_period' ? calculated.periods.slice(-1) : calculated.periods;
   if (periods.length === 0) {
-    const status =
-      state.applicability === 'unsupported_financial' ? 'not_applicable' : ('missing' as const);
-    const reason =
-      state.applicability === 'unsupported_financial'
-        ? 'unsupported_financial_company'
-        : 'no_financial_statements_available';
+    const status = 'missing' as const;
+    const reason = 'no_financial_statements_available';
+
     return metrics.map((metric) =>
       metricRow(state, name, null, {
         concept: metric,
@@ -332,7 +326,6 @@ function metricRow(
     date: state.asOfDate,
     code: state.tsCode,
     name,
-    industry: state.industry?.l1Name ?? null,
     applicability: state.applicability,
     report_period: reportPeriod,
     metric: metric.concept,

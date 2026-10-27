@@ -4,7 +4,7 @@ import { getDatabase, type Prisma } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import type { FinancialAvailabilityQuality, FinancialStatementKind } from './source-contract.js';
 
-export const FINANCIAL_RESOLVER_VERSION = 1;
+export const FINANCIAL_RESOLVER_VERSION = 2;
 
 export type FinancialStatementReportType = '1' | '4' | '5';
 
@@ -185,8 +185,7 @@ export interface ResolvedFinancialState {
   tsCode: string;
   asOfDate: string;
   strictPit: true;
-  industry: { l1Code: string; l1Name: string } | null;
-  applicability: 'industrial' | 'unsupported_financial' | 'unknown';
+  applicability: 'industrial' | 'unknown';
   periods: ResolvedFinancialPeriod[];
   market: ResolvedFinancialMarketSnapshot | null;
   diagnostics: FinancialDiagnostic[];
@@ -203,14 +202,8 @@ export interface BatchFinancialMarketSnapshot extends ResolvedFinancialMarketSna
 
 type FinancialResolverDatabase = Pick<
   Prisma,
-  | 'financialIncomeStatement'
-  | 'financialBalanceSheet'
-  | 'financialCashFlowStatement'
-  | 'swIndustryMember'
-  | 'dailyBasic'
+  'financialIncomeStatement' | 'financialBalanceSheet' | 'financialCashFlowStatement' | 'dailyBasic'
 >;
-
-const FINANCIAL_INDUSTRY_CODES = new Set(['801780.SI', '801790.SI']);
 const REPORT_TYPE_PRIORITY: Record<FinancialStatementReportType, number> = {
   '1': 2,
   '4': 3,
@@ -228,7 +221,7 @@ const QUALITY_PRIORITY: Record<FinancialAvailabilityQuality, number> = {
  * Resolve the independently versioned statements that were usable on a historical date.
  */
 export async function resolveFinancialState(
-  input: { tsCode: string; asOfDate: string; purpose?: 'metrics' | 'statements' },
+  input: { tsCode: string; asOfDate: string },
   database: FinancialResolverDatabase = getDatabase(),
 ): Promise<ResolvedFinancialState> {
   assertTsCode(input.tsCode);
@@ -240,19 +233,10 @@ export async function resolveFinancialState(
     compType: '1',
     reportType: { in: ['1', '4', '5'] },
   };
-  const [incomeRows, balanceRows, cashFlowRows, industry, market] = await Promise.all([
+  const [incomeRows, balanceRows, cashFlowRows, market] = await Promise.all([
     database.financialIncomeStatement.findMany({ where: commonWhere }),
     database.financialBalanceSheet.findMany({ where: commonWhere }),
     database.financialCashFlowStatement.findMany({ where: commonWhere }),
-    database.swIndustryMember.findFirst({
-      where: {
-        tsCode,
-        inDate: { lte: input.asOfDate },
-        OR: [{ outDate: null }, { outDate: { gt: input.asOfDate } }],
-      },
-      orderBy: { inDate: 'desc' },
-      select: { l1Code: true, l1Name: true },
-    }),
     database.dailyBasic.findFirst({
       where: { tsCode, tradeDate: { lte: input.asOfDate } },
       orderBy: { tradeDate: 'desc' },
@@ -263,11 +247,9 @@ export async function resolveFinancialState(
   return buildFinancialState({
     tsCode,
     asOfDate: input.asOfDate,
-    purpose: input.purpose,
     incomeRows: incomeRows.map(mapIncome),
     balanceRows: balanceRows.map(mapBalance),
     cashFlowRows: cashFlowRows.map(mapCashFlow),
-    industry,
     market: market
       ? {
           tradeDate: market.tradeDate,
@@ -288,7 +270,6 @@ export async function resolveFinancialStates(
     tsCodes: readonly string[];
     asOfDate: string;
     markets?: readonly BatchFinancialMarketSnapshot[];
-    purpose?: 'metrics' | 'statements';
     reportStart?: string;
     reportEnd?: string;
   },
@@ -314,29 +295,14 @@ export async function resolveFinancialStates(
     compType: '1',
     reportType: { in: ['1', '4', '5'] },
   };
-  const [incomeRows, balanceRows, cashFlowRows, industries] = await Promise.all([
+  const [incomeRows, balanceRows, cashFlowRows] = await Promise.all([
     database.financialIncomeStatement.findMany({ where: commonWhere }),
     database.financialBalanceSheet.findMany({ where: commonWhere }),
     database.financialCashFlowStatement.findMany({ where: commonWhere }),
-    database.swIndustryMember.findMany({
-      where: {
-        tsCode: { in: tsCodes },
-        inDate: { lte: input.asOfDate },
-        OR: [{ outDate: null }, { outDate: { gt: input.asOfDate } }],
-      },
-      orderBy: { inDate: 'desc' },
-      select: { tsCode: true, l1Code: true, l1Name: true },
-    }),
   ]);
   const incomeByCode = groupByCode(incomeRows.map(mapIncome));
   const balanceByCode = groupByCode(balanceRows.map(mapBalance));
   const cashFlowByCode = groupByCode(cashFlowRows.map(mapCashFlow));
-  const industryByCode = new Map<string, { l1Code: string; l1Name: string }>();
-  for (const industry of industries) {
-    if (!industryByCode.has(industry.tsCode)) {
-      industryByCode.set(industry.tsCode, industry);
-    }
-  }
   const marketByCode = new Map(
     (input.markets ?? []).map(({ tsCode, ...market }) => [canonicalStockCode(tsCode), market]),
   );
@@ -345,11 +311,9 @@ export async function resolveFinancialStates(
     buildFinancialState({
       tsCode,
       asOfDate: input.asOfDate,
-      purpose: input.purpose,
       incomeRows: incomeByCode.get(tsCode) ?? [],
       balanceRows: balanceByCode.get(tsCode) ?? [],
       cashFlowRows: cashFlowByCode.get(tsCode) ?? [],
-      industry: industryByCode.get(tsCode) ?? null,
       market: marketByCode.get(tsCode) ?? null,
     }),
   );
@@ -361,38 +325,26 @@ export async function resolveFinancialStates(
  * Build an as-of financial state from visible statement versions, market snapshots and diagnostics.
  */
 function buildFinancialState(input: {
-  purpose?: 'metrics' | 'statements';
   tsCode: string;
   asOfDate: string;
   incomeRows: ResolvedIncomeStatement[];
   balanceRows: ResolvedBalanceSheet[];
   cashFlowRows: ResolvedCashFlowStatement[];
-  industry: { l1Code: string; l1Name: string } | null;
   market: ResolvedFinancialMarketSnapshot | null;
 }): ResolvedFinancialState {
-  const { tsCode, asOfDate, incomeRows, balanceRows, cashFlowRows, industry, market } = input;
+  const { tsCode, asOfDate, incomeRows, balanceRows, cashFlowRows, market } = input;
 
   const diagnostics: FinancialDiagnostic[] = [];
-  const applicability = industry
-    ? FINANCIAL_INDUSTRY_CODES.has(industry.l1Code)
-      ? 'unsupported_financial'
-      : 'industrial'
-    : incomeRows.length + balanceRows.length + cashFlowRows.length > 0
-      ? 'industrial'
-      : 'unknown';
-  if (applicability === 'unsupported_financial') {
-    diagnostics.push({
-      code: 'unsupported_financial_company',
-      severity: 'error',
-      message: `Industrial-company financial metrics do not apply to ${industry?.l1Name ?? tsCode}.`,
-    });
-  }
+  // 来源已按 compType=1 筛选，行业分类不再参与财务计算。
+  // Source queries already require compType=1; industry classification is not an input.
+  const applicability =
+    incomeRows.length + balanceRows.length + cashFlowRows.length > 0 ? 'industrial' : 'unknown';
 
   const income = selectLatestStatementVersions(incomeRows, diagnostics);
   const balanceSheets = selectLatestStatementVersions(balanceRows, diagnostics);
   const cashFlows = selectLatestStatementVersions(cashFlowRows, diagnostics);
   const periods = combinePeriods(income, balanceSheets, cashFlows);
-  if (periods.length === 0 && applicability !== 'unsupported_financial') {
+  if (periods.length === 0) {
     diagnostics.push({
       code: 'no_financial_statements_available',
       severity: 'warning',
@@ -405,10 +357,8 @@ function buildFinancialState(input: {
     tsCode,
     asOfDate,
     strictPit: true,
-    industry,
     applicability,
-    periods:
-      applicability === 'unsupported_financial' && input.purpose !== 'statements' ? [] : periods,
+    periods,
     market,
     diagnostics,
   };

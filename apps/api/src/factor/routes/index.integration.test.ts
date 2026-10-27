@@ -195,9 +195,9 @@ describe('Factor HTTP business boundaries', () => {
     {
       specJson: null,
       freq: 'week',
-      neutral: 'size_industry',
+      neutral: 'size',
       expectedFreq: 'week',
-      expectedNeutral: 'size_industry',
+      expectedNeutral: 'size',
     },
     {
       specJson: '{',

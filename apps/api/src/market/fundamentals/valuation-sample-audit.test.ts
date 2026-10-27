@@ -77,7 +77,6 @@ function emptyState(): ResolvedFinancialState {
     tsCode: '000858.SZ',
     asOfDate: '20260907',
     strictPit: true,
-    industry: null,
     applicability: 'unknown',
     periods: [],
     market: null,

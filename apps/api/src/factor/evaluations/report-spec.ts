@@ -13,7 +13,7 @@ export function reportResearchSpec(
     factorCodeSnapshot?: string | null;
   },
 ) {
-  if (isRetiredCompositeReport(row)) {
+  if (isRetiredFactorReport(row)) {
     throw new FactorError('evaluation_not_found');
   }
 
@@ -30,7 +30,7 @@ export function reportResearchSpec(
     freq: row.freq === 'week' ? 'week' : 'month',
     start: row.start,
     end: row.end,
-    neutral: row.neutral === 'size' || row.neutral === 'size_industry' ? row.neutral : 'none',
+    neutral: row.neutral === 'size' ? row.neutral : 'none',
   });
 }
 
@@ -53,14 +53,19 @@ export function reportCompatibilityColumns(spec: FactorResearchSpecV1) {
 }
 
 /**
- * 识别已退役的组合报告，避免以普通单因子规格回退读取。
+ * 识别包含已退役功能的报告，避免以普通单因子规格回退读取。
  *
- * Identify retired composite reports so they cannot fall back to ordinary single-factor settings.
+ * Identify reports using retired capabilities so they cannot fall back to ordinary single-factor settings.
  */
-export function isRetiredCompositeReport(row: {
+export function isRetiredFactorReport(row: {
   specJson: string | null;
+  neutral?: string;
   factorCodeSnapshot?: string | null;
 }): boolean {
+  if (row.neutral === 'size_industry') {
+    return true;
+  }
+
   for (const text of [row.specJson, row.factorCodeSnapshot]) {
     if (!text) {
       continue;
@@ -82,6 +87,16 @@ export function isRetiredCompositeReport(row: {
       record.protocol && typeof record.protocol === 'object'
         ? (record.protocol as Record<string, unknown>)
         : undefined;
+
+    const settings = protocol ?? record;
+    const scope = settings.evaluationScope as Record<string, unknown> | undefined;
+    if (
+      settings.neutral === 'size_industry' ||
+      scope?.rankingScope === 'within_industry' ||
+      (Array.isArray(scope?.diagnostics) && scope.diagnostics.includes('industry'))
+    ) {
+      return true;
+    }
 
     if (
       record.kind === 'composite' ||

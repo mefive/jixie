@@ -10,7 +10,6 @@ import {
   DAILY_MAINTAINED_INDEX_CODES,
   MAJOR_INDEX_DAILY_BASIC_CODES,
   INDEX_MEMBERSHIP_CODES,
-  SHENWAN_LEVEL_ONE_INDUSTRY_CODES,
 } from '#market/registry/index-presets.js';
 import { CROSS_MARKET_BENCHMARKS } from '#market/registry/cross-market-benchmarks.js';
 import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
@@ -70,8 +69,6 @@ export async function datasetScopes(
       return scopes(policy, ['L', 'D', 'P', 'G']);
     case 'stock-names':
       return scopes(policy, ['all']);
-    case 'industry-members':
-      return scopes(policy, SHENWAN_LEVEL_ONE_INDUSTRY_CODES);
     case 'index-catalog':
     case 'etf-master':
       return scopes(policy, ['all']);
@@ -81,8 +78,6 @@ export async function datasetScopes(
       return scopes(policy, MAJOR_INDEX_DAILY_BASIC_CODES);
     case 'index-weights':
       return scopes(policy, INDEX_MEMBERSHIP_CODES);
-    case 'industry-prices':
-      return scopes(policy, SHENWAN_LEVEL_ONE_INDUSTRY_CODES);
     case 'etf-prices':
     case 'etf-adjustments':
     case 'etf-shares': {

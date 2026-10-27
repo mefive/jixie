@@ -12,7 +12,7 @@
 | [spec.ts](spec.ts) | `normalizeFactorAnalysisSpec` / `normalizeFactorResearchSpec` 及默认配置，供提交、读取、模板等直接消费 |
 | [cross-sectional](cross-sectional/README.md) | 横截面评估、方法政策、统计与稳健推断；共享取数和因子序列归 [observations/cross-sectional](../observations/cross-sectional/README.md) |
 | [time-series-evaluator.ts](time-series-evaluator.ts)、[panel-evaluator.ts](panel-evaluator.ts)、[macro-regime-evaluator.ts](macro-regime-evaluator.ts) | 对相应观察数据形成评估结果；数值与频率规则留在各评估器 |
-| [evaluation-scope.ts](evaluation-scope.ts) | PIT 指数成分、范围过滤及行业内排序规则 |
+| [evaluation-scope.ts](evaluation-scope.ts) | PIT 指数成分、范围过滤及全局排序规则 |
 
 runFactorEvaluation 按 researchSpec 分派来源类型，组合 [observations](../observations/README.md) 和 [sandbox](../sandbox/README.md)。资产因子经 FactorSandbox.start 创建，execute 批量计算，finally close 释放实例。onResult 保留在释放前调用的顺序；Worker 的 `reportId` 用于关联分析报告。
 

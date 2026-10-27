@@ -14,9 +14,7 @@ import {
 export interface IndexDateQuality {
   indexDaily: number;
   indexDailyBasic: number;
-  swIndexDaily: number;
   oldestIndexWeightSnapshot: string;
-  activeIndustries: number;
 }
 
 /**
@@ -28,32 +26,20 @@ export async function validateIndexDate(
   tradeDate: string,
   maximumIndexWeightAgeDays = 190,
 ): Promise<IndexDateQuality> {
-  const [indexCodes, indexBasicCodes, swIndexRows, activeIndustries, indexSnapshots] =
-    await Promise.all([
-      getDatabase().indexDaily.findMany({
-        where: {
-          tradeDate,
-          tsCode: { in: DAILY_MAINTAINED_INDEX_CODES },
-        },
-        select: { tsCode: true },
-      }),
-      getDatabase().indexDailyBasic.findMany({
-        where: { tradeDate, tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
-        select: { tsCode: true },
-      }),
-      getDatabase().swIndexDaily.findMany({
-        where: { tradeDate },
-        select: { tsCode: true },
-      }),
-      getDatabase().swIndustryMember.groupBy({
-        by: ['l1Code'],
-        where: {
-          inDate: { lte: tradeDate },
-          OR: [{ outDate: null }, { outDate: { gt: tradeDate } }],
-        },
-      }),
-      readIndexWeightSnapshots(tradeDate),
-    ]);
+  const [indexCodes, indexBasicCodes, indexSnapshots] = await Promise.all([
+    getDatabase().indexDaily.findMany({
+      where: {
+        tradeDate,
+        tsCode: { in: DAILY_MAINTAINED_INDEX_CODES },
+      },
+      select: { tsCode: true },
+    }),
+    getDatabase().indexDailyBasic.findMany({
+      where: { tradeDate, tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
+      select: { tsCode: true },
+    }),
+    readIndexWeightSnapshots(tradeDate),
+  ]);
   const actualIndexCodes = new Set(indexCodes.map((row) => row.tsCode));
   const missingIndexCodes = MAJOR_INDEX_DAILY_CODES.filter((code) => !actualIndexCodes.has(code));
   if (missingIndexCodes.length > 0) {
@@ -73,23 +59,11 @@ export async function validateIndexDate(
     maximumIndexWeightAgeDays,
     indexSnapshots,
   );
-  if (activeIndustries.length < 20) {
-    throw new Error(
-      `Only ${activeIndustries.length} active Shenwan industries are available for ${tradeDate}`,
-    );
-  }
-  if (swIndexRows.length !== 31) {
-    throw new Error(
-      `SwIndexDaily has ${swIndexRows.length}/31 level-1 industries for ${tradeDate}`,
-    );
-  }
 
   return {
     indexDaily: actualIndexCodes.size,
     indexDailyBasic: actualIndexBasicCodes.size,
-    swIndexDaily: swIndexRows.length,
     oldestIndexWeightSnapshot,
-    activeIndustries: activeIndustries.length,
   };
 }
 

@@ -353,7 +353,6 @@ export const enResearch: typeof zhResearch = {
     rerun: 'Rerun',
     runFailed: 'Universe run failed',
     entity: 'Object',
-    industry: 'Industry',
     eligibility: 'Listed ≥ {{days}} days · suspensions excluded · risk warnings {{risk}}',
     riskWarning: { include: 'included', exclude: 'excluded' },
     summary: '{{date}} · {{total}} matches · {{shown}} shown · data revision {{revision}}',

@@ -1,4 +1,4 @@
-import { RETIRED_STOCK_DATASETS } from './retired-datasets.js';
+import { RETIRED_DATASETS } from './retired-datasets.js';
 import type { DatasetCoverage, MaintenanceStatus } from '@jixie/shared/api/maintenance';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
@@ -17,12 +17,12 @@ export type { MaintenanceStatus } from '@jixie/shared/api/maintenance';
 export async function readDatasetCoverage(): Promise<DatasetCoverage[]> {
   const [states, partitions] = await Promise.all([
     getDatabase().datasetSyncState.findMany({
-      where: { dataset: { notIn: RETIRED_STOCK_DATASETS } },
+      where: { dataset: { notIn: RETIRED_DATASETS } },
       orderBy: [{ dataset: 'asc' }, { scope: 'asc' }],
     }),
     getDatabase().datasetSyncPartition.groupBy({
       by: ['dataset', 'scope', 'status'],
-      where: { dataset: { notIn: RETIRED_STOCK_DATASETS } },
+      where: { dataset: { notIn: RETIRED_DATASETS } },
       _count: { _all: true },
     }),
   ]);

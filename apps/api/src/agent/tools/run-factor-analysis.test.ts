@@ -65,7 +65,7 @@ describe('runFactorAnalysisTool', () => {
       freq: 'month',
       start: '20200101',
       end: '20260730',
-      neutral: 'size_industry',
+      neutral: 'size',
     });
 
     expect(start).toHaveBeenCalledOnce();
@@ -78,7 +78,7 @@ describe('runFactorAnalysisTool', () => {
         freq: 'month',
         start: '20200101',
         end: '20260730',
-        neutral: 'size_industry',
+        neutral: 'size',
       },
     });
     expect(wait).toHaveBeenCalledWith('user-1', 'report-1', undefined);
@@ -133,7 +133,7 @@ describe('runFactorAnalysisTool', () => {
     });
   });
 
-  it('freezes within-industry ranking for all-A research in V6', async () => {
+  it('freezes global ranking and retained size diagnostics for all-A research in V6', async () => {
     const started: RunFactorAnalysisResponse = {
       reportId: 'report-industry',
       jobId: 'job-industry',
@@ -157,8 +157,8 @@ describe('runFactorAnalysisTool', () => {
       end: '20260730',
       neutral: 'none',
       universe: 'cn_a',
-      rankingScope: 'within_industry',
-      diagnostics: ['industry'],
+      rankingScope: 'global',
+      diagnostics: ['size_bucket'],
     });
 
     expect(start.mock.calls[0][0]).toMatchObject({
@@ -166,8 +166,8 @@ describe('runFactorAnalysisTool', () => {
         version: 6,
         evaluationScope: {
           universe: { kind: 'market', market: 'cn_a' },
-          rankingScope: 'within_industry',
-          diagnostics: ['industry'],
+          rankingScope: 'global',
+          diagnostics: ['size_bucket'],
         },
       },
     });

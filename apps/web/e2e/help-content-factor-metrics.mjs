@@ -145,11 +145,11 @@ async function runNeutralizedAnalysis() {
   await neutralField.locator('.jx-factor-neutralSelect').click();
   const dropdown = page.locator('.ant-select-dropdown:visible');
   await dropdown.waitFor();
-  const sizeIndustryOption = dropdown.locator('.ant-select-item-option', {
-    hasText: '市值+行业',
+  const sizeOption = dropdown.locator('.ant-select-item-option', {
+    hasText: '市值',
   });
-  await sizeIndustryOption.click();
-  await neutralField.getByText('市值+行业', { exact: true }).waitFor();
+  await sizeOption.click();
+  await neutralField.getByText('市值', { exact: true }).waitFor();
   await page.locator('.jx-factor-reportWarning').waitFor();
   await annotatedScreenshot(page, `${OUTPUT}factor-neutralization-setting-01.png`, [
     { locator: neutralField, number: 1 },
@@ -159,7 +159,7 @@ async function runNeutralizedAnalysis() {
   await popover.waitFor({ state: 'hidden' });
 
   await runCurrentDraft();
-  await page.locator('.jx-factor-paramSummary', { hasText: '市值+行业' }).waitFor();
+  await page.locator('.jx-factor-paramSummary', { hasText: '市值' }).waitFor();
   await page.locator('.jx-factor-result').evaluate((element) => {
     element.scrollTop = 0;
   });

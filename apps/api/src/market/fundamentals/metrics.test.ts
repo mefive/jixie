@@ -105,24 +105,6 @@ describe('financial metrics kernel', () => {
     expect(changed.resultFingerprint).not.toBe(first.resultFingerprint);
   });
 
-  it('returns no industrial metrics for a financial company', () => {
-    const input = state();
-    input.applicability = 'unsupported_financial';
-    input.periods = [];
-    input.diagnostics = [
-      {
-        code: 'unsupported_financial_company',
-        severity: 'error',
-        message: 'Not applicable.',
-      },
-    ];
-
-    const result = calculateFinancialMetrics(input);
-
-    expect(result.periods).toEqual([]);
-    expect(result.diagnostics[0].code).toBe('unsupported_financial_company');
-  });
-
   it('quarantines negative capex dependencies without changing source data or unrelated metrics', () => {
     const input = state();
     input.periods.at(-1)!.cashFlow!.values.cPayAcqConstFiolta = -10;
@@ -291,7 +273,6 @@ function state(): ResolvedFinancialState {
     tsCode: '000858.SZ',
     asOfDate: '20250501',
     strictPit: true,
-    industry: { l1Code: '801120.SI', l1Name: '食品饮料' },
     applicability: 'industrial',
     periods,
     market: {

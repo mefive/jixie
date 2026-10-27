@@ -10,7 +10,6 @@ const SESSION_SERIES = new Set([
   'stock-limits',
   'index-prices',
   'index-valuations',
-  'industry-prices',
   'etf-prices',
   'etf-adjustments',
   'future-prices',

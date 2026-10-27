@@ -8,7 +8,6 @@ _EQUITY_DATASET_COLUMNS = [
     "date",
     "code",
     "name",
-    "industry",
     "close",
     "adjusted_close",
     "daily_return_pct",
@@ -87,7 +86,6 @@ _EQUITY_FUNDAMENTAL_COLUMNS = [
 _FINANCIAL_STATEMENT_COLUMNS = [
     "as_of_date",
     "code",
-    "industry",
     "applicability",
     "report_period",
     "statement_kind",
@@ -102,7 +100,7 @@ _FINANCIAL_STATEMENT_COLUMNS = [
 ]
 
 _FINANCIAL_VALUE_COLUMNS = [
-    "as_of_date", "code", "industry", "applicability", "statement_kind", "field", "value", "unit",
+    "as_of_date", "code", "applicability", "statement_kind", "field", "value", "unit",
     "report_period", "available_date", "period_basis", "status", "formula", "formula_version",
     "input_versions_json", "missing_reason",
 ]
@@ -111,7 +109,6 @@ _FINANCIAL_METRIC_COLUMNS = [
     "date",
     "code",
     "name",
-    "industry",
     "applicability",
     "report_period",
     "metric",

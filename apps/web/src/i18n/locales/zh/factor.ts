@@ -320,9 +320,7 @@ export const zhFactor = {
   neutralLabel: '中性化',
   neutralNone: '无',
   neutralSize: '市值',
-  neutralSizeIndustry: '市值+行业',
   neutralSizeTag: '·市值中性',
-  neutralSizeIndustryTag: '·市值行业中性',
   paramsSummary:
     '{{frequency}}频 · {{start}} 至 {{end}} · {{universe}} · {{ranking}} · {{neutral}}',
   evaluationUniverseLabel: '研究范围',
@@ -332,14 +330,11 @@ export const zhFactor = {
     '000905.SH': '中证 500',
     '000852.SH': '中证 1000',
   },
-  evaluationRankingLabel: '排序范围',
   evaluationRanking: {
     global: '全局排序',
-    within_industry: '申万一级行业内排序',
   },
   evaluationDiagnosticsLabel: '诊断切片（不改变主结果）',
   evaluationDiagnostics: {
-    industry: '行业',
     size_bucket: '市值分层',
     liquidity_bucket: '流动性分层',
   },
@@ -434,9 +429,7 @@ export const zhFactor = {
   stageLiquidity: '流动性',
   universeSpec: '上市≥{{days}}天 · 剔除低流动性{{liquidity}}% · 每期≥{{candidates}}只',
   evaluationUniverseSpec: '研究范围：{{universe}} · 使用历史时点成分',
-  evaluationRankingSpec: '排序方法：{{ranking}} · 行业分类使用研究日历史归属',
-  evaluationRankingAudit:
-    '行业排序审计（逐期累计）：参与 {{groups}} 个行业期 · 缺失分类 {{missing}} 条 · 少于 {{minimum}} 只剔除 {{small}} 条',
+  evaluationRankingSpec: '排序方法：{{ranking}}',
   diagnosticsTitle: '稳健性诊断',
   diagnosticsSlice: '切片',
   diagnosticsPeriods: '期数',

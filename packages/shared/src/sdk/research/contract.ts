@@ -799,14 +799,6 @@ export const RESEARCH_EQUITY_DATAFRAME_COLUMNS_V1 = [
       'The equity name available on the cross-section date, falling back to the code when missing.',
   },
   {
-    name: 'industry',
-    wireType: 'nullable_string',
-    pythonType: 'str | None',
-    descriptionZh: '截面日的申万一级行业；缺少历史归属时为空。',
-    descriptionEn:
-      'The point-in-time SW level-1 industry, or null when historical membership is unavailable.',
-  },
-  {
     name: 'close',
     wireType: 'nullable_number',
     pythonType: 'float64',
@@ -1190,18 +1182,11 @@ export const RESEARCH_FINANCIAL_STATEMENT_COLUMNS_V1 = [
     descriptionEn: 'Stable platform equity identifier.',
   },
   {
-    name: 'industry',
-    wireType: 'nullable_string',
-    pythonType: 'str | None',
-    descriptionZh: '估值日申万一级行业。',
-    descriptionEn: 'Point-in-time SW level-1 industry on the as-of date.',
-  },
-  {
     name: 'applicability',
     wireType: 'string',
     pythonType: 'str',
-    descriptionZh: 'industrial、unsupported_financial 或 unknown。',
-    descriptionEn: 'industrial, unsupported_financial, or unknown.',
+    descriptionZh: 'industrial 或 unknown。',
+    descriptionEn: 'industrial or unknown.',
   },
   {
     name: 'report_period',
@@ -1348,18 +1333,11 @@ export const RESEARCH_FINANCIAL_METRIC_COLUMNS_V1 = [
     descriptionEn: 'Name available on the date, falling back to the code when unavailable.',
   },
   {
-    name: 'industry',
-    wireType: 'nullable_string',
-    pythonType: 'str | None',
-    descriptionZh: '截面日申万一级行业。',
-    descriptionEn: 'Point-in-time SW level-1 industry.',
-  },
-  {
     name: 'applicability',
     wireType: 'string',
     pythonType: 'str',
-    descriptionZh: 'industrial、unsupported_financial 或 unknown。',
-    descriptionEn: 'industrial, unsupported_financial, or unknown.',
+    descriptionZh: 'industrial 或 unknown。',
+    descriptionEn: 'industrial or unknown.',
   },
   {
     name: 'report_period',
@@ -2512,12 +2490,12 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
         'data.equity_financial_cross_section("index:000300.SH", date="20240429", metrics=["revenue", "returnOnInvestedCapital"])',
       ],
       notesZh: [
-        '股票池、行业、市场数据和财报均按截面日 PIT 解析；返回 date × code × metric 长表。',
-        '最多选择八个指标且最多返回 50000 行；金融企业保留为 not_applicable 行。',
+        '股票池、市场数据和财报均按截面日 PIT 解析；返回 date × code × metric 长表。',
+        '最多选择八个指标且最多返回 50000 行；缺少已接入非金融报表时返回 missing 行。',
       ],
       notesEn: [
-        'Universe, industry, market data, and statements all resolve point-in-time on the cross-section date; returns a date-by-code-by-metric long frame.',
-        'At most eight metrics and 50,000 rows are allowed; financial companies remain as not_applicable rows.',
+        'Universe, market data, and statements all resolve point-in-time on the cross-section date; returns a date-by-code-by-metric long frame.',
+        'At most eight metrics and 50,000 rows are allowed; missing integrated non-financial statements produce missing rows.',
       ],
       parameters: [
         equityUniverseParameter,

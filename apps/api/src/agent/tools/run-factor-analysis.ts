@@ -15,12 +15,12 @@ const argsSchema = z.object({
   freq: z.enum(['month', 'week']),
   start: z.string().regex(/^\d{8}$/),
   end: z.string().regex(/^\d{8}$/),
-  neutral: z.enum(['none', 'size', 'size_industry']).default('none'),
+  neutral: z.enum(['none', 'size']).default('none'),
   universe: z.enum(['cn_a', '000300.SH', '000905.SH', '000852.SH']).default('cn_a'),
-  rankingScope: z.enum(['global', 'within_industry']).default('global'),
+  rankingScope: z.literal('global').default('global'),
   diagnostics: z
-    .array(z.enum(['industry', 'size_bucket', 'liquidity_bucket']))
-    .max(3)
+    .array(z.enum(['size_bucket', 'liquidity_bucket']))
+    .max(2)
     .default([]),
 });
 
@@ -50,7 +50,7 @@ interface FactorResearchContext {
 export function runFactorAnalysisTool(context: FactorResearchContext): AgentTool {
   return {
     name: 'runFactorAnalysis',
-    description: `Run an analysis for the current custom factor or a candidate full factor module. Choose the formal universe explicitly when it matters; use within_industry ranking to test stock selection inside point-in-time SW L1 industries, not as a cosmetic report filter. Results are immutable FactorReports while retained. A new analysis replaces older ordinary results for this factor, even if it fails; publication-bound reports remain. Removed report IDs cannot be loaded again. This tool cannot publish a Factor, deploy a strategy, or alter the saved factor code.`,
+    description: `Run an analysis for the current custom factor or a candidate full factor module. Choose the formal universe explicitly when it matters; industry classification, filtering, ranking and neutralization are unavailable. Results are immutable FactorReports while retained. A new analysis replaces older ordinary results for this factor, even if it fails; publication-bound reports remain. Removed report IDs cannot be loaded again. This tool cannot publish a Factor, deploy a strategy, or alter the saved factor code.`,
     parameters: z.toJSONSchema(argsSchema),
 
     /**

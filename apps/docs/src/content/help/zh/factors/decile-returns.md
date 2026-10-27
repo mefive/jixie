@@ -120,4 +120,4 @@ $$
 
 - [Rank IC、ICIR 和 IC 衰减](/help/factors/rank-ic-icir)
 - [换手、交易成本和费后收益](/help/factors/turnover-costs)
-- [市值和行业中性化](/help/factors/neutralization)
+- [市值中性化](/help/factors/neutralization)

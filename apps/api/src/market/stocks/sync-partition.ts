@@ -257,7 +257,6 @@ export async function prepareStockReference(
       symbol: 'symbol',
       name: 'name',
       area: 'area',
-      industry: 'industry',
       market: 'market',
       listDate: 'list_date',
       delistDate: 'delist_date',

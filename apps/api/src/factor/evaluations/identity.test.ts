@@ -38,20 +38,19 @@ describe('factor evaluation identity', () => {
     );
   });
 
-  it('freezes within-industry ranking as a distinct V5 research identity', () => {
+  it('rejects retired within-industry ranking instead of silently using global ranking', () => {
     const global = createDefaultFactorAnalysisSpecV5({
       freq: 'month',
       start: '20200101',
       end: '20250101',
       neutral: 'none',
     });
-    const withinIndustry = createDefaultFactorAnalysisSpecV5({
-      ...global,
-      evaluationScope: { ...global.evaluationScope, rankingScope: 'within_industry' },
-    });
-
-    expect(normalizeFactorAnalysisSpec(withinIndustry)).toEqual(withinIndustry);
-    expect(factorVariantKey(global, 'hash')).not.toEqual(factorVariantKey(withinIndustry, 'hash'));
+    expect(() =>
+      normalizeFactorAnalysisSpec({
+        ...global,
+        evaluationScope: { ...global.evaluationScope, rankingScope: 'within_industry' },
+      }),
+    ).toThrow();
   });
 
   it('freezes diagnostic slices without changing the formal evaluation scope', () => {
@@ -65,7 +64,7 @@ describe('factor evaluation identity', () => {
       ...base,
       evaluationScope: {
         ...base.evaluationScope,
-        diagnostics: ['industry', 'size_bucket', 'liquidity_bucket'],
+        diagnostics: ['size_bucket', 'liquidity_bucket'],
       },
     });
 

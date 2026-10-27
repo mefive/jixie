@@ -14,7 +14,6 @@ import {
   auditFinancialStatementAccounting,
   auditFinancialStatementVersions,
 } from '#market/fundamentals/audit.js';
-import { auditIndustryCalendarCoverage } from '#market/indices/audit.js';
 import { auditStockUniverse } from '#market/instruments/audit.js';
 import { auditMacroPit } from '#market/macro/audit.js';
 import { formatNumber, formatPercent } from '#market/quality/format.js';
@@ -115,7 +114,6 @@ export async function runDataQualityAudit(
 
   const findings: AuditFinding[] = [
     ...(await auditStockCalendarCoverage(database, startDate, endDate, openDates)),
-    await auditIndustryCalendarCoverage(database, startDate, endDate, openDates),
   ];
 
   findings.push(

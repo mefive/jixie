@@ -1,4 +1,4 @@
-import { retireStockDatasets } from './retired-datasets.js';
+import { retireDatasets } from './retired-datasets.js';
 import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
 import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
 import { MarketSyncBudgetError } from '#market/errors.js';
@@ -132,7 +132,7 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
       timer.unref();
       try {
         result.gaps.push(...(await cleanRetiredSyncResources()));
-        await retireStockDatasets();
+        await retireDatasets();
         await acquireSyncPartitions(input, result, sourceBudget, clock, log);
         await normalizeSyncIdentities(result, clock, input.signal);
         await database.dataSyncRun.update({

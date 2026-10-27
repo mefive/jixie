@@ -63,7 +63,6 @@ export const enCommon: typeof zhCommon = {
       financials: 'Incrementally syncing financial indicators',
       dividends: 'Incrementally syncing dividends',
       index_membership: 'Syncing index constituents',
-      industry_membership: 'Syncing industry membership',
       metadata: 'Syncing ETF and futures metadata',
       canonicalizing_codes: 'Canonicalizing security codes',
       self_healing: 'Checking and repairing published data',

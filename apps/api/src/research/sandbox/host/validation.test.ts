@@ -214,6 +214,7 @@ describe('research workbench SDK contract', () => {
         : [],
     );
     expect(parseResearchEquityDatasetRuntimeRows([row])).toEqual([row]);
+    expect(() => parseResearchEquityDatasetRuntimeRows([{ ...row, industry: 'Bank' }])).toThrow();
     expect(RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1.returns).toEqual(
       RESEARCH_PANEL_SDK_CONTRACT_V1.returns,
     );
@@ -270,7 +271,6 @@ describe('research workbench SDK contract', () => {
       date: '20240429',
       code: '000001.SZ',
       name: '平安银行',
-      industry: '银行',
       applicability: 'unsupported_financial',
       report_period: null,
       metric: 'returnOnInvestedCapital',
