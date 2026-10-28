@@ -212,33 +212,6 @@ test('inserts a governed identifier-based reference dataset call', () => {
   );
 });
 
-test('inserts the retained ETF share dataset call', () => {
-  assert.match(
-    researchDatasetSnippet({
-      dataset: {
-        kind: 'dataset',
-        id: 'data.etf_shares:510300.SH',
-        method: 'data.etf_shares',
-        identifier: '510300.SH',
-        nameZh: '沪深300 ETF 份额',
-        nameEn: 'CSI 300 ETF shares',
-        descriptionZh: '',
-        descriptionEn: '',
-        tags: [],
-        localDataCoverage: {
-          status: 'ready',
-          startDate: '20150105',
-          endDate: '20260731',
-          dateBasis: 'tradeDate',
-        },
-      },
-      start: '20210101',
-      end: '20260701',
-    }),
-    /data_510300_sh_etf_shares = data\.etf_shares\([\s\S]*"510300.SH"/,
-  );
-});
-
 test('inserts an immutable BacktestReport lookup by stable report id', () => {
   assert.equal(
     researchBacktestReportSnippet({ id: 'backtest-report-01', strategyName: 'Value Rotation' }),

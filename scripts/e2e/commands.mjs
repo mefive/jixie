@@ -1,5 +1,12 @@
 export const e2eCommands = [
   {
+    name: 'download-lists',
+    file: 'apps/web/e2e/download-lists.mjs',
+    group: 'research',
+    notes:
+      'Isolated compiled CLI edits and preserved prices; retired ETF share reads fail; bilingual data catalog.',
+  },
+  {
     name: 'macro-retirement',
     file: 'apps/web/e2e/macro-retirement.mjs',
     group: 'research',

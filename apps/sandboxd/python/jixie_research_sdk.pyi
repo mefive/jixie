@@ -82,18 +82,6 @@ class _DataApi:
         end: str,
     ) -> pd.DataFrame: ...
 
-    # Load ETF shares, size, NAV, and close by research availability date.
-    # Note: identifier uses a platform ETF code; start/end constrain research availability date.
-    # Example: data.etf_shares("510300.SH", start="20200101", end="20251231")
-    # DataFrame columns: date: datetime64[ns], trade_date: datetime64[ns], total_share_10k: float64, total_size_cny_10k: float64, nav: float64, close: float64, exchange: string
-    def etf_shares(
-        self,
-        identifier: str,
-        *,
-        start: str,
-        end: str,
-    ) -> pd.DataFrame: ...
-
     # Load provider-computed index valuation, market value, and turnover measures.
     # Note: identifier uses a platform index code; start/end constrain trading date.
     # Example: data.index_valuation("000300.SH", start="20200101", end="20251231")

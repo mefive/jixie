@@ -13,7 +13,6 @@ import {
   parseResearchSeriesRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchEquityDividendsRuntimeRequest,
-  parseResearchEtfSharesRuntimeRequest,
   parseResearchIndexValuationRuntimeRequest,
   parseResearchFinancialValuesRuntimeRequest,
   parseResearchFinancialStatementsRuntimeRequest,
@@ -43,7 +42,7 @@ export type ParsedResearchRequest =
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method: 'research_etf_shares' | 'research_index_valuation';
+      method: 'research_index_valuation';
       arguments: ResearchDatedIdentifierRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
@@ -110,13 +109,6 @@ export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedRe
         id: frame.id,
         method: 'research_equity_dividends',
         arguments: parseResearchEquityDividendsRuntimeRequest(frame.arguments),
-      };
-    case 'research_etf_shares':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_etf_shares',
-        arguments: parseResearchEtfSharesRuntimeRequest(frame.arguments),
       };
     case 'research_index_valuation':
       return {

@@ -93,7 +93,6 @@ class _NameAnalysis(ast.NodeVisitor):
             in {
                 "equity_fundamentals",
                 "equity_dividends",
-                "etf_shares",
                 "index_valuation",
                 "equity_financial_values",
                 "equity_financial_statements",

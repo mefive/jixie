@@ -55,7 +55,6 @@ describe('unified synchronization acceptance', () => {
           targetDate: '20260915',
           startedAt: fetchedAt,
           providers: providers(),
-          requirements: { etfCodes: [] },
           onLog: () => {},
         });
         expect(result.partitions).toBeGreaterThan(0);
@@ -180,7 +179,6 @@ describe('unified synchronization acceptance', () => {
       const plan = await planSyncPartitions({
         targetDate: '20260916',
         startedAt: fetchedAt,
-        requirements: { etfCodes: [] },
       });
       expect(
         plan.partitions.some(

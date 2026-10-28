@@ -504,11 +504,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                         </span>
                         <span className="jx-researchDataCatalog-resultTags">
                           <Tag>{t(`dataCatalog.assetType.${instrument.assetType}`)}</Tag>
-                          {instrument.researchRegistry && (
-                            <Tag>
-                              {t(`dataCatalog.registryRole.${instrument.researchRegistry.role}`)}
-                            </Tag>
-                          )}
                         </span>
                       </button>
                     ))}
@@ -536,23 +531,6 @@ export const ResearchDataCatalogPicker = reactUtils.observer(
                     <span>{t('dataCatalog.localCoverage')}</span>
                     <strong>{localizedCoverage(selected, i18n.language, t)}</strong>
                   </div>
-                  {selected.researchRegistry && (
-                    <div>
-                      <span>{t('dataCatalog.registryExposure')}</span>
-                      <strong>
-                        {selected.researchRegistry.exposureId} ·{' '}
-                        {t(`dataCatalog.registryRole.${selected.researchRegistry.role}`)}
-                      </strong>
-                    </div>
-                  )}
-                  {selected.researchRegistry &&
-                    selected.researchRegistry.knownLimitations.length > 0 && (
-                      <p>
-                        {t('dataCatalog.registryLimitations', {
-                          count: selected.researchRegistry.knownLimitations.length,
-                        })}
-                      </p>
-                    )}
                 </div>
                 <label>
                   <span>{t('dataCatalog.measure')}</span>

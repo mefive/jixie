@@ -75,7 +75,7 @@ describe('market HTTP reads', () => {
     }
   });
 
-  it('keeps the valuation catalog ahead of the code route and filters unsupported coverage', async () => {
+  it('keeps the valuation catalog ahead of the code route and includes stored coverage outside defaults', async () => {
     database.indexDailyBasic.groupBy.mockResolvedValue([
       {
         tsCode: '000300.SH',
@@ -84,7 +84,7 @@ describe('market HTTP reads', () => {
         _count: { _all: 42 },
       },
       {
-        tsCode: 'unknown',
+        tsCode: '399006.SZ',
         _min: { tradeDate: '20200101' },
         _max: { tradeDate: '20260901' },
         _count: { _all: 1 },
@@ -93,7 +93,10 @@ describe('market HTTP reads', () => {
     const response = await request('/index-valuations');
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      indices: [{ tsCode: '000300.SH', startDate: '20200101', endDate: '20260901', rows: 42 }],
+      indices: [
+        { tsCode: '000300.SH', startDate: '20200101', endDate: '20260901', rows: 42 },
+        { tsCode: '399006.SZ', startDate: '20200101', endDate: '20260901', rows: 1 },
+      ],
     });
     expect(database.indexDailyBasic.findMany).not.toHaveBeenCalled();
   });
@@ -107,7 +110,31 @@ describe('market HTTP reads', () => {
     });
     vi.clearAllMocks();
     expect((await request('/index-valuations/unknown')).status).toBe(404);
-    expect(database.indexDailyBasic.findMany).not.toHaveBeenCalled();
+    expect(database.indexDailyBasic.findMany.mock.calls[0][0].where).toEqual({
+      tsCode: 'UNKNOWN',
+    });
+  });
+
+  it('reads saved valuation history for an index outside the current download defaults', async () => {
+    database.indexDailyBasic.findMany.mockResolvedValue([
+      {
+        tsCode: '399006.SZ',
+        tradeDate: '20260901',
+        pe: 25,
+        peTtm: 24,
+        pb: 3,
+        turnoverRate: 2,
+      },
+    ]);
+    database.indexDaily.findMany.mockResolvedValue([{ tradeDate: '20260901', close: 2500 }]);
+
+    const response = await request('/index-valuations/399006.sz');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      tsCode: '399006.SZ',
+      points: [{ date: '20260901', close: 2500, peTtm: 24 }],
+    });
   });
 
   it('preserves the legacy index-series date defaults and empty response', async () => {

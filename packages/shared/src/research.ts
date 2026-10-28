@@ -224,7 +224,6 @@ export interface ResearchDataCatalogInstrumentV1 {
   compatibleMeasureIds: string[];
   localDataCoverage?: ResearchDataCatalogCoverageV1;
   sdkAccess?: ResearchDataCatalogSdkAccessV1;
-  researchRegistry?: ResearchDataCatalogRegistryV1 | null;
 }
 
 /**
@@ -256,20 +255,6 @@ export type ResearchDataCatalogSdkAccessV1 =
       status: 'not_ready';
       reason: 'source_available_but_local_data_missing';
     };
-
-/**
- * 保留受治理清单的角色、币种和成员信息。
- *
- * Describe governed registry roles, currencies and membership.
- */
-export interface ResearchDataCatalogRegistryV1 {
-  exposureId: string;
-  role: 'primary' | 'backup';
-  region: string;
-  currencyExposure: string;
-  selectionAsOf: string;
-  knownLimitations: readonly string[];
-}
 
 /**
  * 提供 SDK 方法签名、示例及双语列说明，供目录与补全同源展示。
@@ -340,7 +325,6 @@ export type ResearchDataCatalogDatasetV1 =
     })
   | (ResearchDataCatalogDatasetBaseV1 & {
       method:
-        | 'data.etf_shares'
         | 'data.index_valuation'
         | 'data.equity_financial_values'
         | 'data.equity_financial_statements'

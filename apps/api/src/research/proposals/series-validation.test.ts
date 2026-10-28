@@ -182,15 +182,22 @@ describe('Research Agent series proposal validation', () => {
             cellId: 'reference-data',
             definitions: [],
             references: [],
-            equityRequests: [
-              { line: 1, method: 'etf_shares', identifier: '510300.SH' },
-              { line: 2, method: 'index_valuation', identifier: '000300.SH' },
+            seriesRequests: [
+              {
+                line: 1,
+                assetType: 'etf',
+                identifier: '510300.SH',
+                measure: 'market.adjusted_close',
+              },
             ],
+            equityRequests: [{ line: 2, method: 'index_valuation', identifier: '000300.SH' }],
           },
         ],
         search,
       ),
     ).resolves.toBeUndefined();
     expect(search).toHaveBeenCalledTimes(2);
+    expect(search).toHaveBeenCalledWith({ query: '510300.SH', assetType: 'etf', limit: 50 });
+    expect(search).toHaveBeenCalledWith({ query: '000300.SH', assetType: 'index', limit: 50 });
   });
 });

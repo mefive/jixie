@@ -180,7 +180,6 @@ describe('unified sync review regressions', () => {
         const input = {
           targetDate: tradeDate,
           startedAt: fetchedAt,
-          requirements: { etfCodes: [] },
           budget: 240,
         };
         const first = await planSyncPartitions(input);
@@ -312,7 +311,6 @@ it(
         const plan = await planSyncPartitions({
           targetDate: tradeDate,
           startedAt: fetchedAt,
-          requirements: { etfCodes: [] },
           budget: 240,
           excludeIds: excluded,
         });

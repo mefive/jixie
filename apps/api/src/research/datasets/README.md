@@ -10,7 +10,7 @@
 | [financial.ts](financial.ts) `loadResearchFinancialStatements`、`loadResearchFinancialMetrics`、`loadResearchFinancialCrossSection`、`loadResearchFinancialPanel` | 财报明细、派生指标及面板，保留报告期／可得性规则 |
 | [financial-values.ts](financial-values.ts) `loadResearchFinancialValues` | 使用财务版本和 normalized value，保留来源及空值语义 |
 | [supplemental.ts](supplemental.ts) 的 loadResearchEquityFundamentals/Dividends | 股票基本面／分红切片 |
-| [market-reference.ts](market-reference.ts) 的 loadResearchEtfShares、loadResearchIndexValuation | ETF 份额和指数估值参考数据 |
+| [market-reference.ts](market-reference.ts) 的 loadResearchIndexValuation | 指数官方估值参考数据 |
 
 [cross-market-data-contracts.ts](cross-market-data-contracts.ts) 维护 Research 的来源决策和数据契约投影，不替代 Market registry 的共享身份。PIT 选择、availableDate 与原始观测日不能互换，缺失值不应因文档示例变成补零。每类取数上限和有效字段以 sdk/validation 与对应 loader 为准。
 

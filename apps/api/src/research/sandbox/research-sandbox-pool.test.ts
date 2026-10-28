@@ -4,7 +4,6 @@ import {
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
   RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
-  RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
@@ -171,14 +170,13 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
         {
           id: 'references',
           source:
-            'shares = data.etf_shares("510300.SH", start="20200101", end="20251231")\nvaluation = data.index_valuation(identifier="000300.SH", start="20200101", end="20251231")',
+            'valuation = data.index_valuation(identifier="000300.SH", start="20200101", end="20251231")',
         },
       ]),
     );
 
     expect(analysis?.equityRequests).toEqual([
-      { line: 1, method: 'etf_shares', identifier: '510300.SH' },
-      { line: 2, method: 'index_valuation', identifier: '000300.SH' },
+      { line: 1, method: 'index_valuation', identifier: '000300.SH' },
     ]);
   });
 
@@ -330,7 +328,7 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
         cell: {
           id: 'signature',
           source:
-            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.equity_fundamentals, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.etf_shares, data.index_valuation, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel])',
+            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.equity_fundamentals, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.index_valuation, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel])',
         },
       }),
     );
@@ -348,7 +346,6 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
           RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
           RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
           RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
-          RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
           RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
           RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1,

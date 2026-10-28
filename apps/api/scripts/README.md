@@ -40,7 +40,6 @@
 | 命令 | 文件 | 参数 | 用途与输出 |
 | --- | --- | --- | --- |
 | `data:audit data` | [audit-data.ts](audit/audit-data.ts) | `[start] [end] [--window=60] [--points=5] [--json] [--strict]` | 整体质量与覆盖检查，终端输出 |
-| `data:audit etf` | [audit-etf-registry.ts](audit/audit-etf-registry.ts) | `[expected-history-start] [coverage-through] [--json] [--strict]` | ETF 研究清单和历史覆盖，终端输出 |
 
 ## 接口探针
 
@@ -116,3 +115,5 @@ Gate 2 静态检查：API `tsc --noEmit`、改动 TypeScript 的 ESLint / Pretti
 `pnpm sync` 保留全部 24 个命令及参数；业务实现移至 `src/market/sync` 的可调用函数，不再自执行 CLI。维护准备、最终计算与审计在候选数据库作用域中执行；仅财务批次保留子进程。详细边界、升级约束及验证计划见 [设计](../../../docs/design/maintenance-database-scope-and-cleanup.md)。尚未运行本次行为验证。
 
 历史记录中保留当时命令与路径；当前唯一写入口以上述统一同步说明为准。2026-10-22 候选协议已由统一同步替代，不再作为当前运行方式。
+
+ETF／指数下载名单支持 `pnpm data etf list/select-top/add/remove` 与 `pnpm data index list/add/remove`，详见 [下载名单](../src/market/downloads/README.md)。

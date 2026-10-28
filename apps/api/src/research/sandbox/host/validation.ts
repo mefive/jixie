@@ -12,7 +12,6 @@ import {
   RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1,
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
-  RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
@@ -187,9 +186,6 @@ const researchEquityFundamentalsRequestSchema = sdkRequestSchema(
 const researchEquityDividendsRequestSchema = sdkRequestSchema(
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.parameters,
 );
-const researchEtfSharesRequestSchema = sdkRequestSchema(
-  RESEARCH_ETF_SHARES_SDK_CONTRACT_V1.parameters,
-);
 const researchIndexValuationRequestSchema = sdkRequestSchema(
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.parameters,
 );
@@ -224,9 +220,6 @@ const researchEquityFundamentalsRowsSchema = sdkDataFrameRowsSchema(
 );
 const researchEquityDividendsRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.returns,
-);
-const researchEtfSharesRowsSchema = sdkDataFrameRowsSchema(
-  RESEARCH_ETF_SHARES_SDK_CONTRACT_V1.returns,
 );
 const researchIndexValuationRowsSchema = sdkDataFrameRowsSchema(
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.returns,
@@ -342,14 +335,6 @@ export function parseResearchEquityDividendsRuntimeRequest(
   ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
 }
 
-export function parseResearchEtfSharesRuntimeRequest(
-  value: unknown,
-): ResearchDatedIdentifierRuntimeRequestV1 {
-  return researchEtfSharesRequestSchema.parse(
-    value,
-  ) as unknown as ResearchDatedIdentifierRuntimeRequestV1;
-}
-
 export function parseResearchIndexValuationRuntimeRequest(
   value: unknown,
 ): ResearchDatedIdentifierRuntimeRequestV1 {
@@ -364,10 +349,6 @@ export function parseResearchEquityFundamentalsRuntimeRows(value: unknown): unkn
 
 export function parseResearchEquityDividendsRuntimeRows(value: unknown): unknown[] {
   return researchEquityDividendsRowsSchema.parse(value);
-}
-
-export function parseResearchEtfSharesRuntimeRows(value: unknown): unknown[] {
-  return researchEtfSharesRowsSchema.parse(value);
 }
 
 export function parseResearchIndexValuationRuntimeRows(value: unknown): unknown[] {

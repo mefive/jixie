@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  etfShares: vi.fn(),
   indexValuation: vi.fn(),
 }));
 
 vi.mock('#infra/database/prisma.js', async () => {
   const mocked = {
     prisma: {
-      etfShareSize: { findMany: mocks.etfShares },
       indexDailyBasic: { findMany: mocks.indexValuation },
     },
   };
@@ -21,36 +19,13 @@ vi.mock('#infra/database/prisma.js', async () => {
   };
 });
 
-import { loadResearchEtfShares, loadResearchIndexValuation } from './market-reference.js';
+import { loadResearchIndexValuation } from './market-reference.js';
 
 const request = { identifier: 'TEST', start: '20260101', end: '20261231' };
 
 describe('Research market reference datasets', () => {
   beforeEach(() => {
     Object.values(mocks).forEach((mock) => mock.mockReset().mockResolvedValue([]));
-  });
-
-  it('gates ETF share history by availability date', async () => {
-    mocks.etfShares.mockResolvedValue([
-      {
-        availableDate: '20260106',
-        tradeDate: '20260105',
-        totalShare: 100,
-        totalSize: 120,
-        nav: 1.2,
-        close: 1.19,
-        exchange: 'SH',
-      },
-    ]);
-
-    await expect(loadResearchEtfShares(request)).resolves.toEqual([
-      expect.objectContaining({ date: '20260106', trade_date: '20260105', total_share_10k: 100 }),
-    ]);
-    expect(mocks.etfShares).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ availableDate: { gte: '20260101', lte: '20261231' } }),
-      }),
-    );
   });
 
   it('maps provider index valuation fields without reconstruction', async () => {

@@ -4,7 +4,7 @@
 
 | 文件 | 消费入口与职责 |
 | --- | --- |
-| [time-series.ts](time-series.ts) | `TIME_SERIES_TEMPLATES` 提供初始代码，`timeSeriesTemplateCatalog` 提供展示元数据；`timeSeriesTemplateAssetPolicy` / `unsupportedTimeSeriesTemplateAssets` 限制模板资产 |
+| [time-series.ts](time-series.ts) | `TIME_SERIES_TEMPLATES` 提供初始代码，`timeSeriesTemplateCatalog` 提供展示元数据；时间序列模板不维护证券白名单，作者可输入有本地价格的 ETF 代码 |
 | [panel.ts](panel.ts) | `PANEL_TEMPLATES` 提供初始代码，`panelTemplateCatalog` 提供展示元数据；执行来源从已保存 Factor 行读取 |
 
 股票、时间序列和 Panel 模板源码只供 seed 初始化缺失版本；读取、分析、问答和嵌入上下文使用保存的源码；宏观和利率模板已退役。这些入口接收稳定 key 或 locale，返回目录元数据；未知 key 的处理以对应解析入口为准，不启动 Worker 或落库。源码、字段和资产政策共同组成模板可用范围，不能只改展示名称或放宽通用草稿校验来开放受控输入。

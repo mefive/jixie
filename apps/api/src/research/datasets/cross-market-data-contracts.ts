@@ -202,7 +202,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     status: 'integrated',
     provider: 'Tushare Pro',
     dataset:
-      'China exchange-traded fund reference, daily bars, adjustment factors, units, NAV, and fund size',
+      'China ETF directory, listed-code prices and adjustments, and administrator-only latest size',
     nameZh: 'Tushare 中国 ETF 数据',
     nameEn: 'Tushare China ETF data',
     keywords: ['中国 ETF', '黄金 ETF', 'fund_basic', 'fund_daily', 'fund_adj', 'etf_share_size'],
@@ -229,7 +229,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     knownLimits: [
       'ETF adjusted returns include fund tracking, fees, and trading frictions; they are not the underlying spot return.',
       'Adjustment-factor changes must participate in data fingerprints.',
-      'Some QDII rows provide units and close while total size and NAV remain null; no derived value is substituted.',
+      'Latest fund size can be missing, including delayed QDII publications; missing size is not derived and no historical size or NAV research interface is exposed.',
     ],
     evidence: [
       TUSHARE_PERSONAL_USE_EVIDENCE,
@@ -247,9 +247,9 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
       },
       {
         kind: 'implementation',
-        url: 'apps/api/src/market/etfs/sync.ts',
+        url: 'apps/api/src/market/etfs/sync-partition.ts',
         finding:
-          'Local synchronization publishes price, adjustment, and share-size slices atomically and gates share-size observations to the next SSE session.',
+          'Local synchronization keeps ETF price and adjustment history; latest size snapshots are only used for administrator download selection.',
       },
     ],
   },
@@ -323,64 +323,16 @@ const contracts: CrossMarketResearchDataContractV1[] = [
       'raw close is not revised; adjustment-factor revisions change the research data fingerprint',
     ),
   },
-  {
-    id: 'cn.etf.share_size.daily',
-    version: 1,
-    status: 'integrated',
-    nameZh: '中国 ETF 份额与规模日线',
-    nameEn: 'China ETF daily units and fund size',
-    keywords: ['ETF 份额', 'ETF 规模', '基金净值', 'etf_share_size'],
-    market: 'CN',
-    assetClass: 'equity',
-    instrumentType: 'exchange_traded_fund_reference_observation',
-    sourceDecisionId: 'tushare.cn_etf',
-    identity: {
-      canonicalIdPolicy:
-        'Use the exchange-qualified fund code and join product identity to EtfBasic without copying platform exposure labels into provider metadata.',
-      lifecyclePolicy:
-        'Retain observations for listed and later-delisted funds; never delete history when a representative changes.',
-      codeChangePolicy: 'Require an explicit alias spell for any fund-code change.',
-    },
-    calendar: chinaCalendar(
-      'Use only from the first strictly later SSE session because the provider publishes the source-date share-size dataset after the source close.',
-    ),
-    currency: localCurrency('CNY'),
-    corporateActions: {
-      applicability: 'not_applicable',
-      adjustedPricePolicy:
-        'Units and fund size are reference observations; do not apply price adjustment factors.',
-      totalReturnPolicy:
-        'Changes in units or fund size are not investor returns or directional fund flows.',
-    },
-    pointInTime: {
-      financialAnnouncementPolicy: 'Not applicable.',
-      macroVintagePolicy:
-        'Historical imports are latest-value backfills rather than captured historical real-time vintages.',
-      revisionPolicy:
-        'Weekly refreshes compare units, size, NAV, and close; changed history advances the data revision while immutable research outputs remain unchanged.',
-      availableDatePolicy:
-        'The first strictly later SSE session is the mandatory availableDate gate.',
-    },
-    binding: bindingContract(
-      'cn.etf.share_size.daily',
-      'daily',
-      'totalShare=10k_fund_units;totalSize=10k_CNY',
-      'CNY',
-      'Asia/Shanghai',
-      'first strictly later SSE session after the source trade date',
-      'latest-value historical backfill; later source changes advance the data revision',
-    ),
-  },
 ];
 
 const fixtures: CrossMarketContractFixtureV1[] = [
+  fixture('cn-etf-csi300-price', 'cn.etf.adjusted_close.daily', 'CN:SSE:510300.SH', '510300.SH'),
   fixture(
     'cn-stock-000001-sz',
     'cn.equity.adjusted_close.daily',
     'CN:SSE_SZSE:000001.SZ',
     '000001.SZ',
   ),
-  fixture('cn-etf-csi300-share-size', 'cn.etf.share_size.daily', 'CN:SSE:510300.SH', '510300.SH'),
 ];
 
 export const crossMarketDataContractRegistry = {

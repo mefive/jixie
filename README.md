@@ -112,3 +112,5 @@ pnpm probe --list                     # 外部数据源连通性及能力探测
 
 上述入口无参数均只显示帮助。详细运行条件见 [浏览器检查说明](apps/web/e2e/README.md) 和
 [API 命令索引](apps/api/scripts/README.md)。
+
+ETF 同步全量基础目录，默认按最新规模选择前 100；管理员通过 `pnpm data etf list/select-top/add/remove` 维护名单。指数使用 `pnpm data index list/add/remove`。日常同步不覆盖人工调整，移出保留历史。历史 ETF 份额／规模／净值研究接口已退役，最新规模仅用于名单。详见 [下载名单](apps/api/src/market/downloads/README.md)。

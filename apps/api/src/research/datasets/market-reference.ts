@@ -12,30 +12,6 @@ export interface ResearchReferenceDatasetRequestV1 {
 }
 
 /**
- * 按来源行可用的首个后续中国交易日筛选 ETF 份额。
- *
- * ETF shares are gated by the first later China-market session on which the source row is usable.
- */
-export async function loadResearchEtfShares(request: ResearchReferenceDatasetRequestV1) {
-  const rows = await getDatabase().etfShareSize.findMany({
-    where: {
-      tsCode: request.identifier,
-      availableDate: { gte: request.start, lte: request.end },
-    },
-    orderBy: [{ availableDate: 'asc' }, { tradeDate: 'asc' }],
-  });
-  return rows.map((row) => ({
-    date: row.availableDate,
-    trade_date: row.tradeDate,
-    total_share_10k: row.totalShare,
-    total_size_cny_10k: row.totalSize,
-    nav: row.nav,
-    close: row.close,
-    exchange: row.exchange,
-  }));
-}
-
-/**
  * 保留供应商官方指数估值方法，不从成分数据自行重建。
  *
  * Preserve the provider's official index-level methodology instead of reconstructing valuations.

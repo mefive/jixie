@@ -102,20 +102,6 @@ export async function prepareIndexPartition(
     return prepared;
   }
   const definitions = {
-    'index-catalog': {
-      api: 'mkt_idx_bmk',
-      table: 'IndexBenchmark',
-      columns: {
-        tsCode: 'ts_code',
-        symbol: 'symbol',
-        name: 'name',
-        fullName: 'fullname',
-        bmkLevel: 'bmk_level',
-        bmkType: 'bmk_type',
-        bmkSource: 'bmk_src',
-        indexType: 'idx_type',
-      },
-    },
     'index-prices': {
       api: 'index_daily',
       table: 'IndexDaily',
@@ -144,22 +130,18 @@ export async function prepareIndexPartition(
   if (!definition) {
     throw new Error(`Unknown index dataset ${partition.dataset}`);
   }
-  const catalog = partition.dataset === 'index-catalog';
   const pages = await fetchSourcePages(
     source,
     definition.api,
-    catalog
-      ? {}
-      : { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
+    { ts_code: partition.scope, start_date: partition.startDate, end_date: partition.endDate },
     Object.values(definition.columns).join(','),
   );
   const mapped = mapSourceRecords(pages.rows, (row) => {
     if (
-      !catalog &&
-      (row.ts_code !== partition.scope ||
-        typeof row.trade_date !== 'string' ||
-        row.trade_date < partition.startDate ||
-        row.trade_date > partition.endDate)
+      row.ts_code !== partition.scope ||
+      typeof row.trade_date !== 'string' ||
+      row.trade_date < partition.startDate ||
+      row.trade_date > partition.endDate
     ) {
       throw new Error(`Invalid ${definition.api} identity/date`);
     }
@@ -170,7 +152,7 @@ export async function prepareIndexPartition(
     return {
       values: sourceValues(row, definition.columns),
       availableDate: typeof row.trade_date === 'string' ? row.trade_date : null,
-      availabilityQuality: catalog ? 'latest_only' : 'source_contract',
+      availabilityQuality: 'source_contract',
     };
   });
 
@@ -185,13 +167,9 @@ export async function prepareIndexPartition(
     observedDates: mapped.records.flatMap((record) =>
       typeof record.values.tradeDate === 'string' ? [record.values.tradeDate] : [],
     ),
-    ...(!catalog
-      ? {
-          where: {
-            tsCode: partition.scope,
-            tradeDate: { gte: partition.startDate, lte: partition.endDate },
-          },
-        }
-      : {}),
+    where: {
+      tsCode: partition.scope,
+      tradeDate: { gte: partition.startDate, lte: partition.endDate },
+    },
   });
 }

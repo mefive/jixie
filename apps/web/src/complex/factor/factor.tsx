@@ -1261,8 +1261,6 @@ const TimeSeriesParamsPopover = complex.component(
   ({ runningSameDraft }: { runningSameDraft: boolean }) => {
     const store = complex.useStore();
     const { t } = useTranslation('factor');
-    const allowedAssets = new Set(store.timeSeriesAllowedAssets);
-    const unavailableReasons = Object.entries(store.selected?.unavailableAssetReasons ?? {});
     return (
       <div className="jx-factor-paramPopover jx-factor-timeParams">
         <div className="jx-factor-paramPopoverTitle">{t('paramsSettings')}</div>
@@ -1270,41 +1268,16 @@ const TimeSeriesParamsPopover = complex.component(
           <div className="jx-factor-paramField jx-factor-paramField--stacked">
             <span className="jx-factor-paramLabel">{t('timeSeries.assets')}</span>
             <Select
-              mode="multiple"
+              mode="tags"
               data-testid="time-series-assets"
               value={store.timeSeriesAssets}
               placeholder={t('timeSeries.assetsPlaceholder')}
               onChange={(values) => store.setTimeSeriesAssets(values)}
-              options={TIME_SERIES_ASSET_OPTIONS.map((asset) => {
-                const reason = store.selected?.unavailableAssetReasons?.[asset.code];
-                const unavailable = !allowedAssets.has(asset.code);
-                return {
-                  value: asset.code,
-                  disabled: unavailable,
-                  label: `${t(`timeSeries.assetNames.${asset.code}`)} · ${asset.code}${
-                    unavailable ? ` — ${reason ?? t('timeSeries.assetUnsupported')}` : ''
-                  }`,
-                };
-              })}
+              options={TIME_SERIES_ASSET_OPTIONS.map((asset) => ({
+                value: asset.code,
+                label: `${t(`timeSeries.assetNames.${asset.code}`)} · ${asset.code}`,
+              }))}
             />
-            {unavailableReasons.length > 0 && (
-              <Alert
-                data-testid="time-series-asset-restriction"
-                type="info"
-                showIcon
-                title={t('timeSeries.assetRestrictionTitle')}
-                description={
-                  <span className="jx-factor-assetRestrictionText">
-                    {unavailableReasons
-                      .map(
-                        ([assetId, reason]) =>
-                          `${t(`timeSeries.assetNames.${assetId}`)} · ${assetId}: ${reason}`,
-                      )
-                      .join('; ')}
-                  </span>
-                }
-              />
-            )}
           </div>
           <div className="jx-factor-paramField">
             <span className="jx-factor-paramLabel">{t('timeSeries.horizon')}</span>

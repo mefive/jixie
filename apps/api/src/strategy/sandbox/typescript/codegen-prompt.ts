@@ -100,6 +100,7 @@ The backtest engine calls onBar(ctx) once per trading day; you read data and pla
 - The old flat account/order API is removed. Migrate saved strategy code to the account namespaces before rerunning it.
 
 # ETFs (daily, explicit watch lists)
+- ETF metadata covers the full directory, but prices are downloaded only for the administrator-managed list. Current-size top-100 selection is not a historical top-100 universe. Historical ETF shares, fund size and NAV research APIs are unavailable; never generate data.etf_shares calls or infer those fields from prices.
 - Synced ETFs use the same \`watch\`, price/history/indicator, and stock-sleeve order APIs as stocks.
 - ETF adjustment factors are applied to prices; ETF trades pay commission/slippage but no stock stamp duty or stock transfer fee.
 - Resolve every ETF with searchInstruments and require \`hasDailyData: true\`.

@@ -43,7 +43,7 @@ monthly = data.series(
 
 The result includes `date` and `value`. Treat the current catalog signature as authoritative for parameters and columns.
 
-ETFs use the same entry point. For example, `data.series("etf", "510300.SH", ...)` returns adjusted closes inside that product's local coverage. The catalog also shows registry exposure, primary or backup role, coverage dates, and proxy limitations. A product from the full ETF directory is marked available only when local daily history actually exists; the runtime does not silently substitute another ETF for the same index.
+ETFs use the same entry point. For example, `data.series("etf", "510300.SH", ...)` returns adjusted closes inside that product's local coverage. The catalog shows product metadata and local price coverage without research-pool roles or admission rules. A product from the full ETF directory is marked available only when local daily history actually exists; the runtime does not silently substitute another ETF for the same index.
 
 ### One point-in-time stock cross-section
 
@@ -92,7 +92,7 @@ Search by name under **Datasets** and check local coverage. These have dedicated
 | Data | Research SDK method | Definition to check |
 | --- | --- | --- |
 | Equity provider ratios and dividends | `data.equity_fundamentals()`, `data.equity_dividends()` | Provider definitions differ from versioned financial statements; dividends are implemented cash distributions selected by ex-dividend date |
-| ETF shares and index valuation | `data.etf_shares()`, `data.index_valuation()` | Observation date, units, source, and local coverage |
+| Index valuation | `data.index_valuation()` | Official valuation date, units, source, and local coverage |
 
 See the [Research SDK reference](/docs/sdk?runtime=research) for signatures, enums, and columns. Queryable data does not imply trading backtests or daily deployment for that market.
 
@@ -143,3 +143,5 @@ For a bounded calculation on an existing report or selected data, use an [embedd
 ### Coverage and financial versions
 
 The target, actual observation dates, and continuous verified coverage are separate facts. A source gap does not block the Research page. Formal cross-sections require their own price, adjustment, and valuation coverage; a nonempty partial sample is not a complete universe. Provider financial indicators use retained captured versions: `date` is version availability, `announcement_date` is the source announcement, and `availability_quality`/`observed_at` explain evidence. latest_only backfills cannot prove pre-capture values. Dividends similarly separate economic `ex_date` from current-value availability `date`.
+
+Historical ETF shares, size and NAV methods are retired. Latest size serves administrator download selection and is not a historical research series.

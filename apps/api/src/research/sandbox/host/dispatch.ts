@@ -4,7 +4,6 @@ import {
   parseResearchSeriesRuntimeRows,
   parseResearchEquityFundamentalsRuntimeRows,
   parseResearchEquityDividendsRuntimeRows,
-  parseResearchEtfSharesRuntimeRows,
   parseResearchIndexValuationRuntimeRows,
   parseResearchFinancialValuesRuntimeRows,
   parseResearchFinancialStatementsRuntimeRows,
@@ -21,10 +20,7 @@ import {
   loadResearchEquityFundamentals,
   loadResearchEquityDividends,
 } from '../../datasets/supplemental.js';
-import {
-  loadResearchEtfShares,
-  loadResearchIndexValuation,
-} from '../../datasets/market-reference.js';
+import { loadResearchIndexValuation } from '../../datasets/market-reference.js';
 import {
   loadResearchFinancialStatements,
   loadResearchFinancialMetrics,
@@ -93,12 +89,6 @@ async function answerResearchRequest(
           rows: parseResearchEquityDividendsRuntimeRows(
             await loadResearchEquityDividends(frame.arguments),
           ),
-        };
-        break;
-      }
-      case 'research_etf_shares': {
-        result = {
-          rows: parseResearchEtfSharesRuntimeRows(await loadResearchEtfShares(frame.arguments)),
         };
         break;
       }

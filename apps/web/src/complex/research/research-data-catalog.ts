@@ -211,7 +211,6 @@ export function researchDatasetSelection(
         ...eligibility,
       };
       break;
-    case 'data.etf_shares':
     case 'data.index_valuation':
       arguments_ = { identifier: dataset.identifier, ...dates };
       break;
@@ -247,7 +246,6 @@ function researchDatasetVariableName(
     switch (dataset.method) {
       case 'data.equity_financial_values':
         return 'financial_values';
-      case 'data.etf_shares':
       case 'data.index_valuation':
       case 'data.equity_financial_statements':
       case 'data.equity_financial_metrics':

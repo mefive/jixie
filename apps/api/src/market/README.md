@@ -8,12 +8,12 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 
 | 要找什么 | 子能力与责任 |
 | --- | --- |
-| ETF 与境内指数的共同身份 | [registry](registry/README.md)：静态清单和校验，不同步或写库 |
+| ETF 与境内指数的共同身份 | [registry](registry/README.md)：固定标识与来源支持范围；[下载名单](downloads/README.md) 由管理员 CLI 维护 |
 | 股票历史代码、名称和证券解析 | [instruments](instruments/README.md)：纯身份、查库解析与有写入的代码合并 |
 | Tushare 参数、限流、重试和能力探测 | [providers/tushare](providers/tushare/README.md)：通道与供应商映射 |
 | 开市日和上海收盘截止 | [calendar](calendar/README.md)：日历同步、读取和 SSE 已完成日 |
 | 股票名录、日行情、估值与交易限制 | [stocks](stocks/README.md)：范围同步及核心四表发布 |
-| ETF 行情、复权、份额、历史缺口 | [etfs](etfs/README.md)：按日发布／代码年份回填与覆盖质量 |
+| ETF 全量目录、名单内行情与复权 | [etfs](etfs/README.md)：按名单回补、增量与覆盖质量 |
 | 指数成员、精简收盘响应 | [indices](indices/README.md)：指数原始数据与专用读取 |
 | 质量结果契约与交易日覆盖摘要 | [quality](quality/README.md)：跨数据域共用的 finding 与统计，不含维护发布策略 |
 | 跨资产图表行情 | [queries](queries/README.md)：股票／ETF／指数统一对象序列 |

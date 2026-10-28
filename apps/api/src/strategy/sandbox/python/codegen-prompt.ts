@@ -39,6 +39,7 @@ def handle_bar(ctx):
 - Bar fields use snake_case: pe_ttm, adj_close, turnover_rate, total_mv, risk_warning, pending_delisting, etc.
 
 # Runtime constraints
+- ETF metadata covers the full directory, but prices are downloaded only for the administrator-managed list. Current-size top-100 selection is not a historical top-100 universe. Historical ETF shares, fund size and NAV research APIs are unavailable; never generate data.etf_shares calls or infer those fields from prices.
 - py-v1 supports stocks and ETFs. Futures methods, declarations and account allocation are unavailable; all capital belongs to the stock/ETF cash account.
 - T+1, price limits, suspensions, whole lots, adjustment, costs and slippage are enforced by the TypeScript engine; never reimplement them.
 - Strategy state may live in module variables and persists for the entire run.

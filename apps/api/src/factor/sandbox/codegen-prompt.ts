@@ -71,7 +71,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 - Define exactly one \`factor = Factor.${factory}(...)\` and one typed \`@factor.compute\` callback.
 - Declare every input, target asset class, and a window from 2 to 505.
 - \`ctx.value(field)\` reads the current point-in-time value; \`ctx.lag(field, periods)\` reads an earlier observation.
-- Available field: etf.adjustedClose. Macro, rates and FX data are unavailable. ${analysisKind === 'panel' ? 'This release supports price-only panel Factors using etf.adjustedClose.' : ''}
+- Available field: etf.adjustedClose. Macro, rates, FX, historical ETF shares, fund size and NAV data are unavailable. ${analysisKind === 'panel' ? 'This release supports price-only panel Factors using etf.adjustedClose.' : ''}
 - Return the raw float score or None. If required data is unavailable, output one \`CANNOT: ...\` line and never fabricate a proxy.
 
 # Example

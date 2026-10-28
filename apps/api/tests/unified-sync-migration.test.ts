@@ -336,7 +336,6 @@ it.each(['upgrade', 'empty'] as const)(
               targetDate: '20260915',
               startedAt: new Date('2026-09-16T10:00:00Z'),
               signal: controller.signal,
-              requirements: { etfCodes: [] },
               onLog: () => {},
               providers: {
                 source: {

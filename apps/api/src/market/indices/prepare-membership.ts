@@ -2,7 +2,7 @@ import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { indexWeight, type IndexWeightRow } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
-import { INDEX_MEMBERSHIP_CODES } from '../registry/index-presets.js';
+import { readDownloadCodes } from '../downloads/lists.js';
 import { validateIndexWeightDate } from './daily-quality.js';
 
 /**
@@ -24,7 +24,9 @@ export async function prepareIndexMembership(
   const last = dates.at(-1)!;
   const oldest = shiftDays(first, -maximumAgeDays);
 
-  for (const indexCode of INDEX_MEMBERSHIP_CODES) {
+  for (const indexCode of (await readDownloadCodes('index')).filter(
+    (code) => code !== 'H00300.CSI',
+  )) {
     const existing = await getDatabase().indexWeight.findFirst({
       where: { indexCode, tradeDate: { lte: first } },
       orderBy: { tradeDate: 'desc' },

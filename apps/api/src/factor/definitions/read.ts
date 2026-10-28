@@ -77,9 +77,7 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
     targetAssetClasses,
     ...(preset
       ? {
-          allowedAssets: preset.allowedAssets,
           defaultAssets: preset.defaultAssets,
-          unavailableAssetReasons: preset.unavailableAssetReasons,
         }
       : {}),
     messages:

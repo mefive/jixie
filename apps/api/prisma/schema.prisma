@@ -140,23 +140,21 @@ model EtfAdjFactor {
   @@index([tradeDate])
 }
 
-/// ETF units, fund size, NAV, and exchange close. Tushare publishes this dataset after the source
-/// trade date, so `availableDate` is the first strictly later SSE session and is the mandatory PIT
-/// gate. `totalShare` is measured in 10,000 fund units and nullable `totalSize` in CNY 10,000.
-model EtfShareSize {
-  tsCode        String
-  tradeDate     String
-  availableDate String
-  totalShare    Float
-  totalSize     Float?
-  nav           Float?
-  close         Float?
-  exchange      String
-  retrievedAt   DateTime @default(now())
+/// 管理员保存的下载代码；空数组仍代表已初始化，不自动恢复默认名单。
+/// Administrator download codes; an empty array remains initialized and is never reset implicitly.
+model MarketDownloadList {
+  assetType String   @id
+  codes     Json
+  updatedAt DateTime @updatedAt
+}
 
-  @@id([tsCode, tradeDate])
-  @@index([tradeDate])
-  @@index([availableDate])
+/// 仅保留最近一次完整规模快照，不能作为历史规模或份额研究数据。
+/// Keep only the latest complete size snapshot, never a historical size or unit research series.
+model EtfLatestSize {
+  tsCode      String   @id
+  tradeDate   String
+  totalSize   Float?
+  retrievedAt DateTime @default(now())
 }
 
 /// Completion marker for an atomically refreshed ETF code/year slice. This makes long backfills
@@ -169,11 +167,6 @@ model EtfSyncSlice {
 
   @@id([tsCode, startDate, endDate])
 }
-
-
-
-
-
 
 /// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
 /// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
@@ -427,8 +420,6 @@ model IndexDaily {
   @@id([tsCode, tradeDate])
 }
 
-
-
 /// Daily valuation metrics for broad-market indices. Values come from Tushare index_dailybasic
 /// rather than being reconstructed from constituent stock PEs, so provider methodology is preserved.
 model IndexDailyBasic {
@@ -452,14 +443,14 @@ model IndexDailyBasic {
 /// Official public-fund benchmark catalog from Tushare mkt_idx_bmk. The type fields distinguish
 /// broad, style, strategy, industry, and thematic indices without inferring categories from names.
 model IndexBenchmark {
-  tsCode    String @id
+  tsCode    String  @id
   symbol    String
   name      String
-  fullName  String
-  bmkLevel  String
-  bmkType   String
-  bmkSource String
-  indexType String
+  fullName  String?
+  bmkLevel  String?
+  bmkType   String?
+  bmkSource String?
+  indexType String?
 }
 
 // ============================================================================

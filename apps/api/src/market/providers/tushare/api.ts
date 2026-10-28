@@ -320,45 +320,6 @@ export async function fundAdj(
 }
 
 /**
- * 提供来源 ETF 份额、净值与规模，供可得日期标记后读取。
- *
- * Supply ETF shares, NAV and size before explicit availability assignment.
- */
-export interface EtfShareSizeRow {
-  ts_code: TsCode;
-  trade_date: TradeDate;
-  etf_name: string;
-  total_share: number;
-  total_size: number | null;
-  nav: number | null;
-  close: number | null;
-  exchange: string;
-}
-
-/**
- * 读取源交易日之后发布的 ETF 份额、规模、净值与交易所收盘。
- *
- * ETF units, fund size, NAV, and exchange close as published after the source trade date.
- */
-export async function etfShareSize(
-  client: Pick<TushareClient, 'call'>,
-  params: {
-    ts_code?: TsCode;
-    trade_date?: TradeDate;
-    start_date?: TradeDate;
-    end_date?: TradeDate;
-    exchange?: string;
-  } = {},
-): Promise<EtfShareSizeRow[]> {
-  const rows = await client.call(
-    'etf_share_size',
-    params,
-    'trade_date,ts_code,etf_name,total_share,total_size,nav,close,exchange',
-  );
-  return rows as unknown as EtfShareSizeRow[];
-}
-
-/**
  * 提供来源指数日线，供基准收盘同步。
  *
  * Supply source index bars for benchmark close synchronization.
@@ -401,38 +362,6 @@ export interface IndexDailyBasicRow {
   pe: number | null;
   pe_ttm: number | null;
   pb: number | null;
-}
-
-/**
- * 描述官方基准类型与编制来源，供指数分类审计。
- *
- * Describe official benchmark types and provenance for index classification audits.
- */
-export interface IndexBenchmarkRow {
-  ts_code: TsCode;
-  symbol: string;
-  name: string;
-  fullname: string;
-  bmk_level: string;
-  bmk_type: string;
-  bmk_src: string;
-  idx_type: string;
-}
-
-/**
- * 读取带指数分类和编制来源的官方公募基金基准目录。
- *
- * Official public-fund benchmark catalog with index type and compiler provenance.
- */
-export async function indexBenchmark(
-  client: Pick<TushareClient, 'call'>,
-): Promise<IndexBenchmarkRow[]> {
-  const rows = await client.call(
-    'mkt_idx_bmk',
-    {},
-    'ts_code,symbol,name,fullname,bmk_level,bmk_type,bmk_src,idx_type',
-  );
-  return rows as unknown as IndexBenchmarkRow[];
 }
 
 /**

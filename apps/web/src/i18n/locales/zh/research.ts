@@ -282,12 +282,6 @@ export const zhResearch = {
     datasetCoverageMissing: '本地数据不足，暂不可运行',
     coverageReady: '{{start}} 至 {{end}} · {{count}} 条',
     coverageMissing: '仅有标的资料，本地暂无可运行行情',
-    registryExposure: '研究池暴露',
-    registryRole: {
-      primary: '主代表',
-      backup: '备选',
-    },
-    registryLimitations: '该代理有 {{count}} 项口径限制，正式研究前请查看帮助说明。',
     measure: '数据口径',
     stockCode: '股票代码',
     stockCodes: '股票代码（最多100只，逗号分隔）',

@@ -27,7 +27,6 @@ const KEYS: Readonly<Record<string, readonly string[]>> = {
   EtfBasic: ['tsCode'],
   EtfDaily: ['tsCode', 'tradeDate'],
   EtfAdjFactor: ['tsCode', 'tradeDate'],
-  EtfShareSize: ['tsCode', 'tradeDate'],
   IndexWeight: ['indexCode', 'conCode', 'tradeDate'],
   IndexDaily: ['tsCode', 'tradeDate'],
   IndexDailyBasic: ['tsCode', 'tradeDate'],

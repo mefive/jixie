@@ -27,7 +27,6 @@ describe('retained research data contracts', () => {
     expect(catalog.contracts.map((contract) => contract.id)).toEqual([
       'cn.equity.adjusted_close.daily',
       'cn.etf.adjusted_close.daily',
-      'cn.etf.share_size.daily',
     ]);
     expect(catalog.sourceDecisions.map((decision) => decision.id)).toEqual([
       'tushare.cn_equity',
@@ -38,26 +37,30 @@ describe('retained research data contracts', () => {
       'us.sovereign_yield.daily',
       'hk.equity_benchmark.price.daily',
       'cn.macro.monthly.pit',
+      'cn.etf.share_size.daily',
     ]) {
       expect(() => researchBindingDataContract(id)).toThrow();
     }
   });
 
-  it('retains stock identity and next-session ETF share availability', () => {
+  it('retains stock identity and ETF price availability without a historical shares contract', () => {
     expect(researchDataContractById.get('cn.equity.adjusted_close.daily')).toMatchObject({
       status: 'integrated',
       market: 'CN',
       currency: { quoteCurrency: 'CNY' },
       calendar: { timeZone: 'Asia/Shanghai', observesDaylightSavingTime: false },
     });
-    expect(researchDataContractById.get('cn.etf.share_size.daily')).toMatchObject({
+    expect(researchDataContractById.get('cn.etf.adjusted_close.daily')).toMatchObject({
       status: 'integrated',
-      pointInTime: { availableDatePolicy: expect.stringContaining('strictly later SSE session') },
-      binding: { unit: 'totalShare=10k_fund_units;totalSize=10k_CNY' },
+      pointInTime: {
+        availableDatePolicy: expect.stringContaining('after the registered China-market close'),
+      },
+      binding: { unit: 'quote_currency' },
     });
+    expect(researchDataContractById.has('cn.etf.share_size.daily')).toBe(false);
     expect(crossMarketDataContractRegistry.fixtures.map((fixture) => fixture.id)).toEqual([
+      'cn-etf-csi300-price',
       'cn-stock-000001-sz',
-      'cn-etf-csi300-share-size',
     ]);
   });
 });

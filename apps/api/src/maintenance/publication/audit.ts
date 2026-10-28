@@ -1,5 +1,4 @@
 import type { Prisma } from '#infra/database/prisma.js';
-import { auditEtfRegistry } from '#market/etfs/audit.js';
 import {
   auditFinancialPit,
   auditFinancialStatementAccounting,
@@ -108,7 +107,6 @@ export async function runDataQualityAudit(
     await auditAdjustmentJumps(database, startDate, endDate),
     await auditStockUniverse(database),
     await auditHistoricalInvestability(database),
-    await auditEtfRegistry(database, openDates.at(-1)!),
     await auditWindowCoverage(database, openDates, windowTradingDays, evaluationPoints),
     await auditFinancialPit(database),
     await auditFinancialStatementVersions(database),

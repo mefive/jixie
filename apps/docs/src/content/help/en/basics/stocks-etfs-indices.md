@@ -16,11 +16,13 @@ An ETF usually tracks a basket of stocks, bonds, commodities, or an index. It ca
 
 Stock valuation fields do not always apply to ETFs. An ETF provides diversification across its holdings, but still has market, liquidity, and tracking risk.
 
-### Current ETF research registry
+### ETF directory and download list
 
-The platform keeps the full ETF directory, but it does not store a decade of prices for every duplicate product. The current versioned registry selects 82 primary or backup products for 71 exposures across China equity benchmarks and styles, sectors, overseas markets, bonds, convertibles, gold, and commodities. One exposure normally has one primary product and at most one backup.
+The platform synchronizes the full ETF metadata directory. On first initialization it selects the 100 listed ETFs with the largest fund size from one latest source-date snapshot. Administrators maintain this download list through the server CLI. Daily synchronization keeps manual edits; removing a code stops further downloads and preserves existing prices.
 
-Search results distinguish product metadata from locally available history. An ETF is available to research or backtests only when local daily prices and adjustment factors actually exist. Listing dates differ, so coverage does not start on the same date for every product.
+Ranking uses `totalSize`, not fund units. Missing size is reported and never replaced with zero or an estimate; an administrator can add such a code manually. Today's selected sample is not the historical top 100 at every date and is not an investment recommendation.
+
+Search results distinguish metadata from locally available price history. Missing prices produce a data gap rather than a substitute product. Coverage begins at different dates for different ETFs.
 
 Do not treat a proxy as identical to its underlying asset:
 
@@ -29,13 +31,13 @@ Do not treat a proxy as identical to its underlying asset:
 - A commodity ETF can include futures roll, collateral, and tracking effects.
 - Money-market ETF distribution and return semantics have not passed the platform gate, so the current registry does not treat one as an ordinary cash proxy.
 
-Historical shares and fund size are stored for registry quality and capacity audits. They are generally available only on the next trading day, and fund size is not the amount that can be traded without market impact. This dataset is not intraday creation, redemption, or arbitrage data.
+Historical shares, fund size and NAV research series have been removed. The latest size snapshot serves download selection only; a future unit-change dashboard is separate work.
 
 ## Indices
 
 An index is a calculated reference such as the CSI 300. It usually cannot be traded directly.
 
-Backtest results use the CSI 300 as a benchmark. The Market and Valuation pages use indices to show market conditions and historical valuation.
+Administrators maintain a small index download list through the server CLI. Prices serve backtest benchmarks, historical constituents serve equity universes, and official valuations serve the valuation page. Each dataset follows its actual source coverage; missing data is not fabricated.
 
 Outperforming an index does not necessarily mean making a profit. Both the strategy and the index can fall.
 

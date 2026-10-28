@@ -44,7 +44,6 @@ export async function datasetInputReadiness(
       'stock-adjustments',
       'stock-valuations',
       'stock-limits',
-      'etf-shares',
     ].includes(requirement.dataset);
     if (daily) {
       const calendarProof = await database.datasetSyncPartition.findMany({

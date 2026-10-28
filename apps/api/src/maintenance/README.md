@@ -1,6 +1,6 @@
 # 统一数据同步
 
-唯一市场写流程为仓库根目录 `pnpm data sync [--to YYYYMMDD]`。省略目标时，在启动时固定上海自然日；帮助和非法参数不加载环境、Prisma 或来源。源码入口为 `cli/data.ts`，编译入口为 `dist/src/maintenance/cli/data.js`。
+市场数据统一同步入口为仓库根目录 `pnpm data sync [--to YYYYMMDD]`；管理员名单与 ETF 选池命令见文末下载名单说明。省略目标时，在启动时固定上海自然日；帮助和非法参数不加载环境、Prisma 或来源。源码入口为 `cli/data.ts`，编译入口为 `dist/src/maintenance/cli/data.js`。
 
 | 阅读入口 | 职责 |
 | --- | --- |
@@ -26,4 +26,6 @@
 
 生产保留一个 `jixie-maintenance.timer`，上海时间每两小时的 :15 调用统一 sync；旧 weekly timer 在升级时停用。部署先完成迁移/重启并释放 P/R，再执行一轮有限同步；空库或来源缺口不影响应用准入。状态 `active` 只表示真实发布互斥，错误/待办不会封站。
 
-实现设计、迁移审阅顺序和 A01–A14 验收见 [统一同步设计](../../../../docs/design/unified-data-sync.md)。本轮行为测试等待 Gate 2；迁移 SQL 已由 Prisma 静态生成，尚未应用。
+实现设计、迁移审阅顺序和 A01–A14 验收见 [统一同步设计](../../../../docs/design/unified-data-sync.md)。历次裁剪与本轮名单行为测试已通过 Gate 2 后验收；迁移仅在隔离库验证，开发与生产库未应用。
+
+ETF 与指数对象来自 `MarketDownloadList`，不合并研究 registry 或策略 watch。首次 ETF 初始化使用最新同日规模前 100，后续 sync 不重选；index 首次保留五个基准代码。移出后连已有 pending 分区都停止请求。ETF 初始化失败单独报错，股票与财报仍可继续。`index-catalog`、`etf-shares` 已退役，锁内清理对应维护记录和历史份额证据键。CLI 见 [下载名单](../market/downloads/README.md)。

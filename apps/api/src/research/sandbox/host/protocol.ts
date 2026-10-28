@@ -46,7 +46,6 @@ const researchEquityAnalysisRequestSchema = z.strictObject({
   method: z.enum([
     'equity_fundamentals',
     'equity_dividends',
-    'etf_shares',
     'index_valuation',
     'equity_financial_values',
     'equity_financial_statements',
@@ -191,7 +190,6 @@ export const researchCellRunFrameSchema = z.union([
       'research_series',
       'research_equity_fundamentals',
       'research_equity_dividends',
-      'research_etf_shares',
       'research_index_valuation',
       'research_equity_financial_statements',
       'research_equity_financial_values',

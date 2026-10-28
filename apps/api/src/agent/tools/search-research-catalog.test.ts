@@ -30,7 +30,6 @@ describe('research catalog query interpretation', () => {
     );
 
     expect(missing).toMatchObject({
-      researchRegistry: { exposureId: 'cn.csi_300', role: 'primary' },
       localDataCoverage: {
         status: 'missing',
         reason: 'source_available_but_local_data_missing',

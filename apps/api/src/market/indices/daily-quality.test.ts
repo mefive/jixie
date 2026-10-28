@@ -1,8 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  DAILY_MAINTAINED_INDEX_CODES,
-  MAJOR_INDEX_DAILY_BASIC_CODES,
-} from '../registry/index-presets.js';
+import { DEFAULT_INDEX_DOWNLOADS } from '../downloads/lists.js';
+import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
+const DAILY_MAINTAINED_INDEX_CODES = DEFAULT_INDEX_DOWNLOADS.map((row) => row.tsCode);
+const MAJOR_INDEX_DAILY_BASIC_CODES = DAILY_MAINTAINED_INDEX_CODES.filter((code) =>
+  INDEX_VALUATION_SUPPORTED_CODES.includes(code),
+);
+vi.mock('../downloads/lists.js', async (original) => ({
+  ...(await original<typeof import('../downloads/lists.js')>()),
+  readDownloadCodes: async () => [
+    '000300.SH',
+    '000905.SH',
+    '000852.SH',
+    'H00300.CSI',
+    '000985.CSI',
+  ],
+}));
 import { validateIndexDate, validateIndexWeightDate } from './daily-quality.js';
 const database = vi.hoisted(() => ({
   daily: vi.fn(),

@@ -181,7 +181,7 @@ describe('research data catalog', () => {
     expect(mocks.yieldCurveGroupBy).not.toHaveBeenCalled();
   });
 
-  it('discovers remaining ETF and index reference datasets', async () => {
+  it('discovers retained index valuation datasets and omits retired ETF shares', async () => {
     mocks.etfFindMany.mockResolvedValue([
       { tsCode: '510300.SH', name: '沪深300ETF', fundType: '股票型', indexName: '沪深300' },
     ]);
@@ -200,10 +200,7 @@ describe('research data catalog', () => {
       },
     ]);
 
-    const cases = [
-      ['510300.SH', 'data.etf_shares', '510300.SH', 'availableDate'],
-      ['000300.SH', 'data.index_valuation', '000300.SH', 'tradeDate'],
-    ] as const;
+    const cases = [['000300.SH', 'data.index_valuation', '000300.SH', 'tradeDate']] as const;
     for (const [query, method, identifier, dateBasis] of cases) {
       const result = await searchResearchDataCatalog({ query, scope: 'datasets' });
       expect(result.datasets).toEqual(
@@ -286,10 +283,6 @@ describe('research data catalog', () => {
     const result = await searchResearchDataCatalog({ query: '510300.SH', assetType: 'etf' });
 
     expect(result.instruments[0]).toMatchObject({
-      researchRegistry: {
-        role: 'primary',
-        selectionAsOf: '20260824',
-      },
       localDataCoverage: {
         status: 'ready',
         observationCount: 2500,

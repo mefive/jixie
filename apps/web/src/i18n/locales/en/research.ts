@@ -296,13 +296,6 @@ export const enResearch: typeof zhResearch = {
     datasetCoverageMissing: 'Insufficient local data; not runnable yet',
     coverageReady: '{{start}} to {{end}} · {{count}} observations',
     coverageMissing: 'Metadata only; no locally executable history',
-    registryExposure: 'Research-pool exposure',
-    registryRole: {
-      primary: 'Primary',
-      backup: 'Backup',
-    },
-    registryLimitations:
-      'This proxy has {{count}} documented limitation(s); review the help guidance before formal research.',
     measure: 'Measure',
     stockCode: 'Equity code',
     stockCodes: 'Equity codes (up to 100, comma-separated)',

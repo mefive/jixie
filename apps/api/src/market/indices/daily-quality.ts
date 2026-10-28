@@ -1,10 +1,6 @@
 import { getDatabase } from '#infra/database/prisma.js';
-import {
-  DAILY_MAINTAINED_INDEX_CODES,
-  MAJOR_INDEX_DAILY_BASIC_CODES,
-  MAJOR_INDEX_DAILY_CODES,
-  INDEX_MEMBERSHIP_CODES,
-} from '../registry/index-presets.js';
+import { readDownloadCodes } from '../downloads/lists.js';
+import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
 
 /**
  * 提供单日指数发布的覆盖检查结果。
@@ -26,29 +22,32 @@ export async function validateIndexDate(
   tradeDate: string,
   maximumIndexWeightAgeDays = 190,
 ): Promise<IndexDateQuality> {
+  const requiredCodes = await readDownloadCodes('index');
+  const valuationCodes = requiredCodes.filter((code) =>
+    INDEX_VALUATION_SUPPORTED_CODES.includes(code),
+  );
+  const membershipCodes = requiredCodes.filter((code) => code !== 'H00300.CSI');
   const [indexCodes, indexBasicCodes, indexSnapshots] = await Promise.all([
     getDatabase().indexDaily.findMany({
       where: {
         tradeDate,
-        tsCode: { in: DAILY_MAINTAINED_INDEX_CODES },
+        tsCode: { in: requiredCodes },
       },
       select: { tsCode: true },
     }),
     getDatabase().indexDailyBasic.findMany({
-      where: { tradeDate, tsCode: { in: [...MAJOR_INDEX_DAILY_BASIC_CODES] } },
+      where: { tradeDate, tsCode: { in: valuationCodes } },
       select: { tsCode: true },
     }),
-    readIndexWeightSnapshots(tradeDate),
+    readIndexWeightSnapshots(tradeDate, membershipCodes),
   ]);
   const actualIndexCodes = new Set(indexCodes.map((row) => row.tsCode));
-  const missingIndexCodes = MAJOR_INDEX_DAILY_CODES.filter((code) => !actualIndexCodes.has(code));
+  const missingIndexCodes = requiredCodes.filter((code) => !actualIndexCodes.has(code));
   if (missingIndexCodes.length > 0) {
     throw new Error(`IndexDaily is missing ${missingIndexCodes.join(', ')} for ${tradeDate}`);
   }
   const actualIndexBasicCodes = new Set(indexBasicCodes.map((row) => row.tsCode));
-  const missingIndexBasicCodes = MAJOR_INDEX_DAILY_BASIC_CODES.filter(
-    (code) => !actualIndexBasicCodes.has(code),
-  );
+  const missingIndexBasicCodes = valuationCodes.filter((code) => !actualIndexBasicCodes.has(code));
   if (missingIndexBasicCodes.length > 0) {
     throw new Error(
       `IndexDailyBasic is missing ${missingIndexBasicCodes.join(', ')} for ${tradeDate}`,
@@ -58,6 +57,7 @@ export async function validateIndexDate(
     tradeDate,
     maximumIndexWeightAgeDays,
     indexSnapshots,
+    membershipCodes,
   );
 
   return {
@@ -76,14 +76,25 @@ export async function validateIndexWeightDate(
   tradeDate: string,
   maximumIndexWeightAgeDays = 190,
 ): Promise<string> {
-  const snapshots = await readIndexWeightSnapshots(tradeDate);
+  const membershipCodes = (await readDownloadCodes('index')).filter(
+    (code) => code !== 'H00300.CSI',
+  );
+  const snapshots = await readIndexWeightSnapshots(tradeDate, membershipCodes);
 
-  return assertIndexWeightSnapshots(tradeDate, maximumIndexWeightAgeDays, snapshots);
+  return assertIndexWeightSnapshots(
+    tradeDate,
+    maximumIndexWeightAgeDays,
+    snapshots,
+    membershipCodes,
+  );
 }
 
-function readIndexWeightSnapshots(tradeDate: string): Promise<({ tradeDate: string } | null)[]> {
+function readIndexWeightSnapshots(
+  tradeDate: string,
+  membershipCodes: string[],
+): Promise<({ tradeDate: string } | null)[]> {
   return Promise.all(
-    INDEX_MEMBERSHIP_CODES.map((indexCode) =>
+    membershipCodes.map((indexCode) =>
       getDatabase().indexWeight.findFirst({
         where: { indexCode, tradeDate: { lte: tradeDate } },
         orderBy: { tradeDate: 'desc' },
@@ -97,15 +108,16 @@ function assertIndexWeightSnapshots(
   tradeDate: string,
   maximumIndexWeightAgeDays: number,
   indexSnapshots: ({ tradeDate: string } | null)[],
+  membershipCodes: string[],
 ): string {
-  const missingSnapshots = INDEX_MEMBERSHIP_CODES.filter((_, index) => !indexSnapshots[index]);
+  const missingSnapshots = membershipCodes.filter((_, index) => !indexSnapshots[index]);
   if (missingSnapshots.length > 0) {
     throw new Error(
       `IndexWeight has no point-in-time snapshot for ${missingSnapshots.join(', ')} by ${tradeDate}`,
     );
   }
   const oldestAllowedSnapshot = addCalendarDays(tradeDate, -maximumIndexWeightAgeDays);
-  const staleSnapshots = INDEX_MEMBERSHIP_CODES.filter((_, index) => {
+  const staleSnapshots = membershipCodes.filter((_, index) => {
     const snapshotDate = indexSnapshots[index]?.tradeDate;
     return snapshotDate != null && snapshotDate < oldestAllowedSnapshot;
   });
@@ -115,7 +127,7 @@ function assertIndexWeightSnapshots(
     );
   }
 
-  return indexSnapshots.map((snapshot) => snapshot!.tradeDate).sort()[0];
+  return indexSnapshots.map((snapshot) => snapshot!.tradeDate).sort()[0] ?? tradeDate;
 }
 
 function addCalendarDays(date: string, days: number): string {

@@ -7,9 +7,7 @@ const fixture = vi.hoisted(() => ({
   transaction: vi.fn(),
   validate: vi.fn(),
 }));
-vi.mock('../registry/index-presets.js', () => ({
-  INDEX_MEMBERSHIP_CODES: ['000300.SH'],
-}));
+vi.mock('../downloads/lists.js', () => ({ readDownloadCodes: async () => ['000300.SH'] }));
 vi.mock('../providers/tushare/api.js', () => ({ indexWeight: fixture.source }));
 vi.mock('../instruments/stock-identity.js', () => ({ canonicalStockCode: (code: string) => code }));
 vi.mock('./daily-quality.js', () => ({ validateIndexWeightDate: fixture.validate }));

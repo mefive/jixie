@@ -15,7 +15,6 @@ describe('audit task selection', () => {
   it.each([
     ['data'],
     ['data', '--strict', '20240101', '20241231', '--window=60', '--points=5', '--json'],
-    ['etf', '20200101', '20251231', '--strict'],
   ])('preserves audit argument order: %s', (...args) => {
     expect(parseAuditArguments(args)).toMatchObject({ action: 'run', args: args.slice(1) });
   });

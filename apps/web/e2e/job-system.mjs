@@ -62,6 +62,7 @@ try {
     ...(selected?.includes('python-strategy') ? ['python-strategy'] : []),
     ...[
       'macro-retirement',
+      'download-lists',
       'factor-publication',
       'factor-scope',
       'python-factor',

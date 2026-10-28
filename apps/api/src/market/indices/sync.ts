@@ -2,12 +2,7 @@ import type { TradeDate } from '@jixie/shared';
 import { getDatabase } from '#infra/database/prisma.js';
 import { log } from '#infra/logging.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
-import {
-  indexBenchmark,
-  indexDaily,
-  indexDailyBasic,
-  indexWeight,
-} from '../providers/tushare/api.js';
+import { indexDaily, indexDailyBasic, indexWeight } from '../providers/tushare/api.js';
 import type { TushareClient } from '../providers/tushare/tushare-client.js';
 
 const LARGE_INDEX_WEIGHT_CODES = new Set(['000985.CSI', '000001.SH', '399102.SZ', '932000.CSI']);
@@ -95,33 +90,6 @@ export async function syncIndexWeight(
     total += rows.length;
   }
   log(`syncIndexWeight 完成，共 ${total} 行`);
-}
-
-/**
- * 替换用于审计指数分类的小型官方基准目录。
- *
- * Replace the small official benchmark catalog used to audit index classifications.
- */
-export async function syncIndexBenchmarks(client: TushareClient): Promise<number> {
-  const rows = await indexBenchmark(client);
-
-  await getDatabase().$transaction([
-    getDatabase().indexBenchmark.deleteMany({}),
-    getDatabase().indexBenchmark.createMany({
-      data: rows.map((row) => ({
-        tsCode: row.ts_code,
-        symbol: row.symbol,
-        name: row.name,
-        fullName: row.fullname,
-        bmkLevel: row.bmk_level,
-        bmkType: row.bmk_type,
-        bmkSource: row.bmk_src,
-        indexType: row.idx_type,
-      })),
-    }),
-  ]);
-  log(`syncIndexBenchmarks complete: ${rows.length} rows`);
-  return rows.length;
 }
 
 /**

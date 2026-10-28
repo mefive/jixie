@@ -51,7 +51,6 @@ try {
 
     'equity_fundamentals',
     'equity_dividends',
-    'etf_shares',
     'index_valuation',
     'equity_financial_statements',
     'equity_financial_metrics',
@@ -100,7 +99,6 @@ try {
 
   await drawer.getByRole('textbox', { name: '搜索股票、ETF、指数或数据读取方式' }).fill('沪深 300');
   for (const { query, method, identifier } of [
-    { query: '510300.SH', method: 'etf_shares', identifier: '510300.SH' },
     { query: '000300.SH', method: 'index_valuation', identifier: '000300.SH' },
   ]) {
     await drawer.getByRole('textbox', { name: '搜索股票、ETF、指数或数据读取方式' }).fill(query);

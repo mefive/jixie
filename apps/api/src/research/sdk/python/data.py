@@ -312,13 +312,6 @@ class _DataApi:
             result, _EQUITY_DIVIDEND_COLUMNS, ["date", "ex_date", "report_period"]
         )
 
-    def etf_shares(self, identifier: str, *, start: str, end: str) -> Any:
-        result = self._capabilities.request(
-            "research_etf_shares",
-            {"identifier": identifier, "start": start, "end": end},
-        )
-        return self._dataset_frame(result, _ETF_SHARE_COLUMNS, ["date", "trade_date"])
-
     def index_valuation(self, identifier: str, *, start: str, end: str) -> Any:
         result = self._capabilities.request(
             "research_index_valuation",

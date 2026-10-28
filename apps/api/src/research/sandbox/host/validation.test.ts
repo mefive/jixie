@@ -9,7 +9,6 @@ import {
   RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
-  RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SDK_CONTRACT_V1,
@@ -21,7 +20,6 @@ import {
   parseResearchCrossSectionRuntimeRequest,
   parseResearchEquityDividendsRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
-  parseResearchEtfSharesRuntimeRequest,
   parseResearchBacktestReportRuntimeRequest,
   parseResearchEquityDatasetRuntimeRows,
   parseResearchFactorReportRuntimeRequest,
@@ -100,11 +98,9 @@ describe('research workbench SDK contract', () => {
     expect(RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1.qualifiedName).toBe('data.equity_dividends');
   });
 
-  it('drives ETF and index reference dataset bridges', () => {
+  it('drives the retained index reference dataset bridge', () => {
     const request = { identifier: 'TEST', start: '20200101', end: '20251231' };
-    expect(parseResearchEtfSharesRuntimeRequest(request)).toEqual(request);
     expect(parseResearchIndexValuationRuntimeRequest(request)).toEqual(request);
-    expect(RESEARCH_ETF_SHARES_SDK_CONTRACT_V1.qualifiedName).toBe('data.etf_shares');
     expect(RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1.qualifiedName).toBe('data.index_valuation');
   });
 

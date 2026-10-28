@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { loadEnvFile } from 'node:process';
+import type { DataRequest } from './data.js';
 import { localDate } from '#market/synchronization/date.js';
 
 /**
@@ -7,7 +8,9 @@ import { localDate } from '#market/synchronization/date.js';
  *
  * Only execution loads environment, database and providers; finally releases owned resources.
  */
-export async function executeDataSync(targetDate?: string): Promise<number> {
+export async function executeDataCommand(
+  request: Exclude<DataRequest, { action: 'help' }>,
+): Promise<number> {
   const startedAt = new Date();
   const apiDirectory = new URL(
     import.meta.url.includes('/dist/') ? '../../../../' : '../../../',
@@ -27,24 +30,45 @@ export async function executeDataSync(targetDate?: string): Promise<number> {
   process.once('SIGINT', cancel);
   process.once('SIGTERM', cancel);
   try {
-    const config = loadTushareConfig();
-    const result = await withDatabase(prisma, () =>
-      synchronizeData({
-        targetDate: targetDate ?? localDate(startedAt),
+    const result = await withDatabase(prisma, async () => {
+      const { listDownloads, changeDownloadList } = await import('#market/downloads/lists.js');
+      switch (request.action) {
+        case 'list':
+          return listDownloads(request.assetType);
+        case 'add':
+        case 'remove':
+          return changeDownloadList(request.assetType, request.action, request.code);
+        default:
+          break;
+      }
+
+      const config = loadTushareConfig();
+      const source = new TushareClient({
+        ...config,
+        minIntervalMs: Math.max(config.minIntervalMs, 800),
+        maxRetries: 2,
+      });
+      if (request.action === 'select-top') {
+        const { selectTopEtfs } = await import('#market/downloads/select-etfs.js');
+        const { withSourceRequestBudget } = await import('#market/providers/source-fetch.js');
+        return withSourceRequestBudget(
+          { remaining: 600, deadline: Date.now() + 30 * 60_000, signal: controller.signal },
+          () => selectTopEtfs({ source, limit: request.limit }),
+        );
+      }
+
+      return synchronizeData({
+        targetDate: request.targetDate ?? localDate(startedAt),
         startedAt,
         signal: controller.signal,
-        providers: {
-          source: new TushareClient({
-            ...config,
-            minIntervalMs: Math.max(config.minIntervalMs, 800),
-            maxRetries: 2,
-          }),
-        },
-      }),
-    );
+        providers: { source },
+      });
+    });
     console.log(JSON.stringify(result, null, 2));
 
-    return result.status === 'error' ? 1 : 0;
+    return result && !Array.isArray(result) && 'status' in result && result.status === 'error'
+      ? 1
+      : 0;
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     return error instanceof MarketAccessBusyError ? 75 : 1;

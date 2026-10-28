@@ -12,12 +12,6 @@ export const auditCommands: CommandDefinition[] = [
     description:
       'Read-only market data quality and coverage audit; --strict fails on error findings.',
   },
-  {
-    name: 'etf',
-    entry: 'scripts/audit/audit-etf-registry.js',
-    usage: '[expected-history-start] [coverage-through] [--json] [--strict]',
-    description: 'Read-only ETF registry and history coverage audit.',
-  },
 ];
 
 export function parseAuditArguments(input: string[]) {
@@ -32,8 +26,7 @@ export function parseAuditArguments(input: string[]) {
 function validateAuditParameters(command: CommandDefinition, args: string[]): void {
   const usage = `Usage: pnpm data:audit ${command.name} ${command.usage}`;
   switch (command.name) {
-    case 'data':
-    case 'etf': {
+    case 'data': {
       const dates: string[] = [];
       const seen = new Set<string>();
       for (const argument of args) {

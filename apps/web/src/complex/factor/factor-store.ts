@@ -61,7 +61,6 @@ import {
 } from '@src/api/factor';
 import { panelAssetsFor } from './panel-universe';
 import {
-  allowedTimeSeriesAssetsFor,
   defaultTimeSeriesAssetsFor,
   isTimeSeriesAsset,
   TIME_SERIES_ASSETS,
@@ -296,7 +295,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       panelReport: computed,
       isTimeSeries: computed,
       isPanel: computed,
-      timeSeriesAllowedAssets: computed,
       reportDetail: computed,
       paramsModified: computed,
       analysisSpec: computed,
@@ -424,18 +422,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public get isPanel(): boolean {
     return (
       this.mode === 'panel' || (this.mode === 'custom' && this.definitionAnalysisKind === 'panel')
-    );
-  }
-
-  public get timeSeriesAllowedAssets(): TimeSeriesAsset[] {
-    const selected = this.selected;
-    return allowedTimeSeriesAssetsFor(
-      selected
-        ? {
-            ...selected,
-            targetAssetClasses: this.targetAssetClasses ?? selected.targetAssetClasses,
-          }
-        : undefined,
     );
   }
 
@@ -717,9 +703,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   }
 
   public setTimeSeriesAssets(values: string[]) {
-    const allowed = new Set(this.timeSeriesAllowedAssets);
-    this.timeSeriesAssets = values.filter(
-      (value): value is TimeSeriesAsset => isTimeSeriesAsset(value) && allowed.has(value),
+    this.timeSeriesAssets = values.filter((value): value is TimeSeriesAsset =>
+      isTimeSeriesAsset(value),
     );
   }
 
@@ -1428,15 +1413,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
           const targetAssetClasses = factor.targetAssetClasses ?? this.targetAssetClasses;
           runInAction(() => {
             this.targetAssetClasses = targetAssetClasses;
-            if (this.definitionAnalysisKind === 'time_series' && this.selected) {
-              const allowed = new Set(
-                allowedTimeSeriesAssetsFor({
-                  ...this.selected,
-                  targetAssetClasses,
-                }),
-              );
-              this.timeSeriesAssets = this.timeSeriesAssets.filter((asset) => allowed.has(asset));
-            }
           });
         } catch (e) {
           await this.reportLoader.run(Promise.reject(e)).catch(() => {});

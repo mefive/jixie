@@ -13,7 +13,6 @@ import {
   type ResearchDataCatalogDatasetV1,
   type ResearchDataCatalogFactorReportV1,
   type ResearchDataCatalogInstrumentV1,
-  type ResearchDataCatalogRegistryV1,
   type ResearchDataCatalogResultV1,
   type ResearchDataCatalogScopeV1,
   type ResearchDataCatalogStrategyScanReportV1,
@@ -21,10 +20,6 @@ import {
 } from '@jixie/shared';
 import { Prisma } from '@prisma/client';
 import { getDatabase } from '#infra/database/prisma.js';
-import {
-  etfResearchMembership,
-  type EtfResearchMembership,
-} from '#market/registry/etf-research-registry.js';
 import { researchCapabilityCatalog } from './capabilities.js';
 
 /**
@@ -272,7 +267,6 @@ function catalogMethodNames(scope: ResearchDataCatalogScopeV1): string[] {
         'data.equity_financial_cross_section',
         'data.equity_financial_panel',
         'data.equity_dividends',
-        'data.etf_shares',
         'data.index_valuation',
       ];
     case 'factor_reports':
@@ -302,8 +296,6 @@ async function searchDatasets(
     dailyBasicStart,
     dailyBasicEnd,
     indexWeights,
-    etfShareCoverageRows,
-    etfMetadataRows,
     indexValuationCoverageRows,
     indexMetadataRows,
     financialIncomeCoverage,
@@ -325,14 +317,6 @@ async function searchDatasets(
       where: { indexCode: { in: indexCodes } },
       _min: { tradeDate: true },
       _max: { tradeDate: true },
-    }),
-    getDatabase().etfShareSize.groupBy({
-      by: ['tsCode'],
-      _min: { availableDate: true },
-      _max: { availableDate: true },
-    }),
-    getDatabase().etfBasic.findMany({
-      select: { tsCode: true, name: true, fundType: true, indexName: true },
     }),
     getDatabase().indexDailyBasic.groupBy({
       by: ['tsCode'],
@@ -409,29 +393,6 @@ async function searchDatasets(
         descriptionEn: 'Month-end point-in-time membership, valuation, and trading measures.',
         tags: [...meta.tags, 'PIT', 'panel', 'month-end'],
         localDataCoverage: coverage,
-      },
-    ];
-  });
-  const etfMetadata = new Map(etfMetadataRows.map((row) => [row.tsCode, row]));
-  const etfShareDatasets: ResearchDataCatalogDatasetV1[] = etfShareCoverageRows.flatMap((row) => {
-    const start = row._min.availableDate;
-    const end = row._max.availableDate;
-    if (!start || !end) {
-      return [];
-    }
-    const meta = etfMetadata.get(row.tsCode);
-    return [
-      {
-        kind: 'dataset',
-        id: `data.etf_shares:${row.tsCode}`,
-        method: 'data.etf_shares',
-        identifier: row.tsCode,
-        nameZh: `${meta?.name ?? row.tsCode} ETF 份额`,
-        nameEn: `${meta?.name ?? row.tsCode} ETF shares`,
-        descriptionZh: '按研究可得日治理的 ETF 份额、规模、净值与收盘价。',
-        descriptionEn: 'ETF shares, size, NAV, and close governed by research availability date.',
-        tags: compact([row.tsCode, meta?.fundType, meta?.indexName, 'ETF', 'PIT']),
-        localDataCoverage: readyDatasetCoverage(start, end, 'availableDate'),
       },
     ];
   });
@@ -571,7 +532,6 @@ async function searchDatasets(
     ...equityDatasets,
     ...financialSingleStockDatasets,
     ...financialUniverseDatasets,
-    ...etfShareDatasets,
     ...indexValuationDatasets,
   ];
   const normalizedQuery = query.toLocaleLowerCase();
@@ -620,7 +580,6 @@ function datasetSearchText(dataset: ResearchDataCatalogDatasetV1): string {
  */
 function datasetIdentifiers(dataset: ResearchDataCatalogDatasetV1): string[] {
   switch (dataset.method) {
-    case 'data.etf_shares':
     case 'data.index_valuation':
     case 'data.equity_financial_values':
     case 'data.equity_financial_statements':
@@ -934,8 +893,6 @@ async function attachLocalDataCoverage(
     const localDataCoverage =
       coverageByInstrument.get(`${instrument.assetType}:${instrument.identifier}`) ??
       missingCoverage();
-    const membership =
-      instrument.assetType === 'etf' ? etfResearchMembership(instrument.identifier) : null;
     return {
       ...instrument,
       localDataCoverage,
@@ -946,9 +903,7 @@ async function attachLocalDataCoverage(
               status: 'not_ready',
               reason: 'source_available_but_local_data_missing',
             },
-      ...(instrument.assetType === 'etf'
-        ? { researchRegistry: membership ? dataCatalogRegistry(membership) : null }
-        : {}),
+      ...(instrument.assetType === 'etf' ? {} : {}),
     };
   });
 }
@@ -986,17 +941,6 @@ function missingCoverage(): ResearchDataCatalogCoverageV1 {
   return {
     status: 'missing',
     reason: 'source_available_but_local_data_missing',
-  };
-}
-
-function dataCatalogRegistry(membership: EtfResearchMembership): ResearchDataCatalogRegistryV1 {
-  return {
-    exposureId: membership.exposureId,
-    role: membership.role,
-    region: membership.region,
-    currencyExposure: membership.currencyExposure,
-    selectionAsOf: membership.selectionAsOf,
-    knownLimitations: membership.knownLimitations,
   };
 }
 

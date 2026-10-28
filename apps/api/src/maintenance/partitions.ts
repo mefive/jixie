@@ -5,12 +5,8 @@ import { contiguousCoverage } from '#market/synchronization/coverage.js';
 import type { DatasetPolicy, MarketPartition } from '#market/synchronization/partition.js';
 import { calendarDay, localDate, localHour } from '#market/synchronization/date.js';
 import { canonicalStockCode } from '#market/instruments/stock-identity.js';
-import { ETF_RESEARCH_CODES } from '#market/registry/etf-research-registry.js';
-import {
-  DAILY_MAINTAINED_INDEX_CODES,
-  MAJOR_INDEX_DAILY_BASIC_CODES,
-  INDEX_MEMBERSHIP_CODES,
-} from '#market/registry/index-presets.js';
+import { readDownloadCodes } from '#market/downloads/lists.js';
+import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
 
 export const SYNC_LIMITS = {
   partitions: 240,
@@ -25,9 +21,6 @@ export interface DatasetScope {
   timeZone?: string;
   closeHour?: number;
 }
-export interface SyncRequirements {
-  etfCodes: string[];
-}
 export interface PlannedPartition extends MarketPartition {
   id: string;
   policyVersion: string;
@@ -35,7 +28,6 @@ export interface PlannedPartition extends MarketPartition {
 export interface PlanInput {
   targetDate: string;
   startedAt: Date;
-  requirements: SyncRequirements;
   budget?: number;
   excludeIds?: ReadonlySet<string>;
   deadline?: number;
@@ -46,14 +38,11 @@ function scopes(policy: DatasetPolicy, names: readonly string[]): DatasetScope[]
 }
 
 /**
- * 数据对象由既有目录和部署需求确定，不暴露用户选择器。
+ * ETF／指数对象只读管理员保存名单；其他对象来自来源目录。
  *
- * Existing catalogs and deployment requirements determine objects without a public selector.
+ * ETF/index objects follow saved administrator lists; other objects follow source catalogs.
  */
-export async function datasetScopes(
-  policy: DatasetPolicy,
-  requirements: SyncRequirements,
-): Promise<DatasetScope[]> {
+export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope[]> {
   switch (policy.dataset) {
     case 'calendar':
       return scopes(policy, ['SSE', 'SZSE']);
@@ -61,36 +50,36 @@ export async function datasetScopes(
       return scopes(policy, ['L', 'D', 'P', 'G']);
     case 'stock-names':
       return scopes(policy, ['all']);
-    case 'index-catalog':
     case 'etf-master':
       return scopes(policy, ['all']);
     case 'index-prices':
-      return scopes(policy, DAILY_MAINTAINED_INDEX_CODES);
+      return scopes(policy, await readDownloadCodes('index'));
     case 'index-valuations':
-      return scopes(policy, MAJOR_INDEX_DAILY_BASIC_CODES);
+      return scopes(
+        policy,
+        (await readDownloadCodes('index')).filter((code) =>
+          INDEX_VALUATION_SUPPORTED_CODES.includes(code),
+        ),
+      );
     case 'index-weights':
-      return scopes(policy, INDEX_MEMBERSHIP_CODES);
+      return scopes(
+        policy,
+        (await readDownloadCodes('index')).filter((code) => code !== 'H00300.CSI'),
+      );
     case 'etf-prices':
-    case 'etf-adjustments':
-    case 'etf-shares': {
-      const rows = await getDatabase().etfBasic.findMany({
-        where: { tsCode: { in: [...new Set([...ETF_RESEARCH_CODES, ...requirements.etfCodes])] } },
+    case 'etf-adjustments': {
+      const codes = await readDownloadCodes('etf');
+      const rows = await getDatabase().etfBasic.findMany({ where: { tsCode: { in: codes } } });
+
+      return codes.map((code) => {
+        const row = rows.find((item) => item.tsCode === code);
+
+        return {
+          scope: code,
+          startDate: row?.listDate ?? policy.startDate,
+          endDate: row?.delistDate ?? undefined,
+        };
       });
-      return rows.map((row) => ({
-        scope: row.tsCode,
-        startDate: [
-          row.listDate ?? '',
-          ['510300.SH', '159920.SZ', '513500.SH'].includes(row.tsCode)
-            ? '20120501'
-            : ['159985.SZ', '159980.SZ', '159981.SZ'].includes(row.tsCode)
-              ? '20191201'
-              : policy.startDate,
-        ]
-          .filter(Boolean)
-          .sort()
-          .at(-1)!,
-        endDate: row.delistDate ?? undefined,
-      }));
     }
     case 'financial-statements':
       return scopes(
@@ -197,6 +186,16 @@ export async function planSyncPartitions(
   const selectedIds = new Set<string>();
   const gaps: string[] = [];
   const select = async (partition: MarketPartition, policy: DatasetPolicy): Promise<boolean> => {
+    if (
+      !inventories.some(
+        (inventory) =>
+          inventory.policy.dataset === partition.dataset &&
+          inventory.objects.some((object) => object.scope === partition.scope),
+      )
+    ) {
+      return false;
+    }
+
     partition = {
       dataset: partition.dataset,
       scope: partition.scope,
@@ -251,7 +250,7 @@ async function loadInventories(input: PlanInput, gaps: string[]) {
   const database = getDatabase();
   const inventories = [];
   for (const policy of DATASET_POLICIES) {
-    const objects = await datasetScopes(policy, input.requirements);
+    const objects = await datasetScopes(policy);
     const states = await database.datasetSyncState.findMany({ where: { dataset: policy.dataset } });
     const byScope = new Map(states.map((row) => [row.scope, row]));
     const missing = objects.filter((object) => !byScope.has(object.scope));
@@ -273,7 +272,16 @@ async function loadInventories(input: PlanInput, gaps: string[]) {
           (byScope.get(right.scope)?.lastCheckedAt?.getTime() ?? 0) ||
         left.scope.localeCompare(right.scope),
     );
-    if (!objects.length) {
+    if (
+      !objects.length &&
+      ![
+        'etf-prices',
+        'etf-adjustments',
+        'index-prices',
+        'index-weights',
+        'index-valuations',
+      ].includes(policy.dataset)
+    ) {
       gaps.push(`${policy.dataset}: awaiting reference inventory`);
     }
     inventories.push({

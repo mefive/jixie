@@ -1,3 +1,5 @@
+import { initializeIndexDownloads } from '#market/downloads/lists.js';
+import { selectEtfsUnderMaintenance } from '#market/downloads/select-etfs.js';
 import { retireDatasets } from './retired-datasets.js';
 import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
 import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
@@ -15,13 +17,8 @@ import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/
 import { acceptMarketPartition } from '#market/synchronization/records.js';
 import { prepareMarketPartition, type SyncProviders } from '#market/synchronization/prepare.js';
 import { DATASET_POLICIES } from '#market/synchronization/policies.js';
-import { isObservationDate } from '#market/synchronization/date.js';
-import {
-  planSyncPartitions,
-  SYNC_LIMITS,
-  type SyncRequirements,
-  type PlannedPartition,
-} from './partitions.js';
+import { isObservationDate, localDate } from '#market/synchronization/date.js';
+import { planSyncPartitions, SYNC_LIMITS, type PlannedPartition } from './partitions.js';
 import { readDatasetCoverage } from './status.js';
 import { cleanRetiredSyncResources } from './resources.js';
 
@@ -31,12 +28,6 @@ export interface DataSyncInput {
   providers: SyncProviders;
   signal?: AbortSignal;
   onLog?: (line: string) => void;
-  /**
-   * 测试可固定额外 ETF 同步对象。
-   *
-   * Tests can specify additional ETF synchronization objects.
-   */
-  requirements?: SyncRequirements;
   clock?: () => Date;
 }
 
@@ -126,6 +117,20 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
       try {
         result.gaps.push(...(await cleanRetiredSyncResources()));
         await retireDatasets();
+        await initializeIndexDownloads();
+        if (!(await database.marketDownloadList.findUnique({ where: { assetType: 'etf' } }))) {
+          try {
+            const selection = await selectEtfsUnderMaintenance({
+              source: input.providers.source,
+              today: localDate(input.startedAt),
+            });
+            log(JSON.stringify(selection));
+          } catch (error) {
+            result.errors.push(
+              `ETF initialization: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
         await acquireSyncPartitions(input, result, sourceBudget, clock, log);
         await normalizeSyncIdentities(result, clock, input.signal);
         result.gaps.push(...(await cleanRetiredSyncResources()));
@@ -166,14 +171,12 @@ async function acquireSyncPartitions(
       return input.providers.source.call(...args);
     },
   };
-  const requirements = input.requirements ?? { etfCodes: [] };
   // 参考资料提交后重新读取对象清单，因此空库同一流程能够开始后续数据域。
   // Re-read inventories after reference commits so an empty database can start dependent domains in the same flow.
   for (let wave = 0; wave < 3 && result.partitions < SYNC_LIMITS.partitions; wave++) {
     const plan = await planSyncPartitions({
       targetDate: input.targetDate,
       startedAt: input.startedAt,
-      requirements,
       budget: SYNC_LIMITS.partitions - result.partitions,
       excludeIds: attempted,
       deadline: sourceBudget.deadline,

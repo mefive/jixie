@@ -40,7 +40,7 @@ export const TUSHARE_CAPABILITIES: readonly TushareCapabilityDefinitionV1[] = [
     nameZh: 'ETF 份额与规模',
     nameEn: 'ETF shares and size',
     keywords: ['ETF 规模', 'ETF 份额', 'fund size', 'fund shares'],
-    requiredFields: ['trade_date', 'ts_code', 'etf_name', 'total_share', 'total_size', 'exchange'],
+    requiredFields: ['trade_date', 'ts_code', 'total_size'],
     permission: { kind: 'points', minimumPoints: 8000, documentedAsOf: '2026-08-04' },
     history: { frequency: 'daily', field: 'trade_date', probeCoverage: 'single_date' },
     params: (date) => ({ trade_date: date }),

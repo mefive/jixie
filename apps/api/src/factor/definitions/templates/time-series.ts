@@ -1,5 +1,4 @@
 import type { FactorKind, FactorMeta, Locale } from '@jixie/shared';
-import { MAJOR_ETF_CODES } from '#market/registry/etf-presets.js';
 
 /**
  * 定义单资产时间序列模板，供草稿目录与创建入口复用。
@@ -10,9 +9,7 @@ export interface TimeSeriesTemplate {
   key: string;
   kind: FactorKind;
   targetAssetClasses: Array<'equity' | 'fixed_income' | 'commodity'>;
-  allowedAssets: string[];
   defaultAssets: string[];
-  unavailableAssetReasons?: Record<string, Record<Locale, string>>;
   label: Record<Locale, string>;
   description: Record<Locale, string>;
   code: string;
@@ -26,7 +23,6 @@ const ALL_TIME_SERIES_ETF_ASSETS = [
   ...COMMODITY_ETF_ASSETS,
   '510300.SH',
 ];
-const PRICE_TIME_SERIES_ETF_ASSETS = [...MAJOR_ETF_CODES];
 
 function etfTrendCode(lookback: 20 | 60 | 120, name: string): string {
   return `export default defineFactorV2({
@@ -54,7 +50,6 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_20',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-    allowedAssets: PRICE_TIME_SERIES_ETF_ASSETS,
     defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 20日趋势', en: 'ETF 20-day trend' },
     description: {
@@ -68,7 +63,6 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_60',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-    allowedAssets: PRICE_TIME_SERIES_ETF_ASSETS,
     defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 60日趋势', en: 'ETF 60-day trend' },
     description: {
@@ -82,7 +76,6 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
     key: 'etf_trend_120',
     kind: 'price',
     targetAssetClasses: ['equity', 'fixed_income', 'commodity'],
-    allowedAssets: PRICE_TIME_SERIES_ETF_ASSETS,
     defaultAssets: ALL_TIME_SERIES_ETF_ASSETS,
     label: { zh: 'ETF 120日趋势', en: 'ETF 120-day trend' },
     description: {
@@ -110,36 +103,8 @@ export function timeSeriesTemplateCatalog(locale: Locale): FactorMeta[] {
     status: 'published',
     analysisKind: 'time_series',
     targetAssetClasses: template.targetAssetClasses,
-    allowedAssets: [...template.allowedAssets],
     defaultAssets: [...template.defaultAssets],
-    ...(template.unavailableAssetReasons
-      ? {
-          unavailableAssetReasons: Object.fromEntries(
-            Object.entries(template.unavailableAssetReasons).map(([assetId, reason]) => [
-              assetId,
-              reason[locale],
-            ]),
-          ),
-        }
-      : {}),
   }));
-}
-
-export function timeSeriesTemplateAssetPolicy(
-  key: string,
-): Pick<TimeSeriesTemplate, 'allowedAssets' | 'defaultAssets'> | null {
-  const template = TIME_SERIES_TEMPLATES.find((candidate) => candidate.key === key);
-  return template
-    ? {
-        allowedAssets: [...template.allowedAssets],
-        defaultAssets: [...template.defaultAssets],
-      }
-    : null;
-}
-
-export function unsupportedTimeSeriesTemplateAssets(key: string, assets: string[]): string[] {
-  const policy = timeSeriesTemplateAssetPolicy(key);
-  return policy ? assets.filter((asset) => !policy.allowedAssets.includes(asset)) : [];
 }
 
 export function isTimeSeriesTemplateKey(key: string): boolean {

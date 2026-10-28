@@ -32,7 +32,6 @@ async function fetchMarketPartition(
     case 'stock-valuations':
     case 'stock-limits':
       return prepareStockPartition(providers.source, partition);
-    case 'index-catalog':
     case 'index-prices':
     case 'index-valuations':
     case 'index-weights':
@@ -40,7 +39,6 @@ async function fetchMarketPartition(
     case 'etf-master':
     case 'etf-prices':
     case 'etf-adjustments':
-    case 'etf-shares':
       return prepareEtfPartition(providers.source, partition);
     case 'financial-statements':
     case 'financial-indicators':

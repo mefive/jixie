@@ -94,8 +94,6 @@ function identifierRequestAssetType(
   method: NonNullable<ResearchPythonAnalysis['equityRequests']>[number]['method'],
 ): ResearchAssetTypeV1 {
   switch (method) {
-    case 'etf_shares':
-      return 'etf';
     case 'index_valuation':
       return 'index';
     default:

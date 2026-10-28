@@ -39,6 +39,8 @@ export const RETIRED_DATASETS = [
   'cross-market-benchmarks',
   'china-macro',
   'us-cpi',
+  'index-catalog',
+  'etf-shares',
 ];
 
 /**
@@ -79,6 +81,7 @@ export async function retireDatasets(): Promise<void> {
         where: {
           tableName: {
             in: [
+              'EtfShareSize',
               'Moneyflow',
               'TopList',
               'SwIndustryMember',

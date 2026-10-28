@@ -75,7 +75,6 @@ it.each([true, false])(
       const result = await synchronizeData({
         targetDate: date,
         startedAt,
-        requirements: { etfCodes: [] },
         onLog: () => {},
         providers: providers(async () => {
           if (!success) {
@@ -103,7 +102,6 @@ it.each([true, false])(
       const next = await planSyncPartitions({
         targetDate: date,
         startedAt,
-        requirements: { etfCodes: [] },
       });
       if (success) {
         expect(next.partitions.some((candidate) => candidate.id === partition.id)).toBe(false);
@@ -111,7 +109,6 @@ it.each([true, false])(
       const due = await planSyncPartitions({
         targetDate: date,
         startedAt: new Date(stored.nextAttemptAt!.getTime() + 1),
-        requirements: { etfCodes: [] },
         budget: 1000,
       });
       expect(due.partitions.some((candidate) => candidate.id === partition.id)).toBe(true);

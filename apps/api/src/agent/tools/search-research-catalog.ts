@@ -26,7 +26,6 @@ import {
 import type { AgentTool } from './types.js';
 import { researchSourceDecisions } from '#research/catalog/source-decisions.js';
 import { compactCrossMarketDataContractRegistry } from '#research/datasets/cross-market-data-contracts.js';
-import { etfResearchMembership } from '#market/registry/etf-research-registry.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z
@@ -718,7 +717,6 @@ export function etfInstrumentMatch(
   const hasDailyData = coverage != null && coverage._count._all > 0;
   return {
     ...base,
-    researchRegistry: etfResearchMembership(item.tsCode),
     localDataCoverage: hasDailyData
       ? {
           status: 'ready',

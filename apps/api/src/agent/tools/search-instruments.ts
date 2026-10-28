@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { getDatabase } from '#infra/database/prisma.js';
 import { resolveInstruments } from '#market/instruments/instrument-resolver.js';
-import { etfResearchMembership } from '#market/registry/etf-research-registry.js';
 import type { AgentTool } from './types.js';
 
 const argsSchema = z.object({
@@ -69,7 +68,6 @@ export const searchInstruments: AgentTool = {
       ...stocks.map((row) => ({ ...row, assetType: 'stock' as const })),
       ...etfs.map((row) => {
         const coverage = coverageByCode.get(row.tsCode);
-        const membership = etfResearchMembership(row.tsCode);
         const hasDailyData = coverage != null && coverage._count._all > 0;
         return {
           ...row,
@@ -86,7 +84,6 @@ export const searchInstruments: AgentTool = {
                 status: 'missing',
                 reason: 'source_available_but_local_data_missing',
               },
-          researchRegistry: membership,
         };
       }),
     ].sort((left, right) => codes.indexOf(left.tsCode) - codes.indexOf(right.tsCode));

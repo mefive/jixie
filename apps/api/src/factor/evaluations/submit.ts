@@ -1,6 +1,5 @@
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { unsupportedTimeSeriesTemplateAssets } from '../definitions/templates/time-series.js';
 import { FactorError } from '../errors.js';
 import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
@@ -37,12 +36,6 @@ export async function submitFactorAnalysis(
     source = await resolveTimeSeriesFactorSource(userId, factor);
     if (!source) {
       throw new FactorError('factor_unavailable', { params: { factor } });
-    }
-    const unsupportedAssets = unsupportedTimeSeriesTemplateAssets(factor, researchSpec.assets);
-    if (unsupportedAssets.length > 0) {
-      throw new FactorError('factor_research_assets_unsupported', {
-        params: { assets: unsupportedAssets.join(', ') },
-      });
     }
     const cutoffSpec = {
       ...researchSpec,

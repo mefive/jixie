@@ -1212,43 +1212,6 @@ const equityDividendColumns = [
   },
 ] as const satisfies readonly ResearchSdkDataFrameColumnContractV1[];
 
-const etfShareColumns = [
-  {
-    name: 'date',
-    wireType: 'trade_date',
-    pythonType: 'datetime64[ns]',
-    descriptionZh: '该条 ETF 份额记录首次可用于中国市场研究的日期。',
-    descriptionEn:
-      'The first China-market research date on which the ETF share record is available.',
-  },
-  {
-    name: 'trade_date',
-    wireType: 'trade_date',
-    pythonType: 'datetime64[ns]',
-    descriptionZh: '来源交易日。',
-    descriptionEn: 'Source trading date.',
-  },
-  ...[
-    ['total_share_10k', 'ETF 总份额，单位万份。', 'Total ETF shares in 10,000 fund units.'],
-    ['total_size_cny_10k', 'ETF 总规模，单位万元。', 'Total ETF size in CNY 10,000.'],
-    ['nav', '单位净值。', 'Net asset value per fund unit.'],
-    ['close', '交易所收盘价。', 'Exchange close price.'],
-  ].map(([name, descriptionZh, descriptionEn]) => ({
-    name,
-    wireType: name === 'total_share_10k' ? ('number' as const) : ('nullable_number' as const),
-    pythonType: 'float64',
-    descriptionZh,
-    descriptionEn,
-  })),
-  {
-    name: 'exchange',
-    wireType: 'string',
-    pythonType: 'string',
-    descriptionZh: '交易所代码。',
-    descriptionEn: 'Exchange code.',
-  },
-] satisfies readonly ResearchSdkDataFrameColumnContractV1[];
-
 const indexValuationColumns = [
   {
     name: 'date',
@@ -1338,7 +1301,7 @@ function datedIdentifierDatasetFunction(
  * Construct market-reference method arguments, result columns and bilingual guidance.
  */
 function referenceDatasetFunction(
-  name: 'etf_shares' | 'index_valuation',
+  name: 'index_valuation',
   descriptionZh: string,
   descriptionEn: string,
   exampleIdentifier: string,
@@ -1751,17 +1714,6 @@ export const RESEARCH_SDK_CONTRACT_V1 = {
       returns: { kind: 'mapping', pythonType: 'Mapping[str, Any]' },
     },
     referenceDatasetFunction(
-      'etf_shares',
-      '按研究可得日读取 ETF 份额、规模、净值与收盘价。',
-      'Load ETF shares, size, NAV, and close by research availability date.',
-      '510300.SH',
-      '使用平台 ETF 代码',
-      'uses a platform ETF code',
-      '研究可得日',
-      'research availability date',
-      etfShareColumns,
-    ),
-    referenceDatasetFunction(
       'index_valuation',
       '读取供应商直接计算的指数估值、市值与换手指标。',
       'Load provider-computed index valuation, market value, and turnover measures.',
@@ -2155,13 +2107,12 @@ export const RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1
 export const RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[5];
 export const RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[6];
 export const RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[7];
-export const RESEARCH_ETF_SHARES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[8];
-export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[9];
-export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[10];
-export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[11];
+export const RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[8];
+export const RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[9];
+export const RESEARCH_FINANCIAL_METRICS_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[10];
 export const RESEARCH_FINANCIAL_CROSS_SECTION_SDK_CONTRACT_V1 =
-  RESEARCH_SDK_CONTRACT_V1.functions[12];
-export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[13];
+  RESEARCH_SDK_CONTRACT_V1.functions[11];
+export const RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions[12];
 
 export const RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1 = RESEARCH_SDK_CONTRACT_V1.functions.find(
   (method) => method.qualifiedName === 'data.equity_financial_values',
