@@ -85,19 +85,12 @@ Interpret metric rows through `value`, `unit`, `status`, and `missing_reason`, w
 `input_versions_json`. A ratio of 1 means 100%. Missing quarters, fields, and invalid denominators never become zero.
 Banks and non-bank financial companies remain `not_applicable` for industrial metrics. Statement access is separate: financial-sector sources are not integrated, so statements return an empty frame when no integrated records exist. The selected-field batch method returns an explicit source-not-integrated reason.
 
-### Chinese and US yield curves
-
-Use `data.yield_curve()` for US Treasury nominal and real yields, plus the catalog's Ministry of Finance government, ChinaBond government, and AAA credit curve tenors. Curves, tenors, and transforms have a separate allowlist; do not guess a yield table or field through `data.series()`. See [Load US Treasury yield curves](/docs/help/research/yield-curves) for parameters, percentage-point units, and US/China time-zone boundaries.
-**Datasets** lists only curve and tenor combinations that actually exist locally.
-
 ## More dedicated datasets
 
 Search by name under **Datasets** and check local coverage. These have dedicated methods; they cannot all be replaced with `data.series()`:
 
 | Data | Research SDK method | Definition to check |
 | --- | --- | --- |
-| Macro and short-term rates | `data.macro()` | Units, availability, and revision limits; Shibor is not a bond yield curve |
-| FX | `data.fx()` | Pair direction and availability for CNY research; FX return is not asset return |
 | Equity provider ratios and dividends | `data.equity_fundamentals()`, `data.equity_dividends()` | Provider definitions differ from versioned financial statements; dividends are implemented cash distributions selected by ex-dividend date |
 | ETF shares and index valuation | `data.etf_shares()`, `data.index_valuation()` | Observation date, units, source, and local coverage |
 
@@ -143,7 +136,6 @@ For a bounded calculation on an existing report or selected data, use an [embedd
 ## Related articles
 
 - [Read and rerun a Universe result](/docs/help/research/universe)
-- [Load US Treasury yield curves](/docs/help/research/yield-curves)
 - [Use the Research Python runtime](/docs/help/research/python-runtime)
 - [Read research outputs](/docs/help/research/outputs)
 

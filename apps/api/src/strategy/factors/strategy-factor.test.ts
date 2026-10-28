@@ -117,7 +117,7 @@ describe('strategy factor boundaries', () => {
       runtimeVersion: 'ts-v1',
       inputs: ['etf.adjustedClose'],
     });
-    snapshot.inputs!.push('rates.cgb.yield.10y');
+    snapshot.inputs!.push('etf.adjustedClose');
     expect(factor.assetSeries!.inputs).toEqual(['etf.adjustedClose']);
   });
 
@@ -130,17 +130,6 @@ describe('strategy factor boundaries', () => {
     });
     expect(module).not.toHaveProperty('factorId');
     expect(module).not.toHaveProperty('approvedReportId');
-  });
-
-  it('preserves the existing macro-regime runtime mapping without changing report kind', () => {
-    const macro = new StrategyFactor({
-      ...input,
-      analysisKind: 'macro_regime',
-      assetSeries: undefined,
-    });
-    expect(macro.runtimeKind).toBe('cross_sectional');
-    expect(macro.toDependency().analysisKind).toBe('macro_regime');
-    expect(macro.toDependency()).not.toHaveProperty('inputs');
   });
 });
 
@@ -174,12 +163,12 @@ describe('strategy factor state isolation', () => {
       id: input.key,
       kind: 'asset_series',
       analysisKind: 'time_series',
-      meta: { window: 3, inputs: ['rates.cgb.yield.10y'] },
+      meta: { window: 3, inputs: ['etf.adjustedClose'] },
     });
     first.inputs!.push('rates.cgb.yield.2y');
     expect(original.assetSeries).toBeUndefined();
     expect(original.toDependency()).not.toHaveProperty('inputs');
-    expect(second.inputs).toEqual(['rates.cgb.yield.10y']);
+    expect(second.inputs).toEqual(['etf.adjustedClose']);
   });
 
   it('rejects metadata belonging to a different factor', () => {

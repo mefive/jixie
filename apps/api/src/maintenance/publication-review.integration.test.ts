@@ -17,9 +17,6 @@ const date = '20260915';
 const startedAt = new Date('2026-09-16T10:00:00Z');
 const providers = (call: SyncProviders['source']['call']): SyncProviders => ({
   source: { call },
-  treasury: { fetchRange: async () => [] },
-  credit: { fetchRange: async () => [] },
-  cpi: { loadSeries: async () => [] },
 });
 const partition: PlannedPartition = {
   id: createHash('sha256')

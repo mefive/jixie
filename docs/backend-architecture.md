@@ -15,7 +15,7 @@
 | Strategy | 策略定义、回测报告、参数扫描、报告风险分析 | [Strategy](../apps/api/src/strategy/README.md) |
 | Backtesting | 交易日循环、行情读取端口、成交/持仓和因子求值；供回测和信号计算使用 | [Backtesting](../apps/api/src/backtesting/README.md) |
 | Agent | 模型/工具循环、profile、对话记录、增量事件、工具执行 | [Agent](../apps/api/src/agent/README.md) |
-| Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、跨资产查询与跨市场流程 | [Market](../apps/api/src/market/README.md) |
+| Market | 按数据领域聚合同步/读取/质量；共享日历、身份、通道、股票／ETF／境内指数查询 | [Market](../apps/api/src/market/README.md) |
 | Maintenance | 统一目标同步、分区覆盖、局部资格、运行锁、审计与恢复 | [Maintenance](../apps/api/src/maintenance/README.md) |
 | Auth | 登录、验证码、邀请码、Session 与 Cookie 适配 | [Auth](../apps/api/src/auth/README.md) |
 | Infra | 数据库、HTTP 辅助、任务执行器、Python/TS 运行设施、模型/邮件传输和日志 | [Jobs](../apps/api/src/jobs/README.md)、[Runtime](../apps/api/src/infra/sandbox/README.md) |
@@ -136,7 +136,7 @@ Research 的交互式 Cell 直接使用会话能力；不必先创建通用 Job�
 1. `strategy/backtests/submit.ts` 处理归属、日期与配置，在事务中创建冻结的 BacktestReport 和 queued Job；提交后唤醒队列，日志在执行开始时初始化。
 2. 队列原子领取 Job，执行器加载 `strategy/backtests/job-lifecycle.ts`，解析持久化输入并启动 `strategy/backtests/worker`。
 3. Worker 调用 `strategy/backtests/compute.ts`，通过 `strategy/factors/strategy-factor.ts` 准备 Factor 依赖并选择 TS/Python 运行；Engine 用显式 DataPort 读取历史数据、推进模拟。
-4. Strategy 在结果上附加风险分析。风险输入序列归 Market，模型与报告解释归 `strategy/risk`，结果位于回测的多资产配置风险面板。
+4. 回测保留持仓、成本和再平衡归因；宏观／利率模型及其风险面板已退役，不再附加外部数据后处理。
 5. Worker 返回结果并退出；API 主线程的执行器创建 Prisma 事务，把同一个 transaction 交给业务 `complete`，保存报告/相关缓存与 Job 终态。计算与外部调用不占用这个完成事务。
 
 参数扫描使用独立的 `scans/job-lifecycle.ts` 和扫描 Worker。`scans/compute.ts` 在同一线程内循环，为每个参数及区间创建 `StrategySimulation`，调用 run 并在 finally 中 close，比较冻结范围内的结果；因子源码准备一次，每次模拟单独初始化并关闭 runtime，不经过正式回测的风险后处理。没有 cell 子进程或专用执行器；任务通过通用 Worker 生命周期退出。它不是交易标的筛选接口，也不会覆盖当前策略草稿。
@@ -176,7 +176,7 @@ Research 不再自动交接 Factor／Strategy 草稿；用户在对应工作台�
 | 找回测报告冻结时点 | [Strategy backtests](../apps/api/src/strategy/backtests/README.md) |
 | Python 请求财报经过哪里 | [Research 宿主分派](../apps/api/src/research/sandbox/host/README.md) → [datasets](../apps/api/src/research/datasets/README.md) → [Market fundamentals](../apps/api/src/market/fundamentals/README.md) |
 | 新增行情源 | `market/providers/`、所属数据领域与同步 CLI；同步检查 SQL 白名单和公开 SDK 映射 |
-| 改整体审计规则 | `maintenance/publication/audit.ts`；模型历史要求由 `strategy/risk` 提供 |
+| 改整体审计规则 | `maintenance/publication/audit.ts`；只审计当前保留来源 |
 | 找进程和资源入口 | [运行入口清单](backend-runtime-entries.md)，再看所属领域任务/runtime |
 
 开发时运行 `pnpm check:backend-boundaries`，根级 typecheck/build 已包含此门禁。规则、4 条具名纯依赖例外和验证方法见 [依赖边界说明](backend-boundaries.md)。新增业务能力仍放入负责其状态和规则的模块；不为复用一两个函数新建 common/application 或重新拉出平铺 services。
@@ -198,7 +198,7 @@ Factor、Strategy、Research、Market、Signals 根级保留说明、输入校�
 ## Maintenance 与 Market 数据业务边界
 
 数据的同步、修复、质量阈值和 PIT 检查由 Market 对应子域实现；Maintenance 组合各业务能力，拥有运行恢复、更新顺序、发布门禁和水位。
-`maintenance/publication/audit.ts` 汇总报告，具体审计位于 stocks、instruments、indices、fundamentals、macro、cross-market、rates和 etfs；共享结果契约和覆盖摘要在 market/quality，不依赖 Maintenance。
+`maintenance/publication/audit.ts` 汇总报告，具体审计位于 stocks、instruments、indices、fundamentals 和 etfs；共享结果契约和覆盖摘要在 market/quality，不依赖 Maintenance。
 统一同步从 `maintenance/cli/data.ts` 进入 `maintenance/sync.ts`，领域准备位于 `market/*/sync-partition.ts`；原始接纳与覆盖/失效同事务提交，模型资格不承担全局入库门禁。原候选子进程和 checkpoint 协议退役；M/P/R 与用户稳定读取复用 `infra/coordination/market-access.ts`。
 详见 [Maintenance 阅读入口](../apps/api/src/maintenance/README.md) 和 [变更记录](design/maintenance-business-boundaries.md)。
 

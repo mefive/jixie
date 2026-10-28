@@ -113,7 +113,7 @@ try {
     assert.equal(await page.getByTestId(`research-data-catalog-method-${method}`).count(), 0);
   }
   await drawer
-    .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
+    .getByRole('textbox', { name: '搜索股票、ETF、指数或数据读取方式' })
     .fill('000300.SH');
   await page.getByTestId('research-data-catalog-dataset-data.index_valuation:000300.SH').click();
   const configuration = page.getByTestId('research-data-catalog-dataset-config');

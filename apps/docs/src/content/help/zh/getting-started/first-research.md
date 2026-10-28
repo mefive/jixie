@@ -73,6 +73,5 @@ Agent 不能把未运行的代码说成已经计算，也不能用文字替代�
 - [使用研究数据目录](/docs/help/research/data-catalog)
 - [与 Research Agent 协作](/docs/help/research/agent-collaboration)
 - [回答研究口径确认](/docs/help/research/clarifications)
-- [读取美国国债收益率曲线](/docs/help/research/yield-curves)
 - [理解 Factor 保留报告](/docs/help/factors/report-history)
 - [将研究交给 Factor 或 Strategy](/docs/help/research/handoff)

@@ -4,13 +4,7 @@ import type { TimeSeriesFactorResearchSpecV1 } from '@jixie/shared';
 import { addDays } from '#date';
 import { getDatabase } from '#infra/database/prisma.js';
 
-import { factorV2YieldTerm, type FactorV2FieldKey } from '../definitions/fields.js';
-
-import {
-  CHINA_TREASURY_CURVE_CODE,
-  CHINA_TREASURY_CURVE_SOURCE,
-  CHINA_TREASURY_CURVE_TYPE,
-} from '#market/registry/yield-curves.js';
+import { type FactorV2FieldKey } from '../definitions/fields.js';
 
 /**
  * 提供 ETF 趋势所需日线字段，供特征与收益构造。
@@ -22,18 +16,6 @@ export interface EtfTrendDailyRow {
   tradeDate: string;
   close: number;
   adjustmentFactor: number;
-}
-
-/**
- * 提供带日期的利率点，供 ETF 趋势输入时点对齐。
- *
- * Supply dated yields for availability-aligned ETF trend inputs.
- */
-export interface YieldCurveObservationRow {
-  tradeDate: string;
-  availableDate: string;
-  termYears: number;
-  yieldPct: number;
 }
 
 /**
@@ -51,10 +33,7 @@ export async function loadEtfTimeSeriesObservations(
     -(factor.metadata.window - 1 + researchSpec.target.horizon) * 3,
   );
   const upperBound = researchSpec.dataPolicy.dataCutoff ?? undefined;
-  const yieldTerms = factor.metadata.inputs
-    .map(factorV2YieldTerm)
-    .filter((term): term is number => term !== null);
-  const [bars, adjustments, curvePoints, assets] = await Promise.all([
+  const [bars, adjustments] = await Promise.all([
     getDatabase().etfDaily.findMany({
       where: {
         tsCode: { in: researchSpec.assets },
@@ -71,41 +50,8 @@ export async function loadEtfTimeSeriesObservations(
       },
       select: { tsCode: true, tradeDate: true, adjFactor: true },
     }),
-    yieldTerms.length === 0
-      ? Promise.resolve([])
-      : getDatabase().yieldCurvePoint.findMany({
-          where: {
-            source: CHINA_TREASURY_CURVE_SOURCE,
-            curveCode: CHINA_TREASURY_CURVE_CODE,
-            curveType: CHINA_TREASURY_CURVE_TYPE,
-            termYears: { in: yieldTerms },
-            availableDate: {
-              gte: addDays(historyStart, -14),
-              ...(upperBound ? { lte: upperBound } : {}),
-            },
-          },
-          select: {
-            tradeDate: true,
-            availableDate: true,
-            termYears: true,
-            yieldPct: true,
-          },
-          orderBy: [{ termYears: 'asc' }, { availableDate: 'asc' }],
-        }),
-    yieldTerms.length === 0
-      ? Promise.resolve([])
-      : getDatabase().etfBasic.findMany({
-          where: { tsCode: { in: researchSpec.assets } },
-          select: { tsCode: true, fundType: true },
-        }),
   ]);
-  if (
-    yieldTerms.length > 0 &&
-    (assets.length !== researchSpec.assets.length ||
-      assets.some((asset) => asset.fundType !== '债券型'))
-  ) {
-    throw new Error('China government-curve factors currently require fixed-income ETF targets.');
-  }
+
   const adjustmentByAssetDate = new Map(
     adjustments.map((row) => [`${row.tsCode}:${row.tradeDate}`, row.adjFactor]),
   );
@@ -118,7 +64,6 @@ export async function loadEtfTimeSeriesObservations(
       adjustmentFactor: adjustmentByAssetDate.get(`${bar.tsCode}:${bar.tradeDate}`) ?? Number.NaN,
     })),
     factor,
-    curvePoints,
   );
 }
 
@@ -131,7 +76,6 @@ export async function buildEtfTimeSeriesObservations(
   researchSpec: TimeSeriesFactorResearchSpecV1,
   rows: EtfTrendDailyRow[],
   factor: TimeSeriesFactorSandbox,
-  curveRows: YieldCurveObservationRow[] = [],
 ): Promise<TimeSeriesEvaluationObservation[]> {
   assertSupportedProtocol(researchSpec, factor);
   const declaredAssets = new Set(researchSpec.assets);
@@ -172,7 +116,6 @@ export async function buildEtfTimeSeriesObservations(
       assetRows,
       adjustedCloses,
       factor.metadata.inputs,
-      curveRows,
     );
     const indexes: number[] = [];
     for (
@@ -259,7 +202,6 @@ function alignedFactorFields(
   assetRows: EtfTrendDailyRow[],
   adjustedCloses: number[],
   inputs: FactorV2FieldKey[],
-  curveRows: YieldCurveObservationRow[],
 ): {
   fields: Partial<Record<FactorV2FieldKey, number[]>>;
   availableDates: Partial<Record<FactorV2FieldKey, string[]>>;
@@ -269,32 +211,6 @@ function alignedFactorFields(
   if (inputs.includes('etf.adjustedClose')) {
     fields['etf.adjustedClose'] = adjustedCloses;
     availableDates['etf.adjustedClose'] = assetRows.map((row) => row.tradeDate);
-  }
-  for (const input of inputs) {
-    const termYears = factorV2YieldTerm(input);
-    if (termYears === null) {
-      continue;
-    }
-    const termRows = curveRows
-      .filter((row) => row.termYears === termYears)
-      .sort((left, right) => left.availableDate.localeCompare(right.availableDate));
-    if (termRows.length === 0) {
-      throw new Error(`No point-in-time government curve data is available for ${termYears}Y.`);
-    }
-    const values: number[] = [];
-    const dates: string[] = [];
-    let position = 0;
-    let latest: YieldCurveObservationRow | null = null;
-    for (const assetRow of assetRows) {
-      while (position < termRows.length && termRows[position].availableDate <= assetRow.tradeDate) {
-        latest = termRows[position];
-        position++;
-      }
-      values.push(latest?.yieldPct ?? Number.NaN);
-      dates.push(latest?.availableDate ?? '');
-    }
-    fields[input] = values;
-    availableDates[input] = dates;
   }
   return { fields, availableDates };
 }

@@ -283,6 +283,36 @@ describe('immutable Factor publication', () => {
     expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['macro_regime', 'cross_sectional', null],
+    ['cross_sectional', 'macro_regime', null],
+    ['cross_sectional', 'cross_sectional', JSON.stringify({ analysisKind: 'macro_regime' })],
+  ])(
+    'rejects retired macro metadata or report settings (%s, %s)',
+    async (factorKind, reportKind, specJson) => {
+      mocks.factorFindFirst.mockResolvedValue({
+        id: 'factor-1',
+        key: 'legacy_macro',
+        name: 'Legacy macro',
+        code: CODE,
+        analysisKind: factorKind,
+        status: 'draft',
+      });
+      mocks.reportFindFirst.mockResolvedValue({
+        id: 'report-1',
+        analysisKind: reportKind,
+        factorCodeSnapshot: CODE,
+        factorCodeHash: sha256(CODE),
+        specJson,
+      });
+
+      await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
+        new FactorError('publication_report_invalid'),
+      );
+      expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
+    },
+  );
+
   it('rejects a latest-vintage macro report even when its source snapshot matches', async () => {
     mocks.factorFindFirst.mockResolvedValue({
       id: 'factor-1',
@@ -324,7 +354,7 @@ describe('immutable Factor publication', () => {
     expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('allows a macro report only when both its policy and payload prove PIT eligibility', async () => {
+  it('rejects retired macro reports even when their policy and payload prove PIT eligibility', async () => {
     mocks.factorFindFirst.mockResolvedValue({
       id: 'factor-1',
       key: 'macro_regime',
@@ -359,9 +389,9 @@ describe('immutable Factor publication', () => {
       payload: JSON.stringify({ pointInTimeEligible: true, futureVintageRows: 0 }),
     });
 
-    await expect(publishFactor('user-1', 'factor-1', 'report-1')).resolves.toMatchObject({
-      status: 'published',
-      analysisKind: 'macro_regime',
-    });
+    await expect(publishFactor('user-1', 'factor-1', 'report-1')).rejects.toEqual(
+      new FactorError('publication_report_invalid'),
+    );
+    expect(mocks.factorUpdateMany).not.toHaveBeenCalled();
   });
 });

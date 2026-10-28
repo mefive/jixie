@@ -43,9 +43,6 @@ const prepared = (
 function providers(): SyncProviders {
   return {
     source: { call: async () => [] },
-    treasury: { fetchRange: async () => [] },
-    credit: { fetchRange: async () => [] },
-    cpi: { loadSeries: async () => [] },
   };
 }
 

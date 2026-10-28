@@ -1,4 +1,3 @@
-import { parseChinaTreasuryCurveResponse } from '../rates/china-treasury-curve.js';
 import { describe, expect, it } from 'vitest';
 import { fetchSourcePages, completeResponse } from './source.js';
 import { localDate, isObservationDate } from './date.js';
@@ -80,21 +79,5 @@ describe('bounded source evidence', () => {
     expect(localDate(at, 'America/New_York')).toBe('20260915');
     expect(isObservationDate('20260230')).toBe(false);
     expect(isObservationDate('20260228')).toBe(true);
-  });
-  it('A05 keeps independent valid curve terms while recording a bad term', () => {
-    const errors: string[] = [];
-    const timestamp = Date.parse('2026-09-15T04:00:00Z');
-    const points = parseChinaTreasuryCurveResponse(
-      [
-        { dcq: 10, seriesData: [[timestamp, 2.5]] },
-        { dcq: 5, seriesData: [[timestamp, 'invalid']] },
-      ],
-      '20260915',
-      '20260915',
-      true,
-      (message) => errors.push(message),
-    );
-    expect(points).toEqual([{ tradeDate: '20260915', termYears: 10, yieldPct: 2.5 }]);
-    expect(errors).toHaveLength(1);
   });
 });

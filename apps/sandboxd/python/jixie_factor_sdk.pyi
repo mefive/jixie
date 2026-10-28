@@ -4,7 +4,7 @@ from typing import Literal, TypeAlias, overload
 
 Number: TypeAlias = int | float
 FactorValue: TypeAlias = Number | None
-FactorV2Field: TypeAlias = Literal["etf.adjustedClose", "rates.cgb.yield.2y", "rates.cgb.yield.5y", "rates.cgb.yield.10y", "rates.cgb.yield.30y"]
+FactorV2Field: TypeAlias = Literal["etf.adjustedClose"]
 FactorTargetAssetClass: TypeAlias = Literal["equity", "fixed_income", "commodity"]
 
 

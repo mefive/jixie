@@ -59,10 +59,11 @@ export function reportCompatibilityColumns(spec: FactorResearchSpecV1) {
  */
 export function isRetiredFactorReport(row: {
   specJson: string | null;
+  analysisKind?: string;
   neutral?: string;
   factorCodeSnapshot?: string | null;
 }): boolean {
-  if (row.neutral === 'size_industry') {
+  if (row.analysisKind === 'macro_regime' || row.neutral === 'size_industry') {
     return true;
   }
 
@@ -99,6 +100,8 @@ export function isRetiredFactorReport(row: {
     }
 
     if (
+      record.analysisKind === 'macro_regime' ||
+      record.kind === 'macro_regime' ||
       record.kind === 'composite' ||
       record.kind === 'panel_composite' ||
       record.version === 4 ||

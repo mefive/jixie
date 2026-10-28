@@ -5,10 +5,7 @@ import type { KeyboardEvent } from 'react';
 import type {
   AllocationAnalysis,
   AllocationCorrelationAnalysis,
-  AllocationRateRegimeAnalysis,
   ChatMessage,
-  MacroRiskAxisKeyV1,
-  PortfolioRiskAnalysisV1,
   StrategyLanguage,
 } from '@jixie/shared';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -1199,24 +1196,6 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
                 },
               ]
             : []),
-          ...(analysis.rateRegimes?.states.length
-            ? [
-                {
-                  key: 'rate-regimes',
-                  label: t('allocation.rateRegimeTab'),
-                  children: <AllocationRateRegimePanel data={analysis.rateRegimes} />,
-                },
-              ]
-            : []),
-          ...(analysis.risk?.macro
-            ? [
-                {
-                  key: 'risk',
-                  label: t('allocation.riskTab'),
-                  children: <AllocationRiskPanel data={analysis.risk} />,
-                },
-              ]
-            : []),
           {
             key: 'drift',
             label: t('allocation.driftTab'),
@@ -1262,236 +1241,6 @@ const AllocationAnalysisPanel = ({ analysis }: { analysis: AllocationAnalysis })
         ]}
       />
     </section>
-  );
-};
-
-/**
- * 展示月度宏观敏感度及数据限制。
- *
- * Present monthly macro sensitivity with data limitations.
- */
-const AllocationRiskPanel = ({ data }: { data: PortfolioRiskAnalysisV1 }) => {
-  const { t } = useTranslation('strategy');
-  const macro = data.macro;
-
-  return (
-    <div className="jx-strategy-risk" data-testid="allocation-risk-research">
-      <Alert
-        type="info"
-        showIcon
-        title={t('allocation.risk.title')}
-        description={t('allocation.risk.methodology')}
-      />
-      <Tabs
-        size="small"
-        items={[
-          ...(macro
-            ? [
-                {
-                  key: 'macro',
-                  label: t('allocation.risk.macroTab'),
-                  children: (
-                    <div className="jx-strategy-riskSection">
-                      {!macro.pointInTimeEligible ? (
-                        <Alert
-                          type="warning"
-                          showIcon
-                          title={t('allocation.risk.macroExploratoryTitle')}
-                          description={t('allocation.risk.macroExploratoryDescription', {
-                            count: macro.lineage.futureVintageRows,
-                          })}
-                        />
-                      ) : null}
-                      <div className="jx-strategy-riskSummary">
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.asOfDate')}
-                          value={formatYmd(macro.asOfDate)}
-                        />
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.observations')}
-                          value={`${macro.observations} / ${macro.lookbackObservations}`}
-                        />
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.neweyWestLag')}
-                          value={String(macro.neweyWestLag)}
-                        />
-                        <RiskSummaryMetric
-                          label={t('allocation.risk.pitStatus')}
-                          value={t(
-                            macro.pointInTimeEligible
-                              ? 'allocation.risk.pitEligible'
-                              : 'allocation.risk.latestVintage',
-                          )}
-                        />
-                      </div>
-                      <Table
-                        rowKey="axis"
-                        size="small"
-                        pagination={false}
-                        dataSource={macro.sensitivities}
-                        columns={[
-                          {
-                            title: t('allocation.risk.macroAxis'),
-                            dataIndex: 'axis',
-                            render: (axis: MacroRiskAxisKeyV1) =>
-                              t(`allocation.risk.macroAxes.${axis}`),
-                          },
-                          {
-                            title: t('allocation.risk.coefficient'),
-                            dataIndex: 'coefficient',
-                            align: 'right',
-                            render: (value: number) => signedPercent(value),
-                          },
-                          {
-                            title: t('allocation.risk.neweyWestTStat'),
-                            dataIndex: 'neweyWestTStat',
-                            align: 'right',
-                            render: (value: number) => value.toFixed(2),
-                          },
-                        ]}
-                      />
-                      <div className="jx-strategy-riskMeta">
-                        {t('allocation.risk.macroMeta', {
-                          minimum: macro.minimumObservations,
-                        })}
-                      </div>
-                    </div>
-                  ),
-                },
-              ]
-            : []),
-        ]}
-      />
-    </div>
-  );
-};
-
-const RiskSummaryMetric = ({ label, value }: { label: string; value: string }) => (
-  <div>
-    <span>{label}</span>
-    <b>{value}</b>
-  </div>
-);
-
-/**
- * 按利率环境展示配置收益、风险与区间诊断。
- *
- * Present allocation returns, risks and episode diagnostics by rate environment.
- */
-const AllocationRateRegimePanel = ({ data }: { data: AllocationRateRegimeAnalysis }) => {
-  const { t } = useTranslation('strategy');
-  const assetClasses = [
-    ...new Set(data.states.flatMap((state) => state.assetClasses.map((row) => row.assetClass))),
-  ];
-  const [assetClass, setAssetClass] = useState(() =>
-    assetClasses.includes('fixed_income') ? 'fixed_income' : assetClasses[0],
-  );
-  const latest = data.latest;
-
-  return (
-    <div className="jx-strategy-rateRegime" data-testid="allocation-rate-regime">
-      <Alert
-        type="info"
-        showIcon
-        title={
-          latest
-            ? t('allocation.rateRegimeLatest', {
-                state: t(`allocation.rateRegimeStates.${latest.state}`),
-                date: formatYmd(latest.asOfDate),
-              })
-            : t('allocation.rateRegimeUnavailable')
-        }
-        description={t('allocation.rateRegimeMethodology', {
-          direction: data.directionLookbackObservations,
-          curve: data.curveMedianLookbackObservations,
-          minimum: data.curveMedianMinimumObservations,
-        })}
-      />
-      {latest ? (
-        <div className="jx-strategy-rateRegimeSummary">
-          <div>
-            <span>{t('allocation.tenYearYield')}</span>
-            <b>{latest.tenYearYieldPct.toFixed(2)}%</b>
-          </div>
-          <div>
-            <span>{t('allocation.tenYearChange')}</span>
-            <b>{formatBp(latest.tenYearChangeBp)}</b>
-          </div>
-          <div>
-            <span>{t('allocation.curveSlope')}</span>
-            <b>{formatBp(latest.curveSlopeBp)}</b>
-          </div>
-          <div>
-            <span>{t('allocation.curveMedian')}</span>
-            <b>{formatBp(latest.curveMedianBp)}</b>
-          </div>
-        </div>
-      ) : null}
-      <div className="jx-strategy-rateRegimeControls">
-        <span>
-          {t('allocation.rateRegimeCoverage', {
-            classified: data.classifiedDays,
-            total: data.totalDays,
-            coverage: pct(data.totalDays > 0 ? data.classifiedDays / data.totalDays : 0),
-          })}
-        </span>
-        <Select
-          className="jx-strategy-rateRegimeAssetClass"
-          size="small"
-          aria-label={t('allocation.rateRegimeAssetClass')}
-          value={assetClass}
-          options={assetClasses.map((value) => ({
-            value,
-            label: t(`allocation.assetClasses.${value}`),
-          }))}
-          onChange={setAssetClass}
-        />
-      </div>
-      <div className="jx-strategy-rateRegimeStates">
-        {data.states.map((state) => {
-          const metrics = state.assetClasses.find((row) => row.assetClass === assetClass);
-          return (
-            <div className="jx-strategy-rateRegimeState" key={state.key}>
-              <div className="jx-strategy-rateRegimeStateHead">
-                <strong>{t(`allocation.rateRegimeStates.${state.key}`)}</strong>
-                <span>
-                  {t('allocation.rateRegimeStateMeta', {
-                    days: state.observations,
-                    episodes: state.episodes,
-                    duration: state.averageDuration.toFixed(1),
-                  })}
-                </span>
-              </div>
-              <div className="jx-strategy-rateRegimeMetrics">
-                <div>
-                  <span>{t('allocation.rateRegimeAnnualReturn')}</span>
-                  <b
-                    className={classNames({
-                      'text-up': (metrics?.annualizedMeanReturn ?? 0) >= 0,
-                      'text-down': (metrics?.annualizedMeanReturn ?? 0) < 0,
-                    })}
-                  >
-                    {metrics ? pct(metrics.annualizedMeanReturn) : '—'}
-                  </b>
-                </div>
-                <div>
-                  <span>{t('allocation.rateRegimeVolatility')}</span>
-                  <b>{metrics ? pct(metrics.annualizedVolatility) : '—'}</b>
-                </div>
-                <div>
-                  <span>{t('allocation.rateRegimePositiveRate')}</span>
-                  <b>{metrics ? pct(metrics.positiveDayRate) : '—'}</b>
-                </div>
-                <div>
-                  <span>{t('allocation.rateRegimeDrawdown')}</span>
-                  <b>{metrics ? pct(metrics.maximumEpisodeDrawdown) : '—'}</b>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 };
 
@@ -1589,14 +1338,6 @@ const AllocationCorrelationPanel = ({ data }: { data: AllocationCorrelationAnaly
 
 function correlationPairKey(left: string, right: string): string {
   return `${left}|${right}`;
-}
-
-function formatBp(value: number): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(1)} bp`;
-}
-
-function signedPercent(value: number): string {
-  return `${value >= 0 ? '+' : ''}${pct(value)}`;
 }
 
 // The bottom dock — a collapsible IDE-style panel with streamed system + user console output.

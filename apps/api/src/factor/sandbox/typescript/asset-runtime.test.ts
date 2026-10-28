@@ -108,38 +108,7 @@ describe('TypeScript asset Factor runtime', () => {
     ).rejects.toThrow(/unknown input field/);
   });
 
-  it('computes a bond-price-aligned signal from the point-in-time government curve', async () => {
-    const factor = await FactorSandbox.start({
-      language: 'typescript',
-      analysisKind: 'time_series',
-      code: `export default defineFactorV2({
-      version: 2,
-      name: 'CGB 10Y yield decline',
-      analysisKind: 'time_series',
-      outputScope: 'asset',
-      frequency: 'daily',
-      inputs: ['rates.cgb.yield.10y'],
-      targetAssetClasses: ['fixed_income'],
-      window: 3,
-      compute(ctx) {
-        const current = ctx.value('rates.cgb.yield.10y');
-        const previous = ctx.lag('rates.cgb.yield.10y', 2);
-        return current != null && previous != null ? (previous - current) * 100 : null;
-      },
-    });`,
-    });
-    try {
-      const [score] = await factor.execute({
-        fields: { 'rates.cgb.yield.10y': [2.1, 2.08, 2.03] },
-        indexes: [2],
-      });
-      expect(score).toBeCloseTo(7, 12);
-    } finally {
-      factor.close();
-    }
-  });
-
-  it('rejects government-curve inputs for non-fixed-income target classes', async () => {
+  it('rejects retired government-curve inputs regardless of target asset class', async () => {
     await expect(
       FactorSandbox.start({
         language: 'typescript',
@@ -151,7 +120,7 @@ describe('TypeScript asset Factor runtime', () => {
             "targetAssetClasses: ['equity']",
           ),
       }),
-    ).rejects.toThrow(/target asset classes are incompatible/);
+    ).rejects.toThrow(/unknown input field/);
   });
 
   it('returns null and reports an undeclared runtime access once', async () => {

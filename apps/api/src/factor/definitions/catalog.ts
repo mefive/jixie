@@ -3,7 +3,6 @@ import { getDatabase } from '#infra/database/prisma.js';
 import { builtinCatalog, BUILTIN_USER_ID } from './builtin-factors.js';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';
 import { panelTemplateCatalog } from './templates/panel.js';
-import { macroRegimeTemplateCatalog } from './templates/macro-regime.js';
 import { strategyKey, factorLanguage, normalizeAnalysisKind } from './views.js';
 
 /**
@@ -69,6 +68,10 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
           'commodity_futures_carry_v1',
           'commodity_futures_carry_time_series_v1',
           'commodity_warehouse_pressure_20',
+          'cgb_yield_decline_20',
+          'cgb_curve_slope_10y_2y',
+          'cgb_curve_curvature_2y_5y_10y',
+          'china_growth_inflation_regime_v1',
         ],
       },
     },
@@ -99,5 +102,5 @@ export async function listFactorCatalog(userId: string, locale: Locale) {
     };
   });
 
-  return [...presets, ...macroRegimeTemplateCatalog(locale), ...customMeta];
+  return [...presets, ...customMeta];
 }

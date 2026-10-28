@@ -42,7 +42,6 @@ import type {
   FactorAnalysisKind,
   FactorNeweyWestEstimateV1,
   FactorTimeSeriesReportV1,
-  MacroRegimeFactorResearchSpecV1,
   PanelFactorResearchSpecV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
@@ -449,24 +448,20 @@ const AgentChat = complex.component(() => {
         sending={store.sending}
         emptyKey={
           qa
-            ? store.isMacroRegime
-              ? 'macroRegime.chatEmpty'
-              : store.isPanel
-                ? 'panel.chatEmpty'
-                : store.isTimeSeries
-                  ? store.selected?.kind === 'commodity'
-                    ? store.selectedKey === 'commodity_warehouse_pressure_20'
-                      ? 'timeSeries.commodityWarehouseChatEmpty'
-                      : 'timeSeries.commodityCarryChatEmpty'
-                    : 'timeSeries.chatEmpty'
-                  : 'chatEmptyQa'
-            : store.isMacroRegime
-              ? 'macroRegime.chatEmpty'
-              : store.isPanel
-                ? 'panel.chatEmptyAuthor'
-                : store.isTimeSeries
-                  ? 'timeSeries.chatEmptyAuthor'
-                  : 'chatEmptyAuthor'
+            ? store.isPanel
+              ? 'panel.chatEmpty'
+              : store.isTimeSeries
+                ? store.selected?.kind === 'commodity'
+                  ? store.selectedKey === 'commodity_warehouse_pressure_20'
+                    ? 'timeSeries.commodityWarehouseChatEmpty'
+                    : 'timeSeries.commodityCarryChatEmpty'
+                  : 'timeSeries.chatEmpty'
+                : 'chatEmptyQa'
+            : store.isPanel
+              ? 'panel.chatEmptyAuthor'
+              : store.isTimeSeries
+                ? 'timeSeries.chatEmptyAuthor'
+                : 'chatEmptyAuthor'
         }
         stream={store.turnStream}
       />
@@ -488,20 +483,16 @@ const AgentChat = complex.component(() => {
           disabled={qa ? !store.questionsLoader.loaded || store.sending : !store.selectedKey}
           placeholder={t(
             qa
-              ? store.isMacroRegime
-                ? 'macroRegime.placeholderQa'
-                : store.isPanel
-                  ? 'panel.placeholderQa'
-                  : store.isTimeSeries
-                    ? 'timeSeries.placeholderQa'
-                    : 'placeholderQa'
-              : store.isMacroRegime
-                ? 'macroRegime.placeholderQa'
-                : store.isPanel
-                  ? 'panel.placeholderAuthor'
-                  : store.isTimeSeries
-                    ? 'timeSeries.placeholderAuthor'
-                    : 'placeholderAuthor',
+              ? store.isPanel
+                ? 'panel.placeholderQa'
+                : store.isTimeSeries
+                  ? 'timeSeries.placeholderQa'
+                  : 'placeholderQa'
+              : store.isPanel
+                ? 'panel.placeholderAuthor'
+                : store.isTimeSeries
+                  ? 'timeSeries.placeholderAuthor'
+                  : 'placeholderAuthor',
           )}
         />
       </div>
@@ -543,8 +534,7 @@ function ChatLog({
     | 'timeSeries.commodityWarehouseChatEmpty'
     | 'timeSeries.chatEmptyAuthor'
     | 'panel.chatEmpty'
-    | 'panel.chatEmptyAuthor'
-    | 'macroRegime.chatEmpty';
+    | 'panel.chatEmptyAuthor';
   stream: AgentTurnStream;
   selectedReportId: string;
 }) {
@@ -613,17 +603,10 @@ const FactorLibrary = complex.component(
     const { modal } = App.useApp();
     const list = store.catalogLoader.result ?? [];
     const presets = list.filter(
-      (f) =>
-        f.kind !== 'custom' &&
-        f.analysisKind !== 'time_series' &&
-        f.analysisKind !== 'panel' &&
-        f.analysisKind !== 'macro_regime',
+      (f) => f.kind !== 'custom' && f.analysisKind !== 'time_series' && f.analysisKind !== 'panel',
     );
     const timeSeries = list.filter((f) => f.kind !== 'custom' && f.analysisKind === 'time_series');
     const panel = list.filter((f) => f.kind !== 'custom' && f.analysisKind === 'panel');
-    const macroRegimes = list.filter(
-      (factor) => factor.kind !== 'custom' && factor.analysisKind === 'macro_regime',
-    );
     const custom = list.filter((f) => f.kind === 'custom');
 
     // A custom factor → jump to Agent (edit/chat); a preset stays here (select → analyze, no code).
@@ -718,21 +701,6 @@ const FactorLibrary = complex.component(
               </button>
             ))}
 
-            <div className="jx-factor-libGroup">{t('macroRegime.libraryGroup')}</div>
-            {macroRegimes.map((factor) => (
-              <button
-                key={factor.key}
-                data-testid={`factor-template-${factor.key}`}
-                className={classNames('jx-factor-libItem', {
-                  'jx-factor-libItem--active': factor.key === store.selectedKey,
-                })}
-                onClick={() => pick(factor.key, false)}
-              >
-                <span className="jx-factor-libName">{factorDisplayName(factor)}</span>
-                <span className="jx-factor-methodBadge">{t('macroRegime.methodBadge')}</span>
-              </button>
-            ))}
-
             <div className="jx-factor-libGroup">{t('customGroup')}</div>
             {custom.length === 0 && <div className="jx-factor-libEmpty">{t('customEmpty')}</div>}
             {custom.map((f) => (
@@ -802,9 +770,6 @@ const MiddleColumn = complex.component(({ guardDiscard }: { guardDiscard: GuardD
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const preset = store.mode === 'preset';
-  if (store.isMacroRegime) {
-    return <MacroRegimeWorkspace />;
-  }
   if (store.isTimeSeries || store.isPanel) {
     return <TimeSeriesWorkspace />;
   }
@@ -919,53 +884,6 @@ const TimeSeriesWorkspace = complex.component(() => {
 }, 'TimeSeriesWorkspace');
 
 /**
- * 展示宏观状态研究配置、来源与分状态评估。
- *
- * Present macro-regime settings, provenance and state-specific evaluation.
- */
-const MacroRegimeWorkspace = complex.component(() => {
-  const store = complex.useStore();
-  const { t } = useTranslation('factor');
-  return (
-    <Splitter orientation="vertical">
-      <Splitter.Panel min="20%">
-        <section
-          className="jx-factor-editor jx-factor-timeWorkspace"
-          data-testid="macro-regime-workspace"
-        >
-          <div className="jx-factor-presetBar">
-            <span className="jx-factor-presetNote">
-              <FontAwesomeIcon icon={faLock} /> {t('macroRegime.codeReadonly')}
-            </span>
-            <Tag color="purple">{t('macroRegime.definitionTag')}</Tag>
-          </div>
-          <div className="jx-factor-timeDefinitionAudit">
-            <span>{t('macroRegime.methodBadge')}</span>
-            <span>{t('macroRegime.inputAudit')}</span>
-            <span>{t('macroRegime.transformAudit')}</span>
-            <span>{t('macroRegime.outputAudit')}</span>
-          </div>
-          <div className="jx-factor-code">
-            <Suspense fallback={<div className="jx-factor-codeEmpty">{t('editorLoading')}</div>}>
-              <FactorEditor
-                value={store.code}
-                onChange={() => {}}
-                language={store.language}
-                documentId={store.selectedKey || 'factor'}
-                readOnly
-              />
-            </Suspense>
-          </div>
-        </section>
-      </Splitter.Panel>
-      <Splitter.Panel defaultSize="28%" min="6%" collapsible>
-        <FactorDock />
-      </Splitter.Panel>
-    </Splitter>
-  );
-}, 'MacroRegimeWorkspace');
-
-/**
  * 展示当前因子身份与状态，供工作台定位。
  *
  * Present the selected factor's identity and status.
@@ -1078,35 +996,28 @@ const ParamsBar = complex.component(() => {
   }[store.neutral];
   const universe = t(`evaluationUniverse.${store.evaluationUniverse}`);
   const ranking = t(`evaluationRanking.${store.evaluationScope.rankingScope}`);
-  const summary = store.isMacroRegime
-    ? t('macroRegime.paramsSummary', {
-        assets: store.timeSeriesAssets.length,
+  const summary = store.isPanel
+    ? t('panel.paramsSummary', {
+        assets: store.panelAssets.length,
         horizon: store.timeSeriesHorizon,
         start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
         end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
       })
-    : store.isPanel
-      ? t('panel.paramsSummary', {
-          assets: store.panelAssets.length,
+    : store.isTimeSeries
+      ? t('timeSeries.paramsSummary', {
+          assets: store.timeSeriesAssets.length,
           horizon: store.timeSeriesHorizon,
           start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
           end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
         })
-      : store.isTimeSeries
-        ? t('timeSeries.paramsSummary', {
-            assets: store.timeSeriesAssets.length,
-            horizon: store.timeSeriesHorizon,
-            start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
-            end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
-          })
-        : t('paramsSummary', {
-            frequency,
-            start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
-            end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
-            neutral,
-            universe,
-            ranking,
-          });
+      : t('paramsSummary', {
+          frequency,
+          start: dayjs(store.start, 'YYYYMMDD').format('YYYY-MM-DD'),
+          end: dayjs(store.end, 'YYYYMMDD').format('YYYY-MM-DD'),
+          neutral,
+          universe,
+          ranking,
+        });
 
   return (
     <div className="jx-factor-params">
@@ -1153,10 +1064,6 @@ const ParamsPopover = complex.component(() => {
   const store = complex.useStore();
   const { t } = useTranslation('factor');
   const runningSameDraft = store.reportDetail?.status === 'running' && !store.reportOutdated;
-
-  if (store.isMacroRegime) {
-    return <MacroRegimeParamsPopover runningSameDraft={runningSameDraft} />;
-  }
   if (store.isPanel) {
     return <PanelParamsPopover runningSameDraft={runningSameDraft} />;
   }
@@ -1508,97 +1415,6 @@ const PanelParamsPopover = complex.component(
   'PanelParamsPopover',
 );
 
-/**
- * 编辑宏观状态研究的日期、状态和目标资产设置。
- *
- * Edit macro-regime dates, states and target assets.
- */
-const MacroRegimeParamsPopover = complex.component(
-  ({ runningSameDraft }: { runningSameDraft: boolean }) => {
-    const store = complex.useStore();
-    const { t } = useTranslation('factor');
-    return (
-      <div className="jx-factor-paramPopover jx-factor-timeParams">
-        <div className="jx-factor-paramPopoverTitle">{t('paramsSettings')}</div>
-        <div className="jx-factor-paramPopoverBody">
-          <div className="jx-factor-paramField jx-factor-paramField--stacked">
-            <span className="jx-factor-paramLabel">{t('macroRegime.assets')}</span>
-            <Select
-              mode="multiple"
-              data-testid="macro-regime-assets"
-              value={store.timeSeriesAssets}
-              placeholder={t('timeSeries.assetsPlaceholder')}
-              onChange={(values) => store.setTimeSeriesAssets(values)}
-              options={TIME_SERIES_ASSET_OPTIONS.map((asset) => ({
-                value: asset.code,
-                label: `${t(`timeSeries.assetNames.${asset.code}`)} · ${asset.code}`,
-              }))}
-            />
-          </div>
-          <div className="jx-factor-paramField">
-            <span className="jx-factor-paramLabel">{t('macroRegime.horizon')}</span>
-            <Segmented
-              data-testid="macro-regime-horizon"
-              value={store.timeSeriesHorizon}
-              options={[5, 20, 60].map((value) => ({
-                value,
-                label: t('timeSeries.horizonOption', { value }),
-              }))}
-              onChange={(value) => store.setTimeSeriesHorizon(value as 5 | 20 | 60)}
-            />
-          </div>
-          <div className="jx-factor-paramField">
-            <span className="jx-factor-paramLabel">{t('macroRegime.revisionPolicy')}</span>
-            <Select
-              data-testid="macro-regime-revision-policy"
-              value={store.macroRevisionPolicy}
-              onChange={(value) => store.setMacroRevisionPolicy(value)}
-              options={[
-                { value: 'latest_vintage', label: t('macroRegime.latestVintage') },
-                { value: 'as_available', label: t('macroRegime.asAvailable') },
-              ]}
-            />
-          </div>
-          <Alert
-            type={store.macroRevisionPolicy === 'latest_vintage' ? 'warning' : 'info'}
-            showIcon
-            title={t(
-              store.macroRevisionPolicy === 'latest_vintage'
-                ? 'macroRegime.latestVintageHint'
-                : 'macroRegime.asAvailableHint',
-            )}
-          />
-          <div className="jx-factor-paramField">
-            <span className="jx-factor-paramLabel">{t('range')}</span>
-            <DatePicker.RangePicker
-              className="jx-factor-dateRange"
-              value={[dayjs(store.start, 'YYYYMMDD'), dayjs(store.end, 'YYYYMMDD')]}
-              onChange={(dates) => {
-                if (dates?.[0] && dates[1]) {
-                  store.setStart(dates[0].format('YYYYMMDD'));
-                  store.setEnd(dates[1].format('YYYYMMDD'));
-                }
-              }}
-              allowClear={false}
-            />
-          </div>
-          <div className="jx-factor-timeFixed">
-            <span>{t('macroRegime.monthlyFrequency')}</span>
-            <span>{t('macroRegime.fourStateModel')}</span>
-            <span>{t('macroRegime.exploratoryMode')}</span>
-          </div>
-        </div>
-        <div className="jx-factor-paramPopoverActions">
-          <ResearchRunButton disabled={runningSameDraft || store.timeSeriesAssets.length === 0}>
-            {runningSameDraft ? t('running') : t(store.reportOutdated ? 'rerunShort' : 'run')}
-          </ResearchRunButton>
-        </div>
-      </div>
-    );
-  },
-  'MacroRegimeParamsPopover',
-);
-
 function outlierOptions(t: TFunction<'factor'>) {
   return [
     { value: 'none', label: t('outlierNone') },
@@ -1783,9 +1599,7 @@ const FactorResult = complex.component(() => {
   return (
     <LoadingArea loader={loader} empty={runPrompt}>
       {() =>
-        store.reportDetail?.analysisKind === 'macro_regime' ? (
-          <MacroRegimeReportBody />
-        ) : store.reportDetail?.analysisKind === 'panel' ? (
+        store.reportDetail?.analysisKind === 'panel' ? (
           <PanelReportBody />
         ) : store.reportDetail?.analysisKind === 'time_series' ? (
           <TimeSeriesReportBody />
@@ -1796,119 +1610,6 @@ const FactorResult = complex.component(() => {
     </LoadingArea>
   );
 }, 'FactorResult');
-
-/**
- * 展示宏观状态样本、区间与资产表现，并提示统计限制。
- *
- * Present macro-regime samples, episodes and asset performance with statistical limits.
- */
-const MacroRegimeReportBody = complex.component(() => {
-  const store = complex.useStore();
-  const { t } = useTranslation('factor');
-  const report = store.macroRegimeReport;
-  const researchSpec = store.reportDetail?.researchSpec;
-  const spec =
-    researchSpec?.analysisKind === 'macro_regime'
-      ? (researchSpec as MacroRegimeFactorResearchSpecV1)
-      : null;
-  if (!report || !spec) {
-    return <Placeholder icon={faPlay} text={t('runPrompt')} />;
-  }
-
-  return (
-    <div className="jx-factor-timeReport" data-testid="macro-regime-report">
-      <Alert type="info" showIcon title={t('macroRegime.reportNotice')} />
-      <Alert
-        data-testid="macro-regime-pit-status"
-        type={report.pointInTimeEligible ? 'success' : 'warning'}
-        showIcon
-        title={t(
-          report.pointInTimeEligible
-            ? 'macroRegime.pointInTimeEligible'
-            : 'macroRegime.pointInTimeIneligible',
-          { rows: report.futureVintageRows },
-        )}
-      />
-      <div className="jx-factor-timeAudit">
-        <Metric label={t('macroRegime.researchType')} value={t('macroRegime.methodBadge')} />
-        <Metric
-          label={t('macroRegime.target')}
-          value={t('macroRegime.targetValue', { horizon: spec.target.horizon })}
-        />
-        <Metric label={t('macroRegime.periods')} value={String(report.periods)} />
-        <Metric
-          label={t('macroRegime.observations')}
-          value={report.observations.toLocaleString()}
-        />
-        <Metric label={t('macroRegime.transitions')} value={String(report.stateTransitions)} />
-        <Metric label={t('macroRegime.skippedPeriods')} value={String(report.skippedPeriods)} />
-        <Metric
-          label={t('macroRegime.revisionPolicy')}
-          value={t(
-            report.revisionPolicy === 'as_available'
-              ? 'macroRegime.asAvailable'
-              : 'macroRegime.latestVintage',
-          )}
-        />
-        <Metric
-          label={t('timeSeries.dataCutoffLabel')}
-          value={formatTradeDate(spec.dataPolicy.dataCutoff ?? spec.end)}
-        />
-      </div>
-
-      <div className="jx-factor-sectionTitle">{t('macroRegime.stateEvidenceTitle')}</div>
-      <div className="jx-factor-macroStates">
-        {report.states.map((state) => (
-          <section className="jx-factor-macroStateCard" key={state.key}>
-            <div className="jx-factor-macroStateHead">
-              <strong>{t(`macroRegime.states.${state.key}`)}</strong>
-              <span>{pct(state.frequency)}</span>
-            </div>
-            <div className="jx-factor-macroStateMeta">
-              <span>{t('macroRegime.statePeriods', { value: state.periods })}</span>
-              <span>{t('macroRegime.stateEpisodes', { value: state.episodes })}</span>
-              <span>
-                {t('macroRegime.averageDuration', {
-                  value: state.averageDurationPeriods?.toFixed(1) ?? '—',
-                })}
-              </span>
-              <span>
-                {t('macroRegime.maximumDuration', { value: state.maximumDurationPeriods })}
-              </span>
-            </div>
-            <div className="jx-factor-macroAssets">
-              {state.byAsset.map((asset) => (
-                <div className="jx-factor-macroAsset" key={asset.assetId}>
-                  <span className="jx-factor-macroAssetName">
-                    <strong>{t(`timeSeries.assetNames.${asset.assetId}`)}</strong>
-                    <small>{asset.assetId}</small>
-                  </span>
-                  <span>
-                    <small>{t('macroRegime.meanForwardReturn')}</small>
-                    <strong>{optionalPct(asset.meanForwardReturn)}</strong>
-                  </span>
-                  <span>
-                    <small>{t('macroRegime.neweyWestT')}</small>
-                    <strong>{optionalFixed(asset.neweyWestMeanTStat, 2)}</strong>
-                  </span>
-                  <span>
-                    <small>{t('macroRegime.positiveRate')}</small>
-                    <strong>{optionalPct(asset.positiveRate)}</strong>
-                  </span>
-                  <span>
-                    <small>{t('macroRegime.laggedMeanReturn')}</small>
-                    <strong>{optionalPct(asset.onePeriodLagMeanForwardReturn)}</strong>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-      <div className="jx-factor-chartCap">{t('macroRegime.stateEvidenceCap')}</div>
-    </div>
-  );
-}, 'MacroRegimeReportBody');
 
 /**
  * 展示单资产预测关系、收益与样本诊断。
@@ -1930,14 +1631,7 @@ const TimeSeriesReportBody = complex.component(() => {
   return (
     <div className="jx-factor-timeReport" data-testid="time-series-report">
       <Alert type="info" showIcon title={t('timeSeries.reportNotice')} />
-      {store.reportDetail?.factorCodeSnapshot?.includes('rates.cgb.yield.') && (
-        <Alert
-          type="info"
-          showIcon
-          title={t('timeSeries.curveSourceTitle')}
-          description={t('timeSeries.curveSourceDescription')}
-        />
-      )}
+
       <div className="jx-factor-timeAudit">
         <Metric label={t('timeSeries.researchType')} value={t('timeSeries.methodBadge')} />
         <Metric
@@ -2708,15 +2402,6 @@ function reportParamsLabel(report: FactorReportSummary, t: TFunction<'factor'>):
       end: dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD'),
     });
   }
-  if (report.researchSpec.analysisKind === 'macro_regime') {
-    const spec = report.researchSpec;
-    return t('macroRegime.historyParams', {
-      assets: spec.targetAssets.length,
-      horizon: spec.target.horizon,
-      start: dayjs(spec.start, 'YYYYMMDD').format('YYYY-MM-DD'),
-      end: dayjs(spec.end, 'YYYYMMDD').format('YYYY-MM-DD'),
-    });
-  }
   const spec = report.spec;
   if (!spec) {
     return t('timeSeries.unsupportedReport');
@@ -2798,9 +2483,7 @@ function traceOf(message: ChatMessage): AgentToolTraceItem[] | undefined {
 const KIND_KEY: Record<FactorKind, string> = {
   price: 'kindPrice',
   fundamental: 'kindFundamental',
-  rates: 'kindRates',
   commodity: 'kindCommodity',
-  macro: 'kindMacro',
   custom: 'kindCustom',
 };
 
@@ -2810,14 +2493,11 @@ function factorV2Inputs(source: string): string[] {
 }
 
 function timeSeriesInputLabel(input: string, t: TFunction<'factor'>): string {
-  const keys: Record<string, string> = {
-    'etf.adjustedClose': 'timeSeries.inputFields.etfAdjustedClose',
-    'rates.cgb.yield.2y': 'timeSeries.inputFields.cgbYield2y',
-    'rates.cgb.yield.5y': 'timeSeries.inputFields.cgbYield5y',
-    'rates.cgb.yield.10y': 'timeSeries.inputFields.cgbYield10y',
-    'rates.cgb.yield.30y': 'timeSeries.inputFields.cgbYield30y',
-  };
-  return t(keys[input] ?? 'timeSeries.inputFields.unknown');
+  return t(
+    input === 'etf.adjustedClose'
+      ? 'timeSeries.inputFields.etfAdjustedClose'
+      : 'timeSeries.inputFields.unknown',
+  );
 }
 
 // Display name for a catalog item: a built-in preset shows its localized name (keyed by slug); a custom
@@ -2834,9 +2514,6 @@ function formatTradeDate(value: string): string {
 
 const pct = (v: number) => `${(v * 100).toFixed(2)}%`;
 const pctInt = (v: number) => `${(v * 100).toFixed(0)}%`;
-const optionalPct = (value: number | null) => (value == null ? '—' : pct(value));
-const optionalFixed = (value: number | null, digits: number) =>
-  value == null ? '—' : value.toFixed(digits);
 
 // Direction from the IC sign: positive → long the top decile (momentum-like); negative → long the
 // bottom decile (reversal-like); near-zero → no edge.

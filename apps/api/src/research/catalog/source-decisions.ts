@@ -41,7 +41,7 @@ const decisions: ResearchConceptSourceDecisionV1[] = [
     summary:
       'The exact DXY values and methodology are ICE property and cannot be ingested into the product without express written permission. The current Tushare global-index catalog does not list DXY.',
     nextAction:
-      'Obtain an ICE-authorized data license, then implement and audit an exact DXY connector before registering a Binding.',
+      'FX and cross-market data are outside the current product scope. No DXY connector is planned.',
     evidence: [
       {
         kind: 'official_product',
@@ -70,7 +70,7 @@ const decisions: ResearchConceptSourceDecisionV1[] = [
     summary:
       'Cboe publishes exact historical VIX closes, but its content terms require advance approval or a license for use of Cboe data in a product. FRED republishes VIX with permission and retains the underlying third-party restriction.',
     nextAction:
-      'Obtain Cboe permission or a licensed redistribution source, then implement and audit the exact VIX series before registering a Binding.',
+      'Cross-market data are outside the current product scope. No VIX connector is planned.',
     evidence: [
       {
         kind: 'official_product',

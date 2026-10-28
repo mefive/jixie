@@ -145,19 +145,6 @@ export class ResearchBridge
     });
 
     return frame.cells.map((cell) => {
-      const yieldCurveRequests = cell.yield_curve_requests.map((request) => ({
-        line: request.line,
-        curve: request.curve,
-        tenor: request.tenor,
-      }));
-      const macroRequests = cell.macro_requests.map((request) => ({
-        line: request.line,
-        series: request.series,
-      }));
-      const fxRequests = cell.fx_requests.map((request) => ({
-        line: request.line,
-        pair: request.pair,
-      }));
       const equityRequests = cell.equity_requests.map((request) => ({
         line: request.line,
         method: request.method,
@@ -175,9 +162,6 @@ export class ResearchBridge
           identifier: request.identifier,
           measure: request.measure,
         })),
-        ...(yieldCurveRequests.length > 0 ? { yieldCurveRequests } : {}),
-        ...(macroRequests.length > 0 ? { macroRequests } : {}),
-        ...(fxRequests.length > 0 ? { fxRequests } : {}),
         ...(equityRequests.length > 0 ? { equityRequests } : {}),
         ...(typeof cell.error === 'string' ? { error: cell.error } : {}),
       };

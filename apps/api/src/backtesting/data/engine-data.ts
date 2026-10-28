@@ -47,16 +47,6 @@ interface ResampledBars {
 }
 
 /**
- * 保留官方国债收益率的观测和可得日期，供决策日选择可见利率。
- *
- * Retain official government-yield values and visibility dates for decision-time selection.
- */
-export interface GovernmentYieldObservation {
-  availableDate: string;
-  yieldPct: number;
-}
-
-/**
  * 声明因子与策略需要的预载数据能力，决定行情加载范围。
  *
  * Declare data capabilities required by factors and strategy reads to control preloading.
@@ -64,12 +54,9 @@ export interface GovernmentYieldObservation {
 export interface EngineDataRequirements {
   turnoverRateFHistory: boolean;
   fundamentalHistory: boolean;
-  governmentYieldCurve: boolean;
 }
 
-// 官方日频利率允许跨越短假期，但不能无限沿用陈旧观测。
-// Daily official yields may bridge short holidays, but cannot remain valid indefinitely.
-const DAILY_ASOF_CAP_DAYS = 14;
+
 
 /**
  * 配置 EngineData 的数据端口、运行区间和按需预载要求。
@@ -140,7 +127,6 @@ export class EngineData {
       pb: (number | null)[];
     }
   >();
-  private governmentYieldByTerm = new Map<number, { dates: string[]; values: number[] }>();
 
   private warnedIndices = new Set<string>(); // log an index's coverage gap at most once
 
@@ -154,7 +140,6 @@ export class EngineData {
       requirements: options.requirements ?? {
         turnoverRateFHistory: false,
         fundamentalHistory: false,
-        governmentYieldCurve: false,
       },
       preloadCodes: [...new Set(options.preloadCodes ?? [])],
     };
@@ -183,52 +168,6 @@ export class EngineData {
     }
     const index = lastIndexAtOrBefore(series.dates, date);
     return index >= 0 && series.dates[index] === date ? series.closes[index] : null;
-  }
-
-  /**
-   * 读取决策日可见且未超过陈旧上限的最近官方国债收益率。
-   *
-   * Latest official government yield visible on the decision date, with a daily staleness cap.
-   */
-  governmentYieldAsOf(termYears: number, date: string): number | null {
-    const series = this.governmentYieldByTerm.get(termYears);
-    if (!series) {
-      return null;
-    }
-    const index = lastIndexAtOrBefore(series.dates, date);
-    if (index < 0 || daysBetween(series.dates[index], date) > DAILY_ASOF_CAP_DAYS) {
-      return null;
-    }
-    return series.values[index];
-  }
-
-  /**
-   * 读取截至决策日已可见的官方利率历史，按时间升序并限制数量。
-   *
-   * Official yield observations visible by `date`, newest last and bounded to the requested count.
-   */
-  governmentYieldHistoryAsOf(
-    termYears: number,
-    date: string,
-    maximumObservations: number,
-  ): GovernmentYieldObservation[] {
-    const series = this.governmentYieldByTerm.get(termYears);
-    if (!series || maximumObservations <= 0) {
-      return [];
-    }
-    const endIndex = lastIndexAtOrBefore(series.dates, date);
-    if (endIndex < 0) {
-      return [];
-    }
-    const startIndex = Math.max(0, endIndex - Math.floor(maximumObservations) + 1);
-    const observations: GovernmentYieldObservation[] = [];
-    for (let index = startIndex; index <= endIndex; index++) {
-      observations.push({
-        availableDate: series.dates[index],
-        yieldPct: series.values[index],
-      });
-    }
-    return observations;
   }
 
   /**
@@ -399,18 +338,6 @@ export class EngineData {
       series.pe.push(row.pe);
       series.peTtm.push(row.peTtm);
       series.pb.push(row.pb);
-    }
-
-    if (this.options.requirements.governmentYieldCurve) {
-      const points = await this.options.dataPort.yieldCurvePoints(this.options.end);
-      for (const point of points) {
-        let series = this.governmentYieldByTerm.get(point.termYears);
-        if (!series) {
-          this.governmentYieldByTerm.set(point.termYears, (series = { dates: [], values: [] }));
-        }
-        series.dates.push(point.availableDate);
-        series.values.push(point.yieldPct);
-      }
     }
 
     if (this.options.preloadCodes.length > 0) {

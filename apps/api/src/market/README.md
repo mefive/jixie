@@ -8,26 +8,23 @@ Market 拥有行情与领域数据的身份、获取、同步、查询和基础�
 
 | 要找什么 | 子能力与责任 |
 | --- | --- |
-| ETF、指数、基准、曲线和 FX 的共同身份 | [registry](registry/README.md)：静态清单和校验，不同步或写库 |
+| ETF 与境内指数的共同身份 | [registry](registry/README.md)：静态清单和校验，不同步或写库 |
 | 股票历史代码、名称和证券解析 | [instruments](instruments/README.md)：纯身份、查库解析与有写入的代码合并 |
 | Tushare 参数、限流、重试和能力探测 | [providers/tushare](providers/tushare/README.md)：通道与供应商映射 |
 | 开市日和上海收盘截止 | [calendar](calendar/README.md)：日历同步、读取和 SSE 已完成日 |
 | 股票名录、日行情、估值与交易限制 | [stocks](stocks/README.md)：范围同步及核心四表发布 |
 | ETF 行情、复权、份额、历史缺口 | [etfs](etfs/README.md)：按日发布／代码年份回填与覆盖质量 |
 | 指数成员、精简收盘响应 | [indices](indices/README.md)：指数原始数据与专用读取 |
-| 境外基准、币种换算、美债和 FX | [cross-market](cross-market/README.md)：共享身份之上的来源解析、可得日和写入 |
 | 质量结果契约与交易日覆盖摘要 | [quality](quality/README.md)：跨数据域共用的 finding 与统计，不含维护发布策略 |
 | 跨资产图表行情 | [queries](queries/README.md)：股票／ETF／指数统一对象序列 |
 | 指数官方估值与历史展示 | [valuation](valuation/README.md)：覆盖目录、数据读取与纯计算 |
 | 财报来源、版本、PIT、财务指标与分红 | [fundamentals](fundamentals/README.md)：同步、版本选择、标准化和审计 |
-| 国债／信用曲线和期限可得日期 | [rates](rates/README.md)：曲线数据事实，不含消费者新鲜度政策 |
-| 宏观发布时间、vintage、状态与风险轴 | [macro](macro/README.md)：历史可得性与基础质量 |
 
 ## 主要协作流程
 
 CLI 或 Maintenance 调用各数据域同步：通过 provider 取候选，使用 registry/instruments 统一身份，按该数据集规则校验、计算可得日并持久化。原始质量、派生指标和整体发布的组合由 Maintenance 控制，单函数成功不代表整轮已发布。
 
-HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投影，Factor/Strategy 在自己的流程中决定研究或运行准入。Market 提供日历、利率日期和基础质量事实，Strategy 决定模型历史要求。
+HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投影，Factor/Strategy 在自己的流程中决定研究或运行准入。Market 提供境内日历和基础质量事实，消费者判断自己的数据要求。
 
 ## 模块入口与共同约束
 

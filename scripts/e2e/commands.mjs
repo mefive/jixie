@@ -1,5 +1,12 @@
 export const e2eCommands = [
   {
+    name: 'macro-retirement',
+    file: 'apps/web/e2e/macro-retirement.mjs',
+    group: 'research',
+    notes:
+      'Retired macro/rates/FX calls and templates fail; stock/ETF/index research remains available.',
+  },
+  {
     name: 'agent-code-review',
     file: 'apps/web/e2e/agent-code-review.mjs',
     group: 'isolated',
@@ -56,11 +63,6 @@ export const e2eCommands = [
   {
     name: 'research-clarification',
     file: 'apps/web/e2e/research-clarification.mjs',
-    group: 'research',
-  },
-  {
-    name: 'research-yield-runtime',
-    file: 'apps/web/e2e/research-yield-runtime.mjs',
     group: 'research',
   },
   {
@@ -122,11 +124,6 @@ export const e2eCommands = [
     name: 'research-backtest-report-catalog',
     file: 'apps/web/e2e/research-backtest-report-catalog.mjs',
     group: 'research',
-  },
-  {
-    name: 'learning-cross-market',
-    file: 'apps/web/e2e/learning-cross-market-case.mjs',
-    group: 'learning',
   },
   {
     name: 'learning-trend-strategy',

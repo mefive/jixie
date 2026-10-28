@@ -49,62 +49,6 @@ function etfTrendCode(lookback: 20 | 60 | 120, name: string): string {
 `;
 }
 
-function cgbYieldDeclineCode(lookback: 20 | 60): string {
-  return `export default defineFactorV2({
-  version: 2,
-  name: 'China government 10Y yield decline (${lookback}d)',
-  analysisKind: 'time_series',
-  outputScope: 'asset',
-  frequency: 'daily',
-  inputs: ['rates.cgb.yield.10y'],
-  targetAssetClasses: ['fixed_income'],
-  window: ${lookback + 1},
-  compute(ctx) {
-    const current = ctx.value('rates.cgb.yield.10y');
-    const previous = ctx.lag('rates.cgb.yield.10y', ${lookback});
-    return current != null && previous != null ? (previous - current) * 100 : null;
-  },
-});
-`;
-}
-
-const CGB_SLOPE_CODE = `export default defineFactorV2({
-  version: 2,
-  name: 'China government 10Y-2Y curve slope',
-  analysisKind: 'time_series',
-  outputScope: 'asset',
-  frequency: 'daily',
-  inputs: ['rates.cgb.yield.2y', 'rates.cgb.yield.10y'],
-  targetAssetClasses: ['fixed_income'],
-  window: 2,
-  compute(ctx) {
-    const shortYield = ctx.value('rates.cgb.yield.2y');
-    const longYield = ctx.value('rates.cgb.yield.10y');
-    return shortYield != null && longYield != null ? (longYield - shortYield) * 100 : null;
-  },
-});
-`;
-
-const CGB_CURVATURE_CODE = `export default defineFactorV2({
-  version: 2,
-  name: 'China government 2Y-5Y-10Y curvature',
-  analysisKind: 'time_series',
-  outputScope: 'asset',
-  frequency: 'daily',
-  inputs: ['rates.cgb.yield.2y', 'rates.cgb.yield.5y', 'rates.cgb.yield.10y'],
-  targetAssetClasses: ['fixed_income'],
-  window: 2,
-  compute(ctx) {
-    const shortYield = ctx.value('rates.cgb.yield.2y');
-    const bellyYield = ctx.value('rates.cgb.yield.5y');
-    const longYield = ctx.value('rates.cgb.yield.10y');
-    return shortYield != null && bellyYield != null && longYield != null
-      ? (2 * bellyYield - shortYield - longYield) * 100
-      : null;
-  },
-});
-`;
-
 export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
   {
     key: 'etf_trend_20',
@@ -146,48 +90,6 @@ export const TIME_SERIES_TEMPLATES: TimeSeriesTemplate[] = [
       en: 'Tests each ETF’s own 120-trading-day trend against its forward return for slower trend regimes.',
     },
     code: etfTrendCode(120, 'ETF 120-day trend'),
-    strategyEligible: true,
-  },
-  {
-    key: 'cgb_yield_decline_20',
-    kind: 'rates',
-    targetAssetClasses: ['fixed_income'],
-    allowedAssets: FIXED_INCOME_ETF_ASSETS,
-    defaultAssets: FIXED_INCOME_ETF_ASSETS,
-    label: { zh: '国债10Y收益率20日下行', en: 'CGB 10Y yield decline (20d)' },
-    description: {
-      zh: '用财政部国债曲线10年期收益率20个交易日的下降幅度（bp）研究债券 ETF 未来收益；曲线在发布后的下一交易日才可见。',
-      en: 'Tests the 20-trading-day decline in the official 10-year China government yield, in basis points, against future bond ETF returns; each curve point is visible from the next trading day.',
-    },
-    code: cgbYieldDeclineCode(20),
-    strategyEligible: true,
-  },
-  {
-    key: 'cgb_curve_slope_10y_2y',
-    kind: 'rates',
-    targetAssetClasses: ['fixed_income'],
-    allowedAssets: FIXED_INCOME_ETF_ASSETS,
-    defaultAssets: FIXED_INCOME_ETF_ASSETS,
-    label: { zh: '国债曲线斜率（10Y−2Y）', en: 'CGB curve slope (10Y−2Y)' },
-    description: {
-      zh: '以财政部国债曲线10年与2年收益率之差（bp）研究期限结构状态与债券 ETF 未来收益。',
-      en: 'Tests the official 10-year minus 2-year China government yield spread, in basis points, against future bond ETF returns.',
-    },
-    code: CGB_SLOPE_CODE,
-    strategyEligible: true,
-  },
-  {
-    key: 'cgb_curve_curvature_2y_5y_10y',
-    kind: 'rates',
-    targetAssetClasses: ['fixed_income'],
-    allowedAssets: FIXED_INCOME_ETF_ASSETS,
-    defaultAssets: FIXED_INCOME_ETF_ASSETS,
-    label: { zh: '国债曲线曲率（2Y/5Y/10Y）', en: 'CGB curve curvature (2Y/5Y/10Y)' },
-    description: {
-      zh: '以 2×5Y−2Y−10Y（bp）衡量财政部国债曲线中段隆起程度，并研究其与债券 ETF 未来收益的关系。',
-      en: 'Measures the belly of the official government curve as 2×5Y−2Y−10Y in basis points and tests its relation to future bond ETF returns.',
-    },
-    code: CGB_CURVATURE_CODE,
     strategyEligible: true,
   },
 ];

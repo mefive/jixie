@@ -63,7 +63,7 @@ describe('simulation factor initialization', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.factorStart.mockResolvedValue({
-      metadata: { analysisKind: 'time_series', window: 2, inputs: ['rates.cgb.yield.10y'] },
+      metadata: { analysisKind: 'time_series', window: 2, inputs: ['etf.adjustedClose'] },
       execute: mocks.factorExecute.mockResolvedValue([1]),
       close: mocks.factorClose,
     });
@@ -82,7 +82,7 @@ describe('simulation factor initialization', () => {
         expect((await engineConfig.factorExecution.describe()).definitions).toEqual([
           expect.objectContaining({
             kind: 'asset_series',
-            meta: { window: 2, inputs: ['rates.cgb.yield.10y'] },
+            meta: { window: 2, inputs: ['etf.adjustedClose'] },
           }),
         ]);
         expect(engineConfig).not.toHaveProperty('customFactors');
@@ -90,7 +90,7 @@ describe('simulation factor initialization', () => {
         await engineConfig.factorExecution.compute({
           factorId: 'trend',
           kind: 'asset_series',
-          fields: { 'rates.cgb.yield.10y': [2, 3] },
+          fields: { 'etf.adjustedClose': [2, 3] },
           indexes: [1],
         });
         return {};
@@ -118,7 +118,7 @@ describe('simulation factor initialization', () => {
           ...dependency,
           language,
           runtimeVersion: language === 'python' ? 'py-v1' : 'ts-v1',
-          inputs: ['rates.cgb.yield.10y'],
+          inputs: ['etf.adjustedClose'],
         },
       ]);
       expect(mocks.factorClose).toHaveBeenCalledTimes(1);
@@ -130,11 +130,11 @@ describe('simulation factor initialization', () => {
     const simulation = await StrategySimulation.create({ ...config, dataPort: port });
     try {
       const lineage = simulation.factorDependencies;
-      expect(lineage).toEqual([{ ...dependency, inputs: ['rates.cgb.yield.10y'] }]);
+      expect(lineage).toEqual([{ ...dependency, inputs: ['etf.adjustedClose'] }]);
       lineage[0].codeHash = 'changed';
       lineage[0].inputs!.push('etf.adjustedClose');
       expect(simulation.factorDependencies).toEqual([
-        { ...dependency, inputs: ['rates.cgb.yield.10y'] },
+        { ...dependency, inputs: ['etf.adjustedClose'] },
       ]);
       expect(mocks.engine).not.toHaveBeenCalled();
     } finally {
@@ -161,7 +161,7 @@ describe('simulation factor initialization', () => {
   });
 
   it('collects final state explicitly while preserving result lineage', async () => {
-    const matching = [{ ...dependency, inputs: ['rates.cgb.yield.10y'] }];
+    const matching = [{ ...dependency, inputs: ['etf.adjustedClose'] }];
     const finalState = { tradeDate: '20240201' };
     mocks.collectFinalState.mockResolvedValueOnce(finalState);
     const output = await runFinalStateFixture(config, port);

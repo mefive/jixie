@@ -16,9 +16,6 @@ describe('ETF time-series templates', () => {
       'etf_trend_20',
       'etf_trend_60',
       'etf_trend_120',
-      'cgb_yield_decline_20',
-      'cgb_curve_slope_10y_2y',
-      'cgb_curve_curvature_2y_5y_10y',
     ]);
     expect(catalog[0]).toMatchObject({
       label: 'ETF 20日趋势',
@@ -55,37 +52,11 @@ describe('ETF time-series templates', () => {
       ).toBe(true);
     }
 
-    expect(timeSeriesTemplateAssetPolicy('cgb_yield_decline_20')).toEqual({
-      allowedAssets: ['511010.SH', '511260.SH', '511090.SH'],
-      defaultAssets: ['511010.SH', '511260.SH', '511090.SH'],
-    });
+    expect(timeSeriesTemplateAssetPolicy('cgb_yield_decline_20')).toBeNull();
     expect(
-      unsupportedTimeSeriesTemplateAssets('cgb_yield_decline_20', ['511010.SH', '518880.SH']),
-    ).toEqual(['518880.SH']);
+      unsupportedTimeSeriesTemplateAssets('etf_trend_20', ['511010.SH', 'not-listed']),
+    ).toEqual(['not-listed']);
     expect(unsupportedTimeSeriesTemplateAssets('custom-factor-id', ['518880.SH'])).toEqual([]);
-  });
-
-  it('publishes fixed-income curve templates with rates-domain definitions', async () => {
-    const catalog = timeSeriesTemplateCatalog('zh');
-    expect(catalog.find((entry) => entry.key === 'cgb_yield_decline_20')).toMatchObject({
-      label: '国债10Y收益率20日下行',
-      kind: 'rates',
-      targetAssetClasses: ['fixed_income'],
-    });
-    const slope = TIME_SERIES_TEMPLATES.find((entry) => entry.key === 'cgb_curve_slope_10y_2y');
-    const sandbox = await FactorSandbox.start({
-      language: 'typescript',
-      analysisKind: 'time_series',
-      code: slope!.code,
-    });
-    try {
-      expect(sandbox.metadata).toMatchObject({
-        inputs: ['rates.cgb.yield.2y', 'rates.cgb.yield.10y'],
-        targetAssetClasses: ['fixed_income'],
-      });
-    } finally {
-      sandbox.close();
-    }
   });
 
   it('provides executable initial Factor V2 sources', async () => {

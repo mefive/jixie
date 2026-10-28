@@ -1,3 +1,4 @@
+import { ResearchError } from '../errors.js';
 import type {
   ResearchDiagnosticV1,
   ResearchFrequencyV1,
@@ -5,16 +6,6 @@ import type {
   ResearchTransformV1,
 } from '@jixie/shared';
 import { getDatabase } from '#infra/database/prisma.js';
-import {
-  CROSS_MARKET_BENCHMARK_BY_ID,
-  HKD_CNH_DERIVED_CODE,
-  type CrossMarketBenchmarkDefinition,
-} from '#market/registry/cross-market-benchmarks.js';
-import {
-  deriveBenchmarkCnyCloses,
-  deriveHkdCnhMidCloses,
-} from '#market/cross-market/benchmark-conversion.js';
-import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
 
 /**
  * 保存研究序列的日期、数值及相关标记。
@@ -34,19 +25,6 @@ export interface ResearchSeriesPoint {
 export interface LoadedResearchSeries {
   points: ResearchSeriesPoint[];
   diagnostics: ResearchDiagnosticV1[];
-}
-
-/**
- * 提供带版本身份的宏观研究值，供严格对齐。
- *
- * Supply macro research values with vintage identity for strict alignment.
- */
-export interface MacroResearchObservationRow {
-  period: string;
-  vintageDate: string;
-  value: number;
-  availableDate: string;
-  vintageKind: string;
 }
 
 export type ResearchSeriesLoader = (
@@ -75,12 +53,6 @@ export const loadResearchSeries: ResearchSeriesLoader = async (input, start, end
   switch (input.source.kind) {
     case 'instrument':
       return loadInstrumentSeries(input.source, input.measure, start, end);
-    case 'macro':
-      return loadMacroSeries(input.source.seriesKey, start, end);
-    case 'yield_curve':
-      return loadYieldCurveSeries(input.source, start, end);
-    case 'fx':
-      return loadFxSeries(input.source.id, start, end);
   }
 };
 
@@ -221,16 +193,11 @@ async function loadInstrumentSeries(
   end: string,
 ): Promise<LoadedResearchSeries> {
   const { assetType, id } = source;
+  if (measure !== 'market.adjusted_close' || (assetType === 'index' && id.startsWith('equity.'))) {
+    throw new ResearchError('dataset_retired');
+  }
+
   if (assetType === 'index') {
-    const benchmark = CROSS_MARKET_BENCHMARK_BY_ID.get(id);
-    if (benchmark) {
-      return loadCrossMarketBenchmarkSeries(benchmark, measure, start, end);
-    }
-    if (measure === 'market.cny_close') {
-      throw new Error(
-        `market.cny_close requires a registered cross-market benchmark; received ${id}`,
-      );
-    }
     const rows = await getDatabase().indexDaily.findMany({
       where: { tsCode: id, tradeDate: { gte: start, lte: end } },
       select: { tradeDate: true, close: true },
@@ -288,223 +255,6 @@ async function loadInstrumentSeries(
               messageEn: `${missingAdjustments} price observations lacked adjustment factors and were excluded.`,
             },
           ],
-  };
-}
-
-/**
- * 读取跨市场基准及计价转换结果，保留中国研究时钟。
- *
- * Load cross-market benchmark values and currency conversions on the China research clock.
- */
-async function loadCrossMarketBenchmarkSeries(
-  benchmark: CrossMarketBenchmarkDefinition,
-  measure: string,
-  start: string,
-  end: string,
-): Promise<LoadedResearchSeries> {
-  const rows = await getDatabase().marketBenchmarkDaily.findMany({
-    where: { benchmarkId: benchmark.id, availableDate: { gte: start, lte: end } },
-    select: { availableDate: true, close: true },
-    orderBy: { availableDate: 'asc' },
-  });
-  const semanticsDiagnostic: ResearchDiagnosticV1 = {
-    code: 'price_index_not_total_return',
-    severity: 'info',
-    messageZh: `${benchmark.nameZh} 是价格指数，不含股息再投资；可交易代理 ${benchmark.tradableProxyTsCode} 的费用、跟踪误差和交易时段另行计算。`,
-    messageEn: `${benchmark.nameEn} is a price index without dividend reinvestment; fees, tracking error, and trading hours of tradable proxy ${benchmark.tradableProxyTsCode} remain separate.`,
-  };
-  if (measure !== 'market.cny_close') {
-    return {
-      points: rows.map((row) => ({ date: row.availableDate, value: row.close })),
-      diagnostics: [semanticsDiagnostic],
-    };
-  }
-  const fxRows =
-    benchmark.currency === 'CNY'
-      ? []
-      : await getDatabase().fxDaily.findMany({
-          where: {
-            tsCode: { in: [...EXTERNAL_FX_CODES] },
-            availableDate: { gte: shiftCalendarDays(start, -14), lte: end },
-          },
-          select: {
-            tsCode: true,
-            tradeDate: true,
-            availableDate: true,
-            bidClose: true,
-            askClose: true,
-          },
-          orderBy: [{ tsCode: 'asc' }, { availableDate: 'asc' }, { tradeDate: 'asc' }],
-        });
-  const converted = deriveBenchmarkCnyCloses(benchmark, rows, fxRows);
-  return {
-    points: converted.points,
-    diagnostics: [
-      semanticsDiagnostic,
-      {
-        code: 'benchmark_cny_conversion',
-        severity: 'info',
-        messageZh:
-          benchmark.currency === 'HKD'
-            ? '人民币指数水平按同一可得日的 USDCNH ÷ USDHKD 推导 HKD/CNH；本币收益、FX 收益和人民币收益可分别研究。'
-            : benchmark.currency === 'USD'
-              ? '人民币指数水平按同一可得日的 USDCNH 换算；本币收益、FX 收益和人民币收益可分别研究。'
-              : '该基准以人民币报价，本币与人民币收益相同。',
-        messageEn:
-          benchmark.currency === 'HKD'
-            ? 'The CNY index level derives HKD/CNH as USDCNH divided by USDHKD on the same availability date; local, FX, and CNY returns remain separately researchable.'
-            : benchmark.currency === 'USD'
-              ? 'The CNY index level uses USDCNH on the same availability date; local, FX, and CNY returns remain separately researchable.'
-              : 'This benchmark is quoted in CNY, so its local and CNY returns are identical.',
-      },
-      ...(converted.missingFxDates.length === 0
-        ? []
-        : [
-            {
-              code: 'benchmark_missing_fx',
-              severity: 'warning' as const,
-              messageZh: `${converted.missingFxDates.length} 个基准观测缺少当时已可得且不超过 7 个日历日的完整汇率腿并已排除。`,
-              messageEn: `${converted.missingFxDates.length} benchmark observations lacked all required FX legs available at the time and no more than seven calendar days old, so they were excluded.`,
-            },
-          ]),
-    ],
-  };
-}
-
-async function loadMacroSeries(
-  seriesKey: string,
-  start: string,
-  end: string,
-): Promise<LoadedResearchSeries> {
-  const rows = await getDatabase().macroObservation.findMany({
-    where: { seriesKey, availableDate: { lte: end } },
-    select: {
-      period: true,
-      vintageDate: true,
-      value: true,
-      availableDate: true,
-      vintageKind: true,
-    },
-    orderBy: [{ period: 'asc' }, { availableDate: 'asc' }, { vintageDate: 'asc' }],
-  });
-  return selectMacroResearchSeries(rows, start, end);
-}
-
-/**
- * 按经审计可得日期对齐宏观值，并为每期间选择最早抓取版本。
- *
- * Align macro values to their audited market availability while choosing the earliest captured
- * vintage per period. Historical latest-value imports remain usable for exploratory work, but the
- * returned diagnostic prevents them from being described as real-time vintage data.
- */
-export function selectMacroResearchSeries(
-  rows: MacroResearchObservationRow[],
-  start: string,
-  end: string,
-): LoadedResearchSeries {
-  const firstAvailableByPeriod = new Map<string, MacroResearchObservationRow>();
-  for (const row of rows) {
-    if (row.availableDate < start || row.availableDate > end) {
-      continue;
-    }
-    const previous = firstAvailableByPeriod.get(row.period);
-    if (
-      !previous ||
-      row.availableDate < previous.availableDate ||
-      (row.availableDate === previous.availableDate && row.vintageDate < previous.vintageDate)
-    ) {
-      firstAvailableByPeriod.set(row.period, row);
-    }
-  }
-  const selected = [...firstAvailableByPeriod.values()].sort((left, right) =>
-    left.availableDate.localeCompare(right.availableDate),
-  );
-  const backfilled = selected.filter((row) => row.vintageKind === 'latest_value_backfill').length;
-  return {
-    points: selected.map((row) => ({
-      date: row.availableDate,
-      value: row.value,
-    })),
-    diagnostics:
-      backfilled === 0
-        ? []
-        : [
-            {
-              code: 'macro_latest_value_backfill',
-              severity: 'warning',
-              messageZh: `${backfilled} 个宏观观测使用导入时可得的最新历史值，并按保守可用日对齐；可用于探索性研究，但不能视为历史实时版本。`,
-              messageEn: `${backfilled} macro observations use latest historical values as of import and are aligned by conservative availability dates; they support exploratory research but are not historical real-time vintages.`,
-            },
-          ],
-  };
-}
-
-async function loadYieldCurveSeries(
-  source: Extract<ResearchSeriesInputSpecV1['source'], { kind: 'yield_curve' }>,
-  start: string,
-  end: string,
-): Promise<LoadedResearchSeries> {
-  const rows = await getDatabase().yieldCurvePoint.findMany({
-    where: {
-      curveCode: source.curveCode,
-      curveType: source.curveType,
-      termYears: source.termYears,
-      availableDate: { gte: start, lte: end },
-    },
-    select: { availableDate: true, yieldPct: true },
-    orderBy: { availableDate: 'asc' },
-  });
-  return {
-    points: rows.map((row) => ({ date: row.availableDate, value: row.yieldPct })),
-    diagnostics: [],
-  };
-}
-
-/**
- * 读取受控货币对序列，保留报价方向和可得日期。
- *
- * Load a governed FX pair with its quote direction and availability dates.
- */
-async function loadFxSeries(id: string, start: string, end: string): Promise<LoadedResearchSeries> {
-  if (id === HKD_CNH_DERIVED_CODE) {
-    const rows = await getDatabase().fxDaily.findMany({
-      where: {
-        tsCode: { in: [...EXTERNAL_FX_CODES] },
-        availableDate: { gte: shiftCalendarDays(start, -14), lte: end },
-      },
-      select: {
-        tsCode: true,
-        tradeDate: true,
-        availableDate: true,
-        bidClose: true,
-        askClose: true,
-      },
-      orderBy: [{ tsCode: 'asc' }, { availableDate: 'asc' }, { tradeDate: 'asc' }],
-    });
-    return {
-      points: deriveHkdCnhMidCloses(rows, start, end),
-      diagnostics: [
-        {
-          code: 'derived_hkd_cnh',
-          severity: 'info',
-          messageZh: 'HKD/CNH 并非直接行情；按同一可得日的 USDCNH ÷ USDHKD 中间收盘价推导。',
-          messageEn:
-            'HKD/CNH is not a direct quote; it is derived as USDCNH divided by USDHKD mid closes on the same availability date.',
-        },
-      ],
-    };
-  }
-  const rows = await getDatabase().fxDaily.findMany({
-    where: { tsCode: id, availableDate: { gte: start, lte: end } },
-    select: { availableDate: true, bidClose: true, askClose: true },
-    orderBy: { availableDate: 'asc' },
-  });
-  return {
-    points: rows.map((row) => ({
-      date: row.availableDate,
-      value: (row.bidClose + row.askClose) / 2,
-    })),
-    diagnostics: [],
   };
 }
 

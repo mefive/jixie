@@ -13,24 +13,16 @@ import {
   RESEARCH_BACKTEST_REPORT_SDK_CONTRACT_V1,
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,
   RESEARCH_ETF_SHARES_SDK_CONTRACT_V1,
-  RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
-  RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
-  RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
   type ResearchAssetTypeV1,
   type ResearchFrequencyV1,
-  type ResearchFxSeriesIdV1,
   type ResearchFinancialMetricV1,
-  type ResearchMacroSeriesKeyV1,
   type ResearchSdkDataFrameColumnContractV1,
   type ResearchSdkParameterContractV1,
   type ResearchTransformV1,
-  type ResearchYieldCurveCodeV1,
-  type ResearchYieldTenorV1,
-  type ResearchYieldTransformV1,
 } from '@jixie/shared';
 
 /**
@@ -57,49 +49,6 @@ export interface ResearchSeriesRuntimeRequestV1 {
 export interface ResearchSeriesRuntimeRowV1 {
   date: string;
   value: number;
-}
-
-/**
- * 限定利率曲线、期限与变换，供宿主参数校验。
- *
- * Describe curve, tenor and transform arguments validated by the host.
- */
-export interface ResearchYieldCurveRuntimeRequestV1 {
-  curve: ResearchYieldCurveCodeV1;
-  tenor: ResearchYieldTenorV1;
-  start: string;
-  end: string;
-  frequency: ResearchFrequencyV1;
-  transform: ResearchYieldTransformV1;
-  partial_period: 'exclude' | 'include';
-}
-
-/**
- * 限定宏观序列、日期与变换，供宿主参数校验。
- *
- * Describe macro series, date and transform arguments validated by the host.
- */
-export interface ResearchMacroRuntimeRequestV1 {
-  series: ResearchMacroSeriesKeyV1;
-  start: string;
-  end: string;
-  frequency: ResearchFrequencyV1;
-  transform: ResearchTransformV1;
-  partial_period: 'exclude' | 'include';
-}
-
-/**
- * 限定已声明货币对与变换，供宿主参数校验。
- *
- * Describe declared FX pair and transform arguments validated by the host.
- */
-export interface ResearchFxRuntimeRequestV1 {
-  pair: ResearchFxSeriesIdV1;
-  start: string;
-  end: string;
-  frequency: ResearchFrequencyV1;
-  transform: ResearchTransformV1;
-  partial_period: 'exclude' | 'include';
 }
 
 /**
@@ -223,11 +172,6 @@ const researchCrossSectionRequestSchema = sdkRequestSchema(
   RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1.parameters,
 );
 const researchPanelRequestSchema = sdkRequestSchema(RESEARCH_PANEL_SDK_CONTRACT_V1.parameters);
-const researchYieldCurveRequestSchema = sdkRequestSchema(
-  RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1.parameters,
-);
-const researchMacroRequestSchema = sdkRequestSchema(RESEARCH_MACRO_SDK_CONTRACT_V1.parameters);
-const researchFxRequestSchema = sdkRequestSchema(RESEARCH_FX_SDK_CONTRACT_V1.parameters);
 const researchFactorReportRequestSchema = sdkRequestSchema(
   RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1.parameters,
 );
@@ -356,22 +300,6 @@ export function parseResearchFinancialPanelRuntimeRequest(
   return researchFinancialPanelRequestSchema.parse(
     value,
   ) as unknown as ResearchFinancialPanelRuntimeRequestV1;
-}
-
-export function parseResearchYieldCurveRuntimeRequest(
-  value: unknown,
-): ResearchYieldCurveRuntimeRequestV1 {
-  return researchYieldCurveRequestSchema.parse(
-    value,
-  ) as unknown as ResearchYieldCurveRuntimeRequestV1;
-}
-
-export function parseResearchMacroRuntimeRequest(value: unknown): ResearchMacroRuntimeRequestV1 {
-  return researchMacroRequestSchema.parse(value) as unknown as ResearchMacroRuntimeRequestV1;
-}
-
-export function parseResearchFxRuntimeRequest(value: unknown): ResearchFxRuntimeRequestV1 {
-  return researchFxRequestSchema.parse(value) as unknown as ResearchFxRuntimeRequestV1;
 }
 
 export function parseResearchFactorReportRuntimeRequest(

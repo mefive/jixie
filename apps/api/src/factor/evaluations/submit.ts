@@ -1,11 +1,9 @@
 import { t } from '#i18n/index.js';
 import type { Locale } from '@jixie/shared';
-import { resolveMacroRegimeTemplateSource } from '../definitions/templates/macro-regime.js';
 import { unsupportedTimeSeriesTemplateAssets } from '../definitions/templates/time-series.js';
 import { FactorError } from '../errors.js';
 import { normalizeFactorResearchSpec } from '../analysis/spec.js';
 import { resolveAssetFactorDataCutoff } from '../observations/asset-factor-data-cutoff.js';
-import { resolveMacroRegimeDataCutoff } from '../observations/macro-regime-data-cutoff.js';
 import type { SubmitFactorAnalysisInput } from '@jixie/shared/api/factor';
 import {
   resolveTimeSeriesFactorSource,
@@ -81,22 +79,7 @@ export async function submitFactorAnalysis(
       ...researchSpec,
       dataPolicy: { ...researchSpec.dataPolicy, dataCutoff },
     };
-  } else if (researchSpec.analysisKind === 'macro_regime') {
-    source = resolveMacroRegimeTemplateSource(factor);
-    if (!source) {
-      throw new FactorError('factor_unavailable', { params: { factor } });
-    }
-    const dataCutoff = await resolveMacroRegimeDataCutoff(researchSpec);
-    if (!dataCutoff) {
-      throw new FactorError('data_not_ready');
-    }
-    researchSpec = {
-      ...researchSpec,
-      dataPolicy: { ...researchSpec.dataPolicy, dataCutoff },
-    };
-  }
-
-  if (!source) {
+  } else if (!source) {
     throw new FactorError('factor_unavailable', { params: { factor } });
   }
 

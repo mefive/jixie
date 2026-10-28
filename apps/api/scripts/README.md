@@ -18,7 +18,7 @@
 ## 运行约定
 
 - `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
-- 下表 `start` / `end` / `date` 使用 `YYYYMMDD`，宏观月份使用 `YYYYMM`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
+- 下表 `start` / `end` / `date` 使用 `YYYYMMDD`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
 - 数据写入只使用 `pnpm data sync [--to YYYYMMDD]`；只读审计与显式探针保留。
 - `maintenance`、`import:data`、`sync <任务>` 和代码归一 CLI 均已退役，不设置兼容转发。
 
@@ -31,7 +31,7 @@
 
 唯一写流程是 `pnpm data sync [--to YYYYMMDD]`，由 `src/maintenance/cli/data.ts` 进入协调器；生产使用相同编译入口。无参数或 `--help` 显示帮助，未知参数、额外选择器和不存在的日期在环境/数据库加载前失败。退出码：完整/合法 partial 为 0，实际错误为 1，参数错误为 2，写锁争用为 75。
 
-旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs、fundamentals、rates、cross-market和 macro 领域；日常补齐与首次回补使用同一持久分区计划，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [设计](../../../docs/design/unified-data-sync.md)。
+旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs 和 fundamentals 领域；宏观、利率、FX 和跨市场来源已退役；日常补齐与首次回补使用同一持久分区计划，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [设计](../../../docs/design/unified-data-sync.md)。
 
 ## 审计与查看
 

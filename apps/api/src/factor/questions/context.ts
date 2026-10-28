@@ -2,7 +2,6 @@ import { factorReportState } from '#factor/evaluations/state.js';
 import type { FactorQuestionContextV1, Locale } from '@jixie/shared';
 import type { Prisma } from '@prisma/client';
 import { BUILTIN_USER_ID } from '../definitions/builtin-factors.js';
-import { macroRegimeTemplateResource } from '../definitions/templates/macro-regime.js';
 import { FactorError } from '../errors.js';
 import { reportSummary } from '../evaluations/report-views.js';
 import { sha256 } from '../sources/fingerprint.js';
@@ -17,21 +16,10 @@ export async function captureFactorQuestionContext(
   userId: string,
   factorKey: string,
   reportId: string | undefined,
-  locale: Locale,
+  _locale: Locale,
 ): Promise<FactorQuestionContextV1> {
-  const template = macroRegimeTemplateResource(factorKey, locale);
   let factor: FactorQuestionContextV1['factor'];
-  if (template) {
-    factor = {
-      key: factorKey,
-      name: template.name,
-      kind: 'template',
-      analysisKind: template.analysisKind,
-      language: 'typescript',
-      source: template.code,
-      sourceHash: sha256(template.code),
-    };
-  } else {
+  {
     const row = await database.factor.findFirst({
       where: {
         id: factorKey,

@@ -5,7 +5,6 @@ import type {
   FactorExecutionPort,
   FactorComputeRequest,
 } from './execution-port.js';
-import { factorV2YieldTerm } from '#factor/definitions/fields.js';
 import type { EngineData } from '../data/engine-data.js';
 import type { BarRow } from '../data/market.js';
 
@@ -241,14 +240,7 @@ export class FactorEvaluator {
     }
     const fields: Record<string, number[]> = {};
     for (const field of factor.meta.inputs) {
-      const yieldTerm = factorV2YieldTerm(field);
-      fields[field] = bars.map((bar) =>
-        field === 'etf.adjustedClose'
-          ? bar.adjClose
-          : ((yieldTerm == null
-              ? null
-              : this.input.engineData.governmentYieldAsOf(yieldTerm, bar.date)) ?? Number.NaN),
-      );
+      fields[field] = bars.map((bar) => bar.adjClose);
     }
     return {
       factorId: factor.id,

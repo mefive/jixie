@@ -33,8 +33,6 @@ import {
   type FactorResearchSpecV1,
   type FactorTimeSeriesReportV1,
   type FactorPanelReportV1,
-  type FactorMacroRegimeReportV1,
-  type MacroRegimeFactorResearchSpecV1,
   type PanelFactorResearchSpecV1,
   type TimeSeriesFactorResearchSpecV1,
   type Neutral,
@@ -79,13 +77,6 @@ type FactorSetupParams = {
 const DEFAULT_START = '20150101';
 const DEFAULT_END = '20261231';
 const POLL_INTERVAL_MS = 800;
-export const MACRO_REGIME_ASSETS: TimeSeriesAsset[] = [
-  '510300.SH',
-  '511010.SH',
-  '518880.SH',
-  '159985.SZ',
-];
-type MacroRevisionPolicy = MacroRegimeFactorResearchSpecV1['dataPolicy']['revisionPolicy'];
 
 /**
  * 绑定证券池选项身份与显示信息，供研究参数选择。
@@ -223,7 +214,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
 
   public selectedKey = ''; // preset key OR custom factor id — the analysis target
   public selectedReportId = '';
-  public mode: 'preset' | 'custom' | 'time_series' | 'panel' | 'macro_regime' = 'preset';
+  public mode: 'preset' | 'custom' | 'time_series' | 'panel' = 'preset';
   public definitionAnalysisKind: EditableFactorAnalysisKind = 'cross_sectional';
   public targetAssetClasses: FactorMeta['targetAssetClasses'] = undefined;
   public language: FactorLanguage = 'python';
@@ -253,7 +244,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
   public methodology = defaultMethodology();
   public timeSeriesAssets: TimeSeriesAsset[] = [...TIME_SERIES_ASSETS];
   public timeSeriesHorizon: 5 | 20 | 60 = 20;
-  public macroRevisionPolicy: MacroRevisionPolicy = 'latest_vintage';
   public logs: LogLine[] = []; // streamed progress of the current run (job), tagged system/user
   public jobRunning = false; // a streamed analysis is in flight
   public queuePosition: number | null = null;
@@ -297,7 +287,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       methodology: observable.ref,
       timeSeriesAssets: observable.ref,
       timeSeriesHorizon: observable.ref,
-      macroRevisionPolicy: observable.ref,
       logs: observable.ref,
       jobRunning: observable.ref,
       queuePosition: observable.ref,
@@ -305,10 +294,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       report: computed,
       timeSeriesReport: computed,
       panelReport: computed,
-      macroRegimeReport: computed,
       isTimeSeries: computed,
       isPanel: computed,
-      isMacroRegime: computed,
       timeSeriesAllowedAssets: computed,
       reportDetail: computed,
       paramsModified: computed,
@@ -333,7 +320,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       setCostParameter: action,
       setTimeSeriesAssets: action,
       setTimeSeriesHorizon: action,
-      setMacroRevisionPolicy: action,
     });
   }
 
@@ -428,11 +414,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return payload?.analysisKind === 'panel' ? payload.report : null;
   }
 
-  public get macroRegimeReport(): FactorMacroRegimeReportV1 | null {
-    const payload = this.reportDetail?.researchPayload;
-    return payload?.analysisKind === 'macro_regime' ? payload.report : null;
-  }
-
   public get isTimeSeries(): boolean {
     return (
       this.mode === 'time_series' ||
@@ -444,10 +425,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     return (
       this.mode === 'panel' || (this.mode === 'custom' && this.definitionAnalysisKind === 'panel')
     );
-  }
-
-  public get isMacroRegime(): boolean {
-    return this.mode === 'macro_regime';
   }
 
   public get timeSeriesAllowedAssets(): TimeSeriesAsset[] {
@@ -483,11 +460,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     if (!detail) {
       return false;
     }
-    if (
-      detail.analysisKind === 'time_series' ||
-      detail.analysisKind === 'panel' ||
-      detail.analysisKind === 'macro_regime'
-    ) {
+    if (detail.analysisKind === 'time_series' || detail.analysisKind === 'panel') {
       const frozen = detail.researchSpec;
       if (frozen.analysisKind !== detail.analysisKind) {
         return true;
@@ -554,27 +527,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
    * Build a kind-specific research specification from draft state.
    */
   public get researchSpec(): FactorResearchSpecV1 {
-    if (this.isMacroRegime) {
-      return {
-        version: 1,
-        analysisKind: 'macro_regime',
-        start: this.start,
-        end: this.end,
-        observationFrequency: 'monthly',
-        targetAssets: [...this.timeSeriesAssets],
-        target: {
-          kind: 'forward_total_return',
-          horizon: this.timeSeriesHorizon,
-          horizonUnit: 'trade_day',
-        },
-        dataPolicy: {
-          pointInTime: true,
-          revisionPolicy: this.macroRevisionPolicy,
-          dataCutoff: null,
-        },
-        stateModel: { kind: 'threshold', states: 4 },
-      };
-    }
     if (!this.isTimeSeries && !this.isPanel) {
       return { version: 1, analysisKind: 'cross_sectional', protocol: this.analysisSpec };
     }
@@ -631,7 +583,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
    * The editor source no longer matches the immutable source that produced the selected report.
    */
   public get codeModifiedSinceReport(): boolean {
-    if (this.mode === 'time_series' || this.mode === 'panel' || this.mode === 'macro_regime') {
+    if (this.mode === 'time_series' || this.mode === 'panel') {
       return false;
     }
     const snapshot = this.reportDetail?.factorCodeSnapshot;
@@ -675,7 +627,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       (this.mode === 'preset' ||
         this.mode === 'time_series' ||
         this.mode === 'panel' ||
-        this.mode === 'macro_regime' ||
         (this.mode === 'custom' && this.factorStatus !== 'draft')) &&
       !!this.selectedKey
     );
@@ -776,10 +727,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     this.timeSeriesHorizon = value;
   }
 
-  public setMacroRevisionPolicy(value: MacroRevisionPolicy) {
-    this.macroRevisionPolicy = value;
-  }
-
   public setCode(v: string) {
     runInAction(() => (this.code = v));
     this.scheduleDraftSave();
@@ -812,7 +759,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
     const isCustom = meta?.kind === 'custom';
     const isTimeSeries = meta?.analysisKind === 'time_series';
     const isPanel = meta?.analysisKind === 'panel';
-    const isMacroRegime = meta?.analysisKind === 'macro_regime';
     runInAction(() => {
       this.selectedKey = key;
       this.chatMessages = [];
@@ -820,15 +766,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.questionStreamError = null;
       this.sending = false;
       this.selectedReportId = preferredReportId ?? '';
-      this.mode = isCustom
-        ? 'custom'
-        : isTimeSeries
-          ? 'time_series'
-          : isPanel
-            ? 'panel'
-            : isMacroRegime
-              ? 'macro_regime'
-              : 'preset';
+      this.mode = isCustom ? 'custom' : isTimeSeries ? 'time_series' : isPanel ? 'panel' : 'preset';
       this.definitionAnalysisKind = isTimeSeries
         ? 'time_series'
         : isPanel
@@ -840,10 +778,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.evaluationScope = defaultEvaluationScope();
       this.timeSeriesAssets = defaultTimeSeriesAssetsFor(meta);
       this.timeSeriesHorizon = 20;
-      this.macroRevisionPolicy = 'latest_vintage';
-      if (isMacroRegime) {
-        this.timeSeriesAssets = [...MACRO_REGIME_ASSETS];
-      }
       this.jobRunning = false;
       this.jobId = null;
       this.logs = [];
@@ -1418,28 +1352,6 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       }
       return true;
     }
-    if (
-      detail.analysisKind === 'macro_regime' &&
-      detail.researchSpec.analysisKind === 'macro_regime'
-    ) {
-      const spec = detail.researchSpec;
-      runInAction(() => {
-        this.mode = 'macro_regime';
-        this.code = detail.factorCodeSnapshot ?? this.code;
-        this.persistedCode = this.code;
-        this.start = spec.start;
-        this.end = spec.end;
-        this.timeSeriesAssets = spec.targetAssets.filter(isTimeSeriesAsset);
-        this.timeSeriesHorizon = ([5, 20, 60] as const).includes(spec.target.horizon as 5 | 20 | 60)
-          ? (spec.target.horizon as 5 | 20 | 60)
-          : 20;
-        this.macroRevisionPolicy = spec.dataPolicy.revisionPolicy;
-      });
-      if (detail.status === 'running' && detail.jobId) {
-        this.startPolling(detail.jobId, detail.id);
-      }
-      return true;
-    }
 
     const spec = detail.spec;
     if (!spec) {
@@ -1537,7 +1449,7 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
       this.jobRunning = true;
     });
     try {
-      const assetResearch = this.isTimeSeries || this.isPanel || this.isMacroRegime;
+      const assetResearch = this.isTimeSeries || this.isPanel;
       const protocol = this.analysisSpec;
       const researchSpec = this.researchSpec;
       const spec = assetResearch ? researchSpec : protocol;
@@ -1688,28 +1600,8 @@ export class FactorStore extends BaseStore<FactorSetupParams> {
  * Build an asset-research draft identity for report freshness checks.
  */
 function assetResearchDraftIdentity(
-  spec:
-    | TimeSeriesFactorResearchSpecV1
-    | PanelFactorResearchSpecV1
-    | MacroRegimeFactorResearchSpecV1,
-): TimeSeriesFactorResearchSpecV1 | PanelFactorResearchSpecV1 | MacroRegimeFactorResearchSpecV1 {
-  if (spec.analysisKind === 'macro_regime') {
-    return {
-      version: 1,
-      analysisKind: 'macro_regime',
-      start: spec.start,
-      end: spec.end,
-      observationFrequency: spec.observationFrequency,
-      targetAssets: [...spec.targetAssets],
-      target: structuredClone(spec.target),
-      dataPolicy: {
-        pointInTime: true,
-        revisionPolicy: spec.dataPolicy.revisionPolicy,
-        dataCutoff: null,
-      },
-      stateModel: structuredClone(spec.stateModel),
-    };
-  }
+  spec: TimeSeriesFactorResearchSpecV1 | PanelFactorResearchSpecV1,
+): TimeSeriesFactorResearchSpecV1 | PanelFactorResearchSpecV1 {
   if (spec.analysisKind === 'panel') {
     return {
       version: 1,

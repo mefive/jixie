@@ -1,5 +1,7 @@
 # Stock-bond allocation and risk attribution: contributions, correlation, and stress scenarios
 
+> Archive notice: macro, rates, FX and cross-market benchmark data and related risk analysis are retired. Methods, original values and figures remain as historical evidence. These calls cannot be rerun through the current SDK; stock and ETF price research remains available.
+
 > This is a historical learning record. Futures data, carry/warehouse templates, and dependent daily risk regression, Alpha overlap and stress scenarios are retired. The old steps cannot be rerun in the current system. Original values and screenshots remain for studying the method; use the workbench guides for current stock/ETF operations.
 
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
@@ -328,5 +330,4 @@ repeatedly against these diagnostic results.
 - [Publish a Factor](/help/factors/publish-factor)
 - [Use a Factor in a strategy](/help/factors/factor-in-strategy)
 - [Read multi-asset allocation attribution](/help/backtesting/allocation-attribution)
-- [Read portfolio risk research](/help/backtesting/portfolio-risk)
 - [Why a backtest is not a forecast](/help/basics/backtest-limitations)

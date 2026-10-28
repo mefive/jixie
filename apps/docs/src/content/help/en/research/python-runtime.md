@@ -62,5 +62,4 @@ First verify the import name and editor assistance. If the package is not in the
 ## Related articles
 
 - [Read research outputs](/docs/help/research/outputs)
-- [Load US Treasury yield curves](/docs/help/research/yield-curves)
 - [How to read a multivariate time-series study](/docs/help/basics/multivariate-time-series-relationships)

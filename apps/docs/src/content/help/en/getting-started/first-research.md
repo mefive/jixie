@@ -75,6 +75,5 @@ upstream revision changes the disclosed data revision.
 - [Use the research data catalog](/docs/help/research/data-catalog)
 - [Collaborate with Research Agent](/docs/help/research/agent-collaboration)
 - [Answer a research-definition clarification](/docs/help/research/clarifications)
-- [Load US Treasury yield curves](/docs/help/research/yield-curves)
 - [Understand Factor retained reports](/docs/help/factors/report-history)
 - [Hand research to Factor or Strategy](/docs/help/research/handoff)

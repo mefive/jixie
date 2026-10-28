@@ -32,19 +32,12 @@ const KEYS: Readonly<Record<string, readonly string[]>> = {
   IndexDaily: ['tsCode', 'tradeDate'],
   IndexDailyBasic: ['tsCode', 'tradeDate'],
   IndexBenchmark: ['tsCode'],
-  YieldCurvePoint: ['source', 'curveCode', 'curveType', 'tradeDate', 'termYears'],
-  FxDaily: ['tsCode', 'tradeDate'],
-  MarketBenchmark: ['id'],
-  MarketBenchmarkDaily: ['benchmarkId', 'tradeDate'],
   FinancialIncomeStatement: ['sourceRowFingerprint'],
   FinancialBalanceSheet: ['sourceRowFingerprint'],
   FinancialCashFlowStatement: ['sourceRowFingerprint'],
   FinaIndicator: ['tsCode', 'endDate'],
   FinaIndicatorVersion: ['sourceFingerprint'],
   Dividend: ['id'],
-  MacroSeries: ['seriesKey'],
-  MacroObservation: ['seriesKey', 'period', 'vintageDate'],
-  MacroReleaseSchedule: ['publishDate', 'title'],
 };
 
 interface MarketDelegate {

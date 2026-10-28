@@ -120,10 +120,6 @@ const factorPointInTimePolicyV1Schema = z.object({
     .nullable(),
 });
 
-const macroPointInTimePolicyV1Schema = factorPointInTimePolicyV1Schema.extend({
-  revisionPolicy: z.enum(['as_available', 'latest_vintage']),
-});
-
 const factorAssetListBaseSchema = z.array(z.string().trim().min(1).max(80));
 
 const factorAssetListSchema = factorAssetListBaseSchema
@@ -192,16 +188,6 @@ export const factorResearchSpecV1Schema = z.discriminatedUnion('analysisKind', [
         (portfolio) => portfolio.topFraction + portfolio.bottomFraction <= 1,
         'Panel top and bottom fractions cannot overlap.',
       ),
-  }),
-  z.object({
-    ...datedResearchProtocolShape,
-    analysisKind: z.literal('macro_regime'),
-    dataPolicy: macroPointInTimePolicyV1Schema,
-    targetAssets: factorAssetListSchema,
-    stateModel: z.object({
-      kind: z.enum(['threshold', 'quantile']),
-      states: z.number().int().min(2).max(10),
-    }),
   }),
 ]);
 

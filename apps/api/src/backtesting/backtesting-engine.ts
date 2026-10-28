@@ -13,10 +13,7 @@ import { DEFAULT_COST } from './cost.js';
 import type { BacktestingConfig } from './contract.js';
 import type { BacktestingResult, BacktestingFinalState, SleeveNavPoint } from './result.js';
 import { summarizePerformance } from './performance.js';
-import {
-  AllocationAnalysisTracker,
-  classifyAllocationRateRegime,
-} from './allocation-analysis-tracker.js';
+import { AllocationAnalysisTracker } from './allocation-analysis-tracker.js';
 
 const BENCHMARK = CSI_300_TOTAL_RETURN_INDEX_CODE;
 
@@ -150,9 +147,6 @@ export class BacktestingEngine {
       dataPort: config.dataPort,
       requirements: {
         ...dataRequirements,
-        governmentYieldCurve:
-          dataRequirements.governmentYieldCurve ||
-          this.allocationTracker.requiresGovernmentYieldCurve,
       },
       preloadCodes: [...new Set([...(config.strategy.watch ?? []), ...preloadCodes])],
     });
@@ -293,11 +287,6 @@ export class BacktestingEngine {
       closeOf: (code) => engineData.adjustedCloseAsOf(code, date),
       exactCloseOf: (code) => engineData.adjustedOhlcOn(code, date)?.close ?? null,
       trades: cashPortfolio.trades.slice(this.capturedTrades),
-      rateRegime: classifyAllocationRateRegime(
-        date,
-        engineData.governmentYieldHistoryAsOf(10, date, 252),
-        engineData.governmentYieldHistoryAsOf(2, date, 252),
-      ),
     });
     this.capturedTrades = cashPortfolio.trades.length;
   }

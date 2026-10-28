@@ -5,7 +5,6 @@ import type {
   FactorReportSummary,
   FactorResearchReportPayloadV1,
   FactorResearchSpecV1,
-  FactorMacroRegimeReportV1,
   FactorPanelReportV1,
   FactorTimeSeriesReportV1,
 } from '@jixie/shared';
@@ -119,12 +118,6 @@ export function parseResearchPayload(
           version: 1,
           analysisKind: 'panel',
           report: report as FactorPanelReportV1,
-        };
-      case 'macro_regime':
-        return {
-          version: 1,
-          analysisKind: 'macro_regime',
-          report: report as FactorMacroRegimeReportV1,
         };
     }
   } catch {

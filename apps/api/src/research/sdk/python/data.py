@@ -171,82 +171,8 @@ class _DataApi:
         )
         return self._equity_frame(result)
 
-    # 请求公开曲线和期限，保留收益率变换与周期政策。
-    # English: Request a public curve and tenor with yield transforms and period policy.
-    def yield_curve(
-        self,
-        curve: str,
-        *,
-        tenor: str,
-        start: str,
-        end: str,
-        frequency: str = "daily",
-        transform: str = "level",
-        partial_period: str = "exclude",
-    ) -> Any:
-        result = self._capabilities.request(
-            "research_yield_curve",
-            {
-                "curve": curve,
-                "tenor": tenor,
-                "start": start,
-                "end": end,
-                "frequency": frequency,
-                "transform": transform,
-                "partial_period": partial_period,
-            },
-        )
-        return self._series_frame(result)
 
-    # 请求宏观序列并映射 DataFrame，保持可得性与变换元数据。
-    # English: Request macro data and map its availability and transform metadata into a DataFrame.
-    def macro(
-        self,
-        series: str,
-        *,
-        start: str,
-        end: str,
-        frequency: str = "daily",
-        transform: str = "level",
-        partial_period: str = "exclude",
-    ) -> Any:
-        result = self._capabilities.request(
-            "research_macro",
-            {
-                "series": series,
-                "start": start,
-                "end": end,
-                "frequency": frequency,
-                "transform": transform,
-                "partial_period": partial_period,
-            },
-        )
-        return self._series_frame(result)
 
-    # 请求明确货币对并映射 DataFrame，保留报价与变换口径。
-    # English: Request an explicit FX pair and retain quote and transform conventions.
-    def fx(
-        self,
-        pair: str,
-        *,
-        start: str,
-        end: str,
-        frequency: str = "daily",
-        transform: str = "level",
-        partial_period: str = "exclude",
-    ) -> Any:
-        result = self._capabilities.request(
-            "research_fx",
-            {
-                "pair": pair,
-                "start": start,
-                "end": end,
-                "frequency": frequency,
-                "transform": transform,
-                "partial_period": partial_period,
-            },
-        )
-        return self._series_frame(result)
 
     # 请求已完成月末股票 Panel，保持资格及频率约束。
     # English: Request a completed-month-end equity panel with explicit eligibility and frequency.

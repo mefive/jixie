@@ -60,7 +60,6 @@ async function loadedData(): Promise<EngineData> {
     requirements: {
       turnoverRateFHistory: true,
       fundamentalHistory: false,
-      governmentYieldCurve: false,
     },
   });
   await data.load();

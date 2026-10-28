@@ -37,8 +37,6 @@ import multiTimeframeEn from '@src/content/help/en/backtesting/multi-timeframe.m
 import multiTimeframeZh from '@src/content/help/zh/backtesting/multi-timeframe.md?raw';
 import parameterScanEn from '@src/content/help/en/backtesting/parameter-scan.md?raw';
 import parameterScanZh from '@src/content/help/zh/backtesting/parameter-scan.md?raw';
-import portfolioRiskEn from '@src/content/help/en/backtesting/portfolio-risk.md?raw';
-import portfolioRiskZh from '@src/content/help/zh/backtesting/portfolio-risk.md?raw';
 import pythonStrategyEn from '@src/content/help/en/backtesting/python-strategy.md?raw';
 import pythonStrategyZh from '@src/content/help/zh/backtesting/python-strategy.md?raw';
 import technicalIndicatorsEn from '@src/content/help/en/backtesting/technical-indicators.md?raw';
@@ -75,8 +73,6 @@ import firstPresetAnalysisEn from '@src/content/help/en/factors/first-preset-ana
 import firstPresetAnalysisZh from '@src/content/help/zh/factors/first-preset-analysis.md?raw';
 import neutralizationEn from '@src/content/help/en/factors/neutralization.md?raw';
 import neutralizationZh from '@src/content/help/zh/factors/neutralization.md?raw';
-import macroRegimeEn from '@src/content/help/en/factors/macro-regime.md?raw';
-import macroRegimeZh from '@src/content/help/zh/factors/macro-regime.md?raw';
 import panelResearchEn from '@src/content/help/en/factors/panel-research.md?raw';
 import panelResearchZh from '@src/content/help/zh/factors/panel-research.md?raw';
 import publishFactorEn from '@src/content/help/en/factors/publish-factor.md?raw';
@@ -133,8 +129,6 @@ import researchPythonRuntimeEn from '@src/content/help/en/research/python-runtim
 import researchPythonRuntimeZh from '@src/content/help/zh/research/python-runtime.md?raw';
 import researchRunControlEn from '@src/content/help/en/research/run-control.md?raw';
 import researchRunControlZh from '@src/content/help/zh/research/run-control.md?raw';
-import researchYieldCurvesEn from '@src/content/help/en/research/yield-curves.md?raw';
-import researchYieldCurvesZh from '@src/content/help/zh/research/yield-curves.md?raw';
 import adjustmentsScaleEn from '@src/content/help/en/stock-detail/adjustments-scale.md?raw';
 import adjustmentsScaleZh from '@src/content/help/zh/stock-detail/adjustments-scale.md?raw';
 import peVolumeDataEn from '@src/content/help/en/stock-detail/pe-volume-data.md?raw';
@@ -603,16 +597,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: { zh: researchClarificationsZh, en: researchClarificationsEn },
   },
   {
-    slug: 'research/yield-curves',
-    group: 'research',
-    title: { zh: '读取美国国债收益率曲线', en: 'Load US Treasury yield curves' },
-    summary: {
-      zh: '选择名义或实际曲线、期限和变换，并正确解释百分比、百分点与时区。',
-      en: 'Choose a nominal or real curve, tenor, and transform, and interpret percent, percentage points, and time zones correctly.',
-    },
-    content: { zh: researchYieldCurvesZh, en: researchYieldCurvesEn },
-  },
-  {
     slug: 'research/python-runtime',
     group: 'research',
     title: { zh: '使用 Python 研究运行环境', en: 'Use the Research Python runtime' },
@@ -902,22 +886,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     },
   },
   {
-    slug: 'backtesting/portfolio-risk',
-    group: 'backtesting',
-    title: {
-      zh: '阅读组合风险诊断',
-      en: 'Read portfolio risk diagnostics',
-    },
-    summary: {
-      zh: '阅读市场暴露、宏观敏感度、Alpha 重合和线性压力情景。',
-      en: 'Read market exposures, macro sensitivity, Alpha overlap, and linear stress scenarios.',
-    },
-    content: {
-      zh: portfolioRiskZh,
-      en: portfolioRiskEn,
-    },
-  },
-  {
     slug: 'backtesting/trades-costs',
     group: 'backtesting',
     title: {
@@ -1091,22 +1059,6 @@ export const HELP_ARTICLES: HelpArticle[] = [
     content: {
       zh: panelResearchZh,
       en: panelResearchEn,
-    },
-  },
-  {
-    slug: 'factors/macro-regime',
-    group: 'factorResearch',
-    title: {
-      zh: '阅读宏观状态研究',
-      en: 'Read macro-regime research',
-    },
-    summary: {
-      zh: '理解增长—通胀四象限、数据修订口径、条件收益和使用边界。',
-      en: 'Understand growth-inflation states, revisions, conditional returns, and limits.',
-    },
-    content: {
-      zh: macroRegimeZh,
-      en: macroRegimeEn,
     },
   },
   {

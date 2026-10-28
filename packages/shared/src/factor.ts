@@ -25,7 +25,7 @@ export function factorRuntimeVersion(language: FactorLanguage): FactorRuntimeVer
  *
  * Evaluation protocol used by one immutable research run.
  */
-export type FactorAnalysisKind = 'cross_sectional' | 'time_series' | 'panel' | 'macro_regime';
+export type FactorAnalysisKind = 'cross_sectional' | 'time_series' | 'panel';
 
 /**
  * 规定 IC 和分组前的截面规模中性化方式。
@@ -62,7 +62,7 @@ export interface QuantileHorizon {
  * How a factor's values are sourced — drives the compute path (and shown as a tag in the UI).
  * 'custom' = user-authored (defineFactor); its compute runs cross-sectionally over a FactorBar.
  */
-export type FactorKind = 'price' | 'fundamental' | 'rates' | 'commodity' | 'macro' | 'custom';
+export type FactorKind = 'price' | 'fundamental' | 'commodity' | 'custom';
 
 /**
  * 承载宿主构造的可变市场行，供公开只读因子行情映射。

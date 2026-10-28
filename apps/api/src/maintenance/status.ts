@@ -1,4 +1,4 @@
-import { RETIRED_DATASETS, RETIRED_FUTURES_EXCHANGES } from './retired-datasets.js';
+import { RETIRED_DATASETS, RETIRED_EXCHANGES } from './retired-datasets.js';
 import type { DatasetCoverage, MaintenanceStatus } from '@jixie/shared/api/maintenance';
 import { getDatabase } from '#infra/database/prisma.js';
 import {
@@ -19,7 +19,7 @@ export async function readDatasetCoverage(): Promise<DatasetCoverage[]> {
     getDatabase().datasetSyncState.findMany({
       where: {
         dataset: { notIn: RETIRED_DATASETS },
-        NOT: { dataset: 'calendar', scope: { in: RETIRED_FUTURES_EXCHANGES } },
+        NOT: { dataset: 'calendar', scope: { in: RETIRED_EXCHANGES } },
       },
       orderBy: [{ dataset: 'asc' }, { scope: 'asc' }],
     }),
@@ -27,7 +27,7 @@ export async function readDatasetCoverage(): Promise<DatasetCoverage[]> {
       by: ['dataset', 'scope', 'status'],
       where: {
         dataset: { notIn: RETIRED_DATASETS },
-        NOT: { dataset: 'calendar', scope: { in: RETIRED_FUTURES_EXCHANGES } },
+        NOT: { dataset: 'calendar', scope: { in: RETIRED_EXCHANGES } },
       },
       _count: { _all: true },
     }),

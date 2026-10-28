@@ -5,6 +5,10 @@ import { DEFAULT_LOCALE, type Locale } from '@jixie/shared';
 // notes, code-generated reply chrome). LLM prompt text is NOT here — prompts are static English strings
 // in code, never routed through i18n (see docs/design/i18n.md).
 const MESSAGES = {
+  researchDatasetRetired: {
+    zh: '该数据已退役，请从研究数据目录选择当前支持的股票、ETF 或境内指数行情。',
+    en: 'This dataset is retired. Select supported stock, ETF or domestic-index prices from the Research catalog.',
+  },
   marketInputsNotReady: {
     zh: '所需市场数据尚未核验完整，请稍后重试。',
     en: 'Required market inputs are not fully verified yet. Please retry later.',
@@ -295,8 +299,8 @@ const MESSAGES = {
     en: 'Factor analysis failed; review the job log and try again',
   },
   factorAnalysisKindUnsupported: {
-    zh: '研究类型 {kind} 的评估器尚未启用',
-    en: 'The evaluator for analysis kind {kind} is not enabled yet',
+    zh: '研究类型 {kind} 不受支持',
+    en: 'Analysis kind {kind} is not supported',
   },
   factorTimeSeriesLoading: {
     zh: '正在加载 {count} 个 ETF 的复权历史…',
@@ -313,14 +317,6 @@ const MESSAGES = {
   factorPanelEvaluating: {
     zh: '正在评估 {count} 条 Panel 时点观测…',
     en: 'Evaluating {count} panel point-in-time observation(s)…',
-  },
-  factorMacroRegimeLoading: {
-    zh: '正在加载 {count} 个目标 ETF 的宏观状态研究数据…',
-    en: 'Loading macro-regime research data for {count} target ETF(s)…',
-  },
-  factorMacroRegimeEvaluating: {
-    zh: '正在评估 {count} 条宏观状态条件收益观测…',
-    en: 'Evaluating {count} macro-regime conditional-return observation(s)…',
   },
   factorUniverseHistoryMissing: {
     zh: '指数 {index} 在 {date} 之前没有历史成分，无法进行时点无偏的因子研究',
@@ -369,10 +365,6 @@ const MESSAGES = {
   backtestProcExited: {
     zh: '回测进程异常退出 (code {code})',
     en: 'Backtest process exited abnormally (code {code})',
-  },
-  backtestRiskAnalysisUnavailable: {
-    zh: '风险研究暂不可用，交易回测结果已保留：{error}',
-    en: 'Risk research is unavailable; the trading backtest result was preserved: {error}',
   },
   strategyScanParamsNotStatic: {
     zh: '无法静态识别 {field}（第 {line} 行，第 {column} 列）。请使用 export default defineStrategy({ params: { lookback: 20, threshold: -0.5, sizing: "equal" }, onBar(ctx) {} })；params 只支持内联对象、固定键及有限数字或非空字符串字面量（最长 100 字符），最多 256 项。不要使用变量、计算、调用、展开、计算属性、getter 或重复键；策略可用仅供默认导出的顶层 const 声明。缺省 params 返回空对象，不执行用户代码。',

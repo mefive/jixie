@@ -41,22 +41,6 @@ const researchAnalysisRequestSchema = z.strictObject({
   measure: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
 });
 
-const researchYieldCurveAnalysisRequestSchema = z.strictObject({
-  line: z.number().int().positive(),
-  curve: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
-  tenor: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
-});
-
-const researchMacroAnalysisRequestSchema = z.strictObject({
-  line: z.number().int().positive(),
-  series: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
-});
-
-const researchFxAnalysisRequestSchema = z.strictObject({
-  line: z.number().int().positive(),
-  pair: z.string().max(MAX_IDENTIFIER_CHARACTERS).nullable(),
-});
-
 const researchEquityAnalysisRequestSchema = z.strictObject({
   line: z.number().int().positive(),
   method: z.enum([
@@ -83,9 +67,6 @@ const researchAnalyzedFrameSchema = z.strictObject({
         references: stringListSchema,
         imports: stringListSchema,
         series_requests: z.array(researchAnalysisRequestSchema).max(MAX_LIST_ITEMS),
-        yield_curve_requests: z.array(researchYieldCurveAnalysisRequestSchema).max(MAX_LIST_ITEMS),
-        macro_requests: z.array(researchMacroAnalysisRequestSchema).max(MAX_LIST_ITEMS),
-        fx_requests: z.array(researchFxAnalysisRequestSchema).max(MAX_LIST_ITEMS),
         equity_requests: z.array(researchEquityAnalysisRequestSchema).max(MAX_LIST_ITEMS),
         error: z.string().max(MAX_ERROR_CHARACTERS).optional(),
       }),
@@ -208,9 +189,6 @@ export const researchCellRunFrameSchema = z.union([
     id: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
     method: z.enum([
       'research_series',
-      'research_yield_curve',
-      'research_macro',
-      'research_fx',
       'research_equity_fundamentals',
       'research_equity_dividends',
       'research_etf_shares',

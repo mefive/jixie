@@ -10,6 +10,10 @@ import type {
 } from '@jixie/shared';
 
 const definitions = {
+  dataset_retired: {
+    category: 'invalid',
+    messageKey: 'researchDatasetRetired',
+  },
   language_position_invalid: {
     category: 'invalid',
     messageKey: 'researchLanguagePositionInvalid',

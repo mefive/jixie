@@ -497,17 +497,6 @@ try {
     throw new Error('research clarification guide did not render both E2E screenshots');
   }
 
-  await page.goto(`${BASE}/docs/help/research/yield-curves`, {
-    waitUntil: 'domcontentloaded',
-  });
-  await page.getByRole('heading', { level: 1, name: '读取美国国债收益率曲线' }).waitFor();
-  if (
-    (await page.locator('.jx-help-figure').count()) !== 2 ||
-    (await page.locator('.jx-help-codeBlock .token').count()) < 10
-  ) {
-    throw new Error('yield-curve guide did not render screenshots and highlighted Python code');
-  }
-
   await page.goto(`${BASE}/docs/help/research/python-runtime`, {
     waitUntil: 'domcontentloaded',
   });

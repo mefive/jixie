@@ -79,4 +79,3 @@ Strategies using factors show their frozen Factor IDs and code hashes. Every new
 - [Inspect trades and costs](/help/backtesting/trades-costs)
 - [Return and risk metrics](/help/basics/performance-risk)
 - [Read multi-asset allocation attribution](/docs/help/backtesting/allocation-attribution)
-- [Read portfolio risk diagnostics](/docs/help/backtesting/portfolio-risk)

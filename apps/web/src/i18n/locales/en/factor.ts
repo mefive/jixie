@@ -71,10 +71,6 @@ export const enFactor: typeof zhFactor = {
     inputSeparator: ', ',
     inputFields: {
       etfAdjustedClose: 'adjusted ETF close',
-      cgbYield2y: 'CGB yield 2Y',
-      cgbYield5y: 'CGB yield 5Y',
-      cgbYield10y: 'CGB yield 10Y',
-      cgbYield30y: 'CGB yield 30Y',
       unknown: 'unknown field',
     },
     windowAudit: 'Window: {{value}} trading days',
@@ -86,7 +82,7 @@ export const enFactor: typeof zhFactor = {
     chatEmpty:
       'This is a controlled ETF time-series research template. Ask about the definition, robust inference, or report interpretation; the template is read-only, while assets, horizon, and sample range are configured on the right.',
     chatEmptyAuthor:
-      'This is an editable ETF time-series Factor Definition V2. Tell the Agent what historical pattern to study; it can use adjusted ETF closes or the official Ministry of Finance government yield curve to produce per-asset scores. Configure assets and forward-return horizon on the right.',
+      'This is an editable ETF time-series Factor Definition V2. Tell the Agent what historical pattern to study; it can use adjusted ETF closes to produce per-asset scores. Configure assets and forward-return horizon on the right.',
     workspaceMethodValue: 'Single-asset history · signal predicts future return',
     formula: 'Signal definition',
     formulaValue: '{{lookback}}-day cumulative return',
@@ -108,9 +104,6 @@ export const enFactor: typeof zhFactor = {
     disciplinedResearch: 'Choose analysis dates and parameters',
     reportNotice:
       'This is a signal evidence report, not a strategy backtest. Trading rules, rebalancing and costs must be tested in a strategy.',
-    curveSourceTitle: 'Government curve source and availability',
-    curveSourceDescription:
-      'Source: Ministry of Finance China government-bond yield curve, hosted by ChinaBond. The curve is published around 17:30 on working days and becomes usable in research on the next SSE trading day. Yields are percentages; spreads and changes are converted to basis points in the definition.',
     researchType: 'Research method',
     target: 'Prediction target',
     targetValue: 'Next {{horizon}} trading-day total return',
@@ -236,64 +229,6 @@ export const enFactor: typeof zhFactor = {
       fixed_income: 'Fixed income',
       gold: 'Gold',
       commodity: 'Commodity',
-    },
-  },
-  macroRegime: {
-    libraryGroup: 'Macro regime models',
-    methodBadge: 'Macro regime',
-    placeholderQa:
-      'Ask about this macro regime model — e.g. "how are the quadrants defined?", "why is it not a strategy?" — Enter to send',
-    chatEmpty:
-      'This is a frozen macro-regime research model. It transforms PMI, CPI, and PPI into growth-inflation quadrants and compares conditional multi-asset ETF returns. It answers questions but does not generate strategy weights.',
-    codeReadonly: 'Built-in macro regime model; definition is read-only',
-    definitionTag: 'Macro Regime V1',
-    inputAudit: 'Inputs: manufacturing PMI, CPI YoY, PPI YoY',
-    transformAudit: 'Transform: level + 3-month momentum, standardized over 60 months',
-    outputAudit: 'Output: four growth-inflation quadrants',
-    paramsSummary:
-      'Macro regime · {{assets}} ETFs · monthly · {{horizon}}d forward · {{start}} – {{end}}',
-    assets: 'Conditional-return assets',
-    horizon: 'Forecast horizon',
-    revisionPolicy: 'Data revision policy',
-    latestVintage: 'Latest-value backfill (explore only)',
-    asAvailable: 'As available (PIT)',
-    latestVintageHint:
-      'Final revised values provide longer history but introduce information unavailable at the time. The report discloses future revisions and cannot be published as a production Factor.',
-    asAvailableHint:
-      'Each decision date uses only vintages captured by then. Early local history may be sparse, but this strict policy is required by the publication gate.',
-    monthlyFrequency: 'Observation frequency: month end',
-    fourStateModel: 'Model: growth strong/weak × inflation high/low',
-    exploratoryMode: 'Research mode: exploratory only for now',
-    reportNotice:
-      'This is a macro conditional-return report, not an asset-allocation strategy backtest. State-to-weight mapping, rebalancing, and risk constraints still belong in a strategy.',
-    pointInTimeEligible:
-      'Point-in-time eligible: every macro observation was available on its decision date and may proceed to publication review.',
-    pointInTimeIneligible:
-      'Explore only: {{rows}} revisions arrived after their decision dates, so this report cannot be published or used directly by a strategy.',
-    researchType: 'Research method',
-    target: 'Prediction target',
-    targetValue: 'Next {{horizon}} trading-day total return conditional on each macro state',
-    periods: 'Eligible months',
-    observations: 'Asset observations',
-    transitions: 'State transitions',
-    skippedPeriods: 'Skipped months',
-    stateEvidenceTitle: 'Conditional returns across four quadrants',
-    statePeriods: '{{value}} months',
-    stateEpisodes: '{{value}} episodes',
-    averageDuration: '{{value}} months on average',
-    maximumDuration: '{{value}} months maximum',
-    meanForwardReturn: 'Concurrent-state mean',
-    neweyWestT: 'Mean NW t',
-    positiveRate: 'Positive-return rate',
-    laggedMeanReturn: 'Lagged-state mean',
-    stateEvidenceCap:
-      'Concurrent and one-period-lagged states are shown together to expose timing sensitivity. Return differences are candidate allocation hypotheses pending analysis on other dates and strategy backtests.',
-    historyParams: 'Macro regime · {{assets}} ETFs · {{horizon}}d forward · {{start}} – {{end}}',
-    states: {
-      growth_strong_inflation_high: 'Strong growth · high inflation',
-      growth_strong_inflation_low: 'Strong growth · low inflation',
-      growth_weak_inflation_high: 'Weak growth · high inflation',
-      growth_weak_inflation_low: 'Weak growth · low inflation',
     },
   },
   customGroup: 'Custom factors',
@@ -544,9 +479,7 @@ export const enFactor: typeof zhFactor = {
 
   kindPrice: 'Price',
   kindFundamental: 'Fundamental',
-  kindRates: 'Rates',
   kindCommodity: 'Commodity',
-  kindMacro: 'Macro',
   kindCustom: 'Custom',
 
   // Chart axis / tooltip labels (decile bar chart, IC-decay line, quantile heatmap).

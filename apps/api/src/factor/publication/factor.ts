@@ -1,12 +1,11 @@
 import { isFactorV2FieldKey } from '../definitions/fields.js';
 import { factorReportStatusWhere } from '#factor/evaluations/state.js';
+import { isRetiredFactorReport } from '#factor/evaluations/report-spec.js';
 import { FactorSandbox } from '../sandbox/factor-sandbox.js';
 import { getDatabase } from '#infra/database/prisma.js';
 import { factorRuntimeVersion, type FactorLanguage, type PublishedFactor } from '@jixie/shared';
 import { factorLanguage, normalizeAnalysisKind } from '../definitions/views.js';
 import { FactorError } from '../errors.js';
-
-import { factorResearchSpecV1Schema } from '@jixie/shared/api/factor';
 import { factorAnalysisSourceHash } from '../sources/snapshot.js';
 
 /**
@@ -60,13 +59,12 @@ export async function publishFactor(
   if (
     !report?.factorCodeSnapshot ||
     !report.factorCodeHash ||
+    factor.analysisKind === 'macro_regime' ||
+    isRetiredFactorReport(report) ||
     normalizeAnalysisKind(report.analysisKind) !== normalizeAnalysisKind(factor.analysisKind) ||
     factorLanguage(report.language) !== factorLanguage(factor.language) ||
     report.runtimeVersion !== factor.runtimeVersion
   ) {
-    throw new FactorError('publication_report_invalid');
-  }
-  if (factor.analysisKind === 'macro_regime' && !macroReportIsPointInTime(report)) {
     throw new FactorError('publication_report_invalid');
   }
   if (
@@ -157,31 +155,6 @@ async function assetFactorCodeIsInvalid(
     }
   } catch {
     return true;
-  }
-}
-
-function macroReportIsPointInTime(report: {
-  specJson: string | null;
-  payload: string | null;
-}): boolean {
-  if (!report.specJson || !report.payload) {
-    return false;
-  }
-  try {
-    const parsedSpec = factorResearchSpecV1Schema.safeParse(JSON.parse(report.specJson));
-    const payload = JSON.parse(report.payload) as {
-      pointInTimeEligible?: unknown;
-      futureVintageRows?: unknown;
-    };
-    return (
-      parsedSpec.success &&
-      parsedSpec.data.analysisKind === 'macro_regime' &&
-      parsedSpec.data.dataPolicy.revisionPolicy === 'as_available' &&
-      payload.pointInTimeEligible === true &&
-      payload.futureVintageRows === 0
-    );
-  } catch {
-    return false;
   }
 }
 

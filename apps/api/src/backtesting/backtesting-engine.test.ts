@@ -84,7 +84,6 @@ describe('cash-account attribution without factors', () => {
     expect(analysis.assets[0].netPnl).toBeCloseTo(analysis.reconciliation.portfolioPnl);
     expect(analysis.nav).toEqual(result.nav);
     expect(analysis.correlations).toBeUndefined();
-    expect(analysis.rateRegimes).toBeUndefined();
   });
 });
 

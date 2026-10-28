@@ -27,57 +27,16 @@ describe('researchConceptBindingRegistry', () => {
   it('keeps exact missing concepts unbound instead of substituting related data', () => {
     expect(researchConceptBindings('fx.usd_strength.dxy')).toEqual([]);
     expect(researchConceptBindings('macro.inflation.us')).toEqual([]);
-    expect(researchConceptBindings('macro.inflation.us.cpi.headline')).toHaveLength(1);
+    expect(researchConceptBindings('macro.inflation.us.cpi.headline')).toEqual([]);
     expect(researchConceptBindings('risk.market_stress.vix')).toEqual([]);
     expect(researchConceptBindings('flows.central_bank.gold_reserves')).toEqual([]);
-  });
-
-  it('binds headline US CPI only to the exact BLS index level', () => {
-    expect(researchConceptBindings('macro.inflation.us.cpi.headline')).toEqual([
-      expect.objectContaining({
-        source: { kind: 'macro', seriesKey: 'us_cpi_u_all_items_nsa' },
-        measure: 'macro.observation',
-        contract: expect.objectContaining({
-          id: 'us.macro.cpi.monthly.pit',
-          version: 1,
-          unit: 'index_1982_1984_100',
-        }),
-      }),
-    ]);
   });
 
   it('derives every binding contract from the cross-market registry', () => {
     expect(
       researchConceptBindings('commodity.gold.price').map((binding) => binding.contract.id),
     ).toEqual(expect.arrayContaining(['cn.etf.adjusted_close.daily']));
-    expect(
-      researchConceptBindings('rates.us_treasury.nominal').every(
-        (binding) => binding.contract.id === 'us.sovereign_yield.daily',
-      ),
-    ).toBe(true);
-    expect(researchConceptBindings('equity.market.hk.benchmark')).toEqual([
-      expect.objectContaining({
-        source: { kind: 'instrument', assetType: 'index', id: 'equity.hk.hsi.price' },
-        measure: 'market.adjusted_close',
-        contract: expect.objectContaining({ id: 'hk.equity_benchmark.price.daily' }),
-      }),
-    ]);
-  });
-
-  it('binds nominal and real yields only to their own exact curves', () => {
-    expect(
-      researchConceptBindings('rates.us_treasury.nominal').every(
-        (binding) =>
-          binding.source.kind === 'yield_curve' &&
-          binding.source.curveCode === 'us_treasury_nominal',
-      ),
-    ).toBe(true);
-    expect(
-      researchConceptBindings('rates.us_treasury.real').every(
-        (binding) =>
-          binding.source.kind === 'yield_curve' && binding.source.curveCode === 'us_treasury_real',
-      ),
-    ).toBe(true);
+    expect(researchConceptBindings('equity.market.hk.benchmark')).toEqual([]);
   });
 
   it('describes material proxy dimensions instead of treating broad concepts as exact identity', () => {
@@ -94,29 +53,17 @@ describe('researchConceptBindingRegistry', () => {
         }),
       ]),
     );
-    expect(researchConceptBindings('rates.us_treasury.real')).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          dimensions: { instrumentForm: 'yield_curve', market: 'US', termYears: 10 },
-        }),
-      ]),
-    );
+    expect(researchConceptBindings('rates.us_treasury.real')).toEqual([]);
   });
 
   it('distinguishes local bindings from bindings executable through the public Research SDK', () => {
     const goldEtf = researchConceptBindings('commodity.gold.price')[0]!;
-    const realYield = researchConceptBindings('rates.us_treasury.real')[0]!;
 
     expect(researchConceptBindingSdkCall(goldEtf)).toEqual({
       method: 'data.series',
       assetType: 'etf',
       identifier: '518880.SH',
       measure: 'market.adjusted_close',
-    });
-    expect(researchConceptBindingSdkCall(realYield)).toEqual({
-      method: 'data.yield_curve',
-      curve: 'us_treasury_real',
-      tenor: '5Y',
     });
   });
 });

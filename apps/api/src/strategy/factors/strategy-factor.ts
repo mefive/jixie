@@ -175,7 +175,7 @@ export class StrategyFactor {
     return this.input.analysisKind;
   }
   get runtimeKind() {
-    return this.input.analysisKind === 'macro_regime' ? 'cross_sectional' : this.input.analysisKind;
+    return this.input.analysisKind;
   }
   get code() {
     return this.input.code;

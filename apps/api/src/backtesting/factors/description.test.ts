@@ -10,7 +10,7 @@ describe('factor description', () => {
         id: 'rates',
         kind: 'asset_series',
         analysisKind: 'panel',
-        meta: { window: 2, inputs: ['rates.cgb.yield.10y'] },
+        meta: { window: 2, inputs: ['etf.adjustedClose'] },
         assetUniverse: [{ assetId: 'BOND', assetClass: 'fixed_income' }],
       },
     ]);
@@ -19,7 +19,6 @@ describe('factor description', () => {
     expect(description.dataRequirements).toEqual({
       turnoverRateFHistory: true,
       fundamentalHistory: true,
-      governmentYieldCurve: true,
     });
     expect(describeFactors([])).toEqual({
       definitions: [],
@@ -28,7 +27,6 @@ describe('factor description', () => {
       dataRequirements: {
         turnoverRateFHistory: false,
         fundamentalHistory: false,
-        governmentYieldCurve: false,
       },
     });
   });

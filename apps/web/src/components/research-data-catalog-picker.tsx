@@ -45,7 +45,6 @@ import {
   faGaugeHigh,
   faLayerGroup,
   faMagnifyingGlass,
-  faPercent,
   faTableColumns,
 } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -1168,8 +1167,6 @@ function researchDataMethodIcon(qualifiedName: string) {
     case 'data.panel':
     case 'data.equity_financial_panel':
       return faLayerGroup;
-    case 'data.yield_curve':
-      return faPercent;
     default:
       return faChartLine;
   }

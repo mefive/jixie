@@ -96,8 +96,8 @@ describe('requestResearchClarification tool', () => {
     ).rejects.toThrow('not executable through the public Research SDK');
   });
 
-  it('accepts locally available macro bindings exposed by the public Research SDK', async () => {
-    const binding = researchConceptBindings('macro.inflation.us.cpi.headline')[0]!;
+  it('accepts locally available ETF bindings exposed by the public Research SDK', async () => {
+    const binding = researchConceptBindings('commodity.gold.price')[0]!;
     mocks.resolve.mockResolvedValue([
       { binding, available: true, match: { source: binding.source }, unavailableReason: null },
     ]);
@@ -108,7 +108,7 @@ describe('requestResearchClarification tool', () => {
 
     await expect(
       tool.run({
-        title: '确认通胀序列',
+        title: '确认黄金 ETF 序列',
         questions: [
           {
             prompt: '请选择',

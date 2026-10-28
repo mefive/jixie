@@ -1,5 +1,7 @@
 # Trustworthy cross-market research: returns, FX, and correlation
 
+> Archive notice: macro, rates, FX and cross-market benchmark data and related risk analysis are retired. Methods, original values and figures remain as historical evidence. These calls cannot be rerun through the current SDK; stock and ETF price research remains available.
+
 > Historical Chinese UI figures preserve the original research values and conclusions. For current controls, see [Research documents](/docs/help/research/document-cells), [Strategy](/docs/help/backtesting/workspace), and [Factor Research](/docs/help/factors/what-factor-research).
 
 > Learning path · About 60–90 minutes · You should be able to run a Python Cell, but no prior time-series statistics is required.

@@ -10,7 +10,6 @@ export function describeFactors(definitions: FactorDefinition[]): FactorDescript
   const requirements = {
     turnoverRateFHistory: false,
     fundamentalHistory: false,
-    governmentYieldCurve: false,
   };
   const assetClassByCode = new Map<string, MultiAssetClass>();
 
@@ -29,11 +28,6 @@ export function describeFactors(definitions: FactorDefinition[]): FactorDescript
         requirements.turnoverRateFHistory ||= definition.historyFields.includes('turnoverRateF');
         requirements.fundamentalHistory ||= definition.historyFields.some(
           (field) => field === 'roe' || field === 'grossprofitMargin',
-        );
-        break;
-      case 'asset_series':
-        requirements.governmentYieldCurve ||= definition.meta.inputs.some((field) =>
-          field.startsWith('rates.cgb.yield.'),
         );
         break;
     }

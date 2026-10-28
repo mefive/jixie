@@ -69,7 +69,7 @@ describe('factor evaluation specs', () => {
     expect(() => crossSectionalProtocol(research)).toThrow(/time_series/);
   });
 
-  it('validates commodity panel and macro-regime protocols without routing them to equities', () => {
+  it('validates commodity ETF panel protocols without routing them to equities', () => {
     const common = {
       version: 1,
       start: '20200101',
@@ -95,22 +95,9 @@ describe('factor evaluation specs', () => {
         transactionCostPerSide: 0.001,
       },
     });
-    const macro = normalizeFactorResearchSpec({
-      ...common,
-      analysisKind: 'macro_regime',
-      dataPolicy: { ...common.dataPolicy, revisionPolicy: 'latest_vintage' },
-      targetAssets: ['511260.SH', '518880.SH'],
-      stateModel: { kind: 'quantile', states: 3 },
-    });
 
     expect(panel.analysisKind).toBe('panel');
-    expect(macro.analysisKind).toBe('macro_regime');
-    if (macro.analysisKind !== 'macro_regime') {
-      throw new Error('Expected macro regime research spec');
-    }
-    expect(macro.dataPolicy.revisionPolicy).toBe('latest_vintage');
     expect(() => crossSectionalProtocol(panel)).toThrow(/panel/);
-    expect(() => crossSectionalProtocol(macro)).toThrow(/macro_regime/);
   });
 
   it('normalizes defaults and preserves the versioned shape', () => {

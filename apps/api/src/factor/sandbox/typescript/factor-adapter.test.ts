@@ -16,7 +16,7 @@ it('keeps point inputs bound when the same Factor adapter is reused', () => {
   expect(first.value('etf.adjustedClose')).toBe(12);
   expect(second.value('etf.adjustedClose')).toBe(15);
   expect(first.lag('etf.adjustedClose', 1)).toBe(10);
-  expect(() => second.value('rates.cgb.yield.2y')).toThrow('undeclared input');
+  expect(() => second.value('retired.field' as never)).toThrow('undeclared input');
 });
 
 it('binds cross-sectional history independently from asset inputs', () => {

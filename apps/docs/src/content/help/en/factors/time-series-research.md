@@ -34,7 +34,7 @@ The displayed slope is \(\beta\). A larger absolute t-statistic indicates a clea
 
 ## Input boundaries
 
-- Adjusted ETF closes and approved government-yield inputs can be used by controlled definitions; official curves become available on the next SSE trading day.
+- ETF adjusted closes remain available. Government-yield inputs and their templates are retired; saved code must be updated before rerunning.
 
 Futures carry and warehouse-receipt fields and templates are retired; rerunning old code fails. Adjusted-price research on commodity or gold ETFs remains available.
 

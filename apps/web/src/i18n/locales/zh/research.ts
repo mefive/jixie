@@ -235,7 +235,7 @@ export const zhResearch = {
     returns: '固定返回列',
     example: '调用示例',
     searchPlaceholder: '输入证券代码、指数名称或关键词',
-    datasetSearchPlaceholder: '搜索市场、指数、期限或数据读取方式',
+    datasetSearchPlaceholder: '搜索股票、ETF、指数或数据读取方式',
     reportSearchPlaceholder: '搜索 Factor 名称、Key 或报告 ID',
     backtestReportSearchPlaceholder: '搜索策略名称或报告 ID',
     searchHint: '先搜索一个标的；不需要记住平台代码。',

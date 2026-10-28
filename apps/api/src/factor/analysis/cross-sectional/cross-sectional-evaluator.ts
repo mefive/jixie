@@ -54,7 +54,6 @@ export function factorEvaluatorFor(researchSpec: FactorResearchSpecV1): CrossSec
       return new CrossSectionalEvaluator();
     case 'time_series':
     case 'panel':
-    case 'macro_regime':
-      throw new Error(`Factor evaluator ${researchSpec.analysisKind} is not implemented.`);
+      throw new Error(`Analysis kind ${researchSpec.analysisKind} requires an asset evaluator.`);
   }
 }

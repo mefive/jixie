@@ -201,7 +201,10 @@ try {
   });
   await page.getByText('EN', { exact: true }).click();
   await allocationPanel.getByText('Reconciled to cash-account equity', { exact: true }).waitFor();
-  await allocationPanel.getByText(/Monthly macro analysis uses the same account NAV/).waitFor();
+  await allocationPanel
+    .getByText('Scope: stock / ETF cash account, including uninvested cash.', { exact: true })
+    .waitFor();
+  assert.equal(await allocationPanel.getByText(/Monthly macro analysis/).count(), 0);
   await allocationPanel.screenshot({
     path: new URL('../acceptance/allocation-cash-account-en.png', import.meta.url).pathname,
   });

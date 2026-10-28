@@ -9,9 +9,6 @@ export interface ResearchPythonAnalysis {
   references: string[];
   imports?: string[];
   seriesRequests?: ResearchPythonSeriesRequest[];
-  yieldCurveRequests?: ResearchPythonYieldCurveRequest[];
-  macroRequests?: ResearchPythonMacroRequest[];
-  fxRequests?: ResearchPythonFxRequest[];
   equityRequests?: ResearchPythonEquityRequest[];
   error?: string;
 }
@@ -26,37 +23,6 @@ export interface ResearchPythonSeriesRequest {
   assetType: string | null;
   identifier: string | null;
   measure: string | null;
-}
-
-/**
- * 描述已解析的利率曲线 SDK 参数。
- *
- * Describe validated yield-curve SDK arguments.
- */
-export interface ResearchPythonYieldCurveRequest {
-  line: number;
-  curve: string | null;
-  tenor: string | null;
-}
-
-/**
- * 描述已解析的宏观版本 SDK 参数。
- *
- * Describe validated macro-vintage SDK arguments.
- */
-export interface ResearchPythonMacroRequest {
-  line: number;
-  series: string | null;
-}
-
-/**
- * 描述已解析的外汇货币对 SDK 参数。
- *
- * Describe validated FX-pair SDK arguments.
- */
-export interface ResearchPythonFxRequest {
-  line: number;
-  pair: string | null;
 }
 
 /**

@@ -344,9 +344,6 @@ it.each(['upgrade', 'empty'] as const)(
                     throw new Error('No source calls permitted in bootstrap fixture');
                   },
                 },
-                treasury: { fetchRange: async () => [] },
-                credit: { fetchRange: async () => [] },
-                cpi: { loadSeries: async () => [] },
               },
             });
             expect(

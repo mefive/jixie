@@ -4,43 +4,15 @@ import type {
   AllocationCorrelationAnalysis,
   AllocationCorrelationWindow,
   AllocationDriftEvent,
-  AllocationRateRegimeAnalysis,
-  AllocationRateRegimeKey,
   AllocationWeightPoint,
   MultiAssetClass,
 } from '@jixie/shared';
-import { daysBetween } from '#date';
-import type { GovernmentYieldObservation } from './data/engine-data.js';
 import type { Position } from './cash-portfolio.js';
 import type { TradeRecord } from './trade.js';
 
 const CASH = 'CASH';
 const CORRELATION_WINDOWS = [60, 120] as const;
 const MINIMUM_CORRELATION_COVERAGE = 2 / 3;
-const RATE_DIRECTION_LOOKBACK = 60;
-const CURVE_MEDIAN_LOOKBACK = 252;
-const CURVE_MEDIAN_MINIMUM = 120;
-const MAXIMUM_CURVE_STALENESS_DAYS = 14;
-const RATE_REGIME_KEYS: AllocationRateRegimeKey[] = [
-  'rates_rising_curve_steep',
-  'rates_rising_curve_flat',
-  'rates_falling_curve_steep',
-  'rates_falling_curve_flat',
-];
-
-/**
- * 记录利率环境分类使用的观测日期和曲线信息，支持组合归因结果追溯。
- *
- * Retain the dated curve observations used to explain allocation rate-regime classifications.
- */
-export interface AllocationRateRegimeObservation {
-  asOfDate: string;
-  state: AllocationRateRegimeKey;
-  tenYearYieldPct: number;
-  tenYearChangeBp: number;
-  curveSlopeBp: number;
-  curveMedianBp: number;
-}
 
 /**
  * 在逐日归因期间累计单资产敞口、盈亏与成本，最终转换为报告中的资产贡献。
@@ -66,7 +38,6 @@ export class AllocationAnalysisTracker {
   private readonly portfolioReturns: number[] = [];
   private readonly dates: string[] = [];
   private readonly classMarketReturns = new Map<AllocationAssetClass, Array<number | null>>();
-  private readonly rateRegimeObservations: Array<AllocationRateRegimeObservation | null> = [];
   private readonly drift: AllocationDriftEvent[] = [];
   private previousEquity: number;
   private observations = 0;
@@ -90,10 +61,6 @@ export class AllocationAnalysisTracker {
     }
   }
 
-  get requiresGovernmentYieldCurve(): boolean {
-    return this.initialCash > 0 && this.assetClasses.size > 0;
-  }
-
   /**
    * 从当日账户快照累计资产净值、风险敞口和收益贡献，为最终组合归因准备时间序列。
    *
@@ -106,11 +73,9 @@ export class AllocationAnalysisTracker {
     closeOf: (assetId: string) => number | null;
     exactCloseOf: (assetId: string) => number | null;
     trades: TradeRecord[];
-    rateRegime?: AllocationRateRegimeObservation | null;
   }): void {
     this.nav.push({ date: args.date, value: args.value });
     this.captureClassMarketReturns(args.date, args.exactCloseOf);
-    this.rateRegimeObservations.push(args.rateRegime ?? null);
     const codes = new Set<string>([
       ...this.assets.keys(),
       ...this.previousShares.keys(),
@@ -322,7 +287,6 @@ export class AllocationAnalysisTracker {
         this.initialCash > 0 && this.classMarketReturns.size > 0
           ? this.buildCorrelations()
           : undefined,
-      rateRegimes: this.buildRateRegimes(),
     };
   }
 
@@ -442,76 +406,6 @@ export class AllocationAnalysisTracker {
     };
   }
 
-  /**
-   * 按当时可得的利率数据划分环境并汇总组合表现，避免用未来曲线回填历史。
-   *
-   * Group allocation performance by rate environments using only curve information available at the time.
-   */
-  private buildRateRegimes(): AllocationRateRegimeAnalysis | undefined {
-    const classifiedDays = this.rateRegimeObservations.filter(Boolean).length;
-    if (this.initialCash <= 0 || this.classMarketReturns.size === 0 || classifiedDays === 0) {
-      return undefined;
-    }
-
-    const episodes = new Map<AllocationRateRegimeKey, number>();
-    let previousState: AllocationRateRegimeKey | null = null;
-    for (const observation of this.rateRegimeObservations) {
-      if (!observation) {
-        previousState = null;
-        continue;
-      }
-      if (observation.state !== previousState) {
-        episodes.set(observation.state, (episodes.get(observation.state) ?? 0) + 1);
-      }
-      previousState = observation.state;
-    }
-
-    const states = RATE_REGIME_KEYS.map((key) => {
-      const stateIndices = this.rateRegimeObservations
-        .map((observation, index) => (observation?.state === key ? index : -1))
-        .filter((index) => index >= 0);
-      const stateEpisodes = episodes.get(key) ?? 0;
-      return {
-        key,
-        observations: stateIndices.length,
-        episodes: stateEpisodes,
-        averageDuration: stateEpisodes > 0 ? stateIndices.length / stateEpisodes : 0,
-        assetClasses: [...this.classMarketReturns].map(([assetClass, returns]) => {
-          const values = stateIndices
-            .map((index) => returns[index])
-            .filter((value): value is number => value != null && Number.isFinite(value));
-          const average = mean(values);
-          return {
-            assetClass,
-            observations: values.length,
-            meanDailyReturn: average,
-            annualizedMeanReturn: average * 252,
-            annualizedVolatility: sampleStandardDeviation(values) * Math.sqrt(252),
-            positiveDayRate:
-              values.length > 0 ? values.filter((value) => value > 0).length / values.length : 0,
-            maximumEpisodeDrawdown: maximumEpisodeDrawdown(
-              returns,
-              this.rateRegimeObservations,
-              key,
-            ),
-          };
-        }),
-      };
-    }).filter((state) => state.observations > 0);
-
-    return {
-      methodology: 'cgb_10y_direction_and_10y_2y_relative_slope',
-      pointInTime: 'available_date',
-      directionLookbackObservations: RATE_DIRECTION_LOOKBACK,
-      curveMedianLookbackObservations: CURVE_MEDIAN_LOOKBACK,
-      curveMedianMinimumObservations: CURVE_MEDIAN_MINIMUM,
-      classifiedDays,
-      totalDays: this.dates.length,
-      latest: [...this.rateRegimeObservations].reverse().find(Boolean) ?? null,
-      states,
-    };
-  }
-
   private ensureAsset(assetId: string): void {
     if (this.assets.has(assetId)) {
       return;
@@ -531,57 +425,6 @@ export class AllocationAnalysisTracker {
       weight: weights.get(assetId) ?? 0,
     }));
   }
-}
-
-/**
- * 只使用截至指定日期已可得的曲线点，对利率环境作透明、可追溯的分类。
- *
- * Classifies a transparent rate environment using only curve points available by `asOfDate`.
- */
-export function classifyAllocationRateRegime(
-  asOfDate: string,
-  tenYearHistory: GovernmentYieldObservation[],
-  twoYearHistory: GovernmentYieldObservation[],
-): AllocationRateRegimeObservation | null {
-  if (tenYearHistory.length <= RATE_DIRECTION_LOOKBACK) {
-    return null;
-  }
-  const latest = tenYearHistory.at(-1)!;
-  if (daysBetween(latest.availableDate, asOfDate) > MAXIMUM_CURVE_STALENESS_DAYS) {
-    return null;
-  }
-  const previous = tenYearHistory.at(-RATE_DIRECTION_LOOKBACK - 1)!;
-  const twoYearByDate = new Map(
-    twoYearHistory.map((observation) => [observation.availableDate, observation.yieldPct]),
-  );
-  const spreads = tenYearHistory
-    .slice(-CURVE_MEDIAN_LOOKBACK)
-    .map((observation) => {
-      const twoYearYield = twoYearByDate.get(observation.availableDate);
-      return twoYearYield == null ? null : (observation.yieldPct - twoYearYield) * 100;
-    })
-    .filter((spread): spread is number => spread != null && Number.isFinite(spread));
-  if (spreads.length < CURVE_MEDIAN_MINIMUM) {
-    return null;
-  }
-  const twoYearYield = twoYearByDate.get(latest.availableDate);
-  if (twoYearYield == null) {
-    return null;
-  }
-
-  const tenYearChangeBp = (latest.yieldPct - previous.yieldPct) * 100;
-  const curveSlopeBp = (latest.yieldPct - twoYearYield) * 100;
-  const curveMedianBp = median(spreads);
-  const direction = tenYearChangeBp >= 0 ? 'rates_rising' : 'rates_falling';
-  const shape = curveSlopeBp >= curveMedianBp ? 'curve_steep' : 'curve_flat';
-  return {
-    asOfDate,
-    state: `${direction}_${shape}`,
-    tenYearYieldPct: latest.yieldPct,
-    tenYearChangeBp,
-    curveSlopeBp,
-    curveMedianBp,
-  };
 }
 
 function emptyAsset(assetId: string, assetClass: AllocationAssetClass): AssetAccumulator {
@@ -627,63 +470,6 @@ function centeredCrossProduct(left: number[], right: number[]): number {
     (sum, value, index) => sum + (value - leftAverage) * (right[index] - rightAverage),
     0,
   );
-}
-
-function mean(values: number[]): number {
-  return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
-}
-
-function sampleStandardDeviation(values: number[]): number {
-  if (values.length < 2) {
-    return 0;
-  }
-  const average = mean(values);
-  const variance =
-    values.reduce((sum, value) => sum + (value - average) ** 2, 0) / (values.length - 1);
-  return Math.sqrt(variance);
-}
-
-function median(values: number[]): number {
-  const ordered = [...values].sort((left, right) => left - right);
-  const middle = Math.floor(ordered.length / 2);
-  return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle];
-}
-
-/**
- * 从一段环境区间的净值计算最大峰谷回撤，用于环境表现诊断。
- *
- * Measure the largest peak-to-trough NAV decline within a regime episode.
- */
-function maximumEpisodeDrawdown(
-  returns: Array<number | null>,
-  observations: Array<AllocationRateRegimeObservation | null>,
-  state: AllocationRateRegimeKey,
-): number {
-  let maximumDrawdown = 0;
-  let wealth = 1;
-  let peak = 1;
-  let active = false;
-  for (let index = 0; index < observations.length; index++) {
-    if (observations[index]?.state !== state) {
-      wealth = 1;
-      peak = 1;
-      active = false;
-      continue;
-    }
-    const dailyReturn = returns[index];
-    if (dailyReturn == null || !Number.isFinite(dailyReturn)) {
-      continue;
-    }
-    if (!active) {
-      active = true;
-      wealth = 1;
-      peak = 1;
-    }
-    wealth *= 1 + dailyReturn;
-    peak = Math.max(peak, wealth);
-    maximumDrawdown = Math.min(maximumDrawdown, peak > 0 ? wealth / peak - 1 : 0);
-  }
-  return maximumDrawdown;
 }
 
 /**

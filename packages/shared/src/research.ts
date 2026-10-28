@@ -1,12 +1,6 @@
 import type { TradeDate } from './types.js';
 import type { FactorAnalysisKind } from './factor.js';
 import type { StrategyLanguage } from './backtest.js';
-import type {
-  ResearchFxSeriesIdV1,
-  ResearchMacroSeriesKeyV1,
-  ResearchYieldCurveCodeV1,
-  ResearchYieldTenorV1,
-} from './sdk/research/contract.js';
 
 export type ResearchAssetTypeV1 = 'stock' | 'etf' | 'index';
 export type ResearchDataCatalogScopeV1 =
@@ -163,11 +157,11 @@ export interface ResearchUniverseRunResultV1 {
  *
  * Identify a governed series and source without arbitrary SQL.
  */
-export type ResearchSeriesSourceV1 =
-  | { kind: 'instrument'; assetType: ResearchAssetTypeV1; id: string }
-  | { kind: 'macro'; seriesKey: string }
-  | { kind: 'yield_curve'; curveCode: string; curveType: string; termYears: number }
-  | { kind: 'fx'; id: string };
+export type ResearchSeriesSourceV1 = {
+  kind: 'instrument';
+  assetType: ResearchAssetTypeV1;
+  id: string;
+};
 
 /**
  * 冻结序列日期、频率和变换，供可复现读取。
@@ -343,19 +337,6 @@ export type ResearchDataCatalogDatasetV1 =
   | (ResearchDataCatalogDatasetBaseV1 & {
       method: 'data.equity_financial_cross_section' | 'data.equity_financial_panel';
       universe: string;
-    })
-  | (ResearchDataCatalogDatasetBaseV1 & {
-      method: 'data.yield_curve';
-      curve: ResearchYieldCurveCodeV1;
-      tenor: ResearchYieldTenorV1;
-    })
-  | (ResearchDataCatalogDatasetBaseV1 & {
-      method: 'data.macro';
-      series: ResearchMacroSeriesKeyV1;
-    })
-  | (ResearchDataCatalogDatasetBaseV1 & {
-      method: 'data.fx';
-      pair: ResearchFxSeriesIdV1;
     })
   | (ResearchDataCatalogDatasetBaseV1 & {
       method:

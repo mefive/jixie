@@ -115,77 +115,21 @@ describe('research data catalog', () => {
     expect(result.instruments).toEqual([]);
     expect(result.factorReports).toEqual([]);
     expect(result.backtestReports).toEqual([]);
-    expect(result.measures.map((measure) => measure.id)).toEqual([
-      'market.adjusted_close',
-      'market.cny_close',
-    ]);
+    expect(result.measures.map((measure) => measure.id)).toEqual(['market.adjusted_close']);
     expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual(['data.series']);
     expect(mocks.indexFindMany).not.toHaveBeenCalled();
     expect(mocks.indexDailyGroupBy).not.toHaveBeenCalled();
   });
 
   it('discovers locally available governed datasets without scanning observation counts', async () => {
-    mocks.dailyFindFirst
-      .mockResolvedValueOnce({ tradeDate: '20150105' })
-      .mockResolvedValueOnce({ tradeDate: '20260730' });
-    mocks.dailyBasicFindFirst
-      .mockResolvedValueOnce({ tradeDate: '20150105' })
-      .mockResolvedValueOnce({ tradeDate: '20260730' });
-    mocks.indexWeightGroupBy.mockResolvedValue([
-      {
-        indexCode: '000300.SH',
-        _min: { tradeDate: '20150130' },
-        _max: { tradeDate: '20260701' },
-      },
-    ]);
-    mocks.yieldCurveGroupBy.mockResolvedValue([
-      {
-        curveCode: 'us_treasury_nominal',
-        termYears: 10,
-        _min: { availableDate: '20050103' },
-        _max: { availableDate: '20260804' },
-      },
-      {
-        curveCode: 'us_treasury_real',
-        termYears: 5,
-        _min: { availableDate: '20050103' },
-        _max: { availableDate: '20260804' },
-      },
-    ]);
-
     const result = await searchResearchDataCatalog({ query: '10Y', scope: 'datasets' });
-
-    expect(result.sdkMethods.map((method) => method.qualifiedName)).toEqual([
-      'data.cross_section',
-      'data.panel',
-      'data.yield_curve',
-      'data.macro',
-      'data.fx',
-      'data.equity_fundamentals',
-      'data.equity_dividends',
-      'data.etf_shares',
+    expect(result.datasets).toEqual([]);
+    expect(result.sdkMethods.map((method) => method.qualifiedName)).toContain(
       'data.index_valuation',
-      'data.equity_financial_statements',
-      'data.equity_financial_metrics',
-      'data.equity_financial_cross_section',
-      'data.equity_financial_panel',
-      'data.equity_financial_values',
-    ]);
-    expect(result.instruments).toEqual([]);
-    expect(result.datasets).toEqual([
-      expect.objectContaining({
-        id: 'data.yield_curve:us_treasury_nominal:10Y',
-        method: 'data.yield_curve',
-        curve: 'us_treasury_nominal',
-        tenor: '10Y',
-        localDataCoverage: {
-          status: 'ready',
-          startDate: '20050103',
-          endDate: '20260804',
-          dateBasis: 'availableDate',
-        },
-      }),
-    ]);
+    );
+    for (const name of ['data.yield_curve', 'data.macro', 'data.fx']) {
+      expect(result.sdkMethods.some((method) => method.qualifiedName === name)).toBe(false);
+    }
     expect(mocks.dailyGroupBy).not.toHaveBeenCalled();
   });
 
@@ -227,50 +171,14 @@ describe('research data catalog', () => {
     );
   });
 
-  it('discovers governed macro and FX datasets with availability-date coverage', async () => {
-    mocks.macroSeriesFindMany.mockResolvedValue([
-      {
-        seriesKey: 'cn_cpi_yoy',
-        nameZh: '中国 CPI 同比',
-        nameEn: 'China CPI YoY',
-        domain: 'inflation',
-        frequency: 'monthly',
-        unit: '%',
-      },
-    ]);
-    mocks.macroObservationGroupBy.mockResolvedValue([
-      {
-        seriesKey: 'cn_cpi_yoy',
-        _min: { availableDate: '20100112' },
-        _max: { availableDate: '20260810' },
-      },
-    ]);
-    mocks.fxDailyGroupBy.mockResolvedValue([
-      {
-        tsCode: 'USDCNH.FXCM',
-        _min: { availableDate: '20120221' },
-        _max: { availableDate: '20260805' },
-      },
-      {
-        tsCode: 'USDHKD.FXCM',
-        _min: { availableDate: '20120105' },
-        _max: { availableDate: '20260805' },
-      },
-    ]);
-
-    const macro = await searchResearchDataCatalog({ query: 'CPI', scope: 'datasets' });
-    const fx = await searchResearchDataCatalog({ query: 'HKD/CNH', scope: 'datasets' });
-
-    expect(macro.datasets).toEqual([
-      expect.objectContaining({ method: 'data.macro', series: 'cn_cpi_yoy' }),
-    ]);
-    expect(fx.datasets).toEqual([
-      expect.objectContaining({
-        method: 'data.fx',
-        pair: 'HKDCNH.DERIVED',
-        localDataCoverage: expect.objectContaining({ status: 'ready' }),
-      }),
-    ]);
+  it('does not query retired macro, curve or FX stores', async () => {
+    for (const query of ['CPI', 'HKD/CNH', 'us_treasury_nominal']) {
+      const result = await searchResearchDataCatalog({ query, scope: 'datasets' });
+      expect(result.datasets).toEqual([]);
+    }
+    expect(mocks.macroSeriesFindMany).not.toHaveBeenCalled();
+    expect(mocks.fxDailyGroupBy).not.toHaveBeenCalled();
+    expect(mocks.yieldCurveGroupBy).not.toHaveBeenCalled();
   });
 
   it('discovers remaining ETF and index reference datasets', async () => {

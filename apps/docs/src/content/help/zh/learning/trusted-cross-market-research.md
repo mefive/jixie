@@ -1,5 +1,7 @@
 # 可信跨市场研究：收益、汇率与相关性
 
+> 存档说明：宏观、利率、外汇和跨市场基准取数及相关风险分析已退役。本文保留当时的研究方法、数值与原始图片，代码不能通过当前 SDK 重新执行；当前可研究股票与 ETF 自身行情。
+
 > 图中的历史中文界面保留原始研究数值与裁决，不代表当前导航。操作入口见[研究文档](/docs/help/research/document-cells)、[策略工作台](/docs/help/backtesting/workspace)与[因子研究](/docs/help/factors/what-factor-research)。
 
 > 学习路径 · 预计 60～90 分钟 · 需要会运行 Python Cell，但不要求事先掌握时间序列统计。

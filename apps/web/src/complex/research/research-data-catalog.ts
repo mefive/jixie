@@ -211,21 +211,6 @@ export function researchDatasetSelection(
         ...eligibility,
       };
       break;
-    case 'data.yield_curve':
-      arguments_ = {
-        curve: dataset.curve,
-        tenor: dataset.tenor,
-        ...dates,
-        frequency: 'daily',
-        transform: 'level',
-      };
-      break;
-    case 'data.macro':
-      arguments_ = { series: dataset.series, ...dates, frequency: 'daily', transform: 'level' };
-      break;
-    case 'data.fx':
-      arguments_ = { pair: dataset.pair, ...dates, frequency: 'daily', transform: 'level' };
-      break;
     case 'data.etf_shares':
     case 'data.index_valuation':
       arguments_ = { identifier: dataset.identifier, ...dates };
@@ -260,12 +245,6 @@ function researchDatasetVariableName(
 ): string {
   const source = (() => {
     switch (dataset.method) {
-      case 'data.yield_curve':
-        return `${dataset.curve}_${dataset.tenor}`;
-      case 'data.macro':
-        return dataset.series;
-      case 'data.fx':
-        return dataset.pair;
       case 'data.equity_financial_values':
         return 'financial_values';
       case 'data.etf_shares':

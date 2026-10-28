@@ -2,7 +2,6 @@ import { FactorSandbox } from '../sandbox/factor-sandbox.js';
 import { t } from '#i18n/index.js';
 import type {
   FactorAnalysisSpec,
-  FactorMacroRegimeReportV1,
   FactorPanelReportV1,
   FactorReport,
   FactorResearchSpecV1,
@@ -11,11 +10,9 @@ import type {
   LogLevel,
 } from '@jixie/shared';
 import { loadEtfTimeSeriesObservations } from '../observations/etf-trend-observations.js';
-import { loadMacroRegimeObservations } from '../observations/macro-regime-observations.js';
 import { loadPanelEtfObservations } from '../observations/panel-observations.js';
 import type { FactorAnalysisSource } from '../sources/snapshot.js';
 import { factorEvaluatorFor } from './cross-sectional/cross-sectional-evaluator.js';
-import { MacroRegimeEvaluator } from './macro-regime-evaluator.js';
 import { PanelEvaluator } from './panel-evaluator.js';
 import { normalizeFactorResearchSpec } from './spec.js';
 import { TimeSeriesEvaluator } from './time-series-evaluator.js';
@@ -25,11 +22,7 @@ import { TimeSeriesEvaluator } from './time-series-evaluator.js';
  *
  * Unify kind-specific frozen evaluation outputs for report persistence.
  */
-export type FactorEvaluationResult =
-  | FactorReport
-  | FactorTimeSeriesReportV1
-  | FactorPanelReportV1
-  | FactorMacroRegimeReportV1;
+export type FactorEvaluationResult = FactorReport | FactorTimeSeriesReportV1 | FactorPanelReportV1;
 
 /**
  * 对冻结来源执行计算，不管理报告或任务的持久化生命周期。
@@ -114,18 +107,6 @@ export async function runFactorEvaluation({
       } finally {
         sandbox.close();
       }
-    }
-    case 'macro_regime': {
-      if (source.kind !== 'macro_regime') {
-        throw new Error('Macro-regime evaluator requires the frozen macro model source.');
-      }
-      onSystemLog(
-        t(locale, 'factorMacroRegimeLoading', { count: researchSpec.targetAssets.length }),
-      );
-      const data = await loadMacroRegimeObservations(researchSpec);
-      onSystemLog(t(locale, 'factorMacroRegimeEvaluating', { count: data.observations.length }));
-      const report = new MacroRegimeEvaluator().evaluate(researchSpec, data);
-      return complete(report);
     }
   }
 }

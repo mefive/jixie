@@ -9,7 +9,6 @@ import type {
   IndexWeightRow,
   StockBasicRow,
   StockNameHistoryRow,
-  YieldCurvePointDataRow,
 } from '../data/data-port.js';
 import { CSI_300_TOTAL_RETURN_INDEX_CODE } from '#market/registry/index-presets.js';
 
@@ -54,7 +53,6 @@ export interface FixtureSpec {
   indexDailyBasic?: IndexDailyBasicDataRow[];
   indexWeights?: Record<string, IndexWeightRow[]>;
   finaIndicators?: FinaIndicatorRow[];
-  yieldCurvePoints?: YieldCurvePointDataRow[];
 }
 
 export function fixturePort(spec: FixtureSpec): EngineDataPort {
@@ -116,10 +114,6 @@ export function fixturePort(spec: FixtureSpec): EngineDataPort {
 
     async indexDailyBasicAll() {
       return spec.indexDailyBasic ?? [];
-    },
-
-    async yieldCurvePoints(end) {
-      return (spec.yieldCurvePoints ?? []).filter((row) => row.availableDate <= end);
     },
 
     async crossSectionRows(date, codes) {

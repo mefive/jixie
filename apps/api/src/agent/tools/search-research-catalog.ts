@@ -10,9 +10,6 @@ import { resolveResearchConceptBindings } from '#research/catalog/concept-bindin
 import {
   researchConceptBindingSdkCall,
   researchConceptBindings,
-  researchFxSdkCall,
-  researchMacroSdkCall,
-  researchYieldCurveSdkCall,
 } from '#research/catalog/concept-bindings.js';
 import {
   RESEARCH_CONCEPT_INSTRUMENT_FORMS,
@@ -29,12 +26,11 @@ import {
 import type { AgentTool } from './types.js';
 import { researchSourceDecisions } from '#research/catalog/source-decisions.js';
 import { compactCrossMarketDataContractRegistry } from '#research/datasets/cross-market-data-contracts.js';
-import { HKD_CNH_DERIVED_CODE } from '#market/registry/cross-market-benchmarks.js';
 import { etfResearchMembership } from '#market/registry/etf-research-registry.js';
 
 const filtersSchema = z.strictObject({
   sourceKinds: z
-    .array(z.enum(['instrument', 'macro', 'yield_curve', 'fx']))
+    .array(z.enum(['instrument']))
     .min(1)
     .max(4)
     .optional(),
@@ -188,17 +184,7 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
       const registeredBindings = interpretation.conceptIds.flatMap((conceptId) =>
         researchConceptBindings(conceptId),
       );
-      const [
-        stocks,
-        etfs,
-        indexes,
-        marketBenchmarks,
-        indexCodes,
-        macro,
-        curves,
-        fx,
-        resolvedBindings,
-      ] = await Promise.all([
+      const [stocks, etfs, indexes, indexCodes, resolvedBindings] = await Promise.all([
         terms.length === 0
           ? Promise.resolve([])
           : getDatabase().stockBasic.findMany({
@@ -228,68 +214,9 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             }),
         terms.length === 0
           ? Promise.resolve([])
-          : getDatabase().marketBenchmark.findMany({
-              where: {
-                OR: terms.flatMap((term) =>
-                  textSearch(term, ['id', 'providerCode', 'nameZh', 'nameEn']),
-                ),
-              },
-              select: {
-                id: true,
-                providerCode: true,
-                nameZh: true,
-                nameEn: true,
-                market: true,
-                currency: true,
-                timeZone: true,
-                returnType: true,
-                tradableProxyTsCode: true,
-                tradableProxyKind: true,
-              },
-              take: 30,
-            }),
-        terms.length === 0
-          ? Promise.resolve([])
           : getDatabase().indexDaily.findMany({
               where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
               select: { tsCode: true },
-              distinct: ['tsCode'],
-              take: 30,
-            }),
-        terms.length === 0
-          ? Promise.resolve([])
-          : getDatabase().macroSeries.findMany({
-              where: {
-                OR: terms.flatMap((term) => textSearch(term, ['seriesKey', 'nameZh', 'nameEn'])),
-              },
-              select: {
-                seriesKey: true,
-                nameZh: true,
-                nameEn: true,
-                frequency: true,
-                unit: true,
-                revisionPolicy: true,
-              },
-              take: 30,
-            }),
-        terms.length === 0
-          ? Promise.resolve([])
-          : getDatabase().yieldCurvePoint.findMany({
-              where: {
-                AND: [
-                  { OR: terms.flatMap((term) => textSearch(term, ['curveCode', 'curveName'])) },
-                  ...(tenorYears === null ? [] : [{ termYears: tenorYears }]),
-                ],
-              },
-              select: { curveCode: true, curveName: true, curveType: true, termYears: true },
-              distinct: ['curveCode', 'curveType', 'termYears'],
-              take: 30,
-            }),
-        terms.length === 0
-          ? Promise.resolve([])
-          : getDatabase().fxDaily.findMany({
-              where: { OR: terms.map((term) => ({ tsCode: { contains: term } })) },
-              select: { tsCode: true, exchange: true },
               distinct: ['tsCode'],
               take: 30,
             }),
@@ -325,21 +252,6 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             'index',
           ),
         ),
-        ...rankByTerms(marketBenchmarks, terms, (item) => compactValues(item)).map((item) =>
-          candidate(
-            {
-              ...instrumentMatch('index', item.id, item.nameZh, item),
-              providerCode: item.providerCode,
-              compatibleMeasures: [
-                measureReference('market.adjusted_close'),
-                measureReference('market.cny_close'),
-              ],
-            },
-            compactValues(item),
-            'instrument',
-            'index',
-          ),
-        ),
         ...rankByTerms(indexCodes, terms, (item) => [item.tsCode])
           .filter((item) => !knownIndexCodes.has(item.tsCode))
           .map((item) =>
@@ -358,73 +270,6 @@ export function createSearchResearchCatalogTool(evidence?: ResearchCatalogTurnEv
             'stock',
           ),
         ),
-        ...rankByTerms(macro, terms, (item) => compactValues(item)).map((item) =>
-          candidate(
-            {
-              kind: 'macro',
-              ...item,
-              source: { kind: 'macro', seriesKey: item.seriesKey },
-              compatibleMeasure: measureReference('macro.observation'),
-              sdkAccess: researchSdkAccess(researchMacroSdkCall(item.seriesKey)),
-            },
-            compactValues(item),
-            'macro',
-          ),
-        ),
-        ...rankByTerms(curves, terms, (item) => compactValues(item)).map((item) =>
-          candidate(
-            {
-              kind: 'yield_curve',
-              ...item,
-              source: {
-                kind: 'yield_curve',
-                curveCode: item.curveCode,
-                curveType: item.curveType,
-                termYears: item.termYears,
-              },
-              compatibleMeasure: measureReference('rates.yield_pct'),
-              sdkAccess: researchSdkAccess(
-                researchYieldCurveSdkCall(item.curveCode, item.curveType, item.termYears),
-              ),
-            },
-            compactValues(item),
-            'yield_curve',
-          ),
-        ),
-        ...rankByTerms(fx, terms, (item) => compactValues(item)).map((item) =>
-          candidate(
-            {
-              kind: 'fx',
-              id: item.tsCode,
-              exchange: item.exchange,
-              source: { kind: 'fx', id: item.tsCode },
-              compatibleMeasure: measureReference('fx.mid_close'),
-              sdkAccess: researchSdkAccess(researchFxSdkCall(item.tsCode)),
-            },
-            compactValues(item),
-            'fx',
-          ),
-        ),
-        ...(matchesTerms(
-          ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
-          terms,
-        )
-          ? [
-              candidate(
-                {
-                  kind: 'fx',
-                  id: HKD_CNH_DERIVED_CODE,
-                  exchange: 'derived_from_fxcm',
-                  derivation: 'USDCNH.FXCM / USDHKD.FXCM',
-                  source: { kind: 'fx', id: HKD_CNH_DERIVED_CODE },
-                  compatibleMeasure: measureReference('fx.mid_close'),
-                  sdkAccess: researchSdkAccess(researchFxSdkCall(HKD_CNH_DERIVED_CODE)),
-                },
-                ['港币人民币', '港币汇率', 'hkd/cnh', 'hkd/cny', 'hkdcnh', HKD_CNH_DERIVED_CODE],
-                'fx',
-              ),
-            ]
-          : []),
         ...registeredCapabilityCandidates(terms),
       ].filter((item) => candidateAllowed(item, parsed.data.filters));
 
@@ -892,17 +737,6 @@ export function etfInstrumentMatch(
           reason: 'source_available_but_local_data_missing',
         },
   };
-}
-
-function researchSdkNotExposed() {
-  return {
-    status: 'not_exposed',
-    reason: 'source_available_but_not_exposed_in_research_sdk',
-  } as const;
-}
-
-function researchSdkAccess(call: ReturnType<typeof researchConceptBindingSdkCall>) {
-  return call ? { status: 'ready' as const, call } : researchSdkNotExposed();
 }
 
 function measureReference(id: string) {

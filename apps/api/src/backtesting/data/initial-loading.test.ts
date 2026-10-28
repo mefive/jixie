@@ -22,14 +22,12 @@ function dataFixture() {
         debtToAssets: null,
       },
     ],
-    yieldCurvePoints: [{ availableDate: date, termYears: 10, yieldPct: 3 }],
   });
 }
 
 describe('initial data loading', () => {
   it('loads requested data in order and preserves cached and dynamic bar reads', async () => {
     const dataPort = dataFixture();
-    const yields = vi.spyOn(dataPort, 'yieldCurvePoints');
     const bars = vi.spyOn(dataPort, 'barsRows');
     const fundamentals = vi.spyOn(dataPort, 'finaIndicators');
     const data = new EngineData({
@@ -40,7 +38,6 @@ describe('initial data loading', () => {
       requirements: {
         turnoverRateFHistory: true,
         fundamentalHistory: true,
-        governmentYieldCurve: true,
       },
     });
 
@@ -49,13 +46,12 @@ describe('initial data loading', () => {
     expect(bars.mock.calls).toEqual([
       [['A', 'B'], date, date, { includeTurnoverRateF: true }],
     ]);
-    expect(yields.mock.invocationCallOrder[0]).toBeLessThan(bars.mock.invocationCallOrder[0]);
+
     expect(bars.mock.invocationCallOrder[0]).toBeLessThan(fundamentals.mock.invocationCallOrder[0]);
     expect(data.loadedBarCodes()).toEqual(['A', 'B']);
     expect(data.adjustedCloseAsOf('B', date)).toBe(11);
     expect(data.roeHistoryAt('A', date)).toBe(12);
     expect(data.grossProfitMarginHistoryAt('A', date)).toBe(30);
-    expect(data.governmentYieldAsOf(10, date)).toBe(3);
 
     await data.loadBars(['A', 'B', 'C']);
 
@@ -67,14 +63,11 @@ describe('initial data loading', () => {
 
   it('keeps optional data unloaded by default and supports later bar loading', async () => {
     const dataPort = dataFixture();
-    const yields = vi.spyOn(dataPort, 'yieldCurvePoints');
     const bars = vi.spyOn(dataPort, 'barsRows');
     const fundamentals = vi.spyOn(dataPort, 'finaIndicators');
     const data = new EngineData({ start: date, end: date, dataPort });
 
     await data.load();
-
-    expect(yields).not.toHaveBeenCalled();
     expect(bars).not.toHaveBeenCalled();
     expect(fundamentals).not.toHaveBeenCalled();
 
@@ -98,7 +91,6 @@ describe('initial data loading', () => {
       requirements: {
         turnoverRateFHistory: false,
         fundamentalHistory: true,
-        governmentYieldCurve: false,
       },
     });
 

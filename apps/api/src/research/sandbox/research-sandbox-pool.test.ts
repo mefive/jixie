@@ -11,13 +11,10 @@ import {
   RESEARCH_FINANCIAL_PANEL_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_STATEMENTS_SDK_CONTRACT_V1,
   RESEARCH_FINANCIAL_VALUES_SDK_CONTRACT_V1,
-  RESEARCH_FX_SDK_CONTRACT_V1,
   RESEARCH_INDEX_VALUATION_SDK_CONTRACT_V1,
-  RESEARCH_MACRO_SDK_CONTRACT_V1,
   RESEARCH_PANEL_SDK_CONTRACT_V1,
   RESEARCH_SERIES_SDK_CONTRACT_V1,
   RESEARCH_STRATEGY_SCAN_REPORT_SDK_CONTRACT_V1,
-  RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
 } from '@jixie/shared';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResearchPythonExecutionError, ResearchPythonInterruptionError } from '../errors.js';
@@ -115,22 +112,6 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
         identifier: '000300.SH',
         measure: 'market.adjusted_close',
       },
-    ]);
-  });
-
-  it('extracts literal governed yield-curve identities for proposal preflight', async () => {
-    const [analysis] = await researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
-      sandbox.analyze([
-        {
-          id: 'yield',
-          source:
-            'real_yield = data.yield_curve("us_treasury_real", tenor="10Y", start="20200101", end="20251231")',
-        },
-      ]),
-    );
-
-    expect(analysis?.yieldCurveRequests).toEqual([
-      { line: 1, curve: 'us_treasury_real', tenor: '10Y' },
     ]);
   });
 
@@ -323,6 +304,9 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
     'commodity_warehouse_receipts',
     'commodity_holdings',
     'futures_settlement',
+    'yield_curve',
+    'macro',
+    'fx',
   ])('rejects retired Python data.%s calls', async (method) => {
     await expect(
       researchSandboxPool.withSandbox(DOCUMENT_ID, (sandbox) =>
@@ -346,7 +330,7 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
         cell: {
           id: 'signature',
           source:
-            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.yield_curve, data.macro, data.fx, data.equity_fundamentals, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.etf_shares, data.index_valuation, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel])',
+            'import inspect\n"|".join(",".join(inspect.signature(method).parameters.keys()) for method in [data.series, data.cross_section, data.panel, data.equity_fundamentals, data.equity_dividends, results.factor_report, results.backtest_report, results.strategy_scan_report, data.etf_shares, data.index_valuation, data.equity_financial_statements, data.equity_financial_values, data.equity_financial_metrics, data.equity_financial_cross_section, data.equity_financial_panel])',
         },
       }),
     );
@@ -358,9 +342,7 @@ describe('research workbench Python runtime', { timeout: 60_000 }, () => {
           RESEARCH_SERIES_SDK_CONTRACT_V1,
           RESEARCH_CROSS_SECTION_SDK_CONTRACT_V1,
           RESEARCH_PANEL_SDK_CONTRACT_V1,
-          RESEARCH_YIELD_CURVE_SDK_CONTRACT_V1,
-          RESEARCH_MACRO_SDK_CONTRACT_V1,
-          RESEARCH_FX_SDK_CONTRACT_V1,
+
           RESEARCH_EQUITY_FUNDAMENTALS_SDK_CONTRACT_V1,
           RESEARCH_EQUITY_DIVIDENDS_SDK_CONTRACT_V1,
           RESEARCH_FACTOR_REPORT_SDK_CONTRACT_V1,

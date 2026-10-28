@@ -1,6 +1,5 @@
 import type {
   FactorAnalysisSpecV3,
-  MacroRegimeFactorResearchSpecV1,
   PanelFactorResearchSpecV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
@@ -262,64 +261,6 @@ describe('startFactorAnalysis', () => {
       spec: panelSpec,
     });
   });
-
-  it.each([
-    ['daily', 'day'],
-    ['weekly', 'week'],
-    ['monthly', 'month'],
-  ] as const)(
-    'persists the frozen %s macro-regime protocol and model source',
-    async (observationFrequency, storedFrequency) => {
-      mocks.reportFindFirst.mockResolvedValue(null);
-
-      const macroRegimeSpec: MacroRegimeFactorResearchSpecV1 = {
-        version: 1,
-        analysisKind: 'macro_regime',
-        start: '20200101',
-        end: '20241231',
-        observationFrequency,
-        targetAssets: ['510300.SH', '511010.SH', '518880.SH'],
-        target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
-        dataPolicy: {
-          pointInTime: true,
-          revisionPolicy: 'as_available',
-          dataCutoff: '20250131',
-        },
-        stateModel: { kind: 'threshold', states: 4 },
-      };
-      const source = {
-        kind: 'macro_regime' as const,
-        label: 'China growth-inflation regime V1',
-        code: 'frozen macro model source',
-      };
-
-      await startFactorAnalysis({
-        userId: 'user-1',
-        factor: 'china_growth_inflation_regime_v1',
-        source,
-        spec: macroRegimeSpec,
-        locale: 'en',
-        failedMessage: 'failed',
-      });
-
-      expect(mocks.reportCreate.mock.calls[0][0].data).toMatchObject({
-        factor: 'china_growth_inflation_regime_v1',
-        analysisKind: 'macro_regime',
-        freq: storedFrequency,
-        neutral: 'none',
-        start: '20200101',
-        end: '20241231',
-        factorCodeSnapshot: source.code,
-      });
-      expect(JSON.parse(mocks.reportCreate.mock.calls[0][0].data.specJson)).toEqual(
-        macroRegimeSpec,
-      );
-      expect(mocks.reportCreate.mock.calls[0][0].data.job.create.payload).toMatchObject({
-        source,
-        spec: macroRegimeSpec,
-      });
-    },
-  );
 
   it('reuses the same running frozen variant instead of launching twice', async () => {
     mocks.reportFindFirst.mockResolvedValue({

@@ -100,19 +100,17 @@ export const enStrategy: typeof zhStrategy = {
     cross_sectional: 'Stock cross-section',
     time_series: 'Time series',
     panel: 'Cross-asset panel',
-    macro_regime: 'Macro regime',
   },
   panelExecutionTitle: 'Strategy backtest · actual long-only ETF execution',
   panelExecutionDescription:
     "The results below come from the strategy's actual holdings, cash, fees, and fill constraints; they are not the factor report's equal-weight benchmark or long-short diagnostic return.",
   allocation: {
-    cashAccountScope:
-      'Scope: stock / ETF cash account, including uninvested cash. Monthly macro analysis uses the same account NAV.',
+    cashAccountScope: 'Scope: stock / ETF cash account, including uninvested cash.',
     legacyScope: 'Historical report: preserves the portfolio scope used when generated.',
     cashAccountReconciled: 'Reconciled to cash-account equity',
     cashAccountPnl: 'Cash-account P&L (CNY)',
     classificationUnavailable:
-      'Class correlation and rate-regime analysis are unavailable without cash-account capital or research asset classifications. Unclassified holdings appear as Other.',
+      'Class correlation analysis is unavailable without cash-account capital or research asset classifications. Unclassified holdings appear as Other.',
     title: 'Multi-asset allocation attribution',
     methodology:
       'Calculated from actual daily holdings, fills, and costs; risk uses component-return covariance',
@@ -125,8 +123,6 @@ export const enStrategy: typeof zhStrategy = {
     classTab: 'Asset classes',
     assetTab: 'Assets',
     correlationTab: 'Correlation',
-    rateRegimeTab: 'Rate environment',
-    riskTab: 'Risk research',
     driftTab: 'Allocation drift',
     assetClass: 'Asset class',
     asset: 'Asset',
@@ -148,59 +144,10 @@ export const enStrategy: typeof zhStrategy = {
     correlationNormal:
       'The highest class correlation is {{value}} and remains below the warning threshold',
     correlationEmpty: 'This result does not contain enough asset classes for correlation analysis.',
-    rateRegimeLatest: 'Rate environment on {{date}}: {{state}}',
-    rateRegimeUnavailable: 'No classifiable rate environment',
-    rateRegimeMethodology:
-      'Uses only official government-bond curve points available on the decision date. The 10-year yield direction is measured against {{direction}} curve observations ago; the 10Y−2Y spread is compared with its trailing {{curve}}-observation median, requiring at least {{minimum}} valid observations. The state explains conditional performance and does not affect this strategy run’s weights.',
-    rateRegimeCoverage: '{{classified}} / {{total}} trading days classified ({{coverage}})',
     tenYearYield: '10-year government yield',
     tenYearChange: '60-observation change',
     curveSlope: '10Y−2Y spread',
     curveMedian: 'Historical median spread',
-    rateRegimeAssetClass: 'Asset class to inspect',
-    rateRegimeStateMeta: '{{days}} days · {{episodes}} episodes · {{duration}} days avg.',
-    rateRegimeAnnualReturn: 'Conditional ann. mean',
-    rateRegimeVolatility: 'Ann. volatility',
-    rateRegimePositiveRate: 'Positive days',
-    rateRegimeDrawdown: 'Worst episode DD',
-    rateRegimeStates: {
-      rates_rising_curve_steep: 'Rates rising · steeper curve',
-      rates_rising_curve_flat: 'Rates rising · flatter curve',
-      rates_falling_curve_steep: 'Rates falling · steeper curve',
-      rates_falling_curve_flat: 'Rates falling · flatter curve',
-    },
-    risk: {
-      title: 'Portfolio risk diagnostics',
-      methodology:
-        'Monthly macro axes describe contemporaneous portfolio sensitivity without changing trading decisions. Missing qualified data produces no result.',
-      macroTab: 'Macro sensitivity',
-      asOfDate: 'Report as of',
-      observations: 'Valid sample / window',
-      neweyWestLag: 'Newey-West lag',
-      pitStatus: 'Data basis',
-      pitEligible: 'Strict PIT',
-      latestVintage: 'Latest-vintage exploration',
-      sensitivity: 'Portfolio sensitivity',
-      macroExploratoryTitle:
-        'This macro result is exploratory and cannot support a point-in-time strategy claim',
-      macroExploratoryDescription:
-        'Historical macro values were first backfilled later using their latest vintages; this report reads {{count}} future-vintage rows. The system will accumulate true vintages, and until then this evidence cannot claim out-of-sample validity.',
-      macroAxis: 'Macro axis',
-      coefficient: 'Return sensitivity per 1-point move',
-      neweyWestTStat: 'Newey-West t-stat',
-      macroMeta:
-        'All five monthly axis changes enter one multivariate regression with at least {{minimum}} complete months. Coefficients explain contemporaneous risk exposure, not next-period macro predictiveness.',
-      correlation: 'Concurrent correlation',
-      sample: 'Sample',
-      scenario: 'Scenario',
-      macroAxes: {
-        growth: 'Growth',
-        inflation: 'Inflation',
-        liquidity: 'Liquidity',
-        credit: 'Credit',
-        external: 'External pressure',
-      },
-    },
     assetClasses: {
       cn_equity: 'China equity',
       overseas_equity: 'Overseas equity',

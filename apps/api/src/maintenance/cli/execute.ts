@@ -21,9 +21,6 @@ export async function executeDataSync(targetDate?: string): Promise<number> {
   const { synchronizeData } = await import('../sync.js');
   const { TushareClient } = await import('#market/providers/tushare/tushare-client.js');
   const { loadTushareConfig } = await import('#market/providers/tushare/config.js');
-  const { MinistryOfFinanceCurveClient } = await import('#market/rates/china-treasury-curve.js');
-  const { ChinaBondPublicCurveClient } = await import('#market/rates/chinabond-credit-curves.js');
-  const { BlsPublicDataClient } = await import('#market/macro/us-headline-cpi.js');
   const { MarketAccessBusyError } = await import('#infra/coordination/market-access.js');
   const controller = new AbortController();
   const cancel = () => controller.abort(new Error('Synchronization interrupted'));
@@ -42,9 +39,6 @@ export async function executeDataSync(targetDate?: string): Promise<number> {
             minIntervalMs: Math.max(config.minIntervalMs, 800),
             maxRetries: 2,
           }),
-          treasury: new MinistryOfFinanceCurveClient(),
-          credit: new ChinaBondPublicCurveClient(),
-          cpi: new BlsPublicDataClient(),
         },
       }),
     );

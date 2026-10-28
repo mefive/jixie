@@ -77,11 +77,11 @@ describe('FactorHost', () => {
       const description = await host.describe();
       description.preloadCodes.push('injected');
       description.assetClassByCode.set('injected', 'cn_equity');
-      description.dataRequirements.governmentYieldCurve = true;
+      description.dataRequirements.fundamentalHistory = true;
       const unchanged = await host.describe();
       expect(unchanged.preloadCodes).not.toContain('injected');
       expect(unchanged.assetClassByCode.has('injected')).toBe(false);
-      expect(unchanged.dataRequirements.governmentYieldCurve).toBe(false);
+      expect(unchanged.dataRequirements.fundamentalHistory).toBe(false);
       expect(await host.compute(request)).toEqual([20]);
       await expect(host.compute({ ...request, factorId: 'foreign' })).rejects.toThrow(
         'Unknown factor dependency',

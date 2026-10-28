@@ -1,26 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { TushareError } from '../../errors.js';
 import {
-  ASSET_ALLOCATION_PROBES,
   probeAssetAllocationData,
   type AssetAllocationProbeDefinition,
 } from './asset-allocation-probe.js';
 
 const definitions: AssetAllocationProbeDefinition[] = [
-  { domain: 'rates', apiName: 'available', params: (date) => ({ date }) },
-  { domain: 'rates', apiName: 'empty', params: () => ({}) },
-  { domain: 'rates', apiName: 'forbidden', params: () => ({}) },
-  { domain: 'rates', apiName: 'bad_request', params: () => ({}) },
-  { domain: 'macro', apiName: 'offline', params: () => ({}) },
+  { domain: 'etf', apiName: 'available', params: (date) => ({ date }) },
+  { domain: 'etf', apiName: 'empty', params: () => ({}) },
+  { domain: 'etf', apiName: 'forbidden', params: () => ({}) },
+  { domain: 'etf', apiName: 'bad_request', params: () => ({}) },
+  { domain: 'equity', apiName: 'offline', params: () => ({}) },
 ];
 
 describe('asset-allocation Tushare probe', () => {
-  it('uses a bounded cross-month window for monthly LPR verification', () => {
-    expect(
-      ASSET_ALLOCATION_PROBES.find((probe) => probe.apiName === 'shibor_lpr')?.params('20260807'),
-    ).toEqual({ start_date: '20260623', end_date: '20260807' });
-  });
-
   it('records every outcome and continues after expected permission failures', async () => {
     const call = vi.fn(async (apiName: string) => {
       if (apiName === 'available') {
@@ -44,7 +37,7 @@ describe('asset-allocation Tushare probe', () => {
     expect(results).toEqual([
       {
         catalogVersion: 1,
-        domain: 'rates',
+        domain: 'etf',
         apiName: 'available',
         status: 'ok',
         rowCount: 1,
@@ -53,7 +46,7 @@ describe('asset-allocation Tushare probe', () => {
       },
       {
         catalogVersion: 1,
-        domain: 'rates',
+        domain: 'etf',
         apiName: 'empty',
         status: 'empty',
         rowCount: 0,
@@ -61,7 +54,7 @@ describe('asset-allocation Tushare probe', () => {
       },
       {
         catalogVersion: 1,
-        domain: 'rates',
+        domain: 'etf',
         apiName: 'forbidden',
         status: 'permission_denied',
         rowCount: 0,
@@ -71,7 +64,7 @@ describe('asset-allocation Tushare probe', () => {
       },
       {
         catalogVersion: 1,
-        domain: 'rates',
+        domain: 'etf',
         apiName: 'bad_request',
         status: 'request_error',
         rowCount: 0,
@@ -81,7 +74,7 @@ describe('asset-allocation Tushare probe', () => {
       },
       {
         catalogVersion: 1,
-        domain: 'macro',
+        domain: 'equity',
         apiName: 'offline',
         status: 'network_error',
         rowCount: 0,

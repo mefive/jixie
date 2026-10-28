@@ -1,7 +1,7 @@
-import { MACRO_RISK_AXIS_KEYS_V1 } from '@jixie/shared';
+import type { BacktestSummary } from '@jixie/shared';
+
 import { z } from 'zod';
 import type { BacktestResult } from './result.js';
-import type { BacktestSummary } from '@jixie/shared';
 
 const tradeRecordSchema = z.object({
   date: z.string(),
@@ -17,12 +17,7 @@ const tradeRecordSchema = z.object({
   assetType: z.enum(['stock', 'etf']).optional(),
 });
 
-const factorAnalysisKindSchema = z.enum([
-  'cross_sectional',
-  'time_series',
-  'panel',
-  'macro_regime',
-]);
+const factorAnalysisKindSchema = z.enum(['cross_sectional', 'time_series', 'panel']);
 
 const factorDependencySchema = z.object({
   factorId: z.string(),
@@ -112,93 +107,6 @@ const allocationCorrelationAnalysisSchema = z.object({
   windows: z.array(allocationCorrelationWindowSchema),
 });
 
-const allocationRateRegimeKeySchema = z.enum([
-  'rates_rising_curve_steep',
-  'rates_rising_curve_flat',
-  'rates_falling_curve_steep',
-  'rates_falling_curve_flat',
-]);
-
-const allocationRateRegimeClassMetricsSchema = z.object({
-  assetClass: allocationAssetClassSchema,
-  observations: z.number(),
-  meanDailyReturn: z.number(),
-  annualizedMeanReturn: z.number(),
-  annualizedVolatility: z.number(),
-  positiveDayRate: z.number(),
-  maximumEpisodeDrawdown: z.number(),
-});
-
-const allocationRateRegimeStateSchema = z.object({
-  key: allocationRateRegimeKeySchema,
-  observations: z.number(),
-  episodes: z.number(),
-  averageDuration: z.number(),
-  assetClasses: z.array(allocationRateRegimeClassMetricsSchema),
-});
-
-const allocationRateRegimeAnalysisSchema = z.object({
-  methodology: z.literal('cgb_10y_direction_and_10y_2y_relative_slope'),
-  pointInTime: z.literal('available_date'),
-  directionLookbackObservations: z.literal(60),
-  curveMedianLookbackObservations: z.literal(252),
-  curveMedianMinimumObservations: z.literal(120),
-  classifiedDays: z.number(),
-  totalDays: z.number(),
-  latest: z.union([
-    z.null(),
-    z.object({
-      asOfDate: z.string(),
-      state: allocationRateRegimeKeySchema,
-      tenYearYieldPct: z.number(),
-      tenYearChangeBp: z.number(),
-      curveSlopeBp: z.number(),
-      curveMedianBp: z.number(),
-    }),
-  ]),
-  states: z.array(allocationRateRegimeStateSchema),
-});
-
-const riskDataLineageSeriesV1Schema = z.object({
-  seriesKey: z.string(),
-  availableThrough: z.string(),
-  revisionPolicy: z.enum(['as_available', 'latest_vintage', 'not_revised']),
-});
-
-const riskDataLineageV1Schema = z.object({
-  dataCutoff: z.string(),
-  pointInTimeEligible: z.boolean(),
-  futureVintageRows: z.number(),
-  series: z.array(riskDataLineageSeriesV1Schema),
-});
-
-const portfolioMacroSensitivityV1Schema = z.object({
-  axis: z.enum(MACRO_RISK_AXIS_KEYS_V1),
-  coefficient: z.number(),
-  neweyWestTStat: z.number(),
-  observations: z.number(),
-});
-
-const portfolioMacroRiskAnalysisV1Schema = z.object({
-  version: z.literal(1),
-  frequency: z.literal('monthly'),
-  methodology: z.literal('monthly_multivariate_regression_newey_west'),
-  asOfDate: z.string(),
-  lookbackObservations: z.number(),
-  minimumObservations: z.number(),
-  observations: z.number(),
-  neweyWestLag: z.number(),
-  pointInTimeEligible: z.boolean(),
-  sensitivities: z.array(portfolioMacroSensitivityV1Schema),
-  lineage: riskDataLineageV1Schema,
-});
-
-const portfolioRiskAnalysisV1Schema = z.object({
-  version: z.literal(1),
-  separationPolicy: z.literal('daily_market_risk_and_monthly_macro_sensitivity'),
-  macro: portfolioMacroRiskAnalysisV1Schema.optional(),
-});
-
 const allocationAnalysisSchema = z
   .object({
     version: z.literal(1),
@@ -223,8 +131,6 @@ const allocationAnalysisSchema = z
     assetClasses: z.array(allocationClassContributionRowSchema),
     drift: z.array(allocationDriftEventSchema),
     correlations: allocationCorrelationAnalysisSchema.optional(),
-    rateRegimes: allocationRateRegimeAnalysisSchema.optional(),
-    risk: portfolioRiskAnalysisV1Schema.optional(),
   })
   .refine((analysis) => analysis.scope !== 'cash_account' || analysis.nav != null, {
     path: ['nav'],

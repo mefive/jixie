@@ -30,8 +30,7 @@ export type FactorAnalysisSource =
       code: string;
       language?: FactorLanguage;
       runtimeVersion?: 'ts-v1' | 'py-v1';
-    }
-  | { kind: 'macro_regime'; label: string; code: string };
+    };
 
 export const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -54,11 +53,6 @@ export const factorAnalysisRuntimeSourceSchema = z.discriminatedUnion('kind', [
     code: z.string().min(1),
     language: z.enum(['typescript', 'python']).optional(),
     runtimeVersion: z.enum(['ts-v1', 'py-v1']).optional(),
-  }),
-  z.object({
-    kind: z.literal('macro_regime'),
-    label: z.string().min(1),
-    code: z.string().min(1),
   }),
 ]);
 

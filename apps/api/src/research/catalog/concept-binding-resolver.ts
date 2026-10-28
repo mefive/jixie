@@ -69,13 +69,6 @@ export function researchBindingAllowed(
   ) {
     return false;
   }
-  if (
-    filters?.termYears != null &&
-    binding.source.kind === 'yield_curve' &&
-    binding.source.termYears !== filters.termYears
-  ) {
-    return false;
-  }
   return true;
 }
 
@@ -90,12 +83,6 @@ async function resolveBinding(
   switch (binding.source.kind) {
     case 'instrument':
       return resolveInstrumentBinding(binding, binding.source);
-    case 'macro':
-      return resolveMacroBinding(binding, binding.source);
-    case 'yield_curve':
-      return resolveYieldBinding(binding, binding.source);
-    case 'fx':
-      return resolveFxBinding(binding, binding.source);
   }
 }
 
@@ -158,47 +145,6 @@ async function resolveInstrumentBinding(
     );
   }
   if (assetType === 'index') {
-    const [benchmark, benchmarkCoverage] = await Promise.all([
-      getDatabase().marketBenchmark.findUnique({
-        where: { id },
-        select: {
-          nameZh: true,
-          nameEn: true,
-          providerCode: true,
-          market: true,
-          currency: true,
-          timeZone: true,
-          returnType: true,
-          tradableProxyTsCode: true,
-          tradableProxyKind: true,
-        },
-      }),
-      getDatabase().marketBenchmarkDaily.aggregate({
-        where: { benchmarkId: id },
-        _count: { _all: true },
-        _min: { availableDate: true },
-        _max: { availableDate: true },
-      }),
-    ]);
-    if (benchmark) {
-      return bindingResult(
-        binding,
-        coverage(
-          benchmarkCoverage._count._all,
-          benchmarkCoverage._min.availableDate,
-          benchmarkCoverage._max.availableDate,
-          'availableDate',
-        ),
-        {
-          kind: 'instrument',
-          assetType,
-          id,
-          name: benchmark.nameZh,
-          ...benchmark,
-          compatibleMeasures: ['market.adjusted_close', 'market.cny_close'],
-        },
-      );
-    }
     const [metadata, aggregate] = await Promise.all([
       getDatabase().indexBenchmark.findUnique({
         where: { tsCode: id },
@@ -224,123 +170,6 @@ async function resolveInstrumentBinding(
   }
 
   throw new Error('Unsupported instrument type');
-}
-
-/**
- * 解析绑定宏观序列的版本覆盖与可得性。
- *
- * Resolve a bound macro series and its vintage coverage and availability.
- */
-async function resolveMacroBinding(
-  binding: ResearchConceptBindingV1,
-  source: Extract<ResearchConceptBindingV1['source'], { kind: 'macro' }>,
-): Promise<ResolvedResearchConceptBinding> {
-  const { seriesKey } = source;
-  const [metadata, aggregate] = await Promise.all([
-    getDatabase().macroSeries.findUnique({
-      where: { seriesKey },
-      select: {
-        seriesKey: true,
-        nameZh: true,
-        nameEn: true,
-        frequency: true,
-        unit: true,
-        revisionPolicy: true,
-      },
-    }),
-    getDatabase().macroObservation.aggregate({
-      where: { seriesKey },
-      _count: { _all: true },
-      _min: { availableDate: true },
-      _max: { availableDate: true },
-    }),
-  ]);
-  return bindingResult(
-    binding,
-    coverage(
-      aggregate._count._all,
-      aggregate._min.availableDate,
-      aggregate._max.availableDate,
-      'availableDate',
-    ),
-    {
-      kind: 'macro',
-      ...(metadata ?? { seriesKey, nameZh: binding.nameZh, nameEn: binding.nameEn }),
-    },
-  );
-}
-
-/**
- * 解析绑定利率曲线及期限的本地覆盖。
- *
- * Resolve a bound yield curve and tenor against local coverage.
- */
-async function resolveYieldBinding(
-  binding: ResearchConceptBindingV1,
-  source: Extract<ResearchConceptBindingV1['source'], { kind: 'yield_curve' }>,
-): Promise<ResolvedResearchConceptBinding> {
-  const { curveCode, curveType, termYears } = source;
-  const [metadata, aggregate] = await Promise.all([
-    getDatabase().yieldCurvePoint.findFirst({
-      where: { curveCode, curveType, termYears },
-      select: { curveName: true },
-    }),
-    getDatabase().yieldCurvePoint.aggregate({
-      where: { curveCode, curveType, termYears },
-      _count: { _all: true },
-      _min: { availableDate: true },
-      _max: { availableDate: true },
-    }),
-  ]);
-  return bindingResult(
-    binding,
-    coverage(
-      aggregate._count._all,
-      aggregate._min.availableDate,
-      aggregate._max.availableDate,
-      'availableDate',
-    ),
-    {
-      kind: 'yield_curve',
-      curveCode,
-      curveName: metadata?.curveName ?? binding.nameZh,
-      curveType,
-      termYears,
-    },
-  );
-}
-
-/**
- * 解析绑定外汇货币对及报价口径，供精确 SDK 引用。
- *
- * Resolve a bound FX pair and quote convention for exact SDK references.
- */
-async function resolveFxBinding(
-  binding: ResearchConceptBindingV1,
-  source: Extract<ResearchConceptBindingV1['source'], { kind: 'fx' }>,
-): Promise<ResolvedResearchConceptBinding> {
-  const [metadata, aggregate] = await Promise.all([
-    getDatabase().fxDaily.findFirst({
-      where: { tsCode: source.id },
-      select: { exchange: true },
-    }),
-    getDatabase().fxDaily.aggregate({
-      where: { tsCode: source.id },
-      _count: { _all: true },
-      _min: { availableDate: true },
-      _max: { availableDate: true },
-    }),
-  ]);
-  return bindingResult(
-    binding,
-    coverage(
-      aggregate._count._all,
-      aggregate._min.availableDate,
-      aggregate._max.availableDate,
-      'availableDate',
-    ),
-    { kind: 'fx', id: source.id, exchange: metadata?.exchange ?? null },
-  );
 }
 
 /**

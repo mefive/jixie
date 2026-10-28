@@ -1,12 +1,9 @@
 import {
-  RESEARCH_FX_SERIES_IDS_V1,
-  RESEARCH_MACRO_SERIES_KEYS_V1,
   researchPythonAllowedImportRoots,
   type ResearchAssetTypeV1,
   type ResearchDataCatalogResultV1,
   type ResearchDataCatalogScopeV1,
 } from '@jixie/shared';
-import { researchYieldCurveSourceForSdkCall } from '../catalog/concept-bindings.js';
 import { searchResearchDataCatalog } from '../catalog/data-catalog.js';
 import type { ResearchPythonAnalysis } from '../sandbox/host/analysis-types.js';
 
@@ -63,42 +60,6 @@ export async function validateResearchSeriesProposal(
       if (!instrument.compatibleMeasureIds.includes(request.measure)) {
         throw new Error(
           `Cell ${analysis.cellId} data.series call on line ${request.line} uses measure ${request.measure}, which is not supported for ${request.assetType}:${request.identifier}.`,
-        );
-      }
-    }
-    for (const request of analysis.yieldCurveRequests ?? []) {
-      if (!request.curve || !request.tenor) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.yield_curve call on line ${request.line} must use literal curve and tenor values so the Research catalog can validate it.`,
-        );
-      }
-      if (!researchYieldCurveSourceForSdkCall(request.curve, request.tenor)) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.yield_curve call on line ${request.line} references unsupported curve/tenor pair ${request.curve}:${request.tenor}.`,
-        );
-      }
-    }
-    for (const request of analysis.macroRequests ?? []) {
-      if (!request.series) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.macro call on line ${request.line} must use a literal series value so the Research catalog can validate it.`,
-        );
-      }
-      if (!RESEARCH_MACRO_SERIES_KEYS_V1.includes(request.series as never)) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.macro call on line ${request.line} references unsupported series ${request.series}.`,
-        );
-      }
-    }
-    for (const request of analysis.fxRequests ?? []) {
-      if (!request.pair) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.fx call on line ${request.line} must use a literal pair value so the Research catalog can validate it.`,
-        );
-      }
-      if (!RESEARCH_FX_SERIES_IDS_V1.includes(request.pair as never)) {
-        throw new Error(
-          `Cell ${analysis.cellId} data.fx call on line ${request.line} references unsupported pair ${request.pair}.`,
         );
       }
     }

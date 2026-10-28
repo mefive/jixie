@@ -11,9 +11,6 @@ import {
   MAJOR_INDEX_DAILY_BASIC_CODES,
   INDEX_MEMBERSHIP_CODES,
 } from '#market/registry/index-presets.js';
-import { CROSS_MARKET_BENCHMARKS } from '#market/registry/cross-market-benchmarks.js';
-import { EXTERNAL_FX_CODES } from '#market/registry/fx.js';
-import { CHINA_MACRO_SERIES } from '#market/macro/china-macro.js';
 
 export const SYNC_LIMITS = {
   partitions: 240,
@@ -115,23 +112,6 @@ export async function datasetScopes(
       }
       return [...starts].map(([scope, startDate]) => ({ scope, startDate }));
     }
-    case 'external-curves':
-      return scopes(policy, ['nominal', 'real']);
-    case 'external-fx':
-      return scopes(policy, EXTERNAL_FX_CODES);
-    case 'cross-market-benchmarks':
-      return CROSS_MARKET_BENCHMARKS.map((definition) => ({
-        scope: definition.id,
-        startDate: policy.startDate,
-        calendar: definition.calendarId,
-        timeZone: definition.timeZone,
-        closeHour: definition.market === 'HK' ? 17 : 16,
-      }));
-    case 'china-macro':
-      return scopes(
-        policy,
-        CHINA_MACRO_SERIES.map((definition) => definition.sourceApi),
-      );
     default:
       return scopes(policy, ['all']);
   }

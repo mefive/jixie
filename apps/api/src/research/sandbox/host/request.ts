@@ -1,9 +1,6 @@
 import type { ResearchRequestFrame } from './protocol.js';
 import {
   type ResearchSeriesRuntimeRequestV1,
-  type ResearchYieldCurveRuntimeRequestV1,
-  type ResearchMacroRuntimeRequestV1,
-  type ResearchFxRuntimeRequestV1,
   type ResearchDatedIdentifierRuntimeRequestV1,
   type ResearchSingleFinancialRuntimeRequestV1,
   type ResearchFinancialCrossSectionRuntimeRequestV1,
@@ -14,9 +11,6 @@ import {
   type ResearchBacktestReportRuntimeRequestV1,
   type ResearchStrategyScanReportRuntimeRequestV1,
   parseResearchSeriesRuntimeRequest,
-  parseResearchYieldCurveRuntimeRequest,
-  parseResearchMacroRuntimeRequest,
-  parseResearchFxRuntimeRequest,
   parseResearchEquityFundamentalsRuntimeRequest,
   parseResearchEquityDividendsRuntimeRequest,
   parseResearchEtfSharesRuntimeRequest,
@@ -43,18 +37,6 @@ export type ParsedResearchRequest =
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_series';
       arguments: ResearchSeriesRuntimeRequestV1;
-    })
-  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method: 'research_yield_curve';
-      arguments: ResearchYieldCurveRuntimeRequestV1;
-    })
-  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method: 'research_macro';
-      arguments: ResearchMacroRuntimeRequestV1;
-    })
-  | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
-      method: 'research_fx';
-      arguments: ResearchFxRuntimeRequestV1;
     })
   | (Omit<ResearchRequestFrame, 'method' | 'arguments'> & {
       method: 'research_equity_fundamentals' | 'research_equity_dividends';
@@ -114,27 +96,6 @@ export function parseResearchRequestFrame(frame: ResearchRequestFrame): ParsedRe
         id: frame.id,
         method: 'research_series',
         arguments: parseResearchSeriesRuntimeRequest(frame.arguments),
-      };
-    case 'research_yield_curve':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_yield_curve',
-        arguments: parseResearchYieldCurveRuntimeRequest(frame.arguments),
-      };
-    case 'research_macro':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_macro',
-        arguments: parseResearchMacroRuntimeRequest(frame.arguments),
-      };
-    case 'research_fx':
-      return {
-        type: frame.type,
-        id: frame.id,
-        method: 'research_fx',
-        arguments: parseResearchFxRuntimeRequest(frame.arguments),
       };
     case 'research_equity_fundamentals':
       return {

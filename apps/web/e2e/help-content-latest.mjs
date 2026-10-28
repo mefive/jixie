@@ -102,24 +102,6 @@ const jobs = [
     ],
   },
   {
-    source: 'macro-regime-report.png',
-    output: 'factors/macro-regime-01.png',
-    marks: [
-      [1, 338, 55, 808, 117],
-      [2, 338, 117, 808, 535],
-      [3, 810, 134, 1250, 283],
-    ],
-  },
-  {
-    source: 'macro-regime-report.png',
-    crop: '470x650+810+60',
-    output: 'factors/macro-regime-02.png',
-    marks: [
-      [1, 12, 72, 440, 225],
-      [2, 12, 235, 440, 550],
-    ],
-  },
-  {
     source: 'factor-panel-composite-attribution.png',
     output: 'backtesting/allocation-attribution-01.png',
     marks: [

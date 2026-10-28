@@ -26,17 +26,6 @@ export interface FactorPointInTimePolicyV1 {
 }
 
 /**
- * 声明宏观版本及披露政策，避免当前修订回填。
- *
- * Declare macro vintage and release policies to prevent revised-data backfill.
- */
-export interface MacroPointInTimePolicyV1 {
-  pointInTime: true;
-  revisionPolicy: 'as_available' | 'latest_vintage';
-  dataCutoff: string | null;
-}
-
-/**
  * 兼容生产股票截面评估器，冻结其嵌套协议。
  *
  * Compatibility branch for the production equity evaluator. The nested protocol remains immutable
@@ -103,23 +92,6 @@ export type MultiAssetClass =
   | 'commodity';
 
 /**
- * 冻结宏观状态与目标资产研究的时点、期间及规则。
- *
- * Freeze dates, periods and policies for macro-regime asset research.
- */
-export interface MacroRegimeFactorResearchSpecV1 {
-  version: 1;
-  analysisKind: 'macro_regime';
-  start: string;
-  end: string;
-  observationFrequency: FactorObservationFrequency;
-  targetAssets: string[];
-  target: FactorForwardReturnTargetV1;
-  dataPolicy: MacroPointInTimePolicyV1;
-  stateModel: { kind: 'threshold' | 'quantile'; states: number };
-}
-
-/**
  * 区分截面、时间序列、Panel 与宏观状态研究，供协议穷尽分派。
  *
  * Discriminate cross-sectional, time-series, panel and regime protocols.
@@ -127,8 +99,7 @@ export interface MacroRegimeFactorResearchSpecV1 {
 export type FactorResearchSpecV1 =
   | CrossSectionalFactorResearchSpecV1
   | TimeSeriesFactorResearchSpecV1
-  | PanelFactorResearchSpecV1
-  | MacroRegimeFactorResearchSpecV1;
+  | PanelFactorResearchSpecV1;
 
 /**
  * 保存单资产预测统计与覆盖，供时间序列报告。
@@ -248,81 +219,6 @@ export interface FactorPanelReportV1 {
   periodReports: FactorPanelPeriodReportV1[];
 }
 
-export type FactorMacroRegimeStateKeyV1 =
-  | 'growth_strong_inflation_high'
-  | 'growth_strong_inflation_low'
-  | 'growth_weak_inflation_high'
-  | 'growth_weak_inflation_low';
-
-/**
- * 保存单资产在某宏观状态下的收益和样本。
- *
- * Describe an asset's returns and samples within a macro state.
- */
-export interface FactorMacroRegimeAssetStateReportV1 {
-  assetId: string;
-  observations: number;
-  meanForwardReturn: number | null;
-  medianForwardReturn: number | null;
-  forwardReturnVolatility: number | null;
-  positiveRate: number | null;
-  tenthPercentileReturn: number | null;
-  ninetiethPercentileReturn: number | null;
-  neweyWestMeanTStat: number | null;
-  onePeriodLagObservations: number;
-  onePeriodLagMeanForwardReturn: number | null;
-}
-
-/**
- * 汇总某宏观状态及其资产表现。
- *
- * Summarize a macro state and its asset performance.
- */
-export interface FactorMacroRegimeStateReportV1 {
-  key: FactorMacroRegimeStateKeyV1;
-  periods: number;
-  frequency: number;
-  episodes: number;
-  averageDurationPeriods: number | null;
-  maximumDurationPeriods: number;
-  byAsset: FactorMacroRegimeAssetStateReportV1[];
-}
-
-/**
- * 保留宏观状态评估区间、目标和结果。
- *
- * Describe macro evaluation periods, targets and outcomes.
- */
-export interface FactorMacroRegimePeriodReportV1 {
-  asOfDate: string;
-  featureAvailableDate: string;
-  latestVintageDate: string;
-  targetDate: string;
-  state: FactorMacroRegimeStateKeyV1;
-  growthScore: number;
-  inflationScore: number;
-  eligibleAssets: number;
-}
-
-/**
- * 组合宏观状态统计、区间及来源诊断。
- *
- * Collect macro-state statistics, episodes and source diagnostics.
- */
-export interface FactorMacroRegimeReportV1 {
-  targetAssets: string[];
-  periods: number;
-  observations: number;
-  skippedPeriods: number;
-  revisionPolicy: MacroPointInTimePolicyV1['revisionPolicy'];
-  pointInTimeEligible: boolean;
-  latestValueBackfillRows: number;
-  futureVintageRows: number;
-  stateTransitions: number;
-  states: FactorMacroRegimeStateReportV1[];
-  periodReports: FactorMacroRegimePeriodReportV1[];
-}
-
 /**
  * 统一按研究种类区分的报告 payload，供读取和渲染。
  *
@@ -331,8 +227,7 @@ export interface FactorMacroRegimeReportV1 {
 export type FactorResearchReportPayloadV1 =
   | { version: 1; analysisKind: 'cross_sectional'; report: FactorReport }
   | { version: 1; analysisKind: 'time_series'; report: FactorTimeSeriesReportV1 }
-  | { version: 1; analysisKind: 'panel'; report: FactorPanelReportV1 }
-  | { version: 1; analysisKind: 'macro_regime'; report: FactorMacroRegimeReportV1 };
+  | { version: 1; analysisKind: 'panel'; report: FactorPanelReportV1 };
 
 /**
  * 汇总时间序列研究的可比较指标，供报告摘要显示。

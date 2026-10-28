@@ -48,10 +48,10 @@ export type DefineFactor = (factor: CustomFactor) => CustomFactor;
 
 export type FactorV2Field =
   | 'etf.adjustedClose'
-  | 'rates.cgb.yield.2y'
-  | 'rates.cgb.yield.5y'
-  | 'rates.cgb.yield.10y'
-  | 'rates.cgb.yield.30y';
+
+
+
+;
 export type FactorV2AssetClass = 'equity' | 'fixed_income' | 'commodity';
 export interface TimeSeriesFactorCtxV2 {
   /** Current point-in-time value for a declared field. */

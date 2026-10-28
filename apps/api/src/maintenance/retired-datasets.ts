@@ -4,7 +4,19 @@ import {
   withMarketPublication,
 } from '#infra/coordination/market-access.js';
 
-export const RETIRED_FUTURES_EXCHANGES = ['CFFEX', 'SHFE', 'DCE', 'CZCE', 'INE', 'GFEX'];
+export const RETIRED_EXCHANGES = [
+  'CFFEX',
+  'SHFE',
+  'DCE',
+  'CZCE',
+  'INE',
+  'GFEX',
+  'US_TREASURY',
+  'FXCM',
+  'HKEX',
+  'NYSE',
+  'NASDAQ',
+];
 
 export const RETIRED_DATASETS = [
   'stock-moneyflow',
@@ -20,6 +32,13 @@ export const RETIRED_DATASETS = [
   'commodity-mappings',
   'commodity-holdings',
   'commodity-receipts',
+  'treasury-curves',
+  'credit-curves',
+  'external-curves',
+  'external-fx',
+  'cross-market-benchmarks',
+  'china-macro',
+  'us-cpi',
 ];
 
 /**
@@ -36,18 +55,18 @@ export async function retireDatasets(): Promise<void> {
         where: { kind: { in: ['market-state', 'commodity-continuous', 'future-publication'] } },
       }),
       getDatabase().tradeCal.deleteMany({
-        where: { exchange: { in: RETIRED_FUTURES_EXCHANGES } },
+        where: { exchange: { in: RETIRED_EXCHANGES } },
       }),
       getDatabase().datasetSyncPartition.deleteMany({
         where: {
           dataset: 'calendar',
-          scope: { in: RETIRED_FUTURES_EXCHANGES },
+          scope: { in: RETIRED_EXCHANGES },
         },
       }),
       getDatabase().datasetSyncState.deleteMany({
         where: {
           dataset: 'calendar',
-          scope: { in: RETIRED_FUTURES_EXCHANGES },
+          scope: { in: RETIRED_EXCHANGES },
         },
       }),
       getDatabase().datasetSyncPartition.deleteMany({
@@ -73,6 +92,13 @@ export async function retireDatasets(): Promise<void> {
               'CommodityContinuousReturn',
               'FutureMarketPublication',
               'FutureMarketRevision',
+              'YieldCurvePoint',
+              'FxDaily',
+              'MacroSeries',
+              'MacroObservation',
+              'MacroReleaseSchedule',
+              'MarketBenchmark',
+              'MarketBenchmarkDaily',
             ],
           },
         },

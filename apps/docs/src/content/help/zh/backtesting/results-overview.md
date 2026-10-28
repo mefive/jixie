@@ -79,4 +79,3 @@
 - [查看交易明细和成本](/help/backtesting/trades-costs)
 - [收益和风险指标](/help/basics/performance-risk)
 - [查看多资产配置归因](/docs/help/backtesting/allocation-attribution)
-- [阅读组合风险诊断](/docs/help/backtesting/portfolio-risk)

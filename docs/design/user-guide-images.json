@@ -11,22 +11,6 @@
       "sha256": "2ee22af55bb384490bbc58e5837404a2e2600b5fdbadc597b4650b75f141df12"
     },
     {
-      "path": "zh/research/yield-curves-01.png",
-      "articles": ["en/research/yield-curves.md", "zh/research/yield-curves.md"],
-      "originalSha256": "8e9c2d4dd2fa04ebd8e79ce86654a75d399909a1059643f7c7cd9bf0fa994177",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
-      "sha256": "8e9c2d4dd2fa04ebd8e79ce86654a75d399909a1059643f7c7cd9bf0fa994177"
-    },
-    {
-      "path": "zh/research/yield-curves-02.png",
-      "articles": ["en/research/yield-curves.md", "zh/research/yield-curves.md"],
-      "originalSha256": "67a4c73ffa98de560da7eb3e2c4616333b770ca8674f6a9c0ad0938b2854540f",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
-      "sha256": "67a4c73ffa98de560da7eb3e2c4616333b770ca8674f6a9c0ad0938b2854540f"
-    },
-    {
       "path": "zh/research/agent-collaboration-02.png",
       "articles": ["en/research/agent-collaboration.md", "zh/research/agent-collaboration.md"],
       "originalSha256": "7e6f36939ece70f8ec14d5ecfae917a82d795d88265f222dd66e1cb1cfe0493d",
@@ -405,22 +389,6 @@
       "disposition": "historical-illustration",
       "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
       "sha256": "0895b25197960a484f4797e31015b2954743cca5820633ce3a93d0a025518bcb"
-    },
-    {
-      "path": "zh/backtesting/portfolio-risk-01.png",
-      "articles": ["en/backtesting/portfolio-risk.md", "zh/backtesting/portfolio-risk.md"],
-      "originalSha256": "7e1387977c149d89bcdcabcc8a734bac00532d89e92316d67034fc8c7cffa95f",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
-      "sha256": "7e1387977c149d89bcdcabcc8a734bac00532d89e92316d67034fc8c7cffa95f"
-    },
-    {
-      "path": "zh/backtesting/portfolio-risk-02.png",
-      "articles": ["en/backtesting/portfolio-risk.md", "zh/backtesting/portfolio-risk.md"],
-      "originalSha256": "8a927ccc4e4d76b378245307e8d8b57a69976b23e63b1cbbd5371d381690c0c7",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
-      "sha256": "8a927ccc4e4d76b378245307e8d8b57a69976b23e63b1cbbd5371d381690c0c7"
     },
     {
       "path": "zh/backtesting/edit-rerun-01.png",
@@ -1109,23 +1077,6 @@
       "disposition": "historical-illustration",
       "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
       "sha256": "0575575fc27337084600c65242cdebcfe22c29e6e7b145bd2025fe019ff1abfc"
-    },
-    {
-      "path": "zh/factors/macro-regime-01.png",
-      "articles": ["en/factors/macro-regime.md", "zh/factors/macro-regime.md"],
-      "originalSha256": "1ba6369ac057f8d4dca48b8abf226d40fbce60021e665dd8e15f0751c3e617fc",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
-      "crop": [0, 40, 1280, 680],
-      "sha256": "32ccf3865711f05cfa9178116a6d360904baadd440e18659cd4e9ec6e5943559"
-    },
-    {
-      "path": "zh/factors/macro-regime-02.png",
-      "articles": ["en/factors/macro-regime.md", "zh/factors/macro-regime.md"],
-      "originalSha256": "286a3999ba70e9e80e7a72898d9402ab0f347287d95e01f197c312c54c979cd0",
-      "disposition": "historical-illustration",
-      "reason": "Preserve the original result or state illustration; current navigation and entry points are documented separately.",
-      "sha256": "286a3999ba70e9e80e7a72898d9402ab0f347287d95e01f197c312c54c979cd0"
     },
     {
       "path": "zh/factors/factor-correlation-settings-01.png",

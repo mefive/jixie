@@ -1,11 +1,9 @@
 import type {
   FactorLanguage,
-  MacroRegimeFactorResearchSpecV1,
   PanelFactorResearchSpecV1,
   TimeSeriesFactorResearchSpecV1,
 } from '@jixie/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MacroRegimeEvaluationData } from '../observations/macro-regime-observations.js';
 
 const mocks = vi.hoisted(() => ({
   start: vi.fn(),
@@ -21,9 +19,6 @@ vi.mock('../observations/etf-trend-observations.js', () => ({
 }));
 vi.mock('../observations/panel-observations.js', () => ({
   loadPanelEtfObservations: mocks.panel,
-}));
-vi.mock('../observations/macro-regime-observations.js', () => ({
-  loadMacroRegimeObservations: mocks.macro,
 }));
 vi.mock('./cross-sectional/cross-sectional-evaluator.js', () => ({
   factorEvaluatorFor: () => ({ evaluate: mocks.crossSectional }),
@@ -65,17 +60,6 @@ const panelSpec: PanelFactorResearchSpecV1 = {
   volatilityScaling: 'none',
   minimumAssetsPerPeriod: 4,
   portfolio: { topFraction: 0.25, bottomFraction: 0.25, transactionCostPerSide: 0.001 },
-};
-const macroSpec: MacroRegimeFactorResearchSpecV1 = {
-  version: 1,
-  analysisKind: 'macro_regime',
-  start: '20240101',
-  end: '20241231',
-  observationFrequency: 'monthly',
-  targetAssets: ['CN'],
-  target: { kind: 'forward_total_return', horizon: 20, horizonUnit: 'trade_day' },
-  dataPolicy: { pointInTime: true, revisionPolicy: 'as_available', dataCutoff: '20241231' },
-  stateModel: { kind: 'threshold', states: 4 },
 };
 const logs = { onSystemLog: vi.fn(), onUserLog: vi.fn() };
 const options = { factor: 'frozen-factor', locale: 'en' as const, ...logs };
@@ -222,80 +206,6 @@ describe('shared factor evaluation', () => {
       source: frozenSource,
       researchSpec: { version: 1, analysisKind: 'cross_sectional', protocol: spec },
     });
-  });
-
-  it('passes frozen macro data to its own evaluator and returns its raw result', async () => {
-    const periods: MacroRegimeEvaluationData['periods'] = Array.from({ length: 12 }, (_, index) => {
-      const month = `2024${String(index + 1).padStart(2, '0')}`;
-      const asOfDate = `${month}01`;
-      return {
-        targetDate: `${month}28`,
-        score: {
-          version: 1,
-          asOfDate,
-          featureAvailableDate: asOfDate,
-          latestVintageDate: asOfDate,
-          revisionPolicy: 'as_available',
-          state: 'growth_strong_inflation_low',
-          growth: {
-            score: 1,
-            levelScore: 1,
-            momentumScore: 1,
-            latestPeriods: [month],
-            observations: 60,
-            pmi: 51,
-            pmiGap: 1,
-            pmiThreeMonthChange: 1,
-          },
-          inflation: {
-            score: -1,
-            levelScore: -1,
-            momentumScore: -1,
-            latestPeriods: [month],
-            observations: 60,
-            cpiYoY: 1,
-            ppiYoY: 1,
-            cpiThreeMonthChange: -1,
-            ppiThreeMonthChange: -1,
-          },
-          disclosure: {
-            latestValueBackfillRows: 0,
-            futureVintageRows: 0,
-            pointInTimeEligible: true,
-          },
-        },
-      };
-    });
-    const data: MacroRegimeEvaluationData = {
-      periods,
-      observations: periods.map(({ score, targetDate }) => ({
-        assetId: 'CN',
-        asOfDate: score.asOfDate,
-        featureAvailableDate: score.featureAvailableDate,
-        latestVintageDate: score.latestVintageDate,
-        targetDate,
-        state: score.state,
-        growthScore: score.growth.score,
-        inflationScore: score.inflation.score,
-        forwardReturn: 0.01,
-      })),
-      skippedMacroDates: ['20231201'],
-      skippedTargetDates: [],
-    };
-    mocks.macro.mockResolvedValue(data);
-    const result = await runFactorEvaluation({
-      ...options,
-      source: { kind: 'macro_regime', code: 'frozen macro', label: 'Macro' },
-      spec: macroSpec,
-    });
-    expect(mocks.macro).toHaveBeenCalledWith(macroSpec);
-    expect(result).toMatchObject({
-      periods: 12,
-      observations: 12,
-      skippedPeriods: 1,
-      pointInTimeEligible: true,
-    });
-    expect(mocks.start).not.toHaveBeenCalled();
   });
 
   it('rejects a source/protocol mismatch before starting a runtime', async () => {

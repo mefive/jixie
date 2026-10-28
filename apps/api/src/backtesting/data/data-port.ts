@@ -62,17 +62,6 @@ export interface IndexDailyBasicDataRow {
 }
 
 /**
- * 提供曲线期限、收益率及可得日期，供模拟利率读取。
- *
- * Supply curve terms, yields and availability dates for simulation reads.
- */
-export interface YieldCurvePointDataRow {
-  availableDate: string;
-  termYears: number;
-  yieldPct: number;
-}
-
-/**
  * 提供财务指标与公告身份，供 EngineData 按公开日期筛选。
  *
  * Supply financial indicators and announcement metadata for dated selection.
@@ -178,8 +167,6 @@ export interface EngineDataPort {
   indexDailyAll(): Promise<IndexDailyRow[]>;
   /** All synced broad-index valuation rows (tiny), ascending by (code, date). */
   indexDailyBasicAll(): Promise<IndexDailyBasicDataRow[]>;
-  /** Official government yield-curve points available on or before `end`. */
-  yieldCurvePoints(end: string): Promise<YieldCurvePointDataRow[]>;
   /** One day's cross-section panel rows; `codes` restricts the read (universe gate pushdown). */
   crossSectionRows(date: string, codes?: string[]): Promise<CrossSectionRows>;
   /** All financial-indicator reports that have a public annDate, ascending by (code, annDate). */

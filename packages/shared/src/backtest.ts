@@ -1,7 +1,6 @@
 import type { TradeDate } from './types.js';
 import type { FactorDependency } from './factor-dependency.js';
 import type { MultiAssetClass } from './factor-research.js';
-import type { PortfolioRiskAnalysisV1 } from './risk-research.js';
 
 /**
  * 配置回测显式费用与隐式冲击，费率、金额和基点字段保持各自单位。
@@ -182,64 +181,6 @@ export interface AllocationCorrelationAnalysis {
   windows: AllocationCorrelationWindow[];
 }
 
-export type AllocationRateRegimeKey =
-  | 'rates_rising_curve_steep'
-  | 'rates_rising_curve_flat'
-  | 'rates_falling_curve_steep'
-  | 'rates_falling_curve_flat';
-
-/**
- * 汇总某利率环境中单资产类别的绩效。
- *
- * Summarize an asset class's performance within a rate environment.
- */
-export interface AllocationRateRegimeClassMetrics {
-  assetClass: AllocationAssetClass;
-  observations: number;
-  meanDailyReturn: number;
-  annualizedMeanReturn: number;
-  annualizedVolatility: number;
-  positiveDayRate: number;
-  maximumEpisodeDrawdown: number;
-}
-
-/**
- * 保留利率环境分类、曲线证据与区间。
- *
- * Describe rate classifications, curve evidence and episodes.
- */
-export interface AllocationRateRegimeState {
-  key: AllocationRateRegimeKey;
-  observations: number;
-  episodes: number;
-  averageDuration: number;
-  assetClasses: AllocationRateRegimeClassMetrics[];
-}
-
-/**
- * 组合利率环境下的配置收益与风险诊断。
- *
- * Collect allocation performance and risk diagnostics by rate regime.
- */
-export interface AllocationRateRegimeAnalysis {
-  methodology: 'cgb_10y_direction_and_10y_2y_relative_slope';
-  pointInTime: 'available_date';
-  directionLookbackObservations: 60;
-  curveMedianLookbackObservations: 252;
-  curveMedianMinimumObservations: 120;
-  classifiedDays: number;
-  totalDays: number;
-  latest: {
-    asOfDate: TradeDate;
-    state: AllocationRateRegimeKey;
-    tenYearYieldPct: number;
-    tenYearChangeBp: number;
-    curveSlopeBp: number;
-    curveMedianBp: number;
-  } | null;
-  states: AllocationRateRegimeState[];
-}
-
 /**
  * 返回引擎生成的配置诊断，消费方不应从成交重新构造账户。
  *
@@ -271,10 +212,6 @@ export interface AllocationAnalysis {
   drift: AllocationDriftEvent[];
   /** Market-return diversification diagnostics; optional on cached V1 results created before this field. */
   correlations?: AllocationCorrelationAnalysis;
-  /** Point-in-time rate-environment diagnostics; optional on cached V1 results created before this field. */
-  rateRegimes?: AllocationRateRegimeAnalysis;
-  /** Phase 5 market-risk, macro-sensitivity, overlap and scenario analysis. */
-  risk?: PortfolioRiskAnalysisV1;
 }
 
 /**

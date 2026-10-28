@@ -71,7 +71,7 @@ def compute(bar: FactorBar, ctx: CrossSectionalFactorContext) -> float | None:
 - Define exactly one \`factor = Factor.${factory}(...)\` and one typed \`@factor.compute\` callback.
 - Declare every input, target asset class, and a window from 2 to 505.
 - \`ctx.value(field)\` reads the current point-in-time value; \`ctx.lag(field, periods)\` reads an earlier observation.
-- Available fields: etf.adjustedClose and rates.cgb.yield.2y/5y/10y/30y. Yield inputs require target_asset_classes=["fixed_income"]. ${analysisKind === 'panel' ? 'This release supports price-only panel Factors using etf.adjustedClose.' : ''}
+- Available field: etf.adjustedClose. Macro, rates and FX data are unavailable. ${analysisKind === 'panel' ? 'This release supports price-only panel Factors using etf.adjustedClose.' : ''}
 - Return the raw float score or None. If required data is unavailable, output one \`CANNOT: ...\` line and never fabricate a proxy.
 
 # Example
@@ -173,16 +173,14 @@ function buildTimeSeriesFactorCodegenPrompt(): string {
 
 # Available point-in-time data
 - \`etf.adjustedClose\`: adjusted ETF daily close, available on the trading date.
-- \`rates.cgb.yield.2y\`, \`rates.cgb.yield.5y\`, \`rates.cgb.yield.10y\`, \`rates.cgb.yield.30y\`: official Ministry of Finance China government-bond yield-to-maturity curve levels in percent. The curve is published after market close and becomes available on the next SSE trading day.
 - Declare every field used in \`inputs\`.
 - \`ctx.value(field)\` returns the latest point-in-time value on the decision date.
 - \`ctx.lag(field, periods)\` returns the value that many ETF trading observations earlier.
 - Declare \`window\` as the largest lag plus one. It must be an integer from 2 to 505.
-- Price-only definitions may target \`['equity', 'fixed_income', 'commodity']\`. Any definition using a government-bond curve field must declare \`targetAssetClasses: ['fixed_income']\`.
-- Yield values are percentages. Convert a yield difference to basis points by multiplying by 100. A bond-price-aligned falling-yield signal can use \`(previousYield - currentYield) * 100\` so positive means yields fell.
+- Price-only definitions may target equity, fixed_income and commodity ETFs.
 
 # Capability boundary
-If the request requires anything else — credit spreads, duration, commodity futures curves/carry, basis, inventory, warehouse receipts, positioning, macro data, volume, intraday data, or fundamentals — do not fabricate it. Output one line only:
+If the request requires anything else — yield curves, FX, credit spreads, duration, commodity futures curves/carry, basis, inventory, warehouse receipts, positioning, macro data, volume, intraday data, or fundamentals — do not fabricate it. Output one line only:
 CANNOT: <one sentence stating what data is missing and asking for a signal expressible with the available fields>
 
 # Example: 20-trading-day ETF trend

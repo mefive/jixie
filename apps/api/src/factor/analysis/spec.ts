@@ -1,3 +1,4 @@
+import { FactorError } from '../errors.js';
 import type {
   FactorAnalysisSpec,
   FactorAnalysisSpecV2,
@@ -90,6 +91,15 @@ export function normalizeFactorAnalysisSpec(input: unknown): FactorAnalysisSpec 
  * Normalize versioned research input into executable specifications.
  */
 export function normalizeFactorResearchSpec(input: unknown): FactorResearchSpecV1 {
+  if (
+    input &&
+    typeof input === 'object' &&
+    'analysisKind' in input &&
+    input.analysisKind === 'macro_regime'
+  ) {
+    throw new FactorError('factor_analysis_kind_unsupported', { params: { kind: 'macro_regime' } });
+  }
+
   const unified = factorResearchSpecV1Schema.safeParse(input);
   if (unified.success) {
     return unified.data.analysisKind === 'cross_sectional'

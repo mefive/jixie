@@ -4,7 +4,6 @@ import { readCodeProposalHistory } from '#agent/conversations/code-proposals.js'
 import { FactorError } from '../errors.js';
 import { inspectFactorTargetAssetClasses } from '../sandbox/inspect-definition.js';
 import { BUILTIN_USER_ID } from './builtin-factors.js';
-import { macroRegimeTemplateResource } from './templates/macro-regime.js';
 import { panelTemplateCatalog } from './templates/panel.js';
 import { timeSeriesTemplateCatalog } from './templates/time-series.js';
 import { strategyKey } from './views.js';
@@ -60,10 +59,6 @@ export async function readFactorDefinition(userId: string, factorId: string, loc
   });
 
   if (!row) {
-    const macroTemplate = macroRegimeTemplateResource(factorId, locale);
-    if (macroTemplate) {
-      return macroTemplate;
-    }
     throw new FactorError('factor_not_found');
   }
 

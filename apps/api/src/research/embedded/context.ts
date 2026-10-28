@@ -5,8 +5,6 @@ import type { Prisma } from '@prisma/client';
 import { ResearchError } from '../errors.js';
 import { researchPayloadHash } from '../outputs/fingerprints.js';
 
-import { macroRegimeTemplateResource } from '#factor/definitions/templates/macro-regime.js';
-
 /**
  * 由服务端解析业务身份，宿主实体之后消失也不影响快照读取。
  *
@@ -23,12 +21,6 @@ export async function captureEmbeddedContext(
   let language: string;
   switch (host.type) {
     case 'factor': {
-      const template = macroRegimeTemplateResource(host.id, 'en');
-      if (template) {
-        ({ name, code } = template);
-        language = 'typescript';
-        break;
-      }
       const factor = await transaction.factor.findFirst({
         where: {
           id: host.id,

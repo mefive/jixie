@@ -94,10 +94,6 @@ describe('shared Worker wire contracts', () => {
         assets: [],
         assetClasses: [],
         drift: [],
-        risk: {
-          version: 1,
-          separationPolicy: 'daily_market_risk_and_monthly_macro_sensitivity',
-        },
       },
     };
     expect(backtestWorkerMessageSchema.parse({ type: 'done', payload })).toEqual({

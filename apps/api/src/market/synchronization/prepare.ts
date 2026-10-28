@@ -4,20 +4,11 @@ import { prepareStockPartition, prepareStockReference } from '../stocks/sync-par
 import { prepareIndexPartition } from '../indices/sync-partition.js';
 import { prepareEtfPartition } from '../etfs/sync-partition.js';
 import { prepareFinancialPartition } from '../fundamentals/sync-partition.js';
-import { prepareMacroPartition } from '../macro/sync-partition.js';
-import { prepareCurvePartition } from '../rates/sync-partition.js';
-import { prepareExternalPartition } from '../cross-market/sync-partition.js';
-import type { BlsPublicDataClientLike } from '../macro/us-headline-cpi.js';
-import type { ChinaTreasuryCurveClient } from '../rates/china-treasury-curve.js';
-import type { ChinaBondCreditCurveClient } from '../rates/chinabond-credit-curves.js';
 import type { MarketPartition, PreparedMarketPartition } from './partition.js';
 import type { SyncSource } from './source.js';
 
 export interface SyncProviders {
   source: SyncSource;
-  treasury: ChinaTreasuryCurveClient;
-  credit: ChinaBondCreditCurveClient;
-  cpi: BlsPublicDataClientLike;
 }
 
 /**
@@ -55,16 +46,6 @@ async function fetchMarketPartition(
     case 'financial-indicators':
     case 'dividends':
       return prepareFinancialPartition(providers.source, partition, fetchedAt);
-    case 'china-macro':
-    case 'us-cpi':
-      return prepareMacroPartition(providers.source, providers.cpi, partition, fetchedAt);
-    case 'treasury-curves':
-    case 'credit-curves':
-      return prepareCurvePartition(providers.treasury, providers.credit, partition, fetchedAt);
-    case 'external-curves':
-    case 'external-fx':
-    case 'cross-market-benchmarks':
-      return prepareExternalPartition(providers.source, partition, fetchedAt);
     default:
       throw new Error(`Undeclared synchronization dataset ${partition.dataset}`);
   }

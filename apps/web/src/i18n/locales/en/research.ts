@@ -249,7 +249,7 @@ export const enResearch: typeof zhResearch = {
     returns: 'Fixed return columns',
     example: 'Example call',
     searchPlaceholder: 'Search by security code, index name, or keyword',
-    datasetSearchPlaceholder: 'Search by market, index, tenor, or access method',
+    datasetSearchPlaceholder: 'Search stocks, ETFs, indices, or access methods',
     reportSearchPlaceholder: 'Search by factor name, key, or report ID',
     backtestReportSearchPlaceholder: 'Search by strategy name or report ID',
     searchHint: 'Search for an instrument without memorizing platform identifiers.',

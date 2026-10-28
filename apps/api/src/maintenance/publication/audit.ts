@@ -1,8 +1,4 @@
 import type { Prisma } from '#infra/database/prisma.js';
-import {
-  auditCrossMarketBenchmarkPit,
-  auditExternalMarketPit,
-} from '#market/cross-market/audit.js';
 import { auditEtfRegistry } from '#market/etfs/audit.js';
 import {
   auditFinancialPit,
@@ -10,10 +6,7 @@ import {
   auditFinancialStatementVersions,
 } from '#market/fundamentals/audit.js';
 import { auditStockUniverse } from '#market/instruments/audit.js';
-import { auditMacroPit } from '#market/macro/audit.js';
-import { formatNumber } from '#market/quality/format.js';
 import type { AuditFinding } from '#market/quality/report.js';
-import { auditCreditCurvePit } from '#market/rates/audit.js';
 import {
   auditAdjustmentJumps,
   auditHistoricalInvestability,
@@ -21,7 +14,6 @@ import {
   auditStockCalendarCoverage,
   auditWindowCoverage,
 } from '#market/stocks/audit.js';
-import { auditMacroRiskAxes } from './risk-audit.js';
 
 /**
  * 汇总维护发布前的数据质量检查结果，供审计与发布判断。
@@ -121,11 +113,6 @@ export async function runDataQualityAudit(
     await auditFinancialPit(database),
     await auditFinancialStatementVersions(database),
     await auditFinancialStatementAccounting(database),
-    await auditMacroPit(database),
-    await auditExternalMarketPit(database, endDate),
-    await auditCrossMarketBenchmarkPit(database, endDate),
-    await auditCreditCurvePit(database, endDate),
-    await auditMacroRiskAxisPit(database, startDate, endDate),
   );
 
   return {
@@ -137,29 +124,5 @@ export async function runDataQualityAudit(
       windowTradingDays,
     },
     findings,
-  };
-}
-
-export async function auditMacroRiskAxisPit(
-  database: Prisma,
-  startDate: string,
-  endDate: string,
-): Promise<AuditFinding> {
-  const summary = await auditMacroRiskAxes({ startDate, endDate }, database);
-  return {
-    id: 'macro-risk-axis-readiness',
-    title: 'Monthly macro-risk axes: exploratory and strict-PIT readiness',
-    status: summary.status,
-    summary: `${formatNumber(summary.exploratoryCompleteObservations)} exploratory and ${formatNumber(summary.strictCompleteObservations)} strict-PIT complete months; latest ${summary.latestExploratoryCompleteDate ?? 'n/a'}`,
-    details: [
-      ...summary.axes.map(
-        (axis) =>
-          `${axis.axis}: ${formatNumber(axis.exploratoryObservations)} exploratory changes, ${formatNumber(axis.strictObservations)} strict-PIT changes, latest ${axis.latestExploratoryDate ?? 'n/a'}.`,
-      ),
-      ...summary.errors.map((error) => `Error: ${error}.`),
-      ...summary.warnings.map((warning) => `Warning: ${warning}.`),
-      'Growth, inflation, liquidity, credit, and external-pressure score changes are monthly and remain separate from the daily market-risk covariance model.',
-      'Latest-vintage history supports exploration only. Macro sensitivity becomes publishable only after enough locally captured as-available vintages accumulate.',
-    ],
   };
 }

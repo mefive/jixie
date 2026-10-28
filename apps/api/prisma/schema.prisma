@@ -170,102 +170,10 @@ model EtfSyncSlice {
   @@id([tsCode, startDate, endDate])
 }
 
-/// Normalized sovereign yield-curve points. `availableDate` translates the source-market timestamp
-/// into the first SSE close that may use the value and is the mandatory PIT gate for research.
-/// Yields are percentages; term is measured in years.
-model YieldCurvePoint {
-  source        String
-  curveCode     String
-  curveName     String
-  curveType     String
-  tradeDate     String
-  availableDate String
-  termYears     Float
-  yieldPct      Float
-  retrievedAt   DateTime @default(now())
 
-  @@id([source, curveCode, curveType, tradeDate, termYears])
-  @@index([curveCode, availableDate])
-  @@index([tradeDate])
-}
 
-/// Raw FXCM daily bid/ask bars returned by Tushare. `tradeDate` is the provider's GMT date;
-/// `availableDate` is the first later SSE trading day, so China-close research cannot read an
-/// unfinished same-calendar-day global FX bar. Prices are quote currency per base currency.
-model FxDaily {
-  tsCode        String
-  tradeDate     String
-  availableDate String
-  exchange      String
-  bidOpen       Float
-  bidClose      Float
-  bidHigh       Float
-  bidLow        Float
-  askOpen       Float
-  askClose      Float
-  askHigh       Float
-  askLow        Float
-  tickQty       Int
-  retrievedAt   DateTime @default(now())
 
-  @@id([tsCode, tradeDate])
-  @@index([availableDate])
-}
 
-/// Canonical catalog for macroeconomic series. Source fields remain explicit so every normalized
-/// observation is reproducible and unit semantics do not depend on UI labels.
-model MacroSeries {
-  seriesKey        String   @id
-  nameZh           String
-  nameEn           String
-  domain           String
-  frequency        String
-  unit             String
-  source           String
-  sourceApi        String
-  sourceField      String
-  defaultTransform String
-  revisionPolicy   String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  observations MacroObservation[]
-}
-
-/// Point-in-time macro observation vintages. `releaseDate` is null when the original official date
-/// is unavailable; `availableDate` then uses a documented conservative lag. Historical backfills
-/// from latest-value APIs are labeled in `vintageKind` and must not be presented as real-time vintages.
-model MacroObservation {
-  seriesKey        String
-  period           String
-  vintageDate      String
-  value            Float
-  releaseDate      String?
-  availableDate    String
-  availabilityKind String
-  vintageKind      String
-  retrievedAt      DateTime @default(now())
-
-  series MacroSeries @relation(fields: [seriesKey], references: [seriesKey])
-
-  @@id([seriesKey, period, vintageDate])
-  @@index([seriesKey, availableDate])
-  @@index([period])
-}
-
-/// Raw official publication calendar entries. Publication month is not the observation period;
-/// series-specific matching rules map a release entry to its macro observation.
-model MacroReleaseSchedule {
-  publishDate  String
-  title        String
-  publishMonth String
-  issuingOrg   String
-  dataApi      String?
-  retrievedAt  DateTime @default(now())
-
-  @@id([publishDate, title])
-  @@index([dataApi, publishDate])
-}
 
 /// Daily price limits (unadjusted up/down limit prices). The engine blocks buys at the up-limit open and sells at
 /// the down-limit open (covers board-specific limits: Main Board ±10 / ST ±5 / ChiNext & STAR ±20 / BSE ±30).
@@ -519,53 +427,7 @@ model IndexDaily {
   @@id([tsCode, tradeDate])
 }
 
-/// Canonical cross-market research benchmarks. A benchmark is an explanatory price index, not a
-/// tradable instrument; `tradableProxyTsCode` points to the separately modeled China-listed ETF
-/// used when a strategy or portfolio needs executable prices.
-model MarketBenchmark {
-  id                         String                 @id
-  provider                   String
-  providerCode               String
-  nameZh                     String
-  nameEn                     String
-  market                     String
-  currency                   String
-  timeZone                   String
-  calendarId                 String
-  observesDaylightSavingTime Boolean
-  returnType                 String
-  dataContractId             String
-  tradableProxyTsCode        String
-  tradableProxyKind          String
-  daily                      MarketBenchmarkDaily[]
 
-  @@unique([provider, providerCode])
-  @@index([market])
-}
-
-/// Raw price-index bars normalized onto the China-close study clock. `tradeDate` remains the
-/// source-market session date. For Hong Kong and US closes, `availableDate` is the first strictly
-/// later SSE session; for the China benchmark it equals the local trade date.
-model MarketBenchmarkDaily {
-  benchmarkId   String
-  tradeDate     String
-  availableDate String
-  open          Float?
-  high          Float?
-  low           Float?
-  close         Float
-  preClose      Float?
-  change        Float?
-  pctChange     Float?
-  swing         Float?
-  volume        Float?
-  retrievedAt   DateTime        @default(now())
-  benchmark     MarketBenchmark @relation(fields: [benchmarkId], references: [id], onDelete: Cascade)
-
-  @@id([benchmarkId, tradeDate])
-  @@index([availableDate])
-  @@index([benchmarkId, availableDate])
-}
 
 /// Daily valuation metrics for broad-market indices. Values come from Tushare index_dailybasic
 /// rather than being reconstructed from constituent stock PEs, so provider methodology is preserved.

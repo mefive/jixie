@@ -48,9 +48,7 @@ try {
   for (const method of [
     'cross_section',
     'panel',
-    'yield_curve',
-    'macro',
-    'fx',
+
     'equity_fundamentals',
     'equity_dividends',
     'etf_shares',
@@ -86,51 +84,26 @@ try {
   await page.getByTestId('research-data-catalog-method-equity_financial_metrics').click();
   await methodDetail.waitFor({ state: 'detached' });
 
-  await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill('10Y');
-  const result = page.getByTestId(
-    'research-data-catalog-dataset-data.yield_curve:us_treasury_nominal:10Y',
-  );
-  await result.waitFor({ timeout: 30_000 });
-  const coverageText = await result.locator('.jx-researchDataCatalog-coverage').innerText();
-  if (!/\d{4}-\d{2}-\d{2}.*\d{4}-\d{2}-\d{2}/.test(coverageText)) {
-    throw new Error(`Dataset coverage was not exposed: ${coverageText}`);
-  }
-  await result.click();
   const config = page.getByTestId('research-data-catalog-dataset-config');
-  await config.waitFor();
-  await config.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(250);
-  await page.mouse.move(0, 999);
-  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-datasets.png` });
-
-  await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill('CPI');
-  const macroResult = page.getByTestId('research-data-catalog-dataset-data.macro:cn_cpi_yoy');
-  await macroResult.waitFor({ timeout: 30_000 });
-  await macroResult.click();
-  await config.waitFor();
-  await config.scrollIntoViewIfNeeded();
-  if (!(await config.innerText()).includes('data.macro(')) {
-    throw new Error('The selected macro dataset did not generate an SDK call preview.');
-  }
-  await drawer.screenshot({ path: `${SHOTS}research-data-catalog-macro.png` });
 
   for (const method of [
     'commodity_returns',
     'commodity_warehouse_receipts',
     'commodity_holdings',
     'futures_settlement',
+    'yield_curve',
+    'macro',
+    'fx',
   ]) {
     assert.equal(await page.getByTestId(`research-data-catalog-method-${method}`).count(), 0);
   }
 
-  await drawer
-    .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
-    .fill('沪深 300');
+  await drawer.getByRole('textbox', { name: '搜索股票、ETF、指数或数据读取方式' }).fill('沪深 300');
   for (const { query, method, identifier } of [
     { query: '510300.SH', method: 'etf_shares', identifier: '510300.SH' },
     { query: '000300.SH', method: 'index_valuation', identifier: '000300.SH' },
   ]) {
-    await drawer.getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' }).fill(query);
+    await drawer.getByRole('textbox', { name: '搜索股票、ETF、指数或数据读取方式' }).fill(query);
     const referenceResult = page.getByTestId(
       `research-data-catalog-dataset-data.${method}:${identifier}`,
     );
@@ -145,7 +118,7 @@ try {
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-reference-datasets.png` });
 
   await drawer
-    .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
+    .getByRole('textbox', { name: '搜索股票、ETF、指数或数据读取方式' })
     .fill('标准化财务指标');
   const financialResult = page.getByTestId(
     'research-data-catalog-dataset-data.equity_financial_metrics',
@@ -166,7 +139,7 @@ try {
   await drawer.screenshot({ path: `${SHOTS}research-data-catalog-financial-metrics.png` });
 
   await drawer
-    .getByRole('textbox', { name: '搜索市场、指数、期限或数据读取方式' })
+    .getByRole('textbox', { name: '搜索股票、ETF、指数或数据读取方式' })
     .fill('自选财报科目');
   await page.getByTestId('research-data-catalog-dataset-data.equity_financial_values').click();
   await config.waitFor();
@@ -196,7 +169,7 @@ try {
   await page.getByText('已插入当前 Python Cell', { exact: true }).waitFor({ timeout: 10_000 });
 
   console.log(
-    `[research-data-catalog-e2e] datasetMethods=21 coverage=${coverageText} financial=true inserted=true screenshots=9`,
+    `[research-data-catalog-e2e] datasetMethods=21 coverage=retained ETF/index data financial=true inserted=true screenshots=9`,
   );
 } finally {
   if (documentId) {

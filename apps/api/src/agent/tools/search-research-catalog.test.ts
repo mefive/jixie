@@ -167,20 +167,8 @@ describe('research catalog query interpretation', () => {
     expect(method?.notesEn.join(' ')).toContain('point-in-time historical membership');
     expect(researchSdkMethodsForCatalogQuery('000300.SH')).toEqual([]);
 
-    const [yieldCurve] = researchSdkMethodsForCatalogQuery('data.yield_curve');
-    expect(yieldCurve).toMatchObject({
-      qualifiedName: 'data.yield_curve',
-      returns: {
-        kind: 'dataframe',
-        columns: [
-          expect.objectContaining({ name: 'date' }),
-          expect.objectContaining({ name: 'value' }),
-        ],
-      },
-    });
-    expect(yieldCurve?.signature).toContain('"us_treasury_nominal", "us_treasury_real"');
-    expect(yieldCurve?.signature).toContain('"chinabond_cgb_ytm"');
-    expect(yieldCurve?.signature).toContain('tenor: Literal[');
-    expect(yieldCurve?.notesEn.join(' ')).toContain('percentage-point change');
+    for (const name of ['data.yield_curve', 'data.macro', 'data.fx']) {
+      expect(researchSdkMethodsForCatalogQuery(name)).toEqual([]);
+    }
   });
 });

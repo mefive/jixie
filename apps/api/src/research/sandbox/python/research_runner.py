@@ -157,9 +157,6 @@ class ResearchRunner:
                     "references": analysis.references,
                     "imports": analysis.imports,
                     "series_requests": analysis.series_requests,
-                    "yield_curve_requests": analysis.yield_curve_requests,
-                    "macro_requests": analysis.macro_requests,
-                    "fx_requests": analysis.fx_requests,
                     "equity_requests": analysis.equity_requests,
                     **({"error": analysis.error} if analysis.error else {}),
                 }

@@ -62,5 +62,4 @@ model.summary()
 ## 相关内容
 
 - [查看研究输出](/docs/help/research/outputs)
-- [读取美国国债收益率曲线](/docs/help/research/yield-curves)
 - [怎样阅读多变量时间序列研究](/docs/help/basics/multivariate-time-series-relationships)

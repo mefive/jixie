@@ -152,3 +152,5 @@ node --import tsx --test apps/web/src/complex/strategy/recents.test.ts
 Signals 已退役。`JIXIE_JOB_E2E_ONLY=strategy-orchestration pnpm e2e job-system` 在隔离库验证保留的回测链、无部署按钮和导航，以及已登录访问旧 Signals API 返回 404；登录邮件能力独立保留。
 
 `research-extension-retirement` 验证专用模板与内置估值退役：中英／窄屏首页没有模板卡片，旧创建请求拒绝，旧源码保留并明确报错，普通 Python 与图表继续运行。可由 `JIXIE_JOB_E2E_ONLY=research-extension-retirement` 在隔离合成行情库上运行；收尾由 fixture 关闭文档 Python 会话。
+
+`macro-retirement` 验收退役取数报错、国债／宏观模板退出及中英研究目录；可通过隔离 `job-system` 夹具执行。

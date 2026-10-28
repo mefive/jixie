@@ -15,7 +15,7 @@ Every new backtest produces cash-account attribution, with no Factor requirement
 
 ## Asset class and asset
 
-Both tables show average weight, return contribution, risk contribution, costs, and net P&L. Classifications currently come from approved research universes supplied by the factor host. Actual holdings without a classification appear as Other. Without classifications, class correlation and rate-regime diagnostics are unavailable; missing data is not zero.
+Both tables show average weight, return contribution, risk contribution, costs, and net P&L. Classifications currently come from approved research universes supplied by the factor host. Actual holdings without a classification appear as Other. Without classifications, class correlation diagnostics are unavailable; missing data is not zero.
 
 Return contribution is additive relative to initial cash-account capital:
 
@@ -39,16 +39,13 @@ $$
 
 Insufficient paired returns or zero variance produces a missing value, not zero. A high-correlation warning means historical diversification may have weakened; low correlation does not guarantee stability under stress.
 
-## Rate regime
+## Historical interface
 
-Rate regime uses official government curves available by the decision date. The 10-year yield versus 60 curve observations ago determines rising or falling rates. The 10Y−2Y spread versus its 252-observation median determines steep or flat.
+Rate-regime attribution is retired. The figure preserves the old interface; rolling correlation remains available.
 
-![Historical Chinese UI example: Rolling correlation and rate-regime attribution](/docs/images/help/zh/backtesting/allocation-attribution-02.png)
-
-Conditional returns, volatility, positive days, and worst episode drawdown are retrospective. The state does not affect this run's weights and is not published as a Factor.
+![Historical Chinese UI example: correlation and retired rate-regime attribution](/docs/images/help/zh/backtesting/allocation-attribution-02.png)
 
 ## Related articles
 
 - [Run cross-asset Panel research](/docs/help/factors/panel-research)
 - [Read backtest results](/docs/help/backtesting/results-overview)
-- [Read portfolio risk diagnostics](/docs/help/backtesting/portfolio-risk)

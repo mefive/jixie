@@ -39,7 +39,7 @@ describe('Factor SDK capability injection', () => {
     valueAt.mockClear();
 
     expect(() => lag('etf.adjustedClose', -1)).toThrow('non-negative integer');
-    expect(() => value('rates.cgb.yield.2y')).toThrow('undeclared input');
+    expect(() => value('retired.field' as never)).toThrow('undeclared input');
     expect(valueAt).not.toHaveBeenCalled();
   });
 });

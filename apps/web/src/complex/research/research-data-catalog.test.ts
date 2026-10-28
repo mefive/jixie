@@ -185,29 +185,6 @@ test('inserts the four governed financial dataset calls', () => {
   );
 });
 
-test('inserts a governed yield-curve dataset call', () => {
-  assert.match(
-    researchDatasetSnippet({
-      dataset: {
-        kind: 'dataset',
-        id: 'data.yield_curve:us_treasury_nominal:10Y',
-        method: 'data.yield_curve',
-        curve: 'us_treasury_nominal',
-        tenor: '10Y',
-        nameZh: '美国国债名义收益率 10Y',
-        nameEn: 'US Treasury nominal yield 10Y',
-        descriptionZh: '',
-        descriptionEn: '',
-        tags: [],
-        localDataCoverage: { status: 'missing', reason: 'source_available_but_local_data_missing' },
-      },
-      start: '20210101',
-      end: '20260701',
-    }),
-    /us_treasury_nominal_10y = data\.yield_curve\([\s\S]*tenor="10Y"/,
-  );
-});
-
 test('inserts a governed identifier-based reference dataset call', () => {
   assert.match(
     researchDatasetSnippet({

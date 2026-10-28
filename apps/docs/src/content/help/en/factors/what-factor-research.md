@@ -13,7 +13,6 @@ This page uses a stock cross-section to explain the basics. Other methods are al
 | Stock cross-section | Do higher-scoring stocks at the same date have higher subsequent returns? | [First analysis](/docs/help/factors/first-preset-analysis) |
 | ETF time series | Is an asset's own historical signal related to its future return? | [Time-series research](/docs/help/factors/time-series-research) |
 | Cross-asset Panel | Do comparable scores across assets contain ranking information at common dates? | [Panel research](/docs/help/factors/panel-research) |
-| Macro regimes | How do asset outcomes differ across growth and inflation states? | [Macro regimes](/docs/help/factors/macro-regime) |
 
 New custom Factors default to Python; existing TypeScript definitions remain compatible. Asking about a report or running an embedded calculation does not create a new formal report. See [Retained reports](/docs/help/factors/report-history).
 

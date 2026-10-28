@@ -1,10 +1,8 @@
 import { prismaDataPort } from '#backtesting/adapters/prisma-port.js';
 import type { BacktestResult } from './result.js';
-import { t } from '#i18n/messages.js';
 import type { UserLogSink } from '#infra/sandbox/console.js';
 import type { BacktestConfig, Locale, StrategyParamValue } from '@jixie/shared';
 import { StrategyFactor } from '../factors/strategy-factor.js';
-import { attachBacktestRiskAnalysis } from '../risk/backtest-risk-analysis.js';
 import { StrategySimulation } from '../simulation/strategy-simulation.js';
 
 /**
@@ -46,22 +44,6 @@ export async function runBacktest(
   } finally {
     simulation.close();
   }
-  await attachRiskAnalysis(result, locale, onSystemLog);
-  return result;
-}
 
-async function attachRiskAnalysis(
-  result: BacktestResult,
-  locale: Locale,
-  onSystemLog: ((line: string) => void) | undefined,
-): Promise<void> {
-  try {
-    await attachBacktestRiskAnalysis(result);
-  } catch (error) {
-    onSystemLog?.(
-      t(locale, 'backtestRiskAnalysisUnavailable', {
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
-  }
+  return result;
 }

@@ -16,9 +16,6 @@ class _Analysis:
     references: list[str]
     imports: list[str]
     series_requests: list[dict[str, Any]]
-    yield_curve_requests: list[dict[str, Any]]
-    macro_requests: list[dict[str, Any]]
-    fx_requests: list[dict[str, Any]]
     equity_requests: list[dict[str, Any]]
     error: str | None = None
 
@@ -31,9 +28,6 @@ class _NameAnalysis(ast.NodeVisitor):
         self.references: set[str] = set()
         self.imports: set[str] = set()
         self.series_requests: list[dict[str, Any]] = []
-        self.yield_curve_requests: list[dict[str, Any]] = []
-        self.macro_requests: list[dict[str, Any]] = []
-        self.fx_requests: list[dict[str, Any]] = []
         self.equity_requests: list[dict[str, Any]] = []
 
     def visit_Name(self, node: ast.Name) -> None:
@@ -95,52 +89,6 @@ class _NameAnalysis(ast.NodeVisitor):
             )
         if (
             isinstance(node.func, ast.Attribute)
-            and node.func.attr == "yield_curve"
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "data"
-        ):
-            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
-            self.yield_curve_requests.append(
-                {
-                    "line": node.lineno,
-                    "curve": _literal_string(
-                        node.args[0] if len(node.args) > 0 else keywords.get("curve")
-                    ),
-                    "tenor": _literal_string(keywords.get("tenor")),
-                }
-            )
-        if (
-            isinstance(node.func, ast.Attribute)
-            and node.func.attr == "macro"
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "data"
-        ):
-            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
-            self.macro_requests.append(
-                {
-                    "line": node.lineno,
-                    "series": _literal_string(
-                        node.args[0] if len(node.args) > 0 else keywords.get("series")
-                    ),
-                }
-            )
-        if (
-            isinstance(node.func, ast.Attribute)
-            and node.func.attr == "fx"
-            and isinstance(node.func.value, ast.Name)
-            and node.func.value.id == "data"
-        ):
-            keywords = {item.arg: item.value for item in node.keywords if item.arg is not None}
-            self.fx_requests.append(
-                {
-                    "line": node.lineno,
-                    "pair": _literal_string(
-                        node.args[0] if len(node.args) > 0 else keywords.get("pair")
-                    ),
-                }
-            )
-        if (
-            isinstance(node.func, ast.Attribute)
             and node.func.attr
             in {
                 "equity_fundamentals",
@@ -175,7 +123,7 @@ def _analyze(source: str) -> _Analysis:
         tree = ast.parse(source or "pass", filename="research_cell.py", mode="exec")
     except SyntaxError as error:
         message = f"{error.msg} (line {error.lineno}, column {error.offset})"
-        return _Analysis([], [], [], [], [], [], [], [], error=message)
+        return _Analysis([], [], [], [], [], error=message)
     visitor = _NameAnalysis()
     visitor.visit(tree)
     ignored = set(dir(builtins)) | _RUNTIME_NAMES
@@ -184,9 +132,6 @@ def _analyze(source: str) -> _Analysis:
         sorted(name for name in visitor.references if name not in ignored and not name.startswith("_")),
         sorted(visitor.imports),
         visitor.series_requests,
-        visitor.yield_curve_requests,
-        visitor.macro_requests,
-        visitor.fx_requests,
         visitor.equity_requests,
     )
 

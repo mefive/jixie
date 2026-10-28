@@ -51,21 +51,4 @@ export const DATASET_POLICIES = [
     closeHour: 0,
   }),
   policy('dividends', '19900101', 'year', { refreshDays: 7, revisionDays: 750, closeHour: 0 }),
-  policy('treasury-curves', '20060301', 'year', { revisionDays: 400, closeHour: 18 }),
-  policy('credit-curves', '20060101', 'year', { revisionDays: 400, closeHour: 18 }),
-  policy('external-curves', '20050101', 'year', {
-    timeZone: 'America/New_York',
-    calendar: 'US_TREASURY',
-    closeHour: 18,
-    revisionDays: 60,
-  }),
-  policy('external-fx', '20050101', 'year', {
-    timeZone: 'Etc/UTC',
-    calendar: 'FXCM',
-    closeHour: 24,
-    revisionDays: 60,
-  }),
-  policy('cross-market-benchmarks', '20050101', 'year', { revisionDays: 60 }),
-  policy('china-macro', '20050101', 'year', { refreshDays: 7, revisionDays: 750, closeHour: 0 }),
-  policy('us-cpi', '20050101', 'year', { refreshDays: 7, revisionDays: 750, closeHour: 0 }),
 ] satisfies DatasetPolicy[];
