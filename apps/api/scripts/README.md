@@ -8,6 +8,7 @@
 | --- | --- | --- | --- |
 | [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
 | [升级搬移](upgrade-minimal-sync.mjs) | 停服期间分红捕获时间导出／恢复 | 1 | bootstrap |
+| [旧待上市 ETF 清理](../src/market/cli/cleanup-pending-etfs.ts) | 显式数据库的离线预检／清理 | 1 | bootstrap |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖 | 2 | 导入后的质量检查、研究核验 |
@@ -17,9 +18,9 @@
 
 ## 运行约定
 
-- `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
+- `pnpm --filter api` 使用 `apps/api` 为工作目录。除 `backup` 和显式数据库的离线清理外，业务执行均加载 API 的 `.env`；`sync`、`data:audit`、`probe` 在参数校验通过后才加载环境和业务模块，帮助、未知任务及非法参数不连接数据库；数据库连接和 Tushare 等配置沿用应用配置。
 - 下表 `start` / `end` / `date` 使用 `YYYYMMDD`；方括号表示可选参数。各入口保留原有默认值，部分仍默认 2024 年等历史区间，补数时应显式传入日期。
-- 数据写入只使用 `pnpm data sync [--to YYYYMMDD]`；只读审计与显式探针保留。
+- 日常数据写入只使用 `pnpm data sync [--to YYYYMMDD]`；只读审计与显式探针保留。停服升级另有下述受限清理入口。
 - `maintenance`、`import:data`、`sync <任务>` 和代码归一 CLI 均已退役，不设置兼容转发。
 
 ## 已退役的数据转换
@@ -34,6 +35,16 @@
 旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs 和 fundamentals 领域；宏观、利率、FX 和跨市场来源已退役；日常补齐与首次回补使用同一有界循环，只记录实际尝试窗口，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [裁剪设计第 5 节](../../../docs/design/system-simplification-plan.md#5-数据维护重新设计)。
 
 ## 最小同步的旧库升级
+
+bootstrap 在迁移与分红恢复完成后、API 启动前执行旧待上市 ETF 清理。源码入口为 `src/market/cli/cleanup-pending-etfs.ts`，生产使用 `dist/src/market/cli/cleanup-pending-etfs.js`；参数为 `check|apply /absolute/path/database.db`，不读取 `.env` 或默认开发库，不访问数据源。`check` stdout 仅返回可删数量，保护记录与原因写 stderr；`apply` 事务内重查依赖，只删除无依赖 P 目录，并在实际删除时推进 revision。所有数据库连接和锁在退出前释放。
+
+bootstrap 复用部署 M/P/R 锁；有可删记录才使用独立 `pending-etf-cleanup/` 备份目录备份并执行。清理失败保持 API 停止；受关联数据保护的记录只报告、不删除。没有 schema migration，也不删除价格、复权、名单、报告或用户源码。隔离演练示例：
+
+```sh
+node --conditions=development --import tsx apps/api/src/market/cli/cleanup-pending-etfs.ts check /absolute/path/isolated.db
+# 备份后才执行 apply；生产 bootstrap 已负责备份。
+node --conditions=development --import tsx apps/api/src/market/cli/cleanup-pending-etfs.ts apply /absolute/path/isolated.db
+```
 
 现有库升级应通过 `scripts/bootstrap.sh` 完成。该脚本持 M/P/R、排空并停服后导出 `${DB_FILE}.minimal-sync.json`、备份数据库，执行工具生成迁移并恢复，成功后再启动服务。恢复文件权限为 0600，绑定数据库真实路径与设备／inode；已有未恢复文件不会覆盖。失败保持 API 停止并保留文件，再次部署继续恢复。新空库无需导出。
 

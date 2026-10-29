@@ -18,7 +18,7 @@ Stock valuation fields do not always apply to ETFs. An ETF provides diversificat
 
 ### ETF directory and download list
 
-The platform synchronizes the full ETF metadata directory. On first initialization it selects the 100 listed ETFs with the largest fund size from one latest source-date snapshot. Administrators maintain this download list through the server CLI. Daily synchronization keeps manual edits; removing a code stops further downloads and preserves existing prices.
+The platform synchronizes listed and delisted ETF metadata and skips pending listings. On first initialization it selects the 100 listed ETFs with the largest fund size from one latest source-date snapshot. Administrators maintain this download list through the server CLI. Daily synchronization keeps manual edits; removing a code stops further downloads and preserves existing prices.
 
 Ranking uses `totalSize`, not fund units. Missing size is reported and never replaced with zero or an estimate; an administrator can add such a code manually. Today's selected sample is not the historical top 100 at every date and is not an investment recommendation.
 
@@ -30,6 +30,8 @@ Do not treat a proxy as identical to its underlying asset:
 - A bond ETF's holdings and duration can drift; it is not a constant-maturity yield curve.
 - A commodity ETF can include futures roll, collateral, and tracking effects.
 - Money-market ETF distribution and return semantics have not passed the platform gate, so the current registry does not treat one as an ordinary cash proxy.
+
+Delisted ETFs retain their metadata, prices, and adjustment history. A delisted ETF already in the download list remains there and backfills only through its delisting date; it is excluded from new size rankings. If that date is missing or invalid, downloading pauses for that ETF with an explicit reason while other ETFs continue. Historical research can still read stored data.
 
 Historical shares, fund size and NAV research series have been removed. The latest size snapshot serves download selection only; a future unit-change dashboard is separate work.
 

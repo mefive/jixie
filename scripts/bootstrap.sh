@@ -558,7 +558,7 @@ cleanup_deployment_gate() {
       warn "$JIXIE_SERVICE 恢复失败,请检查 journalctl -u $JIXIE_SERVICE -e"
   fi
   if [[ "$SCHEMA_DATA_READY" != "1" ]]; then
-    warn "schema／业务数据升级未完成；API 保持停止，请保留 minimal-sync 恢复文件并重试部署。"
+    warn "schema／业务数据升级未完成；API 保持停止，请保留升级备份及已有恢复文件并重试部署。"
   fi
   exit "$exit_code"
 }
@@ -638,6 +638,16 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   pnpm --filter api exec prisma migrate deploy
   if [[ -n "$MINIMAL_SYNC_TRANSFER" ]]; then
     node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-minimal-sync.mjs" restore "$DB_FILE"
+  fi
+
+  # 离线清理无依赖的旧待上市目录；独立备份避免覆盖同秒的迁移前备份。
+  # Remove unreferenced pending metadata offline; separate backups preserve pre-migration snapshots.
+  PENDING_ETF_COUNT="$(node "$JIXIE_DIR/apps/api/dist/src/market/cli/cleanup-pending-etfs.js" check "$DB_FILE")"
+  [[ "$PENDING_ETF_COUNT" =~ ^[0-9]+$ ]] || die "待上市 ETF 清理预检返回非法数量"
+  if [[ "$PENDING_ETF_COUNT" -gt 0 ]]; then
+    log "备份并清理 $PENDING_ETF_COUNT 条无依赖的待上市 ETF 目录"
+    JIXIE_DB_PATH="$DB_FILE" JIXIE_BACKUP_DIR="$JIXIE_BACKUP_DIR/pending-etf-cleanup" node "$JIXIE_DIR/apps/api/scripts/backup-db.mjs"
+    node "$JIXIE_DIR/apps/api/dist/src/market/cli/cleanup-pending-etfs.js" apply "$DB_FILE"
   fi
   SCHEMA_DATA_READY=1
 fi

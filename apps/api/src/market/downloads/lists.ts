@@ -2,6 +2,7 @@ import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
 import { z } from 'zod';
 import { getDatabase } from '#infra/database/prisma.js';
 import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
+import { etfDownloadRange } from '../etfs/download-range.js';
 
 export type DownloadAssetType = 'etf' | 'index';
 
@@ -123,12 +124,16 @@ export async function listDownloads(assetType: DownloadAssetType) {
   const setting = await database.marketDownloadList.findUnique({ where: { assetType } });
   const codes = await readDownloadCodes(assetType);
   const sizes = assetType === 'etf' ? await database.etfLatestSize.findMany() : [];
-  const metadata =
+  const etfMetadata =
     assetType === 'etf'
       ? await database.etfBasic.findMany({
           where: { tsCode: { in: codes } },
-          select: { tsCode: true, name: true },
+          select: { tsCode: true, name: true, listStatus: true, listDate: true, delistDate: true },
         })
+      : [];
+  const metadata =
+    assetType === 'etf'
+      ? etfMetadata
       : await database.indexBenchmark.findMany({
           where: { tsCode: { in: codes } },
           select: { tsCode: true, name: true },
@@ -178,6 +183,15 @@ export async function listDownloads(assetType: DownloadAssetType) {
     rows: codes.map((tsCode) => ({
       tsCode,
       name: metadata.find((row) => row.tsCode === tsCode)?.name ?? tsCode,
+      ...(assetType === 'etf'
+        ? {
+            lifecycle: etfMetadata.find((row) => row.tsCode === tsCode) ?? null,
+            download: etfDownloadRange(
+              etfMetadata.find((row) => row.tsCode === tsCode),
+              '20150101',
+            ),
+          }
+        : {}),
       ...(assetType === 'index'
         ? {
             valuation: {

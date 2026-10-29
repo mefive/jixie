@@ -82,6 +82,10 @@ export async function selectSyncWindow(input: SelectWindowInput): Promise<Planne
   );
 
   for (const object of objects) {
+    if (object.blockedReason) {
+      continue;
+    }
+
     if (Date.now() >= input.deadline) {
       return null;
     }

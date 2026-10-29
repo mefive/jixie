@@ -3,6 +3,7 @@ import type { DatasetPolicy } from './partition.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { readDownloadCodes } from '../downloads/lists.js';
 import { INDEX_VALUATION_SUPPORTED_CODES } from '../registry/index-presets.js';
+import { etfDownloadRange } from '../etfs/download-range.js';
 
 export interface DatasetScope {
   scope: string;
@@ -11,6 +12,7 @@ export interface DatasetScope {
   calendar?: string;
   timeZone?: string;
   closeHour?: number;
+  blockedReason?: string;
 }
 
 function scopes(policy: DatasetPolicy, names: readonly string[]): DatasetScope[] {
@@ -56,8 +58,7 @@ export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope
 
         return {
           scope: code,
-          startDate: row?.listDate ?? policy.startDate,
-          endDate: row?.delistDate ?? undefined,
+          ...etfDownloadRange(row, policy.startDate),
         };
       });
     }

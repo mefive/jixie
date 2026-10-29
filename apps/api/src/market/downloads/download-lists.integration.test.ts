@@ -15,7 +15,12 @@ import type { SyncSource } from '../synchronization/source.js';
 import { DATASET_POLICIES } from '../synchronization/policies.js';
 
 function fixtureSource(
-  options: { missingSize?: string; invalidDate?: boolean; failPage?: boolean } = {},
+  options: {
+    missingSize?: string;
+    invalidDate?: boolean;
+    failPage?: boolean;
+    pending?: boolean;
+  } = {},
 ) {
   const catalog = Array.from({ length: 125 }, (_, index) => ({
     ts_code: `${500000 + index}.SH`,
@@ -38,7 +43,34 @@ function fixtureSource(
       calls.push({ api, params });
       switch (api) {
         case 'etf_basic':
-          return catalog;
+          return [
+            ...catalog,
+            ...(options.pending
+              ? [
+                  {
+                    ts_code: '158025.OF',
+                    extname: '鹏华创业板成长ETF',
+                    list_status: 'P',
+                    exchange: 'SZ',
+                    etf_type: '纯境内',
+                  },
+                  {
+                    ts_code: '515470.OF',
+                    extname: '南方中证人工智能主题ETF',
+                    list_status: 'P',
+                    exchange: 'SH',
+                    etf_type: '纯境内',
+                  },
+                  {
+                    ts_code: '158079.OF',
+                    extname: '华安创业板电池ETF',
+                    list_status: 'P',
+                    exchange: null,
+                    etf_type: '纯境内',
+                  },
+                ]
+              : []),
+          ];
         case 'fund_basic':
           return catalog.map((row) => ({
             ts_code: row.ts_code,
@@ -78,9 +110,9 @@ function fixtureSource(
 const policy = (dataset: string) => DATASET_POLICIES.find((row) => row.dataset === dataset)!;
 
 describe('administrator download lists', () => {
-  it('imports the full catalog, ranks listed funds by size and stores only one dated snapshot', async () =>
+  it('ignores incomplete pending records, retains listed/delisted funds and initializes the top 100', async () =>
     withSyncDatabase(async (database) => {
-      const { source, calls } = fixtureSource({ missingSize: '500120.SH' });
+      const { source, calls } = fixtureSource({ missingSize: '500120.SH', pending: true });
       const selected = await selectTopEtfs({ source, today: '20261028' });
 
       expect(selected.selectedCodes).toHaveLength(100);
@@ -88,6 +120,10 @@ describe('administrator download lists', () => {
       expect(selected.selectedCodes).not.toContain('500124.SH');
       expect(selected.missingSizeCodes).toEqual(['500120.SH']);
       expect(await database.etfBasic.count()).toBe(125);
+      expect(await database.etfBasic.count({ where: { listStatus: 'P' } })).toBe(0);
+      expect(await database.etfBasic.findUnique({ where: { tsCode: '500124.SH' } })).toMatchObject({
+        listStatus: 'D',
+      });
       expect(await database.etfLatestSize.findMany()).toHaveLength(125);
       expect(await readDownloadCodes('etf')).toEqual(selected.selectedCodes);
       expect(calls.some((call) => ['fund_daily', 'fund_adj'].includes(call.api))).toBe(false);

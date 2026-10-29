@@ -64,6 +64,7 @@ JIXIE_DIR='/fixture'
 JIXIE_BACKUP_DIR='/fixture/backups'
 log() { :; }
 warn() { printf '%s\\n' "$*" >&2; }
+die() { printf '%s\\n' "$*" >&2; exit 1; }
 systemctl() { return 1; }
 sudo() { printf 'sudo %s\\n' "$*"; }
 pnpm() {
@@ -84,10 +85,21 @@ node() {
     *'backup-db.mjs'*)
       printf 'backup\\n'
       if [[ "$FAILURE" == 'backup' ]]; then return 20; fi
+      if [[ "$FAILURE" == 'cleanup-backup' && "$JIXIE_BACKUP_DIR" == *'/pending-etf-cleanup' ]]; then return 23; fi
       ;;
     *'upgrade-minimal-sync.mjs restore'*)
       printf 'restore\\n'
       if [[ "$FAILURE" == 'restore' ]]; then return 21; fi
+      ;;
+    *'cleanup-pending-etfs.js check'*)
+      if [[ "$FAILURE" == 'cleanup-check' ]]; then return 22; fi
+      if [[ "$FAILURE" == 'cleanup-invalid' ]]; then printf 'invalid\\n';
+      elif [[ "$FAILURE" == 'new' || "$FAILURE" == 'empty' ]]; then printf '0\\n';
+      else printf '2\\n'; fi
+      ;;
+    *'cleanup-pending-etfs.js apply'*)
+      printf 'cleanup\\n'
+      if [[ "$FAILURE" == 'cleanup' ]]; then return 24; fi
       ;;
     *) return 99 ;;
   esac
@@ -114,6 +126,8 @@ test('generates, builds and migrates the schema before continuing', () => {
     'backup',
     'pnpm --filter api exec prisma migrate deploy',
     'restore',
+    'backup',
+    'cleanup',
     'deployment continued',
   ]);
 });
@@ -159,13 +173,17 @@ for (const [failure, status] of [
   ['export', 19],
   ['backup', 20],
   ['restore', 21],
+  ['cleanup-check', 22],
+  ['cleanup-backup', 23],
+  ['cleanup', 24],
+  ['cleanup-invalid', 1],
 ]) {
   test(`keeps the API stopped when ${failure} fails`, () => {
     const result = runMigrationStage('1', failure);
     assert.equal(result.status, status, result.stderr);
     assert.doesNotMatch(result.stdout, /sudo systemctl start fixture-api|deployment continued/);
     assert.match(result.stderr, /API 保持停止/);
-    if (failure !== 'restore') {
+    if (['export', 'backup'].includes(failure)) {
       assert.doesNotMatch(result.stdout, /prisma migrate deploy/);
     }
   });
@@ -180,4 +198,12 @@ test('a new database migrates without capture export, backup or restoration', ()
     'pnpm --filter api exec prisma migrate deploy',
     'deployment continued',
   ]);
+});
+
+test('an empty cleanup preserves the restored database without another backup or deletion', () => {
+  const result = runMigrationStage('1', 'empty');
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.split('\n').filter((line) => line === 'backup').length, 1);
+  assert.doesNotMatch(result.stdout, /cleanup/);
+  assert.match(result.stdout, /restore\ndeployment continued/);
 });

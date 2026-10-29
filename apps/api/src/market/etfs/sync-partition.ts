@@ -51,7 +51,15 @@ export async function prepareEtfPartition(
       pages.errors.push('ETF fund-category enrichment is incomplete');
     }
     const fundByCode = new Map(funds.rows.map((row) => [row.ts_code, row]));
-    const mapped = mapSourceRecords(pages.rows, (row) => {
+
+    // 待上市资料不进入目录映射，避免缺少交易字段阻断上市／退市目录。
+    // Exclude pending listings before mapping so incomplete trading fields cannot block the catalog.
+    const retained = pages.rows.filter((row) => row.list_status !== 'P');
+    const mapped = mapSourceRecords(retained, (row) => {
+      if (row.list_status !== 'L' && row.list_status !== 'D') {
+        throw new Error(`Invalid ETF listing status ${String(row.ts_code)}`);
+      }
+
       const fund = fundByCode.get(row.ts_code);
       const name = row.extname || row.csname || fund?.name;
       if (typeof name !== 'string') {

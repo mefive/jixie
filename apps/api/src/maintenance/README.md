@@ -26,3 +26,5 @@
 旧库升级必须走 [一次性导出／恢复脚本](../../scripts/upgrade-minimal-sync.mjs) 与 [bootstrap](../../../../scripts/bootstrap.sh)：排空停服，导出受限恢复文件并备份，应用原样生成迁移，恢复并核对分红捕获时间／revision、重算覆盖，再启动 API。任何中途失败保留恢复文件和停服状态；重新部署沿用原文件。不能对旧库直接裸迁移后开放服务。具体命令见 [脚本索引](../../scripts/README.md)。
 
 生产每两小时 :15 的 timer 沿用。ETF／指数对象来自 [下载名单](../market/downloads/README.md)，空名单不自动重置，移出停止请求且保留历史。完整设计和待验收范围见 [裁剪计划第 5 节](../../../../docs/design/system-simplification-plan.md#5-数据维护重新设计)。本轮已通过人工 review、五 workspace 构建、完整回归、隔离迁移及中英浏览器验收；实际结果见裁剪计划第 28.4 节，开发／生产库未应用迁移。
+
+ETF 目录跳过待上市产品；退市名单代码仅补至有效退市日，缺日期时以代码级缺口报告并跳过，不阻断其他对象。旧无依赖待上市目录由 bootstrap 在停服升级阶段离线清理，详见 [ETF 维护设计](../../../../docs/design/etf-data-maintenance.md)。

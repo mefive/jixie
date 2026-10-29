@@ -56,7 +56,7 @@ export async function readDatasetCoverage(): Promise<DatasetCoverage[]> {
         dataset: policy.dataset,
         scope: object.scope,
         maxObservedDate: state?.maxObservedDate ?? null,
-        verifiedThrough: state?.verifiedThrough ?? null,
+        verifiedThrough: object.blockedReason ? null : (state?.verifiedThrough ?? null),
         pending: groups
           .filter((group) => !['complete', 'not_applicable'].includes(group.status))
           .reduce((sum, group) => sum + group._count._all, 0),
@@ -152,6 +152,11 @@ export async function readHistoryGaps(targetDate: string, startedAt: Date): Prom
     }
     let missing = 0;
     for (const object of await datasetScopes(policy)) {
+      if (object.blockedReason) {
+        gaps.push(`${policy.dataset}/${object.scope}: ${object.blockedReason}`);
+        continue;
+      }
+
       const today = localDate(startedAt, policy.timeZone);
       const completed =
         localHour(startedAt, policy.timeZone) >= policy.closeHour ? today : calendarDay(today, -1);
