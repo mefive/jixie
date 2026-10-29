@@ -396,6 +396,11 @@ model Dividend {
   cashDiv    Float? // pre-tax cash dividend per share
   cashDivTax Float? // per-share figure incl. proposal stage
 
+  /// 当前值首次捕获时间；未知时不能据公告日回填。
+  /// First capture of the current value; announcements cannot fill unknown capture dates.
+  observedAt          DateTime?
+  availabilityQuality String    @default("unknown")
+
   @@index([tsCode])
 }
 
@@ -483,27 +488,6 @@ model MaintenanceRun {
   @@index([status, updatedAt])
 }
 
-/// Durable per-item progress for long maintenance stages. Failed or killed runs keep checkpoints
-/// so the retry can resume; a successful run removes them after recording its terminal state.
-model MaintenanceCheckpoint {
-  runId       String
-  stage       String
-  itemKey     String
-  completedAt DateTime @default(now())
-
-  @@id([runId, stage, itemKey])
-  @@index([runId, stage])
-}
-
-/// Singleton publication state. `dailyPublishedThrough` is a continuous SSE trading-day watermark.
-model MaintenanceState {
-  key                   String   @id
-  dailyPublishedThrough String?
-  weeklySyncedThrough   String?
-  dataRevision          Int      @default(0)
-  updatedAt             DateTime @updatedAt
-}
-
 /// 一次固定目标的有限同步尝试；不是覆盖完整性证明。
 /// One bounded synchronization attempt with a frozen target, not proof of complete coverage.
 model DataSyncRun {
@@ -525,14 +509,8 @@ model DataSyncRun {
 model DatasetSyncState {
   dataset         String
   scope           String
-  policyVersion   String
-  historyStart    String
-  backfillCursor  String
-  plannedThrough  String?
-  recheckCursor   String?
   maxObservedDate String?
   verifiedThrough String?
-  revision        Int       @default(0)
   lastCheckedAt   DateTime?
   lastBackfillAt  DateTime?
 
@@ -549,41 +527,15 @@ model DatasetSyncPartition {
   endDate       String
   policyVersion String
   status        String
-  evidence      Json?
   gaps          Json?
   error         String?
-  attempts      Int       @default(0)
   lastRunId     String?
   lastAttemptAt DateTime?
-  nextAttemptAt DateTime?
   checkedAt     DateTime?
 
   @@unique([dataset, scope, startDate, endDate])
-  @@index([status, nextAttemptAt])
+  @@index([status, lastAttemptAt])
   @@index([dataset, scope, startDate])
-}
-
-/// 当前派生输出的输入、失效代次与版本；不修改已封存用户结果。
-/// Inputs, invalidation generation and versions for current outputs, excluding sealed user results.
-model MarketCalculationState {
-  kind               String
-  scope              String
-  date               String
-  status             String
-  generation         Int       @default(1)
-  readyGeneration    Int?
-  inputRevision      Int?
-  inputVersions      Json?
-  dirtyScopes        Json?
-  nextAttemptAt      DateTime?
-  calculationVersion String
-  auditVersion       String
-  gaps               Json?
-  error              String?
-  checkedAt          DateTime?
-
-  @@id([kind, scope, date])
-  @@index([status, date])
 }
 
 /// 可见输入修订号不是所有来源共同的完成日期。
@@ -592,24 +544,6 @@ model MarketDataState {
   key       String   @id
   revision  Int      @default(0)
   updatedAt DateTime @updatedAt
-}
-
-/// 当前值的来源证据；仅有指纹不表示保留了历史可回放值。
-/// Provenance of the current value; a fingerprint alone does not retain replayable old values.
-model MarketRecordEvidence {
-  tableName           String
-  businessKey         String
-  dataset             String
-  fingerprint         String
-  fieldEvidence       Json
-  publicationDate     String?
-  availableDate       String?
-  availabilityQuality String
-  firstObservedAt     DateTime
-  lastFetchedAt       DateTime
-
-  @@id([tableName, businessKey])
-  @@index([dataset])
 }
 
 /// 追加式财务指标版本；未知历史公开时间不能仅凭公告日期推断。

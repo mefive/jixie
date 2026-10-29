@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { calendarDay } from './date.js';
+import { datasetScopes } from './scopes.js';
 import { DATASET_POLICIES } from './policies.js';
 
 export interface CoverageExtent {
@@ -61,11 +62,13 @@ export async function updateVerifiedCoverage(
   transaction: Prisma.TransactionClient,
   dataset: string,
   scope: string,
+  requestedStart?: string,
 ): Promise<void> {
   const policy = DATASET_POLICIES.find((entry) => entry.dataset === dataset)!;
-  const state = await transaction.datasetSyncState.findUniqueOrThrow({
-    where: { dataset_scope: { dataset, scope } },
-  });
+  const object = requestedStart
+    ? undefined
+    : (await datasetScopes(policy)).find((entry) => entry.scope === scope);
+  const historyStart = requestedStart ?? object?.startDate ?? policy.startDate;
   const complete = await transaction.datasetSyncPartition.findMany({
     where: {
       dataset,
@@ -91,19 +94,20 @@ export async function updateVerifiedCoverage(
               dataset: 'calendar',
               scope: policy.calendar,
               status: 'complete',
+              policyVersion: policy.version,
               startDate: {
                 lte:
                   complete
                     .map((partition) => partition.endDate)
                     .sort()
-                    .at(-1) ?? state.historyStart,
+                    .at(-1) ?? historyStart,
               },
-              endDate: { gte: state.historyStart },
+              endDate: { gte: historyStart },
             },
           })
         : [];
     const calendarThrough =
-      policy.period === 'day' ? contiguousCoverage(state.historyStart, calendarProof) : null;
+      policy.period === 'day' ? contiguousCoverage(historyStart, calendarProof) : null;
 
     const sessions =
       policy.period === 'day'
@@ -113,12 +117,12 @@ export async function updateVerifiedCoverage(
                 exchange: policy.calendar,
                 isOpen: 1,
                 calDate: {
-                  gte: state.historyStart,
+                  gte: historyStart,
                   lte:
                     complete
                       .map((partition) => partition.endDate)
                       .sort()
-                      .at(-1) ?? state.historyStart,
+                      .at(-1) ?? historyStart,
                 },
               },
               orderBy: { calDate: 'asc' },
@@ -129,24 +133,24 @@ export async function updateVerifiedCoverage(
             {
               length: Math.max(
                 0,
-                (Number(complete.at(-1)?.endDate.slice(0, 4) ?? state.historyStart.slice(0, 4)) -
-                  Number(state.historyStart.slice(0, 4)) +
+                (Number(complete.at(-1)?.endDate.slice(0, 4) ?? historyStart.slice(0, 4)) -
+                  Number(historyStart.slice(0, 4)) +
                   1) *
                   4,
               ),
             },
             (_, index) =>
-              `${Number(state.historyStart.slice(0, 4)) + Math.floor(index / 4)}${['0331', '0630', '0930', '1231'][index % 4]}`,
-          ).filter((date) => date >= state.historyStart);
+              `${Number(historyStart.slice(0, 4)) + Math.floor(index / 4)}${['0331', '0630', '0930', '1231'][index % 4]}`,
+          ).filter((date) => date >= historyStart);
     verifiedThrough = contiguousCoverage(
-      state.historyStart,
+      historyStart,
       complete,
       policy.period === 'day'
         ? sessions.filter((date) => calendarThrough && date <= calendarThrough)
         : sessions,
     );
   } else {
-    verifiedThrough = contiguousCoverage(state.historyStart, complete);
+    verifiedThrough = contiguousCoverage(historyStart, complete);
   }
   await transaction.datasetSyncState.update({
     where: { dataset_scope: { dataset, scope } },

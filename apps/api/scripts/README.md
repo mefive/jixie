@@ -1,19 +1,19 @@
 # API 命令与脚本索引
 
-应用命令与业务实现按模块相邻放置，本文件提供统一的命令索引。优先使用 `pnpm --filter api <命令> [参数]`；同步统一使用 `pnpm sync <任务> [参数]`（根目录）或 `pnpm --filter api sync <任务> [参数]`。无参数及 `--list` 只显示帮助；`pnpm sync etf --help` 显示单项参数。
+应用命令与业务实现按模块相邻放置，本文件提供统一命令索引。同步使用根级 `pnpm data sync [--to YYYYMMDD]`；ETF／指数名单使用 `pnpm data etf ...`／`pnpm data index ...`。无参数或 `--help` 显示帮助，旧任务选择器已退役。
 
 ## 按任务找目录
 
 | 目录 / 文件 | 用途 | 入口数 | 主要调用方 |
 | --- | --- | --- | --- |
 | [统一数据同步](../src/maintenance/) | 按目标日期推进所有既有数据域、补缺与重查 | 1 | `pnpm data sync [--to YYYYMMDD]` |
-| [Maintenance CLI](../src/maintenance/cli/) | 整轮维护和基线修复 | 1 | systemd、根级维护命令、批量导入 |
+| [升级搬移](upgrade-minimal-sync.mjs) | 停服期间分红捕获时间导出／恢复 | 1 | bootstrap |
 | [Auth CLI](../src/auth/cli/) | 邀请码生成 | 1 | 管理员 |
 | [backup-db.mjs](backup-db.mjs) | 独立 SQLite 备份 | 1 | systemd、launchd、手动备份 |
 | [audit/](audit/) | 检查现有数据、查看覆盖 | 2 | 导入后的质量检查、研究核验 |
 | [probes/](probes/) | Tushare 连接与接口能力探测 | 2 | bootstrap、批量导入、手动诊断 |
 
-共有 33 个业务/工具入口，其中 28 个应用 CLI 位于模块内；24 个同步 CLI 由 [sync/index.ts](sync/index.ts) 统一分派。2 个审计任务使用 [audit/index.ts](audit/index.ts)，2 个外部探针使用 [probes/index.ts](probes/index.ts)，各目录的 `commands.ts` 是任务清单，共用 [command-entry.ts](command-entry.ts) 处理帮助与执行环境。操作系统任务配置统一放在仓库根级 `deploy/`。
+审计使用 [audit/index.ts](audit/index.ts)，外部探针使用 [probes/index.ts](probes/index.ts)；各目录的 `commands.ts` 是任务清单，共用 [command-entry.ts](command-entry.ts) 处理帮助与执行环境。操作系统任务配置放在仓库根级 `deploy/`。
 
 ## 运行约定
 
@@ -31,7 +31,24 @@
 
 唯一写流程是 `pnpm data sync [--to YYYYMMDD]`，由 `src/maintenance/cli/data.ts` 进入协调器；生产使用相同编译入口。无参数或 `--help` 显示帮助，未知参数、额外选择器和不存在的日期在环境/数据库加载前失败。退出码：完整/合法 partial 为 0，实际错误为 1，参数错误为 2，写锁争用为 75。
 
-旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs 和 fundamentals 领域；宏观、利率、FX 和跨市场来源已退役；日常补齐与首次回补使用同一持久分区计划，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [设计](../../../docs/design/unified-data-sync.md)。
+旧 24 项同步能力分别映射到 Market 的 calendar、stocks、instruments、indices、etfs 和 fundamentals 领域；宏观、利率、FX 和跨市场来源已退役；日常补齐与首次回补使用同一有界循环，只记录实际尝试窗口，不再公开任务选择器。完整映射和覆盖策略见 [Maintenance](../src/maintenance/README.md) 与 [裁剪设计第 5 节](../../../docs/design/system-simplification-plan.md#5-数据维护重新设计)。
+
+## 最小同步的旧库升级
+
+现有库升级应通过 `scripts/bootstrap.sh` 完成。该脚本持 M/P/R、排空并停服后导出 `${DB_FILE}.minimal-sync.json`、备份数据库，执行工具生成迁移并恢复，成功后再启动服务。恢复文件权限为 0600，绑定数据库真实路径与设备／inode；已有未恢复文件不会覆盖。失败保持 API 停止并保留文件，再次部署继续恢复。新空库无需导出。
+
+管理员隔离演练时的顺序如下（数据库路径必须显式指定，脚本不读开发库默认值）：
+
+```sh
+node apps/api/scripts/upgrade-minimal-sync.mjs export /absolute/path/isolated.db
+# 使用 backup-db.mjs 备份；随后在同一隔离库执行 prisma migrate deploy。
+# restore 需要已构建的 shared/API 和最新生成 Prisma Client。
+node apps/api/scripts/upgrade-minimal-sync.mjs restore /absolute/path/isolated.db
+```
+
+恢复会核对迁移已完成及分红身份集合，恢复必要时间／质量和 revision，重算覆盖并逐值复核后才删除文件。丢失恢复文件时不能从公告日或除权日推测捕获时间；应保留停服状态，从升级前备份恢复并重做。旧库不能跳过搬移直接裸迁移后开放服务。
+
+旧候选／输入副本目录不由程序自动扫描；管理员核对归属后清理。正常 Job／Agent owner 锁仍按现行协议回收。
 
 ## 审计与查看
 

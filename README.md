@@ -80,7 +80,7 @@ packages/shared/                   # 共享类型(TsCode、TradeDate)
 pnpm install
 # 配置 apps/api/.env：DATABASE_URL 已默认，填 TUSHARE_TOKEN
 pnpm --filter api db:migrate
-pnpm data sync                   # 统一同步；首次回补也由有限批次持续推进
+pnpm data sync                   # 统一同步；近期窗口与历史缺口轮换，有限批次持续推进
 pnpm setup:sandbox               # 按需准备沙盒 SDK 声明、依赖清单与本地 Python 环境
 pnpm dev                         # 同时启动 sandboxd、API 和 Web
 ```
@@ -113,4 +113,4 @@ pnpm probe --list                     # 外部数据源连通性及能力探测
 上述入口无参数均只显示帮助。详细运行条件见 [浏览器检查说明](apps/web/e2e/README.md) 和
 [API 命令索引](apps/api/scripts/README.md)。
 
-ETF 同步全量基础目录，默认按最新规模选择前 100；管理员通过 `pnpm data etf list/select-top/add/remove` 维护名单。指数使用 `pnpm data index list/add/remove`。日常同步不覆盖人工调整，移出保留历史。历史 ETF 份额／规模／净值研究接口已退役，最新规模仅用于名单。详见 [下载名单](apps/api/src/market/downloads/README.md)。
+ETF 同步全量基础目录，默认按最新规模选择前 100；管理员通过 `pnpm data etf list/select-top/add/remove` 维护名单。指数使用 `pnpm data index list/add/remove`。日常同步不覆盖人工调整，移出保留历史。历史 ETF 份额／规模／净值研究接口已退役，最新规模仅用于名单。详见 [下载名单](apps/api/src/market/downloads/README.md)。同步每次选择一个实际窗口，保留来源质量、PIT、稳定读取和修订失效；已完成且超出近期修订范围的历史不再自动巡检。旧库须通过 bootstrap 的分红时间导出／迁移／恢复流程升级，不能裸迁移后直接开放服务。实现与待验收状态见 [Maintenance](apps/api/src/maintenance/README.md)。

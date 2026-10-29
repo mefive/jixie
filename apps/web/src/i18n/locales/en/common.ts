@@ -31,7 +31,6 @@ export const enCommon: typeof zhCommon = {
       'Preparation uses isolated data. You can continue using the published version.',
     background: {
       preparing: 'Preparing data',
-      postprocessing: 'Published; finishing follow-up work',
       error: 'Data update awaiting retry',
     },
     title: 'System maintenance',

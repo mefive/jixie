@@ -1,17 +1,14 @@
+import { legacyMarketTable } from './legacy-market-tables.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import prismaPackage from '@prisma/client';
 import { expect, it } from 'vitest';
-import { withDatabase } from '#infra/database/prisma.js';
-import { withMaintenanceLock } from '#infra/coordination/market-access.js';
-import { retireDatasets } from '#maintenance/retired-datasets.js';
-import { readDatasetCoverage } from '#maintenance/status.js';
 
 const retirement = '20261027090000_remove_stock_flows';
 
-it('drops only stock flow tables, preserves saved research, and retires only their maintenance records', async () => {
+it('drops only stock flow tables and preserves saved research and historical maintenance rows', async () => {
   const directory = await mkdtemp('/tmp/jixie-stock-flows-retirement-');
   const databaseUrl = `file:${directory}/upgrade.db`;
   const previousDatabaseUrl = process.env.DATABASE_URL;
@@ -111,7 +108,7 @@ it('drops only stock flow tables, preserves saved research, and retires only the
       },
     });
     const datasets = ['stock-moneyflow', 'stock-toplist', 'stock-prices'];
-    await database.datasetSyncState.createMany({
+    await legacyMarketTable(database, 'DatasetSyncState').createMany({
       data: datasets.map((dataset) => ({
         dataset,
         scope: 'all',
@@ -131,7 +128,7 @@ it('drops only stock flow tables, preserves saved research, and retires only the
         policyVersion: 'sync-v1',
       })),
     });
-    await database.marketRecordEvidence.createMany({
+    await legacyMarketTable(database, 'MarketRecordEvidence').createMany({
       data: ['Moneyflow', 'TopList', 'Daily'].map((tableName, index) => ({
         tableName,
         businessKey: '["fixture"]',
@@ -173,24 +170,6 @@ it('drops only stock flow tables, preserves saved research, and retires only the
     ).toEqual([]);
     expect(await database.$queryRaw`PRAGMA foreign_key_check`).toEqual([]);
     expect(await database.$queryRaw`PRAGMA integrity_check`).toEqual([{ integrity_check: 'ok' }]);
-    await withDatabase(database, async () => {
-      expect((await readDatasetCoverage()).map((entry) => entry.dataset)).toEqual(['stock-prices']);
-      await expect(retireDatasets()).rejects.toThrow();
-      const retained = await Promise.all([
-        database.datasetSyncState.findMany({ where: { dataset: 'stock-prices' } }),
-        database.datasetSyncPartition.findMany({ where: { dataset: 'stock-prices' } }),
-        database.marketRecordEvidence.findMany({ where: { tableName: 'Daily' } }),
-      ]);
-      await withMaintenanceLock(retireDatasets);
-      await withMaintenanceLock(retireDatasets);
-      expect(
-        await Promise.all([
-          database.datasetSyncState.findMany(),
-          database.datasetSyncPartition.findMany(),
-          database.marketRecordEvidence.findMany(),
-        ]),
-      ).toEqual(retained);
-    });
   } finally {
     await database.$disconnect();
     if (previousDatabaseUrl === undefined) {

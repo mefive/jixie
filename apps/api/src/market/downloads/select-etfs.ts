@@ -5,7 +5,7 @@ import {
   assertMaintenanceOwner,
 } from '#infra/coordination/market-access.js';
 import { prepareEtfPartition } from '../etfs/sync-partition.js';
-import { acceptMarketPartition } from '../synchronization/records.js';
+import { writeEtfPartition } from '../etfs/write.js';
 import { fetchSourcePages, sourceString, type SyncSource } from '../synchronization/source.js';
 import { calendarDay, localDate, isObservationDate } from '../synchronization/date.js';
 import { MarketSourcePendingError } from '../errors.js';
@@ -142,12 +142,12 @@ export async function selectEtfsUnderMaintenance(input: SelectEtfsInput) {
   await withMarketPublication(() =>
     database.$transaction(
       async (transaction) => {
-        const accepted = await acceptMarketPartition(
-          transaction,
-          prepared,
-          'etf-master',
-          new Date(),
-        );
+        const accepted = await writeEtfPartition(transaction, prepared, {
+          dataset: 'etf-master',
+          scope: 'all',
+          startDate: '20150101',
+          endDate: today,
+        });
         if (accepted.errors.length) {
           throw new Error(`ETF catalog rejected: ${accepted.errors.join('; ')}`);
         }

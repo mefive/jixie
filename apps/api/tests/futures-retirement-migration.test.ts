@@ -1,13 +1,10 @@
+import { legacyMarketTable } from './legacy-market-tables.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import prismaPackage from '@prisma/client';
 import { expect, it } from 'vitest';
-import { withDatabase } from '#infra/database/prisma.js';
-import { withMaintenanceLock } from '#infra/coordination/market-access.js';
-import { retireDatasets } from '#maintenance/retired-datasets.js';
-import { readDatasetCoverage } from '#maintenance/status.js';
 
 const retirement = '20261027130000_remove_futures_data';
 
@@ -159,7 +156,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
       'commodity-receipts',
       'stock-prices',
     ];
-    await database.datasetSyncState.createMany({
+    await legacyMarketTable(database, 'DatasetSyncState').createMany({
       data: datasets.map((dataset) => ({
         dataset,
         scope: 'all',
@@ -179,7 +176,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
         policyVersion: 'sync-v1',
       })),
     });
-    await database.marketRecordEvidence.createMany({
+    await legacyMarketTable(database, 'MarketRecordEvidence').createMany({
       data: [...retiredTables, 'Daily'].map((tableName, index) => ({
         tableName,
         businessKey: '["fixture"]',
@@ -199,7 +196,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
         isOpen: 1,
       })),
     });
-    await database.marketCalculationState.createMany({
+    await legacyMarketTable(database, 'MarketCalculationState').createMany({
       data: ['future-publication', 'commodity-continuous', 'market-state', 'unrelated-history'].map(
         (kind) => ({
           kind,
@@ -212,7 +209,7 @@ it('drops nine futures tables while preserving retained schema, sources, user co
       ),
     });
     for (const scope of ['SSE', 'SZSE', 'CFFEX', 'SHFE', 'DCE', 'CZCE', 'INE', 'GFEX']) {
-      await database.datasetSyncState.create({
+      await legacyMarketTable(database, 'DatasetSyncState').create({
         data: {
           dataset: 'calendar',
           scope,
@@ -278,51 +275,6 @@ it('drops nine futures tables while preserving retained schema, sources, user co
     ).toEqual([]);
     expect(await database.$queryRaw`PRAGMA foreign_key_check`).toEqual([]);
     expect(await database.$queryRaw`PRAGMA integrity_check`).toEqual([{ integrity_check: 'ok' }]);
-    await withDatabase(database, async () => {
-      expect((await readDatasetCoverage()).map((entry) => entry.dataset)).not.toContain(
-        'future-prices',
-      );
-      expect(
-        (await readDatasetCoverage()).find((entry) => entry.dataset === 'calendar')?.errors,
-      ).toBe(2);
-      await expect(retireDatasets()).rejects.toThrow();
-      const retained = await Promise.all([
-        database.datasetSyncState.findMany({
-          where: {
-            dataset: { in: ['stock-prices', 'calendar'] },
-            scope: { in: ['all', 'SSE', 'SZSE'] },
-          },
-          orderBy: [{ dataset: 'asc' }, { scope: 'asc' }],
-        }),
-        database.datasetSyncPartition.findMany({
-          where: {
-            dataset: { in: ['stock-prices', 'calendar'] },
-            scope: { in: ['all', 'SSE', 'SZSE'] },
-          },
-          orderBy: [{ dataset: 'asc' }, { scope: 'asc' }],
-        }),
-        database.marketRecordEvidence.findMany({ where: { tableName: 'Daily' } }),
-      ]);
-      await withMaintenanceLock(retireDatasets);
-      await withMaintenanceLock(retireDatasets);
-      expect(
-        await Promise.all([
-          database.datasetSyncState.findMany({ orderBy: [{ dataset: 'asc' }, { scope: 'asc' }] }),
-          database.datasetSyncPartition.findMany({
-            orderBy: [{ dataset: 'asc' }, { scope: 'asc' }],
-          }),
-          database.marketRecordEvidence.findMany(),
-        ]),
-      ).toEqual(retained);
-      expect(
-        (await database.tradeCal.findMany({ orderBy: { exchange: 'asc' } })).map(
-          (row) => row.exchange,
-        ),
-      ).toEqual(['SSE', 'SZSE']);
-      expect((await database.marketCalculationState.findMany()).map((row) => row.kind)).toEqual([
-        'unrelated-history',
-      ]);
-    });
   } finally {
     await database.$disconnect();
     if (previousDatabaseUrl === undefined) {

@@ -36,7 +36,7 @@ export interface DataSyncResult {
 export interface MaintenanceStatus {
   active: boolean;
   running: boolean;
-  phase: 'idle' | 'preparing' | 'publishing' | 'postprocessing' | 'error' | 'uninitialized';
+  phase: 'idle' | 'preparing' | 'publishing' | 'error' | 'uninitialized';
   runId: string | null;
   kind: 'sync' | 'deploy' | null;
   targetDate: string | null;

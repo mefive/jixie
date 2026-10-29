@@ -53,9 +53,6 @@ export async function retireDatasets(): Promise<void> {
 
   await withMarketPublication(() =>
     getDatabase().$transaction([
-      getDatabase().marketCalculationState.deleteMany({
-        where: { kind: { in: ['market-state', 'commodity-continuous', 'future-publication'] } },
-      }),
       getDatabase().tradeCal.deleteMany({
         where: { exchange: { in: RETIRED_EXCHANGES } },
       }),
@@ -76,35 +73,6 @@ export async function retireDatasets(): Promise<void> {
       }),
       getDatabase().datasetSyncState.deleteMany({
         where: { dataset: { in: RETIRED_DATASETS } },
-      }),
-      getDatabase().marketRecordEvidence.deleteMany({
-        where: {
-          tableName: {
-            in: [
-              'EtfShareSize',
-              'Moneyflow',
-              'TopList',
-              'SwIndustryMember',
-              'SwIndexDaily',
-              'FutureContract',
-              'FutureDaily',
-              'FutureMapping',
-              'FutureSettlement',
-              'CommodityWarehouseReceipt',
-              'CommodityHoldingPosition',
-              'CommodityContinuousReturn',
-              'FutureMarketPublication',
-              'FutureMarketRevision',
-              'YieldCurvePoint',
-              'FxDaily',
-              'MacroSeries',
-              'MacroObservation',
-              'MacroReleaseSchedule',
-              'MarketBenchmark',
-              'MarketBenchmarkDaily',
-            ],
-          },
-        },
       }),
     ]),
   );

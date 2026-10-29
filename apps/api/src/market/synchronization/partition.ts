@@ -15,56 +15,35 @@ export interface MarketPartition {
   endDate: string;
 }
 
-/**
- * 行的字段证据随响应保存，未知字段与权威 null 分开。
- *
- * Carry field evidence, distinguishing unknown values from authoritative null corrections.
- */
+/** 未知 null 与来源明确清空分开处理。 / Distinguish unknown nulls from explicit clearing. */
 export interface SourceRecord {
   values: MarketRow;
   authoritativeNulls?: readonly string[];
-  firstObservedAt?: Date;
-  publicationDate?: string | null;
-  availableDate?: string | null;
-  availabilityQuality?: 'source_contract' | 'captured' | 'latest_only' | 'unknown';
 }
 
 export interface PreparedTable {
   table: string;
   records: SourceRecord[];
   atomic?: boolean;
-  /**
-   * 来源提出精确范围请求；公共资格核验完成前不具有删除权限。
-   *
-   * A source proposes an exact extent; deletion is unauthorized until qualification completes.
-   */
-  replacementRequest?: { where: Record<string, unknown>; basis: string; independent?: true };
-  /**
-   * 只有完整权威范围才允许删除；where 由领域函数限定。
-   *
-   * Only a complete authoritative extent permits deletion; the domain bounds its where clause.
-   */
-  replacement?: {
-    where: Record<string, unknown>;
-    authoritative: true;
-    basis: string;
-    independent?: true;
-  };
+  replace?: boolean;
 }
 
 export interface PreparedMarketPartition {
   tables: PreparedTable[];
   status: 'complete' | 'partial' | 'waiting' | 'not_applicable' | 'error';
-  evidence: Record<string, string | number | boolean>;
+  checks: {
+    terminalPage: boolean;
+    sourceFailed: boolean;
+    invalidRows: number;
+    emptyResponse: boolean;
+    pages: number;
+    sourceRows: number;
+    suspensionsVerified?: boolean;
+    fullDaySuspended?: string[];
+  };
   gaps: string[];
   errors: string[];
   observedDates: string[];
-}
-
-export interface AcceptedMarketChange {
-  table: string;
-  before: MarketRow | null;
-  after: MarketRow | null;
 }
 
 export interface AcceptedMarketPartition {
@@ -73,7 +52,7 @@ export interface AcceptedMarketPartition {
   deleted: number;
   rejected: number;
   observedDates: string[];
-  changes: AcceptedMarketChange[];
+  changed: boolean;
   errors: string[];
 }
 

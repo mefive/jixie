@@ -42,19 +42,19 @@ describe('bounded source evidence', () => {
 
   it('A05/A06 distinguishes authoritative sparse empty responses from unexplained dense emptiness', () => {
     const pages = { rows: [], complete: true, pages: 1, errors: [] };
-    expect(completeResponse({ pages, table: 'Daily', records: [], extent: null }).status).toBe(
-      'error',
-    );
+    expect(
+      completeResponse({ pages, table: 'Daily', records: [], coverageComplete: false }).status,
+    ).toBe('error');
     const empty = completeResponse({
       pages,
       table: 'Dividend',
-      extent: { basis: 'Daily event contract', deletion: 'Authoritative event withdrawal' },
+      coverageComplete: true,
+      replace: true,
       records: [],
       allowEmpty: true,
-      where: { tradeDate: '20260915' },
     });
     expect(empty.status).toBe('complete');
-    expect(empty.tables[0].replacementRequest?.where).toEqual({ tradeDate: '20260915' });
+    expect(empty.tables[0].replace).toBe(true);
   });
 
   it('A07 bounds actual HTTP attempts across providers and retries', async () => {

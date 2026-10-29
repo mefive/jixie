@@ -3,10 +3,10 @@ import { createHash } from 'node:crypto';
 import { withSyncDatabase } from '../../tests/sync-database.js';
 import { calendarDay } from '#market/synchronization/date.js';
 import { qualifyMarketPartition } from '#market/synchronization/qualify.js';
-import { acceptMarketPartition } from '#market/synchronization/records.js';
+import { writeFixture as acceptMarketPartition } from '../../tests/sync-fixtures.js';
 import { prepareStockPartition } from '#market/stocks/sync-partition.js';
 import { prepareIndexPartition } from '#market/indices/sync-partition.js';
-import { planSyncPartitions } from './partitions.js';
+import { selectFixtureWindows as planSyncPartitions } from '../../tests/sync-fixtures.js';
 
 const tradeDate = '20260915';
 const fetchedAt = new Date('2026-09-16T10:00:00Z');
@@ -127,9 +127,9 @@ describe('unified sync review regressions', () => {
         pricePartition,
         await prepareStockPartition(source, pricePartition),
       );
-      expect(prices.evidence.terminalPage).toBe(true);
+      expect(prices.checks.terminalPage).toBe(true);
       expect(prices.status).toBe('partial');
-      expect(prices.tables[0].replacement).toBeUndefined();
+      expect(prices.tables[0].replace).toBe(false);
       await database.$transaction((transaction) =>
         acceptMarketPartition(transaction, prices, 'stock-prices', fetchedAt),
       );
@@ -164,7 +164,7 @@ describe('unified sync review regressions', () => {
         await prepareStockPartition(authoritativeSource, pricePartition),
       );
       expect(correction.status).toBe('complete');
-      expect(correction.tables[0].replacement?.basis).toContain('suspension');
+      expect(correction.tables[0].replace).toBe(true);
       const accepted = await database.$transaction((transaction) =>
         acceptMarketPartition(transaction, correction, 'stock-prices', fetchedAt),
       );
@@ -173,7 +173,7 @@ describe('unified sync review regressions', () => {
     }));
 
   it(
-    'R02/A02/A04 holds historical cursors across calendar gaps and later plans every historical session',
+    'R02/A02/A04 waits for calendar coverage and selects historical gaps without planning writes',
     async () =>
       withSyncDatabase(async (database) => {
         await calendar(database, '20260101', '20261231', [tradeDate]);
@@ -186,11 +186,7 @@ describe('unified sync review regressions', () => {
         expect(first.partitions).toContainEqual(
           expect.objectContaining({ dataset: 'stock-prices', startDate: tradeDate }),
         );
-        expect(
-          await database.datasetSyncState.findUniqueOrThrow({
-            where: { dataset_scope: { dataset: 'stock-prices', scope: 'all' } },
-          }),
-        ).toMatchObject({ backfillCursor: '20150101' });
+        expect(await database.datasetSyncState.count()).toBe(0);
 
         const expected = Array.from({ length: 11 }, (_, index) => `${2015 + index}0105`);
         await calendar(database, '20150101', '20251231', expected);
@@ -256,16 +252,18 @@ it('R09/A06 rejects a canonical identity collision before replacing a constituen
               table: 'IndexWeight',
               atomic: true,
               records: [duplicate, duplicate],
-              replacement: {
-                where: { indexCode: partition.scope, tradeDate },
-                authoritative: true,
-                independent: true,
-                basis: 'Controlled atomic snapshot fixture',
-              },
+              replace: true,
             },
           ],
           status: 'complete',
-          evidence: {},
+          checks: {
+            terminalPage: false,
+            sourceFailed: false,
+            invalidRows: 0,
+            emptyResponse: false,
+            pages: 1,
+            sourceRows: 2,
+          },
           gaps: [],
           errors: [],
           observedDates: [tradeDate],
@@ -280,25 +278,15 @@ it('R09/A06 rejects a canonical identity collision before replacing a constituen
   }));
 
 it(
-  'R11/A04 advances recent rechecks across repeated plans, cooldowns and an excluded date',
+  'R11/A04 advances recent windows across successful refreshes and an excluded date',
   async () =>
     withSyncDatabase(async (database) => {
       const startDate = '20260901';
       const dates = Array.from({ length: 15 }, (_, index) => calendarDay(startDate, index));
-      await calendar(database, startDate, tradeDate, dates);
-      await database.datasetSyncState.create({
-        data: {
-          dataset: 'stock-prices',
-          scope: 'all',
-          historyStart: startDate,
-          backfillCursor: tradeDate,
-          recheckCursor: startDate,
-          policyVersion: 'sync-v1',
-        },
-      });
+      await calendar(database, '20260826', tradeDate, dates);
       const selectedDates = new Set<string>();
       const excluded = new Set<string>();
-      for (let round = 0; round < 6; round++) {
+      for (let round = 0; round < 16; round++) {
         if (round === 1) {
           const date = calendarDay(startDate, 1);
           excluded.add(
@@ -316,23 +304,33 @@ it(
         });
         for (const partition of plan.partitions) {
           excluded.add(partition.id);
-          if (partition.dataset === 'stock-prices' && partition.startDate < tradeDate) {
-            selectedDates.add(partition.startDate);
-            await database.datasetSyncPartition.update({
+          if (partition.dataset === 'stock-prices') {
+            if (partition.startDate < tradeDate) {
+              selectedDates.add(partition.startDate);
+            }
+            const data = {
+              id: partition.id,
+              dataset: partition.dataset,
+              scope: partition.scope,
+              startDate: partition.startDate,
+              endDate: partition.endDate,
+              policyVersion: partition.policyVersion,
+              status: 'complete',
+              checkedAt: fetchedAt,
+            };
+            await database.datasetSyncPartition.upsert({
               where: { id: partition.id },
-              data: {
-                status: 'complete',
-                nextAttemptAt: new Date('2099-01-01T00:00:00Z'),
-              },
+              create: data,
+              update: data,
             });
           }
         }
-        // 每轮保留最早日期的冷却，重新启动的计划也必须继续扫描其他日期。
-        // Retain the earliest date's cooldown while restarted planning reaches later dates.
+        // 已完成窗口的检查时间阻止立即重抓；下一次选择继续其他日期。
+        // Fresh successful windows are skipped while selection continues to other dates.
         excluded.clear();
       }
       expect(selectedDates.has(startDate)).toBe(true);
-      expect(selectedDates.size).toBeGreaterThanOrEqual(6);
+      expect(selectedDates.size).toBe(14);
       expect([...selectedDates].some((date) => date > calendarDay(startDate, 3))).toBe(true);
     }),
   30_000,

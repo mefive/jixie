@@ -63,6 +63,7 @@ try {
     ...[
       'macro-retirement',
       'download-lists',
+      'minimal-sync',
       'factor-publication',
       'factor-scope',
       'python-factor',

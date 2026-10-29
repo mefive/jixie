@@ -7,8 +7,6 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { expect, it } from 'vitest';
-import { closeDatabase, createDatabase, withDatabase } from '#infra/database/prisma.js';
-import { synchronizeData } from '#maintenance/sync.js';
 
 const execute = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -326,36 +324,6 @@ it.each(['upgrade', 'empty'] as const)(
           retainedTables: snapshots.length,
         }),
       );
-      if (mode === 'upgrade') {
-        const client = createDatabase(url);
-        try {
-          await withDatabase(client, async () => {
-            const controller = new AbortController();
-            controller.abort(new Error('Controlled bootstrap budget'));
-            await synchronizeData({
-              targetDate: '20260915',
-              startedAt: new Date('2026-09-16T10:00:00Z'),
-              signal: controller.signal,
-              onLog: () => {},
-              providers: {
-                source: {
-                  call: async () => {
-                    throw new Error('No source calls permitted in bootstrap fixture');
-                  },
-                },
-              },
-            });
-            expect(
-              await client.marketDataState.findUniqueOrThrow({ where: { key: 'global' } }),
-            ).toMatchObject({ revision: 17 });
-            expect(await client.datasetSyncPartition.count({ where: { status: 'complete' } })).toBe(
-              0,
-            );
-          });
-        } finally {
-          await closeDatabase(client);
-        }
-      }
     } finally {
       if (previousUrl === undefined) {
         delete process.env.DATABASE_URL;

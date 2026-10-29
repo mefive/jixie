@@ -5,15 +5,16 @@
 | 文件 / 入口 | 调用方及输入输出 |
 | --- | --- |
 | [source-contract.ts](source-contract.ts) `normalizeFinancialStatementSourceRow`、`resolveFinancialAvailability`、`appendFinancialStatementSourceRows` | 同步和测试消费的纯规则；规范来源、证据可得性、合并内存版本数组，不写数据库 |
-| [sync.ts](sync.ts) `syncFinancialStatementsVip`、`syncFinancialStatementsByStock` | Market 财报子进程（维护／导入共用）；分报告期或有界公告日期窗口拉三表，显式请求报告类型，追加新版本并回调完成进度 |
+| [sync.ts](sync.ts) `syncFinancialStatementsVip`、`syncFinancialStatementsByStock` | 低层映射与测试；分报告期或有界公告日期窗口拉三表，显式请求报告类型，追加新版本并回调完成进度 |
 | 同文件 `storeFinancialCorrectionEvidence` | 维护来源证据；写更正公告并只给无歧义匹配版本附精确证据，不能把模糊更正日期当确切公告 |
 | [resolver.ts](resolver.ts) `resolveFinancialState`、`resolveFinancialStates`、`selectLatestStatementVersions` | Research／审计；前两者按 asOfDate 查库和规范代码，后者选择版本，保留报告类型、来源和可得性 |
 | [normalize.ts](normalize.ts) `normalizeIncomeFlows`、`normalizeCashFlows` | 累计流量转单季／TTM，缺少必要期数保留缺失而非补零 |
 | [metrics.ts](metrics.ts) `calculateFinancialMetrics` | 输入 ResolvedFinancialState，按版本化公式生成指标及来源，不查询市场 |
 | [reference-sync.ts](reference-sync.ts) `syncFinaIndicator`、`syncFinaIndicatorVip`、`syncDividend` | 参考指标和分红增量协调，独立于三表 append-only 版本同步 |
-| [reference-periods.ts](reference-periods.ts) `financialHistoryStart`、`quarterlyReportPeriods` | weekly／历史导入共用的纯时间范围计算 |
+| [reference-periods.ts](reference-periods.ts) `financialHistoryStart`、`quarterlyReportPeriods` | 纯时间范围计算 |
+| [sync-partition.ts](sync-partition.ts) / [write.ts](write.ts) | 正式同步的分页准备、版本身份、PIT 与显式 Prisma 写入 |
 
-resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并按当时行业／市值构造状态；市值从供应商万元转换为元。批量入口允许调用方提供 market snapshots，报告窗口也有独立边界。版本哈希、公告日期和更正证据不能因为相同 endDate 合并丢失。
+resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并使用当时可得财报与市值构造状态；市值从供应商万元转换为元。批量入口允许调用方提供 market snapshots，报告窗口也有独立边界。版本哈希、公告日期和更正证据不能因为相同 endDate 合并丢失。
 
 三表同步按批次保存，完成回调在对应范围处理后；没有覆盖网络、所有报表及整轮维护的总事务。[accounting-quality.ts](accounting-quality.ts) 的 `inspectFinancialAccounting` 与 [valuation-sample-audit.ts](valuation-sample-audit.ts) 的 `auditValuationState` 检查财务／估值样本，不同步数据。
 
@@ -23,6 +24,6 @@ resolver 以 availableDate ≤ asOfDate 读取支持的工业合并报表，并�
 
 ## 维护调用的数据能力
 
-[financial-history-import.ts](financial-history-import.ts) 选择历史报告期和分红股票，分批调用 [reference-worker-process.ts](reference-worker-process.ts)。[reference-worker.ts](reference-worker.ts) 只处理市场数据；[协议](reference-worker-protocol.ts) 逐项报告完成，父进程等待调用方持久化后确认，Worker 才继续。Maintenance 在回调中保存 checkpoint，普通 [sync fina](../cli/sync-fina.ts) 不写维护记录。失败不得把未确认项当作完成；进程关闭后才结束批次。
+正式入口使用 [sync-partition.ts](sync-partition.ts) 准备一个季度报表／指标窗口或单股分红年窗口，再由 [write.ts](write.ts) 显式写对应表。报表对象按版本指纹追加，财务指标保留捕获版本；日常不写通用来源证据表。分红当前值的 `observedAt`／`availabilityQuality` 随业务行保存，同值重复抓取和代码接续保留时间，真实修订更新捕获时间。Research 的经济除权日与可得日期继续分开。
 
-[audit.ts](audit.ts) 拥有财报可得时间、会计勾稽与指标覆盖检查，测试包括 [真实临时 SQLite](audit.integration.test.ts) 和 [真实 Worker IPC](reference-worker.integration.test.ts)。
+[audit.ts](audit.ts) 拥有财报可得时间、会计勾稽与指标覆盖检查，测试包括 [真实临时 SQLite](audit.integration.test.ts)。升级搬移和中断恢复见 [升级测试](../../../tests/minimal-sync-migration.test.ts)。

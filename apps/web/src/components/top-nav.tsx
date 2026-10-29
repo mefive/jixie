@@ -21,8 +21,7 @@ export const TopNav = observer(() => {
   const location = useLocation();
   const maintenance = maintenanceStore.status;
   const backgroundPhase =
-    !maintenance?.active &&
-    ['preparing', 'postprocessing', 'error'].includes(maintenance?.phase ?? '')
+    !maintenance?.active && ['preparing', 'error'].includes(maintenance?.phase ?? '')
       ? maintenance.phase
       : null;
   const versionLoader = deploymentVersionStore.loader;

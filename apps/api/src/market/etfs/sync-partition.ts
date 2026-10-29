@@ -78,7 +78,6 @@ export async function prepareEtfPartition(
       return {
         values,
         authoritativeNulls: fund && Object.hasOwn(fund, 'delist_date') ? ['delistDate'] : [],
-        availabilityQuality: 'latest_only',
       };
     });
 
@@ -86,7 +85,7 @@ export async function prepareEtfPartition(
       pages,
       table: 'EtfBasic',
       ...mapped,
-      extent: { basis: 'Filtered fund catalog contract' },
+      coverageComplete: true,
     });
   }
   const definitions = {
@@ -139,21 +138,15 @@ export async function prepareEtfPartition(
       throw new Error('Invalid ETF adjustment');
     }
 
-    return { values, availableDate: date, availabilityQuality: 'source_contract' };
+    return { values };
   });
 
   return completeResponse({
     pages,
     table: definition.table,
-    extent: {
-      basis: 'Filtered fund series contract',
-      deletion: 'Exact dated fund observations after session qualification',
-    },
+    coverageComplete: true,
+    replace: true,
     ...mapped,
     observedDates: mapped.records.map((record) => String(record.values.tradeDate)),
-    where: {
-      tsCode: partition.scope,
-      tradeDate: { gte: partition.startDate, lte: partition.endDate },
-    },
   });
 }

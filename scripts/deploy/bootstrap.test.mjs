@@ -58,6 +58,10 @@ DEPLOYMENT_RUN_ID=''
 JIXIE_SERVICE='fixture-api'
 DB_FILE='fixture.db'
 NODE_HEAP_OPTIONS=''
+SCHEMA_DATA_READY=1
+MINIMAL_SYNC_TRANSFER=''
+JIXIE_DIR='/fixture'
+JIXIE_BACKUP_DIR='/fixture/backups'
 log() { :; }
 warn() { printf '%s\\n' "$*" >&2; }
 systemctl() { return 1; }
@@ -70,6 +74,23 @@ pnpm() {
   if [[ "$FAILURE" == 'schema' && "$*" == *'prisma migrate deploy'* ]]; then
     return 18
   fi
+}
+node() {
+  case "$*" in
+    *'upgrade-minimal-sync.mjs export'*)
+      if [[ "$FAILURE" == 'export' ]]; then return 19; fi
+      if [[ "$FAILURE" != 'new' ]]; then printf '/fixture/transfer.json\\n'; fi
+      ;;
+    *'backup-db.mjs'*)
+      printf 'backup\\n'
+      if [[ "$FAILURE" == 'backup' ]]; then return 20; fi
+      ;;
+    *'upgrade-minimal-sync.mjs restore'*)
+      printf 'restore\\n'
+      if [[ "$FAILURE" == 'restore' ]]; then return 21; fi
+      ;;
+    *) return 99 ;;
+  esac
 }
 ${cleanup}
 trap cleanup_deployment_gate EXIT
@@ -90,7 +111,9 @@ test('generates, builds and migrates the schema before continuing', () => {
   assert.deepEqual(result.stdout.trim().split('\n'), [
     'pnpm --filter api exec prisma generate',
     'pnpm --filter api build',
+    'backup',
     'pnpm --filter api exec prisma migrate deploy',
+    'restore',
     'deployment continued',
   ]);
 });
@@ -102,11 +125,14 @@ test('a failed API build stops before schema migration and restores the prior AP
   assert.match(result.stdout, /sudo systemctl start fixture-api/);
 });
 
-test('preserves the existing cleanup behavior on schema migration failure', () => {
+test('keeps the API stopped when schema migration fails', () => {
   const result = runMigrationStage('1', 'schema');
   assert.equal(result.status, 18, result.stderr);
-  assert.doesNotMatch(result.stdout, /db:migrate:factor-job-kinds|deployment continued/);
-  assert.match(result.stdout, /sudo systemctl start fixture-api/);
+  assert.doesNotMatch(
+    result.stdout,
+    /db:migrate:factor-job-kinds|deployment continued|sudo systemctl start fixture-api|restore/,
+  );
+  assert.match(result.stderr, /API 保持停止/);
 });
 
 test('does not run API build or schema migrations for an unrelated deployment', () => {
@@ -127,4 +153,31 @@ test('builds the Python image from the repository root to include business sourc
   assert.ok(
     bootstrap.includes('--file "$JIXIE_DIR/apps/sandboxd/Dockerfile.python" \\\n    "$JIXIE_DIR"'),
   );
+});
+
+for (const [failure, status] of [
+  ['export', 19],
+  ['backup', 20],
+  ['restore', 21],
+]) {
+  test(`keeps the API stopped when ${failure} fails`, () => {
+    const result = runMigrationStage('1', failure);
+    assert.equal(result.status, status, result.stderr);
+    assert.doesNotMatch(result.stdout, /sudo systemctl start fixture-api|deployment continued/);
+    assert.match(result.stderr, /API 保持停止/);
+    if (failure !== 'restore') {
+      assert.doesNotMatch(result.stdout, /prisma migrate deploy/);
+    }
+  });
+}
+
+test('a new database migrates without capture export, backup or restoration', () => {
+  const result = runMigrationStage('1', 'new');
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(result.stdout.trim().split('\n'), [
+    'pnpm --filter api exec prisma generate',
+    'pnpm --filter api build',
+    'pnpm --filter api exec prisma migrate deploy',
+    'deployment continued',
+  ]);
 });

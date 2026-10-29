@@ -1,629 +1,218 @@
 import { createHash } from 'node:crypto';
 import { getDatabase } from '#infra/database/prisma.js';
-import { DATASET_POLICIES } from '#market/synchronization/policies.js';
 import { contiguousCoverage } from '#market/synchronization/coverage.js';
-import type { DatasetPolicy, MarketPartition } from '#market/synchronization/partition.js';
 import { calendarDay, localDate, localHour } from '#market/synchronization/date.js';
-import { canonicalStockCode } from '#market/instruments/stock-identity.js';
-import { readDownloadCodes } from '#market/downloads/lists.js';
-import { INDEX_VALUATION_SUPPORTED_CODES } from '#market/registry/index-presets.js';
+import { datasetScopes } from '#market/synchronization/scopes.js';
+import type { DatasetPolicy, MarketPartition } from '#market/synchronization/partition.js';
 
-export const SYNC_LIMITS = {
-  partitions: 240,
-  requests: 600,
-  milliseconds: 30 * 60_000,
-} as const;
-export interface DatasetScope {
-  scope: string;
-  startDate: string;
-  endDate?: string;
-  calendar?: string;
-  timeZone?: string;
-  closeHour?: number;
-}
+export { datasetScopes } from '#market/synchronization/scopes.js';
+export const SYNC_LIMITS = { partitions: 240, requests: 600, milliseconds: 30 * 60_000 } as const;
 export interface PlannedPartition extends MarketPartition {
   id: string;
   policyVersion: string;
+  history: boolean;
 }
-export interface PlanInput {
+export interface SelectWindowInput {
+  policy: DatasetPolicy;
   targetDate: string;
   startedAt: Date;
-  budget?: number;
-  excludeIds?: ReadonlySet<string>;
-  deadline?: number;
+  history: boolean;
+  attempted: ReadonlySet<string>;
+  deadline: number;
 }
 
-function scopes(policy: DatasetPolicy, names: readonly string[]): DatasetScope[] {
-  return [...new Set(names)].map((scope) => ({ scope, startDate: policy.startDate }));
-}
-
-/**
- * ETF／指数对象只读管理员保存名单；其他对象来自来源目录。
- *
- * ETF/index objects follow saved administrator lists; other objects follow source catalogs.
- */
-export async function datasetScopes(policy: DatasetPolicy): Promise<DatasetScope[]> {
-  switch (policy.dataset) {
-    case 'calendar':
-      return scopes(policy, ['SSE', 'SZSE']);
-    case 'stock-master':
-      return scopes(policy, ['L', 'D', 'P', 'G']);
-    case 'stock-names':
-      return scopes(policy, ['all']);
-    case 'etf-master':
-      return scopes(policy, ['all']);
-    case 'index-prices':
-      return scopes(policy, await readDownloadCodes('index'));
-    case 'index-valuations':
-      return scopes(
-        policy,
-        (await readDownloadCodes('index')).filter((code) =>
-          INDEX_VALUATION_SUPPORTED_CODES.includes(code),
-        ),
-      );
-    case 'index-weights':
-      return scopes(
-        policy,
-        (await readDownloadCodes('index')).filter((code) => code !== 'H00300.CSI'),
-      );
-    case 'etf-prices':
-    case 'etf-adjustments': {
-      const codes = await readDownloadCodes('etf');
-      const rows = await getDatabase().etfBasic.findMany({ where: { tsCode: { in: codes } } });
-
-      return codes.map((code) => {
-        const row = rows.find((item) => item.tsCode === code);
-
-        return {
-          scope: code,
-          startDate: row?.listDate ?? policy.startDate,
-          endDate: row?.delistDate ?? undefined,
-        };
-      });
-    }
-    case 'financial-statements':
-      return scopes(
-        policy,
-        ['income', 'balance_sheet', 'cash_flow'].flatMap((kind) =>
-          ['1', '4', '5'].map((reportType) => `${kind}|${reportType}`),
-        ),
-      );
-    case 'financial-indicators':
-      return scopes(policy, ['all']);
-    case 'dividends': {
-      const rows = await getDatabase().stockBasic.findMany({
-        select: { tsCode: true, listDate: true },
-      });
-      const starts = new Map<string, string>();
-      for (const row of rows) {
-        const code = canonicalStockCode(row.tsCode);
-        starts.set(code, [policy.startDate, row.listDate ?? policy.startDate].sort().at(-1)!);
-      }
-      return [...starts].map(([scope, startDate]) => ({ scope, startDate }));
-    }
-    default:
-      return scopes(policy, ['all']);
-  }
-}
-
-function windowAt(
-  cursor: string,
-  end: string,
-  period: DatasetPolicy['period'],
-): { startDate: string; endDate: string } | null {
-  if (cursor > end) {
-    return null;
-  }
-  const year = Number(cursor.slice(0, 4));
-  const month = Number(cursor.slice(4, 6));
-  if (period === 'quarter') {
-    const quarterEndMonth = Math.ceil(month / 3) * 3;
-    const quarterEnd = new Date(Date.UTC(year, quarterEndMonth, 0))
-      .toISOString()
-      .slice(0, 10)
-      .replaceAll('-', '');
-    return quarterEnd <= end ? { startDate: quarterEnd, endDate: quarterEnd } : null;
-  }
-  const periodEnd =
-    period === 'year'
-      ? `${year}1231`
-      : period === 'month'
-        ? new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10).replaceAll('-', '')
-        : cursor;
-
-  return { startDate: cursor, endDate: periodEnd < end ? periodEnd : end };
-}
-
-function partitionId(partition: MarketPartition): string {
+function identity(window: MarketPartition) {
   return createHash('sha256')
-    .update(
-      JSON.stringify([partition.dataset, partition.scope, partition.startDate, partition.endDate]),
-    )
+    .update(JSON.stringify([window.dataset, window.scope, window.startDate, window.endDate]))
     .digest('hex');
 }
 
+/** 固定周期窗口只由历史边界和目标生成。 / Derive fixed windows from lifecycle bounds and target. */
+function* periodWindows(start: string, end: string, period: DatasetPolicy['period']) {
+  let cursor = start;
+  while (cursor <= end) {
+    const year = Number(cursor.slice(0, 4));
+    const month = Number(cursor.slice(4, 6));
+    if (period === 'quarter') {
+      const last = new Date(Date.UTC(year, Math.ceil(month / 3) * 3, 0))
+        .toISOString()
+        .slice(0, 10)
+        .replaceAll('-', '');
+      if (last > end) {
+        return;
+      }
+      yield { startDate: last, endDate: last };
+      cursor = calendarDay(last, 1);
+      continue;
+    }
+    const last =
+      period === 'year'
+        ? `${year}1231`
+        : period === 'month'
+          ? new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10).replaceAll('-', '')
+          : cursor;
+    const endDate = last < end ? last : end;
+    yield { startDate: cursor, endDate };
+    cursor = calendarDay(endDate, 1);
+  }
+}
+
 /**
- * 只在从游标开始已连续核验的日历区间内寻找下一交易日。
+ * 只选一个真正要请求的窗口；不写计划游标或 pending 队列。
  *
- * Find the next session only inside calendar coverage verified continuously from the cursor.
+ * Select one actual request without persisting planning cursors or pending queues.
  */
-async function nextVerifiedSession(exchange: string, cursor: string, end: string) {
-  const database = getDatabase();
-  const proof = await database.datasetSyncPartition.findMany({
-    where: {
-      dataset: 'calendar',
-      scope: exchange,
-      status: 'complete',
-      startDate: { lte: end },
-      endDate: { gte: cursor },
-    },
-    select: { startDate: true, endDate: true },
-  });
-  const through = contiguousCoverage(cursor, proof);
-  if (!through) {
-    return { session: null, through: null };
+export async function selectSyncWindow(input: SelectWindowInput): Promise<PlannedPartition | null> {
+  const { policy } = input;
+  if (input.history && policy.period === 'catalog') {
+    return null;
   }
-  const verifiedEnd = through < end ? through : end;
-  const session = await database.tradeCal.findFirst({
-    where: { exchange, isOpen: 1, calDate: { gte: cursor, lte: verifiedEnd } },
-    orderBy: { calDate: 'asc' },
-  });
-
-  return { session, through: verifiedEnd };
-}
-
-/**
- * 计划游标仅表示已安排请求，完成事实只来自分区证据。
- *
- * Planning cursors mean scheduled requests; only partition evidence establishes completion.
- */
-export async function planSyncPartitions(
-  input: PlanInput,
-): Promise<{ partitions: PlannedPartition[]; gaps: string[] }> {
   const database = getDatabase();
-  const budget = input.budget ?? SYNC_LIMITS.partitions;
-  const selected: PlannedPartition[] = [];
-  const selectedIds = new Set<string>();
-  const gaps: string[] = [];
-  const select = async (partition: MarketPartition, policy: DatasetPolicy): Promise<boolean> => {
-    if (
-      !inventories.some(
-        (inventory) =>
-          inventory.policy.dataset === partition.dataset &&
-          inventory.objects.some((object) => object.scope === partition.scope),
-      )
-    ) {
-      return false;
-    }
+  const objects = await datasetScopes(policy);
+  const states = await database.datasetSyncState.findMany({ where: { dataset: policy.dataset } });
+  const byScope = new Map(states.map((state) => [state.scope, state]));
+  const touched = (scope: string) =>
+    (input.history
+      ? byScope.get(scope)?.lastBackfillAt
+      : byScope.get(scope)?.lastCheckedAt
+    )?.getTime() ?? 0;
+  objects.sort(
+    (left, right) =>
+      touched(left.scope) - touched(right.scope) || left.scope.localeCompare(right.scope),
+  );
 
-    partition = {
-      dataset: partition.dataset,
-      scope: partition.scope,
-      startDate: partition.startDate,
-      endDate: partition.endDate,
-    };
-    const id = partitionId(partition);
-    if (
-      (input.deadline && Date.now() >= input.deadline) ||
-      input.excludeIds?.has(id) ||
-      selectedIds.has(id) ||
-      selected.length >= budget
-    ) {
-      return false;
+  for (const object of objects) {
+    if (Date.now() >= input.deadline) {
+      return null;
     }
-    const existing = await database.datasetSyncPartition.findUnique({ where: { id } });
-    if (
-      existing &&
-      existing.policyVersion === policy.version &&
-      existing.nextAttemptAt &&
-      existing.nextAttemptAt > input.startedAt
-    ) {
-      return false;
+    const today = localDate(input.startedAt, policy.timeZone);
+    const completed =
+      localHour(input.startedAt, policy.timeZone) >= policy.closeHour
+        ? today
+        : calendarDay(today, -1);
+    const end = [
+      input.targetDate,
+      object.endDate ?? input.targetDate,
+      policy.period === 'catalog' ? input.targetDate : completed,
+    ].sort()[0];
+    if (end < object.startDate) {
+      continue;
     }
-    await database.datasetSyncPartition.upsert({
-      where: { id },
-      create: { id, ...partition, policyVersion: policy.version, status: 'pending' },
-      update: {},
+    const saved = await database.datasetSyncPartition.findMany({
+      where: { dataset: policy.dataset, scope: object.scope },
+      orderBy: { startDate: 'asc' },
     });
-    selectedIds.add(id);
-    selected.push({ id, ...partition, policyVersion: policy.version });
-
-    return true;
-  };
-  const inventories = await loadInventories(input, gaps);
-  const context: PlanningContext = { input, inventories, selected, select, gaps, budget };
-
-  await planFreshPartitions(context);
-  await planRecentPartitions(context);
-  await planPendingPartitions(context);
-  await planBackfillPartitions(context);
-  await planDuePartitions(context);
-
-  if (selected.length >= budget) {
-    gaps.push('Finite acquisition batch budget reached; unfinished work remains durable');
-  }
-
-  return { partitions: selected, gaps };
-}
-
-async function loadInventories(input: PlanInput, gaps: string[]) {
-  const database = getDatabase();
-  const inventories = [];
-  for (const policy of DATASET_POLICIES) {
-    const objects = await datasetScopes(policy);
-    const states = await database.datasetSyncState.findMany({ where: { dataset: policy.dataset } });
-    const byScope = new Map(states.map((row) => [row.scope, row]));
-    const missing = objects.filter((object) => !byScope.has(object.scope));
-    for (let offset = 0; offset < missing.length; offset += 200) {
-      await database.datasetSyncState.createMany({
-        data: missing.slice(offset, offset + 200).map((object) => ({
-          dataset: policy.dataset,
-          scope: object.scope,
-          policyVersion: policy.version,
-          historyStart: object.startDate,
-          backfillCursor: object.startDate,
-        })),
-      });
-    }
-
-    objects.sort(
-      (left, right) =>
-        (byScope.get(left.scope)?.lastCheckedAt?.getTime() ?? 0) -
-          (byScope.get(right.scope)?.lastCheckedAt?.getTime() ?? 0) ||
-        left.scope.localeCompare(right.scope),
+    const complete = saved.filter(
+      (window) =>
+        ['complete', 'not_applicable'].includes(window.status) &&
+        window.policyVersion === policy.version,
     );
-    if (
-      !objects.length &&
-      ![
-        'etf-prices',
-        'etf-adjustments',
-        'index-prices',
-        'index-weights',
-        'index-valuations',
-      ].includes(policy.dataset)
-    ) {
-      gaps.push(`${policy.dataset}: awaiting reference inventory`);
-    }
-    inventories.push({
-      policy,
-      objects,
-      states: byScope,
-      freshObjects: objects.filter(
-        (object) =>
-          !object.endDate || object.endDate >= calendarDay(input.targetDate, -policy.revisionDays),
-      ),
-    });
-  }
-  return inventories;
-}
+    const due = (checked: Date | null) =>
+      !checked || input.startedAt.getTime() - checked.getTime() >= policy.refreshDays * 86400_000;
+    let windows: Array<{ startDate: string; endDate: string }>;
+    const lower = [object.startDate, calendarDay(end, -policy.revisionDays)].sort().at(-1)!;
 
-interface PlanningContext {
-  input: PlanInput;
-  inventories: Awaited<ReturnType<typeof loadInventories>>;
-  selected: PlannedPartition[];
-  select(partition: MarketPartition, policy: DatasetPolicy): Promise<boolean>;
-  gaps: string[];
-  budget: number;
-}
-
-async function planFreshPartitions(context: PlanningContext): Promise<void> {
-  const { input, inventories, selected, select, gaps, budget } = context;
-  const database = getDatabase();
-  // 每个数据域先获得机会，再轮转域内对象，历史失败不会独占本轮预算。
-  // Give every dataset a turn before rotating its objects, so historical failures cannot monopolize a run.
-  for (let objectIndex = 0; selected.length < Math.ceil(budget * 0.4); objectIndex++) {
-    let found = false;
-    for (const { policy, freshObjects } of inventories) {
-      const object = freshObjects[objectIndex];
-      if (!object) {
+    if (policy.period === 'catalog') {
+      if (complete.some((window) => !due(window.checkedAt))) {
         continue;
       }
-      found = true;
-      const zone = object.timeZone ?? policy.timeZone;
-      const today = localDate(input.startedAt, zone);
-      const completed =
-        localHour(input.startedAt, zone) >= (object.closeHour ?? policy.closeHour)
-          ? today
-          : calendarDay(today, -1);
-      const end = [
-        input.targetDate,
-        object.endDate ?? input.targetDate,
-        policy.period === 'catalog' ? input.targetDate : completed,
-      ].sort()[0];
-      if (end < object.startDate) {
-        continue;
-      }
-      const state = await database.datasetSyncState.upsert({
-        where: { dataset_scope: { dataset: policy.dataset, scope: object.scope } },
-        create: {
-          dataset: policy.dataset,
-          scope: object.scope,
-          policyVersion: policy.version,
-          historyStart: object.startDate,
-          backfillCursor: object.startDate,
-        },
-        update: {},
-      });
-      if (policy.dataset === 'calendar') {
-        await select(
-          {
-            dataset: policy.dataset,
-            scope: object.scope,
-            startDate: `${[input.targetDate, localDate(input.startedAt)].sort()[0].slice(0, 4)}0101`,
-            endDate: calendarDay([input.targetDate, localDate(input.startedAt)].sort()[0], 31),
-          },
-          policy,
-        );
-        continue;
-      }
-      if (policy.period === 'catalog') {
-        await select(
-          {
-            dataset: policy.dataset,
-            scope: object.scope,
-            startDate: input.targetDate,
-            endDate: input.targetDate,
-          },
-          policy,
-        );
-        continue;
-      }
-      let start =
-        policy.period === 'day'
-          ? end
-          : state.plannedThrough
-            ? calendarDay(state.plannedThrough, 1)
-            : [object.startDate, calendarDay(end, -policy.revisionDays)].sort().at(-1)!;
-      if (policy.period === 'quarter') {
-        start = state.plannedThrough
-          ? start
-          : `${Math.max(Number(object.startDate.slice(0, 4)), Number(end.slice(0, 4)) - 2)}0101`;
-      }
-      if (start > end) {
-        start =
-          state.recheckCursor &&
-          state.recheckCursor <= end &&
-          state.recheckCursor >= calendarDay(end, -policy.revisionDays)
-            ? state.recheckCursor
-            : [object.startDate, calendarDay(end, -policy.revisionDays)].sort().at(-1)!;
-      }
-      const window = windowAt(start, end, policy.period);
-      if (!window) {
-        continue;
-      }
-      if (policy.period === 'day') {
-        const recentStart = [object.startDate, calendarDay(end, -policy.revisionDays)]
-          .sort()
-          .at(-1)!;
-        const latest = await database.tradeCal.findFirst({
-          where: {
-            exchange: object.calendar ?? policy.calendar,
-            isOpen: 1,
-            calDate: { gte: recentStart, lte: end },
-          },
-          orderBy: { calDate: 'desc' },
-        });
-        const { session } = latest
-          ? await nextVerifiedSession(
-              object.calendar ?? policy.calendar,
-              latest.calDate,
-              latest.calDate,
-            )
-          : { session: null };
-        if (!session) {
-          gaps.push(`${policy.dataset}/${object.scope}: calendar or completed session unavailable`);
-          continue;
-        }
-        window.startDate = session.calDate;
-        window.endDate = session.calDate;
-      }
-      await database.$transaction(async (transaction) => {
-        const partition = { dataset: policy.dataset, scope: object.scope, ...window };
-        const id = partitionId(partition);
-        await transaction.datasetSyncPartition.upsert({
-          where: { id },
-          create: { id, ...partition, policyVersion: policy.version, status: 'pending' },
-          update: {},
-        });
-        await transaction.datasetSyncState.update({
-          where: { dataset_scope: { dataset: policy.dataset, scope: object.scope } },
-          data: {
-            plannedThrough:
-              state.plannedThrough && state.plannedThrough > window.endDate
-                ? state.plannedThrough
-                : window.endDate,
-            // 日分区的近期重查游标由 recent 独占，较粗周期仍在本步骤轮转。
-            // Recent owns daily recheck progress; coarser periods rotate within this step.
-            ...(policy.period === 'day' ? {} : { recheckCursor: calendarDay(window.endDate, 1) }),
-          },
-        });
-      });
-      await select({ dataset: policy.dataset, scope: object.scope, ...window }, policy);
-    }
-    if (!found) {
-      break;
-    }
-  }
-}
-
-async function planRecentPartitions(context: PlanningContext): Promise<void> {
-  const { input, inventories, selected, select, budget } = context;
-  const database = getDatabase();
-  for (const { policy, objects } of inventories.filter((entry) => entry.policy.period === 'day')) {
-    for (const object of objects.slice(0, 2)) {
-      if (selected.length >= Math.ceil(budget * 0.5)) {
-        break;
-      }
-      const state = await database.datasetSyncState.findUnique({
-        where: { dataset_scope: { dataset: policy.dataset, scope: object.scope } },
-      });
-      if (!state) {
-        continue;
-      }
-      const lower = [object.startDate, calendarDay(input.targetDate, -policy.revisionDays)]
-        .sort()
-        .at(-1)!;
-      let cursor =
-        state.recheckCursor &&
-        state.recheckCursor >= lower &&
-        state.recheckCursor < input.targetDate
-          ? state.recheckCursor
-          : lower;
-      const end = calendarDay(input.targetDate, -1);
-
-      while (cursor <= end && selected.length < Math.ceil(budget * 0.5)) {
-        if (input.deadline && Date.now() >= input.deadline) {
-          return;
-        }
-        const { session, through } = await nextVerifiedSession(
-          object.calendar ?? policy.calendar,
-          cursor,
-          end,
-        );
-        if (!through) {
-          break;
-        }
-        const admitted =
-          session &&
-          (await select(
-            {
-              dataset: policy.dataset,
-              scope: object.scope,
-              startDate: session.calDate,
-              endDate: session.calDate,
-            },
-            policy,
-          ));
-        cursor = calendarDay(session?.calDate ?? through, 1);
-        await database.datasetSyncState.update({
-          where: { dataset_scope: { dataset: policy.dataset, scope: object.scope } },
-          data: { recheckCursor: cursor },
-        });
-        if (admitted) {
-          break;
-        }
-      }
-    }
-  }
-}
-
-async function planPendingPartitions(context: PlanningContext): Promise<void> {
-  const { input, selected, select, budget } = context;
-  const database = getDatabase();
-  const pending = await database.datasetSyncPartition.findMany({
-    where: {
-      endDate: { lte: input.targetDate },
-      status: { in: ['pending', 'partial', 'waiting', 'error'] },
-      OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: input.startedAt } }],
-    },
-    orderBy: [{ lastAttemptAt: 'asc' }, { startDate: 'asc' }],
-  });
-  for (const partition of pending) {
-    if (selected.length >= Math.ceil(budget * 0.75)) {
-      break;
-    }
-    const policy = DATASET_POLICIES.find((entry) => entry.dataset === partition.dataset);
-    if (policy) {
-      await select(partition, policy);
-    }
-  }
-}
-
-async function planBackfillPartitions(context: PlanningContext): Promise<void> {
-  const { input, inventories, selected, select, gaps, budget } = context;
-  const database = getDatabase();
-  const backfillInventories = [...inventories].sort((left, right) => {
-    const lastServed = (entry: typeof left) =>
-      Math.max(
-        0,
-        ...[...entry.states.values()].map((state) => state.lastBackfillAt?.getTime() ?? 0),
-      );
-
-    return lastServed(left) - lastServed(right);
-  });
-  for (const { policy, objects, states } of backfillInventories) {
-    const candidates = [...objects].sort(
-      (left, right) =>
-        (states.get(left.scope)?.lastBackfillAt?.getTime() ?? 0) -
-        (states.get(right.scope)?.lastBackfillAt?.getTime() ?? 0),
-    );
-    let plannedBackfill = 0;
-    for (const object of candidates) {
+      windows = [{ startDate: input.targetDate, endDate: input.targetDate }];
+    } else if (policy.dataset === 'calendar' && !input.history) {
       if (
-        selected.length >= Math.ceil(budget * 0.9) ||
-        plannedBackfill >= 2 ||
-        policy.period === 'catalog' ||
-        (input.deadline && Date.now() >= input.deadline)
+        complete.some(
+          (window) =>
+            window.startDate <= `${end.slice(0, 4)}0101` &&
+            window.endDate >= end &&
+            !due(window.checkedAt),
+        )
       ) {
-        break;
-      }
-      const state = await database.datasetSyncState.findUnique({
-        where: { dataset_scope: { dataset: policy.dataset, scope: object.scope } },
-      });
-      if (!state) {
         continue;
       }
-      const zone = object.timeZone ?? policy.timeZone;
-      const today = localDate(input.startedAt, zone);
-      const completed =
-        localHour(input.startedAt, zone) >= (object.closeHour ?? policy.closeHour)
-          ? today
-          : calendarDay(today, -1);
-      const end = [input.targetDate, object.endDate ?? input.targetDate, completed].sort()[0];
-      const window = windowAt(state.backfillCursor, end, policy.period);
-      if (!window) {
-        continue;
+      windows = [{ startDate: `${end.slice(0, 4)}0101`, endDate: calendarDay(end, 31) }];
+    } else {
+      let start = input.history ? object.startDate : lower;
+      if (!input.history && policy.period === 'year') {
+        start = [object.startDate, `${lower.slice(0, 4)}0101`].sort().at(-1)!;
+      }
+      if (!input.history && policy.period === 'month') {
+        start = [object.startDate, `${lower.slice(0, 6)}01`].sort().at(-1)!;
       }
       if (policy.period === 'day') {
-        const { session, through } = await nextVerifiedSession(
-          object.calendar ?? policy.calendar,
-          state.backfillCursor,
-          end,
-        );
-        if (!session && through) {
-          await database.datasetSyncState.update({
-            where: { dataset_scope: { dataset: policy.dataset, scope: object.scope } },
-            data: { backfillCursor: calendarDay(through, 1), lastBackfillAt: input.startedAt },
-          });
-        }
-        if (!through) {
-          gaps.push(
-            `${policy.dataset}/${object.scope}: backfill awaits calendar at ${state.backfillCursor}`,
-          );
-        }
-        if (!session) {
+        const proof = await database.datasetSyncPartition.findMany({
+          where: {
+            dataset: 'calendar',
+            scope: policy.calendar,
+            status: 'complete',
+            policyVersion: policy.version,
+            startDate: { lte: end },
+            endDate: { gte: start },
+          },
+        });
+        const verifiedEnd = contiguousCoverage(start, proof);
+        if (!verifiedEnd) {
           continue;
         }
-        window.startDate = session.calDate;
-        window.endDate = session.calDate;
-      }
-      if (await select({ dataset: policy.dataset, scope: object.scope, ...window }, policy)) {
-        plannedBackfill++;
-        await database.datasetSyncState.update({
-          where: { dataset_scope: { dataset: policy.dataset, scope: object.scope } },
-          data: { backfillCursor: calendarDay(window.endDate, 1), lastBackfillAt: input.startedAt },
+        const sessions = await database.tradeCal.findMany({
+          where: {
+            exchange: policy.calendar,
+            isOpen: 1,
+            calDate: { gte: start, lte: verifiedEnd < end ? verifiedEnd : end },
+          },
+          orderBy: { calDate: 'asc' },
         });
+        windows = sessions.map((session) => ({
+          startDate: session.calDate,
+          endDate: session.calDate,
+        }));
+      } else {
+        windows = [...periodWindows(start, end, policy.period)];
+      }
+      // 已落盘的失败边界继续原样重试，不随新目标延伸。
+      // Retry persisted failure bounds unchanged when the target advances.
+      windows.unshift(
+        ...saved.filter(
+          (window) =>
+            !complete.includes(window) &&
+            window.startDate >= object.startDate &&
+            window.endDate <= end &&
+            (input.history || window.endDate >= lower),
+        ),
+      );
+      windows = windows.filter((window) => {
+        const proof = complete.find(
+          (known) => known.startDate <= window.startDate && known.endDate >= window.endDate,
+        );
+        return input.history ? !proof : !proof || due(proof.checkedAt);
+      });
+      if (!input.history) {
+        const checked = (window: (typeof windows)[number]) =>
+          saved
+            .find(
+              (known) => known.startDate === window.startDate && known.endDate === window.endDate,
+            )
+            ?.checkedAt?.getTime() ?? 0;
+        windows.sort(
+          (left, right) =>
+            checked(left) - checked(right) || right.endDate.localeCompare(left.endDate),
+        );
+      } else {
+        windows.sort((left, right) => left.startDate.localeCompare(right.startDate));
+      }
+    }
+
+    for (const window of windows) {
+      const partition = {
+        dataset: policy.dataset,
+        scope: object.scope,
+        startDate: window.startDate,
+        endDate: window.endDate,
+      };
+      const id = identity(partition);
+      if (!input.attempted.has(id)) {
+        return { ...partition, id, policyVersion: policy.version, history: input.history };
       }
     }
   }
-}
 
-async function planDuePartitions(context: PlanningContext): Promise<void> {
-  const { input, select, budget } = context;
-  const database = getDatabase();
-  const due = await database.datasetSyncPartition.findMany({
-    where: {
-      endDate: { lte: input.targetDate },
-      status: { in: ['complete', 'not_applicable'] },
-      nextAttemptAt: { lte: input.startedAt },
-    },
-    orderBy: [{ checkedAt: 'asc' }, { startDate: 'asc' }],
-    take: budget,
-  });
-  for (const partition of due) {
-    const policy = DATASET_POLICIES.find((entry) => entry.dataset === partition.dataset);
-    if (policy) {
-      await select(partition, policy);
-    }
-  }
+  return null;
 }

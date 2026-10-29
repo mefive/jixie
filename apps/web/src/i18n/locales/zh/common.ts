@@ -28,7 +28,6 @@ export const zhCommon = {
     backgroundDescription: '准备阶段使用独立数据，您可以继续使用当前已发布版本。',
     background: {
       preparing: '数据准备中',
-      postprocessing: '数据已发布，后续处理中',
       error: '数据更新待重试',
     },
     title: '系统正在维护',

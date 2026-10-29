@@ -3,7 +3,7 @@ import { ulid } from 'ulid';
 import { getDatabase } from '#infra/database/prisma.js';
 import { canonicalStockCode } from '../instruments/stock-identity.js';
 import { calendarDay, localDate } from '../synchronization/date.js';
-import { fingerprint, readMarketRows } from '../synchronization/records.js';
+import { fingerprint } from '../synchronization/rows.js';
 import type {
   MarketPartition,
   MarketRow,
@@ -98,7 +98,7 @@ async function prepareStatementPartition(
   const result = completeResponse({
     pages,
     table,
-    extent: { basis: 'Validated complete statement objects in the requested period' },
+    coverageComplete: true,
     ...mapped,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
@@ -156,8 +156,6 @@ async function prepareDividendPartition(
 
       return {
         values: { ...values, id },
-        publicationDate: typeof row.ann_date === 'string' ? row.ann_date : null,
-        availabilityQuality: 'latest_only',
       };
     },
   );
@@ -165,17 +163,11 @@ async function prepareDividendPartition(
   return completeResponse({
     pages,
     table: 'Dividend',
-    extent: {
-      basis: 'Filtered dividend event contract',
-      deletion: 'Complete dated dividend event extent',
-    },
+    coverageComplete: true,
+    replace: true,
     ...mapped,
     allowEmpty: true,
     observedDates: mapped.records.map((record) => String(record.values.endDate)),
-    where: {
-      tsCode: partition.scope,
-      endDate: { gte: partition.startDate, lte: partition.endDate },
-    },
   });
 }
 
@@ -230,9 +222,6 @@ async function prepareIndicatorPartition(
         observedAt: fetchedAt,
         sourceFingerprint: fingerprint(values),
       },
-      publicationDate: typeof row.ann_date === 'string' ? row.ann_date : null,
-      availableDate: firstKnownDate,
-      availabilityQuality: quality,
     };
 
     return version;
@@ -255,7 +244,7 @@ async function prepareIndicatorPartition(
   const result = completeResponse({
     pages,
     table: 'FinaIndicatorVersion',
-    extent: { basis: 'Latest-only indicators for the requested report period' },
+    coverageComplete: true,
     ...mapped,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
@@ -280,17 +269,16 @@ interface StatementPartitionIdentity {
 }
 
 async function loadStatementContext(identity: StatementPartitionIdentity, rows: TushareRow[]) {
-  const { statementKind, table, reportType, period, fetchedAt } = identity;
+  const { statementKind, reportType, period, fetchedAt } = identity;
   const dates = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1 },
     orderBy: { calDate: 'asc' },
     select: { calDate: true },
   });
   const siblings: FinancialStatementSourceRow[] = [];
-  const existing = await readMarketRows(getDatabase(), table, {
-    endDate: period,
-    reportType,
-  });
+  const database = getDatabase();
+  const where = { endDate: period, reportType };
+  const existing = await loadStoredStatements(database, statementKind, where);
   const fields = FINANCIAL_STATEMENT_FIELDS.filter(
     (field) => field.statementKind === statementKind,
   );
@@ -306,7 +294,7 @@ async function loadStatementContext(identity: StatementPartitionIdentity, rows: 
         ['update_flag', stored.updateFlag],
         ...fields.map((field) => [
           field.sourceField,
-          stored[
+          (stored as Record<string, unknown>)[
             field.sourceField.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase())
           ],
         ]),
@@ -397,8 +385,21 @@ function mapStatementVersion(
 
   return {
     values,
-    publicationDate: availability.announcementDate,
-    availableDate: availability.availableDate,
-    availabilityQuality: 'source_contract',
   };
+}
+
+/** 报表类型对应显式 Prisma 查询。 / Use an explicit Prisma query for each statement kind. */
+async function loadStoredStatements(
+  database: ReturnType<typeof getDatabase>,
+  kind: FinancialStatementKind,
+  where: { endDate: string; reportType: string },
+) {
+  switch (kind) {
+    case 'income':
+      return database.financialIncomeStatement.findMany({ where });
+    case 'balance_sheet':
+      return database.financialBalanceSheet.findMany({ where });
+    case 'cash_flow':
+      return database.financialCashFlowStatement.findMany({ where });
+  }
 }

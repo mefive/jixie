@@ -41,6 +41,8 @@ Administrators maintain a small index download list through the server CLI. Pric
 
 Outperforming an index does not necessarily mean making a profit. Both the strategy and the index can fall.
 
+Synchronization checks recent revisions and continues filling historical gaps. Completed older history is no longer rechecked automatically. A download list controls future downloads; it does not prove complete historical coverage.
+
 ## Quick comparison
 
 | Item | Stock | ETF | Index |

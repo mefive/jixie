@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   finaFindMany: vi.fn(),
   dividendFindMany: vi.fn(),
-  recordEvidence: vi.fn(),
   sessions: vi.fn(),
 }));
 
@@ -12,7 +11,6 @@ vi.mock('#infra/database/prisma.js', async () => {
     prisma: {
       finaIndicatorVersion: { findMany: mocks.finaFindMany },
       dividend: { findMany: mocks.dividendFindMany },
-      marketRecordEvidence: { findMany: mocks.recordEvidence },
       tradeCal: { findMany: mocks.sessions },
     },
   };
@@ -88,12 +86,7 @@ describe('Research supplemental datasets', () => {
         exDate: '20260615',
         cashDiv: 2.5,
         cashDivTax: 2.5,
-      },
-    ]);
-    mocks.recordEvidence.mockResolvedValue([
-      {
-        businessKey: JSON.stringify(['dividend-fixture']),
-        firstObservedAt: new Date('2026-06-16T02:00:00Z'),
+        observedAt: new Date('2026-06-16T02:00:00Z'),
         availabilityQuality: 'observed',
       },
     ]);

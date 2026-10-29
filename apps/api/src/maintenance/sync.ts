@@ -1,26 +1,29 @@
-import { initializeIndexDownloads } from '#market/downloads/lists.js';
-import { selectEtfsUnderMaintenance } from '#market/downloads/select-etfs.js';
-import { retireDatasets } from './retired-datasets.js';
-import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
-import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
-import { MarketSyncBudgetError } from '#market/errors.js';
-import {
-  withSourceRequestBudget,
-  type SourceRequestBudget,
-} from '#market/providers/source-fetch.js';
-import { prepareIdentityNormalization } from '#market/instruments/normalize-identity.js';
-import { STOCK_CODE_CHANGES } from '#market/instruments/stock-identity.js';
 import { ulid } from 'ulid';
 import type { DataSyncResult } from '@jixie/shared/api/maintenance';
 import { getDatabase } from '#infra/database/prisma.js';
-import { withMaintenanceLock, withMarketPublication } from '#infra/coordination/market-access.js';
-import { acceptMarketPartition } from '#market/synchronization/records.js';
-import { prepareMarketPartition, type SyncProviders } from '#market/synchronization/prepare.js';
-import { DATASET_POLICIES } from '#market/synchronization/policies.js';
+import {
+  cleanupOwnerLocks,
+  withMaintenanceLock,
+  withMarketPublication,
+} from '#infra/coordination/market-access.js';
+import { initializeIndexDownloads } from '#market/downloads/lists.js';
+import { selectEtfsUnderMaintenance } from '#market/downloads/select-etfs.js';
+import { normalizeStockIdentity } from '#market/instruments/normalize-identity.js';
+import { STOCK_CODE_CHANGES } from '#market/instruments/stock-identity.js';
+import { updateVerifiedCoverage } from '#market/synchronization/coverage.js';
 import { isObservationDate, localDate } from '#market/synchronization/date.js';
-import { planSyncPartitions, SYNC_LIMITS, type PlannedPartition } from './partitions.js';
-import { readDatasetCoverage } from './status.js';
-import { cleanRetiredSyncResources } from './resources.js';
+import {
+  prepareMarketPartition,
+  writeMarketPartition,
+  type SyncProviders,
+} from '#market/synchronization/prepare.js';
+import type { PreparedMarketPartition } from '#market/synchronization/partition.js';
+import { DATASET_POLICIES } from '#market/synchronization/policies.js';
+import { withSourceRequestBudget } from '#market/providers/source-fetch.js';
+import { MarketSyncBudgetError } from '#market/errors.js';
+import { selectSyncWindow, SYNC_LIMITS, type PlannedPartition } from './partitions.js';
+import { readHistoryGaps, readDatasetCoverage } from './status.js';
+import { retireDatasets } from './retired-datasets.js';
 
 export interface DataSyncInput {
   targetDate: string;
@@ -31,40 +34,44 @@ export interface DataSyncInput {
   clock?: () => Date;
 }
 
-/**
- * 固定目标的一套有限流程；业务函数不关闭调用者数据库。
- *
- * One bounded flow with a fixed target; the caller owns database cleanup.
- */
+/** 固定目标、顺序领域调用和短事务提交；调用方负责数据库关闭。
+ * Use one fixed target and explicit domain calls; the caller owns database cleanup. */
 export async function synchronizeData(input: DataSyncInput): Promise<DataSyncResult> {
   if (!isObservationDate(input.targetDate) || !Number.isFinite(input.startedAt.getTime())) {
     throw new Error('Invalid synchronization date/time');
   }
-
-  input = {
-    ...input,
-    signal: AbortSignal.any([
-      AbortSignal.timeout(SYNC_LIMITS.milliseconds),
-      ...(input.signal ? [input.signal] : []),
-    ]),
-  };
-
-  const sourceBudget = {
-    failures: 0,
-    lastFailure: undefined as string | undefined,
+  const signal = AbortSignal.any([
+    AbortSignal.timeout(SYNC_LIMITS.milliseconds),
+    ...(input.signal ? [input.signal] : []),
+  ]);
+  const budget = {
     remaining: SYNC_LIMITS.requests as number,
     deadline: Date.now() + SYNC_LIMITS.milliseconds,
-    signal: input.signal,
+    signal,
+    failures: 0,
+    lastFailure: undefined as string | undefined,
   };
+  const clock = input.clock ?? (() => new Date());
+  const log = input.onLog ?? console.log;
 
-  return withSourceRequestBudget(sourceBudget, () =>
+  return withSourceRequestBudget(budget, () =>
     withMaintenanceLock(async () => {
       const database = getDatabase();
-      const clock = input.clock ?? (() => new Date());
-      const log = input.onLog ?? console.log;
-      const runId = ulid();
+      const previous = await database.dataSyncRun.findFirst({ orderBy: { startedAt: 'desc' } });
+      const summary = previous?.summary;
+      const resume =
+        summary &&
+        typeof summary === 'object' &&
+        !Array.isArray(summary) &&
+        typeof summary.resumeDataset === 'string'
+          ? summary.resumeDataset
+          : '';
+      let nextIndex = Math.max(
+        0,
+        DATASET_POLICIES.findIndex((policy) => policy.dataset === resume),
+      );
       const result: DataSyncResult = {
-        runId,
+        runId: ulid(),
         targetDate: input.targetDate,
         status: 'complete',
         partitions: 0,
@@ -73,13 +80,11 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
         gaps: [],
         errors: [],
       };
-      const legacy = await database.maintenanceState.findUnique({
-        where: { key: 'global' },
-        select: { dataRevision: true },
-      });
+      const attempted = new Set<string>();
+
       await database.marketDataState.upsert({
         where: { key: 'global' },
-        create: { key: 'global', revision: legacy?.dataRevision ?? 0 },
+        create: { key: 'global' },
         update: {},
       });
       await database.dataSyncRun.updateMany({
@@ -88,24 +93,34 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
           status: 'interrupted',
           stage: 'interrupted',
           finishedAt: clock(),
-          error: 'Writer ownership was released before terminal recording',
+          error: 'Writer exited before terminal recording',
         },
       });
       await database.dataSyncRun.create({
         data: {
-          id: runId,
+          id: result.runId,
           targetDate: input.targetDate,
           status: 'running',
-          stage: 'planning',
+          stage: 'references',
           startedAt: input.startedAt,
+          summary: { resumeDataset: resume },
         },
       });
+      await database.dataSyncRun.deleteMany({
+        where: { id: { not: result.runId }, ...(previous ? { NOT: { id: previous.id } } : {}) },
+      });
+
+      const exhausted = () =>
+        signal.aborted ||
+        Date.now() >= budget.deadline ||
+        budget.remaining <= 0 ||
+        result.partitions >= SYNC_LIMITS.partitions;
       let heartbeat = Promise.resolve();
       const timer = setInterval(() => {
         heartbeat = heartbeat
           .then(async () => {
             await database.dataSyncRun.update({
-              where: { id: runId },
+              where: { id: result.runId },
               data: { heartbeatAt: clock() },
             });
           })
@@ -114,347 +129,335 @@ export async function synchronizeData(input: DataSyncInput): Promise<DataSyncRes
           });
       }, 15_000);
       timer.unref();
+
+      let referenceStage = true;
+      const acquire = async (index: number, history: boolean) => {
+        if (exhausted()) {
+          return false;
+        }
+        const partition = await selectSyncWindow({
+          policy: DATASET_POLICIES[index],
+          targetDate: input.targetDate,
+          startedAt: input.startedAt,
+          history,
+          attempted,
+          deadline: budget.deadline,
+        });
+        if (!partition || exhausted()) {
+          return false;
+        }
+
+        attempted.add(partition.id);
+        result.partitions++;
+        const fetchedAt = clock();
+        await recordAttempt(partition, result.runId, fetchedAt);
+        log(
+          `[data sync] ${partition.dataset}/${partition.scope} ${partition.startDate}..${partition.endDate}`,
+        );
+        await database.dataSyncRun.update({
+          where: { id: result.runId },
+          data: { stage: `${partition.dataset}:${partition.scope}` },
+        });
+
+        const failures = budget.failures;
+        try {
+          const prepared = await prepareMarketPartition(input.providers, partition, fetchedAt);
+          if (prepared.status === 'waiting' && budget.failures > failures) {
+            prepared.errors.push(budget.lastFailure ?? 'Source request failed');
+          }
+          const committed = await publishWindow(partition, prepared, result.runId, fetchedAt);
+          for (const field of ['inserted', 'updated', 'deleted', 'rejected'] as const) {
+            result.accepted[field] += committed.accepted[field];
+          }
+          result.errors.push(
+            ...committed.errors.map((error) => `${partition.dataset}/${partition.scope}: ${error}`),
+          );
+          result.gaps.push(...prepared.gaps);
+        } catch (error) {
+          const deferred =
+            error instanceof MarketSyncBudgetError || signal.aborted || budget.remaining <= 0;
+          const message = error instanceof Error ? error.message : String(error);
+          (deferred ? result.gaps : result.errors).push(
+            `${partition.dataset}/${partition.scope}: ${message}`,
+          );
+          await publishWindow(
+            partition,
+            {
+              tables: [],
+              status: deferred ? 'waiting' : 'error',
+              gaps: [message],
+              errors: deferred ? [] : [message],
+              observedDates: [],
+              checks: {
+                terminalPage: false,
+                sourceFailed: !deferred,
+                invalidRows: 0,
+                emptyResponse: true,
+                pages: 0,
+                sourceRows: 0,
+              },
+            },
+            result.runId,
+            fetchedAt,
+          );
+        }
+
+        if (!referenceStage) {
+          nextIndex = (index + 1) % DATASET_POLICIES.length;
+        }
+        await database.dataSyncRun.update({
+          where: { id: result.runId },
+          data: {
+            heartbeatAt: clock(),
+            summary: JSON.parse(
+              JSON.stringify({ ...result, resumeDataset: DATASET_POLICIES[nextIndex].dataset }),
+            ),
+          },
+        });
+
+        return true;
+      };
+
       try {
-        result.gaps.push(...(await cleanRetiredSyncResources()));
         await retireDatasets();
+        await cleanupOwnerLocks(true);
         await initializeIndexDownloads();
+
         if (!(await database.marketDownloadList.findUnique({ where: { assetType: 'etf' } }))) {
           try {
-            const selection = await selectEtfsUnderMaintenance({
-              source: input.providers.source,
-              today: localDate(input.startedAt),
-            });
-            log(JSON.stringify(selection));
-          } catch (error) {
-            result.errors.push(
-              `ETF initialization: ${error instanceof Error ? error.message : String(error)}`,
+            log(
+              JSON.stringify(
+                await selectEtfsUnderMaintenance({
+                  source: input.providers.source,
+                  today: localDate(input.startedAt),
+                }),
+              ),
             );
+          } catch (error) {
+            result.errors.push(`ETF initialization: ${String(error)}`);
           }
         }
-        await acquireSyncPartitions(input, result, sourceBudget, clock, log);
-        await normalizeSyncIdentities(result, clock, input.signal);
-        result.gaps.push(...(await cleanRetiredSyncResources()));
+
+        for (const dataset of ['calendar', 'stock-master', 'etf-master']) {
+          const index = DATASET_POLICIES.findIndex((policy) => policy.dataset === dataset);
+          while (!exhausted() && (await acquire(index, false))) {
+            /* 每次只推进一个参考窗口。 / Advance one reference window at a time. */
+          }
+        }
+
+        // 参考资料不覆盖上次保存的业务轮换位置。
+        // Reference acquisition does not replace the saved business rotation position.
+        referenceStage = false;
+
+        while (!exhausted()) {
+          let progressed = false;
+          const start = nextIndex;
+          for (let offset = 0; offset < DATASET_POLICIES.length && !exhausted(); offset++) {
+            const index = (start + offset) % DATASET_POLICIES.length;
+            progressed = (await acquire(index, false)) || progressed;
+            progressed = (await acquire(index, true)) || progressed;
+          }
+          if (!progressed) {
+            break;
+          }
+        }
+
+        for (const change of STOCK_CODE_CHANGES) {
+          if (exhausted()) {
+            break;
+          }
+          try {
+            const accepted = await withMarketPublication(() =>
+              database.$transaction(
+                async (transaction) => {
+                  const written = await normalizeStockIdentity(transaction, change);
+                  if (written.changed) {
+                    await transaction.marketDataState.update({
+                      where: { key: 'global' },
+                      data: { revision: { increment: 1 } },
+                    });
+                  }
+
+                  return written;
+                },
+                { timeout: 120_000 },
+              ),
+            );
+            for (const field of ['inserted', 'updated', 'deleted', 'rejected'] as const) {
+              result.accepted[field] += accepted[field];
+            }
+          } catch (error) {
+            result.errors.push(`Identity normalization ${change.oldTsCode}: ${String(error)}`);
+          }
+        }
       } catch (error) {
-        result.errors.push(error instanceof Error ? error.message : String(error));
+        result.errors.push(String(error));
       } finally {
         clearInterval(timer);
         await heartbeat;
       }
-      await finishSyncRun(result, clock);
+
+      if (exhausted()) {
+        result.gaps.push('Finite run budget exhausted; remaining windows resume next run');
+      }
+
+      result.coverage = await readDatasetCoverage();
+      for (const coverage of result.coverage) {
+        if (coverage.pending) {
+          result.gaps.push(
+            `${coverage.dataset}: ${coverage.pending} attempted windows remain incomplete`,
+          );
+        }
+        if (coverage.errors) {
+          result.errors.push(`${coverage.dataset}: ${coverage.errors} source windows have errors`);
+        }
+      }
+
+      result.gaps.push(...(await readHistoryGaps(input.targetDate, input.startedAt)));
+      result.errors = [...new Set(result.errors)];
+      result.gaps = [...new Set(result.gaps)];
+      result.status = result.errors.length ? 'error' : result.gaps.length ? 'partial' : 'complete';
+
+      await database.dataSyncRun.update({
+        where: { id: result.runId },
+        data: {
+          status: result.status,
+          stage: 'finished',
+          finishedAt: clock(),
+          heartbeatAt: clock(),
+          error: result.errors.join('\n') || null,
+          summary: JSON.parse(
+            JSON.stringify({ ...result, resumeDataset: DATASET_POLICIES[nextIndex].dataset }),
+          ),
+        },
+      });
 
       return result;
     }),
   );
 }
 
-async function acquireSyncPartitions(
-  input: DataSyncInput,
-  result: DataSyncResult,
-  sourceBudget: SourceRequestBudget & { failures: number },
-  clock: () => Date,
-  log: (line: string) => void,
-): Promise<void> {
+async function recordAttempt(partition: PlannedPartition, runId: string, fetchedAt: Date) {
   const database = getDatabase();
-  const runId = result.runId;
-  const attempted = new Set<string>();
-  let requests = 0;
-  const source = {
-    async call(...args: Parameters<SyncProviders['source']['call']>) {
-      if (input.signal?.aborted) {
-        throw input.signal.reason ?? new Error('Synchronization cancelled');
-      }
-      if (requests >= SYNC_LIMITS.requests) {
-        throw new MarketSyncBudgetError();
-      }
-      requests++;
-
-      return input.providers.source.call(...args);
-    },
-  };
-  // 参考资料提交后重新读取对象清单，因此空库同一流程能够开始后续数据域。
-  // Re-read inventories after reference commits so an empty database can start dependent domains in the same flow.
-  for (let wave = 0; wave < 3 && result.partitions < SYNC_LIMITS.partitions; wave++) {
-    const plan = await planSyncPartitions({
-      targetDate: input.targetDate,
-      startedAt: input.startedAt,
-      budget: SYNC_LIMITS.partitions - result.partitions,
-      excludeIds: attempted,
-      deadline: sourceBudget.deadline,
+  const { id, dataset, scope, startDate, endDate, policyVersion } = partition;
+  await database.$transaction(async (transaction) => {
+    await transaction.datasetSyncPartition.upsert({
+      where: { id },
+      create: {
+        id,
+        dataset,
+        scope,
+        startDate,
+        endDate,
+        policyVersion,
+        status: 'pending',
+        lastRunId: runId,
+        lastAttemptAt: fetchedAt,
+      },
+      update: { lastRunId: runId, lastAttemptAt: fetchedAt },
     });
-    result.gaps.push(...plan.gaps);
-    const partitions = plan.partitions.filter((partition) => !attempted.has(partition.id));
-    if (!partitions.length) {
-      break;
-    }
-    for (const partition of partitions) {
-      if (
-        input.signal?.aborted ||
-        Date.now() >= sourceBudget.deadline ||
-        requests >= SYNC_LIMITS.requests ||
-        sourceBudget.remaining <= 0
-      ) {
-        result.gaps.push('Finite run budget exhausted; durable partitions remain pending');
-        break;
-      }
-      attempted.add(partition.id);
-      result.partitions++;
-      const fetchedAt = clock();
-      const failuresBefore = sourceBudget.failures;
-      log(
-        `[data sync] ${partition.dataset}/${partition.scope} ${partition.startDate}..${partition.endDate}`,
-      );
-      await database.dataSyncRun.update({
-        where: { id: runId },
-        data: { stage: `${partition.dataset}:${partition.scope}` },
-      });
-      try {
-        const prepared = await prepareMarketPartition(
-          { ...input.providers, source },
-          partition,
-          fetchedAt,
-        );
-        if (prepared.status === 'waiting' && sourceBudget.failures > failuresBefore) {
-          prepared.errors.push(
-            sourceBudget.lastFailure ?? 'Source failed before the finite budget was exhausted',
-          );
-        }
-        const committed = await publishSyncPartition(partition, prepared, runId, fetchedAt);
-        for (const field of ['inserted', 'updated', 'deleted', 'rejected'] as const) {
-          result.accepted[field] += committed.accepted[field];
-        }
-        result.errors.push(
-          ...committed.errors.map((error) => `${partition.dataset}/${partition.scope}: ${error}`),
-        );
-        result.gaps.push(...committed.gaps);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        const deferred =
-          sourceBudget.failures === failuresBefore &&
-          (error instanceof MarketSyncBudgetError ||
-            sourceBudget.remaining <= 0 ||
-            Boolean(input.signal?.aborted));
-        (deferred ? result.gaps : result.errors).push(
-          `${partition.dataset}/${partition.scope}: ${message}`,
-        );
-        await recordPartitionFailure(partition, runId, fetchedAt, message, deferred);
-      }
-    }
-  }
+    await transaction.datasetSyncState.upsert({
+      where: { dataset_scope: { dataset, scope } },
+      create: {
+        dataset,
+        scope,
+        lastCheckedAt: fetchedAt,
+        ...(partition.history ? { lastBackfillAt: fetchedAt } : {}),
+      },
+      update: {
+        lastCheckedAt: fetchedAt,
+        ...(partition.history ? { lastBackfillAt: fetchedAt } : {}),
+      },
+    });
+  });
 }
 
-/**
- * 单分区的原始数据、覆盖、版本与失效共同发布，提交完成后才向运行摘要累计。
- *
- * Publish one partition's data, coverage, revision and invalidation atomically before counting it.
- */
-async function publishSyncPartition(
+/** 原始值、窗口资格、覆盖和修订号在同一短事务发布。 / Publish values, eligibility, coverage and revision atomically. */
+async function publishWindow(
   partition: PlannedPartition,
   prepared: PreparedMarketPartition,
   runId: string,
   fetchedAt: Date,
 ) {
   const database = getDatabase();
-  return withMarketPublication(async () =>
+
+  return withMarketPublication(() =>
     database.$transaction(
       async (transaction) => {
-        const accepted = await acceptMarketPartition(
-          transaction,
-          prepared,
-          partition.dataset,
-          fetchedAt,
-        );
+        const accepted = await writeMarketPartition(transaction, prepared, partition, fetchedAt);
         const errors = [...prepared.errors, ...accepted.errors];
         const status = errors.length ? 'error' : prepared.status;
         const verified = status === 'complete' || status === 'not_applicable';
         const previous = await transaction.datasetSyncPartition.findUniqueOrThrow({
           where: { id: partition.id },
         });
-        const policy = DATASET_POLICIES.find((entry) => entry.dataset === partition.dataset)!;
-        const attempts = previous.attempts + 1;
-        const delay =
-          status === 'error'
-            ? Math.min(
-                7 * 86400_000,
-                [300_000, 1800_000, 7200_000, 86400_000][Math.min(attempts - 1, 3)],
-              )
-            : status === 'complete' || status === 'not_applicable'
-              ? policy.refreshDays * 86400_000
-              : 1800_000;
+
+        // 重叠旧窗口不能掩盖这次发现的缺口；恢复时只认覆盖该范围的完整结果。
+        // Old overlapping windows cannot mask a newly observed gap; restore only proven complete extents.
+        const overlapping = await transaction.datasetSyncPartition.updateMany({
+          where: {
+            dataset: partition.dataset,
+            scope: partition.scope,
+            id: { not: partition.id },
+            ...(verified
+              ? {
+                  startDate: { gte: partition.startDate },
+                  endDate: { lte: partition.endDate },
+                  status: { notIn: ['complete', 'not_applicable'] },
+                }
+              : {
+                  startDate: { lte: partition.endDate },
+                  endDate: { gte: partition.startDate },
+                  policyVersion: partition.policyVersion,
+                  status: { in: ['complete', 'not_applicable'] },
+                }),
+          },
+          data: {
+            status: verified ? 'complete' : 'partial',
+            policyVersion: partition.policyVersion,
+            error: verified ? null : 'Overlapping source window needs verification',
+            gaps: verified ? [] : ['Overlapping source window needs verification'],
+            ...(verified ? { checkedAt: fetchedAt } : {}),
+          },
+        });
         await transaction.datasetSyncPartition.update({
           where: { id: partition.id },
           data: {
             status,
-            ...(verified ? { policyVersion: partition.policyVersion } : {}),
-            attempts,
+            policyVersion: verified ? partition.policyVersion : previous.policyVersion,
             lastRunId: runId,
             lastAttemptAt: fetchedAt,
-            nextAttemptAt: new Date(fetchedAt.getTime() + delay),
-            checkedAt:
-              status === 'complete' || status === 'not_applicable' ? fetchedAt : previous.checkedAt,
-            evidence: prepared.evidence,
+            checkedAt: verified ? fetchedAt : previous.checkedAt,
             gaps: prepared.gaps,
             error: errors.join('\n') || null,
           },
         });
-        const changed = accepted.changes.length > 0;
-        const eligibilityChanged =
-          previous.status !== status ||
-          (verified && previous.policyVersion !== partition.policyVersion);
+
         const state = await transaction.datasetSyncState.findUniqueOrThrow({
-          where: {
-            dataset_scope: { dataset: partition.dataset, scope: partition.scope },
-          },
+          where: { dataset_scope: { dataset: partition.dataset, scope: partition.scope } },
         });
-        const observed =
-          [...accepted.observedDates, state.maxObservedDate ?? ''].sort().at(-1) || null;
         await transaction.datasetSyncState.update({
-          where: {
-            dataset_scope: { dataset: partition.dataset, scope: partition.scope },
-          },
+          where: { dataset_scope: { dataset: partition.dataset, scope: partition.scope } },
           data: {
-            lastCheckedAt: fetchedAt,
-            maxObservedDate: observed,
-            revision: { increment: changed ? 1 : 0 },
-            ...(verified ? { policyVersion: partition.policyVersion } : {}),
+            maxObservedDate:
+              [...accepted.observedDates, state.maxObservedDate ?? ''].sort().at(-1) || null,
           },
         });
-        if (changed || eligibilityChanged) {
+        await updateVerifiedCoverage(transaction, partition.dataset, partition.scope);
+
+        const previouslyVerified =
+          ['complete', 'not_applicable'].includes(previous.status) &&
+          previous.policyVersion === partition.policyVersion;
+        if (accepted.changed || overlapping.count > 0 || previouslyVerified !== verified) {
           await transaction.marketDataState.update({
             where: { key: 'global' },
             data: { revision: { increment: 1 } },
           });
         }
-        await updateVerifiedCoverage(transaction, partition.dataset, partition.scope);
 
-        return {
-          accepted,
-          errors: status === 'waiting' ? [] : errors,
-          gaps: [...prepared.gaps, ...(status === 'waiting' ? errors : [])],
-        };
+        return { accepted, errors };
       },
       { timeout: 120_000 },
     ),
   );
-}
-
-async function recordPartitionFailure(
-  partition: PlannedPartition,
-  runId: string,
-  fetchedAt: Date,
-  message: string,
-  deferred: boolean,
-): Promise<void> {
-  const database = getDatabase();
-  await withMarketPublication(() =>
-    database.$transaction(async (transaction) => {
-      const previous = await transaction.datasetSyncPartition.findUniqueOrThrow({
-        where: { id: partition.id },
-      });
-      await transaction.datasetSyncPartition.update({
-        where: { id: partition.id },
-        data: {
-          status: deferred ? 'waiting' : 'error',
-          attempts: { increment: 1 },
-          lastRunId: runId,
-          lastAttemptAt: fetchedAt,
-          nextAttemptAt: new Date(fetchedAt.getTime() + 300_000),
-          error: message,
-        },
-      });
-      await transaction.datasetSyncState.update({
-        where: {
-          dataset_scope: { dataset: partition.dataset, scope: partition.scope },
-        },
-        data: { lastCheckedAt: fetchedAt },
-      });
-      if (previous.status === 'complete' || previous.status === 'not_applicable') {
-        await transaction.marketDataState.update({
-          where: { key: 'global' },
-          data: { revision: { increment: 1 } },
-        });
-        await updateVerifiedCoverage(transaction, partition.dataset, partition.scope);
-      }
-    }),
-  );
-}
-
-async function normalizeSyncIdentities(
-  result: DataSyncResult,
-  clock: () => Date,
-  signal?: AbortSignal,
-): Promise<void> {
-  const database = getDatabase();
-  for (const change of STOCK_CODE_CHANGES) {
-    if (signal?.aborted) {
-      result.gaps.push('Identity normalization deferred by the run budget');
-      break;
-    }
-    try {
-      const committed = await withMarketPublication(() =>
-        database.$transaction(
-          async (transaction) => {
-            const prepared = await prepareIdentityNormalization(transaction, change);
-            const accepted = await acceptMarketPartition(
-              transaction,
-              prepared,
-              'identity-normalization',
-              clock(),
-            );
-            if (accepted.changes.length) {
-              await transaction.marketDataState.update({
-                where: { key: 'global' },
-                data: { revision: { increment: 1 } },
-              });
-            }
-            return accepted;
-          },
-          { timeout: 120_000 },
-        ),
-      );
-      result.accepted.inserted += committed.inserted;
-      result.accepted.updated += committed.updated;
-      result.accepted.deleted += committed.deleted;
-      result.accepted.rejected += committed.rejected;
-      result.errors.push(...committed.errors);
-    } catch (error) {
-      result.errors.push(`Identity normalization ${change.oldTsCode}: ${String(error)}`);
-    }
-  }
-}
-
-async function finishSyncRun(result: DataSyncResult, clock: () => Date): Promise<void> {
-  const database = getDatabase();
-  const runId = result.runId;
-
-  result.coverage = await readDatasetCoverage();
-  const unfinished = await database.datasetSyncPartition.count({
-    where: {
-      endDate: { lte: result.targetDate },
-      status: { notIn: ['complete', 'not_applicable'] },
-    },
-  });
-  const unresolved = await database.datasetSyncPartition.findMany({
-    where: { status: 'error', endDate: { lte: result.targetDate } },
-    select: { dataset: true, scope: true, error: true },
-  });
-  result.errors.push(
-    ...unresolved.map((entry) => `${entry.dataset}/${entry.scope}: ${entry.error}`),
-  );
-  if (unfinished) {
-    result.gaps.push(`${unfinished} unfinished source partitions`);
-  }
-  result.errors = [...new Set(result.errors)];
-  result.gaps = [...new Set(result.gaps)];
-  result.status = result.errors.length ? 'error' : result.gaps.length ? 'partial' : 'complete';
-  await database.dataSyncRun.update({
-    where: { id: runId },
-    data: {
-      status: result.status,
-      stage: 'finished',
-      heartbeatAt: clock(),
-      finishedAt: clock(),
-      summary: JSON.parse(JSON.stringify(result)),
-      error: result.errors.join('\n') || null,
-    },
-  });
 }

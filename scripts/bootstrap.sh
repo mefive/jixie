@@ -510,6 +510,8 @@ grep -qE '^DEEPSEEK_API_KEY=""?$' "$ENV_PROD" 2>/dev/null && warn "DEEPSEEK_API_
 
 DEPLOYMENT_RUN_ID=""
 API_WAS_ACTIVE=0
+SCHEMA_DATA_READY=1
+MINIMAL_SYNC_TRANSFER=""
 
 finish_deployment_gate() {
   local outcome="$1"
@@ -549,11 +551,14 @@ cleanup_deployment_gate() {
   if [[ -n "$DEPLOYMENT_RUN_ID" ]]; then
     finish_deployment_gate error || true
   fi
-  if [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" ]] &&
+  if [[ "$exit_code" -ne 0 && "$API_WAS_ACTIVE" == "1" && "$SCHEMA_DATA_READY" == "1" ]] &&
     ! systemctl is-active --quiet "$JIXIE_SERVICE" 2>/dev/null; then
     warn "部署失败,恢复部署前运行的 $JIXIE_SERVICE"
     sudo systemctl start "$JIXIE_SERVICE" ||
       warn "$JIXIE_SERVICE 恢复失败,请检查 journalctl -u $JIXIE_SERVICE -e"
+  fi
+  if [[ "$SCHEMA_DATA_READY" != "1" ]]; then
+    warn "schema／业务数据升级未完成；API 保持停止，请保留 minimal-sync 恢复文件并重试部署。"
   fi
   exit "$exit_code"
 }
@@ -621,8 +626,20 @@ if [[ "$DEPLOY_API" == "1" ]]; then
   log "构建 API"
   NODE_OPTIONS="$NODE_HEAP_OPTIONS" pnpm --filter api build
 
+  # 旧分红捕获时间须先搬移；失败时保持停服，不能由 EXIT trap 自动启动 API。
+  # Transfer legacy dividend capture dates first; failures must keep the API stopped.
+  SCHEMA_DATA_READY=0
+  MINIMAL_SYNC_TRANSFER="$(node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-minimal-sync.mjs" export "$DB_FILE")"
+  if [[ -n "$MINIMAL_SYNC_TRANSFER" ]]; then
+    JIXIE_DB_PATH="$DB_FILE" JIXIE_BACKUP_DIR="$JIXIE_BACKUP_DIR" node "$JIXIE_DIR/apps/api/scripts/backup-db.mjs"
+  fi
+
   log "prisma migrate deploy (建库/升级 schema 于 $DB_FILE)"
   pnpm --filter api exec prisma migrate deploy
+  if [[ -n "$MINIMAL_SYNC_TRANSFER" ]]; then
+    node --no-warnings "$JIXIE_DIR/apps/api/scripts/upgrade-minimal-sync.mjs" restore "$DB_FILE"
+  fi
+  SCHEMA_DATA_READY=1
 fi
 
 if [[ "$DEPLOY_WEB" == "1" ]]; then

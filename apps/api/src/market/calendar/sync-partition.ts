@@ -43,7 +43,7 @@ export async function prepareCalendarPartition(
       throw new Error('Invalid exchange calendar row');
     }
 
-    return { values: sourceValues(row, columns), availabilityQuality: 'source_contract' };
+    return { values: sourceValues(row, columns) };
   });
   const dates = new Set(mapped.records.map((record) => String(record.values.calDate)));
   for (let date = partition.startDate; date <= partition.endDate; date = calendarDay(date, 1)) {
@@ -55,15 +55,9 @@ export async function prepareCalendarPartition(
   return completeResponse({
     pages,
     table: 'TradeCal',
-    extent: {
-      basis: 'Every requested calendar day is present',
-      deletion: 'Validated exact calendar dates',
-    },
+    coverageComplete: true,
+    replace: true,
     ...mapped,
-    where: {
-      exchange: partition.scope,
-      calDate: { gte: partition.startDate, lte: partition.endDate },
-    },
     observedDates: [...dates],
   });
 }

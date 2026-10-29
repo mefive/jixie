@@ -121,17 +121,14 @@ export async function prepareStockPartition(
         definition.table === 'DailyBasic'
           ? Object.keys(values).filter((field) => values[field] === null)
           : [],
-      availableDate: partition.startDate,
-      availabilityQuality: 'source_contract',
     };
   });
 
   const prepared = completeResponse({
     pages,
     table: definition.table,
-    extent: null,
+    coverageComplete: false,
     ...mapped,
-    where: { tradeDate: partition.startDate },
     allowEmpty: false,
     observedDates: mapped.records.length ? [partition.startDate] : [],
   });
@@ -156,13 +153,11 @@ export async function prepareStockPartition(
       return { values: { tsCode: canonicalStockCode(code), timing: row.suspend_timing ?? null } };
     });
     prepared.errors.push(...suspensions.errors, ...suspended.errors);
-    prepared.evidence.suspensionsVerified =
+    prepared.checks.suspensionsVerified =
       suspensions.complete && !suspensions.errors.length && !suspended.errors.length;
-    prepared.evidence.fullDaySuspended = JSON.stringify(
-      suspended.records
-        .filter((record) => !record.values.timing)
-        .map((record) => record.values.tsCode),
-    );
+    prepared.checks.fullDaySuspended = suspended.records
+      .filter((record) => !record.values.timing)
+      .map((record) => String(record.values.tsCode));
   }
 
   return prepared;
@@ -210,7 +205,7 @@ export async function stockPartitionCoverage(
   if (['L', 'D', 'P', 'G'].some((scope) => !masters.some((row) => row.scope === scope))) {
     return ['Listing-status inventories are not verified'];
   }
-  if (prepared.evidence.suspensionsVerified !== true) {
+  if (prepared.checks.suspensionsVerified !== true) {
     return ['Full-day suspension evidence is unavailable'];
   }
 
@@ -228,7 +223,7 @@ export async function stockPartitionCoverage(
       )
       .map((stock) => canonicalStockCode(stock.tsCode)),
   );
-  const suspended = new Set<string>(JSON.parse(String(prepared.evidence.fullDaySuspended)));
+  const suspended = new Set(prepared.checks.fullDaySuspended ?? []);
   const missing = [...listed].filter((code) => !codes.has(code) && !suspended.has(code));
   const unexpected = [...codes].filter((code) => typeof code !== 'string' || !listed.has(code));
   const contradictions = [...codes].filter(
@@ -276,14 +271,14 @@ export async function prepareStockReference(
         throw new Error('Invalid stock master identity');
       }
 
-      return { values: sourceValues(row, columns), availabilityQuality: 'latest_only' };
+      return { values: sourceValues(row, columns) };
     });
     // 状态迁移不是证券删除；保留从另一个状态暂时缺失的历史身份。
     // A status transition is not a security deletion; preserve historical identities between status fetches.
     return completeResponse({
       pages,
       table: 'StockBasic',
-      extent: { basis: 'Filtered listing-status catalog contract' },
+      coverageComplete: true,
       ...mapped,
       allowEmpty: partition.scope !== 'L',
     });
@@ -320,8 +315,6 @@ export async function prepareStockReference(
         ...sourceValues(row, columns),
         tsCode: canonicalStockCode(sourceString(row, 'ts_code')),
       },
-      publicationDate: typeof row.ann_date === 'string' ? row.ann_date : null,
-      availabilityQuality: 'source_contract',
     };
   });
   const spells = normalizeStockNameSpells(
@@ -346,12 +339,9 @@ export async function prepareStockReference(
   return completeResponse({
     pages,
     table: 'StockNameHistory',
-    extent: {
-      basis: 'Announcement-filtered name history',
-      deletion: 'Complete announcement-filtered name events',
-    },
+    coverageComplete: true,
+    replace: true,
     ...mapped,
-    where: { announcementDate: { gte: partition.startDate, lte: partition.endDate } },
     allowEmpty: true,
   });
 }

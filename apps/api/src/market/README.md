@@ -2,7 +2,7 @@
 
 业务错误统一在 [errors.ts](errors.ts) 定义，调用点直接抛出模块错误；HTTP 分类与翻译由公共边界完成。约定及例外见 [错误设计](../../../../docs/design/api-errors.md)。
 
-Market 拥有行情与领域数据的身份、获取、同步、查询和基础质量。Research 数据集、Factor 观察值、Strategy/Engine 数据加载消费这些能力；统一分区计划与发布编排归 [Maintenance](../maintenance/README.md)。
+Market 拥有行情与领域数据的身份、获取、同步、查询和基础质量。Research 数据集、Factor 观察值、Strategy/Engine 数据加载消费这些能力；日期窗口选择与发布编排归 [Maintenance](../maintenance/README.md)。
 
 ## 按业务问题进入
 
@@ -30,10 +30,10 @@ HTTP 从查询能力读取已有数据；Research 再做 SDK 字段与 PIT 投�
 
 [routes/index.ts](routes/index.ts) 导出 `marketRoute`，组合 instrument / valuation，挂载 `/api/app/market`；[共享请求契约](../../../../packages/shared/src/api/market.ts) 校验查询输入。HTTP 映射数据／null／空序列，业务查询不依赖 Hono 或用户会话。完整路径及精简指数响应区别见 [路由设计](../../../../docs/design/api-route-naming.md#剩余模块路由整理2026-09-11) 和相应能力文档。
 
-[cli](cli/) 负责参数、配置、输出、退出与 Prisma 收尾，命令用法统一维护在 [API 命令索引](../../scripts/README.md)。providers 只是组织目录，fundamentals/fixtures 由其父能力说明；不为纯目录层新增入口或导出。
+[Maintenance CLI](../maintenance/cli/) 负责参数、配置、输出、退出与 Prisma 收尾，命令用法统一维护在 [API 命令索引](../../scripts/README.md)。providers 只是组织目录，fundamentals/fixtures 由其父能力说明；不为纯目录层新增入口或导出。
 
 同步、只读查询、纯计算须按实际函数区别；不同数据集保持不同的空响应、覆盖和事务规则。availableDate、观测日、公告日、抓取版本不可混用，缺失不等于零。共享身份不包含供应商解析／写库。Market 不反向调用 Strategy、Agent、Research 或 Maintenance。
 
 整体 HTTP 用例在 [routes/index.test.ts](routes/index.test.ts)，各数据域测试就近链接。架构与约束见 [后端架构](../../../../docs/backend-architecture.md)、[依赖边界](../../../../docs/backend-boundaries.md)；目录及共享身份整理的历史结果见 [架构重构记录](../../../../docs/design/backend-architecture-refactor.md)、[服务边界设计](../../../../docs/design/core-business-service-boundaries.md)。
 
-当前唯一市场写流程是 `pnpm data sync [--to YYYYMMDD]`。各领域 `sync-partition.ts` 准备来源批次，`synchronization/` 接纳合法独立记录并保存字段/覆盖证据；旧任务选择式 CLI、整轮候选和隐式 Signals 下载已退役。分区覆盖、计算资格与统计/模型门槛分别报告。
+当前唯一市场写流程是 `pnpm data sync [--to YYYYMMDD]`。各领域 `sync-partition.ts` 准备来源批次，各领域 `write.ts` 用显式 Prisma 写入，`synchronization/rows.ts` 只做纯内存缺值合并，`coverage.ts` 从实际窗口推导连续覆盖；旧任务选择式 CLI、整轮候选和隐式 Signals 下载已退役。分区覆盖、计算资格与统计/模型门槛分别报告。

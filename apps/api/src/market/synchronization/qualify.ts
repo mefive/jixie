@@ -1,5 +1,6 @@
 import { getDatabase } from '#infra/database/prisma.js';
 import { contiguousCoverage } from './coverage.js';
+import { DATASET_POLICIES } from './policies.js';
 import { stockPartitionCoverage } from '../stocks/sync-partition.js';
 import type { MarketPartition, PreparedMarketPartition } from './partition.js';
 
@@ -28,14 +29,15 @@ export async function qualifyMarketPartition(
   if (
     SESSION_SERIES.has(partition.dataset) &&
     (prepared.status === 'complete' ||
-      (prepared.evidence.terminalPage === true &&
-        prepared.evidence.sourceFailed === false &&
-        prepared.evidence.invalidRows === 0))
+      (prepared.checks.terminalPage === true &&
+        prepared.checks.sourceFailed === false &&
+        prepared.checks.invalidRows === 0))
   ) {
     const exchange = 'SSE';
     const calendar = await getDatabase().datasetSyncPartition.findMany({
       where: {
         dataset: 'calendar',
+        policyVersion: DATASET_POLICIES.find((policy) => policy.dataset === 'calendar')!.version,
         scope: exchange,
         status: 'complete',
         startDate: { lte: partition.endDate },
@@ -49,7 +51,7 @@ export async function qualifyMarketPartition(
       where: { exchange, isOpen: 1, calDate: { gte: partition.startDate, lte: partition.endDate } },
       select: { calDate: true },
     });
-    if (!sessions.length && !gaps.length && prepared.evidence.emptyResponse === true) {
+    if (!sessions.length && !gaps.length && prepared.checks.emptyResponse === true) {
       prepared.status = 'not_applicable';
       prepared.errors = [];
       prepared.gaps = [];
@@ -71,24 +73,17 @@ export async function qualifyMarketPartition(
     ['stock-prices', 'stock-adjustments', 'stock-valuations', 'stock-limits'].includes(
       partition.dataset,
     ) &&
-    prepared.evidence.terminalPage === true &&
-    prepared.evidence.sourceFailed === false &&
-    prepared.evidence.invalidRows === 0 &&
+    prepared.checks.terminalPage === true &&
+    prepared.checks.sourceFailed === false &&
+    prepared.checks.invalidRows === 0 &&
     !prepared.errors.length
   ) {
     gaps.push(...(await stockPartitionCoverage(partition, prepared)));
     if (!gaps.length) {
       prepared.status = 'complete';
       prepared.gaps = [];
-      prepared.evidence.businessExtent =
-        partition.dataset === 'stock-prices'
-          ? 'Verified listing intervals and full-day suspension evidence'
-          : 'All verified same-day traded securities are present';
       for (const table of prepared.tables) {
-        table.replacementRequest = {
-          where: { tradeDate: partition.startDate },
-          basis: String(prepared.evidence.businessExtent),
-        };
+        table.replace = true;
       }
     }
   }
@@ -97,28 +92,11 @@ export async function qualifyMarketPartition(
     prepared.gaps.push(...gaps);
   }
   for (const table of prepared.tables) {
-    delete table.replacement;
-    const independentSnapshot =
-      table.atomic &&
-      table.replacementRequest?.independent === true &&
-      prepared.evidence.terminalPage === true &&
-      prepared.evidence.sourceFailed === false;
-    if (
-      ((prepared.status === 'complete' && !prepared.errors.length) || independentSnapshot) &&
-      table.replacementRequest
-    ) {
-      table.replacement = { ...table.replacementRequest, authoritative: true };
-    }
+    table.replace =
+      Boolean(table.replace) &&
+      ((prepared.status === 'complete' && !prepared.errors.length) ||
+        (table.atomic === true && prepared.checks.terminalPage && !prepared.checks.sourceFailed));
   }
-  prepared.evidence.deletionAuthorities = JSON.stringify(
-    prepared.tables
-      .filter((table) => table.replacement)
-      .map((table) => ({
-        table: table.table,
-        where: table.replacement!.where,
-        basis: table.replacement!.basis,
-      })),
-  );
 
   return prepared;
 }

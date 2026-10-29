@@ -6,7 +6,7 @@
 
 [instrument-resolver.ts](instrument-resolver.ts) 的 `resolveInstruments(text)` 供 [Agent search-instruments 工具](../../agent/tools/search-instruments.ts) 解析股票／ETF：查本地代码与名称元数据，精确命中优先，有限名称片段才模糊搜索，最多返回 50 个候选；不接受模型凭空生成身份。[names.ts](names.ts) 的 `loadInstrumentNames(codes)` 供 Market 路由等展示读取股票、ETF 名称；未知项不伪造名称，指数名由各自查询承担。
 
-[canonicalize-stock-codes.ts](canonicalize-stock-codes.ts) 的 `canonicalizeStockCodes` 供 CLI 和 Maintenance weekly 使用：先 seed 代码变更，再逐个代码关系开事务合并行情、参考数据和历史身份，删除旧代码行，返回迁移数及最早受影响日期。相同日期冲突按各表规则判断；复权、股息等既有例外有明确比较逻辑，不能以统一覆盖替代。它不是只读 resolver，也不是整轮维护发布事务。
+[normalize-identity.ts](normalize-identity.ts) 的 `normalizeStockIdentity` 在 Maintenance 的短事务中逐表检查冲突，再执行有类型的 Prisma 合并。分红稳定 ID 随规范代码更新，原捕获时间和质量保留；同业务身份的真实冲突拒绝，不用换代码重置 PIT 时间。它不是只读 resolver。
 
 改规则看 [stock-identity.test.ts](stock-identity.test.ts)；改规范化先读该实现的逐表 merge 规则及 [维护模块](../../maintenance/README.md) 中的直接消费者。行情名称／类型响应看 [Market 路由测试](../routes/index.test.ts)。
 

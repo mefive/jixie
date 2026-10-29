@@ -247,6 +247,13 @@ export const e2eCommands = [
       'Disposable fixture; Research homepage, retired weather HTTP and Python SDK, bilingual and mobile navigation.',
   },
   {
+    name: 'minimal-sync',
+    file: 'apps/web/e2e/minimal-sync.mjs',
+    group: 'platform',
+    notes:
+      'Disposable database; actual compiled dividend writes, Research availability and revision invalidation.',
+  },
+  {
     name: 'maintenance-fallback',
     file: 'apps/web/e2e/maintenance-fallback.mjs',
     group: 'platform',

@@ -123,14 +123,15 @@ StrategySimulation 在宿主创建一次性 `Simulation`，`run()` 返回模拟�
 
 旧 Agent 聊天图表 JS 执行器、重查路由和统计库注入已整体移除；历史消息只投影为停用提示。Research Python 图表使用其执行产物；只读 SQL Worker 已退役，TS Factor/Strategy Transport 继续使用。详见 [退役记录](design/legacy-chat-chart-retirement.md)。
 
-## 统一同步与原生锁（本轮待行为验证）
+## 统一同步与原生锁
 
 - 同步进程持 M；网络期间不持 P 或排他 R。发布局部分区时持 P/排他 R，业务结果写入完成前保留共享 R；空闲 Research 会话和 SSE 不持 R。
-- `DataSyncRun` 记录本轮目标与结果；M 重新取得后才能将旧 running 记录标为 interrupted。待办和退避保存在固定来源分区内，不恢复旧候选协议。
-- 当前派生 SQL 在私有输入副本中运行，输出提交比较输入 revision 和失效代次；输出与 ready 原子发布。Worker、CLI 和临时 Prisma 都在完成/失败/取消后清理。
+- `DataSyncRun` 记录本轮目标与结果；M 重新取得后才能将旧 running 记录标为 interrupted。只持久化实际尝试及完成／失败窗口，下次数据集位置存在最近运行摘要中；不预写计划或保存多级退避。
+- 私有输入副本和候选资源扫描已退役。业务计算保持共享 R；实际市场值／资格变化递增同一事务中的全局 revision，Research 下次执行重建旧 Python 会话。Worker、CLI 和临时 Prisma 完成／失败／取消后清理。
+- 停服升级入口 `apps/api/scripts/upgrade-minimal-sync.mjs export|restore DATABASE_FILE`：export 仅用内置 Node SQLite 读取旧捕获时间；restore 需要最新 API 编译产物和生成客户端。bootstrap 接入完整搬移，恢复失败不自动启动 API。
 - bootstrap 迁移/重启持实际 M/P/R FD；释放部署锁后调用统一入口。每两小时 :15 timer 推进后续批次，不依赖全局历史完成水位。
-- 验证入口：`maintenance/sync.integration.test.ts`、`tests/cli-entrypoints.test.ts`、`infra/coordination/market-access.test.ts` 及 `market-lock.fixture.ts`。干净编译、实际 Worker 与双语 UI E2E 留到 Gate 2 后；记录不能代替实际结果。
+- 验证入口：`maintenance/sync.integration.test.ts`、`tests/cli-entrypoints.test.ts`、`infra/coordination/market-access.test.ts` 及 `market-lock.fixture.ts`。本轮编译、实际 Worker、隔离 API／sandboxd 启动和双语 UI E2E 均已验证；实际结果见 [裁剪计划第 28.4 节](design/system-simplification-plan.md#284-review-后实际验证2026-10-29)。
 
 ## 数据库执行绑定
 
-`buildApp(database)` 为请求绑定数据库，Job 保留自己的作用域，独立 CLI/Worker 在入口绑定并关闭自身连接。统一同步直接通过明确的 TransactionClient 提交原始值、覆盖、revision 与失效；计算副本使用独立 withDatabase 作用域，退出恢复外层。没有作用域或已关闭的连接必须拒绝业务访问。
+`buildApp(database)` 为请求绑定数据库，Job 保留自己的作用域，独立 CLI/Worker 在入口绑定并关闭自身连接。统一同步直接通过明确的 TransactionClient 提交原始值、覆盖、revision 与失效；独立 CLI／Worker 使用自己的 withDatabase 作用域，退出恢复外层。没有作用域或已关闭的连接必须拒绝业务访问。

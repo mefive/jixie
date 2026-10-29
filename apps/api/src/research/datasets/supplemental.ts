@@ -57,13 +57,6 @@ export async function loadResearchEquityDividends(request: ResearchDatedIdentifi
     },
     orderBy: [{ exDate: 'asc' }, { endDate: 'asc' }],
   });
-  const evidence = await getDatabase().marketRecordEvidence.findMany({
-    where: {
-      tableName: 'Dividend',
-      businessKey: { in: rows.map((row) => JSON.stringify([row.id])) },
-    },
-  });
-  const byKey = new Map(evidence.map((entry) => [entry.businessKey, entry]));
   const sessions = await getDatabase().tradeCal.findMany({
     where: { exchange: 'SSE', isOpen: 1 },
     orderBy: { calDate: 'asc' },
@@ -71,11 +64,10 @@ export async function loadResearchEquityDividends(request: ResearchDatedIdentifi
   });
 
   return rows.flatMap((row) => {
-    const provenance = byKey.get(JSON.stringify([row.id]));
-    if (!provenance) {
+    if (!row.observedAt) {
       return [];
     }
-    const captureDate = localDate(provenance.firstObservedAt);
+    const captureDate = localDate(row.observedAt);
     const availableDate = sessions.find((session) => session.calDate > captureDate)?.calDate;
     const date = availableDate && availableDate > row.exDate! ? availableDate : row.exDate!;
     if (!availableDate || date < request.start || date > request.end) {
@@ -86,8 +78,8 @@ export async function loadResearchEquityDividends(request: ResearchDatedIdentifi
       {
         date,
         ex_date: row.exDate!,
-        availability_quality: provenance.availabilityQuality,
-        observed_at: provenance.firstObservedAt.toISOString(),
+        availability_quality: row.availabilityQuality,
+        observed_at: row.observedAt.toISOString(),
         report_period: row.endDate,
         announcement_date: row.annDate,
         cash_dividend_pre_tax: row.cashDiv,

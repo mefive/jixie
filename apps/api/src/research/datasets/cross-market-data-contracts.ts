@@ -177,7 +177,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     cost: 'Existing Tushare account and point tier.',
     auditability: 'strong',
     knownLimits: [
-      'Adjustment factors may be refreshed and must participate in data fingerprints.',
+      'Adjustment-factor changes update current data and invalidate cached research sessions.',
       'Not every reference field has historical vintages; absent PIT fields cannot be backfilled with current state.',
     ],
     evidence: [
@@ -228,7 +228,7 @@ const sourceDecisions: ResearchSourceDecisionMatrixEntryV1[] = [
     auditability: 'strong',
     knownLimits: [
       'ETF adjusted returns include fund tracking, fees, and trading frictions; they are not the underlying spot return.',
-      'Adjustment-factor changes must participate in data fingerprints.',
+      'Adjustment-factor revisions invalidate cached research sessions.',
       'Latest fund size can be missing, including delayed QDII publications; missing size is not derived and no historical size or NAV research interface is exposed.',
     ],
     evidence: [
@@ -302,7 +302,7 @@ const contracts: CrossMarketResearchDataContractV1[] = [
     corporateActions: {
       applicability: 'required',
       adjustedPricePolicy:
-        'Adjusted close equals raw fund close multiplied by the stored factor; factor revisions change the data fingerprint.',
+        'Adjusted close equals raw fund close multiplied by the stored factor; factor revisions invalidate cached research sessions.',
       totalReturnPolicy:
         'Treat adjusted return as the fund return proxy only; disclose fees, tracking error, and that it is not spot commodity total return.',
     },
@@ -320,7 +320,7 @@ const contracts: CrossMarketResearchDataContractV1[] = [
       'CNY',
       'Asia/Shanghai',
       'available after the registered China-market close',
-      'raw close is not revised; adjustment-factor revisions change the research data fingerprint',
+      'raw close is not revised; adjustment-factor revisions invalidate cached research sessions',
     ),
   },
 ];
@@ -517,7 +517,7 @@ function equityContract(input: {
     corporateActions: {
       applicability: 'required',
       adjustedPricePolicy:
-        'Store raw OHLC and a separately fingerprinted adjustment factor; an adjusted close is not a raw traded price.',
+        'Store raw OHLC and a separate adjustment factor; an adjusted close is not a raw traded price.',
       totalReturnPolicy:
         'Use a declared reinvestment convention and disclose taxes and fees; never label raw close return as total return.',
     },
@@ -526,7 +526,7 @@ function equityContract(input: {
       macroVintagePolicy:
         'Not applicable to the price series; macro joins retain their own vintage contract.',
       revisionPolicy:
-        'Raw closes are append-only after validation; corporate-action factors and reference histories may revise and change the data fingerprint.',
+        'Raw closes are append-only after validation; corporate-action factors and reference histories may revise and invalidate cached research sessions.',
       availableDatePolicy: availabilityPolicy,
     },
     binding: bindingContract(
@@ -536,7 +536,7 @@ function equityContract(input: {
       input.currency,
       input.timeZone,
       availabilityPolicy,
-      'raw close is not revised; corporate-action or reference-history revisions change the research data fingerprint',
+      'raw close is not revised; corporate-action or reference-history revisions invalidate cached research sessions',
     ),
   };
 }

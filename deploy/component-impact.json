@@ -35,7 +35,8 @@
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
     "tsconfig.base.json",
-    ".dockerignore"
+    ".dockerignore",
+    "apps/api/scripts/upgrade-minimal-sync.mjs"
   ],
   "noRuntimePrefixes": [".github/", "docs/"],
   "noRuntimeFiles": [

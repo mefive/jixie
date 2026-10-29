@@ -1,16 +1,14 @@
+import { legacyMarketTable } from './legacy-market-tables.js';
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import prismaPackage from '@prisma/client';
 import { expect, it } from 'vitest';
-import { withDatabase } from '#infra/database/prisma.js';
-import { withMaintenanceLock } from '#infra/coordination/market-access.js';
-import { retireDatasets } from '#maintenance/retired-datasets.js';
 
 const retirement = '20261026190000_remove_market_weather';
 
-it('drops weather history and retires its backlog while preserving raw data and independent research', async () => {
+it('drops weather history while preserving raw data, historical maintenance rows and independent research', async () => {
   const directory = await mkdtemp('/tmp/jixie-market-weather-retirement-');
   const databaseUrl = `file:${directory}/upgrade.db`;
   const schema = join(directory, 'schema.prisma');
@@ -88,7 +86,7 @@ it('drops weather history and retires its backlog while preserving raw data and 
       },
     });
     await database.marketDataState.create({ data: { key: 'global' } });
-    await database.marketCalculationState.createMany({
+    await legacyMarketTable(database, 'MarketCalculationState').createMany({
       data: ['market-state', 'commodity-continuous', 'unrelated-history'].map((kind) => ({
         kind,
         scope: 'all',
@@ -114,7 +112,7 @@ it('drops weather history and retires its backlog while preserving raw data and 
         database.strategy.findMany(),
         database.agentConversation.findMany(),
         database.researchDocument.findMany(),
-        database.marketCalculationState.findMany(),
+        legacyMarketTable(database, 'MarketCalculationState').findMany(),
         database.$queryRaw`SELECT name,sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'
         AND name NOT LIKE 'MarketIndicator%' AND name NOT LIKE 'IndexIndicator%' AND name NOT LIKE 'IndustryIndicator%' ORDER BY name`,
       ]);
@@ -130,19 +128,6 @@ it('drops weather history and retires its backlog while preserving raw data and 
       await database.$queryRaw`SELECT name FROM sqlite_master WHERE name IN ('MarketIndicator','IndexIndicator','IndustryIndicator')`,
     ).toEqual([]);
     expect(await database.$queryRaw`PRAGMA foreign_key_check`).toEqual([]);
-    await withDatabase(database, async () => {
-      const retained = await database.marketCalculationState.findFirstOrThrow({
-        where: { kind: 'unrelated-history' },
-      });
-      await expect(retireDatasets()).rejects.toThrow();
-      await withMaintenanceLock(retireDatasets);
-      expect(
-        await database.marketCalculationState.findMany({
-          where: { kind: { in: ['market-state', 'commodity-continuous'] } },
-        }),
-      ).toEqual([]);
-      expect(await database.marketCalculationState.findFirstOrThrow()).toEqual(retained);
-    });
   } finally {
     await database.$disconnect();
     await rm(directory, { recursive: true, force: true });

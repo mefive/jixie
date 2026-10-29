@@ -2,18 +2,16 @@ import { mkdir, readFile, writeFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { loadIndicatorVersions } from '#market/fundamentals/indicator-versions.js';
-import { prepareIdentityNormalization } from '#market/instruments/normalize-identity.js';
+import { normalizeStockIdentity } from '#market/instruments/normalize-identity.js';
 import { STOCK_CODE_CHANGES, stockCodeAt } from '#market/instruments/stock-identity.js';
-import { cleanRetiredSyncResources } from './resources.js';
-import { acquireWorkOwner } from '#infra/coordination/market-access.js';
 import { describe, expect, it, vi } from 'vitest';
 import { withSyncDatabase } from '../../tests/sync-database.js';
-import { acceptMarketPartition } from '#market/synchronization/records.js';
+import { writeFixture as acceptMarketPartition } from '../../tests/sync-fixtures.js';
 import { datasetInputReadiness, marketRevision } from '#market/synchronization/readiness.js';
 import { contiguousCoverage } from '#market/synchronization/coverage.js';
 import { prepareIndexPartition } from '#market/indices/sync-partition.js';
 import { getMaintenanceStatus } from './status.js';
-import { planSyncPartitions } from './partitions.js';
+import { selectFixtureWindows as planSyncPartitions } from '../../tests/sync-fixtures.js';
 import { synchronizeData } from './sync.js';
 import type { PreparedMarketPartition, SourceRecord } from '#market/synchronization/partition.js';
 import type { SyncProviders } from '#market/synchronization/prepare.js';
@@ -34,7 +32,14 @@ const prepared = (
 ): PreparedMarketPartition => ({
   tables: [{ table: 'Daily', records }],
   status,
-  evidence: {},
+  checks: {
+    terminalPage: false,
+    sourceFailed: false,
+    invalidRows: 0,
+    emptyResponse: false,
+    pages: 1,
+    sourceRows: records.length,
+  },
   gaps: [],
   errors: [],
   observedDates: records.map((record) => String(record.values.tradeDate)),
@@ -90,7 +95,7 @@ describe('unified synchronization acceptance', () => {
       const unchanged = await database.$transaction((transaction) =>
         acceptMarketPartition(transaction, second, 'stock-prices', fetchedAt),
       );
-      expect(unchanged.changes).toHaveLength(0);
+      expect(unchanged.changed).toBe(false);
       expect(await database.daily.findMany()).toHaveLength(2);
       expect(
         await database.daily.findUniqueOrThrow({
@@ -127,16 +132,13 @@ describe('unified synchronization acceptance', () => {
         (await database.daily.findFirstOrThrow({ where: { tradeDate: '20260914' } })).amount,
       ).toBeNull();
       const empty = prepared([], 'partial');
-      empty.tables[0].replacement = {
-        authoritative: true,
-        basis: 'Explicit fixture withdrawal',
-        where: { tradeDate: '20260914' },
-      };
+      empty.tables[0].replace = false;
       await database.$transaction((transaction) =>
         acceptMarketPartition(transaction, empty, 'stock-prices', fetchedAt),
       );
       expect(await database.daily.count()).toBe(2);
       empty.status = 'complete';
+      empty.tables[0].replace = true;
       await database.$transaction((transaction) =>
         acceptMarketPartition(transaction, empty, 'stock-prices', fetchedAt),
       );
@@ -145,6 +147,17 @@ describe('unified synchronization acceptance', () => {
 
   it('A04/A10 schedules an older hole after newer observations without using a max-date watermark', async () =>
     withSyncDatabase(async (database) => {
+      await database.datasetSyncPartition.create({
+        data: {
+          id: 'verified-calendar',
+          dataset: 'calendar',
+          scope: 'SSE',
+          startDate: '20150101',
+          endDate: '20260916',
+          policyVersion: 'sync-v1',
+          status: 'complete',
+        },
+      });
       await database.tradeCal.createMany({
         data: [
           { exchange: 'SSE', calDate: '20260915', isOpen: 1 },
@@ -155,11 +168,8 @@ describe('unified synchronization acceptance', () => {
         data: {
           dataset: 'stock-prices',
           scope: 'all',
-          historyStart: '20150101',
-          backfillCursor: '20150101',
-          plannedThrough: '20260916',
+
           maxObservedDate: '20260916',
-          policyVersion: 'sync-v1',
         },
       });
       await database.datasetSyncPartition.create({
@@ -173,7 +183,6 @@ describe('unified synchronization acceptance', () => {
           endDate: '20260915',
           policyVersion: 'sync-v1',
           status: 'waiting',
-          nextAttemptAt: new Date(0),
         },
       });
       const plan = await planSyncPartitions({
@@ -215,7 +224,7 @@ describe('unified synchronization acceptance', () => {
     expect(partition.tables.flatMap((table) => table.records)).toHaveLength(0);
   });
 
-  it('A11 rolls back values, provenance and revision together at the publication boundary', async () =>
+  it('A11 rolls back values and revision together at the publication boundary', async () =>
     withSyncDatabase(async (database) => {
       await database.marketDataState.create({ data: { key: 'global' } });
       await expect(
@@ -234,7 +243,6 @@ describe('unified synchronization acceptance', () => {
         }),
       ).rejects.toThrow('injected');
       expect(await database.daily.count()).toBe(0);
-      expect(await database.marketRecordEvidence.count()).toBe(0);
       expect(await marketRevision()).toBe(0);
     }));
 
@@ -308,12 +316,7 @@ describe('unified synchronization acceptance', () => {
       await database.daily.create({
         data: { tsCode: change.oldTsCode, tradeDate: '20250102', close: 10 },
       });
-      const normalization = await database.$transaction((transaction) =>
-        prepareIdentityNormalization(transaction, change),
-      );
-      await database.$transaction((transaction) =>
-        acceptMarketPartition(transaction, normalization, 'identity-normalization', fetchedAt),
-      );
+      await database.$transaction((transaction) => normalizeStockIdentity(transaction, change));
       expect(await database.daily.findMany()).toMatchObject([
         { tsCode: change.newTsCode, close: 10 },
       ]);
@@ -322,55 +325,27 @@ describe('unified synchronization acceptance', () => {
         data: { tsCode: change.oldTsCode, tradeDate: '20250102', close: 12 },
       });
       await expect(
-        database.$transaction((transaction) => prepareIdentityNormalization(transaction, change)),
+        database.$transaction((transaction) => normalizeStockIdentity(transaction, change)),
       ).rejects.toThrow('identity conflict');
       expect(await database.daily.count()).toBe(2);
     }));
 
-  it('A13 preserves live and unowned retired files, reclaiming only an inactive proven owner', async () =>
-    withSyncDatabase(async (database, directory) => {
-      const root = join(directory, 'maintenance-staging');
-      const retired = join(root, 'ACTIVE1');
-      await mkdir(retired, { recursive: true });
-      await mkdir(join(root, 'UNOWNED'));
-      const manifest = {
-        protocol: 2,
-        id: 'ACTIVE1',
-        command: 'daily',
-        timestamp: fetchedAt.toISOString(),
-        phase: 'preparing',
-        snapshot: { schemaHash: 'fixture', baseRevision: 0, tables: [] },
-        changes: [],
-      };
-      await writeFile(join(retired, 'manifest.json'), JSON.stringify(manifest));
-      await writeFile(join(retired, 'candidate.db'), 'fixture candidate');
-      await database.maintenanceRun.create({
-        data: {
-          id: 'ACTIVE1',
-          kind: 'daily',
-          targetKey: 'candidate:ACTIVE1',
-          trigger: 'manual',
-          status: 'error',
-          stage: 'retired',
-          summary: manifest,
-        },
-      });
-      await withMaintenanceLock(async () => {
-        const owner = await acquireWorkOwner('postprocess', 'ACTIVE1');
-        try {
-          expect(await cleanRetiredSyncResources()).toEqual(
-            expect.arrayContaining([
-              expect.stringContaining('active retired resource'),
-              expect.stringContaining('unverified retired resource'),
-            ]),
-          );
-          expect(await readFile(join(retired, 'candidate.db'), 'utf8')).toBe('fixture candidate');
-        } finally {
-          await owner.release();
-        }
-        await cleanRetiredSyncResources();
-        await expect(access(retired)).rejects.toMatchObject({ code: 'ENOENT' });
-        await expect(access(join(root, 'UNOWNED'))).resolves.toBeUndefined();
-      });
-    }));
+  it(
+    'A13 leaves legacy candidate directories untouched during normal synchronization',
+    async () =>
+      withSyncDatabase(async (_database, directory) => {
+        const retired = join(directory, 'maintenance-staging', 'UNOWNED');
+        await mkdir(retired, { recursive: true });
+        await writeFile(join(retired, 'candidate.db'), 'fixture candidate');
+        await synchronizeData({
+          targetDate: '20260915',
+          startedAt: fetchedAt,
+          providers: providers(),
+          onLog: () => {},
+        });
+        expect(await readFile(join(retired, 'candidate.db'), 'utf8')).toBe('fixture candidate');
+        await expect(access(retired)).resolves.toBeUndefined();
+      }),
+    30_000,
+  );
 });

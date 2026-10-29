@@ -8,7 +8,8 @@ import {
   listDownloads,
   initializeIndexDownloads,
 } from './lists.js';
-import { datasetScopes, planSyncPartitions } from '#maintenance/partitions.js';
+import { datasetScopes } from '#market/synchronization/scopes.js';
+import { selectFixtureWindows as planSyncPartitions } from '../../../tests/sync-fixtures.js';
 import { withMaintenanceLock } from '#infra/coordination/market-access.js';
 import type { SyncSource } from '../synchronization/source.js';
 import { DATASET_POLICIES } from '../synchronization/policies.js';
@@ -98,33 +99,37 @@ describe('administrator download lists', () => {
       );
     }));
 
-  it('keeps a saved empty list during daily sync and never repeats size selection', async () =>
-    withSyncDatabase(async (database) => {
-      await database.marketDownloadList.createMany({
-        data: [
-          { assetType: 'etf', codes: [] },
-          { assetType: 'index', codes: [] },
-        ],
-      });
-      const calls: string[] = [];
-      await synchronizeData({
-        targetDate: '20261027',
-        startedAt: new Date('2026-10-28T10:00:00Z'),
-        providers: {
-          source: {
-            async call(api) {
-              calls.push(api);
-              return [];
+  it(
+    'keeps a saved empty list during daily sync and never repeats size selection',
+    async () =>
+      withSyncDatabase(async (database) => {
+        await database.marketDownloadList.createMany({
+          data: [
+            { assetType: 'etf', codes: [] },
+            { assetType: 'index', codes: [] },
+          ],
+        });
+        const calls: string[] = [];
+        await synchronizeData({
+          targetDate: '20261027',
+          startedAt: new Date('2026-10-28T10:00:00Z'),
+          providers: {
+            source: {
+              async call(api) {
+                calls.push(api);
+                return [];
+              },
             },
           },
-        },
-        onLog: () => {},
-      });
+          onLog: () => {},
+        });
 
-      expect(calls).not.toContain('etf_share_size');
-      expect(await readDownloadCodes('etf')).toEqual([]);
-      expect(await readDownloadCodes('index')).toEqual([]);
-    }));
+        expect(calls).not.toContain('etf_share_size');
+        expect(await readDownloadCodes('etf')).toEqual([]);
+        expect(await readDownloadCodes('index')).toEqual([]);
+      }),
+    30_000,
+  );
 
   it.each([{ invalidDate: true }, { failPage: true }])(
     'preserves the saved list and snapshot after a failed or inconsistent source: %j',

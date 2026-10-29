@@ -35,6 +35,12 @@ export function classifyChangedPaths(changedPaths, manifest) {
       continue;
     }
 
+    if (manifest.fullDeployFiles.includes(changedPath)) {
+      fullDeploy = true;
+      reasons.add(changedPath);
+      continue;
+    }
+
     const components = Object.entries(manifest.components).filter(([, prefixes]) =>
       prefixes.some((prefix) => changedPath.startsWith(prefix)),
     );

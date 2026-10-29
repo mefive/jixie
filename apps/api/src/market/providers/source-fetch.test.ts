@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { fetchMarketSource, readMarketSourceBytes, readMarketSourceText } from './source-fetch.js';
+import {
+  fetchMarketSource,
+  readMarketSourceBytes,
+  readMarketSourceText,
+  withSourceRequestBudget,
+} from './source-fetch.js';
 import { HttpStatusError, isMarketSourceFailure, MarketSourceDownloadError } from '../errors.js';
 
 describe('structured source failures', () => {
@@ -58,4 +63,31 @@ describe('structured source failures', () => {
       });
     },
   );
+});
+
+it('counts every actual request and refuses exhausted, expired or cancelled budgets before fetching', async () => {
+  let requests = 0;
+  const fetcher: typeof fetch = async () => {
+    requests++;
+    return new Response('retryable', { status: 503 });
+  };
+  const budget = { remaining: 2, deadline: Date.now() + 30_000 };
+  await withSourceRequestBudget(budget, async () => {
+    await fetchMarketSource(fetcher, 'https://fixture.invalid');
+    await fetchMarketSource(fetcher, 'https://fixture.invalid');
+    await expect(fetchMarketSource(fetcher, 'https://fixture.invalid')).rejects.toMatchObject({
+      name: 'MarketSyncBudgetError',
+    });
+  });
+  expect(requests).toBe(2);
+  expect(budget.remaining).toBe(0);
+  for (const stopped of [
+    { remaining: 2, deadline: Date.now() - 1 },
+    { remaining: 2, deadline: Date.now() + 30_000, signal: AbortSignal.abort() },
+  ]) {
+    await expect(
+      withSourceRequestBudget(stopped, () => fetchMarketSource(fetcher, 'https://fixture.invalid')),
+    ).rejects.toMatchObject({ name: 'MarketSyncBudgetError' });
+  }
+  expect(requests).toBe(2);
 });

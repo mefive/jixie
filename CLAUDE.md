@@ -198,14 +198,14 @@ Factor / Strategy 对话的嵌入式分析实现与验收记录见
 - `apps/api/src/agent` — core 负责统一模型/工具循环，profiles 选择业务能力；turns 负责后台执行、事件、轨迹和持久化状态，conversations 负责对话关联/历史/实体镜像及消息校验，tools 保留证券检索、数据覆盖、股票池和研究工具，不提供任意 SQL。Strategy Agent 负责依据 SDK 和上下文生成代码及必要校验，回测由用户在工作台显式发起；Research 探索后由用户手动在对应工作台建立草稿，不提供后台回测工具。routes/index.ts 组合 routes/turn.ts，适配 `/api/app/agent` HTTP/SSE；消息归 conversations，执行详情/订阅/取消归 turns；旧图表重查接口已移除。入口和消息顺序见 `src/agent/README.md`。
 - `apps/api/src/backtesting` — 根级 BacktestingEngine/OrderBook/BacktestingContext 分别持有运行、订单与当日上下文，CashPortfolio 负责股票／ETF 现金账户；data 为必填 DataPort/EngineData，factors 的 FactorEvaluator 为引擎内因子求值；adapters 为宿主 Prisma，TS/Python FactorHost 归 strategy/simulation，testing 为共用 fixture。因子源码只在各自沙箱执行，Engine 经独立 FactorExecutionPort 使用计算结果。模拟核心不导入宿主适配器；TS/Python 策略经共享 bridge 使用宿主 Engine，TS bundle 只包含 SDK 与沙箱适配。见 `src/backtesting/README.md`。
 - `apps/api/src/market` — stocks/etfs/indices 按数据领域聚合同步与读取，ETF 基础质量归 etfs；calendar 负责同步/读取及上海 16:00 的 SSE 日期规则，queries 保留股票／ETF／境内指数统一序列；valuation 保留估值计算/读取，fundamentals 承接财报、财务指标和分红。providers/tushare 是数据通道，downloads 保存管理员 CLI 下载名单与最新 ETF 规模，registry 仅保存来源支持范围和固定标识，instruments 负责证券身份及历史代码合并。routes/index.ts 直接组合 routes/instrument.ts、routes/valuation.ts，适配 `/api/app/market` 的 instruments、index-valuations 和 indices 序列。入口见 `src/market/README.md`。Market 不反向导入 Strategy、Research、Agent 或 Maintenance。
-- `apps/api/src/maintenance` — 统一 `data sync` 目标、持久分区计划、有限预算、恢复和短发布编排；来源身份、映射与原始质量归 Market，各消费者判断自己的正式输入资格。`sync.ts` 组合 Market 分区准备和事务接纳；`status.ts` 展示覆盖与真实发布锁，`routes.ts` 保留既有状态接口。旧 daily/weekly/repair/import、整轮候选及财报候选子进程协议已退役，历史控制表只保留历史与部署用途。流程见 `apps/api/src/maintenance/README.md`。
+- `apps/api/src/maintenance` — 统一 `data sync` 目标、实际日期窗口、有限循环、恢复和短发布编排；来源身份、映射与原始质量归 Market，各消费者判断自己的正式输入资格。`sync.ts` 组合 Market 分区准备和事务接纳；`status.ts` 展示覆盖与真实发布锁，`routes.ts` 保留既有状态接口。旧 daily/weekly/repair/import、整轮候选及财报候选子进程协议已退役，通用来源证据及旧控制表退役，MaintenanceRun 仅保留部署用途；分红捕获时间直接存业务列。流程见 `apps/api/src/maintenance/README.md`。
 - `apps/api` — Hono 后端 + `prisma/schema.prisma` + 领域逻辑(`src/research`、`src/factor`、`src/strategy` 等)+ 模块内应用命令(`src/*/cli/`)及审计/探针/研究脚本(`scripts/`)
 - `apps/web` — 登录与工作台前端
 - `apps/docs` — 独立公开文档前端，挂载 `/docs/help/*` 与 `/docs/sdk`
 - `packages/shared` — 共享类型、公开 SDK Contract 和 HTTP 请求契约；依赖方向 `apps/* → packages/*`，反向禁止。HTTP schema 通过 `@jixie/shared/api/<业务>` 子路径导入，不进入根级运行时 barrel；前端只使用 `import type` 引用请求类型。
 - `packages/shared` 编译到 `dist`，实际运行／构建前需 `pnpm --filter @jixie/shared build`（install 时 `prepare` 也会自动构建）。根级 `pnpm typecheck` 在内存中生成最新 shared 声明再检查各应用，不运行构建、不写文件、不依赖旧 dist；各应用保持自己的 TypeScript 配置。
 
-应用 CLI 放在所属模块的 `cli/`，负责参数、配置、调用、输出、退出与进程资源收尾，允许简单同步组合和只为输出服务的查询；可复用业务不导入 CLI，不为每个命令新增转发 service。Market / Maintenance / Auth 的入口统一登记在 `apps/api/scripts/README.md`。独立备份工具 `apps/api/scripts/backup-db.mjs` 保留 Node 内置模块 + sqlite3 CLI 的零 npm 依赖契约，不要求应用构建。
+应用 CLI 放在所属模块的 `cli/`，负责参数、配置、调用、输出、退出与进程资源收尾，允许简单同步组合和只为输出服务的查询；可复用业务不导入 CLI，不为每个命令新增转发 service。Market / Maintenance / Auth 的入口统一登记在 `apps/api/scripts/README.md`。独立备份工具 `apps/api/scripts/backup-db.mjs` 保留 Node 内置模块 + sqlite3 CLI 的零 npm 依赖契约，不要求应用构建。`upgrade-minimal-sync.mjs` 只在停服升级时导出旧分红捕获时间并在迁移后恢复；恢复失败必须保持 API 停止。已完成且超出近期修订范围的历史不自动巡检，未完成历史继续回补。
 
 ## 架构阅读与边界门禁
 

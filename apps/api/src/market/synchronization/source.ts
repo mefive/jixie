@@ -89,18 +89,18 @@ export function sourceValues(
 }
 
 /**
- * 分页结束只描述传输；业务范围证明与删除依据分别保存，等待最终资格核验。
+ * 分页结束只描述传输；领域范围校验和最终交易日核验共同决定是否可替换。
  *
- * Pagination describes transport only; keep business coverage and deletion evidence separate
- * until qualification.
+ * Pagination describes transport only; domain bounds and final session qualification control
+ * replacement.
  */
 export function completeResponse(input: {
   pages: SourcePages;
   table: string;
   records: SourceRecord[];
-  extent: { basis: string; deletion?: string } | null;
+  coverageComplete: boolean;
+  replace?: boolean;
   observedDates?: string[];
-  where?: Record<string, unknown>;
   allowEmpty?: boolean;
   errors?: string[];
 }): PreparedMarketPartition {
@@ -108,19 +108,16 @@ export function completeResponse(input: {
   if (!input.records.length && !input.allowEmpty && !errors.length && !input.pages.deferred) {
     errors.push(`${input.table}: unexplained empty source response`);
   }
-  const complete = input.pages.complete && !errors.length && input.extent !== null;
+  const complete = input.pages.complete && !errors.length && input.coverageComplete;
 
   return {
     tables: [
       {
         table: input.table,
         records: input.records,
-        ...(complete && input.where && input.extent?.deletion
+        ...(complete && input.replace
           ? {
-              replacementRequest: {
-                where: input.where,
-                basis: input.extent.deletion,
-              },
+              replace: true,
             }
           : {}),
       },
@@ -132,10 +129,8 @@ export function completeResponse(input: {
         : complete
           ? 'complete'
           : 'partial',
-    evidence: {
+    checks: {
       terminalPage: input.pages.complete,
-      businessExtent: input.extent?.basis ?? 'unverified',
-      proposedDeletionBasis: input.extent?.deletion ?? 'none',
       emptyResponse: input.pages.rows.length === 0,
       sourceFailed: input.pages.errors.length > 0,
       invalidRows: input.errors?.length ?? 0,

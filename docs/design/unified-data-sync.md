@@ -2,6 +2,8 @@
 
 日期：2026-10-23
 
+> 本文保留历史设计。当前 Maintenance 简化以 [系统裁剪计划第 5 节](system-simplification-plan.md#5-数据维护重新设计) 为准：比例预算、持久游标、全历史巡检、通用来源证据、动态写入和旧候选／副本链均已由新设计取代。新版实现与实际验收见裁剪计划第 28.3–28.4 节，本文仅保留历史要求。
+
 产品方向已由用户确认：daily、weekly、repair、import、sync、canonicalize 合并为一个 sync。用户允许推翻现有设计，不要求旧命令、旧执行协议和旧目录兼容。本文给出产品契约、实施边界及验收标准；具体代码、schema、迁移和提交信息由开发者按 review-gated-development 提交 Gate 1 后实施。
 
 开发交接见 [GPT-6 sol 开发 prompt](unified-data-sync.prompt.md)。完整实现和开发验证完成后，由用户将交付结果带回设计会话，进行独立验收。
@@ -191,9 +193,9 @@ Gate 1 需要给出最小持久化模型，覆盖运行目标与结果、数据�
 
 - [现有维护入口](../../apps/api/src/maintenance/README.md) 与 [命令索引](../../apps/api/scripts/README.md)。
 - [股票同日校验](../../apps/api/src/market/stocks/daily-quality.ts)、[股票同步](../../apps/api/src/market/stocks/daily-sync.ts)、[指数校验](../../apps/api/src/market/indices/daily-quality.ts)。
-- [现有最终收尾](../../apps/api/src/maintenance/staging/finalize.ts) 与 [风险模型就绪](../../apps/api/src/strategy/risk/data-readiness.ts)。
-- [市场派生](../../apps/api/src/market/state/sync.ts)、[市场气象](../../apps/api/src/market/state/weather.ts)、[因子气象](../../apps/api/src/factor/weather/refresh.ts)。
-- [策略取数](../../apps/api/src/backtesting/data/engine-data.ts)、[因子取数](../../apps/api/src/factor/observations/cross-sectional/data.ts)、[Signals 就绪](../../apps/api/src/signals/runs/readiness.ts)。
+- 现有最终收尾（历史路径 `../../apps/api/src/maintenance/staging/finalize.ts`，已退役） 与 风险模型就绪（历史路径 `../../apps/api/src/strategy/risk/data-readiness.ts`，已退役）。
+- 市场派生（历史路径 `../../apps/api/src/market/state/sync.ts`，已退役）、市场气象（历史路径 `../../apps/api/src/market/state/weather.ts`，已退役）、因子气象（历史路径 `../../apps/api/src/factor/weather/refresh.ts`，已退役）。
+- [策略取数](../../apps/api/src/backtesting/data/engine-data.ts)、[因子取数](../../apps/api/src/factor/observations/cross-sectional/data.ts)、Signals 就绪（历史路径 `../../apps/api/src/signals/runs/readiness.ts`，已退役）。
 - [后端边界](../backend-boundaries.md)、[运行入口](../backend-runtime-entries.md)、[部署脚本](../../scripts/bootstrap.sh)。
 
 这些文件用于发现真实调用方和风险，不要求沿用其架构。相关旧设计保留为历史记录，并在仍作为现行导航的地方标明本设计的替代关系。

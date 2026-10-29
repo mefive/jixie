@@ -47,7 +47,6 @@ export async function prepareIndexPartition(
           tradeDate: sourceString(row, 'trade_date'),
           weight: row.weight,
         },
-        availabilityQuality: 'latest_only',
       }));
       const codes = new Set(snapshot.records.map((record) => record.values.conCode));
       const sum = snapshot.records.reduce(
@@ -83,7 +82,7 @@ export async function prepareIndexPartition(
     const prepared = completeResponse({
       pages,
       table: 'IndexWeight',
-      extent: { basis: 'Unique constituents with a validated total weight' },
+      coverageComplete: true,
       records,
       errors,
       observedDates: completeDates,
@@ -92,11 +91,7 @@ export async function prepareIndexPartition(
       table: 'IndexWeight',
       atomic: true,
       records: records.filter((record) => record.values.tradeDate === date),
-      replacementRequest: {
-        basis: 'Validated complete constituent snapshot',
-        independent: true,
-        where: { indexCode: partition.scope, tradeDate: date },
-      },
+      replace: true,
     }));
 
     return prepared;
@@ -151,25 +146,17 @@ export async function prepareIndexPartition(
 
     return {
       values: sourceValues(row, definition.columns),
-      availableDate: typeof row.trade_date === 'string' ? row.trade_date : null,
-      availabilityQuality: 'source_contract',
     };
   });
 
   return completeResponse({
     pages,
     table: definition.table,
-    extent: {
-      basis: 'Filtered index source contract',
-      deletion: 'Exact index series after session qualification',
-    },
+    coverageComplete: true,
+    replace: true,
     ...mapped,
     observedDates: mapped.records.flatMap((record) =>
       typeof record.values.tradeDate === 'string' ? [record.values.tradeDate] : [],
     ),
-    where: {
-      tsCode: partition.scope,
-      tradeDate: { gte: partition.startDate, lte: partition.endDate },
-    },
   });
 }
